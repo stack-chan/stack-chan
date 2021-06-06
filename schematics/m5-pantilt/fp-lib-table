@@ -1,0 +1,4 @@
+(fp_lib_table
+  (lib (name m5-pantilt)(type KiCad)(uri ${KIPRJMOD}/m5-pantilt.pretty)(options "")(descr ""))
+  (lib (name m5mouse)(type KiCad)(uri /work/ghq/github.com/meganetaaan/M5Mouse/schematics/m5mouse/m5mouse.pretty)(options "")(descr ""))
+)

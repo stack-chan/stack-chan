@@ -1,0 +1,4 @@
+Ref,Val,Package,PosX,PosY,Rot,Side
+"J1","Conn_02x15_Odd_Even","PinHeader_2x15_P2.54mm_Vertical_SMD",6.200000,25.000000,0.000000,bottom
+"R1","1k","R_0603_1608Metric_Pad1.05x0.95mm_HandSolder",15.000000,34.000000,180.000000,top
+"R2","100","R_0603_1608Metric_Pad1.05x0.95mm_HandSolder",15.000000,36.000000,180.000000,top

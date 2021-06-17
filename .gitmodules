@@ -1,0 +1,3 @@
+[submodule "firmware/extern/avatar"]
+	path = firmware/extern/avatar
+	url = https://github.com/meganetaaan/moddable-avatar.git

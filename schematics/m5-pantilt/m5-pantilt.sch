@@ -21,6 +21,7 @@ F 0 "U1" H 5750 5625 50  0000 C CNN
 F 1 "NL27WZ125" H 5750 5534 50  0000 C CNN
 F 2 "m5-pantilt:NL27WZ125USG" H 5500 5650 50  0001 C CNN
 F 3 "" H 5500 5650 50  0001 C CNN
+F 4 "" H 5750 5250 50  0001 C CNN "URL"
 	1    5750 5250
 	1    0    0    -1  
 $EndComp
@@ -32,6 +33,7 @@ F 0 "J1" H 3800 5467 50  0000 C CNN
 F 1 "Conn_02x15_Odd_Even" H 3800 5376 50  0000 C CNN
 F 2 "Connector_PinHeader_2.54mm:PinHeader_2x15_P2.54mm_Vertical_SMD" H 3750 4550 50  0001 C CNN
 F 3 "~" H 3750 4550 50  0001 C CNN
+F 4 "https://www.switch-science.com/catalog/3654/" H 3750 4550 50  0001 C CNN "URL"
 	1    3750 4550
 	1    0    0    -1  
 $EndComp
@@ -1564,6 +1566,7 @@ F 0 "R2" V 6843 5150 50  0000 C CNN
 F 1 "100" V 6934 5150 50  0000 C CNN
 F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 6980 5150 50  0001 C CNN
 F 3 "~" H 7050 5150 50  0001 C CNN
+F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57FV" V 7050 5150 50  0001 C CNN "URL"
 	1    7050 5150
 	0    1    1    0   
 $EndComp
@@ -1612,6 +1615,7 @@ F 0 "J2" H 9850 3917 50  0000 C CNN
 F 1 "Conn_02x03_Odd_Even" H 9850 3826 50  0000 C CNN
 F 2 "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical" H 9800 3600 50  0001 C CNN
 F 3 "~" H 9800 3600 50  0001 C CNN
+F 4 "https://akizukidenshi.com/catalog/g/gC-00080/" H 9800 3600 50  0001 C CNN "URL"
 	1    9800 3600
 	1    0    0    -1  
 $EndComp
@@ -1663,6 +1667,7 @@ F 0 "J5" H 1918 5567 50  0000 C CNN
 F 1 "BAT" H 1918 5476 50  0000 C CNN
 F 2 "Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical" H 2000 5350 50  0001 C CNN
 F 3 "~" H 2000 5350 50  0001 C CNN
+F 4 "https://akizukidenshi.com/catalog/g/gC-12802/" H 2000 5350 50  0001 C CNN "URL"
 	1    2000 5350
 	-1   0    0    -1  
 $EndComp
@@ -1778,6 +1783,7 @@ F 0 "C1" V 7402 3300 50  0000 C CNN
 F 1 "100u" V 7311 3300 50  0000 C CNN
 F 2 "Capacitor_THT:C_Radial_D6.3mm_H11.0mm_P2.50mm" H 7188 3150 50  0001 C CNN
 F 3 "~" H 7150 3300 50  0001 C CNN
+F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=46S8-5GL7" V 7150 3300 50  0001 C CNN "URL"
 	1    7150 3300
 	0    -1   -1   0   
 $EndComp
@@ -1886,6 +1892,7 @@ F 0 "R3" H 8170 3946 50  0000 L CNN
 F 1 "1k" H 8170 3855 50  0000 L CNN
 F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8030 3900 50  0001 C CNN
 F 3 "~" H 8100 3900 50  0001 C CNN
+F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57GK" H 8100 3900 50  0001 C CNN "URL"
 	1    8100 3900
 	0    1    1    0   
 $EndComp
@@ -1951,6 +1958,7 @@ F 0 "J4" H 6130 2192 50  0000 L CNN
 F 1 "Conn_01x04" H 6130 2101 50  0000 L CNN
 F 2 "Connector_JST:JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal" H 6050 2200 50  0001 C CNN
 F 3 "~" H 6050 2200 50  0001 C CNN
+F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-55FC" H 6050 2200 50  0001 C CNN "URL"
 	1    6050 2200
 	1    0    0    -1  
 $EndComp

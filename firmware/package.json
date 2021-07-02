@@ -1,0 +1,40 @@
+{
+  "name": "m5-pantilt",
+  "version": "0.0.1",
+  "description": "A firmware of M5Stack pantilt module",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint src/** --ext .ts,.tsx",
+    "lint:fix": "npm run lint --fix",
+    "clean": "rimraf ./build",
+    "build": "npm run clean && tsc && cp manifest*.json build/ && cd build && mcconfig",
+    "debug:linux": "npm run clean && tsc && cp -r assets manifest*.json build/ && cd build && mcconfig -d -m -p lin",
+    "debug:m5stack": "npm run clean && tsc && cp -r assets manifest*.json build/ && cd build && mcconfig -d -m -p esp32/m5stack",
+    "deploy:linux": "npm run clean && tsc && cp manifest*.json build/ && cd build && mcconfig -m -p lin",
+    "deploy:m5stack": "npm run clean && tsc && cp -r assets manifest*.json build/ && cd build && mcconfig -m -p esp32/m5stack"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/meganetaaan/moddable-boilerplate.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/meganetaaan/moddable-boilerplate/issues"
+  },
+  "homepage": "https://github.com/meganetaaan/moddable-boilerplate#readme",
+  "private": true,
+  "devDependencies": {
+    "@meganetaaan/types-moddable": "^0.1.2",
+    "@typescript-eslint/eslint-plugin": "^3.5.0",
+    "@typescript-eslint/parser": "^3.5.0",
+    "eslint": "^7.4.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-prettier": "^3.1.4",
+    "prettier": "^2.0.5",
+    "rimraf": "^3.0.2",
+    "typescript": "^3.9.6"
+  }
+}

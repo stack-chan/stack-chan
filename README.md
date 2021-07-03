@@ -2,7 +2,10 @@
 
 ![stachchan](./docs/images/stackchan.gif)
 
-Video: https://youtu.be/BOrxkAhvjGE
+Stach-chan is a JavaScript-driven M5Stack-embedded super-kawaii robot.
+
+* Video: https://youtu.be/BOrxkAhvjGE
+* Official hashtag: [`#stackchan`](https://twitter.com/search?q=%23stackchan).
 
 ## Features
 
@@ -13,6 +16,7 @@ Video: https://youtu.be/BOrxkAhvjGE
 * :speech_balloon:   Say things
 * :bulb:             Addon M5Units
 * :cyclone:          Drive Serial(TTL)/PWM servos
+* :game_die:         Make applications on your own
 
 ## Contents
 
@@ -34,7 +38,9 @@ TODO
 
 ## Contribution
 
-TODO
+__Feature requests/Bug reports__ are extremely welcome! See [issues](https://github.com/meganetaaan/stack-chan/issues) page to post some.
+
+__Wanna be a sponsor__? It would be my great honor. please visit my [sponsor](https://github.com/sponsors/meganetaaan/) page.
 
 ## License
 

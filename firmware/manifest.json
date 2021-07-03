@@ -1,0 +1,9 @@
+{
+    "includes": [
+        "./extern/manifest_extern.json"
+    ],
+    "modules": {
+
+    },
+    "main": "src/main"
+}

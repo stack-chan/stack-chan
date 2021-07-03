@@ -1,0 +1,20 @@
+{
+  "include": [
+      "$(MODDABLE)/examples/manifest_base.json",
+      "$(MODDABLE)/examples/manifest_piu.json",
+      "$(MODDABLE)/contributed/serial/manifest.json",
+      "./rs30x/manifest-driver.json"
+  ],
+  "resources": {
+    "*": ["./rs30x/assets/images/*"],
+    "*-alpha": ["./rs30x/assets/fonts/*"]
+  },
+  "modules": {
+    "*": ["./main", "./avatar", "./marquee-label", "./balloon", "./emoticon"]
+  },
+  "preload": ["avatar", "marquee-label", "balloon", "emoticon"],
+  "creation": {
+    "static": 131072,
+    "stack": 512
+  }
+}

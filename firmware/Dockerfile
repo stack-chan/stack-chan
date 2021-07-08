@@ -7,3 +7,4 @@ RUN curl -SL https://deb.nodesource.com/setup_14.x | bash \
     nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+RUN npm install -g typescript

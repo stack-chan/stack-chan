@@ -1,0 +1,15 @@
+{
+    "include": [
+        "$(MODDABLE)/examples/manifest_base.json",
+        "$(MODDABLE)/examples/manifest_piu.json",
+        "$(MODDABLE)/examples/manifest_typings.json",
+        "../extern/manifest_extern.json"
+    ],
+    "modules": {
+        "*": "./main"
+    },
+    "creation": {
+        "static": 131072,
+        "stack": 512
+    }
+}

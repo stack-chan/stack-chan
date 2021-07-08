@@ -1,0 +1,162 @@
+{
+	"compilerOptions": {
+		"baseUrl": "./",
+		"forceConsistentCasingInFileNames": true,
+		"module": "es2020",
+		"outDir": "/root/Projects/moddable/build/tmp/esp32/m5stack/debug/stackchan/modules",
+		"paths": {
+			"Resource": [
+				"/root/Projects/moddable/typings/Resource"
+			],
+			"base64": [
+				"/root/Projects/moddable/typings/base64"
+			],
+			"debug": [
+				"/root/Projects/moddable/typings/debug"
+			],
+			"dns": [
+				"/root/Projects/moddable/typings/dns"
+			],
+			"file": [
+				"/root/Projects/moddable/typings/file"
+			],
+			"flash": [
+				"/root/Projects/moddable/typings/flash"
+			],
+			"hex": [
+				"/root/Projects/moddable/typings/hex"
+			],
+			"http": [
+				"/root/Projects/moddable/typings/http"
+			],
+			"instrumentation": [
+				"/root/Projects/moddable/typings/instrumentation"
+			],
+			"mdns": [
+				"/root/Projects/moddable/typings/mdns"
+			],
+			"net": [
+				"/root/Projects/moddable/typings/net"
+			],
+			"ping": [
+				"/root/Projects/moddable/typings/ping"
+			],
+			"preference": [
+				"/root/Projects/moddable/typings/preference"
+			],
+			"sntp": [
+				"/root/Projects/moddable/typings/sntp"
+			],
+			"socket": [
+				"/root/Projects/moddable/typings/socket"
+			],
+			"telnet": [
+				"/root/Projects/moddable/typings/telnet"
+			],
+			"time": [
+				"/root/Projects/moddable/typings/time"
+			],
+			"timer": [
+				"/root/Projects/moddable/typings/timer"
+			],
+			"uuid": [
+				"/root/Projects/moddable/typings/uuid"
+			],
+			"websocket": [
+				"/root/Projects/moddable/typings/websocket"
+			],
+			"wifi": [
+				"/root/Projects/moddable/typings/wifi"
+			],
+			"worker": [
+				"/root/Projects/moddable/typings/worker"
+			],
+			"zip": [
+				"/root/Projects/moddable/typings/zip"
+			],
+			"commodetto/Bitmap": [
+				"/root/Projects/moddable/typings/commodetto/Bitmap"
+			],
+			"commodetto/Poco": [
+				"/root/Projects/moddable/typings/commodetto/Poco"
+			],
+			"commodetto/parseBMF": [
+				"/root/Projects/moddable/typings/commodetto/parseBMF"
+			],
+			"commodetto/parseBMP": [
+				"/root/Projects/moddable/typings/commodetto/parseBMP"
+			],
+			"commodetto/parseRLE": [
+				"/root/Projects/moddable/typings/commodetto/parseRLE"
+			],
+			"commodetto/pixelsout": [
+				"/root/Projects/moddable/typings/commodetto/pixelsout"
+			],
+			"commodetto/readJPEG": [
+				"/root/Projects/moddable/typings/commodetto/readJPEG"
+			],
+			"piu/CombTransition": [
+				"/root/Projects/moddable/typings/piu/CombTransition"
+			],
+			"piu/MC": [
+				"/root/Projects/moddable/typings/piu/MC"
+			],
+			"piu/Sound": [
+				"/root/Projects/moddable/typings/piu/Sound"
+			],
+			"piu/WipeTransition": [
+				"/root/Projects/moddable/typings/piu/WipeTransition"
+			],
+			"dns/parser": [
+				"/root/Projects/moddable/typings/dns/parser"
+			],
+			"dns/serializer": [
+				"/root/Projects/moddable/typings/dns/serializer"
+			],
+			"dns/server": [
+				"/root/Projects/moddable/typings/dns/server"
+			],
+			"mc/config": [
+				"/root/Projects/moddable/typings/mc/config"
+			],
+			"pins/analog": [
+				"/root/Projects/moddable/typings/pins/analog"
+			],
+			"pins/audioin": [
+				"/root/Projects/moddable/typings/pins/audioin"
+			],
+			"pins/audioout": [
+				"/root/Projects/moddable/typings/pins/audioout"
+			],
+			"pins/digital": [
+				"/root/Projects/moddable/typings/pins/digital"
+			],
+			"pins/i2c": [
+				"/root/Projects/moddable/typings/pins/i2c"
+			],
+			"pins/pwm": [
+				"/root/Projects/moddable/typings/pins/pwm"
+			],
+			"pins/servo": [
+				"/root/Projects/moddable/typings/pins/servo"
+			],
+			"pins/smbus": [
+				"/root/Projects/moddable/typings/pins/smbus"
+			],
+			"main": [
+				"/workspaces/stack-chan/firmware/stackchan/main"
+			]
+		},
+		"lib": [
+			"es2020"
+		],
+		"sourceMap": true,
+		"target": "ES2020",
+		"types": [
+			"/root/Projects/moddable/xs/includes/xs"
+		]
+	},
+	"files": [
+		"/workspaces/stack-chan/firmware/stackchan/main.ts"
+	]
+}

@@ -6,15 +6,7 @@
       "./rs30x/manifest-driver.json"
   ],
   "resources": {
-    "*": ["./rs30x/assets/images/*"],
-    "*-alpha": ["./rs30x/assets/fonts/*"]
-  },
-  "modules": {
-    "*": ["./main", "./avatar", "./marquee-label", "./balloon", "./emoticon"]
-  },
-  "preload": ["avatar", "marquee-label", "balloon", "emoticon"],
-  "creation": {
-    "static": 131072,
-    "stack": 512
+    "*": ["./avatar/assets/images/*"],
+    "*-alpha": ["./avatar/assets/fonts/*"]
   }
 }

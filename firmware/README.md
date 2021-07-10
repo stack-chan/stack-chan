@@ -12,7 +12,7 @@
 
 ### (Optional) Using Docker Image
 
-This repository provides the build environment by Dockerfile. You can build, write and debug the firmware inside the Docker container. See [the instruction below](#build-and-launch-docker-container).
+This repository provides the build environment by Dockerfile. You can build, write and debug the firmware inside the Docker container. See [the instruction below](#optional-build-and-launch-docker-container).
 
 ## How to Build and Flash Firmware
 

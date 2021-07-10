@@ -7,5 +7,5 @@ docker run \
     -v /dev:/dev \
     -e DISPLAY=$DISPLAY \
     --net=host \
-    m5stachchan/dev
+    stack-chan/dev
 xhost -local:

@@ -1,2 +1,2 @@
 #!/bin/bash
-docker build . -t m5stachchan/dev
+docker build . -t stack-chan/dev

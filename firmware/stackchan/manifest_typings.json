@@ -1,0 +1,10 @@
+{
+	"modules": {
+        "*": [
+            "../typings/*"
+        ],
+		"piu/*": [
+			"../typings/piu/*"
+		]
+	}
+}

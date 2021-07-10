@@ -3,7 +3,8 @@
         "$(MODDABLE)/examples/manifest_base.json",
         "$(MODDABLE)/examples/manifest_piu.json",
         "$(MODDABLE)/examples/manifest_typings.json",
-        "../extern/manifest_extern.json"
+        "../extern/manifest_extern.json",
+        "./manifest_typings.json"
     ],
     "modules": {
         "*": "./main"

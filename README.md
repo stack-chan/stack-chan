@@ -1,8 +1,8 @@
 # Stack-chan
 
-![stachchan](./docs/images/stackchan.gif)
+![stackchan](./docs/images/stackchan.gif)
 
-Stach-chan is a JavaScript-driven M5Stack-embedded super-kawaii robot.
+Stack-chan is a JavaScript-driven M5Stack-embedded super-kawaii robot.
 
 * Video: https://youtu.be/BOrxkAhvjGE
 * Official hashtag: [`#stackchan` | `#ｽﾀｯｸﾁｬﾝ` (JP)](https://twitter.com/search?q=%23stackchan%20OR%20%23%EF%BD%BD%EF%BE%80%EF%BD%AF%EF%BD%B8%EF%BE%81%EF%BD%AC%EF%BE%9D).

@@ -8,4 +8,4 @@ RUN curl -SL https://deb.nodesource.com/setup_14.x | bash \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 RUN npm install -g typescript
-RUN echo ". /opt/esp/entrypoint.sh" >> /root/.bashrc
+RUN echo ". /opt/esp/idf/export.sh" >> /root/.bashrc

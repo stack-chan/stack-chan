@@ -34,7 +34,7 @@ TODO
 
 ### Flash firmware to M5Stack
 
-TODO
+* See [firmware/README.md](./firmware/README.md)
 
 ## Contribution
 

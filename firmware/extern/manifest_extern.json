@@ -8,5 +8,21 @@
   "resources": {
     "*": ["./avatar/assets/images/*"],
     "*-alpha": ["./avatar/assets/fonts/*"]
-  }
+  },
+  "modules": {
+    "*": [
+      "./avatar/src/avatar",
+      "./avatar/src/balloon",
+      "./avatar/src/emoticon",
+      "./avatar/src/marquee-label",
+      "./rs30x/src/rs30x"
+    ]
+  },
+  "preload": [
+    "avatar",
+    "marquee-label",
+    "balloon",
+    "emoticon",
+    "rs30x"
+  ]
 }

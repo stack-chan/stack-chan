@@ -44,6 +44,9 @@
 			"preference": [
 				"/root/Projects/moddable/typings/preference"
 			],
+			"serial": [
+				"/root/Projects/moddable/typings/serial"
+			],
 			"sntp": [
 				"/root/Projects/moddable/typings/sntp"
 			],
@@ -104,6 +107,9 @@
 			"piu/Sound": [
 				"/root/Projects/moddable/typings/piu/Sound"
 			],
+			"piu/Timeline": [
+				"/root/Projects/moddable/typings/piu/Timeline"
+			],
 			"piu/WipeTransition": [
 				"/root/Projects/moddable/typings/piu/WipeTransition"
 			],
@@ -143,6 +149,21 @@
 			"pins/smbus": [
 				"/root/Projects/moddable/typings/pins/smbus"
 			],
+			"avatar": [
+				"/workspaces/stack-chan/firmware/extern/avatar/src/avatar"
+			],
+			"balloon": [
+				"/workspaces/stack-chan/firmware/extern/avatar/src/balloon"
+			],
+			"emoticon": [
+				"/workspaces/stack-chan/firmware/extern/avatar/src/emoticon"
+			],
+			"marquee-label": [
+				"/workspaces/stack-chan/firmware/extern/avatar/src/marquee-label"
+			],
+			"rs30x": [
+				"/workspaces/stack-chan/firmware/extern/rs30x/src/rs30x"
+			],
 			"main": [
 				"/workspaces/stack-chan/firmware/stackchan/main"
 			]
@@ -157,6 +178,11 @@
 		]
 	},
 	"files": [
+		"/workspaces/stack-chan/firmware/extern/avatar/src/avatar.ts",
+		"/workspaces/stack-chan/firmware/extern/avatar/src/balloon.ts",
+		"/workspaces/stack-chan/firmware/extern/avatar/src/emoticon.ts",
+		"/workspaces/stack-chan/firmware/extern/avatar/src/marquee-label.ts",
+		"/workspaces/stack-chan/firmware/extern/rs30x/src/rs30x.ts",
 		"/workspaces/stack-chan/firmware/stackchan/main.ts"
 	]
 }

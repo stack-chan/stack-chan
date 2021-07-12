@@ -183,6 +183,7 @@
 		"/workspaces/stack-chan/firmware/extern/avatar/src/emoticon.ts",
 		"/workspaces/stack-chan/firmware/extern/avatar/src/marquee-label.ts",
 		"/workspaces/stack-chan/firmware/extern/rs30x/src/rs30x.ts",
-		"/workspaces/stack-chan/firmware/stackchan/main.ts"
+		"/workspaces/stack-chan/firmware/stackchan/main.ts",
+		"/workspaces/stack-chan/firmware/stackchan/robot.ts"
 	]
 }

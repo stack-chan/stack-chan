@@ -6,6 +6,8 @@ import RS30X, { Rotation, RS30XBatch, TorqeMode } from 'rs30x'
 import Avatar from 'avatar'
 import { Application, Skin } from 'piu/MC'
 import MarqueeLabel from 'marquee-label'
+import { Robot, Target } from 'robot'
+import type { Vector3 } from 'robot'
 
 const SPEECH_STR =
   'わが輩は猫である。名前はまだ無い。どこで生れたかとんと見当けんとうがつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。'
@@ -27,18 +29,58 @@ const balloon = new MarqueeLabel({
   string: SPEECH_STR,
 })
 
+const avatar = new Avatar({
+  width: 320,
+  height: 240,
+  name: 'avatar',
+  props: {
+    autoUpdateGaze: false,
+    autoUpdateBreath: false
+  }
+})
+
 const ap = new Application(null, {
   displayListLength: 4096,
   ...fluid,
   skin: new Skin({ fill: 'white' }),
   contents: [
-    new Avatar({
-      width: 320,
-      height: 240,
-      name: 'avatar',
-    }),
+    avatar
   ],
 })
+
+const leftEye = avatar.content("leftEye")
+const rightEye = avatar.content("rightEye")
+
+const robot = new Robot({
+  eyes: [{
+    position: {
+      x: 0.03,
+      y: -0.0085,
+      z: 0.0,
+    },
+    onGazeChange: (yaw, pitch) => {
+      leftEye.delegate("onGazeChange", {
+        x: Math.sin(yaw),
+        y: Math.sin(pitch)
+      })
+    }
+  }, {
+    position: {
+      x: 0.03,
+      y: 0.0085,
+      z: 0.0,
+    },
+    onGazeChange: (yaw, pitch) => {
+      rightEye.delegate("onGazeChange", {
+        x: Math.sin(yaw),
+        y: Math.sin(pitch)
+      })
+    }
+  }]
+})
+
+const target = new Target(0.1, 0.0, 0.0)
+robot.follow(target)
 
 let isMoving = true
 let handler: ReturnType<typeof Timer.set> | null = null
@@ -62,12 +104,14 @@ function stopSpeech() {
 if (global.button != null) {
   global.button.a.onChanged = function () {
     if (this.read()) {
-      startSpeech()
+      // startSpeech()
+      target.y = target.y - 0.01
     }
   }
   global.button.b.onChanged = function () {
     if (this.read()) {
-      stopSpeech()
+      target.y = target.y + 0.01
+      // stopSpeech()
     }
   }
   global.button.c.onChanged = function () {
@@ -95,19 +139,12 @@ const tilt = new RS30X({
   id: 2,
 })
 // tilt.flashId(2)
-pan.setTorqueMode(TorqeMode.ON)
-tilt.setTorqueMode(TorqeMode.ON)
+// pan.setTorqueMode(TorqeMode.ON)
+// tilt.setTorqueMode(TorqeMode.ON)
 tilt.setComplianceSlope(Rotation.CW, 0x24)
 tilt.setComplianceSlope(Rotation.CCW, 0x24)
 
 // const batch = new RS30XBatch([pan, tilt])
-
-Timer.repeat(() => {
-  const status = pan.readStatus()
-  trace(
-    `angle: ${status.angle}, time: ${status.time}, speed: ${status.speed}, current: ${status.current}, voltage: ${status.voltage}\n`
-  )
-}, 100)
 
 function randomBetween(low: number, high: number): number {
   return Math.random() * (high - low) + low
@@ -146,3 +183,13 @@ Timer.set(() => {
 }, 3000)
 */
 
+let count = 0
+Timer.repeat(() => {
+  count += 1
+  target.x = 0.2
+  target.y = 0.2 * Math.sin((Math.PI / 10) * count)
+  const status = pan.readStatus()
+  // trace(
+  //   `angle: ${status.angle}, time: ${status.time}, speed: ${status.speed}, current: ${status.current}, voltage: ${status.voltage}\n`
+  // )
+}, 100)

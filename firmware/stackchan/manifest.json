@@ -7,7 +7,7 @@
         "./manifest_typings.json"
     ],
     "modules": {
-        "*": "./main"
+        "*": ["./main", "./robot"]
     },
     "creation": {
         "static": 131072,

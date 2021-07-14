@@ -31,7 +31,6 @@ function sub(v1: Vector3, v2: Vector3) {
   }
 }
 
-
 export class Target {
   _x: number
   _y: number
@@ -93,6 +92,8 @@ export class Target {
   }
 }
 
+const staticTarget = new Target(0.1, 0, 0)
+
 function defaultEyes(): Eye[] {
   return [{
     position: {
@@ -153,9 +154,7 @@ type Eye = {
 }
 
 export class Robot {
-  onPoseChange: (pose: Pose) => void
   onSaccade: (saccade: { x: number; y: number }) => void
-  // onTargetChange: (targetPosition: Vector3) => void
   _target: Target
   _pose: Pose
   _eyes: Eye[]
@@ -175,8 +174,11 @@ export class Robot {
   }
   async lookAt(target: Vector3) {
   }
+  onPoseChange(pose: Pose) {
+    this._pose = pose
+    this.control()
+  }
   onTargetChange (targetPosition: Vector3) {
-    trace(`targetPosition: ${JSON.stringify(targetPosition)}\n`)
     this.control()
   }
   follow(target: Target) {
@@ -185,7 +187,7 @@ export class Robot {
   }
   unfollow() {
     this._target.onChange = null
-    this._target = null
+    this._target = staticTarget
   }
   control() {
     // 注視点の計算
@@ -193,10 +195,8 @@ export class Robot {
     const v = rotateVector3ByYawAndPitch(this._target, yaw, pitch)
     for (const eye of this._eyes) {
       const relative = sub(v, eye.position)
-      trace(`relative: ${JSON.stringify(relative)}\n`)
       const { yaw, pitch } = getYawPitchFromVector3(relative)
       if (eye.onGazeChange) {
-        trace(`gaze: ${yaw}, ${pitch}\n`)
         eye.onGazeChange(yaw, pitch)
       }
     }

@@ -35,7 +35,7 @@ const avatar = new Avatar({
   name: 'avatar',
   props: {
     autoUpdateGaze: false,
-    autoUpdateBreath: false
+    autoUpdateBreath: true
   }
 })
 
@@ -82,7 +82,8 @@ const robot = new Robot({
 const target = new Target(0.1, 0.0, 0.0)
 robot.follow(target)
 
-let isMoving = true
+let isMoving = false
+let isFollowing = false
 let handler: ReturnType<typeof Timer.set> | null = null
 
 function startSpeech() {
@@ -105,7 +106,12 @@ if (global.button != null) {
   global.button.a.onChanged = function () {
     if (this.read()) {
       // startSpeech()
-      target.y = target.y - 0.01
+      isFollowing = !isFollowing
+      if (isFollowing) {
+        robot.follow(target)
+      } else {
+        robot.unfollow()
+      }
     }
   }
   global.button.b.onChanged = function () {
@@ -164,7 +170,9 @@ function loop() {
   }, time * 1000 + 10)
   handler = Timer.set(loop, randomBetween(2000, 6000))
 }
-handler = Timer.set(loop, 3000)
+if (isMoving) {
+  handler = Timer.set(loop, 3000)
+}
 /*
 Timer.set(() => {
   // batch.playMotion({
@@ -188,8 +196,19 @@ Timer.repeat(() => {
   count += 1
   target.x = 0.2
   target.y = 0.2 * Math.sin((Math.PI / 10) * count)
-  const status = pan.readStatus()
-  // trace(
-  //   `angle: ${status.angle}, time: ${status.time}, speed: ${status.speed}, current: ${status.current}, voltage: ${status.voltage}\n`
-  // )
+  let status = pan.readStatus()
+  const yaw = Math.PI * status.angle / 180
+  trace(
+    `pan...angle: ${status.angle}, time: ${status.time}, speed: ${status.speed}, current: ${status.current}, voltage: ${status.voltage}\n`
+  )
+  status = tilt.readStatus()
+  const pitch = Math.PI * status.angle / 180
+  trace(
+    `tilt...angle: ${status.angle}, time: ${status.time}, speed: ${status.speed}, current: ${status.current}, voltage: ${status.voltage}\n`
+  )
+  robot.onPoseChange({
+    yaw,
+    pitch,
+    roll: 0
+  })
 }, 100)

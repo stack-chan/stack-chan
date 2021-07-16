@@ -3,7 +3,7 @@ import type { Content } from 'piu/MC'
 const TIMEOUT = 2000
 const R = 0.03
 
-type Pose = {
+export type Pose = {
   pitch: number // radian
   yaw: number // radian
   roll: number // radian
@@ -29,6 +29,10 @@ function sub(v1: Vector3, v2: Vector3) {
     y: v1.y - v2.y,
     z: v1.z - v2.z,
   }
+}
+
+function randomBetween(low: number, high: number): number {
+  return Math.random() * (high - low) + low
 }
 
 export class Target {
@@ -153,15 +157,39 @@ type Eye = {
   onGazeChange?: (yaw: number, pitch: number) => unknown,
 }
 
+type Driver = {
+  applyPose: (pose: Pose) => unknown
+  onPoseChanged: (pose: Pose) => unknown
+}
+
+function toRadian(deg: number) {
+  return deg * Math.PI / 180
+}
+
+function toDegree(rad: number) {
+  return rad * 180 / Math.PI
+}
+
+type Saccade = {
+  yaw: number,
+  pitch: number
+}
+
 export class Robot {
-  onSaccade: (saccade: { x: number; y: number }) => void
   _target: Target
   _pose: Pose
   _eyes: Eye[]
+  _driver: Driver
+  _isMoving: boolean
+  _saccade: Saccade
+  _saccadeGain: number
+  _saccadeInterval: number
   constructor(params: {
+    driver: Driver,
     eyes: Eye[]
   }
   ) {
+    this._isMoving = false
     this._pose = {
       yaw: 0.0,
       pitch: 0.0,
@@ -171,14 +199,39 @@ export class Robot {
     for (const eye of params.eyes) {
       this._eyes.push(eye)
     }
+    this._saccade = {
+      yaw: 0.0,
+      pitch: 0.0
+    }
+    this._saccadeGain = 1.0
+    this._saccadeInterval = 300
+    this._driver = params.driver
+    this._driver.onPoseChanged = this.onPoseChange.bind(this)
+    Timer.set(this.saccadeLoop.bind(this), randomBetween(this._saccadeInterval, this._saccadeInterval * 5))
   }
   async lookAt(target: Vector3) {
   }
+  saccadeLoop() {
+    const gain = this._saccadeGain
+    const base = Math.PI / 18
+    const saccade = {
+      yaw: randomBetween(-base * gain, base * gain),
+      pitch: randomBetween(-base * gain, base * gain)
+    }
+    this.onSaccade(saccade)
+    Timer.set(this.saccadeLoop.bind(this), randomBetween(this._saccadeInterval, this._saccadeInterval * 5))
+  }
+  onSaccade(saccade: { yaw: number; pitch: number }) {
+    this._saccade = saccade
+    this.control()
+  }
   onPoseChange(pose: Pose) {
+    trace(`onPoseChange__\t`)
     this._pose = pose
     this.control()
   }
-  onTargetChange (targetPosition: Vector3) {
+  onTargetChange(targetPosition: Vector3) {
+    trace(`onTargetChange__\t`)
     this.control()
   }
   follow(target: Target) {
@@ -190,17 +243,41 @@ export class Robot {
     this._target = staticTarget
   }
   control() {
+    trace(`control___this._isMoving: ${this._isMoving}\n`)
     // 注視点の計算
     const { yaw, pitch } = this._pose
-    const v = rotateVector3ByYawAndPitch(this._target, yaw, pitch)
+    trace(`yaw: ${toDegree(yaw)}, pitch: ${toDegree(pitch)}\n`)
+    const v = rotateVector3ByYawAndPitch(this._target, -yaw, -pitch)
     for (const eye of this._eyes) {
       const relative = sub(v, eye.position)
       const { yaw, pitch } = getYawPitchFromVector3(relative)
       if (eye.onGazeChange) {
-        eye.onGazeChange(yaw, pitch)
+        eye.onGazeChange(yaw + this._saccade.yaw, pitch + this._saccade.pitch)
       }
     }
-    // サッカードを反映する
-    // 各目毎に角度を計算する
+    if (!this._isMoving) {
+      const { yaw: poseYaw, pitch: posePitch } = getYawPitchFromVector3(v)
+      trace(`target angle: (${toDegree(yaw)}, ${toDegree(pitch)})\n`)
+      if (poseYaw > Math.PI / 6 || poseYaw < -Math.PI / 6 || posePitch > Math.PI / 6 || posePitch < -Math.PI / 6) {
+        const tv = {
+          x: this._target.x,
+          y: this._target.y,
+          z: this._target.z
+        }
+        const { yaw, pitch } = getYawPitchFromVector3(tv)
+        this._isMoving = true
+        Timer.set(() => {
+          trace(`this._isMoving: ${this._isMoving} then headding to (${toDegree(yaw)}, ${toDegree(pitch)})\n`)
+          this._driver.applyPose({
+            yaw,
+            pitch,
+            roll: 0,
+          })
+          Timer.set(() => {
+            this._isMoving = false
+          }, 500)
+        }, 50)
+      }
+    }
   }
 }

@@ -7,7 +7,7 @@
         "./manifest_typings.json"
     ],
     "modules": {
-        "*": ["./main", "./robot"]
+        "*": ["./main", "./robot", "./rs30x-driver"]
     },
     "creation": {
         "static": 131072,

@@ -166,7 +166,10 @@
 			],
 			"main": [
 				"/workspaces/stack-chan/firmware/stackchan/main"
-			]
+			],
+			"piu/All": [
+				"/workspaces/stack-chan/firmware/typings/piu/All"
+			],
 		},
 		"lib": [
 			"es2020"

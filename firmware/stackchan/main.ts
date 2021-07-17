@@ -2,7 +2,9 @@ declare const global: any
 
 import Timer from 'timer'
 import Avatar from 'avatar'
-import { Application, Skin } from 'piu/MC'
+import { Application, Color, Skin } from 'piu/MC'
+import { hsl } from 'piu/All'
+import CombTransition from 'piu/CombTransition'
 import MarqueeLabel from 'marquee-label'
 import { Robot, Target } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
@@ -27,16 +29,20 @@ const balloon = new MarqueeLabel({
   string: SPEECH_STR,
 })
 
-const avatar = new Avatar({
-  width: 320,
-  height: 240,
-  name: 'avatar',
-  props: {
-    autoUpdateGaze: false,
-    autoUpdateBreath: true
-  }
-})
+function createAvatar(primaryColor: Color, secondaryColor: Color) {
+  return new Avatar({
+      width: 320,
+      height: 240,
+      name: 'avatar',
+      primaryColor,
+      secondaryColor,
+      props: {
+        autoUpdateGaze: false,
+      },
+  })
+}
 
+let avatar = createAvatar('white', 'black')
 const ap = new Application(null, {
   displayListLength: 4096,
   ...fluid,
@@ -46,37 +52,43 @@ const ap = new Application(null, {
   ],
 })
 
-const leftEye = avatar.content("leftEye")
-const rightEye = avatar.content("rightEye")
+function swapFace(primaryColor, secondaryColor) {
+  const av = createAvatar(primaryColor, secondaryColor)
+  const transition = new CombTransition(250, Math.quadEaseOut, "horizontal", 4);
+  avatar = av
+  ap.run(transition, ap.first, av);
+}
 
 const robot = new Robot({
+  renderer: {
+    render(face) {
+      for (const eye of face.eyes) {
+        const {yaw, pitch} = eye.gaze
+        const eyeContent = avatar.content(eye.name)
+        eyeContent.delegate("onGazeChange", {
+          x: Math.sin(yaw),
+          y: Math.sin(pitch)
+        })
+      }
+    }
+  },
   driver: new RS30XDriver({
     panId: 0x01, tiltId: 0x02
   }),
   eyes: [{
+    name: 'leftEye',
     position: {
       x: 0.03,
       y: -0.0085,
       z: 0.0,
     },
-    onGazeChange: (yaw, pitch) => {
-      leftEye.delegate("onGazeChange", {
-        x: Math.sin(yaw),
-        y: Math.sin(pitch)
-      })
-    }
   }, {
+    name: 'rightEye',
     position: {
       x: 0.03,
       y: 0.0085,
       z: 0.0,
     },
-    onGazeChange: (yaw, pitch) => {
-      rightEye.delegate("onGazeChange", {
-        x: Math.sin(yaw),
-        y: Math.sin(pitch)
-      })
-    }
   }]
 })
 
@@ -104,7 +116,6 @@ function stopSpeech() {
 if (global.button != null) {
   global.button.a.onChanged = function () {
     if (this.read()) {
-      // startSpeech()
       isFollowing = !isFollowing
       if (isFollowing) {
         robot.follow(target)
@@ -115,8 +126,9 @@ if (global.button != null) {
   }
   global.button.b.onChanged = function () {
     if (this.read()) {
-      target.y = target.y + 0.01
-      // stopSpeech()
+      const primaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
+      const secondaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
+      swapFace(primaryColor, secondaryColor)
     }
   }
 }
@@ -138,12 +150,3 @@ const targetLoop = () => {
 }
 
 Timer.repeat(targetLoop, 5000)
-
-let count = 0
-/*
-Timer.repeat(() => {
-  count += 1
-  target.x = 0.2
-  target.y = 0.2 * Math.sin((Math.PI / 10) * count)
-}, 100)
-*/

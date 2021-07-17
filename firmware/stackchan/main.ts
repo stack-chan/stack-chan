@@ -1,13 +1,13 @@
 declare const global: any
 
 import Timer from 'timer'
-import RS30X, { Rotation, RS30XBatch, TorqeMode } from 'rs30x'
-
 import Avatar from 'avatar'
-import { Application, Skin } from 'piu/MC'
+import { Application, Color, Skin } from 'piu/MC'
+import { hsl } from 'piu/All'
+import CombTransition from 'piu/CombTransition'
 import MarqueeLabel from 'marquee-label'
 import { Robot, Target } from 'robot'
-import type { Vector3 } from 'robot'
+import { RS30XDriver } from 'rs30x-driver'
 
 const SPEECH_STR =
   'わが輩は猫である。名前はまだ無い。どこで生れたかとんと見当けんとうがつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。'
@@ -29,16 +29,20 @@ const balloon = new MarqueeLabel({
   string: SPEECH_STR,
 })
 
-const avatar = new Avatar({
-  width: 320,
-  height: 240,
-  name: 'avatar',
-  props: {
-    autoUpdateGaze: false,
-    autoUpdateBreath: false
-  }
-})
+function createAvatar(primaryColor: Color, secondaryColor: Color) {
+  return new Avatar({
+      width: 320,
+      height: 240,
+      name: 'avatar',
+      primaryColor,
+      secondaryColor,
+      props: {
+        autoUpdateGaze: false,
+      },
+  })
+}
 
+let avatar = createAvatar('white', 'black')
 const ap = new Application(null, {
   displayListLength: 4096,
   ...fluid,
@@ -48,42 +52,50 @@ const ap = new Application(null, {
   ],
 })
 
-const leftEye = avatar.content("leftEye")
-const rightEye = avatar.content("rightEye")
+function swapFace(primaryColor, secondaryColor) {
+  const av = createAvatar(primaryColor, secondaryColor)
+  const transition = new CombTransition(250, Math.quadEaseOut, "horizontal", 4);
+  avatar = av
+  ap.run(transition, ap.first, av);
+}
 
 const robot = new Robot({
+  renderer: {
+    render(face) {
+      for (const eye of face.eyes) {
+        const {yaw, pitch} = eye.gaze
+        const eyeContent = avatar.content(eye.name)
+        eyeContent.delegate("onGazeChange", {
+          x: Math.sin(yaw),
+          y: Math.sin(pitch)
+        })
+      }
+    }
+  },
+  driver: new RS30XDriver({
+    panId: 0x01, tiltId: 0x02
+  }),
   eyes: [{
+    name: 'leftEye',
     position: {
       x: 0.03,
       y: -0.0085,
       z: 0.0,
     },
-    onGazeChange: (yaw, pitch) => {
-      leftEye.delegate("onGazeChange", {
-        x: Math.sin(yaw),
-        y: Math.sin(pitch)
-      })
-    }
   }, {
+    name: 'rightEye',
     position: {
       x: 0.03,
       y: 0.0085,
       z: 0.0,
     },
-    onGazeChange: (yaw, pitch) => {
-      rightEye.delegate("onGazeChange", {
-        x: Math.sin(yaw),
-        y: Math.sin(pitch)
-      })
-    }
   }]
 })
 
-const target = new Target(0.1, 0.0, 0.0)
+const target = new Target(0.1, 0.0, -0.03)
 robot.follow(target)
 
-let isMoving = true
-let handler: ReturnType<typeof Timer.set> | null = null
+let isFollowing = false
 
 function startSpeech() {
   if (ap.content('balloon') == null) {
@@ -104,92 +116,37 @@ function stopSpeech() {
 if (global.button != null) {
   global.button.a.onChanged = function () {
     if (this.read()) {
-      // startSpeech()
-      target.y = target.y - 0.01
+      isFollowing = !isFollowing
+      if (isFollowing) {
+        robot.follow(target)
+      } else {
+        robot.unfollow()
+      }
     }
   }
   global.button.b.onChanged = function () {
     if (this.read()) {
-      target.y = target.y + 0.01
-      // stopSpeech()
-    }
-  }
-  global.button.c.onChanged = function () {
-    if (this.read()) {
-      if (isMoving) {
-        if (handler != null) {
-          Timer.clear(handler)
-          handler = null
-        }
-        isMoving = false
-      } else {
-        if (handler == null) {
-          handler = Timer.set(loop, 300)
-        }
-        isMoving = true
-      }
+      const primaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
+      const secondaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
+      swapFace(primaryColor, secondaryColor)
     }
   }
 }
-
-const pan = new RS30X({
-  id: 1,
-})
-const tilt = new RS30X({
-  id: 2,
-})
-// tilt.flashId(2)
-// pan.setTorqueMode(TorqeMode.ON)
-// tilt.setTorqueMode(TorqeMode.ON)
-tilt.setComplianceSlope(Rotation.CW, 0x24)
-tilt.setComplianceSlope(Rotation.CCW, 0x24)
-
-// const batch = new RS30XBatch([pan, tilt])
 
 function randomBetween(low: number, high: number): number {
   return Math.random() * (high - low) + low
 }
 
-function loop() {
-  pan.setTorqueMode(TorqeMode.ON)
-  tilt.setTorqueMode(TorqeMode.ON)
-  const time = randomBetween(0.3, 1.2)
-  const panAngle = randomBetween(-30, 30)
-  pan.setAngleInTime(panAngle, time)
-  const tiltAngle = randomBetween(-10, 30)
-  tilt.setAngleInTime(tiltAngle, time)
-  Timer.set(() => {
-    pan.setTorqueMode(TorqeMode.OFF)
-    tilt.setTorqueMode(TorqeMode.OFF)
-  }, time * 1000 + 10)
-  handler = Timer.set(loop, randomBetween(2000, 6000))
+let isLeft = true
+const targetLoop = () => {
+  const x = 0.2 // randomBetween(0.2, 1.0)
+  const y = isLeft ? 0.2 : -0.0 // randomBetween(-1.0, 1.0)
+  const z = 0.0 // randomBetween(0.0, 1.0)
+  trace(`looking at: (${x}, ${y}, ${z})\n`)
+  target.x = x
+  target.y = y
+  target.z = z
+  isLeft = !isLeft
 }
-handler = Timer.set(loop, 3000)
-/*
-Timer.set(() => {
-  // batch.playMotion({
-  //   duration: 2000,
-  //   cuePoints: [0, 0.1, 0.2, 0.3, 0.5, 1.0],
-  //   keyFrames: [
-  //     [null, null, null, -20, null, 20],
-  //     [null, -20, null, 0, null, -20],
-  //   ],
-  // })
-  const time = randomBetween(0.3, 1.2)
-  const panAngle = randomBetween(-30, 30)
-  pan.setAngleInTime(panAngle, time)
-  const tiltAngle = randomBetween(-10, 30)
-  tilt.setAngleInTime(tiltAngle, time)
-}, 3000)
-*/
 
-let count = 0
-Timer.repeat(() => {
-  count += 1
-  target.x = 0.2
-  target.y = 0.2 * Math.sin((Math.PI / 10) * count)
-  const status = pan.readStatus()
-  // trace(
-  //   `angle: ${status.angle}, time: ${status.time}, speed: ${status.speed}, current: ${status.current}, voltage: ${status.voltage}\n`
-  // )
-}, 100)
+Timer.repeat(targetLoop, 5000)

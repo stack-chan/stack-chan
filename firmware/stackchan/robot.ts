@@ -1,5 +1,6 @@
 import Timer from 'timer'
 import type { Content } from 'piu/MC'
+import { Emotion } from 'avatar'
 const TIMEOUT = 2000
 const R = 0.03
 
@@ -98,14 +99,16 @@ export class Target {
 
 const staticTarget = new Target(0.1, 0, 0)
 
-function defaultEyes(): Eye[] {
+export function defaultEyes(): Eye[] {
   return [{
+    name: 'leftEye',
     position: {
       x: 0.03,
       y: 0.009,
       z: 0,
     }
   }, {
+    name: 'rightEye',
     position: {
       x: 0.03,
       y: -0.009,
@@ -153,8 +156,39 @@ function rotateVector3ByYawAndPitch(v: Vector3, yaw: number, pitch: number) {
 }
 
 type Eye = {
+  name: string,
   position: Vector3,
-  onGazeChange?: (yaw: number, pitch: number) => unknown,
+}
+
+// type Emotion = 
+//   | 'angry'
+//   | 'disgusted'
+//   | 'fearful'
+//   | 'happy'
+//   | 'sad'
+//   | 'surprised'
+//   | 'neutral'
+
+type MouthState = {
+  open: number
+}
+
+type EyeState = {
+  name: string,
+  gaze: {
+    yaw: number,
+    pitch: number,
+  }
+}
+
+type FaceContext = {
+    eyes: EyeState[]
+    emotion: Emotion
+    mouth: MouthState
+  }
+
+type Renderer = {
+  render: (faceContext: FaceContext) => unknown
 }
 
 type Driver = {
@@ -184,11 +218,14 @@ export class Robot {
   _saccade: Saccade
   _saccadeGain: number
   _saccadeInterval: number
+  _renderer: Renderer
   constructor(params: {
     driver: Driver,
-    eyes: Eye[]
+    renderer: Renderer,
+    eyes: Eye[],
   }
   ) {
+    this._renderer = params.renderer
     this._isMoving = false
     this._pose = {
       yaw: 0.0,
@@ -248,13 +285,25 @@ export class Robot {
     const { yaw, pitch } = this._pose
     trace(`yaw: ${toDegree(yaw)}, pitch: ${toDegree(pitch)}\n`)
     const v = rotateVector3ByYawAndPitch(this._target, -yaw, -pitch)
+    const face: FaceContext = {
+      emotion: Emotion.NEUTRAL,
+      eyes: [] as { name: string, gaze: { yaw: number, pitch: number } }[],
+      mouth: {
+        open: 1.0
+      }
+    }
     for (const eye of this._eyes) {
       const relative = sub(v, eye.position)
       const { yaw, pitch } = getYawPitchFromVector3(relative)
-      if (eye.onGazeChange) {
-        eye.onGazeChange(yaw + this._saccade.yaw, pitch + this._saccade.pitch)
-      }
+      face.eyes.push({
+        name: eye.name,
+        gaze: {
+          yaw,
+          pitch,
+        }
+      })
     }
+    this._renderer.render(face)
     if (!this._isMoving) {
       const { yaw: poseYaw, pitch: posePitch } = getYawPitchFromVector3(v)
       trace(`target angle: (${toDegree(yaw)}, ${toDegree(pitch)})\n`)

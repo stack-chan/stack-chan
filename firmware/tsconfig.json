@@ -170,6 +170,9 @@
 			"piu/All": [
 				"/workspaces/stack-chan/firmware/typings/piu/All"
 			],
+			"modules": [
+				"/workspaces/stack-chan/firmware/typings/modules"
+			],
 		},
 		"lib": [
 			"es2020"
@@ -188,6 +191,7 @@
 		"/workspaces/stack-chan/firmware/extern/rs30x/src/rs30x.ts",
 		"/workspaces/stack-chan/firmware/stackchan/main.ts",
 		"/workspaces/stack-chan/firmware/stackchan/robot.ts",
+		"/workspaces/stack-chan/firmware/mods/talk/main.ts",
 		"/workspaces/stack-chan/firmware/stackchan/rs30x-driver.ts"
 	]
 }

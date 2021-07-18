@@ -1,0 +1,17 @@
+{
+  "include": [
+    "../../stackchan/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json"
+  ],
+  "modules": {
+    "*": [
+      "../../extern/avatar/src/avatar",
+      "../../extern/avatar/src/marquee-label",
+      "../../extern/avatar/src/balloon",
+      "../../extern/avatar/src/emoticon"
+    ]
+  },
+  "preload": ["avatar", "marquee-label", "balloon", "emoticon"]
+}

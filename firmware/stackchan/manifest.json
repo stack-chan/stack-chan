@@ -1,8 +1,13 @@
 {
+    "defines": {
+        "XS_MODS": 1
+    },
     "include": [
         "$(MODDABLE)/examples/manifest_base.json",
         "$(MODDABLE)/examples/manifest_piu.json",
         "$(MODDABLE)/examples/manifest_typings.json",
+        "$(MODDABLE)/examples/manifest_mod.json",
+        "$(MODDABLE)/modules/base/modules/manifest.json",
         "../extern/manifest_extern.json",
         "./manifest_typings.json"
     ],
@@ -11,6 +16,9 @@
     },
     "creation": {
         "static": 131072,
-        "stack": 512
+        "stack": 512,
+        "keys": {
+            "available": 128
+        }
     }
 }

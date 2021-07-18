@@ -35,8 +35,8 @@ let avatar
 let onLaunch
 let onButtonChange
 
-trace(`${JSON.stringify(Modules.archive)}\n`)
-trace(`${JSON.stringify(Modules.host)}\n`)
+trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
+trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
 
 if (Modules.has("mod")) {
   const mod = Modules.importNow("mod")
@@ -132,10 +132,6 @@ if (global.button != null) {
   global.button.c.onChanged = function () {
     if (typeof onButtonChange === "function") {
       onButtonChange("C", this.read())
-    } else if (this.read()) {
-      const primaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
-      const secondaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
-      swapFace(primaryColor, secondaryColor)
     }
   }
 }
@@ -146,9 +142,9 @@ function randomBetween(low: number, high: number): number {
 
 let isLeft = true
 const targetLoop = () => {
-  const x = 0.2 // randomBetween(0.2, 1.0)
-  const y = isLeft ? 0.2 : -0.0 // randomBetween(-1.0, 1.0)
-  const z = 0.0 // randomBetween(0.0, 1.0)
+  const x = randomBetween(0.4, 1.0)
+  const y = randomBetween(-0.4, 0.4)
+  const z = randomBetween(-0.02, 0.2)
   trace(`looking at: (${x}, ${y}, ${z})\n`)
   target.x = x
   target.y = y

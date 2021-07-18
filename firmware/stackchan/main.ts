@@ -2,15 +2,12 @@ declare const global: any
 
 import Timer from 'timer'
 import Avatar from 'avatar'
-import { Application, Color, Skin } from 'piu/MC'
+import Modules from 'modules'
+import { Application, Color, Container, Skin } from 'piu/MC'
 import { hsl } from 'piu/All'
 import CombTransition from 'piu/CombTransition'
-import MarqueeLabel from 'marquee-label'
 import { Robot, Target } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
-
-const SPEECH_STR =
-  'わが輩は猫である。名前はまだ無い。どこで生れたかとんと見当けんとうがつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。'
 
 const fluid = {
   top: 0,
@@ -18,16 +15,6 @@ const fluid = {
   bottom: 0,
   left: 0,
 }
-
-const balloon = new MarqueeLabel({
-  state: 0,
-  bottom: 10,
-  right: 10,
-  width: 180,
-  height: 40,
-  name: 'balloon',
-  string: SPEECH_STR,
-})
 
 function createAvatar(primaryColor: Color, secondaryColor: Color) {
   return new Avatar({
@@ -42,20 +29,39 @@ function createAvatar(primaryColor: Color, secondaryColor: Color) {
   })
 }
 
-let avatar = createAvatar('white', 'black')
-const ap = new Application(null, {
-  displayListLength: 4096,
-  ...fluid,
-  skin: new Skin({ fill: 'white' }),
-  contents: [
-    avatar
-  ],
-})
+let ap: Application
+let avatar
+
+let onLaunch
+let onButtonChange
+
+trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
+trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
+
+if (Modules.has("mod")) {
+  const mod = Modules.importNow("mod")
+  onLaunch = mod.onLaunch
+  onButtonChange = mod.onButtonChange
+  if (typeof onLaunch === "function") {
+    ap = onLaunch()
+  }
+}
+
+if (ap == null) {
+  avatar = createAvatar('white', 'black')
+  ap = new Application(null, {
+    displayListLength: 4096,
+    ...fluid,
+    skin: new Skin({ fill: 'white' }),
+    contents: [
+      avatar
+    ],
+  })
+}
 
 function swapFace(primaryColor, secondaryColor) {
   const av = createAvatar(primaryColor, secondaryColor)
   const transition = new CombTransition(250, Math.quadEaseOut, "horizontal", 4);
-  avatar = av
   ap.run(transition, ap.first, av);
 }
 
@@ -63,7 +69,11 @@ const robot = new Robot({
   renderer: {
     render(face) {
       for (const eye of face.eyes) {
-        const {yaw, pitch} = eye.gaze
+        const avatar = ap.content("avatar") as Container
+        if (avatar == null) {
+          return
+        }
+        const { yaw, pitch } = eye.gaze
         const eyeContent = avatar.content(eye.name)
         eyeContent.delegate("onGazeChange", {
           x: Math.sin(yaw),
@@ -97,25 +107,11 @@ robot.follow(target)
 
 let isFollowing = false
 
-function startSpeech() {
-  if (ap.content('balloon') == null) {
-    ap.add(balloon)
-    const avatar = ap.content('avatar')
-    avatar && avatar.delegate('startSpeech')
-  }
-}
-
-function stopSpeech() {
-  if (ap.content('balloon') != null) {
-    ap.remove(balloon)
-    const avatar = ap.content('avatar')
-    avatar && avatar.delegate('stopSpeech')
-  }
-}
-
 if (global.button != null) {
   global.button.a.onChanged = function () {
-    if (this.read()) {
+    if (typeof onButtonChange === "function") {
+      onButtonChange("A", this.read())
+    } else if (this.read()) {
       isFollowing = !isFollowing
       if (isFollowing) {
         robot.follow(target)
@@ -125,10 +121,17 @@ if (global.button != null) {
     }
   }
   global.button.b.onChanged = function () {
-    if (this.read()) {
+    if (typeof onButtonChange === "function") {
+      onButtonChange("B", this.read())
+    } else if (this.read()) {
       const primaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
       const secondaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
       swapFace(primaryColor, secondaryColor)
+    }
+  }
+  global.button.c.onChanged = function () {
+    if (typeof onButtonChange === "function") {
+      onButtonChange("C", this.read())
     }
   }
 }
@@ -139,9 +142,9 @@ function randomBetween(low: number, high: number): number {
 
 let isLeft = true
 const targetLoop = () => {
-  const x = 0.2 // randomBetween(0.2, 1.0)
-  const y = isLeft ? 0.2 : -0.0 // randomBetween(-1.0, 1.0)
-  const z = 0.0 // randomBetween(0.0, 1.0)
+  const x = randomBetween(0.4, 1.0)
+  const y = randomBetween(-0.4, 0.4)
+  const z = randomBetween(-0.02, 0.2)
   trace(`looking at: (${x}, ${y}, ${z})\n`)
   target.x = x
   target.y = y

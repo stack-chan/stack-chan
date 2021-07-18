@@ -1,21 +1,8 @@
-/*
-import { Application, Color } from "piu/MC"
-import MarqueeLabel from 'marquee-label'
-import Avatar from 'avatar'
-*/
-/* global Application, Color, MarqueeLabel, Avatar */
+import Timer from 'timer'
 import Avatar from 'avatar'
 import MarqueeLabel from 'marquee-label'
-import { Application, Color, Container, Skin } from 'piu/MC'
-/*
-declare const Application: any
-declare const Avatar: any
-declare const Skin: any
-declare type Color = any
-declare const MarqueeLabel: any
-*/
-
-let ap: typeof Application
+import { Application, Container, Skin } from 'piu/MC'
+let ap
 
 const fluid = {
   top: 0,
@@ -40,7 +27,7 @@ function stopSpeech() {
   }
 }
 
-function createAvatar(primaryColor: Color, secondaryColor: Color) {
+function createAvatar(primaryColor, secondaryColor) {
   return new Avatar({
       width: 320,
       height: 240,
@@ -52,11 +39,6 @@ function createAvatar(primaryColor: Color, secondaryColor: Color) {
       },
   })
 }
-
-type Button =
-    "A"
-  | "B"
-  | "C"
 
 const SPEECH_STR =
   'わが輩は猫である。名前はまだ無い。どこで生れたかとんと見当けんとうがつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。'
@@ -71,10 +53,6 @@ const balloon = new MarqueeLabel({
   string: SPEECH_STR,
 })
 
-type ButtonState =
-    "Pressed"
-  | "Released"
-
 function onLaunch() {
   ap = new Application(null, {
     displayListLength: 4096,
@@ -87,10 +65,10 @@ function onLaunch() {
   return ap
 }
 
-function onButtonChange(button: Button, state: ButtonState) {
-  if (button === "A" && state === "Pressed") {
+function onButtonChange(button, pressed) {
+  if (button === "A" && pressed) {
     startSpeech()
-  } else if (button === "A" && state === "Pressed") {
+  } else if (button === "B" && pressed) {
     stopSpeech()
   }
 }

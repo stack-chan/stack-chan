@@ -55,7 +55,7 @@ Tested with:
 
 #### Soldering
 
-1. Change direction of J1 and J2. Cut the left patterns and solder right patterns of them.<br><img width="500px" src="./docs/images/pwm_jumper.jpg" />
+1. Change direction of JP1 and JP2. Cut the left patterns and solder right patterns of them.<br><img width="500px" src="./docs/images/pwm_jumper.jpg" />
 1. Solder 1kΩ resistor on R3 and R4.
 1. Solder Capacitor on C1, bend it and fit it in the hole.<br><img width="500px" src="./docs/images/pwm_resistor.jpg" />
 1. Solder pin headers. and PH 2-pin connector<br><img width="500px" src="./docs/images/pwm_header.jpg" />

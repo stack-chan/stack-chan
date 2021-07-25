@@ -8,6 +8,10 @@ Currently the [case data](https://a360.co/3gcw960) is developed with Fusion360.
 
 ### Parts
 
+* 3D-printed cases
+  * Shell
+  * Feet
+  * Bracket
 * M5Stack Core Basic/Gray/Go/Fire
 * [Stack-chan board](../schematics/README.md)
 * Two servos

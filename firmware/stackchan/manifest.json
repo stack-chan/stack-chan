@@ -23,6 +23,7 @@
     "preload": [
         "http"
     ],
+    "strip": [],
     "creation": {
         "static": 131072,
         "stack": 512,

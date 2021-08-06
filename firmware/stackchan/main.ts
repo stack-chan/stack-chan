@@ -34,6 +34,8 @@ let avatar
 
 let onLaunch
 let onButtonChange
+let onRobotCreated
+let autoLoop = true
 
 trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
 trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
@@ -42,6 +44,8 @@ if (Modules.has("mod")) {
   const mod = Modules.importNow("mod")
   onLaunch = mod.onLaunch
   onButtonChange = mod.onButtonChange
+  onRobotCreated = mod.onRobotCreated
+  autoLoop = mod.autoLoop ?? true
   if (typeof onLaunch === "function") {
     ap = onLaunch()
   }
@@ -102,8 +106,13 @@ const robot = new Robot({
   }]
 })
 
-const target = new Target(0.1, 0.0, -0.03)
-robot.follow(target)
+let target
+if (typeof onRobotCreated === "function") {
+  onRobotCreated(robot)
+} else {
+  target = new Target(0.1, 0.0, -0.03)
+  robot.follow(target)
+}
 
 let isFollowing = false
 
@@ -140,16 +149,18 @@ function randomBetween(low: number, high: number): number {
   return Math.random() * (high - low) + low
 }
 
-let isLeft = true
 const targetLoop = () => {
   const x = randomBetween(0.4, 1.0)
   const y = randomBetween(-0.4, 0.4)
   const z = randomBetween(-0.02, 0.2)
-  trace(`looking at: (${x}, ${y}, ${z})\n`)
-  target.x = x
-  target.y = y
-  target.z = z
-  isLeft = !isLeft
+  if (target != null) {
+    trace(`looking at: (${x}, ${y}, ${z})\n`)
+    target.x = x
+    target.y = y
+    target.z = z
+  }
 }
 
-Timer.repeat(targetLoop, 5000)
+if (autoLoop) {
+  Timer.repeat(targetLoop, 5000)
+}

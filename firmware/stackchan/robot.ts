@@ -271,7 +271,11 @@ export class Robot {
     trace(`onTargetChange__\t`)
     this.control()
   }
-  follow(target: Target) {
+  follow(target?: Target) {
+    if (target == null) {
+      trace('no target specified\n')
+      return
+    }
     this._target = target
     this._target.onChange = this.onTargetChange.bind(this)
   }

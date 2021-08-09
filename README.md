@@ -30,7 +30,7 @@ This repository includes all the component of the robot.
 
 ### Assemble board
 
-* See [case/README.md](./schematics/README.md) and [case/README.md](./case/README.md)
+* See [schematics/README.md](./schematics/README.md) and [case/README.md](./case/README.md)
 * OR You can get a pre-assembled module(COMING SOON)
 
 ### Flash firmware to M5Stack

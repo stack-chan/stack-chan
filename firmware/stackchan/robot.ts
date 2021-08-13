@@ -288,6 +288,10 @@ export class Robot {
     // 注視点の計算
     const { yaw, pitch } = this._pose
     trace(`yaw: ${toDegree(yaw)}, pitch: ${toDegree(pitch)}\n`)
+
+    if (this._target == null) {
+      return
+    }
     const v = rotateVector3ByYawAndPitch(this._target, -yaw, -pitch)
     const face: FaceContext = {
       emotion: Emotion.NEUTRAL,

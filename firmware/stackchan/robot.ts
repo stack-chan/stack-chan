@@ -271,7 +271,11 @@ export class Robot {
     trace(`onTargetChange__\t`)
     this.control()
   }
-  follow(target: Target) {
+  follow(target?: Target) {
+    if (target == null) {
+      trace('no target specified\n')
+      return
+    }
     this._target = target
     this._target.onChange = this.onTargetChange.bind(this)
   }
@@ -284,6 +288,10 @@ export class Robot {
     // 注視点の計算
     const { yaw, pitch } = this._pose
     trace(`yaw: ${toDegree(yaw)}, pitch: ${toDegree(pitch)}\n`)
+
+    if (this._target == null) {
+      return
+    }
     const v = rotateVector3ByYawAndPitch(this._target, -yaw, -pitch)
     const face: FaceContext = {
       emotion: Emotion.NEUTRAL,

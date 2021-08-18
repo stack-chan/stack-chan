@@ -4,8 +4,8 @@ import AudioOut from 'pins/audioout'
 import Timer from 'timer'
 import config from 'mc/config'
 /* global trace, SharedArrayBuffer */
-const BYTE_LENGTH = 2048
-const BUF_INDICES = 3
+const BYTE_LENGTH = 1024
+const BUF_INDICES = 8
 const TIMEOUT = 10000
 let buffer
 let view

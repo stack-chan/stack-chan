@@ -24,7 +24,10 @@
         ]
     },
     "preload": [
-        "http"
+        "http",
+        "robot",
+        "rs30x-driver",
+        "tts-engine"
     ],
     "strip": [],
     "creation": {

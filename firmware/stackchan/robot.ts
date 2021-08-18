@@ -1,6 +1,7 @@
 import Timer from 'timer'
 import type { Content } from 'piu/MC'
 import { Emotion } from 'avatar'
+import TTS from 'tts-engine'
 const TIMEOUT = 2000
 const R = 0.03
 

@@ -20,7 +20,7 @@ function enqueueWait(audioOut, ...values) {
       audioOut.enqueue(...values)
       break
     } catch (e) {
-      if (e.message !== 'queue full') {
+      if (e.message !== '(host): queue full') {
         throw e
       }
     }

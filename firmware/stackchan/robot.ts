@@ -246,6 +246,18 @@ export class Robot {
     this._driver.onPoseChanged = this.onPoseChange.bind(this)
     Timer.set(this.saccadeLoop.bind(this), randomBetween(this._saccadeInterval, this._saccadeInterval * 5))
   }
+  async speak(string) {
+    const promise = TTS.speak(string)
+    promise.then(
+      (bytes) => {
+        return bytes
+      },
+      (error) => {
+        return error
+      }
+    )
+    return promise
+  }
   async lookAt(target: Vector3) {
   }
   saccadeLoop() {

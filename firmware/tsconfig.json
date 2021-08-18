@@ -192,6 +192,7 @@
 		"/workspaces/stack-chan/firmware/stackchan/main.ts",
 		"/workspaces/stack-chan/firmware/stackchan/robot.ts",
 		"/workspaces/stack-chan/firmware/mods/talk/main.ts",
-		"/workspaces/stack-chan/firmware/stackchan/rs30x-driver.ts"
+		"/workspaces/stack-chan/firmware/stackchan/rs30x-driver.ts",
+		"/workspaces/stack-chan/firmware/stackchan/tts-engine.ts",
 	]
 }

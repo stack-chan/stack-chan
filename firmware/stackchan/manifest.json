@@ -18,6 +18,7 @@
             "./main",
             "./robot",
             "./rs30x-driver",
+            "./tts-engine",
             "$(MODULES)/network/http/*"
         ]
     },

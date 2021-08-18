@@ -2,6 +2,7 @@
 import { Request } from 'http'
 import AudioOut from 'pins/audioout'
 import Timer from 'timer'
+import config from 'mc/config'
 /* global trace, SharedArrayBuffer */
 const BYTE_LENGTH = 2048
 const BUF_INDICES = 3
@@ -41,6 +42,8 @@ class TTS {
       buffer = new SharedArrayBuffer(BYTE_LENGTH * BUF_INDICES + 4)
       view = new DataView(buffer)
     }
+    const host = config.tts?.host || '127.0.0.1'
+    const port = config.tts?.port || 8080
     promise = new Promise((resolve, reject) => {
       let bufIdx = 0
       let numFragments = 0
@@ -76,8 +79,8 @@ class TTS {
         Timer.set(onFinish, 0)
       }
       const request = new Request({
-        host: '192.168.7.112',
-        port: 8080,
+        host,
+        port,
         path: `/api/tts?text=${string.replaceAll(' ', '%20')}`,
         method: 'GET',
       })

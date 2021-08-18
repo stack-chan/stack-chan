@@ -11,7 +11,8 @@
 	"$(MODDABLE)/modules/network/mdns/manifest.json",
         "$(MODDABLE)/modules/base/modules/manifest.json",
         "../extern/manifest_extern.json",
-        "./manifest_typings.json"
+        "./manifest_typings.json",
+        "./manifest_local.json"
     ],
     "modules": {
         "*": [

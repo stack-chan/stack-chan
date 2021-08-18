@@ -1,0 +1,8 @@
+{
+    "config": {
+        "tts": {
+            "host": "your.tts.host.local",
+            "port": 8080
+        }
+    }
+}

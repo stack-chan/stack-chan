@@ -14,20 +14,25 @@
         "./manifest_typings.json",
         "./manifest_local.json"
     ],
+    "resources": {
+        "*": "./assets/sounds/*"
+    },
     "modules": {
         "*": [
             "./main",
             "./robot",
             "./rs30x-driver",
             "./tts-engine",
-            "$(MODULES)/network/http/*"
+            "$(MODULES)/network/http/*",
+            "./assets/sounds/speeches.js"
         ]
     },
     "preload": [
         "http",
         "robot",
         "rs30x-driver",
-        "tts-engine"
+        "tts-engine",
+        "speeches"
     ],
     "strip": [],
     "creation": {

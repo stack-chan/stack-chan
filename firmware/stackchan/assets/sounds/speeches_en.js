@@ -16,4 +16,7 @@ const speeches = [
     text: 'Nee hao.',
   },
 ]
-export default speeches
+export default {
+  shift: 2.0,
+  speeches,
+}

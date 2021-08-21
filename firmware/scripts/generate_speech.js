@@ -1,7 +1,8 @@
 import http from 'http'
 import fs from 'fs'
-import speeches from '../stackchan/assets/sounds/speeches.js'
+import speeches from '../stackchan/assets/sounds/speeches_en.js'
 import wae from 'web-audio-engine'
+import shiftPitch from './pitch-shift.js'
 
 const AudioContext = wae.RenderingAudioContext
 // read TTS server configuration
@@ -38,9 +39,9 @@ async function download(url, path) {
           const audioData = fs.readFileSync(tmpPath)
           /* postprocess */
           context.decodeAudioData(audioData).then((audioBuffer) => {
+            shiftPitch(audioBuffer, speeches.shift)
             const source = context.createBufferSource()
             source.buffer = audioBuffer
-            source.playbackRate.value = 1.4
             let ended = false
             source.onended = () => {
               ended = true
@@ -72,7 +73,7 @@ async function download(url, path) {
 
 // generate speeches
 ; (async function generate() {
-  for (let { key, text } of speeches) {
+  for (let { key, text } of speeches.speeches) {
     const file = `./stackchan/assets/sounds/${key}.wav`
     if (fs.existsSync(file)) {
       fs.unlinkSync(file, (err) => {

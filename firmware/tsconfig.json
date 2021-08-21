@@ -2,7 +2,8 @@
 	"compilerOptions": {
 		"baseUrl": "./",
 		"forceConsistentCasingInFileNames": true,
-		"module": "es2020",
+		"module": "esnext",
+		"useDefineForClassFields": true,
 		"outDir": "/root/Projects/moddable/build/tmp/esp32/m5stack/debug/stackchan/modules",
 		"paths": {
 			"Resource": [
@@ -44,9 +45,6 @@
 			"preference": [
 				"/root/Projects/moddable/typings/preference"
 			],
-			"serial": [
-				"/root/Projects/moddable/typings/serial"
-			],
 			"sntp": [
 				"/root/Projects/moddable/typings/sntp"
 			],
@@ -76,6 +74,12 @@
 			],
 			"zip": [
 				"/root/Projects/moddable/typings/zip"
+			],
+			"modules": [
+				"/workspaces/stack-chan/firmware/typings/modules"
+			],
+			"serial": [
+				"/workspaces/stack-chan/firmware/typings/serial"
 			],
 			"commodetto/Bitmap": [
 				"/root/Projects/moddable/typings/commodetto/Bitmap"
@@ -107,11 +111,14 @@
 			"piu/Sound": [
 				"/root/Projects/moddable/typings/piu/Sound"
 			],
-			"piu/Timeline": [
-				"/root/Projects/moddable/typings/piu/Timeline"
-			],
 			"piu/WipeTransition": [
 				"/root/Projects/moddable/typings/piu/WipeTransition"
+			],
+			"piu/All": [
+				"/workspaces/stack-chan/firmware/typings/piu/All"
+			],
+			"piu/Timeline": [
+				"/workspaces/stack-chan/firmware/typings/piu/Timeline"
 			],
 			"dns/parser": [
 				"/root/Projects/moddable/typings/dns/parser"
@@ -167,18 +174,18 @@
 			"main": [
 				"/workspaces/stack-chan/firmware/stackchan/main"
 			],
-			"piu/All": [
-				"/workspaces/stack-chan/firmware/typings/piu/All"
+			"robot": [
+				"/workspaces/stack-chan/firmware/stackchan/robot"
 			],
-			"modules": [
-				"/workspaces/stack-chan/firmware/typings/modules"
-			],
+			"rs30x-driver": [
+				"/workspaces/stack-chan/firmware/stackchan/rs30x-driver"
+			]
 		},
 		"lib": [
-			"es2020"
+			"esnext"
 		],
 		"sourceMap": true,
-		"target": "ES2020",
+		"target": "ESNEXT",
 		"types": [
 			"/root/Projects/moddable/xs/includes/xs"
 		]
@@ -191,8 +198,6 @@
 		"/workspaces/stack-chan/firmware/extern/rs30x/src/rs30x.ts",
 		"/workspaces/stack-chan/firmware/stackchan/main.ts",
 		"/workspaces/stack-chan/firmware/stackchan/robot.ts",
-		"/workspaces/stack-chan/firmware/mods/talk/main.ts",
-		"/workspaces/stack-chan/firmware/stackchan/rs30x-driver.ts",
-		"/workspaces/stack-chan/firmware/stackchan/tts-engine.ts",
+		"/workspaces/stack-chan/firmware/stackchan/rs30x-driver.ts"
 	]
 }

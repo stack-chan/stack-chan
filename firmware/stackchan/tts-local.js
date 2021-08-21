@@ -1,10 +1,10 @@
 /* eslint-disable prefer-const */
 import AudioOut from 'pins/audioout'
-import Resource from 'resource'
-import speeches from 'speeches'
+import Resource from 'Resource'
+import speechData from 'speeches'
 import Timer from 'timer'
-import { resolveModuleName } from 'typescript'
 
+const speeches = speechData.speeches
 const speechDic = new Map()
 for (const { key, text } of speeches) {
   speechDic.set(text, key)
@@ -15,30 +15,35 @@ let audioOut
 
 class TTS {
   static async speak(text) {
-    if (audioOut == null) {
-      audioOut = new AudioOut({
-        streams: 1,
-        bitsPerSample: 16,
-        numChannels: 1,
-        sampleRate: 22050,
-      })
-    }
-    new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       let handler = Timer.set(() => {
         trace('TTS: timeout')
         audioOut.stop()
-        reject()
-      }, 20000)
-      audioOut.callback = () => {
-        Timer.clear(handler)
-        audioOut.stop()
         resolve()
-      }
+      }, 30000)
       const key = speechDic.get(text)
       if (key == null) {
         throw new Error(`No speech for "${text}"`)
       }
       const resource = new Resource(key + '.maud')
+      const header = new Uint8Array(resource.slice(0, 12))
+      const bitsPerSample = header[3]
+      const sampleRate = (header[5] << 8) | header[4]
+      const numChannels = header[6]
+      trace(header.toString() + '\n')
+      if (audioOut == null) {
+        audioOut = new AudioOut({
+          streams: 1,
+          bitsPerSample,
+          numChannels,
+          sampleRate,
+        })
+      }
+      audioOut.callback = () => {
+        Timer.clear(handler)
+        audioOut.stop()
+        resolve()
+      }
       audioOut.enqueue(0, AudioOut.Flush)
       audioOut.enqueue(0, AudioOut.Volume, 128)
       audioOut.enqueue(0, AudioOut.Samples, resource)

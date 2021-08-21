@@ -22,16 +22,18 @@
             "./main",
             "./robot",
             "./rs30x-driver",
-            "./tts-engine",
+            "./tts/tts-remote",
+            "./tts/tts-local",
             "$(MODULES)/network/http/*",
-            "./assets/sounds/speeches.js"
+            "./assets/sounds/speeches"
         ]
     },
     "preload": [
         "http",
         "robot",
         "rs30x-driver",
-        "tts-engine",
+        "tts-remote",
+        "tts-local",
         "speeches"
     ],
     "strip": [],

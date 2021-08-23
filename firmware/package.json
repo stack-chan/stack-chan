@@ -7,6 +7,7 @@
     "lint": "eslint src/** --ext .ts,.tsx",
     "lint:fix": "npm run lint --fix",
     "generate-speech": "node scripts/generate_speech.js",
+    "generate-speech-google": "env GOOGLE_APPLICATION_CREDENTIALS=/workspaces/stack-chan/firmware/scripts/key.json node scripts/google.js",
     "build": "cd stackchan && mcconfig -d -m -p esp32/m5stack -t build",
     "debug": "cd stackchan && mcconfig -d -m -p esp32/m5stack",
     "deploy": "cd stackchan && mcconfig -m -p esp32/m5stack"
@@ -30,6 +31,7 @@
   "homepage": "https://github.com/meganetaaan/stack-chan#readme",
   "private": true,
   "devDependencies": {
+    "@google-cloud/text-to-speech": "^3.2.7",
     "@typescript-eslint/eslint-plugin": "^3.5.0",
     "@typescript-eslint/parser": "^3.5.0",
     "eslint": "^7.4.0",

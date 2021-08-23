@@ -1,6 +1,6 @@
 import http from 'http'
 import fs from 'fs'
-import speeches from '../stackchan/assets/sounds/speeches_en.js'
+import speeches from '../stackchan/assets/sounds/speeches_ja.js'
 import wae from 'web-audio-engine'
 import shiftPitch from './pitch-shift.js'
 
@@ -73,7 +73,7 @@ async function download(url, path) {
 
 // generate speeches
 ; (async function generate() {
-  for (let { key, text } of speeches.speeches) {
+  for (let [key, text] of Object.entries(speeches.speeches)) {
     const file = `./stackchan/assets/sounds/${key}.wav`
     if (fs.existsSync(file)) {
       fs.unlinkSync(file, (err) => {

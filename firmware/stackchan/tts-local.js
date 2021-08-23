@@ -6,7 +6,7 @@ import Timer from 'timer'
 
 const speeches = speechData.speeches
 const speechDic = new Map()
-for (const { key, text } of speeches) {
+for (const [key, text] of Object.entries(speeches)) {
   speechDic.set(text, key)
 }
 /* global trace, SharedArrayBuffer */
@@ -15,16 +15,20 @@ let audioOut
 
 class TTS {
   static async speak(text) {
+    const key = speechDic.get(text)
+    if (key == null) {
+      throw new Error(`No speech for "${text}"`)
+    }
+    return this.playSpeech(key)
+  }
+  static async playSpeech(key) {
     return new Promise((resolve, reject) => {
       let handler = Timer.set(() => {
         trace('TTS: timeout')
         audioOut.stop()
         resolve()
       }, 30000)
-      const key = speechDic.get(text)
-      if (key == null) {
-        throw new Error(`No speech for "${text}"`)
-      }
+
       const resource = new Resource(key + '.maud')
       const header = new Uint8Array(resource.slice(0, 12))
       const bitsPerSample = header[3]

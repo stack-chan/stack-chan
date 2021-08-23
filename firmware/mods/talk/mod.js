@@ -4,7 +4,8 @@ import MarqueeLabel from 'marquee-label'
 import { Application, Container, Skin } from 'piu/MC'
 /* global trace, SharedArrayBuffer */
 
-const sentense = 'Hello. I am Stach-chan. Nice to meet you.'
+const sentense1 = 'スタックチャンは手乗りサイズのコミュニケーションロボットです。'
+const sentense2 = '首を振ったり、あなたを見たり、喋ったり笑ったりします。'
 let robot
 let ap
 
@@ -86,9 +87,10 @@ function onButtonChange(button, pressed) {
   }
   switch (button) {
     case 'A':
-      speak(sentense)
+      speak(sentense1)
       break
     case 'B':
+      speak(sentense2)
       break
     case 'C':
       break

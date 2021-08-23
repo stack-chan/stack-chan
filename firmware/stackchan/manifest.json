@@ -26,7 +26,7 @@
             "./tts-local",
             "$(MODULES)/network/http/*"
         ],
-        "speeches": "./assets/sounds/speeches_en"
+        "speeches": "./assets/sounds/speeches_ja"
     },
     "preload": [
         "http",

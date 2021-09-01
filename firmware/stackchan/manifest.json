@@ -31,5 +31,12 @@
         "keys": {
             "available": 128
         }
+    },
+    "devices": {
+        "esp32/m5stack": {
+            "config": {
+                "rotation": 90
+            }
+        }
     }
 }

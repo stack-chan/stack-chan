@@ -32,7 +32,7 @@
             "available": 128
         }
     },
-    "devices": {
+    "platforms": {
         "esp32/m5stack": {
             "config": {
                 "rotation": 90

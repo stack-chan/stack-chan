@@ -1,5 +1,7 @@
 # Stack-chan firmware
 
+[日本語](./README_ja.md)
+
 ## Prerequisites
 
 * Host computer

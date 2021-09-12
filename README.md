@@ -1,5 +1,7 @@
 # Stack-chan
 
+[日本語](./README_ja.md)
+
 ![stackchan](./docs/images/stackchan.gif)
 
 Stack-chan is a JavaScript-driven M5Stack-embedded super-kawaii robot.

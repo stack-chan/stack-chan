@@ -1,5 +1,6 @@
 import Timer from 'timer'
 import type { Content } from 'piu/MC'
+import config from 'mc/config'
 import { Emotion } from 'avatar'
 import TTS_REMOTE from 'tts-remote'
 import TTS_LOCAL from 'tts-local'
@@ -247,7 +248,9 @@ export class Robot {
     Timer.set(this.saccadeLoop.bind(this), randomBetween(this._saccadeInterval, this._saccadeInterval * 5))
   }
   async speak(string) {
-    const promise = TTS_LOCAL.speak(string)
+    const promise = config?.tts?.driver == 'remote'
+      ? TTS_REMOTE.speak(string)
+      : TTS_LOCAL.speak(string)
     promise.then(
       (bytes) => {
         return bytes

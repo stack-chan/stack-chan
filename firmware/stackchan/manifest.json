@@ -49,6 +49,11 @@
             "config": {
                 "rotation": 90
             }
+        },
+        "esp32/m5stack_fire": {
+            "config": {
+                "rotation": 90
+            }
         }
     }
 }

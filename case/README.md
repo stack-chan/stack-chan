@@ -1,5 +1,7 @@
 # Stack-chan case
 
+[日本語](./README_ja.md)
+
 ![case](./docs/images/case.jpg)
 
 Currently the [case data](https://a360.co/3gcw960) is developed with Fusion360.

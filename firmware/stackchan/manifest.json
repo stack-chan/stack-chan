@@ -7,10 +7,10 @@
         "$(MODDABLE)/examples/manifest_piu.json",
         "$(MODDABLE)/examples/manifest_typings.json",
         "$(MODDABLE)/examples/manifest_mod.json",
-        "$(MODDABLE)/examples/manifest_net.json",
         "$(MODDABLE)/modules/network/mdns/manifest.json",
         "$(MODDABLE)/modules/base/modules/manifest.json",
         "../extern/manifest_extern.json",
+        "./manifest_net.json",
         "./manifest_typings.json",
         "./manifest_local.json"
     ],
@@ -42,6 +42,13 @@
         "stack": 512,
         "keys": {
             "available": 128
+        }
+    },
+    "platforms": {
+        "esp32/m5stack": {
+            "config": {
+                "rotation": 90
+            }
         }
     }
 }

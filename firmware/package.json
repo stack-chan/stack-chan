@@ -6,8 +6,8 @@
   "scripts": {
     "lint": "eslint src/** --ext .ts,.tsx",
     "lint:fix": "npm run lint --fix",
-    "generate-speech": "node scripts/generate_speech.js",
-    "generate-speech-google": "env GOOGLE_APPLICATION_CREDENTIALS=/workspaces/stack-chan/firmware/scripts/key.json node scripts/google.js",
+    "generate-speech-coqui": "node scripts/generate-speech-coqui.js",
+    "generate-speech-google": "env GOOGLE_APPLICATION_CREDENTIALS=/workspaces/stack-chan/firmware/scripts/key.json node scripts/generate-speech-google.js",
     "build": "cd stackchan && mcconfig -d -m -p esp32/m5stack -t build",
     "debug": "cd stackchan && mcconfig -d -m -p esp32/m5stack",
     "deploy": "cd stackchan && mcconfig -m -p esp32/m5stack"

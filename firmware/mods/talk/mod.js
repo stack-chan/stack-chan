@@ -2,6 +2,8 @@
 import Avatar from 'avatar'
 import MarqueeLabel from 'marquee-label'
 import { Application, Container, Skin } from 'piu/MC'
+import ttsResources from 'speeches'
+const speeches = ttsResources.speeches
 /* global trace, SharedArrayBuffer */
 
 const sentense1 = 'スタックチャンは手乗りサイズのコミュニケーションロボットです。'
@@ -87,12 +89,13 @@ function onButtonChange(button, pressed) {
   }
   switch (button) {
     case 'A':
-      speak(sentense1)
+      speak(speeches.stackchanIn30Seconds)
       break
     case 'B':
-      speak(sentense2)
+      speak(sentense1)
       break
     case 'C':
+      speak(speeches.sentense2)
       break
   }
 }

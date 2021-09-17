@@ -58,3 +58,10 @@ npm run debug
 
 このコマンドはデバッグ用にビルドしたファームウェアを書き込むと同時に、ModdableSDKのデバッガである`xsbug`を起動します。
 詳しくは[xsbug(公式ドキュメント)](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md)を参照してください。
+
+
+## API
+
+### TTS(音声合成)
+
+[text-to-speech.md](./docs/text-to-speech.md)を参照（英語）。

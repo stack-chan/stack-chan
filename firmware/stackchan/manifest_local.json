@@ -1,0 +1,9 @@
+{
+    "config": {
+        "tts": {
+            "driver": "local",
+            "host": "localhost",
+            "port": 8080
+        }
+    }
+}

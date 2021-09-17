@@ -64,3 +64,9 @@ See [xsbug(the official docs)](https://github.com/Moddable-OpenSource/moddable/b
 * __Button-A__: Show messages on balloon
 * __Button-B__: Hide messages 
 * __Button-C__: Toggle move/stop
+
+## API
+
+### TTS
+
+See [text-to-speech.md](./docs/text-to-speech.md)

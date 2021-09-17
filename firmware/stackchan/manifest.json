@@ -11,16 +11,31 @@
         "$(MODDABLE)/modules/base/modules/manifest.json",
         "../extern/manifest_extern.json",
         "./manifest_net.json",
-        "./manifest_typings.json"
+        "./manifest_typings.json",
+        "./manifest_local.json"
     ],
+    "resources": {
+        "*": "./assets/sounds/*"
+    },
     "modules": {
         "*": [
             "./main",
             "./robot",
             "./rs30x-driver",
+            "./tts-remote",
+            "./tts-local",
             "$(MODULES)/network/http/*"
-        ]
+        ],
+        "speeches": "./assets/sounds/speeches_ja"
     },
+    "preload": [
+        "http",
+        "robot",
+        "rs30x-driver",
+        "tts-remote",
+        "tts-local",
+        "speeches"
+    ],
     "strip": [],
     "creation": {
         "static": 131072,

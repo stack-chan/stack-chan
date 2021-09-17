@@ -6,10 +6,13 @@
   "scripts": {
     "lint": "eslint src/** --ext .ts,.tsx",
     "lint:fix": "npm run lint --fix",
+    "generate-speech-coqui": "node scripts/generate-speech-coqui.js",
+    "generate-speech-google": "env GOOGLE_APPLICATION_CREDENTIALS=/workspaces/stack-chan/firmware/scripts/key.json node scripts/generate-speech-google.js",
     "build": "cd stackchan && mcconfig -d -m -p esp32/m5stack -t build",
     "debug": "cd stackchan && mcconfig -d -m -p esp32/m5stack",
     "deploy": "cd stackchan && mcconfig -m -p esp32/m5stack"
   },
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/meganetaaan/stack-chan.git"
@@ -28,12 +31,14 @@
   "homepage": "https://github.com/meganetaaan/stack-chan#readme",
   "private": true,
   "devDependencies": {
+    "@google-cloud/text-to-speech": "^3.2.7",
     "@typescript-eslint/eslint-plugin": "^3.5.0",
     "@typescript-eslint/parser": "^3.5.0",
     "eslint": "^7.4.0",
     "eslint-config-prettier": "^6.11.0",
     "eslint-plugin-prettier": "^3.1.4",
     "prettier": "^2.0.5",
-    "typescript": "^3.9.6"
+    "typescript": "^3.9.6",
+    "web-audio-engine": "^0.13.4"
   }
 }

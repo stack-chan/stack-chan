@@ -1,5 +1,7 @@
 # Stack-chan
 
+[日本語](./README_ja.md)
+
 ![stackchan](./docs/images/stackchan.gif)
 
 Stack-chan is a JavaScript-driven M5Stack-embedded super-kawaii robot.
@@ -30,7 +32,7 @@ This repository includes all the component of the robot.
 
 ### Assemble board
 
-* See [case/README.md](./schematics/README.md) and [case/README.md](./case/README.md)
+* See [schematics/README.md](./schematics/README.md) and [case/README.md](./case/README.md)
 * OR You can get a pre-assembled module(COMING SOON)
 
 ### Flash firmware to M5Stack

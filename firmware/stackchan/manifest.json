@@ -7,18 +7,53 @@
         "$(MODDABLE)/examples/manifest_piu.json",
         "$(MODDABLE)/examples/manifest_typings.json",
         "$(MODDABLE)/examples/manifest_mod.json",
+        "$(MODDABLE)/modules/network/mdns/manifest.json",
         "$(MODDABLE)/modules/base/modules/manifest.json",
         "../extern/manifest_extern.json",
-        "./manifest_typings.json"
+        "./manifest_net.json",
+        "./manifest_typings.json",
+        "./manifest_local.json"
     ],
-    "modules": {
-        "*": ["./main", "./robot", "./rs30x-driver"]
+    "resources": {
+        "*": "./assets/sounds/*"
     },
+    "modules": {
+        "*": [
+            "./main",
+            "./robot",
+            "./rs30x-driver",
+            "./tts-remote",
+            "./tts-local",
+            "$(MODULES)/network/http/*"
+        ],
+        "speeches": "./assets/sounds/speeches_ja"
+    },
+    "preload": [
+        "http",
+        "robot",
+        "rs30x-driver",
+        "tts-remote",
+        "tts-local",
+        "speeches"
+    ],
+    "strip": [],
     "creation": {
         "static": 131072,
         "stack": 512,
         "keys": {
             "available": 128
+        }
+    },
+    "platforms": {
+        "esp32/m5stack": {
+            "config": {
+                "rotation": 90
+            }
+        },
+        "esp32/m5stack_fire": {
+            "config": {
+                "rotation": 90
+            }
         }
     }
 }

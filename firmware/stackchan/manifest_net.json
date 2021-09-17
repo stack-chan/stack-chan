@@ -1,0 +1,21 @@
+{
+  "include": [
+    "$(MODULES)/network/wifi/manifest.json"
+  ],
+  "modules": {
+    "*": [
+      "$(MODULES)/network/socket/*",
+      "$(MODULES)/network/socket/lwip/*",
+      "$(MODULES)/network/net/net",
+      "$(MODULES)/network/net/esp/*",
+      "$(MODULES)/network/sntp/*"
+    ],
+    "init-network": "$(BUILD)/devices/esp32/setup/network"
+  },
+  "preload": [
+    "socket",
+    "init-network",
+    "sntp",
+    "net"
+  ]
+}

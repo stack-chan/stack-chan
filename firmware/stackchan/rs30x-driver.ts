@@ -1,7 +1,7 @@
 import RS30X, { Rotation, RS30XBatch, TorqeMode } from 'rs30x'
 import Timer from 'timer'
 
-import type { Pose } from "./robot"
+import type { Pose } from './robot'
 
 export class RS30XDriver {
   _pan: RS30X
@@ -14,11 +14,7 @@ export class RS30XDriver {
   get onPoseChanged() {
     return this._onPoseChanged
   }
-  constructor(param: {
-    panId: number,
-    tiltId: number,
-    onPoseChanged?
-  }) {
+  constructor(param: { panId: number; tiltId: number; onPoseChanged? }) {
     this._pan = new RS30X({ id: param.panId })
     this._tilt = new RS30X({ id: param.tiltId })
     this._handler = Timer.repeat(this.poseLoop.bind(this), 100)
@@ -28,7 +24,7 @@ export class RS30XDriver {
   }
   applyPose(pose: Pose, time: number = 0.5) {
     const panAngle = -pose.yaw * 180 / Math.PI
-    const tiltAngle = -pose.pitch * 180 / Math.PI
+    const tiltAngle = pose.pitch * 180 / Math.PI
     this._pan.setTorqueMode(TorqeMode.ON)
     this._tilt.setTorqueMode(TorqeMode.ON)
     this._pan.setAngleInTime(panAngle, time)
@@ -43,19 +39,13 @@ export class RS30XDriver {
       return
     }
     let status = this._pan.readStatus()
-    const yaw = -Math.PI * status.angle / 180
-    trace(
-      `pan...angle: ${status.angle}, time: ${status.time}, speed: ${status.speed}, current: ${status.current}, voltage: ${status.voltage}\n`
-    )
+    const yaw = (-Math.PI * status.angle) / 180
     status = this._tilt.readStatus()
-    const pitch = -Math.PI * status.angle / 180
-    trace(
-      `tilt...angle: ${status.angle}, time: ${status.time}, speed: ${status.speed}, current: ${status.current}, voltage: ${status.voltage}\n`
-    )
+    const pitch = (-Math.PI * status.angle) / 180
     this._onPoseChanged({
       yaw,
       pitch,
-      roll: 0
+      roll: 0,
     })
   }
 }

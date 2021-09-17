@@ -1,13 +1,11 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import Avatar from 'avatar'
+import Avatar, { Emotion } from 'avatar'
+import Emoticon from 'emoticon'
 import MarqueeLabel from 'marquee-label'
 import { Application, Container, Skin } from 'piu/MC'
-import ttsResources from 'speeches'
-const speeches = ttsResources.speeches
+import Timer from 'timer'
 /* global trace, SharedArrayBuffer */
 
-const sentense1 = 'スタックチャンは手乗りサイズのコミュニケーションロボットです。'
-const sentense2 = '首を振ったり、あなたを見たり、喋ったり笑ったりします。'
 let robot
 let ap
 
@@ -27,7 +25,19 @@ function createAvatar(primaryColor, secondaryColor) {
     secondaryColor,
     props: {
       autoUpdateGaze: false,
+      autoUpdateBlink: false,
     },
+  })
+}
+
+let idx = 0
+
+function createNote() {
+  return new Emoticon({
+    top: 30,
+    right: 30,
+    name: 'note',
+    emotion: Emotion.COLD,
   })
 }
 
@@ -36,7 +46,7 @@ function onLaunch() {
     displayListLength: 4096,
     ...fluid,
     skin: new Skin({ fill: 'white' }),
-    contents: [createAvatar('white', 'black')],
+    contents: [createAvatar('white', 'black'), createNote()],
   })
   return ap
 }
@@ -73,29 +83,35 @@ async function speak(str) {
     return
   }
   renderSpeech(str)
-  await robot.speak(str).catch(() => {
-    trace('thrown\n')
-  })
-  removeSpeech()
 }
 
 function onRobotCreated(theRobot) {
   robot = theRobot
 }
 
+let flag = false
 function onButtonChange(button, pressed) {
   if (!pressed) {
     return
   }
+  let emoticon
+  let leftEye, rightEye
   switch (button) {
     case 'A':
-      speak(speeches.stackchanIn30Seconds)
+      leftEye = ap.content('avatar').content('leftEye').content('eyelid')
+      leftEye.variant = 2
+      rightEye = ap.content('avatar').content('rightEye').content('eyelid')
+      rightEye.variant = 2
       break
     case 'B':
-      speak(sentense1)
+      if (flag) {
+        renderSpeech('lullabye...lullabye...')
+      } else {
+        removeSpeech()
+      }
+      flag = !flag
       break
     case 'C':
-      speak(speeches.sentense2)
       break
   }
 }
@@ -104,5 +120,5 @@ export default {
   onLaunch,
   onRobotCreated,
   onButtonChange,
-  autoLoop: false,
+  autoLoop: true,
 }

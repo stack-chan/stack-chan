@@ -1,6 +1,8 @@
 FROM meganetaaan/moddable-esp32:latest
 LABEL maintainer "Shinya Ishikawa<ishikawa.s.1027@gmail.com>"
 
+RUN apt-get update
+RUN apt-get upgrade ca-certificates -y
 RUN curl -SL https://deb.nodesource.com/setup_14.x | bash \
     && apt-get update \
     && apt-get install -y --no-install-recommends \

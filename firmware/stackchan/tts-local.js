@@ -44,7 +44,12 @@ class TTS {
         })
       }
       audioOut.callback = () => {
-        Timer.clear(handler)
+        try {
+          Timer.clear(handler)
+        } catch (e) {
+          // FIXME: painful workaround to survive
+          trace(e.message)
+        }
         audioOut.stop()
         resolve()
       }

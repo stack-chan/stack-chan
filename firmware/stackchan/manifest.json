@@ -43,17 +43,5 @@
         "keys": {
             "available": 128
         }
-    },
-    "platforms": {
-        "esp32/m5stack": {
-            "config": {
-                "rotation": 90
-            }
-        },
-        "esp32/m5stack_fire": {
-            "config": {
-                "rotation": 90
-            }
-        }
     }
 }

@@ -1777,7 +1777,7 @@ F 0 "C1" V 7402 3300 50  0000 C CNN
 F 1 "100u" V 7311 3300 50  0000 C CNN
 F 2 "Capacitor_THT:C_Radial_D6.3mm_H11.0mm_P2.50mm" H 7188 3150 50  0001 C CNN
 F 3 "~" H 7150 3300 50  0001 C CNN
-F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=46S8-5GL7" V 7150 3300 50  0001 C CNN "URL"
+F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=76S8-53LK" V 7150 3300 50  0001 C CNN "URL"
 	1    7150 3300
 	0    -1   -1   0   
 $EndComp

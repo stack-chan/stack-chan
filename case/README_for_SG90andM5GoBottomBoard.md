@@ -46,7 +46,7 @@ Currently the [case data](./case_for_SG90andM5GoBottomBoard/) is developed with 
 ## Machining the parts
 
 ### Cut the servo horn of SG90.
-Cut the cross-shaped servo horn with nippers at the third hole.
+Cut the cross-shaped servo horn with nippers at the third hole.<br>
 <img src="./docs/images/m5go_assembly01.jpg" width="320">
 <img src="./docs/images/m5go_assembly02.jpg" width="320">
 
@@ -58,7 +58,7 @@ Remove the screws from the four corners and remove the board. After removal, sec
 <img src="./docs/images/m5go_assembly04.jpg" width="320">
 
 ### Bundle cables
-Use Zip ties to bundle the servo branch cables.
+Use Zip ties to bundle the servo branch cables.<br>
 <img src="./docs/images/m5go_assembly05.jpg" width="320">
 
 ## How to assemble

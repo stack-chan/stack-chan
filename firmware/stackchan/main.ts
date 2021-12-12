@@ -9,6 +9,7 @@ import CombTransition from 'piu/CombTransition'
 import { Robot, Target } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
 import { PWMServoDriver } from 'sg90-driver'
+import config from 'mc/config'
 
 const fluid = {
   top: 0,
@@ -19,14 +20,14 @@ const fluid = {
 
 function createAvatar(primaryColor: Color, secondaryColor: Color) {
   return new Avatar({
-      width: 320,
-      height: 240,
-      name: 'avatar',
-      primaryColor,
-      secondaryColor,
-      props: {
-        autoUpdateGaze: false,
-      },
+    width: 320,
+    height: 240,
+    name: 'avatar',
+    primaryColor,
+    secondaryColor,
+    props: {
+      autoUpdateGaze: false,
+    },
   })
 }
 
@@ -70,6 +71,9 @@ function swapFace(primaryColor, secondaryColor) {
   ap.run(transition, ap.first, av);
 }
 
+const driver = config.servo?.driver === "tts" ? new RS30XDriver({
+  panId: 0x01, tiltId: 0x02
+}) : new PWMServoDriver()
 const robot = new Robot({
   renderer: {
     render(face) {
@@ -87,10 +91,7 @@ const robot = new Robot({
       }
     }
   },
-  driver: new RS30XDriver({
-    panId: 0x01, tiltId: 0x02
-  }),
-  // driver: new PWMServoDriver(),
+  driver,
   eyes: [{
     name: 'leftEye',
     position: {

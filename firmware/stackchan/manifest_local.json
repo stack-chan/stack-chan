@@ -4,6 +4,9 @@
             "driver": "local",
             "host": "localhost",
             "port": 8080
+        },
+        "servo": {
+            "driver": "tts"
         }
     }
 }

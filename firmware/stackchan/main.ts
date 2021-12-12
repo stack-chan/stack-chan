@@ -8,6 +8,7 @@ import { hsl } from 'piu/All'
 import CombTransition from 'piu/CombTransition'
 import { Robot, Target } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
+import { PWMServoDriver } from 'sg90-driver'
 
 const fluid = {
   top: 0,
@@ -89,6 +90,7 @@ const robot = new Robot({
   driver: new RS30XDriver({
     panId: 0x01, tiltId: 0x02
   }),
+  // driver: new PWMServoDriver(),
   eyes: [{
     name: 'leftEye',
     position: {

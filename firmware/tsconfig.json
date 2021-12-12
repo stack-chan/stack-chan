@@ -179,6 +179,9 @@
 			],
 			"rs30x-driver": [
 				"/workspaces/stack-chan/firmware/stackchan/rs30x-driver"
+			],
+			"sg90-driver": [
+				"/workspaces/stack-chan/firmware/stackchan/sg90-driver"
 			]
 		},
 		"lib": [
@@ -198,6 +201,7 @@
 		"/workspaces/stack-chan/firmware/extern/rs30x/src/rs30x.ts",
 		"/workspaces/stack-chan/firmware/stackchan/main.ts",
 		"/workspaces/stack-chan/firmware/stackchan/robot.ts",
-		"/workspaces/stack-chan/firmware/stackchan/rs30x-driver.ts"
+		"/workspaces/stack-chan/firmware/stackchan/rs30x-driver.ts",
+		"/workspaces/stack-chan/firmware/stackchan/sg90-driver.ts"
 	]
 }

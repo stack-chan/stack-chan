@@ -22,7 +22,7 @@ export class PWMServoDriver {
   get onPoseChanged() {
     return this._onPoseChanged
   }
-  constructor(param: { onPoseChanged? }) {
+  constructor(param: { onPoseChanged? } = {}) {
     this._pan = new Servo({
       pin: 5,
       min: 500,

@@ -45,5 +45,15 @@
         "keys": {
             "available": 128
         }
+    },
+    "platforms": {
+        "esp32/m5stack_core2": {
+            "config": {
+                "servo": {
+                    "pwmPan": 27,
+                    "pwmTilt": 19
+    }
+}
+        }
     }
 }

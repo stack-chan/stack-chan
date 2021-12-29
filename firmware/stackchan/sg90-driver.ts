@@ -1,7 +1,8 @@
 import Servo from 'pins/servo'
 import Timer from 'timer'
+import config from 'mc/config'
 
-const INTERVAL = 33
+const INTERVAL = 16.5
 
 function easeInOutSine(ratio) {
   return -(Math.cos(Math.PI * ratio) - 1) / 2;
@@ -23,13 +24,15 @@ export class PWMServoDriver {
     return this._onPoseChanged
   }
   constructor(param: { onPoseChanged? } = {}) {
+    const pwmPan = config.servo?.pwmPan || 5
+    const pwmTilt = config.servo?.pwmTilt || 2
     this._pan = new Servo({
-      pin: 5,
+      pin: pwmPan,
       min: 500,
       max: 2400,
     })
     this._tilt = new Servo({
-      pin: 2,
+      pin: pwmTilt,
       min: 500,
       max: 2400,
     })

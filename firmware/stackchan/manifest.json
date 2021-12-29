@@ -52,8 +52,8 @@
                 "servo": {
                     "pwmPan": 27,
                     "pwmTilt": 19
-    }
-}
+                }
+            }
         }
     }
 }

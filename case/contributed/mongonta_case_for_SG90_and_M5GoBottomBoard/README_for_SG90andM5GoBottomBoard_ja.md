@@ -20,6 +20,7 @@ M5Stackの基板はｽﾀｯｸﾁｬﾝ基板とは寸法が異なるので、�
   * 足
   * ブラケット(SG90とMG90Sの2種類あります。)
 * M5Stack Core Basic/Gray/Go/Fire(+M5GoBottom1) M5Stack Core2(+ M5GoBottom2)
+  * 推奨は[M5Stack Core2 for AWSIoT EduKit](https://shop.m5stack.com/collections/stack-series/products/m5stack-core2-esp32-iot-development-kit-for-aws-iot-edukit)です。AWSIoT EduKitにはM5GoBottom2が装備されています。
   * M5Stack Basic/Gray/Go/Fireと組み合わせる場合は[Power Switch for M5Stack](https://www.switch-science.com/catalog/5726/)及び[ケース](https://www.switch-science.com/catalog/6295/)の装着をおススメします。電源が切れないのでバッテリーの劣化を早めてしまいます。
 
 * サーボ 2個

@@ -19,6 +19,7 @@ Currently the [case data](./case_for_SG90andM5GoBottomBoard/) is developed with 
   * Feet
   * Bracket( There are 2 types for SG90 or MG90S) 
 * M5Stack Core Basic/Gray/Go/Fire(+M5GoBottom1) or M5Stack Core2(+ M5Bottom2)
+  * Recommended is [M5Stack Core2 for AWSIoT EduKit](https://shop.m5stack.com/collections/stack-series/products/m5stack-core2-esp32-iot-development-kit-for-aws-iot-edukit) -AWSIoT EduKit is equipped with M5GoBottom2.
   * If you want to combine with M5Stack Basic/Gray/Go/Fire, you need [Power Switch for M5Stack](https://www.switch-science.com/catalog/5726/) and [Case](https://www.switch-science.com/catalog/6295/) is recommended. Since the power cannot be cut off, it will accelerate the deterioration of the battery.
 
 * Two servos

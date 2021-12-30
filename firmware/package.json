@@ -10,7 +10,10 @@
     "generate-speech-google": "env GOOGLE_APPLICATION_CREDENTIALS=/workspaces/stack-chan/firmware/scripts/key.json node scripts/generate-speech-google.js",
     "build": "cd stackchan && mcconfig -d -m -p esp32/m5stack -t build",
     "debug": "cd stackchan && mcconfig -d -m -p esp32/m5stack",
-    "deploy": "cd stackchan && mcconfig -m -p esp32/m5stack"
+    "deploy": "cd stackchan && mcconfig -m -p esp32/m5stack",
+    "build:m5stack_core2": "cd stackchan && mcconfig -d -m -p esp32/m5stack_core2 -t build",
+    "debug:m5stack_core2": "cd stackchan && mcconfig -d -m -p esp32/m5stack_core2",
+    "deploy:m5stack_core2": "cd stackchan && mcconfig -m -p esp32/m5stack_core2"
   },
   "type": "module",
   "repository": {

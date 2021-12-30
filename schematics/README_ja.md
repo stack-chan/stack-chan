@@ -23,7 +23,7 @@ __(注意)このリストは[シリアル](#Serial(TTL)-Servo)と[PWM](#PWM-Serv
 
 |リファレンス| 数量 | 値| フットプリント| URL|
 |:--:|:--|:--|:--|:--|
-| C1 |1|"100u"|"Capacitor_THT:C_Radial_D6.3mm_H11.0mm_P2.50mm"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=46S8-5GL7"|
+| C1 |1|"100u"|"Capacitor_THT:C_Radial_D6.3mm_H11.0mm_P2.50mm"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=76S8-53LK"|
 | J1 |1|"Conn_02x15_Odd_Even"|"Connector_PinHeader_2.54mm:PinHeader_2x15_P2.54mm_Vertical_SMD"|"https://www.switch-science.com/catalog/3654/"|
 | J2 J3 |2|"Conn_02x03_Odd_Even"|"Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical"||
 | J5 |1|"BAT"|"Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical"|"https://akizukidenshi.com/catalog/g/gC-12802/"|
@@ -48,7 +48,7 @@ __(注意)このリストは[シリアル](#Serial(TTL)-Servo)と[PWM](#PWM-Serv
 
 * チップ抵抗 表面実装 0603(1608Metric)
   * 1kΩ * 2pc
-* コンデンサ 10V/100uF * 1pc
+* コンデンサ 100uF（定格電圧10V以上、直径6.3mm以内、高さ11.0mm以内） * 1pc
 * ピンヘッダ 2.54mm 1x3pin
   * 1行3列 * 2pc
 * [ピンヘッダ 2.54mm 2x15pin](https://www.switch-science.com/catalog/3654/)

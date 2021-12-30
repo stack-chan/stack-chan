@@ -46,14 +46,23 @@ $root@container# npm install
 
 ### ビルドと書き込み(デバッグ機能を使わない場合)
 
-```
+```sh
+# M5Stack Basic/Gray/Fireの場合
 npm run deploy
+
+# M5Stack CORE2の場合
+npm run deploy:m5stack_core2
 ```
+
 
 ### ビルドと書き込み（デバッグする場合）
 
-```
+```sh
+# M5Stack Basic/Gray/Fireの場合
 npm run debug
+
+# M5Stack CORE2の場合
+npm run deploy:m5stack_core2
 ```
 
 このコマンドはデバッグ用にビルドしたファームウェアを書き込むと同時に、ModdableSDKのデバッガである`xsbug`を起動します。

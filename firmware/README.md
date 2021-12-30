@@ -46,14 +46,22 @@ $root@container# npm install
 
 ### Build and Flash (w/o debug function)
 
-```
+```sh
+# For M5Stack Basic/Gray/Fire
 npm run deploy
+
+# For M5Stack CORE2
+npm run deploy:m5stack_core2
 ```
 
 ### Build, Flash and Debug
 
-```
+```sh
+# For M5Stack Basic/Gray/Fire
 npm run debug
+
+# For M5Stack CORE2
+npm run deploy:m5stack_core2
 ```
 
 This command flashes debug build to Stack-chan and launches `xsbug`, the debugger of ModdableSDK.

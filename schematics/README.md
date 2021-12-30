@@ -23,7 +23,7 @@ __(NOTE) This list includes both options for [Serial](#Serial(TTL)-Servo) and [P
 
 |Reference| Quantity| Value| Footprint| URL|
 |:--:|:--|:--|:--|:--|
-| C1 |1|"100u"|"Capacitor_THT:C_Radial_D6.3mm_H11.0mm_P2.50mm"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=46S8-5GL7"|
+| C1 |1|"100u"|"Capacitor_THT:C_Radial_D6.3mm_H11.0mm_P2.50mm"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=76S8-53LK"|
 | J1 |1|"Conn_02x15_Odd_Even"|"Connector_PinHeader_2.54mm:PinHeader_2x15_P2.54mm_Vertical_SMD"|"https://www.switch-science.com/catalog/3654/"|
 | J2 J3 |2|"Conn_02x03_Odd_Even"|"Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical"||
 | J5 |1|"BAT"|"Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical"|"https://akizukidenshi.com/catalog/g/gC-12802/"|
@@ -48,7 +48,7 @@ Tested with:
 
 * Resistor SMD 0603(1608Metric)
   * 1kΩ * 2pc
-* Capacitor 10V/100uF * 1pc
+* Capacitor 100uF（Rated Voltage >= 10V, Diameter <= 6.3mm, Height <= 11.0mm） * 1pc
 * Pin Header 2.54mm 1x3pin
   * 1row-3column * 2pc
 * [Pin Header 2.54mm 2x15pin](https://www.switch-science.com/catalog/3654/)

@@ -9,6 +9,7 @@
         "$(MODDABLE)/examples/manifest_mod.json",
         "$(MODDABLE)/modules/network/mdns/manifest.json",
         "$(MODDABLE)/modules/base/modules/manifest.json",
+        "$(MODULES)/pins/servo/manifest.json",
         "../extern/manifest_extern.json",
         "./manifest_net.json",
         "./manifest_typings.json",
@@ -22,6 +23,7 @@
             "./main",
             "./robot",
             "./rs30x-driver",
+            "./sg90-driver",
             "./tts-remote",
             "./tts-local",
             "$(MODULES)/network/http/*"
@@ -45,14 +47,12 @@
         }
     },
     "platforms": {
-        "esp32/m5stack": {
+        "esp32/m5stack_core2": {
             "config": {
-                "rotation": 90
-            }
-        },
-        "esp32/m5stack_fire": {
-            "config": {
-                "rotation": 90
+                "servo": {
+                    "pwmPan": 27,
+                    "pwmTilt": 19
+                }
             }
         }
     }

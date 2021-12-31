@@ -8,12 +8,12 @@
 ## Feature
 
 * Drive two servos
-  * TTL or
-  * PWM * 2ch
+  * PWM * 2ch or
+  * Serial * 2ch
 * M5Unit port
   * PortB
-  * PortC(only available with PWM servo)
-* Battery
+  * PortC (only available with PWM servo)
+* Battery, which can be charged through M5Stack.
 * (Optional) Power switch
 
 ## Parts list
@@ -32,6 +32,25 @@ __(NOTE) This list includes both options for [Serial](#Serial(TTL)-Servo) and [P
 | R2 |1|"100"|"Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57FV"|
 | SW1 |1|"SW_SPDT"|"Button_Switch_THT:SW_E-Switch_EG1224_SPDT_Angled"||
 | U1 |1|"NL27WZ125"|"NL27WZ125USG"|"https://www.digikey.jp/number/ja/on-semiconductor/488/NL27WZ125/291486"|
+
+### Which type of servo should I use?
+#### PWM (SG90)
+**Pros**: Low cost
+* Very low cost (~500yen), easy to find.
+* PortC (serial communication) is available for users.
+
+**Cons**: Difficult to control and having a (small) safety risk.
+* Difficult to change its angle smoothly.
+* Inrush current is high and may cause the M5Stack to power down in rare cases. SG90 possibly get very hot and may emit smoke when overloaded, such as when the angle exceeds the physical limits of the stack-chan.
+
+#### Serial (RS304MD)
+**Pros**: High functionality
+* Complex control such as speed limit is possible. Since the current servo angle can be read, we can make rich functions such as changing the action according to the direction of the stuck-chan's face.
+
+**Cons**: High cost and having a bit large size.
+* It is relatively expensive (~3,000 yen)
+* Users cannot use PortC. 
+* Because RS304MD is a bit larger than SG90, it sticks out slightly behind the body.
 
 ## Assembly
 

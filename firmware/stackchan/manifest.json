@@ -50,8 +50,8 @@
         "esp32/m5stack_core2": {
             "config": {
                 "servo": {
-                    "pwmPan": 27,
-                    "pwmTilt": 19
+                    "pwmPan": 19,
+                    "pwmTilt": 27
                 }
             }
         }

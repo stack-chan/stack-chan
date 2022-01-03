@@ -3,7 +3,7 @@ declare const global: any
 import Timer from 'timer'
 import Avatar from 'avatar'
 import Modules from 'modules'
-import { Application, Color, Container, Skin } from 'piu/MC'
+import { Application, Color, Container, Content } from 'piu/MC'
 import { hsl } from 'piu/All'
 import CombTransition from 'piu/CombTransition'
 import { Robot, Target } from 'robot'
@@ -32,11 +32,11 @@ function createAvatar(primaryColor: Color, secondaryColor: Color) {
 }
 
 let ap: Application
-let avatar
+let avatar: Content
 
-let onLaunch
-let onButtonChange
-let onRobotCreated
+let onLaunch: () => Application
+let onButtonChange: (buttonName: string, pressed: boolean) => void
+let onRobotCreated: (robot: Robot) => void
 let autoLoop = true
 
 trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
@@ -53,22 +53,60 @@ if (Modules.has("mod")) {
   }
 }
 
+// TODO: separate into modules
+class ButtonBehavior extends Behavior {
+  onTouchBegan(content, id, x, y, tick) {
+    trace(`button ${content.name} touch began: ${id}, (${x}, ${y}), ${tick}\n`)
+		onButtonChange(content.name, true)
+	}
+  onTouchEnded(content, id, x, y, tick) {
+    trace(`button ${content.name} touch ended: ${id}, (${x}, ${y}), ${tick}\n`)
+		onButtonChange(content.name, false)
+	}
+}
+
+const Button = Content.template(({ name, color = 'white' }) => ({
+  name,
+  active: true,
+  ...fluid,
+  skin: new Skin({fill: color}),
+  Behavior: ButtonBehavior
+}))
+
 if (ap == null) {
   avatar = createAvatar('white', 'black')
+  const contents = [ avatar ]
+  if (globalThis.button == null) {
+    trace('adding pseudo buttons for M5Stack Core2\n')
+    const buttons = new Row(null, {
+      left: 0,
+      right: 0,
+      top: 240,
+      height: 40,
+      skin: new Skin({ fill: 'yellow' }),
+      contents: [
+        new Button({name: 'A', color: 'red'}),
+        new Button({name: 'B', color: 'green'}),
+        new Button({name: 'C', color: 'blue'}),
+      ]
+    })
+    contents.push(buttons)
+  }
   ap = new Application(null, {
     displayListLength: 4096,
-    ...fluid,
+    left: 0,
+    top: 0,
+    width: 320,
+    height: 240,
     skin: new Skin({ fill: 'white' }),
-    contents: [
-      avatar
-    ],
+    contents,
   })
 }
 
 function swapFace(primaryColor, secondaryColor) {
   const av = createAvatar(primaryColor, secondaryColor)
   const transition = new CombTransition(250, Math.quadEaseOut, "horizontal", 4);
-  ap.run(transition, ap.first, av);
+  ap.run(transition, ap.content("avatar"), av);
 }
 
 const driver = config.servo?.driver === "tts" ? new RS30XDriver({
@@ -110,6 +148,30 @@ const robot = new Robot({
 })
 
 let target
+function defaultOnButtonChange(button: 'A' | 'B' | 'C', isPressed: boolean): void {
+  if (!isPressed) {
+    return
+  }
+  switch (button) {
+    case 'A':
+      isFollowing = !isFollowing
+      if (isFollowing) {
+        robot.follow(target)
+      } else {
+        robot.unfollow()
+      }
+      break
+    case 'B':
+      const primaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
+      const secondaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
+      swapFace(primaryColor, secondaryColor)
+      break
+    case 'C':
+      /* noop */
+      break
+  }
+}
+
 if (typeof onRobotCreated === "function") {
   onRobotCreated(robot)
 } else {
@@ -117,34 +179,21 @@ if (typeof onRobotCreated === "function") {
   robot.follow(target)
 }
 
+if (typeof onButtonChange !== "function") {
+  onButtonChange = defaultOnButtonChange
+}
+
 let isFollowing = false
 
 if (global.button != null) {
   global.button.a.onChanged = function () {
-    if (typeof onButtonChange === "function") {
-      onButtonChange("A", this.read())
-    } else if (this.read()) {
-      isFollowing = !isFollowing
-      if (isFollowing) {
-        robot.follow(target)
-      } else {
-        robot.unfollow()
-      }
-    }
+    onButtonChange("A", this.read())
   }
   global.button.b.onChanged = function () {
-    if (typeof onButtonChange === "function") {
-      onButtonChange("B", this.read())
-    } else if (this.read()) {
-      const primaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
-      const secondaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)
-      swapFace(primaryColor, secondaryColor)
-    }
+    onButtonChange("B", this.read())
   }
   global.button.c.onChanged = function () {
-    if (typeof onButtonChange === "function") {
-      onButtonChange("C", this.read())
-    }
+    onButtonChange("C", this.read())
   }
 }
 

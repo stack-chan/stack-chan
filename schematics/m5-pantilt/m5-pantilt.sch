@@ -1,5 +1,4 @@
 EESchema Schematic File Version 4
-LIBS:m5-pantilt-cache
 EELAYER 30 0
 EELAYER END
 $Descr A4 11693 8268
@@ -15,11 +14,11 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L pantilt:NL27WZ125 U1
+L pantilt:TC7WH241FK U1
 U 1 1 60BC20AB
 P 5750 5250
 F 0 "U1" H 5750 5625 50  0000 C CNN
-F 1 "NL27WZ125" H 5750 5534 50  0000 C CNN
+F 1 "TC7WH241FK" H 5750 5534 50  0000 C CNN
 F 2 "m5-pantilt:NL27WZ125USG" H 5500 5650 50  0001 C CNN
 F 3 "" H 5500 5650 50  0001 C CNN
 F 4 "" H 5750 5250 50  0001 C CNN "URL"
@@ -1482,17 +1481,6 @@ F 3 "" H 5150 5750 50  0001 C CNN
 $EndComp
 Wire Wire Line
 	5400 5400 5150 5400
-Wire Wire Line
-	5150 5400 5150 5650
-Wire Wire Line
-	6100 5200 6250 5200
-Wire Wire Line
-	6250 5200 6250 5650
-Wire Wire Line
-	6250 5650 5150 5650
-Connection ~ 5150 5650
-Wire Wire Line
-	5150 5650 5150 5750
 $Comp
 L power:+3.3V #PWR02
 U 1 1 60BE2C5E
@@ -1525,11 +1513,11 @@ Wire Wire Line
 	5150 5200 5150 5400
 Connection ~ 5150 5400
 Wire Wire Line
-	6100 5300 6450 5300
+	6100 5300 6700 5300
 Wire Wire Line
-	6100 5400 6450 5400
+	6100 5400 6700 5400
 Wire Wire Line
-	6450 5400 6450 5300
+	6700 5400 6700 5300
 Wire Wire Line
 	6450 4550 6450 4650
 Wire Wire Line
@@ -1541,37 +1529,35 @@ Wire Wire Line
 $Comp
 L Device:R R1
 U 1 1 60BF263A
-P 6450 4900
-F 0 "R1" H 6520 4946 50  0000 L CNN
-F 1 "1k" H 6520 4855 50  0000 L CNN
-F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 6380 4900 50  0001 C CNN
-F 3 "~" H 6450 4900 50  0001 C CNN
-	1    6450 4900
+P 6700 4900
+F 0 "R1" H 6770 4946 50  0000 L CNN
+F 1 "1k" H 6770 4855 50  0000 L CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 6630 4900 50  0001 C CNN
+F 3 "~" H 6700 4900 50  0001 C CNN
+	1    6700 4900
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	6450 5050 6450 5150
-Connection ~ 6450 5300
-Wire Wire Line
-	6450 4750 6450 4650
+	6700 5050 6700 5150
+Connection ~ 6700 5300
 Connection ~ 6450 4650
 $Comp
 L Device:R R2
 U 1 1 60BFA1B3
-P 7050 5150
-F 0 "R2" V 6843 5150 50  0000 C CNN
-F 1 "100" V 6934 5150 50  0000 C CNN
-F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 6980 5150 50  0001 C CNN
-F 3 "~" H 7050 5150 50  0001 C CNN
-F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57FV" V 7050 5150 50  0001 C CNN "URL"
-	1    7050 5150
+P 7300 5150
+F 0 "R2" V 7093 5150 50  0000 C CNN
+F 1 "100" V 7184 5150 50  0000 C CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 7230 5150 50  0001 C CNN
+F 3 "~" H 7300 5150 50  0001 C CNN
+F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57FV" V 7300 5150 50  0001 C CNN "URL"
+	1    7300 5150
 	0    1    1    0   
 $EndComp
 Wire Wire Line
-	6450 5150 6900 5150
-Connection ~ 6450 5150
+	6700 5150 7150 5150
+Connection ~ 6700 5150
 Wire Wire Line
-	6450 5150 6450 5300
+	6700 5150 6700 5300
 $Comp
 L power:+5V #PWR07
 U 1 1 60BFD6E8
@@ -1777,7 +1763,7 @@ F 0 "C1" V 7402 3300 50  0000 C CNN
 F 1 "100u" V 7311 3300 50  0000 C CNN
 F 2 "Capacitor_THT:C_Radial_D6.3mm_H11.0mm_P2.50mm" H 7188 3150 50  0001 C CNN
 F 3 "~" H 7150 3300 50  0001 C CNN
-F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=76S8-53LK" V 7150 3300 50  0001 C CNN "URL"
+F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=46S8-5GL7" V 7150 3300 50  0001 C CNN "URL"
 	1    7150 3300
 	0    -1   -1   0   
 $EndComp
@@ -1850,7 +1836,7 @@ Connection ~ 7550 4200
 Wire Wire Line
 	7550 4200 7550 5500
 Wire Wire Line
-	7200 5150 9250 5150
+	7450 5150 9250 5150
 Wire Wire Line
 	9250 4400 9250 3900
 Connection ~ 9250 4400
@@ -2182,4 +2168,56 @@ Wire Wire Line
 	2200 6400 2300 6400
 Wire Wire Line
 	2300 6400 2300 6500
+Wire Wire Line
+	5150 5400 5150 5600
+$Comp
+L Jumper:Jumper_2_Open JP10
+U 1 1 619167B7
+P 6450 5000
+F 0 "JP10" H 6450 5150 50  0000 C CNN
+F 1 "Jumper_2_Open" H 6400 4900 50  0000 C CNN
+F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 6450 5000 50  0001 C CNN
+F 3 "~" H 6450 5000 50  0001 C CNN
+	1    6450 5000
+	0    1    1    0   
+$EndComp
+$Comp
+L Jumper:Jumper_2_Open JP9
+U 1 1 61917728
+P 6200 5600
+F 0 "JP9" H 6200 5750 50  0000 C CNN
+F 1 "Jumper_2_Open" H 6150 5500 50  0000 C CNN
+F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 6200 5600 50  0001 C CNN
+F 3 "~" H 6200 5600 50  0001 C CNN
+	1    6200 5600
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6100 5200 6450 5200
+Wire Wire Line
+	6400 5600 6450 5600
+Wire Wire Line
+	6450 5600 6450 5200
+Connection ~ 6450 5200
+Wire Wire Line
+	5150 5600 6000 5600
+Connection ~ 5150 5600
+Wire Wire Line
+	5150 5600 5150 5750
+Wire Wire Line
+	6450 4800 6450 4650
+Wire Wire Line
+	6450 4650 6700 4650
+Wire Wire Line
+	6700 4650 6700 4750
+Text Notes 5750 6100 0    50   ~ 0
+Short JP10 to pull-up if 2OE is not inverted,\nShort JP9 to pull-down if 2OE is inverted like 1OE.\n(Depends on IC)
+Text Notes 8250 1250 0    50   ~ 0
+Short JP6, JP8 for Core2\nShort JP5, JP7 for others
+Text Notes 9650 5100 0    50   ~ 0
+Short JP1, JP2 for PWM Servo\nShort JP3, JP4 for Serial Servo
+Text Notes 6150 3450 0    50   ~ 0
+M-BUS
+Text Notes 6150 2450 0    50   ~ 0
+UART
 $EndSCHEMATC

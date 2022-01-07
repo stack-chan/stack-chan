@@ -1,4 +1,3 @@
 (sym_lib_table
   (lib (name pantilt)(type Legacy)(uri ${KIPRJMOD}/pantilt.lib)(options "")(descr ""))
-  (lib (name NL27WZ125)(type Legacy)(uri ${KIPRJMOD}/NL27WZ125.lib)(options "")(descr ""))
 )

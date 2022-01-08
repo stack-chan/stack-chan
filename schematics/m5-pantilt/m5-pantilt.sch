@@ -2302,22 +2302,18 @@ Wire Wire Line
 $Comp
 L Transistor_FET:IRLML6402 Q1
 U 1 1 61DDC391
-P 1750 5550
-F 0 "Q1" V 2092 5550 50  0000 C CNN
-F 1 "IRLML6402" V 2001 5550 50  0000 C CNN
-F 2 "Package_TO_SOT_SMD:SOT-23" H 1950 5475 50  0001 L CIN
-F 3 "https://www.infineon.com/dgdl/irlml6402pbf.pdf?fileId=5546d462533600a401535668d5c2263c" H 1750 5550 50  0001 L CNN
-F 4 "https://akizukidenshi.com/catalog/g/gI-02553/" H 1750 5550 50  0001 C CNN "URL"
-	1    1750 5550
-	0    -1   -1   0   
+P 1750 5350
+F 0 "Q1" V 2092 5350 50  0000 C CNN
+F 1 "IRLML6402" V 2001 5350 50  0000 C CNN
+F 2 "Package_TO_SOT_SMD:SOT-23" H 1950 5275 50  0001 L CIN
+F 3 "https://www.infineon.com/dgdl/irlml6402pbf.pdf?fileId=5546d462533600a401535668d5c2263c" H 1750 5350 50  0001 L CNN
+F 4 "https://akizukidenshi.com/catalog/g/gI-02553/" H 1750 5350 50  0001 C CNN "URL"
+	1    1750 5350
+	0    1    1    0   
 $EndComp
 Wire Wire Line
 	1350 5450 1550 5450
 Connection ~ 1350 5450
-Wire Wire Line
-	1750 5750 1750 5900
-Wire Wire Line
-	1750 5900 1350 5900
 Connection ~ 1350 5900
 Wire Wire Line
 	1350 5900 1350 5950
@@ -2339,4 +2335,10 @@ Wire Wire Line
 Connection ~ 1450 6500
 Wire Wire Line
 	1450 6500 1450 6600
+Wire Wire Line
+	2050 5150 1750 5150
+Wire Wire Line
+	1350 5900 2050 5900
+Wire Wire Line
+	2050 5150 2050 5900
 $EndSCHEMATC

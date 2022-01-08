@@ -23,15 +23,17 @@ __(NOTE) This list includes both options for [Serial](#Serial(TTL)-Servo) and [P
 
 |Reference| Quantity| Value| Footprint| URL|
 |:--:|:--|:--|:--|:--|
-| C1 |1|"100u"|"Capacitor_THT:C_Radial_D6.3mm_H11.0mm_P2.50mm"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=76S8-53LK"|
+| C1 C2 C3 C4 | 4	| "100u" | "Capacitor_SMD:C_1206_3216Metric_Pad1.42x1.75mm_HandSolder" | "https://akizukidenshi.com/catalog/g/gP-15633/" |
 | J1 |1|"Conn_02x15_Odd_Even"|"Connector_PinHeader_2.54mm:PinHeader_2x15_P2.54mm_Vertical_SMD"|"https://www.switch-science.com/catalog/3654/"|
 | J2 J3 |2|"Conn_02x03_Odd_Even"|"Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical"||
 | J5 |1|"BAT"|"Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical"|"https://akizukidenshi.com/catalog/g/gC-12802/"|
 | J4 J6 |2|"Conn_01x04"|"Connector_JST:JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal"||
-| JP1 JP2 |2|"Jumper_3_Bridged12"|"Jumper:SolderJumper-3_P1.3mm_Bridged12_RoundedPad1.0x1.5mm"||
-| R1 R3 R4 |3|"1k"|"Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder"||
-| R2 |1|"100"|"Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57FV"|
-| SW1 |1|"SW_SPDT"|"Button_Switch_THT:SW_E-Switch_EG1224_SPDT_Angled"||
+| J7 |1|"5V_POWER"|"Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical" |"https://akizukidenshi.com/catalog/g/gC-12802/" |
+| JP1 JP2 JP3 JP4 JP5 JP6 JP7 JP8 JP9 JP10|10|Jumper_2_Open|Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm||
+| R1 R3 R4 R5 |4|"1k"|"Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder"||
+|R2 |1|100|"Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57FV"|
+| Q1 |1|"IRLML6402"|Package_TO_SOT_SMD:SOT-23| "https://akizukidenshi.com/catalog/g/gI-02553/" |
+|SW1 |1|"SW_SPDT"|"Button_Switch_THT:SW_CuK_OS102011MA1QN1_SPDT_Angled"|"https://www.digikey.jp/ja/products/detail/c-k/OS102011MA1QN1/1981430"|
 | U1 |1|"NL27WZ125"|"NL27WZ125USG"|"https://www.digikey.jp/number/ja/on-semiconductor/488/NL27WZ125/291486"|
 
 ### Which type of servo should I use?
@@ -61,21 +63,26 @@ With this settings the board can drive two PWM Servos.
 Tested with:
 
 * [SG-90](https://www.towerpro.com.tw/product/sg90-7/)
-* [EMAX ES08MD](https://emaxmodel.com/collections/digital-servo/products/emax-es08md-13g-mini-metal-digital-servo-for-rc-model)
 
 #### Parts
 
 * Resistor SMD 0603(1608Metric)
   * 1kΩ * 2pc
-* Capacitor 100uF（Rated Voltage >= 10V, Diameter <= 6.3mm, Height <= 11.0mm） * 1pc
+* Capacitor 100uF 1206(3216Metric) (Rated Voltage >= 10V) * 2pc
 * Pin Header 2.54mm 1x3pin
   * 1row-3column * 2pc
 * [Pin Header 2.54mm 2x15pin](https://www.switch-science.com/catalog/3654/)
 * JST PH 2-pin Connector * 1pc
-* (Optional) PH 4-pin Connector * 2pc
-* (Optional) Power switch [EG1224](https://www.digikey.com/en/products/detail/e-switch/EG1224/502052)
+* **Optional: Grove port connector**
+  * PH 4-pin Connector * 2pc
+* **Optional: Power switch**
+  * Slide switch [OS102011MA1QN1](https://www.digikey.jp/ja/products/detail/c-k/OS102011MA1QN1/1981430)
+  * Resistor SMD 0603(1608Metric) 1kΩ * 1pc
+  * Pch MOSFET [IRLML6402](https://akizukidenshi.com/catalog/g/gI-02553/)
 
 #### Soldering
+
+CAUTION: The instruction below is deprecated(v0.1.0). To be rewritten when the new board arrives.
 
 1. Change direction of JP1 and JP2. Cut the left patterns and solder right patterns of them.<br><img width="500px" src="./docs/images/pwm_jumper.jpg" />
 1. Solder 1kΩ resistor on R3 and R4.
@@ -97,16 +104,23 @@ Tested with:
 * Resistor SMD 0603(1608Metric)
   * 1kΩ * 1pc
   * 100Ω * 1pc
-* Capacitor 10V/100uF * 1pc
+* Capacitor 100uF 1206(3216Metric) (Rated Voltage >= 10V) * 2pc
 * 3-State Buffer IC [NL27WZ125](https://www.digikey.jp/number/ja/on-semiconductor/488/NL27WZ125/291486) * 1pc
-* Pin Header 2.54mm 1x3pin
+* Pin Header 2.54mm 1x3pin that matches the connector shape of the servos.
   * 1row-3column * 2pc OR
   * 2row-2column * 2pc
 * [Pin Header 2.54mm 2x15pin](https://www.switch-science.com/catalog/3654/)
 * JST PH 2-pin Connector * 1pc
-* (Optional) PH 4-pin Connector * 1pc
+* **Optional: Grove port connector**
+  * PH 4-pin Connector * 2pc
+* **Optional: Power switch**
+  * Slide switch [OS102011MA1QN1](https://www.digikey.jp/ja/products/detail/c-k/OS102011MA1QN1/1981430)
+  * Resistor SMD 0603(1608Metric) 1kΩ * 1pc
+  * Pch MOSFET [IRLML6402](https://akizukidenshi.com/catalog/g/gI-02553/)
 
 #### Soldering
+
+CAUTION: The instruction below is deprecated(v0.1.0). To be rewritten when the new board arrives.
 
 1. Solder resistors, 1kΩ on R1 and 100Ω on R2
 1. Solder IC. See the tiny hole on the chip is on top-left side of silk

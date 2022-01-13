@@ -62,7 +62,7 @@ npm run deploy:m5stack_core2
 npm run debug
 
 # M5Stack CORE2の場合
-npm run deploy:m5stack_core2
+npm run debug:m5stack_core2
 ```
 
 このコマンドはデバッグ用にビルドしたファームウェアを書き込むと同時に、ModdableSDKのデバッガである`xsbug`を起動します。

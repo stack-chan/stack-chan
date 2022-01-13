@@ -61,7 +61,7 @@ npm run deploy:m5stack_core2
 npm run debug
 
 # For M5Stack CORE2
-npm run deploy:m5stack_core2
+npm run debug:m5stack_core2
 ```
 
 This command flashes debug build to Stack-chan and launches `xsbug`, the debugger of ModdableSDK.

@@ -82,17 +82,15 @@ Tested with:
 
 #### Soldering
 
-CAUTION: The image of instruction below is deprecated(v0.1.0). To be rewritten when the new board arrives.
-
-1. Solder bridge JP1 and JP2
+1. Solder bridge JP1 and JP2<br><img width="500px" src="./docs/images/pwm_jumper.jpg" />
 1. For Core1, solder JP5 and JP7, and for Core2, solder JP6 and JP8.
 1. Solder 1kΩ resistor on R3 and R4.
 1. Solder the capacitors to C1, C2, C3, and C4. For each servo, the total capacitance of the two capacitors in parallel should be about 100uF or more. (In this document, two 100uF capacitors are connected in parallel.)
-1. Solder pin headers. and PH 2-pin connector<br><img width="500px" src="./docs/images/pwm_header.jpg" />
-1. (Optional) Solder PH 4-pin connectors for PortB and PortC
-1. (Optional) When using the power switch, solder the MOSFET to Q1, the 1kΩ resistor to R5, and the slide switch to SW1.
+1. Solder pin headers J2 and J3. and PH 2-pin connector J5<br><img width="500px" src="./docs/images/pwm_parts.jpg" />
+1. (Optional) Solder PH 4-pin connectors for PortB and PortC<br><img width="500px" src="./docs/images/pwm_ports.jpg" />
+1. (Optional) When using the power switch, solder the MOSFET to Q1, the 1kΩ resistor to R5, and the slide switch to SW1.<br><img width="500px" src="./docs/images/pwm_switch.jpg" />
   1. When not, short-circuit the source and drain of the MOSFET.
-1. Solder 2x15 pin header<br><img width="500px" src="./docs/images/pinheader.jpg" />
+1. Solder 2x15 pin header<br><img width="500px" src="./docs/images/pwm_2x15.jpg" />
 1. (Optional) If the power of the stack chamber is cut off when the servo is moved, solder a diode to D1. Solder the diode to D1.
 
 ### Serial(TTL) Servo
@@ -109,6 +107,7 @@ Tested with:
   * 100Ω * 1pc
 * Capacitor 100uF 1206(3216Metric) (Rated Voltage >= 10V) * 2pc
 * 3-State Buffer IC [NL27WZ125](https://www.digikey.jp/number/ja/on-semiconductor/488/NL27WZ125/291486) * 1pc
+  * **OR** [TC7WH241FK](https://akizukidenshi.com/catalog/g/gI-10884/) * 1pc
 * Pin Header 2.54mm 1x3pin that matches the connector shape of the servos.
   * 1row-3column * 2pc OR
   * 2row-2column * 2pc
@@ -123,14 +122,15 @@ Tested with:
 
 #### Soldering
 
-CAUTION: The image of instruction below is deprecated(v0.1.0). To be rewritten when the new board arrives.
-
-1. Solder bridge JP3 and JP4
+1. Solder bridge JP3 and JP4<br><img width="500px" src="./docs/images/serial_jumper.jpg" />
 1. Solder resistors, 1kΩ on R1 and 100Ω on R2
-1. Solder IC. See the tiny hole on the chip is on top-left side of silk
+1. Solder IC. See the tiny hole on the chip is on top-left side of silk<br><img width="500px" src="./docs/images/serial_ic.jpg" />
+1. Solder bridge JP9 **OR** JP10
+  - JP9 if you use NL27WZ125
+  - JP10 if you use TC7WH241FK
 1. Solder the capacitors to C1, C2, C3, and C4. For each servo, the total capacitance of the two capacitors in parallel should be about 100uF or more. (In this document, two 100uF capacitors are connected in parallel.)
-1. Solder pin headers. and PH 2-pin connector<br><img width="500px" src="./docs/images/pwm_header.jpg" />
-1. (Optional) Solder PH 4-pin connectors for PortB
-1. (Optional) When using the power switch, solder the MOSFET to Q1, the 1kΩ resistor to R5, and the slide switch to SW1.
+1. Solder pin headers. and PH 2-pin connector<br><img width="500px" src="./docs/images/serial_header.jpg" />
+1. (Optional) Solder PH 4-pin connectors for PortB<br><img width="500px" src="./docs/images/serial_ports.jpg" />
+1. (Optional) When using the power switch, solder the MOSFET to Q1, the 1kΩ resistor to R5, and the slide switch to SW1.<br><img width="500px" src="./docs/images/serial_switch.jpg" />
   1. When not, short-circuit the source and drain of the MOSFET.
-1. Solder 2x15 pin header<br><img width="500px" src="./docs/images/pinheader.jpg" />
+1. Solder 2x15 pin header<br><img width="500px" src="./docs/images/serial_2x15.jpg" />

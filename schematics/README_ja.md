@@ -86,12 +86,12 @@ __(注意)このリストは[PWM](#PWM-Servo)と[シリアル](#Serial(TTL)-Serv
 1. JP1とJP2をはんだブリッジします<br><img width="500px" src="./docs/images/pwm_jumper.jpg" />
 1. Core1の場合JP5, JP7を、Core2の場合JP6, JP8をはんだブリッジします。
 1. 1kΩの抵抗をR3とR4にはんだ付けします。
-1. コンデンサをC1, C2, C3, C4にはんだ付けします。サーボそれぞれにつき、並列に付けた2つのコンデンサの容量合計が100uF程度かそれ以上になるのが望ましいです。（ドキュメントでは100uFのコンデンサを2つ並列に接続します）
-1. ピンヘッダとPH2ピン コネクタをはんだ付けします。<br><img width="500px" src="./docs/images/pwm_header.jpg" />
-1. (オプション) PH4ピン コネクタをPortBとPortCにはんだ付けします。
-1. (オプション) 電源スイッチを使う場合、MOSFETをQ1に、1kΩの抵抗をR5に、スライドスイッチをSW1にはんだ付けします。
+1. コンデンサをC1, C2, C3, C4にはんだ付けします。サーボそれぞれにつき、並列に付けた最大2つのコンデンサの容量合計が100uF程度かそれ以上になるのが望ましいです。（ドキュメントでは100uFのコンデンサを1つずつ付けています）
+1. ピンヘッダJ2, J3とPH2ピン コネクタJ5をはんだ付けします。<br><img width="500px" src="./docs/images/pwm_parts.jpg" />
+1. (オプション) PH4ピン コネクタをPortBとPortCにはんだ付けします。<br><img width="500px" src="./docs/images/pwm_ports.jpg" />
+1. (オプション) 電源スイッチを使う場合、MOSFETをQ1に、1kΩの抵抗をR5に、スライドスイッチをSW1にはんだ付けします。<br><img width="500px" src="./docs/images/pwm_switch.jpg" />
   1. 電源スイッチを使わない場合、MOSFETのソース、ドレインを短絡します
-1. 2x15ピンヘッダをはんだ付けします。<br><img width="500px" src="./docs/images/pinheader.jpg" />
+1. 2x15ピンヘッダをはんだ付けします。<br><img width="500px" src="./docs/images/pwm_2x15.jpg" />
 1. (オプション) サーボを動かす際にｽﾀｯｸﾁｬﾝの電源が切れる場合、ダイオードをD1にはんだ付けします。
 
 ### シリアル(TTL) サーボ
@@ -108,6 +108,7 @@ __(注意)このリストは[PWM](#PWM-Servo)と[シリアル](#Serial(TTL)-Serv
   * 100Ω * 1pc
 * チップコンデンサ 表面実装 100uF 1206(3216Metric) (定格電圧10V以上) * 2pc
 * 3ステートバッファIC[NL27WZ125](https://www.digikey.jp/number/ja/on-semiconductor/488/NL27WZ125/291486) * 1pc
+  * **または** [TC7WH241FK](https://akizukidenshi.com/catalog/g/gI-10884/) * 1pc
 * ピンヘッダ 2.54mm 1x3pin
   * 1行3列 * 2pc または
   * 2行2列 * 2pc （サーボのコネクタ形状に合わせて選択）
@@ -124,12 +125,15 @@ __(注意)このリストは[PWM](#PWM-Servo)と[シリアル](#Serial(TTL)-Serv
 
 注意: 下記の手順の画像は古くなっています(v0.1.0). 新しいバージョンの基板でテスト完了次第置き換え予定です。
 
-1. JP3, JP4をはんだブリッジします。
+1. JP3, JP4をはんだブリッジします。<br><img width="500px" src="./docs/images/serial_jumper.jpg" />
 1. 1kΩの抵抗をR1に、100Ωの抵抗をR2にはんだ付けします。
 1. ICをはんだ付けします。チップ状の小さな穴がシルクの左上にくるのが正しい向きです。<br><img width="500px" src="./docs/images/serial_ic.jpg" />
+1. JP9 **または** JP10をはんだブリッジします。
+  - NL27WZ125を使う場合はJP9
+  - TC7WH241FKを使う場合はJP10
 1. コンデンサをC1, C2, C3, C4にはんだ付けします。サーボそれぞれにつき、並列に付けた2つのコンデンサの容量合計が100uF程度かそれ以上になるのが望ましいです。（ドキュメントでは100uFのコンデンサを2つ並列に接続します）
 1. ピンヘッダとPH2ピン コネクタをはんだ付けします。<br><img width="500px" src="./docs/images/serial_header.jpg" />
 1. (オプション) PH4ピン コネクタをPortBにはんだ付けします。<br><img width="500px" src="./docs/images/serial_ports.jpg" />
-1. (オプション) 電源スイッチを使う場合、MOSFETをQ1に、1kΩの抵抗をR5に、スライドスイッチをSW1にはんだ付けします。
+1. (オプション) 電源スイッチを使う場合、MOSFETをQ1に、1kΩの抵抗をR5に、スライドスイッチをSW1にはんだ付けします。<br><img width="500px" src="./docs/images/serial_switch.jpg" />
   1. 電源スイッチを使わない場合、MOSFETのソース、ドレインを短絡します
-1. 2x15ピンヘッダをはんだ付けします。<br><img width="500px" src="./docs/images/pinheader.jpg" />
+1. 2x15ピンヘッダをはんだ付けします。<br><img width="500px" src="./docs/images/serial_2x15.jpg" />

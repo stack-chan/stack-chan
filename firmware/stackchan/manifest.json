@@ -20,6 +20,8 @@
     },
     "modules": {
         "*": [
+            "./stackchan-mod",
+            "./button",
             "./main",
             "./robot",
             "./rs30x-driver",

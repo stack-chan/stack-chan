@@ -6,7 +6,7 @@
             "port": 8080
         },
         "servo": {
-            "driver": "tts"
+            "driver": "ttl"
         }
     }
 }

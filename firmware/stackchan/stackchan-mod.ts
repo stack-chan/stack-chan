@@ -12,6 +12,7 @@ export interface StackchanMod {
   autoLoop?: boolean
 }
 
+// TODO: move file local variables to context hooks
 let ap: Application
 let avatar: Content
 let robot: Robot
@@ -40,7 +41,7 @@ function swapFace(primaryColor, secondaryColor) {
 function onLaunch() {
   avatar = createAvatar('white', 'black')
   const contents = [avatar]
-  return new Application(null, {
+  ap = new Application(null, {
     displayListLength: 4096,
     left: 0,
     top: 0,
@@ -49,6 +50,7 @@ function onLaunch() {
     skin: new Skin({ fill: 'white' }),
     contents,
   })
+  return ap
 }
 
 function randomBetween(low: number, high: number): number {

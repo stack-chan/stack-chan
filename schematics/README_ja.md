@@ -81,8 +81,6 @@ __(注意)このリストは[PWM](#PWM-Servo)と[シリアル](#Serial(TTL)-Serv
 
 #### はんだ付け
 
-注意: 下記の手順の画像は古くなっています(v0.1.0). 新しいバージョンの基板でテスト完了次第置き換え予定です。
-
 1. JP1とJP2をはんだブリッジします<br><img width="500px" src="./docs/images/pwm_jumper.jpg" />
 1. Core1の場合JP5, JP7を、Core2の場合JP6, JP8をはんだブリッジします。
 1. 1kΩの抵抗をR3とR4にはんだ付けします。
@@ -122,8 +120,6 @@ __(注意)このリストは[PWM](#PWM-Servo)と[シリアル](#Serial(TTL)-Serv
   * Pch MOSFET [IRLML6402](https://akizukidenshi.com/catalog/g/gI-02553/)
 
 #### Soldering
-
-注意: 下記の手順の画像は古くなっています(v0.1.0). 新しいバージョンの基板でテスト完了次第置き換え予定です。
 
 1. JP3, JP4をはんだブリッジします。<br><img width="500px" src="./docs/images/serial_jumper.jpg" />
 1. 1kΩの抵抗をR1に、100Ωの抵抗をR2にはんだ付けします。

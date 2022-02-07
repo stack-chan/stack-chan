@@ -51,7 +51,7 @@ if (globalThis.button == null) {
   ap.add(buttons)
 }
 
-const driver = config.servo?.driver === "tts" ? new RS30XDriver({
+const driver = config.servo?.driver === "ttl" ? new RS30XDriver({
   panId: 0x01, tiltId: 0x02
 }) : new PWMServoDriver()
 const robot = new Robot({

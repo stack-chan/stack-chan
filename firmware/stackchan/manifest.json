@@ -6,7 +6,6 @@
         "$(MODDABLE)/examples/manifest_base.json",
         "$(MODDABLE)/examples/manifest_piu.json",
         "$(MODDABLE)/examples/manifest_typings.json",
-        "$(MODDABLE)/examples/manifest_mod.json",
         "$(MODDABLE)/modules/network/mdns/manifest.json",
         "$(MODDABLE)/modules/base/modules/manifest.json",
         "$(MODULES)/pins/servo/manifest.json",

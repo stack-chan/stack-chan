@@ -80,9 +80,7 @@ const robot = new Robot({
   }]
 })
 
-if (typeof onRobotCreated === "function") {
-  onRobotCreated(robot)
-}
+onRobotCreated?.(robot)
 
 if (global.button != null) {
   global.button.a.onChanged = function () {

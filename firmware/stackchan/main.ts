@@ -3,33 +3,24 @@ declare const global: any
 import { Button } from 'button'
 import config from 'mc/config'
 import Modules from 'modules'
-import { Application, Container } from 'piu/MC'
+import { Container } from 'piu/MC'
 import { Robot } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import { defaultMod, StackchanMod } from 'stackchan-mod'
 
-let ap: Application
-let onLaunch: StackchanMod['onLaunch']
-let onButtonChange: StackchanMod['onButtonChange']
-let onRobotCreated: StackchanMod['onRobotCreated']
-
 trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
 trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
 
+let { onLaunch, onButtonChange, onRobotCreated } = defaultMod
 if (Modules.has("mod")) {
   const mod = Modules.importNow("mod") as StackchanMod
-  onLaunch = mod.onLaunch
-  onButtonChange = mod.onButtonChange
-  onRobotCreated = mod.onRobotCreated
-} else {
-  ({ onLaunch, onButtonChange, onRobotCreated } = defaultMod)
+  onLaunch = mod.onLaunch ?? onLaunch
+  onButtonChange = mod.onButtonChange ?? onButtonChange
+  onRobotCreated = mod.onRobotCreated ?? onRobotCreated
 }
 
-if (typeof onLaunch === "function") {
-  ap = onLaunch()
-}
-
+const ap = onLaunch?.()
 if (ap == null) {
   throw new Error("Application not created")
 }

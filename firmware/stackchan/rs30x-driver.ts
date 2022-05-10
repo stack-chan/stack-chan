@@ -24,7 +24,7 @@ export class RS30XDriver {
   }
   applyPose(pose: Pose, time: number = 0.5) {
     const panAngle = -pose.yaw * 180 / Math.PI
-    const tiltAngle = Math.max(Math.min(-pose.pitch * 180 / Math.PI, -25), 10) 
+    const tiltAngle = Math.min(Math.max(-pose.pitch * 180 / Math.PI, -25), 10) 
     this._pan.setTorqueMode(TorqeMode.ON)
     this._tilt.setTorqueMode(TorqeMode.ON)
     this._pan.setAngleInTime(panAngle, time)

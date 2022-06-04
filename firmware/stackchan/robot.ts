@@ -124,8 +124,9 @@ export function defaultEyes(): Eye[] {
 }
 
 function getYawPitchFromVector3(vector3: Vector3) {
+  // right-handed coordinate
   const yaw = Math.atan2(vector3.y, vector3.x)
-  const pitch = Math.atan2(vector3.z, Math.sqrt(vector3.x * vector3.x + vector3.y * vector3.y))
+  const pitch = - Math.atan2(vector3.z, Math.sqrt(vector3.x * vector3.x + vector3.y * vector3.y))
   return {
     yaw,
     pitch,

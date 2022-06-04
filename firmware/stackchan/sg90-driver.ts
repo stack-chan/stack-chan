@@ -23,7 +23,7 @@ export class PWMServoDriver {
   get onPoseChanged() {
     return this._onPoseChanged
   }
-  constructor(param: { onPoseChanged? } = {}) {
+  constructor(param: { onPoseChanged?} = {}) {
     const pwmPan = config.servo?.pwmPan || 5
     const pwmTilt = config.servo?.pwmTilt || 2
     this._pan = new Servo({
@@ -52,9 +52,11 @@ export class PWMServoDriver {
       Timer.clear(this._driveHandler)
       this._driveHandler = null
     }
+    const offsetPan = config.servo.offsetPan
+    const offsetTilt = config.servo.offsetTilt
     const startPan = this._panRef.current
     const startTilt = this._tiltRef.current
-    const diffPan = (pose.yaw * 180) / Math.PI - startPan 
+    const diffPan = (pose.yaw * 180) / Math.PI - startPan
     const diffTilt = (pose.pitch * 180) / Math.PI - startTilt
     let cnt = 0;
     const numFrame = time * 1000 / INTERVAL
@@ -66,8 +68,8 @@ export class PWMServoDriver {
       const ratio = easeInOutSine(cnt / numFrame)
       const p = startPan + diffPan * ratio
       const t = startTilt + diffTilt * ratio
-      const writingPan = Math.max(Math.min(p + 90, 170), 10)
-      const writingTilt = Math.max(Math.min(t + 90, 170), 10)
+      const writingPan = Math.max(Math.min(p + 90, 170), 10) + offsetPan
+      const writingTilt = Math.max(Math.min(t + 90, 100), 65) + offsetTilt
       this._pan.write(writingPan)
       this._tilt.write(writingTilt)
       this._panRef.current = p

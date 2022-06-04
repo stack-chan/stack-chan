@@ -23,15 +23,17 @@ __(注意)このリストは[PWM](#PWM-Servo)と[シリアル](#Serial(TTL)-Serv
 
 |リファレンス| 数量 | 値| フットプリント| URL|
 |:--:|:--|:--|:--|:--|
-| C1 |1|"100u"|"Capacitor_THT:C_Radial_D6.3mm_H11.0mm_P2.50mm"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=76S8-53LK"|
+| C1 C2 C3 C4 | 4	| "100u" | "Capacitor_SMD:C_1206_3216Metric_Pad1.42x1.75mm_HandSolder" | "https://akizukidenshi.com/catalog/g/gP-15633/" |
 | J1 |1|"Conn_02x15_Odd_Even"|"Connector_PinHeader_2.54mm:PinHeader_2x15_P2.54mm_Vertical_SMD"|"https://www.switch-science.com/catalog/3654/"|
 | J2 J3 |2|"Conn_02x03_Odd_Even"|"Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical"||
 | J5 |1|"BAT"|"Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical"|"https://akizukidenshi.com/catalog/g/gC-12802/"|
 | J4 J6 |2|"Conn_01x04"|"Connector_JST:JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal"||
-| JP1 JP2 |2|"Jumper_3_Bridged12"|"Jumper:SolderJumper-3_P1.3mm_Bridged12_RoundedPad1.0x1.5mm"||
-| R1 R3 R4 |3|"1k"|"Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder"||
-| R2 |1|"100"|"Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57FV"|
-| SW1 |1|"SW_SPDT"|"Button_Switch_THT:SW_E-Switch_EG1224_SPDT_Angled"||
+| J7 |1|"5V_POWER"|"Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical" |"https://akizukidenshi.com/catalog/g/gC-12802/" |
+| JP1 JP2 JP3 JP4 JP5 JP6 JP7 JP8 JP9 JP10|10|Jumper_2_Open|Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm||
+| R1 R3 R4 R5 |4|"1k"|"Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder"||
+|R2 |1|100|"Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57FV"|
+| Q1 |1|"IRLML6402"|Package_TO_SOT_SMD:SOT-23| "https://akizukidenshi.com/catalog/g/gI-02553/" |
+|SW1 |1|"SW_SPDT"|"Button_Switch_THT:SW_CuK_OS102011MA1QN1_SPDT_Angled"|"https://www.digikey.jp/ja/products/detail/c-k/OS102011MA1QN1/1981430"|
 | U1 |1|"NL27WZ125"|"NL27WZ125USG"|"https://www.digikey.jp/number/ja/on-semiconductor/488/NL27WZ125/291486"|
 
 ### PWMとシリアルサーボのどちらが良いか
@@ -61,29 +63,34 @@ __(注意)このリストは[PWM](#PWM-Servo)と[シリアル](#Serial(TTL)-Serv
 下記でテスト済みです。
 
 * [SG-90](https://www.towerpro.com.tw/product/sg90-7/)
-* [EMAX ES08MD](https://emaxmodel.com/collections/digital-servo/products/emax-es08md-13g-mini-metal-digital-servo-for-rc-model)
 
 #### パーツ
 
 * チップ抵抗 表面実装 0603(1608Metric)
   * 1kΩ * 2pc
-* コンデンサ 100uF（定格電圧10V以上、直径6.3mm以内、高さ11.0mm以内） * 1pc
+* チップコンデンサ 表面実装 100uF 1206(3216Metric) (定格電圧10V以上) * 2pc
 * ピンヘッダ 2.54mm 1x3pin
   * 1行3列 * 2pc
 * [ピンヘッダ 2.54mm 2x15pin](https://www.switch-science.com/catalog/3654/)
-* JST PH2ピン コネクタ * 1pc
-* (オプション) PH 4ピン コネクタ * 2pc
-* (オプション) 電源スイッチ [EG1224](https://www.digikey.com/en/products/detail/e-switch/EG1224/502052)
+* **オプション: Groveポートコネクタ**
+  * PH 4ピン コネクタ * 2pc
+* **オプション: 電源スイッチ**
+  * スライドスイッチ [OS102011MA1QN1](https://www.digikey.jp/ja/products/detail/c-k/OS102011MA1QN1/1981430)
+  * チップ抵抗 表面実装 0603(1608Metric) 1kΩ * 1pc
+  * Pch MOSFET [IRLML6402](https://akizukidenshi.com/catalog/g/gI-02553/)
 
 #### はんだ付け
 
-1. JP1とJP2の方向を「PWM」のシルクのある方へ変更します。<br><img width="500px" src="./docs/images/pwm_jumper.jpg" />
+1. JP1とJP2をはんだブリッジします<br><img width="500px" src="./docs/images/pwm_jumper.jpg" />
+1. Core1の場合JP5, JP7を、Core2の場合JP6, JP8をはんだブリッジします。
 1. 1kΩの抵抗をR3とR4にはんだ付けします。
-1. コンデンサをC1にはんだ付けします。足を折り曲げて穴に収まるようにします。<br><img width="500px" src="./docs/images/pwm_resistor.jpg" />
-1. ピンヘッダとPH2ピン コネクタをはんだ付けします。<br><img width="500px" src="./docs/images/pwm_header.jpg" />
-1. (オプション) PH4ピン コネクタをPortBとPortCにはんだ付けします。
-1. 電源スイッチをはんだ付けするか、上2つの穴を短絡します。<br><img width="500px" src="./docs/images/pwm_ports.jpg" />
-1. 2x15ピンヘッダをはんだ付けします。<br><img width="500px" src="./docs/images/pinheader.jpg" />
+1. コンデンサをC1, C2, C3, C4にはんだ付けします。サーボそれぞれにつき、並列に付けた最大2つのコンデンサの容量合計が100uF程度かそれ以上になるのが望ましいです。（ドキュメントでは100uFのコンデンサを1つずつ付けています）
+1. ピンヘッダJ2, J3とPH2ピン コネクタJ5をはんだ付けします。<br><img width="500px" src="./docs/images/pwm_parts.jpg" />
+1. (オプション) PH4ピン コネクタをPortBとPortCにはんだ付けします。<br><img width="500px" src="./docs/images/pwm_ports.jpg" />
+1. (オプション) 電源スイッチを使う場合、MOSFETをQ1に、1kΩの抵抗をR5に、スライドスイッチをSW1にはんだ付けします。<br><img width="500px" src="./docs/images/pwm_switch.jpg" />
+  1. 電源スイッチを使わない場合、MOSFETのソース、ドレインを短絡します
+1. 2x15ピンヘッダをはんだ付けします。<br><img width="500px" src="./docs/images/pwm_2x15.jpg" />
+1. (オプション) サーボを動かす際にｽﾀｯｸﾁｬﾝの電源が切れる場合、ダイオードをD1にはんだ付けします。
 
 ### シリアル(TTL) サーボ
 
@@ -97,22 +104,32 @@ __(注意)このリストは[PWM](#PWM-Servo)と[シリアル](#Serial(TTL)-Serv
 * チップ抵抗 表面実装 0603(1608Metric)
   * 1kΩ * 1pc
   * 100Ω * 1pc
-* コンデンサ 10V/100uF * 1pc
+* チップコンデンサ 表面実装 100uF 1206(3216Metric) (定格電圧10V以上) * 2pc
 * 3ステートバッファIC[NL27WZ125](https://www.digikey.jp/number/ja/on-semiconductor/488/NL27WZ125/291486) * 1pc
+  * **または** [TC7WH241FK](https://akizukidenshi.com/catalog/g/gI-10884/) * 1pc
 * ピンヘッダ 2.54mm 1x3pin
   * 1行3列 * 2pc または
   * 2行2列 * 2pc （サーボのコネクタ形状に合わせて選択）
 * [ピンヘッダ 2.54mm 2x15pin](https://www.switch-science.com/catalog/3654/)
 * JST PH2ピン コネクタ * 1pc
-* (オプション) PH 4ピン コネクタ * 1pc
-* (オプション) 電源スイッチ [EG1224](https://www.digikey.com/en/products/detail/e-switch/EG1224/502052)
+* **オプション: Groveポートコネクタ**
+  * PH 4ピン コネクタ * 2pc
+* **オプション: 電源スイッチ**
+  * スライドスイッチ [OS102011MA1QN1](https://www.digikey.jp/ja/products/detail/c-k/OS102011MA1QN1/1981430)
+  * チップ抵抗 表面実装 0603(1608Metric) 1kΩ * 1pc
+  * Pch MOSFET [IRLML6402](https://akizukidenshi.com/catalog/g/gI-02553/)
 
 #### Soldering
 
+1. JP3, JP4をはんだブリッジします。<br><img width="500px" src="./docs/images/serial_jumper.jpg" />
 1. 1kΩの抵抗をR1に、100Ωの抵抗をR2にはんだ付けします。
 1. ICをはんだ付けします。チップ状の小さな穴がシルクの左上にくるのが正しい向きです。<br><img width="500px" src="./docs/images/serial_ic.jpg" />
-1. コンデンサをC1にはんだ付けします。足を折り曲げて穴に収まるようにします。
+1. JP9 **または** JP10をはんだブリッジします。
+  - NL27WZ125を使う場合はJP9
+  - TC7WH241FKを使う場合はJP10
+1. コンデンサをC1, C2, C3, C4にはんだ付けします。サーボそれぞれにつき、並列に付けた2つのコンデンサの容量合計が100uF程度かそれ以上になるのが望ましいです。（ドキュメントでは100uFのコンデンサを1つずつ付けています）
 1. ピンヘッダとPH2ピン コネクタをはんだ付けします。<br><img width="500px" src="./docs/images/serial_header.jpg" />
 1. (オプション) PH4ピン コネクタをPortBにはんだ付けします。<br><img width="500px" src="./docs/images/serial_ports.jpg" />
-1. 電源スイッチをはんだ付けするか、上2つの穴を短絡します。
-1. 2x15ピンヘッダをはんだ付けします。<br><img width="500px" src="./docs/images/pinheader.jpg" />
+1. (オプション) 電源スイッチを使う場合、MOSFETをQ1に、1kΩの抵抗をR5に、スライドスイッチをSW1にはんだ付けします。<br><img width="500px" src="./docs/images/serial_switch.jpg" />
+  1. 電源スイッチを使わない場合、MOSFETのソース、ドレインを短絡します
+1. 2x15ピンヘッダをはんだ付けします。<br><img width="500px" src="./docs/images/serial_2x15.jpg" />

@@ -28,7 +28,7 @@ __(注意)このリストは[PWM](#PWM-Servo)と[シリアル](#Serial(TTL)-Serv
 | J2 J3 |2|"Conn_02x03_Odd_Even"|"Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical"||
 | J5 |1|"BAT"|"Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical"|"https://akizukidenshi.com/catalog/g/gC-12802/"|
 | J4 J6 |2|"Conn_01x04"|"Connector_JST:JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal"||
-| J7 |1|"5V_POWER"|"Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical" |"https://akizukidenshi.com/catalog/g/gC-12802/" |
+| J7 |1|"5V_POWER"|"Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical" |"https://akizukidenshi.com/catalog/g/gC-12247/" |
 | JP1 JP2 JP3 JP4 JP5 JP6 JP7 JP8 JP9 JP10|10|Jumper_2_Open|Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm||
 | R1 R3 R4 R5 |4|"1k"|"Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder"||
 |R2 |1|100|"Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder"|"https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57FV"|

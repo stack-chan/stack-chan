@@ -8,9 +8,12 @@ import { Robot } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import { defaultMod, StackchanMod } from 'stackchan-mod'
+import Digital from "pins/digital";
 
-trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
-trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
+// import device from 'embedded:provider/builtin'
+
+// trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
+// trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
 
 let { onLaunch, onButtonChange, onRobotCreated } = defaultMod
 if (Modules.has("mod")) {
@@ -80,7 +83,9 @@ const robot = new Robot({
   }]
 })
 
-onRobotCreated?.(robot)
+// onRobotCreated?.(robot, device)
+onRobotCreated?.(robot, Digital)
+// onRobotCreated?.(robot)
 
 if (global.button != null) {
   global.button.a.onChanged = function () {

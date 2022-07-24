@@ -21,6 +21,7 @@ Currently the [case data](https://a360.co/3gcw960) is developed with Fusion360.
 * Two servos
   * Currently available on:
     * RS30X series(TTL version) serial servo
+    * __（Firmware not implemented）__ SCS0009(TTL version) serial servo
     * [SG-90 pwm servo](https://akizukidenshi.com/catalog/g/gM-08761/)
 * 3.7V Battery with PH 2-pin cable
   * Tested on:

@@ -8,7 +8,7 @@ import Timer from 'timer'
 export interface StackchanMod {
   onLaunch?: () => Application
   onButtonChange?: (buttonName: 'A' | 'B' | 'C', pressed: boolean) => void
-  onRobotCreated?: (robot: Robot) => void
+  onRobotCreated?: (robot: Robot, device?: any) => void
   autoLoop?: boolean
 }
 

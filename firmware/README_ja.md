@@ -1,5 +1,11 @@
 # ｽﾀｯｸﾁｬﾝ ファームウェア
 
+## 注意
+
+* ファームウェアは現在も積極的に開発中です。内部の作りやAPIが大きく変わる可能性があります。
+* 「Moddableの環境構築の手順が多くて大変」という課題に対して、現在[issue](https://github.com/meganetaaan/stack-chan/issues/65)を立てて対応中です。環境構築でつまづいた方はフィードバックをぜひお寄せください。
+* Arduino IDEになじみのある方は @mongonta0716 さんの[stack-chan-tester](https://github.com/mongonta0716/stack-chan-tester)もお試しください（PWMサーボのみ対応）。
+
 ## 開発に必要なもの
 
 * ホストPC

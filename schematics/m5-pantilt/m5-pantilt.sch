@@ -1785,18 +1785,6 @@ Wire Wire Line
 Wire Wire Line
 	9250 4400 9250 3900
 Connection ~ 9250 4400
-$Comp
-L Device:R R3
-U 1 1 60C80000
-P 8100 3900
-F 0 "R3" V 8200 3900 50  0000 L CNN
-F 1 "1k" H 8170 3855 50  0000 L CNN
-F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8030 3900 50  0001 C CNN
-F 3 "~" H 8100 3900 50  0001 C CNN
-F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57GK" H 8100 3900 50  0001 C CNN "URL"
-	1    8100 3900
-	0    1    1    0   
-$EndComp
 Wire Wire Line
 	8800 4400 9250 4400
 Text Label 7900 4950 2    50   ~ 0
@@ -1875,8 +1863,6 @@ Wire Wire Line
 	4050 4850 4150 4850
 Wire Wire Line
 	3450 4850 3550 4850
-Wire Wire Line
-	7900 3900 7950 3900
 Text Label 7900 3900 2    50   ~ 0
 PWM1
 Text Label 8200 1500 2    50   ~ 0
@@ -1954,9 +1940,9 @@ Wire Wire Line
 Text Notes 5750 6100 0    50   ~ 0
 Short JP10 to pull-up if 2OE is not inverted,\nShort JP9 to pull-down if 2OE is inverted like 1OE.\n(Depends on IC)
 Text Notes 8250 1250 0    50   ~ 0
-Short JP6, JP8 for Core2\nShort JP5, JP7 for others
+Short R10, R10 for Core2\nShort R9, R11 for others
 Text Notes 8250 5400 0    50   ~ 0
-Short JP1, JP2 for PWM Servo\nShort JP3, JP4 for Serial Servo
+Short R13, R14 for Serial Servo
 Text Notes 5750 2850 0    50   ~ 0
 M-BUS
 Text Notes 5800 1950 0    50   ~ 0
@@ -1974,17 +1960,6 @@ F 3 "~" H 8650 4450 50  0001 C CNN
 F 4 "https://akizukidenshi.com/catalog/g/gP-15633/" V 8650 4450 50  0001 C CNN "URL"
 	1    8650 4450
 	-1   0    0    1   
-$EndComp
-$Comp
-L Device:R R4
-U 1 1 60C8863A
-P 8100 4950
-F 0 "R4" H 8170 4996 50  0000 L CNN
-F 1 "1k" H 8170 4905 50  0000 L CNN
-F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8030 4950 50  0001 C CNN
-F 3 "~" H 8100 4950 50  0001 C CNN
-	1    8100 4950
-	0    1    1    0   
 $EndComp
 Wire Wire Line
 	9250 4950 9250 5150
@@ -2236,21 +2211,6 @@ Wire Wire Line
 Wire Wire Line
 	8300 2550 8550 2550
 $Comp
-L Device:R R7
-U 1 1 62F807FE
-P 8550 3900
-F 0 "R7" V 8450 3800 50  0000 C CNN
-F 1 "0" V 8434 3900 50  0000 C CNN
-F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8480 3900 50  0001 C CNN
-F 3 "~" H 8550 3900 50  0001 C CNN
-	1    8550 3900
-	0    1    1    0   
-$EndComp
-Wire Wire Line
-	8250 3900 8400 3900
-Wire Wire Line
-	8700 3900 8800 3900
-$Comp
 L Device:R R13
 U 1 1 62F8BB17
 P 9050 3900
@@ -2280,21 +2240,6 @@ Wire Wire Line
 	8800 4950 8900 4950
 Wire Wire Line
 	9200 4950 9250 4950
-$Comp
-L Device:R R8
-U 1 1 62FA1F35
-P 8550 4950
-F 0 "R8" V 8450 4850 50  0000 C CNN
-F 1 "0" V 8434 4950 50  0000 C CNN
-F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8480 4950 50  0001 C CNN
-F 3 "~" H 8550 4950 50  0001 C CNN
-	1    8550 4950
-	0    1    1    0   
-$EndComp
-Wire Wire Line
-	8250 4950 8400 4950
-Wire Wire Line
-	8700 4950 8800 4950
 $Comp
 L Device:R R6
 U 1 1 62FB79F4
@@ -2359,4 +2304,33 @@ Wire Wire Line
 	5150 5600 6050 5600
 Wire Wire Line
 	6350 5600 6450 5600
+Wire Wire Line
+	7900 3900 7950 3900
+$Comp
+L Device:R R4
+U 1 1 60C8863A
+P 8100 4950
+F 0 "R4" H 8170 4996 50  0000 L CNN
+F 1 "1k" H 8170 4905 50  0000 L CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8030 4950 50  0001 C CNN
+F 3 "~" H 8100 4950 50  0001 C CNN
+	1    8100 4950
+	0    1    1    0   
+$EndComp
+$Comp
+L Device:R R3
+U 1 1 60C80000
+P 8100 3900
+F 0 "R3" V 8200 3900 50  0000 L CNN
+F 1 "1k" H 8170 3855 50  0000 L CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8030 3900 50  0001 C CNN
+F 3 "~" H 8100 3900 50  0001 C CNN
+F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57GK" H 8100 3900 50  0001 C CNN "URL"
+	1    8100 3900
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	8250 3900 8800 3900
+Wire Wire Line
+	8250 4950 8800 4950
 $EndSCHEMATC

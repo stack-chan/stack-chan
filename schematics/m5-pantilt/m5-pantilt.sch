@@ -1940,42 +1940,13 @@ Wire Wire Line
 	2300 6400 2300 6500
 Wire Wire Line
 	5150 5400 5150 5600
-$Comp
-L Jumper:Jumper_2_Open JP10
-U 1 1 619167B7
-P 6450 5000
-F 0 "JP10" H 6450 5150 50  0000 C CNN
-F 1 "Jumper_2_Open" H 6400 4900 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 6450 5000 50  0001 C CNN
-F 3 "~" H 6450 5000 50  0001 C CNN
-	1    6450 5000
-	0    1    1    0   
-$EndComp
-$Comp
-L Jumper:Jumper_2_Open JP9
-U 1 1 61917728
-P 6200 5600
-F 0 "JP9" H 6200 5750 50  0000 C CNN
-F 1 "Jumper_2_Open" H 6150 5500 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 6200 5600 50  0001 C CNN
-F 3 "~" H 6200 5600 50  0001 C CNN
-	1    6200 5600
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	6100 5200 6450 5200
 Wire Wire Line
-	6400 5600 6450 5600
-Wire Wire Line
 	6450 5600 6450 5200
-Connection ~ 6450 5200
-Wire Wire Line
-	5150 5600 6000 5600
 Connection ~ 5150 5600
 Wire Wire Line
 	5150 5600 5150 5750
-Wire Wire Line
-	6450 4800 6450 4650
 Wire Wire Line
 	6450 4650 6700 4650
 Wire Wire Line
@@ -2357,4 +2328,35 @@ Wire Wire Line
 	3100 5150 3550 5150
 Wire Wire Line
 	1950 5450 3550 5450
+$Comp
+L Device:R R16
+U 1 1 62EE6278
+P 6450 5000
+F 0 "R16" H 6520 5046 50  0000 L CNN
+F 1 "0" H 6520 4955 50  0000 L CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 6380 5000 50  0001 C CNN
+F 3 "~" H 6450 5000 50  0001 C CNN
+	1    6450 5000
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 4650 6450 4850
+Wire Wire Line
+	6450 5150 6450 5200
+Connection ~ 6450 5200
+$Comp
+L Device:R R15
+U 1 1 62EF1E44
+P 6200 5600
+F 0 "R15" V 5993 5600 50  0000 C CNN
+F 1 "0" V 6084 5600 50  0000 C CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 6130 5600 50  0001 C CNN
+F 3 "~" H 6200 5600 50  0001 C CNN
+	1    6200 5600
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	5150 5600 6050 5600
+Wire Wire Line
+	6350 5600 6450 5600
 $EndSCHEMATC

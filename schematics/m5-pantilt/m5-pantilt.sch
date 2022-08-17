@@ -1467,7 +1467,7 @@ Wire Wire Line
 Text Label 4950 5100 2    50   ~ 0
 TXD2
 Wire Wire Line
-	4950 5100 5400 5100
+	4950 5100 5150 5100
 $Comp
 L power:GND #PWR05
 U 1 1 60BDE075
@@ -1785,28 +1785,12 @@ Wire Wire Line
 Wire Wire Line
 	9250 4400 9250 3900
 Connection ~ 9250 4400
-$Comp
-L Device:R R3
-U 1 1 60C80000
-P 8100 3900
-F 0 "R3" V 8200 3900 50  0000 L CNN
-F 1 "1k" H 8170 3855 50  0000 L CNN
-F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8030 3900 50  0001 C CNN
-F 3 "~" H 8100 3900 50  0001 C CNN
-F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57GK" H 8100 3900 50  0001 C CNN "URL"
-	1    8100 3900
-	0    1    1    0   
-$EndComp
-Wire Wire Line
-	8250 3900 8350 3900
 Wire Wire Line
 	8800 4400 9250 4400
 Text Label 7900 4950 2    50   ~ 0
 PWM2
 Wire Wire Line
 	7900 4950 7950 4950
-Wire Wire Line
-	8250 4950 8350 4950
 Wire Wire Line
 	8800 3400 9400 3400
 Wire Wire Line
@@ -1863,79 +1847,11 @@ Text Label 6250 2100 0    50   ~ 0
 RXD2
 Wire Wire Line
 	4050 4750 4150 4750
-$Comp
-L Device:D D1
-U 1 1 6104087D
-P 3350 5300
-F 0 "D1" V 3304 5379 50  0000 L CNN
-F 1 "D" V 3395 5379 50  0000 L CNN
-F 2 "Diode_SMD:D_SMA_Handsoldering" H 3350 5300 50  0001 C CNN
-F 3 "~" H 3350 5300 50  0001 C CNN
-	1    3350 5300
-	0    1    1    0   
-$EndComp
-Wire Wire Line
-	3350 5150 3550 5150
 Wire Wire Line
 	3550 5250 3550 5450
 Wire Wire Line
-	3550 5450 3350 5450
-Connection ~ 3350 5450
-$Comp
-L Jumper:Jumper_2_Open JP2
-U 1 1 610555DC
-P 8550 4950
-F 0 "JP2" H 8450 5050 50  0000 C CNN
-F 1 "Jumper_2_Open" H 8500 4850 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 8550 4950 50  0001 C CNN
-F 3 "~" H 8550 4950 50  0001 C CNN
-	1    8550 4950
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:Jumper_2_Open JP4
-U 1 1 6105E0AB
-P 9050 4950
-F 0 "JP4" H 9000 5050 50  0000 C CNN
-F 1 "Jumper_2_Open" H 9550 4950 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 9050 4950 50  0001 C CNN
-F 3 "~" H 9050 4950 50  0001 C CNN
-	1    9050 4950
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:Jumper_2_Open JP3
-U 1 1 61069B17
-P 9050 3900
-F 0 "JP3" H 8950 4000 50  0000 C CNN
-F 1 "Jumper_2_Open" H 8950 3700 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 9050 3900 50  0001 C CNN
-F 3 "~" H 9050 3900 50  0001 C CNN
-	1    9050 3900
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:Jumper_2_Open JP1
-U 1 1 6106A1BA
-P 8550 3900
-F 0 "JP1" H 8450 4000 50  0000 C CNN
-F 1 "Jumper_2_Open" H 8550 3800 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 8550 3900 50  0001 C CNN
-F 3 "~" H 8550 3900 50  0001 C CNN
-	1    8550 3900
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	8800 3900 8850 3900
-Wire Wire Line
 	8800 3400 8800 3900
-Wire Wire Line
-	8800 3900 8750 3900
 Connection ~ 8800 3900
-Wire Wire Line
-	8800 4950 8850 4950
-Wire Wire Line
-	8750 4950 8800 4950
 Connection ~ 8800 4950
 Text Label 3450 4850 2    50   ~ 0
 PWM1_C2
@@ -1947,8 +1863,6 @@ Wire Wire Line
 	4050 4850 4150 4850
 Wire Wire Line
 	3450 4850 3550 4850
-Wire Wire Line
-	7900 3900 7950 3900
 Text Label 7900 3900 2    50   ~ 0
 PWM1
 Text Label 8200 1500 2    50   ~ 0
@@ -1959,83 +1873,20 @@ Text Label 8200 2200 2    50   ~ 0
 PWM2_C1
 Text Label 8200 2350 2    50   ~ 0
 PWM2_C2
-$Comp
-L Jumper:Jumper_2_Open JP7
-U 1 1 610B54D5
-P 8700 2200
-F 0 "JP7" H 8700 2350 50  0000 C CNN
-F 1 "Jumper_2_Open" H 8650 2100 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 8700 2200 50  0001 C CNN
-F 3 "~" H 8700 2200 50  0001 C CNN
-	1    8700 2200
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:Jumper_2_Open JP8
-U 1 1 610B5CAD
-P 8700 2550
-F 0 "JP8" H 8700 2700 50  0000 C CNN
-F 1 "Jumper_2_Open" H 8650 2450 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 8700 2550 50  0001 C CNN
-F 3 "~" H 8700 2550 50  0001 C CNN
-	1    8700 2550
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:Jumper_2_Open JP6
-U 1 1 610B8B42
-P 8700 1850
-F 0 "JP6" H 8700 2000 50  0000 C CNN
-F 1 "Jumper_2_Open" H 8650 1750 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 8700 1850 50  0001 C CNN
-F 3 "~" H 8700 1850 50  0001 C CNN
-	1    8700 1850
-	1    0    0    -1  
-$EndComp
-$Comp
-L Jumper:Jumper_2_Open JP5
-U 1 1 610B8E8A
-P 8700 1500
-F 0 "JP5" H 8700 1650 50  0000 C CNN
-F 1 "Jumper_2_Open" H 8650 1400 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 8700 1500 50  0001 C CNN
-F 3 "~" H 8700 1500 50  0001 C CNN
-	1    8700 1500
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	8200 1650 8300 1650
 Wire Wire Line
 	8300 1650 8300 1850
 Wire Wire Line
-	8300 1850 8500 1850
-Wire Wire Line
-	8200 1500 8500 1500
-Wire Wire Line
-	8200 2200 8500 2200
-Wire Wire Line
 	8200 2350 8300 2350
 Wire Wire Line
 	8300 2350 8300 2550
 Wire Wire Line
-	8300 2550 8500 2550
-Wire Wire Line
-	8900 2550 9150 2550
-Wire Wire Line
 	9150 2550 9150 2200
-Wire Wire Line
-	9150 2200 8900 2200
-Wire Wire Line
-	8900 1850 9150 1850
-Wire Wire Line
-	9150 1850 9150 1500
-Wire Wire Line
-	9150 1500 8900 1500
 Text Label 9350 1500 0    50   ~ 0
 PWM1
 Wire Wire Line
 	9350 1500 9150 1500
-Connection ~ 9150 1500
 Text Label 9350 2200 0    50   ~ 0
 PWM2
 Wire Wire Line
@@ -2053,10 +1904,7 @@ F 4 "https://akizukidenshi.com/catalog/g/gC-12802/" H 2000 6300 50  0001 C CNN "
 	1    2000 6300
 	-1   0    0    -1  
 $EndComp
-Connection ~ 3350 5150
 Connection ~ 3100 5150
-Wire Wire Line
-	3100 5150 3350 5150
 Wire Wire Line
 	2300 6200 2300 6300
 Wire Wire Line
@@ -2078,42 +1926,13 @@ Wire Wire Line
 	2300 6400 2300 6500
 Wire Wire Line
 	5150 5400 5150 5600
-$Comp
-L Jumper:Jumper_2_Open JP10
-U 1 1 619167B7
-P 6450 5000
-F 0 "JP10" H 6450 5150 50  0000 C CNN
-F 1 "Jumper_2_Open" H 6400 4900 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 6450 5000 50  0001 C CNN
-F 3 "~" H 6450 5000 50  0001 C CNN
-	1    6450 5000
-	0    1    1    0   
-$EndComp
-$Comp
-L Jumper:Jumper_2_Open JP9
-U 1 1 61917728
-P 6200 5600
-F 0 "JP9" H 6200 5750 50  0000 C CNN
-F 1 "Jumper_2_Open" H 6150 5500 50  0000 C CNN
-F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 6200 5600 50  0001 C CNN
-F 3 "~" H 6200 5600 50  0001 C CNN
-	1    6200 5600
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	6100 5200 6450 5200
 Wire Wire Line
-	6400 5600 6450 5600
-Wire Wire Line
 	6450 5600 6450 5200
-Connection ~ 6450 5200
-Wire Wire Line
-	5150 5600 6000 5600
 Connection ~ 5150 5600
 Wire Wire Line
 	5150 5600 5150 5750
-Wire Wire Line
-	6450 4800 6450 4650
 Wire Wire Line
 	6450 4650 6700 4650
 Wire Wire Line
@@ -2121,9 +1940,9 @@ Wire Wire Line
 Text Notes 5750 6100 0    50   ~ 0
 Short JP10 to pull-up if 2OE is not inverted,\nShort JP9 to pull-down if 2OE is inverted like 1OE.\n(Depends on IC)
 Text Notes 8250 1250 0    50   ~ 0
-Short JP6, JP8 for Core2\nShort JP5, JP7 for others
+Short R10, R10 for Core2\nShort R9, R11 for others
 Text Notes 8250 5400 0    50   ~ 0
-Short JP1, JP2 for PWM Servo\nShort JP3, JP4 for Serial Servo
+Short R13, R14 for Serial Servo
 Text Notes 5750 2850 0    50   ~ 0
 M-BUS
 Text Notes 5800 1950 0    50   ~ 0
@@ -2141,17 +1960,6 @@ F 3 "~" H 8650 4450 50  0001 C CNN
 F 4 "https://akizukidenshi.com/catalog/g/gP-15633/" V 8650 4450 50  0001 C CNN "URL"
 	1    8650 4450
 	-1   0    0    1   
-$EndComp
-$Comp
-L Device:R R4
-U 1 1 60C8863A
-P 8100 4950
-F 0 "R4" H 8170 4996 50  0000 L CNN
-F 1 "1k" H 8170 4905 50  0000 L CNN
-F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8030 4950 50  0001 C CNN
-F 3 "~" H 8100 4950 50  0001 C CNN
-	1    8100 4950
-	0    1    1    0   
 $EndComp
 Wire Wire Line
 	9250 4950 9250 5150
@@ -2263,7 +2071,7 @@ L Device:R R5
 U 1 1 61DEC6ED
 P 1350 5650
 F 0 "R5" H 1280 5604 50  0000 R CNN
-F 1 "1k" H 1280 5695 50  0000 R CNN
+F 1 "47k" H 1280 5695 50  0000 R CNN
 F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 1280 5650 50  0001 C CNN
 F 3 "~" H 1350 5650 50  0001 C CNN
 	1    1350 5650
@@ -2278,8 +2086,6 @@ Wire Wire Line
 	1150 5450 1350 5450
 Wire Wire Line
 	1350 5450 1350 5500
-Wire Wire Line
-	1950 5450 3350 5450
 NoConn ~ 1250 6350
 Wire Wire Line
 	1350 5800 1350 5900
@@ -2341,4 +2147,190 @@ Wire Wire Line
 	6100 3200 6600 3200
 Wire Wire Line
 	6100 3300 6600 3300
+Connection ~ 9150 1500
+Wire Wire Line
+	9150 1850 9150 1500
+$Comp
+L Device:R R9
+U 1 1 62F00FD0
+P 8700 1500
+F 0 "R9" V 8493 1500 50  0000 C CNN
+F 1 "0" V 8584 1500 50  0000 C CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8630 1500 50  0001 C CNN
+F 3 "~" H 8700 1500 50  0001 C CNN
+	1    8700 1500
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	8850 1500 9150 1500
+Wire Wire Line
+	8200 1500 8550 1500
+$Comp
+L Device:R R10
+U 1 1 62F2BCBA
+P 8700 1850
+F 0 "R10" V 8493 1850 50  0000 C CNN
+F 1 "0" V 8584 1850 50  0000 C CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8630 1850 50  0001 C CNN
+F 3 "~" H 8700 1850 50  0001 C CNN
+	1    8700 1850
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	8300 1850 8550 1850
+Wire Wire Line
+	8850 1850 9150 1850
+$Comp
+L Device:R R11
+U 1 1 62F42C81
+P 8700 2200
+F 0 "R11" V 8493 2200 50  0000 C CNN
+F 1 "0" V 8584 2200 50  0000 C CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8630 2200 50  0001 C CNN
+F 3 "~" H 8700 2200 50  0001 C CNN
+	1    8700 2200
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	8850 2200 9150 2200
+Wire Wire Line
+	8200 2200 8550 2200
+$Comp
+L Device:R R12
+U 1 1 62F4DA9D
+P 8700 2550
+F 0 "R12" V 8493 2550 50  0000 C CNN
+F 1 "0" V 8584 2550 50  0000 C CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8630 2550 50  0001 C CNN
+F 3 "~" H 8700 2550 50  0001 C CNN
+	1    8700 2550
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	8850 2550 9150 2550
+Wire Wire Line
+	8300 2550 8550 2550
+$Comp
+L Device:R R13
+U 1 1 62F8BB17
+P 9050 3900
+F 0 "R13" V 8950 3800 50  0000 C CNN
+F 1 "0" V 8934 3900 50  0000 C CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8980 3900 50  0001 C CNN
+F 3 "~" H 9050 3900 50  0001 C CNN
+	1    9050 3900
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	8800 3900 8900 3900
+Wire Wire Line
+	9200 3900 9250 3900
+$Comp
+L Device:R R14
+U 1 1 62F969A1
+P 9050 4950
+F 0 "R14" V 8950 4850 50  0000 C CNN
+F 1 "0" V 8934 4950 50  0000 C CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8980 4950 50  0001 C CNN
+F 3 "~" H 9050 4950 50  0001 C CNN
+	1    9050 4950
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	8800 4950 8900 4950
+Wire Wire Line
+	9200 4950 9250 4950
+$Comp
+L Device:R R6
+U 1 1 62FB79F4
+P 5150 4800
+F 0 "R6" H 5080 4754 50  0000 R CNN
+F 1 "10k" H 5080 4845 50  0000 R CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 5080 4800 50  0001 C CNN
+F 3 "~" H 5150 4800 50  0001 C CNN
+	1    5150 4800
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	5150 4950 5150 5100
+Connection ~ 5150 5100
+Wire Wire Line
+	5150 5100 5400 5100
+$Comp
+L power:+3.3V #PWR0104
+U 1 1 62FC4F54
+P 5150 4550
+F 0 "#PWR0104" H 5150 4400 50  0001 C CNN
+F 1 "+3.3V" H 5165 4723 50  0000 C CNN
+F 2 "" H 5150 4550 50  0001 C CNN
+F 3 "" H 5150 4550 50  0001 C CNN
+	1    5150 4550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5150 4550 5150 4650
+Wire Wire Line
+	3100 5150 3550 5150
+Wire Wire Line
+	1950 5450 3550 5450
+$Comp
+L Device:R R16
+U 1 1 62EE6278
+P 6450 5000
+F 0 "R16" H 6520 5046 50  0000 L CNN
+F 1 "0" H 6520 4955 50  0000 L CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 6380 5000 50  0001 C CNN
+F 3 "~" H 6450 5000 50  0001 C CNN
+	1    6450 5000
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 4650 6450 4850
+Wire Wire Line
+	6450 5150 6450 5200
+Connection ~ 6450 5200
+$Comp
+L Device:R R15
+U 1 1 62EF1E44
+P 6200 5600
+F 0 "R15" V 5993 5600 50  0000 C CNN
+F 1 "0" V 6084 5600 50  0000 C CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 6130 5600 50  0001 C CNN
+F 3 "~" H 6200 5600 50  0001 C CNN
+	1    6200 5600
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	5150 5600 6050 5600
+Wire Wire Line
+	6350 5600 6450 5600
+Wire Wire Line
+	7900 3900 7950 3900
+$Comp
+L Device:R R4
+U 1 1 60C8863A
+P 8100 4950
+F 0 "R4" H 8170 4996 50  0000 L CNN
+F 1 "1k" H 8170 4905 50  0000 L CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8030 4950 50  0001 C CNN
+F 3 "~" H 8100 4950 50  0001 C CNN
+	1    8100 4950
+	0    1    1    0   
+$EndComp
+$Comp
+L Device:R R3
+U 1 1 60C80000
+P 8100 3900
+F 0 "R3" V 8200 3900 50  0000 L CNN
+F 1 "1k" H 8170 3855 50  0000 L CNN
+F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" V 8030 3900 50  0001 C CNN
+F 3 "~" H 8100 3900 50  0001 C CNN
+F 4 "https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-57GK" H 8100 3900 50  0001 C CNN "URL"
+	1    8100 3900
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	8250 3900 8800 3900
+Wire Wire Line
+	8250 4950 8800 4950
 $EndSCHEMATC

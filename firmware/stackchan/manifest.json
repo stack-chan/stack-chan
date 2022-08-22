@@ -23,8 +23,8 @@
             "./button",
             "./main",
             "./robot",
-            "./rs30x-driver",
             "./sg90-driver",
+            "./scservo-driver",
             "./tts-remote",
             "./tts-local",
             "$(MODULES)/network/http/*"
@@ -34,7 +34,6 @@
     "preload": [
         "http",
         "robot",
-        "rs30x-driver",
         "tts-remote",
         "tts-local",
         "speeches"

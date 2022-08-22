@@ -5,7 +5,8 @@ import config from 'mc/config'
 import Modules from 'modules'
 import { Container } from 'piu/MC'
 import { Robot } from 'robot'
-import { RS30XDriver } from 'rs30x-driver'
+// import { RS30XDriver } from 'rs30x-driver'
+import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import { defaultMod, StackchanMod } from 'stackchan-mod'
 
@@ -42,7 +43,7 @@ if (globalThis.button == null) {
   ap.add(buttons)
 }
 
-const driver = config.servo?.driver === "ttl" ? new RS30XDriver({
+const driver = config.servo?.driver === "ttl" ? new SCServoDriver({
   panId: 0x01, tiltId: 0x02
 }) : new PWMServoDriver()
 const robot = new Robot({

@@ -2,8 +2,7 @@
   "include": [
       "$(MODDABLE)/examples/manifest_base.json",
       "$(MODDABLE)/examples/manifest_piu.json",
-      "$(MODDABLE)/contributed/serial/manifest.json",
-      "./rs30x/manifest-driver.json"
+      "./scservo/src/manifest-driver.json"
   ],
   "resources": {
     "*": ["./avatar/assets/images/*"],
@@ -15,7 +14,7 @@
       "./avatar/src/balloon",
       "./avatar/src/emoticon",
       "./avatar/src/marquee-label",
-      "./rs30x/src/rs30x"
+      "./scservo/src/scservo"
     ]
   },
   "preload": [
@@ -23,6 +22,6 @@
     "marquee-label",
     "balloon",
     "emoticon",
-    "rs30x"
+    "scservo"
   ]
 }

@@ -1,4 +1,4 @@
-FROM meganetaaan/moddable-esp32:moddable-db8f973
+FROM meganetaaan/moddable-esp32:moddable-ae5ed20
 LABEL maintainer "Shinya Ishikawa<ishikawa.s.1027@gmail.com>"
 
 RUN curl -SL https://deb.nodesource.com/setup_14.x | bash \

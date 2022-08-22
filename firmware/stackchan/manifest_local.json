@@ -6,7 +6,7 @@
             "port": 8080
         },
         "servo": {
-            "driver": "ttl",
+            "driver": "scservo",
             "offsetTilt": 11,
             "offsetPan": 0
         }

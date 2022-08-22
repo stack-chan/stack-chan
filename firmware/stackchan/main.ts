@@ -43,7 +43,7 @@ if (globalThis.button == null) {
   ap.add(buttons)
 }
 
-const driver = config.servo?.driver === "ttl" ? new SCServoDriver({
+const driver = config.servo?.driver === "scservo" ? new SCServoDriver({
   panId: 0x01, tiltId: 0x02
 }) : new PWMServoDriver()
 const robot = new Robot({

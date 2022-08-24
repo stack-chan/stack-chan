@@ -41,10 +41,10 @@
     ],
     "strip": [],
     "creation": {
-        "static": 131072,
+        "static": 98304,
         "stack": 512,
         "keys": {
-            "available": 128
+            "available": 512
         }
     },
     "platforms": {

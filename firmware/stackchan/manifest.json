@@ -4,6 +4,7 @@
     },
     "include": [
         "$(MODDABLE)/examples/manifest_base.json",
+        "$(MODDABLE)/examples/manifest_net.json",
         "$(MODDABLE)/examples/manifest_piu.json",
         "$(MODDABLE)/examples/manifest_typings.json",
         "$(MODDABLE)/modules/network/mdns/manifest.json",
@@ -19,6 +20,7 @@
     },
     "modules": {
         "*": [
+			"$(MODULES)/network/http/*",
             "./stackchan-mod",
             "./button",
             "./main",
@@ -26,8 +28,7 @@
             "./sg90-driver",
             "./scservo-driver",
             "./tts-remote",
-            "./tts-local",
-            "$(MODULES)/network/http/*"
+            "./tts-local"
         ],
         "speeches": "./assets/sounds/speeches_ja"
     },

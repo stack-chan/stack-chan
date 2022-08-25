@@ -10,21 +10,23 @@ import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import { defaultMod, StackchanMod } from 'stackchan-mod'
 
-trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
-trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
+// trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
+// trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
 
-let { onLaunch, onButtonChange, onRobotCreated } = defaultMod
-if (Modules.has("mod")) {
-  const mod = Modules.importNow("mod") as StackchanMod
+let { onLaunch, onButtonChange, onRobotCreated, onApplicationCreated } = defaultMod
+if (Modules.has('mod')) {
+  const mod = Modules.importNow('mod') as StackchanMod
   onLaunch = mod.onLaunch ?? onLaunch
   onButtonChange = mod.onButtonChange ?? onButtonChange
   onRobotCreated = mod.onRobotCreated ?? onRobotCreated
+  onApplicationCreated = mod.onApplicationCreated ?? onApplicationCreated
 }
 
 const ap = onLaunch?.()
 if (ap == null) {
-  throw new Error("Application not created")
+  throw new Error('Application not created')
 }
+onApplicationCreated(ap)
 
 if (globalThis.button == null) {
   trace('adding pseudo buttons for M5Stack Core2\n')
@@ -38,59 +40,66 @@ if (globalThis.button == null) {
       new Button({ name: 'A', color: 'red', onButtonChange }),
       new Button({ name: 'B', color: 'green', onButtonChange }),
       new Button({ name: 'C', color: 'blue', onButtonChange }),
-    ]
+    ],
   })
   ap.add(buttons)
 }
 
-const driver = config.servo?.driver === "scservo" ? new SCServoDriver({
-  panId: 0x01, tiltId: 0x02
-}) : new PWMServoDriver()
+const driver =
+  config.servo?.driver === 'scservo'
+    ? new SCServoDriver({
+        panId: 0x01,
+        tiltId: 0x02,
+      })
+    : new PWMServoDriver()
 const robot = new Robot({
   renderer: {
     render(face) {
       for (const eye of face.eyes) {
-        const avatar = ap.content("avatar") as Container
+        const avatar = ap.content('avatar') as Container
         if (avatar == null) {
           return
         }
         const { yaw, pitch } = eye.gaze
         const eyeContent = avatar.content(eye.name)
-        eyeContent.delegate("onGazeChange", {
+        eyeContent.delegate('onGazeChange', {
           x: Math.sin(yaw),
-          y: Math.sin(pitch)
+          y: Math.sin(pitch),
         })
       }
-    }
+    },
   },
   driver,
-  eyes: [{
-    name: 'leftEye',
-    position: {
-      x: 0.03,
-      y: -0.0085,
-      z: 0.0,
+  eyes: [
+    {
+      name: 'leftEye',
+      position: {
+        x: 0.03,
+        y: -0.0085,
+        z: 0.0,
+      },
     },
-  }, {
-    name: 'rightEye',
-    position: {
-      x: 0.03,
-      y: 0.0085,
-      z: 0.0,
+    {
+      name: 'rightEye',
+      position: {
+        x: 0.03,
+        y: 0.0085,
+        z: 0.0,
+      },
     },
-  }]
+  ],
 })
 
 onRobotCreated?.(robot)
 
 if (global.button != null) {
   global.button.a.onChanged = function () {
-    onButtonChange("A", this.read())
+    onButtonChange('A', this.read())
   }
   global.button.b.onChanged = function () {
-    onButtonChange("B", this.read())
+    onButtonChange('B', this.read())
   }
   global.button.c.onChanged = function () {
-    onButtonChange("C", this.read())
+    onButtonChange('C', this.read())
   }
 }

@@ -7,6 +7,20 @@ import shiftPitch from './pitch-shift.js'
 import wae from 'web-audio-engine'
 
 const AudioContext = wae.RenderingAudioContext
+// const LANG = "EN"
+const LANG = "JA"
+const VOICE_OPTIONS = {
+  EN: {
+    languageCode: 'en-US',
+    name: 'en-US-Wavenet-F',
+    ssmlGender: 'NEUTRAL',
+  },
+  JA: {
+    languageCode: 'ja-JP',
+    name: 'ja-JP-Wavenet-A',
+    ssmlGender: 'NEUTRAL',
+  }
+}
 
 // Import other required libraries
 // Creates a client
@@ -22,13 +36,10 @@ async function quickStart() {
     const request = {
       input: { text: text },
       // Select the language and SSML voice gender (optional)
-      voice: {
-        languageCode: 'ja-JP',
-        name: 'ja-JP-Wavenet-A',
-        ssmlGender: 'NEUTRAL',
-      },
+      voice: VOICE_OPTIONS[LANG],
       // select the type of audio encoding
-      audioConfig: { audioEncoding: 'LINEAR16', pitch: 2.0, speakingRate: 1.5 },
+      // audioConfig: { audioEncoding: 'LINEAR16', pitch: 2.0, speakingRate: 1.5 },
+      audioConfig: { audioEncoding: 'LINEAR16', sampleRateHertz: 4000 },
     }
     console.log(`POSTING: ${JSON.stringify(request)}`)
 

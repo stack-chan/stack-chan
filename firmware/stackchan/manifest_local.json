@@ -10,5 +10,14 @@
             "offsetTilt": 11,
             "offsetPan": 0
         }
-    }
+    },
+    "resources": {
+        "*": "./assets/sounds/cheerup/*"
+    },
+    "modules": {
+        "speeches": "./assets/sounds/cheerup/speeches_ja"
+    },
+    "preload": [
+        "speeches"
+    ]
 }

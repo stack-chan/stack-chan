@@ -2,8 +2,8 @@
 
 [日本語](./README_ja.md)
 
-<img box-sizing="border-box" margin="0px" display="inline-block" alt="board top" width="49%" src="./docs/images/m5-pantilt-top.png"/>
-<img box-sizing="border-box" margin="0px" display="inline-block" alt="board bottom" width="49%" src="./docs/images/m5-pantilt-bottom.png"/>
+<img box-sizing="border-box" margin="0px" display="inline-block" alt="board top" width="49%" src="./docs/images/m5-pantilt-top.jpg"/>
+<img box-sizing="border-box" margin="0px" display="inline-block" alt="board bottom" width="49%" src="./docs/images/m5-pantilt-bottom.jpg"/>
 <img box-sizing="border-box" margin="0px" display="inline-block" alt="board bottom" width="49%" src="./docs/images/m5-pantilt-sch.png"/>
 
 ## Feature
@@ -88,7 +88,7 @@ Tested with:
 
 #### Soldering
 
-1. Solder 0Ω resistors
+1. Solder or jump 0Ω resistors
   * For M5Stack Basic/Gray/Fire: R10, R12
   * For M5Stack Core2: R9, R11
 1. Solder 1kΩ resistor on R3 and R4.
@@ -130,10 +130,10 @@ Tested with:
 
 #### Soldering
 
-1. Solder 0Ω resistors to R13 and R14<br><img width="500px" src="./docs/images/serial_jumper.jpg" />
+1. Solder 0Ω or jump resistors to R13 and R14<br><img width="500px" src="./docs/images/serial_jumper.jpg" />
 1. Solder resistors, 1kΩ on R1 and 100Ω on R2
 1. Solder IC. See the tiny hole on the chip is on top-left side of silk<br><img width="500px" src="./docs/images/serial_ic.jpg" />
-1. Solder 0Ω resistor to R15 **OR** JP16
+1. Solder 0Ω or jump resistor to R15 **OR** JP16
   - R15 if you use NL27WZ125
   - R16 if you use TC7WH241FK
 1. Solder the capacitors to C1, C2, C3, and C4. For each servo, the total capacitance of the two capacitors in parallel should be about 100uF or more. (In this document, two 100uF capacitors are connected in parallel.)

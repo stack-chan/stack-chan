@@ -2,8 +2,8 @@
 
 [Enblish](./README.md)
 
-<img box-sizing="border-box" margin="0px" display="inline-block" alt="board top" width="49%" src="./docs/images/m5-pantilt-top.png"/>
-<img box-sizing="border-box" margin="0px" display="inline-block" alt="board bottom" width="49%" src="./docs/images/m5-pantilt-bottom.png"/>
+<img box-sizing="border-box" margin="0px" display="inline-block" alt="board top" width="49%" src="./docs/images/m5-pantilt-top.jpg"/>
+<img box-sizing="border-box" margin="0px" display="inline-block" alt="board bottom" width="49%" src="./docs/images/m5-pantilt-bottom.jpg"/>
 <img box-sizing="border-box" margin="0px" display="inline-block" alt="board bottom" width="49%" src="./docs/images/m5-pantilt-sch.png"/>
 
 ## 機能
@@ -87,7 +87,7 @@ __(注意)このリストは[PWM](#PWM-Servo)と[シリアル](#Serial(TTL)-Serv
 
 #### はんだ付け
 
-1. 0Ωの抵抗をはんだ付けします。
+1. 0Ωの抵抗をはんだ付けするか、短絡します。
   - M5Stack Basic/Gray/Fireの場合: R10, R12
   - M5Stack Core2の場合: R9, R11
 1. 1kΩの抵抗をR3とR4にはんだ付けします。
@@ -129,10 +129,10 @@ __(注意)このリストは[PWM](#PWM-Servo)と[シリアル](#Serial(TTL)-Serv
 
 #### Soldering
 
-1. 0Ωの抵抗をR13, R14にはんだ付けします。
+1. 0Ωの抵抗をR13, R14にはんだ付けするか、短絡します。
 1. 1kΩの抵抗をR1に、100Ωの抵抗をR2にはんだ付けします。
 1. ICをはんだ付けします。チップ状の小さな穴がシルクの左上にくるのが正しい向きです。<br><img width="500px" src="./docs/images/serial_ic.jpg" />
-1. 0Ωの抵抗をR15 **または** R16にはんだ付けします。
+1. 0Ωの抵抗をR15 **または** R16にはんだ付けするか、短絡します。
   - NL27WZ125を使う場合はR15
   - TC7WH241FKを使う場合はR16
 1. コンデンサをC1, C2, C3, C4にはんだ付けします。サーボそれぞれにつき、並列に付けた2つのコンデンサの容量合計が100uF程度かそれ以上になるのが望ましいです。（ドキュメントでは100uFのコンデンサを1つずつ付けています）

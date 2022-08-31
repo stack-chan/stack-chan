@@ -20,9 +20,9 @@
 * [Stack-chan 基板](../schematics/README.md)
 * サーボモータ2つ
   * 現在次のモータで動作確認しています
-    * シリアルサーボ RS30Xシリーズ(TTL通信)
-    * __（ファームウェア未対応）__ シリアルサーボ SCS0009(TTL通信)
-    * PWMサーボ SG-90
+    * [シリアルサーボ RS30Xシリーズ(TTL通信)](https://www.vstone.co.jp/robotshop/index.php?main_page=product_info&products_id=2685)
+    * [シリアルサーボ SCS0009(TTL通信)](https://www.switch-science.com/catalog/8042/) serial servo
+    * [PWMサーボ SG-90](https://akizukidenshi.com/catalog/g/gM-08761/)
 * PH 2ピンのケーブル付きの3.7Vバッテリー
   * 以下で動作確認しています
     * [400mAhのリチウムポリマーバッテリー](https://www.sengoku.co.jp/mod/sgk_cart/detail.php?code=EEHD-4YZL)
@@ -30,6 +30,7 @@
 * ねじ
   * M2 4mm * 4本
   * M2 8mm * 2本
+  * （オプション）M3 15mm * 2本
 
 ### 組み立て方
 
@@ -40,6 +41,7 @@
 ![ステップ1](./docs/videos/bracket.gif)
 
 * サーボをブラケットに差し込みます。
+  * シリアルサーボの場合、足側（左右回転）がID: 1のサーボ、顔側（上下回転）がID: 2のサーボになります。
 * バッテリーをバッテリーケースに差し込みます。
 * 爪を引っ掛けるようにしてバッテリーケースをブラケットに差し込みます。
 
@@ -56,3 +58,4 @@
 * サーボとバッテリーのケーブルを基板に接続します。コネクタの向きが正しいか確認してください。
 * 基板をねじで固定します(M2-4mm * 4本)。
 * M5Stackをロボットにスタックします。
+* M5Stackを固定する場合、下側の2つの穴を使ってねじで固定します(M3-15mm * 2本)

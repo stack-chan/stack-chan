@@ -7,7 +7,7 @@
         },
         "servo": {
             "driver": "scservo",
-            "offsetTilt": 11,
+            "offsetTilt": 0,
             "offsetPan": 0
         }
     },

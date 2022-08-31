@@ -111,6 +111,7 @@ Tested with:
 
 * Resistor SMD 0603(1608Metric)
   * 1kΩ * 1pc
+  * 10kΩ * 1pc
   * 100Ω * 1pc
   * 0Ω * 3pc
 * Capacitor 100uF 1206(3216Metric) (Rated Voltage >= 10V) * 2pc
@@ -131,7 +132,7 @@ Tested with:
 #### Soldering
 
 1. Solder 0Ω or jump resistors to R13 and R14<br><img width="500px" src="./docs/images/serial_jumper.jpg" />
-1. Solder resistors, 1kΩ on R1 and 100Ω on R2
+1. Solder resistors, 1kΩ on R1, 100Ω on R2 and 10kΩ on R6
 1. Solder IC. See the tiny hole on the chip is on top-left side of silk<br><img width="500px" src="./docs/images/serial_ic.jpg" />
 1. Solder 0Ω or jump resistor to R15 **OR** JP16
   - R15 if you use NL27WZ125

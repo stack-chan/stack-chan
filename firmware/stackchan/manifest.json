@@ -50,12 +50,26 @@
             "available": 512
         }
     },
+    "config": {
+        "servo": {
+            "pwmPan": 5,
+            "pwmTilt": 2
+        },
+        "serial": {
+            "transmit": 17,
+            "receive": 16
+        }
+    },
     "platforms": {
         "esp32/m5stack_core2": {
             "config": {
                 "servo": {
                     "pwmPan": 19,
                     "pwmTilt": 27
+                },
+                "serial": {
+                    "transmit": 14,
+                    "receive": 13
                 }
             }
         }

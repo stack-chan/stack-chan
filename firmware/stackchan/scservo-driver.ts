@@ -8,6 +8,7 @@ export class SCServoDriver {
   _tilt: SCServo
   _handler: ReturnType<typeof Timer.repeat>
   _onPoseChanged?: (pose: Pose) => unknown
+  #initialized: boolean
   set onPoseChanged(onPoseChanged: (pose: Pose) => unknown) {
     this._onPoseChanged = onPoseChanged
   }
@@ -15,14 +16,19 @@ export class SCServoDriver {
     return this._onPoseChanged
   }
   constructor(param: { panId: number; tiltId: number; onPoseChanged? }) {
+    this.#initialized = false
     this._pan = new SCServo({ id: param.panId })
     this._tilt = new SCServo({ id: param.tiltId })
     this._handler = Timer.repeat(this.poseLoop.bind(this), 100)
     this._onPoseChanged = param.onPoseChanged
   }
+  async #initialize(): Promise<void> {
+    // await this._pan.loadSettings()
+    // await this._tilt.loadSettings()
+  }
   async applyPose(pose: Pose, time = 0.5): Promise<void> {
-    const panAngle = 90 - (pose.yaw * 180) / Math.PI
-    const tiltAngle = 90 - Math.min(Math.max((pose.pitch * 180) / Math.PI, -25), 10)
+    const panAngle = 100 - (pose.yaw * 180) / Math.PI
+    const tiltAngle = 100 - Math.min(Math.max((pose.pitch * 180) / Math.PI, -25), 10)
     trace(`applying (${pose.yaw}, ${pose.pitch}) => (${panAngle}, ${tiltAngle})\n`)
     await Promise.all([
       this._pan.setAngleInTime(panAngle, time * 1000),
@@ -33,6 +39,10 @@ export class SCServoDriver {
     }, time * 1000 + 10)
   }
   async poseLoop(): Promise<void> {
+    if (!this.#initialized) {
+      this.#initialized = true
+      await this.#initialize()
+    }
     if (this._onPoseChanged == null) {
       return
     }

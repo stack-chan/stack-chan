@@ -1,6 +1,6 @@
 # ｽﾀｯｸﾁｬﾝ(Stack-chan)
 
-[Enblish](./README.md)
+[English](./README.md)
 
 ![stackchan](./docs/images/stackchan.gif)
 

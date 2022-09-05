@@ -7,6 +7,7 @@ import Timer from 'timer'
 
 export interface StackchanMod {
   onLaunch?: () => Application
+  onApplicationCreated?: (application: Application) => void
   onButtonChange?: (buttonName: 'A' | 'B' | 'C', pressed: boolean) => void
   onRobotCreated?: (robot: Robot) => void
   autoLoop?: boolean
@@ -51,6 +52,10 @@ function onLaunch() {
     contents,
   })
   return ap
+}
+
+function onApplicationCreated() {
+  /* do nothing */
 }
 
 function randomBetween(low: number, high: number): number {
@@ -102,6 +107,7 @@ function onButtonChange(button, isPressed) {
 
 export const defaultMod: StackchanMod = {
   onLaunch,
+  onApplicationCreated,
   onRobotCreated,
   onButtonChange,
 }

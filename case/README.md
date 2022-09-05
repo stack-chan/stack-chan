@@ -20,8 +20,8 @@ Currently the [case data](https://a360.co/3gcw960) is developed with Fusion360.
 * [Stack-chan board](../schematics/README.md)
 * Two servos
   * Currently available on:
-    * RS30X series(TTL version) serial servo
-    * __（Firmware not implemented）__ SCS0009(TTL version) serial servo
+    * [RS30X series(TTL version)](https://www.vstone.co.jp/robotshop/index.php?main_page=product_info&products_id=2685) serial servo
+    * [SCS0009(TTL version)](https://www.switch-science.com/catalog/8042/) serial servo
     * [SG-90 pwm servo](https://akizukidenshi.com/catalog/g/gM-08761/)
 * 3.7V Battery with PH 2-pin cable
   * Tested on:
@@ -30,6 +30,7 @@ Currently the [case data](https://a360.co/3gcw960) is developed with Fusion360.
 * Screws
   * M2 4mm * 4pcs
   * M2 8mm * 2pcs
+  * (Optional) M3 15mm * 2本
 
 ### How to Assemble
 
@@ -54,5 +55,7 @@ Currently the [case data](https://a360.co/3gcw960) is developed with Fusion360.
 ![step3](./docs/videos/m5stack_and_board.gif)
 
 * Connect servo and battery cables to the board. Double check the direction of each connector is correct.
+  * For serial servos, the servo with ID: 1 is for the foot side (pan axis) and the servo with ID: 2 is for the face side (tilt axis).
 * Fix the board on the robot with screws(M2-4mm * 4pcs)
 * Stack M5Stack on the robot.
+* If you want to fix the M5Stack, use the two holes below to screw(M3-15mm * 2pcs) it in place.

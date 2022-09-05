@@ -4,47 +4,60 @@
     },
     "include": [
         "$(MODDABLE)/examples/manifest_base.json",
+        "$(MODDABLE)/examples/manifest_net.json",
         "$(MODDABLE)/examples/manifest_piu.json",
-        "$(MODDABLE)/examples/manifest_typings.json",
+		"$(MODDABLE)/modules/network/ble/manifest_server.json",
         "$(MODDABLE)/modules/network/mdns/manifest.json",
         "$(MODDABLE)/modules/base/modules/manifest.json",
+        "$(MODDABLE)/examples/manifest_typings.json",
         "$(MODULES)/pins/servo/manifest.json",
         "../extern/manifest_extern.json",
         "./manifest_net.json",
         "./manifest_typings.json",
         "./manifest_local.json"
     ],
-    "resources": {
-        "*": "./assets/sounds/*"
-    },
     "modules": {
         "*": [
+			"$(MODULES)/network/http/*",
             "./stackchan-mod",
             "./button",
             "./main",
             "./robot",
-            "./rs30x-driver",
             "./sg90-driver",
+            "./scservo-driver",
             "./tts-remote",
             "./tts-local",
-            "$(MODULES)/network/http/*"
-        ],
-        "speeches": "./assets/sounds/speeches_ja"
+            "./stk-server"
+        ]
     },
     "preload": [
-        "http",
+		"http",
         "robot",
-        "rs30x-driver",
         "tts-remote",
         "tts-local",
-        "speeches"
+        "stk-server"
     ],
     "strip": [],
+	"ble": {
+		"*": [
+			"./bleservices/*"
+		]
+	},
     "creation": {
-        "static": 131072,
+        "static": 98304,
         "stack": 512,
         "keys": {
-            "available": 128
+            "available": 512
+        }
+    },
+    "config": {
+        "servo": {
+            "pwmPan": 5,
+            "pwmTilt": 2
+        },
+        "serial": {
+            "transmit": 17,
+            "receive": 16
         }
     },
     "platforms": {
@@ -53,6 +66,10 @@
                 "servo": {
                     "pwmPan": 19,
                     "pwmTilt": 27
+                },
+                "serial": {
+                    "transmit": 14,
+                    "receive": 13
                 }
             }
         }

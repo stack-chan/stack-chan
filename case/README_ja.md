@@ -1,6 +1,6 @@
 # ｽﾀｯｸﾁｬﾝ ケース
 
-[Enblish](./README.md)
+[English](./README.md)
 
 ![case](./docs/images/case.jpg)
 ![case_inside](./docs/images/case_inside.jpg)

@@ -1,6 +1,6 @@
 # ｽﾀｯｸﾁｬﾝ 基板
 
-[Enblish](./README.md)
+[English](./README.md)
 
 <img box-sizing="border-box" margin="0px" display="inline-block" alt="board top" width="49%" src="./docs/images/m5-pantilt-top.jpg"/>
 <img box-sizing="border-box" margin="0px" display="inline-block" alt="board bottom" width="49%" src="./docs/images/m5-pantilt-bottom.jpg"/>

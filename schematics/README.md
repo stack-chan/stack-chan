@@ -64,6 +64,8 @@ __(NOTE) This list includes both options for [Serial](#Serial(TTL)-Servo) and [P
 
 ### PWM Servo
 
+__NOTE: The Stack-chan board v0.2.1 (alpha) has wrong silk sign. PWM_Core1 and PWM_Core2 are reversed.__
+
 With this settings the board can drive two PWM Servos.
 Tested with:
 
@@ -89,8 +91,8 @@ Tested with:
 #### Soldering
 
 1. Solder or jump 0Ω resistors
-  * For M5Stack Basic/Gray/Fire: R10, R12
-  * For M5Stack Core2: R9, R11
+  * For M5Stack Basic/Gray/Fire: R9, R11
+  * For M5Stack Core2: R10, R12
 1. Solder 1kΩ resistor on R3 and R4.
 1. Solder the capacitors to C1, C2, C3, and C4. For each servo, the total capacitance of the two capacitors in parallel should be about 100uF or more. (In this document, two 100uF capacitors are connected in parallel.)
 1. Solder pin headers J2 and J3. and PH 2-pin connector J5<br><img width="500px" src="./docs/images/pwm_parts.jpg" />

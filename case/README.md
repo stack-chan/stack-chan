@@ -7,6 +7,17 @@
 
 Currently the [case data](https://a360.co/3gcw960) is developed with Fusion360.
 
+## Editing
+
+You can import and edit STEP files in each directory using any CAD software.
+
+## 3D Printing
+
+You can print STL files in each directory.
+The recommended orientation is below.
+
+![print orientation](./docs/images/print_orientation.jpg)
+
 ## Assembly
 
 ### Parts

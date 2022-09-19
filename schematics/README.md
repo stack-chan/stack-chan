@@ -80,6 +80,8 @@ Tested with:
 * Pin Header 2.54mm 1x3pin
   * 1row-3column * 2pc
 * [Pin Header 2.54mm 2x15pin](https://www.switch-science.com/catalog/3654/)
+  * Be aware of lower pin height(about 3mm) than usual. We recommend you to use the product of the link above.
+  * ピンの高さが一般的なピンヘッダより短い（3mm）のでご注意ください。リンク先のM5Stackの製品をおすすめします。
 * JST PH 2-pin Connector * 1pc
 * **Optional: Grove port connector**
   * PH 4-pin Connector * 2pc
@@ -123,6 +125,7 @@ Tested with:
   * 1row-3column * 2pc OR
   * 2row-2column * 2pc
 * [Pin Header 2.54mm 2x15pin](https://www.switch-science.com/catalog/3654/)
+  * Be aware of lower pin height(about 3mm) than usual. We recommend you to use the product of the link above.
 * JST PH 2-pin Connector * 1pc
 * **Optional: Grove port connector**
   * PH 4-pin Connector * 1pc

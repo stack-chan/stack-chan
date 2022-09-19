@@ -7,6 +7,17 @@
 
 現在、[ケースデータ](https://a360.co/3gcw960)はFusion360で作成しています。
 
+## 編集
+
+各ディレクトリのSTEPファイルをCADでインポートすると編集できます。
+
+## 3Dプリント
+
+各ディレクトリのSTLファイルを使って印刷ができます。
+印刷の向きは次図のようにすると、仕上がりがきれいです。
+
+![印刷向き](./docs/images/print_orientation.jpg)
+
 ## 組み立て
 
 ### パーツ
@@ -40,9 +51,8 @@
 - ID1: 足側（左右回転、パン軸）
 - ID2: 顔側（上下回転、チルト軸）
 
-シリアルサーボのドライバには[IDを書き換えるコマンド`flashId`があります](https://github.com/meganetaaan/moddable-scservo/blob/71292b9358353837a74ecea387cd3265a610479f/src/scservo.ts#L274)。このコマンドを使ったサーボの設定ツールは開発中です。
-
-SCServoの場合、GUIのデバッグツールを[gitee（中国版GitHub）のFeetechのリポジトリ](https://gitee.com/ftservo/fddebug)からダウンロードできます。
+シリアルサーボのドライバには[IDを書き換えるコマンド`flashId`があります](https://github.com/meganetaaan/moddable-scservo/blob/71292b9358353837a74ecea387cd3265a610479f/src/scservo.ts#L274)。
+このコマンドを使うとｽﾀｯｸﾁｬﾝ基板のみでサーボのIDを設定できます。
 
 ### サーボの角度について
 
@@ -60,9 +70,43 @@ SCServoの場合、GUIのデバッグツールを[gitee（中国版GitHub）のF
 |RS30X  |-150~150度|0度     |
 |SCS0009|0~200度   |100度   |
 
+### （参考）SCS0009をGUIでセットアップする
+
+次の設定をFeetech公式のGUIツールを使って行います。
+
+* サーボのIDを変更する
+* サーボの角度を基準角度に変更する
+
+SCS0009本体に加えて次のものが必要です。
+
+* [URT1](https://www.switch-science.com/catalog/7490/)
+* 6-9Vの電源
+
+* GUIのデバッグツールを[gitee（中国版GitHub）のFeetechのリポジトリ](https://gitee.com/ftservo/fddebug)からダウンロードします。
+* URT1を接続します
+  * 「DC6V-9V」…電源
+  * 「USB」…microUSBケーブルを介してPCに接続
+  * 「G V1 S」…SCS0009を接続（同じIDのサーボを複数接続すると正しく動作しません）
+* `FD.exe`を開きます
+* URT1を接続したCOMポートを選択し、その他の値はデフォルトから変更せず「Connect」を選択します
+* 「Scan」を選択します
+* 左下に接続されたサーボが表示されるので選択します
+
+![接続](./docs/images/connect.jpg)
+
+* 「Goal」の値を511にして「Set」を選択します
+  * サーボが基準角度まで回転します
+* IDを変更する場合「Programming」タブを開きます。
+* 「ID」の行を選択し、値を変更して「Save」を選択します。
+  * IDが書き換わります。
+
+![IDの変更](./docs/images/id.jpg)
+
+__注意：ここで「Recovery」を選択するとサーボが正しく動作しなくなりますのでご注意ください__
+
 ### 組み立て方
 
-(RS304MDを使った場合です。SG-90も似ています)
+(RS304MDを使った場合です。SG-90, SCS0009も似ています)
 
 #### ブラケット
 
@@ -85,6 +129,10 @@ SCServoの場合、GUIのデバッグツールを[gitee（中国版GitHub）のF
 
 * サーボとバッテリーのケーブルを基板に接続します。コネクタの向きが正しいか確認してください。
   * シリアルサーボの場合、ID1のサーボが足側（パン軸）、ID2のサーボが顔側（チルト軸）になります。
+
+SCS0009の場合、信号線（白いケーブル）が右側のピンに接続されます。
+
+![SCS0009の接続](./docs/images/scservo_cable_connection.jpg)
 
 * 基板をねじで固定します(M2-4mm * 4本)。
 * M5Stackをロボットにスタックします。

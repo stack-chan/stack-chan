@@ -84,6 +84,11 @@ The angle of the servo mounting should be as follows.
 
 * Connect servo and battery cables to the board. Double check the direction of each connector is correct.
   * For serial servos, the servo with ID: 1 is for the foot side (pan axis) and the servo with ID: 2 is for the face side (tilt axis).
+
+For SCS0009, The signal line (white cable) is connected to write the pin.
+
+![SCS0009 connection](./docs/images/scservo_cable_connection.jpg)
+
 * Fix the board on the robot with screws(M2-4mm * 4pcs)
 * Stack M5Stack on the robot.
 * If you want to fix the M5Stack, use the two holes below to screw(M3-15mm * 2pcs) it in place.

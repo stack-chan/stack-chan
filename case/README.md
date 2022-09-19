@@ -53,8 +53,6 @@ Therefore, different IDs must be assigned in advance.
 
 The serial servo driver has a command `flashId` to rewrite IDs](https://github.com/meganetaaan/moddable-scservo/blob/71292b9358353837a74ecea387cd3265a 610479f/src/scservo.ts#L274). A servo configuration tool using this command is under development.
 
-For SCServo, a GUI debugging tool can be downloaded from [Feetech's repository on gitee](https://gitee.com/ftservo/fddebug).
-
 ### About the angle of the servo
 
 The angle of the servo mounting should be as follows.
@@ -71,9 +69,43 @@ The angle of the servo mounting should be as follows.
 |RS30X |-150~150 degrees |0 degrees |
 |SCS0009|0~200 degrees |100 degrees |
 
+### Set up SCS0009 with GUI
+
+Set up the following settings using Feetech's official GUI tool.
+
+* Change the ID of the servo
+* Change the angle of the servo to the reference angle
+
+In addition to the SCS0009, the following items are required.
+
+* [URT1](https://www.switch-science.com/catalog/7490/)
+* 6-9V power supply
+
+* Download the GUI debugging tools from [Feetech's repository on gitee](https://gitee.com/ftservo/fddebug).
+* Connect URT1
+  * "DC6V-9V"...Power supply
+  * "USB"...PC via microUSB cable
+  * "G V1 S"...SCS0009 (Connecting multiple servos with the same ID will not work properly)
+* Open `FD.exe`
+* Select the COM port that URT1 is connected to, and select "Connect" without changing other values from default.
+* Select "Scan"
+* Select the servo connected to the URT1 as shown in the lower left corner of the screen.
+
+![Connection](./docs/images/connect.jpg)
+
+* Set the value of "Goal" to 511 and select "Set"
+  * The servo rotate to the reference angle
+* If you change the servo's ID, Open the "Programming" tab
+* Select the "ID" row, change the value and select "Save".
+  * The ID is rewritten.
+
+![ID setting](./docs/images/id.jpg)
+
+__Note: If you select "Recovery", the servo will not work properly__.
+
 ### How to Assemble
 
-(Here are the steps with RS304MD servo. SG-90 is similar to them)
+(Here are the steps with RS304MD servo. SG-90 and SCS0009 is similar to them)
 
 #### Bracket and Battery backpack
 

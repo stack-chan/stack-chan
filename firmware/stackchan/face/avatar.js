@@ -1,14 +1,38 @@
+import Poco from 'commodetto/Poco'
 import { Outline } from 'commodetto/outline'
-import { Behavior } from 'piu/MC'
+import Timer from 'timer'
+import deepEqual from 'deepEqual'
+
+/* global screen */
+
+let poco = new Poco(screen, { rotation: 90 })
+let background = poco.makeColor(0, 0, 0)
+let foreground = poco.makeColor(0, 255, 0)
+let INTERVAL = 1000 / 15
+
+const Emotion = {
+  NEUTRAL: 'NEUTRAL',
+}
+
+function randomBetween(min, max) {
+  return min + (max - min) * Math.random()
+}
+
+function quantize(value, divider) {
+  return Math.ceil(value * divider) / divider
+}
 
 const useBlink = (openMin, openMax, closeMin, closeMax) => {
-  let eyeOpen = 1
+  let isBlinking = false
   let nextToggle = randomBetween(openMin, openMax)
+  let count = 0
   return (tickMillis) => {
-    nextToggle -= tickMillis
-    if (nextToggle < 0) {
-      eyeOpen = Number(!eyeOpen)
-      nextToggle = randomBetween(eyeOpen ? openMin : closeMin, eyeOpen ? openMax : closeMax)
+    let eyeOpen = isBlinking ? quantize(1 - Math.sin((count / nextToggle) * Math.PI), 8) : 1
+    count += tickMillis
+    if (count >= nextToggle) {
+      isBlinking = !isBlinking
+      count = 0
+      nextToggle = isBlinking ? randomBetween(closeMin, closeMax) : randomBetween(openMin, openMax)
     }
     return eyeOpen
   }
@@ -33,8 +57,16 @@ const useBreath = (duration) => {
   let time = 0
   return (tickMillis, emotion = Emotion.NEUTRAL) => {
     time += tickMillis % duration
-    return Math.sin((2 * Math.PI * time) / duration)
+    return quantize(Math.sin((2 * Math.PI * time) / duration), 8)
   }
+}
+
+const useDrawEyelid = (cx, cy, width, height) => (path, eyeContext) => {
+  let w = width
+  let h = height * (1 - eyeContext.open)
+  let x = cx - width / 2
+  let y = cy - height / 2
+  path.rect(x, y, w, h)
 }
 
 const useDrawEye =
@@ -57,7 +89,7 @@ const useDrawEye =
   }
 
 const useDrawMouth =
-  (cx, cy, minWidth = 50, maxWidth = 90, minHeight = 4, maxHeight = 60) =>
+  (cx, cy, minWidth = 50, maxWidth = 90, minHeight = 8, maxHeight = 58) =>
   (path, mouthContext) => {
     let openRatio = mouthContext.open
     let h = minHeight + (maxHeight - minHeight) * openRatio
@@ -67,54 +99,29 @@ const useDrawMouth =
     path.rect(x, y, w, h)
   }
 
-const Emotion = {
-  NEUTRAL: 'NEUTRAL',
-}
-
-function randomBetween(min, max) {
-  return min + (max - min) * Math.random()
-}
-
-export default class extends Behavior {
-  drawFace(faceContext) {
-    let fillPath = new Outline.CanvasPath()
-    let strokePath = new Outline.CanvasPath()
-
-    this.drawLeftEye(fillPath, faceContext.eyes.left)
-    this.drawRightEye(fillPath, faceContext.eyes.right)
-    this.drawMouth(fillPath, faceContext.mouth)
-
-    return [fillPath, strokePath]
-  }
-
-  onCreate(shape) {
-    shape.duration = 6000
-    shape.interval = 125
-    this.eyeOpen = 1
-    this.cx = application.width >> 1
-    this.cy = application.height >> 1
+class Renderer {
+  constructor() {
     this.drawLeftEye = useDrawEye(90, 93, 8)
+    this.drawLeftEyelid = useDrawEyelid(90, 93, 24, 24)
     this.drawRightEye = useDrawEye(230, 96, 8)
+    this.drawRightEyelid = useDrawEyelid(230, 96, 24, 24)
     this.drawMouth = useDrawMouth(160, 148)
-    this.updateBlink = useBlink(400, 5000, 100, 400)
+
+    this.updateBlink = useBlink(400, 5000, 200, 400)
     this.updateBreath = useBreath(6000)
+    // this.updateBreath = () => 0
     this.updateSaccade = useSaccade(300, 2000, 1.0)
+    this.tick = 0
+    this.outline = null
+    this.lastContext = null
   }
-  onFinished(shape) {
-    shape.time = 0
-    shape.start()
-  }
-  onTimeChanged(shape) {
-    let f = shape.fraction * 4
-    f = f * 2 * Math.PI
-    const gain = Math.abs(Math.cos(f))
-    const gain2 = Math.sin(f)
-    let eyeOpen = this.updateBlink(shape.interval)
-    let breath = this.updateBreath(shape.interval)
-    let [saccadeX, saccadeY] = this.updateSaccade(shape.interval)
+  update(poco) {
+    let eyeOpen = this.updateBlink(INTERVAL)
+    let breath = this.updateBreath(INTERVAL)
+    let [saccadeX, saccadeY] = this.updateSaccade(INTERVAL)
+    this.tick = (this.tick + INTERVAL) % 1000
     const faceContext = {
       mouth: {
-        // open: gain,
         open: 0,
       },
       eyes: {
@@ -136,10 +143,36 @@ export default class extends Behavior {
         secondary: 'black',
       },
     }
-    const [fillPath, strokePath] = this.drawFace(faceContext)
-    shape.bubble('onLabel', `avatar face`)
-    shape.fillOutline = Outline.fill(fillPath).translate(0, faceContext.breath * 3 ?? 0)
-    // .translate(gain2 * -8, gain * 4)
-    // .rotate(gain2 * Math.PI / 16, this.cx, this.cy);
+    if (deepEqual(this.lastContext, faceContext)) {
+      return
+    }
+    this.render(poco, faceContext)
+    this.lastContext = faceContext
+  }
+  render(poco, faceContext) {
+    poco.begin(40, 80, poco.width - 80, poco.height - 80)
+    poco.fillRectangle(background, 0, 0, poco.width, poco.height)
+    let layer1 = new Outline.CanvasPath()
+
+    this.drawLeftEye(layer1, faceContext.eyes.left)
+    this.drawRightEye(layer1, faceContext.eyes.right)
+    this.drawMouth(layer1, faceContext.mouth)
+    let outline = Outline.fill(layer1).translate(0, faceContext.breath * 3 ?? 0)
+    poco.blendOutline(foreground, 255, outline, 0, 0)
+
+    let layer2 = new Outline.CanvasPath()
+    this.drawLeftEyelid(layer2, faceContext.eyes.left)
+    this.drawRightEyelid(layer2, faceContext.eyes.right)
+    outline = Outline.fill(layer2, Outline.EVEN_ODD_RULE).translate(0, faceContext.breath * 3 ?? 0)
+    poco.blendOutline(background, 255, outline, 0, 0)
+    poco.end()
   }
 }
+
+let avatar = new Renderer()
+poco.begin()
+poco.fillRectangle(background, 0, 0, poco.width, poco.height)
+poco.end()
+Timer.repeat(() => {
+  avatar.update(poco)
+}, INTERVAL)

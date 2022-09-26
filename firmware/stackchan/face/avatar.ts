@@ -2,16 +2,35 @@ import Poco from 'commodetto/Poco'
 import { Outline } from 'commodetto/outline'
 import Timer from 'timer'
 import deepEqual from 'deepEqual'
+import type { CanvasPath } from 'commodetto/outline'
 
 /* global screen */
+const poco = new Poco(screen, { rotation: 90 })
+const background = poco.makeColor(0, 0, 0)
+const foreground = poco.makeColor(0, 255, 0)
+const INTERVAL = 1000 / 15
 
-let poco = new Poco(screen, { rotation: 90 })
-let background = poco.makeColor(0, 0, 0)
-let foreground = poco.makeColor(0, 255, 0)
-let INTERVAL = 1000 / 15
-
-const Emotion = {
+const Emotion = Object.freeze({
   NEUTRAL: 'NEUTRAL',
+  ANGRY: 'ANGRY',
+  SAD: 'SAD',
+  HAPPY: 'HAPPY',
+  SLEEPY: 'SLEEPY',
+  DOUBTFUL: 'DOUBTFUL',
+  COLD: 'COLD',
+  HOT: 'HOT',
+})
+type Emotion = typeof Emotion[keyof typeof Emotion]
+
+function normRand(m: number, s: number): number {
+  const a = 1 - Math.random()
+  const b = 1 - Math.random()
+  const c = Math.sqrt(-2 * Math.log(a))
+  if (0.5 - Math.random() > 0) {
+    return c * Math.sin(Math.PI * 2 * b) * s + m
+  } else {
+    return c * Math.cos(Math.PI * 2 * b) * s + m
+  }
 }
 
 function randomBetween(min, max) {
@@ -27,7 +46,7 @@ const useBlink = (openMin, openMax, closeMin, closeMax) => {
   let nextToggle = randomBetween(openMin, openMax)
   let count = 0
   return (tickMillis) => {
-    let eyeOpen = isBlinking ? quantize(1 - Math.sin((count / nextToggle) * Math.PI), 8) : 1
+    const eyeOpen = isBlinking ? quantize(1 - Math.sin((count / nextToggle) * Math.PI), 8) : 1
     count += tickMillis
     if (count >= nextToggle) {
       isBlinking = !isBlinking
@@ -38,7 +57,11 @@ const useBlink = (openMin, openMax, closeMin, closeMax) => {
   }
 }
 
-const useSaccade = (updateMin, updateMax, gain) => {
+const useSaccade: (updateMin: number, updateMax: number, gain: number) => (number) => [number, number] = (
+  updateMin: number,
+  updateMax: number,
+  gain: number
+) => {
   let nextToggle = randomBetween(updateMin, updateMax)
   let saccadeX = 0
   let saccadeY = 0
@@ -55,32 +78,32 @@ const useSaccade = (updateMin, updateMax, gain) => {
 
 const useBreath = (duration) => {
   let time = 0
-  return (tickMillis, emotion = Emotion.NEUTRAL) => {
+  return (tickMillis, _emotion = Emotion.NEUTRAL) => {
     time += tickMillis % duration
     return quantize(Math.sin((2 * Math.PI * time) / duration), 8)
   }
 }
 
 const useDrawEyelid = (cx, cy, width, height) => (path, eyeContext) => {
-  let w = width
-  let h = height * (1 - eyeContext.open)
-  let x = cx - width / 2
-  let y = cy - height / 2
+  const w = width
+  const h = height * (1 - eyeContext.open)
+  const x = cx - width / 2
+  const y = cy - height / 2
   path.rect(x, y, w, h)
 }
 
 const useDrawEye =
   (cx, cy, radius = 8) =>
   (path, eyeContext) => {
-    let openRatio = eyeContext.open
-    let offsetX = (eyeContext.gazeX ?? 0) * 2
-    let offsetY = (eyeContext.gazeY ?? 0) * 2
+    const openRatio = eyeContext.open
+    const offsetX = (eyeContext.gazeX ?? 0) * 2
+    const offsetY = (eyeContext.gazeY ?? 0) * 2
     if (openRatio < 0.3) {
       // closed
-      let w = radius * 2
-      let h = Math.min(4, radius / 2)
-      let x = cx - w / 2
-      let y = cy - h / 2
+      const w = radius * 2
+      const h = Math.min(4, radius / 2)
+      const x = cx - w / 2
+      const y = cy - h / 2
       path.rect(x, y, w, h)
     } else {
       // open
@@ -91,15 +114,52 @@ const useDrawEye =
 const useDrawMouth =
   (cx, cy, minWidth = 50, maxWidth = 90, minHeight = 8, maxHeight = 58) =>
   (path, mouthContext) => {
-    let openRatio = mouthContext.open
-    let h = minHeight + (maxHeight - minHeight) * openRatio
-    let w = minWidth + (maxWidth - minWidth) * (1 - openRatio)
-    let x = cx - w / 2
-    let y = cy - h / 2
+    const openRatio = mouthContext.open
+    const h = minHeight + (maxHeight - minHeight) * openRatio
+    const w = minWidth + (maxWidth - minWidth) * (1 - openRatio)
+    const x = cx - w / 2
+    const y = cy - h / 2
     path.rect(x, y, w, h)
   }
 
+type FaceContext = {
+  mouth: {
+    open: number
+  }
+  eyes: {
+    left: {
+      open: number
+      gazeX: number
+      gazeY: number
+    }
+    right: {
+      open: number
+      gazeX: number
+      gazeY: number
+    }
+  }
+  breath: number
+  emotion: Emotion
+  theme: {
+    primary: string | number
+    secondary: string | number
+  }
+}
+
 class Renderer {
+  drawLeftEye: (path: CanvasPath, context: FaceContext['eyes']['left']) => unknown
+  drawRightEye: (path: CanvasPath, context: FaceContext['eyes']['right']) => unknown
+  drawLeftEyelid: (path: CanvasPath, context: FaceContext['eyes']['left']) => unknown
+  drawRightEyelid: (path: CanvasPath, context: FaceContext['eyes']['right']) => unknown
+  drawMouth: (path: CanvasPath, context: FaceContext['mouth']) => unknown
+
+  updateBlink: (interval: number) => number
+  updateBreath: (interval: number) => number
+  updateSaccade: (interval: number) => [number, number]
+  tick: number
+  outline?: Outline
+  lastContext: FaceContext
+
   constructor() {
     this.drawLeftEye = useDrawEye(90, 93, 8)
     this.drawLeftEyelid = useDrawEyelid(90, 93, 24, 24)
@@ -109,16 +169,15 @@ class Renderer {
 
     this.updateBlink = useBlink(400, 5000, 200, 400)
     this.updateBreath = useBreath(6000)
-    // this.updateBreath = () => 0
     this.updateSaccade = useSaccade(300, 2000, 1.0)
     this.tick = 0
     this.outline = null
     this.lastContext = null
   }
   update(poco) {
-    let eyeOpen = this.updateBlink(INTERVAL)
-    let breath = this.updateBreath(INTERVAL)
-    let [saccadeX, saccadeY] = this.updateSaccade(INTERVAL)
+    const eyeOpen = this.updateBlink(INTERVAL)
+    const breath = this.updateBreath(INTERVAL)
+    const [saccadeX, saccadeY] = this.updateSaccade(INTERVAL)
     this.tick = (this.tick + INTERVAL) % 1000
     const faceContext = {
       mouth: {
@@ -152,7 +211,7 @@ class Renderer {
   render(poco, faceContext) {
     poco.begin(40, 80, poco.width - 80, poco.height - 80)
     poco.fillRectangle(background, 0, 0, poco.width, poco.height)
-    let layer1 = new Outline.CanvasPath()
+    const layer1 = new Outline.CanvasPath()
 
     this.drawLeftEye(layer1, faceContext.eyes.left)
     this.drawRightEye(layer1, faceContext.eyes.right)
@@ -160,7 +219,7 @@ class Renderer {
     let outline = Outline.fill(layer1).translate(0, faceContext.breath * 3 ?? 0)
     poco.blendOutline(foreground, 255, outline, 0, 0)
 
-    let layer2 = new Outline.CanvasPath()
+    const layer2 = new Outline.CanvasPath()
     this.drawLeftEyelid(layer2, faceContext.eyes.left)
     this.drawRightEyelid(layer2, faceContext.eyes.right)
     outline = Outline.fill(layer2, Outline.EVEN_ODD_RULE).translate(0, faceContext.breath * 3 ?? 0)
@@ -169,7 +228,7 @@ class Renderer {
   }
 }
 
-let avatar = new Renderer()
+const avatar = new Renderer()
 poco.begin()
 poco.fillRectangle(background, 0, 0, poco.width, poco.height)
 poco.end()

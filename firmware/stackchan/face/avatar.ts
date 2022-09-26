@@ -1,13 +1,8 @@
-import Poco from 'commodetto/Poco'
-import { Outline } from 'commodetto/outline'
-import Timer from 'timer'
+import Poco, { PocoPrototype } from 'commodetto/Poco'
+import { Outline, CanvasPath } from 'commodetto/outline'
 import deepEqual from 'deepEqual'
-import type { CanvasPath } from 'commodetto/outline'
 
 /* global screen */
-const poco = new Poco(screen, { rotation: 90 })
-const background = poco.makeColor(0, 0, 0)
-const foreground = poco.makeColor(0, 255, 0)
 const INTERVAL = 1000 / 15
 
 const Emotion = Object.freeze({
@@ -78,7 +73,7 @@ const useSaccade: (updateMin: number, updateMax: number, gain: number) => (numbe
 
 const useBreath = (duration) => {
   let time = 0
-  return (tickMillis, _emotion = Emotion.NEUTRAL) => {
+  return (tickMillis, emotion = Emotion.NEUTRAL) => {
     time += tickMillis % duration
     return quantize(Math.sin((2 * Math.PI * time) / duration), 8)
   }
@@ -147,6 +142,8 @@ type FaceContext = {
 }
 
 class Renderer {
+  #poco: PocoPrototype
+
   drawLeftEye: (path: CanvasPath, context: FaceContext['eyes']['left']) => unknown
   drawRightEye: (path: CanvasPath, context: FaceContext['eyes']['right']) => unknown
   drawLeftEyelid: (path: CanvasPath, context: FaceContext['eyes']['left']) => unknown
@@ -156,11 +153,16 @@ class Renderer {
   updateBlink: (interval: number) => number
   updateBreath: (interval: number) => number
   updateSaccade: (interval: number) => [number, number]
-  tick: number
   outline?: Outline
   lastContext: FaceContext
 
+  background: number
+  foreground: number
+
   constructor() {
+    this.#poco = new Poco(screen, { rotation: 90 })
+    this.background = this.#poco.makeColor(0, 0, 0)
+    this.foreground = this.#poco.makeColor(0, 255, 0)
     this.drawLeftEye = useDrawEye(90, 93, 8)
     this.drawLeftEyelid = useDrawEyelid(90, 93, 24, 24)
     this.drawRightEye = useDrawEye(230, 96, 8)
@@ -170,15 +172,13 @@ class Renderer {
     this.updateBlink = useBlink(400, 5000, 200, 400)
     this.updateBreath = useBreath(6000)
     this.updateSaccade = useSaccade(300, 2000, 1.0)
-    this.tick = 0
     this.outline = null
     this.lastContext = null
   }
-  update(poco) {
-    const eyeOpen = this.updateBlink(INTERVAL)
-    const breath = this.updateBreath(INTERVAL)
-    const [saccadeX, saccadeY] = this.updateSaccade(INTERVAL)
-    this.tick = (this.tick + INTERVAL) % 1000
+  update(interval = INTERVAL): unknown {
+    const eyeOpen = this.updateBlink(interval)
+    const breath = this.updateBreath(interval)
+    const [saccadeX, saccadeY] = this.updateSaccade(interval)
     const faceContext = {
       mouth: {
         open: 0,
@@ -205,33 +205,33 @@ class Renderer {
     if (deepEqual(this.lastContext, faceContext)) {
       return
     }
-    this.render(poco, faceContext)
+    this.render(this.#poco, faceContext)
     this.lastContext = faceContext
   }
-  render(poco, faceContext) {
+  clear(): void {
+    const poco = this.#poco
+    poco.begin()
+    poco.fillRectangle(this.background, 0, 0, poco.width, poco.height)
+    poco.end()
+  }
+  render(poco: PocoPrototype, faceContext: FaceContext): void {
     poco.begin(40, 80, poco.width - 80, poco.height - 80)
-    poco.fillRectangle(background, 0, 0, poco.width, poco.height)
+    poco.fillRectangle(this.background, 0, 0, poco.width, poco.height)
     const layer1 = new Outline.CanvasPath()
 
     this.drawLeftEye(layer1, faceContext.eyes.left)
     this.drawRightEye(layer1, faceContext.eyes.right)
     this.drawMouth(layer1, faceContext.mouth)
     let outline = Outline.fill(layer1).translate(0, faceContext.breath * 3 ?? 0)
-    poco.blendOutline(foreground, 255, outline, 0, 0)
+    poco.blendOutline(this.foreground, 255, outline, 0, 0)
 
     const layer2 = new Outline.CanvasPath()
     this.drawLeftEyelid(layer2, faceContext.eyes.left)
     this.drawRightEyelid(layer2, faceContext.eyes.right)
     outline = Outline.fill(layer2, Outline.EVEN_ODD_RULE).translate(0, faceContext.breath * 3 ?? 0)
-    poco.blendOutline(background, 255, outline, 0, 0)
+    poco.blendOutline(this.background, 255, outline, 0, 0)
     poco.end()
   }
 }
 
-const avatar = new Renderer()
-poco.begin()
-poco.fillRectangle(background, 0, 0, poco.width, poco.height)
-poco.end()
-Timer.repeat(() => {
-  avatar.update(poco)
-}, INTERVAL)
+export default Renderer

@@ -1,0 +1,32 @@
+{
+    "defines": {
+        "XS_MODS": 1
+    },
+    "include": [
+        "$(MODDABLE)/examples/manifest_base.json",
+        "$(MODDABLE)/examples/manifest_typings.json",
+		"$(MODDABLE)/examples/manifest_commodetto.json",
+		"$(MODDABLE)/modules/commodetto/outline/manifest.json",
+		"$(MODDABLE)/modules/base/deepEqual/manifest.json"
+    ],
+    "modules": {
+        "*": [
+            "./main",
+            "../../face/*",
+            "../../stackchan-util"
+        ]
+    },
+    "preload": [
+		"stackchan-util"
+    ],
+    "config": {
+        "rotation": 90
+    },
+    "creation": {
+        "static": 98304,
+        "stack": 512,
+        "keys": {
+            "available": 512
+        }
+    }
+}

@@ -45,7 +45,7 @@ export class PWMServoDriver {
     this._poseHandler = Timer.repeat(this.poseLoop.bind(this), 100)
     this._onPoseChanged = param.onPoseChanged
   }
-  async applyPose(pose, time = 0.5) {
+  async applyRotation(pose, time = 0.5) {
     trace(`applyPose: ${JSON.stringify(pose)}\n`)
     if (this._driveHandler != null) {
       trace('clearing\n')
@@ -76,6 +76,13 @@ export class PWMServoDriver {
       this._tiltRef.current = t
       cnt += 1
     }, INTERVAL)
+  }
+  async getRotation() {
+    return {
+      y: (Math.PI * this._panRef.current) / 180,
+      p: (Math.PI * this._tiltRef.current) / 180,
+      r: 0.0
+    }
   }
   poseLoop() {
     if (this._onPoseChanged == null) {

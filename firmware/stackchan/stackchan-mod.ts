@@ -2,7 +2,7 @@ import Avatar from 'avatar'
 import { hsl } from 'piu/All'
 import CombTransition from 'piu/CombTransition'
 import { Application, Color, Content } from 'piu/MC'
-import { Robot, Target } from 'robot'
+import { Robot } from 'robot'
 import Timer from 'timer'
 
 export interface StackchanMod {
@@ -17,7 +17,6 @@ export interface StackchanMod {
 let ap: Application
 let avatar: Content
 let robot: Robot
-let target: Target
 let isFollowing: boolean = false
 
 function createAvatar(primaryColor: Color, secondaryColor: Color) {
@@ -64,19 +63,16 @@ function randomBetween(low: number, high: number): number {
 
 function onRobotCreated(r) {
   robot = r
-  target = new Target(0.1, 0.0, -0.03)
-  robot.follow(target)
-
   const targetLoop = () => {
+    if (!isFollowing) {
+      robot.lookAway()
+      return
+    }
     const x = randomBetween(0.4, 1.0)
     const y = randomBetween(-0.4, 0.4)
     const z = randomBetween(-0.02, 0.2)
-    if (target != null) {
-      trace(`looking at: (${x}, ${y}, ${z})\n`)
-      target.x = x
-      target.y = y
-      target.z = z
-    }
+    trace(`looking at: [${x}, ${y}, ${z}]\n`)
+    robot.lookAt([x, y, z])
   }
   Timer.repeat(targetLoop, 5000)
 }
@@ -88,11 +84,6 @@ function onButtonChange(button, isPressed) {
   switch (button) {
     case 'A':
       isFollowing = !isFollowing
-      if (isFollowing) {
-        robot.follow(target)
-      } else {
-        robot.unfollow()
-      }
       break
     case 'B':
       const primaryColor = hsl(randomBetween(0, 360), 1.0, 0.5)

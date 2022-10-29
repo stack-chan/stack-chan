@@ -6,6 +6,7 @@
         "$(MODDABLE)/examples/manifest_base.json",
         "$(MODDABLE)/examples/manifest_typings.json",
 		"$(MODDABLE)/examples/manifest_commodetto.json",
+        "$(MODDABLE)/examples/manifest_piu.json",
 		"$(MODDABLE)/modules/commodetto/outline/manifest.json",
 		"$(MODDABLE)/modules/base/deepEqual/manifest.json"
     ],
@@ -17,7 +18,8 @@
         ]
     },
     "preload": [
-		"stackchan-util"
+		"stackchan-util",
+        "face-renderer"
     ],
     "config": {
         "rotation": 90

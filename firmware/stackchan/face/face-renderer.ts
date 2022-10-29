@@ -1,7 +1,7 @@
 import Poco, { PocoPrototype } from 'commodetto/Poco'
 import { Outline, CanvasPath } from 'commodetto/outline'
 import deepEqual from 'deepEqual'
-import { normRand, randomBetween, quantize } from 'stackchan-util'
+import { randomBetween, quantize } from 'stackchan-util'
 
 /* global screen */
 const INTERVAL = 1000 / 15
@@ -9,13 +9,14 @@ const INTERVAL = 1000 / 15
 // Types
 
 type EyeContext = {
-      open: number
-      gazeX: number
-      gazeY: number
+  open: number
+  gazeX: number
+  gazeY: number
 }
 type MouthContext = {
   open: number
 }
+
 export const Emotion = Object.freeze({
   NEUTRAL: 'NEUTRAL',
   ANGRY: 'ANGRY',
@@ -26,6 +27,7 @@ export const Emotion = Object.freeze({
   COLD: 'COLD',
   HOT: 'HOT',
 })
+
 export type Emotion = typeof Emotion[keyof typeof Emotion]
 
 export type FaceContext = {
@@ -42,10 +44,34 @@ export type FaceContext = {
   }
 }
 
+export const defaultFaceContext: FaceContext = Object.freeze({
+  mouth: {
+    open: 0,
+  },
+  eyes: {
+    left: {
+      open: 1,
+      gazeX: 0,
+      gazeY: 0,
+    },
+    right: {
+      open: 1,
+      gazeX: 0,
+      gazeY: 0,
+    },
+  },
+  breath: 1,
+  emotion: Emotion.NEUTRAL,
+  theme: {
+    primary: 'white',
+    secondary: 'black',
+  },
+})
+
 // Filters
 
-type FaceFilter = (tick: number, face: FaceContext) => FaceContext
-type FaceFilterFactory<T> = (T) => FaceFilter
+type FaceFilter<T = unknown> = (tick: number, face: FaceContext, arg?: T) => FaceContext
+type FaceFilterFactory<T, V = unknown> = (T) => FaceFilter<V>
 
 export const useBlink: FaceFilterFactory<{ openMin: number, openMax: number, closeMin: number, closeMax: number }> = ({ openMin, openMax, closeMin, closeMax }) => {
   let isBlinking = false
@@ -142,7 +168,7 @@ class Layer {
 }
 
 export class Renderer {
-  #poco: PocoPrototype
+  _poco: PocoPrototype
 
   drawLeftEye: (path: CanvasPath, context: EyeContext) => unknown
   drawRightEye: (path: CanvasPath, context: EyeContext) => unknown
@@ -158,9 +184,9 @@ export class Renderer {
   foreground: number
 
   constructor() {
-    this.#poco = new Poco(screen, { rotation: 90 })
-    this.background = this.#poco.makeColor(0, 0, 0)
-    this.foreground = this.#poco.makeColor(0, 255, 0)
+    this._poco = new Poco(screen, { rotation: 90 })
+    this.background = this._poco.makeColor(0, 0, 0)
+    this.foreground = this._poco.makeColor(0, 255, 0)
     this.drawLeftEye = useDrawEye(90, 93, 8)
     this.drawLeftEyelid = useDrawEyelid(90, 93, 24, 24)
     this.drawRightEye = useDrawEye(230, 96, 8)
@@ -202,17 +228,17 @@ export class Renderer {
     }
     this.filters.forEach(filter => filter(interval, faceContext))
     if (deepEqual(faceContext, this.lastContext)) {
-      this.render(this.#poco, faceContext)
+      this.render(faceContext)
     }
     this.lastContext = faceContext
   }
   clear(): void {
-    const poco = this.#poco
+    const poco = this._poco
     poco.begin()
     poco.fillRectangle(this.background, 0, 0, poco.width, poco.height)
     poco.end()
   }
-  render(poco: PocoPrototype = this.#poco, faceContext: FaceContext): void {
+  render(faceContext: FaceContext, poco: PocoPrototype = this._poco): void {
     poco.begin(40, 80, poco.width - 80, poco.height - 80)
     poco.fillRectangle(this.background, 0, 0, poco.width, poco.height)
 

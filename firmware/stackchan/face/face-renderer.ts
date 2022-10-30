@@ -1,7 +1,8 @@
 import Poco, { PocoPrototype } from 'commodetto/Poco'
 import { Outline, CanvasPath } from 'commodetto/outline'
 import deepEqual from 'deepEqual'
-import { randomBetween, quantize } from 'stackchan-util'
+import { randomBetween, quantize, normRand } from 'stackchan-util'
+import structuredClone from 'structuredClone'
 
 /* global screen */
 const INTERVAL = 1000 / 15
@@ -78,13 +79,14 @@ export const useBlink: FaceFilterFactory<{ openMin: number, openMax: number, clo
   let nextToggle = randomBetween(openMin, openMax)
   let count = 0
   return (tickMillis: number, face: FaceContext) => {
-    const eyeOpen = isBlinking ? quantize(1 - Math.sin((count / nextToggle) * Math.PI), 8) : 1
+    const eyeOpen = isBlinking ? quantize(1 - 0.8 * Math.sin((count / nextToggle) * Math.PI), 10) : 1
     count += tickMillis
     if (count >= nextToggle) {
       isBlinking = !isBlinking
       count = 0
       nextToggle = isBlinking ? randomBetween(closeMin, closeMax) : randomBetween(openMin, openMax)
     }
+    trace(`eyeOpen: ${eyeOpen}\n`)
     Object.values(face.eyes).map(eye => {
       eye.open *= eyeOpen
     })
@@ -99,8 +101,10 @@ export const useSaccade: FaceFilterFactory<{ updateMin: number, updateMax: numbe
   return (tickMillis, face) => {
     nextToggle -= tickMillis
     if (nextToggle < 0) {
-      saccadeX = (Math.random() * 2 - 1) * gain
-      saccadeY = (Math.random() * 2 - 1) * gain
+      // saccadeX = (Math.random() * 2 - 1) * gain
+      // saccadeY = (Math.random() * 2 - 1) * gain
+      saccadeX = normRand(0, gain)
+      saccadeY = normRand(0, gain)
       nextToggle = randomBetween(updateMin, updateMax)
     }
     Object.values(face.eyes).map(eye => {
@@ -194,38 +198,16 @@ export class Renderer {
     this.drawMouth = useDrawMouth(160, 148)
 
     this.filters = [
-      useBlink({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
+      // useBlink({ openMin: 400, openMax: 5000, closeMin: 250, closeMax: 400 }),
+      useBlink({ openMin: 400, openMax: 5000, closeMin: 300, closeMax: 600 }),
       useBreath({ duration: 6000 }),
-      useSaccade({ updateMin: 300, updateMax: 2000, gain: 1.0 }),
+      useSaccade({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
     this.outline = null
     this.lastContext = null
     this.clear()
   }
-  update(interval = INTERVAL): void {
-    const faceContext = {
-      mouth: {
-        open: 0,
-      },
-      eyes: {
-        left: {
-          open: 1,
-          gazeX: 0,
-          gazeY: 0,
-        },
-        right: {
-          open: 1,
-          gazeX: 0,
-          gazeY: 0,
-        },
-      },
-      breath: 1,
-      emotion: Emotion.NEUTRAL,
-      theme: {
-        primary: 'white',
-        secondary: 'black',
-      },
-    }
+  update(interval = INTERVAL, faceContext: FaceContext = structuredClone(defaultFaceContext)): void {
     this.filters.forEach(filter => filter(interval, faceContext))
     if (deepEqual(faceContext, this.lastContext)) {
       this.render(faceContext)
@@ -239,6 +221,7 @@ export class Renderer {
     poco.end()
   }
   render(faceContext: FaceContext, poco: PocoPrototype = this._poco): void {
+    try {
     poco.begin(40, 80, poco.width - 80, poco.height - 80)
     poco.fillRectangle(this.background, 0, 0, poco.width, poco.height)
 
@@ -255,5 +238,8 @@ export class Renderer {
     outline = Outline.fill(layer2, Outline.EVEN_ODD_RULE).translate(0, faceContext.breath * 3 ?? 0)
     poco.blendOutline(this.background, 255, outline, 0, 0)
     poco.end()
+    } catch (e) {
+      debugger
+    }
   }
 }

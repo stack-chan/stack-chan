@@ -2,15 +2,16 @@ import Timer from 'timer'
 import config from 'mc/config'
 import TTS_REMOTE from 'tts-remote'
 import TTS_LOCAL from 'tts-local'
-import { Vector3, Pose, Rotation } from 'stackchan-util'
+import { Vector3, Pose, Rotation, Maybe } from 'stackchan-util'
 import { defaultFaceContext, Renderer } from 'face-renderer'
 import structuredClone from 'structuredClone'
 
-const INTERVAL = 30
+const INTERVAL_FACE = 1000 / 30
+const INTERVAL_POSE = 1000 / 10
 
 type Driver = {
   applyRotation: (ori: Rotation) => Promise<unknown>
-  getRotation: () => Promise<Rotation>
+  getRotation: () => Promise<Maybe<Rotation>>
 }
 
 type RobotConstructorParam = {
@@ -37,6 +38,8 @@ export class Robot {
   _driver: Driver
   _isMoving: boolean
   _renderer: Renderer
+  _updateFaceHandler: Timer
+  _updatePoseHandler: Timer
   constructor(params: RobotConstructorParam) {
     this._renderer = params.renderer
     this._driver = params.driver
@@ -81,7 +84,8 @@ export class Robot {
         },
       },
     }
-    Timer.repeat(this.tick.bind(this), INTERVAL)
+    this._updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
+    this._updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
   }
   async speak(string) {
     const promise = config?.tts?.driver == 'remote' ? TTS_REMOTE.speak(string) : TTS_LOCAL.speak(string)
@@ -110,8 +114,9 @@ export class Robot {
         y: -this._pose.body.rotation.y,
         p: -this._pose.body.rotation.p,
       })
-      for (let key of ['left', 'right']) {
-        const relative = Vector3.sub(relativeGazePoint, this._pose.eyes[key].position)
+      for (let key of ['left', 'right'] as const) {
+        const pos = this._pose.eyes[key].position
+        const relative = Vector3.sub(relativeGazePoint, [pos.x, pos.y, pos.z])
         const { y, p } = Rotation.fromVector3(relative)
         face.eyes[key] = {
           ...face.eyes[key],
@@ -120,11 +125,13 @@ export class Robot {
         }
       }
     }
-    this._renderer.render(face)
+    this._renderer.update(INTERVAL_FACE, face)
   }
-  async tick() {
-    this._pose.body.rotation = await this._driver.getRotation()
-    this.updateFace()
+  async updatePose() {
+    const result = await this._driver.getRotation()
+    if (result.success) {
+      this._pose.body.rotation = result.value
+    }
 
     if (!this._isMoving && this._gazePoint != null) {
       const relativeGazePoint = Vector3.rotate(this._gazePoint, {

@@ -1,7 +1,7 @@
 import SCServo from 'scservo'
 import Timer from 'timer'
 
-import type { Rotation } from '../stackchan-util'
+import type { Rotation, Maybe } from '../stackchan-util'
 
 export class SCServoDriver {
   _pan: SCServo
@@ -15,7 +15,7 @@ export class SCServoDriver {
   get onOrientationChanged(): typeof this._onOrientationChanged {
     return this._onOrientationChanged
   }
-  constructor(param: { panId: number; tiltId: number; onOrientationChanged?}) {
+  constructor(param: { panId: number; tiltId: number; onOrientationChanged? }) {
     this.#initialized = false
     this._pan = new SCServo({ id: param.panId })
     this._tilt = new SCServo({ id: param.tiltId })
@@ -43,20 +43,25 @@ export class SCServoDriver {
       }, time * 1000 + 10)
     })
   }
-  async getRotation(): Promise<Rotation> {
+  async getRotation(): Promise<Maybe<Rotation>> {
     const [p1, p2] = await Promise.allSettled([this._pan.readStatus(), this._tilt.readStatus()])
     if (p1.status != 'fulfilled' || p2.status != 'fulfilled') {
       return
     }
-    if (p1.value == null || p2.value == null) {
-      return
+    if (!p1.value.success || !p2.value.success) {
+      return {
+        success: false,
+      }
     }
-    const y = (-Math.PI * (p1.value.angle - 90)) / 180
-    const p = (Math.PI * (p2.value.angle - 90)) / 180
+    const y = (-Math.PI * (p1.value.value.angle - 90)) / 180
+    const p = (Math.PI * (p2.value.value.angle - 90)) / 180
     return {
-      y,
-      p,
-      r: 0.0
+      success: true,
+      value: {
+        y,
+        p,
+        r: 0.0,
+      },
     }
   }
   async oriLoop(): Promise<void> {
@@ -71,11 +76,11 @@ export class SCServoDriver {
     if (p1.status != 'fulfilled' || p2.status != 'fulfilled') {
       return
     }
-    if (p1.value == null || p2.value == null) {
+    if (!p1.value.success || !p2.value.success) {
       return
     }
-    const y = (-Math.PI * (p1.value.angle - 90)) / 180
-    const p = (Math.PI * (p2.value.angle - 90)) / 180
+    const y = (-Math.PI * (p1.value.value.angle - 90)) / 180
+    const p = (Math.PI * (p2.value.value.angle - 90)) / 180
     this._onOrientationChanged({
       r: 0,
       p,

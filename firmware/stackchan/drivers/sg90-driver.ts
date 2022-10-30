@@ -23,7 +23,7 @@ export class PWMServoDriver {
   get onPoseChanged() {
     return this._onPoseChanged
   }
-  constructor(param: { onPoseChanged?} = {}) {
+  constructor(param: { onPoseChanged? } = {}) {
     const pwmPan = config.servo?.pwmPan || 5
     const pwmTilt = config.servo?.pwmTilt || 2
     this._pan = new Servo({
@@ -37,10 +37,10 @@ export class PWMServoDriver {
       max: 2400,
     })
     this._panRef = {
-      current: 0
+      current: 0,
     }
     this._tiltRef = {
-      current: 0
+      current: 0,
     }
     this._poseHandler = Timer.repeat(this.poseLoop.bind(this), 100)
     this._onPoseChanged = param.onPoseChanged
@@ -58,8 +58,8 @@ export class PWMServoDriver {
     const startTilt = this._tiltRef.current
     const diffPan = (pose.yaw * 180) / Math.PI - startPan
     const diffTilt = (pose.pitch * 180) / Math.PI - startTilt
-    let cnt = 0;
-    const numFrame = time * 1000 / INTERVAL
+    let cnt = 0
+    const numFrame = (time * 1000) / INTERVAL
     this._driveHandler = Timer.repeat(() => {
       if (cnt >= numFrame) {
         Timer.clear(this._driveHandler)
@@ -79,9 +79,12 @@ export class PWMServoDriver {
   }
   async getRotation() {
     return {
-      y: (Math.PI * this._panRef.current) / 180,
-      p: (Math.PI * this._tiltRef.current) / 180,
-      r: 0.0
+      success: true,
+      value: {
+        y: (Math.PI * this._panRef.current) / 180,
+        p: (Math.PI * this._tiltRef.current) / 180,
+        r: 0.0,
+      },
     }
   }
   poseLoop() {

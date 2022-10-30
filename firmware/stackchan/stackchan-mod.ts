@@ -6,7 +6,7 @@ import { Robot } from 'robot'
 import Timer from 'timer'
 
 export interface StackchanMod {
-  onLaunch?: () => Application
+  onLaunch?: () => (Application | undefined)
   onApplicationCreated?: (application: Application) => void
   onButtonChange?: (buttonName: 'A' | 'B' | 'C', pressed: boolean) => void
   onRobotCreated?: (robot: Robot) => void
@@ -39,6 +39,8 @@ function swapFace(primaryColor, secondaryColor) {
 }
 
 function onLaunch() {
+  return undefined
+  /*
   avatar = createAvatar('white', 'black')
   const contents = [avatar]
   ap = new Application(null, {
@@ -51,6 +53,7 @@ function onLaunch() {
     contents,
   })
   return ap
+  */
 }
 
 function onApplicationCreated() {

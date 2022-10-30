@@ -1,18 +1,18 @@
 declare const global: any
 
-// import config from 'mc/config'
-// import Modules from 'modules'
+import config from 'mc/config'
+import Modules from 'modules'
 import { Robot } from 'robot'
 // import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
-// import { PWMServoDriver } from 'sg90-driver'
-// import { defaultMod, StackchanMod } from 'stackchan-mod'
+import { PWMServoDriver } from 'sg90-driver'
+import { defaultMod, StackchanMod } from 'stackchan-mod'
 import { Renderer } from 'face-renderer'
 
 // trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
 // trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
 
-debugger
+/*
 new Robot({
   driver: new SCServoDriver({
     panId: 0x01,
@@ -21,8 +21,8 @@ new Robot({
   ,
   renderer: new Renderer
 })
+*/
 
-/*
 let { onLaunch, onButtonChange, onRobotCreated, onApplicationCreated } = defaultMod
 if (Modules.has('mod')) {
   const mod = Modules.importNow('mod') as StackchanMod
@@ -34,9 +34,11 @@ if (Modules.has('mod')) {
 
 const ap = onLaunch?.()
 if (ap == null) {
-  throw new Error('Application not created')
+  // throw new Error('Application not created')
+  trace('application not created\n')
+} else {
+  onApplicationCreated(ap)
 }
-onApplicationCreated(ap)
 
 const driver =
   config.servo?.driver === 'scservo'
@@ -45,7 +47,6 @@ const driver =
       tiltId: 0x02,
     })
     : new PWMServoDriver()
-let lastContext: FaceContext
 const renderer = new Renderer
 const robot = new Robot({
   driver,
@@ -65,4 +66,3 @@ if (global.button != null) {
     onButtonChange('C', this.read())
   }
 }
-*/

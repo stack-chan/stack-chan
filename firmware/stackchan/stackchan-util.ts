@@ -85,3 +85,13 @@ export function toRadian(deg: number) {
 export function toDegree(rad: number) {
   return (rad * 180) / Math.PI
 }
+
+export type Maybe<T> =
+  | {
+      success: true
+      value: T
+    }
+  | {
+      success: false
+      reason?: string
+    }

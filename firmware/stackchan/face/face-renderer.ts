@@ -79,14 +79,13 @@ export const useBlink: FaceFilterFactory<{ openMin: number, openMax: number, clo
   let nextToggle = randomBetween(openMin, openMax)
   let count = 0
   return (tickMillis: number, face: FaceContext) => {
-    const eyeOpen = isBlinking ? quantize(1 - 0.8 * Math.sin((count / nextToggle) * Math.PI), 10) : 1
+    const eyeOpen = isBlinking ? 1 - Math.sin((count / nextToggle) * Math.PI) : 1
     count += tickMillis
     if (count >= nextToggle) {
       isBlinking = !isBlinking
       count = 0
       nextToggle = isBlinking ? randomBetween(closeMin, closeMax) : randomBetween(openMin, openMax)
     }
-    trace(`eyeOpen: ${eyeOpen}\n`)
     Object.values(face.eyes).map(eye => {
       eye.open *= eyeOpen
     })
@@ -140,17 +139,7 @@ export const useDrawEye =
       const openRatio = eyeContext.open
       const offsetX = (eyeContext.gazeX ?? 0) * 2
       const offsetY = (eyeContext.gazeY ?? 0) * 2
-      if (openRatio < 0.3) {
-        // closed
-        const w = radius * 2
-        const h = Math.min(4, radius / 2)
-        const x = cx - w / 2
-        const y = cy - h / 2
-        path.rect(x, y, w, h)
-      } else {
-        // open
-        path.arc(cx + offsetX, cy + offsetY, radius, 0, 2 * Math.PI)
-      }
+      path.arc(cx + offsetX, cy + offsetY, radius, 0, 2 * Math.PI)
     }
 
 export const useDrawMouth =
@@ -190,7 +179,7 @@ export class Renderer {
   constructor() {
     this._poco = new Poco(screen, { rotation: 90 })
     this.background = this._poco.makeColor(0, 0, 0)
-    this.foreground = this._poco.makeColor(0, 255, 0)
+    this.foreground = this._poco.makeColor(255, 255, 255)
     this.drawLeftEye = useDrawEye(90, 93, 8)
     this.drawLeftEyelid = useDrawEyelid(90, 93, 24, 24)
     this.drawRightEye = useDrawEye(230, 96, 8)
@@ -198,7 +187,6 @@ export class Renderer {
     this.drawMouth = useDrawMouth(160, 148)
 
     this.filters = [
-      // useBlink({ openMin: 400, openMax: 5000, closeMin: 250, closeMax: 400 }),
       useBlink({ openMin: 400, openMax: 5000, closeMin: 300, closeMax: 600 }),
       useBreath({ duration: 6000 }),
       useSaccade({ updateMin: 300, updateMax: 2000, gain: 0.2 }),

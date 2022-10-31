@@ -8,7 +8,8 @@
 		"$(MODDABLE)/examples/manifest_commodetto.json",
         "$(MODDABLE)/examples/manifest_piu.json",
 		"$(MODDABLE)/modules/commodetto/outline/manifest.json",
-		"$(MODDABLE)/modules/base/deepEqual/manifest.json"
+		"$(MODDABLE)/modules/base/deepEqual/manifest.json",
+		"$(MODDABLE)/modules/base/structuredClone/manifest.json"
     ],
     "modules": {
         "*": [

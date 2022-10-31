@@ -209,7 +209,7 @@ export class Renderer {
   }
   update(interval = INTERVAL, faceContext: FaceContext = structuredClone(defaultFaceContext)): void {
     this.filters.forEach(filter => filter(interval, faceContext))
-    if (deepEqual(faceContext, this.lastContext)) {
+    if (!deepEqual(faceContext, this.lastContext)) {
       this.render(faceContext)
     }
     this.lastContext = faceContext

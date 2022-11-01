@@ -232,7 +232,6 @@ export class Renderer {
     poco.end()
   }
   render(faceContext: FaceContext, poco: PocoPrototype = this._poco): void {
-    try {
     poco.begin(40, 80, poco.width - 80, poco.height - 80)
     poco.fillRectangle(this.background, 0, 0, poco.width, poco.height)
 
@@ -249,8 +248,5 @@ export class Renderer {
     outline = Outline.fill(layer2, Outline.EVEN_ODD_RULE).translate(0, faceContext.breath * 3 ?? 0)
     poco.blendOutline(this.background, 255, outline, 0, 0)
     poco.end()
-    } catch (e) {
-      debugger
-    }
   }
 }

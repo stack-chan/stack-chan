@@ -74,12 +74,35 @@ export const defaultFaceContext: FaceContext = Object.freeze({
 type FaceFilter<T = unknown> = (tick: number, face: FaceContext, arg?: T) => FaceContext
 type FaceFilterFactory<T, V = unknown> = (T) => FaceFilter<V>
 
-export const useBlink: FaceFilterFactory<{ openMin: number, openMax: number, closeMin: number, closeMax: number }> = ({ openMin, openMax, closeMin, closeMax }) => {
+function linearInEaseOut(fraction: number): number {
+  if (fraction < 0.25) {
+    return 1 - fraction * 4
+  } else {
+    return (Math.pow(fraction - 0.25, 2) * 16) / 9
+  }
+}
+function linearInLinearOut(fraction: number): number {
+  if (fraction < 0.5) {
+    return 1 - fraction * 2
+  } else {
+    return fraction * 2 - 1
+  }
+}
+export const useBlink: FaceFilterFactory<{ openMin: number; openMax: number; closeMin: number; closeMax: number }> = ({
+  openMin,
+  openMax,
+  closeMin,
+  closeMax,
+}) => {
   let isBlinking = false
   let nextToggle = randomBetween(openMin, openMax)
   let count = 0
   return (tickMillis: number, face: FaceContext) => {
-    const eyeOpen = isBlinking ? 1 - Math.sin((count / nextToggle) * Math.PI) : 1
+    let eyeOpen = 1
+    if (isBlinking) {
+      const fraction = linearInEaseOut(count / nextToggle)
+      eyeOpen = 0.2 + fraction * 0.8
+    }
     count += tickMillis
     if (count >= nextToggle) {
       isBlinking = !isBlinking

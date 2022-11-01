@@ -109,14 +109,18 @@ export const useBlink: FaceFilterFactory<{ openMin: number; openMax: number; clo
       count = 0
       nextToggle = isBlinking ? randomBetween(closeMin, closeMax) : randomBetween(openMin, openMax)
     }
-    Object.values(face.eyes).map(eye => {
+    Object.values(face.eyes).map((eye) => {
       eye.open *= eyeOpen
     })
     return face
   }
 }
 
-export const useSaccade: FaceFilterFactory<{ updateMin: number, updateMax: number, gain: number }> = ({ updateMin, updateMax, gain }) => {
+export const useSaccade: FaceFilterFactory<{ updateMin: number; updateMax: number; gain: number }> = ({
+  updateMin,
+  updateMax,
+  gain,
+}) => {
   let nextToggle = randomBetween(updateMin, updateMax)
   let saccadeX = 0
   let saccadeY = 0
@@ -129,7 +133,7 @@ export const useSaccade: FaceFilterFactory<{ updateMin: number, updateMax: numbe
       saccadeY = normRand(0, gain)
       nextToggle = randomBetween(updateMin, updateMax)
     }
-    Object.values(face.eyes).map(eye => {
+    Object.values(face.eyes).map((eye) => {
       eye.gazeX += saccadeX
       eye.gazeY += saccadeY
     })
@@ -148,7 +152,8 @@ export const useBreath: FaceFilterFactory<{ duration: number }> = ({ duration })
 
 // Renderers
 
-export const useDrawEyelid = (cx, cy, width, height) => (path: CanvasPath, eyeContext: FaceContext['eyes'][keyof FaceContext['eyes']]) => {
+export const useDrawEyelid =
+  (cx, cy, width, height) => (path: CanvasPath, eyeContext: FaceContext['eyes'][keyof FaceContext['eyes']]) => {
   const w = width
   const h = height * (1 - eyeContext.open)
   const x = cx - width / 2
@@ -210,7 +215,7 @@ export class Renderer {
     this.drawMouth = useDrawMouth(160, 148)
 
     this.filters = [
-      useBlink({ openMin: 400, openMax: 5000, closeMin: 300, closeMax: 600 }),
+      useBlink({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
       useBreath({ duration: 6000 }),
       useSaccade({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
@@ -219,7 +224,7 @@ export class Renderer {
     this.clear()
   }
   update(interval = INTERVAL, faceContext: FaceContext = structuredClone(defaultFaceContext)): void {
-    this.filters.forEach(filter => filter(interval, faceContext))
+    this.filters.forEach((filter) => filter(interval, faceContext))
     if (!deepEqual(faceContext, this.lastContext)) {
       this.render(faceContext)
     }

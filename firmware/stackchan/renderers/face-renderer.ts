@@ -181,6 +181,26 @@ export const useDrawMouth =
       path.rect(x, y, w, h)
     }
 
+export const useRenderBalloon = (x, y, width, height, font, text, poco) => {
+  const outline = Outline.fill(Outline.RoundRectPath(0, 0, width, height, 10))
+  const black = poco.makeColor(0, 0, 0)
+  const white = poco.makeColor(255, 255, 255)
+  let textWidth = poco.getTextWidth(text, font)
+  let textX = 0
+  let space = 20
+  return () => {
+    poco.begin(x, y, width, height)
+    poco.fillRectangle(black, x, y, width, height)
+    poco.blendOutline(white, 255, outline, x, y)
+    poco.drawText(text, font, black, x - textX, y)
+    if (textWidth + space >= textX) {
+      poco.drawText(text, font, black, x - textX + textWidth + space, y)
+    }
+    poco.end()
+    textX = textX >= textWidth + space ? 0 : textX + 2
+  }
+}
+
 class Layer {
   #renderers: Array<(path: CanvasPath, context: FaceContext) => unknown>
   constructor() {
@@ -204,8 +224,8 @@ export class Renderer {
   background: number
   foreground: number
 
-  constructor() {
-    this._poco = new Poco(screen, { rotation: 90 })
+  constructor(option?: { poco?: PocoPrototype }) {
+    this._poco = option?.poco ?? new Poco(screen, { rotation: 90 })
     this.background = this._poco.makeColor(0, 0, 0)
     this.foreground = this._poco.makeColor(255, 255, 255)
     this.drawLeftEye = useDrawEye(90, 93, 8)

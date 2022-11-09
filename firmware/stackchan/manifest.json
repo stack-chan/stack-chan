@@ -30,7 +30,7 @@
             "./tts-remote",
             "./tts-local",
             "./stk-server",
-            "./face/*",
+            "./renderers/*",
             "./drivers/*",
             "./stackchan-util"
         ]

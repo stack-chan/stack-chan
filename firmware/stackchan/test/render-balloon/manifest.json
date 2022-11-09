@@ -19,7 +19,12 @@
     },
     "resources": {
         "*-mask": [
-            "./NotoSansCJKjp-Regular-11"
+			{
+				"source": "$(MODDABLE)/examples/assets/scalablefonts/NotoSans/NotoSansJP-Regular",
+				"size": 24,
+				"blocks": ["Hiragana", "Katakana", "Basic Latin"],
+                "characters": "えっ今からでも入れる保険があるんですか！？"
+			}
         ]
     },
     "preload": [

@@ -35,6 +35,8 @@
 1. ｽﾀｯｸﾁｬﾝはししかわが作者であること
 2. 参照先として、ｽﾀｯｸﾁｬﾝのGitHubリポジトリのURL（https://github.com/meganetaaan/stack-chan）
 
+以下のような例文がどこかに貼ってあればOKです。
+
 ｽﾀｯｸﾁｬﾝは[ししかわ](https://twitter.com/meganetaaan)が開発、公開している、
 手乗りサイズのｽｰﾊﾟｰｶﾜｲｲコミュニケーションロボットです。
 作品ページ：https://github.com/meganetaaan/stack-chan

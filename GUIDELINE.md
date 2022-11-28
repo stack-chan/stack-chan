@@ -1,6 +1,6 @@
-# Secondary Production Guidelines
+# Derivative Work Guidelines
 
-This is guidelines for secondary productions of Stack-chan.
+This is guidelines for derivative works of Stack-chan.
 
 In order to make it easier for third parties to use Stack-chan's characters we declare the guidelines as below.
 If you follow these guidelines, you may use Stack-chan's characters for commercial and non-commercial purposes without permission.
@@ -16,11 +16,11 @@ The following robots are not eligible:
 - The robot with a board other than M5Stack like "Obniz-chan", "Wio-terminal chan" or "Micro:bit-chan"
 - The robot that features are added to like bipedal walking
 
-When you redistribute secondary productions of these robots, you must get a permission from the creators of the respective works.
+When you redistribute derivative works of these robots, you must get a permission from the creators of the respective works.
 
-### Scope of "secondary production"
+### Scope of "derivative work"
 
-The term "secondary production" in the guidelines refers to creations that use the "Stack-chan" character.
+The term "derivative work" in the guidelines refers to creations that use the "Stack-chan" character.
 For example:
 
 - Photo collections and video works featuring Stack-chan robots
@@ -42,7 +42,7 @@ Since the data is distributed under an [open source license](./LICENSE), please 
 
 Please clearly state the following two points in places where users of your works can see them (at the back of books, product introduction pages, instruction manuals, etc.)
 
-1. Stack-chan is authorized by meganetaaan
+1. Stack-chan is developed and published by meganetaaan
 2. The URL of Stack-chan's GitHub repository (https:// github.com/meganetaaan/stack-chan) for the reference
 
 Below is the example of acceptable description.
@@ -52,7 +52,7 @@ Further details are: https://github.com/meganetaaan/stack-chan
 
 ### Be politically/religious/ideological neutral and no attack
 
-Please refrain from publishing second productions that include the following expressions:
+Please refrain from publishing second creations that include the following expressions:
 
 1. Intended to harm the ideas or honor of Stack-chan contributors or third parties
 2. Excessively supports or demeans a specific political, religious, or ideological belief

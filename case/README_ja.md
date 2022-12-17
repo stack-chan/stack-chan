@@ -102,7 +102,10 @@ SCS0009本体に加えて次のものが必要です。
 
 ![IDの変更](./docs/images/id.jpg)
 
-__注意：ここで「Recovery」を選択するとサーボが正しく動作しなくなりますのでご注意ください__
+__注意：GUIから「Recovery」を選択するとサーボが正しく動作しなくなる事象が報告されています（FD v1.8.1.1とv1.8.1.2で確認）のでご注意ください__
+動作しなくなった場合下記の復旧方法をお試しください。
+
+- [復旧方法（日本語）](https://drive.google.com/file/d/1AzPkGkHen-hhfPnCzJCY6UJheLU1gktv/view)
 
 ### 組み立て方
 

@@ -101,7 +101,10 @@ In addition to the SCS0009, the following items are required.
 
 ![ID setting](./docs/images/id.jpg)
 
-__Note: If you select "Recovery", the servo will not work properly__.
+__Caution: Do not use "Recovery" from the GUI. There are issues that the servo does not work properly after recovery (confirmed in FD v1.8.1.1 and v1.8.1.2)__.
+If you choose "Recovery" and the servo stop working, try the following recovery method.
+
+- [How to restore (JP)](https://drive.google.com/file/d/1AzPkGkHen-hhfPnCzJCY6UJheLU1gktv/view)
 
 ### How to Assemble
 

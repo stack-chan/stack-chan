@@ -2,13 +2,7 @@
 import AudioOut from 'pins/audioout'
 import ResourceStreamer from 'resourcestreamer'
 import calculatePower from 'calculate-power'
-import speechData from 'speeches'
 
-const speeches = speechData.speeches
-const speechDic = new Map()
-for (const [key, text] of Object.entries(speeches)) {
-  speechDic.set(text, key)
-}
 /* global trace, SharedArrayBuffer */
 
 type TTSProperty = {
@@ -21,13 +15,6 @@ class TTS {
   onPlayed: (number) => void
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
-  }
-  say(text): Promise<void> {
-    const key = speechDic.get(text)
-    if (key == null) {
-      throw new Error(`No speech for "${text}"`)
-    }
-    return this.stream(key)
   }
   async stream(key: string): Promise<void> {
     if (TTS.audio == null) {

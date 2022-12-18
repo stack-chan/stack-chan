@@ -1,7 +1,7 @@
 {
 	"modules": {
 		"*": [
-				"../typings/*"
+			"../typings/*"
 		],
 		"piu/*": [
 			"../typings/piu/*"

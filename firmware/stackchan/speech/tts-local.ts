@@ -5,11 +5,11 @@ import calculatePower from 'calculate-power'
 
 /* global trace, SharedArrayBuffer */
 
-type TTSProperty = {
+export type TTSProperty = {
   onPlayed: (number) => void
 }
 
-class TTS {
+export class TTS {
   static streamer: ResourceStreamer
   static audio: AudioOut
   onPlayed: (number) => void
@@ -59,4 +59,3 @@ class TTS {
     })
   }
 }
-export default TTS

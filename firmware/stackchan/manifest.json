@@ -25,15 +25,13 @@
             "./robot",
             "./sg90-driver",
             "./scservo-driver",
-            "./tts-remote",
-            "./tts-local",
+            "./speech/tts-local",
             "./stk-server"
         ]
     },
     "preload": [
 		"http",
         "robot",
-        "tts-remote",
         "tts-local",
         "stk-server"
     ],

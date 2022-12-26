@@ -1,10 +1,12 @@
 import Timer from 'timer'
 import config from 'mc/config'
-import TTS_REMOTE from 'tts-remote'
-import TTS_LOCAL from 'tts-local'
+// import TTS_REMOTE from 'tts-remote'
+import { TTS as TTS_LOCAL } from 'tts-local'
+import { TTS as TTS_REMOTE } from 'tts-remote'
 import { Vector3, Pose, Rotation, Maybe } from 'stackchan-util'
-import { defaultFaceContext, Renderer } from 'face-renderer'
+import { type FaceContext, defaultFaceContext, Renderer } from 'face-renderer'
 import structuredClone from 'structuredClone'
+import { TTS } from './speech/tts-local'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
@@ -35,6 +37,9 @@ export class Robot {
       right: Pose
     }
   }
+  // _overrideContext: Partial<FaceContext>,
+  _power: number
+  _tts: TTS
   _driver: Driver
   _isMoving: boolean
   _renderer: Renderer
@@ -44,6 +49,16 @@ export class Robot {
     this._renderer = params.renderer
     this._driver = params.driver
     this._isMoving = false
+    this._power = 0
+    const TTS = TTS_LOCAL
+    this._tts = new TTS({
+      onPlayed: (volume: number) => {
+        this._power = volume
+      },
+      onDone: () => {
+        this._power = 0
+      }
+    })
     this._pose = params.pose ?? {
       body: {
         position: {
@@ -87,17 +102,10 @@ export class Robot {
     this._updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
     this._updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
   }
-  async speak(string) {
-    const promise = config?.tts?.driver == 'remote' ? TTS_REMOTE.speak(string) : TTS_LOCAL.speak(string)
-    promise.then(
-      (bytes) => {
-        return bytes
-      },
-      (error) => {
-        return error
-      }
-    )
-    return promise
+  async say(text: string) {
+    this._tts.stream(text).catch((e) => {
+      trace(e + '\n')
+    })
   }
   lookAt(position: Vector3) {
     this._gazePoint = position
@@ -108,6 +116,9 @@ export class Robot {
   }
   updateFace() {
     const face = structuredClone(defaultFaceContext)
+    if (this._power != 0) {
+      face.mouth.open = this._power / 2000
+    }
     if (this._gazePoint != null) {
       const relativeGazePoint = Vector3.rotate(this._gazePoint, {
         r: 0.0,

@@ -12,7 +12,7 @@
         }
     },
     "resources": {
-        "*": "./assets/sounds/cheerup/*"
+        "*": ["./assets/sounds/*"]
     },
     "modules": {
         "speeches": "./assets/sounds/cheerup/speeches_ja"

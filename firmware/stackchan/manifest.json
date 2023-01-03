@@ -41,6 +41,7 @@
 		"http",
         "robot",
         "tts-local",
+        "tts-voicevox",
         "face-renderer",
         "stk-server"
     ],

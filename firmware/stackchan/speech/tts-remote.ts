@@ -5,6 +5,8 @@ import calculatePower from 'calculate-power'
 
 /* global device, trace, SharedArrayBuffer */
 
+declare const device: any
+
 export type TTSProperty = {
   onPlayed: (number) => void
   onDone: () => void

@@ -1,12 +1,11 @@
 import Timer from 'timer'
 import config from 'mc/config'
-// import TTS_REMOTE from 'tts-remote'
 import { TTS as TTS_LOCAL } from 'tts-local'
-import { TTS as TTS_REMOTE } from 'tts-remote'
+import { TTS as TTS_REMOTE } from 'tts-voicevox'
+// import { TTS as TTS_REMOTE } from 'tts-remote'
 import { Vector3, Pose, Rotation, Maybe } from 'stackchan-util'
 import { type FaceContext, defaultFaceContext, Renderer } from 'face-renderer'
 import structuredClone from 'structuredClone'
-import { TTS } from './speech/tts-local'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
@@ -14,6 +13,10 @@ const INTERVAL_POSE = 1000 / 10
 type Driver = {
   applyRotation: (ori: Rotation) => Promise<unknown>
   getRotation: () => Promise<Maybe<Rotation>>
+}
+
+type TTS = {
+  stream: (text: string) => Promise<Maybe<void>>
 }
 
 type RobotConstructorParam = {
@@ -50,8 +53,7 @@ export class Robot {
     this._driver = params.driver
     this._isMoving = false
     this._power = 0
-    const TTS = TTS_LOCAL
-    this._tts = new TTS({
+    this._tts = new TTS_REMOTE({
       onPlayed: (volume: number) => {
         this._power = volume
       },
@@ -102,14 +104,24 @@ export class Robot {
     this._updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
     this._updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
   }
-  async say(text: string) {
-    this._tts.stream(text).catch((e) => {
-      trace(e + '\n')
-    })
+
+  /**
+   * Setters
+   */
+  useTTS(TTSClass: new () => TTS) {
+
+  }
+  useRenderer() {
+
+  }
+  useDriver() {
+
+  }
+  async say(text: string): Promise<Maybe<string>> {
+    return this._tts.stream(text)
   }
   lookAt(position: Vector3) {
     this._gazePoint = position
-    /* noop */
   }
   lookAway() {
     this._gazePoint = null

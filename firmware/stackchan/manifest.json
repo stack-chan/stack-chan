@@ -13,6 +13,7 @@
         "$(MODULES)/pins/i2s/manifest.json",
 		"$(MODDABLE)/examples/manifest_commodetto.json",
 		"$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
+        "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
 		"$(MODDABLE)/modules/commodetto/outline/manifest.json",
 		"$(MODDABLE)/modules/base/deepEqual/manifest.json",
 		"$(MODDABLE)/modules/base/structuredClone/manifest.json",

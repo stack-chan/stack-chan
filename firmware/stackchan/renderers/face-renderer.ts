@@ -67,7 +67,7 @@ export const defaultFaceContext: FaceContext = Object.freeze({
     primary: 'white',
     secondary: 'black',
   },
-})
+} as const)
 
 // Filters
 

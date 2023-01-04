@@ -86,6 +86,10 @@ export function toDegree(rad: number) {
   return (rad * 180) / Math.PI
 }
 
+export function noop() {
+  /* noop */
+}
+
 export type Maybe<T> =
   | {
       success: true

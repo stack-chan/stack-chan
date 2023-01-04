@@ -19,13 +19,11 @@
 		"$(MODDABLE)/modules/base/structuredClone/manifest.json",
         "../extern/manifest_extern.json",
         "./manifest_wavstream.json",
-        "./manifest_net.json",
         "./manifest_typings.json",
         "./manifest_local.json"
     ],
     "modules": {
         "*": [
-			"$(MODULES)/network/http/*",
             "./stackchan-mod",
             "./main",
             "./robot",

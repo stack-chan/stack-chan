@@ -8,6 +8,11 @@ import calculatePower from 'calculate-power'
 export type TTSProperty = {
   onPlayed: (number) => void
   onDone: () => void
+} | {
+  onPlayed: (number) => void
+  onDone: () => void
+  host: string
+  port: number
 }
 let streamer;
 

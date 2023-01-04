@@ -5,12 +5,16 @@
     "include": [
         "$(MODDABLE)/examples/manifest_base.json",
         "$(MODDABLE)/examples/manifest_net.json",
-        "$(MODDABLE)/examples/manifest_piu.json",
 		"$(MODDABLE)/modules/network/ble/manifest_server.json",
         "$(MODDABLE)/modules/network/mdns/manifest.json",
         "$(MODDABLE)/modules/base/modules/manifest.json",
         "$(MODDABLE)/examples/manifest_typings.json",
         "$(MODULES)/pins/servo/manifest.json",
+        "$(MODULES)/pins/i2s/manifest.json",
+		"$(MODDABLE)/examples/manifest_commodetto.json",
+		"$(MODDABLE)/modules/commodetto/outline/manifest.json",
+		"$(MODDABLE)/modules/base/deepEqual/manifest.json",
+		"$(MODDABLE)/modules/base/structuredClone/manifest.json",
         "../extern/manifest_extern.json",
         "./manifest_net.json",
         "./manifest_typings.json",
@@ -23,16 +27,16 @@
             "./button",
             "./main",
             "./robot",
-            "./sg90-driver",
-            "./scservo-driver",
             "./tts-remote",
             "./tts-local",
-            "./stk-server"
+            "./stk-server",
+            "./renderers/*",
+            "./drivers/*",
+            "./stackchan-util"
         ]
     },
     "preload": [
 		"http",
-        "robot",
         "tts-remote",
         "tts-local",
         "stk-server"
@@ -58,7 +62,8 @@
         "serial": {
             "transmit": 17,
             "receive": 16
-        }
+        },
+        "rotation": 90
     },
     "platforms": {
         "esp32/m5stack_core2": {

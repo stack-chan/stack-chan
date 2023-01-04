@@ -14,12 +14,12 @@ function onRobotCreated(robot: Robot) {
       isFollowing = !isFollowing
     }
   }
-  robot.button.b.onChnaged = function() {
+  robot.button.b.onChanged = function() {
     if (this.read()) {
       trace('pressed B')
     }
   }
-  robot.button.b.onChnaged = function() {
+  robot.button.b.onChanged = function() {
     if (this.read()) {
       trace('pressed C')
     }

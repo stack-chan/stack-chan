@@ -1,12 +1,14 @@
 {
     "config": {
         "tts": {
-            "driver": "local",
+            "type": "local",
             "host": "localhost",
             "port": 8080
         },
         "servo": {
-            "driver": "scservo",
+            "type": "scservo",
+            "panId": 1,
+            "tiltId": 2,
             "offsetTilt": 0,
             "offsetPan": 0
         }

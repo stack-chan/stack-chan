@@ -12,36 +12,36 @@
         "$(MODULES)/pins/servo/manifest.json",
         "$(MODULES)/pins/i2s/manifest.json",
 		"$(MODDABLE)/examples/manifest_commodetto.json",
+		"$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
+        "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
 		"$(MODDABLE)/modules/commodetto/outline/manifest.json",
 		"$(MODDABLE)/modules/base/deepEqual/manifest.json",
 		"$(MODDABLE)/modules/base/structuredClone/manifest.json",
         "../extern/manifest_extern.json",
-        "./manifest_net.json",
+        "./manifest_wavstream.json",
         "./manifest_typings.json",
         "./manifest_local.json"
     ],
     "modules": {
         "*": [
-			"$(MODULES)/network/http/*",
             "./stackchan-mod",
-            "./button",
             "./main",
             "./robot",
-            "./tts-remote",
-            "./tts-local",
-            "./stk-server",
             "./renderers/*",
             "./drivers/*",
-            "./stackchan-util"
+            "./speech/*",
+            "./stackchan-util",
+            "./stk-server"
         ]
     },
     "preload": [
 		"http",
-        "tts-remote",
+        "robot",
         "tts-local",
+        "tts-voicevox",
+        "face-renderer",
         "stk-server"
     ],
-    "strip": [],
 	"ble": {
 		"*": [
 			"./bleservices/*"

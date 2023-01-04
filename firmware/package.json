@@ -34,14 +34,18 @@
   "homepage": "https://github.com/meganetaaan/stack-chan#readme",
   "private": true,
   "devDependencies": {
+    "@ffmpeg/core": "^0.11.0",
+    "@ffmpeg/ffmpeg": "^0.11.6",
     "@google-cloud/text-to-speech": "^4.0.3",
     "@typescript-eslint/eslint-plugin": "^5.38.1",
     "@typescript-eslint/parser": "^5.38.1",
     "eslint": "^8.24.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.2.1",
+    "node-fetch": "^3.3.0",
     "prettier": "^2.7.1",
     "typescript": "^4.8.4",
-    "web-audio-engine": "^0.13.4"
+    "web-audio-engine": "^0.13.4",
+    "yargs": "^17.6.2"
   }
 }

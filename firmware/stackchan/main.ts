@@ -2,67 +2,77 @@ declare const global: any
 
 import config from 'mc/config'
 import Modules from 'modules'
-import { Robot } from 'robot'
+import { Robot, Driver, TTS, Renderer } from 'robot'
 // import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
+import { TTS as LocalTTS } from 'tts-local'
+import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { defaultMod, StackchanMod } from 'stackchan-mod'
-import { Renderer } from 'face-renderer'
+import { Renderer as SimpleRenderer } from 'face-renderer'
 
 // trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
 // trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
 
-/*
-new Robot({
-  driver: new SCServoDriver({
-    panId: 0x01,
-    tiltId: 0x02,
-  })
-  ,
-  renderer: new Renderer
-})
-*/
-
-let { onLaunch, onButtonChange, onRobotCreated, onApplicationCreated } = defaultMod
+let { onRobotCreated } = defaultMod
 if (Modules.has('mod')) {
   const mod = Modules.importNow('mod') as StackchanMod
-  onLaunch = mod.onLaunch ?? onLaunch
-  onButtonChange = mod.onButtonChange ?? onButtonChange
   onRobotCreated = mod.onRobotCreated ?? onRobotCreated
-  onApplicationCreated = mod.onApplicationCreated ?? onApplicationCreated
 }
 
-const ap = onLaunch?.()
-if (ap == null) {
-  // throw new Error('Application not created')
-  trace('application not created\n')
-} else {
-  onApplicationCreated(ap)
+const drivers = new Map<string, new (param: unknown) => Driver>([
+  ['scservo', SCServoDriver],
+  ['pwm', PWMServoDriver],
+  // ['rs30x', RS30XDriver]
+])
+const ttsEngines = new Map<string, new (param: unknown) => TTS>([
+  ['local', LocalTTS],
+  ['voicevox', VoiceVoxTTS]
+])
+const renderers = new Map<string, new (param: unknown) => Renderer>([
+  ['simple', SimpleRenderer]
+])
+
+// TODO: select driver/tts/renderer by mod
+
+const errors: string[] = []
+
+// Servo Driver
+const driverKey = config.driver?.type ?? 'scservo'
+const Driver = drivers.get(driverKey)
+
+// TTS
+const ttsKey = config.tts?.type ?? 'local'
+const TTS = ttsEngines.get(ttsKey)
+
+// Renderer
+const rendererKey = config.renderer?.type ?? 'simple'
+const Renderer = renderers.get(rendererKey)
+
+if (!Driver || !TTS || !Renderer) {
+  for (let [key, klass] of [[driverKey, Driver], [ttsKey, TTS], [rendererKey, Renderer]]) {
+    if (klass == null) {
+      errors.push(`type "${key}" does not exist`)
+    }
+  }
+  throw new Error(errors.join('\n'))
 }
 
-const driver =
-  config.servo?.driver === 'scservo'
-    ? new SCServoDriver({
-      panId: 0x01,
-      tiltId: 0x02,
-    })
-    : new PWMServoDriver()
-const renderer = new Renderer
+const driver = new Driver({
+  ...config.servo
+})
+const renderer = new Renderer({
+  ...config.renderer
+})
+const tts = new TTS({
+  ...config.tts
+})
+const button = globalThis.button
 const robot = new Robot({
   driver,
   renderer,
+  tts,
+  button,
 })
 
 onRobotCreated?.(robot)
-
-if (global.button != null) {
-  global.button.a.onChanged = function () {
-    onButtonChange('A', this.read())
-  }
-  global.button.b.onChanged = function () {
-    onButtonChange('B', this.read())
-  }
-  global.button.c.onChanged = function () {
-    onButtonChange('C', this.read())
-  }
-}

@@ -1,22 +1,39 @@
 import Timer from 'timer'
-import config from 'mc/config'
-import TTS_REMOTE from 'tts-remote'
-import TTS_LOCAL from 'tts-local'
-import { Vector3, Pose, Rotation, Maybe } from 'stackchan-util'
-import { defaultFaceContext, Renderer } from 'face-renderer'
+import { Vector3, Pose, Rotation, Maybe, noop } from 'stackchan-util'
+import { type FaceContext, defaultFaceContext } from 'face-renderer'
 import structuredClone from 'structuredClone'
+import Digital from 'embedded:io/digital'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
 
-type Driver = {
-  applyRotation: (ori: Rotation) => Promise<unknown>
+export type Driver = {
+  applyRotation: (ori: Rotation) => Promise<void>
   getRotation: () => Promise<Maybe<Rotation>>
 }
+
+export type TTS = {
+  stream: (text: string) => Promise<void>
+  onPlayed: (volume: number) => void
+  onDone: () => void
+}
+
+export type Renderer = {
+  update: (interval: number, faceContext: FaceContext) => void
+}
+
+export type Button = {
+  onChanged: (this: Digital) => void
+}
+
+const buttonNames = ['a', 'b', 'c'] as const
+type ButtonName = typeof buttonNames[number]
 
 type RobotConstructorParam = {
   driver: Driver
   renderer: Renderer
+  tts: TTS
+  button: { [key in ButtonName]: Button }
   pose?: {
     body: Pose
     eyes: {
@@ -35,7 +52,11 @@ export class Robot {
       right: Pose
     }
   }
+  // _overrideContext: Partial<FaceContext>,
+  _power: number
+  _tts: TTS
   _driver: Driver
+  _button: { [key in ButtonName]: Button }
   _isMoving: boolean
   _renderer: Renderer
   _updateFaceHandler: Timer
@@ -43,7 +64,10 @@ export class Robot {
   constructor(params: RobotConstructorParam) {
     this._renderer = params.renderer
     this._driver = params.driver
+    this._tts = params.tts
     this._isMoving = false
+    this._power = 0
+    this._button = params.button
     this._pose = params.pose ?? {
       body: {
         position: {
@@ -87,27 +111,57 @@ export class Robot {
     this._updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
     this._updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
   }
-  async speak(string) {
-    const promise = config?.tts?.driver == 'remote' ? TTS_REMOTE.speak(string) : TTS_LOCAL.speak(string)
-    promise.then(
-      (bytes) => {
-        return bytes
-      },
-      (error) => {
-        return error
+
+  /**
+   * Setters
+   */
+  useTTS(tts: TTS) {
+    if (this._tts != null) {
+      this._tts.onDone = noop
+      this._tts.onPlayed = noop
+    }
+    this._tts = tts
+    this._tts.onPlayed = (volume: number) => {
+      this._power = volume
+    }
+    this._tts.onDone = () => {
+      this._power = 0
+    }
+  }
+  useRenderer(renderer: Renderer) {
+    this._renderer = renderer
+  }
+  useDriver(driver: Driver) {
+    this._driver = driver
+  }
+
+  get button() {
+    return this._button
+  }
+
+  async say(text: string): Promise<Maybe<string>> {
+    await this._tts.stream(text).catch((reason) => {
+      return {
+        success: false,
+        message: reason,
       }
-    )
-    return promise
+    })
+    return {
+      success: true,
+      value: text,
+    }
   }
   lookAt(position: Vector3) {
     this._gazePoint = position
-    /* noop */
   }
   lookAway() {
     this._gazePoint = null
   }
   updateFace() {
     const face = structuredClone(defaultFaceContext)
+    if (this._power != 0) {
+      face.mouth.open = this._power / 2000
+    }
     if (this._gazePoint != null) {
       const relativeGazePoint = Vector3.rotate(this._gazePoint, {
         r: 0.0,

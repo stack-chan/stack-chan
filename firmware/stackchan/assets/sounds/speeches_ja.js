@@ -1,4 +1,4 @@
-const speeches = {
+export const speeches = {
   stackchanIn30Seconds: '30秒でわかるスタックチャン。',
   sentense1: 'スタックチャンは手乗りサイズのコミュニケーションロボットです。',
   sentense2: '首を振ったり、あなたを見たり、喋ったり笑ったりします。',
@@ -6,8 +6,6 @@ const speeches = {
   sentense4: 'アイディア次第で使い方は無限大です。',
   sentense5: 'スタックチャン。コミュニケーションロボットを、あなたの手に。',
 }
-
-export default {
-  shift: 1.5,
-  speeches,
+export const SynthProps = {
+  shift: 1.5
 }

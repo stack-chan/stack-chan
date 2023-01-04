@@ -27,7 +27,6 @@
         "*": [
 			"$(MODULES)/network/http/*",
             "./stackchan-mod",
-            "./button",
             "./main",
             "./robot",
             "./renderers/*",

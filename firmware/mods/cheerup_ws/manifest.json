@@ -1,0 +1,17 @@
+{
+	"include": [
+		"$(MODDABLE)/examples/manifest_mod.json"
+	],
+	"resources": {
+		"*": [
+			"../cheerup_ble_lite/assets/*"
+		]
+
+	},
+	"modules": {
+		"*": [
+			"./mod",
+			"../cheerup_ble_lite/speeches_cheerup.js"
+		]
+	}
+}

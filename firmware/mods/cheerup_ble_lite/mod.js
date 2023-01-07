@@ -3,25 +3,19 @@ import Timer from 'timer'
 import { speeches } from 'speeches_cheerup'
 import { randomBetween } from 'stackchan-util'
 
-let pose
-let hooray = false
-let saying = false
-let connected = false
-let yaw = 0
-let pitch = 0
 const keys = Object.keys(speeches)
 
 async function sayHooray(robot) {
-  if (saying) {
-    return
-  }
-  saying = true
   const key = keys[Math.floor(randomBetween(0, keys.length))]
   await robot.say(key)
-  saying = false
 }
 
 function onRobotCreated(robot) {
+  let pose
+  let hooray = false
+  let connected = false
+  let yaw = 0
+  let pitch = 0
   new StkServer({
     onConnected: () => {
       trace('connected\n')

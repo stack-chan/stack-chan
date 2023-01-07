@@ -8,8 +8,9 @@ const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
 
 export type Driver = {
-  applyRotation: (ori: Rotation) => Promise<void>
+  applyRotation: (ori: Rotation, time?: number) => Promise<void>
   getRotation: () => Promise<Maybe<Rotation>>
+  setTorque?: (torque: boolean) => Promise<void>
 }
 
 export type TTS = {
@@ -62,9 +63,9 @@ export class Robot {
   _updateFaceHandler: Timer
   _updatePoseHandler: Timer
   constructor(params: RobotConstructorParam) {
-    this._renderer = params.renderer
-    this._driver = params.driver
-    this._tts = params.tts
+    this.useRenderer(params.renderer)
+    this.useDriver(params.driver)
+    this.useTTS(params.tts)
     this._isMoving = false
     this._power = 0
     this._button = params.button
@@ -156,6 +157,15 @@ export class Robot {
   }
   lookAway() {
     this._gazePoint = null
+  }
+  async setPose(yaw: number, pitch: number, time?: number) {
+    return this._driver.applyRotation({ y: yaw, p: pitch, r: 0 }, time)
+  }
+  async setTorque(torque: boolean) {
+    return this._driver.setTorque?.(torque)
+  }
+  setEmotion(emotion: string) {
+    /* noop */
   }
   updateFace() {
     const face = structuredClone(defaultFaceContext)

@@ -11,6 +11,11 @@ export class SCServoDriver {
     this._pan = new SCServo({ id: param.panId })
     this._tilt = new SCServo({ id: param.tiltId })
   }
+
+  async setTorque(torque: boolean): Promise<void> {
+    await Promise.all([this._pan.setTorque(torque), this._tilt.setTorque(torque)])
+  }
+
   async applyRotation(ori: Rotation, time = 0.5): Promise<void> {
     const panAngle = 100 - (ori.y * 180) / Math.PI
     const tiltAngle = 100 - Math.min(Math.max((ori.p * 180) / Math.PI, -25), 10)

@@ -170,7 +170,7 @@ export class Robot {
   updateFace() {
     const face = structuredClone(defaultFaceContext)
     if (this._power != 0) {
-      face.mouth.open = this._power / 2000
+      face.mouth.open = Math.min(this._power / 2000, 1.0)
     }
     if (this._gazePoint != null) {
       const relativeGazePoint = Vector3.rotate(this._gazePoint, {

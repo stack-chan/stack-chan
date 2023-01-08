@@ -1,39 +1,48 @@
-import { Request } from "http"
-import { Target } from 'robot'
+import TextDecoder from "text/decoder";
 
-function onRobotCreated(robot) {
-  const target = new Target(0.6, 0, 0)
-  let characterCount = 0;
-  let request = new Request({ host: "192.168.7.126", path: "/func/result", method: "POST" });
-  request.callback = function (message, value, etc) {
-    if (Request.responseFragment === message) {
-      let text = this.read(String);
-      characterCount += text.length;
-      let str = text.split('|')[0]
-      let data
+/**
+ * @brief face tracking mod with UnitV2
+ * @param {*} robot 
+ */
+function onRobotCreated(robot, device) {
+  const decoder = new TextDecoder
+  const target = {
+    x: 0.5,
+    y: 0,
+    z: 0,
+  }
+  const client = new device.network.http.io({
+    ...device.network.http,
+    host: 'unitv2.local',
+    port: 80,
+  })
+  let request = client.request({
+    method: 'POST',
+    path: '/func/result',
+    onReadable(count) {
+      let result
       try {
-        data = JSON.parse(str)
+        const text = decoder.decode(this.read(count))
+        result = JSON.parse(text.split('|')[0])
       } catch (e) {
-        trace('parse fail \n')
+        trace('parse failed.\n')
         return
       }
-      let faces = data.face
-      if (faces != null && faces.length == 0) {
-        trace('no face detected \n')
+      const face = data.faces?.[0]
+      if (face == null) {
+        trace('no face detected.\n')
         return
       }
-      let face = faces[0]
+
       let centerX = face.x + face.w / 2
       let centerY = face.y + face.h / 2
       target.y = (320 - centerX) / 320
       target.z = -centerY / 480
+      robot.lookAt(target)
     }
-    if (Request.responseComplete == message)
-      trace(`\n\nTransfer complete. ${characterCount} characters.\n`);
-  }
-  robot.follow(target)
+  })
 }
+
 export default {
-  onRobotCreated,
-  autoLoop: false
+  onRobotCreated
 }

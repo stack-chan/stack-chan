@@ -1,22 +1,3 @@
-#
-# Copyright (c) 2016-2017  Moddable Tech, Inc.
-#
-#   This file is part of the Moddable SDK Tools.
-# 
-#   The Moddable SDK Tools is free software: you can redistribute it and/or modify
-#   it under the terms of the GNU General Public License as published by
-#   the Free Software Foundation, either version 3 of the License, or
-#   (at your option) any later version.
-# 
-#   The Moddable SDK Tools is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU General Public License for more details.
-# 
-#   You should have received a copy of the GNU General Public License
-#   along with the Moddable SDK Tools.  If not, see <http://www.gnu.org/licenses/>.
-#
-
 # Name,   Type, SubType, Offset,  Size, Flags
 # Note: if you change the phy_init or app partition offset, make sure to change the offset in Kconfig.projbuild,,,,
 nvs,      data, nvs,     0x9000,  0x006000,
@@ -25,10 +6,3 @@ factory,  app,  factory, 0x10000, 0x200000,
 xs,       0x40, 1,       0x210000, 0x300000,
 settings, data, 1,       0x510000, 0x010000,
 storage,  data, spiffs,  0x520000, 0x010000,
-
-# nvs,      data, nvs,     0x9000,  0x006000,
-# phy_init, data, phy,     0xf000,  0x001000,
-# factory,  app,  factory, 0x10000, 0x200000,
-# xs,       0x40, 1,       0x210000, 0x1C0000,
-# settings, data, 1,       0x3D0000, 0x010000,
-# storage,  data, spiffs,  0x3E0000, 0x010000,

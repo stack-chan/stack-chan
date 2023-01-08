@@ -40,7 +40,7 @@ export class SCServoDriver {
       }
     }
     const y = (-Math.PI * (p1.value.value.angle - 90)) / 180
-    const p = (Math.PI * (p2.value.value.angle - 90)) / 180
+    const p = (-Math.PI * (p2.value.value.angle - 90)) / 180
     return {
       success: true,
       value: {

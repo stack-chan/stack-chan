@@ -1,7 +1,7 @@
-import { Client } from 'websocket'
 import Timer from 'timer'
 import { speeches } from 'speeches_cheerup'
 import { randomBetween } from 'stackchan-util'
+import WebSocket from 'WebSocket'
 
 const keys = Object.keys(speeches)
 
@@ -14,37 +14,26 @@ function onRobotCreated(robot) {
   let pose
   let hooray = false
   let connected = false
-  let yaw = 0
-  let pitch = 0
-  const host = 'example.com'
-  const port = 8080
-  new Client({
-    host,
-    port,
-    /* path: '/enter/path/if/any' */
-  }).callback = function (message, value) {
-    switch (message) {
-      case Client.connect:
-        break
-
-      case Client.handshake:
-        trace('connected\n')
-        robot.setTorque(true)
-        connected = true
-        break
-
-      case Client.receive:
-        trace('received\n')
-        pose = JSON.parse(value)
-        break
-
-      case Client.disconnect:
-        trace('disconnected\n')
-        robot.setTorque(false)
-        connected = false
-        break
-    }
+  const rotation = {
+    y: 0,
+    p: 0,
+    r: 0,
   }
+  const ws = new WebSocket('ws://192.168.7.112:8080')
+  ws.addEventListener('open', () => {
+    trace('connected\n')
+    robot.setTorque(true)
+    connected = true
+  })
+  ws.addEventListener('message', (event) => {
+    trace('received\n')
+    pose = JSON.parse(event.data)
+  })
+  ws.addEventListener('close', () => {
+    trace('disconnected\n')
+    robot.setTorque(false)
+    connected = false
+  })
 
   Timer.repeat(async () => {
     if (pose == null || !connected) {
@@ -52,9 +41,14 @@ function onRobotCreated(robot) {
     }
 
     // simple low pass filter
-    yaw = yaw * 0.5 + pose.yaw * 0.5
-    pitch = pitch * 0.5 + pose.pitch * 0.5
-    robot.setPose(yaw, pitch, 0)
+    rotation.y = rotation.y * 0.5 + pose.yaw * 0.5
+    rotation.p = rotation.p * 0.5 + pose.pitch * 0.5
+    robot.setPose(
+      {
+        rotation,
+      },
+      200
+    )
 
     // emotion
     robot.setEmotion(pose.emotion)
@@ -64,7 +58,7 @@ function onRobotCreated(robot) {
       await sayHooray(robot)
     }
     hooray = pose.hooray
-  }, 100)
+  }, 200)
 }
 
 export default {

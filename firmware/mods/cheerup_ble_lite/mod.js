@@ -14,8 +14,11 @@ function onRobotCreated(robot) {
   let pose
   let hooray = false
   let connected = false
-  let yaw = 0
-  let pitch = 0
+  const rotation = {
+    y: 0,
+    p: 0,
+    r: 0,
+  }
   new StkServer({
     onConnected: () => {
       trace('connected\n')
@@ -36,9 +39,14 @@ function onRobotCreated(robot) {
     }
 
     // simple low pass filter
-    yaw = yaw * 0.5 + pose.yaw * 0.5
-    pitch = pitch * 0.5 + pose.pitch * 0.5
-    robot.setPose(yaw, pitch, 0)
+    rotation.y = rotation.y * 0.5 + pose.yaw * 0.5
+    rotation.p = rotation.p * 0.5 + pose.pitch * 0.5
+    robot.setPose(
+      {
+        rotation,
+      },
+      100 // immediate update
+    )
 
     // emotion
     robot.setEmotion(pose.emotion)
@@ -52,5 +60,5 @@ function onRobotCreated(robot) {
 }
 
 export default {
-  onRobotCreated
+  onRobotCreated,
 }

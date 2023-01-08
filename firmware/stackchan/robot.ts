@@ -1,6 +1,6 @@
 import Timer from 'timer'
-import { Vector3, Pose, Rotation, Maybe, noop } from 'stackchan-util'
-import { type FaceContext, defaultFaceContext } from 'face-renderer'
+import { Vector3, Pose, Rotation, Maybe, noop, randomBetween } from 'stackchan-util'
+import { type FaceContext, type Emotion, defaultFaceContext } from 'face-renderer'
 import structuredClone from 'structuredClone'
 import Digital from 'embedded:io/digital'
 
@@ -152,20 +152,25 @@ export class Robot {
       value: text,
     }
   }
+
   lookAt(position: Vector3) {
     this._gazePoint = position
   }
   lookAway() {
     this._gazePoint = null
   }
-  async setPose(yaw: number, pitch: number, time?: number) {
-    return this._driver.applyRotation({ y: yaw, p: pitch, r: 0 }, time)
+
+  /**
+   * @experimetal
+   */
+  async setPose(pose: Pose, time?: number): Promise<void> {
+    return this._driver.applyRotation(pose.rotation, time)
   }
-  async setTorque(torque: boolean) {
+  async setTorque(torque: boolean): Promise<void> {
     return this._driver.setTorque?.(torque)
   }
-  setEmotion(emotion: string) {
-    /* noop */
+  setEmotion(emotion: Emotion) {
+    // TBD
   }
   updateFace() {
     const face = structuredClone(defaultFaceContext)
@@ -206,8 +211,12 @@ export class Robot {
       const { y, p } = Rotation.fromVector3(relativeGazePoint)
       if (y > Math.PI / 6 || y < -Math.PI / 6 || p > Math.PI / 6 || p < -Math.PI / 6) {
         this._isMoving = true
-        await this._driver.applyRotation(Rotation.fromVector3(this._gazePoint))
-        this._isMoving = false
+        const time = randomBetween(0.5, 1.0)
+        await this._driver.applyRotation(Rotation.fromVector3(this._gazePoint), time)
+        Timer.set(async () => {
+          await this._driver.setTorque(false)
+          this._isMoving = false
+        }, time * 1000 + 50)
       }
     }
   }

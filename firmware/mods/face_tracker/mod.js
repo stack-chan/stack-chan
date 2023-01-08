@@ -7,7 +7,7 @@ import TextDecoder from "text/decoder";
 function onRobotCreated(robot, device) {
   const decoder = new TextDecoder
   const target = {
-    x: 0.5,
+    x: 0.8,
     y: 0,
     z: 0,
   }
@@ -28,7 +28,7 @@ function onRobotCreated(robot, device) {
         trace('parse failed.\n')
         return
       }
-      const face = data.faces?.[0]
+      const face = result.face?.[0]
       if (face == null) {
         trace('no face detected.\n')
         return
@@ -36,9 +36,9 @@ function onRobotCreated(robot, device) {
 
       let centerX = face.x + face.w / 2
       let centerY = face.y + face.h / 2
-      target.y = (320 - centerX) / 320
-      target.z = -centerY / 480
-      robot.lookAt(target)
+      target.y = 0.8 * ((320 - centerX) / 320)
+      target.z = centerY / 480
+      robot.lookAt([target.x, target.y, target.z])
     }
   })
 }

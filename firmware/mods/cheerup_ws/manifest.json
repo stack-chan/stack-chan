@@ -11,7 +11,7 @@
 	"modules": {
 		"*": [
 			"./mod",
-			"../cheerup_ble_lite/speeches_cheerup.js"
+			"../cheerup_ble_lite/speeches_cheerup"
 		]
 	}
 }

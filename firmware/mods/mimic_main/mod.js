@@ -1,6 +1,5 @@
 import MDNS from "mdns"
 import Timer from "timer"
-import { Target } from 'robot'
 
 let initialized = false
 function onRobotCreated(robot) {
@@ -33,8 +32,8 @@ function onRobotCreated(robot) {
     }
   })
   Timer.repeat(() => {
-    let yaw = robot._pose.yaw
-    let pitch = robot._pose.pitch
+    let yaw = robot.pose.body.rotation.y
+    let pitch = robot.pose.body.rotation.p
     if (initialized && mdns.services.length > 0) {
       let service = mdns.services[0]
       service.txt['yaw'] = yaw

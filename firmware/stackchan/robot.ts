@@ -140,6 +140,10 @@ export class Robot {
     return this._button
   }
 
+  get pose() {
+    return this._pose
+  }
+
   async say(text: string): Promise<Maybe<string>> {
     await this._tts.stream(text).catch((reason) => {
       return {

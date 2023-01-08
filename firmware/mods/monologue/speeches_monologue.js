@@ -1,5 +1,5 @@
 export const speeches = Object.freeze({
-  sentense1: 'ん？今ネコいた？',
+  sentense1: 'ん？いまネコいた？',
   sentense2: 'なんか忘れてる気がする…。',
   sentense3: 'おもち食べたい。',
   sentense4: 'お空きれいだな。',

@@ -6,7 +6,8 @@
   "modules": {
     "*": [
 			"$(MODDABLE)/examples/pins/audioout/http-stream/wavstreamer",
-			"$(MODDABLE)/examples/pins/audioout/http-stream/sbcstreamer"
+			"$(MODDABLE)/examples/pins/audioout/http-stream/sbcstreamer",
+			"$(MODDABLE)/examples/pins/audioout/http-stream/calculatePower"
     ],
     "pins/*": [
       "$(MODULES)/pins/i2s/*"
@@ -14,7 +15,8 @@
   },
   "preload": [
     "sbcstreamer",
-    "wavstreamer"
+    "wavstreamer",
+		"calculatePower"
   ],
 	"defines": {
 		"audioOut": {

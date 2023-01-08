@@ -15,7 +15,6 @@ export type TTSProperty = {
   host: string
   port: number
 }
-let streaming: boolean;
 
 export class TTS {
   audio: AudioOut
@@ -25,6 +24,7 @@ export class TTS {
   client: any
   host: string
   port: number
+  streaming: boolean
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
@@ -65,15 +65,16 @@ export class TTS {
     })
   }
   async stream(key: string): Promise<void> {
-    if (streaming) {
+    if (this.streaming) {
       throw new Error('already playing')
     }
-    streaming = true
+    this.streaming = true
     const speakerId = 1
     const query = await this.getQuery(key, speakerId)
     const { onPlayed, onDone, audio } = this
     return new Promise(async (resolve, reject) => {
       let idx = 0
+      const that = this
       let streamer = new WavStreamer({
         http: device.network.http,
         host: '192.168.7.112',
@@ -111,12 +112,12 @@ export class TTS {
         },
         onError(e) {
           trace('ERROR: ', e, '\n')
-          streaming = false
+          that.streaming = false
           reject(new Error('unknown error occured'))
         },
         onDone() {
           trace('DONE\n')
-          streaming = false
+          that.streaming = false
           streamer?.close()
           onDone?.()
           resolve()

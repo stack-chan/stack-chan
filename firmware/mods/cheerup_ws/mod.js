@@ -1,7 +1,7 @@
-import StkServer from 'stk-server'
 import Timer from 'timer'
 import { speeches } from 'speeches_cheerup'
 import { randomBetween } from 'stackchan-util'
+import WebSocket from 'WebSocket'
 
 const keys = Object.keys(speeches)
 
@@ -19,20 +19,22 @@ function onRobotCreated(robot) {
     p: 0,
     r: 0,
   }
-  new StkServer({
-    onConnected: () => {
-      trace('connected\n')
-      robot.setTorque(true)
-      connected = true
-    },
-    onReceive: (newPose) => {
-      pose = newPose
-    },
-    onDisconnected: () => {
-      robot.setTorque(false)
-      connected = false
-    },
+  const ws = new WebSocket('ws://192.168.7.112:8080')
+  ws.addEventListener('open', () => {
+    trace('connected\n')
+    robot.setTorque(true)
+    connected = true
   })
+  ws.addEventListener('message', (event) => {
+    trace('received\n')
+    pose = JSON.parse(event.data)
+  })
+  ws.addEventListener('close', () => {
+    trace('disconnected\n')
+    robot.setTorque(false)
+    connected = false
+  })
+
   Timer.repeat(async () => {
     if (pose == null || !connected) {
       return
@@ -45,7 +47,7 @@ function onRobotCreated(robot) {
       {
         rotation,
       },
-      0.1 // immediate update
+      0.1
     )
 
     // emotion
@@ -53,10 +55,10 @@ function onRobotCreated(robot) {
 
     // hooray on rising edge
     if (!hooray && pose.hooray) {
-      sayHooray(robot)
+      await sayHooray(robot)
     }
     hooray = pose.hooray
-  }, 100)
+  }, 200)
 }
 
 export default {

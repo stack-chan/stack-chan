@@ -1,26 +1,12 @@
 {
   "include": [
       "$(MODDABLE)/examples/manifest_base.json",
-      "$(MODDABLE)/examples/manifest_piu.json",
       "./scservo/src/manifest-driver.json"
   ],
-  "resources": {
-    "*": ["./avatar/assets/images/*"],
-    "*-alpha": ["./avatar/assets/fonts/*"]
-  },
   "modules": {
     "*": [
-      "./avatar/src/avatar",
-      "./avatar/src/balloon",
-      "./avatar/src/emoticon",
-      "./avatar/src/marquee-label",
       "./scservo/src/scservo"
     ]
   },
-  "preload": [
-    "avatar",
-    "marquee-label",
-    "balloon",
-    "emoticon"
-  ]
+  "preload": []
 }

@@ -14,7 +14,6 @@ export type TTSProperty = {
   host: string
   port: number
 }
-let streamer;
 
 export class TTS {
   streamer?: ResourceStreamer
@@ -27,13 +26,13 @@ export class TTS {
     this.audio = new AudioOut({ streams: 1 })
   }
   async stream(key: string): Promise<void> {
-    const { onPlayed, onDone } = this
     return new Promise((resolve, reject) => {
-      if (streamer != null) {
+      if (this.streamer != null) {
         reject(new Error('already playing'))
         return
       }
-      streamer = new ResourceStreamer({
+      const that = this
+      this.streamer = new ResourceStreamer({
         path: `${key}.maud`,
         audio: {
           out: this.audio,
@@ -42,7 +41,7 @@ export class TTS {
         },
         onPlayed(buffer) {
           const power = calculatePower(buffer)
-          onPlayed?.(power)
+          that.onPlayed?.(power)
         },
         onReady(state) {
           trace(`Ready: ${state}\n`)
@@ -54,14 +53,14 @@ export class TTS {
         },
         onError(e) {
           trace('ERROR: ', e, '\n')
-          streamer = undefined
+          that.streamer = undefined
           reject(new Error('unknown error occured'))
         },
         onDone() {
           trace('DONE\n')
-          streamer?.close()
-          streamer = undefined
-          onDone?.()
+          that.streamer?.close()
+          that.streamer = undefined
+          that.onDone?.()
           resolve()
         },
       })

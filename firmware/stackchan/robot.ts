@@ -1,6 +1,6 @@
 import Timer from 'timer'
-import { Vector3, Pose, Rotation, Maybe, noop } from 'stackchan-util'
-import { type FaceContext, defaultFaceContext } from 'face-renderer'
+import { Vector3, Pose, Rotation, Maybe, noop, randomBetween } from 'stackchan-util'
+import { type FaceContext, type Emotion, defaultFaceContext } from 'face-renderer'
 import structuredClone from 'structuredClone'
 import Digital from 'embedded:io/digital'
 
@@ -8,8 +8,9 @@ const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
 
 export type Driver = {
-  applyRotation: (ori: Rotation) => Promise<void>
+  applyRotation: (ori: Rotation, time?: number) => Promise<void>
   getRotation: () => Promise<Maybe<Rotation>>
+  setTorque?: (torque: boolean) => Promise<void>
 }
 
 export type TTS = {
@@ -62,9 +63,9 @@ export class Robot {
   _updateFaceHandler: Timer
   _updatePoseHandler: Timer
   constructor(params: RobotConstructorParam) {
-    this._renderer = params.renderer
-    this._driver = params.driver
-    this._tts = params.tts
+    this.useRenderer(params.renderer)
+    this.useDriver(params.driver)
+    this.useTTS(params.tts)
     this._isMoving = false
     this._power = 0
     this._button = params.button
@@ -139,6 +140,10 @@ export class Robot {
     return this._button
   }
 
+  get pose() {
+    return this._pose
+  }
+
   async say(text: string): Promise<Maybe<string>> {
     await this._tts.stream(text).catch((reason) => {
       return {
@@ -151,16 +156,30 @@ export class Robot {
       value: text,
     }
   }
+
   lookAt(position: Vector3) {
     this._gazePoint = position
   }
   lookAway() {
     this._gazePoint = null
   }
+
+  /**
+   * @experimetal
+   */
+  async setPose(pose: Pose, time?: number): Promise<void> {
+    return this._driver.applyRotation(pose.rotation, time)
+  }
+  async setTorque(torque: boolean): Promise<void> {
+    return this._driver.setTorque?.(torque)
+  }
+  setEmotion(emotion: Emotion) {
+    // TBD
+  }
   updateFace() {
     const face = structuredClone(defaultFaceContext)
     if (this._power != 0) {
-      face.mouth.open = this._power / 2000
+      face.mouth.open = Math.min(this._power / 2000, 1.0)
     }
     if (this._gazePoint != null) {
       const relativeGazePoint = Vector3.rotate(this._gazePoint, {
@@ -196,8 +215,12 @@ export class Robot {
       const { y, p } = Rotation.fromVector3(relativeGazePoint)
       if (y > Math.PI / 6 || y < -Math.PI / 6 || p > Math.PI / 6 || p < -Math.PI / 6) {
         this._isMoving = true
-        await this._driver.applyRotation(Rotation.fromVector3(this._gazePoint))
-        this._isMoving = false
+        const time = randomBetween(0.5, 1.0)
+        await this._driver.applyRotation(Rotation.fromVector3(this._gazePoint), time)
+        Timer.set(async () => {
+          await this._driver.setTorque(false)
+          this._isMoving = false
+        }, time * 1000 + 50)
       }
     }
   }

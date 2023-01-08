@@ -1,22 +1,28 @@
 {
+    "build": {
+        "SDKCONFIGPATH": "./sdkconfig",
+        "PARTITIONS_FILE": "./sdkconfig/customPartitions.csv"
+    },
     "defines": {
         "XS_MODS": 1
     },
     "include": [
         "$(MODDABLE)/examples/manifest_base.json",
         "$(MODDABLE)/examples/manifest_net.json",
-		"$(MODDABLE)/modules/network/ble/manifest_server.json",
-        "$(MODDABLE)/modules/network/mdns/manifest.json",
-        "$(MODDABLE)/modules/base/modules/manifest.json",
         "$(MODDABLE)/examples/manifest_typings.json",
+        "$(MODDABLE)/examples/manifest_commodetto.json",
+        "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
+        "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
+        "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
+        "$(MODULES)/base/modules/manifest.json",
+        "$(MODULES)/base/deepEqual/manifest.json",
+        "$(MODULES)/base/structuredClone/manifest.json",
+        "$(MODULES)/commodetto/outline/manifest.json",
+		"$(MODULES)/data/text/decoder/manifest.json",
+        "$(MODULES)/network/ble/manifest_server.json",
+        "$(MODULES)/network/mdns/manifest.json",
         "$(MODULES)/pins/servo/manifest.json",
         "$(MODULES)/pins/i2s/manifest.json",
-		"$(MODDABLE)/examples/manifest_commodetto.json",
-		"$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
-        "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
-		"$(MODDABLE)/modules/commodetto/outline/manifest.json",
-		"$(MODDABLE)/modules/base/deepEqual/manifest.json",
-		"$(MODDABLE)/modules/base/structuredClone/manifest.json",
         "../extern/manifest_extern.json",
         "./manifest_wavstream.json",
         "./manifest_typings.json",
@@ -35,18 +41,19 @@
         ]
     },
     "preload": [
-		"http",
+        "http",
         "robot",
         "tts-local",
         "tts-voicevox",
         "face-renderer",
         "stk-server"
     ],
-	"ble": {
-		"*": [
-			"./bleservices/*"
-		]
-	},
+    "ble": {
+        "*": [
+            "./bleservices/*"
+        ]
+    },
+    "strip": [],
     "creation": {
         "static": 98304,
         "stack": 512,

@@ -11,20 +11,23 @@ export class SCServoDriver {
     this._pan = new SCServo({ id: param.panId })
     this._tilt = new SCServo({ id: param.tiltId })
   }
+
+  async setTorque(torque: boolean): Promise<void> {
+    await Promise.all([this._pan.setTorque(torque), this._tilt.setTorque(torque)])
+  }
+
   async applyRotation(ori: Rotation, time = 0.5): Promise<void> {
     const panAngle = 100 - (ori.y * 180) / Math.PI
     const tiltAngle = 100 - Math.min(Math.max((ori.p * 180) / Math.PI, -25), 10)
     trace(`applying (${ori.y}, ${ori.p}) => (${panAngle}, ${tiltAngle})\n`)
-    await Promise.all([
-      this._pan.setAngleInTime(panAngle, time * 1000),
-      this._tilt.setAngleInTime(tiltAngle, time * 1000),
-    ])
-    return new Promise((resolve) => {
-      Timer.set(async () => {
-        await Promise.all([this._pan.setTorque(false), this._tilt.setTorque(false)])
-        resolve()
-      }, time * 1000 + 10)
-    })
+    if (time === 0) {
+      await Promise.all([this._pan.setAngle(panAngle), this._tilt.setAngle(tiltAngle)])
+    } else {
+      await Promise.all([
+        this._pan.setAngleInTime(panAngle, time * 1000),
+        this._tilt.setAngleInTime(tiltAngle, time * 1000),
+      ])
+    }
   }
   async getRotation(): Promise<Maybe<Rotation>> {
     const [p1, p2] = await Promise.allSettled([this._pan.readStatus(), this._tilt.readStatus()])

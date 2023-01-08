@@ -46,27 +46,27 @@ export type FaceContext = {
 }
 
 export const defaultFaceContext: FaceContext = Object.freeze({
-  mouth: {
+  mouth: Object.freeze({
     open: 0,
-  },
-  eyes: {
-    left: {
+  }),
+  eyes: Object.freeze({
+    left: Object.freeze({
       open: 1,
       gazeX: 0,
       gazeY: 0,
-    },
-    right: {
+    }),
+    right: Object.freeze({
       open: 1,
       gazeX: 0,
       gazeY: 0,
-    },
-  },
+    }),
+  }),
   breath: 1,
   emotion: Emotion.NEUTRAL,
-  theme: {
+  theme: Object.freeze({
     primary: 'white',
     secondary: 'black',
-  },
+  }),
 } as const)
 
 // Filters

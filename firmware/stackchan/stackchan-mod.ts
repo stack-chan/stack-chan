@@ -3,7 +3,7 @@ import Timer from 'timer'
 import { randomBetween } from 'stackchan-util'
 
 export interface StackchanMod {
-  onRobotCreated?: (robot: Robot) => void
+  onRobotCreated?: (robot: Robot, option?: any) => void
 }
 
 function onRobotCreated(robot: Robot) {

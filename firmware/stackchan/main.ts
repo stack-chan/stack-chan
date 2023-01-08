@@ -75,4 +75,4 @@ const robot = new Robot({
   button,
 })
 
-onRobotCreated?.(robot)
+onRobotCreated?.(robot, globalThis.device)

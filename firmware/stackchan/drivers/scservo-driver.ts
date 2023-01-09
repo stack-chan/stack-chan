@@ -1,13 +1,17 @@
 import SCServo from 'scservo'
 import Timer from 'timer'
+import type { Maybe, Rotation } from '../stackchan-util'
 
-import type { Rotation, Maybe } from '../stackchan-util'
+type SCServoDriverProps = {
+  panId: number
+  tiltId: number
+}
 
 export class SCServoDriver {
   _pan: SCServo
   _tilt: SCServo
   _handler: ReturnType<typeof Timer.repeat>
-  constructor(param: { panId: number; tiltId: number; onOrientationChanged? }) {
+  constructor(param: SCServoDriverProps) {
     this._pan = new SCServo({ id: param.panId })
     this._tilt = new SCServo({ id: param.tiltId })
   }

@@ -1,6 +1,6 @@
-import Servo from 'pins/servo'
-import Timer from 'timer'
-import config from 'mc/config'
+import Servo from 'pins/servo';
+import { Maybe, Rotation } from 'stackchan/stackchan-util';
+import Timer from 'timer';
 
 const INTERVAL = 16.5
 
@@ -8,24 +8,25 @@ function easeInOutSine(ratio) {
   return -(Math.cos(Math.PI * ratio) - 1) / 2;
 }
 
+type PWMServoDriverProps = {
+  pwmPan?: number
+  pwmTilt?: number
+  offsetPan?: number
+  offsetTilt?: number
+}
 export class PWMServoDriver {
   _pan
   _tilt
   _panRef
   _tiltRef
-  _poseHandler
   _driveHandler
   _range
-  _onPoseChanged
-  set onPoseChanged(onPoseChanged) {
-    this._onPoseChanged = onPoseChanged
-  }
-  get onPoseChanged() {
-    return this._onPoseChanged
-  }
-  constructor(param: { onPoseChanged? } = {}) {
-    const pwmPan = config.servo?.pwmPan || 5
-    const pwmTilt = config.servo?.pwmTilt || 2
+  _offsetPan
+  _offsetTilt
+
+  constructor(param: PWMServoDriverProps = {}) {
+    const pwmPan = param.pwmPan ?? 5
+    const pwmTilt = param.pwmTilt ?? 2
     this._pan = new Servo({
       pin: pwmPan,
       min: 500,
@@ -42,22 +43,27 @@ export class PWMServoDriver {
     this._tiltRef = {
       current: 0,
     }
-    this._poseHandler = Timer.repeat(this.poseLoop.bind(this), 100)
-    this._onPoseChanged = param.onPoseChanged
+    this._offsetPan = param.offsetPan ?? 0
+    this._offsetTilt = param.offsetTilt ?? 0
   }
-  async applyRotation(pose, time = 0.5) {
-    trace(`applyPose: ${JSON.stringify(pose)}\n`)
+
+  async setTorque(_torque: boolean): Promise<void> {
+    // We cannot change torque via Stack-chan board for now.
+    // torque keeps on while 5V supplied.
+    return
+  }
+
+  async applyRotation(rotation: Rotation, time = 0.5): Promise<void> {
+    trace(`applyPose: ${JSON.stringify(rotation)}\n`)
     if (this._driveHandler != null) {
       trace('clearing\n')
       Timer.clear(this._driveHandler)
       this._driveHandler = null
     }
-    const offsetPan = config.servo.offsetPan
-    const offsetTilt = config.servo.offsetTilt
     const startPan = this._panRef.current
     const startTilt = this._tiltRef.current
-    const diffPan = (pose.yaw * 180) / Math.PI - startPan
-    const diffTilt = (pose.pitch * 180) / Math.PI - startTilt
+    const diffPan = (rotation.y * 180) / Math.PI - startPan
+    const diffTilt = (rotation.p * 180) / Math.PI - startTilt
     let cnt = 0
     const numFrame = (time * 1000) / INTERVAL
     this._driveHandler = Timer.repeat(() => {
@@ -68,8 +74,8 @@ export class PWMServoDriver {
       const ratio = easeInOutSine(cnt / numFrame)
       const p = startPan + diffPan * ratio
       const t = startTilt + diffTilt * ratio
-      const writingPan = Math.max(Math.min(p + 90, 170), 10) + offsetPan
-      const writingTilt = Math.max(Math.min(t + 90, 100), 65) + offsetTilt
+      const writingPan = Math.max(Math.min(p + 90, 170), 10) + this._offsetPan
+      const writingTilt = Math.max(Math.min(t + 90, 100), 65) + this._offsetTilt
       this._pan.write(writingPan)
       this._tilt.write(writingTilt)
       this._panRef.current = p
@@ -77,7 +83,8 @@ export class PWMServoDriver {
       cnt += 1
     }, INTERVAL)
   }
-  async getRotation() {
+
+  async getRotation(): Promise<Maybe<Rotation>> {
     return {
       success: true,
       value: {
@@ -86,17 +93,5 @@ export class PWMServoDriver {
         r: 0.0,
       },
     }
-  }
-  poseLoop() {
-    if (this._onPoseChanged == null) {
-      return
-    }
-    const yaw = (Math.PI * this._panRef.current) / 180
-    const pitch = (Math.PI * this._tiltRef.current) / 180
-    this._onPoseChanged({
-      yaw,
-      pitch,
-      roll: 0,
-    })
   }
 }

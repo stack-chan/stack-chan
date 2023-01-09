@@ -5,7 +5,7 @@
             "host": "localhost",
             "port": 8080
         },
-        "servo": {
+        "driver": {
             "type": "scservo",
             "panId": 1,
             "tiltId": 2,

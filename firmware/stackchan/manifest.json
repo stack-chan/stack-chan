@@ -62,7 +62,7 @@
         }
     },
     "config": {
-        "servo": {
+        "driver": {
             "pwmPan": 5,
             "pwmTilt": 2
         },
@@ -75,7 +75,7 @@
     "platforms": {
         "esp32/m5stack_core2": {
             "config": {
-                "servo": {
+                "driver": {
                     "pwmPan": 19,
                     "pwmTilt": 27
                 },

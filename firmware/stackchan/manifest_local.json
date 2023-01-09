@@ -2,10 +2,10 @@
     "config": {
         "tts": {
             "type": "local",
-            "host": "localhost",
-            "port": 8080
+            "host": "192.168.7.112",
+            "port": 50021
         },
-        "servo": {
+        "driver": {
             "type": "scservo",
             "panId": 1,
             "tiltId": 2,

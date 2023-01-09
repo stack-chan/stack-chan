@@ -10,7 +10,7 @@ const INTERVAL_POSE = 1000 / 10
 export type Driver = {
   applyRotation: (ori: Rotation, time?: number) => Promise<void>
   getRotation: () => Promise<Maybe<Rotation>>
-  setTorque?: (torque: boolean) => Promise<void>
+  setTorque: (torque: boolean) => Promise<void>
 }
 
 export type TTS = {
@@ -171,7 +171,7 @@ export class Robot {
     return this._driver.applyRotation(pose.rotation, time)
   }
   async setTorque(torque: boolean): Promise<void> {
-    return this._driver.setTorque?.(torque)
+    return this._driver.setTorque(torque)
   }
   setEmotion(emotion: Emotion) {
     // TBD

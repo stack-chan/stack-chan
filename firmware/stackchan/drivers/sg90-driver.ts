@@ -23,6 +23,7 @@ export class PWMServoDriver {
   _range
   _offsetPan
   _offsetTilt
+
   constructor(param: PWMServoDriverProps = {}) {
     const pwmPan = param.pwmPan ?? 5
     const pwmTilt = param.pwmTilt ?? 2
@@ -45,7 +46,14 @@ export class PWMServoDriver {
     this._offsetPan = param.offsetPan ?? 0
     this._offsetTilt = param.offsetTilt ?? 0
   }
-  async applyRotation(pose, time = 0.5) {
+
+  async setTorque(_torque: boolean): Promise<void> {
+    // We cannot change torque via Stack-chan board for now.
+    // torque keeps on while 5V supplied.
+    return
+  }
+
+  async applyRotation(pose, time = 0.5): Promise<void> {
     trace(`applyPose: ${JSON.stringify(pose)}\n`)
     if (this._driveHandler != null) {
       trace('clearing\n')
@@ -75,6 +83,7 @@ export class PWMServoDriver {
       cnt += 1
     }, INTERVAL)
   }
+
   async getRotation(): Promise<Maybe<Rotation>> {
     return {
       success: true,

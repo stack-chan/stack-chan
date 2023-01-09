@@ -53,8 +53,8 @@ export class PWMServoDriver {
     return
   }
 
-  async applyRotation(pose, time = 0.5): Promise<void> {
-    trace(`applyPose: ${JSON.stringify(pose)}\n`)
+  async applyRotation(rotation: Rotation, time = 0.5): Promise<void> {
+    trace(`applyPose: ${JSON.stringify(rotation)}\n`)
     if (this._driveHandler != null) {
       trace('clearing\n')
       Timer.clear(this._driveHandler)
@@ -62,8 +62,8 @@ export class PWMServoDriver {
     }
     const startPan = this._panRef.current
     const startTilt = this._tiltRef.current
-    const diffPan = (pose.yaw * 180) / Math.PI - startPan
-    const diffTilt = (pose.pitch * 180) / Math.PI - startTilt
+    const diffPan = (rotation.y * 180) / Math.PI - startPan
+    const diffTilt = (rotation.p * 180) / Math.PI - startTilt
     let cnt = 0
     const numFrame = (time * 1000) / INTERVAL
     this._driveHandler = Timer.repeat(() => {

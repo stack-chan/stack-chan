@@ -59,7 +59,7 @@ if (!Driver || !TTS || !Renderer) {
 }
 
 const driver = new Driver({
-  ...config.servo
+  ...config.driver
 })
 const renderer = new Renderer({
   ...config.renderer

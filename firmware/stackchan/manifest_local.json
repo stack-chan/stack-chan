@@ -2,8 +2,8 @@
     "config": {
         "tts": {
             "type": "local",
-            "host": "192.168.7.112",
-            "port": 50021
+            "host": "localhost",
+            "port": 8080
         },
         "driver": {
             "type": "scservo",

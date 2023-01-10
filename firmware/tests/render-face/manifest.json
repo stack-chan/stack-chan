@@ -14,7 +14,7 @@
     "modules": {
         "*": [
             "./main",
-            "../../face/*",
+            "../../renderers/*",
             "../../stackchan-util"
         ]
     },

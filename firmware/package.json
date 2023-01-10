@@ -13,7 +13,7 @@
     "postbuild": "ln -s $MODDABLE/build/tmp/${npm_config_target=esp32/m5stack}/stackchan/modules/tsconfig.json ./tsconfig.json",
     "deploy": "mcconfig -d -m -p ${npm_config_target=esp32/m5stack} -t deploy ./stackchan/manifest.json",
     "debug": "mcconfig -d -m -p ${npm_config_target=esp32/m5stack} ./stackchan/manifest.json",
-    "mod": "mcrun -d -m -p ${npm_config_target=esp32/m5stack} ${npm_argument}",
+    "mod": "mcrun -d -m -p ${npm_config_target=esp32/m5stack}",
     "setup": "xs-dev setup",
     "doctor": "xs-dev doctor"
   },

@@ -15,7 +15,8 @@
     "debug": "mcconfig -d -m -p ${npm_config_target=esp32/m5stack} ./stackchan/manifest.json",
     "mod": "mcrun -d -m -p ${npm_config_target=esp32/m5stack}",
     "setup": "xs-dev setup",
-    "doctor": "xs-dev doctor"
+    "doctor": "xs-dev doctor",
+    "scan": "xs-dev scan"
   },
   "type": "module",
   "repository": {

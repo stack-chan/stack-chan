@@ -46,6 +46,7 @@
     "prettier": "^2.7.1",
     "typescript": "^4.8.4",
     "web-audio-engine": "^0.13.4",
+    "xs-dev": "^0.20.0",
     "yargs": "^17.6.2"
   }
 }

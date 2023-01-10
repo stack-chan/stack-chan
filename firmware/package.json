@@ -8,12 +8,13 @@
     "lint:fix": "npm run lint --fix",
     "generate-speech-coqui": "node scripts/generate-speech-coqui.js",
     "generate-speech-google": "env GOOGLE_APPLICATION_CREDENTIALS=/workspaces/stack-chan/firmware/scripts/key.json node scripts/generate-speech-google.js",
-    "build": "cd stackchan && mcconfig -d -m -p esp32/m5stack -t build",
-    "debug": "cd stackchan && mcconfig -d -m -p esp32/m5stack",
-    "deploy": "cd stackchan && mcconfig -m -p esp32/m5stack",
-    "build:m5stack_core2": "cd stackchan && mcconfig -d -m -p esp32/m5stack_core2 -t build",
-    "debug:m5stack_core2": "cd stackchan && mcconfig -d -m -p esp32/m5stack_core2",
-    "deploy:m5stack_core2": "cd stackchan && mcconfig -m -p esp32/m5stack_core2"
+    "build": "mcconfig -d -m -p ${npm_config_target=esp32/m5stack} -t build ./stackchan/manifest.json",
+    "postbuild": "ln -s $MODDABLE/build/tmp/${npm_config_target=esp32/m5stack}/stackchan/modules/tsconfig.json ./tsconfig.json",
+    "deploy": "mcconfig -d -m -p ${npm_config_target=esp32/m5stack} -t deploy ./stackchan/manifest.json",
+    "debug": "mcconfig -d -m -p ${npm_config_target=esp32/m5stack} ./stackchan/manifest.json",
+    "mod": "mcrun -d -m -p ${npm_config_target=esp32/m5stack} ${npm_argument}",
+    "setup": "xs-dev setup",
+    "doctor": "xs-dev doctor"
   },
   "type": "module",
   "repository": {

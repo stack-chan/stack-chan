@@ -1,5 +1,4 @@
 /node_modules/
-/build/
 /tmp/
-/stackchan/assets/sounds/*.wav
 /scripts/key.json
+/tsconfig.json

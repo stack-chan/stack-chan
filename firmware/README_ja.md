@@ -6,77 +6,18 @@
 * 「Moddableの環境構築の手順が多くて大変」という課題に対して、現在[issue](https://github.com/meganetaaan/stack-chan/issues/65)を立てて対応中です。環境構築でつまづいた方はフィードバックをぜひお寄せください。
 * Arduino IDEになじみのある方は @mongonta0716 さんの[stack-chan-tester](https://github.com/mongonta0716/stack-chan-tester)もお試しください（PWMサーボのみ対応）。
 
-## 開発に必要なもの
+## ディレクトリ構成
 
-* ホストPC
-    * Linux(Ubuntu20.04)でテスト済み
-* M5Stack Basic
-* USB type-Cケーブル
-* [ModdableSDK](https://github.com/Moddable-OpenSource/moddable)
-    * [Getting Started Doc](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/Moddable%20SDK%20-%20Getting%20Started.md)を参照
-* Node.js
+- [stackchan](./stackchan/): ファームウェアのソースコードです。
+- [mods](./mods/): MODのソースコードです。
+- [scripts](./scripts/): ｽﾀｯｸﾁｬﾝの音声合成などに用いるスクリプトです。
+- [extern](./extern/): 外部のモジュールです。
+- [typings](./typings/): TypeScriptの型定義ファイル（d.ts）です。
+    - ※ｽﾀｯｸﾁｬﾝのファームウェアは一部を除きTypeScriptで実装されているので別途型定義ファイルは必要ありませんが、Moddable SDKの新しめのモジュールは型定義ファイルが提供されていないため、それを補う用途で置いてあります。
 
-### (オプション) Dockerイメージを使う
+## ドキュメント
 
-このリポジトリはDockerfileによるビルド環境を提供しています。
-Dockerコンテナの中でファームウェアのビルド、書き込みとデバッグが可能です。
-本READMEの[インストラクション](#optional-build-and-launch-docker-container)を参照ください。
-
-## ファームウェアのビルドと書き込み
-
-### リポジトリをサブモジュールと一緒にクローンする
-
-```
-git clone --recursive https://github.com/meganetaaan/stack-chan.git
-cd stack-chan/firmware
-```
-
-### (オプション) Dockerコンテナのビルドと起動
-
-#### ターミナルを使う場合
-
-```
-$user@host# ./build-container.sh
-$user@host# ./launch-container.sh
-$root@container# npm install
-```
-
-#### VSCode Development Container (devcontainer)を使う場合
-
-* コマンドパレットを開く
-* `>Remote-Containers: Reopen in Container`を実行する
-
-### ｽﾀｯｸﾁｬﾝをホストPCと接続する
-
-![connect](./docs/images/connect.jpg)
-
-### ビルドと書き込み(デバッグ機能を使わない場合)
-
-```sh
-# M5Stack Basic/Gray/Fireの場合
-npm run deploy
-
-# M5Stack CORE2の場合
-npm run deploy:m5stack_core2
-```
-
-
-### ビルドと書き込み（デバッグする場合）
-
-```sh
-# M5Stack Basic/Gray/Fireの場合
-npm run debug
-
-# M5Stack CORE2の場合
-npm run debug:m5stack_core2
-```
-
-このコマンドはデバッグ用にビルドしたファームウェアを書き込むと同時に、ModdableSDKのデバッガである`xsbug`を起動します。
-詳しくは[xsbug(公式ドキュメント)](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md)を参照してください。
-
-
-## API
-
-### TTS(音声合成)
-
-[text-to-speech.md](./docs/text-to-speech.md)を参照（英語）。
+- [環境構築](docs/getting-started_ja.md)
+- [プログラムのビルドと書き込み](docs/flashing-firmware_ja.md)
+- [API](docs/api_ja.md)
+- [MOD](mods/README_ja.md)

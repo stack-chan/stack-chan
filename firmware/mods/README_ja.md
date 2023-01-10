@@ -3,7 +3,7 @@
 ｽﾀｯｸﾁｬﾝのユーザアプリケーション（MOD）のサンプル集です。
 MODの書き込み方法は[プログラムのビルドと書き込み](../docs/flashing-firmware_ja.md)を参照ください。
 
-## [Look Around: きょろきょろｽﾀｯｸﾁｬﾝ
+## Look Around: きょろきょろｽﾀｯｸﾁｬﾝ
 
 - [look_around](./look_around/)
 

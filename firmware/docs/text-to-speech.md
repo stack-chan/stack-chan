@@ -15,6 +15,7 @@ Tested below:
 
 * [Google Cloud Text-to-Speech API](https://cloud.google.com/text-to-speech)
 * [Coqui AI TTS](https://github.com/coqui-ai/TTS)
+* [VoiceVox](https://github.com/Hiroshiba/voicevox_engine)
 
 See also official documents of each of them.
 
@@ -32,7 +33,7 @@ See also official documents of each of them.
 $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 ```
 
-* save server configuration under `stackchan/manifest_local.json`
+* save server configuration under `config.tts.host|port` of `stackchan/manifest_local.json`
 
 ```json
 {
@@ -47,41 +48,42 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 
 ## Usage(Pregenerated)
 
-* write down sentenses to speech in `stackchan/assets/sounds/speeches_[lang].js
+* write down sentenses to speech in the format below (See `mods/monologue/speeches_monologue.js` and other examples)
 
 ```javascript
-const speeches = {
+// speeches.js
+export const speeches = {
   niceToMeetYou: 'Hello. I am Stach-chan. Nice to meet you.',
   hello: 'Hello World.',
   konnichiwa: 'Konnichiwa.',
   nihao: 'Nee hao.',
 }
-export default {
-  shift: 2.0,
-  speeches,
-}
 ```
 
-* Run `npm run generate-speech-[google|coqui]`
+* Run `npm run generate-speech-[google|coqui|voicevox]`
   * this script get voice data from server and saves wave files under `stackchan/assets/sounds`
 * Flash firmware with assets
-* Call `Robot#speak(sentense: string)` with the sentense. It's reasonable to use predefined sentense of `speeches`
+* Call `Robot#speak(sentense: string)` with the sentense.
 
 ```javascript
 import { speeches } from 'speeches'
-// ...
-robot.speak(speeches.niceToMeetYou)
+const keys = Object.keys(speeches)
+
+export async function onRobotCreated(robot) {
+  await robot.say('hello')
+  await robot.say(keys[0] /* 'niceToMeetYou' */)
+}
 ```
 
 ## Usage(Remote)
 
-* Set config `tts.driver` to `remote` in `manifest_local.json`
+* Set `config.tts.type` according to your TTS server in `manifest_local.json`
 
 ```json
 {
     "config": {
         "tts": {
-            "driver": "remote",
+            "type": "remote",
             "host": "your.tts.host.local",
             "port": 8080
         }
@@ -89,10 +91,11 @@ robot.speak(speeches.niceToMeetYou)
 }
 ```
 
-* Call `Robot#speak(sentense: string)`
+* Call `Robot#say(sentense: string)`
 
 ```javascript
-import { speeches } from 'speeches'
 // ...
-robot.speak('Now I can speak any sentense you want.')
+export async function onRobotCreated(robot) {
+  await robot.say('Now I can speak any sentense you want.')
+}
 ```

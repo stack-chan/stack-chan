@@ -31,7 +31,7 @@
     ],
     "modules": {
         "*": [
-            "./beacon_packet",
+            "./ble/beacon-packet",
             "./stackchan-mod",
             "./main",
             "./robot",
@@ -52,7 +52,7 @@
     ],
     "ble": {
         "*": [
-            "./bleservices/*"
+            "./ble/services/*"
         ]
     },
     "strip": [],

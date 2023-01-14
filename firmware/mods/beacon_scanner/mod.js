@@ -2,7 +2,7 @@ import BLEClient from 'bleclient'
 import { speeches } from 'speeches_greeting'
 import { randomBetween } from 'stackchan-util'
 import { uuid } from 'btutils'
-import { BeaconDataPacket } from 'beacon_packet'
+import { BeaconDataPacket } from 'beacon-packet'
 
 const keys = Object.keys(speeches)
 const hellos = keys.filter((k) => k.startsWith('hello_'))

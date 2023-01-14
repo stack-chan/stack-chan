@@ -1,19 +1,18 @@
 import { Bytes } from 'btutils'
-import { Maybe } from './stackchan-util'
+import { Maybe } from 'stackchan-util'
 
 /**
- * iBeacon形式のmanufacturerSpecific(0xFF)のうち、identifierを除くdataパケット部を処理する。
+ * The data packet part of the manufacturerSpecific (0xFF) in iBeacon format, excluding the identifier.
  *
- * | オフセット | バイト長 | 説明                                                 |  エンディアン |
- * |------------|----------|--------------------------------------------------------|------------|
- * | 0          | 1        | Type (0x02)                                           |   -        |
- * | 1          | 1        | Data Length (0x15)                                    |   -        |
- * | 2          | 16       | UUID (C5FD FD85 BB67 E09C D4B2 D0BE 5A7E CAC9)        |  Little    |
- * | 18         | 2        | Major (0xC5FD)                                        |  Big       |
- * | 20         | 2        | Minor (0xFD85)                                        |  Big       |
- * | 22         | 1        | Tx Power (0xBB)                                       |   -        |
+ * | Offset | Byte Length | Description                                   | Endianness |
+ * |--------|-------------|-----------------------------------------------|------------|
+ * | 0      | 1           | Type                                          | -          |
+ * | 1      | 1           | Data Length                                   | -          |
+ * | 2      | 16          | UUID                                          | Little     |
+ * | 18     | 2           | Major                                         | Big        |
+ * | 20     | 2           | Minor                                         | Big        |
+ * | 22     | 1           | Tx Power                                      | -          |
  */
-
 export class BeaconDataPacket {
   #payload: Uint8Array
   #view: DataView

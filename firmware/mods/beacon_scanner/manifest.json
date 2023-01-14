@@ -6,6 +6,9 @@
 		"*": "./assets/*"
 	},
 	"modules": {
-		"*": ["./mod", "./speeches_greeting"]
+		"*": [
+			"./speeches_greeting",
+			"./mod"
+		]
 	}
 }

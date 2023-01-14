@@ -42,7 +42,7 @@ class Scanner extends BLEClient {
 }
 
 export function onRobotCreated(robot) {
-  let scanner = new Scanner()
+  const scanner = new Scanner()
   scanner.handleData = (dataPacket) => {
     const { major: count, minor: command } = dataPacket
     trace(`got: ${count}, ${command}\n`)

@@ -51,5 +51,5 @@ Installing mod...complete
 
 ## Next Step
 
-- 👉[mods/README.md](../mods/README.md): The list of example mods
-- 👉[API](./api.md): API document
+- [mods/README.md](../mods/README.md): The list of example mods
+- [API](./api.md): API document

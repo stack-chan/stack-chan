@@ -98,4 +98,4 @@ If this is related to an error when using the CLI, please create an issue at "ht
 
 ## Next step
 
-- [Build and Flash firmware](./flashing-firmware_ja.md)
+- [Build and Flash firmware](./flashing-firmware.md)

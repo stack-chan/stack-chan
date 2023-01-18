@@ -6,7 +6,7 @@
 
 ｽﾀｯｸﾁｬﾝはM5Stackで作られた、JavaScriptで動くｽｰﾊﾟｰｶﾜｲｲﾛﾎﾞｯﾄです。
 
-* 動画: https://youtu.be/BOrxkAhvjGE
+* 動画: https://youtu.be/fZb_mF08xV0
 * 公式ハッシュタグ: [`#stackchan` | `#ｽﾀｯｸﾁｬﾝ` (JP)](https://twitter.com/search?q=%23stackchan%20OR%20%23%EF%BD%BD%EF%BE%80%EF%BD%AF%EF%BD%B8%EF%BE%81%EF%BD%AC%EF%BE%9D).
 
 ## 機能

@@ -1,4 +1,4 @@
-## Build and write programs
+## Build and flash firmware
 
 ## Firmware architecture
 

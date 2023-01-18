@@ -52,5 +52,5 @@ Installing mod...complete
 
 ## 次のステップ
 
-- 👉[mods/README_ja.md](../mods/README_ja.md): 同梱のサンプルMODの紹介です。
-- 👉[API](./api_ja.md): ｽﾀｯｸﾁｬﾝのAPIドキュメントです。
+- [mods/README_ja.md](../mods/README_ja.md): 同梱のサンプルMODの紹介です。
+- [API](./api_ja.md): ｽﾀｯｸﾁｬﾝのAPIドキュメントです。

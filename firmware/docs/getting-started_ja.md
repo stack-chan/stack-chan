@@ -98,4 +98,4 @@ If this is related to an error when using the CLI, please create an issue at "ht
 
 ## 次のステップ
 
-- 👉[プログラムのビルドと書き込み](./flashing-firmware_ja.md)
+- [プログラムのビルドと書き込み](./flashing-firmware_ja.md)

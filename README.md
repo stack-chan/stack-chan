@@ -6,7 +6,7 @@
 
 Stack-chan is a JavaScript-driven M5Stack-embedded super-kawaii robot.
 
-* Video: https://youtu.be/BOrxkAhvjGE
+* Video (with English subtitles): https://youtu.be/fZb_mF08xV0
 * Official hashtag: [`#stackchan` | `#ｽﾀｯｸﾁｬﾝ` (JP)](https://twitter.com/search?q=%23stackchan%20OR%20%23%EF%BD%BD%EF%BE%80%EF%BD%AF%EF%BD%B8%EF%BE%81%EF%BD%AC%EF%BE%9D).
 
 ## Features

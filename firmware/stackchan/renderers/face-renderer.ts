@@ -1,3 +1,4 @@
+import config from 'mc/config'
 import Poco, { PocoPrototype } from 'commodetto/Poco'
 import { Outline, CanvasPath } from 'commodetto/outline'
 import deepEqual from 'deepEqual'
@@ -225,7 +226,7 @@ export class Renderer {
   foreground: number
 
   constructor(option?: { poco?: PocoPrototype }) {
-    this._poco = option?.poco ?? new Poco(screen, { rotation: 90 })
+    this._poco = option?.poco ?? new Poco(screen, { rotation: config.rotation })
     this.background = this._poco.makeColor(0, 0, 0)
     this.foreground = this._poco.makeColor(255, 255, 255)
     this.drawLeftEye = useDrawEye(90, 93, 8)

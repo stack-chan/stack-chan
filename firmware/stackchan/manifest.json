@@ -82,7 +82,8 @@
                 "serial": {
                     "transmit": 14,
                     "receive": 13
-                }
+                },
+                "rotation": 0
             }
         }
     }

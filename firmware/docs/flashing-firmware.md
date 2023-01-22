@@ -2,6 +2,8 @@
 
 ## Firmware architecture
 
+![firmware architecture](./images/host-and-mod.jpg)
+
 Stack-chan's firmware consists of a program that provide the basic operation of Stack-chan (host), and a user application (mod).
 Once the host is written, the mod can be installed in a short time for fast development.
 First write the host, and then write the mods as needed.

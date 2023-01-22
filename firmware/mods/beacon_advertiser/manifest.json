@@ -1,0 +1,15 @@
+{
+	"include": [
+		"$(MODDABLE)/examples/manifest_base.json",
+		"$(MODDABLE)/modules/network/ble/manifest_server.json"
+	],
+	"resources": {
+		"*": "../beacon_scanner/assets/*"
+	},
+	"modules": {
+		"*": [
+			"../beacon_scanner/speeches_greeting",
+			"./mod"
+		]
+	}
+}

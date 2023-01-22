@@ -18,8 +18,9 @@
         "$(MODULES)/base/deepEqual/manifest.json",
         "$(MODULES)/base/structuredClone/manifest.json",
         "$(MODULES)/commodetto/outline/manifest.json",
-		"$(MODULES)/data/text/decoder/manifest.json",
-        "$(MODULES)/network/ble/manifest_server.json",
+        "$(MODULES)/data/text/decoder/manifest.json",
+		"$(MODULES)/network/ble/manifest_server.json",
+        "$(MODULES)/network/ble/manifest_client.json",
         "$(MODULES)/network/mdns/manifest.json",
         "$(MODULES)/pins/servo/manifest.json",
         "$(MODULES)/pins/i2s/manifest.json",
@@ -30,6 +31,7 @@
     ],
     "modules": {
         "*": [
+            "./ble/beacon-packet",
             "./stackchan-mod",
             "./main",
             "./robot",
@@ -50,7 +52,7 @@
     ],
     "ble": {
         "*": [
-            "./bleservices/*"
+            "./ble/services/*"
         ]
     },
     "strip": [],

@@ -32,6 +32,9 @@ export const Emotion = Object.freeze({
 
 export type Emotion = typeof Emotion[keyof typeof Emotion]
 
+/**
+ * The context of the face representing physiological state and drawing settings.
+ */
 export type FaceContext = {
   mouth: MouthContext
   eyes: {
@@ -155,32 +158,32 @@ export const useBreath: FaceFilterFactory<{ duration: number }> = ({ duration })
 
 export const useDrawEyelid =
   (cx, cy, width, height) => (path: CanvasPath, eyeContext: FaceContext['eyes'][keyof FaceContext['eyes']]) => {
-  const w = width
-  const h = height * (1 - eyeContext.open)
-  const x = cx - width / 2
-  const y = cy - height / 2
-  path.rect(x, y, w, h)
-}
+    const w = width
+    const h = height * (1 - eyeContext.open)
+    const x = cx - width / 2
+    const y = cy - height / 2
+    path.rect(x, y, w, h)
+  }
 
 export const useDrawEye =
   (cx, cy, radius = 8) =>
-    (path: CanvasPath, eyeContext: FaceContext['eyes'][keyof FaceContext['eyes']]) => {
-      const openRatio = eyeContext.open
-      const offsetX = (eyeContext.gazeX ?? 0) * 2
-      const offsetY = (eyeContext.gazeY ?? 0) * 2
-      path.arc(cx + offsetX, cy + offsetY, radius, 0, 2 * Math.PI)
-    }
+  (path: CanvasPath, eyeContext: FaceContext['eyes'][keyof FaceContext['eyes']]) => {
+    const openRatio = eyeContext.open
+    const offsetX = (eyeContext.gazeX ?? 0) * 2
+    const offsetY = (eyeContext.gazeY ?? 0) * 2
+    path.arc(cx + offsetX, cy + offsetY, radius, 0, 2 * Math.PI)
+  }
 
 export const useDrawMouth =
   (cx, cy, minWidth = 50, maxWidth = 90, minHeight = 8, maxHeight = 58) =>
-    (path, mouthContext) => {
-      const openRatio = mouthContext.open
-      const h = minHeight + (maxHeight - minHeight) * openRatio
-      const w = minWidth + (maxWidth - minWidth) * (1 - openRatio)
-      const x = cx - w / 2
-      const y = cy - h / 2
-      path.rect(x, y, w, h)
-    }
+  (path, mouthContext) => {
+    const openRatio = mouthContext.open
+    const h = minHeight + (maxHeight - minHeight) * openRatio
+    const w = minWidth + (maxWidth - minWidth) * (1 - openRatio)
+    const x = cx - w / 2
+    const y = cy - h / 2
+    path.rect(x, y, w, h)
+  }
 
 export const useRenderBalloon = (x, y, width, height, font, text, poco) => {
   const outline = Outline.fill(Outline.RoundRectPath(0, 0, width, height, 10))

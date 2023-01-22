@@ -9,6 +9,7 @@
     "generate-speech-coqui": "node scripts/generate-speech-coqui.js",
     "generate-speech-voicevox": "node scripts/generate-speech-voicevox.js",
     "generate-speech-google": "env GOOGLE_APPLICATION_CREDENTIALS=/workspaces/stack-chan/firmware/scripts/key.json node scripts/generate-speech-google.js",
+    "generate-apidoc": "typedoc --entryPointStrategy expand --plugin typedoc-plugin-markdown --out docs/api ./stackchan",
     "build": "mcconfig -d -m -p ${npm_config_target=esp32/m5stack} -t build ./stackchan/manifest.json",
     "postbuild": "ln -s $MODDABLE/build/tmp/${npm_config_target=esp32/m5stack}/debug/stackchan/modules/tsconfig.json ./tsconfig.json",
     "deploy": "mcconfig -d -m -p ${npm_config_target=esp32/m5stack} -t deploy ./stackchan/manifest.json",

@@ -7,18 +7,27 @@ import Digital from 'embedded:io/digital'
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
 
+/**
+ * The Driver for the actuator
+ */
 export type Driver = {
   applyRotation: (ori: Rotation, time?: number) => Promise<void>
   getRotation: () => Promise<Maybe<Rotation>>
   setTorque: (torque: boolean) => Promise<void>
 }
 
+/**
+ * The text-to-speech engine
+ */
 export type TTS = {
   stream: (text: string) => Promise<void>
   onPlayed: (volume: number) => void
   onDone: () => void
 }
 
+/**
+ * The display renderer
+ */
 export type Renderer = {
   update: (interval: number, faceContext: FaceContext) => void
 }
@@ -30,11 +39,14 @@ export type Button = {
 const buttonNames = ['a', 'b', 'c'] as const
 type ButtonName = typeof buttonNames[number]
 
-type RobotConstructorParam = {
+/**
+ * The constructor parameters of the robot.
+ */
+type RobotConstructorParam<T extends string> = {
   driver: Driver
   renderer: Renderer
   tts: TTS
-  button: { [key in ButtonName]: Button }
+  button: { [key in T]: Button }
   pose?: {
     body: Pose
     eyes: {
@@ -45,31 +57,35 @@ type RobotConstructorParam = {
 }
 
 export class Robot {
-  _gazePoint: Vector3
-  _pose: {
+  /**
+   * A Facade class that provides quick access for Stack-chan features
+   *
+   * @public
+   */
+  #gazePoint: Vector3
+  #pose: {
     body: Pose
     eyes: {
       left: Pose
       right: Pose
     }
   }
-  // _overrideContext: Partial<FaceContext>,
-  _power: number
-  _tts: TTS
-  _driver: Driver
-  _button: { [key in ButtonName]: Button }
-  _isMoving: boolean
-  _renderer: Renderer
-  _updateFaceHandler: Timer
-  _updatePoseHandler: Timer
-  constructor(params: RobotConstructorParam) {
+  #power: number
+  #tts: TTS
+  #driver: Driver
+  #button: { [key in ButtonName]: Button }
+  #isMoving: boolean
+  #renderer: Renderer
+  #updateFaceHandler: Timer
+  #updatePoseHandler: Timer
+  constructor(params: RobotConstructorParam<ButtonName>) {
     this.useRenderer(params.renderer)
     this.useDriver(params.driver)
     this.useTTS(params.tts)
-    this._isMoving = false
-    this._power = 0
-    this._button = params.button
-    this._pose = params.pose ?? {
+    this.#isMoving = false
+    this.#power = 0
+    this.#button = params.button
+    this.#pose = params.pose ?? {
       body: {
         position: {
           x: 0.0,
@@ -109,43 +125,73 @@ export class Robot {
         },
       },
     }
-    this._updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
-    this._updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
+    this.#updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
+    this.#updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
   }
 
   /**
-   * Setters
+   * set a TTS instance to Robot and register callbacks
+   *
+   * @param tts - TTS class instance
    */
   useTTS(tts: TTS) {
-    if (this._tts != null) {
-      this._tts.onDone = noop
-      this._tts.onPlayed = noop
+    if (this.#tts != null) {
+      this.#tts.onDone = noop
+      this.#tts.onPlayed = noop
     }
-    this._tts = tts
-    this._tts.onPlayed = (volume: number) => {
-      this._power = volume
+    this.#tts = tts
+    this.#tts.onPlayed = (volume: number) => {
+      this.#power = volume
     }
-    this._tts.onDone = () => {
-      this._power = 0
+    this.#tts.onDone = () => {
+      this.#power = 0
     }
   }
+
+  /**
+   * set a Renderer instance to Robot and register callbacks
+   *
+   * @param renderer - Renderer class instance
+   */
   useRenderer(renderer: Renderer) {
-    this._renderer = renderer
+    this.#renderer = renderer
   }
+
+  /**
+   * set a Driver instance to Robot and register callbacks
+   *
+   * @param driver - Driver class instance
+   */
   useDriver(driver: Driver) {
-    this._driver = driver
+    this.#driver = driver
   }
 
+  /**
+   * get Buttons
+   *
+   * @returns Button instances
+   */
   get button() {
-    return this._button
+    return this.#button
   }
 
+  /**
+   * get Pose
+   *
+   * @returns Button instances
+   */
   get pose() {
-    return this._pose
+    return this.#pose
   }
 
+  /**
+   * let the robot say things
+   *
+   * @param text - the key or speech text itself to say
+   * @returns the text when speech finishes, otherwise the reason why it fails.
+   */
   async say(text: string): Promise<Maybe<string>> {
-    await this._tts.stream(text).catch((reason) => {
+    await this.#tts.stream(text).catch((reason) => {
       return {
         success: false,
         message: reason,
@@ -157,38 +203,74 @@ export class Robot {
     }
   }
 
+  /**
+   * Move the focus point of the robot.
+   * When the robot looks somewhere, it moves its gaze or face direction
+   * toward that point.
+   * The function lookAt completes synchronously,
+   * and the function does not know when to start or finish moving the gaze.
+   *
+   * @param position - the position of the point to look at
+   */
   lookAt(position: Vector3) {
-    this._gazePoint = position
-  }
-  lookAway() {
-    this._gazePoint = null
+    this.#gazePoint = position
   }
 
   /**
-   * @experimetal
+   * Unregister the focus point.
+   */
+  lookAway() {
+    this.#gazePoint = null
+  }
+
+  /**
+   * Set the pose.
+   *
+   * @returns void when the robot start moving
+   * @experimental
    */
   async setPose(pose: Pose, time?: number): Promise<void> {
-    return this._driver.applyRotation(pose.rotation, time)
+    return this.#driver.applyRotation(pose.rotation, time)
   }
+
+  /**
+   * Set the actuator torque.
+   *
+   * @returns void when the robot completes setting the torque
+   */
   async setTorque(torque: boolean): Promise<void> {
-    return this._driver.setTorque(torque)
+    return this.#driver.setTorque(torque)
   }
+
+  /**
+   * Set the emotion of the robot.
+   * The emotion may (or may not) affect the way the robot moves
+   * and its facial expressions.
+   *
+   * @param emotion - emotion
+   */
   setEmotion(emotion: Emotion) {
     // TBD
   }
+
+  /**
+   * Update the robot face.
+   * Process the robot's emotion, pose, gaze point and so on
+   * to modify the face context and passes it to Renderer#update
+   */
   updateFace() {
     const face = structuredClone(defaultFaceContext)
-    if (this._power != 0) {
-      face.mouth.open = Math.min(this._power / 2000, 1.0)
+    if (this.#power != 0) {
+      face.mouth.open = Math.min(this.#power / 2000, 1.0)
     }
-    if (this._gazePoint != null) {
-      const relativeGazePoint = Vector3.rotate(this._gazePoint, {
+    if (this.#gazePoint != null) {
+      const relativeGazePoint = Vector3.rotate(this.#gazePoint, {
         r: 0.0,
-        y: -this._pose.body.rotation.y,
-        p: -this._pose.body.rotation.p,
+        y: -this.#pose.body.rotation.y,
+        p: -this.#pose.body.rotation.p,
       })
       for (let key of ['left', 'right'] as const) {
-        const pos = this._pose.eyes[key].position
+        const pos = this.#pose.eyes[key].position
         const relative = Vector3.sub(relativeGazePoint, [pos.x, pos.y, pos.z])
         const { y, p } = Rotation.fromVector3(relative)
         face.eyes[key] = {
@@ -198,28 +280,34 @@ export class Robot {
         }
       }
     }
-    this._renderer.update(INTERVAL_FACE, face)
+    this.#renderer.update(INTERVAL_FACE, face)
   }
+
+  /**
+   * Update the robot pose.
+   * Get the current pose from the Driver
+   * and trigger move if necessary to see the gaze point.
+   */
   async updatePose() {
-    const result = await this._driver.getRotation()
+    const result = await this.#driver.getRotation()
     if (result.success) {
-      this._pose.body.rotation = result.value
+      this.#pose.body.rotation = result.value
     }
 
-    if (!this._isMoving && this._gazePoint != null) {
-      const relativeGazePoint = Vector3.rotate(this._gazePoint, {
+    if (!this.#isMoving && this.#gazePoint != null) {
+      const relativeGazePoint = Vector3.rotate(this.#gazePoint, {
         r: 0.0,
-        y: -this._pose.body.rotation.y,
-        p: -this._pose.body.rotation.p,
+        y: -this.#pose.body.rotation.y,
+        p: -this.#pose.body.rotation.p,
       })
       const { y, p } = Rotation.fromVector3(relativeGazePoint)
       if (y > Math.PI / 6 || y < -Math.PI / 6 || p > Math.PI / 6 || p < -Math.PI / 6) {
-        this._isMoving = true
+        this.#isMoving = true
         const time = randomBetween(0.5, 1.0)
-        await this._driver.applyRotation(Rotation.fromVector3(this._gazePoint), time)
+        await this.#driver.applyRotation(Rotation.fromVector3(this.#gazePoint), time)
         Timer.set(async () => {
-          await this._driver.setTorque(false)
-          this._isMoving = false
+          await this.#driver.setTorque(false)
+          this.#isMoving = false
         }, time * 1000 + 50)
       }
     }

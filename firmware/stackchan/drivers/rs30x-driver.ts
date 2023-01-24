@@ -36,6 +36,12 @@ export class RS30XDriver {
   async getRotation(): Promise<Maybe<Rotation>> {
     const yawAngle = await this._pan.readStatus().catch((): null => null)
     const tiltAngle = await this._tilt.readStatus().catch((): null => null)
+    if (yawAngle == null || tiltAngle == null) {
+      return {
+        success: false,
+        reason: 'response corrupted.',
+      }
+    }
     const y = (-Math.PI * yawAngle) / 180
     const p = (-Math.PI * tiltAngle) / 180
     return {

@@ -3,7 +3,7 @@ declare const global: any
 import config from 'mc/config'
 import Modules from 'modules'
 import { Robot, Driver, TTS, Renderer } from 'robot'
-// import { RS30XDriver } from 'rs30x-driver'
+import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import { TTS as LocalTTS } from 'tts-local'
@@ -23,7 +23,7 @@ if (Modules.has('mod')) {
 const drivers = new Map<string, new (param: unknown) => Driver>([
   ['scservo', SCServoDriver],
   ['pwm', PWMServoDriver],
-  // ['rs30x', RS30XDriver]
+  ['rs30x', RS30XDriver],
 ])
 const ttsEngines = new Map<string, new (param: unknown) => TTS>([
   ['local', LocalTTS],

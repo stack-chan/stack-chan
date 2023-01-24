@@ -1,12 +1,7 @@
 {
   "include": [
       "$(MODDABLE)/examples/manifest_base.json",
-      "./scservo/src/manifest-driver.json"
-  ],
-  "modules": {
-    "*": [
-      "./scservo/src/scservo"
-    ]
-  },
-  "preload": []
+      "./scservo/src/manifest-driver.json",
+      "./rs30x/src/manifest-driver.json"
+  ]
 }

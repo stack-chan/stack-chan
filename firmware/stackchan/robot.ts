@@ -304,6 +304,7 @@ export class Robot {
       if (y > Math.PI / 6 || y < -Math.PI / 6 || p > Math.PI / 6 || p < -Math.PI / 6) {
         this.#isMoving = true
         const time = randomBetween(0.5, 1.0)
+        await this.#driver.setTorque(true)
         await this.#driver.applyRotation(Rotation.fromVector3(this.#gazePoint), time)
         Timer.set(async () => {
           await this.#driver.setTorque(false)

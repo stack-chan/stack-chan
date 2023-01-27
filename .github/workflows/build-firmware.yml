@@ -6,9 +6,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0
-          token: ${{ secrets.SUB_MODULE_TOKEN }}
-          submodules: true
+          submodules: recursive
       - uses: actions/setup-node@v3
         with:
           node-version: "16"

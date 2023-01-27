@@ -1,12 +1,8 @@
 name: Build Stack-chan Firmware
 on: [push]
-runs:
-  using: 'docker'
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3

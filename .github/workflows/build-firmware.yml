@@ -1,0 +1,25 @@
+name: Build Stack-chan Firmware
+on: [push]
+runs:
+  using: 'docker'
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+      - run: npm ci
+        working-directory: ./firmware
+      - name: install Moddable
+        run: npm run setup && source $HOME/.local/share/xs-dev-export.sh 
+        working-directory: ./firmware
+      - name: install ESP32
+        run: npm run setup -- --device=esp32 && source $HOME/.local/share/xs-dev-export.sh
+        working-directory: ./firmware
+      - name: build
+        run: npm run build
+        working-directory: ./firmware

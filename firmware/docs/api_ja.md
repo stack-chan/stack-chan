@@ -3,7 +3,22 @@
 APIの詳しいドキュメントは現在作成中です。
 
 ｽﾀｯｸﾁｬﾝのソースコードには `TSDoc` 形式のコメントがついています。
-次のコマンドを実行することで`docs/api`ディレクトリ配下にドキュメントを生成できます。
+このコメントを元にマークダウン形式でAPIドキュメントを生成できます。
+
+APIドキュメントを生成するには、`firmware`ディレクトリの下に`tsconfig.json`が必要です。
+一度Stack-chanのファームウェアをビルドすると`tsconfig.json`が自動的に生成され、リンクが作成されます。
+
+```console
+$ npm run build
+...
+> stack-chan@0.2.1 postbuild /home/user/repos/stack-chan/firmware
+> ln -sf $MODDABLE/build/tmp/${npm_config_target=esp32/m5stack}/debug/stackchan/modules/tsconfig.json ./tsconfig.json
+
+$ file tsconfig.json
+tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32/m5stack/debug/stackchan/modules/tsconfig.json
+```
+
+その後、次のコマンドを実行することで`docs/api`ディレクトリ配下にドキュメントを生成できます。
 
 ```console
 $ npm run generate-apidoc

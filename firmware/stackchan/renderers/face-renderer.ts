@@ -76,7 +76,7 @@ export const defaultFaceContext: FaceContext = Object.freeze({
 // Filters
 
 type FaceFilter<T = unknown> = (tick: number, face: FaceContext, arg?: T) => FaceContext
-type FaceFilterFactory<T, V = unknown> = (T) => FaceFilter<V>
+type FaceFilterFactory<T, V = unknown> = (param: T) => FaceFilter<V>
 
 function linearInEaseOut(fraction: number): number {
   if (fraction < 0.25) {
@@ -85,6 +85,8 @@ function linearInEaseOut(fraction: number): number {
     return (Math.pow(fraction - 0.25, 2) * 16) / 9
   }
 }
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function linearInLinearOut(fraction: number): number {
   if (fraction < 0.5) {
     return 1 - fraction * 2
@@ -92,6 +94,7 @@ function linearInLinearOut(fraction: number): number {
     return fraction * 2 - 1
   }
 }
+
 export const useBlink: FaceFilterFactory<{ openMin: number; openMax: number; closeMin: number; closeMax: number }> = ({
   openMin,
   openMax,
@@ -168,7 +171,6 @@ export const useDrawEyelid =
 export const useDrawEye =
   (cx, cy, radius = 8) =>
   (path: CanvasPath, eyeContext: FaceContext['eyes'][keyof FaceContext['eyes']]) => {
-    const openRatio = eyeContext.open
     const offsetX = (eyeContext.gazeX ?? 0) * 2
     const offsetY = (eyeContext.gazeY ?? 0) * 2
     path.arc(cx + offsetX, cy + offsetY, radius, 0, 2 * Math.PI)
@@ -189,9 +191,9 @@ export const useRenderBalloon = (x, y, width, height, font, text, poco) => {
   const outline = Outline.fill(Outline.RoundRectPath(0, 0, width, height, 10))
   const black = poco.makeColor(0, 0, 0)
   const white = poco.makeColor(255, 255, 255)
-  let textWidth = poco.getTextWidth(text, font)
+  const textWidth = poco.getTextWidth(text, font)
   let textX = 0
-  let space = 20
+  const space = 20
   return () => {
     poco.begin(x, y, width, height)
     poco.fillRectangle(black, x, y, width, height)
@@ -205,6 +207,8 @@ export const useRenderBalloon = (x, y, width, height, font, text, poco) => {
   }
 }
 
+// under development
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 class Layer {
   #renderers: Array<(path: CanvasPath, context: FaceContext) => unknown>
   constructor() {

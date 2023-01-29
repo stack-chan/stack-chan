@@ -1,11 +1,11 @@
-import Servo from 'pins/servo';
-import { Maybe, Rotation } from 'stackchan/stackchan-util';
-import Timer from 'timer';
+import Servo from 'pins/servo'
+import { Maybe, Rotation } from 'stackchan/stackchan-util'
+import Timer from 'timer'
 
 const INTERVAL = 16.5
 
 function easeInOutSine(ratio) {
-  return -(Math.cos(Math.PI * ratio) - 1) / 2;
+  return -(Math.cos(Math.PI * ratio) - 1) / 2
 }
 
 type PWMServoDriverProps = {
@@ -47,7 +47,7 @@ export class PWMServoDriver {
     this._offsetTilt = param.offsetTilt ?? 0
   }
 
-  async setTorque(_torque: boolean): Promise<void> {
+  async setTorque(/* torque: boolean */): Promise<void> {
     // We cannot change torque via Stack-chan board for now.
     // torque keeps on while 5V supplied.
     return

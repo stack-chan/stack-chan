@@ -6,6 +6,7 @@ import { Robot, Driver, TTS, Renderer } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
+import { NoneDriver } from 'none-driver'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { defaultMod, StackchanMod } from 'stackchan-mod'
@@ -24,6 +25,7 @@ const drivers = new Map<string, new (param: unknown) => Driver>([
   ['scservo', SCServoDriver],
   ['pwm', PWMServoDriver],
   ['rs30x', RS30XDriver],
+  ['none', NoneDriver],
 ])
 const ttsEngines = new Map<string, new (param: unknown) => TTS>([
   ['local', LocalTTS],

@@ -13,10 +13,14 @@ jobs:
       - run: npm ci
         working-directory: ./firmware
       - name: install Moddable
-        run: npm run setup 
+        run: |
+          sudo apt-get update
+          npm run setup 
         working-directory: ./firmware
       - name: install ESP32
-        run: source $HOME/.local/share/xs-dev-export.sh && npm run setup -- --device=esp32
+        run: |
+          sudo apt-get update
+          source $HOME/.local/share/xs-dev-export.sh && npm run setup -- --device=esp32
         working-directory: ./firmware
       - name: build
         run: source $HOME/.local/share/xs-dev-export.sh && npm run build

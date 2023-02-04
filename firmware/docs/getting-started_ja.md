@@ -37,7 +37,7 @@ $ npm i
 
 ```console
 $ npm run setup
-$ npm run setup -- --device=esp32
+$ npm run setup -- --target=esp32
 ```
 
 内部で[`xs-dev`](https://github.com/HipsterBrown/xs-dev)を使ってModdableSDKやESP-IDFのセットアップを自動化しています。

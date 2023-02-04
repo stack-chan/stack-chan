@@ -37,7 +37,7 @@ Run the following command in the `stack-chan/firmware` directory.
 
 ```console
 $ npm run setup
-$ npm run setup -- --device=esp32
+$ npm run setup -- --target=esp32
 ```
 
 The script internally uses [`xs-dev`](https://github.com/HipsterBrown/xs-dev) to automate the setup of ModdableSDK and ESP-IDF.

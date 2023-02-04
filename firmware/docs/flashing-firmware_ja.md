@@ -34,7 +34,7 @@ $ npm run deploy --target=esp32/m5stack_core2
 $ npm run mod [modのマニフェストファイルのパス]
 
 # M5Stack Core2の場合
-$ npm run mod --device=esp32/m5stack_core2 [modのマニフェストファイルのパス]
+$ npm run mod --target=esp32/m5stack_core2 [modのマニフェストファイルのパス]
 ```
 
 __例: [`mods/look_around`](../mods/look_around/)をインストールする__

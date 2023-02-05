@@ -12,5 +12,8 @@ jobs:
         run: source $HOME/.local/share/xs-dev-export.sh && npm run build
         working-directory: ./firmware
       - name: lint
-        run: npm run lint
+        uses: wearerequired/lint-action@v2
+        with:
+          eslint: true
+          prettier: true
         working-directory: ./firmware

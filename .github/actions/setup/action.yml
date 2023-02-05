@@ -3,9 +3,6 @@ description: Setup Node.js, ModdableSDK and ESP-IDF environments
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
     - uses: actions/setup-node@v3
       with:
         node-version: 16

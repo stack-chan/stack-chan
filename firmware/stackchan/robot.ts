@@ -3,6 +3,7 @@ import { Vector3, Pose, Rotation, Maybe, noop, randomBetween } from 'stackchan-u
 import { type FaceContext, type Emotion, defaultFaceContext } from 'face-renderer'
 import structuredClone from 'structuredClone'
 import Digital from 'embedded:io/digital'
+import Touch from 'touch'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
@@ -54,6 +55,7 @@ type RobotConstructorParam<T extends string> = {
       right: Pose
     }
   }
+  touch?: Touch
 }
 
 export class Robot {
@@ -74,6 +76,7 @@ export class Robot {
   #tts: TTS
   #driver: Driver
   #button: { [key in ButtonName]: Button }
+  #touch:Touch
   #isMoving: boolean
   #renderer: Renderer
   #updateFaceHandler: Timer
@@ -85,6 +88,7 @@ export class Robot {
     this.#isMoving = false
     this.#power = 0
     this.#button = params.button
+    this.#touch = params.touch
     this.#pose = params.pose ?? {
       body: {
         position: {
@@ -174,6 +178,15 @@ export class Robot {
   get button() {
     return this.#button
   }
+
+    /**
+   * get Touch
+   *
+   * @returns Touch instances
+   */
+    get touch() {
+      return this.#touch
+    }
 
   /**
    * get Pose

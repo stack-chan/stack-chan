@@ -32,5 +32,5 @@ export const speeches = Object.freeze({
 })
 
 export const SynthProps = Object.freeze({
-  shift: 1.5
+  shift: 1.5,
 })

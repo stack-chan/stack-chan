@@ -18,10 +18,10 @@ export class BeaconDataPacket {
   #view: DataView
 
   /**
-   * @param uuid {Bytes}
-   * @param major {number}
-   * @param minor {number}
-   * @param txPower {number}
+   * @param uuid - uuid
+   * @param major - major version
+   * @param minor - minor version
+   * @param txPower - tx signal power
    */
   constructor(uuid: Bytes, major: number, minor: number, txPower: number) {
     this.#payload = new Uint8Array(23)
@@ -35,7 +35,7 @@ export class BeaconDataPacket {
   }
 
   /**
-   * @param data {Uint8Array}
+   * @param payload - payload to be parsed as BeaconDataPacket
    */
   static parse(payload: Uint8Array): Maybe<BeaconDataPacket> {
     if (payload.byteLength !== 23) {

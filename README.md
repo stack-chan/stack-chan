@@ -1,5 +1,7 @@
 # Stack-chan
 
+[![Build Stack-chan Firmware](https://github.com/meganetaaan/stack-chan/actions/workflows/build.yml/badge.svg)](https://github.com/meganetaaan/stack-chan/actions/workflows/build.yml)
+
 [日本語](./README_ja.md)
 
 ![stackchan](./docs/images/stackchan.gif)

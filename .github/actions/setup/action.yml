@@ -1,0 +1,30 @@
+name: Setup
+description: Setup Node.js, ModdableSDK and ESP-IDF environments
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 16
+    - name: Cache node modules
+      uses: actions/cache@v3
+      env:
+        cache-name: cache-node-modules
+      with:
+        path: ./firmware/node_modules
+        key:  ${{ runner.os }}-npm-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+    - run: npm ci
+      working-directory: ./firmware
+      shell: bash
+    - name: install Moddable
+      run: |
+        sudo apt-get update
+        npm run setup 
+      working-directory: ./firmware
+      shell: bash
+    - name: install ESP32
+      run: |
+        sudo apt-get update
+        source $HOME/.local/share/xs-dev-export.sh && npm run setup -- --device=esp32
+      working-directory: ./firmware
+      shell: bash

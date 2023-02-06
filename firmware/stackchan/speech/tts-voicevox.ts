@@ -1,11 +1,12 @@
 /* eslint-disable prefer-const */
-import { Headers } from "fetch";
+import { Headers } from 'fetch'
 
 import AudioOut from 'pins/audioout'
 import WavStreamer from 'wavstreamer'
 import calculatePower from 'calculate-power'
+import HTTPClient from 'embedded:network/http/client'
 
-/* global device, trace, SharedArrayBuffer */
+/* global trace, SharedArrayBuffer */
 
 declare const device: any
 
@@ -21,7 +22,7 @@ export class TTS {
   onPlayed: (number) => void
   onDone: () => void
   // TODO: Add type definition for HTTPClient
-  client: any
+  client: HTTPClient
   host: string
   port: number
   streaming: boolean
@@ -32,10 +33,9 @@ export class TTS {
     this.host = props.host
     this.port = props.port
   }
-  async getQuery(text: string, speakerId: number = 1): Promise<ArrayBuffer> {
+  async getQuery(text: string, speakerId = 1): Promise<ArrayBuffer> {
     return new Promise((resolve, reject) => {
       let buffer
-      let idx = 0
       const client = new device.network.http.io({
         ...device.network.http,
         host: this.host,
@@ -45,7 +45,7 @@ export class TTS {
         method: 'POST',
         path: encodeURI(`/audio_query?text=${text}&speaker=${speakerId}`),
         headers: new Map([['Content-Type', 'application/x-www-form-urlencoded']]),
-        onHeaders(status, _headers) {
+        onHeaders(status) {
           if (status !== 200) {
             reject(`server returned ${status}`)
           }
@@ -72,9 +72,8 @@ export class TTS {
     const speakerId = 1
     const query = await this.getQuery(key, speakerId)
     const { onPlayed, onDone, audio } = this
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
       let idx = 0
-      const that = this
       let streamer = new WavStreamer({
         http: device.network.http,
         host: '192.168.7.112',
@@ -110,14 +109,14 @@ export class TTS {
             audio.stop()
           }
         },
-        onError(e) {
+        onError: (e) => {
           trace('ERROR: ', e, '\n')
-          that.streaming = false
+          this.streaming = false
           reject(new Error('unknown error occured'))
         },
-        onDone() {
+        onDone: () => {
           trace('DONE\n')
-          that.streaming = false
+          this.streaming = false
           streamer?.close()
           onDone?.()
           resolve()

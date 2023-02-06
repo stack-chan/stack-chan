@@ -3,7 +3,7 @@ import AudioOut from 'pins/audioout'
 import WavStreamer from 'wavstreamer'
 import calculatePower from 'calculate-power'
 
-/* global device, trace, SharedArrayBuffer */
+/* global trace, SharedArrayBuffer */
 
 declare const device: any
 
@@ -11,7 +11,7 @@ export type TTSProperty = {
   onPlayed: (number) => void
   onDone: () => void
 }
-let streamer;
+let streamer
 
 export class TTS {
   streamer?: WavStreamer

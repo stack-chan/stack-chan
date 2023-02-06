@@ -8,6 +8,12 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/setup
-      - name: build
+      - name: Build
         run: source $HOME/.local/share/xs-dev-export.sh && npm run build
+        working-directory: ./firmware
+      - name: Check Format
+        run: npm run format
+        working-directory: ./firmware
+      - name: Lint
+        run: npm run lint
         working-directory: ./firmware

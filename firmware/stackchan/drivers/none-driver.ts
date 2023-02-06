@@ -1,11 +1,17 @@
 import type { Maybe, Rotation } from '../stackchan-util'
 
 export class NoneDriver {
-  constructor(param: unknown) {}
+  constructor() {
+    // do nothing
+  }
 
-  async setTorque(torque: boolean): Promise<void> {}
+  async setTorque(): Promise<void> {
+    // do nothing
+  }
 
-  async applyRotation(ori: Rotation, time = 0.5): Promise<void> {}
+  async applyRotation(): Promise<void> {
+    // do nothing
+  }
 
   async getRotation(): Promise<Maybe<Rotation>> {
     return {

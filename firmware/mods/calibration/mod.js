@@ -3,7 +3,7 @@ import Timer from 'timer'
 /**
  * @brief calibrates SCServo offset angle
  * @note This mod is under construction. setting pan/tilt offset does not work properly.
- * @param {Robot} robot 
+ * @param {Robot} robot
  */
 async function onRobotCreated(robot) {
   let pan = robot._driver._pan

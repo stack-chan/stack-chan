@@ -27,11 +27,9 @@ const drivers = new Map<string, new (param: unknown) => Driver>([
 ])
 const ttsEngines = new Map<string, new (param: unknown) => TTS>([
   ['local', LocalTTS],
-  ['voicevox', VoiceVoxTTS]
+  ['voicevox', VoiceVoxTTS],
 ])
-const renderers = new Map<string, new (param: unknown) => Renderer>([
-  ['simple', SimpleRenderer]
-])
+const renderers = new Map<string, new (param: unknown) => Renderer>([['simple', SimpleRenderer]])
 
 // TODO: select driver/tts/renderer by mod
 
@@ -50,7 +48,11 @@ const rendererKey = config.renderer?.type ?? 'simple'
 const Renderer = renderers.get(rendererKey)
 
 if (!Driver || !TTS || !Renderer) {
-  for (let [key, klass] of [[driverKey, Driver], [ttsKey, TTS], [rendererKey, Renderer]]) {
+  for (let [key, klass] of [
+    [driverKey, Driver],
+    [ttsKey, TTS],
+    [rendererKey, Renderer],
+  ]) {
     if (klass == null) {
       errors.push(`type "${key}" does not exist`)
     }
@@ -59,13 +61,13 @@ if (!Driver || !TTS || !Renderer) {
 }
 
 const driver = new Driver({
-  ...config.driver
+  ...config.driver,
 })
 const renderer = new Renderer({
-  ...config.renderer
+  ...config.renderer,
 })
 const tts = new TTS({
-  ...config.tts
+  ...config.tts,
 })
 const button = globalThis.button
 const robot = new Robot({

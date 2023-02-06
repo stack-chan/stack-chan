@@ -1,5 +1,7 @@
 # ｽﾀｯｸﾁｬﾝ(Stack-chan)
 
+[![ファームウェアのビルド](https://github.com/meganetaaan/stack-chan/actions/workflows/build.yml/badge.svg)](https://github.com/meganetaaan/stack-chan/actions/workflows/build.yml)
+
 [English](./README.md)
 
 ![stackchan](./docs/images/stackchan.gif)

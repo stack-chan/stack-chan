@@ -33,7 +33,7 @@ The following command is used to build and write a mod.
 $ npm run mod [mod manifest file path]
 
 # For M5Stack Core2
-$ npm run mod --device=esp32/m5stack_core2 [mod manifest file path]
+$ npm run mod --target=esp32/m5stack_core2 [mod manifest file path]
 ```
 
 __Example: Installing [`mods/look_around`](../mods/look_around/)__

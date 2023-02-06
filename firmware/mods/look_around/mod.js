@@ -3,13 +3,13 @@ import { randomBetween } from 'stackchan-util'
 
 export function onRobotCreated(robot) {
   let isFollowing = false
-  robot.button.a.onChanged = function() {
+  robot.button.a.onChanged = function () {
     if (this.read()) {
       trace('pressed A\n')
       isFollowing = !isFollowing
     }
   }
-  robot.button.b.onChanged = function() {
+  robot.button.b.onChanged = function () {
     if (this.read()) {
       trace('pressed B\n')
     }

@@ -1,0 +1,19 @@
+name: Build Stack-chan Firmware
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup
+      - name: Build
+        run: source $HOME/.local/share/xs-dev-export.sh && npm run build
+        working-directory: ./firmware
+      - name: Check Format
+        run: npm run format
+        working-directory: ./firmware
+      - name: Lint
+        run: npm run lint
+        working-directory: ./firmware

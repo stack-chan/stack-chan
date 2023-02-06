@@ -5,15 +5,17 @@ import calculatePower from 'calculate-power'
 
 /* global trace, SharedArrayBuffer */
 
-export type TTSProperty = {
-  onPlayed: (number) => void
-  onDone: () => void
-} | {
-  onPlayed: (number) => void
-  onDone: () => void
-  host: string
-  port: number
-}
+export type TTSProperty =
+  | {
+      onPlayed: (number) => void
+      onDone: () => void
+    }
+  | {
+      onPlayed: (number) => void
+      onDone: () => void
+      host: string
+      port: number
+    }
 
 export class TTS {
   streamer?: ResourceStreamer
@@ -31,7 +33,6 @@ export class TTS {
         reject(new Error('already playing'))
         return
       }
-      const that = this
       this.streamer = new ResourceStreamer({
         path: `${key}.maud`,
         audio: {
@@ -39,11 +40,7 @@ export class TTS {
           stream: 0,
           sampleRate: 11025,
         },
-        onPlayed(buffer) {
-          const power = calculatePower(buffer)
-          that.onPlayed?.(power)
-        },
-        onReady(state) {
+        onReady(this: ResourceStreamer, state) {
           trace(`Ready: ${state}\n`)
           if (state) {
             this.audio.start()
@@ -51,16 +48,20 @@ export class TTS {
             this.audio.stop()
           }
         },
-        onError(e) {
+        onPlayed: (buffer) => {
+          const power = calculatePower(buffer)
+          this.onPlayed?.(power)
+        },
+        onError: (e) => {
           trace('ERROR: ', e, '\n')
-          that.streamer = undefined
+          this.streamer = undefined
           reject(new Error('unknown error occured'))
         },
-        onDone() {
+        onDone: () => {
           trace('DONE\n')
-          that.streamer?.close()
-          that.streamer = undefined
-          that.onDone?.()
+          this.streamer?.close()
+          this.streamer = undefined
+          this.onDone?.()
           resolve()
         },
       })

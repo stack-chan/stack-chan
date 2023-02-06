@@ -1,11 +1,11 @@
-import TextDecoder from "text/decoder";
+import TextDecoder from 'text/decoder'
 
 /**
  * @brief face tracking mod with UnitV2
- * @param {*} robot 
+ * @param {*} robot
  */
 function onRobotCreated(robot, device) {
-  const decoder = new TextDecoder
+  const decoder = new TextDecoder()
   const target = {
     x: 0.8,
     y: 0,
@@ -39,10 +39,10 @@ function onRobotCreated(robot, device) {
       target.y = 0.8 * ((320 - centerX) / 320)
       target.z = centerY / 480
       robot.lookAt([target.x, target.y, target.z])
-    }
+    },
   })
 }
 
 export default {
-  onRobotCreated
+  onRobotCreated,
 }

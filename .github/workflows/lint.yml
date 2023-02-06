@@ -16,4 +16,5 @@ jobs:
         with:
           eslint: true
           prettier: true
-        working-directory: ./firmware
+          eslint_dir: ./firmware
+          prettier_dir: ./firmware

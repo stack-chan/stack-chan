@@ -73,13 +73,13 @@ const tts = new TTS({
   ...config.tts,
 })
 const button = globalThis.button
-const touch = (!global.screen.touch && config.Touch) ? new Touch : undefined
+const touch = !global.screen.touch && config.Touch ? new Touch() : undefined
 const robot = new Robot({
   driver,
   renderer,
   tts,
   button,
-  touch
+  touch,
 })
 
 onRobotCreated?.(robot, globalThis.device)

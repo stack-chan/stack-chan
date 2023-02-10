@@ -10,18 +10,18 @@ function onRobotCreated(robot: Robot) {
   let isFollowing: boolean = false
   robot.button.a.onChanged = function () {
     if (this.read()) {
-      trace('pressed A')
+      trace('pressed A\n')
       isFollowing = !isFollowing
     }
   }
   robot.button.b.onChanged = function () {
     if (this.read()) {
-      trace('pressed B')
+      trace('pressed B\n')
     }
   }
   robot.button.c.onChanged = function () {
     if (this.read()) {
-      trace('pressed C')
+      trace('pressed C\n')
     }
   }
   const targetLoop = () => {

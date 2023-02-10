@@ -11,6 +11,7 @@ import { TTS as LocalTTS } from 'tts-local'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { defaultMod, StackchanMod } from 'stackchan-mod'
 import { Renderer as SimpleRenderer } from 'face-renderer'
+import Touch from 'touch'
 
 // trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
 // trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
@@ -72,11 +73,13 @@ const tts = new TTS({
   ...config.tts,
 })
 const button = globalThis.button
+const touch = (!global.screen.touch && config.Touch) ? new Touch : undefined
 const robot = new Robot({
   driver,
   renderer,
   tts,
   button,
+  touch
 })
 
 onRobotCreated?.(robot, globalThis.device)

@@ -39,7 +39,8 @@
             "./drivers/*",
             "./speech/*",
             "./stackchan-util",
-            "./stk-server"
+            "./stk-server",
+            "./touch"
         ]
     },
     "preload": [
@@ -47,7 +48,8 @@
         "tts-local",
         "tts-voicevox",
         "face-renderer",
-        "stk-server"
+        "stk-server",
+        "touch"
     ],
     "ble": {
         "*": [

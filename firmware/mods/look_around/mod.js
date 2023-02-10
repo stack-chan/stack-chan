@@ -14,7 +14,7 @@ export function onRobotCreated(robot) {
       trace('pressed B\n')
     }
   }
-  robot.button.c.onChanged = function() {
+  robot.button.c.onChanged = function () {
     if (this.read()) {
       trace('pressed C\n')
     }

@@ -76,7 +76,7 @@ export class Robot {
   #tts: TTS
   #driver: Driver
   #button: { [key in ButtonName]: Button }
-  #touch:Touch
+  #touch: Touch
   #isMoving: boolean
   #renderer: Renderer
   #updateFaceHandler: Timer
@@ -179,14 +179,14 @@ export class Robot {
     return this.#button
   }
 
-    /**
+  /**
    * get Touch
    *
    * @returns Touch instances
    */
-    get touch() {
-      return this.#touch
-    }
+  get touch() {
+    return this.#touch
+  }
 
   /**
    * get Pose

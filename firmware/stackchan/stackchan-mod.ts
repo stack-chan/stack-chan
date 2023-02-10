@@ -8,18 +8,18 @@ export interface StackchanMod {
 
 function onRobotCreated(robot: Robot) {
   let isFollowing: boolean = false
-  robot.button.a.onChanged = function() {
+  robot.button.a.onChanged = function () {
     if (this.read()) {
       trace('pressed A')
       isFollowing = !isFollowing
     }
   }
-  robot.button.b.onChanged = function() {
+  robot.button.b.onChanged = function () {
     if (this.read()) {
       trace('pressed B')
     }
   }
-  robot.button.c.onChanged = function() {
+  robot.button.c.onChanged = function () {
     if (this.read()) {
       trace('pressed C')
     }
@@ -39,5 +39,5 @@ function onRobotCreated(robot: Robot) {
 }
 
 export const defaultMod: StackchanMod = {
-  onRobotCreated
+  onRobotCreated,
 }

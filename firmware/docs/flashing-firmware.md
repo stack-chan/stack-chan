@@ -2,11 +2,68 @@
 
 ## Firmware architecture
 
+### Host and MOD
+
 ![firmware architecture](./images/host-and-mod.jpg)
 
 Stack-chan's firmware consists of a program that provide the basic operation of Stack-chan (host), and a user application (mod).
 Once the host is written, the mod can be installed in a short time for fast development.
 First write the host, and then write the mods as needed.
+
+### Manifest File
+
+The host and the MOD each consist of a manifest file (manifest.json), source code for JavaScript modules, and resources such as images and audio. The manifest file includes the names and locations of the JavaScript modules (`modules`) , as well as the configurations that can be referenced within the modules (`config`). Additionally, the manifest file can include other manifest files (`include`).
+
+For all configuration items, please refer to the [Moddable official documentation](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/tools/manifest.md).
+
+## Configuration
+
+StackChan can change settings such as motor types and pin assignments from the manifest file. You can modify [`stackchan/manifest_local.json`](../stackchan/manifest_local.json) for local settings. The following settings can be written under the `"config"` key.
+
+| Key             | Description                                     | Available values                            |
+| --------------- | ----------------------------------------------- | ------------------------------------------- |
+| driver.type     | Type of motor driver                            | "scservo", "rs30x", "pwm", "none"           |
+| driver.panId    | ID of the serial servo used for pan axis (horizontal rotation of the neck) | 1~254                                       |
+| driver.tiltId   | ID of the serial servo used for tilt axis (vertical rotation of the neck) | 1~254                                       |
+| driver.offsetPan  | Offset of the tilt axis                            | -90~90                                      |
+| driver.offsetTilt | Offset of the tilt axis                            | -90~90                                      |
+| tts.type          | [TTS](./text-to-speech.md) type                                      | "local", "voicevox"                         |
+| tts.host          | Host name when TTS communicates with server           | "localhost", "ttsserver.local", etc. |
+| tts.port          | Port number when TTS communicates with server          | 1~65535                                     |
+
+### Configuration Example: the Stack-chan M5Bottom Kit
+
+This is an example configuration for running [Stack-chan Assembly Kit M5Bottom Version](https://mongonta.booth.pm/) distributed by Takao Akaki ([@mongonta0716](https://github.com/mongonta0716)) with the firmware in this repository. The M5Bottom version does not use a dedicated board, but connects to the M5Bottom port and servo.
+
+When using Port.C of M5Stack Core2:
+
+```json
+{
+    "config": {
+        "driver": {
+            "type": "pwm",
+            "pwmPan": 13,
+            "pwmTilt": 14
+        }
+    }
+}
+```
+
+When using Port.C of M5Stack Basic:
+
+```json
+{
+    "config": {
+        "driver": {
+            "type": "pwm",
+            "pwmPan": 16,
+            "pwmTilt": 17
+        }
+    }
+}
+```
+
+Reference: [About the firmware for Stack-chan M5Go Bottom version (Japanese)](https://raspberrypi.mongonta.com/softwares-for-stackchan/)
 
 ## Writing hosts
 

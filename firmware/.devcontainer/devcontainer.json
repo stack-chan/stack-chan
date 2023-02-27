@@ -7,7 +7,7 @@
 	"context": "..",
 
 	// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
-	"dockerFile": "../Dockerfile",
+	"dockerFile": "../docker/Dockerfile",
 
 	// Set *default* container specific settings.json values on container create.
 	// "settings": { 
@@ -34,7 +34,10 @@
 
 	// Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
 	// "mounts": [ "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" ],
-	"mounts": ["source=/dev,target=/dev,type=bind"],
+	"mounts": [
+		"type=volume,source=node_modules,target=/workspace/node_modules",
+		"type=bind,source=/dev,target=/dev,type=bind"
+	],
 
 	// Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "root"

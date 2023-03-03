@@ -1,4 +1,4 @@
-FROM meganetaaan/moddable-esp32:moddable-ae5ed20
+FROM meganetaaan/moddable-esp32:3.7.0
 LABEL maintainer "Shinya Ishikawa<ishikawa.s.1027@gmail.com>"
 
 RUN curl -SL https://deb.nodesource.com/setup_14.x | bash \
@@ -7,5 +7,5 @@ RUN curl -SL https://deb.nodesource.com/setup_14.x | bash \
     nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-RUN npm install -g typescript
+RUN npm install --global typescript
 RUN echo ". /opt/esp/idf/export.sh" >> /root/.bashrc

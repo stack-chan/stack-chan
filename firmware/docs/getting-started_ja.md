@@ -51,9 +51,11 @@ Dockerコンテナの中でファームウェアのビルド、書き込みと�
 
 #### ターミナルから
 
+`stack-chan/firmware`ディレクトリで次のコマンドを実行します。
+
 ```console
-$ ./build-container.sh
-$ ./launch-container.sh
+$ ./docker/build-container.sh
+$ ./docker/launch-container.sh
 
 # コンテナ内で以下を実行
 $ npm install

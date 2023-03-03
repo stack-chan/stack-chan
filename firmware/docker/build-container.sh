@@ -1,2 +1,3 @@
 #!/bin/bash
-docker build . -t stack-chan/dev
+# Run from `stack-chan/firmware`
+docker build ./docker -t stack-chan/dev

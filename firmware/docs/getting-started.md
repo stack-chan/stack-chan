@@ -51,9 +51,11 @@ Note: This has been tested on Linux (Ubuntu 20.04); it may not work properly on 
 
 #### From terminal
 
+Run the following command in the `stack-chan/firmware` directory.
+
 ```console
-$ ./build-container.sh
-$ ./launch-container.sh
+$ ./docker/build-container.sh
+$ ./docker/launch-container.sh
 
 # Run inside container
 $ npm install

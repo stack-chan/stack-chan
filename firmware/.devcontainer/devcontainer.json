@@ -35,7 +35,7 @@
 	// Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
 	// "mounts": [ "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" ],
 	"mounts": [
-		"type=volume,source=node_modules,target=/workspace/node_modules",
+		"type=volume,source=stackchan_firmware_node_modules,target=/workspace/node_modules",
 		"type=bind,source=/dev,target=/dev,type=bind"
 	],
 

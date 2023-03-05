@@ -1,8 +1,4 @@
 {
-    "build": {
-        "SDKCONFIGPATH": "./sdkconfig",
-        "PARTITIONS_FILE": "./sdkconfig/customPartitions.csv"
-    },
     "defines": {
         "XS_MODS": 1
     },
@@ -77,6 +73,7 @@
     },
     "platforms": {
         "esp32/m5stack_core2": {
+            "include": ["./manifest_8mb_flash.json"],
             "config": {
                 "driver": {
                     "pwmPan": 19,

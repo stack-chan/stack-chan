@@ -1,5 +1,7 @@
 # Getting Started
 
+[日本語](./getting-started_ja.md)
+
 ## Prerequisites
 
 * Host PC

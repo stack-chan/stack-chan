@@ -1,5 +1,7 @@
 # Using Text To Speech(TTS)
 
+[日本語](./text-to-speech_ja.md)
+
 Currently there are two way to use TTS.
 
 * __Pregenerated__: Generates and flash speeches at buildtime and plays standalone. Suitable for predefined statements.

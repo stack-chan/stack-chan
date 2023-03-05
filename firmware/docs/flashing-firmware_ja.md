@@ -37,6 +37,8 @@
 | tts.host          | TTS がサーバと通信する場合のホスト名            | "localhost", "ttsserver.local" などの文字列 |
 | tts.port          | TTS がサーバと通信する場合のポート番号          | 1~65535                                     |
 
+また、`"include"`キーの配下にリスト形式で他のマニフェストファイルのパスを指定できます。
+
 ### 設定例: ｽﾀｯｸﾁｬﾝ M5Bottom版キットを動かす
 
 紅木タカオ氏（[@mongonta0716](https://github.com/mongonta0716)）が頒布する
@@ -72,6 +74,21 @@ M5Stack BasicのPort.Cを使う場合:
 ```
 
 参考: [ｽﾀｯｸﾁｬﾝ M5GoBottom版のファームウェアについて \| M5Stack沼人の日記](https://raspberrypi.mongonta.com/softwares-for-stackchan/)
+
+### 設定例: modの書き込み領域を増やす
+
+2023年3月現在、ModdableはSD Cardのドライバが実装されていないため、音声や画像などのリソースはmodに含めてコンパイルして書き込む形になります。
+多量の音声を含む場合、ｽﾀｯｸﾁｬﾝのデフォルトのパーティションサイズである4MBを上回ってmodが書き込めない場合があります。
+
+最近のM5Stackは16MBのFlashを備えています。
+その場合は[`stackchan/manifest_8mb_flash.json`](../stackchan/manifest_8mb_flash.json)をインクルードすることで、
+modを書き込むパーティションの容量が大幅に増加します。
+
+```json
+{
+    "include": ["./manifest_8mb_flash.json"],
+}
+```
 
 ## ホストの書き込み
 

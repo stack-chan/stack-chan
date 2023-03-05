@@ -1,5 +1,7 @@
 # 環境構築
 
+[English](./getting-started.md)
+
 ## 開発に必要なもの
 
 * ホストPC

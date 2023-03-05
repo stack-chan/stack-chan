@@ -1,5 +1,7 @@
 ## Build and flash firmware
 
+[日本語](./flashing-firmware_ja.md)
+
 ## Firmware architecture
 
 ### Host and MOD

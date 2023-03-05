@@ -1,5 +1,7 @@
 # API
 
+[日本語](./api_ja.md)
+
 The detailed API document is under construction.
 
 The source codes of Stack-chan has `TSDoc` style comments.

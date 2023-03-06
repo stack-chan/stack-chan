@@ -204,16 +204,23 @@ export class Robot {
    * @returns the text when speech finishes, otherwise the reason why it fails.
    */
   async say(text: string): Promise<Maybe<string>> {
-    await this.#tts.stream(text).catch((reason) => {
-      return {
-        success: false,
-        message: reason,
-      }
+    return new Promise((resolve, _reject) => {
+      this.#tts
+        .stream(text)
+        .catch((reason) => {
+          trace('error\n')
+          resolve({
+            success: false,
+            reason,
+          })
+        })
+        .then(() => {
+          resolve({
+            success: true,
+            value: text,
+          })
+        })
     })
-    return {
-      success: true,
-      value: text,
-    }
   }
 
   /**

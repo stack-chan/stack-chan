@@ -54,10 +54,10 @@ export class TTS {
           if (buffer == null) {
             buffer = this.read(count)
           } else {
-            buffer.concat(this.read(count))
+            buffer = buffer.concat(this.read(count))
           }
         },
-        onDone() {
+        onDone(_error) {
           client.close()
           resolve(buffer)
         },
@@ -112,7 +112,7 @@ export class TTS {
         onError: (e) => {
           trace('ERROR: ', e, '\n')
           this.streaming = false
-          reject(new Error('unknown error occured'))
+          reject(e)
         },
         onDone: () => {
           trace('DONE\n')

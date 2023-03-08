@@ -79,8 +79,7 @@ export class Robot {
   #touch: Touch
   #isMoving: boolean
   #renderer: Renderer
-  #updateFaceHandler: Timer
-  #updatePoseHandler: Timer
+  updating: boolean
   constructor(params: RobotConstructorParam<ButtonName>) {
     this.useRenderer(params.renderer)
     this.useDriver(params.driver)
@@ -308,7 +307,11 @@ export class Robot {
    * Get the current pose from the Driver
    * and trigger move if necessary to see the gaze point.
    */
-  async updatePose() {
+  async updatePose(id) {
+    if (this.updating) {
+      return
+    }
+    this.updating = true
     const result = await this.#driver.getRotation()
     if (result.success) {
       this.#pose.body.rotation = result.value
@@ -332,5 +335,6 @@ export class Robot {
         }, time * 1000 + 50)
       }
     }
+    this.updating = false
   }
 }

@@ -34,6 +34,7 @@
             "./renderers/*",
             "./drivers/*",
             "./speech/*",
+            "./dialogue/*",
             "./stackchan-util",
             "./stk-server",
             "./touch"
@@ -44,6 +45,7 @@
         "tts-local",
         "tts-voicevox",
         "face-renderer",
+        "dialugue-chatgpt",
         "stk-server",
         "touch"
     ],

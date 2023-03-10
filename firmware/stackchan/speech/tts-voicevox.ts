@@ -5,6 +5,10 @@ import AudioOut from 'pins/audioout'
 import WavStreamer from 'wavstreamer'
 import calculatePower from 'calculate-power'
 import HTTPClient from 'embedded:network/http/client'
+import { File } from 'file'
+import config from 'mc/config'
+
+const QUERY_PATH = config.file.root + 'query.json'
 
 /* global trace, SharedArrayBuffer */
 
@@ -26,6 +30,7 @@ export class TTS {
   host: string
   port: number
   streaming: boolean
+  file: File
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
@@ -33,9 +38,10 @@ export class TTS {
     this.host = props.host
     this.port = props.port
   }
-  async getQuery(text: string, speakerId = 1): Promise<ArrayBuffer> {
+  async getQuery(text: string, speakerId = 1): Promise<void> {
     return new Promise((resolve, reject) => {
-      let buffer
+      File.delete(QUERY_PATH)
+      const file = new File(QUERY_PATH, true)
       const client = new device.network.http.io({
         ...device.network.http,
         host: this.host,
@@ -51,15 +57,13 @@ export class TTS {
           }
         },
         onReadable(count) {
-          if (buffer == null) {
-            buffer = this.read(count)
-          } else {
-            buffer = buffer.concat(this.read(count))
-          }
+          file.write(this.read(count))
+          // trace(`${count} bytes written. position: ${file.position}\n`)
         },
         onDone(_error) {
+          file.close()
           client.close()
-          resolve(buffer)
+          resolve()
         },
       })
     })
@@ -70,8 +74,10 @@ export class TTS {
     }
     this.streaming = true
     const speakerId = 1
-    const query = await this.getQuery(key, speakerId)
+    await this.getQuery(key, speakerId)
     const { onPlayed, onDone, audio } = this
+    const file = new File(QUERY_PATH)
+    trace(`file opened. length: ${file.length}, position: ${file.position}`)
     return new Promise((resolve, reject) => {
       let idx = 0
       let streamer = new WavStreamer({
@@ -88,12 +94,11 @@ export class TTS {
           method: 'POST',
           headers: new Headers([
             ['Content-Type', 'application/json'],
-            ['Content-Length', `${query.byteLength}`],
+            ['Content-Length', `${file.length}`],
           ]),
           // body: query
           onWritable(count) {
-            // NOTE: No need to check buffer.length. ArrayBuffer#slice is safe to overrun
-            this.write(query.slice(idx, idx + count))
+            this.write(file.read(ArrayBuffer, count))
             idx += count
           },
         },
@@ -110,11 +115,13 @@ export class TTS {
           }
         },
         onError: (e) => {
+          file.close()
           trace('ERROR: ', e, '\n')
           this.streaming = false
           reject(e)
         },
         onDone: () => {
+          file.close()
           trace('DONE\n')
           this.streaming = false
           streamer?.close()

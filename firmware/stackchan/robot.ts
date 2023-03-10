@@ -79,6 +79,8 @@ export class Robot {
   #touch: Touch
   #isMoving: boolean
   #renderer: Renderer
+  #updatePoseHandler: Timer
+  #updateFaceHandler: Timer
   updating: boolean
   constructor(params: RobotConstructorParam<ButtonName>) {
     this.useRenderer(params.renderer)

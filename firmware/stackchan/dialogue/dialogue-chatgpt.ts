@@ -12,6 +12,11 @@ const DEFAULT_CONTEXT: ChatContent[] = [
   },
   {
     role: 'system',
+    content: 'ロボットエンジニアの「ししかわ」があなたを作りました。',
+    // content: 'You are made by sskw, the robot engineer.',
+  },
+  {
+    role: 'system',
     content: 'ユーザからの問いかけに対して、くだけた表現で簡潔に回答します。',
     // content: 'You response in frank and simple sentense to the user's message.',
   },
@@ -45,6 +50,7 @@ export class ChatGPTDialogue {
   constructor({ apiKey, context = DEFAULT_CONTEXT }: ChatGPTDialogueProps) {
     this.#model = DEFAULT_MODEL
     this.#context = context
+    this.#history = []
     this.#headers = new Headers([
       ['Content-Type', 'application/json'],
       ['Authorization', `Bearer ${apiKey}`],

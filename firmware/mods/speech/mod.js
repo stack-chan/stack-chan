@@ -4,38 +4,13 @@ import WebSocket from 'WebSocket'
 import API_KEY from 'api-key'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 
-let chatting = false
-const chat = async function chat(message) {
-  if (chatting) {
-    return
-  }
-  chatting = true
-  try {
-    let res = await postChatMessage(message)
-    trace(res + '\n')
-    const messages = res
-      .replaceAll('！', '。')
-      .split('。')
-      .filter((msg) => msg.length > 0)
-    for (const message of messages) {
-      const result = await robot.say(message)
-      if (!result.success) {
-        trace('failed to say')
-      }
-    }
-  } catch (e) {
-    // noop
-  } finally {
-    chatting = false
-  }
-}
 export function onRobotCreated(robot) {
   const dialogue = new ChatGPTDialogue({
     apiKey: API_KEY,
   })
 
   let chatting = false
-  async function chatAndSay(message){
+  async function chatAndSay(message) {
     if (chatting) {
       return
     }
@@ -51,7 +26,7 @@ export function onRobotCreated(robot) {
     }
     chatting = false
   }
-  const ws = new WebSocket('ws://192.168.7.112:8080')
+  const ws = new WebSocket('ws://192.168.153.220:8080')
   ws.addEventListener('open', () => {
     trace('connected\n')
   })
@@ -80,9 +55,13 @@ export function onRobotCreated(robot) {
   robot.button.c.onChanged = async function handleButtonCChanged() {
     if (this.read()) {
       trace('pressed C\n')
-      await robot.say('あのー、スタックチャンはちょっとそれよくわかんないんです。')
-      await robot.say('太陽の光が大気に散乱されるから青っぽく見えるんだとか。')
-      await robot.say('分かりにくい説明でごめんなさい。')
+      if (chatting) {
+        return
+      }
+      chatting = true
+      await robot.say('こんにちは。ぼくｽﾀｯｸﾁｬﾝ！')
+      await robot.say('よろしくね。')
+      chatting = false
     }
   }
   const targetLoop = () => {

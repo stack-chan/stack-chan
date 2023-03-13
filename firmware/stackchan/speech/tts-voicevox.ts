@@ -73,6 +73,9 @@ export class TTS {
       throw new Error('already playing')
     }
     this.streaming = true
+
+    const host = this.host
+    const port = this.port
     const speakerId = 1
     await this.getQuery(key, speakerId)
     const { onPlayed, onDone, audio } = this
@@ -82,8 +85,8 @@ export class TTS {
       let idx = 0
       let streamer = new WavStreamer({
         http: device.network.http,
-        host: this.host,
-        port: this.port,
+        host,
+        port,
         path: encodeURI(`/synthesis?speaker=${speakerId}`),
         audio: {
           out: audio,
@@ -96,7 +99,6 @@ export class TTS {
             ['Content-Type', 'application/json'],
             ['Content-Length', `${file.length}`],
           ]),
-          // body: query
           onWritable(count) {
             this.write(file.read(ArrayBuffer, count))
             idx += count

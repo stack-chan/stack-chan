@@ -1,9 +1,9 @@
 {
     "config": {
         "tts": {
-            "type": "local",
-            "host": "localhost",
-            "port": 8080
+            "type": "voicevox",
+            "host": "192.168.153.220",
+            "port": 50021
         },
         "driver": {
             "type": "scservo",

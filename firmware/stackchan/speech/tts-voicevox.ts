@@ -82,9 +82,9 @@ export class TTS {
       let idx = 0
       let streamer = new WavStreamer({
         http: device.network.http,
-        host: '192.168.7.112',
+        host: this.host,
+        port: this.port,
         path: encodeURI(`/synthesis?speaker=${speakerId}`),
-        port: 50021,
         audio: {
           out: audio,
           stream: 0,

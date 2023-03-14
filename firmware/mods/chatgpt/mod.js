@@ -20,7 +20,7 @@ export function onRobotCreated(robot) {
       trace(`failed: ${result.reason}`)
     }
 
-    const messages = result.value.split(/[。！？]/).filter(m => m.length > 0)
+    const messages = result.value.split(/[。！？]/).filter((m) => m.length > 0)
     for (const message of messages) {
       await robot.say(message)
     }

@@ -38,7 +38,7 @@ export type Button = {
 }
 
 const buttonNames = ['a', 'b', 'c'] as const
-type ButtonName = typeof buttonNames[number]
+type ButtonName = (typeof buttonNames)[number]
 
 /**
  * The constructor parameters of the robot.

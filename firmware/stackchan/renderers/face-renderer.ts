@@ -30,7 +30,7 @@ export const Emotion = Object.freeze({
   HOT: 'HOT',
 })
 
-export type Emotion = typeof Emotion[keyof typeof Emotion]
+export type Emotion = (typeof Emotion)[keyof typeof Emotion]
 
 /**
  * The context of the face representing physiological state and drawing settings.

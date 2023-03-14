@@ -5,9 +5,18 @@
 M5Stackの基板はｽﾀｯｸﾁｬﾝ基板とは寸法が異なるので、ｽﾀｯｸﾁｬﾝ基板はこちらのモデルには使用できません。
 
 # 外観
+このモデルは、M5Stack Core2 for AWS - ESP32 IoT開発キットに合わせ、皆さんのCASEモデルに修正を加えたものです。
 
-<img src="./docs/images/case_sg90_m5core2AWS.jpg" width="320">
-<img src="./docs/images/case_sg90_m5core2AWSbody.jpg" width="320"><img src="./docs/images/case_sg90_m5core2AWSspacer.jpg" width="320">
+## 修正点
+
+ * M5Stack本体とケース(ボディ)の隙間をきれいに見せるため、スペーサーを再設計しました。
+ * スペーサーをきれいに収める為、1.3㎜ほど四隅にオフセット加工を施しています。
+ * ケース(ボディ)は仕上がりの良さとビスのネジ切りを抑止する為、3DプリンタではPC材を想定しています。
+ * スペーサーはさし色と柔らかさを表現する為にTPU材を想定して設計、角も丸みをつけています。
+ * コネクタ上部は少し逃しを設けています。
+ * M5Stack Core2 for AWSは左脇にLED透過窓があり、部材を移植してLチカも楽しめます。
+ 
+<img src="./docs/images/case_sg90_m5core2AWS.jpg" width="320"> <img src="./docs/images/case_sg90_m5core2AWSbody.jpg" width="320"> <img src="./docs/images/case_sg90_m5core2AWSspacer.jpg" width="320">
 
 [case data](./case_for_SG90andM5StackAWS/)はFusion360で作成され、DesignSparkMechanicalで修正しました。
 

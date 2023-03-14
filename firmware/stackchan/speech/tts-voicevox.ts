@@ -60,7 +60,7 @@ export class TTS {
           file.write(this.read(count))
           // trace(`${count} bytes written. position: ${file.position}\n`)
         },
-        onDone(_error) {
+        onDone() {
           file.close()
           client.close()
           resolve()
@@ -82,7 +82,6 @@ export class TTS {
     const file = new File(QUERY_PATH)
     trace(`file opened. length: ${file.length}, position: ${file.position}`)
     return new Promise((resolve, reject) => {
-      let idx = 0
       let streamer = new WavStreamer({
         http: device.network.http,
         host,
@@ -101,7 +100,6 @@ export class TTS {
           ]),
           onWritable(count) {
             this.write(file.read(ArrayBuffer, count))
-            idx += count
           },
         },
         onPlayed(buffer) {

@@ -7,8 +7,7 @@ M5Stackの基板はｽﾀｯｸﾁｬﾝ基板とは寸法が異なるので、�
 # 外観
 
 <img src="./docs/images/case_sg90_m5core2AWS.jpg" width="320">
-<img src="./docs/images/case_sg90_m5core2AWSbody.jpg" width="320">
-<img src="./docs/images/case_sg90_m5core2AWSspacer.jpg" width="320">
+<img src="./docs/images/case_sg90_m5core2AWSbody.jpg" width="320"><img src="./docs/images/case_sg90_m5core2AWSspacer.jpg" width="320">
 
 [case data](./case_for_SG90andM5StackAWS/)はFusion360で作成され、DesignSparkMechanicalで修正しました。
 
@@ -106,4 +105,4 @@ M5GoBottomから取り外した小さいネジを使い、ケースにM5GoBottom
 1. 電源が足りない。<br>MG90SはM5Stackの内部バッテリーだけでは動かない場合があります。その際は、サーボ用の電源を別で確保する必要があります。
 1. AmazonやAliExpressでの模倣品の中にサイズが違うものがあります。<br>MG90Sとして売っていますが、寸法がSG90と同じものやサーボホーンの大きさが違うものがあります。特にサーボホーンが違うとSG90版とも合わないのでその場合はホーン部分のモデルを修正する必要があります。
 
-<img src="./docs/images/tester-core2.mp4" width="320">
+<img src="./docs/images/tester-core2.gif" width="320">

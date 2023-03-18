@@ -1,5 +1,5 @@
 # Stack-chan case for SG90
-[日本語](./README_for_SG90andM5GoBottomBoard_ja) | English
+[日本語](./README_for_SG90andM5GoBottomBoard_ja.md) | English
 # Notice
 
 The dimensions of the M5Stack's board are different from those of the Stack-Chan board, so the Stack Chan board cannot be used for this model.

@@ -23,7 +23,7 @@
 ## 設定変更
 
 ｽﾀﾝｸﾁｬﾝが使うモータの種類やピンアサインなどをマニフェストファイルから変更できます。
-ユーザが変更する設定は[`stackchan/manifest_local.json`](../stackchan/manifest_local.json)にまとまっています。
+ユーザが変更する設定は[`stack-chan/firmware/stackchan/manifest.json`](../stack-chan/firmware/stackchan/manifest.json)にまとまっています。
 `"config"`キーの配下に次のような設定が書けます。
 
 | キー              | 説明                                            | 使用可能な値                                |
@@ -44,6 +44,20 @@
 紅木タカオ氏（[@mongonta0716](https://github.com/mongonta0716)）が頒布する
 [ｽﾀｯｸﾁｬﾝ組み立てキット M5Bottom版](https://mongonta.booth.pm/)を本リポジトリのファームウェアで動かすための設定例です。
 M5Bottom版は本リポジトリと違って専用基板を使わず、M5Bottomのポートとサーボを接続します。
+
+M5Stack Core2のPort.A（M5Stack Core2本体側面の赤い穴）を使う場合:
+
+```json
+{
+    "config": {
+        "driver": {
+            "type": "pwm",
+            "pwmPan": 33,
+            "pwmTilt": 32
+        }
+    }
+}
+```
 
 M5Stack Core2のPort.Cを使う場合:
 
@@ -72,6 +86,7 @@ M5Stack BasicのPort.Cを使う場合:
     }
 }
 ```
+ファームウェア導入後、ｽﾀｯｸﾁｬﾝが左右に首振りを行うようであれば成功です。
 
 参考: [ｽﾀｯｸﾁｬﾝ M5GoBottom版のファームウェアについて \| M5Stack沼人の日記](https://raspberrypi.mongonta.com/softwares-for-stackchan/)
 

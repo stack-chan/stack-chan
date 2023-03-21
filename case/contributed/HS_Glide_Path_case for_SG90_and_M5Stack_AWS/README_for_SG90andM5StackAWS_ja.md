@@ -5,7 +5,7 @@
 M5Stackの基板はｽﾀｯｸﾁｬﾝ基板とは寸法が異なるので、ｽﾀｯｸﾁｬﾝ基板はこちらのモデルには使用できません。
 
 # 外観
-このモデルは、M5Stack Core2 for AWS - ESP32 IoT開発キットに合わせ、[既存のケースモデル](stack-chan/case/contributed/mongonta_case_for_SG90_and_M5GoBottomBoard/case_for_SG90andM5GoBottomBoard/shell_SG90_basicgraybottom.stl)に修正を加えたものです。
+このモデルは、M5Stack Core2 for AWS - ESP32 IoT 開発キットに合わせ、[既存のケースモデル](../mongonta_case_for_SG90_and_M5GoBottomBoard/case_for_SG90andM5GoBottomBoard/shell_SG90_basicgraybottom.stl)に修正を加えたものです。
 
 材質等も考慮し、全体外観は変更せずフィッティングを重視して現物合わせを行いました。
 

@@ -5,7 +5,7 @@
 The dimensions of the M5Stack's board are different from those of the Stack-Chan board, so the Stack Chan board cannot be used for this model.
 
 # Appearance
-This model is a modification of the [existing case model](stack-chan/case/contributed/mongonta_case_for_SG90_and_M5GoBottomBoard/case_for_SG90andM5GoBottomBoard/shell_SG90_basicgraybottom.stl) to match the M5Stack Core2 for AWS - ESP32 IoT Development Kit.
+This model is a modification of the [existing case model](../mongonta_case_for_SG90_and_M5GoBottomBoard/case_for_SG90andM5GoBottomBoard/shell_SG90_basicgraybottom.stl) to match the M5Stack Core2 for AWS - ESP32 IoT Development Kit.
 
 Considering the material and other factors, the overall appearance was not changed, but the fitting was emphasized and the actual product was matched.
 

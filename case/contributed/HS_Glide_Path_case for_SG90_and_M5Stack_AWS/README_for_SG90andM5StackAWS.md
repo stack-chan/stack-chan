@@ -29,7 +29,7 @@ This time, they kindly shared their STL files with us, so please use them if nec
 Currently the [case data](./case_for_SG90andM5StackAWS/) is developed with Fusion360 and modified with DesighSparkMechanical.
 
 # Regarding servo behavior
-We are currently working with Hobby Shop Glide Path to verify the best servo for Stack Chan based on their extensive knowledge of servos.
+As of May 2023, We are working with Hobby Shop Glide Path to verify the best servo for Stack Chan based on their extensive knowledge of servos.
 
 1. if the power supply problem is solved, I believe MG90S is recommended. I would like to reconsider the supply method or even consider adding a separate external battery.
 2. as those in the drone community are familiar with, the commonly used LiPo battery (1S) is used, and the additional M5Stack battery connector is PH2.0. What can we apply this to? Let's think about it together.

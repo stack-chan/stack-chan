@@ -92,6 +92,7 @@ export class TTS {
           stream: 0,
           sampleRate: 12000,
         },
+        bufferDuration: 600,
         request: {
           method: 'POST',
           headers: new Headers([

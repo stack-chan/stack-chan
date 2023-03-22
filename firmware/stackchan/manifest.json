@@ -22,8 +22,7 @@
         "$(MODULES)/pins/i2s/manifest.json",
         "../extern/manifest_extern.json",
         "./manifest_wavstream.json",
-        "./manifest_typings.json",
-        "./manifest_local.json"
+        "./manifest_typings.json"
     ],
     "modules": {
         "*": [
@@ -62,8 +61,12 @@
     },
     "config": {
         "driver": {
+            "panId": 1,
+            "tiltId": 2,
             "pwmPan": 5,
-            "pwmTilt": 2
+            "pwmTilt": 2,
+            "offsetTilt": 0,
+            "offsetPan": 0
         },
         "serial": {
             "transmit": 17,

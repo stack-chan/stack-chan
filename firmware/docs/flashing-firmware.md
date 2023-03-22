@@ -20,7 +20,7 @@ For all configuration items, please refer to the [Moddable official documentatio
 
 ## Configuration
 
-StackChan can change settings such as motor types and pin assignments from the manifest file. You can modify [`stack-chan/firmware/stackchan/manifest.json`](../stack-chan/firmware/stackchan/manifest.json) for local settings. The following settings can be written under the `"config"` key.
+StackChan can change settings such as motor types and pin assignments from the manifest file. You can modify [`stack-chan/firmware/stackchan/manifest_local.json`](../stackchan/manifest_local.json) for local settings. The following settings can be written under the `"config"` key.
 
 | Key             | Description                                     | Available values                            |
 | --------------- | ----------------------------------------------- | ------------------------------------------- |
@@ -41,8 +41,10 @@ This is an example configuration for running [Stack-chan Assembly Kit M5Bottom V
 
 When using Port.A of M5Stack Core2:
 
+`manifest_local.json`
 ```json
 {
+    // ...
     "config": {
         "driver": {
             "type": "pwm",
@@ -55,8 +57,10 @@ When using Port.A of M5Stack Core2:
 
 When using Port.C of M5Stack Core2:
 
+`manifest_local.json`
 ```json
 {
+    // ...
     "config": {
         "driver": {
             "type": "pwm",
@@ -69,8 +73,10 @@ When using Port.C of M5Stack Core2:
 
 When using Port.C of M5Stack Basic:
 
+`manifest_local.json`
 ```json
 {
+    // ...
     "config": {
         "driver": {
             "type": "pwm",

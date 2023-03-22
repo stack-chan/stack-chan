@@ -23,7 +23,7 @@
 ## 設定変更
 
 ｽﾀﾝｸﾁｬﾝが使うモータの種類やピンアサインなどをマニフェストファイルから変更できます。
-ユーザが変更する設定は[`stack-chan/firmware/stackchan/manifest.json`](../stack-chan/firmware/stackchan/manifest.json)にまとまっています。
+ユーザが変更する設定は[`stack-chan/firmware/stackchan/manifest_local.json`](../stackchan/manifest_local.json)にまとまっています。
 `"config"`キーの配下に次のような設定が書けます。
 
 | キー              | 説明                                            | 使用可能な値                                |
@@ -47,8 +47,10 @@ M5Bottom版は本リポジトリと違って専用基板を使わず、M5Bottom�
 
 M5Stack Core2のPort.A（M5Stack Core2本体側面の赤い穴）を使う場合:
 
+`manifest_local.json`
 ```json
 {
+    // ...
     "config": {
         "driver": {
             "type": "pwm",
@@ -61,8 +63,10 @@ M5Stack Core2のPort.A（M5Stack Core2本体側面の赤い穴）を使う場合
 
 M5Stack Core2のPort.Cを使う場合:
 
+`manifest_local.json`
 ```json
 {
+    // ...
     "config": {
         "driver": {
             "type": "pwm",
@@ -75,8 +79,10 @@ M5Stack Core2のPort.Cを使う場合:
 
 M5Stack BasicのPort.Cを使う場合:
 
+`manifest_local.json`
 ```json
 {
+    // ...
     "config": {
         "driver": {
             "type": "pwm",

@@ -87,6 +87,8 @@ When using Port.C of M5Stack Basic:
 }
 ```
 
+If Stack-chan is shaking her head left and right, the configuration has been successful.
+
 Reference: [About the firmware for Stack-chan M5Go Bottom version (Japanese)](https://raspberrypi.mongonta.com/softwares-for-stackchan/)
 
 ### Configuration example: increase mod write space

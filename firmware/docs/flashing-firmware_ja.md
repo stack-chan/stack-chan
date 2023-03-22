@@ -92,6 +92,7 @@ M5Stack BasicのPort.Cを使う場合:
     }
 }
 ```
+
 ファームウェア導入後、ｽﾀｯｸﾁｬﾝが左右に首振りを行うようであれば成功です。
 
 参考: [ｽﾀｯｸﾁｬﾝ M5GoBottom版のファームウェアについて \| M5Stack沼人の日記](https://raspberrypi.mongonta.com/softwares-for-stackchan/)

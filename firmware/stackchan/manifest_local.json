@@ -1,4 +1,7 @@
 {
+    "include": [
+        "./manifest.json"
+    ],
     "config": {
         "tts": {
             "type": "local",
@@ -6,11 +9,7 @@
             "port": 8080
         },
         "driver": {
-            "type": "scservo",
-            "panId": 1,
-            "tiltId": 2,
-            "offsetTilt": 0,
-            "offsetPan": 0
+            "type": "scservo"
         }
     }
 }

@@ -18,6 +18,7 @@ export function onRobotCreated(robot) {
     const result = await dialogue.post(message)
     if (!result.success) {
       trace(`failed: ${result.reason}`)
+      return
     }
 
     const messages = result.value.split(/[。！？]/).filter((m) => m.length > 0)

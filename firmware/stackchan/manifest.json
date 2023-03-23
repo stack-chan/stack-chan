@@ -54,6 +54,14 @@
     "strip": [],
     "creation": {
         "static": 98304,
+		"chunk": {
+			"initial": 1536,
+			"incremental": 512
+		},
+		"heap": {
+			"initial": 512,
+			"incremental": 64
+		},
         "stack": 512,
         "keys": {
             "available": 512

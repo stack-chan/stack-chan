@@ -1,0 +1,16 @@
+# Stack-chan shell model for Core2 and SG90 with magnet latch feature
+# Notice
+
+This model has been confirmed with M5Stack Core2 and SG90 servo motor.
+Another M5Stack models are potentially not compatible. Please check before molding.
+This shell design doesn't require disassembly of M5Stack. 
+
+# Appearance
+![shell_SG90_magnet_latch](./docs/images/shell_SG90_magnet_latch.jpg)
+
+# Molding instruction
+I would like recommend face down orientation with tree support.
+
+![Alt text](docs/images/sliced.png)
+# Assemble instruction
+Install magnet piece 6mm diameter and 2.5mm height for 4 magnet slots. Those magnets are available one coin shop. In addition, please check those poles before install them. <br>

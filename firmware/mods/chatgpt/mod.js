@@ -2,13 +2,25 @@ import Timer from 'timer'
 import { randomBetween } from 'stackchan-util'
 import WebSocket from 'WebSocket'
 import API_KEY from 'api-key'
+import { TTS } from 'tts-voicevox'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 
+// const STT_HOST = '192.168.0.100'
+// const VOICEVOX_HOST = '192.168.0.100'
+const STT_HOST = 'your.stt.host.here'
+const TTS_HOST = 'your.tts.host.here'
+
 export function onRobotCreated(robot) {
+  // Configure TTS
+  robot.useTTS(new TTS({
+    host: TTS_HOST,
+    port: 50021
+  }))
+
+  // Integrate ChatGPT
   const dialogue = new ChatGPTDialogue({
     apiKey: API_KEY,
   })
-
   let chatting = false
   async function chatAndSay(message) {
     if (chatting) {
@@ -27,7 +39,9 @@ export function onRobotCreated(robot) {
     }
     chatting = false
   }
-  const ws = new WebSocket('ws://192.168.153.220:8080')
+
+  // Connect to STT server
+  const ws = new WebSocket(`ws://${STT_HOST}:8080`)
   ws.addEventListener('open', () => {
     trace('connected\n')
   })
@@ -41,21 +55,26 @@ export function onRobotCreated(robot) {
     trace('disconnected\n')
   })
 
+  // Event handler
   let isFollowing = false
   robot.button.a.onChanged = async function handleButtonAChanged() {
     if (this.read()) {
+      trace('pressed A\n')
+      trace('Look around\n')
       isFollowing = !isFollowing
     }
   }
   robot.button.b.onChanged = async function handleButtonBChanged() {
     if (this.read()) {
       trace('pressed B\n')
+      trace('Chat test\n')
       await chatAndSay('おはようございます')
     }
   }
   robot.button.c.onChanged = async function handleButtonCChanged() {
     if (this.read()) {
       trace('pressed C\n')
+      trace('TTS test\n')
       if (chatting) {
         return
       }
@@ -65,7 +84,9 @@ export function onRobotCreated(robot) {
       chatting = false
     }
   }
-  const targetLoop = () => {
+
+  // Look around
+  const lookAround = () => {
     if (!isFollowing) {
       robot.lookAway()
       return
@@ -76,5 +97,5 @@ export function onRobotCreated(robot) {
     trace(`looking at: [${x}, ${y}, ${z}]\n`)
     robot.lookAt([x, y, z])
   }
-  Timer.repeat(targetLoop, 5000)
+  Timer.repeat(lookAround, 5000)
 }

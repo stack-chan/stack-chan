@@ -15,6 +15,7 @@
         "$(MODULES)/base/structuredClone/manifest.json",
         "$(MODULES)/commodetto/outline/manifest.json",
         "$(MODULES)/data/text/decoder/manifest.json",
+        "$(MODULES)/files/file/manifest.json",
 		"$(MODULES)/network/ble/manifest_server.json",
         "$(MODULES)/network/ble/manifest_client.json",
         "$(MODULES)/network/mdns/manifest.json",
@@ -33,6 +34,7 @@
             "./renderers/*",
             "./drivers/*",
             "./speech/*",
+            "./dialogue/*",
             "./stackchan-util",
             "./stk-server",
             "./touch"
@@ -43,6 +45,7 @@
         "tts-local",
         "tts-voicevox",
         "face-renderer",
+        "dialugue-chatgpt",
         "stk-server",
         "touch"
     ],

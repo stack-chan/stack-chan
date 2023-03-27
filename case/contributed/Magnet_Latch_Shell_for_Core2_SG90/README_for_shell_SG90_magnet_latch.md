@@ -1,6 +1,7 @@
 # Stack-chan shell model for Core2 and SG90 with magnet latch feature
-# Notice
+[日本語](./README_for_shell_SG90_magnet_latch_ja.md) | English
 
+# Notice
 This model has been confirmed with M5Stack Core2 and SG90 servo motor.
 Another M5Stack models are potentially not compatible. Please check before molding.
 This shell design doesn't require disassembly of M5Stack. 

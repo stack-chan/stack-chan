@@ -12,10 +12,12 @@ const TTS_HOST = 'your.tts.host.here'
 
 export function onRobotCreated(robot) {
   // Configure TTS
-  robot.useTTS(new TTS({
-    host: TTS_HOST,
-    port: 50021
-  }))
+  robot.useTTS(
+    new TTS({
+      host: TTS_HOST,
+      port: 50021,
+    })
+  )
 
   // Integrate ChatGPT
   const dialogue = new ChatGPTDialogue({

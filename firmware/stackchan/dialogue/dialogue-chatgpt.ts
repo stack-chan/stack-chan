@@ -104,31 +104,3 @@ export class ChatGPTDialogue {
       })
   }
 }
-
-/*
-let chatting = false
-const chat = async function chat(message) {
-  if (chatting) {
-    return
-  }
-  chatting = true
-  try {
-    let res = await postChatMessage(message)
-    trace(res + '\n')
-    const messages = res
-      .replaceAll('！', '。')
-      .split('。')
-      .filter((msg) => msg.length > 0)
-    for (const message of messages) {
-      const result = await robot.say(message)
-      if (!result.success) {
-        trace('failed to say')
-      }
-    }
-  } catch (e) {
-    // noop
-  } finally {
-    chatting = false
-  }
-}
-*/

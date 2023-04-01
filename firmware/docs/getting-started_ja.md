@@ -44,12 +44,12 @@ $ npm run setup -- --device=esp32
 
 内部で[`xs-dev`](https://github.com/HipsterBrown/xs-dev)を使ってModdableSDKやESP-IDFのセットアップを自動化しています。
 
-### Dockerイメージを使う
+### Dockerイメージを使う（Linuxのみ）
 
 このリポジトリはDockerfileによるビルド環境を提供しています。
 Dockerコンテナの中でファームウェアのビルド、書き込みとデバッグが可能です。
 
-注意：Linux（Ubuntu20.04）で動作確認しています。Windows（WSL）やMacOSでは正しく動作しない可能性があります。
+注意：Linux（Ubuntu20.04）で動作確認しています。Windows（WSL）やMacOSでは、コンテナ側からのデバイスへの接続がうまくいかない[問題](https://github.com/meganetaaan/stack-chan/issues/144)が報告されているため、非推奨です。
 
 #### ターミナルから
 

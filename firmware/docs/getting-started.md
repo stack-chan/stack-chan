@@ -44,12 +44,12 @@ $ npm run setup -- --device=esp32
 
 The script internally uses [`xs-dev`](https://github.com/HipsterBrown/xs-dev) to automate the setup of ModdableSDK and ESP-IDF.
 
-### Using Docker images
+### Using Docker images (for Linux only)
 
 This repository provides a Dockerfile build environment.
 You can build, write and debug firmware inside a Docker container.
 
-Note: This has been tested on Linux (Ubuntu 20.04); it may not work properly on Windows (WSL) or MacOS.
+Note: This has been tested and confirmed to work on Linux (Ubuntu 20.04). It is not recommended for use on Windows (WSL) or MacOS, as there have been reported [issues](https://github.com/meganetaaan/stack-chan/issues/144) with connecting to devices from the container side.
 
 #### From terminal
 

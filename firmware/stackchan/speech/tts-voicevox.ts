@@ -19,6 +19,7 @@ export type TTSProperty = {
   onDone: () => void
   host: string
   port: number
+  sampleRate: number
 }
 
 export class TTS {
@@ -34,7 +35,7 @@ export class TTS {
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 24000 })
+    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: props.sampleRate ?? 11025 })
     this.host = props.host
     this.port = props.port
   }
@@ -42,6 +43,7 @@ export class TTS {
     return new Promise((resolve, reject) => {
       File.delete(QUERY_PATH)
       const file = new File(QUERY_PATH, true)
+      const sampleRate = this.audio?.sampleRate ?? 11025
       const client = new device.network.http.io({
         ...device.network.http,
         host: this.host,
@@ -61,6 +63,10 @@ export class TTS {
           // trace(`${count} bytes written. position: ${file.position}\n`)
         },
         onDone() {
+          if (sampleRate !== 24000) {
+            file.position = file.length - 1
+            file.write(`, "outputSamplingRate": ${sampleRate}}`)
+          }
           file.close()
           client.close()
           resolve()

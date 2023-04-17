@@ -19,6 +19,8 @@ export type TTSProperty = {
   onDone: () => void
   host: string
   port: number
+  sampleRate: number
+  speakerId: number
 }
 
 export class TTS {
@@ -31,10 +33,12 @@ export class TTS {
   port: number
   streaming: boolean
   file: File
+  speakerId: number
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 24000 })
+    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: props.sampleRate ?? 11025 })
+    this.speakerId = props.speakerId ?? 1
     this.host = props.host
     this.port = props.port
   }
@@ -76,7 +80,7 @@ export class TTS {
 
     const host = this.host
     const port = this.port
-    const speakerId = 1
+    const speakerId = this.speakerId
     await this.getQuery(key, speakerId)
     const { onPlayed, onDone, audio } = this
     const file = new File(QUERY_PATH)

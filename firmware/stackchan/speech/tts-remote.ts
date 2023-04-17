@@ -10,6 +10,9 @@ declare const device: any
 export type TTSProperty = {
   onPlayed: (number) => void
   onDone: () => void
+  host: string
+  port: number
+  sampleRate?: number
 }
 let streamer
 
@@ -18,10 +21,14 @@ export class TTS {
   audio?: AudioOut
   onPlayed: (number) => void
   onDone: () => void
+  host: string
+  port: number
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({ streams: 1 })
+    this.audio = new AudioOut({ streams: 1, sampleRate: props.sampleRate ?? 24000 })
+    this.host = props.host
+    this.port = props.port
   }
   async stream(key: string): Promise<void> {
     const { onPlayed, onDone, audio } = this
@@ -32,13 +39,13 @@ export class TTS {
       }
       streamer = new WavStreamer({
         http: device.network.http,
-        host: '192.168.7.112',
+        host: this.host,
         path: key,
-        port: 8080,
+        port: this.port,
+        bufferDuration: 600,
         audio: {
           out: audio,
           stream: 0,
-          sampleRate: 11025,
         },
         onPlayed(buffer) {
           const power = calculatePower(buffer)

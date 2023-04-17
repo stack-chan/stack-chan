@@ -90,7 +90,6 @@ export class TTS {
         audio: {
           out: audio,
           stream: 0,
-          sampleRate: 12000,
         },
         bufferDuration: 600,
         request: {

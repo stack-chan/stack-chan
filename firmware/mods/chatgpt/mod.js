@@ -5,10 +5,8 @@ import API_KEY from 'api-key'
 import { TTS } from 'tts-voicevox'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 
-// const STT_HOST = '192.168.0.100'
-// const VOICEVOX_HOST = '192.168.0.100'
-const STT_HOST = 'your.stt.host.here'
-const TTS_HOST = 'your.tts.host.here'
+const STT_HOST = 'stackchan-base.local'
+const TTS_HOST = 'stackchan-base.local'
 
 export function onRobotCreated(robot) {
   // Configure TTS
@@ -16,6 +14,7 @@ export function onRobotCreated(robot) {
     new TTS({
       host: TTS_HOST,
       port: 50021,
+      sampleRate: 24000
     })
   )
 

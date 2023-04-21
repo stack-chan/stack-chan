@@ -15,6 +15,7 @@
         "$(MODULES)/base/structuredClone/manifest.json",
         "$(MODULES)/commodetto/outline/manifest.json",
         "$(MODULES)/data/text/decoder/manifest.json",
+        "$(MODULES)/files/file/manifest.json",
 		"$(MODULES)/network/ble/manifest_server.json",
         "$(MODULES)/network/ble/manifest_client.json",
         "$(MODULES)/network/mdns/manifest.json",
@@ -22,8 +23,7 @@
         "$(MODULES)/pins/i2s/manifest.json",
         "../extern/manifest_extern.json",
         "./manifest_wavstream.json",
-        "./manifest_typings.json",
-        "./manifest_local.json"
+        "./manifest_typings.json"
     ],
     "modules": {
         "*": [
@@ -34,6 +34,7 @@
             "./renderers/*",
             "./drivers/*",
             "./speech/*",
+            "./dialogue/*",
             "./stackchan-util",
             "./stk-server",
             "./touch"
@@ -44,6 +45,7 @@
         "tts-local",
         "tts-voicevox",
         "face-renderer",
+        "dialugue-chatgpt",
         "stk-server",
         "touch"
     ],
@@ -55,6 +57,14 @@
     "strip": [],
     "creation": {
         "static": 98304,
+		"chunk": {
+			"initial": 1536,
+			"incremental": 512
+		},
+		"heap": {
+			"initial": 512,
+			"incremental": 64
+		},
         "stack": 512,
         "keys": {
             "available": 512
@@ -62,8 +72,12 @@
     },
     "config": {
         "driver": {
+            "panId": 1,
+            "tiltId": 2,
             "pwmPan": 5,
-            "pwmTilt": 2
+            "pwmTilt": 2,
+            "offsetTilt": 0,
+            "offsetPan": 0
         },
         "serial": {
             "transmit": 17,
@@ -78,6 +92,9 @@
                 "driver": {
                     "pwmPan": 19,
                     "pwmTilt": 27
+                },
+                "tts": {
+                    "sampleRate": 24000
                 },
                 "serial": {
                     "transmit": 14,

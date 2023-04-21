@@ -13,9 +13,10 @@ declare module "wavstreamer" {
     path: string,
     audio: {
       out: AudioOut,
-      sampleRate: number,
+      sampleRate?: number,
       stream: number,
     },
+    bufferDuration?: number,
     request?: any,
     waveHeaderBytes?: number,
     onPlayed?: (buffer: ArrayBuffer) => void

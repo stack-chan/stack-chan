@@ -20,7 +20,7 @@ For all configuration items, please refer to the [Moddable official documentatio
 
 ## Configuration
 
-StackChan can change settings such as motor types and pin assignments from the manifest file. You can modify [`stackchan/manifest_local.json`](../stackchan/manifest_local.json) for local settings. The following settings can be written under the `"config"` key.
+StackChan can change settings such as motor types and pin assignments from the manifest file. You can modify [`stack-chan/firmware/stackchan/manifest_local.json`](../stackchan/manifest_local.json) for local settings. The following settings can be written under the `"config"` key.
 
 | Key             | Description                                     | Available values                            |
 | --------------- | ----------------------------------------------- | ------------------------------------------- |
@@ -39,10 +39,28 @@ Additionally, you can specify the paths of other manifest files in a list format
 
 This is an example configuration for running [Stack-chan Assembly Kit M5Bottom Version](https://mongonta.booth.pm/) distributed by Takao Akaki ([@mongonta0716](https://github.com/mongonta0716)) with the firmware in this repository. The M5Bottom version does not use a dedicated board, but connects to the M5Bottom port and servo.
 
-When using Port.C of M5Stack Core2:
+When using Port.A of M5Stack Core2:
 
+`manifest_local.json`
 ```json
 {
+    // ...
+    "config": {
+        "driver": {
+            "type": "pwm",
+            "pwmPan": 33,
+            "pwmTilt": 32
+        }
+    }
+}
+```
+
+When using Port.C of M5Stack Core2:
+
+`manifest_local.json`
+```json
+{
+    // ...
     "config": {
         "driver": {
             "type": "pwm",
@@ -55,8 +73,10 @@ When using Port.C of M5Stack Core2:
 
 When using Port.C of M5Stack Basic:
 
+`manifest_local.json`
 ```json
 {
+    // ...
     "config": {
         "driver": {
             "type": "pwm",
@@ -66,6 +86,8 @@ When using Port.C of M5Stack Basic:
     }
 }
 ```
+
+If Stack-chan is shaking her head left and right, the configuration has been successful.
 
 Reference: [About the firmware for Stack-chan M5Go Bottom version (Japanese)](https://raspberrypi.mongonta.com/softwares-for-stackchan/)
 

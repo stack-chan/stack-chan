@@ -79,8 +79,9 @@ export class Robot {
   #touch: Touch
   #isMoving: boolean
   #renderer: Renderer
-  #updateFaceHandler: Timer
   #updatePoseHandler: Timer
+  #updateFaceHandler: Timer
+  updating: boolean
   constructor(params: RobotConstructorParam<ButtonName>) {
     this.useRenderer(params.renderer)
     this.useDriver(params.driver)
@@ -204,16 +205,23 @@ export class Robot {
    * @returns the text when speech finishes, otherwise the reason why it fails.
    */
   async say(text: string): Promise<Maybe<string>> {
-    await this.#tts.stream(text).catch((reason) => {
-      return {
-        success: false,
-        message: reason,
-      }
+    return new Promise((resolve, _reject) => {
+      this.#tts
+        .stream(text)
+        .catch((reason) => {
+          trace('error\n')
+          resolve({
+            success: false,
+            reason,
+          })
+        })
+        .then(() => {
+          resolve({
+            success: true,
+            value: text,
+          })
+        })
     })
-    return {
-      success: true,
-      value: text,
-    }
   }
 
   /**
@@ -301,7 +309,11 @@ export class Robot {
    * Get the current pose from the Driver
    * and trigger move if necessary to see the gaze point.
    */
-  async updatePose() {
+  async updatePose(id) {
+    if (this.updating) {
+      return
+    }
+    this.updating = true
     const result = await this.#driver.getRotation()
     if (result.success) {
       this.#pose.body.rotation = result.value
@@ -325,5 +337,6 @@ export class Robot {
         }, time * 1000 + 50)
       }
     }
+    this.updating = false
   }
 }

@@ -57,10 +57,12 @@ export class ChatGPTDialogue {
   #context: Array<ChatContent>
   #headers: Headers
   #history: Array<ChatContent>
+  #maxHistory: number
   constructor({ apiKey, context = DEFAULT_CONTEXT }: ChatGPTDialogueProps) {
     this.#model = DEFAULT_MODEL
     this.#context = context
     this.#history = []
+    this.#maxHistory = 10
     this.#headers = new Headers([
       ['Content-Type', 'application/json'],
       ['Authorization', `Bearer ${apiKey}`],
@@ -78,6 +80,11 @@ export class ChatGPTDialogue {
     if (isChatContent(response)) {
       this.#history.push(userMessage)
       this.#history.push(response)
+
+      // Set maximum length to prevent memory overflow
+      while (this.#history.length > this.#maxHistory) {
+        this.#history.shift()
+      }
       return {
         success: true,
         value: response.content,

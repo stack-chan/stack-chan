@@ -1,4 +1,4 @@
-import { defaultFaceContext, Renderer, type FaceContext } from 'cat-renderer'
+import { defaultFaceContext, Renderer, type FaceContext } from 'dog-face-renderer'
 import Poco from 'commodetto/Poco'
 import Timer from 'timer'
 import Resource from 'Resource'

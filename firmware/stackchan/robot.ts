@@ -79,6 +79,7 @@ export class Robot {
   #touch: Touch
   #isMoving: boolean
   #renderer: Renderer
+  #paused: boolean
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
   updating: boolean
@@ -132,6 +133,7 @@ export class Robot {
     }
     this.#updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
     this.#updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
+    this.#paused = false
   }
 
   /**
@@ -274,12 +276,22 @@ export class Robot {
     // TBD
   }
 
+  pause() {
+    this.#paused = true
+  }
+
+  resume() {
+    this.#paused = false
+  }
   /**
    * Update the robot face.
    * Process the robot's emotion, pose, gaze point and so on
    * to modify the face context and passes it to Renderer#update
    */
   updateFace() {
+    if (this.#paused) {
+      return
+    }
     const face = structuredClone(defaultFaceContext)
     if (this.#power != 0) {
       face.mouth.open = Math.min(this.#power / 2000, 1.0)
@@ -310,7 +322,7 @@ export class Robot {
    * and trigger move if necessary to see the gaze point.
    */
   async updatePose(id) {
-    if (this.updating) {
+    if (this.updating || this.#paused) {
       return
     }
     this.updating = true

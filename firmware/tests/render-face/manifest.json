@@ -14,8 +14,8 @@
     "modules": {
         "*": [
             "./main",
-            "../../renderers/*",
-            "../../stackchan-util"
+            "../../stackchan/renderers/*",
+            "../../stackchan/stackchan-util"
         ]
     },
     "preload": [

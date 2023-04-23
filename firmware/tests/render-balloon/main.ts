@@ -1,4 +1,4 @@
-import { defaultFaceContext, Renderer, type FaceContext } from 'face-renderer'
+import { defaultFaceContext, Renderer, type FaceContext } from 'dog-face-renderer'
 import Poco from 'commodetto/Poco'
 import Timer from 'timer'
 import Resource from 'Resource'
@@ -8,7 +8,7 @@ import structuredClone from 'structuredClone'
 
 const font = parseBMF(new Resource('NotoSansJP-Regular-24.bf4'))
 const INTERVAL = 1000 / 30
-let poco = new Poco(screen, { rotation: 90 })
+let poco = new Poco(screen, { rotation: 90, displayListLength: 1024 })
 const renderer = new Renderer({ poco })
 const white = poco.makeColor(255, 255, 255)
 const black = poco.makeColor(0, 0, 0)
@@ -40,14 +40,14 @@ const useRenderBalloon = ({ left, top, bottom, right, width, height, font, text 
   let space = 20
   trace(`${x}, ${y}, ${width}, ${height}\n`)
   return (poco) => {
-    poco.begin(x, y, width, height)
+    poco.clip(x, y, width, height)
     poco.fillRectangle(black, x, y, width, height)
     poco.blendOutline(white, 255, outline, x, y)
     poco.drawText(text, font, black, x - textX, y)
     if (textWidth + space >= textX) {
       poco.drawText(text, font, black, x - textX + textWidth + space, y)
     }
-    poco.end()
+    poco.clip()
     textX = textX >= textWidth + space ? 2 : textX + 2
   }
 }
@@ -61,20 +61,19 @@ const renderBalloon = useRenderBalloon({
   text: 'こんにちはせかい',
 })
 const renderBalloon2 = useRenderBalloon({
-  // right: 10,
+  right: 40,
   bottom: 10,
-  width: 320,
+  width: 120,
   height: font.height,
   font,
   text: 'じゅげむじゅげむごこうのすりきれかいじゃりすいぎょのすいぎょうまつふうらいまつ',
 })
 
+renderer.addEffect(renderBalloon2)
 Timer.repeat(() => {
   count = (count + 30) % 360
   faceContext = structuredClone(defaultFaceContext)
   faceContext.mouth.open = Math.sin((Math.PI * 2 * count) / 360) / 2 + 0.5
 
   renderer.update(INTERVAL, faceContext)
-  renderBalloon(poco)
-  renderBalloon2(poco)
 }, INTERVAL)

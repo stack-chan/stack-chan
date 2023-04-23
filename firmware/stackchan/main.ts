@@ -11,6 +11,7 @@ import { TTS as LocalTTS } from 'tts-local'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { defaultMod, StackchanMod } from 'stackchan-mod'
 import { Renderer as SimpleRenderer } from 'face-renderer'
+import { Renderer as DogFaceRenderer } from 'dog-face-renderer'
 import Touch from 'touch'
 
 // trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
@@ -32,7 +33,10 @@ const ttsEngines = new Map<string, new (param: unknown) => TTS>([
   ['local', LocalTTS],
   ['voicevox', VoiceVoxTTS],
 ])
-const renderers = new Map<string, new (param: unknown) => Renderer>([['simple', SimpleRenderer]])
+const renderers = new Map<string, new (param: unknown) => Renderer>([
+  ['dog', DogFaceRenderer],
+  ['simple', SimpleRenderer],
+])
 
 // TODO: select driver/tts/renderer by mod
 

@@ -14,7 +14,7 @@ export function onRobotCreated(robot) {
     new TTS({
       host: TTS_HOST,
       port: 50021,
-      sampleRate: 24000
+      sampleRate: 24000,
     })
   )
 

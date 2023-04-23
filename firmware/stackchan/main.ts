@@ -8,6 +8,7 @@ import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import { NoneDriver } from 'none-driver'
 import { TTS as LocalTTS } from 'tts-local'
+import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { defaultMod, StackchanMod } from 'stackchan-mod'
 import { Renderer as SimpleRenderer } from 'face-renderer'
@@ -31,6 +32,7 @@ const drivers = new Map<string, new (param: unknown) => Driver>([
 ])
 const ttsEngines = new Map<string, new (param: unknown) => TTS>([
   ['local', LocalTTS],
+  ['remote', RemoteTTS],
   ['voicevox', VoiceVoxTTS],
 ])
 const renderers = new Map<string, new (param: unknown) => Renderer>([
@@ -55,7 +57,7 @@ const rendererKey = config.renderer?.type ?? 'simple'
 const Renderer = renderers.get(rendererKey)
 
 if (!Driver || !TTS || !Renderer) {
-  for (let [key, klass] of [
+  for (const [key, klass] of [
     [driverKey, Driver],
     [ttsKey, TTS],
     [rendererKey, Renderer],

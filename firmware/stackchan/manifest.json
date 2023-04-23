@@ -71,6 +71,7 @@
         }
     },
     "config": {
+        "sntp": "pool.ntp.org",
         "driver": {
             "panId": 1,
             "tiltId": 2,

@@ -52,6 +52,3 @@ __Wanna be a sponsor__? It would be my great honor. please visit my [sponsor](ht
 Resources of this repository are distributed under Apache version 2.0 license.
 See [LICENSE](./LICENSE).
 
-## Update History fo 3Dmodels
-
-- 2023/3/29 bracket_sg90_v1.0 → bracket_sg90_v1.1<br>Add holes to allow long servo wires to pass through.

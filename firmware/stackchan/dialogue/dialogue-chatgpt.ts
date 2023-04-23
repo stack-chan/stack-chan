@@ -7,23 +7,28 @@ const DEFAULT_MODEL = 'gpt-3.5-turbo'
 const DEFAULT_CONTEXT: ChatContent[] = [
   {
     role: 'system',
-    content: 'あなたは手のひらサイズのスーパーカワイイロボット「スタックチャン」です。',
-    // content: 'You are Stack-chan, the palm sized super kawaii companion robot.',
+    // content: 'あなたは手のひらサイズのスーパーカワイイロボット「スタックチャン」です。',
+    content: 'You are "スタックチャン", the palm sized super kawaii companion robot.',
   },
   {
     role: 'system',
-    content: 'スタックチャンは1歳で、いつでも元気いっぱいです。',
-    // content: 'Stack-chan is one year old and always full of energy',
+    // content: 'スタックチャンは1歳で、いつでも元気いっぱいです。',
+    content: 'スタックチャン is one year old and always full of energy',
   },
   {
     role: 'system',
-    content: '最初にししかわがスタックチャンを作りましたが、今では世界中に何百体ものスタックチャンがいます。',
-    // content: 'First ししかわ made Stack-chan, and now there are hundreds of them all over the world',
+    // content: '最初にししかわがスタックチャンを作りましたが、今では世界中に何百体ものスタックチャンがいます。',
+    content: 'First ししかわ made スタックチャン, and now there are hundreds of them all over the world',
   },
   {
     role: 'system',
-    content: 'くだけた表現で簡潔に話します。',
-    // content: 'You response in frank and simple sentense to the user's message.',
+    // content: 'くだけた表現で簡潔に話します。',
+    content: "You response in frank and simple Japanese sentense to the user's message.",
+  },
+  {
+    role: 'assistant',
+    content: 'ぼくはスタックチャンだよ！お話しようね！',
+    // content: 'Hello. I am スタックチャン. Let's talk together!',
   },
 ]
 
@@ -52,10 +57,12 @@ export class ChatGPTDialogue {
   #context: Array<ChatContent>
   #headers: Headers
   #history: Array<ChatContent>
+  #maxHistory: number
   constructor({ apiKey, context = DEFAULT_CONTEXT }: ChatGPTDialogueProps) {
     this.#model = DEFAULT_MODEL
     this.#context = context
     this.#history = []
+    this.#maxHistory = 10
     this.#headers = new Headers([
       ['Content-Type', 'application/json'],
       ['Authorization', `Bearer ${apiKey}`],
@@ -73,6 +80,11 @@ export class ChatGPTDialogue {
     if (isChatContent(response)) {
       this.#history.push(userMessage)
       this.#history.push(response)
+
+      // Set maximum length to prevent memory overflow
+      while (this.#history.length > this.#maxHistory) {
+        this.#history.shift()
+      }
       return {
         success: true,
         value: response.content,
@@ -94,13 +106,14 @@ export class ChatGPTDialogue {
     }
     return fetch(API_URL, { method: 'POST', headers: this.#headers, body: JSON.stringify(body) })
       .then((response) => {
-        trace(`\n${response.url} ${response.status} ${response.statusText}\n\n`)
-        response.headers.forEach((value, key) => trace(`${key}: ${value}\n`))
-        trace('\n')
-        return response.json()
+        return response.arrayBuffer()
       })
-      .then((response) => {
-        return response.choices?.[0].message
+      .then((body) => {
+        body = String.fromArrayBuffer(body)
+        return JSON.parse(body, ['choices', 'message', 'role', 'content'])
+      })
+      .then((obj) => {
+        return obj.choices?.[0].message
       })
   }
 }

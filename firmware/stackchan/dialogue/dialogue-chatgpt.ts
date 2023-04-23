@@ -27,8 +27,8 @@ const DEFAULT_CONTEXT: ChatContent[] = [
   },
   {
     role: 'assistant',
-    // content: 'くだけた表現で簡潔に話します。',
     content: 'ぼくはスタックチャンだよ！お話しようね！',
+    // content: 'Hello. I am スタックチャン. Let's talk together!',
   },
 ]
 

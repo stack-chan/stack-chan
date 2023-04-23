@@ -106,13 +106,14 @@ export class ChatGPTDialogue {
     }
     return fetch(API_URL, { method: 'POST', headers: this.#headers, body: JSON.stringify(body) })
       .then((response) => {
-        trace(`\n${response.url} ${response.status} ${response.statusText}\n\n`)
-        response.headers.forEach((value, key) => trace(`${key}: ${value}\n`))
-        trace('\n')
-        return response.json()
+        return response.arrayBuffer()
       })
-      .then((response) => {
-        return response.choices?.[0].message
+      .then((body) => {
+        body = String.fromArrayBuffer(body)
+        return JSON.parse(body, ['choices', 'message', 'role', 'content'])
+      })
+      .then((obj) => {
+        return obj.choices?.[0].message
       })
   }
 }

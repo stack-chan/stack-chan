@@ -8,6 +8,7 @@
         "$(MODDABLE)/examples/manifest_typings.json",
         "$(MODDABLE)/examples/manifest_commodetto.json",
         "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
+        "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
         "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
         "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
         "$(MODULES)/base/modules/manifest.json",
@@ -44,6 +45,7 @@
         "http",
         "tts-local",
         "tts-voicevox",
+        "tts-elevenlabs",
         "face-renderer",
         "dialugue-chatgpt",
         "stk-server",
@@ -88,7 +90,9 @@
     },
     "platforms": {
         "esp32/m5stack_core2": {
-            "include": ["./manifest_8mb_flash.json"],
+            "build": {
+                "PARTITIONS_FILE": "./sdkconfig/customPartitions.csv"
+            },
             "config": {
                 "driver": {
                     "pwmPan": 19,

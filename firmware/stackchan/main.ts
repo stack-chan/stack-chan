@@ -10,6 +10,7 @@ import { NoneDriver } from 'none-driver'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
+import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import { defaultMod, StackchanMod } from 'stackchan-mod'
 import { Renderer as SimpleRenderer } from 'face-renderer'
 import { Renderer as DogFaceRenderer } from 'dog-face-renderer'
@@ -34,6 +35,7 @@ const ttsEngines = new Map<string, new (param: unknown) => TTS>([
   ['local', LocalTTS],
   ['remote', RemoteTTS],
   ['voicevox', VoiceVoxTTS],
+  ['elevenlabs', ElevenLabsTTS],
 ])
 const renderers = new Map<string, new (param: unknown) => Renderer>([
   ['dog', DogFaceRenderer],

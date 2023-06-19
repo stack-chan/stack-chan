@@ -103,6 +103,25 @@
                 },
                 "rotation": 0
             }
+        },
+        "esp32/m5stack_cores3": {
+            "build": {
+                "PARTITIONS_FILE": "./sdkconfig/customPartitions.csv"
+            },
+            "config": {
+                "driver": {
+                    "pwmPan": 19,
+                    "pwmTilt": 27
+                },
+                "tts": {
+                    "sampleRate": 24000
+                },
+                "serial": {
+                    "transmit": 17,
+                    "receive": 18
+                },
+                "rotation": 0
+            }
         }
     }
 }

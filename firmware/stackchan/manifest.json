@@ -15,7 +15,7 @@
         "$(MODULES)/base/structuredClone/manifest.json",
         "$(MODULES)/commodetto/outline/manifest.json",
         "$(MODULES)/data/text/decoder/manifest.json",
-        "$(MODULES)/files/file/manifest.json",
+        "$(MODULES)/files/file/manifest_littlefs.json",
 		"$(MODULES)/network/ble/manifest_server.json",
         "$(MODULES)/network/ble/manifest_client.json",
         "$(MODULES)/network/mdns/manifest.json",

@@ -3,6 +3,7 @@ import { speeches } from 'speeches_greeting'
 import { randomBetween } from 'stackchan-util'
 import { Bytes } from 'btutils'
 import { BeaconDataPacket } from 'beacon-packet'
+import { TTS as LocalTTS } from 'tts-local'
 
 const keys = Object.keys(speeches)
 const hellos = keys.filter((k) => k.startsWith('hello_'))
@@ -21,6 +22,11 @@ class Advertiser extends BLEServer {
 
 export function onRobotCreated(robot) {
   let count = 0
+  /**
+   * @note A workaround due to the sample rate of the mod resource being fixed at 11025.
+   * M5Stack CoreS3 cannot play at a sample rate of 11025, so we use a nearby valid common value.
+   **/
+  robot.useTTS(new LocalTTS({sampleRate: 11000}))
   const dataPacket = new BeaconDataPacket(UUID, 0, 1, -40)
   const advertiser = new Advertiser()
   const sendCommand = (command) => {

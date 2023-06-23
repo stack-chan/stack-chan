@@ -102,8 +102,8 @@ export class TTS {
         request: {
           method: 'POST',
           headers: new Map([
-           ['content-type', 'application/json'],
-           ['content-length', `${file.length}`],
+            ['content-type', 'application/json'],
+            ['content-length', `${file.length}`],
           ]),
           onWritable(count) {
             this.write(file.read(ArrayBuffer, count))

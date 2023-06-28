@@ -84,7 +84,8 @@
             "transmit": 17,
             "receive": 16
         },
-        "rotation": 90
+        "rotation": 90,
+        "virtualButton": true
     },
     "platforms": {
         "esp32/m5stack_core2": {

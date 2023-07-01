@@ -1,18 +1,36 @@
 import Timer from 'timer'
 import { randomBetween } from 'stackchan-util'
 import { NetworkService } from 'network-service'
+import { PreferenceServer } from 'preference-server'
+import { NoneDriver } from 'none-driver'
+import Preference from 'preference'
+
+const DOMAIN = 'robot'
 
 export function onRobotCreated(robot) {
+  robot.useDriver(new NoneDriver())
   let isFollowing = true
-  const service = new NetworkService({
-    ssid: 'myssid',
-    password: 'mypasswd'
+  const server = new PreferenceServer({
+    onPreferenceChanged: (key, value) => {
+      trace(`preference changed! ${key}: ${value}\n`)
+    },
   })
-  service.connect(() => {
-    trace('connection complete\n')
-  }, () => {
-    trace('connection failed\n')
-  })
+  const ssid = Preference.get(DOMAIN, 'ssid')
+  const password = Preference.get(DOMAIN, 'password')
+  if (ssid?.length > 0 && password?.length > 0) {
+    const service = new NetworkService({
+      ssid: ssid,
+      password: password,
+    })
+    service.connect(
+      () => {
+        trace('connection complete\n')
+      },
+      () => {
+        trace('connection failed\n')
+      }
+    )
+  }
   robot.button.a.onChanged = function () {
     if (this.read()) {
       trace('pressed A\n')

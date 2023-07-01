@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script type="module">
+    import SimpleBLEClient from './ble-client.mjs'
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const client = new SimpleBLEClient({
+        deviceName: "stk",
+      })
+      const handleConnectButtonClick = async () => {
+        console.log("接続します")
+        await client.connect()
+      }
+      const handleWifiSubmit = async (event) => {
+        event.preventDefault();
+        if (!client.isConnected()) {
+          console.warn('接続されていません')
+          return;
+        }
+        const ssid = document.getElementById('wifi-ssid').value.trimEnd()
+        const password = document.getElementById('wifi-password').value.trimEnd()
+        if (ssid == null || password == null) {
+          console.warn('SSIDとパスワードを入力して下さい')
+          return;
+        }
+        await client.send({ _batch: { ssid, password } })
+        console.log('送信しました')
+      }
+
+      document.getElementById('button-ble-connect').addEventListener('click', handleConnectButtonClick)
+      document.getElementById('form-wifi').addEventListener('submit', handleWifiSubmit)
+    })
+    
+  </script>
+  <title>Document</title>
+</head>
+
+<body>
+  <button id="button-ble-connect">接続</button>
+  <form id="form-wifi">
+    <label for="wifi-ssid">SSID: </label>
+    <input type="text" name="ssid" id="wifi-ssid" autocomplete="ssid">
+    <label for="wifi-password">パスワード: </label>
+    <input type="password" name="password" id="wifi-password" autocomplete="wifi-password">
+    <input type="submit" value="設定">
+  </form>
+</body>
+
+</html>

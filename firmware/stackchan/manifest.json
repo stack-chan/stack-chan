@@ -16,6 +16,7 @@
         "$(MODULES)/commodetto/outline/manifest.json",
         "$(MODULES)/data/text/decoder/manifest.json",
         "$(MODULES)/files/file/manifest.json",
+		"$(MODULES)/files/preference/manifest.json",
 		"$(MODULES)/network/ble/manifest_server.json",
         "$(MODULES)/network/ble/manifest_client.json",
         "$(MODULES)/network/mdns/manifest.json",
@@ -33,7 +34,9 @@
             "./robot",
             "./renderers/*",
             "./drivers/*",
+            "./network/*",
             "./speech/*",
+            "$(MODULES)/network/ble/uart/uartserver",
             "./dialogue/*",
             "./stackchan-util",
             "./stk-server",
@@ -51,7 +54,7 @@
     ],
     "ble": {
         "*": [
-            "./ble/services/*"
+            "$(MODULES)/network/ble/uart/bleservices/*"
         ]
     },
     "strip": [],

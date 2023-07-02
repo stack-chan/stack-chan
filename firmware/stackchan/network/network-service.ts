@@ -19,6 +19,9 @@ export class NetworkService {
     this.#ssid = ssid
     this.#password = password
   }
+  close() {
+    this.#wifi?.close()
+  }
   savePreference() {
     Preference.set(PREFERENCE_WIFI, 'ssid', this.#ssid)
     Preference.set(PREFERENCE_WIFI, 'password', this.#password)

@@ -45,6 +45,7 @@ class SimpleBLEClient {
     }
     device.addEventListener("gattserverdisconnected", () => {
       console.warn("Disconnected");
+      this.onDisconnected?.();
     });
 
     const server = await device.gatt.connect();

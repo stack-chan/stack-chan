@@ -5,16 +5,48 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
   <script type="module">
     import SimpleBLEClient from './ble-client.mjs'
 
     document.addEventListener('DOMContentLoaded', () => {
+      /**
+       * Views
+       */
+      const settingsForm = document.getElementById('settings-form')
+      const bleConnectButton = document.getElementById('ble-connect-button')
+      const updateView = () => {
+        if (client.isConnected()) {
+          bleConnectButton.classList.remove('active')
+          settingsForm.classList.add('active')
+        } else {
+          settingsForm.classList.remove('active')
+          bleConnectButton.classList.add('active')
+        }
+      }
+
+      /**
+       * BLE Client
+       */
       const client = new SimpleBLEClient({
         deviceName: "stk",
       })
+      client.onDisconnected = () => {
+        updateView()
+      }
+
+      /**
+       * Event Handlers
+       */
       const handleConnectButtonClick = async () => {
         console.log("接続します")
         await client.connect()
+        updateView()
+      }
+      const handleDisconnectButtonClick = async () => {
+        console.log("接続解除します")
+        await client.disconnect()
+        updateView()
       }
       const handleWifiSubmit = async (event) => {
         event.preventDefault();
@@ -32,23 +64,85 @@
         console.log('送信しました')
       }
 
-      document.getElementById('button-ble-connect').addEventListener('click', handleConnectButtonClick)
+      document.getElementById('ble-connect-button').addEventListener('click', handleConnectButtonClick)
+      document.getElementById('ble-disconnect-button').addEventListener('click', handleDisconnectButtonClick)
       document.getElementById('form-wifi').addEventListener('submit', handleWifiSubmit)
     })
-    
+
   </script>
   <title>Document</title>
 </head>
 
 <body>
-  <button id="button-ble-connect">接続</button>
-  <form id="form-wifi">
-    <label for="wifi-ssid">SSID: </label>
-    <input type="text" name="ssid" id="wifi-ssid" autocomplete="ssid">
-    <label for="wifi-password">パスワード: </label>
-    <input type="password" name="password" id="wifi-password" autocomplete="wifi-password">
-    <input type="submit" value="設定">
-  </form>
+  <div class="app">
+  <div>
+    <button class="accordion active" id="ble-connect-button">
+      ｽﾀｯｸﾁｬﾝに接続する[・＿・]
+    </button>
+  </div>
+  <div class="accordion card" id="settings-form">
+    <h2>ｽﾀｯｸﾁｬﾝ設定</h1>
+    <div class="ble-disconnect-button" id="ble-disconnect-button" title="接続を解除する">×</div>
+    <form class="form" id="form-wifi">
+      <h3>WiFi</h3>
+      <div class="form-group">
+        <label for="wifi-ssid">SSID: </label>
+        <input type="text" name="ssid" id="wifi-ssid" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="wifi-password">パスワード: </label>
+        <input type="password" name="password" id="wifi-password" autocomplete="off">
+      </div>
+      <h3>フェイス</h3>
+      <div class="form-group">
+        <label for="face-type">タイプ: </label>
+        <select name="face-type" id="face-type">
+          <option value="simple-face">ｽﾀｯｸﾁｬﾝ</option>
+          <option value="cat-face">ﾈｺﾁｬﾝ</option>
+        </select>
+      </div>
+      <h3>サーボ</h3>
+      <div class="form-group">
+        <label for="servo-type">タイプ: </label>
+        <select name="servo-type" id="servo-type">
+          <option value="scservo">SCServo</option>
+          <option value="rs30x">RS30X</option>
+          <option value="none">なし</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="servo-offset-pan">左右オフセット:</label>
+        <input type="number" name="servo-offset-pan" id="servo-offset-pan" value="0">
+      </div>
+      <div class="form-group">
+        <label for="servo-offset-tilt">上下オフセット:</label>
+        <input type="number" name="servo-offset-tilt" id="servo-offset-tilt" value="0">
+      </div>
+      <h3>音声合成（TTS）</h3>
+      <div class="form-group">
+        <label for="tts-type">タイプ: </label>
+        <select name="tts-type" id="tts-type">
+          <option value="voicevox">VOICEVOX</option>
+          <option value="elevenlabs">ElevenLabs</option>
+          <option value="google-tts">Google TTS</option>
+          <option value="local">ローカル音声</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="tts-host">ホスト:</label>
+        <input type="text" name="tts-host" id="tts-host" value="my-tts-host.local">
+      </div>
+      <div class="form-group">
+        <label for="tts-port">ポート番号:</label>
+        <input type="number" name="tts-port" id="tts-port" value="50021">
+      </div>
+      <h3>AI</h3>
+      <label for="ai-context">システムロール:</label>
+      <textarea name="ai-context" id="ai-context" cols="30" rows="5" placeholder="You are スタックチャン, the palm sized super kawaii companion robot."></textarea>
+      <hr>
+      <button type="submit">設定変更</button>
+    </form>
+  </div>
+</div>
 </body>
-
 </html>

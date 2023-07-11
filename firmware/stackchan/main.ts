@@ -41,7 +41,6 @@ if (shouldRobotCreate !== false) {
   const renderers = new Map<string, new (param: unknown) => Renderer>([
     ['dog', DogFaceRenderer],
     ['simple', SimpleRenderer],
-    ['none', NoneRenderer],
   ])
 
   // TODO: select driver/tts/renderer by mod

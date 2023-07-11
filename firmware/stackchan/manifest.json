@@ -89,6 +89,11 @@
         },
         "rotation": 90
     },
+	"resources": {
+        "*-mask": [
+            "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"
+        ]
+    },
     "platforms": {
         "esp32/m5stack_core2": {
             "include": ["./manifest_8mb_flash.json"],

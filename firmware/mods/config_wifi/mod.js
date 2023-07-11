@@ -15,7 +15,7 @@ export function onLaunch() {
   const status = {
     ssid: Preference.get(DOMAIN, 'ssid'),
     password: Preference.get(DOMAIN, 'password'),
-    connection: 'not connected'
+    connection: 'not connected',
   }
 
   const drawStatus = (status) => {

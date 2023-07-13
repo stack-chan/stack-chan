@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Stack-chan development server",
   "scripts": {
-    "dev": "live-server -p 8080 ."
+    "dev": "live-server --verbose"
   },
   "keywords": [],
   "author": "Shinya Ishikawa",

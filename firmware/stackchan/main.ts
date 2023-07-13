@@ -13,17 +13,12 @@ import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import defaultMod, { StackchanMod } from 'default-mods/mod'
 import { Renderer as SimpleRenderer } from 'face-renderer'
 import { Renderer as DogFaceRenderer } from 'dog-face-renderer'
+import { NetworkService } from 'network-service'
+import { DOMAIN } from 'consts'
 import Touch from 'touch'
+import Preference from 'preference'
 
-let { onRobotCreated, onLaunch } = defaultMod
-if (Modules.has('mod')) {
-  const mod = Modules.importNow('mod') as StackchanMod
-  onRobotCreated = mod.onRobotCreated ?? onRobotCreated
-  onLaunch = mod.onLaunch ?? onLaunch
-}
-
-const shouldRobotCreate = onLaunch?.()
-if (shouldRobotCreate !== false) {
+function createRobot() {
   const drivers = new Map<string, new (param: unknown) => Driver>([
     ['scservo', SCServoDriver],
     ['pwm', PWMServoDriver],
@@ -80,13 +75,45 @@ if (shouldRobotCreate !== false) {
   })
   const button = globalThis.button
   const touch = !global.screen.touch && config.Touch ? new Touch() : undefined
-  const robot = new Robot({
+  return new Robot({
     driver,
     renderer,
     tts,
     button,
     touch,
   })
-
-  onRobotCreated?.(robot, globalThis.device)
 }
+
+async function checkAndConnectWiFi() {
+  const ssid = Preference.get(DOMAIN, 'ssid')
+  const password = Preference.get(DOMAIN, 'password')
+  if (ssid == null || password == null) {
+    return
+  }
+  return new Promise((resolve, reject) => {
+    globalThis.network = new NetworkService({
+      ssid,
+      password,
+    })
+    globalThis.network.connect(resolve, reject)
+  })
+}
+
+async function main() {
+  await checkAndConnectWiFi().catch((msg) => {
+    trace(`WiFi connection failed: ${msg}`)
+  })
+  let { onRobotCreated, onLaunch } = defaultMod
+  if (Modules.has('mod')) {
+    const mod = Modules.importNow('mod') as StackchanMod
+    onRobotCreated = mod.onRobotCreated ?? onRobotCreated
+    onLaunch = mod.onLaunch ?? onLaunch
+  }
+  const shouldRobotCreate = await onLaunch?.()
+  if (shouldRobotCreate !== false) {
+    const robot = createRobot()
+    await onRobotCreated?.(robot, globalThis.device)
+  }
+}
+
+main()

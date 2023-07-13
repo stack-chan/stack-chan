@@ -28,18 +28,18 @@
     ],
     "modules": {
         "*": [
+            "$(MODULES)/network/ble/uart/uartserver",
+            "./ble/stk-server",
             "./ble/beacon-packet",
-            "./main",
-            "./robot",
+            "./utilities/*",
             "./renderers/*",
             "./drivers/*",
             "./services/*",
             "./speech/*",
-            "$(MODULES)/network/ble/uart/uartserver",
             "./dialogue/*",
-            "./stackchan-util",
-            "./stk-server",
-            "./touch"
+            "./touch",
+            "./robot",
+            "./main"
         ],
         "default-mods/*": "./default-mods/*"
     },

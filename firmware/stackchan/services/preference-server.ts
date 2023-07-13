@@ -1,7 +1,6 @@
 import { UARTServer } from 'uartserver'
 import Preference from 'preference'
-
-const DOMAIN = 'robot'
+import { DOMAIN } from 'consts'
 
 type PreferenceServerProps = {
   onPreferenceChanged?: (key: string, value: ReturnType<typeof Preference['get']>) => void

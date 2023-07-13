@@ -10,6 +10,7 @@ export class PreferenceServer extends UARTServer {
     if (option?.onPreferenceChanged != null) {
       this.onPreferenceChanged = option.onPreferenceChanged
     }
+    this.keys = Array.isArray(option.keys) ? option.keys.slice() : []
   }
   onPreferenceChanged(_key, _value) {
     /* noop */
@@ -17,6 +18,12 @@ export class PreferenceServer extends UARTServer {
   onCharacteristicNotifyEnabled(characteristic) {
     if ('tx' === characteristic.name) {
       this.#tx_characteristic = characteristic
+      for (const key of this.keys) {
+        const currentValue = Preference.get(DOMAIN, key)
+        if (currentValue != null) {
+          this.notifyPreference(key, currentValue)
+        }
+      }
     }
   }
   onCharacteristicNotifyDisabled(characteristic) {
@@ -40,22 +47,27 @@ export class PreferenceServer extends UARTServer {
     }
   }
 
+  notifyPreference(key, value) {
+    if (this.#tx_characteristic == null) {
+      return
+    }
+    this.notifyValue(
+      this.#tx_characteristic,
+      ArrayBuffer.fromString(
+        JSON.stringify({
+          key,
+          value,
+        })
+      )
+    )
+  }
+
   receiveAndSetPreference(key, value) {
     const currentValue = Preference.get(DOMAIN, key)
     if (currentValue != value) {
       trace(`changing preference ... ${key}: ${value}\n`)
       Preference.set(DOMAIN, key, value)
-      if (this.#tx_characteristic) {
-        this.notifyValue(
-          this.#tx_characteristic,
-          ArrayBuffer.fromString(
-            JSON.stringify({
-              key,
-              value,
-            })
-          )
-        )
-      }
+      this.notifyPreference(key, value)
       this.onPreferenceChanged(key, value)
     }
   }

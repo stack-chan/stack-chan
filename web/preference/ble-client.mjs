@@ -15,10 +15,12 @@ class SimpleBLEClient {
   #decoder = new TextDecoder()
 
   #device;
+  #onCharacteristicValueChanged
   #tx_characteristic;
   #rx_characteristic;
-  constructor({ deviceName }) {
+  constructor({ deviceName, onCharacteristicValueChanged }) {
     this.#deviceName = deviceName;
+    this.#onCharacteristicValueChanged = onCharacteristicValueChanged
   }
 
   async connect() {
@@ -56,14 +58,13 @@ class SimpleBLEClient {
     const service = await server.getPrimaryService(SERVICE_UUID)
     this.#rx_characteristic = await service.getCharacteristic(RX_UUID)
     this.#tx_characteristic = await service.getCharacteristic(TX_UUID)
-    await this.#tx_characteristic.startNotifications()
     this.#tx_characteristic.addEventListener('characteristicvaluechanged', (event) => {
       const value = event.target.value
       const str = this.#decoder.decode(value)
-      console.log(str)
       const obj = JSON.parse(str)
-      console.log(obj)
+      this.#onCharacteristicValueChanged?.(obj)
     })
+    await this.#tx_characteristic.startNotifications()
   }
 
   isConnected() {

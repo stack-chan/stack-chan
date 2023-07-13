@@ -97,3 +97,30 @@ button {
 button:hover {
   background-color: #1976D2;
 }
+
+.toast {
+  position: absolute;
+  font-size: 1.2em;
+  padding: 0.4em;
+  top: 0;
+  right: 0;
+  max-width: 400px;
+  background-color: #388E3C;
+  color: white;
+  visibility: hidden;
+  transform: translateY(-100px);
+}
+
+.toast.visible {
+  visibility: visible;
+  animation: toast 3s ease 1 normal;
+}
+
+@keyframes toast {
+  33% {
+    transform: translateY(0);
+  }
+  66% {
+    transform: translateY(0);
+  }
+}

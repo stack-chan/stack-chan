@@ -35,6 +35,7 @@ export function onLaunch() {
       status[key] = value
       drawStatus(status)
     },
+    keys: ['ssid', 'password'],
   })
 
   let networkService

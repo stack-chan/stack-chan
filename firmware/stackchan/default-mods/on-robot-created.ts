@@ -2,13 +2,8 @@ import { Robot } from 'robot'
 import Timer from 'timer'
 import { randomBetween } from 'stackchan-util'
 
-export interface StackchanMod {
-  onLaunch?: () => void | boolean
-  onRobotCreated?: (robot: Robot, option?: any) => void
-}
-
-function onRobotCreated(robot: Robot) {
-  let isFollowing: boolean = false
+export function onRobotCreated(robot: Robot, _option: unknown): void {
+  let isFollowing = false
   robot.button.a.onChanged = function () {
     if (this.read()) {
       trace('pressed A\n')
@@ -37,8 +32,4 @@ function onRobotCreated(robot: Robot) {
     robot.lookAt([x, y, z])
   }
   Timer.repeat(targetLoop, 5000)
-}
-
-export const defaultMod: StackchanMod = {
-  onRobotCreated,
 }

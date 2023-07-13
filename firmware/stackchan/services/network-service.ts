@@ -1,9 +1,4 @@
-import Preference from 'preference'
 import WiFi from 'wifi'
-
-const PREFERENCE_WIFI = 'wifi'
-const prefSSID = String(Preference.get(PREFERENCE_WIFI, 'ssid') ?? '')
-const prefPassword = String(Preference.get(PREFERENCE_WIFI, 'password') ?? '')
 const MAX_SCANS = 3
 
 export class NetworkService {
@@ -15,18 +10,17 @@ export class NetworkService {
   #wifi?: WiFi
   onConnected: () => void
   onError: (reason?: string) => void
-  constructor({ ssid = prefSSID, password = prefPassword }) {
-    this.#ssid = ssid
-    this.#password = password
+  constructor(options) {
+    this.#ssid = options.ssid
+    this.#password = options.password
   }
   close() {
     this.#wifi?.close()
   }
-  savePreference() {
-    Preference.set(PREFERENCE_WIFI, 'ssid', this.#ssid)
-    Preference.set(PREFERENCE_WIFI, 'password', this.#password)
-  }
-  connect(onConnected: () => void, onError: () => void) {
+  connect(onConnected: () => void, onError: (message: string) => void) {
+    if (this.#ssid != null) {
+      onError('ssid not set')
+    }
     this.#connecting = true
     this.#wifi = new WiFi({ ssid: this.#ssid, password: this.#password }, (msg) => {
       trace(`WiFi ${msg}\n`)
@@ -43,8 +37,7 @@ export class NetworkService {
             this.#connecting = true
             WiFi.connect({ ssid: this.#ssid, password: this.#password })
           } else {
-            trace('connection failed\n')
-            onError?.()
+            onError?.('connection failed')
           }
           break
       }

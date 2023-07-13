@@ -29,19 +29,19 @@
     "modules": {
         "*": [
             "./ble/beacon-packet",
-            "./stackchan-mod",
             "./main",
             "./robot",
             "./renderers/*",
             "./drivers/*",
-            "./network/*",
+            "./services/*",
             "./speech/*",
             "$(MODULES)/network/ble/uart/uartserver",
             "./dialogue/*",
             "./stackchan-util",
             "./stk-server",
             "./touch"
-        ]
+        ],
+        "default-mods/*": "./default-mods/*"
     },
     "preload": [
         "http",

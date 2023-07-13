@@ -10,13 +10,10 @@ import { NoneDriver } from 'none-driver'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
-import { defaultMod, StackchanMod } from 'stackchan-mod'
+import defaultMod, { StackchanMod } from 'default-mods/mod'
 import { Renderer as SimpleRenderer } from 'face-renderer'
 import { Renderer as DogFaceRenderer } from 'dog-face-renderer'
 import Touch from 'touch'
-
-// trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
-// trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
 
 let { onRobotCreated, onLaunch } = defaultMod
 if (Modules.has('mod')) {

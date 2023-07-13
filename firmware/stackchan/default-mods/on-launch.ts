@@ -4,6 +4,8 @@ import Resource from 'Resource'
 import { NetworkService } from 'network-service'
 import { PreferenceServer } from 'preference-server'
 import Preference from 'preference'
+import type { StackchanMod } from 'default-mods/mod'
+import config from 'mc/config'
 
 const DOMAIN = 'robot'
 type Status = {
@@ -13,12 +15,12 @@ type Status = {
   password?: string
 }
 
-export function onLaunch(): void | boolean {
-  if (globalThis.button.c.read()) {
+export const onLaunch: StackchanMod['onLaunch'] = () => {
+  if (!globalThis.button.c.read()) {
     // ButtonA is not pressed
     return
   }
-  const render = new Poco(screen, { rotation: 90, displayListLength: 2048 })
+  const render = new Poco(screen, { rotation: config.rotation, displayListLength: 2048 })
   const font = parseBMF(new Resource('OpenSans-Regular-24.bf4'))
   const white = render.makeColor(255, 255, 255)
   const black = render.makeColor(0, 0, 0)

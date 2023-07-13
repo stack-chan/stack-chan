@@ -4,7 +4,7 @@ import { Robot } from 'robot'
 
 export interface StackchanMod {
   onLaunch?: () => void | boolean
-  onRobotCreated?: (robot: Robot, option?: any) => void
+  onRobotCreated?: (robot: Robot, option?: unknown) => void
 }
 
 export default {

@@ -1,8 +1,9 @@
 import { Robot } from 'robot'
 import Timer from 'timer'
 import { randomBetween } from 'stackchan-util'
+import type { StackchanMod } from 'default-mods/mod'
 
-export function onRobotCreated(robot: Robot, _option: unknown): void {
+export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot: Robot) => {
   let isFollowing = false
   robot.button.a.onChanged = function () {
     if (this.read()) {

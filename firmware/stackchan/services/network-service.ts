@@ -18,7 +18,7 @@ export class NetworkService {
     this.#wifi?.close()
   }
   connect(onConnected: () => void, onError: (message: string) => void) {
-    if (this.#ssid != null) {
+    if (this.#ssid == null) {
       onError('ssid not set')
     }
     this.#connecting = true

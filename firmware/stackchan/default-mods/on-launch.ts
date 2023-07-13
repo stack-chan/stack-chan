@@ -6,8 +6,9 @@ import { PreferenceServer } from 'preference-server'
 import Preference from 'preference'
 import type { StackchanMod } from 'default-mods/mod'
 import config from 'mc/config'
+import { DOMAIN } from 'consts'
+import Timer from 'timer'
 
-const DOMAIN = 'robot'
 type Status = {
   ble: string
   wifi: string
@@ -15,9 +16,40 @@ type Status = {
   password?: string
 }
 
-export const onLaunch: StackchanMod['onLaunch'] = () => {
-  if (!globalThis.button.c.read()) {
-    // ButtonA is not pressed
+async function waitForKey(): Promise<boolean> {
+  let isPressed
+  if (config.Touch) {
+    const touch = new config.Touch()
+    touch.points = [{}]
+    isPressed = () => {
+      touch.read(touch.points)
+      const state = touch.points[0].state
+      return state === 1 || state === 2
+    }
+  } else {
+    isPressed = () => {
+      return !globalThis.button.c.read()
+    }
+  }
+  return new Promise((resolve) => {
+    let count = 0
+    const handle = Timer.repeat(() => {
+      if (isPressed()) {
+        Timer.clear(handle)
+        resolve(true)
+      }
+      count++
+      if (count >= 10) {
+        Timer.clear(handle)
+        resolve(false)
+      }
+    }, 100)
+  })
+}
+
+export const onLaunch: StackchanMod['onLaunch'] = async () => {
+  const shouldEnter = await waitForKey()
+  if (!shouldEnter) {
     return
   }
   const render = new Poco(screen, { rotation: config.rotation, displayListLength: 2048 })

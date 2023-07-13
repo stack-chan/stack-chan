@@ -2,35 +2,35 @@
  * A simple BLE UART Client
  */
 function isBluetoothAvailable() {
-  return navigator.bluetooth != null;
+  return navigator.bluetooth != null
 }
 
-const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
+const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 const RX_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
 const TX_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
 
 class SimpleBLEClient {
-  #deviceName;
+  #deviceName
   #encoder = new TextEncoder()
   #decoder = new TextDecoder()
 
-  #device;
+  #device
   #onCharacteristicValueChanged
-  #tx_characteristic;
-  #rx_characteristic;
+  #tx_characteristic
+  #rx_characteristic
   constructor({ deviceName, onCharacteristicValueChanged }) {
-    this.#deviceName = deviceName;
+    this.#deviceName = deviceName
     this.#onCharacteristicValueChanged = onCharacteristicValueChanged
   }
 
   async connect() {
     if (!isBluetoothAvailable()) {
-      throw "Bluetooth not available";
+      throw 'Bluetooth not available'
     }
     if (this.#device != null) {
       await this.disconnect()
     }
-    const device = this.#device = await navigator.bluetooth.requestDevice({
+    const device = (this.#device = await navigator.bluetooth.requestDevice({
       acceptAllDevices: false,
       filters: [
         {
@@ -40,19 +40,19 @@ class SimpleBLEClient {
           services: [SERVICE_UUID],
         },
       ],
-    });
-    console.log("device found")
-    if ((device.gatt == null)) {
-      throw "The device has no gatt property";
+    }))
+    console.log('device found')
+    if (device.gatt == null) {
+      throw 'The device has no gatt property'
     }
-    device.addEventListener("gattserverdisconnected", () => {
-      console.warn("Disconnected");
-      this.onDisconnected?.();
-    });
+    device.addEventListener('gattserverdisconnected', () => {
+      console.warn('Disconnected')
+      this.onDisconnected?.()
+    })
 
-    const server = await device.gatt.connect();
+    const server = await device.gatt.connect()
     if (server == null) {
-      throw "Gatt connection failed"
+      throw 'Gatt connection failed'
     }
 
     const service = await server.getPrimaryService(SERVICE_UUID)
@@ -77,7 +77,7 @@ class SimpleBLEClient {
 
   async send(obj) {
     const buf = this.#encoder.encode(JSON.stringify(obj))
-    await this.#rx_characteristic?.writeValue(buf).catch(reason => {
+    await this.#rx_characteristic?.writeValue(buf).catch((reason) => {
       console.warn(`write failed: ${reason}`)
     })
   }

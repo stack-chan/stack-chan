@@ -11,6 +11,9 @@ jobs:
       - name: Build
         run: source $HOME/.local/share/xs-dev-export.sh && npm run build
         working-directory: ./firmware
+      - name: Build CoreS3
+        run: source $HOME/.local/share/xs-dev-export.sh && npm run build --target=esp32/m5stack_cores3
+        working-directory: ./firmware
       - name: Check Format
         run: npm run format
         working-directory: ./firmware

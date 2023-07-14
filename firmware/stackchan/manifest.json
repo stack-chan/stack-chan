@@ -15,9 +15,9 @@
         "$(MODULES)/base/structuredClone/manifest.json",
         "$(MODULES)/commodetto/outline/manifest.json",
         "$(MODULES)/data/text/decoder/manifest.json",
-		"$(MODULES)/files/preference/manifest.json",
+        "$(MODULES)/files/preference/manifest.json",
         "$(MODULES)/files/file/manifest_littlefs.json",
-		"$(MODULES)/network/ble/manifest_server.json",
+        "$(MODULES)/network/ble/manifest_server.json",
         "$(MODULES)/network/ble/manifest_client.json",
         "$(MODULES)/network/mdns/manifest.json",
         "$(MODULES)/pins/servo/manifest.json",
@@ -60,14 +60,14 @@
     "strip": [],
     "creation": {
         "static": 98304,
-		"chunk": {
-			"initial": 1536,
-			"incremental": 512
-		},
-		"heap": {
-			"initial": 512,
-			"incremental": 64
-		},
+        "chunk": {
+            "initial": 1536,
+            "incremental": 512
+        },
+        "heap": {
+            "initial": 512,
+            "incremental": 64
+        },
         "stack": 512,
         "keys": {
             "available": 512
@@ -89,14 +89,23 @@
         },
         "rotation": 90
     },
-	"resources": {
+    "resources": {
         "*-mask": [
             "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"
         ]
     },
+    "bundle": {
+        "id": "tech.moddable.stackchan",
+        "devices": [
+            "com.m5stack",
+            "com.m5stack.core2"
+        ]
+    },
     "platforms": {
         "esp32/m5stack_core2": {
-            "include": ["./manifest_8mb_flash.json"],
+            "include": [
+                "./manifest_8mb_flash.json"
+            ],
             "config": {
                 "driver": {
                     "pwmPan": 19,

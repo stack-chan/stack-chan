@@ -1,0 +1,14 @@
+{
+  "name": "stackchan-web",
+  "version": "0.1.0",
+  "description": "Stack-chan development server",
+  "scripts": {
+    "dev": "live-server --verbose"
+  },
+  "keywords": [],
+  "author": "Shinya Ishikawa",
+  "devDependencies": {
+    "live-server": "^1.2.2",
+    "prettier": "^3.0.0"
+  }
+}

@@ -1,6 +1,6 @@
 import SCServo from 'scservo'
 import Timer from 'timer'
-import type { Maybe, Rotation } from '../stackchan-util'
+import type { Maybe, Rotation } from 'stackchan-util'
 
 type SCServoDriverProps = {
   panId: number

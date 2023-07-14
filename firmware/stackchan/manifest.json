@@ -15,6 +15,7 @@
         "$(MODULES)/base/structuredClone/manifest.json",
         "$(MODULES)/commodetto/outline/manifest.json",
         "$(MODULES)/data/text/decoder/manifest.json",
+		"$(MODULES)/files/preference/manifest.json",
         "$(MODULES)/files/file/manifest_littlefs.json",
 		"$(MODULES)/network/ble/manifest_server.json",
         "$(MODULES)/network/ble/manifest_client.json",
@@ -27,18 +28,20 @@
     ],
     "modules": {
         "*": [
+            "$(MODULES)/network/ble/uart/uartserver",
+            "./ble/stk-server",
             "./ble/beacon-packet",
-            "./stackchan-mod",
-            "./main",
-            "./robot",
+            "./utilities/*",
             "./renderers/*",
             "./drivers/*",
+            "./services/*",
             "./speech/*",
             "./dialogue/*",
-            "./stackchan-util",
-            "./stk-server",
-            "./touch"
-        ]
+            "./touch",
+            "./robot",
+            "./main"
+        ],
+        "default-mods/*": "./default-mods/*"
     },
     "preload": [
         "http",
@@ -51,7 +54,7 @@
     ],
     "ble": {
         "*": [
-            "./ble/services/*"
+            "$(MODULES)/network/ble/uart/bleservices/*"
         ]
     },
     "strip": [],
@@ -85,6 +88,11 @@
             "receive": 16
         },
         "rotation": 90
+    },
+	"resources": {
+        "*-mask": [
+            "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"
+        ]
     },
     "platforms": {
         "esp32/m5stack_core2": {

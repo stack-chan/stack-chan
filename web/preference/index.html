@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <script type="module">
+    import SimpleBLEClient from './ble-client.mjs'
+
+    document.addEventListener('DOMContentLoaded', () => {
+      /**
+       * Views
+       */
+      const settingsForm = document.getElementById('settings-form')
+      const bleConnectButton = document.getElementById('ble-connect-button')
+      const updateView = () => {
+        if (client.isConnected()) {
+          bleConnectButton.classList.remove('active')
+          settingsForm.classList.add('active')
+        } else {
+          settingsForm.classList.remove('active')
+          bleConnectButton.classList.add('active')
+        }
+      }
+
+      /**
+       * Event Handlers
+       */
+      const handleConnectButtonClick = async () => {
+        console.log("Connecting")
+        await client.connect()
+        updateView()
+      }
+      const handleDisconnectButtonClick = async () => {
+        console.log("Disconnecting")
+        await client.disconnect()
+        updateView()
+      }
+
+      const toast = document.getElementById('toast')
+      toast.addEventListener('animationend', () => {
+        toast.className = 'toast'
+      })
+      const showToast = () => {
+        toast.classList.add('visible')
+      }
+
+      let submitting = null
+      const handleWifiSubmit = async (event) => {
+        event.preventDefault();
+        if (!client.isConnected()) {
+          console.warn('Not Connected')
+          return;
+        }
+        const ssid = document.getElementById('wifi-ssid').value.trimEnd()
+        const password = document.getElementById('wifi-password').value.trimEnd()
+        if (ssid == null || password == null) {
+          console.warn('Please set wifi ssid and password')
+          return;
+        }
+        await client.send({ _batch: { ssid, password } })
+        console.log('Sent')
+        submitting = setTimeout(() => {
+          console.error('Timeout')
+        }, 1000)
+      }
+      const handleCharacteristicWritten = ({ key, value }) => {
+        if (submitting != null) {
+          toast.innerText = 'Preference set [・＿・]'
+          showToast()
+          clearTimeout(submitting)
+          submitting = null
+        }
+        const elem = document.querySelector(`[name=${key}]`)
+        if (elem != null) {
+          elem.value = value
+        }
+      }
+
+      /**
+       * BLE Client
+       */
+      const client = new SimpleBLEClient({
+        deviceName: "stk",
+        onCharacteristicValueChanged: handleCharacteristicWritten
+      })
+      client.onDisconnected = () => {
+        updateView()
+      }
+
+      /**
+       * Bind
+       */
+      document.getElementById('ble-connect-button').addEventListener('click', handleConnectButtonClick)
+      document.getElementById('ble-disconnect-button').addEventListener('click', handleDisconnectButtonClick)
+      document.getElementById('form-wifi').addEventListener('submit', handleWifiSubmit)
+    })
+
+  </script>
+  <title>Document</title>
+</head>
+
+<body>
+  <div class="app">
+    <div>
+      <button class="accordion active" id="ble-connect-button">
+        Connect Stack-chan with BLE[・＿・]
+      </button>
+    </div>
+    <div class="accordion card" id="settings-form">
+      <h2>Stack-chan preferences</h2>
+      <div class="ble-disconnect-button" id="ble-disconnect-button" title="Disconnect">×</div>
+      <form class="form" id="form-wifi">
+        <h3>WiFi</h3>
+        <div class="form-group">
+          <label for="wifi-ssid">SSID: </label>
+          <input type="text" name="ssid" id="wifi-ssid" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="wifi-password">Password: </label>
+          <input type="password" name="password" id="wifi-password" autocomplete="off">
+        </div>
+        <h3>Face</h3>
+        <div class="form-group">
+          <label for="face-type">Type: </label>
+          <select name="face-type" id="face-type">
+            <option value="simple-face">Simple</option>
+            <option value="cat-face">Cat</option>
+          </select>
+        </div>
+        <h3>Servo</h3>
+        <div class="form-group">
+          <label for="servo-type">Type: </label>
+          <select name="servo-type" id="servo-type">
+            <option value="scservo">SCServo</option>
+            <option value="rs30x">RS30X</option>
+            <option value="none">None</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="servo-offset-pan">Offset Pan:</label>
+          <input type="number" name="servo-offset-pan" id="servo-offset-pan" value="0">
+        </div>
+        <div class="form-group">
+          <label for="servo-offset-tilt">Offset Tilt:</label>
+          <input type="number" name="servo-offset-tilt" id="servo-offset-tilt" value="0">
+        </div>
+        <h3>TTS</h3>
+        <div class="form-group">
+          <label for="tts-type">Type: </label>
+          <select name="tts-type" id="tts-type">
+            <option value="voicevox">VOICEVOX</option>
+            <option value="elevenlabs">ElevenLabs</option>
+            <option value="google-tts">Google TTS</option>
+            <option value="local">Local</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="tts-host">Host:</label>
+          <input type="text" name="tts-host" id="tts-host" value="my-tts-host.local">
+        </div>
+        <div class="form-group">
+          <label for="tts-port">Port:</label>
+          <input type="number" name="tts-port" id="tts-port" value="50021">
+        </div>
+        <h3>AI</h3>
+        <label for="ai-context">System Role:</label>
+        <textarea name="ai-context" id="ai-context" cols="30" rows="5"
+          placeholder="You are Stack-chan(スタックチャン), the palm sized super kawaii companion robot."></textarea>
+        <hr>
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+</body>
+
+</html>

@@ -1,5 +1,5 @@
 import Servo from 'pins/servo'
-import { Maybe, Rotation } from 'stackchan/stackchan-util'
+import { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'
 
 const INTERVAL = 16.5

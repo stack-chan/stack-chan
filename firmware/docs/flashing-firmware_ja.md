@@ -22,7 +22,7 @@
 
 ## 設定変更
 
-ｽﾀﾝｸﾁｬﾝが使うモータの種類やピンアサインなどをマニフェストファイルから変更できます。
+ｽﾀｯｸﾁｬﾝが使うモータの種類やピンアサインなどをマニフェストファイルから変更できます。
 ユーザが変更する設定は[`stack-chan/firmware/stackchan/manifest_local.json`](../stackchan/manifest_local.json)にまとまっています。
 `"config"`キーの配下に次のような設定が書けます。
 
@@ -122,9 +122,13 @@ modを書き込むパーティションの容量が大幅に増加します。
 $ npm run build
 $ npm run deploy
 
-# M5Stack CORE2の場合
+# M5Stack Core2の場合
 $ npm run build --target=esp32/m5stack_core2
 $ npm run deploy --target=esp32/m5stack_core2
+
+# M5Stack CoreS3の場合
+$ npm run build --target=esp32/m5stack_cores3
+$ npm run deploy --target=esp32/m5stack_cores3
 ```
 
 ビルドしたプログラムは`$MODDABLE/build/`ディレクトリ配下に保存されます。
@@ -139,6 +143,9 @@ $ npm run mod [modのマニフェストファイルのパス]
 
 # M5Stack Core2の場合
 $ npm run mod --target=esp32/m5stack_core2 [modのマニフェストファイルのパス]
+
+# M5Stack CoreS3の場合
+$ npm run mod --target=esp32/m5stack_cores3 [modのマニフェストファイルのパス]
 ```
 
 __例: [`mods/look_around`](../mods/look_around/)をインストールする__

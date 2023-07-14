@@ -15,7 +15,8 @@
         "$(MODULES)/base/structuredClone/manifest.json",
         "$(MODULES)/commodetto/outline/manifest.json",
         "$(MODULES)/data/text/decoder/manifest.json",
-        "$(MODULES)/files/file/manifest.json",
+		"$(MODULES)/files/preference/manifest.json",
+        "$(MODULES)/files/file/manifest_littlefs.json",
 		"$(MODULES)/network/ble/manifest_server.json",
         "$(MODULES)/network/ble/manifest_client.json",
         "$(MODULES)/network/mdns/manifest.json",
@@ -27,18 +28,20 @@
     ],
     "modules": {
         "*": [
+            "$(MODULES)/network/ble/uart/uartserver",
+            "./ble/stk-server",
             "./ble/beacon-packet",
-            "./stackchan-mod",
-            "./main",
-            "./robot",
+            "./utilities/*",
             "./renderers/*",
             "./drivers/*",
+            "./services/*",
             "./speech/*",
             "./dialogue/*",
-            "./stackchan-util",
-            "./stk-server",
-            "./touch"
-        ]
+            "./touch",
+            "./robot",
+            "./main"
+        ],
+        "default-mods/*": "./default-mods/*"
     },
     "preload": [
         "http",
@@ -51,7 +54,7 @@
     ],
     "ble": {
         "*": [
-            "./ble/services/*"
+            "$(MODULES)/network/ble/uart/bleservices/*"
         ]
     },
     "strip": [],
@@ -86,6 +89,11 @@
         },
         "rotation": 90
     },
+	"resources": {
+        "*-mask": [
+            "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"
+        ]
+    },
     "platforms": {
         "esp32/m5stack_core2": {
             "include": ["./manifest_8mb_flash.json"],
@@ -102,6 +110,26 @@
                     "receive": 13
                 },
                 "rotation": 0
+            }
+        },
+        "esp32/m5stack_cores3": {
+            "build": {
+                "PARTITIONS_FILE": "./sdkconfig/customPartitions.csv"
+            },
+            "config": {
+                "driver": {
+                    "pwmPan": 19,
+                    "pwmTilt": 27
+                },
+                "tts": {
+                    "sampleRate": 24000
+                },
+                "serial": {
+                    "transmit": 17,
+                    "receive": 18
+                },
+                "rotation": 0,
+                "virtualButton": true
             }
         }
     }

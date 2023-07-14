@@ -44,6 +44,15 @@
 					"sampleRate": 11025
 				}
 			}
+		},
+		"esp32/m5stack_cores3": {
+			"defines": {
+				"audioOut": {
+					"bitsPerSample": 16,
+					"numChannels": 1,
+					"sampleRate": 24000
+				}
+			}
 		}
 	}
 }

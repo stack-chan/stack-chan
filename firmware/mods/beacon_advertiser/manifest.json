@@ -1,7 +1,6 @@
 {
 	"include": [
-		"$(MODDABLE)/examples/manifest_base.json",
-		"$(MODDABLE)/modules/network/ble/manifest_server.json"
+		"$(MODDABLE)/examples/manifest_mod.json"
 	],
 	"resources": {
 		"*": "../beacon_scanner/assets/*"

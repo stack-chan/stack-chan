@@ -117,9 +117,13 @@ The following commands are used to build and write a host.
 $ npm run build
 $ npm run deploy
 
-# For M5Stack CORE2
+# For M5Stack Core2
 $ npm run build --target=esp32/m5stack_core2
 $ npm run deploy --target=esp32/m5stack_core2
+
+# For M5Stack CoreS3
+$ npm run build --target=esp32/m5stack_cores3
+$ npm run deploy --target=esp32/m5stack_cores3
 ```
 
 The program will be saved under the `$MODDABLE/build/` directory.
@@ -134,6 +138,9 @@ $ npm run mod [mod manifest file path]
 
 # For M5Stack Core2
 $ npm run mod --target=esp32/m5stack_core2 [mod manifest file path]
+
+# For M5Stack CoreS3
+$ npm run mod --target=esp32/m5stack_cores3 [mod manifest file path]
 ```
 
 __Example: Installing [`mods/look_around`](../mods/look_around/)__

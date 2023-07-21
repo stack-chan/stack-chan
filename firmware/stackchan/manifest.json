@@ -98,6 +98,7 @@
         "id": "tech.moddable.stackchan",
         "devices": [
             "com.m5stack",
+            "com.m5stack.fire",
             "com.m5stack.core2"
         ]
     },

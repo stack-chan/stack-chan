@@ -8,8 +8,6 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/setup
-        with:
-          target-branch: public
       - name: Bundle
         run: source $HOME/.local/share/xs-dev-export.sh && npm run bundle
         working-directory: ./firmware

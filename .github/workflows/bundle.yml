@@ -48,6 +48,7 @@ jobs:
       - name: Move Bundle
         run: |
           mkdir -p ./web/flash/tech.moddable.stackchan
+          rm -rf ./web/flash/tech.moddable.stackchan/*
           mv firmware-bundle/* ./web/flash/tech.moddable.stackchan
       - name: Commit and Push
         run: |

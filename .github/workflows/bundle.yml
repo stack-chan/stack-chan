@@ -20,8 +20,6 @@ jobs:
       - name: Setup
         if: steps.diff_check.outputs.diff_detected || steps.cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup
-        with:
-          target-branch: public
       - name: Bundle
         if: steps.diff_check.outputs.diff_detected || steps.cache.outputs.cache-hit != 'true'
         run: source $HOME/.local/share/xs-dev-export.sh && npm run bundle

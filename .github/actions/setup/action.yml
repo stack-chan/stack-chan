@@ -1,5 +1,10 @@
 name: Setup
 description: Setup Node.js, ModdableSDK and ESP-IDF environments
+inputs:
+  target-branch:
+    description: "Target branch to setup environment"
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -12,14 +17,18 @@ runs:
         cache-name: cache-node-modules
       with:
         path: ./firmware/node_modules
-        key:  ${{ runner.os }}-npm-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+        key: ${{ runner.os }}-npm-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
     - run: npm ci
       working-directory: ./firmware
       shell: bash
     - name: install Moddable
       run: |
         sudo apt-get update
-        npm run setup 
+        if [ -z "${{ inputs.target-branch }}" ]; then
+          npm run setup
+        else
+          npm run setup -- --target-branch ${{ inputs.target-branch }}
+        fi
       working-directory: ./firmware
       shell: bash
     - name: install ESP32

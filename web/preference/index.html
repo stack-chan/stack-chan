@@ -56,7 +56,7 @@
           console.warn('Not Connected')
           return;
         }
-        const keys = [
+        const props = [
           'wifi.ssid',
           'wifi.password',
           'driver.type',
@@ -71,26 +71,26 @@
           'ai.context',
         ]
         const payload = {}
-        for(const key of keys) {
-          const value = document.getElementById(key)?.value
+        for(const prop of props) {
+          const value = document.getElementById(prop)?.value
           if (value != null && value.trimEnd().length > 0) {
-            payload[key] = value
+            payload[prop] = value
           }
         }
         await client.send({ _batch: payload })
         console.log('Sent')
         submitting = setTimeout(() => {
           console.error('Timeout')
-        }, 1000)
+        }, 3000)
       }
-      const handleCharacteristicWritten = ({ key, value }) => {
+      const handleCharacteristicWritten = ({ prop, value }) => {
         if (submitting != null) {
           toast.innerText = 'Preference set [・＿・]'
           showToast()
           clearTimeout(submitting)
           submitting = null
         }
-        const elem = document.querySelector(`[name=${key}]`)
+        const elem = document.querySelector(`[name="${prop}"]`)
         if (elem != null) {
           elem.value = value
         }
@@ -133,11 +133,11 @@
           <h3>WiFi</h3>
           <div class="form-group">
             <label for="wifi.ssid">SSID: </label>
-            <input type="text" name="ssid" id="wifi.ssid" autocomplete="off">
+            <input type="text" name="wifi.ssid" id="wifi.ssid" autocomplete="off">
           </div>
           <div class="form-group">
             <label for="wifi.password">Password: </label>
-            <input type="password" name="password" id="wifi.password" autocomplete="off">
+            <input type="password" name="wifi.password" id="wifi.password" autocomplete="off">
           </div>
           <h3>Face</h3>
           <div class="form-group">

@@ -1,26 +1,16 @@
 import Timer from 'timer'
-import { randomBetween } from 'stackchan-util'
+import { randomBetween, loadPreferences } from 'stackchan-util'
 import WebSocket from 'WebSocket'
-import API_KEY from 'api-key'
-import { TTS } from 'tts-voicevox'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 
 const STT_HOST = 'stackchan-base.local'
-const TTS_HOST = 'stackchan-base.local'
 
 export function onRobotCreated(robot) {
-  // Configure TTS
-  robot.useTTS(
-    new TTS({
-      host: TTS_HOST,
-      port: 50021,
-      sampleRate: 24000,
-    })
-  )
-
   // Integrate ChatGPT
+  const aiPrefs = loadPreferences('ai')
+  trace(`ai.token: ${aiPrefs.token}\n`)
   const dialogue = new ChatGPTDialogue({
-    apiKey: API_KEY,
+    apiKey: aiPrefs.token,
   })
   let chatting = false
   async function chatAndSay(message) {
@@ -42,7 +32,8 @@ export function onRobotCreated(robot) {
   }
 
   // Connect to STT server
-  const ws = new WebSocket(`ws://${STT_HOST}:8080`)
+  const ttsPrefs = loadPreferences('tts')
+  const ws = new WebSocket(`ws://${ttsPrefs.host ?? STT_HOST}:8080`)
   ws.addEventListener('open', () => {
     trace('connected\n')
   })

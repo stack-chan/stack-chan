@@ -1,3 +1,20 @@
+import { DOMAIN, PREF_KEYS } from 'consts'
+import Preference from 'preference'
+import structuredClone from 'structuredClone'
+import config from 'mc/config'
+
+export function loadPreferences(category: keyof typeof DOMAIN) {
+  const preference = structuredClone(config[category.toLowerCase()]) ?? {}
+  const keys = PREF_KEYS.filter(s => s[0] === category)
+  for (const [domain, key, ctor] of keys) {
+    const value = Preference.get(domain, key)
+    if (value != null) {
+      preference[key] = ctor(value)
+    }
+  }
+  return preference
+}
+
 export function normRand(m: number, s: number): number {
   /**
    * Generates a random number with normal distribution.

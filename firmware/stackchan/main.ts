@@ -14,38 +14,8 @@ import defaultMod, { StackchanMod } from 'default-mods/mod'
 import { Renderer as SimpleRenderer } from 'face-renderer'
 import { Renderer as DogFaceRenderer } from 'dog-face-renderer'
 import { NetworkService } from 'network-service'
-import { DOMAIN } from 'consts'
 import Touch from 'touch'
-import Preference from 'preference'
-import structuredClone from 'structuredClone'
-
-const PREF_KEYS: [string, StringConstructor | NumberConstructor][] = [
-  ['wifi.ssid', String],
-  ['wifi.password', String],
-  ['renderer.type', String],
-  ['driver.type', String],
-  ['driver.offsetPan', Number],
-  ['driver.offsetTilt', Number],
-  ['tts.type', String],
-  ['tts.host', String],
-  ['tts.port', Number],
-  ['tts.token', String],
-  ['ai.token', String],
-  ['ai.context', String],
-]
-
-function loadPreferences(category) {
-  const preference = structuredClone(config[category]) ?? {}
-  const keys = PREF_KEYS.filter(s => s[0].startsWith(category + '.'))
-  for (const [key, ctor] of keys) {
-    const value = Preference.get(DOMAIN, key)
-    if (value != null) {
-      const k = key.split('.')[1]
-      preference[k] = ctor(value)
-    }
-  }
-  return preference
-}
+import { loadPreferences } from 'stackchan-util'
 
 function createRobot() {
   const drivers = new Map<string, new (param: unknown) => Driver>([

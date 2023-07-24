@@ -5,7 +5,7 @@ import config from 'mc/config'
 
 export function loadPreferences(category: keyof typeof DOMAIN) {
   const preference = structuredClone(config[category.toLowerCase()]) ?? {}
-  const keys = PREF_KEYS.filter(s => s[0] === category)
+  const keys = PREF_KEYS.filter((s) => s[0] === category)
   for (const [domain, key, ctor] of keys) {
     const value = Preference.get(domain, key)
     if (value != null) {

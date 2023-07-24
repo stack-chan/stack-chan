@@ -60,13 +60,13 @@ export class PreferenceServer extends UARTServer {
   onRX(data) {
     this.#rxBuffer += String.fromArrayBuffer(data)
     trace(this.#rxBuffer + '\n')
-    let _batch, prop, value;
+    let _batch, prop, value
     try {
       const obj = JSON.parse(this.#rxBuffer)
       _batch = obj._batch
       prop = obj.prop
       value = obj.value
-    } catch(e) {
+    } catch (e) {
       trace('not completed\n')
       if (this.#timeout == null) {
         this.#timeout = Timer.set(() => {

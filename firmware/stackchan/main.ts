@@ -17,6 +17,35 @@ import { NetworkService } from 'network-service'
 import { DOMAIN } from 'consts'
 import Touch from 'touch'
 import Preference from 'preference'
+import structuredClone from 'structuredClone'
+
+const PREF_KEYS: [string, StringConstructor | NumberConstructor][] = [
+  ['wifi.ssid', String],
+  ['wifi.password', String],
+  ['renderer.type', String],
+  ['driver.type', String],
+  ['driver.offsetPan', Number],
+  ['driver.offsetTilt', Number],
+  ['tts.type', String],
+  ['tts.host', String],
+  ['tts.port', Number],
+  ['tts.token', String],
+  ['ai.token', String],
+  ['ai.context', String],
+]
+
+function loadPreferences(category) {
+  const preference = structuredClone(config[category]) ?? {}
+  const keys = PREF_KEYS.filter(s => s[0].startsWith(category + '.'))
+  for (const [key, ctor] of keys) {
+    const value = Preference.get(DOMAIN, key)
+    if (value != null) {
+      const k = key.split('.')[1]
+      preference[k] = ctor(value)
+    }
+  }
+  return preference
+}
 
 function createRobot() {
   const drivers = new Map<string, new (param: unknown) => Driver>([
@@ -40,15 +69,18 @@ function createRobot() {
   const errors: string[] = []
 
   // Servo Driver
-  const driverKey = config.driver?.type ?? 'scservo'
+  const driverPrefs = loadPreferences('driver')
+  const driverKey = driverPrefs.type ?? 'scservo'
   const Driver = drivers.get(driverKey)
 
   // TTS
-  const ttsKey = config.tts?.type ?? 'local'
+  const ttsPrefs = loadPreferences('tts')
+  const ttsKey = ttsPrefs.type ?? 'local'
   const TTS = ttsEngines.get(ttsKey)
 
   // Renderer
-  const rendererKey = config.renderer?.type ?? 'simple'
+  const rendererPrefs = loadPreferences('renderer')
+  const rendererKey = rendererPrefs.type ?? 'simple'
   const Renderer = renderers.get(rendererKey)
 
   if (!Driver || !TTS || !Renderer) {
@@ -65,13 +97,13 @@ function createRobot() {
   }
 
   const driver = new Driver({
-    ...config.driver,
+    driverPrefs,
   })
   const renderer = new Renderer({
-    ...config.renderer,
+    rendererPrefs,
   })
   const tts = new TTS({
-    ...config.tts,
+    ttsPrefs,
   })
   const button = globalThis.button
   const touch = !global.screen.touch && config.Touch ? new Touch() : undefined
@@ -85,15 +117,14 @@ function createRobot() {
 }
 
 async function checkAndConnectWiFi() {
-  const ssid = Preference.get(DOMAIN, 'ssid')
-  const password = Preference.get(DOMAIN, 'password')
-  if (ssid == null || password == null) {
+  const wifiPrefs = loadPreferences('wifi')
+  if (wifiPrefs.ssid == null || wifiPrefs.password == null) {
     return
   }
   return new Promise((resolve, reject) => {
     globalThis.network = new NetworkService({
-      ssid,
-      password,
+      ssid: wifiPrefs.ssid,
+      password: wifiPrefs.password,
     })
     globalThis.network.connect(resolve, reject)
   })

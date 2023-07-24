@@ -44,7 +44,7 @@ export class PreferenceServer extends UARTServer {
         const [domain, key] = item
         const currentValue = Preference.get(domain, key)
         if (currentValue != null) {
-          this.notifyPreference(key, currentValue)
+          this.notifyPreference(`${domain}.${key}`, currentValue)
         }
       }
     }

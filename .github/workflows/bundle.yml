@@ -1,5 +1,11 @@
 name: Bundle Stack-chan Firmware
-on: [push]
+on: 
+  push:
+    branches:
+      - dev/v1.0
+  pull_request:
+    branches:
+      - dev/v1.0
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,7 +39,7 @@ jobs:
 
   deploy:
     needs: build
-    if: needs.build.outputs.diff_detected || needs.build.outputs.cache-hit != 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev/v1.0'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Pages Branch

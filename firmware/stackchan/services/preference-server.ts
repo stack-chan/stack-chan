@@ -1,4 +1,4 @@
-import { UARTServer } from 'uartserver'
+import { UARTServer, SERVICE_UUID } from 'uartserver'
 import Preference from 'preference'
 import { DOMAIN } from 'consts'
 
@@ -29,7 +29,9 @@ export class PreferenceServer extends UARTServer {
     this.#handleConnected?.()
   }
   onDisconnected() {
-    super.onDisconnected()
+    this.startAdvertising({
+      advertisingData: { flags: 6, completeName: this.deviceName, completeUUID128List: [SERVICE_UUID] },
+    })
     this.#handleDisconnected?.()
   }
   onCharacteristicNotifyEnabled(characteristic) {

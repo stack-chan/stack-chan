@@ -43,7 +43,7 @@ export function onRobotCreated(robot) {
   })
   ws.addEventListener('message', (payload) => {
     if (payload.data != null && payload.data.length > 1) {
-      const { role, message } = JSON.parse(paylaod.data)
+      const { role, message } = JSON.parse(payload.data)
       if (role === 'user') {
         chatAndSay(message)
       }

@@ -26,6 +26,12 @@ export function onRobotCreated(robot) {
 
     const messages = result.value.split(/[。！？]/).filter((m) => m.length > 0)
     for (const message of messages) {
+      ws.send(
+        JSON.stringify({
+          role: 'assistant',
+          message,
+        })
+      )
       await robot.say(message)
     }
     chatting = false
@@ -37,10 +43,12 @@ export function onRobotCreated(robot) {
   ws.addEventListener('open', () => {
     trace('connected\n')
   })
-  ws.addEventListener('message', (message) => {
-    trace(`received: ${message.data}`)
-    if (message.data != null && message.data.length > 1) {
-      chatAndSay(message.data)
+  ws.addEventListener('message', (payload) => {
+    if (payload.data != null && payload.data.length > 1) {
+      const { role, message } = JSON.parse(payload.data)
+      if (role === 'user') {
+        chatAndSay(message)
+      }
     }
   })
   ws.addEventListener('close', () => {

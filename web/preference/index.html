@@ -50,31 +50,47 @@
 
       let submitting = null
       const handleWifiSubmit = async (event) => {
+        console.log('handlewifi')
         event.preventDefault();
         if (!client.isConnected()) {
           console.warn('Not Connected')
           return;
         }
-        const ssid = document.getElementById('wifi-ssid').value.trimEnd()
-        const password = document.getElementById('wifi-password').value.trimEnd()
-        if (ssid == null || password == null) {
-          console.warn('Please set wifi ssid and password')
-          return;
+        const props = [
+          'wifi.ssid',
+          'wifi.password',
+          'driver.type',
+          'driver.offsetPan',
+          'driver.offsetTilt',
+          'renderer.type',
+          'tts.type',
+          'tts.host',
+          'tts.port',
+          'tts.token',
+          'ai.token',
+          'ai.context',
+        ]
+        const payload = {}
+        for (const prop of props) {
+          const value = document.getElementById(prop)?.value
+          if (value != null && value.trimEnd().length > 0) {
+            payload[prop] = value
+          }
         }
-        await client.send({ _batch: { ssid, password } })
+        await client.send({ _batch: payload })
         console.log('Sent')
         submitting = setTimeout(() => {
           console.error('Timeout')
-        }, 1000)
+        }, 3000)
       }
-      const handleCharacteristicWritten = ({ key, value }) => {
+      const handleCharacteristicWritten = ({ prop, value }) => {
         if (submitting != null) {
           toast.innerText = 'Preference set [・＿・]'
           showToast()
           clearTimeout(submitting)
           submitting = null
         }
-        const elem = document.querySelector(`[name=${key}]`)
+        const elem = document.querySelector(`[name="${prop}"]`)
         if (elem != null) {
           elem.value = value
         }
@@ -84,7 +100,7 @@
        * BLE Client
        */
       const client = new SimpleBLEClient({
-        deviceName: "stk",
+        deviceName: "STK",
         onCharacteristicValueChanged: handleCharacteristicWritten
       })
       client.onDisconnected = () => {
@@ -96,7 +112,7 @@
        */
       document.getElementById('ble-connect-button').addEventListener('click', handleConnectButtonClick)
       document.getElementById('ble-disconnect-button').addEventListener('click', handleDisconnectButtonClick)
-      document.getElementById('form-wifi').addEventListener('submit', handleWifiSubmit)
+      document.getElementById('form-preference').addEventListener('submit', handleWifiSubmit)
     })
 
   </script>
@@ -113,45 +129,46 @@
     <div class="accordion card" id="settings-form">
       <h2>Stack-chan preferences</h2>
       <div class="ble-disconnect-button" id="ble-disconnect-button" title="Disconnect">×</div>
-      <form class="form" id="form-wifi">
+      <form class="form" id="form-preference">
         <h3>WiFi</h3>
         <div class="form-group">
-          <label for="wifi-ssid">SSID: </label>
-          <input type="text" name="ssid" id="wifi-ssid" autocomplete="off">
+          <label for="wifi.ssid">SSID: </label>
+          <input type="text" name="wifi.ssid" id="wifi.ssid" autocomplete="off">
         </div>
         <div class="form-group">
-          <label for="wifi-password">Password: </label>
-          <input type="password" name="password" id="wifi-password" autocomplete="off">
+          <label for="wifi.password">Password: </label>
+          <input type="password" name="wifi.password" id="wifi.password" autocomplete="off">
         </div>
         <h3>Face</h3>
         <div class="form-group">
-          <label for="face-type">Type: </label>
-          <select name="face-type" id="face-type">
-            <option value="simple-face">Simple</option>
-            <option value="cat-face">Cat</option>
+          <label for="renderer.type">Type: </label>
+          <select name="renderer.type" id="renderer.type">
+            <option value="simple">Simple</option>
+            <option value="dog">Dog</option>
           </select>
         </div>
         <h3>Servo</h3>
         <div class="form-group">
-          <label for="servo-type">Type: </label>
-          <select name="servo-type" id="servo-type">
+          <label for="driver.type">Type: </label>
+          <select name="driver.type" id="driver.type">
             <option value="scservo">SCServo</option>
             <option value="rs30x">RS30X</option>
+            <option value="pwm">PWM(SG-90)</option>
             <option value="none">None</option>
           </select>
         </div>
         <div class="form-group">
-          <label for="servo-offset-pan">Offset Pan:</label>
-          <input type="number" name="servo-offset-pan" id="servo-offset-pan" value="0">
+          <label for="driver.offsetPan">Offset Pan:</label>
+          <input type="number" name="driver.offsetPan" id="driver.offsetPan" value="0">
         </div>
         <div class="form-group">
-          <label for="servo-offset-tilt">Offset Tilt:</label>
-          <input type="number" name="servo-offset-tilt" id="servo-offset-tilt" value="0">
+          <label for="driver.offsetTilt">Offset Tilt:</label>
+          <input type="number" name="driver.offsetTilt" id="driver.offsetTilt" value="0">
         </div>
         <h3>TTS</h3>
         <div class="form-group">
-          <label for="tts-type">Type: </label>
-          <select name="tts-type" id="tts-type">
+          <label for="tts.type">Type: </label>
+          <select name="tts.type" id="tts.type">
             <option value="voicevox">VOICEVOX</option>
             <option value="elevenlabs">ElevenLabs</option>
             <option value="google-tts">Google TTS</option>
@@ -159,16 +176,24 @@
           </select>
         </div>
         <div class="form-group">
-          <label for="tts-host">Host:</label>
-          <input type="text" name="tts-host" id="tts-host" value="my-tts-host.local">
+          <label for="tts.host">Host:</label>
+          <input type="text" name="tts.host" id="tts.host" placeholder="my-tts-host.local">
         </div>
         <div class="form-group">
-          <label for="tts-port">Port:</label>
-          <input type="number" name="tts-port" id="tts-port" value="50021">
+          <label for="tts.port">Port:</label>
+          <input type="number" name="tts.port" id="tts.port" placeholder="50021">
+        </div>
+        <div class="form-group">
+          <label for="tts.token">Token:</label>
+          <input type="text" name="tts.token" id="tts.token">
         </div>
         <h3>AI</h3>
-        <label for="ai-context">System Role:</label>
-        <textarea name="ai-context" id="ai-context" cols="30" rows="5"
+        <div class="form-group">
+          <label for="ai.token">Token:</label>
+          <input type="text" name="ai.token" id="ai.token">
+        </div>
+        <label for="ai.context">System Role:</label>
+        <textarea name="ai.context" id="ai.context" cols="30" rows="5"
           placeholder="You are Stack-chan(スタックチャン), the palm sized super kawaii companion robot."></textarea>
         <hr>
         <button type="submit">Submit</button>

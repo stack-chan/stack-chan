@@ -77,9 +77,14 @@ class SimpleBLEClient {
 
   async send(obj) {
     const buf = this.#encoder.encode(JSON.stringify(obj))
-    await this.#rx_characteristic?.writeValue(buf).catch((reason) => {
-      console.warn(`write failed: ${reason}`)
-    })
+    const chunkSize = 128 // Choose an appropriate chunk size
+
+    for (let i = 0; i < buf.length; i += chunkSize) {
+      const chunk = buf.slice(i, i + chunkSize)
+      await this.#rx_characteristic?.writeValue(chunk).catch((reason) => {
+        console.warn(`write failed: ${reason}`)
+      })
+    }
   }
 }
 

@@ -18,13 +18,6 @@ body {
   justify-content: space-around;
 }
 
-.accordion {
-  display: none;
-}
-
-.accordion.active {
-  display: block;
-}
 .card {
   position: relative;
   background-color: white;
@@ -45,15 +38,6 @@ button {
 
 .card h1,h2,h3,h4,h5,h6 {
   margin: 0.3em 0;
-}
-
-.ble-disconnect-button {
-  position: absolute;
-  right: 0.5em;
-  top: 0.5em;
-  font-size: 1.2em;
-  color: #bdbdbd;
-  cursor: pointer;
 }
 
 .form {

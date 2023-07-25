@@ -1,0 +1,17 @@
+.app {
+	font-size: 1.8em;
+	justify-content:center;
+	max-width: 300px;
+	gap: .5em;
+	margin: auto;
+}
+.select-target {
+	max-height: 2.5em;
+	width: 100%;
+}
+.button-flash-container {
+	width: 100%;
+}
+.button-flash {
+	width: 100%;
+}

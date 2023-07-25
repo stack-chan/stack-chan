@@ -26,10 +26,12 @@ export function onRobotCreated(robot) {
 
     const messages = result.value.split(/[。！？]/).filter((m) => m.length > 0)
     for (const message of messages) {
-      ws.send(JSON.stringify({
-        role: 'assistant',
-        message,
-      }))
+      ws.send(
+        JSON.stringify({
+          role: 'assistant',
+          message,
+        })
+      )
       await robot.say(message)
     }
     chatting = false

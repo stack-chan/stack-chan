@@ -50,7 +50,8 @@ export class NetworkService {
               trace(`Got time from: ${config.sntp}\n`)
               Time.set(value)
               onConnected?.()
-            } else if (SNTP.error === (message as -1 | 1 | 2)) { // workaround for the type mistake
+            } else if (SNTP.error === (message as -1 | 1 | 2)) {
+              // workaround for the type mistake
               onError?.('Failed to get time')
             }
           })

@@ -9,7 +9,8 @@ const MODEL = 'gpt-3.5-turbo'
 const CONTEXT = [
   {
     role: 'system',
-    content: 'You are "スタックちゃん(Stack-chan)", the palm sized super kawaii companion robot baby. You must response in a short sentense.',
+    content:
+      'You are "スタックちゃん(Stack-chan)", the palm sized super kawaii companion robot baby. You must response in a short sentense.',
   },
   {
     role: 'assistant',

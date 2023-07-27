@@ -63,7 +63,7 @@ export class ChatGPTDialogue {
     this.#model = model
     this.#context = context
     this.#history = []
-    this.#maxHistory = 10
+    this.#maxHistory = 6
     this.#headers = new Headers([
       ['Content-Type', 'application/json'],
       ['Authorization', `Bearer ${apiKey}`],

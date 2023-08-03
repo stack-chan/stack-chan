@@ -30,8 +30,8 @@
 | ----------------- | ----------------------------------------------- | ------------------------------------------- |
 | driver.type       | モータドライバの種類                            | "scservo", "rs30x", "pwm", "none"           |
 | driver.panId      | パン軸（首の横回転）に使うシリアルサーボの ID   | 1~254                                       |
-| driver.tiltId     | チルト軸（首の横回転）に使うシリアルサーボの ID | 1~254                                       |
-| driver.offsetPan  | チルト軸のオフセット                            | -90~90                                      |
+| driver.tiltId     | チルト軸（首の縦回転）に使うシリアルサーボの ID | 1~254                                       |
+| driver.offsetPan  | パン軸のオフセット                            | -90~90                                      |
 | driver.offsetTilt | チルト軸のオフセット                            | -90~90                                      |
 | tts.type          | [TTS](./text-to-speech_ja.md) の種類                                      | "local", "voicevox"                         |
 | tts.host          | TTS がサーバと通信する場合のホスト名            | "localhost", "ttsserver.local" などの文字列 |

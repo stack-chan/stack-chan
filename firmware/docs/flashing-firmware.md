@@ -27,7 +27,7 @@ StackChan can change settings such as motor types and pin assignments from the m
 | driver.type     | Type of motor driver                            | "scservo", "rs30x", "pwm", "none"           |
 | driver.panId    | ID of the serial servo used for pan axis (horizontal rotation of the neck) | 1~254                                       |
 | driver.tiltId   | ID of the serial servo used for tilt axis (vertical rotation of the neck) | 1~254                                       |
-| driver.offsetPan  | Offset of the tilt axis                            | -90~90                                      |
+| driver.offsetPan  | Offset of the pan axis                            | -90~90                                      |
 | driver.offsetTilt | Offset of the tilt axis                            | -90~90                                      |
 | tts.type          | [TTS](./text-to-speech.md) type                                      | "local", "voicevox"                         |
 | tts.host          | Host name when TTS communicates with server           | "localhost", "ttsserver.local", etc. |

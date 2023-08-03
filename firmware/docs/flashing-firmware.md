@@ -110,6 +110,7 @@ Simply add the following code to your manifest file:
 
 ## Writing the base program (hosts)
 
+As stated above, Stack-chan's firmware comprises a base program (host) and a user application (MOD).
 The following commands are used to build and write a host.
 
 _No `sudo` required for the command._

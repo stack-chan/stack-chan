@@ -147,6 +147,10 @@ $ npm run mod --target=esp32/m5stack_core2 [mod manifest file path]
 $ npm run mod --target=esp32/m5stack_cores3 [mod manifest file path]
 ```
 
+If written correctly, the face of Stack-chan will be displayed a few seconds after startup.
+Press the A button on the M5Stack (or the lower left area of the screen in the case of CoreS3)
+and confirm that Stack-chan looks in a random direction every 5 seconds.
+
 __Example: Installing [`mods/look_around`](../mods/look_around/)__
 
 ```console

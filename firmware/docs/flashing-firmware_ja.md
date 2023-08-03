@@ -114,7 +114,7 @@ modを書き込むパーティションの容量が大幅に増加します。
 
 ## ホストの書き込み
 
-次のコマンドでホストの書き込みを行います。
+_コマンドに`sudo`をつける必要はありません。_
 
 
 ```console
@@ -135,7 +135,7 @@ $ npm run deploy --target=esp32/m5stack_cores3
 
 ## MODの書き込み
 
-次のコマンドでMODの書き込みを行います。
+_コマンドに`sudo`をつける必要はありません。_
 
 ```console
 # M5Stack Basic/Gray/Fireの場合

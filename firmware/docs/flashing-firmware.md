@@ -112,6 +112,8 @@ Simply add the following code to your manifest file:
 
 The following commands are used to build and write a host.
 
+_No `sudo` required for the command._
+
 ```console
 # For M5Stack Basic/Gray/Fire
 $ npm run build
@@ -131,6 +133,8 @@ The program will be saved under the `$MODDABLE/build/` directory.
 ## Writing MODs
 
 The following command is used to build and write a mod.
+
+_No `sudo` required for the command._
 
 ```console
 # For M5Stack Basic/Gray/Fire

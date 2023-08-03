@@ -108,7 +108,7 @@ Simply add the following code to your manifest file:
 }
 ```
 
-## Writing hosts
+## Writing the base program (hosts)
 
 The following commands are used to build and write a host.
 
@@ -130,7 +130,7 @@ $ npm run deploy --target=esp32/m5stack_cores3
 
 The program will be saved under the `$MODDABLE/build/` directory.
 
-## Writing MODs
+## (Optional) Writing user application (mods)
 
 The following command is used to build and write a mod.
 

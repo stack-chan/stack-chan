@@ -3838,7 +3838,7 @@
     (uuid 00000000-0000-0000-0000-000062f8bb17)
     (property "Reference" "R13" (id 0) (at 227.33 96.52 90))
     (property "Value" "0" (id 1) (at 229.87 96.1136 90))
-    (property "Footprint" "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder" (id 2) (at 229.87 97.282 90)
+    (property "Footprint" "Resistor_SMD:R_0603_1608Metric" (id 2) (at 229.87 97.282 90)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (id 3) (at 229.87 99.06 0)
@@ -3853,7 +3853,7 @@
     (uuid 00000000-0000-0000-0000-000062f969a1)
     (property "Reference" "R14" (id 0) (at 227.33 123.19 90))
     (property "Value" "0" (id 1) (at 229.87 122.7836 90))
-    (property "Footprint" "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder" (id 2) (at 229.87 123.952 90)
+    (property "Footprint" "Resistor_SMD:R_0603_1608Metric" (id 2) (at 229.87 123.952 90)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (id 3) (at 229.87 125.73 0)
@@ -3982,7 +3982,7 @@
     (property "Value" "2SA1015" (id 1) (at 97.5614 130.683 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Footprint" "Package_TO_SOT_SMD:SOT-23" (id 2) (at 97.79 131.445 0)
+    (property "Footprint" "m5-pantilt:2SA1015_SOT-23" (id 2) (at 97.79 131.445 0)
       (effects (font (size 1.27 1.27) italic) (justify left) hide)
     )
     (property "Datasheet" "http://www.datasheetcatalog.org/datasheet/toshiba/905.pdf" (id 3) (at 92.71 129.54 0)
@@ -4095,7 +4095,7 @@
     (property "Value" "Conn_01x03" (id 1) (at 250.952 110.4646 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" (id 2) (at 248.92 109.22 0)
+    (property "Footprint" "Connector_JST:JST_EH_B3B-EH-A_1x03_P2.50mm_Vertical" (id 2) (at 248.92 109.22 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (id 3) (at 248.92 109.22 0)
@@ -4115,7 +4115,7 @@
     (property "Value" "Conn_01x03" (id 1) (at 250.952 85.0646 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" (id 2) (at 248.92 83.82 0)
+    (property "Footprint" "Connector_JST:JST_EH_B3B-EH-A_1x03_P2.50mm_Vertical" (id 2) (at 248.92 83.82 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (id 3) (at 248.92 83.82 0)
@@ -4338,7 +4338,7 @@
       (reference "J2") (unit 1) (value "Conn_02x15_Odd_Even") (footprint "Connector_PinSocket_2.54mm:PinSocket_2x15_P2.54mm_Vertical_SMD")
     )
     (path "/00000000-0000-0000-0000-000064d4e0a6"
-      (reference "J3") (unit 1) (value "Conn_01x03") (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (reference "J3") (unit 1) (value "Conn_01x03") (footprint "Connector_JST:JST_EH_B3B-EH-A_1x03_P2.50mm_Vertical")
     )
     (path "/00000000-0000-0000-0000-000060ca66e1"
       (reference "J4") (unit 1) (value "Conn_01x04") (footprint "Connector_JST:JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal")
@@ -4353,13 +4353,13 @@
       (reference "J7") (unit 1) (value "5V_POWER") (footprint "Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical")
     )
     (path "/00000000-0000-0000-0000-000064d3a231"
-      (reference "J8") (unit 1) (value "Conn_01x03") (footprint "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical")
+      (reference "J8") (unit 1) (value "Conn_01x03") (footprint "Connector_JST:JST_EH_B3B-EH-A_1x03_P2.50mm_Vertical")
     )
     (path "/00000000-0000-0000-0000-000061ddc391"
       (reference "Q1") (unit 1) (value "IRLML6402") (footprint "Package_TO_SOT_SMD:SOT-23")
     )
     (path "/00000000-0000-0000-0000-000064bdb211"
-      (reference "Q2") (unit 1) (value "2SA1015") (footprint "Package_TO_SOT_SMD:SOT-23")
+      (reference "Q2") (unit 1) (value "2SA1015") (footprint "m5-pantilt:2SA1015_SOT-23")
     )
     (path "/202ce841-9799-487b-99b7-75e313de629f"
       (reference "R1") (unit 1) (value "10k") (footprint "Resistor_SMD:R_0603_1608Metric")
@@ -4398,10 +4398,10 @@
       (reference "R12") (unit 1) (value "0") (footprint "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder")
     )
     (path "/00000000-0000-0000-0000-000062f8bb17"
-      (reference "R13") (unit 1) (value "0") (footprint "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder")
+      (reference "R13") (unit 1) (value "0") (footprint "Resistor_SMD:R_0603_1608Metric")
     )
     (path "/00000000-0000-0000-0000-000062f969a1"
-      (reference "R14") (unit 1) (value "0") (footprint "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder")
+      (reference "R14") (unit 1) (value "0") (footprint "Resistor_SMD:R_0603_1608Metric")
     )
     (path "/00000000-0000-0000-0000-000064ba6374"
       (reference "R15") (unit 1) (value "2.2k") (footprint "Resistor_SMD:R_0603_1608Metric")

@@ -49,7 +49,10 @@
         }
       },
       "diff_pair_dimensions": [],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        "silk_overlap|108798655|89944864|1d20c966-0439-42a1-b5e3-5e76b52f827f|93afd2e8-e16c-4e06-b872-cf0e624aee35",
+        "silk_overlap|108799568|60221890|fec2ae03-3539-4fc7-9da2-1b1336bf787c|a4911204-1308-4d17-90a9-1ff5f9c57c9b"
+      ],
       "meta": {
         "filename": "board_design_settings.json",
         "version": 2
@@ -80,7 +83,7 @@
         "padstack": "error",
         "pth_inside_courtyard": "ignore",
         "shorting_items": "error",
-        "silk_over_copper": "warning",
+        "silk_over_copper": "ignore",
         "silk_overlap": "warning",
         "skew_out_of_range": "error",
         "through_hole_pad_without_hole": "error",

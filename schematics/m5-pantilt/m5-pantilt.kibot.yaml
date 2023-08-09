@@ -8,7 +8,7 @@ global:
   - number: 1007
   - number: 1015
   - number: 58
-  out_dir: Generated
+  out_dir: generated
 
 import:
 - file: JLCPCB

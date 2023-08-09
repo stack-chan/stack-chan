@@ -1,0 +1,65 @@
+name: Bundle Stack-chan Firmware
+on: 
+  push:
+    branches:
+      - dev/v1.0
+  pull_request:
+    branches:
+      - dev/v1.0
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Check for changes in firmware
+        id: diff_check
+        run: |
+          git diff --quiet HEAD^ HEAD -- ./firmware/ || echo "::set-output name=diff_detected::true"
+      - name: Cache build results
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: ./firmware/stackchan/tech.moddable.stackchan
+          key: ${{ github.sha }}
+      - name: Setup
+        if: steps.diff_check.outputs.diff_detected || steps.cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/setup
+      - name: Bundle
+        if: steps.diff_check.outputs.diff_detected || steps.cache.outputs.cache-hit != 'true'
+        run: source $HOME/.local/share/xs-dev-export.sh && npm run bundle
+        working-directory: ./firmware
+      - name: Upload Firmware Bundle
+        if: steps.diff_check.outputs.diff_detected || steps.cache.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v2
+        with:
+          name: firmware-bundle
+          path: ./firmware/stackchan/tech.moddable.stackchan
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev/v1.0'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Pages Branch
+        uses: actions/checkout@v3
+        with:
+          ref: gh-pages
+      - name: Download Firmware Bundle
+        uses: actions/download-artifact@v2
+        with:
+          name: firmware-bundle
+          path: ./firmware-bundle
+      - name: Move Bundle
+        run: |
+          mkdir -p ./web/flash/tech.moddable.stackchan
+          rm -rf ./web/flash/tech.moddable.stackchan/*
+          mv firmware-bundle/* ./web/flash/tech.moddable.stackchan
+      - name: Commit and Push
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add .
+          git commit -m "Deploy firmware bundle from ${{ github.sha }}"
+          git push

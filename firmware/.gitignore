@@ -3,3 +3,6 @@
 /scripts/key.json
 /tsconfig.json
 /docs/api
+
+# Bundle file
+/stackchan/tech.moddable.stackchan*

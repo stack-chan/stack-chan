@@ -5,7 +5,10 @@ declare module 'uartserver' {
     onConnected(): void
     onDisconnected(): void
     onRX(data: ArrayBuffer): void
+    startAdvertising(params: unknown): void
   }
 
-  export { UARTServer }
+  const SERVICE_UUID: string
+
+  export { UARTServer, SERVICE_UUID }
 }

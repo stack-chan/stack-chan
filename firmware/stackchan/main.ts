@@ -14,9 +14,8 @@ import defaultMod, { StackchanMod } from 'default-mods/mod'
 import { Renderer as SimpleRenderer } from 'face-renderer'
 import { Renderer as DogFaceRenderer } from 'dog-face-renderer'
 import { NetworkService } from 'network-service'
-import { DOMAIN } from 'consts'
 import Touch from 'touch'
-import Preference from 'preference'
+import { loadPreferences } from 'stackchan-util'
 
 function createRobot() {
   const drivers = new Map<string, new (param: unknown) => Driver>([
@@ -40,15 +39,18 @@ function createRobot() {
   const errors: string[] = []
 
   // Servo Driver
-  const driverKey = config.driver?.type ?? 'scservo'
+  const driverPrefs = loadPreferences('driver')
+  const driverKey = driverPrefs.type ?? 'scservo'
   const Driver = drivers.get(driverKey)
 
   // TTS
-  const ttsKey = config.tts?.type ?? 'local'
+  const ttsPrefs = loadPreferences('tts')
+  const ttsKey = ttsPrefs.type ?? 'local'
   const TTS = ttsEngines.get(ttsKey)
 
   // Renderer
-  const rendererKey = config.renderer?.type ?? 'simple'
+  const rendererPrefs = loadPreferences('renderer')
+  const rendererKey = rendererPrefs.type ?? 'simple'
   const Renderer = renderers.get(rendererKey)
 
   if (!Driver || !TTS || !Renderer) {
@@ -64,15 +66,9 @@ function createRobot() {
     throw new Error(errors.join('\n'))
   }
 
-  const driver = new Driver({
-    ...config.driver,
-  })
-  const renderer = new Renderer({
-    ...config.renderer,
-  })
-  const tts = new TTS({
-    ...config.tts,
-  })
+  const driver = new Driver(driverPrefs)
+  const renderer = new Renderer(rendererPrefs)
+  const tts = new TTS(ttsPrefs)
   const button = globalThis.button
   const touch = !global.screen.touch && config.Touch ? new Touch() : undefined
   return new Robot({
@@ -85,15 +81,14 @@ function createRobot() {
 }
 
 async function checkAndConnectWiFi() {
-  const ssid = Preference.get(DOMAIN, 'ssid')
-  const password = Preference.get(DOMAIN, 'password')
-  if (ssid == null || password == null) {
+  const wifiPrefs = loadPreferences('wifi')
+  if (wifiPrefs.ssid == null || wifiPrefs.password == null) {
     return
   }
   return new Promise((resolve, reject) => {
     globalThis.network = new NetworkService({
-      ssid,
-      password,
+      ssid: wifiPrefs.ssid,
+      password: wifiPrefs.password,
     })
     globalThis.network.connect(resolve, reject)
   })

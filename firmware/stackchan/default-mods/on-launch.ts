@@ -6,14 +6,14 @@ import { PreferenceServer } from 'preference-server'
 import Preference from 'preference'
 import type { StackchanMod } from 'default-mods/mod'
 import config from 'mc/config'
-import { DOMAIN } from 'consts'
+import { DOMAIN, PREF_KEYS } from 'consts'
 import Timer from 'timer'
 
 type Status = {
   ble: string
   wifi: string
-  ssid?: string
-  password?: string
+  'wifi.ssid'?: string
+  'wifi.password'?: string
 }
 
 async function waitForKey(): Promise<boolean> {
@@ -59,8 +59,8 @@ export const onLaunch: StackchanMod['onLaunch'] = async () => {
   const status: Status = {
     ble: 'not connected',
     wifi: 'not connected',
-    ssid: String(Preference.get(DOMAIN, 'ssid')),
-    password: String(Preference.get(DOMAIN, 'password')),
+    'wifi.ssid': String(Preference.get(DOMAIN.wifi, 'ssid')),
+    'wifi.password': String(Preference.get(DOMAIN.wifi, 'password')),
   }
 
   const drawStatus = (status) => {
@@ -69,8 +69,8 @@ export const onLaunch: StackchanMod['onLaunch'] = async () => {
     if (status.ble === 'not connected') {
       render.drawText('Waiting BLE...', font, white, 10, 40)
     }
-    render.drawText(`SSID: ${status.ssid ?? 'not set'}`, font, white, 10, 80)
-    render.drawText(`password: ${status.password?.replace(/./g, '*') ?? 'not set'}`, font, white, 10, 110)
+    render.drawText(`SSID: ${status['wifi.ssid'] ?? 'not set'}`, font, white, 10, 80)
+    render.drawText(`password: ${status['wifi.password']?.replace(/./g, '*') ?? 'not set'}`, font, white, 10, 110)
     render.drawText(`connection: ${status.wifi}`, font, white, 10, 140)
     render.drawText('press A to test connection', font, white, 10, 200)
     render.end()
@@ -91,20 +91,20 @@ export const onLaunch: StackchanMod['onLaunch'] = async () => {
       status.ble = 'not connected'
       drawStatus(status)
     },
-    keys: ['ssid', 'password'],
+    keys: PREF_KEYS,
   })
 
   let networkService
   if (globalThis.button) {
     globalThis.button.a.onChanged = function () {
-      if (status.ssid.length > 0 && status.password.length > 0) {
+      if (status['wifi.ssid'].length > 0 && status['wifi.password'].length > 0) {
         if (networkService != null) {
           networkService.close()
           networkService = null
         }
         networkService = new NetworkService({
-          ssid: status.ssid,
-          password: status.password,
+          ssid: status['wifi.ssid'],
+          password: status['wifi.password'],
         })
         networkService.connect(
           () => {

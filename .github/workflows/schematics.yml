@@ -21,9 +21,8 @@ jobs:
         schema: schematics/m5-pantilt/m5-pantilt.kicad_sch
         board: schematics/m5-pantilt/m5-pantilt.kicad_pcb
         dir: generated
-      
     - name: Upload Results
       uses: actions/upload-artifact@v2
       with:
         name: schematics-files
-        path: ./schematics/m5-pantilt/Generated
+        path: generated

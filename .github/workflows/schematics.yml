@@ -17,7 +17,8 @@ jobs:
     - uses: actions/checkout@v3
     - uses: INTI-CMNB/KiBot@v2_k7
       with:
-        config: schematics/m5-pantilt/m5-pantilt.kibot.yaml
+        config: m5-pantilt.kibot.yaml
+      working-directory: ./schematics/m5-pantilt
     - name: Upload Results
       uses: actions/upload-artifact@v2
       with:

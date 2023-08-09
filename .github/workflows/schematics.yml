@@ -1,0 +1,25 @@
+name: Generate Stack-chan Schematics Files
+on:
+  push:
+    paths:
+    - '**.kicad_sch'
+    - '**.kicad_pcb'
+    - '.github/workflows/schematics.yml'
+  pull_request:
+    paths:
+      - '**.kicad_sch'
+      - '**.kicad_pcb'
+      - '.github/workflows/schematics.yml'
+jobs:
+  build-schematics:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: INTI-CMNB/KiBot@v2_k7
+      with:
+        config: schematics/m5-pantilt/5-pantilt.kibot.yaml
+    - name: Upload Results
+      uses: actions/upload-artifact@v2
+      with:
+        name: schematics-files
+        path: ./schematics/m5-pantilt/Generated

@@ -42,6 +42,16 @@ const INSTRUCTION = {
 } as const
 type Instruction = typeof INSTRUCTION[keyof typeof INSTRUCTION]
 
+export const OPERATING_MODE = {
+  CURRENT: 0x00,
+  VELOCITY: 0x01,
+  POSITION: 0x03,
+  EXTENDED_POSITION: 0x04,
+  CURRENT_BASE_POSITION: 0x05,
+  PWM: 0x10,
+} as const
+type OperatingMode = typeof OPERATING_MODE[keyof typeof OPERATING_MODE]
+
 const ADDRESS = {
   MODEL_NUMBER: 0,
   MODEL_INFORMATION: 2,
@@ -54,7 +64,9 @@ const ADDRESS = {
   HOMING_OFFSET: 20,
   TORQUE_ENABLE: 64,
   LED: 65,
+  GOAL_CURRENT: 102,
   GOAL_POSITION: 116,
+  PRESENT_CURRENT: 126,
   PRESENT_POSITION: 132,
 } as const
 
@@ -68,7 +80,7 @@ const RX_STATE = {
 type RxState = typeof RX_STATE[keyof typeof RX_STATE]
 
 class PacketHandler extends Serial {
-  #callbacks: Map<number, (bytes: number[]) => void>
+  #callbacks: Map<number, (bytes: Uint8Array) => void>
   #rxBuffer: Uint8Array
   #idx: number
   #state: RxState
@@ -111,7 +123,7 @@ class PacketHandler extends Serial {
                 // trace(`got echo.  ... ${rxBuf.slice(0, this.#idx)} ignoring\n`)
               } else {
                 trace(`got response for ${id}. triggering callback ... ${rxBuf.slice(0, this.#idx)} \n`)
-                this.#callbacks.get(id)(Array.from(rxBuf.slice(5, this.#idx - 1)))
+                this.#callbacks.get(id)?.(rxBuf.slice(7, this.#idx - 1))
               }
               this.#idx = 0
               this.#state = RX_STATE.SEEK
@@ -138,7 +150,7 @@ class PacketHandler extends Serial {
   hasCallbackOf(id: number): boolean {
     return this.#callbacks.has(id)
   }
-  registerCallback(id: number, callback: (bytes: number[]) => void) {
+  registerCallback(id: number, callback: (bytes: Uint8Array) => void) {
     this.#callbacks.set(id, callback)
   }
   removeCallback(id: number) {
@@ -147,21 +159,11 @@ class PacketHandler extends Serial {
 }
 
 /**
- * calculates checksum of the SCS packets
+ * calculates checksum
  * @param arr packet array except checksum
  * @returns checksum number
  */
 function checksum(arr: number[] | Uint8Array): number {
-  let sum = 0
-  for (const n of arr) {
-    sum += n
-  }
-  const cs = (~sum) & 0xff
-  // trace(`>>>checksum is ${new Uint8Array([cs])[0]}: ${arr}\n`)
-  return cs
-}
-
-function checksumV2(arr: number[] | Uint8Array): number {
   let crc16 = 0
   for (const n of arr) {
     crc16 ^= (n << 8)
@@ -192,9 +194,9 @@ class Dynamixel {
     })
   }
   #id: number
-  #onCommandRead: (values: number[]) => void
+  #onCommandRead: (values: Uint8Array) => void
   #txBuf: Uint8Array
-  #promises: Array<[(values: number[]) => void, Timer]>
+  #promises: Array<[(values: Uint8Array) => void, Timer]>
   #offset: number
   constructor({ id }: DynamixelConstructorParam) {
     this.#id = id
@@ -212,10 +214,7 @@ class Dynamixel {
       Dynamixel.packetHandler = new PacketHandler({
         receive: config.serial?.receive ?? 16,
         transmit: config.serial?.transmit ?? 17,
-        // baud: 9600,
         baud: 57_600,
-        // baud: 115200,
-        // baud: 1000000,
         port: 2,
       })
     }
@@ -231,7 +230,7 @@ class Dynamixel {
     return this.#id
   }
 
-  async #sendCommand(instruction: Instruction, address: number, ...parameters: number[]): Promise<number[]> {
+  async #sendCommand(instruction: Instruction, address: number, ...parameters: number[]): Promise<Uint8Array> {
     this.#txBuf[0] = 0xff
     this.#txBuf[1] = 0xff
     this.#txBuf[2] = 0xfd
@@ -251,7 +250,7 @@ class Dynamixel {
       idx++
     }
 
-    const crc = checksumV2(this.#txBuf.slice(0, idx))
+    const crc = checksum(this.#txBuf.slice(0, idx))
     this.#txBuf[idx] = crc & 0xff
     idx++
     this.#txBuf[idx] = (crc >> 8) & 0xff
@@ -295,11 +294,21 @@ class Dynamixel {
     return offset
   }
 
+  async setOperatingMode(mode: OperatingMode): Promise<unknown> {
+    await this.setTorque(false)
+    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.OPERATING_MODE, mode)
+  }
+
+  async setGoalCurrent(current: number): Promise<unknown> {
+    const a = current & 0xff
+    const b = (current >> 8) & 0xff
+    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_CURRENT, a, b)
+  }
+
   async setGoalPosition(position: number): Promise<unknown> {
     const a = position & 0xff
     const b = (position >> 8) & 0xff
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_POSITION, a, b, 0x00, 0x00)
-
   }
 
   async setLED(on: boolean): Promise<unknown> {
@@ -367,6 +376,24 @@ class Dynamixel {
    */
   async setTorque(enable: boolean): Promise<unknown> {
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.TORQUE_ENABLE, Number(enable))
+  }
+
+  async readPresentCurrent(): Promise<Maybe<{ current: number }>> {
+    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_CURRENT, 2)
+    if (values != null) {
+      trace(`values: ${values}\n`)
+      return {
+        success: true,
+        value: {
+          current: values[0]
+        }
+      }
+    }
+    else {
+      return {
+        success: false
+      }
+    }
   }
 
   /**

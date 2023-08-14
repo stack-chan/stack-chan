@@ -22,8 +22,8 @@ function le(v: number): [number, number] {
 function el(h: number, l: number) {
   return ((h << 8) & 0xff00) + (l & 0xff)
 }
-function lle(a, b, c, _d): number {
-  return ((c & 0xff) << 16) | ((b & 0xff) << 8) | (a & 0xff)
+function lle(a, b, c, d): number {
+  return ((d & 0xff) << 24) | ((c & 0xff) << 16) | ((b & 0xff) << 8) | (a & 0xff)
 }
 
 const INSTRUCTION = {
@@ -47,7 +47,7 @@ export const OPERATING_MODE = {
   VELOCITY: 0x01,
   POSITION: 0x03,
   EXTENDED_POSITION: 0x04,
-  CURRENT_BASE_POSITION: 0x05,
+  CURRENT_BASED_POSITION: 0x05,
   PWM: 0x10,
 } as const
 type OperatingMode = typeof OPERATING_MODE[keyof typeof OPERATING_MODE]
@@ -69,7 +69,6 @@ const ADDRESS = {
   PRESENT_CURRENT: 126,
   PRESENT_POSITION: 132,
 } as const
-
 type Address = typeof ADDRESS[keyof typeof ADDRESS]
 
 const RX_STATE = {
@@ -122,7 +121,7 @@ class PacketHandler extends Serial {
               if (command !== INSTRUCTION.STATUS) {
                 // trace(`got echo.  ... ${rxBuf.slice(0, this.#idx)} ignoring\n`)
               } else {
-                trace(`got response for ${id}. triggering callback ... ${rxBuf.slice(0, this.#idx)} \n`)
+                // trace(`got response for ${id}. triggering callback ... ${rxBuf.slice(0, this.#idx)} \n`)
                 this.#callbacks.get(id)?.(rxBuf.slice(7, this.#idx - 1))
               }
               this.#idx = 0
@@ -230,85 +229,86 @@ class Dynamixel {
     return this.#id
   }
 
-  async #sendCommand(instruction: Instruction, address: number, ...parameters: number[]): Promise<Uint8Array> {
+  async #sendCommand(instruction: Instruction, address?: number, ...parameters: number[]): Promise<Uint8Array> {
     this.#txBuf[0] = 0xff
     this.#txBuf[1] = 0xff
     this.#txBuf[2] = 0xfd
     this.#txBuf[3] = 0x00
     this.#txBuf[4] = this.#id
 
-    const len = parameters.length + 5 // params + instruction(1) + address(2) + crc(2)
+    const len = parameters.length + (address == null ? 0 : 2) + 3 // params + instruction(1) + address(2) + crc(2)
     this.#txBuf[5] = len & 0xff
     this.#txBuf[6] = (len >> 8) & 0xff
     this.#txBuf[7] = instruction // write or read
-    this.#txBuf[8] = address & 0xff
-    this.#txBuf[9] = (address >> 8) & 0xff
+    let idx = 8
+    if (address) {
+      this.#txBuf[idx++] = address & 0xff
+      this.#txBuf[idx++] = (address >> 8) & 0xff
+    }
 
-    let idx = 10
     for (const v of parameters) {
-      this.#txBuf[idx] = v
-      idx++
+      this.#txBuf[idx++] = v
     }
 
     const crc = checksum(this.#txBuf.slice(0, idx))
-    this.#txBuf[idx] = crc & 0xff
-    idx++
-    this.#txBuf[idx] = (crc >> 8) & 0xff
-    idx++
+    this.#txBuf[idx++] = crc & 0xff
+    this.#txBuf[idx++] = (crc >> 8) & 0xff
+    /*
     trace('writing: ')
     for (let n of this.#txBuf.slice(0, idx)) {
       trace(Number(n).toString(16).padStart(2, '0'))
       trace(' ')
     }
     trace('\n')
+    */
     for (let i = 0; i < idx; i++) {
       Dynamixel.packetHandler.write(this.#txBuf[i])
     }
     return new Promise((resolve, _reject) => {
       const id = Timer.set(() => {
         this.#promises.shift()
-        // trace(`timeout. ${this.#promises.length}\n`)
+        trace(`timeout. ${this.#promises.length}\n`)
         resolve(undefined)
-      }, 40)
+      }, 200)
       this.#promises.push([resolve, id])
     })
   }
 
-  async readModelNumber(): Promise<number> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.MODEL_NUMBER, 2)
-    return el(values[0], values[1])
-  }
-
-  /**
-   * reads offset angle
-   * @note SCS series does not have zero position calibration function.
-   *  The offset value should be handled by the application.
-   */
-  async readOffsetAngle(): Promise<number> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.HOMING_OFFSET, 2)
-    const isCcw = Boolean(values[0] & 0x8000)
-    let offset = ((values[0] & 0x7fff) << 8) | values[1]
-    if (isCcw) {
-      offset *= -1
-    }
-    return offset
+  async reboot(): Promise<unknown> {
+    return this.#sendCommand(INSTRUCTION.REBOOT)
   }
 
   async setOperatingMode(mode: OperatingMode): Promise<unknown> {
     await this.setTorque(false)
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.OPERATING_MODE, mode)
+    const values = await this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.OPERATING_MODE, mode)
+    trace(`values: ${values}\n`)
+    return
   }
 
   async setGoalCurrent(current: number): Promise<unknown> {
     const a = current & 0xff
     const b = (current >> 8) & 0xff
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_CURRENT, a, b)
+    const values = await this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_CURRENT, a, b)
+    trace(`values: ${values}\n`)
+    return
   }
 
   async setGoalPosition(position: number): Promise<unknown> {
     const a = position & 0xff
     const b = (position >> 8) & 0xff
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_POSITION, a, b, 0x00, 0x00)
+    const c = (position >> 16) & 0xff
+    const d = (position >> 24) & 0xff
+    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_POSITION, a, b, c, d)
+  }
+
+  /**
+   * 
+   * @param angle angle in degree(0~360)
+   * @returns 
+   */
+  async setGoalAngle(angle: number): Promise<unknown> {
+    const position = angle * 4096 / 360
+    return this.setGoalPosition(position)
   }
 
   async setLED(on: boolean): Promise<unknown> {
@@ -337,6 +337,7 @@ class Dynamixel {
     if (Dynamixel.packetHandler.hasCallbackOf(id)) {
       throw new Error(`id(${id}) is already used\n`)
     }
+    await this.setTorque(false)
     const promise = this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.ID, id)
     const oldId = this.#id
     this.#id = id
@@ -344,29 +345,6 @@ class Dynamixel {
     await promise
     Dynamixel.packetHandler.removeCallback(oldId)
     return
-  }
-
-  /**
-   * sets angle immediately
-   * @param angle angle(degree)
-   * @returns TBD
-   */
-  async setAngle(angle: number): Promise<unknown> {
-    const a = Math.floor(clamp(((angle + this.#offset) * 1024) / 200, 0, 0x03ff))
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_POSITION, ...le(a))
-  }
-
-  /**
-   * sets angle within goal time
-   * @param angle angle(degree)
-   * @param goalTime time(millisecond)
-   * @returns TBD
-   */
-  async setAngleInTime(angle: number, goalTime: number): Promise<unknown> {
-    // 0 <= a <= 1023
-    const a = Math.floor(clamp(((angle + this.#offset) * 1024) / 200, 0, 0x03ff))
-    const res = await this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_POSITION, ...le(a), ...le(goalTime))
-    return res
   }
 
   /**
@@ -378,14 +356,57 @@ class Dynamixel {
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.TORQUE_ENABLE, Number(enable))
   }
 
-  async readPresentCurrent(): Promise<Maybe<{ current: number }>> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_CURRENT, 2)
-    if (values != null) {
-      trace(`values: ${values}\n`)
+  async readModelNumber(): Promise<number> {
+    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.MODEL_NUMBER, 2)
+    return el(values[0], values[1])
+  }
+
+  async readFirmwareVersion(): Promise<Maybe<{ version: number }>> {
+    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.VERSION_OF_FIRMWARE, 1)
+    if (values != null && values[1] == 0) {
       return {
         success: true,
         value: {
-          current: values[0]
+          version: values[2]
+        }
+      }
+    } else {
+      return {
+        success: false,
+        reason: 'failed to read firmware version'
+      }
+    }
+  }
+
+  /**
+   * reads offset angle
+   * @note SCS series does not have zero position calibration function.
+   *  The offset value should be handled by the application.
+   */
+  async readOffsetAngle(): Promise<number> {
+    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.HOMING_OFFSET, 2)
+    const isCcw = Boolean(values[0] & 0x8000)
+    let offset = ((values[1] & 0x7fff) << 8) | values[0]
+    if (isCcw) {
+      offset *= -1
+    }
+    return offset
+  }
+
+  async readPresentCurrent(): Promise<Maybe<{ current: number }>> {
+    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_CURRENT, 2)
+    if (values != null) {
+      if (values[1] != 0) {
+        return {
+          success: false,
+          reason: `servo returned error code: ${values[1]}`
+        }
+      }
+      const current = values[2] | (values[3] << 8)
+      return {
+        success: true,
+        value: {
+          current: current >= 0x8000 ? current - 0x10000 : current,
         }
       }
     }
@@ -396,22 +417,28 @@ class Dynamixel {
     }
   }
 
-  /**
-   * reads servo's present status
-   * @returns angle(degree)
-   */
-  async readStatus(): Promise<Maybe<{ angle: number }>> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_POSITION, 15)
-    if (values == null || values.length < 15) {
+  async readPresentPosition(): Promise<Maybe<{ position: number }>> {
+    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_POSITION, 4)
+    if (values != null) {
+      if (values[1] != 0) {
+        return {
+          success: false,
+          reason: `servo returned error code: ${values[1]}`
+        }
+      }
+      trace(`values: ${values}\n`)
+      const position = values[2] | (values[3] << 8)
       return {
-        success: false,
-        reason: 'response corrupted.',
+        success: true,
+        value: {
+          position: position >= 0x8000 ? position - 0x10000 : position,
+        },
       }
     }
-    const angle = (el(values[0], values[1]) * 200) / 1024
-    return {
-      success: true,
-      value: { angle },
+    else {
+      return {
+        success: false
+      }
     }
   }
 }

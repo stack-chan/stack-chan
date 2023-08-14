@@ -9,10 +9,10 @@ export async function onLaunch() {
   let toruqeEnable = true
   let count = 0
   const servo = new Dynamixel({
-    id: 1
+    id: 1,
   })
   const servo2 = new Dynamixel({
-    id: 2
+    id: 2,
   })
   trace('operating mode\n')
   await servo.setOperatingMode(OPERATING_MODE.CURRENT_BASED_POSITION)
@@ -41,7 +41,7 @@ export async function onLaunch() {
     }
     const result = await servo.readPresentPosition()
     if (!result.success) {
-      trace(`failed: ${ result.reason }\n`)
+      trace(`failed: ${result.reason}\n`)
       return
     }
     const position = result.value.position
@@ -52,7 +52,7 @@ export async function onLaunch() {
 
     const result2 = await servo2.readPresentPosition()
     if (!result2.success) {
-      trace(`2 failed: ${ result2.reason }\n`)
+      trace(`2 failed: ${result2.reason}\n`)
       return
     }
     const position2 = result2.value.position

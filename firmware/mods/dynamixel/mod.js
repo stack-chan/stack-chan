@@ -18,6 +18,9 @@ export async function onLaunch() {
   await servo.setOperatingMode(OPERATING_MODE.CURRENT_BASED_POSITION)
   await servo2.setOperatingMode(OPERATING_MODE.CURRENT_BASED_POSITION)
 
+  await servo.setProfileAcceleration(20)
+  await servo.setProfileVelocity(100)
+  await servo2.setProfileVelocity(20)
   trace('enable torque\n')
   await servo.setTorque(toruqeEnable)
   await servo2.setTorque(toruqeEnable)
@@ -39,12 +42,18 @@ export async function onLaunch() {
       await servo.setGoalPosition(pos[0])
       await servo2.setGoalPosition(pos[1])
     }
+
+    const { value: velocity } = await servo.readPresentVelocity()
+    if (velocity != null) {
+      trace(`present velocity: ${velocity}\n`)
+    }
+
     const result = await servo.readPresentPosition()
     if (!result.success) {
       trace(`failed: ${result.reason}\n`)
       return
     }
-    const position = result.value.position
+    const position = result.value
     // trace(`pos: ${ position } \n`)
     const current = Math.min(Math.abs(pos[0] - position) * P_GAIN, 80)
     // trace(`current: ${current}\n`)
@@ -55,7 +64,7 @@ export async function onLaunch() {
       trace(`2 failed: ${result2.reason}\n`)
       return
     }
-    const position2 = result2.value.position
+    const position2 = result2.value
     // trace(`pos2: ${ position2 } \n`)
     const current2 = Math.min(Math.abs(pos[1] - position2) * P_GAIN2, 100)
     // trace(`current2: ${current2}\n`)

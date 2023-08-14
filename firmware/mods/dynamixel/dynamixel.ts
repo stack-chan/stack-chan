@@ -66,7 +66,10 @@ const ADDRESS = {
   LED: 65,
   GOAL_CURRENT: 102,
   GOAL_POSITION: 116,
+  PROFILE_ACCELERATION: 108,
+  PROFILE_VELOCITY: 112,
   PRESENT_CURRENT: 126,
+  PRESENT_VELOCITY: 128,
   PRESENT_POSITION: 132,
 } as const
 type Address = typeof ADDRESS[keyof typeof ADDRESS]
@@ -285,6 +288,22 @@ class Dynamixel {
     return
   }
 
+  async setProfileAcceleration(accel: number): Promise<unknown> {
+    const a = accel & 0xff
+    const b = (accel >> 8) & 0xff
+    const c = (accel >> 16) & 0xff
+    const d = (accel >> 24) & 0xff
+    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.PROFILE_ACCELERATION, a, b, c, d)
+  }
+
+  async setProfileVelocity(vel: number): Promise<unknown> {
+    const a = vel & 0xff
+    const b = (vel >> 8) & 0xff
+    const c = (vel >> 16) & 0xff
+    const d = (vel >> 24) & 0xff
+    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.PROFILE_VELOCITY, a, b, c, d)
+  }
+
   async setGoalCurrent(current: number): Promise<unknown> {
     const a = current & 0xff
     const b = (current >> 8) & 0xff
@@ -417,7 +436,29 @@ class Dynamixel {
     }
   }
 
-  async readPresentPosition(): Promise<Maybe<{ position: number }>> {
+  async readPresentVelocity(): Promise<Maybe<number>> {
+    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_VELOCITY, 4)
+    if (values != null) {
+      if (values[1] != 0) {
+        return {
+          success: false,
+          reason: `servo returned error code: ${values[1]}`
+        }
+      }
+      const velocity = values[2] | (values[3] << 8)
+      return {
+        success: true,
+        value: velocity >= 0x8000 ? velocity - 0x10000 : velocity,
+      }
+    }
+    else {
+      return {
+        success: false
+      }
+    }
+  }
+
+  async readPresentPosition(): Promise<Maybe< number >> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_POSITION, 4)
     if (values != null) {
       if (values[1] != 0) {
@@ -429,9 +470,7 @@ class Dynamixel {
       const position = values[2] | (values[3] << 8)
       return {
         success: true,
-        value: {
-          position: position >= 0x8000 ? position - 0x10000 : position,
-        },
+        value: position >= 0x8000 ? position - 0x10000 : position,
       }
     }
     else {

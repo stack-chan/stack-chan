@@ -281,7 +281,7 @@ class Dynamixel {
   async setOperatingMode(mode: OperatingMode): Promise<unknown> {
     await this.setTorque(false)
     const values = await this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.OPERATING_MODE, mode)
-    trace(`values: ${values}\n`)
+    // trace(`values: ${values}\n`)
     return
   }
 
@@ -289,7 +289,7 @@ class Dynamixel {
     const a = current & 0xff
     const b = (current >> 8) & 0xff
     const values = await this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_CURRENT, a, b)
-    trace(`values: ${values}\n`)
+    // trace(`values: ${values}\n`)
     return
   }
 
@@ -426,7 +426,6 @@ class Dynamixel {
           reason: `servo returned error code: ${values[1]}`
         }
       }
-      trace(`values: ${values}\n`)
       const position = values[2] | (values[3] << 8)
       return {
         success: true,

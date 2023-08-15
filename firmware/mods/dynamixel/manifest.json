@@ -6,8 +6,7 @@
 	],
 	"modules": {
 		"*": [
-			"./mod",
-			"./dynamixel"
+			"./mod"
 		]
 	}
 }

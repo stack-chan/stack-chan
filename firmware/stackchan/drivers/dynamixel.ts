@@ -26,6 +26,8 @@ function lle(a, b, c, d): number {
   return ((d & 0xff) << 24) | ((c & 0xff) << 16) | ((b & 0xff) << 8) | (a & 0xff)
 }
 
+let packetHandler: PacketHandler = null
+
 const INSTRUCTION = {
   PING: 0x01,
   READ: 0x02,
@@ -97,10 +99,14 @@ class PacketHandler extends Serial {
         bytes -= 1
         switch (this.#state) {
           case RX_STATE.SEEK:
+            if (this.#idx === 1 && rxBuf[0] !== 0xff) {
+              this.#idx = 0
+            }
+            if (this.#idx === 2 && rxBuf[1] !== 0xff) {
+              this.#idx = 0
+            }
             if (this.#idx >= 3) {
-              // see header
-              if (rxBuf[0] === 0xff && rxBuf[1] === 0xff && rxBuf[2] === 0xfd) {
-                // packet found
+              if (rxBuf[2] === 0xfd) {
                 this.#state = RX_STATE.HEAD
               } else {
                 // reset seek
@@ -121,10 +127,13 @@ class PacketHandler extends Serial {
             if (this.#count === 0) {
               const id = rxBuf[4]
               const command = rxBuf[7] as Instruction
-              if (command !== INSTRUCTION.STATUS) {
+              if (command === INSTRUCTION.WRITE || command === INSTRUCTION.READ) {
                 // trace(`got echo.  ... ${rxBuf.slice(0, this.#idx)} ignoring\n`)
+              } else if (command === INSTRUCTION.STATUS ) {
+                trace(`got response for ${id}. triggering callback ... ${rxBuf.slice(0, this.#idx)} \n`)
+                this.#callbacks.get(id)?.(rxBuf.slice(7, this.#idx - 1))
               } else {
-                // trace(`got response for ${id}. triggering callback ... ${rxBuf.slice(0, this.#idx)} \n`)
+                // trace(`something wrong for ${id}. ${rxBuf.slice(0, this.#idx)} \n`)
                 this.#callbacks.get(id)?.(rxBuf.slice(7, this.#idx - 1))
               }
               this.#idx = 0
@@ -187,8 +196,10 @@ type DynamixelConstructorParam = {
 class Dynamixel {
   static packetHandler: PacketHandler
   static setBaud(baud: number): void {
-    Dynamixel.packetHandler?.close()
-    Dynamixel.packetHandler = new PacketHandler({
+    // Dynamixel.packetHandler?.close()
+    // Dynamixel.packetHandler = new PacketHandler({
+    packetHandler?.close()
+    packetHandler = new PacketHandler({
       receive: config.serial?.receive ?? 16,
       transmit: config.serial?.transmit ?? 17,
       baud,
@@ -212,21 +223,21 @@ class Dynamixel {
       }
     }
     this.#txBuf = new Uint8Array(64)
-    if (Dynamixel.packetHandler == null) {
-      Dynamixel.packetHandler = new PacketHandler({
+    if (packetHandler == null) {
+      packetHandler = new PacketHandler({
         receive: config.serial?.receive ?? 16,
         transmit: config.serial?.transmit ?? 17,
         baud: 57_600,
         port: 2,
       })
     }
-    if (Dynamixel.packetHandler.hasCallbackOf(id)) {
+    if (packetHandler.hasCallbackOf(id)) {
       throw new Error('This id is already instantiated')
     }
-    Dynamixel.packetHandler.registerCallback(this.#id, this.#onCommandRead)
+    packetHandler.registerCallback(this.#id, this.#onCommandRead)
   }
   teardown(): void {
-    Dynamixel.packetHandler.removeCallback(this.#id)
+    packetHandler.removeCallback(this.#id)
   }
   get id(): number {
     return this.#id
@@ -265,7 +276,7 @@ class Dynamixel {
     trace('\n')
     */
     for (let i = 0; i < idx; i++) {
-      Dynamixel.packetHandler.write(this.#txBuf[i])
+      packetHandler.write(this.#txBuf[i])
     }
     return new Promise((resolve, _reject) => {
       const id = Timer.set(() => {
@@ -275,6 +286,11 @@ class Dynamixel {
       }, 200)
       this.#promises.push([resolve, id])
     })
+  }
+
+
+  async factoryReset(): Promise<unknown> {
+    return this.#sendCommand(INSTRUCTION.FACTORY_RESET, null, 0x01)
   }
 
   async reboot(): Promise<unknown> {
@@ -317,6 +333,7 @@ class Dynamixel {
     const b = (position >> 8) & 0xff
     const c = (position >> 16) & 0xff
     const d = (position >> 24) & 0xff
+    trace(`${a}, ${b}, ${c}, ${d}\n`)
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_POSITION, a, b, c, d)
   }
 
@@ -353,16 +370,16 @@ class Dynamixel {
   }
 
   async flashId(id: number): Promise<unknown> {
-    if (Dynamixel.packetHandler.hasCallbackOf(id)) {
+    if (packetHandler.hasCallbackOf(id)) {
       throw new Error(`id(${id}) is already used\n`)
     }
     await this.setTorque(false)
     const promise = this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.ID, id)
     const oldId = this.#id
     this.#id = id
-    Dynamixel.packetHandler.registerCallback(this.#id, this.#onCommandRead)
+    packetHandler.registerCallback(this.#id, this.#onCommandRead)
     await promise
-    Dynamixel.packetHandler.removeCallback(oldId)
+    packetHandler.removeCallback(oldId)
     return
   }
 

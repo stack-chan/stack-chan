@@ -49,6 +49,8 @@
         "tts-voicevox",
         "face-renderer",
         "dialugue-chatgpt",
+        "dynamixel",
+        "dynamixel-driver",
         "stk-server",
         "touch"
     ],

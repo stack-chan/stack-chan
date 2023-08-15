@@ -276,6 +276,18 @@ export class Robot {
     // TBD
   }
 
+  get driver(): Driver {
+    return this.#driver
+  }
+
+  get tts(): TTS {
+    return this.#tts
+  }
+
+  get renderer(): Renderer {
+    return this.#renderer
+  }
+
   pause() {
     this.#paused = true
   }

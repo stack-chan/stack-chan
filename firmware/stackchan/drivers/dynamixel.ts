@@ -44,6 +44,15 @@ const INSTRUCTION = {
 } as const
 type Instruction = typeof INSTRUCTION[keyof typeof INSTRUCTION]
 
+export const BAUDRATE = {
+  BAUD_9600: 0x00,
+  BAUD_57600: 0x01,
+  BAUD_115200: 0x02,
+  BAUD_1000000: 0x03,
+  BAUD_2000000: 0x04,
+} as const
+type Baudrate = typeof BAUDRATE[keyof typeof BAUDRATE]
+
 export const OPERATING_MODE = {
   CURRENT: 0x00,
   VELOCITY: 0x01,
@@ -227,7 +236,8 @@ class Dynamixel {
       packetHandler = new PacketHandler({
         receive: config.serial?.receive ?? 16,
         transmit: config.serial?.transmit ?? 17,
-        baud: 57_600,
+        // baud: 57_600,
+        baud: 1_000_000,
         port: 2,
       })
     }
@@ -250,9 +260,6 @@ class Dynamixel {
     this.#txBuf[3] = 0x00
     this.#txBuf[4] = this.#id
 
-    const len = parameters.length + (address == null ? 0 : 2) + 3 // params + instruction(1) + address(2) + crc(2)
-    this.#txBuf[5] = len & 0xff
-    this.#txBuf[6] = (len >> 8) & 0xff
     this.#txBuf[7] = instruction // write or read
     let idx = 8
     if (address) {
@@ -260,21 +267,29 @@ class Dynamixel {
       this.#txBuf[idx++] = (address >> 8) & 0xff
     }
 
-    for (const v of parameters) {
-      this.#txBuf[idx++] = v
+    if (instruction === INSTRUCTION.READ) {
+      const numRead = parameters[0] ?? 1
+      this.#txBuf[idx++] = numRead & 0xff
+      this.#txBuf[idx++] = (numRead >> 8) & 0xff
+    } else {
+      for (const v of parameters) {
+        this.#txBuf[idx++] = v
+      }
     }
+
+    const len = idx - 5 // instruction(1) + params(0~) + crc(2)
+    this.#txBuf[5] = len & 0xff
+    this.#txBuf[6] = (len >> 8) & 0xff
 
     const crc = checksum(this.#txBuf.slice(0, idx))
     this.#txBuf[idx++] = crc & 0xff
     this.#txBuf[idx++] = (crc >> 8) & 0xff
-    /*
     trace('writing: ')
     for (let n of this.#txBuf.slice(0, idx)) {
       trace(Number(n).toString(16).padStart(2, '0'))
       trace(' ')
     }
     trace('\n')
-    */
     for (let i = 0; i < idx; i++) {
       packetHandler.write(this.#txBuf[i])
     }
@@ -288,7 +303,6 @@ class Dynamixel {
     })
   }
 
-
   async factoryReset(): Promise<unknown> {
     return this.#sendCommand(INSTRUCTION.FACTORY_RESET, null, 0x01)
   }
@@ -301,6 +315,12 @@ class Dynamixel {
     await this.setTorque(false)
     const values = await this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.OPERATING_MODE, mode)
     // trace(`values: ${values}\n`)
+    return
+  }
+
+  async setBaudrate(baud: Baudrate): Promise<unknown> {
+    await this.setTorque(false)
+    const values = await this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.BAUDRATE, baud)
     return
   }
 
@@ -338,12 +358,12 @@ class Dynamixel {
   }
 
   /**
-   * 
+   *
    * @param angle angle in degree(0~360)
-   * @returns 
+   * @returns
    */
   async setGoalAngle(angle: number): Promise<unknown> {
-    const position = angle * 4096 / 360
+    const position = (angle * 4096) / 360
     return this.setGoalPosition(position)
   }
 
@@ -403,13 +423,13 @@ class Dynamixel {
       return {
         success: true,
         value: {
-          version: values[2]
-        }
+          version: values[2],
+        },
       }
     } else {
       return {
         success: false,
-        reason: 'failed to read firmware version'
+        reason: 'failed to read firmware version',
       }
     }
   }
@@ -435,7 +455,7 @@ class Dynamixel {
       if (values[1] != 0) {
         return {
           success: false,
-          reason: `servo returned error code: ${values[1]}`
+          reason: `servo returned error code: ${values[1]}`,
         }
       }
       const current = values[2] | (values[3] << 8)
@@ -443,12 +463,11 @@ class Dynamixel {
         success: true,
         value: {
           current: current >= 0x8000 ? current - 0x10000 : current,
-        }
+        },
       }
-    }
-    else {
+    } else {
       return {
-        success: false
+        success: false,
       }
     }
   }
@@ -459,7 +478,7 @@ class Dynamixel {
       if (values[1] != 0) {
         return {
           success: false,
-          reason: `servo returned error code: ${values[1]}`
+          reason: `servo returned error code: ${values[1]}`,
         }
       }
       const velocity = values[2] | (values[3] << 8)
@@ -467,21 +486,20 @@ class Dynamixel {
         success: true,
         value: velocity >= 0x8000 ? velocity - 0x10000 : velocity,
       }
-    }
-    else {
+    } else {
       return {
-        success: false
+        success: false,
       }
     }
   }
 
-  async readPresentPosition(): Promise<Maybe< number >> {
+  async readPresentPosition(): Promise<Maybe<number>> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_POSITION, 4)
     if (values != null) {
       if (values[1] != 0) {
         return {
           success: false,
-          reason: `servo returned error code: ${values[1]}`
+          reason: `servo returned error code: ${values[1]}`,
         }
       }
       const position = values[2] | (values[3] << 8)
@@ -489,10 +507,9 @@ class Dynamixel {
         success: true,
         value: position >= 0x8000 ? position - 0x10000 : position,
       }
-    }
-    else {
+    } else {
       return {
-        success: false
+        success: false,
       }
     }
   }

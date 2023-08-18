@@ -44,7 +44,7 @@ class PControl {
       trace(`${this.name} ... failed to update\n`)
       return
     }
-    const position = this.presentPosition = result.value
+    const position = (this.presentPosition = result.value)
     const current = Math.min(Math.abs(this.goalPosition - position) * this.gain, this.saturation)
     trace(`servo ${this.name} ... (${position}, ${this.goalPosition}, ${this.gain}, ${this.saturation}, ${current})\n`)
     await this.servo.setGoalCurrent(current)
@@ -70,11 +70,11 @@ export class DynamixelDriver {
   }
 
   onAttached(): void {
-    // this._handler = Timer.repeat(this.control.bind(this), 200)
+    this._handler = Timer.repeat(this.control.bind(this), 200)
   }
 
   onDetached(): void {
-    // Timer.clear(this._handler)
+    Timer.clear(this._handler)
   }
 
   async control(): Promise<void> {
@@ -115,14 +115,15 @@ export class DynamixelDriver {
     const panAngle = (ori.y * 180) / Math.PI
     const tiltAngle = Math.min(Math.max((ori.p * 180) / Math.PI, 0), 30)
     trace(`applying (${ori.y}, ${ori.p}) => (${panAngle}, ${tiltAngle})\n`)
-    await this._pan.setGoalPosition(Math.floor((panAngle * 4096) / 360))
-    await this._tilt.setGoalPosition(Math.floor(-(tiltAngle * 4096) / 360))
-    // this._controls[0].goalPosition = Math.floor(-(panAngle * 4096) / 360)
-    // this._controls[1].goalPosition = Math.floor((tiltAngle * 4096) / 360)
+    // await this._pan.setGoalPosition(Math.floor((panAngle * 4096) / 360))
+    // await this._tilt.setGoalPosition(Math.floor(-(tiltAngle * 4096) / 360))
+    this._controls[0].goalPosition = Math.floor(-(panAngle * 4096) / 360)
+    this._controls[1].goalPosition = Math.floor((tiltAngle * 4096) / 360)
   }
 
   async getRotation(): Promise<Maybe<Rotation>> {
-    // const [p1, p2] = this._controls.map(c =>  c.presentPosition * 360 / 4096)
+    const [p1, p2] = this._controls.map((c) => (c.presentPosition * 360) / 4096)
+    /*
     if (!this._initialized) {
       await this.init()
     }
@@ -134,11 +135,12 @@ export class DynamixelDriver {
         success: false,
       }
     }
+    */
     return {
       success: true,
       value: {
-        y: r1.value * Math.PI/ 180,
-        p: r2.value * -Math.PI / 180,
+        y: (p1 * Math.PI) / 180,
+        p: (p2 * -Math.PI) / 180,
         r: 0.0,
       },
     }

@@ -12,18 +12,11 @@ type Maybe<T> =
       reason?: string
     }
 
-// utilities
-function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v))
-}
 function le(v: number): [number, number] {
   return [(v & 0xff00) >> 8, v & 0xff]
 }
 function el(h: number, l: number) {
   return ((h << 8) & 0xff00) + (l & 0xff)
-}
-function lle(a, b, c, d): number {
-  return ((d & 0xff) << 24) | ((c & 0xff) << 16) | ((b & 0xff) << 8) | (a & 0xff)
 }
 
 let packetHandler: PacketHandler = null
@@ -138,7 +131,7 @@ class PacketHandler extends Serial {
               const command = rxBuf[7] as Instruction
               if (command === INSTRUCTION.WRITE || command === INSTRUCTION.READ) {
                 // trace(`got echo.  ... ${rxBuf.slice(0, this.#idx)} ignoring\n`)
-              } else if (command === INSTRUCTION.STATUS ) {
+              } else if (command === INSTRUCTION.STATUS) {
                 trace(`got response for ${id}. triggering callback ... ${rxBuf.slice(0, this.#idx)} \n`)
                 this.#callbacks.get(id)?.(rxBuf.slice(7, this.#idx - 1))
               } else {
@@ -152,6 +145,7 @@ class PacketHandler extends Serial {
           default:
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore 6113
+            // eslint-disable-next-line no-case-declarations, @typescript-eslint/no-unused-vars
             let _state: never
         }
         // noop
@@ -180,18 +174,18 @@ class PacketHandler extends Serial {
 
 /**
  * calculates checksum
- * @param arr packet array except checksum
+ * @param arr - packet array except checksum
  * @returns checksum number
  */
 function checksum(arr: number[] | Uint8Array): number {
   let crc16 = 0
   for (const n of arr) {
-    crc16 ^= (n << 8)
+    crc16 ^= n << 8
     for (let i = 0; i < 8; i++) {
       if (crc16 & 0x8000) {
         crc16 = (crc16 << 1) ^ 0x8005
       } else {
-        crc16 = crc16 << 1;
+        crc16 = crc16 << 1
       }
     }
   }
@@ -253,7 +247,7 @@ class Dynamixel {
     return this.#id
   }
 
-  async #sendCommand(instruction: Instruction, address?: number, ...parameters: number[]): Promise<Uint8Array> {
+  async #sendCommand(instruction: Instruction, address?: Address, ...parameters: number[]): Promise<Uint8Array> {
     this.#txBuf[0] = 0xff
     this.#txBuf[1] = 0xff
     this.#txBuf[2] = 0xfd
@@ -285,7 +279,7 @@ class Dynamixel {
     this.#txBuf[idx++] = crc & 0xff
     this.#txBuf[idx++] = (crc >> 8) & 0xff
     trace('writing: ')
-    for (let n of this.#txBuf.slice(0, idx)) {
+    for (const n of this.#txBuf.slice(0, idx)) {
       trace(Number(n).toString(16).padStart(2, '0'))
       trace(' ')
     }
@@ -293,7 +287,7 @@ class Dynamixel {
     for (let i = 0; i < idx; i++) {
       packetHandler.write(this.#txBuf[i])
     }
-    return new Promise((resolve, _reject) => {
+    return new Promise((resolve) => {
       const id = Timer.set(() => {
         this.#promises.shift()
         trace(`timeout. ${this.#promises.length}\n`)
@@ -313,15 +307,12 @@ class Dynamixel {
 
   async setOperatingMode(mode: OperatingMode): Promise<unknown> {
     await this.setTorque(false)
-    const values = await this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.OPERATING_MODE, mode)
-    // trace(`values: ${values}\n`)
-    return
+    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.OPERATING_MODE, mode)
   }
 
   async setBaudrate(baud: Baudrate): Promise<unknown> {
     await this.setTorque(false)
-    const values = await this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.BAUDRATE, baud)
-    return
+    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.BAUDRATE, baud)
   }
 
   async setProfileAcceleration(accel: number): Promise<unknown> {
@@ -343,9 +334,7 @@ class Dynamixel {
   async setGoalCurrent(current: number): Promise<unknown> {
     const a = current & 0xff
     const b = (current >> 8) & 0xff
-    const values = await this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_CURRENT, a, b)
-    // trace(`values: ${values}\n`)
-    return
+    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_CURRENT, a, b)
   }
 
   async setGoalPosition(position: number): Promise<unknown> {
@@ -359,7 +348,7 @@ class Dynamixel {
 
   /**
    *
-   * @param angle angle in degree(0~360)
+   * @param angle - angle in degree(0~360)
    * @returns
    */
   async setGoalAngle(angle: number): Promise<unknown> {
@@ -373,7 +362,7 @@ class Dynamixel {
 
   /**
    * sets offset angle
-   * @param angle offset angle (-2000 to 2000)
+   * @param angle - offset angle (-2000 to 2000)
    */
   async setOffsetAngle(angle: number): Promise<unknown> {
     this.#offset = angle
@@ -389,6 +378,11 @@ class Dynamixel {
     this.#id = id
   }
 
+  /**
+   * changes id
+   * @param enable - enable
+   * @returns TBD
+   */
   async flashId(id: number): Promise<unknown> {
     if (packetHandler.hasCallbackOf(id)) {
       throw new Error(`id(${id}) is already used\n`)
@@ -405,18 +399,26 @@ class Dynamixel {
 
   /**
    * sets torque
-   * @param enable enable
+   * @param enable - enable
    * @returns TBD
    */
   async setTorque(enable: boolean): Promise<unknown> {
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.TORQUE_ENABLE, Number(enable))
   }
 
+  /**
+   * reads model number
+   * @returns TBD
+   */
   async readModelNumber(): Promise<number> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.MODEL_NUMBER, 2)
     return el(values[0], values[1])
   }
 
+  /**
+   * reads firmware version
+   * @returns TBD
+   */
   async readFirmwareVersion(): Promise<Maybe<{ version: number }>> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.VERSION_OF_FIRMWARE, 1)
     if (values != null && values[1] == 0) {
@@ -436,8 +438,7 @@ class Dynamixel {
 
   /**
    * reads offset angle
-   * @note SCS series does not have zero position calibration function.
-   *  The offset value should be handled by the application.
+   * @returns offset angle
    */
   async readOffsetAngle(): Promise<number> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.HOMING_OFFSET, 2)
@@ -449,6 +450,10 @@ class Dynamixel {
     return offset
   }
 
+  /**
+   * reads present current value (ma)
+   * @returns current value
+   */
   async readPresentCurrent(): Promise<Maybe<{ current: number }>> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_CURRENT, 2)
     if (values != null) {
@@ -472,6 +477,11 @@ class Dynamixel {
     }
   }
 
+  /**
+   * reads present velocity [rpm]
+   * Velocity [rpm] = Value * 0.229 [rpm]
+   * @returns current value
+   */
   async readPresentVelocity(): Promise<Maybe<number>> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_VELOCITY, 4)
     if (values != null) {

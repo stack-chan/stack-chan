@@ -5,6 +5,7 @@ import type { Maybe, Rotation } from 'stackchan-util'
 type DynamixelDriverProps = {
   panId: number
   tiltId: number
+  baud: number
 }
 
 class PControl {
@@ -59,8 +60,8 @@ export class DynamixelDriver {
   _initialized: boolean
   _torque: boolean
   constructor(param: DynamixelDriverProps) {
-    this._pan = new Dynamixel({ id: param.panId })
-    this._tilt = new Dynamixel({ id: param.tiltId })
+    this._pan = new Dynamixel({ id: param.panId, baudrate: param.baud })
+    this._tilt = new Dynamixel({ id: param.tiltId, baudrate: param.baud })
     this._controls = [new PControl(this._pan, 0.15, 80, 'pan'), new PControl(this._tilt, 0.2, 80, 'tilt')]
     this._torque = true
   }

@@ -194,6 +194,7 @@ function checksum(arr: number[] | Uint8Array): number {
 
 type DynamixelConstructorParam = {
   id: number
+  baudrate?: number
 }
 
 class Dynamixel {
@@ -213,8 +214,7 @@ class Dynamixel {
   #onCommandRead: (values: Uint8Array) => void
   #txBuf: Uint8Array
   #promises: Array<[(values: Uint8Array) => void, Timer]>
-  #offset: number
-  constructor({ id }: DynamixelConstructorParam) {
+  constructor({ id, baudrate = 1_000_000 }: DynamixelConstructorParam) {
     this.#id = id
     this.#promises = []
     this.#offset = 0
@@ -230,8 +230,7 @@ class Dynamixel {
       packetHandler = new PacketHandler({
         receive: config.serial?.receive ?? 16,
         transmit: config.serial?.transmit ?? 17,
-        // baud: 57_600,
-        baud: 1_000_000,
+        baud: baudrate,
         port: 2,
       })
     }

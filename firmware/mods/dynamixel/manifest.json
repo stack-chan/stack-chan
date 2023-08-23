@@ -1,7 +1,7 @@
 {
 	"include": [
-    "$(MODDABLE)/examples/manifest_mod.json",
-    "$(MODDABLE)/examples/manifest_typings.json",
+		"$(MODDABLE)/examples/manifest_mod.json",
+		"$(MODDABLE)/examples/manifest_typings.json",
 		"../../stackchan/manifest_typings.json"
 	],
 	"modules": {

@@ -177,9 +177,11 @@ class PacketHandler extends Serial {
  * @param arr - packet array except checksum
  * @returns checksum number
  */
-function checksum(arr: number[] | Uint8Array): number {
+function checksum(arr: number[] | Uint8Array, start = 0, end): number {
+  end = end ?? arr.length
   let crc16 = 0
-  for (const n of arr) {
+  for (let i = start; i < end; i++) {
+    const n = arr[i]
     crc16 ^= n << 8
     for (let i = 0; i < 8; i++) {
       if (crc16 & 0x8000) {
@@ -274,7 +276,7 @@ class Dynamixel {
     this.#txBuf[5] = len & 0xff
     this.#txBuf[6] = (len >> 8) & 0xff
 
-    const crc = checksum(this.#txBuf.slice(0, idx))
+    const crc = checksum(this.#txBuf, 0, idx)
     this.#txBuf[idx++] = crc & 0xff
     this.#txBuf[idx++] = (crc >> 8) & 0xff
     /*

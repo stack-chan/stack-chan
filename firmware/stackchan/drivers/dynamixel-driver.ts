@@ -114,7 +114,10 @@ export class DynamixelDriver {
       await this.init()
     }
     const panAngle = (ori.y * 180) / Math.PI
+    const tiltAngle = (ori.p * 180) / Math.PI
     // trace(`applying (${ori.y}, ${ori.p}) => (${panAngle}, ${tiltAngle})\n`)
+    this._controls[0].goalPosition = Math.floor((panAngle * 4096) / 360)
+    this._controls[1].goalPosition = Math.floor((Math.min(Math.max(tiltAngle, -30), 10) * 4096) / 360)
   }
 
   async getRotation(): Promise<Maybe<Rotation>> {
@@ -124,7 +127,7 @@ export class DynamixelDriver {
       success: true,
       value: {
         y: (p1 * Math.PI) / 180,
-        p: (p2 * -Math.PI) / 180,
+        p: (p2 * Math.PI) / 180,
         r: 0.0,
       },
     }

@@ -299,24 +299,43 @@ class Dynamixel {
     })
   }
 
+  /**
+   * resets values to factory default
+   */
   async factoryReset(): Promise<unknown> {
-    return this.#sendCommand(INSTRUCTION.FACTORY_RESET, null, 0x01)
+    return this.#sendCommand(INSTRUCTION.FACTORY_RESET, null, 0x01 /* reset values except id and baudrate*/)
   }
 
+  /**
+   * reboots servo
+   */
   async reboot(): Promise<unknown> {
     return this.#sendCommand(INSTRUCTION.REBOOT)
   }
 
+  /**
+   * sets operating mode
+   * @param mode - operating mode
+   * @see https://emanual.robotis.com/docs/en/dxl/x/xl330-m288/#operating-mode
+   */
   async setOperatingMode(mode: OperatingMode): Promise<unknown> {
     await this.setTorque(false)
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.OPERATING_MODE, mode)
   }
 
-  async setBaudrate(baud: Baudrate): Promise<unknown> {
+  /**
+   * sets baudrate
+   * @param baudrate - baudrate(bps)
+   */
+  async setBaudrate(baudrate: Baudrate): Promise<unknown> {
     await this.setTorque(false)
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.BAUDRATE, baud)
+    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.BAUDRATE, baudrate)
   }
 
+  /**
+   * sets profile acceleration
+   * @param accel - profile acceleration
+   */
   async setProfileAcceleration(accel: number): Promise<unknown> {
     const a = accel & 0xff
     const b = (accel >> 8) & 0xff
@@ -325,20 +344,33 @@ class Dynamixel {
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.PROFILE_ACCELERATION, a, b, c, d)
   }
 
-  async setProfileVelocity(vel: number): Promise<unknown> {
-    const a = vel & 0xff
-    const b = (vel >> 8) & 0xff
-    const c = (vel >> 16) & 0xff
-    const d = (vel >> 24) & 0xff
+  /**
+   * sets profile velocity
+   * Velocity [rpm] = Value * 0.229 [rpm]
+   * @param velocity - goal velocity (ma)
+   */
+  async setProfileVelocity(velocity: number): Promise<unknown> {
+    const a = velocity & 0xff
+    const b = (velocity >> 8) & 0xff
+    const c = (velocity >> 16) & 0xff
+    const d = (velocity >> 24) & 0xff
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.PROFILE_VELOCITY, a, b, c, d)
   }
 
+  /**
+   * sets goal current
+   * @param position - goal current (ma)
+   */
   async setGoalCurrent(current: number): Promise<unknown> {
     const a = current & 0xff
     const b = (current >> 8) & 0xff
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_CURRENT, a, b)
   }
 
+  /**
+   * sets goal position
+   * @param position - goal position (4096 per rotation)
+   */
   async setGoalPosition(position: number): Promise<unknown> {
     const a = position & 0xff
     const b = (position >> 8) & 0xff
@@ -349,8 +381,8 @@ class Dynamixel {
   }
 
   /**
-   *
-   * @param angle - angle in degree(0~360)
+   * sets goal angle
+   * @param angle - angle in degree
    * @returns
    */
   async setGoalAngle(angle: number): Promise<unknown> {
@@ -364,7 +396,7 @@ class Dynamixel {
 
   /**
    * sets offset angle
-   * @param angle - offset angle (-2000 to 2000)
+   * @param angle - offset angle
    */
   async setOffsetAngle(angle: number): Promise<unknown> {
     this.#offset = angle
@@ -383,7 +415,6 @@ class Dynamixel {
   /**
    * changes id
    * @param enable - enable
-   * @returns TBD
    */
   async flashId(id: number): Promise<unknown> {
     if (packetHandler.hasCallbackOf(id)) {
@@ -402,7 +433,6 @@ class Dynamixel {
   /**
    * sets torque
    * @param enable - enable
-   * @returns TBD
    */
   async setTorque(enable: boolean): Promise<unknown> {
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.TORQUE_ENABLE, Number(enable))
@@ -410,7 +440,7 @@ class Dynamixel {
 
   /**
    * reads model number
-   * @returns TBD
+   * @returns Model number
    */
   async readModelNumber(): Promise<number> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.MODEL_NUMBER, 2)
@@ -419,7 +449,7 @@ class Dynamixel {
 
   /**
    * reads firmware version
-   * @returns TBD
+   * @returns Firmware version
    */
   async readFirmwareVersion(): Promise<Maybe<{ version: number }>> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.VERSION_OF_FIRMWARE, 1)
@@ -482,7 +512,7 @@ class Dynamixel {
   /**
    * reads present velocity [rpm]
    * Velocity [rpm] = Value * 0.229 [rpm]
-   * @returns current value
+   * @returns velocity value
    */
   async readPresentVelocity(): Promise<Maybe<number>> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_VELOCITY, 4)
@@ -505,6 +535,10 @@ class Dynamixel {
     }
   }
 
+  /**
+   * reads present position (4096 per rotation)
+   * @returns position value
+   */
   async readPresentPosition(): Promise<Maybe<number>> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_POSITION, 4)
     if (values != null) {

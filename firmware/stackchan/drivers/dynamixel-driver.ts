@@ -33,7 +33,7 @@ class PControl {
   }
 
   async update() {
-    trace(`${this.name} ... update\n`)
+    // trace(`${this.name} ... update\n`)
     if (this._lastGoalPosition !== this.goalPosition) {
       trace(`${this.name} ... updating goal position to ${this.goalPosition}\n`)
       await this.servo.setGoalPosition(this.goalPosition)
@@ -46,7 +46,7 @@ class PControl {
     }
     const position = (this.presentPosition = result.value)
     const current = Math.min(Math.abs(this.goalPosition - position) * this.gain, this.saturation)
-    trace(`servo ${this.name} ... (${position}, ${this.goalPosition}, ${this.gain}, ${this.saturation}, ${current})\n`)
+    // trace(`servo ${this.name} ... (${position}, ${this.goalPosition}, ${this.gain}, ${this.saturation}, ${current})\n`)
     await this.servo.setGoalCurrent(current)
   }
 }
@@ -113,29 +113,12 @@ export class DynamixelDriver {
       await this.init()
     }
     const panAngle = (ori.y * 180) / Math.PI
-    const tiltAngle = Math.min(Math.max((ori.p * 180) / Math.PI, 0), 30)
-    trace(`applying (${ori.y}, ${ori.p}) => (${panAngle}, ${tiltAngle})\n`)
-    // await this._pan.setGoalPosition(Math.floor((panAngle * 4096) / 360))
-    // await this._tilt.setGoalPosition(Math.floor(-(tiltAngle * 4096) / 360))
-    this._controls[0].goalPosition = Math.floor(-(panAngle * 4096) / 360)
-    this._controls[1].goalPosition = Math.floor((tiltAngle * 4096) / 360)
+    // trace(`applying (${ori.y}, ${ori.p}) => (${panAngle}, ${tiltAngle})\n`)
   }
 
   async getRotation(): Promise<Maybe<Rotation>> {
     const [p1, p2] = this._controls.map((c) => (c.presentPosition * 360) / 4096)
-    /*
-    if (!this._initialized) {
-      await this.init()
-    }
-    const r1 = await this._pan.readPresentPosition()
-    const r2 = await this._tilt.readPresentPosition()
-    if (!r1.success || !r2.success) {
-      trace(`failed. r1: ${r1.success}, r2: ${r2.success}\n`)
-      return {
-        success: false,
-      }
-    }
-    */
+    // trace(`got (${p1}, ${p2}) => (${(p1 * Math.PI) / 180}, ${(p2 * Math.PI) / 180})\n`)
     return {
       success: true,
       value: {

@@ -132,7 +132,7 @@ class PacketHandler extends Serial {
               if (command === INSTRUCTION.WRITE || command === INSTRUCTION.READ) {
                 // trace(`got echo.  ... ${rxBuf.slice(0, this.#idx)} ignoring\n`)
               } else if (command === INSTRUCTION.STATUS) {
-                trace(`got response for ${id}. triggering callback ... ${rxBuf.slice(0, this.#idx)} \n`)
+                // trace(`got response for ${id}. triggering callback ... ${rxBuf.slice(0, this.#idx)} \n`)
                 this.#callbacks.get(id)?.(rxBuf.slice(7, this.#idx - 1))
               } else {
                 // trace(`something wrong for ${id}. ${rxBuf.slice(0, this.#idx)} \n`)
@@ -278,12 +278,14 @@ class Dynamixel {
     const crc = checksum(this.#txBuf.slice(0, idx))
     this.#txBuf[idx++] = crc & 0xff
     this.#txBuf[idx++] = (crc >> 8) & 0xff
+    /*
     trace('writing: ')
     for (const n of this.#txBuf.slice(0, idx)) {
       trace(Number(n).toString(16).padStart(2, '0'))
       trace(' ')
     }
     trace('\n')
+    */
     for (let i = 0; i < idx; i++) {
       packetHandler.write(this.#txBuf[i])
     }
@@ -342,7 +344,7 @@ class Dynamixel {
     const b = (position >> 8) & 0xff
     const c = (position >> 16) & 0xff
     const d = (position >> 24) & 0xff
-    trace(`${a}, ${b}, ${c}, ${d}\n`)
+    // trace(`${a}, ${b}, ${c}, ${d}\n`)
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_POSITION, a, b, c, d)
   }
 

@@ -399,12 +399,10 @@ class Dynamixel {
    * @param angle - offset angle
    */
   async setOffsetAngle(angle: number): Promise<unknown> {
-    this.#offset = angle
-    const isCcw = angle < 0
-    if (isCcw) {
+    if (angle < 0) {
       angle *= -1
     }
-    const value = (Number(isCcw) << 15) | (angle & 0x7fff)
+    const value = (angle * 360) / 4096
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.HOMING_OFFSET, ...le(value))
   }
 

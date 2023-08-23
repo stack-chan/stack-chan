@@ -219,7 +219,6 @@ class Dynamixel {
   constructor({ id, baudrate = 1_000_000 }: DynamixelConstructorParam) {
     this.#id = id
     this.#promises = []
-    this.#offset = 0
     this.#onCommandRead = (values) => {
       if (this.#promises.length > 0) {
         const [resolver, timeoutId] = this.#promises.shift()

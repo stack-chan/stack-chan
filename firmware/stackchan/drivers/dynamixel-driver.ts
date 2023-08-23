@@ -62,7 +62,7 @@ export class DynamixelDriver {
   constructor(param: DynamixelDriverProps) {
     this._pan = new Dynamixel({ id: param.panId, baudrate: param.baud })
     this._tilt = new Dynamixel({ id: param.tiltId, baudrate: param.baud })
-    this._controls = [new PControl(this._pan, 0.15, 80, 'pan'), new PControl(this._tilt, 0.2, 80, 'tilt')]
+    this._controls = [new PControl(this._pan, 0.15, 80, 'pan'), new PControl(this._tilt, 0.2, 60, 'tilt')]
     this._torque = true
   }
 
@@ -71,7 +71,7 @@ export class DynamixelDriver {
   }
 
   onAttached(): void {
-    this._handler = Timer.repeat(this.control.bind(this), 200)
+    this._handler = Timer.repeat(this.control.bind(this), 125)
   }
 
   onDetached(): void {
@@ -87,6 +87,7 @@ export class DynamixelDriver {
       await this._pan.setProfileAcceleration(20)
       await this._pan.setProfileVelocity(100)
       await this._tilt.setProfileVelocity(20)
+      await this._tilt.setProfileAcceleration(20)
       trace('servo initialized\n')
     }
     // TODO: use bulk write/read instruction for performance

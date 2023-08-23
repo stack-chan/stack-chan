@@ -73,6 +73,24 @@ export const defaultFaceContext: FaceContext = Object.freeze({
   }),
 } as const)
 
+export function copyFaceContext(src: Readonly<FaceContext>, dst: FaceContext) {
+  dst.mouth.open = src.mouth.open
+  let eyeDst = dst.eyes.left
+  let eyeSrc = src.eyes.left
+  eyeDst.open = eyeSrc.open
+  eyeDst.gazeX = eyeSrc.gazeX
+  eyeDst.gazeY = eyeSrc.gazeY
+  eyeDst = dst.eyes.right
+  eyeSrc = src.eyes.right
+  eyeDst.open = eyeSrc.open
+  eyeDst.gazeX = eyeSrc.gazeX
+  eyeDst.gazeY = eyeSrc.gazeY
+  dst.breath = src.breath
+  dst.emotion = src.emotion
+  dst.theme.primary = src.theme.primary
+  dst.theme.secondary = src.theme.secondary
+}
+
 // Filters
 
 type FaceFilter<T = unknown> = (tick: number, face: FaceContext, arg?: T) => FaceContext
@@ -228,6 +246,7 @@ export class Renderer {
   filters: FaceFilter[]
   outline?: Outline
   lastContext: FaceContext
+  currentContext: FaceContext
 
   background: number
   foreground: number
@@ -248,15 +267,17 @@ export class Renderer {
       useSaccade({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
     this.outline = null
-    this.lastContext = null
+    this.lastContext = structuredClone(defaultFaceContext)
+    this.currentContext = structuredClone(defaultFaceContext)
     this.clear()
   }
-  update(interval = INTERVAL, faceContext: FaceContext = structuredClone(defaultFaceContext)): void {
-    this.filters.forEach((filter) => filter(interval, faceContext))
-    if (!deepEqual(faceContext, this.lastContext)) {
-      this.render(faceContext)
+  update(interval = INTERVAL, faceContext: Readonly<FaceContext> = defaultFaceContext): void {
+    copyFaceContext(faceContext, this.currentContext)
+    this.filters.forEach((filter) => filter(interval, this.currentContext))
+    if (!deepEqual(this.currentContext, this.lastContext)) {
+      this.render(this.currentContext)
+      ;[this.currentContext, this.lastContext] = [this.lastContext, this.currentContext]
     }
-    this.lastContext = faceContext
   }
   clear(): void {
     const poco = this._poco

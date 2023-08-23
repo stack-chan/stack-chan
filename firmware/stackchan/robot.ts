@@ -1,6 +1,6 @@
 import Timer from 'timer'
 import { Vector3, Pose, Rotation, Maybe, noop, randomBetween } from 'stackchan-util'
-import { type FaceContext, type Emotion, defaultFaceContext } from 'face-renderer'
+import { type FaceContext, type Emotion, defaultFaceContext, copyFaceContext } from 'face-renderer'
 import structuredClone from 'structuredClone'
 import Digital from 'embedded:io/digital'
 import Touch from 'touch'
@@ -82,6 +82,7 @@ export class Robot {
   #isMoving: boolean
   #renderer: Renderer
   #paused: boolean
+  #faceContext: FaceContext
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
   updating: boolean
@@ -136,6 +137,7 @@ export class Robot {
     this.#updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
     this.#updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
     this.#paused = false
+    this.#faceContext = structuredClone(defaultFaceContext)
   }
 
   /**
@@ -310,9 +312,9 @@ export class Robot {
     if (this.#paused) {
       return
     }
-    const face = structuredClone(defaultFaceContext)
+    copyFaceContext(defaultFaceContext, this.#faceContext)
     if (this.#power != 0) {
-      face.mouth.open = Math.min(this.#power / 2000, 1.0)
+      this.#faceContext.mouth.open = Math.min(this.#power / 2000, 1.0)
     }
     if (this.#gazePoint != null) {
       const relativeGazePoint = Vector3.rotate(this.#gazePoint, {
@@ -324,14 +326,14 @@ export class Robot {
         const pos = this.#pose.eyes[key].position
         const relative = Vector3.sub(relativeGazePoint, [pos.x, pos.y, pos.z])
         const { y, p } = Rotation.fromVector3(relative)
-        face.eyes[key] = {
-          ...face.eyes[key],
+        this.#faceContext.eyes[key] = {
+          ...this.#faceContext.eyes[key],
           gazeX: Math.cos(y),
           gazeY: Math.cos(p),
         }
       }
     }
-    this.#renderer.update(INTERVAL_FACE, face)
+    this.#renderer.update(INTERVAL_FACE, this.#faceContext)
   }
 
   /**

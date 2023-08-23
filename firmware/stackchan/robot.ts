@@ -15,6 +15,8 @@ export type Driver = {
   applyRotation: (ori: Rotation, time?: number) => Promise<void>
   getRotation: () => Promise<Maybe<Rotation>>
   setTorque: (torque: boolean) => Promise<void>
+  onAttached?: () => void
+  onDetached?: () => void
 }
 
 /**
@@ -170,7 +172,11 @@ export class Robot {
    * @param driver - Driver class instance
    */
   useDriver(driver: Driver) {
+    if (this.#driver != null) {
+      this.#driver.onDetached?.()
+    }
     this.#driver = driver
+    this.#driver.onAttached?.()
   }
 
   /**
@@ -274,6 +280,18 @@ export class Robot {
    */
   setEmotion(emotion: Emotion) {
     // TBD
+  }
+
+  get driver(): Driver {
+    return this.#driver
+  }
+
+  get tts(): TTS {
+    return this.#tts
+  }
+
+  get renderer(): Renderer {
+    return this.#renderer
   }
 
   pause() {

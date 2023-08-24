@@ -60,6 +60,7 @@ type RobotConstructorParam<T extends string> = {
   touch?: Touch
 }
 
+const LEFT_RIGHT = Object.freeze(['left', 'right'])
 export class Robot {
   /**
    * A Facade class that provides quick access for Stack-chan features
@@ -312,25 +313,23 @@ export class Robot {
     if (this.#paused) {
       return
     }
-    copyFaceContext(defaultFaceContext, this.#faceContext)
     if (this.#power != 0) {
       this.#faceContext.mouth.open = Math.min(this.#power / 2000, 1.0)
     }
+    this.#faceContext.emotion = this.#emotion
     if (this.#gazePoint != null) {
       const relativeGazePoint = Vector3.rotate(this.#gazePoint, {
         r: 0.0,
         y: -this.#pose.body.rotation.y,
         p: -this.#pose.body.rotation.p,
       })
-      for (let key of ['left', 'right'] as const) {
+      for (const key of LEFT_RIGHT) {
         const pos = this.#pose.eyes[key].position
         const relative = Vector3.sub(relativeGazePoint, [pos.x, pos.y, pos.z])
         const { y, p } = Rotation.fromVector3(relative)
-        this.#faceContext.eyes[key] = {
-          ...this.#faceContext.eyes[key],
-          gazeX: Math.cos(y),
-          gazeY: Math.cos(p),
-        }
+        const eye = this.#faceContext.eyes[key]
+        eye.gazeX = Math.cos(y)
+        eye.gazeY = Math.cos(p)
       }
     }
     this.#renderer.update(INTERVAL_FACE, this.#faceContext)

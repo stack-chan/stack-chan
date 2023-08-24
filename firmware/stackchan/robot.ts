@@ -275,6 +275,17 @@ export class Robot {
   }
 
   /**
+   * Set the color
+   * @param{key} - 'primary' or 'secondary'
+   * @param{r} - red value [0-255]
+   * @param{g} - green value [0-255]
+   * @param{b} - blue value [0-255]
+   */
+  setColor(key: keyof FaceContext['theme'], r, g, b): void {
+    this.#faceContext.theme[key] = [r, g, b]
+  }
+
+  /**
    * Set the emotion of the robot.
    * The emotion may (or may not) affect the way the robot moves
    * and its facial expressions.

@@ -84,6 +84,7 @@ export class Robot {
   #renderer: Renderer
   #paused: boolean
   #faceContext: FaceContext
+  #emotion: Emotion
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
   updating: boolean

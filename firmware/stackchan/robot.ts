@@ -282,7 +282,7 @@ export class Robot {
    * @param emotion - emotion
    */
   setEmotion(emotion: Emotion) {
-    // TBD
+    this.#emotion = emotion
   }
 
   get driver(): Driver {

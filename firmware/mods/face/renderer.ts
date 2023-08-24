@@ -2,11 +2,11 @@ import config from 'mc/config'
 import Poco, { PocoPrototype } from 'commodetto/Poco'
 import { Outline, CanvasPath } from 'commodetto/outline'
 import deepEqual from 'deepEqual'
-import { randomBetween, quantize, normRand } from 'stackchan-util'
 import structuredClone from 'structuredClone'
+import { randomBetween, quantize, normRand } from 'stackchan-util'
 
 /* global screen */
-const INTERVAL = 1000 / 15
+const INTERVAL = 1000 / 10
 
 // Types
 
@@ -18,6 +18,7 @@ type EyeContext = {
 type MouthContext = {
   open: number
 }
+type Color = [r: number, g: number, b: number]
 
 export const Emotion = Object.freeze({
   NEUTRAL: 'NEUTRAL',
@@ -44,12 +45,12 @@ export type FaceContext = {
   breath: number
   emotion: Emotion
   theme: {
-    primary: string | number
-    secondary: string | number
+    primary: Color
+    secondary: Color
   }
 }
 
-export const defaultFaceContext: FaceContext = Object.freeze({
+export const defaultFaceContext: Readonly<FaceContext> = Object.freeze({
   mouth: Object.freeze({
     open: 0,
   }),
@@ -68,8 +69,8 @@ export const defaultFaceContext: FaceContext = Object.freeze({
   breath: 1,
   emotion: Emotion.NEUTRAL,
   theme: Object.freeze({
-    primary: 'white',
-    secondary: 'black',
+    primary: [0xff, 0xff, 0xff],
+    secondary: [0x00, 0x00, 0x00],
   }),
 } as const)
 
@@ -87,20 +88,34 @@ export function copyFaceContext(src: Readonly<FaceContext>, dst: FaceContext) {
   eyeDst.gazeY = eyeSrc.gazeY
   dst.breath = src.breath
   dst.emotion = src.emotion
-  dst.theme.primary = src.theme.primary
-  dst.theme.secondary = src.theme.secondary
+  let colorDst = dst.theme.primary
+  let colorSrc = src.theme.primary
+  colorDst[0] = colorSrc[0]
+  colorDst[1] = colorSrc[1]
+  colorDst[2] = colorSrc[2]
+  colorDst = dst.theme.secondary
+  colorSrc = src.theme.secondary
+  colorDst[0] = colorSrc[0]
+  colorDst[1] = colorSrc[1]
+  colorDst[2] = colorSrc[2]
 }
 
 // Filters
 
-type FaceFilter<T = unknown> = (tick: number, face: FaceContext, arg?: T) => FaceContext
-type FaceFilterFactory<T, V = unknown> = (param: T) => FaceFilter<V>
+export type FaceFilter<T = unknown> = (tick: number, face: FaceContext, arg?: T) => FaceContext
+export type FaceFilterFactory<T, V = unknown> = (param: T) => FaceFilter<V>
 
-type FacePart<T = unknown> = (tick: number, path: CanvasPath, face: Readonly<FaceContext>, arg?: T) => void
-type FacePartFactory<T, V = unknown> = (param: T) => FacePart<V>
+export type FacePart<T = unknown> = (tick: number, path: CanvasPath, face: Readonly<FaceContext>, arg?: T) => void
+export type FacePartFactory<T, V = unknown> = (param: T) => FacePart<V>
 
-type FaceEffect<T = unknown> = (tick: number, poco: PocoPrototype, face: Readonly<FaceContext>, arg?: T) => void
-type FaceEffectFactory<T, V = unknown> = (param: T) => FaceEffect<V>
+export type FaceEffect<T = unknown> = (
+  tick: number,
+  poco: PocoPrototype,
+  face: Readonly<FaceContext>,
+  end?: boolean,
+  arg?: T
+) => void
+export type FaceEffectFactory<T, V = unknown> = (param: T) => FaceEffect<V>
 
 function linearInEaseOut(fraction: number): number {
   if (fraction < 0.25) {
@@ -158,8 +173,6 @@ export const useSaccade: FaceFilterFactory<{ updateMin: number; updateMax: numbe
   return (tickMillis, face) => {
     nextToggle -= tickMillis
     if (nextToggle < 0) {
-      // saccadeX = (Math.random() * 2 - 1) * gain
-      // saccadeY = (Math.random() * 2 - 1) * gain
       saccadeX = normRand(0, gain)
       saccadeY = normRand(0, gain)
       nextToggle = randomBetween(updateMin, updateMax)
@@ -232,41 +245,20 @@ export const useDrawMouth: FacePartFactory<{
     path.rect(x, y, w, h)
   }
 
-export const useRenderBalloon: FaceEffectFactory<{
-  x: number
-  y: number
-  width: number
-  height: number
-  font: number
-  text: number
-  poco?: PocoPrototype
-}> = ({ x, y, width, height, font, text, poco }) => {
-  const outline = Outline.fill(Outline.RoundRectPath(0, 0, width, height, 10))
-  const black = poco.makeColor(0, 0, 0)
-  const white = poco.makeColor(255, 255, 255)
-  const textWidth = poco.getTextWidth(text, font)
-  let textX = 0
-  const space = 20
-  return (tick) => {
-    const dx = tick / 50
-    poco.begin(x, y, width, height)
-    poco.fillRectangle(black, x, y, width, height)
-    poco.blendOutline(white, 255, outline, x, y)
-    poco.drawText(text, font, black, x - textX, y)
-    if (textWidth + space >= textX) {
-      poco.drawText(text, font, black, x - textX + textWidth + space, y)
-    }
-    poco.end()
-    textX = textX >= textWidth + space ? 0 : textX + dx
-  }
+type LayerProps = {
+  colorName?: keyof FaceContext['theme']
+  type?: 'fill' | 'stroke'
 }
-
 // under development
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-class Layer {
+export class Layer {
   #renderers: Map<string, FacePart>
-  constructor() {
+  #colorName: keyof FaceContext['theme']
+  #type: 'fill' | 'stroke'
+  constructor({ colorName = 'primary', type = 'fill' }: LayerProps) {
     this.#renderers = new Map()
+    this.#colorName = colorName
+    this.#type = type
   }
   addPart(key: string, part: FacePart) {
     this.#renderers.set(key, part)
@@ -276,113 +268,98 @@ class Layer {
   }
   render(tick: number, poco: PocoPrototype, face: FaceContext) {
     const path = new Outline.CanvasPath()
-    this.#renderers.forEach(render => {
+    const color = poco.makeColor(...face.theme[this.#colorName])
+    this.#renderers.forEach((render) => {
       render(tick, path, face)
     })
-    const fg = Poco.makeColor(0xff, 0xff, 0xff)
-    let outline = Outline.fill(path).translate(0, face.breath * 3 ?? 0)
-    poco.blendOutline(fg, 255, outline, 0, 0)
+    let outline =
+      this.#type === 'fill'
+        ? Outline.fill(path).translate(0, face.breath * 3 ?? 0)
+        : Outline.stroke(path, 6).translate(0, face.breath * 3 ?? 0)
+    poco.blendOutline(color, 255, outline, 0, 0)
   }
 }
 
-export class Renderer {
+export class RendererBase {
   _poco: PocoPrototype
 
-  // drawLeftEye: FacePart
-  // drawRightEye: FacePart
-  // drawLeftEyelid: FacePart
-  // drawRightEyelid: FacePart
-  // drawMouth: FacePart
   layers: Layer[]
-
   filters: FaceFilter[]
-  outline?: Outline
+  effects: FaceEffect[]
+  removingEffects: FaceEffect[]
+
   lastContext: FaceContext
   currentContext: FaceContext
 
-  background: number
-  foreground: number
-
   constructor(option?: { poco?: PocoPrototype }) {
     this._poco = option?.poco ?? new Poco(screen, { rotation: config.rotation })
-    this.background = this._poco.makeColor(0, 0, 0)
-    this.foreground = this._poco.makeColor(255, 255, 255)
-    const layer1 = new Layer()
-    const layer2 = new Layer()
-    this.layers.push(layer1)
-    this.layers.push(layer2)
-    layer1.addPart(
-      'leftEye',
-      useDrawEye({
-        cx: 90,
-        cy: 93,
-        side: 'left',
-        radius: 8,
-      })
-    )
-    layer1.addPart('rightEye', useDrawEye({ cx: 230, cy: 96, side: 'right', radius: 8 }))
-    layer1.addPart('mouth', useDrawMouth({ cx: 160, cy: 148 }))
-    layer2.addPart(
-      'leftEyelid',
-      useDrawEyelid({
-        cx: 90,
-        cy: 93,
-        side: 'left',
-        width: 24,
-        height: 24,
-      })
-    )
-    layer2.addPart(
-      'rightEyelid',
-      useDrawEyelid({
-        cx: 230,
-        cy: 96,
-        side: 'right',
-        width: 24,
-        height: 24,
-      })
-    )
-
+    this.effects = []
+    this.removingEffects = []
+    this.layers = []
+    this.lastContext = structuredClone(defaultFaceContext)
+    this.currentContext = structuredClone(defaultFaceContext)
     this.filters = [
       useBlink({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
       useBreath({ duration: 6000 }),
       useSaccade({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
-    this.outline = null
-    this.lastContext = structuredClone(defaultFaceContext)
-    this.currentContext = structuredClone(defaultFaceContext)
     this.clear()
   }
   update(interval = INTERVAL, faceContext: Readonly<FaceContext> = defaultFaceContext): void {
     copyFaceContext(faceContext, this.currentContext)
     this.filters.forEach((filter) => filter(interval, this.currentContext))
-    if (!deepEqual(this.currentContext, this.lastContext)) {
-      this.render(this.currentContext)
+
+    const poco = this._poco
+    const shouldClear = !deepEqual(this.currentContext.theme, this.lastContext.theme)
+    const shouldRender = !deepEqual(this.currentContext, this.lastContext)
+    const bg = poco.makeColor(...faceContext.theme.secondary)
+    if (shouldClear) {
+      poco.begin()
+      poco.fillRectangle(bg, 0, 0, poco.width, poco.height)
+    }
+    if (shouldRender) {
+      if (!shouldClear) {
+        poco.begin(60, 60, poco.width - 120, poco.height - 160)
+      }
+      poco.fillRectangle(bg, 0, 0, poco.width, poco.height)
+      this.renderFace(interval, this.currentContext)
       ;[this.currentContext, this.lastContext] = [this.lastContext, this.currentContext]
     }
+    if (shouldClear || shouldRender) {
+      poco.end()
+    }
+    this.renderEffects(interval, this.currentContext)
   }
-  clear(): void {
+  clear(color: Color = [0x00, 0x00, 0x00]): void {
     const poco = this._poco
     poco.begin()
-    poco.fillRectangle(this.background, 0, 0, poco.width, poco.height)
+    poco.fillRectangle(poco.makeColor(...color), 0, 0, poco.width, poco.height)
     poco.end()
   }
-  render(faceContext: FaceContext, poco: PocoPrototype = this._poco): void {
-    poco.begin(40, 80, poco.width - 80, poco.height - 80)
-    poco.fillRectangle(this.background, 0, 0, poco.width, poco.height)
-
-    const layer1 = new Outline.CanvasPath()
-    this.drawLeftEye(layer1, faceContext.eyes.left)
-    this.drawRightEye(layer1, faceContext.eyes.right)
-    this.drawMouth(layer1, faceContext.mouth)
-    let outline = Outline.fill(layer1).translate(0, faceContext.breath * 3 ?? 0)
-    poco.blendOutline(this.foreground, 255, outline, 0, 0)
-
-    const layer2 = new Outline.CanvasPath()
-    this.drawLeftEyelid(layer2, faceContext.eyes.left)
-    this.drawRightEyelid(layer2, faceContext.eyes.right)
-    outline = Outline.fill(layer2, Outline.EVEN_ODD_RULE).translate(0, faceContext.breath * 3 ?? 0)
-    poco.blendOutline(this.background, 255, outline, 0, 0)
-    poco.end()
+  addEffect(effect: FaceEffect): void {
+    this.effects.push(effect)
+  }
+  removeEffect(effect: FaceEffect): void {
+    const idx = this.effects.indexOf(effect)
+    if (idx !== -1) {
+      this.effects.splice(idx, 1)
+      this.removingEffects.push(effect)
+    }
+  }
+  renderFace(tick: number, face: FaceContext, poco: PocoPrototype = this._poco): void {
+    poco.clip(40, 60, poco.width - 80, poco.height - 80)
+    for (const layer of this.layers) {
+      layer.render(tick, poco, face)
+    }
+    poco.clip()
+  }
+  renderEffects(tick: number, face: FaceContext, poco: PocoPrototype = this._poco): void {
+    for (const renderEffect of this.effects) {
+      renderEffect(tick, poco, face)
+    }
+    for (const removingEffect of this.removingEffects) {
+      removingEffect(tick, poco, face, true)
+    }
+    this.removingEffects.length = 0
   }
 }

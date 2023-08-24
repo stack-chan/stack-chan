@@ -31,6 +31,7 @@ export const Emotion = Object.freeze({
 })
 
 export type Emotion = typeof Emotion[keyof typeof Emotion]
+type Color = [r: number, g: number, b: number]
 
 /**
  * The context of the face representing physiological state and drawing settings.
@@ -44,8 +45,8 @@ export type FaceContext = {
   breath: number
   emotion: Emotion
   theme: {
-    primary: string | number
-    secondary: string | number
+    primary: Color
+    secondary: Color
   }
 }
 
@@ -68,8 +69,8 @@ export const defaultFaceContext: FaceContext = Object.freeze({
   breath: 1,
   emotion: Emotion.NEUTRAL,
   theme: Object.freeze({
-    primary: 'white',
-    secondary: 'black',
+    primary: [0xff, 0xff, 0xff],
+    secondary: [0x00, 0x00, 0x00],
   }),
 } as const)
 

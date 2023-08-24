@@ -4,6 +4,19 @@
 		"$(MODDABLE)/examples/manifest_typings.json"
 	],
 	"modules": {
-		"*": "./mod"
-	}
+		"*": [
+			"./mod",
+			"../../stackchan/utilities/*"
+		],
+		"renderer": "./renderer",
+		"effects": "./effects",
+		"simple-face": "./simple-face",
+		"dog-face": "./dog-face"
+	},
+	"preload": [
+		"new-renderer",
+		"simple-face",
+		"dog-face",
+		"effects"
+	]
 }

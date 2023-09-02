@@ -1,7 +1,6 @@
 import Timer from 'timer'
 import { Vector3, Pose, Rotation, Maybe, noop, randomBetween } from 'stackchan-util'
-import { type FaceContext, type Emotion, defaultFaceContext, copyFaceContext } from 'face-renderer'
-import structuredClone from 'structuredClone'
+import { type FaceContext, type Emotion, createFaceContext } from 'renderer-base'
 import Digital from 'embedded:io/digital'
 import Touch from 'touch'
 
@@ -32,7 +31,7 @@ export type TTS = {
  * The display renderer
  */
 export type Renderer = {
-  update: (interval: number, faceContext: FaceContext) => void
+  update: (interval: number, faceContext: Readonly<FaceContext>) => void
 }
 
 export type Button = {
@@ -139,7 +138,7 @@ export class Robot {
     this.#updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
     this.#updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
     this.#paused = false
-    this.#faceContext = structuredClone(defaultFaceContext)
+    this.#faceContext = createFaceContext()
   }
 
   /**

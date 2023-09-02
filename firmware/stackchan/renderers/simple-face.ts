@@ -1,7 +1,7 @@
-import { RendererBase, Layer, Emotion, type FacePartFactory, type FaceContext } from 'renderer'
+import { RendererBase, Layer, Emotion, type FacePartFactory, type FaceContext } from 'renderer-base'
 
 // Renderers
-export const useDrawEyelid: FacePartFactory<{
+export const createEyelidPart: FacePartFactory<{
   cx: number
   cy: number
   width: number
@@ -34,12 +34,15 @@ export const useDrawEyelid: FacePartFactory<{
         path.lineTo(x + w, y)
         path.closePath()
         break
+      case 'SLEEPY':
+        path.rect(x, y, w, height * 0.5 + h * 0.5)
+        break
       default:
         path.rect(x, y, w, h)
     }
   }
 
-export const useDrawEye: FacePartFactory<{
+export const createEyePart: FacePartFactory<{
   cx: number
   cy: number
   radius?: number
@@ -53,7 +56,7 @@ export const useDrawEye: FacePartFactory<{
     path.arc(cx + offsetX, cy + offsetY, radius, 0, 2 * Math.PI)
   }
 
-export const useDrawMouth: FacePartFactory<{
+export const createMouthPart: FacePartFactory<{
   cx: number
   cy: number
   minWidth?: number
@@ -78,21 +81,21 @@ export class Renderer extends RendererBase {
     this.layers.push(layer1)
     layer1.addPart(
       'leftEye',
-      useDrawEye({
+      createEyePart({
         cx: 90,
         cy: 93,
         side: 'left',
         radius: 8,
       })
     )
-    layer1.addPart('rightEye', useDrawEye({ cx: 230, cy: 96, side: 'right', radius: 8 }))
-    layer1.addPart('mouth', useDrawMouth({ cx: 160, cy: 148 }))
+    layer1.addPart('rightEye', createEyePart({ cx: 230, cy: 96, side: 'right', radius: 8 }))
+    layer1.addPart('mouth', createMouthPart({ cx: 160, cy: 148 }))
 
     const layer2 = new Layer({ colorName: 'secondary' })
     this.layers.push(layer2)
     layer2.addPart(
       'leftEyelid',
-      useDrawEyelid({
+      createEyelidPart({
         cx: 90,
         cy: 93,
         side: 'left',
@@ -102,7 +105,7 @@ export class Renderer extends RendererBase {
     )
     layer2.addPart(
       'rightEyelid',
-      useDrawEyelid({
+      createEyelidPart({
         cx: 230,
         cy: 96,
         side: 'right',

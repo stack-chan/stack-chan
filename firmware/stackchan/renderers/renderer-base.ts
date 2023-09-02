@@ -2,7 +2,6 @@ import config from 'mc/config'
 import Poco, { PocoPrototype } from 'commodetto/Poco'
 import { Outline, CanvasPath } from 'commodetto/outline'
 import deepEqual from 'deepEqual'
-import structuredClone from 'structuredClone'
 import { randomBetween, quantize, normRand } from 'stackchan-util'
 
 /* global screen */
@@ -50,29 +49,55 @@ export type FaceContext = {
   }
 }
 
-export const defaultFaceContext: Readonly<FaceContext> = Object.freeze({
-  mouth: Object.freeze({
+export const defaultFaceContext: Readonly<FaceContext> = {
+  mouth: {
     open: 0,
-  }),
-  eyes: Object.freeze({
-    left: Object.freeze({
+  },
+  eyes: {
+    left: {
       open: 1,
       gazeX: 0,
       gazeY: 0,
-    }),
-    right: Object.freeze({
+    },
+    right: {
       open: 1,
       gazeX: 0,
       gazeY: 0,
-    }),
-  }),
+    },
+  },
   breath: 1,
   emotion: Emotion.NEUTRAL,
-  theme: Object.freeze({
-    primary: [0xff, 0xff, 0xff],
-    secondary: [0x00, 0x00, 0x00],
-  }),
-} as const)
+  theme: {
+    primary: [0xff, 0xff, 0xff] as Color,
+    secondary: [0x00, 0x00, 0x00] as Color,
+  },
+}
+
+export function createFaceContext(): FaceContext {
+  return {
+    mouth: {
+      open: 0,
+    },
+    eyes: {
+      left: {
+        open: 1,
+        gazeX: 0,
+        gazeY: 0,
+      },
+      right: {
+        open: 1,
+        gazeX: 0,
+        gazeY: 0,
+      },
+    },
+    breath: 1,
+    emotion: Emotion.NEUTRAL,
+    theme: {
+      primary: [0xff, 0xff, 0xff] as Color,
+      secondary: [0x00, 0x00, 0x00] as Color,
+    },
+  }
+}
 
 export function copyFaceContext(src: Readonly<FaceContext>, dst: FaceContext) {
   dst.mouth.open = src.mouth.open
@@ -100,22 +125,22 @@ export function copyFaceContext(src: Readonly<FaceContext>, dst: FaceContext) {
   colorDst[2] = colorSrc[2]
 }
 
-// Filters
+// Modifiers
 
-export type FaceFilter<T = unknown> = (tick: number, face: FaceContext, arg?: T) => FaceContext
-export type FaceFilterFactory<T, V = unknown> = (param: T) => FaceFilter<V>
+export type FaceModifier<T = unknown> = (tick: number, face: FaceContext, arg?: T) => FaceContext
+export type FaceModifierFactory<T, V = unknown> = (param: T) => FaceModifier<V>
 
 export type FacePart<T = unknown> = (tick: number, path: CanvasPath, face: Readonly<FaceContext>, arg?: T) => void
 export type FacePartFactory<T, V = unknown> = (param: T) => FacePart<V>
 
-export type FaceEffect<T = unknown> = (
+export type FaceDecorator<T = unknown> = (
   tick: number,
   poco: PocoPrototype,
   face: Readonly<FaceContext>,
   end?: boolean,
   arg?: T
 ) => void
-export type FaceEffectFactory<T, V = unknown> = (param: T) => FaceEffect<V>
+export type FaceDecoratorFactory<T, V = unknown> = (param: T) => FaceDecorator<V>
 
 function linearInEaseOut(fraction: number): number {
   if (fraction < 0.25) {
@@ -134,12 +159,12 @@ function linearInLinearOut(fraction: number): number {
   }
 }
 
-export const useBlink: FaceFilterFactory<{ openMin: number; openMax: number; closeMin: number; closeMax: number }> = ({
-  openMin,
-  openMax,
-  closeMin,
-  closeMax,
-}) => {
+export const createBlinkModifier: FaceModifierFactory<{
+  openMin: number
+  openMax: number
+  closeMin: number
+  closeMax: number
+}> = ({ openMin, openMax, closeMin, closeMax }) => {
   let isBlinking = false
   let nextToggle = randomBetween(openMin, openMax)
   let count = 0
@@ -162,7 +187,7 @@ export const useBlink: FaceFilterFactory<{ openMin: number; openMax: number; clo
   }
 }
 
-export const useSaccade: FaceFilterFactory<{ updateMin: number; updateMax: number; gain: number }> = ({
+export const createSaccadeModifier: FaceModifierFactory<{ updateMin: number; updateMax: number; gain: number }> = ({
   updateMin,
   updateMax,
   gain,
@@ -185,7 +210,7 @@ export const useSaccade: FaceFilterFactory<{ updateMin: number; updateMax: numbe
   }
 }
 
-export const useBreath: FaceFilterFactory<{ duration: number }> = ({ duration }) => {
+export const createBreathModifier: FaceModifierFactory<{ duration: number }> = ({ duration }) => {
   let time = 0
   return (tickMillis, face) => {
     time += tickMillis % duration
@@ -194,63 +219,11 @@ export const useBreath: FaceFilterFactory<{ duration: number }> = ({ duration })
   }
 }
 
-// Renderers
-
-export const useDrawEyelid: FacePartFactory<{
-  cx: number
-  cy: number
-  width: number
-  height: number
-  side: keyof FaceContext['eyes']
-}> =
-  ({ cx, cy, width, height, side }) =>
-  (_tick, path, { eyes }) => {
-    const eye = eyes[side]
-    const w = width
-    const h = height * (1 - eye.open)
-    const x = cx - width / 2
-    const y = cy - height / 2
-    path.rect(x, y, w, h)
-  }
-
-export const useDrawEye: FacePartFactory<{
-  cx: number
-  cy: number
-  radius?: number
-  side: keyof FaceContext['eyes']
-}> =
-  ({ cx, cy, radius = 8, side }) =>
-  (_tick, path, { eyes }) => {
-    const eye = eyes[side]
-    const offsetX = (eye.gazeX ?? 0) * 2
-    const offsetY = (eye.gazeY ?? 0) * 2
-    path.arc(cx + offsetX, cy + offsetY, radius, 0, 2 * Math.PI)
-  }
-
-export const useDrawMouth: FacePartFactory<{
-  cx: number
-  cy: number
-  minWidth?: number
-  maxWidth?: number
-  minHeight?: number
-  maxHeight?: number
-}> =
-  ({ cx, cy, minWidth = 50, maxWidth = 90, minHeight = 8, maxHeight = 58 }) =>
-  (_tick, path, { mouth }) => {
-    const openRatio = mouth.open
-    const h = minHeight + (maxHeight - minHeight) * openRatio
-    const w = minWidth + (maxWidth - minWidth) * (1 - openRatio)
-    const x = cx - w / 2
-    const y = cy - h / 2
-    path.rect(x, y, w, h)
-  }
-
 type LayerProps = {
   colorName?: keyof FaceContext['theme']
   type?: 'fill' | 'stroke'
 }
-// under development
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 export class Layer {
   #renderers: Map<string, FacePart>
   #colorName: keyof FaceContext['theme']
@@ -284,24 +257,24 @@ export class RendererBase {
   _poco: PocoPrototype
 
   layers: Layer[]
-  filters: FaceFilter[]
-  effects: FaceEffect[]
-  removingEffects: FaceEffect[]
+  filters: FaceModifier[]
+  decorators: FaceDecorator[]
+  removingDecorators: FaceDecorator[]
 
   lastContext: FaceContext
   currentContext: FaceContext
 
   constructor(option?: { poco?: PocoPrototype }) {
     this._poco = option?.poco ?? new Poco(screen, { rotation: config.rotation })
-    this.effects = []
-    this.removingEffects = []
+    this.decorators = []
+    this.removingDecorators = []
     this.layers = []
-    this.lastContext = structuredClone(defaultFaceContext)
-    this.currentContext = structuredClone(defaultFaceContext)
+    this.lastContext = createFaceContext()
+    this.currentContext = createFaceContext()
     this.filters = [
-      useBlink({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
-      useBreath({ duration: 6000 }),
-      useSaccade({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
+      createBlinkModifier({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
+      createBreathModifier({ duration: 6000 }),
+      createSaccadeModifier({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
     this.clear()
   }
@@ -319,16 +292,15 @@ export class RendererBase {
     }
     if (shouldRender) {
       if (!shouldClear) {
-        poco.begin(60, 60, poco.width - 120, poco.height - 160)
+        poco.begin(60, 60, poco.width - 120, poco.height - 120)
       }
-      poco.fillRectangle(bg, 0, 0, poco.width, poco.height)
       this.renderFace(interval, this.currentContext)
       ;[this.currentContext, this.lastContext] = [this.lastContext, this.currentContext]
     }
     if (shouldClear || shouldRender) {
       poco.end()
     }
-    this.renderEffects(interval, this.currentContext)
+    this.renderDecorators(interval, this.currentContext)
   }
   clear(color: Color = [0x00, 0x00, 0x00]): void {
     const poco = this._poco
@@ -336,30 +308,32 @@ export class RendererBase {
     poco.fillRectangle(poco.makeColor(...color), 0, 0, poco.width, poco.height)
     poco.end()
   }
-  addEffect(effect: FaceEffect): void {
-    this.effects.push(effect)
+  addDecorator(decorator: FaceDecorator): void {
+    this.decorators.push(decorator)
   }
-  removeEffect(effect: FaceEffect): void {
-    const idx = this.effects.indexOf(effect)
+  removeDecorator(decorator: FaceDecorator): void {
+    const idx = this.decorators.indexOf(decorator)
     if (idx !== -1) {
-      this.effects.splice(idx, 1)
-      this.removingEffects.push(effect)
+      this.decorators.splice(idx, 1)
+      this.removingDecorators.push(decorator)
     }
   }
   renderFace(tick: number, face: FaceContext, poco: PocoPrototype = this._poco): void {
-    poco.clip(40, 60, poco.width - 80, poco.height - 80)
+    const bg = poco.makeColor(...face.theme.secondary)
+    poco.clip(60, 60, poco.width - 120, poco.height - 120)
+    poco.fillRectangle(bg, 60, 60, poco.width - 120, poco.height - 120)
     for (const layer of this.layers) {
       layer.render(tick, poco, face)
     }
     poco.clip()
   }
-  renderEffects(tick: number, face: FaceContext, poco: PocoPrototype = this._poco): void {
-    for (const renderEffect of this.effects) {
-      renderEffect(tick, poco, face)
+  renderDecorators(tick: number, face: FaceContext, poco: PocoPrototype = this._poco): void {
+    for (const renderDecorator of this.decorators) {
+      renderDecorator(tick, poco, face)
     }
-    for (const removingEffect of this.removingEffects) {
-      removingEffect(tick, poco, face, true)
+    for (const removingDecorator of this.removingDecorators) {
+      removingDecorator(tick, poco, face, true)
     }
-    this.removingEffects.length = 0
+    this.removingDecorators.length = 0
   }
 }

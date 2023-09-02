@@ -1,7 +1,7 @@
-import { RendererBase, Layer, type FacePartFactory, type FaceContext } from 'renderer'
-import { useDrawEye, useDrawEyelid } from 'simple-face'
+import { RendererBase, Layer, type FacePartFactory, type FaceContext } from 'renderer-base'
+import { createEyePart, createEyelidPart } from 'simple-face'
 
-export const useDrawEyeblow: FacePartFactory<{ cx: number; cy: number; side: keyof FaceContext['eyes'] }> = ({
+export const createEyeblowPart: FacePartFactory<{ cx: number; cy: number; side: keyof FaceContext['eyes'] }> = ({
   cx,
   cy,
   side,
@@ -19,7 +19,7 @@ export const useDrawEyeblow: FacePartFactory<{ cx: number; cy: number; side: key
   }
 }
 
-export const useDrawMouth: FacePartFactory<{
+export const createMouthPart: FacePartFactory<{
   cx: number
   cy: number
   minWidth?: number
@@ -60,20 +60,20 @@ export class Renderer extends RendererBase {
     this.layers.push(layer1)
     layer1.addPart(
       'leftEye',
-      useDrawEye({
+      createEyePart({
         cx: 90,
         cy: 93,
         side: 'left',
         radius: 10,
       })
     )
-    layer1.addPart('rightEye', useDrawEye({ cx: 230, cy: 96, side: 'right', radius: 10 }))
+    layer1.addPart('rightEye', createEyePart({ cx: 230, cy: 96, side: 'right', radius: 10 }))
 
     const layer2 = new Layer({ colorName: 'secondary' })
     this.layers.push(layer2)
     layer2.addPart(
       'leftEyelid',
-      useDrawEyelid({
+      createEyelidPart({
         cx: 90,
         cy: 93,
         side: 'left',
@@ -83,7 +83,7 @@ export class Renderer extends RendererBase {
     )
     layer2.addPart(
       'rightEyelid',
-      useDrawEyelid({
+      createEyelidPart({
         cx: 230,
         cy: 96,
         side: 'right',
@@ -94,10 +94,10 @@ export class Renderer extends RendererBase {
 
     const layer3 = new Layer({ colorName: 'primary', type: 'stroke' })
     this.layers.push(layer3)
-    layer3.addPart('mouth', useDrawMouth({ cx: 160, cy: 120 }))
+    layer3.addPart('mouth', createMouthPart({ cx: 160, cy: 120 }))
     layer1.addPart(
       'leftEyeblow',
-      useDrawEyeblow({
+      createEyeblowPart({
         cx: 90,
         cy: 93,
         side: 'left',
@@ -105,7 +105,7 @@ export class Renderer extends RendererBase {
     )
     layer1.addPart(
       'rightEyeblow',
-      useDrawEyeblow({
+      createEyeblowPart({
         cx: 230,
         cy: 96,
         side: 'right',

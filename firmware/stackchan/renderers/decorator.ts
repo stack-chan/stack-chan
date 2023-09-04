@@ -67,17 +67,13 @@ export const createBubbleDecorator: FaceDecoratorFactory<{
     const path = new Outline.CanvasPath()
     count = (count + tick) % 1000
     for (const b of bubbles) {
-      // 上昇速度を泡の半径に依存させる
       const upwardSpeed = 1 - b.r / 12
 
-      // 水平方向の動きは微妙にする
       b.vx = b.vx * 0.85 + 0.1 * (Math.random() - 0.5)
       b.x += b.vx
 
-      // x座標の範囲を考慮
       b.x = Math.max(b.r, Math.min(width - b.r, b.x))
 
-      // y座標（上昇）
       b.y = b.y + upwardSpeed * 2
       if (b.y > height - b.r) {
         b.y = b.r
@@ -85,10 +81,8 @@ export const createBubbleDecorator: FaceDecoratorFactory<{
         b.vx = -3
       }
 
-      // 半径を微妙に変化させる（オプション）
       b.r = Math.max(3, Math.min(12, b.r + 0.2 * (Math.random() - 0.5)))
 
-      // 描画
       path.arc(x + b.x, y + height - b.y, b.r, 0, 2 * Math.PI)
     }
     poco.blendOutline(fg, 255, Outline.stroke(path, 2), 0, 0)

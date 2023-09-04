@@ -17,7 +17,7 @@ export const createBalloonDecorator: FaceDecoratorFactory<
 > = ({ left, top, bottom, right, width, height, font, text }) => {
   const outline = Outline.fill(Outline.RoundRectPath(0, 0, width, height, 6))
   let textX = 0
-  let space = 20
+  const space = 20
   return (tick, poco, { theme }, end = false) => {
     const x = left ?? (right != null ? poco.width - right - width : (poco.width - width) / 2)
     const y = top ?? (bottom != null ? poco.height - bottom - height : (poco.height - height) / 2)

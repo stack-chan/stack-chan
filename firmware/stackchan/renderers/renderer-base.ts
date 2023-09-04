@@ -245,7 +245,7 @@ export class Layer {
     this.#renderers.forEach((render) => {
       render(tick, path, face)
     })
-    let outline =
+    const outline =
       this.#type === 'fill'
         ? Outline.fill(path).translate(0, face.breath * 3 ?? 0)
         : Outline.stroke(path, 6).translate(0, face.breath * 3 ?? 0)

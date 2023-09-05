@@ -3,53 +3,20 @@
         "XS_MODS": 1
     },
     "include": [
-        "$(MODDABLE)/examples/manifest_base.json",
-        "$(MODDABLE)/examples/manifest_net.json",
-        "$(MODDABLE)/examples/manifest_typings.json",
-        "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
-        "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
-        "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
-        "$(MODULES)/base/modules/manifest.json",
-        "$(MODULES)/base/deepEqual/manifest.json",
-        "$(MODULES)/base/structuredClone/manifest.json",
-        "$(MODULES)/data/text/decoder/manifest.json",
-        "$(MODULES)/files/preference/manifest.json",
-        "$(MODULES)/files/file/manifest_littlefs.json",
-        "$(MODULES)/network/ble/manifest_server.json",
-        "$(MODULES)/network/ble/manifest_client.json",
-        "$(MODULES)/network/mdns/manifest.json",
-        "$(MODULES)/pins/servo/manifest.json",
-        "$(MODULES)/pins/i2s/manifest.json",
-        "../extern/manifest_extern.json",
-        "./renderers/manifest_renderer.json",
-        "./manifest_wavstream.json",
-        "./manifest_typings.json"
+        "$(MODDABLE)/examples/manifest_commodetto.json",
+        "$(MODULES)/commodetto/outline/manifest.json"
     ],
     "modules": {
         "*": [
-            "$(MODULES)/network/ble/uart/uartserver",
-            "./ble/stk-server",
-            "./ble/beacon-packet",
-            "./utilities/*",
-            "./drivers/*",
-            "./services/*",
-            "./speech/*",
-            "./dialogue/*",
-            "./touch",
-            "./robot",
-            "./main"
-        ],
-        "default-mods/*": "./default-mods/*"
+            "./*"
+        ]
     },
     "preload": [
-        "http",
-        "tts-local",
-        "tts-voicevox",
-        "dialugue-chatgpt",
-        "dynamixel",
-        "dynamixel-driver",
-        "stk-server",
-        "touch"
+        "renderer-base",
+        "simple-face",
+        "dog-face",
+        "modifier",
+        "decorator"
     ],
     "ble": {
         "*": [

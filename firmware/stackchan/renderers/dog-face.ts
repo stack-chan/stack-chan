@@ -1,5 +1,6 @@
 import { RendererBase, Layer, type FacePartFactory, type FaceContext } from 'renderer-base'
 import { createEyePart, createEyelidPart } from 'simple-face'
+import { createBlinkModifier, createBreathModifier, createSaccadeModifier } from './modifier';
 
 export const createEyeblowPart: FacePartFactory<{ cx: number; cy: number; side: keyof FaceContext['eyes'] }> = ({
   cx,
@@ -56,6 +57,11 @@ export const createMouthPart: FacePartFactory<{
 export class Renderer extends RendererBase {
   constructor(option) {
     super(option)
+    this.filters = [
+      createBlinkModifier({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
+      createBreathModifier({ duration: 6000 }),
+      createSaccadeModifier({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
+    ]
     const layer1 = new Layer({ colorName: 'primary' })
     this.layers.push(layer1)
     layer1.addPart(

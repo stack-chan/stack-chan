@@ -6,6 +6,7 @@ import { Robot, Driver, TTS, Renderer } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
+import { DynamixelDriver } from 'dynamixel-driver'
 import { NoneDriver } from 'none-driver'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as RemoteTTS } from 'tts-remote'
@@ -20,6 +21,7 @@ import { loadPreferences } from 'stackchan-util'
 function createRobot() {
   const drivers = new Map<string, new (param: unknown) => Driver>([
     ['scservo', SCServoDriver],
+    ['dynamixel', DynamixelDriver],
     ['pwm', PWMServoDriver],
     ['rs30x', RS30XDriver],
     ['none', NoneDriver],

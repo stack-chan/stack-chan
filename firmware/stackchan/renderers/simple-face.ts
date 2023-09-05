@@ -1,4 +1,4 @@
-import { RendererBase, Layer, Emotion, type FacePartFactory, type FaceContext } from 'renderer-base'
+import { RendererBase, Layer, type FacePartFactory, type FaceContext } from 'renderer-base'
 import { createBlinkModifier, createBreathModifier, createSaccadeModifier } from 'modifier'
 
 // Renderers

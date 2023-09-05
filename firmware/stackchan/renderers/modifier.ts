@@ -1,4 +1,4 @@
-import type { FaceContext, FaceModifierFactory } from "renderer-base"
+import type { FaceContext, FaceModifierFactory } from 'renderer-base'
 import { randomBetween, normRand, quantize } from 'stackchan-util'
 
 function linearInEaseOut(fraction: number): number {

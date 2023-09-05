@@ -2,7 +2,6 @@ import config from 'mc/config'
 import Poco, { PocoPrototype } from 'commodetto/Poco'
 import { Outline, CanvasPath } from 'commodetto/outline'
 import deepEqual from 'deepEqual'
-import { randomBetween, quantize, normRand } from 'stackchan-util'
 
 /* global screen */
 const INTERVAL = 1000 / 10

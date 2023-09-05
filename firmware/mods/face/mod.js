@@ -6,14 +6,28 @@ import Timer from 'timer'
 import { hslToRgb } from 'stackchan-util'
 const font = parseBMF(new Resource('OpenSans-Regular-24.bf4'))
 
-const balloon = createBalloonDecorator({
+const param = {
   right: 20,
   top: 10,
   width: 80,
   height: font.height,
   font,
-  text: 'sleepy',
-})
+}
+
+const BALLOONS = [
+  createBalloonDecorator({
+    ...param,
+    text: 'ANGRY!!',
+  }),
+  createBalloonDecorator({
+    ...param,
+    text: 'SAD...',
+  }),
+  createBalloonDecorator({
+    ...param,
+    text: 'sleepy.',
+  }),
+]
 
 const bubble = createBubbleDecorator({
   x: 10,
@@ -26,21 +40,22 @@ const EMOTIONS = ['ANGRY', 'SAD', 'SLEEPY']
 
 export function onRobotCreated(robot) {
   robot.useRenderer(new Renderer())
-  robot.renderer.addDecorator(balloon)
-  robot.renderer.addDecorator(bubble)
-  robot.setEmotion('SLEEPY')
   robot.setColor('primary', 0x22, 0x22, 0x22)
   robot.setColor('primary', 0xfa, 0xfa, 0xfa)
-  let flag = false
   let idx = 0
+  let d = null
   Timer.repeat(() => {
-    if (flag) {
-      robot.renderer.addDecorator(balloon)
-    } else {
-      robot.renderer.removeDecorator(balloon)
+    if (d != null) {
+      robot.renderer.removeDecorator(d)
     }
+    d = BALLOONS[idx]
+    robot.renderer.addDecorator(d)
     robot.setEmotion(EMOTIONS[idx])
-    flag = !flag
+    if (EMOTIONS[idx] === 'SLEEPY') {
+      robot.renderer.addDecorator(bubble)
+    } else {
+      robot.renderer.removeDecorator(bubble)
+    }
     idx = (idx + 1) % EMOTIONS.length
   }, 3000)
 

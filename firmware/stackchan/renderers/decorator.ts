@@ -64,6 +64,10 @@ export const createBubbleDecorator: FaceDecoratorFactory<{
     const fg = poco.makeColor(...theme.primary)
     const bg = poco.makeColor(...theme.secondary)
     poco.fillRectangle(bg, x, y, width, height)
+    if (end) {
+      poco.end()
+      return
+    }
     const path = new Outline.CanvasPath()
     count = (count + tick) % 1000
     for (const b of bubbles) {

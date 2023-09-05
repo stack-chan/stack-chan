@@ -17,6 +17,10 @@ const param = {
 const BALLOONS = [
   createBalloonDecorator({
     ...param,
+    text: 'happyyyyyyyy',
+  }),
+  createBalloonDecorator({
+    ...param,
     text: 'ANGRY!!',
   }),
   createBalloonDecorator({
@@ -36,7 +40,7 @@ const bubble = createBubbleDecorator({
   height: 60,
 })
 
-const EMOTIONS = ['ANGRY', 'SAD', 'SLEEPY']
+const EMOTIONS = ['HAPPY', 'ANGRY', 'SAD', 'SLEEPY']
 
 export function onRobotCreated(robot) {
   robot.useRenderer(new Renderer())

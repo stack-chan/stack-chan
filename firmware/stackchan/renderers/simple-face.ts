@@ -38,6 +38,10 @@ export const createEyelidPart: FacePartFactory<{
       case 'SLEEPY':
         path.rect(x, y, w, height * 0.5 + h * 0.5)
         break
+      case 'HAPPY':
+        path.rect(x, y, w, h * 0.6)
+        path.rect(x, y + height * 0.6, w, height * 0.4)
+        break
       default:
         path.rect(x, y, w, h)
     }

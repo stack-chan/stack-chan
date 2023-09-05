@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flash firmware</title>
+  <link rel="stylesheet" href="../global.css">
+  <link rel="stylesheet" href="flash.css">
+  <script type="module" src="https://unpkg.com/esp-web-tools@9/dist/web/install-button.js?module"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const button = document.querySelector('esp-web-install-button')
+      const select = document.querySelector('.select-target')
+      select.addEventListener('change', (event) => {
+        const target = event.target.value
+        button.setAttribute("manifest", `manifest_${target}.json`)
+      })
+    })
+  </script>
+</head>
+
+<body>
+  <div class="app">
+    <select class="select-target">
+      <option value="esp32_m5stack">M5Stack</option>
+      <option value="esp32_m5stack_core2">M5Stack Core2</option>
+      <option value="esp32_m5stack_fire">M5Stack Fire</option>
+      <option value="esp32_m5stack_cores3">M5Stack CoreS3</option>
+    </select>
+    <esp-web-install-button manifest="manifest_esp32_m5stack.json" class="button-flash-container">
+      <button slot="activate" class="button-flash">
+        Flash Stack-chan firmware [・＿・]
+      </button>
+      <span slot="unsupported">Ah snap, your browser doesn't work!</span>
+      <span slot="not-allowed">Ah snap, you are not allowed to use this on HTTP!</span>
+    </esp-web-install-button>
+  </div>
+
+</body>
+
+</html>

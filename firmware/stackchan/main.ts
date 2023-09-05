@@ -6,88 +6,113 @@ import { Robot, Driver, TTS, Renderer } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
+import { DynamixelDriver } from 'dynamixel-driver'
 import { NoneDriver } from 'none-driver'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
-import { defaultMod, StackchanMod } from 'stackchan-mod'
-import { Renderer as SimpleRenderer } from 'face-renderer'
-import { Renderer as DogFaceRenderer } from 'dog-face-renderer'
+import defaultMod, { StackchanMod } from 'default-mods/mod'
+import { Renderer as SimpleRenderer } from 'simple-face'
+import { Renderer as DogFaceRenderer } from 'dog-face'
+import { NetworkService } from 'network-service'
 import Touch from 'touch'
+import { loadPreferences } from 'stackchan-util'
 
-// trace(`modules of mod: ${JSON.stringify(Modules.archive)}\n`)
-// trace(`modules of host: ${JSON.stringify(Modules.host)}\n`)
+function createRobot() {
+  const drivers = new Map<string, new (param: unknown) => Driver>([
+    ['scservo', SCServoDriver],
+    ['dynamixel', DynamixelDriver],
+    ['pwm', PWMServoDriver],
+    ['rs30x', RS30XDriver],
+    ['none', NoneDriver],
+  ])
+  const ttsEngines = new Map<string, new (param: unknown) => TTS>([
+    ['local', LocalTTS],
+    ['remote', RemoteTTS],
+    ['voicevox', VoiceVoxTTS],
+    ['elevenlabs', ElevenLabsTTS],
+  ])
+  const renderers = new Map<string, new (param: unknown) => Renderer>([
+    ['dog', DogFaceRenderer],
+    ['simple', SimpleRenderer],
+  ])
 
-let { onRobotCreated } = defaultMod
-if (Modules.has('mod')) {
-  const mod = Modules.importNow('mod') as StackchanMod
-  onRobotCreated = mod.onRobotCreated ?? onRobotCreated
-}
+  // TODO: select driver/tts/renderer by mod
 
-const drivers = new Map<string, new (param: unknown) => Driver>([
-  ['scservo', SCServoDriver],
-  ['pwm', PWMServoDriver],
-  ['rs30x', RS30XDriver],
-  ['none', NoneDriver],
-])
-const ttsEngines = new Map<string, new (param: unknown) => TTS>([
-  ['local', LocalTTS],
-  ['remote', RemoteTTS],
-  ['voicevox', VoiceVoxTTS],
-  ['elevenlabs', ElevenLabsTTS],
-])
-const renderers = new Map<string, new (param: unknown) => Renderer>([
-  ['dog', DogFaceRenderer],
-  ['simple', SimpleRenderer],
-])
+  const errors: string[] = []
 
-// TODO: select driver/tts/renderer by mod
+  // Servo Driver
+  const driverPrefs = loadPreferences('driver')
+  const driverKey = driverPrefs.type ?? 'scservo'
+  const Driver = drivers.get(driverKey)
 
-const errors: string[] = []
+  // TTS
+  const ttsPrefs = loadPreferences('tts')
+  const ttsKey = ttsPrefs.type ?? 'local'
+  const TTS = ttsEngines.get(ttsKey)
 
-// Servo Driver
-const driverKey = config.driver?.type ?? 'scservo'
-const Driver = drivers.get(driverKey)
+  // Renderer
+  const rendererPrefs = loadPreferences('renderer')
+  const rendererKey = rendererPrefs.type ?? 'simple'
+  const Renderer = renderers.get(rendererKey)
 
-// TTS
-const ttsKey = config.tts?.type ?? 'local'
-const TTS = ttsEngines.get(ttsKey)
-
-// Renderer
-const rendererKey = config.renderer?.type ?? 'simple'
-const Renderer = renderers.get(rendererKey)
-
-if (!Driver || !TTS || !Renderer) {
-  for (const [key, klass] of [
-    [driverKey, Driver],
-    [ttsKey, TTS],
-    [rendererKey, Renderer],
-  ]) {
-    if (klass == null) {
-      errors.push(`type "${key}" does not exist`)
+  if (!Driver || !TTS || !Renderer) {
+    for (const [key, klass] of [
+      [driverKey, Driver],
+      [ttsKey, TTS],
+      [rendererKey, Renderer],
+    ]) {
+      if (klass == null) {
+        errors.push(`type "${key}" does not exist`)
+      }
     }
+    throw new Error(errors.join('\n'))
   }
-  throw new Error(errors.join('\n'))
+
+  const driver = new Driver(driverPrefs)
+  const renderer = new Renderer(rendererPrefs)
+  const tts = new TTS(ttsPrefs)
+  const button = globalThis.button
+  const touch = !global.screen.touch && config.Touch ? new Touch() : undefined
+  return new Robot({
+    driver,
+    renderer,
+    tts,
+    button,
+    touch,
+  })
 }
 
-const driver = new Driver({
-  ...config.driver,
-})
-const renderer = new Renderer({
-  ...config.renderer,
-})
-const tts = new TTS({
-  ...config.tts,
-})
-const button = globalThis.button
-const touch = !global.screen.touch && config.Touch ? new Touch() : undefined
-const robot = new Robot({
-  driver,
-  renderer,
-  tts,
-  button,
-  touch,
-})
+async function checkAndConnectWiFi() {
+  const wifiPrefs = loadPreferences('wifi')
+  if (wifiPrefs.ssid == null || wifiPrefs.password == null) {
+    return
+  }
+  return new Promise((resolve, reject) => {
+    globalThis.network = new NetworkService({
+      ssid: wifiPrefs.ssid,
+      password: wifiPrefs.password,
+    })
+    globalThis.network.connect(resolve, reject)
+  })
+}
 
-onRobotCreated?.(robot, globalThis.device)
+async function main() {
+  await checkAndConnectWiFi().catch((msg) => {
+    trace(`WiFi connection failed: ${msg}`)
+  })
+  let { onRobotCreated, onLaunch } = defaultMod
+  if (Modules.has('mod')) {
+    const mod = Modules.importNow('mod') as StackchanMod
+    onRobotCreated = mod.onRobotCreated ?? onRobotCreated
+    onLaunch = mod.onLaunch ?? onLaunch
+  }
+  const shouldRobotCreate = await onLaunch?.()
+  if (shouldRobotCreate !== false) {
+    const robot = createRobot()
+    await onRobotCreated?.(robot, globalThis.device)
+  }
+}
+
+main()

@@ -1,0 +1,12 @@
+{
+	"include": [
+		"$(MODDABLE)/examples/manifest_mod.json"
+	],
+	"modules": {
+		"*": ["./mod", "./preference-server"]
+	},
+	"preload": [
+		"preference-server",
+		"mod"
+	]
+}

@@ -1,6 +1,4 @@
 /* eslint-disable prefer-const */
-import { Headers } from 'fetch'
-
 import AudioOut from 'pins/audioout'
 import WavStreamer from 'wavstreamer'
 import calculatePower from 'calculate-power'
@@ -103,9 +101,9 @@ export class TTS {
         bufferDuration: 600,
         request: {
           method: 'POST',
-          headers: new Headers([
-            ['Content-Type', 'application/json'],
-            ['Content-Length', `${file.length}`],
+          headers: new Map([
+            ['content-type', 'application/json'],
+            ['content-length', `${file.length}`],
           ]),
           onWritable(count) {
             this.write(file.read(ArrayBuffer, count))

@@ -1,0 +1,18 @@
+{
+    "include": [
+        "$(MODDABLE)/examples/manifest_commodetto.json",
+        "$(MODULES)/commodetto/outline/manifest.json"
+    ],
+    "modules": {
+        "*": [
+            "./*"
+        ]
+    },
+    "preload": [
+        "renderer-base",
+        "simple-face",
+        "dog-face",
+        "modifier",
+        "decorator"
+    ]
+}

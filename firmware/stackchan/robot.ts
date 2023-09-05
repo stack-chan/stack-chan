@@ -1,7 +1,6 @@
 import Timer from 'timer'
 import { Vector3, Pose, Rotation, Maybe, noop, randomBetween } from 'stackchan-util'
-import { type FaceContext, type Emotion, defaultFaceContext } from 'face-renderer'
-import structuredClone from 'structuredClone'
+import { type FaceContext, type Emotion, createFaceContext } from 'renderer-base'
 import Digital from 'embedded:io/digital'
 import Touch from 'touch'
 
@@ -15,6 +14,8 @@ export type Driver = {
   applyRotation: (ori: Rotation, time?: number) => Promise<void>
   getRotation: () => Promise<Maybe<Rotation>>
   setTorque: (torque: boolean) => Promise<void>
+  onAttached?: () => void
+  onDetached?: () => void
 }
 
 /**
@@ -30,7 +31,7 @@ export type TTS = {
  * The display renderer
  */
 export type Renderer = {
-  update: (interval: number, faceContext: FaceContext) => void
+  update: (interval: number, faceContext: Readonly<FaceContext>) => void
 }
 
 export type Button = {
@@ -58,6 +59,7 @@ type RobotConstructorParam<T extends string> = {
   touch?: Touch
 }
 
+const LEFT_RIGHT = Object.freeze(['left', 'right'])
 export class Robot {
   /**
    * A Facade class that provides quick access for Stack-chan features
@@ -80,6 +82,8 @@ export class Robot {
   #isMoving: boolean
   #renderer: Renderer
   #paused: boolean
+  #faceContext: FaceContext
+  #emotion: Emotion
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
   updating: boolean
@@ -134,6 +138,7 @@ export class Robot {
     this.#updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
     this.#updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
     this.#paused = false
+    this.#faceContext = createFaceContext()
   }
 
   /**
@@ -170,7 +175,11 @@ export class Robot {
    * @param driver - Driver class instance
    */
   useDriver(driver: Driver) {
+    if (this.#driver != null) {
+      this.#driver.onDetached?.()
+    }
     this.#driver = driver
+    this.#driver.onAttached?.()
   }
 
   /**
@@ -266,6 +275,17 @@ export class Robot {
   }
 
   /**
+   * Set the color
+   * @param{key} - 'primary' or 'secondary'
+   * @param{r} - red value [0-255]
+   * @param{g} - green value [0-255]
+   * @param{b} - blue value [0-255]
+   */
+  setColor(key: keyof FaceContext['theme'], r, g, b): void {
+    this.#faceContext.theme[key] = [r, g, b]
+  }
+
+  /**
    * Set the emotion of the robot.
    * The emotion may (or may not) affect the way the robot moves
    * and its facial expressions.
@@ -273,7 +293,19 @@ export class Robot {
    * @param emotion - emotion
    */
   setEmotion(emotion: Emotion) {
-    // TBD
+    this.#emotion = emotion
+  }
+
+  get driver(): Driver {
+    return this.#driver
+  }
+
+  get tts(): TTS {
+    return this.#tts
+  }
+
+  get renderer(): Renderer {
+    return this.#renderer
   }
 
   pause() {
@@ -292,28 +324,26 @@ export class Robot {
     if (this.#paused) {
       return
     }
-    const face = structuredClone(defaultFaceContext)
     if (this.#power != 0) {
-      face.mouth.open = Math.min(this.#power / 2000, 1.0)
+      this.#faceContext.mouth.open = Math.min(this.#power / 2000, 1.0)
     }
+    this.#faceContext.emotion = this.#emotion
     if (this.#gazePoint != null) {
       const relativeGazePoint = Vector3.rotate(this.#gazePoint, {
         r: 0.0,
         y: -this.#pose.body.rotation.y,
         p: -this.#pose.body.rotation.p,
       })
-      for (let key of ['left', 'right'] as const) {
+      for (const key of LEFT_RIGHT) {
         const pos = this.#pose.eyes[key].position
         const relative = Vector3.sub(relativeGazePoint, [pos.x, pos.y, pos.z])
         const { y, p } = Rotation.fromVector3(relative)
-        face.eyes[key] = {
-          ...face.eyes[key],
-          gazeX: Math.cos(y),
-          gazeY: Math.cos(p),
-        }
+        const eye = this.#faceContext.eyes[key]
+        eye.gazeX = Math.cos(y)
+        eye.gazeY = Math.cos(p)
       }
     }
-    this.#renderer.update(INTERVAL_FACE, face)
+    this.#renderer.update(INTERVAL_FACE, this.#faceContext)
   }
 
   /**

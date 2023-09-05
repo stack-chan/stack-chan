@@ -49,20 +49,21 @@ type ChatContent = {
 type ChatGPTDialogueProps = {
   // model?: string
   context?: ChatContent[]
+  model?: string
   apiKey: string
 }
 
 export class ChatGPTDialogue {
-  #model: string = DEFAULT_MODEL
+  #model: string
   #context: Array<ChatContent>
   #headers: Headers
   #history: Array<ChatContent>
   #maxHistory: number
-  constructor({ apiKey, context = DEFAULT_CONTEXT }: ChatGPTDialogueProps) {
-    this.#model = DEFAULT_MODEL
+  constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: ChatGPTDialogueProps) {
+    this.#model = model
     this.#context = context
     this.#history = []
-    this.#maxHistory = 10
+    this.#maxHistory = 6
     this.#headers = new Headers([
       ['Content-Type', 'application/json'],
       ['Authorization', `Bearer ${apiKey}`],

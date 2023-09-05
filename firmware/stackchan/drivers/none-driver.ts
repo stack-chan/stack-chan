@@ -1,4 +1,4 @@
-import type { Maybe, Rotation } from '../stackchan-util'
+import type { Maybe, Rotation } from 'stackchan-util'
 
 export class NoneDriver {
   constructor() {

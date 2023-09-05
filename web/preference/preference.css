@@ -1,0 +1,16 @@
+.accordion {
+  display: none;
+}
+
+.accordion.active {
+  display: block;
+}
+
+.ble-disconnect-button {
+  position: absolute;
+  right: 0.5em;
+  top: 0.5em;
+  font-size: 1.2em;
+  color: #bdbdbd;
+  cursor: pointer;
+}

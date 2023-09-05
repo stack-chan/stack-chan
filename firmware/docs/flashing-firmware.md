@@ -27,7 +27,7 @@ StackChan can change settings such as motor types and pin assignments from the m
 | driver.type     | Type of motor driver                            | "scservo", "rs30x", "pwm", "none"           |
 | driver.panId    | ID of the serial servo used for pan axis (horizontal rotation of the neck) | 1~254                                       |
 | driver.tiltId   | ID of the serial servo used for tilt axis (vertical rotation of the neck) | 1~254                                       |
-| driver.offsetPan  | Offset of the tilt axis                            | -90~90                                      |
+| driver.offsetPan  | Offset of the pan axis                            | -90~90                                      |
 | driver.offsetTilt | Offset of the tilt axis                            | -90~90                                      |
 | tts.type          | [TTS](./text-to-speech.md) type                                      | "local", "voicevox"                         |
 | tts.host          | Host name when TTS communicates with server           | "localhost", "ttsserver.local", etc. |
@@ -108,25 +108,34 @@ Simply add the following code to your manifest file:
 }
 ```
 
-## Writing hosts
+## Writing the base program (hosts)
 
+As stated above, Stack-chan's firmware comprises a base program (host) and a user application (MOD).
 The following commands are used to build and write a host.
+
+_No `sudo` required for the command._
 
 ```console
 # For M5Stack Basic/Gray/Fire
 $ npm run build
 $ npm run deploy
 
-# For M5Stack CORE2
+# For M5Stack Core2
 $ npm run build --target=esp32/m5stack_core2
 $ npm run deploy --target=esp32/m5stack_core2
+
+# For M5Stack CoreS3
+$ npm run build --target=esp32/m5stack_cores3
+$ npm run deploy --target=esp32/m5stack_cores3
 ```
 
 The program will be saved under the `$MODDABLE/build/` directory.
 
-## Writing MODs
+## (Optional) Writing user application (mods)
 
 The following command is used to build and write a mod.
+
+_No `sudo` required for the command._
 
 ```console
 # For M5Stack Basic/Gray/Fire
@@ -134,7 +143,14 @@ $ npm run mod [mod manifest file path]
 
 # For M5Stack Core2
 $ npm run mod --target=esp32/m5stack_core2 [mod manifest file path]
+
+# For M5Stack CoreS3
+$ npm run mod --target=esp32/m5stack_cores3 [mod manifest file path]
 ```
+
+If written correctly, the face of Stack-chan will be displayed a few seconds after startup.
+Press the A button on the M5Stack (or the lower left area of the screen in the case of CoreS3)
+and confirm that Stack-chan looks in a random direction every 5 seconds.
 
 __Example: Installing [`mods/look_around`](../mods/look_around/)__
 

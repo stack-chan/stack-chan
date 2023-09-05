@@ -22,7 +22,7 @@
 
 ## 設定変更
 
-ｽﾀﾝｸﾁｬﾝが使うモータの種類やピンアサインなどをマニフェストファイルから変更できます。
+ｽﾀｯｸﾁｬﾝが使うモータの種類やピンアサインなどをマニフェストファイルから変更できます。
 ユーザが変更する設定は[`stack-chan/firmware/stackchan/manifest_local.json`](../stackchan/manifest_local.json)にまとまっています。
 `"config"`キーの配下に次のような設定が書けます。
 
@@ -30,8 +30,8 @@
 | ----------------- | ----------------------------------------------- | ------------------------------------------- |
 | driver.type       | モータドライバの種類                            | "scservo", "rs30x", "pwm", "none"           |
 | driver.panId      | パン軸（首の横回転）に使うシリアルサーボの ID   | 1~254                                       |
-| driver.tiltId     | チルト軸（首の横回転）に使うシリアルサーボの ID | 1~254                                       |
-| driver.offsetPan  | チルト軸のオフセット                            | -90~90                                      |
+| driver.tiltId     | チルト軸（首の縦回転）に使うシリアルサーボの ID | 1~254                                       |
+| driver.offsetPan  | パン軸のオフセット                            | -90~90                                      |
 | driver.offsetTilt | チルト軸のオフセット                            | -90~90                                      |
 | tts.type          | [TTS](./text-to-speech_ja.md) の種類                                      | "local", "voicevox"                         |
 | tts.host          | TTS がサーバと通信する場合のホスト名            | "localhost", "ttsserver.local" などの文字列 |
@@ -112,9 +112,12 @@ modを書き込むパーティションの容量が大幅に増加します。
 }
 ```
 
-## ホストの書き込み
+## 基本プログラム（ホスト）の書き込み
 
-次のコマンドでホストの書き込みを行います。
+前述の通りｽﾀｯｸﾁｬﾝのファームウェアは基本プログラム（ホスト）とユーザアプリケーション（MOD）から構成されます。
+次のコマンドで基本プログラム（ホスト）の書き込みを行います。
+
+_コマンドに`sudo`をつける必要はありません。_
 
 
 ```console
@@ -122,16 +125,26 @@ modを書き込むパーティションの容量が大幅に増加します。
 $ npm run build
 $ npm run deploy
 
-# M5Stack CORE2の場合
+# M5Stack Core2の場合
 $ npm run build --target=esp32/m5stack_core2
 $ npm run deploy --target=esp32/m5stack_core2
+
+# M5Stack CoreS3の場合
+$ npm run build --target=esp32/m5stack_cores3
+$ npm run deploy --target=esp32/m5stack_cores3
 ```
 
 ビルドしたプログラムは`$MODDABLE/build/`ディレクトリ配下に保存されます。
 
-## MODの書き込み
+正しく書き込めていれば起動から数秒後にｽﾀｯｸﾁｬﾝの顔が表示されます。
+M5StackのAボタン（CoreS3の場合は画面左下の領域）を押して、
+ｽﾀｯｸﾁｬﾝが5秒おきにランダムな方向を見ることを確認してください。
 
-次のコマンドでMODの書き込みを行います。
+## （オプション）ユーザアプリケーション（MOD）の書き込み
+
+次のコマンドでユーザアプリケーション（MOD）の書き込みを行います。
+
+_コマンドに`sudo`をつける必要はありません。_
 
 ```console
 # M5Stack Basic/Gray/Fireの場合
@@ -139,6 +152,9 @@ $ npm run mod [modのマニフェストファイルのパス]
 
 # M5Stack Core2の場合
 $ npm run mod --target=esp32/m5stack_core2 [modのマニフェストファイルのパス]
+
+# M5Stack CoreS3の場合
+$ npm run mod --target=esp32/m5stack_cores3 [modのマニフェストファイルのパス]
 ```
 
 __例: [`mods/look_around`](../mods/look_around/)をインストールする__

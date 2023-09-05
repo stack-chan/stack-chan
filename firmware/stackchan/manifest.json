@@ -98,7 +98,8 @@
         "devices": [
             "com.m5stack",
             "com.m5stack.fire",
-            "com.m5stack.core2"
+            "com.m5stack.core2",
+            "com.m5stack.cores3"
         ]
     },
     "platforms": {

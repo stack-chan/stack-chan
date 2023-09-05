@@ -5,18 +5,7 @@
 	],
 	"modules": {
 		"*": [
-			"./mod",
-			"../../stackchan/utilities/*"
-		],
-		"renderer-base": "./renderer-base",
-		"effects": "./effects",
-		"simple-face": "./simple-face",
-		"dog-face": "./dog-face"
-	},
-	"preload": [
-		"renderer-base",
-		"simple-face",
-		"dog-face",
-		"effects"
-	]
+			"./mod"
+		]
+	}
 }

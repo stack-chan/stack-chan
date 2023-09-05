@@ -8,26 +8,32 @@
         "$(MODDABLE)/examples/manifest_commodetto.json",
         "$(MODDABLE)/modules/commodetto/outline/manifest.json",
         "$(MODDABLE)/modules/base/deepEqual/manifest.json",
-        "$(MODDABLE)/modules/base/structuredClone/manifest.json"
+        "$(MODDABLE)/modules/base/structuredClone/manifest.json",
+        "$(MODULES)/files/preference/manifest.json"
     ],
     "modules": {
         "*": [
             "./main",
             "../../stackchan/renderers/*",
-            "../../stackchan/stackchan-util"
+            "../../stackchan/utilities/*"
         ]
     },
     "resources": {
         "*-mask": [
-			{
-				"source": "$(MODDABLE)/examples/assets/scalablefonts/NotoSans/NotoSansJP-Regular",
-				"size": 24,
-				"blocks": ["Hiragana", "Katakana", "Basic Latin"],
+            {
+                "source": "$(MODDABLE)/examples/assets/scalablefonts/NotoSans/NotoSansJP-Regular",
+                "size": 24,
+                "blocks": [
+                    "Hiragana",
+                    "Katakana",
+                    "Basic Latin"
+                ],
                 "characters": "えっ今からでも入れる保険があるんですか！？"
-			}
+            }
         ]
     },
     "preload": [
+        "consts",
         "stackchan-util",
         "face-renderer"
     ],
@@ -36,14 +42,14 @@
     },
     "creation": {
         "static": 98304,
-		"chunk": {
-			"initial": 1536,
-			"incremental": 512
-		},
-		"heap": {
-			"initial": 512,
-			"incremental": 64
-		},
+        "chunk": {
+            "initial": 1536,
+            "incremental": 512
+        },
+        "heap": {
+            "initial": 512,
+            "incremental": 64
+        },
         "stack": 512,
         "keys": {
             "available": 512

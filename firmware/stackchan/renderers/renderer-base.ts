@@ -226,6 +226,11 @@ export class RendererBase {
     poco.end()
   }
   addDecorator(decorator: FaceDecorator): void {
+    const idx = this.decorators.indexOf(decorator)
+    if (idx !== -1) {
+      trace('already being added\n')
+      return
+    }
     this.decorators.push(decorator)
   }
   removeDecorator(decorator: FaceDecorator): void {

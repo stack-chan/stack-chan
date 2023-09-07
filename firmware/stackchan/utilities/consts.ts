@@ -21,5 +21,8 @@ export const PREF_KEYS: readonly [keyof typeof DOMAIN, string, StringConstructor
     [DOMAIN.tts, 'token', String],
     [DOMAIN.ai, 'token', String],
     [DOMAIN.ai, 'context', String],
-  ]
+  ],
+  true
 )
+
+export const DEFAULT_FONT = 'OpenSans-Regular-24.bf4'

@@ -24,7 +24,7 @@ const UP = {
   p: -Math.PI / 6,
 }
 
-export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot, _device) => {
+export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   /**
    * Button A ... Look around
    */

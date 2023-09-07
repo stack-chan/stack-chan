@@ -2,6 +2,13 @@ import { DOMAIN, PREF_KEYS } from 'consts'
 import Preference from 'preference'
 import structuredClone from 'structuredClone'
 import config from 'mc/config'
+import Timer from 'timer'
+
+export async function asyncWait(ms) {
+  return new Promise((resolve) => {
+    Timer.set(resolve, ms)
+  })
+}
 
 export function loadPreferences(category: keyof typeof DOMAIN) {
   const preference = structuredClone(config[category.toLowerCase()]) ?? {}

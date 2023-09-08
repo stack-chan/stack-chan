@@ -27,9 +27,8 @@ class PControl {
   }
 
   async init() {
-    this.goalPosition = 0
+    this.goalPosition = 2048
     await this.servo.setOperatingMode(OPERATING_MODE.CURRENT_BASED_POSITION)
-    await this.servo.setGoalCurrent(60)
     await this.servo.setTorque(true)
   }
 
@@ -62,7 +61,7 @@ export class DynamixelDriver {
   constructor(param: DynamixelDriverProps) {
     this._pan = new Dynamixel({ id: param.panId, baudrate: param.baud })
     this._tilt = new Dynamixel({ id: param.tiltId, baudrate: param.baud })
-    this._controls = [new PControl(this._pan, 0.15, 80, 'pan'), new PControl(this._tilt, 0.2, 60, 'tilt')]
+    this._controls = [new PControl(this._pan, 0.15, 80, 'pan'), new PControl(this._tilt, 4, 800, 'tilt')]
     this._torque = true
   }
 
@@ -86,8 +85,6 @@ export class DynamixelDriver {
       }
       await this._pan.setProfileAcceleration(20)
       await this._pan.setProfileVelocity(100)
-      await this._tilt.setProfileVelocity(20)
-      await this._tilt.setProfileAcceleration(20)
       trace('servo initialized\n')
     }
     // TODO: use bulk write/read instruction for performance
@@ -96,24 +93,7 @@ export class DynamixelDriver {
     }
   }
 
-  async init() {
-    trace(`initializing\n`)
-    this._initialized = true
-    await this._pan.setOperatingMode(OPERATING_MODE.CURRENT_BASED_POSITION)
-    await this._pan.setProfileAcceleration(20)
-    await this._pan.setProfileVelocity(100)
-    await this._pan.setGoalCurrent(60)
-    await this._pan.setTorque(true)
-    await this._tilt.setOperatingMode(OPERATING_MODE.CURRENT_BASED_POSITION)
-    await this._tilt.setProfileVelocity(20)
-    await this._tilt.setGoalCurrent(60)
-    await this._tilt.setTorque(true)
-  }
-
   async applyRotation(ori: Rotation): Promise<void> {
-    if (!this._initialized) {
-      await this.init()
-    }
     const panAngle = (ori.y * 180) / Math.PI
     const tiltAngle = (ori.p * 180) / Math.PI
     trace(`applying (${ori.y}, ${ori.p}) => (${panAngle}, ${tiltAngle})\n`)

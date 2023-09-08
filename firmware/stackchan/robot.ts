@@ -1,8 +1,12 @@
 import Timer from 'timer'
 import { Vector3, Pose, Rotation, Maybe, noop, randomBetween } from 'stackchan-util'
-import { type FaceContext, type Emotion, createFaceContext } from 'renderer-base'
+import { type FaceContext, type Emotion, createFaceContext, FaceDecorator } from 'renderer-base'
 import Digital from 'embedded:io/digital'
 import Touch from 'touch'
+import { createBalloonDecorator } from 'decorator'
+import { DEFAULT_FONT } from 'consts'
+import Resource from 'Resource'
+import parseBMF from 'commodetto/parseBMF'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
@@ -32,6 +36,8 @@ export type TTS = {
  */
 export type Renderer = {
   update: (interval: number, faceContext: Readonly<FaceContext>) => void
+  addDecorator(decorator: FaceDecorator): void
+  removeDecorator(decorator: FaceDecorator): void
 }
 
 export type Button = {
@@ -86,6 +92,8 @@ export class Robot {
   #emotion: Emotion
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
+  #font: ReturnType<typeof parseBMF>
+  #balloon: FaceDecorator
   updating: boolean
   constructor(params: RobotConstructorParam<ButtonName>) {
     this.useRenderer(params.renderer)
@@ -246,6 +254,44 @@ export class Robot {
    */
   lookAt(position: Vector3) {
     this.#gazePoint = position
+  }
+
+  /**
+   * Show balloon decorator
+   *
+   * @param text - the text on the balloon
+   */
+  showBalloon(
+    text: string,
+    option = {
+      right: 20,
+      top: 10,
+      width: 80,
+    }
+  ) {
+    if (this.#balloon != null) {
+      this.hideBalloon()
+    }
+    if (this.#font == null) {
+      this.#font = parseBMF(new Resource(DEFAULT_FONT))
+    }
+    this.#balloon = createBalloonDecorator({
+      ...option,
+      height: this.#font.height,
+      font: this.#font,
+      text,
+    })
+    this.#renderer.addDecorator(this.#balloon)
+  }
+
+  /**
+   * Hide balloon decorator
+   */
+  hideBalloon() {
+    if (this.#balloon != null) {
+      this.renderer.removeDecorator(this.#balloon)
+      this.#balloon = null
+    }
   }
 
   /**

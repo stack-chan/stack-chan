@@ -226,6 +226,11 @@ export class RendererBase {
     poco.end()
   }
   addDecorator(decorator: FaceDecorator): void {
+    const idx = this.decorators.indexOf(decorator)
+    if (idx !== -1) {
+      trace('already being added\n')
+      return
+    }
     this.decorators.push(decorator)
   }
   removeDecorator(decorator: FaceDecorator): void {
@@ -245,11 +250,11 @@ export class RendererBase {
     poco.clip()
   }
   renderDecorators(tick: number, face: FaceContext, poco: PocoPrototype = this._poco): void {
-    for (const renderDecorator of this.decorators) {
-      renderDecorator(tick, poco, face)
-    }
     for (const removingDecorator of this.removingDecorators) {
       removingDecorator(tick, poco, face, true)
+    }
+    for (const renderDecorator of this.decorators) {
+      renderDecorator(tick, poco, face)
     }
     this.removingDecorators.length = 0
   }

@@ -3,18 +3,15 @@ import { type FaceDecoratorFactory } from 'renderer-base'
 import { Outline } from 'commodetto/outline'
 
 export const createBalloonDecorator: FaceDecoratorFactory<
-  {
-    left: number
-    top: number
-    bottom: number
-    right: number
-    width: number
-    height: number
-    font: ReturnType<typeof parseBMF>
-    text: string
-  },
+  ({ left: number; right?: number } | { left?: number; right?: number }) &
+    ({ top: number; bottom?: number } | { top?: undefined; bottom: number }) & {
+      width: number
+      height: number
+      font: ReturnType<typeof parseBMF>
+      text: string
+    },
   boolean
-> = ({ left, top, bottom, right, width, height, font, text }) => {
+> = ({ width, height, font, text, left, right, top, bottom }) => {
   const outline = Outline.fill(Outline.RoundRectPath(0, 0, width, height, 6))
   let textX = 0
   const space = 20

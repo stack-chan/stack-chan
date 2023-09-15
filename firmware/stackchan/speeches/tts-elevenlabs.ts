@@ -5,27 +5,25 @@ import calculatePower from 'calculate-power'
 
 /* global trace, SharedArrayBuffer */
 
-declare const device: any
-
 export type TTSProperty = {
   onPlayed: (number) => void
   onDone: () => void
-  api_key: string
+  token: string
 }
 
 export class TTS {
   audio: AudioOut
   onPlayed: (number) => void
   onDone: () => void
-  api_key: string
+  token: string
   streaming: boolean
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
     this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 44100 })
-    this.api_key = props.api_key
+    this.token = props.token
   }
-  async stream(key: string): Promise<void> {
+  async stream(text: string): Promise<void> {
     if (this.streaming) {
       throw new Error('already playing')
     }
@@ -34,10 +32,10 @@ export class TTS {
     const { onPlayed, onDone, audio } = this
     return new Promise((resolve, reject) => {
       let streamer = new ElevenLabsStreamer({
-        key: this.api_key,
+        key: this.token,
         voice: 'AZnzlk1XvdvUeBnXmlld',
         latency: 2,
-        text: key,
+        text,
         audio: {
           out: audio,
           stream: 0,

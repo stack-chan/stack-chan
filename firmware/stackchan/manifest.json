@@ -11,7 +11,7 @@
         "./dialogues/manifest_dialogue.json",
         "./renderers/manifest_renderer.json",
         "./services/manifest_service.json",
-        "./speech/manifest_speech.json",
+        "./speeches/manifest_speech.json",
         "./utilities/manifest_utility.json",
         "./manifest_typings.json"
     ],

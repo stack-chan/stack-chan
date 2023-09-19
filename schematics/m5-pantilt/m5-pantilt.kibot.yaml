@@ -1,0 +1,290 @@
+# This is a working example.
+# For a more complete reference use `--example`
+kibot:
+  version: 1
+
+global:
+  filters:
+  - number: 1007
+  - number: 1015
+  - number: 58
+  out_dir: generated
+
+import:
+- file: JLCPCB
+  definitions:
+    _KIBOT_MANF_DIR: Manufacturers/JLCPCB
+    _KIBOT_POS_PRE_TRANSFORM: '[''_kicost_rename'', ''_rot_footprint'']'
+
+outputs:
+- name: generic_bom_html
+  comment: Generic Bill of Materials in HTML format
+  type: bom
+  dir: BoM/Generic
+  options:
+    format: HTML
+    count_smd_tht: true
+- name: generic_bom_xlsx
+  comment: Generic Bill of Materials in XLSX format
+  type: bom
+  dir: BoM/Generic
+  options:
+    format: XLSX
+    count_smd_tht: true
+- name: basic_download_datasheets
+  comment: Download the datasheets
+  type: download_datasheets
+  dir: Datasheets
+- name: basic_gerb_drill
+  comment: Drill files in GERB_DRILL format
+  type: gerb_drill
+  dir: Gerbers_and_Drill
+  options:
+    map: gerber
+- name: gerber_modern
+  comment: Gerbers in modern format, recommended by the standard
+  type: gerber
+  dir: Gerbers_and_Drill
+  layers:
+  - layer: F.Cu
+    suffix: F_Cu
+    description: Front copper
+  - layer: B.Cu
+    suffix: B_Cu
+    description: Bottom copper
+  - layer: B.Paste
+    suffix: B_Paste
+    description: Bottom solder paste
+  - layer: F.Paste
+    suffix: F_Paste
+    description: Front solder paste
+  - layer: B.Silkscreen
+    suffix: B_Silkscreen
+    description: Bottom silkscreen (artwork)
+  - layer: F.Silkscreen
+    suffix: F_Silkscreen
+    description: Front silkscreen (artwork)
+  - layer: B.Mask
+    suffix: B_Mask
+    description: Bottom soldermask (negative)
+  - layer: F.Mask
+    suffix: F_Mask
+    description: Front soldermask (negative)
+  - layer: User.Comments
+    suffix: User_Comments
+    description: User comments
+  - layer: User.Eco1
+    suffix: User_Eco1
+    description: For user usage 1
+  - layer: Edge.Cuts
+    suffix: Edge_Cuts
+    description: Board shape
+  - layer: B.Courtyard
+    suffix: B_Courtyard
+    description: Bottom courtyard area
+  - layer: F.Courtyard
+    suffix: F_Courtyard
+    description: Front courtyard area
+  - layer: B.Fab
+    suffix: B_Fab
+    description: Bottom documentation
+  - layer: F.Fab
+    suffix: F_Fab
+    description: Front documentation
+- name: basic_kikit_present
+  comment: Simple project presentation
+  type: kikit_present
+  dir: Presentation
+  options:
+    description: '# Presentation for m5-pantilt
+
+      This is an automatically generated presentation page'
+    boards:
+      mode: local
+      comment: Resources included
+      front_image: renderer_for_present
+      back_image: renderer_for_present
+      gerbers: gerbers_for_present
+- name: renderer_for_present
+  comment: Renderer for the presentation
+  type: pcbdraw
+  dir: Render_for_presentation
+  run_by_default: false
+- name: gerbers_for_present
+  comment: Gerbers for the presentation
+  type: gerber
+  dir: Gerber_for_presentation
+  layers: copper
+  run_by_default: false
+- name: basic_navigate_results
+  comment: Web page to browse the results
+  type: navigate_results
+  dir: Browse
+  options:
+    link_from_root: index.html
+    skip_not_run: true
+- name: basic_pcb_print_pdf
+  comment: PCB
+  type: pcb_print
+  dir: PCB/PDF
+  options:
+    format: PDF
+    pages:
+    - layers:
+      - layer: F.Cu
+      - layer: F.Mask
+        color: '#14332440'
+      - layer: F.Paste
+      - layer: F.Silkscreen
+      - layer: Edge.Cuts
+      - layer: User.Comments
+      - layer: User.Eco1
+      sheet: Front copper
+    - layers:
+      - layer: B.Cu
+      - layer: B.Mask
+        color: '#14332440'
+      - layer: B.Paste
+      - layer: B.Silkscreen
+      - layer: Edge.Cuts
+      - layer: User.Comments
+      - layer: User.Eco1
+      mirror: true
+      sheet: Bottom copper
+    - layers:
+      - layer: B.Courtyard
+      - layer: Edge.Cuts
+      - layer: User.Comments
+      - layer: User.Eco1
+      mirror: true
+      sheet: Bottom courtyard area
+    - layers:
+      - layer: F.Courtyard
+      - layer: Edge.Cuts
+      - layer: User.Comments
+      - layer: User.Eco1
+      sheet: Front courtyard area
+    - layers:
+      - layer: B.Fab
+      - layer: Edge.Cuts
+      - layer: User.Comments
+      - layer: User.Eco1
+      mirror: true
+      sheet: Bottom documentation
+    - layers:
+      - layer: F.Fab
+      - layer: Edge.Cuts
+      - layer: User.Comments
+      - layer: User.Eco1
+      sheet: Front documentation
+    keep_temporal_files: true
+- name: basic_pdf
+  comment: Individual layers in PDF format
+  type: pdf
+  dir: Individual_Layers/PDF
+  layers:
+  - layer: F.Cu
+    suffix: F_Cu
+    description: Front copper
+  - layer: B.Cu
+    suffix: B_Cu
+    description: Bottom copper
+  - layer: B.Paste
+    suffix: B_Paste
+    description: Bottom solder paste
+  - layer: F.Paste
+    suffix: F_Paste
+    description: Front solder paste
+  - layer: B.Silkscreen
+    suffix: B_Silkscreen
+    description: Bottom silkscreen (artwork)
+  - layer: F.Silkscreen
+    suffix: F_Silkscreen
+    description: Front silkscreen (artwork)
+  - layer: B.Mask
+    suffix: B_Mask
+    description: Bottom soldermask (negative)
+  - layer: F.Mask
+    suffix: F_Mask
+    description: Front soldermask (negative)
+  - layer: User.Comments
+    suffix: User_Comments
+    description: User comments
+  - layer: User.Eco1
+    suffix: User_Eco1
+    description: For user usage 1
+  - layer: Edge.Cuts
+    suffix: Edge_Cuts
+    description: Board shape
+  - layer: B.Courtyard
+    suffix: B_Courtyard
+    description: Bottom courtyard area
+  - layer: F.Courtyard
+    suffix: F_Courtyard
+    description: Front courtyard area
+  - layer: B.Fab
+    suffix: B_Fab
+    description: Bottom documentation
+  - layer: F.Fab
+    suffix: F_Fab
+    description: Front documentation
+- name: basic_pdf_sch_print
+  comment: Schematic in PDF format
+  type: pdf_sch_print
+  dir: Schematic
+- name: basic_position_ASCII
+  comment: Components position for Pick & Place
+  type: position
+  dir: Position
+  options:
+    format: ASCII
+    only_smd: false
+- name: basic_render_3d_top
+  comment: 3D view from top
+  type: render_3d
+  dir: 3D
+  options:
+    ray_tracing: true
+    orthographic: true
+- name: basic_render_3d_30deg
+  comment: 3D view from 30 degrees
+  type: render_3d
+  dir: 3D
+  output_id: 30deg
+  options:
+    ray_tracing: true
+    rotate_x: 3
+    rotate_z: -2
+- name: basic_render_3d_bottom
+  comment: 3D view from bottom
+  type: render_3d
+  dir: 3D
+  options:
+    ray_tracing: true
+    orthographic: true
+    view: bottom
+- name: report_full
+  comment: Full design report
+  type: report
+  options:
+    template: full_SVG
+- name: basic_step
+  comment: 3D model in STEP format
+  type: step
+  dir: 3D
+
+...
+definitions:
+  _KIBOT_MANF_DIR_COMP: Manufacturers
+  _KIBOT_GERBER_LAYERS: "- layer: 'F.Cu'\n        suffix: 'F_Cu'\n        description:\
+    \ 'Front copper'\n      - layer: 'B.Cu'\n        suffix: 'B_Cu'\n        description:\
+    \ 'Bottom copper'\n      - layer: 'B.Paste'\n        suffix: 'B_Paste'\n     \
+    \   description: 'Bottom solder paste'\n      - layer: 'F.Paste'\n        suffix:\
+    \ 'F_Paste'\n        description: 'Front solder paste'\n      - layer: 'B.Silkscreen'\n\
+    \        suffix: 'B_Silkscreen'\n        description: 'Bottom silkscreen (artwork)'\n\
+    \      - layer: 'F.Silkscreen'\n        suffix: 'F_Silkscreen'\n        description:\
+    \ 'Front silkscreen (artwork)'\n      - layer: 'B.Mask'\n        suffix: 'B_Mask'\n\
+    \        description: 'Bottom soldermask (negative)'\n      - layer: 'F.Mask'\n\
+    \        suffix: 'F_Mask'\n        description: 'Front soldermask (negative)'\n\
+    \      - layer: 'Edge.Cuts'\n        suffix: 'Edge_Cuts'\n        description:\
+    \ 'Board shape'"

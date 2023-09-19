@@ -1,0 +1,8 @@
+### Module positions - created on Tue 19 Sep 2023 04:43:41  ###
+### Printed by KiBot
+## Unit = mm, Angle = deg.
+## Side : bottom
+# Ref     Val                   Package                                       PosX      PosY      Rot        Side  
+J1        Conn_02x15_Odd_Even   PinHeader_2x15_P2.54mm_Vertical_SMD           6.2000    25.0000   180.0000   bottom
+LOGO      LOGO                  avatar_small                                  25.7048   25.4508   180.0000   bottom
+## End

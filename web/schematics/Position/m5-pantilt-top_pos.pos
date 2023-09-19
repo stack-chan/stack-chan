@@ -1,0 +1,42 @@
+### Module positions - created on Tue 19 Sep 2023 04:43:41  ###
+### Printed by KiBot
+## Unit = mm, Angle = deg.
+## Side : top
+# Ref     Val                   Package                                       PosX      PosY      Rot        Side  
+C1        100u                  C_1206_3216Metric_Pad1.33x1.80mm_HandSolder   37.1000   19.1000   -90.0000   top   
+C2        100u                  C_1206_3216Metric_Pad1.33x1.80mm_HandSolder   39.5000   19.1000   -90.0000   top   
+C3        100u                  C_1206_3216Metric_Pad1.33x1.80mm_HandSolder   39.5000   28.5000   90.0000    top   
+C4        100u                  C_1206_3216Metric_Pad1.33x1.80mm_HandSolder   37.1140   28.5000   -90.0000   top   
+C5        0.1u                  C_0603_1608Metric                             30.0000   36.0000   0.0000     top   
+D1        SS54                  D_SMA                                         24.5000   46.7500   180.0000   top   
+D2        PMEG3030EP            D_SOD-128                                     36.8300   36.5760   90.0000    top   
+Hole1     mountinghole_M2_M3    mountinghole_M2_M3                            46.8000   46.7500   0.0000     top   
+Hole2     mountinghole_M2_M3    mountinghole_M2_M3                            46.8000   3.0500    0.0000     top   
+Hole3     mountinghole_M2_M3    mountinghole_M2_M3                            3.2000    3.2500    180.0000   top   
+Hole4     mountinghole_M2_M3    mountinghole_M2_M3                            3.2000    46.9500   180.0000   top   
+J2        Conn_02x15_Odd_Even   PinSocket_2x15_P2.54mm_Vertical_SMD           6.2000    25.0000   0.0000     top   
+J3        Conn_01x03            JST_EH_B3B-EH-A_1x03_P2.50mm_Vertical         44.7000   30.1000   -90.0000   top   
+J5        BAT                   JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical         42.3500   8.8500    0.0000     top   
+J6        Conn_01x04            JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal       36.6000   45.0000   180.0000   top   
+J7        5V_POWER              JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical         18.0000   45.4750   180.0000   top   
+J8        Conn_01x03            JST_EH_B3B-EH-A_1x03_P2.50mm_Vertical         44.7000   19.1000   -90.0000   top   
+Q1        IRLML6402             SOT-23                                        32.8000   5.0000    180.0000   top   
+Q2        BC857                 SOT-23                                        15.8000   31.7000   0.0000     top   
+R1        10k                   R_0603_1608Metric                             15.4500   28.4000   -90.0000   top   
+R2        5.1k                  R_0603_1608Metric                             17.0000   28.4000   90.0000    top   
+R3        1k                    R_0603_1608Metric_Pad0.98x0.95mm_HandSolder   15.7000   18.5000   180.0000   top   
+R4        1k                    R_0603_1608Metric_Pad0.98x0.95mm_HandSolder   15.7000   16.8000   180.0000   top   
+R5        47k                   R_0603_1608Metric_Pad0.98x0.95mm_HandSolder   35.6362   5.0038    90.0000    top   
+R6        2k                    R_0603_1608Metric                             30.0000   32.8600   180.0000   top   
+R7        20k                   R_0603_1608Metric                             16.2500   34.2500   180.0000   top   
+R8        2.2k                  R_0603_1608Metric                             29.9900   34.4000   180.0000   top   
+R9        0                     R_0603_1608Metric_Pad0.98x0.95mm_HandSolder   15.7000   21.7500   180.0000   top   
+R10       0                     R_0603_1608Metric_Pad0.98x0.95mm_HandSolder   15.7500   14.8500   180.0000   top   
+R11       0                     R_0603_1608Metric_Pad0.98x0.95mm_HandSolder   15.7000   20.1500   180.0000   top   
+R12       0                     R_0603_1608Metric_Pad0.98x0.95mm_HandSolder   15.7500   13.2500   180.0000   top   
+R13       0                     R_0603_1608Metric                             30.0000   27.7000   0.0000     top   
+R14       0                     R_0603_1608Metric                             30.0000   29.2000   180.0000   top   
+R15       2.2k                  R_0603_1608Metric                             30.0000   31.2000   180.0000   top   
+SW1       SW_SPDT               SW_CuK_OS102011MA1QN1_SPDT_Angled             45.8000   36.8500   90.0000    top   
+U1        MAX3485               SO-8_5.3x6.2mm_P1.27mm                        23.3000   33.4000   0.0000     top   
+## End

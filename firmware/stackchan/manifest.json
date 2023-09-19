@@ -4,39 +4,19 @@
     },
     "include": [
         "$(MODDABLE)/examples/manifest_base.json",
-        "$(MODDABLE)/examples/manifest_net.json",
         "$(MODDABLE)/examples/manifest_typings.json",
-        "$(MODDABLE)/examples/manifest_commodetto.json",
-        "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
-        "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
-        "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
         "$(MODULES)/base/modules/manifest.json",
-        "$(MODULES)/base/deepEqual/manifest.json",
-        "$(MODULES)/base/structuredClone/manifest.json",
-        "$(MODULES)/commodetto/outline/manifest.json",
-        "$(MODULES)/data/text/decoder/manifest.json",
-        "$(MODULES)/files/preference/manifest.json",
-        "$(MODULES)/files/file/manifest_littlefs.json",
-        "$(MODULES)/network/ble/manifest_server.json",
-        "$(MODULES)/network/ble/manifest_client.json",
-        "$(MODULES)/network/mdns/manifest.json",
-        "$(MODULES)/pins/servo/manifest.json",
-        "$(MODULES)/pins/i2s/manifest.json",
-        "../extern/manifest_extern.json",
-        "./manifest_wavstream.json",
+        "./drivers/manifest_driver.json",
+        "./ble/manifest_ble.json",
+        "./dialogues/manifest_dialogue.json",
+        "./renderers/manifest_renderer.json",
+        "./services/manifest_service.json",
+        "./speeches/manifest_speech.json",
+        "./utilities/manifest_utility.json",
         "./manifest_typings.json"
     ],
     "modules": {
         "*": [
-            "$(MODULES)/network/ble/uart/uartserver",
-            "./ble/stk-server",
-            "./ble/beacon-packet",
-            "./utilities/*",
-            "./renderers/*",
-            "./drivers/*",
-            "./services/*",
-            "./speech/*",
-            "./dialogue/*",
             "./touch",
             "./robot",
             "./main"
@@ -44,19 +24,9 @@
         "default-mods/*": "./default-mods/*"
     },
     "preload": [
-        "http",
-        "tts-local",
-        "tts-voicevox",
-        "face-renderer",
-        "dialugue-chatgpt",
-        "stk-server",
+        "robot",
         "touch"
     ],
-    "ble": {
-        "*": [
-            "$(MODULES)/network/ble/uart/bleservices/*"
-        ]
-    },
     "strip": [],
     "creation": {
         "static": 98304,
@@ -99,14 +69,12 @@
         "devices": [
             "com.m5stack",
             "com.m5stack.fire",
-            "com.m5stack.core2"
+            "com.m5stack.core2",
+            "com.m5stack.cores3"
         ]
     },
     "platforms": {
         "esp32/m5stack_core2": {
-            "include": [
-                "./manifest_8mb_flash.json"
-            ],
             "config": {
                 "driver": {
                     "pwmPan": 19,

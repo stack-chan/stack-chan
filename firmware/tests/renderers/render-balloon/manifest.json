@@ -1,0 +1,29 @@
+{
+    "include": [
+        "$(MODDABLE)/examples/manifest_base.json",
+        "$(MODDABLE)/examples/manifest_typings.json",
+        "../../../stackchan/renderers/manifest_renderer.json"
+    ],
+    "modules": {
+        "*": [
+            "./main"
+        ]
+    },
+    "resources": {
+        "*-mask": [
+            {
+                "source": "$(MODDABLE)/examples/assets/scalablefonts/NotoSans/NotoSansJP-Regular",
+                "size": 24,
+                "blocks": [
+                    "Hiragana",
+                    "Katakana",
+                    "Basic Latin"
+                ],
+                "characters": "えっ今からでも入れる保険があるんですか！？"
+            }
+        ]
+    },
+    "config": {
+        "rotation": 90
+    }
+}

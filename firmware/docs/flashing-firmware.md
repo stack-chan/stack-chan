@@ -22,16 +22,16 @@ For all configuration items, please refer to the [Moddable official documentatio
 
 StackChan can change settings such as motor types and pin assignments from the manifest file. You can modify [`stack-chan/firmware/stackchan/manifest_local.json`](../stackchan/manifest_local.json) for local settings. The following settings can be written under the `"config"` key.
 
-| Key             | Description                                     | Available values                            |
-| --------------- | ----------------------------------------------- | ------------------------------------------- |
-| driver.type     | Type of motor driver                            | "scservo", "rs30x", "pwm", "none"           |
-| driver.panId    | ID of the serial servo used for pan axis (horizontal rotation of the neck) | 1~254                                       |
-| driver.tiltId   | ID of the serial servo used for tilt axis (vertical rotation of the neck) | 1~254                                       |
-| driver.offsetPan  | Offset of the tilt axis                            | -90~90                                      |
-| driver.offsetTilt | Offset of the tilt axis                            | -90~90                                      |
-| tts.type          | [TTS](./text-to-speech.md) type                                      | "local", "voicevox"                         |
-| tts.host          | Host name when TTS communicates with server           | "localhost", "ttsserver.local", etc. |
-| tts.port          | Port number when TTS communicates with server          | 1~65535                                     |
+| Key               | Description                                                                | Available values                     |
+| ----------------- | -------------------------------------------------------------------------- | ------------------------------------ |
+| driver.type       | Type of motor driver                                                       | "scservo", "rs30x", "pwm", "none"    |
+| driver.panId      | ID of the serial servo used for pan axis (horizontal rotation of the neck) | 1~254                                |
+| driver.tiltId     | ID of the serial servo used for tilt axis (vertical rotation of the neck)  | 1~254                                |
+| driver.offsetPan  | Offset of the pan axis                                                     | -90~90                               |
+| driver.offsetTilt | Offset of the tilt axis                                                    | -90~90                               |
+| tts.type          | [TTS](./text-to-speech.md) type                                            | "local", "voicevox"                  |
+| tts.host          | Host name when TTS communicates with server                                | "localhost", "ttsserver.local", etc. |
+| tts.port          | Port number when TTS communicates with server                              | 1~65535                              |
 
 Additionally, you can specify the paths of other manifest files in a list format under the `"include"` key.
 
@@ -42,48 +42,51 @@ This is an example configuration for running [Stack-chan Assembly Kit M5Bottom V
 When using Port.A of M5Stack Core2:
 
 `manifest_local.json`
+
 ```json
 {
-    // ...
-    "config": {
-        "driver": {
-            "type": "pwm",
-            "pwmPan": 33,
-            "pwmTilt": 32
-        }
+  // ...
+  "config": {
+    "driver": {
+      "type": "pwm",
+      "pwmPan": 33,
+      "pwmTilt": 32
     }
+  }
 }
 ```
 
 When using Port.C of M5Stack Core2:
 
 `manifest_local.json`
+
 ```json
 {
-    // ...
-    "config": {
-        "driver": {
-            "type": "pwm",
-            "pwmPan": 13,
-            "pwmTilt": 14
-        }
+  // ...
+  "config": {
+    "driver": {
+      "type": "pwm",
+      "pwmPan": 13,
+      "pwmTilt": 14
     }
+  }
 }
 ```
 
 When using Port.C of M5Stack Basic:
 
 `manifest_local.json`
+
 ```json
 {
-    // ...
-    "config": {
-        "driver": {
-            "type": "pwm",
-            "pwmPan": 16,
-            "pwmTilt": 17
-        }
+  // ...
+  "config": {
+    "driver": {
+      "type": "pwm",
+      "pwmPan": 16,
+      "pwmTilt": 17
     }
+  }
 }
 ```
 
@@ -104,13 +107,16 @@ Simply add the following code to your manifest file:
 
 ```json
 {
-    "include": [". /manifest_8mb_flash.json"],
+  "include": [". /manifest_8mb_flash.json"]
 }
 ```
 
-## Writing hosts
+## Writing the base program (hosts)
 
+As stated above, Stack-chan's firmware comprises a base program (host) and a user application (MOD).
 The following commands are used to build and write a host.
+
+_No `sudo` required for the command._
 
 ```console
 # For M5Stack Basic/Gray/Fire
@@ -128,9 +134,11 @@ $ npm run deploy --target=esp32/m5stack_cores3
 
 The program will be saved under the `$MODDABLE/build/` directory.
 
-## Writing MODs
+## (Optional) Writing user application (mods)
 
 The following command is used to build and write a mod.
+
+_No `sudo` required for the command._
 
 ```console
 # For M5Stack Basic/Gray/Fire
@@ -143,7 +151,14 @@ $ npm run mod --target=esp32/m5stack_core2 [mod manifest file path]
 $ npm run mod --target=esp32/m5stack_cores3 [mod manifest file path]
 ```
 
-__Example: Installing [`mods/look_around`](../mods/look_around/)__
+If written correctly, the face of Stack-chan will appear a few seconds after startup.
+The M5Stack buttons will change Stack-chan's behavior as follows:
+
+- **A Button** (in the case of CoreS3, the bottom-left area of the screen) ... Stack-chan will look in a random direction every 5 seconds.
+- **B Button** (in the case of CoreS3, the bottom-center area of the screen) ... Stack-chan will look left, right, down, and up.
+- **C Button** (in the case of CoreS3, the bottom-right area of the screen) ... The color of Stack-chan's face will invert.
+
+**Example: Installing [`mods/look_around`](../mods/look_around/)**
 
 ```console
 $ npm run mod ./mods/look_around/manifest.json

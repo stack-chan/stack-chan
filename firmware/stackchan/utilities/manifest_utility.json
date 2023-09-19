@@ -1,0 +1,18 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODULES)/files/preference/manifest.json",
+    "$(MODULES)/base/structuredClone/manifest.json",
+    "$(MODULES)/base/deepEqual/manifest.json",
+    "$(MODDABLE)/examples/manifest_typings.json"
+  ],
+  "modules": {
+    "*": [
+      "./*"
+    ]
+  },
+  "preload": [
+    "consts",
+    "stackchan-util"
+  ]
+}

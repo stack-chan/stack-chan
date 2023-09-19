@@ -6,13 +6,15 @@ import { Robot, Driver, TTS, Renderer } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
+import { DynamixelDriver } from 'dynamixel-driver'
 import { NoneDriver } from 'none-driver'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
+import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import defaultMod, { StackchanMod } from 'default-mods/mod'
-import { Renderer as SimpleRenderer } from 'face-renderer'
-import { Renderer as DogFaceRenderer } from 'dog-face-renderer'
+import { Renderer as SimpleRenderer } from 'simple-face'
+import { Renderer as DogFaceRenderer } from 'dog-face'
 import { NetworkService } from 'network-service'
 import Touch from 'touch'
 import { loadPreferences } from 'stackchan-util'
@@ -20,6 +22,7 @@ import { loadPreferences } from 'stackchan-util'
 function createRobot() {
   const drivers = new Map<string, new (param: unknown) => Driver>([
     ['scservo', SCServoDriver],
+    ['dynamixel', DynamixelDriver],
     ['pwm', PWMServoDriver],
     ['rs30x', RS30XDriver],
     ['none', NoneDriver],
@@ -28,6 +31,7 @@ function createRobot() {
     ['local', LocalTTS],
     ['remote', RemoteTTS],
     ['voicevox', VoiceVoxTTS],
+    ['elevenlabs', ElevenLabsTTS],
   ])
   const renderers = new Map<string, new (param: unknown) => Renderer>([
     ['dog', DogFaceRenderer],

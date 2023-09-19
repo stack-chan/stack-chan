@@ -1,0 +1,25 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_net.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
+    "$(MODULES)/network/ble/manifest_server.json",
+    "$(MODULES)/network/ble/manifest_client.json",
+    "$(MODULES)/network/mdns/manifest.json",
+    "../utilities/manifest_utility.json"
+  ],
+  "modules": {
+    "*": [
+      "./*",
+      "$(MODULES)/network/ble/uart/uartserver",
+      "../../typings/btutils",
+      "../../typings/uartserver"
+    ]
+  },
+  "ble": {
+    "*": [
+      "$(MODULES)/network/ble/uart/bleservices/*"
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json"
+  ],
+  "modules": {
+    "*": [
+      "./*"
+    ]
+  },
+  "preload": [
+    "dialugue-chatgpt"
+  ]
+}

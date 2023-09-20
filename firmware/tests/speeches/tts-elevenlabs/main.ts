@@ -1,7 +1,7 @@
 import { TTS } from 'tts-elevenlabs'
 import Timer from 'timer'
 
-const api_key = 'YOUR_API_KEY_HERE'
+const token = 'YOUR_API_KEY_HERE'
 const tts = new TTS({
   token,
   onPlayed: (num) => {

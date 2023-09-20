@@ -3,7 +3,7 @@ import Timer from 'timer'
 
 const api_key = 'YOUR_API_KEY_HERE'
 const tts = new TTS({
-  api_key,
+  token,
   onPlayed: (num) => {
     trace(`played ${num}\n`)
   },

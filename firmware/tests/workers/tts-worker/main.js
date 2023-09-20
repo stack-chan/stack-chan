@@ -17,17 +17,20 @@ function start() {
   if (aWorker == null) {
     aWorker = new Worker('simpleworker', {
       static: 0,
-      stack: 256,
+      stack: 512,
       heap: {
-        initial: 640,
+        initial: 16000,
         incremental: 0,
       },
     })
     aWorker.onmessage = function (message) {
+      let open
       switch (message.type) {
         case 'onPlayed':
-          trace(`power: ${message.value}\n`)
-          ctx.mouth.open = Math.min(message.value / 2000, 1.0)
+          open = Math.min(message.value / 1500, 1.0)
+          trace(`power: ${message.value}, open: ${open}\n`)
+          ctx.mouth.open = open
+          renderer.update(INTERVAL, ctx)
           break
         case 'onDone':
           trace(`done\n`)

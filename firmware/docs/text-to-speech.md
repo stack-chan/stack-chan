@@ -57,7 +57,7 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
     "config": {
         "tts": {
             "type": "elevenlabs",
-            "api_key": "YOUR_API_KEY"
+            "token": "YOUR_API_KEY"
         },
     }
 }

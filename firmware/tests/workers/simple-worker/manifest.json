@@ -1,0 +1,35 @@
+{
+	"include": [
+		"$(MODDABLE)/examples/manifest_base.json",
+		"$(MODDABLE)/modules/io/manifest.json",
+		"$(MODULES)/base/worker/manifest.json"
+	],
+	"config": {
+		"startupSound": false
+	},
+	"creation": {
+		"static": 0,
+		"chunk": {
+			"initial": 16000,
+			"incremental": 0
+		},
+		"heap": {
+			"initial": 8000,
+			"incremental": 0
+		},
+		"stack": 128,
+		"keys": {
+			"available": 32,
+			"name": 53,
+			"symbol": 3
+		},
+		"main": "main"
+	},
+	"modules": {
+		"*": [
+			"./main",
+			"./simpleworker"
+		]
+	},
+	"preload": []
+}

@@ -7,7 +7,7 @@ const tts = new TTS({
 })
 
 self.onmessage = async function (msg) {
-  await tts.stream('Hello world')
+  await tts.stream(msg)
   self.postMessage({
 		type: 'onDone',
     value: null,

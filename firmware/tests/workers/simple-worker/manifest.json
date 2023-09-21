@@ -14,7 +14,7 @@
 			"incremental": 0
 		},
 		"heap": {
-			"initial": 8000,
+			"initial": 248000,
 			"incremental": 0
 		},
 		"stack": 128,

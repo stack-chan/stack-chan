@@ -1,5 +1,6 @@
 # スタックチャン ケース v1.0
 
+日本語 | [English](./dynamixel.md)
 ## 必要なもの（DYNAMIXEL版）
 
 1. 基板 x1

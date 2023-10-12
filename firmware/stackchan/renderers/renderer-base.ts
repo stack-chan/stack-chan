@@ -155,6 +155,9 @@ export class Layer {
     this.#colorName = colorName
     this.#type = type
   }
+  get colorName() {
+    return this.#colorName
+  }
   addPart(key: string, part: FacePart) {
     this.#parts.set(key, part)
   }
@@ -167,11 +170,9 @@ export class Layer {
     this.#parts.forEach((render) => {
       render(tick, path, face)
     })
-    const outline =
-      this.#type === 'fill'
+    return this.#type === 'fill'
         ? Outline.fill(path).translate(0, face.breath * 3 ?? 0)
         : Outline.stroke(path, 6).translate(0, face.breath * 3 ?? 0)
-    poco.blendOutline(color, 255, outline, 0, 0)
   }
 }
 
@@ -185,6 +186,15 @@ export class RendererBase {
 
   lastContext: FaceContext
   currentContext: FaceContext
+  #dirty: boolean
+  scale: {
+    x: number
+    y: number
+  }
+  offset: {
+    x: number
+    y: number
+  }
 
   constructor(option?: { poco?: PocoPrototype }) {
     this._poco = option?.poco ?? new Poco(screen, { rotation: config.rotation })
@@ -193,6 +203,14 @@ export class RendererBase {
     this.layers = []
     this.lastContext = createFaceContext()
     this.currentContext = createFaceContext()
+    this.scale = {
+      x: 1.0,
+      y: 1.0,
+    }
+    this.offset = {
+      x: 0,
+      y: 0,
+    }
     this.clear()
   }
   update(interval = INTERVAL, faceContext: Readonly<FaceContext> = defaultFaceContext): void {
@@ -201,7 +219,7 @@ export class RendererBase {
 
     const poco = this._poco
     const shouldClear = !deepEqual(this.currentContext.theme, this.lastContext.theme)
-    const shouldRender = !deepEqual(this.currentContext, this.lastContext)
+    const shouldRender = this.#dirty || !deepEqual(this.currentContext, this.lastContext)
     const bg = poco.makeColor(...faceContext.theme.secondary)
     if (shouldClear) {
       poco.begin()
@@ -209,7 +227,11 @@ export class RendererBase {
     }
     if (shouldRender) {
       if (!shouldClear) {
-        poco.begin(60, 60, poco.width - 120, poco.height - 120)
+        const x = (60 + this.offset.x) * this.scale.x
+        const y = (60 + this.offset.y) * this.scale.y
+        const w = (poco.width - 120) * this.scale.x
+        const h = (poco.height - 120) * this.scale.y
+        poco.begin(x, y, w, h)
       }
       this.renderFace(interval, this.currentContext)
       ;[this.currentContext, this.lastContext] = [this.lastContext, this.currentContext]
@@ -218,6 +240,17 @@ export class RendererBase {
       poco.end()
     }
     this.renderDecorators(interval, this.currentContext)
+    this.#dirty = false
+  }
+  setScale(x, y) {
+    this.scale.x = x
+    this.scale.y = y
+    this.#dirty = true
+  }
+  setOffset(x, y) {
+    this.offset.x = x
+    this.offset.y = y
+    this.#dirty = true
   }
   clear(color: Color = [0x00, 0x00, 0x00]): void {
     const poco = this._poco
@@ -242,10 +275,21 @@ export class RendererBase {
   }
   renderFace(tick: number, face: FaceContext, poco: PocoPrototype = this._poco): void {
     const bg = poco.makeColor(...face.theme.secondary)
-    poco.clip(60, 60, poco.width - 120, poco.height - 120)
-    poco.fillRectangle(bg, 60, 60, poco.width - 120, poco.height - 120)
+    const x = (60 + this.offset.x) * this.scale.x
+    const y = (60 + this.offset.y) * this.scale.y
+    const w = (poco.width - 120) * this.scale.x
+    const h = (poco.height - 120) * this.scale.y
+    poco.clip(x, y, w, h)
+    poco.fillRectangle(bg, x, y, w, h)
     for (const layer of this.layers) {
-      layer.render(tick, poco, face)
+      let outline = layer.render(tick, poco, face)
+      if (this.scale.x !== 1.0 || this.scale.y !== 1.0) {
+        outline.scale(this.scale.x, this.scale.y)
+      }
+      if (this.offset.x !== 1.0 || this.offset.y !== 1.0) {
+        outline.translate(this.offset.x, this.offset.y)
+      }
+      poco.blendOutline(poco.makeColor(...face.theme[layer.colorName]), 255, outline, 0, 0)
     }
     poco.clip()
   }

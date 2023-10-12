@@ -1,0 +1,22 @@
+{
+    "include": [
+        "$(MODDABLE)/examples/manifest_base.json",
+		"$(MODDABLE)/modules/data/qrcode/manifest.json",
+        "$(MODDABLE)/modules/commodetto/qrcode/manifest.json",
+        "$(MODDABLE)/examples/manifest_typings.json",
+        "../../../stackchan/renderers/manifest_renderer.json"
+    ],
+    "modules": {
+        "*": [
+            "./main",
+            "./qrcode"
+        ]
+    },
+    "platforms": {
+        "lin": {
+            "config": {
+                "rotation": 90
+            }
+        }
+    }
+}

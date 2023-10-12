@@ -147,24 +147,24 @@ type LayerProps = {
 }
 
 export class Layer {
-  #renderers: Map<string, FacePart>
+  #parts: Map<string, FacePart>
   #colorName: keyof FaceContext['theme']
   #type: 'fill' | 'stroke'
   constructor({ colorName = 'primary', type = 'fill' }: LayerProps) {
-    this.#renderers = new Map()
+    this.#parts = new Map()
     this.#colorName = colorName
     this.#type = type
   }
   addPart(key: string, part: FacePart) {
-    this.#renderers.set(key, part)
+    this.#parts.set(key, part)
   }
   removePart(key) {
-    this.#renderers.delete(key)
+    this.#parts.delete(key)
   }
-  render(tick: number, poco: PocoPrototype, face: FaceContext) {
+  render(tick: number, poco: PocoPrototype, face: FaceContext): Outline {
     const path = new Outline.CanvasPath()
     const color = poco.makeColor(...face.theme[this.#colorName])
-    this.#renderers.forEach((render) => {
+    this.#parts.forEach((render) => {
       render(tick, path, face)
     })
     const outline =

@@ -1,0 +1,21 @@
+{
+    "defines": {
+        "main": {
+            "async": 1
+        }
+    },
+    "include": [
+        "$(MODDABLE)/examples/manifest_base.json",
+        "$(MODDABLE)/examples/manifest_typings.json",
+        "../../../stackchan/renderers/manifest_renderer.json",
+        "../../../stackchan/speeches/manifest_speech.json"
+    ],
+    "resources": {
+        "*": "$(MODDABLE)/examples/assets/sounds/*"
+    },
+    "modules": {
+        "*": [
+            "./main"
+        ]
+    }
+}

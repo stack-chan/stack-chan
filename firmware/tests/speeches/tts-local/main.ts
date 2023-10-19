@@ -11,6 +11,6 @@ const tts = new TTS({
 })
 
 while (true) {
-  await tts.stream('hello')
+  await tts.stream('wilhelm-scream')
   Timer.delay(2000)
 }

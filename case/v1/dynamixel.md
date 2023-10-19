@@ -2,6 +2,14 @@
 
 [日本語](./dynamixel_ja.md) | English
 
+![Front view](../docs/images/dynamixel_front.jpg)
+![Side view](../docs/images/dynamixel_side.jpg)
+
+This is the assembly guide for "Stackchan Case v1.0". Currently, it only supports DYNAMIXEL.
+It includes a list of necessary parts, configuration methods for the servo motor (DYNAMIXEL XL330), and specific assembly instructions. By following the steps in this guide and assembling the required parts, you will complete the Stackchan.
+
+Note: It is assumed that the exterior will be printed with a 3D printer or acquired through 3D printing services such as [JLCPCB 3D printng](https://3d.jlcpcb.com/) and [DMM.make](https://make.dmm.com/print/personal/). If both options are challenging, please consider purchasing a kit.
+
 ## Required Items (DYNAMIXEL Edition)
 
 1. Circuit board x1
@@ -9,6 +17,7 @@
 3. Horn x1
 4. Shell x1
 5. Gear_XL330 x2
+  - Considering the precision of 3D printing, we've allowed extra clearance for the gear holes. If the hole is too loose, please try using Gear_XL330_narrow.
 6. Backpack
 7. Bracket_XL330_f x1
 8. Bracket_XL330_b x1

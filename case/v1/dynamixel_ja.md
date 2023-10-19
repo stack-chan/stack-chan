@@ -1,6 +1,15 @@
 # スタックチャン ケース v1.0
 
 日本語 | [English](./dynamixel.md)
+
+![正面](../docs/images/dynamixel_front.jpg)
+![側面](../docs/images/dynamixel_side.jpg)
+
+「スタックチャン ケース v1.0」の組み立てガイドです。現在DYNAMIXELにのみ対応しています。
+必要な部品、サーボモーター（DYNAMIXEL XL330）の設定方法、具体的な組み立て手順を含みます。このガイドの手順に従って部品を揃えて組み立てることでｽﾀｯｸﾁｬﾝが完成します。
+
+注意：外装を3Dプリンタで印刷したり、[JLCPCB 3D printng](https://3d.jlcpcb.com/)や[DMM.make](https://make.dmm.com/print/personal/)などの3Dプリントサービスを使って入手する想定です。どちらも難しい場合はキットの購入もご検討ください。
+
 ## 必要なもの（DYNAMIXEL版）
 
 1. 基板 x1
@@ -8,6 +17,7 @@
 3. horn x1
 4. shell x1
 5. gear_XL330 x2
+  - 3Dプリントの精度を加味してギヤ穴のクリアランスを多めに取っています。穴が緩い場合はgear_XL330_narrowを使ってみてください。
 6. backpack
 7. bracket_XL330_f x1
 8. bracket_XL330_b x1

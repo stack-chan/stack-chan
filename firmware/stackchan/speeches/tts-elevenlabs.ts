@@ -9,6 +9,7 @@ export type TTSProperty = {
   onPlayed: (number) => void
   onDone: () => void
   token: string
+  model?: string
 }
 
 export class TTS {
@@ -16,12 +17,14 @@ export class TTS {
   onPlayed: (number) => void
   onDone: () => void
   token: string
+  model: string
   streaming: boolean
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
     this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 44100 })
     this.token = props.token
+    this.model = props.model ?? 'eleven_monolingual_v1'
   }
   async stream(text: string): Promise<void> {
     if (this.streaming) {
@@ -34,6 +37,7 @@ export class TTS {
       let streamer = new ElevenLabsStreamer({
         key: this.token,
         voice: 'AZnzlk1XvdvUeBnXmlld',
+        model: this.model,
         latency: 2,
         text,
         audio: {

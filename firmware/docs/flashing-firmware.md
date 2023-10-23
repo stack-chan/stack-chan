@@ -134,6 +134,28 @@ $ npm run deploy --target=esp32/m5stack_cores3
 
 The program will be saved under the `$MODDABLE/build/` directory.
 
+## Debugging
+
+You can debug the program using the following commands:
+
+```
+# For M5Stack Basic/Gray/Fire
+$ npm run debug
+
+# For M5Stack Core2
+$ npm run debug --target=esp32/m5stack_core2
+
+# For M5Stack CoreS3
+$ npm run debug --target=esp32/m5stack_cores3
+```
+
+These commands will open Moddable's debugger `xsbug` and connect it to the M5Stack.
+
+![xsbug](./images/xsbug.png)
+
+Using `xsbug`, you can check logs, set breakpoints (temporarily pause the program at specific lines), and perform step-by-step execution.
+For detailed instructions on how to use `xsbug`, please refer to the [official documentation](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md).
+
 ## (Optional) Writing user application (mods)
 
 The following command is used to build and write a mod.

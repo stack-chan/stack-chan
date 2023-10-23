@@ -145,6 +145,28 @@ M5Stack のボタンを押すと次のように変わります。
 - B ボタン（CoreS3 の場合は画面中央下の領域） ... ｽﾀｯｸﾁｬﾝが左、右、下、上を向く
 - C ボタン（CoreS3 の場合は画面右下の領域） ... ｽﾀｯｸﾁｬﾝの顔の色が反転する
 
+## デバッグ
+
+次のコマンドでプログラムのデバッグが可能です
+
+```console
+# M5Stack Basic/Gray/Fireの場合
+$ npm run debug
+
+# M5Stack Core2の場合
+$ npm run debug --target=esp32/m5stack_core2
+
+# M5Stack CoreS3の場合
+$ npm run debug --target=esp32/m5stack_cores3
+```
+
+このコマンドはModdableのデバッガ`xsbug`を開き、M5Stackと接続します。
+
+![xsbug](./images/xsbug.png)
+
+`xsbug`を使うとログの確認やブレークポイントの設定（プログラムの特定行で一時停止する）、ステップ実行（プログラムを1行ずつ実行する）などができます。
+`xsbug`の詳しい使い方は[公式ドキュメント（英語）](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md)を参照してください。
+
 ## （オプション）ユーザアプリケーション（MOD）の書き込み
 
 次のコマンドでユーザアプリケーション（MOD）の書き込みを行います。

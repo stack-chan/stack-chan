@@ -4,9 +4,17 @@
         "$(MODDABLE)/examples/manifest_typings.json",
         "../../../stackchan/speeches/manifest_speech.json"
     ],
+    "resources": {
+        "*": "$(MODDABLE)/examples/assets/sounds/*"
+    },
     "modules": {
         "*": [
             "./main"
         ]
+    },
+    "defines": {
+        "main": {
+            "async": 1
+        }
     }
 }

@@ -17,7 +17,7 @@ import { Renderer as SimpleRenderer } from 'simple-face'
 import { Renderer as DogFaceRenderer } from 'dog-face'
 import { NetworkService } from 'network-service'
 import Touch from 'touch'
-import { loadPreferences } from 'stackchan-util'
+import { loadPreferences, asyncWait } from 'stackchan-util'
 
 function createRobot() {
   const drivers = new Map<string, new (param: unknown) => Driver>([
@@ -99,6 +99,7 @@ async function checkAndConnectWiFi() {
 }
 
 async function main() {
+  await asyncWait(100)
   await checkAndConnectWiFi().catch((msg) => {
     trace(`WiFi connection failed: ${msg}`)
   })

@@ -1,4 +1,4 @@
-# Stack-chan case
+# Stack-chan case v0
 
 [日本語](./README_ja.md)
 
@@ -6,6 +6,19 @@
 ![case_inside](./docs/images/case_inside.jpg)
 
 Currently the [case data](https://a360.co/3gcw960) is developed with Fusion360.
+
+## The case is transitioning to the new specification (v1.0)
+
+We are making a new case with improved compatibility.
+
+- Case v0 (this document)
+  - PCB: [`v0.2.1`](https://github.com/meganetaaan/stack-chan/tree/v0.2.1/schematics)
+  - Servo motors: RX30X, SCS0009, SG90
+- [Case v1.0](./v1/dynamixel.md)
+  - PCB: [`v1.0`](../schematics/)
+  - Servo motors: XL330 (more to be added over time)
+
+__For the case with the latest specifications, please refer to the [Stack-chan case v1.0 document](./v1/dynamixel.md)__
 
 ## Editing
 

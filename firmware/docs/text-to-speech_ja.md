@@ -18,7 +18,7 @@
 * [Google Cloud Text-to-Speech API](https://cloud.google.com/text-to-speech)
 * [Coqui AI TTS](https://github.com/coqui-ai/TTS)
 * [VoiceVox](https://github.com/Hiroshiba/voicevox_engine)
-* [ElevenLabs](https://beta.elevenlabs.io/speech-synthesis)
+* [ElevenLabs](https://elevenlabs.io/speech-synthesis)
 
 それぞれの公式ドキュメントも参照してください。
 
@@ -59,7 +59,7 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
     "config": {
         "tts": {
             "type": "elevenlabs",
-            "api_key": "YOUR_API_KEY"
+            "token": "YOUR_API_KEY"
         },
     }
 }

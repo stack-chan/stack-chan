@@ -5,6 +5,7 @@ declare module "elevenlabsstreamer" {
         voice?: string,
         latency?: number,
         text: string,
+        model?: string,
         audio: {
             out: AudioOut,
             sampleRate?: number,

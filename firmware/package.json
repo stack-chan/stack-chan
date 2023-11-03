@@ -11,7 +11,7 @@
     "generate-speech-coqui": "node scripts/generate-speech-coqui.js",
     "generate-speech-voicevox": "node scripts/generate-speech-voicevox.js",
     "generate-speech-google": "cross-env GOOGLE_APPLICATION_CREDENTIALS=scripts/key.json node scripts/generate-speech-google.js",
-    "generate-apidoc": "typedoc --entryPointStrategy expand --plugin typedoc-plugin-markdown --out docs/api ./stackchan",
+    "generate-apidoc": "typedoc --entryPointStrategy expand --out docs/api ./stackchan",
     "build": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target -t build ./stackchan/manifest_local.json",
     "bundle": "mcbundle -d -m ./stackchan/manifest.json",
     "postbuild": "node -e \"fs.copyFileSync(process.env.MODDABLE + '/build/tmp/' + (process.env.npm_config_target || 'esp32/m5stack') + '/debug/stackchan/modules/tsconfig.json','tsconfig.json')\"",
@@ -55,10 +55,10 @@
     "node-fetch": "^3.3.0",
     "prettier": "^2.7.1",
     "typedoc": "^0.23.24",
-    "typedoc-plugin-markdown": "^3.14.0",
     "typescript": "^4.8.4",
     "web-audio-engine": "^0.13.4",
     "xs-dev": "^0.28.0",
     "yargs": "^17.6.2"
-  }
+  },
+  "dependencies": {}
 }

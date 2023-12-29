@@ -5,7 +5,8 @@
 M5Stack Core2で、TTSはWeb版VoiceVoxを使用する例で使い方を説明します。
 
 ### 1. manifest_local.json の設定
-Web版VoiceVoxの設定"tts"とChatGPTの設定"ai"を記述する。
+Web版VoiceVoxの設定"tts"とChatGPTの設定"ai"を記述する。  
+※Web版VoiceVoxのAPIキーは空白でも使用できますが、音声合成が遅くなり声が途切れ途切れになる可能性があります。
 ```
     "config": {
         "tts": {

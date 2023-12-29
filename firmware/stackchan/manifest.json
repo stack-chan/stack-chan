@@ -5,8 +5,10 @@
     "include": [
         "$(MODDABLE)/examples/manifest_base.json",
         "$(MODDABLE)/examples/manifest_typings.json",
+        "$(MODDABLE)/examples/manifest_net.json",
         "$(MODULES)/base/modules/manifest.json",
         "$(MODULES)/data/crc/manifest.json",
+        "$(MODULES)/network/http/manifest.json",
         "./drivers/manifest_driver.json",
         "./ble/manifest_ble.json",
         "./dialogues/manifest_dialogue.json",
@@ -20,7 +22,8 @@
         "*": [
             "./touch",
             "./robot",
-            "./main"
+            "./main",
+            "$(MODULES)/network/http/*"
         ],
         "default-mods/*": "./default-mods/*"
     },

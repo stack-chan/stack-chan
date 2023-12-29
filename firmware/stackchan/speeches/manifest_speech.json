@@ -4,7 +4,9 @@
     "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
     "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
     "$(MODULES)/files/file/manifest_littlefs.json",
-    "./manifest_wavstream.json"
+    "./manifest_wavstream.json",
+    "./manifest_https_mp3streamer.json",
+    "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json"
   ],
   "modules": {
     "*": [
@@ -12,13 +14,15 @@
       "$(MODULES)/network/ble/uart/uartserver",
       "../../typings/elevenlabsstreamer",
       "../../typings/resourcestreamer",
-      "../../typings/wavstreamer"
+      "../../typings/wavstreamer",
+      "../../typings/mp3streamer"
     ]
   },
   "preload": [
     "tts-local",
     "tts-remote",
     "tts-voicevox",
+    "tts-voicevox-web",
     "tts-elevenlabs"
   ]
 }

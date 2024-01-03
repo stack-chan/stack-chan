@@ -2,11 +2,11 @@
 [@robo8080](https://github.com/robo8080) さんらが公開しているAIｽﾀｯｸﾁｬﾝが備えている、チャットや発話ができるWeb APIを実装したModです。[ｽﾀｯｸﾁｬﾝCONNECT](https://notes.yh1224.com/stackchan-connect/)等のアプリからWeb APIを使用できます。
 
 ## 使い方
-M5Stack Core2で、TTSはWeb版VoiceVoxを使用する例で使い方を説明します。
+M5Stack Core2で、TTSはWeb版VOICEVOX ([TTS QUEST V3 VOICEVOX API](https://github.com/ts-klassen/ttsQuestV3Voicevox/)) を使用する例で使い方を説明します。
 
 ### 1. manifest_local.json の設定
-Web版VoiceVoxの設定"tts"とChatGPTの設定"ai"を記述する。  
-※Web版VoiceVoxのAPIキーは空白でも使用できますが、音声合成が遅くなり声が途切れ途切れになる可能性があります。
+Web版VOICEVOXの設定"tts"と、ChatGPTの設定"ai"を記述する。  
+※Web版VOICEVOXのAPIキーは空白でも使用できますが、音声合成が遅くなり声が途切れ途切れになる可能性があります。APIキーの取得方法はこちらのページ ([TTS QUEST V3 VOICEVOX API](https://github.com/ts-klassen/ttsQuestV3Voicevox/)) の下の方に解説があります。
 ```
     "config": {
         "tts": {

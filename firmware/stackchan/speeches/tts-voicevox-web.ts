@@ -42,14 +42,11 @@ export class TTS {
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: props.sampleRate ?? 11025 })
+    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 22050 })
     this.speakerId = props.speakerId ?? 1
-    this.host = props.host
-    this.port = props.port
     this.token = props.token
     trace(`tts.token:${this.token}\n`)
   }
-  //async #sendMessage(message): Promise<unknown> {
 
   async getQuery(text: string, speakerId = 1): Promise<unknown> {
     return fetch(encodeURI(`https://api.tts.quest/v3/voicevox/synthesis?key=${this.token}&text=${text}&speaker=${speakerId}`))
@@ -85,7 +82,7 @@ export class TTS {
         http: device.network.https,
         host: this.streamUrl.substring(8,24),
         path: this.streamUrl.substring(24),
-        port: this.port,
+        port: 443,
         audio: {
           out: audio,
           stream: 0,

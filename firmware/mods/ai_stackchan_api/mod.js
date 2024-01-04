@@ -4,6 +4,22 @@ import { randomBetween, asyncWait, loadPreferences } from 'stackchan-util'
 import config from 'mc/config'
 import { createBalloonDecorator, createBubbleDecorator } from 'decorator'
 
+//
+// Face parameters
+//
+const bubble = createBubbleDecorator({
+  x: 10,
+  y: 20,
+  width: 50,
+  height: 60,
+})
+
+const EMOTIONS = ['NEUTRAL','HAPPY','SLEEPY','DOUBTFUL','SAD','ANGRY','COLD','HOT']
+
+
+//
+// Integrate ChatGPT
+//
 
 // const MODEL = 'gpt-4'
 const MODEL = 'gpt-3.5-turbo'
@@ -19,8 +35,6 @@ const CONTEXT = [
   },
 ]
 
-
-// Integrate ChatGPT
 const aiPrefs = loadPreferences('ai')
 trace(`ai.token: ${aiPrefs.token}\n`)
 
@@ -51,13 +65,18 @@ async function chatAndSay(robot, message) {
   //}
   trace(result.value)
   trace('\n')
-  robot.showBalloon('Speaking...')
-  await robot.say(result.value)
-  chatting = false
   robot.hideBalloon()
+  robot.setEmotion('HAPPY')
+  //Note: onDone() may not be called when robot.say() is called with await
+  //await robot.say(result.value)
+  robot.say(result.value)
+  //chatting = false      //Implemented by overriding robot.tts.onDone
 }
 
 
+//
+// Integrate Web API
+//
 function getRequestParams(query){
   var params = {}
   query.split('&').forEach(function (item){
@@ -70,15 +89,6 @@ function getRequestParams(query){
 
   return params
 }
-
-const bubble = createBubbleDecorator({
-  x: 10,
-  y: 20,
-  width: 50,
-  height: 60,
-})
-
-const EMOTIONS = ['NEUTRAL','HAPPY','SLEEPY','DOUBTFUL','SAD','ANGRY','COLD','HOT']
 
 function aiStackchanApi(robot, path, params){
   var res = 'OK'
@@ -129,34 +139,36 @@ function aiStackchanApi(robot, path, params){
 }
 
 function onRobotCreated(robot) {
-  robot.button.a.onChanged = async function () {
+  robot.button.a.onChanged = function () {
     if (this.read()) {
       robot.showBalloon('TTS test...')
-      await robot.say('ttsテスト')
-      robot.hideBalloon()
+      robot.say('TTSテスト。TTSテスト')
+      //robot.hideBalloon()
     }
   }
-  robot.button.b.onChanged = async function () {
+  robot.button.b.onChanged = function () {
     if (this.read()) {
-      await chatAndSay(robot, 'おはようございます')
+      chatAndSay(robot, 'おはようございます')
     }
   }
 
+  robot.tts.onDone = () => {
+    robot.setEmotion('NEUTRAL')
+    robot.hideBalloon()
+    chatting = false
+  }
 
   const server = new Server({ port: 80 })
 
-  //server.callback = async function (message, value, value2) { //asyncだとresponseが失敗した
+  //Note: If this function is set to async/await, the response will not work properly.
   server.callback = function (message, value, value2) {
     if (message === 2) {
-      trace(value)
-      trace('\n')
+      trace(`Request path: ${value}\n`)
       this.path = value.split('?')[0]
       var query = value.split('?')[1]
-      trace(this.path)
-      trace('\n')
-      trace(query)
-      trace('\n')
 
+      //If the query string in the request path contains parameters, 
+      //process them here.
       if(query){
         var params = getRequestParams(query)
         this.res = aiStackchanApi(robot, this.path, params)
@@ -165,15 +177,16 @@ function onRobotCreated(robot) {
     }
 
     if (message === 4) {
-      trace('message === 4\n')
+      //trace('message === 4\n')
       return String
     }
  
     if (message === 6) {
-      trace('message === 6\n')
-      trace(`value:${value}\n`)
-      trace(`value2:${value2}\n`)
+      //trace('message === 6\n')
+      trace(`Request Body: ${value}\n`)
 
+      //If parameters are received in the request body, 
+      //process them here (Stack-chan Connect sends them in the request body)
       var params = getRequestParams(value)
       this.res = aiStackchanApi(robot, this.path, params)
     }

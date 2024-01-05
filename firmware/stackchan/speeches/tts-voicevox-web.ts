@@ -2,16 +2,8 @@
 import AudioOut from 'pins/audioout'
 import MP3Streamer from "mp3streamer";
 import calculatePower from 'calculate-power'
-import HTTPClient from 'embedded:network/http/client'
-import { File } from 'file'
-import config from 'mc/config'
-
-import {Request} from 'http'
-import SecureSocket from 'securesocket'
-
 import { fetch, Headers } from 'fetch'
 
-const QUERY_PATH = config.file.root + 'query.json'
 
 /* global trace, SharedArrayBuffer */
 
@@ -31,8 +23,6 @@ export class TTS {
   audio: AudioOut
   onPlayed: (number) => void
   onDone: () => void
-  // TODO: Add type definition for HTTPClient
-  client: HTTPClient
   host: string
   port: number
   token: string

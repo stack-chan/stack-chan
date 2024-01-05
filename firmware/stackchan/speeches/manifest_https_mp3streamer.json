@@ -20,5 +20,10 @@
 		"*":[
 			"$(MODULES)/crypt/data/ca109"
 		]
-	}
+	},
+  "config": {
+    "tls": {
+      "DHE_RSA": false
+    }
+  }
 }

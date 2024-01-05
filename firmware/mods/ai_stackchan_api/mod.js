@@ -66,7 +66,6 @@ async function chatAndSay(robot, message) {
   trace(result.value)
   trace('\n')
   robot.hideBalloon()
-  robot.setEmotion('HAPPY')
   //Note: onDone() may not be called when robot.say() is called with await
   //await robot.say(result.value)
   robot.say(result.value)
@@ -153,7 +152,6 @@ function onRobotCreated(robot) {
   }
 
   robot.tts.onDone = () => {
-    robot.setEmotion('NEUTRAL')
     robot.hideBalloon()
     chatting = false
   }

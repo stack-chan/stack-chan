@@ -1,4 +1,6 @@
-import { fetch, Headers } from 'fetch'
+import { fetch } from 'fetch'
+import Headers from 'headers'
+
 import { Maybe } from 'stackchan-util'
 import structuredClone from 'structuredClone'
 

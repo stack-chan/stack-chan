@@ -18,7 +18,7 @@
     "deploy": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target -t deploy ./stackchan/manifest_local.json",
     "debug": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target ./stackchan/manifest_local.json",
     "mod": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcrun -d -m -p $npm_config_target",
-    "setup": "xs-dev setup --target-branch 4.1",
+    "setup": "xs-dev setup",
     "doctor": "echo stack-chan environment info: && git rev-parse HEAD && git rev-parse --show-toplevel && xs-dev doctor",
     "scan": "xs-dev scan"
   },
@@ -58,7 +58,7 @@
     "typedoc-plugin-markdown": "^3.14.0",
     "typescript": "^4.8.4",
     "web-audio-engine": "^0.13.4",
-    "xs-dev": "^0.28.0",
+    "xs-dev": "^0.30.3",
     "yargs": "^17.6.2"
   }
 }

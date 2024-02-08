@@ -8,5 +8,10 @@
         "*": [
             "./main"
         ]
+    },
+    "defines": {
+        "main": {
+            "async": 1
+        }
     }
 }

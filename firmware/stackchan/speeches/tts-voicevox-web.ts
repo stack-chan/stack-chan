@@ -2,7 +2,8 @@
 import AudioOut from 'pins/audioout'
 import MP3Streamer from "mp3streamer";
 import calculatePower from 'calculate-power'
-import { fetch, Headers } from 'fetch'
+import { fetch } from 'fetch'
+import Headers from 'headers'
 
 
 /* global trace, SharedArrayBuffer */

@@ -4,8 +4,15 @@ declare module "elevenlabsstreamer" {
         key: string,
         voice?: string,
         latency?: number,
+        format?: string,
         text: string,
         model?: string,
+        voice_settings?: {
+            similarity_boost: number,
+            stability: number,
+            style?: number,
+            use_speaker_boost?: boolean
+        }
         audio: {
             out: AudioOut,
             sampleRate?: number,

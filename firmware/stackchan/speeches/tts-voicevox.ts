@@ -3,6 +3,7 @@ import AudioOut from 'pins/audioout'
 import WavStreamer from 'wavstreamer'
 import calculatePower from 'calculate-power'
 import HTTPClient from 'embedded:network/http/client'
+import Headers from 'headers'
 import { File } from 'file'
 import config from 'mc/config'
 
@@ -53,7 +54,7 @@ export class TTS {
       client.request({
         method: 'POST',
         path: encodeURI(`/audio_query?text=${text}&speaker=${speakerId}`),
-        headers: new Map([['Content-Type', 'application/x-www-form-urlencoded']]),
+        headers: new Headers([['Content-Type', 'application/x-www-form-urlencoded']]),
         onHeaders(status) {
           if (status !== 200) {
             reject(`server returned ${status}`)
@@ -101,7 +102,7 @@ export class TTS {
         bufferDuration: 600,
         request: {
           method: 'POST',
-          headers: new Map([
+          headers: new Headers([
             ['content-type', 'application/json'],
             ['content-length', `${file.length}`],
           ]),

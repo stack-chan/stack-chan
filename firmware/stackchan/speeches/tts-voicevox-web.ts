@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
 import AudioOut from 'pins/audioout'
-import MP3Streamer from "mp3streamer";
+import MP3Streamer from 'mp3streamer'
 import calculatePower from 'calculate-power'
 import { fetch } from 'fetch'
 
@@ -36,7 +36,9 @@ export class TTS {
   }
 
   async getQuery(text: string, speakerId = 1): Promise<unknown> {
-    return fetch(encodeURI(`https://api.tts.quest/v3/voicevox/synthesis?key=${this.token}&text=${text}&speaker=${speakerId}`))
+    return fetch(
+      encodeURI(`https://api.tts.quest/v3/voicevox/synthesis?key=${this.token}&text=${text}&speaker=${speakerId}`)
+    )
       .then((response) => {
         //return response.text()
         return response.json()
@@ -48,7 +50,7 @@ export class TTS {
         return data.mp3StreamingUrl
       })
       .catch((error) => {
-        trace("error\n")
+        trace('error\n')
       })
   }
 

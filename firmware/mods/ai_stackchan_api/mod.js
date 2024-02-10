@@ -14,8 +14,7 @@ const bubble = createBubbleDecorator({
   height: 60,
 })
 
-const EMOTIONS = ['NEUTRAL','HAPPY','SLEEPY','DOUBTFUL','SAD','ANGRY','COLD','HOT']
-
+const EMOTIONS = ['NEUTRAL', 'HAPPY', 'SLEEPY', 'DOUBTFUL', 'SAD', 'ANGRY', 'COLD', 'HOT']
 
 //
 // Integrate ChatGPT
@@ -72,13 +71,12 @@ async function chatAndSay(robot, message) {
   //chatting = false      //Implemented by overriding robot.tts.onDone
 }
 
-
 //
 // Integrate Web API
 //
-function getRequestParams(query){
+function getRequestParams(query) {
   var params = {}
-  query.split('&').forEach(function (item){
+  query.split('&').forEach(function (item) {
     var s = item.split('=')
     var k = decodeURIComponent(s[0])
     var v = decodeURIComponent(s[1])
@@ -89,38 +87,35 @@ function getRequestParams(query){
   return params
 }
 
-function aiStackchanApi(robot, path, params){
+function aiStackchanApi(robot, path, params) {
   var res = 'OK'
 
   if (path === '/speech') {
-    if(params['voice']){
+    if (params['voice']) {
       trace(`voice:${params['voice']}\n`)
       robot.tts.speakerId = Number(params['voice'])
     }
-    if(params['expression']){
+    if (params['expression']) {
       trace(`expression:${params['expression']}\n`)
       var idx = Number(params['expression'])
       //robot.setEmotion(EMOTIONS[idx])
     }
-    if(params['say']){
+    if (params['say']) {
       trace(`say:${params['say']}\n`)
       //await robot.say(params['say'])
       robot.say(params['say'])
     }
-  }
-  else if (path === '/chat') {
-    if(params['voice']){
+  } else if (path === '/chat') {
+    if (params['voice']) {
       trace(`voice:${params['voice']}\n`)
       robot.tts.speakerId = Number(params['voice'])
     }
-    if(params['text']){
+    if (params['text']) {
       trace(`text:${params['text']}\n`)
       //await chatAndSay(robot, params['text'])
       chatAndSay(robot, params['text'])
     }
-
-  }
-  else if (path === '/face') {
+  } else if (path === '/face') {
     trace(`face:${params['expression']}\n`)
     var idx = Number(params['expression'])
     robot.setEmotion(EMOTIONS[idx])
@@ -129,8 +124,7 @@ function aiStackchanApi(robot, path, params){
     } else {
       robot.renderer.removeDecorator(bubble)
     }
-  }
-  else{
+  } else {
     res = 'Undefined'
   }
 
@@ -165,39 +159,37 @@ function onRobotCreated(robot) {
       this.path = value.split('?')[0]
       var query = value.split('?')[1]
 
-      //If the query string in the request path contains parameters, 
+      //If the query string in the request path contains parameters,
       //process them here.
-      if(query){
+      if (query) {
         var params = getRequestParams(query)
         this.res = aiStackchanApi(robot, this.path, params)
       }
-      
     }
 
     if (message === 4) {
       //trace('message === 4\n')
       return String
     }
- 
+
     if (message === 6) {
       //trace('message === 6\n')
       trace(`Request Body: ${value}\n`)
 
-      //If parameters are received in the request body, 
+      //If parameters are received in the request body,
       //process them here (Stack-chan Connect sends them in the request body)
       var params = getRequestParams(value)
       this.res = aiStackchanApi(robot, this.path, params)
     }
- 
+
     if (Server.prepareResponse === message) {
       const response = {
         headers: ['Content-type', 'text/plain'],
-        body: this.res
+        body: this.res,
       }
       return response
     }
   }
-
 }
 
 export default {

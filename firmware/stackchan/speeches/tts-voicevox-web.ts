@@ -67,7 +67,7 @@ export class TTS {
       //trace(`path: ${this.streamUrl.substring(24)}\n`)
       let streamer = new MP3Streamer({
         http: device.network.https,
-        host: this.streamUrl.substring(8,24),
+        host: this.streamUrl.substring(8, 24),
         path: this.streamUrl.substring(24),
         port: 443,
         audio: {

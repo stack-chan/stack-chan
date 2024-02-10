@@ -3,8 +3,6 @@ import AudioOut from 'pins/audioout'
 import MP3Streamer from "mp3streamer";
 import calculatePower from 'calculate-power'
 import { fetch } from 'fetch'
-import Headers from 'headers'
-
 
 /* global trace, SharedArrayBuffer */
 
@@ -13,8 +11,6 @@ declare const device: any
 export type TTSProperty = {
   onPlayed: (number) => void
   onDone: () => void
-  host: string
-  port: number
   token: string
   sampleRate: number
   speakerId: number

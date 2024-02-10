@@ -6,8 +6,7 @@
     "$(MODDABLE)/modules/data/headers/manifest.json",
     "$(MODULES)/files/file/manifest_littlefs.json",
     "./manifest_wavstream.json",
-    "./manifest_https_mp3streamer.json",
-    "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json"
+    "./manifest_https_mp3streamer.json"
   ],
   "modules": {
     "*": [

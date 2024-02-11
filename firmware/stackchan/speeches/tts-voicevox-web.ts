@@ -20,22 +20,19 @@ export class TTS {
   audio: AudioOut
   onPlayed: (number) => void
   onDone: () => void
-  host: string
-  port: number
   token: string
   streaming: boolean
-  streamUrl: string
   speakerId: number
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 22050 })
+    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: props.sampleRate ?? 22050 })
     this.speakerId = props.speakerId ?? 1
     this.token = props.token
     trace(`tts.token:${this.token}\n`)
   }
 
-  async getQuery(text: string, speakerId = 1): Promise<unknown> {
+  async getQuery(text: string, speakerId = 1): Promise<string> {
     return fetch(
       encodeURI(`https://api.tts.quest/v3/voicevox/synthesis?key=${this.token}&text=${text}&speaker=${speakerId}`)
     )
@@ -46,11 +43,7 @@ export class TTS {
       .then((data) => {
         trace(`isApiKeyValid: ${data.isApiKeyValid}\n`)
         trace(`mp3StreamingUrl: ${data.mp3StreamingUrl}\n`)
-        this.streamUrl = data.mp3StreamingUrl
         return data.mp3StreamingUrl
-      })
-      .catch((error) => {
-        trace('error\n')
       })
   }
 
@@ -61,16 +54,18 @@ export class TTS {
     this.streaming = true
 
     const speakerId = this.speakerId
-    await this.getQuery(key, speakerId)
+    const streamUrl = await this.getQuery(key, speakerId).catch((error) => {
+      throw new Error(`getQuery failed: ${error}`)
+    })
     const { onPlayed, onDone, audio } = this
 
     return new Promise((resolve, reject) => {
-      //trace(`host: ${this.streamUrl.substring(8,24)}\n`)
-      //trace(`path: ${this.streamUrl.substring(24)}\n`)
+      trace(`host: ${streamUrl.substring(8, 24)}\n`)
+      trace(`path: ${streamUrl.substring(24)}\n`)
       let streamer = new MP3Streamer({
         http: device.network.https,
-        host: this.streamUrl.substring(8, 24),
-        path: this.streamUrl.substring(24),
+        host: streamUrl.substring(8, 24),
+        path: streamUrl.substring(24),
         port: 443,
         audio: {
           out: audio,

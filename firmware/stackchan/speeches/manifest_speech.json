@@ -4,6 +4,7 @@
     "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
     "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
+    "$(MODDABLE)/modules/data/url/manifest.json",
     "$(MODULES)/files/file/manifest_littlefs.json",
     "./manifest_wavstream.json",
     "./manifest_https_mp3streamer.json"

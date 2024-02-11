@@ -5,8 +5,6 @@ const token = 'YOUR_API_KEY_HERE'
 
 const property: TTSProperty = {
     token,
-    sampleRate: 11025,
-    speakerId: 1,
     onPlayed: (num) => {
         trace(`played ${num}\n`)
     },

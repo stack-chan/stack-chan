@@ -70,6 +70,7 @@ async function chatAndSay(robot, message) {
   //await robot.say(result.value)
   robot.say(result.value)
   //chatting = false      //Implemented by overriding robot.tts.onDone
+  return result.value
 }
 
 
@@ -117,6 +118,7 @@ function aiStackchanApi(robot, path, params){
       trace(`text:${params['text']}\n`)
       //await chatAndSay(robot, params['text'])
       chatAndSay(robot, params['text'])
+      //res = chatAndSay(robot, params['text'])
     }
 
   }
@@ -152,6 +154,7 @@ function onRobotCreated(robot) {
   }
 
   robot.tts.onDone = () => {
+    robot.power = 0
     robot.hideBalloon()
     chatting = false
   }

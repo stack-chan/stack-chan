@@ -32,7 +32,7 @@
     ],
     "strip": [],
     "creation": {
-        "static": 98304,
+        "static": 110592,
         "chunk": {
             "initial": 1536,
             "incremental": 512

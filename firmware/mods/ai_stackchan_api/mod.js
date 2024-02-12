@@ -46,14 +46,15 @@ const dialogue = new ChatGPTDialogue({
 let chatting = false
 async function chatAndSay(robot, message) {
   if (chatting) {
-    return
+    return 'お話中です'
   }
   chatting = true
   robot.showBalloon('Now thinking...')
   const result = await dialogue.post(message)
   if (!result.success) {
     trace(`failed: ${result.reason}`)
-    return
+    chatting = false
+    return '問題が発生しました'
   }
 
   //const messages = result.value.split(/[。！？]/).filter((m) => m.length > 0)
@@ -66,9 +67,8 @@ async function chatAndSay(robot, message) {
   trace('\n')
   robot.hideBalloon()
   //Note: onDone() may not be called when robot.say() is called with await
-  //await robot.say(result.value)
-  robot.say(result.value)
-  //chatting = false      //Implemented by overriding robot.tts.onDone
+  await robot.say(result.value)
+  chatting = false //Implemented by overriding robot.tts.onDone
   return result.value
 }
 
@@ -111,7 +111,6 @@ function onRobotCreated(robot) {
     const response = await chatAndSay(robot, text)
     return c.text(response)
   })
-
 }
 
 export default {

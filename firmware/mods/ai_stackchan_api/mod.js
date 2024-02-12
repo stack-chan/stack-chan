@@ -1,4 +1,4 @@
-import { Server } from 'http'
+import { HttpServerService, Response } from 'http-server-service'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 import { randomBetween, asyncWait, loadPreferences } from 'stackchan-util'
 import config from 'mc/config'
@@ -72,78 +72,17 @@ async function chatAndSay(robot, message) {
   return result.value
 }
 
-//
-// Integrate Web API
-//
-function getRequestParams(query) {
-  var params = {}
-  query.split('&').forEach(function (item) {
-    var s = item.split('=')
-    var k = decodeURIComponent(s[0])
-    var v = decodeURIComponent(s[1])
-    params[k] = v
-    trace(`${k}:${params[k]}\n`)
-  })
-
-  return params
-}
-
-function aiStackchanApi(robot, path, params) {
-  var res = 'OK'
-
-  if (path === '/speech') {
-    if (params['voice']) {
-      trace(`voice:${params['voice']}\n`)
-      robot.tts.speakerId = Number(params['voice'])
-    }
-    if (params['expression']) {
-      trace(`expression:${params['expression']}\n`)
-      var idx = Number(params['expression'])
-      //robot.setEmotion(EMOTIONS[idx])
-    }
-    if (params['say']) {
-      trace(`say:${params['say']}\n`)
-      //await robot.say(params['say'])
-      robot.say(params['say'])
-    }
-  } else if (path === '/chat') {
-    if (params['voice']) {
-      trace(`voice:${params['voice']}\n`)
-      robot.tts.speakerId = Number(params['voice'])
-    }
-    if (params['text']) {
-      trace(`text:${params['text']}\n`)
-      //await chatAndSay(robot, params['text'])
-      chatAndSay(robot, params['text'])
-      //res = chatAndSay(robot, params['text'])
-    }
-  } else if (path === '/face') {
-    trace(`face:${params['expression']}\n`)
-    var idx = Number(params['expression'])
-    robot.setEmotion(EMOTIONS[idx])
-    if (EMOTIONS[idx] === 'SLEEPY') {
-      robot.renderer.addDecorator(bubble)
-    } else {
-      robot.renderer.removeDecorator(bubble)
-    }
-  } else {
-    res = 'Undefined'
-  }
-
-  return res
-}
-
 function onRobotCreated(robot) {
-  robot.button.a.onChanged = function () {
+  robot.button.a.onChanged = async function () {
     if (this.read()) {
       robot.showBalloon('TTS test...')
-      robot.say('TTSテスト。TTSテスト')
+      await robot.say('TTSテスト。TTSテスト')
       //robot.hideBalloon()
     }
   }
-  robot.button.b.onChanged = function () {
+  robot.button.b.onChanged = async function () {
     if (this.read()) {
-      chatAndSay(robot, 'おはようございます')
+      await chatAndSay(robot, 'おはようございます')
     }
   }
 
@@ -153,46 +92,26 @@ function onRobotCreated(robot) {
     chatting = false
   }
 
-  const server = new Server({ port: 80 })
+  const server = new HttpServerService()
 
-  //Note: If this function is set to async/await, the response will not work properly.
-  server.callback = function (message, value, value2) {
-    if (message === 2) {
-      trace(`Request path: ${value}\n`)
-      this.path = value.split('?')[0]
-      var query = value.split('?')[1]
+  server.post('/speech', async (c) => {
+    const formData = await c.req.formData()
+    const voice = Number(formData.voice)
+    const expression = Number(formData.expression)
+    const say = formData.say
+    await robot.say(say)
 
-      //If the query string in the request path contains parameters,
-      //process them here.
-      if (query) {
-        var params = getRequestParams(query)
-        this.res = aiStackchanApi(robot, this.path, params)
-      }
-    }
+    return c.text('OK')
+  })
 
-    if (message === 4) {
-      //trace('message === 4\n')
-      return String
-    }
+  server.post('/chat', async (c) => {
+    const formData = await c.req.formData()
+    const voice = Number(formData.voice)
+    const text = formData.text
+    const response = await chatAndSay(robot, text)
+    return c.text(response)
+  })
 
-    if (message === 6) {
-      //trace('message === 6\n')
-      trace(`Request Body: ${value}\n`)
-
-      //If parameters are received in the request body,
-      //process them here (Stack-chan Connect sends them in the request body)
-      var params = getRequestParams(value)
-      this.res = aiStackchanApi(robot, this.path, params)
-    }
-
-    if (Server.prepareResponse === message) {
-      const response = {
-        headers: ['Content-type', 'text/plain'],
-        body: this.res,
-      }
-      return response
-    }
-  }
 }
 
 export default {

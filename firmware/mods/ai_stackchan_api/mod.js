@@ -112,13 +112,22 @@ function onRobotCreated(robot) {
   })
 
   server.get('/face', async (c) => {
-    return c.text('Not Implemented', 501)
+    return c.text('OK')
   })
 
   server.post('/face', async (c) => {
     const formData = await c.req.formData()
     const expression = Number(formData.expression)
-    return c.text('Not Implemented', 501)
+    const emotion = EMOTIONS.at(expression)
+    robot.setEmotion(emotion)
+
+    if (emotion === 'SLEEPY') {
+      robot.renderer.addDecorator(bubble)
+    } else {
+      robot.renderer.removeDecorator(bubble)
+    }
+
+    return c.text('OK')
   })
 
   server.get('/apikey', async (c) => {

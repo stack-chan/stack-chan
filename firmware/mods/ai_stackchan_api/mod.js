@@ -96,9 +96,8 @@ function onRobotCreated(robot) {
 
   server.post('/speech', async (c) => {
     const formData = await c.req.formData()
-    const voice = Number(formData.voice)
-    const expression = Number(formData.expression)
     const say = formData.say
+    const lang = formData.lang
     await robot.say(say)
 
     return c.text('OK')
@@ -106,10 +105,54 @@ function onRobotCreated(robot) {
 
   server.post('/chat', async (c) => {
     const formData = await c.req.formData()
-    const voice = Number(formData.voice)
     const text = formData.text
+    const lang = formData.lang
     const response = await chatAndSay(robot, text)
     return c.text(response)
+  })
+
+  server.get('/face', async (c) => {
+    return c.text('Not Implemented', 501)
+  })
+
+  server.post('/face', async (c) => {
+    const formData = await c.req.formData()
+    const expression = Number(formData.expression)
+    return c.text('Not Implemented', 501)
+  })
+
+  server.get('/apikey', async (c) => {
+    return c.text('Not Implemented', 501)
+  })
+
+  server.get('/apikey_set', async (c) => {
+    const formData = await c.req.formData()
+    const { openai, sttapikey, voicetext, voicevox } = formData
+
+    return c.text('Not Implemented', 501)
+  })
+
+  server.get('/role_get', async (c) => {
+    return c.text('Not Implemented', 501)
+  })
+
+  server.post('/role_set', async (c) => {
+    const role = await c.req.text()
+    return c.text('Not Implemented', 501)
+  })
+
+  server.get('/setting', async (c) => {
+    return c.text('Not Implemented', 501)
+  })
+
+  server.post('/setting', async (c) => {
+    const formData = await c.req.formData()
+    const volume = Number(formData.volume)
+    return c.text('Not Implemented', 501)
+  })
+
+  server.get('/', async (c) => {
+    return c.text('Hello! Stach-chan web server.')
   })
 }
 

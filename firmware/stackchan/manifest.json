@@ -8,7 +8,6 @@
         "$(MODDABLE)/examples/manifest_net.json",
         "$(MODULES)/base/modules/manifest.json",
         "$(MODULES)/data/crc/manifest.json",
-        "$(MODULES)/network/http/manifest.json",
         "./drivers/manifest_driver.json",
         "./ble/manifest_ble.json",
         "./dialogues/manifest_dialogue.json",
@@ -33,7 +32,7 @@
     ],
     "strip": [],
     "creation": {
-        "static": 98304,
+        "static": 110592,
         "chunk": {
             "initial": 1536,
             "incremental": 512

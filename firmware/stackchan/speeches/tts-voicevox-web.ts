@@ -1,10 +1,9 @@
 /* eslint-disable prefer-const */
 import AudioOut from 'pins/audioout'
-import MP3Streamer from "mp3streamer";
+import MP3Streamer from 'mp3streamer'
 import calculatePower from 'calculate-power'
 import { fetch } from 'fetch'
-import Headers from 'headers'
-
+import { URL } from 'url'
 
 /* global trace, SharedArrayBuffer */
 
@@ -13,19 +12,15 @@ declare const device: any
 export type TTSProperty = {
   onPlayed: (number) => void
   onDone: () => void
-  host: string
-  port: number
   token: string
-  sampleRate: number
-  speakerId: number
+  sampleRate?: number
+  speakerId?: number
 }
 
 export class TTS {
   audio: AudioOut
   onPlayed: (number) => void
   onDone: () => void
-  host: string
-  port: number
   token: string
   streaming: boolean
   speakerId: number
@@ -35,13 +30,16 @@ export class TTS {
     this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: props.sampleRate ?? 22050 })
     this.speakerId = props.speakerId ?? 1
     this.token = props.token
-    trace(`tts.token:${this.token}\n`)
   }
 
   async getQuery(text: string, speakerId = 1): Promise<string> {
-    return fetch(encodeURI(`https://api.tts.quest/v3/voicevox/synthesis?key=${this.token}&text=${text}&speaker=${speakerId}`))
+    return fetch(
+      encodeURI(`https://api.tts.quest/v3/voicevox/synthesis?key=${this.token}&text=${text}&speaker=${speakerId}`)
+    )
       .then((response) => {
-        //return response.text()
+        if (response.status != 200) {
+          throw new Error(`response error:${response.status}`)
+        }
         return response.json()
       })
       .then((data) => {
@@ -61,15 +59,14 @@ export class TTS {
     const streamUrl = await this.getQuery(key, speakerId).catch((error) => {
       throw new Error(`getQuery failed: ${error}`)
     })
+    const url = new URL(streamUrl)
     const { onPlayed, onDone, audio } = this
 
     return new Promise((resolve, reject) => {
-      trace(`host: ${streamUrl.substring(8,24)}\n`)
-      trace(`path: ${streamUrl.substring(24)}\n`)
       let streamer = new MP3Streamer({
         http: device.network.https,
-        host: streamUrl.substring(8,24),
-        path: streamUrl.substring(24),
+        host: url.host,
+        path: url.pathname,
         port: 443,
         audio: {
           out: audio,

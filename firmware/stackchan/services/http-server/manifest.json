@@ -1,0 +1,13 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_net.json",
+    "$(MODDABLE)/examples/io/listener/listen/manifest_listen.json"
+  ],
+  "modules": {
+    "*": ["./*"]
+  },
+  "preload" : [
+    "http-server-service"
+  ]
+}

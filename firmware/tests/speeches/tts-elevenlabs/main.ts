@@ -1,8 +1,8 @@
-import { TTS } from 'tts-elevenlabs'
+import { TTS, TTSProperty } from 'tts-elevenlabs'
 import Timer from 'timer'
 
 const token = 'YOUR_API_KEY_HERE'
-const tts = new TTS({
+const property: TTSProperty = {
   token,
   onPlayed: (num) => {
     trace(`played ${num}\n`)
@@ -10,13 +10,11 @@ const tts = new TTS({
   onDone: () => {
     trace('done\n')
   }
-})
-
-async function main() {
-  while (true) {
-    await tts.stream('Hello. I am Stack-chan. Nice to meet you.')
-    Timer.delay(2000)
-  }
 }
 
-main()
+const tts = new TTS({ property })
+
+while (true) {
+  await tts.stream('Hello. I am Stack-chan. Nice to meet you.')
+  Timer.delay(2000)
+}

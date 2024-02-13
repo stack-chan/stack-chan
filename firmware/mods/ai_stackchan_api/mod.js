@@ -66,9 +66,8 @@ async function chatAndSay(robot, message) {
   trace(result.value)
   trace('\n')
   robot.hideBalloon()
-  //Note: onDone() may not be called when robot.say() is called with await
   await robot.say(result.value)
-  chatting = false //Implemented by overriding robot.tts.onDone
+  chatting = false
   return result.value
 }
 
@@ -77,19 +76,13 @@ function onRobotCreated(robot) {
     if (this.read()) {
       robot.showBalloon('TTS test...')
       await robot.say('TTSテスト。TTSテスト')
-      //robot.hideBalloon()
+      robot.hideBalloon()
     }
   }
   robot.button.b.onChanged = async function () {
     if (this.read()) {
       await chatAndSay(robot, 'おはようございます')
     }
-  }
-
-  robot.tts.onDone = () => {
-    robot.power = 0
-    robot.hideBalloon()
-    chatting = false
   }
 
   const server = new HttpServerService()

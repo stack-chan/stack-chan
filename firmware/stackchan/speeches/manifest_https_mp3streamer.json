@@ -1,0 +1,29 @@
+{
+  "include": [
+		"$(MODDABLE)/examples/io/tcp/httpsclient/manifest_httpsclient.json",
+		"$(MODDABLE)/modules/data/mp3/manifest.json"
+  ],
+  "modules": {
+    "*": [
+			"$(MODDABLE)/examples/pins/audioout/mp3-http-stream/mp3streamer",
+			"$(MODDABLE)/examples/pins/audioout/http-stream/calculatePower"
+    ],
+    "pins/*": [
+      "$(MODULES)/pins/i2s/*"
+    ]
+  },
+  "preload": [
+    "mp3streamer",
+		"calculatePower"
+  ],
+	"data":{
+		"*":[
+			"$(MODULES)/crypt/data/ca109"
+		]
+	},
+  "config": {
+    "tls": {
+      "DHE_RSA": false
+    }
+  }
+}

@@ -5,6 +5,7 @@
     "include": [
         "$(MODDABLE)/examples/manifest_base.json",
         "$(MODDABLE)/examples/manifest_typings.json",
+        "$(MODDABLE)/examples/manifest_net.json",
         "$(MODULES)/base/modules/manifest.json",
         "$(MODULES)/data/crc/manifest.json",
         "./drivers/manifest_driver.json",
@@ -20,7 +21,8 @@
         "*": [
             "./touch",
             "./robot",
-            "./main"
+            "./main",
+            "$(MODULES)/network/http/*"
         ],
         "default-mods/*": "./default-mods/*"
     },
@@ -30,7 +32,7 @@
     ],
     "strip": [],
     "creation": {
-        "static": 98304,
+        "static": 110592,
         "chunk": {
             "initial": 1536,
             "incremental": 512

@@ -67,6 +67,8 @@ async function chatAndSay(robot, message) {
   if (!result.success) {
     trace(`failed: ${result.reason}`)
     chatting = false
+    robot.hideBalloon();
+    await robot.say('わかりません！');
     return '問題が発生しました'
   }
 

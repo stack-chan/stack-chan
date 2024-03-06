@@ -2,7 +2,14 @@ import { HttpServerService, Response } from 'http-server-service'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 import { randomBetween, asyncWait, loadPreferences } from 'stackchan-util'
 import config from 'mc/config'
-import { createBalloonDecorator, createBubbleDecorator } from 'decorator'
+import {
+  createBalloonDecorator,
+  createBubbleDecorator,
+  createHeartDecorator,
+  createAngryDecorator,
+  createPaleDecorator,
+  createSweatDecorator,
+} from 'decorator'
 
 //
 // Face parameters
@@ -13,6 +20,12 @@ const bubble = createBubbleDecorator({
   width: 50,
   height: 60,
 })
+
+const heart = createHeartDecorator({ x: 20, y: 20 })
+const angry = createAngryDecorator({ x: 20, y: 20 })
+const pale = createPaleDecorator({ x: 20, y: 20 })
+const sweat = createSweatDecorator({ x: 20, y: 20 })
+let decorator
 
 const EMOTIONS = ['NEUTRAL', 'HAPPY', 'SLEEPY', 'DOUBTFUL', 'SAD', 'ANGRY', 'COLD', 'HOT']
 
@@ -114,10 +127,32 @@ function onRobotCreated(robot) {
     const emotion = EMOTIONS.at(expression)
     robot.setEmotion(emotion)
 
-    if (emotion === 'SLEEPY') {
-      robot.renderer.addDecorator(bubble)
-    } else {
-      robot.renderer.removeDecorator(bubble)
+    if (decorator) {
+      robot.renderer.removeDecorator(decorator)
+    }
+
+    switch (emotion) {
+      case 'HAPPY':
+        decorator = heart
+        break
+      case 'SLEEPY':
+        decorator = bubble
+        break
+      case 'DOUBTFUL':
+        decorator = sweat
+        break
+      case 'SAD':
+        decorator = pale
+        break
+      case 'ANGRY':
+        decorator = angry
+        break
+      default:
+        decorator = null
+    }
+
+    if (decorator) {
+      robot.renderer.addDecorator(decorator)
     }
 
     return c.text('OK')

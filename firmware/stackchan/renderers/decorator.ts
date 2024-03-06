@@ -90,3 +90,176 @@ export const createBubbleDecorator: FaceDecoratorFactory<{
     poco.end()
   }
 }
+
+export const createHeartDecorator: FaceDecoratorFactory<{
+  x: number
+  y: number
+  width?: number
+  height?: number
+  angle?: number
+}> = ({ x, y, width = 40, height = 40, angle = 0.1 }) => {
+  let fraction = 0
+  const xScale = width / 40
+  const yScale = height / 40
+
+  return (tick, poco, { theme }, end = false) => {
+    poco.begin(x, y, width * xScale, height * yScale)
+    const fg = poco.makeColor(...theme.primary)
+    const bg = poco.makeColor(...theme.secondary)
+    poco.fillRectangle(bg, x, y, width * xScale, height * yScale)
+    if (end) {
+      poco.end()
+      return
+    }
+    fraction += (2 * Math.PI) / 100
+    const scale = Math.abs(Math.sin(fraction)) / 4 + 0.75
+    const path = new Outline.CanvasPath()
+    path.moveTo(20, 13)
+    path.bezierCurveTo(18, 8, 14, 5, 10, 5)
+    path.bezierCurveTo(8, 5, 0, 5, 0, 15)
+    path.bezierCurveTo(0, 30, 18, 35, 20, 40)
+    path.bezierCurveTo(22, 35, 40, 30, 40, 15)
+    path.bezierCurveTo(40, 5, 32, 5, 30, 5)
+    path.bezierCurveTo(26, 5, 22, 8, 20, 13)
+
+    poco.blendOutline(
+      fg,
+      255,
+      Outline.fill(path)
+        .scale(scale * xScale, scale * yScale)
+        .rotate(angle),
+      x,
+      y
+    )
+    poco.end()
+  }
+}
+
+export const createAngryDecorator: FaceDecoratorFactory<{
+  x: number
+  y: number
+  width?: number
+  height?: number
+  angle?: number
+}> = ({ x, y, width = 40, height = 40, angle = 0.1 }) => {
+  let fraction = 0
+  const xScale = width / 40
+  const yScale = height / 40
+
+  return (tick, poco, { theme }, end = false) => {
+    poco.begin(x, y, width * xScale, height * yScale)
+    const fg = poco.makeColor(...theme.primary)
+    const bg = poco.makeColor(...theme.secondary)
+    poco.fillRectangle(bg, x, y, width * xScale, height * yScale)
+    if (end) {
+      poco.end()
+      return
+    }
+    fraction += (2 * Math.PI) / 100
+    const scale = Math.abs(Math.sin(fraction)) / 4 + 0.75
+
+    const path = new Outline.CanvasPath()
+    path.moveTo(15, 5)
+    path.quadraticCurveTo(20, 20, 5, 15)
+    path.moveTo(25, 5)
+    path.quadraticCurveTo(20, 20, 35, 15)
+    path.moveTo(5, 25)
+    path.quadraticCurveTo(20, 20, 15, 35)
+    path.moveTo(25, 35)
+    path.quadraticCurveTo(20, 20, 35, 25)
+
+    poco.blendOutline(
+      fg,
+      255,
+      Outline.stroke(path, 2)
+        .scale(scale * xScale, scale * yScale)
+        .rotate(angle),
+      x,
+      y
+    )
+    poco.end()
+  }
+}
+
+export const createPaleDecorator: FaceDecoratorFactory<{
+  x: number
+  y: number
+  width?: number
+  height?: number
+  flip?: boolean
+}> = ({ x, y, width = 40, height = 40, flip = false }) => {
+  const interval = 3000
+  const xScale = width / 40
+  const yScale = height / 40
+  const moveY = yScale * 15
+
+  let time = 0
+  return (tick, poco, { theme }, end = false) => {
+    poco.begin(x, y, width * xScale, height * yScale + moveY)
+    const fg = poco.makeColor(...theme.primary)
+    const bg = poco.makeColor(...theme.secondary)
+    poco.fillRectangle(bg, x, y, width * xScale, height + moveY)
+    if (end) {
+      poco.end()
+      return
+    }
+
+    time = (time + tick) % interval
+    const path = new Outline.CanvasPath()
+    const fraction = Math.min(time / interval, 1)
+    const offsetY = Math.exponentialEaseOut(fraction) * moveY
+    path.moveTo(15, 5)
+    path.lineTo(15, flip ? 25 : 35)
+    path.moveTo(25, 5)
+    path.lineTo(25, 30)
+    path.moveTo(35, 5)
+    path.lineTo(35, flip ? 35 : 25)
+
+    poco.blendOutline(
+      fg,
+      255,
+      Outline.stroke(path, 2 * xScale, Outline.LINECAP_BUTT)
+        .scale(xScale, yScale)
+        .translate(0, offsetY),
+      x,
+      y
+    )
+    poco.end()
+  }
+}
+
+export const createSweatDecorator: FaceDecoratorFactory<{
+  x: number
+  y: number
+  width?: number
+  height?: number
+}> = ({ x, y, width = 40, height = 40 }) => {
+  const interval = 3000
+  const xScale = width / 40
+  const yScale = height / 40
+  const moveY = yScale * 15
+
+  let time = 0
+  return (tick, poco, { theme }, end = false) => {
+    poco.begin(x, y, width * xScale, height * yScale + moveY)
+    const fg = poco.makeColor(...theme.primary)
+    const bg = poco.makeColor(...theme.secondary)
+    poco.fillRectangle(bg, x, y, width * xScale, height * yScale + moveY)
+    if (end) {
+      poco.end()
+      return
+    }
+
+    time = (time + tick) % interval
+    const path = new Outline.CanvasPath()
+    const fraction = Math.min(time / interval, 1)
+    const offsetY = Math.exponentialEaseOut(fraction) * moveY
+
+    path.moveTo(20, 30)
+    path.bezierCurveTo(30, 30, 30, 15, 20, 0)
+    path.bezierCurveTo(10, 15, 10, 30, 20, 30)
+
+    poco.blendOutline(fg, 255, Outline.fill(path).scale(xScale, yScale).translate(0, offsetY), x, y)
+    poco.end()
+  }
+}

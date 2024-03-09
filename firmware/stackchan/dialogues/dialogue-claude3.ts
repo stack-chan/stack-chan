@@ -4,8 +4,8 @@ import Headers from 'headers'
 import { Maybe } from 'stackchan-util'
 import structuredClone from 'structuredClone'
 
-const API_URL = 'https://api.openai.com/v1/chat/completions'
-const DEFAULT_MODEL = 'gpt-3.5-turbo'
+const API_URL = 'https://api.anthropic.com/v1/messages'
+const DEFAULT_MODEL = 'claude-3-haiku-20240307'
 const DEFAULT_CONTEXT: ChatContent[] = [
   {
     role: 'system',
@@ -28,6 +28,11 @@ const DEFAULT_CONTEXT: ChatContent[] = [
     content: "You response in frank and simple Japanese sentense to the user's message.",
   },
   {
+    role: 'user',
+    // content: '一緒にお話ししましょう',
+    content: 'Lets talk together',
+  },
+  {
     role: 'assistant',
     content: 'ぼくはスタックチャンだよ！お話しようね！',
     // content: 'Hello. I am スタックチャン. Let's talk together!',
@@ -48,26 +53,39 @@ type ChatContent = {
   content: string
 }
 
-type ChatGPTDialogueProps = {
+type Claude3DialogueProps = {
   context?: ChatContent[]
   model?: string
   apiKey: string
 }
 
-export class ChatGPTDialogue {
+export class Claude3Dialogue {
   #model: string
   #context: Array<ChatContent>
+  #system: string
   #headers: Headers
   #history: Array<ChatContent>
   #maxHistory: number
-  constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: ChatGPTDialogueProps) {
+  constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: Claude3DialogueProps) {
     this.#model = model
-    this.#context = context
+    this.#system = context
+      .filter((c) => c.role === 'system')
+      .map((c) => c.content)
+      .join('\n')
+    this.#context = context.filter((c) => c.role !== 'system')
+    // The first message of context must always use the user role.
+    if (!this.#context.map((c) => c.role).includes('user')) {
+      this.#context.unshift({
+        role: 'user',
+        content: 'Lets talk together',
+      })
+    }
     this.#history = []
     this.#maxHistory = 6
     this.#headers = new Headers([
       ['Content-Type', 'application/json'],
-      ['Authorization', `Bearer ${apiKey}`],
+      ['x-api-key', `${apiKey}`],
+      ['anthropic-version', '2023-06-01'],
     ])
   }
   clear() {
@@ -104,6 +122,8 @@ export class ChatGPTDialogue {
   async #sendMessage(message: ChatContent): Promise<unknown> {
     const body = {
       model: this.#model,
+      max_tokens: 128,
+      system: this.#system,
       messages: [...this.#context, ...this.#history, message],
     }
     return fetch(API_URL, { method: 'POST', headers: this.#headers, body: JSON.stringify(body) })
@@ -112,10 +132,13 @@ export class ChatGPTDialogue {
       })
       .then((body) => {
         body = String.fromArrayBuffer(body)
-        return JSON.parse(body, ['choices', 'message', 'role', 'content'])
+        return JSON.parse(body)
       })
       .then((obj) => {
-        return obj.choices?.[0].message
+        return {
+          role: obj.role,
+          content: obj.content?.[0].text,
+        }
       })
   }
 }

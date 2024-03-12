@@ -4,6 +4,7 @@
     "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
     "$(MODDABLE)/examples/pins/audioout/http-stream/manifest_wavstreamer.json",
     "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
+    "$(MODDABLE)/examples/pins/audioout/openai-stream/manifest_openaistreamer.json",
     "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
     "$(MODDABLE)/modules/data/url/manifest.json",
@@ -26,7 +27,8 @@
     "tts-remote",
     "tts-voicevox",
     "tts-voicevox-web",
-    "tts-elevenlabs"
+    "tts-elevenlabs",
+    "tts-openai"
   ],
   "data":{
     "*":[

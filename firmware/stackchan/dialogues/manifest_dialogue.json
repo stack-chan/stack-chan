@@ -4,11 +4,10 @@
     "$(MODDABLE)/modules/data/headers/manifest.json"
   ],
   "modules": {
-    "*": [
-      "./*"
-    ]
+    "*": ["./*"]
   },
-  "preload": [
-    "dialugue-chatgpt"
-  ]
+  "preload": ["dialugue-chatgpt"],
+  "data": {
+    "*": ["$(MODULES)/crypt/data/ca233"]
+  }
 }

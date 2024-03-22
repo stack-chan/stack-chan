@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "builds": [
     {
-      "chipFamily": "ESP32",
+      "chipFamily": "ESP32-S3",
       "parts": [
         {
           "path": "tech.moddable.stackchan/com.m5stack.cores3/bootloader.bin",
-          "offset": 4096
+          "offset": 0
         },
         {
           "path": "tech.moddable.stackchan/com.m5stack.cores3/partition-table.bin",

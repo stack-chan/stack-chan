@@ -113,6 +113,21 @@
                 "rotation": 0,
                 "virtualButton": true
             }
+        },
+        "mac/m5stack" : {
+            "config": {
+                "rotation": 0
+            }
+        },
+        "lin/m5stack" : {
+            "config": {
+                "rotation": 0
+            }
+        },
+        "win/m5stack" : {
+            "config": {
+                "rotation": 0
+            }
         }
     }
 }

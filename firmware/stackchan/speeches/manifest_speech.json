@@ -5,7 +5,6 @@
     "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
     "$(MODDABLE)/modules/data/url/manifest.json",
-    "$(MODULES)/files/file/manifest_littlefs.json",
     "./manifest_wavstream.json",
     "./manifest_https_mp3streamer.json"
   ],
@@ -25,5 +24,19 @@
     "tts-voicevox",
     "tts-voicevox-web",
     "tts-elevenlabs"
-  ]
+  ],
+  "platforms":{
+    "esp32" : {
+      "include" :[    "$(MODULES)/files/file/manifest_littlefs.json"]
+    },
+    "pico" : {
+      "include" :[    "$(MODULES)/files/file/manifest_littlefs.json"]
+    },
+    "nrf52" : {
+      "include" :[    "$(MODULES)/files/file/manifest_littlefs.json"]
+    },
+    "...": {
+      "include" :[    "$(MODULES)/files/file/manifest.json"]
+    }
+  }
 }

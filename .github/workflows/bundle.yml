@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Check for changes in firmware
@@ -19,7 +19,7 @@ jobs:
           git diff --quiet HEAD^ HEAD -- ./firmware/ || echo "::set-output name=diff_detected::true"
       - name: Cache build results
         id: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ./firmware/stackchan/tech.moddable.stackchan
           key: ${{ github.sha }}
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Pages Branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: gh-pages
       - name: Download Firmware Bundle

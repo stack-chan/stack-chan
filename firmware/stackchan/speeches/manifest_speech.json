@@ -8,6 +8,7 @@
     "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
     "$(MODDABLE)/modules/data/url/manifest.json",
+    "./manifest_file.json",
     "../manifest_typings.json"
   ],
   "modules": {
@@ -47,8 +48,7 @@
           "numChannels": 1,
           "sampleRate": 11025
         }
-      },
-      "include" :["$(MODULES)/files/file/manifest.json"]
+      }
     },
     "esp32": {
       "defines": {
@@ -57,8 +57,7 @@
           "numChannels": 1,
           "sampleRate": 11025
         }
-      },
-      "include" :[    "$(MODULES)/files/file/manifest_littlefs.json"]
+      }
     },
     "esp32/m5stack_cores3": {
       "defines": {
@@ -68,9 +67,6 @@
           "sampleRate": 24000
         }
       }
-    },
-    "...": {
-      "include" :[    "$(MODULES)/files/file/manifest.json"]
     }
   }
 }

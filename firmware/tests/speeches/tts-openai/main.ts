@@ -1,4 +1,4 @@
-import { TTS, TTSProperty } from 'tts-elevenlabs'
+import { TTS, TTSProperty } from 'tts-openai'
 import Timer from 'timer'
 
 const token = 'YOUR_API_KEY_HERE'
@@ -12,7 +12,7 @@ const property: TTSProperty = {
   }
 }
 
-const tts = new TTS( property )
+const tts = new TTS(property)
 
 while (true) {
   await tts.stream('Hello. I am Stack-chan. Nice to meet you.')

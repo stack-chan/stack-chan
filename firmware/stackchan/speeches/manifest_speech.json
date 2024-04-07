@@ -8,7 +8,7 @@
     "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
     "$(MODDABLE)/modules/data/url/manifest.json",
-    "$(MODULES)/files/file/manifest_littlefs.json",
+    "./manifest_file.json",
     "../manifest_typings.json"
   ],
   "modules": {

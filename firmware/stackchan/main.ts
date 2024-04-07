@@ -103,6 +103,29 @@ async function checkAndConnectWiFi() {
 }
 
 async function main() {
+  if (globalThis.Host.Button && !globalThis.button) {
+    // wrapper button class for simulator
+    class SimButton {
+      #button
+      onChanged
+      constructor(button) {
+        const self = this
+        this.#button = new button({
+          onPush() {
+            self.onChanged?.()
+          },
+        })
+      }
+      read() {
+        return this.#button.read() ?? 1
+      }
+    }
+    globalThis.button = {
+      a: new SimButton(globalThis.Host.Button.a),
+      b: new SimButton(globalThis.Host.Button.b),
+      c: new SimButton(globalThis.Host.Button.c),
+    }
+  }
   await asyncWait(100)
   await checkAndConnectWiFi().catch((msg) => {
     trace(`WiFi connection failed: ${msg}`)

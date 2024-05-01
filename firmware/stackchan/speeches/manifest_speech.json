@@ -1,0 +1,72 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
+    "$(MODDABLE)/examples/pins/audioout/http-stream/manifest_wavstreamer.json",
+    "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
+    "$(MODDABLE)/examples/pins/audioout/openai-stream/manifest_openaistreamer.json",
+    "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
+    "$(MODDABLE)/modules/data/headers/manifest.json",
+    "$(MODDABLE)/modules/data/url/manifest.json",
+    "./manifest_file.json",
+    "../manifest_typings.json"
+  ],
+  "modules": {
+    "*": [
+      "./*",
+      "$(MODDABLE)/examples/pins/audioout/http-stream/calculatePower",
+      "../../typings/elevenlabsstreamer",
+      "../../typings/resourcestreamer",
+      "../../typings/wavstreamer",
+      "../../typings/mp3streamer"
+    ]
+  },
+  "preload": [
+    "calculatePower",
+    "tts-local",
+    "tts-remote",
+    "tts-voicevox",
+    "tts-voicevox-web",
+    "tts-elevenlabs",
+    "tts-openai"
+  ],
+  "data":{
+    "*":[
+      "$(MODULES)/crypt/data/ca109"
+    ]
+  },
+  "config": {
+    "tls": {
+      "DHE_RSA": false
+    }
+  },
+  "platforms": {
+    "mac": {
+      "defines": {
+        "audioOut": {
+          "bitsPerSample": 16,
+          "numChannels": 1,
+          "sampleRate": 11025
+        }
+      }
+    },
+    "esp32": {
+      "defines": {
+        "audioOut": {
+          "bitsPerSample": 16,
+          "numChannels": 1,
+          "sampleRate": 11025
+        }
+      }
+    },
+    "esp32/m5stack_cores3": {
+      "defines": {
+        "audioOut": {
+          "bitsPerSample": 16,
+          "numChannels": 1,
+          "sampleRate": 24000
+        }
+      }
+    }
+  }
+}

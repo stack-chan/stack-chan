@@ -1,8 +1,3 @@
-declare module "embedded:network/http/client" {
-  export default class HTTPClient {
-    /* TODO */
-  }
-}
 declare module "wavstreamer" {
   import type AudioOut from "pins/audioout"
   import HTTPClient from "embedded:network/http/client";

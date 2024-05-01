@@ -1,0 +1,20 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODULES)/network/ble/manifest_server.json",
+    "$(MODULES)/network/ble/manifest_client.json",
+    "../utilities/manifest_utility.json",
+    "../manifest_typings.json"
+  ],
+  "modules": {
+    "*": [
+      "$(MODULES)/network/ble/uart/uartserver",
+      "./stk-server",
+      "./beacon-packet"
+    ]
+  },
+  "preload": [
+    "stk-server",
+    "beacon-packet"
+  ]
+}

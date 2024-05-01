@@ -1,0 +1,23 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODULES)/pins/servo/manifest.json",
+    "../../extern/scservo/src/manifest-driver.json",
+    "../../extern/rs30x/src/manifest-driver.json",
+    "../utilities/manifest_utility.json"
+  ],
+  "modules": {
+    "*": [
+      "./*"
+    ]
+  },
+  "preload": [
+    "dynamixel",
+    "dynamixel-driver",
+    "none-driver",
+    "rs30x-driver",
+    "scservo-driver",
+    "sg90-driver"
+  ]
+}

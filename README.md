@@ -1,6 +1,7 @@
 # Stack-chan
 
 [![Build Stack-chan Firmware](https://github.com/meganetaaan/stack-chan/actions/workflows/build.yml/badge.svg)](https://github.com/meganetaaan/stack-chan/actions/workflows/build.yml)
+[![Discord server invitation](https://dcbadge.vercel.app/api/server/eGhd9adnBm)](https://discord.gg/eGhd9adnBm)
 
 [日本語](./README_ja.md)
 

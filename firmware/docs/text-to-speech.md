@@ -18,6 +18,7 @@ Tested below:
 * [Google Cloud Text-to-Speech API](https://cloud.google.com/text-to-speech)
 * [Coqui AI TTS](https://github.com/coqui-ai/TTS)
 * [VoiceVox](https://github.com/Hiroshiba/voicevox_engine)
+* [ElevenLabs](https://elevenlabs.io/speech-synthesis)
 
 See also official documents of each of them.
 
@@ -44,6 +45,20 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
             "host": "your.tts.host.local",
             "port": 8080
         }
+    }
+}
+```
+
+### ElevenLabs TTS
+* Get through [API KEY](https://docs.elevenlabs.io/authentication/01-xi-api-key) and get API KEY.
+* Set API KEY to `config.tts` of `stackchan/manifest_local.json`.
+```json
+{
+    "config": {
+        "tts": {
+            "type": "elevenlabs",
+            "token": "YOUR_API_KEY"
+        },
     }
 }
 ```

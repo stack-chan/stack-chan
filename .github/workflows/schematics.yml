@@ -1,0 +1,54 @@
+name: Generate Stack-chan Schematics Files
+on:
+  push:
+    paths:
+    - '**.kicad_sch'
+    - '**.kicad_pcb'
+    - '.github/workflows/schematics.yml'
+  pull_request:
+    paths:
+      - '**.kicad_sch'
+      - '**.kicad_pcb'
+      - '.github/workflows/schematics.yml'
+jobs:
+  build-schematics:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: INTI-CMNB/KiBot@v2_k7
+      with:
+        config: schematics/m5-pantilt/m5-pantilt.kibot.yaml
+        schema: schematics/m5-pantilt/m5-pantilt.kicad_sch
+        board: schematics/m5-pantilt/m5-pantilt.kicad_pcb
+        dir: generated
+    - name: Upload Results
+      uses: actions/upload-artifact@v2
+      with:
+        name: schematics-files
+        path: generated
+  deploy-schematics:
+    needs: build-schematics
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev/v1.0'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Pages Branch
+        uses: actions/checkout@v3
+        with:
+          ref: gh-pages
+      - name: Download Schematics Files
+        uses: actions/download-artifact@v2
+        with:
+          name: schematics-files
+          path: ./schematics-files
+      - name: Move Files
+        run: |
+          mkdir -p ./web/schematics
+          rm -rf ./web/schematics/*
+          mv schematics-files/* ./web/schematics
+      - name: Commit and Push
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add .
+          git commit -m "Deploy schematics files from ${{ github.sha }}"
+          git push

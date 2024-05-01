@@ -1,4 +1,4 @@
-# ｽﾀｯｸﾁｬﾝ ケース
+# ｽﾀｯｸﾁｬﾝ ケース v0
 
 [English](./README.md)
 
@@ -6,6 +6,19 @@
 ![case_inside](./docs/images/case_inside.jpg)
 
 現在、[ケースデータ](https://a360.co/3gcw960)はFusion360で作成しています。
+
+## ケースは新しい仕様（v1.0）に移行中です
+
+より互換性を高めた新しいケースに移行中です。
+
+- ケース v0（このドキュメント）
+  - 基板: [`v0.2.1`](https://github.com/meganetaaan/stack-chan/tree/v0.2.1/schematics)
+  - 対応するサーボモータ: RX30X, SCS0009, SG90
+- [ケース v1.0](./v1/dynamixel_ja.md)
+  - 基板: [`v1.0`](../schematics/)
+  - 対応するサーボモータ: XL330（随時追加予定）
+
+__最新仕様のケースは[ｽﾀｯｸﾁｬﾝ ケース v1.0のドキュメント](./v1/dynamixel_ja.md)を参照してください__
 
 ## 編集
 

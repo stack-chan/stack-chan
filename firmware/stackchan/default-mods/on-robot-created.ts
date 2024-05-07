@@ -1,6 +1,7 @@
 import type { StackchanMod } from 'default-mods/mod'
 import Timer from 'timer'
 import { randomBetween, asyncWait } from 'stackchan-util'
+import KeyboardService from 'keyboardService'
 
 const FORWARD = {
   y: 0,
@@ -24,74 +25,86 @@ const UP = {
   p: -Math.PI / 6,
 }
 
+const VOICE_NEXT = ['next1', 'next2', 'next3', 'next4', 'dondon', 'ok']
+const VOICE_PREVIOUS = ['previous1', 'previous2', 'chotto']
+
+type TouchEvent = 'SwipeUp' | 'SwipeRight' | 'SwipeDown' | 'SwipeLeft' | 'Press'
+
+function getRandomItem<T = unknown>(arr: T[]) {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
 export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
-  /**
-   * Button A ... Look around
-   */
-  let isFollowing = false
-  const targetLoop = () => {
-    if (!isFollowing) {
-      robot.lookAway()
-      return
-    }
-    const x = randomBetween(0.4, 1.0)
-    const y = randomBetween(-0.4, 0.4)
-    const z = randomBetween(-0.02, 0.2)
-    trace(`looking at: [${x}, ${y}, ${z}]\n`)
-    robot.lookAt([x, y, z])
-  }
-  Timer.repeat(targetLoop, 5000)
-  robot.button.a.onChanged = async function () {
-    if (this.read()) {
-      isFollowing = !isFollowing
-      const text = isFollowing ? 'looking' : 'look away'
-      robot.showBalloon(text)
-      await asyncWait(1000)
-      robot.hideBalloon()
-    }
-  }
+  const keyboardService = new KeyboardService({
+    onKeyboardBound: () => {
+      trace('keyboard connected\n')
+    },
+    onKeyboardUnbound: () => {
+      trace('keyboard disconnected\n')
+    },
+  })
 
-  /**
-   * Button B ... Test motion
-   */
-  const testMotion = async () => {
-    robot.showBalloon('moving...')
-    await robot.driver.setTorque(true)
-
-    for (const rot of [LEFT, RIGHT, DOWN, UP, FORWARD]) {
-      robot.driver.applyRotation(rot)
-      await asyncWait(1000)
-    }
-
-    await robot.driver.setTorque(false)
-    robot.hideBalloon()
-  }
-  let isMoving = false
-  robot.button.b.onChanged = async function () {
-    if (this.read() && !isMoving) {
-      isFollowing = false
-      robot.lookAway()
-      isMoving = true
-      await testMotion()
-      isMoving = false
+  const handleTouch = (event: TouchEvent) => {
+    trace(event + ' triggered\n')
+    switch (event) {
+      case 'SwipeUp':
+        keyboardService.onKeyTap({ character: 'Up' })
+        break
+      case 'SwipeRight':
+        robot.say(getRandomItem(VOICE_NEXT))
+        keyboardService.onKeyTap({ character: 'Right' })
+        break
+      case 'SwipeDown':
+        keyboardService.onKeyTap({ character: 'Down' })
+        break
+      case 'SwipeLeft':
+        robot.say(getRandomItem(VOICE_PREVIOUS))
+        keyboardService.onKeyTap({ character: 'Left' })
+        break
+      case 'Press':
+        keyboardService.onKeyTap({ character: 'Enter' })
+        break
+      default:
+      /* noop */
     }
   }
 
-  /**
-   * Button C ... Change color
-   */
-  let flag = false
-  robot.button.c.onChanged = function () {
-    if (this.read()) {
-      trace('pressed B\n')
-      if (flag) {
-        robot.setColor('primary', 0xff, 0xff, 0xff)
-        robot.setColor('secondary', 0x00, 0x00, 0x00)
+  let startX: number
+  let startY: number
+  const SWIPE_THRESHOLD = 30
+  if (robot.touch != null) {
+    robot.touch.onTouchBegan = (x, y, ticks) => {
+      startX = x
+      startY = y
+      trace(`BEGAN ... x: ${x}, y: ${y}, ticks: ${ticks}\n`)
+    }
+    robot.touch.onTouchMoved = (x, y, ticks) => {
+      trace(`MOVED ... x: ${x}, y: ${y}, ticks: ${ticks}\n`)
+    }
+    robot.touch.onTouchEnded = (x, y, ticks) => {
+      const dx = x - startX
+      const dy = y - startY
+      if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
+        handleTouch('Press')
+      } else if (Math.abs(dx) >= SWIPE_THRESHOLD) {
+        handleTouch(dx > 0 ? 'SwipeRight' : 'SwipeLeft')
       } else {
-        robot.setColor('primary', 0x00, 0x00, 0x00)
-        robot.setColor('secondary', 0xff, 0xff, 0xff)
+        handleTouch(dy > 0 ? 'SwipeDown' : 'SwipeUp')
       }
-      flag = !flag
+      trace(`ENDED ... x: ${x}, y: ${y}, ticks: ${ticks}\n`)
+    }
+  }
+
+  if (robot.button != null) {
+    robot.button.a.onChanged = async function () {
+      if (this.read()) {
+        handleTouch('SwipeLeft')
+      }
+    }
+    robot.button.c.onChanged = async function () {
+      if (this.read()) {
+        handleTouch('SwipeLeft')
+      }
     }
   }
 }

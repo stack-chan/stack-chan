@@ -3,6 +3,7 @@
         "XS_MODS": 1
     },
     "include": [
+        "$(MODDABLE)/contributed/ble/hid-peripheral/no-ui/manifest_lib.json",
         "$(MODDABLE)/examples/manifest_base.json",
         "$(MODDABLE)/examples/manifest_typings.json",
         "$(MODDABLE)/examples/manifest_net.json",

@@ -1,11 +1,14 @@
 export const speeches = {
-  stackchanIn30Seconds: '30秒でわかるスタックチャン。',
-  sentense1: 'スタックチャンは手乗りサイズのコミュニケーションロボットです。',
-  sentense2: '首を振ったり、あなたを見たり、喋ったり笑ったりします。',
-  sentense3: '外装や電子基板の作り方はすべて公開しているのでどなたでも作れます。',
-  sentense4: 'アイディア次第で使い方は無限大です。',
-  sentense5: 'スタックチャン。コミュニケーションロボットを、あなたの手に。',
+  next1: '次行ってみよう。',
+  previous1: '戻ります。',
+  ok: 'オーケーです。',
+  dondon: 'どんどんいきましょう。',
+  chotto: 'ちょっと待ってね',
+  next2: '次のスライド。',
+  next3: 'はいはーい。',
+  next4: '進みますね。',
+  previous2: '前。',
 }
 export const SynthProps = {
-  shift: 1.5
+  shift: 1.0
 }

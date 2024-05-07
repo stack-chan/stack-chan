@@ -83,8 +83,8 @@ export class Robot {
   #power: number
   #tts: TTS
   #driver: Driver
-  #button: { [key in ButtonName]: Button }
-  #touch: Touch
+  #button?: { [key in ButtonName]: Button }
+  #touch?: Touch
   #isMoving: boolean
   #renderer: Renderer
   #paused: boolean

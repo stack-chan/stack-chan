@@ -2,14 +2,18 @@
     "include": [
         "./manifest.json"
     ],
+    "resources": {
+        "*": [
+            "./assets/sounds/*.wav"
+        ]
+    },
     "config": {
+        "virtualButton": false,
         "tts": {
-            "type": "voicevox",
-            "host": "192.168.7.136",
-            "port": 50021
+            "type": "local"
         },
         "driver": {
-            "type": "scservo"
+            "type": "none"
         }
     }
 }

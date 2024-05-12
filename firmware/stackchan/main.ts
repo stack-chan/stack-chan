@@ -103,7 +103,7 @@ async function checkAndConnectWiFi() {
 }
 
 async function main() {
-  if (globalThis.Host.Button && !globalThis.button) {
+  if (globalThis.Host?.Button && !globalThis.button) {
     // wrapper button class for simulator
     class SimButton {
       #button

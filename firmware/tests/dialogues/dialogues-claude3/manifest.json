@@ -13,5 +13,8 @@
     "main": {
       "async": 1
     }
+  },
+  "config": {
+    "token": "YOUR_API_KEY_HERE" 
   }
 }

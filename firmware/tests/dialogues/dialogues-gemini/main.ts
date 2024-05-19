@@ -1,6 +1,7 @@
+import config from "mc/config";
 import { GeminiDialogue } from 'dialogue-gemini'
 
-const token = 'YOUR_API_KEY_HERE'
+const token = config.token
 
 const dialogue = new GeminiDialogue({ 
     apiKey: token

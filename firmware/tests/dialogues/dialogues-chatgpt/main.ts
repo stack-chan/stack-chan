@@ -1,6 +1,7 @@
+import config from "mc/config";
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 
-const token = 'YOUR_API_KEY_HERE'
+const token = config.token
 
 const dialogue = new ChatGPTDialogue({ 
     apiKey: token

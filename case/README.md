@@ -12,7 +12,7 @@ Currently the [case data](https://a360.co/3gcw960) is developed with Fusion360.
 We are making a new case with improved compatibility.
 
 - Case v0 (this document)
-  - PCB: [`v0.2.1`](https://github.com/meganetaaan/stack-chan/tree/v0.2.1/schematics)
+  - PCB: [`v0.2.1`](https://github.com/stack-chan/stack-chan/tree/v0.2.1/schematics)
   - Servo motors: RX30X, SCS0009, SG90
 - [Case v1.0](./v1/dynamixel.md)
   - PCB: [`v1.0`](../schematics/)

@@ -12,7 +12,7 @@
 より互換性を高めた新しいケースに移行中です。
 
 - ケース v0（このドキュメント）
-  - 基板: [`v0.2.1`](https://github.com/meganetaaan/stack-chan/tree/v0.2.1/schematics)
+  - 基板: [`v0.2.1`](https://github.com/stack-chan/stack-chan/tree/v0.2.1/schematics)
   - 対応するサーボモータ: RX30X, SCS0009, SG90
 - [ケース v1.0](./v1/dynamixel_ja.md)
   - 基板: [`v1.0`](../schematics/)

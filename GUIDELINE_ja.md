@@ -43,13 +43,13 @@
 以下2点を、二次創作物の利用者が見える場所（書籍の奥付け、商品の紹介ページ、説明書など）に明記してください。
 
 1. ｽﾀｯｸﾁｬﾝはししかわが作者であること
-2. 参照先として、ｽﾀｯｸﾁｬﾝのGitHubリポジトリのURL（https://github.com/meganetaaan/stack-chan）
+2. 参照先として、ｽﾀｯｸﾁｬﾝのGitHubリポジトリのURL（https://github.com/stack-chan/stack-chan）
 
 以下のような例文がどこかに貼ってあればOKです。
 
-ｽﾀｯｸﾁｬﾝは[ししかわ](https://twitter.com/meganetaaan)が開発、公開している、
+ｽﾀｯｸﾁｬﾝは[ししかわ](https://twitter.com/stack_chan)が開発、公開している、
 手乗りサイズのｽｰﾊﾟｰｶﾜｲｲコミュニケーションロボットです。
-作品ページ：https://github.com/meganetaaan/stack-chan
+作品ページ：https://github.com/stack-chan/stack-chan
 
 ### 政治・宗教・信条の中立を逸する表現や、第三者への攻撃の禁止
 

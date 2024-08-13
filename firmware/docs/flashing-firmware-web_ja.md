@@ -13,7 +13,7 @@ Moddableなどの環境構築が不要なので気軽に試せます。
 ## 手順
 
 * PCにM5Stackを接続します
-* https://meganetaaan.github.io/stack-chan/web/flash/ にアクセスします
+* https://stack-chan.github.io/stack-chan/web/flash/ にアクセスします
 
 ![書き込み画面](./images/web-flash-top.png)
 

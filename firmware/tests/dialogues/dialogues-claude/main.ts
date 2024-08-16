@@ -1,9 +1,9 @@
 import config from "mc/config";
-import { Claude3Dialogue } from 'dialogue-claude3'
+import { ClaudeDialogue } from 'dialogue-claude'
 
 const token = config.token
 
-const dialogue = new Claude3Dialogue({ 
+const dialogue = new ClaudeDialogue({ 
     apiKey: token
  })
 

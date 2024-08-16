@@ -53,20 +53,20 @@ type ChatContent = {
   content: string
 }
 
-type Claude3DialogueProps = {
+type ClaudeDialogueProps = {
   context?: ChatContent[]
   model?: string
   apiKey: string
 }
 
-export class Claude3Dialogue {
+export class ClaudeDialogue {
   #model: string
   #context: Array<ChatContent>
   #system: string
   #headers: Headers
   #history: Array<ChatContent>
   #maxHistory: number
-  constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: Claude3DialogueProps) {
+  constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: ClaudeDialogueProps) {
     this.#model = model
     this.#system = context
       .filter((c) => c.role === 'system')

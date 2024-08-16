@@ -6,7 +6,7 @@
   "modules": {
     "*": ["./*"]
   },
-  "preload": ["dialugue-chatgpt","dialugue-claude3","dialugue-gemini" ],
+  "preload": ["dialugue-chatgpt","dialugue-claude","dialugue-gemini" ],
   "data": {
     "*": ["$(MODULES)/crypt/data/ca233"]
   }

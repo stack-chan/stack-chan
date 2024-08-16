@@ -40,18 +40,13 @@ const DEFAULT_CONTEXT: ChatContent[] = [
 ]
 
 function isContent(c): c is Content {
-  if (
+  return (
     c != null &&
-    c.parts != null &&
+    Array.isArray(c.parts) &&
     c.parts.length > 0 &&
-    'text' in c.parts[0] &&
     typeof c.parts[0].text === 'string' &&
-    'role' in c &&
-    (c.role === 'model' || c.role === 'user')
-  ) {
-    return true
-  }
-  return false
+    ['model', 'user'].includes(c.role)
+  )
 }
 
 type ChatContent = {

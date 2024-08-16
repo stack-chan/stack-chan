@@ -33,8 +33,7 @@ const EMOTIONS = ['NEUTRAL', 'HAPPY', 'SLEEPY', 'DOUBTFUL', 'SAD', 'ANGRY', 'COL
 // Integrate ChatGPT
 //
 
-// const MODEL = 'gpt-4'
-const MODEL = 'gpt-3.5-turbo'
+const MODEL = 'gpt-4o-mini'
 const CONTEXT = [
   {
     role: 'system',

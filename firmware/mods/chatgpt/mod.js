@@ -4,8 +4,7 @@ import WebSocket from 'WebSocket'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 
 const STT_HOST = 'stackchan-base.local'
-// const MODEL = 'gpt-4'
-const MODEL = 'gpt-3.5-turbo'
+const MODEL = 'gpt-4o-mini'
 const CONTEXT = [
   {
     role: 'system',

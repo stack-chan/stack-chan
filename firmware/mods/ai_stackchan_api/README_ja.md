@@ -48,7 +48,7 @@
         ～省略～
     }
 ```
-※現状、Elevenlabsを使用すると音声が途切れ途切れになる事象が発生しています ([issue#214](https://github.com/meganetaaan/stack-chan/issues/214) )。  
+※現状、Elevenlabsを使用すると音声が途切れ途切れになる事象が発生しています ([issue#214](https://github.com/stack-chan/stack-chan/issues/214) )。  
 ※日本語対応にする場合は"model"を"eleven_multilingual_v2"にしてください。
 
 ### 2. ビルド、書き込み

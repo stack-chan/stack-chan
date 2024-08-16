@@ -5,7 +5,7 @@ import { Maybe } from 'stackchan-util'
 import structuredClone from 'structuredClone'
 
 const API_URL = 'https://api.openai.com/v1/chat/completions'
-const DEFAULT_MODEL = 'gpt-3.5-turbo'
+const DEFAULT_MODEL = 'gpt-4o-mini'
 const DEFAULT_CONTEXT: ChatContent[] = [
   {
     role: 'system',

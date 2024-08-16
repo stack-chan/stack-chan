@@ -1,6 +1,6 @@
 # Stack-chan
 
-[![Build Stack-chan Firmware](https://github.com/meganetaaan/stack-chan/actions/workflows/build.yml/badge.svg)](https://github.com/meganetaaan/stack-chan/actions/workflows/build.yml)
+[![Build Stack-chan Firmware](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml/badge.svg)](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml)
 [![Discord server invitation](https://dcbadge.vercel.app/api/server/eGhd9adnBm)](https://discord.gg/eGhd9adnBm)
 
 [日本語](./README_ja.md)
@@ -44,7 +44,7 @@ This repository includes all the component of the robot.
 
 ## Contribution
 
-__Feature requests/Bug reports__ are extremely welcome! See [issues](https://github.com/meganetaaan/stack-chan/issues) page to post some.
+__Feature requests/Bug reports__ are extremely welcome! See [issues](https://github.com/stack-chan/stack-chan/issues) page to post some.
 
 __Wanna be a sponsor__? It would be my great honor. please visit my [sponsor](https://github.com/sponsors/meganetaaan/) page.
 

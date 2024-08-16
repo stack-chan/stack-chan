@@ -1,6 +1,6 @@
 # ｽﾀｯｸﾁｬﾝ(Stack-chan)
 
-[![ファームウェアのビルド](https://github.com/meganetaaan/stack-chan/actions/workflows/build.yml/badge.svg)](https://github.com/meganetaaan/stack-chan/actions/workflows/build.yml)
+[![ファームウェアのビルド](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml/badge.svg)](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml)
 [![Discordサーバへの招待](https://dcbadge.vercel.app/api/server/eGhd9adnBm)](https://discord.gg/eGhd9adnBm)
 
 [English](./README.md)
@@ -44,7 +44,7 @@
 
 ## コントリビューション
 
-__機能追加のリクエスト/バグ報告__ を歓迎します！[issues](https://github.com/meganetaaan/stack-chan/issues)のページから投稿してください。
+__機能追加のリクエスト/バグ報告__ を歓迎します！[issues](https://github.com/stack-chan/stack-chan/issues)のページから投稿してください。
 
 __スポンサーになりたいですか__？光栄です！[sponsor](https://github.com/sponsors/meganetaaan/)のページを参照ください。
 

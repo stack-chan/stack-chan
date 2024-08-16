@@ -1,0 +1,16 @@
+{
+  "platforms": {
+    "esp32": {
+      "include": ["$(MODULES)/files/file/manifest_littlefs.json"]
+    },
+    "pico": {
+      "include": ["$(MODULES)/files/file/manifest_littlefs.json"]
+    },
+    "nrf52": {
+      "include": ["$(MODULES)/files/file/manifest_littlefs.json"]
+    },
+    "...": {
+      "include": ["$(MODULES)/files/file/manifest.json"]
+    }
+  }
+}

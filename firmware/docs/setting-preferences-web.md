@@ -16,7 +16,7 @@ Since it connects using BLE (Bluetooth Low Energy), you don't need to set up Wi-
 
 ![Settings Screen (M5Stack)](./images/web-preference-launch.jpg)
 
-* Open https://meganetaaan.github.io/stack-chan/web/preference/
+* Open https://stack-chan.github.io/stack-chan/web/preference/
 
 ![Settings Screen (Web Browser)](./images/web-preference-top.png)
 

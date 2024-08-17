@@ -200,7 +200,7 @@ Installing mod...complete
 After writing the MOD, if you want to revert to the behavior before the MOD was written, you can erase the written MOD with the following command.
 
 > [!NOTE]  
-> When you execute the command, it erases not only the MOD area but the entire flash region.  
+> When you execute the command, it erases not only the MOD area but the entire flash area.  
 > Please note that if you are using Preferences to write settings, those settings will also be erased.  
 > Additionally, after executing the command, you will need to write to the host again.  
 

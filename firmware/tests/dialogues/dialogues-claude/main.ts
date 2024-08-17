@@ -10,7 +10,13 @@ const dialogue = new ClaudeDialogue({
     apiKey: token
  })
 
-const result = await dialogue.post("こんにちは");
-if(result.success){
-    trace(result.value)
+try {
+  const result = await dialogue.post("こんにちは");
+if (result.success==true) {
+  trace(result.value);
+} else {
+  trace("Error: " + result.reason);
+}
+} catch (error) {
+  trace("An error occurred: " + error.message);
 }

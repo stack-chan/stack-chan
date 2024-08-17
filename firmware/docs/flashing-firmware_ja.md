@@ -199,6 +199,40 @@ $ npm run mod ./mods/look_around/manifest.json
 Installing mod...complete
 ```
 
+## (オプショナル)フラッシュ領域の消去
+
+MODを描き込み後、MODを書き込みする前の挙動に戻したい時は、次のコマンドで書き込んだMODを消去することができます。
+
+> [!NOTE]  
+> コマンドを実行するとMODの領域だけでなく、フラッシュ領域全体を消去します。  
+> Preferenceを使って設定値を書き込んでいる場合、その設定も消去されることに注意してください。  
+> また、コマンド実行後は再度ホストの書き込みが必要になります。  
+
+```console
+$ npm run erase-flash
+
+> stack-chan@0.2.1 erase-flash
+> esptool.py erase_flash
+
+esptool.py v4.8.dev4
+Found 2 serial ports
+Serial port /dev/cu.usbserial-01F05597
+Connecting....
+Detecting chip type... Unsupported detection protocol, switching and trying again...
+Connecting.........
+Detecting chip type... ESP32
+Chip is ESP32-D0WDQ6-V3 (revision v3.0)
+Features: WiFi, BT, Dual Core, 240MHz, VRef calibration in efuse, Coding Scheme None
+Crystal is 40MHz
+MAC: 8c:aa:b5:81:6c:1c
+Uploading stub...
+Running stub...
+Stub running...
+Erasing flash (this may take a while)...
+Chip erase completed successfully in 25.4s
+Hard resetting via RTS pin...
+```
+
 ## 次のステップ
 
 - [mods/README_ja.md](../mods/README_ja.md): 同梱のサンプル MOD の紹介です。

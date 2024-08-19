@@ -8,6 +8,6 @@
   },
   "preload": ["dialugue-chatgpt"],
   "data": {
-    "*": ["$(MODULES)/crypt/data/ca233"]
+    "*": ["$(MODULES)/crypt/data/ca236"]
   }
 }

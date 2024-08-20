@@ -98,24 +98,25 @@ export class GeminiDialogue {
         },
       ],
     }
-    const response = await this.#sendMessage(userMessage)
-    if (isContent(response)) {
-      this.#history.push(userMessage)
-      this.#history.push(response)
+    try {
+      const response = await this.#sendMessage(userMessage)
+      if (isContent(response)) {
+        this.#history.push(userMessage)
+        this.#history.push(response)
 
-      // Set maximum length to prevent memory overflow
-      while (this.#history.length > this.#maxHistory) {
-        this.#history.shift()
+        // Set maximum length to prevent memory overflow
+        while (this.#history.length > this.#maxHistory) {
+          this.#history.shift()
+        }
+        return {
+          success: true,
+          value: response.parts[0]?.text,
+        }
+      } else {
+        return { success: false, reason: 'Invalid response format' }
       }
-      return {
-        success: true,
-        value: response.parts[0]?.text,
-      }
-    } else {
-      return {
-        success: false,
-        reason: 'posting message failed',
-      }
+    } catch (error) {
+      return { success: false, reason: error.message || 'Unknown error' }
     }
   }
   get history() {
@@ -132,6 +133,10 @@ export class GeminiDialogue {
       body: JSON.stringify(body),
     })
       .then((response) => {
+        const status = response.status
+        if (2 !== Math.idiv(status, 100)) {
+          throw Error('http request failed, status ' + status)
+        }
         return response.arrayBuffer()
       })
       .then((body) => {

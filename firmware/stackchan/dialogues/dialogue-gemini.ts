@@ -4,8 +4,8 @@ import Headers from 'headers'
 import { Maybe } from 'stackchan-util'
 import structuredClone from 'structuredClone'
 
-const API_URL = 'https://api.openai.com/v1/chat/completions'
-const DEFAULT_MODEL = 'gpt-4o-mini'
+const API_URL_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/'
+const DEFAULT_MODEL = 'gemini-1.5-flash-latest'
 const DEFAULT_CONTEXT: ChatContent[] = [
   {
     role: 'system',
@@ -28,18 +28,24 @@ const DEFAULT_CONTEXT: ChatContent[] = [
     content: "You response in frank and simple Japanese sentense to the user's message.",
   },
   {
+    role: 'user',
+    // content: '一緒にお話ししましょう',
+    content: 'Lets talk together',
+  },
+  {
     role: 'assistant',
     content: 'ぼくはスタックチャンだよ！お話しようね！',
     // content: 'Hello. I am スタックチャン. Let's talk together!',
   },
 ]
 
-function isChatContent(c): c is ChatContent {
+function isContent(c): c is Content {
   return (
     c != null &&
-    'role' in c &&
-    (c.role === 'assistant' || c.role === 'user' || c.role === 'system') &&
-    typeof c.content === 'string'
+    Array.isArray(c.parts) &&
+    c.parts.length > 0 &&
+    typeof c.parts[0].text === 'string' &&
+    ['model', 'user'].includes(c.role)
   )
 }
 
@@ -48,39 +54,53 @@ type ChatContent = {
   content: string
 }
 
-type ChatGPTDialogueProps = {
+type GeminiDialogueProps = {
   context?: ChatContent[]
   model?: string
   apiKey: string
 }
 
-export class ChatGPTDialogue {
+type Content = {
+  role?: 'user' | 'model'
+  parts: {
+    text: string
+  }[]
+}
+
+export class GeminiDialogue {
+  #apiKey: string
   #model: string
-  #context: Array<ChatContent>
+  #context: Array<Content>
+  #system: Content
   #headers: Headers
-  #history: Array<ChatContent>
+  #history: Array<Content>
   #maxHistory: number
-  constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: ChatGPTDialogueProps) {
+  constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: GeminiDialogueProps) {
     this.#model = model
+    this.#system = { parts: context.filter((c) => c.role === 'system').map((c) => ({ text: c.content })) }
     this.#context = context
+      .filter((c) => c.role !== 'system')
+      .map((c) => ({ parts: [{ text: c.content }], role: c.role == 'assistant' ? 'model' : 'user' }))
+    this.#apiKey = apiKey
     this.#history = []
     this.#maxHistory = 6
-    this.#headers = new Headers([
-      ['Content-Type', 'application/json'],
-      ['Authorization', `Bearer ${apiKey}`],
-    ])
+    this.#headers = new Headers([['Content-Type', 'application/json']])
   }
   clear() {
     this.#history.splice(0)
   }
   async post(message: string): Promise<Maybe<string>> {
-    const userMessage: ChatContent = {
+    const userMessage: Content = {
       role: 'user',
-      content: message,
+      parts: [
+        {
+          text: message,
+        },
+      ],
     }
     try {
       const response = await this.#sendMessage(userMessage)
-      if (isChatContent(response)) {
+      if (isContent(response)) {
         this.#history.push(userMessage)
         this.#history.push(response)
 
@@ -90,7 +110,7 @@ export class ChatGPTDialogue {
         }
         return {
           success: true,
-          value: response.content,
+          value: response.parts[0]?.text,
         }
       } else {
         return { success: false, reason: 'Invalid response format' }
@@ -102,12 +122,16 @@ export class ChatGPTDialogue {
   get history() {
     return structuredClone(this.#history)
   }
-  async #sendMessage(message: ChatContent): Promise<unknown> {
+  async #sendMessage(message: Content): Promise<unknown> {
     const body = {
-      model: this.#model,
-      messages: [...this.#context, ...this.#history, message],
+      systemInstruction: this.#system,
+      contents: [...this.#context, ...this.#history, message],
     }
-    return fetch(API_URL, { method: 'POST', headers: this.#headers, body: JSON.stringify(body) })
+    return fetch(`${API_URL_BASE}${this.#model}:generateContent?key=${this.#apiKey}`, {
+      method: 'POST',
+      headers: this.#headers,
+      body: JSON.stringify(body),
+    })
       .then((response) => {
         const status = response.status
         if (2 !== Math.idiv(status, 100)) {
@@ -117,10 +141,10 @@ export class ChatGPTDialogue {
       })
       .then((body) => {
         body = String.fromArrayBuffer(body)
-        return JSON.parse(body, ['choices', 'message', 'role', 'content'])
+        return JSON.parse(body, ['candidates', 'content', 'parts', 'role', 'text'])
       })
       .then((obj) => {
-        return obj.choices?.[0].message
+        return obj.candidates[0]?.content
       })
   }
 }

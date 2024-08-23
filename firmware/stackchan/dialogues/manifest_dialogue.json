@@ -6,8 +6,8 @@
   "modules": {
     "*": ["./*"]
   },
-  "preload": ["dialugue-chatgpt"],
+  "preload": ["dialugue-chatgpt", "dialugue-claude", "dialugue-gemini"],
   "data": {
-    "*": ["$(MODULES)/crypt/data/ca236"]
+    "*": ["$(MODULES)/crypt/data/ca236", "$(MODULES)/crypt/data/ca233"]
   }
 }

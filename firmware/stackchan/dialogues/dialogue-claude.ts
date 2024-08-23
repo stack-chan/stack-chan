@@ -53,20 +53,20 @@ type ChatContent = {
   content: string
 }
 
-type Claude3DialogueProps = {
+type ClaudeDialogueProps = {
   context?: ChatContent[]
   model?: string
   apiKey: string
 }
 
-export class Claude3Dialogue {
+export class ClaudeDialogue {
   #model: string
   #context: Array<ChatContent>
   #system: string
   #headers: Headers
   #history: Array<ChatContent>
   #maxHistory: number
-  constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: Claude3DialogueProps) {
+  constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: ClaudeDialogueProps) {
     this.#model = model
     this.#system = context
       .filter((c) => c.role === 'system')
@@ -96,24 +96,25 @@ export class Claude3Dialogue {
       role: 'user',
       content: message,
     }
-    const response = await this.#sendMessage(userMessage)
-    if (isChatContent(response)) {
-      this.#history.push(userMessage)
-      this.#history.push(response)
+    try {
+      const response = await this.#sendMessage(userMessage)
+      if (isChatContent(response)) {
+        this.#history.push(userMessage)
+        this.#history.push(response)
 
-      // Set maximum length to prevent memory overflow
-      while (this.#history.length > this.#maxHistory) {
-        this.#history.shift()
+        // Set maximum length to prevent memory overflow
+        while (this.#history.length > this.#maxHistory) {
+          this.#history.shift()
+        }
+        return {
+          success: true,
+          value: response.content,
+        }
+      } else {
+        return { success: false, reason: 'Invalid response format' }
       }
-      return {
-        success: true,
-        value: response.content,
-      }
-    } else {
-      return {
-        success: false,
-        reason: 'posting message failed',
-      }
+    } catch (error) {
+      return { success: false, reason: error.message || 'Unknown error' }
     }
   }
   get history() {
@@ -128,6 +129,10 @@ export class Claude3Dialogue {
     }
     return fetch(API_URL, { method: 'POST', headers: this.#headers, body: JSON.stringify(body) })
       .then((response) => {
+        const status = response.status
+        if (2 !== Math.idiv(status, 100)) {
+          throw Error('http request failed, status ' + status)
+        }
         return response.arrayBuffer()
       })
       .then((body) => {

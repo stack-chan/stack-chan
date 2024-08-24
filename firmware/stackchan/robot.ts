@@ -370,7 +370,9 @@ export class Robot {
     if (this.#paused) {
       return
     }
-    if (this.#power != 0) {
+    if (this.#power === 0) {
+      this.#faceContext.mouth.open = 0
+    } else {
       this.#faceContext.mouth.open = Math.min(this.#power / 2000, 1.0)
     }
     this.#faceContext.emotion = this.#emotion

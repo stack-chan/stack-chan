@@ -5,7 +5,7 @@ import { Maybe } from 'stackchan-util'
 import structuredClone from 'structuredClone'
 
 const API_URL = 'https://api.openai.com/v1/chat/completions'
-const DEFAULT_MODEL = 'gpt-3.5-turbo'
+const DEFAULT_MODEL = 'gpt-4o-mini'
 const DEFAULT_CONTEXT: ChatContent[] = [
   {
     role: 'system',
@@ -78,24 +78,25 @@ export class ChatGPTDialogue {
       role: 'user',
       content: message,
     }
-    const response = await this.#sendMessage(userMessage)
-    if (isChatContent(response)) {
-      this.#history.push(userMessage)
-      this.#history.push(response)
+    try {
+      const response = await this.#sendMessage(userMessage)
+      if (isChatContent(response)) {
+        this.#history.push(userMessage)
+        this.#history.push(response)
 
-      // Set maximum length to prevent memory overflow
-      while (this.#history.length > this.#maxHistory) {
-        this.#history.shift()
+        // Set maximum length to prevent memory overflow
+        while (this.#history.length > this.#maxHistory) {
+          this.#history.shift()
+        }
+        return {
+          success: true,
+          value: response.content,
+        }
+      } else {
+        return { success: false, reason: 'Invalid response format' }
       }
-      return {
-        success: true,
-        value: response.content,
-      }
-    } else {
-      return {
-        success: false,
-        reason: 'posting message failed',
-      }
+    } catch (error) {
+      return { success: false, reason: error.message || 'Unknown error' }
     }
   }
   get history() {
@@ -108,6 +109,10 @@ export class ChatGPTDialogue {
     }
     return fetch(API_URL, { method: 'POST', headers: this.#headers, body: JSON.stringify(body) })
       .then((response) => {
+        const status = response.status
+        if (2 !== Math.idiv(status, 100)) {
+          throw Error('http request failed, status ' + status)
+        }
         return response.arrayBuffer()
       })
       .then((body) => {

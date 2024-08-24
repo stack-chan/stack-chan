@@ -1,0 +1,20 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../stackchan/utilities/manifest_utility.json",
+    "../../../stackchan/dialogues/manifest_dialogue.json",
+    "../../../stackchan/manifest_typings.json"
+  ],
+  "modules": {
+    "*": ["./main"]
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "config": {
+    "token": "YOUR_API_KEY_HERE" 
+  }
+}

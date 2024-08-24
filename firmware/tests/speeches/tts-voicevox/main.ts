@@ -13,7 +13,7 @@ const property: TTSProperty = {
   },
   onDone: () => {
     trace('done\n')
-  }
+  },
 }
 
 const tts = new TTS(property)

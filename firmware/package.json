@@ -4,8 +4,8 @@
   "description": "A firmware of M5Stack Stack-chan module",
   "main": "stackchan/main.ts",
   "scripts": {
-    "format": "prettier --check stackchan/{,**/}*.ts ./mods/**/*.js",
-    "format:fix": "prettier --write stackchan/{,**/}*.ts mods/**/*.js",
+    "format": "prettier --check stackchan/{,**/}*.ts ./mods/**/*.js tests/**/*.ts",
+    "format:fix": "prettier --write stackchan/{,**/}*.ts mods/**/*.js tests/**/*.ts",
     "lint": "eslint stackchan/**/*.ts",
     "lint:fix": "npm run lint -- --fix",
     "generate-speech-coqui": "node scripts/generate-speech-coqui.js",

@@ -9,10 +9,10 @@ const property: TTSProperty = {
   },
   onDone: () => {
     trace('done\n')
-  }
+  },
 }
 
-const tts = new TTS( property )
+const tts = new TTS(property)
 
 while (true) {
   await tts.stream('Hello. I am Stack-chan. Nice to meet you.')

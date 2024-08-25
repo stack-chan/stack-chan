@@ -57,6 +57,8 @@ export class TTS {
         headers: new Headers([['Content-Type', 'application/x-www-form-urlencoded']]),
         onHeaders(status) {
           if (status !== 200) {
+            file.close()
+            client.close()
             reject(`server returned ${status}`)
           }
         },
@@ -64,14 +66,20 @@ export class TTS {
           file.write(this.read(count))
           // trace(`${count} bytes written. position: ${file.position}\n`)
         },
-        onDone() {
-          if (sampleRate !== 24000) {
-            file.position = file.length - 1
-            file.write(`, "outputSamplingRate": ${sampleRate}}`)
+        onDone(error) {
+          if (error) {
+            file.close()
+            client.close()
+            reject(`unknown error occured:${error.message}`)
+          } else {
+            if (sampleRate !== 24000) {
+              file.position = file.length - 1
+              file.write(`, "outputSamplingRate": ${sampleRate}}`)
+            }
+            file.close()
+            client.close()
+            resolve()
           }
-          file.close()
-          client.close()
-          resolve()
         },
       })
     })
@@ -85,7 +93,11 @@ export class TTS {
     const host = this.host
     const port = this.port
     const speakerId = this.speakerId
-    await this.getQuery(key, speakerId)
+    try {
+      await this.getQuery(key, speakerId)
+    } catch (error) {
+      throw new Error(error)
+    }
     const { onPlayed, onDone, audio } = this
     const file = new File(QUERY_PATH)
     trace(`file opened. length: ${file.length}, position: ${file.position}`)

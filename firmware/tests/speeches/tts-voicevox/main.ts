@@ -1,7 +1,9 @@
+import config from 'mc/config'
 import { TTS, TTSProperty } from 'tts-voicevox'
 import Timer from 'timer'
 
-const host = '127.0.0.1'
+const host = config.host
+if (!host) throw new Error('host is missing.')
 
 const property: TTSProperty = {
   host,

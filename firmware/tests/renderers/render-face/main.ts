@@ -1,4 +1,4 @@
-import  {Renderer}  from 'simple-face'
+import { Renderer } from 'simple-face'
 import Timer from 'timer'
 
 const INTERVAL = 1000 / 30

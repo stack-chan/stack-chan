@@ -7,7 +7,7 @@ const tts = new TTS({
   },
   onDone: () => {
     trace('done\n')
-  }
+  },
 })
 
 while (true) {

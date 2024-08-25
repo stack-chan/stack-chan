@@ -20,7 +20,7 @@ const balloon = createBalloonDecorator({
   width: 120,
   height: font.height,
   font,
-  text: 'じゅげむじゅげむごこうのすりきれかいじゃりすいぎょのすいぎょうまつふうらいまつ...'
+  text: 'じゅげむじゅげむごこうのすりきれかいじゃりすいぎょのすいぎょうまつふうらいまつ...',
 })
 renderer.addDecorator(balloon)
 

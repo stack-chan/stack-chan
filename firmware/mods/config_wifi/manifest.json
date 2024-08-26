@@ -3,10 +3,9 @@
 		"$(MODDABLE)/examples/manifest_mod.json"
 	],
 	"modules": {
-		"*": ["./mod", "./preference-server"]
+		"*": ["./mod"]
 	},
 	"preload": [
-		"preference-server",
 		"mod"
 	]
 }

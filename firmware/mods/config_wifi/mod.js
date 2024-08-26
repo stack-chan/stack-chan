@@ -4,51 +4,63 @@ import Resource from 'Resource'
 import { NetworkService } from 'network-service'
 import { PreferenceServer } from 'preference-server'
 import Preference from 'preference'
-
-const DOMAIN = 'robot'
+import config from 'mc/config'
+import { DOMAIN, PREF_KEYS } from 'consts'
 
 export function onLaunch() {
-  const render = new Poco(globalThis.screen, { rotation: 90, displayListLength: 2048 })
+  const render = new Poco(screen, { rotation: config.rotation, displayListLength: 2048 })
   const font = parseBMF(new Resource('OpenSans-Regular-24.bf4'))
   const white = render.makeColor(255, 255, 255)
   const black = render.makeColor(0, 0, 0)
   const status = {
-    ssid: Preference.get(DOMAIN, 'ssid'),
-    password: Preference.get(DOMAIN, 'password'),
-    connection: 'not connected',
+    ble: 'not connected',
+    wifi: 'not connected',
+    'wifi.ssid': String(Preference.get(DOMAIN.wifi, 'ssid')),
+    'wifi.password': String(Preference.get(DOMAIN.wifi, 'password')),
   }
 
   const drawStatus = (status) => {
     render.begin()
     render.fillRectangle(black, 0, 0, render.width, render.height)
-    render.drawText(`SSID: ${status.ssid ?? 'not set'}`, font, white, 10, 80)
-    render.drawText(`password: ${status.password?.replace(/./g, '*') ?? 'not set'}`, font, white, 10, 110)
-    render.drawText(`connection: ${status.connection}`, font, white, 10, 140)
+    if (status.ble === 'not connected') {
+      render.drawText('Waiting BLE...', font, white, 10, 40)
+    }
+    render.drawText(`SSID: ${status['wifi.ssid'] ?? 'not set'}`, font, white, 10, 80)
+    render.drawText(`password: ${status['wifi.password']?.replace(/./g, '*') ?? 'not set'}`, font, white, 10, 110)
+    render.drawText(`connection: ${status.wifi}`, font, white, 10, 140)
     render.drawText('press A to test connection', font, white, 10, 200)
     render.end()
   }
   drawStatus(status)
 
-  const server = new PreferenceServer({
+  new PreferenceServer({
     onPreferenceChanged: (key, value) => {
       trace(`preference changed! ${key}: ${value}\n`)
       status[key] = value
       drawStatus(status)
     },
-    keys: ['ssid', 'password'],
+    onConnected: () => {
+      status.ble = 'connected'
+      drawStatus(status)
+    },
+    onDisconnected: () => {
+      status.ble = 'not connected'
+      drawStatus(status)
+    },
+    keys: PREF_KEYS,
   })
 
   let networkService
   if (globalThis.button) {
     button.a.onChanged = function () {
-      if (status.ssid.length > 0 && status.password.length > 0) {
+      if (status['wifi.ssid'].length > 0 && status['wifi.password'].length > 0) {
         if (networkService != null) {
           networkService.close()
           networkService = null
         }
         networkService = new NetworkService({
-          ssid: status.ssid,
-          password: status.password,
+          ssid: status['wifi.ssid'],
+          password: status['wifi.password'],
         })
         networkService.connect(
           () => {
@@ -62,7 +74,7 @@ export function onLaunch() {
             drawStatus(status)
           }
         )
-        status.connection = 'connecting'
+        status.wifi = 'connecting'
         drawStatus(status)
       }
     }

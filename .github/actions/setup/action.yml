@@ -25,7 +25,7 @@ runs:
       if: inputs.target-branch == ''
       run: |
         API_URL="https://api.github.com/repos/Moddable-OpenSource/moddable/releases"
-        RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $API_URL)
+        RESPONSE=$(curl -s $API_URL)
         LATEST_TAG_NAME=$(echo $RESPONSE | jq -r '.[0].tag_name')
         LATEST_TAG_ID=$(echo $RESPONSE | jq -r '.[0].id')
         echo "Latest release tag_name of Moddable: $LATEST_TAG_NAME (id:$LATEST_TAG_ID)"

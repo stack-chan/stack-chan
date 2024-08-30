@@ -21,7 +21,26 @@ runs:
     - run: npm ci
       working-directory: ./firmware
       shell: bash
+    - name: check latest release tag of Moddable
+      if: inputs.target-branch == ''
+      run: |
+        API_URL="https://api.github.com/repos/Moddable-OpenSource/moddable/releases"
+        RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $API_URL)
+        LATEST_TAG_NAME=$(echo $RESPONSE | jq -r '.[0].tag_name')
+        LATEST_TAG_ID=$(echo $RESPONSE | jq -r '.[0].id')
+        echo "Latest release tag_name of Moddable: $LATEST_TAG_NAME (id:$LATEST_TAG_ID)"
+        echo "moddable_cache_key=${{ runner.os }}-moddable-$LATEST_TAG_ID" >> $GITHUB_ENV
+    - name: Restore cache of Moddale and ESP32
+      if: inputs.target-branch == ''
+      id: restore-cache-moddable
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          /home/runner/.local/share
+          /home/runner/.espressif
+        key: ${{ env.moddable_cache_key }}
     - name: install Moddable
+      if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
         if [ -z "${{ inputs.target-branch }}" ]; then
@@ -32,8 +51,18 @@ runs:
       working-directory: ./firmware
       shell: bash
     - name: install ESP32
+      if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
         source $HOME/.local/share/xs-dev-export.sh && npm run setup -- --device=esp32
       working-directory: ./firmware
       shell: bash
+    - name: Save cache of Moddale and ESP32
+      if: inputs.target-branch == ''
+      id: save-cache-moddable
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          /home/runner/.local/share
+          /home/runner/.espressif
+        key: ${{ env.moddable_cache_key }}

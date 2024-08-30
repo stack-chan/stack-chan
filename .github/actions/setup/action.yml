@@ -59,7 +59,7 @@ runs:
       working-directory: ./firmware
       shell: bash
     - name: Save cache of Moddale and ESP32
-      if: inputs.target-branch == ''
+      if: inputs.target-branch == '' && steps.restore-cache-moddable.outputs.cache-hit != 'true'
       id: save-cache-moddable
       uses: actions/cache/save@v4
       with:

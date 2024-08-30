@@ -30,6 +30,7 @@ runs:
         LATEST_TAG_ID=$(echo $RESPONSE | jq -r '.[0].id')
         echo "Latest release tag_name of Moddable: $LATEST_TAG_NAME (id:$LATEST_TAG_ID)"
         echo "moddable_cache_key=${{ runner.os }}-moddable-$LATEST_TAG_ID" >> $GITHUB_ENV
+      shell: bash
     - name: Restore cache of Moddale and ESP32
       if: inputs.target-branch == ''
       id: restore-cache-moddable

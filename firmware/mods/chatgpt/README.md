@@ -63,7 +63,7 @@ Add or modify the necessary settings in the `config` of `manifest_local.json` fo
 - ai.token: ChatGPT token
 - tts.host: The IP address of the PC where the Speech Synthesis Server is running.
 
-```
+```json
 {
     "include": [
         "./manifest.json"

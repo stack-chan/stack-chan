@@ -63,7 +63,7 @@ INFO:     Uvicorn running on http://0.0.0.0:50021 (Press CTRL+C to quit)
 - ai.token: ChatGPTのトークン
 - tts.host: 音声合成サーバーが動作しているPCのIPアドレス
 
-```
+```json
 {
     "include": [
         "./manifest.json"

@@ -56,7 +56,32 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:50021 (Press CTRL+C to quit)
 ```
 
-## ホスト書き込み
+## ホストの設定を変更する
+
+ホストの`manifest_local.json`の`config`に必要な設定を追加・変更します。
+
+- ai.token: ChatGPTのトークン
+- tts.host: 音声合成サーバーが動作しているPCのIPアドレス
+
+```json
+{
+    "include": [
+        "./manifest.json"
+    ],
+    "config": {
+        "ai": {
+            "token": "ChatGPTのトークン"
+        },
+        "tts": {
+            "type": "voicevox",
+            "host": "音声合成サーバーのIPアドレス",
+            "port": 50021
+        }
+    }
+}
+```
+
+## ホストの書き込み
 
 ｽﾀｯｸﾁｬﾝのホストを書き込みます。
 このときｽﾀｯｸﾁｬﾝを無線LANネットワークに接続するために、SSIDとパスワードを指定します。
@@ -71,19 +96,11 @@ $ npm run deploy --target=esp32/m5stack
 
 ## mod書き込み
 
-ChatGPT連携のmodを書き込みます。
-
-1. ChatGPTのAPIキーを`api-key.js`に記述します。
-
-```
-const API_KEY = 'YOUR_API_KEY_HERE'
-export default API_KEY
-```
-
-2. 次のコマンドでmodを書き込みます。
+次のコマンドでmodを書き込みます。
 
 ```console
-$ npm run mod ./mods/chatgpt/manifest.json
+# targetは esp32/m5stack または esp32/m5stack_core2 から指定
+$ npm run mod --target=esp32/m5stack mods/chatgpt/manifest.json
 ```
 
 ## キャラクター設定（systemメッセージ）の変更

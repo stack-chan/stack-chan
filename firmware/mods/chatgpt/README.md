@@ -56,6 +56,30 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:50021 (Press CTRL+C to quit)
 ```
 
+## Changing the host settings
+
+Add or modify the necessary settings in the `config` of `manifest_local.json` for the host.
+
+- ai.token: ChatGPT token
+- tts.host: The IP address of the PC where the Speech Synthesis Server is running.
+
+```json
+{
+    "include": [
+        "./manifest.json"
+    ],
+    "config": {
+        "ai": {
+            "token": "ChatGPT token"
+        },
+        "tts": {
+            "type": "voicevox",
+            "host": "IP address",
+            "port": 50021
+        }
+    }
+}
+
 ## Writing the host
 
 Write the host for Stack-chan.
@@ -71,19 +95,11 @@ Reference: [Moddable's official documentation](https://github.com/Moddable-OpenS
 
 ## Writing the mod
 
-Write the ChatGPT integration mod.
-
-1. Add your ChatGPT API key to `api-key.js`.
-
-```
-const API_KEY = 'YOUR_API_KEY_HERE'
-export default API_KEY
-```
-
-2. Write the mod with the following command:
+Write the mod with the following command:
 
 ```console
-$ npm run mod ./mods/chatgpt/manifest.json
+# Choose target from esp32/m5stack or esp32/m5stack_core2
+$ npm run mod --target=esp32/m5stack mods/chatgpt/manifest.json
 ```
 
 ## Changing character settings (system messages)

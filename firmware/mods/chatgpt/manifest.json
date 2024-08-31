@@ -4,8 +4,7 @@
 	],
 	"modules": {
 		"*": [
-			"./mod",
-			"./api-key"
+			"./mod"
 		]
 	},
 	"data": {

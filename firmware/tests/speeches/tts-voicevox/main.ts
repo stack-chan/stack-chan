@@ -8,7 +8,7 @@ if (!host) throw new Error('host is missing.')
 const property: TTSProperty = {
   host,
   port: 50021,
-  sampleRate: 11025,
+  sampleRate: 24000,
   speakerId: 1,
   onPlayed: (num) => {
     trace(`played ${num}\n`)

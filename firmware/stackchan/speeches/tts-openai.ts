@@ -6,8 +6,8 @@ import calculatePower from 'calculate-power'
 /* global trace, SharedArrayBuffer */
 
 export type TTSProperty = {
-  onPlayed: (number) => void
-  onDone: () => void
+  onPlayed?: (number) => void
+  onDone?: () => void
   token: string
   model?: string
   voice?: string
@@ -16,8 +16,8 @@ export type TTSProperty = {
 
 export class TTS {
   audio: AudioOut
-  onPlayed: (number) => void
-  onDone: () => void
+  onPlayed?: (number) => void
+  onDone?: () => void
   token: string
   model: string
   voice: string

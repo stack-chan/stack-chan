@@ -13,8 +13,8 @@ type voiceSettings = {
 }
 
 export type TTSProperty = {
-  onPlayed: (number) => void
-  onDone: () => void
+  onPlayed?: (number) => void
+  onDone?: () => void
   token: string
   voice?: string
   latency?: number
@@ -25,8 +25,8 @@ export type TTSProperty = {
 
 export class TTS {
   audio: AudioOut
-  onPlayed: (number) => void
-  onDone: () => void
+  onPlayed?: (number) => void
+  onDone?: () => void
   token: string
   model: string
   voice: string

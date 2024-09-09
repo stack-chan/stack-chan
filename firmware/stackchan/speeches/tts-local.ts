@@ -5,25 +5,17 @@ import calculatePower from 'calculate-power'
 
 /* global trace, SharedArrayBuffer */
 
-export type TTSProperty =
-  | {
-      onPlayed: (number) => void
-      onDone: () => void
-      sampleRate?: number
-    }
-  | {
-      onPlayed: (number) => void
-      onDone: () => void
-      host: string
-      port: number
-      sampleRate?: number
-    }
+export type TTSProperty = {
+  onPlayed?: (number) => void
+  onDone?: () => void
+  sampleRate?: number
+}
 
 export class TTS {
   streamer?: ResourceStreamer
   audio?: AudioOut
-  onPlayed: (number) => void
-  onDone: () => void
+  onPlayed?: (number) => void
+  onDone?: () => void
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone

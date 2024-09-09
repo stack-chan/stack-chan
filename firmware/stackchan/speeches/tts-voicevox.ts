@@ -14,18 +14,18 @@ const QUERY_PATH = config.file.root + 'query.json'
 declare const device: any
 
 export type TTSProperty = {
-  onPlayed: (number) => void
-  onDone: () => void
+  onPlayed?: (number) => void
+  onDone?: () => void
   host: string
   port: number
-  sampleRate: number
-  speakerId: number
+  sampleRate?: number
+  speakerId?: number
 }
 
 export class TTS {
   audio: AudioOut
-  onPlayed: (number) => void
-  onDone: () => void
+  onPlayed?: (number) => void
+  onDone?: () => void
   // TODO: Add type definition for HTTPClient
   client: HTTPClient
   host: string

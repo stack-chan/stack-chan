@@ -27,8 +27,8 @@ export type Driver = {
  */
 export type TTS = {
   stream: (text: string) => Promise<void>
-  onPlayed: (volume: number) => void
-  onDone: () => void
+  onPlayed?: (volume: number) => void
+  onDone?: () => void
 }
 
 /**

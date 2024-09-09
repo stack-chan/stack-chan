@@ -10,8 +10,8 @@ import { URL } from 'url'
 declare const device: any
 
 export type TTSProperty = {
-  onPlayed: (number) => void
-  onDone: () => void
+  onPlayed?: (number) => void
+  onDone?: () => void
   token: string
   sampleRate?: number
   speakerId?: number
@@ -19,8 +19,8 @@ export type TTSProperty = {
 
 export class TTS {
   audio: AudioOut
-  onPlayed: (number) => void
-  onDone: () => void
+  onPlayed?: (number) => void
+  onDone?: () => void
   token: string
   streaming: boolean
   speakerId: number

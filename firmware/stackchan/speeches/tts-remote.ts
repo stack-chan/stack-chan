@@ -8,8 +8,8 @@ import calculatePower from 'calculate-power'
 declare const device: any
 
 export type TTSProperty = {
-  onPlayed: (number) => void
-  onDone: () => void
+  onPlayed?: (number) => void
+  onDone?: () => void
   host: string
   port: number
   sampleRate?: number
@@ -19,8 +19,8 @@ let streamer
 export class TTS {
   streamer?: WavStreamer
   audio?: AudioOut
-  onPlayed: (number) => void
-  onDone: () => void
+  onPlayed?: (number) => void
+  onDone?: () => void
   host: string
   port: number
   constructor(props: TTSProperty) {

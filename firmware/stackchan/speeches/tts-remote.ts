@@ -59,12 +59,12 @@ export class TTS {
             audio.stop()
           }
         },
-        onError(e) {
+        onError: (e) => {
           trace('ERROR: ', e, '\n')
           this.streaming = false
           reject(e)
         },
-        onDone() {
+        onDone: () => {
           trace('DONE\n')
           this.streaming = false
           streamer?.close()

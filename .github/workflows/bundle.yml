@@ -28,7 +28,7 @@ jobs:
         uses: ./.github/actions/setup
       - name: Bundle
         if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
-        run: source $HOME/.local/share/xs-dev-export.sh && npm run bundle
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
         working-directory: ./firmware
       - name: Upload Firmware Bundle
         if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'

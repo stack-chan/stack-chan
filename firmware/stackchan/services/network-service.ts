@@ -45,7 +45,7 @@ export class NetworkService {
             onConnected?.()
             break
           }
-          new SNTP({ host: config.sntp }, function (message, value) {
+          new SNTP({ host: config.sntp }, (message, value) => {
             if (SNTP.time === message) {
               trace(`Got time from: ${config.sntp}\n`)
               Time.set(value)

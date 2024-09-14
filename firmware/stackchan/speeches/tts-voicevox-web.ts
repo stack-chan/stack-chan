@@ -67,7 +67,7 @@ export class TTS {
     const { onPlayed, onDone, audio } = this
 
     return new Promise((resolve, reject) => {
-      let streamer = new MP3Streamer({
+      const streamer = new MP3Streamer({
         http: device.network.https,
         host: url.host,
         path: url.pathname,

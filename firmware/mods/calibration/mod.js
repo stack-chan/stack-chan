@@ -6,8 +6,8 @@ import Timer from 'timer'
  * @param {Robot} robot
  */
 async function onRobotCreated(robot) {
-  let pan = robot._driver._pan
-  let tilt = robot._driver._tilt
+  const pan = robot._driver._pan
+  const tilt = robot._driver._tilt
   robot.button.a.onChanged = async function () {
     if (!this.read()) {
       return

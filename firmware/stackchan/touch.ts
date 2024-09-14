@@ -8,7 +8,7 @@ export default class Touch {
   onTouchEnded: (x: number, y: number, ticks: number) => void
 
   constructor() {
-    let touch = new config.Touch()
+    const touch = new config.Touch()
     touch.points = [{}]
 
     Timer.repeat(() => {

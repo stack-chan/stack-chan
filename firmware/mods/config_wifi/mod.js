@@ -55,7 +55,7 @@ export function onLaunch() {
 
   let networkService
   if (globalThis.button) {
-    button.a.onChanged = function () {
+    button.a.onChanged = () => {
       if (status['wifi.ssid'].length > 0 && status['wifi.password'].length > 0) {
         if (networkService != null) {
           networkService.close()

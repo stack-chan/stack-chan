@@ -2,7 +2,7 @@ import MDNS from 'mdns'
 
 function onRobotCreated(robot) {
   const mdns = new MDNS({})
-  let txt = {}
+  const txt = {}
   const rotation = {
     y: 0.0,
     p: 0.0,
@@ -10,8 +10,8 @@ function onRobotCreated(robot) {
   }
   mdns.monitor('_http._tcp', (service, instance) => {
     if (instance.name === 'stackchan') {
-      for (let s of instance.txt) {
-        let entry = s.split('=')
+      for (const s of instance.txt) {
+        const entry = s.split('=')
         txt[entry[0]] = entry[1]
       }
       rotation.y = txt.yaw

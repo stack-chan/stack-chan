@@ -57,7 +57,7 @@ export class TTS {
 
     const { onPlayed, onDone, audio } = this
     return new Promise((resolve, reject) => {
-      let streamer = new ElevenLabsStreamer({
+      const streamer = new ElevenLabsStreamer({
         key: this.token,
         voice: this.voice,
         model: this.model,

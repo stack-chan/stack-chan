@@ -1,5 +1,5 @@
 import config from 'mc/config'
-import { TTS, TTSProperty } from 'tts-voicevox'
+import { TTS, type TTSProperty } from 'tts-voicevox'
 import Timer from 'timer'
 
 const host = config.host

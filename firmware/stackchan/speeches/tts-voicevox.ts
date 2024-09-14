@@ -2,7 +2,7 @@
 import AudioOut from 'pins/audioout'
 import WavStreamer from 'wavstreamer'
 import calculatePower from 'calculate-power'
-import HTTPClient from 'embedded:network/http/client'
+import type HTTPClient from 'embedded:network/http/client'
 import Headers from 'headers'
 import { File } from 'file'
 import config from 'mc/config'
@@ -106,7 +106,7 @@ export class TTS {
     const file = new File(QUERY_PATH)
     trace(`file opened. length: ${file.length}, position: ${file.position}`)
     return new Promise((resolve, reject) => {
-      let streamer = new WavStreamer({
+      const streamer = new WavStreamer({
         http: device.network.http,
         host,
         port,

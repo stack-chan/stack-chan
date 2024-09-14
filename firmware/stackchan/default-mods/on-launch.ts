@@ -99,7 +99,7 @@ export const onLaunch: StackchanMod['onLaunch'] = async () => {
 
   let networkService
   if (globalThis.button) {
-    globalThis.button.a.onChanged = function () {
+    globalThis.button.a.onChanged = () => {
       if (status['wifi.ssid'].length > 0 && status['wifi.password'].length > 0) {
         if (networkService != null) {
           networkService.close()

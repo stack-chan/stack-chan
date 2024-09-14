@@ -1,5 +1,5 @@
-import parseBMF from 'commodetto/parseBMF'
-import { type FaceDecoratorFactory } from 'renderer-base'
+import type parseBMF from 'commodetto/parseBMF'
+import type { FaceDecoratorFactory } from 'renderer-base'
 import { Outline } from 'commodetto/outline'
 
 export const createBalloonDecorator: FaceDecoratorFactory<

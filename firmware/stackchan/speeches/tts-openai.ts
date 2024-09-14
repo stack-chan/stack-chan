@@ -43,7 +43,7 @@ export class TTS {
     this.streaming = true
     const { onPlayed, onDone, audio } = this
     return new Promise((resolve, reject) => {
-      let streamer = new OpenAIStreamer({
+      const streamer = new OpenAIStreamer({
         input: text,
         key: this.token,
         model: this.model,

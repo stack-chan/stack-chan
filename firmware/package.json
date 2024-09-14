@@ -6,8 +6,8 @@
   "scripts": {
     "format": "biome format stackchan mods tests",
     "format:fix": "npm run format -- --write",
-    "lint": "eslint stackchan/**/*.ts",
-    "lint:fix": "npm run lint -- --fix",
+    "lint": "biome lint stackchan mods tests",
+    "lint:fix": "npm run lint -- --write",
     "generate-speech-coqui": "node scripts/generate-speech-coqui.js",
     "generate-speech-voicevox": "node scripts/generate-speech-voicevox.js",
     "generate-speech-google": "cross-env GOOGLE_APPLICATION_CREDENTIALS=scripts/key.json node scripts/generate-speech-google.js",

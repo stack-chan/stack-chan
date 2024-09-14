@@ -1,6 +1,6 @@
 import { UARTServer, SERVICE_UUID } from 'uartserver'
 import Preference from 'preference'
-import { PREF_KEYS } from 'consts'
+import type { PREF_KEYS } from 'consts'
 import Timer from 'timer'
 
 type PreferenceServerProps = {

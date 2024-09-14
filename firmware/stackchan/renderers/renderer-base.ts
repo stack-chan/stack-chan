@@ -1,6 +1,6 @@
 import config from 'mc/config'
-import Poco, { PocoPrototype } from 'commodetto/Poco'
-import { Outline, CanvasPath } from 'commodetto/outline'
+import Poco, { type PocoPrototype } from 'commodetto/Poco'
+import { Outline, type CanvasPath } from 'commodetto/outline'
 import deepEqual from 'deepEqual'
 
 /* global screen */

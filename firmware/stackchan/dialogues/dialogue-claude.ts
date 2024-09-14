@@ -135,12 +135,12 @@ export class ClaudeDialogue {
       .then((response) => {
         const status = response.status
         if (2 !== Math.idiv(status, 100)) {
-          throw Error('http request failed, status ' + status)
+          throw Error(`http request failed, status ${status}`)
         }
         return response.arrayBuffer()
       })
-      .then((body) => {
-        body = String.fromArrayBuffer(body)
+      .then((buffer) => {
+        const body = String.fromArrayBuffer(buffer)
         return JSON.parse(body)
       })
       .then((obj) => {

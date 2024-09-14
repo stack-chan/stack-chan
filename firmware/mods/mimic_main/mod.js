@@ -38,8 +38,8 @@ function onRobotCreated(robot) {
     const pitch = robot.pose.body.rotation.p
     if (initialized && mdns.services.length > 0) {
       const service = mdns.services[0]
-      service.txt['yaw'] = yaw
-      service.txt['pitch'] = pitch
+      service.txt.yaw = yaw
+      service.txt.pitch = pitch
       mdns.update(service)
     }
   }, 100)

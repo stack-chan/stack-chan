@@ -41,7 +41,7 @@ export class NetworkService {
 
           // Setting time for TLS connection
           if (!config.sntp || Date.now() > 1672722071_000) {
-            trace(`Time already configured, skipping\n`)
+            trace('Time·already configured, skipping\n')
             onConnected?.()
             break
           }
@@ -85,7 +85,7 @@ export class NetworkService {
           trace(`Access point "${this.#ssid}" not found\n`)
           return
         } else {
-          trace(`retrying\n`)
+          trace('retrying\n')
           this.scanAndConnect(onConnected, onError)
         }
       }

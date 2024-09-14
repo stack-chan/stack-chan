@@ -27,7 +27,7 @@ class Scanner extends BLEClient {
     }
     const { success, reason, value: dataPacket } = BeaconDataPacket.parse(manufacturerSpecific.data)
     if (!success) {
-      trace(reason + '\n')
+      trace(`${reason}\n`)
       return
     }
     trace(`${dataPacket.uuid}, ${dataPacket.major}, ${dataPacket.minor}, ${dataPacket.txPower}`)

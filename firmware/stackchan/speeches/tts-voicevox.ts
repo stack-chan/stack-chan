@@ -7,7 +7,7 @@ import Headers from 'headers'
 import { File } from 'file'
 import config from 'mc/config'
 
-const QUERY_PATH = config.file.root + 'query.json'
+const QUERY_PATH = `${config.file.root}query.json`
 
 /* global trace, SharedArrayBuffer */
 

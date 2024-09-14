@@ -19,10 +19,10 @@ export default class Touch {
         case 0:
         case 3:
           if (point.down) {
-            delete point.down
+            point.down = undefined
             this.onTouchEnded?.(point.x, point.y, Time.ticks)
-            delete point.x
-            delete point.y
+            point.x = undefined
+            point.y = undefined
           }
           break
         case 1:

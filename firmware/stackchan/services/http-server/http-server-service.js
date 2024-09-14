@@ -55,7 +55,7 @@ class Response {
     }
     this.#headers = headers
 
-    this.#status = options && options.status ? options.status : 200
+    this.#status = this.#status = options?.status· ? options.status : 200
   }
   get body() {
     return this.#body
@@ -136,11 +136,11 @@ class HttpServerService {
     patch: new Map(),
     delete: new Map(),
   }
-  get = (path, handler) => this.#routes['get'].set(path, handler)
-  post = (path, handler) => this.#routes['post'].set(path, handler)
-  put = (path, handler) => this.#routes['put'].set(path, handler)
-  patch = (path, handler) => this.#routes['patch'].set(path, handler)
-  delete = (path, handler) => this.#routes['delete'].set(path, handler)
+  get = (path, handler) => this.#routes.get.set(path, handler)
+  post = (path, handler) => this.#routes.post.set(path, handler)
+  put = (path, handler) => this.#routes.put.set(path, handler)
+  patch = (path, handler) => this.#routes.patch.set(path, handler)
+  delete = (path, handler) => this.#routes.delete.set(path, handler)
 
   constructor(options = {}) {
     const port = options?.port

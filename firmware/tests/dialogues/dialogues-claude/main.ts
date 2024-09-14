@@ -14,8 +14,8 @@ try {
   if (result.success == true) {
     trace(result.value)
   } else {
-    trace('Error: ' + result.reason)
+    trace(`Error: ${result.reason}`)
   }
 } catch (error) {
-  trace('An error occurred: ' + error.message)
+  trace(`An error occurred:${error.message}`)
 }

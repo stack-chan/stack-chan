@@ -169,8 +169,8 @@ export class Layer {
     })
     const outline =
       this.#type === 'fill'
-        ? Outline.fill(path).translate(0, face.breath * 3 ?? 0)
-        : Outline.stroke(path, 6).translate(0, face.breath * 3 ?? 0)
+        ? Outline.fill(path).translate(0, face.breath * 3)
+        : Outline.stroke(path, 6).translate(0, face.breath * 3)
     poco.blendOutline(color, 255, outline, 0, 0)
   }
 }

@@ -20,7 +20,29 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"complexity": {
+				"noUselessConstructor":"off",
+				"noForEach":"off"
+			},
+				"correctness": {
+				"noSwitchDeclarations":"off"
+			},
+			"suspicious": {
+				"noExplicitAny":"off",
+				"noImplicitAnyLet":"off",
+				"noDoubleEquals":"off",
+				"noConfusingVoidType":"off",
+				"noAssignInExpressions":"off"
+			},
+			"style": {
+				"noUselessElse":"off",
+				"noParameterAssign":"off",
+				"useDefaultParameterLast":"off",
+				"useNodejsImportProtocol":"off",
+				"useExponentiationOperator":"off",
+				"useSingleVarDeclarator":"off"
+			}
 		}
 	},
 	"javascript": {

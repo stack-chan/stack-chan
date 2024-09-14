@@ -4,7 +4,7 @@ import { PREF_KEYS } from 'consts'
 import Timer from 'timer'
 
 type PreferenceServerProps = {
-  onPreferenceChanged?: (key: string, value: ReturnType<typeof Preference['get']>) => void
+  onPreferenceChanged?: (key: string, value: ReturnType<(typeof Preference)['get']>) => void
   onConnected?: () => void
   onDisconnected?: () => void
   keys?: typeof PREF_KEYS
@@ -33,7 +33,11 @@ export class PreferenceServer extends UARTServer {
   }
   onDisconnected() {
     this.startAdvertising({
-      advertisingData: { flags: 6, completeName: this.deviceName, completeUUID128List: [SERVICE_UUID] },
+      advertisingData: {
+        flags: 6,
+        completeName: this.deviceName,
+        completeUUID128List: [SERVICE_UUID],
+      },
     })
     this.#handleDisconnected?.()
   }
@@ -105,8 +109,8 @@ export class PreferenceServer extends UARTServer {
         JSON.stringify({
           prop,
           value,
-        })
-      )
+        }),
+      ),
     )
   }
 

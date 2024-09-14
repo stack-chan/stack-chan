@@ -19,8 +19,6 @@
     ]
   },
   "ble": {
-    "*": [
-      "$(MODULES)/network/ble/uart/bleservices/*"
-    ]
+    "*": ["$(MODULES)/network/ble/uart/bleservices/*"]
   }
 }

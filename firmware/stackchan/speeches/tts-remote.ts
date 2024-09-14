@@ -26,7 +26,10 @@ export class TTS {
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({ streams: 1, sampleRate: props.sampleRate ?? 24000 })
+    this.audio = new AudioOut({
+      streams: 1,
+      sampleRate: props.sampleRate ?? 24000,
+    })
     this.host = props.host
     this.port = props.port
   }

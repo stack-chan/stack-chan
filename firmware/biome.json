@@ -7,11 +7,12 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"ignore": []
+		"ignore": ["stackchan/speeches/calculate-power.js"]
 	},
 	"formatter": {
 		"enabled": true,
-		"indentStyle": "tab"
+		"indentStyle": "space",
+		"indentWidth": 2
 	},
 	"organizeImports": {
 		"enabled": true
@@ -24,7 +25,14 @@
 	},
 	"javascript": {
 		"formatter": {
-			"quoteStyle": "double"
+			"quoteStyle": "single",
+			"semicolons": "asNeeded",
+			"lineWidth": 120
+		}
+	},
+	"json": {
+		"formatter": {
+			"lineWidth": 80
 		}
 	}
 }

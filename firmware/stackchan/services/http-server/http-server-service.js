@@ -1,4 +1,4 @@
-import  listen  from 'listen'
+import listen from 'listen'
 import Headers from 'headers'
 import { URLSearchParams } from 'url'
 

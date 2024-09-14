@@ -11,5 +11,5 @@ service.connect(
   },
   (message) => {
     trace(`error: ${message}\n`)
-  }
+  },
 )

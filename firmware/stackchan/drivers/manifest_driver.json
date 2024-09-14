@@ -8,9 +8,7 @@
     "../utilities/manifest_utility.json"
   ],
   "modules": {
-    "*": [
-      "./*"
-    ]
+    "*": ["./*"]
   },
   "preload": [
     "dynamixel",

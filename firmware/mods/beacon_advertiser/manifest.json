@@ -1,14 +1,9 @@
 {
-	"include": [
-		"$(MODDABLE)/examples/manifest_mod.json"
-	],
-	"resources": {
-		"*": "../beacon_scanner/assets/*"
-	},
-	"modules": {
-		"*": [
-			"../beacon_scanner/speeches_greeting",
-			"./mod"
-		]
-	}
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "resources": {
+    "*": "../beacon_scanner/assets/*"
+  },
+  "modules": {
+    "*": ["../beacon_scanner/speeches_greeting", "./mod"]
+  }
 }

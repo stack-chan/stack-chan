@@ -31,7 +31,7 @@ function onRobotCreated(robot) {
           if (message < 0) trace('MDNS - failed to claim, give up\n')
           break
       }
-    }
+    },
   )
   Timer.repeat(() => {
     let yaw = robot.pose.body.rotation.y

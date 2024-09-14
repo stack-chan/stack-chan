@@ -37,7 +37,11 @@ export class TTS {
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 44100 })
+    this.audio = new AudioOut({
+      streams: 1,
+      bitsPerSample: 16,
+      sampleRate: 44100,
+    })
     this.token = props.token
     this.latency = props.latency ?? 2
     this.format = props.format ?? 'mp3_44100_64'

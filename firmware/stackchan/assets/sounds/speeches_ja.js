@@ -7,5 +7,5 @@ export const speeches = {
   sentense5: 'スタックチャン。コミュニケーションロボットを、あなたの手に。',
 }
 export const SynthProps = {
-  shift: 1.5
+  shift: 1.5,
 }

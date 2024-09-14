@@ -77,10 +77,15 @@ export class GeminiDialogue {
   #maxHistory: number
   constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: GeminiDialogueProps) {
     this.#model = model
-    this.#system = { parts: context.filter((c) => c.role === 'system').map((c) => ({ text: c.content })) }
+    this.#system = {
+      parts: context.filter((c) => c.role === 'system').map((c) => ({ text: c.content })),
+    }
     this.#context = context
       .filter((c) => c.role !== 'system')
-      .map((c) => ({ parts: [{ text: c.content }], role: c.role == 'assistant' ? 'model' : 'user' }))
+      .map((c) => ({
+        parts: [{ text: c.content }],
+        role: c.role == 'assistant' ? 'model' : 'user',
+      }))
     this.#apiKey = apiKey
     this.#history = []
     this.#maxHistory = 6

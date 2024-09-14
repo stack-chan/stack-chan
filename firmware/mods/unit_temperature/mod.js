@@ -16,7 +16,7 @@ export function onRobotCreated(robot) {
     robot.showBalloon(
       `Temperature: ${sample.thermometer.temperature.toFixed(2)} C. 
       Humidity: ${sample.hygrometer.humidity.toFixed(2)} %`,
-      param
+      param,
     )
     Timer.set((_id) => robot.hideBalloon(), 10 * 1000)
   }

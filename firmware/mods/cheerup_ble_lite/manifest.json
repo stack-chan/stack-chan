@@ -1,13 +1,9 @@
 {
-	"include": [
-		"$(MODDABLE)/examples/manifest_mod.json"
-	],
-	"resources": {
-		"*": "./assets/*"
-	},
-	"modules": {
-		"*": [
-			"./*"
-		]
-	}
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "resources": {
+    "*": "./assets/*"
+  },
+  "modules": {
+    "*": ["./*"]
+  }
 }

@@ -30,10 +30,8 @@
     "tts-elevenlabs",
     "tts-openai"
   ],
-  "data":{
-    "*":[
-      "$(MODULES)/crypt/data/ca109"
-    ]
+  "data": {
+    "*": ["$(MODULES)/crypt/data/ca109"]
   },
   "config": {
     "tls": {

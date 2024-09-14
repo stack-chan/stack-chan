@@ -2,11 +2,11 @@ import { RendererBase, Layer, type FacePartFactory, type FaceContext } from 'ren
 import { createEyePart, createEyelidPart } from 'simple-face'
 import { createBlinkModifier, createBreathModifier, createSaccadeModifier } from './modifier'
 
-export const createEyeblowPart: FacePartFactory<{ cx: number; cy: number; side: keyof FaceContext['eyes'] }> = ({
-  cx,
-  cy,
-  side,
-}) => {
+export const createEyeblowPart: FacePartFactory<{
+  cx: number
+  cy: number
+  side: keyof FaceContext['eyes']
+}> = ({ cx, cy, side }) => {
   const direction = side === 'left' ? 1 : -1
   return (_tick, path, { eyes, emotion }) => {
     let d = direction
@@ -58,7 +58,12 @@ export class Renderer extends RendererBase {
   constructor(option) {
     super(option)
     this.filters = [
-      createBlinkModifier({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
+      createBlinkModifier({
+        openMin: 400,
+        openMax: 5000,
+        closeMin: 200,
+        closeMax: 400,
+      }),
       createBreathModifier({ duration: 6000 }),
       createSaccadeModifier({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
@@ -71,7 +76,7 @@ export class Renderer extends RendererBase {
         cy: 93,
         side: 'left',
         radius: 10,
-      })
+      }),
     )
     layer1.addPart('rightEye', createEyePart({ cx: 230, cy: 96, side: 'right', radius: 10 }))
 
@@ -85,7 +90,7 @@ export class Renderer extends RendererBase {
         side: 'left',
         width: 24,
         height: 24,
-      })
+      }),
     )
     layer2.addPart(
       'rightEyelid',
@@ -95,7 +100,7 @@ export class Renderer extends RendererBase {
         side: 'right',
         width: 24,
         height: 24,
-      })
+      }),
     )
 
     const layer3 = new Layer({ colorName: 'primary', type: 'stroke' })
@@ -107,7 +112,7 @@ export class Renderer extends RendererBase {
         cx: 90,
         cy: 93,
         side: 'left',
-      })
+      }),
     )
     layer1.addPart(
       'rightEyeblow',
@@ -115,7 +120,7 @@ export class Renderer extends RendererBase {
         cx: 230,
         cy: 96,
         side: 'right',
-      })
+      }),
     )
   }
 }

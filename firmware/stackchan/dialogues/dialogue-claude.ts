@@ -127,7 +127,11 @@ export class ClaudeDialogue {
       system: this.#system,
       messages: [...this.#context, ...this.#history, message],
     }
-    return fetch(API_URL, { method: 'POST', headers: this.#headers, body: JSON.stringify(body) })
+    return fetch(API_URL, {
+      method: 'POST',
+      headers: this.#headers,
+      body: JSON.stringify(body),
+    })
       .then((response) => {
         const status = response.status
         if (2 !== Math.idiv(status, 100)) {

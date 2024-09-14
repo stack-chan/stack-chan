@@ -7,12 +7,7 @@
     "$(MODDABLE)/examples/manifest_typings.json"
   ],
   "modules": {
-    "*": [
-      "./*"
-    ]
+    "*": ["./*"]
   },
-  "preload": [
-    "consts",
-    "stackchan-util"
-  ]
+  "preload": ["consts", "stackchan-util"]
 }

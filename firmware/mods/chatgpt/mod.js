@@ -44,7 +44,7 @@ export function onRobotCreated(robot) {
         JSON.stringify({
           role: 'assistant',
           message,
-        })
+        }),
       )
       await robot.say(message)
     }

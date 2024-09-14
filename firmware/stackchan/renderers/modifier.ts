@@ -46,11 +46,11 @@ export const createBlinkModifier: FaceModifierFactory<{
   }
 }
 
-export const createSaccadeModifier: FaceModifierFactory<{ updateMin: number; updateMax: number; gain: number }> = ({
-  updateMin,
-  updateMax,
-  gain,
-}) => {
+export const createSaccadeModifier: FaceModifierFactory<{
+  updateMin: number
+  updateMax: number
+  gain: number
+}> = ({ updateMin, updateMax, gain }) => {
   let nextToggle = randomBetween(updateMin, updateMax)
   let saccadeX = 0
   let saccadeY = 0
@@ -69,7 +69,9 @@ export const createSaccadeModifier: FaceModifierFactory<{ updateMin: number; upd
   }
 }
 
-export const createBreathModifier: FaceModifierFactory<{ duration: number }> = ({ duration }) => {
+export const createBreathModifier: FaceModifierFactory<{
+  duration: number
+}> = ({ duration }) => {
   let time = 0
   return (tickMillis, face) => {
     time += tickMillis % duration

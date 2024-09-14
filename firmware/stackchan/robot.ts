@@ -45,7 +45,7 @@ export type Button = {
 }
 
 const buttonNames = ['a', 'b', 'c'] as const
-type ButtonName = typeof buttonNames[number]
+type ButtonName = (typeof buttonNames)[number]
 
 /**
  * The constructor parameters of the robot.
@@ -267,7 +267,7 @@ export class Robot {
       right: 20,
       top: 10,
       width: 80,
-    }
+    },
   ) {
     if (this.#balloon != null) {
       this.hideBalloon()
@@ -421,10 +421,13 @@ export class Robot {
         const time = randomBetween(0.5, 1.0)
         await this.#driver.setTorque(true)
         await this.#driver.applyRotation(Rotation.fromVector3(this.#gazePoint), time)
-        Timer.set(async () => {
-          await this.#driver.setTorque(false)
-          this.#isMoving = false
-        }, time * 1000 + 50)
+        Timer.set(
+          async () => {
+            await this.#driver.setTorque(false)
+            this.#isMoving = false
+          },
+          time * 1000 + 50,
+        )
       }
     }
     this.updating = false

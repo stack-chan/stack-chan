@@ -55,7 +55,7 @@ class Response {
     }
     this.#headers = headers
 
-    this.#status = this.#status = options?.status· ? options.status : 200
+    this.#status = options?.status· ? options.status : 200
   }
   get body() {
     return this.#body

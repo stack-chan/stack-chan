@@ -16,7 +16,7 @@ jobs:
       - name: Check for changes in firmware
         id: diff_check
         run: |
-          git diff --quiet HEAD^ HEAD -- ./firmware/ || echo "::set-output name=diff_detected::true"
+          git diff --quiet HEAD^ HEAD -- ./firmware/ || echo "diff_detected=true" >> $GITHUB_ENV
       - name: Cache build results
         id: cache
         uses: actions/cache@v4
@@ -24,15 +24,15 @@ jobs:
           path: ./firmware/stackchan/tech.moddable.stackchan
           key: ${{ github.sha }}
       - name: Setup
-        if: steps.diff_check.outputs.diff_detected || steps.cache.outputs.cache-hit != 'true'
+        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup
       - name: Bundle
-        if: steps.diff_check.outputs.diff_detected || steps.cache.outputs.cache-hit != 'true'
-        run: source $HOME/.local/share/xs-dev-export.sh && npm run bundle
+        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
         working-directory: ./firmware
       - name: Upload Firmware Bundle
-        if: steps.diff_check.outputs.diff_detected || steps.cache.outputs.cache-hit != 'true'
-        uses: actions/upload-artifact@v2
+        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v4
         with:
           name: firmware-bundle
           path: ./firmware/stackchan/tech.moddable.stackchan
@@ -47,7 +47,7 @@ jobs:
         with:
           ref: gh-pages
       - name: Download Firmware Bundle
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: firmware-bundle
           path: ./firmware-bundle

@@ -26,7 +26,6 @@ export class TTS {
   audio: AudioOut
   onPlayed?: (number) => void
   onDone?: () => void
-  // TODO: Add type definition for HTTPClient
   client: HTTPClient
   host: string
   port: number

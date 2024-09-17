@@ -38,6 +38,10 @@ export class TTS {
           stream: 0,
           sampleRate,
         },
+        onPlayed: (buffer) => {
+          const power = calculatePower(buffer)
+          this.onPlayed?.(power)
+        },
         onReady(this: ResourceStreamer, state) {
           trace(`Ready: ${state}\n`)
           if (state) {
@@ -45,10 +49,6 @@ export class TTS {
           } else {
             this.audio.stop()
           }
-        },
-        onPlayed: (buffer) => {
-          const power = calculatePower(buffer)
-          this.onPlayed?.(power)
         },
         onError: (e) => {
           trace('ERROR: ', e, '\n')

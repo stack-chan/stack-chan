@@ -1,7 +1,7 @@
 import { fetch } from 'fetch'
 import Headers from 'headers'
 
-import { Maybe } from 'stackchan-util'
+import type { Maybe } from 'stackchan-util'
 import structuredClone from 'structuredClone'
 
 const API_URL_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/'
@@ -77,10 +77,15 @@ export class GeminiDialogue {
   #maxHistory: number
   constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: GeminiDialogueProps) {
     this.#model = model
-    this.#system = { parts: context.filter((c) => c.role === 'system').map((c) => ({ text: c.content })) }
+    this.#system = {
+      parts: context.filter((c) => c.role === 'system').map((c) => ({ text: c.content })),
+    }
     this.#context = context
       .filter((c) => c.role !== 'system')
-      .map((c) => ({ parts: [{ text: c.content }], role: c.role == 'assistant' ? 'model' : 'user' }))
+      .map((c) => ({
+        parts: [{ text: c.content }],
+        role: c.role == 'assistant' ? 'model' : 'user',
+      }))
     this.#apiKey = apiKey
     this.#history = []
     this.#maxHistory = 6
@@ -135,12 +140,12 @@ export class GeminiDialogue {
       .then((response) => {
         const status = response.status
         if (2 !== Math.idiv(status, 100)) {
-          throw Error('http request failed, status ' + status)
+          throw Error(`http request failed, status ${status}`)
         }
         return response.arrayBuffer()
       })
-      .then((body) => {
-        body = String.fromArrayBuffer(body)
+      .then((buffer) => {
+        const body = String.fromArrayBuffer(buffer)
         return JSON.parse(body, ['candidates', 'content', 'parts', 'role', 'text'])
       })
       .then((obj) => {

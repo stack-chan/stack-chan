@@ -1,18 +1,12 @@
 {
-	"include": [
-		"$(MODDABLE)/examples/manifest_mod.json"
-	],
-	"resources": {
-		"*": "./assets/*"
-	},
-	"modules": {
-		"*": [
-      "./mod"
-    ]
-	},
-	"data": {
-		"*": [
-			"$(MODDABLE)/modules/crypt/data/ca35"
-		]
-	}
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "resources": {
+    "*": "./assets/*"
+  },
+  "modules": {
+    "*": ["./mod"]
+  },
+  "data": {
+    "*": ["$(MODDABLE)/modules/crypt/data/ca35"]
+  }
 }

@@ -8,7 +8,7 @@ import parseBMF from 'commodetto/parseBMF'
 import structuredClone from 'structuredClone'
 
 const font = parseBMF(new Resource('NotoSansJP-Regular-24.bf4'))
-let poco = new Poco(screen, { rotation: 90, displayListLength: 1024 })
+const poco = new Poco(screen, { rotation: 90, displayListLength: 1024 })
 const renderer = new Renderer({ poco })
 type Color = [number, number, number]
 const black: Color = [0, 0, 0]

@@ -1,5 +1,5 @@
 import { Bytes } from 'btutils'
-import { Maybe } from 'stackchan-util'
+import type { Maybe } from 'stackchan-util'
 
 /**
  * The data packet part of the manufacturerSpecific (0xFF) in iBeacon format, excluding the identifier.

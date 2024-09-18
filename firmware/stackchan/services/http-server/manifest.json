@@ -7,7 +7,5 @@
   "modules": {
     "*": ["./*"]
   },
-  "preload" : [
-    "http-server-service"
-  ]
+  "preload": ["http-server-service"]
 }

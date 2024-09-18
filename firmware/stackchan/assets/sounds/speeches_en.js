@@ -5,5 +5,5 @@ export const speeches = {
   nihao: 'Nee hao.',
 }
 export const SynthProps = {
-  shift: 1.5
+  shift: 1.5,
 }

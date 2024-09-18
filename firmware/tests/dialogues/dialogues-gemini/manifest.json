@@ -15,6 +15,6 @@
     }
   },
   "config": {
-    "token": "YOUR_API_KEY_HERE" 
+    "token": "YOUR_API_KEY_HERE"
   }
 }

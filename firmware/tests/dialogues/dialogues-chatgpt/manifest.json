@@ -18,6 +18,6 @@
     "*": ["$(MODULES)/crypt/data/ca233"]
   },
   "config": {
-    "token": "YOUR_API_KEY_HERE" 
+    "token": "YOUR_API_KEY_HERE"
   }
 }

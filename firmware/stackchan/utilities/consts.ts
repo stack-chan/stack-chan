@@ -22,7 +22,7 @@ export const PREF_KEYS: readonly [keyof typeof DOMAIN, string, StringConstructor
     [DOMAIN.ai, 'token', String],
     [DOMAIN.ai, 'context', String],
   ],
-  true
+  true,
 )
 
 export const DEFAULT_FONT = 'OpenSans-Regular-24.bf4'

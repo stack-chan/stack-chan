@@ -45,7 +45,7 @@ function onRobotCreated(robot) {
       {
         rotation,
       },
-      0.1 // immediate update
+      0.1, // immediate update
     )
 
     // emotion

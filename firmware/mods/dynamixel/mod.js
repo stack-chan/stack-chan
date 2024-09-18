@@ -49,7 +49,7 @@ export async function onLaunch() {
   const INTERVAL = 1000
   const HZ = 1000 / INTERVAL
   let flag = true
-  let toruqeEnable = true
+  const toruqeEnable = true
   let count = 0
   const servo = new Dynamixel({
     id: 1,
@@ -67,7 +67,7 @@ export async function onLaunch() {
   trace('enable torque\n')
   await servo.setTorque(toruqeEnable)
   await servo2.setTorque(toruqeEnable)
-  let pos = [2048, 2048]
+  const pos = [2048, 2048]
   const P_GAIN = 0.1
   const P_GAIN2 = 0.3
   const offset = 0

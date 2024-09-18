@@ -35,7 +35,7 @@ const INSTRUCTION = {
   BULK_READ: 0x92,
   BULK_WRITE: 0x93,
 } as const
-type Instruction = typeof INSTRUCTION[keyof typeof INSTRUCTION]
+type Instruction = (typeof INSTRUCTION)[keyof typeof INSTRUCTION]
 
 export const BAUDRATE = {
   BAUD_9600: 0x00,
@@ -44,7 +44,7 @@ export const BAUDRATE = {
   BAUD_1000000: 0x03,
   BAUD_2000000: 0x04,
 } as const
-type Baudrate = typeof BAUDRATE[keyof typeof BAUDRATE]
+type Baudrate = (typeof BAUDRATE)[keyof typeof BAUDRATE]
 
 export const OPERATING_MODE = {
   CURRENT: 0x00,
@@ -54,7 +54,7 @@ export const OPERATING_MODE = {
   CURRENT_BASED_POSITION: 0x05,
   PWM: 0x10,
 } as const
-type OperatingMode = typeof OPERATING_MODE[keyof typeof OPERATING_MODE]
+type OperatingMode = (typeof OPERATING_MODE)[keyof typeof OPERATING_MODE]
 
 const ADDRESS = {
   MODEL_NUMBER: 0,
@@ -76,14 +76,14 @@ const ADDRESS = {
   PRESENT_VELOCITY: 128,
   PRESENT_POSITION: 132,
 } as const
-type Address = typeof ADDRESS[keyof typeof ADDRESS]
+type Address = (typeof ADDRESS)[keyof typeof ADDRESS]
 
 const RX_STATE = {
   SEEK: 0,
   HEAD: 1,
   BODY: 2,
 } as const
-type RxState = typeof RX_STATE[keyof typeof RX_STATE]
+type RxState = (typeof RX_STATE)[keyof typeof RX_STATE]
 
 class PacketHandler extends Serial {
   #callbacks: Map<number, (bytes: Uint8Array) => void>

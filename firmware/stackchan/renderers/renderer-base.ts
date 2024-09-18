@@ -1,6 +1,6 @@
 import config from 'mc/config'
-import Poco, { PocoPrototype } from 'commodetto/Poco'
-import { Outline, CanvasPath } from 'commodetto/outline'
+import Poco, { type PocoPrototype } from 'commodetto/Poco'
+import { Outline, type CanvasPath } from 'commodetto/outline'
 import deepEqual from 'deepEqual'
 
 /* global screen */
@@ -29,7 +29,7 @@ export const Emotion = Object.freeze({
   HOT: 'HOT',
 })
 
-export type Emotion = typeof Emotion[keyof typeof Emotion]
+export type Emotion = (typeof Emotion)[keyof typeof Emotion]
 
 /**
  * The context of the face representing physiological state and drawing settings.
@@ -137,7 +137,7 @@ export type FaceDecorator<T = unknown> = (
   poco: PocoPrototype,
   face: Readonly<FaceContext>,
   end?: boolean,
-  arg?: T
+  arg?: T,
 ) => void
 export type FaceDecoratorFactory<T, V = unknown> = (param: T) => FaceDecorator<V>
 
@@ -169,8 +169,8 @@ export class Layer {
     })
     const outline =
       this.#type === 'fill'
-        ? Outline.fill(path).translate(0, face.breath * 3 ?? 0)
-        : Outline.stroke(path, 6).translate(0, face.breath * 3 ?? 0)
+        ? Outline.fill(path).translate(0, face.breath * 3)
+        : Outline.stroke(path, 6).translate(0, face.breath * 3)
     poco.blendOutline(color, 255, outline, 0, 0)
   }
 }

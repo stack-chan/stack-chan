@@ -1,7 +1,7 @@
 import { fetch } from 'fetch'
 import Headers from 'headers'
 
-import { Maybe } from 'stackchan-util'
+import type { Maybe } from 'stackchan-util'
 import structuredClone from 'structuredClone'
 
 const API_URL = 'https://api.openai.com/v1/chat/completions'
@@ -107,16 +107,20 @@ export class ChatGPTDialogue {
       model: this.#model,
       messages: [...this.#context, ...this.#history, message],
     }
-    return fetch(API_URL, { method: 'POST', headers: this.#headers, body: JSON.stringify(body) })
+    return fetch(API_URL, {
+      method: 'POST',
+      headers: this.#headers,
+      body: JSON.stringify(body),
+    })
       .then((response) => {
         const status = response.status
         if (2 !== Math.idiv(status, 100)) {
-          throw Error('http request failed, status ' + status)
+          throw Error(`http·requestfailed, status ${status}`)
         }
         return response.arrayBuffer()
       })
-      .then((body) => {
-        body = String.fromArrayBuffer(body)
+      .then((buffer) => {
+        const body = String.fromArrayBuffer(buffer)
         return JSON.parse(body, ['choices', 'message', 'role', 'content'])
       })
       .then((obj) => {

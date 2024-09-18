@@ -2,12 +2,12 @@
 import AudioOut from 'pins/audioout'
 import WavStreamer from 'wavstreamer'
 import calculatePower from 'calculate-power'
-import HTTPClient from 'embedded:network/http/client'
+import type HTTPClient from 'embedded:network/http/client'
 import Headers from 'headers'
 import { File } from 'file'
 import config from 'mc/config'
 
-const QUERY_PATH = config.file.root + 'query.json'
+const QUERY_PATH = `${config.file.root}query.json`
 
 /* global trace, SharedArrayBuffer */
 
@@ -35,7 +35,11 @@ export class TTS {
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: props.sampleRate ?? 11025 })
+    this.audio = new AudioOut({
+      streams: 1,
+      bitsPerSample: 16,
+      sampleRate: props.sampleRate ?? 11025,
+    })
     this.speakerId = props.speakerId ?? 1
     this.host = props.host
     this.port = props.port
@@ -101,7 +105,7 @@ export class TTS {
     const file = new File(QUERY_PATH)
     trace(`file opened. length: ${file.length}, position: ${file.position}`)
     return new Promise((resolve, reject) => {
-      let streamer = new WavStreamer({
+      const streamer = new WavStreamer({
         http: device.network.http,
         host,
         port,

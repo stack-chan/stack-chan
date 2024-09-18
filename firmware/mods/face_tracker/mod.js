@@ -16,7 +16,7 @@ function onRobotCreated(robot, device) {
     host: 'unitv2.local',
     port: 80,
   })
-  let request = client.request({
+  const request = client.request({
     method: 'POST',
     path: '/func/result',
     onReadable(count) {
@@ -34,8 +34,8 @@ function onRobotCreated(robot, device) {
         return
       }
 
-      let centerX = face.x + face.w / 2
-      let centerY = face.y + face.h / 2
+      const centerX = face.x + face.w / 2
+      const centerY = face.y + face.h / 2
       target.y = 0.8 * ((320 - centerX) / 320)
       target.z = centerY / 480
       robot.lookAt([target.x, target.y, target.z])

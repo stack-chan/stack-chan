@@ -1,6 +1,6 @@
 import { HttpServerService, Response } from 'http-server-service'
 
-let app = new HttpServerService()
+const app = new HttpServerService()
 
 app.get('/response', (c) => {
   return new Response('Thank you for coming', {

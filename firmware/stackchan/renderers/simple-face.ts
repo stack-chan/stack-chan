@@ -83,7 +83,12 @@ export class Renderer extends RendererBase {
   constructor(option) {
     super(option)
     this.filters = [
-      createBlinkModifier({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
+      createBlinkModifier({
+        openMin: 400,
+        openMax: 5000,
+        closeMin: 200,
+        closeMax: 400,
+      }),
       createBreathModifier({ duration: 6000 }),
       createSaccadeModifier({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
@@ -96,7 +101,7 @@ export class Renderer extends RendererBase {
         cy: 93,
         side: 'left',
         radius: 8,
-      })
+      }),
     )
     layer1.addPart('rightEye', createEyePart({ cx: 230, cy: 96, side: 'right', radius: 8 }))
     layer1.addPart('mouth', createMouthPart({ cx: 160, cy: 148 }))
@@ -111,7 +116,7 @@ export class Renderer extends RendererBase {
         side: 'left',
         width: 24,
         height: 24,
-      })
+      }),
     )
     layer2.addPart(
       'rightEyelid',
@@ -121,7 +126,7 @@ export class Renderer extends RendererBase {
         side: 'right',
         width: 24,
         height: 24,
-      })
+      }),
     )
   }
 }

@@ -21,13 +21,13 @@ class Scanner extends BLEClient {
     this.startScanning({ duplicates: true })
   }
   onDiscovered(device) {
-    let manufacturerSpecific = device.scanResponse.manufacturerSpecific
+    const manufacturerSpecific = device.scanResponse.manufacturerSpecific
     if (!manufacturerSpecific || COMPANY_ID != manufacturerSpecific.identifier) {
       return
     }
     const { success, reason, value: dataPacket } = BeaconDataPacket.parse(manufacturerSpecific.data)
     if (!success) {
-      trace(reason + '\n')
+      trace(`${reason}\n`)
       return
     }
     trace(`${dataPacket.uuid}, ${dataPacket.major}, ${dataPacket.minor}, ${dataPacket.txPower}`)

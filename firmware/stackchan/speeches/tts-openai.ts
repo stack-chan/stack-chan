@@ -26,7 +26,11 @@ export class TTS {
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 24000 })
+    this.audio = new AudioOut({
+      streams: 1,
+      bitsPerSample: 16,
+      sampleRate: 24000,
+    })
     this.token = props.token
     this.model = props.model ?? 'tts-1'
     this.voice = props.voice ?? 'alloy'
@@ -39,7 +43,7 @@ export class TTS {
     this.streaming = true
     const { onPlayed, onDone, audio } = this
     return new Promise((resolve, reject) => {
-      let streamer = new OpenAIStreamer({
+      const streamer = new OpenAIStreamer({
         input: text,
         key: this.token,
         model: this.model,

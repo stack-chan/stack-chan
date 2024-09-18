@@ -8,7 +8,10 @@ import config from 'mc/config'
 import { DOMAIN, PREF_KEYS } from 'consts'
 
 export function onLaunch() {
-  const render = new Poco(screen, { rotation: config.rotation, displayListLength: 2048 })
+  const render = new Poco(screen, {
+    rotation: config.rotation,
+    displayListLength: 2048,
+  })
   const font = parseBMF(new Resource('OpenSans-Regular-24.bf4'))
   const white = render.makeColor(255, 255, 255)
   const black = render.makeColor(0, 0, 0)
@@ -52,7 +55,7 @@ export function onLaunch() {
 
   let networkService
   if (globalThis.button) {
-    button.a.onChanged = function () {
+    button.a.onChanged = () => {
       if (status['wifi.ssid'].length > 0 && status['wifi.password'].length > 0) {
         if (networkService != null) {
           networkService.close()
@@ -72,7 +75,7 @@ export function onLaunch() {
             trace('connection failed\n')
             status.connection = 'failed'
             drawStatus(status)
-          }
+          },
         )
         status.wifi = 'connecting'
         drawStatus(status)

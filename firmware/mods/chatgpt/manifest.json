@@ -1,16 +1,12 @@
 {
-	"include": [
-		"$(MODDABLE)/examples/manifest_mod.json"
-	],
-	"modules": {
-		"*": [
-			"./mod"
-		]
-	},
-	"data": {
-		"*": [
-			"$(MODDABLE)/modules/crypt/data/ca109",
-			"$(MODDABLE)/modules/crypt/data/ca35"
-		]
-	}
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "modules": {
+    "*": ["./mod"]
+  },
+  "data": {
+    "*": [
+      "$(MODDABLE)/modules/crypt/data/ca109",
+      "$(MODDABLE)/modules/crypt/data/ca35"
+    ]
+  }
 }

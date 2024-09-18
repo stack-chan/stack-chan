@@ -1,4 +1,4 @@
-import { DOMAIN, PREF_KEYS } from 'consts'
+import { type DOMAIN, PREF_KEYS } from 'consts'
 import Preference from 'preference'
 import structuredClone from 'structuredClone'
 import config from 'mc/config'

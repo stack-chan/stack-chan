@@ -1,10 +1,10 @@
 import { UARTServer, SERVICE_UUID } from 'uartserver'
 import Preference from 'preference'
-import { PREF_KEYS } from 'consts'
+import type { PREF_KEYS } from 'consts'
 import Timer from 'timer'
 
 type PreferenceServerProps = {
-  onPreferenceChanged?: (key: string, value: ReturnType<typeof Preference['get']>) => void
+  onPreferenceChanged?: (key: string, value: ReturnType<(typeof Preference)['get']>) => void
   onConnected?: () => void
   onDisconnected?: () => void
   keys?: typeof PREF_KEYS
@@ -33,7 +33,11 @@ export class PreferenceServer extends UARTServer {
   }
   onDisconnected() {
     this.startAdvertising({
-      advertisingData: { flags: 6, completeName: this.deviceName, completeUUID128List: [SERVICE_UUID] },
+      advertisingData: {
+        flags: 6,
+        completeName: this.deviceName,
+        completeUUID128List: [SERVICE_UUID],
+      },
     })
     this.#handleDisconnected?.()
   }
@@ -59,7 +63,7 @@ export class PreferenceServer extends UARTServer {
   }
   onRX(data) {
     this.#rxBuffer += String.fromArrayBuffer(data)
-    trace(this.#rxBuffer + '\n')
+    trace(`${this.#rxBuffer}\n`)
     let _batch, prop, value
     try {
       const obj = JSON.parse(this.#rxBuffer)
@@ -105,8 +109,8 @@ export class PreferenceServer extends UARTServer {
         JSON.stringify({
           prop,
           value,
-        })
-      )
+        }),
+      ),
     )
   }
 

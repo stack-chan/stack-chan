@@ -7,7 +7,7 @@ function onRobotCreated(robot) {
     {
       hostName: 'stackchan',
     },
-    function (message, value) {
+    (message, value) => {
       switch (message) {
         case 1:
           if (value !== '') {
@@ -31,15 +31,15 @@ function onRobotCreated(robot) {
           if (message < 0) trace('MDNS - failed to claim, give up\n')
           break
       }
-    }
+    },
   )
   Timer.repeat(() => {
-    let yaw = robot.pose.body.rotation.y
-    let pitch = robot.pose.body.rotation.p
+    const yaw = robot.pose.body.rotation.y
+    const pitch = robot.pose.body.rotation.p
     if (initialized && mdns.services.length > 0) {
-      let service = mdns.services[0]
-      service.txt['yaw'] = yaw
-      service.txt['pitch'] = pitch
+      const service = mdns.services[0]
+      service.txt.yaw = yaw
+      service.txt.pitch = pitch
       mdns.update(service)
     }
   }, 100)

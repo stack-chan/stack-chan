@@ -1,5 +1,5 @@
-import parseBMF from 'commodetto/parseBMF'
-import { type FaceDecoratorFactory } from 'renderer-base'
+import type parseBMF from 'commodetto/parseBMF'
+import type { FaceDecoratorFactory } from 'renderer-base'
 import { Outline } from 'commodetto/outline'
 
 export const createBalloonDecorator: FaceDecoratorFactory<
@@ -129,7 +129,7 @@ export const createHeartDecorator: FaceDecoratorFactory<{
         .scale(scale * xScale, scale * yScale)
         .rotate(angle),
       x,
-      y
+      y,
     )
     poco.end()
   }
@@ -175,7 +175,7 @@ export const createAngryDecorator: FaceDecoratorFactory<{
         .scale(scale * xScale, scale * yScale)
         .rotate(angle),
       x,
-      y
+      y,
     )
     poco.end()
   }
@@ -222,7 +222,7 @@ export const createPaleDecorator: FaceDecoratorFactory<{
         .scale(xScale, yScale)
         .translate(0, offsetY),
       x,
-      y
+      y,
     )
     poco.end()
   }

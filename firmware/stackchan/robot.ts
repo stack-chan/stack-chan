@@ -1,8 +1,8 @@
 import Timer from 'timer'
-import { Vector3, Pose, Rotation, Maybe, noop, randomBetween } from 'stackchan-util'
-import { type FaceContext, type Emotion, createFaceContext, FaceDecorator } from 'renderer-base'
-import Digital from 'embedded:io/digital'
-import Touch from 'touch'
+import { Vector3, type Pose, Rotation, type Maybe, noop, randomBetween } from 'stackchan-util'
+import { type FaceContext, type Emotion, createFaceContext, type FaceDecorator } from 'renderer-base'
+import type Digital from 'embedded:io/digital'
+import type Touch from 'touch'
 import { createBalloonDecorator } from 'decorator'
 import { DEFAULT_FONT } from 'consts'
 import Resource from 'Resource'
@@ -45,7 +45,7 @@ export type Button = {
 }
 
 const buttonNames = ['a', 'b', 'c'] as const
-type ButtonName = typeof buttonNames[number]
+type ButtonName = (typeof buttonNames)[number]
 
 /**
  * The constructor parameters of the robot.
@@ -267,7 +267,7 @@ export class Robot {
       right: 20,
       top: 10,
       width: 80,
-    }
+    },
   ) {
     if (this.#balloon != null) {
       this.hideBalloon()
@@ -421,10 +421,13 @@ export class Robot {
         const time = randomBetween(0.5, 1.0)
         await this.#driver.setTorque(true)
         await this.#driver.applyRotation(Rotation.fromVector3(this.#gazePoint), time)
-        Timer.set(async () => {
-          await this.#driver.setTorque(false)
-          this.#isMoving = false
-        }, time * 1000 + 50)
+        Timer.set(
+          async () => {
+            await this.#driver.setTorque(false)
+            this.#isMoving = false
+          },
+          time * 1000 + 50,
+        )
       }
     }
     this.updating = false

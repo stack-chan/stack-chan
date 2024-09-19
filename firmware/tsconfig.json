@@ -85,5 +85,8 @@
     "./stackchan/**/*",
     "./mods/**/*",
     "./tests/**/*"
+  ],
+  "exclude": [
+    "stackchan/speeches/calculate-power.js"
   ]
 }

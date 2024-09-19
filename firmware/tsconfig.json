@@ -63,13 +63,16 @@
         "./node_modules/@moddable/typings/embedded_network/dns/resolver/*",
       ],
       "default-mods/mod": [
-        "/Users/satoshi/Projects/stack-chan/firmware/stackchan/default-mods/mod"
+        "./stackchan/default-mods/mod"
       ],
       "default-mods/on-launch": [
-        "/Users/satoshi/Projects/stack-chan/firmware/stackchan/default-mods/on-launch"
+        "./stackchan/default-mods/on-launch"
+      ],
+      "calculate-power": [
+        "./typings/calculate-power"
       ],
       "default-mods/on-robot-created": [
-        "/Users/satoshi/Projects/stack-chan/firmware/stackchan/default-mods/on-robot-created"
+        "./stackchan/default-mods/on-robot-created"
       ]
     },
     "types": [

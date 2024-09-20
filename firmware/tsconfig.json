@@ -1,0 +1,92 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "baseUrl": "./",
+    "forceConsistentCasingInFileNames": true,
+    "module": "es2022",
+    "lib": [
+      "es2022"
+    ],
+    "outDir": "dist",
+    "sourceMap": true,
+    "target": "ES2022",
+    "paths": {
+      "*": [
+        "./node_modules/@moddable/typings/*",
+        "./typings/*",
+        "./extern/scservo/src/*",
+        "./extern/rs30x/src/*",
+        "./stackchan/*",
+        "./stackchan/ble/*",
+        "./stackchan/default-mods/*",
+        "./stackchan/dialogues/*",
+        "./stackchan/drivers/*",
+        "./stackchan/renderers/*",
+        "./stackchan/services/*",
+        "./stackchan/speeches/*",
+        "./stackchan/utilities/*"
+      ],
+      "commodetto/*": [
+        "./node_modules/@moddable/typings/commodetto/*",
+      ],
+      "dns/*": [
+        "./node_modules/@moddable/typings/dns/*",
+      ],
+      "mc/*": [
+        "./node_modules/@moddable/typings/mc/*",
+      ],
+      "pins/*": [
+        "./node_modules/@moddable/typings/pins/*",
+      ],
+      "piu/*": [
+        "./node_modules/@moddable/typings/piu/*",
+      ],
+      "text/*": [
+        "./node_modules/@moddable/typings/text/*",
+      ],
+      "embedded:provider/*": [
+        "./node_modules/@moddable/typings/embedded_provider/*",
+      ],
+      "embedded:io/*": [
+        "./node_modules/@moddable/typings/embedded_io/*",
+      ],
+      "embedded:io/socket/*": [
+        "./node_modules/@moddable/typings/embedded_io/socket/*",
+      ],
+      "embedded:network/http/*": [
+        "./node_modules/@moddable/typings/embedded_network/http/*",
+      ],
+      "embedded:network/mqtt/*": [
+        "./node_modules/@moddable/typings/embedded_network/mqtt/*",
+      ],
+      "embedded:network/dns/resolver/*": [
+        "./node_modules/@moddable/typings/embedded_network/dns/resolver/*",
+      ],
+      "default-mods/mod": [
+        "./stackchan/default-mods/mod"
+      ],
+      "default-mods/on-launch": [
+        "./stackchan/default-mods/on-launch"
+      ],
+      "calculate-power": [
+        "./typings/calculate-power"
+      ],
+      "default-mods/on-robot-created": [
+        "./stackchan/default-mods/on-robot-created"
+      ]
+    },
+    "types": [
+      "./node_modules/@moddable/typings/xs",
+      "./node_modules/@moddable/typings/mcpack",
+      "./node_modules/@moddable/typings/easing"
+    ]
+  },
+  "include": [
+    "./stackchan/**/*",
+    "./mods/**/*",
+    "./tests/**/*"
+  ],
+  "exclude": [
+    "stackchan/speeches/calculate-power.js"
+  ]
+}

@@ -19,10 +19,16 @@
     "./manifest_typings.json"
   ],
   "modules": {
-    "*": ["./touch", "./robot", "./main", "$(MODULES)/network/http/*"],
+    "*": [
+      "./touch",
+      "./robot",
+      "./tone",
+      "./main",
+      "$(MODULES)/network/http/*"
+    ],
     "default-mods/*": "./default-mods/*"
   },
-  "preload": ["robot", "touch"],
+  "preload": ["robot", "touch", "tone"],
   "strip": [],
   "creation": {
     "static": 110592,

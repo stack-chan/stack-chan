@@ -23,7 +23,7 @@ export type TTSProperty = {
 }
 
 export class TTS {
-  audio: AudioOut
+  audio?: AudioOut
   onPlayed?: (number) => void
   onDone?: () => void
   client: HTTPClient
@@ -32,23 +32,20 @@ export class TTS {
   streaming: boolean
   file: File
   speakerId: number
+  sampleRate: number
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({
-      streams: 1,
-      bitsPerSample: 16,
-      sampleRate: props.sampleRate ?? 11025,
-    })
     this.speakerId = props.speakerId ?? 1
     this.host = props.host
     this.port = props.port
+    this.sampleRate = props.sampleRate ?? 11025
   }
   async getQuery(text: string, speakerId = 1): Promise<void> {
     return new Promise((resolve, reject) => {
       File.delete(QUERY_PATH)
       const file = new File(QUERY_PATH, true)
-      const sampleRate = this.audio?.sampleRate ?? 11025
+      const sampleRate = this.sampleRate
       const client = new device.network.http.io({
         ...device.network.http,
         host: this.host,
@@ -101,10 +98,11 @@ export class TTS {
     } catch (error) {
       throw new Error(error)
     }
-    const { onPlayed, onDone, audio } = this
+    const { onPlayed, onDone } = this
     const file = new File(QUERY_PATH)
     trace(`file opened. length: ${file.length}, position: ${file.position}`)
     return new Promise((resolve, reject) => {
+      const audio = (this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate }))
       const streamer = new WavStreamer({
         http: device.network.http,
         host,
@@ -148,6 +146,8 @@ export class TTS {
           trace('DONE\n')
           this.streaming = false
           streamer?.close()
+          this.audio.close()
+          this.audio = undefined
           onDone?.()
           resolve()
         },

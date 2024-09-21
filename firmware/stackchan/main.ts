@@ -19,6 +19,7 @@ import { Renderer as SimpleRenderer } from 'simple-face'
 import { Renderer as DogFaceRenderer } from 'dog-face'
 import { NetworkService } from 'network-service'
 import Touch from 'touch'
+import Tone from 'tone'
 import { loadPreferences, asyncWait } from 'stackchan-util'
 
 function createRobot() {
@@ -79,12 +80,14 @@ function createRobot() {
   const tts = new TTS(ttsPrefs)
   const button = globalThis.button
   const touch = !global.screen.touch && config.Touch ? new Touch() : undefined
+  const tone = new Tone()
   return new Robot({
     driver,
     renderer,
     tts,
     button,
     touch,
+    tone,
   })
 }
 

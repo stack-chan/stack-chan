@@ -16,30 +16,28 @@ export type TTSProperty = {
 }
 
 export class TTS {
-  streamer?: WavStreamer
   audio?: AudioOut
   onPlayed?: (number) => void
   onDone?: () => void
   host: string
   port: number
+  sampleRate: number
   streaming: boolean
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({
-      streams: 1,
-      sampleRate: props.sampleRate ?? 24000,
-    })
     this.host = props.host
     this.port = props.port
+    this.sampleRate = props.sampleRate ?? 24000
   }
   async stream(key: string): Promise<void> {
     if (this.streaming) {
       throw new Error('already playing')
     }
     this.streaming = true
-    const { onPlayed, onDone, audio } = this
+    const { onPlayed, onDone } = this
     return new Promise((resolve, reject) => {
+      const audio = (this.audio = new AudioOut({ streams: 1, sampleRate: this.sampleRate }))
       const streamer = new WavStreamer({
         http: device.network.http,
         host: this.host,
@@ -71,6 +69,8 @@ export class TTS {
           trace('DONE\n')
           this.streaming = false
           streamer?.close()
+          this.audio?.close()
+          this.audio = undefined
           onDone?.()
           resolve()
         },

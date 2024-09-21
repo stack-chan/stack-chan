@@ -18,20 +18,16 @@ export type TTSProperty = {
 }
 
 export class TTS {
-  audio: AudioOut
+  audio?: AudioOut
   onPlayed?: (number) => void
   onDone?: () => void
   token: string
   streaming: boolean
   speakerId: number
+  sampleRate?: number
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({
-      streams: 1,
-      bitsPerSample: 16,
-      sampleRate: props.sampleRate ?? 22050,
-    })
     this.speakerId = props.speakerId ?? 1
     this.token = props.token
   }
@@ -64,9 +60,10 @@ export class TTS {
       throw new Error(`getQuery failed: ${error}`)
     })
     const url = new URL(streamUrl)
-    const { onPlayed, onDone, audio } = this
+    const { onPlayed, onDone } = this
 
     return new Promise((resolve, reject) => {
+      const audio = (this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate ?? 22050 }))
       const streamer = new MP3Streamer({
         http: device.network.https,
         host: url.host,
@@ -97,6 +94,8 @@ export class TTS {
           trace('DONE\n')
           this.streaming = false
           streamer?.close()
+          this.audio?.close()
+          this.audio = undefined
           onDone?.()
           resolve()
         },

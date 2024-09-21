@@ -12,31 +12,30 @@ export type TTSProperty = {
 }
 
 export class TTS {
-  streamer?: ResourceStreamer
   audio?: AudioOut
   onPlayed?: (number) => void
   onDone?: () => void
+  streaming: boolean
+  sampleRate: number
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
-    this.audio = new AudioOut({
-      streams: 1,
-      sampleRate: props.sampleRate ?? 11025,
-    })
+    this.sampleRate = props.sampleRate ?? 11025
   }
   async stream(key: string): Promise<void> {
+    if (this.streaming) {
+      throw new Error('already playing')
+    }
+    this.streaming = true
+    const { onPlayed, onDone } = this
     return new Promise((resolve, reject) => {
-      if (this.streamer != null) {
-        reject(new Error('already playing'))
-        return
-      }
-      const sampleRate = this.audio.sampleRate ?? 11025
-      this.streamer = new ResourceStreamer({
+      const audio = (this.audio = new AudioOut({ streams: 1, sampleRate: this.sampleRate }))
+      const streamer = new ResourceStreamer({
         path: `${key}.maud`,
         audio: {
-          out: this.audio,
+          out: audio,
           stream: 0,
-          sampleRate,
+          sampleRate: this.sampleRate,
         },
         onPlayed: (buffer) => {
           const power = calculatePower(buffer)
@@ -45,21 +44,23 @@ export class TTS {
         onReady(this: ResourceStreamer, state) {
           trace(`Ready: ${state}\n`)
           if (state) {
-            this.audio.start()
+            audio.start()
           } else {
-            this.audio.stop()
+            audio.stop()
           }
         },
         onError: (e) => {
           trace('ERROR: ', e, '\n')
-          this.streamer = undefined
-          reject(new Error('unknown error occured'))
+          this.streaming = false
+          reject(e)
         },
         onDone: () => {
           trace('DONE\n')
-          this.streamer?.close()
-          this.streamer = undefined
-          this.onDone?.()
+          this.streaming = false
+          streamer?.close()
+          this.audio?.close()
+          this.audio = undefined
+          onDone?.()
           resolve()
         },
       })

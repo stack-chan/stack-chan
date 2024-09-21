@@ -52,7 +52,8 @@ export class TTS {
 
     const { onPlayed, onDone } = this
     return new Promise((resolve, reject) => {
-      const audio = (this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 44100 }))
+      this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 44100 })
+      const audio = this.audio
       const streamer = new ElevenLabsStreamer({
         key: this.token,
         voice: this.voice,

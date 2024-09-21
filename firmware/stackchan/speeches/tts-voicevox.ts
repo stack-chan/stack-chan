@@ -102,7 +102,8 @@ export class TTS {
     const file = new File(QUERY_PATH)
     trace(`file opened. length: ${file.length}, position: ${file.position}`)
     return new Promise((resolve, reject) => {
-      const audio = (this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate }))
+      this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate })
+      const audio = this.audio
       const streamer = new WavStreamer({
         http: device.network.http,
         host,

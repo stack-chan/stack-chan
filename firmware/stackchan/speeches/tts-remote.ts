@@ -37,7 +37,8 @@ export class TTS {
     this.streaming = true
     const { onPlayed, onDone } = this
     return new Promise((resolve, reject) => {
-      const audio = (this.audio = new AudioOut({ streams: 1, sampleRate: this.sampleRate }))
+      this.audio = new AudioOut({ streams: 1, sampleRate: this.sampleRate })
+      const audio = this.audio
       const streamer = new WavStreamer({
         http: device.network.http,
         host: this.host,

@@ -1,7 +1,6 @@
 import AudioOut from 'pins/audioout'
 
 export default class Tone {
-  constructor() {}
   async tone(hz: number, duration: number): Promise<void> {
     const audio = new AudioOut({
       streams: 1,

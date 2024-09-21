@@ -28,6 +28,7 @@ export class TTS {
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
+    this.streaming = false
     this.speakerId = props.speakerId ?? 1
     this.token = props.token
   }

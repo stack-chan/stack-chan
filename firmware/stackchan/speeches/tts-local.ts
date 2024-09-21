@@ -20,6 +20,7 @@ export class TTS {
   constructor(props: TTSProperty) {
     this.onPlayed = props.onPlayed
     this.onDone = props.onDone
+    this.streaming = false
     this.sampleRate = props.sampleRate ?? 11025
   }
   async stream(key: string): Promise<void> {

@@ -55,20 +55,17 @@ type ChatGPTDialogueProps = {
 }
 
 export class ChatGPTDialogue {
+  #apiKey
   #model: string
   #context: Array<ChatContent>
-  #headers: Headers
   #history: Array<ChatContent>
   #maxHistory: number
   constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: ChatGPTDialogueProps) {
+    this.#apiKey = apiKey
     this.#model = model
     this.#context = context
     this.#history = []
     this.#maxHistory = 6
-    this.#headers = new Headers([
-      ['Content-Type', 'application/json'],
-      ['Authorization', `Bearer ${apiKey}`],
-    ])
   }
   clear() {
     this.#history.splice(0)
@@ -109,7 +106,10 @@ export class ChatGPTDialogue {
     }
     return fetch(API_URL, {
       method: 'POST',
-      headers: this.#headers,
+      headers: new Headers([
+        ['Content-Type', 'application/json'],
+        ['Authorization', `Bearer ${this.#apiKey}`],
+      ]),
       body: JSON.stringify(body),
     })
       .then((response) => {

@@ -77,7 +77,7 @@ You can open the project in a container with the following commands
 ### Manual
 
 Follow the instructions on the [official website (English)](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/Moddable%20SDK%20-%20Getting%20Started.md) to install ModdableSDK and ESP-IDF.
-If you cannot setup CLI or Docker properly, please do this.
+If you cannot set up the CLI or Docker properly, please use this manual method.
 
 ## (Optional)Updating ModdableSDK
 

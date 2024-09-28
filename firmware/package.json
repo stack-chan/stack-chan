@@ -18,6 +18,7 @@
     "debug": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target ./stackchan/manifest_local.json",
     "mod": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcrun -d -m -p $npm_config_target",
     "setup": "xs-dev setup",
+	"update": "xs-dev update",
     "doctor": "echo stack-chan environment info: && git rev-parse HEAD && git rev-parse --show-toplevel && xs-dev doctor",
     "scan": "xs-dev scan",
     "erase-flash": "esptool.py erase_flash"

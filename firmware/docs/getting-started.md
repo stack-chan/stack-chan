@@ -29,7 +29,7 @@ Install [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/ge
 There are three ways to do this
 
 - Using the CLI (recommended)
-- Using a Docker image
+<!-- - Using a Docker image -->
 - Set up manually
 
 ### Using xs-dev (recommended)
@@ -44,6 +44,7 @@ $ npm run setup -- --device=esp32
 
 The script internally uses [`xs-dev`](https://github.com/HipsterBrown/xs-dev) to automate the setup of ModdableSDK and ESP-IDF.
 
+<!-- 
 ### Using Docker images (for Linux only)
 
 This repository provides a Dockerfile build environment.
@@ -71,10 +72,30 @@ You can open the project in a container with the following commands
 * Open the command palette (ctrl+shift+p)
 * Run `>Remote-Containers: Reopen in Container`
 
+ -->
+ 
 ### Manual
 
 Follow the instructions on the [official website (English)](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/Moddable%20SDK%20-%20Getting%20Started.md) to install ModdableSDK and ESP-IDF.
 If you cannot setup CLI or Docker properly, please do this.
+
+## (Optional)Updating ModdableSDK
+
+With the update of this repository, it may be necessary to update the ModdableSDK to add new features or resolve bugs.
+
+### Using xs-dev (recommended)
+
+Stack-Chan has also npm scripting of the update procedure.
+Run the following command in the `stack-chan/firmware` directory.
+
+```console
+$ npm run update
+$ npm run update -- --device=esp32
+```
+
+### Manual
+
+Follow the instructions on the [official website (English)](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/Moddable%20SDK%20-%20Getting%20Started.md) to update ModdableSDK and ESP-IDF.
 
 ## Test the environment
 

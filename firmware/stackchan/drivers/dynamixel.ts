@@ -451,7 +451,7 @@ class Dynamixel {
    */
   async readFirmwareVersion(): Promise<Maybe<{ version: number }>> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.VERSION_OF_FIRMWARE, 1)
-    if (values != null && values[1] == 0) {
+    if (values != null && values[1] === 0) {
       return {
         success: true,
         value: {
@@ -487,7 +487,7 @@ class Dynamixel {
   async readPresentCurrent(): Promise<Maybe<{ current: number }>> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_CURRENT, 2)
     if (values != null) {
-      if (values[1] != 0) {
+      if (values[1] !== 0) {
         return {
           success: false,
           reason: `servo returned error code: ${values[1]}`,
@@ -515,7 +515,7 @@ class Dynamixel {
   async readPresentVelocity(): Promise<Maybe<number>> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_VELOCITY, 4)
     if (values != null) {
-      if (values[1] != 0) {
+      if (values[1] !== 0) {
         return {
           success: false,
           reason: `servo returned error code: ${values[1]}`,
@@ -540,7 +540,7 @@ class Dynamixel {
   async readPresentPosition(): Promise<Maybe<number>> {
     const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_POSITION, 4)
     if (values != null) {
-      if (values[1] != 0) {
+      if (values[1] !== 0) {
         return {
           success: false,
           reason: `servo returned error code: ${values[1]}`,

@@ -116,7 +116,7 @@ export class PreferenceServer extends UARTServer {
 
   receiveAndSetPreference(domain, key, value) {
     const currentValue = Preference.get(domain, key)
-    if (currentValue != value) {
+    if (currentValue !== value) {
       trace(`changing preference ... ${domain}.${key}: ${value}\n`)
       Preference.set(domain, key, value)
       const pref = `${domain}.${key}`

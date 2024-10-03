@@ -41,7 +41,7 @@ export class TTS {
       encodeURI(`https://api.tts.quest/v3/voicevox/synthesis?key=${this.token}&text=${text}&speaker=${speakerId}`),
     )
       .then((response) => {
-        if (response.status != 200) {
+        if (response.status !== 200) {
           throw new Error(`response error:${response.status}`)
         }
         return response.json()

@@ -84,7 +84,7 @@ export class GeminiDialogue {
       .filter((c) => c.role !== 'system')
       .map((c) => ({
         parts: [{ text: c.content }],
-        role: c.role == 'assistant' ? 'model' : 'user',
+        role: c.role === 'assistant' ? 'model' : 'user',
       }))
     this.#apiKey = apiKey
     this.#history = []

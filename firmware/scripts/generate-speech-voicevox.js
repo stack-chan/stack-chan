@@ -91,7 +91,7 @@ async function generateSpeech(options) {
   // import speechs list
   const { speeches } = await import(`file://${options.input}`)
   // The text to synthesize
-  for (let [key, text] of Object.entries(speeches)) {
+  for (const [key, text] of Object.entries(speeches)) {
     const speech = await getSpeech(text,options)
     console.log(`write ${key}.wav`)
     writeFile(`${options.output}/${key}.wav`, Buffer.from(speech))

@@ -27,7 +27,7 @@ const VOICE_OPTIONS = {
 const client = new textToSpeech.TextToSpeechClient()
 async function quickStart(options) {
   // The text to synthesize
-  for (let [key, voice] of Object.entries(speeches)) {
+  for (const [key, voice] of Object.entries(speeches)) {
     const text = voice
     const filePath = `${options.output}/${key}.wav`
     // Construct the request

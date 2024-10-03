@@ -18,17 +18,17 @@ async function download(url, path, options) {
 //  let count = 0
     console.log(`url: ${url}`)
     http.get(url, (res) => {
-      let data = []
+      const data = []
       res.on('data',(d) => {
         data.push(d)
 //      console.log(`Downloading (${count++})`)
       })
       res.on('close',() => {
-        let rawData = Buffer.concat(data)
+        const rawData = Buffer.concat(data)
         console.log(`Downloaded`)
         const context = new AudioContext()
         context.decodeAudioData(rawData).then((audioBuffer) => {
-          if (options.shift != 1){
+          if (options.shift !== 1){
             shiftPitch(audioBuffer, options.shift)
             const source = context.createBufferSource()
             source.buffer = audioBuffer
@@ -66,7 +66,7 @@ async function download(url, path, options) {
 
 // generate speeches
 async function generate(options) {
-  for (let [key, text] of Object.entries(speeches)) {
+  for (const [key, text] of Object.entries(speeches)) {
     const file = `${options.output}/${key}.wav`
     if (fs.existsSync(file)) {
       fs.unlinkSync(file, (err) => {

@@ -22,8 +22,7 @@
 		"rules": {
 			"recommended": true,
 			"complexity": {
-				"noUselessConstructor":"off",
-				"noForEach":"off"
+				"noUselessConstructor":"off"
 			},
 				"correctness": {
 				"noSwitchDeclarations":"off"

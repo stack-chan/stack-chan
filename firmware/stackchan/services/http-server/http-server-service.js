@@ -47,7 +47,9 @@ class Response {
     this.#body = body
     const headers = new Headers()
     if (options.headers) {
-      Object.entries(options.headers).forEach(([key, value]) => headers.set(key, value))
+      for (const [key, value] of Object.entries(option.headers)) {
+        headers.set(key, value)
+      }
     }
 
     if (headers.get('content-length') == undefined) {

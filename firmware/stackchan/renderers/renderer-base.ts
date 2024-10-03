@@ -164,9 +164,9 @@ export class Layer {
   render(tick: number, poco: PocoPrototype, face: FaceContext) {
     const path = new Outline.CanvasPath()
     const color = poco.makeColor(...face.theme[this.#colorName])
-    this.#renderers.forEach((render) => {
+    for (const render of this.#renderers.values()) {
       render(tick, path, face)
-    })
+    }
     const outline =
       this.#type === 'fill'
         ? Outline.fill(path).translate(0, face.breath * 3)
@@ -197,7 +197,9 @@ export class RendererBase {
   }
   update(interval = INTERVAL, faceContext: Readonly<FaceContext> = defaultFaceContext): void {
     copyFaceContext(faceContext, this.currentContext)
-    this.filters.forEach((filter) => filter(interval, this.currentContext))
+    for (const filter of this.filters) {
+      filter(interval, this.currentContext)
+    }
 
     const poco = this._poco
     const shouldClear = !deepEqual(this.currentContext.theme, this.lastContext.theme)

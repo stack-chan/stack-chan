@@ -21,10 +21,7 @@
 		"enabled": true,
 		"rules": {
 			"recommended": true,
-			"complexity": {
-				"noUselessConstructor":"off"
-			},
-				"correctness": {
+			"correctness": {
 				"noSwitchDeclarations":"off"
 			},
 			"suspicious": {

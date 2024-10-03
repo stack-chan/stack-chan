@@ -54,7 +54,7 @@ async function quickStart(options) {
     /* postprocess */
     // TODO: integrate with coqui-tts version
     const audioBuffer = await context.decodeAudioData(response.audioContent)
-    if (options.shift != 1){
+    if (options.shift !== 1){
       shiftPitch(audioBuffer, options.shift)
     }
     const source = context.createBufferSource()
@@ -89,7 +89,7 @@ if (input){
   console.log('cwd   :'+process.cwd())
   console.log(`input :${input}`)
   options.input= path.resolve(input)
-  if (input != options.input){
+  if (input !== options.input){
     console.log(`      (${options.input})`)
   }
 } else {
@@ -110,7 +110,7 @@ const output = argv.output
 if (output) {
   options.output = path.resolve(output)
   console.log(`output:${output}`)
-  if (output != options.output){
+  if (output !== options.output){
     console.log(`      (${options.output})`)
   }
 } else {
@@ -134,7 +134,7 @@ options.speed = argv.speed
 options.pitch = argv.pitch
 
 options.lang = "JA"
-if (path.basename(options.input,".js").slice(-3) == "_en"){
+if (path.basename(options.input,".js").slice(-3) === "_en"){
   options.lang="EN"
 }
 if (argv.lang) options.lang = argv.lang

@@ -104,7 +104,7 @@ if (input){
   console.log('cwd   :'+process.cwd())
   console.log(`input :${input}`)
   options.input= path.resolve(input)
-  if (input != options.input){
+  if (input !== options.input){
     console.log(`      (${options.input})`)
   }
 } else {
@@ -125,7 +125,7 @@ const output = argv.output
 if (output) {
   options.output = path.resolve(output)
   console.log(`output:${output}`)
-  if (output != options.output){
+  if (output !== options.output){
     console.log(`      (${options.output})`)
   }
 } else {

@@ -26,7 +26,7 @@ async function getSpeech(speechText, options) {
   const sampleRate = options?.sampleRate ?? 11025
   const speakerName = await getSpeakerName(speakerId,options)
   console.log(`${speakerName}  Text:${speechText}`)
-  if (speechText?.length == 0) {
+  if (speechText?.length === 0) {
     throw new Error("speechText required")
   }
   console.log(`http://${host}:${port}/audio_query?text=${speechText}&speaker=${speakerId}`)
@@ -74,8 +74,8 @@ async function getSpeakerName(speakerId,options) {
     let result = ''
     json.forEach(speaker => {
       speaker.styles.forEach(style=>{
-        if ((typeof speakerId) == 'number' ){
-          if (speakerId == style.id){
+        if ((typeof speakerId) === 'number' ){
+          if (speakerId === style.id){
             result = `${speaker.name}(${style.name}) SpeakerId:${style.id}`
           }
         } else {
@@ -124,7 +124,7 @@ async function main() {
     console.log('cwd   :'+process.cwd())
     console.log(`input :${input}`)
     options.input= path.resolve(input)
-    if (input != options.input){
+    if (input !== options.input){
       console.log(`      (${options.input})`)
     }
   } else {
@@ -145,7 +145,7 @@ async function main() {
   if (output) {
     options.output = path.resolve(output)
     console.log(`output:${output}`)
-    if (output != options.output){
+    if (output !== options.output){
       console.log(`      (${options.output})`)
     }
   } else {

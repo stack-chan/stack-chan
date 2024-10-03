@@ -52,7 +52,7 @@ class Response {
       }
     }
 
-    if (headers.get('content-length') == undefined) {
+    if (headers.get('content-length') === undefined) {
       headers.set('content-length', body.byteLength)
     }
     this.#headers = headers

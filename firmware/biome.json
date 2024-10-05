@@ -31,7 +31,6 @@
         "noAssignInExpressions": "off"
       },
       "style": {
-        "useDefaultParameterLast": "off",
         "useNodejsImportProtocol": "off"
       }
     }

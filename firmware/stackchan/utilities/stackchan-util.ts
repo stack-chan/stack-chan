@@ -206,30 +206,30 @@ export type Maybe<T> =
     }
 
 function hslAuxiliary(v1, v2, hueFraction) {
-  hueFraction = (hueFraction + 1) % 1
-  if (6 * hueFraction < 1) return v1 + (v2 - v1) * 6 * hueFraction
-  if (2 * hueFraction < 1) return v2
-  if (3 * hueFraction < 2) return v1 + (v2 - v1) * (2.0 / 3 - hueFraction) * 6
+  const frac = (hueFraction + 1) % 1
+  if (6 * frac < 1) return v1 + (v2 - v1) * 6 * frac
+  if (2 * frac < 1) return v2
+  if (3 * frac < 2) return v1 + (v2 - v1) * (2.0 / 3 - frac) * 6
   return v1
 }
 
-export function hslToRgb(hue, saturation, lightness) {
+export function hslToRgb(h, s, l) {
   const MAX_COLOR_VALUE = 255
   const FULL_CIRCLE_DEGREES = 360
   const ONE_THIRD = 1.0 / 3
-  saturation = Math.min(Math.max(saturation, 0), 1)
-  lightness = Math.min(Math.max(lightness, 0), 1)
+  const sat = Math.min(Math.max(s, 0), 1)
+  const lit = Math.min(Math.max(l, 0), 1)
 
-  if (saturation === 0) {
-    const gray = lightness * MAX_COLOR_VALUE
+  if (sat === 0) {
+    const gray = lit * MAX_COLOR_VALUE
     return [gray, gray, gray]
   }
-  hue = hue % FULL_CIRCLE_DEGREES
+  let hue = h % FULL_CIRCLE_DEGREES
   if (hue < 0) hue += FULL_CIRCLE_DEGREES
   hue /= FULL_CIRCLE_DEGREES
 
-  const temp2 = lightness < 0.5 ? lightness * (1 + saturation) : lightness + saturation - lightness * saturation
-  const temp1 = 2 * lightness - temp2
+  const temp2 = lit < 0.5 ? lit * (1 + sat) : lit + sat - lit * sat
+  const temp1 = 2 * lit - temp2
 
   return [
     MAX_COLOR_VALUE * hslAuxiliary(temp1, temp2, hue + ONE_THIRD),

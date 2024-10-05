@@ -93,8 +93,9 @@ class PacketHandler extends Serial {
   #id: number
   #count: number
   constructor(option) {
-    const onReadable = function (this: PacketHandler, bytes: number) {
+    const onReadable = function (this: PacketHandler, bytesReadable: number) {
       const rxBuf = this.#rxBuffer
+      let bytes = bytesReadable
       while (bytes > 0) {
         // NOTE: We can safely read a number
         rxBuf[this.#idx++] = this.read() as number
@@ -177,8 +178,7 @@ class PacketHandler extends Serial {
  * @param arr - packet array except checksum
  * @returns checksum number
  */
-function checksum(arr: number[] | Uint8Array, start = 0, end): number {
-  end = end ?? arr.length
+function checksum(arr: number[] | Uint8Array, start = 0, end = arr.length): number {
   let crc16 = 0
   for (let i = start; i < end; i++) {
     const n = arr[i]
@@ -399,10 +399,7 @@ class Dynamixel {
    * @param angle - offset angle
    */
   async setOffsetAngle(angle: number): Promise<unknown> {
-    if (angle < 0) {
-      angle *= -1
-    }
-    const value = (angle * 360) / 4096
+    const value = (Math.abs(angle) * 360) / 4096
     return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.HOMING_OFFSET, ...le(value))
   }
 

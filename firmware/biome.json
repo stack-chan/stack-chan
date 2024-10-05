@@ -32,7 +32,6 @@
         "noAssignInExpressions": "off"
       },
       "style": {
-        "noParameterAssign": "off",
         "useDefaultParameterLast": "off",
         "useNodejsImportProtocol": "off",
         "useExponentiationOperator": "off",

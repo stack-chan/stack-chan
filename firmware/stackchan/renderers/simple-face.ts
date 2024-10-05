@@ -16,8 +16,8 @@ export const createEyelidPart: FacePartFactory<{
     const h = height * (1 - eye.open)
     const x = cx - width / 2
     const y = cy - height / 2
-    let h1
-    let h2
+    let h1: number
+    let h2: number
     switch (emotion) {
       case 'ANGRY':
       case 'SAD':

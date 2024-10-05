@@ -17,7 +17,7 @@ type Status = {
 }
 
 async function waitForKey(): Promise<boolean> {
-  let isPressed
+  let isPressed: () => boolean
   if (config.Touch) {
     const touch = new config.Touch()
     touch.points = [{}]
@@ -97,7 +97,7 @@ export const onLaunch: StackchanMod['onLaunch'] = async () => {
     keys: PREF_KEYS,
   })
 
-  let networkService
+  let networkService: NetworkService
   if (globalThis.button) {
     globalThis.button.a.onChanged = () => {
       if (status['wifi.ssid'].length > 0 && status['wifi.password'].length > 0) {

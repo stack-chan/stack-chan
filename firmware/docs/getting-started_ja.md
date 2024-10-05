@@ -29,7 +29,7 @@ $ npm i
 次の3通りの方法があります。
 
 - CLIを使う（推奨）
-- Dockerイメージを使う
+<!-- - Dockerイメージを使う -->
 - 手動でセットアップする
 
 ### xs-devを使う（推奨）
@@ -44,6 +44,7 @@ $ npm run setup -- --device=esp32
 
 内部で[`xs-dev`](https://github.com/HipsterBrown/xs-dev)を使ってModdableSDKやESP-IDFのセットアップを自動化しています。
 
+<!-- Dockerイメージがメンテされてないため一時的コメントアウトする(https://github.com/stack-chan/stack-chan/issues/239)
 ### Dockerイメージを使う（Linuxのみ）
 
 このリポジトリはDockerfileによるビルド環境を提供しています。
@@ -70,11 +71,30 @@ VSCodeのDevContainer用設定を同梱しています。
 
 * コマンドパレットを開く(ctrl+shift+p)
 * `>Remote-Containers: Reopen in Container`を実行する
+ -->
 
 ### 手動で行う
 
 [公式サイトの手順（英語）](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/Moddable%20SDK%20-%20Getting%20Started.md)に従ってModdableSDKとESP-IDFをインストールします。
 CLIやDockerがうまくセットアップできない場合はこちらを行ってください。
+
+## (オプション)ModdableSDKのアップデート
+
+本リポジトリの更新に伴う機能追加や不具合解消のため、ModdableSDKのアップデートが必要となる場合があります。
+
+### xs-devを使う（推奨）
+
+ｽﾀｯｸﾁｬﾝはアップデート手順もnpmスクリプト化しています。
+`stack-chan/firmware`ディレクトリで次のコマンドを実行します。
+
+```console
+$ npm run update
+$ npm run update -- --device=esp32
+```
+
+### 手動で行う
+
+[公式サイトの手順（英語）](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/Moddable%20SDK%20-%20Getting%20Started.md)に従ってModdableSDKとESP-IDFをアップデートします。
 
 ## 環境のテスト
 

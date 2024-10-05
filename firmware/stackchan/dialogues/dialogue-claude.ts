@@ -128,6 +128,8 @@ export class ClaudeDialogue {
     }
     return fetch(API_URL, {
       method: 'POST',
+      // TODO: https://github.com/Moddable-OpenSource/moddable/pull/1420
+      // @ts-ignore
       headers: this.#headers,
       body: JSON.stringify(body),
     })

@@ -133,6 +133,8 @@ export class GeminiDialogue {
     }
     return fetch(`${API_URL_BASE}${this.#model}:generateContent?key=${this.#apiKey}`, {
       method: 'POST',
+      // TODO: https://github.com/Moddable-OpenSource/moddable/pull/1420
+      // @ts-ignore
       headers: this.#headers,
       body: JSON.stringify(body),
     })

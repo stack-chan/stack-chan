@@ -28,7 +28,6 @@
       "suspicious": {
         "noExplicitAny": "off",
         "noImplicitAnyLet": "off",
-        "noConfusingVoidType": "off",
         "noAssignInExpressions": "off"
       },
       "style": {

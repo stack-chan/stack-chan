@@ -34,9 +34,8 @@ export function normRand(m: number, s: number): number {
   const c = Math.sqrt(-2 * Math.log(a))
   if (0.5 - Math.random() > 0) {
     return c * Math.sin(Math.PI * 2 * b) * s + m
-  } else {
-    return c * Math.cos(Math.PI * 2 * b) * s + m
   }
+  return c * Math.cos(Math.PI * 2 * b) * s + m
 }
 
 export function randomBetween(min: number, max: number): number {
@@ -224,18 +223,17 @@ export function hslToRgb(hue, saturation, lightness) {
   if (saturation === 0) {
     const gray = lightness * MAX_COLOR_VALUE
     return [gray, gray, gray]
-  } else {
-    hue = hue % FULL_CIRCLE_DEGREES
-    if (hue < 0) hue += FULL_CIRCLE_DEGREES
-    hue /= FULL_CIRCLE_DEGREES
-
-    const temp2 = lightness < 0.5 ? lightness * (1 + saturation) : lightness + saturation - lightness * saturation
-    const temp1 = 2 * lightness - temp2
-
-    return [
-      MAX_COLOR_VALUE * hslAuxiliary(temp1, temp2, hue + ONE_THIRD),
-      MAX_COLOR_VALUE * hslAuxiliary(temp1, temp2, hue),
-      MAX_COLOR_VALUE * hslAuxiliary(temp1, temp2, hue - ONE_THIRD),
-    ]
   }
+  hue = hue % FULL_CIRCLE_DEGREES
+  if (hue < 0) hue += FULL_CIRCLE_DEGREES
+  hue /= FULL_CIRCLE_DEGREES
+
+  const temp2 = lightness < 0.5 ? lightness * (1 + saturation) : lightness + saturation - lightness * saturation
+  const temp1 = 2 * lightness - temp2
+
+  return [
+    MAX_COLOR_VALUE * hslAuxiliary(temp1, temp2, hue + ONE_THIRD),
+    MAX_COLOR_VALUE * hslAuxiliary(temp1, temp2, hue),
+    MAX_COLOR_VALUE * hslAuxiliary(temp1, temp2, hue - ONE_THIRD),
+  ]
 }

@@ -92,9 +92,8 @@ export class ChatGPTDialogue {
           success: true,
           value: response.content,
         }
-      } else {
-        return { success: false, reason: 'Invalid response format' }
       }
+      return { success: false, reason: 'Invalid response format' }
     } catch (error) {
       return { success: false, reason: error.message || 'Unknown error' }
     }

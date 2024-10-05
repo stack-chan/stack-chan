@@ -458,11 +458,10 @@ class Dynamixel {
           version: values[2],
         },
       }
-    } else {
-      return {
-        success: false,
-        reason: 'failed to read firmware version',
-      }
+    }
+    return {
+      success: false,
+      reason: 'failed to read firmware version',
     }
   }
 
@@ -500,10 +499,9 @@ class Dynamixel {
           current: current >= 0x8000 ? current - 0x10000 : current,
         },
       }
-    } else {
-      return {
-        success: false,
-      }
+    }
+    return {
+      success: false,
     }
   }
 
@@ -526,10 +524,9 @@ class Dynamixel {
         success: true,
         value: velocity >= 0x8000 ? velocity - 0x10000 : velocity,
       }
-    } else {
-      return {
-        success: false,
-      }
+    }
+    return {
+      success: false,
     }
   }
 
@@ -551,10 +548,9 @@ class Dynamixel {
         success: true,
         value: position >= 0x8000 ? position - 0x10000 : position,
       }
-    } else {
-      return {
-        success: false,
-      }
+    }
+    return {
+      success: false,
     }
   }
 }

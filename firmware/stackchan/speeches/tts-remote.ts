@@ -2,6 +2,7 @@
 import AudioOut from 'pins/audioout'
 import WavStreamer from 'wavstreamer'
 import calculatePower from 'calculate-power'
+import type HTTPClient from 'embedded:network/http/client'
 
 /* global trace, SharedArrayBuffer */
 declare const device: {

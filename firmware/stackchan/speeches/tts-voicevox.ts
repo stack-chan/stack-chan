@@ -64,6 +64,8 @@ export class TTS {
       client.request({
         method: 'POST',
         path: encodeURI(`/audio_query?text=${text}&speaker=${speakerId}`),
+        // TODO: https://github.com/Moddable-OpenSource/moddable/pull/1420
+        // @ts-ignore
         headers: new Headers([['Content-Type', 'application/x-www-form-urlencoded']]),
         onHeaders(status) {
           if (status !== 200) {

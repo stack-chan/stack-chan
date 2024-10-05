@@ -64,7 +64,9 @@ export class PreferenceServer extends UARTServer {
   onRX(data) {
     this.#rxBuffer += String.fromArrayBuffer(data)
     trace(`${this.#rxBuffer}\n`)
-    let _batch, prop, value
+    let _batch
+    let prop
+    let value
     try {
       const obj = JSON.parse(this.#rxBuffer)
       _batch = obj._batch

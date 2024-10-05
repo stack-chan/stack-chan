@@ -32,8 +32,7 @@
       },
       "style": {
         "useDefaultParameterLast": "off",
-        "useNodejsImportProtocol": "off",
-        "useSingleVarDeclarator": "off"
+        "useNodejsImportProtocol": "off"
       }
     }
   },

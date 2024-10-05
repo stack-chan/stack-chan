@@ -88,9 +88,21 @@ function PitchShift(
   /* float[*/ sampleRate,
   /* float[] */ indata,
 ) {
-  /* double */ let magn, phase, tmp, window, real, imag
-  /* double */ let freqPerBin, expct
-  /* long */ let i, k, qpd, index, inFifoLatency, stepSize, fftFrameSize2
+  /* double */ let magn
+  /* double */ let phase
+  /* double */ let tmp
+  /* double */ let window
+  /* double */ let real
+  /* double */ let imag
+  /* double */ let freqPerBin
+  /* double */ let expct
+  /* long */ let i
+  /* long */ let k
+  /* long */ let qpd
+  /* long */ let index
+  /* long */ let inFifoLatency
+  /* long */ let stepSize
+  /* long */ let fftFrameSize2
 
   const MAX_FRAME_LENGTH = 16000
   const gInFIFO = new Array(MAX_FRAME_LENGTH).fill(0.0)
@@ -240,9 +252,20 @@ function PitchShift(
 }
 
 function ShortTimeFourierTransform(/* float[] */ fftBuffer, /* long */ fftFrameSize, /* long */ sign) {
-  /* float */ let wr, wi, arg, temp
-  /* float */ let tr, ti, ur, ui
-  /* long */ let i, bitm, j, le, le2, k
+  /* float */ let wr
+  /* float */ let wi
+  /* float */ let arg
+  /* float */ let temp
+  /* float */ let tr
+  /* float */ let ti
+  /* float */ let ur
+  /* float */ let ui
+  /* long */ let i
+  /* long */ let bitm
+  /* long */ let j
+  /* long */ let le
+  /* long */ let le2
+  /* long */ let k
 
   for (i = 2; i < 2 * fftFrameSize - 2; i += 2) {
     for (bitm = 2, j = 0; bitm < 2 * fftFrameSize; bitm <<= 1) {

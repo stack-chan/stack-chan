@@ -5,7 +5,7 @@ function linearInEaseOut(fraction: number): number {
   if (fraction < 0.25) {
     return 1 - fraction * 4
   }
-  return (Math.pow(fraction - 0.25, 2) * 16) / 9
+  return ((fraction - 0.25) ** 2 * 16) / 9
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

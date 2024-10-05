@@ -154,7 +154,7 @@ export const Rotation = Object.freeze({
      * @returns the corresponding Rotation value.
      */
     const yaw = Math.atan2(v[1], v[0])
-    const pitch = -Math.atan2(v[2], Math.sqrt(Math.pow(v[0], 2) + Math.pow(v[0], 2)))
+    const pitch = -Math.atan2(v[2], Math.sqrt(v[0] ** 2 + v[0] ** 2))
     return {
       y: yaw,
       p: pitch,

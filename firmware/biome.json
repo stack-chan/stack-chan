@@ -27,8 +27,7 @@
       },
       "suspicious": {
         "noExplicitAny": "off",
-        "noImplicitAnyLet": "off",
-        "noAssignInExpressions": "off"
+        "noImplicitAnyLet": "off"
       },
       "style": {
         "useNodejsImportProtocol": "off"

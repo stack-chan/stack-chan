@@ -72,7 +72,6 @@ export class GeminiDialogue {
   #model: string
   #context: Array<Content>
   #system: Content
-  #headers: Headers
   #history: Array<Content>
   #maxHistory: number
   constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: GeminiDialogueProps) {
@@ -89,7 +88,6 @@ export class GeminiDialogue {
     this.#apiKey = apiKey
     this.#history = []
     this.#maxHistory = 6
-    this.#headers = new Headers([['Content-Type', 'application/json']])
   }
   clear() {
     this.#history.splice(0)
@@ -134,7 +132,7 @@ export class GeminiDialogue {
     }
     return fetch(`${API_URL_BASE}${this.#model}:generateContent?key=${this.#apiKey}`, {
       method: 'POST',
-      headers: this.#headers,
+      headers: new Headers([['Content-Type', 'application/json']]),
       body: JSON.stringify(body),
     })
       .then((response) => {

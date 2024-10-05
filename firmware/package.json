@@ -16,7 +16,7 @@
     "bundle": "mcbundle -d -m ./stackchan/manifest.json",
     "deploy": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target -t deploy ./stackchan/manifest_local.json",
     "debug": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target ./stackchan/manifest_local.json",
-    "mod": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcrun -d -m -p $npm_config_target",
+    "mod": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcrun -d -m -p \\$npm_config_target",
     "setup": "xs-dev setup",
     "update": "xs-dev update",
     "doctor": "echo stack-chan environment info: && git rev-parse HEAD && git rev-parse --show-toplevel && xs-dev doctor",

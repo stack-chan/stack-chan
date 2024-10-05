@@ -25,9 +25,6 @@
       "correctness": {
         "noSwitchDeclarations": "off"
       },
-      "suspicious": {
-        "noExplicitAny": "off"
-      },
       "style": {
         "useNodejsImportProtocol": "off"
       }

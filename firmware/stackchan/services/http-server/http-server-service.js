@@ -43,7 +43,7 @@ class Response {
     this.#body = body instanceof ArrayBuffer ? body : ArrayBuffer.fromString(body.toString())
     const headers = new Headers()
     if (options.headers) {
-      for (const [key, value] of Object.entries(option.headers)) {
+      for (const [key, value] of Object.entries(options.headers)) {
         headers.set(key, value)
       }
     }

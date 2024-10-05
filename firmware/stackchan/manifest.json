@@ -112,17 +112,26 @@
     },
     "mac/m5stack": {
       "config": {
-        "rotation": 0
+        "rotation": 0,
+        "driver": {
+          "type": "none"
+        }
       }
     },
     "lin/m5stack": {
       "config": {
-        "rotation": 0
+        "rotation": 0,
+        "driver": {
+          "type": "none"
+        }
       }
     },
     "win/m5stack": {
       "config": {
-        "rotation": 0
+        "rotation": 0,
+        "driver": {
+          "type": "none"
+        }
       }
     }
   }

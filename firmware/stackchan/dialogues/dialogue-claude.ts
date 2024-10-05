@@ -60,13 +60,14 @@ type ClaudeDialogueProps = {
 }
 
 export class ClaudeDialogue {
+  #apiKey: string
   #model: string
   #context: Array<ChatContent>
   #system: string
-  #headers: Headers
   #history: Array<ChatContent>
   #maxHistory: number
   constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT }: ClaudeDialogueProps) {
+    this.#apiKey = apiKey
     this.#model = model
     this.#system = context
       .filter((c) => c.role === 'system')
@@ -82,11 +83,6 @@ export class ClaudeDialogue {
     }
     this.#history = []
     this.#maxHistory = 6
-    this.#headers = new Headers([
-      ['Content-Type', 'application/json'],
-      ['x-api-key', `${apiKey}`],
-      ['anthropic-version', '2023-06-01'],
-    ])
   }
   clear() {
     this.#history.splice(0)
@@ -129,7 +125,11 @@ export class ClaudeDialogue {
     }
     return fetch(API_URL, {
       method: 'POST',
-      headers: this.#headers,
+      headers: new Headers([
+        ['Content-Type', 'application/json'],
+        ['x-api-key', `${this.#apiKey}`],
+        ['anthropic-version', '2023-06-01'],
+      ]),
       body: JSON.stringify(body),
     })
       .then((response) => {

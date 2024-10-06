@@ -143,8 +143,8 @@ async function main() {
     onRobotCreated = mod.onRobotCreated ?? onRobotCreated
     onLaunch = mod.onLaunch ?? onLaunch
   }
-  const shouldRobotCreate = await onLaunch?.()
-  if (shouldRobotCreate !== false) {
+  const shouldRobotCreate = await (onLaunch?.() ?? true)
+  if (shouldRobotCreate) {
     const robot = createRobot()
     await onRobotCreated?.(robot, globalThis.device)
   }

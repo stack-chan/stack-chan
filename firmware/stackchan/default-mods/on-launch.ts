@@ -50,7 +50,7 @@ async function waitForKey(): Promise<boolean> {
 export const onLaunch: StackchanMod['onLaunch'] = async () => {
   const shouldEnter = await waitForKey()
   if (!shouldEnter) {
-    return
+    return true
   }
   const render = new Poco(screen, {
     rotation: config.rotation,

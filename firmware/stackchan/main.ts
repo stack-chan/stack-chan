@@ -94,9 +94,14 @@ function createRobot() {
   const tts = new TTS(ttsPrefs)
   const button = globalThis.button
 
-  // TODO(@meganetaaan): screen.touch does not exist under Commodetto context. Is it necessary?
-  // @ts-ignore
-  const touch = !screen?.touch && config.Touch ? new Touch() : undefined
+  // TODO(@meganetaaan): screen.touch does not exist under Commodetto context. Is this check necessary?
+  interface GlobalEnvironment {
+    screen?: {
+      touch?: unknown
+    }
+  } 
+  const globalEnv = globalThis as unknown as GlobalEnvironment;  
+  const touch = !globalEnv.screen?.touch && config.Touch ? new Touch() : undefined;  
   return new Robot({
     driver,
     renderer,

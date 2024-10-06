@@ -99,9 +99,9 @@ function createRobot() {
     screen?: {
       touch?: unknown
     }
-  } 
-  const globalEnv = globalThis as unknown as GlobalEnvironment;  
-  const touch = !globalEnv.screen?.touch && config.Touch ? new Touch() : undefined;  
+  }
+  const globalEnv = globalThis as unknown as GlobalEnvironment
+  const touch = !globalEnv.screen?.touch && config.Touch ? new Touch() : undefined
   return new Robot({
     driver,
     renderer,

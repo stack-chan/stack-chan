@@ -4,7 +4,7 @@ import type { Robot } from 'robot'
 
 export interface StackchanMod {
   onLaunch?: () => Promise<undefined | boolean> | undefined | boolean
-  onRobotCreated?: (robot: Robot, option?: unknown) => Promise<void> | void
+  onRobotCreated?: (robot: Robot, option?: unknown) => Promise<undefined> | void
 }
 
 export default {

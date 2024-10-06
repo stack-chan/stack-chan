@@ -7,7 +7,6 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/manifest_net.json",
     "$(MODULES)/base/modules/manifest.json",
-    "$(MODULES)/base/easing/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
     "./drivers/manifest_driver.json",
     "./ble/manifest_ble.json",

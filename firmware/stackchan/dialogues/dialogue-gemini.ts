@@ -83,7 +83,7 @@ export class GeminiDialogue {
       .filter((c) => c.role !== 'system')
       .map((c) => ({
         parts: [{ text: c.content }],
-        role: c.role == 'assistant' ? 'model' : 'user',
+        role: c.role === 'assistant' ? 'model' : 'user',
       }))
     this.#apiKey = apiKey
     this.#history = []
@@ -115,9 +115,8 @@ export class GeminiDialogue {
           success: true,
           value: response.parts[0]?.text,
         }
-      } else {
-        return { success: false, reason: 'Invalid response format' }
       }
+      return { success: false, reason: 'Invalid response format' }
     } catch (error) {
       return { success: false, reason: error.message || 'Unknown error' }
     }

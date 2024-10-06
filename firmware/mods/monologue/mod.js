@@ -7,7 +7,7 @@ const keys = Object.keys(speeches)
 async function sayMonologue(robot) {
   const idx = Math.floor(randomBetween(0, keys.length))
   const key = keys[idx]
-  await robot.say(config.tts.type == 'local' ? key : speeches[key])
+  await robot.say(config.tts.type === 'local' ? key : speeches[key])
 }
 
 function onRobotCreated(robot) {

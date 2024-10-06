@@ -4,9 +4,9 @@
   "description": "A firmware of M5Stack Stack-chan module",
   "main": "stackchan/main.ts",
   "scripts": {
-    "format": "biome format stackchan mods tests",
+    "format": "biome format",
     "format:fix": "npm run format -- --write",
-    "lint": "biome lint stackchan mods tests",
+    "lint": "biome lint",
     "lint:fix": "npm run lint -- --write",
     "generate-speech-coqui": "node scripts/generate-speech-coqui.js",
     "generate-speech-voicevox": "node scripts/generate-speech-voicevox.js",

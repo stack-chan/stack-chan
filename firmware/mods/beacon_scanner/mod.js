@@ -22,7 +22,7 @@ class Scanner extends BLEClient {
   }
   onDiscovered(device) {
     const manufacturerSpecific = device.scanResponse.manufacturerSpecific
-    if (!manufacturerSpecific || COMPANY_ID != manufacturerSpecific.identifier) {
+    if (!manufacturerSpecific || COMPANY_ID !== manufacturerSpecific.identifier) {
       return
     }
     const { success, reason, value: dataPacket } = BeaconDataPacket.parse(manufacturerSpecific.data)

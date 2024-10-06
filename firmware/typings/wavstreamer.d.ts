@@ -1,6 +1,6 @@
 declare module "wavstreamer" {
   import type AudioOut from "pins/audioout"
-  import HTTPClient from "embedded:network/http/client";
+  import type HTTPClient from "embedded:network/http/client";
   type WavStreamerOptions = {
     http: typeof HTTPClient.constructor
     host: string,

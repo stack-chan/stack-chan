@@ -1,6 +1,6 @@
 declare module "mp3streamer" {
   import type AudioOut from "pins/audioout"
-  import HTTPClient from "embedded:network/http/client";
+  import type HTTPClient from "embedded:network/http/client";
   type MP3StreamerOptions = {
     http: typeof HTTPClient.constructor
     host: string,

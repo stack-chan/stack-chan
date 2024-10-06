@@ -41,7 +41,7 @@ const audioCtx = new AudioContext()
 
 export default function shiftPitch(audioBuffer, shiftAmount) {
   /* monoral */
-  var in_data_l = audioBuffer.getChannelData(0)
+  let in_data_l = audioBuffer.getChannelData(0)
   in_data_l = PitchShift(shiftAmount, in_data_l.length, 1024, 10, audioCtx.sampleRate, in_data_l)
   audioBuffer.copyToChannel(in_data_l, 0)
 }
@@ -86,33 +86,45 @@ function PitchShift(
   /* long */ fftFrameSize,
   /* long */ osamp,
   /* float[*/ sampleRate,
-  /* float[] */ indata
+  /* float[] */ indata,
 ) {
-  /* double */ var magn, phase, tmp, window, real, imag
-  /* double */ var freqPerBin, expct
-  /* long */ var i, k, qpd, index, inFifoLatency, stepSize, fftFrameSize2
+  /* double */ let magn
+  /* double */ let phase
+  /* double */ let tmp
+  /* double */ let window
+  /* double */ let real
+  /* double */ let imag
+  /* double */ let freqPerBin
+  /* double */ let expct
+  /* long */ let i
+  /* long */ let k
+  /* long */ let qpd
+  /* long */ let index
+  /* long */ let inFifoLatency
+  /* long */ let stepSize
+  /* long */ let fftFrameSize2
 
   const MAX_FRAME_LENGTH = 16000
-  var gInFIFO = new Array(MAX_FRAME_LENGTH).fill(0.0)
-  var gOutFIFO = new Array(MAX_FRAME_LENGTH).fill(0.0)
-  var gFFTworksp = new Array(2 * MAX_FRAME_LENGTH).fill(0.0)
-  var gLastPhase = new Array(MAX_FRAME_LENGTH / 2 + 1).fill(0.0)
-  var gSumPhase = new Array(MAX_FRAME_LENGTH / 2 + 1).fill(0.0)
-  var gOutputAccum = new Array(2 * MAX_FRAME_LENGTH).fill(0.0)
-  var gAnaFreq = new Array(MAX_FRAME_LENGTH).fill(0.0)
-  var gAnaMagn = new Array(MAX_FRAME_LENGTH).fill(0.0)
-  var gSynFreq = new Array(MAX_FRAME_LENGTH).fill(0.0)
-  var gSynMagn = new Array(MAX_FRAME_LENGTH).fill(0.0)
-  var gRover = 0
+  const gInFIFO = new Array(MAX_FRAME_LENGTH).fill(0.0)
+  const gOutFIFO = new Array(MAX_FRAME_LENGTH).fill(0.0)
+  const gFFTworksp = new Array(2 * MAX_FRAME_LENGTH).fill(0.0)
+  const gLastPhase = new Array(MAX_FRAME_LENGTH / 2 + 1).fill(0.0)
+  const gSumPhase = new Array(MAX_FRAME_LENGTH / 2 + 1).fill(0.0)
+  const gOutputAccum = new Array(2 * MAX_FRAME_LENGTH).fill(0.0)
+  const gAnaFreq = new Array(MAX_FRAME_LENGTH).fill(0.0)
+  const gAnaMagn = new Array(MAX_FRAME_LENGTH).fill(0.0)
+  const gSynFreq = new Array(MAX_FRAME_LENGTH).fill(0.0)
+  const gSynMagn = new Array(MAX_FRAME_LENGTH).fill(0.0)
+  let gRover = 0
 
-  /* float[] */ var outdata = indata
+  /* float[] */ const outdata = indata
   /* set up some handy variables */
   fftFrameSize2 = Math.trunc(fftFrameSize / 2)
   stepSize = Math.trunc(fftFrameSize / osamp)
   freqPerBin = sampleRate / /* (double) */ fftFrameSize
   expct = (2.0 * Math.PI * /* (double) */ stepSize) / /* (double) */ fftFrameSize
   inFifoLatency = Math.trunc(fftFrameSize - stepSize)
-  if (gRover == 0) gRover = inFifoLatency
+  if (gRover === 0) gRover = inFifoLatency
 
   /* main processing loop */
   for (i = 0; i < numSampsToProcess; i++) {
@@ -172,7 +184,7 @@ function PitchShift(
 
       /* ***************** PROCESSING ******************* */
       /* this does the actual pitch shifting */
-      for (var zero = 0; zero < fftFrameSize; zero++) {
+      for (let zero = 0; zero < fftFrameSize; zero++) {
         gSynMagn[zero] = 0
         gSynFreq[zero] = 0
       }
@@ -240,13 +252,24 @@ function PitchShift(
 }
 
 function ShortTimeFourierTransform(/* float[] */ fftBuffer, /* long */ fftFrameSize, /* long */ sign) {
-  /* float */ var wr, wi, arg, temp
-  /* float */ var tr, ti, ur, ui
-  /* long */ var i, bitm, j, le, le2, k
+  /* float */ let wr
+  /* float */ let wi
+  /* float */ let arg
+  /* float */ let temp
+  /* float */ let tr
+  /* float */ let ti
+  /* float */ let ur
+  /* float */ let ui
+  /* long */ let i
+  /* long */ let bitm
+  /* long */ let j
+  /* long */ let le
+  /* long */ let le2
+  /* long */ let k
 
   for (i = 2; i < 2 * fftFrameSize - 2; i += 2) {
     for (bitm = 2, j = 0; bitm < 2 * fftFrameSize; bitm <<= 1) {
-      if ((i & bitm) != 0) j++
+      if ((i & bitm) !== 0) j++
       j <<= 1
     }
     if (i < j) {
@@ -258,7 +281,7 @@ function ShortTimeFourierTransform(/* float[] */ fftBuffer, /* long */ fftFrameS
       fftBuffer[j + 1] = temp
     }
   }
-  /* long */ var max = /* (long) */ Math.trunc(Math.log(fftFrameSize) / Math.log(2.0) + 0.5)
+  /* long */ const max = /* (long) */ Math.trunc(Math.log(fftFrameSize) / Math.log(2.0) + 0.5)
   for (k = 0, le = 2; k < max; k++) {
     le <<= 1
     le2 = le >> 1

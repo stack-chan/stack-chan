@@ -6,9 +6,10 @@ import Timer from 'timer'
 import Resource from 'Resource'
 import parseBMF from 'commodetto/parseBMF'
 import structuredClone from 'structuredClone'
+import config from 'mc/config'
 
 const font = parseBMF(new Resource('NotoSansJP-Regular-24.bf4'))
-const poco = new Poco(screen, { rotation: 90, displayListLength: 1024 })
+const poco = new Poco(screen, { rotation: config.rotation, displayListLength: 1024 })
 const renderer = new Renderer({ poco })
 type Color = [number, number, number]
 const black: Color = [0, 0, 0]

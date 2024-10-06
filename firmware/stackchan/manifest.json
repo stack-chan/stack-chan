@@ -51,8 +51,7 @@
     "serial": {
       "transmit": 17,
       "receive": 16
-    },
-    "rotation": 90
+    }
   },
   "resources": {
     "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"]
@@ -79,8 +78,7 @@
         "serial": {
           "transmit": 14,
           "receive": 13
-        },
-        "rotation": 0
+        }
       }
     },
     "esp32/m5stack_cores3": {
@@ -99,13 +97,11 @@
           "transmit": 17,
           "receive": 18
         },
-        "rotation": 0,
         "virtualButton": true
       }
     },
     "mac/m5stack": {
       "config": {
-        "rotation": 0,
         "driver": {
           "type": "none"
         }
@@ -113,7 +109,6 @@
     },
     "lin/m5stack": {
       "config": {
-        "rotation": 0,
         "driver": {
           "type": "none"
         }
@@ -121,7 +116,6 @@
     },
     "win/m5stack": {
       "config": {
-        "rotation": 0,
         "driver": {
           "type": "none"
         }

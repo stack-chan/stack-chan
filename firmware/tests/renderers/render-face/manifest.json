@@ -6,8 +6,5 @@
   ],
   "modules": {
     "*": ["./main"]
-  },
-  "config": {
-    "rotation": 90
   }
 }

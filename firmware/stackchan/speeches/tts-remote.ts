@@ -74,7 +74,7 @@ export class TTS {
           trace('ERROR: ', e, '\n')
           this.streaming = false
           streamer?.close()
-          this.audio.close()
+          this.audio?.close()
           this.audio = undefined
           reject(e)
         },

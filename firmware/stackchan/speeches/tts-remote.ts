@@ -2,10 +2,18 @@
 import AudioOut from 'pins/audioout'
 import WavStreamer from 'wavstreamer'
 import calculatePower from 'calculate-power'
+import type HTTPClient from 'embedded:network/http/client'
 
 /* global trace, SharedArrayBuffer */
-
-declare const device: any
+declare const device: {
+  network: {
+    http: typeof HTTPClient.constructor & {
+      io: typeof HTTPClient
+      socket: unknown
+      dns: unknown
+    }
+  }
+}
 
 export type TTSProperty = {
   onPlayed?: (number) => void

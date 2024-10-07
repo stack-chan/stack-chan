@@ -4,18 +4,16 @@ import { randomBetween, normRand, quantize } from 'stackchan-util'
 function linearInEaseOut(fraction: number): number {
   if (fraction < 0.25) {
     return 1 - fraction * 4
-  } else {
-    return (Math.pow(fraction - 0.25, 2) * 16) / 9
   }
+  return ((fraction - 0.25) ** 2 * 16) / 9
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function linearInLinearOut(fraction: number): number {
   if (fraction < 0.5) {
     return 1 - fraction * 2
-  } else {
-    return fraction * 2 - 1
   }
+  return fraction * 2 - 1
 }
 
 export const createBlinkModifier: FaceModifierFactory<{

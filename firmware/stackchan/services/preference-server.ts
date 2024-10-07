@@ -3,6 +3,8 @@ import Preference from 'preference'
 import type { PREF_KEYS } from 'consts'
 import Timer from 'timer'
 
+type PreferenceValue = string | boolean | number | ArrayBuffer
+
 type PreferenceServerProps = {
   onPreferenceChanged?: (key: string, value: ReturnType<(typeof Preference)['get']>) => void
   onConnected?: () => void
@@ -14,7 +16,7 @@ export class PreferenceServer extends UARTServer {
   #keys
   #rxBuffer = ''
   #timeout
-  #handlePreferenceChanged?: (key: string, value: ArrayBuffer) => void
+  #handlePreferenceChanged?: (key: string, value: PreferenceValue) => void
   #handleConnected?: () => void
   #handleDisconnected?: () => void
   constructor(option: PreferenceServerProps) {
@@ -64,7 +66,9 @@ export class PreferenceServer extends UARTServer {
   onRX(data) {
     this.#rxBuffer += String.fromArrayBuffer(data)
     trace(`${this.#rxBuffer}\n`)
-    let _batch, prop, value
+    let _batch: object
+    let prop: string
+    let value: PreferenceValue
     try {
       const obj = JSON.parse(this.#rxBuffer)
       _batch = obj._batch
@@ -114,9 +118,9 @@ export class PreferenceServer extends UARTServer {
     )
   }
 
-  receiveAndSetPreference(domain, key, value) {
+  receiveAndSetPreference(domain: string, key: string, value: PreferenceValue) {
     const currentValue = Preference.get(domain, key)
-    if (currentValue != value) {
+    if (currentValue !== value) {
       trace(`changing preference ... ${domain}.${key}: ${value}\n`)
       Preference.set(domain, key, value)
       const pref = `${domain}.${key}`

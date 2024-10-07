@@ -84,10 +84,9 @@ export class NetworkService {
         if (this.#retry > MAX_SCANS) {
           trace(`Access point "${this.#ssid}" not found\n`)
           return
-        } else {
-          trace('retrying\n')
-          this.scanAndConnect(onConnected, onError)
         }
+        trace('retrying\n')
+        this.scanAndConnect(onConnected, onError)
       }
     })
   }

@@ -1,5 +1,3 @@
-declare const global: any
-
 import config from 'mc/config'
 import Modules from 'modules'
 import { Robot, type Driver, type TTS, type Renderer } from 'robot'
@@ -21,6 +19,23 @@ import { NetworkService } from 'network-service'
 import Touch from 'touch'
 import Tone from 'tone'
 import { loadPreferences, asyncWait } from 'stackchan-util'
+
+// wrapper button class for simulator
+class SimButton {
+  #button
+  onChanged
+  constructor(button) {
+    const self = this
+    this.#button = new button({
+      onPush() {
+        self.onChanged?.()
+      },
+    })
+  }
+  read() {
+    return this.#button.read() ?? 1
+  }
+}
 
 function createRobot() {
   const drivers = new Map<string, new (param: unknown) => Driver>([
@@ -79,7 +94,15 @@ function createRobot() {
   const renderer = new Renderer(rendererPrefs)
   const tts = new TTS(ttsPrefs)
   const button = globalThis.button
-  const touch = !global.screen.touch && config.Touch ? new Touch() : undefined
+
+  // TODO(@meganetaaan): screen.touch does not exist under Commodetto context. Is this check necessary?
+  interface GlobalEnvironment {
+    screen?: {
+      touch?: unknown
+    }
+  }
+  const globalEnv = globalThis as unknown as GlobalEnvironment
+  const touch = !globalEnv.screen?.touch && config.Touch ? new Touch() : undefined
   const tone = new Tone()
   return new Robot({
     driver,
@@ -96,7 +119,7 @@ async function checkAndConnectWiFi() {
   if (wifiPrefs.ssid == null || wifiPrefs.password == null) {
     return
   }
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     globalThis.network = new NetworkService({
       ssid: wifiPrefs.ssid,
       password: wifiPrefs.password,
@@ -107,22 +130,6 @@ async function checkAndConnectWiFi() {
 
 async function main() {
   if (globalThis.Host?.Button && !globalThis.button) {
-    // wrapper button class for simulator
-    class SimButton {
-      #button
-      onChanged
-      constructor(button) {
-        const self = this
-        this.#button = new button({
-          onPush() {
-            self.onChanged?.()
-          },
-        })
-      }
-      read() {
-        return this.#button.read() ?? 1
-      }
-    }
     globalThis.button = {
       a: new SimButton(globalThis.Host.Button.a),
       b: new SimButton(globalThis.Host.Button.b),
@@ -139,8 +146,8 @@ async function main() {
     onRobotCreated = mod.onRobotCreated ?? onRobotCreated
     onLaunch = mod.onLaunch ?? onLaunch
   }
-  const shouldRobotCreate = await onLaunch?.()
-  if (shouldRobotCreate !== false) {
+  const shouldRobotCreate = await (onLaunch?.() ?? true)
+  if (shouldRobotCreate) {
     const robot = createRobot()
     await onRobotCreated?.(robot, globalThis.device)
   }

@@ -4,10 +4,18 @@ import MP3Streamer from 'mp3streamer'
 import calculatePower from 'calculate-power'
 import { fetch } from 'fetch'
 import { URL } from 'url'
+import type HTTPClient from 'embedded:network/http/client'
 
 /* global trace, SharedArrayBuffer */
-
-declare const device: any
+declare const device: {
+  network: {
+    https: typeof HTTPClient.constructor & {
+      io: typeof HTTPClient
+      socket: unknown
+      dns: unknown
+    }
+  }
+}
 
 export type TTSProperty = {
   onPlayed?: (number) => void
@@ -38,7 +46,7 @@ export class TTS {
       encodeURI(`https://api.tts.quest/v3/voicevox/synthesis?key=${this.token}&text=${text}&speaker=${speakerId}`),
     )
       .then((response) => {
-        if (response.status != 200) {
+        if (response.status !== 200) {
           throw new Error(`response error:${response.status}`)
         }
         return response.json()

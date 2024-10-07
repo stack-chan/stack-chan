@@ -40,17 +40,15 @@ class Response {
   #headers
   #status = 200
   constructor(body, options) {
-    if (!(body instanceof ArrayBuffer)) {
-      body = body.toString()
-      body = ArrayBuffer.fromString(body)
-    }
-    this.#body = body
+    this.#body = body instanceof ArrayBuffer ? body : ArrayBuffer.fromString(body.toString())
     const headers = new Headers()
     if (options.headers) {
-      Object.entries(options.headers).forEach(([key, value]) => headers.set(key, value))
+      for (const [key, value] of Object.entries(options.headers)) {
+        headers.set(key, value)
+      }
     }
 
-    if (headers.get('content-length') == undefined) {
+    if (headers.get('content-length') === undefined) {
       headers.set('content-length', body.byteLength)
     }
     this.#headers = headers

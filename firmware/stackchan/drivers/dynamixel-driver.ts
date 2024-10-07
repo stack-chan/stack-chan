@@ -39,13 +39,15 @@ class PControl {
       await this.servo.setGoalPosition(this.goalPosition)
       this._lastGoalPosition = this.goalPosition
     }
+
     const result = await this.servo.readPresentPosition()
     if (!result.success) {
       trace(`${this.name} ... failed to update\n`)
       return
     }
-    const position = (this.presentPosition = result.value)
-    const current = Math.min(Math.abs(this.goalPosition - position) * this.gain, this.saturation)
+    this.presentPosition = result.value
+
+    const current = Math.min(Math.abs(this.goalPosition - this.presentPosition) * this.gain, this.saturation)
     // trace(`servo ${this.name} ... (${position}, ${this.goalPosition}, ${this.gain}, ${this.saturation}, ${current})\n`)
     await this.servo.setGoalCurrent(current)
   }

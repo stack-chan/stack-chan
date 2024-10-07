@@ -10,8 +10,15 @@ import config from 'mc/config'
 const QUERY_PATH = `${config.file.root}query.json`
 
 /* global trace, SharedArrayBuffer */
-
-declare const device: any
+declare const device: {
+  network: {
+    http: typeof HTTPClient.constructor & {
+      io: typeof HTTPClient
+      socket: unknown
+      dns: unknown
+    }
+  }
+}
 
 export type TTSProperty = {
   onPlayed?: (number) => void
@@ -55,6 +62,8 @@ export class TTS {
       client.request({
         method: 'POST',
         path: encodeURI(`/audio_query?text=${text}&speaker=${speakerId}`),
+        // TODO: https://github.com/Moddable-OpenSource/moddable/pull/1420
+        // @ts-ignore
         headers: new Headers([['Content-Type', 'application/x-www-form-urlencoded']]),
         onHeaders(status) {
           if (status !== 200) {

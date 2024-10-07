@@ -35,7 +35,7 @@ export class SCServoDriver {
   }
   async getRotation(): Promise<Maybe<Rotation>> {
     const [p1, p2] = await Promise.allSettled([this._pan.readStatus(), this._tilt.readStatus()])
-    if (p1.status != 'fulfilled' || p2.status != 'fulfilled') {
+    if (p1.status !== 'fulfilled' || p2.status !== 'fulfilled') {
       return
     }
     if (!p1.value.success || !p2.value.success) {

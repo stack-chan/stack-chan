@@ -3,6 +3,7 @@ import { Vector3, type Pose, Rotation, type Maybe, noop, randomBetween } from 's
 import { type FaceContext, type Emotion, createFaceContext, type FaceDecorator } from 'renderer-base'
 import type Digital from 'embedded:io/digital'
 import type Touch from 'touch'
+import type Tone from 'tone'
 import { createBalloonDecorator } from 'decorator'
 import { DEFAULT_FONT } from 'consts'
 import Resource from 'Resource'
@@ -63,6 +64,7 @@ type RobotConstructorParam<T extends string> = {
     }
   }
   touch?: Touch
+  tone?: Tone
 }
 
 const LEFT_RIGHT = Object.freeze(['left', 'right'])
@@ -85,6 +87,7 @@ export class Robot {
   #driver: Driver
   #button: { [key in ButtonName]: Button }
   #touch: Touch
+  #tone: Tone
   #isMoving: boolean
   #renderer: Renderer
   #paused: boolean
@@ -103,6 +106,7 @@ export class Robot {
     this.#power = 0
     this.#button = params.button
     this.#touch = params.touch
+    this.#tone = params.tone
     this.#pose = params.pose ?? {
       body: {
         position: {
@@ -241,6 +245,16 @@ export class Robot {
           })
         })
     })
+  }
+
+  /**
+   * let the robot sound a tone
+   * @param hz frequency of tone
+   * @param duration duration (unit: millisecond)
+   * @returns return when the playback of the tone is completed.
+   */
+  async tone(hz: number, duration: number): Promise<void> {
+    return this.#tone?.tone(hz, duration)
   }
 
   /**

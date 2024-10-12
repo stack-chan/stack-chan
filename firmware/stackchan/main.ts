@@ -17,6 +17,7 @@ import { Renderer as SimpleRenderer } from 'simple-face'
 import { Renderer as DogFaceRenderer } from 'dog-face'
 import { NetworkService } from 'network-service'
 import Touch from 'touch'
+import Tone from 'tone'
 import { loadPreferences, asyncWait } from 'stackchan-util'
 
 // wrapper button class for simulator
@@ -102,12 +103,14 @@ function createRobot() {
   }
   const globalEnv = globalThis as unknown as GlobalEnvironment
   const touch = !globalEnv.screen?.touch && config.Touch ? new Touch() : undefined
+  const tone = new Tone()
   return new Robot({
     driver,
     renderer,
     tts,
     button,
     touch,
+    tone,
   })
 }
 

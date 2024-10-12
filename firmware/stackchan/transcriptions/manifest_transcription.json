@@ -1,0 +1,14 @@
+{
+  "include": [
+    "$(MODDABLE)/modules/base/uuid/manifest.json",
+    "$(MODDABLE)/modules/data/headers/manifest.json",
+    "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json"
+  ],
+  "modules": {
+    "*": ["./*"]
+  },
+  "preload": ["stt-whisper"],
+  "data": {
+    "*": ["$(MODULES)/crypt/data/ca236"]
+  }
+}

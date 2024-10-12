@@ -2,6 +2,7 @@
   "include": [
     "$(MODDABLE)/examples/manifest_commodetto.json",
     "$(MODULES)/commodetto/outline/manifest.json",
+    "$(MODULES)/base/easing/manifest.json",
     "../utilities/manifest_utility.json"
   ],
   "modules": {

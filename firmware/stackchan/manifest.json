@@ -14,8 +14,10 @@
     "./renderers/manifest_renderer.json",
     "./services/manifest_service.json",
     "./speeches/manifest_speech.json",
+    "./transcriptions/manifest_transcription.json",
     "./utilities/manifest_utility.json",
-    "./manifest_typings.json"
+    "./manifest_typings.json",
+    "./manifest_microphone.json"
   ],
   "modules": {
     "*": [
@@ -73,6 +75,21 @@
   },
   "platforms": {
     "esp32/m5stack_core2": {
+      "creation": {
+        "static": 442368,
+        "chunk": {
+          "initial": 8192,
+          "incremental": 2048
+        },
+        "heap": {
+          "initial": 512,
+          "incremental": 64
+        },
+        "stack": 512,
+        "keys": {
+          "available": 512
+        }
+      },
       "config": {
         "driver": {
           "pwmPan": 19,

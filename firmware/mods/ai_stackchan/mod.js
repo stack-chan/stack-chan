@@ -47,7 +47,7 @@ export function onRobotCreated(robot) {
     // recording
     trace('start recording.\n')
     const audio = await robot.record()
-    robot.tone(600, 100)
+    await robot.tone(600, 100)
     trace('end recording.\n')
 
     // transcription
@@ -97,7 +97,7 @@ export function onRobotCreated(robot) {
 
   robot.button.a.onChanged = async function () {
     if (this.read()) {
-      robot.tone(1000, 100)
+      await robot.tone(1000, 100)
       await talk()
     }
   }

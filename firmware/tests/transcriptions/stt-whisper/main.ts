@@ -12,7 +12,7 @@ const stt = new STT({
 })
 
 try {
-  const result = await stt.transcription(audio)
+  const result = await stt.transcribe(audio)
   if (result.success === true) {
     trace(result.value)
   } else {

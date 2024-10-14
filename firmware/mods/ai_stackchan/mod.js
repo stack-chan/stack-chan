@@ -46,13 +46,13 @@ export function onRobotCreated(robot) {
 
     // recording
     trace('start recording.\n')
-    const audio = await robot.record()
+    const buffer = await robot.record()
     await robot.tone(600, 100)
     trace('end recording.\n')
 
     // transcription
     trace('start transcription.\n')
-    result = await stt.transcription(audio)
+    result = await stt.transcribe(buffer)
     if (!result.success) {
       trace(`transcription failed: ${result.reason}`)
       talking = false

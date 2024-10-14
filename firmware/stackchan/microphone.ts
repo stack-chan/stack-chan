@@ -8,7 +8,7 @@ export default class Microphone {
     this.recording = false
   }
 
-  async record(durationSec = 3): Promise<ArrayBuffer> {
+  async record(durationMilliSec = 3000): Promise<ArrayBuffer> {
     if (this.recording) {
       throw new Error('already recording')
     }
@@ -17,7 +17,7 @@ export default class Microphone {
     const audio = new AudioIn()
     const { sampleRate, numChannels, bitsPerSample } = audio
     const byteRate = sampleRate * numChannels * (bitsPerSample >> 3)
-    const contentLength = durationSec * byteRate
+    const contentLength = (durationMilliSec / 1000) * byteRate
     const view = new DataView(new ArrayBuffer(44 + contentLength))
 
     // set header
@@ -71,7 +71,7 @@ export default class Microphone {
       })
     }
 
-    await recordSamples(durationSec)
+    await recordSamples(durationMilliSec)
 
     this.recording = false
     audio.close()

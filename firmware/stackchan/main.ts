@@ -17,6 +17,7 @@ import { Renderer as SimpleRenderer } from 'simple-face'
 import { Renderer as DogFaceRenderer } from 'dog-face'
 import { NetworkService } from 'network-service'
 import Touch from 'touch'
+import Microphone from 'microphone'
 import Tone from 'tone'
 import { loadPreferences, asyncWait } from 'stackchan-util'
 
@@ -103,6 +104,7 @@ function createRobot() {
   }
   const globalEnv = globalThis as unknown as GlobalEnvironment
   const touch = !globalEnv.screen?.touch && config.Touch ? new Touch() : undefined
+  const microphone = Modules.has('pins/audioin') ? new Microphone() : undefined
   const tone = new Tone()
   return new Robot({
     driver,
@@ -111,6 +113,7 @@ function createRobot() {
     button,
     touch,
     tone,
+    microphone,
   })
 }
 

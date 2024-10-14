@@ -3,6 +3,7 @@ import { Vector3, type Pose, Rotation, type Maybe, noop, randomBetween } from 's
 import { type FaceContext, type Emotion, createFaceContext, type FaceDecorator } from 'renderer-base'
 import type Digital from 'embedded:io/digital'
 import type Touch from 'touch'
+import type Microphone from 'microphone'
 import type Tone from 'tone'
 import { createBalloonDecorator } from 'decorator'
 import { DEFAULT_FONT } from 'consts'
@@ -64,6 +65,7 @@ type RobotConstructorParam<T extends string> = {
     }
   }
   touch?: Touch
+  microphone?: Microphone
   tone?: Tone
 }
 
@@ -87,6 +89,7 @@ export class Robot {
   #driver: Driver
   #button: { [key in ButtonName]: Button }
   #touch: Touch
+  #microphone: Microphone
   #tone: Tone
   #isMoving: boolean
   #renderer: Renderer
@@ -106,6 +109,7 @@ export class Robot {
     this.#power = 0
     this.#button = params.button
     this.#touch = params.touch
+    this.#microphone = params.microphone
     this.#tone = params.tone
     this.#pose = params.pose ?? {
       body: {
@@ -245,6 +249,13 @@ export class Robot {
           })
         })
     })
+  }
+
+  async record(durationSec?: number): Promise<ArrayBuffer> {
+    if (!this.#microphone) {
+      throw Error('This device does not support a microphone.')
+    }
+    return this.#microphone.record()
   }
 
   /**

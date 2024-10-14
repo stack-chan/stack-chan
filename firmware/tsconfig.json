@@ -24,6 +24,7 @@
         "./stackchan/renderers/*",
         "./stackchan/services/*",
         "./stackchan/speeches/*",
+        "./stackchan/transcriptions/*",
         "./stackchan/utilities/*"
       ],
       "commodetto/*": [

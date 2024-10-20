@@ -56,6 +56,8 @@ export function onRobotCreated(robot) {
     if (!result.success) {
       trace(`transcription failed: ${result.reason}`)
       talking = false
+      robot.renderer.removeDecorator(decorator)
+      robot.setEmotion('NEUTRAL')
       await robot.say('聞き取れませんでした')
       return
     }
@@ -73,6 +75,8 @@ export function onRobotCreated(robot) {
     if (!result.success) {
       trace(`completion failed: ${result.reason}`)
       talking = false
+      robot.renderer.removeDecorator(decorator)
+      robot.setEmotion('NEUTRAL')
       await robot.say('わかりません！')
       return
     }

@@ -22,10 +22,10 @@
         "pins/audioin": "$(MODDABLE)/modules/pins/audioin/sim/audioin"
       },
       "config": {
-        "audioInWave": "speech.wav"
+        "audioInWave": "speak.wav"
       },
       "data": {
-        "speech": "../tests/transcriptions/stt-whisper/speak.wav"
+        "speak": "../tests/transcriptions/stt-whisper/speak.wav"
       }
     }
   }

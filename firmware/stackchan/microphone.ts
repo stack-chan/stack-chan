@@ -57,7 +57,7 @@ export default class Microphone {
           Timer.repeat((id) => {
             //@ts-ignore
             audio.read(sampleCount, buffer, offset)
-            offset += sampleCount
+            offset += sampleCount * (bitsPerSample / 8)
 
             samplesRemaining -= sampleCount
             trace(`${samplesRemaining}\n`)

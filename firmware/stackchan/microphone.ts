@@ -18,7 +18,8 @@ export default class Microphone {
     const { sampleRate, numChannels, bitsPerSample } = audio
     const byteRate = sampleRate * numChannels * (bitsPerSample >> 3)
     const contentLength = (durationMilliSec / 1000) * byteRate
-    const view = new DataView(new ArrayBuffer(44 + contentLength))
+    const buffer = new ArrayBuffer(44 + contentLength)
+    const view = new DataView(buffer)
 
     // set header
     view.setUint8(0, 'R'.charCodeAt(0))
@@ -47,19 +48,17 @@ export default class Microphone {
     view.setUint8(39, 'a'.charCodeAt(0))
     view.setUint32(40, contentLength, true)
 
-    const recordSamples = async (durationSec): Promise<void> => {
+    const recordSamples = async (durationMilliSec): Promise<void> => {
       const readingsPerSecond = 8
       const sampleCount = Math.floor(audio.sampleRate / readingsPerSecond)
-      let samplesRemaining = durationSec * audio.sampleRate
+      let samplesRemaining = durationMilliSec/1000 * audio.sampleRate
 
       return new Promise((resolve) => {
         let offset = 44
         Timer.repeat((id) => {
-          const samples = new Int16Array(audio.read(sampleCount))
-          for (let i = 0; i < samples.length; i++) {
-            view.setInt16(offset, samples[i], true)
-            offset += 2
-          }
+          //@ts-ignore
+          audio.read(sampleCount, buffer, offset)
+          offset += sampleCount
 
           samplesRemaining -= sampleCount
           trace(`${samplesRemaining}\n`)

@@ -10,7 +10,7 @@ const CONTEXT = [
   {
     role: 'system',
     content:
-      'You are "スタックちゃん(Stack-chan)", the palm sized super kawaii companion robot baby. You must response in a short sentense.',
+      'You are "スタックちゃん (Stack-chan)", the palm-sized super kawaii companion robot baby. You must respond in a short sentence.',
   },
   {
     role: 'assistant',

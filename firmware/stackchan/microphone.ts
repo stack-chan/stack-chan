@@ -51,7 +51,7 @@ export default class Microphone {
     const recordSamples = async (durationMilliSec): Promise<void> => {
       const readingsPerSecond = 8
       const sampleCount = Math.floor(audio.sampleRate / readingsPerSecond)
-      let samplesRemaining = durationMilliSec/1000 * audio.sampleRate
+      let samplesRemaining = (durationMilliSec / 1000) * audio.sampleRate
 
       return new Promise((resolve) => {
         let offset = 44

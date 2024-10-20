@@ -46,7 +46,17 @@ export function onRobotCreated(robot) {
 
     // recording
     trace('start recording.\n')
-    const buffer = await robot.record()
+    let buffer
+    try {
+      buffer = await robot.record()
+    } catch (error) {
+      trace(`recording failed: ${error.message}`)
+      talking = false
+      robot.renderer.removeDecorator(decorator)
+      robot.setEmotion('NEUTRAL')
+      await robot.say('録音できませんでした')
+      return
+    }
     await robot.tone(600, 100)
     trace('end recording.\n')
 

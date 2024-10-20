@@ -39,6 +39,14 @@ export function onRobotCreated(robot) {
     let result
     let decorator
 
+    async function handleError(message) {
+      trace(`${message}\n`)
+      talking = false
+      robot.renderer.removeDecorator(decorator)
+      robot.setEmotion('NEUTRAL')
+      await robot.say(message)
+    }
+
     // set up recording face
     decorator = heartDecorator
     robot.renderer.addDecorator(decorator)
@@ -51,10 +59,7 @@ export function onRobotCreated(robot) {
       buffer = await robot.record()
     } catch (error) {
       trace(`recording failed: ${error.message}`)
-      talking = false
-      robot.renderer.removeDecorator(decorator)
-      robot.setEmotion('NEUTRAL')
-      await robot.say('録音できませんでした')
+      handleError('録音できませんでした')
       return
     }
     await robot.tone(600, 100)
@@ -65,10 +70,7 @@ export function onRobotCreated(robot) {
     result = await stt.transcribe(buffer)
     if (!result.success) {
       trace(`transcription failed: ${result.reason}`)
-      talking = false
-      robot.renderer.removeDecorator(decorator)
-      robot.setEmotion('NEUTRAL')
-      await robot.say('聞き取れませんでした')
+      handleError('聞き取れませんでした')
       return
     }
     trace(`transcription text:${result.value}\n`)
@@ -84,10 +86,7 @@ export function onRobotCreated(robot) {
     result = await dialogue.post(result.value)
     if (!result.success) {
       trace(`completion failed: ${result.reason}`)
-      talking = false
-      robot.renderer.removeDecorator(decorator)
-      robot.setEmotion('NEUTRAL')
-      await robot.say('わかりません！')
+      handleError('わかりません！')
       return
     }
     trace(`completion text:${result.value}\n`)

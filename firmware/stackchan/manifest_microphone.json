@@ -1,0 +1,32 @@
+{
+  "modules": {
+    "*": ["./microphone"]
+  },
+  "preload": ["microphone"],
+  "defines": {
+    "audioIn": {
+      "sampleRate": 16000,
+      "bitsPerSample": 16
+    }
+  },
+  "platforms": {
+    "esp32/m5stack_core2": {
+      "modules": {
+        "pins/audioin": "$(MODDABLE)/modules/pins/audioin/esp32/audioin"
+      }
+    },
+    "...": {
+      "warning": "Using AudioIn simulator",
+      "include": ["$(MODDABLE)/modules/data/wavreader/manifest.json"],
+      "modules": {
+        "pins/audioin": "$(MODDABLE)/modules/pins/audioin/sim/audioin"
+      },
+      "config": {
+        "audioInWave": "speak.wav"
+      },
+      "data": {
+        "speak": "../tests/transcriptions/stt-whisper/speak.wav"
+      }
+    }
+  }
+}

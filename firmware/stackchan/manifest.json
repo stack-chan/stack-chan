@@ -8,6 +8,7 @@
     "$(MODDABLE)/examples/manifest_net.json",
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
+    "$(MODDABLE)/modules/network/services/chatAudioIO/manifest.json",
     "./drivers/manifest_driver.json",
     "./ble/manifest_ble.json",
     "./dialogues/manifest_dialogue.json",

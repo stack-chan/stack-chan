@@ -1,4 +1,4 @@
-import AudioIn from 'pins/audioin'
+import AudioIn from 'embedded:io/audio/in'
 import Timer from 'timer'
 
 export default class Microphone {
@@ -13,8 +13,13 @@ export default class Microphone {
       throw new Error('already recording')
     }
     this.recording = true
-    const audio = new AudioIn()
-    const { sampleRate, numChannels, bitsPerSample } = audio
+    const audio = new AudioIn({
+      sampleRate: 16000,
+      bitsPerSample: 16,
+      channels: 1,
+    })
+    const { sampleRate, bitsPerSample } = audio
+    const numChannels = audio.channels
     const byteRate = sampleRate * numChannels * (bitsPerSample >> 3)
     const contentLength = (durationMilliSec / 1000) * byteRate
     const buffer = new ArrayBuffer(44 + contentLength)
@@ -47,6 +52,8 @@ export default class Microphone {
       view.setUint8(39, 'a'.charCodeAt(0))
       view.setUint32(40, contentLength, true)
 
+      audio.start()
+
       const recordSamples = async (durationMilliSec): Promise<void> => {
         const readingsPerSecond = 8
         const sampleCount = Math.floor(audio.sampleRate / readingsPerSecond)
@@ -71,6 +78,7 @@ export default class Microphone {
 
       await recordSamples(durationMilliSec)
     } finally {
+      audio.stop()
       this.recording = false
       audio.close()
     }

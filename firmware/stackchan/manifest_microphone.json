@@ -9,10 +9,14 @@
       "bitsPerSample": 16
     }
   },
+  "include": ["$(MODDABLE)/modules/io/audioin/manifest.json"],
   "platforms": {
     "esp32/m5stack_core2": {
-      "modules": {
-        "pins/audioin": "$(MODDABLE)/modules/pins/audioin/esp32/audioin"
+      "defines": {
+        "audioIn": {
+          "sampleRate": 16000,
+          "bitsPerSample": 16
+        }
       }
     },
     "...": {

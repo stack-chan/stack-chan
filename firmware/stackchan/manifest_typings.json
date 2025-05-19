@@ -1,6 +1,6 @@
 {
   "modules": {
-    "*": ["../typings/*"],
+    "*": ["../typings/*", "../typings/global.d.ts"],
     "piu/*": ["../typings/piu/*"]
   }
 }

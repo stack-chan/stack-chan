@@ -1,0 +1,23 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_net.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/io/listener/listen/manifest_listen.json",
+    "../../../stackchan/manifest_typings.json",
+    "../../../stackchan/services/mcp-client/manifest.json",
+    "../../../stackchan/services/mcp-server/manifest.json"
+  ],
+  "modules": {
+    "*": ["./main"]
+  },
+  "platforms": {
+    "lin": {
+      "config": {
+        "network": {
+          "interface": "ethernet"
+        }
+      }
+    }
+  }
+}

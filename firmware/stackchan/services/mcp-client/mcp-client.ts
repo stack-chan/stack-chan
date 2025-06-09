@@ -1,6 +1,19 @@
 import { fetch } from 'fetch'
 
 /**
+ * Minimal fetch Response interface for Moddable
+ */
+interface FetchResponse {
+  ok: boolean
+  status: number
+  statusText: string
+  headers: {
+    get(name: string): string | null
+  }
+  text(): Promise<string>
+}
+
+/**
  * MCP Protocol message types
  */
 interface MCPMessage {
@@ -35,7 +48,7 @@ interface MCPResponse extends MCPMessage {
  * MCP Client configuration
  */
 export interface MCPClientConfig {
-  baseUrl: string
+  url: string
   timeout?: number
 }
 
@@ -89,13 +102,14 @@ interface ToolsCallResult {
  * Implements Model Context Protocol client over HTTP
  */
 export class MCPClientService {
-  #baseUrl: string
+  #url: string
   #timeout: number
   #requestId = 0
   #initialized = false
+  #sessionId?: string
 
   constructor(config: MCPClientConfig) {
-    this.#baseUrl = config.baseUrl.endsWith('/') ? config.baseUrl.slice(0, -1) : config.baseUrl
+    this.#url = config.url.endsWith('/') ? config.url.slice(0, -1) : config.url
     this.#timeout = config.timeout ?? 30000
   }
 
@@ -172,6 +186,7 @@ export class MCPClientService {
   reset(): void {
     this.#initialized = false
     this.#requestId = 0
+    this.#sessionId = undefined
   }
 
   /**
@@ -187,21 +202,47 @@ export class MCPClientService {
       params,
     }
 
-    const url = `${this.#baseUrl}/mcp`
+    const url = this.#url
+
+    // Build headers according to MCP spec
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      // Client MUST accept both application/json and text/event-stream
+      Accept: 'application/json, text/event-stream',
+    }
+
+    // Include session ID for all requests after initialization
+    if (this.#sessionId && method !== 'initialize') {
+      headers['Mcp-Session-Id'] = this.#sessionId
+    }
 
     try {
-      const response = await fetch(url, {
+      const response = (await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(request),
-      })
+      })) as FetchResponse
 
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
       }
 
+      // Extract session ID from initialization response
+      if (method === 'initialize') {
+        const sessionId = response.headers.get('mcp-session-id')
+        if (sessionId) {
+          this.#sessionId = sessionId
+        }
+      }
+
+      const contentType = response.headers.get('content-type')
+
+      if (contentType?.includes('text/event-stream')) {
+        // Handle SSE response
+        return await this.#handleSSEResponse(response, id)
+      }
+
+      // Handle JSON response
       const responseText = await response.text()
       const mcpResponse: MCPResponse = JSON.parse(responseText)
 
@@ -218,6 +259,51 @@ export class MCPClientService {
     } catch (error) {
       throw new Error(`Request failed: ${error}`)
     }
+  }
+
+  /**
+   * Handle Server-Sent Events response
+   */
+  async #handleSSEResponse(response: FetchResponse, requestId: number): Promise<MCPResponse> {
+    // For now, fall back to text parsing since SSE is complex to implement
+    // in the Moddable environment without proper streaming support
+    const responseText = await response.text()
+
+    // Parse SSE format manually
+    const lines = responseText.split('\n')
+    let mcpResponse: MCPResponse | null = null
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6)
+        if (data === '[DONE]') {
+          break
+        }
+
+        try {
+          const parsed: MCPResponse = JSON.parse(data)
+
+          // Check if this is the response for our request
+          if (parsed.id === requestId) {
+            mcpResponse = parsed
+            break
+          }
+        } catch {
+          // Ignore malformed JSON in SSE data
+        }
+      }
+    }
+
+    if (!mcpResponse) {
+      throw new Error('No matching response received in SSE stream')
+    }
+
+    // Validate response
+    if (mcpResponse.jsonrpc !== '2.0') {
+      throw new Error('Invalid JSON-RPC response')
+    }
+
+    return mcpResponse
   }
 
   /**

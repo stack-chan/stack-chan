@@ -27,12 +27,22 @@ export type Tool = ToolSchema & {
   execute: (input: Record<string, unknown>) => Promise<unknown>
 }
 
+type ToolCall = {
+  type: 'tool_call'
+  name: string
+  input: Record<string, unknown>
+}
+
+type ExtractedResponse = ChatContent | ToolCall | null
+
 type OpenAITool = {
   type: 'function'
   name: string
   description: string
   parameters: Record<string, unknown>
 }
+
+// Simplified flow: initial message -> tool execution (if needed) -> final response
 
 const API_URL = 'https://api.openai.com/v1/responses'
 const DEFAULT_MODEL = 'gpt-4o-mini'
@@ -72,6 +82,19 @@ function isChatContent(c: unknown): c is ChatContent {
     (c.role === 'assistant' || c.role === 'user' || c.role === 'system') &&
     'content' in c &&
     typeof c.content === 'string'
+  )
+}
+
+function isToolCall(c: unknown): c is ToolCall {
+  return (
+    c != null &&
+    typeof c === 'object' &&
+    'type' in c &&
+    c.type === 'tool_call' &&
+    'name' in c &&
+    typeof c.name === 'string' &&
+    'input' in c &&
+    typeof c.input === 'object'
   )
 }
 
@@ -133,6 +156,7 @@ export class ChatGPTDialogue {
   #tools: Tool[] = []
   #mcpTools: ToolSchema[] = []
   #mcpInitPromise: Promise<void> | null = null
+
   constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT, tools, mcpClients }: ChatGPTDialogueProps) {
     this.#apiKey = apiKey
     this.#model = model
@@ -180,33 +204,104 @@ export class ChatGPTDialogue {
     // Integrate all available tools
     const allTools = this.#integrateTools()
 
-    const userMessage: ChatContent = {
+    // Initialize with the user message
+    let currentMessage: ChatContent = {
       role: 'user',
       content: message,
     }
+
     try {
-      const response = await this.#sendMessage(userMessage, allTools)
-      if (isChatContent(response)) {
-        this.#history.push(userMessage)
+      // Step 1: Send initial message
+      let response = await this.#sendMessage(currentMessage, allTools)
+      this.#history.push(currentMessage)
+
+      if (isToolCall(response)) {
+        // AI wants to use a tool
+        trace(`Tool call detected: ${response.name}\n`)
+        try {
+          const toolResult = await this.#executeIntegratedTool(response.name, response.input)
+          trace(`Tool execution result: ${toolResult}\n`)
+
+          // Step 2: Send tool result back to AI
+          currentMessage = {
+            role: 'user',
+            content: `Tool "${response.name}" result: ${toolResult}`,
+          }
+          response = await this.#sendMessage(currentMessage, allTools)
+          this.#history.push(currentMessage)
+
+          if (isChatContent(response)) {
+            this.#history.push(response)
+
+            // Set maximum length to prevent memory overflow
+            while (this.#history.length > this.#maxHistory) {
+              this.#history.shift()
+            }
+
+            return {
+              success: true,
+              value: response.content,
+            }
+          }
+
+          if (isToolCall(response)) {
+            // AI wants to use another tool (not yet supported)
+            trace('Nested tool call detected, but not implemented yet\n')
+            return { success: false, reason: 'Nested tool calls not supported' }
+          }
+
+          return { success: false, reason: 'Invalid tool result response format' }
+        } catch (error) {
+          trace(`Tool execution failed: ${error}\n`)
+          const toolName = isToolCall(response) ? response.name : 'unknown'
+          currentMessage = {
+            role: 'user',
+            content: `Tool "${toolName}" failed: ${error}`,
+          }
+          response = await this.#sendMessage(currentMessage, allTools)
+          this.#history.push(currentMessage)
+
+          if (isChatContent(response)) {
+            this.#history.push(response)
+
+            // Set maximum length to prevent memory overflow
+            while (this.#history.length > this.#maxHistory) {
+              this.#history.shift()
+            }
+
+            return {
+              success: true,
+              value: response.content,
+            }
+          }
+
+          return { success: false, reason: 'Invalid error response format' }
+        }
+      } else if (isChatContent(response)) {
+        // AI responded with regular chat
         this.#history.push(response)
 
         // Set maximum length to prevent memory overflow
         while (this.#history.length > this.#maxHistory) {
           this.#history.shift()
         }
+
         return {
           success: true,
           value: response.content,
         }
+      } else {
+        return { success: false, reason: 'Invalid initial response format' }
       }
-      return { success: false, reason: 'Invalid response format' }
     } catch (error) {
       return { success: false, reason: error.message || 'Unknown error' }
     }
   }
+
   get history() {
     return structuredClone(this.#history)
   }
+
   #integrateTools(): Tool[] {
     const integratedTools: Tool[] = [...this.#tools]
 
@@ -248,7 +343,7 @@ export class ChatGPTDialogue {
     })
   }
 
-  async #sendMessage(message: ChatContent, tools: Tool[]): Promise<unknown> {
+  async #sendMessage(message: ChatContent, tools: Tool[]): Promise<ExtractedResponse> {
     const body = {
       model: this.#model,
       input: [...this.#context, ...this.#history, message],
@@ -286,7 +381,7 @@ export class ChatGPTDialogue {
       })
   }
 
-  async #extractResponseMessage(responseObj: unknown): Promise<ChatContent | null> {
+  async #extractResponseMessage(responseObj: unknown): Promise<ExtractedResponse> {
     const parsedResponse = responseObj as ResponseObject
     const output = parsedResponse.output?.[0]
 
@@ -305,18 +400,10 @@ export class ChatGPTDialogue {
       // Check for tool calls
       const toolCallContent = output.content?.find((c: ResponseContent) => c.type === 'tool_use')
       if (toolCallContent?.name && toolCallContent.input) {
-        try {
-          const toolResult = await this.#executeIntegratedTool(toolCallContent.name, toolCallContent.input)
-          return {
-            role: 'assistant',
-            content: `Tool result: ${toolResult}`,
-          }
-        } catch (error) {
-          trace(`Tool call failed: ${error}\n`)
-          return {
-            role: 'assistant',
-            content: 'ツールの呼び出しに失敗しました。',
-          }
+        return {
+          type: 'tool_call',
+          name: toolCallContent.name,
+          input: toolCallContent.input,
         }
       }
     }
@@ -325,26 +412,16 @@ export class ChatGPTDialogue {
     if (output?.type === 'function_call') {
       trace(`Function call detected: ${JSON.stringify(output)}\n`)
       trace(`Output keys: ${Object.keys(output)}\n`)
-      try {
-        // Extract function call details - check all possible field names
-        const functionName = output.name || output.function_name || output.tool_name
-        const functionArgs = output.arguments || output.args || output.parameters || '{}'
-        const parsedArgs = typeof functionArgs === 'string' ? JSON.parse(functionArgs) : functionArgs || {}
+      // Extract function call details - check all possible field names
+      const functionName = output.name || output.function_name || output.tool_name
+      const functionArgs = output.arguments || output.args || output.parameters || '{}'
+      const parsedArgs = typeof functionArgs === 'string' ? JSON.parse(functionArgs) : functionArgs || {}
 
-        trace(`Extracted - Name: ${functionName}, Args: ${JSON.stringify(parsedArgs)}\n`)
-        const toolResult = await this.#executeIntegratedTool(functionName, parsedArgs)
-
-        // Return the tool result as assistant message
-        return {
-          role: 'assistant',
-          content: `計算結果: ${toolResult}`,
-        }
-      } catch (error) {
-        trace(`Tool call error: ${error}\n`)
-        return {
-          role: 'assistant',
-          content: `ツールの実行に失敗しました: ${error}`,
-        }
+      trace(`Extracted - Name: ${functionName}, Args: ${JSON.stringify(parsedArgs)}\n`)
+      return {
+        type: 'tool_call',
+        name: functionName,
+        input: parsedArgs,
       }
     }
     throw new Error('Invalid response format from Responses API')

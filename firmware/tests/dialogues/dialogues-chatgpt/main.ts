@@ -4,7 +4,7 @@ import { MCPClientService } from 'mcp-client'
 import Timer from 'timer'
 
 const token = config.token
-const mcpServerUrl = config.mcpServerUrl
+const mcp = config.mcp
 
 // Test tools for local execution
 const testTools: Tool[] = [
@@ -62,35 +62,36 @@ const testTools: Tool[] = [
   },
 ]
 
+function isValidOption(option: unknown): option is { url: string } {
+  return (
+    typeof option === 'object' &&
+    option !== null &&
+    'url' in option &&
+    typeof option.url === 'string' &&
+    option.url.length > 0
+  )
+}
+
 async function runTest() {
   trace('=== ChatGPT Dialogue with Tools and MCP Test ===\n')
 
   // Create MCP clients if URL is provided
   const mcpClients: MCPClientService[] = []
-  if (mcpServerUrl) {
-    try {
-      const mcpClient = new MCPClientService({ url: mcpServerUrl })
-      await mcpClient.initialize()
-      mcpClients.push(mcpClient)
-      trace('MCP client initialized successfully\n')
-    } catch (error) {
-      trace(`MCP client initialization failed: ${error}\n`)
+  if (mcp != null) {
+    for (const [name, option] of Object.entries(mcp)) {
+      if (!isValidOption(option)) {
+        trace(`MCP client for ${name} is not configured with a valid URL. Skipping.\n`)
+        return
+      }
+      try {
+        const mcpClient = new MCPClientService({ url: option.url })
+        await mcpClient.initialize()
+        mcpClients.push(mcpClient)
+        trace(`MCP client ${name} initialized successfully\n`)
+      } catch (error) {
+        trace(`MCP client ${name} initialization failed: ${error}\n`)
+      }
     }
-  }
-
-  if (!token || token === 'YOUR_API_KEY_HERE') {
-    trace('API token is missing. Testing tools integration structure only.\n')
-
-    // Test dialogue creation with tools and MCP clients
-    const dialogue = new ChatGPTDialogue({
-      apiKey: 'dummy-key',
-      tools: testTools,
-      mcpClients: mcpClients,
-    })
-
-    trace('✓ Dialogue with tools and MCP clients created successfully\n')
-    trace('Note: Actual API calls require valid OpenAI API key\n')
-    return
   }
 
   // Create dialogue with tools and MCP support
@@ -106,7 +107,7 @@ async function runTest() {
 
   try {
     trace('Sending test message for calculator tool...\n')
-    const result = await dialogue.post('calculatorツールを使って３＋５を計算してください')
+    const result = await dialogue.post('Use the calculator tool to calculate 3 + 5')
     if (result.success === true) {
       trace(`Response: ${result.value}\n`)
     } else {
@@ -114,7 +115,7 @@ async function runTest() {
     }
 
     trace('\nSending test message for time tool...\n')
-    const timeResult = await dialogue.post('get_timeツールを使って現在時刻を教えてください')
+    const timeResult = await dialogue.post('Use the get_time tool to get the current time')
     if (timeResult.success === true) {
       trace(`Response: ${timeResult.value}\n`)
     } else {

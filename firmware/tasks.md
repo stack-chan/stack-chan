@@ -28,26 +28,26 @@
   - ✅ 設定可能な深度上限（現在: 10回）
   - ✅ 反復回数追跡とトレースログ出力
 
-### 2. 並列ツール呼び出し対応
-- [ ] **同時複数ツール実行**
-  - OpenAI Responses APIが複数ツール呼び出しを返した場合の対応
-  - `Promise.all()`を使用した並列実行
-  - 各ツールの実行結果を統合してAIに返す
+### 2. 並列ツール呼び出し対応 ✅ **完了**
+- [x] **同時複数ツール実行**
+  - ✅ 実装完了: `#executeMultipleToolsParallel`メソッドによる並列実行
+  - ✅ `Promise.allSettled()`を使用した並列実行
+  - ✅ 各ツールの実行結果を統合してAIに返す機能
 
-- [ ] **並列実行結果の統合**
-  - 複数ツールの結果をまとめる仕組み
-  - 実行順序の管理
-  - 一部ツール失敗時の処理方針
+- [x] **並列実行結果の統合**
+  - ✅ 実装完了: 複数ツールの結果をまとめる仕組み
+  - ✅ 実行順序の管理とエラーハンドリング
+  - ✅ 一部ツール失敗時も継続実行する処理方針
 
-### 3. イベントシステム実装
-- [ ] **ツール呼び出しイベント**
-  - `onToolCallStarted(toolName, input)`: ツール実行開始時
-  - `onToolCallCompleted(toolName, result)`: ツール実行完了時
-  - `onToolCallFailed(toolName, error)`: ツール実行失敗時
+### 3. イベントシステム実装 ✅ **完了**
+- [x] **ツール呼び出しイベント**
+  - ✅ 実装完了: `onToolCallStarted(toolName, input)`: ツール実行開始時
+  - ✅ 実装完了: `onToolCallCompleted(toolName, result)`: ツール実行完了時
+  - ✅ 実装完了: `onToolCallFailed(toolName, error)`: ツール実行失敗時
 
-- [ ] **イベントハンドラー登録機能**
-  - ChatGPTDialogueクラスにイベントリスナー登録メソッド追加
-  - 型安全なイベントハンドラー定義
+- [x] **イベントハンドラー登録機能**
+  - ✅ 実装完了: ChatGPTDialogueクラスにイベントリスナー登録メソッド追加
+  - ✅ 実装完了: 型安全なイベントハンドラー定義
 
 ### 4. フロー制御の改善
 - [ ] **状態管理の再設計**
@@ -145,8 +145,66 @@ while (iterationCount < maxIterations) {
 }
 ```
 
+### 2025-01-11: タスク2完了 - 並列ツール呼び出し対応
+
+**実装内容:**
+- `#executeMultipleToolsParallel()`メソッド追加
+- `Promise.allSettled()`による並列ツール実行
+- 複数ツール呼び出し検出機能（`isMultipleToolCalls()`）
+- 並列実行結果の統合とエラーハンドリング
+- OpenAI Responses API複数ツール対応
+
+**技術詳細:**
+```typescript
+// 並列実行フロー
+Multiple Tool Calls → Promise.allSettled([tool1, tool2, ...]) → Combined Result → AI Response
+
+// 実装キーポイント
+async #executeMultipleToolsParallel(toolCalls: ToolCall[]): Promise<string> {
+  const results = await Promise.allSettled(
+    toolCalls.map(call => this.#executeIntegratedTool(call.name, call.input))
+  )
+  return combineResults(results) // 成功・失敗両方を含む統合結果
+}
+```
+
+### 2025-01-11: タスク3完了 - イベントシステム実装
+
+**実装内容:**
+- ツール呼び出しイベント型定義（`ToolCallEvent`, `ToolCallEventHandlers`）
+- イベント発火メソッド群（`#fireToolCallStarted`, `#fireToolCallCompleted`, `#fireToolCallFailed`）
+- イベントハンドラー登録機能（`setEventHandlers`, `addEventListener`, `removeEventListener`）
+- 単一・並列ツール実行でのイベント統合
+- タイムスタンプ付きイベントデータ
+
+**技術詳細:**
+```typescript
+// イベントシステム構造
+interface ToolCallEvent {
+  toolName: string
+  input: Record<string, unknown>
+  timestamp: number
+}
+
+interface ToolCallEventHandlers {
+  onToolCallStarted?: (event: ToolCallEvent) => void
+  onToolCallCompleted?: (event: ToolCallEvent & { result: string }) => void
+  onToolCallFailed?: (event: ToolCallEvent & { error: Error }) => void
+}
+
+// 使用例
+const dialogue = new ChatGPTDialogue({
+  apiKey: 'your-api-key',
+  eventHandlers: {
+    onToolCallStarted: (event) => trace(`Tool ${event.toolName} started\n`),
+    onToolCallCompleted: (event) => trace(`Tool ${event.toolName} completed: ${event.result}\n`),
+    onToolCallFailed: (event) => trace(`Tool ${event.toolName} failed: ${event.error.message}\n`)
+  }
+})
+```
+
 ---
 
 **作成日**: 2025-01-11  
 **最終更新**: 2025-01-11  
-**ステータス**: タスク1完了、タスク2-3実装中
+**ステータス**: タスク1-3全完了

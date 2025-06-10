@@ -33,7 +33,20 @@ type ToolCall = {
   input: Record<string, unknown>
 }
 
-type ExtractedResponse = ChatContent | ToolCall | null
+type ExtractedResponse = ChatContent | ToolCall | ToolCall[] | null
+
+// Event system types
+type ToolCallEvent = {
+  toolName: string
+  input: Record<string, unknown>
+  timestamp: number
+}
+
+type ToolCallEventHandlers = {
+  onToolCallStarted?: (event: ToolCallEvent) => void
+  onToolCallCompleted?: (event: ToolCallEvent & { result: string }) => void
+  onToolCallFailed?: (event: ToolCallEvent & { error: Error }) => void
+}
 
 type OpenAITool = {
   type: 'function'
@@ -98,6 +111,10 @@ function isToolCall(c: unknown): c is ToolCall {
   )
 }
 
+function isMultipleToolCalls(c: unknown): c is ToolCall[] {
+  return Array.isArray(c) && c.length > 0 && c.every(isToolCall)
+}
+
 type ChatContent = {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -144,6 +161,7 @@ type ChatGPTDialogueProps = {
   apiKey: string
   tools?: Tool[]
   mcpClients?: MCPClientService[]
+  eventHandlers?: ToolCallEventHandlers
 }
 
 export class ChatGPTDialogue {
@@ -156,8 +174,16 @@ export class ChatGPTDialogue {
   #tools: Tool[] = []
   #mcpTools: ToolSchema[] = []
   #mcpInitPromise: Promise<void> | null = null
+  #eventHandlers: ToolCallEventHandlers = {}
 
-  constructor({ apiKey, model = DEFAULT_MODEL, context = DEFAULT_CONTEXT, tools, mcpClients }: ChatGPTDialogueProps) {
+  constructor({
+    apiKey,
+    model = DEFAULT_MODEL,
+    context = DEFAULT_CONTEXT,
+    tools,
+    mcpClients,
+    eventHandlers,
+  }: ChatGPTDialogueProps) {
     this.#apiKey = apiKey
     this.#model = model
     this.#context = context
@@ -172,6 +198,9 @@ export class ChatGPTDialogue {
         trace('Some MCP clients failed to initialize. Ensure all clients are properly configured.\n')
       }
     }
+    if (eventHandlers) {
+      this.#eventHandlers = eventHandlers
+    }
 
     // Initialize MCP tools on startup
     this.#mcpInitPromise = this.#initializeMCPTools()
@@ -179,6 +208,58 @@ export class ChatGPTDialogue {
 
   clear() {
     this.#history.splice(0)
+  }
+
+  // Event system methods
+  #fireToolCallStarted(toolName: string, input: Record<string, unknown>): void {
+    if (this.#eventHandlers.onToolCallStarted) {
+      const event: ToolCallEvent = {
+        toolName,
+        input,
+        timestamp: Date.now(),
+      }
+      this.#eventHandlers.onToolCallStarted(event)
+    }
+  }
+
+  #fireToolCallCompleted(toolName: string, input: Record<string, unknown>, result: string): void {
+    if (this.#eventHandlers.onToolCallCompleted) {
+      const event: ToolCallEvent & { result: string } = {
+        toolName,
+        input,
+        timestamp: Date.now(),
+        result,
+      }
+      this.#eventHandlers.onToolCallCompleted(event)
+    }
+  }
+
+  #fireToolCallFailed(toolName: string, input: Record<string, unknown>, error: Error): void {
+    if (this.#eventHandlers.onToolCallFailed) {
+      const event: ToolCallEvent & { error: Error } = {
+        toolName,
+        input,
+        timestamp: Date.now(),
+        error,
+      }
+      this.#eventHandlers.onToolCallFailed(event)
+    }
+  }
+
+  // Event handler registration methods
+  setEventHandlers(handlers: ToolCallEventHandlers): void {
+    this.#eventHandlers = { ...this.#eventHandlers, ...handlers }
+  }
+
+  addEventListener<K extends keyof ToolCallEventHandlers>(
+    eventType: K,
+    handler: NonNullable<ToolCallEventHandlers[K]>,
+  ): void {
+    this.#eventHandlers[eventType] = handler
+  }
+
+  removeEventListener(eventType: keyof ToolCallEventHandlers): void {
+    delete this.#eventHandlers[eventType]
   }
 
   async #initializeMCPTools(): Promise<void> {
@@ -235,12 +316,18 @@ export class ChatGPTDialogue {
         }
 
         if (isToolCall(response)) {
-          // AI wants to use a tool
+          // AI wants to use a single tool
           trace(`Tool call detected: ${response.name} (iteration ${iterationCount + 1})\n`)
 
           try {
+            // Fire tool call started event
+            this.#fireToolCallStarted(response.name, response.input)
+
             const toolResult = await this.#executeIntegratedTool(response.name, response.input)
             trace(`Tool execution result: ${toolResult}\n`)
+
+            // Fire tool call completed event
+            this.#fireToolCallCompleted(response.name, response.input, toolResult)
 
             // Create tool result message for next iteration
             currentMessage = {
@@ -254,10 +341,46 @@ export class ChatGPTDialogue {
           } catch (error) {
             trace(`Tool execution failed: ${error}\n`)
 
+            // Fire tool call failed event
+            this.#fireToolCallFailed(response.name, response.input, error as Error)
+
             // Send error message to AI
             currentMessage = {
               role: 'user',
               content: `Tool "${response.name}" failed: ${error}`,
+            }
+            this.#history.push(currentMessage)
+
+            iterationCount++
+            continue // Continue to next iteration
+          }
+        }
+
+        if (isMultipleToolCalls(response)) {
+          // AI wants to use multiple tools in parallel
+          trace(`Multiple tool calls detected: ${response.length} tools (iteration ${iterationCount + 1})\n`)
+
+          try {
+            const combinedResult = await this.#executeMultipleToolsParallel(response)
+            trace('Multiple tool execution completed\n')
+
+            // Create combined tool result message for next iteration
+            currentMessage = {
+              role: 'user',
+              content: combinedResult,
+            }
+            this.#history.push(currentMessage)
+
+            iterationCount++
+            continue // Continue to next iteration
+          } catch (error) {
+            trace(`Multiple tool execution failed: ${error}\n`)
+
+            // Send error message to AI
+            const toolNames = response.map((call) => call.name).join(', ')
+            currentMessage = {
+              role: 'user',
+              content: `Multiple tools [${toolNames}] failed: ${error}`,
             }
             this.#history.push(currentMessage)
 
@@ -286,6 +409,66 @@ export class ChatGPTDialogue {
     while (this.#history.length > this.#maxHistory) {
       this.#history.shift()
     }
+  }
+
+  async #executeMultipleToolsParallel(toolCalls: ToolCall[]): Promise<string> {
+    trace(`Executing ${toolCalls.length} tools in parallel\n`)
+
+    // Fire started events for all tools
+    for (const toolCall of toolCalls) {
+      this.#fireToolCallStarted(toolCall.name, toolCall.input)
+    }
+
+    // Execute all tools in parallel
+    const results = await Promise.allSettled(
+      toolCalls.map(async (toolCall) => {
+        try {
+          trace(`Starting parallel execution of tool: ${toolCall.name}\n`)
+          const result = await this.#executeIntegratedTool(toolCall.name, toolCall.input)
+          trace(`Completed parallel execution of tool: ${toolCall.name}\n`)
+
+          // Fire tool call completed event
+          this.#fireToolCallCompleted(toolCall.name, toolCall.input, result)
+
+          return {
+            toolName: toolCall.name,
+            success: true,
+            result: result,
+          }
+        } catch (error) {
+          trace(`Failed parallel execution of tool: ${toolCall.name} - ${error}\n`)
+
+          // Fire tool call failed event
+          this.#fireToolCallFailed(toolCall.name, toolCall.input, error as Error)
+
+          return {
+            toolName: toolCall.name,
+            success: false,
+            error: String(error),
+          }
+        }
+      }),
+    )
+
+    // Combine all results into a single message
+    const resultMessages: string[] = []
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i]
+      const toolCall = toolCalls[i]
+
+      if (result.status === 'fulfilled') {
+        const toolResult = result.value
+        if (toolResult.success) {
+          resultMessages.push(`Tool "${toolResult.toolName}" result: ${toolResult.result}`)
+        } else {
+          resultMessages.push(`Tool "${toolResult.toolName}" failed: ${toolResult.error}`)
+        }
+      } else {
+        resultMessages.push(`Tool "${toolCall.name}" failed: ${result.reason}`)
+      }
+    }
+
+    return resultMessages.join('\n')
   }
 
   get history() {
@@ -387,7 +570,24 @@ export class ChatGPTDialogue {
         }
       }
 
-      // Check for tool calls
+      // Check for multiple tool calls
+      const toolCallContents = output.content?.filter((c: ResponseContent) => c.type === 'tool_use')
+      if (toolCallContents && toolCallContents.length > 1) {
+        // Multiple tool calls detected
+        const toolCalls: ToolCall[] = toolCallContents
+          .filter((tc) => tc.name && tc.input)
+          .map((tc) => ({
+            type: 'tool_call',
+            name: tc.name as string,
+            input: tc.input as Record<string, unknown>,
+          }))
+
+        if (toolCalls.length > 0) {
+          return toolCalls
+        }
+      }
+
+      // Check for single tool call
       const toolCallContent = output.content?.find((c: ResponseContent) => c.type === 'tool_use')
       if (toolCallContent?.name && toolCallContent.input) {
         return {
@@ -414,6 +614,27 @@ export class ChatGPTDialogue {
         input: parsedArgs,
       }
     }
+
+    // Check for multiple function calls in the output array
+    if (parsedResponse.output && parsedResponse.output.length > 1) {
+      const functionCalls = parsedResponse.output.filter((o) => o?.type === 'function_call')
+      if (functionCalls.length > 1) {
+        const toolCalls: ToolCall[] = functionCalls.map((fc) => {
+          const functionName = fc.name || fc.function_name || fc.tool_name
+          const functionArgs = fc.arguments || fc.args || fc.parameters || '{}'
+          const parsedArgs = typeof functionArgs === 'string' ? JSON.parse(functionArgs) : functionArgs || {}
+
+          return {
+            type: 'tool_call',
+            name: functionName,
+            input: parsedArgs,
+          }
+        })
+
+        return toolCalls
+      }
+    }
+
     throw new Error('Invalid response format from Responses API')
   }
 

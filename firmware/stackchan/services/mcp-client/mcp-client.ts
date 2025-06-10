@@ -72,14 +72,14 @@ interface InitializeResult {
 interface ToolsListResult {
   tools: {
     name: string
-    description: string
+    description?: string
     inputSchema: {
       type: 'object'
       properties: Record<
         string,
         {
           type: string
-          description: string
+          description?: string
         }
       >
       required: string[]

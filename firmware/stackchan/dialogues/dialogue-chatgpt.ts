@@ -204,97 +204,87 @@ export class ChatGPTDialogue {
     // Integrate all available tools
     const allTools = this.#integrateTools()
 
-    // Initialize with the user message
+    return await this.#executeConversationFlow(message, allTools)
+  }
+
+  async #executeConversationFlow(message: string, allTools: Tool[]): Promise<Maybe<string>> {
+    const maxIterations = 10 // Prevent infinite loops
     let currentMessage: ChatContent = {
       role: 'user',
       content: message,
     }
+    let iterationCount = 0
+
+    // Add initial user message to history
+    this.#history.push(currentMessage)
 
     try {
-      // Step 1: Send initial message
-      let response = await this.#sendMessage(currentMessage, allTools)
-      this.#history.push(currentMessage)
+      while (iterationCount < maxIterations) {
+        trace(`Conversation iteration ${iterationCount + 1}/${maxIterations}\n`)
+        const response = await this.#sendMessage(currentMessage, allTools)
 
-      if (isToolCall(response)) {
-        // AI wants to use a tool
-        trace(`Tool call detected: ${response.name}\n`)
-        try {
-          const toolResult = await this.#executeIntegratedTool(response.name, response.input)
-          trace(`Tool execution result: ${toolResult}\n`)
+        if (isChatContent(response)) {
+          // AI responded with regular chat - conversation complete
+          this.#history.push(response)
+          this.#trimHistory()
 
-          // Step 2: Send tool result back to AI
-          currentMessage = {
-            role: 'user',
-            content: `Tool "${response.name}" result: ${toolResult}`,
+          return {
+            success: true,
+            value: response.content,
           }
-          response = await this.#sendMessage(currentMessage, allTools)
-          this.#history.push(currentMessage)
-
-          if (isChatContent(response)) {
-            this.#history.push(response)
-
-            // Set maximum length to prevent memory overflow
-            while (this.#history.length > this.#maxHistory) {
-              this.#history.shift()
-            }
-
-            return {
-              success: true,
-              value: response.content,
-            }
-          }
-
-          if (isToolCall(response)) {
-            // AI wants to use another tool (not yet supported)
-            trace('Nested tool call detected, but not implemented yet\n')
-            return { success: false, reason: 'Nested tool calls not supported' }
-          }
-
-          return { success: false, reason: 'Invalid tool result response format' }
-        } catch (error) {
-          trace(`Tool execution failed: ${error}\n`)
-          const toolName = isToolCall(response) ? response.name : 'unknown'
-          currentMessage = {
-            role: 'user',
-            content: `Tool "${toolName}" failed: ${error}`,
-          }
-          response = await this.#sendMessage(currentMessage, allTools)
-          this.#history.push(currentMessage)
-
-          if (isChatContent(response)) {
-            this.#history.push(response)
-
-            // Set maximum length to prevent memory overflow
-            while (this.#history.length > this.#maxHistory) {
-              this.#history.shift()
-            }
-
-            return {
-              success: true,
-              value: response.content,
-            }
-          }
-
-          return { success: false, reason: 'Invalid error response format' }
-        }
-      } else if (isChatContent(response)) {
-        // AI responded with regular chat
-        this.#history.push(response)
-
-        // Set maximum length to prevent memory overflow
-        while (this.#history.length > this.#maxHistory) {
-          this.#history.shift()
         }
 
-        return {
-          success: true,
-          value: response.content,
+        if (isToolCall(response)) {
+          // AI wants to use a tool
+          trace(`Tool call detected: ${response.name} (iteration ${iterationCount + 1})\n`)
+
+          try {
+            const toolResult = await this.#executeIntegratedTool(response.name, response.input)
+            trace(`Tool execution result: ${toolResult}\n`)
+
+            // Create tool result message for next iteration
+            currentMessage = {
+              role: 'user',
+              content: `Tool "${response.name}" result: ${toolResult}`,
+            }
+            this.#history.push(currentMessage)
+
+            iterationCount++
+            continue // Continue to next iteration
+          } catch (error) {
+            trace(`Tool execution failed: ${error}\n`)
+
+            // Send error message to AI
+            currentMessage = {
+              role: 'user',
+              content: `Tool "${response.name}" failed: ${error}`,
+            }
+            this.#history.push(currentMessage)
+
+            iterationCount++
+            continue // Continue to next iteration
+          }
         }
-      } else {
-        return { success: false, reason: 'Invalid initial response format' }
+
+        // Invalid response format
+        return { success: false, reason: 'Invalid response format from AI' }
+      }
+
+      // Maximum iterations reached
+      trace(`Maximum iterations (${maxIterations}) reached\n`)
+      return {
+        success: false,
+        reason: `Conversation exceeded maximum iterations (${maxIterations})`,
       }
     } catch (error) {
       return { success: false, reason: error.message || 'Unknown error' }
+    }
+  }
+
+  #trimHistory(): void {
+    // Set maximum length to prevent memory overflow
+    while (this.#history.length > this.#maxHistory) {
+      this.#history.shift()
     }
   }
 

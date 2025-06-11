@@ -100,10 +100,8 @@ async function runTest() {
     tools: testTools,
     mcpClients: mcpClients,
   })
-
-  // Wait for initialization
-  await new Promise((resolve) => Timer.set(resolve, 1000))
   trace('Dialogue initialized with tools and MCP clients\n')
+  Timer.delay(1000)
 
   try {
     trace('Sending test message for calculator tool...\n')

@@ -65,11 +65,17 @@ type ChatContent = {
   content: string
 }
 
-type ToolCallOutput = {
+type FunctionCall = {
   type: 'function_call'
   call_id: string
   name: string
   arguments: string
+}
+
+type FunctionCallOutput = {
+  type: 'function_call_output'
+  call_id: string
+  output: string
 }
 
 type TextContent = {
@@ -90,7 +96,7 @@ type MessageOutput = {
   content: MessageContent[]
 }
 
-type ResponseOutput = ToolCallOutput | MessageOutput
+type ResponseOutput = FunctionCall | MessageOutput
 
 type ResponseObject = {
   id: string
@@ -114,6 +120,7 @@ export class ChatGPTDialogue {
   #responseId?: string
   #mcpClients: MCPClientService[] = []
   #tools: Tool[] = []
+  #cachedTools: Tool[] | null = null
 
   constructor({
     apiKey,
@@ -129,7 +136,7 @@ export class ChatGPTDialogue {
     this.#instructions = instructions
 
     if (context?.length > 0) {
-      trace('Warning: "context" is deprecated. Use "instructions" instead.\n')
+      // trace('Warning: "context" is deprecated. Use "instructions" instead.\n')
       this.#instructions = `${context.map((c) => c.content).join('\n')}\n${this.#instructions}`
     }
     if (tools && tools.length > 0) {
@@ -138,7 +145,7 @@ export class ChatGPTDialogue {
     if (mcpClients) {
       this.#mcpClients = mcpClients.filter((client) => client.isInitialized())
       if (this.#mcpClients.length !== mcpClients.length) {
-        trace('Some MCP clients failed to initialize. Ensure all clients are properly configured.\n')
+        // trace('Some MCP clients failed to initialize. Ensure all clients are properly configured.\n')
       }
     }
   }
@@ -149,20 +156,28 @@ export class ChatGPTDialogue {
 
   // Event handler registration methods
   async post(message: string): Promise<Maybe<string>> {
-    const allTools = await this.#getAllTools()
     const maxIterations = 10 // Prevent infinite loops
-    const currentMessages: ChatContent[] = [
+    const currentMessages: Array<ChatContent | FunctionCallOutput> = [
       {
         role: 'user',
         content: message,
       },
     ]
     const resultMessages: ChatContent[] = []
-    const iterationCount = 0
+    let iterationCount = 0
     try {
       while (iterationCount < maxIterations) {
-        trace(`Conversation iteration ${iterationCount + 1}/${maxIterations}\n`)
-        const response = await this.#sendMessage(currentMessages, allTools)
+        trace(`Conversation iteration ${iterationCount}/${maxIterations}\n`)
+        iterationCount += 1
+        if (currentMessages.length === 0) {
+          // trace('No messages to send, ending conversation\n')
+          return {
+            success: true,
+            value: resultMessages.join('\n'),
+          }
+        }
+        const response = await this.#sendMessage(currentMessages)
+        currentMessages.length = 0 // Clear current messages for next iteration
 
         const extractedMessage = this.#extractResponseBody(response)
         if (extractedMessage.id != null) {
@@ -173,17 +188,16 @@ export class ChatGPTDialogue {
           // ツールを実行して、結果を次のイテレーションで送信する
           for (const toolCall of extractedMessage.toolCalls) {
             const result = await this.#callTool(toolCall.name, toolCall.arguments)
+            currentMessages.push({
+              type: 'function_call_output',
+              call_id: toolCall.id,
+              output: typeof result === 'string' ? result : JSON.stringify(result),
+            })
           }
-        } else {
-          // ツールコールがない場合、アシスタントのメッセージを結果に追加
+        }
+        if (extractedMessage.messages.length > 0) {
           for (const message of extractedMessage.messages) {
             resultMessages.push(message)
-          }
-          // ループを終了
-          trace('No tool calls found, ending conversation\n')
-          return {
-            success: true,
-            value: resultMessages.join('\n'),
           }
         }
       }
@@ -204,18 +218,22 @@ export class ChatGPTDialogue {
   }
 
   async #getAllTools(): Promise<Tool[]> {
+    if (this.#cachedTools) {
+      return this.#cachedTools
+    }
+
     const integratedTools: Tool[] = [...this.#tools]
 
     for (const mcpClient of this.#mcpClients) {
       try {
         const mcpToolsList = await mcpClient.listTools()
-        for (const mcpTool of mcpToolsList.tools) {
+        for (const { name, description, inputSchema } of mcpToolsList.tools) {
           const tool: Tool = {
-            name: mcpTool.name,
-            description: mcpTool.description,
-            inputSchema: mcpTool.inputSchema,
+            name: name,
+            description: description,
+            inputSchema: inputSchema,
             execute: async (input: Record<string, unknown>) => {
-              return await mcpTool.execute(mcpTool.name, input)
+              return mcpClient.callTool(name, input)
             },
           }
           integratedTools.push(tool)
@@ -224,14 +242,15 @@ export class ChatGPTDialogue {
         trace(`MCP tool listing failed: ${error}\n`)
       }
     }
+    this.#cachedTools = integratedTools
     return integratedTools
   }
 
   #convertToolsToOpenAI(tools: Tool[]): OpenAITool[] {
     return tools.map((tool) => {
-      trace(`Converting tool ${tool.name} to OpenAI format\n`)
-      trace(`  Description: ${tool.description}\n`)
-      trace(`  Input Schema: ${JSON.stringify(tool.inputSchema, null, 2)}\n`)
+      // trace(`Converting tool ${tool.name} to OpenAI format\n`)
+      // trace(`  Description: ${tool.description}\n`)
+      // trace(`  Input Schema: ${JSON.stringify(tool.inputSchema, null, 2)}\n`)
 
       // Provide fallback description if missing
       const description = tool.description || `Tool: ${tool.name}`
@@ -249,9 +268,11 @@ export class ChatGPTDialogue {
     })
   }
 
-  async #sendMessage(messages: ChatContent[], tools: Tool[]): Promise<ExtractedResponse> {
+  async #sendMessage(messages: Array<ChatContent | FunctionCallOutput>): Promise<unknown> {
+    const tools = await this.#getAllTools()
     const body = {
       model: this.#model,
+      previous_response_id: this.#responseId,
       input: [...this.#context, ...messages],
       instructions: this.#instructions,
       tools: tools.length > 0 ? this.#convertToolsToOpenAI(tools) : undefined,
@@ -259,7 +280,7 @@ export class ChatGPTDialogue {
     }
 
     // Log the request body for debugging
-    trace(`Request body: ${JSON.stringify(body, null, 2)}\n`)
+    // trace(`Request body: ${JSON.stringify(body, null, 2)}\n`)
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: new Headers([
@@ -272,11 +293,10 @@ export class ChatGPTDialogue {
     if (2 !== Math.idiv(status, 100)) {
       // Read error response body for details
       const errorBody = await response.text()
-      trace(`Error response body: ${errorBody}\n`)
+      // trace(`Error response body: ${errorBody}\n`)
       throw Error(`http·requestfailed, status ${status} ${response.statusText}`)
     }
-    const responseBody = await response.json()
-    return this.#extractResponseBody(responseBody)
+    return response.json()
   }
 
   #extractResponseBody(responseObj: unknown): ExtractedResponse {
@@ -302,7 +322,7 @@ export class ChatGPTDialogue {
           id: output.call_id,
           type: 'tool_call',
           name: output.name,
-          arguments: JSON.parse(output.arguments),
+          arguments: output.arguments,
         })
       }
     }
@@ -311,7 +331,6 @@ export class ChatGPTDialogue {
 
   async #callTool(toolName: string, args: string): Promise<string> {
     const tools = await this.#getAllTools()
-    // First try local tools
     const tool = tools.find((tool) => tool.name === toolName)
     if (tool) {
       const result = await tool.execute(JSON.parse(args))

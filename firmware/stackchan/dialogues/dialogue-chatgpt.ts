@@ -115,12 +115,11 @@ type ChatGPTDialogueProps = {
 export class ChatGPTDialogue {
   #apiKey: string
   #model: string
-  #context: Array<ChatContent>
   #instructions: string
   #responseId?: string
   #mcpClients: MCPClientService[] = []
   #tools: Tool[] = []
-  #cachedTools: Tool[] | null = null
+  #toolsMap: Map<string, Tool> | null = null
 
   constructor({
     apiKey,
@@ -132,12 +131,15 @@ export class ChatGPTDialogue {
   }: ChatGPTDialogueProps) {
     this.#apiKey = apiKey
     this.#model = model
-    this.#context = context
     this.#instructions = instructions
 
     if (context?.length > 0) {
       // trace('Warning: "context" is deprecated. Use "instructions" instead.\n')
-      this.#instructions = `${context.map((c) => c.content).join('\n')}\n${this.#instructions}`
+      let contextContent = ''
+      for (const c of context) {
+        contextContent += `${c.content}\n`
+      }
+      this.#instructions = contextContent + this.#instructions
     }
     if (tools && tools.length > 0) {
       this.#tools = tools
@@ -152,6 +154,7 @@ export class ChatGPTDialogue {
 
   clear() {
     this.#responseId = null
+    this.#toolsMap = null
   }
 
   // Event handler registration methods
@@ -163,17 +166,17 @@ export class ChatGPTDialogue {
         content: message,
       },
     ]
-    const resultMessages: ChatContent[] = []
+    let resultText = ''
     let iterationCount = 0
     try {
       while (iterationCount < maxIterations) {
-        trace(`Conversation iteration ${iterationCount}/${maxIterations}\n`)
+        // trace(`Conversation iteration ${iterationCount}/${maxIterations}\n`);
         iterationCount += 1
         if (currentMessages.length === 0) {
           // trace('No messages to send, ending conversation\n')
           return {
             success: true,
-            value: resultMessages.join('\n'),
+            value: resultText,
           }
         }
         const response = await this.#sendMessage(currentMessages)
@@ -187,22 +190,23 @@ export class ChatGPTDialogue {
         if (extractedMessage.toolCalls.length > 0) {
           // ツールを実行して、結果を次のイテレーションで送信する
           for (const toolCall of extractedMessage.toolCalls) {
-            const result = await this.#callTool(toolCall.name, toolCall.arguments)
+            const output = await this.#callTool(toolCall.name, toolCall.arguments)
             currentMessages.push({
               type: 'function_call_output',
               call_id: toolCall.id,
-              output: typeof result === 'string' ? result : JSON.stringify(result),
+              output,
             })
           }
         }
         if (extractedMessage.messages.length > 0) {
           for (const message of extractedMessage.messages) {
-            resultMessages.push(message)
+            if (resultText) resultText += '\n'
+            resultText += message.content
           }
         }
       }
       // Maximum iterations reached
-      trace(`Maximum iterations (${maxIterations}) reached\n`)
+      // trace(`Maximum iterations (${maxIterations}) reached\n`);
       return {
         success: false,
         reason: `Conversation exceeded maximum iterations (${maxIterations})`,
@@ -217,13 +221,15 @@ export class ChatGPTDialogue {
     return []
   }
 
-  async #getAllTools(): Promise<Tool[]> {
-    if (this.#cachedTools) {
-      return this.#cachedTools
+  async #getToolsMap(): Promise<Map<string, Tool>> {
+    const toolsMap = new Map<string, Tool>()
+    for (const tool of this.#tools) {
+      if (!toolsMap.has(tool.name)) {
+        toolsMap.set(tool.name, tool)
+      } else {
+        trace(`Warning: Duplicate tool name detected: ${tool.name}\n`)
+      }
     }
-
-    const integratedTools: Tool[] = [...this.#tools]
-
     for (const mcpClient of this.#mcpClients) {
       try {
         const mcpToolsList = await mcpClient.listTools()
@@ -236,46 +242,31 @@ export class ChatGPTDialogue {
               return mcpClient.callTool(name, input)
             },
           }
-          integratedTools.push(tool)
+          toolsMap.set(name, tool)
         }
       } catch (error) {
         trace(`MCP tool listing failed: ${error}\n`)
       }
     }
-    this.#cachedTools = integratedTools
-    return integratedTools
-  }
-
-  #convertToolsToOpenAI(tools: Tool[]): OpenAITool[] {
-    return tools.map((tool) => {
-      // trace(`Converting tool ${tool.name} to OpenAI format\n`)
-      // trace(`  Description: ${tool.description}\n`)
-      // trace(`  Input Schema: ${JSON.stringify(tool.inputSchema, null, 2)}\n`)
-
-      // Provide fallback description if missing
-      const description = tool.description || `Tool: ${tool.name}`
-
-      // Clean the input schema for OpenAI format - remove $schema
-      const cleanedParameters = { ...tool.inputSchema }
-      cleanedParameters.$schema = undefined
-
-      return {
-        type: 'function',
-        name: tool.name,
-        description: description,
-        parameters: cleanedParameters,
-      }
-    })
+    return toolsMap
   }
 
   async #sendMessage(messages: Array<ChatContent | FunctionCallOutput>): Promise<unknown> {
-    const tools = await this.#getAllTools()
+    if (this.#toolsMap == null) {
+      this.#toolsMap = await this.#getToolsMap()
+    }
+    const tools = Array.from(this.#toolsMap.values()).map((tool) => ({
+      type: 'function',
+      name: tool.name,
+      description: tool.description || `Tool: ${tool.name}`,
+      parameters: tool.inputSchema,
+    }))
     const body = {
       model: this.#model,
       previous_response_id: this.#responseId,
-      input: [...this.#context, ...messages],
+      input: messages,
       instructions: this.#instructions,
-      tools: tools.length > 0 ? this.#convertToolsToOpenAI(tools) : undefined,
+      tools: tools.length > 0 ? tools : undefined,
       store: true,
     }
 
@@ -291,9 +282,6 @@ export class ChatGPTDialogue {
     })
     const status = response.status
     if (2 !== Math.idiv(status, 100)) {
-      // Read error response body for details
-      const errorBody = await response.text()
-      // trace(`Error response body: ${errorBody}\n`)
       throw Error(`http·requestfailed, status ${status} ${response.statusText}`)
     }
     return response.json()
@@ -330,8 +318,10 @@ export class ChatGPTDialogue {
   }
 
   async #callTool(toolName: string, args: string): Promise<string> {
-    const tools = await this.#getAllTools()
-    const tool = tools.find((tool) => tool.name === toolName)
+    if (this.#toolsMap == null) {
+      this.#toolsMap = await this.#getToolsMap()
+    }
+    const tool = this.#toolsMap.get(toolName)
     if (tool) {
       const result = await tool.execute(JSON.parse(args))
       return typeof result === 'string' ? result : JSON.stringify(result)

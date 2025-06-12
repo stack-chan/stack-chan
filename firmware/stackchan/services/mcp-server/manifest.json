@@ -8,5 +8,6 @@
   ],
   "modules": {
     "*": ["./mcp-server"]
-  }
+  },
+  "preload": ["mcp-server"]
 }

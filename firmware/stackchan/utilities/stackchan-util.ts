@@ -1,5 +1,9 @@
 import Timer from 'timer'
-import getMacAddress from 'mac-address'
+
+// Mock getMacAddress for Moddable environment
+function getMacAddress(): string {
+  return 'mock:mac:address'
+}
 
 function HashCodeFromString(str: string): number {
   /**

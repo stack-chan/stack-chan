@@ -1,0 +1,22 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_commodetto.json",
+    "$(MODULES)/commodetto/outline/manifest.json",
+    "$(MODULES)/base/deepEqual/manifest.json",
+    "$(MODULES)/base/easing/manifest.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/examples/manifest_typings.json"
+  ],
+  "modules": {
+    "*": [
+      "./*",
+      "../../../stackchan/renderers/*",
+      "../../../stackchan/renderers/piu/*",
+      "../../../stackchan/utilities/*"
+    ]
+  },
+  "config": {
+    "touchCount": 0
+  }
+}

@@ -9,5 +9,22 @@
       "sampleRate": 16000,
       "bitsPerSample": 16
     }
+  },
+  "platforms": {
+    "esp32/m5stack_cores3": {
+      "modules": {
+        "es7210": "./es7210"
+      },
+      "preload": ["es7210", "microphone"],
+      "defines": {
+        "audioin": {
+          "i2s": {
+            "sd": { "port": null, "pin": 46 },
+            "ws": { "port": null, "pin": 12 },
+            "sck": { "port": null, "pin": 11 }
+          }
+        }
+      }
+    }
   }
 }

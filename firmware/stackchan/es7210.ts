@@ -4,7 +4,8 @@
  * This module is preloaded on CoreS3 to initialize the codec before microphone use
  */
 
-import I2C from 'embedded:io/i2c'
+import I2C from 'embedded:io/I2C'
+import Timer from 'timer'
 
 const ES7210_I2C_ADDR = 0x40
 const I2C_SDA_PIN = 2
@@ -12,7 +13,6 @@ const I2C_SCL_PIN = 1
 
 // ES7210 register initialization sequence from M5Unified
 const ES7210_INIT_SEQUENCE = [
-  [0x00, 0xff], // Reset
   [0x00, 0x41], // RESET_CTL
   [0x01, 0x1f], // CLK_ON_OFF
   [0x06, 0x00], // DIGITAL_PDN
@@ -51,19 +51,25 @@ try {
     sda: I2C_SDA_PIN,
     scl: I2C_SCL_PIN,
     hz: 400000,
+    address: ES7210_I2C_ADDR,
   })
 
-  // Wait a bit after I2C init
-  System.sleep(10)
+  // Reset ES7210
+  i2c.write(Uint8Array.of(0x00, 0xff))
 
-  // Write initialization sequence
-  for (const [reg, value] of ES7210_INIT_SEQUENCE) {
-    i2c.write(ES7210_I2C_ADDR, Uint8Array.of(reg, value))
-    System.sleep(1)
-  }
-
-  i2c.close()
-  trace('ES7210 codec initialized successfully for CoreS3 microphone\n')
+  // Wait for reset to complete using a timer
+  Timer.set(() => {
+    try {
+      // Write initialization sequence
+      for (const [reg, value] of ES7210_INIT_SEQUENCE) {
+        i2c.write(Uint8Array.of(reg, value))
+      }
+      i2c.close()
+      trace('ES7210 codec initialized successfully for CoreS3 microphone\n')
+    } catch (error) {
+      trace(`Failed to initialize ES7210 registers: ${error}\n`)
+    }
+  }, 10)
 } catch (error) {
   trace(`Failed to initialize ES7210 codec: ${error}\n`)
 }

@@ -193,7 +193,7 @@ The PCBA service may not assemble the following (depending on design):
 - Some large components
 - Special components
 
-These need to be hand-soldered after board arrival. Refer to GitHub Pages or schematics/README.md for the list of additional required components.
+These need to be hand-soldered after board arrival. Refer to GitHub Pages or [../README.md](../README.md) for the list of additional required components.
 
 ## Troubleshooting
 

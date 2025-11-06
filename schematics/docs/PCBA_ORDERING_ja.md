@@ -85,7 +85,7 @@
 - **PCB Color（基板色）**: お好みの色を選択（緑が標準、黒・白・青・赤なども選択可）
 - **Silkscreen（シルク印刷）**: 白（基板色に応じて変更可）
 - **Surface Finish（表面処理）**: HASL(with lead) または LeadFree HASL
-  - LeadFree HALSを推奨（鉛フリー）
+  - LeadFree HASLを推奨（鉛フリー）
 - **Outer Copper Weight（外層銅箔厚）**: 1 oz
 
 #### その他の設定（通常はデフォルトのままでOK）
@@ -183,7 +183,7 @@
 
 - 基板の色は緑が最も安価です
 - 数量は5枚または10枚がコストパフォーマンスが良いです
-- 表面処理はHASLが最も安価ですが、LeadFree HALSも価格差は小さいです
+- 表面処理はHASLが最も安価ですが、LeadFree HASLも価格差は小さいです
 
 ### はんだ付けが必要な部品
 

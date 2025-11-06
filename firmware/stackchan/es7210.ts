@@ -11,6 +11,10 @@ const ES7210_I2C_ADDR = 0x40
 const I2C_SDA_PIN = 2
 const I2C_SCL_PIN = 1
 
+// ES7210 register values
+const ES7210_RESET_VALUE = 0xff // Full reset of all registers
+const RESET_DELAY_MS = 10 // Delay in ms after reset for chip to stabilize
+
 // ES7210 register initialization sequence from M5Unified
 const ES7210_INIT_SEQUENCE = [
   [0x00, 0x41], // RESET_CTL
@@ -54,8 +58,8 @@ try {
     address: ES7210_I2C_ADDR,
   })
 
-  // Reset ES7210
-  i2c.write(Uint8Array.of(0x00, 0xff))
+  // Reset ES7210 - write reset value to register 0x00
+  i2c.write(Uint8Array.of(0x00, ES7210_RESET_VALUE))
 
   // Wait for reset to complete using a timer
   Timer.set(() => {
@@ -69,7 +73,7 @@ try {
     } catch (error) {
       trace(`Failed to initialize ES7210 registers: ${error}\n`)
     }
-  }, 10)
+  }, RESET_DELAY_MS)
 } catch (error) {
   trace(`Failed to initialize ES7210 codec: ${error}\n`)
 }

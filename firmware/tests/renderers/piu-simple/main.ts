@@ -30,10 +30,10 @@ const main = new Main({ face: faceContainer })
 new Shell({
   main,
   drawerButtons: [
-    { label: 'Face', action: 'toggleFaceMode' },
-    { label: 'Mouth', toggleKey: 'mouth', action: 'toggleMouth' },
-    { label: 'Emotion', action: 'cycleEmotion' },
-    { label: 'Speech', action: 'toggleSpeech' },
+    { key: 'setFace', label: 'Face', kind: 'toggle' },
+    { key: 'toggleMouth', label: 'Mouth', kind: 'toggle' },
+    { key: 'cycleEmotion', label: 'Emotion' },
+    { key: 'toggleSpeech', label: 'Speech', kind: 'toggle' },
   ],
 })
 main.application.distribute?.('onFaceMode', faceMode)

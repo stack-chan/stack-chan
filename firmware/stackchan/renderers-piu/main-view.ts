@@ -68,6 +68,16 @@ export class Main {
     return this.#effectsContainer
   }
 
+  setFaceContainer(face: PiuContainer): void {
+    if (face === this.#face) return
+    const currentFace = this.#face
+    this.#face = face
+    if (currentFace) {
+      this.#main.remove(currentFace)
+    }
+    this.#main.insert(this.#face, this.#effectsContainer)
+  }
+
   addEffect(effect: PiuContent): void {
     if (this.#effects.has(effect)) return
     this.#effects.add(effect)

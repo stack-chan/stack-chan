@@ -2,6 +2,7 @@ import type { Content as PiuContent } from 'piu/MC'
 import type { FaceContext } from 'face-context'
 import type { Effect } from 'main-view'
 import type { Main } from 'main-view'
+import type { Container as PiuContainer } from 'piu/MC'
 
 type RendererCompatOptions = {
   main: Main
@@ -39,6 +40,11 @@ export class RendererCompat {
   removeDecorator(effect: Effect): void {
     warnDeprecation()
     this.#main.removeEffect(effect)
+  }
+
+  setFace(face: PiuContainer): void {
+    const app = this.#main.application as unknown as { shellController?: { setFace?: (next: PiuContainer) => void } }
+    app.shellController?.setFace?.(face)
   }
 }
 

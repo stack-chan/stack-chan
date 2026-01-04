@@ -1,11 +1,11 @@
 import type { Content as PiuContent } from 'piu/MC'
 import type { FaceContext } from 'face-context'
 import type { Effect } from 'main-view'
-import type { Main } from 'main-view'
 import type { Container as PiuContainer } from 'piu/MC'
+import type { AppController } from 'app-controller'
 
 type RendererCompatOptions = {
-  main: Main
+  controller: AppController
 }
 
 let warned = false
@@ -17,33 +17,35 @@ function warnDeprecation() {
 }
 
 export class RendererCompat {
-  #main: Main
+  #controller: AppController
 
   constructor(options: RendererCompatOptions) {
     warnDeprecation()
-    this.#main = options.main
+    this.#controller = options.controller
   }
 
   get application() {
-    return this.#main.application
+    return this.#controller.application
   }
 
   update(interval: number, faceContext: Readonly<FaceContext>): void {
-    this.#main.update(interval, faceContext)
+    this.#controller.update(interval, faceContext)
   }
 
   addDecorator(effect: Effect): void {
     warnDeprecation()
-    this.#main.addEffect(effect)
+    this.#controller.addEffect(effect)
   }
 
   removeDecorator(effect: Effect): void {
     warnDeprecation()
-    this.#main.removeEffect(effect)
+    this.#controller.removeEffect(effect)
   }
 
   setFace(face: PiuContainer): void {
-    const app = this.#main.application as unknown as { shellController?: { setFace?: (next: PiuContainer) => void } }
+    const app = this.#controller.application as unknown as {
+      shellController?: { setFace?: (next: PiuContainer) => void }
+    }
     app.shellController?.setFace?.(face)
   }
 }

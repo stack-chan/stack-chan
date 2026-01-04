@@ -35,7 +35,7 @@ export type FaceContainerParams = {
   faceBounds?: FaceBounds
 }
 
-type FaceContainerTemplateCtor = {
+export type FaceTemplateCtor = {
   new (behaviorData?: unknown, dictionary?: FaceContainerParams): PiuContainer
 }
 
@@ -54,8 +54,8 @@ export class FaceBehavior extends Behavior {
     this.#buildParts = buildParts
     this.#motions = motions ?? [
       createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
-      createBreathMotion({ duration: 6000 }),
-      createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
+      // createBreathMotion({ duration: 6000 }),
+      // createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
     this.#current = createFaceContext()
     this.#desired = createFaceContext()
@@ -283,7 +283,7 @@ export const FaceContainerTemplate = Container.template<FaceContainerParams>(($)
       }
     },
   }
-}) as unknown as FaceContainerTemplateCtor
+}) as unknown as FaceTemplateCtor
 
 export function createSimpleFaceContainer(motions?: FaceMotion[], intervalMs?: number): PiuContainer {
   return createFaceContainer(
@@ -307,4 +307,62 @@ export function createDogFaceContainer(motions?: FaceMotion[], intervalMs?: numb
 
 export function createSmallFaceContainer(motions?: FaceMotion[], intervalMs?: number): PiuContainer {
   return createFaceContainer(createSmallFaceParts, motions, intervalMs, 120)
+}
+
+export const FaceTemplate = FaceContainerTemplate
+
+export function createFaceParams(
+  buildParts: () => PiuContent[],
+  motions?: FaceMotion[],
+  intervalMs?: number,
+  height?: number,
+  faceBounds?: FaceBounds,
+): FaceContainerParams {
+  return { buildParts, motions, intervalMs, height, faceBounds }
+}
+
+export function createSimpleFaceParams(motions?: FaceMotion[], intervalMs?: number): FaceContainerParams {
+  return createFaceParams(
+    () => createSimpleFaceParts(DEFAULT_FACE_OFFSET),
+    motions,
+    intervalMs,
+    DEFAULT_FACE_BOUNDS.height,
+    DEFAULT_FACE_BOUNDS,
+  )
+}
+
+export function createDogFaceParams(motions?: FaceMotion[], intervalMs?: number): FaceContainerParams {
+  return createFaceParams(
+    () => createDogFaceParts(DEFAULT_FACE_OFFSET, DEFAULT_FACE_BOUNDS),
+    motions,
+    intervalMs,
+    DEFAULT_FACE_BOUNDS.height,
+    DEFAULT_FACE_BOUNDS,
+  )
+}
+
+export function createSmallFaceParams(motions?: FaceMotion[], intervalMs?: number): FaceContainerParams {
+  return createFaceParams(createSmallFaceParts, motions, intervalMs, 120)
+}
+
+export function createFace(
+  buildParts: () => PiuContent[],
+  motions?: FaceMotion[],
+  intervalMs?: number,
+  height?: number,
+  faceBounds?: FaceBounds,
+): PiuContainer {
+  return createFaceContainer(buildParts, motions, intervalMs, height, faceBounds)
+}
+
+export function createSimpleFace(motions?: FaceMotion[], intervalMs?: number): PiuContainer {
+  return createSimpleFaceContainer(motions, intervalMs)
+}
+
+export function createDogFace(motions?: FaceMotion[], intervalMs?: number): PiuContainer {
+  return createDogFaceContainer(motions, intervalMs)
+}
+
+export function createSmallFace(motions?: FaceMotion[], intervalMs?: number): PiuContainer {
+  return createSmallFaceContainer(motions, intervalMs)
 }

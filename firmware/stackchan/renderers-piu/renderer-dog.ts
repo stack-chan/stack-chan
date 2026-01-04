@@ -1,8 +1,9 @@
-import { createDogFaceContainer } from 'behaviors/face'
+import { Application } from 'piu/MC'
+import { FaceTemplate, createDogFaceParams } from 'behaviors/face'
 import type { DrawerButtonSpec } from 'drawer'
-import { Main, type Effect } from 'main-view'
+import type { Effect } from 'main-view'
+import { AppController } from 'app-controller'
 import { RendererCompat } from 'renderer-compat'
-import { Shell } from 'shell'
 
 export type { Effect }
 
@@ -10,14 +11,20 @@ type RendererOptions = {
   drawerButtons?: DrawerButtonSpec[]
 }
 
-export function createRenderer(options?: RendererOptions): Main {
-  const main = new Main({ face: createDogFaceContainer() })
-  new Shell({ main, drawerButtons: options?.drawerButtons })
-  return main
+export function createRenderer(options?: RendererOptions): AppController {
+  const application = new Application(
+    {
+      faceTemplate: FaceTemplate,
+      faceParams: createDogFaceParams(),
+      drawerButtons: options?.drawerButtons,
+    },
+    { displayListLength: 2048, contents: [], Behavior: AppController },
+  )
+  return application.behavior as AppController
 }
 
 export class Renderer extends RendererCompat {
   constructor(options?: RendererOptions) {
-    super({ main: createRenderer(options) })
+    super({ controller: createRenderer(options) })
   }
 }

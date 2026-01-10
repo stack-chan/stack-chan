@@ -6,22 +6,30 @@ import {
   type Skin as PiuSkin,
 } from 'piu/MC'
 import { defaultFaceContext, type FaceContext } from 'face-context'
-import { CommonView, CommonViewBehavior, type CommonViewParams, type CommonViewTemplateCtor } from 'common-view'
-import type { FaceContainerParams, FaceTemplateCtor } from 'behaviors/face'
+import {
+  CommonView,
+  CommonViewBehavior,
+  type CommonViewParams,
+  type CommonViewTemplateCtor,
+  type TemplateFunction,
+} from 'common-view'
+import type { FaceTemplateCtor } from 'behaviors/face'
 
-export type FaceViewParams = CommonViewParams & {
-  face?: PiuContainer
-  faceTemplate?: FaceTemplateCtor
-  faceParams?: FaceContainerParams
-  effects?: PiuContainer
-  effectsTemplate?: { new (behaviorData?: unknown, dictionary?: unknown): PiuContainer }
-  effectsParams?: unknown
-  skin?: PiuSkin
+type FaceViewAnchors = {
+  FACE?: PiuContainer
+  EFFECTS?: PiuContainer
 }
 
-export type FaceViewTemplateCtor = {
-  new (behaviorData?: unknown, dictionary?: FaceViewParams): PiuContainer
-}
+type FaceViewBaseParams = CommonViewParams
+
+export type FaceViewParams = FaceViewBaseParams &
+  FaceViewAnchors & {
+    face?: PiuContainer
+    effects?: PiuContainer
+    skin?: PiuSkin
+  }
+
+export type FaceViewTemplateCtor = TemplateFunction<FaceViewParams, PiuContainer>
 
 class FaceViewBehavior extends CommonViewBehavior {
   face: PiuContainer | null = null
@@ -33,10 +41,17 @@ class FaceViewBehavior extends CommonViewBehavior {
   onCreate(container: PiuContainer, data: FaceViewParams) {
     super.onCreate(container, data)
     const main = this.main
-    if (main) {
-      this.face = main.first as PiuContainer | null
-      this.effects = (this.face?.next as PiuContainer | null) ?? null
+    if (!main) {
+      throw new Error('[FaceView] missing MAIN container')
     }
+    if (!data.FACE || !data.EFFECTS) {
+      const missing: string[] = []
+      if (!data.FACE) missing.push('FACE')
+      if (!data.EFFECTS) missing.push('EFFECTS')
+      throw new Error(`[FaceView] missing anchors: ${missing.join(', ')}`)
+    }
+    this.face = data.FACE
+    this.effects = data.EFFECTS
     this.autoTheme = data.skin === undefined
   }
 
@@ -69,8 +84,8 @@ class FaceViewBehavior extends CommonViewBehavior {
     this.effects.remove(effect)
   }
 
-  setFaceContainer(face: PiuContainer): void {
-    if (!this.main || this.face === face) return
+  setFace(face: PiuContainer): void {
+    if (!face || !this.main || this.face === face) return
     const currentFace = this.face
     this.face = face
     if (currentFace) this.main.remove(currentFace)
@@ -78,9 +93,9 @@ class FaceViewBehavior extends CommonViewBehavior {
     else this.main.add(this.face)
   }
 
-  setFaceTemplate(template: FaceTemplateCtor, params?: FaceContainerParams): void {
-    const next = new template(params)
-    this.setFaceContainer(next)
+  setFaceTemplate(template: FaceTemplateCtor): void {
+    const next = new template()
+    this.setFace(next)
   }
 
   private applyTheme(faceContext: Readonly<FaceContext>) {
@@ -92,27 +107,41 @@ class FaceViewBehavior extends CommonViewBehavior {
   }
 }
 
-export const FaceMainTemplate = Container.template(($) => {
-  const face = $.face ?? ($.faceTemplate ? new $.faceTemplate($.faceParams) : new Container(null, {}))
-  const effects =
-    $.effects ??
-    ($.effectsTemplate
-      ? new $.effectsTemplate($.effectsParams)
-      : new Container(null, { left: 0, right: 0, top: 0, bottom: 0, active: false, clip: false }))
-  const skin = $.skin ?? new Skin({ fill: defaultFaceContext.theme.secondary })
-  return {
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    skin,
-    contents: [face, effects],
-  }
-}) as unknown as { new (behaviorData?: unknown, dictionary?: FaceViewParams): PiuContainer }
+export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = Container.template(
+  ($: FaceViewParams) => {
+    const face = $.face
+    if (!face) throw new Error('[FaceMainTemplate] face instance is required')
+    if (!$.FACE) {
+      $.FACE = face
+    }
+    const effects =
+      $.effects ??
+      new Container($, { left: 0, right: 0, top: 0, bottom: 0, active: false, clip: false, anchor: 'EFFECTS' })
+    if (!$.EFFECTS) {
+      $.EFFECTS = effects
+    }
+    const skin = $.skin ?? new Skin({ fill: defaultFaceContext.theme.secondary })
+    return {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      skin,
+      contents: [face, effects],
+    }
+  },
+)
 
-const CommonViewTemplate = CommonView as unknown as CommonViewTemplateCtor
-export const FaceView = CommonViewTemplate.template?.(($) => ({
-  Behavior: FaceViewBehavior,
-})) as unknown as FaceViewTemplateCtor
+const CommonViewTemplate: CommonViewTemplateCtor = CommonView
+export const FaceView: FaceViewTemplateCtor = CommonViewTemplate.template
+  ? CommonViewTemplate.template(($: FaceViewParams) => {
+      if (!$.main && !$.MAIN) {
+        if (!$.face) throw new Error('[FaceView] face is required when main is not provided')
+        const main = new FaceMainTemplate($, { anchor: 'MAIN' })
+        $.main = main
+      }
+      return { Behavior: FaceViewBehavior }
+    })
+  : CommonViewTemplate
 
 export type { FaceViewBehavior }

@@ -51,6 +51,20 @@ function getDrawerSkins(): DrawerSkins {
 const DrawerButton = Container.template(($: DrawerButtonSpec) => {
   const skins = getDrawerSkins()
   const isToggle = $.kind === 'toggle'
+  const contents: PiuContent[] = []
+  if (isToggle) {
+    contents.push(new Content(null, { left: 12, width: 16, height: 16, top: 14, skin: skins.toggleOffSkin }))
+  }
+  contents.push(
+    new Label(null, {
+      left: isToggle ? 36 : 12,
+      right: 12,
+      top: 0,
+      bottom: 0,
+      string: $.label ?? 'Button',
+      style: skins.drawerButtonStyle,
+    }),
+  )
   return {
     name: $.key,
     left: 0,
@@ -58,17 +72,7 @@ const DrawerButton = Container.template(($: DrawerButtonSpec) => {
     height: 44,
     active: true,
     skin: skins.drawerButtonSkin,
-    contents: [
-      isToggle ? new Content(null, { left: 12, width: 16, height: 16, top: 14, skin: skins.toggleOffSkin }) : null,
-      new Label(null, {
-        left: isToggle ? 36 : 12,
-        right: 12,
-        top: 0,
-        bottom: 0,
-        string: $.label ?? 'Button',
-        style: skins.drawerButtonStyle,
-      }),
-    ],
+    contents,
     Behavior: class extends Behavior {
       action?: string
       icon?: PiuContent | null
@@ -89,7 +93,10 @@ const DrawerButton = Container.template(($: DrawerButtonSpec) => {
       }
       onTouchEnded(content: PiuContainer) {
         content.skin = skins.drawerButtonSkin
-        if (this.action) content.bubble(this.action)
+        if (this.action) {
+          trace(`[DrawerButton] onTouchEnded action=${this.action}\n`)
+          content.bubble(this.action)
+        }
       }
       setActive(_content: PiuContainer, active: boolean) {
         if (!this.icon) return

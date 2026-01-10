@@ -1,5 +1,5 @@
 import { Application } from 'piu/MC'
-import { FaceTemplate, createDogFaceParams } from 'behaviors/face'
+import { DogFace } from 'behaviors/face'
 import type { DrawerButtonSpec } from 'drawer'
 import type { Effect } from 'main-view'
 import { AppController } from 'app-controller'
@@ -14,8 +14,7 @@ type RendererOptions = {
 export function createRenderer(options?: RendererOptions): AppController {
   const application = new Application(
     {
-      faceTemplate: FaceTemplate,
-      faceParams: createDogFaceParams(),
+      face: new DogFace(),
       drawerButtons: options?.drawerButtons,
     },
     { displayListLength: 2048, contents: [], Behavior: AppController },

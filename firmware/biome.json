@@ -6,12 +6,7 @@
     "useIgnoreFile": false
   },
   "files": {
-    "includes": [
-      "**/stackchan/**",
-      "**/mods/**",
-      "**/tests/**",
-      "**/scripts/**"
-    ],
+    "includes": ["stackchan/**", "mods/**", "tests/**", "scripts/**"],
     "ignoreUnknown": false
   },
   "formatter": {

@@ -24,23 +24,20 @@ type PositionedContent = PiuContent & {
   skin?: PiuSkin
 }
 
-export function createMouth({
-  cx,
-  cy,
-  minWidth = 50,
-  maxWidth = 90,
-  minHeight = 8,
-  maxHeight = 58,
-}: MouthOptions): PositionedContent {
-  return new Content(null, {
-    left: cx - minWidth / 2,
-    top: cy - minHeight / 2,
+export const Mouth = Content.template((opts: MouthOptions) => {
+  const minWidth = opts.minWidth ?? 50
+  const maxWidth = opts.maxWidth ?? 90
+  const minHeight = opts.minHeight ?? 8
+  const maxHeight = opts.maxHeight ?? 58
+  return {
+    left: opts.cx - minWidth / 2,
+    top: opts.cy - minHeight / 2,
     width: minWidth,
     height: minHeight,
     skin: new Skin({ fill: defaultFaceContext.theme.primary }),
     Behavior: class extends Behavior {
-      cx = cx
-      cy = cy
+      cx = opts.cx
+      cy = opts.cy
       minWidth = minWidth
       maxWidth = maxWidth
       minHeight = minHeight
@@ -73,5 +70,5 @@ export function createMouth({
         }
       }
     },
-  }) as PositionedContent
-}
+  }
+})

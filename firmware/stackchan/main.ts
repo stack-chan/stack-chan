@@ -1,4 +1,3 @@
-import config from 'mc/config'
 import Modules from 'modules'
 import { Robot, type Driver, type TTS, type Renderer } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
@@ -17,7 +16,6 @@ import { Renderer as SimpleRenderer } from 'renderer-simple'
 import { Renderer as DogFaceRenderer } from 'renderer-dog'
 import { Renderer as SmallFaceRenderer } from 'renderer-small'
 import { NetworkService } from 'network-service'
-import Touch from 'touch'
 import Microphone from 'microphone'
 import Tone from 'tone'
 import { asyncWait } from 'stackchan-util'
@@ -108,8 +106,8 @@ function createRobot() {
       }
     }
   }
-  const globalEnv = globalThis as unknown as GlobalEnvironment
-  // const TouchConstructor = config.Touch || globalEnv.device?.sensor?.Touch
+  const _globalEnv = globalThis as unknown as GlobalEnvironment
+  // const TouchConstructor = _globalEnv.device?.sensor?.Touch
   // const touch = TouchConstructor ? new Touch(TouchConstructor) : undefined
   const touch = undefined
   const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined

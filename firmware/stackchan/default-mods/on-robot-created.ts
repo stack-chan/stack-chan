@@ -2,7 +2,7 @@ import type { StackchanMod } from 'default-mods/mod'
 import Timer from 'timer'
 import { randomBetween, asyncWait } from 'stackchan-util'
 import { Emotion } from 'face-context'
-import { createDogFaceContainer, createSimpleFaceContainer } from 'behaviors/face'
+import { DogFace, SimpleFace } from 'behaviors/face'
 
 const FORWARD = {
   y: 0,
@@ -40,7 +40,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     initialState: false,
     callback: (target) => {
       faceMode = faceMode === 'dog' ? 'simple' : 'dog'
-      const nextFace = faceMode === 'dog' ? createDogFaceContainer() : createSimpleFaceContainer()
+      const nextFace = faceMode === 'dog' ? new DogFace({}) : new SimpleFace({})
       target.renderer?.setFace?.(nextFace)
       robot.application.setDrawerButtonState('setFace', faceMode === 'dog')
       const app = target.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined

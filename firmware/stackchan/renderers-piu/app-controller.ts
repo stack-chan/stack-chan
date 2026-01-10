@@ -8,7 +8,7 @@ import {
   type FaceViewParams,
   type FaceViewTemplateCtor,
 } from 'face-view'
-import type { FaceContainerParams, FaceTemplateCtor } from 'behaviors/face'
+import type { FaceTemplateCtor } from 'behaviors/face'
 
 export type AppControllerParams = FaceViewParams
 
@@ -31,7 +31,8 @@ export class AppController extends Behavior {
 
   onCreate(application: PiuApplication, data: AppControllerParams) {
     this.#application = application
-    const viewData: FaceViewParams = { ...data, mainTemplate: FaceMainTemplate, mainParams: data }
+    const main = data.main ?? new FaceMainTemplate(data, { anchor: 'MAIN' })
+    const viewData: FaceViewParams = { ...data, main }
     this.showView(FaceView, viewData)
     this.attachControllers()
   }
@@ -63,12 +64,12 @@ export class AppController extends Behavior {
     this.#viewBehavior?.removeEffect?.(effect)
   }
 
-  setFaceContainer(face: PiuContainer): void {
-    this.#viewBehavior?.setFaceContainer?.(face)
+  setFace(face: PiuContainer): void {
+    this.#viewBehavior?.setFace?.(face)
   }
 
-  setFaceTemplate(template: FaceTemplateCtor, params?: FaceContainerParams): void {
-    this.#viewBehavior?.setFaceTemplate?.(template, params)
+  setFaceTemplate(template: FaceTemplateCtor): void {
+    this.#viewBehavior?.setFaceTemplate?.(template)
   }
 
   setDrawerButtons(buttons: DrawerButtonSpec[]): void {
@@ -99,9 +100,29 @@ export class AppController extends Behavior {
     this.#viewBehavior?.toggleDrawer?.()
   }
 
+  onDrawerToggle(): void {
+    trace('[AppController] onDrawerToggle\n')
+    this.toggleDrawer()
+  }
+
+  onDrawerOpen(): void {
+    trace('[AppController] onDrawerOpen\n')
+    this.openDrawer()
+  }
+
+  onDrawerClose(): void {
+    trace('[AppController] onDrawerClose\n')
+    this.closeDrawer()
+  }
+
+  onFaceTouch(): void {
+    trace('[AppController] onFaceTouch\n')
+    this.onDrawerToggle()
+  }
+
   private attachControllers(): void {
     if (!this.#application) return
-    const host = this.#application as unknown as DrawerControllerHost
+    const host = this.#application as DrawerControllerHost
     host.drawerController = {
       setButtons: (buttons) => this.setDrawerButtons(buttons),
       addButton: (button) => this.addDrawerButton(button),
@@ -109,7 +130,7 @@ export class AppController extends Behavior {
       setButtonState: (key, active) => this.setDrawerButtonState(key, active),
     }
     host.shellController = {
-      setFace: (face) => this.setFaceContainer(face),
+      setFace: (face) => this.setFace(face),
     }
   }
 }

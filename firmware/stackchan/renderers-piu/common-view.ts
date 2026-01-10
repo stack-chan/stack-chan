@@ -1,21 +1,27 @@
-import { Container, type Container as PiuContainer, type Content as PiuContent } from 'piu/MC'
+import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import { createDrawer, type DrawerBehavior, type DrawerButtonSpec } from 'drawer'
 
-export type CommonViewParams = {
-  mainTemplate?: { new (behaviorData?: unknown, dictionary?: unknown): PiuContainer }
-  mainParams?: unknown
-  appBarTemplate?: { new (behaviorData?: unknown, dictionary?: unknown): PiuContent }
-  appBarParams?: unknown
+export type TemplateFunction<TData, TResult> = {
+  new (data?: TData, dictionary?: Record<string, unknown>): TResult
+  template?: (factory: unknown) => TemplateFunction<TData, TResult>
+}
+
+type CommonViewAnchors = {
+  MAIN?: PiuContainer
+  APP_BAR?: PiuContent
+  OVERLAY?: PiuContainer
+}
+
+export type CommonViewParams = CommonViewAnchors & {
+  main?: PiuContainer
   drawerButtons?: DrawerButtonSpec[]
   drawerTopOffset?: number
 }
 
-export type CommonViewTemplateCtor = {
-  new (behaviorData?: unknown, dictionary?: CommonViewParams): PiuContainer
-  template?: (factory: unknown) => unknown
-}
+export type CommonViewTemplateCtor = TemplateFunction<CommonViewParams, PiuContainer>
 
 export class CommonViewBehavior extends Behavior {
+  container: PiuContainer | null = null
   main: PiuContainer | null = null
   appBar: PiuContent | null = null
   overlay: PiuContainer | null = null
@@ -26,22 +32,22 @@ export class CommonViewBehavior extends Behavior {
   drawerTopOffset = 0
 
   onCreate(container: PiuContainer, data: CommonViewParams) {
-    this.main = container.first as PiuContainer | null
-    this.appBar = this.main?.next as PiuContent | null
-    this.overlay = (this.appBar?.next as PiuContainer | null) ?? null
+    this.container = container
+    const missing: string[] = []
+    if (!data.MAIN) missing.push('MAIN')
+    if (!data.APP_BAR) missing.push('APP_BAR')
+    if (!data.OVERLAY) missing.push('OVERLAY')
+    if (missing.length > 0) {
+      throw new Error(`[CommonView] missing anchors: ${missing.join(', ')}`)
+    }
+    this.main = data.MAIN as PiuContainer
+    this.appBar = data.APP_BAR as PiuContent
+    this.overlay = data.OVERLAY as PiuContainer
     this.drawerButtons = data.drawerButtons ?? []
     this.drawerTopOffset = data.drawerTopOffset ?? 0
-    if (this.overlay) {
-      this.drawer = createDrawer(this.drawerButtons, this.drawerTopOffset)
-      if (this.drawer) this.overlay.add(this.drawer)
-      this.setOverlayActive(false)
-    }
-  }
-
-  onOverlayTouch(_container: PiuContainer) {
-    trace(`[CommonView] onOverlayTouch drawerOpen=${this.drawerOpen}\n`)
-    if (this.drawerOpen) this.closeDrawer()
-    else this.openDrawer()
+    this.drawer = createDrawer(this.drawerButtons, this.drawerTopOffset)
+    if (this.drawer && this.container) this.container.add(this.drawer)
+    this.setOverlayActive(false)
   }
 
   openDrawer(): void {
@@ -99,13 +105,13 @@ export class CommonViewBehavior extends Behavior {
   }
 
   private replaceDrawer(): void {
-    const overlay = this.overlay
-    if (!overlay) return
+    const container = this.container
+    if (!container) return
     const wasOpen = this.drawerOpen
-    if (this.drawer) overlay.remove(this.drawer)
+    if (this.drawer) container.remove(this.drawer)
     this.drawer = createDrawer(this.drawerButtons, this.drawerTopOffset)
     if (this.drawer) {
-      overlay.add(this.drawer)
+      container.add(this.drawer)
       for (const [key, active] of this.drawerStates.entries()) {
         const behavior = this.drawer.behavior as DrawerBehavior | undefined
         behavior?.setButtonState?.(this.drawer, key, active)
@@ -124,19 +130,32 @@ export class CommonViewBehavior extends Behavior {
 
   private setOverlayActive(active: boolean) {
     if (!this.overlay) return
-    const overlay = this.overlay as unknown as { active?: boolean; visible?: boolean; backgroundTouch?: boolean }
+    type OverlayContainer = PiuContainer & { active?: boolean; visible?: boolean; backgroundTouch?: boolean }
+    const overlay = this.overlay as OverlayContainer
     overlay.active = active
     overlay.visible = true
     overlay.backgroundTouch = active
   }
 }
 
-export const CommonView = Container.template(($) => {
-  const main = $.mainTemplate ? new $.mainTemplate($.mainParams ?? $) : new Container(null, {})
-  const appBar = $.appBarTemplate
-    ? new $.appBarTemplate($.appBarParams ?? $)
-    : new Container(null, { left: 0, right: 0, top: 0, height: 0, active: false })
+export const CommonView: CommonViewTemplateCtor = Container.template(($: CommonViewParams) => {
+  const main = $.MAIN ?? $.main
+  if (!main) {
+    trace('[CommonView] ERROR: Missing main view instance\n')
+    return new Content(null, { top: 0, right: 0, bottom: 0, left: 0 })
+  }
+  if (!$.MAIN) {
+    $.MAIN = main
+  }
+  const appBar = new Content($, {
+    anchor: 'APP_BAR',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 0,
+  })
   const overlay = new Container($, {
+    anchor: 'OVERLAY',
     left: 0,
     right: 0,
     top: 0,
@@ -153,7 +172,7 @@ export const CommonView = Container.template(($) => {
       }
       onTouchEnded(container: PiuContainer, _id: number, x: number, y: number) {
         trace(`[CommonView] overlay touch ended x=${x} y=${y}\n`)
-        container.bubble('onOverlayTouch')
+        container.bubble('onDrawerClose')
       }
     },
   })
@@ -165,4 +184,4 @@ export const CommonView = Container.template(($) => {
     contents: [main, appBar, overlay],
     Behavior: CommonViewBehavior,
   }
-}) as unknown as CommonViewTemplateCtor
+})

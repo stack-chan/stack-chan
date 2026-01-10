@@ -1,5 +1,4 @@
 import {
-  Application,
   Container,
   Content,
   type Application as PiuApplication,
@@ -174,7 +173,7 @@ export class Shell {
   }
 
   setFace(face: PiuContainer): void {
-    this.#main.setFaceContainer(face)
+    this.#main.setFace(face)
   }
 
   setDrawerButtons(buttons: DrawerButtonSpec[]): void {

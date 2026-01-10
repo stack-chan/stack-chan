@@ -68,7 +68,7 @@ export class Main {
     return this.#effectsContainer
   }
 
-  setFaceContainer(face: PiuContainer): void {
+  setFace(face: PiuContainer): void {
     if (face === this.#face) return
     const currentFace = this.#face
     this.#face = face

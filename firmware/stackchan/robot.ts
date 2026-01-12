@@ -477,7 +477,26 @@ export class Robot {
     this.#drawerCallbacks.set(key, callback)
     const behavior = this.ensureDrawerBehavior()
     if (behavior) {
-      ;(behavior as Record<string, () => void>)[key] = () => callback(this)
+      const runCallback = () => {
+        try {
+          const result = callback(this)
+          if (result && typeof (result as { catch?: (handler: (err: unknown) => void) => void }).catch === 'function') {
+            ;(result as { catch: (handler: (err: unknown) => void) => void }).catch((err: unknown) => {
+              trace(`[DrawerButton] callback rejected key=${key} err=${String(err)}\n`)
+            })
+          }
+        } catch (err) {
+          trace(`[DrawerButton] callback error key=${key} err=${String(err)}\n`)
+        }
+      }
+      const desc =
+        Object.getOwnPropertyDescriptor(behavior, key) ??
+        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(behavior), key)
+      if (desc && desc.writable === false) {
+        trace(`[DrawerButton] skip binding key=${key} (not writable)\n`)
+      } else {
+        ;(behavior as Record<string, () => void>)[key] = runCallback
+      }
     }
     const controller = this.getDrawerController()
     controller?.addButton?.({ key, label, kind })

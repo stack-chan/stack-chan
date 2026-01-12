@@ -8,7 +8,6 @@ import {
   type FaceViewParams,
   type FaceViewTemplateCtor,
 } from 'face-view'
-import type { FaceTemplateCtor } from 'behaviors/face'
 
 export type AppControllerParams = FaceViewParams
 
@@ -18,9 +17,6 @@ type DrawerControllerHost = {
     addButton?: (button: DrawerButtonSpec) => void
     removeButton?: (key: string) => void
     setButtonState?: (key: string, active: boolean) => void
-  }
-  shellController?: {
-    setFace?: (face: PiuContainer) => void
   }
 }
 
@@ -56,20 +52,20 @@ export class AppController extends Behavior {
     this.#viewBehavior.onFaceUpdate?.(this.#view, faceContext)
   }
 
-  addEffect(effect: PiuContent): void {
-    this.#viewBehavior?.addEffect?.(effect)
+  addEffect(effect: PiuContent, key?: string): void {
+    this.#viewBehavior?.addEffect?.(effect, key)
   }
 
   removeEffect(effect: PiuContent): void {
     this.#viewBehavior?.removeEffect?.(effect)
   }
 
-  setFace(face: PiuContainer): void {
-    this.#viewBehavior?.setFace?.(face)
+  removeEffectByKey(key: string): void {
+    this.#viewBehavior?.removeEffectByKey?.(key)
   }
 
-  setFaceTemplate(template: FaceTemplateCtor): void {
-    this.#viewBehavior?.setFaceTemplate?.(template)
+  setFace(face: PiuContainer): void {
+    this.#viewBehavior?.setFace?.(face)
   }
 
   setDrawerButtons(buttons: DrawerButtonSpec[]): void {
@@ -128,9 +124,6 @@ export class AppController extends Behavior {
       addButton: (button) => this.addDrawerButton(button),
       removeButton: (key) => this.removeDrawerButton(key),
       setButtonState: (key, active) => this.setDrawerButtonState(key, active),
-    }
-    host.shellController = {
-      setFace: (face) => this.setFace(face),
     }
   }
 }

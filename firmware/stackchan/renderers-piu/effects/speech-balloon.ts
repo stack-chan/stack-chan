@@ -16,6 +16,7 @@ const defaultOptions = {
 }
 
 type BalloonOptions = {
+  name?: string
   left?: number
   right?: number
   top?: number
@@ -60,7 +61,7 @@ class BalloonLabelBehavior extends Behavior {
   }
 }
 
-export function createSpeechBalloonEffect(opts: BalloonOptions = {}): PiuContainer {
+export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
   const o = { ...defaultOptions, ...opts }
   const style: PiuStyle = new Style({ font: o.font, color: '#000' })
   let shape: WithShape | null = null
@@ -74,6 +75,7 @@ export function createSpeechBalloonEffect(opts: BalloonOptions = {}): PiuContain
   const width = opts.width
 
   type BalloonContainerOptions = {
+    name?: string
     left?: number
     right?: number
     top?: number
@@ -84,6 +86,7 @@ export function createSpeechBalloonEffect(opts: BalloonOptions = {}): PiuContain
     Behavior: typeof Behavior
   }
   const containerOptions: BalloonContainerOptions = {
+    name: opts.name ?? 'SpeechBalloon',
     height: o.height,
     clip: true,
     Behavior: class extends Behavior {
@@ -150,7 +153,7 @@ export function createSpeechBalloonEffect(opts: BalloonOptions = {}): PiuContain
     containerOptions.bottom = bottom
   }
 
-  const container = new Container(null, containerOptions)
+  return containerOptions
+})
 
-  return container
-}
+export type { BalloonOptions as SpeechBalloonOptions }

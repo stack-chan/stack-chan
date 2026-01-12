@@ -6,7 +6,7 @@ import type Digital from 'embedded:io/digital'
 import type Touch from 'touch'
 import type Microphone from 'microphone'
 import type Tone from 'tone'
-import { createSpeechBalloonEffect } from 'effects/speech-balloon'
+import { SpeechBalloon } from 'effects/speech-balloon'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
@@ -359,7 +359,7 @@ export class Robot {
     if (this.#balloon != null) {
       this.hideBalloon()
     }
-    this.#balloon = createSpeechBalloonEffect({ ...option, text })
+    this.#balloon = new SpeechBalloon({ ...option, text })
     this.#renderer.addDecorator(this.#balloon)
   }
 

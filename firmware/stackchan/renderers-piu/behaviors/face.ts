@@ -5,9 +5,9 @@ import { createBreathMotion } from 'motions/breath'
 import type { FaceMotion } from 'motions/types'
 import { Eye } from 'parts/eye'
 import { Mouth } from 'parts/mouth'
-import { createDogEyebrow } from 'parts/dog/eyebrow'
-import { createDogMouth } from 'parts/dog/mouth'
-import { createDogNose } from 'parts/dog/nose'
+import { DogEyebrow } from 'parts/dog/eyebrow'
+import { DogMouth } from 'parts/dog/mouth'
+import { DogNose } from 'parts/dog/nose'
 
 type TemplateCtor<TData> = {
   new (behaviorData?: TData, dictionary?: Record<string, unknown>): PiuContainer
@@ -222,21 +222,21 @@ export const DogFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams = 
     contents: [
       new Eye({ cx: 30, cy: 33, radius: 10, side: 'left', eyelidWidth: 24, eyelidHeight: 24 }),
       new Eye({ cx: 170, cy: 36, radius: 10, side: 'right', eyelidWidth: 24, eyelidHeight: 24 }),
-      createDogEyebrow({
+      new DogEyebrow({
         cx: 30,
         cy: 33,
         side: 'left',
         canvasWidth: width,
         canvasHeight: height,
       }),
-      createDogEyebrow({
+      new DogEyebrow({
         cx: 170,
         cy: 36,
         side: 'right',
         canvasWidth: width,
         canvasHeight: height,
       }),
-      createDogMouth({
+      new DogMouth({
         cx: 100,
         cy: mouthCy,
         maxWidth: 70,
@@ -244,7 +244,7 @@ export const DogFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams = 
         canvasWidth: width,
         canvasHeight: height,
       }),
-      createDogNose({
+      new DogNose({
         cx: 100,
         cy: mouthCy,
         canvasWidth: width,

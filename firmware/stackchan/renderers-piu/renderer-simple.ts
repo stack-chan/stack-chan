@@ -1,11 +1,10 @@
-import { Application } from 'piu/MC'
+import { Application, type Content as PiuContent } from 'piu/MC'
 import { SimpleFace } from 'behaviors/face'
 import type { DrawerButtonSpec } from 'drawer'
-import type { Effect } from 'main-view'
 import { AppController } from 'app-controller'
 import { RendererCompat } from 'renderer-compat'
 
-export type { Effect }
+export type Effect = PiuContent
 
 type RendererOptions = {
   drawerButtons?: DrawerButtonSpec[]

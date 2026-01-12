@@ -13,15 +13,10 @@ export type EyebrowOptions = {
 
 type PositionedShape = PiuShape & { skin?: PiuSkin }
 
-export function createDogEyebrow({
-  cx,
-  cy,
-  side,
-  canvasWidth = 320,
-  canvasHeight = 120,
-}: EyebrowOptions): PositionedShape {
+export const DogEyebrow = Shape.template((opts: EyebrowOptions) => {
+  const { cx, cy, side, canvasWidth = 320, canvasHeight = 120 } = opts
   const direction = side === 'left' ? 1 : -1
-  const shape = new Shape(null, {
+  return {
     left: 0,
     top: 0,
     width: canvasWidth,
@@ -58,7 +53,5 @@ export function createDogEyebrow({
         }
       }
     },
-  }) as PositionedShape
-
-  return shape
-}
+  }
+})

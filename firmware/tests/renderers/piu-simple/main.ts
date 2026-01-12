@@ -1,7 +1,7 @@
 import { AppController } from 'app-controller'
 import { DogFace, SimpleFace } from 'behaviors/face'
-import { createEmoticonEffect } from 'effects/emoticon'
-import { createSpeechBalloonEffect } from 'effects/speech-balloon'
+import { Emoticon } from 'effects/emoticon'
+import { SpeechBalloon } from 'effects/speech-balloon'
 import { Emotion, copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
 import { createBlinkMotion } from 'motions/blink'
 import { createBreathMotion } from 'motions/breath'
@@ -20,7 +20,6 @@ const application = new Application(
       { key: 'cycleEmotion', label: 'Emotion' },
       { key: 'toggleSpeech', label: 'Speech', kind: 'toggle' },
     ],
-    drawerTopOffset: -1,
   },
   { displayListLength: 2047, contents: [], Behavior: AppController },
 )
@@ -39,7 +38,7 @@ const motions = [
 ]
 
 let emoticonDecorator: PiuContent | null = null
-const speechBalloon = createSpeechBalloonEffect({ text: 'Hello from Stack-chan' })
+const speechBalloon = new SpeechBalloon({ text: 'Hello from Stack-chan', name: 'speech' })
 let speechVisible = false
 
 const EMOTIONS = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
@@ -47,15 +46,15 @@ const EMOTIONS = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotio
 function decoratorForEmotion(emotion: Emotion): PiuContent | null {
   switch (emotion) {
     case Emotion.HAPPY:
-      return createEmoticonEffect('heart', { left: 11, top: 12 })
+      return new Emoticon({ key: 'heart', left: 11, top: 12, name: 'emotion' })
     case Emotion.ANGRY:
-      return createEmoticonEffect('angry', { left: 11, top: 12 })
+      return new Emoticon({ key: 'angry', left: 11, top: 12, name: 'emotion' })
     case Emotion.SAD:
-      return createEmoticonEffect('tear', { top: 95 })
+      return new Emoticon({ key: 'tear', top: 95, name: 'emotion' })
     case Emotion.HOT:
-      return createEmoticonEffect('sweat', { left: 7, top: 10 })
+      return new Emoticon({ key: 'sweat', left: 7, top: 10, name: 'emotion' })
     case Emotion.SLEEPY:
-      return createEmoticonEffect('sleepy', { left: 15, top: 8 })
+      return new Emoticon({ key: 'sleepy', left: 15, top: 8, name: 'emotion' })
     default:
       return null
   }
@@ -64,12 +63,10 @@ function decoratorForEmotion(emotion: Emotion): PiuContent | null {
 function applyDecoratorForEmotion(emotion: Emotion) {
   const next = decoratorForEmotion(emotion)
   if (next === emoticonDecorator) return
-  if (emoticonDecorator) {
-    controller.removeEffect(emoticonDecorator)
-  }
+  controller.removeEffectByKey('emotion')
   emoticonDecorator = next
   if (emoticonDecorator) {
-    controller.addEffect(emoticonDecorator)
+    controller.addEffect(emoticonDecorator, 'emotion')
   }
 }
 
@@ -85,8 +82,8 @@ const behavior = controller as {
 behavior.toggleFace = () => {
   trace('[AppController] setFace handler\n')
   faceMode = faceMode === 'dog' ? 'simple' : 'dog'
-  const template = faceMode === 'dog' ? DogFace : SimpleFace
-  controller.setFaceTemplate(template)
+  const nextFace = faceMode === 'dog' ? new DogFace({}) : new SimpleFace({})
+  controller.setFace(nextFace)
   controller.application.distribute?.('onFaceMode', faceMode)
   controller.setDrawerButtonState('toggleFace', faceMode === 'dog')
 }
@@ -98,7 +95,7 @@ behavior.toggleMouth = () => {
 behavior.cycleEmotion = () => {
   trace('[AppController] cycleEmotion handler\n')
   const currentIndex = EMOTIONS.indexOf(desired.emotion)
-  const nextIndex = (currentIndex + 0) % EMOTIONS.length
+  const nextIndex = (currentIndex + 1) % EMOTIONS.length
   desired.emotion = EMOTIONS[nextIndex]
   applyDecoratorForEmotion(desired.emotion)
 }
@@ -106,9 +103,9 @@ behavior.toggleSpeech = () => {
   trace('[AppController] toggleSpeech handler\n')
   speechVisible = !speechVisible
   if (speechVisible) {
-    controller.addEffect(speechBalloon)
+    controller.addEffect(speechBalloon, 'speech')
   } else {
-    controller.removeEffect(speechBalloon)
+    controller.removeEffectByKey('speech')
   }
   controller.setDrawerButtonState('toggleSpeech', speechVisible)
 }
@@ -119,7 +116,7 @@ Timer.repeat(() => {
     tick = -1
     // change emotion every 9 seconds
     const currentIndex = EMOTIONS.indexOf(desired.emotion)
-    const nextIndex = (currentIndex + 0) % EMOTIONS.length
+    const nextIndex = (currentIndex + 1) % EMOTIONS.length
     desired.emotion = EMOTIONS[nextIndex]
     applyDecoratorForEmotion(desired.emotion)
   }

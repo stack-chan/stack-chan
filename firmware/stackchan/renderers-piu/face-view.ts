@@ -13,7 +13,6 @@ import {
   type CommonViewTemplateCtor,
   type TemplateFunction,
 } from 'common-view'
-import type { FaceTemplateCtor } from 'behaviors/face'
 
 type FaceViewAnchors = {
   FACE?: PiuContainer
@@ -35,6 +34,8 @@ class FaceViewBehavior extends CommonViewBehavior {
   face: PiuContainer | null = null
   effects: PiuContainer | null = null
   effectsSet = new Set<PiuContent>()
+  effectsByKey = new Map<string, PiuContent>()
+  effectKeys = new Map<PiuContent, string>()
   autoTheme = true
   lastSecondary: string | null = null
 
@@ -62,6 +63,7 @@ class FaceViewBehavior extends CommonViewBehavior {
       | { onFaceUpdate?: (container: PiuContainer, face: FaceContext) => void }
       | undefined
     behavior?.onFaceUpdate?.(face as PiuContainer, faceContext as FaceContext)
+    this.onFaceContext?.(_container, faceContext as FaceContext)
   }
 
   onFaceContext(_container: PiuContainer, faceContext: FaceContext) {
@@ -71,8 +73,18 @@ class FaceViewBehavior extends CommonViewBehavior {
     return true
   }
 
-  addEffect(effect: PiuContent): void {
-    if (!this.effects || this.effectsSet.has(effect)) return
+  addEffect(effect: PiuContent, key?: string): void {
+    if (!this.effects) return
+    const resolvedKey = key ?? (effect as PiuContent & { name?: string }).name
+    if (resolvedKey) {
+      const existing = this.effectsByKey.get(resolvedKey)
+      if (existing && existing !== effect) {
+        this.removeEffect(existing)
+      }
+      this.effectsByKey.set(resolvedKey, effect)
+      this.effectKeys.set(effect, resolvedKey)
+    }
+    if (this.effectsSet.has(effect)) return
     this.effectsSet.add(effect)
     this.effects.add(effect)
   }
@@ -82,6 +94,20 @@ class FaceViewBehavior extends CommonViewBehavior {
     this.effectsSet.delete(effect)
     effect.stop?.()
     this.effects.remove(effect)
+    const key = this.effectKeys.get(effect)
+    if (key) {
+      this.effectKeys.delete(effect)
+      if (this.effectsByKey.get(key) === effect) {
+        this.effectsByKey.delete(key)
+      }
+    }
+  }
+
+  removeEffectByKey(key: string): void {
+    const effect = this.effectsByKey.get(key)
+    if (effect) {
+      this.removeEffect(effect)
+    }
   }
 
   setFace(face: PiuContainer): void {
@@ -91,11 +117,6 @@ class FaceViewBehavior extends CommonViewBehavior {
     if (currentFace) this.main.remove(currentFace)
     if (this.effects) this.main.insert(this.face, this.effects)
     else this.main.add(this.face)
-  }
-
-  setFaceTemplate(template: FaceTemplateCtor): void {
-    const next = new template()
-    this.setFace(next)
   }
 
   private applyTheme(faceContext: Readonly<FaceContext>) {

@@ -106,7 +106,7 @@ const DrawerButton = Container.template(($: DrawerButtonSpec) => {
   }
 })
 
-type DrawerDictionary = { buttons?: DrawerButtonSpec[]; topOffset?: number }
+type DrawerDictionary = { buttons?: DrawerButtonSpec[] }
 type DrawerBehavior = {
   isOpen: boolean
   toggle: (container: PiuContainer) => void
@@ -116,7 +116,7 @@ type DrawerBehavior = {
 
 type DrawerTemplateCtor = { new (behaviorData?: unknown, dictionary?: DrawerDictionary): PiuContainer }
 
-const DrawerTemplate = Container.template((d: DrawerDictionary) => {
+export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionary) => {
   const skins = getDrawerSkins()
   return {
     name: 'drawer',
@@ -148,10 +148,8 @@ const DrawerTemplate = Container.template((d: DrawerDictionary) => {
       isOpen = false
       timeline: Timeline | null = null
       offset = drawerHiddenOffset
-      topOffset = 0
 
       onCreate(container: PiuContainer, data?: DrawerDictionary) {
-        this.topOffset = data?.topOffset ?? 0
         container.interval = 16
         this.applyPosition(container, this.offset)
       }
@@ -165,7 +163,7 @@ const DrawerTemplate = Container.template((d: DrawerDictionary) => {
         this.timeline = null
       }
       applyPosition(container: PiuContainer, right: number) {
-        container.coordinates = { right, width: drawerWidth, top: this.topOffset, bottom: 0 } as unknown as Coordinates
+        container.coordinates = { right, width: drawerWidth, top: 0, bottom: 0 } as unknown as Coordinates
       }
       startAnimation(container: PiuContainer, to: number) {
         const from = this.offset
@@ -226,11 +224,6 @@ const DrawerTemplate = Container.template((d: DrawerDictionary) => {
     },
   }
 }) as unknown as DrawerTemplateCtor
-
-export function createDrawer(buttons?: DrawerButtonSpec[], topOffset?: number): PiuContainer {
-  const drawer = new DrawerTemplate({ buttons, topOffset })
-  return drawer
-}
 
 export const drawerConstants = { drawerWidth }
 

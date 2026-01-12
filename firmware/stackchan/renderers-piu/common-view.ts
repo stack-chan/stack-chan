@@ -1,5 +1,5 @@
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
-import { createDrawer, type DrawerBehavior, type DrawerButtonSpec } from 'drawer'
+import { Drawer, type DrawerBehavior, type DrawerButtonSpec } from 'drawer'
 
 export type TemplateFunction<TData, TResult> = {
   new (data?: TData, dictionary?: Record<string, unknown>): TResult
@@ -15,7 +15,6 @@ type CommonViewAnchors = {
 export type CommonViewParams = CommonViewAnchors & {
   main?: PiuContainer
   drawerButtons?: DrawerButtonSpec[]
-  drawerTopOffset?: number
 }
 
 export type CommonViewTemplateCtor = TemplateFunction<CommonViewParams, PiuContainer>
@@ -29,7 +28,6 @@ export class CommonViewBehavior extends Behavior {
   drawerOpen = false
   drawerButtons: DrawerButtonSpec[] = []
   drawerStates = new Map<string, boolean>()
-  drawerTopOffset = 0
 
   onCreate(container: PiuContainer, data: CommonViewParams) {
     this.container = container
@@ -44,8 +42,7 @@ export class CommonViewBehavior extends Behavior {
     this.appBar = data.APP_BAR as PiuContent
     this.overlay = data.OVERLAY as PiuContainer
     this.drawerButtons = data.drawerButtons ?? []
-    this.drawerTopOffset = data.drawerTopOffset ?? 0
-    this.drawer = createDrawer(this.drawerButtons, this.drawerTopOffset)
+    this.drawer = new Drawer({ buttons: this.drawerButtons })
     if (this.drawer && this.container) this.container.add(this.drawer)
     this.setOverlayActive(false)
   }
@@ -109,7 +106,7 @@ export class CommonViewBehavior extends Behavior {
     if (!container) return
     const wasOpen = this.drawerOpen
     if (this.drawer) container.remove(this.drawer)
-    this.drawer = createDrawer(this.drawerButtons, this.drawerTopOffset)
+    this.drawer = new Drawer({ buttons: this.drawerButtons })
     if (this.drawer) {
       container.add(this.drawer)
       for (const [key, active] of this.drawerStates.entries()) {

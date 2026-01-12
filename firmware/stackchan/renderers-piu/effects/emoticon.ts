@@ -2,7 +2,7 @@ import type { Container as PiuContainer, Content as PiuContent, Skin as PiuSkin 
 import { Outline } from 'commodetto/outline'
 import { defaultFaceContext, type FaceContext } from 'face-context'
 
-type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy'
+export type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy'
 
 type WithSkin = PiuContent & { skin?: PiuSkin; fillOutline?: unknown; strokeOutline?: unknown }
 
@@ -30,7 +30,8 @@ type OutlineModule = {
 
 const outline: OutlineModule = Outline as unknown as OutlineModule
 
-type EmoticonOptions = {
+export type EmoticonOptions = {
+  name?: string
   left?: number
   right?: number
   top?: number
@@ -43,6 +44,10 @@ type EmoticonOptions = {
   lanes?: [number, number][]
   smallScale?: number
   holdScale?: number
+}
+
+export type EmoticonParams = EmoticonOptions & {
+  key: EmoticonKey
 }
 
 function primaryColor(face?: Readonly<FaceContext>): string {
@@ -552,19 +557,39 @@ const Sleepy = Container.template((opts: EmoticonOptions) => ({
   },
 }))
 
-export function createEmoticonEffect(key: EmoticonKey, opts: EmoticonOptions = {}): PiuContent {
+export const Emoticon = Container.template((opts: EmoticonParams) => {
+  const data = opts ?? { key: 'heart' }
+  const key = data.key
+  const name = data.name ?? `Emoticon:${key}`
+  let content: PiuContent
   switch (key) {
     case 'heart':
-      return new Heart(opts)
+      content = new Heart(data)
+      break
     case 'angry':
-      return new Angry(opts)
+      content = new Angry(data)
+      break
     case 'sweat':
-      return new Sweat(opts)
+      content = new Sweat(data)
+      break
     case 'tear':
-      return new Tear(opts)
+      content = new Tear(data)
+      break
     case 'sleepy':
-      return new Sleepy(opts)
+      content = new Sleepy(data)
+      break
     default:
-      return new Heart(opts)
+      content = new Heart(data)
+      break
   }
-}
+  return {
+    name,
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    clip: false,
+    active: false,
+    contents: [content],
+  }
+})

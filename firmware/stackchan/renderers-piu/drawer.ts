@@ -21,6 +21,7 @@ export type DrawerButtonSpec = {
 
 const drawerWidth = 112
 const drawerHiddenOffset = -drawerWidth - 1
+const SCROLL_THRESHOLD = 8
 
 type DrawerSkins = {
   scrollerSkin: Skin
@@ -46,6 +47,32 @@ function getDrawerSkins(): DrawerSkins {
     toggleOffSkin: new Skin({ fill: '#888888' }),
   }
   return cachedSkins
+}
+
+class DrawerScrollerBehavior extends Behavior {
+  anchor = 0
+  startY = 0
+  waiting = false
+  onTouchBegan(content: PiuContent, _id: number, _x: number, y: number) {
+    const scroller = content as unknown as { scroll: { y: number } }
+    this.anchor = scroller.scroll.y
+    this.startY = y
+    this.waiting = true
+  }
+  onTouchMoved(content: PiuContent, id: number, x: number, y: number, ticks: number) {
+    const scroller = content as unknown as {
+      scrollTo: (x: number, y: number) => void
+      scroll: { y: number }
+      captureTouch: (id: number, x: number, y: number, ticks: number) => void
+    }
+    const delta = y - this.startY
+    if (this.waiting) {
+      if (Math.abs(delta) < SCROLL_THRESHOLD) return
+      this.waiting = false
+      scroller.captureTouch(id, x, y, ticks)
+    }
+    scroller.scrollTo(0, this.anchor - delta)
+  }
 }
 
 const DrawerButton = Container.template(($: DrawerButtonSpec) => {
@@ -77,6 +104,9 @@ const DrawerButton = Container.template(($: DrawerButtonSpec) => {
       action?: string
       icon?: PiuContent | null
       label?: PiuContent | null
+      startX = 0
+      startY = 0
+      moved = false
       onCreate(content: PiuContainer, data: DrawerButtonSpec) {
         this.action = data.key
         this.icon = data.kind === 'toggle' ? (content.first as PiuContent | null) : null
@@ -85,18 +115,31 @@ const DrawerButton = Container.template(($: DrawerButtonSpec) => {
           this.icon.skin = data.active ? skins.toggleOnSkin : skins.toggleOffSkin
         }
       }
-      onTouchBegan(content: PiuContainer) {
+      onTouchBegan(content: PiuContainer, _id: number, x: number, y: number) {
+        this.startX = x
+        this.startY = y
+        this.moved = false
         content.skin = skins.drawerButtonPressedSkin
       }
+      onTouchMoved(content: PiuContainer, _id: number, x: number, y: number) {
+        const dx = Math.abs(x - this.startX)
+        const dy = Math.abs(y - this.startY)
+        if (!this.moved && (dx > 6 || dy > 6)) {
+          this.moved = true
+          content.skin = skins.drawerButtonSkin
+        }
+      }
       onTouchCancelled(content: PiuContainer) {
+        this.moved = false
         content.skin = skins.drawerButtonSkin
       }
       onTouchEnded(content: PiuContainer) {
         content.skin = skins.drawerButtonSkin
-        if (this.action) {
+        if (!this.moved && this.action) {
           trace(`[DrawerButton] onTouchEnded action=${this.action}\n`)
           content.bubble(this.action)
         }
+        this.moved = false
       }
       setActive(_content: PiuContainer, active: boolean) {
         if (!this.icon) return
@@ -124,6 +167,7 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
     bottom: 0,
     width: drawerWidth,
     clip: true,
+    active: true,
     skin: skins.drawerSkin,
     contents: [
       new Scroller(null, {
@@ -133,7 +177,9 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
         bottom: 0,
         clip: true,
         active: true,
+        backgroundTouch: true,
         skin: skins.scrollerSkin,
+        Behavior: DrawerScrollerBehavior,
         contents: [
           new Column(null, {
             left: 0,

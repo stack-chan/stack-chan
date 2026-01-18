@@ -1,11 +1,13 @@
 import {
   Container,
+  Die,
   Skin,
   type Container as PiuContainer,
   type Content as PiuContent,
   type Skin as PiuSkin,
 } from 'piu/MC'
 import { defaultFaceContext, type FaceContext } from 'face-context'
+import type { FaceSkinPalette } from 'face-skin'
 import {
   CommonView,
   CommonViewBehavior,
@@ -20,6 +22,7 @@ type FaceViewAnchors = {
 }
 
 type FaceViewBaseParams = CommonViewParams
+type DieRegion = PiuContainer & { set: (x: number, y: number, w: number, h: number) => DieRegion; cut: () => void }
 
 export type FaceViewParams = FaceViewBaseParams &
   FaceViewAnchors & {
@@ -37,7 +40,7 @@ class FaceViewBehavior extends CommonViewBehavior {
   effectsByKey = new Map<string, PiuContent>()
   effectKeys = new Map<PiuContent, string>()
   autoTheme = true
-  lastSecondary: string | null = null
+  lastPalette: FaceSkinPalette | null = null
 
   onCreate(container: PiuContainer, data: FaceViewParams) {
     super.onCreate(container, data)
@@ -57,13 +60,23 @@ class FaceViewBehavior extends CommonViewBehavior {
   }
 
   onFaceUpdate(_container: PiuContainer, faceContext: Readonly<FaceContext>) {
-    this.applyTheme(faceContext)
     const face = this.face
     const behavior = face?.behavior as
       | { onFaceUpdate?: (container: PiuContainer, face: FaceContext) => void }
       | undefined
     behavior?.onFaceUpdate?.(face as PiuContainer, faceContext as FaceContext)
     this.onFaceContext?.(_container, faceContext as FaceContext)
+  }
+
+  onFaceSkin(_container: PiuContainer, palette: FaceSkinPalette) {
+    this.lastPalette = palette
+    if (this.autoTheme && this.main) {
+      this.main.skin = palette.secondary
+    }
+    this.effects?.distribute('onFaceSkin', palette)
+    this.overlay?.distribute('onFaceSkin', palette)
+    this.appBar?.distribute?.('onFaceSkin', palette)
+    return true
   }
 
   onFaceContext(_container: PiuContainer, faceContext: FaceContext) {
@@ -118,14 +131,6 @@ class FaceViewBehavior extends CommonViewBehavior {
     if (this.effects) this.main.insert(this.face, this.effects)
     else this.main.add(this.face)
   }
-
-  private applyTheme(faceContext: Readonly<FaceContext>) {
-    if (!this.autoTheme || !this.main) return
-    const secondary = faceContext.theme.secondary
-    if (secondary === this.lastSecondary) return
-    this.lastSecondary = secondary
-    this.main.skin = new Skin({ fill: secondary })
-  }
 }
 
 export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = Container.template(
@@ -135,6 +140,33 @@ export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = 
     if (!$.FACE) {
       $.FACE = face
     }
+    const faceBehavior = face.behavior as { breathPixels?: number } | undefined
+    const breathPad = Math.max(0, Math.round(faceBehavior?.breathPixels ?? 0))
+    const faceCoords = face.coordinates ?? {}
+    const faceWidth = face.width ?? face.bounds?.width ?? 0
+    const faceHeight = face.height ?? face.bounds?.height ?? 0
+    const faceLeft = faceCoords.left ?? (face as PiuContent & { left?: number }).left ?? 0
+    const faceTop = faceCoords.top ?? (face as PiuContent & { top?: number }).top ?? 0
+
+    face.coordinates = {
+      left: breathPad,
+      top: breathPad,
+    }
+
+    const faceRegion = new Die(null, {
+      left: faceLeft - breathPad,
+      top: faceTop - breathPad,
+      width: faceWidth + breathPad * 2,
+      height: faceHeight + breathPad * 2,
+      clip: true,
+      Behavior: class extends Behavior {
+        onDisplaying(die: DieRegion) {
+          die.set(0, 0, die.width, die.height).cut()
+        }
+      },
+    })
+
+    faceRegion.add(face)
     const effects =
       $.effects ??
       new Container($, { left: 0, right: 0, top: 0, bottom: 0, active: false, clip: false, anchor: 'EFFECTS' })
@@ -148,7 +180,7 @@ export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = 
       top: 0,
       bottom: 0,
       skin,
-      contents: [face, effects],
+      contents: [faceRegion, effects],
     }
   },
 )

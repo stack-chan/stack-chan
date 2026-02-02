@@ -8,14 +8,22 @@ const app = new Application(null, {
   contents: [new ChatStatusBar()],
 })
 
-const bar = app.first as unknown as { first?: any; last?: any; behavior?: any }
-const label = bar.first as { string: string }
-const levelTrack = bar.last as { first?: any; visible?: boolean }
-const levelFill = levelTrack.first as { width: number }
-const behavior = bar.behavior as {
+type StatusBarBehavior = {
   onChatState?: (container: unknown, state: string, error?: string) => void
   onChatInputLevel?: (container: unknown, level: number) => void
 }
+
+type StatusBarContent = {
+  first?: { string?: string }
+  last?: { first?: { width?: number }; visible?: boolean }
+  behavior?: StatusBarBehavior
+}
+
+const bar = app.first as unknown as StatusBarContent
+const label = bar.first as { string: string }
+const levelTrack = bar.last as { first?: { width?: number }; visible?: boolean }
+const levelFill = levelTrack.first as { width: number }
+const behavior = bar.behavior as StatusBarBehavior
 
 behavior.onChatState?.(bar, 'CONNECTING')
 equal(label.string, 'connecting', 'connecting label')

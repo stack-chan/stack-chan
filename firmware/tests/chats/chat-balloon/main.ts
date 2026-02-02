@@ -1,6 +1,6 @@
 import { Application, type Content, Skin, Style } from 'piu/MC'
 import { SpeechBalloon } from 'effects/speech-balloon'
-import { defaultFaceContext } from 'face-context'
+import { defaultFaceContext, type FaceContext } from 'face-context'
 import { assert, equal } from 'mocks/assert'
 
 trace('=== chat-balloon test ===\n')
@@ -13,8 +13,18 @@ const app = new Application(null, {
 const balloon = new SpeechBalloon({ text: 'hello' }) as unknown as Content
 app.add(balloon)
 
+type BalloonBehavior = {
+  onDisplaying?: (content: Content) => void
+  onFaceContext?: (content: Content, face: FaceContext) => void
+}
+
+type BalloonContent = {
+  behavior?: BalloonBehavior
+  last?: { string: string }
+}
+
 // Force behavior initialization
-const balloonAny = balloon as unknown as { behavior?: any; last?: any }
+const balloonAny = balloon as unknown as BalloonContent
 balloonAny.behavior?.onDisplaying?.(balloon)
 balloonAny.behavior?.onFaceContext?.(balloon, defaultFaceContext)
 
@@ -25,7 +35,7 @@ equal(label.string, 'hello', 'balloon text should match')
 app.remove(balloon)
 const balloon2 = new SpeechBalloon({ text: 'world' }) as unknown as Content
 app.add(balloon2)
-const balloon2Any = balloon2 as unknown as { behavior?: any; last?: any }
+const balloon2Any = balloon2 as unknown as BalloonContent
 balloon2Any.behavior?.onDisplaying?.(balloon2)
 balloon2Any.behavior?.onFaceContext?.(balloon2, defaultFaceContext)
 const label2 = balloon2Any.last as { string: string }

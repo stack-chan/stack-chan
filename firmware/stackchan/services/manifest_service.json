@@ -4,6 +4,7 @@
     "$(MODDABLE)/examples/manifest_net.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
+    "$(MODULES)/network/services/chatAudioIO/manifest.json",
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
     "$(MODULES)/network/mdns/manifest.json",

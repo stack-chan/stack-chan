@@ -13,6 +13,7 @@
     "renderer-compat": "./renderer-compat",
     "renderer-small": "./renderer-small",
     "app-controller": "./app-controller",
+    "chat-status-bar": "./chat-status-bar",
     "common-view": "./common-view",
     "face-view": "./face-view",
     "face-context": "./face-context",
@@ -31,6 +32,7 @@
     "piuView": "$(PIU)/MC/piuView"
   },
   "resources": {
+    "*-alpha": ["../assets/images/microphone", "../assets/images/indicator"],
     "*-mask": [
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-20",
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"

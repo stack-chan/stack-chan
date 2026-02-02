@@ -3,6 +3,7 @@ import { SmallFace } from 'behaviors/face'
 import type { DrawerButtonSpec } from 'drawer'
 import { AppController } from 'app-controller'
 import { RendererCompat } from 'renderer-compat'
+import { ChatStatusBar } from 'chat-status-bar'
 
 export type Effect = PiuContent
 
@@ -14,6 +15,7 @@ export function createRenderer(options?: RendererOptions): AppController {
   const application = new Application(
     {
       face: new SmallFace(),
+      appBar: new ChatStatusBar(),
       drawerButtons: options?.drawerButtons,
     },
     { displayListLength: 4096, contents: [], Behavior: AppController },

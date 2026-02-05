@@ -37,6 +37,7 @@ type FaceBehaviorOptions = {
 export class FaceBehavior extends Behavior {
   #current: FaceContext
   #desired: FaceContext
+  #lastSent: FaceContext
   #motions: FaceMotion[]
   #baseCoordinates: { left: number; top: number } | null
   #paused: boolean
@@ -45,13 +46,16 @@ export class FaceBehavior extends Behavior {
 
   constructor({ motions, intervalMs }: FaceBehaviorOptions) {
     super()
-    this.#motions = motions ?? [
-      createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
-      createBreathMotion({ duration: 6000 }),
-      // createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
-    ]
+    this.#motions =
+      motions ??
+      [
+        // createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
+        // createBreathMotion({ duration: 6000 }),
+        // createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
+      ]
     this.#current = createFaceContext()
     this.#desired = createFaceContext()
+    this.#lastSent = createFaceContext()
     this.#baseCoordinates = null
     this.#paused = false
     this.#skinPalette = null
@@ -70,6 +74,7 @@ export class FaceBehavior extends Behavior {
       container.bubble('onFaceSkin', this.#skinPalette)
     }
     container.distribute('onFaceContext', this.#current)
+    copyFaceContext(this.#current, this.#lastSent)
     // container.bubble('onFaceContext', this.#current)
   }
 
@@ -89,6 +94,7 @@ export class FaceBehavior extends Behavior {
       container.bubble('onFaceSkin', this.#skinPalette)
     }
     container.distribute('onFaceContext', this.#current)
+    copyFaceContext(this.#current, this.#lastSent)
     // container.bubble('onFaceContext', this.#current)
   }
 
@@ -119,12 +125,16 @@ export class FaceBehavior extends Behavior {
       left: base.left,
       top: nextY,
     }
-    const paletteChanged = this.updateSkinPalette(container, this.#current)
-    if (paletteChanged && this.#skinPalette) {
-      container.distribute('onFaceSkin', this.#skinPalette)
-      container.bubble('onFaceSkin', this.#skinPalette)
+    const faceChanged = !isSameFaceContext(this.#current, this.#lastSent)
+    if (faceChanged) {
+      const paletteChanged = this.updateSkinPalette(container, this.#current)
+      if (paletteChanged && this.#skinPalette) {
+        container.distribute('onFaceSkin', this.#skinPalette)
+        container.bubble('onFaceSkin', this.#skinPalette)
+      }
+      container.distribute('onFaceContext', this.#current)
+      copyFaceContext(this.#current, this.#lastSent)
     }
-    container.distribute('onFaceContext', this.#current)
     // container.bubble('onFaceContext', this.#current)
   }
 
@@ -151,6 +161,7 @@ export class FaceBehavior extends Behavior {
       container.bubble('onFaceSkin', this.#skinPalette)
     }
     container.distribute('onFaceContext', this.#current)
+    copyFaceContext(this.#current, this.#lastSent)
     container.bubble('onFaceContext', this.#current)
   }
 
@@ -167,6 +178,22 @@ export class FaceBehavior extends Behavior {
     }
     return changed
   }
+}
+
+function isSameFaceContext(a: Readonly<FaceContext>, b: Readonly<FaceContext>): boolean {
+  return (
+    a.mouth.open === b.mouth.open &&
+    a.eyes.left.open === b.eyes.left.open &&
+    a.eyes.left.gazeX === b.eyes.left.gazeX &&
+    a.eyes.left.gazeY === b.eyes.left.gazeY &&
+    a.eyes.right.open === b.eyes.right.open &&
+    a.eyes.right.gazeX === b.eyes.right.gazeX &&
+    a.eyes.right.gazeY === b.eyes.right.gazeY &&
+    a.breath === b.breath &&
+    a.emotion === b.emotion &&
+    a.theme.primary === b.theme.primary &&
+    a.theme.secondary === b.theme.secondary
+  )
 }
 
 const DEFAULT_FACE_LEFT = 60

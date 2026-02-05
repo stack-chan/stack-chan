@@ -11,6 +11,7 @@ export default class Touch {
 
   // biome-ignore lint/suspicious/noExplicitAny: touch driver of device don't have type
   constructor(TouchConstructor: new (param: unknown) => any) {
+    trace('[Touch] constructor: instantiating\n')
     let touchCount = config.touchCount ?? 1
     const onSample = () => {
       const touch = this.#touch
@@ -47,14 +48,24 @@ export default class Touch {
     }
     const touch = new TouchConstructor({ onSample })
     this.#touch = touch
+    const configuredInterval = Number.isFinite(config.touchIntervalMs) ? config.touchIntervalMs : undefined
     if (touch.sample) {
       // ECMA-419 driver
       touch.points = new Array(touchCount)
-      if (!touch.configuration?.interrupt) touch.timer = Timer.repeat(onSample, 16)
+      const interval = configuredInterval ?? 16
+      trace(
+        `[Touch] ECMA-419 sample() detected. interrupt=${Boolean(touch.configuration?.interrupt)} interval=${interval}ms\n`,
+      )
+      if (!touch.configuration?.interrupt) {
+        trace('[Touch] ECMA-419 polling enabled\n')
+        touch.timer = Timer.repeat(onSample, interval)
+      }
     } else {
       // legacy driver
+      trace('[Touch] legacy read() detected. polling enabled\n')
       touch.points = []
       while (touchCount--) touch.points.push({})
+      const interval = configuredInterval ?? 15
       Timer.repeat(() => {
         const points = touch.points
         touch.read(points)
@@ -77,7 +88,8 @@ export default class Touch {
             } else this.onTouchMoved?.(point.x, point.y, Time.ticks)
             break
         }
-      }, 15)
+      }, interval)
+      trace(`[Touch] legacy polling interval=${interval}ms\n`)
     }
   }
 }

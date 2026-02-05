@@ -110,6 +110,7 @@
         "PARTITIONS_FILE": "./sdkconfig/customPartitions.csv"
       },
       "config": {
+        "touchIntervalMs": 50,
         "driver": {
           "type": "dynamixel",
           "panId": 1,

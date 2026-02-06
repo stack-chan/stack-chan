@@ -1,46 +1,79 @@
 import { Application, type Content, Skin, Style } from 'piu/MC'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { defaultFaceContext, type FaceContext } from 'face-context'
-import { assert, equal } from 'mocks/assert'
+import { assert } from 'mocks/assert'
+import Timer from 'timer'
 
 trace('=== chat-balloon test ===\n')
 
 const app = new Application(null, {
+  displayListLength: 8192,
   contents: [],
   skin: new Skin({ fill: 'black' }),
-  style: new Style({ font: '16px Open Sans', color: '#ffffff', horizontal: 'left', vertical: 'middle' }),
+  style: new Style({ font: 'k8x12-12', color: '#ffffff', horizontal: 'left', vertical: 'middle' }),
 })
-const balloon = new SpeechBalloon({ text: 'hello' }) as unknown as Content
-app.add(balloon)
+const fixedBalloon = new SpeechBalloon({
+  top: 8,
+  left: 8,
+  right: 8,
+  text: '固定表示の Balloon です。',
+  font: 'k8x12-12',
+}) as unknown as Content
+const streamBalloon = new SpeechBalloon({
+  left: 8,
+  right: 8,
+  bottom: 8,
+  text: '',
+  font: 'k8x12-12',
+}) as unknown as Content
+app.add(fixedBalloon)
+app.add(streamBalloon)
 
 type BalloonBehavior = {
   onDisplaying?: (content: Content) => void
   onFaceContext?: (content: Content, face: FaceContext) => void
+  setText?: (content: Content, text: string) => void
+  clear?: (content: Content) => void
 }
 
 type BalloonContent = {
   behavior?: BalloonBehavior
-  last?: { string: string }
 }
 
 // Force behavior initialization
-const balloonAny = balloon as unknown as BalloonContent
-balloonAny.behavior?.onDisplaying?.(balloon)
-balloonAny.behavior?.onFaceContext?.(balloon, defaultFaceContext)
+const fixedBalloonAny = fixedBalloon as unknown as BalloonContent
+fixedBalloonAny.behavior?.onDisplaying?.(fixedBalloon)
+fixedBalloonAny.behavior?.onFaceContext?.(fixedBalloon, defaultFaceContext)
+fixedBalloonAny.behavior?.setText?.(fixedBalloon, '固定表示の Balloon です。')
 
-const label = balloonAny.last as { string: string }
-equal(label.string, 'hello', 'balloon text should match')
+const streamBalloonAny = streamBalloon as unknown as BalloonContent
+streamBalloonAny.behavior?.onDisplaying?.(streamBalloon)
+streamBalloonAny.behavior?.onFaceContext?.(streamBalloon, defaultFaceContext)
 
-// Update with new instance to simulate swap behavior
-app.remove(balloon)
-const balloon2 = new SpeechBalloon({ text: 'world' }) as unknown as Content
-app.add(balloon2)
-const balloon2Any = balloon2 as unknown as BalloonContent
-balloon2Any.behavior?.onDisplaying?.(balloon2)
-balloon2Any.behavior?.onFaceContext?.(balloon2, defaultFaceContext)
-const label2 = balloon2Any.last as { string: string }
-equal(label2.string, 'world', 'balloon text should update')
+const chunks = [
+  'このテキストは SpeechBalloon の',
+  ' 自動折り返しと高さ伸長の',
+  ' 挙動を確認するために',
+  ' 250ms ごとに追記されます。',
+  '\n次の段落も追加します。',
+  ' さらに長くして二行以上にします。',
+]
+let textToShow = ''
+let nextChunkIndex = 0
 
-assert(app.length === 1, 'balloon should be attached')
+Timer.repeat(() => {
+  const chunk = chunks[nextChunkIndex]
+  nextChunkIndex = (nextChunkIndex + 1) % chunks.length
+  textToShow += chunk
+  streamBalloonAny.behavior?.setText?.(streamBalloon, textToShow)
+}, 250)
+
+Timer.repeat(() => {
+  textToShow = ''
+  if (streamBalloonAny.behavior?.clear) streamBalloonAny.behavior.clear(streamBalloon)
+  else streamBalloonAny.behavior?.setText?.(streamBalloon, '')
+}, 5000)
+
+assert(app.length === 2, 'two balloons should be attached')
 
 trace('ok\n')

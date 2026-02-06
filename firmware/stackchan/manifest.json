@@ -63,7 +63,22 @@
     }
   },
   "resources": {
-    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"]
+    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
+    "*-alpha": [
+      {
+        "source": "./assets/fonts/k8x12",
+        "size": 12,
+        "blocks": [
+          "Basic Latin",
+          "Hiragana",
+          "Katakana",
+          "CJK Unified Ideographs",
+          "CJK Symbols and Punctuation",
+          "Halfwidth and Fullwidth Forms"
+        ],
+        "monochrome": true
+      }
+    ]
   },
   "bundle": {
     "id": "tech.moddable.stackchan",
@@ -106,9 +121,6 @@
       }
     },
     "esp32/m5stack_cores3": {
-      "build": {
-        "PARTITIONS_FILE": "./sdkconfig/customPartitions.csv"
-      },
       "config": {
         "touchIntervalMs": 50,
         "driver": {

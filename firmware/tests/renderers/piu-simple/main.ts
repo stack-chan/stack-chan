@@ -1,7 +1,7 @@
 import { AppController } from 'app-controller'
 import { DogFace, SimpleFace } from 'behaviors/face'
 import { Emoticon } from 'effects/emoticon'
-import { SpeechBalloon } from 'effects/speech-balloon'
+import { MultiRowBalloon } from 'effects/multirow-balloon'
 import { Emotion, copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
 import { createBlinkMotion } from 'motions/blink'
 import { createBreathMotion } from 'motions/breath'
@@ -38,7 +38,7 @@ const motions = [
 ]
 
 let emoticonDecorator: PiuContent | null = null
-const speechBalloon = new SpeechBalloon({ text: 'Hello from Stack-chan', name: 'speech' })
+const speechBalloon = new MultiRowBalloon({ text: 'Hello from Stack-chan', name: 'speech' })
 let speechVisible = false
 
 const EMOTIONS = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]

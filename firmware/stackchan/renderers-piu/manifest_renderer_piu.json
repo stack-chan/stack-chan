@@ -32,7 +32,11 @@
     "piuView": "$(PIU)/MC/piuView"
   },
   "resources": {
-    "*-alpha": ["../assets/images/microphone", "../assets/images/indicator"],
+    "*-alpha": [
+      "../assets/images/microphone",
+      "../assets/images/indicator",
+      "../assets/images/bubble"
+    ],
     "*-mask": [
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-20",
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"

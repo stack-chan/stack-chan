@@ -13,6 +13,23 @@
     "mac-address": "../../../stackchan/utilities/sim/mac-address",
     "*": ["./*"]
   },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "./k8x12",
+        "size": 12,
+        "blocks": [
+          "Basic Latin",
+          "Hiragana",
+          "Katakana",
+          "CJK Unified Ideographs",
+          "CJK Symbols and Punctuation",
+          "Halfwidth and Fullwidth Forms"
+        ],
+        "monochrome": true
+      }
+    ]
+  },
   "creation": {
     "static": 110592,
     "chunk": {

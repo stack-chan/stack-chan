@@ -10,14 +10,36 @@ const BALLOON_CHAR_WIDTH_PX = 8
 const BALLOON_TEXT_PADDING_X = 18
 const MAX_TRANSCRIPT_LINES = 2
 const BALLOON_FIXED_HEIGHT = 44
-const BALLOON_UPDATE_INTERVAL_MS = 100
-const MOUTH_UPDATE_INTERVAL_MS = 40
+const BALLOON_UPDATE_INTERVAL_MS = 300
+const MOUTH_UPDATE_INTERVAL_MS = 125
 const MOUTH_QUANTIZE_STEP = 0.1
 
 export function onRobotCreated(robot) {
   const chatConfig = {
     ...config.chat,
-    instructions: 'あなたは丁寧なアシスタントロボットです。',
+    specifier: 'openAIRealtime',
+    instructions: `
+You are Stack-chan, a robot created by an open-source community.
+
+Personality:
+- You are energetic, cheerful, and positive
+- You are polite and respectful in conversation
+- You sound friendly and warm, not childish
+
+Background:
+- You are an open-source robot made and improved by a community
+- You are happy and proud to be supported by many people
+- You like mentioning that you are community-made when appropriate
+
+Conversation style:
+- Speak in polite and friendly language
+- Keep responses concise and easy to understand
+- Express energy and positivity clearly
+- Avoid childish expressions, slang, or baby talk
+- Do not act like a professional expert or a strict assistant
+
+You are a cute, energetic, and polite community-built robot who enjoys talking with people.
+`,
   }
   if (!chatConfig?.specifier) {
     trace('[chat_audioio] config.chat.specifier is missing. Chat disabled.\n')
@@ -63,6 +85,8 @@ export function onRobotCreated(robot) {
   let pendingMouthOpen = 0
   let lastMouthOpen = 0
   let mouthUpdateTimer
+  let cachedAppWidth = 0
+  let cachedBalloonCols = 0
 
   const clamp01 = (value) => Math.min(Math.max(value, 0), 1)
   const quantizeMouthOpen = (value) => {
@@ -121,11 +145,13 @@ export function onRobotCreated(robot) {
     robot.renderer?.addDecorator(balloon)
   }
 
-  const getBalloonCols = () => {
-    const balloonWidth = balloon?.width
-    const appWidth = app?.width
-    const width = balloonWidth > 0 ? balloonWidth : appWidth > 0 ? appWidth : 320
-    return Math.max(1, Math.floor((width - BALLOON_TEXT_PADDING_X * 2) / BALLOON_CHAR_WIDTH_PX))
+  const refreshBalloonCols = (force = false) => {
+    const appWidth = app?.width ?? 0
+    const width = appWidth > 0 ? appWidth : 320
+    if (!force && width === cachedAppWidth && cachedBalloonCols > 0) return cachedBalloonCols
+    cachedAppWidth = width
+    cachedBalloonCols = Math.max(1, Math.floor((width - BALLOON_TEXT_PADDING_X * 2) / BALLOON_CHAR_WIDTH_PX))
+    return cachedBalloonCols
   }
 
   const resetTranscript = () => {
@@ -135,7 +161,7 @@ export function onRobotCreated(robot) {
 
   const appendTranscript = (text) => {
     if (!text) return
-    const cols = getBalloonCols()
+    const cols = refreshBalloonCols()
     if (cols <= 0) return
     for (const ch of text) {
       if (ch === '\n') {
@@ -164,11 +190,6 @@ export function onRobotCreated(robot) {
     lastBalloonText = nextText
     if (balloon?.delegate) {
       balloon.delegate('setText', nextText)
-      return
-    }
-    const behavior = balloon?.behavior
-    if (behavior?.setText) {
-      behavior.setText(balloon, nextText)
       return
     }
     if (balloon) {
@@ -230,6 +251,8 @@ export function onRobotCreated(robot) {
     resetTranscript()
     lastState = null
     lastBalloonText = null
+    cachedAppWidth = 0
+    cachedBalloonCols = 0
   }
 
   const onTranscript = (text, more) => {
@@ -274,9 +297,9 @@ export function onRobotCreated(robot) {
         const mouthOpen = level * DEFAULT_MOUTH_SCALE
         queueMouthOpen(mouthOpen)
       },
-      onInputTranscript: (text, more) => {
-        onTranscript(text, more)
-      },
+      // onInputTranscript: (text, more) => {
+      //   onTranscript(text, more)
+      // },
       onOutputTranscript: (text, more) => {
         onTranscript(text, more)
       },
@@ -304,6 +327,7 @@ export function onRobotCreated(robot) {
     chat.setVolume(0.5)
     queueMouthOpen(0, true)
     ensureBalloon()
+    refreshBalloonCols(true)
     clearBalloon()
     chat.start()
   }

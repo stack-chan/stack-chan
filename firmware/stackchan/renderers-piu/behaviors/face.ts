@@ -1,11 +1,11 @@
-import { type Container as PiuContainer, type Content as PiuContent } from 'piu/MC'
+import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
 import { updateFaceSkinPalette, type FaceSkinPalette } from 'face-skin'
-import { createBlinkMotion } from 'motions/blink'
-import { createBreathMotion } from 'motions/breath'
 import type { FaceMotion } from 'motions/types'
 import { Eye } from 'parts/eye'
 import { Mouth } from 'parts/mouth'
+import { EyeSprite } from 'parts/image/eye-sprite'
+import { MouthSprite } from 'parts/image/mouth-sprite'
 import { DogEyebrow } from 'parts/dog/eyebrow'
 import { DogMouth } from 'parts/dog/mouth'
 import { DogNose } from 'parts/dog/nose'
@@ -314,6 +314,24 @@ export const DogFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams = 
         canvasWidth: width,
         canvasHeight: height,
       }),
+    ],
+  }
+})
+
+export const ImageFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams = {}) => {
+  const left = $.left ?? DEFAULT_FACE_LEFT
+  const top = $.top ?? DEFAULT_FACE_TOP
+  const width = $.width ?? DEFAULT_FACE_WIDTH
+  const height = $.height ?? DEFAULT_FACE_HEIGHT
+  return {
+    left,
+    top,
+    width,
+    height,
+    contents: [
+      new EyeSprite({ cx: 30, cy: 33, side: 'left' }),
+      new EyeSprite({ cx: 170, cy: 36, side: 'right' }),
+      new MouthSprite({ cx: 100, cy: 88 }),
     ],
   }
 })

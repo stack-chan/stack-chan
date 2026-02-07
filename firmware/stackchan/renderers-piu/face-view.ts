@@ -124,12 +124,30 @@ class FaceViewBehavior extends CommonViewBehavior {
   }
 
   setFace(face: PiuContainer): void {
-    if (!face || !this.main || this.face === face) return
+    if (!face || this.face === face) return
     const currentFace = this.face
+    const currentParent = currentFace
+      ? ((currentFace as PiuContent & { container?: PiuContainer }).container ?? null)
+      : null
+    const currentCoordinates = currentFace?.coordinates ? { ...currentFace.coordinates } : null
     this.face = face
-    if (currentFace) this.main.remove(currentFace)
-    if (this.effects) this.main.insert(this.face, this.effects)
-    else this.main.add(this.face)
+    if (currentCoordinates) {
+      face.coordinates = { ...(face.coordinates ?? {}), ...currentCoordinates }
+    }
+
+    if (currentFace && currentParent) {
+      currentParent.remove(currentFace)
+      if (currentParent === this.main && this.effects) {
+        currentParent.insert(face, this.effects)
+      } else {
+        currentParent.add(face)
+      }
+      return
+    }
+
+    if (!this.main) return
+    if (this.effects) this.main.insert(face, this.effects)
+    else this.main.add(face)
   }
 }
 

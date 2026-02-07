@@ -2,7 +2,7 @@ import type { StackchanMod } from 'default-mods/mod'
 import Timer from 'timer'
 import { randomBetween, asyncWait } from 'stackchan-util'
 import { Emotion } from 'face-context'
-import { DogFace, SimpleFace } from 'behaviors/face'
+import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import type { Content as PiuContent } from 'piu/MC'
 
@@ -34,17 +34,18 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   let speechVisible = false
   let emoticonEffect: PiuContent | null = null
 
-  let faceMode: 'simple' | 'dog' = 'simple'
+  let faceMode: 'simple' | 'dog' | 'image' = 'simple'
   robot.application.addDrawerButton({
     key: 'toggleFace',
     label: 'Face',
     kind: 'toggle',
     initialState: false,
     callback: (target) => {
-      faceMode = faceMode === 'dog' ? 'simple' : 'dog'
-      const nextFace = faceMode === 'dog' ? new DogFace({}) : new SimpleFace({})
+      faceMode = faceMode === 'simple' ? 'dog' : faceMode === 'dog' ? 'image' : 'simple'
+      const nextFace =
+        faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
       target.renderer?.setFace?.(nextFace)
-      robot.application.setDrawerButtonState('toggleFace', faceMode === 'dog')
+      robot.application.setDrawerButtonState('toggleFace', faceMode !== 'simple')
       const app = target.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined
       app?.distribute?.('onFaceMode', faceMode)
     },

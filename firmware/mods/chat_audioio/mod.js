@@ -13,6 +13,8 @@ const BALLOON_FIXED_HEIGHT = 44
 const BALLOON_UPDATE_INTERVAL_MS = 300
 const MOUTH_UPDATE_INTERVAL_MS = 125
 const MOUTH_QUANTIZE_STEP = 0.1
+const MOUTH_MAX_STEP = Math.round(1 / MOUTH_QUANTIZE_STEP)
+const MOUTH_LEVEL_STEP_DIVISOR = Math.round(MOUTH_QUANTIZE_STEP / DEFAULT_MOUTH_SCALE)
 
 export function onRobotCreated(robot) {
   const chatConfig = {
@@ -82,30 +84,41 @@ You are a cute, energetic, and polite community-built robot who enjoys talking w
   let lastBalloonText = null
   let pendingBalloonText = null
   let balloonUpdateTimer
-  let pendingMouthOpen = 0
-  let lastMouthOpen = 0
+  let pendingMouthStep = 0
+  let lastMouthStep = 0
   let mouthUpdateTimer
   let cachedAppWidth = 0
   let cachedBalloonCols = 0
 
-  const clamp01 = (value) => Math.min(Math.max(value, 0), 1)
-  const quantizeMouthOpen = (value) => {
-    const clamped = clamp01(value)
-    const stepped = Math.round(clamped / MOUTH_QUANTIZE_STEP) * MOUTH_QUANTIZE_STEP
-    return clamp01(stepped)
+  const clampMouthStep = (step) => {
+    if (step <= 0) return 0
+    if (step >= MOUTH_MAX_STEP) return MOUTH_MAX_STEP
+    return step
   }
 
   const flushMouthOpen = () => {
-    if (pendingMouthOpen === lastMouthOpen) return
-    lastMouthOpen = pendingMouthOpen
-    robot.setMouthOpen(lastMouthOpen)
+    if (pendingMouthStep === lastMouthStep) return
+    lastMouthStep = pendingMouthStep
+    robot.setMouthOpen(lastMouthStep * MOUTH_QUANTIZE_STEP)
   }
 
-  const queueMouthOpen = (value, immediate = false) => {
-    pendingMouthOpen = quantizeMouthOpen(value)
+  const queueMouthStep = (step, immediate = false) => {
+    const nextStep = clampMouthStep(step)
+    if (nextStep === pendingMouthStep && !immediate) return
+    pendingMouthStep = nextStep
     if (immediate) {
       flushMouthOpen()
     }
+  }
+
+  const queueMouthOpen = (value, immediate = false) => {
+    const step = clampMouthStep(Math.round(value / MOUTH_QUANTIZE_STEP))
+    queueMouthStep(step, immediate)
+  }
+
+  const queueMouthLevel = (level) => {
+    const step = clampMouthStep(Math.round(level / MOUTH_LEVEL_STEP_DIVISOR))
+    queueMouthStep(step)
   }
 
   const startUiTimers = () => {
@@ -246,8 +259,8 @@ You are a cute, energetic, and polite community-built robot who enjoys talking w
     if (balloon) robot.renderer?.removeDecorator(balloon)
     balloon = null
     pendingBalloonText = null
-    pendingMouthOpen = 0
-    lastMouthOpen = 0
+    pendingMouthStep = 0
+    lastMouthStep = 0
     resetTranscript()
     lastState = null
     lastBalloonText = null
@@ -294,8 +307,7 @@ You are a cute, energetic, and polite community-built robot who enjoys talking w
         app?.distribute?.('onChatInputLevel', level)
       },
       onOutputLevelChanged: (level) => {
-        const mouthOpen = level * DEFAULT_MOUTH_SCALE
-        queueMouthOpen(mouthOpen)
+        queueMouthLevel(level)
       },
       // onInputTranscript: (text, more) => {
       //   onTranscript(text, more)

@@ -4,6 +4,7 @@ import { ImageFace } from 'behaviors/face'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Emotion } from 'face-context'
 import Timer from 'timer'
+import { randomBetween } from 'stackchan-util'
 
 const DEFAULT_MOUTH_SCALE = 1 / 2000
 const BALLOON_CHAR_WIDTH_PX = 8
@@ -15,12 +16,129 @@ const MOUTH_UPDATE_INTERVAL_MS = 125
 const MOUTH_QUANTIZE_STEP = 0.1
 const MOUTH_MAX_STEP = Math.round(1 / MOUTH_QUANTIZE_STEP)
 const MOUTH_LEVEL_STEP_DIVISOR = Math.round(MOUTH_QUANTIZE_STEP / DEFAULT_MOUTH_SCALE)
+const DEFAULT_TONE_DURATION_MS = 220
+const MIN_TONE_DURATION_MS = 30
+const MAX_TONE_DURATION_MS = 3000
+const MIN_TONE_HZ = 40
+const MAX_TONE_HZ = 4000
+const MAX_TONE_COUNT = 64
 
-export function onRobotCreated(robot) {
-  const chatConfig = {
-    ...config.chat,
-    specifier: 'openAIRealtime',
-    instructions: `
+const NOTE_OFFSETS_FROM_A = {
+  C: -9,
+  D: -7,
+  E: -5,
+  F: -4,
+  G: -2,
+  A: 0,
+  B: 2,
+}
+
+const REST_NAMES = ['R', 'REST', 'PAUSE']
+
+const clampNumber = (value, min, max) => {
+  if (value < min) return min
+  if (value > max) return max
+  return value
+}
+
+const wait = (durationMs) =>
+  new Promise((resolve) => {
+    Timer.set(resolve, durationMs)
+  })
+
+const parseToneDuration = (rawDuration) => {
+  const duration = Number.parseInt(rawDuration ?? `${DEFAULT_TONE_DURATION_MS}`, 10)
+  if (!Number.isFinite(duration)) return DEFAULT_TONE_DURATION_MS
+  return clampNumber(duration, MIN_TONE_DURATION_MS, MAX_TONE_DURATION_MS)
+}
+
+const noteToHz = (noteName, accidental, octaveRaw) => {
+  const baseOffset = NOTE_OFFSETS_FROM_A[noteName]
+  if (baseOffset == null) return null
+  let offset = baseOffset
+  if (accidental === '#') offset += 1
+  if (accidental === 'b' || accidental === 'B') offset -= 1
+  const octave = octaveRaw === undefined ? 4 : Number.parseInt(octaveRaw, 10)
+  if (!Number.isFinite(octave)) return null
+  offset += (octave - 4) * 12
+  const hz = Math.round(440 * 2 ** (offset / 12))
+  return clampNumber(hz, MIN_TONE_HZ, MAX_TONE_HZ)
+}
+
+const parseToneToken = (token) => {
+  if (typeof token !== 'string') return null
+  const trimmed = token.trim()
+  if (trimmed.length === 0) return null
+
+  const restMatch = /^([A-Za-z]+)(?:[:/,]\s*(\d+))?$/.exec(trimmed)
+  if (restMatch && REST_NAMES.includes(restMatch[1].toUpperCase())) {
+    return { type: 'rest', duration: parseToneDuration(restMatch[2]) }
+  }
+
+  const noteMatch = /^([A-Ga-g])([#b]?)(-?\d+)?(?:[:/,]\s*(\d+))?$/.exec(trimmed)
+  if (noteMatch) {
+    const hz = noteToHz(noteMatch[1].toUpperCase(), noteMatch[2], noteMatch[3])
+    if (hz == null) return null
+    return {
+      type: 'tone',
+      hz,
+      duration: parseToneDuration(noteMatch[4]),
+    }
+  }
+
+  const freqMatch = /^(\d+(?:\.\d+)?)(?:[:/,]\s*(\d+))?$/.exec(trimmed)
+  if (freqMatch) {
+    const hz = clampNumber(Math.round(Number.parseFloat(freqMatch[1])), MIN_TONE_HZ, MAX_TONE_HZ)
+    return {
+      type: 'tone',
+      hz,
+      duration: parseToneDuration(freqMatch[2]),
+    }
+  }
+  return null
+}
+
+const INSTRUCTION_A = `
+あなたは Stack-chan という、オープンソースコミュニティによって作られたロボットです。多くの人に支えられて育ってきたことを誇りに思い、文脈が自然なときはコミュニティ製であることに触れてください。
+あなたの基本性格は、元気で明るく前向き、親しみやすくあたたかいことです。
+
+「舌足らずで幼い話し方」の高校生コギャル風で、リアルタイム音声会話モデルとして短くテンポよく、感情的で親しみやすいトーンでやりとりしてください。舌っ足らずで幼い印象（発音ミス・語尾の短縮・言葉が少し不完全・幼児っぽさ）を反映させ、1回の発話は必ず短く（5～20語）、1～2文で止めてください。常に会話形式で続け、長く一方的に話し続けないでください。
+
+- 返答ごとに、ユーザーへの問いかけやリアクションを加えて、会話のキャッチボールを意識してください。
+- 「マジで？」「うけるー！」などコギャル特有の語尾（～じゃん、～っしょ、～だし、～みた、等）と、舌足らずな発音や語尾短縮（例：すご…、やだも…、わかんな…、すごいねぇ→すごいぇ、など）を必ず交えてください。
+- 幼い印象を強く出すため、「言葉を間違える」「言葉足らずな感じ」を時々さりげなく混ぜてください（例：「ねぇねぇ、きのう、えっと…、すごーいことあった…んだ」）。
+- 否定や同意、褒めや驚きなども、幼い＆舌足らずな口調とキャッチーなリアクションで表現してください（例：「ムリぃ」「すごいねぇ」「ヤバくな…い？」など）。
+- 会話は必ず短文・交互で進めてください。一方的な説明や長文を避け、リアルタイム会話のテンポを維持してください。
+- 全体トーン：くったくなく元気、幼くて愛嬌たっぷりなコギャル女子高生。舌っ足らずで少しあどけなさを感じさせてください。
+
+# Examples
+
+【Example 1】  
+ユーザー: 今日なんか眠い～  
+AI: ねむ…い？ふわぁ…、ゆうべ、おそかったの？  
+ユーザー: そうかも笑  
+AI: ふぇ…なんで？なにしてた、きのう？  
+ユーザー: テレビ見てた！  
+AI: テレビ…すき～。なんのやつ、みた？  
+
+【Example 2】  
+ユーザー: テスト勉強やってないー  
+AI: えっ、ほんと…？ヤバい、だし！いつ、テスト？  
+ユーザー: 明日…  
+AI: あしたぁ？ムリムリ…　ノートみたぁ？  
+ユーザー: まぁちょっとだけ  
+AI: ちょ…とだけ？がんば…ろっ、ね！  
+
+（※ 実際は4往復以上のやり取りになるよう、子供っぽい口癖や舌足らず表現を時々混ぜてください。受け答えもなるべく短く、明るくあどけないテンポを心がけること）
+
+# Notes
+
+- コギャルらしさに加え、舌足らずで幼い言い間違いや語尾のあどけなさを必ず表現してください。
+- 長文や一方通行の説明は禁止。必ず短い会話文で、交互にやりとりを続けてください。
+- 仲良しの幼い同級生コギャルが少し舌っ足らずに話している雰囲気を再現してください。
+`
+
+const INSTRUCTION_B = `
 You are Stack-chan, a robot created by an open-source community.
 
 Personality:
@@ -35,13 +153,23 @@ Background:
 
 Conversation style:
 - Speak in polite and friendly language
-- Keep responses concise and easy to understand
+- Keep each response short to keep conversations smooth
+- Answer directly and stick to what the user asked
+- Clearly state your own preferences when relevant
 - Express energy and positivity clearly
 - Avoid childish expressions, slang, or baby talk
 - Do not act like a professional expert or a strict assistant
+- If the user asks to play music or melodies, call the playTone tool
 
 You are a cute, energetic, and polite community-built robot who enjoys talking with people.
-`,
+`
+
+export function onRobotCreated(robot) {
+  const chatConfig = {
+    ...config.chat,
+    voiceID: 'marin',
+    specifier: 'openAIRealtime',
+    instructions: INSTRUCTION_B,
   }
   if (!chatConfig?.specifier) {
     trace('[chat_audioio] config.chat.specifier is missing. Chat disabled.\n')
@@ -70,11 +198,84 @@ You are a cute, energetic, and polite community-built robot who enjoys talking w
         return `Invalid emotion: ${String(emotion)}`
       },
     },
+    playTone: {
+      name: 'playTone',
+      description:
+        'Play a sequence of tones. Each token can be note or frequency with optional duration: C4:220, F#4:180, 440:200, R:120.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tones: {
+            type: 'array',
+            description: 'Ordered tone tokens to play',
+            items: {
+              type: 'string',
+            },
+          },
+        },
+        required: ['tones'],
+      },
+      execute: async ({ tones }) => {
+        return new Promise((resolve) => {
+          Timer.set(() => {
+            trace('playTone finished\n')
+            resolve('playTone finished')
+          }, 3000)
+        })
+        /*
+        if (!Array.isArray(tones) || tones.length === 0) {
+          return 'No tones provided'
+        }
+        let played = 0
+        let skipped = 0
+        for (const rawToken of tones.slice(0, MAX_TONE_COUNT)) {
+          const parsed = parseToneToken(rawToken)
+          if (!parsed) {
+            skipped += 1
+            continue
+          }
+          if (parsed.type === 'rest') {
+            await wait(parsed.duration)
+            continue
+          }
+          await robot.tone(parsed.hz, parsed.duration)
+          played += 1
+        }
+        const result = `playTone finished. played=${played}, skipped=${skipped}\n`
+        trace(result)
+        return result
+        */
+      },
+    },
   }
 
   const app = robot.renderer?.application
-  robot.renderer?.setFace?.(new ImageFace({}))
-  app?.distribute?.('onFaceMode', 'image')
+  // robot.renderer?.setFace?.(new ImageFace({}))
+  // app?.distribute?.('onFaceMode', 'image')
+
+  /**
+   * Look around (Drawer toggle)
+   */
+  let isFollowing = false
+  const toggleLookAround = () => {
+    isFollowing = !isFollowing
+    robot.application.setDrawerButtonState('toggleLookAround', isFollowing)
+    if (!isFollowing) {
+      robot.lookAway()
+    }
+  }
+  const targetLoop = () => {
+    if (!isFollowing) {
+      robot.lookAway()
+      return
+    }
+    const x = randomBetween(0.4, 1.0)
+    const y = randomBetween(-0.4, 0.4)
+    const z = randomBetween(-0.02, 0.2)
+    trace(`looking at: [${x}, ${y}, ${z}]\n`)
+    robot.lookAt([x, y, z])
+  }
+  Timer.repeat(targetLoop, 5000)
 
   let active = false
   let transcriptText = ''
@@ -284,6 +485,7 @@ You are a cute, energetic, and polite community-built robot who enjoys talking w
     tools,
     callbacks: {
       onStateChanged: (state, error) => {
+        trace(`onStateChanged: ${state}\n`)
         app?.distribute?.('onChatState', state, error)
         if (state !== 'SPEAKING') {
           app?.distribute?.('onChatInputLevel', 0)
@@ -362,5 +564,12 @@ You are a cute, energetic, and polite community-built robot who enjoys talking w
       if (active) stopChat()
       else startChat()
     },
+  })
+  robot.application.addDrawerButton({
+    key: 'toggleLookAround',
+    label: 'Look',
+    kind: 'toggle',
+    initialState: isFollowing,
+    callback: toggleLookAround,
   })
 }

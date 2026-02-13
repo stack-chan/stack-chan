@@ -1,4 +1,10 @@
 {
   "include": ["./manifest.json"],
-  "config": {}
+  "config": {
+    "driver": { "type": "none" },
+    "chat": {
+      "provider": "openai",
+      "modelID": "gpt-realtime-mini"
+    }
+  }
 }

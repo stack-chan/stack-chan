@@ -1,10 +1,10 @@
-import type { StackchanMod } from 'default-mods/mod'
-import Timer from 'timer'
-import { randomBetween, asyncWait } from 'stackchan-util'
-import { Emotion } from 'face-context'
 import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
+import type { StackchanMod } from 'default-mods/mod'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
+import { Emotion } from 'face-context'
 import type { Content as PiuContent } from 'piu/MC'
+import { asyncWait, randomBetween } from 'stackchan-util'
+import Timer from 'timer'
 
 const FORWARD = {
   y: 0,
@@ -33,6 +33,9 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   let emotionIndex = 0
   let speechVisible = false
   let emoticonEffect: PiuContent | null = null
+  const availableLedNames = Object.keys(robot.led ?? {})
+  const rainbowLedName = availableLedNames.includes('b') ? 'b' : availableLedNames[0]
+  let rainbowEnabled = false
 
   let faceMode: 'simple' | 'dog' | 'image' = 'simple'
   robot.application.addDrawerButton({
@@ -176,6 +179,32 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     key: 'toggleColor',
     label: 'Color',
     callback: toggleColor,
+  })
+
+  /**
+   * Rainbow (Drawer toggle)
+   */
+  const toggleRainbow = () => {
+    if (rainbowLedName == null) {
+      rainbowEnabled = false
+      robot.application.setDrawerButtonState('toggleRainbow', false)
+      trace('[Rainbow] skip: no LED configured\n')
+      return
+    }
+    rainbowEnabled = !rainbowEnabled
+    if (rainbowEnabled) {
+      robot.lightRainbow(rainbowLedName)
+    } else {
+      robot.lightOff(rainbowLedName)
+    }
+    robot.application.setDrawerButtonState('toggleRainbow', rainbowEnabled)
+  }
+  robot.application.addDrawerButton({
+    key: 'toggleRainbow',
+    label: 'Rainbow',
+    kind: 'toggle',
+    initialState: rainbowEnabled,
+    callback: toggleRainbow,
   })
 
   if (robot.button != null) {

@@ -4,7 +4,6 @@
     "$(MODDABLE)/examples/manifest_net.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
-    "$(MODULES)/network/services/chatAudioIO/manifest.json",
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
     "$(MODULES)/network/mdns/manifest.json",
@@ -19,7 +18,22 @@
       "$(MODULES)/network/ble/uart/uartserver",
       "../../typings/btutils",
       "../../typings/uartserver"
-    ]
+    ],
+    "ChatAudioIO": "./chat-audioio-stub"
+  },
+  "platforms": {
+    "esp32/m5stack_cores3": {
+      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
+      "modules": {
+        "ChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+      }
+    },
+    "mac": {
+      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
+      "modules": {
+        "ChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+      }
+    }
   },
   "ble": {
     "*": ["$(MODULES)/network/ble/uart/bleservices/*"]

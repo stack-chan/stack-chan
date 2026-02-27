@@ -22,7 +22,7 @@ import Tone from 'tone'
 import { asyncWait } from 'stackchan-util'
 import loadPreferences from 'loadPreference'
 import Led from 'led'
-import config from 'mc/config'
+import { StartupScreen } from 'startup-screen'
 
 // wrapper button class for simulator
 class SimButton {
@@ -148,18 +148,19 @@ function createRobot() {
 async function checkAndConnectWiFi() {
   const wifiPrefs = loadPreferences('wifi')
   if (wifiPrefs.ssid == null || wifiPrefs.password == null) {
-    return
+    return null
   }
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<boolean>((resolve, reject) => {
     globalThis.network = new NetworkService({
       ssid: wifiPrefs.ssid,
       password: wifiPrefs.password,
     })
-    globalThis.network.connect(resolve, reject)
+    globalThis.network.connect(() => resolve(true), reject)
   })
 }
 
-async function main() {
+async function main(startupScreen: StartupScreen) {
+  startupScreen.setStatus('Preparing startup...')
   if (globalThis.Host?.Button && !globalThis.button) {
     globalThis.button = {
       a: new SimButton(globalThis.Host.Button.a),
@@ -167,21 +168,40 @@ async function main() {
       c: new SimButton(globalThis.Host.Button.c),
     }
   }
+  startupScreen.setStatus('Checking Wi-Fi settings...')
   await asyncWait(100)
-  await checkAndConnectWiFi().catch((msg) => {
-    trace(`WiFi connection failed: ${msg}`)
+  startupScreen.setStatus('Connecting to Wi-Fi...')
+  const wifiResult = await checkAndConnectWiFi().catch((msg) => {
+    startupScreen.setStatus(`Wi-Fi connection failed: ${String(msg)}`)
+    return 'failed'
   })
+  if (wifiResult === true) {
+    startupScreen.setStatus('Wi-Fi connected')
+  } else if (wifiResult === null) {
+    startupScreen.setStatus('Wi-Fi skipped or unavailable')
+  }
+  startupScreen.setStatus('Loading mod...')
   let { onRobotCreated, onLaunch } = defaultMod
   if (Modules.has('mod')) {
     const mod = Modules.importNow('mod') as StackchanMod
     onRobotCreated = mod.onRobotCreated ?? onRobotCreated
     onLaunch = mod.onLaunch ?? onLaunch
   }
+  startupScreen.setStatus('Running launch hooks...')
   const shouldRobotCreate = await (onLaunch?.() ?? true)
   if (shouldRobotCreate) {
+    startupScreen.setStatus('Initializing robot...')
     const robot = createRobot()
+    startupScreen.setStatus('Starting robot callbacks...')
     await onRobotCreated?.(robot, globalThis.device)
+    startupScreen.setStatus('Startup complete')
+  } else {
+    startupScreen.setStatus('Startup menu is active')
   }
 }
 
-main()
+const startupScreen = new StartupScreen()
+main(startupScreen).catch((error) => {
+  startupScreen.showError(error)
+  trace(`[startup] Fatal: ${String(error)}\n`)
+})

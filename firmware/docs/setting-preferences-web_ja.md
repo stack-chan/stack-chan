@@ -3,7 +3,7 @@
 [English](./setting-preferences-web.md)
 
 Webブラウザからｽﾀｯｸﾁｬﾝの設定を書き換えることができます。
-BLE(Bluetooth Low Engergy)を使って接続するため、事前にWi-Fiの設定をしなくても使えます。
+BLE（Bluetooth Low Energy）を使って接続するため、事前に Wi-Fi の設定をしなくても使えます。
 
 ## 前提
 
@@ -30,3 +30,11 @@ BLE(Bluetooth Low Engergy)を使って接続するため、事前にWi-Fiの設�
 
 * 設定項目が一覧表示されるので、設定したい項目を編集して「Submit」を選択する
 * 「Preference set」という表示が出たら書き込み成功！
+
+## 設定項目リファレンス
+
+設定キーの一覧と用途は、[Preference 設定リファレンス](./preferences_ja.md)を参照してください。
+
+> [!NOTE]
+> Web 設定アプリでは、空欄の項目は送信されません。  
+> 既存値を消したい場合は、消去対象を明示的に設定したうえで再起動確認してください。

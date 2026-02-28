@@ -6,6 +6,30 @@
   display: block;
 }
 
+.description {
+  margin: 0.5em 0 1em;
+  color: #616161;
+  font-size: 0.95em;
+}
+
+.form-section {
+  border-top: 1px solid #eceff1;
+  padding-top: 1em;
+  margin-top: 1em;
+}
+
+.form-section h3 {
+  margin: 0 0 0.8em;
+}
+
+.form-group textarea {
+  width: 100%;
+}
+
+.hidden {
+  display: none;
+}
+
 .ble-disconnect-button {
   position: absolute;
   right: 0.5em;
@@ -13,4 +37,25 @@
   font-size: 1.2em;
   color: #bdbdbd;
   cursor: pointer;
+}
+
+.toast.info {
+  background-color: #546e7a;
+}
+
+.toast.error {
+  background-color: #c62828;
+}
+
+@media (max-width: 720px) {
+  .form-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-group label {
+    text-align: left;
+    margin-right: 0;
+    margin-bottom: 0.4em;
+  }
 }

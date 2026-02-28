@@ -66,6 +66,9 @@ function createRobot() {
 
   // Servo Driver
   const driverPrefs = loadPreferences('driver')
+  if (driverPrefs.baud == null && driverPrefs.baudrate != null) {
+    driverPrefs.baud = driverPrefs.baudrate
+  }
   const driverKey = driverPrefs.type ?? 'scservo'
   const Driver = drivers.get(driverKey)
 

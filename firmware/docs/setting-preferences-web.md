@@ -30,3 +30,11 @@ Since it connects using BLE (Bluetooth Low Energy), you don't need to set up Wi-
 
 * A list of settings items will be displayed. Edit the items you wish to set and select "Submit."
 * If you see a message saying "Preference set," the settings have been successfully written!
+
+## Settings Reference
+
+See [Preference Settings Reference](./preferences.md) for available keys and usage details.
+
+> [!NOTE]
+> The web settings app sends only non-empty fields.  
+> If you need to overwrite a value, explicitly set a replacement value and verify after reboot.

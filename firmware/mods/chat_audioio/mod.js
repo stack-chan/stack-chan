@@ -326,10 +326,12 @@ export function onRobotCreated(robot) {
   const faceFactory = resolveFaceFactory()
   let faceAnimationEnabled = true
   const availableLedNames = Object.keys(robot.led ?? {})
-  const lightLedName = availableLedNames.includes('b') ? 'b' : availableLedNames[0]
+  const defaultLightLedName = availableLedNames.includes('b') ? 'b' : availableLedNames[0]
+  let activeLightLedName = defaultLightLedName
   let lightEnabled = false
+  const isKnownLedName = (name) => typeof name === 'string' && availableLedNames.includes(name)
 
-  const setLightState = (enabled, ledName = lightLedName) => {
+  const setLightState = (enabled, ledName = activeLightLedName) => {
     if (ledName == null) {
       lightEnabled = false
       robot.application.setDrawerButtonState('toggleLight', false)
@@ -337,14 +339,20 @@ export function onRobotCreated(robot) {
       trace(`${message}\n`)
       return message
     }
+    if (!isKnownLedName(ledName)) {
+      const message = `[chat_audioio] unknown ledName: ${String(ledName)}`
+      trace(`${message}\n`)
+      return message
+    }
+    activeLightLedName = ledName
     lightEnabled = Boolean(enabled)
     if (lightEnabled) {
-      robot.lightRainbow(ledName)
+      robot.lightRainbow(activeLightLedName)
     } else {
-      robot.lightOff(ledName)
+      robot.lightOff(activeLightLedName)
     }
     robot.application.setDrawerButtonState('toggleLight', lightEnabled)
-    return `${lightEnabled ? '電気を付けました' : '電気を消しました'} (led=${ledName})`
+    return `${lightEnabled ? '電気を付けました' : '電気を消しました'} (led=${activeLightLedName})`
   }
 
   const applyFaceAnimation = () => {
@@ -668,7 +676,7 @@ export function onRobotCreated(robot) {
   }
 
   const toggleLight = () => {
-    setLightState(!lightEnabled)
+    setLightState(!lightEnabled, activeLightLedName)
   }
 
   robot.application.addDrawerButton({

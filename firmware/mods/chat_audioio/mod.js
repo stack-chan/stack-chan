@@ -215,9 +215,9 @@ You are a cute, energetic, and polite community-built robot who enjoys talking w
 export function onRobotCreated(robot) {
   const chatConfig = {
     ...config.chat,
-    voiceID: 'marin',
-    specifier: 'openAIRealtime',
-    instructions: INSTRUCTION_B,
+    voiceID: config.chat?.voiceID ?? 'marin',
+    specifier: config.chat?.specifier ?? 'openAIRealtime',
+    instructions: config.chat?.instructions ?? INSTRUCTION_B,
   }
   if (!chatConfig?.specifier) {
     trace('[chat_audioio] config.chat.specifier is missing. Chat disabled.\n')

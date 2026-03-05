@@ -1,6 +1,6 @@
+import ChatAudioIO from 'ChatAudioIO'
 import loadPreferences from 'loadPreference'
 import { DogFace, ImageFace, SimpleFace, SmallFace } from 'behaviors/face'
-import ChatAudioIO from 'ChatAudioIO'
 import { ChatService } from 'chat'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Emotion } from 'face-context'
@@ -367,6 +367,24 @@ export function onRobotCreated(robot) {
     applyFaceAnimation()
   }
 
+  const setDriverFeedbackLoopEnabled = (enabled) => {
+    const driver = robot.driver
+    const fn = driver?.setFeedbackLoopEnabled
+    if (typeof fn !== 'function') {
+      return
+    }
+    try {
+      const result = fn.call(driver, enabled)
+      if (result && typeof result.catch === 'function') {
+        result.catch((err) => {
+          trace(`[chat_audioio] setFeedbackLoopEnabled failed: ${String(err?.message ?? err)}\n`)
+        })
+      }
+    } catch (err) {
+      trace(`[chat_audioio] setFeedbackLoopEnabled failed: ${String(err?.message ?? err)}\n`)
+    }
+  }
+
   applyFaceAnimation()
 
   /**
@@ -619,6 +637,7 @@ export function onRobotCreated(robot) {
         if (state === 'DISCONNECTED' || state === 'FAILED') {
           active = false
           robot.application.setDrawerButtonState('toggleChat', false)
+          setDriverFeedbackLoopEnabled(true)
           setFaceAnimationEnabled(true)
           removeBalloon()
         }
@@ -654,7 +673,8 @@ export function onRobotCreated(robot) {
   const startChat = () => {
     if (active) return
     active = true
-    setFaceAnimationEnabled(false)
+    setDriverFeedbackLoopEnabled(false)
+    setFaceAnimationEnabled(true)
     startUiTimers()
     robot.application.setDrawerButtonState('toggleChat', true)
     chat.setVolume(0.5)
@@ -668,6 +688,7 @@ export function onRobotCreated(robot) {
   const stopChat = () => {
     if (!active) return
     active = false
+    setDriverFeedbackLoopEnabled(true)
     setFaceAnimationEnabled(true)
     robot.application.setDrawerButtonState('toggleChat', false)
     chat.stop()

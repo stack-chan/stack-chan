@@ -115,7 +115,7 @@ export default class Led extends NeoStrand {
     const _count = count ?? this.length - _index
     this._stopEffect()
 
-    this._effect = new NeoStrand.HueSpan({ strand: this, start: _index, end: _count })
+    this._effect = new NeoStrand.HueSpan({ strand: this, start: _index, end: _index + _count })
     this.setScheme([this._effect])
     this.start(50)
   }

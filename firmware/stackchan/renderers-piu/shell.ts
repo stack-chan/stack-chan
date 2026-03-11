@@ -1,6 +1,7 @@
 import type { Application as PiuApplication, Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type { Face } from './renderer-base'
 import { createDrawer, type DrawerBehavior, type DrawerButtonSpec } from './drawer'
+import type { FaceContext } from 'face-context'
 
 export type ShellOptions = {
   face: Face
@@ -77,6 +78,14 @@ export class Shell {
       bottom: 0,
       active: true,
       contents: [face.faceContainer, face.effectContainer].filter(Boolean) as PiuContent[],
+      Behavior: class extends Behavior {
+        onFaceContext(_container: PiuContainer, faceContext: FaceContext) {
+          face.effectContainer.distribute('onFaceContext', faceContext)
+          shell.#overlay.distribute('onFaceContext', faceContext)
+          shell.#header?.distribute?.('onFaceContext', faceContext)
+          return true
+        }
+      },
     })
 
     const contents: PiuContent[] = []

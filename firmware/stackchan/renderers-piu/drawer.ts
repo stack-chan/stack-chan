@@ -1,8 +1,6 @@
-import type { Application as PiuApplication, Content as PiuContent, Container as PiuContainer } from 'piu/MC'
+import type { Content as PiuContent, Container as PiuContainer } from 'piu/MC'
 import Timeline from 'piu/Timeline'
 import { defaultFaceContext, type FaceContext } from 'face-context'
-
-declare const application: PiuApplication
 
 export type DrawerButtonSpec = {
   label: string
@@ -56,7 +54,7 @@ const DrawerButton = Container.template(($: DrawerButtonSpec) => ({
     }
     onTouchEnded(content: PiuContainer) {
       content.skin = drawerButtonSkin
-      if (this.action) application?.delegate?.(this.action)
+      if (this.action) content.bubble(this.action)
     }
     onFaceContext(_content: PiuContainer, face: FaceContext) {
       if (!this.icon || !this.toggleKey) return

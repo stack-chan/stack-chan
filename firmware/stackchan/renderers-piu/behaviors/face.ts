@@ -27,8 +27,10 @@ type FaceContainerTemplateCtor = {
   new (behaviorData?: unknown, dictionary?: FaceContainerParams): PiuContainer
 }
 
-function getApplication(): PiuApplication | undefined {
-  return (globalThis as { application?: PiuApplication }).application
+type ApplicationOwner = { application?: PiuApplication }
+
+function getApplicationFrom(container: PiuContainer): PiuApplication | undefined {
+  return (container as unknown as ApplicationOwner).application
 }
 
 export class FaceBehavior extends Behavior {
@@ -42,6 +44,7 @@ export class FaceBehavior extends Behavior {
   #height?: number
   #faceLayer: PiuContainer | null
   #lastSecondary?: string
+  #application?: PiuApplication
 
   constructor({ buildParts, motions, intervalMs, height }: FaceBehaviorOptions) {
     super()
@@ -60,6 +63,7 @@ export class FaceBehavior extends Behavior {
     this.#height = height
     this.#faceLayer = null
     this.#lastSecondary = undefined
+    this.#application = undefined
   }
 
   intervalMs: number
@@ -72,6 +76,7 @@ export class FaceBehavior extends Behavior {
   }
 
   onDisplaying(container: PiuContainer) {
+    this.#application = getApplicationFrom(container)
     const layer = this.#faceLayer
     if (this.#baseY === null && layer) {
       this.#baseY = layer.coordinates?.top ?? layer.y
@@ -80,7 +85,7 @@ export class FaceBehavior extends Behavior {
       container.start?.()
     }
     if (this.#needsSync) {
-      getApplication()?.distribute?.('onFaceContext', this.#current)
+      this.#application?.distribute?.('onFaceContext', this.#current)
       this.#needsSync = false
     }
   }
@@ -107,7 +112,7 @@ export class FaceBehavior extends Behavior {
       layer.coordinates = { ...(layer.coordinates ?? {}), top: nextY }
     }
     this.updateBackground(container, this.#current)
-    getApplication()?.distribute?.('onFaceContext', this.#current)
+    this.#application?.distribute?.('onFaceContext', this.#current)
   }
 
   pause(container: PiuContainer) {
@@ -124,8 +129,9 @@ export class FaceBehavior extends Behavior {
     container.visible = true
     container.active = true
     container.start?.()
-    const app = getApplication()
+    const app = this.#application ?? getApplicationFrom(container)
     if (app) {
+      this.#application = app
       app.distribute?.('onFaceContext', this.#current)
     } else {
       this.#needsSync = true
@@ -149,8 +155,9 @@ export class FaceBehavior extends Behavior {
       this.#faceLayer.add(part)
     }
     this.updateBackground(container, defaultFaceContext)
-    const app = getApplication()
+    const app = this.#application ?? getApplicationFrom(container)
     if (app) {
+      this.#application = app
       app.distribute?.('onFaceContext', this.#current)
     } else {
       this.#needsSync = true

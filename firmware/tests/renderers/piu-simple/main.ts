@@ -41,11 +41,11 @@ function applyDecoratorForEmotion(emotion: Emotion) {
   const next = decoratorForEmotion(emotion)
   if (next === emoticonDecorator) return
   if (emoticonDecorator) {
-    renderer.removeDecorator(emoticonDecorator)
+    renderer.removeEffect(emoticonDecorator)
   }
   emoticonDecorator = next
   if (emoticonDecorator) {
-    renderer.addDecorator(emoticonDecorator)
+    renderer.addEffect(emoticonDecorator)
   }
 }
 

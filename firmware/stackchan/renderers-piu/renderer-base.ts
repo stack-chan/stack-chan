@@ -6,20 +6,20 @@ import type {
 } from 'piu/MC'
 import { toColorString, type FaceContext } from 'face-context'
 
-export type FaceDecorator = PiuContent
+export type FaceEffect = PiuContent
 
-export class RendererBase {
+export class Face {
   #application: PiuApplication
   #face: PiuContainer
-  #decoratorContainer: PiuContainer
-  #decorators: Set<PiuContent>
+  #effectContainer: PiuContainer
+  #effects: Set<PiuContent>
   #lastSecondary?: string
   #autoTheme: boolean
 
   constructor(options: { face: PiuContainer; skin?: PiuSkin; displayListLength?: number }) {
-    this.#decorators = new Set()
+    this.#effects = new Set()
     this.#face = options.face
-    this.#decoratorContainer = new Container(null, {
+    this.#effectContainer = new Container(null, {
       left: 0,
       right: 0,
       top: 0,
@@ -31,7 +31,7 @@ export class RendererBase {
     this.#autoTheme = options.skin === undefined
     this.#application = new Application(null, {
       displayListLength: options.displayListLength ?? 8092,
-      contents: [this.#face, this.#decoratorContainer],
+      contents: [this.#face, this.#effectContainer],
       skin,
     })
   }
@@ -43,16 +43,16 @@ export class RendererBase {
     behavior?.onFaceUpdate?.(this.#face, faceContext as FaceContext)
   }
 
-  addDecorator(decorator: PiuContent): void {
-    if (this.#decorators.has(decorator)) return
-    this.#decorators.add(decorator)
-    this.#decoratorContainer.add(decorator)
+  addEffect(effect: PiuContent): void {
+    if (this.#effects.has(effect)) return
+    this.#effects.add(effect)
+    this.#effectContainer.add(effect)
   }
 
-  removeDecorator(decorator: PiuContent): void {
-    if (!this.#decorators.has(decorator)) return
-    this.#decorators.delete(decorator)
-    this.#decoratorContainer.remove(decorator)
+  removeEffect(effect: PiuContent): void {
+    if (!this.#effects.has(effect)) return
+    this.#effects.delete(effect)
+    this.#effectContainer.remove(effect)
   }
 
   private applyTheme(faceContext: Readonly<FaceContext>) {

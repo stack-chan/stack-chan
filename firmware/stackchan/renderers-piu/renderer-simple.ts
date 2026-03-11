@@ -1,9 +1,9 @@
 import { createSimpleFaceContainer } from 'behaviors/face'
-import { RendererBase, type FaceDecorator } from './renderer-base'
+import { Face, type FaceEffect } from './renderer-base'
 
-export { FaceDecorator }
+export { FaceEffect }
 
-export class Renderer extends RendererBase {
+export class Renderer extends Face {
   constructor() {
     super({ face: createSimpleFaceContainer() })
   }

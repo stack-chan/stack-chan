@@ -1,0 +1,20 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/piu/MC/outline/manifest.json",
+    "../utilities/manifest_utility.json"
+  ],
+  "modules": {
+    "renderer-simple": "./renderer-simple",
+    "renderer-dog": "./renderer-dog",
+    "renderer-small": "./renderer-small",
+    "decorators/*": "./decorators/*",
+    "parts/dog/*": "./parts/dog/*",
+    "parts/*": "./parts/*",
+    "behaviors/*": "./behaviors/*",
+    "*": ["./*"]
+  },
+  "preload": ["renderer-simple", "renderer-dog", "renderer-small"]
+}

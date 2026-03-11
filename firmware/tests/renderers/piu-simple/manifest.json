@@ -1,0 +1,13 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../../stackchan/manifest_typings.json",
+    "../../../stackchan/renderers-piu/manifest_renderer_piu.json"
+  ],
+  "modules": {
+    "twohex_stub": "./twohex_stub",
+    "mac-address": "../../../stackchan/utilities/sim/mac-address",
+    "*": ["./*"]
+  }
+}

@@ -110,14 +110,22 @@ const Iris = Shape.template((opts: IrisOptions) => {
     top: opts.top,
     width: diameter,
     height: diameter,
-    skin: new Skin({ fill: '#ffffff' }),
+    skin: new Skin({ fill: defaultFaceContext.theme.primary }),
     Behavior: class extends Behavior {
-      onCreate(shape: PiuShape, _data: object, _context: unknown) {
+      lastPrimary: string | null = null
+      onCreate(shape: PositionedShape, _data: object, _context: unknown) {
         const path = new Outline.CanvasPath()
         path.arc(radius, radius, radius, 0, 2 * Math.PI)
         path.closePath()
         shape.fillOutline = Outline.fill(path)
         shape.strokeOutline = undefined
+      }
+      onFaceContext(shape: PositionedShape, face: FaceContext) {
+        const primary = face.theme.primary
+        if (primary !== this.lastPrimary) {
+          this.lastPrimary = primary
+          shape.skin = new Skin({ fill: primary })
+        }
       }
     },
   }

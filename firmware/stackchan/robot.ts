@@ -6,6 +6,7 @@ import type Digital from 'embedded:io/digital'
 import type Touch from 'touch'
 import type Microphone from 'microphone'
 import type Tone from 'tone'
+import type Led from 'led'
 import { SpeechBalloon } from 'effects/speech-balloon'
 
 const INTERVAL_FACE = 1000 / 30
@@ -92,6 +93,7 @@ type RobotConstructorParam<T extends string> = {
   touch?: Touch
   microphone?: Microphone
   tone?: Tone
+  led?: Record<string, Led>
 }
 
 const LEFT_RIGHT = Object.freeze(['left', 'right'])
@@ -118,6 +120,7 @@ export class Robot {
   #touch: Touch
   #microphone: Microphone
   #tone: Tone
+  #led: Record<string, InstanceType<typeof Led>>
   #isMoving: boolean
   #renderer: Renderer
   #paused: boolean
@@ -141,6 +144,7 @@ export class Robot {
     this.#touch = params.touch
     this.#microphone = params.microphone
     this.#tone = params.tone
+    this.#led = params.led ?? {}
     this.#pose = params.pose ?? {
       body: {
         position: {

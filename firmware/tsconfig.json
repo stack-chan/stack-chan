@@ -54,6 +54,7 @@
         "./stackchan/default-mods/*",
         "./stackchan/dialogues/*",
         "./stackchan/drivers/*",
+        "./stackchan/led/*",
         "./stackchan/renderers-piu/*",
         "./stackchan/renderers/*",
         "./stackchan/services/*",

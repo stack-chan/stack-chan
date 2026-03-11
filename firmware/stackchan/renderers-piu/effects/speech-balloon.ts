@@ -15,11 +15,19 @@ const defaultOptions = {
   speed: 60,
 }
 
-type BalloonOptions = Partial<typeof defaultOptions> & {
+type BalloonOptions = {
   left?: number
   right?: number
+  top?: number
   bottom?: number
+  width?: number
   height?: number
+  padding?: number
+  space?: number
+  radius?: number
+  text?: string
+  font?: string
+  speed?: number
 }
 
 type WithShape = PiuContent & { fillOutline?: unknown; strokeOutline?: unknown; skin?: unknown }
@@ -59,11 +67,23 @@ export function createSpeechBalloonEffect(opts: BalloonOptions = {}): PiuContain
   let label: PiuLabel | null = null
   let currentPrimary: string | null = null
   let currentSecondary: string | null = null
+  const left = opts.left ?? defaultOptions.left
+  const right = opts.right ?? defaultOptions.right
+  const top = opts.top
+  const bottom = opts.bottom ?? defaultOptions.bottom
+  const width = opts.width
 
-  const container = new Container(null, {
-    left: o.left,
-    right: o.right,
-    bottom: o.bottom,
+  type BalloonContainerOptions = {
+    left?: number
+    right?: number
+    top?: number
+    bottom?: number
+    width?: number
+    height?: number
+    clip: boolean
+    Behavior: typeof Behavior
+  }
+  const containerOptions: BalloonContainerOptions = {
     height: o.height,
     clip: true,
     Behavior: class extends Behavior {
@@ -110,7 +130,27 @@ export function createSpeechBalloonEffect(opts: BalloonOptions = {}): PiuContain
         this.updatePalette(face)
       }
     },
-  })
+  }
+  if (width !== undefined) {
+    containerOptions.width = width
+    if (opts.left !== undefined) {
+      containerOptions.left = left
+    } else if (opts.right !== undefined) {
+      containerOptions.right = right
+    } else {
+      containerOptions.left = left
+    }
+  } else {
+    containerOptions.left = left
+    containerOptions.right = right
+  }
+  if (top !== undefined) {
+    containerOptions.top = top
+  } else {
+    containerOptions.bottom = bottom
+  }
+
+  const container = new Container(null, containerOptions)
 
   return container
 }

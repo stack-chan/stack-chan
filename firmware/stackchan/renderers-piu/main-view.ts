@@ -1,3 +1,4 @@
+import 'piu/MC'
 import type {
   Application as PiuApplication,
   Container as PiuContainer,

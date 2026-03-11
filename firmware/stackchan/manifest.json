@@ -12,7 +12,7 @@
     "./ble/manifest_ble.json",
     "./dialogues/manifest_dialogue.json",
     "./led/manifest_led.json",
-    "./renderers/manifest_renderer.json",
+    "./renderers-piu/manifest_renderer_piu.json",
     "./services/manifest_service.json",
     "./speeches/manifest_speech.json",
     "./transcriptions/manifest_transcription.json",

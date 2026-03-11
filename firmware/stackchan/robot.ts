@@ -1,15 +1,13 @@
 import Timer from 'timer'
 import { Vector3, type Pose, Rotation, type Maybe, noop, randomBetween, generateDeviceSeed } from 'stackchan-util'
-import { type FaceContext, type Emotion, createFaceContext, type FaceDecorator } from 'renderer-base'
+import { type FaceContext, type Emotion, createFaceContext } from 'face-context'
+import type { Content as PiuContent } from 'piu/MC'
 import type Digital from 'embedded:io/digital'
 import type Touch from 'touch'
 import type Microphone from 'microphone'
 import type Tone from 'tone'
 import type Led from 'led'
-import { createBalloonDecorator } from 'decorator'
-import { DEFAULT_FONT } from 'consts'
-import Resource from 'Resource'
-import parseBMF from 'commodetto/parseBMF'
+import { createSpeechBalloonEffect } from 'effects/speech-balloon'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
@@ -72,6 +70,7 @@ type RobotConstructorParam<T extends string> = {
 }
 
 const LEFT_RIGHT = Object.freeze(['left', 'right'])
+type FaceDecorator = PiuContent
 export class Robot {
   /**
    * A Facade class that provides quick access for Stack-chan features
@@ -102,7 +101,6 @@ export class Robot {
   #emotion: Emotion
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
-  #font: ReturnType<typeof parseBMF>
   #balloon: FaceDecorator
   updating: boolean
   constructor(params: RobotConstructorParam<ButtonName>) {
@@ -319,7 +317,14 @@ export class Robot {
    */
   showBalloon(
     text: string,
-    option = {
+    option: {
+      left?: number
+      right?: number
+      top?: number
+      bottom?: number
+      width?: number
+      height?: number
+    } = {
       right: 20,
       top: 10,
       width: 80,
@@ -328,15 +333,7 @@ export class Robot {
     if (this.#balloon != null) {
       this.hideBalloon()
     }
-    if (this.#font == null) {
-      this.#font = parseBMF(new Resource(DEFAULT_FONT))
-    }
-    this.#balloon = createBalloonDecorator({
-      ...option,
-      height: this.#font.height,
-      font: this.#font,
-      text,
-    })
+    this.#balloon = createSpeechBalloonEffect({ ...option, text })
     this.#renderer.addDecorator(this.#balloon)
   }
 

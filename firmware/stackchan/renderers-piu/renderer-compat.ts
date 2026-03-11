@@ -1,7 +1,7 @@
 import type { Content as PiuContent } from 'piu/MC'
 import type { FaceContext } from 'face-context'
-import type { Effect } from './main-view'
-import type { Main } from './main-view'
+import type { Effect } from 'main-view'
+import type { Main } from 'main-view'
 
 type RendererCompatOptions = {
   main: Main

@@ -1,6 +1,6 @@
 import type { Application as PiuApplication, Container as PiuContainer, Content as PiuContent } from 'piu/MC'
-import type { Main } from './main-view'
-import { createDrawer, type DrawerBehavior, type DrawerButtonSpec } from './drawer'
+import type { Main } from 'main-view'
+import { createDrawer, type DrawerBehavior, type DrawerButtonSpec } from 'drawer'
 import type { FaceContext } from 'face-context'
 
 export type ShellOptions = {

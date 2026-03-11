@@ -11,6 +11,7 @@
     "renderer-dog": "./renderer-dog",
     "renderer-compat": "./renderer-compat",
     "renderer-small": "./renderer-small",
+    "face-context": "./face-context",
     "main-view": "./main-view",
     "motions/*": "./motions/*",
     "shell": "./shell",
@@ -20,7 +21,11 @@
     "parts/dog/*": "./parts/dog/*",
     "parts/*": "./parts/*",
     "behaviors/*": "./behaviors/*",
-    "*": ["./*"]
+    "piuDie": "$(PIU)/MC/piuDie",
+    "piuFont": "$(PIU)/MC/piuFont",
+    "piuRegion": "$(PIU)/MC/piuRegion",
+    "piuTexture": "$(PIU)/MC/piuTexture",
+    "piuView": "$(PIU)/MC/piuView"
   },
   "resources": {
     "*-mask": [
@@ -28,5 +33,32 @@
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"
     ]
   },
-  "preload": ["renderer-simple", "renderer-dog", "renderer-small"]
+  "preload": [
+    "piu/Application",
+    "piu/Behavior",
+    "piu/Color",
+    "piu/Column",
+    "piu/Container",
+    "piu/Content",
+    "piu/Label",
+    "piu/Layout",
+    "piu/Locals",
+    "piu/Port",
+    "piu/Rectangle",
+    "piu/Row",
+    "piu/Scroller",
+    "piu/Skin",
+    "piu/Style",
+    "piu/Text",
+    "piu/Timeline",
+    "piu/Transition",
+    "renderer-simple",
+    "renderer-dog",
+    "renderer-small",
+    "piuDie",
+    "piuFont",
+    "piuRegion",
+    "piuTexture",
+    "piuView"
+  ]
 }

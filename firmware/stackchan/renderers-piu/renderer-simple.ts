@@ -1,5 +1,6 @@
 import { createSimpleFaceContainer } from 'behaviors/face'
-import { Main, type Effect } from './main-view'
+import { Main, type Effect } from 'main-view'
+import { RendererCompat } from 'renderer-compat'
 
 export type { Effect }
 
@@ -8,8 +9,8 @@ export function createRenderer(): Main {
 }
 
 // Compatibility: keep class name while delegating to Face constructor
-export class Renderer extends Main {
+export class Renderer extends RendererCompat {
   constructor() {
-    super({ face: createSimpleFaceContainer() })
+    super({ main: createRenderer() })
   }
 }

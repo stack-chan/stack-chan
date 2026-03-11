@@ -12,6 +12,42 @@
     "sourceMap": true,
     "target": "ES2024",
     "paths": {
+      "face-context": [
+        "./stackchan/renderers-piu/face-context"
+      ],
+      "effects/*": [
+        "./stackchan/renderers-piu/effects/*"
+      ],
+      "main-view": [
+        "./stackchan/renderers-piu/main-view"
+      ],
+      "renderer-compat": [
+        "./stackchan/renderers-piu/renderer-compat"
+      ],
+      "renderer-simple": [
+        "./stackchan/renderers-piu/renderer-simple"
+      ],
+      "renderer-dog": [
+        "./stackchan/renderers-piu/renderer-dog"
+      ],
+      "renderer-small": [
+        "./stackchan/renderers-piu/renderer-small"
+      ],
+      "behaviors/*": [
+        "./stackchan/renderers-piu/behaviors/*"
+      ],
+      "parts/*": [
+        "./stackchan/renderers-piu/parts/*"
+      ],
+      "motions/*": [
+        "./stackchan/renderers-piu/motions/*"
+      ],
+      "shell": [
+        "./stackchan/renderers-piu/shell"
+      ],
+      "drawer": [
+        "./stackchan/renderers-piu/drawer"
+      ],
       "*": [
         "./node_modules/@moddable/typings/*",
         "./node_modules/@moddable/typings/ble/*",
@@ -21,6 +57,8 @@
         "./stackchan/default-mods/*",
         "./stackchan/dialogues/*",
         "./stackchan/drivers/*",
+        "./stackchan/led/*",
+        "./stackchan/renderers-piu/*",
         "./stackchan/led/*",
         "./stackchan/renderers/*",
         "./stackchan/services/*",

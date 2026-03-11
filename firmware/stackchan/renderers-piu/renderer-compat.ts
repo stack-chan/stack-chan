@@ -1,10 +1,10 @@
 import type { Content as PiuContent } from 'piu/MC'
 import type { FaceContext } from 'face-context'
-import type { FaceEffect } from './renderer-base'
-import { Face } from './renderer-base'
+import type { Effect } from './main-view'
+import type { Main } from './main-view'
 
 type RendererCompatOptions = {
-  face: Face
+  main: Main
 }
 
 let warned = false
@@ -16,29 +16,29 @@ function warnDeprecation() {
 }
 
 export class RendererCompat {
-  #face: Face
+  #main: Main
 
   constructor(options: RendererCompatOptions) {
     warnDeprecation()
-    this.#face = options.face
+    this.#main = options.main
   }
 
   get application() {
-    return this.#face.application
+    return this.#main.application
   }
 
   update(interval: number, faceContext: Readonly<FaceContext>): void {
-    this.#face.update(interval, faceContext)
+    this.#main.update(interval, faceContext)
   }
 
-  addDecorator(effect: FaceEffect): void {
+  addDecorator(effect: Effect): void {
     warnDeprecation()
-    this.#face.addEffect(effect)
+    this.#main.addEffect(effect)
   }
 
-  removeDecorator(effect: FaceEffect): void {
+  removeDecorator(effect: Effect): void {
     warnDeprecation()
-    this.#face.removeEffect(effect)
+    this.#main.removeEffect(effect)
   }
 }
 

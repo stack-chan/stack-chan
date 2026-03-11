@@ -1,7 +1,10 @@
-import type { Application as PiuApplication, Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type {} from 'piu/shape'
-import { copyFaceContext, createFaceContext, defaultFaceContext, toColorString, type FaceContext } from 'face-context'
-import { createBlinkMotion, createBreathMotion, createSaccadeMotion, type FaceMotion } from 'motions'
+import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
+import { createBlinkMotion } from 'motions/blink'
+import { createBreathMotion } from 'motions/breath'
+import { createSaccadeMotion } from 'motions/saccade'
+import type { FaceMotion } from 'motions/types'
 import { createEye } from 'parts/eye'
 import { createEyelid } from 'parts/eyelid'
 import { createMouth } from 'parts/mouth'
@@ -27,24 +30,15 @@ type FaceContainerTemplateCtor = {
   new (behaviorData?: unknown, dictionary?: FaceContainerParams): PiuContainer
 }
 
-type ApplicationOwner = { application?: PiuApplication }
-
-function getApplicationFrom(container: PiuContainer): PiuApplication | undefined {
-  return (container as unknown as ApplicationOwner).application
-}
-
 export class FaceBehavior extends Behavior {
   #current: FaceContext
   #desired: FaceContext
   #motions: FaceMotion[]
   #baseY: number | null
   #paused: boolean
-  #needsSync: boolean
   #buildParts: () => PiuContent[]
   #height?: number
   #faceLayer: PiuContainer | null
-  #lastSecondary?: string
-  #application?: PiuApplication
 
   constructor({ buildParts, motions, intervalMs, height }: FaceBehaviorOptions) {
     super()
@@ -58,12 +52,9 @@ export class FaceBehavior extends Behavior {
     this.#desired = createFaceContext()
     this.#baseY = null
     this.#paused = false
-    this.#needsSync = false
     this.intervalMs = intervalMs ?? 33
     this.#height = height
     this.#faceLayer = null
-    this.#lastSecondary = undefined
-    this.#application = undefined
   }
 
   intervalMs: number
@@ -76,7 +67,6 @@ export class FaceBehavior extends Behavior {
   }
 
   onDisplaying(container: PiuContainer) {
-    this.#application = getApplicationFrom(container)
     const layer = this.#faceLayer
     if (this.#baseY === null && layer) {
       this.#baseY = layer.coordinates?.top ?? layer.y
@@ -84,10 +74,8 @@ export class FaceBehavior extends Behavior {
     if (!this.#paused) {
       container.start?.()
     }
-    if (this.#needsSync) {
-      this.#application?.distribute?.('onFaceContext', this.#current)
-      this.#needsSync = false
-    }
+    container.distribute('onFaceContext', this.#current)
+    container.bubble('onFaceContext', this.#current)
   }
 
   onFaceUpdate(_container: PiuContainer, face: FaceContext) {
@@ -111,8 +99,8 @@ export class FaceBehavior extends Behavior {
       const nextY = (this.#baseY ?? 0) + this.#current.breath * 6
       layer.coordinates = { ...(layer.coordinates ?? {}), top: nextY }
     }
-    this.updateBackground(container, this.#current)
-    this.#application?.distribute?.('onFaceContext', this.#current)
+    container.distribute('onFaceContext', this.#current)
+    container.bubble('onFaceContext', this.#current)
   }
 
   pause(container: PiuContainer) {
@@ -129,13 +117,8 @@ export class FaceBehavior extends Behavior {
     container.visible = true
     container.active = true
     container.start?.()
-    const app = this.#application ?? getApplicationFrom(container)
-    if (app) {
-      this.#application = app
-      app.distribute?.('onFaceContext', this.#current)
-    } else {
-      this.#needsSync = true
-    }
+    container.distribute('onFaceContext', this.#current)
+    container.bubble('onFaceContext', this.#current)
   }
 
   rebuild(container: PiuContainer) {
@@ -154,21 +137,8 @@ export class FaceBehavior extends Behavior {
     for (const part of parts) {
       this.#faceLayer.add(part)
     }
-    this.updateBackground(container, defaultFaceContext)
-    const app = this.#application ?? getApplicationFrom(container)
-    if (app) {
-      this.#application = app
-      app.distribute?.('onFaceContext', this.#current)
-    } else {
-      this.#needsSync = true
-    }
-  }
-
-  private updateBackground(container: PiuContainer, face: FaceContext) {
-    const secondary = toColorString(face.theme.secondary)
-    if (secondary === this.#lastSecondary) return
-    this.#lastSecondary = secondary
-    container.skin = new Skin({ fill: secondary })
+    container.distribute('onFaceContext', this.#current)
+    container.bubble('onFaceContext', this.#current)
   }
 }
 
@@ -225,7 +195,12 @@ export const FaceContainerTemplate = Container.template<FaceContainerParams>(($)
   contents: [],
   Behavior: class extends FaceBehavior {
     constructor() {
-      super({ buildParts: $.buildParts, motions: $.motions, intervalMs: $.intervalMs, height: $.height })
+      super({
+        buildParts: $.buildParts,
+        motions: $.motions,
+        intervalMs: $.intervalMs,
+        height: $.height,
+      })
     }
   },
 })) as unknown as FaceContainerTemplateCtor

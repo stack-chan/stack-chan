@@ -1,11 +1,11 @@
 import type { Application as PiuApplication, Container as PiuContainer, Content as PiuContent } from 'piu/MC'
-import type { Face } from './renderer-base'
+import type { Main } from './main-view'
 import { createDrawer, type DrawerBehavior, type DrawerButtonSpec } from './drawer'
 import type { FaceContext } from 'face-context'
 
 export type ShellOptions = {
-  face: Face
-  headerFactory?: () => PiuContent
+  main: Main
+  appBarFactory?: () => PiuContent
   drawerButtons?: DrawerButtonSpec[]
   drawerFactory?: () => PiuContainer
   overlayFactory?: () => PiuContainer
@@ -14,23 +14,22 @@ export type ShellOptions = {
 
 export class Shell {
   #application: PiuApplication
-  #header: PiuContent | null
+  #appBar: PiuContent | null
   #body: PiuContainer
   #overlay: PiuContainer
   #drawer: PiuContainer | null
   #drawerOpen: boolean
 
   constructor(options: ShellOptions) {
-    const face = options.face
-    const app = face.application
+    const main = options.main
+    const app = main.application
     const shell = this
 
-    // remove existing face/effect containers from root and rebuild layout
-    app.remove(face.faceContainer)
-    app.remove(face.effectContainer)
+    // remove existing main container from root and rebuild layout
+    app.remove(main.mainContainer)
 
-    this.#header = options.headerFactory
-      ? options.headerFactory()
+    this.#appBar = options.appBarFactory
+      ? options.appBarFactory()
       : new Container(null, {
           left: 0,
           right: 0,
@@ -77,12 +76,12 @@ export class Shell {
       top: 0,
       bottom: 0,
       active: true,
-      contents: [face.faceContainer, face.effectContainer].filter(Boolean) as PiuContent[],
+      contents: [main.mainContainer].filter(Boolean) as PiuContent[],
       Behavior: class extends Behavior {
         onFaceContext(_container: PiuContainer, faceContext: FaceContext) {
-          face.effectContainer.distribute('onFaceContext', faceContext)
+          main.effectsContainer.distribute('onFaceContext', faceContext)
           shell.#overlay.distribute('onFaceContext', faceContext)
-          shell.#header?.distribute?.('onFaceContext', faceContext)
+          shell.#appBar?.distribute?.('onFaceContext', faceContext)
           return true
         }
       },
@@ -90,7 +89,7 @@ export class Shell {
 
     const contents: PiuContent[] = []
     contents.push(this.#body)
-    if (this.#header) contents.push(this.#header)
+    if (this.#appBar) contents.push(this.#appBar)
     contents.push(this.#overlay)
     app.empty()
     for (const c of contents) app.add(c)
@@ -141,7 +140,7 @@ export class Shell {
     // TODO: implement overlay/toast UI
   }
 
-  setHeader(_content: PiuContent): void {
-    // TODO: implement header replacement if needed
+  setAppBar(_content: PiuContent): void {
+    // TODO: implement app bar replacement if needed
   }
 }

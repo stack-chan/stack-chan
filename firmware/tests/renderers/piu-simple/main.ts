@@ -1,20 +1,22 @@
 import Timer from 'timer'
 import type { Content as PiuContent } from 'piu/MC'
-import { Face } from 'renderer-base'
+import { Main } from 'main-view'
 import { createDogFaceParts, createFaceContainer, createSimpleFaceParts, type FaceBehavior } from 'behaviors/face'
 import { Shell } from 'shell'
-import { createEmoticonEffect } from 'decorators/emoticon'
-import { createSpeechBalloonEffect } from 'decorators/speech-balloon'
+import { createEmoticonEffect } from 'effects/emoticon'
+import { createSpeechBalloonEffect } from 'effects/speech-balloon'
 import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext, Emotion } from 'face-context'
-import { createBlinkMotion, createBreathMotion, createSaccadeMotion } from 'motions'
+import { createBlinkMotion } from 'motions/blink'
+import { createBreathMotion } from 'motions/breath'
+import { createSaccadeMotion } from 'motions/saccade'
 
 let faceMode: 'simple' | 'dog' = 'simple'
 const faceContainer = createFaceContainer(() => {
   return faceMode === 'dog' ? createDogFaceParts() : createSimpleFaceParts()
 })
-const face = new Face({ face: faceContainer })
+const main = new Main({ face: faceContainer })
 new Shell({
-  face,
+  main,
   drawerButtons: [
     { label: 'Face', action: 'toggleFaceMode' },
     { label: 'Mouth', toggleKey: 'mouth', action: 'toggleMouth' },
@@ -22,7 +24,7 @@ new Shell({
     { label: 'Speech', action: 'toggleSpeech' },
   ],
 })
-face.application.distribute?.('onFaceMode', faceMode)
+main.application.distribute?.('onFaceMode', faceMode)
 
 const desired: FaceContext = createFaceContext()
 copyFaceContext(defaultFaceContext, desired)
@@ -62,23 +64,23 @@ function applyDecoratorForEmotion(emotion: Emotion) {
   const next = decoratorForEmotion(emotion)
   if (next === emoticonDecorator) return
   if (emoticonDecorator) {
-    face.removeEffect(emoticonDecorator)
+    main.removeEffect(emoticonDecorator)
   }
   emoticonDecorator = next
   if (emoticonDecorator) {
-    face.addEffect(emoticonDecorator)
+    main.addEffect(emoticonDecorator)
   }
 }
 
 applyDecoratorForEmotion(desired.emotion)
 
 // Action handlers invoked via application.delegate(action)
-face.application.behavior = new (class extends Behavior {
+main.application.behavior = new (class extends Behavior {
   toggleFaceMode() {
     faceMode = faceMode === 'dog' ? 'simple' : 'dog'
-    const behavior = face.faceContainer.behavior as FaceBehavior | undefined
-    behavior?.rebuild?.(face.faceContainer)
-    face.application.distribute?.('onFaceMode', faceMode)
+    const behavior = main.faceContainer.behavior as FaceBehavior | undefined
+    behavior?.rebuild?.(main.faceContainer)
+    main.application.distribute?.('onFaceMode', faceMode)
   }
   toggleMouth() {
     desired.mouth.open = desired.mouth.open > 0 ? 0 : 1
@@ -92,9 +94,9 @@ face.application.behavior = new (class extends Behavior {
   toggleSpeech() {
     speechVisible = !speechVisible
     if (speechVisible) {
-      face.addEffect(speechBalloon)
+      main.addEffect(speechBalloon)
     } else {
-      face.removeEffect(speechBalloon)
+      main.removeEffect(speechBalloon)
     }
   }
 })()
@@ -112,5 +114,5 @@ Timer.repeat(() => {
   const current = createFaceContext()
   copyFaceContext(desired, current)
   for (const motion of motions) motion(33, current)
-  face.update(33, current)
+  main.update(33, current)
 }, 33)

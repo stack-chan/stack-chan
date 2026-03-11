@@ -1,13 +1,13 @@
 import { createSmallFaceContainer } from 'behaviors/face'
-import { Face, type FaceEffect } from './renderer-base'
+import { Main, type Effect } from './main-view'
 
-export type { FaceEffect }
+export type { Effect }
 
-export function createRenderer(): Face {
-  return new Face({ face: createSmallFaceContainer() })
+export function createRenderer(): Main {
+  return new Main({ face: createSmallFaceContainer() })
 }
 
-export class Renderer extends Face {
+export class Renderer extends Main {
   constructor() {
     super({ face: createSmallFaceContainer() })
   }

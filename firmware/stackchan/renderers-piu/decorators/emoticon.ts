@@ -1,7 +1,6 @@
 import type { Container as PiuContainer, Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 import { Outline } from 'commodetto/outline'
 import { defaultFaceContext, toColorString, type FaceContext } from 'face-context'
-import type { FaceDecorator } from 'renderer-simple'
 
 type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy'
 
@@ -555,46 +554,19 @@ const Sleepy = Container.template((opts: EmoticonOptions) => ({
   },
 }))
 
-export function createEmoticonDecorator(
-  key: EmoticonKey,
-  opts: EmoticonOptions = {},
-): FaceDecorator & { build: (container: PiuContainer) => PiuContent } {
-  let node: PiuContent | null = null
-
-  type NodeBehavior = { onFaceContext?: (content: PiuContent, face: FaceContext) => void }
-  const decorator: FaceDecorator & { build: (container: PiuContainer) => PiuContent } = (_tick, face, end) => {
-    if (!node) return
-    const behavior = node.behavior as NodeBehavior | undefined
-    if (end) {
-      node.visible = false
-      return
-    }
-    node.visible = true
-    behavior?.onFaceContext?.(node, face as FaceContext)
+export function createEmoticonDecorator(key: EmoticonKey, opts: EmoticonOptions = {}): PiuContent {
+  switch (key) {
+    case 'heart':
+      return new Heart(opts)
+    case 'angry':
+      return new Angry(opts)
+    case 'sweat':
+      return new Sweat(opts)
+    case 'tear':
+      return new Tear(opts)
+    case 'sleepy':
+      return new Sleepy(opts)
+    default:
+      return new Heart(opts)
   }
-
-  decorator.build = () => {
-    switch (key) {
-      case 'heart':
-        node = new Heart(opts)
-        break
-      case 'angry':
-        node = new Angry(opts)
-        break
-      case 'sweat':
-        node = new Sweat(opts)
-        break
-      case 'tear':
-        node = new Tear(opts)
-        break
-      case 'sleepy':
-        node = new Sleepy(opts)
-        break
-      default:
-        node = new Heart(opts)
-    }
-    return node
-  }
-
-  return decorator
 }

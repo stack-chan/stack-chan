@@ -1,5 +1,6 @@
 import Timer from 'timer'
-import { Renderer, type FaceDecorator } from 'renderer-simple'
+import type { Content as PiuContent } from 'piu/MC'
+import { Renderer } from 'renderer-simple'
 import { createEmoticonDecorator } from 'decorators/emoticon'
 import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext, Emotion } from 'face-context'
 import { createBlinkModifier, createBreathModifier, createSaccadeModifier } from 'modifiers'
@@ -15,11 +16,11 @@ const modifiers = [
   createSaccadeModifier({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
 ]
 
-let emoticonDecorator: FaceDecorator | null = null
+let emoticonDecorator: PiuContent | null = null
 
 const EMOTIONS = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
 
-function decoratorForEmotion(emotion: Emotion): FaceDecorator | null {
+function decoratorForEmotion(emotion: Emotion): PiuContent | null {
   switch (emotion) {
     case Emotion.HAPPY:
       return createEmoticonDecorator('heart', { left: 12, top: 12 })

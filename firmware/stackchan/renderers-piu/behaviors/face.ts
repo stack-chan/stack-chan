@@ -20,7 +20,6 @@ type FaceBehaviorOptions = {
   mode: FaceMode
   modifiers?: FaceModifier[]
   intervalMs?: number
-  afterTick?: (tick: number, face: FaceContext) => void
 }
 
 function getApplication(): PiuApplication | undefined {
@@ -35,9 +34,8 @@ export class FaceBehavior extends Behavior {
   #paused: boolean
   #mode: FaceMode
   #needsSync: boolean
-  #afterTick?: (tick: number, face: FaceContext) => void
 
-  constructor({ mode, modifiers, intervalMs, afterTick }: FaceBehaviorOptions) {
+  constructor({ mode, modifiers, intervalMs }: FaceBehaviorOptions) {
     super()
     this.#mode = mode
     this.#modifiers = modifiers ?? [
@@ -45,7 +43,6 @@ export class FaceBehavior extends Behavior {
       createBreathModifier({ duration: 6000 }),
       createSaccadeModifier({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
-    this.#afterTick = afterTick
     this.#current = createFaceContext()
     this.#desired = createFaceContext()
     this.#baseY = null
@@ -93,7 +90,6 @@ export class FaceBehavior extends Behavior {
     }
     container.y = (this.#baseY ?? 0) + this.#current.breath * 6
     getApplication()?.distribute?.('onFaceContext', this.#current)
-    this.#afterTick?.(interval, this.#current)
   }
 
   pause(container: PiuContainer) {
@@ -174,12 +170,7 @@ function createFaceParts(mode: FaceMode): PiuContent[] {
   return createSimpleFaceParts()
 }
 
-export function createFaceContainer(
-  mode: FaceMode,
-  modifiers?: FaceModifier[],
-  intervalMs?: number,
-  afterTick?: (tick: number, face: FaceContext) => void,
-): PiuContainer {
+export function createFaceContainer(mode: FaceMode, modifiers?: FaceModifier[], intervalMs?: number): PiuContainer {
   return new Container(null, {
     left: 0,
     right: 0,
@@ -189,7 +180,7 @@ export function createFaceContainer(
     contents: [],
     Behavior: class extends FaceBehavior {
       constructor() {
-        super({ mode, modifiers, intervalMs, afterTick })
+        super({ mode, modifiers, intervalMs })
       }
     },
   })

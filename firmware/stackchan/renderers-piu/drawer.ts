@@ -195,7 +195,7 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
       timeline: Timeline | null = null
       offset = drawerHiddenOffset
 
-      onCreate(container: PiuContainer, data?: DrawerDictionary) {
+      onCreate(container: PiuContainer, _data?: DrawerDictionary) {
         container.interval = 16
         this.applyPosition(container, this.offset)
       }

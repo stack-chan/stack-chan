@@ -154,7 +154,7 @@ async function checkAndConnectWiFi(startupScreen: StartupScreen) {
 
   return new Promise<boolean | 'setup'>((resolve, reject) => {
     let settled = false
-    let setupWatchTimer
+    let setupWatchTimer: ReturnType<typeof Timer.repeat> | undefined
     const finish = (callback: (value: boolean | 'setup') => void, value: boolean | 'setup') => {
       if (settled) return
       settled = true

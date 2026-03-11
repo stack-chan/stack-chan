@@ -41,7 +41,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     robot.lookAt([x, y, z])
   }
   Timer.repeat(targetLoop, 5000)
-  if (robot.button.a != null) {
+  if (robot.button?.a != null) {
     robot.button.a.onChanged = async function () {
       if (this.read()) {
         isFollowing = !isFollowing
@@ -70,7 +70,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     robot.hideBalloon()
   }
   let isMoving = false
-  if (robot.button.b != null) {
+  if (robot.button?.b != null) {
     robot.button.b.onChanged = async function () {
       if (this.read() && !isMoving) {
         isFollowing = false
@@ -86,7 +86,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
    * Button C ... Change color
    */
   let flag = false
-  if (robot.button.c != null) {
+  if (robot.button?.c != null) {
     robot.button.c.onChanged = function () {
       if (this.read()) {
         trace('pressed C\n')

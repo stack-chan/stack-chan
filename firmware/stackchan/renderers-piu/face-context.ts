@@ -53,6 +53,15 @@ export const defaultFaceContext: Readonly<FaceContext> = {
     secondary: [0x00, 0x00, 0x00],
   },
 }
+// Freeze default objects to avoid accidental mutations (and silence build warnings).
+Object.freeze(defaultFaceContext.theme.primary)
+Object.freeze(defaultFaceContext.theme.secondary)
+Object.freeze(defaultFaceContext.theme)
+Object.freeze(defaultFaceContext.eyes.left)
+Object.freeze(defaultFaceContext.eyes.right)
+Object.freeze(defaultFaceContext.eyes)
+Object.freeze(defaultFaceContext.mouth)
+Object.freeze(defaultFaceContext)
 
 export function createFaceContext(): FaceContext {
   return {

@@ -59,6 +59,7 @@ class Blink extends NeoStrandEffect {
 
 export default class Led extends NeoStrand {
   private _effect?: NeoStrandEffect
+  private _offTimer?: Timer
 
   constructor(parameters: {
     pin: number
@@ -83,6 +84,10 @@ export default class Led extends NeoStrand {
       this.stop()
       this._effect = undefined
     }
+    if (this._offTimer) {
+      Timer.clear(this._offTimer)
+      this._offTimer = undefined
+    }
   }
 
   on(r: number, g: number, b: number, duration?: number, index?: number, count?: number) {
@@ -93,7 +98,7 @@ export default class Led extends NeoStrand {
 
     this.update()
     if (duration) {
-      Timer.set(() => {
+      this._offTimer = Timer.set(() => {
         this.off(_index, _count)
       }, duration)
     }
@@ -116,7 +121,7 @@ export default class Led extends NeoStrand {
       strand: this,
       rgb: { r, g, b },
       index: _index,
-      count: _index + _count,
+      count: _count,
       duration: duration,
     })
     this.setScheme([this._effect])

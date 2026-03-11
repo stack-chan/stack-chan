@@ -68,7 +68,7 @@ type RobotConstructorParam<T extends string> = {
   touch?: Touch
   microphone?: Microphone
   tone?: Tone
-  led?: Record<string, InstanceType<typeof Led>>
+  led?: Record<string, Led>
 }
 
 const LEFT_RIGHT = Object.freeze(['left', 'right'])

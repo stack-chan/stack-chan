@@ -21,6 +21,17 @@ type FaceBehaviorOptions = {
   height?: number
 }
 
+export type FaceContainerParams = {
+  buildParts: () => PiuContent[]
+  motions?: FaceMotion[]
+  intervalMs?: number
+  height?: number
+}
+
+type FaceContainerTemplateCtor = {
+  new (behaviorData?: unknown, dictionary?: FaceContainerParams): PiuContainer
+}
+
 function getApplication(): PiuApplication | undefined {
   return (globalThis as { application?: PiuApplication }).application
 }
@@ -172,20 +183,23 @@ export function createFaceContainer(
   intervalMs?: number,
   height?: number,
 ): PiuContainer {
-  return new Container(null, {
-    left: 0,
-    right: 0,
-    top: 0,
-    height: height ?? 240,
-    active: true,
-    contents: [],
-    Behavior: class extends FaceBehavior {
-      constructor() {
-        super({ buildParts, motions, intervalMs, height })
-      }
-    },
-  })
+  return new FaceContainerTemplate({ buildParts, motions, intervalMs, height })
 }
+
+// @ts-expect-error Moddable template typing does not model dictionary 'this' correctly
+export const FaceContainerTemplate = Container.template<FaceContainerParams>(($) => ({
+  left: 0,
+  right: 0,
+  top: 0,
+  height: $.height ?? 240,
+  active: true,
+  contents: [],
+  Behavior: class extends FaceBehavior {
+    constructor() {
+      super({ buildParts: $.buildParts, motions: $.motions, intervalMs: $.intervalMs, height: $.height })
+    }
+  },
+})) as unknown as FaceContainerTemplateCtor
 
 export function createSimpleFaceContainer(motions?: FaceMotion[], intervalMs?: number): PiuContainer {
   return createFaceContainer(createSimpleFaceParts, motions, intervalMs, 240)

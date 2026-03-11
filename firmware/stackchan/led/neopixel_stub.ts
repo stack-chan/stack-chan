@@ -9,12 +9,12 @@ class NeoPixel {
     return 0
   }
 
-  setPixel(_index: number, _color) {}
-  fill(_color, _index: number, _count: number) {}
-  getPixel(_index) {
+  setPixel(_index: number, _color: number) {}
+  fill(_color: number, _index: number, _count: number) {}
+  getPixel(_index: number) {
     return 0
   }
-  set brightness(_value) {}
+  set brightness(_value: number) {}
   get brightness() {
     return 128
   }

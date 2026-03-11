@@ -52,6 +52,12 @@ class BalloonLabelBehavior extends Behavior {
     this.#x = content.x
     content.interval = 33
   }
+  onDisplaying(content: PiuLabel) {
+    content.start()
+  }
+  onUndisplaying(content: PiuLabel) {
+    content.stop()
+  }
   onTimeChanged(content: PiuLabel) {
     this.#x -= (this.#speed * (content.interval ?? 33)) / 1000
     const resetX = this.#viewportWidth - this.#padding

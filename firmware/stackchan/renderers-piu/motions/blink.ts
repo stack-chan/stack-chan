@@ -12,8 +12,9 @@ export const createBlinkMotion: FaceMotionFactory<{
   closeMin: number
   closeMax: number
 }> = ({ openMin, openMax, closeMin, closeMax }) => {
+  const clampDuration = (duration: number) => Math.max(1, duration)
   let isBlinking = false
-  let nextToggle = randomBetween(openMin, openMax)
+  let nextToggle = clampDuration(randomBetween(openMin, openMax))
   let count = 0
   return (tickMillis, face) => {
     let eyeOpen = 1
@@ -25,7 +26,7 @@ export const createBlinkMotion: FaceMotionFactory<{
     if (count >= nextToggle) {
       isBlinking = !isBlinking
       count = 0
-      nextToggle = isBlinking ? randomBetween(closeMin, closeMax) : randomBetween(openMin, openMax)
+      nextToggle = clampDuration(isBlinking ? randomBetween(closeMin, closeMax) : randomBetween(openMin, openMax))
     }
     const eyes = face.eyes
     eyes.left.open *= eyeOpen

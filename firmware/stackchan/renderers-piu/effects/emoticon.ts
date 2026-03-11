@@ -197,6 +197,9 @@ class SweatBehavior extends Behavior {
   drawCount = 0
   primary: string | null = null
   secondary: string | null = null
+  cachedSkin: PiuSkin | null = null
+  lastPrimary: string | null = null
+  lastSecondary: string | null = null
   onCreate(shape: WithSkin, data: EmoticonOptions = {}) {
     this.drops = []
     this.width = data.width ?? shape.width ?? this.width
@@ -226,7 +229,7 @@ class SweatBehavior extends Behavior {
   onFaceContext(shape: WithSkin, face: FaceContext) {
     this.primary = primaryColor(face)
     this.secondary = secondaryColor(face)
-    shape.skin = new Skin({ fill: this.secondary ?? '#000', stroke: this.primary ?? '#fff' })
+    this.updateSkin(shape)
   }
   tick(shape: WithSkin, dt: number) {
     const primary = this.primary ?? '#fff'
@@ -260,7 +263,22 @@ class SweatBehavior extends Behavior {
       shape.strokeOutline = undefined
       shape.fillOutline = undefined
     }
-    shape.skin = new Skin({ fill: secondary, stroke: primary })
+    if (primary !== this.lastPrimary || secondary !== this.lastSecondary || !this.cachedSkin) {
+      this.cachedSkin = new Skin({ fill: secondary, stroke: primary })
+      this.lastPrimary = primary
+      this.lastSecondary = secondary
+    }
+    shape.skin = this.cachedSkin
+  }
+  updateSkin(shape: WithSkin) {
+    const primary = this.primary ?? '#fff'
+    const secondary = this.secondary ?? '#000'
+    if (primary !== this.lastPrimary || secondary !== this.lastSecondary || !this.cachedSkin) {
+      this.cachedSkin = new Skin({ fill: secondary, stroke: primary })
+      this.lastPrimary = primary
+      this.lastSecondary = secondary
+    }
+    shape.skin = this.cachedSkin
   }
   appendDropPath(path: OutlinePath, x: number, y: number, scale: number) {
     const sx = scale
@@ -323,6 +341,9 @@ class TearBehavior extends Behavior {
   tickCount = 0
   primary: string | null = null
   secondary: string | null = null
+  cachedSkin: PiuSkin | null = null
+  lastPrimary: string | null = null
+  lastSecondary: string | null = null
   onCreate(shape: WithSkin, data: EmoticonOptions = {}) {
     this.drops = []
     this.width = (data.width as number) ?? shape.width ?? this.width
@@ -350,7 +371,7 @@ class TearBehavior extends Behavior {
   onFaceContext(shape: WithSkin, face: FaceContext) {
     this.primary = primaryColor(face)
     this.secondary = secondaryColor(face)
-    shape.skin = new Skin({ fill: this.secondary ?? '#000', stroke: this.primary ?? '#fff' })
+    this.updateSkin(shape)
   }
   tick(shape: WithSkin, dt: number) {
     const primary = this.primary ?? '#fff'
@@ -388,7 +409,22 @@ class TearBehavior extends Behavior {
       shape.strokeOutline = undefined
       shape.fillOutline = undefined
     }
-    shape.skin = new Skin({ fill: secondary, stroke: primary })
+    if (primary !== this.lastPrimary || secondary !== this.lastSecondary || !this.cachedSkin) {
+      this.cachedSkin = new Skin({ fill: secondary, stroke: primary })
+      this.lastPrimary = primary
+      this.lastSecondary = secondary
+    }
+    shape.skin = this.cachedSkin
+  }
+  updateSkin(shape: WithSkin) {
+    const primary = this.primary ?? '#fff'
+    const secondary = this.secondary ?? '#000'
+    if (primary !== this.lastPrimary || secondary !== this.lastSecondary || !this.cachedSkin) {
+      this.cachedSkin = new Skin({ fill: secondary, stroke: primary })
+      this.lastPrimary = primary
+      this.lastSecondary = secondary
+    }
+    shape.skin = this.cachedSkin
   }
   buildLaneXs() {
     if (this.count <= 1) return [this.width * 0.5]
@@ -447,6 +483,9 @@ class SleepyBubbleBehavior extends Behavior {
   shape: WithSkin | null = null
   primary: string | null = null
   secondary: string | null = null
+  cachedSkin: PiuSkin | null = null
+  lastPrimary: string | null = null
+  lastSecondary: string | null = null
   onCreate(container: PiuContainer, data: EmoticonOptions = {}) {
     this.width = data.width ?? container.width ?? this.width
     this.height = data.height ?? container.height ?? this.height
@@ -477,6 +516,7 @@ class SleepyBubbleBehavior extends Behavior {
   onFaceContext(_container: PiuContainer, face: FaceContext) {
     this.primary = primaryColor(face)
     this.secondary = secondaryColor(face)
+    this.updateSkin()
   }
   tick() {
     const width = this.width
@@ -507,7 +547,24 @@ class SleepyBubbleBehavior extends Behavior {
     }
     shape.strokeOutline = outline.stroke(path, 2)
     shape.fillOutline = undefined
-    shape.skin = new Skin({ fill: secondary, stroke: primary })
+    if (primary !== this.lastPrimary || secondary !== this.lastSecondary || !this.cachedSkin) {
+      this.cachedSkin = new Skin({ fill: secondary, stroke: primary })
+      this.lastPrimary = primary
+      this.lastSecondary = secondary
+    }
+    shape.skin = this.cachedSkin
+  }
+  updateSkin() {
+    const primary = this.primary ?? '#fff'
+    const secondary = this.secondary ?? '#000'
+    const shape = this.shape
+    if (!shape) return
+    if (primary !== this.lastPrimary || secondary !== this.lastSecondary || !this.cachedSkin) {
+      this.cachedSkin = new Skin({ fill: secondary, stroke: primary })
+      this.lastPrimary = primary
+      this.lastSecondary = secondary
+    }
+    shape.skin = this.cachedSkin
   }
 }
 

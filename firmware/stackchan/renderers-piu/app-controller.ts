@@ -34,7 +34,10 @@ export class AppController extends Behavior {
   }
 
   get application(): PiuApplication {
-    return this.#application as PiuApplication
+    if (!this.#application) {
+      throw new Error('AppController: application not initialized')
+    }
+    return this.#application
   }
 
   showView(ViewTemplate: FaceViewTemplateCtor, data: FaceViewParams) {

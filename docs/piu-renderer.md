@@ -215,7 +215,7 @@ Each template is a `FaceBase` specialization and accepts `FaceBaseParams` (size/
 | --- | --- | --- | --- |
 | `cx`, `cy` | `number` | Required | Center position in face coordinates. |
 | `radius` | `number` | Optional | Iris radius. |
-| `side` | `'left' | 'right'` | Required | Eye side. |
+| `side` | `'left' \| 'right'` | Required | Eye side. |
 | `eyelidWidth`, `eyelidHeight` | `number` | Optional | Eyelid bounds. |
 
 #### Eyelid (`parts/eye.ts`)
@@ -226,7 +226,7 @@ Each template is a `FaceBase` specialization and accepts `FaceBaseParams` (size/
 | --- | --- | --- | --- |
 | `cx`, `cy` | `number` | Required | Center position. |
 | `width`, `height` | `number` | Required | Eyelid bounds. |
-| `side` | `'left' | 'right'` | Required | Eye side. |
+| `side` | `'left' \| 'right'` | Required | Eye side. |
 
 #### Mouth (`parts/mouth.ts`)
 **Role:** Rectangle mouth shape that grows/shrinks with `mouth.open`.
@@ -243,7 +243,7 @@ Each template is a `FaceBase` specialization and accepts `FaceBaseParams` (size/
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `cx`, `cy` | `number` | Required | Center position. |
-| `side` | `'left' | 'right'` | Required | Eye side. |
+| `side` | `'left' \| 'right'` | Required | Eye side. |
 | `canvasWidth`, `canvasHeight` | `number` | Optional | Canvas size used for outline. |
 
 **DogMouth (DogMouthOptions):**
@@ -284,7 +284,7 @@ Each template is a `FaceBase` specialization and accepts `FaceBaseParams` (size/
 **Params (EmoticonParams):**
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `key` | `'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy'` | Required | Emoticon type. |
+| `key` | `'heart' \| 'angry' \| 'sweat' \| 'tear' \| 'sleepy'` | Required | Emoticon type. |
 | `name` | `string` | Optional | Optional key for effect management. |
 | `left/right/top/bottom/width/height` | `number` | Optional | Layout bounds. |
 | `angle` | `number` | Optional | Rotation angle. |
@@ -308,7 +308,7 @@ Each template is a `FaceBase` specialization and accepts `FaceBaseParams` (size/
 | --- | --- | --- | --- |
 | `key` | `string` | Required | Event key used for `bubble`. |
 | `label` | `string` | Required | Button label. |
-| `kind` | `'action' | 'toggle'` | Optional | Toggle buttons show an indicator. |
+| `kind` | `'action' \| 'toggle'` | Optional | Toggle buttons show an indicator. |
 | `active` | `boolean` | Optional | Initial toggle state. |
 
 **Public methods (DrawerBehavior):**
@@ -405,7 +405,7 @@ sequenceDiagram
 
 In the PIU test app, handlers are attached directly on the `AppController` instance by assigning methods with matching names.
 
-## 7. Key Files (for navigation)
+## 8. Key Files (for navigation)
 - `stackchan/renderers-piu/app-controller.ts`
 - `stackchan/renderers-piu/face-view.ts`
 - `stackchan/renderers-piu/common-view.ts`

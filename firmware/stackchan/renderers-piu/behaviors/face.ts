@@ -151,7 +151,7 @@ export class FaceBehavior extends Behavior {
       container.bubble('onFaceSkin', this.#skinPalette)
     }
     container.distribute('onFaceContext', this.#current)
-    container.bubble('onFaceContext', this.#current)
+    // container.bubble('onFaceContext', this.#current)
   }
 
   get breathPixels(): number {

@@ -38,7 +38,7 @@ runs:
         path: |
           /home/runner/.local/share
           /home/runner/.espressif
-        key: ${{ env.moddable_cache_key }}-fontbm2
+        key: ${{ env.moddable_cache_key }}-fontbm-v0.6.1
     - name: install Moddable
       if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
       run: |
@@ -60,8 +60,9 @@ runs:
     - name: install fontbm
       if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
       run: |
+        sudo apt-get update
         sudo apt-get install -y cmake libfreetype6-dev
-        git clone --depth 1 https://github.com/vladimirgamalyan/fontbm.git $HOME/.local/share/fontbm
+        git clone --depth 1 --branch v0.6.1 https://github.com/vladimirgamalyan/fontbm.git $HOME/.local/share/fontbm
         cd $HOME/.local/share/fontbm && mkdir -p build && cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
         printf '\nexport FONTBM=%s\n' "$HOME/.local/share/fontbm/build/fontbm" >> $HOME/.local/share/xs-dev-export.sh
@@ -74,4 +75,4 @@ runs:
         path: |
           /home/runner/.local/share
           /home/runner/.espressif
-        key: ${{ env.moddable_cache_key }}-fontbm2
+        key: ${{ env.moddable_cache_key }}-fontbm-v0.6.1

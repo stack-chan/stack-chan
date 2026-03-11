@@ -154,8 +154,8 @@ export const onLaunch: StackchanMod['onLaunch'] = async () => {
   const status: Status = {
     ble: 'not connected',
     wifi: 'not connected',
-    'wifi.ssid': String(Preference.get(DOMAIN.wifi, 'ssid')),
-    'wifi.password': String(Preference.get(DOMAIN.wifi, 'password')),
+    'wifi.ssid': (Preference.get(DOMAIN.wifi, 'ssid') as string | undefined) ?? '',
+    'wifi.password': (Preference.get(DOMAIN.wifi, 'password') as string | undefined) ?? '',
   }
   const labels = buildStatusUI(status)
 

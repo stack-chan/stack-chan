@@ -1,4 +1,9 @@
-import type { Application as PiuApplication, Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import type {
+  Application as PiuApplication,
+  Container as PiuContainer,
+  Content as PiuContent,
+  Skin as PiuSkin,
+} from 'piu/MC'
 import { toColorString, type FaceContext } from 'face-context'
 
 export type FaceDecorator = PiuContent
@@ -9,10 +14,11 @@ export class RendererBase {
   #decoratorContainer: PiuContainer
   #decorators: Set<PiuContent>
   #lastSecondary?: string
+  #autoTheme: boolean
 
-  constructor(faceContainer: PiuContainer) {
+  constructor(options: { face: PiuContainer; skin?: PiuSkin; displayListLength?: number }) {
     this.#decorators = new Set()
-    this.#face = faceContainer
+    this.#face = options.face
     this.#decoratorContainer = new Container(null, {
       left: 0,
       right: 0,
@@ -21,10 +27,12 @@ export class RendererBase {
       active: false,
       clip: false,
     })
+    const skin = options.skin ?? new Skin({ fill: toColorString([0x00, 0x00, 0x00]) })
+    this.#autoTheme = options.skin === undefined
     this.#application = new Application(null, {
-      displayListLength: 8092,
+      displayListLength: options.displayListLength ?? 8092,
       contents: [this.#face, this.#decoratorContainer],
-      skin: new Skin({ fill: toColorString([0x00, 0x00, 0x00]) }),
+      skin,
     })
   }
 
@@ -48,6 +56,7 @@ export class RendererBase {
   }
 
   private applyTheme(faceContext: Readonly<FaceContext>) {
+    if (!this.#autoTheme) return
     const secondary = toColorString(faceContext.theme.secondary)
     if (secondary === this.#lastSecondary) return
     this.#lastSecondary = secondary

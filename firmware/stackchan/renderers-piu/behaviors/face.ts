@@ -186,3 +186,15 @@ export function createFaceContainer(
     },
   })
 }
+
+export function createSimpleFaceContainer(modifiers?: FaceModifier[], intervalMs?: number): PiuContainer {
+  return createFaceContainer(createSimpleFaceParts, modifiers, intervalMs, 240)
+}
+
+export function createDogFaceContainer(modifiers?: FaceModifier[], intervalMs?: number): PiuContainer {
+  return createFaceContainer(createDogFaceParts, modifiers, intervalMs, 240)
+}
+
+export function createSmallFaceContainer(modifiers?: FaceModifier[], intervalMs?: number): PiuContainer {
+  return createFaceContainer(createSmallFaceParts, modifiers, intervalMs, 120)
+}

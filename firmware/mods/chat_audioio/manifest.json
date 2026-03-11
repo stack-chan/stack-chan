@@ -1,5 +1,14 @@
 {
   "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "config": {
+    "led": {
+      "b": {
+        "pin": 9,
+        "length": 18,
+        "order": "GRB"
+      }
+    }
+  },
   "modules": {
     "*": ["./mod"]
   }

@@ -9,6 +9,7 @@
   "modules": {
     "renderer-simple": "./renderer-simple",
     "renderer-dog": "./renderer-dog",
+    "renderer-compat": "./renderer-compat",
     "renderer-small": "./renderer-small",
     "shell": "./shell",
     "drawer": "./drawer",

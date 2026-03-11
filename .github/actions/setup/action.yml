@@ -38,7 +38,7 @@ runs:
         path: |
           /home/runner/.local/share
           /home/runner/.espressif
-        key: ${{ env.moddable_cache_key }}-fontbm1
+        key: ${{ env.moddable_cache_key }}-fontbm2
     - name: install Moddable
       if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
       run: |
@@ -64,7 +64,7 @@ runs:
         git clone --depth 1 https://github.com/vladimirgamalyan/fontbm.git $HOME/.local/share/fontbm
         cd $HOME/.local/share/fontbm && mkdir -p build && cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
-        echo "export FONTBM=$HOME/.local/share/fontbm/build/fontbm" >> $HOME/.local/share/xs-dev-export.sh
+        printf '\nexport FONTBM=%s\n' "$HOME/.local/share/fontbm/build/fontbm" >> $HOME/.local/share/xs-dev-export.sh
       shell: bash
     - name: Save cache of Moddale and ESP32
       if: inputs.target-branch == '' && steps.restore-cache-moddable.outputs.cache-hit != 'true'
@@ -74,4 +74,4 @@ runs:
         path: |
           /home/runner/.local/share
           /home/runner/.espressif
-        key: ${{ env.moddable_cache_key }}-fontbm1
+        key: ${{ env.moddable_cache_key }}-fontbm2

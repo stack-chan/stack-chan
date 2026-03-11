@@ -45,9 +45,10 @@ export class Shell {
           right: 0,
           top: 0,
           bottom: 0,
-          active: false,
+          active: true,
           clip: false,
         })
+    this.#overlay.active = true
 
     const overlayCatcher = new Content(null, {
       left: 0,
@@ -107,7 +108,6 @@ export class Shell {
     const behavior = drawer?.behavior as DrawerBehavior | undefined
     if (!drawer || !behavior?.setOpen || this.#drawerOpen) return
     this.#drawerOpen = true
-    this.#overlay.active = true
     behavior.setOpen(drawer, true)
   }
 
@@ -116,7 +116,6 @@ export class Shell {
     const behavior = drawer?.behavior as DrawerBehavior | undefined
     if (!drawer || !behavior?.setOpen || !this.#drawerOpen) return
     this.#drawerOpen = false
-    this.#overlay.active = false
     behavior.setOpen(drawer, false)
   }
 

@@ -122,7 +122,7 @@
           "transmit": 7,
           "receive": 6
         },
-        "virtualButton": true
+        "virtualButton": false
       }
     },
     "esp32/m5atom_s3": {

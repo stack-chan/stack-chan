@@ -1,7 +1,6 @@
 import type { Container as PiuContainer, Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 import { Outline } from 'commodetto/outline'
 import { defaultFaceContext, toColorString, type FaceContext } from 'face-context'
-import { getFillStrokeSkin } from 'skin-cache'
 
 type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy'
 
@@ -109,7 +108,7 @@ class HeartBehavior extends Behavior {
     const color = primaryColor(face)
     if (color === this.primary) return
     this.primary = color
-    shape.skin = getFillStrokeSkin(color, color)
+    shape.skin = new Skin({ fill: color, stroke: color })
   }
 }
 
@@ -167,7 +166,7 @@ class AngryBehavior extends Behavior {
     const color = primaryColor(face)
     if (color === this.primary) return
     this.primary = color
-    shape.skin = getFillStrokeSkin(color, color)
+    shape.skin = new Skin({ fill: color, stroke: color })
   }
 }
 
@@ -244,7 +243,7 @@ class SweatBehavior extends Behavior {
       const stroked = outline.stroke(this.basePath, 2).scale(scale, scale).translate(drop.x, drop.y)
       drop.shape.fillOutline = filled
       drop.shape.strokeOutline = stroked
-      drop.shape.skin = getFillStrokeSkin(secondary, primary)
+      drop.shape.skin = new Skin({ fill: secondary, stroke: primary })
     }
   }
   buildBasePath() {
@@ -347,7 +346,7 @@ class TearBehavior extends Behavior {
       const stroked = outline.stroke(this.basePath, 2).scale(scale, scale).translate(drop.x, drop.y)
       drop.shape.fillOutline = filled
       drop.shape.strokeOutline = stroked
-      drop.shape.skin = getFillStrokeSkin(secondary, primary)
+      drop.shape.skin = new Skin({ fill: secondary, stroke: primary })
     }
   }
   buildBasePath() {
@@ -471,7 +470,7 @@ class SleepyBubbleBehavior extends Behavior {
       path.arc(b.x, height - b.y, b.r, 0, 2 * Math.PI)
       b.shape.strokeOutline = outline.stroke(path, 2)
       b.shape.fillOutline = undefined
-      b.shape.skin = getFillStrokeSkin(secondary, primary)
+      b.shape.skin = new Skin({ fill: secondary, stroke: primary })
     }
   }
 }

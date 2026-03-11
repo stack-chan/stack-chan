@@ -5,7 +5,6 @@ import type {
   Skin as PiuSkin,
 } from 'piu/MC'
 import { toColorString, type FaceContext } from 'face-context'
-import { getSolidSkin } from 'skin-cache'
 
 export type FaceEffect = PiuContent
 
@@ -28,7 +27,7 @@ export class Face {
       active: false,
       clip: false,
     })
-    const skin = options.skin ?? getSolidSkin(toColorString([0x00, 0x00, 0x00]))
+    const skin = options.skin ?? new Skin({ fill: toColorString([0x00, 0x00, 0x00]) })
     this.#autoTheme = options.skin === undefined
     this.#application = new Application(null, {
       displayListLength: options.displayListLength ?? 2048,
@@ -73,6 +72,6 @@ export class Face {
     const secondary = toColorString(faceContext.theme.secondary)
     if (secondary === this.#lastSecondary) return
     this.#lastSecondary = secondary
-    this.#application.skin = getSolidSkin(secondary)
+    this.#application.skin = new Skin({ fill: secondary })
   }
 }

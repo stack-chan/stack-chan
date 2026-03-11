@@ -2,7 +2,6 @@ import type { Application as PiuApplication, Container as PiuContainer, Content 
 import type {} from 'piu/shape'
 import { copyFaceContext, createFaceContext, defaultFaceContext, toColorString, type FaceContext } from 'face-context'
 import { createBlinkMotion, createBreathMotion, createSaccadeMotion, type FaceMotion } from 'motions'
-import { getSolidSkin } from 'skin-cache'
 import { createEye } from 'parts/eye'
 import { createEyelid } from 'parts/eyelid'
 import { createMouth } from 'parts/mouth'
@@ -162,7 +161,7 @@ export class FaceBehavior extends Behavior {
     const secondary = toColorString(face.theme.secondary)
     if (secondary === this.#lastSecondary) return
     this.#lastSecondary = secondary
-    container.skin = getSolidSkin(secondary)
+    container.skin = new Skin({ fill: secondary })
   }
 }
 

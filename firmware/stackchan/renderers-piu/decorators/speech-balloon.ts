@@ -1,7 +1,6 @@
 import { Outline } from 'commodetto/outline'
 import type { Container as PiuContainer, Content as PiuContent, Label as PiuLabel, Style as PiuStyle } from 'piu/MC'
 import { defaultFaceContext, toColorString, type FaceContext } from 'face-context'
-import { getFillStrokeSkin } from 'skin-cache'
 
 const defaultOptions = {
   left: 16,
@@ -99,7 +98,7 @@ export function createSpeechBalloonEffect(opts: BalloonOptions = {}): PiuContain
         if (primary === currentPrimary && secondary === currentSecondary) return
         currentPrimary = primary
         currentSecondary = secondary
-        shape.skin = getFillStrokeSkin(secondary, primary)
+        shape.skin = new Skin({ fill: secondary, stroke: primary })
         label.style = new Style({ font: o.font, color: primary })
       }
       onDisplaying(content: PiuContainer) {

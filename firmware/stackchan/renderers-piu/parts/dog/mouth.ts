@@ -2,7 +2,6 @@ import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { Outline } from 'commodetto/outline'
 import { defaultFaceContext, toColorString, type FaceContext } from '../../face-context'
-import { getStrokeSkin } from 'skin-cache'
 
 export type DogMouthOptions = {
   cx: number
@@ -28,7 +27,7 @@ export function createDogMouth({
     top: 0,
     width: 320,
     height: 200,
-    skin: getStrokeSkin(toColorString(defaultFaceContext.theme.primary)),
+    skin: new Skin({ stroke: toColorString(defaultFaceContext.theme.primary) }),
     Behavior: class extends Behavior {
       lastOpen = -1
       lastPrimary: string | null = null
@@ -43,7 +42,7 @@ export function createDogMouth({
         const primary = toColorString(face.theme.primary)
         if (primary === this.lastPrimary) return
         this.lastPrimary = primary
-        shape.skin = getStrokeSkin(primary)
+        shape.skin = new Skin({ stroke: primary })
       }
       updatePath(shape: PositionedShape, open: number) {
         this.lastOpen = open

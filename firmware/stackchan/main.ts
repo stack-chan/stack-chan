@@ -19,6 +19,7 @@ import { Renderer as SmallFaceRenderer } from 'renderer-small'
 import { NetworkService } from 'network-service'
 import Microphone from 'microphone'
 import Tone from 'tone'
+import Timer from 'timer'
 import { asyncWait } from 'stackchan-util'
 import loadPreferences from 'loadPreference'
 import Led from 'led'
@@ -145,17 +146,51 @@ function createRobot() {
   })
 }
 
-async function checkAndConnectWiFi() {
+async function checkAndConnectWiFi(startupScreen: StartupScreen) {
   const wifiPrefs = loadPreferences('wifi')
   if (wifiPrefs.ssid == null || wifiPrefs.password == null) {
     return null
   }
-  return new Promise<boolean>((resolve, reject) => {
+
+  return new Promise<boolean | 'setup'>((resolve, reject) => {
+    let settled = false
+    let setupWatchTimer
+    const finish = (callback: (value: boolean | 'setup') => void, value: boolean | 'setup') => {
+      if (settled) return
+      settled = true
+      if (setupWatchTimer !== undefined) {
+        Timer.clear(setupWatchTimer)
+        setupWatchTimer = undefined
+      }
+      callback(value)
+    }
+
     globalThis.network = new NetworkService({
       ssid: wifiPrefs.ssid,
       password: wifiPrefs.password,
     })
-    globalThis.network.connect(() => resolve(true), reject)
+    setupWatchTimer = Timer.repeat(() => {
+      if (!startupScreen.isSetupRequested()) return
+      globalThis.network?.close?.()
+      finish(resolve, 'setup')
+    }, 100)
+
+    globalThis.network.connect(
+      () => finish(resolve, true),
+      (error) => {
+        if (startupScreen.isSetupRequested()) {
+          finish(resolve, 'setup')
+          return
+        }
+        if (settled) return
+        settled = true
+        if (setupWatchTimer !== undefined) {
+          Timer.clear(setupWatchTimer)
+          setupWatchTimer = undefined
+        }
+        reject(error)
+      },
+    )
   })
 }
 
@@ -175,12 +210,14 @@ async function main(startupScreen: StartupScreen) {
     startupScreen.setStatus('Skipping Wi-Fi for setup mode')
   } else {
     startupScreen.setStatus('Connecting to Wi-Fi...')
-    const wifiResult = await checkAndConnectWiFi().catch((msg) => {
+    const wifiResult = await checkAndConnectWiFi(startupScreen).catch((msg) => {
       startupScreen.setStatus(`Wi-Fi connection failed: ${String(msg)}`)
       return 'failed'
     })
     if (wifiResult === true) {
       startupScreen.setStatus('Wi-Fi connected')
+    } else if (wifiResult === 'setup') {
+      startupScreen.setStatus('Skipping Wi-Fi for setup mode')
     } else if (wifiResult === null) {
       startupScreen.setStatus('Wi-Fi skipped or unavailable')
     }

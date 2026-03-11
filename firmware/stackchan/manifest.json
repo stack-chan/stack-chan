@@ -25,6 +25,7 @@
       "./touch",
       "./robot",
       "./tone",
+      "./startup-screen",
       "./main",
       "$(MODULES)/network/http/*"
     ],

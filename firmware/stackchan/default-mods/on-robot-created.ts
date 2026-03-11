@@ -97,6 +97,15 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
    * Look around (Drawer toggle)
    */
   let isFollowing = false
+  const toggleLookAround = async () => {
+    isFollowing = !isFollowing
+    robot.driver.setTorque(isFollowing)
+    robot.application.setDrawerButtonState('toggleLookAround', isFollowing)
+    const text = isFollowing ? 'looking' : 'look away'
+    robot.showBalloon(text)
+    await asyncWait(1000)
+    robot.hideBalloon()
+  }
   const targetLoop = () => {
     if (!isFollowing) {
       robot.lookAway()
@@ -114,15 +123,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     label: 'Look',
     kind: 'toggle',
     initialState: isFollowing,
-    callback: async () => {
-      isFollowing = !isFollowing
-      robot.driver.setTorque(isFollowing)
-      robot.application.setDrawerButtonState('toggleLookAround', isFollowing)
-      const text = isFollowing ? 'looking' : 'look away'
-      robot.showBalloon(text)
-      await asyncWait(1000)
-      robot.hideBalloon()
-    },
+    callback: toggleLookAround,
   })
 
   /**
@@ -141,36 +142,59 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     robot.hideBalloon()
   }
   let isMoving = false
+  const runServoTest = async () => {
+    if (isMoving) return
+    isFollowing = false
+    robot.lookAway()
+    robot.application.setDrawerButtonState('toggleLookAround', false)
+    isMoving = true
+    await testMotion()
+    isMoving = false
+  }
   robot.application.addDrawerButton({
     key: 'servoTest',
     label: 'Servo',
-    callback: async () => {
-      if (isMoving) return
-      isFollowing = false
-      robot.lookAway()
-      robot.application.setDrawerButtonState('toggleLookAround', false)
-      isMoving = true
-      await testMotion()
-      isMoving = false
-    },
+    callback: runServoTest,
   })
 
   /**
    * Change color (Drawer action)
    */
   let flag = false
+  const toggleColor = () => {
+    if (flag) {
+      robot.setColor('primary', 0xff, 0xff, 0xff)
+      robot.setColor('secondary', 0x00, 0x00, 0x00)
+    } else {
+      robot.setColor('primary', 0x00, 0x00, 0x00)
+      robot.setColor('secondary', 0xff, 0xff, 0xff)
+    }
+    flag = !flag
+  }
   robot.application.addDrawerButton({
     key: 'toggleColor',
     label: 'Color',
-    callback: () => {
-      if (flag) {
-        robot.setColor('primary', 0xff, 0xff, 0xff)
-        robot.setColor('secondary', 0x00, 0x00, 0x00)
-      } else {
-        robot.setColor('primary', 0x00, 0x00, 0x00)
-        robot.setColor('secondary', 0xff, 0xff, 0xff)
-      }
-      flag = !flag
-    },
+    callback: toggleColor,
   })
+
+  if (robot.button != null) {
+    robot.button.a.onChanged = function () {
+      if (!this.read()) {
+        return
+      }
+      void toggleLookAround()
+    }
+    robot.button.b.onChanged = function () {
+      if (!this.read()) {
+        return
+      }
+      void runServoTest()
+    }
+    robot.button.c.onChanged = function () {
+      if (!this.read()) {
+        return
+      }
+      toggleColor()
+    }
+  }
 }

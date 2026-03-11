@@ -105,7 +105,13 @@ export default class Led extends NeoStrand {
     const _count = count ?? this.length - _index
     this._stopEffect()
 
-    this._effect = new Blink({ strand: this, rgb: { r, g, b }, index: _index, count: _count, duration: duration })
+    this._effect = new Blink({
+      strand: this,
+      rgb: { r, g, b },
+      index: _index,
+      count: _index + _count,
+      duration: duration,
+    })
     this.setScheme([this._effect])
     this.start(50)
   }

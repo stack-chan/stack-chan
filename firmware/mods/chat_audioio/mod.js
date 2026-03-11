@@ -1,10 +1,15 @@
-import config from 'mc/config'
+import loadPreferences from 'loadPreference'
+import { DogFace, ImageFace, SimpleFace, SmallFace } from 'behaviors/face'
+import ChatAudioIO from 'ChatAudioIO'
 import { ChatService } from 'chat'
-import { ImageFace } from 'behaviors/face'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Emotion } from 'face-context'
-import Timer from 'timer'
+import config from 'mc/config'
+import { createBlinkMotion } from 'motions/blink'
+import { createBreathMotion } from 'motions/breath'
+import { createSaccadeMotion } from 'motions/saccade'
 import { randomBetween } from 'stackchan-util'
+import Timer from 'timer'
 
 const DEFAULT_MOUTH_SCALE = 1 / 2000
 const BALLOON_CHAR_WIDTH_PX = 8
@@ -22,6 +27,49 @@ const MAX_TONE_DURATION_MS = 3000
 const MIN_TONE_HZ = 40
 const MAX_TONE_HZ = 4000
 const MAX_TONE_COUNT = 64
+const CHAT_AUDIO_OUTPUT_SAMPLE_RATE = 32000
+
+class AppChatAudioIO extends ChatAudioIO {
+  configureAudio(message) {
+    super.configureAudio({
+      ...message,
+      outputSampleRate: CHAT_AUDIO_OUTPUT_SAMPLE_RATE,
+    })
+  }
+}
+
+const createFaceMotions = () => [
+  createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
+  createBreathMotion({ duration: 6000 }),
+  createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
+]
+
+const resolveFaceFactory = () => {
+  const rendererPrefs = loadPreferences('renderer')
+  const rendererType = rendererPrefs?.type ?? config.renderer?.type ?? 'simple'
+  switch (rendererType) {
+    case 'dog':
+      return {
+        mode: 'dog',
+        createFace: (motions) => new DogFace({ motions }),
+      }
+    case 'image':
+      return {
+        mode: 'image',
+        createFace: (motions) => new ImageFace({ motions }),
+      }
+    case 'small-face':
+      return {
+        mode: 'simple',
+        createFace: (motions) => new SmallFace({ motions }),
+      }
+    default:
+      return {
+        mode: 'simple',
+        createFace: (motions) => new SimpleFace({ motions }),
+      }
+  }
+}
 
 const NOTE_OFFSETS_FROM_A = {
   C: -9,
@@ -216,13 +264,6 @@ export function onRobotCreated(robot) {
         required: ['tones'],
       },
       execute: async ({ tones }) => {
-        return new Promise((resolve) => {
-          Timer.set(() => {
-            trace('playTone finished\n')
-            resolve('playTone finished')
-          }, 3000)
-        })
-        /*
         if (!Array.isArray(tones) || tones.length === 0) {
           return 'No tones provided'
         }
@@ -244,14 +285,81 @@ export function onRobotCreated(robot) {
         const result = `playTone finished. played=${played}, skipped=${skipped}\n`
         trace(result)
         return result
-        */
+      },
+    },
+    set_light: {
+      name: 'set_light',
+      description: 'NeoPixelの電気を付ける/消す。',
+      parameters: {
+        type: 'object',
+        properties: {
+          enabled: {
+            type: 'boolean',
+            description: 'trueで電気を付ける、falseで電気を消す。',
+          },
+          action: {
+            type: 'string',
+            description: 'enabledの代替。onで付ける、offで消す。',
+            enum: ['on', 'off'],
+          },
+          ledName: {
+            type: 'string',
+            description: '任意のLED名。省略時は "b" 優先、なければ最初の設定済みLED。',
+          },
+        },
+      },
+      execute: async ({ enabled, action, ledName }) => {
+        let next = enabled
+        if (typeof next !== 'boolean') {
+          if (typeof action === 'string') {
+            next = action.toLowerCase() === 'on'
+          } else {
+            return 'パラメータ不正です。enabled=true/false または action="on"/"off" を指定してください。'
+          }
+        }
+        return setLightState(next, ledName)
       },
     },
   }
 
   const app = robot.renderer?.application
-  // robot.renderer?.setFace?.(new ImageFace({}))
-  // app?.distribute?.('onFaceMode', 'image')
+  const faceFactory = resolveFaceFactory()
+  let faceAnimationEnabled = true
+  const availableLedNames = Object.keys(robot.led ?? {})
+  const lightLedName = availableLedNames.includes('b') ? 'b' : availableLedNames[0]
+  let lightEnabled = false
+
+  const setLightState = (enabled, ledName = lightLedName) => {
+    if (ledName == null) {
+      lightEnabled = false
+      robot.application.setDrawerButtonState('toggleLight', false)
+      const message = '[chat_audioio] skip light: no LED configured'
+      trace(`${message}\n`)
+      return message
+    }
+    lightEnabled = Boolean(enabled)
+    if (lightEnabled) {
+      robot.lightRainbow(ledName)
+    } else {
+      robot.lightOff(ledName)
+    }
+    robot.application.setDrawerButtonState('toggleLight', lightEnabled)
+    return `${lightEnabled ? '電気を付けました' : '電気を消しました'} (led=${ledName})`
+  }
+
+  const applyFaceAnimation = () => {
+    const motions = faceAnimationEnabled ? createFaceMotions() : []
+    robot.renderer?.setFace?.(faceFactory.createFace(motions))
+    app?.distribute?.('onFaceMode', faceFactory.mode)
+  }
+
+  const setFaceAnimationEnabled = (enabled) => {
+    if (faceAnimationEnabled === enabled) return
+    faceAnimationEnabled = enabled
+    applyFaceAnimation()
+  }
+
+  applyFaceAnimation()
 
   /**
    * Look around (Drawer toggle)
@@ -483,6 +591,7 @@ export function onRobotCreated(robot) {
   const chat = new ChatService({
     config: chatConfig,
     tools,
+    chatAudioIOCtor: AppChatAudioIO,
     callbacks: {
       onStateChanged: (state, error) => {
         trace(`onStateChanged: ${state}\n`)
@@ -502,6 +611,7 @@ export function onRobotCreated(robot) {
         if (state === 'DISCONNECTED' || state === 'FAILED') {
           active = false
           robot.application.setDrawerButtonState('toggleChat', false)
+          setFaceAnimationEnabled(true)
           removeBalloon()
         }
       },
@@ -536,6 +646,7 @@ export function onRobotCreated(robot) {
   const startChat = () => {
     if (active) return
     active = true
+    setFaceAnimationEnabled(false)
     startUiTimers()
     robot.application.setDrawerButtonState('toggleChat', true)
     chat.setVolume(0.5)
@@ -549,10 +660,15 @@ export function onRobotCreated(robot) {
   const stopChat = () => {
     if (!active) return
     active = false
+    setFaceAnimationEnabled(true)
     robot.application.setDrawerButtonState('toggleChat', false)
     chat.stop()
     queueMouthOpen(0, true)
     removeBalloon()
+  }
+
+  const toggleLight = () => {
+    setLightState(!lightEnabled)
   }
 
   robot.application.addDrawerButton({
@@ -571,5 +687,12 @@ export function onRobotCreated(robot) {
     kind: 'toggle',
     initialState: isFollowing,
     callback: toggleLookAround,
+  })
+  robot.application.addDrawerButton({
+    key: 'toggleLight',
+    label: '電気',
+    kind: 'toggle',
+    initialState: lightEnabled,
+    callback: toggleLight,
   })
 }

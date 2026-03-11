@@ -1,0 +1,26 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json"
+  ],
+  "modules": {
+    "startup-screen": "../../../stackchan/startup-screen",
+    "*": ["./main"]
+  },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../stackchan/assets/fonts/k8x12",
+        "size": 12,
+        "characters": "管理画面へ進むを開いています",
+        "monochrome": true
+      },
+      "../../../stackchan/assets/images/startup/startup-stackchan-icon"
+    ],
+    "*-mask": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-20",
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"
+    ]
+  }
+}

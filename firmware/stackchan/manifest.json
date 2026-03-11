@@ -48,7 +48,11 @@
     }
   },
   "resources": {
-    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
+    "*-mask": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24",
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-20",
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"
+    ],
     "*-alpha": [
       {
         "source": "./assets/fonts/k8x12",
@@ -62,7 +66,8 @@
           "Halfwidth and Fullwidth Forms"
         ],
         "monochrome": true
-      }
+      },
+      "./assets/images/startup/startup-stackchan-icon"
     ]
   },
   "bundle": {

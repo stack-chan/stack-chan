@@ -146,8 +146,8 @@ async function waitForKey(): Promise<boolean> {
   })
 }
 
-export const onLaunch: StackchanMod['onLaunch'] = async () => {
-  const shouldEnter = await waitForKey()
+export const onLaunch: StackchanMod['onLaunch'] = async (option) => {
+  const shouldEnter = option?.forceSetup ? true : await waitForKey()
   if (!shouldEnter) {
     return true
   }

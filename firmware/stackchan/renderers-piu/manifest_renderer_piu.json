@@ -10,6 +10,7 @@
     "renderer-simple": "./renderer-simple",
     "renderer-dog": "./renderer-dog",
     "renderer-small": "./renderer-small",
+    "shell": "./shell",
     "decorators/*": "./decorators/*",
     "parts/dog/*": "./parts/dog/*",
     "parts/*": "./parts/*",

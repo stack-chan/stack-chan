@@ -3,6 +3,10 @@ import { Face, type FaceEffect } from './renderer-base'
 
 export { FaceEffect }
 
+export function createRenderer(): Face {
+  return new Face({ face: createDogFaceContainer() })
+}
+
 export class Renderer extends Face {
   constructor() {
     super({ face: createDogFaceContainer() })

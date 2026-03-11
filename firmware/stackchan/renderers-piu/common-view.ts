@@ -29,6 +29,10 @@ export class CommonViewBehavior extends Behavior {
   drawerButtons: DrawerButtonSpec[] = []
   drawerStates = new Map<string, boolean>()
 
+  onDrawerClose(_container: PiuContainer): void {
+    this.closeDrawer()
+  }
+
   onCreate(container: PiuContainer, data: CommonViewParams) {
     this.container = container
     const missing: string[] = []
@@ -77,7 +81,8 @@ export class CommonViewBehavior extends Behavior {
     const nextStates = new Map<string, boolean>()
     for (const button of this.drawerButtons) {
       if (button.active !== undefined) nextStates.set(button.key, button.active)
-      else if (this.drawerStates.has(button.key)) nextStates.set(button.key, this.drawerStates.get(button.key) as boolean)
+      else if (this.drawerStates.has(button.key))
+        nextStates.set(button.key, this.drawerStates.get(button.key) as boolean)
     }
     this.drawerStates = nextStates
     this.replaceDrawer()

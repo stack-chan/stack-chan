@@ -167,7 +167,7 @@ export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = 
           die.set(0, 0, die.width, die.height).cut()
         }
       },
-    })
+    }) as DieRegion
     if (!$.FACE_REGION) {
       $.FACE_REGION = faceRegion
     }

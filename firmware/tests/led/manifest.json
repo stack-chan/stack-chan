@@ -1,0 +1,16 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../stackchan/utilities/manifest_utility.json",
+    "../../stackchan/led/manifest_led.json"
+  ],
+  "modules": {
+    "*": ["./main"]
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  }
+}

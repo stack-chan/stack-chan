@@ -21,6 +21,7 @@ import Microphone from 'microphone'
 import Tone from 'tone'
 import { asyncWait } from 'stackchan-util'
 import loadPreferences from 'loadPreference'
+import Led from 'led'
 
 // wrapper button class for simulator
 class SimButton {
@@ -112,6 +113,15 @@ function createRobot() {
   const touch = TouchConstructor ? new Touch(TouchConstructor) : undefined
   const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined
   const tone = new Tone({ volume: ttsPrefs.volume })
+
+  const configLed = config.led || {}
+  const led = Object.fromEntries(
+    Object.entries(configLed).map(([key, config]) => [
+      key,
+      new Led(config as { pin: number; length?: number; order?: string }),
+    ]),
+  )
+
   return new Robot({
     driver,
     renderer,
@@ -120,6 +130,7 @@ function createRobot() {
     touch,
     tone,
     microphone,
+    led,
   })
 }
 

@@ -21,6 +21,7 @@
         "./stackchan/default-mods/*",
         "./stackchan/dialogues/*",
         "./stackchan/drivers/*",
+        "./stackchan/led/*",
         "./stackchan/renderers/*",
         "./stackchan/services/*",
         "./stackchan/speeches/*",

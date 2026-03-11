@@ -139,6 +139,7 @@ new Application(
 | `effects` | `PiuContainer` | 任意 | Effects コンテナ（省略時は自動生成）。 |
 | `skin` | `PiuSkin` | 任意 | 背景スキン。省略時はテーマ自動同期。 |
 | `FACE` | `PiuContainer` | `main` 指定時は必須 | Face のアンカー。 |
+| `FACE_REGION` | `DieRegion` | `main` 指定時は必須 | Face を保持するクリップ領域のアンカー。 |
 | `EFFECTS` | `PiuContainer` | `main` 指定時は必須 | Effects のアンカー。 |
 |（継承）| `CommonViewParams` | — | `MAIN`, `APP_BAR`, `OVERLAY`, `drawerButtons`。 |
 

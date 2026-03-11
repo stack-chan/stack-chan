@@ -74,6 +74,12 @@ export class CommonViewBehavior extends Behavior {
 
   setDrawerButtons(buttons: DrawerButtonSpec[]): void {
     this.drawerButtons = [...buttons]
+    const nextStates = new Map<string, boolean>()
+    for (const button of this.drawerButtons) {
+      if (button.active !== undefined) nextStates.set(button.key, button.active)
+      else if (this.drawerStates.has(button.key)) nextStates.set(button.key, this.drawerStates.get(button.key) as boolean)
+    }
+    this.drawerStates = nextStates
     this.replaceDrawer()
   }
 
@@ -81,6 +87,7 @@ export class CommonViewBehavior extends Behavior {
     const index = this.drawerButtons.findIndex((item) => item.key === button.key)
     if (index >= 0) this.drawerButtons[index] = button
     else this.drawerButtons.push(button)
+    if (button.active !== undefined) this.drawerStates.set(button.key, button.active)
     this.replaceDrawer()
   }
 
@@ -88,6 +95,7 @@ export class CommonViewBehavior extends Behavior {
     const next = this.drawerButtons.filter((item) => item.key !== key)
     if (next.length === this.drawerButtons.length) return
     this.drawerButtons = next
+    this.drawerStates.delete(key)
     this.replaceDrawer()
   }
 

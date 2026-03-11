@@ -30,7 +30,7 @@ export class Face {
     const skin = options.skin ?? new Skin({ fill: toColorString([0x00, 0x00, 0x00]) })
     this.#autoTheme = options.skin === undefined
     this.#application = new Application(null, {
-      displayListLength: options.displayListLength ?? 8092,
+      displayListLength: options.displayListLength ?? 2048,
       contents: [this.#face, this.#effectContainer],
       skin,
     })

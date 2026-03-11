@@ -1,13 +1,13 @@
 import Timer from 'timer'
 import { Vector3, type Pose, Rotation, type Maybe, noop, randomBetween, generateDeviceSeed } from 'stackchan-util'
 import { type FaceContext, type Emotion, createFaceContext } from 'face-context'
-import type { Content as PiuContent } from 'piu/MC'
+import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type Digital from 'embedded:io/digital'
 import type Touch from 'touch'
 import type Microphone from 'microphone'
 import type Tone from 'tone'
 import type Led from 'led'
-import { createSpeechBalloonEffect } from 'effects/speech-balloon'
+import { SpeechBalloon } from 'effects/speech-balloon'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
@@ -49,6 +49,23 @@ export type Renderer = {
   update: (interval: number, faceContext: Readonly<FaceContext>) => void
   addDecorator(decorator: FaceDecorator): void
   removeDecorator(decorator: FaceDecorator): void
+  application?: unknown
+  setFace?: (face: PiuContainer) => void
+}
+
+export type DrawerButtonRegistration = {
+  key: string
+  label: string
+  callback: (robot: Robot) => unknown
+  kind?: 'action' | 'toggle'
+  initialState?: boolean
+}
+
+type DrawerButtonRegistry = {
+  addDrawerButton: (button: DrawerButtonRegistration) => void
+  removeDrawerButton: (key: string) => void
+  clearDrawerButtons: () => void
+  setDrawerButtonState: (key: string, active: boolean) => void
 }
 
 export type Button = {
@@ -112,6 +129,9 @@ export class Robot {
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
   #balloon: FaceDecorator
+  #drawerCallbacks: Map<string, (robot: Robot) => unknown>
+  #drawerRegistry: DrawerButtonRegistry
+  #drawerBehavior: Record<string, unknown> | null
   updating: boolean
   constructor(params: RobotConstructorParam<ButtonName>) {
     this.seed = generateDeviceSeed()
@@ -169,6 +189,15 @@ export class Robot {
     this.#updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
     this.#paused = false
     this.#faceContext = createFaceContext()
+    this.#emotion = this.#faceContext.emotion
+    this.#drawerCallbacks = new Map()
+    this.#drawerBehavior = null
+    this.#drawerRegistry = {
+      addDrawerButton: (button) => this.addDrawerButton(button),
+      removeDrawerButton: (key) => this.removeDrawerButton(key),
+      clearDrawerButtons: () => this.clearDrawerButtons(),
+      setDrawerButtonState: (key, active) => this.setDrawerButtonState(key, active),
+    }
   }
 
   /**
@@ -343,7 +372,7 @@ export class Robot {
     if (this.#balloon != null) {
       this.hideBalloon()
     }
-    this.#balloon = createSpeechBalloonEffect({ ...option, text })
+    this.#balloon = new SpeechBalloon({ ...option, text })
     this.#renderer.addDecorator(this.#balloon)
   }
 
@@ -422,6 +451,72 @@ export class Robot {
 
   get renderer(): Renderer {
     return this.#renderer
+  }
+
+  get application(): DrawerButtonRegistry {
+    return this.#drawerRegistry
+  }
+
+  private getDrawerController():
+    | {
+        setButtons?: (buttons: unknown[]) => void
+        addButton?: (button: unknown) => void
+        removeButton?: (key: string) => void
+        setButtonState?: (key: string, active: boolean) => void
+      }
+    | undefined {
+    const app = this.#renderer?.application as { drawerController?: unknown } | undefined
+    return app?.drawerController as
+      | {
+          setButtons?: (buttons: unknown[]) => void
+          addButton?: (button: unknown) => void
+          removeButton?: (key: string) => void
+          setButtonState?: (key: string, active: boolean) => void
+        }
+      | undefined
+  }
+
+  private ensureDrawerBehavior(): Record<string, unknown> | null {
+    const app = this.#renderer?.application as { behavior?: Record<string, unknown> } | undefined
+    if (!app) return null
+    if (!app.behavior) {
+      app.behavior = new (class extends Behavior {})() as unknown as Record<string, unknown>
+    }
+    this.#drawerBehavior = app.behavior
+    return this.#drawerBehavior
+  }
+
+  private addDrawerButton({ key, label, callback, kind, initialState }: DrawerButtonRegistration): void {
+    this.#drawerCallbacks.set(key, callback)
+    const behavior = this.ensureDrawerBehavior()
+    if (behavior) {
+      ;(behavior as Record<string, () => void>)[key] = () => callback(this)
+    }
+    const controller = this.getDrawerController()
+    controller?.addButton?.({ key, label, kind })
+    if (initialState !== undefined) {
+      this.setDrawerButtonState(key, initialState)
+    }
+  }
+
+  private removeDrawerButton(key: string): void {
+    this.#drawerCallbacks.delete(key)
+    if (this.#drawerBehavior) {
+      delete (this.#drawerBehavior as Record<string, unknown>)[key]
+    }
+    const controller = this.getDrawerController()
+    controller?.removeButton?.(key)
+  }
+
+  private clearDrawerButtons(): void {
+    this.#drawerCallbacks.clear()
+    const controller = this.getDrawerController()
+    controller?.setButtons?.([])
+  }
+
+  private setDrawerButtonState(key: string, active: boolean): void {
+    const controller = this.getDrawerController()
+    controller?.setButtonState?.(key, active)
   }
 
   pause() {

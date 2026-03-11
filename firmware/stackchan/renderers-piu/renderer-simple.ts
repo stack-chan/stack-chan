@@ -1,16 +1,29 @@
-import { createSimpleFaceContainer } from 'behaviors/face'
-import { Main, type Effect } from 'main-view'
+import { Application, type Content as PiuContent } from 'piu/MC'
+import { SimpleFace } from 'behaviors/face'
+import type { DrawerButtonSpec } from 'drawer'
+import { AppController } from 'app-controller'
 import { RendererCompat } from 'renderer-compat'
 
-export type { Effect }
+export type Effect = PiuContent
 
-export function createRenderer(): Main {
-  return new Main({ face: createSimpleFaceContainer() })
+type RendererOptions = {
+  drawerButtons?: DrawerButtonSpec[]
+}
+
+export function createRenderer(options?: RendererOptions): AppController {
+  const application = new Application(
+    {
+      face: new SimpleFace(),
+      drawerButtons: options?.drawerButtons,
+    },
+    { displayListLength: 2048, contents: [], Behavior: AppController },
+  )
+  return application.behavior as AppController
 }
 
 // Compatibility: keep class name while delegating to Face constructor
 export class Renderer extends RendererCompat {
-  constructor() {
-    super({ main: createRenderer() })
+  constructor(options?: RendererOptions) {
+    super({ controller: createRenderer(options) })
   }
 }

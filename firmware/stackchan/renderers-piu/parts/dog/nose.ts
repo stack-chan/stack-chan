@@ -14,15 +14,9 @@ export type DogNoseOptions = {
 
 type PositionedShape = PiuShape & { skin?: PiuSkin }
 
-export function createDogNose({
-  cx,
-  cy,
-  minHeight = 8,
-  maxHeight = 24,
-  canvasWidth = 320,
-  canvasHeight = 200,
-}: DogNoseOptions): PositionedShape {
-  const shape = new Shape(null, {
+export const DogNose = Shape.template((opts: DogNoseOptions) => {
+  const { cx, cy, minHeight = 8, maxHeight = 24, canvasWidth = 320, canvasHeight = 200 } = opts
+  return {
     left: 0,
     top: 0,
     width: canvasWidth,
@@ -55,7 +49,5 @@ export function createDogNose({
         if (open !== this.lastOpen) this.updatePath(shape, open)
       }
     },
-  }) as PositionedShape
-
-  return shape
-}
+  }
+})

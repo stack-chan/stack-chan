@@ -18,9 +18,6 @@
       "effects/*": [
         "./stackchan/renderers-piu/effects/*"
       ],
-      "main-view": [
-        "./stackchan/renderers-piu/main-view"
-      ],
       "renderer-compat": [
         "./stackchan/renderers-piu/renderer-compat"
       ],
@@ -41,9 +38,6 @@
       ],
       "motions/*": [
         "./stackchan/renderers-piu/motions/*"
-      ],
-      "shell": [
-        "./stackchan/renderers-piu/shell"
       ],
       "drawer": [
         "./stackchan/renderers-piu/drawer"

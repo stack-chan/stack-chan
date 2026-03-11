@@ -1,6 +1,8 @@
 import type { StackchanMod } from 'default-mods/mod'
 import Timer from 'timer'
 import { randomBetween, asyncWait } from 'stackchan-util'
+import { Emotion } from 'face-context'
+import { DogFace, SimpleFace } from 'behaviors/face'
 
 const FORWARD = {
   y: 0,
@@ -25,6 +27,61 @@ const UP = {
 }
 
 export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
+  const emotions = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
+  let emotionIndex = 0
+  let manualMouthOpen = false
+  let speechVisible = false
+
+  let faceMode: 'simple' | 'dog' = 'simple'
+  robot.application.addDrawerButton({
+    key: 'setFace',
+    label: 'Face',
+    kind: 'toggle',
+    initialState: false,
+    callback: (target) => {
+      faceMode = faceMode === 'dog' ? 'simple' : 'dog'
+      const nextFace = faceMode === 'dog' ? new DogFace({}) : new SimpleFace({})
+      target.renderer?.setFace?.(nextFace)
+      robot.application.setDrawerButtonState('setFace', faceMode === 'dog')
+      const app = target.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined
+      app?.distribute?.('onFaceMode', faceMode)
+    },
+  })
+  robot.application.addDrawerButton({
+    key: 'toggleMouth',
+    label: 'Mouth',
+    kind: 'toggle',
+    initialState: manualMouthOpen,
+    callback: (target) => {
+      manualMouthOpen = !manualMouthOpen
+      target.setMouthOpen(manualMouthOpen ? 1 : 0)
+      robot.application.setDrawerButtonState('toggleMouth', manualMouthOpen)
+    },
+  })
+  robot.application.addDrawerButton({
+    key: 'cycleEmotion',
+    label: 'Emotion',
+    callback: (target) => {
+      emotionIndex = (emotionIndex + 1) % emotions.length
+      target.setEmotion(emotions[emotionIndex])
+    },
+  })
+  robot.application.addDrawerButton({
+    key: 'toggleSpeech',
+    label: 'Speech',
+    kind: 'toggle',
+    initialState: speechVisible,
+    callback: (target) => {
+      speechVisible = !speechVisible
+      if (speechVisible) {
+        target.showBalloon('Hello from Stack-chan')
+      } else {
+        target.hideBalloon()
+      }
+      robot.application.setDrawerButtonState('toggleSpeech', speechVisible)
+    },
+  })
+
   /**
    * Button A ... Look around
    */

@@ -16,17 +16,18 @@ export type DogMouthOptions = {
 
 type PositionedShape = PiuShape & { skin?: PiuSkin }
 
-export function createDogMouth({
-  cx,
-  cy,
-  minWidth = 50,
-  maxWidth = 60,
-  minHeight = 8,
-  maxHeight = 24,
-  canvasWidth = 320,
-  canvasHeight = 200,
-}: DogMouthOptions): PositionedShape {
-  const shape = new Shape(null, {
+export const DogMouth = Shape.template((opts: DogMouthOptions) => {
+  const {
+    cx,
+    cy,
+    minWidth = 50,
+    maxWidth = 60,
+    minHeight = 8,
+    maxHeight = 24,
+    canvasWidth = 320,
+    canvasHeight = 200,
+  } = opts
+  return {
     left: 0,
     top: 0,
     width: canvasWidth,
@@ -66,6 +67,5 @@ export function createDogMouth({
         shape.fillOutline = undefined
       }
     },
-  }) as PositionedShape
-  return shape
-}
+  }
+})

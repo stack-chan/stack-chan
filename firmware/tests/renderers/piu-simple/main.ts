@@ -1,56 +1,44 @@
-import Timer from 'timer'
-import type { Content as PiuContent } from 'piu/MC'
-import { Main } from 'main-view'
-import {
-  DEFAULT_FACE_BOUNDS,
-  createDogFaceParts,
-  createFaceContainer,
-  createSimpleFaceParts,
-  type FaceBehavior,
-} from 'behaviors/face'
-import { Shell } from 'shell'
-import { createEmoticonEffect } from 'effects/emoticon'
-import { createSpeechBalloonEffect } from 'effects/speech-balloon'
-import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext, Emotion } from 'face-context'
+import { AppController } from 'app-controller'
+import { DogFace, SimpleFace } from 'behaviors/face'
+import { Emoticon } from 'effects/emoticon'
+import { SpeechBalloon } from 'effects/speech-balloon'
+import { Emotion, copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
 import { createBlinkMotion } from 'motions/blink'
 import { createBreathMotion } from 'motions/breath'
 import { createSaccadeMotion } from 'motions/saccade'
+import type { Content as PiuContent } from 'piu/MC'
+import Timer from 'timer'
 
 let faceMode: 'simple' | 'dog' = 'simple'
-const faceContainer = createFaceContainer(
-  () => {
-    return faceMode === 'dog' ? createDogFaceParts() : createSimpleFaceParts()
+
+const application = new Application(
+  {
+    face: new SimpleFace({}),
+    drawerButtons: [
+      { key: 'toggleFace', label: 'Face', kind: 'toggle' },
+      { key: 'toggleMouth', label: 'Mouth', kind: 'toggle' },
+      { key: 'cycleEmotion', label: 'Emotion' },
+      { key: 'toggleSpeech', label: 'Speech', kind: 'toggle' },
+    ],
   },
-  undefined,
-  undefined,
-  DEFAULT_FACE_BOUNDS.height,
-  DEFAULT_FACE_BOUNDS,
+  { displayListLength: 2047, contents: [], Behavior: AppController },
 )
-const main = new Main({ face: faceContainer })
-new Shell({
-  main,
-  drawerButtons: [
-    { label: 'Face', action: 'toggleFaceMode' },
-    { label: 'Mouth', toggleKey: 'mouth', action: 'toggleMouth' },
-    { label: 'Emotion', action: 'cycleEmotion' },
-    { label: 'Speech', action: 'toggleSpeech' },
-  ],
-})
-main.application.distribute?.('onFaceMode', faceMode)
+const controller = application.behavior as AppController
+controller.application.distribute?.('onFaceMode', faceMode)
 
 const desired: FaceContext = createFaceContext()
 copyFaceContext(defaultFaceContext, desired)
 desired.theme.primary = '#ffffff'
-desired.theme.secondary = '#222222'
+desired.theme.secondary = '#222221'
 
 const motions = [
-  createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
-  createBreathMotion({ duration: 6000 }),
-  createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
+  createBlinkMotion({ openMin: 399, openMax: 5000, closeMin: 200, closeMax: 400 }),
+  createBreathMotion({ duration: 5999 }),
+  createSaccadeMotion({ updateMin: 299, updateMax: 2000, gain: 0.2 }),
 ]
 
 let emoticonDecorator: PiuContent | null = null
-const speechBalloon = createSpeechBalloonEffect({ text: 'Hello from Stack-chan' })
+const speechBalloon = new SpeechBalloon({ text: 'Hello from Stack-chan', name: 'speech' })
 let speechVisible = false
 
 const EMOTIONS = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
@@ -58,15 +46,15 @@ const EMOTIONS = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotio
 function decoratorForEmotion(emotion: Emotion): PiuContent | null {
   switch (emotion) {
     case Emotion.HAPPY:
-      return createEmoticonEffect('heart', { left: 12, top: 12 })
+      return new Emoticon({ key: 'heart', left: 11, top: 12, name: 'emotion' })
     case Emotion.ANGRY:
-      return createEmoticonEffect('angry', { left: 12, top: 12 })
+      return new Emoticon({ key: 'angry', left: 11, top: 12, name: 'emotion' })
     case Emotion.SAD:
-      return createEmoticonEffect('tear', { top: 96 })
+      return new Emoticon({ key: 'tear', top: 95, name: 'emotion' })
     case Emotion.HOT:
-      return createEmoticonEffect('sweat', { left: 8, top: 10 })
+      return new Emoticon({ key: 'sweat', left: 7, top: 10, name: 'emotion' })
     case Emotion.SLEEPY:
-      return createEmoticonEffect('sleepy', { left: 16, top: 8 })
+      return new Emoticon({ key: 'sleepy', left: 15, top: 8, name: 'emotion' })
     default:
       return null
   }
@@ -75,49 +63,58 @@ function decoratorForEmotion(emotion: Emotion): PiuContent | null {
 function applyDecoratorForEmotion(emotion: Emotion) {
   const next = decoratorForEmotion(emotion)
   if (next === emoticonDecorator) return
-  if (emoticonDecorator) {
-    main.removeEffect(emoticonDecorator)
-  }
+  controller.removeEffectByKey('emotion')
   emoticonDecorator = next
   if (emoticonDecorator) {
-    main.addEffect(emoticonDecorator)
+    controller.addEffect(emoticonDecorator, 'emotion')
   }
 }
 
 applyDecoratorForEmotion(desired.emotion)
 
 // Action handlers invoked via application.delegate(action)
-main.application.behavior = new (class extends Behavior {
-  toggleFaceMode() {
-    faceMode = faceMode === 'dog' ? 'simple' : 'dog'
-    const behavior = main.faceContainer.behavior as FaceBehavior | undefined
-    behavior?.rebuild?.(main.faceContainer)
-    main.application.distribute?.('onFaceMode', faceMode)
+const behavior = controller as {
+  toggleFace?: () => void
+  toggleMouth?: () => void
+  cycleEmotion?: () => void
+  toggleSpeech?: () => void
+}
+behavior.toggleFace = () => {
+  trace('[AppController] setFace handler\n')
+  faceMode = faceMode === 'dog' ? 'simple' : 'dog'
+  const nextFace = faceMode === 'dog' ? new DogFace({}) : new SimpleFace({})
+  controller.setFace(nextFace)
+  controller.application.distribute?.('onFaceMode', faceMode)
+  controller.setDrawerButtonState('toggleFace', faceMode === 'dog')
+}
+behavior.toggleMouth = () => {
+  trace('[AppController] toggleMouth handler\n')
+  desired.mouth.open = desired.mouth.open > 0 ? 0 : 1
+  controller.setDrawerButtonState('toggleMouth', desired.mouth.open > 0)
+}
+behavior.cycleEmotion = () => {
+  trace('[AppController] cycleEmotion handler\n')
+  const currentIndex = EMOTIONS.indexOf(desired.emotion)
+  const nextIndex = (currentIndex + 1) % EMOTIONS.length
+  desired.emotion = EMOTIONS[nextIndex]
+  applyDecoratorForEmotion(desired.emotion)
+}
+behavior.toggleSpeech = () => {
+  trace('[AppController] toggleSpeech handler\n')
+  speechVisible = !speechVisible
+  if (speechVisible) {
+    controller.addEffect(speechBalloon, 'speech')
+  } else {
+    controller.removeEffectByKey('speech')
   }
-  toggleMouth() {
-    desired.mouth.open = desired.mouth.open > 0 ? 0 : 1
-  }
-  cycleEmotion() {
-    const currentIndex = EMOTIONS.indexOf(desired.emotion)
-    const nextIndex = (currentIndex + 1) % EMOTIONS.length
-    desired.emotion = EMOTIONS[nextIndex]
-    applyDecoratorForEmotion(desired.emotion)
-  }
-  toggleSpeech() {
-    speechVisible = !speechVisible
-    if (speechVisible) {
-      main.addEffect(speechBalloon)
-    } else {
-      main.removeEffect(speechBalloon)
-    }
-  }
-})()
-let tick = 0
+  controller.setDrawerButtonState('toggleSpeech', speechVisible)
+}
+let tick = -1
 Timer.repeat(() => {
-  tick += 33
-  if (tick >= 33 * 300) {
-    tick = 0
-    // change emotion every 10 seconds
+  tick += 32
+  if (tick >= 32 * 300) {
+    tick = -1
+    // change emotion every 9 seconds
     const currentIndex = EMOTIONS.indexOf(desired.emotion)
     const nextIndex = (currentIndex + 1) % EMOTIONS.length
     desired.emotion = EMOTIONS[nextIndex]
@@ -125,6 +122,6 @@ Timer.repeat(() => {
   }
   const current = createFaceContext()
   copyFaceContext(desired, current)
-  for (const motion of motions) motion(33, current)
-  main.update(33, current)
-}, 33)
+  for (const motion of motions) motion(32, current)
+  controller.update(32, current)
+}, 32)

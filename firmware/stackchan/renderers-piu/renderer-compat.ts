@@ -1,10 +1,10 @@
 import type { Content as PiuContent } from 'piu/MC'
 import type { FaceContext } from 'face-context'
-import type { Effect } from 'main-view'
-import type { Main } from 'main-view'
+import type { Container as PiuContainer } from 'piu/MC'
+import type { AppController } from 'app-controller'
 
 type RendererCompatOptions = {
-  main: Main
+  controller: AppController
 }
 
 let warned = false
@@ -12,34 +12,40 @@ let warned = false
 function warnDeprecation() {
   if (warned) return
   warned = true
-  trace('[DEPRECATED] RendererCompat is a temporary adapter. Use Face/Shell APIs directly.\n')
+  trace('[DEPRECATED] RendererCompat is a temporary adapter. Use AppController/FaceView APIs directly.\n')
 }
 
+// Compatibility layer for legacy Renderer API. Mods compatibility is not fully verified yet.
 export class RendererCompat {
-  #main: Main
+  #controller: AppController
 
   constructor(options: RendererCompatOptions) {
     warnDeprecation()
-    this.#main = options.main
+    this.#controller = options.controller
   }
 
   get application() {
-    return this.#main.application
+    return this.#controller.application
   }
 
   update(interval: number, faceContext: Readonly<FaceContext>): void {
-    this.#main.update(interval, faceContext)
+    this.#controller.update(interval, faceContext)
   }
 
   addDecorator(effect: Effect): void {
     warnDeprecation()
-    this.#main.addEffect(effect)
+    this.#controller.addEffect(effect)
   }
 
   removeDecorator(effect: Effect): void {
     warnDeprecation()
-    this.#main.removeEffect(effect)
+    this.#controller.removeEffect(effect)
+  }
+
+  setFace(face: PiuContainer): void {
+    this.#controller.setFace(face)
   }
 }
 
+export type Effect = PiuContent
 export type LegacyDecorator = PiuContent

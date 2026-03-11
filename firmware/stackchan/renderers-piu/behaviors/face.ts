@@ -14,12 +14,11 @@ import { createDogEyebrow } from 'parts/dog/eyebrow'
 import { createDogMouth } from 'parts/dog/mouth'
 import { createDogNose } from 'parts/dog/nose'
 
-type FaceMode = 'simple' | 'dog' | 'small'
-
 type FaceBehaviorOptions = {
-  mode: FaceMode
+  buildParts: () => PiuContent[]
   modifiers?: FaceModifier[]
   intervalMs?: number
+  height?: number
 }
 
 function getApplication(): PiuApplication | undefined {
@@ -32,12 +31,13 @@ export class FaceBehavior extends Behavior {
   #modifiers: FaceModifier[]
   #baseY: number | null
   #paused: boolean
-  #mode: FaceMode
   #needsSync: boolean
+  #buildParts: () => PiuContent[]
+  #height?: number
 
-  constructor({ mode, modifiers, intervalMs }: FaceBehaviorOptions) {
+  constructor({ buildParts, modifiers, intervalMs, height }: FaceBehaviorOptions) {
     super()
-    this.#mode = mode
+    this.#buildParts = buildParts
     this.#modifiers = modifiers ?? [
       createBlinkModifier({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
       createBreathModifier({ duration: 6000 }),
@@ -49,11 +49,13 @@ export class FaceBehavior extends Behavior {
     this.#paused = false
     this.#needsSync = false
     this.intervalMs = intervalMs ?? 33
+    this.#height = height
   }
 
   intervalMs: number
 
   onCreate(container: PiuContainer) {
+    if (this.#height !== undefined) container.height = this.#height
     container.interval = this.intervalMs
     copyFaceContext(defaultFaceContext, this.#desired)
     this.rebuild(container)
@@ -116,7 +118,7 @@ export class FaceBehavior extends Behavior {
 
   rebuild(container: PiuContainer) {
     container.empty()
-    const parts = createFaceParts(this.#mode)
+    const parts = this.#buildParts()
     for (const part of parts) {
       container.add(part)
     }
@@ -130,7 +132,7 @@ export class FaceBehavior extends Behavior {
   }
 }
 
-function createSimpleFaceParts(): PiuContent[] {
+export function createSimpleFaceParts(): PiuContent[] {
   return [
     createEye({ cx: 90, cy: 93, radius: 8, side: 'left' }),
     createEye({ cx: 230, cy: 96, radius: 8, side: 'right' }),
@@ -140,7 +142,7 @@ function createSimpleFaceParts(): PiuContent[] {
   ]
 }
 
-function createSmallFaceParts(): PiuContent[] {
+export function createSmallFaceParts(): PiuContent[] {
   return [
     createEye({ cx: 36, cy: 53, radius: 4, side: 'left' }),
     createEye({ cx: 92, cy: 54, radius: 4, side: 'right' }),
@@ -150,7 +152,7 @@ function createSmallFaceParts(): PiuContent[] {
   ]
 }
 
-function createDogFaceParts(): PiuContent[] {
+export function createDogFaceParts(): PiuContent[] {
   const mouthCy = 136
   return [
     createEye({ cx: 90, cy: 93, radius: 10, side: 'left' }),
@@ -164,23 +166,22 @@ function createDogFaceParts(): PiuContent[] {
   ]
 }
 
-function createFaceParts(mode: FaceMode): PiuContent[] {
-  if (mode === 'dog') return createDogFaceParts()
-  if (mode === 'small') return createSmallFaceParts()
-  return createSimpleFaceParts()
-}
-
-export function createFaceContainer(mode: FaceMode, modifiers?: FaceModifier[], intervalMs?: number): PiuContainer {
+export function createFaceContainer(
+  buildParts: () => PiuContent[],
+  modifiers?: FaceModifier[],
+  intervalMs?: number,
+  height?: number,
+): PiuContainer {
   return new Container(null, {
     left: 0,
     right: 0,
     top: 0,
-    height: mode === 'small' ? 120 : 240,
+    height: height ?? 240,
     active: true,
     contents: [],
     Behavior: class extends FaceBehavior {
       constructor() {
-        super({ mode, modifiers, intervalMs })
+        super({ buildParts, modifiers, intervalMs, height })
       }
     },
   })

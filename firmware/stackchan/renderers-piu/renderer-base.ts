@@ -1,9 +1,7 @@
 import type { Application as PiuApplication, Container as PiuContainer, Content as PiuContent } from 'piu/MC'
-import { createFaceContainer } from 'behaviors/face'
 import { toColorString, type FaceContext } from 'face-context'
 
 export type FaceDecorator = PiuContent
-export type FaceRendererMode = 'simple' | 'dog' | 'small'
 
 export class RendererBase {
   #application: PiuApplication
@@ -12,9 +10,9 @@ export class RendererBase {
   #decorators: Set<PiuContent>
   #lastSecondary?: string
 
-  constructor(mode: FaceRendererMode) {
+  constructor(faceContainer: PiuContainer) {
     this.#decorators = new Set()
-    this.#face = createFaceContainer(mode)
+    this.#face = faceContainer
     this.#decoratorContainer = new Container(null, {
       left: 0,
       right: 0,

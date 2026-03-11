@@ -1,15 +1,15 @@
 import { normRand, quantize, randomBetween } from 'stackchan-util'
 import type { FaceContext } from './face-context'
 
-export type FaceModifier = (tickMillis: number, face: FaceContext) => void
-export type FaceModifierFactory<T> = (param: T) => FaceModifier
+export type FaceMotion = (tickMillis: number, face: FaceContext) => void
+export type FaceMotionFactory<T> = (param: T) => FaceMotion
 
 function linearInEaseOut(fraction: number): number {
   if (fraction < 0.25) return 1 - fraction * 4
   return ((fraction - 0.25) ** 2 * 16) / 9
 }
 
-export const createBlinkModifier: FaceModifierFactory<{
+export const createBlinkMotion: FaceMotionFactory<{
   openMin: number
   openMax: number
   closeMin: number
@@ -36,7 +36,7 @@ export const createBlinkModifier: FaceModifierFactory<{
   }
 }
 
-export const createSaccadeModifier: FaceModifierFactory<{
+export const createSaccadeMotion: FaceMotionFactory<{
   updateMin: number
   updateMax: number
   gain: number
@@ -59,7 +59,7 @@ export const createSaccadeModifier: FaceModifierFactory<{
   }
 }
 
-export const createBreathModifier: FaceModifierFactory<{
+export const createBreathMotion: FaceMotionFactory<{
   duration: number
 }> = ({ duration }) => {
   let time = 0

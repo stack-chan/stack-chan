@@ -3,17 +3,17 @@ import type { Content as PiuContent } from 'piu/MC'
 import { Renderer } from 'renderer-simple'
 import { createEmoticonDecorator } from 'decorators/emoticon'
 import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext, Emotion } from 'face-context'
-import { createBlinkModifier, createBreathModifier, createSaccadeModifier } from 'modifiers'
+import { createBlinkMotion, createBreathMotion, createSaccadeMotion } from 'motions'
 
 const renderer = new Renderer()
 
 const desired: FaceContext = createFaceContext()
 copyFaceContext(defaultFaceContext, desired)
 
-const modifiers = [
-  createBlinkModifier({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
-  createBreathModifier({ duration: 6000 }),
-  createSaccadeModifier({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
+const motions = [
+  createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
+  createBreathMotion({ duration: 6000 }),
+  createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
 ]
 
 let emoticonDecorator: PiuContent | null = null
@@ -63,6 +63,6 @@ Timer.repeat(() => {
   }
   const current = createFaceContext()
   copyFaceContext(desired, current)
-  for (const mod of modifiers) mod(33, current)
+  for (const motion of motions) motion(33, current)
   renderer.update(33, current)
 }, 33)

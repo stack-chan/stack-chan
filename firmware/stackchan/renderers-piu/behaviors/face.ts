@@ -6,7 +6,7 @@ import type {
 } from 'piu/MC'
 import type {} from 'piu/shape'
 import { copyFaceContext, createFaceContext, defaultFaceContext, toColorString, type FaceContext } from 'face-context'
-import { createBlinkModifier, createBreathModifier, createSaccadeModifier, type FaceModifier } from 'modifiers'
+import { createBlinkMotion, createBreathMotion, createSaccadeMotion, type FaceMotion } from 'motions'
 import { createEye } from 'parts/eye'
 import { createEyelid } from 'parts/eyelid'
 import { createMouth } from 'parts/mouth'
@@ -16,7 +16,7 @@ import { createDogNose } from 'parts/dog/nose'
 
 type FaceBehaviorOptions = {
   buildParts: () => PiuContent[]
-  modifiers?: FaceModifier[]
+  motions?: FaceMotion[]
   intervalMs?: number
   height?: number
 }
@@ -28,20 +28,20 @@ function getApplication(): PiuApplication | undefined {
 export class FaceBehavior extends Behavior {
   #current: FaceContext
   #desired: FaceContext
-  #modifiers: FaceModifier[]
+  #motions: FaceMotion[]
   #baseY: number | null
   #paused: boolean
   #needsSync: boolean
   #buildParts: () => PiuContent[]
   #height?: number
 
-  constructor({ buildParts, modifiers, intervalMs, height }: FaceBehaviorOptions) {
+  constructor({ buildParts, motions, intervalMs, height }: FaceBehaviorOptions) {
     super()
     this.#buildParts = buildParts
-    this.#modifiers = modifiers ?? [
-      createBlinkModifier({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
-      createBreathModifier({ duration: 6000 }),
-      createSaccadeModifier({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
+    this.#motions = motions ?? [
+      createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
+      createBreathMotion({ duration: 6000 }),
+      createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
     this.#current = createFaceContext()
     this.#desired = createFaceContext()
@@ -84,8 +84,8 @@ export class FaceBehavior extends Behavior {
     }
     const interval = container.interval ?? this.intervalMs
     copyFaceContext(this.#desired, this.#current)
-    for (const mod of this.#modifiers) {
-      mod(interval, this.#current)
+    for (const motion of this.#motions) {
+      motion(interval, this.#current)
     }
     if (this.#baseY === null) {
       this.#baseY = container.y
@@ -168,7 +168,7 @@ export function createDogFaceParts(): PiuContent[] {
 
 export function createFaceContainer(
   buildParts: () => PiuContent[],
-  modifiers?: FaceModifier[],
+  motions?: FaceMotion[],
   intervalMs?: number,
   height?: number,
 ): PiuContainer {
@@ -181,20 +181,20 @@ export function createFaceContainer(
     contents: [],
     Behavior: class extends FaceBehavior {
       constructor() {
-        super({ buildParts, modifiers, intervalMs, height })
+        super({ buildParts, motions, intervalMs, height })
       }
     },
   })
 }
 
-export function createSimpleFaceContainer(modifiers?: FaceModifier[], intervalMs?: number): PiuContainer {
-  return createFaceContainer(createSimpleFaceParts, modifiers, intervalMs, 240)
+export function createSimpleFaceContainer(motions?: FaceMotion[], intervalMs?: number): PiuContainer {
+  return createFaceContainer(createSimpleFaceParts, motions, intervalMs, 240)
 }
 
-export function createDogFaceContainer(modifiers?: FaceModifier[], intervalMs?: number): PiuContainer {
-  return createFaceContainer(createDogFaceParts, modifiers, intervalMs, 240)
+export function createDogFaceContainer(motions?: FaceMotion[], intervalMs?: number): PiuContainer {
+  return createFaceContainer(createDogFaceParts, motions, intervalMs, 240)
 }
 
-export function createSmallFaceContainer(modifiers?: FaceModifier[], intervalMs?: number): PiuContainer {
-  return createFaceContainer(createSmallFaceParts, modifiers, intervalMs, 120)
+export function createSmallFaceContainer(motions?: FaceMotion[], intervalMs?: number): PiuContainer {
+  return createFaceContainer(createSmallFaceParts, motions, intervalMs, 120)
 }

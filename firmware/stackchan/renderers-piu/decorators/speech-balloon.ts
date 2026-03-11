@@ -11,7 +11,7 @@ const defaultOptions = {
   space: 24,
   radius: 6,
   text: 'Hello from Stack-chan',
-  font: 'k8x12-12',
+  font: '16px Open Sans',
   speed: 60,
 }
 
@@ -60,55 +60,57 @@ export function createSpeechBalloonEffect(opts: BalloonOptions = {}): PiuContain
   let currentPrimary: string | null = null
   let currentSecondary: string | null = null
 
-  const container = new Container(
-    { left: o.left, right: o.right, bottom: o.bottom, height: o.height, clip: true },
-    {
-      Behavior: class extends Behavior {
-        ensureParts(self: PiuContainer) {
-          if (shape && label) return
-          const w = self.width ?? 240
-          const h = self.height ?? o.height
-          const textSize = style.measure(o.text)
-          shape = new Shape(null, { left: 0, top: 0, width: w, height: h }) as WithShape
-          const path = Outline.RoundRectPath(0, 0, w, h, o.radius)
-          shape.fillOutline = Outline.fill(path)
-          shape.strokeOutline = Outline.stroke(path, 2)
-          label = new Label(
-            { viewportWidth: w - o.padding * 2, padding: o.padding, space: o.space, speed: o.speed },
-            {
-              left: o.padding,
-              top: (h - textSize.height) / 2,
-              width: textSize.width,
-              height: textSize.height,
-              string: o.text,
-              style,
-              Behavior: BalloonLabelBehavior,
-            },
-          )
-          self.add(shape)
-          self.add(label)
-        }
-        updatePalette(face: FaceContext) {
-          if (!shape || !label) return
-          const primary = toColorString(face.theme.primary)
-          const secondary = toColorString(face.theme.secondary)
-          if (primary === currentPrimary && secondary === currentSecondary) return
-          currentPrimary = primary
-          currentSecondary = secondary
-          shape.skin = new Skin({ fill: secondary, stroke: primary })
-          label.style = new Style({ font: o.font, color: primary })
-        }
-        onDisplaying(content: PiuContainer) {
-          this.ensureParts(content)
-          this.updatePalette(defaultFaceContext)
-        }
-        onFaceContext(content: PiuContainer, face: FaceContext) {
-          this.ensureParts(content)
-          this.updatePalette(face)
-        }
-      },
+  const container = new Container(null, {
+    left: o.left,
+    right: o.right,
+    bottom: o.bottom,
+    height: o.height,
+    clip: true,
+    Behavior: class extends Behavior {
+      ensureParts(self: PiuContainer) {
+        if (shape && label) return
+        const w = self.width ?? 240
+        const h = self.height ?? o.height
+        const textSize = style.measure(o.text)
+        shape = new Shape(null, { left: 0, top: 0, width: w, height: h }) as WithShape
+        const path = Outline.RoundRectPath(0, 0, w, h, o.radius)
+        shape.fillOutline = Outline.fill(path)
+        shape.strokeOutline = Outline.stroke(path, 2)
+        label = new Label(
+          { viewportWidth: w - o.padding * 2, padding: o.padding, space: o.space, speed: o.speed },
+          {
+            left: o.padding,
+            top: (h - textSize.height) / 2,
+            width: textSize.width,
+            height: textSize.height,
+            string: o.text,
+            style,
+            Behavior: BalloonLabelBehavior,
+          },
+        )
+        self.add(shape)
+        self.add(label)
+      }
+      updatePalette(face: FaceContext) {
+        if (!shape || !label) return
+        const primary = toColorString(face.theme.primary)
+        const secondary = toColorString(face.theme.secondary)
+        if (primary === currentPrimary && secondary === currentSecondary) return
+        currentPrimary = primary
+        currentSecondary = secondary
+        shape.skin = new Skin({ fill: secondary, stroke: primary })
+        label.style = new Style({ font: o.font, color: primary })
+      }
+      onDisplaying(content: PiuContainer) {
+        this.ensureParts(content)
+        this.updatePalette(defaultFaceContext)
+      }
+      onFaceContext(content: PiuContainer, face: FaceContext) {
+        this.ensureParts(content)
+        this.updatePalette(face)
+      }
     },
-  )
+  })
 
   return container
 }

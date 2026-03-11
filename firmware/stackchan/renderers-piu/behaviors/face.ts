@@ -40,6 +40,8 @@ export class FaceBehavior extends Behavior {
   #needsSync: boolean
   #buildParts: () => PiuContent[]
   #height?: number
+  #faceLayer: PiuContainer | null
+  #lastSecondary?: string
 
   constructor({ buildParts, motions, intervalMs, height }: FaceBehaviorOptions) {
     super()
@@ -56,6 +58,8 @@ export class FaceBehavior extends Behavior {
     this.#needsSync = false
     this.intervalMs = intervalMs ?? 33
     this.#height = height
+    this.#faceLayer = null
+    this.#lastSecondary = undefined
   }
 
   intervalMs: number
@@ -68,8 +72,9 @@ export class FaceBehavior extends Behavior {
   }
 
   onDisplaying(container: PiuContainer) {
-    if (this.#baseY === null) {
-      this.#baseY = container.y
+    const layer = this.#faceLayer
+    if (this.#baseY === null && layer) {
+      this.#baseY = layer.y
     }
     if (!this.#paused) {
       container.start?.()
@@ -93,10 +98,14 @@ export class FaceBehavior extends Behavior {
     for (const motion of this.#motions) {
       motion(interval, this.#current)
     }
-    if (this.#baseY === null) {
-      this.#baseY = container.y
+    const layer = this.#faceLayer
+    if (layer) {
+      if (this.#baseY === null) {
+        this.#baseY = layer.y
+      }
+      layer.y = (this.#baseY ?? 0) + this.#current.breath * 6
     }
-    container.y = (this.#baseY ?? 0) + this.#current.breath * 6
+    this.updateBackground(container, this.#current)
     getApplication()?.distribute?.('onFaceContext', this.#current)
   }
 
@@ -124,17 +133,34 @@ export class FaceBehavior extends Behavior {
 
   rebuild(container: PiuContainer) {
     container.empty()
+    this.#faceLayer = new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      active: true,
+      contents: [],
+    })
+    this.#baseY = null
+    container.add(this.#faceLayer)
     const parts = this.#buildParts()
     for (const part of parts) {
-      container.add(part)
+      this.#faceLayer.add(part)
     }
-    container.skin = new Skin({ fill: toColorString(defaultFaceContext.theme.secondary) })
+    this.updateBackground(container, defaultFaceContext)
     const app = getApplication()
     if (app) {
       app.distribute?.('onFaceContext', this.#current)
     } else {
       this.#needsSync = true
     }
+  }
+
+  private updateBackground(container: PiuContainer, face: FaceContext) {
+    const secondary = toColorString(face.theme.secondary)
+    if (secondary === this.#lastSecondary) return
+    this.#lastSecondary = secondary
+    container.skin = new Skin({ fill: secondary })
   }
 }
 

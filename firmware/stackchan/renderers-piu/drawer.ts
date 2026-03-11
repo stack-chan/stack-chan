@@ -18,6 +18,7 @@ const drawerButtonPressedSkin = new Skin({ fill: '#c0c0c0' })
 const drawerButtonStyle = new Style({ font: '16px Open Sans', color: '#222', horizontal: 'left' })
 const toggleOnSkin = new Skin({ fill: '#23c552' })
 const toggleOffSkin = new Skin({ fill: '#888888' })
+const drawerHiddenOffset = -drawerWidth - 1
 
 const DrawerButton = Container.template(($: DrawerButtonSpec) => ({
   left: 0,
@@ -73,7 +74,7 @@ const DrawerButton = Container.template(($: DrawerButtonSpec) => ({
   },
 }))
 
-type DrawerDictionary = { buttons?: DrawerButtonSpec[] }
+type DrawerDictionary = { buttons?: DrawerButtonSpec[]; topOffset?: number }
 type DrawerBehavior = {
   isOpen: boolean
   toggle: (container: PiuContainer) => void
@@ -111,9 +112,11 @@ const DrawerTemplate = Container.template((d: DrawerDictionary) => ({
   Behavior: class extends Behavior {
     isOpen = false
     timeline: Timeline | null = null
-    offset = -drawerWidth
+    offset = drawerHiddenOffset
+    topOffset = 0
 
-    onCreate(container: PiuContainer) {
+    onCreate(container: PiuContainer, data?: DrawerDictionary) {
+      this.topOffset = data?.topOffset ?? 0
       this.applyPosition(container, this.offset)
     }
     onTimeChanged(container: PiuContainer) {
@@ -126,12 +129,11 @@ const DrawerTemplate = Container.template((d: DrawerDictionary) => ({
       this.timeline = null
     }
     applyPosition(container: PiuContainer, right: number) {
-      container.coordinates = { right, top: 0, bottom: 0 }
-      container.width = drawerWidth
+      container.coordinates = { right, top: this.topOffset, bottom: 0 }
     }
     toggle(container: PiuContainer) {
-      const from = this.isOpen ? 0 : -drawerWidth
-      const to = this.isOpen ? -drawerWidth : 0
+      const from = this.isOpen ? 0 : drawerHiddenOffset
+      const to = this.isOpen ? drawerHiddenOffset : 0
       this.timeline = new Timeline()
       const tl = this.timeline
       tl.on(this, { offset: [from, to] }, 180, Math.quadEaseOut, 0)
@@ -144,8 +146,8 @@ const DrawerTemplate = Container.template((d: DrawerDictionary) => ({
   },
 })) as unknown as DrawerTemplateCtor
 
-export function createDrawer(buttons?: DrawerButtonSpec[]): PiuContainer {
-  const drawer = new DrawerTemplate({ buttons })
+export function createDrawer(buttons?: DrawerButtonSpec[], topOffset?: number): PiuContainer {
+  const drawer = new DrawerTemplate({ buttons, topOffset })
   // initialize palette with default face
   const behavior = drawer.behavior as DrawerBehavior | undefined
   behavior?.onFaceContext?.(drawer, defaultFaceContext)

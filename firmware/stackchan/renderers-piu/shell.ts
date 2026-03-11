@@ -17,10 +17,12 @@ export class Shell {
   #body: PiuContainer
   #overlay: PiuContainer
   #drawer: PiuContainer | null
+  #drawerOpen: boolean
 
   constructor(options: ShellOptions) {
     const face = options.face
     const app = face.application
+    const shell = this
 
     // remove existing face/effect containers from root and rebuild layout
     app.remove(face.faceContainer)
@@ -28,17 +30,14 @@ export class Shell {
 
     this.#header = options.headerFactory
       ? options.headerFactory()
-      : new Container(null, { left: 0, right: 0, top: 0, height: 24 })
-    this.#drawer = options.drawerFactory ? options.drawerFactory() : createDrawer(options.drawerButtons)
-    this.#body = new Container(null, {
-      left: 0,
-      right: 0,
-      top: this.#header ? (this.#header.height ?? 24) : 0,
-      bottom: 0,
-      contents: [face.faceContainer, face.effectContainer].filter(Boolean) as PiuContent[],
-    })
-    if (this.#drawer) this.#body.add(this.#drawer)
-
+      : new Container(null, {
+          left: 0,
+          right: 0,
+          top: 0,
+          height: 24,
+          active: false,
+          contents: [],
+        })
     this.#overlay = options.overlayFactory
       ? options.overlayFactory()
       : new Container(null, {
@@ -46,18 +45,49 @@ export class Shell {
           right: 0,
           top: 0,
           bottom: 0,
-          active: true,
+          active: false,
           clip: false,
         })
 
+    const overlayCatcher = new Content(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      active: true,
+      backgroundTouch: true,
+      Behavior: class extends Behavior {
+        onTouchEnded() {
+          if (shell.#drawerOpen) {
+            shell.closeDrawer()
+          } else {
+            shell.toggleDrawer()
+          }
+        }
+      },
+    })
+    this.#overlay.add(overlayCatcher)
+
+    this.#drawer = options.drawerFactory ? options.drawerFactory() : createDrawer(options.drawerButtons, 0)
+    if (this.#drawer) this.#overlay.add(this.#drawer)
+    this.#body = new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      active: true,
+      contents: [face.faceContainer, face.effectContainer].filter(Boolean) as PiuContent[],
+    })
+
     const contents: PiuContent[] = []
-    if (this.#header) contents.push(this.#header)
     contents.push(this.#body)
+    if (this.#header) contents.push(this.#header)
     contents.push(this.#overlay)
     app.empty()
     for (const c of contents) app.add(c)
 
     this.#application = app
+    this.#drawerOpen = false
   }
 
   get application(): PiuApplication {
@@ -67,14 +97,26 @@ export class Shell {
   openDrawer(): void {
     const drawer = this.#drawer
     const behavior = drawer?.behavior as DrawerBehavior | undefined
-    if (drawer && behavior?.toggle) behavior.toggle(drawer)
+    if (!drawer || !behavior?.toggle || this.#drawerOpen) return
+    this.#drawerOpen = true
+    this.#overlay.active = true
+    behavior.toggle(drawer)
   }
 
   closeDrawer(): void {
     const drawer = this.#drawer
     const behavior = drawer?.behavior as DrawerBehavior | undefined
-    if (drawer && behavior?.isOpen === true && behavior.toggle) {
-      behavior.toggle(drawer)
+    if (!drawer || !behavior?.toggle || !this.#drawerOpen) return
+    this.#drawerOpen = false
+    this.#overlay.active = false
+    behavior.toggle(drawer)
+  }
+
+  toggleDrawer(): void {
+    if (this.#drawerOpen) {
+      this.closeDrawer()
+    } else {
+      this.openDrawer()
     }
   }
 

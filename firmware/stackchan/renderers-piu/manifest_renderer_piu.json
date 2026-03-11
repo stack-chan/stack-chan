@@ -19,5 +19,11 @@
     "behaviors/*": "./behaviors/*",
     "*": ["./*"]
   },
+  "resources": {
+    "*-mask": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-20",
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"
+    ]
+  },
   "preload": ["renderer-simple", "renderer-dog", "renderer-small"]
 }

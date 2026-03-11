@@ -15,11 +15,9 @@ led.off()
 await asyncWait(1000)
 
 led.on(255, 255, 255, 1000)
-await asyncWait(1000)
+await asyncWait(2000)
 
-led.blink(255, 255, 0, 500)
+led.blink(255, 255, 0, 1000)
 await asyncWait(5000)
-led.off()
-await asyncWait(1000)
 
 led.rainbow()

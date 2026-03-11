@@ -1,7 +1,13 @@
 import Timer from 'timer'
 import type { Content as PiuContent } from 'piu/MC'
 import { Main } from 'main-view'
-import { createDogFaceParts, createFaceContainer, createSimpleFaceParts, type FaceBehavior } from 'behaviors/face'
+import {
+  DEFAULT_FACE_BOUNDS,
+  createDogFaceParts,
+  createFaceContainer,
+  createSimpleFaceParts,
+  type FaceBehavior,
+} from 'behaviors/face'
 import { Shell } from 'shell'
 import { createEmoticonEffect } from 'effects/emoticon'
 import { createSpeechBalloonEffect } from 'effects/speech-balloon'
@@ -11,9 +17,15 @@ import { createBreathMotion } from 'motions/breath'
 import { createSaccadeMotion } from 'motions/saccade'
 
 let faceMode: 'simple' | 'dog' = 'simple'
-const faceContainer = createFaceContainer(() => {
-  return faceMode === 'dog' ? createDogFaceParts() : createSimpleFaceParts()
-})
+const faceContainer = createFaceContainer(
+  () => {
+    return faceMode === 'dog' ? createDogFaceParts() : createSimpleFaceParts()
+  },
+  undefined,
+  undefined,
+  DEFAULT_FACE_BOUNDS.height,
+  DEFAULT_FACE_BOUNDS,
+)
 const main = new Main({ face: faceContainer })
 new Shell({
   main,
@@ -28,8 +40,8 @@ main.application.distribute?.('onFaceMode', faceMode)
 
 const desired: FaceContext = createFaceContext()
 copyFaceContext(defaultFaceContext, desired)
-desired.theme.primary = [0xff, 0xff, 0xff]
-desired.theme.secondary = [0x22, 0x22, 0x22]
+desired.theme.primary = '#ffffff'
+desired.theme.secondary = '#222222'
 
 const motions = [
   createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),

@@ -1,6 +1,6 @@
 import type { Container as PiuContainer, Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, toColorString, type FaceContext } from 'face-context'
+import { defaultFaceContext, type FaceContext } from 'face-context'
 
 type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy'
 
@@ -46,12 +46,10 @@ type EmoticonOptions = {
 }
 
 function primaryColor(face?: Readonly<FaceContext>): string {
-  const theme = face?.theme ?? defaultFaceContext.theme
-  return toColorString(theme.primary ?? defaultFaceContext.theme.primary)
+  return face?.theme?.primary ?? defaultFaceContext.theme.primary
 }
 function secondaryColor(face?: Readonly<FaceContext>): string {
-  const theme = face?.theme ?? defaultFaceContext.theme
-  return toColorString(theme.secondary ?? defaultFaceContext.theme.secondary)
+  return face?.theme?.secondary ?? defaultFaceContext.theme.secondary
 }
 
 class HeartBehavior extends Behavior {

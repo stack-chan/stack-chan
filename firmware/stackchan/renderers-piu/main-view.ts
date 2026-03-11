@@ -5,7 +5,7 @@ import type {
   Content as PiuContent,
   Skin as PiuSkin,
 } from 'piu/MC'
-import { toColorString, type FaceContext } from 'face-context'
+import { defaultFaceContext, type FaceContext } from 'face-context'
 
 export type Effect = PiuContent
 
@@ -29,7 +29,7 @@ export class Main {
       active: false,
       clip: false,
     })
-    const skin = options.skin ?? new Skin({ fill: toColorString([0x00, 0x00, 0x00]) })
+    const skin = options.skin ?? new Skin({ fill: defaultFaceContext.theme.secondary })
     this.#autoTheme = options.skin === undefined
     this.#main = new Container(null, {
       left: 0,
@@ -83,7 +83,7 @@ export class Main {
 
   private applyTheme(faceContext: Readonly<FaceContext>) {
     if (!this.#autoTheme) return
-    const secondary = toColorString(faceContext.theme.secondary)
+    const secondary = faceContext.theme.secondary
     if (secondary === this.#lastSecondary) return
     this.#lastSecondary = secondary
     this.#main.skin = new Skin({ fill: secondary })

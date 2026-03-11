@@ -21,7 +21,7 @@ type MouthContext = {
   open: number
 }
 
-export type Color = [r: number, g: number, b: number]
+export type Color = string
 
 /**
  * The context of the face representing physiological state and drawing settings.
@@ -49,13 +49,11 @@ export const defaultFaceContext: Readonly<FaceContext> = {
   breath: 1,
   emotion: Emotion.NEUTRAL,
   theme: {
-    primary: [0xff, 0xff, 0xff],
-    secondary: [0x00, 0x00, 0x00],
+    primary: '#ffffff',
+    secondary: '#000000',
   },
 }
 // Freeze default objects to avoid accidental mutations (and silence build warnings).
-Object.freeze(defaultFaceContext.theme.primary)
-Object.freeze(defaultFaceContext.theme.secondary)
 Object.freeze(defaultFaceContext.theme)
 Object.freeze(defaultFaceContext.eyes.left)
 Object.freeze(defaultFaceContext.eyes.right)
@@ -73,8 +71,8 @@ export function createFaceContext(): FaceContext {
     breath: 1,
     emotion: Emotion.NEUTRAL,
     theme: {
-      primary: [0xff, 0xff, 0xff],
-      secondary: [0x00, 0x00, 0x00],
+      primary: '#ffffff',
+      secondary: '#000000',
     },
   }
 }
@@ -93,21 +91,6 @@ export function copyFaceContext(src: Readonly<FaceContext>, dst: FaceContext): v
   dst.breath = src.breath
   dst.emotion = src.emotion
 
-  const primary = src.theme.primary
-  const primaryDst = dst.theme.primary
-  primaryDst[0] = primary[0]
-  primaryDst[1] = primary[1]
-  primaryDst[2] = primary[2]
-
-  const secondary = src.theme.secondary
-  const secondaryDst = dst.theme.secondary
-  secondaryDst[0] = secondary[0]
-  secondaryDst[1] = secondary[1]
-  secondaryDst[2] = secondary[2]
-}
-
-export function toColorString(rgb: Readonly<Color>): string {
-  return `#${rgb[0].toString(16).padStart(2, '0')}${rgb[1].toString(16).padStart(2, '0')}${rgb[2]
-    .toString(16)
-    .padStart(2, '0')}`
+  dst.theme.primary = src.theme.primary
+  dst.theme.secondary = src.theme.secondary
 }

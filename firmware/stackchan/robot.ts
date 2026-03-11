@@ -11,6 +11,16 @@ import { createSpeechBalloonEffect } from 'effects/speech-balloon'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
+const HEX_DIGITS = '0123456789abcdef'
+
+function toHexByte(value: number): string {
+  const clamped = Math.max(0, Math.min(255, value | 0))
+  return `${HEX_DIGITS[(clamped >> 4) & 0x0f]}${HEX_DIGITS[clamped & 0x0f]}`
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`
+}
 
 /**
  * The Driver for the actuator
@@ -380,8 +390,8 @@ export class Robot {
    * @param{g} - green value [0-255]
    * @param{b} - blue value [0-255]
    */
-  setColor(key: keyof FaceContext['theme'], r, g, b): void {
-    this.#faceContext.theme[key] = [r, g, b]
+  setColor(key: keyof FaceContext['theme'], r: number, g: number, b: number): void {
+    this.#faceContext.theme[key] = rgbToHex(r, g, b)
   }
 
   /**

@@ -1,7 +1,7 @@
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, toColorString, type FaceContext } from '../../face-context'
+import { defaultFaceContext, type FaceContext } from '../../face-context'
 
 export type DogMouthOptions = {
   cx: number
@@ -10,6 +10,8 @@ export type DogMouthOptions = {
   maxWidth?: number
   minHeight?: number
   maxHeight?: number
+  canvasWidth?: number
+  canvasHeight?: number
 }
 
 type PositionedShape = PiuShape & { skin?: PiuSkin }
@@ -21,13 +23,15 @@ export function createDogMouth({
   maxWidth = 60,
   minHeight = 8,
   maxHeight = 24,
+  canvasWidth = 320,
+  canvasHeight = 200,
 }: DogMouthOptions): PositionedShape {
   const shape = new Shape(null, {
     left: 0,
     top: 0,
-    width: 320,
-    height: 200,
-    skin: new Skin({ stroke: toColorString(defaultFaceContext.theme.primary) }),
+    width: canvasWidth,
+    height: canvasHeight,
+    skin: new Skin({ stroke: defaultFaceContext.theme.primary }),
     Behavior: class extends Behavior {
       lastOpen = -1
       lastPrimary: string | null = null
@@ -39,7 +43,7 @@ export function createDogMouth({
         }
       }
       updateSkin(shape: PositionedShape, face: FaceContext) {
-        const primary = toColorString(face.theme.primary)
+        const primary = face.theme.primary
         if (primary === this.lastPrimary) return
         this.lastPrimary = primary
         shape.skin = new Skin({ stroke: primary })

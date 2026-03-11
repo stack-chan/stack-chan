@@ -1,5 +1,5 @@
 import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
-import { defaultFaceContext, toColorString, type FaceContext } from 'face-context'
+import { defaultFaceContext, type FaceContext } from 'face-context'
 
 export type MouthOptions = {
   cx: number
@@ -37,7 +37,7 @@ export function createMouth({
     top: cy - minHeight / 2,
     width: minWidth,
     height: minHeight,
-    skin: new Skin({ fill: toColorString(defaultFaceContext.theme.primary) }),
+    skin: new Skin({ fill: defaultFaceContext.theme.primary }),
     Behavior: class extends Behavior {
       cx = cx
       cy = cy
@@ -55,7 +55,7 @@ export function createMouth({
         if (open !== this.lastOpen) {
           this.updateFromOpen(content, open)
         }
-        const primary = toColorString(face.theme.primary)
+        const primary = face.theme.primary
         if (primary !== this.lastPrimary) {
           this.lastPrimary = primary
           content.skin = new Skin({ fill: primary })

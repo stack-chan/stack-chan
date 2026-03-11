@@ -1,6 +1,6 @@
 import { Outline } from 'commodetto/outline'
 import type { Container as PiuContainer, Content as PiuContent, Label as PiuLabel, Style as PiuStyle } from 'piu/MC'
-import { defaultFaceContext, toColorString, type FaceContext } from 'face-context'
+import { defaultFaceContext, type FaceContext } from 'face-context'
 
 const defaultOptions = {
   left: 16,
@@ -113,8 +113,8 @@ export function createSpeechBalloonEffect(opts: BalloonOptions = {}): PiuContain
       }
       updatePalette(face: FaceContext) {
         if (!shape || !label) return
-        const primary = toColorString(face.theme.primary)
-        const secondary = toColorString(face.theme.secondary)
+        const primary = face.theme.primary
+        const secondary = face.theme.secondary
         if (primary === currentPrimary && secondary === currentSecondary) return
         currentPrimary = primary
         currentSecondary = secondary

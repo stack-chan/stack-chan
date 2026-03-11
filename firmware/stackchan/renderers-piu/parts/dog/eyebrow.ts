@@ -1,29 +1,37 @@
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, toColorString, type FaceContext } from '../../face-context'
+import { defaultFaceContext, type FaceContext } from '../../face-context'
 
 export type EyebrowOptions = {
   cx: number
   cy: number
   side: keyof FaceContext['eyes']
+  canvasWidth?: number
+  canvasHeight?: number
 }
 
 type PositionedShape = PiuShape & { skin?: PiuSkin }
 
-export function createDogEyebrow({ cx, cy, side }: EyebrowOptions): PositionedShape {
+export function createDogEyebrow({
+  cx,
+  cy,
+  side,
+  canvasWidth = 320,
+  canvasHeight = 120,
+}: EyebrowOptions): PositionedShape {
   const direction = side === 'left' ? 1 : -1
   const shape = new Shape(null, {
     left: 0,
     top: 0,
-    width: 320,
-    height: 120,
-    skin: new Skin({ fill: toColorString(defaultFaceContext.theme.primary) }),
+    width: canvasWidth,
+    height: canvasHeight,
+    skin: new Skin({ fill: defaultFaceContext.theme.primary }),
     Behavior: class extends Behavior {
       lastKey: string | null = null
       lastPrimary: string | null = null
       updateSkin(shape: PositionedShape, face: FaceContext) {
-        const primary = toColorString(face.theme.primary)
+        const primary = face.theme.primary
         if (primary === this.lastPrimary) return
         this.lastPrimary = primary
         shape.skin = new Skin({ fill: primary, stroke: primary })

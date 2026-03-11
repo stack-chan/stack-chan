@@ -2,6 +2,7 @@ import type { Container as PiuContainer } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { Outline } from 'commodetto/outline'
 import { defaultFaceContext, toColorString, type FaceContext } from 'face-context'
+import { getSolidSkin } from 'skin-cache'
 
 export type EyeOptions = {
   cx: number
@@ -21,7 +22,7 @@ export function createEye({ cx, cy, radius = 8, side }: EyeOptions): PiuContaine
   iris.fillOutline = Outline.fill(path)
   iris.strokeOutline = undefined
 
-  iris.skin = new Skin({ fill: toColorString(defaultFaceContext.theme.primary) })
+  iris.skin = getSolidSkin(toColorString(defaultFaceContext.theme.primary))
 
   const EyeContainer = new Container(null, {
     left: cx - radius - 2,
@@ -64,7 +65,7 @@ export function createEye({ cx, cy, radius = 8, side }: EyeOptions): PiuContaine
         const primary = toColorString(face.theme.primary)
         if (primary !== this.lastPrimary) {
           this.lastPrimary = primary
-          iris.skin = new Skin({ fill: primary })
+          iris.skin = getSolidSkin(primary)
         }
       }
     },

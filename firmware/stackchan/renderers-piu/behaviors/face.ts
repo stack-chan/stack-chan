@@ -2,6 +2,7 @@ import type { Application as PiuApplication, Container as PiuContainer, Content 
 import type {} from 'piu/shape'
 import { copyFaceContext, createFaceContext, defaultFaceContext, toColorString, type FaceContext } from 'face-context'
 import { createBlinkMotion, createBreathMotion, createSaccadeMotion, type FaceMotion } from 'motions'
+import { getSolidSkin } from 'skin-cache'
 import { createEye } from 'parts/eye'
 import { createEyelid } from 'parts/eyelid'
 import { createMouth } from 'parts/mouth'
@@ -74,7 +75,7 @@ export class FaceBehavior extends Behavior {
   onDisplaying(container: PiuContainer) {
     const layer = this.#faceLayer
     if (this.#baseY === null && layer) {
-      this.#baseY = layer.y
+      this.#baseY = layer.coordinates?.top ?? layer.y
     }
     if (!this.#paused) {
       container.start?.()
@@ -101,9 +102,10 @@ export class FaceBehavior extends Behavior {
     const layer = this.#faceLayer
     if (layer) {
       if (this.#baseY === null) {
-        this.#baseY = layer.y
+        this.#baseY = layer.coordinates?.top ?? layer.y
       }
-      layer.y = (this.#baseY ?? 0) + this.#current.breath * 6
+      const nextY = (this.#baseY ?? 0) + this.#current.breath * 6
+      layer.coordinates = { ...(layer.coordinates ?? {}), top: nextY }
     }
     this.updateBackground(container, this.#current)
     getApplication()?.distribute?.('onFaceContext', this.#current)
@@ -137,7 +139,7 @@ export class FaceBehavior extends Behavior {
       left: 0,
       right: 0,
       top: 0,
-      bottom: 0,
+      height: container.height ?? this.#height ?? 240,
       active: true,
       contents: [],
     })
@@ -160,7 +162,7 @@ export class FaceBehavior extends Behavior {
     const secondary = toColorString(face.theme.secondary)
     if (secondary === this.#lastSecondary) return
     this.#lastSecondary = secondary
-    container.skin = new Skin({ fill: secondary })
+    container.skin = getSolidSkin(secondary)
   }
 }
 

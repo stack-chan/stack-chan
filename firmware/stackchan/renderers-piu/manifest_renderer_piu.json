@@ -10,6 +10,7 @@
     "renderer-simple": "./renderer-simple",
     "renderer-dog": "./renderer-dog",
     "renderer-small": "./renderer-small",
+    "skin-cache": "./skin-cache",
     "shell": "./shell",
     "drawer": "./drawer",
     "decorators/speech-balloon": "./decorators/speech-balloon",

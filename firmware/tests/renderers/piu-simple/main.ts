@@ -1,7 +1,7 @@
 import Timer from 'timer'
 import type { Content as PiuContent } from 'piu/MC'
 import { Face } from 'renderer-base'
-import { createDogFaceParts, createFaceContainer, createSimpleFaceParts, FaceBehavior } from 'behaviors/face'
+import { createDogFaceParts, createFaceContainer, createSimpleFaceParts, type FaceBehavior } from 'behaviors/face'
 import { Shell } from 'shell'
 import { createEmoticonEffect } from 'decorators/emoticon'
 import { createSpeechBalloonEffect } from 'decorators/speech-balloon'

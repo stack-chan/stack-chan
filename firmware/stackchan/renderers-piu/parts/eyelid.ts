@@ -2,6 +2,7 @@ import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { Outline } from 'commodetto/outline'
 import { defaultFaceContext, toColorString, type FaceContext } from 'face-context'
+import { getSolidSkin } from 'skin-cache'
 
 export type EyelidOptions = {
   cx: number
@@ -19,7 +20,7 @@ export function createEyelid({ cx, cy, width, height, side }: EyelidOptions): Po
     top: cy - height / 2,
     width,
     height,
-    skin: new Skin({ fill: toColorString(defaultFaceContext.theme.secondary) }),
+    skin: getSolidSkin(toColorString(defaultFaceContext.theme.secondary)),
     Behavior: class extends Behavior {
       w = width
       h = height
@@ -38,7 +39,7 @@ export function createEyelid({ cx, cy, width, height, side }: EyelidOptions): Po
         const secondary = toColorString(face.theme.secondary)
         if (secondary !== this.lastSecondary) {
           this.lastSecondary = secondary
-          shape.skin = new Skin({ fill: secondary })
+          shape.skin = getSolidSkin(secondary)
         }
       }
       updatePath(shape: PositionedShape, open: number, emotion: FaceContext['emotion']) {

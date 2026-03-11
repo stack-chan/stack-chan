@@ -64,6 +64,7 @@ export class Face {
   removeEffect(effect: PiuContent): void {
     if (!this.#effects.has(effect)) return
     this.#effects.delete(effect)
+    effect.stop?.()
     this.#effectContainer.remove(effect)
   }
 

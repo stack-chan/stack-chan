@@ -1,4 +1,4 @@
-import { NeoStrand, type NeoStrandEffect } from 'neostrand'
+import { NeoStrand, NeoStrandEffect, type NeoStrandEffectDictionary } from 'neostrand'
 import Timer from 'timer'
 
 const Timing_WS2812B = {
@@ -7,10 +7,50 @@ const Timing_WS2812B = {
   reset: { level0: 0, duration0: 100, level1: 0, duration1: 100 },
 } as const
 
+class Blink extends NeoStrandEffect {
+  private rgbOn: number
+  private rgbOff: number
+  constructor(
+    dictionary: NeoStrandEffectDictionary & {
+      rgb: { r: number; g: number; b: number }
+      index?: number
+      count?: number
+      duration?: number
+    },
+  ) {
+    super(dictionary)
+    this.name = 'Blink'
+    this.loop = 1
+
+    if (dictionary.index) {
+      this.start = dictionary.index
+    }
+    if (dictionary.count) {
+      this.size = dictionary.count
+      this.end = this.start + this.size
+      if (this.end > this.strand.length) this.end = this.strand.length
+    }
+    this.dur = dictionary.duration ?? 1000
+    this.rgbOn = this.strand.makeRGB(dictionary.rgb.r, dictionary.rgb.g, dictionary.rgb.b)
+    this.rgbOff = this.strand.makeRGB(0, 0, 0)
+  }
+
+  activate(effect: NeoStrandEffect): void {
+    effect.timeline.on(effect, { effectValue: [0, effect.dur] }, effect.dur, null, 0)
+    effect.reset(effect)
+  }
+
+  set effectValue(value) {
+    const half = this.dur / 2
+    const newColor = value < half ? this.rgbOn : this.rgbOff
+    const currentColor = this.strand.getPixel(this.start)
+    if (newColor !== currentColor) {
+      for (let i = this.start; i < this.end; i++) this.strand.set(i, newColor, this.start, this.end)
+    }
+  }
+}
+
 export default class Led extends NeoStrand {
-  private _blinkTimer?: Timer
-  private _blinking: boolean = false
-  private _blinkState: boolean = false
   private _effect?: NeoStrandEffect
 
   constructor(parameters: {
@@ -31,58 +71,49 @@ export default class Led extends NeoStrand {
     }
   }
 
+  private _stopEffect() {
+    if (this._effect) {
+      this.stop()
+      this._effect = undefined
+    }
+  }
+
   on(r: number, g: number, b: number, duration?: number, index?: number, count?: number) {
     const _index = index ?? 0
     const _count = count ?? this.length - _index
+    this._stopEffect()
     this._fill(this.makeRGB(r, g, b), _index, _count)
 
     this.update()
     if (duration) {
       Timer.set(() => {
-        this._fill(this.makeRGB(0, 0, 0), _index, _count)
-        this.update()
+        this.off(_index, _count)
       }, duration)
     }
   }
+
   off(index?: number, count?: number) {
     const _index = index ?? 0
     const _count = count ?? this.length - _index
-    this._blinking = false
-    if (this._blinkTimer !== undefined) {
-      Timer.clear(this._blinkTimer)
-      this._blinkTimer = undefined
-    }
-    if (this._effect) {
-      this.stop()
-      this._effect = undefined
-    }
+    this._stopEffect()
     this._fill(this.makeRGB(0, 0, 0), _index, _count)
     this.update()
   }
 
-  blink(r: number, g: number, b: number, interval: number, index?: number, count?: number) {
+  blink(r: number, g: number, b: number, duration: number, index?: number, count?: number) {
     const _index = index ?? 0
     const _count = count ?? this.length - _index
-    if (this._blinking) return
-    this._blinking = true
-    this._blinkState = false
+    this._stopEffect()
 
-    const step = () => {
-      if (!this._blinking) return
-      this._blinkState = !this._blinkState
-      if (this._blinkState) {
-        this._fill(this.makeRGB(r, g, b), _index, _count)
-      } else {
-        this._fill(this.makeRGB(0, 0, 0), _index, _count)
-      }
-      this.update()
-    }
-    this._blinkTimer = Timer.repeat(step, interval)
+    this._effect = new Blink({ strand: this, rgb: { r, g, b }, index: _index, count: _count, duration: duration })
+    this.setScheme([this._effect])
+    this.start(50)
   }
+
   rainbow(index?: number, count?: number) {
     const _index = index ?? 0
     const _count = count ?? this.length - _index
-    if (this._effect) return
+    this._stopEffect()
 
     this._effect = new NeoStrand.HueSpan({ strand: this, start: _index, end: _count })
     this.setScheme([this._effect])

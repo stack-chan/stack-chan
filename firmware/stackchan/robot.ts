@@ -534,14 +534,14 @@ export class Robot {
    * @param r - The red component of the color (0-255).
    * @param g - The green component of the color (0-255).
    * @param b - The blue component of the color (0-255).
-   * @param interval - The time in milliseconds between blinks.
+   * @param duration - The time in milliseconds between blinks.
    * @param index - Optional index to specify which Led to control if multiple LEDs are present.
    * @param count - Optional number of times to blink the Led. If not provided, it will blink indefinitely.
    */
-  lightBlink(ledName: string, r: number, g: number, b: number, interval: number, index?: number, count?: number) {
+  lightBlink(ledName: string, r: number, g: number, b: number, duration: number, index?: number, count?: number) {
     const led = this.#led[ledName]
     if (led) {
-      led.blink(r, g, b, interval, index, count)
+      led.blink(r, g, b, duration, index, count)
     }
   }
 

@@ -282,6 +282,15 @@ export class Robot {
   }
 
   /**
+   * get LED
+   *
+   * @returns Led instances
+   */
+  get led() {
+    return this.#led
+  }
+
+  /**
    * let the robot say things
    *
    * @param text - the key or speech text itself to say
@@ -527,6 +536,34 @@ export class Robot {
   private setDrawerButtonState(key: string, active: boolean): void {
     const controller = this.getDrawerController()
     controller?.setButtonState?.(key, active)
+  }
+
+  lightOn(ledName: string, r: number, g: number, b: number, duration?: number, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.on(r, g, b, duration, index, count)
+    }
+  }
+
+  lightOff(ledName: string, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.off(index, count)
+    }
+  }
+
+  lightBlink(ledName: string, r: number, g: number, b: number, duration: number, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.blink(r, g, b, duration, index, count)
+    }
+  }
+
+  lightRainbow(ledName: string, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.rainbow(index, count)
+    }
   }
 
   pause() {

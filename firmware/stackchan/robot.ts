@@ -536,7 +536,7 @@ export class Robot {
    * @param b - The blue component of the color (0-255).
    * @param interval - The time in milliseconds between blinks.
    * @param index - Optional index to specify which Led to control if multiple LEDs are present.
-   * @param count - Optional number of times to blink the Led. If not provided, it will blink indefinitely.
+   * @param count - Optional number of LEDs to blink. If not provided, it will affect all LEDs from the index to the end.
    */
   lightBlink(ledName: string, r: number, g: number, b: number, interval: number, index?: number, count?: number) {
     const led = this.#led[ledName]

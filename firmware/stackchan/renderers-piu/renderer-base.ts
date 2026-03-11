@@ -43,6 +43,18 @@ export class Face {
     behavior?.onFaceUpdate?.(this.#face, faceContext as FaceContext)
   }
 
+  get application(): PiuApplication {
+    return this.#application
+  }
+
+  get faceContainer(): PiuContainer {
+    return this.#face
+  }
+
+  get effectContainer(): PiuContainer {
+    return this.#effectContainer
+  }
+
   addEffect(effect: PiuContent): void {
     if (this.#effects.has(effect)) return
     this.#effects.add(effect)

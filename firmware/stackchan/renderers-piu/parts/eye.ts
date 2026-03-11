@@ -1,7 +1,7 @@
 import { Outline } from 'commodetto/outline'
 import { defaultFaceContext, type FaceContext } from 'face-context'
-import { type Container as PiuContainer, type Skin as PiuSkin } from 'piu/MC'
-import { type Shape as PiuShape } from 'piu/shape'
+import type { Container as PiuContainer, Skin as PiuSkin } from 'piu/MC'
+import type { Shape as PiuShape } from 'piu/shape'
 
 export type EyeOptions = {
   cx: number

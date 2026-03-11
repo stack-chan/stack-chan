@@ -4,7 +4,6 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/manifest_piu.json",
     "$(MODDABLE)/modules/piu/MC/outline/manifest.json",
-    "$(MODDABLE)/examples/manifest_commodetto.json",
     "$(MODULES)/commodetto/outline/manifest.json",
     "../utilities/manifest_utility.json"
   ],

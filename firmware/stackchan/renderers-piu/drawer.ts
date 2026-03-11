@@ -76,6 +76,7 @@ type DrawerDictionary = { buttons?: DrawerButtonSpec[]; topOffset?: number }
 type DrawerBehavior = {
   isOpen: boolean
   toggle: (container: PiuContainer) => void
+  setOpen: (container: PiuContainer, open: boolean) => void
   onFaceContext?: (container: PiuContainer, face: FaceContext) => void
 }
 
@@ -129,17 +130,30 @@ const DrawerTemplate = Container.template((d: DrawerDictionary) => ({
     applyPosition(container: PiuContainer, right: number) {
       container.coordinates = { right, top: this.topOffset, bottom: 0 }
     }
-    toggle(container: PiuContainer) {
-      const from = this.isOpen ? 0 : drawerHiddenOffset
-      const to = this.isOpen ? drawerHiddenOffset : 0
-      this.timeline = new Timeline()
-      const tl = this.timeline
+    startAnimation(container: PiuContainer, to: number) {
+      const from = this.offset
+      if (from === to && !this.timeline) {
+        this.applyPosition(container, this.offset)
+        return
+      }
+      container.stop?.()
+      this.timeline = null
+      const tl = new Timeline()
+      this.timeline = tl
       tl.on(this, { offset: [from, to] }, 180, Math.quadEaseOut, 0)
       tl.seekTo(0)
       container.duration = tl.duration
       container.time = 0
       container.start()
-      this.isOpen = !this.isOpen
+    }
+    setOpen(container: PiuContainer, open: boolean) {
+      if (this.isOpen === open && !this.timeline) return
+      this.isOpen = open
+      const to = this.isOpen ? 0 : drawerHiddenOffset
+      this.startAnimation(container, to)
+    }
+    toggle(container: PiuContainer) {
+      this.setOpen(container, !this.isOpen)
     }
   },
 })) as unknown as DrawerTemplateCtor

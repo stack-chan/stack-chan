@@ -106,19 +106,19 @@ export class Shell {
   openDrawer(): void {
     const drawer = this.#drawer
     const behavior = drawer?.behavior as DrawerBehavior | undefined
-    if (!drawer || !behavior?.toggle || this.#drawerOpen) return
+    if (!drawer || !behavior?.setOpen || this.#drawerOpen) return
     this.#drawerOpen = true
     this.#overlay.active = true
-    behavior.toggle(drawer)
+    behavior.setOpen(drawer, true)
   }
 
   closeDrawer(): void {
     const drawer = this.#drawer
     const behavior = drawer?.behavior as DrawerBehavior | undefined
-    if (!drawer || !behavior?.toggle || !this.#drawerOpen) return
+    if (!drawer || !behavior?.setOpen || !this.#drawerOpen) return
     this.#drawerOpen = false
     this.#overlay.active = false
-    behavior.toggle(drawer)
+    behavior.setOpen(drawer, false)
   }
 
   toggleDrawer(): void {

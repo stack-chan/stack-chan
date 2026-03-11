@@ -1,9 +1,4 @@
-import type {
-  Application as PiuApplication,
-  Container as PiuContainer,
-  Content as PiuContent,
-  Skin as PiuSkin,
-} from 'piu/MC'
+import type { Application as PiuApplication, Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type {} from 'piu/shape'
 import { copyFaceContext, createFaceContext, defaultFaceContext, toColorString, type FaceContext } from 'face-context'
 import { createBlinkMotion, createBreathMotion, createSaccadeMotion, type FaceMotion } from 'motions'

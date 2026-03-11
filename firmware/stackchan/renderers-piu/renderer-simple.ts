@@ -1,7 +1,7 @@
 import { createSimpleFaceContainer } from 'behaviors/face'
 import { Face, type FaceEffect } from './renderer-base'
 
-export { FaceEffect }
+export type { FaceEffect }
 
 export function createRenderer(): Face {
   return new Face({ face: createSimpleFaceContainer() })

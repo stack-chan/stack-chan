@@ -11,6 +11,8 @@
     "renderer-dog": "./renderer-dog",
     "renderer-small": "./renderer-small",
     "shell": "./shell",
+    "drawer": "./drawer",
+    "decorators/speech-balloon": "./decorators/speech-balloon",
     "decorators/*": "./decorators/*",
     "parts/dog/*": "./parts/dog/*",
     "parts/*": "./parts/*",

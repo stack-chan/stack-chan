@@ -435,7 +435,7 @@ class SleepyBubbleBehavior extends Behavior {
     }
     container.interval = data.interval ?? 33
   }
-  onTimeChanged(container: PiuContainer) {
+  onTimeChanged(_container: PiuContainer) {
     this.tick()
   }
   onDisplaying(container: PiuContainer) {

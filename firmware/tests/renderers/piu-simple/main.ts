@@ -1,7 +1,7 @@
 import Timer from 'timer'
 import type { Content as PiuContent } from 'piu/MC'
 import { Renderer } from 'renderer-simple'
-import { createEmoticonDecorator } from 'decorators/emoticon'
+import { createEmoticonEffect } from 'decorators/emoticon'
 import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext, Emotion } from 'face-context'
 import { createBlinkMotion, createBreathMotion, createSaccadeMotion } from 'motions'
 
@@ -23,15 +23,15 @@ const EMOTIONS = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotio
 function decoratorForEmotion(emotion: Emotion): PiuContent | null {
   switch (emotion) {
     case Emotion.HAPPY:
-      return createEmoticonDecorator('heart', { left: 12, top: 12 })
+      return createEmoticonEffect('heart', { left: 12, top: 12 })
     case Emotion.ANGRY:
-      return createEmoticonDecorator('angry', { left: 12, top: 12 })
+      return createEmoticonEffect('angry', { left: 12, top: 12 })
     case Emotion.SAD:
-      return createEmoticonDecorator('tear', { top: 96 })
+      return createEmoticonEffect('tear', { top: 96 })
     case Emotion.HOT:
-      return createEmoticonDecorator('sweat', { left: 8, top: 10 })
+      return createEmoticonEffect('sweat', { left: 8, top: 10 })
     case Emotion.SLEEPY:
-      return createEmoticonDecorator('sleepy', { left: 16, top: 8 })
+      return createEmoticonEffect('sleepy', { left: 16, top: 8 })
     default:
       return null
   }

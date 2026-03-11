@@ -554,7 +554,7 @@ const Sleepy = Container.template((opts: EmoticonOptions) => ({
   },
 }))
 
-export function createEmoticonDecorator(key: EmoticonKey, opts: EmoticonOptions = {}): PiuContent {
+export function createEmoticonEffect(key: EmoticonKey, opts: EmoticonOptions = {}): PiuContent {
   switch (key) {
     case 'heart':
       return new Heart(opts)

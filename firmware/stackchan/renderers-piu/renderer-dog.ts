@@ -16,7 +16,7 @@ export function createRenderer(options?: RendererOptions): AppController {
       face: new DogFace(),
       drawerButtons: options?.drawerButtons,
     },
-    { displayListLength: 2048, contents: [], Behavior: AppController },
+    { displayListLength: 4096, contents: [], Behavior: AppController },
   )
   return application.behavior as AppController
 }

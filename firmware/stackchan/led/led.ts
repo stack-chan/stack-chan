@@ -8,6 +8,7 @@ const Timing_WS2812B = {
 } as const
 
 class Blink extends NeoStrandEffect {
+  private light: boolean
   private rgbOn: number
   private rgbOff: number
   constructor(
@@ -21,6 +22,7 @@ class Blink extends NeoStrandEffect {
     super(dictionary)
     this.name = 'Blink'
     this.loop = 1
+    this.light = false
 
     if (dictionary.index) {
       this.start = dictionary.index
@@ -41,11 +43,16 @@ class Blink extends NeoStrandEffect {
   }
 
   set effectValue(value) {
-    const half = this.dur / 2
-    const newColor = value < half ? this.rgbOn : this.rgbOff
-    const currentColor = this.strand.getPixel(this.start)
-    if (newColor !== currentColor) {
-      for (let i = this.start; i < this.end; i++) this.strand.set(i, newColor, this.start, this.end)
+    const isFirstHalf = value <= this.dur / 2
+    const shouldTurnOn = !this.light && isFirstHalf
+    const shouldTurnOff = this.light && !isFirstHalf
+
+    if (shouldTurnOn || shouldTurnOff) {
+      const color = shouldTurnOn ? this.rgbOn : this.rgbOff
+      for (let i = this.start; i < this.end; i++) {
+        this.strand.set(i, color)
+      }
+      this.light = shouldTurnOn
     }
   }
 }
@@ -113,7 +120,7 @@ export default class Led extends NeoStrand {
       duration: duration,
     })
     this.setScheme([this._effect])
-    this.start(50)
+    this.start(100)
   }
 
   rainbow(index?: number, count?: number) {

@@ -4,6 +4,7 @@
     "baseUrl": "./",
     "forceConsistentCasingInFileNames": true,
     "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
     "module": "es2022",
     "lib": [
       "es2024"
@@ -103,6 +104,15 @@
       ],
       "default-mods/on-launch": [
         "./stackchan/default-mods/on-launch"
+      ],
+      "headers": [
+        "./node_modules/@moddable/typings/web/headers"
+      ],
+      "structuredClone": [
+        "./node_modules/@moddable/typings/web/structuredClone"
+      ],
+      "url": [
+        "./node_modules/@moddable/typings/web/url"
       ],
       "calculate-power": [
         "./stackchan/speeches/calculate-power"

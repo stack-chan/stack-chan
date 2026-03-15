@@ -1,5 +1,15 @@
 {
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "skipLibCheck": true
+      }
+    }
+  },
   "modules": {
+    "headers": "$(MODDABLE)/typings/web/headers",
+    "structuredClone": "$(MODDABLE)/typings/web/structuredClone",
+    "url": "$(MODDABLE)/typings/web/url",
     "*": ["../typings/*"],
     "piu/*": ["../typings/piu/*"]
   }

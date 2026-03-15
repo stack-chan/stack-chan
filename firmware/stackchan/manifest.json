@@ -3,6 +3,7 @@
     "XS_MODS": 1
   },
   "include": [
+    "./manifest_typings.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/manifest_net.json",
@@ -17,7 +18,6 @@
     "./speeches/manifest_speech.json",
     "./transcriptions/manifest_transcription.json",
     "./utilities/manifest_utility.json",
-    "./manifest_typings.json",
     "./manifest_microphone.json"
   ],
   "modules": {

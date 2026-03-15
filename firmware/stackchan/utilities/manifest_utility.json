@@ -15,7 +15,8 @@
   "platforms": {
     "esp32": {
       "modules": {
-        "mac-address": "esp32/mac-address"
+        "mac-address": "esp32/mac-address",
+        "xs-mods-compat": "esp32/xs-mods-compat"
       }
     },
     "mac": {

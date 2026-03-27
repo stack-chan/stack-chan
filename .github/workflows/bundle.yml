@@ -1,5 +1,5 @@
 name: Bundle Stack-chan Firmware
-on: 
+on:
   push:
     branches:
       - dev/v1.0

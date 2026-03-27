@@ -8,20 +8,17 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/setup-node@v4
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
       with:
         node-version: 22
-    - name: Cache node modules
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-node-modules
-      with:
-        path: ./firmware/node_modules
-        key: ${{ runner.os }}-npm-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-    - run: npm ci
+        cache: npm
+        cache-dependency-path: firmware/package-lock.json
+    - name: Install firmware dependencies
+      run: npm ci
       working-directory: ./firmware
       shell: bash
-    - name: check latest release tag of Moddable
+    - name: Resolve Moddable cache key
       if: inputs.target-branch == ''
       run: |
         API_URL="https://api.github.com/repos/Moddable-OpenSource/moddable/commits/public"
@@ -30,7 +27,7 @@ runs:
         echo "Latest commit of Moddable: $LATEST_COMMIT"
         echo "moddable_cache_key=${{ runner.os }}-moddable-$LATEST_COMMIT" >> $GITHUB_ENV
       shell: bash
-    - name: Restore cache of Moddale and ESP32
+    - name: Restore Moddable and ESP32 cache
       if: inputs.target-branch == ''
       id: restore-cache-moddable
       uses: actions/cache/restore@v4
@@ -39,7 +36,7 @@ runs:
           /home/runner/.local/share
           /home/runner/.espressif
         key: ${{ env.moddable_cache_key }}
-    - name: install Moddable
+    - name: Install Moddable
       if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
@@ -50,14 +47,14 @@ runs:
         fi
       working-directory: ./firmware
       shell: bash
-    - name: install ESP32
+    - name: Install ESP32
       if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
         source $HOME/.local/share/xs-dev-export.sh && npm run setup -- --device=esp32
       working-directory: ./firmware
       shell: bash
-    - name: Save cache of Moddale and ESP32
+    - name: Save Moddable and ESP32 cache
       if: inputs.target-branch == '' && steps.restore-cache-moddable.outputs.cache-hit != 'true'
       id: save-cache-moddable
       uses: actions/cache/save@v4

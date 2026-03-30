@@ -23,6 +23,10 @@ Stack-chan is a JavaScript-driven M5Stack-embedded super-kawaii robot.
 * :cyclone:          Drive Serial(TTL)/PWM servos
 * :game_die:         Make applications on your own
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/stack-chan-stack-chan).
+
 ## Contents
 
 This repository includes all the component of the robot.

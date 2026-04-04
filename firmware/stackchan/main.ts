@@ -102,7 +102,7 @@ function createRobot() {
   const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined
   const tone = new Tone({ volume: ttsPrefs.volume })
 
-  const configLed = config.led ?? {}
+  const configLed = loadPreferences('led')
   const led = Object.fromEntries(
     Object.entries(configLed).map(([key, config]) => [
       key,

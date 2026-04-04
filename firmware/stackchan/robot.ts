@@ -6,8 +6,8 @@ import type Digital from 'embedded:io/digital'
 import type Touch from 'touch'
 import type Microphone from 'microphone'
 import type Tone from 'tone'
-import { SpeechBalloon } from 'effects/speech-balloon'
 import type Led from 'led'
+import { SpeechBalloon } from 'effects/speech-balloon'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10

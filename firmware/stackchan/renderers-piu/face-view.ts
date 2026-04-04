@@ -1,20 +1,20 @@
 import {
-  Container,
-  Die,
-  Skin,
-  type Container as PiuContainer,
-  type Content as PiuContent,
-  type Skin as PiuSkin,
-} from 'piu/MC'
-import { defaultFaceContext, type FaceContext } from 'face-context'
-import type { FaceSkinPalette } from 'face-skin'
-import {
   CommonView,
   CommonViewBehavior,
   type CommonViewParams,
   type CommonViewTemplateCtor,
   type TemplateFunction,
 } from 'common-view'
+import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
+import { type FaceSkinPalette, updateFaceSkinPalette } from 'face-skin'
+import {
+  Container,
+  Die,
+  type Container as PiuContainer,
+  type Content as PiuContent,
+  type Skin as PiuSkin,
+  Skin,
+} from 'piu/MC'
 
 type FaceViewAnchors = {
   FACE?: PiuContainer
@@ -24,6 +24,10 @@ type FaceViewAnchors = {
 
 type FaceViewBaseParams = CommonViewParams
 type DieRegion = PiuContainer & { set: (x: number, y: number, w: number, h: number) => DieRegion; cut: () => void }
+type FaceContainerBehavior = {
+  onFaceUpdate?: (container: PiuContainer, face: FaceContext) => void
+  getBaseCoordinates?: (container: PiuContainer) => { left: number; top: number }
+}
 
 export type FaceViewParams = FaceViewBaseParams &
   FaceViewAnchors & {
@@ -43,6 +47,7 @@ class FaceViewBehavior extends CommonViewBehavior {
   effectKeys = new Map<PiuContent, string>()
   autoTheme = true
   lastPalette: FaceSkinPalette | null = null
+  lastFaceContext: FaceContext | null = null
 
   onCreate(container: PiuContainer, data: FaceViewParams) {
     super.onCreate(container, data)
@@ -64,10 +69,16 @@ class FaceViewBehavior extends CommonViewBehavior {
   }
 
   onFaceUpdate(_container: PiuContainer, faceContext: Readonly<FaceContext>) {
+    const palette = updateFaceSkinPalette(this.lastPalette, faceContext)
+    if (palette !== this.lastPalette) {
+      this.onFaceSkin(_container, palette)
+    }
+    if (this.lastFaceContext === null) {
+      this.lastFaceContext = createFaceContext()
+    }
+    copyFaceContext(faceContext, this.lastFaceContext)
     const face = this.face
-    const behavior = face?.behavior as
-      | { onFaceUpdate?: (container: PiuContainer, face: FaceContext) => void }
-      | undefined
+    const behavior = face?.behavior as FaceContainerBehavior | undefined
     behavior?.onFaceUpdate?.(face as PiuContainer, faceContext as FaceContext)
     this.onFaceContext?.(_container, faceContext as FaceContext)
   }
@@ -77,6 +88,7 @@ class FaceViewBehavior extends CommonViewBehavior {
     if (this.autoTheme && this.main) {
       this.main.skin = palette.secondary
     }
+    this.face?.distribute?.('onFaceSkin', palette)
     this.effects?.distribute('onFaceSkin', palette)
     this.overlay?.distribute('onFaceSkin', palette)
     this.appBar?.distribute?.('onFaceSkin', palette)
@@ -127,14 +139,32 @@ class FaceViewBehavior extends CommonViewBehavior {
     }
   }
 
+  applyFaceState(face: PiuContainer): void {
+    if (this.lastPalette) {
+      face.distribute?.('onFaceSkin', this.lastPalette)
+    }
+    if (!this.lastFaceContext) {
+      return
+    }
+    const behavior = face.behavior as FaceContainerBehavior | undefined
+    behavior?.onFaceUpdate?.(face, this.lastFaceContext)
+    face.distribute?.('onFaceContext', this.lastFaceContext)
+  }
+
   setFace(face: PiuContainer): void {
     if (!face || this.face === face) return
     const currentFace = this.face
+    const currentBehavior = currentFace?.behavior as FaceContainerBehavior | undefined
     const currentParent = currentFace
       ? (((currentFace as PiuContent & { container?: PiuContainer }).container ??
           this.faceRegion) as PiuContainer | null)
       : null
-    const currentCoordinates = currentFace?.coordinates ? { ...currentFace.coordinates } : null
+    const currentCoordinates =
+      currentFace && currentBehavior?.getBaseCoordinates
+        ? currentBehavior.getBaseCoordinates(currentFace)
+        : currentFace?.coordinates
+          ? { ...currentFace.coordinates }
+          : null
     this.face = face
     if (currentCoordinates) {
       face.coordinates = { ...(face.coordinates ?? {}), ...currentCoordinates }
@@ -147,17 +177,20 @@ class FaceViewBehavior extends CommonViewBehavior {
       } else {
         currentParent.add(face)
       }
+      this.applyFaceState(face)
       return
     }
 
     if (this.faceRegion) {
       this.faceRegion.add(face)
+      this.applyFaceState(face)
       return
     }
 
     if (!this.main) return
     if (this.effects) this.main.insert(face, this.effects)
     else this.main.add(face)
+    this.applyFaceState(face)
   }
 }
 

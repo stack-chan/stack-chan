@@ -1,8 +1,8 @@
-import config from 'mc/config'
-import { ChatService } from 'chat'
 import { ImageFace } from 'behaviors/face'
+import { ChatService } from 'chat'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Emotion } from 'face-context'
+import config from 'mc/config'
 import Timer from 'timer'
 import { randomBetween } from 'stackchan-util'
 
@@ -165,14 +165,17 @@ You are a cute, energetic, and polite community-built robot who enjoys talking w
 `
 
 export function onRobotCreated(robot) {
+  const rawChatConfig = config.chat ?? {}
   const chatConfig = {
-    ...config.chat,
-    voiceID: 'marin',
-    specifier: 'openAIRealtime',
-    instructions: INSTRUCTION_B,
+    ...rawChatConfig,
+    voiceID: rawChatConfig.voiceID ?? 'marin',
+    specifier: rawChatConfig.specifier ?? 'openAIRealtime',
+    instructions: rawChatConfig.instructions ?? INSTRUCTION_B,
   }
-  if (!chatConfig?.specifier) {
-    trace('[chat_audioio] config.chat.specifier is missing. Chat disabled.\n')
+  if (!chatConfig?.type) {
+    trace(
+      '[chat_audioio] config.chat.type is missing. Set config.chat.type (for example "openAIRealtime"). Chat disabled.\n',
+    )
     return
   }
 

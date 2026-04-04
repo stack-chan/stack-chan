@@ -9,10 +9,12 @@
   ],
   "modules": {
     "renderer-simple": "./renderer-simple",
+    "renderer-image": "./renderer-image",
     "renderer-dog": "./renderer-dog",
     "renderer-compat": "./renderer-compat",
     "renderer-small": "./renderer-small",
     "app-controller": "./app-controller",
+    "chat-status-bar": "./chat-status-bar",
     "common-view": "./common-view",
     "face-view": "./face-view",
     "face-context": "./face-context",
@@ -21,6 +23,7 @@
     "drawer": "./drawer",
     "effects/speech-balloon": "./effects/speech-balloon",
     "effects/*": "./effects/*",
+    "parts/image/*": "./parts/image/*",
     "parts/dog/*": "./parts/dog/*",
     "parts/*": "./parts/*",
     "behaviors/*": "./behaviors/*",
@@ -31,6 +34,14 @@
     "piuView": "$(PIU)/MC/piuView"
   },
   "resources": {
+    "*-alpha": [
+      "../assets/images/microphone",
+      "../assets/images/indicator",
+      "../assets/images/bubble",
+      "../assets/images/faces/image-face/moddable-avatar/eye",
+      "../assets/images/faces/image-face/moddable-avatar/eyelid",
+      "../assets/images/faces/image-face/moddable-avatar/mouth"
+    ],
     "*-mask": [
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-20",
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"
@@ -56,6 +67,7 @@
     "piu/Timeline",
     "piu/Transition",
     "renderer-simple",
+    "renderer-image",
     "renderer-dog",
     "renderer-small",
     "face-skin",

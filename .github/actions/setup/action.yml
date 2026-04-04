@@ -69,6 +69,7 @@ runs:
     - name: Save cache of Moddale and ESP32
       if: inputs.target-branch == '' && steps.restore-cache-moddable.outputs.cache-hit != 'true'
       id: save-cache-moddable
+      continue-on-error: true
       uses: actions/cache/save@v4
       with:
         path: |

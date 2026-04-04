@@ -1,0 +1,12 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../../stackchan/renderers-piu/manifest_renderer_piu.json"
+  ],
+  "modules": {
+    "mocks/assert": "../mocks/assert",
+    "*": ["./main"]
+  }
+}

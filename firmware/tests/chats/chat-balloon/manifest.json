@@ -1,0 +1,29 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../../stackchan/renderers-piu/manifest_renderer_piu.json"
+  ],
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../stackchan/assets/fonts/k8x12",
+        "size": 12,
+        "blocks": [
+          "Basic Latin",
+          "Hiragana",
+          "Katakana",
+          "CJK Unified Ideographs",
+          "CJK Symbols and Punctuation",
+          "Halfwidth and Fullwidth Forms"
+        ],
+        "monochrome": true
+      }
+    ]
+  },
+  "modules": {
+    "mocks/assert": "../mocks/assert",
+    "*": ["./main"]
+  }
+}

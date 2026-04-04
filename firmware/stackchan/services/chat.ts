@@ -10,8 +10,10 @@ export type ChatState =
   | 'LISTENING'
   | 'WAITING'
 
+export type ChatType = 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' | 'humeAIEVI' | 'openAIRealtime'
+
 export type ChatConfig = {
-  specifier: 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' | 'humeAIEVI' | 'openAIRealtime'
+  type: ChatType
   instructions?: string
   voiceID?: string
   providerID?: string
@@ -152,7 +154,7 @@ export class ChatService {
         new (chatOptions: Record<string, unknown>): ChatAudioIO
       })
     this.#chat = new ChatAudioIOCtor({
-      specifier: config.specifier as unknown as string,
+      specifier: config.type as unknown as string,
       instructions: config.instructions,
       voiceID: config.voiceID,
       providerID: config.providerID,

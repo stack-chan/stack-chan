@@ -56,7 +56,6 @@
         "./stackchan/drivers/*",
         "./stackchan/led/*",
         "./stackchan/renderers-piu/*",
-        "./stackchan/led/*",
         "./stackchan/renderers/*",
         "./stackchan/services/*",
         "./stackchan/speeches/*",

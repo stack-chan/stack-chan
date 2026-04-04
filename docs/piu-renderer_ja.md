@@ -79,6 +79,10 @@ new Application(
 | `skin` | `PiuSkin` | 任意 | 背景スキン。省略時はテーマ自動同期。 |
 | `drawerButtons` | `DrawerButtonSpec[]` | 任意 | 初期 Drawer ボタン。 |
 
+**パフォーマンス上の注意:**
+- Renderer の各エントリポイントは `displayListLength` の既定値として `2048` を使います。
+- より大きな display list が必要な UI の場合だけ renderer 設定から上書きし、全デバイス向けの固定値をむやみに増やさない方針にします。
+
 **公開メソッド（Behavior）:**
 | メソッド | 説明 |
 | --- | --- |

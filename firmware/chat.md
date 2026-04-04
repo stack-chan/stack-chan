@@ -62,7 +62,7 @@ export type ChatState =
   | "WAITING";   // 出力再生完了待ち
 
 export type ChatConfig = {
-  specifier: "deepgramAgent" | "elevenLabsAgent" | "googleGeminiLive" | "humeAIEVI" | "openAIRealtime";
+  type: "deepgramAgent" | "elevenLabsAgent" | "googleGeminiLive" | "humeAIEVI" | "openAIRealtime";
   instructions?: string;
   voiceID?: string;
   providerID?: string;
@@ -116,13 +116,13 @@ export class ChatService {
 - `onFunctionCall` を受けた後の `execute` 実行や `sendFunctionResult` の送信は、ChatSessionController で制御する（ChatServiceはUI/ロボットへの依存を持たない）。
 
 ### `mc/config` で渡す設定
-既存実装との一貫性を保ち、`config.chat` を新設して ChatAudioIO の `specifier / modelID / voiceID / instructions` を受け取る。
+既存実装との一貫性を保ち、`config.chat` を新設して `type / modelID / voiceID / instructions` を受け取る。`ChatService` 内で ChatAudioIO の `specifier` に変換して渡す。
 
 例:
 ```
 config: {
   chat: {
-    specifier: "openAIRealtime",
+    type: "openAIRealtime",
     modelID: "gpt-realtime-mini",
     voiceID: "marin",
     instructions: "...",
@@ -277,11 +277,11 @@ sequenceDiagram
 
 ### 3. 設定の配線
 - 正常系
-  - `config.chat` が `ChatService` へ渡される（specifier/modelID/voiceID/instructions）。
+  - `config.chat` が `ChatService` へ渡される（type/modelID/voiceID/instructions）。
   - CLI 上書き値が `mc/config` 経由で反映される（値の優先順位検証）。
 - 異常系
   - `config.chat` が無い場合でもデフォルト構成で起動できる。
-  - 不正な `specifier` で起動した場合に `FAILED` へ遷移する。
+  - 不正な `type` で起動した場合に `FAILED` へ遷移する。
 
 ### 4. ChatSessionController（Robot/Mod）
 - 正常系
@@ -391,7 +391,7 @@ tests/chats/
 - **対象タスク**: 3. 設定の配線
 - **構造**:
   - `config.chat` が `ChatService` に渡る
-  - `specifier/modelID/voiceID/instructions` の優先順検証
+  - `type/modelID/voiceID/instructions` の優先順検証
 - **モック戦略**:
   - `loadPreferences` 相当は引数注入 or 関数差し替えで擬似設定を渡す
   - CLI上書きは `mc/config` の期待値を fixture 化

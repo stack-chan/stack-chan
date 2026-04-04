@@ -2,13 +2,13 @@ import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
 import { updateFaceSkinPalette, type FaceSkinPalette } from 'face-skin'
 import type { FaceMotion } from 'motions/types'
-import { Eye } from 'parts/eye'
-import { Mouth } from 'parts/mouth'
 import { EyeSprite } from 'parts/image/eye-sprite'
 import { MouthSprite } from 'parts/image/mouth-sprite'
 import { DogEyebrow } from 'parts/dog/eyebrow'
 import { DogMouth } from 'parts/dog/mouth'
 import { DogNose } from 'parts/dog/nose'
+import { Eye } from 'parts/eye'
+import { Mouth } from 'parts/mouth'
 
 type TemplateCtor<TData> = {
   new (behaviorData?: TData, dictionary?: Record<string, unknown>): PiuContainer
@@ -46,13 +46,7 @@ export class FaceBehavior extends Behavior {
 
   constructor({ motions, intervalMs }: FaceBehaviorOptions) {
     super()
-    this.#motions =
-      motions ??
-      [
-        // createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
-        // createBreathMotion({ duration: 6000 }),
-        // createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
-      ]
+    this.#motions = motions ?? []
     this.#current = createFaceContext()
     this.#desired = createFaceContext()
     this.#lastSent = createFaceContext()
@@ -140,6 +134,17 @@ export class FaceBehavior extends Behavior {
 
   onTouchEnded(container: PiuContainer) {
     container.bubble('onFaceTouch')
+  }
+
+  getBaseCoordinates(container: PiuContainer): { left: number; top: number } {
+    if (this.#baseCoordinates === null) {
+      const coordinates = container.coordinates
+      this.#baseCoordinates = {
+        left: coordinates?.left ?? 0,
+        top: coordinates?.top ?? 0,
+      }
+    }
+    return { ...this.#baseCoordinates }
   }
 
   pause(container: PiuContainer) {

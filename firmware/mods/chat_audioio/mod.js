@@ -1,6 +1,6 @@
-import ChatAudioIO from 'ChatAudioIO'
 import loadPreferences from 'loadPreference'
 import { DogFace, ImageFace, SimpleFace, SmallFace } from 'behaviors/face'
+import ChatAudioIO from 'ChatAudioIO'
 import { ChatService } from 'chat'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Emotion } from 'face-context'
@@ -213,14 +213,17 @@ You are a cute, energetic, and polite community-built robot who enjoys talking w
 `
 
 export function onRobotCreated(robot) {
+  const rawChatConfig = config.chat ?? {}
   const chatConfig = {
-    ...config.chat,
-    voiceID: config.chat?.voiceID ?? 'marin',
-    specifier: config.chat?.specifier ?? 'openAIRealtime',
-    instructions: config.chat?.instructions ?? INSTRUCTION_B,
+    ...rawChatConfig,
+    voiceID: rawChatConfig.voiceID ?? 'marin',
+    specifier: rawChatConfig.specifier ?? 'openAIRealtime',
+    instructions: rawChatConfig.instructions ?? INSTRUCTION_B,
   }
-  if (!chatConfig?.specifier) {
-    trace('[chat_audioio] config.chat.specifier is missing. Chat disabled.\n')
+  if (!chatConfig?.type) {
+    trace(
+      '[chat_audioio] config.chat.type is missing. Set config.chat.type (for example "openAIRealtime"). Chat disabled.\n',
+    )
     return
   }
 
@@ -365,24 +368,6 @@ export function onRobotCreated(robot) {
     if (faceAnimationEnabled === enabled) return
     faceAnimationEnabled = enabled
     applyFaceAnimation()
-  }
-
-  const setDriverFeedbackLoopEnabled = (enabled) => {
-    const driver = robot.driver
-    const fn = driver?.setFeedbackLoopEnabled
-    if (typeof fn !== 'function') {
-      return
-    }
-    try {
-      const result = fn.call(driver, enabled)
-      if (result && typeof result.catch === 'function') {
-        result.catch((err) => {
-          trace(`[chat_audioio] setFeedbackLoopEnabled failed: ${String(err?.message ?? err)}\n`)
-        })
-      }
-    } catch (err) {
-      trace(`[chat_audioio] setFeedbackLoopEnabled failed: ${String(err?.message ?? err)}\n`)
-    }
   }
 
   applyFaceAnimation()
@@ -637,7 +622,6 @@ export function onRobotCreated(robot) {
         if (state === 'DISCONNECTED' || state === 'FAILED') {
           active = false
           robot.application.setDrawerButtonState('toggleChat', false)
-          setDriverFeedbackLoopEnabled(true)
           setFaceAnimationEnabled(true)
           removeBalloon()
         }
@@ -673,8 +657,7 @@ export function onRobotCreated(robot) {
   const startChat = () => {
     if (active) return
     active = true
-    setDriverFeedbackLoopEnabled(false)
-    setFaceAnimationEnabled(true)
+    setFaceAnimationEnabled(false)
     startUiTimers()
     robot.application.setDrawerButtonState('toggleChat', true)
     chat.setVolume(0.5)
@@ -688,7 +671,6 @@ export function onRobotCreated(robot) {
   const stopChat = () => {
     if (!active) return
     active = false
-    setDriverFeedbackLoopEnabled(true)
     setFaceAnimationEnabled(true)
     robot.application.setDrawerButtonState('toggleChat', false)
     chat.stop()

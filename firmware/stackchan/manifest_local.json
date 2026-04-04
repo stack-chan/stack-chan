@@ -1,6 +1,11 @@
 {
   "include": ["./manifest.json"],
   "config": {
+    "tts": {
+      "type": "voicevox",
+      "host": "192.168.7.136",
+      "port": 50021
+    },
     "driver": { "type": "none" },
     "chat": {
       "provider": "openai",

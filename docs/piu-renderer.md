@@ -78,6 +78,10 @@ new Application(
 | `skin` | `PiuSkin` | Optional | Background skin. Omit to enable theme auto-sync. |
 | `drawerButtons` | `DrawerButtonSpec[]` | Optional | Initial Drawer buttons. |
 
+**Performance note:**
+- Renderer entrypoints default `displayListLength` to `2048`.
+- Increase it only when the target UI actually requires a larger display list, and prefer doing so from renderer preferences rather than hard-coding a larger default for every device.
+
 **Public methods (Behavior):**
 | Method | Description |
 | --- | --- |

@@ -1,5 +1,6 @@
 import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 import { defaultFaceContext, type FaceContext } from 'face-context'
+import type { FaceSkinPalette } from 'face-skin'
 
 export type MouthOptions = {
   cx: number
@@ -15,6 +16,7 @@ type PositionedContent = PiuContent & {
   top: number
   width: number
   height: number
+  state?: number
   coordinates?: {
     left?: number
     top?: number
@@ -43,7 +45,12 @@ export const Mouth = Content.template((opts: MouthOptions) => {
       minHeight = minHeight
       maxHeight = maxHeight
       lastOpen = -1
-      lastPrimary: string | null = null
+      palette: FaceSkinPalette | null = null
+      onFaceSkin(content: PositionedContent, palette: FaceSkinPalette) {
+        this.palette = palette
+        content.skin = palette.palette
+        content.state = palette.primaryState
+      }
       onCreate(content: PositionedContent) {
         this.updateFromOpen(content, 0)
       }
@@ -52,11 +59,8 @@ export const Mouth = Content.template((opts: MouthOptions) => {
         if (open !== this.lastOpen) {
           this.updateFromOpen(content, open)
         }
-        const primary = face.theme.primary
-        if (primary !== this.lastPrimary) {
-          this.lastPrimary = primary
-          content.skin = new Skin({ fill: primary })
-        }
+        if (this.palette) return
+        content.skin = new Skin({ fill: face.theme.primary })
       }
       updateFromOpen(content: PositionedContent, open: number) {
         this.lastOpen = open

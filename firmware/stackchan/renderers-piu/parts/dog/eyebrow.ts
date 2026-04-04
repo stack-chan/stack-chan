@@ -2,6 +2,7 @@ import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { Outline } from 'commodetto/outline'
 import { defaultFaceContext, type FaceContext } from '../../face-context'
+import type { FaceSkinPalette } from 'face-skin'
 
 export type EyebrowOptions = {
   cx: number
@@ -11,7 +12,7 @@ export type EyebrowOptions = {
   canvasHeight?: number
 }
 
-type PositionedShape = PiuShape & { skin?: PiuSkin }
+type PositionedShape = PiuShape & { skin?: PiuSkin; state?: number }
 
 export const DogEyebrow = Shape.template((opts: EyebrowOptions) => {
   const { cx, cy, side, canvasWidth = 320, canvasHeight = 120 } = opts
@@ -24,12 +25,11 @@ export const DogEyebrow = Shape.template((opts: EyebrowOptions) => {
     skin: new Skin({ fill: defaultFaceContext.theme.primary }),
     Behavior: class extends Behavior {
       lastKey: string | null = null
-      lastPrimary: string | null = null
-      updateSkin(shape: PositionedShape, face: FaceContext) {
-        const primary = face.theme.primary
-        if (primary === this.lastPrimary) return
-        this.lastPrimary = primary
-        shape.skin = new Skin({ fill: primary, stroke: primary })
+      palette: FaceSkinPalette | null = null
+      onFaceSkin(shape: PositionedShape, palette: FaceSkinPalette) {
+        this.palette = palette
+        shape.skin = palette.palette
+        shape.state = palette.primaryState
       }
       updatePath(shape: PositionedShape, face: FaceContext) {
         const eye = face.eyes[side]
@@ -45,7 +45,9 @@ export const DogEyebrow = Shape.template((opts: EyebrowOptions) => {
         this.lastKey = `${eye.open.toFixed(3)}:${face.emotion}`
       }
       onFaceContext(shape: PositionedShape, face: FaceContext) {
-        this.updateSkin(shape, face)
+        if (!this.palette) {
+          shape.skin = new Skin({ fill: face.theme.primary, stroke: face.theme.primary })
+        }
         const eye = face.eyes[side]
         const key = `${eye.open.toFixed(3)}:${face.emotion}`
         if (key !== this.lastKey) {

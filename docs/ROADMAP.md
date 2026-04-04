@@ -75,7 +75,7 @@ Scope:
   - define release boundaries between firmware, mods, and web tooling
   - make releases reproducible and reviewable
 - Define the foundation for AI-driven development:
-  - define repository-level conventions for `Skills` and `AGENT.md`
+  - define repository-level conventions for `Skills` and `AGENTS.md`
   - define which tasks AI agents may execute autonomously and where human review is required
   - make `xst` and TypeScript checks part of the minimum validation gate for autonomous changes
 - Capture baseline metrics:
@@ -93,7 +93,7 @@ Recommended outputs:
 - `docs/operations/build-pipeline.md`
 - `docs/operations/release-flow.md`
 - `docs/operations/ai-driven-development.md`
-- `AGENT.md`
+- `AGENTS.md`
 
 ### Phase 1: Browser-First Developer Experience
 
@@ -212,7 +212,7 @@ The roadmap should be reviewed against measurable outcomes, not only shipped fea
   - documented contracts for mod packaging, logs, and AI adapters
   - provider changes that mostly avoid application-level rewrites
 - AI-driven development:
-  - repository-level conventions exist for `Skills`, `AGENT.md`, and autonomous task boundaries
+  - repository-level conventions exist for `Skills`, `AGENTS.md`, and autonomous task boundaries
   - autonomous changes are gated by `xst` and TypeScript checks
 - Ecosystem growth:
   - browser tooling for faces and simple behaviors built on top of the same platform primitives

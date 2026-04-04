@@ -75,7 +75,7 @@
   - ファームウェア、mod、Web ツールのリリース境界を定義する
   - リリースを再現可能かつレビュー可能にする
 - AI駆動開発の基盤を定義する:
-  - リポジトリ単位の `Skills` と `AGENT.md` の規約を定義する
+  - リポジトリ単位の `Skills` と `AGENTS.md` の規約を定義する
   - AI エージェントが自走できる作業範囲と、人手レビューが必要な境界を定義する
   - 自走変更の最小検証ゲートとして `xst` と TypeScript の型チェックを組み込む
 - ベースライン指標を採取する:
@@ -93,7 +93,7 @@
 - `docs/operations/build-pipeline.md`
 - `docs/operations/release-flow.md`
 - `docs/operations/ai-driven-development.md`
-- `AGENT.md`
+- `AGENTS.md`
 
 ### Phase 1: Browser-first 開発体験
 
@@ -212,7 +212,7 @@
   - mod パッケージング、ログ、AI アダプタの契約が文書化されている
   - プロバイダ変更時に、アプリケーションレベルの書き換えを最小化できる
 - AI 駆動開発:
-  - `Skills`、`AGENT.md`、自走可能な作業境界についてリポジトリ規約が定義されている
+  - `Skills`、`AGENTS.md`、自走可能な作業境界についてリポジトリ規約が定義されている
   - 自走変更が `xst` と TypeScript の型チェックで検証される
 - エコシステム成長:
   - 顔や簡単な振る舞いのブラウザツールが、同一のプラットフォーム基盤上に構築されている

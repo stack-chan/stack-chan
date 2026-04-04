@@ -9,6 +9,7 @@ export type Effect = PiuContent
 
 type RendererOptions = {
   drawerButtons?: DrawerButtonSpec[]
+  displayListLength?: number
 }
 
 export function createRenderer(options?: RendererOptions): AppController {
@@ -18,7 +19,7 @@ export function createRenderer(options?: RendererOptions): AppController {
       appBar: new ChatStatusBar(),
       drawerButtons: options?.drawerButtons,
     },
-    { displayListLength: 4096, contents: [], Behavior: AppController },
+    { displayListLength: options?.displayListLength ?? 2048, contents: [], Behavior: AppController },
   )
   return application.behavior as AppController
 }

@@ -1,6 +1,6 @@
 import { ChatService, type ChatTool } from 'chat'
-import ChatAudioIO from 'mocks/ChatAudioIO'
 import { assert, equal } from 'mocks/assert'
+import ChatAudioIO from 'mocks/ChatAudioIO'
 
 trace('=== chat-service test ===\n')
 
@@ -22,7 +22,7 @@ const tools: Record<string, ChatTool> = {
 
 const states = []
 const service = new ChatService({
-  config: { specifier: 'openAIRealtime', modelID: 'gpt-realtime-mini' },
+  config: { type: 'openAIRealtime', modelID: 'gpt-realtime-mini' },
   tools,
   chatAudioIOCtor: ChatAudioIO,
   callbacks: {
@@ -31,12 +31,13 @@ const service = new ChatService({
 })
 
 const ChatAudioIOAny = ChatAudioIO as unknown as {
-  lastOptions?: { functions?: { name: string }[] }
+  lastOptions?: { specifier?: string; functions?: { name: string }[] }
   instances?: { emitState: (state: number) => void; lastText?: string; lastFunctionResult?: { call: string } }[]
   CONNECTED?: number
 }
 
 assert(ChatAudioIOAny.lastOptions, 'ChatAudioIO options should be captured')
+equal(ChatAudioIOAny.lastOptions?.specifier, 'openAIRealtime', 'chat type should map to ChatAudioIO specifier')
 equal(ChatAudioIOAny.lastOptions?.functions?.length ?? 0, 1, 'functions length')
 equal(ChatAudioIOAny.lastOptions?.functions?.[0]?.name, 'sample', 'function name')
 

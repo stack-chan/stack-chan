@@ -1,8 +1,8 @@
-import config from 'mc/config'
-import { ChatService } from 'chat'
 import { ImageFace } from 'behaviors/face'
+import { ChatService } from 'chat'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Emotion } from 'face-context'
+import config from 'mc/config'
 import Timer from 'timer'
 
 const DEFAULT_MOUTH_SCALE = 1 / 2000
@@ -15,12 +15,15 @@ const MOUTH_UPDATE_INTERVAL_MS = 40
 const MOUTH_QUANTIZE_STEP = 0.1
 
 export function onRobotCreated(robot) {
+  const rawChatConfig = config.chat ?? {}
   const chatConfig = {
-    ...config.chat,
-    instructions: config.chat?.instructions ?? 'あなたは丁寧なアシスタントロボットです。',
+    ...rawChatConfig,
+    instructions: rawChatConfig.instructions ?? 'あなたは丁寧なアシスタントロボットです。',
   }
-  if (!chatConfig?.specifier) {
-    trace('[chat_audioio] config.chat.specifier is missing. Chat disabled.\n')
+  if (!chatConfig?.type) {
+    trace(
+      '[chat_audioio] config.chat.type is missing. Set config.chat.type (for example "openAIRealtime"). Chat disabled.\n',
+    )
     return
   }
 

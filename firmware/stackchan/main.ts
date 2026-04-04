@@ -1,3 +1,4 @@
+import config from 'mc/config'
 import Modules from 'modules'
 import { Robot, type Driver, type TTS, type Renderer } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
@@ -17,6 +18,7 @@ import { Renderer as ImageFaceRenderer } from 'renderer-image'
 import { Renderer as DogFaceRenderer } from 'renderer-dog'
 import { Renderer as SmallFaceRenderer } from 'renderer-small'
 import { NetworkService } from 'network-service'
+import Touch from 'touch'
 import Microphone from 'microphone'
 import Tone from 'tone'
 import { asyncWait } from 'stackchan-util'
@@ -98,21 +100,7 @@ function createRobot() {
   const tts = new TTS(ttsPrefs)
   const button = globalThis.button
 
-  // TODO(@meganetaaan): screen.touch does not exist under Commodetto context. Is this check necessary?
-  interface GlobalEnvironment {
-    screen?: {
-      touch?: unknown
-    }
-    device?: {
-      sensor?: {
-        Touch?: unknown
-      }
-    }
-  }
-  const _globalEnv = globalThis as unknown as GlobalEnvironment
-  // const TouchConstructor = _globalEnv.device?.sensor?.Touch
-  // const touch = TouchConstructor ? new Touch(TouchConstructor) : undefined
-  const touch = undefined
+  const touch = config.Touch ? new Touch(config.Touch) : undefined
   const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined
   const tone = new Tone({ volume: ttsPrefs.volume })
 
@@ -152,10 +140,11 @@ async function checkAndConnectWiFi() {
 
 async function main() {
   if (globalThis.Host?.Button && !globalThis.button) {
+    const { a, b, c } = globalThis.Host.Button
     globalThis.button = {
-      a: new SimButton(globalThis.Host.Button.a),
-      b: new SimButton(globalThis.Host.Button.b),
-      c: new SimButton(globalThis.Host.Button.c),
+      ...(a && { a: new SimButton(a) }),
+      ...(b && { b: new SimButton(b) }),
+      ...(c && { c: new SimButton(c) }),
     }
   }
   await asyncWait(100)

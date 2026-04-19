@@ -3,9 +3,9 @@ import { asyncWait } from 'stackchan-util'
 
 // M5Stack + M5Go bottom
 const ledConfig = { pin: 15, length: 10 }
-// M5AStack Core / Core2 + NekomimiLED
+// M5Stack Core / Core2 + NekomimiLED
 // const ledConfig = { pin: 26, length: 18 }
-// M5AStack CoreS3 + NekomimiLED
+// M5Stack CoreS3 + NekomimiLED
 // const ledConfig = { pin: 9, length: 18 }
 // M5Atom S3 + NekomimiLED for Atom
 // const ledConfig = { pin: 38, length: 18 }

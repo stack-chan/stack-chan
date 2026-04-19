@@ -46,7 +46,7 @@ function asString(value: unknown, fallback: string): string {
 }
 
 function asNumber(value: unknown, fallback: number): number {
-  return typeof value === 'number' ? value : fallback
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
 function createRobot() {

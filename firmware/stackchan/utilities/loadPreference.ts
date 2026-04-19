@@ -4,12 +4,18 @@ import structuredClone from 'structuredClone'
 import config from 'mc/config'
 import Modules from 'modules'
 
-// biome-ignore lint/suspicious/noExplicitAny: Match the type definition of mc/config
-const modConfig: Record<string, any> = Modules.has('mod/config') ? Modules.importNow('mod/config') : {}
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+const importedModConfig = Modules.has('mod/config') ? Modules.importNow('mod/config') : undefined
+const modConfig: Record<string, unknown> = isRecord(importedModConfig) ? importedModConfig : {}
 
 export default function loadPreferences(category: keyof typeof DOMAIN) {
-  const mcPreference = structuredClone(config[category.toLowerCase()] ?? {})
-  const modPreference = structuredClone(modConfig[category.toLowerCase()] ?? {})
+  const mcConfigValue = config[category.toLowerCase()]
+  const modConfigValue = modConfig[category.toLowerCase()]
+  const mcPreference = structuredClone(isRecord(mcConfigValue) ? mcConfigValue : {})
+  const modPreference = structuredClone(isRecord(modConfigValue) ? modConfigValue : {})
 
   const preference = { ...mcPreference, ...modPreference }
 

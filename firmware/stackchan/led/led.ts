@@ -38,7 +38,7 @@ class Blink extends NeoStrandEffect {
   }
 
   activate(effect: NeoStrandEffect): void {
-    effect.timeline.on(effect, { effectValue: [0, effect.dur] }, effect.dur, null, 0)
+    effect.timeline.on(effect, { effectValue: [0, effect.dur] }, effect.dur, undefined, 0)
     effect.reset(effect)
   }
 

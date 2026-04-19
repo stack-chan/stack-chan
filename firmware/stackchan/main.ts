@@ -41,6 +41,14 @@ class SimButton {
   }
 }
 
+function asString(value: unknown, fallback: string): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+function asNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' ? value : fallback
+}
+
 function createRobot() {
   const drivers = new Map<string, new (param: unknown) => Driver>([
     ['scservo', SCServoDriver],
@@ -67,17 +75,17 @@ function createRobot() {
 
   // Servo Driver
   const driverPrefs = loadPreferences('driver')
-  const driverKey = driverPrefs.type ?? 'scservo'
+  const driverKey = asString(driverPrefs.type, 'scservo')
   const Driver = drivers.get(driverKey)
 
   // TTS
   const ttsPrefs = loadPreferences('tts')
-  const ttsKey = ttsPrefs.type ?? 'local'
+  const ttsKey = asString(ttsPrefs.type, 'local')
   const TTS = ttsEngines.get(ttsKey)
 
   // Renderer
   const rendererPrefs = loadPreferences('renderer')
-  const rendererKey = rendererPrefs.type ?? 'simple'
+  const rendererKey = asString(rendererPrefs.type, 'simple')
   const Renderer = renderers.get(rendererKey)
 
   if (!Driver || !TTS || !Renderer) {
@@ -100,7 +108,7 @@ function createRobot() {
 
   const touch = config.Touch ? new Touch(config.Touch) : undefined
   const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined
-  const tone = new Tone({ volume: ttsPrefs.volume })
+  const tone = new Tone({ volume: asNumber(ttsPrefs.volume, 100) })
 
   const configLed = loadPreferences('led')
   const led = Object.fromEntries(

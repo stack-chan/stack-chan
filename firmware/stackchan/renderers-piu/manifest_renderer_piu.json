@@ -38,7 +38,10 @@
     "*-alpha": [
       "../assets/images/microphone",
       "../assets/images/indicator",
-      "../assets/images/bubble",
+      {
+        "path": "balloon",
+        "source": "../../reference/moddable-avatar/assets/images/balloon"
+      },
       "../assets/images/faces/image-face/moddable-avatar/eye",
       "../assets/images/faces/image-face/moddable-avatar/eyelid",
       "../assets/images/faces/image-face/moddable-avatar/mouth"

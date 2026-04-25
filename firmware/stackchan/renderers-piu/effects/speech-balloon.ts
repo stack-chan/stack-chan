@@ -13,7 +13,7 @@ import {
   Texture,
 } from 'piu/MC'
 
-let bubbleTexture: PiuTexture | null = null
+let balloonTexture: PiuTexture | null = null
 
 const defaultOptions = {
   left: 16,
@@ -156,7 +156,7 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
       updatePalette(face: FaceContext) {
         currentFace = face
         if (!background || !bodyText) return
-        if (!bubbleTexture) bubbleTexture = new Texture('bubble.png')
+        if (!balloonTexture) balloonTexture = new Texture('balloon.png')
         const primary = face.theme.primary
         const secondary = face.theme.secondary
         if (primary === currentPrimary && secondary === currentSecondary) return
@@ -165,16 +165,16 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
         const bubbleColor = primary
         const textColor = secondary === bubbleColor ? '#000000' : secondary
         background.skin = new Skin({
-          texture: bubbleTexture,
+          texture: balloonTexture,
           color: [bubbleColor],
           x: 0,
           y: 0,
-          width: 204,
-          height: 332,
-          left: 24,
-          right: 24,
-          top: 12,
-          bottom: 12,
+          width: 80,
+          height: 40,
+          left: 8,
+          right: 8,
+          top: 8,
+          bottom: 8,
         })
         bodyText.style = new Style({ font: o.font, color: textColor, horizontal: 'left' })
       }

@@ -1,4 +1,5 @@
-html,body {
+html,
+body {
   height: 100%;
   margin: 0;
   padding: 0;
@@ -36,8 +37,25 @@ button {
   box-shadow: none;
 }
 
-.card h1,h2,h3,h4,h5,h6 {
+.card h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   margin: 0.3em 0;
+}
+
+.locale-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  align-self: flex-end;
+  margin: 0.5em;
+}
+
+.locale-selector select {
+  padding: 0.4em;
 }
 
 .form {
@@ -58,28 +76,32 @@ button {
   margin-right: 1em;
 }
 
-.form-group input,select,textarea {
+.form-group input,
+select,
+textarea {
   flex: 2;
   padding: 0.5em;
 }
 
-.card input,select,textarea {
+.card input,
+select,
+textarea {
   border: 1px solid #bdbdbd;
   border-radius: 4px;
 }
 
 button {
-  background-color: #2196F3;
+  background-color: #2196f3;
   color: white;
   padding: 0.7em 1em;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(.25, .8, .25, 1);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 button:hover {
-  background-color: #1976D2;
+  background-color: #1976d2;
 }
 
 .toast {
@@ -89,7 +111,7 @@ button:hover {
   top: 0;
   right: 0;
   max-width: 400px;
-  background-color: #388E3C;
+  background-color: #388e3c;
   color: white;
   visibility: hidden;
   transform: translateY(-100px);

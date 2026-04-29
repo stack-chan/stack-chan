@@ -1,0 +1,88 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/piu/MC/outline/manifest.json",
+    "$(MODULES)/commodetto/outline/manifest.json",
+    "../utilities/manifest_wasm_utility.json"
+  ],
+  "modules": {
+    "renderer-simple": "./renderer-simple",
+    "renderer-image": "./renderer-image",
+    "renderer-dog": "./renderer-dog",
+    "renderer-compat": "./renderer-compat",
+    "renderer-small": "./renderer-small",
+    "app-controller": "./app-controller",
+    "chat-status-bar": "./chat-status-bar",
+    "common-view": "./common-view",
+    "face-view": "./face-view",
+    "face-context": "./face-context",
+    "face-skin": "./face-skin",
+    "template": "./template",
+    "motions/*": "./motions/*",
+    "drawer": "./drawer",
+    "effects/speech-balloon": "./effects/speech-balloon",
+    "effects/*": "./effects/*",
+    "parts/image/*": "./parts/image/*",
+    "parts/dog/*": "./parts/dog/*",
+    "parts/*": "./parts/*",
+    "behaviors/*": "./behaviors/*",
+    "piuDie": "$(PIU)/MC/piuDie",
+    "piuFont": "$(PIU)/MC/piuFont",
+    "piuRegion": "$(PIU)/MC/piuRegion",
+    "piuTexture": "$(PIU)/MC/piuTexture",
+    "piuView": "$(PIU)/MC/piuView"
+  },
+  "resources": {
+    "*-alpha": [
+      "../assets/images/microphone",
+      "../assets/images/indicator",
+      "../assets/images/bubble",
+      "../assets/images/faces/image-face/moddable-avatar/eye",
+      "../assets/images/faces/image-face/moddable-avatar/eyelid",
+      "../assets/images/faces/image-face/moddable-avatar/mouth"
+    ],
+    "*-mask": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-20",
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"
+    ]
+  },
+  "preload": [
+    "piu/Application",
+    "piu/Behavior",
+    "piu/Color",
+    "piu/Column",
+    "piu/Container",
+    "piu/Content",
+    "piu/Label",
+    "piu/Layout",
+    "piu/Locals",
+    "piu/Port",
+    "piu/Rectangle",
+    "piu/Row",
+    "piu/Scroller",
+    "piu/Skin",
+    "piu/Style",
+    "piu/Text",
+    "piu/Timeline",
+    "piu/Transition",
+    "renderer-simple",
+    "renderer-image",
+    "renderer-dog",
+    "renderer-small",
+    "face-skin",
+    "piuDie",
+    "piuFont",
+    "piuRegion",
+    "piuTexture",
+    "piuView"
+  ],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

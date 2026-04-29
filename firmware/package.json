@@ -15,6 +15,7 @@
     "test": "npm run test:unit",
     "test:unit": "rm -rf dist-tests && tsc --project tsconfig.test.json && node --test dist-tests/tests/unit",
     "build": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target -t build ./stackchan/manifest_local.json",
+    "build:wasm": "mcconfig -d -m -p wasm -t build ./stackchan/manifest_wasm.json && mkdir -p ../web/simulator && cp $MODDABLE/build/bin/wasm/debug/stackchan/mc.js $MODDABLE/build/bin/wasm/debug/stackchan/mc.wasm ../web/simulator/",
     "bundle": "mcbundle -d -m ./stackchan/manifest.json",
     "deploy": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target -t deploy ./stackchan/manifest_local.json",
     "debug": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target ./stackchan/manifest_local.json",

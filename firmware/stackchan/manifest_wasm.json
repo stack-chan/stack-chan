@@ -1,0 +1,96 @@
+{
+  "defines": {
+    "XS_MODS": 1
+  },
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODULES)/base/modules/manifest.json",
+    "$(MODULES)/data/crc/manifest.json",
+    "./renderers-piu/manifest_wasm_renderer_piu.json",
+    "./utilities/manifest_wasm_utility.json",
+    "./manifest_typings.json"
+  ],
+  "modules": {
+    "*": [
+      "./touch",
+      "./robot",
+      "./main"
+    ],
+    "tone": "./wasm/tone",
+    "led": "./wasm/led",
+    "dynamixel-driver": "./drivers/wasm/dynamixel-driver",
+    "none-driver": "./drivers/wasm/none-driver",
+    "sg90-driver": "./drivers/wasm/sg90-driver",
+    "rs30x-driver": "./drivers/wasm/rs30x-driver",
+    "scservo-driver": "./drivers/wasm/scservo-driver",
+    "microphone": "./wasm/microphone",
+    "network-service": "./services/wasm/network-service",
+    "preference-server": "./services/wasm/preference-server",
+    "tts-local": "./speeches/wasm/tts-local",
+    "tts-remote": "./speeches/wasm/tts-remote",
+    "tts-voicevox": "./speeches/wasm/tts-voicevox",
+    "tts-voicevox-web": "./speeches/wasm/tts-voicevox-web",
+    "tts-elevenlabs": "./speeches/wasm/tts-elevenlabs",
+    "tts-openai": "./speeches/wasm/tts-openai",
+    "default-mods/on-launch": "./default-mods/wasm/on-launch",
+    "default-mods/*": "./default-mods/*"
+  },
+  "preload": ["robot"],
+  "strip": [],
+  "creation": {
+    "static": 442368,
+    "chunk": {
+      "initial": 8192,
+      "incremental": 2048
+    },
+    "heap": {
+      "initial": 512,
+      "incremental": 64
+    },
+    "stack": 512,
+    "keys": {
+      "available": 512
+    }
+  },
+  "config": {
+    "wasm": true,
+    "driver": {
+      "type": "none"
+    },
+    "tts": {
+      "type": "local"
+    },
+    "renderer": {
+      "type": "simple"
+    }
+  },
+  "resources": {
+    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
+    "*-alpha": [
+      {
+        "source": "./assets/fonts/k8x12",
+        "size": 12,
+        "blocks": [
+          "Basic Latin",
+          "Hiragana",
+          "Katakana",
+          "CJK Unified Ideographs",
+          "CJK Symbols and Punctuation",
+          "Halfwidth and Fullwidth Forms"
+        ],
+        "monochrome": true
+      }
+    ]
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "strictPropertyInitialization": false,
+        "strictFunctionTypes": false
+      }
+    }
+  }
+}

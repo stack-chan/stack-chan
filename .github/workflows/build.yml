@@ -6,6 +6,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
+        with:
+          # Pin Moddable to the SDK revision used for the WASM build validation.
+          target-branch: b0411457e4577ea5560c780cb7824f3b00c2b2af
       - name: Check Format
         run: npm run format
         working-directory: ./firmware

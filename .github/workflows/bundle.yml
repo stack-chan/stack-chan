@@ -26,6 +26,9 @@ jobs:
       - name: Setup
         if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup
+        with:
+          # Pin Moddable so ESP32 bundling and WASM builds use a validated SDK revision.
+          target-branch: b0411457e4577ea5560c780cb7824f3b00c2b2af
       - name: Bundle
         if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle

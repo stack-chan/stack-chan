@@ -21,6 +21,11 @@ runs:
     - run: npm ci
       working-directory: ./firmware
       shell: bash
+    - name: Install Moddable host build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libglib2.0-dev pkg-config
+      shell: bash
     - name: check latest release tag of Moddable
       if: inputs.target-branch == ''
       run: |

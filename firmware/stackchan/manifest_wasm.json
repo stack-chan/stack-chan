@@ -12,11 +12,7 @@
     "./manifest_typings.json"
   ],
   "modules": {
-    "*": [
-      "./touch",
-      "./robot",
-      "./main"
-    ],
+    "*": ["./touch", "./robot", "./main"],
     "tone": "./wasm/tone",
     "led": "./wasm/led",
     "dynamixel-driver": "./drivers/wasm/dynamixel-driver",

@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "Stack-chan development server",
   "scripts": {
-    "dev": "live-server --verbose"
+    "dev": "live-server --verbose",
+    "test": "node --test simulator/*.test.mjs"
   },
   "keywords": [],
   "author": "Shinya Ishikawa",

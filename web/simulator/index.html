@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stack-chan Web Simulator</title>
+    <link rel="stylesheet" href="./simulator.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.164.1/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <p class="eyebrow">Stack-chan Web Simulator</p>
+        <h1>ししかわ版ｽﾀｯｸﾁｬﾝ</h1>
+        <p>
+          firmware/stackchan の WASM 画面を、54mm × 54mm × 54mm・4mm角丸の3Dボディ前面に貼り付けて表示します。ドラッグで視点を回せます。
+        </p>
+      </section>
+
+      <section class="simulator-layout">
+        <div class="viewport-card">
+          <canvas id="stackchan-viewport" aria-label="3D Stack-chan simulator"></canvas>
+          <canvas id="simulator-screen" width="320" height="240" aria-label="Stack-chan screen canvas"></canvas>
+        </div>
+
+        <aside class="control-card">
+          <h2>Bridge</h2>
+          <p id="simulator-info">Loading WASM…</p>
+          <div class="controls">
+            <button id="button-a" type="button">A: キョロキョロ</button>
+            <button id="button-b" type="button">B: サーボ動作</button>
+            <button id="button-c" type="button">C: 色変更</button>
+            <button id="speech-toggle" type="button" aria-pressed="false">喋る</button>
+          </div>
+          <p class="note">
+            A/B/C は firmware 側の Host.Button に渡し、HTML 側でも同じイベントを3Dモーションへブリッジします。顔は2軸で、左右前後中央を軸にパンしてから、上下前後中央を軸にチルトします。3Dビューはドラッグで回転、ホイールでズームできます。
+          </p>
+        </aside>
+      </section>
+    </main>
+
+    <script type="module" src="./simulator.mjs"></script>
+  </body>
+</html>

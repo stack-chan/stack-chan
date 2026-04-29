@@ -6,6 +6,8 @@ on:
   pull_request:
     branches:
       - dev/v1.0
+      # Allow the stacked PR that targets the WASM build-support branch to run.
+      - feat/wasm-stackchan-build
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,12 +30,27 @@ jobs:
         if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
         working-directory: ./firmware
+      - name: Setup Emscripten for WASM simulator
+        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.2
+      - name: Build WASM simulator firmware
+        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
+        working-directory: ./firmware
       - name: Upload Firmware Bundle
         if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: firmware-bundle
           path: ./firmware/stackchan/tech.moddable.stackchan
+      - name: Upload WASM Simulator
+        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-simulator
+          path: ./web/simulator
 
   deploy:
     needs: build
@@ -49,11 +66,21 @@ jobs:
         with:
           name: firmware-bundle
           path: ./firmware-bundle
+      - name: Download WASM Simulator
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-simulator
+          path: ./wasm-simulator
       - name: Move Bundle
         run: |
           mkdir -p ./web/flash/tech.moddable.stackchan
           rm -rf ./web/flash/tech.moddable.stackchan/*
           mv firmware-bundle/* ./web/flash/tech.moddable.stackchan
+      - name: Move WASM Simulator
+        run: |
+          mkdir -p ./web/simulator
+          rm -rf ./web/simulator/*
+          mv wasm-simulator/* ./web/simulator
       - name: Commit and Push
         run: |
           git config --global user.name 'GitHub Action'

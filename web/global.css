@@ -11,11 +11,25 @@ body {
 
 .app {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-around;
+}
+
+.dev-home {
+  box-sizing: border-box;
+  padding: 2rem;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.app-icon {
+  display: block;
+  width: min(240px, 70vw);
+  height: auto;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
 }
 
 .card {

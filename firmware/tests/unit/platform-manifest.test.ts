@@ -18,6 +18,7 @@ describe('Stack-chan platform manifest', () => {
   test('keeps M5StackChan CoreS3 platform wiring on the PY32 servo power and head LED paths', () => {
     assert.deepEqual(m5StackChanPlatformManifest.include, [
       '$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json',
+      '$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json',
     ])
     assert.equal(m5StackChanPlatformManifest.config.driver.type, 'm5stackchan')
     assert.deepEqual(m5StackChanPlatformManifest.config.driver.serial, {

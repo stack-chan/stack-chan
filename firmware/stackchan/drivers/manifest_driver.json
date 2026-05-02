@@ -11,6 +11,8 @@
   "preload": [
     "dynamixel",
     "dynamixel-driver",
+    "m5stackchan-servo",
+    "m5stackchan-servo-driver",
     "none-driver",
     "rs30x-driver",
     "scservo-driver",

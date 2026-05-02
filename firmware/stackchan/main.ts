@@ -2,6 +2,7 @@ import loadPreferences from 'loadPreference'
 import defaultMod, { type StackchanMod } from 'default-mods/mod'
 import { DynamixelDriver } from 'dynamixel-driver'
 import Led from 'led'
+import { M5StackChanServoDriver } from 'm5stackchan-servo-driver'
 import config from 'mc/config'
 import Microphone from 'microphone'
 import Modules from 'modules'
@@ -65,6 +66,10 @@ class SimButton {
 
 function createRobot() {
   const drivers = new Map<string, (param: unknown) => Driver>([
+    [
+      'm5stackchan',
+      (param) => new M5StackChanServoDriver(param as ConstructorParameters<typeof M5StackChanServoDriver>[0]),
+    ],
     ['scservo', (param) => new SCServoDriver(param as ConstructorParameters<typeof SCServoDriver>[0])],
     ['dynamixel', (param) => new DynamixelDriver(param as ConstructorParameters<typeof DynamixelDriver>[0])],
     ['pwm', (param) => new PWMServoDriver(param as ConstructorParameters<typeof PWMServoDriver>[0])],

@@ -187,7 +187,7 @@ class SCServo {
       packetHandler = new PacketHandler({
         receive: config.serial?.receive ?? 16,
         transmit: config.serial?.transmit ?? 17,
-        baud: 1_000_000,
+        baud: config.serial?.baud ?? 1_000_000,
         port: 2,
       })
     }
@@ -329,7 +329,7 @@ class SCServo {
    */
   async setAngle(angle: number): Promise<unknown> {
     const a = Math.floor(clamp(((angle + this.#offset) * 1024) / 200, 0, 0x03ff))
-    return this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, ...le(a))
+    return this.setRawPosition(a)
   }
 
   /**
@@ -341,8 +341,18 @@ class SCServo {
   async setAngleInTime(angle: number, goalTime: number): Promise<unknown> {
     // 0 <= a <= 1023
     const a = Math.floor(clamp(((angle + this.#offset) * 1024) / 200, 0, 0x03ff))
-    const res = await this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, ...le(a), ...le(goalTime))
+    const res = await this.setRawPositionInTime(a, goalTime)
     return res
+  }
+
+  async setRawPosition(rawPosition: number): Promise<unknown> {
+    const position = Math.floor(clamp(rawPosition, 0, 0x03ff))
+    return this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, ...le(position))
+  }
+
+  async setRawPositionInTime(rawPosition: number, goalTime: number): Promise<unknown> {
+    const position = Math.floor(clamp(rawPosition, 0, 0x03ff))
+    return this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, ...le(position), ...le(goalTime))
   }
 
   /**

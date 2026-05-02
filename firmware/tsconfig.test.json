@@ -2,7 +2,10 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist-tests",
+    "noEmit": false,
+    "rewriteRelativeImportExtensions": true,
     "allowJs": false,
+    "checkJs": false,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "types": ["node"],
@@ -10,6 +13,7 @@
   },
   "include": [
     "stackchan/drivers/payload-buffer.ts",
+    "stackchan/drivers/m5stackchan-servo.ts",
     "tests/unit/**/*.ts"
   ],
   "exclude": []

@@ -2,9 +2,9 @@ name: Setup
 description: Setup Node.js, ModdableSDK and ESP-IDF environments
 inputs:
   target-branch:
-    description: "Target branch to setup environment"
+    description: "Target branch or tag to setup environment"
     required: false
-    default: ""
+    default: "8.0.0"
 runs:
   using: composite
   steps:
@@ -21,17 +21,24 @@ runs:
     - run: npm ci
       working-directory: ./firmware
       shell: bash
-    - name: check latest release tag of Moddable
-      if: inputs.target-branch == ''
+    - name: Install Moddable Linux tool dependencies
       run: |
-        API_URL="https://api.github.com/repos/Moddable-OpenSource/moddable/commits/public"
-        RESPONSE=$(curl -s -H "Authorization: Bearer ${{ github.token }}" $API_URL)
-        LATEST_COMMIT=$(echo $RESPONSE | jq -r '.sha' | cut -c1-12)
-        echo "Latest commit of Moddable: $LATEST_COMMIT"
-        echo "moddable_cache_key=${{ runner.os }}-moddable-$LATEST_COMMIT" >> $GITHUB_ENV
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libfreetype6-dev
       shell: bash
-    - name: Restore cache of Moddale and ESP32
-      if: inputs.target-branch == ''
+    - name: Resolve Moddable cache key
+      run: |
+        if [ -z "${{ inputs.target-branch }}" ]; then
+          API_URL="https://api.github.com/repos/Moddable-OpenSource/moddable/commits/public"
+          RESPONSE=$(curl -s "$API_URL")
+          MODDABLE_REF=$(echo "$RESPONSE" | jq -r '.sha' | cut -c1-12)
+        else
+          MODDABLE_REF="${{ inputs.target-branch }}"
+        fi
+        echo "Moddable ref: $MODDABLE_REF"
+        echo "moddable_cache_key=${{ runner.os }}-moddable-$MODDABLE_REF" >> $GITHUB_ENV
+      shell: bash
+    - name: Restore cache of Moddable and ESP32
       id: restore-cache-moddable
       uses: actions/cache/restore@v4
       with:
@@ -43,10 +50,10 @@ runs:
       if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
-        if [ -z "${{ inputs.target-branch }}" ]; then
-          npm run setup
-        else
-          npm run setup -- --target-branch ${{ inputs.target-branch }}
+        npm run setup
+        if [ -n "${{ inputs.target-branch }}" ]; then
+          git -C "$HOME/.local/share/moddable" fetch --tags origin "${{ inputs.target-branch }}"
+          git -C "$HOME/.local/share/moddable" checkout --detach FETCH_HEAD
         fi
       working-directory: ./firmware
       shell: bash
@@ -66,8 +73,8 @@ runs:
         cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
         printf '\nexport FONTBM=%s\n' "$HOME/.local/share/fontbm/build/fontbm" >> $HOME/.local/share/xs-dev-export.sh
       shell: bash
-    - name: Save cache of Moddale and ESP32
-      if: inputs.target-branch == '' && steps.restore-cache-moddable.outputs.cache-hit != 'true'
+    - name: Save cache of Moddable and ESP32
+      if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
       id: save-cache-moddable
       continue-on-error: true
       uses: actions/cache/save@v4

@@ -230,5 +230,12 @@
         }
       }
     }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
   }
 }

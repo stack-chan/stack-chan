@@ -1,10 +1,17 @@
-import type { Container as PiuContainer, Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 import { Outline } from 'commodetto/outline'
 import { defaultFaceContext, type FaceContext } from 'face-context'
+import type { Container as PiuContainer, Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
+import type { Shape as PiuShape } from 'piu/shape'
+import { defineShapeTemplate } from 'template'
 
 export type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy'
 
-type WithSkin = PiuContent & { skin?: PiuSkin; fillOutline?: unknown; strokeOutline?: unknown }
+type WithSkin = PiuContent &
+  Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
+    skin?: PiuSkin
+    fillOutline?: unknown
+    strokeOutline?: unknown
+  }
 
 type OutlinePath = {
   moveTo(x: number, y: number): void
@@ -511,7 +518,7 @@ class SleepyBubbleBehavior extends Behavior {
   }
 }
 
-const Heart = Shape.template((opts: EmoticonOptions) => ({
+const Heart = defineShapeTemplate((opts: EmoticonOptions) => ({
   left: opts.left ?? 12,
   right: opts.right,
   top: opts.top ?? 12,
@@ -525,7 +532,7 @@ const Heart = Shape.template((opts: EmoticonOptions) => ({
   },
 }))
 
-const Angry = Shape.template((opts: EmoticonOptions) => ({
+const Angry = defineShapeTemplate((opts: EmoticonOptions) => ({
   left: opts.left ?? 12,
   right: opts.right,
   top: opts.top ?? 12,
@@ -539,7 +546,7 @@ const Angry = Shape.template((opts: EmoticonOptions) => ({
   },
 }))
 
-const Sweat = Shape.template((opts: EmoticonOptions) => ({
+const Sweat = defineShapeTemplate((opts: EmoticonOptions) => ({
   left: opts.left ?? 8,
   right: opts.right,
   top: opts.top ?? 10,
@@ -553,7 +560,7 @@ const Sweat = Shape.template((opts: EmoticonOptions) => ({
   },
 }))
 
-const Tear = Shape.template((opts: EmoticonOptions) => ({
+const Tear = defineShapeTemplate((opts: EmoticonOptions) => ({
   left: opts.left ?? 60,
   right: opts.right,
   top: opts.top ?? 96,

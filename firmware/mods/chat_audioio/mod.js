@@ -220,9 +220,9 @@ export function onRobotCreated(robot) {
     specifier: rawChatConfig.specifier ?? 'openAIRealtime',
     instructions: rawChatConfig.instructions ?? INSTRUCTION_B,
   }
-  if (!chatConfig?.type) {
+  if (typeof chatConfig?.type !== 'string' || chatConfig.type.length === 0) {
     trace(
-      '[chat_audioio] config.chat.type is missing. Set config.chat.type (for example "openAIRealtime"). Chat disabled.\n',
+      '[chat_audioio] config.chat.type must be a non-empty string. Set config.chat.type (for example "openAIRealtime"). Chat disabled.\n',
     )
     return
   }

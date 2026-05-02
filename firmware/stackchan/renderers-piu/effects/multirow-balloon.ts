@@ -1,6 +1,7 @@
 import { Outline } from 'commodetto/outline'
-import type { Container as PiuContainer, Content as PiuContent, Style as PiuStyle, Text as PiuText } from 'piu/MC'
 import { defaultFaceContext, type FaceContext } from 'face-context'
+import type { Container as PiuContainer, Content as PiuContent, Style as PiuStyle, Text as PiuText } from 'piu/MC'
+import type { Shape as PiuShape } from 'piu/shape'
 
 const defaultOptions = {
   left: 0,
@@ -33,7 +34,8 @@ type MultiRowBalloonOptions = {
   lineHeight?: number
 }
 
-type WithShape = PiuContent & { fillOutline?: unknown; strokeOutline?: unknown; skin?: unknown }
+type WithShape = PiuContent &
+  Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & { fillOutline?: unknown; strokeOutline?: unknown; skin?: unknown }
 type BodyText = PiuText
 
 export const MultiRowBalloon = Container.template((opts: MultiRowBalloonOptions = {}) => {

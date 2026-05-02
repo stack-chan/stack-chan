@@ -1,8 +1,9 @@
+import { Outline } from 'commodetto/outline'
+import { defaultFaceContext, type FaceContext } from 'face-context'
+import type { FaceSkinPalette } from 'face-skin'
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
-import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, type FaceContext } from '../../face-context'
-import type { FaceSkinPalette } from 'face-skin'
+import { defineShapeTemplate } from 'template'
 
 export type EyebrowOptions = {
   cx: number
@@ -12,9 +13,14 @@ export type EyebrowOptions = {
   canvasHeight?: number
 }
 
-type PositionedShape = PiuShape & { skin?: PiuSkin; state?: number }
+type PositionedShape = Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
+  skin?: PiuSkin
+  state?: number
+  fillOutline?: Outline
+  strokeOutline?: Outline
+}
 
-export const DogEyebrow = Shape.template((opts: EyebrowOptions) => {
+export const DogEyebrow = defineShapeTemplate((opts: EyebrowOptions) => {
   const { cx, cy, side, canvasWidth = 320, canvasHeight = 120 } = opts
   const direction = side === 'left' ? 1 : -1
   return {

@@ -42,6 +42,10 @@ This repository includes all the component of the robot.
 
 * See [firmware/README.md](./firmware/README.md)
 
+## Planning
+
+* Development roadmap: [docs/ROADMAP.md](./docs/ROADMAP.md)
+
 ## Contribution
 
 __Feature requests/Bug reports__ are extremely welcome! See [issues](https://github.com/stack-chan/stack-chan/issues) page to post some.

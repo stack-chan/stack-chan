@@ -17,5 +17,15 @@
     "sg90-driver",
     "payload-buffer",
     "internal/single-wait-slot"
-  ]
+  ],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "strictPropertyInitialization": false,
+        "strictFunctionTypes": false
+      }
+    }
+  }
 }

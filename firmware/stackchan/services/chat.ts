@@ -160,16 +160,17 @@ export class ChatService {
       providerID: config.providerID,
       modelID: config.modelID,
       functions: functions.length > 0 ? functions : undefined,
-      onStateChanged: (state) => {
+      onStateChanged: (state: number) => {
         this.#state = mapState(state)
         this.#error = this.#chat.error ?? ''
         this.#callbacks.onStateChanged(this.#state, this.#error || undefined)
       },
-      onInputLevelChanged: (level) => this.#callbacks.onInputLevelChanged(level),
-      onOutputLevelChanged: (level) => this.#callbacks.onOutputLevelChanged(level),
-      onInputTranscript: (text, more) => this.#callbacks.onInputTranscript(text, more),
-      onOutputTranscript: (text, more) => this.#callbacks.onOutputTranscript(text, more),
-      onFunctionCall: (call, name, params) => this.#callbacks.onFunctionCall(call, name, params),
+      onInputLevelChanged: (level: number) => this.#callbacks.onInputLevelChanged(level),
+      onOutputLevelChanged: (level: number) => this.#callbacks.onOutputLevelChanged(level),
+      onInputTranscript: (text: string, more: boolean) => this.#callbacks.onInputTranscript(text, more),
+      onOutputTranscript: (text: string, more: boolean) => this.#callbacks.onOutputTranscript(text, more),
+      onFunctionCall: (call: string, name: string, params: Record<string, unknown>) =>
+        this.#callbacks.onFunctionCall(call, name, params),
     })
   }
 

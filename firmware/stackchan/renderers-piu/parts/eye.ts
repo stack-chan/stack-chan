@@ -3,6 +3,7 @@ import { defaultFaceContext, type FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
 import type { Container as PiuContainer, Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
+import { defineShapeTemplate } from 'template'
 
 export type EyeOptions = {
   cx: number
@@ -27,19 +28,21 @@ export type EyelidOptions = {
   side: keyof FaceContext['eyes']
 }
 
-type PositionedShape = PiuShape & {
+type PositionedShape = Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
   left: number
   top: number
   width: number
   height: number
   skin?: PiuSkin
   state?: number
+  fillOutline?: Outline
+  strokeOutline?: Outline
 }
 type PositionedContent = PiuShape & {
   coordinates?: { left?: number; top?: number; width?: number; height?: number }
 }
 
-export const Eyelid = Shape.template((opts: EyelidOptions) => {
+export const Eyelid = defineShapeTemplate((opts: EyelidOptions) => {
   const width = opts.width
   const height = opts.height
   const side = opts.side
@@ -110,7 +113,7 @@ export const Eyelid = Shape.template((opts: EyelidOptions) => {
   }
 })
 
-const Iris = Shape.template((opts: IrisOptions) => {
+const Iris = defineShapeTemplate((opts: IrisOptions) => {
   const radius = opts.radius
   const diameter = radius * 2
   return {
@@ -152,17 +155,14 @@ export const Eye = Container.template((opts: EyeOptions) => {
   const irisBaseLeft = (width - diameter) / 2
   const irisBaseTop = (height - diameter) / 2
   const irisBaseCoordinates = { left: irisBaseLeft, top: irisBaseTop, width: diameter, height: diameter }
-  const eyelid = new Eyelid(
-    {
-      cx: width / 2,
-      cy: height / 2,
-      width: eyelidWidth,
-      height: eyelidHeight,
-      side: opts.side,
-    },
-    null,
-  )
-  const iris = new Iris({ radius, left: irisBaseLeft, top: irisBaseTop }, null) as PositionedContent
+  const eyelid = new Eyelid({
+    cx: width / 2,
+    cy: height / 2,
+    width: eyelidWidth,
+    height: eyelidHeight,
+    side: opts.side,
+  })
+  const iris = new Iris({ radius, left: irisBaseLeft, top: irisBaseTop }) as PositionedContent
   return {
     clip: true,
     left: opts.cx - width / 2,

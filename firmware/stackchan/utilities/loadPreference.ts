@@ -5,7 +5,9 @@ import config from 'mc/config'
 import Modules from 'modules'
 
 // biome-ignore lint/suspicious/noExplicitAny: Match the type definition of mc/config
-const modConfig: Record<string, any> = Modules.has('mod/config') ? Modules.importNow('mod/config') : {}
+type ConfigRecord = Record<string, any>
+
+const modConfig: ConfigRecord = Modules.has('mod/config') ? (Modules.importNow('mod/config') as ConfigRecord) : {}
 
 export default function loadPreferences(category: keyof typeof DOMAIN) {
   const mcPreference = structuredClone(config[category.toLowerCase()] ?? {})

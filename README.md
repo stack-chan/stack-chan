@@ -1,7 +1,7 @@
 # Stack-chan
 
 [![Build Stack-chan Firmware](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml/badge.svg)](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml)
-[![Discord server invitation](https://dcbadge.vercel.app/api/server/eGhd9adnBm)](https://discord.gg/eGhd9adnBm)
+[![Discord server invitation](https://img.shields.io/badge/Discord-Join%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/eGhd9adnBm)
 
 [日本語](./README_ja.md)
 
@@ -41,6 +41,10 @@ This repository includes all the component of the robot.
 ### Flash firmware to M5Stack
 
 * See [firmware/README.md](./firmware/README.md)
+
+## Planning
+
+* Development roadmap: [docs/ROADMAP.md](./docs/ROADMAP.md)
 
 ## Contribution
 

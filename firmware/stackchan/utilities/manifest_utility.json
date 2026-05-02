@@ -36,5 +36,13 @@
         "embedded:io/pwm": "sim/pwm"
       }
     }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "noImplicitThis": false
+      }
+    }
   }
 }

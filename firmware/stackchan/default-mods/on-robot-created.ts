@@ -1,10 +1,10 @@
-import type { StackchanMod } from 'default-mods/mod'
-import Timer from 'timer'
-import { randomBetween, asyncWait } from 'stackchan-util'
-import { Emotion } from 'face-context'
 import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
+import type { StackchanMod } from 'default-mods/mod'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
+import { Emotion } from 'face-context'
 import type { Content as PiuContent } from 'piu/MC'
+import { asyncWait, randomBetween } from 'stackchan-util'
+import Timer from 'timer'
 
 const FORWARD = {
   y: 0,
@@ -35,6 +35,12 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   let emoticonEffect: PiuContent | null = null
 
   let faceMode: 'simple' | 'dog' | 'image' = 'simple'
+  const syncFaceMode = (
+    app = robot.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined,
+  ) => {
+    robot.application.setDrawerButtonState('toggleFace', faceMode !== 'simple')
+    app?.distribute?.('onFaceMode', faceMode)
+  }
   robot.application.addDrawerButton({
     key: 'toggleFace',
     label: 'Face',
@@ -45,11 +51,11 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
       const nextFace =
         faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
       target.renderer?.setFace?.(nextFace)
-      robot.application.setDrawerButtonState('toggleFace', faceMode !== 'simple')
       const app = target.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined
-      app?.distribute?.('onFaceMode', faceMode)
+      syncFaceMode(app)
     },
   })
+  syncFaceMode()
   robot.application.addDrawerButton({
     key: 'cycleEmotion',
     label: 'Emotion',

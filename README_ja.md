@@ -1,7 +1,7 @@
 # ｽﾀｯｸﾁｬﾝ(Stack-chan)
 
 [![ファームウェアのビルド](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml/badge.svg)](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml)
-[![Discordサーバへの招待](https://dcbadge.vercel.app/api/server/eGhd9adnBm)](https://discord.gg/eGhd9adnBm)
+[![Discordサーバへの招待](https://img.shields.io/badge/Discord-Join%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/eGhd9adnBm)
 
 [English](./README.md)
 
@@ -41,6 +41,10 @@
 ### ファームウェアをM5Stackに書き込む
 
 * [firmware/README_ja.md](./firmware/README_ja.md)を参照ください。
+
+## 開発計画
+
+* 開発ロードマップ: [docs/ROADMAP_ja.md](./docs/ROADMAP_ja.md)
 
 ## コントリビューション
 

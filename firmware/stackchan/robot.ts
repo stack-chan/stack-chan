@@ -282,6 +282,15 @@ export class Robot {
   }
 
   /**
+   * get LED
+   *
+   * @returns Led instances
+   */
+  get led() {
+    return this.#led
+  }
+
+  /**
    * let the robot say things
    *
    * @param text - the key or speech text itself to say
@@ -603,5 +612,70 @@ export class Robot {
       }
     }
     this.updating = false
+  }
+
+  /**
+   * Turns on an Led with the specified color and optional animation parameters.
+   * @param ledName - The name identifier of the Led to control
+   * @param r - Red color value (0-255)
+   * @param g - Green color value (0-255)
+   * @param b - Blue color value (0-255)
+   * @param duration - Optional duration in milliseconds for the animation
+   * @param index - Optional starting index for the Led animation
+   * @param count - Optional number of LEDs to animate
+   */
+  lightOn(ledName: string, r: number, g: number, b: number, duration?: number, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.on(r, g, b, duration, index, count)
+    }
+  }
+
+  /**
+   * Turns off the specified Led.
+   *
+   * @param ledName - The name of the Led to turn off.
+   * @param index - Optional index of the Led to turn off. If not provided, all LEDs of the specified name will be turned off.
+   * @param count - Optional number of Led to turn off starting from the index. If not provided, all LEDs will be turned off.
+   *
+   * @remarks
+   * This method checks if the Led with the given name exists before attempting to turn it off.
+   */
+  lightOff(ledName: string, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.off(index, count)
+    }
+  }
+
+  /**
+   * Blinks an Led with the specified color and interval.
+   *
+   * @param ledName - The name of the Led to blink.
+   * @param r - The red component of the color (0-255).
+   * @param g - The green component of the color (0-255).
+   * @param b - The blue component of the color (0-255).
+   * @param duration - The time in milliseconds between blinks.
+   * @param index - Optional index to specify which Led to control if multiple LEDs are present.
+   * @param count - Optional number of LEDs to blink. If not provided, it will affect all LEDs from the index to the end.
+   */
+  lightBlink(ledName: string, r: number, g: number, b: number, duration: number, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.blink(r, g, b, duration, index, count)
+    }
+  }
+
+  /**
+   * Displays a rainbow light effect on the specified Led.
+   * @param ledName - The name of the Led to apply the rainbow effect to.
+   * @param index - Optional starting index for the rainbow effect.
+   * @param count - Optional number of Leds to apply the rainbow effect to.
+   */
+  lightRainbow(ledName: string, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.rainbow(index, count)
+    }
   }
 }

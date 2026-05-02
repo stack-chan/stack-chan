@@ -1,7 +1,9 @@
+import { Outline } from 'commodetto/outline'
+import { defaultFaceContext, type FaceContext } from 'face-context'
+import type { FaceSkinPalette } from 'face-skin'
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
-import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, type FaceContext } from '../../face-context'
+import { defineShapeTemplate } from 'template'
 
 export type DogNoseOptions = {
   cx: number
@@ -12,9 +14,14 @@ export type DogNoseOptions = {
   canvasHeight?: number
 }
 
-type PositionedShape = PiuShape & { skin?: PiuSkin }
+type PositionedShape = Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
+  skin?: PiuSkin
+  state?: number
+  fillOutline?: Outline
+  strokeOutline?: Outline
+}
 
-export const DogNose = Shape.template((opts: DogNoseOptions) => {
+export const DogNose = defineShapeTemplate((opts: DogNoseOptions) => {
   const { cx, cy, minHeight = 8, maxHeight = 24, canvasWidth = 320, canvasHeight = 200 } = opts
   return {
     left: 0,
@@ -24,12 +31,15 @@ export const DogNose = Shape.template((opts: DogNoseOptions) => {
     skin: new Skin({ fill: defaultFaceContext.theme.primary }),
     Behavior: class extends Behavior {
       lastOpen = -1
-      lastPrimary: string | null = null
+      palette: FaceSkinPalette | null = null
+      onFaceSkin(shape: PositionedShape, palette: FaceSkinPalette) {
+        this.palette = palette
+        shape.skin = palette.palette
+        shape.state = palette.primaryState
+      }
       updateSkin(shape: PositionedShape, face: FaceContext) {
-        const primary = face.theme.primary
-        if (primary === this.lastPrimary) return
-        this.lastPrimary = primary
-        shape.skin = new Skin({ fill: primary, stroke: primary })
+        if (this.palette) return
+        shape.skin = new Skin({ fill: face.theme.primary, stroke: face.theme.primary })
       }
       updatePath(shape: PositionedShape, open: number) {
         this.lastOpen = open

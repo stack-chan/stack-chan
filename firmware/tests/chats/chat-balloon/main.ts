@@ -1,7 +1,7 @@
-import { Application, type Content, Skin, Style } from 'piu/MC'
 import { SpeechBalloon } from 'effects/speech-balloon'
-import { defaultFaceContext, type FaceContext } from 'face-context'
-import { assert } from 'mocks/assert'
+import { createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
+import { assert, equal } from 'mocks/assert'
+import { Application, type Content, Skin, Style } from 'piu/MC'
 import Timer from 'timer'
 
 trace('=== chat-balloon test ===\n')
@@ -37,7 +37,19 @@ type BalloonBehavior = {
 }
 
 type BalloonContent = {
+  first?: BalloonNode | null
   behavior?: BalloonBehavior
+}
+
+type BalloonNode = Content & {
+  next?: BalloonNode | null
+  skin?: { color?: string | string[] | null } | null
+  style?: { color?: string | string[] | null } | null
+}
+
+function resolveColor(color: string | string[] | null | undefined): string | null {
+  if (Array.isArray(color)) return color[0] ?? null
+  return color ?? null
 }
 
 // Force behavior initialization
@@ -49,6 +61,34 @@ fixedBalloonAny.behavior?.setText?.(fixedBalloon, '固定表示の Balloon で�
 const streamBalloonAny = streamBalloon as unknown as BalloonContent
 streamBalloonAny.behavior?.onDisplaying?.(streamBalloon)
 streamBalloonAny.behavior?.onFaceContext?.(streamBalloon, defaultFaceContext)
+
+const themedFace = createFaceContext()
+themedFace.theme.primary = '#123456'
+themedFace.theme.secondary = '#abcdef'
+streamBalloonAny.behavior?.onFaceContext?.(streamBalloon, themedFace)
+
+const themedBackground = streamBalloonAny.first as BalloonNode
+const themedText = themedBackground.next as BalloonNode
+equal(resolveColor(themedBackground.skin?.color), themedFace.theme.primary, 'balloon should use themed bubble color')
+equal(resolveColor(themedText.style?.color), themedFace.theme.secondary, 'balloon should use themed text color')
+
+streamBalloon.width = Math.max(64, streamBalloon.width - 32)
+streamBalloonAny.behavior?.onDisplaying?.(streamBalloon)
+
+const rebuiltBackground = streamBalloonAny.first as BalloonNode
+const rebuiltText = rebuiltBackground.next as BalloonNode
+assert(rebuiltBackground !== themedBackground, 'width change should rebuild balloon background')
+assert(rebuiltText !== themedText, 'width change should rebuild balloon text node')
+equal(
+  resolveColor(rebuiltBackground.skin?.color),
+  themedFace.theme.primary,
+  'rebuilt balloon should keep themed bubble color',
+)
+equal(
+  resolveColor(rebuiltText.style?.color),
+  themedFace.theme.secondary,
+  'rebuilt balloon should keep themed text color',
+)
 
 const chunks = [
   'このテキストは SpeechBalloon の',

@@ -198,6 +198,43 @@
           "type": "none"
         }
       }
+    },
+    "mac/m5atom_s3": {
+      "config": {
+        "renderer": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "lin/m5atom_s3": {
+      "config": {
+        "renderer": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "win/m5atom_s3": {
+      "config": {
+        "renderer": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
     }
   }
 }

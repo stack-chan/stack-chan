@@ -1,7 +1,9 @@
+import { Outline } from 'commodetto/outline'
+import { defaultFaceContext, type FaceContext } from 'face-context'
+import type { FaceSkinPalette } from 'face-skin'
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
-import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, type FaceContext } from '../../face-context'
+import { defineShapeTemplate } from 'template'
 
 export type DogMouthOptions = {
   cx: number
@@ -14,9 +16,14 @@ export type DogMouthOptions = {
   canvasHeight?: number
 }
 
-type PositionedShape = PiuShape & { skin?: PiuSkin }
+type PositionedShape = Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
+  skin?: PiuSkin
+  state?: number
+  fillOutline?: Outline
+  strokeOutline?: Outline
+}
 
-export const DogMouth = Shape.template((opts: DogMouthOptions) => {
+export const DogMouth = defineShapeTemplate((opts: DogMouthOptions) => {
   const {
     cx,
     cy,
@@ -35,19 +42,20 @@ export const DogMouth = Shape.template((opts: DogMouthOptions) => {
     skin: new Skin({ stroke: defaultFaceContext.theme.primary }),
     Behavior: class extends Behavior {
       lastOpen = -1
-      lastPrimary: string | null = null
+      palette: FaceSkinPalette | null = null
+      onFaceSkin(shape: PositionedShape, palette: FaceSkinPalette) {
+        this.palette = palette
+        shape.skin = palette.palette
+        shape.state = palette.primaryState
+      }
       onFaceContext(shape: PositionedShape, face: FaceContext) {
-        this.updateSkin(shape, face)
+        if (!this.palette) {
+          shape.skin = new Skin({ stroke: face.theme.primary })
+        }
         const open = face.mouth.open
         if (open !== this.lastOpen) {
           this.updatePath(shape, open)
         }
-      }
-      updateSkin(shape: PositionedShape, face: FaceContext) {
-        const primary = face.theme.primary
-        if (primary === this.lastPrimary) return
-        this.lastPrimary = primary
-        shape.skin = new Skin({ stroke: primary })
       }
       updatePath(shape: PositionedShape, open: number) {
         this.lastOpen = open

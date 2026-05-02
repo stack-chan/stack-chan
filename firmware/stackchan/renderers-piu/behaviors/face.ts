@@ -1,4 +1,5 @@
 import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
+import { type FaceSkinPalette, updateFaceSkinPalette } from 'face-skin'
 import { createBlinkMotion } from 'motions/blink'
 import { createBreathMotion } from 'motions/breath'
 import type { FaceMotion } from 'motions/types'
@@ -9,11 +10,15 @@ import { Eye } from 'parts/eye'
 import { EyeSprite } from 'parts/image/eye-sprite'
 import { MouthSprite } from 'parts/image/mouth-sprite'
 import { Mouth } from 'parts/mouth'
-import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import type {
+  Container as PiuContainer,
+  ContainerDictionary as PiuContainerDictionary,
+  Content as PiuContent,
+} from 'piu/MC'
 
 type TemplateCtor<TData> = {
-  new (behaviorData?: TData, dictionary?: Record<string, unknown>): PiuContainer
-  template: (factory: unknown) => TemplateCtor<TData>
+  new (behaviorData?: TData, dictionary?: PiuContainerDictionary): PiuContainer
+  template<TNextData>(factory: (arg: TNextData) => PiuContainerDictionary): TemplateCtor<TNextData>
 }
 
 export type FaceBaseParams = {
@@ -28,7 +33,7 @@ export type FaceBaseParams = {
   height?: number
 }
 
-export type FaceTemplateCtor = TemplateCtor<unknown>
+export type FaceTemplateCtor = TemplateCtor<FaceBaseParams>
 
 type FaceBehaviorOptions = {
   motions?: FaceMotion[]
@@ -41,7 +46,8 @@ export class FaceBehavior extends Behavior {
   #motions: FaceMotion[]
   #baseCoordinates: { left: number; top: number } | null
   #paused: boolean
-  breathPixels: number
+  #skinPalette: FaceSkinPalette | null
+  #breathPixels: number
 
   constructor({ motions, intervalMs }: FaceBehaviorOptions) {
     super()
@@ -54,7 +60,8 @@ export class FaceBehavior extends Behavior {
     this.#desired = createFaceContext()
     this.#baseCoordinates = null
     this.#paused = false
-    this.breathPixels = 6
+    this.#skinPalette = null
+    this.#breathPixels = 6
     this.intervalMs = intervalMs ?? 33
   }
 
@@ -62,7 +69,13 @@ export class FaceBehavior extends Behavior {
 
   onCreate(container: PiuContainer) {
     container.interval = this.intervalMs
+    copyFaceContext(defaultFaceContext, this.#current)
     copyFaceContext(defaultFaceContext, this.#desired)
+    this.updateSkinPalette(container, defaultFaceContext)
+    if (this.#skinPalette) {
+      container.distribute('onFaceSkin', this.#skinPalette)
+      container.bubble('onFaceSkin', this.#skinPalette)
+    }
     container.distribute('onFaceContext', this.#current)
     // container.bubble('onFaceContext', this.#current)
   }
@@ -78,12 +91,20 @@ export class FaceBehavior extends Behavior {
     if (!this.#paused) {
       container.start?.()
     }
+    if (this.#skinPalette) {
+      container.distribute('onFaceSkin', this.#skinPalette)
+      container.bubble('onFaceSkin', this.#skinPalette)
+    }
     container.distribute('onFaceContext', this.#current)
     // container.bubble('onFaceContext', this.#current)
   }
 
   onFaceUpdate(_container: PiuContainer, face: FaceContext) {
     copyFaceContext(face, this.#desired)
+  }
+
+  onFaceSkin(_container: PiuContainer, palette: FaceSkinPalette) {
+    this.#skinPalette = palette
   }
 
   onTimeChanged(container: PiuContainer) {
@@ -103,11 +124,16 @@ export class FaceBehavior extends Behavior {
       }
     }
     const base = this.#baseCoordinates ?? { left: 0, top: 0 }
-    const nextY = base.top + this.#current.breath * this.breathPixels
+    const nextY = base.top + this.#current.breath * this.#breathPixels
     container.coordinates = {
       ...(container.coordinates ?? {}),
       left: base.left,
       top: nextY,
+    }
+    const paletteChanged = this.updateSkinPalette(container, this.#current)
+    if (paletteChanged && this.#skinPalette) {
+      container.distribute('onFaceSkin', this.#skinPalette)
+      container.bubble('onFaceSkin', this.#skinPalette)
     }
     container.distribute('onFaceContext', this.#current)
     // container.bubble('onFaceContext', this.#current)
@@ -128,6 +154,24 @@ export class FaceBehavior extends Behavior {
     return { ...this.#baseCoordinates }
   }
 
+  rehydrate(container: PiuContainer, face: Readonly<FaceContext>, palette?: FaceSkinPalette | null) {
+    copyFaceContext(face, this.#current)
+    copyFaceContext(face, this.#desired)
+    if (palette !== undefined) {
+      this.#skinPalette = palette
+      ;(container as PiuContainer & { faceSkin?: FaceSkinPalette }).faceSkin = this.#skinPalette ?? undefined
+    } else {
+      this.updateSkinPalette(container, face)
+    }
+    if (this.#baseCoordinates === null) {
+      const coordinates = container.coordinates
+      this.#baseCoordinates = {
+        left: coordinates?.left ?? 0,
+        top: coordinates?.top ?? 0,
+      }
+    }
+  }
+
   pause(container: PiuContainer) {
     if (this.#paused) return
     this.#paused = true
@@ -142,8 +186,26 @@ export class FaceBehavior extends Behavior {
     container.visible = true
     container.active = true
     container.start?.()
+    if (this.#skinPalette) {
+      container.distribute('onFaceSkin', this.#skinPalette)
+      container.bubble('onFaceSkin', this.#skinPalette)
+    }
     container.distribute('onFaceContext', this.#current)
     container.bubble('onFaceContext', this.#current)
+  }
+
+  get breathPixels(): number {
+    return this.#breathPixels
+  }
+
+  private updateSkinPalette(container: PiuContainer, face: Readonly<FaceContext>): boolean {
+    const next = updateFaceSkinPalette(this.#skinPalette, face)
+    const changed = next !== this.#skinPalette
+    this.#skinPalette = next
+    if (this.#skinPalette) {
+      ;(container as PiuContainer & { faceSkin?: FaceSkinPalette }).faceSkin = this.#skinPalette
+    }
+    return changed
   }
 }
 
@@ -185,7 +247,7 @@ export const FaceBase: FaceTemplateCtor = Container.template(($: FaceBaseParams,
       }
     },
   }
-})
+}) as unknown as FaceTemplateCtor
 
 export const SimpleFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams = {}) => {
   const left = $.left ?? DEFAULT_FACE_LEFT

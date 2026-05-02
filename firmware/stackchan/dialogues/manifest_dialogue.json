@@ -10,5 +10,13 @@
   "preload": ["dialugue-chatgpt", "dialugue-claude", "dialugue-gemini"],
   "data": {
     "*": ["$(MODULES)/crypt/data/ca236", "$(MODULES)/crypt/data/ca233"]
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "useUnknownInCatchVariables": false
+      }
+    }
   }
 }

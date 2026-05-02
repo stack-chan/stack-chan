@@ -1,0 +1,10 @@
+{
+  "include": [
+    "../../../stackchan/services/manifest_service.json",
+    "../../../stackchan/renderers-piu/manifest_renderer_piu.json"
+  ],
+  "modules": {
+    "mocks/assert": "../mocks/assert",
+    "*": ["./main"]
+  }
+}

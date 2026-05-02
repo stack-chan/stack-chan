@@ -19,6 +19,7 @@
     "face-view": "./face-view",
     "face-context": "./face-context",
     "face-skin": "./face-skin",
+    "template": "./template",
     "motions/*": "./motions/*",
     "drawer": "./drawer",
     "effects/speech-balloon": "./effects/speech-balloon",
@@ -70,10 +71,18 @@
     "renderer-image",
     "renderer-dog",
     "renderer-small",
+    "face-skin",
     "piuDie",
     "piuFont",
     "piuRegion",
     "piuTexture",
     "piuView"
-  ]
+  ],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
 }

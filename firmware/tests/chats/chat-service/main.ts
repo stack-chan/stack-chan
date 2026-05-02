@@ -1,4 +1,5 @@
-import { ChatService, type ChatTool } from 'chat'
+import type ChatAudioIOBase from 'ChatAudioIO'
+import { ChatService, type ChatState, type ChatTool } from 'chat'
 import { assert, equal } from 'mocks/assert'
 import ChatAudioIO from 'mocks/ChatAudioIO'
 
@@ -20,13 +21,13 @@ const tools: Record<string, ChatTool> = {
   },
 }
 
-const states = []
+const states: ChatState[] = []
 const service = new ChatService({
   config: { type: 'openAIRealtime', modelID: 'gpt-realtime-mini' },
   tools,
-  chatAudioIOCtor: ChatAudioIO,
+  chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
   callbacks: {
-    onStateChanged: (state) => states.push(state),
+    onStateChanged: (state: ChatState) => states.push(state),
   },
 })
 
@@ -46,14 +47,22 @@ equal(states[0], 'CONNECTING', 'state should map to CONNECTING')
 
 const instance = ChatAudioIOAny.instances?.[0]
 assert(instance, 'ChatAudioIO instance should exist')
-instance?.emitState(ChatAudioIOAny.CONNECTED ?? 3)
+if (!instance) {
+  throw new Error('ChatAudioIO instance should exist')
+}
+const connectedState = ChatAudioIOAny.CONNECTED
+assert(connectedState !== undefined, 'ChatAudioIO CONNECTED constant should exist')
+if (connectedState === undefined) {
+  throw new Error('ChatAudioIO CONNECTED constant should exist')
+}
+instance.emitState(connectedState)
 equal(states[1], 'CONNECTED', 'state should map to CONNECTED')
 
 service.sendText('hello')
 equal(instance.lastText, 'hello', 'sendText forwards to ChatAudioIO')
 
 service.sendFunctionResult('call-1', 'sample', { ok: true })
-equal(instance.lastFunctionResult.call, 'call-1', 'sendFunctionResult forwards call id')
+equal(instance.lastFunctionResult?.call, 'call-1', 'sendFunctionResult forwards call id')
 
 service.stop()
 equal(states[2], 'DISCONNECTING', 'state should map to DISCONNECTING')

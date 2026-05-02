@@ -42,6 +42,10 @@
 
 * [firmware/README_ja.md](./firmware/README_ja.md)を参照ください。
 
+## 開発計画
+
+* 開発ロードマップ: [docs/ROADMAP_ja.md](./docs/ROADMAP_ja.md)
+
 ## コントリビューション
 
 __機能追加のリクエスト/バグ報告__ を歓迎します！[issues](https://github.com/stack-chan/stack-chan/issues)のページから投稿してください。

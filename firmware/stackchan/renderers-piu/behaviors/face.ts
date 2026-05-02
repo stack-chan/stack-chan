@@ -1,18 +1,24 @@
-import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
-import { updateFaceSkinPalette, type FaceSkinPalette } from 'face-skin'
+import { type FaceSkinPalette, updateFaceSkinPalette } from 'face-skin'
+import { createBlinkMotion } from 'motions/blink'
+import { createBreathMotion } from 'motions/breath'
 import type { FaceMotion } from 'motions/types'
-import { EyeSprite } from 'parts/image/eye-sprite'
-import { MouthSprite } from 'parts/image/mouth-sprite'
 import { DogEyebrow } from 'parts/dog/eyebrow'
 import { DogMouth } from 'parts/dog/mouth'
 import { DogNose } from 'parts/dog/nose'
 import { Eye } from 'parts/eye'
+import { EyeSprite } from 'parts/image/eye-sprite'
+import { MouthSprite } from 'parts/image/mouth-sprite'
 import { Mouth } from 'parts/mouth'
+import type {
+  Container as PiuContainer,
+  ContainerDictionary as PiuContainerDictionary,
+  Content as PiuContent,
+} from 'piu/MC'
 
 type TemplateCtor<TData> = {
-  new (behaviorData?: TData, dictionary?: Record<string, unknown>): PiuContainer
-  template: (factory: unknown) => TemplateCtor<TData>
+  new (behaviorData?: TData, dictionary?: PiuContainerDictionary): PiuContainer
+  template<TNextData>(factory: (arg: TNextData) => PiuContainerDictionary): TemplateCtor<TNextData>
 }
 
 export type FaceBaseParams = {
@@ -27,7 +33,7 @@ export type FaceBaseParams = {
   height?: number
 }
 
-export type FaceTemplateCtor = TemplateCtor<unknown>
+export type FaceTemplateCtor = TemplateCtor<FaceBaseParams>
 
 type FaceBehaviorOptions = {
   motions?: FaceMotion[]
@@ -61,6 +67,7 @@ export class FaceBehavior extends Behavior {
 
   onCreate(container: PiuContainer) {
     container.interval = this.intervalMs
+    copyFaceContext(defaultFaceContext, this.#current)
     copyFaceContext(defaultFaceContext, this.#desired)
     this.updateSkinPalette(container, defaultFaceContext)
     if (this.#skinPalette) {
@@ -94,6 +101,10 @@ export class FaceBehavior extends Behavior {
 
   onFaceUpdate(_container: PiuContainer, face: FaceContext) {
     copyFaceContext(face, this.#desired)
+  }
+
+  onFaceSkin(_container: PiuContainer, palette: FaceSkinPalette) {
+    this.#skinPalette = palette
   }
 
   onTimeChanged(container: PiuContainer) {
@@ -145,6 +156,24 @@ export class FaceBehavior extends Behavior {
       }
     }
     return { ...this.#baseCoordinates }
+  }
+
+  rehydrate(container: PiuContainer, face: Readonly<FaceContext>, palette?: FaceSkinPalette | null) {
+    copyFaceContext(face, this.#current)
+    copyFaceContext(face, this.#desired)
+    if (palette !== undefined) {
+      this.#skinPalette = palette
+      ;(container as PiuContainer & { faceSkin?: FaceSkinPalette }).faceSkin = this.#skinPalette ?? undefined
+    } else {
+      this.updateSkinPalette(container, face)
+    }
+    if (this.#baseCoordinates === null) {
+      const coordinates = container.coordinates
+      this.#baseCoordinates = {
+        left: coordinates?.left ?? 0,
+        top: coordinates?.top ?? 0,
+      }
+    }
   }
 
   pause(container: PiuContainer) {
@@ -239,7 +268,7 @@ export const FaceBase: FaceTemplateCtor = Container.template(($: FaceBaseParams,
       }
     },
   }
-})
+}) as unknown as FaceTemplateCtor
 
 export const SimpleFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams = {}) => {
   const left = $.left ?? DEFAULT_FACE_LEFT

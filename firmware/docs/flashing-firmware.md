@@ -95,23 +95,6 @@ If Stack-chan is shaking her head left and right, the configuration has been suc
 
 Reference: [About the firmware for Stack-chan M5Go Bottom version (Japanese)](https://raspberrypi.mongonta.com/softwares-for-stackchan/)
 
-### Configuration example: increase mod write space
-
-Moddable currently doesn't have an SD Card driver, so resources like audio and images are compiled and saved within the mod itself.
-However, if you have a lot of audio files, the mod may not be able to write beyond the default partition size of 4MB on the stack chan due to limitations.
-
-If you have a recent M5Stack with 16MB of Flash,
-you can include the [stackchan/manifest_8mb_flash.json](. /stackchan/manifest_8mb_flash.json) file
-to increase the size of the partition where the mod is saved.
-
-Simply add the following code to your manifest file:
-
-```json
-{
-  "include": [". /manifest_8mb_flash.json"]
-}
-```
-
 ## Writing the base program (hosts)
 
 As stated above, Stack-chan's firmware comprises a base program (host) and a user application (MOD).

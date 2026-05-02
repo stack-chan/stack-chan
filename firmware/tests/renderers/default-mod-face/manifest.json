@@ -1,0 +1,7 @@
+{
+  "include": ["../../../stackchan/renderers-piu/manifest_renderer_piu.json"],
+  "modules": {
+    "mocks/assert": "../../chats/mocks/assert",
+    "*": ["./main"]
+  }
+}

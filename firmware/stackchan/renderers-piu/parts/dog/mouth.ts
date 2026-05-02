@@ -1,8 +1,9 @@
+import { Outline } from 'commodetto/outline'
+import { defaultFaceContext, type FaceContext } from 'face-context'
+import type { FaceSkinPalette } from 'face-skin'
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
-import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, type FaceContext } from '../../face-context'
-import type { FaceSkinPalette } from 'face-skin'
+import { defineShapeTemplate } from 'template'
 
 export type DogMouthOptions = {
   cx: number
@@ -15,9 +16,14 @@ export type DogMouthOptions = {
   canvasHeight?: number
 }
 
-type PositionedShape = PiuShape & { skin?: PiuSkin; state?: number }
+type PositionedShape = Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
+  skin?: PiuSkin
+  state?: number
+  fillOutline?: Outline
+  strokeOutline?: Outline
+}
 
-export const DogMouth = Shape.template((opts: DogMouthOptions) => {
+export const DogMouth = defineShapeTemplate((opts: DogMouthOptions) => {
   const {
     cx,
     cy,

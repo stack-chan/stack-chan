@@ -23,7 +23,7 @@
     "update": "xs-dev update",
     "doctor": "echo stack-chan environment info: && git rev-parse HEAD && git rev-parse --show-toplevel && xs-dev doctor",
     "scan": "xs-dev scan",
-    "erase-flash": "esptool.py erase_flash",
+    "erase-flash": "esptool erase-flash",
     "install-hook": "lefthook install",
     "uninstall-hook": "lefthook uninstall"
   },

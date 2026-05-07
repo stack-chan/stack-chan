@@ -4,7 +4,7 @@ inputs:
   target-branch:
     description: "Target branch or tag to setup environment"
     required: false
-    default: "8.0.0"
+    default: ""
 runs:
   using: composite
   steps:

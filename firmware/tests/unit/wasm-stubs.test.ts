@@ -39,7 +39,7 @@ for (const [name, Driver] of driverCases) {
   })
 }
 
-test('WASM manifest maps all servo driver module specifiers to facade modules', () => {
+test('WASM manifest keeps concrete servo driver module specifiers as facades for Moddable resolution', () => {
   const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
 
   assert.deepEqual(

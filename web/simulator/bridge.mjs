@@ -43,6 +43,32 @@ export function createHostButtonBridge({ logger = console.log, setTimeoutFn = gl
   }
 }
 
+export function createHostDriverBridge({ onRotation = () => {}, onTorque = () => {} } = {}) {
+  let rotation = { y: 0, p: 0, r: 0 }
+  let torque = true
+
+  return {
+    applyRotation(message = {}) {
+      rotation = { ...rotation, ...(message.rotation ?? {}) }
+      onRotation(rotation, message.time)
+    },
+    getRotation() {
+      return rotation
+    },
+    setTorque(nextTorque) {
+      torque = Boolean(nextTorque)
+      onTorque(torque)
+    },
+    getTorque() {
+      return torque
+    },
+  }
+}
+
+export function clientPointFromTouch(touch) {
+  return { x: touch.clientX, y: touch.clientY }
+}
+
 export function summarizeImageData(imageData, { sampleLimit = 1024 } = {}) {
   const data = imageData?.data ?? imageData
   if (!data?.length) return { samples: 0, nonZeroAlpha: 0, nonZeroRgb: 0, firstPixel: [] }

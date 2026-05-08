@@ -86,7 +86,10 @@ export function nextSpeechScale(timeMs, { speaking = false } = {}) {
   return 1 + Math.abs(Math.sin(timeMs / 95)) * 0.045
 }
 
-export function computeStackchanKinematics(timeMs, { lookAround = false, speaking = false, motionUntil = 0 } = {}) {
+export function computeStackchanKinematics(
+  timeMs,
+  { lookAround = false, speaking = false, motionUntil = 0, driverRotation = { y: 0, p: 0, r: 0 } } = {},
+) {
   const pose = nextLookAroundPose(timeMs, { enabled: lookAround })
   const inServoMotion = timeMs < motionUntil
   const servoT = inServoMotion ? (motionUntil - timeMs) / 4600 : 0
@@ -96,14 +99,14 @@ export function computeStackchanKinematics(timeMs, { lookAround = false, speakin
   return {
     pan: {
       pivot: { x: 0, y: 0, z: 0 },
-      rotation: { x: 0, y: pose.yaw + servoYaw, z: 0 },
+      rotation: { x: 0, y: driverRotation.y + pose.yaw + servoYaw, z: 0 },
     },
     tilt: {
       pivot: { x: 0, y: 0, z: 0 },
-      rotation: { x: pose.pitch, y: 0, z: 0 },
+      rotation: { x: driverRotation.p + pose.pitch, y: 0, z: 0 },
     },
     head: {
-      rotation: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: driverRotation.r },
       scale: { x: 1, y: speechScale, z: 1 },
     },
     feet: {

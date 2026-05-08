@@ -85,18 +85,17 @@ describe('Stack-chan simulator geometry', () => {
     assert.deepEqual(transforms.feet.scale, { x: 1, y: 1, z: 1 })
   })
 
-  it('models the real two-axis face motion as pan first, then tilt', () => {
+  it('models firmware driver rotation as pan and tilt without moving the feet', () => {
     const transforms = computeStackchanKinematics(1200, {
-      lookAround: true,
-      motionUntil: 5800,
+      driverRotation: { y: 0.25, p: -0.12, r: 0.04 },
+      lookAround: false,
+      speaking: false,
+      motionUntil: 0,
     })
 
-    assert.equal(transforms.head.rotation.x, 0)
-    assert.equal(transforms.head.rotation.y, 0)
-    assert.equal(transforms.head.rotation.z, 0)
-    assert.notEqual(transforms.pan.rotation.y, 0)
-    assert.notEqual(transforms.tilt.rotation.x, 0)
-    assert.deepEqual(transforms.pan.pivot, { x: 0, y: 0, z: 0 })
-    assert.deepEqual(transforms.tilt.pivot, { x: 0, y: 0, z: 0 })
+    assert.equal(transforms.pan.rotation.y, 0.25)
+    assert.equal(transforms.tilt.rotation.x, -0.12)
+    assert.equal(transforms.head.rotation.z, 0.04)
+    assert.deepEqual(transforms.feet.rotation, { x: 0, y: 0, z: 0 })
   })
 })

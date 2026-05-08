@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { createHostButtonBridge, summarizeImageData } from './bridge.mjs'
+import { clientPointFromTouch, createHostButtonBridge, createHostDriverBridge, summarizeImageData } from './bridge.mjs'
 
 describe('Host.Button bridge', () => {
   it('exposes constructible active-low buttons sharing state with HTML pushes', () => {
@@ -41,5 +41,32 @@ describe('Host.Button bridge', () => {
     assert.equal(stats.nonZeroAlpha, 1)
     assert.equal(stats.nonZeroRgb, 1)
     assert.deepEqual(stats.firstPixel, [0, 0, 0, 0])
+  })
+})
+
+describe('Host.Driver bridge', () => {
+  it('records firmware rotation messages and notifies the simulator scene', () => {
+    const events = []
+    const bridge = createHostDriverBridge({
+      onRotation: (rotation, time) => events.push({ rotation, time }),
+      onTorque: (torque) => events.push({ torque }),
+    })
+
+    bridge.applyRotation({ rotation: { y: 0.2, p: -0.1, r: 0.03 }, time: 0.5 })
+    bridge.setTorque(false)
+
+    assert.deepEqual(bridge.getRotation(), { y: 0.2, p: -0.1, r: 0.03 })
+    assert.deepEqual(events, [
+      { rotation: { y: 0.2, p: -0.1, r: 0.03 }, time: 0.5 },
+      { torque: false },
+    ])
+  })
+})
+
+describe('touch coordinate bridge', () => {
+  it('uses viewport-relative client coordinates for hidden-canvas touch forwarding', () => {
+    const point = clientPointFromTouch({ clientX: 42, clientY: 24, pageX: 1042, pageY: 2024 })
+
+    assert.deepEqual(point, { x: 42, y: 24 })
   })
 })

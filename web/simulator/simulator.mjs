@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'https://unpkg.com/three@0.164.1/examples/jsm/geometries/RoundedBoxGeometry.js'
 
-import { createHostButtonBridge, summarizeImageData } from './bridge.mjs'
+import { clientPointFromTouch, createHostButtonBridge, createHostDriverBridge, summarizeImageData } from './bridge.mjs'
 import {
   SCREEN_CANVAS,
   STACKCHAN_FACE_MM,
@@ -20,6 +20,8 @@ class StackchanScene {
     this.lookAround = false
     this.speaking = false
     this.motionUntil = 0
+    this.driverRotation = { y: 0, p: 0, r: 0 }
+    this.torqueEnabled = true
 
     this.scene = new THREE.Scene()
     this.scene.background = new THREE.Color(0x10141c)
@@ -164,6 +166,15 @@ class StackchanScene {
     this.motionUntil = performance.now() + 4600
   }
 
+  applyDriverRotation(rotation) {
+    this.driverRotation = { ...this.driverRotation, ...rotation }
+    this.motionUntil = performance.now() + 120
+  }
+
+  setTorqueEnabled(enabled) {
+    this.torqueEnabled = enabled
+  }
+
   markScreenDirty() {
     this.screenTexture.needsUpdate = true
   }
@@ -173,6 +184,7 @@ class StackchanScene {
       lookAround: this.lookAround,
       speaking: this.speaking,
       motionUntil: this.motionUntil,
+      driverRotation: this.driverRotation,
     })
 
     this.panGroup.position.set(transforms.pan.pivot.x, transforms.pan.pivot.y, transforms.pan.pivot.z)
@@ -334,7 +346,8 @@ class WasmView {
     if (kind === 0) this.tracking += event.changedTouches.length
     if (kind === 1 || kind === 2) this.tracking -= event.changedTouches.length
     for (const touch of event.changedTouches) {
-      this.#touch(kind, touch.identifier, touch.pageX, touch.pageY, event.timeStamp)
+      const point = clientPointFromTouch(touch)
+      this.#touch(kind, touch.identifier, point.x, point.y, event.timeStamp)
     }
   }
 
@@ -353,6 +366,18 @@ globalThis.Host = { Button: buttonBridge.Button }
 console.log('[bridge] global Host.Button constructors installed')
 
 const scene = new StackchanScene({ viewport, screen })
+const driverBridge = createHostDriverBridge({
+  onRotation: (rotation, time) => {
+    console.log('[bridge] Host.Driver.applyRotation', { rotation, time })
+    scene.applyDriverRotation(rotation)
+  },
+  onTorque: (torque) => {
+    console.log('[bridge] Host.Driver.setTorque', { torque })
+    scene.setTorqueEnabled(torque)
+  },
+})
+globalThis.Host.Driver = driverBridge
+console.log('[bridge] global Host.Driver bridge installed')
 buttonBridge.setHtmlAction('a', () => scene.setLookAround(!scene.lookAround))
 buttonBridge.setHtmlAction('b', () => scene.runServoMotion())
 

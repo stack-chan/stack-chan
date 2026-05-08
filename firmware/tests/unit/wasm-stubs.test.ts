@@ -42,6 +42,7 @@ for (const [name, Driver] of driverCases) {
 test('WASM manifest keeps concrete servo driver module specifiers as facades for Moddable resolution', () => {
   const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
 
+  assert.equal(manifest.modules['wasm-driver'], './drivers/wasm/wasm-driver')
   assert.deepEqual(
     {
       'dynamixel-driver': manifest.modules['dynamixel-driver'],
@@ -60,7 +61,7 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
   )
 })
 
-test('WASM servo driver facade files re-export the consolidated WasmDriver for Moddable TypeScript specifier resolution', () => {
+test('WASM servo driver facade files re-export the consolidated WasmDriver through a manifest module specifier', () => {
   const facadePaths = [
     'stackchan/drivers/wasm/dynamixel-driver.ts',
     'stackchan/drivers/wasm/none-driver.ts',
@@ -71,7 +72,8 @@ test('WASM servo driver facade files re-export the consolidated WasmDriver for M
 
   for (const facadePath of facadePaths) {
     const source = readFileSync(facadePath, 'utf8')
-    assert.match(source, /\.\/wasm-driver\.js/)
+    assert.match(source, /from 'wasm-driver'/)
+    assert.doesNotMatch(source, /\.\//)
   }
 })
 

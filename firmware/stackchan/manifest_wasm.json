@@ -15,6 +15,7 @@
     "*": ["./touch", "./robot", "./main"],
     "tone": "./wasm/tone",
     "led": "./wasm/led",
+    "wasm-driver": "./drivers/wasm/wasm-driver",
     "dynamixel-driver": "./drivers/wasm/dynamixel-driver",
     "none-driver": "./drivers/wasm/none-driver",
     "sg90-driver": "./drivers/wasm/sg90-driver",

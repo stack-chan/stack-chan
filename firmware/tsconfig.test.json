@@ -8,6 +8,11 @@
     "checkJs": false,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "paths": {
+      "wasm-driver": ["stackchan/drivers/wasm/wasm-driver.ts"]
+    },
     "types": ["node"],
     "skipLibCheck": true
   },

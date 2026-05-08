@@ -71,14 +71,16 @@ describe('Host.Driver bridge', () => {
 })
 
 describe('Host.Audio bridge', () => {
-  it('plays tones through WebAudio oscillator nodes and closes the context', async () => {
+  it('resolves tone playback only after the oscillator ends and closes the context', async () => {
     const events = []
+    let oscillator
     const context = {
       currentTime: 2,
       closed: false,
       createOscillator() {
-        return {
+        oscillator = {
           frequency: { value: 0 },
+          onended: undefined,
           connect(node) {
             events.push(['osc-connect', node.kind])
           },
@@ -89,6 +91,7 @@ describe('Host.Audio bridge', () => {
             events.push(['stop', time])
           },
         }
+        return oscillator
       },
       createGain() {
         return {
@@ -107,7 +110,15 @@ describe('Host.Audio bridge', () => {
     }
     const bridge = createHostAudioOutBridge({ createAudioContext: () => context })
 
-    await bridge.tone({ hz: 880, duration: 500, volume: 0.25 })
+    let resolved = false
+    const tone = bridge.tone({ hz: 880, duration: 500, volume: 0.25 }).then(() => {
+      resolved = true
+    })
+
+    await Promise.resolve()
+    assert.equal(resolved, false)
+    oscillator.onended()
+    await tone
     bridge.close()
 
     assert.deepEqual(events, [
@@ -120,18 +131,23 @@ describe('Host.Audio bridge', () => {
     assert.equal(context.closed, true)
   })
 
-  it('records microphone audio through getUserMedia and stops tracks', async () => {
+  it('records only WAV-compatible microphone audio through getUserMedia and stops tracks', async () => {
     const stopped = []
-    const recorderChunks = [new Uint8Array([1, 2]).buffer, new Uint8Array([3]).buffer]
+    const recorderOptions = []
+    const wavHeader = new TextEncoder().encode('RIFFxxxxWAVE')
     class FakeMediaRecorder {
-      constructor(stream) {
+      static isTypeSupported(type) {
+        return type === 'audio/wav'
+      }
+
+      constructor(stream, options) {
         this.stream = stream
+        recorderOptions.push(options)
       }
       start() {
-        this.ondataavailable?.({ data: recorderChunks[0] })
+        this.ondataavailable?.({ data: wavHeader.buffer })
       }
       stop() {
-        this.ondataavailable?.({ data: recorderChunks[1] })
         this.onstop?.()
       }
     }
@@ -150,8 +166,33 @@ describe('Host.Audio bridge', () => {
 
     const buffer = await bridge.record(100)
 
-    assert.deepEqual(Array.from(new Uint8Array(buffer)), [1, 2, 3])
+    assert.equal(new TextDecoder().decode(buffer.slice(0, 4)), 'RIFF')
+    assert.equal(new TextDecoder().decode(buffer.slice(8, 12)), 'WAVE')
+    assert.deepEqual(recorderOptions, [{ mimeType: 'audio/wav' }])
     assert.deepEqual(stopped, ['track'])
+  })
+
+  it('returns an empty microphone buffer instead of WebM/Opus when WAV recording is unavailable', async () => {
+    let requested = false
+    class FakeMediaRecorder {
+      static isTypeSupported() {
+        return false
+      }
+    }
+    const bridge = createHostAudioInBridge({
+      mediaDevices: {
+        async getUserMedia() {
+          requested = true
+          throw new Error('should not request microphone without WAV support')
+        },
+      },
+      MediaRecorder: FakeMediaRecorder,
+    })
+
+    const buffer = await bridge.record(100)
+
+    assert.equal(buffer.byteLength, 0)
+    assert.equal(requested, false)
   })
 })
 

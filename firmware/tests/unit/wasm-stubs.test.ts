@@ -44,6 +44,7 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
   const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
 
   assert.equal(manifest.modules['wasm-driver'], './drivers/wasm/wasm-driver')
+  assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
   assert.deepEqual(
     {
       'dynamixel-driver': manifest.modules['dynamixel-driver'],

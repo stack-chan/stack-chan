@@ -78,8 +78,15 @@ export function createHostAudioOutBridge({ createAudioContext = defaultAudioCont
       oscillator.connect(gain)
       gain.connect(context.destination)
       const startTime = context.currentTime
-      oscillator.start(startTime)
-      oscillator.stop(startTime + duration / 1000)
+      await new Promise((resolve, reject) => {
+        oscillator.onended = resolve
+        try {
+          oscillator.start(startTime)
+          oscillator.stop(startTime + duration / 1000)
+        } catch (error) {
+          reject(error)
+        }
+      })
     },
     close() {
       context?.close?.()
@@ -96,16 +103,22 @@ export function createHostAudioInBridge({
   return {
     async record(durationMilliSec = 3000) {
       if (!mediaDevices?.getUserMedia || !MediaRecorder) return new ArrayBuffer(0)
+      if (typeof MediaRecorder.isTypeSupported === 'function' && !MediaRecorder.isTypeSupported('audio/wav')) {
+        return new ArrayBuffer(0)
+      }
 
       const stream = await mediaDevices.getUserMedia({ audio: true })
       const chunks = []
       try {
         return await new Promise((resolve) => {
-          const recorder = new MediaRecorder(stream)
+          const recorder = new MediaRecorder(stream, { mimeType: 'audio/wav' })
           recorder.ondataavailable = (event) => {
             if (event.data) chunks.push(event.data)
           }
-          recorder.onstop = async () => resolve(await chunksToArrayBuffer(chunks))
+          recorder.onstop = async () => {
+            const buffer = await chunksToArrayBuffer(chunks)
+            resolve(isWavBuffer(buffer) ? buffer : new ArrayBuffer(0))
+          }
           recorder.start()
           setTimeoutFn(() => recorder.stop(), durationMilliSec)
         })
@@ -139,6 +152,21 @@ async function chunksToArrayBuffer(chunks) {
     offset += buffer.byteLength
   }
   return bytes.buffer
+}
+
+function isWavBuffer(buffer) {
+  if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < 12) return false
+  const bytes = new Uint8Array(buffer)
+  return (
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x41 &&
+    bytes[10] === 0x56 &&
+    bytes[11] === 0x45
+  )
 }
 
 export function clientPointFromTouch(touch) {

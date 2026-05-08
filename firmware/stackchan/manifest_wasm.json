@@ -22,6 +22,7 @@
     "rs30x-driver": "./drivers/wasm/rs30x-driver",
     "scservo-driver": "./drivers/wasm/scservo-driver",
     "microphone": "./wasm/microphone",
+    "embedded:io/audio/in": "./wasm/audio-in",
     "network-service": "./services/wasm/network-service",
     "preference-server": "./services/wasm/preference-server",
     "tts-local": "./speeches/wasm/tts-local",

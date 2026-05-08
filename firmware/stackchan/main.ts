@@ -172,12 +172,12 @@ async function main() {
   if (config.wasm) {
     trace('[main] WASM synchronous launch path\n')
     const { onRobotCreated, onLaunch } = defaultMod
-    const shouldRobotCreate = onLaunch?.() ?? true
+    const shouldRobotCreate = await (onLaunch?.() ?? true)
     trace(`[main] onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)
     if (shouldRobotCreate) {
       const robot = createRobot()
       trace('[main] robot created\n')
-      onRobotCreated?.(robot, globalEnv.device)
+      await onRobotCreated?.(robot, globalEnv.device)
       trace('[main] onRobotCreated complete\n')
     }
     return

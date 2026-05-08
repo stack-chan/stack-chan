@@ -2,7 +2,10 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist-tests",
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
     "allowJs": false,
+    "checkJs": false,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "types": ["node"],
@@ -10,6 +13,8 @@
   },
   "include": [
     "stackchan/drivers/payload-buffer.ts",
+    "stackchan/drivers/wasm/**/*.ts",
+    "stackchan/wasm/microphone.ts",
     "tests/unit/**/*.ts"
   ],
   "exclude": []

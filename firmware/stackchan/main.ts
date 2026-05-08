@@ -159,9 +159,7 @@ async function checkAndConnectWiFi() {
 }
 
 async function main() {
-  trace(`[main] start config.wasm=${config.wasm}\n`)
   if (globalEnv.Host?.Button && !globalEnv.button) {
-    trace('[main] installing Host.Button bridge\n')
     const { a, b, c } = globalEnv.Host.Button
     globalEnv.button = {
       ...(a && { a: new SimButton(a) }),
@@ -170,15 +168,11 @@ async function main() {
     }
   }
   if (config.wasm) {
-    trace('[main] WASM synchronous launch path\n')
     const { onRobotCreated, onLaunch } = defaultMod
     const shouldRobotCreate = await (onLaunch?.() ?? true)
-    trace(`[main] onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)
     if (shouldRobotCreate) {
       const robot = createRobot()
-      trace('[main] robot created\n')
       await onRobotCreated?.(robot, globalEnv.device)
-      trace('[main] onRobotCreated complete\n')
     }
     return
   }

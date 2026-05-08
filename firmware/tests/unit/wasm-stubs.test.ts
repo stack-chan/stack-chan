@@ -1,32 +1,27 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
 import {
-  DynamixelDriver as AggregatedDynamixelDriver,
-  NoneDriver as AggregatedNoneDriver,
-  PWMServoDriver as AggregatedPWMServoDriver,
-  RS30XDriver as AggregatedRS30XDriver,
-  SCServoDriver as AggregatedSCServoDriver,
-} from '../../stackchan/drivers/wasm/driver-stub.js'
-import { DynamixelDriver } from '../../stackchan/drivers/wasm/dynamixel-driver.js'
-import { NoneDriver } from '../../stackchan/drivers/wasm/none-driver.js'
-import { RS30XDriver } from '../../stackchan/drivers/wasm/rs30x-driver.js'
-import { PWMServoDriver } from '../../stackchan/drivers/wasm/sg90-driver.js'
-import { SCServoDriver } from '../../stackchan/drivers/wasm/scservo-driver.js'
+  DynamixelDriver,
+  NoneDriver,
+  PWMServoDriver,
+  RS30XDriver,
+  SCServoDriver,
+  WasmDriver,
+} from '../../stackchan/drivers/wasm/wasm-driver.js'
 import Microphone from '../../stackchan/wasm/microphone.js'
 
+type Rotation = { y: number; p: number; r: number }
 type DriverConstructor = new (
   options?: unknown,
 ) => {
+  applyRotation(rotation: Rotation, time?: number): Promise<void>
   getRotation(): Promise<unknown>
+  setTorque(torque: boolean): Promise<void>
 }
 
 const driverCases: Array<[string, DriverConstructor]> = [
-  ['aggregated dynamixel', AggregatedDynamixelDriver],
-  ['aggregated none', AggregatedNoneDriver],
-  ['aggregated pwm', AggregatedPWMServoDriver],
-  ['aggregated rs30x', AggregatedRS30XDriver],
-  ['aggregated scservo', AggregatedSCServoDriver],
   ['dynamixel', DynamixelDriver],
   ['none', NoneDriver],
   ['pwm', PWMServoDriver],
@@ -35,12 +30,79 @@ const driverCases: Array<[string, DriverConstructor]> = [
 ]
 
 for (const [name, Driver] of driverCases) {
-  test(`${name} WASM driver getRotation returns a Maybe success result`, async () => {
+  test(`${name} WASM driver alias uses the consolidated WasmDriver bridge`, async () => {
+    assert.equal(Driver, WasmDriver)
+
     const result = await new Driver().getRotation()
 
     assert.deepEqual(result, { success: true, value: { y: 0, p: 0, r: 0 } })
   })
 }
+
+test('WASM manifest maps all servo driver module specifiers to the single WasmDriver implementation', () => {
+  const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
+
+  assert.deepEqual(
+    {
+      'dynamixel-driver': manifest.modules['dynamixel-driver'],
+      'none-driver': manifest.modules['none-driver'],
+      'sg90-driver': manifest.modules['sg90-driver'],
+      'rs30x-driver': manifest.modules['rs30x-driver'],
+      'scservo-driver': manifest.modules['scservo-driver'],
+    },
+    {
+      'dynamixel-driver': './drivers/wasm/wasm-driver',
+      'none-driver': './drivers/wasm/wasm-driver',
+      'sg90-driver': './drivers/wasm/wasm-driver',
+      'rs30x-driver': './drivers/wasm/wasm-driver',
+      'scservo-driver': './drivers/wasm/wasm-driver',
+    },
+  )
+})
+
+test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', async () => {
+  const calls: unknown[] = []
+  const previousHost = globalThis.Host
+  globalThis.Host = {
+    Driver: {
+      applyRotation(message: unknown) {
+        calls.push(message)
+      },
+    },
+  }
+
+  try {
+    const driver = new WasmDriver()
+    const rotation = { y: 0.25, p: -0.125, r: 0.05 }
+
+    await driver.applyRotation(rotation, 0.75)
+
+    assert.deepEqual(calls, [{ rotation, time: 0.75 }])
+    assert.deepEqual(await driver.getRotation(), { success: true, value: rotation })
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
+
+test('WasmDriver setTorque forwards torque state to the browser Host.Driver bridge when present', async () => {
+  const calls: unknown[] = []
+  const previousHost = globalThis.Host
+  globalThis.Host = {
+    Driver: {
+      setTorque(torque: unknown) {
+        calls.push(torque)
+      },
+    },
+  }
+
+  try {
+    await new WasmDriver().setTorque(true)
+
+    assert.deepEqual(calls, [true])
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
 
 test('WASM microphone keeps the optional duration argument compatible with the shared API', async () => {
   const microphone = new Microphone()

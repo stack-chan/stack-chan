@@ -7,8 +7,20 @@ type HostDriverBridge = {
   getRotation?: () => Rotation | undefined
 }
 
+type HostAudioOutBridge = {
+  tone?: (message: { hz: number; duration: number; volume?: number }) => void | Promise<void>
+  close?: () => void
+}
+
+type HostAudioInBridge = {
+  record?: (durationMilliSec: number) => ArrayBuffer | Promise<ArrayBuffer>
+  close?: () => void
+}
+
 type WasmHost = {
   Driver?: HostDriverBridge
+  AudioOut?: HostAudioOutBridge
+  AudioIn?: HostAudioInBridge
 }
 
 declare global {

@@ -11,6 +11,7 @@ import {
   WasmDriver,
 } from '../../stackchan/drivers/wasm/wasm-driver.js'
 import Microphone from '../../stackchan/wasm/microphone.js'
+import Tone from '../../stackchan/wasm/tone.js'
 
 type Rotation = { y: number; p: number; r: number }
 type DriverConstructor = new (
@@ -121,11 +122,60 @@ test('WasmDriver setTorque forwards torque state to the browser Host.Driver brid
   }
 })
 
-test('WASM microphone keeps the optional duration argument compatible with the shared API', async () => {
+test('WASM microphone records through the browser Host.AudioIn bridge when present', async () => {
+  const previousHost = globalThis.Host
+  const recordedDurations: number[] = []
+  const expected = new Uint8Array([1, 2, 3, 4]).buffer
+  globalThis.Host = {
+    AudioIn: {
+      async record(durationMilliSec: number) {
+        recordedDurations.push(durationMilliSec)
+        return expected
+      },
+    },
+  }
+
+  try {
+    const result = await new Microphone().record(1000)
+
+    assert.equal(result, expected)
+    assert.deepEqual(recordedDurations, [1000])
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
+
+test('WASM microphone falls back to an empty buffer when Host.AudioIn is unavailable', async () => {
   const microphone = new Microphone()
 
   const result = await microphone.record(1000)
 
   assert.ok(result instanceof ArrayBuffer)
   assert.equal(result.byteLength, 0)
+})
+
+test('WASM tone forwards tone requests and close to the browser Host.AudioOut bridge', async () => {
+  const previousHost = globalThis.Host
+  const calls: unknown[] = []
+  globalThis.Host = {
+    AudioOut: {
+      async tone(message: unknown) {
+        calls.push(message)
+      },
+      close() {
+        calls.push('close')
+      },
+    },
+  }
+
+  try {
+    const tone = new Tone()
+
+    await tone.tone(440, 250, 0.5)
+    tone.close()
+
+    assert.deepEqual(calls, [{ hz: 440, duration: 250, volume: 0.5 }, 'close'])
+  } finally {
+    globalThis.Host = previousHost
+  }
 })

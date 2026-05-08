@@ -1,5 +1,13 @@
 export default class Tone {
-  constructor(_options?: unknown) {}
-  async tone(_hz: number, _duration: number, _volume?: number): Promise<void> {}
-  close() {}
+  constructor(_options?: unknown) {
+    void _options
+  }
+
+  async tone(hz: number, duration: number, volume?: number): Promise<void> {
+    await globalThis.Host?.AudioOut?.tone?.({ hz, duration, volume })
+  }
+
+  close() {
+    globalThis.Host?.AudioOut?.close?.()
+  }
 }

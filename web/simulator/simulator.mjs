@@ -2,7 +2,14 @@ import * as THREE from 'three'
 import { OrbitControls } from 'https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'https://unpkg.com/three@0.164.1/examples/jsm/geometries/RoundedBoxGeometry.js'
 
-import { clientPointFromTouch, createHostButtonBridge, createHostDriverBridge, summarizeImageData } from './bridge.mjs'
+import {
+  clientPointFromTouch,
+  createHostAudioInBridge,
+  createHostAudioOutBridge,
+  createHostButtonBridge,
+  createHostDriverBridge,
+  summarizeImageData,
+} from './bridge.mjs'
 import {
   SCREEN_CANVAS,
   STACKCHAN_FACE_MM,
@@ -362,8 +369,14 @@ const viewport = document.getElementById('stackchan-viewport')
 const screen = document.getElementById('simulator-screen')
 const info = document.getElementById('simulator-info')
 const buttonBridge = createHostButtonBridge({ logger: (message) => console.log(message) })
-globalThis.Host = { Button: buttonBridge.Button }
-console.log('[bridge] global Host.Button constructors installed')
+const audioOutBridge = createHostAudioOutBridge()
+const audioInBridge = createHostAudioInBridge()
+globalThis.Host = {
+  Button: buttonBridge.Button,
+  AudioOut: audioOutBridge,
+  AudioIn: audioInBridge,
+}
+console.log('[bridge] global Host.Button/Audio constructors installed')
 
 const scene = new StackchanScene({ viewport, screen })
 const driverBridge = createHostDriverBridge({

@@ -1,7 +1,13 @@
 export default class Microphone {
-  constructor(_options?: unknown) {}
-  async record(_durationMilliSec = 3000): Promise<ArrayBuffer> {
-    return new ArrayBuffer(0)
+  constructor(_options?: unknown) {
+    void _options
   }
-  close() {}
+
+  async record(durationMilliSec = 3000): Promise<ArrayBuffer> {
+    return (await globalThis.Host?.AudioIn?.record?.(durationMilliSec)) ?? new ArrayBuffer(0)
+  }
+
+  close() {
+    globalThis.Host?.AudioIn?.close?.()
+  }
 }

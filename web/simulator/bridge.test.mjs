@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { clientPointFromTouch, createHostButtonBridge, createHostDriverBridge, summarizeImageData } from './bridge.mjs'
+import {
+  clientPointFromTouch,
+  createHostAudioInBridge,
+  createHostAudioOutBridge,
+  createHostButtonBridge,
+  createHostDriverBridge,
+  summarizeImageData,
+} from './bridge.mjs'
 
 describe('Host.Button bridge', () => {
   it('exposes constructible active-low buttons sharing state with HTML pushes', () => {
@@ -60,6 +67,91 @@ describe('Host.Driver bridge', () => {
       { rotation: { y: 0.2, p: -0.1, r: 0.03 }, time: 0.5 },
       { torque: false },
     ])
+  })
+})
+
+describe('Host.Audio bridge', () => {
+  it('plays tones through WebAudio oscillator nodes and closes the context', async () => {
+    const events = []
+    const context = {
+      currentTime: 2,
+      closed: false,
+      createOscillator() {
+        return {
+          frequency: { value: 0 },
+          connect(node) {
+            events.push(['osc-connect', node.kind])
+          },
+          start(time) {
+            events.push(['start', time, this.frequency.value])
+          },
+          stop(time) {
+            events.push(['stop', time])
+          },
+        }
+      },
+      createGain() {
+        return {
+          kind: 'gain',
+          gain: { value: 0 },
+          connect(node) {
+            events.push(['gain-connect', node])
+          },
+        }
+      },
+      destination: 'destination',
+      close() {
+        this.closed = true
+        events.push(['close'])
+      },
+    }
+    const bridge = createHostAudioOutBridge({ createAudioContext: () => context })
+
+    await bridge.tone({ hz: 880, duration: 500, volume: 0.25 })
+    bridge.close()
+
+    assert.deepEqual(events, [
+      ['osc-connect', 'gain'],
+      ['gain-connect', 'destination'],
+      ['start', 2, 880],
+      ['stop', 2.5],
+      ['close'],
+    ])
+    assert.equal(context.closed, true)
+  })
+
+  it('records microphone audio through getUserMedia and stops tracks', async () => {
+    const stopped = []
+    const recorderChunks = [new Uint8Array([1, 2]).buffer, new Uint8Array([3]).buffer]
+    class FakeMediaRecorder {
+      constructor(stream) {
+        this.stream = stream
+      }
+      start() {
+        this.ondataavailable?.({ data: recorderChunks[0] })
+      }
+      stop() {
+        this.ondataavailable?.({ data: recorderChunks[1] })
+        this.onstop?.()
+      }
+    }
+    const bridge = createHostAudioInBridge({
+      mediaDevices: {
+        async getUserMedia(request) {
+          assert.deepEqual(request, { audio: true })
+          return { getTracks: () => [{ stop: () => stopped.push('track') }] }
+        },
+      },
+      MediaRecorder: FakeMediaRecorder,
+      setTimeoutFn(fn) {
+        fn()
+      },
+    })
+
+    const buffer = await bridge.record(100)
+
+    assert.deepEqual(Array.from(new Uint8Array(buffer)), [1, 2, 3])
+    assert.deepEqual(stopped, ['track'])
   })
 })
 

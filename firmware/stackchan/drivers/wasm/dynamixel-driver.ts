@@ -1,1 +1,1 @@
-export { DynamixelDriver } from './wasm-driver.js'
+export { DynamixelDriver } from 'wasm-driver'

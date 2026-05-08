@@ -1,1 +1,1 @@
-export { SCServoDriver } from './wasm-driver.js'
+export { SCServoDriver } from 'wasm-driver'

@@ -1,1 +1,1 @@
-export { DynamixelDriver, NoneDriver, PWMServoDriver, RS30XDriver, SCServoDriver } from './wasm-driver.js'
+export { DynamixelDriver, NoneDriver, PWMServoDriver, RS30XDriver, SCServoDriver } from 'wasm-driver'

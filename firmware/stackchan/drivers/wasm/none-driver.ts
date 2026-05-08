@@ -1,1 +1,1 @@
-export { NoneDriver } from './wasm-driver.js'
+export { NoneDriver } from 'wasm-driver'

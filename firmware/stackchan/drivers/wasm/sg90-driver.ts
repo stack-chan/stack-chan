@@ -1,1 +1,1 @@
-export { PWMServoDriver } from './wasm-driver.js'
+export { PWMServoDriver } from 'wasm-driver'

@@ -1,1 +1,1 @@
-export { RS30XDriver } from './wasm-driver.js'
+export { RS30XDriver } from 'wasm-driver'

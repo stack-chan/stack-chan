@@ -39,7 +39,7 @@ for (const [name, Driver] of driverCases) {
   })
 }
 
-test('WASM manifest maps all servo driver module specifiers to the single WasmDriver implementation', () => {
+test('WASM manifest maps all servo driver module specifiers to facade modules', () => {
   const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
 
   assert.deepEqual(
@@ -51,13 +51,28 @@ test('WASM manifest maps all servo driver module specifiers to the single WasmDr
       'scservo-driver': manifest.modules['scservo-driver'],
     },
     {
-      'dynamixel-driver': './drivers/wasm/wasm-driver',
-      'none-driver': './drivers/wasm/wasm-driver',
-      'sg90-driver': './drivers/wasm/wasm-driver',
-      'rs30x-driver': './drivers/wasm/wasm-driver',
-      'scservo-driver': './drivers/wasm/wasm-driver',
+      'dynamixel-driver': './drivers/wasm/dynamixel-driver',
+      'none-driver': './drivers/wasm/none-driver',
+      'sg90-driver': './drivers/wasm/sg90-driver',
+      'rs30x-driver': './drivers/wasm/rs30x-driver',
+      'scservo-driver': './drivers/wasm/scservo-driver',
     },
   )
+})
+
+test('WASM servo driver facade files re-export the consolidated WasmDriver for Moddable TypeScript specifier resolution', () => {
+  const facadePaths = [
+    'stackchan/drivers/wasm/dynamixel-driver.ts',
+    'stackchan/drivers/wasm/none-driver.ts',
+    'stackchan/drivers/wasm/sg90-driver.ts',
+    'stackchan/drivers/wasm/rs30x-driver.ts',
+    'stackchan/drivers/wasm/scservo-driver.ts',
+  ]
+
+  for (const facadePath of facadePaths) {
+    const source = readFileSync(facadePath, 'utf8')
+    assert.match(source, /\.\/wasm-driver\.js/)
+  }
 })
 
 test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', async () => {

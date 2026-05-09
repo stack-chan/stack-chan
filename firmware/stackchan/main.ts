@@ -134,10 +134,20 @@ function createRobot() {
     ...(modConfig.led ?? {}),
   }
   const led = Object.fromEntries(
-    Object.entries(configLed).map(([key, ledConfig]) => [
-      key,
-      new Led(ledConfig as { pin: number; length?: number; order?: string }),
-    ]),
+    Object.entries(configLed).flatMap(([key, ledConfig]) => {
+      const candidate = ledConfig as { pin?: unknown; length?: unknown; order?: unknown }
+      if (
+        typeof ledConfig !== 'object' ||
+        ledConfig == null ||
+        typeof candidate.pin !== 'number' ||
+        (candidate.length !== undefined && typeof candidate.length !== 'number') ||
+        (candidate.order !== undefined && typeof candidate.order !== 'string')
+      ) {
+        trace(`[main] skip invalid led config: ${key}\n`)
+        return []
+      }
+      return [[key, new Led(candidate as { pin: number; length?: number; order?: string })]]
+    }),
   )
 
   return new Robot({

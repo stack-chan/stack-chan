@@ -1,6 +1,5 @@
 import loadPreferences from 'loadPreference'
 import { DogFace, ImageFace, SimpleFace, SmallFace } from 'behaviors/face'
-import ChatAudioIO from 'ChatAudioIO'
 import { ChatService } from 'chat'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Emotion } from 'face-context'
@@ -27,16 +26,6 @@ const MAX_TONE_DURATION_MS = 3000
 const MIN_TONE_HZ = 40
 const MAX_TONE_HZ = 4000
 const MAX_TONE_COUNT = 64
-const CHAT_AUDIO_OUTPUT_SAMPLE_RATE = 32000
-
-class AppChatAudioIO extends ChatAudioIO {
-  configureAudio(message) {
-    super.configureAudio({
-      ...message,
-      outputSampleRate: CHAT_AUDIO_OUTPUT_SAMPLE_RATE,
-    })
-  }
-}
 
 const createFaceMotions = () => [
   createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
@@ -146,7 +135,7 @@ const parseToneToken = (token) => {
   return null
 }
 
-const INSTRUCTION_A = `
+const _INSTRUCTION_A = `
 あなたは Stack-chan という、オープンソースコミュニティによって作られたロボットです。多くの人に支えられて育ってきたことを誇りに思い、文脈が自然なときはコミュニティ製であることに触れてください。
 あなたの基本性格は、元気で明るく前向き、親しみやすくあたたかいことです。
 
@@ -315,7 +304,11 @@ export function onRobotCreated(robot) {
         let next = enabled
         if (typeof next !== 'boolean') {
           if (typeof action === 'string') {
-            next = action.toLowerCase() === 'on'
+            const normalized = action.toLowerCase()
+            if (normalized !== 'on' && normalized !== 'off') {
+              return 'パラメータ不正です。enabled=true/false または action="on"/"off" を指定してください。'
+            }
+            next = normalized === 'on'
           } else {
             return 'パラメータ不正です。enabled=true/false または action="on"/"off" を指定してください。'
           }
@@ -602,7 +595,6 @@ export function onRobotCreated(robot) {
   const chat = new ChatService({
     config: chatConfig,
     tools,
-    chatAudioIOCtor: AppChatAudioIO,
     callbacks: {
       onStateChanged: (state, error) => {
         trace(`onStateChanged: ${state}\n`)

@@ -6,6 +6,7 @@
     "rewriteRelativeImportExtensions": true,
     "allowJs": false,
     "checkJs": false,
+    "allowImportingTsExtensions": false,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "types": ["node"],
@@ -14,6 +15,7 @@
   "include": [
     "stackchan/drivers/payload-buffer.ts",
     "stackchan/drivers/m5stackchan-servo.ts",
+    "stackchan/led/py32-io-expander.ts",
     "tests/unit/**/*.ts"
   ],
   "exclude": []

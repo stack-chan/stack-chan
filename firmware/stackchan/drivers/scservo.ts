@@ -164,6 +164,13 @@ function checksum(buffer: Uint8Array, length: number): number {
 
 type SCServoConstructorParam = {
   id: number
+  awaitWriteResponse?: boolean
+  serial?: Partial<{
+    receive: number
+    transmit: number
+    baud: number
+    port: number
+  }>
 }
 
 let packetHandler: PacketHandler = null
@@ -174,21 +181,29 @@ class SCServo {
   #waitSlot: SingleWaitSlot<Uint8Array>
   #queueTail: Promise<void>
   #offset: number
-  constructor({ id }: SCServoConstructorParam) {
+  #awaitWriteResponse: boolean
+  constructor({ id, awaitWriteResponse = true, serial: serialOverride }: SCServoConstructorParam) {
     this.#id = id
     this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
     this.#queueTail = Promise.resolve()
     this.#offset = 0
+    this.#awaitWriteResponse = awaitWriteResponse
     this.#onCommandRead = (values, _length) => {
       this.#waitSlot.resolve(values)
     }
     this.#txBuf = new Uint8Array(64)
     if (packetHandler == null) {
+      const serial = serialOverride ?? config.serial ?? {}
+      const port = serial.port ?? 2
+      const receive = serial.receive ?? 16
+      const transmit = serial.transmit ?? 17
+      const baud = serial.baud ?? 1_000_000
+      trace(`[scservo] serial port=${port} tx=${transmit} rx=${receive} baud=${baud}\n`)
       packetHandler = new PacketHandler({
-        receive: config.serial?.receive ?? 16,
-        transmit: config.serial?.transmit ?? 17,
-        baud: config.serial?.baud ?? 1_000_000,
-        port: 2,
+        receive,
+        transmit,
+        baud,
+        port,
       })
     }
     if (packetHandler.hasCallbackOf(id)) {
@@ -224,6 +239,9 @@ class SCServo {
       packetHandler.write(this.#txBuf.subarray(0, idx))
     } finally {
       packetHandler.format = originalFormat
+    }
+    if (command !== COMMAND.READ && !this.#awaitWriteResponse) {
+      return
     }
     return this.#waitSlot.wait(40, () => {
       trace('timeout.\n')

@@ -15,6 +15,7 @@ export type M5StackChanServoConfig = {
   serial: {
     transmit: number
     receive: number
+    port: number
     baud: number
   }
   yaw: ServoAxisConfig
@@ -38,6 +39,7 @@ export const M5STACKCHAN_SERVO_DEFAULTS: M5StackChanServoConfig = Object.freeze(
   serial: Object.freeze({
     transmit: 6,
     receive: 7,
+    port: 1,
     baud: 1_000_000,
   }),
   yaw: Object.freeze({
@@ -99,6 +101,6 @@ export function angleToRawPosition(angleIn01Degree: number, axis: ServoAxisConfi
 export function rotationToM5StackChanServoAngles(rotation: RotationLike): { yaw: number; pitch: number } {
   return {
     yaw: Math.trunc(rotation.y * RAD_TO_01_DEGREE),
-    pitch: Math.trunc(rotation.p * RAD_TO_01_DEGREE),
+    pitch: Math.trunc(-rotation.p * RAD_TO_01_DEGREE),
   }
 }

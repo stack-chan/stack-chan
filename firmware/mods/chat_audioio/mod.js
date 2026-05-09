@@ -328,6 +328,8 @@ export function onRobotCreated(robot) {
   const isKnownLedName = (name) => typeof name === 'string' && availableLedNames.includes(name)
 
   const setLightState = (enabled, ledName = activeLightLedName) => {
+    const previousLedName = activeLightLedName
+    const wasEnabled = lightEnabled
     if (ledName == null) {
       lightEnabled = false
       robot.application.setDrawerButtonState('toggleLight', false)
@@ -339,6 +341,9 @@ export function onRobotCreated(robot) {
       const message = `[chat_audioio] unknown ledName: ${String(ledName)}`
       trace(`${message}\n`)
       return message
+    }
+    if (wasEnabled && previousLedName !== ledName && isKnownLedName(previousLedName)) {
+      robot.lightOff(previousLedName)
     }
     activeLightLedName = ledName
     lightEnabled = Boolean(enabled)

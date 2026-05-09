@@ -4,7 +4,7 @@ inputs:
   target-branch:
     description: "Target branch or tag to setup environment"
     required: false
-    default: "8.0.0"
+    default: ""
 runs:
   using: composite
   steps:
@@ -32,7 +32,16 @@ runs:
         RUNNER_OS_NAME: ${{ runner.os }}
       run: |
         set -euo pipefail
-        REF="${INPUT_TARGET_BRANCH:-public}"
+        if [ -n "$INPUT_TARGET_BRANCH" ]; then
+          REF="$INPUT_TARGET_BRANCH"
+        else
+          RELEASE_RESPONSE=$(curl -fsSL "https://api.github.com/repos/Moddable-OpenSource/moddable/releases/latest")
+          REF=$(echo "$RELEASE_RESPONSE" | jq -r '.tag_name')
+          if [ -z "$REF" ] || [ "$REF" = "null" ]; then
+            echo "::error::Failed to resolve latest Moddable release tag"
+            exit 1
+          fi
+        fi
         API_URL="https://api.github.com/repos/Moddable-OpenSource/moddable/commits/$REF"
         RESPONSE=$(curl -fsSL "$API_URL")
         MODDABLE_SHA=$(echo "$RESPONSE" | jq -r '.sha')
@@ -42,6 +51,7 @@ runs:
         fi
         MODDABLE_REF=$(echo "$MODDABLE_SHA" | cut -c1-12)
         echo "Moddable ref: $REF ($MODDABLE_REF)"
+        echo "MODDABLE_TARGET_REF=$REF" >> "$GITHUB_ENV"
         echo "moddable_cache_key=$RUNNER_OS_NAME-moddable-$MODDABLE_REF" >> "$GITHUB_ENV"
       shell: bash
     - name: Restore cache of Moddable and ESP32
@@ -54,15 +64,12 @@ runs:
         key: ${{ env.moddable_cache_key }}-fontbm2
     - name: install Moddable
       if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
-      env:
-        INPUT_TARGET_BRANCH: ${{ inputs.target-branch }}
       run: |
         sudo apt-get update
         npm run setup
-        if [ -n "$INPUT_TARGET_BRANCH" ]; then
-          git -C "$HOME/.local/share/moddable" fetch origin "$INPUT_TARGET_BRANCH"
-          git -C "$HOME/.local/share/moddable" checkout --detach FETCH_HEAD
-        fi
+        git -C "$HOME/.local/share/moddable" fetch origin "$MODDABLE_TARGET_REF"
+        git -C "$HOME/.local/share/moddable" checkout --detach FETCH_HEAD
+        echo "Installed Moddable ref: $(git -C "$HOME/.local/share/moddable" describe --tags --always)"
       working-directory: ./firmware
       shell: bash
     - name: install ESP32

@@ -86,6 +86,8 @@ const RX_STATE = {
 } as const
 type RxState = (typeof RX_STATE)[keyof typeof RX_STATE]
 
+const RESPONSE_TIMEOUT_MS = 100
+
 class PacketHandler extends Serial {
   #callbacks: Map<number, (buffer: Uint8Array, length: number) => void>
   #rxBuffer: Uint8Array
@@ -219,6 +221,9 @@ class RS30X {
   }
 
   async #dispatchCommand(...values: number[]): Promise<Uint8Array | undefined> {
+    const response = this.#waitSlot.wait(RESPONSE_TIMEOUT_MS, () => {
+      trace('timeout.\n')
+    })
     this.#txBuf[0] = 0xfa
     this.#txBuf[1] = 0xaf
     this.#txBuf[2] = this.#id
@@ -242,9 +247,7 @@ class RS30X {
     } finally {
       packetHandler.format = originalFormat
     }
-    return this.#waitSlot.wait(100, () => {
-      trace('timeout.\n')
-    })
+    return response
   }
 
   async #sendCommand(...values: number[]): Promise<Uint8Array | undefined> {
@@ -261,8 +264,14 @@ class RS30X {
     await this.#sendCommand(...COMMANDS.FLASH)
   }
   async flashId(id: number): Promise<void> {
+    if (packetHandler.hasCallbackOf(id)) {
+      throw new Error(`id(${id}) is already used\n`)
+    }
     await this.#sendCommand(...COMMANDS.SET_SERVO_ID, id)
+    const oldId = this.#id
+    packetHandler.removeCallback(oldId)
     this.#id = id
+    packetHandler.registerCallback(id, this.#onCommandRead)
     await this.#sendCommand(...COMMANDS.FLASH)
   }
 

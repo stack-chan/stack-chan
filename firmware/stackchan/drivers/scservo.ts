@@ -61,6 +61,8 @@ const RX_STATE = {
 } as const
 type RxState = (typeof RX_STATE)[keyof typeof RX_STATE]
 
+const RESPONSE_TIMEOUT_MS = 40
+
 class PacketHandler extends Serial {
   #callbacks: Map<number, (buffer: Uint8Array, length: number) => void>
   #rxBuffer: Uint8Array
@@ -204,6 +206,9 @@ class SCServo {
   }
 
   async #dispatchCommand(command: Command, address: Address, ...values: number[]): Promise<Uint8Array | undefined> {
+    const response = this.#waitSlot.wait(RESPONSE_TIMEOUT_MS, () => {
+      trace('timeout.\n')
+    })
     this.#txBuf[0] = 0xff
     this.#txBuf[1] = 0xff
     this.#txBuf[2] = this.#id
@@ -225,9 +230,7 @@ class SCServo {
     } finally {
       packetHandler.format = originalFormat
     }
-    return this.#waitSlot.wait(40, () => {
-      trace('timeout.\n')
-    })
+    return response
   }
 
   async #sendCommand(command: Command, address: Address, ...values: number[]): Promise<Uint8Array | undefined> {
@@ -309,16 +312,15 @@ class SCServo {
     // trace('unlocking\n')
     await this.#unlock()
     // trace('setting new id\n')
-    const promise = this.#sendCommand(COMMAND.WRITE, ADDRESS.ID, id)
     const oldId = this.#id
+    await this.#sendCommand(COMMAND.WRITE, ADDRESS.ID, id)
+    packetHandler.removeCallback(oldId)
     this.#id = id
-    packetHandler.registerCallback(this.#id, this.#onCommandRead)
+    packetHandler.registerCallback(id, this.#onCommandRead)
     // trace(`now we use new id(${id}\n`)
-    await promise
     // trace('locking\n')
     await this.#lock()
     // trace(`now we use new id(${id}\n`)
-    packetHandler.removeCallback(oldId)
     return
   }
 

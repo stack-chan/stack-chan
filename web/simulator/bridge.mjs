@@ -60,7 +60,11 @@ export function createHostDriverBridge({ onRotation = () => {}, onTorque = () =>
   }
 }
 
-export function createHostAudioOutBridge({ createAudioContext = defaultAudioContextFactory } = {}) {
+export function createHostAudioOutBridge({
+  createAudioContext = defaultAudioContextFactory,
+  setTimeoutFn = globalThis.setTimeout,
+  clearTimeoutFn = globalThis.clearTimeout,
+} = {}) {
   let context
 
   return {
@@ -77,11 +81,18 @@ export function createHostAudioOutBridge({ createAudioContext = defaultAudioCont
       gain.connect(context.destination)
       const startTime = context.currentTime
       await new Promise((resolve, reject) => {
-        oscillator.onended = resolve
+        let fallback
+        const finish = () => {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
+          resolve()
+        }
+        oscillator.onended = finish
         try {
           oscillator.start(startTime)
           oscillator.stop(startTime + duration / 1000)
+          fallback = setTimeoutFn?.(finish, duration + 250)
         } catch (error) {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
           reject(error)
         }
       })
@@ -99,10 +110,20 @@ export function createHostAudioOutBridge({ createAudioContext = defaultAudioCont
       source.buffer = audioBuffer
       source.connect(context.destination)
       await new Promise((resolve, reject) => {
-        source.onended = resolve
+        let fallback
+        const durationMilliSec = Number.isFinite(audioBuffer.duration) ? audioBuffer.duration * 1000 : 0
+        const finish = () => {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
+          resolve()
+        }
+        source.onended = finish
         try {
           source.start(0)
+          if (durationMilliSec > 0) {
+            fallback = setTimeoutFn?.(finish, durationMilliSec + 250)
+          }
         } catch (error) {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
           reject(error)
         }
       })

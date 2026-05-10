@@ -135,6 +135,49 @@ describe('Host.Audio bridge', () => {
     assert.equal(context.closed, true)
   })
 
+  it('resolves tone playback with a duration fallback when onended does not fire', async () => {
+    const scheduled = []
+    const context = {
+      currentTime: 0,
+      createOscillator() {
+        return {
+          frequency: { value: 0 },
+          onended: undefined,
+          connect() {},
+          start() {},
+          stop() {},
+        }
+      },
+      createGain() {
+        return {
+          gain: { value: 0 },
+          connect() {},
+        }
+      },
+      destination: 'destination',
+      state: 'running',
+    }
+    const bridge = createHostAudioOutBridge({
+      createAudioContext: () => context,
+      setTimeoutFn(callback, delay) {
+        scheduled.push({ callback, delay })
+        return scheduled.length
+      },
+      clearTimeoutFn() {},
+    })
+
+    let resolved = false
+    const tone = bridge.tone({ hz: 440, duration: 300, volume: 0.5 }).then(() => {
+      resolved = true
+    })
+
+    assert.equal(resolved, false)
+    assert.equal(scheduled[0].delay, 550)
+    scheduled[0].callback()
+    await tone
+    assert.equal(resolved, true)
+  })
+
   it('decodes and plays recorded microphone audio through AudioContext', async () => {
     const events = []
     let source

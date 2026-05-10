@@ -1,0 +1,27 @@
+{
+  "modules": {
+    "*": ["$(MODULES)/drivers/neostrand/*", "./led"],
+    "piu/Timeline": "$(MODULES)/piu/All/piuTimeline"
+  },
+  "preload": ["neostrand", "piu/Timeline", "led"],
+  "platforms": {
+    "esp32": {
+      "include": ["$(MODULES)/drivers/neopixel/manifest.json"]
+    },
+    "mac": {
+      "modules": {
+        "neopixel": "./neopixel_stub"
+      }
+    },
+    "lin": {
+      "modules": {
+        "neopixel": "./neopixel_stub"
+      }
+    },
+    "win": {
+      "modules": {
+        "neopixel": "./neopixel_stub"
+      }
+    }
+  }
+}

@@ -1,17 +1,55 @@
 {
   "compilerOptions": {
     "allowJs": true,
-    "baseUrl": "./",
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "noImplicitAny": false,
+    "noImplicitThis": false,
+    "strictNullChecks": false,
     "forceConsistentCasingInFileNames": true,
     "allowImportingTsExtensions": true,
     "module": "es2022",
     "lib": [
-      "es2024"
+      "es2025"
     ],
     "outDir": "dist",
     "sourceMap": true,
-    "target": "ES2024",
+    "target": "es2025",
     "paths": {
+      "face-context": [
+        "./stackchan/renderers-piu/face-context"
+      ],
+      "effects/*": [
+        "./stackchan/renderers-piu/effects/*"
+      ],
+      "renderer-compat": [
+        "./stackchan/renderers-piu/renderer-compat"
+      ],
+      "renderer-simple": [
+        "./stackchan/renderers-piu/renderer-simple"
+      ],
+      "renderer-dog": [
+        "./stackchan/renderers-piu/renderer-dog"
+      ],
+      "renderer-small": [
+        "./stackchan/renderers-piu/renderer-small"
+      ],
+      "behaviors/*": [
+        "./stackchan/renderers-piu/behaviors/*"
+      ],
+      "parts/*": [
+        "./stackchan/renderers-piu/parts/*"
+      ],
+      "motions/*": [
+        "./stackchan/renderers-piu/motions/*"
+      ],
+      "drawer": [
+        "./stackchan/renderers-piu/drawer"
+      ],
+      "mocks/*": [
+        "./tests/chats/mocks/*"
+      ],
       "*": [
         "./node_modules/@moddable/typings/*",
         "./node_modules/@moddable/typings/ble/*",
@@ -21,6 +59,8 @@
         "./stackchan/default-mods/*",
         "./stackchan/dialogues/*",
         "./stackchan/drivers/*",
+        "./stackchan/led/*",
+        "./stackchan/renderers-piu/*",
         "./stackchan/renderers/*",
         "./stackchan/services/*",
         "./stackchan/speeches/*",
@@ -35,6 +75,9 @@
       ],
       "mc/*": [
         "./node_modules/@moddable/typings/mc/*"
+      ],
+      "mod/*": [
+        "./node_modules/@moddable/typings/mod/*"
       ],
       "pins/*": [
         "./node_modules/@moddable/typings/pins/*"
@@ -51,15 +94,27 @@
       "embedded:io/*": [
         "./node_modules/@moddable/typings/embedded_io/*"
       ],
+      "embedded:io/audio/*": [
+				"./node_modules/@moddable/typings/embedded_io/audio/*"
+			],
+      "embedded:io/bluetooth/*": [
+				"./node_modules/@moddable/typings/embedded_io/bluetooth/*"
+			],
       "embedded:io/socket/*": [
         "./node_modules/@moddable/typings/embedded_io/socket/*"
       ],
       "embedded:network/http/*": [
         "./node_modules/@moddable/typings/embedded_network/http/*"
       ],
+      "embedded:network/interface/*": [
+				"./node_modules/@moddable/typings/embedded_network/interface/*"
+			],
       "embedded:network/mqtt/*": [
         "./node_modules/@moddable/typings/embedded_network/mqtt/*"
       ],
+      "embedded:network/websocket/*": [
+				"./node_modules/@moddable/typings/embedded_network/websocket/*"
+			],
       "embedded:network/dns/resolver/*": [
         "./node_modules/@moddable/typings/embedded_network/dns/resolver/*"
       ],

@@ -11,7 +11,8 @@
     "./drivers/manifest_driver.json",
     "./ble/manifest_ble.json",
     "./dialogues/manifest_dialogue.json",
-    "./renderers/manifest_renderer.json",
+    "./led/manifest_led.json",
+    "./renderers-piu/manifest_renderer_piu.json",
     "./services/manifest_service.json",
     "./speeches/manifest_speech.json",
     "./transcriptions/manifest_transcription.json",
@@ -31,21 +32,6 @@
   },
   "preload": ["robot", "touch", "tone"],
   "strip": [],
-  "creation": {
-    "static": 110592,
-    "chunk": {
-      "initial": 1536,
-      "incremental": 512
-    },
-    "heap": {
-      "initial": 512,
-      "incremental": 64
-    },
-    "stack": 512,
-    "keys": {
-      "available": 512
-    }
-  },
   "config": {
     "sntp": "pool.ntp.org",
     "driver": {
@@ -62,7 +48,22 @@
     }
   },
   "resources": {
-    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"]
+    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
+    "*-alpha": [
+      {
+        "source": "./assets/fonts/k8x12",
+        "size": 12,
+        "blocks": [
+          "Basic Latin",
+          "Hiragana",
+          "Katakana",
+          "CJK Unified Ideographs",
+          "CJK Symbols and Punctuation",
+          "Halfwidth and Fullwidth Forms"
+        ],
+        "monochrome": true
+      }
+    ]
   },
   "bundle": {
     "id": "tech.moddable.stackchan",
@@ -105,10 +106,24 @@
       }
     },
     "esp32/m5stack_cores3": {
-      "build": {
-        "PARTITIONS_FILE": "./sdkconfig/customPartitions.csv"
+      "creation": {
+        "static": 0,
+        "chunk": {
+          "initial": 262144,
+          "incremental": 0
+        },
+        "heap": {
+          "initial": 4096,
+          "incremental": 256
+        },
+        "stack": 512,
+        "keys": {
+          "initial": 32,
+          "incremental": 32
+        }
       },
       "config": {
+        "touchIntervalMs": 50,
         "driver": {
           "type": "dynamixel",
           "panId": 1,
@@ -121,7 +136,7 @@
           "transmit": 7,
           "receive": 6
         },
-        "virtualButton": true
+        "virtualButton": false
       }
     },
     "esp32/m5atom_s3": {
@@ -183,6 +198,43 @@
         "driver": {
           "type": "none"
         }
+      }
+    },
+    "mac/m5atom_s3": {
+      "config": {
+        "renderer": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "lin/m5atom_s3": {
+      "config": {
+        "renderer": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "win/m5atom_s3": {
+      "config": {
+        "renderer": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
       }
     }
   }

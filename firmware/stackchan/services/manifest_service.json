@@ -18,9 +18,31 @@
       "$(MODULES)/network/ble/uart/uartserver",
       "../../typings/btutils",
       "../../typings/uartserver"
-    ]
+    ],
+    "ChatAudioIO": "./chat-audioio-stub"
+  },
+  "platforms": {
+    "esp32/m5stack_cores3": {
+      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
+      "modules": {
+        "ChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+      }
+    },
+    "mac": {
+      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
+      "modules": {
+        "ChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+      }
+    }
   },
   "ble": {
     "*": ["$(MODULES)/network/ble/uart/bleservices/*"]
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
   }
 }

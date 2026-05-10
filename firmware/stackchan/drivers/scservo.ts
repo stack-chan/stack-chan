@@ -209,7 +209,9 @@ class SCServo {
       })
       packetHandlerSerialKey = serialKey
     } else if (packetHandlerSerialKey !== serialKey) {
-      throw new Error(`SCServo PacketHandler serial config mismatch: existing=${packetHandlerSerialKey}, requested=${serialKey}`)
+      throw new Error(
+        `SCServo PacketHandler serial config mismatch: existing=${packetHandlerSerialKey}, requested=${serialKey}`,
+      )
     }
     if (packetHandler.hasCallbackOf(id)) {
       throw new Error('This id is already instantiated')

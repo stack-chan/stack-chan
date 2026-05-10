@@ -78,13 +78,20 @@ class PControl {
       }
     }
     this.goalPosition = 2048
-    this._lastGoalPosition = this.goalPosition
+    this._lastGoalPosition = -1
     this._lastGoalCurrent = -1
     const mode = this._feedbackEnabled ? OPERATING_MODE.CURRENT_BASED_POSITION : OPERATING_MODE.POSITION
     await this.servo.setOperatingMode(mode)
+    if (this._feedbackEnabled) {
+      await this.servo.setGoalCurrent(this.minCurrent)
+      this._lastGoalCurrent = this.minCurrent
+      await this.servo.setGoalPosition(this.goalPosition + this._offset)
+      this._lastGoalPosition = this.goalPosition
+    }
     await this.servo.setTorque(torqueEnabled)
     if (!this._feedbackEnabled) {
       await this.servo.setGoalPosition(this.goalPosition)
+      this._lastGoalPosition = this.goalPosition
     }
   }
 

@@ -87,6 +87,8 @@ const RX_STATE = {
 } as const
 type RxState = (typeof RX_STATE)[keyof typeof RX_STATE]
 
+const RESPONSE_TIMEOUT_MS = 60
+
 class PacketHandler extends Serial {
   #callbacks: Map<number, (buffer: Uint8Array, offset: number, length: number) => void>
   #rxBuffer: Uint8Array
@@ -160,7 +162,7 @@ class PacketHandler extends Serial {
           this.#count -= 1
           if (this.#count <= 0) {
             const command = rxBuf[7] as Instruction
-            if (command !== INSTRUCTION.WRITE && command !== INSTRUCTION.READ) {
+            if (command === INSTRUCTION.STATUS) {
               const callback = this.#callbacks.get(rxBuf[4])
               if (callback != null) {
                 const payloadLength = this.#idx - 9
@@ -172,11 +174,6 @@ class PacketHandler extends Serial {
             this.#resetSeek()
           }
           break
-        default:
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore 6113
-          // eslint-disable-next-line no-case-declarations, @typescript-eslint/no-unused-vars
-          let _state: never
       }
     }
   }
@@ -272,9 +269,7 @@ class Dynamixel {
       if (this.#responseBuffer.length < length) {
         this.#responseBuffer = new Uint8Array(length)
       }
-      for (let i = 0; i < length; i++) {
-        this.#responseBuffer[i] = buffer[offset + i]
-      }
+      this.#responseBuffer.set(buffer.subarray(offset, offset + length))
       this.#responseLength = length
       this.#waitSlot.resolve(length)
     }
@@ -337,7 +332,7 @@ class Dynamixel {
     this.#writeCommandPacket(command)
     this.#responseLength = 0
     this.#expectedResponseMinLength = command.expectedResponseMinLength
-    return this.#waitSlot.wait(60)
+    return this.#waitSlot.wait(RESPONSE_TIMEOUT_MS)
   }
 
   async #processQueue(): Promise<void> {

@@ -31,3 +31,4 @@ fp-info-cache
 # Gerber archive
 *.zip
 
+reference/

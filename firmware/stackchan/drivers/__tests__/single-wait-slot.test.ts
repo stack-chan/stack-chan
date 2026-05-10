@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import SingleWaitSlot from '../internal/single-wait-slot.ts'
+import SingleWaitSlot from '../internal/single-wait-slot.js'
 
 test('SingleWaitSlot releases the slot after timeout', async () => {
   let scheduled: (() => void) | null = null

@@ -4,6 +4,7 @@ export const DOMAIN = {
   renderer: 'renderer',
   tts: 'tts',
   ai: 'ai',
+  led: 'led',
 } as const
 
 export const PREF_KEYS: readonly [keyof typeof DOMAIN, string, StringConstructor | NumberConstructor][] = Object.freeze(

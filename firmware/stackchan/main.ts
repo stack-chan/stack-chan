@@ -1,36 +1,60 @@
+import loadPreferences from 'loadPreference'
+import defaultMod, { type StackchanMod } from 'default-mods/mod'
+import { DynamixelDriver } from 'dynamixel-driver'
+import Led from 'led'
 import config from 'mc/config'
+import Microphone from 'microphone'
 import Modules from 'modules'
-import { Robot, type Driver, type TTS, type Renderer } from 'robot'
+import { NetworkService } from 'network-service'
+import { NoneDriver } from 'none-driver'
+import { Renderer as DogFaceRenderer } from 'renderer-dog'
+import { Renderer as ImageFaceRenderer } from 'renderer-image'
+import { Renderer as SimpleRenderer } from 'renderer-simple'
+import { Renderer as SmallFaceRenderer } from 'renderer-small'
+import { type Driver, type Renderer, Robot, type Button as RobotButton, type TTS } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
-import { DynamixelDriver } from 'dynamixel-driver'
-import { NoneDriver } from 'none-driver'
+import { asyncWait } from 'stackchan-util'
+import Tone from 'tone'
+import Touch from 'touch'
+import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import { TTS as LocalTTS } from 'tts-local'
+import { TTS as OpenAITTS } from 'tts-openai'
 import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
-import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
-import { TTS as OpenAITTS } from 'tts-openai'
-import defaultMod, { type StackchanMod } from 'default-mods/mod'
-import { Renderer as SimpleRenderer, SmallFaceRenderer } from 'simple-face'
-import { Renderer as DogFaceRenderer } from 'dog-face'
-import { NetworkService } from 'network-service'
-import Touch from 'touch'
-import Microphone from 'microphone'
-import Tone from 'tone'
-import { asyncWait } from 'stackchan-util'
-import loadPreferences from 'loadPreference'
+
+type DeviceButton = RobotButton & {
+  read: () => number
+}
+
+type SimulatorButtonCtor = new (options: {
+  onPush?: () => void
+}) => {
+  read: () => number | undefined
+}
+
+type GlobalEnvironment = {
+  button?: Partial<Record<'a' | 'b' | 'c', DeviceButton>>
+  network?: NetworkService
+  device?: unknown
+  Host?: {
+    Button?: Partial<Record<'a' | 'b' | 'c', SimulatorButtonCtor>>
+  }
+}
+
+const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 
 // wrapper button class for simulator
 class SimButton {
-  #button
-  onChanged
-  constructor(button) {
+  #button: { read: () => number | undefined }
+  onChanged = () => {}
+  constructor(button: SimulatorButtonCtor) {
     const self = this
     this.#button = new button({
       onPush() {
-        self.onChanged?.()
+        self.onChanged()
       },
     })
   }
@@ -40,25 +64,26 @@ class SimButton {
 }
 
 function createRobot() {
-  const drivers = new Map<string, new (param: unknown) => Driver>([
-    ['scservo', SCServoDriver],
-    ['dynamixel', DynamixelDriver],
-    ['pwm', PWMServoDriver],
-    ['rs30x', RS30XDriver],
-    ['none', NoneDriver],
+  const drivers = new Map<string, (param: unknown) => Driver>([
+    ['scservo', (param) => new SCServoDriver(param as ConstructorParameters<typeof SCServoDriver>[0])],
+    ['dynamixel', (param) => new DynamixelDriver(param as ConstructorParameters<typeof DynamixelDriver>[0])],
+    ['pwm', (param) => new PWMServoDriver(param as ConstructorParameters<typeof PWMServoDriver>[0])],
+    ['rs30x', (param) => new RS30XDriver(param as ConstructorParameters<typeof RS30XDriver>[0])],
+    ['none', () => new NoneDriver()],
   ])
-  const ttsEngines = new Map<string, new (param: unknown) => TTS>([
-    ['local', LocalTTS],
-    ['remote', RemoteTTS],
-    ['voicevox', VoiceVoxTTS],
-    ['voicevox-web', VoiceVoxWebTTS],
-    ['elevenlabs', ElevenLabsTTS],
-    ['openai', OpenAITTS],
+  const ttsEngines = new Map<string, (param: unknown) => TTS>([
+    ['local', (param) => new LocalTTS(param as ConstructorParameters<typeof LocalTTS>[0])],
+    ['remote', (param) => new RemoteTTS(param as ConstructorParameters<typeof RemoteTTS>[0])],
+    ['voicevox', (param) => new VoiceVoxTTS(param as ConstructorParameters<typeof VoiceVoxTTS>[0])],
+    ['voicevox-web', (param) => new VoiceVoxWebTTS(param as ConstructorParameters<typeof VoiceVoxWebTTS>[0])],
+    ['elevenlabs', (param) => new ElevenLabsTTS(param as ConstructorParameters<typeof ElevenLabsTTS>[0])],
+    ['openai', (param) => new OpenAITTS(param as ConstructorParameters<typeof OpenAITTS>[0])],
   ])
-  const renderers = new Map<string, new (param: unknown) => Renderer>([
-    ['dog', DogFaceRenderer],
-    ['simple', SimpleRenderer],
-    ['small-face', SmallFaceRenderer],
+  const renderers = new Map<string, (param: unknown) => Renderer>([
+    ['dog', (param) => new DogFaceRenderer(param as ConstructorParameters<typeof DogFaceRenderer>[0])],
+    ['simple', (param) => new SimpleRenderer(param as ConstructorParameters<typeof SimpleRenderer>[0])],
+    ['image', (param) => new ImageFaceRenderer(param as ConstructorParameters<typeof ImageFaceRenderer>[0])],
+    ['small-face', (param) => new SmallFaceRenderer(param as ConstructorParameters<typeof SmallFaceRenderer>[0])],
   ])
 
   const errors: string[] = []
@@ -91,36 +116,32 @@ function createRobot() {
     throw new Error(errors.join('\n'))
   }
 
-  const driver = new Driver(driverPrefs)
-  const renderer = new Renderer(rendererPrefs)
-  const tts = new TTS(ttsPrefs)
-  const button = globalThis.button
+  const driver = Driver(driverPrefs)
+  const renderer = Renderer(rendererPrefs)
+  const tts = TTS(ttsPrefs)
 
-  // TODO(@meganetaaan): screen.touch does not exist under Commodetto context. Is this check necessary?
-  interface GlobalEnvironment {
-    screen?: {
-      touch?: unknown
-    }
-    device?: {
-      sensor?: {
-        Touch?: unknown
-      }
-    }
-  }
-  const globalEnv = globalThis as unknown as GlobalEnvironment
-  const TouchConstructor = config.Touch || globalEnv.device?.sensor?.Touch
-  const touch = TouchConstructor ? new Touch(TouchConstructor) : undefined
+  const touch = config.Touch ? new Touch(config.Touch) : undefined
   const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined
   const tone = new Tone({ volume: ttsPrefs.volume })
+
+  const configLed = loadPreferences('led')
+  const led = Object.fromEntries(
+    Object.entries(configLed).map(([key, config]) => [
+      key,
+      new Led(config as { pin: number; length?: number; order?: string }),
+    ]),
+  )
+
   return new Robot({
     driver,
     renderer,
     tts,
-    button,
+    button: globalEnv.button,
     touch,
     tone,
     microphone,
-  })
+    led,
+  } as ConstructorParameters<typeof Robot>[0])
 }
 
 async function checkAndConnectWiFi() {
@@ -129,20 +150,21 @@ async function checkAndConnectWiFi() {
     return
   }
   return new Promise<void>((resolve, reject) => {
-    globalThis.network = new NetworkService({
+    globalEnv.network = new NetworkService({
       ssid: wifiPrefs.ssid,
       password: wifiPrefs.password,
     })
-    globalThis.network.connect(resolve, reject)
+    globalEnv.network.connect(resolve, reject)
   })
 }
 
 async function main() {
-  if (globalThis.Host?.Button && !globalThis.button) {
-    globalThis.button = {
-      a: new SimButton(globalThis.Host.Button.a),
-      b: new SimButton(globalThis.Host.Button.b),
-      c: new SimButton(globalThis.Host.Button.c),
+  if (globalEnv.Host?.Button && !globalEnv.button) {
+    const { a, b, c } = globalEnv.Host.Button
+    globalEnv.button = {
+      ...(a && { a: new SimButton(a) }),
+      ...(b && { b: new SimButton(b) }),
+      ...(c && { c: new SimButton(c) }),
     }
   }
   await asyncWait(100)
@@ -158,7 +180,7 @@ async function main() {
   const shouldRobotCreate = await (onLaunch?.() ?? true)
   if (shouldRobotCreate) {
     const robot = createRobot()
-    await onRobotCreated?.(robot, globalThis.device)
+    await onRobotCreated?.(robot, globalEnv.device)
   }
 }
 

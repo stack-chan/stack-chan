@@ -1,6 +1,7 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_net.json",
     "$(MODULES)/files/preference/manifest.json",
     "$(MODULES)/base/structuredClone/manifest.json",
     "$(MODULES)/base/deepEqual/manifest.json",
@@ -33,6 +34,14 @@
       "modules": {
         "mac-address": "sim/mac-address",
         "embedded:io/pwm": "sim/pwm"
+      }
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "noImplicitThis": false
       }
     }
   }

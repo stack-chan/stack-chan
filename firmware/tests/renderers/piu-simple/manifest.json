@@ -1,0 +1,48 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../../stackchan/manifest_typings.json",
+    "../../../stackchan/renderers-piu/manifest_renderer_piu.json"
+  ],
+  "config": {
+    "startupSound": false
+  },
+  "modules": {
+    "twohex_stub": "./twohex_stub",
+    "mac-address": "../../../stackchan/utilities/sim/mac-address",
+    "*": ["./*"]
+  },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "./k8x12",
+        "size": 12,
+        "blocks": [
+          "Basic Latin",
+          "Hiragana",
+          "Katakana",
+          "CJK Unified Ideographs",
+          "CJK Symbols and Punctuation",
+          "Halfwidth and Fullwidth Forms"
+        ],
+        "monochrome": true
+      }
+    ]
+  },
+  "creation": {
+    "static": 110592,
+    "chunk": {
+      "initial": 1536,
+      "incremental": 512
+    },
+    "heap": {
+      "initial": 512,
+      "incremental": 64
+    },
+    "stack": 512,
+    "keys": {
+      "available": 512
+    }
+  }
+}

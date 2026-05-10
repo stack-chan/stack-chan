@@ -1,17 +1,26 @@
 import Timer from 'timer'
 import { Vector3, type Pose, Rotation, type Maybe, noop, randomBetween, generateDeviceSeed } from 'stackchan-util'
-import { type FaceContext, type Emotion, createFaceContext, type FaceDecorator } from 'renderer-base'
+import { type FaceContext, type Emotion, createFaceContext } from 'face-context'
+import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type Digital from 'embedded:io/digital'
 import type Touch from 'touch'
 import type Microphone from 'microphone'
 import type Tone from 'tone'
-import { createBalloonDecorator } from 'decorator'
-import { DEFAULT_FONT } from 'consts'
-import Resource from 'Resource'
-import parseBMF from 'commodetto/parseBMF'
+import type Led from 'led'
+import { SpeechBalloon } from 'effects/speech-balloon'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
+const HEX_DIGITS = '0123456789abcdef'
+
+function toHexByte(value: number): string {
+  const clamped = Math.max(0, Math.min(255, value | 0))
+  return `${HEX_DIGITS[(clamped >> 4) & 0x0f]}${HEX_DIGITS[clamped & 0x0f]}`
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`
+}
 
 /**
  * The Driver for the actuator
@@ -40,6 +49,23 @@ export type Renderer = {
   update: (interval: number, faceContext: Readonly<FaceContext>) => void
   addDecorator(decorator: FaceDecorator): void
   removeDecorator(decorator: FaceDecorator): void
+  application?: unknown
+  setFace?: (face: PiuContainer) => void
+}
+
+export type DrawerButtonRegistration = {
+  key: string
+  label: string
+  callback: (robot: Robot) => unknown
+  kind?: 'action' | 'toggle'
+  initialState?: boolean
+}
+
+type DrawerButtonRegistry = {
+  addDrawerButton: (button: DrawerButtonRegistration) => void
+  removeDrawerButton: (key: string) => void
+  clearDrawerButtons: () => void
+  setDrawerButtonState: (key: string, active: boolean) => void
 }
 
 export type Button = {
@@ -67,9 +93,11 @@ type RobotConstructorParam<T extends string> = {
   touch?: Touch
   microphone?: Microphone
   tone?: Tone
+  led?: Record<string, Led>
 }
 
 const LEFT_RIGHT = Object.freeze(['left', 'right'])
+type FaceDecorator = PiuContent
 export class Robot {
   /**
    * A Facade class that provides quick access for Stack-chan features
@@ -92,6 +120,7 @@ export class Robot {
   #touch: Touch
   #microphone: Microphone
   #tone: Tone
+  #led: Record<string, InstanceType<typeof Led>>
   #isMoving: boolean
   #renderer: Renderer
   #paused: boolean
@@ -99,8 +128,10 @@ export class Robot {
   #emotion: Emotion
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
-  #font: ReturnType<typeof parseBMF>
   #balloon: FaceDecorator
+  #drawerCallbacks: Map<string, (robot: Robot) => unknown>
+  #drawerRegistry: DrawerButtonRegistry
+  #drawerBehavior: Record<string, unknown> | null
   updating: boolean
   constructor(params: RobotConstructorParam<ButtonName>) {
     this.seed = generateDeviceSeed()
@@ -113,6 +144,7 @@ export class Robot {
     this.#touch = params.touch
     this.#microphone = params.microphone
     this.#tone = params.tone
+    this.#led = params.led ?? {}
     this.#pose = params.pose ?? {
       body: {
         position: {
@@ -157,6 +189,15 @@ export class Robot {
     this.#updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
     this.#paused = false
     this.#faceContext = createFaceContext()
+    this.#emotion = this.#faceContext.emotion
+    this.#drawerCallbacks = new Map()
+    this.#drawerBehavior = null
+    this.#drawerRegistry = {
+      addDrawerButton: (button) => this.addDrawerButton(button),
+      removeDrawerButton: (key) => this.removeDrawerButton(key),
+      clearDrawerButtons: () => this.clearDrawerButtons(),
+      setDrawerButtonState: (key, active) => this.setDrawerButtonState(key, active),
+    }
   }
 
   /**
@@ -241,6 +282,15 @@ export class Robot {
   }
 
   /**
+   * get LED
+   *
+   * @returns Led instances
+   */
+  get led() {
+    return this.#led
+  }
+
+  /**
    * let the robot say things
    *
    * @param text - the key or speech text itself to say
@@ -306,7 +356,14 @@ export class Robot {
    */
   showBalloon(
     text: string,
-    option = {
+    option: {
+      left?: number
+      right?: number
+      top?: number
+      bottom?: number
+      width?: number
+      height?: number
+    } = {
       right: 20,
       top: 10,
       width: 80,
@@ -315,15 +372,7 @@ export class Robot {
     if (this.#balloon != null) {
       this.hideBalloon()
     }
-    if (this.#font == null) {
-      this.#font = parseBMF(new Resource(DEFAULT_FONT))
-    }
-    this.#balloon = createBalloonDecorator({
-      ...option,
-      height: this.#font.height,
-      font: this.#font,
-      text,
-    })
+    this.#balloon = new SpeechBalloon({ ...option, text })
     this.#renderer.addDecorator(this.#balloon)
   }
 
@@ -370,8 +419,8 @@ export class Robot {
    * @param{g} - green value [0-255]
    * @param{b} - blue value [0-255]
    */
-  setColor(key: keyof FaceContext['theme'], r, g, b): void {
-    this.#faceContext.theme[key] = [r, g, b]
+  setColor(key: keyof FaceContext['theme'], r: number, g: number, b: number): void {
+    this.#faceContext.theme[key] = rgbToHex(r, g, b)
   }
 
   /**
@@ -402,6 +451,91 @@ export class Robot {
 
   get renderer(): Renderer {
     return this.#renderer
+  }
+
+  get application(): DrawerButtonRegistry {
+    return this.#drawerRegistry
+  }
+
+  private getDrawerController():
+    | {
+        setButtons?: (buttons: unknown[]) => void
+        addButton?: (button: unknown) => void
+        removeButton?: (key: string) => void
+        setButtonState?: (key: string, active: boolean) => void
+      }
+    | undefined {
+    const app = this.#renderer?.application as { drawerController?: unknown } | undefined
+    return app?.drawerController as
+      | {
+          setButtons?: (buttons: unknown[]) => void
+          addButton?: (button: unknown) => void
+          removeButton?: (key: string) => void
+          setButtonState?: (key: string, active: boolean) => void
+        }
+      | undefined
+  }
+
+  private ensureDrawerBehavior(): Record<string, unknown> | null {
+    const app = this.#renderer?.application as { behavior?: Record<string, unknown> } | undefined
+    if (!app) return null
+    if (!app.behavior) {
+      app.behavior = new (class extends Behavior {})() as unknown as Record<string, unknown>
+    }
+    this.#drawerBehavior = app.behavior
+    return this.#drawerBehavior
+  }
+
+  private addDrawerButton({ key, label, callback, kind, initialState }: DrawerButtonRegistration): void {
+    this.#drawerCallbacks.set(key, callback)
+    const behavior = this.ensureDrawerBehavior()
+    if (behavior) {
+      const runCallback = () => {
+        try {
+          const result = callback(this)
+          if (result && typeof (result as { catch?: (handler: (err: unknown) => void) => void }).catch === 'function') {
+            ;(result as { catch: (handler: (err: unknown) => void) => void }).catch((err: unknown) => {
+              trace(`[DrawerButton] callback rejected key=${key} err=${String(err)}\n`)
+            })
+          }
+        } catch (err) {
+          trace(`[DrawerButton] callback error key=${key} err=${String(err)}\n`)
+        }
+      }
+      const desc =
+        Object.getOwnPropertyDescriptor(behavior, key) ??
+        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(behavior), key)
+      if (desc && desc.writable === false) {
+        trace(`[DrawerButton] skip binding key=${key} (not writable)\n`)
+      } else {
+        ;(behavior as Record<string, () => void>)[key] = runCallback
+      }
+    }
+    const controller = this.getDrawerController()
+    controller?.addButton?.({ key, label, kind })
+    if (initialState !== undefined) {
+      this.setDrawerButtonState(key, initialState)
+    }
+  }
+
+  private removeDrawerButton(key: string): void {
+    this.#drawerCallbacks.delete(key)
+    if (this.#drawerBehavior) {
+      delete (this.#drawerBehavior as Record<string, unknown>)[key]
+    }
+    const controller = this.getDrawerController()
+    controller?.removeButton?.(key)
+  }
+
+  private clearDrawerButtons(): void {
+    this.#drawerCallbacks.clear()
+    const controller = this.getDrawerController()
+    controller?.setButtons?.([])
+  }
+
+  private setDrawerButtonState(key: string, active: boolean): void {
+    const controller = this.getDrawerController()
+    controller?.setButtonState?.(key, active)
   }
 
   pause() {
@@ -478,5 +612,70 @@ export class Robot {
       }
     }
     this.updating = false
+  }
+
+  /**
+   * Turns on an Led with the specified color and optional animation parameters.
+   * @param ledName - The name identifier of the Led to control
+   * @param r - Red color value (0-255)
+   * @param g - Green color value (0-255)
+   * @param b - Blue color value (0-255)
+   * @param duration - Optional duration in milliseconds for the animation
+   * @param index - Optional starting index for the Led animation
+   * @param count - Optional number of LEDs to animate
+   */
+  lightOn(ledName: string, r: number, g: number, b: number, duration?: number, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.on(r, g, b, duration, index, count)
+    }
+  }
+
+  /**
+   * Turns off the specified Led.
+   *
+   * @param ledName - The name of the Led to turn off.
+   * @param index - Optional index of the Led to turn off. If not provided, all LEDs of the specified name will be turned off.
+   * @param count - Optional number of Led to turn off starting from the index. If not provided, all LEDs will be turned off.
+   *
+   * @remarks
+   * This method checks if the Led with the given name exists before attempting to turn it off.
+   */
+  lightOff(ledName: string, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.off(index, count)
+    }
+  }
+
+  /**
+   * Blinks an Led with the specified color and interval.
+   *
+   * @param ledName - The name of the Led to blink.
+   * @param r - The red component of the color (0-255).
+   * @param g - The green component of the color (0-255).
+   * @param b - The blue component of the color (0-255).
+   * @param duration - The time in milliseconds between blinks.
+   * @param index - Optional index to specify which Led to control if multiple LEDs are present.
+   * @param count - Optional number of LEDs to blink. If not provided, it will affect all LEDs from the index to the end.
+   */
+  lightBlink(ledName: string, r: number, g: number, b: number, duration: number, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.blink(r, g, b, duration, index, count)
+    }
+  }
+
+  /**
+   * Displays a rainbow light effect on the specified Led.
+   * @param ledName - The name of the Led to apply the rainbow effect to.
+   * @param index - Optional starting index for the rainbow effect.
+   * @param count - Optional number of Leds to apply the rainbow effect to.
+   */
+  lightRainbow(ledName: string, index?: number, count?: number) {
+    const led = this.#led[ledName]
+    if (led) {
+      led.rainbow(index, count)
+    }
   }
 }

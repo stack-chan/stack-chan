@@ -60,6 +60,7 @@ export class NetworkService {
           this.#connecting = false
           if (this.#connectionEstablished) {
             this.#connecting = true
+            trace('WiFi reconnecting...\n')
             WiFi.connect({ ssid: this.#ssid, password: this.#password })
           } else {
             onError?.('connection failed')

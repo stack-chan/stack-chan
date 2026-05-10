@@ -1,6 +1,10 @@
+import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
 import type { StackchanMod } from 'default-mods/mod'
+import { Emoticon, type EmoticonKey } from 'effects/emoticon'
+import { Emotion } from 'face-context'
+import type { Content as PiuContent } from 'piu/MC'
+import { asyncWait, randomBetween } from 'stackchan-util'
 import Timer from 'timer'
-import { randomBetween, asyncWait } from 'stackchan-util'
 
 const FORWARD = {
   y: 0,
@@ -25,10 +29,90 @@ const UP = {
 }
 
 export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
+  const emotions = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
+  let emotionIndex = 0
+  let speechVisible = false
+  let emoticonEffect: PiuContent | null = null
+
+  let faceMode: 'simple' | 'dog' | 'image' = 'simple'
+  const syncFaceMode = (
+    app = robot.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined,
+  ) => {
+    robot.application.setDrawerButtonState('toggleFace', faceMode !== 'simple')
+    app?.distribute?.('onFaceMode', faceMode)
+  }
+  robot.application.addDrawerButton({
+    key: 'toggleFace',
+    label: 'Face',
+    kind: 'toggle',
+    initialState: false,
+    callback: (target) => {
+      faceMode = faceMode === 'simple' ? 'dog' : faceMode === 'dog' ? 'image' : 'simple'
+      const nextFace =
+        faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
+      target.renderer?.setFace?.(nextFace)
+      const app = target.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined
+      syncFaceMode(app)
+    },
+  })
+  syncFaceMode()
+  robot.application.addDrawerButton({
+    key: 'cycleEmotion',
+    label: 'Emotion',
+    callback: (target) => {
+      emotionIndex = (emotionIndex + 1) % emotions.length
+      const nextEmotion = emotions[emotionIndex]
+      target.setEmotion(nextEmotion)
+      if (emoticonEffect) {
+        target.renderer?.removeDecorator(emoticonEffect)
+        emoticonEffect = null
+      }
+      const emotionKeyMap: Record<Emotion, EmoticonKey | null> = {
+        [Emotion.HAPPY]: 'heart',
+        [Emotion.ANGRY]: 'angry',
+        [Emotion.SAD]: 'tear',
+        [Emotion.HOT]: 'sweat',
+        [Emotion.SLEEPY]: 'sleepy',
+        [Emotion.NEUTRAL]: null,
+        [Emotion.DOUBTFUL]: null,
+        [Emotion.COLD]: null,
+      }
+      const key = emotionKeyMap[nextEmotion]
+      if (key) {
+        emoticonEffect = new Emoticon({ key, name: 'emotion' })
+        target.renderer?.addDecorator(emoticonEffect)
+      }
+    },
+  })
+  robot.application.addDrawerButton({
+    key: 'toggleSpeech',
+    label: 'Speech',
+    kind: 'toggle',
+    initialState: speechVisible,
+    callback: (target) => {
+      speechVisible = !speechVisible
+      if (speechVisible) {
+        target.showBalloon('Hello from Stack-chan')
+      } else {
+        target.hideBalloon()
+      }
+      robot.application.setDrawerButtonState('toggleSpeech', speechVisible)
+    },
+  })
+
   /**
-   * Button A ... Look around
+   * Look around (Drawer toggle)
    */
   let isFollowing = false
+  const toggleLookAround = async () => {
+    isFollowing = !isFollowing
+    robot.driver.setTorque(isFollowing)
+    robot.application.setDrawerButtonState('toggleLookAround', isFollowing)
+    const text = isFollowing ? 'looking' : 'look away'
+    robot.showBalloon(text)
+    await asyncWait(1000)
+    robot.hideBalloon()
+  }
   const targetLoop = () => {
     if (!isFollowing) {
       robot.lookAway()
@@ -41,21 +125,16 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     robot.lookAt([x, y, z])
   }
   Timer.repeat(targetLoop, 5000)
-  if (robot.button.a != null) {
-    robot.button.a.onChanged = async function () {
-      if (this.read()) {
-        isFollowing = !isFollowing
-        robot.driver.setTorque(isFollowing)
-        const text = isFollowing ? 'looking' : 'look away'
-        robot.showBalloon(text)
-        await asyncWait(1000)
-        robot.hideBalloon()
-      }
-    }
-  }
+  robot.application.addDrawerButton({
+    key: 'toggleLookAround',
+    label: 'Look',
+    kind: 'toggle',
+    initialState: isFollowing,
+    callback: toggleLookAround,
+  })
 
   /**
-   * Button B ... Test motion
+   * Servo test (Drawer action)
    */
   const testMotion = async () => {
     robot.showBalloon('moving...')
@@ -70,35 +149,59 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     robot.hideBalloon()
   }
   let isMoving = false
-  if (robot.button.b != null) {
-    robot.button.b.onChanged = async function () {
-      if (this.read() && !isMoving) {
-        isFollowing = false
-        robot.lookAway()
-        isMoving = true
-        await testMotion()
-        isMoving = false
-      }
-    }
+  const runServoTest = async () => {
+    if (isMoving) return
+    isFollowing = false
+    robot.lookAway()
+    robot.application.setDrawerButtonState('toggleLookAround', false)
+    isMoving = true
+    await testMotion()
+    isMoving = false
   }
+  robot.application.addDrawerButton({
+    key: 'servoTest',
+    label: 'Servo',
+    callback: runServoTest,
+  })
 
   /**
-   * Button C ... Change color
+   * Change color (Drawer action)
    */
   let flag = false
-  if (robot.button.c != null) {
-    robot.button.c.onChanged = function () {
-      if (this.read()) {
-        trace('pressed C\n')
-        if (flag) {
-          robot.setColor('primary', 0xff, 0xff, 0xff)
-          robot.setColor('secondary', 0x00, 0x00, 0x00)
-        } else {
-          robot.setColor('primary', 0x00, 0x00, 0x00)
-          robot.setColor('secondary', 0xff, 0xff, 0xff)
-        }
-        flag = !flag
+  const toggleColor = () => {
+    if (flag) {
+      robot.setColor('primary', 0xff, 0xff, 0xff)
+      robot.setColor('secondary', 0x00, 0x00, 0x00)
+    } else {
+      robot.setColor('primary', 0x00, 0x00, 0x00)
+      robot.setColor('secondary', 0xff, 0xff, 0xff)
+    }
+    flag = !flag
+  }
+  robot.application.addDrawerButton({
+    key: 'toggleColor',
+    label: 'Color',
+    callback: toggleColor,
+  })
+
+  if (robot.button != null) {
+    robot.button.a.onChanged = function () {
+      if (!this.read()) {
+        return
       }
+      void toggleLookAround()
+    }
+    robot.button.b.onChanged = function () {
+      if (!this.read()) {
+        return
+      }
+      void runServoTest()
+    }
+    robot.button.c.onChanged = function () {
+      if (!this.read()) {
+        return
+      }
+      toggleColor()
     }
   }
 }

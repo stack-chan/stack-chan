@@ -136,27 +136,36 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   /**
    * Servo test (Drawer action)
    */
-  const testMotion = async () => {
+  const testMotion = (onComplete: () => void) => {
     robot.showBalloon('moving...')
-    await robot.driver.setTorque(true)
+    void robot.driver.setTorque(true)
 
-    for (const rot of [LEFT, RIGHT, DOWN, UP, FORWARD]) {
-      robot.driver.applyRotation(rot)
-      await asyncWait(1000)
+    const rotations = [LEFT, RIGHT, DOWN, UP, FORWARD]
+    let index = 0
+    const step = () => {
+      const rot = rotations[index]
+      if (!rot) {
+        void robot.driver.setTorque(false)
+        robot.hideBalloon()
+        onComplete()
+        return
+      }
+      void robot.driver.applyRotation(rot)
+      index += 1
+      Timer.set(step, 1000)
     }
-
-    await robot.driver.setTorque(false)
-    robot.hideBalloon()
+    step()
   }
   let isMoving = false
-  const runServoTest = async () => {
+  const runServoTest = () => {
     if (isMoving) return
     isFollowing = false
     robot.lookAway()
     robot.application.setDrawerButtonState('toggleLookAround', false)
     isMoving = true
-    await testMotion()
-    isMoving = false
+    testMotion(() => {
+      isMoving = false
+    })
   }
   robot.application.addDrawerButton({
     key: 'servoTest',

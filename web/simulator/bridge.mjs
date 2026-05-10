@@ -86,11 +86,42 @@ export function createHostAudioOutBridge({ createAudioContext = defaultAudioCont
         }
       })
     },
+    async play(buffer) {
+      if (!(buffer instanceof ArrayBuffer) || buffer.byteLength === 0) return false
+      context ??= createAudioContext()
+      if (context.state === 'suspended' && typeof context.resume === 'function') {
+        await context.resume()
+      }
+      if (typeof context.decodeAudioData !== 'function') return false
+
+      const audioBuffer = await decodeAudioData(context, buffer)
+      const source = context.createBufferSource()
+      source.buffer = audioBuffer
+      source.connect(context.destination)
+      await new Promise((resolve, reject) => {
+        source.onended = resolve
+        try {
+          source.start(0)
+        } catch (error) {
+          reject(error)
+        }
+      })
+      return true
+    },
     close() {
       context?.close?.()
       context = undefined
     },
   }
+}
+
+function decodeAudioData(context, buffer) {
+  return new Promise((resolve, reject) => {
+    const result = context.decodeAudioData(buffer.slice(0), resolve, reject)
+    if (result && typeof result.then === 'function') {
+      result.then(resolve, reject)
+    }
+  })
 }
 
 export function createHostAudioInBridge({

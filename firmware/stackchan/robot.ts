@@ -316,11 +316,11 @@ export class Robot {
     })
   }
 
-  async record(_durationSec?: number): Promise<ArrayBuffer> {
+  async record(durationMilliSec?: number): Promise<ArrayBuffer> {
     if (!this.#microphone) {
       throw Error('This device does not support a microphone.')
     }
-    return this.#microphone.record()
+    return this.#microphone.record(durationMilliSec)
   }
 
   /**

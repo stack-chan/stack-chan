@@ -135,6 +135,66 @@ describe('Host.Audio bridge', () => {
     assert.equal(context.closed, true)
   })
 
+  it('decodes and plays recorded microphone audio through AudioContext', async () => {
+    const events = []
+    let source
+    const context = {
+      destination: 'destination',
+      state: 'suspended',
+      async resume() {
+        this.state = 'running'
+        events.push(['resume'])
+      },
+      async decodeAudioData(buffer) {
+        events.push(['decode', buffer.byteLength])
+        return { kind: 'audio-buffer' }
+      },
+      createBufferSource() {
+        source = {
+          buffer: undefined,
+          onended: undefined,
+          connect(node) {
+            events.push(['source-connect', node])
+          },
+          start(time) {
+            events.push(['source-start', time, this.buffer.kind])
+          },
+        }
+        return source
+      },
+    }
+    const bridge = createHostAudioOutBridge({ createAudioContext: () => context })
+    const recorded = new Uint8Array([1, 2, 3, 4]).buffer
+
+    let resolved = false
+    const playback = bridge.play(recorded).then((played) => {
+      resolved = played
+    })
+
+    while (!source) await Promise.resolve()
+    assert.equal(resolved, false)
+    source.onended()
+    await playback
+
+    assert.equal(resolved, true)
+    assert.deepEqual(events, [
+      ['resume'],
+      ['decode', 4],
+      ['source-connect', 'destination'],
+      ['source-start', 0, 'audio-buffer'],
+    ])
+  })
+
+  it('skips playback for an empty recording buffer', async () => {
+    const bridge = createHostAudioOutBridge({
+      createAudioContext() {
+        throw new Error('AudioContext should not be created for empty playback')
+      },
+    })
+
+    assert.equal(await bridge.play(new ArrayBuffer(0)), false)
+  })
+
   it('records WebM/Opus microphone audio when the browser supports it', async () => {
     const stopped = []
     const recorderOptions = []

@@ -27,6 +27,24 @@ const UP = {
   ...FORWARD,
   p: -Math.PI / 6,
 }
+const RECORD_PLAYBACK_DURATION_MS = 2000
+
+type HostAudioOutBridge = {
+  play?: (buffer: ArrayBuffer) => Promise<boolean> | boolean
+}
+
+const hostEnv = globalThis as typeof globalThis & {
+  Host?: {
+    AudioOut?: HostAudioOutBridge
+  }
+}
+
+function errorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message: unknown }).message)
+  }
+  return String(error)
+}
 
 export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   const emotions = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
@@ -171,6 +189,68 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     key: 'servoTest',
     label: 'Servo',
     callback: runServoTest,
+  })
+
+  /**
+   * Audio tests (Drawer actions)
+   */
+  let isAudioTesting = false
+  const hideBalloonLater = (delay = 900) => {
+    Timer.set(() => {
+      robot.hideBalloon()
+    }, delay)
+  }
+  const runPlayTone = async () => {
+    if (isAudioTesting) return
+    isAudioTesting = true
+    robot.showBalloon('playing tone...')
+    try {
+      trace('[AudioTest] playTone start\n')
+      await robot.tone(880, 400, 0.35)
+      trace('[AudioTest] playTone complete\n')
+      robot.showBalloon('tone complete')
+    } catch (error) {
+      trace(`[AudioTest] playTone error ${errorMessage(error)}\n`)
+      robot.showBalloon('tone error')
+    } finally {
+      isAudioTesting = false
+      hideBalloonLater()
+    }
+  }
+  const runRecordPlayback = async () => {
+    if (isAudioTesting) return
+    isAudioTesting = true
+    robot.showBalloon('recording...')
+    try {
+      trace(`[AudioTest] record start duration=${RECORD_PLAYBACK_DURATION_MS}\n`)
+      const buffer = await robot.record(RECORD_PLAYBACK_DURATION_MS)
+      trace(`[AudioTest] record complete bytes=${buffer.byteLength}\n`)
+      if (buffer.byteLength === 0) {
+        robot.showBalloon('record failed')
+        return
+      }
+
+      robot.showBalloon('playing...')
+      const played = (await hostEnv.Host?.AudioOut?.play?.(buffer)) ?? false
+      trace(`[AudioTest] playback complete played=${played}\n`)
+      robot.showBalloon(played ? 'playback complete' : `recorded ${buffer.byteLength} bytes`)
+    } catch (error) {
+      trace(`[AudioTest] record playback error ${errorMessage(error)}\n`)
+      robot.showBalloon('audio error')
+    } finally {
+      isAudioTesting = false
+      hideBalloonLater(1200)
+    }
+  }
+  robot.application.addDrawerButton({
+    key: 'playTone',
+    label: 'playTone',
+    callback: runPlayTone,
+  })
+  robot.application.addDrawerButton({
+    key: 'recordPlayback',
+    label: 'Record and playback',
+    callback: runRecordPlayback,
   })
 
   /**

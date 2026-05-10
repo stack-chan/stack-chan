@@ -329,10 +329,11 @@ class Dynamixel {
   }
 
   #dispatchCommandWithWait(command: PendingCommand): Promise<number | undefined> {
-    this.#writeCommandPacket(command)
     this.#responseLength = 0
     this.#expectedResponseMinLength = command.expectedResponseMinLength
-    return this.#waitSlot.wait(RESPONSE_TIMEOUT_MS)
+    const response = this.#waitSlot.wait(RESPONSE_TIMEOUT_MS)
+    this.#writeCommandPacket(command)
+    return response
   }
 
   async #processQueue(): Promise<void> {
@@ -404,6 +405,15 @@ class Dynamixel {
   #readSignedWord(offset: number): number {
     const value = this.#responseBuffer[offset] | (this.#responseBuffer[offset + 1] << 8)
     return value >= 0x8000 ? value - 0x10000 : value
+  }
+
+  #readSignedDword(offset: number): number {
+    return (
+      this.#responseBuffer[offset] |
+      (this.#responseBuffer[offset + 1] << 8) |
+      (this.#responseBuffer[offset + 2] << 16) |
+      (this.#responseBuffer[offset + 3] << 24)
+    )
   }
 
   /**
@@ -526,12 +536,11 @@ class Dynamixel {
       throw new Error(`id(${id}) is already used\n`)
     }
     await this.setTorque(false)
-    const promise = this.#sendWriteCommand(ADDRESS.ID, id)
     const oldId = this.#id
+    await this.#sendWriteCommand(ADDRESS.ID, id)
+    packetHandler.removeCallback(oldId)
     this.#id = id
     packetHandler.registerCallback(this.#id, this.#onCommandRead)
-    await promise
-    packetHandler.removeCallback(oldId)
     return
   }
 
@@ -623,7 +632,7 @@ class Dynamixel {
    */
   async readPresentVelocity(): Promise<Maybe<number>> {
     const length = await this.#sendReadCommand(ADDRESS.PRESENT_VELOCITY, 4)
-    if (length != null && this.#hasValidResponse(4)) {
+    if (length != null && this.#hasValidResponse(6)) {
       if (this.#responseBuffer[1] !== 0) {
         return {
           success: false,
@@ -632,7 +641,7 @@ class Dynamixel {
       }
       return {
         success: true,
-        value: this.#readSignedWord(2),
+        value: this.#readSignedDword(2),
       }
     }
     return {
@@ -642,13 +651,13 @@ class Dynamixel {
 
   async readPresentPositionValue(): Promise<number | undefined> {
     const length = await this.#sendReadCommand(ADDRESS.PRESENT_POSITION, 4)
-    if (length == null || !this.#hasValidResponse(4)) {
+    if (length == null || !this.#hasValidResponse(6)) {
       return undefined
     }
     if (this.#responseBuffer[1] !== 0) {
       return undefined
     }
-    return this.#readSignedWord(2)
+    return this.#readSignedDword(2)
   }
 
   /**

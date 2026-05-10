@@ -151,14 +151,18 @@ function createRobot() {
         (candidate.ledPin !== undefined && typeof candidate.ledPin !== 'number') ||
         (candidate.address !== undefined && typeof candidate.address !== 'number')
       ) {
-        trace(`[main] skip invalid led config: ${key}\n`)
+        trace(`[main] skip led config (invalid shape): ${key}\n`)
         return []
       }
       if (candidate.type === 'py32') {
+        if (typeof candidate.ledPin !== 'number') {
+          trace(`[main] skip py32 led config (missing/invalid ledPin): ${key}\n`)
+          return []
+        }
         return [[key, new PY32Led(candidate as { length?: number; ledPin?: number; address?: number })]]
       }
       if (typeof candidate.pin !== 'number') {
-        trace(`[main] skip invalid led config: ${key}\n`)
+        trace(`[main] skip led config (missing/invalid pin): ${key}\n`)
         return []
       }
       return [[key, new Led(candidate as { pin: number; length?: number; order?: string })]]

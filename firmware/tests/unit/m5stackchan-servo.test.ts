@@ -5,6 +5,7 @@ import {
   M5STACKCHAN_SERVO_DEFAULTS,
   angleToRawPosition,
   createM5StackChanServoConfig,
+  rawPositionToAngle,
   rotationToM5StackChanServoAngles,
 } from '../../stackchan/drivers/m5stackchan-servo.js'
 
@@ -21,6 +22,13 @@ describe('M5StackChan servo mapping', () => {
 
     assert.equal(angleToRawPosition(100, yaw), 492)
     assert.equal(angleToRawPosition(-100, yaw), 428)
+  })
+
+  test('maps raw positions back through the source firmware 0.1-degree angle unit', () => {
+    const { yaw, pitch } = createM5StackChanServoConfig()
+
+    assert.equal(rawPositionToAngle(angleToRawPosition(300, yaw), yaw), 300)
+    assert.equal(rawPositionToAngle(angleToRawPosition(300, pitch), pitch), 300)
   })
 
   test('clamps raw positions to the M5StackChan safe raw range', () => {

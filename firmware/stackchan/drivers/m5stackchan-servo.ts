@@ -28,8 +28,8 @@ export type RotationLike = {
   r?: number
 }
 
-const SCS_STEPS_PER_01_DEGREE = 16 / 5 / 10
-const RAD_TO_01_DEGREE = 1800 / Math.PI
+export const SCS_STEPS_PER_01_DEGREE = 16 / 5 / 10
+export const RAD_TO_01_DEGREE = 1800 / Math.PI
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
@@ -96,6 +96,12 @@ export function angleToRawPosition(angleIn01Degree: number, axis: ServoAxisConfi
   const clampedAngle = clamp(angleIn01Degree, axis.angleLimit.min, axis.angleLimit.max)
   const raw = axis.zeroPosition + Math.trunc(clampedAngle * SCS_STEPS_PER_01_DEGREE)
   return clamp(raw, axis.rawPositionLimit.min, axis.rawPositionLimit.max)
+}
+
+export function rawPositionToAngle(rawPosition: number, axis: ServoAxisConfig): number {
+  const clampedRawPosition = clamp(rawPosition, axis.rawPositionLimit.min, axis.rawPositionLimit.max)
+  const angle = Math.trunc((clampedRawPosition - axis.zeroPosition) / SCS_STEPS_PER_01_DEGREE)
+  return clamp(angle, axis.angleLimit.min, axis.angleLimit.max)
 }
 
 export function rotationToM5StackChanServoAngles(rotation: RotationLike): { yaw: number; pitch: number } {

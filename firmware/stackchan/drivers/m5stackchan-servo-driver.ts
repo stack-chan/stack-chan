@@ -2,8 +2,10 @@ import SCServo from 'scservo'
 import { getSharedPY32IOExpander } from 'py32-io-expander'
 import type { Maybe, Rotation } from 'stackchan-util'
 import {
+  RAD_TO_01_DEGREE,
   angleToRawPosition,
   createM5StackChanServoConfig,
+  rawPositionToAngle,
   rotationToM5StackChanServoAngles,
   type M5StackChanServoConfig,
 } from 'm5stackchan-servo'
@@ -27,15 +29,15 @@ type M5StackChanServoDriverProps = Partial<{
 }>
 
 export class M5StackChanServoDriver {
-  _pan: SCServo
-  _tilt: SCServo
-  _config: M5StackChanServoConfig
-  _servoPower?: {
+  #pan: SCServo
+  #tilt: SCServo
+  #config: M5StackChanServoConfig
+  #servoPower?: {
     setEnabled: (enabled: boolean) => void
   }
 
   constructor(param: M5StackChanServoDriverProps = {}) {
-    this._config = createM5StackChanServoConfig({
+    this.#config = createM5StackChanServoConfig({
       serial: {
         ...param.config?.serial,
         ...param.serial,
@@ -51,11 +53,11 @@ export class M5StackChanServoDriver {
         ...(param.pitchZeroPosition !== undefined ? { zeroPosition: param.pitchZeroPosition } : {}),
       },
     })
-    this._pan = new SCServo({ id: this._config.yaw.id, serial: this._config.serial, awaitWriteResponse: false })
-    this._tilt = new SCServo({ id: this._config.pitch.id, serial: this._config.serial, awaitWriteResponse: false })
+    this.#pan = new SCServo({ id: this.#config.yaw.id, serial: this.#config.serial, awaitWriteResponse: false })
+    this.#tilt = new SCServo({ id: this.#config.pitch.id, serial: this.#config.serial, awaitWriteResponse: false })
     if (param.servoPower?.type !== 'none') {
       try {
-        this._servoPower = new PY32ServoPower(param.servoPower?.pin ?? 0, param.servoPower?.address)
+        this.#servoPower = new PY32ServoPower(param.servoPower?.pin ?? 0, param.servoPower?.address)
       } catch (error) {
         trace(`[m5stackchan-servo] PY32 servo power init failed: ${error}\n`)
       }
@@ -63,54 +65,52 @@ export class M5StackChanServoDriver {
   }
 
   onAttached() {
-    this._servoPower?.setEnabled(true)
+    this.#servoPower?.setEnabled(true)
   }
 
   onDetached() {
-    this._servoPower?.setEnabled(false)
+    this.#servoPower?.setEnabled(false)
   }
 
   async setTorque(torque: boolean): Promise<void> {
-    await this._pan.setTorque(torque)
-    await this._tilt.setTorque(torque)
+    await this.#pan.setTorque(torque)
+    await this.#tilt.setTorque(torque)
   }
 
   async applyRotation(ori: Rotation, time = 0.5): Promise<void> {
     const angles = rotationToM5StackChanServoAngles(ori)
-    const panRawPosition = angleToRawPosition(angles.yaw, this._config.yaw)
-    const tiltRawPosition = angleToRawPosition(angles.pitch, this._config.pitch)
+    const panRawPosition = angleToRawPosition(angles.yaw, this.#config.yaw)
+    const tiltRawPosition = angleToRawPosition(angles.pitch, this.#config.pitch)
     if (time === 0) {
-      await this._pan.setRawPosition(panRawPosition)
-      await this._tilt.setRawPosition(tiltRawPosition)
+      await this.#pan.setRawPosition(panRawPosition)
+      await this.#tilt.setRawPosition(tiltRawPosition)
     } else {
       const goalTime = time * 1000
-      await this._pan.setRawPositionInTime(panRawPosition, goalTime)
-      await this._tilt.setRawPositionInTime(tiltRawPosition, goalTime)
+      await this.#pan.setRawPositionInTime(panRawPosition, goalTime)
+      await this.#tilt.setRawPositionInTime(tiltRawPosition, goalTime)
     }
   }
 
   async getRotation(): Promise<Maybe<Rotation>> {
-    const panStatus = await this._pan.readStatus()
+    const panStatus = await this.#pan.readRawPosition()
     if (!panStatus.success) {
       return {
         success: false,
       }
     }
-    const tiltStatus = await this._tilt.readStatus()
+    const tiltStatus = await this.#tilt.readRawPosition()
     if (!tiltStatus.success) {
       return {
         success: false,
       }
     }
-    const yawRawPosition = (panStatus.value.angle * 1024) / 200
-    const pitchRawPosition = (tiltStatus.value.angle * 1024) / 200
-    const y = ((yawRawPosition - this._config.yaw.zeroPosition) * 5 * 10 * Math.PI) / (16 * 1800)
-    const p = -((pitchRawPosition - this._config.pitch.zeroPosition) * 5 * 10 * Math.PI) / (16 * 1800)
+    const yawAngle = rawPositionToAngle(panStatus.value.position, this.#config.yaw)
+    const pitchAngle = rawPositionToAngle(tiltStatus.value.position, this.#config.pitch)
     return {
       success: true,
       value: {
-        y,
-        p,
+        y: yawAngle / RAD_TO_01_DEGREE,
+        p: -(pitchAngle / RAD_TO_01_DEGREE),
         r: 0.0,
       },
     }

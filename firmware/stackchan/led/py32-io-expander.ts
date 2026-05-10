@@ -33,6 +33,9 @@ type I2CIO = {
 }
 
 type PY32Options = {
+  /**
+   * options.address overrides sensor.address; both fall back to DEFAULT_ADDRESS before sensor.io is constructed.
+   */
   sensor?: I2COptions
   address?: number
 }
@@ -173,10 +176,15 @@ let sharedExpander: PY32IOExpander | undefined
 
 export function getSharedPY32IOExpander(options?: PY32Options) {
   if (!sharedExpander) {
-    sharedExpander = new PY32IOExpander(options)
-    if (!sharedExpander.begin()) {
-      sharedExpander = undefined
-      throw new Error('PY32 IO Expander did not respond')
+    const expander = new PY32IOExpander(options)
+    try {
+      if (!expander.begin()) {
+        throw new Error('PY32 IO Expander did not respond')
+      }
+      sharedExpander = expander
+    } catch (error) {
+      expander.close()
+      throw error
     }
   }
   return sharedExpander

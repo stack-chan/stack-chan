@@ -42,6 +42,22 @@ This repository includes all the component of the robot.
 
 * See [firmware/README.md](./firmware/README.md)
 
+## Development
+
+For contributor-oriented setup and pull request expectations, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+Typical firmware workflow:
+
+```bash
+cd firmware
+npm run setup
+npm run doctor
+npm run test
+npm run build
+```
+
+Generated web assets under `web/flash` and `web/schematics` are published from the `gh-pages` branch by GitHub Actions. Treat them as deployment outputs, not hand-maintained source files.
+
 ## Planning
 
 * Development roadmap: [docs/ROADMAP.md](./docs/ROADMAP.md)

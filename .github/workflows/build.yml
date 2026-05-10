@@ -1,20 +1,66 @@
 name: Build Stack-chan Firmware
-on: [push, pull_request, workflow_dispatch]
+
+on:
+  push:
+    paths:
+      - 'firmware/**'
+      - '.github/actions/setup/action.yml'
+      - '.github/workflows/build.yml'
+      - 'lefthook.yml'
+  pull_request:
+    paths:
+      - 'firmware/**'
+      - '.github/actions/setup/action.yml'
+      - '.github/workflows/build.yml'
+      - 'lefthook.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
-      - name: Check Format
+      - name: Check format
+        working-directory: ./firmware
         run: npm run format
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Lint firmware
         working-directory: ./firmware
-      - name: Lint
         run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Run firmware tests
         working-directory: ./firmware
-      - name: Build
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build
+        run: npm run test
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - esp32/m5stack
+          - esp32/m5stack_cores3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Build firmware
         working-directory: ./firmware
-      - name: Build CoreS3
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build --target=esp32/m5stack_cores3
-        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build --target=${{ matrix.target }}

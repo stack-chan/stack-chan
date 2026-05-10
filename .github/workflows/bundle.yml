@@ -1,35 +1,39 @@
 name: Bundle Stack-chan Firmware
-on: 
+
+on:
   push:
     branches:
       - dev/v1.0
+    paths:
+      - 'firmware/**'
+      - '.github/actions/setup/action.yml'
+      - '.github/workflows/bundle.yml'
   pull_request:
     branches:
       - dev/v1.0
+    paths:
+      - 'firmware/**'
+      - '.github/actions/setup/action.yml'
+      - '.github/workflows/bundle.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bundle-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check for changes in firmware
-        id: diff_check
-        run: |
-          git diff --quiet HEAD^ HEAD -- ./firmware/ || echo "diff_detected=true" >> $GITHUB_ENV
-      - name: Cache build results
-        id: cache
-        uses: actions/cache@v4
-        with:
-          path: ./firmware/stackchan/tech.moddable.stackchan
-          key: ${{ github.sha }}
       - name: Setup
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup
-      - name: Bundle
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
+      - name: Bundle firmware
         working-directory: ./firmware
-      - name: Upload Firmware Bundle
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
+      - name: Upload firmware bundle
         uses: actions/upload-artifact@v4
         with:
           name: firmware-bundle
@@ -39,25 +43,38 @@ jobs:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev/v1.0'
     runs-on: ubuntu-latest
+    concurrency:
+      group: gh-pages-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: write
     steps:
-      - name: Checkout Pages Branch
+      - name: Checkout Pages branch
         uses: actions/checkout@v4
         with:
           ref: gh-pages
-      - name: Download Firmware Bundle
+      - name: Download firmware bundle
         uses: actions/download-artifact@v4
         with:
           name: firmware-bundle
           path: ./firmware-bundle
-      - name: Move Bundle
+      - name: Update bundle files
         run: |
+          if [ -z "$(find ./firmware-bundle -mindepth 1 -print -quit)" ]; then
+            echo "Firmware bundle artifact is empty"
+            exit 1
+          fi
+          rm -rf ./web/flash/tech.moddable.stackchan
           mkdir -p ./web/flash/tech.moddable.stackchan
-          rm -rf ./web/flash/tech.moddable.stackchan/*
-          mv firmware-bundle/* ./web/flash/tech.moddable.stackchan
-      - name: Commit and Push
+          cp -R ./firmware-bundle/. ./web/flash/tech.moddable.stackchan/
+      - name: Commit bundle update
         run: |
-          git config --global user.name 'GitHub Action'
-          git config --global user.email 'action@github.com'
-          git add .
+          git config user.name 'GitHub Action'
+          git config user.email 'action@github.com'
+          git add ./web/flash/tech.moddable.stackchan
+          if git diff --cached --quiet; then
+            echo "No bundle changes to deploy"
+            exit 0
+          fi
           git commit -m "Deploy firmware bundle from ${{ github.sha }}"
-          git push
+          git push origin HEAD:gh-pages

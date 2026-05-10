@@ -42,6 +42,22 @@
 
 * [firmware/README_ja.md](./firmware/README_ja.md)を参照ください。
 
+## 開発
+
+開発手順やPull Requestの前提は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。
+
+典型的な firmware 開発フロー:
+
+```bash
+cd firmware
+npm run setup
+npm run doctor
+npm run test
+npm run build
+```
+
+`web/flash` と `web/schematics` は GitHub Actions から `gh-pages` ブランチへ配布される生成物です。手作業で保守するソースではなく、デプロイ成果物として扱ってください。
+
 ## 開発計画
 
 * 開発ロードマップ: [docs/ROADMAP_ja.md](./docs/ROADMAP_ja.md)

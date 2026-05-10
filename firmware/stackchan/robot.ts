@@ -29,6 +29,7 @@ export type Driver = {
   applyRotation: (ori: Rotation, time?: number) => Promise<void>
   getRotation: () => Promise<Maybe<Rotation>>
   setTorque: (torque: boolean) => Promise<void>
+  setFeedbackLoopEnabled?: (enabled: boolean) => Promise<void> | void
   onAttached?: () => void
   onDetached?: () => void
 }

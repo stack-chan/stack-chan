@@ -336,6 +336,11 @@ export class Robot {
     return this.#tone?.tone(hz, duration, volume)
   }
 
+  async playAudio(buffer: ArrayBuffer): Promise<boolean> {
+    const player = this.#tone as unknown as { play?: (buffer: ArrayBuffer) => Promise<boolean> | boolean } | undefined
+    return (await player?.play?.(buffer)) ?? false
+  }
+
   /**
    * Move the focus point of the robot.
    * When the robot looks somewhere, it moves its gaze or face direction

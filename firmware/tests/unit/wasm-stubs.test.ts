@@ -180,3 +180,26 @@ test('WASM tone forwards tone requests and close to the browser Host.AudioOut br
     globalThis.Host = previousHost
   }
 })
+
+test('WASM tone plays buffers through the browser Host.AudioOut bridge', async () => {
+  const previousHost = globalThis.Host
+  const buffers: ArrayBuffer[] = []
+  globalThis.Host = {
+    AudioOut: {
+      async play(buffer: ArrayBuffer) {
+        buffers.push(buffer)
+        return true
+      },
+    },
+  }
+
+  try {
+    const buffer = new Uint8Array([1, 2, 3]).buffer
+    const result = await new Tone().play(buffer)
+
+    assert.equal(result, true)
+    assert.deepEqual(buffers, [buffer])
+  } finally {
+    globalThis.Host = previousHost
+  }
+})

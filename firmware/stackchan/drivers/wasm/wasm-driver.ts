@@ -9,6 +9,7 @@ type HostDriverBridge = {
 
 type HostAudioOutBridge = {
   tone?: (message: { hz: number; duration: number; volume?: number }) => void | Promise<void>
+  play?: (buffer: ArrayBuffer) => boolean | Promise<boolean>
   close?: () => void
 }
 

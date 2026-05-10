@@ -2,7 +2,6 @@ import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
 import type { StackchanMod } from 'default-mods/mod'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-context'
-import config from 'mc/config'
 import type { Content as PiuContent } from 'piu/MC'
 import { asyncWait, randomBetween } from 'stackchan-util'
 import Timer from 'timer'
@@ -29,16 +28,6 @@ const UP = {
   p: -Math.PI / 6,
 }
 const RECORD_PLAYBACK_DURATION_MS = 2000
-
-type HostAudioOutBridge = {
-  play?: (buffer: ArrayBuffer) => Promise<boolean> | boolean
-}
-
-const hostEnv = globalThis as typeof globalThis & {
-  Host?: {
-    AudioOut?: HostAudioOutBridge
-  }
-}
 
 function errorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -201,20 +190,12 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
       robot.hideBalloon()
     }, delay)
   }
-  const runWasmAudioBridge = (command: string) => {
-    trace(`[AudioTestBridge] ${command}\n`)
-  }
   const runPlayTone = async () => {
     if (isAudioTesting) return
     isAudioTesting = true
     robot.showBalloon('playing tone...')
     try {
       trace('[AudioTest] playTone start\n')
-      if (config.wasm) {
-        runWasmAudioBridge('playTone hz=880 duration=400 volume=0.35')
-        robot.showBalloon('tone requested')
-        return
-      }
       await robot.tone(880, 400, 0.35)
       trace('[AudioTest] playTone complete\n')
       robot.showBalloon('tone complete')
@@ -232,11 +213,6 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     robot.showBalloon('recording...')
     try {
       trace(`[AudioTest] record start duration=${RECORD_PLAYBACK_DURATION_MS}\n`)
-      if (config.wasm) {
-        runWasmAudioBridge(`recordPlayback duration=${RECORD_PLAYBACK_DURATION_MS}`)
-        robot.showBalloon('record requested')
-        return
-      }
       const buffer = await robot.record(RECORD_PLAYBACK_DURATION_MS)
       trace(`[AudioTest] record complete bytes=${buffer.byteLength}\n`)
       if (buffer.byteLength === 0) {
@@ -244,8 +220,9 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
         return
       }
 
+      trace('[AudioTest] playback start\n')
       robot.showBalloon('playing...')
-      const played = (await hostEnv.Host?.AudioOut?.play?.(buffer)) ?? false
+      const played = await robot.playAudio(buffer)
       trace(`[AudioTest] playback complete played=${played}\n`)
       robot.showBalloon(played ? 'playback complete' : `recorded ${buffer.byteLength} bytes`)
     } catch (error) {

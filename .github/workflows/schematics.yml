@@ -29,7 +29,7 @@ jobs:
   build-schematics:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: INTI-CMNB/KiBot@v2_k7
         with:
           config: schematics/m5-pantilt/m5-pantilt.kibot.yaml
@@ -53,7 +53,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout Pages branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: gh-pages
       - name: Download schematics files

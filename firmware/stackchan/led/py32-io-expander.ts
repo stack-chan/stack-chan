@@ -17,6 +17,8 @@ const REG_LED_CFG = 0x24
 const REG_LED_RAM_START = 0x30
 
 export const PY32_LED_MAX_COUNT = 32
+const PY32_INIT_RETRY_COUNT = 24
+const PY32_INIT_RETRY_DELAY_MS = 50
 
 type I2COptions = {
   io: new (options: Record<string, unknown>) => I2CIO
@@ -41,6 +43,9 @@ type PY32Options = {
 }
 
 type DeviceEnvironment = {
+  Timer?: {
+    delay: (milliseconds: number) => void
+  }
   device?: {
     I2C?: {
       internal?: Record<string, unknown>
@@ -52,6 +57,15 @@ type DeviceEnvironment = {
 }
 
 const globalEnv = globalThis as typeof globalThis & DeviceEnvironment
+
+function delayForRetry(milliseconds: number) {
+  if (globalEnv.Timer?.delay) {
+    globalEnv.Timer.delay(milliseconds)
+    return
+  }
+  const deadline = Date.now() + milliseconds
+  while (Date.now() < deadline) {}
+}
 
 function registerPair(pin: number, low: number, high: number) {
   if (pin < 0 || pin > 13) {
@@ -176,16 +190,25 @@ let sharedExpander: PY32IOExpander | undefined
 
 export function getSharedPY32IOExpander(options?: PY32Options) {
   if (!sharedExpander) {
-    const expander = new PY32IOExpander(options)
-    try {
-      if (!expander.begin()) {
-        throw new Error('PY32 IO Expander did not respond')
+    let lastError: unknown
+    for (let attempt = 0; attempt <= PY32_INIT_RETRY_COUNT; attempt++) {
+      let expander: PY32IOExpander | undefined
+      try {
+        expander = new PY32IOExpander(options)
+        if (expander.begin()) {
+          sharedExpander = expander
+          return sharedExpander
+        }
+        lastError = new Error('PY32 IO Expander did not respond')
+      } catch (error) {
+        lastError = error
       }
-      sharedExpander = expander
-    } catch (error) {
-      expander.close()
-      throw error
+      expander?.close()
+      if (attempt < PY32_INIT_RETRY_COUNT) {
+        delayForRetry(PY32_INIT_RETRY_DELAY_MS)
+      }
     }
+    throw lastError
   }
   return sharedExpander
 }

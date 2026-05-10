@@ -26,26 +26,33 @@ describe('PY32 IO Expander helpers', () => {
       Timer?: { delay: (milliseconds: number) => void }
       trace?: (message: string) => void
     }
+    const previousTimer = globalWithModdableHooks.Timer
+    const previousTrace = globalWithModdableHooks.trace
     globalWithModdableHooks.Timer = { delay: () => delays++ }
     globalWithModdableHooks.trace = () => {}
 
-    class FakeIO {
-      readUint8(_register: number) {
-        reads++
-        return reads < 3 ? 0xff : 0x41
+    try {
+      class FakeIO {
+        readUint8(_register: number) {
+          reads++
+          return reads < 3 ? 0xff : 0x41
+        }
+        writeUint8(_register: number, _byte: number) {}
+        writeBuffer(_register: number, _buffer: Uint8Array) {}
+        close() {
+          closes++
+        }
       }
-      writeUint8(_register: number, _byte: number) {}
-      writeBuffer(_register: number, _buffer: Uint8Array) {}
-      close() {
-        closes++
-      }
+
+      const expander = getSharedPY32IOExpander({ sensor: { io: FakeIO } })
+
+      assert.equal(expander.initialized, true)
+      assert.equal(reads, 3)
+      assert.equal(closes, 2)
+      assert.equal(delays, 2)
+    } finally {
+      globalWithModdableHooks.Timer = previousTimer
+      globalWithModdableHooks.trace = previousTrace
     }
-
-    const expander = getSharedPY32IOExpander({ sensor: { io: FakeIO } })
-
-    assert.equal(expander.initialized, true)
-    assert.equal(reads, 3)
-    assert.equal(closes, 2)
-    assert.equal(delays, 2)
   })
 })

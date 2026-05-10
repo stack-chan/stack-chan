@@ -16,11 +16,13 @@
   <body>
     <main class="app-shell">
       <section class="hero">
-        <p class="eyebrow">Stack-chan Web Simulator</p>
-        <h1>ししかわ版ｽﾀｯｸﾁｬﾝ</h1>
-        <p>
-          firmware/stackchan の WASM 画面を、54mm × 54mm × 54mm・4mm角丸の3Dボディ前面に貼り付けて表示します。ドラッグで視点を回せます。
-        </p>
+        <h1>ｽﾀｯｸﾁｬﾝWebシミュレーター</h1>
+        <p>ブラウザ上でｽﾀｯｸﾁｬﾝのWASMアプリと3Dボディを操作できます。</p>
+        <ul class="usage-list">
+          <li>3Dビューでドラッグ: 視点変更</li>
+          <li>3Dビューでホイール: ズーム</li>
+          <li>ｽﾀｯｸﾁｬﾝの画面をクリック/ドラッグ: ｽﾀｯｸﾁｬﾝを操作</li>
+        </ul>
       </section>
 
       <section class="simulator-layout">
@@ -30,17 +32,9 @@
         </div>
 
         <aside class="control-card">
-          <h2>Bridge</h2>
+          <h2>状態</h2>
           <p id="simulator-info">Loading WASM…</p>
-          <div class="controls">
-            <button id="button-a" type="button">A: キョロキョロ</button>
-            <button id="button-b" type="button">B: サーボ動作</button>
-            <button id="button-c" type="button">C: 色変更</button>
-            <button id="speech-toggle" type="button" aria-pressed="false">喋る</button>
-          </div>
-          <p class="note">
-            A/B/C は firmware 側の Host.Button に渡し、HTML 側でも同じイベントを3Dモーションへブリッジします。顔は2軸で、左右前後中央を軸にパンしてから、上下前後中央を軸にチルトします。3Dビューはドラッグで回転、ホイールでズームできます。
-          </p>
+          <pre id="trace-log" aria-label="firmware trace log"></pre>
         </aside>
       </section>
     </main>

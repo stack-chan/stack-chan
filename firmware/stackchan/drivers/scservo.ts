@@ -427,7 +427,7 @@ class SCServo {
         reason: raw.reason,
       }
     }
-    const angle = (raw.value.position * 200) / 1024
+    const angle = (raw.value.position * 200) / 1024 - this.#offset
     return {
       success: true,
       value: { angle },

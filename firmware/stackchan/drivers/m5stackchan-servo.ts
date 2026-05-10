@@ -28,7 +28,9 @@ export type RotationLike = {
   r?: number
 }
 
+// Source firmware scale: raw position changes by 0.32 SCS steps per 0.1 degree.
 export const SCS_STEPS_PER_01_DEGREE = 16 / 5 / 10
+// Radians to 0.1-degree units: pi radians equals 1800.
 export const RAD_TO_01_DEGREE = 1800 / Math.PI
 
 function clamp(value: number, min: number, max: number): number {
@@ -92,12 +94,22 @@ export function createM5StackChanServoConfig(
   }
 }
 
+/**
+ * Converts an angle in 0.1-degree units to a raw SCS position.
+ * The angle is clamped to axis.angleLimit, quantized with Math.trunc, offset by axis.zeroPosition,
+ * and the result is clamped to axis.rawPositionLimit.
+ */
 export function angleToRawPosition(angleIn01Degree: number, axis: ServoAxisConfig): number {
   const clampedAngle = clamp(angleIn01Degree, axis.angleLimit.min, axis.angleLimit.max)
   const raw = axis.zeroPosition + Math.trunc(clampedAngle * SCS_STEPS_PER_01_DEGREE)
   return clamp(raw, axis.rawPositionLimit.min, axis.rawPositionLimit.max)
 }
 
+/**
+ * Converts a raw SCS position to an angle in 0.1-degree units.
+ * The raw position is clamped to axis.rawPositionLimit, de-offset by axis.zeroPosition,
+ * quantized with Math.trunc, and the result is clamped to axis.angleLimit.
+ */
 export function rawPositionToAngle(rawPosition: number, axis: ServoAxisConfig): number {
   const clampedRawPosition = clamp(rawPosition, axis.rawPositionLimit.min, axis.rawPositionLimit.max)
   const angle = Math.trunc((clampedRawPosition - axis.zeroPosition) / SCS_STEPS_PER_01_DEGREE)

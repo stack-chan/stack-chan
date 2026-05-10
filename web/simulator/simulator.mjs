@@ -309,6 +309,7 @@ class WasmView {
 
   #handleFirmwarePrint(text) {
     this.#applyFirmwareDriverTrace(text)
+    this.#applyFirmwareAudioTrace(text)
     this.#appendTrace(text)
     console.log(`[firmware] ${text}`)
   }
@@ -343,6 +344,50 @@ class WasmView {
     const torque = text.match(/^\[WasmDriver\] setTorque torque=([01])/)
     if (torque) {
       this.scene.setTorqueEnabled(torque[1] === '1')
+    }
+  }
+
+  #applyFirmwareAudioTrace(text) {
+    if (typeof text !== 'string' || !text.startsWith('[AudioTestBridge] ')) return
+    const tone = text.match(
+      /^\[AudioTestBridge\] playTone hz=([^ ]+) duration=([^ ]+) volume=([^ \n]+)/,
+    )
+    if (tone) {
+      const [, hz, duration, volume] = tone
+      void this.#playTone(Number(hz), Number(duration), Number(volume))
+      return
+    }
+
+    const recordPlayback = text.match(/^\[AudioTestBridge\] recordPlayback duration=([^ \n]+)/)
+    if (recordPlayback) {
+      const [, duration] = recordPlayback
+      void this.#recordPlayback(Number(duration))
+    }
+  }
+
+  async #playTone(hz, duration, volume) {
+    try {
+      this.#appendTrace(`[AudioTestHost] playTone start hz=${hz} duration=${duration} volume=${volume}`)
+      await globalThis.Host?.AudioOut?.tone?.({ hz, duration, volume })
+      this.#appendTrace('[AudioTestHost] playTone complete')
+    } catch (error) {
+      this.#appendTrace(`[AudioTestHost] playTone error ${error?.message ?? error}`)
+      console.error('[bridge] AudioOut tone failed', error)
+    }
+  }
+
+  async #recordPlayback(duration) {
+    try {
+      this.#appendTrace(`[AudioTestHost] record start duration=${duration}`)
+      const buffer = (await globalThis.Host?.AudioIn?.record?.(duration)) ?? new ArrayBuffer(0)
+      this.#appendTrace(`[AudioTestHost] record complete bytes=${buffer.byteLength}`)
+      if (buffer.byteLength === 0) return
+
+      const played = (await globalThis.Host?.AudioOut?.play?.(buffer)) ?? false
+      this.#appendTrace(`[AudioTestHost] playback complete played=${played}`)
+    } catch (error) {
+      this.#appendTrace(`[AudioTestHost] record playback error ${error?.message ?? error}`)
+      console.error('[bridge] AudioIn/Out record playback failed', error)
     }
   }
 

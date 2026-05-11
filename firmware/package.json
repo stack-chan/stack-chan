@@ -60,6 +60,6 @@
     "typescript": "^6.0.2",
     "web-audio-engine": "^0.13.4",
     "xs-dev": "^1.0.2",
-    "yargs": "^17.6.2"
+    "yargs": "^18.0.0"
   }
 }

@@ -28,14 +28,22 @@ runs:
       shell: bash
     - name: Resolve Moddable cache key
       env:
+        GITHUB_TOKEN: ${{ github.token }}
         INPUT_TARGET_BRANCH: ${{ inputs.target-branch }}
         RUNNER_OS_NAME: ${{ runner.os }}
       run: |
         set -euo pipefail
+        github_api_get() {
+          curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$1"
+        }
         if [ -n "$INPUT_TARGET_BRANCH" ]; then
           REF="$INPUT_TARGET_BRANCH"
         else
-          RELEASE_RESPONSE=$(curl -fsSL "https://api.github.com/repos/Moddable-OpenSource/moddable/releases/latest")
+          RELEASE_RESPONSE=$(github_api_get "https://api.github.com/repos/Moddable-OpenSource/moddable/releases/latest")
           REF=$(echo "$RELEASE_RESPONSE" | jq -r '.tag_name')
           if [ -z "$REF" ] || [ "$REF" = "null" ]; then
             echo "::error::Failed to resolve latest Moddable release tag"
@@ -43,7 +51,7 @@ runs:
           fi
         fi
         API_URL="https://api.github.com/repos/Moddable-OpenSource/moddable/commits/$REF"
-        RESPONSE=$(curl -fsSL "$API_URL")
+        RESPONSE=$(github_api_get "$API_URL")
         MODDABLE_SHA=$(echo "$RESPONSE" | jq -r '.sha')
         if [[ ! "$MODDABLE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
           echo "::error::Failed to resolve Moddable commit for ref: $REF"

@@ -36,16 +36,32 @@ const aliases = {
 
 const command = process.argv[2]
 const args = process.argv.slice(3)
+const targetOption = readOption(args, 'target')
+const manifestOption = readOption(args, 'manifest')
+const explicitTarget = targetOption ?? process.env.STACKCHAN_TARGET ?? process.env.npm_config_target
+const explicitManifest = manifestOption ?? process.env.STACKCHAN_MANIFEST
 
 if (!command || command === 'help' || command === '--help' || command === '-h') {
   printHelp()
   process.exit(command ? 0 : 1)
 }
 
-const deviceName = resolveDevice(readOption(args, 'device') ?? process.env.STACKCHAN_DEVICE ?? firstPositionalDevice(args) ?? 'm5stackchan')
+const deviceName = resolveDevice(
+  readOption(args, 'device') ??
+    process.env.STACKCHAN_DEVICE ??
+    firstPositionalDevice(args) ??
+    deviceNameForTarget(explicitTarget) ??
+    'm5stackchan',
+)
 const device = devices[deviceName]
-const target = readOption(args, 'target') ?? process.env.STACKCHAN_TARGET ?? device.target
-const manifest = readOption(args, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
+if (explicitTarget && !explicitManifest && !deviceNameForTarget(explicitTarget)) {
+  console.error(`[stack-chan] Unknown target: ${explicitTarget}`)
+  console.error('[stack-chan] --target を直接指定する場合は --manifest も指定してください。')
+  console.error('[stack-chan] 通常は npm run flash:core2 のような名前付きコマンドを使ってください。')
+  process.exit(1)
+}
+const target = explicitTarget ?? device.target
+const manifest = explicitManifest ?? device.manifest
 const rest = positionalArgs(args).filter((arg) => !isDeviceAlias(arg))
 
 switch (command) {
@@ -62,7 +78,9 @@ switch (command) {
   case 'mod': {
     const modInput = rest[0]
     if (!modInput) {
-      console.error('MODのmanifestまたはpackageディレクトリを指定してください: npm run mod -- mods/look_around/manifest.json')
+      console.error(
+        'MODのmanifestまたはpackageディレクトリを指定してください: npm run mod -- mods/look_around/manifest.json',
+      )
       process.exit(1)
     }
     const packageDirectory = findPackageDirectory(modInput)
@@ -106,7 +124,7 @@ function findPackageDirectory(value) {
 
 function readOption(values, name) {
   const prefix = `--${name}=`
-  const index = values.findIndex((value) => value === `--${name}`)
+  const index = values.indexOf(`--${name}`)
   if (index >= 0) return values[index + 1]
   return values.find((value) => value.startsWith(prefix))?.slice(prefix.length)
 }
@@ -130,6 +148,19 @@ function firstPositionalDevice(values) {
 
 function isDeviceAlias(value) {
   return Boolean(value && (devices[value] || aliases[value]))
+}
+
+function deviceNameForTarget(value) {
+  switch (value) {
+    case devices.basic.target:
+      return 'basic'
+    case devices.core2.target:
+      return 'core2'
+    case devices.cores3.target:
+      return 'cores3'
+    default:
+      return null
+  }
 }
 
 function resolveDevice(value) {

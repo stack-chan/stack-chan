@@ -1,7 +1,8 @@
 # Sample Mods
 
 This is a collection of sample Stack-chan user applications (MODs).
-For instructions on how to write mods, please refer to [Build and Write Programs](./docs/flashing-firmware_en.md).
+For instructions on how to write mods, please refer to [Build and Write Programs](../docs/flashing-firmware.md).
+New MODs can use either the manifest.json style used by these samples or the package.json style handled by Moddable SDK `mcpack`.
 
 Some mods require a network connection or an external server to run (as of writing).
 

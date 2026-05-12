@@ -7,7 +7,8 @@
 * ホストPC（Windows/Mac/Linuxのいずれか）
     * 以下の環境でテスト済み
         * Linux(Ubuntu24.04)
-* M5Stack（Basic/Core2/CoreS3のいずれか）
+* M5Stack版StackChan CoreS3（標準構成）
+    * Basic/Core2/CoreS3 も開発対象として利用できます。
 * USB type-Cケーブル
 * [git](https://git-scm.com/)
 * [Node.js](https://nodejs.org/en/)
@@ -27,7 +28,7 @@ $ npm i
 
 ホストPCで[ModdableSDK](https://github.com/Moddable-OpenSource/moddable)と
 [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html)をインストールします。
-次の3通りの方法があります。
+次の3通りの方法があります。初めて触る場合は `xs-dev` を使う方法を選んでください。
 
 - CLIを使う（推奨）
 - Dockerイメージを使う
@@ -40,10 +41,10 @@ $ npm i
 
 ```console
 $ npm run setup
-$ npm run setup -- --device=esp32
 ```
 
 内部で[`xs-dev`](https://github.com/HipsterBrown/xs-dev)を使ってModdableSDKやESP-IDFのセットアップを自動化しています。
+ESP32 向けに必要なセットアップは `npm run setup` に含まれます。
 
 ### Dockerイメージを使う（Linuxのみ）
 
@@ -88,7 +89,6 @@ CLIやDockerがうまくセットアップできない場合はこちらを行�
 
 ```console
 $ npm run update
-$ npm run update -- --device=esp32
 ```
 
 ### 手動で行う
@@ -97,11 +97,11 @@ $ npm run update -- --device=esp32
 
 ## 環境のテスト
 
-`npm run doctor`コマンドで環境のテストができます。
+`npm run check`コマンドで環境のテストができます。
 インストールに成功していれば次のようにModdable SDKのバージョンが表示され、Supported target devicesにesp32が表示されます。
 
 ```console
-$ npm run doctor
+$ npm run check
 
 > stack-chan@0.2.1 doctor
 > xs-dev doctor

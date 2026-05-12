@@ -18,6 +18,22 @@
 * Designed with separate host program and user applications (MODs). Flashing only MODs is very fast, allowing for an efficient development cycle.
 * [Supports firmware flashing from a web browser](docs/flashing-firmware-web_ja.md)
 
+## First commands
+
+The standard firmware target is M5Stack StackChan CoreS3.
+If this is your first time, start with:
+
+```console
+$ npm i
+$ npm run setup
+$ npm run check
+$ npm run flash
+```
+
+`npm run flash` builds and flashes the standard host.
+For another device, use a named command such as `npm run flash:core2`.
+When iterating on a MOD, pass the MOD manifest: `npm run mod -- mods/look_around/manifest.json`.
+
 ## Directory structure
 
 - [stackchan](./stackchan/): Firmware source code.

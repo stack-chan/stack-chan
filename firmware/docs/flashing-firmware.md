@@ -4,13 +4,22 @@
 
 ## Firmware architecture
 
+If this is your first firmware flash, use the M5Stack StackChan CoreS3 standard configuration.
+You need to decide three things:
+
+- Device: the standard target is M5Stack StackChan CoreS3.
+- What to flash: flash the host first; flash a MOD only when iterating on a small user application.
+- Configuration: put Wi-Fi, servo, and other local settings in `stackchan/manifest_local.json` or a dedicated manifest when needed.
+
 ### Host and MOD
 
 ![firmware architecture](./images/host-and-mod.jpg)
 
 Stack-chan's firmware consists of a program that provide the basic operation of Stack-chan (host), and a user application (mod).
 Once the host is written, the mod can be installed in a short time for fast development.
-First write the host, and then write the mods as needed.
+Write the host first.
+When you are iterating on a face or behavior extension, flash only the MOD as needed.
+Flashing a MOD is much faster than rewriting the host.
 
 ### Manifest File
 
@@ -95,42 +104,55 @@ If Stack-chan is shaking her head left and right, the configuration has been suc
 
 Reference: [About the firmware for Stack-chan M5Go Bottom version (Japanese)](https://raspberrypi.mongonta.com/softwares-for-stackchan/)
 
-## Writing the base program (hosts)
+## Common Commands
+
+Run these commands from the `stack-chan/firmware` directory.
+
+| Task | Command |
+| --- | --- |
+| Check the environment | `npm run check` |
+| Build the standard firmware | `npm run build` |
+| Build and flash the standard firmware | `npm run flash` |
+| Start with xsbug | `npm run debug` |
+| Flash a MOD | `npm run mod -- mods/look_around/manifest.json` |
+
+The standard target is M5Stack StackChan CoreS3.
+For other M5Stack devices, use the named commands instead of target arguments.
+
+| Device | Build | Flash | Debug |
+| --- | --- | --- | --- |
+| M5Stack Basic/Gray/Fire | `npm run build:basic` | `npm run flash:basic` | `npm run debug:basic` |
+| M5Stack Core2 | `npm run build:core2` | `npm run flash:core2` | `npm run debug:core2` |
+| M5Stack CoreS3 | `npm run build:cores3` | `npm run flash:cores3` | `npm run debug:cores3` |
+| M5Stack StackChan CoreS3 | `npm run build:m5stackchan` | `npm run flash:m5stackchan` | `npm run debug:m5stackchan` |
+
+## Writing the base program (host)
 
 As stated above, Stack-chan's firmware comprises a base program (host) and a user application (MOD).
-The following commands are used to build and write a host.
+The following command builds and flashes the host.
 
 _No `sudo` required for the command._
 
 ```console
-# For M5Stack Basic/Gray/Fire
-$ npm run build
-$ npm run deploy
-
-# For M5Stack Core2
-$ npm run build --target=esp32/m5stack_core2
-$ npm run deploy --target=esp32/m5stack_core2
-
-# For M5Stack CoreS3
-$ npm run build --target=esp32/m5stack_cores3
-$ npm run deploy --target=esp32/m5stack_cores3
+$ npm run flash
 ```
 
+Use `npm run build` when you only want to verify the build.
 The program will be saved under the `$MODDABLE/build/` directory.
+
+If written correctly, the face of Stack-chan will appear a few seconds after startup.
+The M5Stack buttons will change Stack-chan's behavior as follows:
+
+- **A Button** (in the case of CoreS3, the bottom-left area of the screen) ... Stack-chan will look in a random direction every 5 seconds.
+- **B Button** (in the case of CoreS3, the bottom-center area of the screen) ... Stack-chan will look left, right, down, and up.
+- **C Button** (in the case of CoreS3, the bottom-right area of the screen) ... The color of Stack-chan's face will invert.
 
 ## Debugging
 
 You can debug the program using the following commands:
 
 ```
-# For M5Stack Basic/Gray/Fire
 $ npm run debug
-
-# For M5Stack Core2
-$ npm run debug --target=esp32/m5stack_core2
-
-# For M5Stack CoreS3
-$ npm run debug --target=esp32/m5stack_cores3
 ```
 
 These commands will open Moddable's debugger `xsbug` and connect it to the M5Stack.
@@ -147,30 +169,19 @@ The following command is used to build and write a mod.
 _No `sudo` required for the command._
 
 ```console
-# For M5Stack Basic/Gray/Fire
-$ npm run mod [mod manifest file path]
-
-# For M5Stack Core2
-$ npm run mod --target=esp32/m5stack_core2 [mod manifest file path]
-
-# For M5Stack CoreS3
-$ npm run mod --target=esp32/m5stack_cores3 [mod manifest file path]
+$ npm run mod -- [mod manifest file path]
 ```
 
-If written correctly, the face of Stack-chan will appear a few seconds after startup.
-The M5Stack buttons will change Stack-chan's behavior as follows:
-
-- **A Button** (in the case of CoreS3, the bottom-left area of the screen) ... Stack-chan will look in a random direction every 5 seconds.
-- **B Button** (in the case of CoreS3, the bottom-center area of the screen) ... Stack-chan will look left, right, down, and up.
-- **C Button** (in the case of CoreS3, the bottom-right area of the screen) ... The color of Stack-chan's face will invert.
+When you pass a MOD directory that contains `package.json`, the wrapper uses `mcpack mcrun` from the Moddable SDK.
+Manifest-based sample MODs continue to use `mcrun`.
 
 **Example: Installing [`mods/look_around`](../mods/look_around/)**
 
 ```console
-$ npm run mod ./mods/look_around/manifest.json
+$ npm run mod -- ./mods/look_around/manifest.json
 
 > stack-chan@0.2.1 mod
-> mcrun -d -m -p ${npm_config_target=esp32/m5stack} ${npm_argument} "./mods/look_around/manifest.json"
+> node scripts/firmware.mjs mod ./mods/look_around/manifest.json
 
 # xsc mod.xsb
 # xsc check.xsb
@@ -211,6 +222,7 @@ Stub running...
 Erasing flash (this may take a while)...
 Chip erase completed successfully in 25.4s
 Hard reset
+```
 
 ## Next Step
 

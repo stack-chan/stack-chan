@@ -18,6 +18,22 @@
 * ホストプログラムとユーザアプリケーション（MOD）が分離した設計。MODのみの書き換えは非常に高速なので、効率的に開発サイクルを回せます。
 * [Webブラウザからのファームウェア書き込み](docs/flashing-firmware-web_ja.md)に対応
 
+## 最初に使うコマンド
+
+M5Stack版StackChan CoreS3 を標準構成として扱います。
+初めての場合は次の順で進めてください。
+
+```console
+$ npm i
+$ npm run setup
+$ npm run check
+$ npm run flash
+```
+
+`npm run flash` は標準構成のホストをビルドして書き込みます。
+M5Stack Core2 など別の本体では `npm run flash:core2` のような名前付きコマンドを使います。
+MOD の開発だけを繰り返す場合は `npm run mod -- mods/look_around/manifest.json` のように MOD の manifest を指定します。
+
 ## ディレクトリ構成
 
 - [stackchan](./stackchan/): ファームウェアのソースコードです。

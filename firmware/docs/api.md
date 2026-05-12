@@ -8,16 +8,16 @@ The source codes of Stack-chan has `TSDoc` style comments.
 
 For generating documents, you need `tsconfig.json` under `firmware` directory.
 To do this, run `build` task once.
-It automatically generates `tsconfig.json` and creates a link.
+The build generates `tsconfig.json` under the Moddable build directory.
+Create a link from the `firmware` directory if needed.
 
 ```console
 $ npm run build
 ...
-> stack-chan@0.2.1 postbuild /home/user/repos/stack-chan/firmware
-> ln -sf $MODDABLE/build/tmp/${npm_config_target=esp32/m5stack}/debug/stackchan/modules/tsconfig.json ./tsconfig.json
+$ ln -sf $MODDABLE/build/tmp/esp32/m5stack_cores3/debug/stackchan/modules/tsconfig.json ./tsconfig.json
 
 $ file tsconfig.json
-tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32/m5stack/debug/stackchan/modules/tsconfig.json
+tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32/m5stack_cores3/debug/stackchan/modules/tsconfig.json
 ```
 
 Then you can generate documents under `docs/api` by running:

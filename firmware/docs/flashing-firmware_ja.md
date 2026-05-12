@@ -4,13 +4,22 @@
 
 ## ｽﾀｯｸﾁｬﾝのプログラム構成について
 
+初めて書き込む場合は、標準構成の M5Stack版StackChan CoreS3 を前提にできます。
+必要な情報は次の3つです。
+
+- 使う本体: 標準は M5Stack版StackChan CoreS3
+- 書き込むもの: まずはホスト、開発を繰り返す時だけ MOD
+- Wi-Fi やサーボなどの設定: 必要になったら `stackchan/manifest_local.json` または専用 manifest に書く
+
 ### ホストと MOD
 
 ![ｽﾀｯｸﾁｬﾝのプログラム構成](./images/host-and-mod.jpg)
 
 ｽﾀｯｸﾁｬﾝのファームウェアは、ｽﾀｯｸﾁｬﾝの基本動作を提供するプログラム（ホスト）とユーザアプリケーション（MOD）から構成されます。
 一度ホストを書き込んでしまえば、ユーザアプリケーションのインストールは短時間で終わるため高速な開発が可能です。
-最初にホストを書き込み、必要に応じて MOD の書き込みを行います。
+最初にホストを書き込みます。
+顔や動きの小さな追加を試す段階では、必要に応じて MOD だけを書き込みます。
+ホストを書き直すより MOD の書き込みのほうが短時間で終わります。
 
 ### マニフェストファイル
 
@@ -101,27 +110,40 @@ M5Stack Basic の Port.C を使う場合:
 
 参考: [ｽﾀｯｸﾁｬﾝ M5GoBottom 版のファームウェアについて \| M5Stack 沼人の日記](https://raspberrypi.mongonta.com/softwares-for-stackchan/)
 
+## よく使うコマンド
+
+`stack-chan/firmware` ディレクトリで実行します。
+
+| やりたいこと | コマンド |
+| --- | --- |
+| 環境を確認する | `npm run check` |
+| 標準構成をビルドする | `npm run build` |
+| 標準構成を書き込む | `npm run flash` |
+| xsbug でデバッグ起動する | `npm run debug` |
+| MOD を書き込む | `npm run mod -- mods/look_around/manifest.json` |
+
+標準構成は M5Stack版StackChan CoreS3 です。
+別の M5Stack 本体に書き込む場合は、引数ではなく名前付きコマンドを使います。
+
+| 本体 | ビルド | 書き込み | デバッグ |
+| --- | --- | --- | --- |
+| M5Stack Basic/Gray/Fire | `npm run build:basic` | `npm run flash:basic` | `npm run debug:basic` |
+| M5Stack Core2 | `npm run build:core2` | `npm run flash:core2` | `npm run debug:core2` |
+| M5Stack CoreS3 | `npm run build:cores3` | `npm run flash:cores3` | `npm run debug:cores3` |
+| M5Stack版StackChan CoreS3 | `npm run build:m5stackchan` | `npm run flash:m5stackchan` | `npm run debug:m5stackchan` |
+
 ## 基本プログラム（ホスト）の書き込み
 
 前述の通りｽﾀｯｸﾁｬﾝのファームウェアは基本プログラム（ホスト）とユーザアプリケーション（MOD）から構成されます。
-次のコマンドで基本プログラム（ホスト）の書き込みを行います。
+次のコマンドで基本プログラム（ホスト）のビルドと書き込みを行います。
 
 _コマンドに`sudo`をつける必要はありません。_
 
 ```console
-# M5Stack Basic/Gray/Fireの場合
-$ npm run build
-$ npm run deploy
-
-# M5Stack Core2の場合
-$ npm run build --target=esp32/m5stack_core2
-$ npm run deploy --target=esp32/m5stack_core2
-
-# M5Stack CoreS3の場合
-$ npm run build --target=esp32/m5stack_cores3
-$ npm run deploy --target=esp32/m5stack_cores3
+$ npm run flash
 ```
 
+ビルドだけ確認したい場合は `npm run build` を使います。
 ビルドしたプログラムは`$MODDABLE/build/`ディレクトリ配下に保存されます。
 
 正しく書き込めていれば起動から数秒後にｽﾀｯｸﾁｬﾝの顔が表示されます。
@@ -136,14 +158,7 @@ M5Stack のボタンを押すと次のように変わります。
 次のコマンドでプログラムのデバッグが可能です
 
 ```console
-# M5Stack Basic/Gray/Fireの場合
 $ npm run debug
-
-# M5Stack Core2の場合
-$ npm run debug --target=esp32/m5stack_core2
-
-# M5Stack CoreS3の場合
-$ npm run debug --target=esp32/m5stack_cores3
 ```
 
 このコマンドはModdableのデバッガ`xsbug`を開き、M5Stackと接続します。
@@ -160,23 +175,19 @@ $ npm run debug --target=esp32/m5stack_cores3
 _コマンドに`sudo`をつける必要はありません。_
 
 ```console
-# M5Stack Basic/Gray/Fireの場合
-$ npm run mod [modのマニフェストファイルのパス]
-
-# M5Stack Core2の場合
-$ npm run mod --target=esp32/m5stack_core2 [modのマニフェストファイルのパス]
-
-# M5Stack CoreS3の場合
-$ npm run mod --target=esp32/m5stack_cores3 [modのマニフェストファイルのパス]
+$ npm run mod -- [modのマニフェストファイルのパス]
 ```
+
+package.json 形式で作った MOD ディレクトリを指定した場合は、Moddable SDK 同梱の `mcpack mcrun` を使って書き込みます。
+既存サンプルのような manifest.json 形式の MOD は、従来通り `mcrun` で書き込みます。
 
 **例: [`mods/look_around`](../mods/look_around/)をインストールする**
 
 ```console
-$ npm run mod ./mods/look_around/manifest.json
+$ npm run mod -- ./mods/look_around/manifest.json
 
 > stack-chan@0.2.1 mod
-> mcrun -d -m -p ${npm_config_target=esp32/m5stack} ${npm_argument} "./mods/look_around/manifest.json"
+> node scripts/firmware.mjs mod ./mods/look_around/manifest.json
 
 # xsc mod.xsb
 # xsc check.xsb

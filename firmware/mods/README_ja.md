@@ -2,6 +2,7 @@
 
 ｽﾀｯｸﾁｬﾝのユーザアプリケーション（MOD）のサンプル集です。
 MODの書き込み方法は[プログラムのビルドと書き込み](../docs/flashing-firmware_ja.md)を参照ください。
+新しく MOD を作る場合は、既存サンプルと同じ manifest.json 形式のほか、Moddable SDK の `mcpack` が扱う package.json 形式も使えます。
 
 一部のMODは動かすためにネットワーク接続や外部のサーバを準備を準備する必要があります（執筆中）。
 

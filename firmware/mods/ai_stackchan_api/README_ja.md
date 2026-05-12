@@ -52,12 +52,12 @@
 ※日本語対応にする場合は"model"を"eleven_multilingual_v2"にしてください。
 
 ### 2. ビルド、書き込み
-次の手順でModを書き込みます。--targetは使用するデバイスを指定してください。
+次の手順でホストとModを書き込みます。
+M5Stack Core2 を使う場合は `:core2` と `core2` を指定します。
 ```
 cd (YOUR_WORKING_DIRECTORY)/stack-chan/firmware
-npm run build --target=esp32/m5stack_core2 ssid=YOUR_WIFI_SSID password=YOUR_WIFI_PASSWORD
-npm run deploy --target=esp32/m5stack_core2
-npm run mod --target=esp32/m5stack_core2 ./mods/ai_stackchan_api/manifest.json
+npm run flash:core2 -- ssid=YOUR_WIFI_SSID password=YOUR_WIFI_PASSWORD
+npm run mod -- core2 ./mods/ai_stackchan_api/manifest.json
 ```
 
 ## Web API一覧

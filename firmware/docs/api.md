@@ -14,10 +14,10 @@ Create a link from the `firmware` directory if needed.
 ```console
 $ npm run build
 ...
-$ ln -sf $MODDABLE/build/tmp/esp32/m5stack_cores3/debug/stackchan/modules/tsconfig.json ./tsconfig.json
+$ ln -sf $MODDABLE/build/tmp/esp32/m5stackchan_cores3/debug/stackchan/modules/tsconfig.json ./tsconfig.json
 
 $ file tsconfig.json
-tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32/m5stack_cores3/debug/stackchan/modules/tsconfig.json
+tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32/m5stackchan_cores3/debug/stackchan/modules/tsconfig.json
 ```
 
 Then you can generate documents under `docs/api` by running:

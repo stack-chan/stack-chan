@@ -113,7 +113,7 @@ Run these commands from the `stack-chan/firmware` directory.
 | Check the environment | `npm run check` |
 | Build the standard firmware | `npm run build` |
 | Build and flash the standard firmware | `npm run flash` |
-| Start with xsbug | `npm run debug` |
+| Start and show logs in the terminal | `npm run debug` |
 | Flash a MOD | `npm run mod -- mods/look_around/manifest.json` |
 
 The standard target is M5Stack StackChan CoreS3.
@@ -149,18 +149,14 @@ The M5Stack buttons will change Stack-chan's behavior as follows:
 
 ## Debugging
 
-You can debug the program using the following commands:
+You can start the program and show debug output in the terminal with:
 
 ```
 $ npm run debug
 ```
 
-These commands will open Moddable's debugger `xsbug` and connect it to the M5Stack.
-
-![xsbug](./images/xsbug.png)
-
-Using `xsbug`, you can check logs, set breakpoints (temporarily pause the program at specific lines), and perform step-by-step execution.
-For detailed instructions on how to use `xsbug`, please refer to the [official documentation](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md).
+This command uses `xs-dev run --log` for the selected Stack-chan platform. It is useful when you want to keep the workflow in the terminal and copy logs easily.
+For breakpoint debugging and step-by-step execution, use Moddable's debugger `xsbug`; see the [official documentation](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md).
 
 ## (Optional) Writing user application (mods)
 

@@ -119,7 +119,7 @@ M5Stack Basic の Port.C を使う場合:
 | 環境を確認する | `npm run check` |
 | 標準構成をビルドする | `npm run build` |
 | 標準構成を書き込む | `npm run flash` |
-| xsbug でデバッグ起動する | `npm run debug` |
+| ターミナルにログを出して起動する | `npm run debug` |
 | MOD を書き込む | `npm run mod -- mods/look_around/manifest.json` |
 
 標準構成は M5Stack版StackChan CoreS3 です。
@@ -155,18 +155,14 @@ M5Stack のボタンを押すと次のように変わります。
 
 ## デバッグ
 
-次のコマンドでプログラムのデバッグが可能です
+次のコマンドで、プログラムを起動してターミナルにデバッグ出力を表示できます。
 
 ```console
 $ npm run debug
 ```
 
-このコマンドはModdableのデバッガ`xsbug`を開き、M5Stackと接続します。
-
-![xsbug](./images/xsbug.png)
-
-`xsbug`を使うとログの確認やブレークポイントの設定（プログラムの特定行で一時停止する）、ステップ実行（プログラムを1行ずつ実行する）などができます。
-`xsbug`の詳しい使い方は[公式ドキュメント（英語）](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md)を参照してください。
+このコマンドは選択した Stack-chan platform に対して `xs-dev run --log` を使います。ターミナルだけで作業したい場合や、ログをコピーして共有したい場合に便利です。
+ブレークポイントやステップ実行を使いたい場合は Moddable のデバッガ `xsbug` を使います。詳しい使い方は[公式ドキュメント（英語）](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md)を参照してください。
 
 ## （オプション）ユーザアプリケーション（MOD）の書き込み
 

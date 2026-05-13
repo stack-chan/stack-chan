@@ -4,25 +4,27 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 
+const projectPath = 'stackchan'
+
 const devices = {
   m5stackchan: {
     target: 'esp32/m5stack_cores3',
-    manifest: 'stackchan/manifest_m5stackchan_cores3.json',
+    platform: 'platforms/m5stackchan_cores3',
     label: 'M5Stack版StackChan CoreS3',
   },
   basic: {
     target: 'esp32/m5stack',
-    manifest: 'stackchan/manifest_local.json',
+    platform: 'platforms/stackchan_m5stack',
     label: 'M5Stack Basic/Gray/Fire',
   },
   core2: {
     target: 'esp32/m5stack_core2',
-    manifest: 'stackchan/manifest_local.json',
+    platform: 'platforms/stackchan_m5stack_core2',
     label: 'M5Stack Core2',
   },
   cores3: {
     target: 'esp32/m5stack_cores3',
-    manifest: 'stackchan/manifest_local.json',
+    platform: 'platforms/stackchan_m5stack_cores3',
     label: 'M5Stack CoreS3',
   },
 }
@@ -60,20 +62,31 @@ if (explicitTarget && !explicitManifest && !deviceNameForTarget(explicitTarget))
   console.error('[stack-chan] 通常は npm run flash:core2 のような名前付きコマンドを使ってください。')
   process.exit(1)
 }
-const target = explicitTarget ?? device.target
-const manifest = explicitManifest ?? device.manifest
 const rest = positionalArgs(args).filter((arg) => !isDeviceAlias(arg))
+const platformTarget = `esp32:${path.resolve(device.platform)}`
 
 switch (command) {
   case 'build':
-    run('mcconfig', ['-d', '-m', '-p', target, '-t', 'build', manifest, ...rest], device)
+    if (shouldUseMcconfig()) {
+      runMcconfig(['-d', '-m', '-p', explicitTarget ?? device.target, '-t', 'build', explicitManifest, ...rest])
+    } else {
+      runXsDev(['build', '--device', platformTarget, ...configArgs(rest), projectPath])
+    }
     break
   case 'flash':
   case 'deploy':
-    run('mcconfig', ['-d', '-m', '-p', target, '-t', 'deploy', manifest, ...rest], device)
+    if (shouldUseMcconfig()) {
+      runMcconfig(['-d', '-m', '-p', explicitTarget ?? device.target, '-t', 'deploy', explicitManifest, ...rest])
+    } else {
+      runXsDev(['build', '--deploy', '--device', platformTarget, ...configArgs(rest), projectPath])
+    }
     break
   case 'debug':
-    run('mcconfig', ['-d', '-m', '-p', target, manifest, ...rest], device)
+    if (shouldUseMcconfig()) {
+      runMcconfig(['-d', '-m', '-p', explicitTarget ?? device.target, explicitManifest, ...rest])
+    } else {
+      runXsDev(['run', '--log', '--device', platformTarget, ...configArgs(rest), projectPath])
+    }
     break
   case 'mod': {
     const modInput = rest[0]
@@ -83,11 +96,12 @@ switch (command) {
       )
       process.exit(1)
     }
+    const target = explicitTarget ?? platformTarget
     const packageDirectory = findPackageDirectory(modInput)
     if (packageDirectory) {
-      run('mcpack', ['mcrun', '-d', '-m', '-p', target, ...rest.slice(1)], device, packageDirectory)
+      run('mcpack', ['mcrun', '-d', '-m', '-p', target, ...rest.slice(1)], packageDirectory)
     } else {
-      run('mcrun', ['-d', '-m', '-p', target, modInput, ...rest.slice(1)], device)
+      run('mcrun', ['-d', '-m', '-p', target, modInput, ...rest.slice(1)])
     }
     break
   }
@@ -97,10 +111,38 @@ switch (command) {
     process.exit(1)
 }
 
-function run(bin, binArgs, device, cwd = process.cwd()) {
+function shouldUseMcconfig() {
+  return Boolean(explicitManifest)
+}
+
+function configArgs(values) {
+  return values.flatMap((value) => (value.includes('=') ? ['--config', value] : [value]))
+}
+
+function runXsDev(xsDevArgs) {
   console.log(`[stack-chan] ${command}: ${device.label}`)
-  console.log(`[stack-chan] target=${target}`)
-  if (command !== 'mod') console.log(`[stack-chan] manifest=${manifest}`)
+  console.log(`[stack-chan] device=${platformTarget}`)
+  const result = spawnSync('xs-dev', xsDevArgs, { stdio: 'inherit' })
+  if (result.error) {
+    console.error(`[stack-chan] xs-dev を実行できませんでした: ${result.error.message}`)
+    console.error('[stack-chan] npm run setup と npm run check を実行し、Moddable SDK の PATH を確認してください。')
+    process.exit(1)
+  }
+  process.exit(result.status ?? 1)
+}
+
+function runMcconfig(mcconfigArgs) {
+  console.log(`[stack-chan] ${command}: ${device.label}`)
+  console.log(`[stack-chan] target=${explicitTarget ?? device.target}`)
+  console.log(`[stack-chan] manifest=${explicitManifest}`)
+  run('mcconfig', mcconfigArgs)
+}
+
+function run(bin, binArgs, cwd = process.cwd()) {
+  if (bin !== 'mcconfig') {
+    console.log(`[stack-chan] ${command}: ${device.label}`)
+    console.log(`[stack-chan] target=${explicitTarget ?? platformTarget}`)
+  }
   if (cwd !== process.cwd()) console.log(`[stack-chan] cwd=${cwd}`)
 
   const result = spawnSync(bin, binArgs, { cwd, stdio: 'inherit' })
@@ -175,7 +217,7 @@ function printHelp() {
   console.log(`Usage:
   npm run build              # 標準: M5Stack版StackChan CoreS3
   npm run flash              # ビルドして書き込み
-  npm run debug              # xsbug で起動
+  npm run debug              # ターミナルにログを出して起動
   npm run mod -- <manifest>  # MODを書き込み
   npm run mod -- <package-dir>  # package.json形式のMODを書き込み(mcpack)
 

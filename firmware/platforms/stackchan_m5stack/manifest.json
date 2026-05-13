@@ -1,0 +1,6 @@
+{
+  "build": {
+    "SUBPLATFORM": "stackchan_m5stack"
+  },
+  "include": ["$(BUILD)/devices/esp32/targets/m5stack/manifest.json"]
+}

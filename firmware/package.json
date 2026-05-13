@@ -34,7 +34,6 @@
     "mod": "node scripts/firmware.mjs mod",
     "setup": "xs-dev setup --device=esp32",
     "update": "xs-dev update --device=esp32",
-    "check": "npm run doctor",
     "doctor": "echo stack-chan environment info: && git rev-parse HEAD && git rev-parse --show-toplevel && xs-dev doctor",
     "scan": "xs-dev scan",
     "erase-flash": "esptool erase-flash",

@@ -97,11 +97,11 @@ $ npm run update
 
 ## 環境のテスト
 
-`npm run check`コマンドで環境のテストができます。
+`npm run doctor`コマンドで環境のテストができます。
 インストールに成功していれば次のようにModdable SDKのバージョンが表示され、Supported target devicesにesp32が表示されます。
 
 ```console
-$ npm run check
+$ npm run doctor
 
 > stack-chan@0.2.1 doctor
 > xs-dev doctor

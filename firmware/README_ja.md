@@ -26,7 +26,7 @@ M5Stack版StackChan CoreS3 を標準構成として扱います。
 ```console
 $ npm i
 $ npm run setup
-$ npm run check
+$ npm run doctor
 $ npm run flash
 ```
 

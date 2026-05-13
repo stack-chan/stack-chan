@@ -116,7 +116,7 @@ M5Stack Basic の Port.C を使う場合:
 
 | やりたいこと | コマンド |
 | --- | --- |
-| 環境を確認する | `npm run check` |
+| 環境を確認する | `npm run doctor` |
 | 標準構成をビルドする | `npm run build` |
 | 標準構成を書き込む | `npm run flash` |
 | ターミナルにログを出して起動する | `npm run debug` |

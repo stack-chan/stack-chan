@@ -26,7 +26,7 @@ If this is your first time, start with:
 ```console
 $ npm i
 $ npm run setup
-$ npm run check
+$ npm run doctor
 $ npm run flash
 ```
 

@@ -110,7 +110,7 @@ Run these commands from the `stack-chan/firmware` directory.
 
 | Task | Command |
 | --- | --- |
-| Check the environment | `npm run check` |
+| Check the environment | `npm run doctor` |
 | Build the standard firmware | `npm run build` |
 | Build and flash the standard firmware | `npm run flash` |
 | Start and show logs in the terminal | `npm run debug` |

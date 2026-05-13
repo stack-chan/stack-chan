@@ -51,7 +51,7 @@ Typical firmware workflow:
 ```bash
 cd firmware
 npm run setup
-npm run check
+npm run doctor
 npm run test
 npm run flash
 ```

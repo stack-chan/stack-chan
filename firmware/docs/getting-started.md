@@ -97,11 +97,11 @@ Follow the instructions on the [official website (English)](https://github.com/M
 
 ## Test the environment
 
-You can test the environment with the `npm run check` command.
+You can test the environment with the `npm run doctor` command.
 If the installation was successful, the version of Moddable SDK will be displayed as follows, and esp32 will be displayed in Supported target devices.
 
 ```console
-$ npm run check
+$ npm run doctor
 
 > stack-chan@0.2.1 doctor
 > xs-dev doctor

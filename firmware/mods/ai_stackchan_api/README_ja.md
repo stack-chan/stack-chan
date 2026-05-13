@@ -54,7 +54,7 @@
 ### 2. ビルド、書き込み
 次の手順でホストとModを書き込みます。
 M5Stack Core2 を使う場合は `:core2` と `core2` を指定します。
-```
+```bash
 cd (YOUR_WORKING_DIRECTORY)/stack-chan/firmware
 npm run flash:core2 -- ssid=YOUR_WIFI_SSID password=YOUR_WIFI_PASSWORD
 npm run mod -- core2 ./mods/ai_stackchan_api/manifest.json

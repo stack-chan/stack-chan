@@ -141,15 +141,6 @@
     },
     "esp32/stackchan_m5stack": {
       "config": {
-        "tts": {
-          "type": "voicevox",
-          "host": "192.168.7.136",
-          "port": 50021
-        },
-        "chat": {
-          "type": "openAIRealtime",
-          "modelID": "gpt-realtime-mini"
-        },
         "driver": {
           "type": "none"
         }
@@ -176,16 +167,6 @@
           "type": "none",
           "pwmPan": 19,
           "pwmTilt": 27
-        },
-        "tts": {
-          "type": "voicevox",
-          "host": "192.168.7.136",
-          "port": 50021,
-          "sampleRate": 24000
-        },
-        "chat": {
-          "type": "openAIRealtime",
-          "modelID": "gpt-realtime-mini"
         },
         "serial": {
           "transmit": 14,
@@ -216,16 +197,6 @@
           "type": "none",
           "panId": 1,
           "tiltId": 2
-        },
-        "tts": {
-          "type": "voicevox",
-          "host": "192.168.7.136",
-          "port": 50021,
-          "sampleRate": 24000
-        },
-        "chat": {
-          "type": "openAIRealtime",
-          "modelID": "gpt-realtime-mini"
         },
         "serial": {
           "transmit": 7,

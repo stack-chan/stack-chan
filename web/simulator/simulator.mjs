@@ -514,9 +514,17 @@ function describeModStatus(result, installedMod = null) {
     return `MOD: error (${result.error})`
   }
   if (installedMod) {
-    return `MOD: ${installedMod.name} (${formatByteSize(installedMod.size)}) saved`
+    const lifetime = installedMod.storage === 'memory' ? ' saved in memory (session-only)' : ' saved'
+    return `MOD: ${installedMod.name} (${formatByteSize(installedMod.size)})${lifetime}`
   }
   return 'MOD: empty'
+}
+
+function describeModLaunchInstruction(installedMod) {
+  if (installedMod.storage === 'memory') {
+    return 'click Restart simulator to launch it before reloading this page'
+  }
+  return 'click Restart simulator to launch it'
 }
 
 async function refreshSavedModStatus() {
@@ -563,7 +571,7 @@ modArchiveInput.addEventListener('change', async (event) => {
   try {
     const bytes = new Uint8Array(await file.arrayBuffer())
     const installedMod = await modStorage.saveInstalledMod({ name: file.name, bytes })
-    modInstallStatus.textContent = `${describeModStatus({ status: 'saved' }, installedMod)}; click Restart simulator to launch it`
+    modInstallStatus.textContent = `${describeModStatus({ status: 'saved' }, installedMod)}; ${describeModLaunchInstruction(installedMod)}`
   } catch (error) {
     console.error('[bridge] MOD archive save failed', error)
     modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })

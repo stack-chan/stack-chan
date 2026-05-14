@@ -37,4 +37,10 @@ describe('simulator MOD archive install input', () => {
     assert.match(simulatorSource, /await wasmView\.restart\(\)/)
     assert.match(simulatorSource, /click Restart simulator to launch it/)
   })
+
+  it('tells users memory-backed MOD saves are session-only but restartable', () => {
+    assert.match(simulatorSource, /installedMod\.storage === 'memory'/)
+    assert.match(simulatorSource, /session-only/)
+    assert.match(simulatorSource, /click Restart simulator to launch it/)
+  })
 })

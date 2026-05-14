@@ -12,6 +12,7 @@ export type CameraCaptureOptions = {
   width?: number
   height?: number
   imageType?: CameraImageType
+  useBrowserCamera?: boolean
 }
 
 export interface RobotCamera {

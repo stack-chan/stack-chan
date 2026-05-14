@@ -1,4 +1,5 @@
 import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
+import { createCameraPreviewFace } from 'camera-preview'
 import type { StackchanMod } from 'default-mods/mod'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-context'
@@ -105,6 +106,34 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
         target.hideBalloon()
       }
       robot.application.setDrawerButtonState('toggleSpeech', speechVisible)
+    },
+  })
+
+  const runCameraPreview = async (target: typeof robot) => {
+    try {
+      target.showBalloon('starting camera...')
+      await target.camera.start({ width: 320, height: 240, imageType: 'rgb565le', useBrowserCamera: true })
+      const frame = await target.camera.capture({ width: 320, height: 240, imageType: 'rgb565le' })
+      if (!frame) {
+        trace('[CameraPreview] capture returned no frame\n')
+        target.showBalloon('camera unavailable')
+        return
+      }
+      target.renderer?.setFace?.(createCameraPreviewFace(frame))
+      trace(`[CameraPreview] rendered ${frame.width}x${frame.height} ${frame.imageType} via Piu Port\n`)
+      target.showBalloon('camera preview')
+    } catch (error) {
+      trace(`[CameraPreview] error ${errorMessage(error)}\n`)
+      target.showBalloon('camera error')
+    } finally {
+      hideBalloonLater(1200)
+    }
+  }
+  robot.application.addDrawerButton({
+    key: 'cameraPreview',
+    label: 'Camera',
+    callback: (target) => {
+      void runCameraPreview(target)
     },
   })
 

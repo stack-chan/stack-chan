@@ -22,6 +22,7 @@
     "stackchan/drivers/payload-buffer.ts",
     "stackchan/drivers/wasm/**/*.ts",
     "stackchan/camera.ts",
+    "stackchan/camera-preview-utils.ts",
     "stackchan/wasm/camera.ts",
     "stackchan/wasm/microphone.ts",
     "stackchan/drivers/m5stackchan-servo.ts",

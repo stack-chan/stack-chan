@@ -14,6 +14,8 @@
   "modules": {
     "*": ["./touch", "./robot", "./main"],
     "camera": "./wasm/camera",
+    "camera-preview": "./camera-preview",
+    "camera-preview-utils": "./camera-preview-utils",
     "wasm-audio-bridge": "./wasm/audio-bridge",
     "tone": "./wasm/tone",
     "led": "./wasm/led",

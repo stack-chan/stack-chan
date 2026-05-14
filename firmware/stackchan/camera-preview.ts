@@ -11,6 +11,7 @@ export const CAMERA_PREVIEW_HEIGHT = 120
 export type CameraPreviewRenderMode = 'runtime-bitmap-port' | 'mosaic'
 export type CameraPreviewOptions = {
   onRender?: (mode: CameraPreviewRenderMode) => void
+  onDismiss?: () => void
 }
 
 const PREVIEW_LEFT = 60
@@ -63,6 +64,7 @@ export function createCameraPreviewFace(frame: CameraFrame, options: CameraPrevi
       top: 0,
       width: CAMERA_PREVIEW_WIDTH,
       height: CAMERA_PREVIEW_HEIGHT,
+      active: true,
       Behavior: class extends Behavior {
         frame: CameraFrame | null = null
         options: CameraPreviewOptions | null = null
@@ -75,6 +77,10 @@ export function createCameraPreviewFace(frame: CameraFrame, options: CameraPrevi
 
         onDisplaying(port: PiuPort) {
           port.invalidate()
+        }
+
+        onTouchEnded(_port: PiuPort) {
+          this.options?.onDismiss?.()
         }
 
         onDraw(port: PiuPort) {

@@ -29,6 +29,7 @@ const UP = {
   p: -Math.PI / 6,
 }
 const RECORD_PLAYBACK_DURATION_MS = 2000
+const CAMERA_PREVIEW_DURATION_MS = 5000
 
 function errorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -44,11 +45,25 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   let emoticonEffect: PiuContent | null = null
 
   let faceMode: 'simple' | 'dog' | 'image' = 'simple'
+  let cameraPreviewTimer: ReturnType<typeof Timer.set> | undefined
   const syncFaceMode = (
     app = robot.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined,
   ) => {
     robot.application.setDrawerButtonState('toggleFace', faceMode !== 'simple')
     app?.distribute?.('onFaceMode', faceMode)
+  }
+  const closeDrawer = () =>
+    (robot.renderer?.application as { distribute?: (event: string) => void } | undefined)?.distribute?.('onDrawerClose')
+  const createCurrentFace = () =>
+    faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
+  const restoreCameraPreview = () => {
+    if (cameraPreviewTimer) {
+      Timer.clear(cameraPreviewTimer)
+      cameraPreviewTimer = undefined
+    }
+    robot.renderer?.setFace?.(createCurrentFace())
+    robot.hideBalloon()
+    void robot.camera.stop()
   }
   robot.application.addDrawerButton({
     key: 'toggleFace',
@@ -57,9 +72,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     initialState: false,
     callback: (target) => {
       faceMode = faceMode === 'simple' ? 'dog' : faceMode === 'dog' ? 'image' : 'simple'
-      const nextFace =
-        faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
-      target.renderer?.setFace?.(nextFace)
+      target.renderer?.setFace?.(createCurrentFace())
       const app = target.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined
       syncFaceMode(app)
     },
@@ -124,10 +137,14 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
           onRender: (mode) => {
             trace(`[CameraPreview] render mode=${mode}\n`)
           },
+          onDismiss: restoreCameraPreview,
         }),
       )
       trace(`[CameraPreview] rendered ${frame.width}x${frame.height} ${frame.imageType} via Piu Port\n`)
+      closeDrawer()
       target.showBalloon('camera preview')
+      if (cameraPreviewTimer) Timer.clear(cameraPreviewTimer)
+      cameraPreviewTimer = Timer.set(restoreCameraPreview, CAMERA_PREVIEW_DURATION_MS)
     } catch (error) {
       trace(`[CameraPreview] error ${errorMessage(error)}\n`)
       target.showBalloon('camera error')

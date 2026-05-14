@@ -31,6 +31,12 @@ type HostCameraTestBridge = {
   capture?: (options?: unknown) => unknown
 }
 
+type WasmCameraTestBridge = {
+  start?: (width: number, height: number, useBrowserCamera: boolean) => void
+  stop?: () => void
+  capture?: (width: number, height: number) => unknown
+}
+
 const setHostCamera = (CameraBridge: HostCameraTestBridge | undefined): typeof globalThis.Host => {
   const previousHost = globalThis.Host
   const nextHost = { ...(previousHost ?? {}) } as typeof globalThis.Host & { Camera?: HostCameraTestBridge }
@@ -43,6 +49,19 @@ const setHostCamera = (CameraBridge: HostCameraTestBridge | undefined): typeof g
 
   globalThis.Host = nextHost
   return previousHost
+}
+
+const setWasmCameraBridge = (CameraBridge: WasmCameraTestBridge | undefined): WasmCameraTestBridge | undefined => {
+  const env = globalThis as typeof globalThis & { __stackchanWasmCameraBridge?: WasmCameraTestBridge }
+  const previous = env.__stackchanWasmCameraBridge
+
+  if (CameraBridge) {
+    env.__stackchanWasmCameraBridge = CameraBridge
+  } else {
+    delete env.__stackchanWasmCameraBridge
+  }
+
+  return previous
 }
 
 const driverCases: Array<[string, DriverConstructor]> = [
@@ -69,6 +88,8 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
 
   assert.equal(manifest.modules.camera, './wasm/camera')
   assert.equal(manifest.modules['wasm-audio-bridge'], './wasm/audio-bridge')
+  assert.equal(manifest.modules['wasm-camera-bridge'], './wasm/camera-bridge')
+  assert.ok(manifest.preload.includes('wasm-camera-bridge'))
   assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
   assert.equal(manifest.modules['wasm-driver'], './drivers/wasm/wasm-driver')
   assert.deepEqual(
@@ -300,6 +321,41 @@ test('WASM camera forwards start and stop to the browser Host.Camera bridge when
     assert.deepEqual(calls, [{ start: { width: 2, height: 2 } }, { stop: true }])
   } finally {
     globalThis.Host = previousHost
+  }
+})
+
+test('WASM camera uses the native browser camera bridge when it is preloaded', async () => {
+  const calls: unknown[] = []
+  const buffer = new Uint8Array([9, 8, 7, 6, 5, 4, 3, 2]).buffer
+  const previousBridge = setWasmCameraBridge({
+    start(width, height, useBrowserCamera) {
+      calls.push({ start: { width, height, useBrowserCamera } })
+    },
+    stop() {
+      calls.push({ stop: true })
+    },
+    capture(width, height) {
+      calls.push({ capture: { width, height } })
+      return { width, height, imageType: 'rgb565le', buffer }
+    },
+  })
+
+  try {
+    const camera = new Camera()
+    await camera.start({ width: 200, height: 120, imageType: 'rgb565le', useBrowserCamera: true })
+    const frame = await camera.capture({ width: 200, height: 120, imageType: 'rgb565le' })
+    await camera.stop()
+
+    assert.deepEqual(calls, [
+      { start: { width: 200, height: 120, useBrowserCamera: true } },
+      { capture: { width: 200, height: 120 } },
+      { stop: true },
+    ])
+    assert.ok(frame)
+    assert.notEqual(frame.buffer, buffer)
+    assert.deepEqual(new Uint8Array(frame.buffer), new Uint8Array(buffer))
+  } finally {
+    setWasmCameraBridge(previousBridge)
   }
 })
 

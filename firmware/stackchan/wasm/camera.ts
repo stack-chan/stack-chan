@@ -11,8 +11,17 @@ type HostCameraBridge = {
   capture?: (options?: CameraCaptureOptions) => Promise<CameraFrame | undefined> | CameraFrame | undefined
 }
 
+type WasmCameraBridge = {
+  start: (width: number, height: number, useBrowserCamera: boolean) => void
+  stop: () => void
+  capture: (width: number, height: number) => CameraFrame | undefined
+}
+
 const hostCamera = (): HostCameraBridge | undefined =>
   (globalThis as typeof globalThis & { Host?: { Camera?: HostCameraBridge } }).Host?.Camera
+
+const wasmCameraBridge = (): WasmCameraBridge | undefined =>
+  (globalThis as typeof globalThis & { __stackchanWasmCameraBridge?: WasmCameraBridge }).__stackchanWasmCameraBridge
 
 function normalizeDimension(value: number | undefined, fallback: number): number {
   if (value === undefined) {
@@ -56,16 +65,43 @@ export default class Camera implements RobotCamera {
   }
 
   async start(options?: CameraCaptureOptions): Promise<void> {
+    const wasmBridge = wasmCameraBridge()
+    if (wasmBridge) {
+      wasmBridge.start(
+        normalizeDimension(options?.width, DEFAULT_WIDTH),
+        normalizeDimension(options?.height, DEFAULT_HEIGHT),
+        Boolean(options?.useBrowserCamera),
+      )
+      this.#started = true
+      return
+    }
     await hostCamera()?.start?.(options)
     this.#started = true
   }
 
   async stop(): Promise<void> {
+    const wasmBridge = wasmCameraBridge()
+    if (wasmBridge) {
+      wasmBridge.stop()
+      this.#started = false
+      return
+    }
     await hostCamera()?.stop?.()
     this.#started = false
   }
 
   async capture(options: CameraCaptureOptions = {}): Promise<CameraFrame | undefined> {
+    const wasmBridge = wasmCameraBridge()
+    if (wasmBridge) {
+      const hostFrame = wasmBridge.capture(
+        normalizeDimension(options.width, DEFAULT_WIDTH),
+        normalizeDimension(options.height, DEFAULT_HEIGHT),
+      )
+      if (hostFrame !== undefined) {
+        return copyFrameToWasmHeap(hostFrame)
+      }
+    }
+
     const hostFrame = await hostCamera()?.capture?.(options)
     if (hostFrame !== undefined) {
       return copyFrameToWasmHeap(hostFrame)

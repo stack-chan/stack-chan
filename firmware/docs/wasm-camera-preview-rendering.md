@@ -19,7 +19,7 @@ The dynamic image path in Moddable splits into two layers:
 
 `camera-preview.ts` now uses a custom `RuntimeBitmapPort` for runtime camera frames:
 
-1. The WASM camera shim returns a local `ArrayBuffer` containing `rgb565le` pixels.
+1. The WASM camera shim returns a local `ArrayBuffer` containing `rgb565le` pixels. In browser WASM this uses `wasm-camera-bridge` (`camera-bridge.c` + `camera-bridge.js`) to cross from the XS runtime to the page's `globalThis.Host.Camera`; direct reads of `globalThis.Host` from `wasm/camera.ts` only work in Node/unit-test fallback, not in the embedded XS runtime.
 2. `camera-preview.ts` creates `new Bitmap(frame.width, frame.height, Bitmap.RGB565LE, frame.buffer, 0)`.
 3. `RuntimeBitmapPort.drawBitmap(...)` stores that bitmap on the Piu Port object, then queues a custom native draw-content command.
 4. The native `runtime-bitmap-port.c` draw callback runs during the queued Piu/Poco draw phase. It resolves the `Bitmap` host chunk, handles `ArrayBuffer`-backed bitmaps by reading `cb->bits.offset` plus the current ArrayBuffer pointer, disables GC while Poco consumes that pointer, and calls `PocoBitmapDraw(...)` directly.

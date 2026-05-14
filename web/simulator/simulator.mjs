@@ -8,6 +8,7 @@ import {
   createHostAudioInBridge,
   createHostAudioOutBridge,
   createHostButtonBridge,
+  createHostCameraBridge,
   createHostDriverBridge,
   installModArchiveIntoWasm,
   summarizeImageData,
@@ -559,8 +560,9 @@ globalThis.Host = {
   Button: buttonBridge.Button,
   AudioOut: audioOutBridge,
   AudioIn: audioInBridge,
+  Camera: createHostCameraBridge(),
 }
-console.log('[bridge] global Host.Button/Audio constructors installed')
+console.log('[bridge] global Host.Button/Audio/Camera constructors installed')
 
 function describeModStatus(result, installedMod = null) {
   if (result?.status === 'prepared') {
@@ -633,7 +635,10 @@ modArchiveInput.addEventListener('change', async (event) => {
   try {
     const bytes = new Uint8Array(await file.arrayBuffer())
     const installedMod = await modStorage.saveInstalledMod({ name: file.name, bytes })
-    modInstallStatus.textContent = `${describeModStatus({ status: 'saved' }, installedMod)}; ${describeModLaunchInstruction(installedMod)}`
+    modInstallStatus.textContent = `${describeModStatus(
+      { status: 'saved' },
+      installedMod
+    )}; ${describeModLaunchInstruction(installedMod)}`
   } catch (error) {
     console.error('[bridge] MOD archive save failed', error)
     modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })

@@ -14,6 +14,7 @@ import {
 import FallbackCamera from '../../stackchan/camera.js'
 import Camera from '../../stackchan/wasm/camera.js'
 import Microphone from '../../stackchan/wasm/microphone.js'
+import Tone from '../../stackchan/wasm/tone.js'
 
 type Rotation = { y: number; p: number; r: number }
 type DriverConstructor = new (
@@ -67,6 +68,7 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
   const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
 
   assert.equal(manifest.modules.camera, './wasm/camera')
+  assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
   assert.equal(manifest.modules['wasm-driver'], './drivers/wasm/wasm-driver')
   assert.deepEqual(
     {
@@ -165,6 +167,64 @@ test('WASM microphone keeps the optional duration argument compatible with the s
 
   assert.ok(result instanceof ArrayBuffer)
   assert.equal(result.byteLength, 0)
+})
+
+test('WASM microphone records through the browser Host.AudioIn bridge when present', async () => {
+  const previousHost = globalThis.Host
+  const recordedDurations: number[] = []
+  const expected = new Uint8Array([1, 2, 3, 4]).buffer
+  globalThis.Host = {
+    AudioIn: {
+      async record(durationMilliSec: number) {
+        recordedDurations.push(durationMilliSec)
+        return expected
+      },
+    },
+  }
+
+  try {
+    const result = await new Microphone().record(1000)
+
+    assert.equal(result, expected)
+    assert.deepEqual(recordedDurations, [1000])
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
+
+test('WASM microphone falls back to an empty buffer when Host.AudioIn is unavailable', async () => {
+  const microphone = new Microphone()
+
+  const result = await microphone.record(1000)
+
+  assert.ok(result instanceof ArrayBuffer)
+  assert.equal(result.byteLength, 0)
+})
+
+test('WASM tone forwards tone requests and close to the browser Host.AudioOut bridge', async () => {
+  const previousHost = globalThis.Host
+  const calls: unknown[] = []
+  globalThis.Host = {
+    AudioOut: {
+      async tone(message: unknown) {
+        calls.push(message)
+      },
+      close() {
+        calls.push('close')
+      },
+    },
+  }
+
+  try {
+    const tone = new Tone()
+
+    await tone.tone(440, 250, 0.5)
+    tone.close()
+
+    assert.deepEqual(calls, [{ hz: 440, duration: 250, volume: 0.5 }, 'close'])
+  } finally {
+    globalThis.Host = previousHost
+  }
 })
 
 test('WASM synthetic camera captures deterministic RGB565LE frames', async () => {

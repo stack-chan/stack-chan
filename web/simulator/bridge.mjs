@@ -267,6 +267,110 @@ export function createHostCameraBridge({
   }
 }
 
+export function createHostAudioOutBridge({ createAudioContext = defaultAudioContextFactory } = {}) {
+  let context
+
+  return {
+    async tone({ hz = 440, duration = 100, volume = 1 } = {}) {
+      context ??= createAudioContext()
+      const oscillator = context.createOscillator()
+      const gain = context.createGain()
+      oscillator.frequency.value = hz
+      gain.gain.value = volume
+      oscillator.connect(gain)
+      gain.connect(context.destination)
+      const startTime = context.currentTime
+      await new Promise((resolve, reject) => {
+        oscillator.onended = resolve
+        try {
+          oscillator.start(startTime)
+          oscillator.stop(startTime + duration / 1000)
+        } catch (error) {
+          reject(error)
+        }
+      })
+    },
+    close() {
+      context?.close?.()
+      context = undefined
+    },
+  }
+}
+
+export function createHostAudioInBridge({
+  mediaDevices = globalThis.navigator?.mediaDevices,
+  MediaRecorder = globalThis.MediaRecorder,
+  setTimeoutFn = globalThis.setTimeout,
+} = {}) {
+  return {
+    async record(durationMilliSec = 3000) {
+      if (!mediaDevices?.getUserMedia || !MediaRecorder) return new ArrayBuffer(0)
+      if (typeof MediaRecorder.isTypeSupported === 'function' && !MediaRecorder.isTypeSupported('audio/wav')) {
+        return new ArrayBuffer(0)
+      }
+
+      const stream = await mediaDevices.getUserMedia({ audio: true })
+      const chunks = []
+      try {
+        return await new Promise((resolve) => {
+          const recorder = new MediaRecorder(stream, { mimeType: 'audio/wav' })
+          recorder.ondataavailable = (event) => {
+            if (event.data) chunks.push(event.data)
+          }
+          recorder.onstop = async () => {
+            const buffer = await chunksToArrayBuffer(chunks)
+            resolve(isWavBuffer(buffer) ? buffer : new ArrayBuffer(0))
+          }
+          recorder.start()
+          setTimeoutFn(() => recorder.stop(), durationMilliSec)
+        })
+      } finally {
+        for (const track of stream.getTracks?.() ?? []) track.stop?.()
+      }
+    },
+  }
+}
+
+function defaultAudioContextFactory() {
+  const AudioContextConstructor = globalThis.AudioContext ?? globalThis.webkitAudioContext
+  if (!AudioContextConstructor) throw new Error('WebAudio AudioContext is not available')
+  return new AudioContextConstructor()
+}
+
+async function chunksToArrayBuffer(chunks) {
+  const buffers = await Promise.all(
+    chunks.map(async (chunk) => {
+      if (chunk instanceof ArrayBuffer) return chunk
+      if (ArrayBuffer.isView(chunk)) return chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength)
+      if (typeof chunk.arrayBuffer === 'function') return chunk.arrayBuffer()
+      return new ArrayBuffer(0)
+    }),
+  )
+  const total = buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0)
+  const bytes = new Uint8Array(total)
+  let offset = 0
+  for (const buffer of buffers) {
+    bytes.set(new Uint8Array(buffer), offset)
+    offset += buffer.byteLength
+  }
+  return bytes.buffer
+}
+
+function isWavBuffer(buffer) {
+  if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < 12) return false
+  const bytes = new Uint8Array(buffer)
+  return (
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x41 &&
+    bytes[10] === 0x56 &&
+    bytes[11] === 0x45
+  )
+}
+
 export function clientPointFromTouch(touch) {
   return { x: touch.clientX, y: touch.clientY }
 }

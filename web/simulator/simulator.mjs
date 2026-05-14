@@ -4,6 +4,8 @@ import { RoundedBoxGeometry } from 'https://unpkg.com/three@0.164.1/examples/jsm
 
 import {
   clientPointFromTouch,
+  createHostAudioInBridge,
+  createHostAudioOutBridge,
   createHostButtonBridge,
   createHostCameraBridge,
   createHostDriverBridge,
@@ -368,8 +370,14 @@ const viewport = document.getElementById('stackchan-viewport')
 const screen = document.getElementById('simulator-screen')
 const info = document.getElementById('simulator-info')
 const buttonBridge = createHostButtonBridge({ logger: (message) => console.log(message) })
-globalThis.Host = { Button: buttonBridge.Button }
-console.log('[bridge] global Host.Button constructors installed')
+const audioOutBridge = createHostAudioOutBridge()
+const audioInBridge = createHostAudioInBridge()
+globalThis.Host = {
+  Button: buttonBridge.Button,
+  AudioOut: audioOutBridge,
+  AudioIn: audioInBridge,
+}
+console.log('[bridge] global Host.Button/Audio constructors installed')
 
 const scene = new StackchanScene({ viewport, screen })
 const driverBridge = createHostDriverBridge({

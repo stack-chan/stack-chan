@@ -19,7 +19,11 @@ import {
   computeScreenPlane,
   computeStackchanKinematics,
   createRoundedRectPath,
+  screenPointFromUv,
+  stepRotationToward,
 } from './geometry.mjs'
+
+const DRIVER_MAX_ANGULAR_SPEED = 2.4
 
 class StackchanScene {
   constructor({ viewport, screen }) {
@@ -29,7 +33,11 @@ class StackchanScene {
     this.speaking = false
     this.motionUntil = 0
     this.driverRotation = { y: 0, p: 0, r: 0 }
+    this.targetDriverRotation = { y: 0, p: 0, r: 0 }
+    this.lastDriverUpdateMs = undefined
     this.torqueEnabled = true
+    this.raycaster = new THREE.Raycaster()
+    this.pointerNdc = new THREE.Vector2()
 
     this.scene = new THREE.Scene()
     this.scene.background = new THREE.Color(0x10141c)
@@ -175,19 +183,49 @@ class StackchanScene {
   }
 
   applyDriverRotation(rotation) {
-    this.driverRotation = { ...this.driverRotation, ...rotation }
-    this.motionUntil = performance.now() + 120
+    this.targetDriverRotation = { ...this.targetDriverRotation, ...rotation }
   }
 
   setTorqueEnabled(enabled) {
     this.torqueEnabled = enabled
   }
 
+  setViewportControlsEnabled(enabled) {
+    this.controls.enabled = enabled
+  }
+
   markScreenDirty() {
     this.screenTexture.needsUpdate = true
   }
 
+  updateDriverRotation(timeMs) {
+    if (this.lastDriverUpdateMs === undefined) {
+      this.lastDriverUpdateMs = timeMs
+      return
+    }
+    const deltaSeconds = Math.max(0, Math.min((timeMs - this.lastDriverUpdateMs) / 1000, 0.1))
+    this.lastDriverUpdateMs = timeMs
+    this.driverRotation = stepRotationToward(
+      this.driverRotation,
+      this.targetDriverRotation,
+      deltaSeconds,
+      DRIVER_MAX_ANGULAR_SPEED,
+    )
+  }
+
+  screenPointFromViewportEvent(event) {
+    const bounds = this.viewport.getBoundingClientRect()
+    this.pointerNdc.set(
+      ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+      -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+    )
+    this.raycaster.setFromCamera(this.pointerNdc, this.camera)
+    const [hit] = this.raycaster.intersectObject(this.screenMesh, false)
+    return screenPointFromUv(hit?.uv, { width: this.screen.width, height: this.screen.height })
+  }
+
   render(timeMs) {
+    this.updateDriverRotation(timeMs)
     const transforms = computeStackchanKinematics(timeMs, {
       lookAround: this.lookAround,
       speaking: this.speaking,
@@ -219,10 +257,12 @@ class StackchanScene {
 }
 
 class WasmView {
-  constructor({ scene, screen, info }) {
+  constructor({ scene, screen, info, traceLog }) {
     this.scene = scene
     this.screen = screen
     this.info = info
+    this.traceLog = traceLog
+    this.traceLines = []
     this.interval = 0
     this.tracking = 0
     this.when = 0
@@ -252,8 +292,8 @@ class WasmView {
       const ns = await import('./mc.js')
       this.mc = await ns.default({
         locateFile: () => './mc.wasm',
-        print: (text) => console.log(`[firmware] ${text}`),
-        printErr: (text) => console.error(`[firmware:err] ${text}`),
+        print: (text) => this.#handleFirmwarePrint(text),
+        printErr: (text) => this.#handleFirmwareError(text),
       })
       console.log('[bridge] mc.js module ready')
       this.fxMainIdle = this.mc._fxMainIdle
@@ -265,6 +305,45 @@ class WasmView {
       console.error('[bridge] WASM load failed', error)
       this.info.textContent = `WASM未検出: firmware で npm run build:wasm を実行し、mc.js / mc.wasm を web/simulator/ にコピーしてください。(${error.message})`
       this.#drawFallbackFace()
+    }
+  }
+
+  #handleFirmwarePrint(text) {
+    this.#applyFirmwareDriverTrace(text)
+    this.#appendTrace(text)
+    console.log(`[firmware] ${text}`)
+  }
+
+  #handleFirmwareError(text) {
+    this.#appendTrace(`[err] ${text}`)
+    console.error(`[firmware:err] ${text}`)
+  }
+
+  #appendTrace(text) {
+    if (!this.traceLog) return
+    this.traceLines.push(String(text))
+    if (this.traceLines.length > 120) {
+      this.traceLines.splice(0, this.traceLines.length - 120)
+    }
+    this.traceLog.textContent = this.traceLines.join('\n')
+    this.traceLog.scrollTop = this.traceLog.scrollHeight
+  }
+
+  #applyFirmwareDriverTrace(text) {
+    if (typeof text !== 'string' || !text.startsWith('[WasmDriver] ')) return
+    const rotation = text.match(/^\[WasmDriver\] applyRotation y=([^ ]+) p=([^ ]+) r=([^ ]+) time=([^ ]*)/)
+    if (rotation) {
+      const [, y, p, r, time] = rotation
+      this.scene.applyDriverRotation({
+        y: Number(y),
+        p: Number(p),
+        r: Number(r),
+      })
+      return
+    }
+    const torque = text.match(/^\[WasmDriver\] setTorque torque=([01])/)
+    if (torque) {
+      this.scene.setTorqueEnabled(torque[1] === '1')
     }
   }
 
@@ -362,22 +441,30 @@ class WasmView {
   #touch(kind, index, x, y, when) {
     if (!this.image || !this.fxMainTouch) return
     const bounds = this.screen.getBoundingClientRect()
-    this.fxMainTouch(kind, index, x - bounds.left, y - bounds.top, when)
+    this.touchScreenPoint(kind, index, x - bounds.left, y - bounds.top, when)
+  }
+
+  touchScreenPoint(kind, index, x, y, when) {
+    if (!this.image || !this.fxMainTouch) return
+    this.fxMainTouch(kind, index, x, y, when)
   }
 }
 
 const viewport = document.getElementById('stackchan-viewport')
 const screen = document.getElementById('simulator-screen')
 const info = document.getElementById('simulator-info')
+const traceLog = document.getElementById('trace-log')
 const buttonBridge = createHostButtonBridge({ logger: (message) => console.log(message) })
 const audioOutBridge = createHostAudioOutBridge()
 const audioInBridge = createHostAudioInBridge()
+const cameraBridge = createHostCameraBridge()
 globalThis.Host = {
   Button: buttonBridge.Button,
   AudioOut: audioOutBridge,
   AudioIn: audioInBridge,
+  Camera: cameraBridge,
 }
-console.log('[bridge] global Host.Button/Audio constructors installed')
+console.log('[bridge] global Host.Button/Audio/Camera constructors installed')
 
 const scene = new StackchanScene({ viewport, screen })
 const driverBridge = createHostDriverBridge({
@@ -392,41 +479,13 @@ const driverBridge = createHostDriverBridge({
 })
 globalThis.Host.Driver = driverBridge
 console.log('[bridge] global Host.Driver bridge installed')
-const cameraBridge = createHostCameraBridge()
-globalThis.Host.Camera = cameraBridge
-console.log('[bridge] global Host.Camera bridge installed')
-buttonBridge.setHtmlAction('a', () => scene.setLookAround(!scene.lookAround))
-buttonBridge.setHtmlAction('b', () => scene.runServoMotion())
 
-const wasmView = new WasmView({ scene, screen, info })
+const wasmView = new WasmView({ scene, screen, info, traceLog })
 globalThis.gxView = wasmView
 console.log('[bridge] global gxView installed')
 wasmView.start()
 
-document.getElementById('button-a').addEventListener('click', () => buttonBridge.push('a'))
-document.getElementById('button-b').addEventListener('click', () => buttonBridge.push('b'))
-document.getElementById('button-c').addEventListener('click', () => buttonBridge.push('c'))
-document.getElementById('speech-toggle').addEventListener('click', (event) => {
-  const next = event.currentTarget.getAttribute('aria-pressed') !== 'true'
-  event.currentTarget.setAttribute('aria-pressed', String(next))
-  scene.setSpeaking(next)
-})
-document.getElementById('camera-toggle').addEventListener('click', async (event) => {
-  const button = event.currentTarget
-  const next = button.getAttribute('aria-pressed') !== 'true'
-  button.disabled = true
-
-  try {
-    if (next) {
-      await cameraBridge.start({ useBrowserCamera: true })
-    } else {
-      cameraBridge.stop()
-    }
-    button.setAttribute('aria-pressed', String(next && cameraBridge.isBrowserCameraStarted()))
-  } finally {
-    button.disabled = false
-  }
-})
+bindViewportScreenTouches({ viewport, scene, wasmView })
 
 function animate(timeMs) {
   wasmView.idle(timeMs)
@@ -435,3 +494,60 @@ function animate(timeMs) {
 }
 
 window.requestAnimationFrame(animate)
+
+function bindViewportScreenTouches({ viewport, scene, wasmView }) {
+  const touchId = 0
+  let activePointerId = undefined
+  let lastPoint = undefined
+
+  const consume = (event) => {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+  }
+
+  const finish = (event, kind) => {
+    if (event.pointerId !== activePointerId) return
+    consume(event)
+    if (lastPoint) {
+      wasmView.touchScreenPoint(kind, touchId, lastPoint.x, lastPoint.y, event.timeStamp)
+    }
+    try {
+      viewport.releasePointerCapture(event.pointerId)
+    } catch {
+      // The browser may already have released capture after cancellation.
+    }
+    activePointerId = undefined
+    lastPoint = undefined
+    scene.setViewportControlsEnabled(true)
+  }
+
+  viewport.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (activePointerId !== undefined) return
+      const point = scene.screenPointFromViewportEvent(event)
+      if (!point) return
+      consume(event)
+      activePointerId = event.pointerId
+      lastPoint = point
+      scene.setViewportControlsEnabled(false)
+      viewport.setPointerCapture(event.pointerId)
+      wasmView.touchScreenPoint(0, touchId, point.x, point.y, event.timeStamp)
+    },
+    { capture: true },
+  )
+  viewport.addEventListener(
+    'pointermove',
+    (event) => {
+      if (event.pointerId !== activePointerId) return
+      consume(event)
+      const point = scene.screenPointFromViewportEvent(event)
+      if (!point) return
+      lastPoint = point
+      wasmView.touchScreenPoint(3, touchId, point.x, point.y, event.timeStamp)
+    },
+    { capture: true },
+  )
+  viewport.addEventListener('pointerup', (event) => finish(event, 2), { capture: true })
+  viewport.addEventListener('pointercancel', (event) => finish(event, 1), { capture: true })
+}

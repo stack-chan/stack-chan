@@ -14,6 +14,7 @@
   "modules": {
     "*": ["./touch", "./robot", "./main"],
     "camera": "./wasm/camera",
+    "wasm-audio-bridge": "./wasm/audio-bridge",
     "tone": "./wasm/tone",
     "led": "./wasm/led",
     "wasm-driver": "./drivers/wasm/wasm-driver",
@@ -37,7 +38,7 @@
     "default-mods/on-launch": "./default-mods/wasm/on-launch",
     "default-mods/*": "./default-mods/*"
   },
-  "preload": ["robot"],
+  "preload": ["wasm-audio-bridge", "robot"],
   "strip": [],
   "creation": {
     "static": 442368,

@@ -337,11 +337,11 @@ export class Robot {
     })
   }
 
-  async record(_durationSec?: number): Promise<ArrayBuffer> {
+  async record(durationMilliSec?: number): Promise<ArrayBuffer> {
     if (!this.#microphone) {
       throw Error('This device does not support a microphone.')
     }
-    return this.#microphone.record()
+    return this.#microphone.record(durationMilliSec)
   }
 
   /**
@@ -355,6 +355,11 @@ export class Robot {
       throw new Error('Volume must be between 0 and 1')
     }
     return this.#tone?.tone(hz, duration, volume)
+  }
+
+  async playAudio(buffer: ArrayBuffer): Promise<boolean> {
+    const player = this.#tone as unknown as { play?: (buffer: ArrayBuffer) => Promise<boolean> | boolean } | undefined
+    return (await player?.play?.(buffer)) ?? false
   }
 
   /**

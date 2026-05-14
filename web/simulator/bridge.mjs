@@ -267,12 +267,19 @@ export function createHostCameraBridge({
   }
 }
 
-export function createHostAudioOutBridge({ createAudioContext = defaultAudioContextFactory } = {}) {
+export function createHostAudioOutBridge({
+  createAudioContext = defaultAudioContextFactory,
+  setTimeoutFn = globalThis.setTimeout,
+  clearTimeoutFn = globalThis.clearTimeout,
+} = {}) {
   let context
 
   return {
     async tone({ hz = 440, duration = 100, volume = 1 } = {}) {
       context ??= createAudioContext()
+      if (context.state === 'suspended' && typeof context.resume === 'function') {
+        await context.resume()
+      }
       const oscillator = context.createOscillator()
       const gain = context.createGain()
       oscillator.frequency.value = hz
@@ -281,20 +288,68 @@ export function createHostAudioOutBridge({ createAudioContext = defaultAudioCont
       gain.connect(context.destination)
       const startTime = context.currentTime
       await new Promise((resolve, reject) => {
-        oscillator.onended = resolve
+        let fallback
+        const finish = () => {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
+          resolve()
+        }
+        oscillator.onended = finish
         try {
           oscillator.start(startTime)
           oscillator.stop(startTime + duration / 1000)
+          fallback = setTimeoutFn?.(finish, duration + 250)
         } catch (error) {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
           reject(error)
         }
       })
+    },
+    async play(buffer) {
+      if (!(buffer instanceof ArrayBuffer) || buffer.byteLength === 0) return false
+      context ??= createAudioContext()
+      if (context.state === 'suspended' && typeof context.resume === 'function') {
+        await context.resume()
+      }
+      if (typeof context.decodeAudioData !== 'function') return false
+
+      const audioBuffer = await decodeAudioData(context, buffer)
+      const source = context.createBufferSource()
+      source.buffer = audioBuffer
+      source.connect(context.destination)
+      await new Promise((resolve, reject) => {
+        let fallback
+        const durationMilliSec = Number.isFinite(audioBuffer.duration) ? audioBuffer.duration * 1000 : 0
+        const finish = () => {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
+          resolve()
+        }
+        source.onended = finish
+        try {
+          source.start(0)
+          if (durationMilliSec > 0) {
+            fallback = setTimeoutFn?.(finish, durationMilliSec + 250)
+          }
+        } catch (error) {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
+          reject(error)
+        }
+      })
+      return true
     },
     close() {
       context?.close?.()
       context = undefined
     },
   }
+}
+
+function decodeAudioData(context, buffer) {
+  return new Promise((resolve, reject) => {
+    const result = context.decodeAudioData(buffer.slice(0), resolve, reject)
+    if (result && typeof result.then === 'function') {
+      result.then(resolve, reject)
+    }
+  })
 }
 
 export function createHostAudioInBridge({
@@ -305,7 +360,8 @@ export function createHostAudioInBridge({
   return {
     async record(durationMilliSec = 3000) {
       if (!mediaDevices?.getUserMedia || !MediaRecorder) return new ArrayBuffer(0)
-      if (typeof MediaRecorder.isTypeSupported === 'function' && !MediaRecorder.isTypeSupported('audio/wav')) {
+      const format = selectAudioRecordingFormat(MediaRecorder)
+      if (!format) {
         return new ArrayBuffer(0)
       }
 
@@ -313,13 +369,13 @@ export function createHostAudioInBridge({
       const chunks = []
       try {
         return await new Promise((resolve) => {
-          const recorder = new MediaRecorder(stream, { mimeType: 'audio/wav' })
+          const recorder = new MediaRecorder(stream, { mimeType: format.mimeType })
           recorder.ondataavailable = (event) => {
             if (event.data) chunks.push(event.data)
           }
           recorder.onstop = async () => {
             const buffer = await chunksToArrayBuffer(chunks)
-            resolve(isWavBuffer(buffer) ? buffer : new ArrayBuffer(0))
+            resolve(attachAudioMetadata(isSupportedAudioBuffer(buffer, format) ? buffer : new ArrayBuffer(0), format))
           }
           recorder.start()
           setTimeoutFn(() => recorder.stop(), durationMilliSec)
@@ -329,6 +385,41 @@ export function createHostAudioInBridge({
       }
     },
   }
+}
+
+const AUDIO_RECORDING_FORMATS = Object.freeze([
+  { mimeType: 'audio/webm;codecs=opus', extension: 'webm' },
+  { mimeType: 'audio/webm', extension: 'webm' },
+  { mimeType: 'audio/mp4', extension: 'm4a' },
+  { mimeType: 'audio/wav', extension: 'wav' },
+])
+
+function selectAudioRecordingFormat(MediaRecorder) {
+  if (typeof MediaRecorder.isTypeSupported !== 'function') return AUDIO_RECORDING_FORMATS[0]
+  return AUDIO_RECORDING_FORMATS.find(({ mimeType }) => MediaRecorder.isTypeSupported(mimeType))
+}
+
+function isSupportedAudioBuffer(buffer, format) {
+  if (format.mimeType === 'audio/wav') return isWavBuffer(buffer)
+  return buffer instanceof ArrayBuffer && buffer.byteLength > 0
+}
+
+function attachAudioMetadata(buffer, format) {
+  if (!(buffer instanceof ArrayBuffer) || buffer.byteLength === 0) return buffer
+  const metadata = {
+    mimeType: format.mimeType,
+    filename: `speak.${format.extension}`,
+  }
+  try {
+    Object.defineProperties(buffer, {
+      mimeType: { value: metadata.mimeType, configurable: true },
+      filename: { value: metadata.filename, configurable: true },
+    })
+  } catch {
+    buffer.mimeType = metadata.mimeType
+    buffer.filename = metadata.filename
+  }
+  return buffer
 }
 
 function defaultAudioContextFactory() {

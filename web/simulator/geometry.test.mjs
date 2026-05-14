@@ -11,6 +11,8 @@ import {
   computeStackchanKinematics,
   nextLookAroundPose,
   nextSpeechScale,
+  screenPointFromUv,
+  stepRotationToward,
 } from './geometry.mjs'
 
 describe('Stack-chan simulator geometry', () => {
@@ -63,6 +65,12 @@ describe('Stack-chan simulator geometry', () => {
     assert.ok(plane.z > STACKCHAN_FACE_MM.depth / 2 + STACKCHAN_FACE_MM.bevelThickness)
   })
 
+  it('maps Three.js screen-plane UV coordinates to Moddable canvas pixels', () => {
+    assert.deepEqual(screenPointFromUv({ x: 0, y: 1 }), { x: 0, y: 0 })
+    assert.deepEqual(screenPointFromUv({ x: 0.5, y: 0.5 }), { x: 160, y: 120 })
+    assert.deepEqual(screenPointFromUv({ x: 1, y: 0 }), { x: 320, y: 240 })
+  })
+
   it('returns a neutral pose when look-around is disabled', () => {
     assert.deepEqual(nextLookAroundPose(1234, { enabled: false }), { yaw: 0, pitch: 0, roll: 0 })
   })
@@ -97,5 +105,17 @@ describe('Stack-chan simulator geometry', () => {
     assert.equal(transforms.tilt.rotation.x, -0.12)
     assert.equal(transforms.head.rotation.z, 0.04)
     assert.deepEqual(transforms.feet.rotation, { x: 0, y: 0, z: 0 })
+  })
+
+  it('limits simulated servo angular speed while tracking commanded rotation', () => {
+    const current = { y: 0, p: 0.2, r: 0 }
+    const target = { y: 1, p: -0.4, r: 0.01 }
+
+    assert.deepEqual(stepRotationToward(current, target, 0.1, 2), {
+      y: 0.2,
+      p: 0,
+      r: 0.01,
+    })
+    assert.deepEqual(stepRotationToward({ y: 0.9, p: -0.35, r: 0 }, target, 0.1, 2), target)
   })
 })

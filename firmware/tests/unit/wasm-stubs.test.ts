@@ -176,6 +176,7 @@ test('WASM camera preview can be dismissed by touch or an automatic timeout', ()
   assert.match(modSource, /distribute\?\.\('onDrawerClose'\)/)
   assert.match(modSource, /closeDrawer\(\)/)
   assert.match(modSource, /Timer\.set\(restoreCameraPreview, CAMERA_PREVIEW_DURATION_MS\)/)
+  assert.doesNotMatch(modSource, /robot\.camera\.stop\(\)/)
 })
 
 test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', async () => {

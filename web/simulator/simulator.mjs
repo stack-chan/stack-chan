@@ -4,6 +4,8 @@ import { RoundedBoxGeometry } from 'https://unpkg.com/three@0.164.1/examples/jsm
 
 import {
   clientPointFromTouch,
+  createHostAudioInBridge,
+  createHostAudioOutBridge,
   createHostButtonBridge,
   createHostDriverBridge,
   installModArchiveIntoWasm,
@@ -387,8 +389,14 @@ const modClearButton = document.getElementById('mod-clear-button')
 const modInstallStatus = document.getElementById('mod-install-status')
 const modStorage = createModStorage()
 const buttonBridge = createHostButtonBridge({ logger: (message) => console.log(message) })
-globalThis.Host = { Button: buttonBridge.Button }
-console.log('[bridge] global Host.Button constructors installed')
+const audioOutBridge = createHostAudioOutBridge()
+const audioInBridge = createHostAudioInBridge()
+globalThis.Host = {
+  Button: buttonBridge.Button,
+  AudioOut: audioOutBridge,
+  AudioIn: audioInBridge,
+}
+console.log('[bridge] global Host.Button/Audio constructors installed')
 
 function describeModStatus(result, installedMod = null) {
   if (result?.status === 'prepared') {
@@ -456,7 +464,8 @@ document.getElementById('speech-toggle').addEventListener('click', (event) => {
   scene.setSpeaking(next)
 })
 modArchiveInput.addEventListener('change', async (event) => {
-  const file = event.currentTarget.files?.[0]
+  const input = event.currentTarget
+  const file = input.files?.[0]
   if (!file) return
   try {
     const bytes = new Uint8Array(await file.arrayBuffer())
@@ -466,7 +475,7 @@ modArchiveInput.addEventListener('change', async (event) => {
     console.error('[bridge] MOD archive save failed', error)
     modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
   } finally {
-    event.currentTarget.value = ''
+    input.value = ''
   }
 })
 modClearButton.addEventListener('click', async () => {

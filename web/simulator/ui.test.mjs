@@ -11,3 +11,14 @@ describe('simulator MOD sample download', () => {
     assert.match(html, />Download sample \.xsa</)
   })
 })
+
+describe('simulator MOD archive install input', () => {
+  const simulatorSource = readFileSync(new URL('./simulator.mjs', import.meta.url), 'utf8')
+
+  it('keeps the file input reference across async archive saves before resetting it', () => {
+    assert.match(simulatorSource, /const input = event\.currentTarget/)
+    assert.match(simulatorSource, /const file = input\.files\?\.\[0\]/)
+    assert.match(simulatorSource, /input\.value = ''/)
+    assert.doesNotMatch(simulatorSource, /event\.currentTarget\.value = ''/)
+  })
+})

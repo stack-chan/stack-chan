@@ -47,7 +47,7 @@ function createStaticSkin(sprite: ImageAvatarStaticSprite): PiuSkin {
     texture: { path: sprite.texture },
     width: sprite.width,
     height: sprite.height,
-    color: sprite.color,
+    ...(sprite.color === undefined ? {} : { color: sprite.color }),
   })
 }
 
@@ -58,7 +58,7 @@ function createAnimatedSkin(frame: AnimatedFrame): PiuSkin {
     height: frame.frameHeight,
     variants: frame.frameWidth,
     states: frame.frameHeight,
-    color: frame.color,
+    ...(frame.color === undefined ? {} : { color: frame.color }),
   })
 }
 
@@ -130,8 +130,8 @@ function resolvePack(pack: ImageAvatarPack | string | undefined): ImageAvatarPac
 export const ImageAvatarFace = FaceBase.template(($: ImageAvatarFaceParams = {}) => {
   const pack = resolvePack($.pack)
   return {
-    left: $.left ?? 60,
-    top: $.top ?? 60,
+    left: $.left ?? Math.round((320 - pack.width) / 2),
+    top: $.top ?? Math.round((240 - pack.height) / 2),
     width: $.width ?? pack.width,
     height: $.height ?? pack.height,
     contents: [

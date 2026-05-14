@@ -7,7 +7,7 @@ import { Container, Port, type Container as PiuContainer, type Port as PiuPort }
 export const CAMERA_PREVIEW_WIDTH = 200
 export const CAMERA_PREVIEW_HEIGHT = 120
 
-export type CameraPreviewRenderMode = 'bitmap' | 'mosaic'
+export type CameraPreviewRenderMode = 'texture' | 'bitmap' | 'mosaic'
 export type CameraPreviewOptions = {
   onRender?: (mode: CameraPreviewRenderMode) => void
 }
@@ -18,6 +18,16 @@ const PREVIEW_BLOCK_SIZE = 48
 const PREVIEW_BACKGROUND = '#101010'
 
 type BitmapPort = PiuPort & {
+  drawTexture?: (
+    texture: unknown,
+    color: string,
+    x: number,
+    y: number,
+    sx: number,
+    sy: number,
+    sw: number,
+    sh: number,
+  ) => void
   drawBitmap?: (
     bitmap: Bitmap,
     x: number,
@@ -28,6 +38,8 @@ type BitmapPort = PiuPort & {
     sh?: number,
   ) => void
 }
+
+type RuntimeTextureConstructor = new (it?: unknown, alphaBitmap?: Bitmap, colorBitmap?: Bitmap) => unknown
 
 function piuColor(color: number): string {
   const hex = color.toString(16).padStart(6, '0')
@@ -52,6 +64,31 @@ function drawRgb565Bitmap(port: BitmapPort, frame: CameraFrame): boolean {
     Math.min(frame.height, CAMERA_PREVIEW_HEIGHT),
   )
   return true
+}
+
+function drawRgb565Texture(port: BitmapPort, frame: CameraFrame): boolean {
+  if (!port.drawTexture || !canDrawFrameAsBitmap(frame)) return false
+
+  try {
+    const bitmap = new Bitmap(frame.width, frame.height, Bitmap.RGB565LE, frame.buffer, 0)
+    const Texture = (globalThis as { Texture?: RuntimeTextureConstructor }).Texture
+    if (!Texture) return false
+
+    const texture = new Texture(null, undefined, bitmap)
+    port.drawTexture(
+      texture,
+      'white',
+      0,
+      0,
+      0,
+      0,
+      Math.min(frame.width, CAMERA_PREVIEW_WIDTH),
+      Math.min(frame.height, CAMERA_PREVIEW_HEIGHT),
+    )
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function createCameraPreviewFace(frame: CameraFrame, options: CameraPreviewOptions = {}): PiuContainer {
@@ -80,6 +117,11 @@ export function createCameraPreviewFace(frame: CameraFrame, options: CameraPrevi
           port.fillColor(PREVIEW_BACKGROUND, 0, 0, CAMERA_PREVIEW_WIDTH, CAMERA_PREVIEW_HEIGHT)
           const frame = this.frame
           if (!frame) return
+
+          if (drawRgb565Texture(port as BitmapPort, frame)) {
+            this.reportRenderMode('texture')
+            return
+          }
 
           if (drawRgb565Bitmap(port as BitmapPort, frame)) {
             this.reportRenderMode('bitmap')

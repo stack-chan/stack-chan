@@ -163,6 +163,21 @@ test('WASM camera preview uses a native RuntimeBitmapPort binding before falling
   assert.doesNotMatch(previewSource, /drawRgb565Texture/)
 })
 
+test('WASM camera preview can be dismissed by touch or an automatic timeout', () => {
+  const previewSource = readFileSync('stackchan/camera-preview.ts', 'utf8')
+  const modSource = readFileSync('stackchan/default-mods/on-robot-created.ts', 'utf8')
+
+  assert.match(previewSource, /onDismiss\?: \(\) => void/)
+  assert.match(previewSource, /active: true/)
+  assert.match(previewSource, /onTouchEnded\(_port: PiuPort\)/)
+  assert.match(previewSource, /this\.options\?\.onDismiss\?\.\(\)/)
+  assert.match(modSource, /CAMERA_PREVIEW_DURATION_MS = 5000/)
+  assert.match(modSource, /onDismiss: restoreCameraPreview/)
+  assert.match(modSource, /distribute\?\.\('onDrawerClose'\)/)
+  assert.match(modSource, /closeDrawer\(\)/)
+  assert.match(modSource, /Timer\.set\(restoreCameraPreview, CAMERA_PREVIEW_DURATION_MS\)/)
+})
+
 test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', async () => {
   const calls: unknown[] = []
   const previousHost = globalThis.Host

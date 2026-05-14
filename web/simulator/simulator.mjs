@@ -384,7 +384,8 @@ const driverBridge = createHostDriverBridge({
 })
 globalThis.Host.Driver = driverBridge
 console.log('[bridge] global Host.Driver bridge installed')
-globalThis.Host.Camera = createHostCameraBridge()
+const cameraBridge = createHostCameraBridge()
+globalThis.Host.Camera = cameraBridge
 console.log('[bridge] global Host.Camera bridge installed')
 buttonBridge.setHtmlAction('a', () => scene.setLookAround(!scene.lookAround))
 buttonBridge.setHtmlAction('b', () => scene.runServoMotion())
@@ -401,6 +402,22 @@ document.getElementById('speech-toggle').addEventListener('click', (event) => {
   const next = event.currentTarget.getAttribute('aria-pressed') !== 'true'
   event.currentTarget.setAttribute('aria-pressed', String(next))
   scene.setSpeaking(next)
+})
+document.getElementById('camera-toggle').addEventListener('click', async (event) => {
+  const button = event.currentTarget
+  const next = button.getAttribute('aria-pressed') !== 'true'
+  button.disabled = true
+
+  try {
+    if (next) {
+      await cameraBridge.start({ useBrowserCamera: true })
+    } else {
+      cameraBridge.stop()
+    }
+    button.setAttribute('aria-pressed', String(next && cameraBridge.isBrowserCameraStarted()))
+  } finally {
+    button.disabled = false
+  }
 })
 
 function animate(timeMs) {

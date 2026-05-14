@@ -132,6 +132,12 @@ button:hover {
   background: #ffd2aa;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
+}
+
 button[aria-pressed="true"] {
   background: #8bd3ff;
 }

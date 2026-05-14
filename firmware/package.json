@@ -13,7 +13,7 @@
     "generate-speech-google": "cross-env GOOGLE_APPLICATION_CREDENTIALS=scripts/key.json node scripts/generate-speech-google.js",
     "generate-apidoc": "typedoc --entryPointStrategy expand --plugin typedoc-plugin-markdown --out docs/api ./stackchan",
     "test": "npm run test:unit",
-    "test:unit": "rm -rf dist-tests && tsc --project tsconfig.test.json && node --test \"dist-tests/tests/unit/**/*.test.js\" \"dist-tests/stackchan/drivers/__tests__/**/*.test.js\"",
+    "test:unit": "rm -rf dist-tests && tsc --project tsconfig.test.json && node scripts/prepare-node-test-modules.js && node --test \"dist-tests/tests/unit/**/*.test.js\" \"dist-tests/stackchan/drivers/__tests__/**/*.test.js\"",
     "build": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target -t build \"$PWD/stackchan/manifest_local.json\"",
     "build:wasm": "mcconfig -d -m -p wasm -t build \"$PWD/stackchan/manifest_wasm.json\" && mkdir -p ../web/simulator && cp $MODDABLE/build/bin/wasm/debug/stackchan/mc.js $MODDABLE/build/bin/wasm/debug/stackchan/mc.wasm ../web/simulator/",
     "bundle": "mcbundle -d -m \"$PWD/stackchan/manifest.json\"",

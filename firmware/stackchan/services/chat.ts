@@ -51,11 +51,34 @@ export type ChatCallbacks = {
   onFunctionCall?: (call: string, name: string, params: Record<string, unknown>) => void
 }
 
+type ChatAudioLike = {
+  error?: string
+  connect(): void
+  disconnect(): void
+  close(): void
+  sendText(text: string): void
+  sendFunctionResult(call: string, name: string, result: unknown): void
+  changeMicrophone(enabled: boolean): void
+  changeVolume(volume: number): void
+}
+
+export type ConversationBackend = {
+  readonly state: ChatState
+  readonly error: string
+  start(): void | Promise<void>
+  stop(): void | Promise<void>
+  close(): void | Promise<void>
+  sendText(text: string): void | Promise<void>
+  sendFunctionResult?(call: string, name: string, result: unknown): void | Promise<void>
+  setMicrophoneEnabled?(enabled: boolean): void
+  setVolume?(volume: number): void
+}
+
 type ChatServiceOptions = {
   config: ChatConfig
   tools?: Record<string, ChatTool>
   callbacks?: ChatCallbacks
-  chatAudioIOCtor?: new (chatOptions: Record<string, unknown>) => ChatAudioIO
+  chatAudioIOCtor?: new (chatOptions: Record<string, unknown>) => ChatAudioLike
 }
 
 type ChatFunctionSchema = {
@@ -126,8 +149,8 @@ function mapState(state: number): ChatState {
   }
 }
 
-export class ChatService {
-  #chat: ChatAudioIO
+export class ChatService implements ConversationBackend {
+  #chat: ChatAudioLike
   #state: ChatState = 'DISCONNECTED'
   #error = ''
   #callbacks: Required<ChatCallbacks>
@@ -151,7 +174,7 @@ export class ChatService {
     const ChatAudioIOCtor =
       options.chatAudioIOCtor ??
       (ChatAudioIO as unknown as {
-        new (chatOptions: Record<string, unknown>): ChatAudioIO
+        new (chatOptions: Record<string, unknown>): ChatAudioLike
       })
     this.#chat = new ChatAudioIOCtor({
       specifier: config.type as unknown as string,

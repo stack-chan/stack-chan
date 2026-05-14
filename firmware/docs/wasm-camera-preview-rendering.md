@@ -19,11 +19,14 @@ The dynamic image path in Moddable splits into two layers:
 
 `camera-preview.ts` now tries the runtime texture path first:
 
-1. Create `new Bitmap(frame.width, frame.height, Bitmap.RGB565LE, frame.buffer, 0)`.
-2. Wrap it with the MC implementation-level texture constructor: `new Texture(null, undefined, bitmap)`.
-3. Draw it with the existing Piu `Port.drawTexture(...)` method.
-4. If that path fails, try a hypothetical `Port.drawBitmap` method.
-5. Otherwise fall back to the coarse `fillColor` mosaic preview.
+1. Create a retained RGB565BE texture buffer by byte-swapping the `rgb565le` frame.
+2. Create `new Bitmap(frame.width, frame.height, Bitmap.RGB565BE, textureBuffer, 0)`.
+3. Wrap it with the MC implementation-level texture constructor: `new Texture(null, undefined, bitmap)`.
+4. Draw it with the existing Piu `Port.drawTexture(...)` method.
+5. If that path fails, try a hypothetical `Port.drawBitmap` method.
+6. Otherwise fall back to the coarse `fillColor` mosaic preview.
+
+The runtime `Bitmap` and `Texture` objects must be retained by the Piu behavior, not created as short-lived locals inside `onDraw`. `PiuTexture` stores pointers to the Commodetto bitmap pixels but does not mark the JS bitmap object, so letting the bitmap/texture go out of scope before the queued draw command runs can display random noise even though `render mode=texture` is reported. Browser-origin `Host.Camera` buffers are also copied once in the WASM camera shim before constructing the firmware frame, so the Bitmap sees an XS/WASM-owned `ArrayBuffer` rather than a transient bridge object.
 
 The fallback is still important because the Piu `Port` public JS surface exposes `drawTexture`/`fillTexture`, but not `drawBitmap`:
 

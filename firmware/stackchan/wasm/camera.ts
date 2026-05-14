@@ -41,6 +41,13 @@ function writeRgb565Le(view: Uint8Array, width: number, height: number): void {
   }
 }
 
+function copyFrameToWasmHeap(frame: CameraFrame): CameraFrame {
+  return {
+    ...frame,
+    buffer: frame.buffer.slice(0),
+  }
+}
+
 export default class Camera implements RobotCamera {
   #started = false
 
@@ -61,7 +68,7 @@ export default class Camera implements RobotCamera {
   async capture(options: CameraCaptureOptions = {}): Promise<CameraFrame | undefined> {
     const hostFrame = await hostCamera()?.capture?.(options)
     if (hostFrame !== undefined) {
-      return hostFrame
+      return copyFrameToWasmHeap(hostFrame)
     }
 
     const imageType = options.imageType ?? DEFAULT_IMAGE_TYPE

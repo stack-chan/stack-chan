@@ -289,8 +289,9 @@ test('WASM camera forwards start and stop to the browser Host.Camera bridge when
   }
 })
 
-test('WASM camera forwards capture to Host.Camera and returns bridge frames', async () => {
+test('WASM camera copies Host.Camera capture frames into local ArrayBuffers', async () => {
   const buffer = new ArrayBuffer(8)
+  new Uint8Array(buffer).set([1, 2, 3, 4, 5, 6, 7, 8])
   const previousHost = setHostCamera({
     capture(options) {
       assert.deepEqual(options, { width: 2, height: 2, imageType: 'rgb565le' })
@@ -301,7 +302,12 @@ test('WASM camera forwards capture to Host.Camera and returns bridge frames', as
   try {
     const frame = await new Camera().capture({ width: 2, height: 2, imageType: 'rgb565le' })
 
-    assert.deepEqual(frame, { width: 2, height: 2, imageType: 'rgb565le', buffer })
+    assert.ok(frame)
+    assert.equal(frame.width, 2)
+    assert.equal(frame.height, 2)
+    assert.equal(frame.imageType, 'rgb565le')
+    assert.notEqual(frame.buffer, buffer)
+    assert.deepEqual(new Uint8Array(frame.buffer), new Uint8Array(buffer))
   } finally {
     globalThis.Host = previousHost
   }

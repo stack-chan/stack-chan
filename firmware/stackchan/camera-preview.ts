@@ -41,6 +41,12 @@ type BitmapPort = PiuPort & {
 
 type RuntimeTextureConstructor = new (it?: unknown, alphaBitmap?: Bitmap, colorBitmap?: Bitmap) => unknown
 
+type RuntimeTexturePreview = {
+  buffer: ArrayBuffer
+  bitmap: Bitmap
+  texture: unknown
+}
+
 function piuColor(color: number): string {
   const hex = color.toString(16).padStart(6, '0')
   return `#${hex}`
@@ -48,6 +54,20 @@ function piuColor(color: number): string {
 
 function canDrawFrameAsBitmap(frame: CameraFrame): boolean {
   return frame.imageType === 'rgb565le' && frame.buffer.byteLength >= frame.width * frame.height * 2
+}
+
+function copyRgb565LeToBeBuffer(frame: CameraFrame): ArrayBuffer {
+  const source = new Uint8Array(frame.buffer)
+  const length = frame.width * frame.height * 2
+  const buffer = new ArrayBuffer(length)
+  const target = new Uint8Array(buffer)
+
+  for (let index = 0; index < length; index += 2) {
+    target[index] = source[index + 1]
+    target[index + 1] = source[index]
+  }
+
+  return buffer
 }
 
 function drawRgb565Bitmap(port: BitmapPort, frame: CameraFrame): boolean {
@@ -66,17 +86,28 @@ function drawRgb565Bitmap(port: BitmapPort, frame: CameraFrame): boolean {
   return true
 }
 
-function drawRgb565Texture(port: BitmapPort, frame: CameraFrame): boolean {
+function createRgb565TexturePreview(frame: CameraFrame): RuntimeTexturePreview | undefined {
+  if (!canDrawFrameAsBitmap(frame)) return undefined
+
+  const Texture = (globalThis as { Texture?: RuntimeTextureConstructor }).Texture
+  if (!Texture) return undefined
+
+  const buffer = copyRgb565LeToBeBuffer(frame)
+  const bitmap = new Bitmap(frame.width, frame.height, Bitmap.RGB565BE, buffer, 0)
+  return {
+    buffer,
+    bitmap,
+    texture: new Texture(null, undefined, bitmap),
+  }
+}
+
+function drawRgb565Texture(port: BitmapPort, preview: RuntimeTexturePreview | undefined, frame: CameraFrame): boolean {
   if (!port.drawTexture || !canDrawFrameAsBitmap(frame)) return false
+  if (!preview) return false
 
   try {
-    const bitmap = new Bitmap(frame.width, frame.height, Bitmap.RGB565LE, frame.buffer, 0)
-    const Texture = (globalThis as { Texture?: RuntimeTextureConstructor }).Texture
-    if (!Texture) return false
-
-    const texture = new Texture(null, undefined, bitmap)
     port.drawTexture(
-      texture,
+      preview.texture,
       'white',
       0,
       0,
@@ -103,10 +134,12 @@ export function createCameraPreviewFace(frame: CameraFrame, options: CameraPrevi
         frame: CameraFrame | null = null
         options: CameraPreviewOptions | null = null
         lastRenderMode: CameraPreviewRenderMode | null = null
+        texturePreview: RuntimeTexturePreview | undefined
 
         onCreate(_port: PiuPort, data: { frame: CameraFrame; options: CameraPreviewOptions }) {
           this.frame = data.frame
           this.options = data.options
+          this.texturePreview = createRgb565TexturePreview(data.frame)
         }
 
         onDisplaying(port: PiuPort) {
@@ -118,7 +151,7 @@ export function createCameraPreviewFace(frame: CameraFrame, options: CameraPrevi
           const frame = this.frame
           if (!frame) return
 
-          if (drawRgb565Texture(port as BitmapPort, frame)) {
+          if (drawRgb565Texture(port as BitmapPort, this.texturePreview, frame)) {
             this.reportRenderMode('texture')
             return
           }

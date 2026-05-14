@@ -1,4 +1,5 @@
-import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
+import { DogFace, SimpleFace } from 'behaviors/face'
+import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import type { StackchanMod } from 'default-mods/mod'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-context'
@@ -49,7 +50,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     callback: (target) => {
       faceMode = faceMode === 'simple' ? 'dog' : faceMode === 'dog' ? 'image' : 'simple'
       const nextFace =
-        faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
+        faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageAvatarFace({}) : new SimpleFace({})
       target.renderer?.setFace?.(nextFace)
       const app = target.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined
       syncFaceMode(app)

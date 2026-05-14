@@ -241,9 +241,10 @@ class WasmView {
   async #loadWasm() {
     try {
       console.log('[bridge] importing mc.js')
-      const ns = await import('./mc.js')
+      const wasmCacheKey = Date.now()
+      const ns = await import(`./mc.js?v=${wasmCacheKey}`)
       this.mc = await ns.default({
-        locateFile: () => './mc.wasm',
+        locateFile: () => `./mc.wasm?v=${wasmCacheKey}`,
         print: (text) => console.log(`[firmware] ${text}`),
         printErr: (text) => console.error(`[firmware:err] ${text}`),
       })

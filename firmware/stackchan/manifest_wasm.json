@@ -61,7 +61,8 @@
       "type": "local"
     },
     "renderer": {
-      "type": "simple"
+      "type": "image",
+      "avatar": "stackchan-demo"
     }
   },
   "resources": {

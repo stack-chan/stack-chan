@@ -3,8 +3,9 @@
   "compilerOptions": {
     "outDir": "dist-tests",
     "noEmit": false,
-    "allowImportingTsExtensions": false,
+    "rewriteRelativeImportExtensions": true,
     "allowJs": false,
+    "allowImportingTsExtensions": false,
     "checkJs": false,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -23,6 +24,10 @@
     "stackchan/camera.ts",
     "stackchan/wasm/camera.ts",
     "stackchan/wasm/microphone.ts",
+    "stackchan/drivers/m5stackchan-servo.ts",
+    "stackchan/led/py32-io-expander.ts",
+    "stackchan/drivers/internal/single-wait-slot.ts",
+    "stackchan/drivers/__tests__/**/*.ts",
     "tests/unit/**/*.ts"
   ],
   "exclude": []

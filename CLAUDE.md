@@ -83,3 +83,13 @@ Uses lefthook for pre-commit hooks:
 ## Testing Approach
 
 Test modules are located in `tests/` directory, organized by component type. Each test has its own manifest.json for isolated testing.
+
+## Pull Request Review Guidance
+
+When reviewing a pull request:
+
+- Confirm the PR description classifies release impact as `none`, `patch`, `minor`, or `major`
+- Check whether user-visible firmware or web changes need a release note or changeset entry
+- If no release note or changeset is needed, make sure the review states why
+- For docs, CI, repository metadata, case, and schematics changes, verify release impact before requesting a release note or changeset
+- Ask for tested targets, hardware-specific behavior, and reproduction or verification details when they affect release risk

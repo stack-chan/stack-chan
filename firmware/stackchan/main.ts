@@ -213,8 +213,14 @@ async function main() {
   }
   if (config.wasm) {
     trace('[main] wasm path start\n')
-    const { onRobotCreated, onLaunch } = defaultMod
+    let { onRobotCreated, onLaunch } = defaultMod
     trace(`[main] wasm defaultMod onLaunch=${onLaunch != null} onRobotCreated=${onRobotCreated != null}\n`)
+    if (Modules.has('mod')) {
+      trace('[main] wasm loading mod override\n')
+      const mod = Modules.importNow('mod') as StackchanMod
+      onRobotCreated = mod.onRobotCreated ?? onRobotCreated
+      onLaunch = mod.onLaunch ?? onLaunch
+    }
     const launchResult = onLaunch?.() ?? true
     const continueWasm = (shouldRobotCreate: boolean) => {
       trace(`[main] wasm onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)

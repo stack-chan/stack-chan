@@ -388,6 +388,22 @@ class WasmView {
     this.image = new ImageData(array, this.screen.width, this.screen.height)
   }
 
+  async restart() {
+    if (!this.mc || !this.fxMainLaunch) {
+      throw new Error('WASM is not ready')
+    }
+    console.log('[bridge] restart simulator')
+    this.fxMainQuit?.()
+    this.interval = 0
+    this.when = 0
+    this.image = null
+    this.bufferChangeCount = 0
+    this.screen.getContext('2d').clearRect(0, 0, this.screen.width, this.screen.height)
+    this.scene.markScreenDirty()
+    const archive = await this.installSavedModArchive()
+    this.launch(archive)
+  }
+
   idle(timeStamp) {
     if (this.fxMainIdle && this.when <= timeStamp) {
       this.when = timeStamp + this.interval
@@ -469,6 +485,7 @@ const viewport = document.getElementById('stackchan-viewport')
 const screen = document.getElementById('simulator-screen')
 const info = document.getElementById('simulator-info')
 const modArchiveInput = document.getElementById('mod-archive-input')
+const modRestartButton = document.getElementById('simulator-restart-button')
 const modClearButton = document.getElementById('mod-clear-button')
 const modInstallStatus = document.getElementById('mod-install-status')
 const traceLog = document.getElementById('trace-log')
@@ -546,12 +563,21 @@ modArchiveInput.addEventListener('change', async (event) => {
   try {
     const bytes = new Uint8Array(await file.arrayBuffer())
     const installedMod = await modStorage.saveInstalledMod({ name: file.name, bytes })
-    modInstallStatus.textContent = `${describeModStatus({ status: 'saved' }, installedMod)}; reload simulator to launch it`
+    modInstallStatus.textContent = `${describeModStatus({ status: 'saved' }, installedMod)}; click Restart simulator to launch it`
   } catch (error) {
     console.error('[bridge] MOD archive save failed', error)
     modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
   } finally {
     input.value = ''
+  }
+})
+modRestartButton.addEventListener('click', async () => {
+  try {
+    modInstallStatus.textContent = 'MOD: restarting simulator...'
+    await wasmView.restart()
+  } catch (error) {
+    console.error('[bridge] simulator restart failed', error)
+    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
   }
 })
 modClearButton.addEventListener('click', async () => {

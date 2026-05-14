@@ -93,6 +93,17 @@ test('WASM PY32 LED facade re-exports the shared LED stub through a manifest mod
   assert.doesNotMatch(source, /\.\//)
 })
 
+test('WASM main path loads an installed MOD archive before falling back to the default MOD', () => {
+  const source = readFileSync('stackchan/main.ts', 'utf8')
+  const wasmBlock = source.slice(source.indexOf('if (config.wasm) {'), source.indexOf('await asyncWait(100)'))
+
+  assert.match(wasmBlock, /let \{ onRobotCreated, onLaunch \} = defaultMod/)
+  assert.match(wasmBlock, /Modules\.has\('mod'\)/)
+  assert.match(wasmBlock, /Modules\.importNow\('mod'\) as StackchanMod/)
+  assert.match(wasmBlock, /onRobotCreated = mod\.onRobotCreated \?\? onRobotCreated/)
+  assert.match(wasmBlock, /onLaunch = mod\.onLaunch \?\? onLaunch/)
+})
+
 test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', async () => {
   const calls: unknown[] = []
   const previousHost = globalThis.Host

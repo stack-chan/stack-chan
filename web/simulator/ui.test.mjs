@@ -10,6 +10,13 @@ describe('simulator MOD sample download', () => {
     assert.match(html, /download="stackchan-sample-mod\.xsa"/)
     assert.match(html, />Download sample \.xsa</)
   })
+
+  it('documents that the sample visibly changes the face after restart', () => {
+    const readme = readFileSync(new URL('./samples/README.md', import.meta.url), 'utf8')
+
+    assert.match(readme, /setColor\?\.\('primary', 0x30, 0xe0, 0xff\)/)
+    assert.match(readme, /showBalloon\?\.\('sample \.xsa OK'/)
+  })
 })
 
 describe('simulator MOD archive install input', () => {
@@ -20,5 +27,14 @@ describe('simulator MOD archive install input', () => {
     assert.match(simulatorSource, /const file = input\.files\?\.\[0\]/)
     assert.match(simulatorSource, /input\.value = ''/)
     assert.doesNotMatch(simulatorSource, /event\.currentTarget\.value = ''/)
+  })
+
+  it('offers an explicit restart control for launching a saved MOD archive', () => {
+    assert.match(html, /id="simulator-restart-button"/)
+    assert.match(html, />Restart simulator</)
+    assert.match(simulatorSource, /async restart\(\)/)
+    assert.match(simulatorSource, /modRestartButton\.addEventListener\('click', async \(\) => \{/)
+    assert.match(simulatorSource, /await wasmView\.restart\(\)/)
+    assert.match(simulatorSource, /click Restart simulator to launch it/)
   })
 })

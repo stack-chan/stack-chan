@@ -149,7 +149,8 @@ test('WASM camera preview uses a native RuntimeBitmapPort binding before falling
   assert.match(previewSource, /import RuntimeBitmapPort from 'runtime-bitmap-port'/)
   assert.match(previewSource, /new RuntimeBitmapPort\(/)
   assert.match(previewSource, /reportRenderMode\('runtime-bitmap-port'\)/)
-  assert.doesNotMatch(previewSource, /ENABLE_RUNTIME_TEXTURE_PREVIEW = true/)
+  assert.doesNotMatch(previewSource, /ENABLE_RUNTIME_TEXTURE_PREVIEW/)
+  assert.doesNotMatch(previewSource, /drawRgb565Texture/)
 })
 
 test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', async () => {

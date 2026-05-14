@@ -11,6 +11,7 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
+      "camera": ["stackchan/wasm/camera.ts"],
       "wasm-driver": ["stackchan/drivers/wasm/wasm-driver.ts"]
     },
     "types": ["node"],
@@ -19,6 +20,8 @@
   "include": [
     "stackchan/drivers/payload-buffer.ts",
     "stackchan/drivers/wasm/**/*.ts",
+    "stackchan/camera.ts",
+    "stackchan/wasm/camera.ts",
     "stackchan/wasm/microphone.ts",
     "tests/unit/**/*.ts"
   ],

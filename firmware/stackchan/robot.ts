@@ -7,6 +7,7 @@ import type Touch from 'touch'
 import type Microphone from 'microphone'
 import type Tone from 'tone'
 import type Led from 'led'
+import type { RobotCamera } from 'camera'
 import { SpeechBalloon } from 'effects/speech-balloon'
 
 const INTERVAL_FACE = 1000 / 30
@@ -68,6 +69,14 @@ type DrawerButtonRegistry = {
   setDrawerButtonState: (key: string, active: boolean) => void
 }
 
+const NULL_CAMERA: RobotCamera = {
+  start() {},
+  stop() {},
+  async capture() {
+    return undefined
+  },
+}
+
 export type Button = {
   onChanged: (this: Digital) => void
 }
@@ -92,6 +101,7 @@ type RobotConstructorParam<T extends string> = {
   }
   touch?: Touch
   microphone?: Microphone
+  camera?: RobotCamera
   tone?: Tone
   led?: Record<string, Led>
 }
@@ -119,6 +129,7 @@ export class Robot {
   #button: { [key in ButtonName]: Button }
   #touch: Touch
   #microphone: Microphone
+  #camera: RobotCamera
   #tone: Tone
   #led: Record<string, InstanceType<typeof Led>>
   #isMoving: boolean
@@ -143,6 +154,7 @@ export class Robot {
     this.#button = params.button
     this.#touch = params.touch
     this.#microphone = params.microphone
+    this.#camera = params.camera ?? NULL_CAMERA
     this.#tone = params.tone
     this.#led = params.led ?? {}
     this.#pose = params.pose ?? {
@@ -279,6 +291,15 @@ export class Robot {
    */
   get microphone() {
     return this.#microphone
+  }
+
+  /**
+   * get Camera
+   *
+   * @returns Camera instance
+   */
+  get camera() {
+    return this.#camera
   }
 
   /**

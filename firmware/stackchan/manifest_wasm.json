@@ -13,6 +13,7 @@
   ],
   "modules": {
     "*": ["./touch", "./robot", "./main"],
+    "camera": "./wasm/camera",
     "tone": "./wasm/tone",
     "led": "./wasm/led",
     "wasm-driver": "./drivers/wasm/wasm-driver",

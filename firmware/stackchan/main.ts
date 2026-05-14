@@ -1,4 +1,5 @@
 import loadPreferences from 'loadPreference'
+import Camera from 'camera'
 import defaultMod, { type StackchanMod } from 'default-mods/mod'
 import { DynamixelDriver } from 'dynamixel-driver'
 import Led from 'led'
@@ -122,6 +123,7 @@ function createRobot() {
 
   const touch = config.Touch ? new Touch(config.Touch) : undefined
   const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined
+  const camera = new Camera()
   const tone = new Tone({ volume: ttsPrefs.volume })
 
   const configLed = loadPreferences('led')
@@ -140,6 +142,7 @@ function createRobot() {
     touch,
     tone,
     microphone,
+    camera,
     led,
   } as ConstructorParameters<typeof Robot>[0])
 }

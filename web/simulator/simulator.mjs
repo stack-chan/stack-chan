@@ -2,7 +2,13 @@ import * as THREE from 'three'
 import { OrbitControls } from 'https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'https://unpkg.com/three@0.164.1/examples/jsm/geometries/RoundedBoxGeometry.js'
 
-import { clientPointFromTouch, createHostButtonBridge, createHostDriverBridge, summarizeImageData } from './bridge.mjs'
+import {
+  clientPointFromTouch,
+  createHostButtonBridge,
+  createHostDriverBridge,
+  installModArchiveIntoWasm,
+  summarizeImageData,
+} from './bridge.mjs'
 import {
   SCREEN_CANVAS,
   STACKCHAN_FACE_MM,
@@ -12,6 +18,7 @@ import {
   computeStackchanKinematics,
   createRoundedRectPath,
 } from './geometry.mjs'
+import { createModStorage, formatByteSize } from './mod-storage.mjs'
 
 class StackchanScene {
   constructor({ viewport, screen }) {
@@ -96,7 +103,7 @@ class StackchanScene {
 
     const outline = new THREE.LineSegments(
       new THREE.EdgesGeometry(geometry, 24),
-      new THREE.LineBasicMaterial({ color: 0x3d3128, transparent: true, opacity: 0.18 }),
+      new THREE.LineBasicMaterial({ color: 0x3d3128, transparent: true, opacity: 0.18 })
     )
     this.headGroup.add(outline)
   }
@@ -107,7 +114,7 @@ class StackchanScene {
       STACKCHAN_FOOT_MM.height,
       STACKCHAN_FOOT_MM.depth,
       5,
-      STACKCHAN_FOOT_MM.radius,
+      STACKCHAN_FOOT_MM.radius
     )
     const outlineGeometry = new THREE.EdgesGeometry(geometry, 24)
 
@@ -118,7 +125,7 @@ class StackchanScene {
 
       const outline = new THREE.LineSegments(
         outlineGeometry,
-        new THREE.LineBasicMaterial({ color: 0x3d3128, transparent: true, opacity: 0.16 }),
+        new THREE.LineBasicMaterial({ color: 0x3d3128, transparent: true, opacity: 0.16 })
       )
       outline.position.copy(foot.position)
       this.feetGroup.add(outline)
@@ -140,7 +147,7 @@ class StackchanScene {
 
     const frame = new THREE.Mesh(
       new THREE.PlaneGeometry(plane.width + 2.4, plane.height + 2.4),
-      new THREE.MeshBasicMaterial({ color: 0x211a17 }),
+      new THREE.MeshBasicMaterial({ color: 0x211a17 })
     )
     frame.position.set(plane.x, plane.y, plane.z - 0.03)
     this.headGroup.add(frame)
@@ -191,17 +198,9 @@ class StackchanScene {
     this.panGroup.rotation.set(transforms.pan.rotation.x, transforms.pan.rotation.y, transforms.pan.rotation.z)
     this.tiltGroup.position.set(transforms.tilt.pivot.x, transforms.tilt.pivot.y, transforms.tilt.pivot.z)
     this.tiltGroup.rotation.set(transforms.tilt.rotation.x, transforms.tilt.rotation.y, transforms.tilt.rotation.z)
-    this.headGroup.rotation.set(
-      transforms.head.rotation.x,
-      transforms.head.rotation.y,
-      transforms.head.rotation.z,
-    )
+    this.headGroup.rotation.set(transforms.head.rotation.x, transforms.head.rotation.y, transforms.head.rotation.z)
     this.headGroup.scale.set(transforms.head.scale.x, transforms.head.scale.y, transforms.head.scale.z)
-    this.feetGroup.rotation.set(
-      transforms.feet.rotation.x,
-      transforms.feet.rotation.y,
-      transforms.feet.rotation.z,
-    )
+    this.feetGroup.rotation.set(transforms.feet.rotation.x, transforms.feet.rotation.y, transforms.feet.rotation.z)
     this.feetGroup.scale.set(transforms.feet.scale.x, transforms.feet.scale.y, transforms.feet.scale.z)
 
     this.markScreenDirty()
@@ -211,10 +210,12 @@ class StackchanScene {
 }
 
 class WasmView {
-  constructor({ scene, screen, info }) {
+  constructor({ scene, screen, info, modStorage, onModInstallStatus = () => {} }) {
     this.scene = scene
     this.screen = screen
     this.info = info
+    this.modStorage = modStorage
+    this.onModInstallStatus = onModInstallStatus
     this.interval = 0
     this.tracking = 0
     this.when = 0
@@ -252,11 +253,27 @@ class WasmView {
       this.fxMainLaunch = this.mc._fxMainLaunch
       this.fxMainQuit = this.mc._fxMainQuit
       this.fxMainTouch = this.mc._fxMainTouch
-      this.launch()
+      const archive = await this.installSavedModArchive()
+      this.launch(archive)
     } catch (error) {
       console.error('[bridge] WASM load failed', error)
       this.info.textContent = `WASM未検出: firmware で npm run build:wasm を実行し、mc.js / mc.wasm を web/simulator/ にコピーしてください。(${error.message})`
       this.#drawFallbackFace()
+    }
+  }
+
+  async installSavedModArchive() {
+    try {
+      const installedMod = await this.modStorage.loadInstalledMod()
+      const result = installModArchiveIntoWasm(this.mc, installedMod)
+      console.log('[bridge] MOD archive install', result)
+      this.onModInstallStatus(result, installedMod)
+      return result.pointer ?? undefined
+    } catch (error) {
+      const result = { status: 'error', error: error.message }
+      console.error('[bridge] MOD archive install failed', error)
+      this.onModInstallStatus(result)
+      return undefined
     }
   }
 
@@ -279,7 +296,11 @@ class WasmView {
   }
 
   launch(archive) {
-    console.log('[bridge] launch', { width: this.screen.width, height: this.screen.height, hasArchive: Boolean(archive) })
+    console.log('[bridge] launch', {
+      width: this.screen.width,
+      height: this.screen.height,
+      hasArchive: Boolean(archive),
+    })
     const pointer = this.fxMainLaunch(this.screen.width, this.screen.height, archive)
     console.log('[bridge] fxMainLaunch returned', { pointer })
     const array = new Uint8ClampedArray(this.mc.HEAP8.buffer, pointer, this.screen.width * this.screen.height * 4)
@@ -361,9 +382,41 @@ class WasmView {
 const viewport = document.getElementById('stackchan-viewport')
 const screen = document.getElementById('simulator-screen')
 const info = document.getElementById('simulator-info')
+const modArchiveInput = document.getElementById('mod-archive-input')
+const modClearButton = document.getElementById('mod-clear-button')
+const modInstallStatus = document.getElementById('mod-install-status')
+const modStorage = createModStorage()
 const buttonBridge = createHostButtonBridge({ logger: (message) => console.log(message) })
 globalThis.Host = { Button: buttonBridge.Button }
 console.log('[bridge] global Host.Button constructors installed')
+
+function describeModStatus(result, installedMod = null) {
+  if (result?.status === 'prepared') {
+    return `MOD: ${result.name} (${formatByteSize(result.size)}) prepared for launch archive`
+  }
+  if (result?.status === 'installed') {
+    return `MOD: ${result.name} (${formatByteSize(result.size)}) installed via ${result.hook}`
+  }
+  if (result?.status === 'unsupported') {
+    return `MOD: ${result.name} (${formatByteSize(result.size)}) saved; this WASM build has no MOD install hook yet`
+  }
+  if (result?.status === 'error') {
+    return `MOD: error (${result.error})`
+  }
+  if (installedMod) {
+    return `MOD: ${installedMod.name} (${formatByteSize(installedMod.size)}) saved`
+  }
+  return 'MOD: empty'
+}
+
+async function refreshSavedModStatus() {
+  try {
+    const installedMod = await modStorage.loadInstalledMod()
+    modInstallStatus.textContent = describeModStatus({ status: installedMod ? 'saved' : 'empty' }, installedMod)
+  } catch (error) {
+    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
+  }
+}
 
 const scene = new StackchanScene({ viewport, screen })
 const driverBridge = createHostDriverBridge({
@@ -381,10 +434,18 @@ console.log('[bridge] global Host.Driver bridge installed')
 buttonBridge.setHtmlAction('a', () => scene.setLookAround(!scene.lookAround))
 buttonBridge.setHtmlAction('b', () => scene.runServoMotion())
 
-const wasmView = new WasmView({ scene, screen, info })
+const wasmView = new WasmView({
+  scene,
+  screen,
+  info,
+  modStorage,
+  onModInstallStatus: (result, installedMod) => {
+    modInstallStatus.textContent = describeModStatus(result, installedMod)
+  },
+})
 globalThis.gxView = wasmView
 console.log('[bridge] global gxView installed')
-wasmView.start()
+refreshSavedModStatus().finally(() => wasmView.start())
 
 document.getElementById('button-a').addEventListener('click', () => buttonBridge.push('a'))
 document.getElementById('button-b').addEventListener('click', () => buttonBridge.push('b'))
@@ -393,6 +454,29 @@ document.getElementById('speech-toggle').addEventListener('click', (event) => {
   const next = event.currentTarget.getAttribute('aria-pressed') !== 'true'
   event.currentTarget.setAttribute('aria-pressed', String(next))
   scene.setSpeaking(next)
+})
+modArchiveInput.addEventListener('change', async (event) => {
+  const file = event.currentTarget.files?.[0]
+  if (!file) return
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    const installedMod = await modStorage.saveInstalledMod({ name: file.name, bytes })
+    modInstallStatus.textContent = `${describeModStatus({ status: 'saved' }, installedMod)}; reload simulator to launch it`
+  } catch (error) {
+    console.error('[bridge] MOD archive save failed', error)
+    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
+  } finally {
+    event.currentTarget.value = ''
+  }
+})
+modClearButton.addEventListener('click', async () => {
+  try {
+    await modStorage.clearInstalledMod()
+    modInstallStatus.textContent = describeModStatus({ status: 'empty' })
+  } catch (error) {
+    console.error('[bridge] MOD archive clear failed', error)
+    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
+  }
 })
 
 function animate(timeMs) {

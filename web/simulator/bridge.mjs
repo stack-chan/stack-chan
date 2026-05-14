@@ -1,8 +1,13 @@
 const BUTTON_NAMES = ['a', 'b', 'c']
+const MOD_INSTALL_HOOKS = ['_fxMainSetModArchive', '_wasmModInstallArchive']
 
-export function createHostButtonBridge({ logger = console.log, setTimeoutFn = globalThis.setTimeout, resetDelayMs = 120 } = {}) {
+export function createHostButtonBridge({
+  logger = console.log,
+  setTimeoutFn = globalThis.setTimeout,
+  resetDelayMs = 120,
+} = {}) {
   const states = Object.fromEntries(
-    BUTTON_NAMES.map((name) => [name, { pressed: 1, firmwareCallbacks: new Set(), htmlAction: undefined }]),
+    BUTTON_NAMES.map((name) => [name, { pressed: 1, firmwareCallbacks: new Set(), htmlAction: undefined }])
   )
 
   const Button = Object.fromEntries(
@@ -17,7 +22,7 @@ export function createHostButtonBridge({ logger = console.log, setTimeoutFn = gl
           return states[name].pressed
         }
       },
-    ]),
+    ])
   )
 
   return {
@@ -62,6 +67,30 @@ export function createHostDriverBridge({ onRotation = () => {}, onTorque = () =>
     getTorque() {
       return torque
     },
+  }
+}
+
+export function installModArchiveIntoWasm(wasmModule, installedMod) {
+  if (!installedMod) return { status: 'empty' }
+
+  const bytes = installedMod.bytes instanceof Uint8Array ? installedMod.bytes : new Uint8Array(installedMod.bytes ?? [])
+  const size = installedMod.size ?? bytes.byteLength
+  const hookName = MOD_INSTALL_HOOKS.find((name) => typeof wasmModule?.[name] === 'function')
+
+  if (typeof wasmModule?._malloc !== 'function' || !wasmModule.HEAPU8) {
+    return { status: 'unsupported', name: installedMod.name, size }
+  }
+
+  const pointer = wasmModule._malloc(bytes.byteLength)
+  wasmModule.HEAPU8.set(bytes, pointer)
+
+  if (!hookName) return { status: 'prepared', pointer, name: installedMod.name, size }
+
+  try {
+    const result = wasmModule[hookName](pointer, bytes.byteLength)
+    return { status: 'installed', hook: hookName, name: installedMod.name, size, result }
+  } finally {
+    wasmModule._free?.(pointer)
   }
 }
 

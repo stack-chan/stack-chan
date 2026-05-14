@@ -16,6 +16,7 @@
     "camera": "./wasm/camera",
     "camera-preview": "./camera-preview",
     "camera-preview-utils": "./camera-preview-utils",
+    "runtime-bitmap-port": "./runtime-bitmap-port",
     "wasm-audio-bridge": "./wasm/audio-bridge",
     "tone": "./wasm/tone",
     "led": "./wasm/led",

@@ -117,6 +117,20 @@ test('WASM PY32 LED facade re-exports the shared LED stub through a manifest mod
   assert.doesNotMatch(source, /\.\//)
 })
 
+test('WASM camera preview uses a native RuntimeBitmapPort binding before falling back to mosaic', () => {
+  const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
+  const previewSource = readFileSync('stackchan/camera-preview.ts', 'utf8')
+  const portSource = readFileSync('stackchan/runtime-bitmap-port.js', 'utf8')
+
+  assert.equal(manifest.modules['runtime-bitmap-port'], './runtime-bitmap-port')
+  assert.match(portSource, /drawBitmap\(bitmap, x, y, sx = 0, sy = 0, sw = bitmap\.width, sh = bitmap\.height\)/)
+  assert.match(portSource, /xs_stackchan_runtime_bitmap_port_draw/)
+  assert.match(previewSource, /import RuntimeBitmapPort from 'runtime-bitmap-port'/)
+  assert.match(previewSource, /new RuntimeBitmapPort\(/)
+  assert.match(previewSource, /reportRenderMode\('runtime-bitmap-port'\)/)
+  assert.doesNotMatch(previewSource, /ENABLE_RUNTIME_TEXTURE_PREVIEW = true/)
+})
+
 test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', async () => {
   const calls: unknown[] = []
   const previousHost = globalThis.Host

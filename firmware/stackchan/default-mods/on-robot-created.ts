@@ -63,7 +63,6 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     }
     robot.renderer?.setFace?.(createCurrentFace())
     robot.hideBalloon()
-    void robot.camera.stop()
   }
   robot.application.addDrawerButton({
     key: 'toggleFace',

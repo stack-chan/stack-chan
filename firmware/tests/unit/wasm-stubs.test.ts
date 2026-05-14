@@ -62,7 +62,7 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
       'sg90-driver': './drivers/wasm/sg90-driver',
       'rs30x-driver': './drivers/wasm/rs30x-driver',
       'scservo-driver': './drivers/wasm/scservo-driver',
-      'py32-led': './wasm/led',
+      'py32-led': './wasm/py32-led',
     },
   )
 })
@@ -82,6 +82,13 @@ test('WASM servo driver facade files re-export the consolidated WasmDriver throu
     assert.match(source, /from 'wasm-driver'/)
     assert.doesNotMatch(source, /\.\//)
   }
+})
+
+test('WASM PY32 LED facade re-exports the shared LED stub through a manifest module specifier', () => {
+  const source = readFileSync('stackchan/wasm/py32-led.ts', 'utf8')
+
+  assert.match(source, /from 'led'/)
+  assert.doesNotMatch(source, /\.\//)
 })
 
 test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', async () => {

@@ -22,7 +22,7 @@
     "sg90-driver": "./drivers/wasm/sg90-driver",
     "rs30x-driver": "./drivers/wasm/rs30x-driver",
     "scservo-driver": "./drivers/wasm/scservo-driver",
-    "py32-led": "./wasm/led",
+    "py32-led": "./wasm/py32-led",
     "microphone": "./wasm/microphone",
     "network-service": "./services/wasm/network-service",
     "preference-server": "./services/wasm/preference-server",

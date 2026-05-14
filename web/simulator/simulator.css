@@ -123,7 +123,8 @@ h1 {
 }
 
 button,
-.file-button {
+.file-button,
+.sample-download {
   border: 0;
   border-radius: 999px;
   padding: 12px 16px;
@@ -137,7 +138,8 @@ button,
 }
 
 button:hover,
-.file-button:hover {
+.file-button:hover,
+.sample-download:hover {
   transform: translateY(-1px);
   background: #ffd2aa;
 }
@@ -155,10 +157,12 @@ button[aria-pressed='true'] {
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.file-button {
+.file-button,
+.sample-download {
   display: inline-flex;
   justify-content: center;
   text-align: center;
+  text-decoration: none;
 }
 
 #mod-archive-input {

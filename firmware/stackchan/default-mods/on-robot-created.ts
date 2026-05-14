@@ -119,7 +119,13 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
         target.showBalloon('camera unavailable')
         return
       }
-      target.renderer?.setFace?.(createCameraPreviewFace(frame))
+      target.renderer?.setFace?.(
+        createCameraPreviewFace(frame, {
+          onRender: (mode) => {
+            trace(`[CameraPreview] render mode=${mode}\n`)
+          },
+        }),
+      )
       trace(`[CameraPreview] rendered ${frame.width}x${frame.height} ${frame.imageType} via Piu Port\n`)
       target.showBalloon('camera preview')
     } catch (error) {

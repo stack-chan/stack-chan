@@ -7,6 +7,11 @@ import { Container, Port, type Container as PiuContainer, type Port as PiuPort }
 export const CAMERA_PREVIEW_WIDTH = 200
 export const CAMERA_PREVIEW_HEIGHT = 120
 
+export type CameraPreviewRenderMode = 'bitmap' | 'mosaic'
+export type CameraPreviewOptions = {
+  onRender?: (mode: CameraPreviewRenderMode) => void
+}
+
 const PREVIEW_LEFT = 60
 const PREVIEW_TOP = 60
 const PREVIEW_BLOCK_SIZE = 48
@@ -49,9 +54,9 @@ function drawRgb565Bitmap(port: BitmapPort, frame: CameraFrame): boolean {
   return true
 }
 
-export function createCameraPreviewFace(frame: CameraFrame): PiuContainer {
+export function createCameraPreviewFace(frame: CameraFrame, options: CameraPreviewOptions = {}): PiuContainer {
   const previewPort = new Port(
-    { frame },
+    { frame, options },
     {
       left: 0,
       top: 0,
@@ -59,9 +64,12 @@ export function createCameraPreviewFace(frame: CameraFrame): PiuContainer {
       height: CAMERA_PREVIEW_HEIGHT,
       Behavior: class extends Behavior {
         frame: CameraFrame | null = null
+        options: CameraPreviewOptions | null = null
+        lastRenderMode: CameraPreviewRenderMode | null = null
 
-        onCreate(_port: PiuPort, data: { frame: CameraFrame }) {
+        onCreate(_port: PiuPort, data: { frame: CameraFrame; options: CameraPreviewOptions }) {
           this.frame = data.frame
+          this.options = data.options
         }
 
         onDisplaying(port: PiuPort) {
@@ -73,7 +81,10 @@ export function createCameraPreviewFace(frame: CameraFrame): PiuContainer {
           const frame = this.frame
           if (!frame) return
 
-          if (drawRgb565Bitmap(port as BitmapPort, frame)) return
+          if (drawRgb565Bitmap(port as BitmapPort, frame)) {
+            this.reportRenderMode('bitmap')
+            return
+          }
 
           for (const block of sampleRgb565LeMosaic(frame, {
             width: CAMERA_PREVIEW_WIDTH,
@@ -82,6 +93,13 @@ export function createCameraPreviewFace(frame: CameraFrame): PiuContainer {
           })) {
             port.fillColor(piuColor(block.color), block.x, block.y, block.width, block.height)
           }
+          this.reportRenderMode('mosaic')
+        }
+
+        reportRenderMode(mode: CameraPreviewRenderMode) {
+          if (this.lastRenderMode === mode) return
+          this.lastRenderMode = mode
+          this.options?.onRender?.(mode)
         }
       },
     },

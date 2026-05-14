@@ -23,7 +23,13 @@ The dynamic image path in Moddable splits into two layers:
 2. If the active Piu `Port` implementation exposes a `drawBitmap`-compatible method, draw the frame directly.
 3. Otherwise fall back to the coarse `fillColor` mosaic preview.
 
-The fallback is still important because the Piu `Port` public typings expose `drawTexture`/`fillTexture`, but not `drawBitmap`. The simulator build succeeds with the feature-detected bitmap path, while preserving the already-smoked mosaic path.
+The fallback is still important because the Piu `Port` public JS surface exposes `drawTexture`/`fillTexture`, but not `drawBitmap`:
+
+- `modules/piu/All/piuAll.js` defines `Port.drawTexture`, `Port.fillTexture`, and `Port.fillColor` only.
+- `modules/piu/All/piuPort.c` provides native `PiuPort_drawTexture`, `PiuPort_fillTexture`, and `PiuPort_fillColor` bindings, but no `PiuPort_drawBitmap` binding.
+- `commodetto/Poco.d.ts` does expose `drawBitmap(...)`, so the raw pixel path exists one layer below Piu.
+
+The simulator build succeeds with the feature-detected bitmap path, while preserving the already-smoked mosaic path. The browser smoke currently reports `render mode=mosaic`, which confirms that today’s Piu `Port` runtime does not expose a direct bitmap draw method.
 
 ## Capture size
 
@@ -31,10 +37,18 @@ The drawer preview now requests `200x120` instead of `320x240`. That matches the
 
 ## Next likely direction
 
-For a true non-mosaic live preview, the cleanest route is probably one of these:
+The mainline direction is now **custom native content / binding that calls the Commodetto bitmap path**, not Piu `Image`/`Texture`.
 
-1. Add/confirm a Piu `Port.drawBitmap` binding for the target runtime.
-2. Add a tiny custom Piu content/native binding that draws a runtime `Bitmap` from an `ArrayBuffer`.
-3. Keep Piu UI but render the camera frame with a lower-level Poco surface outside the normal `Image`/`Texture` resource path.
+Recommended next slice:
 
-The contributed/examples research points more strongly at `Bitmap + Poco.drawBitmap` than at dynamic `Image`/`Texture` resources.
+1. Add a tiny `CameraBitmapPort`-style module for WASM first.
+   - JS side owns `frame.buffer` and dimensions.
+   - Native side receives a Piu draw callback context or a Poco-compatible output and calls the same bitmap draw primitive used by Commodetto examples.
+2. Keep the existing `Port` mosaic renderer as fallback and regression oracle.
+   - If the native binding is absent, the preview still renders.
+   - Smoke logs must say `render mode=bitmap` when the native path is active, otherwise `render mode=mosaic`.
+3. After WASM is green, map the same `rgb565le` frame contract onto CoreS3 camera capture.
+   - Start with single-frame preview.
+   - Only then move to repeated/live frames, because repeated `ArrayBuffer` allocation and Piu invalidation cadence are the likely pressure points.
+
+This points more strongly at `Bitmap + Poco.drawBitmap` through a small native seam than at dynamic `Image`/`Texture` resources.

@@ -10,10 +10,10 @@ The dynamic image path in Moddable splits into two layers:
   - `documentation/commodetto/commodetto.md` shows `new Bitmap(width, height, Bitmap.RGB565LE, pixels, 0)` where `pixels` is an `ArrayBuffer`.
   - `commodetto/Poco` exposes `drawBitmap(...)` and `fillPattern(...)`.
   - Examples such as `examples/commodetto/jpeghttp/main.js` and `examples/commodetto/jpegstream/main.js` decode JPEG streams and draw the resulting bitmap with Poco.
-- **Piu high-level Image / Texture** is mostly resource-path based.
+- **Piu high-level Image / documented Texture use** is mostly resource-path based.
   - `documentation/piu/piu.md` documents `Image({ path: "...cs" })` and `Texture({ path: "...png" })`.
-  - `Image` assets are compiled into `.cs` resources, and `Texture` takes a file URL/path.
-  - I did not find a public Piu `Image`/`Texture` constructor path that accepts an arbitrary runtime `ArrayBuffer` frame.
+  - `Image` assets are compiled into `.cs` resources, and the documented/typed `Texture` constructor takes a path or `{ path }` dictionary.
+  - However, `modules/piu/MC/piuMC.js` has an implementation-level `Texture(it, alphaBitmap, colorBitmap)` path. If `alphaBitmap` or `colorBitmap` is provided, it calls `PiuTexture_create` directly with Commodetto `Bitmap` host chunks. This means runtime bitmap texture may be possible on MC/Piu even though it is not exposed in the TypeScript typings.
 
 ## Current preview strategy
 
@@ -27,9 +27,10 @@ The fallback is still important because the Piu `Port` public JS surface exposes
 
 - `modules/piu/All/piuAll.js` defines `Port.drawTexture`, `Port.fillTexture`, and `Port.fillColor` only.
 - `modules/piu/All/piuPort.c` provides native `PiuPort_drawTexture`, `PiuPort_fillTexture`, and `PiuPort_fillColor` bindings, but no `PiuPort_drawBitmap` binding.
-- `commodetto/Poco.d.ts` does expose `drawBitmap(...)`, so the raw pixel path exists one layer below Piu.
+- `modules/piu/MC/piuMC.js` exposes a non-typed `Texture(it, alphaBitmap, colorBitmap)` path that can wrap Commodetto `Bitmap` host chunks.
+- `commodetto/Poco.d.ts` exposes `drawBitmap(...)`, so the raw pixel path also exists one layer below Piu.
 
-The simulator build succeeds with the feature-detected bitmap path, while preserving the already-smoked mosaic path. The browser smoke currently reports `render mode=mosaic`, which confirms that today’s Piu `Port` runtime does not expose a direct bitmap draw method.
+The simulator build succeeds with the feature-detected bitmap path, while preserving the already-smoked mosaic path. The browser smoke currently reports `render mode=mosaic`, which confirms that today’s Piu `Port` runtime does not expose a direct bitmap draw method. The next probe should test whether `new Texture(null, undefined, rgb565Bitmap)` plus `Port.drawTexture(...)` can avoid a custom Port entirely.
 
 ## Capture size
 
@@ -37,18 +38,15 @@ The drawer preview now requests `200x120` instead of `320x240`. That matches the
 
 ## Next likely direction
 
-The mainline direction is now **custom native content / binding that calls the Commodetto bitmap path**, not Piu `Image`/`Texture`.
+The first mainline probe should now be **runtime `Bitmap` -> implementation-level `Texture` -> `Port.drawTexture`**:
 
-Recommended next slice:
+1. Create `new Bitmap(width, height, Bitmap.RGB565LE, frame.buffer, 0)`.
+2. Wrap it with the MC implementation-level texture constructor, likely `new Texture(null, undefined, bitmap)` for color bits.
+3. Draw it with the already-public `Port.drawTexture(texture, color, x, y, sx, sy, sw, sh)` path.
+4. Keep the existing mosaic renderer as fallback and regression oracle.
+   - If runtime texture succeeds, smoke logs should say `render mode=texture` or `bitmap-texture`.
+   - If not, smoke logs stay `render mode=mosaic`.
 
-1. Add a tiny `CameraBitmapPort`-style module for WASM first.
-   - JS side owns `frame.buffer` and dimensions.
-   - Native side receives a Piu draw callback context or a Poco-compatible output and calls the same bitmap draw primitive used by Commodetto examples.
-2. Keep the existing `Port` mosaic renderer as fallback and regression oracle.
-   - If the native binding is absent, the preview still renders.
-   - Smoke logs must say `render mode=bitmap` when the native path is active, otherwise `render mode=mosaic`.
-3. After WASM is green, map the same `rgb565le` frame contract onto CoreS3 camera capture.
-   - Start with single-frame preview.
-   - Only then move to repeated/live frames, because repeated `ArrayBuffer` allocation and Piu invalidation cadence are the likely pressure points.
+Only if that texture probe fails should we add a custom native content/port. If it becomes necessary, the name should stay camera-agnostic: `RuntimeBitmapPort` is the clearest name for a general Piu content that draws caller-provided pixel buffers; `BitmapPort` is shorter but easier to confuse with ordinary Commodetto `Bitmap` usage.
 
-This points more strongly at `Bitmap + Poco.drawBitmap` through a small native seam than at dynamic `Image`/`Texture` resources.
+After WASM is green, map the same `rgb565le` frame contract onto CoreS3 camera capture. Start with single-frame preview, then move to repeated/live frames because repeated `ArrayBuffer` allocation and Piu invalidation cadence are the likely pressure points.

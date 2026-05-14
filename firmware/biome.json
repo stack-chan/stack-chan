@@ -6,7 +6,15 @@
     "useIgnoreFile": false
   },
   "files": {
-    "includes": ["stackchan/**", "mods/**", "tests/**", "scripts/**"],
+    "includes": [
+      "stackchan/**",
+      "mods/**",
+      "tests/**",
+      "scripts/**",
+      "!stackchan/runtime-bitmap-port.js",
+      "!stackchan/wasm/audio-bridge.js",
+      "!stackchan/wasm/camera-bridge.js"
+    ],
     "ignoreUnknown": false
   },
   "formatter": {

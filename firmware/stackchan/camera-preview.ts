@@ -20,15 +20,7 @@ const PREVIEW_BLOCK_SIZE = 48
 const PREVIEW_BACKGROUND = '#101010'
 
 type BitmapPort = PiuPort & {
-  drawBitmap?: (
-    bitmap: Bitmap,
-    x: number,
-    y: number,
-    sx?: number,
-    sy?: number,
-    sw?: number,
-    sh?: number,
-  ) => void
+  drawBitmap?: (bitmap: Bitmap, x: number, y: number, sx?: number, sy?: number, sw?: number, sh?: number) => void
 }
 
 function piuColor(color: number): string {

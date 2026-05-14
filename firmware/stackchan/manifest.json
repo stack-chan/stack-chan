@@ -32,21 +32,6 @@
   },
   "preload": ["robot", "touch", "tone"],
   "strip": [],
-  "creation": {
-    "static": 110592,
-    "chunk": {
-      "initial": 1536,
-      "incremental": 512
-    },
-    "heap": {
-      "initial": 512,
-      "incremental": 64
-    },
-    "stack": 512,
-    "keys": {
-      "available": 512
-    }
-  },
   "config": {
     "sntp": "pool.ntp.org",
     "driver": {
@@ -121,6 +106,22 @@
       }
     },
     "esp32/m5stack_cores3": {
+      "creation": {
+        "static": 0,
+        "chunk": {
+          "initial": 262144,
+          "incremental": 0
+        },
+        "heap": {
+          "initial": 4096,
+          "incremental": 256
+        },
+        "stack": 512,
+        "keys": {
+          "initial": 32,
+          "incremental": 32
+        }
+      },
       "config": {
         "touchIntervalMs": 50,
         "driver": {

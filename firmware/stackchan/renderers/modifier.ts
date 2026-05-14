@@ -37,7 +37,7 @@ export const createBlinkModifier: FaceModifierFactory<{
       count = 0
       nextToggle = isBlinking ? randomBetween(closeMin, closeMax) : randomBetween(openMin, openMax)
     }
-    Object.values(face.eyes).map((eye) => {
+    Object.values(face.eyes).forEach((eye) => {
       eye.open *= eyeOpen
     })
     return face
@@ -59,7 +59,7 @@ export const createSaccadeModifier: FaceModifierFactory<{
       saccadeY = normRand(0, gain)
       nextToggle = randomBetween(updateMin, updateMax)
     }
-    Object.values(face.eyes).map((eye) => {
+    Object.values(face.eyes).forEach((eye) => {
       eye.gazeX += saccadeX
       eye.gazeY += saccadeY
     })

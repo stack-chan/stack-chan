@@ -3,6 +3,7 @@ const MOD_INSTALL_HOOKS = ['_fxMainSetModArchive', '_wasmModInstallArchive']
 const DEFAULT_CAMERA_WIDTH = 96
 const DEFAULT_CAMERA_HEIGHT = 96
 const DEFAULT_CAMERA_IMAGE_TYPE = 'rgb565le'
+const HAVE_CURRENT_DATA = 2
 
 function normalizeDimension(value, fallback) {
   if (value === undefined) return fallback
@@ -198,29 +199,175 @@ export function createHostAudioOutBridge({
   }
 }
 
-export function createHostCameraBridge() {
+function writeImageDataRgb565Le(view, imageData) {
+  let offset = 0
+  const data = imageData.data
+
+  for (let index = 0; index < data.length; index += 4) {
+    const red = data[index] >> 3
+    const green = data[index + 1] >> 2
+    const blue = data[index + 2] >> 3
+    const pixel = (red << 11) | (green << 5) | blue
+
+    view[offset] = pixel & 0xff
+    view[offset + 1] = (pixel >> 8) & 0xff
+    offset += 2
+  }
+}
+
+function createSyntheticCameraFrame(options = {}) {
+  const imageType = options.imageType ?? DEFAULT_CAMERA_IMAGE_TYPE
+  if (imageType !== 'rgb565le') return undefined
+
+  const width = normalizeDimension(options.width, DEFAULT_CAMERA_WIDTH)
+  const height = normalizeDimension(options.height, DEFAULT_CAMERA_HEIGHT)
+  const buffer = new ArrayBuffer(width * height * 2)
+  writeRgb565Le(new Uint8Array(buffer), width, height)
+
+  return { width, height, imageType, buffer }
+}
+
+export function createHostCameraBridge({
+  documentObj = globalThis.document,
+  logger = console,
+  navigatorObj = globalThis.navigator,
+  videoElement,
+  canvasElement,
+} = {}) {
   let started = false
+  let browserCameraRequested = false
+  let browserCameraStarted = false
+  let mediaStream
+  let mediaVideo = videoElement
+  let mediaCanvas = canvasElement
+  let browserStartGeneration = 0
+
+  const logWarning = (message, error) => {
+    if (error) {
+      logger?.warn?.(message, error)
+    } else {
+      logger?.warn?.(message)
+    }
+  }
+
+  const ensureVideoElement = () => {
+    if (mediaVideo) return mediaVideo
+    if (!documentObj?.createElement) return undefined
+
+    mediaVideo = documentObj.createElement('video')
+    mediaVideo.muted = true
+    mediaVideo.playsInline = true
+    return mediaVideo
+  }
+
+  const ensureCanvasElement = () => {
+    if (mediaCanvas) return mediaCanvas
+    if (!documentObj?.createElement) return undefined
+
+    mediaCanvas = documentObj.createElement('canvas')
+    return mediaCanvas
+  }
+
+  const stopBrowserCamera = () => {
+    browserStartGeneration += 1
+    for (const track of mediaStream?.getTracks?.() ?? []) track.stop?.()
+    mediaStream = undefined
+    browserCameraStarted = false
+    if (mediaVideo) mediaVideo.srcObject = null
+  }
+
+  const startBrowserCamera = async (options = {}) => {
+    stopBrowserCamera()
+
+    const getUserMedia = navigatorObj?.mediaDevices?.getUserMedia?.bind(navigatorObj.mediaDevices)
+    if (!getUserMedia) {
+      browserCameraStarted = false
+      return false
+    }
+
+    const video = ensureVideoElement()
+    if (!video) {
+      browserCameraStarted = false
+      return false
+    }
+
+    try {
+      const startGeneration = browserStartGeneration
+      const stream = await getUserMedia({ video: options.video ?? true })
+      if (startGeneration !== browserStartGeneration || !started || !browserCameraRequested) {
+        for (const track of stream?.getTracks?.() ?? []) track.stop?.()
+        return false
+      }
+
+      mediaStream = stream
+      video.srcObject = mediaStream
+      if (typeof video.play === 'function') await video.play()
+      browserCameraStarted = true
+      return true
+    } catch (error) {
+      stopBrowserCamera()
+      logWarning('[bridge] browser camera unavailable; using synthetic Host.Camera fallback', error)
+      return false
+    }
+  }
+
+  const captureBrowserCamera = (options = {}) => {
+    if (!started || !browserCameraRequested || !browserCameraStarted) return undefined
+    if (!mediaVideo || mediaVideo.readyState < HAVE_CURRENT_DATA || !mediaVideo.videoWidth || !mediaVideo.videoHeight) {
+      return undefined
+    }
+
+    const canvas = ensureCanvasElement()
+    const context = canvas?.getContext?.('2d', { willReadFrequently: true })
+    if (!canvas || !context?.drawImage || !context?.getImageData) return undefined
+
+    const width = normalizeDimension(options.width, DEFAULT_CAMERA_WIDTH)
+    const height = normalizeDimension(options.height, DEFAULT_CAMERA_HEIGHT)
+
+    try {
+      canvas.width = width
+      canvas.height = height
+      context.drawImage(mediaVideo, 0, 0, width, height)
+
+      const imageData = context.getImageData(0, 0, width, height)
+      if (!imageData?.data || imageData.data.length < width * height * 4) return undefined
+
+      const buffer = new ArrayBuffer(width * height * 2)
+      writeImageDataRgb565Le(new Uint8Array(buffer), imageData)
+
+      return { width, height, imageType: 'rgb565le', buffer }
+    } catch (error) {
+      logWarning('[bridge] browser camera capture failed; using synthetic Host.Camera fallback', error)
+      return undefined
+    }
+  }
 
   return {
-    start() {
+    async start(options = {}) {
       started = true
+      browserCameraRequested = Boolean(options.useBrowserCamera)
+      if (browserCameraRequested) {
+        await startBrowserCamera(options)
+      } else {
+        stopBrowserCamera()
+      }
     },
     stop() {
       started = false
+      browserCameraRequested = false
+      stopBrowserCamera()
     },
     isStarted() {
       return started
+    },
+    isBrowserCameraStarted() {
+      return browserCameraStarted
     },
     capture(options = {}) {
       const imageType = options.imageType ?? DEFAULT_CAMERA_IMAGE_TYPE
       if (imageType !== 'rgb565le') return undefined
 
-      const width = normalizeDimension(options.width, DEFAULT_CAMERA_WIDTH)
-      const height = normalizeDimension(options.height, DEFAULT_CAMERA_HEIGHT)
-      const buffer = new ArrayBuffer(width * height * 2)
-      writeRgb565Le(new Uint8Array(buffer), width, height)
-
-      return { width, height, imageType, buffer }
+      return captureBrowserCamera(options) ?? createSyntheticCameraFrame(options)
     },
   }
 }

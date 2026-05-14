@@ -144,6 +144,14 @@ button:hover,
   padding: 16px 0;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
+}
+
+button[aria-pressed="true"] {
+  background: #8bd3ff;
 }
 
 .file-button,

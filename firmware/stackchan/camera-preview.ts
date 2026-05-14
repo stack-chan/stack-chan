@@ -16,6 +16,7 @@ const PREVIEW_LEFT = 60
 const PREVIEW_TOP = 60
 const PREVIEW_BLOCK_SIZE = 48
 const PREVIEW_BACKGROUND = '#101010'
+const ENABLE_RUNTIME_TEXTURE_PREVIEW = false
 
 type BitmapPort = PiuPort & {
   drawTexture?: (
@@ -87,6 +88,7 @@ function drawRgb565Bitmap(port: BitmapPort, frame: CameraFrame): boolean {
 }
 
 function createRgb565TexturePreview(frame: CameraFrame): RuntimeTexturePreview | undefined {
+  if (!ENABLE_RUNTIME_TEXTURE_PREVIEW) return undefined
   if (!canDrawFrameAsBitmap(frame)) return undefined
 
   const Texture = (globalThis as { Texture?: RuntimeTextureConstructor }).Texture

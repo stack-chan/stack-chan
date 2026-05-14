@@ -17,16 +17,18 @@ The dynamic image path in Moddable splits into two layers:
 
 ## Current preview strategy
 
-`camera-preview.ts` now tries the runtime texture path first:
+`camera-preview.ts` currently uses the mosaic path for runtime camera frames.
 
-1. Create a retained RGB565BE texture buffer by byte-swapping the `rgb565le` frame.
-2. Create `new Bitmap(frame.width, frame.height, Bitmap.RGB565BE, textureBuffer, 0)`.
-3. Wrap it with the MC implementation-level texture constructor: `new Texture(null, undefined, bitmap)`.
-4. Draw it with the existing Piu `Port.drawTexture(...)` method.
-5. If that path fails, try a hypothetical `Port.drawBitmap` method.
-6. Otherwise fall back to the coarse `fillColor` mosaic preview.
+A runtime texture probe was tried with this shape:
 
-The runtime `Bitmap` and `Texture` objects must be retained by the Piu behavior, not created as short-lived locals inside `onDraw`. `PiuTexture` stores pointers to the Commodetto bitmap pixels but does not mark the JS bitmap object, so letting the bitmap/texture go out of scope before the queued draw command runs can display random noise even though `render mode=texture` is reported. Browser-origin `Host.Camera` buffers are also copied once in the WASM camera shim before constructing the firmware frame, so the Bitmap sees an XS/WASM-owned `ArrayBuffer` rather than a transient bridge object.
+1. Copy browser-origin `Host.Camera` frames once in the WASM camera shim so firmware receives a local `ArrayBuffer`.
+2. Retain `buffer`, `Bitmap`, and `Texture` on the Piu behavior instead of creating them as locals in `onDraw`. This avoids a concrete lifetime bug: `PiuTextureMark` is empty, and `PiuTexture_create` copies raw pixel pointers into the texture host chunk, so local-only JS `Bitmap`/`Texture`/`ArrayBuffer` objects can be collected after `onDraw` queues the draw command but before the queued command consumes those pointers.
+3. Byte-swap the `rgb565le` frame into an RGB565BE texture buffer.
+4. Create `new Bitmap(frame.width, frame.height, Bitmap.RGB565BE, textureBuffer, 0)`.
+5. Wrap it with the MC implementation-level texture constructor: `new Texture(null, undefined, bitmap)`.
+6. Draw it with the existing Piu `Port.drawTexture(...)` method.
+
+That removed the colorful random noise but still rendered effectively black/grayscale for `ArrayBuffer`-backed camera frames. The likely root cause is more specific than byte order: `PiuTexture_create` copies `cb->bits.data` into the texture, while `commodetto/Bitmap` documentation says `ArrayBuffer`-backed bitmaps use `havePointer == 0` and store a byte offset relative to the external ArrayBuffer pointer. In other words, the MC runtime texture path is not safe for arbitrary `ArrayBuffer` pixels without a native bridge that resolves the ArrayBuffer pointer. Keep it disabled for WASM camera preview until a proper native `RuntimeBitmapPort`/binding exists.
 
 The fallback is still important because the Piu `Port` public JS surface exposes `drawTexture`/`fillTexture`, but not `drawBitmap`:
 

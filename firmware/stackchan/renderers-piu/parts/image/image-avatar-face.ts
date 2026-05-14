@@ -1,6 +1,6 @@
 import type { FaceContext } from 'face-context'
 import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
-import { FaceBase, type FaceBaseParams, type FaceTemplateCtor } from 'behaviors/face'
+import { FaceBase, type FaceBaseParams } from 'behaviors/face'
 import { getImageAvatarPack, type ImageAvatarPack, type ImageAvatarStaticSprite } from 'parts/image/image-avatar-pack'
 import { frameIndexForRatio, resolveExpressionName } from 'parts/image/image-avatar-state'
 

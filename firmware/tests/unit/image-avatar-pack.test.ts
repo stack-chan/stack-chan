@@ -25,19 +25,14 @@ test('demo image avatar pack describes a complete face, mouth, and hands sprite 
   }
 })
 
-test('imported ImageAvatarLite packs are registered with bundled MIT notice', () => {
-  const slime = getImageAvatarPack('image-avatar-lite-slime')
-  assert.equal(slime.width, 320)
-  assert.equal(slime.height, 240)
-  assert.deepEqual(Object.keys(slime.expressions).sort(), ['angry', 'normal', 'sad'])
-  assert.equal(slime.expressions.normal.mouth.frames.frameCount, 2)
-  assert.equal(slime.expressions.normal.eyes.left.blinkFrames.frameCount, 2)
-  assert.equal(slime.expressions.normal.hands.left.texture, 'image-avatar-lite-transparent.png')
+test('ImageAvatarLite packs live in the sample MOD instead of the host registry', () => {
+  assert.equal(getImageAvatarPack('image-avatar-lite-slime'), IMAGE_AVATAR_PACKS['stackchan-demo'])
 
-  const notice = readFileSync(
-    'stackchan/assets/images/faces/image-avatar/image-avatar-lite/LICENSE-M5Core2ImageAvatarLite_AI.txt',
-    'utf8',
-  )
+  const modSource = readFileSync('mods/image_avatar_lite/image-avatar-lite-packs.js', 'utf8')
+  assert.match(modSource, /image-avatar-lite-slime/)
+  assert.match(modSource, /image-avatar-lite-transparent\.png/)
+
+  const notice = readFileSync('mods/image_avatar_lite/LICENSE-M5Core2ImageAvatarLite_AI.txt', 'utf8')
   assert.match(notice, /MIT License/)
   assert.match(notice, /Copyright \(c\) 2021 Takao Akaki/)
 })
@@ -58,7 +53,7 @@ test('image avatar state helpers clamp ratios and map emotions to expressions', 
   assert.equal(resolveExpressionName(pack, 'DOUBTFUL'), 'normal')
 })
 
-test('WASM renderer manifest bundles demo masks and imported ImageAvatarLite alpha sprites', () => {
+test('renderer manifest keeps bundled demo masks but leaves ImageAvatarLite sprites to the sample MOD', () => {
   const manifest = JSON.parse(readFileSync('stackchan/renderers-piu/manifest_wasm_renderer_piu.json', 'utf-8'))
   const alphaResources = manifest.resources['*-alpha'] as string[]
   const colorResources = manifest.resources['*-color'] as string[]
@@ -71,33 +66,18 @@ test('WASM renderer manifest bundles demo masks and imported ImageAvatarLite alp
     'stackchan-demo-hand-left-normal',
     'stackchan-demo-hand-right-normal',
   ].map((name) => `../assets/images/faces/image-avatar/stackchan-demo/${name}`)
-  const importedExpected = [
-    'image-avatar-lite-slime-eye-left-normal',
-    'image-avatar-lite-slime-eye-right-normal',
-    'image-avatar-lite-slime-mouth-normal',
-  ].map((name) => `../assets/images/faces/image-avatar/image-avatar-lite/${name}`)
-  const opaqueImportedResource = '../assets/images/faces/image-avatar/image-avatar-lite/image-avatar-lite-slime-head'
-  const placeholderResource = '../assets/images/faces/image-avatar/image-avatar-lite/image-avatar-lite-transparent'
+  const modManifest = JSON.parse(readFileSync('mods/image_avatar_lite/manifest.json', 'utf-8'))
+  const modResources = modManifest.resources['*'] as string[]
 
   for (const resource of demoExpected) {
     assert.ok(alphaResources.includes(resource), `missing alpha resource ${resource}`)
   }
-  for (const resource of importedExpected) {
-    assert.ok(colorResources.includes(resource), `missing color resource ${resource}`)
-    assert.ok(alphaResources.includes(resource), `missing alpha resource ${resource}`)
-    assert.ok(
-      !combinedResources.includes(resource),
-      `binary-alpha sprite uses explicit color+alpha resources ${resource}`,
-    )
-  }
-  assert.ok(colorResources.includes(opaqueImportedResource), `missing opaque imported sprite ${opaqueImportedResource}`)
-  assert.ok(
-    !combinedResources.includes(opaqueImportedResource),
-    'opaque imported sprite should not require alpha pair output',
+  assert.equal(
+    [...alphaResources, ...colorResources, ...combinedResources].some((resource) =>
+      resource.includes('image-avatar-lite'),
+    ),
+    false,
+    'host renderer manifest should not bundle ImageAvatarLite sample MOD sprites',
   )
-  assert.ok(colorResources.includes(placeholderResource), `missing transparent placeholder ${placeholderResource}`)
-  assert.ok(
-    !combinedResources.includes(placeholderResource),
-    'fully transparent placeholder must not require alpha pair output',
-  )
+  assert.deepEqual(modResources, ['./assets/*'])
 })

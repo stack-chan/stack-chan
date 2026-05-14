@@ -1,0 +1,13 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json",
+    "$(MODDABLE)/examples/manifest_typings.json"
+  ],
+  "modules": {
+    "*": ["./mod"],
+    "./image-avatar-lite-packs": "./image-avatar-lite-packs"
+  },
+  "resources": {
+    "*": ["./assets/*"]
+  }
+}

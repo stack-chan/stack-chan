@@ -277,6 +277,8 @@ export function createHostCameraBridge({
   }
 
   const startBrowserCamera = async (options = {}) => {
+    if (browserCameraStarted && mediaStream && mediaVideo?.srcObject === mediaStream) return true
+
     stopBrowserCamera()
 
     const getUserMedia = navigatorObj?.mediaDevices?.getUserMedia?.bind(navigatorObj.mediaDevices)

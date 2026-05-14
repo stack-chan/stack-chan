@@ -482,6 +482,35 @@ describe('Host.Camera bridge', () => {
     assert.deepEqual(new Uint8Array(first.buffer), new Uint8Array(second.buffer))
   })
 
+  it('keeps an already-started browser camera stream when firmware starts camera preview', async () => {
+    const calls = []
+    const stream = { getTracks: () => [{ stop: () => calls.push('stop') }] }
+    const video = {
+      readyState: 2,
+      videoWidth: 16,
+      videoHeight: 16,
+      play: async () => calls.push('play'),
+    }
+    const bridge = createHostCameraBridge({
+      navigatorObj: {
+        mediaDevices: {
+          async getUserMedia(constraints) {
+            calls.push(['getUserMedia', constraints])
+            return stream
+          },
+        },
+      },
+      videoElement: video,
+    })
+
+    await bridge.start({ useBrowserCamera: true })
+    await bridge.start({ useBrowserCamera: true, width: 200, height: 120, imageType: 'rgb565le' })
+
+    assert.equal(bridge.isBrowserCameraStarted(), true)
+    assert.equal(video.srcObject, stream)
+    assert.deepEqual(calls, [['getUserMedia', { video: true }], 'play'])
+  })
+
   it('stops late-resolving browser streams when camera was stopped during permission prompt', async () => {
     let resolveStream
     const stopped = []

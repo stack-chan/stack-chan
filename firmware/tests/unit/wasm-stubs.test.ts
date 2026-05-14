@@ -4,6 +4,7 @@ import { test } from 'node:test'
 
 import {
   DynamixelDriver,
+  M5StackChanServoDriver,
   NoneDriver,
   PWMServoDriver,
   RS30XDriver,
@@ -23,6 +24,7 @@ type DriverConstructor = new (
 
 const driverCases: Array<[string, DriverConstructor]> = [
   ['dynamixel', DynamixelDriver],
+  ['m5stackchan', M5StackChanServoDriver],
   ['none', NoneDriver],
   ['pwm', PWMServoDriver],
   ['rs30x', RS30XDriver],
@@ -46,17 +48,21 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
   assert.deepEqual(
     {
       'dynamixel-driver': manifest.modules['dynamixel-driver'],
+      'm5stackchan-servo-driver': manifest.modules['m5stackchan-servo-driver'],
       'none-driver': manifest.modules['none-driver'],
       'sg90-driver': manifest.modules['sg90-driver'],
       'rs30x-driver': manifest.modules['rs30x-driver'],
       'scservo-driver': manifest.modules['scservo-driver'],
+      'py32-led': manifest.modules['py32-led'],
     },
     {
       'dynamixel-driver': './drivers/wasm/dynamixel-driver',
+      'm5stackchan-servo-driver': './drivers/wasm/m5stackchan-servo-driver',
       'none-driver': './drivers/wasm/none-driver',
       'sg90-driver': './drivers/wasm/sg90-driver',
       'rs30x-driver': './drivers/wasm/rs30x-driver',
       'scservo-driver': './drivers/wasm/scservo-driver',
+      'py32-led': './wasm/led',
     },
   )
 })
@@ -64,6 +70,7 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
 test('WASM servo driver facade files re-export the consolidated WasmDriver through a manifest module specifier', () => {
   const facadePaths = [
     'stackchan/drivers/wasm/dynamixel-driver.ts',
+    'stackchan/drivers/wasm/m5stackchan-servo-driver.ts',
     'stackchan/drivers/wasm/none-driver.ts',
     'stackchan/drivers/wasm/sg90-driver.ts',
     'stackchan/drivers/wasm/rs30x-driver.ts',

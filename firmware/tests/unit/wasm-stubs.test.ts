@@ -23,6 +23,26 @@ type DriverConstructor = new (
   setTorque(torque: boolean): Promise<void>
 }
 
+type HostCameraTestBridge = {
+  start?: (options?: unknown) => void
+  stop?: () => void
+  capture?: (options?: unknown) => unknown
+}
+
+const setHostCamera = (CameraBridge: HostCameraTestBridge | undefined): typeof globalThis.Host => {
+  const previousHost = globalThis.Host
+  const nextHost = { ...(previousHost ?? {}) } as typeof globalThis.Host & { Camera?: HostCameraTestBridge }
+
+  if (CameraBridge) {
+    nextHost.Camera = CameraBridge
+  } else {
+    delete nextHost.Camera
+  }
+
+  globalThis.Host = nextHost
+  return previousHost
+}
+
 const driverCases: Array<[string, DriverConstructor]> = [
   ['dynamixel', DynamixelDriver],
   ['none', NoneDriver],
@@ -146,6 +166,77 @@ test('WASM synthetic camera captures deterministic RGB565LE frames', async () =>
   assert.equal(first.imageType, 'rgb565le')
   assert.equal(first.buffer.byteLength, 4 * 3 * 2)
   assert.deepEqual(new Uint8Array(first.buffer), new Uint8Array(second.buffer))
+})
+
+test('WASM camera forwards start and stop to the browser Host.Camera bridge when present', async () => {
+  const calls: unknown[] = []
+  const previousHost = setHostCamera({
+    start(options) {
+      calls.push({ start: options })
+    },
+    stop() {
+      calls.push({ stop: true })
+    },
+  })
+
+  try {
+    const camera = new Camera()
+
+    await camera.start({ width: 2, height: 2 })
+    await camera.stop()
+
+    assert.deepEqual(calls, [{ start: { width: 2, height: 2 } }, { stop: true }])
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
+
+test('WASM camera forwards capture to Host.Camera and returns bridge frames', async () => {
+  const buffer = new ArrayBuffer(8)
+  const previousHost = setHostCamera({
+    capture(options) {
+      assert.deepEqual(options, { width: 2, height: 2, imageType: 'rgb565le' })
+      return { width: 2, height: 2, imageType: 'rgb565le', buffer }
+    },
+  })
+
+  try {
+    const frame = await new Camera().capture({ width: 2, height: 2, imageType: 'rgb565le' })
+
+    assert.deepEqual(frame, { width: 2, height: 2, imageType: 'rgb565le', buffer })
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
+
+test('WASM camera falls back to synthetic RGB565LE frames when Host.Camera capture returns undefined', async () => {
+  const previousHost = setHostCamera({
+    capture() {
+      return undefined
+    },
+  })
+
+  try {
+    const frame = await new Camera().capture({ width: 2, height: 2, imageType: 'rgb565le' })
+
+    assert.equal(frame?.buffer.byteLength, 2 * 2 * 2)
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
+
+test('WASM camera surfaces Host.Camera bridge errors consistently with other WASM bridges', async () => {
+  const previousHost = setHostCamera({
+    capture() {
+      throw new Error('camera bridge failed')
+    },
+  })
+
+  try {
+    await assert.rejects(() => new Camera().capture({ width: 2, height: 2 }), /camera bridge failed/)
+  } finally {
+    globalThis.Host = previousHost
+  }
 })
 
 test('WASM synthetic camera start and stop are safe around capture', async () => {

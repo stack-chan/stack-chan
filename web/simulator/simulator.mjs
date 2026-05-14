@@ -2,7 +2,13 @@ import * as THREE from 'three'
 import { OrbitControls } from 'https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'https://unpkg.com/three@0.164.1/examples/jsm/geometries/RoundedBoxGeometry.js'
 
-import { clientPointFromTouch, createHostButtonBridge, createHostDriverBridge, summarizeImageData } from './bridge.mjs'
+import {
+  clientPointFromTouch,
+  createHostButtonBridge,
+  createHostCameraBridge,
+  createHostDriverBridge,
+  summarizeImageData,
+} from './bridge.mjs'
 import {
   SCREEN_CANVAS,
   STACKCHAN_FACE_MM,
@@ -378,6 +384,8 @@ const driverBridge = createHostDriverBridge({
 })
 globalThis.Host.Driver = driverBridge
 console.log('[bridge] global Host.Driver bridge installed')
+globalThis.Host.Camera = createHostCameraBridge()
+console.log('[bridge] global Host.Camera bridge installed')
 buttonBridge.setHtmlAction('a', () => scene.setLookAround(!scene.lookAround))
 buttonBridge.setHtmlAction('b', () => scene.runServoMotion())
 

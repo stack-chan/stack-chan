@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { clientPointFromTouch, createHostButtonBridge, createHostDriverBridge, summarizeImageData } from './bridge.mjs'
+import {
+  clientPointFromTouch,
+  createHostButtonBridge,
+  createHostCameraBridge,
+  createHostDriverBridge,
+  summarizeImageData,
+} from './bridge.mjs'
 
 describe('Host.Button bridge', () => {
   it('exposes constructible active-low buttons sharing state with HTML pushes', () => {
@@ -60,6 +66,41 @@ describe('Host.Driver bridge', () => {
       { rotation: { y: 0.2, p: -0.1, r: 0.03 }, time: 0.5 },
       { torque: false },
     ])
+  })
+})
+
+describe('Host.Camera bridge', () => {
+  it('returns deterministic RGB565LE frames sized to capture options', () => {
+    const bridge = createHostCameraBridge()
+
+    const first = bridge.capture({ width: 4, height: 3, imageType: 'rgb565le' })
+    const second = bridge.capture({ width: 4, height: 3, imageType: 'rgb565le' })
+
+    assert.ok(first)
+    assert.ok(second)
+    assert.equal(first.width, 4)
+    assert.equal(first.height, 3)
+    assert.equal(first.imageType, 'rgb565le')
+    assert.equal(first.buffer.byteLength, 4 * 3 * 2)
+    assert.deepEqual(new Uint8Array(first.buffer), new Uint8Array(second.buffer))
+  })
+
+  it('tracks start and stop without requiring browser media devices', () => {
+    const bridge = createHostCameraBridge()
+
+    bridge.start({ width: 2, height: 2 })
+    assert.equal(bridge.isStarted(), true)
+
+    bridge.stop()
+    bridge.stop()
+    assert.equal(bridge.isStarted(), false)
+  })
+
+  it('keeps unsupported camera formats out of the simulator bridge', () => {
+    const bridge = createHostCameraBridge()
+
+    assert.equal(bridge.capture({ imageType: 'jpeg' }), undefined)
+    assert.equal('captureJpeg' in bridge, false)
   })
 })
 

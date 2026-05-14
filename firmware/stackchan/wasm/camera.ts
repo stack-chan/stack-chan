@@ -5,6 +5,15 @@ const DEFAULT_WIDTH = 96
 const DEFAULT_HEIGHT = 96
 const DEFAULT_IMAGE_TYPE: CameraImageType = 'rgb565le'
 
+type HostCameraBridge = {
+  start?: (options?: CameraCaptureOptions) => Promise<void> | void
+  stop?: () => Promise<void> | void
+  capture?: (options?: CameraCaptureOptions) => Promise<CameraFrame | undefined> | CameraFrame | undefined
+}
+
+const hostCamera = (): HostCameraBridge | undefined =>
+  (globalThis as typeof globalThis & { Host?: { Camera?: HostCameraBridge } }).Host?.Camera
+
 function normalizeDimension(value: number | undefined, fallback: number): number {
   if (value === undefined) {
     return fallback
@@ -39,16 +48,22 @@ export default class Camera implements RobotCamera {
     void _options
   }
 
-  start(_options?: CameraCaptureOptions): void {
-    void _options
+  async start(options?: CameraCaptureOptions): Promise<void> {
+    await hostCamera()?.start?.(options)
     this.#started = true
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
+    await hostCamera()?.stop?.()
     this.#started = false
   }
 
   async capture(options: CameraCaptureOptions = {}): Promise<CameraFrame | undefined> {
+    const hostFrame = await hostCamera()?.capture?.(options)
+    if (hostFrame !== undefined) {
+      return hostFrame
+    }
+
     const imageType = options.imageType ?? DEFAULT_IMAGE_TYPE
     if (imageType !== 'rgb565le') {
       return undefined

@@ -1,4 +1,32 @@
 const BUTTON_NAMES = ['a', 'b', 'c']
+const DEFAULT_CAMERA_WIDTH = 96
+const DEFAULT_CAMERA_HEIGHT = 96
+const DEFAULT_CAMERA_IMAGE_TYPE = 'rgb565le'
+
+function normalizeDimension(value, fallback) {
+  if (value === undefined) return fallback
+  const normalized = value | 0
+  return normalized > 0 ? normalized : fallback
+}
+
+function writeRgb565Le(view, width, height) {
+  let offset = 0
+  const widthScale = Math.max(1, width - 1)
+  const heightScale = Math.max(1, height - 1)
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const red = (x * 31) / widthScale
+      const green = ((x + y) * 63) / Math.max(1, width + height - 2)
+      const blue = (y * 31) / heightScale
+      const pixel = ((red & 0x1f) << 11) | ((green & 0x3f) << 5) | (blue & 0x1f)
+
+      view[offset] = pixel & 0xff
+      view[offset + 1] = (pixel >> 8) & 0xff
+      offset += 2
+    }
+  }
+}
 
 export function createHostButtonBridge({ logger = console.log, setTimeoutFn = globalThis.setTimeout, resetDelayMs = 120 } = {}) {
   const states = Object.fromEntries(
@@ -61,6 +89,33 @@ export function createHostDriverBridge({ onRotation = () => {}, onTorque = () =>
     },
     getTorque() {
       return torque
+    },
+  }
+}
+
+export function createHostCameraBridge() {
+  let started = false
+
+  return {
+    start() {
+      started = true
+    },
+    stop() {
+      started = false
+    },
+    isStarted() {
+      return started
+    },
+    capture(options = {}) {
+      const imageType = options.imageType ?? DEFAULT_CAMERA_IMAGE_TYPE
+      if (imageType !== 'rgb565le') return undefined
+
+      const width = normalizeDimension(options.width, DEFAULT_CAMERA_WIDTH)
+      const height = normalizeDimension(options.height, DEFAULT_CAMERA_HEIGHT)
+      const buffer = new ArrayBuffer(width * height * 2)
+      writeRgb565Le(new Uint8Array(buffer), width, height)
+
+      return { width, height, imageType, buffer }
     },
   }
 }

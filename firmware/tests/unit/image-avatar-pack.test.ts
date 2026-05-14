@@ -58,10 +58,11 @@ test('image avatar state helpers clamp ratios and map emotions to expressions', 
   assert.equal(resolveExpressionName(pack, 'DOUBTFUL'), 'normal')
 })
 
-test('WASM renderer manifest bundles demo masks and imported full-color ImageAvatarLite sprites', () => {
-  const manifest = JSON.parse(readFileSync('stackchan/renderers-piu/manifest_wasm_renderer_piu.json', 'utf8'))
+test('WASM renderer manifest bundles demo masks and imported ImageAvatarLite alpha sprites', () => {
+  const manifest = JSON.parse(readFileSync('stackchan/renderers-piu/manifest_wasm_renderer_piu.json', 'utf-8'))
   const alphaResources = manifest.resources['*-alpha'] as string[]
   const colorResources = manifest.resources['*-color'] as string[]
+  const combinedResources = (manifest.resources['*'] ?? []) as string[]
   const demoExpected = [
     'stackchan-demo-head-normal',
     'stackchan-demo-eye-left-normal',
@@ -71,18 +72,32 @@ test('WASM renderer manifest bundles demo masks and imported full-color ImageAva
     'stackchan-demo-hand-right-normal',
   ].map((name) => `../assets/images/faces/image-avatar/stackchan-demo/${name}`)
   const importedExpected = [
-    'image-avatar-lite-transparent',
-    'image-avatar-lite-slime-head',
     'image-avatar-lite-slime-eye-left-normal',
     'image-avatar-lite-slime-eye-right-normal',
     'image-avatar-lite-slime-mouth-normal',
   ].map((name) => `../assets/images/faces/image-avatar/image-avatar-lite/${name}`)
+  const opaqueImportedResource = '../assets/images/faces/image-avatar/image-avatar-lite/image-avatar-lite-slime-head'
+  const placeholderResource = '../assets/images/faces/image-avatar/image-avatar-lite/image-avatar-lite-transparent'
 
   for (const resource of demoExpected) {
     assert.ok(alphaResources.includes(resource), `missing alpha resource ${resource}`)
   }
   for (const resource of importedExpected) {
     assert.ok(colorResources.includes(resource), `missing color resource ${resource}`)
-    assert.ok(!alphaResources.includes(resource), `full-color sprite must not be alpha-only ${resource}`)
+    assert.ok(alphaResources.includes(resource), `missing alpha resource ${resource}`)
+    assert.ok(
+      !combinedResources.includes(resource),
+      `binary-alpha sprite uses explicit color+alpha resources ${resource}`,
+    )
   }
+  assert.ok(colorResources.includes(opaqueImportedResource), `missing opaque imported sprite ${opaqueImportedResource}`)
+  assert.ok(
+    !combinedResources.includes(opaqueImportedResource),
+    'opaque imported sprite should not require alpha pair output',
+  )
+  assert.ok(colorResources.includes(placeholderResource), `missing transparent placeholder ${placeholderResource}`)
+  assert.ok(
+    !combinedResources.includes(placeholderResource),
+    'fully transparent placeholder must not require alpha pair output',
+  )
 })

@@ -9,19 +9,25 @@ void xs_stackchan_wasm_audio_tone(xsMachine* the)
 	double duration = xsmcToNumber(xsArg(1));
 	double volume = (xsmcArgc > 2) ? xsmcToNumber(xsArg(2)) : 1.0;
 	EM_ASM({
-		globalThis.Host?.AudioOut?.tone?.({
-			hz: $0,
-			duration: $1,
-			volume: $2,
-		});
+		const audioOut = globalThis.Host && globalThis.Host.AudioOut;
+		if (audioOut && audioOut.tone) {
+			audioOut.tone({
+				hz: $0,
+				duration: $1,
+				volume: $2,
+			});
+		}
 	}, hz, duration, volume);
 }
 
 void xs_stackchan_wasm_audio_close(xsMachine* the)
 {
 	EM_ASM({
-		globalThis.Host?.AudioOut?.close?.();
-		globalThis.Host?.AudioIn?.close?.();
+		const host = globalThis.Host;
+		const audioOut = host && host.AudioOut;
+		const audioIn = host && host.AudioIn;
+		if (audioOut && audioOut.close) audioOut.close();
+		if (audioIn && audioIn.close) audioIn.close();
 	});
 }
 

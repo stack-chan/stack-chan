@@ -22,15 +22,13 @@ describe('Host.Button bridge', () => {
         return scheduled.length
       },
     })
-    bridge.setHtmlAction('a', () => events.push('html:a'))
-
     const firmwareButton = new bridge.Button.a({ onPush: () => events.push('firmware:a') })
 
     assert.equal(firmwareButton.read(), 1)
     bridge.push('a')
 
     assert.equal(firmwareButton.read(), 0)
-    assert.deepEqual(events, ['[bridge] Host.Button.a pushed', 'firmware:a', 'html:a'])
+    assert.deepEqual(events, ['[bridge] Host.Button.a pushed', 'firmware:a'])
     assert.equal(scheduled[0].delay, 120)
 
     scheduled[0].callback()
@@ -101,6 +99,11 @@ describe('Host.Audio bridge', () => {
         }
       },
       destination: 'destination',
+      state: 'suspended',
+      async resume() {
+        this.state = 'running'
+        events.push(['resume'])
+      },
       close() {
         this.closed = true
         events.push(['close'])
@@ -120,6 +123,7 @@ describe('Host.Audio bridge', () => {
     bridge.close()
 
     assert.deepEqual(events, [
+      ['resume'],
       ['osc-connect', 'gain'],
       ['gain-connect', 'destination'],
       ['start', 2, 880],
@@ -129,7 +133,152 @@ describe('Host.Audio bridge', () => {
     assert.equal(context.closed, true)
   })
 
-  it('records only WAV-compatible microphone audio through getUserMedia and stops tracks', async () => {
+  it('resolves tone playback with a duration fallback when onended does not fire', async () => {
+    const scheduled = []
+    const context = {
+      currentTime: 0,
+      createOscillator() {
+        return {
+          frequency: { value: 0 },
+          onended: undefined,
+          connect() {},
+          start() {},
+          stop() {},
+        }
+      },
+      createGain() {
+        return {
+          gain: { value: 0 },
+          connect() {},
+        }
+      },
+      destination: 'destination',
+      state: 'running',
+    }
+    const bridge = createHostAudioOutBridge({
+      createAudioContext: () => context,
+      setTimeoutFn(callback, delay) {
+        scheduled.push({ callback, delay })
+        return scheduled.length
+      },
+      clearTimeoutFn() {},
+    })
+
+    let resolved = false
+    const tone = bridge.tone({ hz: 440, duration: 300, volume: 0.5 }).then(() => {
+      resolved = true
+    })
+
+    assert.equal(resolved, false)
+    assert.equal(scheduled[0].delay, 550)
+    scheduled[0].callback()
+    await tone
+    assert.equal(resolved, true)
+  })
+
+  it('decodes and plays recorded microphone audio through AudioContext', async () => {
+    const events = []
+    let source
+    const context = {
+      destination: 'destination',
+      state: 'suspended',
+      async resume() {
+        this.state = 'running'
+        events.push(['resume'])
+      },
+      async decodeAudioData(buffer) {
+        events.push(['decode', buffer.byteLength])
+        return { kind: 'audio-buffer' }
+      },
+      createBufferSource() {
+        source = {
+          buffer: undefined,
+          onended: undefined,
+          connect(node) {
+            events.push(['source-connect', node])
+          },
+          start(time) {
+            events.push(['source-start', time, this.buffer.kind])
+          },
+        }
+        return source
+      },
+    }
+    const bridge = createHostAudioOutBridge({ createAudioContext: () => context })
+    const recorded = new Uint8Array([1, 2, 3, 4]).buffer
+
+    let resolved = false
+    const playback = bridge.play(recorded).then((played) => {
+      resolved = played
+    })
+
+    while (!source) await Promise.resolve()
+    assert.equal(resolved, false)
+    source.onended()
+    await playback
+
+    assert.equal(resolved, true)
+    assert.deepEqual(events, [
+      ['resume'],
+      ['decode', 4],
+      ['source-connect', 'destination'],
+      ['source-start', 0, 'audio-buffer'],
+    ])
+  })
+
+  it('skips playback for an empty recording buffer', async () => {
+    const bridge = createHostAudioOutBridge({
+      createAudioContext() {
+        throw new Error('AudioContext should not be created for empty playback')
+      },
+    })
+
+    assert.equal(await bridge.play(new ArrayBuffer(0)), false)
+  })
+
+  it('records WebM/Opus microphone audio when the browser supports it', async () => {
+    const stopped = []
+    const recorderOptions = []
+    const webmHeader = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3])
+    class FakeMediaRecorder {
+      static isTypeSupported(type) {
+        return type === 'audio/webm;codecs=opus'
+      }
+
+      constructor(stream, options) {
+        this.stream = stream
+        recorderOptions.push(options)
+      }
+      start() {
+        this.ondataavailable?.({ data: webmHeader.buffer })
+      }
+      stop() {
+        this.onstop?.()
+      }
+    }
+    const bridge = createHostAudioInBridge({
+      mediaDevices: {
+        async getUserMedia(request) {
+          assert.deepEqual(request, { audio: true })
+          return { getTracks: () => [{ stop: () => stopped.push('track') }] }
+        },
+      },
+      MediaRecorder: FakeMediaRecorder,
+      setTimeoutFn(fn) {
+        fn()
+      },
+    })
+
+    const buffer = await bridge.record(100)
+
+    assert.deepEqual(Array.from(new Uint8Array(buffer)), Array.from(webmHeader))
+    assert.equal(buffer.mimeType, 'audio/webm;codecs=opus')
+    assert.equal(buffer.filename, 'speak.webm')
+    assert.deepEqual(recorderOptions, [{ mimeType: 'audio/webm;codecs=opus' }])
+    assert.deepEqual(stopped, ['track'])
+  })
+
+  it('records WAV-compatible microphone audio when WAV is the supported browser format', async () => {
     const stopped = []
     const recorderOptions = []
     const wavHeader = new TextEncoder().encode('RIFFxxxxWAVE')
@@ -166,11 +315,13 @@ describe('Host.Audio bridge', () => {
 
     assert.equal(new TextDecoder().decode(buffer.slice(0, 4)), 'RIFF')
     assert.equal(new TextDecoder().decode(buffer.slice(8, 12)), 'WAVE')
+    assert.equal(buffer.mimeType, 'audio/wav')
+    assert.equal(buffer.filename, 'speak.wav')
     assert.deepEqual(recorderOptions, [{ mimeType: 'audio/wav' }])
     assert.deepEqual(stopped, ['track'])
   })
 
-  it('returns an empty microphone buffer instead of WebM/Opus when WAV recording is unavailable', async () => {
+  it('returns an empty microphone buffer when no supported recording format is available', async () => {
     let requested = false
     class FakeMediaRecorder {
       static isTypeSupported() {

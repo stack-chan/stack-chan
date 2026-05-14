@@ -54,6 +54,8 @@ class FakeChatAudioIO {
 }
 
 test('ChatService exposes the shared ConversationBackend contract', () => {
+  FakeChatAudioIO.instances = []
+
   const service: ConversationBackend = new ChatService({
     config: { type: 'openAIRealtime' },
     chatAudioIOCtor: FakeChatAudioIO,
@@ -67,6 +69,17 @@ test('ChatService exposes the shared ConversationBackend contract', () => {
   service.setVolume?.(0.4)
   service.close()
 
+  const fake = FakeChatAudioIO.instances.at(-1)
+  assert.ok(fake)
+  assert.deepEqual(fake.calls, [
+    ['connect', []],
+    ['disconnect', []],
+    ['sendText', ['こんにちは']],
+    ['sendFunctionResult', ['call-1', 'set_emotion', { ok: true }]],
+    ['changeMicrophone', [false]],
+    ['changeVolume', [0.4]],
+    ['close', []],
+  ])
   assert.equal(service.state, 'DISCONNECTED')
   assert.equal(service.error, '')
 })

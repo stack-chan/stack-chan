@@ -112,8 +112,8 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   const runCameraPreview = async (target: typeof robot) => {
     try {
       target.showBalloon('starting camera...')
-      await target.camera.start({ width: 320, height: 240, imageType: 'rgb565le', useBrowserCamera: true })
-      const frame = await target.camera.capture({ width: 320, height: 240, imageType: 'rgb565le' })
+      await target.camera.start({ width: 200, height: 120, imageType: 'rgb565le', useBrowserCamera: true })
+      const frame = await target.camera.capture({ width: 200, height: 120, imageType: 'rgb565le' })
       if (!frame) {
         trace('[CameraPreview] capture returned no frame\n')
         target.showBalloon('camera unavailable')

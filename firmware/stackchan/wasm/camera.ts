@@ -12,7 +12,7 @@ type HostCameraBridge = {
 }
 
 type WasmCameraBridge = {
-  start: (width: number, height: number, useBrowserCamera: boolean) => void
+  start: (width: number, height: number, useBrowserCamera: boolean) => Promise<void> | void
   stop: () => void
   capture: (width: number, height: number) => CameraFrame | undefined
 }
@@ -67,7 +67,7 @@ export default class Camera implements RobotCamera {
   async start(options?: CameraCaptureOptions): Promise<void> {
     const wasmBridge = wasmCameraBridge()
     if (wasmBridge) {
-      wasmBridge.start(
+      await wasmBridge.start(
         normalizeDimension(options?.width, DEFAULT_WIDTH),
         normalizeDimension(options?.height, DEFAULT_HEIGHT),
         Boolean(options?.useBrowserCamera),

@@ -10,14 +10,23 @@ void xs_stackchan_wasm_camera_start(xsMachine* the)
 	int useBrowserCamera = (xsmcArgc > 2) ? xsmcToBoolean(xsArg(2)) : 0;
 	EM_ASM({
 		const camera = globalThis.Host && globalThis.Host.Camera;
-		if (!camera || !camera.start)
+		const state = globalThis.__stackchanCameraStart || (globalThis.__stackchanCameraStart = {});
+		state.status = 0;
+		state.error = "";
+		if (!camera || !camera.start) {
+			state.status = 1;
 			return;
+		}
 		const options = {};
 		options.width = $0;
 		options.height = $1;
 		options.imageType = "rgb565le";
 		options.useBrowserCamera = !!$2;
-		Promise.resolve(camera.start(options)).catch((error) => {
+		Promise.resolve(camera.start(options)).then(() => {
+			state.status = 1;
+		}).catch((error) => {
+			state.status = -1;
+			state.error = String(error && error.message ? error.message : error);
 			console.warn("[bridge] Host.Camera.start failed", error);
 		});
 	}, width, height, useBrowserCamera);
@@ -35,6 +44,9 @@ void xs_stackchan_wasm_camera_capture(xsMachine* the)
 	int width = (xsmcArgc > 0) ? xsmcToInteger(xsArg(0)) : 96;
 	int height = (xsmcArgc > 1) ? xsmcToInteger(xsArg(1)) : 96;
 	int length = EM_ASM_INT({
+		const startState = globalThis.__stackchanCameraStart;
+		if (startState && startState.status === 0)
+			return 0;
 		const camera = globalThis.Host && globalThis.Host.Camera;
 		let frame;
 		try {
@@ -50,10 +62,16 @@ void xs_stackchan_wasm_camera_capture(xsMachine* the)
 		}
 		if (!frame || frame.imageType !== "rgb565le" || !(frame.buffer instanceof ArrayBuffer))
 			return 0;
+		const width = frame.width | 0;
+		const height = frame.height | 0;
+		if (width <= 0 || height <= 0)
+			return 0;
 		const data = new Uint8Array(frame.buffer);
+		if (data.byteLength !== width * height * 2)
+			return 0;
 		const state = {};
-		state.width = frame.width | 0;
-		state.height = frame.height | 0;
+		state.width = width;
+		state.height = height;
 		state.data = data;
 		globalThis.__stackchanCameraCapture = state;
 		return data.byteLength;

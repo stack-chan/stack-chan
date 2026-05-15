@@ -220,7 +220,7 @@ new Application(
 | --- | --- | --- | --- |
 | `cx`, `cy` | `number` | 必須 | 中心座標。 |
 | `radius` | `number` | 任意 | 虹彩の半径。 |
-| `side` | `'left' | 'right'` | 必須 | 目の左右。 |
+| `side` | `left`, `right` | 必須 | 目の左右。 |
 | `eyelidWidth`, `eyelidHeight` | `number` | 任意 | まぶたのサイズ。 |
 
 #### Eyelid（`parts/eye.ts`）
@@ -231,7 +231,7 @@ new Application(
 | --- | --- | --- | --- |
 | `cx`, `cy` | `number` | 必須 | 中心座標。 |
 | `width`, `height` | `number` | 必須 | まぶたのサイズ。 |
-| `side` | `'left' | 'right'` | 必須 | 目の左右。 |
+| `side` | `left`, `right` | 必須 | 目の左右。 |
 
 #### Mouth（`parts/mouth.ts`）
 **役割:** `mouth.open` に応じて拡縮する矩形の口。
@@ -248,7 +248,7 @@ new Application(
 | 名称 | 型 | 必須 | 説明 |
 | --- | --- | --- | --- |
 | `cx`, `cy` | `number` | 必須 | 中心座標。 |
-| `side` | `'left' | 'right'` | 必須 | 目の左右。 |
+| `side` | `left`, `right` | 必須 | 目の左右。 |
 | `canvasWidth`, `canvasHeight` | `number` | 任意 | Outline 用キャンバスサイズ。 |
 
 **DogMouth（DogMouthOptions）:**
@@ -289,7 +289,7 @@ new Application(
 **Params（EmoticonParams）:**
 | 名称 | 型 | 必須 | 説明 |
 | --- | --- | --- | --- |
-| `key` | `'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy'` | 必須 | 感情種別。 |
+| `key` | `heart`, `angry`, `sweat`, `tear`, `sleepy` | 必須 | 感情種別。 |
 | `name` | `string` | 任意 | Effect 管理用のキー。 |
 | `left/right/top/bottom/width/height` | `number` | 任意 | レイアウト指定。 |
 | `angle` | `number` | 任意 | 回転角。 |
@@ -313,7 +313,7 @@ new Application(
 | --- | --- | --- | --- |
 | `key` | `string` | 必須 | `bubble` に使うイベントキー。 |
 | `label` | `string` | 必須 | ボタン表示。 |
-| `kind` | `'action' | 'toggle'` | 任意 | toggle はインジケータを表示。 |
+| `kind` | `action`, `toggle` | 任意 | toggle はインジケータを表示。 |
 | `active` | `boolean` | 任意 | 初期トグル状態。 |
 
 **公開メソッド（DrawerBehavior）:**

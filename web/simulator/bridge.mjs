@@ -242,7 +242,7 @@ export function createHostCameraBridge({
   return {
     async start(options = {}) {
       started = true
-      browserCameraRequested = Boolean(options.useBrowserCamera)
+      browserCameraRequested = options.useBrowserCamera === undefined ? browserCameraRequested : Boolean(options.useBrowserCamera)
       if (browserCameraRequested) {
         await startBrowserCamera(options)
       } else {

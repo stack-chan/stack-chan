@@ -502,7 +502,7 @@ describe('Host.Camera bridge', () => {
     })
 
     await bridge.start({ useBrowserCamera: true })
-    await bridge.start({ useBrowserCamera: true, width: 200, height: 120, imageType: 'rgb565le' })
+    await bridge.start({ width: 200, height: 120, imageType: 'rgb565le' })
 
     assert.equal(bridge.isBrowserCameraStarted(), true)
     assert.equal(video.srcObject, stream)

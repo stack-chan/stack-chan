@@ -32,7 +32,7 @@ type HostCameraTestBridge = {
 }
 
 type WasmCameraTestBridge = {
-  start?: (width: number, height: number, useBrowserCamera: boolean) => void
+  start?: (width: number, height: number, useBrowserCamera: boolean) => Promise<void> | void
   stop?: () => void
   capture?: (width: number, height: number) => unknown
 }
@@ -188,6 +188,34 @@ test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver br
 
     assert.deepEqual(calls, [{ rotation, time: 0.75 }])
     assert.deepEqual(await driver.getRotation(), { success: true, value: rotation })
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
+
+test('WasmDriver applyRotation rejects invalid rotation payloads without mutating state or calling the host bridge', async () => {
+  const calls: unknown[] = []
+  const previousHost = globalThis.Host
+  globalThis.Host = {
+    Driver: {
+      applyRotation(message: unknown) {
+        calls.push(message)
+      },
+    },
+  }
+
+  try {
+    const driver = new WasmDriver()
+    const validRotation = { y: 0.25, p: -0.125, r: 0.05 }
+    await driver.applyRotation(validRotation)
+
+    await assert.rejects(() => driver.applyRotation({ y: Number.NaN, p: 0, r: 0 } as Rotation), TypeError)
+
+    assert.deepEqual(calls, [{ rotation: validRotation, time: undefined }])
+    assert.deepEqual(await driver.getRotation(), {
+      success: true,
+      value: validRotation,
+    })
   } finally {
     globalThis.Host = previousHost
   }
@@ -374,6 +402,39 @@ test('WASM camera uses the native browser camera bridge when it is preloaded', a
   } finally {
     setWasmCameraBridge(previousBridge)
   }
+})
+
+test('WASM camera waits for async native browser camera startup when the bridge can report it', async () => {
+  const calls: string[] = []
+  const previousBridge = setWasmCameraBridge({
+    async start() {
+      await Promise.resolve()
+      calls.push('start-done')
+    },
+    capture(width, height) {
+      calls.push('capture')
+      return { width, height, imageType: 'rgb565le', buffer: new ArrayBuffer(width * height * 2) }
+    },
+  })
+
+  try {
+    const camera = new Camera()
+    await camera.start({ width: 2, height: 2, imageType: 'rgb565le', useBrowserCamera: true })
+    await camera.capture({ width: 2, height: 2, imageType: 'rgb565le' })
+
+    assert.deepEqual(calls, ['start-done', 'capture'])
+  } finally {
+    setWasmCameraBridge(previousBridge)
+  }
+})
+
+test('WASM native camera C bridge guards async startup and exact RGB565 payload sizes', () => {
+  const source = readFileSync('stackchan/wasm/camera-bridge.c', 'utf8')
+
+  assert.match(source, /__stackchanCameraStart/)
+  assert.match(source, /startState\.status === 0/)
+  assert.match(source, /width <= 0 \|\| height <= 0/)
+  assert.match(source, /data\.byteLength !== width \* height \* 2/)
 })
 
 test('WASM camera copies Host.Camera capture frames into local ArrayBuffers', async () => {

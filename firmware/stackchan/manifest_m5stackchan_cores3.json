@@ -1,0 +1,20 @@
+{
+  "include": ["./manifest.json"],
+  "config": {
+    "driver": {
+      "type": "m5stackchan",
+      "panId": 1,
+      "tiltId": 2,
+      "yawZeroPosition": 460,
+      "pitchZeroPosition": 620,
+      "serial": {
+        "transmit": 6,
+        "receive": 7,
+        "port": 1,
+        "baud": 1000000
+      }
+    },
+    "touchIntervalMs": 50,
+    "virtualButton": false
+  }
+}

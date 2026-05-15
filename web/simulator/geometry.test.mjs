@@ -11,6 +11,7 @@ import {
   computeFootPlacements,
   computeFaceLayerDepths,
   computeFaceModulePlacement,
+  computeGeometryTuning,
   computeScreenFrame,
   computeScreenPlane,
   computeShellScaleForM5Stack,
@@ -41,7 +42,7 @@ describe('Stack-chan simulator geometry', () => {
     assert.equal(feet.length, 2)
     assert.deepEqual(
       feet.map((foot) => foot.y),
-      [-33, -33]
+      [-37, -37]
     )
     assert.deepEqual(
       feet.map((foot) => foot.x),
@@ -58,6 +59,46 @@ describe('Stack-chan simulator geometry', () => {
     assert.equal(STACKCHAN_SIMULATOR_COLORS.feet, 0x8f949c)
     assert.equal(STACKCHAN_SIMULATOR_COLORS.m5stackSide, 0x8f949c)
     assert.equal(STACKCHAN_SIMULATOR_COLORS.m5stackFront, 0x2f343b)
+  })
+
+  it('derives inspectable tuning defaults for the shell gap and foot pose', () => {
+    const tuning = computeGeometryTuning()
+
+    assert.deepEqual(tuning.shellOffset, { x: 0, y: 0, z: -10 })
+    assert.deepEqual(tuning.feetOffset, { x: 0, y: -4, z: 0 })
+
+    const face = computeFaceModulePlacement({ tuning })
+    const shell = computeShellPlacementFromBounds(STACKCHAN_SHELL_STL.sourceBoundsMm, { tuning })
+    const feet = computeFootPlacements({ tuning })
+
+    assert.ok(face.shellFrontZ - shell.frontZ >= 9.9)
+    assert.ok(Math.abs(face.frontZ - 28.438372093023258) < 1e-9)
+    assert.deepEqual(
+      feet.map((foot) => foot.y),
+      [-37, -37]
+    )
+    assert.deepEqual(
+      feet.map((foot) => foot.z),
+      [0, 0]
+    )
+  })
+
+  it('clamps geometry tuning values to a safe visual range', () => {
+    assert.deepEqual(
+      computeGeometryTuning({ shellGap: '99', footHeight: '99', footForward: '-99' }),
+      {
+        shellOffset: { x: 0, y: 0, z: -12 },
+        feetOffset: { x: 0, y: 4, z: -8 },
+      }
+    )
+
+    assert.deepEqual(
+      computeGeometryTuning({ shellGap: '8', footHeight: '-2', footForward: '4' }),
+      {
+        shellOffset: { x: 0, y: 0, z: -8 },
+        feetOffset: { x: 0, y: -2, z: 4 },
+      }
+    )
   })
 
   it('creates a rounded-rectangle path bounded by the 54mm square', () => {
@@ -137,7 +178,7 @@ describe('Stack-chan simulator geometry', () => {
     assert.ok(Math.abs(placement.scale - 1.0465116279069768) < 1e-12)
     assert.ok(Math.abs(placement.position.x - 0) < 1e-9)
     assert.ok(Math.abs(placement.position.y - 0) < 1e-9)
-    assert.ok(Math.abs(placement.position.z - 21.191860465116278) < 1e-9)
+    assert.ok(Math.abs(placement.position.z - 11.191860465116278) < 1e-9)
     assert.deepEqual(placement.rotation, { x: -Math.PI / 2, y: 0, z: 0 })
     assert.equal(placement.keepGeneratedFace, true)
   })

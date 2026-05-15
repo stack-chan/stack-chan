@@ -22,6 +22,7 @@ import {
   computeFaceLayerDepths,
   computeFaceModulePlacement,
   computeFootPlacements,
+  computeGeometryTuning,
   computeScreenFrame,
   computeScreenPlane,
   computeShellPlacementFromBounds,
@@ -45,6 +46,7 @@ class StackchanScene {
     this.targetDriverRotation = { y: 0, p: 0, r: 0 }
     this.lastDriverUpdateMs = undefined
     this.torqueEnabled = true
+    this.geometryTuning = computeGeometryTuning()
     this.raycaster = new THREE.Raycaster()
     this.pointerNdc = new THREE.Vector2()
 
@@ -125,7 +127,9 @@ class StackchanScene {
       STACKCHAN_SHELL_STL.url,
       (geometry) => {
         geometry.computeVertexNormals()
-        const placement = computeShellPlacementFromBounds(STACKCHAN_SHELL_STL.sourceBoundsMm)
+        const placement = computeShellPlacementFromBounds(STACKCHAN_SHELL_STL.sourceBoundsMm, {
+          tuning: this.geometryTuning,
+        })
         this.shell = new THREE.Mesh(geometry, this.shellMaterial)
         this.shell.position.set(placement.position.x, placement.position.y, placement.position.z)
         this.shell.rotation.set(placement.rotation.x, placement.rotation.y, placement.rotation.z)
@@ -193,7 +197,7 @@ class StackchanScene {
     )
     const outlineGeometry = new THREE.EdgesGeometry(geometry, 24)
 
-    for (const placement of computeFootPlacements()) {
+    for (const placement of computeFootPlacements({ tuning: this.geometryTuning })) {
       const foot = new THREE.Mesh(geometry, this.footMaterial)
       foot.position.set(placement.x, placement.y, placement.z)
       this.feetGroup.add(foot)

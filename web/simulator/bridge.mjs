@@ -1,5 +1,33 @@
 const BUTTON_NAMES = ['a', 'b', 'c']
 const MOD_INSTALL_HOOKS = ['_fxMainSetModArchive', '_wasmModInstallArchive']
+const DEFAULT_CAMERA_WIDTH = 96
+const DEFAULT_CAMERA_HEIGHT = 96
+const DEFAULT_CAMERA_IMAGE_TYPE = 'rgb565le'
+
+function normalizeDimension(value, fallback) {
+  if (value === undefined) return fallback
+  const normalized = value | 0
+  return normalized > 0 ? normalized : fallback
+}
+
+function writeRgb565Le(view, width, height) {
+  let offset = 0
+  const widthScale = Math.max(1, width - 1)
+  const heightScale = Math.max(1, height - 1)
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const red = (x * 31) / widthScale
+      const green = ((x + y) * 63) / Math.max(1, width + height - 2)
+      const blue = (y * 31) / heightScale
+      const pixel = ((red & 0x1f) << 11) | ((green & 0x3f) << 5) | (blue & 0x1f)
+
+      view[offset] = pixel & 0xff
+      view[offset + 1] = (pixel >> 8) & 0xff
+      offset += 2
+    }
+  }
+}
 
 export function createHostButtonBridge({
   logger = console.log,
@@ -7,7 +35,7 @@ export function createHostButtonBridge({
   resetDelayMs = 120,
 } = {}) {
   const states = Object.fromEntries(
-    BUTTON_NAMES.map((name) => [name, { pressed: 1, firmwareCallbacks: new Set() }]),
+    BUTTON_NAMES.map((name) => [name, { pressed: 1, firmwareCallbacks: new Set(), htmlAction: undefined }])
   )
 
   const Button = Object.fromEntries(
@@ -27,12 +55,17 @@ export function createHostButtonBridge({
 
   return {
     Button,
+    setHtmlAction(name, action) {
+      if (!states[name]) return
+      states[name].htmlAction = action
+    },
     push(name) {
       const state = states[name]
       if (!state) return
       logger(`[bridge] Host.Button.${name} pushed`)
       state.pressed = 0
       for (const callback of state.firmwareCallbacks) callback()
+      state.htmlAction?.()
       setTimeoutFn(() => {
         state.pressed = 1
       }, resetDelayMs)
@@ -165,6 +198,33 @@ export function createHostAudioOutBridge({
   }
 }
 
+export function createHostCameraBridge() {
+  let started = false
+
+  return {
+    start() {
+      started = true
+    },
+    stop() {
+      started = false
+    },
+    isStarted() {
+      return started
+    },
+    capture(options = {}) {
+      const imageType = options.imageType ?? DEFAULT_CAMERA_IMAGE_TYPE
+      if (imageType !== 'rgb565le') return undefined
+
+      const width = normalizeDimension(options.width, DEFAULT_CAMERA_WIDTH)
+      const height = normalizeDimension(options.height, DEFAULT_CAMERA_HEIGHT)
+      const buffer = new ArrayBuffer(width * height * 2)
+      writeRgb565Le(new Uint8Array(buffer), width, height)
+
+      return { width, height, imageType, buffer }
+    },
+  }
+}
+
 function decodeAudioData(context, buffer) {
   return new Promise((resolve, reject) => {
     const result = context.decodeAudioData(buffer.slice(0), resolve, reject)
@@ -257,7 +317,7 @@ async function chunksToArrayBuffer(chunks) {
       if (ArrayBuffer.isView(chunk)) return chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength)
       if (typeof chunk.arrayBuffer === 'function') return chunk.arrayBuffer()
       return new ArrayBuffer(0)
-    }),
+    })
   )
   const total = buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0)
   const bytes = new Uint8Array(total)

@@ -7,8 +7,21 @@ type HostDriverBridge = {
   getRotation?: () => Rotation | undefined
 }
 
+type HostAudioOutBridge = {
+  tone?: (message: { hz: number; duration: number; volume?: number }) => void | Promise<void>
+  play?: (buffer: ArrayBuffer) => boolean | Promise<boolean>
+  close?: () => void
+}
+
+type HostAudioInBridge = {
+  record?: (durationMilliSec: number) => ArrayBuffer | Promise<ArrayBuffer>
+  close?: () => void
+}
+
 type WasmHost = {
   Driver?: HostDriverBridge
+  AudioOut?: HostAudioOutBridge
+  AudioIn?: HostAudioInBridge
 }
 
 declare global {
@@ -17,6 +30,8 @@ declare global {
 }
 
 const ZERO_ROTATION: Rotation = { y: 0, p: 0, r: 0 }
+const writeTrace = (message: string) =>
+  (globalThis as unknown as { trace?: (message: string) => void }).trace?.(message)
 
 function assertValidRotation(rotation: Rotation): void {
   if (!Number.isFinite(rotation.y) || !Number.isFinite(rotation.p) || !Number.isFinite(rotation.r)) {
@@ -34,16 +49,22 @@ export class WasmDriver {
   async applyRotation(rotation: Rotation, time?: number): Promise<void> {
     assertValidRotation(rotation)
     this.#rotation = { ...rotation }
+    writeTrace(
+      `[WasmDriver] applyRotation y=${rotation.y} p=${rotation.p} r=${rotation.r} time=${time === undefined ? '' : time}\n`,
+    )
     globalThis.Host?.Driver?.applyRotation?.({ rotation, time })
+    return Promise.resolve()
   }
 
-  async getRotation(): Promise<Maybe<Rotation>> {
+  getRotation(): Promise<Maybe<Rotation>> {
     const rotation = globalThis.Host?.Driver?.getRotation?.() ?? this.#rotation
-    return { success: true, value: { ...rotation } }
+    return Promise.resolve({ success: true, value: { ...rotation } })
   }
 
-  async setTorque(torque: boolean): Promise<void> {
+  setTorque(torque: boolean): Promise<void> {
+    writeTrace(`[WasmDriver] setTorque torque=${torque ? 1 : 0}\n`)
     globalThis.Host?.Driver?.setTorque?.(torque)
+    return Promise.resolve()
   }
 }
 

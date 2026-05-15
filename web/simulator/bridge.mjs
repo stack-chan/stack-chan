@@ -1,8 +1,13 @@
 const BUTTON_NAMES = ['a', 'b', 'c']
+const MOD_INSTALL_HOOKS = ['_fxMainSetModArchive', '_wasmModInstallArchive']
 
-export function createHostButtonBridge({ logger = console.log, setTimeoutFn = globalThis.setTimeout, resetDelayMs = 120 } = {}) {
+export function createHostButtonBridge({
+  logger = console.log,
+  setTimeoutFn = globalThis.setTimeout,
+  resetDelayMs = 120,
+} = {}) {
   const states = Object.fromEntries(
-    BUTTON_NAMES.map((name) => [name, { pressed: 1, firmwareCallbacks: new Set(), htmlAction: undefined }]),
+    BUTTON_NAMES.map((name) => [name, { pressed: 1, firmwareCallbacks: new Set() }]),
   )
 
   const Button = Object.fromEntries(
@@ -17,22 +22,17 @@ export function createHostButtonBridge({ logger = console.log, setTimeoutFn = gl
           return states[name].pressed
         }
       },
-    ]),
+    ])
   )
 
   return {
     Button,
-    setHtmlAction(name, action) {
-      if (!states[name]) return
-      states[name].htmlAction = action
-    },
     push(name) {
       const state = states[name]
       if (!state) return
       logger(`[bridge] Host.Button.${name} pushed`)
       state.pressed = 0
       for (const callback of state.firmwareCallbacks) callback()
-      state.htmlAction?.()
       setTimeoutFn(() => {
         state.pressed = 1
       }, resetDelayMs)
@@ -63,6 +63,225 @@ export function createHostDriverBridge({ onRotation = () => {}, onTorque = () =>
       return torque
     },
   }
+}
+
+export function installModArchiveIntoWasm(wasmModule, installedMod) {
+  if (!installedMod) return { status: 'empty' }
+
+  const bytes = installedMod.bytes instanceof Uint8Array ? installedMod.bytes : new Uint8Array(installedMod.bytes ?? [])
+  const size = installedMod.size ?? bytes.byteLength
+  const hookName = MOD_INSTALL_HOOKS.find((name) => typeof wasmModule?.[name] === 'function')
+
+  if (typeof wasmModule?._malloc !== 'function' || !wasmModule.HEAPU8) {
+    return { status: 'unsupported', name: installedMod.name, size }
+  }
+
+  const pointer = wasmModule._malloc(bytes.byteLength)
+  wasmModule.HEAPU8.set(bytes, pointer)
+
+  if (!hookName) return { status: 'prepared', pointer, name: installedMod.name, size }
+
+  try {
+    const result = wasmModule[hookName](pointer, bytes.byteLength)
+    return { status: 'installed', hook: hookName, name: installedMod.name, size, result }
+  } finally {
+    wasmModule._free?.(pointer)
+  }
+}
+
+export function createHostAudioOutBridge({
+  createAudioContext = defaultAudioContextFactory,
+  setTimeoutFn = globalThis.setTimeout,
+  clearTimeoutFn = globalThis.clearTimeout,
+} = {}) {
+  let context
+
+  return {
+    async tone({ hz = 440, duration = 100, volume = 1 } = {}) {
+      context ??= createAudioContext()
+      if (context.state === 'suspended' && typeof context.resume === 'function') {
+        await context.resume()
+      }
+      const oscillator = context.createOscillator()
+      const gain = context.createGain()
+      oscillator.frequency.value = hz
+      gain.gain.value = volume
+      oscillator.connect(gain)
+      gain.connect(context.destination)
+      const startTime = context.currentTime
+      await new Promise((resolve, reject) => {
+        let fallback
+        const finish = () => {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
+          resolve()
+        }
+        oscillator.onended = finish
+        try {
+          oscillator.start(startTime)
+          oscillator.stop(startTime + duration / 1000)
+          fallback = setTimeoutFn?.(finish, duration + 250)
+        } catch (error) {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
+          reject(error)
+        }
+      })
+    },
+    async play(buffer) {
+      if (!(buffer instanceof ArrayBuffer) || buffer.byteLength === 0) return false
+      context ??= createAudioContext()
+      if (context.state === 'suspended' && typeof context.resume === 'function') {
+        await context.resume()
+      }
+      if (typeof context.decodeAudioData !== 'function') return false
+
+      const audioBuffer = await decodeAudioData(context, buffer)
+      const source = context.createBufferSource()
+      source.buffer = audioBuffer
+      source.connect(context.destination)
+      await new Promise((resolve, reject) => {
+        let fallback
+        const durationMilliSec = Number.isFinite(audioBuffer.duration) ? audioBuffer.duration * 1000 : 0
+        const finish = () => {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
+          resolve()
+        }
+        source.onended = finish
+        try {
+          source.start(0)
+          if (durationMilliSec > 0) {
+            fallback = setTimeoutFn?.(finish, durationMilliSec + 250)
+          }
+        } catch (error) {
+          if (fallback !== undefined) clearTimeoutFn?.(fallback)
+          reject(error)
+        }
+      })
+      return true
+    },
+    close() {
+      context?.close?.()
+      context = undefined
+    },
+  }
+}
+
+function decodeAudioData(context, buffer) {
+  return new Promise((resolve, reject) => {
+    const result = context.decodeAudioData(buffer.slice(0), resolve, reject)
+    if (result && typeof result.then === 'function') {
+      result.then(resolve, reject)
+    }
+  })
+}
+
+export function createHostAudioInBridge({
+  mediaDevices = globalThis.navigator?.mediaDevices,
+  MediaRecorder = globalThis.MediaRecorder,
+  setTimeoutFn = globalThis.setTimeout,
+} = {}) {
+  return {
+    async record(durationMilliSec = 3000) {
+      if (!mediaDevices?.getUserMedia || !MediaRecorder) return new ArrayBuffer(0)
+      const format = selectAudioRecordingFormat(MediaRecorder)
+      if (!format) {
+        return new ArrayBuffer(0)
+      }
+
+      const stream = await mediaDevices.getUserMedia({ audio: true })
+      const chunks = []
+      try {
+        return await new Promise((resolve) => {
+          const recorder = new MediaRecorder(stream, { mimeType: format.mimeType })
+          recorder.ondataavailable = (event) => {
+            if (event.data) chunks.push(event.data)
+          }
+          recorder.onstop = async () => {
+            const buffer = await chunksToArrayBuffer(chunks)
+            resolve(attachAudioMetadata(isSupportedAudioBuffer(buffer, format) ? buffer : new ArrayBuffer(0), format))
+          }
+          recorder.start()
+          setTimeoutFn(() => recorder.stop(), durationMilliSec)
+        })
+      } finally {
+        for (const track of stream.getTracks?.() ?? []) track.stop?.()
+      }
+    },
+  }
+}
+
+const AUDIO_RECORDING_FORMATS = Object.freeze([
+  { mimeType: 'audio/webm;codecs=opus', extension: 'webm' },
+  { mimeType: 'audio/webm', extension: 'webm' },
+  { mimeType: 'audio/mp4', extension: 'm4a' },
+  { mimeType: 'audio/wav', extension: 'wav' },
+])
+
+function selectAudioRecordingFormat(MediaRecorder) {
+  if (typeof MediaRecorder.isTypeSupported !== 'function') return AUDIO_RECORDING_FORMATS[0]
+  return AUDIO_RECORDING_FORMATS.find(({ mimeType }) => MediaRecorder.isTypeSupported(mimeType))
+}
+
+function isSupportedAudioBuffer(buffer, format) {
+  if (format.mimeType === 'audio/wav') return isWavBuffer(buffer)
+  return buffer instanceof ArrayBuffer && buffer.byteLength > 0
+}
+
+function attachAudioMetadata(buffer, format) {
+  if (!(buffer instanceof ArrayBuffer) || buffer.byteLength === 0) return buffer
+  const metadata = {
+    mimeType: format.mimeType,
+    filename: `speak.${format.extension}`,
+  }
+  try {
+    Object.defineProperties(buffer, {
+      mimeType: { value: metadata.mimeType, configurable: true },
+      filename: { value: metadata.filename, configurable: true },
+    })
+  } catch {
+    buffer.mimeType = metadata.mimeType
+    buffer.filename = metadata.filename
+  }
+  return buffer
+}
+
+function defaultAudioContextFactory() {
+  const AudioContextConstructor = globalThis.AudioContext ?? globalThis.webkitAudioContext
+  if (!AudioContextConstructor) throw new Error('WebAudio AudioContext is not available')
+  return new AudioContextConstructor()
+}
+
+async function chunksToArrayBuffer(chunks) {
+  const buffers = await Promise.all(
+    chunks.map(async (chunk) => {
+      if (chunk instanceof ArrayBuffer) return chunk
+      if (ArrayBuffer.isView(chunk)) return chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength)
+      if (typeof chunk.arrayBuffer === 'function') return chunk.arrayBuffer()
+      return new ArrayBuffer(0)
+    }),
+  )
+  const total = buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0)
+  const bytes = new Uint8Array(total)
+  let offset = 0
+  for (const buffer of buffers) {
+    bytes.set(new Uint8Array(buffer), offset)
+    offset += buffer.byteLength
+  }
+  return bytes.buffer
+}
+
+function isWavBuffer(buffer) {
+  if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < 12) return false
+  const bytes = new Uint8Array(buffer)
+  return (
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x41 &&
+    bytes[10] === 0x56 &&
+    bytes[11] === 0x45
+  )
 }
 
 export function clientPointFromTouch(touch) {

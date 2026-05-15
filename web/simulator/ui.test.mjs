@@ -40,7 +40,9 @@ describe('simulator MOD archive install input', () => {
 
   it('tells users memory-backed MOD saves are session-only but restartable', () => {
     assert.match(simulatorSource, /installedMod\.storage === 'memory'/)
+    assert.match(simulatorSource, /stored in memory \(session-only\)/)
     assert.match(simulatorSource, /session-only/)
-    assert.match(simulatorSource, /click Restart simulator to launch it/)
+    assert.match(simulatorSource, /click Restart simulator to launch it during this browser session/)
+    assert.doesNotMatch(simulatorSource, /before reloading this page/)
   })
 })

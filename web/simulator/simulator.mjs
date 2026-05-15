@@ -514,7 +514,7 @@ function describeModStatus(result, installedMod = null) {
     return `MOD: error (${result.error})`
   }
   if (installedMod) {
-    const lifetime = installedMod.storage === 'memory' ? ' saved in memory (session-only)' : ' saved'
+    const lifetime = installedMod.storage === 'memory' ? ' stored in memory (session-only)' : ' saved'
     return `MOD: ${installedMod.name} (${formatByteSize(installedMod.size)})${lifetime}`
   }
   return 'MOD: empty'
@@ -522,7 +522,7 @@ function describeModStatus(result, installedMod = null) {
 
 function describeModLaunchInstruction(installedMod) {
   if (installedMod.storage === 'memory') {
-    return 'click Restart simulator to launch it before reloading this page'
+    return 'click Restart simulator to launch it during this browser session'
   }
   return 'click Restart simulator to launch it'
 }

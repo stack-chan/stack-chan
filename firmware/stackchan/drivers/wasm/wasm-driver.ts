@@ -33,6 +33,12 @@ const ZERO_ROTATION: Rotation = { y: 0, p: 0, r: 0 }
 const writeTrace = (message: string) =>
   (globalThis as unknown as { trace?: (message: string) => void }).trace?.(message)
 
+function assertValidRotation(rotation: Rotation): void {
+  if (!Number.isFinite(rotation.y) || !Number.isFinite(rotation.p) || !Number.isFinite(rotation.r)) {
+    throw new TypeError('Invalid rotation: y, p, and r must be finite numbers')
+  }
+}
+
 export class WasmDriver {
   #rotation: Rotation = { ...ZERO_ROTATION }
 
@@ -40,7 +46,8 @@ export class WasmDriver {
     void _options
   }
 
-  applyRotation(rotation: Rotation, time?: number): Promise<void> {
+  async applyRotation(rotation: Rotation, time?: number): Promise<void> {
+    assertValidRotation(rotation)
     this.#rotation = { ...rotation }
     writeTrace(
       `[WasmDriver] applyRotation y=${rotation.y} p=${rotation.p} r=${rotation.r} time=${time === undefined ? '' : time}\n`,

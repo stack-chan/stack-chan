@@ -18,6 +18,12 @@ declare global {
 
 const ZERO_ROTATION: Rotation = { y: 0, p: 0, r: 0 }
 
+function assertValidRotation(rotation: Rotation): void {
+  if (!Number.isFinite(rotation.y) || !Number.isFinite(rotation.p) || !Number.isFinite(rotation.r)) {
+    throw new TypeError('Invalid rotation: y, p, and r must be finite numbers')
+  }
+}
+
 export class WasmDriver {
   #rotation: Rotation = { ...ZERO_ROTATION }
 
@@ -26,6 +32,7 @@ export class WasmDriver {
   }
 
   async applyRotation(rotation: Rotation, time?: number): Promise<void> {
+    assertValidRotation(rotation)
     this.#rotation = { ...rotation }
     globalThis.Host?.Driver?.applyRotation?.({ rotation, time })
   }

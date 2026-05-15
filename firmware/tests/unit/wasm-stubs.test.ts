@@ -115,6 +115,34 @@ test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver br
   }
 })
 
+test('WasmDriver applyRotation rejects invalid rotation payloads without mutating state or calling the host bridge', async () => {
+  const calls: unknown[] = []
+  const previousHost = globalThis.Host
+  globalThis.Host = {
+    Driver: {
+      applyRotation(message: unknown) {
+        calls.push(message)
+      },
+    },
+  }
+
+  try {
+    const driver = new WasmDriver()
+    const validRotation = { y: 0.25, p: -0.125, r: 0.05 }
+    await driver.applyRotation(validRotation)
+
+    await assert.rejects(() => driver.applyRotation({ y: Number.NaN, p: 0, r: 0 } as Rotation), TypeError)
+
+    assert.deepEqual(calls, [{ rotation: validRotation, time: undefined }])
+    assert.deepEqual(await driver.getRotation(), {
+      success: true,
+      value: validRotation,
+    })
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
+
 test('WasmDriver setTorque forwards torque state to the browser Host.Driver bridge when present', async () => {
   const calls: unknown[] = []
   const previousHost = globalThis.Host

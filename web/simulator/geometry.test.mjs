@@ -9,6 +9,7 @@ import {
   STACKCHAN_SIMULATOR_COLORS,
   STACKCHAN_SHELL_STL,
   computeFootPlacements,
+  computeFaceLayerDepths,
   computeFaceModulePlacement,
   computeScreenPlane,
   computeShellScaleForM5Stack,
@@ -69,13 +70,21 @@ describe('Stack-chan simulator geometry', () => {
     assert.equal(Math.max(...ys), 27)
   })
 
+  it('keeps the dark M5Stack front panel clearly separated from the gray face and below the screen layers', () => {
+    const layers = computeFaceLayerDepths()
+
+    assert.ok(layers.frontPanelZ - layers.beveledFaceFrontZ >= 0.18)
+    assert.ok(layers.screenFrameZ - layers.frontPanelZ >= 0.08)
+    assert.ok(layers.screenZ - layers.screenFrameZ >= 0.03)
+  })
+
   it('fits the 4:3 wasm screen canvas in front of the beveled face with a margin', () => {
     const plane = computeScreenPlane({ margin: 5 })
 
     assert.equal(SCREEN_CANVAS.width / SCREEN_CANVAS.height, 4 / 3)
     assert.equal(plane.width, 44)
     assert.equal(plane.height, 33)
-    assert.ok(Math.abs(plane.z - 29.69837209302326) < 1e-9)
+    assert.equal(plane.z, computeFaceLayerDepths().screenZ)
   })
 
   it('serves the v1 shell STL as a simulator-local asset while keeping the face geometry-generated', () => {

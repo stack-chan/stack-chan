@@ -49,6 +49,30 @@ function cleanZero(value) {
   return Object.is(value, -0) || Math.abs(value) < 1e-9 ? 0 : value
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function parseFiniteNumber(value, fallback) {
+  const parsed = Number.parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+export function computeGeometryTuning({ shellGap = 10, footHeight = -4, footForward = 0 } = {}) {
+  return {
+    shellOffset: {
+      x: 0,
+      y: 0,
+      z: -clamp(parseFiniteNumber(shellGap, 10), 0, 12),
+    },
+    feetOffset: {
+      x: 0,
+      y: clamp(parseFiniteNumber(footHeight, -4), -4, 4),
+      z: clamp(parseFiniteNumber(footForward, 0), -8, 8),
+    },
+  }
+}
+
 function rotatePoint({ x, y, z }, rotation) {
   const cosX = Math.cos(rotation.x)
   const sinX = Math.sin(rotation.x)
@@ -179,7 +203,7 @@ export function computeShellScaleForM5Stack({
 
 export function computeShellPlacementFromBounds(
   bounds,
-  { scale = computeShellScaleForM5Stack(), rotationOffset = STACKCHAN_SHELL_STL.rotationOffset } = {}
+  { scale = computeShellScaleForM5Stack(), rotationOffset = STACKCHAN_SHELL_STL.rotationOffset, tuning = computeGeometryTuning() } = {}
 ) {
   const size = {
     x: bounds.max.x - bounds.min.x,
@@ -192,19 +216,21 @@ export function computeShellPlacementFromBounds(
     z: (bounds.min.z + bounds.max.z) / 2,
   }
   const rotatedCenter = rotatePoint({ x: center.x * scale, y: center.y * scale, z: center.z * scale }, rotationOffset)
+  const shellDepthAfterRotation = size.y * scale
 
   return {
     scale,
     position: {
-      x: cleanZero(-rotatedCenter.x),
-      y: cleanZero(-rotatedCenter.y),
-      z: cleanZero(-rotatedCenter.z),
+      x: cleanZero(-rotatedCenter.x + tuning.shellOffset.x),
+      y: cleanZero(-rotatedCenter.y + tuning.shellOffset.y),
+      z: cleanZero(-rotatedCenter.z + tuning.shellOffset.z),
     },
     rotation: {
       x: rotationOffset.x,
       y: rotationOffset.y,
       z: rotationOffset.z,
     },
+    frontZ: cleanZero(shellDepthAfterRotation / 2 + tuning.shellOffset.z),
     keepGeneratedFace: true,
   }
 }
@@ -222,11 +248,12 @@ export function computeFootPlacements({
   foot = STACKCHAN_FOOT_MM,
   gap = 2,
   yOffset = -2,
+  tuning = computeGeometryTuning(),
 } = {}) {
   const centerOffset = foot.width / 2 + gap / 2
-  const y = -body.height / 2 - foot.height / 2 + yOffset
-  const z = 0
-  return [-centerOffset, centerOffset].map((x) => ({ x, y, z }))
+  const y = -body.height / 2 - foot.height / 2 + yOffset + tuning.feetOffset.y
+  const z = tuning.feetOffset.z
+  return [-centerOffset, centerOffset].map((x) => ({ x: x + tuning.feetOffset.x, y, z }))
 }
 
 export function nextLookAroundPose(timeMs, { enabled = true } = {}) {

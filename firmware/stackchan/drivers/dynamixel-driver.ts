@@ -84,7 +84,10 @@ export class DynamixelDriver {
 
   async setTorque(torque: boolean): Promise<void> {
     this._torque = torque
-    await Promise.all(this._controls.map((c) => c.servo.setTorque(torque)))
+    // Avoid temporary array/promise allocations on low-memory targets.
+    for (const control of this._controls) {
+      await control.servo.setTorque(torque)
+    }
   }
 
   onAttached(): void {

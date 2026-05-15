@@ -12,7 +12,7 @@ type HostCameraBridge = {
 }
 
 type WasmCameraBridge = {
-  start: (width: number, height: number, useBrowserCamera: boolean) => void
+  start: (width: number, height: number, useBrowserCamera: boolean) => Promise<void> | void
   stop: () => void
   capture: (width: number, height: number) => CameraFrame | undefined
 }
@@ -50,6 +50,13 @@ function writeRgb565Le(view: Uint8Array, width: number, height: number): void {
   }
 }
 
+function copyFrameToWasmHeap(frame: CameraFrame): CameraFrame {
+  return {
+    ...frame,
+    buffer: frame.buffer.slice(0),
+  }
+}
+
 export default class Camera implements RobotCamera {
   #started = false
 
@@ -60,7 +67,7 @@ export default class Camera implements RobotCamera {
   async start(options?: CameraCaptureOptions): Promise<void> {
     const wasmBridge = wasmCameraBridge()
     if (wasmBridge) {
-      wasmBridge.start(
+      await wasmBridge.start(
         normalizeDimension(options?.width, DEFAULT_WIDTH),
         normalizeDimension(options?.height, DEFAULT_HEIGHT),
         Boolean(options?.useBrowserCamera),
@@ -97,7 +104,7 @@ export default class Camera implements RobotCamera {
 
     const hostFrame = await hostCamera()?.capture?.(options)
     if (hostFrame !== undefined) {
-      return hostFrame
+      return copyFrameToWasmHeap(hostFrame)
     }
 
     const imageType = options.imageType ?? DEFAULT_IMAGE_TYPE

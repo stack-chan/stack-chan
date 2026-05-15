@@ -572,7 +572,8 @@ if (browserCameraButton) {
       }
     } catch (error) {
       console.warn('[bridge] browser camera button failed', error)
-      if (browserCameraStatus) browserCameraStatus.textContent = 'ブラウザカメラ開始に失敗しました。合成フレームで続行します。'
+      if (browserCameraStatus)
+        browserCameraStatus.textContent = 'ブラウザカメラ開始に失敗しました。合成フレームで続行します。'
     } finally {
       browserCameraButton.disabled = false
     }

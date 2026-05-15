@@ -504,11 +504,34 @@ describe('Host.Camera bridge', () => {
     })
 
     await bridge.start({ useBrowserCamera: true })
-    await bridge.start({ useBrowserCamera: true, width: 200, height: 120, imageType: 'rgb565le' })
+    await bridge.start({ width: 200, height: 120, imageType: 'rgb565le' })
 
     assert.equal(bridge.isBrowserCameraStarted(), true)
     assert.equal(video.srcObject, stream)
     assert.deepEqual(calls, [['getUserMedia', { video: true }], 'play'])
+  })
+
+  it('allows an explicit non-browser camera start to stop an active browser stream', async () => {
+    const calls = []
+    const stream = { getTracks: () => [{ stop: () => calls.push('stop') }] }
+    const video = { readyState: 2, videoWidth: 16, videoHeight: 16, play: async () => calls.push('play') }
+    const bridge = createHostCameraBridge({
+      navigatorObj: {
+        mediaDevices: {
+          async getUserMedia() {
+            return stream
+          },
+        },
+      },
+      videoElement: video,
+    })
+
+    await bridge.start({ useBrowserCamera: true })
+    await bridge.start({ useBrowserCamera: false })
+
+    assert.equal(bridge.isBrowserCameraStarted(), false)
+    assert.equal(video.srcObject, null)
+    assert.deepEqual(calls, ['play', 'stop'])
   })
 
   it('stops late-resolving browser streams when camera was stopped during permission prompt', async () => {

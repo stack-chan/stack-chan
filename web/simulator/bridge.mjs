@@ -347,11 +347,13 @@ export function createHostCameraBridge({
   return {
     async start(options = {}) {
       started = true
-      browserCameraRequested = Boolean(options.useBrowserCamera)
-      if (browserCameraRequested) {
-        await startBrowserCamera(options)
-      } else {
-        stopBrowserCamera()
+      if (Object.hasOwn(options, 'useBrowserCamera')) {
+        browserCameraRequested = Boolean(options.useBrowserCamera)
+        if (browserCameraRequested) {
+          await startBrowserCamera(options)
+        } else {
+          stopBrowserCamera()
+        }
       }
     },
     stop() {

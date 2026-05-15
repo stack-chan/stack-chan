@@ -148,6 +148,8 @@ test('WASM main path loads an installed MOD archive before falling back to the d
   assert.match(wasmBlock, /Modules\.importNow\('mod'\) as StackchanMod/)
   assert.match(wasmBlock, /onRobotCreated = mod\.onRobotCreated \?\? onRobotCreated/)
   assert.match(wasmBlock, /onLaunch = mod\.onLaunch \?\? onLaunch/)
+})
+
 test('WASM camera preview uses a native RuntimeBitmapPort binding before falling back to mosaic', () => {
   const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
   const previewSource = readFileSync('stackchan/camera-preview.ts', 'utf8')
@@ -321,7 +323,6 @@ test('WASM camera forwards start and stop to the browser Host.Camera bridge when
   }
 })
 
-test('WASM camera forwards capture to Host.Camera and returns bridge frames', async () => {
 test('WASM camera uses the native browser camera bridge when it is preloaded', async () => {
   const calls: unknown[] = []
   const buffer = new Uint8Array([9, 8, 7, 6, 5, 4, 3, 2]).buffer

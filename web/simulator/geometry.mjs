@@ -135,6 +135,23 @@ export function computeScreenPlane({
   }
 }
 
+export function computeScreenFrame({ border = 1.2, ...screenOptions } = {}) {
+  const screen = computeScreenPlane(screenOptions)
+  return {
+    x: screen.x,
+    y: screen.y,
+    z: computeFaceLayerDepths().screenFrameZ,
+    inner: {
+      width: screen.width,
+      height: screen.height,
+    },
+    outer: {
+      width: screen.width + border * 2,
+      height: screen.height + border * 2,
+    },
+  }
+}
+
 export function computeFaceModulePlacement({
   shellBounds = STACKCHAN_SHELL_STL.sourceBoundsMm,
   shellScale = computeShellScaleForM5Stack(),

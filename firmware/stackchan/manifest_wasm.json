@@ -15,6 +15,7 @@
     "*": ["./touch", "./robot", "./main"],
     "tone": "./wasm/tone",
     "led": "./wasm/led",
+    "py32-led": "./wasm/py32-led",
     "wasm-driver": "./drivers/wasm/wasm-driver",
     "dynamixel-driver": "./drivers/wasm/dynamixel-driver",
     "m5stackchan-servo-driver": "./drivers/wasm/m5stackchan-servo-driver",

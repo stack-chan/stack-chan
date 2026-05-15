@@ -1,4 +1,4 @@
-import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
+import { DogFace, SimpleFace } from 'behaviors/face'
 import type { StackchanMod } from 'default-mods/mod'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-context'
@@ -34,7 +34,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   let speechVisible = false
   let emoticonEffect: PiuContent | null = null
 
-  let faceMode: 'simple' | 'dog' | 'image' = 'simple'
+  let faceMode: 'simple' | 'dog' = 'simple'
   const syncFaceMode = (
     app = robot.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined,
   ) => {
@@ -47,9 +47,8 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     kind: 'toggle',
     initialState: false,
     callback: (target) => {
-      faceMode = faceMode === 'simple' ? 'dog' : faceMode === 'dog' ? 'image' : 'simple'
-      const nextFace =
-        faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
+      faceMode = faceMode === 'simple' ? 'dog' : 'simple'
+      const nextFace = faceMode === 'dog' ? new DogFace({}) : new SimpleFace({})
       target.renderer?.setFace?.(nextFace)
       const app = target.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined
       syncFaceMode(app)

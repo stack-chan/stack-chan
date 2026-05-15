@@ -19,6 +19,7 @@ import {
   STACKCHAN_FOOT_MM,
   STACKCHAN_SIMULATOR_COLORS,
   STACKCHAN_SHELL_STL,
+  computeFaceLayerDepths,
   computeFaceModulePlacement,
   computeFootPlacements,
   computeScreenPlane,
@@ -168,8 +169,9 @@ class StackchanScene {
     this.faceModule = new THREE.Mesh(geometry, this.m5stackSideMaterial)
     this.headGroup.add(this.faceModule)
 
+    const layers = computeFaceLayerDepths()
     const frontPanelGeometry = new THREE.ShapeGeometry(shape)
-    frontPanelGeometry.translate(0, 0, facePlacement.frontZ + STACKCHAN_FACE_MM.bevelThickness + 0.01)
+    frontPanelGeometry.translate(0, 0, layers.frontPanelZ)
     this.faceFrontPanel = new THREE.Mesh(frontPanelGeometry, this.m5stackFrontMaterial)
     this.headGroup.add(this.faceFrontPanel)
 
@@ -221,7 +223,7 @@ class StackchanScene {
       new THREE.PlaneGeometry(plane.width + 2.4, plane.height + 2.4),
       new THREE.MeshBasicMaterial({ color: 0x211a17 })
     )
-    frame.position.set(plane.x, plane.y, plane.z - 0.03)
+    frame.position.set(plane.x, plane.y, computeFaceLayerDepths().screenFrameZ)
     this.headGroup.add(frame)
     this.screenMesh.renderOrder = 1
   }

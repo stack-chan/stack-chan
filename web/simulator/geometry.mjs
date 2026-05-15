@@ -99,6 +99,24 @@ export function createRoundedRectPath({ width, height, radius, segments = 8 } = 
   })
 }
 
+export function computeFaceLayerDepths({
+  facePlacement = computeFaceModulePlacement(),
+  frontPanelClearance = 0.2,
+  screenFrameClearance = 0.1,
+  screenClearance = 0.03,
+} = {}) {
+  const beveledFaceFrontZ = facePlacement.frontZ + STACKCHAN_FACE_MM.bevelThickness
+  const frontPanelZ = beveledFaceFrontZ + frontPanelClearance
+  const screenFrameZ = frontPanelZ + screenFrameClearance
+  const screenZ = screenFrameZ + screenClearance
+  return {
+    beveledFaceFrontZ,
+    frontPanelZ,
+    screenFrameZ,
+    screenZ,
+  }
+}
+
 export function computeScreenPlane({
   faceWidth = STACKCHAN_FACE_MM.width,
   faceHeight = STACKCHAN_FACE_MM.height,
@@ -113,7 +131,7 @@ export function computeScreenPlane({
     ...size,
     x: 0,
     y: 0,
-    z: computeFaceModulePlacement().frontZ + STACKCHAN_FACE_MM.bevelThickness + 0.06,
+    z: computeFaceLayerDepths().screenZ,
   }
 }
 

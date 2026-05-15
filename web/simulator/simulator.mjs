@@ -22,6 +22,7 @@ import {
   computeFaceLayerDepths,
   computeFaceModulePlacement,
   computeFootPlacements,
+  computeScreenFrame,
   computeScreenPlane,
   computeShellPlacementFromBounds,
   computeStackchanKinematics,
@@ -219,11 +220,31 @@ class StackchanScene {
     this.screenMesh.position.set(plane.x, plane.y, plane.z)
     this.headGroup.add(this.screenMesh)
 
+    const framePlacement = computeScreenFrame({ margin: 5, border: 1.2 })
+    const frameShape = new THREE.Shape()
+    const outerHalfWidth = framePlacement.outer.width / 2
+    const outerHalfHeight = framePlacement.outer.height / 2
+    frameShape.moveTo(-outerHalfWidth, -outerHalfHeight)
+    frameShape.lineTo(outerHalfWidth, -outerHalfHeight)
+    frameShape.lineTo(outerHalfWidth, outerHalfHeight)
+    frameShape.lineTo(-outerHalfWidth, outerHalfHeight)
+    frameShape.closePath()
+
+    const screenHole = new THREE.Path()
+    const innerHalfWidth = framePlacement.inner.width / 2
+    const innerHalfHeight = framePlacement.inner.height / 2
+    screenHole.moveTo(-innerHalfWidth, -innerHalfHeight)
+    screenHole.lineTo(-innerHalfWidth, innerHalfHeight)
+    screenHole.lineTo(innerHalfWidth, innerHalfHeight)
+    screenHole.lineTo(innerHalfWidth, -innerHalfHeight)
+    screenHole.closePath()
+    frameShape.holes.push(screenHole)
+
     const frame = new THREE.Mesh(
-      new THREE.PlaneGeometry(plane.width + 2.4, plane.height + 2.4),
+      new THREE.ShapeGeometry(frameShape),
       new THREE.MeshBasicMaterial({ color: 0x211a17 })
     )
-    frame.position.set(plane.x, plane.y, computeFaceLayerDepths().screenFrameZ)
+    frame.position.set(framePlacement.x, framePlacement.y, framePlacement.z)
     this.headGroup.add(frame)
     this.screenMesh.renderOrder = 1
   }

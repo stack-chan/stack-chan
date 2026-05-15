@@ -11,6 +11,7 @@ import {
   computeFootPlacements,
   computeFaceLayerDepths,
   computeFaceModulePlacement,
+  computeScreenFrame,
   computeScreenPlane,
   computeShellScaleForM5Stack,
   computeShellPlacementFromBounds,
@@ -85,6 +86,19 @@ describe('Stack-chan simulator geometry', () => {
     assert.equal(plane.width, 44)
     assert.equal(plane.height, 33)
     assert.equal(plane.z, computeFaceLayerDepths().screenZ)
+  })
+
+  it('keeps the Moddable screen from sharing pixels with the screen frame geometry', () => {
+    const screen = computeScreenPlane({ margin: 5 })
+    const frame = computeScreenFrame({ margin: 5, border: 1.2 })
+
+    assert.equal(frame.z, computeFaceLayerDepths().screenFrameZ)
+    assert.equal(frame.inner.width, screen.width)
+    assert.equal(frame.inner.height, screen.height)
+    assert.equal(frame.outer.width, screen.width + 2.4)
+    assert.equal(frame.outer.height, screen.height + 2.4)
+    assert.ok(frame.outer.width > frame.inner.width)
+    assert.ok(frame.outer.height > frame.inner.height)
   })
 
   it('serves the v1 shell STL as a simulator-local asset while keeping the face geometry-generated', () => {

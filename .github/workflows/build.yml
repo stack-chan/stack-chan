@@ -61,10 +61,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
-      - name: Pin Moddable SDK
-        run: |
-          git -C "$HOME/.local/share/moddable" fetch origin b0411457e4577ea5560c780cb7824f3b00c2b2af
-          git -C "$HOME/.local/share/moddable" checkout --detach FETCH_HEAD
+        with:
+          target-branch: b0411457e4577ea5560c780cb7824f3b00c2b2af
       - name: Build firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build --target=${{ matrix.target }}

@@ -3,7 +3,15 @@ import { OrbitControls } from 'https://unpkg.com/three@0.164.1/examples/jsm/cont
 import { RoundedBoxGeometry } from 'https://unpkg.com/three@0.164.1/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { STLLoader } from 'https://unpkg.com/three@0.164.1/examples/jsm/loaders/STLLoader.js'
 
-import { clientPointFromTouch, createHostButtonBridge, createHostDriverBridge, summarizeImageData } from './bridge.mjs'
+import {
+  clientPointFromTouch,
+  createHostAudioInBridge,
+  createHostAudioOutBridge,
+  createHostButtonBridge,
+  createHostDriverBridge,
+  installModArchiveIntoWasm,
+  summarizeImageData,
+} from './bridge.mjs'
 import {
   SCREEN_CANVAS,
   STACKCHAN_FACE_MM,
@@ -16,7 +24,12 @@ import {
   computeShellPlacementFromBounds,
   computeStackchanKinematics,
   createRoundedRectPath,
+  screenPointFromUv,
+  stepRotationToward,
 } from './geometry.mjs'
+import { createModStorage, formatByteSize } from './mod-storage.mjs'
+
+const DRIVER_MAX_ANGULAR_SPEED = 2.4
 
 class StackchanScene {
   constructor({ viewport, screen }) {
@@ -26,7 +39,11 @@ class StackchanScene {
     this.speaking = false
     this.motionUntil = 0
     this.driverRotation = { y: 0, p: 0, r: 0 }
+    this.targetDriverRotation = { y: 0, p: 0, r: 0 }
+    this.lastDriverUpdateMs = undefined
     this.torqueEnabled = true
+    this.raycaster = new THREE.Raycaster()
+    this.pointerNdc = new THREE.Vector2()
 
     this.scene = new THREE.Scene()
     this.scene.background = new THREE.Color(0x10141c)
@@ -228,19 +245,49 @@ class StackchanScene {
   }
 
   applyDriverRotation(rotation) {
-    this.driverRotation = { ...this.driverRotation, ...rotation }
-    this.motionUntil = performance.now() + 120
+    this.targetDriverRotation = { ...this.targetDriverRotation, ...rotation }
   }
 
   setTorqueEnabled(enabled) {
     this.torqueEnabled = enabled
   }
 
+  setViewportControlsEnabled(enabled) {
+    this.controls.enabled = enabled
+  }
+
   markScreenDirty() {
     this.screenTexture.needsUpdate = true
   }
 
+  updateDriverRotation(timeMs) {
+    if (this.lastDriverUpdateMs === undefined) {
+      this.lastDriverUpdateMs = timeMs
+      return
+    }
+    const deltaSeconds = Math.max(0, Math.min((timeMs - this.lastDriverUpdateMs) / 1000, 0.1))
+    this.lastDriverUpdateMs = timeMs
+    this.driverRotation = stepRotationToward(
+      this.driverRotation,
+      this.targetDriverRotation,
+      deltaSeconds,
+      DRIVER_MAX_ANGULAR_SPEED
+    )
+  }
+
+  screenPointFromViewportEvent(event) {
+    const bounds = this.viewport.getBoundingClientRect()
+    this.pointerNdc.set(
+      ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+      -((event.clientY - bounds.top) / bounds.height) * 2 + 1
+    )
+    this.raycaster.setFromCamera(this.pointerNdc, this.camera)
+    const [hit] = this.raycaster.intersectObject(this.screenMesh, false)
+    return screenPointFromUv(hit?.uv, { width: this.screen.width, height: this.screen.height })
+  }
+
   render(timeMs) {
+    this.updateDriverRotation(timeMs)
     const transforms = computeStackchanKinematics(timeMs, {
       lookAround: this.lookAround,
       speaking: this.speaking,
@@ -264,10 +311,14 @@ class StackchanScene {
 }
 
 class WasmView {
-  constructor({ scene, screen, info }) {
+  constructor({ scene, screen, info, traceLog, modStorage, onModInstallStatus = () => {} }) {
     this.scene = scene
     this.screen = screen
     this.info = info
+    this.traceLog = traceLog
+    this.traceLines = []
+    this.modStorage = modStorage
+    this.onModInstallStatus = onModInstallStatus
     this.interval = 0
     this.tracking = 0
     this.when = 0
@@ -294,22 +345,78 @@ class WasmView {
   async #loadWasm() {
     try {
       console.log('[bridge] importing mc.js')
-      const ns = await import('./mc.js')
+      const wasmCacheKey = Date.now()
+      const ns = await import(`./mc.js?v=${wasmCacheKey}`)
       this.mc = await ns.default({
-        locateFile: () => './mc.wasm',
-        print: (text) => console.log(`[firmware] ${text}`),
-        printErr: (text) => console.error(`[firmware:err] ${text}`),
+        locateFile: () => `./mc.wasm?v=${wasmCacheKey}`,
+        print: (text) => this.#handleFirmwarePrint(text),
+        printErr: (text) => this.#handleFirmwareError(text),
       })
       console.log('[bridge] mc.js module ready')
       this.fxMainIdle = this.mc._fxMainIdle
       this.fxMainLaunch = this.mc._fxMainLaunch
       this.fxMainQuit = this.mc._fxMainQuit
       this.fxMainTouch = this.mc._fxMainTouch
-      this.launch()
+      const archive = await this.installSavedModArchive()
+      this.launch(archive)
     } catch (error) {
       console.error('[bridge] WASM load failed', error)
       this.info.textContent = `WASM未検出: firmware で npm run build:wasm を実行し、mc.js / mc.wasm を web/simulator/ にコピーしてください。(${error.message})`
       this.#drawFallbackFace()
+    }
+  }
+
+  async installSavedModArchive() {
+    try {
+      const installedMod = await this.modStorage.loadInstalledMod()
+      const result = installModArchiveIntoWasm(this.mc, installedMod)
+      console.log('[bridge] MOD archive install', result)
+      this.onModInstallStatus(result, installedMod)
+      return result.pointer ?? undefined
+    } catch (error) {
+      const result = { status: 'error', error: error.message }
+      console.error('[bridge] MOD archive install failed', error)
+      this.onModInstallStatus(result)
+      return undefined
+    }
+  }
+
+  #handleFirmwarePrint(text) {
+    this.#applyFirmwareDriverTrace(text)
+    this.#appendTrace(text)
+    console.log(`[firmware] ${text}`)
+  }
+
+  #handleFirmwareError(text) {
+    this.#appendTrace(`[err] ${text}`)
+    console.error(`[firmware:err] ${text}`)
+  }
+
+  #appendTrace(text) {
+    if (!this.traceLog) return
+    this.traceLines.push(String(text))
+    if (this.traceLines.length > 120) {
+      this.traceLines.splice(0, this.traceLines.length - 120)
+    }
+    this.traceLog.textContent = this.traceLines.join('\n')
+    this.traceLog.scrollTop = this.traceLog.scrollHeight
+  }
+
+  #applyFirmwareDriverTrace(text) {
+    if (typeof text !== 'string' || !text.startsWith('[WasmDriver] ')) return
+    const rotation = text.match(/^\[WasmDriver\] applyRotation y=([^ ]+) p=([^ ]+) r=([^ ]+) time=([^ ]*)/)
+    if (rotation) {
+      const [, y, p, r] = rotation
+      this.scene.applyDriverRotation({
+        y: Number(y),
+        p: Number(p),
+        r: Number(r),
+      })
+      return
+    }
+    const torque = text.match(/^\[WasmDriver\] setTorque torque=([01])/)
+    if (torque) {
+      this.scene.setTorqueEnabled(torque[1] === '1')
     }
   }
 
@@ -341,6 +448,22 @@ class WasmView {
     console.log('[bridge] fxMainLaunch returned', { pointer })
     const array = new Uint8ClampedArray(this.mc.HEAP8.buffer, pointer, this.screen.width * this.screen.height * 4)
     this.image = new ImageData(array, this.screen.width, this.screen.height)
+  }
+
+  async restart() {
+    if (!this.mc || !this.fxMainLaunch) {
+      throw new Error('WASM is not ready')
+    }
+    console.log('[bridge] restart simulator')
+    this.fxMainQuit?.()
+    this.interval = 0
+    this.when = 0
+    this.image = null
+    this.bufferChangeCount = 0
+    this.screen.getContext('2d').clearRect(0, 0, this.screen.width, this.screen.height)
+    this.scene.markScreenDirty()
+    const archive = await this.installSavedModArchive()
+    this.launch(archive)
   }
 
   idle(timeStamp) {
@@ -411,16 +534,69 @@ class WasmView {
   #touch(kind, index, x, y, when) {
     if (!this.image || !this.fxMainTouch) return
     const bounds = this.screen.getBoundingClientRect()
-    this.fxMainTouch(kind, index, x - bounds.left, y - bounds.top, when)
+    this.touchScreenPoint(kind, index, x - bounds.left, y - bounds.top, when)
+  }
+
+  touchScreenPoint(kind, index, x, y, when) {
+    if (!this.image || !this.fxMainTouch) return
+    this.fxMainTouch(kind, index, x, y, when)
   }
 }
 
 const viewport = document.getElementById('stackchan-viewport')
 const screen = document.getElementById('simulator-screen')
 const info = document.getElementById('simulator-info')
+const modArchiveInput = document.getElementById('mod-archive-input')
+const modRestartButton = document.getElementById('simulator-restart-button')
+const modClearButton = document.getElementById('mod-clear-button')
+const modInstallStatus = document.getElementById('mod-install-status')
+const traceLog = document.getElementById('trace-log')
+const modStorage = createModStorage()
 const buttonBridge = createHostButtonBridge({ logger: (message) => console.log(message) })
-globalThis.Host = { Button: buttonBridge.Button }
-console.log('[bridge] global Host.Button constructors installed')
+const audioOutBridge = createHostAudioOutBridge()
+const audioInBridge = createHostAudioInBridge()
+globalThis.Host = {
+  Button: buttonBridge.Button,
+  AudioOut: audioOutBridge,
+  AudioIn: audioInBridge,
+}
+console.log('[bridge] global Host.Button/Audio constructors installed')
+
+function describeModStatus(result, installedMod = null) {
+  if (result?.status === 'prepared') {
+    return `MOD: ${result.name} (${formatByteSize(result.size)}) prepared for launch archive`
+  }
+  if (result?.status === 'installed') {
+    return `MOD: ${result.name} (${formatByteSize(result.size)}) installed via ${result.hook}`
+  }
+  if (result?.status === 'unsupported') {
+    return `MOD: ${result.name} (${formatByteSize(result.size)}) saved; this WASM build has no MOD install hook yet`
+  }
+  if (result?.status === 'error') {
+    return `MOD: error (${result.error})`
+  }
+  if (installedMod) {
+    const lifetime = installedMod.storage === 'memory' ? ' stored in memory (session-only)' : ' saved'
+    return `MOD: ${installedMod.name} (${formatByteSize(installedMod.size)})${lifetime}`
+  }
+  return 'MOD: empty'
+}
+
+function describeModLaunchInstruction(installedMod) {
+  if (installedMod.storage === 'memory') {
+    return 'click Restart simulator to launch it during this browser session'
+  }
+  return 'click Restart simulator to launch it'
+}
+
+async function refreshSavedModStatus() {
+  try {
+    const installedMod = await modStorage.loadInstalledMod()
+    modInstallStatus.textContent = describeModStatus({ status: installedMod ? 'saved' : 'empty' }, installedMod)
+  } catch (error) {
+    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
+  }
+}
 
 const scene = new StackchanScene({ viewport, screen })
 const driverBridge = createHostDriverBridge({
@@ -435,22 +611,55 @@ const driverBridge = createHostDriverBridge({
 })
 globalThis.Host.Driver = driverBridge
 console.log('[bridge] global Host.Driver bridge installed')
-buttonBridge.setHtmlAction('a', () => scene.setLookAround(!scene.lookAround))
-buttonBridge.setHtmlAction('b', () => scene.runServoMotion())
 
-const wasmView = new WasmView({ scene, screen, info })
+const wasmView = new WasmView({
+  scene,
+  screen,
+  info,
+  traceLog,
+  modStorage,
+  onModInstallStatus: (result, installedMod) => {
+    modInstallStatus.textContent = describeModStatus(result, installedMod)
+  },
+})
 globalThis.gxView = wasmView
 console.log('[bridge] global gxView installed')
-wasmView.start()
+refreshSavedModStatus().finally(() => wasmView.start())
 
-document.getElementById('button-a').addEventListener('click', () => buttonBridge.push('a'))
-document.getElementById('button-b').addEventListener('click', () => buttonBridge.push('b'))
-document.getElementById('button-c').addEventListener('click', () => buttonBridge.push('c'))
-document.getElementById('speech-toggle').addEventListener('click', (event) => {
-  const next = event.currentTarget.getAttribute('aria-pressed') !== 'true'
-  event.currentTarget.setAttribute('aria-pressed', String(next))
-  scene.setSpeaking(next)
+modArchiveInput.addEventListener('change', async (event) => {
+  const input = event.currentTarget
+  const file = input.files?.[0]
+  if (!file) return
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    const installedMod = await modStorage.saveInstalledMod({ name: file.name, bytes })
+    modInstallStatus.textContent = `${describeModStatus({ status: 'saved' }, installedMod)}; ${describeModLaunchInstruction(installedMod)}`
+  } catch (error) {
+    console.error('[bridge] MOD archive save failed', error)
+    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
+  } finally {
+    input.value = ''
+  }
 })
+modRestartButton.addEventListener('click', async () => {
+  try {
+    modInstallStatus.textContent = 'MOD: restarting simulator...'
+    await wasmView.restart()
+  } catch (error) {
+    console.error('[bridge] simulator restart failed', error)
+    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
+  }
+})
+modClearButton.addEventListener('click', async () => {
+  try {
+    await modStorage.clearInstalledMod()
+    modInstallStatus.textContent = describeModStatus({ status: 'empty' })
+  } catch (error) {
+    console.error('[bridge] MOD archive clear failed', error)
+    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
+  }
+})
+bindViewportScreenTouches({ viewport, scene, wasmView })
 
 function animate(timeMs) {
   wasmView.idle(timeMs)
@@ -459,3 +668,60 @@ function animate(timeMs) {
 }
 
 window.requestAnimationFrame(animate)
+
+function bindViewportScreenTouches({ viewport, scene, wasmView }) {
+  const touchId = 0
+  let activePointerId = undefined
+  let lastPoint = undefined
+
+  const consume = (event) => {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+  }
+
+  const finish = (event, kind) => {
+    if (event.pointerId !== activePointerId) return
+    consume(event)
+    if (lastPoint) {
+      wasmView.touchScreenPoint(kind, touchId, lastPoint.x, lastPoint.y, event.timeStamp)
+    }
+    try {
+      viewport.releasePointerCapture(event.pointerId)
+    } catch {
+      // The browser may already have released capture after cancellation.
+    }
+    activePointerId = undefined
+    lastPoint = undefined
+    scene.setViewportControlsEnabled(true)
+  }
+
+  viewport.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (activePointerId !== undefined) return
+      const point = scene.screenPointFromViewportEvent(event)
+      if (!point) return
+      consume(event)
+      activePointerId = event.pointerId
+      lastPoint = point
+      scene.setViewportControlsEnabled(false)
+      viewport.setPointerCapture(event.pointerId)
+      wasmView.touchScreenPoint(0, touchId, point.x, point.y, event.timeStamp)
+    },
+    { capture: true }
+  )
+  viewport.addEventListener(
+    'pointermove',
+    (event) => {
+      if (event.pointerId !== activePointerId) return
+      consume(event)
+      const point = scene.screenPointFromViewportEvent(event)
+      if (!point) return
+      lastPoint = point
+      wasmView.touchScreenPoint(3, touchId, point.x, point.y, event.timeStamp)
+    },
+    { capture: true }
+  )
+  viewport.addEventListener('pointerup', (event) => finish(event, 2), { capture: true })
+  viewport.addEventListener('pointercancel', (event) => finish(event, 1), { capture: true })
+}

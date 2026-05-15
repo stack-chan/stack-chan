@@ -174,6 +174,14 @@ export function computeShellPlacementFromBounds(
   }
 }
 
+export function screenPointFromUv(uv, { width = SCREEN_CANVAS.width, height = SCREEN_CANVAS.height } = {}) {
+  if (!uv) return undefined
+  return {
+    x: uv.x * width,
+    y: (1 - uv.y) * height,
+  }
+}
+
 export function computeFootPlacements({
   body = STACKCHAN_FACE_MM,
   foot = STACKCHAN_FOOT_MM,
@@ -199,6 +207,22 @@ export function nextLookAroundPose(timeMs, { enabled = true } = {}) {
 export function nextSpeechScale(timeMs, { speaking = false } = {}) {
   if (!speaking) return 1
   return 1 + Math.abs(Math.sin(timeMs / 95)) * 0.045
+}
+
+export function stepRotationToward(current, target, deltaSeconds, maxAngularSpeed) {
+  const maxStep = Math.max(0, deltaSeconds * maxAngularSpeed)
+  const stepAxis = (axis) => {
+    const from = current[axis] ?? 0
+    const to = target[axis] ?? from
+    const delta = to - from
+    if (Math.abs(delta) <= maxStep) return to
+    return from + Math.sign(delta) * maxStep
+  }
+  return {
+    y: stepAxis('y'),
+    p: stepAxis('p'),
+    r: stepAxis('r'),
+  }
 }
 
 export function computeStackchanKinematics(

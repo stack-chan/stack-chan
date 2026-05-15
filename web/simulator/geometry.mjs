@@ -14,11 +14,58 @@ export const STACKCHAN_FOOT_MM = Object.freeze({
   count: 2,
 })
 
+export const M5STACK_CORE_MM = Object.freeze({
+  width: 54,
+  height: 54,
+  depth: 16,
+  shellSeamOverlap: 6.2,
+})
+
+export const STACKCHAN_SHELL_STL = Object.freeze({
+  url: './assets/case/v1/shell.stl',
+  sourceBoundsMm: Object.freeze({
+    min: Object.freeze({ x: -27, y: -1, z: -27 }),
+    max: Object.freeze({ x: 27, y: 41.5, z: 27 }),
+  }),
+  frontOpeningWidthMm: 51.6,
+  rotationOffset: Object.freeze({ x: -Math.PI / 2, y: 0, z: 0 }),
+  faceIncluded: false,
+})
+
 export const SCREEN_CANVAS = Object.freeze({
   width: 320,
   height: 240,
   aspectRatio: 4 / 3,
 })
+
+function cleanZero(value) {
+  return Object.is(value, -0) || Math.abs(value) < 1e-9 ? 0 : value
+}
+
+function rotatePoint({ x, y, z }, rotation) {
+  const cosX = Math.cos(rotation.x)
+  const sinX = Math.sin(rotation.x)
+  const cosY = Math.cos(rotation.y)
+  const sinY = Math.sin(rotation.y)
+  const cosZ = Math.cos(rotation.z)
+  const sinZ = Math.sin(rotation.z)
+
+  const afterX = {
+    x,
+    y: y * cosX - z * sinX,
+    z: y * sinX + z * cosX,
+  }
+  const afterY = {
+    x: afterX.x * cosY + afterX.z * sinY,
+    y: afterX.y,
+    z: -afterX.x * sinY + afterX.z * cosY,
+  }
+  return {
+    x: cleanZero(afterY.x * cosZ - afterY.y * sinZ),
+    y: cleanZero(afterY.x * sinZ + afterY.y * cosZ),
+    z: cleanZero(afterY.z),
+  }
+}
 
 export function createRoundedRectPath({ width, height, radius, segments = 8 } = STACKCHAN_FACE_MM) {
   if (width <= 0 || height <= 0) throw new RangeError('width and height must be positive')
@@ -45,7 +92,11 @@ export function createRoundedRectPath({ width, height, radius, segments = 8 } = 
   })
 }
 
-export function computeScreenPlane({ faceWidth = STACKCHAN_FACE_MM.width, faceHeight = STACKCHAN_FACE_MM.height, margin = 5 } = {}) {
+export function computeScreenPlane({
+  faceWidth = STACKCHAN_FACE_MM.width,
+  faceHeight = STACKCHAN_FACE_MM.height,
+  margin = 5,
+} = {}) {
   const availableWidth = faceWidth - margin * 2
   const availableHeight = faceHeight - margin * 2
   const byWidth = { width: availableWidth, height: availableWidth / SCREEN_CANVAS.aspectRatio }
@@ -55,7 +106,64 @@ export function computeScreenPlane({ faceWidth = STACKCHAN_FACE_MM.width, faceHe
     ...size,
     x: 0,
     y: 0,
-    z: STACKCHAN_FACE_MM.depth / 2 + STACKCHAN_FACE_MM.bevelThickness + 0.06,
+    z: computeFaceModulePlacement().frontZ + STACKCHAN_FACE_MM.bevelThickness + 0.06,
+  }
+}
+
+export function computeFaceModulePlacement({
+  shellBounds = STACKCHAN_SHELL_STL.sourceBoundsMm,
+  shellScale = computeShellScaleForM5Stack(),
+  depth = M5STACK_CORE_MM.depth,
+  shellSeamOverlap = M5STACK_CORE_MM.shellSeamOverlap,
+} = {}) {
+  const shellDepthAfterRotation = (shellBounds.max.y - shellBounds.min.y) * shellScale
+  const shellFrontZ = shellDepthAfterRotation / 2
+  const frontZ = shellFrontZ + shellSeamOverlap
+  return {
+    depth,
+    shellFrontZ,
+    shellSeamOverlap,
+    frontZ,
+    z: frontZ - depth / 2,
+  }
+}
+
+export function computeShellScaleForM5Stack({
+  openingWidth = STACKCHAN_SHELL_STL.frontOpeningWidthMm,
+  m5stackWidth = M5STACK_CORE_MM.width,
+} = {}) {
+  return m5stackWidth / openingWidth
+}
+
+export function computeShellPlacementFromBounds(
+  bounds,
+  { scale = computeShellScaleForM5Stack(), rotationOffset = STACKCHAN_SHELL_STL.rotationOffset } = {}
+) {
+  const size = {
+    x: bounds.max.x - bounds.min.x,
+    y: bounds.max.y - bounds.min.y,
+    z: bounds.max.z - bounds.min.z,
+  }
+  const center = {
+    x: (bounds.min.x + bounds.max.x) / 2,
+    y: (bounds.min.y + bounds.max.y) / 2,
+    z: (bounds.min.z + bounds.max.z) / 2,
+  }
+  const rotatedCenter = rotatePoint({ x: center.x * scale, y: center.y * scale, z: center.z * scale }, rotationOffset)
+
+  return {
+    scale,
+    position: {
+      x: cleanZero(-rotatedCenter.x),
+      y: cleanZero(-rotatedCenter.y),
+      z: cleanZero(-rotatedCenter.z),
+    },
+    rotation: {
+      x: rotationOffset.x,
+      y: rotationOffset.y,
+      z: rotationOffset.z,
+    },
+    keepGeneratedFace: true,
   }
 }
 
@@ -88,7 +196,7 @@ export function nextSpeechScale(timeMs, { speaking = false } = {}) {
 
 export function computeStackchanKinematics(
   timeMs,
-  { lookAround = false, speaking = false, motionUntil = 0, driverRotation = { y: 0, p: 0, r: 0 } } = {},
+  { lookAround = false, speaking = false, motionUntil = 0, driverRotation = { y: 0, p: 0, r: 0 } } = {}
 ) {
   const pose = nextLookAroundPose(timeMs, { enabled: lookAround })
   const inServoMotion = timeMs < motionUntil

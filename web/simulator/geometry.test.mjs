@@ -3,10 +3,15 @@ import { describe, it } from 'node:test'
 
 import {
   SCREEN_CANVAS,
+  M5STACK_CORE_MM,
   STACKCHAN_FACE_MM,
   STACKCHAN_FOOT_MM,
+  STACKCHAN_SHELL_STL,
   computeFootPlacements,
+  computeFaceModulePlacement,
   computeScreenPlane,
+  computeShellScaleForM5Stack,
+  computeShellPlacementFromBounds,
   createRoundedRectPath,
   computeStackchanKinematics,
   nextLookAroundPose,
@@ -31,15 +36,15 @@ describe('Stack-chan simulator geometry', () => {
     assert.equal(feet.length, 2)
     assert.deepEqual(
       feet.map((foot) => foot.y),
-      [-33, -33],
+      [-33, -33]
     )
     assert.deepEqual(
       feet.map((foot) => foot.x),
-      [-13, 13],
+      [-13, 13]
     )
     assert.deepEqual(
       feet.map((foot) => foot.z),
-      [0, 0],
+      [0, 0]
     )
   })
 
@@ -60,7 +65,48 @@ describe('Stack-chan simulator geometry', () => {
     assert.equal(SCREEN_CANVAS.width / SCREEN_CANVAS.height, 4 / 3)
     assert.equal(plane.width, 44)
     assert.equal(plane.height, 33)
-    assert.ok(plane.z > STACKCHAN_FACE_MM.depth / 2 + STACKCHAN_FACE_MM.bevelThickness)
+    assert.ok(Math.abs(plane.z - 29.69837209302326) < 1e-9)
+  })
+
+  it('serves the v1 shell STL as a simulator-local asset while keeping the face geometry-generated', () => {
+    assert.equal(STACKCHAN_SHELL_STL.url, './assets/case/v1/shell.stl')
+    assert.deepEqual(STACKCHAN_SHELL_STL.sourceBoundsMm.min, { x: -27, y: -1, z: -27 })
+    assert.deepEqual(STACKCHAN_SHELL_STL.sourceBoundsMm.max, { x: 27, y: 41.5, z: 27 })
+    assert.equal(STACKCHAN_SHELL_STL.frontOpeningWidthMm, 51.6)
+    assert.equal(STACKCHAN_SHELL_STL.faceIncluded, false)
+  })
+
+  it('scales the STL shell opening to fit the 54mm M5Stack width instead of shrinking M5Stack to the outer shell', () => {
+    const scale = computeShellScaleForM5Stack()
+
+    assert.ok(Math.abs(scale - 1.0465116279069768) < 1e-12)
+    assert.ok(Math.abs(STACKCHAN_SHELL_STL.frontOpeningWidthMm * scale - M5STACK_CORE_MM.width) < 1e-9)
+  })
+
+  it('uses the actual 16mm M5Stack thickness for the generated face module', () => {
+    assert.equal(M5STACK_CORE_MM.width, 54)
+    assert.equal(M5STACK_CORE_MM.height, 54)
+    assert.equal(M5STACK_CORE_MM.depth, 16)
+    assert.equal(M5STACK_CORE_MM.shellSeamOverlap, 6.2)
+
+    const face = computeFaceModulePlacement()
+    assert.equal(face.depth, 16)
+    assert.ok(Math.abs(face.shellFrontZ - 22.238372093023257) < 1e-9)
+    assert.equal(face.shellSeamOverlap, 6.2)
+    assert.ok(Math.abs(face.frontZ - 28.438372093023258) < 1e-9)
+    assert.ok(Math.abs(face.z - 20.438372093023258) < 1e-9)
+    assert.ok(face.frontZ > face.shellFrontZ)
+  })
+
+  it('centers the rotated STL shell without scaling and compensates the downward neck pose around the nodding axis', () => {
+    const placement = computeShellPlacementFromBounds(STACKCHAN_SHELL_STL.sourceBoundsMm)
+
+    assert.ok(Math.abs(placement.scale - 1.0465116279069768) < 1e-12)
+    assert.ok(Math.abs(placement.position.x - 0) < 1e-9)
+    assert.ok(Math.abs(placement.position.y - 0) < 1e-9)
+    assert.ok(Math.abs(placement.position.z - 21.191860465116278) < 1e-9)
+    assert.deepEqual(placement.rotation, { x: -Math.PI / 2, y: 0, z: 0 })
+    assert.equal(placement.keepGeneratedFace, true)
   })
 
   it('returns a neutral pose when look-around is disabled', () => {

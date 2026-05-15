@@ -1,0 +1,237 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  background: #0f1117;
+  color: #f7efe7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 170, 115, 0.18), transparent 28rem),
+    radial-gradient(circle at 82% 20%, rgba(121, 184, 255, 0.18), transparent 24rem), #0f1117;
+}
+
+.app-shell {
+  width: min(1120px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 48px 0;
+}
+
+.hero {
+  margin-bottom: 28px;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 10px;
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.hero p {
+  max-width: 720px;
+  color: #d8d0c8;
+  line-height: 1.6;
+}
+
+.usage-list {
+  margin: 12px 0 0;
+  padding-left: 1.2em;
+  color: #d8d0c8;
+  line-height: 1.65;
+}
+
+.simulator-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.viewport-card,
+.control-card {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.viewport-card {
+  position: relative;
+  min-height: 620px;
+}
+
+#stackchan-viewport {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 620px;
+  cursor: default;
+  touch-action: none;
+}
+
+#stackchan-viewport:active {
+  cursor: default;
+}
+
+#simulator-screen {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  width: 320px;
+  height: 240px;
+}
+
+.control-card {
+  padding: 24px;
+}
+
+.control-card h2 {
+  margin-bottom: 8px;
+}
+
+#simulator-info {
+  min-height: 3em;
+  color: #bfb7ad;
+  line-height: 1.5;
+}
+
+button,
+.file-button,
+.sample-download {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 16px;
+  background: #f7efe7;
+  color: #19130f;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    background 140ms ease;
+}
+
+button:hover,
+.file-button:hover,
+.sample-download:hover {
+  transform: translateY(-1px);
+  background: #ffd2aa;
+}
+
+.mod-installer {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0 24px;
+  padding: 16px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
+}
+
+button[aria-pressed="true"] {
+  background: #8bd3ff;
+}
+
+.file-button,
+.sample-download {
+  display: inline-flex;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+}
+
+#mod-archive-input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#mod-install-status {
+  min-height: 2.8em;
+  margin: 0;
+  color: #bfb7ad;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.camera-controls {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+#browser-camera-button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: #ffb36b;
+  color: #21160f;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#browser-camera-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+#browser-camera-status {
+  margin: 0;
+  color: #a9b9c9;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+#trace-log {
+  height: 420px;
+  margin: 16px 0 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+  color: #d8d0c8;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 880px) {
+  .simulator-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .viewport-card,
+  #stackchan-viewport {
+    min-height: 480px;
+  }
+}

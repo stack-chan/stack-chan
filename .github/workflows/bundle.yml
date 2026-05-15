@@ -6,13 +6,17 @@ on:
       - dev/v1.0
     paths:
       - 'firmware/**'
+      - 'web/simulator/**'
       - '.github/actions/setup/action.yml'
       - '.github/workflows/bundle.yml'
   pull_request:
     branches:
       - dev/v1.0
+      # Allow the stacked PR that targets the WASM build-support branch to run.
+      - feat/wasm-stackchan-build
     paths:
       - 'firmware/**'
+      - 'web/simulator/**'
       - '.github/actions/setup/action.yml'
       - '.github/workflows/bundle.yml'
 
@@ -33,11 +37,32 @@ jobs:
       - name: Bundle firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
+      - name: Setup Emscripten for WASM simulator
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.2
+      - name: Apply Moddable WASM Promise patch
+        run: |
+          patch_commit="651a69bba5fb704730891769d40df7badd44c225"
+          if grep -q "promiseJobsTimer" "$HOME/.local/share/moddable/xs/platforms/wasm_xs.h"; then
+            echo "Moddable WASM Promise patch is already present"
+            exit 0
+          fi
+          git -C "$HOME/.local/share/moddable" fetch https://github.com/meganetaaan/moddable.git "$patch_commit"
+          git -C "$HOME/.local/share/moddable" cherry-pick --no-commit FETCH_HEAD
+      - name: Build WASM simulator firmware
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
       - name: Upload firmware bundle
         uses: actions/upload-artifact@v7
         with:
           name: firmware-bundle
           path: ./firmware/stackchan/tech.moddable.stackchan
+      - name: Upload WASM simulator
+        uses: actions/upload-artifact@v7
+        with:
+          name: wasm-simulator
+          path: ./web/simulator
 
   deploy:
     needs: build
@@ -58,20 +83,30 @@ jobs:
         with:
           name: firmware-bundle
           path: ./firmware-bundle
+      - name: Download WASM simulator
+        uses: actions/download-artifact@v8
+        with:
+          name: wasm-simulator
+          path: ./wasm-simulator
       - name: Update bundle files
         run: |
           if [ -z "$(find ./firmware-bundle -mindepth 1 -print -quit)" ]; then
             echo "Firmware bundle artifact is empty"
             exit 1
           fi
-          rm -rf ./web/flash/tech.moddable.stackchan
-          mkdir -p ./web/flash/tech.moddable.stackchan
+          if [ -z "$(find ./wasm-simulator -mindepth 1 -print -quit)" ]; then
+            echo "WASM simulator artifact is empty"
+            exit 1
+          fi
+          rm -rf ./web/flash/tech.moddable.stackchan ./web/simulator
+          mkdir -p ./web/flash/tech.moddable.stackchan ./web/simulator
           cp -R ./firmware-bundle/. ./web/flash/tech.moddable.stackchan/
+          cp -R ./wasm-simulator/. ./web/simulator/
       - name: Commit bundle update
         run: |
           git config user.name 'GitHub Action'
           git config user.email 'action@github.com'
-          git add ./web/flash/tech.moddable.stackchan
+          git add ./web/flash/tech.moddable.stackchan ./web/simulator
           if git diff --cached --quiet; then
             echo "No bundle changes to deploy"
             exit 0

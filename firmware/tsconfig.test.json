@@ -12,19 +12,44 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
-      "wasm-driver": ["stackchan/drivers/wasm/wasm-driver.ts"]
+      "camera": [
+        "stackchan/wasm/camera.ts"
+      ],
+      "wasm-driver": [
+        "stackchan/drivers/wasm/wasm-driver.ts"
+      ],
+      "face-context": [
+        "stackchan/renderers-piu/face-context.ts"
+      ],
+      "parts/*": [
+        "stackchan/renderers-piu/parts/*"
+      ],
+      "parts/image/image-avatar-pack": [
+        "stackchan/renderers-piu/parts/image/image-avatar-pack.ts"
+      ],
+      "parts/image/image-avatar-state": [
+        "stackchan/renderers-piu/parts/image/image-avatar-state.ts"
+      ]
     },
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "skipLibCheck": true
   },
   "include": [
     "stackchan/drivers/payload-buffer.ts",
     "stackchan/drivers/wasm/**/*.ts",
+    "stackchan/camera.ts",
+    "stackchan/camera-preview-utils.ts",
+    "stackchan/wasm/camera.ts",
     "stackchan/wasm/microphone.ts",
     "stackchan/drivers/m5stackchan-servo.ts",
     "stackchan/led/py32-io-expander.ts",
     "stackchan/drivers/internal/single-wait-slot.ts",
     "stackchan/drivers/__tests__/**/*.ts",
+    "stackchan/renderers-piu/face-context.ts",
+    "stackchan/renderers-piu/parts/image/image-avatar-pack.ts",
+    "stackchan/renderers-piu/parts/image/image-avatar-state.ts",
     "tests/unit/**/*.ts"
   ],
   "exclude": []

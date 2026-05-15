@@ -1,4 +1,5 @@
 import loadPreferences from 'loadPreference'
+import Camera from 'camera'
 import defaultMod, { type StackchanMod } from 'default-mods/mod'
 import { DynamixelDriver } from 'dynamixel-driver'
 import Led from 'led'
@@ -49,6 +50,10 @@ type GlobalEnvironment = {
 }
 
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
+
+function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
+  return value != null && typeof (value as { then?: unknown }).then === 'function'
+}
 
 // wrapper button class for simulator
 class SimButton {
@@ -130,6 +135,7 @@ function createRobot() {
 
   const touch = config.Touch ? new Touch(config.Touch) : undefined
   const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined
+  const camera = new Camera()
   const tone = new Tone({ volume: ttsPrefs.volume })
 
   const configLed = loadPreferences('led')
@@ -178,6 +184,7 @@ function createRobot() {
     touch,
     tone,
     microphone,
+    camera,
     led: led as ConstructorParameters<typeof Robot>[0]['led'],
   } as ConstructorParameters<typeof Robot>[0])
 }
@@ -197,7 +204,9 @@ async function checkAndConnectWiFi() {
 }
 
 async function main() {
+  trace(`[main] start wasm=${Boolean(config.wasm)}\n`)
   if (globalEnv.Host?.Button && !globalEnv.button) {
+    trace('[main] installing simulator buttons\n')
     const { a, b, c } = globalEnv.Host.Button
     globalEnv.button = {
       ...(a && { a: new SimButton(a) }),
@@ -206,11 +215,42 @@ async function main() {
     }
   }
   if (config.wasm) {
-    const { onRobotCreated, onLaunch } = defaultMod
-    const shouldRobotCreate = await (onLaunch?.() ?? true)
-    if (shouldRobotCreate) {
-      const robot = createRobot()
-      await onRobotCreated?.(robot, globalEnv.device)
+    trace('[main] wasm path start\n')
+    let { onRobotCreated, onLaunch } = defaultMod
+    trace(`[main] wasm defaultMod onLaunch=${onLaunch != null} onRobotCreated=${onRobotCreated != null}\n`)
+    if (Modules.has('mod')) {
+      trace('[main] wasm loading mod override\n')
+      const mod = Modules.importNow('mod') as StackchanMod
+      onRobotCreated = mod.onRobotCreated ?? onRobotCreated
+      onLaunch = mod.onLaunch ?? onLaunch
+    }
+    const launchResult = onLaunch?.() ?? true
+    const continueWasm = (shouldRobotCreate: boolean) => {
+      trace(`[main] wasm onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)
+      if (shouldRobotCreate) {
+        const robot = createRobot()
+        trace('[main] wasm robot created\n')
+        const robotCreatedResult = onRobotCreated?.(robot, globalEnv.device)
+        if (isThenable(robotCreatedResult)) {
+          robotCreatedResult
+            .then(() => {
+              trace('[main] wasm onRobotCreated complete\n')
+            })
+            .catch((error) => {
+              trace(`[main] wasm onRobotCreated error ${error?.message ?? error}\n`)
+            })
+        } else {
+          trace('[main] wasm onRobotCreated complete\n')
+        }
+      }
+      trace('[main] wasm path complete\n')
+    }
+    if (isThenable(launchResult)) {
+      launchResult.then(continueWasm).catch((error) => {
+        trace(`[main] wasm onLaunch error ${error?.message ?? error}\n`)
+      })
+    } else {
+      continueWasm(launchResult)
     }
     return
   }

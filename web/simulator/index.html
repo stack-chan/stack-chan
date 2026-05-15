@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stack-chan Web Simulator</title>
+    <link rel="stylesheet" href="./simulator.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.164.1/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <h1>ｽﾀｯｸﾁｬﾝWebシミュレーター</h1>
+        <p>ブラウザ上でｽﾀｯｸﾁｬﾝのWASMアプリと3Dボディを操作できます。</p>
+        <ul class="usage-list">
+          <li>3Dビューでドラッグ: 視点変更</li>
+          <li>3Dビューでホイール: ズーム</li>
+          <li>ｽﾀｯｸﾁｬﾝの画面をクリック/ドラッグ: ｽﾀｯｸﾁｬﾝを操作</li>
+        </ul>
+      </section>
+
+      <section class="simulator-layout">
+        <div class="viewport-card">
+          <canvas id="stackchan-viewport" aria-label="3D Stack-chan simulator"></canvas>
+          <canvas id="simulator-screen" width="320" height="240" aria-label="Stack-chan screen canvas"></canvas>
+        </div>
+
+        <aside class="control-card">
+          <h2>状態</h2>
+          <p id="simulator-info">Loading WASM…</p>
+          <div class="mod-installer">
+            <label class="file-button" for="mod-archive-input">Install .xsa</label>
+            <input id="mod-archive-input" type="file" accept=".xsa,application/octet-stream" />
+            <a class="sample-download" href="./samples/stackchan-sample-mod.xsa" download="stackchan-sample-mod.xsa"
+              >Download sample .xsa</a
+            >
+            <button id="simulator-restart-button" type="button">Restart simulator</button>
+            <button id="mod-clear-button" type="button">Clear MOD</button>
+            <p id="mod-install-status">MOD: empty</p>
+          </div>
+          <div class="controls">
+            <button id="button-a" type="button">A: キョロキョロ</button>
+            <button id="button-b" type="button">B: サーボ動作</button>
+            <button id="button-c" type="button">C: 色変更</button>
+            <button id="speech-toggle" type="button" aria-pressed="false">喋る</button>
+          </div>
+          <div class="camera-controls" aria-label="browser camera controls">
+            <button id="browser-camera-button" type="button">ブラウザカメラ開始</button>
+            <p id="browser-camera-status">Cameraボタンから自動開始を試します。必要ならこのボタンで許可してください。</p>
+          </div>
+          <pre id="trace-log" aria-label="firmware trace log"></pre>
+        </aside>
+      </section>
+    </main>
+
+    <script type="module" src="./simulator.mjs"></script>
+  </body>
+</html>

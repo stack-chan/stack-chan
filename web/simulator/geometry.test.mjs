@@ -6,6 +6,7 @@ import {
   M5STACK_CORE_MM,
   STACKCHAN_FACE_MM,
   STACKCHAN_FOOT_MM,
+  STACKCHAN_SIMULATOR_COLORS,
   STACKCHAN_SHELL_STL,
   computeFootPlacements,
   computeFaceModulePlacement,
@@ -46,6 +47,13 @@ describe('Stack-chan simulator geometry', () => {
       feet.map((foot) => foot.z),
       [0, 0]
     )
+  })
+
+  it('defines simulator material colors for shell, feet, and M5Stack front/side separation', () => {
+    assert.equal(STACKCHAN_SIMULATOR_COLORS.shell, 0x8f949c)
+    assert.equal(STACKCHAN_SIMULATOR_COLORS.feet, 0x8f949c)
+    assert.equal(STACKCHAN_SIMULATOR_COLORS.m5stackSide, 0x8f949c)
+    assert.equal(STACKCHAN_SIMULATOR_COLORS.m5stackFront, 0x2f343b)
   })
 
   it('creates a rounded-rectangle path bounded by the 54mm square', () => {

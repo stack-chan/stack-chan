@@ -8,6 +8,7 @@ import {
   SCREEN_CANVAS,
   STACKCHAN_FACE_MM,
   STACKCHAN_FOOT_MM,
+  STACKCHAN_SIMULATOR_COLORS,
   STACKCHAN_SHELL_STL,
   computeFaceModulePlacement,
   computeFootPlacements,
@@ -74,9 +75,24 @@ class StackchanScene {
   }
 
   #createBody() {
-    this.bodyMaterial = new THREE.MeshStandardMaterial({
-      color: 0xfff1df,
+    this.shellMaterial = new THREE.MeshStandardMaterial({
+      color: STACKCHAN_SIMULATOR_COLORS.shell,
       roughness: 0.54,
+      metalness: 0.02,
+    })
+    this.m5stackSideMaterial = new THREE.MeshStandardMaterial({
+      color: STACKCHAN_SIMULATOR_COLORS.m5stackSide,
+      roughness: 0.58,
+      metalness: 0.02,
+    })
+    this.m5stackFrontMaterial = new THREE.MeshStandardMaterial({
+      color: STACKCHAN_SIMULATOR_COLORS.m5stackFront,
+      roughness: 0.62,
+      metalness: 0.02,
+    })
+    this.footMaterial = new THREE.MeshStandardMaterial({
+      color: STACKCHAN_SIMULATOR_COLORS.feet,
+      roughness: 0.6,
       metalness: 0.02,
     })
     this.#createShell()
@@ -90,7 +106,7 @@ class StackchanScene {
       (geometry) => {
         geometry.computeVertexNormals()
         const placement = computeShellPlacementFromBounds(STACKCHAN_SHELL_STL.sourceBoundsMm)
-        this.shell = new THREE.Mesh(geometry, this.bodyMaterial)
+        this.shell = new THREE.Mesh(geometry, this.shellMaterial)
         this.shell.position.set(placement.position.x, placement.position.y, placement.position.z)
         this.shell.rotation.set(placement.rotation.x, placement.rotation.y, placement.rotation.z)
         this.shell.scale.setScalar(placement.scale)
@@ -131,8 +147,13 @@ class StackchanScene {
     geometry.center()
     geometry.translate(0, 0, facePlacement.z)
 
-    this.faceModule = new THREE.Mesh(geometry, this.bodyMaterial)
+    this.faceModule = new THREE.Mesh(geometry, this.m5stackSideMaterial)
     this.headGroup.add(this.faceModule)
+
+    const frontPanelGeometry = new THREE.ShapeGeometry(shape)
+    frontPanelGeometry.translate(0, 0, facePlacement.frontZ + STACKCHAN_FACE_MM.bevelThickness + 0.01)
+    this.faceFrontPanel = new THREE.Mesh(frontPanelGeometry, this.m5stackFrontMaterial)
+    this.headGroup.add(this.faceFrontPanel)
 
     const outline = new THREE.LineSegments(
       new THREE.EdgesGeometry(geometry, 24),
@@ -152,7 +173,7 @@ class StackchanScene {
     const outlineGeometry = new THREE.EdgesGeometry(geometry, 24)
 
     for (const placement of computeFootPlacements()) {
-      const foot = new THREE.Mesh(geometry, this.bodyMaterial)
+      const foot = new THREE.Mesh(geometry, this.footMaterial)
       foot.position.set(placement.x, placement.y, placement.z)
       this.feetGroup.add(foot)
 

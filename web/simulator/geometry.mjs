@@ -21,6 +21,13 @@ export const M5STACK_CORE_MM = Object.freeze({
   shellSeamOverlap: 6.2,
 })
 
+export const STACKCHAN_SIMULATOR_COLORS = Object.freeze({
+  shell: 0x8f949c,
+  feet: 0x8f949c,
+  m5stackSide: 0x8f949c,
+  m5stackFront: 0x2f343b,
+})
+
 export const STACKCHAN_SHELL_STL = Object.freeze({
   url: './assets/case/v1/shell.stl',
   sourceBoundsMm: Object.freeze({

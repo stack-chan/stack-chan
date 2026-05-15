@@ -12,12 +12,15 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
+      "ChatAudioIO": ["stackchan/services/chat-audioio-stub.ts"],
       "wasm-driver": ["stackchan/drivers/wasm/wasm-driver.ts"]
     },
     "types": ["node"],
     "skipLibCheck": true
   },
   "include": [
+    "stackchan/services/chat.ts",
+    "stackchan/services/chat-audioio-stub.ts",
     "stackchan/drivers/payload-buffer.ts",
     "stackchan/drivers/wasm/**/*.ts",
     "stackchan/wasm/microphone.ts",

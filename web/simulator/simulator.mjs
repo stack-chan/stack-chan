@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'https://unpkg.com/three@0.164.1/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { STLLoader } from 'https://unpkg.com/three@0.164.1/examples/jsm/loaders/STLLoader.js'
 
 import {
   clientPointFromTouch,
@@ -15,8 +16,12 @@ import {
   SCREEN_CANVAS,
   STACKCHAN_FACE_MM,
   STACKCHAN_FOOT_MM,
+  STACKCHAN_SIMULATOR_COLORS,
+  STACKCHAN_SHELL_STL,
+  computeFaceModulePlacement,
   computeFootPlacements,
   computeScreenPlane,
+  computeShellPlacementFromBounds,
   computeStackchanKinematics,
   createRoundedRectPath,
   screenPointFromUv,
@@ -87,6 +92,62 @@ class StackchanScene {
   }
 
   #createBody() {
+    this.shellMaterial = new THREE.MeshStandardMaterial({
+      color: STACKCHAN_SIMULATOR_COLORS.shell,
+      roughness: 0.54,
+      metalness: 0.02,
+    })
+    this.m5stackSideMaterial = new THREE.MeshStandardMaterial({
+      color: STACKCHAN_SIMULATOR_COLORS.m5stackSide,
+      roughness: 0.58,
+      metalness: 0.02,
+    })
+    this.m5stackFrontMaterial = new THREE.MeshStandardMaterial({
+      color: STACKCHAN_SIMULATOR_COLORS.m5stackFront,
+      roughness: 0.62,
+      metalness: 0.02,
+    })
+    this.footMaterial = new THREE.MeshStandardMaterial({
+      color: STACKCHAN_SIMULATOR_COLORS.feet,
+      roughness: 0.6,
+      metalness: 0.02,
+    })
+    this.#createShell()
+    this.#createFaceModule()
+  }
+
+  #createShell() {
+    const loader = new STLLoader()
+    loader.load(
+      STACKCHAN_SHELL_STL.url,
+      (geometry) => {
+        geometry.computeVertexNormals()
+        const placement = computeShellPlacementFromBounds(STACKCHAN_SHELL_STL.sourceBoundsMm)
+        this.shell = new THREE.Mesh(geometry, this.shellMaterial)
+        this.shell.position.set(placement.position.x, placement.position.y, placement.position.z)
+        this.shell.rotation.set(placement.rotation.x, placement.rotation.y, placement.rotation.z)
+        this.shell.scale.setScalar(placement.scale)
+        this.headGroup.add(this.shell)
+
+        const outline = new THREE.LineSegments(
+          new THREE.EdgesGeometry(geometry, 24),
+          new THREE.LineBasicMaterial({ color: 0x3d3128, transparent: true, opacity: 0.1 })
+        )
+        outline.position.copy(this.shell.position)
+        outline.rotation.copy(this.shell.rotation)
+        outline.scale.copy(this.shell.scale)
+        this.headGroup.add(outline)
+      },
+      undefined,
+      (error) => {
+        console.warn('[simulator] failed to load shell STL; using generated face module only', error)
+      }
+    )
+  }
+
+  #createFaceModule() {
+    const facePlacement = computeFaceModulePlacement()
+    const faceDepth = facePlacement.depth
     const shape = new THREE.Shape()
     const points = createRoundedRectPath(STACKCHAN_FACE_MM)
     shape.moveTo(points[0].x, points[0].y)
@@ -94,22 +155,22 @@ class StackchanScene {
     shape.closePath()
 
     const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: STACKCHAN_FACE_MM.depth,
+      depth: faceDepth,
       bevelEnabled: true,
       bevelSize: 1.4,
       bevelThickness: STACKCHAN_FACE_MM.bevelThickness,
       bevelSegments: 5,
     })
     geometry.center()
+    geometry.translate(0, 0, facePlacement.z)
 
-    const material = new THREE.MeshStandardMaterial({
-      color: 0xfff1df,
-      roughness: 0.54,
-      metalness: 0.02,
-    })
-    this.bodyMaterial = material
-    this.body = new THREE.Mesh(geometry, material)
-    this.headGroup.add(this.body)
+    this.faceModule = new THREE.Mesh(geometry, this.m5stackSideMaterial)
+    this.headGroup.add(this.faceModule)
+
+    const frontPanelGeometry = new THREE.ShapeGeometry(shape)
+    frontPanelGeometry.translate(0, 0, facePlacement.frontZ + STACKCHAN_FACE_MM.bevelThickness + 0.01)
+    this.faceFrontPanel = new THREE.Mesh(frontPanelGeometry, this.m5stackFrontMaterial)
+    this.headGroup.add(this.faceFrontPanel)
 
     const outline = new THREE.LineSegments(
       new THREE.EdgesGeometry(geometry, 24),
@@ -129,7 +190,7 @@ class StackchanScene {
     const outlineGeometry = new THREE.EdgesGeometry(geometry, 24)
 
     for (const placement of computeFootPlacements()) {
-      const foot = new THREE.Mesh(geometry, this.bodyMaterial)
+      const foot = new THREE.Mesh(geometry, this.footMaterial)
       foot.position.set(placement.x, placement.y, placement.z)
       this.feetGroup.add(foot)
 
@@ -210,7 +271,7 @@ class StackchanScene {
       this.driverRotation,
       this.targetDriverRotation,
       deltaSeconds,
-      DRIVER_MAX_ANGULAR_SPEED,
+      DRIVER_MAX_ANGULAR_SPEED
     )
   }
 
@@ -218,7 +279,7 @@ class StackchanScene {
     const bounds = this.viewport.getBoundingClientRect()
     this.pointerNdc.set(
       ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
-      -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+      -((event.clientY - bounds.top) / bounds.height) * 2 + 1
     )
     this.raycaster.setFromCamera(this.pointerNdc, this.camera)
     const [hit] = this.raycaster.intersectObject(this.screenMesh, false)
@@ -647,7 +708,7 @@ function bindViewportScreenTouches({ viewport, scene, wasmView }) {
       viewport.setPointerCapture(event.pointerId)
       wasmView.touchScreenPoint(0, touchId, point.x, point.y, event.timeStamp)
     },
-    { capture: true },
+    { capture: true }
   )
   viewport.addEventListener(
     'pointermove',
@@ -659,7 +720,7 @@ function bindViewportScreenTouches({ viewport, scene, wasmView }) {
       lastPoint = point
       wasmView.touchScreenPoint(3, touchId, point.x, point.y, event.timeStamp)
     },
-    { capture: true },
+    { capture: true }
   )
   viewport.addEventListener('pointerup', (event) => finish(event, 2), { capture: true })
   viewport.addEventListener('pointercancel', (event) => finish(event, 1), { capture: true })

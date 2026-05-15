@@ -14,6 +14,7 @@ import {
 import FallbackCamera from '../../stackchan/camera.js'
 import Camera from '../../stackchan/wasm/camera.js'
 import Microphone from '../../stackchan/wasm/microphone.js'
+import Tone from '../../stackchan/wasm/tone.js'
 
 type Rotation = { y: number; p: number; r: number }
 type DriverConstructor = new (
@@ -48,6 +49,7 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
 
   assert.equal(manifest.modules.camera, './wasm/camera')
   assert.equal(manifest.modules['wasm-driver'], './drivers/wasm/wasm-driver')
+  assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
   assert.deepEqual(
     {
       'dynamixel-driver': manifest.modules['dynamixel-driver'],
@@ -92,6 +94,17 @@ test('WASM PY32 LED facade re-exports the shared LED stub through a manifest mod
 
   assert.match(source, /from 'led'/)
   assert.doesNotMatch(source, /\.\//)
+})
+
+test('WASM main path loads an installed MOD archive before falling back to the default MOD', () => {
+  const source = readFileSync('stackchan/main.ts', 'utf8')
+  const wasmBlock = source.slice(source.indexOf('if (config.wasm) {'), source.indexOf('await asyncWait(100)'))
+
+  assert.match(wasmBlock, /let \{ onRobotCreated, onLaunch \} = defaultMod/)
+  assert.match(wasmBlock, /Modules\.has\('mod'\)/)
+  assert.match(wasmBlock, /Modules\.importNow\('mod'\) as StackchanMod/)
+  assert.match(wasmBlock, /onRobotCreated = mod\.onRobotCreated \?\? onRobotCreated/)
+  assert.match(wasmBlock, /onLaunch = mod\.onLaunch \?\? onLaunch/)
 })
 
 test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', async () => {
@@ -166,7 +179,30 @@ test('WasmDriver setTorque forwards torque state to the browser Host.Driver brid
   }
 })
 
-test('WASM microphone keeps the optional duration argument compatible with the shared API', async () => {
+test('WASM microphone records through the browser Host.AudioIn bridge when present', async () => {
+  const previousHost = globalThis.Host
+  const recordedDurations: number[] = []
+  const expected = new Uint8Array([1, 2, 3, 4]).buffer
+  globalThis.Host = {
+    AudioIn: {
+      async record(durationMilliSec: number) {
+        recordedDurations.push(durationMilliSec)
+        return expected
+      },
+    },
+  }
+
+  try {
+    const result = await new Microphone().record(1000)
+
+    assert.equal(result, expected)
+    assert.deepEqual(recordedDurations, [1000])
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
+
+test('WASM microphone falls back to an empty buffer when Host.AudioIn is unavailable', async () => {
   const microphone = new Microphone()
 
   const result = await microphone.record(1000)
@@ -215,4 +251,53 @@ test('default camera backend is safe when no device camera exists', async () => 
   assert.equal(await camera.capture({ width: 1, height: 1, imageType: 'rgb565le' }), undefined)
   await camera.stop()
   assert.equal('captureJpeg' in camera, false)
+})
+
+test('WASM tone forwards tone requests and close to the browser Host.AudioOut bridge', async () => {
+  const previousHost = globalThis.Host
+  const calls: unknown[] = []
+  globalThis.Host = {
+    AudioOut: {
+      async tone(message: unknown) {
+        calls.push(message)
+      },
+      close() {
+        calls.push('close')
+      },
+    },
+  }
+
+  try {
+    const tone = new Tone()
+
+    await tone.tone(440, 250, 0.5)
+    tone.close()
+
+    assert.deepEqual(calls, [{ hz: 440, duration: 250, volume: 0.5 }, 'close'])
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
+
+test('WASM tone plays buffers through the browser Host.AudioOut bridge', async () => {
+  const previousHost = globalThis.Host
+  const buffers: ArrayBuffer[] = []
+  globalThis.Host = {
+    AudioOut: {
+      async play(buffer: ArrayBuffer) {
+        buffers.push(buffer)
+        return true
+      },
+    },
+  }
+
+  try {
+    const buffer = new Uint8Array([1, 2, 3]).buffer
+    const result = await new Tone().play(buffer)
+
+    assert.equal(result, true)
+    assert.deepEqual(buffers, [buffer])
+  } finally {
+    globalThis.Host = previousHost
+  }
 })

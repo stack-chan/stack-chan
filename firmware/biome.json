@@ -6,7 +6,13 @@
     "useIgnoreFile": false
   },
   "files": {
-    "includes": ["stackchan/**", "mods/**", "tests/**", "scripts/**"],
+    "includes": [
+      "stackchan/**",
+      "!stackchan/wasm/audio-bridge.js",
+      "mods/**",
+      "tests/**",
+      "scripts/**"
+    ],
     "ignoreUnknown": false
   },
   "formatter": {

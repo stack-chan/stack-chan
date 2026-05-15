@@ -3,6 +3,10 @@ import Headers from 'headers'
 import UUID from 'uuid'
 import type { Maybe } from 'stackchan-util'
 
+type AudioBufferMetadata = {
+  filename?: string
+}
+
 export type STTProperty = {
   apiKey: string
   model?: string
@@ -21,6 +25,8 @@ export default class STT {
   }
   async transcribe(buffer: ArrayBuffer | HostBuffer): Promise<Maybe<string>> {
     try {
+      const audio = buffer as ArrayBuffer & AudioBufferMetadata
+      const filename = audio.filename ?? 'speak.wav'
       const boundary = `--------------------------${UUID().replaceAll('-', '').substring(0, 22)}`
       const header =
         `--${boundary}\r\n` +
@@ -28,7 +34,7 @@ export default class STT {
         `--${boundary}\r\n` +
         `Content-Disposition: form-data; name="language"\r\n\r\n${this.language}\r\n` +
         `--${boundary}\r\n` +
-        'Content-Disposition: form-data; name="file"; filename="speak.wav"\r\n' +
+        `Content-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
         'Content-Type: application/octet-stream\r\n\r\n'
       const footer = `\r\n--${boundary}--\r\n`
       const bodyView = new Uint8Array(new ArrayBuffer(header.length + buffer.byteLength + footer.length))

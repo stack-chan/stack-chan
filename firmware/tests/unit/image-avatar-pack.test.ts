@@ -53,11 +53,7 @@ test('image avatar state helpers clamp ratios and map emotions to expressions', 
   assert.equal(resolveExpressionName(pack, 'DOUBTFUL'), 'normal')
 })
 
-test('renderer manifest keeps bundled demo masks but leaves ImageAvatarLite sprites to the sample MOD', () => {
-  const manifest = JSON.parse(readFileSync('stackchan/renderers-piu/manifest_wasm_renderer_piu.json', 'utf-8'))
-  const alphaResources = manifest.resources['*-alpha'] as string[]
-  const colorResources = manifest.resources['*-color'] as string[]
-  const combinedResources = (manifest.resources['*'] ?? []) as string[]
+test('renderer manifests keep bundled demo masks but leave ImageAvatarLite sprites to the sample MOD', () => {
   const demoExpected = [
     'stackchan-demo-head-normal',
     'stackchan-demo-eye-left-normal',
@@ -66,18 +62,29 @@ test('renderer manifest keeps bundled demo masks but leaves ImageAvatarLite spri
     'stackchan-demo-hand-left-normal',
     'stackchan-demo-hand-right-normal',
   ].map((name) => `../assets/images/faces/image-avatar/stackchan-demo/${name}`)
+
+  for (const manifestPath of [
+    'stackchan/renderers-piu/manifest_renderer_piu.json',
+    'stackchan/renderers-piu/manifest_wasm_renderer_piu.json',
+  ]) {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+    const alphaResources = manifest.resources['*-alpha'] as string[]
+    const colorResources = (manifest.resources['*-color'] ?? []) as string[]
+    const combinedResources = (manifest.resources['*'] ?? []) as string[]
+
+    for (const resource of demoExpected) {
+      assert.ok(alphaResources.includes(resource), `${manifestPath} missing alpha resource ${resource}`)
+    }
+    assert.equal(
+      [...alphaResources, ...colorResources, ...combinedResources].some((resource) =>
+        resource.includes('image-avatar-lite'),
+      ),
+      false,
+      `${manifestPath} should not bundle ImageAvatarLite sample MOD sprites`,
+    )
+  }
+
   const modManifest = JSON.parse(readFileSync('mods/image_avatar_lite/manifest.json', 'utf-8'))
   const modResources = modManifest.resources['*'] as string[]
-
-  for (const resource of demoExpected) {
-    assert.ok(alphaResources.includes(resource), `missing alpha resource ${resource}`)
-  }
-  assert.equal(
-    [...alphaResources, ...colorResources, ...combinedResources].some((resource) =>
-      resource.includes('image-avatar-lite'),
-    ),
-    false,
-    'host renderer manifest should not bundle ImageAvatarLite sample MOD sprites',
-  )
   assert.deepEqual(modResources, ['./assets/*'])
 })

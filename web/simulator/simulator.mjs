@@ -553,14 +553,37 @@ const modClearButton = document.getElementById('mod-clear-button')
 const modInstallStatus = document.getElementById('mod-install-status')
 const traceLog = document.getElementById('trace-log')
 const modStorage = createModStorage()
+const browserCameraButton = document.getElementById('browser-camera-button')
+const browserCameraStatus = document.getElementById('browser-camera-status')
 const buttonBridge = createHostButtonBridge({ logger: (message) => console.log(message) })
 const audioOutBridge = createHostAudioOutBridge()
 const audioInBridge = createHostAudioInBridge()
+const cameraBridge = createHostCameraBridge()
+if (browserCameraButton) {
+  browserCameraButton.addEventListener('click', async () => {
+    browserCameraButton.disabled = true
+    if (browserCameraStatus) browserCameraStatus.textContent = 'ブラウザカメラを開始しています…'
+    try {
+      await cameraBridge.start({ useBrowserCamera: true })
+      if (browserCameraStatus) {
+        browserCameraStatus.textContent = cameraBridge.isBrowserCameraStarted()
+          ? 'ブラウザカメラ準備完了。ドロワーのCameraでプレビューできます。'
+          : 'ブラウザカメラは使えませんでした。合成フレームで続行します。'
+      }
+    } catch (error) {
+      console.warn('[bridge] browser camera button failed', error)
+      if (browserCameraStatus)
+        browserCameraStatus.textContent = 'ブラウザカメラ開始に失敗しました。合成フレームで続行します。'
+    } finally {
+      browserCameraButton.disabled = false
+    }
+  })
+}
 globalThis.Host = {
   Button: buttonBridge.Button,
   AudioOut: audioOutBridge,
   AudioIn: audioInBridge,
-  Camera: createHostCameraBridge(),
+  Camera: cameraBridge,
 }
 console.log('[bridge] global Host.Button/Audio/Camera constructors installed')
 
@@ -613,6 +636,10 @@ const driverBridge = createHostDriverBridge({
 })
 globalThis.Host.Driver = driverBridge
 console.log('[bridge] global Host.Driver bridge installed')
+globalThis.Host.Camera = cameraBridge
+console.log('[bridge] global Host.Camera bridge installed')
+buttonBridge.setHtmlAction('a', () => scene.setLookAround(!scene.lookAround))
+buttonBridge.setHtmlAction('b', () => scene.runServoMotion())
 
 const wasmView = new WasmView({
   scene,

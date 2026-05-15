@@ -8,10 +8,12 @@
   "files": {
     "includes": [
       "stackchan/**",
-      "!stackchan/wasm/audio-bridge.js",
       "mods/**",
       "tests/**",
-      "scripts/**"
+      "scripts/**",
+      "!stackchan/runtime-bitmap-port.js",
+      "!stackchan/wasm/audio-bridge.js",
+      "!stackchan/wasm/camera-bridge.js"
     ],
     "ignoreUnknown": false
   },

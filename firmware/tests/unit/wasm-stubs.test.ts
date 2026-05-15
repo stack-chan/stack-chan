@@ -31,6 +31,12 @@ type HostCameraTestBridge = {
   capture?: (options?: unknown) => unknown
 }
 
+type WasmCameraTestBridge = {
+  start?: (width: number, height: number, useBrowserCamera: boolean) => void
+  stop?: () => void
+  capture?: (width: number, height: number) => unknown
+}
+
 const setHostCamera = (CameraBridge: HostCameraTestBridge | undefined): typeof globalThis.Host => {
   const previousHost = globalThis.Host
   const nextHost = { ...(previousHost ?? {}) } as typeof globalThis.Host & { Camera?: HostCameraTestBridge }
@@ -43,6 +49,19 @@ const setHostCamera = (CameraBridge: HostCameraTestBridge | undefined): typeof g
 
   globalThis.Host = nextHost
   return previousHost
+}
+
+const setWasmCameraBridge = (CameraBridge: WasmCameraTestBridge | undefined): WasmCameraTestBridge | undefined => {
+  const env = globalThis as typeof globalThis & { __stackchanWasmCameraBridge?: WasmCameraTestBridge }
+  const previous = env.__stackchanWasmCameraBridge
+
+  if (CameraBridge) {
+    env.__stackchanWasmCameraBridge = CameraBridge
+  } else {
+    delete env.__stackchanWasmCameraBridge
+  }
+
+  return previous
 }
 
 const driverCases: Array<[string, DriverConstructor]> = [
@@ -68,6 +87,10 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
   const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
 
   assert.equal(manifest.modules.camera, './wasm/camera')
+  assert.equal(manifest.modules['wasm-audio-bridge'], './wasm/audio-bridge')
+  assert.equal(manifest.modules['wasm-camera-bridge'], './wasm/camera-bridge')
+  assert.ok(manifest.preload.includes('wasm-camera-bridge'))
+  assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
   assert.equal(manifest.modules['wasm-driver'], './drivers/wasm/wasm-driver')
   assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
   assert.deepEqual(
@@ -125,6 +148,37 @@ test('WASM main path loads an installed MOD archive before falling back to the d
   assert.match(wasmBlock, /Modules\.importNow\('mod'\) as StackchanMod/)
   assert.match(wasmBlock, /onRobotCreated = mod\.onRobotCreated \?\? onRobotCreated/)
   assert.match(wasmBlock, /onLaunch = mod\.onLaunch \?\? onLaunch/)
+})
+
+test('WASM camera preview uses a native RuntimeBitmapPort binding before falling back to mosaic', () => {
+  const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
+  const previewSource = readFileSync('stackchan/camera-preview.ts', 'utf8')
+  const portSource = readFileSync('stackchan/runtime-bitmap-port.js', 'utf8')
+
+  assert.equal(manifest.modules['runtime-bitmap-port'], './runtime-bitmap-port')
+  assert.match(portSource, /drawBitmap\(bitmap, x, y, sx = 0, sy = 0, sw = bitmap\.width, sh = bitmap\.height\)/)
+  assert.match(portSource, /xs_stackchan_runtime_bitmap_port_draw/)
+  assert.match(previewSource, /import RuntimeBitmapPort from 'runtime-bitmap-port'/)
+  assert.match(previewSource, /new RuntimeBitmapPort\(/)
+  assert.match(previewSource, /reportRenderMode\('runtime-bitmap-port'\)/)
+  assert.doesNotMatch(previewSource, /ENABLE_RUNTIME_TEXTURE_PREVIEW/)
+  assert.doesNotMatch(previewSource, /drawRgb565Texture/)
+})
+
+test('WASM camera preview can be dismissed by touch or an automatic timeout', () => {
+  const previewSource = readFileSync('stackchan/camera-preview.ts', 'utf8')
+  const modSource = readFileSync('stackchan/default-mods/on-robot-created.ts', 'utf8')
+
+  assert.match(previewSource, /onDismiss\?: \(\) => void/)
+  assert.match(previewSource, /active: true/)
+  assert.match(previewSource, /onTouchEnded\(_port: PiuPort\)/)
+  assert.match(previewSource, /this\.options\?\.onDismiss\?\.\(\)/)
+  assert.match(modSource, /CAMERA_PREVIEW_DURATION_MS = 5000/)
+  assert.match(modSource, /onDismiss: restoreCameraPreview/)
+  assert.match(modSource, /distribute\?\.\('onDrawerClose'\)/)
+  assert.match(modSource, /closeDrawer\(\)/)
+  assert.match(modSource, /Timer\.set\(restoreCameraPreview, CAMERA_PREVIEW_DURATION_MS\)/)
+  assert.doesNotMatch(modSource, /robot\.camera\.stop\(\)/)
 })
 
 test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', async () => {
@@ -269,7 +323,42 @@ test('WASM camera forwards start and stop to the browser Host.Camera bridge when
   }
 })
 
-test('WASM camera forwards capture to Host.Camera and returns bridge frames', async () => {
+test('WASM camera uses the native browser camera bridge when it is preloaded', async () => {
+  const calls: unknown[] = []
+  const buffer = new Uint8Array([9, 8, 7, 6, 5, 4, 3, 2]).buffer
+  const previousBridge = setWasmCameraBridge({
+    start(width, height, useBrowserCamera) {
+      calls.push({ start: { width, height, useBrowserCamera } })
+    },
+    stop() {
+      calls.push({ stop: true })
+    },
+    capture(width, height) {
+      calls.push({ capture: { width, height } })
+      return { width, height, imageType: 'rgb565le', buffer }
+    },
+  })
+
+  try {
+    const camera = new Camera()
+    await camera.start({ width: 200, height: 120, imageType: 'rgb565le', useBrowserCamera: true })
+    const frame = await camera.capture({ width: 200, height: 120, imageType: 'rgb565le' })
+    await camera.stop()
+
+    assert.deepEqual(calls, [
+      { start: { width: 200, height: 120, useBrowserCamera: true } },
+      { capture: { width: 200, height: 120 } },
+      { stop: true },
+    ])
+    assert.ok(frame)
+    assert.notEqual(frame.buffer, buffer)
+    assert.deepEqual(new Uint8Array(frame.buffer), new Uint8Array(buffer))
+  } finally {
+    setWasmCameraBridge(previousBridge)
+  }
+})
+
+test('WASM camera copies Host.Camera capture frames into local ArrayBuffers', async () => {
   const buffer = new ArrayBuffer(8)
   const previousHost = setHostCamera({
     capture(options) {

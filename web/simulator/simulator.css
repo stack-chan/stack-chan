@@ -146,6 +146,16 @@ button:hover,
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
+}
+
+button[aria-pressed="true"] {
+  background: #8bd3ff;
+}
+
 .file-button,
 .sample-download {
   display: inline-flex;
@@ -168,6 +178,35 @@ button:hover,
   color: #bfb7ad;
   font-size: 0.9rem;
   line-height: 1.45;
+}
+
+.camera-controls {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+#browser-camera-button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: #ffb36b;
+  color: #21160f;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#browser-camera-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+#browser-camera-status {
+  margin: 0;
+  color: #a9b9c9;
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
 #trace-log {

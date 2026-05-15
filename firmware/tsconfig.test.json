@@ -12,6 +12,9 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
+      "camera": [
+        "stackchan/wasm/camera.ts"
+      ],
       "wasm-driver": [
         "stackchan/drivers/wasm/wasm-driver.ts"
       ],
@@ -36,6 +39,8 @@
   "include": [
     "stackchan/drivers/payload-buffer.ts",
     "stackchan/drivers/wasm/**/*.ts",
+    "stackchan/camera.ts",
+    "stackchan/wasm/camera.ts",
     "stackchan/wasm/microphone.ts",
     "stackchan/drivers/m5stackchan-servo.ts",
     "stackchan/led/py32-io-expander.ts",

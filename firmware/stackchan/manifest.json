@@ -24,6 +24,7 @@
     "*": [
       "./touch",
       "./robot",
+      "./camera",
       "./tone",
       "./main",
       "$(MODULES)/network/http/*"

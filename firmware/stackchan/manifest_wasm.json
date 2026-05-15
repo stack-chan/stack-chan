@@ -13,6 +13,7 @@
   ],
   "modules": {
     "*": ["./touch", "./robot", "./main"],
+    "camera": "./wasm/camera",
     "wasm-audio-bridge": "./wasm/audio-bridge",
     "tone": "./wasm/tone",
     "led": "./wasm/led",

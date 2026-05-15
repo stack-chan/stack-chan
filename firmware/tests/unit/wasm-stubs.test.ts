@@ -11,6 +11,8 @@ import {
   SCServoDriver,
   WasmDriver,
 } from '../../stackchan/drivers/wasm/wasm-driver.js'
+import FallbackCamera from '../../stackchan/camera.js'
+import Camera from '../../stackchan/wasm/camera.js'
 import Microphone from '../../stackchan/wasm/microphone.js'
 import Tone from '../../stackchan/wasm/tone.js'
 
@@ -45,6 +47,7 @@ for (const [name, Driver] of driverCases) {
 test('WASM manifest keeps concrete servo driver module specifiers as facades for Moddable resolution', () => {
   const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
 
+  assert.equal(manifest.modules.camera, './wasm/camera')
   assert.equal(manifest.modules['wasm-driver'], './drivers/wasm/wasm-driver')
   assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
   assert.deepEqual(
@@ -206,6 +209,48 @@ test('WASM microphone falls back to an empty buffer when Host.AudioIn is unavail
 
   assert.ok(result instanceof ArrayBuffer)
   assert.equal(result.byteLength, 0)
+})
+
+test('WASM synthetic camera captures deterministic RGB565LE frames', async () => {
+  const camera = new Camera()
+
+  const first = await camera.capture({ width: 4, height: 3, imageType: 'rgb565le' })
+  const second = await camera.capture({ width: 4, height: 3, imageType: 'rgb565le' })
+
+  assert.ok(first)
+  assert.ok(second)
+  assert.equal(first.width, 4)
+  assert.equal(first.height, 3)
+  assert.equal(first.imageType, 'rgb565le')
+  assert.equal(first.buffer.byteLength, 4 * 3 * 2)
+  assert.deepEqual(new Uint8Array(first.buffer), new Uint8Array(second.buffer))
+})
+
+test('WASM synthetic camera start and stop are safe around capture', async () => {
+  const camera = new Camera()
+
+  await camera.start({ width: 2, height: 2 })
+  const frame = await camera.capture({ width: 2, height: 2 })
+  await camera.stop()
+  await camera.stop()
+
+  assert.equal(frame?.buffer.byteLength, 2 * 2 * 2)
+})
+
+test('WASM synthetic camera keeps unsupported formats and JPEG convenience out of scope', async () => {
+  const camera = new Camera()
+
+  assert.equal(await camera.capture({ imageType: 'jpeg' }), undefined)
+  assert.equal('captureJpeg' in camera, false)
+})
+
+test('default camera backend is safe when no device camera exists', async () => {
+  const camera = new FallbackCamera()
+
+  await camera.start()
+  assert.equal(await camera.capture({ width: 1, height: 1, imageType: 'rgb565le' }), undefined)
+  await camera.stop()
+  assert.equal('captureJpeg' in camera, false)
 })
 
 test('WASM tone forwards tone requests and close to the browser Host.AudioOut bridge', async () => {

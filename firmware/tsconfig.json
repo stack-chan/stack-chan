@@ -11,11 +11,11 @@
     "allowImportingTsExtensions": true,
     "module": "es2022",
     "lib": [
-      "es2025"
+      "es2024"
     ],
     "outDir": "dist",
     "sourceMap": true,
-    "target": "es2025",
+    "target": "es2024",
     "paths": {
       "face-context": [
         "./stackchan/renderers-piu/face-context"

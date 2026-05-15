@@ -101,21 +101,6 @@ M5Stack Basic の Port.C を使う場合:
 
 参考: [ｽﾀｯｸﾁｬﾝ M5GoBottom 版のファームウェアについて \| M5Stack 沼人の日記](https://raspberrypi.mongonta.com/softwares-for-stackchan/)
 
-### 設定例: mod の書き込み領域を増やす
-
-2023 年 3 月現在、Moddable は SD Card のドライバが実装されていないため、音声や画像などのリソースは mod に含めてコンパイルして書き込む形になります。
-多量の音声を含む場合、ｽﾀｯｸﾁｬﾝのデフォルトのパーティションサイズである 4MB を上回って mod が書き込めない場合があります。
-
-最近の M5Stack は 16MB の Flash を備えています。
-その場合は[`stackchan/manifest_8mb_flash.json`](../stackchan/manifest_8mb_flash.json)をインクルードすることで、
-mod を書き込むパーティションの容量が大幅に増加します。
-
-```json
-{
-  "include": ["./manifest_8mb_flash.json"]
-}
-```
-
 ## 基本プログラム（ホスト）の書き込み
 
 前述の通りｽﾀｯｸﾁｬﾝのファームウェアは基本プログラム（ホスト）とユーザアプリケーション（MOD）から構成されます。

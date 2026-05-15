@@ -164,9 +164,17 @@ function checksum(buffer: Uint8Array, length: number): number {
 
 type SCServoConstructorParam = {
   id: number
+  awaitWriteResponse?: boolean
+  serial?: Partial<{
+    receive: number
+    transmit: number
+    baud: number
+    port: number
+  }>
 }
 
 let packetHandler: PacketHandler = null
+let packetHandlerSerialKey: string | null = null
 class SCServo {
   #id: number
   #onCommandRead: (buffer: Uint8Array, length: number) => void
@@ -174,22 +182,36 @@ class SCServo {
   #waitSlot: SingleWaitSlot<Uint8Array>
   #queueTail: Promise<void>
   #offset: number
-  constructor({ id }: SCServoConstructorParam) {
+  #awaitWriteResponse: boolean
+  constructor({ id, awaitWriteResponse = true, serial: serialOverride }: SCServoConstructorParam) {
     this.#id = id
     this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
     this.#queueTail = Promise.resolve()
     this.#offset = 0
+    this.#awaitWriteResponse = awaitWriteResponse
     this.#onCommandRead = (values, _length) => {
       this.#waitSlot.resolve(values)
     }
     this.#txBuf = new Uint8Array(64)
+    const serial = serialOverride ?? config.serial ?? {}
+    const port = serial.port ?? 2
+    const receive = serial.receive ?? 16
+    const transmit = serial.transmit ?? 17
+    const baud = serial.baud ?? 1_000_000
+    const serialKey = `${port}:${transmit}:${receive}:${baud}`
     if (packetHandler == null) {
+      trace(`[scservo] serial port=${port} tx=${transmit} rx=${receive} baud=${baud}\n`)
       packetHandler = new PacketHandler({
-        receive: config.serial?.receive ?? 16,
-        transmit: config.serial?.transmit ?? 17,
-        baud: 1_000_000,
-        port: 2,
+        receive,
+        transmit,
+        baud,
+        port,
       })
+      packetHandlerSerialKey = serialKey
+    } else if (packetHandlerSerialKey !== serialKey) {
+      throw new Error(
+        `SCServo PacketHandler serial config mismatch: existing=${packetHandlerSerialKey}, requested=${serialKey}`,
+      )
     }
     if (packetHandler.hasCallbackOf(id)) {
       throw new Error('This id is already instantiated')
@@ -218,16 +240,31 @@ class SCServo {
     this.#txBuf[idx] = checksum(this.#txBuf, idx)
     idx++
     // trace(`writing: ${this.#txBuf.subarray(0, idx)}\n`)
-    const originalFormat = packetHandler.format
-    packetHandler.format = 'buffer'
-    try {
-      packetHandler.write(this.#txBuf.subarray(0, idx))
-    } finally {
-      packetHandler.format = originalFormat
+    await this.#writePacket(idx)
+    if (command !== COMMAND.READ && !this.#awaitWriteResponse) {
+      return
     }
     return this.#waitSlot.wait(40, () => {
       trace('timeout.\n')
     })
+  }
+
+  async #writePacket(length: number): Promise<void> {
+    for (let attempt = 0; ; attempt++) {
+      const originalFormat = packetHandler.format
+      packetHandler.format = 'buffer'
+      try {
+        packetHandler.write(this.#txBuf.subarray(0, length))
+        return
+      } catch (error) {
+        if (attempt >= 1) {
+          throw error
+        }
+        await new Promise<void>((resolve) => Timer.set(() => resolve(), 1))
+      } finally {
+        packetHandler.format = originalFormat
+      }
+    }
   }
 
   async #sendCommand(command: Command, address: Address, ...values: number[]): Promise<Uint8Array | undefined> {
@@ -329,7 +366,7 @@ class SCServo {
    */
   async setAngle(angle: number): Promise<unknown> {
     const a = Math.floor(clamp(((angle + this.#offset) * 1024) / 200, 0, 0x03ff))
-    return this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, ...le(a))
+    return this.setRawPosition(a)
   }
 
   /**
@@ -341,8 +378,32 @@ class SCServo {
   async setAngleInTime(angle: number, goalTime: number): Promise<unknown> {
     // 0 <= a <= 1023
     const a = Math.floor(clamp(((angle + this.#offset) * 1024) / 200, 0, 0x03ff))
-    const res = await this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, ...le(a), ...le(goalTime))
+    const res = await this.setRawPositionInTime(a, goalTime)
     return res
+  }
+
+  async setRawPosition(rawPosition: number): Promise<unknown> {
+    const position = Math.floor(clamp(rawPosition, 0, 0x03ff))
+    return this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, ...le(position))
+  }
+
+  async setRawPositionInTime(rawPosition: number, goalTime: number): Promise<unknown> {
+    const position = Math.floor(clamp(rawPosition, 0, 0x03ff))
+    return this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, ...le(position), ...le(goalTime))
+  }
+
+  async readRawPosition(): Promise<Maybe<{ position: number }>> {
+    const values = await this.#sendCommand(COMMAND.READ, ADDRESS.PRESENT_POSITION, 2)
+    if (values == null || values.length < 2) {
+      return {
+        success: false,
+        reason: 'response corrupted.',
+      }
+    }
+    return {
+      success: true,
+      value: { position: el(values[0], values[1]) },
+    }
   }
 
   /**
@@ -359,14 +420,14 @@ class SCServo {
    * @returns angle(degree)
    */
   async readStatus(): Promise<Maybe<{ angle: number }>> {
-    const values = await this.#sendCommand(COMMAND.READ, ADDRESS.PRESENT_POSITION, 15)
-    if (values == null || values.length < 15) {
+    const raw = await this.readRawPosition()
+    if (raw.success === false) {
       return {
         success: false,
-        reason: 'response corrupted.',
+        reason: raw.reason,
       }
     }
-    const angle = (el(values[0], values[1]) * 200) / 1024
+    const angle = (raw.value.position * 200) / 1024 - this.#offset
     return {
       success: true,
       value: { angle },

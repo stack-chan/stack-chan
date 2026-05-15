@@ -1,58 +1,65 @@
 name: Bundle Stack-chan Firmware
-on: 
+
+on:
   push:
     branches:
       - dev/v1.0
+    paths:
+      - 'firmware/**'
+      - 'web/simulator/**'
+      - '.github/actions/setup/action.yml'
+      - '.github/workflows/bundle.yml'
   pull_request:
     branches:
       - dev/v1.0
       # Allow the stacked PR that targets the WASM build-support branch to run.
       - feat/wasm-stackchan-build
+    paths:
+      - 'firmware/**'
+      - 'web/simulator/**'
+      - '.github/actions/setup/action.yml'
+      - '.github/workflows/bundle.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bundle-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Check for changes in firmware
-        id: diff_check
-        run: |
-          git diff --quiet HEAD^ HEAD -- ./firmware/ || echo "diff_detected=true" >> $GITHUB_ENV
-      - name: Cache build results
-        id: cache
-        uses: actions/cache@v4
-        with:
-          path: ./firmware/stackchan/tech.moddable.stackchan
-          key: ${{ github.sha }}
+      - uses: actions/checkout@v6
       - name: Setup
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup
-      - name: Pin Moddable SDK
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
-        run: |
-          git -C "$HOME/.local/share/moddable" fetch origin b0411457e4577ea5560c780cb7824f3b00c2b2af
-          git -C "$HOME/.local/share/moddable" checkout b0411457e4577ea5560c780cb7824f3b00c2b2af
-      - name: Bundle
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
+      - name: Bundle firmware
         working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
       - name: Setup Emscripten for WASM simulator
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
         uses: mymindstorm/setup-emsdk@v14
         with:
           version: 3.1.2
+      - name: Apply Moddable WASM Promise patch
+        run: |
+          patch_commit="651a69bba5fb704730891769d40df7badd44c225"
+          if grep -q "promiseJobsTimer" "$HOME/.local/share/moddable/xs/platforms/wasm_xs.h"; then
+            echo "Moddable WASM Promise patch is already present"
+            exit 0
+          fi
+          git -C "$HOME/.local/share/moddable" fetch https://github.com/meganetaaan/moddable.git "$patch_commit"
+          git -C "$HOME/.local/share/moddable" cherry-pick --no-commit FETCH_HEAD
       - name: Build WASM simulator firmware
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
         working-directory: ./firmware
-      - name: Upload Firmware Bundle
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
-        uses: actions/upload-artifact@v4
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
+      - name: Upload firmware bundle
+        uses: actions/upload-artifact@v7
         with:
           name: firmware-bundle
           path: ./firmware/stackchan/tech.moddable.stackchan
-      - name: Upload WASM Simulator
-        if: ${{ env.diff_detected}} || steps.cache.outputs.cache-hit != 'true'
-        uses: actions/upload-artifact@v4
+      - name: Upload WASM simulator
+        uses: actions/upload-artifact@v7
         with:
           name: wasm-simulator
           path: ./web/simulator
@@ -61,35 +68,48 @@ jobs:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev/v1.0'
     runs-on: ubuntu-latest
+    concurrency:
+      group: gh-pages-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: write
     steps:
-      - name: Checkout Pages Branch
-        uses: actions/checkout@v4
+      - name: Checkout Pages branch
+        uses: actions/checkout@v6
         with:
           ref: gh-pages
-      - name: Download Firmware Bundle
-        uses: actions/download-artifact@v4
+      - name: Download firmware bundle
+        uses: actions/download-artifact@v8
         with:
           name: firmware-bundle
           path: ./firmware-bundle
-      - name: Download WASM Simulator
-        uses: actions/download-artifact@v4
+      - name: Download WASM simulator
+        uses: actions/download-artifact@v8
         with:
           name: wasm-simulator
           path: ./wasm-simulator
-      - name: Move Bundle
+      - name: Update bundle files
         run: |
-          mkdir -p ./web/flash/tech.moddable.stackchan
-          rm -rf ./web/flash/tech.moddable.stackchan/*
-          mv firmware-bundle/* ./web/flash/tech.moddable.stackchan
-      - name: Move WASM Simulator
+          if [ -z "$(find ./firmware-bundle -mindepth 1 -print -quit)" ]; then
+            echo "Firmware bundle artifact is empty"
+            exit 1
+          fi
+          if [ -z "$(find ./wasm-simulator -mindepth 1 -print -quit)" ]; then
+            echo "WASM simulator artifact is empty"
+            exit 1
+          fi
+          rm -rf ./web/flash/tech.moddable.stackchan ./web/simulator
+          mkdir -p ./web/flash/tech.moddable.stackchan ./web/simulator
+          cp -R ./firmware-bundle/. ./web/flash/tech.moddable.stackchan/
+          cp -R ./wasm-simulator/. ./web/simulator/
+      - name: Commit bundle update
         run: |
-          mkdir -p ./web/simulator
-          rm -rf ./web/simulator/*
-          mv wasm-simulator/* ./web/simulator
-      - name: Commit and Push
-        run: |
-          git config --global user.name 'GitHub Action'
-          git config --global user.email 'action@github.com'
-          git add .
+          git config user.name 'GitHub Action'
+          git config user.email 'action@github.com'
+          git add ./web/flash/tech.moddable.stackchan ./web/simulator
+          if git diff --cached --quiet; then
+            echo "No bundle changes to deploy"
+            exit 0
+          fi
           git commit -m "Deploy firmware bundle from ${{ github.sha }}"
-          git push
+          git push origin HEAD:gh-pages

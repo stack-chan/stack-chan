@@ -14,7 +14,7 @@ export function onRobotCreated(robot) {
   const targetLoop = () => {
     const sample = sensor.sample()
     robot.showBalloon(
-      `Temperature: ${sample.thermometer.temperature.toFixed(2)} C. 
+      `Temperature: ${sample.thermometer.temperature.toFixed(2)} C.
       Humidity: ${sample.hygrometer.humidity.toFixed(2)} %`,
       param,
     )

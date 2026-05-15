@@ -2,6 +2,7 @@ import loadPreferences from 'loadPreference'
 import defaultMod, { type StackchanMod } from 'default-mods/mod'
 import { DynamixelDriver } from 'dynamixel-driver'
 import Led from 'led'
+import { M5StackChanServoDriver } from 'm5stackchan-servo-driver'
 import config from 'mc/config'
 import Microphone from 'microphone'
 import Modules from 'modules'
@@ -12,6 +13,7 @@ import { Renderer as ImageFaceRenderer } from 'renderer-image'
 import { Renderer as SimpleRenderer } from 'renderer-simple'
 import { Renderer as SmallFaceRenderer } from 'renderer-small'
 import { type Driver, type Renderer, Robot, type Button as RobotButton, type TTS } from 'robot'
+import PY32Led from 'py32-led'
 import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
@@ -34,6 +36,8 @@ type SimulatorButtonCtor = new (options: {
 }) => {
   read: () => number | undefined
 }
+
+type RobotLed = Pick<Led, 'on' | 'off' | 'blink' | 'rainbow'>
 
 type GlobalEnvironment = {
   button?: Partial<Record<'a' | 'b' | 'c', DeviceButton>>
@@ -66,6 +70,10 @@ class SimButton {
 function createRobot() {
   const drivers = new Map<string, (param: unknown) => Driver>([
     ['scservo', (param) => new SCServoDriver(param as ConstructorParameters<typeof SCServoDriver>[0])],
+    [
+      'm5stackchan',
+      (param) => new M5StackChanServoDriver(param as ConstructorParameters<typeof M5StackChanServoDriver>[0]),
+    ],
     ['dynamixel', (param) => new DynamixelDriver(param as ConstructorParameters<typeof DynamixelDriver>[0])],
     ['pwm', (param) => new PWMServoDriver(param as ConstructorParameters<typeof PWMServoDriver>[0])],
     ['rs30x', (param) => new RS30XDriver(param as ConstructorParameters<typeof RS30XDriver>[0])],
@@ -125,12 +133,42 @@ function createRobot() {
   const tone = new Tone({ volume: ttsPrefs.volume })
 
   const configLed = loadPreferences('led')
-  const led = Object.fromEntries(
-    Object.entries(configLed).map(([key, config]) => [
-      key,
-      new Led(config as { pin: number; length?: number; order?: string }),
-    ]),
+  const ledEntries: [string, RobotLed][] = Object.entries(configLed).flatMap(
+    ([key, ledConfig]): [string, RobotLed][] => {
+      const candidate = ledConfig as {
+        type?: unknown
+        pin?: unknown
+        length?: unknown
+        order?: unknown
+        ledPin?: unknown
+        address?: unknown
+      }
+      if (
+        typeof ledConfig !== 'object' ||
+        ledConfig == null ||
+        (candidate.length !== undefined && typeof candidate.length !== 'number') ||
+        (candidate.order !== undefined && typeof candidate.order !== 'string') ||
+        (candidate.ledPin !== undefined && typeof candidate.ledPin !== 'number') ||
+        (candidate.address !== undefined && typeof candidate.address !== 'number')
+      ) {
+        trace(`[main] skip led config (invalid shape): ${key}\n`)
+        return []
+      }
+      if (candidate.type === 'py32') {
+        if (typeof candidate.ledPin !== 'number') {
+          trace(`[main] skip py32 led config (missing/invalid ledPin): ${key}\n`)
+          return []
+        }
+        return [[key, new PY32Led(candidate as { length?: number; ledPin?: number; address?: number })]]
+      }
+      if (typeof candidate.pin !== 'number') {
+        trace(`[main] skip led config (missing/invalid pin): ${key}\n`)
+        return []
+      }
+      return [[key, new Led(candidate as { pin: number; length?: number; order?: string })]]
+    },
   )
+  const led = Object.fromEntries(ledEntries)
 
   return new Robot({
     driver,
@@ -140,7 +178,7 @@ function createRobot() {
     touch,
     tone,
     microphone,
-    led,
+    led: led as ConstructorParameters<typeof Robot>[0]['led'],
   } as ConstructorParameters<typeof Robot>[0])
 }
 

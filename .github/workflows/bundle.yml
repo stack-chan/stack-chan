@@ -34,10 +34,6 @@ jobs:
       - uses: actions/checkout@v6
       - name: Setup
         uses: ./.github/actions/setup
-      - name: Pin Moddable SDK
-        run: |
-          git -C "$HOME/.local/share/moddable" fetch origin b0411457e4577ea5560c780cb7824f3b00c2b2af
-          git -C "$HOME/.local/share/moddable" checkout --detach FETCH_HEAD
       - name: Bundle firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
@@ -45,6 +41,15 @@ jobs:
         uses: mymindstorm/setup-emsdk@v14
         with:
           version: 3.1.2
+      - name: Apply Moddable WASM Promise patch
+        run: |
+          patch_commit="651a69bba5fb704730891769d40df7badd44c225"
+          if grep -q "promiseJobsTimer" "$HOME/.local/share/moddable/xs/platforms/wasm_xs.h"; then
+            echo "Moddable WASM Promise patch is already present"
+            exit 0
+          fi
+          git -C "$HOME/.local/share/moddable" fetch https://github.com/meganetaaan/moddable.git "$patch_commit"
+          git -C "$HOME/.local/share/moddable" cherry-pick --no-commit FETCH_HEAD
       - name: Build WASM simulator firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm

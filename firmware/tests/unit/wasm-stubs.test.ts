@@ -150,11 +150,27 @@ test('WASM main path loads an installed MOD archive before falling back to the d
   assert.match(wasmBlock, /onLaunch = mod\.onLaunch \?\? onLaunch/)
 })
 
+test('real-device camera preview stays independent from the WASM-only RuntimeBitmapPort binding', () => {
+  const manifest = JSON.parse(readFileSync('stackchan/manifest.json', 'utf8'))
+  const previewSource = readFileSync('stackchan/camera-preview.ts', 'utf8')
+
+  assert.deepEqual(
+    manifest.modules['*'].filter((specifier: string) => specifier.includes('camera-preview')),
+    ['./camera-preview', './camera-preview-utils'],
+  )
+  assert.doesNotMatch(previewSource, /runtime-bitmap-port/)
+  assert.doesNotMatch(previewSource, /RuntimeBitmapPort/)
+  assert.match(previewSource, /new Port\(/)
+  assert.match(previewSource, /onRender\?: \(mode: CameraPreviewRenderMode\) => void/)
+  assert.match(previewSource, /this\.options\?\.onRender\?\.\('mosaic'\)/)
+})
+
 test('WASM camera preview uses a native RuntimeBitmapPort binding before falling back to mosaic', () => {
   const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
-  const previewSource = readFileSync('stackchan/camera-preview.ts', 'utf8')
+  const previewSource = readFileSync('stackchan/wasm/camera-preview.ts', 'utf8')
   const portSource = readFileSync('stackchan/runtime-bitmap-port.js', 'utf8')
 
+  assert.equal(manifest.modules['camera-preview'], './wasm/camera-preview')
   assert.equal(manifest.modules['runtime-bitmap-port'], './runtime-bitmap-port')
   assert.match(portSource, /drawBitmap\(bitmap, x, y, sx = 0, sy = 0, sw = bitmap\.width, sh = bitmap\.height\)/)
   assert.match(portSource, /xs_stackchan_runtime_bitmap_port_draw/)

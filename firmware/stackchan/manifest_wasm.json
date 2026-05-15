@@ -15,7 +15,7 @@
     "*": ["./touch", "./robot", "./main"],
     "camera": "./wasm/camera",
     "wasm-camera-bridge": "./wasm/camera-bridge",
-    "camera-preview": "./camera-preview",
+    "camera-preview": "./wasm/camera-preview",
     "camera-preview-utils": "./camera-preview-utils",
     "runtime-bitmap-port": "./runtime-bitmap-port",
     "wasm-audio-bridge": "./wasm/audio-bridge",

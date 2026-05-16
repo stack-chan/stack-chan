@@ -11,6 +11,7 @@ export PATH="$PWD/node_modules/.bin:$PATH"
 platform="${STACKCHAN_LIN_SMOKE_PLATFORM:-lin/m5stack}"
 platform_path="${platform//\//\/}"
 smoke_timeout="${STACKCHAN_LIN_SMOKE_TIMEOUT:-10s}"
+xsbug_host="${STACKCHAN_LIN_XSBUG_HOST:-127.0.0.1}"
 xsbug_port="${STACKCHAN_LIN_XSBUG_PORT:-5002}"
 xsbug_log="$(mktemp "${TMPDIR:-/tmp}/stackchan-lin-xsbug-log.XXXXXX")"
 server_log="$(mktemp "${TMPDIR:-/tmp}/stackchan-lin-xsbug-server.XXXXXX")"
@@ -25,7 +26,7 @@ cleanup() {
 trap cleanup EXIT
 
 rm -rf "$MODDABLE/build/tmp/$platform_path/debug/stackchan" "$MODDABLE/build/bin/$platform_path/debug/stackchan"
-mcconfig -dl -m -p "$platform" -t build "$PWD/stackchan/manifest_local.json"
+mcconfig -dl -x "$xsbug_host:$xsbug_port" -m -p "$platform" -t build "$PWD/stackchan/manifest_local.json"
 
 build_dir="$MODDABLE/build/tmp/$platform_path/debug/stackchan"
 forbidden_imports=$(find "$build_dir" -path '*/tsc/*' -type f -name '*.js' -exec grep -nE 'runtime-bitmap-port|wasm-audio-bridge|wasm-camera-bridge' {} + || true)
@@ -35,7 +36,7 @@ if [[ -n "$forbidden_imports" ]]; then
   exit 1
 fi
 
-XSBUG_PORT="$xsbug_port" XSBUG_LOG_PATH="$xsbug_log" node ./scripts/xsbug-log-smoke-server.js >"$server_log" 2>&1 &
+XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" XSBUG_LOG_PATH="$xsbug_log" node ./scripts/xsbug-log-smoke-server.js >"$server_log" 2>&1 &
 server_pid=$!
 
 for _ in {1..50}; do
@@ -57,7 +58,7 @@ if ! grep -q 'xsbug smoke log server listening' "$server_log" 2>/dev/null; then
 fi
 
 set +e
-timeout "$smoke_timeout" xvfb-run -a "$MODDABLE/build/bin/lin/release/mcsim" "$MODDABLE/build/bin/$platform_path/debug/stackchan/mc.so"
+timeout "$smoke_timeout" env XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" xvfb-run -a "$MODDABLE/build/bin/lin/release/mcsim" "$MODDABLE/build/bin/$platform_path/debug/stackchan/mc.so"
 status=$?
 set -e
 
@@ -65,10 +66,11 @@ if [[ "$status" -ne 124 ]]; then
   cat "$xsbug_log" >&2 || true
   if [[ "$status" -eq 0 ]]; then
     echo "mcsim exited before $smoke_timeout; treating as startup smoke failure" >&2
+    exit 1
   else
     echo "mcsim failed during startup smoke with exit code $status" >&2
+    exit "$status"
   fi
-  exit "$status"
 fi
 
 if grep -E 'XS abort|# exception|stack overflow|module not found|Cannot find module|unhandled exception|throw!' "$xsbug_log" >&2; then

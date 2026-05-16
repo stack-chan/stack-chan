@@ -19,14 +19,19 @@ const append = (message) => {
 
 const server = createServer((socket) => {
   socket.setEncoding('utf8')
+  let promptBuffer = ''
   socket.on('data', (chunk) => {
     append(chunk)
+    promptBuffer += chunk
 
     // The debug Linux simulator pauses at startup and on breakpoints until the
     // debugger sends <go/>. Keep the smoke non-interactive so CI can inspect
     // the runtime log and continue through startup milestones.
-    if (/<(login|break|bubble)\b/.test(chunk)) {
+    if (/<(login|break|bubble)\b/.test(promptBuffer)) {
       socket.write('\r\n<go/>\r\n')
+      promptBuffer = ''
+    } else {
+      promptBuffer = promptBuffer.slice(-128)
     }
   })
   socket.on('error', (error) => {

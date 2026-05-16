@@ -190,6 +190,9 @@
       }
     },
     "lin/m5stack": {
+      "creation": {
+        "stack": 1024
+      },
       "config": {
         "driver": {
           "type": "none"

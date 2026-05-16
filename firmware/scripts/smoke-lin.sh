@@ -8,7 +8,16 @@ fi
 
 export PATH="$PWD/node_modules/.bin:$PATH"
 
+rm -rf "$MODDABLE/build/tmp/lin/mc/debug/stackchan" "$MODDABLE/build/bin/lin/mc/debug/stackchan"
 mcconfig -d -m -p lin -t build "$PWD/stackchan/manifest_local.json"
+
+build_dir="$MODDABLE/build/tmp/lin/mc/debug/stackchan"
+forbidden_imports=$(find "$build_dir" -path '*/tsc/*' -type f -name '*.js' -exec grep -nE 'runtime-bitmap-port|wasm-audio-bridge|wasm-camera-bridge' {} + || true)
+if [[ -n "$forbidden_imports" ]]; then
+  printf '%s\n' "$forbidden_imports"
+  echo "WASM-only native binding leaked into the Linux/default import graph" >&2
+  exit 1
+fi
 
 smoke_timeout="${STACKCHAN_LIN_SMOKE_TIMEOUT:-10s}"
 set +e

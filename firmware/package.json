@@ -15,6 +15,8 @@
     "test": "npm run test:unit",
     "test:unit": "rm -rf dist-tests && tsc --project tsconfig.test.json && node --test \"dist-tests/tests/unit/**/*.test.js\" \"dist-tests/stackchan/drivers/__tests__/**/*.test.js\"",
     "build": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target -t build \"$PWD/stackchan/manifest_local.json\"",
+    "build:lin": "mcconfig -d -m -p lin -t build \"$PWD/stackchan/manifest_local.json\"",
+    "smoke:lin": "bash scripts/smoke-lin.sh",
     "build:wasm": "mcconfig -d -m -p wasm -t build \"$PWD/stackchan/manifest_wasm.json\" && mkdir -p ../web/simulator && cp $MODDABLE/build/bin/wasm/debug/stackchan/mc.js $MODDABLE/build/bin/wasm/debug/stackchan/mc.wasm ../web/simulator/",
     "bundle": "mcbundle -d -m \"$PWD/stackchan/manifest.json\"",
     "deploy": "cross-env npm_config_target?=esp32/m5stack cross-env-shell mcconfig -d -m -p \\$npm_config_target -t deploy \"$PWD/stackchan/manifest_local.json\"",

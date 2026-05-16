@@ -55,6 +55,9 @@ jobs:
       - name: Run firmware tests
         working-directory: ./firmware
         run: npm run test
+      - name: Smoke test Linux simulator startup
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run smoke:lin
       - name: Run web simulator tests
         working-directory: ./web
         run: npm test

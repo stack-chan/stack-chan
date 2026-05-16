@@ -27,7 +27,7 @@ test('does not render obsolete A-D demo buttons', () => {
     assert.equal(script.includes(obsoleteId), false, `${obsoleteId} should not be wired`)
   }
 
-  assert.equal(script.includes('createHostButtonBridge'), false)
-  assert.equal(script.includes('Host.Button'), false)
-  assert.equal(bridge.includes('createHostButtonBridge'), false)
+  assert.equal(script.includes('setHtmlAction'), false)
+  assert.match(script, /Button: buttonBridge\.Button/)
+  assert.match(bridge, /createHostButtonBridge/)
 })

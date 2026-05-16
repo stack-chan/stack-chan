@@ -7,6 +7,7 @@ import {
   clientPointFromTouch,
   createHostAudioInBridge,
   createHostAudioOutBridge,
+  createHostButtonBridge,
   createHostCameraBridge,
   createHostDriverBridge,
   installModArchiveIntoWasm,
@@ -563,6 +564,7 @@ const traceLog = document.getElementById('trace-log')
 const modStorage = createModStorage()
 const browserCameraButton = document.getElementById('browser-camera-button')
 const browserCameraStatus = document.getElementById('browser-camera-status')
+const buttonBridge = createHostButtonBridge({ logger: (message) => console.log(message) })
 const audioOutBridge = createHostAudioOutBridge()
 const audioInBridge = createHostAudioInBridge()
 const cameraBridge = createHostCameraBridge()
@@ -587,11 +589,12 @@ if (browserCameraButton) {
   })
 }
 globalThis.Host = {
+  Button: buttonBridge.Button,
   AudioOut: audioOutBridge,
   AudioIn: audioInBridge,
   Camera: cameraBridge,
 }
-console.log('[bridge] global Host.Audio/Camera bridges installed')
+console.log('[bridge] global Host.Button/Audio/Camera constructors installed')
 
 function describeModStatus(result, installedMod = null) {
   if (result?.status === 'prepared') {

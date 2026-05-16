@@ -142,6 +142,24 @@
         "virtualButton": false
       }
     },
+    "esp32/m5stackchan_cores3": {
+      "creation": {
+        "static": 0,
+        "chunk": {
+          "initial": 262144,
+          "incremental": 0
+        },
+        "heap": {
+          "initial": 4096,
+          "incremental": 256
+        },
+        "stack": 512,
+        "keys": {
+          "initial": 32,
+          "incremental": 32
+        }
+      }
+    },
     "esp32/m5atom_s3": {
       "config": {
         "renderer": {

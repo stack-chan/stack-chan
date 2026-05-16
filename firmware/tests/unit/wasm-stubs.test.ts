@@ -175,6 +175,8 @@ test('WASM camera preview uses a native RuntimeBitmapPort binding before falling
   assert.match(portSource, /drawBitmap\(bitmap, x, y, sx = 0, sy = 0, sw = bitmap\.width, sh = bitmap\.height\)/)
   assert.match(portSource, /xs_stackchan_runtime_bitmap_port_draw/)
   assert.match(previewSource, /import RuntimeBitmapPort from 'runtime-bitmap-port'/)
+  assert.match(previewSource, /from 'camera-preview-utils'/)
+  assert.doesNotMatch(previewSource, /^import (?!type).*from '\.\.\//m)
   assert.match(previewSource, /new RuntimeBitmapPort\(/)
   assert.match(previewSource, /reportRenderMode\('runtime-bitmap-port'\)/)
   assert.doesNotMatch(previewSource, /ENABLE_RUNTIME_TEXTURE_PREVIEW/)

@@ -1,5 +1,5 @@
 import type { CameraFrame } from '../camera.js'
-import { sampleRgb565LeMosaic } from '../camera-preview-utils.js'
+import { sampleRgb565LeMosaic } from 'camera-preview-utils'
 
 import Bitmap from 'commodetto/Bitmap'
 import { Container, type Container as PiuContainer, type Port as PiuPort } from 'piu/MC'

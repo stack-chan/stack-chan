@@ -1,4 +1,3 @@
-const BUTTON_NAMES = ['a', 'b', 'c']
 const MOD_INSTALL_HOOKS = ['_fxMainSetModArchive', '_wasmModInstallArchive']
 const DEFAULT_CAMERA_WIDTH = 96
 const DEFAULT_CAMERA_HEIGHT = 96
@@ -27,53 +26,6 @@ function writeRgb565Le(view, width, height) {
       view[offset + 1] = (pixel >> 8) & 0xff
       offset += 2
     }
-  }
-}
-
-export function createHostButtonBridge({
-  logger = console.log,
-  setTimeoutFn = globalThis.setTimeout,
-  resetDelayMs = 120,
-} = {}) {
-  const states = Object.fromEntries(
-    BUTTON_NAMES.map((name) => [name, { pressed: 1, firmwareCallbacks: new Set(), htmlAction: undefined }])
-  )
-
-  const Button = Object.fromEntries(
-    BUTTON_NAMES.map((name) => [
-      name,
-      class HtmlBridgeButton {
-        constructor({ onPush } = {}) {
-          if (onPush) states[name].firmwareCallbacks.add(onPush)
-        }
-
-        read() {
-          return states[name].pressed
-        }
-      },
-    ])
-  )
-
-  return {
-    Button,
-    setHtmlAction(name, action) {
-      if (!states[name]) return
-      states[name].htmlAction = action
-    },
-    push(name) {
-      const state = states[name]
-      if (!state) return
-      logger(`[bridge] Host.Button.${name} pushed`)
-      state.pressed = 0
-      for (const callback of state.firmwareCallbacks) callback()
-      state.htmlAction?.()
-      setTimeoutFn(() => {
-        state.pressed = 1
-      }, resetDelayMs)
-    },
-    read(name) {
-      return states[name]?.pressed
-    },
   }
 }
 

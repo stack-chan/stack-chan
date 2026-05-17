@@ -60,7 +60,7 @@
     "node-fetch": "^3.3.0",
     "typedoc": "^0.28.19",
     "typedoc-plugin-markdown": "^4.11.0",
-    "typescript": "^6.0.2",
+    "typescript": "^6.0.3",
     "web-audio-engine": "^0.13.4",
     "xs-dev": "^1.12.1",
     "yargs": "^18.0.0"

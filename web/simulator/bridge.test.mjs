@@ -13,7 +13,7 @@ import {
 } from './bridge.mjs'
 
 describe('Host.Button bridge', () => {
-  it('exposes constructible active-low buttons sharing state with HTML pushes', () => {
+  it('keeps constructible active-low buttons for button-aware MOD compatibility', () => {
     const scheduled = []
     const events = []
     const bridge = createHostButtonBridge({
@@ -23,25 +23,30 @@ describe('Host.Button bridge', () => {
         return scheduled.length
       },
     })
-    bridge.setHtmlAction('a', () => events.push('html:a'))
     const firmwareButton = new bridge.Button.a({ onPush: () => events.push('firmware:a') })
 
     assert.equal(firmwareButton.read(), 1)
+    assert.equal(bridge.read('a'), 1)
     bridge.push('a')
 
     assert.equal(firmwareButton.read(), 0)
-    assert.deepEqual(events, ['[bridge] Host.Button.a pushed', 'firmware:a', 'html:a'])
+    assert.equal(bridge.read('a'), 0)
+    assert.deepEqual(events, ['[bridge] Host.Button.a pushed', 'firmware:a'])
     assert.equal(scheduled[0].delay, 120)
 
     scheduled[0].callback()
     assert.equal(firmwareButton.read(), 1)
+    assert.equal(bridge.read('a'), 1)
   })
 
   it('ignores unknown button names without throwing', () => {
     const bridge = createHostButtonBridge({ logger: () => {} })
     assert.doesNotThrow(() => bridge.push('x'))
+    assert.equal(bridge.read('x'), undefined)
   })
+})
 
+describe('WASM screen diagnostics', () => {
   it('summarizes sampled image data so blank alpha buffers are visible in diagnostics', () => {
     const stats = summarizeImageData(new Uint8ClampedArray([0, 0, 0, 0, 12, 0, 0, 255]))
 
@@ -51,7 +56,6 @@ describe('Host.Button bridge', () => {
     assert.deepEqual(stats.firstPixel, [0, 0, 0, 0])
   })
 })
-
 describe('Host.Driver bridge', () => {
   it('records firmware rotation messages and notifies the simulator scene', () => {
     const events = []

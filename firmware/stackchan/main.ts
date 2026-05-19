@@ -216,7 +216,8 @@ async function main() {
   }
   if (config.wasm) {
     trace('[main] wasm path start\n')
-    let { onRobotCreated, onLaunch } = defaultMod
+    const wasmDefaultMod = Modules.importNow('default-mods/wasm/mod') as StackchanMod
+    let { onRobotCreated, onLaunch } = wasmDefaultMod
     trace(`[main] wasm defaultMod onLaunch=${onLaunch != null} onRobotCreated=${onRobotCreated != null}\n`)
     if (Modules.has('mod')) {
       trace('[main] wasm loading mod override\n')

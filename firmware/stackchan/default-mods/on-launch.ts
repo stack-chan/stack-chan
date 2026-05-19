@@ -1,5 +1,6 @@
 import { Application, Column, Container, Label, Skin, Style } from 'piu/MC'
 import { NetworkService } from 'network-service'
+import { showStartupSplash } from 'startup-splash'
 import { PreferenceServer } from 'preference-server'
 import Preference from 'preference'
 import type { StackchanMod } from 'default-mods/mod'
@@ -147,6 +148,7 @@ async function waitForKey(): Promise<boolean> {
 }
 
 export const onLaunch: StackchanMod['onLaunch'] = async () => {
+  showStartupSplash()
   const shouldEnter = await waitForKey()
   if (!shouldEnter) {
     return true

@@ -67,11 +67,14 @@ const LIGHT_BLUE = '#0082ff'
 const DIM = '#b0b0b0'
 
 const SCREEN_HEIGHT = 240
-const PASSWORD_HEADER_HEIGHT = 36
-const PASSWORD_FIELD_HEIGHT = 32
+const PASSWORD_SCREEN_TOP = 0
+const PASSWORD_FIELD_TOP = 4
+const PASSWORD_FIELD_HEIGHT = 30
 const HORIZONTAL_KEYBOARD_HEIGHT = 164
-const PASSWORD_CONTENT_HEIGHT = SCREEN_HEIGHT - PASSWORD_HEADER_HEIGHT
-const PASSWORD_LAYOUT_FITS = PASSWORD_FIELD_HEIGHT + HORIZONTAL_KEYBOARD_HEIGHT <= PASSWORD_CONTENT_HEIGHT
+const STACKCHAN_SCREEN_BOTTOM_SAFE_AREA = 40
+const HORIZONTAL_KEYBOARD_BOTTOM = SCREEN_HEIGHT - STACKCHAN_SCREEN_BOTTOM_SAFE_AREA
+const HORIZONTAL_KEYBOARD_TOP = HORIZONTAL_KEYBOARD_BOTTOM - HORIZONTAL_KEYBOARD_HEIGHT
+const PASSWORD_LAYOUT_FITS = HORIZONTAL_KEYBOARD_BOTTOM <= SCREEN_HEIGHT - STACKCHAN_SCREEN_BOTTOM_SAFE_AREA
 void PASSWORD_LAYOUT_FITS
 
 let whiteSkin: Skin | null = null
@@ -122,7 +125,7 @@ const Header: PiuTemplate<{ title: string }> = Container.template(($: { title: s
   left: 0,
   right: 0,
   top: 0,
-  height: PASSWORD_HEADER_HEIGHT,
+  height: 36,
   skin: getLightBlueSkin(),
   style: getTitleStyle(),
   contents: [new Label(null, { left: 12, right: 8, top: 0, bottom: 0, style: getTitleStyle(), string: $.title })],
@@ -311,7 +314,7 @@ const NetworkListScreen: PiuTemplate<NetworkListData> = Container.template(($: N
         new Column($, {
           left: 0,
           right: 0,
-          top: PASSWORD_HEADER_HEIGHT,
+          top: 36,
           clip: true,
           Behavior: NetworkListScreenColumnBehavior,
         }),
@@ -326,7 +329,7 @@ const TRANSITION = true
 const KeyboardContainer: PiuTemplate<KeyboardData, Column> = Column.template(($: KeyboardData) => ({
   left: 0,
   right: 0,
-  top: PASSWORD_HEADER_HEIGHT,
+  top: PASSWORD_SCREEN_TOP,
   bottom: 0,
   active: true,
   contents: [
@@ -335,7 +338,7 @@ const KeyboardContainer: PiuTemplate<KeyboardData, Column> = Column.template(($:
       password: true,
       left: 12,
       right: 12,
-      top: 2,
+      top: PASSWORD_FIELD_TOP,
       height: PASSWORD_FIELD_HEIGHT,
       skin: getFieldSkin(),
       style: getBlackStyle(),
@@ -345,7 +348,7 @@ const KeyboardContainer: PiuTemplate<KeyboardData, Column> = Column.template(($:
       anchor: 'KEYBOARD',
       left: 0,
       right: 0,
-      bottom: 0,
+      top: HORIZONTAL_KEYBOARD_TOP,
       height: HORIZONTAL_KEYBOARD_HEIGHT,
       skin: getWhiteSkin(),
     }),
@@ -402,7 +405,7 @@ const LoginScreen: PiuTemplate<KeyboardData, Column> = Column.template(($: Keybo
   top: 0,
   bottom: 0,
   skin: getWhiteSkin(),
-  contents: [new Header({ title: $.runtime.state.selectedNetwork?.ssid ?? 'Password' }), new KeyboardContainer($)],
+  contents: [new KeyboardContainer($)],
   Behavior: LoginScreenBehavior,
 }))
 

@@ -44,7 +44,7 @@ describe('setup ui model', () => {
   })
 
   test('Moddable expanding keyboard supports uppercase, numbers, and symbols via toggle rows', () => {
-    const moddablePath = process.env.MODDABLE ?? '/home/openclaw/.local/share/moddable'
+    const moddablePath = process.env.MODDABLE ?? `${process.env.HOME}/.local/share/moddable`
     const commonKeyboard = readFileSync(`${moddablePath}/modules/input/expanding-keyboard/common/keyboard.js`, 'utf8')
 
     assert.match(commonKeyboard, /\["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM/)

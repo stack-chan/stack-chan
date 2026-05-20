@@ -12,8 +12,16 @@
     "./manifest_typings.json"
   ],
   "modules": {
-    "*": ["./touch", "./robot", "./startup-splash", "./main"],
+    "*": [
+      "./touch",
+      "./robot",
+      "./setup-ui",
+      "./setup-ui-model",
+      "./startup-splash",
+      "./main"
+    ],
     "camera": "./wasm/camera",
+    "setup-ui-networks": "./wasm/setup-ui-networks",
     "wasm-camera-bridge": "./wasm/camera-bridge",
     "camera-preview": "./wasm/camera-preview",
     "camera-preview-utils": "./camera-preview-utils",

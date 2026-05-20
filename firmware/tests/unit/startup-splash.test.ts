@@ -51,6 +51,7 @@ describe('startup splash screen', () => {
   test('startup choice automatically boots after timeout and enters settings on screen touch', () => {
     const source = readFileSync(defaultLaunchPath, 'utf8')
 
+    assert.match(source, /import \{ showSetupUI \} from 'setup-ui'/)
     assert.match(source, /type StartupChoice = 'boot' \| 'settings'/)
     assert.match(source, /const STARTUP_AUTO_BOOT_DELAY_MS = 3000/)
     assert.match(source, /function waitForStartupChoice/)
@@ -58,6 +59,7 @@ describe('startup splash screen', () => {
     assert.match(source, /choose\('boot'\)/)
     assert.match(source, /resolve\(\{ choice, application \}\)/)
     assert.match(source, /startupChoice\.choice === 'boot'/)
+    assert.match(source, /showSetupUI\(\{/)
   })
 
   test('wasm default mod uses the same touch-or-timeout launch choice', () => {
@@ -68,6 +70,7 @@ describe('startup splash screen', () => {
     assert.match(mainSource, /Modules\.importNow\('default-mods\/wasm\/mod'\)/)
     assert.match(source, /default-mods\/on-launch/)
     assert.doesNotMatch(source, /default-mods\/wasm\/on-launch/)
+    assert.match(manifest, /"setup-ui-networks": "\.\/wasm\/setup-ui-networks"/)
     assert.match(manifest, /"default-mods\/wasm\/mod"/)
   })
 })

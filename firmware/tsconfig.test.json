@@ -21,6 +21,12 @@
       "face-context": [
         "stackchan/renderers-piu/face-context.ts"
       ],
+      "setup-ui-model": [
+        "stackchan/setup-ui-model.ts"
+      ],
+      "setup-ui-networks": [
+        "stackchan/setup-ui-networks.ts"
+      ],
       "parts/*": [
         "stackchan/renderers-piu/parts/*"
       ],
@@ -41,6 +47,9 @@
     "stackchan/drivers/wasm/**/*.ts",
     "stackchan/camera.ts",
     "stackchan/camera-preview-utils.ts",
+    "stackchan/setup-ui-model.ts",
+    "stackchan/setup-ui-networks.ts",
+    "stackchan/wasm/setup-ui-networks.ts",
     "stackchan/wasm/camera.ts",
     "stackchan/wasm/microphone.ts",
     "stackchan/drivers/m5stackchan-servo.ts",

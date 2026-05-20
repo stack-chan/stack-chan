@@ -1,13 +1,16 @@
-import { Application, Column, Container, Label, Skin, Style } from 'piu/MC'
+import { Column, Container, Label, Skin, Style } from 'piu/MC'
+import type { Application as PiuApplication, Label as PiuLabel } from 'piu/MC'
 import { NetworkService } from 'network-service'
 import { showStartupSplash } from 'startup-splash'
 import { PreferenceServer } from 'preference-server'
 import Preference from 'preference'
 import type { StackchanMod } from 'default-mods/mod'
-import config from 'mc/config'
 import { DOMAIN, PREF_KEYS } from 'consts'
 import Timer from 'timer'
-import type { Label as PiuLabel } from 'piu/MC'
+
+type StartupChoice = 'boot' | 'settings'
+
+const STARTUP_AUTO_BOOT_DELAY_MS = 3000
 
 type Status = {
   ble: string
@@ -24,142 +27,130 @@ type StatusLabels = {
   hint: PiuLabel
 }
 
-const screenSkin = new Skin({ fill: '#000000' })
-const titleStyle = new Style({
-  font: '20px Open Sans',
-  color: '#ffffff',
-  horizontal: 'left',
-  vertical: 'middle',
-})
-const labelStyle = new Style({
-  font: '16px Open Sans',
-  color: '#ffffff',
-  horizontal: 'left',
-  vertical: 'middle',
-})
+let screenSkin: Skin | null = null
+let titleStyle: Style | null = null
+let labelStyle: Style | null = null
 
-const buildStatusUI = (status: Status): StatusLabels => {
-  const labels: StatusLabels = {
-    ble: new Label(null, { left: 0, right: 0, height: 22, style: labelStyle }),
-    wifi: new Label(null, { left: 0, right: 0, height: 22, style: labelStyle }),
-    ssid: new Label(null, { left: 0, right: 0, height: 22, style: labelStyle }),
-    password: new Label(null, { left: 0, right: 0, height: 22, style: labelStyle }),
-    hint: new Label(null, { left: 0, right: 0, height: 22, style: labelStyle }),
+function getScreenSkin() {
+  if (!screenSkin) screenSkin = new Skin({ fill: '#000000' })
+  return screenSkin
+}
+
+function getTitleStyle() {
+  if (!titleStyle) {
+    titleStyle = new Style({
+      font: '20px Open Sans',
+      color: '#ffffff',
+      horizontal: 'left',
+      vertical: 'middle',
+    })
   }
-  new Application(null, {
-    skin: screenSkin,
-    contents: [
-      new Container(null, {
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        contents: [
-          new Column(null, {
-            left: 10,
-            right: 10,
-            top: 20,
-            contents: [
-              new Label(null, {
-                left: 0,
-                right: 0,
-                height: 26,
-                string: 'Stack-chan Setup',
-                style: titleStyle,
-              }),
-              labels.ble,
-              labels.ssid,
-              labels.password,
-              labels.wifi,
-              labels.hint,
-            ],
-          }),
-        ],
-      }),
-    ],
-  })
+  return titleStyle
+}
+
+function getLabelStyle() {
+  if (!labelStyle) {
+    labelStyle = new Style({
+      font: '16px Open Sans',
+      color: '#ffffff',
+      horizontal: 'left',
+      vertical: 'middle',
+    })
+  }
+  return labelStyle
+}
+
+const buildStatusUI = (application: PiuApplication, status: Status): StatusLabels => {
+  const labels: StatusLabels = {
+    ble: new Label(null, { left: 0, right: 0, height: 22, style: getLabelStyle() }),
+    wifi: new Label(null, { left: 0, right: 0, height: 22, style: getLabelStyle() }),
+    ssid: new Label(null, { left: 0, right: 0, height: 22, style: getLabelStyle() }),
+    password: new Label(null, { left: 0, right: 0, height: 22, style: getLabelStyle() }),
+    hint: new Label(null, { left: 0, right: 0, height: 22, style: getLabelStyle() }),
+  }
+  application.empty()
+  application.skin = getScreenSkin()
+  application.add(
+    new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      contents: [
+        new Column(null, {
+          left: 10,
+          right: 10,
+          top: 20,
+          contents: [
+            new Label(null, {
+              left: 0,
+              right: 0,
+              height: 26,
+              string: 'Stack-chan Setup',
+              style: getTitleStyle(),
+            }),
+            labels.ble,
+            labels.ssid,
+            labels.password,
+            labels.wifi,
+            labels.hint,
+          ],
+        }),
+      ],
+    }),
+  )
   updateStatusLabels(labels, status)
   return labels
 }
 
 const updateStatusLabels = (labels: StatusLabels, status: Status): void => {
   labels.ble.string = `BLE: ${status.ble}`
-  labels.ssid.string = `SSID: ${status['wifi.ssid'] ?? 'not set'}`
-  const maskedPassword = status['wifi.password']?.replace(/./g, '*') ?? 'not set'
+  labels.ssid.string = `SSID: ${status['wifi.ssid'] || 'not set'}`
+  const maskedPassword = status['wifi.password'] ? status['wifi.password'].replace(/./g, '*') : 'not set'
   labels.password.string = `password: ${maskedPassword}`
   labels.wifi.string = `Wi-Fi: ${status.wifi}`
   labels.hint.string = 'Press A to test connection'
 }
 
-async function waitForKey(): Promise<boolean> {
-  interface GlobalEnvironment {
-    device?: {
-      sensor?: {
-        Touch?: unknown
-      }
-    }
-  }
-  const globalEnv = globalThis as unknown as GlobalEnvironment
-  const Touch = config.Touch || globalEnv.device?.sensor?.Touch
-  let isPressed: () => boolean
-  // biome-ignore lint/suspicious/noExplicitAny: touch driver of device don't have type
-  let touch: any
-  if (Touch) {
-    touch = new Touch()
-    if (touch.sample) {
-      // ECMA-419 driver
-      isPressed = () => {
-        const points = touch.sample()
-        return points?.length > 0
-      }
-    } else {
-      touch.points = [{}]
-      isPressed = () => {
-        touch.read(touch.points)
-        const state = touch.points[0].state
-        return state === 1 || state === 2
-      }
-    }
-  } else {
-    // legacy driver
-    isPressed = () => {
-      if (!globalThis.button || !globalThis.button.c) {
-        return false
-      }
-      return !globalThis.button.c.read()
-    }
-  }
+type StartupChoiceResult = {
+  choice: StartupChoice
+  application: PiuApplication
+}
+
+function waitForStartupChoice(): Promise<StartupChoiceResult> {
   return new Promise((resolve) => {
-    let count = 0
-    const handle = Timer.repeat(() => {
-      if (isPressed()) {
-        if (touch?.sample) touch.close()
-        Timer.clear(handle)
-        resolve(true)
-      }
-      count++
-      if (count >= 10) {
-        if (touch?.sample) touch.close()
-        Timer.clear(handle)
-        resolve(false)
-      }
-    }, 100)
+    let isResolved = false
+    let handle: ReturnType<typeof Timer.set> | undefined
+    let application: PiuApplication
+    const choose = (choice: StartupChoice) => {
+      if (isResolved) return
+      isResolved = true
+      if (handle) Timer.clear(handle)
+      resolve({ choice, application })
+    }
+
+    application = showStartupSplash({ onTouch: () => Timer.set(() => choose('settings'), 0) })
+    handle = Timer.set(() => choose('boot'), STARTUP_AUTO_BOOT_DELAY_MS)
   })
 }
 
+const preferenceString = (key: string): string => {
+  const value = Preference.get(DOMAIN.wifi, key)
+  return value === undefined || value === null ? '' : String(value)
+}
+
 export const onLaunch: StackchanMod['onLaunch'] = async () => {
-  showStartupSplash()
-  const shouldEnter = await waitForKey()
-  if (!shouldEnter) {
+  const startupChoice = await waitForStartupChoice()
+  if (startupChoice.choice === 'boot') {
     return true
   }
   const status: Status = {
     ble: 'not connected',
     wifi: 'not connected',
-    'wifi.ssid': String(Preference.get(DOMAIN.wifi, 'ssid')),
-    'wifi.password': String(Preference.get(DOMAIN.wifi, 'password')),
+    'wifi.ssid': preferenceString('ssid'),
+    'wifi.password': preferenceString('password'),
   }
-  const labels = buildStatusUI(status)
+  const labels = buildStatusUI(startupChoice.application, status)
 
   new PreferenceServer({
     onPreferenceChanged: (key, value) => {

@@ -5,7 +5,6 @@ import { describe, test } from 'node:test'
 const splashPath = 'stackchan/startup-splash.ts'
 const splashImagePath = 'stackchan/assets/images/startup-splash.png'
 const defaultLaunchPath = 'stackchan/default-mods/on-launch.ts'
-const wasmLaunchPath = 'stackchan/default-mods/wasm/on-launch.ts'
 const wasmModPath = 'stackchan/default-mods/wasm/mod.ts'
 const manifestPath = 'stackchan/manifest.json'
 const wasmManifestPath = 'stackchan/manifest_wasm.json'
@@ -39,28 +38,36 @@ describe('startup splash screen', () => {
     assert.match(readFileSync(wasmManifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
   })
 
-  test('default launch shows the splash before setup-mode branching', () => {
+  test('default launch shows a touchable splash before startup choice branching', () => {
+    const splashSource = readFileSync(splashPath, 'utf8')
+    const launchSource = readFileSync(defaultLaunchPath, 'utf8')
+
+    assert.match(splashSource, /onTouchBegan/)
+    assert.match(splashSource, /touchCount: 1/)
+    assert.match(launchSource, /showStartupSplash\(\{ onTouch:/)
+    assert.ok(launchSource.indexOf('showStartupSplash') < launchSource.indexOf('waitForStartupChoice'))
+  })
+
+  test('startup choice automatically boots after timeout and enters settings on screen touch', () => {
     const source = readFileSync(defaultLaunchPath, 'utf8')
 
-    assert.match(source, /showStartupSplash/)
-    assert.ok(source.indexOf('showStartupSplash') < source.indexOf('waitForKey'))
+    assert.match(source, /type StartupChoice = 'boot' \| 'settings'/)
+    assert.match(source, /const STARTUP_AUTO_BOOT_DELAY_MS = 3000/)
+    assert.match(source, /function waitForStartupChoice/)
+    assert.match(source, /showStartupSplash\(\{ onTouch: \(\) => Timer\.set\(\(\) => choose\('settings'\), 0\) \}\)/)
+    assert.match(source, /choose\('boot'\)/)
+    assert.match(source, /resolve\(\{ choice, application \}\)/)
+    assert.match(source, /startupChoice\.choice === 'boot'/)
   })
 
-  test('wasm launch keeps the splash visible long enough to smoke in the simulator', () => {
-    const source = readFileSync(wasmLaunchPath, 'utf8')
-
-    assert.match(source, /showStartupSplash/)
-    assert.match(source, /Timer\.set/)
-    assert.match(source, /resolve\(true\)/)
-  })
-
-  test('wasm default mod imports the wasm-specific launch hook', () => {
+  test('wasm default mod uses the same touch-or-timeout launch choice', () => {
     const mainSource = readFileSync('stackchan/main.ts', 'utf8')
     const source = readFileSync(wasmModPath, 'utf8')
     const manifest = readFileSync(wasmManifestPath, 'utf8')
 
     assert.match(mainSource, /Modules\.importNow\('default-mods\/wasm\/mod'\)/)
-    assert.match(source, /default-mods\/wasm\/on-launch/)
+    assert.match(source, /default-mods\/on-launch/)
+    assert.doesNotMatch(source, /default-mods\/wasm\/on-launch/)
     assert.match(manifest, /"default-mods\/wasm\/mod"/)
   })
 })

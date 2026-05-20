@@ -6,6 +6,7 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/manifest_net.json",
+    "$(MODDABLE)/modules/input/expanding-keyboard/horizontal/manifest.json",
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
     "./drivers/manifest_driver.json",
@@ -56,7 +57,11 @@
   },
   "resources": {
     "*-color": ["./assets/images/startup-splash"],
-    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
+    "*-mask": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-20",
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24",
+      "$(MODDABLE)/examples/piu/wifi-config/assets/wifi-strip"
+    ],
     "*-alpha": [
       {
         "source": "./assets/fonts/k8x12",

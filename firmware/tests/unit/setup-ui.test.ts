@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 import {
   createSetupState,
@@ -10,6 +11,44 @@ import {
 } from '../../stackchan/setup-ui-model.js'
 
 describe('setup ui model', () => {
+  test('setup UI reuses Moddable wifi-config list and horizontal expanding keyboard patterns', () => {
+    const source = readFileSync('stackchan/setup-ui.ts', 'utf8')
+    const manifest = readFileSync('stackchan/manifest.json', 'utf8')
+    const wasmManifest = readFileSync('stackchan/manifest_wasm.json', 'utf8')
+
+    assert.match(source, /import \{ HorizontalExpandingKeyboard \} from 'keyboard'/)
+    assert.match(source, /import \{ KeyboardField \} from 'common\/keyboard'/)
+    assert.match(source, /class NetworkListScreenColumnBehavior extends Behavior/)
+    assert.match(source, /const ListItemTemplate[^=]*= Port\.template/)
+    assert.match(source, /drawTexture\(new WiFiStripTexture/)
+    assert.match(source, /HorizontalExpandingKeyboard\(this\.data, \{/)
+    assert.match(source, /target: this\.data\.FIELD/)
+    assert.match(manifest, /\$\(MODDABLE\)\/modules\/input\/expanding-keyboard\/horizontal\/manifest\.json/)
+    assert.match(wasmManifest, /\$\(MODDABLE\)\/modules\/input\/expanding-keyboard\/horizontal\/manifest\.json/)
+  })
+
+  test('password keyboard layout fits within the 320x240 Stack-chan screen', () => {
+    const source = readFileSync('stackchan/setup-ui.ts', 'utf8')
+
+    assert.match(source, /const SCREEN_HEIGHT = 240/)
+    assert.match(source, /const PASSWORD_HEADER_HEIGHT = 36/)
+    assert.match(source, /const PASSWORD_FIELD_HEIGHT = 32/)
+    assert.match(source, /const HORIZONTAL_KEYBOARD_HEIGHT = 164/)
+    assert.match(source, /const PASSWORD_CONTENT_HEIGHT = SCREEN_HEIGHT - PASSWORD_HEADER_HEIGHT/)
+    assert.match(source, /PASSWORD_FIELD_HEIGHT \+ HORIZONTAL_KEYBOARD_HEIGHT <= PASSWORD_CONTENT_HEIGHT/)
+    assert.doesNotMatch(source, /Horizontal keyboard from Moddable examples/)
+  })
+
+  test('Moddable expanding keyboard supports uppercase, numbers, and symbols via toggle rows', () => {
+    const moddablePath = process.env.MODDABLE ?? '/home/openclaw/.local/share/moddable'
+    const commonKeyboard = readFileSync(`${moddablePath}/modules/input/expanding-keyboard/common/keyboard.js`, 'utf8')
+
+    assert.match(commonKeyboard, /\["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM/)
+    assert.match(commonKeyboard, /\["1234567890", "#\$%&\*\(\)_@", "!\?\/\\\\;:=\+-/)
+    assert.match(commonKeyboard, /ToggleModes\.SHIFT/)
+    assert.match(commonKeyboard, /ToggleModes\.ALT/)
+  })
+
   test('fake WASM network list contains open and secured networks', () => {
     const networks = getWasmFakeNetworks()
 

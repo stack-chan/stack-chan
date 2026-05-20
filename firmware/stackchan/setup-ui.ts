@@ -1,5 +1,18 @@
-import { Column, Container, Label, Skin, Style } from 'piu/MC'
-import type { Application as PiuApplication, Container as PiuContainer, Label as PiuLabel } from 'piu/MC'
+import {
+  Column,
+  Container,
+  Content,
+  Label,
+  Port,
+  Scroller,
+  Skin,
+  Style,
+  Texture,
+  type Application as PiuApplication,
+  type Container as PiuContainer,
+} from 'piu/MC'
+import { KeyboardField } from 'common/keyboard'
+import { HorizontalExpandingKeyboard } from 'keyboard'
 import {
   createSetupState,
   maskPassword,
@@ -18,192 +31,436 @@ type SetupUIOptions = {
   onDraftChanged?: (draft: WifiDraft) => void
 }
 
-type SetupLabels = {
-  title: PiuLabel
-  status: PiuLabel
-  detail: PiuLabel
-  rows: PiuLabel[]
+type SetupRuntime = {
+  state: SetupState
+  application: PiuApplication
+  onDraftChanged?: (draft: WifiDraft) => void
+  render: () => void
+  publishDraft: () => void
 }
 
-let screenSkin: Skin | null = null
+type NetworkListData = {
+  runtime: SetupRuntime
+  networks: WifiNetwork[]
+}
+
+type NetworkItemData = {
+  index: number
+  ssid: string
+  variant: number
+  authentication: WifiNetwork['authentication']
+}
+
+type KeyboardData = {
+  FIELD?: PiuContainer
+  KEYBOARD?: PiuContainer
+  runtime: SetupRuntime
+}
+
+type PiuTemplate<T, R = Content> = { new (data?: T, dictionary?: unknown): R }
+
+const WHITE = '#ffffff'
+const BLACK = '#000000'
+const LIGHTEST_GRAY = '#e6e6e6'
+const SEPARATOR_GRAY = '#666666'
+const LIGHT_BLUE = '#0082ff'
+const DIM = '#b0b0b0'
+
+const SCREEN_HEIGHT = 240
+const PASSWORD_HEADER_HEIGHT = 36
+const PASSWORD_FIELD_HEIGHT = 32
+const HORIZONTAL_KEYBOARD_HEIGHT = 164
+const PASSWORD_CONTENT_HEIGHT = SCREEN_HEIGHT - PASSWORD_HEADER_HEIGHT
+const PASSWORD_LAYOUT_FITS = PASSWORD_FIELD_HEIGHT + HORIZONTAL_KEYBOARD_HEIGHT <= PASSWORD_CONTENT_HEIGHT
+void PASSWORD_LAYOUT_FITS
+
+let whiteSkin: Skin | null = null
+let blackSkin: Skin | null = null
 let selectedSkin: Skin | null = null
+let separatorGraySkin: Skin | null = null
+let lightBlueSkin: Skin | null = null
+let fieldSkin: Skin | null = null
 let titleStyle: Style | null = null
-let labelStyle: Style | null = null
+let blackStyle: Style | null = null
 let dimStyle: Style | null = null
+let keyboardStyle: Style | null = null
 
-const getScreenSkin = () => {
-  if (!screenSkin) screenSkin = new Skin({ fill: '#000000' })
-  return screenSkin
+const WiFiStripTexture = Texture.template({ path: 'wifi-strip.png' })
+
+const getWhiteSkin = () => (whiteSkin ??= new Skin({ fill: WHITE }))
+const getBlackSkin = () => (blackSkin ??= new Skin({ fill: BLACK }))
+const getSelectedSkin = () => (selectedSkin ??= new Skin({ fill: LIGHTEST_GRAY }))
+const getSeparatorGraySkin = () => (separatorGraySkin ??= new Skin({ fill: SEPARATOR_GRAY }))
+const getLightBlueSkin = () => (lightBlueSkin ??= new Skin({ fill: LIGHT_BLUE }))
+const getFieldSkin = () =>
+  (fieldSkin ??= new Skin({ fill: WHITE, stroke: SEPARATOR_GRAY, borders: { left: 1, right: 1, top: 1, bottom: 1 } }))
+const getTitleStyle = () =>
+  (titleStyle ??= new Style({ font: '20px Open Sans', color: WHITE, horizontal: 'left', vertical: 'middle' }))
+const getBlackStyle = () =>
+  (blackStyle ??= new Style({ font: '20px Open Sans', color: BLACK, horizontal: 'left', vertical: 'middle' }))
+const getDimStyle = () =>
+  (dimStyle ??= new Style({ font: '20px Open Sans', color: DIM, horizontal: 'left', vertical: 'middle' }))
+const getKeyboardStyle = () =>
+  (keyboardStyle ??= new Style({ font: '20px Open Sans', color: BLACK, horizontal: 'left', vertical: 'middle' }))
+
+function getVariantFromSignalLevel(value: number) {
+  const low = -120
+  const high = -40
+  const clamped = Math.max(low, Math.min(high, value))
+  return Math.round(4 * ((clamped - low) / (high - low)))
 }
 
-const getSelectedSkin = () => {
-  if (!selectedSkin) selectedSkin = new Skin({ fill: '#202020' })
-  return selectedSkin
-}
+const toNetworkItemData = (network: WifiNetwork, index: number): NetworkItemData => ({
+  index,
+  ssid: network.ssid,
+  variant: getVariantFromSignalLevel(network.rssi),
+  authentication: network.authentication,
+})
 
-const getTitleStyle = () => {
-  if (!titleStyle) titleStyle = new Style({ font: '24px Open Sans', color: '#ffffff', horizontal: 'left' })
-  return titleStyle
-}
+const Header: PiuTemplate<{ title: string }> = Container.template(($: { title: string }) => ({
+  active: true,
+  left: 0,
+  right: 0,
+  top: 0,
+  height: PASSWORD_HEADER_HEIGHT,
+  skin: getLightBlueSkin(),
+  style: getTitleStyle(),
+  contents: [new Label(null, { left: 12, right: 8, top: 0, bottom: 0, style: getTitleStyle(), string: $.title })],
+}))
 
-const getLabelStyle = () => {
-  if (!labelStyle) labelStyle = new Style({ font: '24px Open Sans', color: '#ffffff', horizontal: 'left' })
-  return labelStyle
-}
+class HomeBehavior extends Behavior {
+  runtime!: SetupRuntime
 
-const getDimStyle = () => {
-  if (!dimStyle) dimStyle = new Style({ font: '24px Open Sans', color: '#b0b0b0', horizontal: 'left' })
-  return dimStyle
-}
-
-const signalIcon = (network: WifiNetwork): string => {
-  const bars = signalStrengthForRssi(network.rssi)
-  return ['.', '|', '||', '|||'][bars]
-}
-
-const formatNetwork = (network: WifiNetwork): string =>
-  `${signalIcon(network)} ${network.ssid} ${network.authentication === 'open' ? 'open' : 'locked'}`
-
-const buildScreen = (state: SetupState): { container: PiuContainer; labels: SetupLabels } => {
-  const labels: SetupLabels = {
-    title: new Label(null, { left: 0, right: 0, height: 24, style: getTitleStyle() }),
-    status: new Label(null, { left: 0, right: 0, height: 22, style: getLabelStyle() }),
-    detail: new Label(null, { left: 0, right: 0, height: 20, style: getDimStyle() }),
-    rows: [],
+  onCreate(_container: PiuContainer, data: SetupRuntime) {
+    this.runtime = data
   }
-  const rows = new Column(null, { left: 0, right: 0, top: 74, contents: [] })
-  const container = new Container(null, {
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    contents: [
-      new Column(null, {
-        left: 10,
-        right: 10,
-        top: 8,
-        contents: [labels.title, labels.status, labels.detail],
-      }),
-      rows,
-    ],
-  })
 
-  const rowCount = state.view === 'networks' ? Math.min(state.networks.length, 5) : 4
-  for (let index = 0; index < rowCount; index += 1) {
-    const rowIndex = index
-    const rowOptions = {
-      left: 10,
-      right: 10,
-      height: 28,
-      active: true,
-      style: getLabelStyle(),
-      Behavior: class extends Behavior {
-        onTouchEnded(label: PiuLabel) {
-          label.bubble('onSetupRowSelected', rowIndex)
-        }
-      },
+  onTouchEnded() {
+    this.runtime.state = showNetworks(this.runtime.state)
+    this.runtime.render()
+  }
+}
+
+const HomeScreen: PiuTemplate<SetupRuntime> = Container.template(($: SetupRuntime) => ({
+  left: 0,
+  right: 0,
+  top: 0,
+  bottom: 0,
+  skin: getBlackSkin(),
+  active: true,
+  Behavior: HomeBehavior,
+  contents: [
+    new Header({ title: 'Stack-chan Setup' }),
+    new Column(null, {
+      left: 12,
+      right: 12,
+      top: 58,
+      contents: [
+        new Label(null, {
+          left: 0,
+          right: 0,
+          height: 28,
+          style: getTitleStyle(),
+          string: $.state.draft.ssid ? `SSID: ${$.state.draft.ssid}` : 'Wi-Fi not configured',
+        }),
+        new Label(null, {
+          left: 0,
+          right: 0,
+          height: 28,
+          style: getTitleStyle(),
+          string: $.state.status === 'draft-ready' ? 'Draft ready for later Preference.set' : 'Tap to choose network',
+        }),
+        new Label(null, { left: 0, right: 0, height: 40, style: getTitleStyle(), string: 'Networks' }),
+        new Label(null, {
+          left: 0,
+          right: 0,
+          height: 32,
+          style: getTitleStyle(),
+          string: $.state.draft.password ? `Password: ${maskPassword($.state.draft.password)}` : 'Password: not set',
+        }),
+      ],
+    }),
+  ],
+}))
+
+class VerticalScrollerBehavior extends Behavior {
+  anchor = 0
+  y = 0
+  waiting = false
+
+  onTouchBegan(scroller: Scroller, _id: number, _x: number, y: number) {
+    this.anchor = scroller.scroll.y
+    this.y = y
+    this.waiting = true
+  }
+
+  onTouchMoved(scroller: Scroller, id: number, x: number, y: number, ticks: number) {
+    const delta = y - this.y
+    if (this.waiting) {
+      if (Math.abs(delta) < 8) return
+      this.waiting = false
+      scroller.captureTouch(id as unknown as string, x, y, ticks)
     }
-    const row = new Label(index, state.view === 'networks' ? { ...rowOptions, skin: getSelectedSkin() } : rowOptions)
-    labels.rows.push(row)
-    rows.add(row)
+    scroller.scrollTo(0, this.anchor - delta)
   }
-
-  return { container, labels }
 }
 
-const updateLabels = (labels: SetupLabels, state: SetupState) => {
-  labels.title.string = 'Stack-chan Setup'
-  labels.rows.forEach((row) => {
-    row.string = ''
-  })
+const Separator = Content.template(() => ({
+  name: 'SEPARATOR',
+  left: 0,
+  right: 0,
+  top: 0,
+  height: 1,
+  skin: getSeparatorGraySkin(),
+}))
 
-  if (state.view === 'networks') {
-    labels.status.string = 'Select Wi-Fi'
-    labels.detail.string = 'Open networks skip password'
-    state.networks.slice(0, labels.rows.length).forEach((network, index) => {
-      labels.rows[index].string = formatNetwork(network)
+class ListItemBehavior extends Behavior {
+  data!: NetworkItemData & { state: number; xOffset: number; yOffset: number }
+  startY = 0
+
+  onCreate(_port: Port, data: NetworkItemData) {
+    this.data = {
+      ...data,
+      xOffset: Math.max(0, data.variant) * 28,
+      yOffset: data.authentication === 'open' ? 0 : 27,
+      state: 0,
+    }
+  }
+
+  onDraw(port: Port) {
+    port.fillColor(this.data.state ? LIGHTEST_GRAY : WHITE, 0, 0, port.width, port.height)
+    port.drawString(this.data.ssid, getBlackStyle(), BLACK, 32, 8, 210, port.height)
+    port.drawTexture(new WiFiStripTexture(), BLACK, 276, 6, this.data.xOffset, this.data.yOffset, 28, 28)
+  }
+
+  onTouchBegan(port: Port, _id: number, _x: number, y: number) {
+    this.data.state = 1
+    port.invalidate()
+    this.startY = y
+  }
+
+  onTouchCancelled(port: Port) {
+    this.data.state = 0
+    port.invalidate()
+  }
+
+  onTouchEnded(port: Port) {
+    this.data.state = 0
+    port.invalidate()
+    port.bubble('onNetworkSelected', this.data.index)
+  }
+}
+
+const ListItemTemplate: PiuTemplate<NetworkItemData> = Port.template(() => ({
+  active: true,
+  left: 0,
+  right: 0,
+  height: 40,
+  Behavior: ListItemBehavior,
+}))
+
+class NetworkListScreenColumnBehavior extends Behavior {
+  onCreate(column: Column, data: NetworkListData) {
+    this.onUpdateNetworkList(column, data.networks)
+  }
+
+  onUpdateNetworkList(column: Column, networks: WifiNetwork[]) {
+    column.empty()
+    networks.forEach((network, index) => {
+      column.add(new ListItemTemplate(toNetworkItemData(network, index)))
+      column.add(new Separator(null))
     })
-    return
+    column.add(new Content(null, { height: 40 }))
   }
-
-  if (state.view === 'password') {
-    labels.status.string = `Password: ${state.selectedNetwork?.ssid ?? ''}`
-    labels.detail.string = maskPassword(state.passwordInput)
-    labels.rows[0].string = 'Type keys, Enter OK'
-    labels.rows[1].string = 'Backspace deletes'
-    return
-  }
-
-  labels.status.string = state.draft.ssid ? `SSID: ${state.draft.ssid}` : 'Wi-Fi not configured'
-  labels.detail.string =
-    state.status === 'draft-ready' ? 'Draft ready for later Preference.set' : 'Tap to choose network'
-  labels.rows[0].string = 'Networks'
-  labels.rows[1].string = state.draft.password ? `Password: ${maskPassword(state.draft.password)}` : 'Password: not set'
 }
 
-export function showSetupUI(options: SetupUIOptions) {
-  const networks = options.initialNetworks ?? getInitialSetupNetworks()
-  let state = { ...createSetupState(networks), draft: options.initialDraft ?? {} }
-  let screen = buildScreen(state)
+class NetworkListBehavior extends Behavior {
+  runtime!: SetupRuntime
 
-  const render = () => {
-    options.application.empty()
-    options.application.skin = getScreenSkin()
-    screen = buildScreen(state)
-    options.application.add(screen.container)
-    updateLabels(screen.labels, state)
+  onCreate(_container: PiuContainer, data: NetworkListData) {
+    this.runtime = data.runtime
   }
 
-  const publishDraft = () => {
-    if (state.draft.ssid !== undefined) options.onDraftChanged?.(state.draft)
+  onNetworkSelected(_container: PiuContainer, index: number) {
+    const network = this.runtime.state.networks[index]
+    if (!network) return
+    this.runtime.state = selectNetwork(this.runtime.state, network.ssid)
+    this.runtime.publishDraft()
+    this.runtime.render()
   }
+}
 
-  options.application.behavior = new (class extends Behavior {
-    onSetupRowSelected(_application: PiuApplication, index: number) {
-      if (state.view === 'home') {
-        state = showNetworks(state)
-        render()
-        return
-      }
-      if (state.view !== 'networks') return
-      const network = state.networks[index]
-      if (!network) return
-      state = selectNetwork(state, network.ssid)
-      publishDraft()
-      render()
-    }
+const NetworkListScreen: PiuTemplate<NetworkListData> = Container.template(($: NetworkListData) => ({
+  left: 0,
+  right: 0,
+  top: 0,
+  bottom: 0,
+  skin: getWhiteSkin(),
+  Behavior: NetworkListBehavior,
+  contents: [
+    new Scroller(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      active: true,
+      backgroundTouch: true,
+      clip: true,
+      Behavior: VerticalScrollerBehavior,
+      contents: [
+        new Column($, {
+          left: 0,
+          right: 0,
+          top: PASSWORD_HEADER_HEIGHT,
+          clip: true,
+          Behavior: NetworkListScreenColumnBehavior,
+        }),
+      ],
+    }),
+    new Header({ title: 'Networks' }),
+  ],
+}))
 
-    onKeyUp(_application: PiuApplication, key: string) {
-      state = reducePasswordInput(state, key)
-      publishDraft()
-      render()
+const TRANSITION = true
+
+const KeyboardContainer: PiuTemplate<KeyboardData, Column> = Column.template(($: KeyboardData) => ({
+  left: 0,
+  right: 0,
+  top: PASSWORD_HEADER_HEIGHT,
+  bottom: 0,
+  active: true,
+  contents: [
+    new KeyboardField($, {
+      anchor: 'FIELD',
+      password: true,
+      left: 12,
+      right: 12,
+      top: 2,
+      height: PASSWORD_FIELD_HEIGHT,
+      skin: getFieldSkin(),
+      style: getBlackStyle(),
+      visible: true,
+    }),
+    new Container($, {
+      anchor: 'KEYBOARD',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: HORIZONTAL_KEYBOARD_HEIGHT,
+      skin: getWhiteSkin(),
+    }),
+  ],
+  Behavior: class extends Behavior {
+    data!: KeyboardData
+
+    onCreate(_column: Column, data: KeyboardData) {
+      this.data = data
+      this.addKeyboard()
     }
 
     onTouchEnded() {
-      if (state.view === 'home') {
-        state = showNetworks(state)
-        render()
-      }
+      if (this.data.KEYBOARD && this.data.KEYBOARD.length !== 1) this.addKeyboard()
+    }
+
+    addKeyboard() {
+      if (!this.data.KEYBOARD || !this.data.FIELD) return
+      this.data.KEYBOARD.add(
+        HorizontalExpandingKeyboard(this.data, {
+          style: getKeyboardStyle(),
+          target: this.data.FIELD,
+          doTransition: TRANSITION,
+        }),
+      )
+    }
+  },
+}))
+
+class LoginScreenBehavior extends Behavior {
+  runtime!: SetupRuntime
+  password = ''
+
+  onCreate(_column: Column, data: KeyboardData) {
+    this.runtime = data.runtime
+  }
+
+  onKeyboardOK(_column: Column, string: string) {
+    this.password = string
+    for (const character of string) this.runtime.state = reducePasswordInput(this.runtime.state, character)
+    this.runtime.state = reducePasswordInput(this.runtime.state, 'ok')
+    this.runtime.publishDraft()
+    this.runtime.render()
+  }
+
+  onKeyboardTransitionFinished(_column: Column, out: boolean) {
+    if (out) return
+  }
+}
+
+const LoginScreen: PiuTemplate<KeyboardData, Column> = Column.template(($: KeyboardData) => ({
+  left: 0,
+  right: 0,
+  top: 0,
+  bottom: 0,
+  skin: getWhiteSkin(),
+  contents: [new Header({ title: $.runtime.state.selectedNetwork?.ssid ?? 'Password' }), new KeyboardContainer($)],
+  Behavior: LoginScreenBehavior,
+}))
+
+function buildRuntime(options: SetupUIOptions): SetupRuntime {
+  const networks = options.initialNetworks ?? getInitialSetupNetworks()
+  const runtime: SetupRuntime = {
+    state: { ...createSetupState(networks), draft: options.initialDraft ?? {} },
+    application: options.application,
+    onDraftChanged: options.onDraftChanged,
+    render: () => {},
+    publishDraft: () => {
+      if (runtime.state.draft.ssid !== undefined) runtime.onDraftChanged?.(runtime.state.draft)
+    },
+  }
+
+  runtime.render = () => {
+    runtime.application.empty()
+    runtime.application.skin = runtime.state.view === 'home' ? getBlackSkin() : getWhiteSkin()
+    if (runtime.state.view === 'networks') {
+      runtime.application.add(new NetworkListScreen({ runtime, networks: runtime.state.networks }))
+      return
+    }
+    if (runtime.state.view === 'password') {
+      runtime.application.add(new LoginScreen({ runtime }))
+      return
+    }
+    runtime.application.add(new HomeScreen(runtime))
+  }
+
+  return runtime
+}
+
+export function showSetupUI(options: SetupUIOptions) {
+  const runtime = buildRuntime(options)
+  runtime.application.behavior = new (class extends Behavior {
+    onTouchEnded() {
+      if (runtime.state.view !== 'home') return
+      runtime.state = showNetworks(runtime.state)
+      runtime.render()
     }
   })()
-
-  render()
+  runtime.render()
 
   return {
-    getState: () => state,
+    getState: () => runtime.state,
     showNetworks: () => {
-      state = showNetworks(state)
-      render()
+      runtime.state = showNetworks(runtime.state)
+      runtime.render()
     },
     selectNetwork: (ssid: string) => {
-      state = selectNetwork(state, ssid)
-      publishDraft()
-      render()
+      runtime.state = selectNetwork(runtime.state, ssid)
+      runtime.publishDraft()
+      runtime.render()
     },
     inputPassword: (input: string) => {
-      state = reducePasswordInput(state, input)
-      publishDraft()
-      render()
+      runtime.state = reducePasswordInput(runtime.state, input)
+      runtime.publishDraft()
+      runtime.render()
     },
   }
 }

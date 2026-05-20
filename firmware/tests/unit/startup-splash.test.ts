@@ -62,14 +62,18 @@ describe('startup splash screen', () => {
     assert.match(source, /showSetupUI\(\{/)
   })
 
-  test('wasm default mod uses the same touch-or-timeout launch choice', () => {
+  test('wasm default mod opens the setup UI preview with fake networks', () => {
     const mainSource = readFileSync('stackchan/main.ts', 'utf8')
     const source = readFileSync(wasmModPath, 'utf8')
+    const launchSource = readFileSync('stackchan/default-mods/wasm/on-launch.ts', 'utf8')
     const manifest = readFileSync(wasmManifestPath, 'utf8')
 
     assert.match(mainSource, /Modules\.importNow\('default-mods\/wasm\/mod'\)/)
-    assert.match(source, /default-mods\/on-launch/)
-    assert.doesNotMatch(source, /default-mods\/wasm\/on-launch/)
+    assert.match(source, /default-mods\/wasm\/on-launch/)
+    assert.match(launchSource, /WASM_SETUP_PREVIEW_DELAY_MS = 500/)
+    assert.match(launchSource, /showStartupSplash\(\)/)
+    assert.match(launchSource, /showSetupUI\(\{/)
+    assert.match(launchSource, /resolve\(false\)/)
     assert.match(manifest, /"setup-ui-networks": "\.\/wasm\/setup-ui-networks"/)
     assert.match(manifest, /"default-mods\/wasm\/mod"/)
   })

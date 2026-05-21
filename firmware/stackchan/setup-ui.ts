@@ -321,7 +321,7 @@ const NetworkListScreen: PiuTemplate<NetworkListData> = Container.template(($: N
 
 const TRANSITION = true
 
-const KeyboardContainer: PiuTemplate<KeyboardData, Column> = Column.template(($: KeyboardData) => ({
+const KeyboardContainer: PiuTemplate<KeyboardData, Container> = Container.template(($: KeyboardData) => ({
   left: 0,
   right: 0,
   top: PASSWORD_SCREEN_TOP,
@@ -345,13 +345,12 @@ const KeyboardContainer: PiuTemplate<KeyboardData, Column> = Column.template(($:
       right: 0,
       bottom: 0,
       height: HORIZONTAL_KEYBOARD_HEIGHT,
-      skin: getWhiteSkin(),
     }),
   ],
   Behavior: class extends Behavior {
     data!: KeyboardData
 
-    onCreate(_column: Column, data: KeyboardData) {
+    onCreate(_container: Container, data: KeyboardData) {
       this.data = data
       this.addKeyboard()
     }

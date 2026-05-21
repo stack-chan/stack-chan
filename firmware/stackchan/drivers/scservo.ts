@@ -61,6 +61,10 @@ const RX_STATE = {
 } as const
 type RxState = (typeof RX_STATE)[keyof typeof RX_STATE]
 
+function assertNeverRxState(state: never): never {
+  throw new Error(`Unknown RX state: ${state}`)
+}
+
 class PacketHandler extends Serial {
   #callbacks: Map<number, (buffer: Uint8Array, length: number) => void>
   #rxBuffer: Uint8Array
@@ -118,8 +122,7 @@ class PacketHandler extends Serial {
             }
             break
           default: {
-            // @ts-expect-error 6113
-            let _state: never
+            assertNeverRxState(this.#state)
           }
         }
         // noop

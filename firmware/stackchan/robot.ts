@@ -1,14 +1,14 @@
-import Timer from 'timer'
-import { Vector3, type Pose, Rotation, type Maybe, noop, randomBetween, generateDeviceSeed } from 'stackchan-util'
-import { type FaceContext, type Emotion, createFaceContext } from 'face-context'
-import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type Digital from 'embedded:io/digital'
-import type Touch from 'touch'
-import type Microphone from 'microphone'
-import type Tone from 'tone'
-import type Led from 'led'
 import type { RobotCamera } from 'camera'
 import { SpeechBalloon } from 'effects/speech-balloon'
+import { createFaceContext, type Emotion, type FaceContext } from 'face-context'
+import type Led from 'led'
+import type Microphone from 'microphone'
+import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import { generateDeviceSeed, type Maybe, noop, type Pose, Rotation, randomBetween, Vector3 } from 'stackchan-util'
+import Timer from 'timer'
+import type Tone from 'tone'
+import type Touch from 'touch'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10

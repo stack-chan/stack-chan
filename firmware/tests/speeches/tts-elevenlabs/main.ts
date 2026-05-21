@@ -1,6 +1,6 @@
 import config from 'mc/config'
-import { TTS, type TTSProperty } from 'tts-elevenlabs'
 import Timer from 'timer'
+import { TTS, type TTSProperty } from 'tts-elevenlabs'
 
 const token = config.token
 

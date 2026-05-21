@@ -1,7 +1,8 @@
 /* eslint-disable prefer-const */
-import AudioOut from 'pins/audioout'
-import OpenAIStreamer from 'openaistreamer'
+
 import calculatePower from 'calculate-power'
+import OpenAIStreamer from 'openaistreamer'
+import AudioOut from 'pins/audioout'
 
 /* global trace, SharedArrayBuffer */
 

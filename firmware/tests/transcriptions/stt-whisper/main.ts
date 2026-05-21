@@ -1,6 +1,6 @@
 import config from 'mc/config'
-import STT from 'stt-whisper'
 import Microphone from 'microphone'
+import STT from 'stt-whisper'
 
 const token = config.token
 

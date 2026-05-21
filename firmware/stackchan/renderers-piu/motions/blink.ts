@@ -1,5 +1,5 @@
-import { randomBetween } from 'stackchan-util'
 import type { FaceMotionFactory } from 'motions/types'
+import { randomBetween } from 'stackchan-util'
 
 function linearInEaseOut(fraction: number): number {
   if (fraction < 0.25) return 1 - fraction * 4

@@ -4,8 +4,8 @@ import { ChatService } from 'chat'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Emotion } from 'face-context'
 import config from 'mc/config'
-import Timer from 'timer'
 import { randomBetween } from 'stackchan-util'
+import Timer from 'timer'
 
 const DEFAULT_MOUTH_SCALE = 1 / 2000
 const BALLOON_CHAR_WIDTH_PX = 8

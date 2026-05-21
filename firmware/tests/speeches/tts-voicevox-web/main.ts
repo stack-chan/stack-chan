@@ -1,6 +1,6 @@
 import config from 'mc/config'
-import { TTS, type TTSProperty } from 'tts-voicevox-web'
 import Timer from 'timer'
+import { TTS, type TTSProperty } from 'tts-voicevox-web'
 
 const token = config.token
 

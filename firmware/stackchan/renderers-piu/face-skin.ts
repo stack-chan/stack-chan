@@ -1,5 +1,5 @@
-import { Skin, type Skin as PiuSkin } from 'piu/MC'
 import type { FaceContext } from 'face-context'
+import { type Skin as PiuSkin, Skin } from 'piu/MC'
 
 export type FaceSkinPalette = {
   primary: PiuSkin

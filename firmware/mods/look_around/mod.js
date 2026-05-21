@@ -1,5 +1,5 @@
-import Timer from 'timer'
 import { randomBetween } from 'stackchan-util'
+import Timer from 'timer'
 
 export function onRobotCreated(robot) {
   let isFollowing = false

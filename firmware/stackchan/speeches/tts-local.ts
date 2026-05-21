@@ -1,7 +1,8 @@
 /* eslint-disable prefer-const */
+
+import calculatePower from 'calculate-power'
 import AudioOut from 'pins/audioout'
 import ResourceStreamer from 'resourcestreamer'
-import calculatePower from 'calculate-power'
 
 /* global trace, SharedArrayBuffer */
 

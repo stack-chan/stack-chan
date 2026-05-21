@@ -1,7 +1,6 @@
-import type { Content as PiuContent } from 'piu/MC'
-import type { FaceContext } from 'face-context'
-import type { Container as PiuContainer } from 'piu/MC'
 import type { AppController } from 'app-controller'
+import type { FaceContext } from 'face-context'
+import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 
 type RendererCompatOptions = {
   controller: AppController

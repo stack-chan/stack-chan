@@ -1,5 +1,5 @@
-import Timer from 'timer'
 import getMacAddress from 'mac-address'
+import Timer from 'timer'
 
 function HashCodeFromString(str: string): number {
   /**

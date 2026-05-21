@@ -1,7 +1,8 @@
 /* eslint-disable prefer-const */
-import AudioOut from 'pins/audioout'
-import ElevenLabsStreamer from 'elevenlabsstreamer'
+
 import calculatePower from 'calculate-power'
+import ElevenLabsStreamer from 'elevenlabsstreamer'
+import AudioOut from 'pins/audioout'
 
 /* global trace, SharedArrayBuffer */
 

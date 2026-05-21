@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
 import {
-  M5STACKCHAN_SERVO_DEFAULTS,
   angleToRawPosition,
   createM5StackChanServoConfig,
+  M5STACKCHAN_SERVO_DEFAULTS,
   rawPositionToAngle,
   rotationToM5StackChanServoAngles,
 } from '../../stackchan/drivers/m5stackchan-servo.js'

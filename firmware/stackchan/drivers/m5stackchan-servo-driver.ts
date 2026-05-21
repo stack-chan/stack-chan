@@ -1,14 +1,14 @@
-import SCServo from 'scservo'
-import { getSharedPY32IOExpander } from 'py32-io-expander'
-import type { Maybe, Rotation } from 'stackchan-util'
 import {
-  RAD_TO_01_DEGREE,
   angleToRawPosition,
   createM5StackChanServoConfig,
+  type M5StackChanServoConfig,
+  RAD_TO_01_DEGREE,
   rawPositionToAngle,
   rotationToM5StackChanServoAngles,
-  type M5StackChanServoConfig,
 } from 'm5stackchan-servo'
+import { getSharedPY32IOExpander } from 'py32-io-expander'
+import SCServo from 'scservo'
+import type { Maybe, Rotation } from 'stackchan-util'
 
 type M5StackChanServoDriverProps = Partial<{
   panId: number

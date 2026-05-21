@@ -1,7 +1,7 @@
-import config from 'mc/config'
-import Poco, { type PocoPrototype } from 'commodetto/Poco'
-import { Outline, type CanvasPath } from 'commodetto/outline'
 import deepEqual from 'deepEqual'
+import { type CanvasPath, Outline } from 'commodetto/outline'
+import Poco, { type PocoPrototype } from 'commodetto/Poco'
+import config from 'mc/config'
 
 /* global screen */
 const INTERVAL = 1000 / 10

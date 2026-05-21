@@ -1,8 +1,8 @@
-import type { FaceContext } from 'face-context'
-import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 import { FaceBase, type FaceBaseParams } from 'behaviors/face'
+import type { FaceContext } from 'face-context'
 import { getImageAvatarPack, type ImageAvatarPack, type ImageAvatarStaticSprite } from 'parts/image/image-avatar-pack'
 import { frameIndexForRatio, resolveExpressionName } from 'parts/image/image-avatar-state'
+import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 
 type PositionedContent = PiuContent & {
   variant?: number

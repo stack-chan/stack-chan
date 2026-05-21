@@ -1,13 +1,13 @@
-import { HttpServerService } from 'http-server-service'
-import { ChatGPTDialogue } from 'dialogue-chatgpt'
 import loadPreferences from 'loadPreference'
 import {
+  createAngryDecorator,
   createBubbleDecorator,
   createHeartDecorator,
-  createAngryDecorator,
   createPaleDecorator,
   createSweatDecorator,
 } from 'decorator'
+import { ChatGPTDialogue } from 'dialogue-chatgpt'
+import { HttpServerService } from 'http-server-service'
 
 //
 // Face parameters

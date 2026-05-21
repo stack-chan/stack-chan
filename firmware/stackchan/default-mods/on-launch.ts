@@ -1,12 +1,12 @@
-import { Application, Column, Container, Label, Skin, Style } from 'piu/MC'
-import { NetworkService } from 'network-service'
-import { PreferenceServer } from 'preference-server'
-import Preference from 'preference'
+import { DOMAIN, PREF_KEYS } from 'consts'
 import type { StackchanMod } from 'default-mods/mod'
 import config from 'mc/config'
-import { DOMAIN, PREF_KEYS } from 'consts'
-import Timer from 'timer'
+import { NetworkService } from 'network-service'
 import type { Label as PiuLabel } from 'piu/MC'
+import { Application, Column, Container, Label, Skin, Style } from 'piu/MC'
+import Preference from 'preference'
+import { PreferenceServer } from 'preference-server'
+import Timer from 'timer'
 
 type Status = {
   ble: string

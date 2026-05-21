@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-
+import FallbackCamera from '../../stackchan/camera.js'
 import {
   DynamixelDriver,
   M5StackChanServoDriver,
@@ -11,7 +11,6 @@ import {
   SCServoDriver,
   WasmDriver,
 } from '../../stackchan/drivers/wasm/wasm-driver.js'
-import FallbackCamera from '../../stackchan/camera.js'
 import Camera from '../../stackchan/wasm/camera.js'
 import Microphone from '../../stackchan/wasm/microphone.js'
 import Tone from '../../stackchan/wasm/tone.js'

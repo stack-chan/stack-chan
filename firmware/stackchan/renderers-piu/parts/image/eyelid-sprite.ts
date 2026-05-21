@@ -1,7 +1,7 @@
-import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 import type { FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
-import { EYELID_SPRITE, IMAGE_FACE_TEXTURE_PATHS, eyeOpenToVariant } from 'parts/image/atlas'
+import { EYELID_SPRITE, eyeOpenToVariant, IMAGE_FACE_TEXTURE_PATHS } from 'parts/image/atlas'
+import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 
 export type EyelidSpriteOptions = {
   side: keyof FaceContext['eyes']

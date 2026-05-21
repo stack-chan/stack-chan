@@ -1,5 +1,5 @@
 import type { FaceContext, FaceModifierFactory } from 'renderer-base'
-import { randomBetween, normRand, quantize } from 'stackchan-util'
+import { normRand, quantize, randomBetween } from 'stackchan-util'
 
 function linearInEaseOut(fraction: number): number {
   if (fraction < 0.25) {

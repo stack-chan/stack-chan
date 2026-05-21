@@ -1,10 +1,11 @@
 // Imports the Google Cloud client library
-import fetch from 'node-fetch'
-import yargs from 'yargs/yargs'
+
 import fs from 'fs'
+import { writeFile } from 'fs/promises'
+import fetch from 'node-fetch'
 import path from 'path'
 import { hideBin } from 'yargs/helpers'
-import { writeFile } from 'fs/promises'
+import yargs from 'yargs/yargs'
 
 /**
  * get Speech data from VoiceVox server

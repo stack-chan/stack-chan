@@ -2,13 +2,13 @@ import {
   Column,
   Container,
   Content,
+  type Coordinates,
   Label,
+  type Container as PiuContainer,
+  type Content as PiuContent,
   Scroller,
   Skin,
   Style,
-  type Coordinates,
-  type Container as PiuContainer,
-  type Content as PiuContent,
 } from 'piu/MC'
 import Timeline from 'piu/Timeline'
 

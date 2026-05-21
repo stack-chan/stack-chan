@@ -1,6 +1,6 @@
 import Dynamixel, { OPERATING_MODE } from 'dynamixel'
-import Timer from 'timer'
 import type { Maybe, Rotation } from 'stackchan-util'
+import Timer from 'timer'
 
 type DynamixelDriverProps = {
   panId: number

@@ -1,10 +1,11 @@
 /* eslint-disable prefer-const */
-import AudioOut from 'pins/audioout'
-import MP3Streamer from 'mp3streamer'
+
+import type HTTPClient from 'embedded:network/http/client'
 import calculatePower from 'calculate-power'
 import { fetch } from 'fetch'
+import MP3Streamer from 'mp3streamer'
+import AudioOut from 'pins/audioout'
 import { URL } from 'url'
-import type HTTPClient from 'embedded:network/http/client'
 
 /* global trace, SharedArrayBuffer */
 declare const device: {

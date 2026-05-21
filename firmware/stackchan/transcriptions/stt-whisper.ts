@@ -1,7 +1,7 @@
 import { fetch } from 'fetch'
 import Headers from 'headers'
-import UUID from 'uuid'
 import type { Maybe } from 'stackchan-util'
+import UUID from 'uuid'
 
 type AudioBufferMetadata = {
   filename?: string

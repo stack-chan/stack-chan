@@ -1,6 +1,6 @@
 import RS30X from 'rs30x'
-import type Timer from 'timer'
 import type { Maybe, Rotation } from 'stackchan-util'
+import type Timer from 'timer'
 
 type RS30XDriverProps = {
   panId: number

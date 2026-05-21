@@ -1,7 +1,7 @@
-import StkServer from 'stk-server'
-import Timer from 'timer'
 import { speeches } from 'speeches_cheerup'
 import { randomBetween } from 'stackchan-util'
+import StkServer from 'stk-server'
+import Timer from 'timer'
 
 const keys = Object.keys(speeches)
 

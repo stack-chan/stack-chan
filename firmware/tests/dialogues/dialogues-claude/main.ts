@@ -1,5 +1,5 @@
-import config from 'mc/config'
 import { ClaudeDialogue } from 'dialogue-claude'
+import config from 'mc/config'
 
 const token = config.token
 

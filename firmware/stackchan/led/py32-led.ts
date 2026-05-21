@@ -1,5 +1,5 @@
-import Timer from 'timer'
 import { getSharedPY32IOExpander, normalizeLedRange, PY32_LED_MAX_COUNT } from 'py32-io-expander'
+import Timer from 'timer'
 
 export default class PY32Led {
   length: number

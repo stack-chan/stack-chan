@@ -1,9 +1,9 @@
 import Serial from 'embedded:io/serial'
 import config from 'mc/config'
-import Timer from 'timer'
+import { PayloadBuffer } from 'payload-buffer'
 
 import SingleWaitSlot from 'single-wait-slot'
-import { PayloadBuffer } from 'payload-buffer'
+import Timer from 'timer'
 
 // type aliases
 type TORQUE_OFF = 0

@@ -1,6 +1,6 @@
 import config from 'mc/config'
-import { TTS, type TTSProperty } from 'tts-voicevox'
 import Timer from 'timer'
+import { TTS, type TTSProperty } from 'tts-voicevox'
 
 const host = config.host
 if (!host) throw new Error('host is missing.')

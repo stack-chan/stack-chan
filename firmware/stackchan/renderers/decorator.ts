@@ -1,6 +1,6 @@
+import { Outline } from 'commodetto/outline'
 import type parseBMF from 'commodetto/parseBMF'
 import type { FaceDecoratorFactory } from 'renderer-base'
-import { Outline } from 'commodetto/outline'
 
 export const createBalloonDecorator: FaceDecoratorFactory<
   ({ left: number; right?: number } | { left?: number; right?: number }) &

@@ -1,5 +1,5 @@
-import { TTS } from 'tts-local'
 import Timer from 'timer'
+import { TTS } from 'tts-local'
 
 const tts = new TTS({
   onPlayed: (num) => {

@@ -1,5 +1,5 @@
-import config from 'mc/config'
 import { ChatGPTDialogue, type Tool } from 'dialogue-chatgpt'
+import config from 'mc/config'
 import { MCPClientService } from 'mcp-client'
 import Timer from 'timer'
 

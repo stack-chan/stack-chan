@@ -1,5 +1,5 @@
-import config from 'mc/config'
 import { GeminiDialogue } from 'dialogue-gemini'
+import config from 'mc/config'
 
 const token = config.token
 

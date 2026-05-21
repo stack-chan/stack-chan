@@ -1,8 +1,8 @@
 import Serial from 'embedded:io/serial'
-import Timer from 'timer'
+import config from 'mc/config'
 
 import SingleWaitSlot from 'single-wait-slot'
-import config from 'mc/config'
+import Timer from 'timer'
 
 import { PayloadBuffer } from './payload-buffer'
 

@@ -1,9 +1,9 @@
-import type { Container as PiuContainer, Skin as PiuSkin } from 'piu/MC'
 import type { FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
+import { EYELID_SPRITE } from 'parts/image/atlas'
 import { EyelidSprite } from 'parts/image/eyelid-sprite'
 import { IrisSprite } from 'parts/image/iris-sprite'
-import { EYELID_SPRITE } from 'parts/image/atlas'
+import type { Container as PiuContainer, Skin as PiuSkin } from 'piu/MC'
 
 export type EyeSpriteOptions = {
   cx: number

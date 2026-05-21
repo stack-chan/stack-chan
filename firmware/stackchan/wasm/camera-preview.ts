@@ -1,9 +1,8 @@
-import type { CameraFrame } from '../camera.js'
 import { sampleRgb565LeMosaic } from 'camera-preview-utils'
-
 import Bitmap from 'commodetto/Bitmap'
 import { Container, type Container as PiuContainer, type Port as PiuPort } from 'piu/MC'
 import RuntimeBitmapPort from 'runtime-bitmap-port'
+import type { CameraFrame } from '../camera.js'
 
 export const CAMERA_PREVIEW_WIDTH = 200
 export const CAMERA_PREVIEW_HEIGHT = 120

@@ -1,12 +1,12 @@
-import { Renderer } from 'dog-face'
-import { defaultFaceContext } from 'renderer-base'
-import { createBalloonDecorator } from 'decorator'
-import Poco from 'commodetto/Poco'
-import Timer from 'timer'
 import Resource from 'Resource'
-import parseBMF from 'commodetto/parseBMF'
 import structuredClone from 'structuredClone'
+import Poco from 'commodetto/Poco'
+import parseBMF from 'commodetto/parseBMF'
+import { createBalloonDecorator } from 'decorator'
+import { Renderer } from 'dog-face'
 import config from 'mc/config'
+import { defaultFaceContext } from 'renderer-base'
+import Timer from 'timer'
 
 const font = parseBMF(new Resource('NotoSansJP-Regular-24.bf4'))
 const poco = new Poco(screen, { rotation: config.rotation, displayListLength: 1024 })

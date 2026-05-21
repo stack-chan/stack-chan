@@ -1,9 +1,9 @@
-import { Application, type Content as PiuContent } from 'piu/MC'
-import { SimpleFace } from 'behaviors/face'
-import type { DrawerButtonSpec } from 'drawer'
 import { AppController } from 'app-controller'
-import { RendererCompat } from 'renderer-compat'
+import { SimpleFace } from 'behaviors/face'
 import { ChatStatusBar } from 'chat-status-bar'
+import type { DrawerButtonSpec } from 'drawer'
+import { Application, type Content as PiuContent } from 'piu/MC'
+import { RendererCompat } from 'renderer-compat'
 
 export type Effect = PiuContent
 

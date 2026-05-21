@@ -1,8 +1,8 @@
-import Timer from 'timer'
-import { randomBetween } from 'stackchan-util'
 import loadPreferences from 'loadPreference'
 import WebSocket from 'WebSocket'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
+import { randomBetween } from 'stackchan-util'
+import Timer from 'timer'
 
 const STT_HOST = 'stackchan-base.local'
 const MODEL = 'gpt-4o-mini'

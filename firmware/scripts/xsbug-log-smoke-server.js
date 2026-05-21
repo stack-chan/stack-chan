@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { createServer } from 'node:net'
 import { appendFileSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:net'
 
 const port = Number.parseInt(process.env.XSBUG_PORT ?? '5002', 10)
 const host = process.env.XSBUG_HOST ?? '127.0.0.1'

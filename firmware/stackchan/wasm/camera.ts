@@ -1,4 +1,5 @@
 import type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } from '../camera.js'
+
 export type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } from '../camera.js'
 
 const DEFAULT_WIDTH = 96

@@ -1,7 +1,7 @@
-import { UARTServer, SERVICE_UUID } from 'uartserver'
-import Preference from 'preference'
 import type { PREF_KEYS } from 'consts'
+import Preference from 'preference'
 import Timer from 'timer'
+import { SERVICE_UUID, UARTServer } from 'uartserver'
 
 type PreferenceValue = string | boolean | number | ArrayBuffer
 

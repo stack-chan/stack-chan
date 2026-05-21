@@ -1,6 +1,6 @@
-import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 import { defaultFaceContext, type FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
+import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 
 export type MouthOptions = {
   cx: number

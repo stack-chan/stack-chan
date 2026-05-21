@@ -1,11 +1,11 @@
+import Resource from 'Resource'
 import Poco from 'commodetto/Poco'
 import parseBMF from 'commodetto/parseBMF'
-import Resource from 'Resource'
-import { NetworkService } from 'network-service'
-import { PreferenceServer } from 'preference-server'
-import Preference from 'preference'
-import config from 'mc/config'
 import { DOMAIN, PREF_KEYS } from 'consts'
+import config from 'mc/config'
+import { NetworkService } from 'network-service'
+import Preference from 'preference'
+import { PreferenceServer } from 'preference-server'
 
 export function onLaunch() {
   const render = new Poco(screen, {

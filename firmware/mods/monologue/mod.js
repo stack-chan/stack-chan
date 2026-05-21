@@ -1,6 +1,6 @@
+import config from 'mc/config'
 import { speeches } from 'speeches_monologue'
 import { randomBetween } from 'stackchan-util'
-import config from 'mc/config'
 
 const keys = Object.keys(speeches)
 

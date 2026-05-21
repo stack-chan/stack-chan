@@ -1,5 +1,5 @@
-import { quantize } from 'stackchan-util'
 import type { FaceMotionFactory } from 'motions/types'
+import { quantize } from 'stackchan-util'
 
 export const createBreathMotion: FaceMotionFactory<{
   duration: number

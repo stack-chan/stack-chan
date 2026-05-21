@@ -1,9 +1,10 @@
-import { Renderer } from 'simple-face'
-import { createBalloonDecorator, createBubbleDecorator } from 'decorator'
-import parseBMF from 'commodetto/parseBMF'
 import Resource from 'Resource'
-import Timer from 'timer'
+import parseBMF from 'commodetto/parseBMF'
+import { createBalloonDecorator, createBubbleDecorator } from 'decorator'
+import { Renderer } from 'simple-face'
 import { hslToRgb } from 'stackchan-util'
+import Timer from 'timer'
+
 const font = parseBMF(new Resource('OpenSans-Regular-24.bf4'))
 
 const param = {

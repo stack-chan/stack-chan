@@ -1,5 +1,5 @@
-import listen from 'listen'
 import Headers from 'headers'
+import listen from 'listen'
 import { URLSearchParams } from 'url'
 
 class Request {

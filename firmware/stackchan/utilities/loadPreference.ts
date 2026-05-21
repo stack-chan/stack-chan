@@ -1,8 +1,8 @@
-import { type DOMAIN, PREF_KEYS } from 'consts'
-import Preference from 'preference'
 import structuredClone from 'structuredClone'
+import { type DOMAIN, PREF_KEYS } from 'consts'
 import config from 'mc/config'
 import Modules from 'modules'
+import Preference from 'preference'
 
 // biome-ignore lint/suspicious/noExplicitAny: Match the type definition of mc/config
 type ConfigRecord = Record<string, any>

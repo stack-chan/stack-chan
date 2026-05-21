@@ -1,7 +1,7 @@
-import Timer from 'timer'
+import WebSocket from 'WebSocket'
 import { speeches } from 'speeches_cheerup'
 import { randomBetween } from 'stackchan-util'
-import WebSocket from 'WebSocket'
+import Timer from 'timer'
 
 const keys = Object.keys(speeches)
 

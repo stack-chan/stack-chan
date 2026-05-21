@@ -1,8 +1,8 @@
+import { BeaconDataPacket } from 'beacon-packet'
 import BLEServer from 'bleserver'
+import { Bytes } from 'btutils'
 import { speeches } from 'speeches_greeting'
 import { randomBetween } from 'stackchan-util'
-import { Bytes } from 'btutils'
-import { BeaconDataPacket } from 'beacon-packet'
 import { TTS as LocalTTS } from 'tts-local'
 
 const keys = Object.keys(speeches)

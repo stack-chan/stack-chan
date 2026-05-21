@@ -1,7 +1,7 @@
-import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 import type { FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
-import { IMAGE_FACE_TEXTURE_PATHS, IRIS_SPRITE, gazeToOffset } from 'parts/image/atlas'
+import { gazeToOffset, IMAGE_FACE_TEXTURE_PATHS, IRIS_SPRITE } from 'parts/image/atlas'
+import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 
 export type IrisSpriteOptions = {
   side: keyof FaceContext['eyes']

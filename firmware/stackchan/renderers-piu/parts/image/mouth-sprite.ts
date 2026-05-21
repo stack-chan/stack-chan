@@ -1,7 +1,7 @@
-import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 import type { FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
 import { IMAGE_FACE_TEXTURE_PATHS, MOUTH_SPRITE, openToVariant } from 'parts/image/atlas'
+import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 
 export type MouthSpriteOptions = {
   cx: number

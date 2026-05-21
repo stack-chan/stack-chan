@@ -1,5 +1,5 @@
-import { RendererBase, Layer, type FacePartFactory, type FaceContext } from 'renderer-base'
-import { createEyePart, createEyelidPart } from 'simple-face'
+import { type FaceContext, type FacePartFactory, Layer, RendererBase } from 'renderer-base'
+import { createEyelidPart, createEyePart } from 'simple-face'
 import { createBlinkModifier, createBreathModifier, createSaccadeModifier } from './modifier'
 
 export const createEyeblowPart: FacePartFactory<{

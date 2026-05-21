@@ -1,5 +1,5 @@
-import { onRobotCreated } from 'default-mods/on-robot-created'
 import { onLaunch } from 'default-mods/on-launch'
+import { onRobotCreated } from 'default-mods/on-robot-created'
 import type { Robot } from 'robot'
 
 export interface StackchanMod {

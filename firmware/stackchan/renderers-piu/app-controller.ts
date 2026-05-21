@@ -1,4 +1,3 @@
-import type { Application as PiuApplication, Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type { DrawerButtonSpec } from 'drawer'
 import type { FaceContext } from 'face-context'
 import {
@@ -8,6 +7,7 @@ import {
   type FaceViewParams,
   type FaceViewTemplateCtor,
 } from 'face-view'
+import type { Application as PiuApplication, Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 
 export type AppControllerParams = FaceViewParams
 

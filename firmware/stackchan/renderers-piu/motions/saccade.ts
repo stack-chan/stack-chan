@@ -1,5 +1,5 @@
-import { normRand, randomBetween } from 'stackchan-util'
 import type { FaceMotionFactory } from 'motions/types'
+import { normRand, randomBetween } from 'stackchan-util'
 
 export const createSaccadeMotion: FaceMotionFactory<{
   updateMin: number

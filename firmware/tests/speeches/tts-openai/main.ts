@@ -1,6 +1,6 @@
 import config from 'mc/config'
-import { TTS, type TTSProperty } from 'tts-openai'
 import Timer from 'timer'
+import { TTS, type TTSProperty } from 'tts-openai'
 
 const token = config.token
 

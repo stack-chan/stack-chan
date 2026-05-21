@@ -122,7 +122,7 @@ async function waitForKey(): Promise<boolean> {
   } else {
     // legacy driver
     isPressed = () => {
-      if (!globalThis.button || !globalThis.button.c) {
+      if (!globalThis.button?.c) {
         return false
       }
       return !globalThis.button.c.read()

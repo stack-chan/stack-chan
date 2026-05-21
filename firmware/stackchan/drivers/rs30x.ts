@@ -144,7 +144,7 @@ class PacketHandler extends Serial {
             }
             break
           default: {
-            // @ts-ignore 6113
+            // @ts-expect-error 6113
             let _state: never
           }
         }
@@ -184,12 +184,10 @@ class RS30X {
   #txBuf: Uint8Array
   #waitSlot: SingleWaitSlot<Uint8Array>
   #queueTail: Promise<void>
-  #offset: number
   constructor({ id }: RS30XConstructorParam) {
     this.#id = id
     this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
     this.#queueTail = Promise.resolve()
-    this.#offset = 0
     this.#onCommandRead = (values, _length) => {
       this.#waitSlot.resolve(values)
     }

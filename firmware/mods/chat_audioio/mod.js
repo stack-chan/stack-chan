@@ -1,3 +1,4 @@
+// biome-ignore lint/correctness/noUnusedImports: kept with the parked image-face setup below.
 import { ImageFace } from 'behaviors/face'
 import { ChatService } from 'chat'
 import { SpeechBalloon } from 'effects/speech-balloon'
@@ -21,6 +22,7 @@ const MIN_TONE_DURATION_MS = 30
 const MAX_TONE_DURATION_MS = 3000
 const MIN_TONE_HZ = 40
 const MAX_TONE_HZ = 4000
+// biome-ignore lint/correctness/noUnusedVariables: kept for the parked playTone implementation below.
 const MAX_TONE_COUNT = 64
 
 const NOTE_OFFSETS_FROM_A = {
@@ -41,6 +43,7 @@ const clampNumber = (value, min, max) => {
   return value
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: kept for the parked playTone implementation below.
 const wait = (durationMs) =>
   new Promise((resolve) => {
     Timer.set(resolve, durationMs)
@@ -65,6 +68,7 @@ const noteToHz = (noteName, accidental, octaveRaw) => {
   return clampNumber(hz, MIN_TONE_HZ, MAX_TONE_HZ)
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: kept for the parked playTone implementation below.
 const parseToneToken = (token) => {
   if (typeof token !== 'string') return null
   const trimmed = token.trim()
@@ -98,6 +102,7 @@ const parseToneToken = (token) => {
   return null
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: alternative prompt kept for quick local switching.
 const INSTRUCTION_A = `
 あなたは Stack-chan という、オープンソースコミュニティによって作られたロボットです。多くの人に支えられて育ってきたことを誇りに思い、文脈が自然なときはコミュニティ製であることに触れてください。
 あなたの基本性格は、元気で明るく前向き、親しみやすくあたたかいことです。
@@ -137,7 +142,6 @@ AI: ちょ…とだけ？がんば…ろっ、ね！
 - 長文や一方通行の説明は禁止。必ず短い会話文で、交互にやりとりを続けてください。
 - 仲良しの幼い同級生コギャルが少し舌っ足らずに話している雰囲気を再現してください。
 `
-
 const INSTRUCTION_B = `
 You are Stack-chan, a robot created by an open-source community.
 
@@ -218,6 +222,7 @@ export function onRobotCreated(robot) {
         },
         required: ['tones'],
       },
+      // biome-ignore lint/correctness/noUnusedFunctionParameters: tone playback is currently stubbed while the implementation below is parked.
       execute: async ({ tones }) => {
         return new Promise((resolve) => {
           Timer.set(() => {

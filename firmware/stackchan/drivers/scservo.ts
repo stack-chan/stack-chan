@@ -118,7 +118,7 @@ class PacketHandler extends Serial {
             }
             break
           default: {
-            // @ts-ignore 6113
+            // @ts-expect-error 6113
             let _state: never
           }
         }

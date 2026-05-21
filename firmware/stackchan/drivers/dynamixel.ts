@@ -95,7 +95,6 @@ class PacketHandler extends Serial {
   #payloadBuffer: PayloadBuffer
   #idx: number
   #state: RxState
-  #id: number
   #count: number
   constructor(option) {
     const onReadable = function (this: PacketHandler, bytesReadable: number) {
@@ -157,8 +156,7 @@ class PacketHandler extends Serial {
             }
             break
           default:
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore 6113
+            // @ts-expect-error 6113
             // eslint-disable-next-line no-case-declarations, @typescript-eslint/no-unused-vars
             let _state: never
         }

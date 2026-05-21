@@ -137,7 +137,9 @@ export class Robot {
   #paused: boolean
   #faceContext: FaceContext
   #emotion: Emotion
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: keep Timer handles alive for the robot lifetime.
   #updatePoseHandler: Timer
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: keep Timer handles alive for the robot lifetime.
   #updateFaceHandler: Timer
   #balloon: FaceDecorator
   #drawerCallbacks: Map<string, (robot: Robot) => unknown>

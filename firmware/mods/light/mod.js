@@ -1,6 +1,6 @@
 export function onRobotCreated(robot) {
   const led = robot.led
-  if (!led || !led.a) {
+  if (!led?.a) {
     throw new Error('This device does not support LED or setup LED named as "a".')
   }
 

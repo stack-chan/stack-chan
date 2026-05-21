@@ -27,7 +27,7 @@ describe('setup ui model', () => {
     assert.match(wasmManifest, /\$\(MODDABLE\)\/modules\/input\/expanding-keyboard\/horizontal\/manifest\.json/)
   })
 
-  test('password keyboard layout keeps the fourth keyboard row above the Stack-chan screen bezel', () => {
+  test('password keyboard bottom edge is anchored to the display bottom edge', () => {
     const source = readFileSync('stackchan/setup-ui.ts', 'utf8')
 
     assert.match(source, /const SCREEN_HEIGHT = 240/)
@@ -35,10 +35,10 @@ describe('setup ui model', () => {
     assert.match(source, /const PASSWORD_FIELD_TOP = 4/)
     assert.match(source, /const PASSWORD_FIELD_HEIGHT = 30/)
     assert.match(source, /const HORIZONTAL_KEYBOARD_HEIGHT = 164/)
-    assert.match(source, /const STACKCHAN_SCREEN_BOTTOM_SAFE_AREA = 40/)
-    assert.match(source, /const HORIZONTAL_KEYBOARD_BOTTOM = SCREEN_HEIGHT - STACKCHAN_SCREEN_BOTTOM_SAFE_AREA/)
-    assert.match(source, /const HORIZONTAL_KEYBOARD_TOP = HORIZONTAL_KEYBOARD_BOTTOM - HORIZONTAL_KEYBOARD_HEIGHT/)
-    assert.match(source, /HORIZONTAL_KEYBOARD_BOTTOM <= SCREEN_HEIGHT - STACKCHAN_SCREEN_BOTTOM_SAFE_AREA/)
+    assert.match(source, /bottom: 0,\n\s*height: HORIZONTAL_KEYBOARD_HEIGHT/)
+    assert.doesNotMatch(source, /STACKCHAN_SCREEN_BOTTOM_SAFE_AREA/)
+    assert.doesNotMatch(source, /HORIZONTAL_KEYBOARD_TOP/)
+    assert.doesNotMatch(source, /HORIZONTAL_KEYBOARD_BOTTOM/)
     assert.doesNotMatch(source, /new Header\(\{ title: \$\.runtime\.state\.selectedNetwork/)
     assert.doesNotMatch(source, /Horizontal keyboard from Moddable examples/)
   })

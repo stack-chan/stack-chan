@@ -71,11 +71,6 @@ const PASSWORD_SCREEN_TOP = 0
 const PASSWORD_FIELD_TOP = 4
 const PASSWORD_FIELD_HEIGHT = 30
 const HORIZONTAL_KEYBOARD_HEIGHT = 164
-const STACKCHAN_SCREEN_BOTTOM_SAFE_AREA = 40
-const HORIZONTAL_KEYBOARD_BOTTOM = SCREEN_HEIGHT - STACKCHAN_SCREEN_BOTTOM_SAFE_AREA
-const HORIZONTAL_KEYBOARD_TOP = HORIZONTAL_KEYBOARD_BOTTOM - HORIZONTAL_KEYBOARD_HEIGHT
-const PASSWORD_LAYOUT_FITS = HORIZONTAL_KEYBOARD_BOTTOM <= SCREEN_HEIGHT - STACKCHAN_SCREEN_BOTTOM_SAFE_AREA
-void PASSWORD_LAYOUT_FITS
 
 let whiteSkin: Skin | null = null
 let blackSkin: Skin | null = null
@@ -348,7 +343,7 @@ const KeyboardContainer: PiuTemplate<KeyboardData, Column> = Column.template(($:
       anchor: 'KEYBOARD',
       left: 0,
       right: 0,
-      top: HORIZONTAL_KEYBOARD_TOP,
+      bottom: 0,
       height: HORIZONTAL_KEYBOARD_HEIGHT,
       skin: getWhiteSkin(),
     }),

@@ -36,7 +36,7 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Run Biome
         working-directory: ./firmware
-        run: npx biome ci .
+        run: npx biome ci . --error-on-warnings
 
   test:
     runs-on: ubuntu-latest

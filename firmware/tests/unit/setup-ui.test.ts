@@ -27,6 +27,17 @@ describe('setup ui model', () => {
     assert.match(wasmManifest, /\$\(MODDABLE\)\/modules\/input\/expanding-keyboard\/horizontal\/manifest\.json/)
   })
 
+  test('home setup screen uses Moddable settings-style rows instead of black-and-white status text', () => {
+    const source = readFileSync('stackchan/setup-ui.ts', 'utf8')
+
+    assert.match(source, /const HomeSettingRow: PiuTemplate/)
+    assert.match(source, /const HomeScreen: PiuTemplate<SetupRuntime> = Container\.template/)
+    assert.match(source, /new HomeSettingRow\(\{ name: 'Network'/)
+    assert.match(source, /new HomeSettingRow\(\{[\s\S]*?name: 'Password'/)
+    assert.doesNotMatch(source, /string: 'Networks' \}\)/)
+    assert.doesNotMatch(source, /skin: getBlackSkin\(\),\n\s*active: true,\n\s*Behavior: HomeBehavior/)
+  })
+
   test('password keyboard bottom edge is anchored to the display bottom edge', () => {
     const source = readFileSync('stackchan/setup-ui.ts', 'utf8')
 

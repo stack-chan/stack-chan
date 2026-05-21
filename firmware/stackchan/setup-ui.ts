@@ -139,45 +139,60 @@ class HomeBehavior extends Behavior {
   }
 }
 
+const HomeSettingRow: PiuTemplate<{ name: string; value: string }> = Container.template(
+  ($: { name: string; value: string }) => ({
+    left: 10,
+    right: 10,
+    height: 42,
+    skin: getSelectedSkin(),
+    contents: [
+      new Label(null, { left: 8, width: 96, top: 0, bottom: 0, style: getBlackStyle(), string: $.name }),
+      new Label(null, { left: 104, right: 8, top: 0, bottom: 0, style: getDimStyle(), string: $.value }),
+    ],
+  }),
+)
+
 const HomeScreen: PiuTemplate<SetupRuntime> = Container.template(($: SetupRuntime) => ({
   left: 0,
   right: 0,
   top: 0,
   bottom: 0,
-  skin: getBlackSkin(),
+  skin: getWhiteSkin(),
   active: true,
   Behavior: HomeBehavior,
   contents: [
-    new Header({ title: 'Stack-chan Setup' }),
-    new Column(null, {
-      left: 12,
-      right: 12,
-      top: 58,
+    new Container(null, {
+      left: 0,
+      right: 0,
+      top: 36,
+      bottom: 0,
       contents: [
-        new Label(null, {
+        new Content(null, { left: 0, right: 0, top: 0, height: 8, skin: getSeparatorGraySkin() }),
+        new Column(null, {
           left: 0,
           right: 0,
-          height: 28,
-          style: getTitleStyle(),
-          string: $.state.draft.ssid ? `SSID: ${$.state.draft.ssid}` : 'Wi-Fi not configured',
-        }),
-        new Label(null, {
-          left: 0,
-          right: 0,
-          height: 28,
-          style: getTitleStyle(),
-          string: $.state.status === 'draft-ready' ? 'Draft ready for later Preference.set' : 'Tap to choose network',
-        }),
-        new Label(null, { left: 0, right: 0, height: 40, style: getTitleStyle(), string: 'Networks' }),
-        new Label(null, {
-          left: 0,
-          right: 0,
-          height: 32,
-          style: getTitleStyle(),
-          string: $.state.draft.password ? `Password: ${maskPassword($.state.draft.password)}` : 'Password: not set',
+          top: 12,
+          contents: [
+            new HomeSettingRow({ name: 'Network', value: $.state.draft.ssid || 'not set' }),
+            new Separator(null),
+            new HomeSettingRow({
+              name: 'Password',
+              value: $.state.draft.password ? maskPassword($.state.draft.password) : 'not set',
+            }),
+            new Separator(null),
+            new Content(null, { height: 10 }),
+            new Label(null, {
+              left: 10,
+              right: 10,
+              height: 56,
+              style: getDimStyle(),
+              string: $.state.status === 'draft-ready' ? 'Tap to choose another network' : 'Tap to choose network',
+            }),
+          ],
         }),
       ],
     }),
+    new Header({ title: 'Stack-chan Setup' }),
   ],
 }))
 

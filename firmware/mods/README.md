@@ -5,6 +5,10 @@ For instructions on how to write mods, please refer to [Build and Write Programs
 
 Some mods require a network connection or an external server to run (as of writing).
 
+## M5StackChan CoreS3 Smoke
+
+- [m5stackchan_smoke](./m5stackchan_smoke/): Servo-power and head LED smoke check for M5StackChan CoreS3. See [M5StackChan CoreS3 smoke check](../docs/m5stackchan-cores3-smoke.md).
+
 ## Look Around: Kyoro-kyoro gaze Stack-chan
 
 ![squeaking Stack-chan](../../docs/images/stackchan.gif)

@@ -5,6 +5,10 @@ MODの書き込み方法は[プログラムのビルドと書き込み](../docs/
 
 一部のMODは動かすためにネットワーク接続や外部のサーバを準備を準備する必要があります（執筆中）。
 
+## M5StackChan CoreS3 Smoke
+
+- [m5stackchan_smoke](./m5stackchan_smoke/): M5StackChan CoreS3 のサーボ電源とヘッドLEDの smoke 確認です。手順は [M5StackChan CoreS3 smoke check](../docs/m5stackchan-cores3-smoke.md) を参照してください。
+
 ## Look Around: きょろきょろｽﾀｯｸﾁｬﾝ
 
 ![きょろきょろｽﾀｯｸﾁｬﾝ](../../docs/images/stackchan.gif)

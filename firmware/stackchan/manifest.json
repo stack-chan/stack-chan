@@ -201,6 +201,9 @@
       }
     },
     "mac/m5stack": {
+      "creation": {
+        "stack": 1024
+      },
       "config": {
         "driver": {
           "type": "none"
@@ -218,6 +221,9 @@
       }
     },
     "win/m5stack": {
+      "creation": {
+        "stack": 1024
+      },
       "config": {
         "driver": {
           "type": "none"
@@ -225,6 +231,9 @@
       }
     },
     "mac/m5atom_s3": {
+      "creation": {
+        "stack": 1024
+      },
       "config": {
         "renderer": {
           "type": "small-face"
@@ -235,6 +244,9 @@
       }
     },
     "lin/m5atom_s3": {
+      "creation": {
+        "stack": 1024
+      },
       "config": {
         "renderer": {
           "type": "small-face"
@@ -245,6 +257,9 @@
       }
     },
     "win/m5atom_s3": {
+      "creation": {
+        "stack": 1024
+      },
       "config": {
         "renderer": {
           "type": "small-face"

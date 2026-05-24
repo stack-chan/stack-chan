@@ -20,7 +20,16 @@ const fontDir = path.dirname(resolvedFontPath)
 const fontBaseName = path.basename(resolvedFontPath, path.extname(resolvedFontPath))
 const outputPath = path.join(fontDir, `${fontBaseName}-chars.txt`)
 
-const font = fontkit.openSync(resolvedFontPath)
+let font
+
+try {
+  font = fontkit.openSync(resolvedFontPath)
+} catch (error) {
+  console.error(
+    `Failed to open font file: ${resolvedFontPath}\n${error instanceof Error ? error.message : String(error)}`,
+  )
+  process.exit(1)
+}
 
 const chars = []
 

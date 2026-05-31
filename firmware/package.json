@@ -50,7 +50,7 @@
   "homepage": "https://github.com/meganetaaan/stack-chan#readme",
   "private": true,
   "devDependencies": {
-    "@biomejs/biome": "2.4.15",
+    "@biomejs/biome": "2.4.16",
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@google-cloud/text-to-speech": "^6.4.1",

@@ -46,6 +46,7 @@ const buildStatusUI = (status: Status): StatusLabels => {
     hint: new Label(null, { left: 0, right: 0, height: 22, style: labelStyle }),
   }
   new Application(null, {
+    displayListLength: 4096,
     skin: screenSkin,
     contents: [
       new Container(null, {

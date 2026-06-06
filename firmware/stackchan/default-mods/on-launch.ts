@@ -46,6 +46,7 @@ const buildStatusUI = (status: Status): StatusLabels => {
     hint: new Label(null, { left: 0, right: 0, height: 22, style: labelStyle }),
   }
   new Application(null, {
+    displayListLength: 4096,
     skin: screenSkin,
     contents: [
       new Container(null, {
@@ -132,15 +133,28 @@ async function waitForKey(): Promise<boolean> {
     let count = 0
     const handle = Timer.repeat(() => {
       if (isPressed()) {
-        if (touch?.sample) touch.close()
         Timer.clear(handle)
-        resolve(true)
+        if (touch && !config.Touch) {
+          // CoreS3 async touch driver
+          touch.close(() => {
+            resolve(true)
+          })
+        } else {
+          resolve(true)
+        }
+        return
       }
       count++
       if (count >= 10) {
-        if (touch?.sample) touch.close()
         Timer.clear(handle)
-        resolve(false)
+        if (touch && !config.Touch) {
+          // CoreS3 async touch driver
+          touch.close(() => {
+            resolve(false)
+          })
+        } else {
+          resolve(false)
+        }
       }
     }, 100)
   })

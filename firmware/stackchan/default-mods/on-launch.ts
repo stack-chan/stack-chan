@@ -36,6 +36,7 @@ const labelStyle = new Style({
   horizontal: 'left',
   vertical: 'middle',
 })
+const TOUCH_CLOSE_SETTLE_MS = 100
 
 const buildStatusUI = (status: Status): StatusLabels => {
   const labels: StatusLabels = {
@@ -131,30 +132,26 @@ async function waitForKey(): Promise<boolean> {
   }
   return new Promise((resolve) => {
     let count = 0
+    const resolveAfterTouchClose = (value: boolean) => {
+      if (touch && !config.Touch) {
+        // CoreS3 async touch driver can still deliver pending I2C callbacks right after close.
+        touch.close(() => {
+          Timer.set(() => resolve(value), TOUCH_CLOSE_SETTLE_MS)
+        })
+      } else {
+        resolve(value)
+      }
+    }
     const handle = Timer.repeat(() => {
       if (isPressed()) {
         Timer.clear(handle)
-        if (touch && !config.Touch) {
-          // CoreS3 async touch driver
-          touch.close(() => {
-            resolve(true)
-          })
-        } else {
-          resolve(true)
-        }
+        resolveAfterTouchClose(true)
         return
       }
       count++
       if (count >= 10) {
         Timer.clear(handle)
-        if (touch && !config.Touch) {
-          // CoreS3 async touch driver
-          touch.close(() => {
-            resolve(false)
-          })
-        } else {
-          resolve(false)
-        }
+        resolveAfterTouchClose(false)
       }
     }, 100)
   })

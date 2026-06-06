@@ -11,7 +11,9 @@ Examples of useful contributions:
 
 ## Before opening a pull request
 
-- Base your branch on `dev/v1.0`
+- Base your branch on `develop`
+- Use `feat/*` for feature work and `fix/*` for fixes
+- Open pull requests against `develop` unless the maintainers ask for another base branch
 - Keep each pull request focused on a single topic
 - Run the relevant checks before opening the pull request
 
@@ -40,6 +42,17 @@ If your change depends on Moddable or ESP-IDF tooling, include the build or runt
 - Reviewers should confirm the stated release impact matches the actual user-visible change
 - Firmware and web changes that affect released behavior should not merge without a release note or an explicit reason it is not needed
 - Docs, CI, repository metadata, case, and schematics changes should be checked for release impact before asking for a release note or changeset
+
+## Branch and release flow
+
+The repository uses `main <- develop <- feat/* | fix/*`.
+
+- `main` is the stable branch and should represent released or release-ready source.
+- `develop` is the integration branch for the next release.
+- Release work is reviewed through a `develop` to `main` pull request.
+- The previous `dev/v1.0` integration branch is kept only during the transition to `develop`.
+
+See `docs/operations/release-flow.md` for the detailed branch policy.
 
 ## Issue reports
 

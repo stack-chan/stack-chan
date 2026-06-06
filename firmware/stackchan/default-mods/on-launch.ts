@@ -132,15 +132,27 @@ async function waitForKey(): Promise<boolean> {
     let count = 0
     const handle = Timer.repeat(() => {
       if (isPressed()) {
-        if (touch?.sample) touch.close()
         Timer.clear(handle)
-        resolve(true)
+        if (touch && !config.Touch) {
+          // CoreS3 async touch driver
+          touch.close(() => {
+            resolve(true)
+          })
+        } else {
+          resolve(true)
+        }
       }
       count++
       if (count >= 10) {
-        if (touch?.sample) touch.close()
         Timer.clear(handle)
-        resolve(false)
+        if (touch && !config.Touch) {
+          // CoreS3 async touch driver
+          touch.close(() => {
+            resolve(false)
+          })
+        } else {
+          resolve(false)
+        }
       }
     }, 100)
   })

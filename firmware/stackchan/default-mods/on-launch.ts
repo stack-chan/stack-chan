@@ -141,6 +141,7 @@ async function waitForKey(): Promise<boolean> {
         } else {
           resolve(true)
         }
+        return
       }
       count++
       if (count >= 10) {

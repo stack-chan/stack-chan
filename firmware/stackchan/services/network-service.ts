@@ -1,4 +1,4 @@
-import WiFi from 'wifi'
+import WiFi from 'wifi/connection'
 import Net from 'net'
 import Time from 'time'
 import config from 'mc/config'
@@ -26,6 +26,7 @@ export class NetworkService {
       onError('ssid not set')
     }
     this.#connecting = true
+    WiFi.mode = WiFi.Mode.station
     this.#wifi = new WiFi({ ssid: this.#ssid, password: this.#password }, (msg) => {
       trace(`WiFi ${msg}\n`)
       switch (msg) {
@@ -61,7 +62,6 @@ export class NetworkService {
           if (this.#connectionEstablished) {
             this.#connecting = true
             trace('WiFi reconnecting...\n')
-            WiFi.connect({ ssid: this.#ssid, password: this.#password })
           } else {
             onError?.('connection failed')
           }
@@ -70,6 +70,7 @@ export class NetworkService {
     })
   }
   scanAndConnect(onConnected, onError) {
+    WiFi.mode = WiFi.Mode.station
     WiFi.scan({}, (item: { ssid: string } | null) => {
       if (this.#connecting) {
         return

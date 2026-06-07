@@ -1,4 +1,10 @@
-import type { Application as PiuApplication, Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import { Application } from 'piu/MC'
+import type {
+  Application as PiuApplication,
+  ApplicationDictionary,
+  Container as PiuContainer,
+  Content as PiuContent,
+} from 'piu/MC'
 import type { DrawerButtonSpec } from 'drawer'
 import type { FaceContext } from 'face-context'
 import {
@@ -18,6 +24,10 @@ type DrawerControllerHost = {
     removeButton?: (key: string) => void
     setButtonState?: (key: string, active: boolean) => void
   }
+}
+
+type GlobalWithApplication = typeof globalThis & {
+  application?: PiuApplication
 }
 
 export class AppController extends Behavior {
@@ -126,4 +136,25 @@ export class AppController extends Behavior {
       setButtonState: (key, active) => this.setDrawerButtonState(key, active),
     }
   }
+}
+
+export function createAppControllerApplication(
+  data: AppControllerParams,
+  dictionary: Omit<ApplicationDictionary, 'Behavior' | 'contents'> = {},
+): AppController {
+  const existingApplication = (globalThis as GlobalWithApplication).application
+  if (existingApplication) {
+    const controller = new AppController()
+    existingApplication.empty()
+    existingApplication.behavior = controller
+    controller.onCreate(existingApplication, data)
+    return controller
+  }
+
+  const application = new Application(data, {
+    ...dictionary,
+    contents: [],
+    Behavior: AppController,
+  })
+  return application.behavior as AppController
 }

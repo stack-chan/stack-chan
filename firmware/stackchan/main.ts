@@ -226,6 +226,14 @@ function hasWiFiCredentials(wifiPrefs: WiFiPreferences): wifiPrefs is Required<W
   )
 }
 
+function loadWiFiPreferences(): WiFiPreferences {
+  return {
+    ssid: typeof config.ssid === 'string' ? config.ssid : undefined,
+    password: typeof config.password === 'string' ? config.password : undefined,
+    ...(loadPreferences('wifi') as WiFiPreferences),
+  }
+}
+
 async function connectWiFiOnce(wifiPrefs: Required<WiFiPreferences>): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -301,7 +309,7 @@ async function waitForWiFiRecoveryChoice(message: string): Promise<WiFiRecoveryC
 }
 
 async function checkAndConnectWiFi() {
-  const wifiPrefs = loadPreferences('wifi') as WiFiPreferences
+  const wifiPrefs = loadWiFiPreferences()
   if (!hasWiFiCredentials(wifiPrefs)) {
     trace('[main] Wi-Fi credentials not set; skip connection\n')
     return

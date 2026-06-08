@@ -10,14 +10,7 @@
       {
         "source": "../../../stackchan/assets/fonts/k8x12",
         "size": 12,
-        "blocks": [
-          "Basic Latin",
-          "Hiragana",
-          "Katakana",
-          "CJK Unified Ideographs",
-          "CJK Symbols and Punctuation",
-          "Halfwidth and Fullwidth Forms"
-        ],
+        "characterFiles": "../../../stackchan/assets/fonts/k8x12-chars.txt",
         "monochrome": true
       }
     ]

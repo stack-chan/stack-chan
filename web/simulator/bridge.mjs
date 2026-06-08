@@ -30,53 +30,6 @@ function writeRgb565Le(view, width, height) {
   }
 }
 
-export function createHostButtonBridge({
-  logger = console.log,
-  setTimeoutFn = globalThis.setTimeout,
-  resetDelayMs = 120,
-} = {}) {
-  const states = Object.fromEntries(
-    BUTTON_NAMES.map((name) => [name, { pressed: 1, firmwareCallbacks: new Set(), htmlAction: undefined }])
-  )
-
-  const Button = Object.fromEntries(
-    BUTTON_NAMES.map((name) => [
-      name,
-      class HtmlBridgeButton {
-        constructor({ onPush } = {}) {
-          if (onPush) states[name].firmwareCallbacks.add(onPush)
-        }
-
-        read() {
-          return states[name].pressed
-        }
-      },
-    ])
-  )
-
-  return {
-    Button,
-    setHtmlAction(name, action) {
-      if (!states[name]) return
-      states[name].htmlAction = action
-    },
-    push(name) {
-      const state = states[name]
-      if (!state) return
-      logger(`[bridge] Host.Button.${name} pushed`)
-      state.pressed = 0
-      for (const callback of state.firmwareCallbacks) callback()
-      state.htmlAction?.()
-      setTimeoutFn(() => {
-        state.pressed = 1
-      }, resetDelayMs)
-    },
-    read(name) {
-      return states[name]?.pressed
-    },
-  }
-}
-
 export function createHostDriverBridge({ onRotation = () => {}, onTorque = () => {} } = {}) {
   let rotation = { y: 0, p: 0, r: 0 }
   let torque = true
@@ -95,6 +48,46 @@ export function createHostDriverBridge({ onRotation = () => {}, onTorque = () =>
     },
     getTorque() {
       return torque
+    },
+  }
+}
+
+export function createHostButtonBridge({
+  logger = console.log,
+  setTimeoutFn = globalThis.setTimeout,
+  resetDelayMs = 120,
+} = {}) {
+  const states = Object.fromEntries(BUTTON_NAMES.map((name) => [name, { pressed: 1, firmwareCallbacks: new Set() }]))
+
+  const Button = Object.fromEntries(
+    BUTTON_NAMES.map((name) => [
+      name,
+      class HtmlBridgeButton {
+        constructor({ onPush } = {}) {
+          if (onPush) states[name].firmwareCallbacks.add(onPush)
+        }
+
+        read() {
+          return states[name].pressed
+        }
+      },
+    ])
+  )
+
+  return {
+    Button,
+    push(name) {
+      const state = states[name]
+      if (!state) return
+      logger(`[bridge] Host.Button.${name} pushed`)
+      state.pressed = 0
+      for (const callback of state.firmwareCallbacks) callback()
+      setTimeoutFn(() => {
+        state.pressed = 1
+      }, resetDelayMs)
+    },
+    read(name) {
+      return states[name]?.pressed
     },
   }
 }

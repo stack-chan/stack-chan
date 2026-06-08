@@ -1,41 +1,31 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 
 const splashPath = 'stackchan/startup-splash.ts'
-const splashImagePath = 'stackchan/assets/images/startup-splash.png'
 const defaultLaunchPath = 'stackchan/default-mods/on-launch.ts'
 const wasmModPath = 'stackchan/default-mods/wasm/mod.ts'
 const manifestPath = 'stackchan/manifest.json'
 const wasmManifestPath = 'stackchan/manifest_wasm.json'
 
-function readPngSize(path: string) {
-  const buffer = readFileSync(path)
-  assert.equal(buffer.toString('ascii', 1, 4), 'PNG')
-  return {
-    width: buffer.readUInt32BE(16),
-    height: buffer.readUInt32BE(20),
-  }
-}
-
 describe('startup splash screen', () => {
-  test('uses the requested 320x240 Stack-chan loading splash image', () => {
-    assert.equal(existsSync(splashPath), true)
-    assert.equal(existsSync(splashImagePath), true)
-
+  test('uses a simple Label-based Stack-chan loading splash screen', () => {
     const source = readFileSync(splashPath, 'utf8')
-    assert.match(source, /startup-splash\.png/)
-    assert.match(source, /new Texture/)
-    assert.match(source, /new Skin/)
     assert.match(source, /new Application/)
-    assert.match(source, /new Content/)
-
-    assert.deepEqual(readPngSize(splashImagePath), { width: 320, height: 240 })
+    assert.match(source, /new Container/)
+    assert.match(source, /new Column/)
+    assert.match(source, /new Label/)
+    assert.match(source, /new Skin/)
+    assert.match(source, /new Style/)
+    assert.match(source, /Stack-chan/)
+    assert.match(source, /Starting\.\.\./)
+    assert.doesNotMatch(source, /startup-splash\.png/)
+    assert.doesNotMatch(source, /new Texture/)
   })
 
-  test('registers the splash texture resource for device and wasm builds', () => {
-    assert.match(readFileSync(manifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
-    assert.match(readFileSync(wasmManifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
+  test('does not register a startup splash image resource for device or wasm builds', () => {
+    assert.doesNotMatch(readFileSync(manifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
+    assert.doesNotMatch(readFileSync(wasmManifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
   })
 
   test('default launch shows a touchable splash before startup choice branching', () => {
@@ -60,14 +50,14 @@ describe('startup splash screen', () => {
     assert.match(source, /startupChoice\.choice === 'boot'/)
   })
 
-  test('wasm default mod uses the same touch-or-timeout launch choice', () => {
+  test('wasm default mod uses the wasm-specific startup splash hook', () => {
     const mainSource = readFileSync('stackchan/main.ts', 'utf8')
     const source = readFileSync(wasmModPath, 'utf8')
     const manifest = readFileSync(wasmManifestPath, 'utf8')
 
     assert.match(mainSource, /Modules\.importNow\('default-mods\/wasm\/mod'\)/)
-    assert.match(source, /default-mods\/on-launch/)
-    assert.doesNotMatch(source, /default-mods\/wasm\/on-launch/)
+    assert.match(source, /default-mods\/wasm\/on-launch/)
+    assert.doesNotMatch(source, /default-mods\/on-launch'/)
     assert.match(manifest, /"default-mods\/wasm\/mod"/)
   })
 })

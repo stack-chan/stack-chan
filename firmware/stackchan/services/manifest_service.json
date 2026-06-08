@@ -7,6 +7,7 @@
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
     "$(MODULES)/network/mdns/manifest.json",
+    "$(MODULES)/network/wifi/manifest.json",
     "../utilities/manifest_utility.json",
     "./http-server/manifest.json",
     "./mcp-server/manifest.json",

@@ -39,9 +39,6 @@ class StackchanScene {
   constructor({ viewport, screen }) {
     this.viewport = viewport
     this.screen = screen
-    this.lookAround = false
-    this.speaking = false
-    this.motionUntil = 0
     this.driverRotation = { y: 0, p: 0, r: 0 }
     this.targetDriverRotation = { y: 0, p: 0, r: 0 }
     this.lastDriverUpdateMs = undefined
@@ -260,18 +257,6 @@ class StackchanScene {
     this.camera.updateProjectionMatrix()
   }
 
-  setLookAround(enabled) {
-    this.lookAround = enabled
-  }
-
-  setSpeaking(enabled) {
-    this.speaking = enabled
-  }
-
-  runServoMotion() {
-    this.motionUntil = performance.now() + 4600
-  }
-
   applyDriverRotation(rotation) {
     this.targetDriverRotation = { ...this.targetDriverRotation, ...rotation }
   }
@@ -317,9 +302,6 @@ class StackchanScene {
   render(timeMs) {
     this.updateDriverRotation(timeMs)
     const transforms = computeStackchanKinematics(timeMs, {
-      lookAround: this.lookAround,
-      speaking: this.speaking,
-      motionUntil: this.motionUntil,
       driverRotation: this.driverRotation,
     })
 
@@ -665,8 +647,6 @@ globalThis.Host.Driver = driverBridge
 console.log('[bridge] global Host.Driver bridge installed')
 globalThis.Host.Camera = cameraBridge
 console.log('[bridge] global Host.Camera bridge installed')
-buttonBridge.setHtmlAction('a', () => scene.setLookAround(!scene.lookAround))
-buttonBridge.setHtmlAction('b', () => scene.runServoMotion())
 
 const wasmView = new WasmView({
   scene,

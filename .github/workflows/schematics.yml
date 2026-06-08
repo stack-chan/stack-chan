@@ -3,6 +3,8 @@ name: Generate Stack-chan Schematics Files
 on:
   push:
     branches:
+      - develop
+      # Temporary migration branch. Remove after all PRs target develop.
       - dev/v1.0
     paths:
       - '**/*.kicad_sch'
@@ -11,6 +13,8 @@ on:
       - '.github/workflows/schematics.yml'
   pull_request:
     branches:
+      - develop
+      # Temporary migration branch. Remove after all PRs target develop.
       - dev/v1.0
     paths:
       - '**/*.kicad_sch'
@@ -44,7 +48,7 @@ jobs:
 
   deploy-schematics:
     needs: build-schematics
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev/v1.0'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/dev/v1.0')
     runs-on: ubuntu-latest
     concurrency:
       group: gh-pages-deploy

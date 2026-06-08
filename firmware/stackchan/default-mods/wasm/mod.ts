@@ -1,5 +1,5 @@
 import { onRobotCreated } from 'default-mods/on-robot-created'
-import { onLaunch } from 'default-mods/on-launch'
+import { onLaunch } from 'default-mods/wasm/on-launch'
 import type { Robot } from 'robot'
 
 export interface StackchanMod {

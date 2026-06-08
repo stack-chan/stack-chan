@@ -80,20 +80,12 @@
     }
   },
   "resources": {
-    "*-color": ["./assets/images/startup-splash"],
     "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
     "*-alpha": [
       {
         "source": "./assets/fonts/k8x12",
         "size": 12,
-        "blocks": [
-          "Basic Latin",
-          "Hiragana",
-          "Katakana",
-          "CJK Unified Ideographs",
-          "CJK Symbols and Punctuation",
-          "Halfwidth and Fullwidth Forms"
-        ],
+        "characterFiles": "./assets/fonts/k8x12-chars.txt",
         "monochrome": true
       }
     ]

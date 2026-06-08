@@ -23,6 +23,8 @@
   "modules": {
     "*": [
       "./touch",
+      "./touch-panel",
+      "./touch-panel-gesture",
       "./robot",
       "./camera",
       "./camera-preview",
@@ -34,7 +36,7 @@
     ],
     "default-mods/*": "./default-mods/*"
   },
-  "preload": ["robot", "touch", "tone"],
+  "preload": ["robot", "touch", "touch-panel", "touch-panel-gesture", "tone"],
   "strip": [],
   "config": {
     "sntp": "pool.ntp.org",

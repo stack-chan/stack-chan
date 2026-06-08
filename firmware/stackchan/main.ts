@@ -23,6 +23,7 @@ import { showWiFiRecoveryChoice, type WiFiRecoveryChoice } from 'startup-splash'
 import Tone from 'tone'
 import Timer from 'timer'
 import Touch from 'touch'
+import TouchPanel from 'touch-panel'
 import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as OpenAITTS } from 'tts-openai'
@@ -50,7 +51,11 @@ type WiFiPreferences = {
 type GlobalEnvironment = {
   button?: Partial<Record<'a' | 'b' | 'c', DeviceButton>>
   network?: NetworkService
-  device?: unknown
+  device?: {
+    sensor?: {
+      TouchPanel?: new (options: unknown) => unknown
+    }
+  }
   Host?: {
     Button?: Partial<Record<'a' | 'b' | 'c', SimulatorButtonCtor>>
   }
@@ -145,6 +150,9 @@ function createRobot() {
   const tts = TTS(ttsPrefs)
 
   const touch = config.Touch ? new Touch(config.Touch) : undefined
+  const touchPanel = globalEnv.device?.sensor?.TouchPanel
+    ? new TouchPanel(globalEnv.device.sensor.TouchPanel as ConstructorParameters<typeof TouchPanel>[0])
+    : undefined
   const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined
   const camera = new Camera()
   const tone = new Tone({ volume: ttsPrefs.volume })
@@ -193,6 +201,7 @@ function createRobot() {
     tts,
     button: globalEnv.button,
     touch,
+    touchPanel,
     tone,
     microphone,
     camera,

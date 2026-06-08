@@ -12,7 +12,14 @@
     "./manifest_typings.json"
   ],
   "modules": {
-    "*": ["./touch", "./robot", "./startup-splash", "./main"],
+    "*": [
+      "./touch",
+      "./touch-panel",
+      "./touch-panel-gesture",
+      "./robot",
+      "./startup-splash",
+      "./main"
+    ],
     "camera": "./wasm/camera",
     "wasm-camera-bridge": "./wasm/camera-bridge",
     "camera-preview": "./wasm/camera-preview",
@@ -49,6 +56,8 @@
     "wasm-audio-bridge",
     "wasm-camera-bridge",
     "robot",
+    "touch-panel",
+    "touch-panel-gesture",
     "default-mods/wasm/mod"
   ],
   "strip": [],

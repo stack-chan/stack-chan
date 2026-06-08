@@ -93,6 +93,10 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
   assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
   assert.equal(manifest.modules['wasm-driver'], './drivers/wasm/wasm-driver')
   assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
+  assert.ok(manifest.modules['*'].includes('./touch-panel'))
+  assert.ok(manifest.modules['*'].includes('./touch-panel-gesture'))
+  assert.ok(manifest.preload.includes('touch-panel'))
+  assert.ok(manifest.preload.includes('touch-panel-gesture'))
   assert.deepEqual(
     {
       'dynamixel-driver': manifest.modules['dynamixel-driver'],

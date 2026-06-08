@@ -31,6 +31,7 @@ import Serial from "embedded:io/serial";
 import SMBus from "embedded:io/smbus";
 import SPI from "embedded:io/spi";
 import Touch from "M5StackCoreS3Touch";
+import TouchPanel from "embedded:sensor/Touch/Si12T"
 
 const device = {
 	I2C: {
@@ -111,6 +112,17 @@ const device = {
 				return result;
 			}
 		},
+    TouchPanel: class {
+      constructor(options) {
+        return new TouchPanel({
+          ...options,
+          sensor: {
+            ...device.I2C.internal,
+            io: device.io.SMBus,
+          },
+        });
+      }
+    },
 		IMU: class {
 			constructor(options) {
 				return new IMU({

@@ -4,6 +4,7 @@ import { type FaceContext, type Emotion, createFaceContext } from 'face-context'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type Digital from 'embedded:io/digital'
 import type Touch from 'touch'
+import type TouchPanel from 'touch-panel'
 import type Microphone from 'microphone'
 import type Tone from 'tone'
 import type Led from 'led'
@@ -100,6 +101,7 @@ type RobotConstructorParam<T extends string> = {
     }
   }
   touch?: Touch
+  touchPanel?: TouchPanel
   microphone?: Microphone
   camera?: RobotCamera
   tone?: Tone
@@ -128,6 +130,7 @@ export class Robot {
   #driver: Driver
   #button: { [key in ButtonName]: Button }
   #touch: Touch
+  #touchPanel: TouchPanel | undefined
   #microphone: Microphone
   #camera: RobotCamera
   #tone: Tone
@@ -153,6 +156,8 @@ export class Robot {
     this.#mouthOpen = 0
     this.#button = params.button
     this.#touch = params.touch
+    this.#touchPanel = params.touchPanel
+    this.#touchPanel?.start()
     this.#microphone = params.microphone
     this.#camera = params.camera ?? NULL_CAMERA
     this.#tone = params.tone
@@ -273,6 +278,15 @@ export class Robot {
    */
   get touch() {
     return this.#touch
+  }
+
+  /**
+   * get top touch panel
+   *
+   * @returns TouchPanel instance
+   */
+  get touchPanel(): TouchPanel | undefined {
+    return this.#touchPanel
   }
 
   /**

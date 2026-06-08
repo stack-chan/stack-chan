@@ -2,7 +2,10 @@
   "build": {
     "SUBPLATFORM": "m5stackchan_cores3"
   },
-  "include": ["$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json"],
+  "include": [
+    "$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json",
+    "$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json"
+  ],
   "modules": {
     "m5stack-cores3/setup-target": "$(BUILD)/devices/esp32/targets/m5stack_cores3/setup-target",
     "setup/target": "./setup-target"

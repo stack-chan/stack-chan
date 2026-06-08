@@ -18,7 +18,7 @@ import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import { asyncWait } from 'stackchan-util'
-import { showWiFiRecoveryChoice, type WiFiRecoveryChoice } from 'startup-splash'
+import { showWiFiConnectionStatus, showWiFiRecoveryChoice, type WiFiRecoveryChoice } from 'startup-splash'
 import Tone from 'tone'
 import Timer from 'timer'
 import Touch from 'touch'
@@ -319,6 +319,7 @@ async function checkAndConnectWiFi() {
     let lastError = 'connection failed'
     for (let attempt = 1; attempt <= WIFI_CONNECT_ATTEMPTS; attempt += 1) {
       trace(`[main] Wi-Fi connect attempt ${attempt}/${WIFI_CONNECT_ATTEMPTS}\n`)
+      showWiFiConnectionStatus({ attempt, total: WIFI_CONNECT_ATTEMPTS })
       try {
         await connectWiFiOnce(wifiPrefs)
         return

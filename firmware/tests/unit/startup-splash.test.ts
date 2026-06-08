@@ -8,6 +8,7 @@ const wasmModPath = 'stackchan/default-mods/wasm/mod.ts'
 const manifestPath = 'stackchan/manifest.json'
 const wasmManifestPath = 'stackchan/manifest_wasm.json'
 const serviceManifestPath = 'stackchan/services/manifest_service.json'
+const networkServicePath = 'stackchan/services/network-service.ts'
 const splashFontResource = '$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24'
 
 function readManifest(path: string) {
@@ -98,6 +99,8 @@ describe('startup splash screen', () => {
     const mainSource = readFileSync('stackchan/main.ts', 'utf8')
 
     assert.match(splashSource, /export function showWiFiRecoveryChoice/)
+    assert.match(splashSource, /export function showWiFiConnectionStatus/)
+    assert.match(splashSource, /Connecting \(\$\{options\.attempt\}\/\$\{options\.total\}\)/)
     assert.match(splashSource, /A: Retry/)
     assert.match(splashSource, /C: Start offline/)
     assert.match(mainSource, /const WIFI_CONNECT_ATTEMPTS = 3/)
@@ -106,8 +109,18 @@ describe('startup splash screen', () => {
     assert.match(mainSource, /password: typeof config\.password === 'string' \? config\.password : undefined/)
     assert.match(mainSource, /\.\.\.\(loadPreferences\('wifi'\) as WiFiPreferences\)/)
     assert.match(mainSource, /showWiFiRecoveryChoice/)
+    assert.match(mainSource, /showWiFiConnectionStatus\(\{ attempt, total: WIFI_CONNECT_ATTEMPTS \}\)/)
     assert.match(mainSource, /choose\('retry'\)/)
     assert.match(mainSource, /choose\('offline'\)/)
+  })
+
+  test('startup Wi-Fi attempt count is not multiplied by internal scan retries', () => {
+    const serviceSource = readFileSync(networkServicePath, 'utf8')
+
+    assert.doesNotMatch(serviceSource, /MAX_SCANS/)
+    assert.doesNotMatch(serviceSource, /#retry/)
+    assert.doesNotMatch(serviceSource, /trace\('retrying\\n'\)/)
+    assert.match(serviceSource, /onError\(`Access point "\$\{this\.#ssid\}" not found`\)/)
   })
 
   test('Wi-Fi connection helper is not preloaded before startup splash', () => {

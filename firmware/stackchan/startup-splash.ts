@@ -18,6 +18,11 @@ export type WiFiRecoveryOptions = {
   onOffline?: () => void
 }
 
+export type WiFiConnectionStatusOptions = {
+  attempt: number
+  total: number
+}
+
 const SPLASH_FONT = '24px Open Sans'
 
 let backgroundSkin: PiuSkin | null = null
@@ -180,6 +185,55 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
         },
       }),
     ],
+  })
+}
+
+export function showWiFiConnectionStatus(options: WiFiConnectionStatusOptions): PiuApplication {
+  const contents = [
+    new Container(options, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      contents: [
+        new Column(null, {
+          left: 0,
+          right: 0,
+          top: 76,
+          contents: [
+            new Label(null, {
+              left: 0,
+              right: 0,
+              height: 36,
+              string: 'Wi-Fi',
+              style: getTitleStyle(),
+            }),
+            new Label(null, {
+              left: 0,
+              right: 0,
+              height: 28,
+              string: `Connecting (${options.attempt}/${options.total})`,
+              style: getMessageStyle(),
+            }),
+          ],
+        }),
+      ],
+    }),
+  ]
+
+  const existingApplication = (globalThis as GlobalWithApplication).application
+  if (existingApplication) {
+    existingApplication.empty()
+    existingApplication.skin = getBackgroundSkin()
+    existingApplication.add(contents[0])
+    return existingApplication
+  }
+
+  return new Application(options, {
+    displayListLength: 4096,
+    touchCount: 1,
+    skin: getBackgroundSkin(),
+    contents,
   })
 }
 

@@ -4,8 +4,6 @@ import Time from 'time'
 import config from 'mc/config'
 import SNTP from 'sntp'
 
-const MAX_SCANS = 3
-
 type NetworkServiceOptions = {
   ssid?: string
   password?: string
@@ -16,7 +14,6 @@ export class NetworkService {
   #password?: string
   #connecting = false
   #connectionEstablished = false
-  #retry = 0
   #wifi?: WiFi
   onConnected: () => void
   onError: (reason?: string) => void
@@ -49,7 +46,6 @@ export class NetworkService {
           trace(`Got IP address: ${Net.get('IP')}\n`)
           this.#connecting = false
           this.#connectionEstablished = true
-          this.#retry = 0
 
           // Setting time for TLS connection
           if (!config.sntp || Date.now() > 1672722071_000) {
@@ -82,7 +78,6 @@ export class NetworkService {
     })
   }
   scanAndConnect(onConnected: () => void, onError: (message: string) => void) {
-    this.#retry = 0
     this.#scanAndConnect(onConnected, onError)
   }
   #scanAndConnect(onConnected: () => void, onError: (message: string) => void) {
@@ -102,14 +97,8 @@ export class NetworkService {
         }
       } else {
         // scan finished
-        this.#retry += 1
-        if (this.#retry > MAX_SCANS) {
-          trace(`Access point "${this.#ssid}" not found\n`)
-          onError(`Access point "${this.#ssid}" not found`)
-          return
-        }
-        trace('retrying\n')
-        this.#scanAndConnect(onConnected, onError)
+        trace(`Access point "${this.#ssid}" not found\n`)
+        onError(`Access point "${this.#ssid}" not found`)
       }
     })
   }

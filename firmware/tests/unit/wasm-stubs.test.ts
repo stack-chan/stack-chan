@@ -141,7 +141,7 @@ test('WASM PY32 LED facade re-exports the shared LED stub through a manifest mod
 
 test('WASM main path loads an installed MOD archive before falling back to the default MOD', () => {
   const source = readFileSync('stackchan/main.ts', 'utf8')
-  const wasmBlock = source.slice(source.indexOf('if (config.wasm) {'), source.indexOf('await asyncWait(100)'))
+  const wasmBlock = source.slice(source.indexOf('function launchWasmPath()'), source.indexOf('async function main()'))
 
   assert.match(wasmBlock, /const wasmDefaultMod = Modules\.importNow\('default-mods\/wasm\/mod'\) as StackchanMod/)
   assert.match(wasmBlock, /let \{ onRobotCreated, onLaunch \} = wasmDefaultMod/)

@@ -76,4 +76,32 @@ describe('startup splash screen', () => {
     assert.doesNotMatch(source, /default-mods\/on-launch'/)
     assert.match(manifest, /"default-mods\/wasm\/mod"/)
   })
+
+  test('device boot shows launch splash before attempting Wi-Fi', () => {
+    const mainSource = readFileSync('stackchan/main.ts', 'utf8')
+    const launchBlock = mainSource.slice(
+      mainSource.indexOf('async function launchDefaultPath()'),
+      mainSource.indexOf('function launchWasmPath()'),
+    )
+
+    assert.match(mainSource, /await launchDefaultPath\(\)/)
+    assert.match(launchBlock, /await \(onLaunch\?\.\(\) \?\? true\)/)
+    assert.match(launchBlock, /await bootRobot\(onRobotCreated\)/)
+    assert.ok(
+      launchBlock.indexOf('await (onLaunch?.() ?? true)') < launchBlock.indexOf('await bootRobot(onRobotCreated)'),
+    )
+  })
+
+  test('Wi-Fi recovery screen offers retry and offline choices', () => {
+    const splashSource = readFileSync(splashPath, 'utf8')
+    const mainSource = readFileSync('stackchan/main.ts', 'utf8')
+
+    assert.match(splashSource, /export function showWiFiRecoveryChoice/)
+    assert.match(splashSource, /A: Retry/)
+    assert.match(splashSource, /C: Start offline/)
+    assert.match(mainSource, /const WIFI_CONNECT_ATTEMPTS = 3/)
+    assert.match(mainSource, /showWiFiRecoveryChoice/)
+    assert.match(mainSource, /choose\('retry'\)/)
+    assert.match(mainSource, /choose\('offline'\)/)
+  })
 })

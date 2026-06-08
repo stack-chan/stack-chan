@@ -5,6 +5,12 @@ import config from 'mc/config'
 import SNTP from 'sntp'
 
 const MAX_SCANS = 3
+
+type NetworkServiceOptions = {
+  ssid?: string
+  password?: string
+}
+
 export class NetworkService {
   #ssid?: string
   #password?: string
@@ -14,17 +20,22 @@ export class NetworkService {
   #wifi?: WiFi
   onConnected: () => void
   onError: (reason?: string) => void
-  constructor(options) {
+  constructor(options: NetworkServiceOptions) {
     this.#ssid = options.ssid
     this.#password = options.password
   }
   close() {
+    this.#connecting = false
     this.#wifi?.close()
+    this.#wifi = undefined
   }
   connect(onConnected: () => void, onError: (message: string) => void) {
     if (this.#ssid == null) {
       onError('ssid not set')
+      return
     }
+    this.close()
+    this.#connectionEstablished = false
     this.#connecting = true
     WiFi.mode = WiFi.Mode.station
     this.#wifi = new WiFi({ ssid: this.#ssid, password: this.#password }, (msg) => {
@@ -63,13 +74,22 @@ export class NetworkService {
             this.#connecting = true
             trace('WiFi reconnecting...\n')
           } else {
+            this.close()
             onError?.('connection failed')
           }
           break
       }
     })
   }
-  scanAndConnect(onConnected, onError) {
+  scanAndConnect(onConnected: () => void, onError: (message: string) => void) {
+    this.#retry = 0
+    this.#scanAndConnect(onConnected, onError)
+  }
+  #scanAndConnect(onConnected: () => void, onError: (message: string) => void) {
+    if (this.#ssid == null) {
+      onError('ssid not set')
+      return
+    }
     WiFi.mode = WiFi.Mode.station
     WiFi.scan({}, (item: { ssid: string } | null) => {
       if (this.#connecting) {
@@ -85,10 +105,11 @@ export class NetworkService {
         this.#retry += 1
         if (this.#retry > MAX_SCANS) {
           trace(`Access point "${this.#ssid}" not found\n`)
+          onError(`Access point "${this.#ssid}" not found`)
           return
         }
         trace('retrying\n')
-        this.scanAndConnect(onConnected, onError)
+        this.#scanAndConnect(onConnected, onError)
       }
     })
   }

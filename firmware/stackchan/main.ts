@@ -19,7 +19,9 @@ import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import { asyncWait } from 'stackchan-util'
+import { showWiFiRecoveryChoice, type WiFiRecoveryChoice } from 'startup-splash'
 import Tone from 'tone'
+import Timer from 'timer'
 import Touch from 'touch'
 import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import { TTS as LocalTTS } from 'tts-local'
@@ -40,6 +42,11 @@ type SimulatorButtonCtor = new (options: {
 
 type RobotLed = Pick<Led, 'on' | 'off' | 'blink' | 'rainbow'>
 
+type WiFiPreferences = {
+  ssid?: string
+  password?: string
+}
+
 type GlobalEnvironment = {
   button?: Partial<Record<'a' | 'b' | 'c', DeviceButton>>
   network?: NetworkService
@@ -50,6 +57,10 @@ type GlobalEnvironment = {
 }
 
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
+
+const WIFI_CONNECT_ATTEMPTS = 3
+const WIFI_CONNECT_TIMEOUT_MS = 15_000
+const WIFI_RETRY_DELAY_MS = 500
 
 function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
   return value != null && typeof (value as { then?: unknown }).then === 'function'
@@ -189,18 +200,196 @@ function createRobot() {
   } as ConstructorParameters<typeof Robot>[0])
 }
 
-async function checkAndConnectWiFi() {
-  const wifiPrefs = loadPreferences('wifi')
-  if (wifiPrefs.ssid == null || wifiPrefs.password == null) {
-    return
-  }
+function hasWiFiCredentials(wifiPrefs: WiFiPreferences): wifiPrefs is Required<WiFiPreferences> {
+  return (
+    typeof wifiPrefs.ssid === 'string' &&
+    wifiPrefs.ssid.length > 0 &&
+    typeof wifiPrefs.password === 'string' &&
+    wifiPrefs.password.length > 0
+  )
+}
+
+async function connectWiFiOnce(wifiPrefs: Required<WiFiPreferences>): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    globalEnv.network = new NetworkService({
+    let settled = false
+    const network = new NetworkService({
       ssid: wifiPrefs.ssid,
       password: wifiPrefs.password,
     })
-    globalEnv.network.connect(resolve, reject)
+
+    const settle = (callback: () => void, shouldClose: boolean) => {
+      if (settled) return
+      settled = true
+      if (timeoutHandle) Timer.clear(timeoutHandle)
+      if (shouldClose) {
+        network.close()
+        if (globalEnv.network === network) {
+          globalEnv.network = undefined
+        }
+      }
+      callback()
+    }
+
+    globalEnv.network = network
+    const timeoutHandle = Timer.set(() => {
+      settle(() => reject('connection timed out'), true)
+    }, WIFI_CONNECT_TIMEOUT_MS)
+    network.scanAndConnect(
+      () => {
+        settle(resolve, false)
+      },
+      (message) => {
+        settle(() => reject(message), true)
+      },
+    )
   })
+}
+
+async function waitForWiFiRecoveryChoice(message: string): Promise<WiFiRecoveryChoice> {
+  return new Promise((resolve) => {
+    let resolved = false
+    const previousAHandler = globalEnv.button?.a?.onChanged
+    const previousCHandler = globalEnv.button?.c?.onChanged
+
+    const restoreButtons = () => {
+      if (globalEnv.button?.a && previousAHandler) {
+        globalEnv.button.a.onChanged = previousAHandler
+      }
+      if (globalEnv.button?.c && previousCHandler) {
+        globalEnv.button.c.onChanged = previousCHandler
+      }
+    }
+
+    const choose = (choice: WiFiRecoveryChoice) => {
+      if (resolved) return
+      resolved = true
+      restoreButtons()
+      resolve(choice)
+    }
+
+    showWiFiRecoveryChoice({
+      message,
+      onRetry: () => choose('retry'),
+      onOffline: () => choose('offline'),
+    })
+
+    if (globalEnv.button?.a) {
+      globalEnv.button.a.onChanged = () => choose('retry')
+    }
+    if (globalEnv.button?.c) {
+      globalEnv.button.c.onChanged = () => choose('offline')
+    }
+  })
+}
+
+async function checkAndConnectWiFi() {
+  const wifiPrefs = loadPreferences('wifi') as WiFiPreferences
+  if (!hasWiFiCredentials(wifiPrefs)) {
+    trace('[main] Wi-Fi credentials not set; skip connection\n')
+    return
+  }
+
+  while (true) {
+    let lastError = 'connection failed'
+    for (let attempt = 1; attempt <= WIFI_CONNECT_ATTEMPTS; attempt += 1) {
+      trace(`[main] Wi-Fi connect attempt ${attempt}/${WIFI_CONNECT_ATTEMPTS}\n`)
+      try {
+        await connectWiFiOnce(wifiPrefs)
+        return
+      } catch (error) {
+        lastError = String(error)
+        trace(`[main] Wi-Fi connect attempt failed: ${lastError}\n`)
+        if (attempt < WIFI_CONNECT_ATTEMPTS) {
+          await asyncWait(WIFI_RETRY_DELAY_MS)
+        }
+      }
+    }
+
+    const choice = await waitForWiFiRecoveryChoice(lastError)
+    if (choice === 'offline') {
+      trace('[main] Wi-Fi skipped; starting offline\n')
+      return
+    }
+    trace('[main] retrying Wi-Fi by user request\n')
+  }
+}
+
+function loadLaunchHooks(): StackchanMod {
+  let { onRobotCreated, onLaunch } = defaultMod
+  trace('[main] checking mod override\n')
+  if (Modules.has('mod')) {
+    const mod = Modules.importNow('mod') as StackchanMod
+    onRobotCreated = mod.onRobotCreated ?? onRobotCreated
+    onLaunch = mod.onLaunch ?? onLaunch
+  }
+  return {
+    onRobotCreated,
+    onLaunch,
+  }
+}
+
+async function bootRobot(onRobotCreated: StackchanMod['onRobotCreated']) {
+  trace('[main] check Wi-Fi start\n')
+  await checkAndConnectWiFi()
+  trace('[main] check Wi-Fi complete\n')
+  if (globalEnv.network) {
+    trace('[main] Wi-Fi connected\n')
+  }
+  const robot = createRobot()
+  trace('[main] robot created\n')
+  await onRobotCreated?.(robot, globalEnv.device)
+  trace('[main] onRobotCreated complete\n')
+}
+
+async function launchDefaultPath() {
+  trace('[main] loading default mod\n')
+  const { onRobotCreated, onLaunch } = loadLaunchHooks()
+  const shouldRobotCreate = await (onLaunch?.() ?? true)
+  trace(`[main] onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)
+  if (shouldRobotCreate) {
+    await bootRobot(onRobotCreated)
+  }
+}
+
+function launchWasmPath() {
+  trace('[main] wasm path start\n')
+  const wasmDefaultMod = Modules.importNow('default-mods/wasm/mod') as StackchanMod
+  let { onRobotCreated, onLaunch } = wasmDefaultMod
+  trace(`[main] wasm defaultMod onLaunch=${onLaunch != null} onRobotCreated=${onRobotCreated != null}\n`)
+  if (Modules.has('mod')) {
+    trace('[main] wasm loading mod override\n')
+    const mod = Modules.importNow('mod') as StackchanMod
+    onRobotCreated = mod.onRobotCreated ?? onRobotCreated
+    onLaunch = mod.onLaunch ?? onLaunch
+  }
+  const launchResult = onLaunch?.() ?? true
+  const continueWasm = (shouldRobotCreate: boolean) => {
+    trace(`[main] wasm onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)
+    if (shouldRobotCreate) {
+      const robot = createRobot()
+      trace('[main] wasm robot created\n')
+      const robotCreatedResult = onRobotCreated?.(robot, globalEnv.device)
+      if (isThenable(robotCreatedResult)) {
+        robotCreatedResult
+          .then(() => {
+            trace('[main] wasm onRobotCreated complete\n')
+          })
+          .catch((error) => {
+            trace(`[main] wasm onRobotCreated error ${error?.message ?? error}\n`)
+          })
+      } else {
+        trace('[main] wasm onRobotCreated complete\n')
+      }
+    }
+    trace('[main] wasm path complete\n')
+  }
+  if (isThenable(launchResult)) {
+    launchResult.then(continueWasm).catch((error) => {
+      trace(`[main] wasm onLaunch error ${error?.message ?? error}\n`)
+    })
+  } else {
+    continueWasm(launchResult)
+  }
 }
 
 async function main() {
@@ -215,68 +404,11 @@ async function main() {
     }
   }
   if (config.wasm) {
-    trace('[main] wasm path start\n')
-    const wasmDefaultMod = Modules.importNow('default-mods/wasm/mod') as StackchanMod
-    let { onRobotCreated, onLaunch } = wasmDefaultMod
-    trace(`[main] wasm defaultMod onLaunch=${onLaunch != null} onRobotCreated=${onRobotCreated != null}\n`)
-    if (Modules.has('mod')) {
-      trace('[main] wasm loading mod override\n')
-      const mod = Modules.importNow('mod') as StackchanMod
-      onRobotCreated = mod.onRobotCreated ?? onRobotCreated
-      onLaunch = mod.onLaunch ?? onLaunch
-    }
-    const launchResult = onLaunch?.() ?? true
-    const continueWasm = (shouldRobotCreate: boolean) => {
-      trace(`[main] wasm onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)
-      if (shouldRobotCreate) {
-        const robot = createRobot()
-        trace('[main] wasm robot created\n')
-        const robotCreatedResult = onRobotCreated?.(robot, globalEnv.device)
-        if (isThenable(robotCreatedResult)) {
-          robotCreatedResult
-            .then(() => {
-              trace('[main] wasm onRobotCreated complete\n')
-            })
-            .catch((error) => {
-              trace(`[main] wasm onRobotCreated error ${error?.message ?? error}\n`)
-            })
-        } else {
-          trace('[main] wasm onRobotCreated complete\n')
-        }
-      }
-      trace('[main] wasm path complete\n')
-    }
-    if (isThenable(launchResult)) {
-      launchResult.then(continueWasm).catch((error) => {
-        trace(`[main] wasm onLaunch error ${error?.message ?? error}\n`)
-      })
-    } else {
-      continueWasm(launchResult)
-    }
+    launchWasmPath()
     return
   }
   await asyncWait(100)
-  trace('[main] check Wi-Fi start\n')
-  await checkAndConnectWiFi().catch((msg) => {
-    trace(`WiFi connection failed: ${msg}`)
-  })
-  trace('[main] check Wi-Fi complete\n')
-  trace('[main] loading default mod\n')
-  let { onRobotCreated, onLaunch } = defaultMod
-  trace('[main] checking mod override\n')
-  if (Modules.has('mod')) {
-    const mod = Modules.importNow('mod') as StackchanMod
-    onRobotCreated = mod.onRobotCreated ?? onRobotCreated
-    onLaunch = mod.onLaunch ?? onLaunch
-  }
-  const shouldRobotCreate = await (onLaunch?.() ?? true)
-  trace(`[main] onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)
-  if (shouldRobotCreate) {
-    const robot = createRobot()
-    trace('[main] robot created\n')
-    await onRobotCreated?.(robot, globalEnv.device)
-    trace('[main] onRobotCreated complete\n')
-  }
+  await launchDefaultPath()
 }
 
 main().catch((error) => {

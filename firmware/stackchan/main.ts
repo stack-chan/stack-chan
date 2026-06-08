@@ -7,7 +7,6 @@ import { M5StackChanServoDriver } from 'm5stackchan-servo-driver'
 import config from 'mc/config'
 import Microphone from 'microphone'
 import Modules from 'modules'
-import { NetworkService } from 'network-service'
 import { NoneDriver } from 'none-driver'
 import { Renderer as DogFaceRenderer } from 'renderer-dog'
 import { Renderer as ImageFaceRenderer } from 'renderer-image'
@@ -48,9 +47,18 @@ type WiFiPreferences = {
   password?: string
 }
 
+type NetworkServiceInstance = {
+  close(): void
+  scanAndConnect(onConnected: () => void, onError: (message: string) => void): void
+}
+
+type NetworkServiceModule = {
+  NetworkService: new (options: Required<WiFiPreferences>) => NetworkServiceInstance
+}
+
 type GlobalEnvironment = {
   button?: Partial<Record<'a' | 'b' | 'c', DeviceButton>>
-  network?: NetworkService
+  network?: NetworkServiceInstance
   device?: {
     sensor?: {
       TouchPanel?: new (options: unknown) => unknown
@@ -221,6 +229,7 @@ function hasWiFiCredentials(wifiPrefs: WiFiPreferences): wifiPrefs is Required<W
 async function connectWiFiOnce(wifiPrefs: Required<WiFiPreferences>): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     let settled = false
+    const { NetworkService } = Modules.importNow('network-service') as NetworkServiceModule
     const network = new NetworkService({
       ssid: wifiPrefs.ssid,
       password: wifiPrefs.password,

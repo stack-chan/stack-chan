@@ -7,6 +7,7 @@ const defaultLaunchPath = 'stackchan/default-mods/on-launch.ts'
 const wasmModPath = 'stackchan/default-mods/wasm/mod.ts'
 const manifestPath = 'stackchan/manifest.json'
 const wasmManifestPath = 'stackchan/manifest_wasm.json'
+const serviceManifestPath = 'stackchan/services/manifest_service.json'
 const splashFontResource = '$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24'
 
 function readManifest(path: string) {
@@ -62,7 +63,7 @@ describe('startup splash screen', () => {
     assert.match(source, /function waitForStartupChoice/)
     assert.match(source, /showStartupSplash\(\{ onTouch: \(\) => Timer\.set\(\(\) => choose\('settings'\), 0\) \}\)/)
     assert.match(source, /choose\('boot'\)/)
-    assert.match(source, /resolve\(\{ choice, application \}\)/)
+    assert.match(source, /resolve\(\{ choice, application: state\.application as PiuApplication \}\)/)
     assert.match(source, /startupChoice\.choice === 'boot'/)
   })
 
@@ -103,5 +104,26 @@ describe('startup splash screen', () => {
     assert.match(mainSource, /showWiFiRecoveryChoice/)
     assert.match(mainSource, /choose\('retry'\)/)
     assert.match(mainSource, /choose\('offline'\)/)
+  })
+
+  test('Wi-Fi connection helper is not preloaded before startup splash', () => {
+    const serviceManifest = readManifest(serviceManifestPath)
+    const manifest = readManifest(manifestPath)
+    const mainSource = readFileSync('stackchan/main.ts', 'utf8')
+    const launchSource = readFileSync(defaultLaunchPath, 'utf8')
+
+    assert.equal(
+      serviceManifest.modules['wifi/connection'],
+      '$(MODDABLE)/examples/network/wifi/wificonnection/wificonnection',
+    )
+    assert.ok(!manifest.include.includes('$(MODDABLE)/examples/manifest_net.json'))
+    assert.ok(!serviceManifest.include.includes('$(MODDABLE)/examples/manifest_net.json'))
+    assert.ok(!serviceManifest.include.includes('$(MODULES)/network/wifi/manifest.json'))
+    assert.doesNotMatch(JSON.stringify(serviceManifest.preload ?? []), /wifi\/connection/)
+    assert.doesNotMatch(JSON.stringify(serviceManifest.preload ?? []), /"wifi"/)
+    assert.doesNotMatch(mainSource, /import \{ NetworkService \} from 'network-service'/)
+    assert.doesNotMatch(launchSource, /import \{ NetworkService \} from 'network-service'/)
+    assert.match(mainSource, /Modules\.importNow\('network-service'\)/)
+    assert.match(launchSource, /Modules\.importNow\('network-service'\)/)
   })
 })

@@ -1,12 +1,12 @@
 import { Column, Container, Label, Skin, Style } from 'piu/MC'
 import type { Application as PiuApplication, Label as PiuLabel } from 'piu/MC'
-import { NetworkService } from 'network-service'
 import { showStartupSplash } from 'startup-splash'
 import { PreferenceServer } from 'preference-server'
 import Preference from 'preference'
 import type { StackchanMod } from 'default-mods/mod'
 import { DOMAIN, PREF_KEYS } from 'consts'
 import Timer from 'timer'
+import Modules from 'modules'
 
 type StartupChoice = 'boot' | 'settings'
 
@@ -25,6 +25,15 @@ type StatusLabels = {
   ssid: PiuLabel
   password: PiuLabel
   hint: PiuLabel
+}
+
+type NetworkServiceInstance = {
+  close(): void
+  connect(onConnected: () => void, onError: (message: string) => void): void
+}
+
+type NetworkServiceModule = {
+  NetworkService: new (options: { ssid: string; password: string }) => NetworkServiceInstance
 }
 
 let screenSkin: Skin | null = null
@@ -120,17 +129,19 @@ type StartupChoiceResult = {
 function waitForStartupChoice(): Promise<StartupChoiceResult> {
   return new Promise((resolve) => {
     let isResolved = false
-    let handle: ReturnType<typeof Timer.set> | undefined
-    let application: PiuApplication
+    const state: {
+      handle?: ReturnType<typeof Timer.set>
+      application?: PiuApplication
+    } = {}
     const choose = (choice: StartupChoice) => {
       if (isResolved) return
       isResolved = true
-      if (handle) Timer.clear(handle)
-      resolve({ choice, application })
+      if (state.handle) Timer.clear(state.handle)
+      resolve({ choice, application: state.application as PiuApplication })
     }
 
-    application = showStartupSplash({ onTouch: () => Timer.set(() => choose('settings'), 0) })
-    handle = Timer.set(() => choose('boot'), STARTUP_AUTO_BOOT_DELAY_MS)
+    state.application = showStartupSplash({ onTouch: () => Timer.set(() => choose('settings'), 0) })
+    state.handle = Timer.set(() => choose('boot'), STARTUP_AUTO_BOOT_DELAY_MS)
   })
 }
 
@@ -169,7 +180,7 @@ export const onLaunch: StackchanMod['onLaunch'] = async () => {
     keys: PREF_KEYS,
   })
 
-  let networkService: NetworkService
+  let networkService: NetworkServiceInstance | null = null
   if (globalThis.button) {
     globalThis.button.a.onChanged = () => {
       if (status['wifi.ssid'].length > 0 && status['wifi.password'].length > 0) {
@@ -177,6 +188,7 @@ export const onLaunch: StackchanMod['onLaunch'] = async () => {
           networkService.close()
           networkService = null
         }
+        const { NetworkService } = Modules.importNow('network-service') as NetworkServiceModule
         networkService = new NetworkService({
           ssid: status['wifi.ssid'],
           password: status['wifi.password'],

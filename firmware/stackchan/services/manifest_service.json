@@ -1,10 +1,11 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODDABLE)/examples/manifest_net.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
-    "$(MODULES)/network/wifi/manifest.json",
+    "$(MODULES)/network/net/manifest.json",
+    "$(MODULES)/network/socket/manifest.json",
+    "$(MODULES)/network/sntp/manifest.json",
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
     "$(MODULES)/network/mdns/manifest.json",
@@ -23,8 +24,38 @@
     "wifi/connection": "$(MODDABLE)/examples/network/wifi/wificonnection/wificonnection",
     "ChatAudioIO": "./chat-audioio-stub"
   },
-  "preload": ["wifi/connection"],
   "platforms": {
+    "esp": {
+      "modules": {
+        "*": ["$(MODULES)/network/wifi/*", "$(MODULES)/network/wifi/esp/*"]
+      }
+    },
+    "esp32": {
+      "modules": {
+        "*": ["$(MODULES)/network/wifi/esp32/*"]
+      },
+      "dependency": [{ "idf": "esp_wifi" }]
+    },
+    "pico": {
+      "modules": {
+        "*": ["$(MODULES)/network/wifi/pico/*"]
+      }
+    },
+    "lin": {
+      "modules": {
+        "*": ["$(MODULES)/network/wifi/sim/*"]
+      }
+    },
+    "win": {
+      "modules": {
+        "*": ["$(MODULES)/network/wifi/sim/*"]
+      }
+    },
+    "qca4020": {
+      "modules": {
+        "*": ["$(MODULES)/network/wifi/*", "$(MODULES)/network/wifi/qca4020/*"]
+      }
+    },
     "esp32/m5stack_cores3": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
@@ -34,6 +65,7 @@
     "mac": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
+        "*": ["$(MODULES)/network/wifi/sim/*"],
         "ChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
       }
     }

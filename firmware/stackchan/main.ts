@@ -21,6 +21,7 @@ import { PWMServoDriver } from 'sg90-driver'
 import { asyncWait } from 'stackchan-util'
 import Tone from 'tone'
 import Touch from 'touch'
+import TouchPanel from 'touch-panel'
 import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as OpenAITTS } from 'tts-openai'
@@ -43,7 +44,11 @@ type RobotLed = Pick<Led, 'on' | 'off' | 'blink' | 'rainbow'>
 type GlobalEnvironment = {
   button?: Partial<Record<'a' | 'b' | 'c', DeviceButton>>
   network?: NetworkService
-  device?: unknown
+  device?: {
+    sensor?: {
+      TouchPanel?: new (options: unknown) => unknown
+    }
+  }
   Host?: {
     Button?: Partial<Record<'a' | 'b' | 'c', SimulatorButtonCtor>>
   }
@@ -134,6 +139,9 @@ function createRobot() {
   const tts = TTS(ttsPrefs)
 
   const touch = config.Touch ? new Touch(config.Touch) : undefined
+  const touchPanel = globalEnv.device?.sensor?.TouchPanel
+    ? new TouchPanel(globalEnv.device.sensor.TouchPanel as ConstructorParameters<typeof TouchPanel>[0])
+    : undefined
   const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined
   const camera = new Camera()
   const tone = new Tone({ volume: ttsPrefs.volume })
@@ -182,6 +190,7 @@ function createRobot() {
     tts,
     button: globalEnv.button,
     touch,
+    touchPanel,
     tone,
     microphone,
     camera,
@@ -216,7 +225,8 @@ async function main() {
   }
   if (config.wasm) {
     trace('[main] wasm path start\n')
-    let { onRobotCreated, onLaunch } = defaultMod
+    const wasmDefaultMod = Modules.importNow('default-mods/wasm/mod') as StackchanMod
+    let { onRobotCreated, onLaunch } = wasmDefaultMod
     trace(`[main] wasm defaultMod onLaunch=${onLaunch != null} onRobotCreated=${onRobotCreated != null}\n`)
     if (Modules.has('mod')) {
       trace('[main] wasm loading mod override\n')

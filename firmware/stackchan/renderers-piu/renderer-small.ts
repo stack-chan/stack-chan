@@ -1,8 +1,8 @@
-import { AppController } from 'app-controller'
+import { type AppController, createAppControllerApplication } from 'app-controller'
 import { SmallFace } from 'behaviors/face'
 import { ChatStatusBar } from 'chat-status-bar'
 import type { DrawerButtonSpec } from 'drawer'
-import { Application, type Content as PiuContent } from 'piu/MC'
+import type { Content as PiuContent } from 'piu/MC'
 import { RendererCompat } from 'renderer-compat'
 
 export type Effect = PiuContent
@@ -13,15 +13,14 @@ type RendererOptions = {
 }
 
 export function createRenderer(options?: RendererOptions): AppController {
-  const application = new Application(
+  return createAppControllerApplication(
     {
       face: new SmallFace(),
       appBar: new ChatStatusBar(),
       drawerButtons: options?.drawerButtons,
     },
-    { displayListLength: options?.displayListLength ?? 2048, contents: [], Behavior: AppController },
+    { displayListLength: options?.displayListLength ?? 2048 },
   )
-  return application.behavior as AppController
 }
 
 export class Renderer extends RendererCompat {

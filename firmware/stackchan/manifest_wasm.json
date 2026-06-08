@@ -12,7 +12,14 @@
     "./manifest_typings.json"
   ],
   "modules": {
-    "*": ["./touch", "./robot", "./main"],
+    "*": [
+      "./touch",
+      "./touch-panel",
+      "./touch-panel-gesture",
+      "./robot",
+      "./startup-splash",
+      "./main"
+    ],
     "camera": "./wasm/camera",
     "wasm-camera-bridge": "./wasm/camera-bridge",
     "camera-preview": "./wasm/camera-preview",
@@ -39,10 +46,20 @@
     "tts-voicevox-web": "./speeches/wasm/tts-voicevox-web",
     "tts-elevenlabs": "./speeches/wasm/tts-elevenlabs",
     "tts-openai": "./speeches/wasm/tts-openai",
-    "default-mods/on-launch": "./default-mods/wasm/on-launch",
+    "default-mods/wasm/mod": "./default-mods/wasm/mod",
+    "default-mods/wasm/on-launch": "./default-mods/wasm/on-launch",
+    "default-mods/mod": "./default-mods/wasm/mod",
+    "default-mods/wasm/*": "./default-mods/wasm/*",
     "default-mods/*": "./default-mods/*"
   },
-  "preload": ["wasm-audio-bridge", "wasm-camera-bridge", "robot"],
+  "preload": [
+    "wasm-audio-bridge",
+    "wasm-camera-bridge",
+    "robot",
+    "touch-panel",
+    "touch-panel-gesture",
+    "default-mods/wasm/mod"
+  ],
   "strip": [],
   "creation": {
     "static": 442368,
@@ -77,14 +94,7 @@
       {
         "source": "./assets/fonts/k8x12",
         "size": 12,
-        "blocks": [
-          "Basic Latin",
-          "Hiragana",
-          "Katakana",
-          "CJK Unified Ideographs",
-          "CJK Symbols and Punctuation",
-          "Halfwidth and Fullwidth Forms"
-        ],
+        "characterFiles": "./assets/fonts/k8x12-chars.txt",
         "monochrome": true
       }
     ]

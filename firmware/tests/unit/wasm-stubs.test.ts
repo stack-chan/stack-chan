@@ -92,6 +92,10 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
   assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
   assert.equal(manifest.modules['wasm-driver'], './drivers/wasm/wasm-driver')
   assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
+  assert.ok(manifest.modules['*'].includes('./touch-panel'))
+  assert.ok(manifest.modules['*'].includes('./touch-panel-gesture'))
+  assert.ok(manifest.preload.includes('touch-panel'))
+  assert.ok(manifest.preload.includes('touch-panel-gesture'))
   assert.deepEqual(
     {
       'dynamixel-driver': manifest.modules['dynamixel-driver'],
@@ -142,7 +146,8 @@ test('WASM main path loads an installed MOD archive before falling back to the d
   const source = readFileSync('stackchan/main.ts', 'utf8')
   const wasmBlock = source.slice(source.indexOf('if (config.wasm) {'), source.indexOf('await asyncWait(100)'))
 
-  assert.match(wasmBlock, /let \{ onRobotCreated, onLaunch \} = defaultMod/)
+  assert.match(wasmBlock, /const wasmDefaultMod = Modules\.importNow\('default-mods\/wasm\/mod'\) as StackchanMod/)
+  assert.match(wasmBlock, /let \{ onRobotCreated, onLaunch \} = wasmDefaultMod/)
   assert.match(wasmBlock, /Modules\.has\('mod'\)/)
   assert.match(wasmBlock, /Modules\.importNow\('mod'\) as StackchanMod/)
   assert.match(wasmBlock, /onRobotCreated = mod\.onRobotCreated \?\? onRobotCreated/)

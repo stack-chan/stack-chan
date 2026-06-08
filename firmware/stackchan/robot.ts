@@ -9,6 +9,7 @@ import { generateDeviceSeed, type Maybe, noop, type Pose, Rotation, randomBetwee
 import Timer from 'timer'
 import type Tone from 'tone'
 import type Touch from 'touch'
+import type TouchPanel from 'touch-panel'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
@@ -100,6 +101,7 @@ type RobotConstructorParam<T extends string> = {
     }
   }
   touch?: Touch
+  touchPanel?: TouchPanel
   microphone?: Microphone
   camera?: RobotCamera
   tone?: Tone
@@ -128,6 +130,7 @@ export class Robot {
   #driver: Driver
   #button: { [key in ButtonName]: Button }
   #touch: Touch
+  #touchPanel: TouchPanel | undefined
   #microphone: Microphone
   #camera: RobotCamera
   #tone: Tone
@@ -137,9 +140,7 @@ export class Robot {
   #paused: boolean
   #faceContext: FaceContext
   #emotion: Emotion
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: keep Timer handles alive for the robot lifetime.
   #updatePoseHandler: Timer
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: keep Timer handles alive for the robot lifetime.
   #updateFaceHandler: Timer
   #balloon: FaceDecorator
   #drawerCallbacks: Map<string, (robot: Robot) => unknown>
@@ -155,6 +156,8 @@ export class Robot {
     this.#mouthOpen = 0
     this.#button = params.button
     this.#touch = params.touch
+    this.#touchPanel = params.touchPanel
+    this.#touchPanel?.start()
     this.#microphone = params.microphone
     this.#camera = params.camera ?? NULL_CAMERA
     this.#tone = params.tone
@@ -201,6 +204,8 @@ export class Robot {
     }
     this.#updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
     this.#updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
+    void this.#updatePoseHandler
+    void this.#updateFaceHandler
     this.#paused = false
     this.#faceContext = createFaceContext()
     this.#emotion = this.#faceContext.emotion
@@ -275,6 +280,15 @@ export class Robot {
    */
   get touch() {
     return this.#touch
+  }
+
+  /**
+   * get top touch panel
+   *
+   * @returns TouchPanel instance
+   */
+  get touchPanel(): TouchPanel | undefined {
+    return this.#touchPanel
   }
 
   /**

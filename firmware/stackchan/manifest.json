@@ -23,17 +23,20 @@
   "modules": {
     "*": [
       "./touch",
+      "./touch-panel",
+      "./touch-panel-gesture",
       "./robot",
       "./camera",
       "./camera-preview",
       "./camera-preview-utils",
+      "./startup-splash",
       "./tone",
       "./main",
       "$(MODULES)/network/http/*"
     ],
     "default-mods/*": "./default-mods/*"
   },
-  "preload": ["robot", "touch", "tone"],
+  "preload": ["robot", "touch", "touch-panel", "touch-panel-gesture", "tone"],
   "strip": [],
   "config": {
     "sntp": "pool.ntp.org",
@@ -56,14 +59,7 @@
       {
         "source": "./assets/fonts/k8x12",
         "size": 12,
-        "blocks": [
-          "Basic Latin",
-          "Hiragana",
-          "Katakana",
-          "CJK Unified Ideographs",
-          "CJK Symbols and Punctuation",
-          "Halfwidth and Fullwidth Forms"
-        ],
+        "characterFiles": "./assets/fonts/k8x12-chars.txt",
         "monochrome": true
       }
     ]
@@ -201,6 +197,9 @@
       }
     },
     "mac/m5stack": {
+      "creation": {
+        "stack": 1024
+      },
       "config": {
         "driver": {
           "type": "none"
@@ -218,6 +217,9 @@
       }
     },
     "win/m5stack": {
+      "creation": {
+        "stack": 1024
+      },
       "config": {
         "driver": {
           "type": "none"
@@ -225,6 +227,9 @@
       }
     },
     "mac/m5atom_s3": {
+      "creation": {
+        "stack": 1024
+      },
       "config": {
         "renderer": {
           "type": "small-face"
@@ -235,6 +240,9 @@
       }
     },
     "lin/m5atom_s3": {
+      "creation": {
+        "stack": 1024
+      },
       "config": {
         "renderer": {
           "type": "small-face"
@@ -245,6 +253,9 @@
       }
     },
     "win/m5atom_s3": {
+      "creation": {
+        "stack": 1024
+      },
       "config": {
         "renderer": {
           "type": "small-face"

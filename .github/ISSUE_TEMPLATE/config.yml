@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Development Guide
-    url: https://github.com/stack-chan/stack-chan/blob/dev/v1.0/CONTRIBUTING.md
+    url: https://github.com/stack-chan/stack-chan/blob/develop/CONTRIBUTING.md
     about: Check the development workflow and verification steps before opening a tooling issue.
   - name: Derivative Work Guideline
-    url: https://github.com/stack-chan/stack-chan/blob/dev/v1.0/GUIDELINE.md
+    url: https://github.com/stack-chan/stack-chan/blob/develop/GUIDELINE.md
     about: Use the guideline for questions about derivative works and character usage.

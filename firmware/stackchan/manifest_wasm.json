@@ -12,7 +12,7 @@
     "./manifest_typings.json"
   ],
   "modules": {
-    "*": ["./touch", "./robot", "./main"],
+    "*": ["./touch", "./robot", "./startup-splash", "./main"],
     "camera": "./wasm/camera",
     "wasm-camera-bridge": "./wasm/camera-bridge",
     "camera-preview": "./wasm/camera-preview",
@@ -39,10 +39,18 @@
     "tts-voicevox-web": "./speeches/wasm/tts-voicevox-web",
     "tts-elevenlabs": "./speeches/wasm/tts-elevenlabs",
     "tts-openai": "./speeches/wasm/tts-openai",
-    "default-mods/on-launch": "./default-mods/wasm/on-launch",
+    "default-mods/wasm/mod": "./default-mods/wasm/mod",
+    "default-mods/wasm/on-launch": "./default-mods/wasm/on-launch",
+    "default-mods/mod": "./default-mods/wasm/mod",
+    "default-mods/wasm/*": "./default-mods/wasm/*",
     "default-mods/*": "./default-mods/*"
   },
-  "preload": ["wasm-audio-bridge", "wasm-camera-bridge", "robot"],
+  "preload": [
+    "wasm-audio-bridge",
+    "wasm-camera-bridge",
+    "robot",
+    "default-mods/wasm/mod"
+  ],
   "strip": [],
   "creation": {
     "static": 442368,

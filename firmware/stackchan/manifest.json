@@ -27,6 +27,7 @@
       "./camera",
       "./camera-preview",
       "./camera-preview-utils",
+      "./startup-splash",
       "./tone",
       "./main",
       "$(MODULES)/network/http/*"

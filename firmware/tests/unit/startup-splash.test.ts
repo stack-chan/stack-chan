@@ -7,6 +7,11 @@ const defaultLaunchPath = 'stackchan/default-mods/on-launch.ts'
 const wasmModPath = 'stackchan/default-mods/wasm/mod.ts'
 const manifestPath = 'stackchan/manifest.json'
 const wasmManifestPath = 'stackchan/manifest_wasm.json'
+const splashFontResource = '$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24'
+
+function readManifest(path: string) {
+  return JSON.parse(readFileSync(path, 'utf8'))
+}
 
 describe('startup splash screen', () => {
   test('uses a simple Label-based Stack-chan loading splash screen', () => {
@@ -17,7 +22,7 @@ describe('startup splash screen', () => {
     assert.match(source, /new Label/)
     assert.match(source, /new Skin/)
     assert.match(source, /new Style/)
-    assert.match(source, /24px Open Sans/)
+    assert.match(source, /const SPLASH_FONT = '24px Open Sans'/)
     assert.match(source, /Stack-chan/)
     assert.match(source, /Starting\.\.\./)
     assert.doesNotMatch(source, /startup-splash\.png/)
@@ -28,6 +33,15 @@ describe('startup splash screen', () => {
   test('does not register a startup splash image resource for device or wasm builds', () => {
     assert.doesNotMatch(readFileSync(manifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
     assert.doesNotMatch(readFileSync(wasmManifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
+  })
+
+  test('uses a font resource registered for both device and wasm builds', () => {
+    const manifest = readManifest(manifestPath)
+    const wasmManifest = readManifest(wasmManifestPath)
+
+    assert.match(readFileSync(splashPath, 'utf8'), /const SPLASH_FONT = '24px Open Sans'/)
+    assert.deepEqual(manifest.resources['*-mask'], [splashFontResource])
+    assert.deepEqual(wasmManifest.resources['*-mask'], [splashFontResource])
   })
 
   test('default launch shows a touchable splash before startup choice branching', () => {

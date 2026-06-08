@@ -10,6 +10,8 @@ export type StartupSplashOptions = {
   onTouch?: () => void
 }
 
+const SPLASH_FONT = '24px Open Sans'
+
 let backgroundSkin: PiuSkin | null = null
 let titleStyle: PiuStyle | null = null
 let messageStyle: PiuStyle | null = null
@@ -22,7 +24,7 @@ function getBackgroundSkin() {
 function getTitleStyle() {
   if (!titleStyle) {
     titleStyle = new Style({
-      font: '24px Open Sans',
+      font: SPLASH_FONT,
       color: '#ffffff',
       horizontal: 'center',
       vertical: 'middle',
@@ -34,7 +36,7 @@ function getTitleStyle() {
 function getMessageStyle() {
   if (!messageStyle) {
     messageStyle = new Style({
-      font: '24px Open Sans',
+      font: SPLASH_FONT,
       color: '#ffffff',
       horizontal: 'center',
       vertical: 'middle',

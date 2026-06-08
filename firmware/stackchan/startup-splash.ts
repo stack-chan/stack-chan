@@ -22,7 +22,7 @@ function getBackgroundSkin() {
 function getTitleStyle() {
   if (!titleStyle) {
     titleStyle = new Style({
-      font: '28px Open Sans',
+      font: '24px Open Sans',
       color: '#ffffff',
       horizontal: 'center',
       vertical: 'middle',
@@ -34,7 +34,7 @@ function getTitleStyle() {
 function getMessageStyle() {
   if (!messageStyle) {
     messageStyle = new Style({
-      font: '20px Open Sans',
+      font: '24px Open Sans',
       color: '#ffffff',
       horizontal: 'center',
       vertical: 'middle',

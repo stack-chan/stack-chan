@@ -17,10 +17,12 @@ describe('startup splash screen', () => {
     assert.match(source, /new Label/)
     assert.match(source, /new Skin/)
     assert.match(source, /new Style/)
+    assert.match(source, /24px Open Sans/)
     assert.match(source, /Stack-chan/)
     assert.match(source, /Starting\.\.\./)
     assert.doesNotMatch(source, /startup-splash\.png/)
     assert.doesNotMatch(source, /new Texture/)
+    assert.doesNotMatch(source, /28px Open Sans/)
   })
 
   test('does not register a startup splash image resource for device or wasm builds', () => {

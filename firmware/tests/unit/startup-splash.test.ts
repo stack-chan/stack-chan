@@ -117,7 +117,8 @@ describe('startup splash screen', () => {
       '$(MODDABLE)/examples/network/wifi/wificonnection/wificonnection',
     )
     assert.ok(!manifest.include.includes('$(MODDABLE)/examples/manifest_net.json'))
-    assert.ok(!serviceManifest.include.includes('$(MODDABLE)/examples/manifest_net.json'))
+    assert.equal(manifest.modules['~'], '$(BUILD)/devices/esp32/setup/network')
+    assert.doesNotMatch(JSON.stringify(manifest.modules), /"setup\/network"/)
     assert.ok(!serviceManifest.include.includes('$(MODULES)/network/wifi/manifest.json'))
     assert.doesNotMatch(JSON.stringify(serviceManifest.preload ?? []), /wifi\/connection/)
     assert.doesNotMatch(JSON.stringify(serviceManifest.preload ?? []), /"wifi"/)

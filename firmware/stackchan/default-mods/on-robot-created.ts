@@ -367,23 +367,29 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   })
 
   if (robot.button != null) {
-    robot.button.a.onChanged = function () {
-      if (!this.read()) {
-        return
+    if (robot.button.a != null) {
+      robot.button.a.onChanged = function () {
+        if (!this.read()) {
+          return
+        }
+        void toggleLookAround()
       }
-      void toggleLookAround()
     }
-    robot.button.b.onChanged = function () {
-      if (!this.read()) {
-        return
+    if (robot.button.b != null) {
+      robot.button.b.onChanged = function () {
+        if (!this.read()) {
+          return
+        }
+        void runServoTest()
       }
-      void runServoTest()
     }
-    robot.button.c.onChanged = function () {
-      if (!this.read()) {
-        return
+    if (robot.button.c != null) {
+      robot.button.c.onChanged = function () {
+        if (!this.read()) {
+          return
+        }
+        toggleColor()
       }
-      toggleColor()
     }
   }
 

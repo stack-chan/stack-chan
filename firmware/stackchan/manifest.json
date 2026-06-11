@@ -115,7 +115,7 @@
           "initial": 4096,
           "incremental": 256
         },
-        "stack": 1024,
+        "stack": 512,
         "keys": {
           "initial": 32,
           "incremental": 32

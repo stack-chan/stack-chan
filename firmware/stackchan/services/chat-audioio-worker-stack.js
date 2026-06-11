@@ -1,7 +1,7 @@
 import ChatAudioIOBase from 'ChatAudioIOBase'
 import Worker from 'worker'
 
-const CHAT_AUDIOIO_WORKER_STACK = 4096
+const CHAT_AUDIOIO_WORKER_STACK = 1024
 
 export default class ChatAudioIO extends ChatAudioIOBase {
   createWorker(specifier, instructions, functions, voiceID, providerID, modelID, apiKey) {

@@ -10,6 +10,22 @@
     "m5stack-cores3/setup-target": "$(BUILD)/devices/esp32/targets/m5stack_cores3/setup-target",
     "setup/target": "./setup-target"
   },
+  "creation": {
+    "static": 0,
+    "chunk": {
+      "initial": 262144,
+      "incremental": 0
+    },
+    "heap": {
+      "initial": 4096,
+      "incremental": 256
+    },
+    "stack": 2048,
+    "keys": {
+      "initial": 32,
+      "incremental": 32
+    }
+  },
   "config": {
     "driver": {
       "type": "m5stackchan",

@@ -90,7 +90,8 @@ const loadChatAudioIOConstructor = (): ChatAudioIOConstructor => {
   try {
     const module = Modules.importNow('ChatAudioIO') as { default?: ChatAudioIOConstructor } | ChatAudioIOConstructor
     return ('default' in module && module.default ? module.default : module) as ChatAudioIOConstructor
-  } catch {
+  } catch (err) {
+    trace(`[chat-service] failed to import ChatAudioIO; using stub: ${String(err)}\n`)
     return ChatAudioIOStub as unknown as ChatAudioIOConstructor
   }
 }

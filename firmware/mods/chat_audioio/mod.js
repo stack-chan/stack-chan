@@ -557,9 +557,9 @@ export function onRobotCreated(robot) {
         onTranscript(text, more)
       },
       onFunctionCall: async (call, name, params) => {
-        const tool = tools[name]
+        const tool = chatTools?.[name]
         if (!tool?.execute) {
-          chat.sendFunctionResult(call, name, `Tool not found: ${name}`)
+          chat.sendFunctionResult(call, name, `Tool not available: ${name}`)
           return
         }
         try {
@@ -594,16 +594,18 @@ export function onRobotCreated(robot) {
     removeBalloon()
   }
 
-  robot.application.addDrawerButton({
-    key: 'toggleChat',
-    label: 'Chat',
-    kind: 'toggle',
-    initialState: active,
-    callback: () => {
-      if (active) stopChat()
-      else startChat()
-    },
-  })
+  if (chatUi.drawer) {
+    robot.application.addDrawerButton({
+      key: 'toggleChat',
+      label: 'Chat',
+      kind: 'toggle',
+      initialState: active,
+      callback: () => {
+        if (active) stopChat()
+        else startChat()
+      },
+    })
+  }
   robot.application.addDrawerButton({
     key: 'toggleLookAround',
     label: 'Look',

@@ -20,7 +20,13 @@ export default class ChatAudioIO extends ChatAudioIOBase {
       nativeStack: CHAT_AUDIOIO_WORKER_NATIVE_STACK,
     })
     this.worker.onmessage = (message) => {
-      this[message.id](message)
+      const id = message?.id
+      const handler = id ? this[id] : undefined
+      if (typeof handler === 'function') {
+        handler.call(this, message)
+      } else {
+        trace(`[chat-audioio-worker] unknown worker message id: ${String(id)}\n`)
+      }
     }
     this.worker.postMessage({
       id: 'configure',

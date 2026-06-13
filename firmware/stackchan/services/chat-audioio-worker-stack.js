@@ -2,6 +2,7 @@ import ChatAudioIOBase from 'ChatAudioIOBase'
 import Worker from 'worker'
 
 const CHAT_AUDIOIO_WORKER_STACK = 1024
+const CHAT_AUDIOIO_WORKER_NATIVE_STACK = 8192
 
 export default class ChatAudioIO extends ChatAudioIOBase {
   createWorker(specifier, instructions, functions, voiceID, providerID, modelID, apiKey) {
@@ -16,6 +17,7 @@ export default class ChatAudioIO extends ChatAudioIOBase {
         incremental: 256,
       },
       stack: CHAT_AUDIOIO_WORKER_STACK,
+      nativeStack: CHAT_AUDIOIO_WORKER_NATIVE_STACK,
     })
     this.worker.onmessage = (message) => {
       this[message.id](message)

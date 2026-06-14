@@ -1,9 +1,6 @@
 import ChatAudioIOBase from 'ChatAudioIOBase'
 import Worker from 'worker'
 
-const CHAT_AUDIOIO_WORKER_STACK = 1024
-const CHAT_AUDIOIO_WORKER_NATIVE_STACK = 8192
-
 export default class ChatAudioIO extends ChatAudioIOBase {
   createWorker(specifier, instructions, functions, voiceID, providerID, modelID, apiKey) {
     this.worker = new Worker(specifier, {
@@ -16,17 +13,11 @@ export default class ChatAudioIO extends ChatAudioIOBase {
         initial: 1024,
         incremental: 256,
       },
-      stack: CHAT_AUDIOIO_WORKER_STACK,
-      nativeStack: CHAT_AUDIOIO_WORKER_NATIVE_STACK,
+      stack: 1024,
+      nativeStack: 8192,
     })
     this.worker.onmessage = (message) => {
-      const id = message?.id
-      const handler = id ? this[id] : undefined
-      if (typeof handler === 'function') {
-        handler.call(this, message)
-      } else {
-        trace(`[chat-audioio-worker] unknown worker message id: ${String(id)}\n`)
-      }
+      this[message.id](message)
     }
     this.worker.postMessage({
       id: 'configure',

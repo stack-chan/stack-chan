@@ -1,6 +1,4 @@
-import Modules from 'modules'
-import ChatAudioIOStub from 'chat-audioio-stub'
-import type ChatAudioIO from 'ChatAudioIO'
+import ChatAudioIO from 'ChatAudioIO'
 
 export type ChatState =
   | 'FAILED'
@@ -20,7 +18,6 @@ export type ChatConfig = {
   voiceID?: string
   providerID?: string
   modelID?: string
-  apiKey?: string
 }
 
 export type ChatToolSchema = {
@@ -58,7 +55,7 @@ type ChatServiceOptions = {
   config: ChatConfig
   tools?: Record<string, ChatTool>
   callbacks?: ChatCallbacks
-  chatAudioIOCtor?: ChatAudioIOConstructor
+  chatAudioIOCtor?: new (chatOptions: Record<string, unknown>) => ChatAudioIO
 }
 
 type ChatFunctionSchema = {
@@ -74,8 +71,7 @@ type ChatFunctionSchema = {
 
 const noop = () => {}
 
-type ChatAudioIOConstructor = {
-  new (chatOptions: Record<string, unknown>): ChatAudioIO
+const ChatAudioIOAny = ChatAudioIO as unknown as {
   FAILED: number
   DISCONNECTED: number
   DISCONNECTING: number
@@ -84,16 +80,6 @@ type ChatAudioIOConstructor = {
   SPEAKING: number
   LISTENING: number
   WAITING: number
-}
-
-const loadChatAudioIOConstructor = (): ChatAudioIOConstructor => {
-  try {
-    const module = Modules.importNow('ChatAudioIO') as { default?: ChatAudioIOConstructor } | ChatAudioIOConstructor
-    return ('default' in module && module.default ? module.default : module) as ChatAudioIOConstructor
-  } catch (err) {
-    trace(`[chat-service] failed to import ChatAudioIO; using stub: ${String(err)}\n`)
-    return ChatAudioIOStub as unknown as ChatAudioIOConstructor
-  }
 }
 
 function toFunctionSchema(tool: ChatTool): ChatFunctionSchema | null {
@@ -117,7 +103,7 @@ function toFunctionSchema(tool: ChatTool): ChatFunctionSchema | null {
   }
 }
 
-function mapState(state: number, ChatAudioIOAny: ChatAudioIOConstructor): ChatState {
+function mapState(state: number): ChatState {
   switch (state) {
     case ChatAudioIOAny.FAILED:
       return 'FAILED'
@@ -162,17 +148,20 @@ export class ChatService {
       .filter((schema): schema is ChatFunctionSchema => schema != null)
 
     const { config } = options
-    const ChatAudioIOCtor = options.chatAudioIOCtor ?? loadChatAudioIOConstructor()
+    const ChatAudioIOCtor =
+      options.chatAudioIOCtor ??
+      (ChatAudioIO as unknown as {
+        new (chatOptions: Record<string, unknown>): ChatAudioIO
+      })
     this.#chat = new ChatAudioIOCtor({
       specifier: config.type as unknown as string,
       instructions: config.instructions,
       voiceID: config.voiceID,
       providerID: config.providerID,
       modelID: config.modelID,
-      apiKey: config.apiKey,
       functions: functions.length > 0 ? functions : undefined,
       onStateChanged: (state: number) => {
-        this.#state = mapState(state, ChatAudioIOCtor)
+        this.#state = mapState(state)
         this.#error = this.#chat.error ?? ''
         this.#callbacks.onStateChanged(this.#state, this.#error || undefined)
       },

@@ -22,12 +22,6 @@ const MAX_TONE_DURATION_MS = 3000
 const MIN_TONE_HZ = 40
 const MAX_TONE_HZ = 4000
 const MAX_TONE_COUNT = 64
-const DEFAULT_CHAT_UI_CONFIG = {
-  drawer: true,
-  status: true,
-  mouth: true,
-  balloon: true,
-}
 
 const NOTE_OFFSETS_FROM_A = {
   C: -9,
@@ -51,8 +45,6 @@ const wait = (durationMs) =>
   new Promise((resolve) => {
     Timer.set(resolve, durationMs)
   })
-
-const configBoolean = (value, fallback) => (value === undefined ? fallback : Boolean(value))
 
 const parseToneDuration = (rawDuration) => {
   const duration = Number.parseInt(rawDuration ?? `${DEFAULT_TONE_DURATION_MS}`, 10)
@@ -177,7 +169,7 @@ export function onRobotCreated(robot) {
   const chatConfig = {
     ...rawChatConfig,
     voiceID: rawChatConfig.voiceID ?? 'marin',
-    type: rawChatConfig.type ?? 'openAIRealtime',
+    specifier: rawChatConfig.specifier ?? 'openAIRealtime',
     instructions: rawChatConfig.instructions ?? INSTRUCTION_B,
   }
   if (typeof chatConfig?.type !== 'string' || chatConfig.type.length === 0) {
@@ -186,13 +178,7 @@ export function onRobotCreated(robot) {
     )
     return
   }
-  const rawChatUiConfig = rawChatConfig.ui ?? {}
-  const chatUi = {
-    drawer: configBoolean(rawChatUiConfig.drawer, DEFAULT_CHAT_UI_CONFIG.drawer),
-    status: configBoolean(rawChatUiConfig.status, DEFAULT_CHAT_UI_CONFIG.status),
-    mouth: configBoolean(rawChatUiConfig.mouth, DEFAULT_CHAT_UI_CONFIG.mouth),
-    balloon: configBoolean(rawChatUiConfig.balloon, DEFAULT_CHAT_UI_CONFIG.balloon),
-  }
+
   const tools = {
     set_emotion: {
       name: 'set_emotion',
@@ -265,26 +251,10 @@ export function onRobotCreated(robot) {
       },
     },
   }
-  const chatTools = rawChatConfig.enableTools === true ? tools : undefined
-  trace(
-    `[chat_audioio] ui drawer=${chatUi.drawer} status=${chatUi.status} mouth=${chatUi.mouth} balloon=${chatUi.balloon} tools=${chatTools !== undefined}\n`,
-  )
 
   const app = robot.renderer?.application
   // robot.renderer?.setFace?.(new ImageFace({}))
   // app?.distribute?.('onFaceMode', 'image')
-  const updateChatDrawerButton = (state) => {
-    if (!chatUi.drawer) return
-    robot.application.setDrawerButtonState('toggleChat', state)
-  }
-  const updateChatStatus = (state, error) => {
-    if (!chatUi.status) return
-    app?.distribute?.('onChatState', state, error)
-  }
-  const updateChatInputLevel = (level) => {
-    if (!chatUi.status) return
-    app?.distribute?.('onChatInputLevel', level)
-  }
 
   /**
    * Look around (Drawer toggle)
@@ -337,7 +307,6 @@ export function onRobotCreated(robot) {
   }
 
   const queueMouthStep = (step, immediate = false) => {
-    if (!chatUi.mouth) return
     const nextStep = clampMouthStep(step)
     if (nextStep === pendingMouthStep && !immediate) return
     pendingMouthStep = nextStep
@@ -357,12 +326,12 @@ export function onRobotCreated(robot) {
   }
 
   const startUiTimers = () => {
-    if (chatUi.balloon && balloonUpdateTimer === undefined) {
+    if (balloonUpdateTimer === undefined) {
       balloonUpdateTimer = Timer.repeat(() => {
         flushBalloonText()
       }, BALLOON_UPDATE_INTERVAL_MS)
     }
-    if (chatUi.mouth && mouthUpdateTimer === undefined) {
+    if (mouthUpdateTimer === undefined) {
       mouthUpdateTimer = Timer.repeat(() => {
         flushMouthOpen()
       }, MOUTH_UPDATE_INTERVAL_MS)
@@ -381,7 +350,6 @@ export function onRobotCreated(robot) {
   }
 
   const ensureBalloon = () => {
-    if (!chatUi.balloon) return
     if (balloon) return
     balloon = new SpeechBalloon({
       name: 'chat-balloon',
@@ -433,7 +401,6 @@ export function onRobotCreated(robot) {
   }
 
   const applyBalloonText = (text) => {
-    if (!chatUi.balloon) return
     ensureBalloon()
     const nextText = text ?? ''
     if (nextText === lastBalloonText) return
@@ -466,7 +433,6 @@ export function onRobotCreated(robot) {
   }
 
   const queueBalloonText = (text, immediate = false) => {
-    if (!chatUi.balloon) return
     pendingBalloonText = text ?? ''
     if (immediate) {
       flushBalloonText()
@@ -477,7 +443,6 @@ export function onRobotCreated(robot) {
     resetTranscript()
     pendingBalloonText = null
     lastBalloonText = null
-    if (!chatUi.balloon) return
     if (!balloon) return
     if (balloon.delegate) {
       balloon.delegate('clear')
@@ -508,7 +473,6 @@ export function onRobotCreated(robot) {
   }
 
   const onTranscript = (text, more) => {
-    if (!chatUi.balloon) return
     const chunk = text ?? ''
     if (more && chunk.length === 0) {
       resetTranscript()
@@ -521,13 +485,13 @@ export function onRobotCreated(robot) {
 
   const chat = new ChatService({
     config: chatConfig,
-    tools: chatTools,
+    tools,
     callbacks: {
       onStateChanged: (state, error) => {
         trace(`onStateChanged: ${state}\n`)
-        updateChatStatus(state, error)
+        app?.distribute?.('onChatState', state, error)
         if (state !== 'SPEAKING') {
-          updateChatInputLevel(0)
+          app?.distribute?.('onChatInputLevel', 0)
         }
         if (state !== 'LISTENING') {
           queueMouthOpen(0, true)
@@ -540,12 +504,12 @@ export function onRobotCreated(robot) {
         }
         if (state === 'DISCONNECTED' || state === 'FAILED') {
           active = false
-          updateChatDrawerButton(false)
+          robot.application.setDrawerButtonState('toggleChat', false)
           removeBalloon()
         }
       },
       onInputLevelChanged: (level) => {
-        updateChatInputLevel(level)
+        app?.distribute?.('onChatInputLevel', level)
       },
       onOutputLevelChanged: (level) => {
         queueMouthLevel(level)
@@ -557,9 +521,9 @@ export function onRobotCreated(robot) {
         onTranscript(text, more)
       },
       onFunctionCall: async (call, name, params) => {
-        const tool = chatTools?.[name]
+        const tool = tools[name]
         if (!tool?.execute) {
-          chat.sendFunctionResult(call, name, `Tool not available: ${name}`)
+          chat.sendFunctionResult(call, name, `Tool not found: ${name}`)
           return
         }
         try {
@@ -576,7 +540,7 @@ export function onRobotCreated(robot) {
     if (active) return
     active = true
     startUiTimers()
-    updateChatDrawerButton(true)
+    robot.application.setDrawerButtonState('toggleChat', true)
     chat.setVolume(0.5)
     queueMouthOpen(0, true)
     ensureBalloon()
@@ -588,24 +552,22 @@ export function onRobotCreated(robot) {
   const stopChat = () => {
     if (!active) return
     active = false
-    updateChatDrawerButton(false)
+    robot.application.setDrawerButtonState('toggleChat', false)
     chat.stop()
     queueMouthOpen(0, true)
     removeBalloon()
   }
 
-  if (chatUi.drawer) {
-    robot.application.addDrawerButton({
-      key: 'toggleChat',
-      label: 'Chat',
-      kind: 'toggle',
-      initialState: active,
-      callback: () => {
-        if (active) stopChat()
-        else startChat()
-      },
-    })
-  }
+  robot.application.addDrawerButton({
+    key: 'toggleChat',
+    label: 'Chat',
+    kind: 'toggle',
+    initialState: active,
+    callback: () => {
+      if (active) stopChat()
+      else startChat()
+    },
+  })
   robot.application.addDrawerButton({
     key: 'toggleLookAround',
     label: 'Look',

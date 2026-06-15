@@ -28,7 +28,15 @@
     "esp32/m5stack_cores3": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
-        "ChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+        "ChatAudioIO": "./chat-audioio/worker-stack",
+        "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+      }
+    },
+    "esp32/m5stackchan_cores3": {
+      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
+      "modules": {
+        "ChatAudioIO": "./chat-audioio/worker-stack",
+        "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
       }
     },
     "mac": {

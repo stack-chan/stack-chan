@@ -34,6 +34,7 @@ const TOUCH_PANEL_PETTING_WINDOW_MS = 1500
 const TOUCH_PANEL_HAPPY_DURATION_MS = 5000
 const TOUCH_PANEL_PET_MOTION_STEP_MS = 220
 const TOUCH_PANEL_PET_MOTION_STEP_SEC = TOUCH_PANEL_PET_MOTION_STEP_MS / 1000
+const MOTION_DETECT_COLD_DURATION_MS = 5000
 
 function errorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -53,6 +54,8 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   let pettingPreviousRotation: typeof robot.pose.body.rotation | undefined
   let pettingMotionActive = false
   let pettingHoldTimer: ReturnType<typeof Timer.set> | undefined
+  let motionDetectRestoreTimer: ReturnType<typeof Timer.set> | undefined
+  let motionDetectPreviousEmotion: Emotion | undefined
   const emotionKeyMap: Record<Emotion, EmoticonKey | null> = {
     [Emotion.HAPPY]: 'heart',
     [Emotion.ANGRY]: 'angry',
@@ -365,6 +368,25 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     label: 'Color',
     callback: toggleColor,
   })
+
+  if (robot.imu != null) {
+    robot.imu.start()
+    robot.imu.onMotionDetect = (type) => {
+      trace(`[IMU] motion detected: ${type}\n`)
+      if (motionDetectPreviousEmotion === undefined) motionDetectPreviousEmotion = currentEmotion
+      if (motionDetectRestoreTimer) Timer.clear(motionDetectRestoreTimer)
+
+      setEmotionWithEffect(robot, Emotion.ANGRY)
+      motionDetectRestoreTimer = Timer.set(() => {
+        const restoreEmotion = motionDetectPreviousEmotion ?? Emotion.NEUTRAL
+        trace(`[IMU] restore emotion ${restoreEmotion}\n`)
+        emotionIndex = Math.max(0, emotions.indexOf(restoreEmotion))
+        setEmotionWithEffect(robot, restoreEmotion)
+        motionDetectPreviousEmotion = undefined
+        motionDetectRestoreTimer = undefined
+      }, MOTION_DETECT_COLD_DURATION_MS)
+    }
+  }
 
   if (robot.button != null) {
     if (robot.button.a != null) {

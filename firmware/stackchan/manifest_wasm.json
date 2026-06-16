@@ -16,6 +16,7 @@
       "./touch",
       "./touch-panel",
       "./touch-panel-gesture",
+      "./imu",
       "./robot",
       "./startup-splash",
       "./main"

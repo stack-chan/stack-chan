@@ -8,6 +8,27 @@ export function createWebSerialTransportDescriptor() {
   }
 }
 
+export function createBleSerialTransportDescriptor({ serviceUuid = 'stackchan-mod-transfer' } = {}) {
+  return {
+    id: 'ble-serial',
+    label: 'BLE Serial',
+    requiresUserGesture: true,
+    preferredChunkSize: 160,
+    serviceUuid,
+    capabilities: ['gatt-characteristics', 'rx-notifications', 'fragmented-writes'],
+  }
+}
+
+export function fragmentBlePayload(payload, maxWriteSize) {
+  if (!Number.isInteger(maxWriteSize) || maxWriteSize <= 0) throw new Error('maxWriteSize must be positive')
+  const bytes = normalizeChunk(payload)
+  const fragments = []
+  for (let offset = 0; offset < bytes.byteLength; offset += maxWriteSize) {
+    fragments.push(bytes.slice(offset, offset + maxWriteSize))
+  }
+  return fragments
+}
+
 function normalizeChunk(chunk) {
   if (chunk instanceof Uint8Array) return new Uint8Array(chunk)
   if (chunk instanceof ArrayBuffer) return new Uint8Array(chunk)

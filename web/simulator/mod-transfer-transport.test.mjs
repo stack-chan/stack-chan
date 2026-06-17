@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { createMockByteTransport, createWebSerialTransportDescriptor } from './mod-transfer-transport.mjs'
+import {
+  createBleSerialTransportDescriptor,
+  createMockByteTransport,
+  createWebSerialTransportDescriptor,
+  fragmentBlePayload,
+} from './mod-transfer-transport.mjs'
 
 describe('MOD transfer byte transports', () => {
   it('describes Web Serial as the preferred desktop transport', () => {
@@ -27,5 +32,25 @@ describe('MOD transfer byte transports', () => {
 
     await transport.close()
     assert.equal(transport.isOpen, false)
+  })
+
+  it('describes BLE Serial as a mobile fallback with notification acknowledgements', () => {
+    assert.deepEqual(createBleSerialTransportDescriptor({ serviceUuid: 'stackchan-service' }), {
+      id: 'ble-serial',
+      label: 'BLE Serial',
+      requiresUserGesture: true,
+      preferredChunkSize: 160,
+      serviceUuid: 'stackchan-service',
+      capabilities: ['gatt-characteristics', 'rx-notifications', 'fragmented-writes'],
+    })
+  })
+
+  it('fragments BLE payloads under the negotiated write size', () => {
+    const fragments = fragmentBlePayload(new Uint8Array([1, 2, 3, 4, 5]), 2)
+
+    assert.deepEqual(
+      fragments.map((fragment) => Array.from(fragment)),
+      [[1, 2], [3, 4], [5]]
+    )
   })
 })

@@ -1,4 +1,5 @@
 import loadPreferences from 'loadPreference'
+import 'mod-transfer-cli'
 import Camera from 'camera'
 import defaultMod, { type StackchanMod } from 'default-mods/mod'
 import { DynamixelDriver } from 'dynamixel-driver'

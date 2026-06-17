@@ -18,11 +18,12 @@ describe('web MOD build and transfer UI shell', () => {
     }
   })
 
-  it('keeps hardware transfer controls disabled until real transport wiring is added', () => {
+  it('keeps hardware transfer disabled until a build artifact and Web Serial session are ready', () => {
     assert.match(html, /id="mod-transfer-button"[^>]*disabled/)
     assert.match(simulatorSource, /initializeModTransferShell/)
-    assert.match(simulatorSource, /Build service: not connected yet/)
-    assert.match(simulatorSource, /Web Serial: design stub/)
-    assert.match(simulatorSource, /BLE Serial: design stub/)
+    assert.match(simulatorSource, /\/api\/mod-build/)
+    assert.match(simulatorSource, /createWebSerialLineTransport/)
+    assert.match(simulatorSource, /createConsoleModTransferSession/)
+    assert.doesNotMatch(simulatorSource, /Web Serial: design stub/)
   })
 })

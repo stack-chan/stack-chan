@@ -4,6 +4,7 @@
   "description": "Stack-chan development server",
   "scripts": {
     "dev": "live-server --verbose",
+    "dev:mod-build": "node scripts/mod-build-server.mjs",
     "test": "node --test simulator/*.test.mjs icon-assets.test.mjs"
   },
   "keywords": [],

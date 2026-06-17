@@ -32,6 +32,8 @@ import {
   stepRotationToward,
 } from './geometry.mjs'
 import { createModStorage, formatByteSize } from './mod-storage.mjs'
+import { createConsoleModTransferSession } from './mod-transfer-line-protocol.mjs'
+import { createWebSerialLineTransport } from './mod-transfer-transport.mjs'
 
 const DRIVER_MAX_ANGULAR_SPEED = 2.4
 
@@ -639,16 +641,63 @@ async function refreshSavedModStatus() {
 
 function initializeModTransferShell({ buildButton, webSerialButton, bleSerialButton, transferButton, status }) {
   if (!status) return
-  status.textContent = 'Build service: not connected yet'
-  transferButton?.setAttribute('disabled', '')
-  buildButton?.addEventListener('click', () => {
-    status.textContent = 'Build service: not connected yet'
+  let artifact
+  let sessionFactory
+
+  const updateTransferEnabled = () => {
+    if (artifact && sessionFactory) transferButton?.removeAttribute('disabled')
+    else transferButton?.setAttribute('disabled', '')
+  }
+
+  status.textContent = 'Build service: ready for local /api/mod-build'
+  updateTransferEnabled()
+
+  buildButton?.addEventListener('click', async () => {
+    try {
+      status.textContent = 'Build service: building look_around sample MOD...'
+      const response = await fetch('/api/mod-build?mod=look_around&target=esp32/m5stack')
+      if (!response.ok) throw new Error(await response.text())
+      const result = await response.json()
+      const binary = atob(result.artifactBase64)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+      artifact = { name: result.name, bytes, crc32: result.crc32 }
+      status.textContent = `Build service: built ${result.name} (${formatByteSize(bytes.byteLength)}, crc32 ${result.crc32})`
+      updateTransferEnabled()
+    } catch (error) {
+      console.error('[bridge] MOD build failed', error)
+      status.textContent = `Build service: ${error.message}`
+    }
   })
+
   webSerialButton?.addEventListener('click', () => {
-    status.textContent = 'Web Serial: design stub'
+    try {
+      const transport = createWebSerialLineTransport({ baudRate: 115200 })
+      sessionFactory = () => createConsoleModTransferSession({ transport, chunkSize: 384 })
+      status.textContent = 'Web Serial: ready; choose Transfer to Stack-chan'
+      updateTransferEnabled()
+    } catch (error) {
+      status.textContent = `Web Serial: ${error.message}`
+    }
   })
+
   bleSerialButton?.addEventListener('click', () => {
-    status.textContent = 'BLE Serial: design stub'
+    status.textContent = 'BLE Serial: not enabled in this implementation; use Web Serial for the real-device transfer path.'
+  })
+
+  transferButton?.addEventListener('click', async () => {
+    if (!artifact || !sessionFactory) return
+    transferButton.setAttribute('disabled', '')
+    try {
+      status.textContent = 'Transfer: writing MOD archive to Stack-chan xs partition...'
+      const result = await sessionFactory().transfer(artifact)
+      status.textContent = `Transfer: done (${formatByteSize(result.size)}, crc32 ${result.crc32}); restart Stack-chan to launch the MOD.`
+    } catch (error) {
+      console.error('[bridge] MOD transfer failed', error)
+      status.textContent = `Transfer: ${error.message}`
+    } finally {
+      updateTransferEnabled()
+    }
   })
 }
 

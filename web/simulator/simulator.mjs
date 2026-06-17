@@ -560,6 +560,11 @@ const modArchiveInput = document.getElementById('mod-archive-input')
 const modRestartButton = document.getElementById('simulator-restart-button')
 const modClearButton = document.getElementById('mod-clear-button')
 const modInstallStatus = document.getElementById('mod-install-status')
+const modBuildButton = document.getElementById('mod-build-button')
+const modConnectWebSerialButton = document.getElementById('mod-connect-web-serial-button')
+const modConnectBleSerialButton = document.getElementById('mod-connect-ble-serial-button')
+const modTransferButton = document.getElementById('mod-transfer-button')
+const modTransferStatus = document.getElementById('mod-transfer-status')
 const traceLog = document.getElementById('trace-log')
 const modStorage = createModStorage()
 const browserCameraButton = document.getElementById('browser-camera-button')
@@ -631,6 +636,29 @@ async function refreshSavedModStatus() {
     modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
   }
 }
+
+function initializeModTransferShell({ buildButton, webSerialButton, bleSerialButton, transferButton, status }) {
+  if (!status) return
+  status.textContent = 'Build service: not connected yet'
+  transferButton?.setAttribute('disabled', '')
+  buildButton?.addEventListener('click', () => {
+    status.textContent = 'Build service: not connected yet'
+  })
+  webSerialButton?.addEventListener('click', () => {
+    status.textContent = 'Web Serial: design stub'
+  })
+  bleSerialButton?.addEventListener('click', () => {
+    status.textContent = 'BLE Serial: design stub'
+  })
+}
+
+initializeModTransferShell({
+  buildButton: modBuildButton,
+  webSerialButton: modConnectWebSerialButton,
+  bleSerialButton: modConnectBleSerialButton,
+  transferButton: modTransferButton,
+  status: modTransferStatus,
+})
 
 const scene = new StackchanScene({ viewport, screen })
 const driverBridge = createHostDriverBridge({

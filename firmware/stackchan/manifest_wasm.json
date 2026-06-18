@@ -17,6 +17,7 @@
       "./touch-panel",
       "./touch-panel-gesture",
       "./imu",
+      "./imu-motion",
       "./robot",
       "./startup-splash",
       "./main"
@@ -59,6 +60,7 @@
     "robot",
     "touch-panel",
     "touch-panel-gesture",
+    "imu-motion",
     "default-mods/wasm/mod"
   ],
   "strip": [],

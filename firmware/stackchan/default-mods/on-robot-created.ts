@@ -3,6 +3,7 @@ import { createCameraPreviewFace } from 'camera-preview'
 import type { StackchanMod } from 'default-mods/mod'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-context'
+import type { MotionType } from 'imu'
 import type { Content as PiuContent } from 'piu/MC'
 import { asyncWait, randomBetween } from 'stackchan-util'
 import Timer from 'timer'
@@ -370,13 +371,21 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   })
 
   if (robot.imu != null) {
+    const motionEmotionMap: Record<MotionType, Emotion> = {
+      upsideDown: Emotion.SAD,
+      fallenForward: Emotion.ANGRY,
+      fallenBackward: Emotion.ANGRY,
+      fallenLeft: Emotion.ANGRY,
+      fallenRight: Emotion.ANGRY,
+      shake: Emotion.HOT,
+    }
     robot.imu.start()
     robot.imu.onMotionDetect = (type) => {
       trace(`[IMU] motion detected: ${type}\n`)
       if (motionDetectPreviousEmotion === undefined) motionDetectPreviousEmotion = currentEmotion
       if (motionDetectRestoreTimer) Timer.clear(motionDetectRestoreTimer)
 
-      setEmotionWithEffect(robot, Emotion.ANGRY)
+      setEmotionWithEffect(robot, motionEmotionMap[type])
       motionDetectRestoreTimer = Timer.set(() => {
         const restoreEmotion = motionDetectPreviousEmotion ?? Emotion.NEUTRAL
         trace(`[IMU] restore emotion ${restoreEmotion}\n`)

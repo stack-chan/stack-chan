@@ -26,6 +26,7 @@
       "./touch-panel",
       "./touch-panel-gesture",
       "./imu",
+      "./imu-motion",
       "./robot",
       "./camera",
       "./camera-preview",
@@ -43,6 +44,7 @@
     "touch-panel",
     "touch-panel-gesture",
     "imu",
+    "imu-motion",
     "tone"
   ],
   "strip": [],

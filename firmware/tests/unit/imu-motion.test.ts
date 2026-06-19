@@ -77,6 +77,12 @@ test('suppresses repeated shake events during refractory period', () => {
         { gyroscope: { x: 3, y: 0, z: 0 } },
         { gyroscope: { x: 3, y: 0, z: 0 } },
         { gyroscope: { x: 3, y: 0, z: 0 } },
+        { gyroscope: { x: 0, y: 0, z: 0 } },
+        { gyroscope: { x: 3, y: 0, z: 0 } },
+        { gyroscope: { x: 3, y: 0, z: 0 } },
+        { gyroscope: { x: 3, y: 0, z: 0 } },
+        { gyroscope: { x: 3, y: 0, z: 0 } },
+        { gyroscope: { x: 3, y: 0, z: 0 } },
       ],
       { detectGyroscopeShake: true, consecutiveSamples: 5 },
     ),
@@ -93,6 +99,10 @@ test('detects a left fall from stable gravity direction', () => {
     ]),
     ['fallenLeft'],
   )
+})
+
+test('detects posture from the first sample when configured for one consecutive sample', () => {
+  assert.deepEqual(run([{ accelerometer: { x: 1, y: 0, z: 0 } }], { postureConsecutiveSamples: 1 }), ['fallenLeft'])
 })
 
 test('detects a right fall from stable gravity direction', () => {

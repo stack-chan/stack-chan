@@ -94,8 +94,7 @@ export class MotionRecognizer {
 
     if (posture !== this.#candidatePosture) {
       this.#candidatePosture = posture
-      this.#postureSampleCount = 1
-      return undefined
+      this.#postureSampleCount = 0
     }
 
     this.#postureSampleCount += 1

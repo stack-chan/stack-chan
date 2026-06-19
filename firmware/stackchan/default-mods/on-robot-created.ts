@@ -385,12 +385,16 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
       if (motionDetectPreviousEmotion === undefined) motionDetectPreviousEmotion = currentEmotion
       if (motionDetectRestoreTimer) Timer.clear(motionDetectRestoreTimer)
 
-      setEmotionWithEffect(robot, motionEmotionMap[type])
+      const motionEmotion = motionEmotionMap[type]
+      setEmotionWithEffect(robot, motionEmotion)
+      emotionIndex = Math.max(0, emotions.indexOf(motionEmotion))
       motionDetectRestoreTimer = Timer.set(() => {
-        const restoreEmotion = motionDetectPreviousEmotion ?? Emotion.NEUTRAL
-        trace(`[IMU] restore emotion ${restoreEmotion}\n`)
-        emotionIndex = Math.max(0, emotions.indexOf(restoreEmotion))
-        setEmotionWithEffect(robot, restoreEmotion)
+        if (currentEmotion === motionEmotion) {
+          const restoreEmotion = motionDetectPreviousEmotion ?? Emotion.NEUTRAL
+          trace(`[IMU] restore emotion ${restoreEmotion}\n`)
+          emotionIndex = Math.max(0, emotions.indexOf(restoreEmotion))
+          setEmotionWithEffect(robot, restoreEmotion)
+        }
         motionDetectPreviousEmotion = undefined
         motionDetectRestoreTimer = undefined
       }, MOTION_DETECT_COLD_DURATION_MS)

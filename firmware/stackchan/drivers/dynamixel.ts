@@ -632,6 +632,9 @@ class Dynamixel {
     if (length == null || !this.#hasValidResponse(6)) {
       throw new Error('failed to read offset angle')
     }
+    if (this.#responseBuffer[1] !== 0) {
+      throw new Error(`servo returned error code: ${this.#responseBuffer[1]} while reading offset angle`)
+    }
     return this.#readSignedDword(2)
   }
 

@@ -78,20 +78,25 @@ class PControl {
       }
     }
     this.goalPosition = 2048
-    this._lastGoalPosition = this.goalPosition
+    this._lastGoalPosition = this._feedbackEnabled ? this.goalPosition : 0
     this._lastGoalCurrent = -1
     const mode = this._feedbackEnabled ? OPERATING_MODE.CURRENT_BASED_POSITION : OPERATING_MODE.POSITION
     await this.servo.setOperatingMode(mode)
     await this.servo.setTorque(torqueEnabled)
     if (!this._feedbackEnabled) {
       await this.servo.setGoalPosition(this.goalPosition)
+      this._lastGoalPosition = this.goalPosition
+      this.presentPosition = this.goalPosition
     }
   }
 
   async update() {
     if (this._lastGoalPosition !== this.goalPosition) {
-      void this.servo.setGoalPosition(this.goalPosition + this._offset)
+      await this.servo.setGoalPosition(this.goalPosition + this._offset)
       this._lastGoalPosition = this.goalPosition
+      if (!this._feedbackEnabled) {
+        this.presentPosition = this.goalPosition
+      }
     }
     if (!this._feedbackEnabled) {
       return
@@ -108,8 +113,8 @@ class PControl {
     if (this._lastGoalCurrent === currentInt) {
       return
     }
+    await this.servo.setGoalCurrent(currentInt)
     this._lastGoalCurrent = currentInt
-    void this.servo.setGoalCurrent(currentInt)
   }
 
   async flushGoalPosition(): Promise<void> {
@@ -118,6 +123,7 @@ class PControl {
     }
     await this.servo.setGoalPosition(this.goalPosition + this._offset)
     this._lastGoalPosition = this.goalPosition
+    this.presentPosition = this.goalPosition
   }
 }
 
@@ -135,7 +141,7 @@ export class DynamixelDriver {
   _interval: number
   _initPromise?: Promise<void>
   constructor(param: DynamixelDriverProps) {
-    const baud = toPositiveInteger(param.baud ?? param.baudrate, DEFAULT_BAUD)
+    const baud = toPositiveInteger(param.baud, toPositiveInteger(param.baudrate, DEFAULT_BAUD))
     this._feedback = toBoolean(param.feedback, true)
     this._feedbackLoopEnabled = this._feedback
     this._pan = new Dynamixel({ id: param.panId, baudrate: baud })
@@ -189,15 +195,21 @@ export class DynamixelDriver {
       return
     }
     this._initPromise = (async () => {
-      // Keep read replies only when closed-loop control is enabled.
-      const statusReturnLevel: 0 | 1 = this._feedback && this._feedbackLoopEnabled ? 1 : 0
-      await this._pan.setStatusReturnLevel(statusReturnLevel)
-      await this._tilt.setStatusReturnLevel(statusReturnLevel)
+      const initStatusReturnLevel: 0 | 1 = this._feedback ? 1 : 0
+      await this._pan.setStatusReturnLevel(initStatusReturnLevel)
+      await this._tilt.setStatusReturnLevel(initStatusReturnLevel)
       for (const c of this._controls) {
         await c.init(this._torque)
       }
-      await this._pan.setProfileAcceleration(20)
-      await this._pan.setProfileVelocity(100)
+      for (const c of this._controls) {
+        await c.servo.setProfileAcceleration(20)
+        await c.servo.setProfileVelocity(100)
+      }
+      const finalStatusReturnLevel: 0 | 1 = this._feedback && this._feedbackLoopEnabled ? 1 : 0
+      if (finalStatusReturnLevel !== initStatusReturnLevel) {
+        await this._pan.setStatusReturnLevel(finalStatusReturnLevel)
+        await this._tilt.setStatusReturnLevel(finalStatusReturnLevel)
+      }
       this._initialized = true
       trace('servo initialized\n')
     })()

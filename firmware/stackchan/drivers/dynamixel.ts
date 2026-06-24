@@ -163,6 +163,13 @@ class PacketHandler extends Serial {
         case RX_STATE.BODY:
           this.#count -= 1
           if (this.#count <= 0) {
+            const packetLength = this.#idx
+            const receivedCrc = rxBuf[packetLength - 2] | (rxBuf[packetLength - 1] << 8)
+            const expectedCrc = checksum(rxBuf, 0, packetLength - 2) & 0xffff
+            if (receivedCrc !== expectedCrc) {
+              this.#resetSeek()
+              break
+            }
             const command = rxBuf[7] as Instruction
             if (command !== INSTRUCTION.WRITE && command !== INSTRUCTION.READ) {
               const callback = this.#callbacks.get(rxBuf[4])
@@ -220,6 +227,8 @@ type DynamixelConstructorParam = {
 }
 
 type PendingCommand = {
+  target: Dynamixel
+  id: number
   instruction: Instruction
   address: Address | null
   parameters: number[]
@@ -230,6 +239,8 @@ type PendingCommand = {
 }
 
 class Dynamixel {
+  static #queue: PendingCommand[] = []
+  static #queueRunning = false
   static packetHandler: PacketHandler
   static setBaud(baud: number): void {
     packetHandler?.close()
@@ -248,8 +259,6 @@ class Dynamixel {
   #responseLength: number
   #expectedResponseMinLength: number
   #waitSlot: SingleWaitSlot<number>
-  #queue: PendingCommand[]
-  #queueRunning: boolean
 
   constructor({ id, baudrate = 1_000_000 }: DynamixelConstructorParam) {
     this.#id = id
@@ -258,8 +267,6 @@ class Dynamixel {
     this.#responseLength = 0
     this.#expectedResponseMinLength = 0
     this.#waitSlot = new SingleWaitSlot<number>(Timer.set, Timer.clear)
-    this.#queue = []
-    this.#queueRunning = false
     this.#onCommandRead = (buffer, offset, length) => {
       if (!this.#waitSlot.isWaiting) {
         return
@@ -306,7 +313,7 @@ class Dynamixel {
     this.#txBuf[1] = 0xff
     this.#txBuf[2] = 0xfd
     this.#txBuf[3] = 0x00
-    this.#txBuf[4] = this.#id
+    this.#txBuf[4] = command.id
     this.#txBuf[7] = command.instruction
     let idx = 8
 
@@ -335,31 +342,32 @@ class Dynamixel {
   }
 
   #dispatchCommandWithWait(command: PendingCommand): Promise<number | undefined> {
-    this.#writeCommandPacket(command)
     this.#responseLength = 0
     this.#expectedResponseMinLength = command.expectedResponseMinLength
-    return this.#waitSlot.wait(60)
+    const waitPromise = this.#waitSlot.wait(60)
+    this.#writeCommandPacket(command)
+    return waitPromise
   }
 
-  async #processQueue(): Promise<void> {
-    while (this.#queue.length > 0) {
-      const command = this.#queue.shift()
+  static async #processQueue(): Promise<void> {
+    while (Dynamixel.#queue.length > 0) {
+      const command = Dynamixel.#queue.shift()
       if (command == null) {
         continue
       }
       try {
         if (!command.waitForResponse) {
-          this.#writeCommandPacket(command)
+          command.target.#writeCommandPacket(command)
           command.resolve(undefined)
           continue
         }
-        const result = await this.#dispatchCommandWithWait(command)
+        const result = await command.target.#dispatchCommandWithWait(command)
         command.resolve(result)
       } catch (error) {
         command.reject(error)
       }
     }
-    this.#queueRunning = false
+    Dynamixel.#queueRunning = false
   }
 
   #sendCommand(
@@ -370,7 +378,9 @@ class Dynamixel {
     ...parameters: number[]
   ): Promise<number | undefined> {
     return new Promise((resolve, reject) => {
-      this.#queue.push({
+      Dynamixel.#queue.push({
+        target: this,
+        id: this.#id,
         instruction,
         address,
         parameters,
@@ -379,9 +389,9 @@ class Dynamixel {
         resolve,
         reject,
       })
-      if (!this.#queueRunning) {
-        this.#queueRunning = true
-        void this.#processQueue()
+      if (!Dynamixel.#queueRunning) {
+        Dynamixel.#queueRunning = true
+        void Dynamixel.#processQueue()
       }
     })
   }
@@ -410,6 +420,15 @@ class Dynamixel {
   #readSignedWord(offset: number): number {
     const value = this.#responseBuffer[offset] | (this.#responseBuffer[offset + 1] << 8)
     return value >= 0x8000 ? value - 0x10000 : value
+  }
+
+  #readSignedDword(offset: number): number {
+    return (
+      this.#responseBuffer[offset] |
+      (this.#responseBuffer[offset + 1] << 8) |
+      (this.#responseBuffer[offset + 2] << 16) |
+      (this.#responseBuffer[offset + 3] << 24)
+    )
   }
 
   /**
@@ -629,7 +648,7 @@ class Dynamixel {
    */
   async readPresentVelocity(): Promise<Maybe<number>> {
     const length = await this.#sendReadCommand(ADDRESS.PRESENT_VELOCITY, 4)
-    if (length != null && this.#hasValidResponse(4)) {
+    if (length != null && this.#hasValidResponse(6)) {
       if (this.#responseBuffer[1] !== 0) {
         return {
           success: false,
@@ -638,7 +657,7 @@ class Dynamixel {
       }
       return {
         success: true,
-        value: this.#readSignedWord(2),
+        value: this.#readSignedDword(2),
       }
     }
     return {
@@ -648,13 +667,13 @@ class Dynamixel {
 
   async readPresentPositionValue(): Promise<number | undefined> {
     const length = await this.#sendReadCommand(ADDRESS.PRESENT_POSITION, 4)
-    if (length == null || !this.#hasValidResponse(4)) {
+    if (length == null || !this.#hasValidResponse(6)) {
       return undefined
     }
     if (this.#responseBuffer[1] !== 0) {
       return undefined
     }
-    return this.#readSignedWord(2)
+    return this.#readSignedDword(2)
   }
 
   /**

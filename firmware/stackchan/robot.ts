@@ -2,6 +2,7 @@ import type Digital from 'embedded:io/digital'
 import type { RobotCamera } from 'camera'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceContext, type Emotion, type FaceContext } from 'face-context'
+import type IMU from 'imu'
 import type Led from 'led'
 import type Microphone from 'microphone'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
@@ -102,6 +103,7 @@ type RobotConstructorParam<T extends string> = {
   }
   touch?: Touch
   touchPanel?: TouchPanel
+  imu?: IMU
   microphone?: Microphone
   camera?: RobotCamera
   tone?: Tone
@@ -131,6 +133,7 @@ export class Robot {
   #button: { [key in ButtonName]: Button }
   #touch: Touch
   #touchPanel: TouchPanel | undefined
+  #imu: IMU | undefined
   #microphone: Microphone
   #camera: RobotCamera
   #tone: Tone
@@ -158,6 +161,7 @@ export class Robot {
     this.#touch = params.touch
     this.#touchPanel = params.touchPanel
     this.#touchPanel?.start()
+    this.#imu = params.imu
     this.#microphone = params.microphone
     this.#camera = params.camera ?? NULL_CAMERA
     this.#tone = params.tone
@@ -289,6 +293,15 @@ export class Robot {
    */
   get touchPanel(): TouchPanel | undefined {
     return this.#touchPanel
+  }
+
+  /**
+   * get IMU sensor
+   *
+   * @returns IMU instance
+   */
+  get imu(): IMU | undefined {
+    return this.#imu
   }
 
   /**

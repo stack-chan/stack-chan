@@ -25,6 +25,8 @@
       "./touch",
       "./touch-panel",
       "./touch-panel-gesture",
+      "./imu",
+      "./imu-motion",
       "./robot",
       "./camera",
       "./camera-preview",
@@ -36,7 +38,15 @@
     ],
     "default-mods/*": "./default-mods/*"
   },
-  "preload": ["robot", "touch", "touch-panel", "touch-panel-gesture", "tone"],
+  "preload": [
+    "robot",
+    "touch",
+    "touch-panel",
+    "touch-panel-gesture",
+    "imu",
+    "imu-motion",
+    "tone"
+  ],
   "strip": [],
   "config": {
     "sntp": "pool.ntp.org",

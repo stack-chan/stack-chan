@@ -42,6 +42,7 @@
     "stackchan/camera.ts",
     "stackchan/camera-preview-utils.ts",
     "stackchan/touch-panel-gesture.ts",
+    "stackchan/imu-motion.ts",
     "stackchan/wasm/camera.ts",
     "stackchan/wasm/microphone.ts",
     "stackchan/drivers/m5stackchan-servo.ts",

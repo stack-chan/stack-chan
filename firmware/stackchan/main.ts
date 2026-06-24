@@ -2,6 +2,7 @@ import loadPreferences from 'loadPreference'
 import Camera from 'camera'
 import defaultMod, { type StackchanMod } from 'default-mods/mod'
 import { DynamixelDriver } from 'dynamixel-driver'
+import IMU from 'imu'
 import Led from 'led'
 import { M5StackChanServoDriver } from 'm5stackchan-servo-driver'
 import config from 'mc/config'
@@ -47,6 +48,7 @@ type GlobalEnvironment = {
   device?: {
     sensor?: {
       TouchPanel?: new (options: unknown) => unknown
+      IMU?: new (options: unknown) => unknown
     }
   }
   Host?: {
@@ -142,6 +144,9 @@ function createRobot() {
   const touchPanel = globalEnv.device?.sensor?.TouchPanel
     ? new TouchPanel(globalEnv.device.sensor.TouchPanel as ConstructorParameters<typeof TouchPanel>[0])
     : undefined
+  const imu = globalEnv.device?.sensor?.IMU
+    ? new IMU(globalEnv.device.sensor.IMU as ConstructorParameters<typeof IMU>[0])
+    : undefined
   const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined
   const camera = new Camera()
   const tone = new Tone({ volume: ttsPrefs.volume })
@@ -191,6 +196,7 @@ function createRobot() {
     button: globalEnv.button,
     touch,
     touchPanel,
+    imu,
     tone,
     microphone,
     camera,

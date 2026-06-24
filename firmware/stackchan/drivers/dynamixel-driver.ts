@@ -64,7 +64,7 @@ class PControl {
     this.goalPosition = 0
     this.presentPosition = 0
     this._offset = 0
-    this._lastGoalPosition = 0
+    this._lastGoalPosition = -1
     this._lastGoalCurrent = -1
   }
 
@@ -78,7 +78,7 @@ class PControl {
       }
     }
     this.goalPosition = 2048
-    this._lastGoalPosition = this._feedbackEnabled ? this.goalPosition : 0
+    this._lastGoalPosition = -1
     this._lastGoalCurrent = -1
     const mode = this._feedbackEnabled ? OPERATING_MODE.CURRENT_BASED_POSITION : OPERATING_MODE.POSITION
     await this.servo.setOperatingMode(mode)
@@ -172,7 +172,9 @@ export class DynamixelDriver {
     }
     this._attached = true
     if (!this._feedback || !this._feedbackLoopEnabled) {
-      void this._ensureInitialized()
+      void this._ensureInitialized().catch((error) => {
+        trace(`servo initialization failed: ${error}\n`)
+      })
       return
     }
     this._scheduleNext(0)
@@ -226,7 +228,9 @@ export class DynamixelDriver {
     }
     this._nextTimer = Timer.set(() => {
       this._nextTimer = undefined
-      void this.control()
+      void this.control().catch((error) => {
+        trace(`servo control failed: ${error}\n`)
+      })
     }, delay)
   }
 

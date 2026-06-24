@@ -13,11 +13,11 @@ type Maybe<T> =
       reason?: string
     }
 
-function le(v: number): [number, number] {
-  return [(v & 0xff00) >> 8, v & 0xff]
-}
 function el(h: number, l: number) {
   return ((h << 8) & 0xff00) + (l & 0xff)
+}
+function dwordLe(v: number): [number, number, number, number] {
+  return [v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >> 24) & 0xff]
 }
 
 let packetHandler: PacketHandler = null
@@ -259,6 +259,7 @@ class Dynamixel {
   #responseLength: number
   #expectedResponseMinLength: number
   #waitSlot: SingleWaitSlot<number>
+  #statusReturnLevel: 0 | 1 | 2
 
   constructor({ id, baudrate = 1_000_000 }: DynamixelConstructorParam) {
     this.#id = id
@@ -267,14 +268,16 @@ class Dynamixel {
     this.#responseLength = 0
     this.#expectedResponseMinLength = 0
     this.#waitSlot = new SingleWaitSlot<number>(Timer.set, Timer.clear)
+    this.#statusReturnLevel = 2
     this.#onCommandRead = (buffer, offset, length) => {
       if (!this.#waitSlot.isWaiting) {
         return
       }
-      if (length < this.#expectedResponseMinLength) {
+      if (buffer[offset] !== INSTRUCTION.STATUS) {
         return
       }
-      if (buffer[offset] !== INSTRUCTION.STATUS) {
+      const minLength = length >= 2 && buffer[offset + 1] !== 0 ? 2 : this.#expectedResponseMinLength
+      if (length < minLength) {
         return
       }
       if (this.#responseBuffer.length < length) {
@@ -401,7 +404,8 @@ class Dynamixel {
   }
 
   #sendWriteCommand(address: Address, ...parameters: number[]): Promise<number | undefined> {
-    return this.#sendCommand(INSTRUCTION.WRITE, address, false, 0, ...parameters)
+    const waitForResponse = this.#statusReturnLevel === 2
+    return this.#sendCommand(INSTRUCTION.WRITE, address, waitForResponse, waitForResponse ? 2 : 0, ...parameters)
   }
 
   #sendInstructionCommand(
@@ -414,7 +418,13 @@ class Dynamixel {
   }
 
   #hasValidResponse(minLength: number): boolean {
-    return this.#responseLength >= minLength && this.#responseBuffer[0] === INSTRUCTION.STATUS
+    if (this.#responseBuffer[0] !== INSTRUCTION.STATUS) {
+      return false
+    }
+    if (this.#responseLength >= minLength) {
+      return true
+    }
+    return this.#responseLength >= 2 && this.#responseBuffer[1] !== 0
   }
 
   #readSignedWord(offset: number): number {
@@ -465,7 +475,16 @@ class Dynamixel {
   }
 
   async setStatusReturnLevel(level: 0 | 1 | 2): Promise<unknown> {
-    return this.#sendWriteCommand(ADDRESS.STATUS_RETURN_LEVEL, level)
+    const waitForResponse = this.#statusReturnLevel === 2
+    const result = await this.#sendCommand(
+      INSTRUCTION.WRITE,
+      ADDRESS.STATUS_RETURN_LEVEL,
+      waitForResponse,
+      waitForResponse ? 2 : 0,
+      level,
+    )
+    this.#statusReturnLevel = level
+    return result
   }
 
   /**
@@ -534,8 +553,9 @@ class Dynamixel {
    * @param angle - offset angle
    */
   async setOffsetAngle(angle: number): Promise<unknown> {
-    const value = (Math.abs(angle) * 360) / 4096
-    return this.#sendWriteCommand(ADDRESS.HOMING_OFFSET, ...le(value))
+    const raw = (angle * 4096) / 360
+    const value = raw < 0 ? Math.ceil(raw) : Math.floor(raw)
+    return this.#sendWriteCommand(ADDRESS.HOMING_OFFSET, ...dwordLe(value))
   }
 
   setId(id: number): void {
@@ -608,12 +628,11 @@ class Dynamixel {
    * @returns offset angle
    */
   async readOffsetAngle(): Promise<number> {
-    const length = await this.#sendReadCommand(ADDRESS.HOMING_OFFSET, 2)
-    if (length == null || !this.#hasValidResponse(4)) {
+    const length = await this.#sendReadCommand(ADDRESS.HOMING_OFFSET, 4)
+    if (length == null || !this.#hasValidResponse(6)) {
       throw new Error('failed to read offset angle')
     }
-    const offset = this.#readSignedWord(2)
-    return offset
+    return this.#readSignedDword(2)
   }
 
   /**

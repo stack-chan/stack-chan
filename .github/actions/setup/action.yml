@@ -74,7 +74,7 @@ runs:
       if: steps.restore-cache-moddable.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
-        npm run setup
+        npm run setup -- --branch "$MODDABLE_TARGET_REF"
         git -C "$HOME/.local/share/moddable" fetch origin "$MODDABLE_TARGET_REF"
         git -C "$HOME/.local/share/moddable" checkout --detach FETCH_HEAD
         echo "Installed Moddable ref: $(git -C "$HOME/.local/share/moddable" describe --tags --always)"

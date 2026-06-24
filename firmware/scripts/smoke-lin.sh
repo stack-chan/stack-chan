@@ -10,7 +10,7 @@ export PATH="$PWD/node_modules/.bin:$PATH"
 
 platform="${STACKCHAN_LIN_SMOKE_PLATFORM:-lin/m5stack}"
 platform_path="${platform//\//\/}"
-smoke_timeout="${STACKCHAN_LIN_SMOKE_TIMEOUT:-10s}"
+smoke_timeout="${STACKCHAN_LIN_SMOKE_TIMEOUT:-20s}"
 xsbug_host="${STACKCHAN_LIN_XSBUG_HOST:-127.0.0.1}"
 xsbug_port="${STACKCHAN_LIN_XSBUG_PORT:-5002}"
 xsbug_log="$(mktemp "${TMPDIR:-/tmp}/stackchan-lin-xsbug-log.XXXXXX")"

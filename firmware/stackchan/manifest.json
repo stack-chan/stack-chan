@@ -61,7 +61,8 @@
     "serial": {
       "transmit": 17,
       "receive": 16
-    }
+    },
+    "enablePowerButton": true
   },
   "resources": {
     "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],

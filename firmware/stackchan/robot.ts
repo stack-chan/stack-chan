@@ -83,7 +83,7 @@ export type Button = {
   onChanged: (this: Digital) => void
 }
 
-const buttonNames = ['a', 'b', 'c'] as const
+const buttonNames = ['a', 'b', 'c', 'power'] as const
 type ButtonName = (typeof buttonNames)[number]
 
 /**

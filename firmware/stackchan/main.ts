@@ -43,7 +43,7 @@ type SimulatorButtonCtor = new (options: {
 type RobotLed = Pick<Led, 'on' | 'off' | 'blink' | 'rainbow'>
 
 type GlobalEnvironment = {
-  button?: Partial<Record<'a' | 'b' | 'c', DeviceButton>>
+  button?: Partial<Record<'a' | 'b' | 'c' | 'power', DeviceButton>>
   network?: NetworkService
   device?: {
     sensor?: {

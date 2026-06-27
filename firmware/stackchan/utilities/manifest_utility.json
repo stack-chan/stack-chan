@@ -15,23 +15,33 @@
   "platforms": {
     "esp32": {
       "modules": {
+        "espnow-native": "esp32/espnow-native",
+        "mac-address": "esp32/mac-address"
+      }
+    },
+    "esp32/m5stackchan_cores3": {
+      "modules": {
+        "espnow-native": "esp32/espnow-native",
         "mac-address": "esp32/mac-address"
       }
     },
     "mac": {
       "modules": {
+        "espnow-native": "sim/espnow-native",
         "mac-address": "sim/mac-address",
         "embedded:io/pwm": "sim/pwm"
       }
     },
     "lin": {
       "modules": {
+        "espnow-native": "sim/espnow-native",
         "mac-address": "sim/mac-address",
         "embedded:io/pwm": "sim/pwm"
       }
     },
     "win": {
       "modules": {
+        "espnow-native": "sim/espnow-native",
         "mac-address": "sim/mac-address",
         "embedded:io/pwm": "sim/pwm"
       }

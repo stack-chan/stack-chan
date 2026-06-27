@@ -49,6 +49,7 @@
     "stackchan/led/py32-io-expander.ts",
     "stackchan/drivers/internal/single-wait-slot.ts",
     "stackchan/drivers/__tests__/**/*.ts",
+    "stackchan/services/espnow-remote-packet.ts",
     "stackchan/renderers-piu/face-context.ts",
     "stackchan/renderers-piu/parts/image/image-avatar-pack.ts",
     "stackchan/renderers-piu/parts/image/image-avatar-state.ts",

@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - develop
-      # Temporary migration branch. Remove after all PRs target develop.
-      - dev/v1.0
     paths:
       - '**/*.kicad_sch'
       - '**/*.kicad_pcb'
@@ -14,8 +12,6 @@ on:
   pull_request:
     branches:
       - develop
-      # Temporary migration branch. Remove after all PRs target develop.
-      - dev/v1.0
     paths:
       - '**/*.kicad_sch'
       - '**/*.kicad_pcb'
@@ -48,7 +44,7 @@ jobs:
 
   deploy-schematics:
     needs: build-schematics
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/dev/v1.0')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     concurrency:
       group: gh-pages-deploy

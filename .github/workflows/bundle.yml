@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - develop
-      # Temporary migration branch. Remove after all PRs target develop.
-      - dev/v1.0
     paths:
       - 'firmware/**'
       - 'web/simulator/**'
@@ -14,10 +12,6 @@ on:
   pull_request:
     branches:
       - develop
-      # Temporary migration branch. Remove after all PRs target develop.
-      - dev/v1.0
-      # Allow the stacked PR that targets the WASM build-support branch to run.
-      - feat/wasm-stackchan-build
     paths:
       - 'firmware/**'
       - 'web/simulator/**'
@@ -61,7 +55,7 @@ jobs:
 
   deploy:
     needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/dev/v1.0')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     concurrency:
       group: gh-pages-deploy

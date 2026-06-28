@@ -2,6 +2,8 @@ name: Build Stack-chan Firmware
 
 on:
   push:
+    branches:
+      - develop
     paths:
       - 'firmware/**'
       - 'web/package.json'
@@ -11,6 +13,8 @@ on:
       - '.github/workflows/build.yml'
       - 'lefthook.yml'
   pull_request:
+    branches:
+      - develop
     paths:
       - 'firmware/**'
       - 'web/package.json'

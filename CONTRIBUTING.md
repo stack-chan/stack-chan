@@ -48,9 +48,8 @@ If your change depends on Moddable or ESP-IDF tooling, include the build or runt
 The repository uses `main <- develop <- feat/* | fix/*`.
 
 - `main` is the stable branch and should represent released or release-ready source.
-- `develop` is the integration branch for the next release.
+- `develop` is the default branch and integration branch for the next release.
 - Release work is reviewed through a `develop` to `main` pull request.
-- The previous `dev/v1.0` integration branch is kept only during the transition to `develop`.
 
 See `docs/operations/release-flow.md` for the detailed branch policy.
 

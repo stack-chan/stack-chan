@@ -2,11 +2,11 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
-import { getImageAvatarPack, IMAGE_AVATAR_PACKS } from '../../stackchan/renderers-piu/parts/image/image-avatar-pack.js'
+import { getImageAvatarPack, IMAGE_AVATAR_PACKS } from '../../stackchan/ui/components/face/parts/image/image-avatar-pack.js'
 import {
   frameIndexForRatio,
   resolveExpressionName,
-} from '../../stackchan/renderers-piu/parts/image/image-avatar-state.js'
+} from '../../stackchan/ui/components/face/parts/image/image-avatar-state.js'
 
 test('demo image avatar pack describes a complete face, mouth, and hands sprite set', () => {
   const pack = getImageAvatarPack('stackchan-demo')
@@ -64,8 +64,8 @@ test('renderer manifests keep bundled demo masks but leave ImageAvatarLite sprit
   ].map((name) => `../assets/images/faces/image-avatar/stackchan-demo/${name}`)
 
   for (const manifestPath of [
-    'stackchan/renderers-piu/manifest_renderer_piu.json',
-    'stackchan/renderers-piu/manifest_wasm_renderer_piu.json',
+    'stackchan/ui/manifest.json',
+    'stackchan/ui/manifest_wasm.json',
   ]) {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
     const alphaResources = manifest.resources['*-alpha'] as string[]

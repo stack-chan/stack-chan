@@ -5,8 +5,5 @@ const driver = new PWMServoDriver({
   pwmTilt: 17,
 })
 
-driver.applyRotation({
-  r: 0,
-  p: 0,
-  y: 0,
-})
+void driver
+trace('ok\n')

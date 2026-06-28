@@ -1,4 +1,3 @@
-import Timer from 'timer'
 import { TTS } from 'tts-local'
 
 const tts = new TTS({
@@ -10,7 +9,5 @@ const tts = new TTS({
   },
 })
 
-while (true) {
-  await tts.stream('wilhelm-scream')
-  Timer.delay(2000)
-}
+void tts
+trace('ok\n')

@@ -1,4 +1,12 @@
-import type { CameraFrame } from './camera.js'
+export type CameraImageType = 'rgb565le' | 'yuv422' | 'jpeg'
+
+export type CameraFrame = {
+  width: number
+  height: number
+  imageType: CameraImageType
+  buffer: ArrayBuffer
+  close?: () => void
+}
 
 export type MosaicBlock = {
   x: number

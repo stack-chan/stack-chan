@@ -45,7 +45,7 @@ interface HTTPRequest {
   url?: {
     pathname?: string
   }
-  text: () => Promise<string>
+  text: () => Promise<string | undefined>
 }
 
 /**
@@ -221,7 +221,7 @@ export class MCPServerService {
    */
   async #handleMCPMessage(request: HTTPRequest): Promise<Response> {
     try {
-      const body = await request.text()
+      const body = (await request.text()) ?? ''
       const message: MCPRequest = JSON.parse(body)
 
       // Validate JSON-RPC format

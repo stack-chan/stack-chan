@@ -1,6 +1,9 @@
 {
-  "include": ["../../../stackchan/renderers-piu/manifest_renderer_piu.json"],
+  "include": ["../../../stackchan/ui/manifest.json"],
   "modules": {
+    "default-mods/mod": "./stackchan-mod-stub",
+    "default-mods/on-robot-created": "../../../stackchan/default-mods/on-robot-created",
+    "imu": "./imu-stub",
     "mocks/assert": "../../chats/mocks/assert",
     "*": ["./main"]
   }

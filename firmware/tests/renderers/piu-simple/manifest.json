@@ -3,7 +3,7 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_piu.json",
     "../../../stackchan/manifest_typings.json",
-    "../../../stackchan/renderers-piu/manifest_renderer_piu.json"
+    "../../../stackchan/ui/manifest.json"
   ],
   "config": {
     "startupSound": false

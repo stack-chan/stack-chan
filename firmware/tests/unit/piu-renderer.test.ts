@@ -3,15 +3,15 @@ import { readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 
 const rendererPaths = [
-  'stackchan/renderers-piu/renderer-simple.ts',
-  'stackchan/renderers-piu/renderer-small.ts',
-  'stackchan/renderers-piu/renderer-dog.ts',
-  'stackchan/renderers-piu/renderer-image.ts',
+  'stackchan/ui/application/renderer-simple.ts',
+  'stackchan/ui/application/renderer-small.ts',
+  'stackchan/ui/application/renderer-dog.ts',
+  'stackchan/ui/application/renderer-image.ts',
 ]
 
 describe('PIU renderer application lifecycle', () => {
   test('renderers reuse an existing startup Application when one is present', () => {
-    const controllerSource = readFileSync('stackchan/renderers-piu/app-controller.ts', 'utf8')
+    const controllerSource = readFileSync('stackchan/ui/application/app-controller.ts', 'utf8')
 
     assert.match(controllerSource, /globalThis as GlobalWithApplication/)
     assert.match(controllerSource, /existingApplication\.empty\(\)/)

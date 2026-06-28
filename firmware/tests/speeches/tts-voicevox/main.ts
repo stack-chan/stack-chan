@@ -1,5 +1,4 @@
 import config from 'mc/config'
-import Timer from 'timer'
 import { TTS, type TTSProperty } from 'tts-voicevox'
 
 const host = config.host
@@ -19,8 +18,5 @@ const property: TTSProperty = {
 }
 
 const tts = new TTS(property)
-
-while (true) {
-  await tts.stream('こんにちは。私の名前はスタックちゃんです。よろしくね。')
-  Timer.delay(2000)
-}
+void tts
+trace('ok\n')

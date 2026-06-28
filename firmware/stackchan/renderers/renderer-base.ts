@@ -180,8 +180,8 @@ export class RendererBase {
 
   layers: Layer[]
   filters: FaceModifier[]
-  decorators: FaceDecorator[]
-  removingDecorators: FaceDecorator[]
+  decorators: FaceDecorator<never>[]
+  removingDecorators: FaceDecorator<never>[]
 
   lastContext: FaceContext
   currentContext: FaceContext
@@ -191,6 +191,7 @@ export class RendererBase {
 
   constructor(option?: { poco?: PocoPrototype }) {
     this._poco = option?.poco ?? new Poco(screen, { rotation: config.rotation })
+    this.filters = []
     this.decorators = []
     this.removingDecorators = []
     this.layers = []
@@ -230,7 +231,7 @@ export class RendererBase {
     poco.fillRectangle(poco.makeColor(...color), 0, 0, poco.width, poco.height)
     poco.end()
   }
-  addDecorator(decorator: FaceDecorator): void {
+  addDecorator(decorator: FaceDecorator<never>): void {
     const idx = this.decorators.indexOf(decorator)
     if (idx !== -1) {
       trace('already being added\n')
@@ -238,7 +239,7 @@ export class RendererBase {
     }
     this.decorators.push(decorator)
   }
-  removeDecorator(decorator: FaceDecorator): void {
+  removeDecorator(decorator: FaceDecorator<never>): void {
     const idx = this.decorators.indexOf(decorator)
     if (idx !== -1) {
       this.decorators.splice(idx, 1)

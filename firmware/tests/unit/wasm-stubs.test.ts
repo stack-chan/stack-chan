@@ -156,12 +156,10 @@ test('WASM main path loads an installed MOD archive before falling back to the d
 
 test('real-device camera preview stays independent from the WASM-only RuntimeBitmapPort binding', () => {
   const manifest = JSON.parse(readFileSync('stackchan/manifest.json', 'utf8'))
-  const previewSource = readFileSync('stackchan/camera-preview.ts', 'utf8')
+  const previewSource = readFileSync('stackchan/ui/views/camera-preview/camera-preview-view.ts', 'utf8')
 
-  assert.deepEqual(
-    manifest.modules['*'].filter((specifier: string) => specifier.includes('camera-preview')),
-    ['./camera-preview', './camera-preview-utils'],
-  )
+  assert.equal(manifest.modules['camera-preview'], './ui/views/camera-preview/camera-preview-view')
+  assert.equal(manifest.modules['camera-preview-utils'], './ui/views/camera-preview/camera-preview-utils')
   assert.doesNotMatch(previewSource, /runtime-bitmap-port/)
   assert.doesNotMatch(previewSource, /RuntimeBitmapPort/)
   assert.match(previewSource, /new Port\(/)
@@ -188,7 +186,7 @@ test('WASM camera preview uses a native RuntimeBitmapPort binding before falling
 })
 
 test('WASM camera preview can be dismissed by touch or an automatic timeout', () => {
-  const previewSource = readFileSync('stackchan/camera-preview.ts', 'utf8')
+  const previewSource = readFileSync('stackchan/ui/views/camera-preview/camera-preview-view.ts', 'utf8')
   const modSource = readFileSync('stackchan/default-mods/on-robot-created.ts', 'utf8')
 
   assert.match(previewSource, /onDismiss\?: \(\) => void/)

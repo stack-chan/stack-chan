@@ -49,7 +49,7 @@ class Response {
     }
 
     if (headers.get('content-length') === undefined) {
-      headers.set('content-length', body.byteLength)
+      headers.set('content-length', this.#body.byteLength)
     }
     this.#headers = headers
 
@@ -141,7 +141,7 @@ class HttpServerService {
   delete = (path, handler) => this.#routes.delete.set(path, handler)
 
   constructor(options = {}) {
-    const port = options?.port
+    const port = options?.port ?? 8080
     this.#listen(port)
   }
 

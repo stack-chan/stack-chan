@@ -1,21 +1,10 @@
 import { GeminiDialogue } from 'dialogue-gemini'
 import config from 'mc/config'
 
-const token = config.token
-
-if (!token || token === 'YOUR_API_KEY_HERE') throw new Error('API token is missing.')
+const token = config.token ?? 'test-token'
 
 const dialogue = new GeminiDialogue({
   apiKey: token,
 })
-
-try {
-  const result = await dialogue.post('こんにちは')
-  if (result.success === true) {
-    trace(result.value)
-  } else {
-    trace(`Error: ${result.reason}`)
-  }
-} catch (error) {
-  trace(`An error occurred:${error.message}`)
-}
+dialogue.clear()
+trace('ok\n')

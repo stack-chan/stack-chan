@@ -35,11 +35,11 @@ export class TTS {
   audio?: AudioOut
   onPlayed?: (number) => void
   onDone?: () => void
-  client: HTTPClient
+  client?: HTTPClient
   host: string
   port: number
   streaming: boolean
-  file: File
+  file?: File
   speakerId: number
   sampleRate: number
   volume: number
@@ -76,7 +76,10 @@ export class TTS {
           }
         },
         onReadable(count) {
-          file.write(this.read(count))
+          const chunk = this.read(count)
+          if (chunk != null) {
+            file.write(chunk)
+          }
           // trace(`${count} bytes written. position: ${file.position}\n`)
         },
         onDone(error) {
@@ -109,7 +112,7 @@ export class TTS {
     try {
       await this.getQuery(key, speakerId)
     } catch (error) {
-      throw new Error(error)
+      throw new Error(error instanceof Error ? error.message : String(error))
     }
     const { onPlayed, onDone } = this
     const file = new File(QUERY_PATH)
@@ -135,7 +138,10 @@ export class TTS {
             ['content-length', `${file.length}`],
           ]),
           onWritable(count) {
-            this.write(file.read(ArrayBuffer, count))
+            const chunk = file.read(ArrayBuffer, count)
+            if (chunk != null) {
+              this.write(chunk)
+            }
           },
         },
         onPlayed(buffer) {

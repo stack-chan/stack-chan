@@ -5,6 +5,7 @@
     "../../../stackchan/drivers/manifest_driver.json"
   ],
   "modules": {
+    "py32-io-expander": "../py32-io-expander-stub",
     "*": ["./main"]
   }
 }

@@ -6,6 +6,7 @@ import { Emotion } from 'face-context'
 import config from 'mc/config'
 import { randomBetween } from 'stackchan-util'
 import Timer from 'timer'
+import { hasValidChatType } from './config.js'
 
 const DEFAULT_MOUTH_SCALE = 1 / 2000
 const BALLOON_CHAR_WIDTH_PX = 8
@@ -176,7 +177,7 @@ export function onRobotCreated(robot) {
     specifier: rawChatConfig.specifier ?? 'openAIRealtime',
     instructions: rawChatConfig.instructions ?? INSTRUCTION_B,
   }
-  if (typeof chatConfig?.type !== 'string' || chatConfig.type.length === 0) {
+  if (!hasValidChatType(chatConfig)) {
     trace(
       '[chat_audioio] config.chat.type must be a non-empty string. Set config.chat.type (for example "openAIRealtime"). Chat disabled.\n',
     )

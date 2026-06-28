@@ -1,6 +1,6 @@
 import { HttpServerService, Response } from 'http-server-service'
 
-const app = new HttpServerService()
+const app = new HttpServerService({ port: 8082 })
 
 app.get('/response', (_c) => {
   return new Response('Thank you for coming', {
@@ -46,3 +46,5 @@ app.post('/post/form', async (c) => {
   const form = await c.req.formData()
   return c.text(`form: ${JSON.stringify(form)}`)
 })
+
+trace('ok\n')

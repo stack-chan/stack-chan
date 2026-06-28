@@ -8,6 +8,7 @@ const service = new NetworkService({
 service.connect(
   () => {
     trace('connected\n')
+    trace('ok\n')
   },
   (message) => {
     trace(`error: ${message}\n`)

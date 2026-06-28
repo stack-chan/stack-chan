@@ -88,3 +88,4 @@ trace('   POST /mcp\n')
 trace(
   '   {"jsonrpc":"2.0","id":"3","method":"tools/call","params":{"name":"hello_world","arguments":{"name":"Stack-chan"}}}\n\n',
 )
+trace('ok\n')

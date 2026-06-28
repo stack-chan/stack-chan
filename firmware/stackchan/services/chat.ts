@@ -71,7 +71,7 @@ type ChatFunctionSchema = {
 
 const noop = () => {}
 
-const ChatAudioIOAny = ChatAudioIO as unknown as {
+type ChatAudioIOStateConstants = {
   FAILED: number
   DISCONNECTED: number
   DISCONNECTING: number
@@ -103,23 +103,23 @@ function toFunctionSchema(tool: ChatTool): ChatFunctionSchema | null {
   }
 }
 
-function mapState(state: number): ChatState {
+function mapState(state: number, constants: ChatAudioIOStateConstants): ChatState {
   switch (state) {
-    case ChatAudioIOAny.FAILED:
+    case constants.FAILED:
       return 'FAILED'
-    case ChatAudioIOAny.DISCONNECTED:
+    case constants.DISCONNECTED:
       return 'DISCONNECTED'
-    case ChatAudioIOAny.DISCONNECTING:
+    case constants.DISCONNECTING:
       return 'DISCONNECTING'
-    case ChatAudioIOAny.CONNECTING:
+    case constants.CONNECTING:
       return 'CONNECTING'
-    case ChatAudioIOAny.CONNECTED:
+    case constants.CONNECTED:
       return 'CONNECTED'
-    case ChatAudioIOAny.SPEAKING:
+    case constants.SPEAKING:
       return 'SPEAKING'
-    case ChatAudioIOAny.LISTENING:
+    case constants.LISTENING:
       return 'LISTENING'
-    case ChatAudioIOAny.WAITING:
+    case constants.WAITING:
       return 'WAITING'
     default:
       return 'DISCONNECTED'
@@ -153,6 +153,7 @@ export class ChatService {
       (ChatAudioIO as unknown as {
         new (chatOptions: Record<string, unknown>): ChatAudioIO
       })
+    const chatAudioIOConstants = ChatAudioIOCtor as unknown as ChatAudioIOStateConstants
     this.#chat = new ChatAudioIOCtor({
       specifier: config.type as unknown as string,
       instructions: config.instructions,
@@ -161,7 +162,7 @@ export class ChatService {
       modelID: config.modelID,
       functions: functions.length > 0 ? functions : undefined,
       onStateChanged: (state: number) => {
-        this.#state = mapState(state)
+        this.#state = mapState(state, chatAudioIOConstants)
         this.#error = this.#chat.error ?? ''
         this.#callbacks.onStateChanged(this.#state, this.#error || undefined)
       },

@@ -34,7 +34,7 @@ export class TTS {
   voice: string
   latency: number
   format: string
-  voice_settings: voiceSettings
+  voice_settings?: voiceSettings
   volume: number
   streaming: boolean
   constructor(props: TTSProperty) {

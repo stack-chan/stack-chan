@@ -1,5 +1,5 @@
 import { equal } from 'mocks/assert'
-import { onRobotCreated } from '../../../stackchan/default-mods/on-robot-created'
+import { onRobotCreated } from 'default-mods/on-robot-created'
 
 trace('=== default-mod face init test ===\n')
 
@@ -27,6 +27,7 @@ const robot = {
     setTorque: () => {},
     applyRotation: () => {},
   },
+  led: {},
   button: {
     a: null,
     b: null,
@@ -42,7 +43,13 @@ const robot = {
 if (!onRobotCreated) {
   throw new Error('onRobotCreated is not defined')
 }
-onRobotCreated(robot as never)
+try {
+  onRobotCreated(robot as never)
+} catch (error) {
+  const message = error && typeof error === 'object' && 'message' in error ? error.message : error
+  trace(`onRobotCreated error: ${message}\n`)
+  throw error
+}
 
 equal(buttons[0]?.key, 'toggleFace', 'toggleFace button should be registered')
 equal(drawerStates[0]?.[0], 'toggleFace', 'toggleFace state should be initialized')

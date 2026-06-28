@@ -18,34 +18,58 @@
     "target": "es2024",
     "paths": {
       "face-context": [
-        "./stackchan/renderers-piu/face-context"
+        "./stackchan/ui/state/face-context"
+      ],
+      "face-skin": [
+        "./stackchan/ui/state/face-skin"
+      ],
+      "app-controller": [
+        "./stackchan/ui/application/app-controller"
+      ],
+      "chat-status-bar": [
+        "./stackchan/ui/components/status-bar/chat-status-bar"
+      ],
+      "common-view": [
+        "./stackchan/ui/views/main/common-view"
+      ],
+      "face-view": [
+        "./stackchan/ui/views/main/face-view"
+      ],
+      "template": [
+        "./stackchan/ui/components/face/template"
       ],
       "effects/*": [
-        "./stackchan/renderers-piu/effects/*"
+        "./stackchan/ui/components/effects/*"
+      ],
+      "effects/speech-balloon": [
+        "./stackchan/ui/components/bubble/speech-balloon"
+      ],
+      "effects/multirow-balloon": [
+        "./stackchan/ui/components/bubble/multirow-balloon"
       ],
       "renderer-compat": [
-        "./stackchan/renderers-piu/renderer-compat"
+        "./stackchan/ui/application/renderer-compat"
       ],
       "renderer-simple": [
-        "./stackchan/renderers-piu/renderer-simple"
+        "./stackchan/ui/application/renderer-simple"
       ],
       "renderer-dog": [
-        "./stackchan/renderers-piu/renderer-dog"
+        "./stackchan/ui/application/renderer-dog"
       ],
       "renderer-small": [
-        "./stackchan/renderers-piu/renderer-small"
+        "./stackchan/ui/application/renderer-small"
       ],
       "behaviors/*": [
-        "./stackchan/renderers-piu/behaviors/*"
+        "./stackchan/ui/components/face/behaviors/*"
       ],
       "parts/*": [
-        "./stackchan/renderers-piu/parts/*"
+        "./stackchan/ui/components/face/parts/*"
       ],
       "motions/*": [
-        "./stackchan/renderers-piu/motions/*"
+        "./stackchan/ui/components/face/motions/*"
       ],
       "drawer": [
-        "./stackchan/renderers-piu/drawer"
+        "./stackchan/ui/components/drawer/drawer"
       ],
       "mocks/*": [
         "./tests/chats/mocks/*"
@@ -60,7 +84,21 @@
         "./stackchan/dialogues/*",
         "./stackchan/drivers/*",
         "./stackchan/led/*",
-        "./stackchan/renderers-piu/*",
+        "./stackchan/ui/application/*",
+        "./stackchan/ui/views/main/*",
+        "./stackchan/ui/views/splash/*",
+        "./stackchan/ui/views/camera-preview/*",
+        "./stackchan/ui/components/status-bar/*",
+        "./stackchan/ui/components/drawer/*",
+        "./stackchan/ui/components/effects/*",
+        "./stackchan/ui/components/bubble/*",
+        "./stackchan/ui/components/face/*",
+        "./stackchan/ui/components/face/behaviors/*",
+        "./stackchan/ui/components/face/motions/*",
+        "./stackchan/ui/components/face/parts/*",
+        "./stackchan/ui/components/face/parts/dog/*",
+        "./stackchan/ui/components/face/parts/image/*",
+        "./stackchan/ui/state/*",
         "./stackchan/renderers/*",
         "./stackchan/services/*",
         "./stackchan/speeches/*",

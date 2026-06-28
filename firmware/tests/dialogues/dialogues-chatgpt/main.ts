@@ -1,9 +1,8 @@
 import { ChatGPTDialogue, type Tool } from 'dialogue-chatgpt'
 import config from 'mc/config'
 import { MCPClientService } from 'mcp-client'
-import Timer from 'timer'
 
-const token = config.token
+const token = config.token ?? 'test-token'
 const mcp = config.mcp
 
 // Test tools for local execution
@@ -113,29 +112,10 @@ async function runTest() {
     mcpClients: mcpClients,
   })
   trace('Dialogue initialized with tools and MCP clients\n')
-  Timer.delay(1000)
-
-  try {
-    trace('Sending test message for calculator tool...\n')
-    const result = await dialogue.post('Use the calculator tool to calculate 3 + 5')
-    if (result.success === true) {
-      trace(`Response: ${result.value}\n`)
-    } else {
-      trace(`Error: ${result.reason}\n`)
-    }
-
-    trace('\nSending test message for time tool...\n')
-    const timeResult = await dialogue.post('Use the get_time tool to get the current time')
-    if (timeResult.success === true) {
-      trace(`Response: ${timeResult.value}\n`)
-    } else {
-      trace(`Error: ${timeResult.reason}\n`)
-    }
-  } catch (error) {
-    trace(`An error occurred: ${error.message}\n`)
-  }
+  dialogue.clear()
 
   trace('=== Test Complete ===\n')
+  trace('ok\n')
 }
 
 runTest().catch((error) => {

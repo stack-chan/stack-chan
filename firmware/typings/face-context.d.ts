@@ -1,1 +1,1 @@
-export * from '../stackchan/renderers-piu/face-context'
+export * from '../stackchan/ui/state/face-context'

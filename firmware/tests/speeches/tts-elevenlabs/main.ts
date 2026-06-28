@@ -1,10 +1,7 @@
 import config from 'mc/config'
-import Timer from 'timer'
 import { TTS, type TTSProperty } from 'tts-elevenlabs'
 
-const token = config.token
-
-if (!token || token === 'YOUR_API_KEY_HERE') throw new Error('API token is missing.')
+const token = config.token ?? 'test-token'
 
 const property: TTSProperty = {
   token,
@@ -17,8 +14,5 @@ const property: TTSProperty = {
 }
 
 const tts = new TTS(property)
-
-while (true) {
-  await tts.stream('Hello. I am Stack-chan. Nice to meet you.')
-  Timer.delay(2000)
-}
+void tts
+trace('ok\n')

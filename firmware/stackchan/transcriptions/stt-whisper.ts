@@ -64,7 +64,8 @@ export default class STT {
         value: obj.text,
       }
     } catch (error) {
-      return { success: false, reason: `Exception occurred: ${error.message}` }
+      const reason = error instanceof Error ? error.message : String(error)
+      return { success: false, reason: `Exception occurred: ${reason}` }
     }
   }
 }

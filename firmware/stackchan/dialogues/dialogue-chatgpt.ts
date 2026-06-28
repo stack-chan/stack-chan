@@ -145,7 +145,7 @@ export class ChatGPTDialogue {
   }
 
   clear() {
-    this.#responseId = null
+    this.#responseId = undefined
     this.#toolsMap = null
   }
 
@@ -204,7 +204,7 @@ export class ChatGPTDialogue {
         reason: `Conversation exceeded maximum iterations (${maxIterations})`,
       }
     } catch (error) {
-      return { success: false, reason: error.message || 'Unknown error' }
+      return { success: false, reason: error instanceof Error ? error.message : String(error) }
     }
   }
 
@@ -287,7 +287,7 @@ export class ChatGPTDialogue {
       toolCalls: [],
       toolsUsed: [],
     }
-    for (const output of parsedResponse.output) {
+    for (const output of parsedResponse.output ?? []) {
       if (output.type === 'message' && output.role === 'assistant') {
         // アシスタントからのメッセージを抽出
         const textContent = output.content?.find((c: MessageContent) => c.type === 'output_text')

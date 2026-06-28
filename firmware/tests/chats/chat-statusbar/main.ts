@@ -14,28 +14,60 @@ type StatusBarBehavior = {
 }
 
 type StatusBarContent = {
-  first?: { string?: string }
-  last?: { first?: { width?: number }; visible?: boolean }
+  first?: StatusIcon
+  last?: LevelTrack
   behavior?: StatusBarBehavior
 }
 
+type StatusIcon = {
+  next?: StatusIndicator
+  visible?: boolean
+  state?: number
+}
+
+type StatusIndicator = {
+  visible?: boolean
+}
+
+type LevelTrack = {
+  first?: LevelFill
+  visible?: boolean
+}
+
+type LevelFill = {
+  height?: number
+  skin?: unknown
+}
+
 const bar = app.first as unknown as StatusBarContent
-const label = bar.first as { string: string }
-const levelTrack = bar.last as { first?: { width?: number }; visible?: boolean }
-const levelFill = levelTrack.first as { width: number }
+const statusIcon = bar.first as StatusIcon
+const statusIndicator = statusIcon.next as StatusIndicator
+const levelTrack = bar.last as LevelTrack
+const levelFill = levelTrack.first as LevelFill
 const behavior = bar.behavior as StatusBarBehavior
 
 behavior.onChatState?.(bar, 'CONNECTING')
-equal(label.string, 'connecting', 'connecting label')
+assert(statusIndicator.visible === true, 'connecting indicator should be visible')
+assert(statusIcon.visible === false, 'status icon should be hidden while connecting')
 
 behavior.onChatState?.(bar, 'SPEAKING')
-equal(label.string, 'speaking', 'speaking label')
 assert(levelTrack.visible === true, 'level track should be visible in SPEAKING')
+assert(statusIcon.visible === true, 'status icon should be visible in SPEAKING')
+equal(statusIcon.state, 0, 'SPEAKING should use microphone input icon state')
 
 behavior.onChatInputLevel?.(bar, 1000)
-assert(levelFill.width > 0, 'level fill should grow')
+equal(levelFill.height, 8, 'half input level should fill half the track')
 
+behavior.onChatState?.(bar, 'LISTENING')
+assert(levelTrack.visible === false, 'level track should be hidden in LISTENING')
+assert(statusIcon.visible === true, 'status icon should be visible in LISTENING')
+equal(statusIcon.state, 1, 'LISTENING should use output icon state')
+
+const normalFillSkin = levelFill.skin
 behavior.onChatState?.(bar, 'FAILED', 'boom')
-assert(label.string.indexOf('error') === 0, 'failed label')
+assert(levelTrack.visible === false, 'level track should be hidden after failure')
+assert(statusIcon.visible === false, 'status icon should be hidden after failure')
+assert(statusIndicator.visible === false, 'connecting indicator should be hidden after failure')
+assert(levelFill.skin !== normalFillSkin, 'failed state should switch level fill to error skin')
 
 trace('ok\n')

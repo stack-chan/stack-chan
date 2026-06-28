@@ -12,9 +12,9 @@ export class NetworkService {
   #connectionEstablished = false
   #retry = 0
   #wifi?: WiFi
-  onConnected: () => void
-  onError: (reason?: string) => void
-  constructor(options) {
+  onConnected: () => void = () => {}
+  onError: (reason?: string) => void = () => {}
+  constructor(options: { ssid?: string; password?: string }) {
     this.#ssid = options.ssid
     this.#password = options.password
   }
@@ -49,8 +49,12 @@ export class NetworkService {
           new SNTP({ host: config.sntp }, (message, value) => {
             if (SNTP.time === message) {
               trace(`Got time from: ${config.sntp}\n`)
-              Time.set(value)
-              onConnected?.()
+              if (typeof value === 'number') {
+                Time.set(value)
+                onConnected?.()
+              } else {
+                onError?.('Failed to get time')
+              }
             } else if (SNTP.error === (message as -1 | 1 | 2)) {
               // workaround for the type mistake
               onError?.('Failed to get time')
@@ -69,7 +73,7 @@ export class NetworkService {
       }
     })
   }
-  scanAndConnect(onConnected, onError) {
+  scanAndConnect(onConnected: () => void, onError: (message: string) => void) {
     WiFi.mode = WiFi.Mode.station
     WiFi.scan({}, (item: { ssid: string } | null) => {
       if (this.#connecting) {

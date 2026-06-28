@@ -1,12 +1,19 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODDABLE)/examples/manifest_typings.json",
-    "../../../stackchan/services/manifest_service.json"
+    "$(MODDABLE)/examples/manifest_typings.json"
   ],
   "modules": {
-    "mocks/ChatAudioIO": "../mocks/ChatAudioIO",
+    "chat": "../../../stackchan/services/chat",
+    "ChatAudioIO": "../mocks/ChatAudioIO",
     "mocks/assert": "../mocks/assert",
     "*": ["./main"]
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
   }
 }

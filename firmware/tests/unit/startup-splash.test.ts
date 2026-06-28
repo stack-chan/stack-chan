@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 
-const splashPath = 'stackchan/startup-splash.ts'
+const splashPath = 'stackchan/ui/views/splash/splash-view.ts'
 const defaultLaunchPath = 'stackchan/default-mods/on-launch.ts'
 const wasmModPath = 'stackchan/default-mods/wasm/mod.ts'
 const manifestPath = 'stackchan/manifest.json'

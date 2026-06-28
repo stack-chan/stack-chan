@@ -1,10 +1,15 @@
 {
-  "include": [
-    "../../../stackchan/services/manifest_service.json",
-    "../../../stackchan/renderers-piu/manifest_renderer_piu.json"
-  ],
+  "include": ["$(MODDABLE)/examples/manifest_base.json", "$(MODDABLE)/examples/manifest_typings.json"],
   "modules": {
+    "chat-audioio-config": "../../../mods/chat_audioio/config",
     "mocks/assert": "../mocks/assert",
     "*": ["./main"]
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
   }
 }

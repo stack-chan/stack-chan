@@ -1,6 +1,5 @@
 import { Container, type Container as PiuContainer, type Port as PiuPort, Port } from 'piu/MC'
-import type { CameraFrame } from './camera.js'
-import { sampleRgb565LeMosaic } from './camera-preview-utils.js'
+import { type CameraFrame, sampleRgb565LeMosaic } from './camera-preview-utils.js'
 
 export const CAMERA_PREVIEW_WIDTH = 200
 export const CAMERA_PREVIEW_HEIGHT = 120

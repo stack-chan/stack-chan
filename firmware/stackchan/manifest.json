@@ -12,7 +12,7 @@
     "./ble/manifest_ble.json",
     "./dialogues/manifest_dialogue.json",
     "./led/manifest_led.json",
-    "./renderers-piu/manifest_renderer_piu.json",
+    "./ui/manifest.json",
     "./services/manifest_service.json",
     "./speeches/manifest_speech.json",
     "./transcriptions/manifest_transcription.json",
@@ -29,13 +29,13 @@
       "./imu-motion",
       "./robot",
       "./camera",
-      "./camera-preview",
-      "./camera-preview-utils",
-      "./startup-splash",
       "./tone",
       "./main",
       "$(MODULES)/network/http/*"
     ],
+    "startup-splash": "./ui/views/splash/splash-view",
+    "camera-preview": "./ui/views/camera-preview/camera-preview-view",
+    "camera-preview-utils": "./ui/views/camera-preview/camera-preview-utils",
     "default-mods/*": "./default-mods/*"
   },
   "preload": [

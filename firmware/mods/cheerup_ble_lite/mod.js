@@ -1,3 +1,4 @@
+import { emotionFromName } from 'face-state'
 import { speeches } from 'speeches_cheerup'
 import { randomBetween } from 'stackchan-util'
 import StkServer from 'stk-server'
@@ -49,7 +50,8 @@ function onRobotCreated(robot) {
     )
 
     // emotion
-    robot.setEmotion(pose.emotion)
+    const nextEmotion = typeof pose.emotion === 'string' ? emotionFromName(pose.emotion) : pose.emotion
+    if (nextEmotion !== undefined) robot.setEmotion(nextEmotion)
 
     // hooray on rising edge
     if (!hooray && pose.hooray) {

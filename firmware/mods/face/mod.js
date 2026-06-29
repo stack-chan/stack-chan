@@ -1,5 +1,6 @@
 import { Emoticon } from 'effects/emoticon'
 import { SpeechBalloon } from 'effects/speech-balloon'
+import { Emotion } from 'face-state'
 import { hslToRgb } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -31,7 +32,7 @@ const BALLOONS = [
 
 const sleepy = new Emoticon({ key: 'sleepy', left: 10, top: 20, width: 50, height: 60 })
 
-const EMOTIONS = ['HAPPY', 'ANGRY', 'SAD', 'SLEEPY']
+const EMOTIONS = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.SLEEPY]
 
 export function onRobotCreated(robot) {
   robot.setColor('primary', 0x22, 0x22, 0x22)
@@ -45,7 +46,7 @@ export function onRobotCreated(robot) {
     d = BALLOONS[idx]
     robot.ui.addEffect(d)
     robot.setEmotion(EMOTIONS[idx])
-    if (EMOTIONS[idx] === 'SLEEPY') {
+    if (EMOTIONS[idx] === Emotion.SLEEPY) {
       robot.ui.addEffect(sleepy)
     } else {
       robot.ui.removeEffect(sleepy)

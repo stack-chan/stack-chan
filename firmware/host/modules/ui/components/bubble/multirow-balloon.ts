@@ -1,5 +1,5 @@
 import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, type FaceContext } from 'face-context'
+import { createFaceState, type FaceState, toPiuColorNumber } from 'face-state'
 import type { Container as PiuContainer, Content as PiuContent, Style as PiuStyle, Text as PiuText } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 
@@ -42,8 +42,8 @@ export const MultiRowBalloon = Container.template((opts: MultiRowBalloonOptions 
   const o = { ...defaultOptions, ...opts }
   let shape: WithShape | null = null
   let bodyText: BodyText | null = null
-  let currentPrimary: string | null = null
-  let currentSecondary: string | null = null
+  let currentPrimary: number | null = null
+  let currentSecondary: number | null = null
   let currentText = o.text ?? ''
   let layoutWidth = 0
   let layoutHeight = 0
@@ -109,10 +109,10 @@ export const MultiRowBalloon = Container.template((opts: MultiRowBalloonOptions 
         this.updateText(self, currentText)
       }
 
-      updatePalette(face: FaceContext) {
+      updatePalette(face: FaceState) {
         if (!shape || !bodyText) return
-        const primary = face.theme.primary
-        const secondary = face.theme.secondary
+        const primary = toPiuColorNumber(face.theme.primary)
+        const secondary = toPiuColorNumber(face.theme.secondary)
         if (primary === currentPrimary && secondary === currentSecondary) return
         currentPrimary = primary
         currentSecondary = secondary
@@ -138,10 +138,10 @@ export const MultiRowBalloon = Container.template((opts: MultiRowBalloonOptions 
 
       onDisplaying(content: PiuContainer) {
         this.ensureParts(content)
-        this.updatePalette(defaultFaceContext)
+        this.updatePalette(createFaceState())
       }
 
-      onFaceContext(content: PiuContainer, face: FaceContext) {
+      onFaceState(content: PiuContainer, face: FaceState) {
         this.ensureParts(content)
         this.updatePalette(face)
       }

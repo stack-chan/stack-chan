@@ -1,5 +1,5 @@
 import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, type FaceContext } from 'face-context'
+import { DEFAULT_FACE_PRIMARY_COLOR, DEFAULT_FACE_SECONDARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
 import type { Container as PiuContainer, Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { defineShapeTemplate } from 'template'
@@ -57,11 +57,11 @@ export type EmoticonParams = EmoticonOptions & {
   key: EmoticonKey
 }
 
-function primaryColor(face?: Readonly<FaceContext>): string {
-  return face?.theme?.primary ?? defaultFaceContext.theme.primary
+function primaryColor(face?: FaceState): number {
+  return face ? toPiuColorNumber(face.theme.primary) : DEFAULT_FACE_PRIMARY_COLOR
 }
-function secondaryColor(face?: Readonly<FaceContext>): string {
-  return face?.theme?.secondary ?? defaultFaceContext.theme.secondary
+function secondaryColor(face?: FaceState): number {
+  return face ? toPiuColorNumber(face.theme.secondary) : DEFAULT_FACE_SECONDARY_COLOR
 }
 
 class HeartBehavior extends Behavior {
@@ -69,7 +69,7 @@ class HeartBehavior extends Behavior {
   xScale = 1
   yScale = 1
   fraction = 0
-  primary: string | null = null
+  primary: number | null = null
   baseOutline: OutlineOutline | null = null
   onCreate(shape: WithSkin, data: EmoticonOptions = {}) {
     this.angle = data.angle ?? 0.1
@@ -77,7 +77,7 @@ class HeartBehavior extends Behavior {
     this.yScale = (data.height ?? shape.height ?? 40) / 40
     this.baseOutline = this.buildBaseOutline()
     shape.interval = data.interval ?? 33
-    this.updateSkin(shape, defaultFaceContext)
+    this.updateSkin(shape)
   }
   onDisplaying(shape: WithSkin) {
     this.applyOutline(shape)
@@ -90,7 +90,7 @@ class HeartBehavior extends Behavior {
     this.fraction += (2 * Math.PI) / 100
     this.applyOutline(shape)
   }
-  onFaceContext(shape: WithSkin, face: FaceContext) {
+  onFaceState(shape: WithSkin, face: FaceState) {
     this.updateSkin(shape, face)
   }
   buildBaseOutline() {
@@ -114,7 +114,7 @@ class HeartBehavior extends Behavior {
     shape.fillOutline = o
     shape.strokeOutline = undefined
   }
-  updateSkin(shape: WithSkin, face?: FaceContext) {
+  updateSkin(shape: WithSkin, face?: FaceState) {
     const color = primaryColor(face)
     if (color === this.primary) return
     this.primary = color
@@ -127,7 +127,7 @@ class AngryBehavior extends Behavior {
   xScale = 1
   yScale = 1
   fraction = 0
-  primary: string | null = null
+  primary: number | null = null
   baseOutline: OutlineOutline | null = null
   onCreate(shape: WithSkin, data: EmoticonOptions = {}) {
     this.angle = data.angle ?? 0.1
@@ -135,7 +135,7 @@ class AngryBehavior extends Behavior {
     this.yScale = (data.height ?? shape.height ?? 40) / 40
     this.baseOutline = this.buildBaseOutline()
     shape.interval = data.interval ?? 33
-    this.updateSkin(shape, defaultFaceContext)
+    this.updateSkin(shape)
   }
   onDisplaying(shape: WithSkin) {
     this.applyOutline(shape)
@@ -148,7 +148,7 @@ class AngryBehavior extends Behavior {
     this.fraction += (2 * Math.PI) / 100
     this.applyOutline(shape)
   }
-  onFaceContext(shape: WithSkin, face: FaceContext) {
+  onFaceState(shape: WithSkin, face: FaceState) {
     this.updateSkin(shape, face)
   }
   buildBaseOutline() {
@@ -172,7 +172,7 @@ class AngryBehavior extends Behavior {
       .rotate(this.angle)
     shape.fillOutline = undefined
   }
-  updateSkin(shape: WithSkin, face?: FaceContext) {
+  updateSkin(shape: WithSkin, face?: FaceState) {
     const color = primaryColor(face)
     if (color === this.primary) return
     this.primary = color
@@ -202,8 +202,8 @@ class SweatBehavior extends Behavior {
   drops: Drop[] = []
   laneXs: number[] = []
   drawCount = 0
-  primary: string | null = null
-  secondary: string | null = null
+  primary: number | null = null
+  secondary: number | null = null
   onCreate(shape: WithSkin, data: EmoticonOptions = {}) {
     this.drops = []
     this.width = data.width ?? shape.width ?? this.width
@@ -230,14 +230,14 @@ class SweatBehavior extends Behavior {
   onTimeChanged(shape: WithSkin) {
     this.tick(shape, shape.interval ?? this.interval)
   }
-  onFaceContext(shape: WithSkin, face: FaceContext) {
+  onFaceState(shape: WithSkin, face: FaceState) {
     this.primary = primaryColor(face)
     this.secondary = secondaryColor(face)
-    shape.skin = new Skin({ fill: this.secondary ?? '#000', stroke: this.primary ?? '#fff' })
+    shape.skin = new Skin({ fill: this.secondary ?? 0x000000, stroke: this.primary ?? 0xffffff })
   }
   tick(shape: WithSkin, dt: number) {
-    const primary = this.primary ?? '#fff'
-    const secondary = this.secondary ?? '#000'
+    const primary = this.primary ?? 0xffffff
+    const secondary = this.secondary ?? 0x000000
     const path = new outline.CanvasPath()
     let drawn = 0
     for (const drop of this.drops) {
@@ -328,8 +328,8 @@ class TearBehavior extends Behavior {
   drops: Drop[] = []
   laneXs: number[] = []
   tickCount = 0
-  primary: string | null = null
-  secondary: string | null = null
+  primary: number | null = null
+  secondary: number | null = null
   onCreate(shape: WithSkin, data: EmoticonOptions = {}) {
     this.drops = []
     this.width = (data.width as number) ?? shape.width ?? this.width
@@ -354,14 +354,14 @@ class TearBehavior extends Behavior {
   onTimeChanged(shape: WithSkin) {
     this.tick(shape, shape.interval ?? this.interval)
   }
-  onFaceContext(shape: WithSkin, face: FaceContext) {
+  onFaceState(shape: WithSkin, face: FaceState) {
     this.primary = primaryColor(face)
     this.secondary = secondaryColor(face)
-    shape.skin = new Skin({ fill: this.secondary ?? '#000', stroke: this.primary ?? '#fff' })
+    shape.skin = new Skin({ fill: this.secondary ?? 0x000000, stroke: this.primary ?? 0xffffff })
   }
   tick(shape: WithSkin, dt: number) {
-    const primary = this.primary ?? '#fff'
-    const secondary = this.secondary ?? '#000'
+    const primary = this.primary ?? 0xffffff
+    const secondary = this.secondary ?? 0x000000
     const path = new outline.CanvasPath()
     this.tickCount += 1
     let drawn = 0
@@ -452,8 +452,8 @@ class SleepyBubbleBehavior extends Behavior {
   count = 4
   bubbles: Bubble[] = []
   shape: WithSkin | null = null
-  primary: string | null = null
-  secondary: string | null = null
+  primary: number | null = null
+  secondary: number | null = null
   onCreate(container: PiuContainer, data: EmoticonOptions = {}) {
     this.width = data.width ?? container.width ?? this.width
     this.height = data.height ?? container.height ?? this.height
@@ -481,15 +481,15 @@ class SleepyBubbleBehavior extends Behavior {
   onUndisplaying(container: PiuContainer) {
     container.stop?.()
   }
-  onFaceContext(_container: PiuContainer, face: FaceContext) {
+  onFaceState(_container: PiuContainer, face: FaceState) {
     this.primary = primaryColor(face)
     this.secondary = secondaryColor(face)
   }
   tick() {
     const width = this.width
     const height = this.height
-    const primary = this.primary ?? '#fff'
-    const secondary = this.secondary ?? '#000'
+    const primary = this.primary ?? 0xffffff
+    const secondary = this.secondary ?? 0x000000
     const shape = this.shape
     if (!shape) return
     const path = new outline.CanvasPath()

@@ -1,15 +1,4 @@
-type Emotion = 'NEUTRAL' | 'ANGRY' | 'SAD' | 'HAPPY' | 'SLEEPY' | 'DOUBTFUL' | 'COLD' | 'HOT'
-
-const Emotion = Object.freeze({
-  NEUTRAL: 'NEUTRAL',
-  ANGRY: 'ANGRY',
-  SAD: 'SAD',
-  HAPPY: 'HAPPY',
-  SLEEPY: 'SLEEPY',
-  DOUBTFUL: 'DOUBTFUL',
-  COLD: 'COLD',
-  HOT: 'HOT',
-} as const)
+import type { Emotion as EmotionValue } from '../../../../state/face-state.js'
 
 export type ImageAvatarSpriteSheet = {
   texture: string
@@ -54,12 +43,21 @@ export type ImageAvatarPack = {
   width: number
   height: number
   defaultExpression: string
-  emotionMap: Partial<Record<Emotion, string>>
+  emotionMap: Partial<Record<EmotionValue, string>>
   expressions: Record<string, ImageAvatarExpression>
 }
 
 const EXPRESSIONS = ['normal', 'happy', 'sad', 'angry'] as const
 type DemoExpressionName = (typeof EXPRESSIONS)[number]
+const ImageAvatarEmotion = Object.freeze({
+  NEUTRAL: 0 as EmotionValue,
+  ANGRY: 1 as EmotionValue,
+  SAD: 2 as EmotionValue,
+  HAPPY: 3 as EmotionValue,
+  SLEEPY: 4 as EmotionValue,
+  COLD: 6 as EmotionValue,
+  HOT: 7 as EmotionValue,
+})
 
 const DEMO_COLORS: Record<DemoExpressionName, { head: string; eye: string; mouth: string; hand: string }> = {
   normal: { head: '#ffe18e', eye: '#2a3757', mouth: '#96444e', hand: '#ff9a3d' },
@@ -155,13 +153,13 @@ export const STACKCHAN_DEMO_IMAGE_AVATAR_PACK: ImageAvatarPack = {
   height: 120,
   defaultExpression: 'normal',
   emotionMap: {
-    [Emotion.NEUTRAL]: 'normal',
-    [Emotion.HAPPY]: 'happy',
-    [Emotion.SAD]: 'sad',
-    [Emotion.ANGRY]: 'angry',
-    [Emotion.SLEEPY]: 'sad',
-    [Emotion.HOT]: 'happy',
-    [Emotion.COLD]: 'sad',
+    [ImageAvatarEmotion.NEUTRAL]: 'normal',
+    [ImageAvatarEmotion.HAPPY]: 'happy',
+    [ImageAvatarEmotion.SAD]: 'sad',
+    [ImageAvatarEmotion.ANGRY]: 'angry',
+    [ImageAvatarEmotion.SLEEPY]: 'sad',
+    [ImageAvatarEmotion.HOT]: 'happy',
+    [ImageAvatarEmotion.COLD]: 'sad',
   },
   expressions: {
     normal: demoExpression('normal'),

@@ -1,5 +1,5 @@
 import type { DrawerButtonSpec } from 'drawer'
-import type { FaceContext } from 'face-context'
+import type { FaceState } from 'face-state'
 import {
   FaceMainTemplate,
   FaceView,
@@ -57,9 +57,9 @@ export class AppController extends Behavior {
     this.#viewBehavior = view.behavior as FaceViewBehavior
   }
 
-  update(_interval: number, faceContext: Readonly<FaceContext>): void {
+  update(_interval: number, faceState: FaceState): void {
     if (!this.#view || !this.#viewBehavior) return
-    this.#viewBehavior.onFaceUpdate?.(this.#view, faceContext)
+    this.#viewBehavior.onFaceUpdate?.(this.#view, faceState)
   }
 
   addEffect(effect: PiuContent, key?: string): void {

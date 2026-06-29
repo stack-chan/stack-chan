@@ -1,5 +1,5 @@
-import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
 import { type FaceSkinPalette, updateFaceSkinPalette } from 'face-skin'
+import { copyFaceState, createFaceState, type FaceState } from 'face-state'
 import { createBlinkMotion } from 'motions/blink'
 import { createBreathMotion } from 'motions/breath'
 import type { FaceMotion } from 'motions/types'
@@ -41,8 +41,8 @@ type FaceBehaviorOptions = {
 }
 
 export class FaceBehavior extends Behavior {
-  #current: FaceContext
-  #desired: FaceContext
+  #current: FaceState
+  #desired: FaceState
   #motions: FaceMotion[]
   #baseCoordinates: { left: number; top: number } | null
   #paused: boolean
@@ -56,8 +56,8 @@ export class FaceBehavior extends Behavior {
       createBreathMotion({ duration: 6000 }),
       // createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
-    this.#current = createFaceContext()
-    this.#desired = createFaceContext()
+    this.#current = createFaceState()
+    this.#desired = createFaceState()
     this.#baseCoordinates = null
     this.#paused = false
     this.#skinPalette = null
@@ -69,15 +69,14 @@ export class FaceBehavior extends Behavior {
 
   onCreate(container: PiuContainer) {
     container.interval = this.intervalMs
-    copyFaceContext(defaultFaceContext, this.#current)
-    copyFaceContext(defaultFaceContext, this.#desired)
-    this.updateSkinPalette(container, defaultFaceContext)
+    copyFaceState(this.#current, this.#desired)
+    this.updateSkinPalette(container, this.#current)
     if (this.#skinPalette) {
       container.distribute('onFaceSkin', this.#skinPalette)
       container.bubble('onFaceSkin', this.#skinPalette)
     }
-    container.distribute('onFaceContext', this.#current)
-    // container.bubble('onFaceContext', this.#current)
+    container.distribute('onFaceState', this.#current)
+    // container.bubble('onFaceState', this.#current)
   }
 
   onDisplaying(container: PiuContainer) {
@@ -95,12 +94,12 @@ export class FaceBehavior extends Behavior {
       container.distribute('onFaceSkin', this.#skinPalette)
       container.bubble('onFaceSkin', this.#skinPalette)
     }
-    container.distribute('onFaceContext', this.#current)
-    // container.bubble('onFaceContext', this.#current)
+    container.distribute('onFaceState', this.#current)
+    // container.bubble('onFaceState', this.#current)
   }
 
-  onFaceUpdate(_container: PiuContainer, face: FaceContext) {
-    copyFaceContext(face, this.#desired)
+  onFaceUpdate(_container: PiuContainer, face: FaceState) {
+    copyFaceState(face, this.#desired)
   }
 
   onFaceSkin(_container: PiuContainer, palette: FaceSkinPalette) {
@@ -112,7 +111,7 @@ export class FaceBehavior extends Behavior {
       return
     }
     const interval = container.interval ?? this.intervalMs
-    copyFaceContext(this.#desired, this.#current)
+    copyFaceState(this.#desired, this.#current)
     for (const motion of this.#motions) {
       motion(interval, this.#current)
     }
@@ -135,8 +134,8 @@ export class FaceBehavior extends Behavior {
       container.distribute('onFaceSkin', this.#skinPalette)
       container.bubble('onFaceSkin', this.#skinPalette)
     }
-    container.distribute('onFaceContext', this.#current)
-    // container.bubble('onFaceContext', this.#current)
+    container.distribute('onFaceState', this.#current)
+    // container.bubble('onFaceState', this.#current)
   }
 
   onTouchEnded(container: PiuContainer) {
@@ -154,9 +153,9 @@ export class FaceBehavior extends Behavior {
     return { ...this.#baseCoordinates }
   }
 
-  rehydrate(container: PiuContainer, face: Readonly<FaceContext>, palette?: FaceSkinPalette | null) {
-    copyFaceContext(face, this.#current)
-    copyFaceContext(face, this.#desired)
+  rehydrate(container: PiuContainer, face: FaceState, palette?: FaceSkinPalette | null) {
+    copyFaceState(face, this.#current)
+    copyFaceState(face, this.#desired)
     if (palette !== undefined) {
       this.#skinPalette = palette
       ;(container as PiuContainer & { faceSkin?: FaceSkinPalette }).faceSkin = this.#skinPalette ?? undefined
@@ -190,15 +189,15 @@ export class FaceBehavior extends Behavior {
       container.distribute('onFaceSkin', this.#skinPalette)
       container.bubble('onFaceSkin', this.#skinPalette)
     }
-    container.distribute('onFaceContext', this.#current)
-    container.bubble('onFaceContext', this.#current)
+    container.distribute('onFaceState', this.#current)
+    container.bubble('onFaceState', this.#current)
   }
 
   get breathPixels(): number {
     return this.#breathPixels
   }
 
-  private updateSkinPalette(container: PiuContainer, face: Readonly<FaceContext>): boolean {
+  private updateSkinPalette(container: PiuContainer, face: FaceState): boolean {
     const next = updateFaceSkinPalette(this.#skinPalette, face)
     const changed = next !== this.#skinPalette
     this.#skinPalette = next

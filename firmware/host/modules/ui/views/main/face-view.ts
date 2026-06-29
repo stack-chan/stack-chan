@@ -5,8 +5,8 @@ import {
   type CommonViewTemplateCtor,
   type TemplateFunction,
 } from 'common-view'
-import { copyFaceContext, createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
 import { type FaceSkinPalette, updateFaceSkinPalette } from 'face-skin'
+import { copyFaceState, createFaceState, DEFAULT_FACE_SECONDARY_COLOR, type FaceState } from 'face-state'
 import {
   Container,
   Die,
@@ -25,8 +25,8 @@ type FaceViewAnchors = {
 type FaceViewBaseParams = CommonViewParams
 type DieRegion = PiuContainer & { set: (x: number, y: number, w: number, h: number) => DieRegion; cut: () => void }
 type FaceContainerBehavior = {
-  onFaceUpdate?: (container: PiuContainer, face: FaceContext) => void
-  rehydrate?: (container: PiuContainer, face: Readonly<FaceContext>, palette?: FaceSkinPalette | null) => void
+  onFaceUpdate?: (container: PiuContainer, face: FaceState) => void
+  rehydrate?: (container: PiuContainer, face: FaceState, palette?: FaceSkinPalette | null) => void
   getBaseCoordinates?: (container: PiuContainer) => { left: number; top: number }
 }
 
@@ -48,7 +48,7 @@ class FaceViewBehavior extends CommonViewBehavior {
   effectKeys = new Map<PiuContent, string>()
   autoTheme = true
   lastPalette: FaceSkinPalette | null = null
-  lastFaceContext: FaceContext | null = null
+  lastFaceState: FaceState | null = null
 
   onCreate(container: PiuContainer, data: FaceViewParams) {
     super.onCreate(container, data)
@@ -69,19 +69,19 @@ class FaceViewBehavior extends CommonViewBehavior {
     this.autoTheme = data.skin === undefined
   }
 
-  onFaceUpdate(_container: PiuContainer, faceContext: Readonly<FaceContext>) {
-    if (this.lastFaceContext === null) {
-      this.lastFaceContext = createFaceContext()
+  onFaceUpdate(_container: PiuContainer, faceState: FaceState) {
+    if (this.lastFaceState === null) {
+      this.lastFaceState = createFaceState()
     }
-    copyFaceContext(faceContext, this.lastFaceContext)
-    const palette = updateFaceSkinPalette(this.lastPalette, faceContext)
+    copyFaceState(faceState, this.lastFaceState)
+    const palette = updateFaceSkinPalette(this.lastPalette, faceState)
     if (palette !== this.lastPalette) {
       this.onFaceSkin(_container, palette)
     }
     const face = this.face
     const behavior = face?.behavior as FaceContainerBehavior | undefined
-    behavior?.onFaceUpdate?.(face as PiuContainer, faceContext as FaceContext)
-    this.onFaceContext?.(_container, faceContext as FaceContext)
+    behavior?.onFaceUpdate?.(face as PiuContainer, faceState as FaceState)
+    this.onFaceState?.(_container, faceState as FaceState)
   }
 
   onFaceSkin(_container: PiuContainer, palette: FaceSkinPalette) {
@@ -91,7 +91,7 @@ class FaceViewBehavior extends CommonViewBehavior {
     }
     this.face?.distribute?.('onFaceSkin', palette)
     if (this.face) {
-      this.rehydrateFace(this.face, this.lastFaceContext ?? defaultFaceContext, palette)
+      this.rehydrateFace(this.face, this.lastFaceState ?? createFaceState(), palette)
     }
     this.effects?.distribute('onFaceSkin', palette)
     this.overlay?.distribute('onFaceSkin', palette)
@@ -99,10 +99,10 @@ class FaceViewBehavior extends CommonViewBehavior {
     return true
   }
 
-  onFaceContext(_container: PiuContainer, faceContext: FaceContext) {
-    this.effects?.distribute('onFaceContext', faceContext)
-    this.overlay?.distribute('onFaceContext', faceContext)
-    this.appBar?.distribute?.('onFaceContext', faceContext)
+  onFaceState(_container: PiuContainer, faceState: FaceState) {
+    this.effects?.distribute('onFaceState', faceState)
+    this.overlay?.distribute('onFaceState', faceState)
+    this.appBar?.distribute?.('onFaceState', faceState)
     return true
   }
 
@@ -143,22 +143,22 @@ class FaceViewBehavior extends CommonViewBehavior {
     }
   }
 
-  rehydrateFace(face: PiuContainer, faceContext: Readonly<FaceContext>, palette = this.lastPalette): void {
+  rehydrateFace(face: PiuContainer, faceState: FaceState, palette = this.lastPalette): void {
     const behavior = face.behavior as FaceContainerBehavior | undefined
     if (behavior?.rehydrate) {
-      behavior.rehydrate(face, faceContext, palette)
+      behavior.rehydrate(face, faceState, palette)
       return
     }
-    behavior?.onFaceUpdate?.(face, faceContext as FaceContext)
+    behavior?.onFaceUpdate?.(face, faceState as FaceState)
   }
 
   applyFaceState(face: PiuContainer): void {
-    const faceContext = this.lastFaceContext ?? defaultFaceContext
+    const faceState = this.lastFaceState ?? createFaceState()
     if (this.lastPalette) {
       face.distribute?.('onFaceSkin', this.lastPalette)
     }
-    face.distribute?.('onFaceContext', faceContext)
-    this.rehydrateFace(face, faceContext, this.lastPalette)
+    face.distribute?.('onFaceState', faceState)
+    this.rehydrateFace(face, faceState, this.lastPalette)
   }
 
   setFace(face: PiuContainer): void {
@@ -248,7 +248,7 @@ export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = 
     if (!$.EFFECTS) {
       $.EFFECTS = effects
     }
-    const skin = $.skin ?? new Skin({ fill: defaultFaceContext.theme.secondary })
+    const skin = $.skin ?? new Skin({ fill: DEFAULT_FACE_SECONDARY_COLOR })
     return {
       left: 0,
       right: 0,

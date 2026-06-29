@@ -1,6 +1,13 @@
 import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, type FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
+import {
+  DEFAULT_FACE_PRIMARY_COLOR,
+  DEFAULT_FACE_SECONDARY_COLOR,
+  Emotion,
+  type FaceEyeKey,
+  type FaceState,
+  toPiuColorNumber,
+} from 'face-state'
 import type { Container as PiuContainer, Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { defineShapeTemplate } from 'template'
@@ -9,7 +16,7 @@ export type EyeOptions = {
   cx: number
   cy: number
   radius?: number
-  side: keyof FaceContext['eyes']
+  side: FaceEyeKey
   eyelidWidth?: number
   eyelidHeight?: number
 }
@@ -25,7 +32,7 @@ export type EyelidOptions = {
   cy: number
   width: number
   height: number
-  side: keyof FaceContext['eyes']
+  side: FaceEyeKey
 }
 
 type PositionedShape = Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
@@ -51,17 +58,17 @@ export const Eyelid = defineShapeTemplate((opts: EyelidOptions) => {
     top: opts.cy - height / 2,
     width,
     height,
-    skin: new Skin({ fill: defaultFaceContext.theme.secondary }),
+    skin: new Skin({ fill: DEFAULT_FACE_SECONDARY_COLOR }),
     Behavior: class extends Behavior {
       lastOpen = -1
-      lastEmotion: FaceContext['emotion'] | null = null
+      lastEmotion: FaceState['emotion'] | null = null
       palette: FaceSkinPalette | null = null
       onFaceSkin(shape: PositionedShape, palette: FaceSkinPalette) {
         this.palette = palette
         shape.skin = palette.palette
         shape.state = palette.secondaryState
       }
-      onFaceContext(shape: PositionedShape, face: FaceContext) {
+      onFaceState(shape: PositionedShape, face: FaceState) {
         const eye = face.eyes[side]
         const open = eye.open
         const emotion = face.emotion
@@ -71,7 +78,7 @@ export const Eyelid = defineShapeTemplate((opts: EyelidOptions) => {
           this.updatePath(shape, open, emotion)
         }
       }
-      updatePath(shape: PositionedShape, open: number, emotion: FaceContext['emotion']) {
+      updatePath(shape: PositionedShape, open: number, emotion: FaceState['emotion']) {
         const w = width
         const h = height
         const x = 0
@@ -79,14 +86,14 @@ export const Eyelid = defineShapeTemplate((opts: EyelidOptions) => {
         const closedH = h * (1 - open)
         const path = new Outline.CanvasPath()
         switch (emotion) {
-          case 'ANGRY':
-          case 'SAD': {
+          case Emotion.ANGRY:
+          case Emotion.SAD: {
             let h1 = y + (h + closedH) / 2
             let h2 = y + closedH
             if (side === 'left') {
               ;[h1, h2] = [h2, h1]
             }
-            if (emotion === 'SAD') {
+            if (emotion === Emotion.SAD) {
               ;[h1, h2] = [h2, h1]
             }
             path.moveTo(x, y)
@@ -96,10 +103,10 @@ export const Eyelid = defineShapeTemplate((opts: EyelidOptions) => {
             path.closePath()
             break
           }
-          case 'SLEEPY':
+          case Emotion.SLEEPY:
             path.rect(x, y, w, h * 0.5 + closedH * 0.5)
             break
-          case 'HAPPY':
+          case Emotion.HAPPY:
             path.rect(x, y, w, closedH * 0.6)
             path.rect(x, y + h * 0.6, w, h * 0.4)
             break
@@ -121,7 +128,7 @@ const Iris = defineShapeTemplate((opts: IrisOptions) => {
     top: opts.top,
     width: diameter,
     height: diameter,
-    skin: new Skin({ fill: defaultFaceContext.theme.primary }),
+    skin: new Skin({ fill: DEFAULT_FACE_PRIMARY_COLOR }),
     Behavior: class extends Behavior {
       palette: FaceSkinPalette | null = null
       onCreate(shape: PositionedShape, _data: object, _context: unknown) {
@@ -136,9 +143,9 @@ const Iris = defineShapeTemplate((opts: IrisOptions) => {
         shape.skin = palette.palette
         shape.state = palette.primaryState
       }
-      onFaceContext(shape: PositionedShape, face: FaceContext) {
+      onFaceState(shape: PositionedShape, face: FaceState) {
         if (this.palette) return
-        const primary = face.theme.primary
+        const primary = toPiuColorNumber(face.theme.primary)
         shape.skin = new Skin({ fill: primary })
       }
     },
@@ -173,7 +180,7 @@ export const Eye = Container.template((opts: EyeOptions) => {
     Behavior: class extends Behavior {
       lastGazeX = NaN
       lastGazeY = NaN
-      onFaceContext(_container: PiuContainer, face: FaceContext) {
+      onFaceState(_container: PiuContainer, face: FaceState) {
         const eye = face.eyes[opts.side]
         const offsetX = (eye.gazeX ?? 0) * 2
         const offsetY = (eye.gazeY ?? 0) * 2

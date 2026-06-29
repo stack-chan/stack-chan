@@ -211,11 +211,11 @@ flowchart TD
 - [x] 対応済み：`firmware/docs/api.md` と `firmware/docs/api_ja.md` の公開 API 説明を Renderer から RobotUI へ更新する。
 - [x] 対応済み：設定画面の Piu 構築を `firmware/stackchan/default-mods/on-launch.ts` から `firmware/host/modules/ui/views/settings` へ移す。
 - [x] 対応済み：`firmware/host/modules/ui/views/settings/settings-view.test.ts` を追加する。
-- [ ] 未対応：`FaceContext` 名を view backed な `FaceState` へ置き換える。
-- [ ] 未対応：顔状態を plain object ではなく Moddable の view 定義に寄せる。
-- [ ] 未対応：`emotion` を文字列ではなく数値 enum として扱う。
-- [ ] 未対応：theme 色の内部表現を `ColorRGB` 構造体に固定する。
-- [ ] 未対応：Piu 境界でだけ `ColorRGB` を `0xRRGGBB` へ pack する。
+- [x] 対応済み：`FaceContext` 名を view backed な `FaceState` へ置き換える。
+- [x] 対応済み：顔状態を plain object ではなく Moddable の view 定義に寄せる。
+- [x] 対応済み：`emotion` を文字列ではなく数値 enum として扱う。
+- [x] 対応済み：theme 色の内部表現を `ColorRGB` 構造体に固定する。
+- [x] 対応済み：Piu 境界でだけ `ColorRGB` を `0xRRGGBB` へ pack する。
 - [ ] 未対応：呼吸などの周期更新で `coordinates` を毎フレーム更新しない実装へ変える。
 - [ ] 未対応：目、口、吹き出し、絵文字の描画更新を `Port`、`Texture`、`Skin.template`、`variant`、必要最小の `invalidate` に寄せる。
 - [ ] 未対応：毎フレーム `new Skin()`、`new Style()`、`Label.string` 更新が発生しないことを確認する。
@@ -378,7 +378,7 @@ flowchart TD
 - [ ] 未対応：`docs/piu-renderer.md` を削除または新 UI 設計文書へ置き換える。
 - [ ] 未対応：`docs/piu-renderer_ja.md` を削除または新 UI 設計文書へ置き換える。
 - [ ] 未対応：`firmware/docs/0002-image-face.md` の旧 renderer 前提を削除または更新する。
-- [ ] 未対応：`firmware/face-context-as-views.md` を `FaceState` 方針に合わせて削除または更新する。
+- [x] 対応済み：`firmware/face-context-as-views.md` を `FaceState` 方針に合わせて削除または更新する。
 - [ ] 未対応：`firmware/piu-faster.md` を UI performance 方針として統合する。
 - [ ] 未対応：`CLAUDE.md` の旧構成参照を削除または更新する。
 - [ ] 未対応：`renderer.type`、`renderers-piu`、旧 renderer API を説明する残存文書を削除または更新する。

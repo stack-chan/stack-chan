@@ -1,6 +1,6 @@
 import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, type FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
+import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { defineShapeTemplate } from 'template'
@@ -39,7 +39,7 @@ export const DogMouth = defineShapeTemplate((opts: DogMouthOptions) => {
     top: 0,
     width: canvasWidth,
     height: canvasHeight,
-    skin: new Skin({ stroke: defaultFaceContext.theme.primary }),
+    skin: new Skin({ stroke: DEFAULT_FACE_PRIMARY_COLOR }),
     Behavior: class extends Behavior {
       lastOpen = -1
       palette: FaceSkinPalette | null = null
@@ -48,9 +48,9 @@ export const DogMouth = defineShapeTemplate((opts: DogMouthOptions) => {
         shape.skin = palette.palette
         shape.state = palette.primaryState
       }
-      onFaceContext(shape: PositionedShape, face: FaceContext) {
+      onFaceState(shape: PositionedShape, face: FaceState) {
         if (!this.palette) {
-          shape.skin = new Skin({ stroke: face.theme.primary })
+          shape.skin = new Skin({ stroke: toPiuColorNumber(face.theme.primary) })
         }
         const open = face.mouth.open
         if (open !== this.lastOpen) {

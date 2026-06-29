@@ -1,5 +1,5 @@
-import { defaultFaceContext, type FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
+import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
 import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 
 export type MouthOptions = {
@@ -36,7 +36,7 @@ export const Mouth = Content.template((opts: MouthOptions) => {
     top: opts.cy - minHeight / 2,
     width: minWidth,
     height: minHeight,
-    skin: new Skin({ fill: defaultFaceContext.theme.primary }),
+    skin: new Skin({ fill: DEFAULT_FACE_PRIMARY_COLOR }),
     Behavior: class extends Behavior {
       cx = opts.cx
       cy = opts.cy
@@ -54,13 +54,13 @@ export const Mouth = Content.template((opts: MouthOptions) => {
       onCreate(content: PositionedContent) {
         this.updateFromOpen(content, 0)
       }
-      onFaceContext(content: PositionedContent, face: FaceContext) {
+      onFaceState(content: PositionedContent, face: FaceState) {
         const open = face.mouth.open
         if (open !== this.lastOpen) {
           this.updateFromOpen(content, open)
         }
         if (this.palette) return
-        content.skin = new Skin({ fill: face.theme.primary })
+        content.skin = new Skin({ fill: toPiuColorNumber(face.theme.primary) })
       }
       updateFromOpen(content: PositionedContent, open: number) {
         this.lastOpen = open

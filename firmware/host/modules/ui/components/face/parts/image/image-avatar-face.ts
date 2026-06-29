@@ -1,5 +1,5 @@
 import { FaceBase, type FaceBaseParams } from 'behaviors/face'
-import type { FaceContext } from 'face-context'
+import { createFaceState, type FaceState } from 'face-state'
 import { getImageAvatarPack, type ImageAvatarPack, type ImageAvatarStaticSprite } from 'parts/image/image-avatar-pack'
 import { frameIndexForRatio, resolveExpressionName } from 'parts/image/image-avatar-state'
 import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
@@ -39,7 +39,7 @@ type AnimatedFrame = {
 }
 
 type AnimatedSpriteContentParams = SpriteContentParams & {
-  resolveFrame: (pack: ImageAvatarPack, face: FaceContext) => AnimatedFrame
+  resolveFrame: (pack: ImageAvatarPack, face: FaceState) => AnimatedFrame
 }
 
 function createStaticSkin(sprite: ImageAvatarStaticSprite): PiuSkin {
@@ -72,7 +72,7 @@ const ExpressionSprite = Content.template((opts: ExpressionSpriteContentParams) 
     skin: createStaticSkin(initial),
     Behavior: class extends Behavior {
       lastExpression = opts.pack.defaultExpression
-      onFaceContext(content: PositionedContent, face: FaceContext) {
+      onFaceState(content: PositionedContent, face: FaceState) {
         const expression = resolveExpressionName(opts.pack, face.emotion)
         if (expression === this.lastExpression) return
         this.lastExpression = expression
@@ -85,16 +85,7 @@ const ExpressionSprite = Content.template((opts: ExpressionSpriteContentParams) 
 })
 
 const AnimatedSprite = Content.template((opts: AnimatedSpriteContentParams) => {
-  const initial = opts.resolveFrame(opts.pack, {
-    emotion: 'NEUTRAL',
-    mouth: { open: 0 },
-    eyes: {
-      left: { open: 1, gazeX: 0, gazeY: 0 },
-      right: { open: 1, gazeX: 0, gazeY: 0 },
-    },
-    breath: 1,
-    theme: { primary: '#ffffff', secondary: '#000000' },
-  })
+  const initial = opts.resolveFrame(opts.pack, createFaceState())
   return {
     left: initial.x,
     top: initial.y,
@@ -105,7 +96,7 @@ const AnimatedSprite = Content.template((opts: AnimatedSpriteContentParams) => {
     Behavior: class extends Behavior {
       lastTexture = initial.texture
       lastVariant = -1
-      onFaceContext(content: PositionedContent, face: FaceContext) {
+      onFaceState(content: PositionedContent, face: FaceState) {
         const frame = opts.resolveFrame(opts.pack, face)
         if (frame.texture !== this.lastTexture) {
           this.lastTexture = frame.texture

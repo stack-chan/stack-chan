@@ -1,6 +1,7 @@
+import { EmotionNames, emotionFromName } from 'face-state'
 import { MCPServerService } from 'mcp-server'
 
-const EMOTIONS = ['NEUTRAL', 'HAPPY', 'SLEEPY', 'DOUBTFUL', 'SAD', 'ANGRY', 'COLD', 'HOT']
+const EMOTION_NAMES = EmotionNames
 
 export function onRobotCreated(robot) {
   trace('Starting MCP Server mod\n')
@@ -13,7 +14,7 @@ export function onRobotCreated(robot) {
         {
           name: 'emotion',
           type: 'string',
-          description: `Robot emotion. Available options: ${EMOTIONS.join(', ')}`,
+          description: `Robot emotion. Available options: ${EMOTION_NAMES.join(', ')}`,
           required: true,
         },
       ],
@@ -25,12 +26,13 @@ export function onRobotCreated(robot) {
         }
 
         const upperEmotion = emotion.toUpperCase()
-        if (!EMOTIONS.includes(upperEmotion)) {
-          return `Error: Invalid emotion. Available options: ${EMOTIONS.join(', ')}`
+        const nextEmotion = emotionFromName(upperEmotion)
+        if (nextEmotion === undefined) {
+          return `Error: Invalid emotion. Available options: ${EMOTION_NAMES.join(', ')}`
         }
 
         try {
-          robot.setEmotion(upperEmotion)
+          robot.setEmotion(nextEmotion)
           return `Robot emotion changed to: ${upperEmotion}`
         } catch (error) {
           return `Error setting emotion: ${error}`

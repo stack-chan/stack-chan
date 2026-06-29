@@ -1,4 +1,4 @@
-import { defaultFaceContext, type FaceContext } from 'face-context'
+import { createFaceState, type FaceState, toPiuColorNumber } from 'face-state'
 import {
   Container,
   Content,
@@ -77,9 +77,9 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
   let background: WithSkin | null = null
   let bodyText: PiuText | null = null
   let currentText = o.text ?? ''
-  let currentPrimary: string | null = null
-  let currentSecondary: string | null = null
-  let currentFace: Readonly<FaceContext> = defaultFaceContext
+  let currentPrimary: number | null = null
+  let currentSecondary: number | null = null
+  let currentFace: FaceState = createFaceState()
   let layoutWidth = 0
 
   const left = opts.left ?? defaultOptions.left
@@ -153,17 +153,17 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
         this.updateText(self, currentText)
       }
 
-      updatePalette(face: FaceContext) {
+      updatePalette(face: FaceState) {
         currentFace = face
         if (!background || !bodyText) return
         if (!bubbleTexture) bubbleTexture = new Texture('bubble.png')
-        const primary = face.theme.primary
-        const secondary = face.theme.secondary
+        const primary = toPiuColorNumber(face.theme.primary)
+        const secondary = toPiuColorNumber(face.theme.secondary)
         if (primary === currentPrimary && secondary === currentSecondary) return
         currentPrimary = primary
         currentSecondary = secondary
         const bubbleColor = primary
-        const textColor = secondary === bubbleColor ? '#000000' : secondary
+        const textColor = secondary === bubbleColor ? 0x000000 : secondary
         background.skin = new Skin({
           texture: bubbleTexture,
           color: [bubbleColor],
@@ -203,7 +203,7 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
         this.updatePalette(currentFace)
       }
 
-      onFaceContext(content: PiuContainer, face: FaceContext) {
+      onFaceState(content: PiuContainer, face: FaceState) {
         this.ensureParts(content)
         this.updatePalette(face)
       }

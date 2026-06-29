@@ -1,4 +1,4 @@
-import type { FaceContext } from 'face-context'
+import type { FaceState } from 'face-state'
 
-export type FaceMotion = (tickMillis: number, face: FaceContext) => void
+export type FaceMotion = (tickMillis: number, face: FaceState) => void
 export type FaceMotionFactory<T> = (param: T) => FaceMotion

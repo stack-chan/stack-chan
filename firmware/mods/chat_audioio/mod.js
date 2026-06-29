@@ -2,7 +2,7 @@
 import { ImageFace } from 'behaviors/face'
 import { ChatService } from 'chat'
 import { SpeechBalloon } from 'effects/speech-balloon'
-import { Emotion } from 'face-context'
+import { EmotionNames, emotionFromName } from 'face-state'
 import config from 'mc/config'
 import { randomBetween } from 'stackchan-util'
 import Timer from 'timer'
@@ -193,15 +193,18 @@ export function onRobotCreated(robot) {
         properties: {
           emotion: {
             type: 'string',
-            description: `Emotion to set for the robot. One of: ${Object.keys(Emotion).join(', ')}`,
+            description: `Emotion to set for the robot. One of: ${EmotionNames.join(', ')}`,
           },
         },
         required: ['emotion'],
       },
       execute: async ({ emotion }) => {
-        if (typeof emotion === 'string' && emotion in Emotion) {
-          robot.setEmotion(Emotion[emotion])
-          return `Emotion set to ${emotion}`
+        if (typeof emotion === 'string') {
+          const nextEmotion = emotionFromName(emotion)
+          if (nextEmotion !== undefined) {
+            robot.setEmotion(nextEmotion)
+            return `Emotion set to ${emotion.toUpperCase()}`
+          }
         }
         return `Invalid emotion: ${String(emotion)}`
       },

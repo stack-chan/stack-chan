@@ -1,6 +1,6 @@
 import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, type FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
+import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { defineShapeTemplate } from 'template'
@@ -28,7 +28,7 @@ export const DogNose = defineShapeTemplate((opts: DogNoseOptions) => {
     top: 0,
     width: canvasWidth,
     height: canvasHeight,
-    skin: new Skin({ fill: defaultFaceContext.theme.primary }),
+    skin: new Skin({ fill: DEFAULT_FACE_PRIMARY_COLOR }),
     Behavior: class extends Behavior {
       lastOpen = -1
       palette: FaceSkinPalette | null = null
@@ -37,9 +37,10 @@ export const DogNose = defineShapeTemplate((opts: DogNoseOptions) => {
         shape.skin = palette.palette
         shape.state = palette.primaryState
       }
-      updateSkin(shape: PositionedShape, face: FaceContext) {
+      updateSkin(shape: PositionedShape, face: FaceState) {
         if (this.palette) return
-        shape.skin = new Skin({ fill: face.theme.primary, stroke: face.theme.primary })
+        const primary = toPiuColorNumber(face.theme.primary)
+        shape.skin = new Skin({ fill: primary, stroke: primary })
       }
       updatePath(shape: PositionedShape, open: number) {
         this.lastOpen = open
@@ -53,7 +54,7 @@ export const DogNose = defineShapeTemplate((opts: DogNoseOptions) => {
         shape.fillOutline = Outline.fill(path)
         shape.strokeOutline = undefined
       }
-      onFaceContext(shape: PositionedShape, face: FaceContext) {
+      onFaceState(shape: PositionedShape, face: FaceState) {
         this.updateSkin(shape, face)
         const open = face.mouth.open
         if (open !== this.lastOpen) this.updatePath(shape, open)

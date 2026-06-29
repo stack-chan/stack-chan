@@ -13,7 +13,12 @@
     "common-view": "./views/main/common-view",
     "face-view": "./views/main/face-view",
     "settings-view": "./views/settings/settings-view",
-    "face-context": "./state/face-context",
+    "face-state": "./state/face-state",
+    "face-state-view": {
+      "source": "./state/face-state-view",
+      "transform": "cdv",
+      "json": true
+    },
     "face-skin": "./state/face-skin",
     "template": "./components/face/template",
     "motions/*": "./components/face/motions/*",

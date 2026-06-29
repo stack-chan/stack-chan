@@ -1,6 +1,6 @@
 import { Outline } from 'commodetto/outline'
-import { defaultFaceContext, type FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
+import { DEFAULT_FACE_PRIMARY_COLOR, Emotion, type FaceEyeKey, type FaceState, toPiuColorNumber } from 'face-state'
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { defineShapeTemplate } from 'template'
@@ -8,7 +8,7 @@ import { defineShapeTemplate } from 'template'
 export type EyebrowOptions = {
   cx: number
   cy: number
-  side: keyof FaceContext['eyes']
+  side: FaceEyeKey
   canvasWidth?: number
   canvasHeight?: number
 }
@@ -28,7 +28,7 @@ export const DogEyebrow = defineShapeTemplate((opts: EyebrowOptions) => {
     top: 0,
     width: canvasWidth,
     height: canvasHeight,
-    skin: new Skin({ fill: defaultFaceContext.theme.primary }),
+    skin: new Skin({ fill: DEFAULT_FACE_PRIMARY_COLOR }),
     Behavior: class extends Behavior {
       lastKey: string | null = null
       palette: FaceSkinPalette | null = null
@@ -37,11 +37,11 @@ export const DogEyebrow = defineShapeTemplate((opts: EyebrowOptions) => {
         shape.skin = palette.palette
         shape.state = palette.primaryState
       }
-      updatePath(shape: PositionedShape, face: FaceContext) {
+      updatePath(shape: PositionedShape, face: FaceState) {
         const eye = face.eyes[side]
         let d = direction
-        if (face.emotion === 'ANGRY') d *= 1.2
-        else if (face.emotion === 'SAD') d *= -1
+        if (face.emotion === Emotion.ANGRY) d *= 1.2
+        else if (face.emotion === Emotion.SAD) d *= -1
         const path = new Outline.CanvasPath()
         const cxAdj = cx + 8 * direction
         const cyAdj = cy - 20 - eye.open * 2
@@ -50,9 +50,10 @@ export const DogEyebrow = defineShapeTemplate((opts: EyebrowOptions) => {
         shape.strokeOutline = undefined
         this.lastKey = `${eye.open.toFixed(3)}:${face.emotion}`
       }
-      onFaceContext(shape: PositionedShape, face: FaceContext) {
+      onFaceState(shape: PositionedShape, face: FaceState) {
         if (!this.palette) {
-          shape.skin = new Skin({ fill: face.theme.primary, stroke: face.theme.primary })
+          const primary = toPiuColorNumber(face.theme.primary)
+          shape.skin = new Skin({ fill: primary, stroke: primary })
         }
         const eye = face.eyes[side]
         const key = `${eye.open.toFixed(3)}:${face.emotion}`

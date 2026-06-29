@@ -1,7 +1,7 @@
 import type Digital from 'embedded:io/digital'
 import type { RobotCamera } from 'camera'
 import { SpeechBalloon } from 'effects/speech-balloon'
-import { createFaceContext, type Emotion, type FaceContext } from 'face-context'
+import { createFaceState, type Emotion, type FaceState, type FaceThemeKey, setColorRGB } from 'face-state'
 import type IMU from 'imu'
 import type Led from 'led'
 import type Microphone from 'microphone'
@@ -14,17 +14,6 @@ import type TouchPanel from 'touch-panel'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
-const HEX_DIGITS = '0123456789abcdef'
-
-function toHexByte(value: number): string {
-  const clamped = Math.max(0, Math.min(255, value | 0))
-  return `${HEX_DIGITS[(clamped >> 4) & 0x0f]}${HEX_DIGITS[clamped & 0x0f]}`
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`
-}
-
 /**
  * The Driver for the actuator
  */
@@ -49,7 +38,7 @@ export type TTS = {
  * The display UI controller.
  */
 export type RobotUI = {
-  update: (interval: number, faceContext: Readonly<FaceContext>) => void
+  update: (interval: number, faceState: FaceState) => void
   addEffect(effect: UIEffect, key?: string): void
   removeEffect(effect: UIEffect): void
   application?: unknown
@@ -141,7 +130,7 @@ export class Robot {
   #isMoving: boolean
   #ui: RobotUI
   #paused: boolean
-  #faceContext: FaceContext
+  #faceState: FaceState
   #emotion: Emotion
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
@@ -211,8 +200,8 @@ export class Robot {
     void this.#updatePoseHandler
     void this.#updateFaceHandler
     this.#paused = false
-    this.#faceContext = createFaceContext()
-    this.#emotion = this.#faceContext.emotion
+    this.#faceState = createFaceState()
+    this.#emotion = this.#faceState.emotion
     this.#drawerCallbacks = new Map()
     this.#drawerBehavior = null
     this.#drawerRegistry = {
@@ -474,8 +463,8 @@ export class Robot {
    * @param{g} - green value [0-255]
    * @param{b} - blue value [0-255]
    */
-  setColor(key: keyof FaceContext['theme'], r: number, g: number, b: number): void {
-    this.#faceContext.theme[key] = rgbToHex(r, g, b)
+  setColor(key: FaceThemeKey, r: number, g: number, b: number): void {
+    setColorRGB(this.#faceState.theme[key], r, g, b)
   }
 
   /**
@@ -603,15 +592,15 @@ export class Robot {
   /**
    * Update the robot face.
    * Process the robot's emotion, pose, gaze point and so on
-   * to modify the face context and pass it to RobotUI#update.
+   * to modify the face state and pass it to RobotUI#update.
    */
   updateFace() {
     if (this.#paused) {
       return
     }
-    this.#faceContext.mouth.open = this.#mouthOpen
+    this.#faceState.mouth.open = this.#mouthOpen
 
-    this.#faceContext.emotion = this.#emotion
+    this.#faceState.emotion = this.#emotion
     if (this.#gazePoint != null) {
       const relativeGazePoint = Vector3.rotate(this.#gazePoint, {
         r: 0.0,
@@ -622,12 +611,12 @@ export class Robot {
         const pos = this.#pose.eyes[key].position
         const relative = Vector3.sub(relativeGazePoint, [pos.x, pos.y, pos.z])
         const { y, p } = Rotation.fromVector3(relative)
-        const eye = this.#faceContext.eyes[key]
+        const eye = this.#faceState.eyes[key]
         eye.gazeX = Math.cos(y)
         eye.gazeY = Math.cos(p)
       }
     }
-    this.#ui.update(INTERVAL_FACE, this.#faceContext)
+    this.#ui.update(INTERVAL_FACE, this.#faceState)
   }
 
   /**

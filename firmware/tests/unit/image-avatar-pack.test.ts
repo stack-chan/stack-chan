@@ -10,6 +10,7 @@ import {
   frameIndexForRatio,
   resolveExpressionName,
 } from '../../host/modules/ui/components/face/parts/image/image-avatar-state.js'
+import { Emotion } from '../../host/modules/ui/state/face-state.js'
 
 test('demo image avatar pack describes a complete face, mouth, and hands sprite set', () => {
   const pack = getImageAvatarPack('stackchan-demo')
@@ -51,9 +52,9 @@ test('image avatar state helpers clamp ratios and map emotions to expressions', 
   assert.equal(frameIndexForRatio(1.5, 4), 3)
 
   const pack = getImageAvatarPack('stackchan-demo')
-  assert.equal(resolveExpressionName(pack, 'HAPPY'), 'happy')
-  assert.equal(resolveExpressionName(pack, 'ANGRY'), 'angry')
-  assert.equal(resolveExpressionName(pack, 'DOUBTFUL'), 'normal')
+  assert.equal(resolveExpressionName(pack, Emotion.HAPPY), 'happy')
+  assert.equal(resolveExpressionName(pack, Emotion.ANGRY), 'angry')
+  assert.equal(resolveExpressionName(pack, Emotion.DOUBTFUL), 'normal')
 })
 
 test('UI manifests keep bundled demo masks but leave ImageAvatarLite sprites to the sample MOD', () => {

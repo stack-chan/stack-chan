@@ -2,7 +2,7 @@ import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
 import { createCameraPreviewFace } from 'camera-preview'
 import type { StackchanMod } from 'default-mods/mod'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
-import { Emotion } from 'face-context'
+import { Emotion } from 'face-state'
 import type { MotionType } from 'imu'
 import type { Content as PiuContent } from 'piu/MC'
 import { asyncWait, randomBetween } from 'stackchan-util'
@@ -45,11 +45,11 @@ function errorMessage(error: unknown): string {
 }
 
 export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
-  const emotions = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
+  const emotions: Emotion[] = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
   let emotionIndex = emotions.indexOf(Emotion.NEUTRAL)
   let speechVisible = false
   let emoticonEffect: PiuContent | null = null
-  let currentEmotion = Emotion.NEUTRAL
+  let currentEmotion: Emotion = Emotion.NEUTRAL
   let pettingRestoreTimer: ReturnType<typeof Timer.set> | undefined
   let pettingPreviousEmotion: Emotion | undefined
   let pettingPreviousRotation: typeof robot.pose.body.rotation | undefined

@@ -2,7 +2,7 @@ import { AppController } from 'app-controller'
 import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
 import { Emoticon } from 'effects/emoticon'
 import { MultiRowBalloon } from 'effects/multirow-balloon'
-import { copyFaceContext, createFaceContext, defaultFaceContext, Emotion, type FaceContext } from 'face-context'
+import { createFaceState, Emotion, type FaceState, setColorRGB } from 'face-state'
 import { createBlinkMotion } from 'motions/blink'
 import { createBreathMotion } from 'motions/breath'
 import { createSaccadeMotion } from 'motions/saccade'
@@ -26,10 +26,9 @@ const application = new Application(
 const controller = application.behavior as AppController
 controller.application.distribute?.('onFaceMode', faceMode)
 
-const desired: FaceContext = createFaceContext()
-copyFaceContext(defaultFaceContext, desired)
-desired.theme.primary = '#ffffff'
-desired.theme.secondary = '#222221'
+const desired: FaceState = createFaceState()
+setColorRGB(desired.theme.primary, 0xff, 0xff, 0xff)
+setColorRGB(desired.theme.secondary, 0x22, 0x22, 0x21)
 
 const motions = [
   createBlinkMotion({ openMin: 399, openMax: 5000, closeMin: 200, closeMax: 400 }),
@@ -117,8 +116,8 @@ let tick = -1
 Timer.repeat(() => {
   tick += 32
   if (tick >= 32 * 300) tick = -1
-  const current = createFaceContext()
-  copyFaceContext(desired, current)
+  const current = createFaceState()
+  copyFaceState(desired, current)
   for (const motion of motions) motion(32, current)
   controller.update(32, current)
 }, 32)

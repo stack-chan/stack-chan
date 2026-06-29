@@ -1,5 +1,5 @@
 import { SpeechBalloon } from 'effects/speech-balloon'
-import { createFaceContext, defaultFaceContext, type FaceContext } from 'face-context'
+import { createFaceState, type FaceState, setColorRGB } from 'face-state'
 import { assert } from 'mocks/assert'
 import { Application, type Content, Skin, Style } from 'piu/MC'
 import Timer from 'timer'
@@ -31,7 +31,7 @@ app.add(streamBalloon)
 
 type BalloonBehavior = {
   onDisplaying?: (content: Content) => void
-  onFaceContext?: (content: Content, face: FaceContext) => void
+  onFaceState?: (content: Content, face: FaceState) => void
   setText?: (content: Content, text: string) => void
   clear?: (content: Content) => void
 }
@@ -50,22 +50,23 @@ type BalloonNode = Content & {
 
 // Force behavior initialization
 const fixedBalloonAny = fixedBalloon as unknown as BalloonContent
+const defaultFace = createFaceState()
 fixedBalloonAny.behavior?.onDisplaying?.(fixedBalloon)
-fixedBalloonAny.behavior?.onFaceContext?.(fixedBalloon, defaultFaceContext)
+fixedBalloonAny.behavior?.onFaceState?.(fixedBalloon, defaultFace)
 fixedBalloonAny.behavior?.setText?.(fixedBalloon, '固定表示の Balloon です。')
 
 const streamBalloonAny = streamBalloon as unknown as BalloonContent
 streamBalloonAny.behavior?.onDisplaying?.(streamBalloon)
-streamBalloonAny.behavior?.onFaceContext?.(streamBalloon, defaultFaceContext)
+streamBalloonAny.behavior?.onFaceState?.(streamBalloon, defaultFace)
 const defaultBackground = streamBalloonAny.first as BalloonNode
 const defaultText = defaultBackground.next as BalloonNode
 const defaultBackgroundSkin = defaultBackground.skin
 const defaultTextStyle = defaultText.style
 
-const themedFace = createFaceContext()
-themedFace.theme.primary = '#123456'
-themedFace.theme.secondary = '#abcdef'
-streamBalloonAny.behavior?.onFaceContext?.(streamBalloon, themedFace)
+const themedFace = createFaceState()
+setColorRGB(themedFace.theme.primary, 0x12, 0x34, 0x56)
+setColorRGB(themedFace.theme.secondary, 0xab, 0xcd, 0xef)
+streamBalloonAny.behavior?.onFaceState?.(streamBalloon, themedFace)
 
 const themedBackground = streamBalloonAny.first as BalloonNode
 const themedText = themedBackground.next as BalloonNode

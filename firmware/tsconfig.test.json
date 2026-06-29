@@ -18,8 +18,8 @@
       "wasm-driver": [
         "stackchan/drivers/wasm/wasm-driver.ts"
       ],
-      "face-context": [
-        "host/modules/ui/state/face-context.ts"
+      "face-state": [
+        "host/modules/ui/state/face-state.ts"
       ],
       "parts/*": [
         "host/modules/ui/components/face/parts/*"
@@ -49,7 +49,7 @@
     "stackchan/led/py32-io-expander.ts",
     "stackchan/drivers/internal/single-wait-slot.ts",
     "stackchan/drivers/__tests__/**/*.ts",
-    "host/modules/ui/state/face-context.ts",
+    "host/modules/ui/state/face-state.ts",
     "host/modules/ui/components/face/parts/image/image-avatar-pack.ts",
     "host/modules/ui/components/face/parts/image/image-avatar-state.ts",
     "host/modules/ui/views/settings/settings-view.test.ts",

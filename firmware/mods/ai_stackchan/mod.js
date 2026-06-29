@@ -1,6 +1,7 @@
 import loadPreferences from 'loadPreference'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 import { Emoticon } from 'effects/emoticon'
+import { Emotion, EmotionNames, emotionFromName } from 'face-state'
 import Whisper from 'stt-whisper'
 
 const heartDecorator = new Emoticon({ key: 'heart', left: 20, top: 20 })
@@ -24,20 +25,19 @@ export function onRobotCreated(robot) {
       properties: {
         emotion: {
           type: 'string',
-          description:
-            "Emotion to set for the robot one of enum: ['HAPPY', 'SAD', 'ANGRY', 'SURPRISED', 'NEUTRAL', 'DOUBTFUL']",
+          description: `Emotion to set for the robot. One of: ${EmotionNames.join(', ')}`,
         },
       },
       required: ['emotion'],
     },
     execute: async (args) => {
       const emotion = args.emotion
-      if (
-        typeof emotion === 'string' &&
-        ['HAPPY', 'SAD', 'ANGRY', 'SURPRISED', 'NEUTRAL', 'DOUBTFUL'].includes(emotion)
-      ) {
-        robot.setEmotion(emotion)
-        return `Emotion set to ${emotion}`
+      if (typeof emotion === 'string') {
+        const nextEmotion = emotionFromName(emotion)
+        if (nextEmotion !== undefined) {
+          robot.setEmotion(nextEmotion)
+          return `Emotion set to ${emotion.toUpperCase()}`
+        }
       }
       throw new Error('Invalid emotion')
     },
@@ -68,14 +68,14 @@ export function onRobotCreated(robot) {
       trace(`${message}\n`)
       talking = false
       robot.ui.removeEffect(decorator)
-      robot.setEmotion('NEUTRAL')
+      robot.setEmotion(Emotion.NEUTRAL)
       await robot.say(message)
     }
 
     // set up recording face
     decorator = heartDecorator
     robot.ui.addEffect(decorator)
-    robot.setEmotion('HAPPY')
+    robot.setEmotion(Emotion.HAPPY)
 
     // recording
     trace('start recording.\n')
@@ -104,7 +104,7 @@ export function onRobotCreated(robot) {
     robot.ui.removeEffect(decorator)
     decorator = sweatDecorator
     robot.ui.addEffect(decorator)
-    robot.setEmotion('DOUBTFUL')
+    robot.setEmotion(Emotion.DOUBTFUL)
 
     // completions
     trace('start completion.\n')
@@ -122,7 +122,7 @@ export function onRobotCreated(robot) {
 
     // set up default face
     robot.ui.removeEffect(decorator)
-    robot.setEmotion('NEUTRAL')
+    robot.setEmotion(Emotion.NEUTRAL)
 
     return
   }

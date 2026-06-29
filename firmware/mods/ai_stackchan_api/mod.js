@@ -1,6 +1,7 @@
 import loadPreferences from 'loadPreference'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 import { Emoticon } from 'effects/emoticon'
+import { Emotion } from 'face-state'
 import { HttpServerService } from 'http-server-service'
 
 //
@@ -20,7 +21,16 @@ const pale = new Emoticon({ key: 'tear', left: 20, top: 20 })
 const sweat = new Emoticon({ key: 'sweat', left: 20, top: 20 })
 let decorator
 
-const EMOTIONS = ['NEUTRAL', 'HAPPY', 'SLEEPY', 'DOUBTFUL', 'SAD', 'ANGRY', 'COLD', 'HOT']
+const EMOTIONS = [
+  Emotion.NEUTRAL,
+  Emotion.HAPPY,
+  Emotion.SLEEPY,
+  Emotion.DOUBTFUL,
+  Emotion.SAD,
+  Emotion.ANGRY,
+  Emotion.COLD,
+  Emotion.HOT,
+]
 
 //
 // Integrate ChatGPT
@@ -119,26 +129,26 @@ function onRobotCreated(robot) {
     const formData = await c.req.formData()
     const expression = Number(formData.expression)
     const emotion = EMOTIONS.at(expression)
-    robot.setEmotion(emotion)
+    if (emotion !== undefined) robot.setEmotion(emotion)
 
     if (decorator) {
       robot.ui.removeEffect(decorator)
     }
 
     switch (emotion) {
-      case 'HAPPY':
+      case Emotion.HAPPY:
         decorator = heart
         break
-      case 'SLEEPY':
+      case Emotion.SLEEPY:
         decorator = bubble
         break
-      case 'DOUBTFUL':
+      case Emotion.DOUBTFUL:
         decorator = sweat
         break
-      case 'SAD':
+      case Emotion.SAD:
         decorator = pale
         break
-      case 'ANGRY':
+      case Emotion.ANGRY:
         decorator = angry
         break
       default:

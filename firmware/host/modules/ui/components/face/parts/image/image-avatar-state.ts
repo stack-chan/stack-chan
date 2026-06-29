@@ -1,4 +1,4 @@
-import type { Emotion } from 'face-context'
+import type { Emotion } from 'face-state'
 import type { ImageAvatarPack } from 'parts/image/image-avatar-pack'
 
 function clamp01(value: number): number {

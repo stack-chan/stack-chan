@@ -1,5 +1,5 @@
-import type { FaceContext } from 'face-context'
 import type { FaceSkinPalette } from 'face-skin'
+import type { FaceState } from 'face-state'
 import { IMAGE_FACE_TEXTURE_PATHS, MOUTH_SPRITE, openToVariant } from 'parts/image/atlas'
 import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 
@@ -17,7 +17,7 @@ type PositionedContent = PiuContent & {
   skin?: PiuSkin
 }
 
-function createMouthSkin(color: string): PiuSkin {
+function createMouthSkin(color: number): PiuSkin {
   return new Skin({
     texture: { path: IMAGE_FACE_TEXTURE_PATHS.mouth },
     width: MOUTH_SPRITE.width,
@@ -34,18 +34,18 @@ export const MouthSprite = Content.template((opts: MouthSpriteOptions) => {
     top: opts.cy - MOUTH_SPRITE.height / 2,
     width: MOUTH_SPRITE.width,
     height: MOUTH_SPRITE.height,
-    skin: createMouthSkin('#ffffff'),
+    skin: createMouthSkin(0xffffff),
     variant: 0,
     Behavior: class extends Behavior {
       lastOpen = NaN
-      lastThemePrimary: string | null = null
+      lastThemePrimary: number | null = null
       onFaceSkin(content: PositionedContent, palette: FaceSkinPalette) {
         if (this.lastThemePrimary !== palette.primaryColor) {
           this.lastThemePrimary = palette.primaryColor
           content.skin = createMouthSkin(palette.primaryColor)
         }
       }
-      onFaceContext(content: PositionedContent, face: FaceContext) {
+      onFaceState(content: PositionedContent, face: FaceState) {
         const open = face.mouth.open
         if (open === this.lastOpen) return
         this.lastOpen = open

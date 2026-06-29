@@ -1,4 +1,4 @@
-import type { FaceContext } from 'face-context'
+import { type FaceState, toPiuColorNumber } from 'face-state'
 import { type Skin as PiuSkin, Skin } from 'piu/MC'
 
 export type FaceSkinPalette = {
@@ -8,11 +8,11 @@ export type FaceSkinPalette = {
   palette: PiuSkin
   primaryState: number
   secondaryState: number
-  primaryColor: string
-  secondaryColor: string
+  primaryColor: number
+  secondaryColor: number
 }
 
-export function createFaceSkinPalette(primary: string, secondary: string): FaceSkinPalette {
+export function createFaceSkinPalette(primary: number, secondary: number): FaceSkinPalette {
   return {
     primary: new Skin({ fill: primary, stroke: primary }),
     secondary: new Skin({ fill: secondary, stroke: secondary }),
@@ -25,9 +25,9 @@ export function createFaceSkinPalette(primary: string, secondary: string): FaceS
   }
 }
 
-export function updateFaceSkinPalette(prev: FaceSkinPalette | null, face: Readonly<FaceContext>): FaceSkinPalette {
-  const primary = face.theme.primary
-  const secondary = face.theme.secondary
+export function updateFaceSkinPalette(prev: FaceSkinPalette | null, face: FaceState): FaceSkinPalette {
+  const primary = toPiuColorNumber(face.theme.primary)
+  const secondary = toPiuColorNumber(face.theme.secondary)
   if (prev && prev.primaryColor === primary && prev.secondaryColor === secondary) return prev
   return createFaceSkinPalette(primary, secondary)
 }

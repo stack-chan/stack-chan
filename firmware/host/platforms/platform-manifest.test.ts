@@ -45,8 +45,8 @@ describe('Stack-chan platform manifest', () => {
   })
 
   test('provides a M5StackChan CoreS3 smoke MOD with no private config', () => {
-    const smokeManifest = JSON.parse(readFileSync('mods/m5stackchan_smoke/manifest.json', 'utf8'))
-    const smokeSource = readFileSync('mods/m5stackchan_smoke/mod.js', 'utf8')
+    const smokeManifest = JSON.parse(readFileSync('mods/examples/m5stackchan_smoke/manifest.json', 'utf8'))
+    const smokeSource = readFileSync('mods/examples/m5stackchan_smoke/mod.js', 'utf8')
     const smokeDocs = readFileSync('docs/m5stackchan-cores3-smoke.md', 'utf8')
 
     assert.deepEqual(m5StackChanStackchanManifest.include, ['./manifest.json'])
@@ -65,6 +65,6 @@ describe('Stack-chan platform manifest', () => {
     assert.match(smokeSource, /M5StackChan CoreS3 smoke/)
     assert.match(smokeDocs, /esp32:\.\/host\/platforms\/m5stackchan_cores3/)
     assert.match(smokeDocs, /host\/app\/manifest_m5stackchan_cores3\.json/)
-    assert.match(smokeDocs, /mods\/m5stackchan_smoke\/manifest\.json/)
+    assert.match(smokeDocs, /mods\/examples\/m5stackchan_smoke\/manifest\.json/)
   })
 })

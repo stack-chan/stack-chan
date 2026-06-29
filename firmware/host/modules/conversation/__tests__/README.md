@@ -9,7 +9,7 @@ source /home/sskw/.local/share/xs-dev-export.sh
 mcconfig -m -d -p lin/m5stack -t run ./host/modules/conversation/__tests__/chat-service/manifest.test.json
 mcconfig -m -d -p lin/m5stack -t run ./host/modules/ui/components/status-bar/__tests__/chat-status-bar/manifest.test.json
 mcconfig -m -d -p lin/m5stack -t run ./host/modules/ui/components/bubble/__tests__/speech-balloon/manifest.test.json
-mcconfig -m -d -p lin/m5stack -t run ./mods/chat_audioio/__tests__/chat-audioio-config/manifest.test.json
+mcconfig -m -d -p lin/m5stack -t run ./mods/examples/chat_audioio/__tests__/chat-audioio-config/manifest.test.json
 ```
 
 ## テスト一覧

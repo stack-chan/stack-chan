@@ -59,7 +59,7 @@ $ npm run generate-apidoc
 - ヨー軸（Z軸まわりの回転）の正方向…ｽﾀｯｸﾁｬﾝが左を向く動き
 
 ｽﾀｯｸﾁｬﾝのAPIにおいては __座標の単位はメートル、角度の単位はラジアンになります__ 。
-座標系との対応は実際のソースコード（[`mods/look_around`](../mods/look_around/)など）も参考にしてください。
+座標系との対応は実際のソースコード（[`mods/examples/look_around`](../mods/examples/look_around/)など）も参考にしてください。
 
 ## クラス
 

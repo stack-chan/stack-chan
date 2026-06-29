@@ -26,11 +26,11 @@ test('demo image avatar pack describes a complete face, mouth, and hands sprite 
 test('ImageAvatarLite packs live in the sample MOD instead of the host registry', () => {
   assert.equal(getImageAvatarPack('image-avatar-lite-slime'), IMAGE_AVATAR_PACKS['stackchan-demo'])
 
-  const modSource = readFileSync('mods/image_avatar_lite/image-avatar-lite-packs.js', 'utf8')
+  const modSource = readFileSync('mods/examples/image_avatar_lite/image-avatar-lite-packs.js', 'utf8')
   assert.match(modSource, /image-avatar-lite-slime/)
   assert.match(modSource, /image-avatar-lite-transparent\.png/)
 
-  const notice = readFileSync('mods/image_avatar_lite/LICENSE-M5Core2ImageAvatarLite_AI.txt', 'utf8')
+  const notice = readFileSync('mods/examples/image_avatar_lite/LICENSE-M5Core2ImageAvatarLite_AI.txt', 'utf8')
   assert.match(notice, /MIT License/)
   assert.match(notice, /Copyright \(c\) 2021 Takao Akaki/)
 })
@@ -79,7 +79,7 @@ test('UI manifests keep bundled demo masks but leave ImageAvatarLite sprites to 
     )
   }
 
-  const modManifest = JSON.parse(readFileSync('mods/image_avatar_lite/manifest.json', 'utf-8'))
+  const modManifest = JSON.parse(readFileSync('mods/examples/image_avatar_lite/manifest.json', 'utf-8'))
   const modResources = modManifest.resources['*'] as string[]
   assert.deepEqual(modResources, ['./assets/*'])
 })

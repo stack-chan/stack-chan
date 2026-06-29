@@ -3,7 +3,7 @@
 A demo to have a casual conversation with Stack-chan using the ChatGPT API.
 In addition to this MOD, you need to run the "Speech Recognition Server" and "Speech Synthesis Server" on separate PCs.
 
-![Program Structure](../../docs/images/architecture.drawio.png)
+![Program Structure](../../../docs/images/architecture.drawio.png)
 
 ## Setting up the Speech Recognition Server
 

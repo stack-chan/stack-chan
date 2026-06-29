@@ -360,8 +360,8 @@ flowchart TD
 ### 11. MOD と sample の整理
 
 - [x] 対応済み：変更対象になった default mod と sample mod の Renderer API 呼び出しを RobotUI API へ更新する。
-- [ ] 未対応：`firmware/mods` を利用者向け MOD と sample だけを置く場所にする。
-- [ ] 未対応：sample MOD を `firmware/mods/examples` へ移す。
+- [x] 対応済み：`firmware/mods` を利用者向け MOD と sample だけを置く場所にする。
+- [x] 対応済み：sample MOD を `firmware/mods/examples` へ移す。
 - [x] 対応済み：product default behavior を `firmware/mods` から `firmware/host/app/default-behavior` へ移す。
 - [x] 対応済み：古い provider demo を core 依存から切り離す。
 - [x] 対応済み：MOD API の公開面を capability 単位で再定義し、旧 `Robot` 互換 API を残さない。

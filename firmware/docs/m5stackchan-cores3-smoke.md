@@ -21,7 +21,7 @@ $ mcconfig -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t deploy "$PWD/ho
 ## Install the smoke MOD
 
 ```console
-$ npm run mod --target=esp32:./host/platforms/m5stackchan_cores3 ./mods/m5stackchan_smoke/manifest.json
+$ npm run mod --target=esp32:./host/platforms/m5stackchan_cores3 ./mods/examples/m5stackchan_smoke/manifest.json
 ```
 
 ## Expected smoke sequence

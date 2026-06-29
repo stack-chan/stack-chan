@@ -164,13 +164,13 @@ The M5Stack buttons will change Stack-chan's behavior as follows:
 - **B Button** (in the case of CoreS3, the bottom-center area of the screen) ... Stack-chan will look left, right, down, and up.
 - **C Button** (in the case of CoreS3, the bottom-right area of the screen) ... The color of Stack-chan's face will invert.
 
-**Example: Installing [`mods/look_around`](../mods/look_around/)**
+**Example: Installing [`mods/examples/look_around`](../mods/examples/look_around/)**
 
 ```console
-$ npm run mod ./mods/look_around/manifest.json
+$ npm run mod ./mods/examples/look_around/manifest.json
 
 > stack-chan@0.2.1 mod
-> mcrun -d -m -p ${npm_config_target=esp32/m5stack} ${npm_argument} "./mods/look_around/manifest.json"
+> mcrun -d -m -p ${npm_config_target=esp32/m5stack} ${npm_argument} "./mods/examples/look_around/manifest.json"
 
 # xsc mod.xsb
 # xsc check.xsb

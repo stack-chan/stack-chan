@@ -170,13 +170,13 @@ $ npm run mod --target=esp32/m5stack_core2 [modのマニフェストファイル
 $ npm run mod --target=esp32/m5stack_cores3 [modのマニフェストファイルのパス]
 ```
 
-**例: [`mods/look_around`](../mods/look_around/)をインストールする**
+**例: [`mods/examples/look_around`](../mods/examples/look_around/)をインストールする**
 
 ```console
-$ npm run mod ./mods/look_around/manifest.json
+$ npm run mod ./mods/examples/look_around/manifest.json
 
 > stack-chan@0.2.1 mod
-> mcrun -d -m -p ${npm_config_target=esp32/m5stack} ${npm_argument} "./mods/look_around/manifest.json"
+> mcrun -d -m -p ${npm_config_target=esp32/m5stack} ${npm_argument} "./mods/examples/look_around/manifest.json"
 
 # xsc mod.xsb
 # xsc check.xsb

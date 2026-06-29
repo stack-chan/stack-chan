@@ -38,7 +38,7 @@
     assets ディレクトリがない場合は入力ファイルと同じディレクトリになります
 
 * 実行例
-    `～/stack-chan/firmware$ npm run generate-speech-google -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets`
+    `～/stack-chan/firmware$ npm run generate-speech-google -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets`
     ※オプションを指定する場合はコマンドの後に上記のように ' -- ' をつけてください
 
 ## generate-speech-coqui  （[CoquiTTS](https://github.com/coqui-ai/TTS#readme)用）
@@ -66,7 +66,7 @@
      assets ディレクトリがない場合は入力ファイルと同じディレクトリになります
 
 * 実行例
-    `～/stack-chan/firmware$ npm run generate-speech-coqui -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets`
+    `～/stack-chan/firmware$ npm run generate-speech-coqui -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets`
     ※オプションを指定する場合はコマンドの後に上記のように ' -- ' をつけてください
 
 ## generate-speech-voicevox  （[VOICEVOX](https://voicevox.hiroshiba.jp/)用）
@@ -102,7 +102,7 @@
     省略時は入力ファイルのあるディレクトリの配下に assets ディレクトリがある場合はそちらになります
      assets ディレクトリがない場合は入力ファイルと同じディレクトリになります
 * 実行例
-     ～/stack-chan/firmware$ npm run generate-speech-voicevox -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets
+     ～/stack-chan/firmware$ npm run generate-speech-voicevox -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets
       ※オプションを指定する場合はコマンドの後に上記のように ' -- ' をつけてください
 
 ## ライセンスについて

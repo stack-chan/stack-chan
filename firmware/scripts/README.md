@@ -40,7 +40,7 @@
     If there is no 'assets' directory, it will be the same directory as the input file.
 
 * Example of execution  
-    `~/stack-chan/firmware$ npm run generate-speech-google -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets`
+    `~/stack-chan/firmware$ npm run generate-speech-google -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets`
     Note: When specifying options, add ' -- ' after the command as shown above.
 
 ## generate-speech-coqui (for [CoquiTTS](https://github.com/coqui-ai/TTS#readme))
@@ -70,7 +70,7 @@
     If there is no 'assets' directory, it will be the same directory as the input file.
 
 * Example of execution  
-    `~/stack-chan/firmware$ npm run generate-speech-coqui -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets`
+    `~/stack-chan/firmware$ npm run generate-speech-coqui -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets`
     Note: When specifying options, add ' -- ' after the command as shown above.
 
 ## generate-speech-voicevox  (For [VOICEVOX](https://voicevox.hiroshiba.jp/))
@@ -106,7 +106,7 @@
     If omitted, it will default to the assets directory under the input file's directory if it exists  
     If the assets directory does not exist, it will default to the same directory as the input file  
 * Execution example
-     ~/stack-chan/firmware$ npm run generate-speech-voicevox -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets
+     ~/stack-chan/firmware$ npm run generate-speech-voicevox -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets
      ※ If you want to specify options, add ' -- ' after the command as shown above
 
 ## About License

@@ -9,7 +9,9 @@ function delay(ms) {
 
 async function runSmoke(robot) {
   trace('[M5StackChan CoreS3 smoke] start\n')
-  trace('[M5StackChan CoreS3 smoke] target=esp32:./host/platforms/m5stackchan_cores3 mod=mods/m5stackchan_smoke\n')
+  trace(
+    '[M5StackChan CoreS3 smoke] target=esp32:./host/platforms/m5stackchan_cores3 mod=mods/examples/m5stackchan_smoke\n',
+  )
 
   try {
     trace('[M5StackChan CoreS3 smoke] servo: torque on\n')

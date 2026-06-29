@@ -56,7 +56,7 @@ Also, the direction of rotation is the direction in which the right-hand screw a
 - Yaw axis (rotation around Z-axis) positive direction... Stack-chan looking to the left
 
 In Stack-chan's API, __the unit of coordinates is meters and the unit of angles is radians__.
-Correspondence with the coordinate system can also be referenced in the actual source code (e.g. [`mods/look_around`](../mods/look_around/) etc.)"
+Correspondence with the coordinate system can also be referenced in the actual source code (e.g. [`mods/examples/look_around`](../mods/examples/look_around/) etc.)"
 
 ## Classes
 

@@ -67,7 +67,7 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 
 ## 使用方法（事前生成）
 
-以下のようなJavaScriptファイルに発話する文章を書き込みます（`mods/monologue/speeches_monologue.js`などを参照）。
+以下のようなJavaScriptファイルに発話する文章を書き込みます（`mods/examples/monologue/speeches_monologue.js`などを参照）。
 
 ```javascript
 // speeches.js

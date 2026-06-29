@@ -3,13 +3,13 @@
 M5Stack 用のユニット使ったデモになります。
 このデモでは SHT30 を搭載した環境センサーユニットから定期的に温度・湿度を取得し画面上に表示します。
 
-![温室度の表示](../../docs/images/temperature-unit.png)
+![温室度の表示](../../../docs/images/temperature-unit.png)
 
 ## ユニットの接続
 
 ユニットは PORT.A の Grove ポートに接続します。
 
-![PORT.Aポート](../../docs/images/grove_port_a.png)
+![PORT.Aポート](../../../docs/images/grove_port_a.png)
 
 ## 他のセンサーユニットを使用する
 

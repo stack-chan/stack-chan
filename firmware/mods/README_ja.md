@@ -7,35 +7,35 @@ MODの書き込み方法は[プログラムのビルドと書き込み](../docs/
 
 ## M5StackChan CoreS3 Smoke
 
-- [m5stackchan_smoke](./m5stackchan_smoke/): M5StackChan CoreS3 のサーボ電源とヘッドLEDの smoke 確認です。手順は [M5StackChan CoreS3 smoke check](../docs/m5stackchan-cores3-smoke.md) を参照してください。
+- [m5stackchan_smoke](./examples/m5stackchan_smoke/): M5StackChan CoreS3 のサーボ電源とヘッドLEDの smoke 確認です。手順は [M5StackChan CoreS3 smoke check](../docs/m5stackchan-cores3-smoke.md) を参照してください。
 
 ## Look Around: きょろきょろｽﾀｯｸﾁｬﾝ
 
-![きょろきょろｽﾀｯｸﾁｬﾝ](../../docs/images/stackchan.gif)
+![きょろきょろｽﾀｯｸﾁｬﾝ](../docs/images/stackchan.gif)
 
-- [look_around](./look_around/)
+- [look_around](./examples/look_around/)
 
 ## Monologue: ぽしょぽしょ独り言ｽﾀｯｸﾁｬﾝ
 
-- [monologue](./monologue/)
+- [monologue](./examples/monologue/)
 
 ## Cheerup: ｽﾀｯｸﾁｬﾝ応援団
 
 ![顔の同期](../docs/images/face-sync.gif)
 ![ｽﾀｯｸﾁｬﾝ応援団](../docs/images/cheerup.gif)
 
-- [cheerup_ble_lite](./cheerup_ble_lite/): BLE版
-- [cheerup_ws](./cheerup_ws/): WebSocket版
+- [cheerup_ble_lite](./examples/cheerup_ble_lite/): BLE版
+- [cheerup_ws](./examples/cheerup_ws/): WebSocket版
 
 ## Mimic: まねっこｽﾀｯｸﾁｬﾝ
 
 ![まねっこｽﾀｯｸﾁｬﾝ](../docs/images/mimic.gif)
 
-- [mimic_main](./mimic_main/): ユーザが動かすほう
-- [mimic_follow](./mimic_follow/): まねして動くほう
+- [mimic_main](./examples/mimic_main/): ユーザが動かすほう
+- [mimic_follow](./examples/mimic_follow/): まねして動くほう
 
 ## Face Tracker: 顔を追いかけるｽﾀｯｸﾁｬﾝ
 
 ![顔を追いかけるｽﾀｯｸﾁｬﾝ](../docs/images/face-tracker.gif)
 
-- [face_tracker](./face_tracker/)
+- [face_tracker](./examples/face_tracker/)

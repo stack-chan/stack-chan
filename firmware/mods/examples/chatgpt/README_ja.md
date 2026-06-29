@@ -3,7 +3,7 @@
 ChatGPT APIを使ってｽﾀｯｸﾁｬﾝと雑談できるデモです。
 このMODの他に「音声認識サーバ」「音声合成サーバ」を別のPCで動作させる必要があります。
 
-![プログラム構成](../../docs/images/architecture_ja.drawio.png)
+![プログラム構成](../../../docs/images/architecture_ja.drawio.png)
 
 ## 音声認識サーバの準備
 

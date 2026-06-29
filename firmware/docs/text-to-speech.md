@@ -65,7 +65,7 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 
 ## Usage(Pregenerated)
 
-* write down sentenses to speech in the format below (See `mods/monologue/speeches_monologue.js` and other examples)
+* write down sentenses to speech in the format below (See `mods/examples/monologue/speeches_monologue.js` and other examples)
 
 ```javascript
 // speeches.js

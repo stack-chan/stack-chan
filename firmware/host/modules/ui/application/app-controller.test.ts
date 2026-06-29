@@ -27,7 +27,7 @@ describe('PIU UI application lifecycle', () => {
 
     assert.match(source, /createAppControllerApplication/)
     assert.match(source, /new SimpleFace\(\)/)
-    assert.match(source, /loadPreferences\('ui'\)/)
+    assert.match(source, /preferences\.ui/)
     assert.doesNotMatch(source, /createRenderer/)
     assert.doesNotMatch(source, /loadPreferences\('renderer'\)/)
     assert.doesNotMatch(source, /RendererCompat/)

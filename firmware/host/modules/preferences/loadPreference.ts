@@ -1,15 +1,26 @@
 import structuredClone from 'structuredClone'
-import { type DOMAIN, PREF_KEYS } from 'consts'
+import { DOMAIN, PREF_KEYS } from 'consts'
 import config from 'mc/config'
 import Modules from 'modules'
 import Preference from 'preference'
 
 // biome-ignore lint/suspicious/noExplicitAny: Match the type definition of mc/config
 type ConfigRecord = Record<string, any>
+export type PreferenceDomain = keyof typeof DOMAIN
+export type PreferenceConfig = Record<PreferenceDomain, ConfigRecord>
 
 const modConfig: ConfigRecord = Modules.has('mod/config') ? (Modules.importNow('mod/config') as ConfigRecord) : {}
 
-export default function loadPreferences(category: keyof typeof DOMAIN) {
+const PREFERENCE_DOMAINS: PreferenceDomain[] = [
+  DOMAIN.wifi,
+  DOMAIN.driver,
+  DOMAIN.ui,
+  DOMAIN.tts,
+  DOMAIN.ai,
+  DOMAIN.led,
+]
+
+export default function loadPreferences(category: PreferenceDomain): ConfigRecord {
   const mcPreference = structuredClone(config[category.toLowerCase()] ?? {})
   const modPreference = structuredClone(modConfig[category.toLowerCase()] ?? {})
 
@@ -24,4 +35,8 @@ export default function loadPreferences(category: keyof typeof DOMAIN) {
   }
 
   return preference
+}
+
+export function loadPreferenceConfig(): PreferenceConfig {
+  return Object.fromEntries(PREFERENCE_DOMAINS.map((domain) => [domain, loadPreferences(domain)])) as PreferenceConfig
 }

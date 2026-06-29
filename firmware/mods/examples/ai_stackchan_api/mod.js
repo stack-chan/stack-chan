@@ -1,4 +1,3 @@
-import loadPreferences from 'loadPreference'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 import { Emoticon } from 'effects/emoticon'
 import { Emotion } from 'face-state'
@@ -49,17 +48,8 @@ const CONTEXT = [
   },
 ]
 
-const aiPrefs = loadPreferences('ai')
-trace(`ai.token: ${aiPrefs.token}\n`)
-
-const dialogue = new ChatGPTDialogue({
-  apiKey: aiPrefs.token,
-  model: MODEL,
-  context: CONTEXT,
-})
-
 let chatting = false
-async function chatAndSay(robot, message) {
+async function chatAndSay(robot, dialogue, message) {
   if (chatting) {
     return 'お話中です'
   }
@@ -88,7 +78,16 @@ async function chatAndSay(robot, message) {
   return result.value
 }
 
-function onContextCreated(robot) {
+function onContextCreated(robot, option) {
+  const aiPrefs = option.config.ai
+  trace(`ai.token: ${aiPrefs.token}\n`)
+
+  const dialogue = new ChatGPTDialogue({
+    apiKey: aiPrefs.token,
+    model: MODEL,
+    context: CONTEXT,
+  })
+
   robot.button.a.onEvent = async (event) => {
     if (event.pressed) {
       robot.showBalloon('TTS test...')
@@ -98,7 +97,7 @@ function onContextCreated(robot) {
   }
   robot.button.b.onEvent = async (event) => {
     if (event.pressed) {
-      await chatAndSay(robot, 'おはようございます')
+      await chatAndSay(robot, dialogue, 'おはようございます')
     }
   }
 
@@ -117,7 +116,7 @@ function onContextCreated(robot) {
     const formData = await c.req.formData()
     const text = formData.text
     const _lang = formData.lang
-    const response = await chatAndSay(robot, text)
+    const response = await chatAndSay(robot, dialogue, text)
     return c.text(response)
   })
 

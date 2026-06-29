@@ -341,9 +341,9 @@ flowchart TD
 - [x] 対応済み：`firmware/stackchan/utilities` を `firmware/host/modules/util` と `firmware/host/modules/preferences` へ分ける。
 - [x] 対応済み：数学系 helper は `modules/util` に置く。
 - [x] 対応済み：`loadPreferences` と設定 schema は `modules/preferences` に置く。
-- [ ] 未対応：`loadPreferences` を直接呼ぶ場所を app と preferences に限定する。
-- [ ] 未対応：module 内で設定を読む必要がある場合は、app から注入された config を使う。
-- [ ] 未対応：sample MOD が直接 preference を読む境界を許可するか、注入 config に寄せるかを決める。
+- [x] 対応済み：`loadPreferences` を直接呼ぶ場所を app と preferences に限定する。
+- [x] 対応済み：module 内で設定を読む必要がある場合は、app から注入された config を使う。
+- [x] 対応済み：sample MOD が直接 preference を読む境界を許可するか、注入 config に寄せるかを決める。
 
 ### 10. Platform 層の分離
 

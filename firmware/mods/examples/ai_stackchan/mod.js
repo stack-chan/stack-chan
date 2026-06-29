@@ -1,4 +1,3 @@
-import loadPreferences from 'loadPreference'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 import { Emoticon } from 'effects/emoticon'
 import { Emotion, EmotionNames, emotionFromName } from 'face-state'
@@ -16,7 +15,7 @@ The sentence is speech only. Any symbols, emojis, or other non-speech characters
 You should exporess emotionswith set_emotion tool.
 `
 
-export function onContextCreated(robot) {
+export function onContextCreated(robot, option) {
   const setEmotionTool = {
     name: 'set_emotion',
     description: "Set the robot's emotion",
@@ -46,7 +45,7 @@ export function onContextCreated(robot) {
   let talking = false
 
   // Integrate ChatGPT and Whisper
-  const aiPrefs = loadPreferences('ai')
+  const aiPrefs = option.config.ai
   const dialogue = new ChatGPTDialogue({
     apiKey: aiPrefs.token,
     instructions: INSTRUCTIONS,

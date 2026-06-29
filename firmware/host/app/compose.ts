@@ -1,4 +1,4 @@
-import loadPreferences from 'loadPreference'
+import type { PreferenceConfig } from 'loadPreference'
 import { createAppControllerApplication } from 'app-controller'
 import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
 import Camera from 'camera'
@@ -114,7 +114,7 @@ export function getHostDeviceEnvironment(): HostDeviceEnvironment {
   return globalEnv.device
 }
 
-export function createStackchanContext(): StackchanContext {
+export function createStackchanContext(preferences: PreferenceConfig): StackchanContext {
   const drivers = new Map<string, (param: unknown) => MotionDriver>([
     ['scservo', (param) => new SCServoDriver(param as ConstructorParameters<typeof SCServoDriver>[0])],
     [
@@ -154,17 +154,17 @@ export function createStackchanContext(): StackchanContext {
   const errors: string[] = []
 
   // Servo Driver
-  const driverPrefs = loadPreferences('driver')
+  const driverPrefs = preferences.driver
   const driverKey = driverPrefs.type ?? 'scservo'
   const Driver = drivers.get(driverKey)
 
   // TTS
-  const ttsPrefs = loadPreferences('tts')
+  const ttsPrefs = preferences.tts
   const ttsKey = ttsPrefs.type ?? 'local'
   const TTS = ttsEngines.get(ttsKey)
 
   // UI
-  const uiPrefs = loadPreferences('ui')
+  const uiPrefs = preferences.ui
   const uiKey = uiPrefs.type ?? 'simple'
   const UI = uiControllers.get(uiKey)
 
@@ -196,7 +196,7 @@ export function createStackchanContext(): StackchanContext {
   const camera = new Camera()
   const tone = new Tone({ volume: ttsPrefs.volume })
 
-  const configLed = loadPreferences('led')
+  const configLed = preferences.led
   const ledEntries: [string, RobotLed][] = Object.entries(configLed).flatMap(
     ([key, ledConfig]): [string, RobotLed][] => {
       const candidate = ledConfig as {

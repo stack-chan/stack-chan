@@ -45,7 +45,16 @@ if (!onContextCreated) {
   throw new Error('onContextCreated is not defined')
 }
 try {
-  onContextCreated(robot as never)
+  onContextCreated(robot as never, {
+    config: {
+      wifi: {},
+      driver: {},
+      ui: {},
+      tts: {},
+      ai: {},
+      led: {},
+    },
+  })
 } catch (error) {
   const message = error && typeof error === 'object' && 'message' in error ? error.message : error
   trace(`onContextCreated error: ${message}\n`)

@@ -4,7 +4,12 @@ import TextDecoder from 'text/decoder'
  * @brief face tracking mod with UnitV2
  * @param {*} robot
  */
-function onContextCreated(robot, device) {
+function onContextCreated(robot, option) {
+  const device = option.device
+  if (!device?.network?.http?.io) {
+    throw new Error('This device does not support a network HTTP client.')
+  }
+
   const decoder = new TextDecoder()
   const target = {
     x: 0.8,

@@ -1,8 +1,14 @@
+import type { PreferenceConfig } from 'loadPreference'
 import type { StackchanContext } from 'capabilities'
+
+export type StackchanAppBehaviorOption = {
+  device?: unknown
+  config: PreferenceConfig
+}
 
 export type StackchanAppBehavior = {
   onLaunch?: () => Promise<boolean> | boolean
-  onContextCreated?: (context: StackchanContext, option?: unknown) => Promise<void> | void
+  onContextCreated?: (context: StackchanContext, option: StackchanAppBehaviorOption) => Promise<void> | void
 }
 
 export async function runLaunchBehaviors(behaviors: StackchanAppBehavior[]): Promise<boolean> {
@@ -17,7 +23,7 @@ export async function runLaunchBehaviors(behaviors: StackchanAppBehavior[]): Pro
 export async function runContextCreatedBehaviors(
   behaviors: StackchanAppBehavior[],
   context: StackchanContext,
-  option?: unknown,
+  option: StackchanAppBehaviorOption,
 ): Promise<void> {
   for (const behavior of behaviors) {
     await behavior.onContextCreated?.(context, option)

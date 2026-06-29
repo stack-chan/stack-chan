@@ -1,3 +1,4 @@
+import { loadPreferenceConfig } from 'loadPreference'
 import defaultBehavior from 'app-default-behavior'
 import Modules from 'modules'
 import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavior } from './app-behavior'
@@ -23,9 +24,13 @@ async function main() {
   trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
   if (!shouldCreateContext) return
 
-  const context = createStackchanContext()
+  const preferences = loadPreferenceConfig()
+  const context = createStackchanContext(preferences)
   trace('[main] app context created\n')
-  await runContextCreatedBehaviors(appBehaviors, context, getHostDeviceEnvironment())
+  await runContextCreatedBehaviors(appBehaviors, context, {
+    device: getHostDeviceEnvironment(),
+    config: preferences,
+  })
   trace('[main] app behaviors ready\n')
 }
 

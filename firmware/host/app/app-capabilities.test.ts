@@ -42,9 +42,10 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   assert.doesNotMatch(appBehavior, /from 'robot'/)
   assert.doesNotMatch(wasmAppBehavior, /from 'robot'/)
 
-  assert.match(main, /createStackchanContext\(\)/)
+  assert.match(main, /const preferences = loadPreferenceConfig\(\)/)
+  assert.match(main, /createStackchanContext\(preferences\)/)
   assert.doesNotMatch(main, /createRobot\(\)/)
-  assert.match(compose, /export function createStackchanContext\(\): StackchanContext/)
+  assert.match(compose, /export function createStackchanContext\(preferences: PreferenceConfig\): StackchanContext/)
   assert.match(compose, /new StackchanRuntimeContext\(/)
   assert.doesNotMatch(compose, /from 'robot'/)
 

@@ -1,4 +1,3 @@
-import loadPreferences from 'loadPreference'
 import WebSocket from 'WebSocket'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
 import { randomBetween } from 'stackchan-util'
@@ -18,9 +17,9 @@ const CONTEXT = [
   },
 ]
 
-export function onContextCreated(robot) {
+export function onContextCreated(robot, option) {
   // Integrate ChatGPT
-  const aiPrefs = loadPreferences('ai')
+  const aiPrefs = option.config.ai
   trace(`ai.token: ${aiPrefs.token}\n`)
   const dialogue = new ChatGPTDialogue({
     apiKey: aiPrefs.token,
@@ -53,7 +52,7 @@ export function onContextCreated(robot) {
   }
 
   // Connect to STT server
-  const ttsPrefs = loadPreferences('tts')
+  const ttsPrefs = option.config.tts
   const ws = new WebSocket(`ws://${ttsPrefs.host ?? STT_HOST}:8080`)
   ws.addEventListener('open', () => {
     trace('connected\n')

@@ -1,5 +1,9 @@
 {
-  "include": ["$(MODDABLE)/examples/manifest_base.json", "../../manifest.json"],
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../manifest.json",
+    "../../../../testing/manifest.json"
+  ],
   "modules": {
     "*": ["./http-server-service.test"]
   }

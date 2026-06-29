@@ -4,7 +4,8 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "../../../util/manifest.json",
     "../../manifest.json",
-    "../../../../app/manifest_typings.json"
+    "../../../../app/manifest_typings.json",
+    "../../../testing/manifest.json"
   ],
   "modules": {
     "*": ["./stt-whisper.test"]

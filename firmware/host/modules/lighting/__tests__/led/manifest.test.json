@@ -3,7 +3,8 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "../../../util/manifest.json",
-    "../../manifest.json"
+    "../../manifest.json",
+    "../../../testing/manifest.json"
   ],
   "modules": {
     "*": ["./led.test"]

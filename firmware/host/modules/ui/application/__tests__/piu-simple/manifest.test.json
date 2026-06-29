@@ -3,7 +3,8 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_piu.json",
     "../../../../../app/manifest_typings.json",
-    "../../../manifest.json"
+    "../../../manifest.json",
+    "../../../../testing/manifest.json"
   ],
   "config": {
     "startupSound": false

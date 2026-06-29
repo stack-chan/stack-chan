@@ -32,6 +32,10 @@ function walkFiles(root: string): string[] {
   return files
 }
 
+function readJson(path: string) {
+  return JSON.parse(readFileSync(path, 'utf8'))
+}
+
 test('runtime modules own implementation manifests and tests under host/modules', () => {
   for (const moduleName of RUNTIME_MODULES) {
     const moduleDir = join(MODULE_ROOT, moduleName)
@@ -80,7 +84,7 @@ test('sample MOD relative manifest includes resolve from examples directories', 
   const manifestPaths = walkFiles(join('mods', 'examples')).filter((path) => /manifest(?:\.test)?\.json$/.test(path))
 
   for (const manifestPath of manifestPaths) {
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    const manifest = readJson(manifestPath)
     for (const includePath of manifest.include ?? []) {
       if (includePath.startsWith('.')) {
         assert.ok(
@@ -89,6 +93,26 @@ test('sample MOD relative manifest includes resolve from examples directories', 
         )
       }
     }
+  }
+})
+
+test('module Moddable test manifests include implementation and testing manifests', () => {
+  const testingManifestPath = join(MODULE_ROOT, 'testing', 'manifest.json')
+  const manifestPaths = walkFiles(MODULE_ROOT).filter((path) => path.endsWith('manifest.test.json'))
+
+  for (const manifestPath of manifestPaths) {
+    const manifest = readJson(manifestPath)
+    const resolvedIncludes = (manifest.include ?? [])
+      .filter((includePath: string) => includePath.startsWith('.'))
+      .map((includePath: string) => join(dirname(manifestPath), includePath))
+
+    assert.ok(resolvedIncludes.includes(testingManifestPath), `${manifestPath} should include testing manifest`)
+    assert.ok(
+      resolvedIncludes.some(
+        (includePath: string) => includePath.endsWith('manifest.json') && includePath !== testingManifestPath,
+      ),
+      `${manifestPath} should include the implementation manifest under test`,
+    )
   }
 })
 
@@ -106,7 +130,7 @@ test('UI views own Moddable test manifests under their view directories', () => 
     assert.ok(manifestPaths.length > 0, `${viewName} should have a manifest.test.json`)
 
     for (const manifestPath of manifestPaths) {
-      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+      const manifest = readJson(manifestPath)
       assert.ok(manifest.include.includes('../../../../manifest.json'), `${manifestPath} should include UI manifest`)
       assert.ok(
         manifest.include.includes('../../../../../testing/manifest.json'),

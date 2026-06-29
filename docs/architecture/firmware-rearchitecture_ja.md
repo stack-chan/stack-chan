@@ -372,7 +372,7 @@ flowchart TD
 - [x] 対応済み：`firmware/tests/unit` の内容を対象 module または UI ディレクトリへ移す。
 - [x] 対応済み：集約テストディレクトリとしての `firmware/tests` を削除する。
 - [x] 対応済み：各 module と UI view に `manifest.test.json` を置く。
-- [ ] 未対応：各 `manifest.test.json` は本体の `manifest.json` と `modules/testing/manifest.json` を include する。
+- [x] 対応済み：各 `manifest.test.json` は本体の `manifest.json` と `modules/testing/manifest.json` を include する。
 - [ ] 未対応：テスト用 main は同じディレクトリの `*.test.ts` を読む。
 - [ ] 未対応：成功時は `ok` を trace し、失敗時は例外を throw する。
 - [ ] 未対応：合否判定は `mcconfig -m -d -p lin/m5stack -t run` の終了ステータスで行う。

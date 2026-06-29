@@ -6,7 +6,8 @@
     "$(MODDABLE)/examples/io/listener/listen/manifest_listen.json",
     "../../../../../app/manifest_typings.json",
     "../../manifest.json",
-    "../../../mcp-server/manifest.json"
+    "../../../mcp-server/manifest.json",
+    "../../../../testing/manifest.json"
   ],
   "modules": {
     "*": ["./mcp-client-service.test"]

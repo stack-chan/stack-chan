@@ -9,8 +9,8 @@ import Timer from 'timer'
 export function onContextCreated(r) {
   let count = 0
   const driver = r.driver
-  r.button.a.onChanged = function () {
-    if (this.read()) {
+  r.button.a.onEvent = (event) => {
+    if (event.pressed) {
       return
     }
     const ori = {

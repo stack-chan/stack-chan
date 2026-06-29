@@ -330,8 +330,9 @@ flowchart TD
 
 - [x] 対応済み：`firmware/stackchan/touch*` と `firmware/stackchan/imu*` を `firmware/host/modules/input` へ移す。
 - [x] 対応済み：touch、touch panel、IMU の入力 callback を短い `InputEvent` へ正規化する。
-- [ ] 未対応：button の公開 API を `read()` 付き raw object ではなく `ButtonInputEvent` へ置き換える。
-- [ ] 未対応：MOD 境界に公開される `button.read()`、`touchPanel.sample()`、`imu.sample()` を event callback API へ置き換える。
+- [x] 対応済み：`robot.button` の公開 API を `read()` 付き raw object ではなく `ButtonInputEvent` へ置き換える。
+- [x] 対応済み：MOD 境界に公開される `robot.button.read()`、`touchPanel.sample()`、`imu.sample()` を event callback API へ置き換える。
+- [ ] 未対応：`globalThis.button` を直接参照する起動時設定経路を app の入力 adapter または設定 view の command へ置き換える。
 - [x] 対応済み：入力の polling で `Timer.repeat(async () => ...)` を使わない。
 - [x] 対応済み：`firmware/stackchan/led` を `firmware/host/modules/lighting` へ移す。
 - [x] 対応済み：py32 差分を lighting module の platform manifest または module 内部差分として扱う。
@@ -430,6 +431,7 @@ flowchart TD
 - [ ] 未対応：module 移行後に対象 ESP32 board の build を実行する。
 - [ ] 未対応：module 移行後に changed MOD と sample MOD の mcrun を実行する。
 - [ ] 未対応：module 移行後に旧 API 検索を実行し、許可した履歴文書以外に旧名が残らないことを確認する。
+- [ ] 未対応：`npm run check:legacy-names` で検出される旧 renderer 文書と generated API docs を削除または更新する。
 
 ### 16. Merge 条件
 

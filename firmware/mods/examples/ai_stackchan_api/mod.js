@@ -89,15 +89,15 @@ async function chatAndSay(robot, message) {
 }
 
 function onContextCreated(robot) {
-  robot.button.a.onChanged = async function () {
-    if (this.read()) {
+  robot.button.a.onEvent = async (event) => {
+    if (event.pressed) {
       robot.showBalloon('TTS test...')
       await robot.say('TTSテスト。TTSテスト')
       robot.hideBalloon()
     }
   }
-  robot.button.b.onChanged = async function () {
-    if (this.read()) {
+  robot.button.b.onEvent = async (event) => {
+    if (event.pressed) {
       await chatAndSay(robot, 'おはようございます')
     }
   }

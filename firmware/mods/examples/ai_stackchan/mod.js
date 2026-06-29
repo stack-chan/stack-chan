@@ -127,8 +127,8 @@ export function onContextCreated(robot) {
     return
   }
 
-  robot.button.a.onChanged = async function () {
-    if (this.read()) {
+  robot.button.a.onEvent = async (event) => {
+    if (event.pressed) {
       await robot.tone(1000, 100)
       await talk()
     }

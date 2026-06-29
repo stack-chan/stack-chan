@@ -72,22 +72,22 @@ export function onContextCreated(robot) {
 
   // Event handler
   let isFollowing = false
-  robot.button.a.onChanged = async function handleButtonAChanged() {
-    if (this.read()) {
+  robot.button.a.onEvent = async function handleButtonAEvent(event) {
+    if (event.pressed) {
       trace('pressed A\n')
       trace('Look around\n')
       isFollowing = !isFollowing
     }
   }
-  robot.button.b.onChanged = async function handleButtonBChanged() {
-    if (this.read()) {
+  robot.button.b.onEvent = async function handleButtonBEvent(event) {
+    if (event.pressed) {
       trace('pressed B\n')
       trace('Chat test\n')
       await chatAndSay('おはようございます')
     }
   }
-  robot.button.c.onChanged = async function handleButtonCChanged() {
-    if (this.read()) {
+  robot.button.c.onEvent = async function handleButtonCEvent(event) {
+    if (event.pressed) {
       trace('pressed C\n')
       trace('TTS test\n')
       if (chatting) {

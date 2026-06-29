@@ -43,7 +43,7 @@ export default class TouchPanel {
     this.#interval = options.interval ?? 50
   }
 
-  sample(): TouchPanelSample {
+  #sample(): TouchPanelSample {
     this.#lastSample = this.#driver.sample()
     return [...this.#lastSample]
   }
@@ -63,7 +63,7 @@ export default class TouchPanel {
     if (this.#timer) return
     this.#timer = Timer.repeat(() => {
       const ticks = Time.ticks
-      const sample = this.sample()
+      const sample = this.#sample()
 
       const gesture = this.#recognizer.update(sample, ticks)
       if (gesture) {

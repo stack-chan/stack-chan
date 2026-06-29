@@ -1,8 +1,8 @@
-import type Digital from 'embedded:io/digital'
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { RobotCamera } from 'camera'
 import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
 import type IMU from 'imu'
+import type { ButtonInputEvent } from 'input-event'
 import type Led from 'led'
 import type { MotionControllerPose } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
@@ -28,7 +28,7 @@ export type RobotUI = {
 }
 
 export type Button = {
-  onChanged: (this: Digital) => void
+  onEvent?: (event: ButtonInputEvent) => void
 }
 
 export type DrawerButtonSpec = {

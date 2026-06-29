@@ -33,6 +33,14 @@ export type IMUInputEvent = {
 
 export type InputEvent = ButtonInputEvent | TouchInputEvent | TouchPanelInputEvent | IMUInputEvent
 
+export function createButtonInputEvent(
+  name: ButtonInputEvent['name'],
+  pressed: boolean,
+  ticks: number,
+): ButtonInputEvent {
+  return { kind: 'button', name, pressed, ticks }
+}
+
 export function createTouchInputEvent(
   phase: TouchInputEvent['phase'],
   id: number,

@@ -1,6 +1,20 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createIMUInputEvent, createTouchInputEvent, createTouchPanelInputEvent } from './input-event.js'
+import {
+  createButtonInputEvent,
+  createIMUInputEvent,
+  createTouchInputEvent,
+  createTouchPanelInputEvent,
+} from './input-event.js'
+
+test('createButtonInputEvent returns a compact button event', () => {
+  assert.deepEqual(createButtonInputEvent('a', true, 50), {
+    kind: 'button',
+    name: 'a',
+    pressed: true,
+    ticks: 50,
+  })
+})
 
 test('createTouchInputEvent returns a compact touch event', () => {
   assert.deepEqual(createTouchInputEvent('began', 1, 12, 24, 100), {

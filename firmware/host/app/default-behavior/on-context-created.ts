@@ -408,24 +408,24 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
 
   if (robot.button != null) {
     if (robot.button.a != null) {
-      robot.button.a.onChanged = function () {
-        if (!this.read()) {
+      robot.button.a.onEvent = (event) => {
+        if (!event.pressed) {
           return
         }
         void toggleLookAround()
       }
     }
     if (robot.button.b != null) {
-      robot.button.b.onChanged = function () {
-        if (!this.read()) {
+      robot.button.b.onEvent = (event) => {
+        if (!event.pressed) {
           return
         }
         void runServoTest()
       }
     }
     if (robot.button.c != null) {
-      robot.button.c.onChanged = function () {
-        if (!this.read()) {
+      robot.button.c.onEvent = (event) => {
+        if (!event.pressed) {
           return
         }
         toggleColor()

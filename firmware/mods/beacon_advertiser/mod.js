@@ -44,15 +44,15 @@ export function onContextCreated(robot) {
     })
   }
 
-  robot.button.a.onChanged = async function () {
-    if (this.read()) {
+  robot.button.a.onEvent = async (event) => {
+    if (event.pressed) {
       const hello = hellos[Math.floor(randomBetween(0, hellos.length))]
       await robot.say(hello)
       sendCommand(1)
     }
   }
-  robot.button.b.onChanged = async function () {
-    if (this.read()) {
+  robot.button.b.onEvent = async (event) => {
+    if (event.pressed) {
       const bye = byes[Math.floor(randomBetween(0, byes.length))]
       await robot.say(bye)
       sendCommand(2)

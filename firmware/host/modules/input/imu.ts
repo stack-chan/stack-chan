@@ -36,7 +36,7 @@ export default class IMU {
     this.#driver.configure?.({ order: 'zxy' })
   }
 
-  sample(): IMUSample {
+  #sample(): IMUSample {
     this.#lastSample = this.#driver.sample()
     return copySample(this.#lastSample)
   }
@@ -45,7 +45,7 @@ export default class IMU {
     if (this.#timer) return
     this.#timer = Timer.repeat(() => {
       const ticks = Time.ticks
-      const sample = this.sample()
+      const sample = this.#sample()
       const motion = this.#recognizer.update(sample, ticks)
       if (motion) this.onEvent?.(createIMUInputEvent(motion.type, ticks))
     }, this.#interval)

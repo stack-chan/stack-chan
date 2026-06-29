@@ -8,8 +8,8 @@ import Timer from 'timer'
 async function onContextCreated(robot) {
   const pan = robot._driver._pan
   const tilt = robot._driver._tilt
-  robot.button.a.onChanged = async function () {
-    if (!this.read()) {
+  robot.button.a.onEvent = async (event) => {
+    if (!event.pressed) {
       return
     }
     trace('setting pan offset\n')
@@ -17,8 +17,8 @@ async function onContextCreated(robot) {
     await pan.setOffsetAngle(panAngle - 90)
     await pan.saveSettings()
   }
-  robot.button.b.onChanged = async function () {
-    if (!this.read()) {
+  robot.button.b.onEvent = async (event) => {
+    if (!event.pressed) {
       return
     }
     trace('setting tilt offset\n')
@@ -26,8 +26,8 @@ async function onContextCreated(robot) {
     await tilt.setOffsetAngle(tiltAngle - 90)
     await tilt.saveSettings()
   }
-  robot.button.c.onChanged = async function () {
-    if (!this.read()) {
+  robot.button.c.onEvent = async (event) => {
+    if (!event.pressed) {
       return
     }
     trace('setting zero\n')

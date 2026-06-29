@@ -11,8 +11,8 @@ async function sayMonologue(robot) {
 }
 
 function onContextCreated(robot) {
-  robot.button.a.onChanged = function () {
-    if (this.read()) {
+  robot.button.a.onEvent = (event) => {
+    if (event.pressed) {
       sayMonologue(robot)
     }
   }

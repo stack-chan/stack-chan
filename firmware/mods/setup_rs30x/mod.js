@@ -1,14 +1,14 @@
 function onContextCreated(robot) {
   let isRight = false
-  robot.button.a.onChanged = function () {
-    if (!this.read()) {
+  robot.button.a.onEvent = (event) => {
+    if (!event.pressed) {
       return
     }
     trace('flashing id 0x02\n')
     robot._driver._pan.flashId(0x02)
   }
-  robot.button.a.onChanged = function () {
-    if (!this.read()) {
+  robot.button.a.onEvent = (event) => {
+    if (!event.pressed) {
       return
     }
     const angle = isRight ? 10 : -10

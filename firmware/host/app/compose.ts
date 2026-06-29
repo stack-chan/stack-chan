@@ -28,11 +28,12 @@ import { TTS as OpenAITTS } from 'tts-openai'
 import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
-import type { Button, RobotUI, StackchanContext, TTS } from './capabilities'
+import type { RobotUI, StackchanContext, TTS } from './capabilities'
 import { StackchanRuntimeContext } from './runtime-context'
 
-type DeviceButton = Button & {
+type DeviceButton = {
   read: () => number
+  onChanged: (this: DeviceButton) => void
 }
 
 type SimulatorButtonCtor = new (options: {

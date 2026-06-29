@@ -13,6 +13,7 @@
     "../../stackchan/dialogues/manifest_dialogue.json",
     "../../stackchan/led/manifest_led.json",
     "../modules/ui/manifest.json",
+    "../modules/input/manifest.json",
     "../../stackchan/services/manifest_service.json",
     "../../stackchan/speeches/manifest_speech.json",
     "../../stackchan/transcriptions/manifest_transcription.json",
@@ -23,11 +24,6 @@
   ],
   "modules": {
     "*": [
-      "../../stackchan/touch",
-      "../../stackchan/touch-panel",
-      "../../stackchan/touch-panel-gesture",
-      "../../stackchan/imu",
-      "../../stackchan/imu-motion",
       "../../stackchan/camera",
       "../../stackchan/tone",
       "./main",

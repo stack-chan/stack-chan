@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { type IMUSample, MotionRecognizer, magnitude } from '../../stackchan/imu-motion.js'
+import { type IMUSample, MotionRecognizer, magnitude } from '../../host/modules/input/imu-motion.js'
 
 function run(samples: IMUSample[], options = {}): string[] {
   const recognizer = new MotionRecognizer(options)

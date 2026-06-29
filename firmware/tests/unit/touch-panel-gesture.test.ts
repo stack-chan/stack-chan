@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { GestureRecognizer, type TouchPanelGestureType } from '../../stackchan/touch-panel-gesture.js'
+import { GestureRecognizer, type TouchPanelGestureType } from '../../host/modules/input/touch-panel-gesture.js'
 
 function run(samples: number[][]): TouchPanelGestureType[] {
   const recognizer = new GestureRecognizer()

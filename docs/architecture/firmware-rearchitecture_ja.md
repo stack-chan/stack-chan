@@ -254,7 +254,7 @@ flowchart TD
 - [ ] 未対応：`firmware/host/modules/camera` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/conversation` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/connectivity` を作成し、`manifest.json` と `manifest.test.json` を置く。
-- [ ] 未対応：`firmware/host/modules/input` を作成し、`manifest.json` と `manifest.test.json` を置く。
+- [x] 対応済み：`firmware/host/modules/input` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/lighting` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/motion` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/preferences` を作成し、`manifest.json` と `manifest.test.json` を置く。
@@ -310,7 +310,7 @@ flowchart TD
 
 ### 9. Input、Lighting、Camera、Preferences、Util の移行
 
-- [ ] 未対応：`firmware/stackchan/touch*` と `firmware/stackchan/imu*` を `firmware/host/modules/input` へ移す。
+- [x] 対応済み：`firmware/stackchan/touch*` と `firmware/stackchan/imu*` を `firmware/host/modules/input` へ移す。
 - [ ] 未対応：button、touch、touch panel、IMU の入力を短い event struct へ正規化する。
 - [ ] 未対応：入力イベントを Piu や MOD へ raw object のまま渡さない。
 - [ ] 未対応：入力の polling で `Timer.repeat(async () => ...)` を使わない。

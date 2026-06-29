@@ -8,22 +8,13 @@
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
     "../modules/ui/manifest_wasm.json",
+    "../modules/input/manifest.json",
     "../modules/util/manifest.json",
     "../modules/preferences/manifest.json",
     "./manifest_typings.json"
   ],
   "modules": {
-    "*": [
-      "../../stackchan/touch",
-      "../../stackchan/touch-panel",
-      "../../stackchan/touch-panel-gesture",
-      "../../stackchan/imu",
-      "../../stackchan/imu-motion",
-      "./main",
-      "./compose",
-      "./capabilities",
-      "./runtime-context"
-    ],
+    "*": ["./main", "./compose", "./capabilities", "./runtime-context"],
     "startup-splash": "../modules/ui/views/splash/splash-view",
     "camera": "../../stackchan/wasm/camera",
     "wasm-camera-bridge": "../../stackchan/wasm/camera-bridge",

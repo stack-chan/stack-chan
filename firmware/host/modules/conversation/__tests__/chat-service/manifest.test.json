@@ -10,7 +10,7 @@
     "chat-state": "../../chat-state",
     "mcp-tools": "../../mcp-tools",
     "ChatAudioIO": "../../../testing/fakes/ChatAudioIO",
-    "*": ["./chat-service.test"]
+    "main": "./chat-service.test"
   },
   "defines": {
     "main": {

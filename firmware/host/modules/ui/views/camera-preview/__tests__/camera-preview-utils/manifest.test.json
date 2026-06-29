@@ -4,6 +4,6 @@
     "../../../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./camera-preview-utils.test"]
+    "main": "./camera-preview-utils.test"
   }
 }

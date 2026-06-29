@@ -4,6 +4,6 @@
     "../../../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./face-view-state.test"]
+    "main": "./face-view-state.test"
   }
 }

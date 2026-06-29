@@ -6,7 +6,7 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./tts-elevenlabs.test"]
+    "main": "./tts-elevenlabs.test"
   },
   "defines": {
     "main": {

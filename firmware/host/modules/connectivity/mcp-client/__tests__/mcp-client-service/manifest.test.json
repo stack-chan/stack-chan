@@ -10,7 +10,7 @@
     "../../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./mcp-client-service.test"]
+    "main": "./mcp-client-service.test"
   },
   "platforms": {
     "lin": {

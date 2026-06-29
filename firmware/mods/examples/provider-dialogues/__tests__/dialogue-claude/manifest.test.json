@@ -6,7 +6,7 @@
     "../../../../../host/app/manifest_typings.json"
   ],
   "modules": {
-    "*": ["./dialogue-claude.test"]
+    "main": "./dialogue-claude.test"
   },
   "defines": {
     "main": {

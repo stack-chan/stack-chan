@@ -6,6 +6,6 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./network-service.test"]
+    "main": "./network-service.test"
   }
 }

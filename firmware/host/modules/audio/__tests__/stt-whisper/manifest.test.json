@@ -8,7 +8,7 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./stt-whisper.test"]
+    "main": "./stt-whisper.test"
   },
   "defines": {
     "main": {

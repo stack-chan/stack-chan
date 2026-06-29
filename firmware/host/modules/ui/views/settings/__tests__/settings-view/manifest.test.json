@@ -4,6 +4,6 @@
     "../../../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./settings-view.test"]
+    "main": "./settings-view.test"
   }
 }

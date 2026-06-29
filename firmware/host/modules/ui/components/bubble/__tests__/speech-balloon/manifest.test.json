@@ -17,6 +17,6 @@
     ]
   },
   "modules": {
-    "*": ["./speech-balloon.test"]
+    "main": "./speech-balloon.test"
   }
 }

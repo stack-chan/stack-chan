@@ -121,17 +121,16 @@ test('Moddable test manifests use local test modules as main entries', () => {
 
   for (const manifestPath of manifestPaths) {
     const manifest = readJson(manifestPath)
-    const mainEntries = manifest.modules?.['*']
-    if (!mainEntries) continue
+    const mainEntry = manifest.modules?.main
+    if (!mainEntry) continue
+    assert.equal(typeof mainEntry, 'string', `${manifestPath} should define modules.main`)
 
-    for (const entry of Array.isArray(mainEntries) ? mainEntries : [mainEntries]) {
-      assert.match(entry, /^\.\/[^/]+\.test$/, `${manifestPath} should use a local *.test module`)
-      assert.ok(
-        existsSync(join(dirname(manifestPath), `${entry.slice(2)}.ts`)) ||
-          existsSync(join(dirname(manifestPath), `${entry.slice(2)}.js`)),
-        `${manifestPath} should point to an existing local test file`,
-      )
-    }
+    assert.match(mainEntry, /^\.\/[^/]+\.test$/, `${manifestPath} should use a local *.test module`)
+    assert.ok(
+      existsSync(join(dirname(manifestPath), `${mainEntry.slice(2)}.ts`)) ||
+        existsSync(join(dirname(manifestPath), `${mainEntry.slice(2)}.js`)),
+      `${manifestPath} should point to an existing local test file`,
+    )
   }
 })
 
@@ -140,18 +139,17 @@ test('Moddable test main entries trace ok and avoid not ok status strings', () =
 
   for (const manifestPath of manifestPaths) {
     const manifest = readJson(manifestPath)
-    const mainEntries = manifest.modules?.['*']
-    if (!mainEntries) continue
+    const mainEntry = manifest.modules?.main
+    if (!mainEntry) continue
+    assert.equal(typeof mainEntry, 'string', `${manifestPath} should define modules.main`)
 
-    for (const entry of Array.isArray(mainEntries) ? mainEntries : [mainEntries]) {
-      const testFile = existsSync(join(dirname(manifestPath), `${entry.slice(2)}.ts`))
-        ? join(dirname(manifestPath), `${entry.slice(2)}.ts`)
-        : join(dirname(manifestPath), `${entry.slice(2)}.js`)
-      const source = readFileSync(testFile, 'utf8')
+    const testFile = existsSync(join(dirname(manifestPath), `${mainEntry.slice(2)}.ts`))
+      ? join(dirname(manifestPath), `${mainEntry.slice(2)}.ts`)
+      : join(dirname(manifestPath), `${mainEntry.slice(2)}.js`)
+    const source = readFileSync(testFile, 'utf8')
 
-      assert.match(source, /trace\(['"]ok\\n['"]\)/, `${testFile} should trace ok on success`)
-      assert.doesNotMatch(source, /not ok/, `${testFile} should not use not ok for failure status`)
-    }
+    assert.match(source, /trace\(['"]ok\\n['"]\)/, `${testFile} should trace ok on success`)
+    assert.doesNotMatch(source, /not ok/, `${testFile} should not use not ok for failure status`)
   }
 })
 

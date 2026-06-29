@@ -7,6 +7,6 @@
     "app-behavior": "./app-behavior-stub",
     "app-default-behavior/on-context-created": "../../on-context-created",
     "imu": "./imu-stub",
-    "*": ["./face-init.test"]
+    "main": "./face-init.test"
   }
 }

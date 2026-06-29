@@ -6,7 +6,7 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./tts-openai.test"]
+    "main": "./tts-openai.test"
   },
   "defines": {
     "main": {

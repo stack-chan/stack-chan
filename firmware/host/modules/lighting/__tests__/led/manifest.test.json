@@ -7,7 +7,7 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./led.test"]
+    "main": "./led.test"
   },
   "defines": {
     "main": {

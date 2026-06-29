@@ -6,7 +6,7 @@
   ],
   "modules": {
     "chat-audioio-config": "../../config",
-    "*": ["./chat-audioio-config.test"]
+    "main": "./chat-audioio-config.test"
   },
   "typescript": {
     "tsconfig": {

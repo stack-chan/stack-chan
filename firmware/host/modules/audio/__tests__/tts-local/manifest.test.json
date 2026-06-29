@@ -9,7 +9,7 @@
     "*": "$(MODDABLE)/examples/assets/sounds/*"
   },
   "modules": {
-    "*": ["./tts-local.test"]
+    "main": "./tts-local.test"
   },
   "defines": {
     "main": {

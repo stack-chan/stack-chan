@@ -7,6 +7,6 @@
   ],
   "modules": {
     "py32-io-expander": "../fakes/py32-io-expander-stub",
-    "*": ["./sg90-driver.test"]
+    "main": "./sg90-driver.test"
   }
 }

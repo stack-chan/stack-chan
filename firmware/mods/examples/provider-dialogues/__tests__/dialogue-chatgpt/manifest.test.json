@@ -6,7 +6,7 @@
     "../../../../../host/app/manifest_typings.json"
   ],
   "modules": {
-    "*": ["./dialogue-chatgpt.test"]
+    "main": "./dialogue-chatgpt.test"
   },
   "defines": {
     "main": {

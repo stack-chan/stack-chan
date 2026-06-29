@@ -7,6 +7,6 @@
   ],
   "modules": {
     "py32-io-expander": "../fakes/py32-io-expander-stub",
-    "*": ["./dynamixel-driver.test"]
+    "main": "./dynamixel-driver.test"
   }
 }

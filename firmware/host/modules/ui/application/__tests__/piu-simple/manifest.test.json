@@ -12,7 +12,7 @@
   "modules": {
     "twohex_stub": "./twohex_stub",
     "mac-address": "../../../../util/sim/mac-address",
-    "*": ["./piu-simple.test"]
+    "main": "./piu-simple.test"
   },
   "resources": {
     "*-alpha": [

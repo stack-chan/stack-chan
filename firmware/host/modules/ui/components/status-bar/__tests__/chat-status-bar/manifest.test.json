@@ -7,6 +7,6 @@
     "../../../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./chat-status-bar.test"]
+    "main": "./chat-status-bar.test"
   }
 }

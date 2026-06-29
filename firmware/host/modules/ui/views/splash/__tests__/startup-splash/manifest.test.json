@@ -4,6 +4,6 @@
     "../../../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./startup-splash.test"]
+    "main": "./startup-splash.test"
   }
 }

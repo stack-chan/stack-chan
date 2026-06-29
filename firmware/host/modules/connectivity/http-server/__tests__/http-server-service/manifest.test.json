@@ -5,6 +5,6 @@
     "../../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./http-server-service.test"]
+    "main": "./http-server-service.test"
   }
 }

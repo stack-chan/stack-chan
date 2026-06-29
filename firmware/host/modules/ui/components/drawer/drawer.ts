@@ -191,6 +191,7 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
       }),
     ],
     Behavior: class extends Behavior {
+      coordinates = { right: drawerHiddenOffset, width: drawerWidth, top: 0, bottom: 0 } as unknown as Coordinates
       isOpen = false
       timeline: Timeline | null = null
       offset = drawerHiddenOffset
@@ -209,7 +210,8 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
         this.timeline = null
       }
       applyPosition(container: PiuContainer, right: number) {
-        container.coordinates = { right, width: drawerWidth, top: 0, bottom: 0 } as unknown as Coordinates
+        this.coordinates.right = right
+        container.coordinates = this.coordinates
       }
       startAnimation(container: PiuContainer, to: number) {
         const from = this.offset

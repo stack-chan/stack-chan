@@ -36,6 +36,28 @@ function readJson(path: string) {
   return JSON.parse(readFileSync(path, 'utf8'))
 }
 
+function extractMethodBlocks(source: string, methodName: string): string[] {
+  const blocks: string[] = []
+  const pattern = new RegExp(`${methodName}\\([^)]*\\)(?:\\s*:[^{]+)?\\s*\\{`, 'g')
+  let match: RegExpExecArray | null = pattern.exec(source)
+  while (match) {
+    const open = source.indexOf('{', match.index)
+    let depth = 0
+    for (let i = open; i < source.length; i++) {
+      const ch = source[i]
+      if (ch === '{') depth += 1
+      if (ch === '}') depth -= 1
+      if (depth === 0) {
+        blocks.push(source.slice(match.index, i + 1))
+        pattern.lastIndex = i + 1
+        break
+      }
+    }
+    match = pattern.exec(source)
+  }
+  return blocks
+}
+
 function isSourceFile(path: string): boolean {
   return /\.(?:ts|js)$/.test(path)
 }
@@ -88,6 +110,63 @@ test('Timer and input handlers do not inline async functions', () => {
     assert.doesNotMatch(source, /onEvent\s*=\s*async\b/, `${sourcePath} should not use async input handlers`)
     assert.doesNotMatch(source, /onEvent\s*=\s*async\s+function\b/, `${sourcePath} should not use async input handlers`)
     assert.doesNotMatch(source, /void\s*\(\s*async\b/, `${sourcePath} should not use inline async IIFEs`)
+  }
+})
+
+test('periodic motion hot paths reuse fixed state and callbacks', () => {
+  const controller = readFileSync(join(MODULE_ROOT, 'motion', 'motion-controller.ts'), 'utf8')
+  const updatePoseBlocks = extractMethodBlocks(controller, 'updatePose')
+
+  assert.equal(updatePoseBlocks.length, 1, 'MotionController should have one updatePose hot path')
+  assert.doesNotMatch(controller, /Vector3\.rotate/, 'MotionController should avoid allocating Vector3.rotate')
+  assert.doesNotMatch(
+    controller,
+    /Rotation\.fromVector3/,
+    'MotionController should avoid allocating Rotation.fromVector3',
+  )
+  assert.doesNotMatch(controller, /getRotation\(\s*\(/, 'MotionController should reuse getRotation callback')
+  assert.doesNotMatch(controller, /setTorque\(true,\s*\(/, 'MotionController should reuse setTorque callback')
+  assert.doesNotMatch(
+    controller,
+    /applyRotation\([^,\n]+,\s*[^,\n]+,\s*\(/,
+    'MotionController should reuse applyRotation callback',
+  )
+  assert.doesNotMatch(controller, /Timer\.set\(\s*\(/, 'MotionController should reuse Timer callback')
+
+  for (const block of updatePoseBlocks) {
+    assert.doesNotMatch(block, /\bnew\b/, 'updatePose should not allocate objects')
+    assert.doesNotMatch(block, /(?:=|return|,\s*)\s*\{/, 'updatePose should not create object literals')
+    assert.doesNotMatch(block, /(?:=|return|,\s*)\s*\[/, 'updatePose should not create array literals')
+    assert.doesNotMatch(block, /\.\s*(?:map|filter|reduce)\s*\(/, 'updatePose should not allocate arrays')
+  }
+
+  const driverFiles = [
+    'dynamixel-driver.ts',
+    'm5stackchan-servo-driver.ts',
+    'none-driver.ts',
+    'rs30x-driver.ts',
+    'scservo-driver.ts',
+    'sg90-driver.ts',
+    'wasm/wasm-driver.ts',
+  ]
+  for (const driverFile of driverFiles) {
+    const driverPath = join(MODULE_ROOT, 'motion', driverFile)
+    const driver = readFileSync(driverPath, 'utf8')
+    const getRotationBlocks = extractMethodBlocks(driver, 'getRotation')
+    assert.equal(getRotationBlocks.length, 1, `${driverPath} should have one getRotation path`)
+    assert.doesNotMatch(getRotationBlocks[0], /callback\(\s*\{/, `${driverPath} should reuse getRotation result`)
+    assert.doesNotMatch(getRotationBlocks[0], /value:\s*\{/, `${driverPath} should reuse getRotation value`)
+    assert.doesNotMatch(
+      getRotationBlocks[0],
+      /(?:=|return|,\s*)\s*\[/,
+      `${driverPath} should not create array literals`,
+    )
+    assert.doesNotMatch(
+      getRotationBlocks[0],
+      /\.\s*(?:map|filter|reduce)\s*\(/,
+      `${driverPath} should not allocate arrays`,
+    )
+    assert.doesNotMatch(getRotationBlocks[0], /\.\.\./, `${driverPath} should not use spread`)
   }
 })
 

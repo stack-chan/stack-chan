@@ -159,6 +159,15 @@ test('UI animation hot paths do not allocate Piu skins/styles or update text eac
     const blocks = extractMethodBlocks(source, 'onTimeChanged')
     assert.ok(blocks.length > 0, `${file} should have an onTimeChanged hot path`)
     for (const block of blocks) {
+      assert.doesNotMatch(block, /\bnew\b/, `${file} should not allocate objects in onTimeChanged`)
+      assert.doesNotMatch(block, /(?:=|return|,\s*)\s*\{/, `${file} should not create object literals in onTimeChanged`)
+      assert.doesNotMatch(block, /(?:=|return|,\s*)\s*\[/, `${file} should not create array literals in onTimeChanged`)
+      assert.doesNotMatch(
+        block,
+        /\.\s*(?:map|filter|reduce)\s*\(/,
+        `${file} should not allocate arrays in onTimeChanged`,
+      )
+      assert.doesNotMatch(block, /\.\.\./, `${file} should not use spread in onTimeChanged`)
       assert.doesNotMatch(block, /\bnew\s+(Skin|Style)\b/, `${file} should not allocate Skin/Style in onTimeChanged`)
       assert.doesNotMatch(block, /\.string\s*=/, `${file} should not update text in onTimeChanged`)
     }

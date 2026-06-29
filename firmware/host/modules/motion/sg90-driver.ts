@@ -49,6 +49,8 @@ export class PWMServoDriver {
   _range
   _offsetPan
   _offsetTilt
+  #rotation: Rotation = { y: 0, p: 0, r: 0 }
+  #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
 
   constructor(param: PWMServoDriverProps = {}) {
     const pwmPan = param.pwmPan ?? 5
@@ -112,13 +114,9 @@ export class PWMServoDriver {
   }
 
   getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
-    callback({
-      success: true,
-      value: {
-        y: (Math.PI * this._panRef.current) / 180,
-        p: (Math.PI * this._tiltRef.current) / 180,
-        r: 0.0,
-      },
-    })
+    this.#rotation.y = (Math.PI * this._panRef.current) / 180
+    this.#rotation.p = (Math.PI * this._tiltRef.current) / 180
+    this.#rotation.r = 0.0
+    callback(this.#rotationResult)
   }
 }

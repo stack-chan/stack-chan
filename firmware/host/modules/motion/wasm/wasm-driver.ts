@@ -35,6 +35,12 @@ const ZERO_ROTATION: Rotation = { y: 0, p: 0, r: 0 }
 const writeTrace = (message: string) =>
   (globalThis as unknown as { trace?: (message: string) => void }).trace?.(message)
 
+function copyRotation(from: Rotation, to: Rotation): void {
+  to.y = from.y
+  to.p = from.p
+  to.r = from.r
+}
+
 function assertValidRotation(rotation: Rotation): void {
   if (!Number.isFinite(rotation.y) || !Number.isFinite(rotation.p) || !Number.isFinite(rotation.r)) {
     throw new TypeError('Invalid rotation: y, p, and r must be finite numbers')
@@ -42,7 +48,8 @@ function assertValidRotation(rotation: Rotation): void {
 }
 
 export class WasmDriver {
-  #rotation: Rotation = { ...ZERO_ROTATION }
+  #rotation: Rotation = { y: ZERO_ROTATION.y, p: ZERO_ROTATION.p, r: ZERO_ROTATION.r }
+  #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
 
   constructor(_options?: unknown) {
     void _options
@@ -51,7 +58,7 @@ export class WasmDriver {
   applyRotation(rotation: Rotation, time?: number, callback?: MotionCompletion): void {
     try {
       assertValidRotation(rotation)
-      this.#rotation = { ...rotation }
+      copyRotation(rotation, this.#rotation)
       writeTrace(
         `[WasmDriver] applyRotation y=${rotation.y} p=${rotation.p} r=${rotation.r} time=${time === undefined ? '' : time}\n`,
       )
@@ -64,7 +71,8 @@ export class WasmDriver {
 
   getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
     const rotation = globalThis.Host?.Driver?.getRotation?.() ?? this.#rotation
-    callback({ success: true, value: { ...rotation } })
+    copyRotation(rotation, this.#rotation)
+    callback(this.#rotationResult)
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {

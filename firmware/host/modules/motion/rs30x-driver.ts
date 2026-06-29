@@ -13,6 +13,10 @@ export class RS30XDriver {
   _pan: RS30X
   _tilt: RS30X
   _handler: ReturnType<typeof Timer.repeat>
+  #rotation: Rotation = { y: 0, p: 0, r: 0 }
+  #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
+  #rotationErrorResult: { success: false; reason?: string } = { success: false }
+
   constructor(param: RS30XDriverProps) {
     this._pan = new RS30X({ id: param.panId })
     this._tilt = new RS30X({ id: param.tiltId })
@@ -54,31 +58,24 @@ export class RS30XDriver {
   getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
     this._pan.readStatus((yawAngle, yawError) => {
       if (yawAngle == null) {
-        callback({
-          success: false,
-          reason: yawError == null ? 'response corrupted.' : reasonFromError(yawError),
-        })
+        this.#returnRotationError(callback, yawError == null ? 'response corrupted.' : reasonFromError(yawError))
         return
       }
       this._tilt.readStatus((tiltAngle, tiltError) => {
         if (tiltAngle == null) {
-          callback({
-            success: false,
-            reason: tiltError == null ? 'response corrupted.' : reasonFromError(tiltError),
-          })
+          this.#returnRotationError(callback, tiltError == null ? 'response corrupted.' : reasonFromError(tiltError))
           return
         }
-        const y = (-Math.PI * yawAngle) / 180
-        const p = (-Math.PI * tiltAngle) / 180
-        callback({
-          success: true,
-          value: {
-            y,
-            p,
-            r: 0.0,
-          },
-        })
+        this.#rotation.y = (-Math.PI * yawAngle) / 180
+        this.#rotation.p = (-Math.PI * tiltAngle) / 180
+        this.#rotation.r = 0.0
+        callback(this.#rotationResult)
       })
     })
+  }
+
+  #returnRotationError(callback: MotionResultCallback<Maybe<Rotation>>, reason?: string): void {
+    this.#rotationErrorResult.reason = reason
+    callback(this.#rotationErrorResult)
   }
 }

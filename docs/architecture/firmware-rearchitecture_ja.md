@@ -391,8 +391,8 @@ flowchart TD
 - [x] 対応済み：Timer、Piu Behavior、driver、input handler の中で新規 `async` 関数を使わない。
 - [x] 対応済み：低レイヤの待ち合わせは callback と状態 enum で進める。
 - [x] 対応済み：戻り値に `Promise` を返す関数は network fetch、外部 API、app 境界、test helper に限定する。
-- [ ] 未対応：周期更新する状態は固定構造を再利用する。
-- [ ] 未対応：毎フレーム動く処理で object を生成しない。
+- [x] 対応済み：周期更新する状態は固定構造を再利用する。
+- [x] 対応済み：毎フレーム動く処理で object を生成しない。
 - [ ] 未対応：色、感情、状態は内部で数値として扱う。
 - [ ] 未対応：ログや設定ファイルへ出す境界でだけ文字列へ変換する。
 - [ ] 未対応：継続可能な状態変化は例外ではなく状態遷移または callback で通知する。
@@ -435,6 +435,8 @@ flowchart TD
 - [ ] 未対応：`npm run check:legacy-names` で検出される旧 renderer 文書と generated API docs を削除または更新する。
 
 ### 16. Merge 条件
+
+注：移行計画の完遂後も、`develop` へのマージは行わず、PR の作成までを作業範囲とする。
 
 - [ ] 未対応：app layer が module の生成と接続だけを行っている。
 - [ ] 未対応：`Robot` が全機能を抱える Facade ではなくなっている。

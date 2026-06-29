@@ -44,7 +44,8 @@ export class FaceBehavior extends Behavior {
   #current: FaceState
   #desired: FaceState
   #motions: FaceMotion[]
-  #baseCoordinates: { left: number; top: number } | null
+  #baseCoordinates: { left: number; top: number }
+  #hasBaseCoordinates: boolean
   #paused: boolean
   #skinPalette: FaceSkinPalette | null
   #breathPixels: number
@@ -59,7 +60,8 @@ export class FaceBehavior extends Behavior {
     ]
     this.#current = createFaceState()
     this.#desired = createFaceState()
-    this.#baseCoordinates = null
+    this.#baseCoordinates = { left: 0, top: 0 }
+    this.#hasBaseCoordinates = false
     this.#paused = false
     this.#skinPalette = null
     this.#breathPixels = 6
@@ -82,12 +84,8 @@ export class FaceBehavior extends Behavior {
   }
 
   onDisplaying(container: PiuContainer) {
-    if (this.#baseCoordinates === null) {
-      const coordinates = container.coordinates
-      this.#baseCoordinates = {
-        left: coordinates?.left ?? 0,
-        top: coordinates?.top ?? 0,
-      }
+    if (!this.#hasBaseCoordinates) {
+      this.captureBaseCoordinates(container)
     }
     if (!this.#paused) {
       container.start?.()
@@ -117,12 +115,8 @@ export class FaceBehavior extends Behavior {
     for (const motion of this.#motions) {
       motion(interval, this.#current)
     }
-    if (this.#baseCoordinates === null) {
-      const coordinates = container.coordinates
-      this.#baseCoordinates = {
-        left: coordinates?.left ?? 0,
-        top: coordinates?.top ?? 0,
-      }
+    if (!this.#hasBaseCoordinates) {
+      this.captureBaseCoordinates(container)
     }
     const nextBreathOffset = this.#current.breath * this.#breathPixels
     const dy = nextBreathOffset - this.#breathOffset
@@ -144,12 +138,8 @@ export class FaceBehavior extends Behavior {
   }
 
   getBaseCoordinates(container: PiuContainer): { left: number; top: number } {
-    if (this.#baseCoordinates === null) {
-      const coordinates = container.coordinates
-      this.#baseCoordinates = {
-        left: coordinates?.left ?? 0,
-        top: coordinates?.top ?? 0,
-      }
+    if (!this.#hasBaseCoordinates) {
+      this.captureBaseCoordinates(container)
     }
     return { ...this.#baseCoordinates }
   }
@@ -163,12 +153,8 @@ export class FaceBehavior extends Behavior {
     } else {
       this.updateSkinPalette(container, face)
     }
-    if (this.#baseCoordinates === null) {
-      const coordinates = container.coordinates
-      this.#baseCoordinates = {
-        left: coordinates?.left ?? 0,
-        top: coordinates?.top ?? 0,
-      }
+    if (!this.#hasBaseCoordinates) {
+      this.captureBaseCoordinates(container)
     }
   }
 
@@ -206,6 +192,13 @@ export class FaceBehavior extends Behavior {
       ;(container as PiuContainer & { faceSkin?: FaceSkinPalette }).faceSkin = this.#skinPalette
     }
     return changed
+  }
+
+  private captureBaseCoordinates(container: PiuContainer): void {
+    const coordinates = container.coordinates
+    this.#baseCoordinates.left = coordinates?.left ?? 0
+    this.#baseCoordinates.top = coordinates?.top ?? 0
+    this.#hasBaseCoordinates = true
   }
 }
 

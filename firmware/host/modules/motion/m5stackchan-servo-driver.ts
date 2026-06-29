@@ -33,6 +33,9 @@ export class M5StackChanServoDriver {
   #pan: SCServo
   #tilt: SCServo
   #config: M5StackChanServoConfig
+  #rotation: Rotation = { y: 0, p: 0, r: 0 }
+  #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
+  #rotationErrorResult: { success: false; reason?: string } = { success: false }
   #servoPower?: {
     setEnabled: (enabled: boolean) => void
   }
@@ -110,32 +113,27 @@ export class M5StackChanServoDriver {
   getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
     this.#pan.readRawPosition((panStatus) => {
       if (panStatus.success === false) {
-        callback({
-          success: false,
-          reason: panStatus.reason,
-        })
+        this.#returnRotationError(callback, panStatus.reason)
         return
       }
       this.#tilt.readRawPosition((tiltStatus) => {
         if (tiltStatus.success === false) {
-          callback({
-            success: false,
-            reason: tiltStatus.reason,
-          })
+          this.#returnRotationError(callback, tiltStatus.reason)
           return
         }
         const yawAngle = rawPositionToAngle(panStatus.value.position, this.#config.yaw)
         const pitchAngle = rawPositionToAngle(tiltStatus.value.position, this.#config.pitch)
-        callback({
-          success: true,
-          value: {
-            y: yawAngle / RAD_TO_01_DEGREE,
-            p: -(pitchAngle / RAD_TO_01_DEGREE),
-            r: 0.0,
-          },
-        })
+        this.#rotation.y = yawAngle / RAD_TO_01_DEGREE
+        this.#rotation.p = -(pitchAngle / RAD_TO_01_DEGREE)
+        this.#rotation.r = 0.0
+        callback(this.#rotationResult)
       })
     })
+  }
+
+  #returnRotationError(callback: MotionResultCallback<Maybe<Rotation>>, reason?: string): void {
+    this.#rotationErrorResult.reason = reason
+    callback(this.#rotationErrorResult)
   }
 }
 

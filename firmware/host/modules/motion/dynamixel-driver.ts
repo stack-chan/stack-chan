@@ -91,6 +91,9 @@ export class DynamixelDriver {
   _running: boolean
   _attached: boolean
   _interval: number
+  #rotation: Rotation = { y: 0, p: 0, r: 0 }
+  #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
+
   constructor(param: DynamixelDriverProps) {
     this._pan = new Dynamixel({ id: param.panId, baudrate: param.baud })
     this._tilt = new Dynamixel({ id: param.tiltId, baudrate: param.baud })
@@ -241,14 +244,11 @@ export class DynamixelDriver {
   }
 
   getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
-    const [p1, p2] = this._controls.map((c) => (c.presentPosition * 360) / 4096 - 180)
-    callback({
-      success: true,
-      value: {
-        y: (p1 * Math.PI) / 180,
-        p: (p2 * Math.PI) / 180,
-        r: 0.0,
-      },
-    })
+    const p1 = (this._controls[0].presentPosition * 360) / 4096 - 180
+    const p2 = (this._controls[1].presentPosition * 360) / 4096 - 180
+    this.#rotation.y = (p1 * Math.PI) / 180
+    this.#rotation.p = (p2 * Math.PI) / 180
+    this.#rotation.r = 0.0
+    callback(this.#rotationResult)
   }
 }

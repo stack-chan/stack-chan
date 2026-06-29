@@ -130,6 +130,22 @@ test('Dog face accent parts render updates through Port hot paths', () => {
   }
 })
 
+test('Bubble components avoid Shape backgrounds and reuse palette resources', () => {
+  const speech = readFileSync('host/modules/ui/components/bubble/speech-balloon.ts', 'utf8')
+  const multirow = readFileSync('host/modules/ui/components/bubble/multirow-balloon.ts', 'utf8')
+
+  assert.match(speech, /const bubbleSkinCache = new Map/)
+  assert.match(speech, /const textStyleCache = new Map/)
+  assert.match(speech, /new Texture\('bubble\.png'\)/)
+  assert.match(speech, /getBubbleSkin\(bubbleColor\)/)
+
+  assert.match(multirow, /\bnew Port\(/)
+  assert.match(multirow, /\.fillColor\(/)
+  assert.match(multirow, /\.invalidate\(\)/)
+  assert.doesNotMatch(multirow, /from 'commodetto\/outline'/)
+  assert.doesNotMatch(multirow, /\bnew Shape\b/)
+})
+
 test('UI animation hot paths do not allocate Piu skins/styles or update text each tick', () => {
   const hotPathFiles = [
     'host/modules/ui/components/status-bar/chat-status-bar.ts',

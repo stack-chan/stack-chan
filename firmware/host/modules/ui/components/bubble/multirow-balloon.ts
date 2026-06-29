@@ -1,7 +1,12 @@
-import { Outline } from 'commodetto/outline'
 import { createFaceState, type FaceState, toPiuColorNumber } from 'face-state'
-import type { Container as PiuContainer, Content as PiuContent, Style as PiuStyle, Text as PiuText } from 'piu/MC'
-import type { Shape as PiuShape } from 'piu/shape'
+import {
+  type Container as PiuContainer,
+  type Content as PiuContent,
+  type Port as PiuPort,
+  type Style as PiuStyle,
+  type Text as PiuText,
+  Port,
+} from 'piu/MC'
 
 const defaultOptions = {
   left: 0,
@@ -16,6 +21,9 @@ const defaultOptions = {
   charWidth: 8,
   lineHeight: 12,
 }
+
+const CLEAR_COLOR = 'transparent'
+const textStyleCache = new Map<string, PiuStyle>()
 
 type MultiRowBalloonOptions = {
   name?: string
@@ -34,13 +42,24 @@ type MultiRowBalloonOptions = {
   lineHeight?: number
 }
 
-type WithShape = PiuContent &
-  Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & { fillOutline?: unknown; strokeOutline?: unknown; skin?: unknown }
 type BodyText = PiuText
+
+function colorString(color: number): string {
+  return `#${color.toString(16).padStart(6, '0')}`
+}
+
+function getTextStyle(font: string, color: number | string): PiuStyle {
+  const key = `${font}:${color}`
+  const cached = textStyleCache.get(key)
+  if (cached) return cached
+  const style = new Style({ font, color, horizontal: 'left' })
+  textStyleCache.set(key, style)
+  return style
+}
 
 export const MultiRowBalloon = Container.template((opts: MultiRowBalloonOptions = {}) => {
   const o = { ...defaultOptions, ...opts }
-  let shape: WithShape | null = null
+  let background: PiuPort | null = null
   let bodyText: BodyText | null = null
   let currentPrimary: number | null = null
   let currentSecondary: number | null = null
@@ -52,7 +71,7 @@ export const MultiRowBalloon = Container.template((opts: MultiRowBalloonOptions 
   const top = opts.top
   const bottom = opts.bottom ?? defaultOptions.bottom
   const width = opts.width
-  const style: PiuStyle = new Style({ font: o.font, color: '#000', horizontal: 'left' })
+  const style = getTextStyle(o.font, '#000')
 
   const resolveWidth = (self: PiuContainer) => {
     const w = self.width
@@ -84,18 +103,33 @@ export const MultiRowBalloon = Container.template((opts: MultiRowBalloonOptions 
       ensureParts(self: PiuContainer) {
         const w = resolveWidth(self)
         const h = resolveHeight(self)
-        if (shape && bodyText && layoutWidth === w && layoutHeight === h) return
-        if (shape || bodyText) {
+        if (background && bodyText && layoutWidth === w && layoutHeight === h) return
+        if (background || bodyText) {
           self.empty()
-          shape = null
+          background = null
           bodyText = null
         }
         layoutWidth = w
         layoutHeight = h
-        shape = new Shape(null, { left: 0, top: 0, width: w, height: h }) as WithShape
-        const path = Outline.RoundRectPath(0, 0, w, h, o.radius)
-        shape.fillOutline = Outline.fill(path)
-        shape.strokeOutline = Outline.stroke(path, 2)
+        background = new Port(null, {
+          left: 0,
+          top: 0,
+          width: w,
+          height: h,
+          Behavior: class extends Behavior {
+            onDraw(port: PiuPort) {
+              port.fillColor(CLEAR_COLOR, 0, 0, w, h)
+              const primary = currentPrimary ?? 0xffffff
+              const secondary = currentSecondary ?? 0x000000
+              const stroke = 2
+              port.fillColor(colorString(secondary), 0, 0, w, h)
+              port.fillColor(colorString(primary), 0, 0, w, stroke)
+              port.fillColor(colorString(primary), 0, h - stroke, w, stroke)
+              port.fillColor(colorString(primary), 0, 0, stroke, h)
+              port.fillColor(colorString(primary), w - stroke, 0, stroke, h)
+            }
+          },
+        }) as PiuPort
         bodyText = new Text(null, {
           left: o.paddingX,
           right: o.paddingX,
@@ -104,21 +138,20 @@ export const MultiRowBalloon = Container.template((opts: MultiRowBalloonOptions 
           string: '',
           style,
         })
-        self.add(shape)
+        self.add(background as unknown as PiuContent)
         self.add(bodyText)
         this.updateText(self, currentText)
       }
 
       updatePalette(face: FaceState) {
-        if (!shape || !bodyText) return
+        if (!background || !bodyText) return
         const primary = toPiuColorNumber(face.theme.primary)
         const secondary = toPiuColorNumber(face.theme.secondary)
         if (primary === currentPrimary && secondary === currentSecondary) return
         currentPrimary = primary
         currentSecondary = secondary
-        shape.skin = new Skin({ fill: secondary, stroke: primary })
-        const nextStyle = new Style({ font: o.font, color: primary, horizontal: 'left' })
-        bodyText.style = nextStyle
+        bodyText.style = getTextStyle(o.font, primary)
+        background.invalidate()
       }
 
       updateText(_self: PiuContainer, text: string) {

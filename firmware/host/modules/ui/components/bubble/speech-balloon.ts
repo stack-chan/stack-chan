@@ -4,6 +4,7 @@ import {
   Content,
   type Container as PiuContainer,
   type Content as PiuContent,
+  type Skin as PiuSkin,
   type Style as PiuStyle,
   type Text as PiuText,
   type Texture as PiuTexture,
@@ -14,6 +15,8 @@ import {
 } from 'piu/MC'
 
 let bubbleTexture: PiuTexture | null = null
+const bubbleSkinCache = new Map<number, PiuSkin>()
+const textStyleCache = new Map<string, PiuStyle>()
 
 const defaultOptions = {
   left: 16,
@@ -65,6 +68,35 @@ function resolveDimension(value: number | undefined, fallback: number): number {
   return value
 }
 
+function getTextStyle(font: string, color: number | string): PiuStyle {
+  const key = `${font}:${color}`
+  const cached = textStyleCache.get(key)
+  if (cached) return cached
+  const style = new Style({ font, color, horizontal: 'left' })
+  textStyleCache.set(key, style)
+  return style
+}
+
+function getBubbleSkin(color: number): PiuSkin {
+  const cached = bubbleSkinCache.get(color)
+  if (cached) return cached
+  if (!bubbleTexture) bubbleTexture = new Texture('bubble.png')
+  const skin = new Skin({
+    texture: bubbleTexture,
+    color: [color],
+    x: 0,
+    y: 0,
+    width: 204,
+    height: 332,
+    left: 24,
+    right: 24,
+    top: 12,
+    bottom: 12,
+  })
+  bubbleSkinCache.set(color, skin)
+  return skin
+}
+
 export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
   const o = { ...defaultOptions, ...opts }
   const paddingX = resolveDimension(opts.paddingX ?? opts.padding, defaultOptions.paddingX)
@@ -72,7 +104,7 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
   const minHeight = resolveDimension(opts.minHeight, defaultOptions.minHeight)
   const fixedHeight = opts.height
 
-  const style: PiuStyle = new Style({ font: o.font, color: '#000', horizontal: 'left' })
+  const style = getTextStyle(o.font, '#000')
   const lineHeight = Math.max(1, style.measure('Mg').height ?? 0)
   let background: WithSkin | null = null
   let bodyText: PiuText | null = null
@@ -156,7 +188,6 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
       updatePalette(face: FaceState) {
         currentFace = face
         if (!background || !bodyText) return
-        if (!bubbleTexture) bubbleTexture = new Texture('bubble.png')
         const primary = toPiuColorNumber(face.theme.primary)
         const secondary = toPiuColorNumber(face.theme.secondary)
         if (primary === currentPrimary && secondary === currentSecondary) return
@@ -164,19 +195,8 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
         currentSecondary = secondary
         const bubbleColor = primary
         const textColor = secondary === bubbleColor ? 0x000000 : secondary
-        background.skin = new Skin({
-          texture: bubbleTexture,
-          color: [bubbleColor],
-          x: 0,
-          y: 0,
-          width: 204,
-          height: 332,
-          left: 24,
-          right: 24,
-          top: 12,
-          bottom: 12,
-        })
-        bodyText.style = new Style({ font: o.font, color: textColor, horizontal: 'left' })
+        background.skin = getBubbleSkin(bubbleColor)
+        bodyText.style = getTextStyle(o.font, textColor)
       }
 
       updateText(self: PiuContainer, text: string) {

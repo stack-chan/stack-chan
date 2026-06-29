@@ -12,7 +12,6 @@ import config from 'mc/config'
 import Microphone from 'microphone'
 import Modules from 'modules'
 import type { MotionDriver } from 'motion-controller'
-import { NetworkService } from 'network-service'
 import { NoneDriver } from 'none-driver'
 import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import type { Container as PiuContainer } from 'piu/MC'
@@ -52,7 +51,6 @@ type UIOptions = {
 
 type GlobalEnvironment = {
   button?: Partial<Record<'a' | 'b' | 'c' | 'power', DeviceButton>>
-  network?: NetworkService
   device?: {
     sensor?: {
       TouchPanel?: new (options: unknown) => unknown
@@ -248,18 +246,4 @@ export function createStackchanContext(): StackchanContext {
     camera,
     led: led as ConstructorParameters<typeof StackchanRuntimeContext>[0]['led'],
   } as ConstructorParameters<typeof StackchanRuntimeContext>[0]) as unknown as StackchanContext
-}
-
-export async function connectConfiguredWiFi() {
-  const wifiPrefs = loadPreferences('wifi')
-  if (wifiPrefs.ssid == null || wifiPrefs.password == null) {
-    return
-  }
-  return new Promise<void>((resolve, reject) => {
-    globalEnv.network = new NetworkService({
-      ssid: wifiPrefs.ssid,
-      password: wifiPrefs.password,
-    })
-    globalEnv.network.connect(resolve, reject)
-  })
 }

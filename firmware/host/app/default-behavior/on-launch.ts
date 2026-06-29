@@ -1,6 +1,6 @@
 import type { StackchanAppBehavior } from 'app-behavior'
 import { DOMAIN, PREF_KEYS } from 'consts'
-import { NetworkService } from 'network-service'
+import { startNetworkConnection, stopNetworkConnection } from 'network-manager'
 import type { Application as PiuApplication } from 'piu/MC'
 import Preference from 'preference'
 import { PreferenceServer } from 'preference-server'
@@ -37,9 +37,32 @@ const preferenceString = (key: string): string => {
   return value === undefined || value === null ? '' : String(value)
 }
 
+function connectStoredWiFi(
+  status?: SettingsStatus,
+  labels?: ReturnType<typeof buildSettingsView>,
+  onConnected?: () => void,
+  onError?: () => void,
+): void {
+  const ssid = status?.['wifi.ssid'] ?? preferenceString('ssid')
+  const password = status?.['wifi.password'] ?? preferenceString('password')
+  if (ssid.length === 0 || password.length === 0) return
+  startNetworkConnection({
+    ssid,
+    password,
+    onStateChanged: (state) => {
+      if (!status || !labels) return
+      status.wifi = state
+      updateSettingsStatusLabels(labels, status)
+    },
+    onConnected,
+    onError,
+  })
+}
+
 export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () => {
   const startupChoice = await waitForStartupChoice()
   if (startupChoice.choice === 'boot') {
+    connectStoredWiFi()
     return true
   }
   const status: SettingsStatus = {
@@ -67,19 +90,13 @@ export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () 
     keys: PREF_KEYS,
   })
 
-  let networkService: NetworkService
   if (globalThis.button) {
     globalThis.button.a.onChanged = () => {
       if (status['wifi.ssid'].length > 0 && status['wifi.password'].length > 0) {
-        if (networkService != null) {
-          networkService.close()
-          networkService = null
-        }
-        networkService = new NetworkService({
-          ssid: status['wifi.ssid'],
-          password: status['wifi.password'],
-        })
-        networkService.connect(
+        stopNetworkConnection()
+        connectStoredWiFi(
+          status,
+          labels,
           () => {
             trace('connection complete\n')
             status.wifi = 'connected'
@@ -91,8 +108,6 @@ export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () 
             updateSettingsStatusLabels(labels, status)
           },
         )
-        status.wifi = 'connecting'
-        updateSettingsStatusLabels(labels, status)
       }
     }
   }

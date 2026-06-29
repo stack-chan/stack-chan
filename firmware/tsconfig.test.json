@@ -64,6 +64,8 @@
     "host/modules/input/touch-panel-gesture.ts",
     "host/modules/input/imu-motion.ts",
     "host/modules/camera/wasm/camera.ts",
+    "host/modules/connectivity/network-state.ts",
+    "host/modules/connectivity/__tests__/*.test.ts",
     "host/modules/audio/wasm/microphone.ts",
     "host/modules/motion/m5stackchan-servo.ts",
     "host/modules/motion/motion-controller.ts",

@@ -320,11 +320,11 @@ flowchart TD
 - [x] 対応済み：`firmware/stackchan/services/preference-server.ts` を `firmware/host/modules/connectivity` へ移す。
 - [x] 対応済み：`firmware/stackchan/services/wasm` の network/preference stub を `firmware/host/modules/connectivity/wasm` へ移す。
 - [x] 対応済み：`firmware/stackchan/ble` を `firmware/host/modules/connectivity` へ移す。
-- [ ] 未対応：ネットワーク接続とプロトコル処理を app 起動処理から外す。
-- [ ] 未対応：接続状態は callback で通知する。
-- [ ] 未対応：再接続と timeout は状態機械として実装する。
-- [ ] 未対応：fetch を使う外部 API 境界では `Promise` を許容する。
-- [ ] 未対応：内部イベント通知では `Promise` ではなく callback を使う。
+- [x] 対応済み：ネットワーク接続とプロトコル処理を app 起動処理から外す。
+- [x] 対応済み：接続状態は callback で通知する。
+- [x] 対応済み：再接続と timeout は状態機械として実装する。
+- [x] 対応済み：fetch を使う外部 API 境界では `Promise` を許容する。
+- [x] 対応済み：内部イベント通知では `Promise` ではなく callback を使う。
 
 ### 9. Input、Lighting、Camera、Preferences、Util の移行
 

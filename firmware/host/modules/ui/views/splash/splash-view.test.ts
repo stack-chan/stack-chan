@@ -13,9 +13,13 @@ function readManifest(path: string) {
 
 describe('startup splash screen', () => {
   test('does not register a startup splash image resource for device or wasm builds', () => {
-    assert.doesNotMatch(readFileSync(manifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
-    assert.doesNotMatch(readFileSync(wasmAppManifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
-    assert.doesNotMatch(readFileSync(wasmManifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
+    for (const manifest of [
+      readManifest(manifestPath),
+      readManifest(wasmAppManifestPath),
+      readManifest(wasmManifestPath),
+    ]) {
+      assert.equal(JSON.stringify(manifest.resources ?? {}).includes('./assets/images/startup-splash'), false)
+    }
   })
 
   test('uses a font resource registered for both device and wasm builds', () => {

@@ -399,7 +399,7 @@ flowchart TD
 - [x] 対応済み：WASM default behavior のテストでは、manifest が解決する module 識別子と起動 hook の呼び出し結果を検証し、`app-default-behavior/wasm/on-launch` という文字列の有無だけを合否にしない。
 - [x] 対応済み：Moddable に依存しない pure helper は Node.js でテストしてよいが、相対パス import ではなく manifest と同じ module 識別子を解決する loader または alias 設定を用意する。
 - [x] 対応済み：Node.js テストで Moddable global、Timer、Piu、Modules、Preference を扱う場合は、明示的な mock を注入し、実装ファイルの文字列走査で代用しない。
-- [ ] 未対応：構成検査として残すソース文字列検査は `check:legacy-names` または architecture lint に寄せ、振る舞いテストと別の名前で CI に表示する。
+- [x] 対応済み：構成検査として残すソース文字列検査は `check:legacy-names` または architecture lint に寄せ、振る舞いテストと別の名前で CI に表示する。
 - [x] 対応済み：書き換え後のテストを `npm run test:unit`、`npm run test:moddable`、必要に応じて `xst` 直接実行で検証し、PR の Validation に分けて記録する。
 
 ### 13. 非同期境界の移行

@@ -46,6 +46,9 @@ jobs:
       - name: Run firmware tests
         working-directory: ./firmware
         run: npm run test
+      - name: Run architecture checks
+        working-directory: ./firmware
+        run: npm run check:architecture
       - name: Run Moddable module tests
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable

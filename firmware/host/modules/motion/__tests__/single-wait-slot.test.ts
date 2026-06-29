@@ -20,14 +20,17 @@ test('SingleWaitSlot releases the slot after timeout', () => {
     },
   )
 
-  slot.wait(
-    10,
-    (value) => {
-      result = value
-    },
-    () => {
-      timedOut = true
-    },
+  assert.equal(
+    slot.wait(
+      10,
+      (value) => {
+        result = value
+      },
+      () => {
+        timedOut = true
+      },
+    ),
+    true,
   )
   assert.equal(slot.isWaiting, true)
   assert.ok(scheduled, 'timer handler should be scheduled')
@@ -55,9 +58,12 @@ test('SingleWaitSlot clears timer when resolving explicitly', () => {
     },
   )
 
-  slot.wait(10, (value) => {
-    result = value
-  })
+  assert.equal(
+    slot.wait(10, (value) => {
+      result = value
+    }),
+    true,
+  )
   assert.equal(slot.isWaiting, true)
   assert.ok(scheduled, 'timer handler should be scheduled')
 
@@ -72,13 +78,19 @@ test('SingleWaitSlot clears timer when resolving explicitly', () => {
   assert.equal(slot.isWaiting, false)
 })
 
-test('SingleWaitSlot rejects overlapping waits without queuing them', () => {
+test('SingleWaitSlot reports overlapping waits without queuing them', () => {
   const slot = new SingleWaitSlot<number[]>(
     () => Symbol('timer'),
     () => {},
   )
 
-  slot.wait(10, () => {})
+  assert.equal(
+    slot.wait(10, () => {}),
+    true,
+  )
 
-  assert.throws(() => slot.wait(10, () => {}), /already in use/)
+  assert.equal(
+    slot.wait(10, () => {}),
+    false,
+  )
 })

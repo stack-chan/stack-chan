@@ -41,6 +41,7 @@ type PY32Options = {
   sensor?: I2COptions
   address?: number
 }
+type PY32ErrorCallback = (error: unknown) => void
 
 type DeviceEnvironment = {
   Timer?: {
@@ -211,4 +212,13 @@ export function getSharedPY32IOExpander(options?: PY32Options) {
     throw lastError
   }
   return sharedExpander
+}
+
+export function tryGetSharedPY32IOExpander(options?: PY32Options, onError?: PY32ErrorCallback) {
+  try {
+    return getSharedPY32IOExpander(options)
+  } catch (error) {
+    onError?.(error)
+    return undefined
+  }
 }

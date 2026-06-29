@@ -183,6 +183,7 @@ type CommandCallback = (values: Uint8Array | undefined) => void
 type ErrorCallback = (error: unknown) => void
 type CompletionCallback = (error?: unknown) => void
 type ValueCallback<T> = (value: T | undefined, error?: unknown) => void
+const COMMAND_BUSY_ERROR = 'command is already waiting for response'
 
 let packetHandler: PacketHandler = null
 class RS30X {
@@ -221,9 +222,10 @@ class RS30X {
     return this.#id
   }
 
-  #dispatchCommand(onResult: CommandCallback, ...values: number[]): void {
+  #dispatchCommand(onResult: CommandCallback, onError: ErrorCallback, ...values: number[]): boolean {
     if (this.#waitSlot.isWaiting) {
-      throw new Error('command is already waiting for response')
+      onError(new Error(COMMAND_BUSY_ERROR))
+      return false
     }
     this.#txBuf[0] = 0xfa
     this.#txBuf[1] = 0xaf
@@ -245,22 +247,24 @@ class RS30X {
     packetHandler.format = 'buffer'
     try {
       packetHandler.write(this.#txBuf.subarray(0, idx))
-    } finally {
-      packetHandler.format = originalFormat
-    }
-    this.#waitSlot.wait(100, onResult, () => {
-      trace('timeout.\n')
-    })
-  }
-
-  #sendCommand(onResult: CommandCallback, onError: ErrorCallback, ...values: number[]): boolean {
-    try {
-      this.#dispatchCommand(onResult, ...values)
-      return true
     } catch (error) {
       onError(error)
       return false
+    } finally {
+      packetHandler.format = originalFormat
     }
+    const waiting = this.#waitSlot.wait(100, onResult, () => {
+      trace('timeout.\n')
+    })
+    if (!waiting) {
+      onError(new Error(COMMAND_BUSY_ERROR))
+      return false
+    }
+    return true
+  }
+
+  #sendCommand(onResult: CommandCallback, onError: ErrorCallback, ...values: number[]): boolean {
+    return this.#dispatchCommand(onResult, onError, ...values)
   }
 
   setMaxTorque(maxTorque: number, callback?: CompletionCallback): void {

@@ -179,6 +179,7 @@ type CommandCallback = (values: Uint8Array | undefined) => void
 type ErrorCallback = (error: unknown) => void
 type CompletionCallback = (error?: unknown) => void
 type ResultCallback<T> = (result: Maybe<T>) => void
+const COMMAND_BUSY_ERROR = 'command is already waiting for response'
 
 function reasonFromError(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -251,10 +252,11 @@ class SCServo {
     onResult: CommandCallback,
     onError: ErrorCallback,
     ...values: number[]
-  ): void {
+  ): boolean {
     const waitsForResponse = command === COMMAND.READ || this.#awaitWriteResponse
     if (this.#isWriting || (waitsForResponse && this.#waitSlot.isWaiting)) {
-      throw new Error('command is already waiting for response')
+      onError(new Error(COMMAND_BUSY_ERROR))
+      return false
     }
     this.#isWriting = true
     this.#txBuf[0] = 0xff
@@ -279,15 +281,19 @@ class SCServo {
           onResult(undefined)
           return
         }
-        this.#waitSlot.wait(40, onResult, () => {
+        const waiting = this.#waitSlot.wait(40, onResult, () => {
           trace('timeout.\n')
         })
+        if (!waiting) {
+          onError(new Error(COMMAND_BUSY_ERROR))
+        }
       },
       (error) => {
         this.#isWriting = false
         onError(error)
       },
     )
+    return true
   }
 
   #writePacket(length: number, onWritten: () => void, onError: ErrorCallback, attempt = 0): void {
@@ -323,13 +329,7 @@ class SCServo {
     onError: ErrorCallback,
     ...values: number[]
   ): boolean {
-    try {
-      this.#dispatchCommand(command, address, onResult, onError, ...values)
-      return true
-    } catch (error) {
-      onError(error)
-      return false
-    }
+    return this.#dispatchCommand(command, address, onResult, onError, ...values)
   }
 
   #lock(callback?: CompletionCallback): void {

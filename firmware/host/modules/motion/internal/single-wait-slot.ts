@@ -18,9 +18,9 @@ export default class SingleWaitSlot<T> {
     return this.#callback != null
   }
 
-  wait(timeout: number, callback: WaitSlotCallback<T>, onTimeout?: () => void): void {
+  wait(timeout: number, callback: WaitSlotCallback<T>, onTimeout?: () => void): boolean {
     if (this.#callback != null) {
-      throw new Error('wait slot is already in use')
+      return false
     }
     this.#callback = (value) => {
       this.#callback = null
@@ -33,6 +33,7 @@ export default class SingleWaitSlot<T> {
       onTimeout?.()
       callback?.(undefined)
     }, timeout)
+    return true
   }
 
   resolve(value: T): void {

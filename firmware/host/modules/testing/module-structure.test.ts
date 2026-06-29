@@ -170,6 +170,50 @@ test('periodic motion hot paths reuse fixed state and callbacks', () => {
   }
 })
 
+test('motion protocol continuable command errors are reported through callbacks', () => {
+  const waitSlot = readFileSync(join(MODULE_ROOT, 'motion', 'internal', 'single-wait-slot.ts'), 'utf8')
+  assert.match(waitSlot, /wait\([\s\S]*?\): boolean/, 'SingleWaitSlot.wait should report slot acquisition')
+  assert.doesNotMatch(
+    waitSlot,
+    /throw new Error\('wait slot is already in use'\)/,
+    'SingleWaitSlot should not throw for a continuable busy state',
+  )
+
+  const protocolSources = [
+    join(MODULE_ROOT, 'motion', 'protocols', 'dynamixel.ts'),
+    join(MODULE_ROOT, 'motion', 'protocols', 'rs30x.ts'),
+    join(MODULE_ROOT, 'motion', 'protocols', 'scservo.ts'),
+  ]
+
+  for (const sourcePath of protocolSources) {
+    const source = readFileSync(sourcePath, 'utf8')
+    assert.match(source, /const COMMAND_BUSY_ERROR = 'command is already waiting for response'/)
+    assert.match(source, /#dispatchCommand\(/, `${sourcePath} should define dispatch command paths`)
+    assert.doesNotMatch(
+      source,
+      /throw new Error\('command is already waiting for response'\)/,
+      `${sourcePath} should not throw for command busy states`,
+    )
+    assert.match(source, /onError\(new Error\(COMMAND_BUSY_ERROR\)\)/)
+  }
+})
+
+test('optional PY32 hardware initialization is reported without making consumers throw', () => {
+  const expander = readFileSync(join(MODULE_ROOT, 'lighting', 'py32-io-expander.ts'), 'utf8')
+  assert.match(expander, /export function tryGetSharedPY32IOExpander/)
+  assert.match(expander, /onError\?\.\(error\)/)
+
+  const py32Led = readFileSync(join(MODULE_ROOT, 'lighting', 'py32-led.ts'), 'utf8')
+  assert.match(py32Led, /tryGetSharedPY32IOExpander/)
+  assert.doesNotMatch(py32Led, /getSharedPY32IOExpander\(/)
+  assert.match(py32Led, /if \(!expander\) return/)
+
+  const m5stackchanServo = readFileSync(join(MODULE_ROOT, 'motion', 'm5stackchan-servo-driver.ts'), 'utf8')
+  assert.match(m5stackchanServo, /tryGetSharedPY32IOExpander/)
+  assert.doesNotMatch(m5stackchanServo, /getSharedPY32IOExpander\(/)
+  assert.match(m5stackchanServo, /if \(!expander\) return/)
+})
+
 test('runtime state machines keep internal state as numeric constants', () => {
   const stateSources = [
     join(MODULE_ROOT, 'conversation', 'chat-state.ts'),

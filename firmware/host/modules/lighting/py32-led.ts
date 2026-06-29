@@ -1,4 +1,9 @@
-import { getSharedPY32IOExpander, normalizeLedRange, PY32_LED_MAX_COUNT } from 'py32-io-expander'
+import {
+  normalizeLedRange,
+  PY32_LED_MAX_COUNT,
+  type PY32IOExpander,
+  tryGetSharedPY32IOExpander,
+} from 'py32-io-expander'
 import Timer from 'timer'
 
 export default class PY32Led {
@@ -6,18 +11,21 @@ export default class PY32Led {
   #offTimer?: Timer
   #blinkTimer?: Timer
   #rainbowTimer?: Timer
-  #expander: ReturnType<typeof getSharedPY32IOExpander>
+  #expander?: PY32IOExpander
 
   constructor(parameters: { length?: number; ledPin?: number; address?: number }) {
-    this.#expander = getSharedPY32IOExpander(
-      parameters.address === undefined ? undefined : { address: parameters.address },
-    )
     this.length = Math.max(1, Math.min(PY32_LED_MAX_COUNT, parameters.length ?? 12))
+    const expander = tryGetSharedPY32IOExpander(
+      parameters.address === undefined ? undefined : { address: parameters.address },
+      (error) => trace(`[py32-led] init failed: ${error}\n`),
+    )
+    if (!expander) return
+    this.#expander = expander
     const ledPin = parameters.ledPin ?? 13
-    this.#expander.setDirection(ledPin, true)
-    this.#expander.setPullMode(ledPin, true)
-    this.#expander.setDriveMode(ledPin, false)
-    this.#expander.setLedCount(this.length)
+    expander.setDirection(ledPin, true)
+    expander.setPullMode(ledPin, true)
+    expander.setDriveMode(ledPin, false)
+    expander.setLedCount(this.length)
     this.off()
   }
 
@@ -37,11 +45,13 @@ export default class PY32Led {
   }
 
   #fill(r: number, g: number, b: number, index?: number, count?: number) {
+    const expander = this.#expander
+    if (!expander) return
     const { start, end } = normalizeLedRange(this.length, index, count)
     for (let i = start; i < end; i++) {
-      this.#expander.setLedColor(i, r, g, b)
+      expander.setLedColor(i, r, g, b)
     }
-    this.#expander.refreshLeds()
+    expander.refreshLeds()
   }
 
   on(r: number, g: number, b: number, duration?: number, index?: number, count?: number) {
@@ -59,6 +69,7 @@ export default class PY32Led {
 
   blink(r: number, g: number, b: number, duration: number, index?: number, count?: number) {
     this.#stopEffect()
+    if (!this.#expander) return
     let enabled = false
     const period = Math.max(50, Math.trunc(duration / 2))
     this.#blinkTimer = Timer.repeat(() => {
@@ -69,6 +80,8 @@ export default class PY32Led {
 
   rainbow(index?: number, count?: number) {
     this.#stopEffect()
+    const expander = this.#expander
+    if (!expander) return
     const colors = [
       [255, 0, 0],
       [255, 128, 0],
@@ -82,9 +95,9 @@ export default class PY32Led {
       const { start, end } = normalizeLedRange(this.length, index, count)
       for (let i = start; i < end; i++) {
         const [r, g, b] = colors[(i + offset) % colors.length]
-        this.#expander.setLedColor(i, r, g, b)
+        expander.setLedColor(i, r, g, b)
       }
-      this.#expander.refreshLeds()
+      expander.refreshLeds()
       offset = (offset + 1) % colors.length
     }, 100)
   }

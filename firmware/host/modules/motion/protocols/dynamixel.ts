@@ -214,6 +214,7 @@ type CommandCallback = (values: Uint8Array | undefined) => void
 type ErrorCallback = (error: unknown) => void
 type CompletionCallback = (error?: unknown) => void
 type ValueCallback<T> = (value: T | undefined, error?: unknown) => void
+const COMMAND_BUSY_ERROR = 'command is already waiting for response'
 
 function reasonFromError(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -277,10 +278,12 @@ class Dynamixel {
     instruction: Instruction,
     address?: Address,
     onResult: CommandCallback = () => {},
+    onError: ErrorCallback = () => {},
     ...parameters: number[]
-  ): void {
+  ): boolean {
     if (this.#waitSlot.isWaiting) {
-      throw new Error('command is already waiting for response')
+      onError(new Error(COMMAND_BUSY_ERROR))
+      return false
     }
     this.#txBuf[0] = 0xff
     this.#txBuf[1] = 0xff
@@ -324,12 +327,20 @@ class Dynamixel {
     packetHandler.format = 'buffer'
     try {
       packetHandler.write(this.#txBuf.subarray(0, idx))
+    } catch (error) {
+      onError(error)
+      return false
     } finally {
       packetHandler.format = originalFormat
     }
-    this.#waitSlot.wait(200, onResult, () => {
+    const waiting = this.#waitSlot.wait(200, onResult, () => {
       trace('timeout.\n')
     })
+    if (!waiting) {
+      onError(new Error(COMMAND_BUSY_ERROR))
+      return false
+    }
+    return true
   }
 
   #sendCommand(
@@ -339,13 +350,7 @@ class Dynamixel {
     onError: ErrorCallback,
     ...parameters: number[]
   ): boolean {
-    try {
-      this.#dispatchCommand(instruction, address, onResult, ...parameters)
-      return true
-    } catch (error) {
-      onError(error)
-      return false
-    }
+    return this.#dispatchCommand(instruction, address, onResult, onError, ...parameters)
   }
 
   /**

@@ -395,8 +395,8 @@ flowchart TD
 - [x] 対応済み：毎フレーム動く処理で object を生成しない。
 - [x] 対応済み：色、感情、状態は内部で数値として扱う。
 - [x] 対応済み：ログ、設定ファイル、Piu 描画、表示文字列へ出す境界でだけ文字列へ変換する。
-- [ ] 未対応：継続可能な状態変化は例外ではなく状態遷移または callback で通知する。
-- [ ] 未対応：module 境界の同期エラーは `onError(code, detail)` のような callback で通知する。
+- [x] 対応済み：継続可能な状態変化（servo command busy、wait slot 重複、任意ハードウェア初期化失敗）は例外ではなく戻り値または callback で通知する。
+- [x] 対応済み：module 境界の同期エラーは motion protocol の `onError` や PY32 の `tryGet...` callback で通知し、設定不備や構築 invariant の例外だけを残す。
 
 ### 14. 旧文書と参照の整理
 

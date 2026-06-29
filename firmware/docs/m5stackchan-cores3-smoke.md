@@ -9,19 +9,19 @@ Related tracking issues: #406, #408, #409, #412.
 Run these commands from `firmware/`.
 
 ```console
-$ mcconfig -d -m -p esp32:./platforms/m5stackchan_cores3 -t build "$PWD/host/app/manifest_m5stackchan_cores3.json"
+$ mcconfig -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t build "$PWD/host/app/manifest_m5stackchan_cores3.json"
 ```
 
 To flash the host when hardware is connected:
 
 ```console
-$ mcconfig -d -m -p esp32:./platforms/m5stackchan_cores3 -t deploy "$PWD/host/app/manifest_m5stackchan_cores3.json"
+$ mcconfig -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t deploy "$PWD/host/app/manifest_m5stackchan_cores3.json"
 ```
 
 ## Install the smoke MOD
 
 ```console
-$ npm run mod --target=esp32:./platforms/m5stackchan_cores3 ./mods/m5stackchan_smoke/manifest.json
+$ npm run mod --target=esp32:./host/platforms/m5stackchan_cores3 ./mods/m5stackchan_smoke/manifest.json
 ```
 
 ## Expected smoke sequence
@@ -39,4 +39,4 @@ Open `xsbug` or serial logs and verify these log prefixes:
 - `[M5StackChan CoreS3 smoke] LED: lightOff`
 - `[M5StackChan CoreS3 smoke] complete`
 
-The servo motion is intentionally small. Keep the device clear of obstructions before running the check. The LED names and PY32 wiring come from `platforms/m5stackchan_cores3/manifest.json`.
+The servo motion is intentionally small. Keep the device clear of obstructions before running the check. The LED names and PY32 wiring come from `host/platforms/m5stackchan_cores3/manifest.json`.

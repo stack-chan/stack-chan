@@ -6,7 +6,8 @@ const splashPath = 'host/modules/ui/views/splash/splash-view.ts'
 const defaultLaunchPath = 'host/app/default-behavior/on-launch.ts'
 const wasmModPath = 'host/app/default-behavior/wasm/mod.ts'
 const manifestPath = 'host/app/manifest.json'
-const wasmManifestPath = 'host/app/manifest_wasm.json'
+const wasmAppManifestPath = 'host/app/manifest_wasm.json'
+const wasmManifestPath = 'host/platforms/wasm/manifest.json'
 const splashFontResource = '$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24'
 
 function readManifest(path: string) {
@@ -32,12 +33,13 @@ describe('startup splash screen', () => {
 
   test('does not register a startup splash image resource for device or wasm builds', () => {
     assert.doesNotMatch(readFileSync(manifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
+    assert.doesNotMatch(readFileSync(wasmAppManifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
     assert.doesNotMatch(readFileSync(wasmManifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
   })
 
   test('uses a font resource registered for both device and wasm builds', () => {
     const manifest = readManifest(manifestPath)
-    const wasmManifest = readManifest(wasmManifestPath)
+    const wasmManifest = readManifest(wasmAppManifestPath)
 
     assert.match(readFileSync(splashPath, 'utf8'), /const SPLASH_FONT = '24px Open Sans'/)
     assert.deepEqual(manifest.resources['*-mask'], [splashFontResource])
@@ -72,12 +74,14 @@ describe('startup splash screen', () => {
   test('wasm default mod uses the wasm-specific startup splash hook', () => {
     const mainSource = readFileSync('host/app/main.ts', 'utf8')
     const source = readFileSync(wasmModPath, 'utf8')
+    const appManifest = readManifest(wasmAppManifestPath)
     const manifest = readManifest(wasmManifestPath)
 
     assert.doesNotMatch(mainSource, /config\.wasm/)
     assert.doesNotMatch(mainSource, /default-mods\/wasm\/mod/)
     assert.match(source, /default-mods\/wasm\/on-launch/)
     assert.doesNotMatch(source, /default-mods\/on-launch'/)
-    assert.equal(manifest.modules['default-mods/mod'], './default-behavior/wasm/mod')
+    assert.ok(appManifest.include.includes('../platforms/wasm/manifest.json'))
+    assert.equal(manifest.modules['default-mods/mod'], '../../app/default-behavior/wasm/mod')
   })
 })

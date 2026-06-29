@@ -1,71 +1,5 @@
 {
-  "defines": {
-    "XS_MODS": 1
-  },
-  "include": [
-    "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODDABLE)/examples/manifest_typings.json",
-    "$(MODULES)/base/modules/manifest.json",
-    "$(MODULES)/data/crc/manifest.json",
-    "../modules/ui/manifest_wasm.json",
-    "../modules/audio/manifest_wasm.json",
-    "../modules/motion/manifest_wasm.json",
-    "../modules/camera/manifest_wasm.json",
-    "../modules/connectivity/manifest_wasm.json",
-    "../modules/input/manifest.json",
-    "../modules/util/manifest.json",
-    "../modules/preferences/manifest.json",
-    "./manifest_typings.json"
-  ],
-  "modules": {
-    "*": ["./main", "./compose", "./capabilities", "./runtime-context"],
-    "startup-splash": "../modules/ui/views/splash/splash-view",
-    "camera-preview-utils": "../modules/ui/views/camera-preview/camera-preview-utils",
-    "led": "../modules/lighting/wasm/led",
-    "py32-led": "../modules/lighting/wasm/py32-led",
-    "default-mods/wasm/mod": "./default-behavior/wasm/mod",
-    "default-mods/wasm/on-launch": "./default-behavior/wasm/on-launch",
-    "default-mods/mod": "./default-behavior/wasm/mod",
-    "default-mods/wasm/*": "./default-behavior/wasm/*",
-    "default-mods/*": "./default-behavior/*"
-  },
-  "preload": [
-    "wasm-audio-bridge",
-    "wasm-camera-bridge",
-    "runtime-context",
-    "touch-panel",
-    "touch-panel-gesture",
-    "imu-motion",
-    "default-mods/wasm/mod"
-  ],
-  "strip": [],
-  "creation": {
-    "static": 442368,
-    "chunk": {
-      "initial": 8192,
-      "incremental": 2048
-    },
-    "heap": {
-      "initial": 512,
-      "incremental": 64
-    },
-    "stack": 512,
-    "keys": {
-      "available": 512
-    }
-  },
-  "config": {
-    "wasm": true,
-    "driver": {
-      "type": "none"
-    },
-    "tts": {
-      "type": "local"
-    },
-    "ui": {
-      "type": "simple"
-    }
-  },
+  "include": ["../platforms/wasm/manifest.json"],
   "resources": {
     "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
     "*-alpha": [
@@ -76,15 +10,5 @@
         "monochrome": true
       }
     ]
-  },
-  "typescript": {
-    "tsconfig": {
-      "compilerOptions": {
-        "noImplicitAny": false,
-        "strictNullChecks": false,
-        "strictPropertyInitialization": false,
-        "strictFunctionTypes": false
-      }
-    }
   }
 }

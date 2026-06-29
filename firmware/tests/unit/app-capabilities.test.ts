@@ -9,7 +9,8 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   const main = readFileSync('host/app/main.ts', 'utf8')
   const compose = readFileSync('host/app/compose.ts', 'utf8')
   const manifest = JSON.parse(readFileSync('host/app/manifest.json', 'utf8'))
-  const wasmManifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
+  const wasmAppManifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
+  const wasmManifest = JSON.parse(readFileSync('host/platforms/wasm/manifest.json', 'utf8'))
 
   for (const capability of [
     'FaceCapability',
@@ -40,7 +41,8 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   assert.ok(manifest.modules['*'].includes('./capabilities'))
   assert.ok(manifest.modules['*'].includes('./runtime-context'))
   assert.ok(!manifest.modules['*'].includes('../../stackchan/robot'))
-  assert.ok(wasmManifest.modules['*'].includes('./capabilities'))
-  assert.ok(wasmManifest.modules['*'].includes('./runtime-context'))
+  assert.ok(wasmAppManifest.include.includes('../platforms/wasm/manifest.json'))
+  assert.ok(wasmManifest.modules['*'].includes('../../app/capabilities'))
+  assert.ok(wasmManifest.modules['*'].includes('../../app/runtime-context'))
   assert.ok(!wasmManifest.modules['*'].includes('../../stackchan/robot'))
 })

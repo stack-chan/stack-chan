@@ -103,6 +103,7 @@ firmware/
         state/
           face-state.ts
     platforms/
+      esp32/
       m5stackchan_cores3/
       lin/
       wasm/
@@ -135,7 +136,7 @@ flowchart TD
   Util["host/modules/util"]
   Testing["host/modules/testing"]
 
-  Platforms["host/platforms<br/>m5stackchan_cores3, lin, wasm"]
+  Platforms["host/platforms<br/>esp32, m5stackchan_cores3, lin, wasm"]
 
   App --> PublicAPI
   App --> UIApp
@@ -244,7 +245,7 @@ flowchart TD
 - [x] 対応済み：`app/compose.ts` は module の生成と依存注入だけを持つ。
 - [x] 対応済み：ドライバ、TTS、UI、入力、センサ、LED、Wi-Fi、WASM、MOD の選択処理を root `main.ts` から移す。
 - [x] 対応済み：`config.wasm` の runtime branch を app layer から取り除く。
-- [ ] 未対応：WASM、lin、ESP32 の差分を platform manifest の include と modules で表す。
+- [x] 対応済み：WASM、lin、ESP32 の差分を platform manifest の include と modules で表す。
 - [x] 対応済み：`firmware/stackchan/manifest*.json` を `firmware/host/app/manifest*.json` へ移す。
 - [x] 対応済み：`firmware/package.json` の build、smoke、test script を新しい app manifest へ更新する。
 - [x] 対応済み：製品既定動作を `firmware/host/app/default-behavior` に置く。
@@ -343,13 +344,14 @@ flowchart TD
 
 ### 10. Platform 層の分離
 
-- [ ] 未対応：`firmware/host/platforms/wasm` を作成する。
-- [ ] 未対応：`firmware/host/platforms/lin` を作成する。
-- [ ] 未対応：`firmware/host/platforms/m5stackchan_cores3` を作成する。
-- [ ] 未対応：module 固有ではない WASM platform 差分を `firmware/host/platforms/wasm` へ移す。
+- [x] 対応済み：`firmware/host/platforms/wasm` を作成する。
+- [x] 対応済み：`firmware/host/platforms/lin` を作成する。
+- [x] 対応済み：`firmware/host/platforms/esp32` を作成する。
+- [x] 対応済み：`firmware/host/platforms/m5stackchan_cores3` を作成する。
+- [x] 対応済み：module 固有ではない WASM platform 差分を `firmware/host/platforms/wasm` へ移す。
 - [ ] 未対応：通常コードから WASM 専用 import を取り除く。
-- [ ] 未対応：platform 差分を TypeScript の runtime branch ではなく manifest の include、modules、platforms で表す。
-- [ ] 未対応：ESP32 target ごとの差分を platform manifest で表し、app composition に混ぜない。
+- [x] 対応済み：platform 差分を TypeScript の runtime branch ではなく manifest の include、modules、platforms で表す。
+- [x] 対応済み：ESP32 target ごとの差分を platform manifest で表し、app composition に混ぜない。
 - [x] 対応済み：`m5stack_fire` の audio input 差分を app composition ではなく audio module の platform manifest で表す。
 
 ### 11. MOD と sample の整理

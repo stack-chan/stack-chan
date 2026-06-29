@@ -83,13 +83,13 @@ for (const [name, Driver] of driverCases) {
 }
 
 test('WASM manifest keeps concrete servo driver module specifiers as facades for Moddable resolution', () => {
-  const manifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
+  const manifest = JSON.parse(readFileSync('host/platforms/wasm/manifest.json', 'utf8'))
 
-  assert.ok(manifest.include.includes('../modules/audio/manifest_wasm.json'))
-  assert.ok(manifest.include.includes('../modules/camera/manifest_wasm.json'))
-  assert.ok(manifest.include.includes('../modules/motion/manifest_wasm.json'))
+  assert.ok(manifest.include.includes('../../modules/audio/manifest_wasm.json'))
+  assert.ok(manifest.include.includes('../../modules/camera/manifest_wasm.json'))
+  assert.ok(manifest.include.includes('../../modules/motion/manifest_wasm.json'))
   assert.ok(manifest.preload.includes('wasm-camera-bridge'))
-  assert.ok(manifest.include.includes('../modules/input/manifest.json'))
+  assert.ok(manifest.include.includes('../../modules/input/manifest.json'))
   assert.ok(manifest.preload.includes('touch-panel'))
   assert.ok(manifest.preload.includes('touch-panel-gesture'))
   assert.deepEqual(
@@ -97,7 +97,7 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
       'py32-led': manifest.modules['py32-led'],
     },
     {
-      'py32-led': '../modules/lighting/wasm/py32-led',
+      'py32-led': '../../modules/lighting/wasm/py32-led',
     },
   )
 })
@@ -191,10 +191,12 @@ test('App main loads an installed MOD archive before falling back to manifest-se
 })
 
 test('WASM manifest selects the wasm default behavior without an app-layer runtime branch', () => {
-  const manifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
+  const appManifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
+  const manifest = JSON.parse(readFileSync('host/platforms/wasm/manifest.json', 'utf8'))
 
-  assert.equal(manifest.modules['default-mods/mod'], './default-behavior/wasm/mod')
-  assert.equal(manifest.modules['default-mods/wasm/mod'], './default-behavior/wasm/mod')
+  assert.ok(appManifest.include.includes('../platforms/wasm/manifest.json'))
+  assert.equal(manifest.modules['default-mods/mod'], '../../app/default-behavior/wasm/mod')
+  assert.equal(manifest.modules['default-mods/wasm/mod'], '../../app/default-behavior/wasm/mod')
   assert.ok(manifest.preload.includes('default-mods/wasm/mod'))
 })
 

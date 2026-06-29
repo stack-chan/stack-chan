@@ -20,7 +20,7 @@
 
 ## Directory structure
 
-- [stackchan](./stackchan/): Firmware source code.
+- [host](./host/): Host application and firmware modules.
 - [mods](./mods/): Source code of mods.
 - [scripts](./scripts/): Scripts for Stack-chan's voice synthesis, etc.
 - [typings](./typings/): TypeScript type definition files (d.ts).

@@ -14,10 +14,10 @@ It automatically generates `tsconfig.json` and creates a link.
 $ npm run build
 ...
 > stack-chan@0.2.1 postbuild /home/user/repos/stack-chan/firmware
-> ln -sf $MODDABLE/build/tmp/${npm_config_target=esp32/m5stack}/debug/stackchan/modules/tsconfig.json ./tsconfig.json
+> ln -sf $MODDABLE/build/tmp/${npm_config_target=esp32/m5stack}/debug/app/modules/tsconfig.json ./tsconfig.json
 
 $ file tsconfig.json
-tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32/m5stack/debug/stackchan/modules/tsconfig.json
+tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32/m5stack/debug/app/modules/tsconfig.json
 ```
 
 Then you can generate documents under `docs/api` by running:

@@ -20,7 +20,7 @@
 
 ## ディレクトリ構成
 
-- [stackchan](./stackchan/): ファームウェアのソースコードです。
+- [host](./host/): ホストアプリケーションとファームウェア module のソースコードです。
 - [mods](./mods/): MODのソースコードです。
 - [scripts](./scripts/): ｽﾀｯｸﾁｬﾝの音声合成などに用いるスクリプトです。
 - [typings](./typings/): TypeScriptの型定義ファイル（d.ts）です。

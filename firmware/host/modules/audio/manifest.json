@@ -9,7 +9,6 @@
     "$(MODDABLE)/modules/base/uuid/manifest.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
     "$(MODDABLE)/modules/data/url/manifest.json",
-    "$(MODDABLE)/modules/io/audioin/manifest.json",
     "./manifest_file.json",
     "../../app/manifest_typings.json"
   ],
@@ -24,6 +23,7 @@
     ]
   },
   "preload": [
+    "embedded:io/audio/in",
     "microphone",
     "tone",
     "stt-whisper",
@@ -51,6 +51,10 @@
   },
   "platforms": {
     "mac": {
+      "modules": {
+        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/mac/audioin"
+      },
       "defines": {
         "audioOut": {
           "bitsPerSample": 16,
@@ -59,13 +63,42 @@
         }
       }
     },
+    "lin": {
+      "build": {
+        "LIBRARIES": "-lasound"
+      },
+      "modules": {
+        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/lin/audioin"
+      }
+    },
+    "win": {
+      "modules": {
+        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/win/audioin"
+      }
+    },
     "esp32": {
+      "modules": {
+        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin"
+      },
+      "dependency": [
+        {
+          "idf": "esp_driver_i2s"
+        }
+      ],
       "defines": {
         "audioOut": {
           "bitsPerSample": 16,
           "numChannels": 1,
           "sampleRate": 11025
         }
+      }
+    },
+    "esp32/m5stack_fire": {
+      "modules": {
+        "embedded:io/audio/in": "./platforms/m5stack-fire/audio-in"
       }
     },
     "esp32/m5stack_cores3": {

@@ -32,7 +32,7 @@ firmware/
       main.ts
       compose.ts
       manifest.json
-      manifest.local.json
+      manifest_local.json
       default-behavior/
         manifest.json
         on-launch.ts
@@ -237,8 +237,8 @@ flowchart TD
 ### 2. アプリケーション層の分離
 
 - [x] 対応済み：`firmware/host/app` を作成する。
-- [ ] 未対応：トップレベルの実装ディレクトリを `firmware/stackchan` から `firmware/host` へ移す。
-- [ ] 未対応：移行後の build、manifest、import から `firmware/stackchan` への参照を取り除く。
+- [x] 対応済み：トップレベルの実装ディレクトリを `firmware/stackchan` から `firmware/host` へ移す。
+- [x] 対応済み：移行後の build、manifest、import から `firmware/stackchan` への参照を取り除く。
 - [x] 対応済み：`firmware/stackchan/main.ts` を `firmware/host/app/main.ts` と `firmware/host/app/compose.ts` へ分ける。
 - [x] 対応済み：`app/main.ts` は起動順序、manifest の選択、エラーハンドリングだけを持つ。
 - [x] 対応済み：`app/compose.ts` は module の生成と依存注入だけを持つ。
@@ -271,7 +271,7 @@ flowchart TD
 - [x] 対応済み：`firmware/host/modules/preferences` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/testing` を作成し、共有 fake と test helper を置く。
 - [x] 対応済み：`firmware/host/modules/util` を作成し、`manifest.json` と `manifest.test.json` を置く。
-- [ ] 未対応：module 群は `firmware/stackchan/components` ではなく `firmware/host/modules` に置く。
+- [x] 対応済み：module 群は `firmware/stackchan/components` ではなく `firmware/host/modules` に置く。
 - [ ] 未対応：各 module は実装、manifest、test、test manifest、専用 fake を同じディレクトリに持つ。
 - [ ] 未対応：二つ以上の module で使う fake timer、fake transport、fake provider、fake Piu event は `modules/testing` に置く。
 
@@ -298,6 +298,7 @@ flowchart TD
 - [ ] 未対応：`onPlayed` と `onDone` の通知方向は維持し、`stream()` の戻り値へ完了制御を集めない。
 - [ ] 未対応：録音 buffer と再生 buffer の所有者を型または契約で明示する。
 - [ ] 未対応：大きい `ArrayBuffer` を多段でコピーしないことを audio test で確認する。
+- [x] 対応済み：`m5stack_fire` では旧 `pins/audioin` と `embedded:io/audio/in` の native 名衝突を避けるため、manifest で `embedded:io/audio/in` を platform adapter に差し替える。
 
 ### 7. Conversation の移行
 
@@ -349,6 +350,7 @@ flowchart TD
 - [ ] 未対応：通常コードから WASM 専用 import を取り除く。
 - [ ] 未対応：platform 差分を TypeScript の runtime branch ではなく manifest の include、modules、platforms で表す。
 - [ ] 未対応：ESP32 target ごとの差分を platform manifest で表し、app composition に混ぜない。
+- [x] 対応済み：`m5stack_fire` の audio input 差分を app composition ではなく audio module の platform manifest で表す。
 
 ### 11. MOD と sample の整理
 
@@ -400,8 +402,8 @@ flowchart TD
 - [ ] 未対応：`firmware/piu-faster.md` を UI performance 方針として統合する。
 - [ ] 未対応：`CLAUDE.md` の旧構成参照を削除または更新する。
 - [ ] 未対応：`renderer.type`、`renderers-piu`、旧 renderer API を説明する残存文書を削除または更新する。
-- [ ] 未対応：tracked tree に旧 `firmware/stackchan/renderers` と旧 `firmware/stackchan/renderers-piu` が残っていないことを確認する。
-- [ ] 未対応：ローカルに空ディレクトリが残る場合でも、manifest、import、document から参照しない。
+- [x] 対応済み：tracked tree に旧 `firmware/stackchan/renderers` と旧 `firmware/stackchan/renderers-piu` が残っていないことを確認する。
+- [x] 対応済み：ローカルに空ディレクトリが残る場合でも、manifest、import、document から参照しない。
 
 ### 15. 検証
 

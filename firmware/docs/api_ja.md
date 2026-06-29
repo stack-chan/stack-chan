@@ -14,10 +14,10 @@ APIドキュメントを生成するには、`firmware`ディレクトリの下�
 $ npm run build
 ...
 > stack-chan@0.2.1 postbuild /home/user/repos/stack-chan/firmware
-> ln -sf $MODDABLE/build/tmp/${npm_config_target=esp32/m5stack}/debug/stackchan/modules/tsconfig.json ./tsconfig.json
+> ln -sf $MODDABLE/build/tmp/${npm_config_target=esp32/m5stack}/debug/app/modules/tsconfig.json ./tsconfig.json
 
 $ file tsconfig.json
-tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32/m5stack/debug/stackchan/modules/tsconfig.json
+tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32/m5stack/debug/app/modules/tsconfig.json
 ```
 
 その後、次のコマンドを実行することで`docs/api`ディレクトリ配下にドキュメントを生成できます。

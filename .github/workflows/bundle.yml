@@ -52,7 +52,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: firmware-bundle
-          path: ./firmware/stackchan/tech.moddable.stackchan
+          path: ./firmware/host/app/tech.moddable.stackchan
       - name: Upload WASM simulator
         uses: actions/upload-artifact@v7
         with:

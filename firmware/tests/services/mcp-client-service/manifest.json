@@ -5,8 +5,8 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/io/listener/listen/manifest_listen.json",
     "../../../host/app/manifest_typings.json",
-    "../../../stackchan/services/mcp-client/manifest.json",
-    "../../../stackchan/services/mcp-server/manifest.json"
+    "../../../host/modules/connectivity/mcp-client/manifest.json",
+    "../../../host/modules/connectivity/mcp-server/manifest.json"
   ],
   "modules": {
     "*": ["./main"]

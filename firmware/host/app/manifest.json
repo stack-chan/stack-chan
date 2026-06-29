@@ -10,7 +10,7 @@
     "$(MODULES)/data/crc/manifest.json",
     "../modules/motion/manifest.json",
     "../modules/audio/manifest.json",
-    "../../stackchan/ble/manifest_ble.json",
+    "../modules/connectivity/manifest.json",
     "../../stackchan/dialogues/manifest_dialogue.json",
     "../modules/camera/manifest.json",
     "../modules/lighting/manifest.json",

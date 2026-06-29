@@ -1,7 +1,7 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
-    "../../../stackchan/services/http-server/manifest.json"
+    "../../../host/modules/connectivity/http-server/manifest.json"
   ],
   "modules": {
     "*": ["./main"]

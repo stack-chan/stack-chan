@@ -1,30 +1,12 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODDABLE)/examples/manifest_net.json",
-    "$(MODDABLE)/examples/manifest_typings.json",
-    "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
-    "$(MODULES)/network/wifi/manifest.json",
-    "$(MODULES)/network/ble/manifest_server.json",
-    "$(MODULES)/network/ble/manifest_client.json",
-    "$(MODULES)/network/mdns/manifest.json",
-    "../../host/modules/util/manifest.json",
-    "../../host/modules/preferences/manifest.json",
-    "./http-server/manifest.json",
-    "./mcp-server/manifest.json",
-    "./mcp-client/manifest.json"
+    "$(MODDABLE)/examples/manifest_typings.json"
   ],
   "modules": {
-    "*": [
-      "./*",
-      "$(MODULES)/network/ble/uart/uartserver",
-      "../../typings/btutils",
-      "../../typings/uartserver"
-    ],
-    "wifi/connection": "$(MODDABLE)/examples/network/wifi/wificonnection/wificonnection",
+    "*": ["./*"],
     "ChatAudioIO": "./chat-audioio-stub"
   },
-  "preload": ["wifi/connection"],
   "platforms": {
     "esp32/m5stack_cores3": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
@@ -46,9 +28,6 @@
         "ChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
       }
     }
-  },
-  "ble": {
-    "*": ["$(MODULES)/network/ble/uart/bleservices/*"]
   },
   "typescript": {
     "tsconfig": {

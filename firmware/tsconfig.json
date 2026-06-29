@@ -81,9 +81,14 @@
         "./host/modules/camera/*",
         "./host/modules/audio/*",
         "./host/modules/audio/wasm/*",
+        "./host/modules/connectivity/*",
+        "./host/modules/connectivity/ble/*",
+        "./host/modules/connectivity/http-server/*",
+        "./host/modules/connectivity/mcp-client/*",
+        "./host/modules/connectivity/mcp-server/*",
+        "./host/modules/connectivity/wasm/*",
         "./host/modules/input/*",
         "./stackchan/*",
-        "./stackchan/ble/*",
         "./stackchan/dialogues/*",
         "./host/modules/motion/*",
         "./host/modules/motion/internal/*",
@@ -184,7 +189,7 @@
         "./host/app/default-behavior/on-robot-created"
       ],
       "mcp-client": [
-        "./stackchan/services/mcp-client/mcp-client"
+        "./host/modules/connectivity/mcp-client/mcp-client"
       ]
     },
     "types": [

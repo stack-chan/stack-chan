@@ -1,0 +1,10 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../preferences/manifest.json"
+  ],
+  "modules": {
+    "network-service": "./wasm/network-service",
+    "preference-server": "./wasm/preference-server"
+  }
+}

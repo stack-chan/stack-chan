@@ -54,6 +54,12 @@ firmware/
       connectivity/
         manifest.json
         manifest.test.json
+        manifest_wasm.json
+        ble/
+        http-server/
+        mcp-client/
+        mcp-server/
+        wasm/
       input/
         manifest.json
         manifest.test.json
@@ -257,7 +263,7 @@ flowchart TD
 - [x] 対応済み：`firmware/host/modules/audio` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/camera` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/conversation` を作成し、`manifest.json` と `manifest.test.json` を置く。
-- [ ] 未対応：`firmware/host/modules/connectivity` を作成し、`manifest.json` と `manifest.test.json` を置く。
+- [x] 対応済み：`firmware/host/modules/connectivity` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/input` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/lighting` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/motion` を作成し、`manifest.json` と `manifest.test.json` を置く。
@@ -304,10 +310,12 @@ flowchart TD
 
 ### 8. Connectivity の移行
 
-- [ ] 未対応：`firmware/stackchan/services/http-server` を `firmware/host/modules/connectivity` へ移す。
-- [ ] 未対応：`firmware/stackchan/mcp-*` を `firmware/host/modules/connectivity` へ移す。
-- [ ] 未対応：`firmware/stackchan/network-service.ts` を `firmware/host/modules/connectivity` へ移す。
-- [ ] 未対応：`firmware/stackchan/ble` を `firmware/host/modules/connectivity` へ移す。
+- [x] 対応済み：`firmware/stackchan/services/http-server` を `firmware/host/modules/connectivity` へ移す。
+- [x] 対応済み：`firmware/stackchan/services/mcp-client` と `firmware/stackchan/services/mcp-server` を `firmware/host/modules/connectivity` へ移す。
+- [x] 対応済み：`firmware/stackchan/network-service.ts` を `firmware/host/modules/connectivity` へ移す。
+- [x] 対応済み：`firmware/stackchan/services/preference-server.ts` を `firmware/host/modules/connectivity` へ移す。
+- [x] 対応済み：`firmware/stackchan/services/wasm` の network/preference stub を `firmware/host/modules/connectivity/wasm` へ移す。
+- [x] 対応済み：`firmware/stackchan/ble` を `firmware/host/modules/connectivity` へ移す。
 - [ ] 未対応：ネットワーク接続とプロトコル処理を app 起動処理から外す。
 - [ ] 未対応：接続状態は callback で通知する。
 - [ ] 未対応：再接続と timeout は状態機械として実装する。

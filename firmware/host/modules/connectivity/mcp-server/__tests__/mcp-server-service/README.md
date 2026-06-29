@@ -6,7 +6,7 @@ Test code for launching an MCP server with Moddable.
 
 ```bash
 source ~/.local/share/xs-dev-export.sh
-mcconfig -m -d -p lin -t run ./host/modules/connectivity/mcp-server/__tests__/mcp-server-service/manifest.test.json
+npm run test:moddable -- ./host/modules/connectivity/mcp-server/__tests__/mcp-server-service/manifest.test.json
 ```
 
 ## Testing

@@ -1,27 +1,7 @@
 {
-  "include": [
-    "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODDABLE)/examples/manifest_typings.json",
-    "../../../connectivity/mcp-client/manifest.json",
-    "../../../testing/manifest.json"
-  ],
+  "include": ["../../manifest.json", "../../../testing/manifest.json"],
   "modules": {
-    "chat": "../../chat",
-    "chat-state": "../../chat-state",
-    "mcp-tools": "../../mcp-tools",
     "ChatAudioIO": "../../../testing/fakes/ChatAudioIO",
     "main": "./chat-service.test"
-  },
-  "defines": {
-    "main": {
-      "async": 1
-    }
-  },
-  "typescript": {
-    "tsconfig": {
-      "compilerOptions": {
-        "noImplicitAny": false
-      }
-    }
   }
 }

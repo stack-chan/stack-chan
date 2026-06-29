@@ -1,15 +1,4 @@
-export default class ChatAudioIO {
-  static FAILED = -1
-  static DISCONNECTED = 0
-  static DISCONNECTING = 1
-  static CONNECTING = 2
-  static CONNECTED = 3
-  static SPEAKING = 4
-  static LISTENING = 5
-  static WAITING = 6
-  static instances = []
-  static lastOptions = null
-
+class ChatAudioIO {
   constructor(options) {
     this.options = options
     ChatAudioIO.lastOptions = options
@@ -81,3 +70,16 @@ export default class ChatAudioIO {
     this.options.onFunctionCall?.(call, name, parameters)
   }
 }
+
+ChatAudioIO.FAILED = -1
+ChatAudioIO.DISCONNECTED = 0
+ChatAudioIO.DISCONNECTING = 1
+ChatAudioIO.CONNECTING = 2
+ChatAudioIO.CONNECTED = 3
+ChatAudioIO.SPEAKING = 4
+ChatAudioIO.LISTENING = 5
+ChatAudioIO.WAITING = 6
+ChatAudioIO.instances = []
+ChatAudioIO.lastOptions = null
+
+export default ChatAudioIO

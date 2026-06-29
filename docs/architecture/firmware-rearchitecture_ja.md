@@ -373,17 +373,18 @@ flowchart TD
 - [x] 対応済み：集約テストディレクトリとしての `firmware/tests` を削除する。
 - [x] 対応済み：各 module と UI view に `manifest.test.json` を置く。
 - [x] 対応済み：各 `manifest.test.json` は本体の `manifest.json` と `modules/testing/manifest.json` を include する。
-- [x] 対応済み：テスト用 main は同じディレクトリの `*.test.ts` を読む。
+- [x] 対応済み：テスト用 `modules.main` は同じディレクトリの `*.test.ts` または `*.test.js` を読む。
 - [x] 対応済み：成功時は `ok` を trace し、失敗時は例外を throw する。
-- [ ] 未対応：合否判定は `mcconfig -m -d -p lin/m5stack -t run` の終了ステータスで行う。
+- [x] 対応済み：合否判定は `mcconfig -m -d -p <platform> -t build` で生成した `mcsim` を xsbug ログ監視で実行し、`ok` trace と例外 marker で行う。
 - [x] 対応済み：`trace("not ok ...")` を合否判定に使わない。
 - [x] 対応済み：Node.js の `node:test` は移行補助と pure helper の検証に限定する。
-- [ ] 未対応：移行後の正規テスト判定は Moddable の lin 実行結果に寄せる。
-- [ ] 未対応：CI は `firmware/host/modules/**/manifest.test.json` を列挙して実行する。
-- [ ] 未対応：CI は `firmware/host/modules/ui/**/manifest.test.json` を列挙して実行する。
-- [ ] 未対応：Piu の Application や描画イベントを使うテストは `lin/m5stack` を既定にする。
-- [ ] 未対応：画面を使わない純粋ロジックは `lin` で実行できるようにする。
-- [ ] 未対応：実機依存の確認は unit test ではなく smoke として分ける。
+- [x] 対応済み：`mcconfig -m -d -p lin/m5stack -t run` は現在の lin/m5stack makefile に存在しないため、正規手順から外す。
+- [x] 対応済み：移行後の正規テスト判定は `npm run test:moddable` に寄せる。
+- [x] 対応済み：CI は `firmware/host/modules/**/manifest.test.json` を列挙して実行する。
+- [x] 対応済み：CI は `firmware/host/modules/ui/**/manifest.test.json` を列挙して実行する。
+- [x] 対応済み：Piu の Application や描画イベントを使うテストは `lin/m5stack` を既定にする。
+- [x] 対応済み：画面を使わない純粋ロジックは `lin` で実行できるようにする。
+- [x] 対応済み：実機依存の確認は unit test ではなく smoke として分ける。
 
 ### 13. 非同期境界の移行
 
@@ -426,8 +427,8 @@ flowchart TD
 - [ ] 未対応：module 移行後に `npm run build:wasm` を再実行する。
 - [ ] 未対応：module 移行後に `npm run smoke:lin` を再実行する。
 - [ ] 未対応：module 移行後に web 側の `npm test` を再実行する。
-- [ ] 未対応：module 移行後に `firmware/host/modules/*/manifest.test.json` をすべて実行する。
-- [ ] 未対応：module 移行後に `firmware/host/modules/ui/**/manifest.test.json` をすべて実行する。
+- [x] 対応済み：module 移行後に `firmware/host/modules/**/manifest.test.json` をすべて実行する。
+- [x] 対応済み：module 移行後に `firmware/host/modules/ui/**/manifest.test.json` をすべて実行する。
 - [ ] 未対応：module 移行後に対象 ESP32 board の build を実行する。
 - [ ] 未対応：module 移行後に changed MOD と sample MOD の mcrun を実行する。
 - [ ] 未対応：module 移行後に旧 API 検索を実行し、許可した履歴文書以外に旧名が残らないことを確認する。

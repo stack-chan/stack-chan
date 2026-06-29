@@ -23,7 +23,7 @@ The dummy server provides these test tools:
 
 ```bash
 source ~/.local/share/xs-dev-export.sh
-mcconfig -m -d -p lin -t run ./host/modules/connectivity/mcp-client/__tests__/mcp-client-service/manifest.test.json
+npm run test:moddable -- ./host/modules/connectivity/mcp-client/__tests__/mcp-client-service/manifest.test.json
 ```
 
 ## Expected Output

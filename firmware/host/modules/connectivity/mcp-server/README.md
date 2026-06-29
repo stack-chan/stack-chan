@@ -90,7 +90,7 @@ interface ToolParameter {
 
 ```bash
 source ~/.local/share/xs-dev-export.sh
-mcconfig -m -d -p lin -t run ./host/modules/connectivity/mcp-server/__tests__/mcp-server-service/manifest.test.json
+npm run test:moddable -- ./host/modules/connectivity/mcp-server/__tests__/mcp-server-service/manifest.test.json
 ```
 
 ### テスト用ツール

@@ -103,6 +103,10 @@ function isWasmSource(path: string): boolean {
   )
 }
 
+function isTestSource(path: string): boolean {
+  return path.endsWith('.test.ts') || path.includes('/__tests__/')
+}
+
 function readDriverRotation(driver: InstanceType<DriverConstructor>): unknown {
   let result: unknown
   driver.getRotation((value) => {
@@ -152,7 +156,7 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
 test('WASM-only imports stay under wasm platform and wasm implementation files', () => {
   const offenders = listSourceFiles('host')
     .map((path) => relative('.', path))
-    .filter((path) => !isWasmSource(path))
+    .filter((path) => !isWasmSource(path) && !isTestSource(path))
     .flatMap((path) =>
       importSpecifiers(readFileSync(path, 'utf8'))
         .filter(isWasmImport)

@@ -2,9 +2,6 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 
-const splashPath = 'host/modules/ui/views/splash/splash-view.ts'
-const defaultLaunchPath = 'host/app/default-behavior/on-launch.ts'
-const wasmBehaviorPath = 'host/app/default-behavior/wasm/behavior.ts'
 const manifestPath = 'host/app/manifest.json'
 const wasmAppManifestPath = 'host/app/manifest_wasm.json'
 const wasmManifestPath = 'host/platforms/wasm/manifest.json'
@@ -15,22 +12,6 @@ function readManifest(path: string) {
 }
 
 describe('startup splash screen', () => {
-  test('uses a simple Label-based Stack-chan loading splash screen', () => {
-    const source = readFileSync(splashPath, 'utf8')
-    assert.match(source, /new Application/)
-    assert.match(source, /new Container/)
-    assert.match(source, /new Column/)
-    assert.match(source, /new Label/)
-    assert.match(source, /new Skin/)
-    assert.match(source, /new Style/)
-    assert.match(source, /const SPLASH_FONT = '24px Open Sans'/)
-    assert.match(source, /Stack-chan/)
-    assert.match(source, /Starting\.\.\./)
-    assert.doesNotMatch(source, /startup-splash\.png/)
-    assert.doesNotMatch(source, /new Texture/)
-    assert.doesNotMatch(source, /28px Open Sans/)
-  })
-
   test('does not register a startup splash image resource for device or wasm builds', () => {
     assert.doesNotMatch(readFileSync(manifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
     assert.doesNotMatch(readFileSync(wasmAppManifestPath, 'utf8'), /\.\/assets\/images\/startup-splash/)
@@ -41,47 +22,27 @@ describe('startup splash screen', () => {
     const manifest = readManifest(manifestPath)
     const wasmManifest = readManifest(wasmAppManifestPath)
 
-    assert.match(readFileSync(splashPath, 'utf8'), /const SPLASH_FONT = '24px Open Sans'/)
     assert.deepEqual(manifest.resources['*-mask'], [splashFontResource])
     assert.deepEqual(wasmManifest.resources['*-mask'], [splashFontResource])
   })
 
-  test('default launch shows a touchable splash before startup choice branching', () => {
-    const splashSource = readFileSync(splashPath, 'utf8')
-    const launchSource = readFileSync(defaultLaunchPath, 'utf8')
-
-    assert.match(splashSource, /onTouchBegan/)
-    assert.match(splashSource, /touchCount: 1/)
-    assert.match(launchSource, /showStartupSplash\(\{ onTouch:/)
-    assert.ok(launchSource.indexOf('showStartupSplash') < launchSource.indexOf('waitForStartupChoice'))
-  })
-
-  test('startup choice automatically boots after timeout and enters settings on screen touch', () => {
-    const source = readFileSync(defaultLaunchPath, 'utf8')
-
-    assert.match(source, /type StartupChoice = 'boot' \| 'settings'/)
-    assert.match(source, /const STARTUP_AUTO_BOOT_DELAY_MS = 3000/)
-    assert.match(source, /function waitForStartupChoice/)
-    assert.match(
-      source,
-      /showStartupSplash\(\{ onTouch: \(\) => Timer\.set\(\(\) => choose\('settings', application\), 0\) \}\)/,
-    )
-    assert.match(source, /choose\('boot', application\)/)
-    assert.match(source, /resolve\(\{ choice, application \}\)/)
-    assert.match(source, /startupChoice\.choice === 'boot'/)
-  })
-
-  test('wasm app default behavior uses the wasm-specific startup splash hook', () => {
-    const mainSource = readFileSync('host/app/main.ts', 'utf8')
-    const source = readFileSync(wasmBehaviorPath, 'utf8')
+  test('app manifests resolve device and wasm startup behavior through module specifiers', () => {
+    const manifest = readManifest(manifestPath)
     const appManifest = readManifest(wasmAppManifestPath)
-    const manifest = readManifest(wasmManifestPath)
+    const wasmManifest = readManifest(wasmManifestPath)
 
-    assert.doesNotMatch(mainSource, /config\.wasm/)
-    assert.doesNotMatch(mainSource, /default-mods\/wasm\/mod/)
-    assert.match(source, /app-default-behavior\/wasm\/on-launch/)
-    assert.doesNotMatch(source, /app-default-behavior\/on-launch'/)
+    assert.equal(manifest.modules['app-default-behavior'], './default-behavior/behavior')
+    assert.equal(manifest.modules['app-default-behavior/*'], './default-behavior/*')
     assert.ok(appManifest.include.includes('../platforms/wasm/manifest.json'))
-    assert.equal(manifest.modules['app-default-behavior'], '../../app/default-behavior/wasm/behavior')
+    assert.equal(wasmManifest.modules['app-default-behavior'], '../../app/default-behavior/wasm/behavior')
+    assert.equal(
+      wasmManifest.modules['app-default-behavior/wasm/on-launch'],
+      '../../app/default-behavior/wasm/on-launch',
+    )
+    assert.equal(
+      wasmManifest.modules['app-default-behavior/on-context-created'],
+      '../../app/default-behavior/on-context-created',
+    )
+    assert.equal(wasmManifest.modules['app-default-behavior/*'], undefined)
   })
 })

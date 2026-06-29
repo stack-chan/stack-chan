@@ -46,6 +46,15 @@
       "timer": [
         "host/modules/testing/fakes/timer.ts"
       ],
+      "startup-splash": [
+        "host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts"
+      ],
+      "app-default-behavior/startup-choice": [
+        "host/app/default-behavior/startup-choice.ts"
+      ],
+      "app-default-behavior/wasm/on-launch": [
+        "host/app/default-behavior/wasm/on-launch.ts"
+      ],
       "mac-address": [
         "host/modules/util/sim/mac-address.ts"
       ],
@@ -80,6 +89,10 @@
     "host/modules/testing/*.test.ts",
     "host/modules/testing/node-alias-package.ts",
     "host/modules/testing/fakes/timer.ts",
+    "host/app/default-behavior/startup-choice.ts",
+    "host/app/default-behavior/wasm/on-launch.ts",
+    "host/app/default-behavior/startup-choice.test.ts",
+    "host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts",
     "host/modules/util/stackchan-util.ts",
     "host/modules/util/*.test.ts",
     "host/modules/util/sim/mac-address.ts",

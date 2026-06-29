@@ -1,37 +1,13 @@
 import type { StackchanAppBehavior } from 'app-behavior'
+import { waitForStartupChoice } from 'app-default-behavior/startup-choice'
 import { DOMAIN, PREF_KEYS } from 'consts'
 import { startNetworkConnection, stopNetworkConnection } from 'network-manager'
 import { NetworkConnectionState, type NetworkConnectionState as NetworkState } from 'network-state'
-import type { Application as PiuApplication } from 'piu/MC'
 import Preference from 'preference'
 import { PreferenceServer } from 'preference-server'
 import { buildSettingsView, type SettingsStatus, SettingsStatusValue, updateSettingsStatusLabels } from 'settings-view'
 import { showStartupSplash } from 'startup-splash'
 import Timer from 'timer'
-
-type StartupChoice = 'boot' | 'settings'
-
-const STARTUP_AUTO_BOOT_DELAY_MS = 3000
-
-type StartupChoiceResult = {
-  choice: StartupChoice
-  application: PiuApplication
-}
-
-function waitForStartupChoice(): Promise<StartupChoiceResult> {
-  return new Promise((resolve) => {
-    let isResolved = false
-    const choose = (choice: StartupChoice, application: PiuApplication) => {
-      if (isResolved) return
-      isResolved = true
-      Timer.clear(handle)
-      resolve({ choice, application })
-    }
-
-    const application = showStartupSplash({ onTouch: () => Timer.set(() => choose('settings', application), 0) })
-    const handle = Timer.set(() => choose('boot', application), STARTUP_AUTO_BOOT_DELAY_MS)
-  })
-}
 
 const preferenceString = (key: string): string => {
   const value = Preference.get(DOMAIN.wifi, key)
@@ -82,7 +58,10 @@ function connectStoredWiFi(
 }
 
 export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () => {
-  const startupChoice = await waitForStartupChoice()
+  const startupChoice = await waitForStartupChoice<ReturnType<typeof showStartupSplash>>({
+    timer: Timer,
+    showStartupSplash,
+  })
   if (startupChoice.choice === 'boot') {
     connectStoredWiFi()
     return true

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import Microphone from '../../modules/audio/wasm/microphone.js'
 import Tone from '../../modules/audio/wasm/tone.js'
-import FallbackCamera from '../../modules/camera/camera.js'
+import FallbackCamera from '../../modules/camera/lin/camera.js'
 import Camera from '../../modules/camera/wasm/camera.js'
 import {
   DynamixelDriver,
@@ -519,7 +519,7 @@ test('WASM synthetic camera keeps unsupported formats and JPEG convenience out o
   assert.equal('captureJpeg' in camera, false)
 })
 
-test('default camera backend is safe when no device camera exists', async () => {
+test('lin camera backend is safe when no device camera exists', async () => {
   const camera = new FallbackCamera()
 
   await camera.start()

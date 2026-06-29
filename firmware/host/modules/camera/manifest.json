@@ -4,8 +4,81 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "../../app/manifest_typings.json"
   ],
-  "modules": {
-    "camera": "./camera"
+  "platforms": {
+    "esp32": {
+      "modules": {
+        "camera": "./lin/camera"
+      }
+    },
+    "esp32/m5stack_cores3": {
+      "include": [
+        "$(MODDABLE)/modules/io/manifest.json",
+        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+      ],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "esp32/m5stackchan_cores3": {
+      "include": [
+        "$(MODDABLE)/modules/io/manifest.json",
+        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+      ],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "esp32/m5atom_s3r_cam": {
+      "include": [
+        "$(MODDABLE)/modules/io/manifest.json",
+        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+      ],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "esp32/m5atom_s3r_m12": {
+      "include": [
+        "$(MODDABLE)/modules/io/manifest.json",
+        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+      ],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "esp32/lilygo_t_camera_plus_s3": {
+      "include": [
+        "$(MODDABLE)/modules/io/manifest.json",
+        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+      ],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "esp32/xiao_esp32s3_sense": {
+      "include": [
+        "$(MODDABLE)/modules/io/manifest.json",
+        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+      ],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
+    "mac": {
+      "modules": {
+        "camera": "./lin/camera"
+      }
+    },
+    "lin": {
+      "modules": {
+        "camera": "./lin/camera"
+      }
+    },
+    "win": {
+      "modules": {
+        "camera": "./lin/camera"
+      }
+    }
   },
   "typescript": {
     "tsconfig": {

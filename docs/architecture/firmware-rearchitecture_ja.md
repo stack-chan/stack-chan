@@ -337,7 +337,7 @@ flowchart TD
 - [x] 対応済み：`firmware/stackchan/led` を `firmware/host/modules/lighting` へ移す。
 - [x] 対応済み：py32 差分を lighting module の platform manifest または module 内部差分として扱う。
 - [x] 対応済み：`firmware/stackchan/camera.ts` を `firmware/host/modules/camera` へ移す。
-- [ ] 未対応：camera の実機実装、WASM stub、lin stub を platform manifest で切り替える。
+- [x] 対応済み：camera の実機実装、WASM stub、lin stub を platform manifest で切り替える。
 - [x] 対応済み：`firmware/stackchan/utilities` を `firmware/host/modules/util` と `firmware/host/modules/preferences` へ分ける。
 - [x] 対応済み：数学系 helper は `modules/util` に置く。
 - [x] 対応済み：`loadPreferences` と設定 schema は `modules/preferences` に置く。

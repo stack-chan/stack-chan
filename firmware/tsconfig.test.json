@@ -91,7 +91,7 @@
     "host/modules/testing/fakes/timer.ts",
     "host/app/default-behavior/startup-choice.ts",
     "host/app/default-behavior/wasm/on-launch.ts",
-    "host/app/default-behavior/startup-choice.test.ts",
+    "host/app/__tests__/startup-choice.test.ts",
     "host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts",
     "host/modules/util/stackchan-util.ts",
     "host/modules/util/*.test.ts",

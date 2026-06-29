@@ -8,7 +8,7 @@ const drawerStates: [string, boolean][] = []
 const events: [string, unknown][] = []
 
 const robot = {
-  application: {
+  drawer: {
     addDrawerButton: (button: { key?: string }) => {
       buttons.push(button)
     },
@@ -16,12 +16,15 @@ const robot = {
       drawerStates.push([key, active])
     },
   },
-  renderer: {
+  ui: {
     application: {
       distribute: (event: string, payload: unknown) => {
         events.push([event, payload])
       },
     },
+    addEffect: () => {},
+    removeEffect: () => {},
+    setFace: () => {},
   },
   driver: {
     setTorque: () => {},

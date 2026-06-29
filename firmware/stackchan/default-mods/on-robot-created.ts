@@ -71,26 +71,26 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     currentEmotion = nextEmotion
     target.setEmotion(nextEmotion)
     if (emoticonEffect) {
-      target.renderer?.removeDecorator(emoticonEffect)
+      target.ui.removeEffect(emoticonEffect)
       emoticonEffect = null
     }
     const key = emotionKeyMap[nextEmotion]
     if (key) {
       emoticonEffect = new Emoticon({ key, name: 'emotion' })
-      target.renderer?.addDecorator(emoticonEffect)
+      target.ui.addEffect(emoticonEffect)
     }
   }
 
   let faceMode: 'simple' | 'dog' | 'image' = 'simple'
   let cameraPreviewTimer: ReturnType<typeof Timer.set> | undefined
   const syncFaceMode = (
-    app = robot.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined,
+    app = robot.ui.application as { distribute?: (event: string, payload: unknown) => void } | undefined,
   ) => {
-    robot.application.setDrawerButtonState('toggleFace', faceMode !== 'simple')
+    robot.drawer.setDrawerButtonState('toggleFace', faceMode !== 'simple')
     app?.distribute?.('onFaceMode', faceMode)
   }
   const closeDrawer = () =>
-    (robot.renderer?.application as { distribute?: (event: string) => void } | undefined)?.distribute?.('onDrawerClose')
+    (robot.ui.application as { distribute?: (event: string) => void } | undefined)?.distribute?.('onDrawerClose')
   const createCurrentFace = () =>
     faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
   const restoreCameraPreview = () => {
@@ -98,23 +98,23 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
       Timer.clear(cameraPreviewTimer)
       cameraPreviewTimer = undefined
     }
-    robot.renderer?.setFace?.(createCurrentFace())
+    robot.ui.setFace(createCurrentFace())
     robot.hideBalloon()
   }
-  robot.application.addDrawerButton({
+  robot.drawer.addDrawerButton({
     key: 'toggleFace',
     label: 'Face',
     kind: 'toggle',
     initialState: false,
     callback: (target) => {
       faceMode = faceMode === 'simple' ? 'dog' : faceMode === 'dog' ? 'image' : 'simple'
-      target.renderer?.setFace?.(createCurrentFace())
-      const app = target.renderer?.application as { distribute?: (event: string, payload: unknown) => void } | undefined
+      target.ui.setFace(createCurrentFace())
+      const app = target.ui.application as { distribute?: (event: string, payload: unknown) => void } | undefined
       syncFaceMode(app)
     },
   })
   syncFaceMode()
-  robot.application.addDrawerButton({
+  robot.drawer.addDrawerButton({
     key: 'cycleEmotion',
     label: 'Emotion',
     callback: (target) => {
@@ -136,7 +136,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
       setEmotionWithEffect(target, nextEmotion)
     },
   })
-  robot.application.addDrawerButton({
+  robot.drawer.addDrawerButton({
     key: 'toggleSpeech',
     label: 'Speech',
     kind: 'toggle',
@@ -148,7 +148,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
       } else {
         target.hideBalloon()
       }
-      robot.application.setDrawerButtonState('toggleSpeech', speechVisible)
+      robot.drawer.setDrawerButtonState('toggleSpeech', speechVisible)
     },
   })
 
@@ -162,7 +162,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
         target.showBalloon('camera unavailable')
         return
       }
-      target.renderer?.setFace?.(
+      target.ui.setFace(
         createCameraPreviewFace(frame, {
           onRender: (mode) => {
             trace(`[CameraPreview] render mode=${mode}\n`)
@@ -182,7 +182,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
       hideBalloonLater(1200)
     }
   }
-  robot.application.addDrawerButton({
+  robot.drawer.addDrawerButton({
     key: 'cameraPreview',
     label: 'Camera',
     callback: (target) => {
@@ -197,7 +197,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
   const toggleLookAround = async () => {
     isFollowing = !isFollowing
     robot.driver.setTorque(isFollowing)
-    robot.application.setDrawerButtonState('toggleLookAround', isFollowing)
+    robot.drawer.setDrawerButtonState('toggleLookAround', isFollowing)
     const text = isFollowing ? 'looking' : 'look away'
     robot.showBalloon(text)
     await asyncWait(1000)
@@ -215,7 +215,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     robot.lookAt([x, y, z])
   }
   Timer.repeat(targetLoop, 5000)
-  robot.application.addDrawerButton({
+  robot.drawer.addDrawerButton({
     key: 'toggleLookAround',
     label: 'Look',
     kind: 'toggle',
@@ -251,13 +251,13 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     if (isMoving) return
     isFollowing = false
     robot.lookAway()
-    robot.application.setDrawerButtonState('toggleLookAround', false)
+    robot.drawer.setDrawerButtonState('toggleLookAround', false)
     isMoving = true
     testMotion(() => {
       isMoving = false
     })
   }
-  robot.application.addDrawerButton({
+  robot.drawer.addDrawerButton({
     key: 'servoTest',
     label: 'Servo',
     callback: runServoTest,
@@ -276,9 +276,9 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
       } else {
         robot.lightOff(ledName)
       }
-      robot.application.setDrawerButtonState('toggleLED', isLighting)
+      robot.drawer.setDrawerButtonState('toggleLED', isLighting)
     }
-    robot.application.addDrawerButton({
+    robot.drawer.addDrawerButton({
       key: 'toggleLED',
       label: 'LED',
       kind: 'toggle',
@@ -339,12 +339,12 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
       hideBalloonLater(1200)
     }
   }
-  robot.application.addDrawerButton({
+  robot.drawer.addDrawerButton({
     key: 'playTone',
     label: 'playTone',
     callback: runPlayTone,
   })
-  robot.application.addDrawerButton({
+  robot.drawer.addDrawerButton({
     key: 'recordPlayback',
     label: 'Record and playback',
     callback: runRecordPlayback,
@@ -364,7 +364,7 @@ export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
     }
     flag = !flag
   }
-  robot.application.addDrawerButton({
+  robot.drawer.addDrawerButton({
     key: 'toggleColor',
     label: 'Color',
     callback: toggleColor,

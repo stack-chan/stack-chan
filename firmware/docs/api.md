@@ -31,7 +31,7 @@ $ npm run generate-apidoc
 The `Robot` class is used to access the functions of the Stack-chan.
 The following classes are defined to allow replacement and customization of Stack-chan functions.
 
-- [Renderer](#renderer): Draw a face
+- [RobotUI](#robotui): Controls the Piu application, face, effects, and drawer UI
 - [Driver](#driver): Drives motors, etc.
 - [TTS](#tts): Speech synthesis
 
@@ -62,7 +62,7 @@ Correspondence with the coordinate system can also be referenced in the actual s
 
 ### Robot
 
-### Renderer
+### RobotUI
 
 ### Driver
 

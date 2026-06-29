@@ -1,5 +1,8 @@
 {
-  "include": ["$(MODDABLE)/examples/manifest_base.json", "$(MODDABLE)/examples/manifest_typings.json"],
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json"
+  ],
   "modules": {
     "chat-audioio-config": "../../../mods/chat_audioio/config",
     "mocks/assert": "../mocks/assert",

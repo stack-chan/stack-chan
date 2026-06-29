@@ -1,7 +1,7 @@
 export const DOMAIN = {
   wifi: 'wifi',
   driver: 'driver',
-  renderer: 'renderer',
+  ui: 'ui',
   tts: 'tts',
   ai: 'ai',
   led: 'led',
@@ -11,7 +11,7 @@ export const PREF_KEYS: readonly [keyof typeof DOMAIN, string, StringConstructor
   [
     [DOMAIN.wifi, 'ssid', String],
     [DOMAIN.wifi, 'password', String],
-    [DOMAIN.renderer, 'type', String],
+    [DOMAIN.ui, 'type', String],
     [DOMAIN.driver, 'type', String],
     [DOMAIN.driver, 'baudrate', Number],
     [DOMAIN.driver, 'offsetPan', Number],

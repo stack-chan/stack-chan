@@ -1,6 +1,10 @@
 import loadPreferences from 'loadPreference'
+import { createAppControllerApplication } from 'app-controller'
+import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
 import Camera from 'camera'
+import { ChatStatusBar } from 'chat-status-bar'
 import defaultMod, { type StackchanMod } from 'default-mods/mod'
+import type { DrawerButtonSpec } from 'drawer'
 import { DynamixelDriver } from 'dynamixel-driver'
 import IMU from 'imu'
 import Led from 'led'
@@ -10,12 +14,10 @@ import Microphone from 'microphone'
 import Modules from 'modules'
 import { NetworkService } from 'network-service'
 import { NoneDriver } from 'none-driver'
+import { ImageAvatarFace } from 'parts/image/image-avatar-face'
+import type { Container as PiuContainer } from 'piu/MC'
 import PY32Led from 'py32-led'
-import { Renderer as DogFaceRenderer } from 'renderer-dog'
-import { Renderer as ImageFaceRenderer } from 'renderer-image'
-import { Renderer as SimpleRenderer } from 'renderer-simple'
-import { Renderer as SmallFaceRenderer } from 'renderer-small'
-import { type Driver, type Renderer, Robot, type Button as RobotButton, type TTS } from 'robot'
+import { type Driver, type RobotUI, Robot, type Button as RobotButton, type TTS } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
@@ -42,6 +44,12 @@ type SimulatorButtonCtor = new (options: {
 
 type RobotLed = Pick<Led, 'on' | 'off' | 'blink' | 'rainbow'>
 
+type UIOptions = {
+  avatar?: string
+  drawerButtons?: DrawerButtonSpec[]
+  displayListLength?: number
+}
+
 type GlobalEnvironment = {
   button?: Partial<Record<'a' | 'b' | 'c' | 'power', DeviceButton>>
   network?: NetworkService
@@ -60,6 +68,21 @@ const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 
 function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
   return value != null && typeof (value as { then?: unknown }).then === 'function'
+}
+
+function asUIOptions(param: unknown): UIOptions {
+  return (param ?? {}) as UIOptions
+}
+
+function createStackchanUI(face: PiuContainer, options: UIOptions = {}, displayListLength = 2048): RobotUI {
+  return createAppControllerApplication(
+    {
+      face,
+      appBar: new ChatStatusBar(),
+      drawerButtons: options.drawerButtons,
+    },
+    { displayListLength },
+  )
 }
 
 // wrapper button class for simulator
@@ -99,11 +122,21 @@ function createRobot() {
     ['elevenlabs', (param) => new ElevenLabsTTS(param as ConstructorParameters<typeof ElevenLabsTTS>[0])],
     ['openai', (param) => new OpenAITTS(param as ConstructorParameters<typeof OpenAITTS>[0])],
   ])
-  const renderers = new Map<string, (param: unknown) => Renderer>([
-    ['dog', (param) => new DogFaceRenderer(param as ConstructorParameters<typeof DogFaceRenderer>[0])],
-    ['simple', (param) => new SimpleRenderer(param as ConstructorParameters<typeof SimpleRenderer>[0])],
-    ['image', (param) => new ImageFaceRenderer(param as ConstructorParameters<typeof ImageFaceRenderer>[0])],
-    ['small-face', (param) => new SmallFaceRenderer(param as ConstructorParameters<typeof SmallFaceRenderer>[0])],
+  const uiControllers = new Map<string, (param: unknown) => RobotUI>([
+    ['dog', (param) => createStackchanUI(new DogFace(), asUIOptions(param))],
+    ['simple', (param) => createStackchanUI(new SimpleFace(), asUIOptions(param))],
+    [
+      'image',
+      (param) => {
+        const options = asUIOptions(param)
+        return createStackchanUI(
+          new ImageAvatarFace({ pack: options.avatar }),
+          options,
+          options.displayListLength ?? 4096,
+        )
+      },
+    ],
+    ['small-face', (param) => createStackchanUI(new SmallFace(), asUIOptions(param))],
   ])
 
   const errors: string[] = []
@@ -118,16 +151,16 @@ function createRobot() {
   const ttsKey = ttsPrefs.type ?? 'local'
   const TTS = ttsEngines.get(ttsKey)
 
-  // Renderer
-  const rendererPrefs = loadPreferences('renderer')
-  const rendererKey = rendererPrefs.type ?? 'simple'
-  const Renderer = renderers.get(rendererKey)
+  // UI
+  const uiPrefs = loadPreferences('ui')
+  const uiKey = uiPrefs.type ?? 'simple'
+  const UI = uiControllers.get(uiKey)
 
-  if (!Driver || !TTS || !Renderer) {
+  if (!Driver || !TTS || !UI) {
     for (const [key, klass] of [
       [driverKey, Driver],
       [ttsKey, TTS],
-      [rendererKey, Renderer],
+      [uiKey, UI],
     ]) {
       if (klass == null) {
         errors.push(`type "${key}" does not exist`)
@@ -137,7 +170,7 @@ function createRobot() {
   }
 
   const driver = Driver(driverPrefs)
-  const renderer = Renderer(rendererPrefs)
+  const ui = UI(uiPrefs)
   const tts = TTS(ttsPrefs)
 
   const touch = config.Touch ? new Touch(config.Touch) : undefined
@@ -191,7 +224,7 @@ function createRobot() {
 
   return new Robot({
     driver,
-    renderer,
+    ui,
     tts,
     button: globalEnv.button,
     touch,

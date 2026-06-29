@@ -169,7 +169,7 @@
     },
     "esp32/m5atom_s3": {
       "config": {
-        "renderer": {
+        "ui": {
           "type": "small-face"
         },
         "driver": {
@@ -179,7 +179,7 @@
     },
     "esp32/m5atom_s3r": {
       "config": {
-        "renderer": {
+        "ui": {
           "type": "small-face"
         },
         "driver": {
@@ -189,7 +189,7 @@
     },
     "esp32/m5atom_s3_echo_base": {
       "config": {
-        "renderer": {
+        "ui": {
           "type": "small-face"
         },
         "driver": {
@@ -199,7 +199,7 @@
     },
     "esp32/m5atom_s3r_echo_base": {
       "config": {
-        "renderer": {
+        "ui": {
           "type": "small-face"
         },
         "driver": {
@@ -242,7 +242,7 @@
         "stack": 1024
       },
       "config": {
-        "renderer": {
+        "ui": {
           "type": "small-face"
         },
         "driver": {
@@ -255,7 +255,7 @@
         "stack": 1024
       },
       "config": {
-        "renderer": {
+        "ui": {
           "type": "small-face"
         },
         "driver": {
@@ -268,7 +268,7 @@
         "stack": 1024
       },
       "config": {
-        "renderer": {
+        "ui": {
           "type": "small-face"
         },
         "driver": {

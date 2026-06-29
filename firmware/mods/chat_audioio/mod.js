@@ -258,8 +258,8 @@ export function onRobotCreated(robot) {
     },
   }
 
-  const app = robot.renderer?.application
-  // robot.renderer?.setFace?.(new ImageFace({}))
+  const app = robot.ui.application
+  // robot.ui.setFace(new ImageFace({}))
   // app?.distribute?.('onFaceMode', 'image')
 
   /**
@@ -268,7 +268,7 @@ export function onRobotCreated(robot) {
   let isFollowing = false
   const toggleLookAround = () => {
     isFollowing = !isFollowing
-    robot.application.setDrawerButtonState('toggleLookAround', isFollowing)
+    robot.drawer.setDrawerButtonState('toggleLookAround', isFollowing)
     if (!isFollowing) {
       robot.lookAway()
     }
@@ -365,7 +365,7 @@ export function onRobotCreated(robot) {
       height: BALLOON_FIXED_HEIGHT,
       font: 'k8x12-12',
     })
-    robot.renderer?.addDecorator(balloon)
+    robot.ui.addEffect(balloon)
   }
 
   const refreshBalloonCols = (force = false) => {
@@ -416,7 +416,7 @@ export function onRobotCreated(robot) {
       return
     }
     if (balloon) {
-      robot.renderer?.removeDecorator(balloon)
+      robot.ui.removeEffect(balloon)
       balloon = null
     }
     balloon = new SpeechBalloon({
@@ -428,7 +428,7 @@ export function onRobotCreated(robot) {
       text: nextText,
       font: 'k8x12-12',
     })
-    robot.renderer?.addDecorator(balloon)
+    robot.ui.addEffect(balloon)
   }
 
   const flushBalloonText = () => {
@@ -466,7 +466,7 @@ export function onRobotCreated(robot) {
 
   const removeBalloon = () => {
     stopUiTimers()
-    if (balloon) robot.renderer?.removeDecorator(balloon)
+    if (balloon) robot.ui.removeEffect(balloon)
     balloon = null
     pendingBalloonText = null
     pendingMouthStep = 0
@@ -510,7 +510,7 @@ export function onRobotCreated(robot) {
         }
         if (state === 'DISCONNECTED' || state === 'FAILED') {
           active = false
-          robot.application.setDrawerButtonState('toggleChat', false)
+          robot.drawer.setDrawerButtonState('toggleChat', false)
           removeBalloon()
         }
       },
@@ -546,7 +546,7 @@ export function onRobotCreated(robot) {
     if (active) return
     active = true
     startUiTimers()
-    robot.application.setDrawerButtonState('toggleChat', true)
+    robot.drawer.setDrawerButtonState('toggleChat', true)
     chat.setVolume(0.5)
     queueMouthOpen(0, true)
     ensureBalloon()
@@ -558,13 +558,13 @@ export function onRobotCreated(robot) {
   const stopChat = () => {
     if (!active) return
     active = false
-    robot.application.setDrawerButtonState('toggleChat', false)
+    robot.drawer.setDrawerButtonState('toggleChat', false)
     chat.stop()
     queueMouthOpen(0, true)
     removeBalloon()
   }
 
-  robot.application.addDrawerButton({
+  robot.drawer.addDrawerButton({
     key: 'toggleChat',
     label: 'Chat',
     kind: 'toggle',
@@ -574,7 +574,7 @@ export function onRobotCreated(robot) {
       else startChat()
     },
   })
-  robot.application.addDrawerButton({
+  robot.drawer.addDrawerButton({
     key: 'toggleLookAround',
     label: 'Look',
     kind: 'toggle',

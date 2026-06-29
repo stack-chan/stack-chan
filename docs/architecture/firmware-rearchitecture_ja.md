@@ -256,7 +256,7 @@ flowchart TD
 - [ ] 未対応：`firmware/host/modules/connectivity` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/input` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/lighting` を作成し、`manifest.json` と `manifest.test.json` を置く。
-- [ ] 未対応：`firmware/host/modules/motion` を作成し、`manifest.json` と `manifest.test.json` を置く。
+- [x] 対応済み：`firmware/host/modules/motion` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/preferences` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/testing` を作成し、共有 fake と test helper を置く。
 - [x] 対応済み：`firmware/host/modules/util` を作成し、`manifest.json` と `manifest.test.json` を置く。
@@ -266,7 +266,7 @@ flowchart TD
 
 ### 5. Motion の移行
 
-- [ ] 未対応：`firmware/stackchan/drivers` を `firmware/host/modules/motion` へ移す。
+- [x] 対応済み：`firmware/stackchan/drivers` を `firmware/host/modules/motion` へ移す。
 - [ ] 未対応：`scservo`、`rs30x`、`dynamixel` を `modules/motion/protocols` へ分ける。
 - [ ] 未対応：首の pan、tilt、torque、追従制御を `modules/motion` の controller 層に置く。
 - [ ] 未対応：低レイヤの送受信待ちから `Promise` queue を取り除く。

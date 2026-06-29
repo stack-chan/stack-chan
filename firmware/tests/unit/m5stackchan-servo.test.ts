@@ -7,7 +7,7 @@ import {
   M5STACKCHAN_SERVO_DEFAULTS,
   rawPositionToAngle,
   rotationToM5StackChanServoAngles,
-} from '../../stackchan/drivers/m5stackchan-servo.js'
+} from '../../host/modules/motion/m5stackchan-servo.js'
 
 describe('M5StackChan servo mapping', () => {
   test('maps yaw and pitch zero angles to M5StackChan calibrated raw origins', () => {

@@ -11,7 +11,7 @@ import {
   RS30XDriver,
   SCServoDriver,
   WasmDriver,
-} from '../../stackchan/drivers/wasm/wasm-driver.js'
+} from '../../host/modules/motion/wasm/wasm-driver.js'
 import Microphone from '../../stackchan/wasm/microphone.js'
 import Tone from '../../stackchan/wasm/tone.js'
 
@@ -87,13 +87,34 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
 
   assert.equal(manifest.modules['wasm-audio-bridge'], '../../stackchan/wasm/audio-bridge')
   assert.ok(manifest.include.includes('../modules/camera/manifest_wasm.json'))
+  assert.ok(manifest.include.includes('../modules/motion/manifest_wasm.json'))
   assert.ok(manifest.preload.includes('wasm-camera-bridge'))
   assert.equal(manifest.modules['embedded:io/audio/in'], '../../stackchan/wasm/audio-in')
-  assert.equal(manifest.modules['wasm-driver'], '../../stackchan/drivers/wasm/wasm-driver')
   assert.equal(manifest.modules['embedded:io/audio/in'], '../../stackchan/wasm/audio-in')
   assert.ok(manifest.include.includes('../modules/input/manifest.json'))
   assert.ok(manifest.preload.includes('touch-panel'))
   assert.ok(manifest.preload.includes('touch-panel-gesture'))
+  assert.deepEqual(
+    {
+      'py32-led': manifest.modules['py32-led'],
+    },
+    {
+      'py32-led': '../modules/lighting/wasm/py32-led',
+    },
+  )
+})
+
+test('WASM servo driver facade files re-export the consolidated WasmDriver through a manifest module specifier', () => {
+  const manifest = JSON.parse(readFileSync('host/modules/motion/manifest_wasm.json', 'utf8'))
+  const facadePaths = [
+    'host/modules/motion/wasm/dynamixel-driver.ts',
+    'host/modules/motion/wasm/m5stackchan-servo-driver.ts',
+    'host/modules/motion/wasm/none-driver.ts',
+    'host/modules/motion/wasm/sg90-driver.ts',
+    'host/modules/motion/wasm/rs30x-driver.ts',
+    'host/modules/motion/wasm/scservo-driver.ts',
+  ]
+
   assert.deepEqual(
     {
       'dynamixel-driver': manifest.modules['dynamixel-driver'],
@@ -102,29 +123,16 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
       'sg90-driver': manifest.modules['sg90-driver'],
       'rs30x-driver': manifest.modules['rs30x-driver'],
       'scservo-driver': manifest.modules['scservo-driver'],
-      'py32-led': manifest.modules['py32-led'],
     },
     {
-      'dynamixel-driver': '../../stackchan/drivers/wasm/dynamixel-driver',
-      'm5stackchan-servo-driver': '../../stackchan/drivers/wasm/m5stackchan-servo-driver',
-      'none-driver': '../../stackchan/drivers/wasm/none-driver',
-      'sg90-driver': '../../stackchan/drivers/wasm/sg90-driver',
-      'rs30x-driver': '../../stackchan/drivers/wasm/rs30x-driver',
-      'scservo-driver': '../../stackchan/drivers/wasm/scservo-driver',
-      'py32-led': '../modules/lighting/wasm/py32-led',
+      'dynamixel-driver': './wasm/dynamixel-driver',
+      'm5stackchan-servo-driver': './wasm/m5stackchan-servo-driver',
+      'none-driver': './wasm/none-driver',
+      'sg90-driver': './wasm/sg90-driver',
+      'rs30x-driver': './wasm/rs30x-driver',
+      'scservo-driver': './wasm/scservo-driver',
     },
   )
-})
-
-test('WASM servo driver facade files re-export the consolidated WasmDriver through a manifest module specifier', () => {
-  const facadePaths = [
-    'stackchan/drivers/wasm/dynamixel-driver.ts',
-    'stackchan/drivers/wasm/m5stackchan-servo-driver.ts',
-    'stackchan/drivers/wasm/none-driver.ts',
-    'stackchan/drivers/wasm/sg90-driver.ts',
-    'stackchan/drivers/wasm/rs30x-driver.ts',
-    'stackchan/drivers/wasm/scservo-driver.ts',
-  ]
 
   for (const facadePath of facadePaths) {
     const source = readFileSync(facadePath, 'utf8')

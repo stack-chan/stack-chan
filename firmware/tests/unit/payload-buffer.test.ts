@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { PayloadBuffer } from '../../stackchan/drivers/payload-buffer.js'
+import { PayloadBuffer } from '../../host/modules/motion/payload-buffer.js'
 
 test('copyFrom reuses existing allocation when capacity is sufficient', () => {
   const buffer = new PayloadBuffer(4)

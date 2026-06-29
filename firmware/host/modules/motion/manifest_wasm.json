@@ -1,0 +1,15 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../app/manifest_typings.json"
+  ],
+  "modules": {
+    "wasm-driver": "./wasm/wasm-driver",
+    "dynamixel-driver": "./wasm/dynamixel-driver",
+    "m5stackchan-servo-driver": "./wasm/m5stackchan-servo-driver",
+    "none-driver": "./wasm/none-driver",
+    "sg90-driver": "./wasm/sg90-driver",
+    "rs30x-driver": "./wasm/rs30x-driver",
+    "scservo-driver": "./wasm/scservo-driver"
+  }
+}

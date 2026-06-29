@@ -8,7 +8,7 @@
     "$(MODDABLE)/examples/manifest_net.json",
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
-    "../../stackchan/drivers/manifest_driver.json",
+    "../modules/motion/manifest.json",
     "../../stackchan/ble/manifest_ble.json",
     "../../stackchan/dialogues/manifest_dialogue.json",
     "../modules/camera/manifest.json",

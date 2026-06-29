@@ -1,11 +1,11 @@
-import type Digital from 'embedded:io/digital'
 import type { RobotCamera } from 'camera'
+import type { Button, DrawerButtonSpec, DrawerCapability, Driver, RobotUI, StackchanContext, TTS } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type Emotion, type FaceState, type FaceThemeKey, setColorRGB } from 'face-state'
 import type IMU from 'imu'
 import type Led from 'led'
 import type Microphone from 'microphone'
-import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import type { Content as PiuContent } from 'piu/MC'
 import { generateDeviceSeed, type Maybe, noop, type Pose, Rotation, randomBetween, Vector3 } from 'stackchan-util'
 import Timer from 'timer'
 import type Tone from 'tone'
@@ -14,51 +14,6 @@ import type TouchPanel from 'touch-panel'
 
 const INTERVAL_FACE = 1000 / 30
 const INTERVAL_POSE = 1000 / 10
-/**
- * The Driver for the actuator
- */
-export type Driver = {
-  applyRotation: (ori: Rotation, time?: number) => Promise<void>
-  getRotation: () => Promise<Maybe<Rotation>>
-  setTorque: (torque: boolean) => Promise<void>
-  onAttached?: () => void
-  onDetached?: () => void
-}
-
-/**
- * The text-to-speech engine
- */
-export type TTS = {
-  stream: (text: string, volume?: number) => Promise<void>
-  onPlayed?: (volume: number) => void
-  onDone?: () => void
-}
-
-/**
- * The display UI controller.
- */
-export type RobotUI = {
-  update: (interval: number, faceState: FaceState) => void
-  addEffect(effect: UIEffect, key?: string): void
-  removeEffect(effect: UIEffect): void
-  application?: unknown
-  setFace(face: PiuContainer): void
-}
-
-export type DrawerButtonRegistration = {
-  key: string
-  label: string
-  callback: (robot: Robot) => unknown
-  kind?: 'action' | 'toggle'
-  initialState?: boolean
-}
-
-type DrawerButtonRegistry = {
-  addDrawerButton: (button: DrawerButtonRegistration) => void
-  removeDrawerButton: (key: string) => void
-  clearDrawerButtons: () => void
-  setDrawerButtonState: (key: string, active: boolean) => void
-}
 
 const NULL_CAMERA: RobotCamera = {
   start() {},
@@ -68,17 +23,13 @@ const NULL_CAMERA: RobotCamera = {
   },
 }
 
-export type Button = {
-  onChanged: (this: Digital) => void
-}
-
 const buttonNames = ['a', 'b', 'c', 'power'] as const
 type ButtonName = (typeof buttonNames)[number]
 
 /**
- * The constructor parameters of the robot.
+ * The constructor parameters of the runtime context.
  */
-type RobotConstructorParam<T extends string> = {
+type RuntimeContextConstructorParam<T extends string> = {
   driver: Driver
   ui: RobotUI
   tts: TTS
@@ -101,11 +52,9 @@ type RobotConstructorParam<T extends string> = {
 
 const LEFT_RIGHT = Object.freeze(['left', 'right'])
 type UIEffect = PiuContent
-export class Robot {
+export class StackchanRuntimeContext {
   /**
-   * A Facade class that provides quick access for Stack-chan features
-   *
-   * @public
+   * App-owned runtime context that drives hardware, UI, and product behavior.
    */
   #gazePoint: Vector3
   #pose: {
@@ -135,11 +84,11 @@ export class Robot {
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
   #balloon: UIEffect
-  #drawerCallbacks: Map<string, (robot: Robot) => unknown>
-  #drawerRegistry: DrawerButtonRegistry
+  #drawerCallbacks: Map<string, (context: StackchanContext) => unknown>
+  #drawerRegistry: DrawerCapability
   #drawerBehavior: Record<string, unknown> | null
   updating: boolean
-  constructor(params: RobotConstructorParam<ButtonName>) {
+  constructor(params: RuntimeContextConstructorParam<ButtonName>) {
     this.seed = generateDeviceSeed()
     this.useUI(params.ui)
     this.useDriver(params.driver)
@@ -213,7 +162,7 @@ export class Robot {
   }
 
   /**
-   * set a TTS instance to Robot and register callbacks
+   * Set a TTS instance and register callbacks.
    *
    * @param tts - TTS class instance
    */
@@ -236,7 +185,7 @@ export class Robot {
   }
 
   /**
-   * set a UI controller instance to Robot.
+   * Set a UI controller instance.
    *
    * @param ui - UI controller instance
    */
@@ -245,7 +194,7 @@ export class Robot {
   }
 
   /**
-   * set a Driver instance to Robot and register callbacks
+   * Set a driver instance and register callbacks.
    *
    * @param driver - Driver class instance
    */
@@ -497,7 +446,7 @@ export class Robot {
     return this.#ui
   }
 
-  get drawer(): DrawerButtonRegistry {
+  get drawer(): DrawerCapability {
     return this.#drawerRegistry
   }
 
@@ -530,13 +479,13 @@ export class Robot {
     return this.#drawerBehavior
   }
 
-  private addDrawerButton({ key, label, callback, kind, initialState }: DrawerButtonRegistration): void {
+  private addDrawerButton({ key, label, callback, kind, initialState }: DrawerButtonSpec): void {
     this.#drawerCallbacks.set(key, callback)
     const behavior = this.ensureDrawerBehavior()
     if (behavior) {
       const runCallback = () => {
         try {
-          const result = callback(this)
+          const result = callback(this as unknown as StackchanContext)
           if (result && typeof (result as { catch?: (handler: (err: unknown) => void) => void }).catch === 'function') {
             ;(result as { catch: (handler: (err: unknown) => void) => void }).catch((err: unknown) => {
               trace(`[DrawerButton] callback rejected key=${key} err=${String(err)}\n`)

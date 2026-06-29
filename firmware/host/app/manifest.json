@@ -27,12 +27,12 @@
       "../../stackchan/touch-panel-gesture",
       "../../stackchan/imu",
       "../../stackchan/imu-motion",
-      "../../stackchan/robot",
       "../../stackchan/camera",
       "../../stackchan/tone",
       "./main",
       "./compose",
       "./capabilities",
+      "./runtime-context",
       "$(MODULES)/network/http/*"
     ],
     "startup-splash": "../modules/ui/views/splash/splash-view",
@@ -41,7 +41,7 @@
     "default-mods/*": "./default-behavior/*"
   },
   "preload": [
-    "robot",
+    "runtime-context",
     "touch",
     "touch-panel",
     "touch-panel-gesture",

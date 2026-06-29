@@ -18,10 +18,10 @@
       "../../stackchan/touch-panel-gesture",
       "../../stackchan/imu",
       "../../stackchan/imu-motion",
-      "../../stackchan/robot",
       "./main",
       "./compose",
-      "./capabilities"
+      "./capabilities",
+      "./runtime-context"
     ],
     "startup-splash": "../modules/ui/views/splash/splash-view",
     "camera": "../../stackchan/wasm/camera",
@@ -59,7 +59,7 @@
   "preload": [
     "wasm-audio-bridge",
     "wasm-camera-bridge",
-    "robot",
+    "runtime-context",
     "touch-panel",
     "touch-panel-gesture",
     "imu-motion",

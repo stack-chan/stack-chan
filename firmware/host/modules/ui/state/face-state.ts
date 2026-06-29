@@ -215,7 +215,7 @@ export class ThemeState extends BinaryView {
 }
 
 /**
- * View-backed face state shared by Robot and Piu UI.
+ * View-backed face state shared by the app runtime context and Piu UI.
  */
 export class FaceState extends BinaryView {
   static readonly BYTE_LENGTH = 44

@@ -16,7 +16,6 @@ import { NoneDriver } from 'none-driver'
 import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import type { Container as PiuContainer } from 'piu/MC'
 import PY32Led from 'py32-led'
-import { type Driver, Robot, type Button as RobotButton, type RobotUI, type TTS } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
@@ -29,9 +28,10 @@ import { TTS as OpenAITTS } from 'tts-openai'
 import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
-import type { StackchanContext } from './capabilities'
+import type { Button, Driver, RobotUI, StackchanContext, TTS } from './capabilities'
+import { StackchanRuntimeContext } from './runtime-context'
 
-type DeviceButton = RobotButton & {
+type DeviceButton = Button & {
   read: () => number
 }
 
@@ -234,7 +234,7 @@ export function createStackchanContext(): StackchanContext {
   )
   const led = Object.fromEntries(ledEntries)
 
-  return new Robot({
+  return new StackchanRuntimeContext({
     driver,
     ui,
     tts,
@@ -245,8 +245,8 @@ export function createStackchanContext(): StackchanContext {
     tone,
     microphone,
     camera,
-    led: led as ConstructorParameters<typeof Robot>[0]['led'],
-  } as ConstructorParameters<typeof Robot>[0]) as unknown as StackchanContext
+    led: led as ConstructorParameters<typeof StackchanRuntimeContext>[0]['led'],
+  } as ConstructorParameters<typeof StackchanRuntimeContext>[0]) as unknown as StackchanContext
 }
 
 export async function connectConfiguredWiFi() {

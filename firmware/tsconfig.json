@@ -29,6 +29,9 @@
       "capabilities": [
         "./host/app/capabilities"
       ],
+      "runtime-context": [
+        "./host/app/runtime-context"
+      ],
       "chat-status-bar": [
         "./host/modules/ui/components/status-bar/chat-status-bar"
       ],

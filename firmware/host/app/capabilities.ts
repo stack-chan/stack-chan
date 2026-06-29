@@ -1,11 +1,40 @@
+import type Digital from 'embedded:io/digital'
 import type { RobotCamera } from 'camera'
-import type { Emotion, FaceThemeKey } from 'face-state'
+import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
 import type IMU from 'imu'
 import type Led from 'led'
-import type { Button, Driver, RobotUI, TTS } from 'robot'
-import type { Maybe, Pose, Vector3 } from 'stackchan-util'
+import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
+import type { Maybe, Pose, Rotation, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
+
+export type Driver = {
+  applyRotation: (ori: Rotation, time?: number) => Promise<void>
+  getRotation: () => Promise<Maybe<Rotation>>
+  setTorque: (torque: boolean) => Promise<void>
+  onAttached?: () => void
+  onDetached?: () => void
+}
+
+export type TTS = {
+  stream: (text: string, volume?: number) => Promise<void>
+  onPlayed?: (volume: number) => void
+  onDone?: () => void
+}
+
+export type UIEffect = PiuContent
+
+export type RobotUI = {
+  update: (interval: number, faceState: FaceState) => void
+  addEffect(effect: UIEffect, key?: string): void
+  removeEffect(effect: UIEffect): void
+  application?: unknown
+  setFace(face: PiuContainer): void
+}
+
+export type Button = {
+  onChanged: (this: Digital) => void
+}
 
 export type DrawerButtonSpec = {
   key: string

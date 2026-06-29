@@ -241,9 +241,9 @@ flowchart TD
 
 ### 3. Robot Facade の分解
 
-- [ ] 未対応：`firmware/stackchan/robot.ts` が driver、TTS、input、camera、LED、drawer、face、motion を直接抱える構造を解消する。
+- [ ] 未対応：`firmware/host/app/runtime-context.ts` が driver、TTS、input、camera、LED、drawer、face、motion を直接抱える構造を解消する。
 - [x] 対応済み：Face、Motion、Audio、Input、Lighting、Camera、Conversation、Connectivity の公開契約を個別に定義する。
-- [ ] 未対応：`Robot` は互換 Facade として残さず、新しい app composition の戻り値または context 型へ置き換える。
+- [x] 対応済み：`Robot` は互換 Facade として残さず、新しい app composition の戻り値または context 型へ置き換える。
 - [x] 対応済み：MOD へ渡す API を `Robot` の肥大化ではなく、必要な capability を束ねた型として再定義する。
 - [ ] 未対応：Drawer と Face は UI capability として公開し、motion や audio から直接参照しない。
 - [ ] 未対応：product default behavior は `Robot` のメソッド追加ではなく、app の振る舞いとして登録する。
@@ -340,9 +340,9 @@ flowchart TD
 - [x] 対応済み：変更対象になった default mod と sample mod の Renderer API 呼び出しを RobotUI API へ更新する。
 - [ ] 未対応：`firmware/mods` を利用者向け MOD と sample だけを置く場所にする。
 - [ ] 未対応：sample MOD を `firmware/mods/examples` へ移す。
-- [ ] 未対応：product default behavior を `firmware/mods` から `firmware/host/app/default-behavior` へ移す。
+- [x] 対応済み：product default behavior を `firmware/mods` から `firmware/host/app/default-behavior` へ移す。
 - [ ] 未対応：古い provider demo を core 依存から切り離す。
-- [ ] 未対応：MOD API の公開面を capability 単位で再定義し、旧 `Robot` 互換 API を残さない。
+- [x] 対応済み：MOD API の公開面を capability 単位で再定義し、旧 `Robot` 互換 API を残さない。
 
 ### 12. テスト配置と実行方法の移行
 

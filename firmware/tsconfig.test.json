@@ -16,6 +16,9 @@
       "camera": [
         "host/modules/camera/wasm/camera.ts"
       ],
+      "audio-buffer": [
+        "host/modules/audio/audio-buffer.ts"
+      ],
       "wasm-driver": [
         "host/modules/motion/wasm/wasm-driver.ts"
       ],
@@ -52,6 +55,8 @@
   },
   "include": [
     "host/modules/motion/payload-buffer.ts",
+    "host/modules/audio/audio-buffer.ts",
+    "host/modules/audio/__tests__/*.test.ts",
     "host/modules/motion/wasm/**/*.ts",
     "host/modules/camera/camera.ts",
     "host/modules/camera/*.test.ts",

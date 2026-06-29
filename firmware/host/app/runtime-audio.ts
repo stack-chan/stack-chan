@@ -1,3 +1,4 @@
+import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { TTS } from 'capabilities'
 import type Microphone from 'microphone'
 import { type Maybe, noop } from 'stackchan-util'
@@ -81,7 +82,7 @@ export class StackchanRuntimeAudio {
     }
   }
 
-  async record(durationMilliSec?: number): Promise<ArrayBuffer> {
+  async record(durationMilliSec?: number): Promise<OwnedAudioBuffer> {
     if (!this.#microphone) {
       throw Error('This device does not support a microphone.')
     }
@@ -95,8 +96,10 @@ export class StackchanRuntimeAudio {
     return this.#tone?.tone(hz, duration, volume)
   }
 
-  async playAudio(buffer: ArrayBuffer): Promise<boolean> {
-    const player = this.#tone as unknown as { play?: (buffer: ArrayBuffer) => Promise<boolean> | boolean } | undefined
+  async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
+    const player = this.#tone as unknown as
+      | { play?: (buffer: BorrowedAudioBuffer) => Promise<boolean> | boolean }
+      | undefined
     return (await player?.play?.(buffer)) ?? false
   }
 }

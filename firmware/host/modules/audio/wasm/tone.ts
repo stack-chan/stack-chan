@@ -1,5 +1,7 @@
 declare const setTimeout: (callback: () => void, delay?: number) => unknown
 
+import type { BorrowedAudioBuffer } from 'audio-buffer'
+
 type WasmAudioBridge = {
   close: () => void
   playStatus: () => number
@@ -61,7 +63,7 @@ export default class Tone {
     })
   }
 
-  async play(buffer: ArrayBuffer): Promise<boolean> {
+  async play(buffer: BorrowedAudioBuffer): Promise<boolean> {
     if (buffer.byteLength === 0) return false
     const audioBridge = getAudioBridge()
     audioBridge.startPlayBuffer(buffer)

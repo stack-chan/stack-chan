@@ -1,5 +1,9 @@
 declare const setTimeout: (callback: () => void, delay?: number) => unknown
 
+import type { OwnedAudioBuffer } from 'audio-buffer'
+
+const ownAudioBuffer = (buffer: ArrayBuffer): OwnedAudioBuffer => buffer as OwnedAudioBuffer
+
 type WasmAudioBridge = {
   close: () => void
   recordBuffer: () => ArrayBuffer
@@ -48,7 +52,7 @@ export default class Microphone {
     void _options
   }
 
-  async record(durationMilliSec = 3000): Promise<ArrayBuffer> {
+  async record(durationMilliSec = 3000): Promise<OwnedAudioBuffer> {
     const audioBridge = getAudioBridge()
     audioBridge.startRecord(durationMilliSec)
     return new Promise((resolve) => {
@@ -58,7 +62,7 @@ export default class Microphone {
           schedule(audioBridge, poll, 50)
           return
         }
-        resolve(status > 0 ? audioBridge.recordBuffer() : new ArrayBuffer(0))
+        resolve(ownAudioBuffer(status > 0 ? audioBridge.recordBuffer() : new ArrayBuffer(0)))
       }
       poll()
     })

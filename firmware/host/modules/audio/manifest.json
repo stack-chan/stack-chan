@@ -25,6 +25,7 @@
   },
   "preload": [
     "embedded:io/audio/in",
+    "audio-buffer",
     "microphone",
     "tone",
     "stt-whisper",

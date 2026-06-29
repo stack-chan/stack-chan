@@ -298,8 +298,8 @@ flowchart TD
 - [x] 対応済み：TTS provider ごとの実装ファイルは維持し、audio module の manifest で選択する。
 - [x] 対応済み：ストリーミング再生と再生完了通知を callback 契約へ統一する。
 - [x] 対応済み：`onPlayed` と `onDone` の通知方向は維持し、`stream()` の戻り値へ完了制御を集めない。
-- [ ] 未対応：録音 buffer と再生 buffer の所有者を型または契約で明示する。
-- [ ] 未対応：大きい `ArrayBuffer` を多段でコピーしないことを audio test で確認する。
+- [x] 対応済み：録音 buffer と再生 buffer の所有者を型または契約で明示する。
+- [x] 対応済み：大きい `ArrayBuffer` を多段でコピーしないことを audio test で確認する。
 - [x] 対応済み：`m5stack_fire` では旧 `pins/audioin` と `embedded:io/audio/in` の native 名衝突を避けるため、manifest で `embedded:io/audio/in` を platform adapter に差し替える。
 
 ### 7. Conversation の移行

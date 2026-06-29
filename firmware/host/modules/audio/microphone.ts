@@ -1,4 +1,5 @@
 import AudioIn from 'embedded:io/audio/in'
+import { type OwnedAudioBuffer, ownAudioBuffer } from 'audio-buffer'
 
 export default class Microphone {
   recording: boolean
@@ -32,7 +33,7 @@ export default class Microphone {
     this.recording = false
   }
 
-  async record(durationMilliSec = 3000): Promise<ArrayBuffer> {
+  async record(durationMilliSec = 3000): Promise<OwnedAudioBuffer> {
     if (this.recording) {
       throw new Error('already recording')
     }
@@ -50,13 +51,13 @@ export default class Microphone {
 
           if (!chunk) {
             this.close()
-            resolve(wavBuffer)
+            resolve(ownAudioBuffer(wavBuffer))
           } else {
             dataView.set(new Uint8Array(chunk), writeOffset)
             writeOffset += chunkSize
             if (writeOffset >= dataView.byteLength) {
               this.close()
-              resolve(wavBuffer)
+              resolve(ownAudioBuffer(wavBuffer))
             }
           }
         },

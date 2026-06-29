@@ -1,3 +1,4 @@
+import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { RobotUI, StackchanContext } from 'capabilities'
 import type { Emotion, FaceThemeKey } from 'face-state'
 import { type MotionCompletion, MotionController, type MotionControllerConstructorParam } from 'motion-controller'
@@ -180,7 +181,7 @@ export class StackchanRuntimeContext {
     return this.#audioRuntime.say(text, volume)
   }
 
-  async record(durationMilliSec?: number): Promise<ArrayBuffer> {
+  async record(durationMilliSec?: number): Promise<OwnedAudioBuffer> {
     return this.#audioRuntime.record(durationMilliSec)
   }
 
@@ -194,7 +195,7 @@ export class StackchanRuntimeContext {
     return this.#audioRuntime.tone(hz, duration, volume)
   }
 
-  async playAudio(buffer: ArrayBuffer): Promise<boolean> {
+  async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
     return this.#audioRuntime.playAudio(buffer)
   }
 

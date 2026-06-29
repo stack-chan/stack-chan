@@ -1,4 +1,5 @@
 import type Digital from 'embedded:io/digital'
+import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { RobotCamera } from 'camera'
 import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
 import type IMU from 'imu'
@@ -62,12 +63,12 @@ export type MotionCapability = {
 export type AudioCapability = {
   tts: TTS
   microphone?: {
-    record(durationMilliSec?: number): Promise<ArrayBuffer>
+    record(durationMilliSec?: number): Promise<OwnedAudioBuffer>
   }
   say(text: string, volume?: number): Promise<Maybe<string>>
-  record(durationMilliSec?: number): Promise<ArrayBuffer>
+  record(durationMilliSec?: number): Promise<OwnedAudioBuffer>
   tone(hz: number, duration: number, volume?: number): Promise<void>
-  playAudio(buffer: ArrayBuffer): Promise<boolean>
+  playAudio(buffer: BorrowedAudioBuffer): Promise<boolean>
 }
 
 export type InputCapability = {

@@ -242,9 +242,9 @@ flowchart TD
 ### 3. Robot Facade の分解
 
 - [ ] 未対応：`firmware/stackchan/robot.ts` が driver、TTS、input、camera、LED、drawer、face、motion を直接抱える構造を解消する。
-- [ ] 未対応：Face、Motion、Audio、Input、Lighting、Camera、Conversation、Connectivity の公開契約を個別に定義する。
+- [x] 対応済み：Face、Motion、Audio、Input、Lighting、Camera、Conversation、Connectivity の公開契約を個別に定義する。
 - [ ] 未対応：`Robot` は互換 Facade として残さず、新しい app composition の戻り値または context 型へ置き換える。
-- [ ] 未対応：MOD へ渡す API を `Robot` の肥大化ではなく、必要な capability を束ねた型として再定義する。
+- [x] 対応済み：MOD へ渡す API を `Robot` の肥大化ではなく、必要な capability を束ねた型として再定義する。
 - [ ] 未対応：Drawer と Face は UI capability として公開し、motion や audio から直接参照しない。
 - [ ] 未対応：product default behavior は `Robot` のメソッド追加ではなく、app の振る舞いとして登録する。
 

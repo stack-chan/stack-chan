@@ -1,10 +1,10 @@
+import type { StackchanContext } from 'capabilities'
 import { onRobotCreated } from 'default-mods/on-robot-created'
 import { onLaunch } from 'default-mods/wasm/on-launch'
-import type { Robot } from 'robot'
 
 export interface StackchanMod {
   onLaunch?: () => Promise<boolean> | boolean
-  onRobotCreated?: (robot: Robot, option?: unknown) => Promise<void> | void
+  onRobotCreated?: (context: StackchanContext, option?: unknown) => Promise<void> | void
 }
 
 export default {

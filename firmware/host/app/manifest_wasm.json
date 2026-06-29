@@ -20,7 +20,8 @@
       "../../stackchan/imu-motion",
       "../../stackchan/robot",
       "./main",
-      "./compose"
+      "./compose",
+      "./capabilities"
     ],
     "startup-splash": "../modules/ui/views/splash/splash-view",
     "camera": "../../stackchan/wasm/camera",

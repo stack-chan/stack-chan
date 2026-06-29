@@ -32,6 +32,7 @@
       "../../stackchan/tone",
       "./main",
       "./compose",
+      "./capabilities",
       "$(MODULES)/network/http/*"
     ],
     "startup-splash": "../modules/ui/views/splash/splash-view",

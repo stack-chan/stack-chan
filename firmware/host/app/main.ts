@@ -1,7 +1,12 @@
 import defaultMod, { type StackchanMod } from 'default-mods/mod'
 import Modules from 'modules'
 import { asyncWait } from 'stackchan-util'
-import { connectConfiguredWiFi, createRobot, getHostDeviceEnvironment, installSimulatorButtons } from './compose'
+import {
+  connectConfiguredWiFi,
+  createStackchanContext,
+  getHostDeviceEnvironment,
+  installSimulatorButtons,
+} from './compose'
 
 function resolveMod(): StackchanMod {
   let { onRobotCreated, onLaunch } = defaultMod
@@ -31,9 +36,9 @@ async function main() {
   trace(`[main] onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)
   if (!shouldRobotCreate) return
 
-  const robot = createRobot()
-  trace('[main] robot created\n')
-  await onRobotCreated?.(robot, getHostDeviceEnvironment())
+  const context = createStackchanContext()
+  trace('[main] app context created\n')
+  await onRobotCreated?.(context, getHostDeviceEnvironment())
   trace('[main] onRobotCreated complete\n')
 }
 

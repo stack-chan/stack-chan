@@ -26,6 +26,9 @@
       "app-controller": [
         "./host/modules/ui/application/app-controller"
       ],
+      "capabilities": [
+        "./host/app/capabilities"
+      ],
       "chat-status-bar": [
         "./host/modules/ui/components/status-bar/chat-status-bar"
       ],

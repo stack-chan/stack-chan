@@ -29,6 +29,7 @@ import { TTS as OpenAITTS } from 'tts-openai'
 import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
+import type { StackchanContext } from './capabilities'
 
 type DeviceButton = RobotButton & {
   read: () => number
@@ -113,7 +114,7 @@ export function getHostDeviceEnvironment(): HostDeviceEnvironment {
   return globalEnv.device
 }
 
-export function createRobot() {
+export function createStackchanContext(): StackchanContext {
   const drivers = new Map<string, (param: unknown) => Driver>([
     ['scservo', (param) => new SCServoDriver(param as ConstructorParameters<typeof SCServoDriver>[0])],
     [
@@ -245,7 +246,7 @@ export function createRobot() {
     microphone,
     camera,
     led: led as ConstructorParameters<typeof Robot>[0]['led'],
-  } as ConstructorParameters<typeof Robot>[0])
+  } as ConstructorParameters<typeof Robot>[0]) as unknown as StackchanContext
 }
 
 export async function connectConfiguredWiFi() {

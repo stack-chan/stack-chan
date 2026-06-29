@@ -6,6 +6,7 @@ import { File } from 'file'
 import Headers from 'headers'
 import config from 'mc/config'
 import AudioOut from 'pins/audioout'
+import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 import WavStreamer from 'wavstreamer'
 
 const QUERY_PATH = `${config.file.root}query.json`
@@ -22,8 +23,8 @@ declare const device: {
 }
 
 export type TTSProperty = {
-  onPlayed?: (number) => void
-  onDone?: () => void
+  onPlayed?: TTSPlaybackListener
+  onDone?: TTSDoneListener
   host: string
   port: number
   sampleRate?: number
@@ -33,8 +34,8 @@ export type TTSProperty = {
 
 export class TTS {
   audio?: AudioOut
-  onPlayed?: (number) => void
-  onDone?: () => void
+  onPlayed?: TTSPlaybackListener
+  onDone?: TTSDoneListener
   client?: HTTPClient
   host: string
   port: number
@@ -100,82 +101,84 @@ export class TTS {
       })
     })
   }
-  async stream(key: string, volume?: number): Promise<void> {
+  stream(key: string, volume?: number, callback?: TTSCompletion): void {
     if (this.streaming) {
-      throw new Error('already playing')
+      callback?.(new Error('already playing'))
+      return
     }
     this.streaming = true
 
     const host = this.host
     const port = this.port
     const speakerId = this.speakerId
-    try {
-      await this.getQuery(key, speakerId)
-    } catch (error) {
-      throw new Error(error instanceof Error ? error.message : String(error))
-    }
-    const { onPlayed, onDone } = this
-    const file = new File(QUERY_PATH)
-    trace(`file opened. length: ${file.length}, position: ${file.position}`)
-    return new Promise((resolve, reject) => {
-      this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate })
-      this.audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
-      const audio = this.audio
-      const streamer = new WavStreamer({
-        http: device.network.http,
-        host,
-        port,
-        path: encodeURI(`/synthesis?speaker=${speakerId}`),
-        audio: {
-          out: audio,
-          stream: 0,
-        },
-        bufferDuration: 600,
-        request: {
-          method: 'POST',
-          headers: new Headers([
-            ['content-type', 'application/json'],
-            ['content-length', `${file.length}`],
-          ]),
-          onWritable(count) {
-            const chunk = file.read(ArrayBuffer, count)
-            if (chunk != null) {
-              this.write(chunk)
+    this.getQuery(key, speakerId).then(
+      () => {
+        const { onPlayed, onDone } = this
+        const file = new File(QUERY_PATH)
+        trace(`file opened. length: ${file.length}, position: ${file.position}`)
+        this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate })
+        this.audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
+        const audio = this.audio
+        const streamer = new WavStreamer({
+          http: device.network.http,
+          host,
+          port,
+          path: encodeURI(`/synthesis?speaker=${speakerId}`),
+          audio: {
+            out: audio,
+            stream: 0,
+          },
+          bufferDuration: 600,
+          request: {
+            method: 'POST',
+            headers: new Headers([
+              ['content-type', 'application/json'],
+              ['content-length', `${file.length}`],
+            ]),
+            onWritable(count) {
+              const chunk = file.read(ArrayBuffer, count)
+              if (chunk != null) {
+                this.write(chunk)
+              }
+            },
+          },
+          onPlayed(buffer) {
+            const power = calculatePower(buffer)
+            onPlayed?.(power)
+          },
+          onReady(state) {
+            trace(`Ready: ${state}\n`)
+            if (state) {
+              audio.start()
+            } else {
+              audio.stop()
             }
           },
-        },
-        onPlayed(buffer) {
-          const power = calculatePower(buffer)
-          onPlayed?.(power)
-        },
-        onReady(state) {
-          trace(`Ready: ${state}\n`)
-          if (state) {
-            audio.start()
-          } else {
-            audio.stop()
-          }
-        },
-        onError: (e) => {
-          file.close()
-          trace('ERROR: ', e, '\n')
-          this.streaming = false
-          streamer?.close()
-          this.audio?.close()
-          this.audio = undefined
-          reject(e)
-        },
-        onDone: () => {
-          file.close()
-          trace('DONE\n')
-          this.streaming = false
-          streamer?.close()
-          this.audio?.close()
-          this.audio = undefined
-          onDone?.()
-          resolve()
-        },
-      })
-    })
+          onError: (e) => {
+            file.close()
+            trace('ERROR: ', e, '\n')
+            this.streaming = false
+            streamer?.close()
+            this.audio?.close()
+            this.audio = undefined
+            callback?.(e)
+          },
+          onDone: () => {
+            file.close()
+            trace('DONE\n')
+            this.streaming = false
+            streamer?.close()
+            this.audio?.close()
+            this.audio = undefined
+            onDone?.()
+            callback?.()
+          },
+        })
+      },
+      (error) => {
+        this.streaming = false
+        callback?.(error)
+      },
+    )
   }
 }

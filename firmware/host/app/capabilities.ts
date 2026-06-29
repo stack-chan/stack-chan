@@ -8,11 +8,12 @@ import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
+import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 
 export type TTS = {
-  stream: (text: string, volume?: number) => Promise<void>
-  onPlayed?: (volume: number) => void
-  onDone?: () => void
+  stream: (text: string, volume?: number, callback?: TTSCompletion) => void
+  onPlayed?: TTSPlaybackListener
+  onDone?: TTSDoneListener
 }
 
 export type UIEffect = PiuContent

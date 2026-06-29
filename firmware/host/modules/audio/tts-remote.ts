@@ -3,6 +3,7 @@
 import type HTTPClient from 'embedded:network/http/client'
 import calculatePower from 'calculate-power'
 import AudioOut from 'pins/audioout'
+import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 import WavStreamer from 'wavstreamer'
 
 /* global trace, SharedArrayBuffer */
@@ -17,8 +18,8 @@ declare const device: {
 }
 
 export type TTSProperty = {
-  onPlayed?: (number) => void
-  onDone?: () => void
+  onPlayed?: TTSPlaybackListener
+  onDone?: TTSDoneListener
   host: string
   port: number
   sampleRate?: number
@@ -27,8 +28,8 @@ export type TTSProperty = {
 
 export class TTS {
   audio?: AudioOut
-  onPlayed?: (number) => void
-  onDone?: () => void
+  onPlayed?: TTSPlaybackListener
+  onDone?: TTSDoneListener
   host: string
   port: number
   sampleRate: number
@@ -43,56 +44,55 @@ export class TTS {
     this.sampleRate = props.sampleRate ?? 24000
     this.volume = props.volume ?? 0.5
   }
-  async stream(key: string, volume?: number): Promise<void> {
+  stream(key: string, volume?: number, callback?: TTSCompletion): void {
     if (this.streaming) {
-      throw new Error('already playing')
+      callback?.(new Error('already playing'))
+      return
     }
     this.streaming = true
     const { onPlayed, onDone } = this
-    return new Promise((resolve, reject) => {
-      this.audio = new AudioOut({ streams: 1, sampleRate: this.sampleRate })
-      this.audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
-      const audio = this.audio
-      const streamer = new WavStreamer({
-        http: device.network.http,
-        host: this.host,
-        path: key,
-        port: this.port,
-        bufferDuration: 600,
-        audio: {
-          out: audio,
-          stream: 0,
-        },
-        onPlayed(buffer) {
-          const power = calculatePower(buffer)
-          onPlayed?.(power)
-        },
-        onReady(state) {
-          trace(`Ready: ${state}\n`)
-          if (state) {
-            audio.start()
-          } else {
-            audio.stop()
-          }
-        },
-        onError: (e) => {
-          trace('ERROR: ', e, '\n')
-          this.streaming = false
-          streamer?.close()
-          this.audio?.close()
-          this.audio = undefined
-          reject(e)
-        },
-        onDone: () => {
-          trace('DONE\n')
-          this.streaming = false
-          streamer?.close()
-          this.audio?.close()
-          this.audio = undefined
-          onDone?.()
-          resolve()
-        },
-      })
+    this.audio = new AudioOut({ streams: 1, sampleRate: this.sampleRate })
+    this.audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
+    const audio = this.audio
+    const streamer = new WavStreamer({
+      http: device.network.http,
+      host: this.host,
+      path: key,
+      port: this.port,
+      bufferDuration: 600,
+      audio: {
+        out: audio,
+        stream: 0,
+      },
+      onPlayed(buffer) {
+        const power = calculatePower(buffer)
+        onPlayed?.(power)
+      },
+      onReady(state) {
+        trace(`Ready: ${state}\n`)
+        if (state) {
+          audio.start()
+        } else {
+          audio.stop()
+        }
+      },
+      onError: (e) => {
+        trace('ERROR: ', e, '\n')
+        this.streaming = false
+        streamer?.close()
+        this.audio?.close()
+        this.audio = undefined
+        callback?.(e)
+      },
+      onDone: () => {
+        trace('DONE\n')
+        this.streaming = false
+        streamer?.close()
+        this.audio?.close()
+        this.audio = undefined
+        onDone?.()
+        callback?.()
+      },
     })
   }
 }

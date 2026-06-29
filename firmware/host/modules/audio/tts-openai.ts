@@ -3,12 +3,13 @@
 import calculatePower from 'calculate-power'
 import OpenAIStreamer from 'openaistreamer'
 import AudioOut from 'pins/audioout'
+import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 
 /* global trace, SharedArrayBuffer */
 
 export type TTSProperty = {
-  onPlayed?: (number) => void
-  onDone?: () => void
+  onPlayed?: TTSPlaybackListener
+  onDone?: TTSDoneListener
   token: string
   model?: string
   voice?: string
@@ -19,8 +20,8 @@ export type TTSProperty = {
 
 export class TTS {
   audio?: AudioOut
-  onPlayed?: (number) => void
-  onDone?: () => void
+  onPlayed?: TTSPlaybackListener
+  onDone?: TTSDoneListener
   token: string
   model: string
   voice: string
@@ -39,58 +40,57 @@ export class TTS {
     this.instructions = props.instructions ?? ''
     this.volume = props.volume ?? 0.5
   }
-  async stream(text: string, volume?: number): Promise<void> {
+  stream(text: string, volume?: number, callback?: TTSCompletion): void {
     if (this.streaming) {
-      throw new Error('already playing')
+      callback?.(new Error('already playing'))
+      return
     }
     this.streaming = true
     const { onPlayed, onDone } = this
-    return new Promise((resolve, reject) => {
-      this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 24000 })
-      this.audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
-      const audio = this.audio
-      const streamer = new OpenAIStreamer({
-        input: text,
-        key: this.token,
-        model: this.model,
-        voice: this.voice,
-        speed: this.speed,
-        instructions: this.instructions,
-        response_format: 'wav',
-        audio: {
-          out: audio,
-          stream: 0,
-        },
-        onPlayed(buffer) {
-          const power = calculatePower(buffer)
-          onPlayed?.(power)
-        },
-        onReady(state) {
-          trace(`Ready: ${state}\n`)
-          if (state) {
-            audio.start()
-          } else {
-            audio.stop()
-          }
-        },
-        onError: (e) => {
-          trace('ERROR: ', e, '\n')
-          this.streaming = false
-          streamer?.close()
-          this.audio?.close()
-          this.audio = undefined
-          reject(e)
-        },
-        onDone: () => {
-          trace('DONE\n')
-          this.streaming = false
-          streamer?.close()
-          this.audio?.close()
-          this.audio = undefined
-          onDone?.()
-          resolve()
-        },
-      })
+    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 24000 })
+    this.audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
+    const audio = this.audio
+    const streamer = new OpenAIStreamer({
+      input: text,
+      key: this.token,
+      model: this.model,
+      voice: this.voice,
+      speed: this.speed,
+      instructions: this.instructions,
+      response_format: 'wav',
+      audio: {
+        out: audio,
+        stream: 0,
+      },
+      onPlayed(buffer) {
+        const power = calculatePower(buffer)
+        onPlayed?.(power)
+      },
+      onReady(state) {
+        trace(`Ready: ${state}\n`)
+        if (state) {
+          audio.start()
+        } else {
+          audio.stop()
+        }
+      },
+      onError: (e) => {
+        trace('ERROR: ', e, '\n')
+        this.streaming = false
+        streamer?.close()
+        this.audio?.close()
+        this.audio = undefined
+        callback?.(e)
+      },
+      onDone: () => {
+        trace('DONE\n')
+        this.streaming = false
+        streamer?.close()
+        this.audio?.close()
+        this.audio = undefined
+        onDone?.()
+        callback?.()
+      },
     })
   }
 }

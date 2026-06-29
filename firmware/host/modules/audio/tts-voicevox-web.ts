@@ -5,6 +5,7 @@ import calculatePower from 'calculate-power'
 import { fetch } from 'fetch'
 import MP3Streamer from 'mp3streamer'
 import AudioOut from 'pins/audioout'
+import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 import { URL } from 'url'
 
 /* global trace, SharedArrayBuffer */
@@ -19,8 +20,8 @@ declare const device: {
 }
 
 export type TTSProperty = {
-  onPlayed?: (number) => void
-  onDone?: () => void
+  onPlayed?: TTSPlaybackListener
+  onDone?: TTSDoneListener
   token: string
   sampleRate?: number
   speakerId?: number
@@ -29,8 +30,8 @@ export type TTSProperty = {
 
 export class TTS {
   audio?: AudioOut
-  onPlayed?: (number) => void
-  onDone?: () => void
+  onPlayed?: TTSPlaybackListener
+  onDone?: TTSDoneListener
   token: string
   streaming: boolean
   speakerId: number
@@ -62,62 +63,66 @@ export class TTS {
       })
   }
 
-  async stream(key: string, volume?: number): Promise<void> {
+  stream(key: string, volume?: number, callback?: TTSCompletion): void {
     if (this.streaming) {
-      throw new Error('already playing')
+      callback?.(new Error('already playing'))
+      return
     }
     this.streaming = true
 
     const speakerId = this.speakerId
-    const streamUrl = await this.getQuery(key, speakerId).catch((error) => {
-      throw new Error(`getQuery failed: ${error}`)
-    })
-    const url = new URL(streamUrl)
-    const { onPlayed, onDone } = this
+    this.getQuery(key, speakerId).then(
+      (streamUrl) => {
+        const url = new URL(streamUrl)
+        const { onPlayed, onDone } = this
 
-    return new Promise((resolve, reject) => {
-      this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate ?? 22050 })
-      this.audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
-      const audio = this.audio
-      const streamer = new MP3Streamer({
-        http: device.network.https,
-        host: url.host,
-        path: url.pathname,
-        port: 443,
-        audio: {
-          out: audio,
-          stream: 0,
-        },
-        onPlayed(buffer) {
-          const power = calculatePower(buffer)
-          onPlayed?.(power)
-        },
-        onReady(state) {
-          trace(`Ready: ${state}\n`)
-          if (state) {
-            audio.start()
-          } else {
-            audio.stop()
-          }
-        },
-        onError: (e) => {
-          trace('ERROR: ', e, '\n')
-          this.streaming = false
-          streamer?.close()
-          this.audio?.close()
-          this.audio = undefined
-          reject(e)
-        },
-        onDone: () => {
-          trace('DONE\n')
-          this.streaming = false
-          streamer?.close()
-          this.audio?.close()
-          this.audio = undefined
-          onDone?.()
-          resolve()
-        },
-      })
-    })
+        this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate ?? 22050 })
+        this.audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
+        const audio = this.audio
+        const streamer = new MP3Streamer({
+          http: device.network.https,
+          host: url.host,
+          path: url.pathname,
+          port: 443,
+          audio: {
+            out: audio,
+            stream: 0,
+          },
+          onPlayed(buffer) {
+            const power = calculatePower(buffer)
+            onPlayed?.(power)
+          },
+          onReady(state) {
+            trace(`Ready: ${state}\n`)
+            if (state) {
+              audio.start()
+            } else {
+              audio.stop()
+            }
+          },
+          onError: (e) => {
+            trace('ERROR: ', e, '\n')
+            this.streaming = false
+            streamer?.close()
+            this.audio?.close()
+            this.audio = undefined
+            callback?.(e)
+          },
+          onDone: () => {
+            trace('DONE\n')
+            this.streaming = false
+            streamer?.close()
+            this.audio?.close()
+            this.audio = undefined
+            onDone?.()
+            callback?.()
+          },
+        })
+      },
+      (error) => {
+        this.streaming = false
+        callback?.(new Error(`getQuery failed: ${error}`))
+      },
+    )
   }
 }

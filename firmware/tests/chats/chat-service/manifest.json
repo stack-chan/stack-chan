@@ -4,7 +4,7 @@
     "$(MODDABLE)/examples/manifest_typings.json"
   ],
   "modules": {
-    "chat": "../../../stackchan/services/chat",
+    "chat": "../../../host/modules/conversation/chat",
     "ChatAudioIO": "../mocks/ChatAudioIO",
     "mocks/assert": "../mocks/assert",
     "*": ["./main"]

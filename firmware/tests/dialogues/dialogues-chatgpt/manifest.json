@@ -3,7 +3,7 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "../../../host/modules/util/manifest.json",
-    "../../../stackchan/dialogues/manifest_dialogue.json",
+    "../../../host/modules/conversation/manifest.json",
     "../../../host/app/manifest_typings.json"
   ],
   "modules": {

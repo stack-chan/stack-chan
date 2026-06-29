@@ -51,6 +51,7 @@ firmware/
       conversation/
         manifest.json
         manifest.test.json
+        chat-audioio/
       connectivity/
         manifest.json
         manifest.test.json
@@ -262,7 +263,7 @@ flowchart TD
 
 - [x] 対応済み：`firmware/host/modules/audio` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/camera` を作成し、`manifest.json` と `manifest.test.json` を置く。
-- [ ] 未対応：`firmware/host/modules/conversation` を作成し、`manifest.json` と `manifest.test.json` を置く。
+- [x] 対応済み：`firmware/host/modules/conversation` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/connectivity` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/input` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/lighting` を作成し、`manifest.json` と `manifest.test.json` を置く。
@@ -300,8 +301,8 @@ flowchart TD
 
 ### 7. Conversation の移行
 
-- [ ] 未対応：`firmware/stackchan/services/chat.ts` を `firmware/host/modules/conversation` へ移す。
-- [ ] 未対応：`firmware/stackchan/dialogues` を `firmware/host/modules/conversation` または `firmware/mods/examples` へ整理する。
+- [x] 対応済み：`firmware/stackchan/services/chat.ts` を `firmware/host/modules/conversation` へ移す。
+- [x] 対応済み：`firmware/stackchan/dialogues` を `firmware/host/modules/conversation` へ整理する。
 - [ ] 未対応：旧 provider demo は core から外し、会話デモとして残すものだけを `firmware/mods/examples` へ移す。
 - [ ] 未対応：コアの会話実装は Moddable の `ChatAudioIO` を第一候補にする。
 - [ ] 未対応：手製の会話 loop を新規に増やさない。

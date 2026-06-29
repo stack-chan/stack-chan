@@ -11,12 +11,11 @@
     "../modules/motion/manifest.json",
     "../modules/audio/manifest.json",
     "../modules/connectivity/manifest.json",
-    "../../stackchan/dialogues/manifest_dialogue.json",
+    "../modules/conversation/manifest.json",
     "../modules/camera/manifest.json",
     "../modules/lighting/manifest.json",
     "../modules/ui/manifest.json",
     "../modules/input/manifest.json",
-    "../../stackchan/services/manifest_service.json",
     "../modules/util/manifest.json",
     "../modules/preferences/manifest.json",
     "./manifest_typings.json"

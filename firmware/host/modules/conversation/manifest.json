@@ -1,11 +1,18 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODDABLE)/examples/manifest_typings.json"
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
+    "$(MODDABLE)/modules/data/headers/manifest.json",
+    "../connectivity/mcp-client/manifest.json"
   ],
   "modules": {
     "*": ["./*"],
     "ChatAudioIO": "./chat-audioio-stub"
+  },
+  "preload": ["dialogue-chatgpt", "dialogue-claude", "dialogue-gemini"],
+  "data": {
+    "*": ["$(MODULES)/crypt/data/ca236", "$(MODULES)/crypt/data/ca233"]
   },
   "platforms": {
     "esp32/m5stack_cores3": {
@@ -32,7 +39,8 @@
   "typescript": {
     "tsconfig": {
       "compilerOptions": {
-        "noImplicitAny": false
+        "noImplicitAny": false,
+        "useUnknownInCatchVariables": false
       }
     }
   }

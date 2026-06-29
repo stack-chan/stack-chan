@@ -87,9 +87,10 @@
         "./host/modules/connectivity/mcp-client/*",
         "./host/modules/connectivity/mcp-server/*",
         "./host/modules/connectivity/wasm/*",
+        "./host/modules/conversation/*",
+        "./host/modules/conversation/chat-audioio/*",
         "./host/modules/input/*",
         "./stackchan/*",
-        "./stackchan/dialogues/*",
         "./host/modules/motion/*",
         "./host/modules/motion/internal/*",
         "./host/modules/lighting/*",
@@ -113,8 +114,7 @@
         "./host/modules/util/*",
         "./host/modules/util/esp32/*",
         "./host/modules/util/sim/*",
-        "./host/modules/preferences/*",
-        "./stackchan/services/*"
+        "./host/modules/preferences/*"
       ],
       "commodetto/*": [
         "./node_modules/@moddable/typings/commodetto/*"

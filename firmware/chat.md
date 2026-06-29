@@ -4,7 +4,7 @@
 - Moddableの `ChatAudioIO` を Stack-chan に組み込み、音声双方向の会話を実現する。
 - 参照元: `reference/moddable/contributed/conversationalAI` の構成と `ChatAudioIO` の状態遷移を踏襲する。
 - エコーキャンセル未実装のため、Stack-chanが発話中は音声入力を停止する（`ChatAudioIO` の LISTENING/WAITING 振る舞いに合わせる）。
-- 実装は `stackchan/services/` 配下の1サービスとして `chat` を追加し、内部で `ChatAudioIO` を import する。
+- 実装は `host/modules/conversation/` 配下の1サービスとして `chat` を追加し、内部で `ChatAudioIO` を import する。
 
 ## コンポーネント階層の差分（UI/状態連携）
 
@@ -28,7 +28,7 @@ AppController
 
 Robot
 └─ ChatSessionController (Robot/Mod側で実装)
-   ├─ ChatService (new, stackchan/services/chat)
+   ├─ ChatService (new, host/modules/conversation/chat)
    │  └─ ChatAudioIO (Moddable)
    └─ UI更新（AppBar / SpeechBalloon / FaceContext）
 ```
@@ -43,7 +43,7 @@ Robot
 - Speech balloon を2つ用意してユーザ発話とAI応答を分離表示。
   - `onInputTranscript` はユーザ側 balloon、`onOutputTranscript` はAI側 balloon を更新（上位で処理）。
 
-## Chat Service I/F 定義（stackchan/services/chat）
+## Chat Service I/F 定義（host/modules/conversation/chat）
 
 ### 目的
 - `ChatAudioIO` を直接UIから触らず、Stack-chan側の統一I/Fで制御する。
@@ -230,7 +230,7 @@ sequenceDiagram
 
 ## 実装計画（タスクリスト）
 1. **ChatService 定義**
-   - `stackchan/services/chat` を新設し、`ChatService` の I/F と `ChatState` を実装。
+   - `host/modules/conversation/chat` を新設し、`ChatService` の I/F と `ChatState` を実装。
    - `ChatTool` / `ChatToolSchema` を定義し、`tools` 辞書 → `ChatAudioIO.functions` 変換を実装。
 2. **ChatAudioIO 統合**
    - `ChatAudioIO` の import と生成、`connect/disconnect/sendText/sendFunctionResult` をラップ。

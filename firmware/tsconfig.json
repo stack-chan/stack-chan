@@ -166,16 +166,22 @@
       "embedded:network/dns/resolver/*": [
         "./node_modules/@moddable/typings/embedded_network/dns/resolver/*"
       ],
-      "default-mods/mod": [
-        "./host/app/default-behavior/mod"
+      "app-behavior": [
+        "./host/app/app-behavior"
       ],
-      "default-mods/on-launch": [
+      "app-default-behavior": [
+        "./host/app/default-behavior/behavior"
+      ],
+      "app-default-behavior/on-launch": [
         "./host/app/default-behavior/on-launch"
       ],
-      "default-mods/wasm/mod": [
-        "./host/app/default-behavior/wasm/mod"
+      "app-default-behavior/on-context-created": [
+        "./host/app/default-behavior/on-context-created"
       ],
-      "default-mods/wasm/on-launch": [
+      "app-default-behavior/wasm/behavior": [
+        "./host/app/default-behavior/wasm/behavior"
+      ],
+      "app-default-behavior/wasm/on-launch": [
         "./host/app/default-behavior/wasm/on-launch"
       ],
       "calculate-power": [
@@ -183,9 +189,6 @@
       ],
       "mac-address": [
         "./host/modules/util/esp32/mac-address"
-      ],
-      "default-mods/on-robot-created": [
-        "./host/app/default-behavior/on-robot-created"
       ],
       "mcp-client": [
         "./host/modules/connectivity/mcp-client/mcp-client"

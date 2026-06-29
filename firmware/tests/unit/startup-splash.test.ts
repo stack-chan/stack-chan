@@ -4,7 +4,7 @@ import { describe, test } from 'node:test'
 
 const splashPath = 'host/modules/ui/views/splash/splash-view.ts'
 const defaultLaunchPath = 'host/app/default-behavior/on-launch.ts'
-const wasmModPath = 'host/app/default-behavior/wasm/mod.ts'
+const wasmBehaviorPath = 'host/app/default-behavior/wasm/behavior.ts'
 const manifestPath = 'host/app/manifest.json'
 const wasmAppManifestPath = 'host/app/manifest_wasm.json'
 const wasmManifestPath = 'host/platforms/wasm/manifest.json'
@@ -71,17 +71,17 @@ describe('startup splash screen', () => {
     assert.match(source, /startupChoice\.choice === 'boot'/)
   })
 
-  test('wasm default mod uses the wasm-specific startup splash hook', () => {
+  test('wasm app default behavior uses the wasm-specific startup splash hook', () => {
     const mainSource = readFileSync('host/app/main.ts', 'utf8')
-    const source = readFileSync(wasmModPath, 'utf8')
+    const source = readFileSync(wasmBehaviorPath, 'utf8')
     const appManifest = readManifest(wasmAppManifestPath)
     const manifest = readManifest(wasmManifestPath)
 
     assert.doesNotMatch(mainSource, /config\.wasm/)
     assert.doesNotMatch(mainSource, /default-mods\/wasm\/mod/)
-    assert.match(source, /default-mods\/wasm\/on-launch/)
-    assert.doesNotMatch(source, /default-mods\/on-launch'/)
+    assert.match(source, /app-default-behavior\/wasm\/on-launch/)
+    assert.doesNotMatch(source, /app-default-behavior\/on-launch'/)
     assert.ok(appManifest.include.includes('../platforms/wasm/manifest.json'))
-    assert.equal(manifest.modules['default-mods/mod'], '../../app/default-behavior/wasm/mod')
+    assert.equal(manifest.modules['app-default-behavior'], '../../app/default-behavior/wasm/behavior')
   })
 })

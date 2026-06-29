@@ -20,7 +20,7 @@ class Advertiser extends BLEServer {
   onDisconnected(_connection) {}
 }
 
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   let count = 0
   /**
    * @note A workaround due to the sample rate of the mod resource being fixed at 11025.

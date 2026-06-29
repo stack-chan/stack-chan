@@ -25,6 +25,7 @@
   "modules": {
     "*": [
       "./main",
+      "./app-behavior",
       "./compose",
       "./capabilities",
       "./runtime-audio",
@@ -39,7 +40,9 @@
     "startup-splash": "../modules/ui/views/splash/splash-view",
     "camera-preview": "../modules/ui/views/camera-preview/camera-preview-view",
     "camera-preview-utils": "../modules/ui/views/camera-preview/camera-preview-utils",
-    "default-mods/*": "./default-behavior/*"
+    "app-behavior": "./app-behavior",
+    "app-default-behavior": "./default-behavior/behavior",
+    "app-default-behavior/*": "./default-behavior/*"
   },
   "preload": [
     "runtime-context",

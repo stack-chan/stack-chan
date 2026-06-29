@@ -16,7 +16,7 @@ The sentence is speech only. Any symbols, emojis, or other non-speech characters
 You should exporess emotionswith set_emotion tool.
 `
 
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   const setEmotionTool = {
     name: 'set_emotion',
     description: "Set the robot's emotion",

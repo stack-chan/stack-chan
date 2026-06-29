@@ -10,7 +10,7 @@ async function sayMonologue(robot) {
   await robot.say(config.tts.type === 'local' ? key : speeches[key])
 }
 
-function onRobotCreated(robot) {
+function onContextCreated(robot) {
   robot.button.a.onChanged = function () {
     if (this.read()) {
       sayMonologue(robot)
@@ -19,5 +19,5 @@ function onRobotCreated(robot) {
 }
 
 export default {
-  onRobotCreated,
+  onContextCreated,
 }

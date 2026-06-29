@@ -178,26 +178,29 @@ test('WASM PY32 LED facade re-exports the shared LED stub through a manifest mod
   assert.doesNotMatch(source, /\.\//)
 })
 
-test('App main loads an installed MOD archive before falling back to manifest-selected default behavior', () => {
+test('App main registers product behavior and installed MOD behavior separately', () => {
   const source = readFileSync('host/app/main.ts', 'utf8')
 
-  assert.match(source, /import defaultMod, \{ type StackchanMod \} from 'default-mods\/mod'/)
+  assert.match(source, /import defaultBehavior from 'app-default-behavior'/)
   assert.match(source, /Modules\.has\('mod'\)/)
-  assert.match(source, /Modules\.importNow\('mod'\) as StackchanMod/)
-  assert.match(source, /onRobotCreated = mod\.onRobotCreated \?\? onRobotCreated/)
-  assert.match(source, /onLaunch = mod\.onLaunch \?\? onLaunch/)
+  assert.match(source, /Modules\.importNow\('mod'\) as StackchanAppBehavior/)
+  assert.match(source, /behaviors\.push\(behavior\)/)
+  assert.match(source, /runLaunchBehaviors\(appBehaviors\)/)
+  assert.match(source, /runContextCreatedBehaviors\(appBehaviors, context, getHostDeviceEnvironment\(\)\)/)
   assert.doesNotMatch(source, /config\.wasm/)
   assert.doesNotMatch(source, /default-mods\/wasm\/mod/)
+  assert.doesNotMatch(source, /onRobotCreated/)
+  assert.doesNotMatch(source, /defaultMod/)
 })
 
-test('WASM manifest selects the wasm default behavior without an app-layer runtime branch', () => {
+test('WASM manifest selects the wasm app default behavior without an app-layer runtime branch', () => {
   const appManifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
   const manifest = JSON.parse(readFileSync('host/platforms/wasm/manifest.json', 'utf8'))
 
   assert.ok(appManifest.include.includes('../platforms/wasm/manifest.json'))
-  assert.equal(manifest.modules['default-mods/mod'], '../../app/default-behavior/wasm/mod')
-  assert.equal(manifest.modules['default-mods/wasm/mod'], '../../app/default-behavior/wasm/mod')
-  assert.ok(manifest.preload.includes('default-mods/wasm/mod'))
+  assert.equal(manifest.modules['app-default-behavior'], '../../app/default-behavior/wasm/behavior')
+  assert.equal(manifest.modules['app-default-behavior/wasm/behavior'], '../../app/default-behavior/wasm/behavior')
+  assert.ok(manifest.preload.includes('app-default-behavior'))
 })
 
 test('real-device camera preview stays independent from the WASM-only RuntimeBitmapPort binding', () => {
@@ -233,7 +236,7 @@ test('WASM camera preview uses a native RuntimeBitmapPort binding before falling
 
 test('WASM camera preview can be dismissed by touch or an automatic timeout', () => {
   const previewSource = readFileSync('host/modules/ui/views/camera-preview/camera-preview-view.ts', 'utf8')
-  const modSource = readFileSync('host/app/default-behavior/on-robot-created.ts', 'utf8')
+  const modSource = readFileSync('host/app/default-behavior/on-context-created.ts', 'utf8')
 
   assert.match(previewSource, /onDismiss\?: \(\) => void/)
   assert.match(previewSource, /active: true/)

@@ -169,7 +169,7 @@ Conversation style:
 You are a cute, energetic, and polite community-built robot who enjoys talking with people.
 `
 
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   const rawChatConfig = config.chat ?? {}
   const chatConfig = {
     ...rawChatConfig,

@@ -48,7 +48,7 @@ async function runSmoke(robot) {
   trace('[M5StackChan CoreS3 smoke] complete\n')
 }
 
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   Timer.set(() => {
     void runSmoke(robot)
   }, 1000)

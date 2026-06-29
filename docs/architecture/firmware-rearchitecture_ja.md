@@ -34,9 +34,10 @@ firmware/
       manifest.json
       manifest_local.json
       default-behavior/
+        behavior.ts
         manifest.json
         on-launch.ts
-        on-robot-created.ts
+        on-context-created.ts
     modules/
       audio/
         manifest.json
@@ -258,7 +259,7 @@ flowchart TD
 - [x] 対応済み：`Robot` は互換 Facade として残さず、新しい app composition の戻り値または context 型へ置き換える。
 - [x] 対応済み：MOD へ渡す API を `Robot` の肥大化ではなく、必要な capability を束ねた型として再定義する。
 - [x] 対応済み：Drawer と Face は UI capability として公開し、motion や audio から直接参照しない。
-- [ ] 未対応：product default behavior は `Robot` のメソッド追加ではなく、app の振る舞いとして登録する。
+- [x] 対応済み：product default behavior は `Robot` のメソッド追加ではなく、app の振る舞いとして登録する。
 
 ### 4. Modules 構造の作成
 

@@ -10,7 +10,7 @@ const param = {
   width: 200,
 }
 
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   const targetLoop = () => {
     const sample = sensor.sample()
     robot.showBalloon(

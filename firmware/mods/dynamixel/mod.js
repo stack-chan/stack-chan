@@ -6,7 +6,7 @@ import Timer from 'timer'
  * Press button A to change rotation
  * @param {*} r - Robot instance
  */
-export function onRobotCreated(r) {
+export function onContextCreated(r) {
   let count = 0
   const driver = r.driver
   r.button.a.onChanged = function () {

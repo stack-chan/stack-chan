@@ -1,6 +1,7 @@
-import defaultMod, { type StackchanMod } from 'default-mods/mod'
+import defaultBehavior from 'app-default-behavior'
 import Modules from 'modules'
 import { asyncWait } from 'stackchan-util'
+import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavior } from './app-behavior'
 import {
   connectConfiguredWiFi,
   createStackchanContext,
@@ -8,15 +9,14 @@ import {
   installSimulatorButtons,
 } from './compose'
 
-function resolveMod(): StackchanMod {
-  let { onRobotCreated, onLaunch } = defaultMod
+function resolveAppBehaviors(): StackchanAppBehavior[] {
+  const behaviors: StackchanAppBehavior[] = [defaultBehavior]
   trace('[main] checking mod override\n')
   if (Modules.has('mod')) {
-    const mod = Modules.importNow('mod') as StackchanMod
-    onRobotCreated = mod.onRobotCreated ?? onRobotCreated
-    onLaunch = mod.onLaunch ?? onLaunch
+    const behavior = Modules.importNow('mod') as StackchanAppBehavior
+    behaviors.push(behavior)
   }
-  return { onRobotCreated, onLaunch }
+  return behaviors
 }
 
 async function main() {
@@ -30,16 +30,16 @@ async function main() {
   })
   trace('[main] check Wi-Fi complete\n')
 
-  trace('[main] loading default mod\n')
-  const { onRobotCreated, onLaunch } = resolveMod()
-  const shouldRobotCreate = await (onLaunch?.() ?? true)
-  trace(`[main] onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)
-  if (!shouldRobotCreate) return
+  trace('[main] loading app behaviors\n')
+  const appBehaviors = resolveAppBehaviors()
+  const shouldCreateContext = await runLaunchBehaviors(appBehaviors)
+  trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
+  if (!shouldCreateContext) return
 
   const context = createStackchanContext()
   trace('[main] app context created\n')
-  await onRobotCreated?.(context, getHostDeviceEnvironment())
-  trace('[main] onRobotCreated complete\n')
+  await runContextCreatedBehaviors(appBehaviors, context, getHostDeviceEnvironment())
+  trace('[main] app behaviors ready\n')
 }
 
 main().catch((error) => {

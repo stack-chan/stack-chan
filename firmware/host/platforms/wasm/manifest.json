@@ -20,6 +20,7 @@
   "modules": {
     "*": [
       "../../app/main",
+      "../../app/app-behavior",
       "../../app/compose",
       "../../app/capabilities",
       "../../app/runtime-audio",
@@ -34,11 +35,11 @@
     "camera-preview-utils": "../../modules/ui/views/camera-preview/camera-preview-utils",
     "led": "../../modules/lighting/wasm/led",
     "py32-led": "../../modules/lighting/wasm/py32-led",
-    "default-mods/wasm/mod": "../../app/default-behavior/wasm/mod",
-    "default-mods/wasm/on-launch": "../../app/default-behavior/wasm/on-launch",
-    "default-mods/mod": "../../app/default-behavior/wasm/mod",
-    "default-mods/wasm/*": "../../app/default-behavior/wasm/*",
-    "default-mods/*": "../../app/default-behavior/*"
+    "app-behavior": "../../app/app-behavior",
+    "app-default-behavior": "../../app/default-behavior/wasm/behavior",
+    "app-default-behavior/wasm/behavior": "../../app/default-behavior/wasm/behavior",
+    "app-default-behavior/wasm/on-launch": "../../app/default-behavior/wasm/on-launch",
+    "app-default-behavior/*": "../../app/default-behavior/*"
   },
   "preload": [
     "wasm-audio-bridge",
@@ -47,7 +48,7 @@
     "touch-panel",
     "touch-panel-gesture",
     "imu-motion",
-    "default-mods/wasm/mod"
+    "app-default-behavior"
   ],
   "strip": [],
   "creation": {

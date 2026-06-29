@@ -4,8 +4,9 @@ import { test } from 'node:test'
 
 test('App exposes capability contracts instead of the concrete Robot facade at the MOD boundary', () => {
   const capabilities = readFileSync('host/app/capabilities.ts', 'utf8')
-  const mod = readFileSync('host/app/default-behavior/mod.ts', 'utf8')
-  const wasmMod = readFileSync('host/app/default-behavior/wasm/mod.ts', 'utf8')
+  const appBehavior = readFileSync('host/app/default-behavior/behavior.ts', 'utf8')
+  const wasmAppBehavior = readFileSync('host/app/default-behavior/wasm/behavior.ts', 'utf8')
+  const behaviorTypes = readFileSync('host/app/app-behavior.ts', 'utf8')
   const main = readFileSync('host/app/main.ts', 'utf8')
   const compose = readFileSync('host/app/compose.ts', 'utf8')
   const runtimeContext = readFileSync('host/app/runtime-context.ts', 'utf8')
@@ -29,10 +30,13 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
     assert.match(capabilities, new RegExp(`export type ${capability}\\b`))
   }
 
-  assert.match(mod, /import type \{ StackchanContext \} from 'capabilities'/)
-  assert.match(wasmMod, /import type \{ StackchanContext \} from 'capabilities'/)
-  assert.doesNotMatch(mod, /from 'robot'/)
-  assert.doesNotMatch(wasmMod, /from 'robot'/)
+  assert.match(behaviorTypes, /export type StackchanAppBehavior/)
+  assert.doesNotMatch(behaviorTypes, /onRobotCreated/)
+  assert.doesNotMatch(behaviorTypes, /behaviorFromMod/)
+  assert.match(appBehavior, /import type \{ StackchanAppBehavior \} from 'app-behavior'/)
+  assert.match(wasmAppBehavior, /import type \{ StackchanAppBehavior \} from 'app-behavior'/)
+  assert.doesNotMatch(appBehavior, /from 'robot'/)
+  assert.doesNotMatch(wasmAppBehavior, /from 'robot'/)
 
   assert.match(main, /createStackchanContext\(\)/)
   assert.doesNotMatch(main, /createRobot\(\)/)
@@ -40,6 +44,7 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   assert.match(compose, /new StackchanRuntimeContext\(/)
   assert.doesNotMatch(compose, /from 'robot'/)
 
+  assert.ok(manifest.modules['*'].includes('./app-behavior'))
   assert.ok(manifest.modules['*'].includes('./capabilities'))
   assert.ok(manifest.modules['*'].includes('./runtime-audio'))
   assert.ok(manifest.modules['*'].includes('./runtime-camera'))
@@ -49,7 +54,10 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   assert.ok(manifest.modules['*'].includes('./runtime-motion'))
   assert.ok(manifest.modules['*'].includes('./runtime-ui'))
   assert.ok(!manifest.modules['*'].includes('../../stackchan/robot'))
+  assert.equal(manifest.modules['app-default-behavior'], './default-behavior/behavior')
+  assert.equal(manifest.modules['app-behavior'], './app-behavior')
   assert.ok(wasmAppManifest.include.includes('../platforms/wasm/manifest.json'))
+  assert.ok(wasmManifest.modules['*'].includes('../../app/app-behavior'))
   assert.ok(wasmManifest.modules['*'].includes('../../app/capabilities'))
   assert.ok(wasmManifest.modules['*'].includes('../../app/runtime-audio'))
   assert.ok(wasmManifest.modules['*'].includes('../../app/runtime-camera'))
@@ -59,6 +67,8 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   assert.ok(wasmManifest.modules['*'].includes('../../app/runtime-motion'))
   assert.ok(wasmManifest.modules['*'].includes('../../app/runtime-ui'))
   assert.ok(!wasmManifest.modules['*'].includes('../../stackchan/robot'))
+  assert.equal(wasmManifest.modules['app-default-behavior'], '../../app/default-behavior/wasm/behavior')
+  assert.equal(wasmManifest.modules['app-behavior'], '../../app/app-behavior')
 
   assert.doesNotMatch(runtimeContext, /createFaceState/)
   assert.doesNotMatch(runtimeContext, /SpeechBalloon/)

@@ -1,6 +1,6 @@
 import MDNS from 'mdns'
 
-function onRobotCreated(robot) {
+function onContextCreated(robot) {
   const mdns = new MDNS({})
   const txt = {}
   const rotation = {
@@ -22,5 +22,5 @@ function onRobotCreated(robot) {
   })
 }
 export default {
-  onRobotCreated,
+  onContextCreated,
 }

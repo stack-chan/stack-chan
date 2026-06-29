@@ -5,7 +5,7 @@ import Timer from 'timer'
  * @note This mod is under construction. setting pan/tilt offset does not work properly.
  * @param {Robot} robot
  */
-async function onRobotCreated(robot) {
+async function onContextCreated(robot) {
   const pan = robot._driver._pan
   const tilt = robot._driver._tilt
   robot.button.a.onChanged = async function () {
@@ -51,5 +51,5 @@ async function onRobotCreated(robot) {
 }
 
 export default {
-  onRobotCreated,
+  onContextCreated,
 }

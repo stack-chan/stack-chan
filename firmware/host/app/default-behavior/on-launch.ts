@@ -1,5 +1,5 @@
+import type { StackchanAppBehavior } from 'app-behavior'
 import { DOMAIN, PREF_KEYS } from 'consts'
-import type { StackchanMod } from 'default-mods/mod'
 import { NetworkService } from 'network-service'
 import type { Application as PiuApplication } from 'piu/MC'
 import Preference from 'preference'
@@ -37,7 +37,7 @@ const preferenceString = (key: string): string => {
   return value === undefined || value === null ? '' : String(value)
 }
 
-export const onLaunch: StackchanMod['onLaunch'] = async () => {
+export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () => {
   const startupChoice = await waitForStartupChoice()
   if (startupChoice.choice === 'boot') {
     return true

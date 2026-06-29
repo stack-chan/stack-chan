@@ -1,4 +1,4 @@
-function onRobotCreated(robot) {
+function onContextCreated(robot) {
   let isRight = false
   robot.button.a.onChanged = function () {
     if (!this.read()) {
@@ -19,5 +19,5 @@ function onRobotCreated(robot) {
 }
 
 export default {
-  onRobotCreated,
+  onContextCreated,
 }

@@ -1,4 +1,4 @@
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   const led = robot.led
   if (!led?.a) {
     throw new Error('This device does not support LED or setup LED named as "a".')

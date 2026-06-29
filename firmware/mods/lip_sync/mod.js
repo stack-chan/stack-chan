@@ -1,7 +1,7 @@
 import calculatePower from 'calculate-power'
 
 const threshold = 150
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   const microphone = robot.microphone
   if (!microphone) {
     throw new Error('This device does not support a microphone.')

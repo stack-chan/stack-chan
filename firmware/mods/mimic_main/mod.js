@@ -2,7 +2,7 @@ import MDNS from 'mdns'
 import Timer from 'timer'
 
 let initialized = false
-function onRobotCreated(robot) {
+function onContextCreated(robot) {
   const mdns = new MDNS(
     {
       hostName: 'stackchan',
@@ -45,6 +45,6 @@ function onRobotCreated(robot) {
   }, 100)
 }
 export default {
-  onRobotCreated,
+  onContextCreated,
   autoLoop: false,
 }

@@ -11,7 +11,7 @@ async function sayHooray(robot) {
   await robot.say(key)
 }
 
-function onRobotCreated(robot) {
+function onContextCreated(robot) {
   let pose
   let hooray = false
   let connected = false
@@ -64,5 +64,5 @@ function onRobotCreated(robot) {
 }
 
 export default {
-  onRobotCreated,
+  onContextCreated,
 }

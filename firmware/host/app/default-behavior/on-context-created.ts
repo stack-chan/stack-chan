@@ -1,6 +1,6 @@
+import type { StackchanAppBehavior } from 'app-behavior'
 import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
 import { createCameraPreviewFace } from 'camera-preview'
-import type { StackchanMod } from 'default-mods/mod'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-state'
 import type { MotionType } from 'imu'
@@ -44,7 +44,7 @@ function errorMessage(error: unknown): string {
   return String(error)
 }
 
-export const onRobotCreated: StackchanMod['onRobotCreated'] = (robot) => {
+export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreated']> = (robot) => {
   const emotions: Emotion[] = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
   let emotionIndex = emotions.indexOf(Emotion.NEUTRAL)
   let speechVisible = false

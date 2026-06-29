@@ -1,5 +1,5 @@
+import { onContextCreated } from 'app-default-behavior/on-context-created'
 import { equal } from 'mocks/assert'
-import { onRobotCreated } from 'default-mods/on-robot-created'
 
 trace('=== default-mod face init test ===\n')
 
@@ -43,14 +43,14 @@ const robot = {
   setEmotion: () => {},
 }
 
-if (!onRobotCreated) {
-  throw new Error('onRobotCreated is not defined')
+if (!onContextCreated) {
+  throw new Error('onContextCreated is not defined')
 }
 try {
-  onRobotCreated(robot as never)
+  onContextCreated(robot as never)
 } catch (error) {
   const message = error && typeof error === 'object' && 'message' in error ? error.message : error
-  trace(`onRobotCreated error: ${message}\n`)
+  trace(`onContextCreated error: ${message}\n`)
   throw error
 }
 

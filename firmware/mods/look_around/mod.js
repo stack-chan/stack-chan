@@ -1,7 +1,7 @@
 import { randomBetween } from 'stackchan-util'
 import Timer from 'timer'
 
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   let isFollowing = false
   robot.button.a.onChanged = function () {
     if (this.read()) {

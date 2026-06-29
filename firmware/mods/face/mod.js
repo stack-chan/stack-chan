@@ -34,7 +34,7 @@ const sleepy = new Emoticon({ key: 'sleepy', left: 10, top: 20, width: 50, heigh
 
 const EMOTIONS = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.SLEEPY]
 
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   robot.setColor('primary', 0x22, 0x22, 0x22)
   robot.setColor('primary', 0xfa, 0xfa, 0xfa)
   let idx = 0

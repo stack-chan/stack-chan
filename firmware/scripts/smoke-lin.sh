@@ -79,12 +79,12 @@ if grep -E 'XS abort|# exception|stack overflow|module not found|Cannot find mod
   exit 1
 fi
 
-if ! grep -q '\[main\] onRobotCreated complete' "$xsbug_log"; then
+if ! grep -q '\[main\] app behaviors ready' "$xsbug_log"; then
   cat "$xsbug_log" >&2 || true
-  echo "mcsim startup log did not reach [main] onRobotCreated complete" >&2
+  echo "mcsim startup log did not reach [main] app behaviors ready" >&2
   echo "xsbug log: $xsbug_log" >&2
   exit 1
 fi
 
-echo "mcsim stayed alive for $smoke_timeout; startup log reached onRobotCreated without runtime errors"
+echo "mcsim stayed alive for $smoke_timeout; startup log reached app behaviors ready without runtime errors"
 echo "xsbug log: $xsbug_log"

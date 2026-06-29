@@ -88,7 +88,7 @@ async function chatAndSay(robot, message) {
   return result.value
 }
 
-function onRobotCreated(robot) {
+function onContextCreated(robot) {
   robot.button.a.onChanged = async function () {
     if (this.read()) {
       robot.showBalloon('TTS test...')
@@ -198,5 +198,5 @@ function onRobotCreated(robot) {
 }
 
 export default {
-  onRobotCreated,
+  onContextCreated,
 }

@@ -3,7 +3,7 @@ import { MCPServerService } from 'mcp-server'
 
 const EMOTION_NAMES = EmotionNames
 
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   trace('Starting MCP Server mod\n')
 
   const mcpTools = [

@@ -42,7 +42,7 @@ class Scanner extends BLEClient {
   }
 }
 
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   const scanner = new Scanner()
   /**
    * @note A workaround due to the sample rate of the mod resource being fixed at 11025.

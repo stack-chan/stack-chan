@@ -1,8 +1,8 @@
 {
   "include": ["../../../host/modules/ui/manifest.json"],
   "modules": {
-    "default-mods/mod": "./stackchan-mod-stub",
-    "default-mods/on-robot-created": "../../../host/app/default-behavior/on-robot-created",
+    "app-behavior": "./app-behavior-stub",
+    "app-default-behavior/on-context-created": "../../../host/app/default-behavior/on-context-created",
     "imu": "./imu-stub",
     "mocks/assert": "../../chats/mocks/assert",
     "*": ["./main"]

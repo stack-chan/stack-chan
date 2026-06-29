@@ -18,7 +18,7 @@ const CONTEXT = [
   },
 ]
 
-export function onRobotCreated(robot) {
+export function onContextCreated(robot) {
   // Integrate ChatGPT
   const aiPrefs = loadPreferences('ai')
   trace(`ai.token: ${aiPrefs.token}\n`)

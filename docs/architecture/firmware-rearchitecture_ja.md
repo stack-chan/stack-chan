@@ -373,7 +373,7 @@ flowchart TD
 - [x] 対応済み：集約テストディレクトリとしての `firmware/tests` を削除する。
 - [x] 対応済み：各 module と UI view に `manifest.test.json` を置く。
 - [x] 対応済み：各 `manifest.test.json` は本体の `manifest.json` と `modules/testing/manifest.json` を include する。
-- [ ] 未対応：テスト用 main は同じディレクトリの `*.test.ts` を読む。
+- [x] 対応済み：テスト用 main は同じディレクトリの `*.test.ts` を読む。
 - [ ] 未対応：成功時は `ok` を trace し、失敗時は例外を throw する。
 - [ ] 未対応：合否判定は `mcconfig -m -d -p lin/m5stack -t run` の終了ステータスで行う。
 - [ ] 未対応：`trace("not ok ...")` を合否判定に使わない。

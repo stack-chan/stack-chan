@@ -116,6 +116,25 @@ test('module Moddable test manifests include implementation and testing manifest
   }
 })
 
+test('Moddable test manifests use local test modules as main entries', () => {
+  const manifestPaths = walkFiles(MODULE_ROOT).filter((path) => path.endsWith('manifest.test.json'))
+
+  for (const manifestPath of manifestPaths) {
+    const manifest = readJson(manifestPath)
+    const mainEntries = manifest.modules?.['*']
+    if (!mainEntries) continue
+
+    for (const entry of Array.isArray(mainEntries) ? mainEntries : [mainEntries]) {
+      assert.match(entry, /^\.\/[^/]+\.test$/, `${manifestPath} should use a local *.test module`)
+      assert.ok(
+        existsSync(join(dirname(manifestPath), `${entry.slice(2)}.ts`)) ||
+          existsSync(join(dirname(manifestPath), `${entry.slice(2)}.js`)),
+        `${manifestPath} should point to an existing local test file`,
+      )
+    }
+  }
+})
+
 test('UI views own Moddable test manifests under their view directories', () => {
   const viewsRoot = join(MODULE_ROOT, 'ui', 'views')
   const viewNames = readdirSync(viewsRoot, { withFileTypes: true })

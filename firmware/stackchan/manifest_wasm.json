@@ -7,7 +7,7 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
-    "./ui/manifest_wasm.json",
+    "../host/modules/ui/manifest_wasm.json",
     "./utilities/manifest_wasm_utility.json",
     "./manifest_typings.json"
   ],
@@ -21,11 +21,11 @@
       "./robot",
       "./main"
     ],
-    "startup-splash": "./ui/views/splash/splash-view",
+    "startup-splash": "../host/modules/ui/views/splash/splash-view",
     "camera": "./wasm/camera",
     "wasm-camera-bridge": "./wasm/camera-bridge",
     "camera-preview": "./wasm/camera-preview",
-    "camera-preview-utils": "./ui/views/camera-preview/camera-preview-utils",
+    "camera-preview-utils": "../host/modules/ui/views/camera-preview/camera-preview-utils",
     "runtime-bitmap-port": "./runtime-bitmap-port",
     "wasm-audio-bridge": "./wasm/audio-bridge",
     "tone": "./wasm/tone",

@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import {
   rgb565LeToPiuColor,
   sampleRgb565LeMosaic,
-} from '../../stackchan/ui/views/camera-preview/camera-preview-utils.js'
+} from '../../host/modules/ui/views/camera-preview/camera-preview-utils.js'
 
 test('rgb565LeToPiuColor converts little-endian RGB565 pixels to 24-bit Piu colors', () => {
   const buffer = new Uint8Array([

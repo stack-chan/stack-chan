@@ -4,9 +4,9 @@
   "description": "A firmware of M5Stack Stack-chan module",
   "main": "stackchan/main.ts",
   "scripts": {
-    "format": "biome format stackchan mods tests scripts",
+    "format": "biome format host stackchan mods tests scripts",
     "format:fix": "npm run format -- --write",
-    "lint": "biome lint stackchan mods tests scripts",
+    "lint": "biome lint host stackchan mods tests scripts",
     "lint:fix": "npm run lint -- --write",
     "check:legacy-names": "node scripts/check-legacy-names.js",
     "extract-font-chars": "node scripts/extract-font-chars.js",

@@ -3,16 +3,16 @@ import { existsSync, readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 
 const rendererPaths = [
-  'stackchan/ui/application/renderer-simple.ts',
-  'stackchan/ui/application/renderer-small.ts',
-  'stackchan/ui/application/renderer-dog.ts',
-  'stackchan/ui/application/renderer-image.ts',
-  'stackchan/ui/application/renderer-compat.ts',
+  'host/modules/ui/application/renderer-simple.ts',
+  'host/modules/ui/application/renderer-small.ts',
+  'host/modules/ui/application/renderer-dog.ts',
+  'host/modules/ui/application/renderer-image.ts',
+  'host/modules/ui/application/renderer-compat.ts',
 ]
 
 describe('PIU UI application lifecycle', () => {
   test('AppController reuses an existing startup Application when one is present', () => {
-    const controllerSource = readFileSync('stackchan/ui/application/app-controller.ts', 'utf8')
+    const controllerSource = readFileSync('host/modules/ui/application/app-controller.ts', 'utf8')
 
     assert.match(controllerSource, /globalThis as GlobalWithApplication/)
     assert.match(controllerSource, /existingApplication\.empty\(\)/)
@@ -34,7 +34,7 @@ describe('PIU UI application lifecycle', () => {
   })
 
   test('UI manifests do not expose legacy adapter modules', () => {
-    for (const manifestPath of ['stackchan/ui/manifest.json', 'stackchan/ui/manifest_wasm.json']) {
+    for (const manifestPath of ['host/modules/ui/manifest.json', 'host/modules/ui/manifest_wasm.json']) {
       const source = readFileSync(manifestPath, 'utf8')
       assert.doesNotMatch(source, /renderer-/)
       assert.doesNotMatch(source, /RendererCompat/)

@@ -5,11 +5,11 @@ import { test } from 'node:test'
 import {
   getImageAvatarPack,
   IMAGE_AVATAR_PACKS,
-} from '../../stackchan/ui/components/face/parts/image/image-avatar-pack.js'
+} from '../../host/modules/ui/components/face/parts/image/image-avatar-pack.js'
 import {
   frameIndexForRatio,
   resolveExpressionName,
-} from '../../stackchan/ui/components/face/parts/image/image-avatar-state.js'
+} from '../../host/modules/ui/components/face/parts/image/image-avatar-state.js'
 
 test('demo image avatar pack describes a complete face, mouth, and hands sprite set', () => {
   const pack = getImageAvatarPack('stackchan-demo')
@@ -64,9 +64,9 @@ test('UI manifests keep bundled demo masks but leave ImageAvatarLite sprites to 
     'stackchan-demo-mouth-normal',
     'stackchan-demo-hand-left-normal',
     'stackchan-demo-hand-right-normal',
-  ].map((name) => `../assets/images/faces/image-avatar/stackchan-demo/${name}`)
+  ].map((name) => `../../../stackchan/assets/images/faces/image-avatar/stackchan-demo/${name}`)
 
-  for (const manifestPath of ['stackchan/ui/manifest.json', 'stackchan/ui/manifest_wasm.json']) {
+  for (const manifestPath of ['host/modules/ui/manifest.json', 'host/modules/ui/manifest_wasm.json']) {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
     const alphaResources = manifest.resources['*-alpha'] as string[]
     const colorResources = (manifest.resources['*-color'] ?? []) as string[]

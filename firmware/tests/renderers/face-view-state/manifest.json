@@ -1,5 +1,5 @@
 {
-  "include": ["../../../stackchan/ui/manifest.json"],
+  "include": ["../../../host/modules/ui/manifest.json"],
   "modules": {
     "mocks/assert": "../../chats/mocks/assert",
     "*": ["./main"]

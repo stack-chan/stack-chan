@@ -18,46 +18,46 @@
     "target": "es2024",
     "paths": {
       "face-context": [
-        "./stackchan/ui/state/face-context"
+        "./host/modules/ui/state/face-context"
       ],
       "face-skin": [
-        "./stackchan/ui/state/face-skin"
+        "./host/modules/ui/state/face-skin"
       ],
       "app-controller": [
-        "./stackchan/ui/application/app-controller"
+        "./host/modules/ui/application/app-controller"
       ],
       "chat-status-bar": [
-        "./stackchan/ui/components/status-bar/chat-status-bar"
+        "./host/modules/ui/components/status-bar/chat-status-bar"
       ],
       "common-view": [
-        "./stackchan/ui/views/main/common-view"
+        "./host/modules/ui/views/main/common-view"
       ],
       "face-view": [
-        "./stackchan/ui/views/main/face-view"
+        "./host/modules/ui/views/main/face-view"
       ],
       "template": [
-        "./stackchan/ui/components/face/template"
+        "./host/modules/ui/components/face/template"
       ],
       "effects/*": [
-        "./stackchan/ui/components/effects/*"
+        "./host/modules/ui/components/effects/*"
       ],
       "effects/speech-balloon": [
-        "./stackchan/ui/components/bubble/speech-balloon"
+        "./host/modules/ui/components/bubble/speech-balloon"
       ],
       "effects/multirow-balloon": [
-        "./stackchan/ui/components/bubble/multirow-balloon"
+        "./host/modules/ui/components/bubble/multirow-balloon"
       ],
       "behaviors/*": [
-        "./stackchan/ui/components/face/behaviors/*"
+        "./host/modules/ui/components/face/behaviors/*"
       ],
       "parts/*": [
-        "./stackchan/ui/components/face/parts/*"
+        "./host/modules/ui/components/face/parts/*"
       ],
       "motions/*": [
-        "./stackchan/ui/components/face/motions/*"
+        "./host/modules/ui/components/face/motions/*"
       ],
       "drawer": [
-        "./stackchan/ui/components/drawer/drawer"
+        "./host/modules/ui/components/drawer/drawer"
       ],
       "mocks/*": [
         "./tests/chats/mocks/*"
@@ -72,21 +72,21 @@
         "./stackchan/dialogues/*",
         "./stackchan/drivers/*",
         "./stackchan/led/*",
-        "./stackchan/ui/application/*",
-        "./stackchan/ui/views/main/*",
-        "./stackchan/ui/views/splash/*",
-        "./stackchan/ui/views/camera-preview/*",
-        "./stackchan/ui/components/status-bar/*",
-        "./stackchan/ui/components/drawer/*",
-        "./stackchan/ui/components/effects/*",
-        "./stackchan/ui/components/bubble/*",
-        "./stackchan/ui/components/face/*",
-        "./stackchan/ui/components/face/behaviors/*",
-        "./stackchan/ui/components/face/motions/*",
-        "./stackchan/ui/components/face/parts/*",
-        "./stackchan/ui/components/face/parts/dog/*",
-        "./stackchan/ui/components/face/parts/image/*",
-        "./stackchan/ui/state/*",
+        "./host/modules/ui/application/*",
+        "./host/modules/ui/views/main/*",
+        "./host/modules/ui/views/splash/*",
+        "./host/modules/ui/views/camera-preview/*",
+        "./host/modules/ui/components/status-bar/*",
+        "./host/modules/ui/components/drawer/*",
+        "./host/modules/ui/components/effects/*",
+        "./host/modules/ui/components/bubble/*",
+        "./host/modules/ui/components/face/*",
+        "./host/modules/ui/components/face/behaviors/*",
+        "./host/modules/ui/components/face/motions/*",
+        "./host/modules/ui/components/face/parts/*",
+        "./host/modules/ui/components/face/parts/dog/*",
+        "./host/modules/ui/components/face/parts/image/*",
+        "./host/modules/ui/state/*",
         "./stackchan/services/*",
         "./stackchan/speeches/*",
         "./stackchan/transcriptions/*",

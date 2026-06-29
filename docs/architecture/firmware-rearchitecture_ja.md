@@ -194,17 +194,17 @@ flowchart TD
 - [x] 対応済み：実装から `robot.renderer`、`useRenderer`、`addDecorator`、`removeDecorator` を削除する。
 - [x] 対応済み：旧 Poco 系 renderer の tracked code を `firmware/stackchan/renderers` から削除する。
 - [x] 対応済み：Piu UI 実装を旧 renderer 構造から `firmware/stackchan/ui` へ分離する。
-- [ ] 未対応：分離済みの Piu UI 実装を `firmware/host/modules/ui` 配下へ移す。
-- [ ] 未対応：Piu `Application` の生成と再利用を `firmware/host/modules/ui/application/app-controller.ts` に置く。
-- [ ] 未対応：通常画面の実装を `firmware/host/modules/ui/views/main` に置く。
-- [ ] 未対応：起動スプラッシュを `firmware/host/modules/ui/views/splash` に置く。
-- [ ] 未対応：カメラプレビューを `firmware/host/modules/ui/views/camera-preview` に置く。
-- [ ] 未対応：StatusBar を `firmware/host/modules/ui/components/status-bar` に置く。
-- [ ] 未対応：Drawer を `firmware/host/modules/ui/components/drawer` に置く。
-- [ ] 未対応：Effects を `firmware/host/modules/ui/components/effects` に置く。
-- [ ] 未対応：SpeechBalloon と MultiRowBalloon を `firmware/host/modules/ui/components/bubble` に置く。
-- [ ] 未対応：顔の部品、顔表示 Behavior、顔関連 skin を `firmware/host/modules/ui/components/face` に置く。
-- [ ] 未対応：顔状態を `firmware/host/modules/ui/state` に置く。
+- [x] 対応済み：分離済みの Piu UI 実装を `firmware/host/modules/ui` 配下へ移す。
+- [x] 対応済み：Piu `Application` の生成と再利用を `firmware/host/modules/ui/application/app-controller.ts` に置く。
+- [x] 対応済み：通常画面の実装を `firmware/host/modules/ui/views/main` に置く。
+- [x] 対応済み：起動スプラッシュを `firmware/host/modules/ui/views/splash` に置く。
+- [x] 対応済み：カメラプレビューを `firmware/host/modules/ui/views/camera-preview` に置く。
+- [x] 対応済み：StatusBar を `firmware/host/modules/ui/components/status-bar` に置く。
+- [x] 対応済み：Drawer を `firmware/host/modules/ui/components/drawer` に置く。
+- [x] 対応済み：Effects を `firmware/host/modules/ui/components/effects` に置く。
+- [x] 対応済み：SpeechBalloon と MultiRowBalloon を `firmware/host/modules/ui/components/bubble` に置く。
+- [x] 対応済み：顔の部品、顔表示 Behavior、顔関連 skin を `firmware/host/modules/ui/components/face` に置く。
+- [x] 対応済み：顔状態を `firmware/host/modules/ui/state` に置く。
 - [x] 対応済み：UI manifest と tsconfig から `renderer-*` alias を削除する。
 - [x] 対応済み：`renderer` preference と config 名を `ui` へ置き換える。
 - [x] 対応済み：default mod と sample mod の UI 呼び出しを `robot.ui.addEffect`、`robot.ui.removeEffect`、`robot.ui.setFace`、`robot.drawer` へ更新する。

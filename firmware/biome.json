@@ -8,6 +8,7 @@
   "files": {
     "includes": [
       "stackchan/**",
+      "host/**",
       "mods/**",
       "tests/**",
       "scripts/**",

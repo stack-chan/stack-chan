@@ -19,16 +19,16 @@
         "stackchan/drivers/wasm/wasm-driver.ts"
       ],
       "face-context": [
-        "stackchan/ui/state/face-context.ts"
+        "host/modules/ui/state/face-context.ts"
       ],
       "parts/*": [
-        "stackchan/ui/components/face/parts/*"
+        "host/modules/ui/components/face/parts/*"
       ],
       "parts/image/image-avatar-pack": [
-        "stackchan/ui/components/face/parts/image/image-avatar-pack.ts"
+        "host/modules/ui/components/face/parts/image/image-avatar-pack.ts"
       ],
       "parts/image/image-avatar-state": [
-        "stackchan/ui/components/face/parts/image/image-avatar-state.ts"
+        "host/modules/ui/components/face/parts/image/image-avatar-state.ts"
       ]
     },
     "types": [
@@ -40,7 +40,7 @@
     "stackchan/drivers/payload-buffer.ts",
     "stackchan/drivers/wasm/**/*.ts",
     "stackchan/camera.ts",
-    "stackchan/ui/views/camera-preview/camera-preview-utils.ts",
+    "host/modules/ui/views/camera-preview/camera-preview-utils.ts",
     "stackchan/touch-panel-gesture.ts",
     "stackchan/imu-motion.ts",
     "stackchan/wasm/camera.ts",
@@ -49,9 +49,9 @@
     "stackchan/led/py32-io-expander.ts",
     "stackchan/drivers/internal/single-wait-slot.ts",
     "stackchan/drivers/__tests__/**/*.ts",
-    "stackchan/ui/state/face-context.ts",
-    "stackchan/ui/components/face/parts/image/image-avatar-pack.ts",
-    "stackchan/ui/components/face/parts/image/image-avatar-state.ts",
+    "host/modules/ui/state/face-context.ts",
+    "host/modules/ui/components/face/parts/image/image-avatar-pack.ts",
+    "host/modules/ui/components/face/parts/image/image-avatar-state.ts",
     "tests/unit/**/*.ts"
   ],
   "exclude": []

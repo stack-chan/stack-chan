@@ -1,13 +1,6 @@
-export type NetworkState =
-  | 'idle'
-  | 'scanning'
-  | 'connecting'
-  | 'syncing-time'
-  | 'connected'
-  | 'reconnecting'
-  | 'failed'
-  | 'closed'
+import { NetworkConnectionState, type NetworkConnectionState as NetworkConnectionStateValue } from 'network-state'
 
+export type NetworkState = NetworkConnectionStateValue
 export type NetworkStateChanged = (state: NetworkState, reason?: string) => void
 
 export type NetworkServiceOptions = {
@@ -20,14 +13,14 @@ export class NetworkService {
     this.#onStateChanged = options.onStateChanged
   }
   close() {
-    this.#onStateChanged?.('closed')
+    this.#onStateChanged?.(NetworkConnectionState.CLOSED)
   }
   connect(onConnected?: () => void, _onError?: (message: string) => void) {
-    this.#onStateChanged?.('connected')
+    this.#onStateChanged?.(NetworkConnectionState.CONNECTED)
     onConnected?.()
   }
   scanAndConnect(onConnected?: () => void, _onError?: (message: string) => void) {
-    this.#onStateChanged?.('connected')
+    this.#onStateChanged?.(NetworkConnectionState.CONNECTED)
     onConnected?.()
   }
 }

@@ -1,6 +1,10 @@
 import config from 'mc/config'
 import Net from 'net'
-import { type NetworkConnectionState, NetworkConnectionStateMachine } from 'network-state'
+import {
+  NetworkConnectionState,
+  NetworkConnectionStateMachine,
+  type NetworkConnectionState as NetworkConnectionStateValue,
+} from 'network-state'
 import SNTP from 'sntp'
 import Time from 'time'
 import Timer from 'timer'
@@ -10,7 +14,7 @@ const MAX_SCANS = 3
 const DEFAULT_CONNECTION_TIMEOUT_MS = 15000
 const DEFAULT_RECONNECT_DELAY_MS = 3000
 
-export type NetworkState = NetworkConnectionState
+export type NetworkState = NetworkConnectionStateValue
 export type NetworkStateChanged = (state: NetworkState, reason?: string) => void
 
 export type NetworkServiceOptions = {
@@ -137,7 +141,7 @@ export class NetworkService {
     WiFi.mode = WiFi.Mode.station
     this.#transition({ type: 'scan-started' })
     WiFi.scan({}, (item: { ssid: string } | null) => {
-      if (this.state === 'connecting') {
+      if (this.state === NetworkConnectionState.CONNECTING) {
         return
       }
 
@@ -148,7 +152,7 @@ export class NetworkService {
       } else {
         // scan finished
         const state = this.#transition({ type: 'scan-finished' })
-        if (state === 'failed') {
+        if (state === NetworkConnectionState.FAILED) {
           const message = `Access point "${this.#ssid}" not found`
           trace(`${message}\n`)
           this.#handleError(message)

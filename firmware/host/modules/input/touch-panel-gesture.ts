@@ -13,10 +13,16 @@ export type TouchPanelGestureRecognizerOptions = {
   swipeThreshold?: number
 }
 
-type TouchState = 'idle' | 'touched' | 'swiping'
+const TouchState = Object.freeze({
+  IDLE: 0,
+  TOUCHED: 1,
+  SWIPING: 2,
+} as const)
+
+type TouchState = (typeof TouchState)[keyof typeof TouchState]
 
 export class GestureRecognizer {
-  #state: TouchState = 'idle'
+  #state: TouchState = TouchState.IDLE
   #initialPosition = 0
   #touchThreshold: number
   #swipeThreshold: number
@@ -27,42 +33,42 @@ export class GestureRecognizer {
   }
 
   reset(): void {
-    this.#state = 'idle'
+    this.#state = TouchState.IDLE
     this.#initialPosition = 0
   }
 
   update(sample: TouchPanelSample, ticks: number): TouchPanelGesture | undefined {
     switch (this.#state) {
-      case 'idle':
+      case TouchState.IDLE:
         if (this.#isTouched(sample)) {
-          this.#state = 'touched'
+          this.#state = TouchState.TOUCHED
           this.#initialPosition = this.getPosition(sample)
           return { type: 'press', sample: [...sample], ticks }
         }
         break
 
-      case 'touched':
+      case TouchState.TOUCHED:
         if (!this.#isTouched(sample)) {
-          this.#state = 'idle'
+          this.#state = TouchState.IDLE
           return { type: 'release', sample: [...sample], ticks }
         }
 
         {
           const delta = this.getPosition(sample) - this.#initialPosition
           if (delta > this.#swipeThreshold) {
-            this.#state = 'swiping'
+            this.#state = TouchState.SWIPING
             return { type: 'forwardSwipe', sample: [...sample], ticks }
           }
           if (delta < -this.#swipeThreshold) {
-            this.#state = 'swiping'
+            this.#state = TouchState.SWIPING
             return { type: 'backwardSwipe', sample: [...sample], ticks }
           }
         }
         break
 
-      case 'swiping':
+      case TouchState.SWIPING:
         if (!this.#isTouched(sample)) {
-          this.#state = 'idle'
+          this.#state = TouchState.IDLE
           return { type: 'release', sample: [...sample], ticks }
         }
         break

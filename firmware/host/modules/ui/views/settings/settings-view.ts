@@ -7,9 +7,41 @@ import type {
 } from 'piu/MC'
 import { Column, Container, Label, Skin, Style } from 'piu/MC'
 
+export const SettingsStatusValue = Object.freeze({
+  NOT_CONNECTED: 0,
+  CONNECTED: 1,
+  CONNECTING: 2,
+  SCANNING: 3,
+  SYNCING_TIME: 4,
+  RECONNECTING: 5,
+  FAILED: 6,
+  CLOSED: 7,
+  READY: 8,
+  OFF: 9,
+} as const)
+
+export type SettingsStatusValue = (typeof SettingsStatusValue)[keyof typeof SettingsStatusValue]
+
+const settingsStatusLabels = Object.freeze([
+  'not connected',
+  'connected',
+  'connecting',
+  'scanning',
+  'syncing time',
+  'reconnecting',
+  'failed',
+  'closed',
+  'ready',
+  'off',
+] as const)
+
+export function settingsStatusToLabel(status: SettingsStatusValue): string {
+  return settingsStatusLabels[status] ?? 'unknown'
+}
+
 export type SettingsStatus = {
-  ble: string
-  wifi: string
+  ble: SettingsStatusValue
+  wifi: SettingsStatusValue
   'wifi.ssid'?: string
   'wifi.password'?: string
 }
@@ -119,10 +151,10 @@ export const buildSettingsView = (
 }
 
 export const updateSettingsStatusLabels = (labels: SettingsStatusLabels, status: SettingsStatus): void => {
-  labels.ble.string = `BLE: ${status.ble}`
+  labels.ble.string = `BLE: ${settingsStatusToLabel(status.ble)}`
   labels.ssid.string = `SSID: ${status['wifi.ssid'] || 'not set'}`
   const maskedPassword = status['wifi.password'] ? status['wifi.password'].replace(/./g, '*') : 'not set'
   labels.password.string = `password: ${maskedPassword}`
-  labels.wifi.string = `Wi-Fi: ${status.wifi}`
+  labels.wifi.string = `Wi-Fi: ${settingsStatusToLabel(status.wifi)}`
   labels.hint.string = 'Tap to test connection'
 }

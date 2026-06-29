@@ -1,14 +1,17 @@
 import { Container, Content, Skin } from 'piu/MC'
 
-type ChatState =
-  | 'FAILED'
-  | 'DISCONNECTED'
-  | 'DISCONNECTING'
-  | 'CONNECTING'
-  | 'CONNECTED'
-  | 'SPEAKING'
-  | 'LISTENING'
-  | 'WAITING'
+export const ChatStatusBarState = Object.freeze({
+  FAILED: 0,
+  DISCONNECTED: 1,
+  DISCONNECTING: 2,
+  CONNECTING: 3,
+  CONNECTED: 4,
+  SPEAKING: 5,
+  LISTENING: 6,
+  WAITING: 7,
+} as const)
+
+export type ChatStatusBarState = (typeof ChatStatusBarState)[keyof typeof ChatStatusBarState]
 
 const barHeight = 18
 const levelHeight = 16
@@ -73,7 +76,7 @@ class IndicatorBehavior extends Behavior {
 }
 
 class ChatStatusBarBehavior extends Behavior {
-  #state: ChatState = 'DISCONNECTED'
+  #state: ChatStatusBarState = ChatStatusBarState.DISCONNECTED
   #inputLevel = 0
   #levelTrack?: Container
   #levelFill?: Content
@@ -88,7 +91,7 @@ class ChatStatusBarBehavior extends Behavior {
     this.updateUI()
   }
 
-  onChatState(_container: Container, state: ChatState, _error?: string) {
+  onChatState(_container: Container, state: ChatStatusBarState, _error?: string) {
     this.#state = state
     this.updateUI()
   }
@@ -100,9 +103,9 @@ class ChatStatusBarBehavior extends Behavior {
 
   updateUI() {
     if (!this.#levelTrack || !this.#levelFill || !this.#statusIcon || !this.#indicator) return
-    const isListening = this.#state === 'SPEAKING'
-    const isSpeaking = this.#state === 'LISTENING'
-    const isConnecting = this.#state === 'CONNECTING'
+    const isListening = this.#state === ChatStatusBarState.SPEAKING
+    const isSpeaking = this.#state === ChatStatusBarState.LISTENING
+    const isConnecting = this.#state === ChatStatusBarState.CONNECTING
     this.#levelTrack.visible = isListening
     this.#statusIcon.visible = isListening || isSpeaking
     this.#statusIcon.state = isSpeaking ? 1 : 0
@@ -116,7 +119,7 @@ class ChatStatusBarBehavior extends Behavior {
       this.#indicator.variant = 0
     }
     const skins = getSkins()
-    this.#levelFill.skin = this.#state === 'FAILED' ? skins.errorFill : skins.levelFill
+    this.#levelFill.skin = this.#state === ChatStatusBarState.FAILED ? skins.errorFill : skins.levelFill
     this.updateLevel()
   }
 

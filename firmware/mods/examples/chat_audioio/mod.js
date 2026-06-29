@@ -1,6 +1,6 @@
 // biome-ignore lint/correctness/noUnusedImports: kept with the parked image-face setup below.
 import { ImageFace } from 'behaviors/face'
-import { ChatService } from 'chat'
+import { ChatService, ChatState, chatStateToName } from 'chat'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { EmotionNames, emotionFromName } from 'face-state'
 import config from 'mc/config'
@@ -497,21 +497,21 @@ export function onContextCreated(robot) {
     tools,
     callbacks: {
       onStateChanged: (state, error) => {
-        trace(`onStateChanged: ${state}\n`)
+        trace(`onStateChanged: ${chatStateToName(state)}\n`)
         app?.distribute?.('onChatState', state, error)
-        if (state !== 'SPEAKING') {
+        if (state !== ChatState.SPEAKING) {
           app?.distribute?.('onChatInputLevel', 0)
         }
-        if (state !== 'LISTENING') {
+        if (state !== ChatState.LISTENING) {
           queueMouthOpen(0, true)
         }
         if (state !== lastState) {
-          if (state === 'LISTENING' || state === 'SPEAKING') {
+          if (state === ChatState.LISTENING || state === ChatState.SPEAKING) {
             clearBalloon()
           }
           lastState = state
         }
-        if (state === 'DISCONNECTED' || state === 'FAILED') {
+        if (state === ChatState.DISCONNECTED || state === ChatState.FAILED) {
           active = false
           robot.drawer.setDrawerButtonState('toggleChat', false)
           removeBalloon()

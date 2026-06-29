@@ -1,15 +1,13 @@
 import ChatAudioIO from 'ChatAudioIO'
-import { type ChatFunctionCallSnapshot, ChatSessionState, type ChatTranscriptSnapshot } from 'chat-state'
+import {
+  type ChatFunctionCallSnapshot,
+  ChatSessionState,
+  ChatState,
+  type ChatState as ChatStateValue,
+  type ChatTranscriptSnapshot,
+} from 'chat-state'
 
-export type ChatState =
-  | 'FAILED'
-  | 'DISCONNECTED'
-  | 'DISCONNECTING'
-  | 'CONNECTING'
-  | 'CONNECTED'
-  | 'SPEAKING'
-  | 'LISTENING'
-  | 'WAITING'
+export { ChatState, type ChatStateName, ChatStateNames, chatStateToName } from 'chat-state'
 
 export type ChatType = 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' | 'humeAIEVI' | 'openAIRealtime'
 
@@ -44,7 +42,7 @@ export type ChatTool = ChatToolSchema & {
 }
 
 export type ChatCallbacks = {
-  onStateChanged?: (state: ChatState, error?: string) => void
+  onStateChanged?: (state: ChatStateValue, error?: string) => void
   onInputLevelChanged?: (level: number) => void
   onOutputLevelChanged?: (level: number) => void
   onInputTranscript?: (text: string, more: boolean) => void
@@ -105,32 +103,32 @@ function toFunctionSchema(tool: ChatTool): ChatFunctionSchema | null {
   }
 }
 
-function mapState(state: number, constants: ChatAudioIOStateConstants): ChatState {
+function mapState(state: number, constants: ChatAudioIOStateConstants): ChatStateValue {
   switch (state) {
     case constants.FAILED:
-      return 'FAILED'
+      return ChatState.FAILED
     case constants.DISCONNECTED:
-      return 'DISCONNECTED'
+      return ChatState.DISCONNECTED
     case constants.DISCONNECTING:
-      return 'DISCONNECTING'
+      return ChatState.DISCONNECTING
     case constants.CONNECTING:
-      return 'CONNECTING'
+      return ChatState.CONNECTING
     case constants.CONNECTED:
-      return 'CONNECTED'
+      return ChatState.CONNECTED
     case constants.SPEAKING:
-      return 'SPEAKING'
+      return ChatState.SPEAKING
     case constants.LISTENING:
-      return 'LISTENING'
+      return ChatState.LISTENING
     case constants.WAITING:
-      return 'WAITING'
+      return ChatState.WAITING
     default:
-      return 'DISCONNECTED'
+      return ChatState.DISCONNECTED
   }
 }
 
 export class ChatService {
   #chat: ChatAudioIO
-  #state: ChatState = 'DISCONNECTED'
+  #state: ChatStateValue = ChatState.DISCONNECTED
   #error = ''
   #callbacks: Required<ChatCallbacks>
   #sessionState: ChatSessionState
@@ -188,7 +186,7 @@ export class ChatService {
     })
   }
 
-  get state(): ChatState {
+  get state(): ChatStateValue {
     return this.#state
   }
 

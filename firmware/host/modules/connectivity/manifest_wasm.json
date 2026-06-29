@@ -4,6 +4,7 @@
     "../preferences/manifest.json"
   ],
   "modules": {
+    "network-state": "./network-state",
     "network-service": "./wasm/network-service",
     "preference-server": "./wasm/preference-server"
   }

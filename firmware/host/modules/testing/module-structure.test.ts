@@ -170,6 +170,32 @@ test('periodic motion hot paths reuse fixed state and callbacks', () => {
   }
 })
 
+test('runtime state machines keep internal state as numeric constants', () => {
+  const stateSources = [
+    join(MODULE_ROOT, 'conversation', 'chat-state.ts'),
+    join(MODULE_ROOT, 'connectivity', 'network-state.ts'),
+    join(MODULE_ROOT, 'input', 'touch-panel-gesture.ts'),
+    join(MODULE_ROOT, 'ui', 'components', 'status-bar', 'chat-status-bar.ts'),
+    join(MODULE_ROOT, 'ui', 'views', 'settings', 'settings-view.ts'),
+  ]
+
+  for (const sourcePath of stateSources) {
+    const source = readFileSync(sourcePath, 'utf8')
+    assert.match(source, /Object\.freeze\(\{/, `${sourcePath} should define numeric state constants`)
+    assert.doesNotMatch(source, /#state[^=\n]*=\s*['"]/, `${sourcePath} should not store string state`)
+    assert.doesNotMatch(
+      source,
+      /type\s+(?:ChatState|NetworkConnectionState|TouchState|ChatStatusBarState)\s*=\s*\|?\s*['"]/,
+      `${sourcePath} should not model runtime state as a string union`,
+    )
+  }
+
+  const settings = readFileSync(join(MODULE_ROOT, 'ui', 'views', 'settings', 'settings-view.ts'), 'utf8')
+  assert.match(settings, /ble: SettingsStatusValue/, 'settings BLE status should be numeric')
+  assert.match(settings, /wifi: SettingsStatusValue/, 'settings Wi-Fi status should be numeric')
+  assert.match(settings, /settingsStatusToLabel/, 'settings labels should convert status at the UI boundary')
+})
+
 test('shared fakes live in modules/testing and module-local fakes stay under module tests', () => {
   assert.ok(existsSync(join(MODULE_ROOT, 'testing/fakes/ChatAudioIO.js')))
   assert.ok(existsSync(join(MODULE_ROOT, 'testing/fakes/timer.ts')))

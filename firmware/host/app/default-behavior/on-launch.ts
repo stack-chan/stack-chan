@@ -1,10 +1,11 @@
 import type { StackchanAppBehavior } from 'app-behavior'
 import { DOMAIN, PREF_KEYS } from 'consts'
 import { startNetworkConnection, stopNetworkConnection } from 'network-manager'
+import { NetworkConnectionState, type NetworkConnectionState as NetworkState } from 'network-state'
 import type { Application as PiuApplication } from 'piu/MC'
 import Preference from 'preference'
 import { PreferenceServer } from 'preference-server'
-import { buildSettingsView, type SettingsStatus, updateSettingsStatusLabels } from 'settings-view'
+import { buildSettingsView, type SettingsStatus, SettingsStatusValue, updateSettingsStatusLabels } from 'settings-view'
 import { showStartupSplash } from 'startup-splash'
 import Timer from 'timer'
 
@@ -37,6 +38,27 @@ const preferenceString = (key: string): string => {
   return value === undefined || value === null ? '' : String(value)
 }
 
+function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatusValue {
+  switch (state) {
+    case NetworkConnectionState.SCANNING:
+      return SettingsStatusValue.SCANNING
+    case NetworkConnectionState.CONNECTING:
+      return SettingsStatusValue.CONNECTING
+    case NetworkConnectionState.SYNCING_TIME:
+      return SettingsStatusValue.SYNCING_TIME
+    case NetworkConnectionState.CONNECTED:
+      return SettingsStatusValue.CONNECTED
+    case NetworkConnectionState.RECONNECTING:
+      return SettingsStatusValue.RECONNECTING
+    case NetworkConnectionState.FAILED:
+      return SettingsStatusValue.FAILED
+    case NetworkConnectionState.CLOSED:
+    case NetworkConnectionState.IDLE:
+      return SettingsStatusValue.NOT_CONNECTED
+  }
+  return SettingsStatusValue.NOT_CONNECTED
+}
+
 function connectStoredWiFi(
   status?: SettingsStatus,
   labels?: ReturnType<typeof buildSettingsView>,
@@ -51,7 +73,7 @@ function connectStoredWiFi(
     password,
     onStateChanged: (state) => {
       if (!status || !labels) return
-      status.wifi = state
+      status.wifi = settingsWifiStatusFromNetworkState(state)
       updateSettingsStatusLabels(labels, status)
     },
     onConnected,
@@ -66,8 +88,8 @@ export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () 
     return true
   }
   const status: SettingsStatus = {
-    ble: 'not connected',
-    wifi: 'not connected',
+    ble: SettingsStatusValue.NOT_CONNECTED,
+    wifi: SettingsStatusValue.NOT_CONNECTED,
     'wifi.ssid': preferenceString('ssid'),
     'wifi.password': preferenceString('password'),
   }
@@ -81,12 +103,12 @@ export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () 
       labels,
       () => {
         trace('connection complete\n')
-        status.wifi = 'connected'
+        status.wifi = SettingsStatusValue.CONNECTED
         updateSettingsStatusLabels(labels, status)
       },
       () => {
         trace('connection failed\n')
-        status.wifi = 'failed'
+        status.wifi = SettingsStatusValue.FAILED
         updateSettingsStatusLabels(labels, status)
       },
     )
@@ -100,11 +122,11 @@ export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () 
       updateSettingsStatusLabels(labels, status)
     },
     onConnected: () => {
-      status.ble = 'connected'
+      status.ble = SettingsStatusValue.CONNECTED
       updateSettingsStatusLabels(labels, status)
     },
     onDisconnected: () => {
-      status.ble = 'not connected'
+      status.ble = SettingsStatusValue.NOT_CONNECTED
       updateSettingsStatusLabels(labels, status)
     },
     keys: PREF_KEYS,

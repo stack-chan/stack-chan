@@ -1,6 +1,6 @@
 import type ChatAudioIOBase from 'ChatAudioIO'
 import ChatAudioIO from 'ChatAudioIO'
-import { ChatService, type ChatState, type ChatTool } from 'chat'
+import { ChatService, ChatState, type ChatState as ChatStateValue, type ChatTool } from 'chat'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
 
@@ -22,13 +22,13 @@ const tools: Record<string, ChatTool> = {
   },
 }
 
-const states: ChatState[] = []
+const states: ChatStateValue[] = []
 const service = new ChatService({
   config: { type: 'openAIRealtime', modelID: 'gpt-realtime-mini' },
   tools,
   chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
   callbacks: {
-    onStateChanged: (state: ChatState) => states.push(state),
+    onStateChanged: (state: ChatStateValue) => states.push(state),
   },
 })
 
@@ -56,7 +56,7 @@ equal(functions.length, 1, 'functions length')
 equal(functions[0] ? functions[0].name : undefined, 'sample', 'function name')
 
 service.start()
-equal(states[0], 'CONNECTING', 'state should map to CONNECTING')
+equal(states[0], ChatState.CONNECTING, 'state should map to CONNECTING')
 
 const instance = ChatAudioIOAny.instances ? ChatAudioIOAny.instances[0] : undefined
 assert(instance, 'ChatAudioIO instance should exist')
@@ -69,7 +69,7 @@ if (connectedState === undefined) {
   throw new Error('ChatAudioIO CONNECTED constant should exist')
 }
 instance.emitState(connectedState)
-equal(states[1], 'CONNECTED', 'state should map to CONNECTED')
+equal(states[1], ChatState.CONNECTED, 'state should map to CONNECTED')
 
 service.sendText('hello')
 equal(instance.lastText, 'hello', 'sendText forwards to ChatAudioIO')
@@ -95,8 +95,8 @@ const completedCall = service.functionCalls[0]
 equal(completedCall ? completedCall.status : undefined, 'completed', 'function result should complete the call')
 
 service.stop()
-equal(states[2], 'DISCONNECTING', 'state should map to DISCONNECTING')
-equal(states[3], 'DISCONNECTED', 'state should map to DISCONNECTED')
+equal(states[2], ChatState.DISCONNECTING, 'state should map to DISCONNECTING')
+equal(states[3], ChatState.DISCONNECTED, 'state should map to DISCONNECTED')
 
 trace('ok\n')
 Timer.set(() => {}, 1000)

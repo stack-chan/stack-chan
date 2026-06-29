@@ -1,4 +1,4 @@
-import { ChatStatusBar } from 'chat-status-bar'
+import { ChatStatusBar, ChatStatusBarState } from 'chat-status-bar'
 import { Application } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
 
@@ -9,7 +9,7 @@ const app = new Application(null, {
 })
 
 type StatusBarBehavior = {
-  onChatState?: (container: unknown, state: string, error?: string) => void
+  onChatState?: (container: unknown, state: number, error?: string) => void
   onChatInputLevel?: (container: unknown, level: number) => void
 }
 
@@ -46,11 +46,11 @@ const levelTrack = bar.last as LevelTrack
 const levelFill = levelTrack.first as LevelFill
 const behavior = bar.behavior as StatusBarBehavior
 
-behavior.onChatState?.(bar, 'CONNECTING')
+behavior.onChatState?.(bar, ChatStatusBarState.CONNECTING)
 assert(statusIndicator.visible === true, 'connecting indicator should be visible')
 assert(statusIcon.visible === false, 'status icon should be hidden while connecting')
 
-behavior.onChatState?.(bar, 'SPEAKING')
+behavior.onChatState?.(bar, ChatStatusBarState.SPEAKING)
 assert(levelTrack.visible === true, 'level track should be visible in SPEAKING')
 assert(statusIcon.visible === true, 'status icon should be visible in SPEAKING')
 equal(statusIcon.state, 0, 'SPEAKING should use microphone input icon state')
@@ -58,13 +58,13 @@ equal(statusIcon.state, 0, 'SPEAKING should use microphone input icon state')
 behavior.onChatInputLevel?.(bar, 1000)
 equal(levelFill.height, 8, 'half input level should fill half the track')
 
-behavior.onChatState?.(bar, 'LISTENING')
+behavior.onChatState?.(bar, ChatStatusBarState.LISTENING)
 assert(levelTrack.visible === false, 'level track should be hidden in LISTENING')
 assert(statusIcon.visible === true, 'status icon should be visible in LISTENING')
 equal(statusIcon.state, 1, 'LISTENING should use output icon state')
 
 const normalFillSkin = levelFill.skin
-behavior.onChatState?.(bar, 'FAILED', 'boom')
+behavior.onChatState?.(bar, ChatStatusBarState.FAILED, 'boom')
 assert(levelTrack.visible === false, 'level track should be hidden after failure')
 assert(statusIcon.visible === false, 'status icon should be hidden after failure')
 assert(statusIndicator.visible === false, 'connecting indicator should be hidden after failure')

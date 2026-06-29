@@ -7,7 +7,6 @@ import {
   rotationToM5StackChanServoAngles,
 } from 'm5stackchan-servo'
 import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
-import { notifyCompletion, notifyMaybe } from 'motion-driver-callback'
 import SCServo from 'protocols/scservo'
 import { getSharedPY32IOExpander } from 'py32-io-expander'
 import type { Maybe, Rotation } from 'stackchan-util'
@@ -75,59 +74,68 @@ export class M5StackChanServoDriver {
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
-    notifyCompletion(this.#setTorque(torque), callback)
-  }
-
-  async #setTorque(torque: boolean): Promise<void> {
-    await this.#pan.setTorque(torque)
-    await this.#tilt.setTorque(torque)
+    this.#pan.setTorque(torque, (panError) => {
+      if (panError != null) {
+        callback?.(panError)
+        return
+      }
+      this.#tilt.setTorque(torque, callback)
+    })
   }
 
   applyRotation(ori: Rotation, time = 0.5, callback?: MotionCompletion): void {
-    notifyCompletion(this.#applyRotation(ori, time), callback)
-  }
-
-  async #applyRotation(ori: Rotation, time = 0.5): Promise<void> {
     const angles = rotationToM5StackChanServoAngles(ori)
     const panRawPosition = angleToRawPosition(angles.yaw, this.#config.yaw)
     const tiltRawPosition = angleToRawPosition(angles.pitch, this.#config.pitch)
     if (time === 0) {
-      await this.#pan.setRawPosition(panRawPosition)
-      await this.#tilt.setRawPosition(tiltRawPosition)
+      this.#pan.setRawPosition(panRawPosition, (panError) => {
+        if (panError != null) {
+          callback?.(panError)
+          return
+        }
+        this.#tilt.setRawPosition(tiltRawPosition, callback)
+      })
     } else {
       const goalTime = time * 1000
-      await this.#pan.setRawPositionInTime(panRawPosition, goalTime)
-      await this.#tilt.setRawPositionInTime(tiltRawPosition, goalTime)
+      this.#pan.setRawPositionInTime(panRawPosition, goalTime, (panError) => {
+        if (panError != null) {
+          callback?.(panError)
+          return
+        }
+        this.#tilt.setRawPositionInTime(tiltRawPosition, goalTime, callback)
+      })
     }
   }
 
   getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
-    notifyMaybe(this.#readRotation(), callback)
-  }
-
-  async #readRotation(): Promise<Maybe<Rotation>> {
-    const panStatus = await this.#pan.readRawPosition()
-    if (!panStatus.success) {
-      return {
-        success: false,
+    this.#pan.readRawPosition((panStatus) => {
+      if (panStatus.success === false) {
+        callback({
+          success: false,
+          reason: panStatus.reason,
+        })
+        return
       }
-    }
-    const tiltStatus = await this.#tilt.readRawPosition()
-    if (!tiltStatus.success) {
-      return {
-        success: false,
-      }
-    }
-    const yawAngle = rawPositionToAngle(panStatus.value.position, this.#config.yaw)
-    const pitchAngle = rawPositionToAngle(tiltStatus.value.position, this.#config.pitch)
-    return {
-      success: true,
-      value: {
-        y: yawAngle / RAD_TO_01_DEGREE,
-        p: -(pitchAngle / RAD_TO_01_DEGREE),
-        r: 0.0,
-      },
-    }
+      this.#tilt.readRawPosition((tiltStatus) => {
+        if (tiltStatus.success === false) {
+          callback({
+            success: false,
+            reason: tiltStatus.reason,
+          })
+          return
+        }
+        const yawAngle = rawPositionToAngle(panStatus.value.position, this.#config.yaw)
+        const pitchAngle = rawPositionToAngle(tiltStatus.value.position, this.#config.pitch)
+        callback({
+          success: true,
+          value: {
+            y: yawAngle / RAD_TO_01_DEGREE,
+            p: -(pitchAngle / RAD_TO_01_DEGREE),
+            r: 0.0,
+          },
+        })
+      })
+    })
   }
 }
 

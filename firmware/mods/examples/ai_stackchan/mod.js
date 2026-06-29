@@ -126,10 +126,14 @@ export function onContextCreated(robot, option) {
     return
   }
 
-  robot.button.a.onEvent = async (event) => {
+  async function startTalk() {
+    await robot.tone(1000, 100)
+    await talk()
+  }
+
+  robot.button.a.onEvent = (event) => {
     if (event.pressed) {
-      await robot.tone(1000, 100)
-      await talk()
+      startTalk().catch((error) => trace(`talk failed: ${error}\n`))
     }
   }
 }

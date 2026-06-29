@@ -211,6 +211,23 @@ type DynamixelConstructorParam = {
   baudrate?: number
 }
 type CommandCallback = (values: Uint8Array | undefined) => void
+type ErrorCallback = (error: unknown) => void
+type CompletionCallback = (error?: unknown) => void
+type ValueCallback<T> = (value: T | undefined, error?: unknown) => void
+
+function reasonFromError(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message: unknown }).message)
+  }
+  return String(error)
+}
+
+function maybeFailure<T>(error?: unknown): Maybe<T> {
+  return {
+    success: false,
+    reason: error === undefined ? undefined : reasonFromError(error),
+  }
+}
 
 class Dynamixel {
   static packetHandler: PacketHandler
@@ -273,7 +290,7 @@ class Dynamixel {
 
     this.#txBuf[7] = instruction // write or read
     let idx = 8
-    if (address) {
+    if (address !== undefined && address !== null) {
       this.#txBuf[idx++] = address & 0xff
       this.#txBuf[idx++] = (address >> 8) & 0xff
     }
@@ -315,32 +332,40 @@ class Dynamixel {
     })
   }
 
-  async #sendCommand(
+  #sendCommand(
     instruction: Instruction,
-    address?: Address,
+    address: Address | undefined,
+    onResult: CommandCallback,
+    onError: ErrorCallback,
     ...parameters: number[]
-  ): Promise<Uint8Array | undefined> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.#dispatchCommand(instruction, address, resolve, ...parameters)
-      } catch (error) {
-        reject(error)
-      }
-    })
+  ): boolean {
+    try {
+      this.#dispatchCommand(instruction, address, onResult, ...parameters)
+      return true
+    } catch (error) {
+      onError(error)
+      return false
+    }
   }
 
   /**
    * resets values to factory default
    */
-  async factoryReset(): Promise<unknown> {
-    return this.#sendCommand(INSTRUCTION.FACTORY_RESET, null, 0x01 /* reset values except id and baudrate*/)
+  factoryReset(callback?: CompletionCallback): void {
+    this.#sendCommand(
+      INSTRUCTION.FACTORY_RESET,
+      null,
+      () => callback?.(),
+      callback ?? (() => {}),
+      0x01 /* reset values except id and baudrate*/,
+    )
   }
 
   /**
    * reboots servo
    */
-  async reboot(): Promise<unknown> {
-    return this.#sendCommand(INSTRUCTION.REBOOT)
+  reboot(callback?: CompletionCallback): void {
+    this.#sendCommand(INSTRUCTION.REBOOT, undefined, () => callback?.(), callback ?? (() => {}))
   }
 
   /**
@@ -348,30 +373,49 @@ class Dynamixel {
    * @param mode - operating mode
    * @see https://emanual.robotis.com/docs/en/dxl/x/xl330-m288/#operating-mode
    */
-  async setOperatingMode(mode: OperatingMode): Promise<unknown> {
-    await this.setTorque(false)
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.OPERATING_MODE, mode)
+  setOperatingMode(mode: OperatingMode, callback?: CompletionCallback): void {
+    this.setTorque(false, (torqueError) => {
+      if (torqueError != null) {
+        callback?.(torqueError)
+        return
+      }
+      this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.OPERATING_MODE, () => callback?.(), callback ?? (() => {}), mode)
+    })
   }
 
   /**
    * sets baudrate
    * @param baudrate - baudrate(bps)
    */
-  async setBaudrate(baudrate: Baudrate): Promise<unknown> {
-    await this.setTorque(false)
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.BAUDRATE, baudrate)
+  setBaudrate(baudrate: Baudrate, callback?: CompletionCallback): void {
+    this.setTorque(false, (torqueError) => {
+      if (torqueError != null) {
+        callback?.(torqueError)
+        return
+      }
+      this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.BAUDRATE, () => callback?.(), callback ?? (() => {}), baudrate)
+    })
   }
 
   /**
    * sets profile acceleration
    * @param accel - profile acceleration
    */
-  async setProfileAcceleration(accel: number): Promise<unknown> {
+  setProfileAcceleration(accel: number, callback?: CompletionCallback): void {
     const a = accel & 0xff
     const b = (accel >> 8) & 0xff
     const c = (accel >> 16) & 0xff
     const d = (accel >> 24) & 0xff
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.PROFILE_ACCELERATION, a, b, c, d)
+    this.#sendCommand(
+      INSTRUCTION.WRITE,
+      ADDRESS.PROFILE_ACCELERATION,
+      () => callback?.(),
+      callback ?? (() => {}),
+      a,
+      b,
+      c,
+      d,
+    )
   }
 
   /**
@@ -379,35 +423,44 @@ class Dynamixel {
    * Velocity [rpm] = Value * 0.229 [rpm]
    * @param velocity - goal velocity (ma)
    */
-  async setProfileVelocity(velocity: number): Promise<unknown> {
+  setProfileVelocity(velocity: number, callback?: CompletionCallback): void {
     const a = velocity & 0xff
     const b = (velocity >> 8) & 0xff
     const c = (velocity >> 16) & 0xff
     const d = (velocity >> 24) & 0xff
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.PROFILE_VELOCITY, a, b, c, d)
+    this.#sendCommand(
+      INSTRUCTION.WRITE,
+      ADDRESS.PROFILE_VELOCITY,
+      () => callback?.(),
+      callback ?? (() => {}),
+      a,
+      b,
+      c,
+      d,
+    )
   }
 
   /**
    * sets goal current
    * @param position - goal current (ma)
    */
-  async setGoalCurrent(current: number): Promise<unknown> {
+  setGoalCurrent(current: number, callback?: CompletionCallback): void {
     const a = current & 0xff
     const b = (current >> 8) & 0xff
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_CURRENT, a, b)
+    this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_CURRENT, () => callback?.(), callback ?? (() => {}), a, b)
   }
 
   /**
    * sets goal position
    * @param position - goal position (4096 per rotation)
    */
-  async setGoalPosition(position: number): Promise<unknown> {
+  setGoalPosition(position: number, callback?: CompletionCallback): void {
     const a = position & 0xff
     const b = (position >> 8) & 0xff
     const c = (position >> 16) & 0xff
     const d = (position >> 24) & 0xff
     // trace(`${a}, ${b}, ${c}, ${d}\n`)
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_POSITION, a, b, c, d)
+    this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_POSITION, () => callback?.(), callback ?? (() => {}), a, b, c, d)
   }
 
   /**
@@ -415,22 +468,28 @@ class Dynamixel {
    * @param angle - angle in degree
    * @returns
    */
-  async setGoalAngle(angle: number): Promise<unknown> {
+  setGoalAngle(angle: number, callback?: CompletionCallback): void {
     const position = (angle * 4096) / 360
-    return this.setGoalPosition(position)
+    this.setGoalPosition(position, callback)
   }
 
-  async setLED(on: boolean): Promise<unknown> {
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.LED, Number(on))
+  setLED(on: boolean, callback?: CompletionCallback): void {
+    this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.LED, () => callback?.(), callback ?? (() => {}), Number(on))
   }
 
   /**
    * sets offset angle
    * @param angle - offset angle
    */
-  async setOffsetAngle(angle: number): Promise<unknown> {
+  setOffsetAngle(angle: number, callback?: CompletionCallback): void {
     const value = (Math.abs(angle) * 360) / 4096
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.HOMING_OFFSET, ...le(value))
+    this.#sendCommand(
+      INSTRUCTION.WRITE,
+      ADDRESS.HOMING_OFFSET,
+      () => callback?.(),
+      callback ?? (() => {}),
+      ...le(value),
+    )
   }
 
   setId(id: number): void {
@@ -441,105 +500,161 @@ class Dynamixel {
    * changes id
    * @param enable - enable
    */
-  async flashId(id: number): Promise<unknown> {
+  flashId(id: number, callback?: CompletionCallback): void {
     if (packetHandler.hasCallbackOf(id)) {
-      throw new Error(`id(${id}) is already used\n`)
+      callback?.(new Error(`id(${id}) is already used\n`))
+      return
     }
-    await this.setTorque(false)
-    const promise = this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.ID, id)
-    const oldId = this.#id
-    this.#id = id
-    packetHandler.registerCallback(this.#id, this.#onCommandRead)
-    await promise
-    packetHandler.removeCallback(oldId)
-    return
+    this.setTorque(false, (torqueError) => {
+      if (torqueError != null) {
+        callback?.(torqueError)
+        return
+      }
+      const oldId = this.#id
+      if (
+        !this.#sendCommand(
+          INSTRUCTION.WRITE,
+          ADDRESS.ID,
+          () => {
+            packetHandler.removeCallback(oldId)
+            callback?.()
+          },
+          callback ?? (() => {}),
+          id,
+        )
+      ) {
+        return
+      }
+      this.#id = id
+      packetHandler.registerCallback(this.#id, this.#onCommandRead)
+    })
   }
 
   /**
    * sets torque
    * @param enable - enable
    */
-  async setTorque(enable: boolean): Promise<unknown> {
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.TORQUE_ENABLE, Number(enable))
+  setTorque(enable: boolean, callback?: CompletionCallback): void {
+    this.#sendCommand(
+      INSTRUCTION.WRITE,
+      ADDRESS.TORQUE_ENABLE,
+      () => callback?.(),
+      callback ?? (() => {}),
+      Number(enable),
+    )
   }
 
   /**
    * reads model number
    * @returns Model number
    */
-  async readModelNumber(): Promise<number> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.MODEL_NUMBER, 2)
-    if (values == null || values.length < 4) {
-      throw new Error('failed to read model number')
-    }
-    if (values[1] !== 0) {
-      throw new Error(`servo returned error code: ${values[1]} while reading model number`)
-    }
-    // payload layout: [instruction/status, status_code, low, high]
-    return el(values[3], values[2])
+  readModelNumber(callback: ValueCallback<number>): void {
+    this.#sendCommand(
+      INSTRUCTION.READ,
+      ADDRESS.MODEL_NUMBER,
+      (values) => {
+        if (values == null || values.length < 4) {
+          callback(undefined, new Error('failed to read model number'))
+          return
+        }
+        if (values[1] !== 0) {
+          callback(undefined, new Error(`servo returned error code: ${values[1]} while reading model number`))
+          return
+        }
+        // payload layout: [instruction/status, status_code, low, high]
+        callback(el(values[3], values[2]))
+      },
+      (error) => callback(undefined, error),
+      2,
+    )
   }
 
   /**
    * reads firmware version
    * @returns Firmware version
    */
-  async readFirmwareVersion(): Promise<Maybe<{ version: number }>> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.VERSION_OF_FIRMWARE, 1)
-    if (values != null && values.length >= 3 && values[1] === 0) {
-      return {
-        success: true,
-        value: {
-          version: values[2],
-        },
-      }
-    }
-    return {
-      success: false,
-      reason: 'failed to read firmware version',
-    }
+  readFirmwareVersion(callback: (result: Maybe<{ version: number }>) => void): void {
+    this.#sendCommand(
+      INSTRUCTION.READ,
+      ADDRESS.VERSION_OF_FIRMWARE,
+      (values) => {
+        if (values != null && values.length >= 3 && values[1] === 0) {
+          callback({
+            success: true,
+            value: {
+              version: values[2],
+            },
+          })
+          return
+        }
+        callback({
+          success: false,
+          reason: 'failed to read firmware version',
+        })
+      },
+      (error) => callback(maybeFailure(error)),
+      1,
+    )
   }
 
   /**
    * reads offset angle
    * @returns offset angle
    */
-  async readOffsetAngle(): Promise<number> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.HOMING_OFFSET, 2)
-    if (values == null || values.length < 2) {
-      throw new Error('failed to read offset angle')
-    }
-    const isCcw = Boolean(values[0] & 0x8000)
-    let offset = ((values[1] & 0x7fff) << 8) | values[0]
-    if (isCcw) {
-      offset *= -1
-    }
-    return offset
+  readOffsetAngle(callback: ValueCallback<number>): void {
+    this.#sendCommand(
+      INSTRUCTION.READ,
+      ADDRESS.HOMING_OFFSET,
+      (values) => {
+        if (values == null || values.length < 2) {
+          callback(undefined, new Error('failed to read offset angle'))
+          return
+        }
+        const isCcw = Boolean(values[0] & 0x8000)
+        let offset = ((values[1] & 0x7fff) << 8) | values[0]
+        if (isCcw) {
+          offset *= -1
+        }
+        callback(offset)
+      },
+      (error) => callback(undefined, error),
+      2,
+    )
   }
 
   /**
    * reads present current value (ma)
    * @returns current value
    */
-  async readPresentCurrent(): Promise<Maybe<{ current: number }>> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_CURRENT, 2)
-    if (values != null && values.length >= 4) {
-      if (values[1] !== 0) {
-        return {
-          success: false,
-          reason: `servo returned error code: ${values[1]}`,
+  readPresentCurrent(callback: (result: Maybe<{ current: number }>) => void): void {
+    this.#sendCommand(
+      INSTRUCTION.READ,
+      ADDRESS.PRESENT_CURRENT,
+      (values) => {
+        if (values != null && values.length >= 4) {
+          if (values[1] !== 0) {
+            callback({
+              success: false,
+              reason: `servo returned error code: ${values[1]}`,
+            })
+            return
+          }
+          const current = values[2] | (values[3] << 8)
+          callback({
+            success: true,
+            value: {
+              current: current >= 0x8000 ? current - 0x10000 : current,
+            },
+          })
+          return
         }
-      }
-      const current = values[2] | (values[3] << 8)
-      return {
-        success: true,
-        value: {
-          current: current >= 0x8000 ? current - 0x10000 : current,
-        },
-      }
-    }
-    return {
-      success: false,
-    }
+        callback({
+          success: false,
+        })
+      },
+      (error) => callback(maybeFailure(error)),
+      2,
+    )
   }
 
   /**
@@ -547,48 +662,66 @@ class Dynamixel {
    * Velocity [rpm] = Value * 0.229 [rpm]
    * @returns velocity value
    */
-  async readPresentVelocity(): Promise<Maybe<number>> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_VELOCITY, 4)
-    if (values != null && values.length >= 4) {
-      if (values[1] !== 0) {
-        return {
-          success: false,
-          reason: `servo returned error code: ${values[1]}`,
+  readPresentVelocity(callback: (result: Maybe<number>) => void): void {
+    this.#sendCommand(
+      INSTRUCTION.READ,
+      ADDRESS.PRESENT_VELOCITY,
+      (values) => {
+        if (values != null && values.length >= 4) {
+          if (values[1] !== 0) {
+            callback({
+              success: false,
+              reason: `servo returned error code: ${values[1]}`,
+            })
+            return
+          }
+          const velocity = values[2] | (values[3] << 8)
+          callback({
+            success: true,
+            value: velocity >= 0x8000 ? velocity - 0x10000 : velocity,
+          })
+          return
         }
-      }
-      const velocity = values[2] | (values[3] << 8)
-      return {
-        success: true,
-        value: velocity >= 0x8000 ? velocity - 0x10000 : velocity,
-      }
-    }
-    return {
-      success: false,
-    }
+        callback({
+          success: false,
+        })
+      },
+      (error) => callback(maybeFailure(error)),
+      4,
+    )
   }
 
   /**
    * reads present position (4096 per rotation)
    * @returns position value
    */
-  async readPresentPosition(): Promise<Maybe<number>> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_POSITION, 4)
-    if (values != null && values.length >= 4) {
-      if (values[1] !== 0) {
-        return {
-          success: false,
-          reason: `servo returned error code: ${values[1]}`,
+  readPresentPosition(callback: (result: Maybe<number>) => void): void {
+    this.#sendCommand(
+      INSTRUCTION.READ,
+      ADDRESS.PRESENT_POSITION,
+      (values) => {
+        if (values != null && values.length >= 4) {
+          if (values[1] !== 0) {
+            callback({
+              success: false,
+              reason: `servo returned error code: ${values[1]}`,
+            })
+            return
+          }
+          const position = values[2] | (values[3] << 8)
+          callback({
+            success: true,
+            value: position >= 0x8000 ? position - 0x10000 : position,
+          })
+          return
         }
-      }
-      const position = values[2] | (values[3] << 8)
-      return {
-        success: true,
-        value: position >= 0x8000 ? position - 0x10000 : position,
-      }
-    }
-    return {
-      success: false,
-    }
+        callback({
+          success: false,
+        })
+      },
+      (error) => callback(maybeFailure(error)),
+      4,
+    )
   }
 }
 

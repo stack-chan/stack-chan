@@ -44,18 +44,21 @@ export function onContextCreated(robot) {
     })
   }
 
-  robot.button.a.onEvent = async (event) => {
+  const sayAndSend = async (message, command) => {
+    await robot.say(message)
+    sendCommand(command)
+  }
+
+  robot.button.a.onEvent = (event) => {
     if (event.pressed) {
       const hello = hellos[Math.floor(randomBetween(0, hellos.length))]
-      await robot.say(hello)
-      sendCommand(1)
+      sayAndSend(hello, 1).catch((error) => trace(`hello failed: ${error}\n`))
     }
   }
-  robot.button.b.onEvent = async (event) => {
+  robot.button.b.onEvent = (event) => {
     if (event.pressed) {
       const bye = byes[Math.floor(randomBetween(0, byes.length))]
-      await robot.say(bye)
-      sendCommand(2)
+      sayAndSend(bye, 2).catch((error) => trace(`bye failed: ${error}\n`))
     }
   }
 }

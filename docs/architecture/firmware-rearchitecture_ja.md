@@ -388,9 +388,9 @@ flowchart TD
 
 ### 13. 非同期境界の移行
 
-- [ ] 未対応：Timer、Piu Behavior、driver、input handler の中で新規 `async` 関数を使わない。
-- [ ] 未対応：低レイヤの待ち合わせは callback と状態 enum で進める。
-- [ ] 未対応：戻り値に `Promise` を返す関数は network fetch、外部 API、app 境界、test helper に限定する。
+- [x] 対応済み：Timer、Piu Behavior、driver、input handler の中で新規 `async` 関数を使わない。
+- [x] 対応済み：低レイヤの待ち合わせは callback と状態 enum で進める。
+- [x] 対応済み：戻り値に `Promise` を返す関数は network fetch、外部 API、app 境界、test helper に限定する。
 - [ ] 未対応：周期更新する状態は固定構造を再利用する。
 - [ ] 未対応：毎フレーム動く処理で object を生成しない。
 - [ ] 未対応：色、感情、状態は内部で数値として扱う。
@@ -442,7 +442,7 @@ flowchart TD
 - [ ] 未対応：Piu Application、View、Drawer、StatusBar、Bubble、Effects、Face が `firmware/host/modules/ui` 配下にある。
 - [ ] 未対応：各機能の本体、単体テスト、test manifest が同じ module または UI ディレクトリにある。
 - [x] 対応済み：`firmware/tests` が存在しない。
-- [ ] 未対応：低レイヤの Timer、描画、入力、driver 処理に新規 `async` と `Promise` が入っていない。
+- [x] 対応済み：低レイヤの Timer、描画、入力、driver 処理に新規 `async` と `Promise` が入っていない。
 - [ ] 未対応：platform 差分が manifest で切り替わる。
 - [ ] 未対応：通常コードに WASM 専用 import が混ざっていない。
 - [ ] 未対応：後方互換用の import alias、deprecated API、移行 adapter が残っていない。

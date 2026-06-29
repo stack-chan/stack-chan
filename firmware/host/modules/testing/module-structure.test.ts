@@ -36,6 +36,10 @@ function readJson(path: string) {
   return JSON.parse(readFileSync(path, 'utf8'))
 }
 
+function isSourceFile(path: string): boolean {
+  return /\.(?:ts|js)$/.test(path)
+}
+
 test('runtime modules own implementation manifests and tests under host/modules', () => {
   for (const moduleName of RUNTIME_MODULES) {
     const moduleDir = join(MODULE_ROOT, moduleName)
@@ -47,6 +51,43 @@ test('runtime modules own implementation manifests and tests under host/modules'
       files.some((path) => /(?:^|[/\\])[^/\\]+\.test\.(?:ts|js)$/.test(path)),
       `${moduleName} should own tests`,
     )
+  }
+})
+
+test('low-level motion, input, and UI modules avoid async and Promise control flow', () => {
+  const sourcePaths = [join(MODULE_ROOT, 'motion'), join(MODULE_ROOT, 'input'), join(MODULE_ROOT, 'ui')]
+    .flatMap((root) => walkFiles(root))
+    .filter(isSourceFile)
+    .filter((path) => !/[/\\]__tests__[/\\]/.test(path))
+    .filter((path) => !path.startsWith(join(MODULE_ROOT, 'testing')))
+    .filter((path) => !/[/\\]wasm[/\\]/.test(path))
+
+  for (const sourcePath of sourcePaths) {
+    const source = readFileSync(sourcePath, 'utf8')
+    assert.doesNotMatch(
+      source,
+      /\basync\b|\bPromise\b|new Promise|Promise\.|\.then\(|\.catch\(/,
+      `${sourcePath} should use callback/state flow instead of async or Promise`,
+    )
+  }
+})
+
+test('Timer and input handlers do not inline async functions', () => {
+  const sourcePaths = [join('host', 'app'), MODULE_ROOT, join('mods', 'examples')]
+    .flatMap((root) => walkFiles(root))
+    .filter(isSourceFile)
+    .filter((path) => !/[/\\]__tests__[/\\]/.test(path))
+
+  for (const sourcePath of sourcePaths) {
+    const source = readFileSync(sourcePath, 'utf8')
+    assert.doesNotMatch(
+      source,
+      /Timer\.(?:set|repeat)\(\s*async\b/,
+      `${sourcePath} should not use async Timer handlers`,
+    )
+    assert.doesNotMatch(source, /onEvent\s*=\s*async\b/, `${sourcePath} should not use async input handlers`)
+    assert.doesNotMatch(source, /onEvent\s*=\s*async\s+function\b/, `${sourcePath} should not use async input handlers`)
+    assert.doesNotMatch(source, /void\s*\(\s*async\b/, `${sourcePath} should not use inline async IIFEs`)
   }
 })
 

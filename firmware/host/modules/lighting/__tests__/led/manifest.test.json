@@ -8,10 +8,5 @@
   ],
   "modules": {
     "main": "./led.test"
-  },
-  "defines": {
-    "main": {
-      "async": 1
-    }
   }
 }

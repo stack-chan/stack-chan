@@ -71,32 +71,36 @@ export function onContextCreated(robot, option) {
 
   // Event handler
   let isFollowing = false
-  robot.button.a.onEvent = async function handleButtonAEvent(event) {
+  robot.button.a.onEvent = function handleButtonAEvent(event) {
     if (event.pressed) {
       trace('pressed A\n')
       trace('Look around\n')
       isFollowing = !isFollowing
     }
   }
-  robot.button.b.onEvent = async function handleButtonBEvent(event) {
+  robot.button.b.onEvent = function handleButtonBEvent(event) {
     if (event.pressed) {
       trace('pressed B\n')
       trace('Chat test\n')
-      await chatAndSay('おはようございます')
+      chatAndSay('おはようございます').catch((error) => trace(`chat failed: ${error}\n`))
     }
   }
-  robot.button.c.onEvent = async function handleButtonCEvent(event) {
+  robot.button.c.onEvent = function handleButtonCEvent(event) {
     if (event.pressed) {
       trace('pressed C\n')
       trace('TTS test\n')
-      if (chatting) {
-        return
-      }
-      chatting = true
-      await robot.say('こんにちは。ぼくｽﾀｯｸﾁｬﾝ！')
-      await robot.say('よろしくね。')
-      chatting = false
+      sayGreeting().catch((error) => trace(`greeting failed: ${error}\n`))
     }
+  }
+
+  async function sayGreeting() {
+    if (chatting) {
+      return
+    }
+    chatting = true
+    await robot.say('こんにちは。ぼくｽﾀｯｸﾁｬﾝ！')
+    await robot.say('よろしくね。')
+    chatting = false
   }
 
   // Look around

@@ -14,6 +14,7 @@ async function sayHooray(robot) {
 function onContextCreated(robot) {
   let pose
   let hooray = false
+  let speaking = false
   let connected = false
   const rotation = {
     y: 0,
@@ -34,7 +35,7 @@ function onContextCreated(robot) {
       connected = false
     },
   })
-  Timer.repeat(async () => {
+  Timer.repeat(() => {
     if (pose == null || !connected) {
       return
     }
@@ -54,8 +55,17 @@ function onContextCreated(robot) {
     if (nextEmotion !== undefined) robot.setEmotion(nextEmotion)
 
     // hooray on rising edge
-    if (!hooray && pose.hooray) {
-      sayHooray(robot)
+    if (!hooray && pose.hooray && !speaking) {
+      speaking = true
+      sayHooray(robot).then(
+        () => {
+          speaking = false
+        },
+        (error) => {
+          trace(`hooray failed: ${error}\n`)
+          speaking = false
+        },
+      )
     }
     hooray = pose.hooray
   }, 100)

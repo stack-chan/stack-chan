@@ -180,6 +180,9 @@ type RS30XConstructorParam = {
   id: number
 }
 type CommandCallback = (values: Uint8Array | undefined) => void
+type ErrorCallback = (error: unknown) => void
+type CompletionCallback = (error?: unknown) => void
+type ValueCallback<T> = (value: T | undefined, error?: unknown) => void
 
 let packetHandler: PacketHandler = null
 class RS30X {
@@ -250,24 +253,50 @@ class RS30X {
     })
   }
 
-  async #sendCommand(...values: number[]): Promise<Uint8Array | undefined> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.#dispatchCommand(resolve, ...values)
-      } catch (error) {
-        reject(error)
-      }
-    })
+  #sendCommand(onResult: CommandCallback, onError: ErrorCallback, ...values: number[]): boolean {
+    try {
+      this.#dispatchCommand(onResult, ...values)
+      return true
+    } catch (error) {
+      onError(error)
+      return false
+    }
   }
 
-  async setMaxTorque(maxTorque: number): Promise<void> {
-    await this.#sendCommand(...COMMANDS.SET_MAX_TORQUE, maxTorque)
-    await this.#sendCommand(...COMMANDS.FLASH)
+  setMaxTorque(maxTorque: number, callback?: CompletionCallback): void {
+    this.#sendCommand(
+      () => {
+        this.#sendCommand(() => callback?.(), callback ?? (() => {}), ...COMMANDS.FLASH)
+      },
+      callback ?? (() => {}),
+      ...COMMANDS.SET_MAX_TORQUE,
+      maxTorque,
+    )
   }
-  async flashId(id: number): Promise<void> {
-    await this.#sendCommand(...COMMANDS.SET_SERVO_ID, id)
-    this.#id = id
-    await this.#sendCommand(...COMMANDS.FLASH)
+
+  flashId(id: number, callback?: CompletionCallback): void {
+    if (packetHandler.hasCallbackOf(id)) {
+      callback?.(new Error(`id(${id}) is already used\n`))
+      return
+    }
+    this.#sendCommand(
+      () => {
+        const oldId = this.#id
+        this.#id = id
+        packetHandler.registerCallback(this.#id, this.#onCommandRead)
+        this.#sendCommand(
+          () => {
+            packetHandler.removeCallback(oldId)
+            callback?.()
+          },
+          (error) => callback?.(error),
+          ...COMMANDS.FLASH,
+        )
+      },
+      callback ?? (() => {}),
+      ...COMMANDS.SET_SERVO_ID,
+      id,
+    )
   }
 
   /**
@@ -275,9 +304,9 @@ class RS30X {
    * @param angle angle(degree)
    * @returns TBD
    */
-  async setAngle(angle: number): Promise<void> {
+  setAngle(angle: number, callback?: CompletionCallback): void {
     const a = Math.max(-150, Math.min(150, angle)) * 10
-    await this.#sendCommand(...COMMANDS.SET_ANGLE, ...be(a))
+    this.#sendCommand(() => callback?.(), callback ?? (() => {}), ...COMMANDS.SET_ANGLE, ...be(a))
   }
 
   /**
@@ -286,19 +315,19 @@ class RS30X {
    * @param goalTime time(millisecond)
    * @returns TBD
    */
-  async setAngleInTime(angle: number, goalTime: number): Promise<void> {
+  setAngleInTime(angle: number, goalTime: number, callback?: CompletionCallback): void {
     const a = Math.max(-150, Math.min(150, angle)) * 10
     const g = goalTime * 100
-    await this.#sendCommand(...COMMANDS.SET_ANGLE_IN_TIME, ...be(a), ...be(g))
+    this.#sendCommand(() => callback?.(), callback ?? (() => {}), ...COMMANDS.SET_ANGLE_IN_TIME, ...be(a), ...be(g))
   }
 
-  async setComplianceSlope(rotation: Rotation, angle: number): Promise<void> {
+  setComplianceSlope(rotation: Rotation, angle: number, callback?: CompletionCallback): void {
     const command = rotation === Rotation.CW ? COMMANDS.SET_COMPLIANCE_SLOPE_CW : COMMANDS.SET_COMPLIANCE_SLOPE_CCW
-    await this.#sendCommand(...command, angle)
+    this.#sendCommand(() => callback?.(), callback ?? (() => {}), ...command, angle)
   }
 
-  async reboot(): Promise<void> {
-    await this.#sendCommand(...COMMANDS.REBOOT)
+  reboot(callback?: CompletionCallback): void {
+    this.#sendCommand(() => callback?.(), callback ?? (() => {}), ...COMMANDS.REBOOT)
   }
 
   /**
@@ -306,25 +335,32 @@ class RS30X {
    * @param enable enable
    * @returns TBD
    */
-  async setTorque(enable: boolean): Promise<unknown> {
+  setTorque(enable: boolean, callback?: CompletionCallback): void {
     const mode = enable ? TorqueMode.ON : TorqueMode.OFF
-    return this.#sendCommand(...COMMANDS.SET_TORQUE, mode)
+    this.#sendCommand(() => callback?.(), callback ?? (() => {}), ...COMMANDS.SET_TORQUE, mode)
   }
 
   /**
    * reads servo's present status
    * @returns angle(degree)
    */
-  async readStatus(): Promise<number> {
-    const values = await this.#sendCommand(...COMMANDS.REQUEST_STATUS)
-    if (values == null || values.length < 18) {
-      throw new Error('response corrupted')
-    }
-    const angle = eb(values[0], values[1])
-    if (angle >= 65535 / 2) {
-      return (angle - 65535) / 10
-    }
-    return angle / 10
+  readStatus(callback: ValueCallback<number>): void {
+    this.#sendCommand(
+      (values) => {
+        if (values == null || values.length < 18) {
+          callback(undefined, new Error('response corrupted'))
+          return
+        }
+        const angle = eb(values[0], values[1])
+        if (angle >= 65535 / 2) {
+          callback((angle - 65535) / 10)
+          return
+        }
+        callback(angle / 10)
+      },
+      (error) => callback(undefined, error),
+      ...COMMANDS.REQUEST_STATUS,
+    )
   }
 }
 

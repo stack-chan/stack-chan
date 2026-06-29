@@ -1,5 +1,4 @@
 import getMacAddress from 'mac-address'
-import Timer from 'timer'
 
 function HashCodeFromString(str: string): number {
   /**
@@ -50,12 +49,6 @@ export function colorsFromSeed(seed: number): [number[], number[]] {
   const primary = hslToRgb(((seed >>> 24) * 360) / 255, 1, lightness1)
   const secondary = hslToRgb((((seed >>> 8) & 0xff) * 360) / 255, 1, Math.max(0.1, Math.min(0.9, lightness2)))
   return [primary, secondary]
-}
-
-export async function asyncWait(ms) {
-  return new Promise((resolve) => {
-    Timer.set(resolve, ms)
-  })
 }
 
 export function normRand(m: number, s: number): number {

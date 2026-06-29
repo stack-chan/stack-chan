@@ -1,5 +1,5 @@
 import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
-import { notifyCompletion, notifyMaybe } from 'motion-driver-callback'
+import { reasonFromError } from 'motion-driver-callback'
 import RS30X from 'protocols/rs30x'
 import type { Maybe, Rotation } from 'stackchan-util'
 import type Timer from 'timer'
@@ -19,53 +19,66 @@ export class RS30XDriver {
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
-    notifyCompletion(this.#setTorque(torque), callback)
-  }
-
-  async #setTorque(torque: boolean): Promise<void> {
-    await this._pan.setTorque(torque)
-    await this._tilt.setTorque(torque)
+    this._pan.setTorque(torque, (panError) => {
+      if (panError != null) {
+        callback?.(panError)
+        return
+      }
+      this._tilt.setTorque(torque, callback)
+    })
   }
 
   applyRotation(ori: Rotation, time = 0.5, callback?: MotionCompletion): void {
-    notifyCompletion(this.#applyRotation(ori, time), callback)
-  }
-
-  async #applyRotation(ori: Rotation, time = 0.5): Promise<void> {
     const panAngle = -(ori.y * 180) / Math.PI
     const tiltAngle = Math.min(Math.max((-ori.p * 180) / Math.PI, -25), 10)
     trace(`applying (${ori.y}, ${ori.p}) => (${panAngle}, ${tiltAngle})\n`)
     if (time === 0) {
-      await this._pan.setAngle(panAngle)
-      await this._tilt.setAngle(tiltAngle)
+      this._pan.setAngle(panAngle, (panError) => {
+        if (panError != null) {
+          callback?.(panError)
+          return
+        }
+        this._tilt.setAngle(tiltAngle, callback)
+      })
     } else {
-      await this._pan.setAngleInTime(panAngle, time)
-      await this._tilt.setAngleInTime(tiltAngle, time)
+      this._pan.setAngleInTime(panAngle, time, (panError) => {
+        if (panError != null) {
+          callback?.(panError)
+          return
+        }
+        this._tilt.setAngleInTime(tiltAngle, time, callback)
+      })
     }
   }
 
   getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
-    notifyMaybe(this.#readRotation(), callback)
-  }
-
-  async #readRotation(): Promise<Maybe<Rotation>> {
-    const yawAngle = await this._pan.readStatus().catch((): null => null)
-    const tiltAngle = await this._tilt.readStatus().catch((): null => null)
-    if (yawAngle == null || tiltAngle == null) {
-      return {
-        success: false,
-        reason: 'response corrupted.',
+    this._pan.readStatus((yawAngle, yawError) => {
+      if (yawAngle == null) {
+        callback({
+          success: false,
+          reason: yawError == null ? 'response corrupted.' : reasonFromError(yawError),
+        })
+        return
       }
-    }
-    const y = (-Math.PI * yawAngle) / 180
-    const p = (-Math.PI * tiltAngle) / 180
-    return {
-      success: true,
-      value: {
-        y,
-        p,
-        r: 0.0,
-      },
-    }
+      this._tilt.readStatus((tiltAngle, tiltError) => {
+        if (tiltAngle == null) {
+          callback({
+            success: false,
+            reason: tiltError == null ? 'response corrupted.' : reasonFromError(tiltError),
+          })
+          return
+        }
+        const y = (-Math.PI * yawAngle) / 180
+        const p = (-Math.PI * tiltAngle) / 180
+        callback({
+          success: true,
+          value: {
+            y,
+            p,
+            r: 0.0,
+          },
+        })
+      })
+    })
   }
 }

@@ -177,6 +177,22 @@ type SCServoConstructorParam = {
 }
 type CommandCallback = (values: Uint8Array | undefined) => void
 type ErrorCallback = (error: unknown) => void
+type CompletionCallback = (error?: unknown) => void
+type ResultCallback<T> = (result: Maybe<T>) => void
+
+function reasonFromError(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message: unknown }).message)
+  }
+  return String(error)
+}
+
+function failureFromError<T>(error: unknown): Maybe<T> {
+  return {
+    success: false,
+    reason: reasonFromError(error),
+  }
+}
 
 let packetHandler: PacketHandler = null
 let packetHandlerSerialKey: string | null = null
@@ -300,22 +316,28 @@ class SCServo {
     }
   }
 
-  async #sendCommand(command: Command, address: Address, ...values: number[]): Promise<Uint8Array | undefined> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.#dispatchCommand(command, address, resolve, reject, ...values)
-      } catch (error) {
-        reject(error)
-      }
-    })
+  #sendCommand(
+    command: Command,
+    address: Address,
+    onResult: CommandCallback,
+    onError: ErrorCallback,
+    ...values: number[]
+  ): boolean {
+    try {
+      this.#dispatchCommand(command, address, onResult, onError, ...values)
+      return true
+    } catch (error) {
+      onError(error)
+      return false
+    }
   }
 
-  async #lock(): Promise<unknown> {
-    return this.#sendCommand(COMMAND.WRITE, ADDRESS.LOCK, 1)
+  #lock(callback?: CompletionCallback): void {
+    this.#sendCommand(COMMAND.WRITE, ADDRESS.LOCK, () => callback?.(), callback ?? (() => {}), 1)
   }
 
-  async #unlock(): Promise<unknown> {
-    return this.#sendCommand(COMMAND.WRITE, ADDRESS.LOCK, 0)
+  #unlock(callback?: CompletionCallback): void {
+    this.#sendCommand(COMMAND.WRITE, ADDRESS.LOCK, () => callback?.(), callback ?? (() => {}), 0)
   }
 
   /**
@@ -323,74 +345,120 @@ class SCServo {
    * @note SCS series does not have zero position calibration function.
    *  The offset value should be handled by the application.
    */
-  async readOffsetAngle(): Promise<number> {
-    const values = await this.#sendCommand(COMMAND.READ, ADDRESS.OFFSET, 2)
-    if (values == null || values.length < 2) {
-      throw new Error('response corrupted')
-    }
-    const raw = el(values[0], values[1])
-    const isCcw = (raw & 0x8000) !== 0
-    let offset = raw & 0x7fff
-    if (isCcw) {
-      offset *= -1
-    }
-    return offset
+  readOffsetAngle(callback: ResultCallback<number>): void {
+    this.#sendCommand(
+      COMMAND.READ,
+      ADDRESS.OFFSET,
+      (values) => {
+        if (values == null || values.length < 2) {
+          callback({
+            success: false,
+            reason: 'response corrupted',
+          })
+          return
+        }
+        const raw = el(values[0], values[1])
+        const isCcw = (raw & 0x8000) !== 0
+        let offset = raw & 0x7fff
+        if (isCcw) {
+          offset *= -1
+        }
+        callback({
+          success: true,
+          value: offset,
+        })
+      },
+      (error) => callback(failureFromError(error)),
+      2,
+    )
   }
 
   /**
    * sets offset angle
    * @param angle offset angle (-2000 to 2000)
    */
-  async setOffsetAngle(angle: number): Promise<unknown> {
+  setOffsetAngle(angle: number, callback?: CompletionCallback): void {
     this.#offset = angle
     const isCcw = angle < 0
     const a = isCcw ? angle * -1 : angle
     const value = (Number(isCcw) << 15) | (a & 0x7fff)
-    return this.#sendCommand(COMMAND.WRITE, ADDRESS.OFFSET, ...le(value))
+    this.#sendCommand(COMMAND.WRITE, ADDRESS.OFFSET, () => callback?.(), callback ?? (() => {}), ...le(value))
   }
 
   /**
    * load settings from the servo
    */
-  async loadSettings(): Promise<unknown> {
+  loadSettings(callback?: CompletionCallback): void {
     // Offset angle
-    this.#offset = await this.readOffsetAngle()
+    this.readOffsetAngle((result) => {
+      if (result.success === false) {
+        callback?.(result.reason ?? 'failed to read offset angle')
+        return
+      }
+      this.#offset = result.value
 
-    // Further configuration to be loaded below
-    return
+      // Further configuration to be loaded below
+      callback?.()
+    })
   }
 
   /**
    * save settings to the servo
    */
-  async saveSettings(): Promise<unknown> {
+  saveSettings(callback?: CompletionCallback): void {
     // Offset angle
-    await this.#unlock()
-    await this.setOffsetAngle(this.#offset)
-    await this.#lock()
-
-    // Further configuration to be loaded below
-    return
+    this.#unlock((unlockError) => {
+      if (unlockError != null) {
+        callback?.(unlockError)
+        return
+      }
+      this.setOffsetAngle(this.#offset, (offsetError) => {
+        if (offsetError != null) {
+          callback?.(offsetError)
+          return
+        }
+        this.#lock(callback)
+      })
+    })
   }
 
-  async flashId(id: number): Promise<unknown> {
+  flashId(id: number, callback?: CompletionCallback): void {
     if (packetHandler.hasCallbackOf(id)) {
-      throw new Error(`id(${id}) is already used\n`)
+      callback?.(new Error(`id(${id}) is already used\n`))
+      return
     }
     // trace('unlocking\n')
-    await this.#unlock()
-    // trace('setting new id\n')
-    const promise = this.#sendCommand(COMMAND.WRITE, ADDRESS.ID, id)
-    const oldId = this.#id
-    this.#id = id
-    packetHandler.registerCallback(this.#id, this.#onCommandRead)
-    // trace(`now we use new id(${id}\n`)
-    await promise
-    // trace('locking\n')
-    await this.#lock()
-    // trace(`now we use new id(${id}\n`)
-    packetHandler.removeCallback(oldId)
-    return
+    this.#unlock((unlockError) => {
+      if (unlockError != null) {
+        callback?.(unlockError)
+        return
+      }
+      // trace('setting new id\n')
+      const oldId = this.#id
+      if (
+        !this.#sendCommand(
+          COMMAND.WRITE,
+          ADDRESS.ID,
+          () => {
+            this.#lock((lockError) => {
+              if (lockError != null) {
+                callback?.(lockError)
+                return
+              }
+              packetHandler.removeCallback(oldId)
+              callback?.()
+            })
+          },
+          callback ?? (() => {}),
+          id,
+        )
+      ) {
+        return
+      }
+      this.#id = id
+      packetHandler.registerCallback(this.#id, this.#onCommandRead)
+      // trace(`now we use new id(${id}\n`)
+    })
   }
 
   /**
@@ -398,9 +466,9 @@ class SCServo {
    * @param angle angle(degree)
    * @returns TBD
    */
-  async setAngle(angle: number): Promise<unknown> {
+  setAngle(angle: number, callback?: CompletionCallback): void {
     const a = Math.floor(clamp(((angle + this.#offset) * 1024) / 200, 0, 0x03ff))
-    return this.setRawPosition(a)
+    this.setRawPosition(a, callback)
   }
 
   /**
@@ -409,35 +477,49 @@ class SCServo {
    * @param goalTime time(millisecond)
    * @returns TBD
    */
-  async setAngleInTime(angle: number, goalTime: number): Promise<unknown> {
+  setAngleInTime(angle: number, goalTime: number, callback?: CompletionCallback): void {
     // 0 <= a <= 1023
     const a = Math.floor(clamp(((angle + this.#offset) * 1024) / 200, 0, 0x03ff))
-    const res = await this.setRawPositionInTime(a, goalTime)
-    return res
+    this.setRawPositionInTime(a, goalTime, callback)
   }
 
-  async setRawPosition(rawPosition: number): Promise<unknown> {
+  setRawPosition(rawPosition: number, callback?: CompletionCallback): void {
     const position = Math.floor(clamp(rawPosition, 0, 0x03ff))
-    return this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, ...le(position))
+    this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, () => callback?.(), callback ?? (() => {}), ...le(position))
   }
 
-  async setRawPositionInTime(rawPosition: number, goalTime: number): Promise<unknown> {
+  setRawPositionInTime(rawPosition: number, goalTime: number, callback?: CompletionCallback): void {
     const position = Math.floor(clamp(rawPosition, 0, 0x03ff))
-    return this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, ...le(position), ...le(goalTime))
+    this.#sendCommand(
+      COMMAND.WRITE,
+      ADDRESS.GOAL_POSITION,
+      () => callback?.(),
+      callback ?? (() => {}),
+      ...le(position),
+      ...le(goalTime),
+    )
   }
 
-  async readRawPosition(): Promise<Maybe<{ position: number }>> {
-    const values = await this.#sendCommand(COMMAND.READ, ADDRESS.PRESENT_POSITION, 2)
-    if (values == null || values.length < 2) {
-      return {
-        success: false,
-        reason: 'response corrupted.',
-      }
-    }
-    return {
-      success: true,
-      value: { position: el(values[0], values[1]) },
-    }
+  readRawPosition(callback: ResultCallback<{ position: number }>): void {
+    this.#sendCommand(
+      COMMAND.READ,
+      ADDRESS.PRESENT_POSITION,
+      (values) => {
+        if (values == null || values.length < 2) {
+          callback({
+            success: false,
+            reason: 'response corrupted.',
+          })
+          return
+        }
+        callback({
+          success: true,
+          value: { position: el(values[0], values[1]) },
+        })
+      },
+      (error) => callback(failureFromError(error)),
+      2,
+    )
   }
 
   /**
@@ -445,27 +527,29 @@ class SCServo {
    * @param enable enable
    * @returns TBD
    */
-  async setTorque(enable: boolean): Promise<unknown> {
-    return this.#sendCommand(COMMAND.WRITE, ADDRESS.TORQUE_ENABLE, Number(enable))
+  setTorque(enable: boolean, callback?: CompletionCallback): void {
+    this.#sendCommand(COMMAND.WRITE, ADDRESS.TORQUE_ENABLE, () => callback?.(), callback ?? (() => {}), Number(enable))
   }
 
   /**
    * reads servo's present status
    * @returns angle(degree)
    */
-  async readStatus(): Promise<Maybe<{ angle: number }>> {
-    const raw = await this.readRawPosition()
-    if (raw.success === false) {
-      return {
-        success: false,
-        reason: raw.reason,
+  readStatus(callback: ResultCallback<{ angle: number }>): void {
+    this.readRawPosition((raw) => {
+      if (raw.success === false) {
+        callback({
+          success: false,
+          reason: raw.reason,
+        })
+        return
       }
-    }
-    const angle = (raw.value.position * 200) / 1024 - this.#offset
-    return {
-      success: true,
-      value: { angle },
-    }
+      const angle = (raw.value.position * 200) / 1024 - this.#offset
+      callback({
+        success: true,
+        value: { angle },
+      })
+    })
   }
 }
 

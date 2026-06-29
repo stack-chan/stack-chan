@@ -1,5 +1,4 @@
 import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
-import { notifyCompletion } from 'motion-driver-callback'
 import Dynamixel, { OPERATING_MODE } from 'protocols/dynamixel'
 import type { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'
@@ -32,34 +31,53 @@ class PControl {
     this._lastGoalPosition = 0
   }
 
-  async init(torqueEnabled: boolean) {
-    const result = await this.servo.readPresentPosition()
-    if (result.success && result.value > 4096) {
-      this._offset = 4096
-    } else if (!result.success) {
-      trace(`${this.name} ... failed to read initial position for offset detection\n`)
-    }
-    this.goalPosition = 2048
-    // Use CURRENT_BASED_POSITION mode for dynamic torque control
-    await this.servo.setOperatingMode(OPERATING_MODE.CURRENT_BASED_POSITION)
-    await this.servo.setTorque(torqueEnabled)
+  init(torqueEnabled: boolean, callback: MotionCompletion): void {
+    this.servo.readPresentPosition((result) => {
+      if (result.success && result.value > 4096) {
+        this._offset = 4096
+      } else if (result.success === false) {
+        trace(`${this.name} ... failed to read initial position for offset detection\n`)
+      }
+      this.goalPosition = 2048
+      // Use CURRENT_BASED_POSITION mode for dynamic torque control
+      this.servo.setOperatingMode(OPERATING_MODE.CURRENT_BASED_POSITION, (modeError) => {
+        if (modeError != null) {
+          callback(modeError)
+          return
+        }
+        this.servo.setTorque(torqueEnabled, callback)
+      })
+    })
   }
 
-  async update() {
+  update(callback: MotionCompletion): void {
     if (this._lastGoalPosition !== this.goalPosition) {
-      await this.servo.setGoalPosition(this.goalPosition + this._offset)
-      this._lastGoalPosition = this.goalPosition
-    }
-
-    const result = await this.servo.readPresentPosition()
-    if (!result.success) {
+      this.servo.setGoalPosition(this.goalPosition + this._offset, (goalError) => {
+        if (goalError != null) {
+          callback(goalError)
+          return
+        }
+        this._lastGoalPosition = this.goalPosition
+        this.#updateCurrent(callback)
+      })
       return
     }
-    this.presentPosition = result.value - this._offset
-    const position = this.presentPosition
-    const positionError = Math.abs(this.goalPosition - position)
-    const current = Math.min(Math.max(positionError * this.gain, this.minCurrent), this.saturation)
-    await this.servo.setGoalCurrent(current)
+
+    this.#updateCurrent(callback)
+  }
+
+  #updateCurrent(callback: MotionCompletion): void {
+    this.servo.readPresentPosition((result) => {
+      if (result.success === false) {
+        callback()
+        return
+      }
+      this.presentPosition = result.value - this._offset
+      const position = this.presentPosition
+      const positionError = Math.abs(this.goalPosition - position)
+      const current = Math.min(Math.max(positionError * this.gain, this.minCurrent), this.saturation)
+      this.servo.setGoalCurrent(current, callback)
+    })
   }
 }
 
@@ -85,15 +103,22 @@ export class DynamixelDriver {
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
-    notifyCompletion(this.#setTorque(torque), callback)
+    this._torque = torque
+    this.#setTorqueAt(0, torque, callback)
   }
 
-  async #setTorque(torque: boolean): Promise<void> {
-    this._torque = torque
-    // Avoid temporary array/promise allocations on low-memory targets.
-    for (const control of this._controls) {
-      await control.servo.setTorque(torque)
+  #setTorqueAt(index: number, torque: boolean, callback?: MotionCompletion): void {
+    if (index >= this._controls.length) {
+      callback?.()
+      return
     }
+    this._controls[index].servo.setTorque(torque, (error) => {
+      if (error != null) {
+        callback?.(error)
+        return
+      }
+      this.#setTorqueAt(index + 1, torque, callback)
+    })
   }
 
   onAttached(): void {
@@ -112,34 +137,89 @@ export class DynamixelDriver {
     }
   }
 
-  async control(): Promise<void> {
+  control(callback?: MotionCompletion): void {
     if (this._running) {
+      callback?.()
       return
     }
     this._running = true
-    try {
-      if (!this._initialized) {
-        this._initialized = true
-        for (const c of this._controls) {
-          await c.init(this._torque)
+    if (!this._initialized) {
+      this._initialized = true
+      this.#initialize((error) => {
+        if (error != null || !this._torque) {
+          this.#finishControl(error, callback)
+          return
         }
-        await this._pan.setProfileAcceleration(20)
-        await this._pan.setProfileVelocity(100)
-        trace('servo initialized\n')
-      }
-      if (!this._torque) {
+        this.#updateControlAt(0, callback)
+      })
+      return
+    }
+    if (!this._torque) {
+      this.#finishControl(undefined, callback)
+      return
+    }
+    this.#updateControlAt(0, callback)
+  }
+
+  #initialize(callback: MotionCompletion): void {
+    this.#initializeControlAt(0, (initError) => {
+      if (initError != null) {
+        callback(initError)
         return
       }
-      // TODO: use bulk write/read instruction for performance
-      for (const c of this._controls) {
-        await c.update()
-      }
-    } finally {
-      this._running = false
-      if (this._attached) {
-        this._scheduleNext()
-      }
+      this._pan.setProfileAcceleration(20, (accelError) => {
+        if (accelError != null) {
+          callback(accelError)
+          return
+        }
+        this._pan.setProfileVelocity(100, (velocityError) => {
+          if (velocityError == null) {
+            trace('servo initialized\n')
+          }
+          callback(velocityError)
+        })
+      })
+    })
+  }
+
+  #initializeControlAt(index: number, callback: MotionCompletion): void {
+    if (index >= this._controls.length) {
+      callback()
+      return
     }
+    this._controls[index].init(this._torque, (error) => {
+      if (error != null) {
+        callback(error)
+        return
+      }
+      this.#initializeControlAt(index + 1, callback)
+    })
+  }
+
+  #updateControlAt(index: number, callback?: MotionCompletion): void {
+    if (index >= this._controls.length) {
+      this.#finishControl(undefined, callback)
+      return
+    }
+    // TODO: use bulk write/read instruction for performance
+    this._controls[index].update((error) => {
+      if (error != null) {
+        this.#finishControl(error, callback)
+        return
+      }
+      this.#updateControlAt(index + 1, callback)
+    })
+  }
+
+  #finishControl(error?: unknown, callback?: MotionCompletion): void {
+    if (error != null) {
+      trace(`[DynamixelDriver] control failed: ${String(error)}\n`)
+    }
+    this._running = false
+    if (this._attached) {
+      this._scheduleNext()
+    }
+    callback?.(error)
   }
 
   _scheduleNext(): void {
@@ -148,7 +228,7 @@ export class DynamixelDriver {
     }
     this._nextTimer = Timer.set(() => {
       this._nextTimer = undefined
-      void this.control()
+      this.control()
     }, this._interval)
   }
 

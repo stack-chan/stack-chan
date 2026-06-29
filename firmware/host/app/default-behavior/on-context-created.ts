@@ -5,7 +5,7 @@ import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-state'
 import type { MotionType } from 'imu'
 import type { Content as PiuContent } from 'piu/MC'
-import { asyncWait, randomBetween } from 'stackchan-util'
+import { randomBetween } from 'stackchan-util'
 import Timer from 'timer'
 
 const FORWARD = {
@@ -42,6 +42,12 @@ function errorMessage(error: unknown): string {
     return String((error as { message: unknown }).message)
   }
   return String(error)
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    Timer.set(resolve, ms)
+  })
 }
 
 export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreated']> = (robot) => {
@@ -84,6 +90,50 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     position: { ...robot.pose.body.position },
     rotation,
   })
+  const runPettingHoldMotion = async (upRotation: typeof robot.pose.body.rotation) => {
+    try {
+      await robot.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+    } catch (error) {
+      trace(`[TouchPanel] pet hold motion error ${errorMessage(error)}\n`)
+      await robot.setTorque(false)
+    }
+  }
+  const runPettingMotion = async (
+    upRotation: typeof robot.pose.body.rotation,
+    leftRight: (direction: number) => typeof robot.pose.body.rotation,
+    firstDirection: number,
+  ) => {
+    try {
+      await robot.setTorque(true)
+      // Multiple visible steps make this read as head shaking, not a single pose change.
+      await robot.setPose(poseForRotation(leftRight(firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+      await wait(TOUCH_PANEL_PET_MOTION_STEP_MS)
+      await robot.setPose(poseForRotation(leftRight(-firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+      await wait(TOUCH_PANEL_PET_MOTION_STEP_MS)
+      await robot.setPose(poseForRotation(leftRight(firstDirection * 0.55)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+      await wait(TOUCH_PANEL_PET_MOTION_STEP_MS)
+      // Keep the happy reaction looking upward until the restore timer returns to the original pose.
+      await robot.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+      pettingHoldTimer = Timer.set(() => {
+        pettingHoldTimer = undefined
+        void runPettingHoldMotion(upRotation)
+      }, TOUCH_PANEL_PET_MOTION_STEP_MS * 2)
+    } catch (error) {
+      trace(`[TouchPanel] pet motion error ${errorMessage(error)}\n`)
+      await robot.setTorque(false)
+    } finally {
+      pettingMotionActive = false
+    }
+  }
+  const runPettingRestoreMotion = async (rotation: typeof robot.pose.body.rotation) => {
+    try {
+      await robot.setPose(poseForRotation(rotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+    } catch (error) {
+      trace(`[TouchPanel] restore motion error ${errorMessage(error)}\n`)
+    } finally {
+      await robot.setTorque(false)
+    }
+  }
 
   let faceMode: 'simple' | 'dog' | 'image' = 'simple'
   let cameraPreviewTimer: ReturnType<typeof Timer.set> | undefined
@@ -204,7 +254,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     robot.drawer.setDrawerButtonState('toggleLookAround', isFollowing)
     const text = isFollowing ? 'looking' : 'look away'
     robot.showBalloon(text)
-    await asyncWait(1000)
+    await wait(1000)
     robot.hideBalloon()
   }
   const targetLoop = () => {
@@ -474,36 +524,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
           trace(
             `[TouchPanel] pet motion shake yaw=${yawAmount.toFixed(3)} pitch=${pitch.toFixed(3)} direction=${firstDirection}\n`,
           )
-          void (async () => {
-            try {
-              await robot.setTorque(true)
-              // Multiple visible steps make this read as head shaking, not a single pose change.
-              await robot.setPose(poseForRotation(leftRight(firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-              await asyncWait(TOUCH_PANEL_PET_MOTION_STEP_MS)
-              await robot.setPose(poseForRotation(leftRight(-firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-              await asyncWait(TOUCH_PANEL_PET_MOTION_STEP_MS)
-              await robot.setPose(poseForRotation(leftRight(firstDirection * 0.55)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-              await asyncWait(TOUCH_PANEL_PET_MOTION_STEP_MS)
-              // Keep the happy reaction looking upward until the restore timer returns to the original pose.
-              await robot.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-              pettingHoldTimer = Timer.set(() => {
-                pettingHoldTimer = undefined
-                void (async () => {
-                  try {
-                    await robot.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-                  } catch (error) {
-                    trace(`[TouchPanel] pet hold motion error ${errorMessage(error)}\n`)
-                    await robot.setTorque(false)
-                  }
-                })()
-              }, TOUCH_PANEL_PET_MOTION_STEP_MS * 2)
-            } catch (error) {
-              trace(`[TouchPanel] pet motion error ${errorMessage(error)}\n`)
-              await robot.setTorque(false)
-            } finally {
-              pettingMotionActive = false
-            }
-          })()
+          void runPettingMotion(upRotation, leftRight, firstDirection)
         }
         pettingRestoreTimer = Timer.set(() => {
           const restoreEmotion = pettingPreviousEmotion ?? Emotion.NEUTRAL
@@ -515,15 +536,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
             pettingHoldTimer = undefined
           }
           if (pettingPreviousRotation) {
-            void (async () => {
-              try {
-                await robot.setPose(poseForRotation(pettingPreviousRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
-              } catch (error) {
-                trace(`[TouchPanel] restore motion error ${errorMessage(error)}\n`)
-              } finally {
-                await robot.setTorque(false)
-              }
-            })()
+            void runPettingRestoreMotion(pettingPreviousRotation)
           }
           pettingPreviousEmotion = undefined
           pettingPreviousRotation = undefined

@@ -88,16 +88,21 @@ function onContextCreated(robot, option) {
     context: CONTEXT,
   })
 
-  robot.button.a.onEvent = async (event) => {
+  robot.button.a.onEvent = (event) => {
     if (event.pressed) {
       robot.showBalloon('TTS test...')
-      await robot.say('TTSテスト。TTSテスト')
-      robot.hideBalloon()
+      robot.say('TTSテスト。TTSテスト').then(
+        () => robot.hideBalloon(),
+        (error) => {
+          trace(`speech failed: ${error}\n`)
+          robot.hideBalloon()
+        },
+      )
     }
   }
-  robot.button.b.onEvent = async (event) => {
+  robot.button.b.onEvent = (event) => {
     if (event.pressed) {
-      await chatAndSay(robot, dialogue, 'おはようございます')
+      chatAndSay(robot, dialogue, 'おはようございます').catch((error) => trace(`chat failed: ${error}\n`))
     }
   }
 

@@ -1,0 +1,9 @@
+{
+  "include": [
+    "../../../../manifest.json",
+    "../../../../../testing/manifest.json"
+  ],
+  "modules": {
+    "*": ["./startup-splash.test"]
+  }
+}

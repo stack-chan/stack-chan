@@ -91,3 +91,27 @@ test('sample MOD relative manifest includes resolve from examples directories', 
     }
   }
 })
+
+test('UI views own Moddable test manifests under their view directories', () => {
+  const viewsRoot = join(MODULE_ROOT, 'ui', 'views')
+  const viewNames = readdirSync(viewsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+
+  for (const viewName of viewNames) {
+    const testRoot = join(viewsRoot, viewName, '__tests__')
+    assert.ok(existsSync(testRoot), `${viewName} should have view-local Moddable tests`)
+
+    const manifestPaths = walkFiles(testRoot).filter((path) => path.endsWith('manifest.test.json'))
+    assert.ok(manifestPaths.length > 0, `${viewName} should have a manifest.test.json`)
+
+    for (const manifestPath of manifestPaths) {
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+      assert.ok(manifest.include.includes('../../../../manifest.json'), `${manifestPath} should include UI manifest`)
+      assert.ok(
+        manifest.include.includes('../../../../../testing/manifest.json'),
+        `${manifestPath} should include testing manifest`,
+      )
+    }
+  }
+})

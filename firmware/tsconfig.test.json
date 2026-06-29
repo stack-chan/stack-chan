@@ -30,10 +30,23 @@
       ],
       "parts/image/image-avatar-state": [
         "host/modules/ui/components/face/parts/image/image-avatar-state.ts"
+      ],
+      "motion-controller": [
+        "host/modules/motion/motion-controller.ts"
+      ],
+      "timer": [
+        "host/modules/testing/fakes/timer.ts"
+      ],
+      "mac-address": [
+        "host/modules/util/sim/mac-address.ts"
+      ],
+      "stackchan-util": [
+        "host/modules/util/stackchan-util.ts"
       ]
     },
     "types": [
-      "node"
+      "node",
+      "./node_modules/@moddable/typings/xs"
     ],
     "skipLibCheck": true
   },
@@ -47,8 +60,12 @@
     "host/modules/camera/wasm/camera.ts",
     "host/modules/audio/wasm/microphone.ts",
     "host/modules/motion/m5stackchan-servo.ts",
+    "host/modules/motion/motion-controller.ts",
     "host/modules/lighting/py32-io-expander.ts",
     "host/modules/motion/internal/single-wait-slot.ts",
+    "host/modules/testing/fakes/timer.ts",
+    "host/modules/util/stackchan-util.ts",
+    "host/modules/util/sim/mac-address.ts",
     "host/modules/ui/state/face-state.ts",
     "host/modules/ui/components/face/parts/image/image-avatar-pack.ts",
     "host/modules/ui/components/face/parts/image/image-avatar-state.ts",

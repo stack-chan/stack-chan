@@ -1,0 +1,16 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "*": ["./motion-controller.test"]
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  }
+}

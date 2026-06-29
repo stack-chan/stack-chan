@@ -1,6 +1,7 @@
 {
   "modules": {
     "testing/assert": "./assert",
-    "testing/fakes/ChatAudioIO": "./fakes/ChatAudioIO"
+    "testing/fakes/ChatAudioIO": "./fakes/ChatAudioIO",
+    "testing/fakes/timer": "./fakes/timer"
   }
 }

@@ -77,7 +77,7 @@ export class MotionController {
   #isMoving = false
   #options: MotionControllerOptions
   #pose: MotionControllerPose
-  #updatePoseHandler: Timer
+  #updatePoseHandler: ReturnType<typeof Timer.repeat>
   updating = false
 
   constructor(params: MotionControllerConstructorParam, options: MotionControllerOptions) {
@@ -98,6 +98,10 @@ export class MotionController {
 
   get pose() {
     return this.#pose
+  }
+
+  close(): void {
+    Timer.clear(this.#updatePoseHandler)
   }
 
   useDriver(driver: MotionDriver) {

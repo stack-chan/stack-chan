@@ -71,7 +71,7 @@ test('UI manifests register the cdv FaceState view definition', () => {
       json: true,
     })
     assert.ok(
-      manifest.resources['*-alpha'].includes('../../../reference/moddable-avatar/assets/images/emoticon'),
+      manifest.resources['*-alpha'].includes('./assets/images/emoticon'),
       `${manifestPath} should bundle the emoticon sprite atlas`,
     )
   }

@@ -8,35 +8,36 @@
     "$(MODDABLE)/examples/manifest_net.json",
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
-    "./drivers/manifest_driver.json",
-    "./ble/manifest_ble.json",
-    "./dialogues/manifest_dialogue.json",
-    "./led/manifest_led.json",
-    "../host/modules/ui/manifest.json",
-    "./services/manifest_service.json",
-    "./speeches/manifest_speech.json",
-    "./transcriptions/manifest_transcription.json",
-    "./utilities/manifest_utility.json",
+    "../../stackchan/drivers/manifest_driver.json",
+    "../../stackchan/ble/manifest_ble.json",
+    "../../stackchan/dialogues/manifest_dialogue.json",
+    "../../stackchan/led/manifest_led.json",
+    "../modules/ui/manifest.json",
+    "../../stackchan/services/manifest_service.json",
+    "../../stackchan/speeches/manifest_speech.json",
+    "../../stackchan/transcriptions/manifest_transcription.json",
+    "../../stackchan/utilities/manifest_utility.json",
     "./manifest_typings.json",
     "./manifest_microphone.json"
   ],
   "modules": {
     "*": [
-      "./touch",
-      "./touch-panel",
-      "./touch-panel-gesture",
-      "./imu",
-      "./imu-motion",
-      "./robot",
-      "./camera",
-      "./tone",
+      "../../stackchan/touch",
+      "../../stackchan/touch-panel",
+      "../../stackchan/touch-panel-gesture",
+      "../../stackchan/imu",
+      "../../stackchan/imu-motion",
+      "../../stackchan/robot",
+      "../../stackchan/camera",
+      "../../stackchan/tone",
       "./main",
+      "./compose",
       "$(MODULES)/network/http/*"
     ],
-    "startup-splash": "../host/modules/ui/views/splash/splash-view",
-    "camera-preview": "../host/modules/ui/views/camera-preview/camera-preview-view",
-    "camera-preview-utils": "../host/modules/ui/views/camera-preview/camera-preview-utils",
-    "default-mods/*": "./default-mods/*"
+    "startup-splash": "../modules/ui/views/splash/splash-view",
+    "camera-preview": "../modules/ui/views/camera-preview/camera-preview-view",
+    "camera-preview-utils": "../modules/ui/views/camera-preview/camera-preview-utils",
+    "default-mods/*": "./default-behavior/*"
   },
   "preload": [
     "robot",
@@ -68,9 +69,9 @@
     "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
     "*-alpha": [
       {
-        "source": "./assets/fonts/k8x12",
+        "source": "../../stackchan/assets/fonts/k8x12",
         "size": 12,
-        "characterFiles": "./assets/fonts/k8x12-chars.txt",
+        "characterFiles": "../../stackchan/assets/fonts/k8x12-chars.txt",
         "monochrome": true
       }
     ]

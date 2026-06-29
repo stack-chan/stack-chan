@@ -4,7 +4,7 @@
     "$(MODULES)/base/structuredClone/manifest.json",
     "$(MODULES)/base/deepEqual/manifest.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../manifest_typings.json"
+    "../../host/app/manifest_typings.json"
   ],
   "modules": {
     "*": ["./*"],

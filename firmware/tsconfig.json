@@ -69,9 +69,11 @@
         "./node_modules/@moddable/typings/*",
         "./node_modules/@moddable/typings/ble/*",
         "./typings/*",
+        "./host/app/*",
+        "./host/app/default-behavior/*",
+        "./host/app/default-behavior/wasm/*",
         "./stackchan/*",
         "./stackchan/ble/*",
-        "./stackchan/default-mods/*",
         "./stackchan/dialogues/*",
         "./stackchan/drivers/*",
         "./stackchan/led/*",
@@ -148,10 +150,16 @@
         "./node_modules/@moddable/typings/embedded_network/dns/resolver/*"
       ],
       "default-mods/mod": [
-        "./stackchan/default-mods/mod"
+        "./host/app/default-behavior/mod"
       ],
       "default-mods/on-launch": [
-        "./stackchan/default-mods/on-launch"
+        "./host/app/default-behavior/on-launch"
+      ],
+      "default-mods/wasm/mod": [
+        "./host/app/default-behavior/wasm/mod"
+      ],
+      "default-mods/wasm/on-launch": [
+        "./host/app/default-behavior/wasm/on-launch"
       ],
       "calculate-power": [
         "./stackchan/speeches/calculate-power"
@@ -160,7 +168,7 @@
         "./utilities/esp32/mac-address"
       ],
       "default-mods/on-robot-created": [
-        "./stackchan/default-mods/on-robot-created"
+        "./host/app/default-behavior/on-robot-created"
       ],
       "mcp-client": [
         "./stackchan/services/mcp-client/mcp-client"
@@ -173,6 +181,7 @@
     ]
   },
   "include": [
+    "./host/**/*",
     "./stackchan/**/*",
     "./mods/**/*",
     "./tests/**/*"

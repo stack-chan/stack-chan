@@ -50,9 +50,9 @@
   `$ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC`
 * generate-speech-coqui の独自オプション
   * --host TTS-Serverの動いているホストのホスト名またはIPアドレス
-    通常 stackchan/manifest_local.json から読み込みますがこちらを指定した場合はこちらが優先されます どちらかで指定が必要です
+    通常 host/app/manifest_local.json から読み込みますがこちらを指定した場合はこちらが優先されます どちらかで指定が必要です
   * --port TTS-Serverのポート
-    通常 stackchan/manifest_local.json から読み込みますがこちらを指定した場合はこちらが優先されます どちらかで指定が必要です
+    通常 host/app/manifest_local.json から読み込みますがこちらを指定した場合はこちらが優先されます どちらかで指定が必要です
   * --shift  pitch-shift.js によるピッチシフト
     0.5(1オクターブ下げる) ～ 2(1オクターブ上げる)　 1でノーマル(CoquiTTSの出力そのまま)となります
     省略時は入力ファイルの SynthProps.shift の値となりますがそちらも未定義の場合は1.5となります

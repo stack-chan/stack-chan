@@ -4,7 +4,7 @@
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
     "../utilities/manifest_utility.json",
-    "../manifest_typings.json"
+    "../../host/app/manifest_typings.json"
   ],
   "modules": {
     "*": [

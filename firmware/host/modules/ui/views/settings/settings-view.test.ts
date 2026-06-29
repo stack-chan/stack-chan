@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
 const settingsViewPath = 'host/modules/ui/views/settings/settings-view.ts'
-const defaultLaunchPath = 'stackchan/default-mods/on-launch.ts'
+const defaultLaunchPath = 'host/app/default-behavior/on-launch.ts'
 
 test('settings view owns the Piu setup screen construction', () => {
   const settingsSource = readFileSync(settingsViewPath, 'utf8')

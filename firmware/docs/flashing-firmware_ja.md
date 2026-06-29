@@ -23,7 +23,7 @@
 ## 設定変更
 
 ｽﾀｯｸﾁｬﾝが使うモータの種類やピンアサインなどをマニフェストファイルから変更できます。
-ユーザが変更する設定は[`stack-chan/firmware/stackchan/manifest_local.json`](../stackchan/manifest_local.json)にまとまっています。
+ユーザが変更する設定は[`stack-chan/firmware/host/app/manifest_local.json`](../host/app/manifest_local.json)にまとまっています。
 `"config"`キーの配下に次のような設定が書けます。
 
 | キー              | 説明                                            | 使用可能な値                                |

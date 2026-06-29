@@ -86,7 +86,7 @@ async function generate(options) {
 const options = []
 const argv = yargs(hideBin(process.argv)).argv
 // read TTS server configuration
-const manifest = JSON.parse(fs.readFileSync('./stackchan/manifest_local.json'))
+const manifest = JSON.parse(fs.readFileSync('./host/app/manifest_local.json'))
 const config = manifest.config
 console.debug(manifest.config)
 options.host = config.tts?.host
@@ -94,7 +94,7 @@ options.port = config.tts?.port
 if (argv.host) options.host = argv.host
 if (argv.port) options.port = argv.port
 if (!options.host || !options.port) {
-  throw new Error('specify tts.host and tts.port in stackchan/manifest_local.json or --host --port options required')
+  throw new Error('specify tts.host and tts.port in host/app/manifest_local.json or --host --port options required')
 }
 
 const cwd = process.cwd() // save CurrentDiredtory (firmware Directory)

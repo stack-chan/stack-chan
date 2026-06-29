@@ -189,11 +189,11 @@ flowchart TD
 
 - [x] 対応済み：`firmware/stackchan/renderers-piu/renderer-compat.ts` を削除する。
 - [x] 対応済み：`RendererCompat is a temporary adapter` の deprecated 警告が出る実装経路を削除する。
-- [x] 対応済み：`firmware/stackchan/main.ts` から renderer factory 経由の初期化を外し、`createAppControllerApplication` を直接呼ぶ。
+- [x] 対応済み：旧 `firmware/stackchan/main.ts` から renderer factory 経由の初期化を外し、`createAppControllerApplication` を直接呼ぶ構成へ移す。
 - [x] 対応済み：`RobotUI`、`robot.ui`、`robot.drawer` を正規 API として導入する。
 - [x] 対応済み：実装から `robot.renderer`、`useRenderer`、`addDecorator`、`removeDecorator` を削除する。
 - [x] 対応済み：旧 Poco 系 renderer の tracked code を `firmware/stackchan/renderers` から削除する。
-- [x] 対応済み：Piu UI 実装を旧 renderer 構造から `firmware/stackchan/ui` へ分離する。
+- [x] 対応済み：Piu UI 実装を旧 renderer 構造から `firmware/host/modules/ui` へ分離する。
 - [x] 対応済み：分離済みの Piu UI 実装を `firmware/host/modules/ui` 配下へ移す。
 - [x] 対応済み：Piu `Application` の生成と再利用を `firmware/host/modules/ui/application/app-controller.ts` に置く。
 - [x] 対応済み：通常画面の実装を `firmware/host/modules/ui/views/main` に置く。
@@ -209,7 +209,7 @@ flowchart TD
 - [x] 対応済み：`renderer` preference と config 名を `ui` へ置き換える。
 - [x] 対応済み：default mod と sample mod の UI 呼び出しを `robot.ui.addEffect`、`robot.ui.removeEffect`、`robot.ui.setFace`、`robot.drawer` へ更新する。
 - [x] 対応済み：`firmware/docs/api.md` と `firmware/docs/api_ja.md` の公開 API 説明を Renderer から RobotUI へ更新する。
-- [x] 対応済み：設定画面の Piu 構築を `firmware/stackchan/default-mods/on-launch.ts` から `firmware/host/modules/ui/views/settings` へ移す。
+- [x] 対応済み：設定画面の Piu 構築を app default behavior から `firmware/host/modules/ui/views/settings` へ移す。
 - [x] 対応済み：`firmware/host/modules/ui/views/settings/settings-view.test.ts` を追加する。
 - [x] 対応済み：`FaceContext` 名を view backed な `FaceState` へ置き換える。
 - [x] 対応済み：顔状態を plain object ではなく Moddable の view 定義に寄せる。
@@ -225,19 +225,19 @@ flowchart TD
 
 ### 2. アプリケーション層の分離
 
-- [ ] 未対応：`firmware/host/app` を作成する。
+- [x] 対応済み：`firmware/host/app` を作成する。
 - [ ] 未対応：トップレベルの実装ディレクトリを `firmware/stackchan` から `firmware/host` へ移す。
 - [ ] 未対応：移行後の build、manifest、import から `firmware/stackchan` への参照を取り除く。
-- [ ] 未対応：`firmware/stackchan/main.ts` を `firmware/host/app/main.ts` と `firmware/host/app/compose.ts` へ分ける。
-- [ ] 未対応：`app/main.ts` は起動順序、manifest の選択、エラーハンドリングだけを持つ。
-- [ ] 未対応：`app/compose.ts` は module の生成と依存注入だけを持つ。
-- [ ] 未対応：ドライバ、TTS、UI、入力、センサ、LED、Wi-Fi、WASM、MOD の選択処理を root `main.ts` から移す。
-- [ ] 未対応：`config.wasm` の runtime branch を app layer から取り除く。
+- [x] 対応済み：`firmware/stackchan/main.ts` を `firmware/host/app/main.ts` と `firmware/host/app/compose.ts` へ分ける。
+- [x] 対応済み：`app/main.ts` は起動順序、manifest の選択、エラーハンドリングだけを持つ。
+- [x] 対応済み：`app/compose.ts` は module の生成と依存注入だけを持つ。
+- [x] 対応済み：ドライバ、TTS、UI、入力、センサ、LED、Wi-Fi、WASM、MOD の選択処理を root `main.ts` から移す。
+- [x] 対応済み：`config.wasm` の runtime branch を app layer から取り除く。
 - [ ] 未対応：WASM、lin、ESP32 の差分を platform manifest の include と modules で表す。
-- [ ] 未対応：`firmware/stackchan/manifest*.json` を `firmware/host/app/manifest*.json` へ移す。
-- [ ] 未対応：`firmware/package.json` の build、smoke、test script を新しい app manifest へ更新する。
-- [ ] 未対応：製品既定動作を `firmware/host/app/default-behavior` に置く。
-- [ ] 未対応：`firmware/stackchan/default-mods` を app default behavior へ移し、MOD ディレクトリを利用者向け拡張とサンプルに限定する。
+- [x] 対応済み：`firmware/stackchan/manifest*.json` を `firmware/host/app/manifest*.json` へ移す。
+- [x] 対応済み：`firmware/package.json` の build、smoke、test script を新しい app manifest へ更新する。
+- [x] 対応済み：製品既定動作を `firmware/host/app/default-behavior` に置く。
+- [x] 対応済み：`firmware/stackchan/default-mods` を app default behavior へ移し、MOD ディレクトリを利用者向け拡張とサンプルに限定する。
 
 ### 3. Robot Facade の分解
 

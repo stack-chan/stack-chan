@@ -3,10 +3,10 @@ import { readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 
 const splashPath = 'host/modules/ui/views/splash/splash-view.ts'
-const defaultLaunchPath = 'stackchan/default-mods/on-launch.ts'
-const wasmModPath = 'stackchan/default-mods/wasm/mod.ts'
-const manifestPath = 'stackchan/manifest.json'
-const wasmManifestPath = 'stackchan/manifest_wasm.json'
+const defaultLaunchPath = 'host/app/default-behavior/on-launch.ts'
+const wasmModPath = 'host/app/default-behavior/wasm/mod.ts'
+const manifestPath = 'host/app/manifest.json'
+const wasmManifestPath = 'host/app/manifest_wasm.json'
 const splashFontResource = '$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24'
 
 function readManifest(path: string) {
@@ -70,13 +70,14 @@ describe('startup splash screen', () => {
   })
 
   test('wasm default mod uses the wasm-specific startup splash hook', () => {
-    const mainSource = readFileSync('stackchan/main.ts', 'utf8')
+    const mainSource = readFileSync('host/app/main.ts', 'utf8')
     const source = readFileSync(wasmModPath, 'utf8')
-    const manifest = readFileSync(wasmManifestPath, 'utf8')
+    const manifest = readManifest(wasmManifestPath)
 
-    assert.match(mainSource, /Modules\.importNow\('default-mods\/wasm\/mod'\)/)
+    assert.doesNotMatch(mainSource, /config\.wasm/)
+    assert.doesNotMatch(mainSource, /default-mods\/wasm\/mod/)
     assert.match(source, /default-mods\/wasm\/on-launch/)
     assert.doesNotMatch(source, /default-mods\/on-launch'/)
-    assert.match(manifest, /"default-mods\/wasm\/mod"/)
+    assert.equal(manifest.modules['default-mods/mod'], './default-behavior/wasm/mod')
   })
 })

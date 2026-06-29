@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 
-const stackchanManifest = JSON.parse(readFileSync('stackchan/manifest.json', 'utf8'))
+const stackchanManifest = JSON.parse(readFileSync('host/app/manifest.json', 'utf8'))
 const m5StackChanPlatformManifest = JSON.parse(readFileSync('platforms/m5stackchan_cores3/manifest.json', 'utf8'))
-const m5StackChanStackchanManifest = JSON.parse(readFileSync('stackchan/manifest_m5stackchan_cores3.json', 'utf8'))
+const m5StackChanStackchanManifest = JSON.parse(readFileSync('host/app/manifest_m5stackchan_cores3.json', 'utf8'))
 
 describe('Stack-chan platform manifest', () => {
   test('gives M5StackChan CoreS3 the same expandable XS creation heap as CoreS3', () => {
@@ -59,7 +59,7 @@ describe('Stack-chan platform manifest', () => {
     }
     assert.match(smokeSource, /M5StackChan CoreS3 smoke/)
     assert.match(smokeDocs, /esp32:\.\/platforms\/m5stackchan_cores3/)
-    assert.match(smokeDocs, /stackchan\/manifest_m5stackchan_cores3\.json/)
+    assert.match(smokeDocs, /host\/app\/manifest_m5stackchan_cores3\.json/)
     assert.match(smokeDocs, /mods\/m5stackchan_smoke\/manifest\.json/)
   })
 })

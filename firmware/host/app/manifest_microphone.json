@@ -1,7 +1,7 @@
 {
   "include": ["$(MODDABLE)/modules/io/audioin/manifest.json"],
   "modules": {
-    "*": ["./microphone"]
+    "*": ["../../stackchan/microphone"]
   },
   "preload": ["microphone"],
   "defines": {

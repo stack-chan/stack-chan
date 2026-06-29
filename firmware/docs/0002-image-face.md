@@ -111,7 +111,7 @@ stackchan/
 ```
 
 更新:
-- `stackchan/main.ts` (`renderers` map に `image` 追加)
+- `host/app/compose.ts`（UI controller map に `image` 追加）
 - `stackchan/renderers-piu/manifest_renderer_piu.json`
 
 ### 5. クラス構成

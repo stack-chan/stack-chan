@@ -83,17 +83,17 @@ for (const [name, Driver] of driverCases) {
 }
 
 test('WASM manifest keeps concrete servo driver module specifiers as facades for Moddable resolution', () => {
-  const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
+  const manifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
 
-  assert.equal(manifest.modules.camera, './wasm/camera')
-  assert.equal(manifest.modules['wasm-audio-bridge'], './wasm/audio-bridge')
-  assert.equal(manifest.modules['wasm-camera-bridge'], './wasm/camera-bridge')
+  assert.equal(manifest.modules.camera, '../../stackchan/wasm/camera')
+  assert.equal(manifest.modules['wasm-audio-bridge'], '../../stackchan/wasm/audio-bridge')
+  assert.equal(manifest.modules['wasm-camera-bridge'], '../../stackchan/wasm/camera-bridge')
   assert.ok(manifest.preload.includes('wasm-camera-bridge'))
-  assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
-  assert.equal(manifest.modules['wasm-driver'], './drivers/wasm/wasm-driver')
-  assert.equal(manifest.modules['embedded:io/audio/in'], './wasm/audio-in')
-  assert.ok(manifest.modules['*'].includes('./touch-panel'))
-  assert.ok(manifest.modules['*'].includes('./touch-panel-gesture'))
+  assert.equal(manifest.modules['embedded:io/audio/in'], '../../stackchan/wasm/audio-in')
+  assert.equal(manifest.modules['wasm-driver'], '../../stackchan/drivers/wasm/wasm-driver')
+  assert.equal(manifest.modules['embedded:io/audio/in'], '../../stackchan/wasm/audio-in')
+  assert.ok(manifest.modules['*'].includes('../../stackchan/touch-panel'))
+  assert.ok(manifest.modules['*'].includes('../../stackchan/touch-panel-gesture'))
   assert.ok(manifest.preload.includes('touch-panel'))
   assert.ok(manifest.preload.includes('touch-panel-gesture'))
   assert.deepEqual(
@@ -107,13 +107,13 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
       'py32-led': manifest.modules['py32-led'],
     },
     {
-      'dynamixel-driver': './drivers/wasm/dynamixel-driver',
-      'm5stackchan-servo-driver': './drivers/wasm/m5stackchan-servo-driver',
-      'none-driver': './drivers/wasm/none-driver',
-      'sg90-driver': './drivers/wasm/sg90-driver',
-      'rs30x-driver': './drivers/wasm/rs30x-driver',
-      'scservo-driver': './drivers/wasm/scservo-driver',
-      'py32-led': './wasm/py32-led',
+      'dynamixel-driver': '../../stackchan/drivers/wasm/dynamixel-driver',
+      'm5stackchan-servo-driver': '../../stackchan/drivers/wasm/m5stackchan-servo-driver',
+      'none-driver': '../../stackchan/drivers/wasm/none-driver',
+      'sg90-driver': '../../stackchan/drivers/wasm/sg90-driver',
+      'rs30x-driver': '../../stackchan/drivers/wasm/rs30x-driver',
+      'scservo-driver': '../../stackchan/drivers/wasm/scservo-driver',
+      'py32-led': '../../stackchan/wasm/py32-led',
     },
   )
 })
@@ -142,24 +142,32 @@ test('WASM PY32 LED facade re-exports the shared LED stub through a manifest mod
   assert.doesNotMatch(source, /\.\//)
 })
 
-test('WASM main path loads an installed MOD archive before falling back to the default MOD', () => {
-  const source = readFileSync('stackchan/main.ts', 'utf8')
-  const wasmBlock = source.slice(source.indexOf('if (config.wasm) {'), source.indexOf('await asyncWait(100)'))
+test('App main loads an installed MOD archive before falling back to manifest-selected default behavior', () => {
+  const source = readFileSync('host/app/main.ts', 'utf8')
 
-  assert.match(wasmBlock, /const wasmDefaultMod = Modules\.importNow\('default-mods\/wasm\/mod'\) as StackchanMod/)
-  assert.match(wasmBlock, /let \{ onRobotCreated, onLaunch \} = wasmDefaultMod/)
-  assert.match(wasmBlock, /Modules\.has\('mod'\)/)
-  assert.match(wasmBlock, /Modules\.importNow\('mod'\) as StackchanMod/)
-  assert.match(wasmBlock, /onRobotCreated = mod\.onRobotCreated \?\? onRobotCreated/)
-  assert.match(wasmBlock, /onLaunch = mod\.onLaunch \?\? onLaunch/)
+  assert.match(source, /import defaultMod, \{ type StackchanMod \} from 'default-mods\/mod'/)
+  assert.match(source, /Modules\.has\('mod'\)/)
+  assert.match(source, /Modules\.importNow\('mod'\) as StackchanMod/)
+  assert.match(source, /onRobotCreated = mod\.onRobotCreated \?\? onRobotCreated/)
+  assert.match(source, /onLaunch = mod\.onLaunch \?\? onLaunch/)
+  assert.doesNotMatch(source, /config\.wasm/)
+  assert.doesNotMatch(source, /default-mods\/wasm\/mod/)
+})
+
+test('WASM manifest selects the wasm default behavior without an app-layer runtime branch', () => {
+  const manifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
+
+  assert.equal(manifest.modules['default-mods/mod'], './default-behavior/wasm/mod')
+  assert.equal(manifest.modules['default-mods/wasm/mod'], './default-behavior/wasm/mod')
+  assert.ok(manifest.preload.includes('default-mods/wasm/mod'))
 })
 
 test('real-device camera preview stays independent from the WASM-only RuntimeBitmapPort binding', () => {
-  const manifest = JSON.parse(readFileSync('stackchan/manifest.json', 'utf8'))
+  const manifest = JSON.parse(readFileSync('host/app/manifest.json', 'utf8'))
   const previewSource = readFileSync('host/modules/ui/views/camera-preview/camera-preview-view.ts', 'utf8')
 
-  assert.equal(manifest.modules['camera-preview'], '../host/modules/ui/views/camera-preview/camera-preview-view')
-  assert.equal(manifest.modules['camera-preview-utils'], '../host/modules/ui/views/camera-preview/camera-preview-utils')
+  assert.equal(manifest.modules['camera-preview'], '../modules/ui/views/camera-preview/camera-preview-view')
+  assert.equal(manifest.modules['camera-preview-utils'], '../modules/ui/views/camera-preview/camera-preview-utils')
   assert.doesNotMatch(previewSource, /runtime-bitmap-port/)
   assert.doesNotMatch(previewSource, /RuntimeBitmapPort/)
   assert.match(previewSource, /new Port\(/)
@@ -168,12 +176,12 @@ test('real-device camera preview stays independent from the WASM-only RuntimeBit
 })
 
 test('WASM camera preview uses a native RuntimeBitmapPort binding before falling back to mosaic', () => {
-  const manifest = JSON.parse(readFileSync('stackchan/manifest_wasm.json', 'utf8'))
+  const manifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
   const previewSource = readFileSync('stackchan/wasm/camera-preview.ts', 'utf8')
   const portSource = readFileSync('stackchan/runtime-bitmap-port.js', 'utf8')
 
-  assert.equal(manifest.modules['camera-preview'], './wasm/camera-preview')
-  assert.equal(manifest.modules['runtime-bitmap-port'], './runtime-bitmap-port')
+  assert.equal(manifest.modules['camera-preview'], '../../stackchan/wasm/camera-preview')
+  assert.equal(manifest.modules['runtime-bitmap-port'], '../../stackchan/runtime-bitmap-port')
   assert.match(portSource, /drawBitmap\(bitmap, x, y, sx = 0, sy = 0, sw = bitmap\.width, sh = bitmap\.height\)/)
   assert.match(portSource, /xs_stackchan_runtime_bitmap_port_draw/)
   assert.match(previewSource, /import RuntimeBitmapPort from 'runtime-bitmap-port'/)
@@ -187,7 +195,7 @@ test('WASM camera preview uses a native RuntimeBitmapPort binding before falling
 
 test('WASM camera preview can be dismissed by touch or an automatic timeout', () => {
   const previewSource = readFileSync('host/modules/ui/views/camera-preview/camera-preview-view.ts', 'utf8')
-  const modSource = readFileSync('stackchan/default-mods/on-robot-created.ts', 'utf8')
+  const modSource = readFileSync('host/app/default-behavior/on-robot-created.ts', 'utf8')
 
   assert.match(previewSource, /onDismiss\?: \(\) => void/)
   assert.match(previewSource, /active: true/)

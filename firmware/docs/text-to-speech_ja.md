@@ -36,7 +36,7 @@
 $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 ```
 
-* `stackchan/manifest_local.json`の`config.tts.host|port`にサーバー設定を保存します
+* `host/app/manifest_local.json`の`config.tts.host|port`にサーバー設定を保存します
 
 ```json
 {
@@ -52,7 +52,7 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 ### ElevenLabs TTS
 
 * [API KEY](https://docs.elevenlabs.io/authentication/01-xi-api-key)に従い、API KEYを取得します。
-* `stackchan/manifest_local.json`の`config.tts`にAPI KEYを保存します
+* `host/app/manifest_local.json`の`config.tts`にAPI KEYを保存します
 
 ```json
 {

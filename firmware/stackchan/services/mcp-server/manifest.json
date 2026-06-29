@@ -4,7 +4,7 @@
     "$(MODDABLE)/examples/manifest_net.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/io/listener/listen/manifest_listen.json",
-    "../../manifest_typings.json"
+    "../../../host/app/manifest_typings.json"
   ],
   "modules": {
     "*": ["./mcp-server"]

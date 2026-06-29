@@ -9,7 +9,7 @@ Stack-chan is a JavaScript-driven M5Stack-embedded robot. The codebase is primar
 ## Core Architecture
 
 ### Modular Component System
-- **Host Program**: Core firmware (`stackchan/main.ts`) that provides the robot framework
+- **Host Program**: Core firmware (`host/app/main.ts`) that provides the robot framework
 - **MODs**: User applications that extend functionality (in `mods/` directory)
 - **Drivers**: Hardware abstraction for different servo types (PWM, DYNAMIXEL, RS30X, SCServo)
 - **Renderers**: Face display systems (simple-face, dog-face)

@@ -36,7 +36,7 @@ See also official documents of each of them.
 $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 ```
 
-* save server configuration under `config.tts.host|port` of `stackchan/manifest_local.json`
+* save server configuration under `config.tts.host|port` of `host/app/manifest_local.json`
 
 ```json
 {
@@ -51,7 +51,7 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 
 ### ElevenLabs TTS
 * Get through [API KEY](https://docs.elevenlabs.io/authentication/01-xi-api-key) and get API KEY.
-* Set API KEY to `config.tts` of `stackchan/manifest_local.json`.
+* Set API KEY to `config.tts` of `host/app/manifest_local.json`.
 ```json
 {
     "config": {

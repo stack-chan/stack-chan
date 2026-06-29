@@ -3,7 +3,6 @@ import { createAppControllerApplication } from 'app-controller'
 import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
 import Camera from 'camera'
 import { ChatStatusBar } from 'chat-status-bar'
-import defaultMod, { type StackchanMod } from 'default-mods/mod'
 import type { DrawerButtonSpec } from 'drawer'
 import { DynamixelDriver } from 'dynamixel-driver'
 import IMU from 'imu'
@@ -17,11 +16,10 @@ import { NoneDriver } from 'none-driver'
 import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import type { Container as PiuContainer } from 'piu/MC'
 import PY32Led from 'py32-led'
-import { type Driver, type RobotUI, Robot, type Button as RobotButton, type TTS } from 'robot'
+import { type Driver, Robot, type Button as RobotButton, type RobotUI, type TTS } from 'robot'
 import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
-import { asyncWait } from 'stackchan-util'
 import Tone from 'tone'
 import Touch from 'touch'
 import TouchPanel from 'touch-panel'
@@ -66,9 +64,7 @@ type GlobalEnvironment = {
 
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 
-function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
-  return value != null && typeof (value as { then?: unknown }).then === 'function'
-}
+export type HostDeviceEnvironment = GlobalEnvironment['device']
 
 function asUIOptions(param: unknown): UIOptions {
   return (param ?? {}) as UIOptions
@@ -102,7 +98,22 @@ class SimButton {
   }
 }
 
-function createRobot() {
+export function installSimulatorButtons() {
+  if (!globalEnv.Host?.Button || globalEnv.button) return
+  trace('[main] installing simulator buttons\n')
+  const { a, b, c } = globalEnv.Host.Button
+  globalEnv.button = {
+    ...(a && { a: new SimButton(a) }),
+    ...(b && { b: new SimButton(b) }),
+    ...(c && { c: new SimButton(c) }),
+  }
+}
+
+export function getHostDeviceEnvironment(): HostDeviceEnvironment {
+  return globalEnv.device
+}
+
+export function createRobot() {
   const drivers = new Map<string, (param: unknown) => Driver>([
     ['scservo', (param) => new SCServoDriver(param as ConstructorParameters<typeof SCServoDriver>[0])],
     [
@@ -237,7 +248,7 @@ function createRobot() {
   } as ConstructorParameters<typeof Robot>[0])
 }
 
-async function checkAndConnectWiFi() {
+export async function connectConfiguredWiFi() {
   const wifiPrefs = loadPreferences('wifi')
   if (wifiPrefs.ssid == null || wifiPrefs.password == null) {
     return
@@ -250,83 +261,3 @@ async function checkAndConnectWiFi() {
     globalEnv.network.connect(resolve, reject)
   })
 }
-
-async function main() {
-  trace(`[main] start wasm=${Boolean(config.wasm)}\n`)
-  if (globalEnv.Host?.Button && !globalEnv.button) {
-    trace('[main] installing simulator buttons\n')
-    const { a, b, c } = globalEnv.Host.Button
-    globalEnv.button = {
-      ...(a && { a: new SimButton(a) }),
-      ...(b && { b: new SimButton(b) }),
-      ...(c && { c: new SimButton(c) }),
-    }
-  }
-  if (config.wasm) {
-    trace('[main] wasm path start\n')
-    const wasmDefaultMod = Modules.importNow('default-mods/wasm/mod') as StackchanMod
-    let { onRobotCreated, onLaunch } = wasmDefaultMod
-    trace(`[main] wasm defaultMod onLaunch=${onLaunch != null} onRobotCreated=${onRobotCreated != null}\n`)
-    if (Modules.has('mod')) {
-      trace('[main] wasm loading mod override\n')
-      const mod = Modules.importNow('mod') as StackchanMod
-      onRobotCreated = mod.onRobotCreated ?? onRobotCreated
-      onLaunch = mod.onLaunch ?? onLaunch
-    }
-    const launchResult = onLaunch?.() ?? true
-    const continueWasm = (shouldRobotCreate: boolean) => {
-      trace(`[main] wasm onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)
-      if (shouldRobotCreate) {
-        const robot = createRobot()
-        trace('[main] wasm robot created\n')
-        const robotCreatedResult = onRobotCreated?.(robot, globalEnv.device)
-        if (isThenable(robotCreatedResult)) {
-          robotCreatedResult
-            .then(() => {
-              trace('[main] wasm onRobotCreated complete\n')
-            })
-            .catch((error) => {
-              trace(`[main] wasm onRobotCreated error ${error?.message ?? error}\n`)
-            })
-        } else {
-          trace('[main] wasm onRobotCreated complete\n')
-        }
-      }
-      trace('[main] wasm path complete\n')
-    }
-    if (isThenable(launchResult)) {
-      launchResult.then(continueWasm).catch((error) => {
-        trace(`[main] wasm onLaunch error ${error?.message ?? error}\n`)
-      })
-    } else {
-      continueWasm(launchResult)
-    }
-    return
-  }
-  await asyncWait(100)
-  trace('[main] check Wi-Fi start\n')
-  await checkAndConnectWiFi().catch((msg) => {
-    trace(`WiFi connection failed: ${msg}`)
-  })
-  trace('[main] check Wi-Fi complete\n')
-  trace('[main] loading default mod\n')
-  let { onRobotCreated, onLaunch } = defaultMod
-  trace('[main] checking mod override\n')
-  if (Modules.has('mod')) {
-    const mod = Modules.importNow('mod') as StackchanMod
-    onRobotCreated = mod.onRobotCreated ?? onRobotCreated
-    onLaunch = mod.onLaunch ?? onLaunch
-  }
-  const shouldRobotCreate = await (onLaunch?.() ?? true)
-  trace(`[main] onLaunch shouldRobotCreate=${shouldRobotCreate}\n`)
-  if (shouldRobotCreate) {
-    const robot = createRobot()
-    trace('[main] robot created\n')
-    await onRobotCreated?.(robot, globalEnv.device)
-    trace('[main] onRobotCreated complete\n')
-  }
-}
-
-main().catch((error) => {
-  trace(`[main] error ${error?.message ?? error}\n`)
-})

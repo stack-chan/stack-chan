@@ -9,7 +9,7 @@
     "$(MODDABLE)/modules/data/headers/manifest.json",
     "$(MODDABLE)/modules/data/url/manifest.json",
     "./manifest_file.json",
-    "../manifest_typings.json"
+    "../../host/app/manifest_typings.json"
   ],
   "modules": {
     "*": [

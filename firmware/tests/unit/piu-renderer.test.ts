@@ -23,7 +23,7 @@ describe('PIU UI application lifecycle', () => {
   })
 
   test('standard application path constructs UI directly without legacy adapters', () => {
-    const source = readFileSync('stackchan/main.ts', 'utf8')
+    const source = readFileSync('host/app/compose.ts', 'utf8')
 
     assert.match(source, /createAppControllerApplication/)
     assert.match(source, /new SimpleFace\(\)/)

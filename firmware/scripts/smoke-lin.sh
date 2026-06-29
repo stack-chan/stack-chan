@@ -25,10 +25,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-rm -rf "$MODDABLE/build/tmp/$platform_path/debug/stackchan" "$MODDABLE/build/bin/$platform_path/debug/stackchan"
-mcconfig -dl -x "$xsbug_host:$xsbug_port" -m -p "$platform" -t build "$PWD/stackchan/manifest_local.json"
+rm -rf "$MODDABLE/build/tmp/$platform_path/debug/app" "$MODDABLE/build/bin/$platform_path/debug/app"
+mcconfig -dl -x "$xsbug_host:$xsbug_port" -m -p "$platform" -t build "$PWD/host/app/manifest_local.json"
 
-build_dir="$MODDABLE/build/tmp/$platform_path/debug/stackchan"
+build_dir="$MODDABLE/build/tmp/$platform_path/debug/app"
 forbidden_imports=$(find "$build_dir" -path '*/tsc/*' -type f -name '*.js' -exec grep -nE 'runtime-bitmap-port|wasm-audio-bridge|wasm-camera-bridge' {} + || true)
 if [[ -n "$forbidden_imports" ]]; then
   printf '%s\n' "$forbidden_imports"
@@ -58,7 +58,7 @@ if ! grep -q 'xsbug smoke log server listening' "$server_log" 2>/dev/null; then
 fi
 
 set +e
-timeout "$smoke_timeout" env XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" xvfb-run -a "$MODDABLE/build/bin/lin/release/mcsim" "$MODDABLE/build/bin/$platform_path/debug/stackchan/mc.so"
+timeout "$smoke_timeout" env XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" xvfb-run -a "$MODDABLE/build/bin/lin/release/mcsim" "$MODDABLE/build/bin/$platform_path/debug/app/mc.so"
 status=$?
 set -e
 

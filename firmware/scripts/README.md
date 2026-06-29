@@ -53,9 +53,9 @@
 
 * Unique options for generate-speech-coqui  
   * --host: Hostname or IP address of the host where the TTS-Server is running.  
-    Usually, it is read from stackchan/manifest_local.json, but if you specify it here, it will take precedence. You need to specify it in one of the two places.
+    Usually, it is read from host/app/manifest_local.json, but if you specify it here, it will take precedence. You need to specify it in one of the two places.
   * --port: Port of the TTS-Server.  
-    Usually, it is read from stackchan/manifest_local.json, but if you specify it here, it will take precedence. You need to specify it in one of the two places.
+    Usually, it is read from host/app/manifest_local.json, but if you specify it here, it will take precedence. You need to specify it in one of the two places.
   * --shift: Pitch shift by pitch-shift.js.  
     Ranges from 0.5 (1 octave lower) to 2 (1 octave higher), with 1 being normal (CoquiTTS output as is).  
     If omitted, the value of 'SynthProps.shift' in the input file will be used. However, if it is also undefined, it will be 1.5.  

@@ -9,13 +9,13 @@ Related tracking issues: #406, #408, #409, #412.
 Run these commands from `firmware/`.
 
 ```console
-$ mcconfig -d -m -p esp32:./platforms/m5stackchan_cores3 -t build "$PWD/stackchan/manifest_m5stackchan_cores3.json"
+$ mcconfig -d -m -p esp32:./platforms/m5stackchan_cores3 -t build "$PWD/host/app/manifest_m5stackchan_cores3.json"
 ```
 
 To flash the host when hardware is connected:
 
 ```console
-$ mcconfig -d -m -p esp32:./platforms/m5stackchan_cores3 -t deploy "$PWD/stackchan/manifest_m5stackchan_cores3.json"
+$ mcconfig -d -m -p esp32:./platforms/m5stackchan_cores3 -t deploy "$PWD/host/app/manifest_m5stackchan_cores3.json"
 ```
 
 ## Install the smoke MOD

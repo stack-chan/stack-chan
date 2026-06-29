@@ -274,8 +274,8 @@ flowchart TD
 - [x] 対応済み：`firmware/host/modules/testing` を作成し、共有 fake と test helper を置く。
 - [x] 対応済み：`firmware/host/modules/util` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：module 群は `firmware/stackchan/components` ではなく `firmware/host/modules` に置く。
-- [ ] 未対応：各 module は実装、manifest、test、test manifest、専用 fake を同じディレクトリに持つ。
-- [ ] 未対応：二つ以上の module で使う fake timer、fake transport、fake provider、fake Piu event は `modules/testing` に置く。
+- [x] 対応済み：各 module は実装、manifest、test、test manifest、専用 fake を同じディレクトリに持つ。
+- [x] 対応済み：二つ以上の module で使う fake timer、fake transport、fake provider、fake Piu event は `modules/testing` に置く。
 
 ### 5. Motion の移行
 

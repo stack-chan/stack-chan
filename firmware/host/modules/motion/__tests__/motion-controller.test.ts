@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, relative, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import type { Maybe, Pose, Rotation } from 'stackchan-util'
+import { writeAliasPackage } from '../../testing/node-alias-package.js'
 import type { MotionDriver } from '../motion-controller.js'
 
 type FakeTimer = {
@@ -46,23 +46,13 @@ class FakeMotionDriver implements MotionDriver {
   }
 }
 
-function writeAliasPackage(modulesRoot: string, name: string, target: string, hasDefaultExport: boolean): void {
-  const packageRoot = resolve(modulesRoot, 'node_modules', name)
-  const targetSpecifier = relative(packageRoot, target).replaceAll('\\', '/')
-  const importSpecifier = targetSpecifier.startsWith('.') ? targetSpecifier : `./${targetSpecifier}`
-  mkdirSync(packageRoot, { recursive: true })
-  writeFileSync(`${packageRoot}/package.json`, JSON.stringify({ type: 'module', exports: './index.js' }))
-  writeFileSync(
-    `${packageRoot}/index.js`,
-    `export * from ${JSON.stringify(importSpecifier)};\n${hasDefaultExport ? `export { default } from ${JSON.stringify(importSpecifier)};\n` : ''}`,
-  )
-}
-
 function installBareSpecifierPackages(): void {
   const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
-  writeAliasPackage(modulesRoot, 'timer', resolve(modulesRoot, 'testing/fakes/timer.js'), true)
-  writeAliasPackage(modulesRoot, 'mac-address', resolve(modulesRoot, 'util/sim/mac-address.js'), true)
-  writeAliasPackage(modulesRoot, 'stackchan-util', resolve(modulesRoot, 'util/stackchan-util.js'), false)
+  writeAliasPackage(modulesRoot, 'timer', resolve(modulesRoot, 'testing/fakes/timer.js'), { hasDefaultExport: true })
+  writeAliasPackage(modulesRoot, 'mac-address', resolve(modulesRoot, 'util/sim/mac-address.js'), {
+    hasDefaultExport: true,
+  })
+  writeAliasPackage(modulesRoot, 'stackchan-util', resolve(modulesRoot, 'util/stackchan-util.js'))
 }
 
 test('MotionController follows gaze point and releases torque after movement', async () => {

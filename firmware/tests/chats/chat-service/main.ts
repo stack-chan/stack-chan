@@ -1,7 +1,7 @@
 import type ChatAudioIOBase from 'ChatAudioIO'
-import { ChatService, type ChatState, type ChatTool } from 'chat'
-import { assert, equal } from 'mocks/assert'
 import ChatAudioIO from 'ChatAudioIO'
+import { ChatService, type ChatState, type ChatTool } from 'chat'
+import { assert, equal } from 'testing/assert'
 
 trace('=== chat-service test ===\n')
 

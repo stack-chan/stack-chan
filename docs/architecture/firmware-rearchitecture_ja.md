@@ -271,7 +271,7 @@ flowchart TD
 - [x] 対応済み：`firmware/host/modules/lighting` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/motion` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/preferences` を作成し、`manifest.json` と `manifest.test.json` を置く。
-- [ ] 未対応：`firmware/host/modules/testing` を作成し、共有 fake と test helper を置く。
+- [x] 対応済み：`firmware/host/modules/testing` を作成し、共有 fake と test helper を置く。
 - [x] 対応済み：`firmware/host/modules/util` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：module 群は `firmware/stackchan/components` ではなく `firmware/host/modules` に置く。
 - [ ] 未対応：各 module は実装、manifest、test、test manifest、専用 fake を同じディレクトリに持つ。

@@ -68,9 +68,6 @@
       "drawer": [
         "./host/modules/ui/components/drawer/drawer"
       ],
-      "mocks/*": [
-        "./tests/chats/mocks/*"
-      ],
       "*": [
         "./node_modules/@moddable/typings/*",
         "./node_modules/@moddable/typings/ble/*",
@@ -183,6 +180,12 @@
       ],
       "app-default-behavior/wasm/on-launch": [
         "./host/app/default-behavior/wasm/on-launch"
+      ],
+      "testing/assert": [
+        "./host/modules/testing/assert"
+      ],
+      "testing/fakes/ChatAudioIO": [
+        "./host/modules/testing/fakes/ChatAudioIO"
       ],
       "calculate-power": [
         "./host/modules/audio/calculate-power"

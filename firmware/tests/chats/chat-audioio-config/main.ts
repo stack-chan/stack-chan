@@ -1,5 +1,5 @@
-import { equal } from 'mocks/assert'
 import { hasValidChatType } from 'chat-audioio-config'
+import { equal } from 'testing/assert'
 
 trace('=== chat-audioio-config test ===\n')
 

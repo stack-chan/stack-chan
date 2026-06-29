@@ -1,10 +1,12 @@
 {
-  "include": ["../../../host/modules/ui/manifest.json"],
+  "include": [
+    "../../../host/modules/ui/manifest.json",
+    "../../../host/modules/testing/manifest.json"
+  ],
   "modules": {
     "app-behavior": "./app-behavior-stub",
     "app-default-behavior/on-context-created": "../../../host/app/default-behavior/on-context-created",
     "imu": "./imu-stub",
-    "mocks/assert": "../../chats/mocks/assert",
     "*": ["./main"]
   }
 }

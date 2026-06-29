@@ -1,8 +1,8 @@
 import { AppController } from 'app-controller'
 import { FaceBehavior } from 'behaviors/face'
 import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
-import { assert, equal } from 'mocks/assert'
 import { Application, Container, Content, type Container as PiuContainer } from 'piu/MC'
+import { assert, equal } from 'testing/assert'
 
 trace('=== face-view state test ===\n')
 

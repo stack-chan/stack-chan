@@ -1,6 +1,6 @@
 import { ChatStatusBar } from 'chat-status-bar'
-import { assert, equal } from 'mocks/assert'
 import { Application } from 'piu/MC'
+import { assert, equal } from 'testing/assert'
 
 trace('=== chat-statusbar test ===\n')
 

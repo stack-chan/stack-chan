@@ -3,7 +3,8 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/manifest_piu.json",
-    "../../../host/modules/ui/manifest.json"
+    "../../../host/modules/ui/manifest.json",
+    "../../../host/modules/testing/manifest.json"
   ],
   "resources": {
     "*-alpha": [
@@ -16,7 +17,6 @@
     ]
   },
   "modules": {
-    "mocks/assert": "../mocks/assert",
     "*": ["./main"]
   }
 }

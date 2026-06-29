@@ -1,5 +1,5 @@
 import { onContextCreated } from 'app-default-behavior/on-context-created'
-import { equal } from 'mocks/assert'
+import { equal } from 'testing/assert'
 
 trace('=== default-mod face init test ===\n')
 

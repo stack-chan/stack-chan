@@ -1,7 +1,9 @@
 {
-  "include": ["../../../host/modules/ui/manifest.json"],
+  "include": [
+    "../../../host/modules/ui/manifest.json",
+    "../../../host/modules/testing/manifest.json"
+  ],
   "modules": {
-    "mocks/assert": "../../chats/mocks/assert",
     "*": ["./main"]
   }
 }

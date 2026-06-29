@@ -1,0 +1,6 @@
+{
+  "modules": {
+    "testing/assert": "./assert",
+    "testing/fakes/ChatAudioIO": "./fakes/ChatAudioIO"
+  }
+}

@@ -1,12 +1,12 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODDABLE)/examples/manifest_typings.json"
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../host/modules/testing/manifest.json"
   ],
   "modules": {
     "chat": "../../../host/modules/conversation/chat",
-    "ChatAudioIO": "../mocks/ChatAudioIO",
-    "mocks/assert": "../mocks/assert",
+    "ChatAudioIO": "../../../host/modules/testing/fakes/ChatAudioIO",
     "*": ["./main"]
   },
   "typescript": {

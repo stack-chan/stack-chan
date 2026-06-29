@@ -1,7 +1,7 @@
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB } from 'face-state'
-import { assert } from 'mocks/assert'
 import { Application, type Content, Skin, Style } from 'piu/MC'
+import { assert } from 'testing/assert'
 import Timer from 'timer'
 
 trace('=== chat-balloon test ===\n')

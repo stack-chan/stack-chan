@@ -1,41 +1,14 @@
-import { Outline } from 'commodetto/outline'
 import { DEFAULT_FACE_PRIMARY_COLOR, DEFAULT_FACE_SECONDARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
-import type { Container as PiuContainer, Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
-import type { Shape as PiuShape } from 'piu/shape'
-import { defineShapeTemplate } from 'template'
+import {
+  Container,
+  type Content as PiuContent,
+  type Port as PiuPort,
+  type Texture as PiuTexture,
+  Port,
+  Texture,
+} from 'piu/MC'
 
 export type EmoticonKey = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy'
-
-type WithSkin = PiuContent &
-  Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
-    skin?: PiuSkin
-    fillOutline?: unknown
-    strokeOutline?: unknown
-  }
-
-type OutlinePath = {
-  moveTo(x: number, y: number): void
-  bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void
-  quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void
-  lineTo(x: number, y: number): void
-  closePath(): void
-  arc?(x: number, y: number, radius: number, start: number, end: number): void
-}
-
-type OutlineOutline = {
-  clone(): OutlineOutline
-  scale(sx: number, sy: number): OutlineOutline
-  rotate(angle: number): OutlineOutline
-  translate(x: number, y: number): OutlineOutline
-}
-
-type OutlineModule = {
-  CanvasPath: new () => OutlinePath
-  fill(path: OutlinePath): OutlineOutline
-  stroke(path: OutlinePath, width?: number): OutlineOutline
-}
-
-const outline: OutlineModule = Outline as unknown as OutlineModule
 
 export type EmoticonOptions = {
   name?: string
@@ -57,129 +30,6 @@ export type EmoticonParams = EmoticonOptions & {
   key: EmoticonKey
 }
 
-function primaryColor(face?: FaceState): number {
-  return face ? toPiuColorNumber(face.theme.primary) : DEFAULT_FACE_PRIMARY_COLOR
-}
-function secondaryColor(face?: FaceState): number {
-  return face ? toPiuColorNumber(face.theme.secondary) : DEFAULT_FACE_SECONDARY_COLOR
-}
-
-class HeartBehavior extends Behavior {
-  angle = 0.1
-  xScale = 1
-  yScale = 1
-  fraction = 0
-  primary: number | null = null
-  baseOutline: OutlineOutline | null = null
-  onCreate(shape: WithSkin, data: EmoticonOptions = {}) {
-    this.angle = data.angle ?? 0.1
-    this.xScale = (data.width ?? shape.width ?? 40) / 40
-    this.yScale = (data.height ?? shape.height ?? 40) / 40
-    this.baseOutline = this.buildBaseOutline()
-    shape.interval = data.interval ?? 33
-    this.updateSkin(shape)
-  }
-  onDisplaying(shape: WithSkin) {
-    this.applyOutline(shape)
-    shape.start()
-  }
-  onUndisplaying(shape: WithSkin) {
-    shape.stop()
-  }
-  onTimeChanged(shape: WithSkin) {
-    this.fraction += (2 * Math.PI) / 100
-    this.applyOutline(shape)
-  }
-  onFaceState(shape: WithSkin, face: FaceState) {
-    this.updateSkin(shape, face)
-  }
-  buildBaseOutline() {
-    const path = new outline.CanvasPath()
-    path.moveTo(20, 13)
-    path.bezierCurveTo(18, 8, 14, 5, 10, 5)
-    path.bezierCurveTo(8, 5, 0, 5, 0, 15)
-    path.bezierCurveTo(0, 30, 18, 35, 20, 40)
-    path.bezierCurveTo(22, 35, 40, 30, 40, 15)
-    path.bezierCurveTo(40, 5, 32, 5, 30, 5)
-    path.bezierCurveTo(26, 5, 22, 8, 20, 13)
-    return outline.fill(path)
-  }
-  applyOutline(shape: WithSkin) {
-    if (!this.baseOutline) return
-    const scale = Math.abs(Math.sin(this.fraction)) / 4 + 0.75
-    const o = this.baseOutline.clone().scale(scale * this.xScale, scale * this.yScale)
-    o.translate(-20, -20)
-    o.rotate(this.angle)
-    o.translate(20, 20)
-    shape.fillOutline = o
-    shape.strokeOutline = undefined
-  }
-  updateSkin(shape: WithSkin, face?: FaceState) {
-    const color = primaryColor(face)
-    if (color === this.primary) return
-    this.primary = color
-    shape.skin = new Skin({ fill: color, stroke: color })
-  }
-}
-
-class AngryBehavior extends Behavior {
-  angle = 0.1
-  xScale = 1
-  yScale = 1
-  fraction = 0
-  primary: number | null = null
-  baseOutline: OutlineOutline | null = null
-  onCreate(shape: WithSkin, data: EmoticonOptions = {}) {
-    this.angle = data.angle ?? 0.1
-    this.xScale = (data.width ?? shape.width ?? 40) / 40
-    this.yScale = (data.height ?? shape.height ?? 40) / 40
-    this.baseOutline = this.buildBaseOutline()
-    shape.interval = data.interval ?? 33
-    this.updateSkin(shape)
-  }
-  onDisplaying(shape: WithSkin) {
-    this.applyOutline(shape)
-    shape.start()
-  }
-  onUndisplaying(shape: WithSkin) {
-    shape.stop()
-  }
-  onTimeChanged(shape: WithSkin) {
-    this.fraction += (2 * Math.PI) / 100
-    this.applyOutline(shape)
-  }
-  onFaceState(shape: WithSkin, face: FaceState) {
-    this.updateSkin(shape, face)
-  }
-  buildBaseOutline() {
-    const path = new outline.CanvasPath()
-    path.moveTo(15, 5)
-    path.quadraticCurveTo(20, 20, 5, 15)
-    path.moveTo(25, 5)
-    path.quadraticCurveTo(20, 20, 35, 15)
-    path.moveTo(5, 25)
-    path.quadraticCurveTo(20, 20, 15, 35)
-    path.moveTo(25, 35)
-    path.quadraticCurveTo(20, 20, 35, 25)
-    return outline.stroke(path, 2)
-  }
-  applyOutline(shape: WithSkin) {
-    if (!this.baseOutline) return
-    const scale = Math.abs(Math.sin(this.fraction)) / 4 + 0.75
-    shape.strokeOutline = this.baseOutline
-      .clone()
-      .scale(scale * this.xScale, scale * this.yScale)
-      .rotate(this.angle)
-    shape.fillOutline = undefined
-  }
-  updateSkin(shape: WithSkin, face?: FaceState) {
-    const color = primaryColor(face)
-    if (color === this.primary) return
-    this.primary = color
-    shape.skin = new Skin({ fill: color, stroke: color })
-  }
-}
-
 type Drop = {
   x: number
   y: number
@@ -190,391 +40,456 @@ type Drop = {
   laneIndex: number
 }
 
-class SweatBehavior extends Behavior {
-  width = 64
-  height = 90
-  count = 2
-  interval = 33
-  smallScale = 0.26
-  holdScale = 0.3
-  minScale = 0.24
-  scaleSmoothing = 0.2
-  drops: Drop[] = []
-  laneXs: number[] = []
-  drawCount = 0
-  primary: number | null = null
-  secondary: number | null = null
-  onCreate(shape: WithSkin, data: EmoticonOptions = {}) {
-    this.drops = []
-    this.width = data.width ?? shape.width ?? this.width
-    this.height = data.height ?? shape.height ?? this.height
-    this.count = Math.max(1, Math.min(2, data.count ?? this.count))
-    this.interval = data.interval ?? this.interval
-    this.smallScale = data.smallScale ?? this.smallScale
-    this.holdScale = data.holdScale ?? this.holdScale
-    this.minScale = Math.max(this.minScale, this.smallScale * 0.9)
-    this.laneXs = this.buildLaneXs()
-    this.drawCount = 0
-    for (let i = 0; i < this.count; i++) {
-      this.drops.push(this.spawnDrop(i, true))
-    }
-    shape.interval = this.interval
+type Bubble = {
+  x: number
+  y: number
+  vx: number
+  r: number
+}
+
+type DropConfig = {
+  width: number
+  height: number
+  count: number
+  interval: number
+  smallScale: number
+  holdScale: number
+  minScale: number
+  scaleSmoothing: number
+  laneRatios: readonly [number, number]
+  jitterRatio: number
+  spawnY: number
+  spawnRange: number
+  despawnMargin: number
+  maxLifeBase: number
+  maxLifeJitter: number
+  speedBase: number
+  speedJitter: number
+  laneSpeedStep: number
+  fadeInRatio: number
+  fadeOutRatio: number
+}
+
+const SPRITE_CELL_SIZE = 32
+const SPRITE_FRAME_COUNT = 4
+const CLEAR_COLOR = 'transparent'
+const HEART_ROW = 0
+const ANGRY_ROW = 1
+const DROP_ROW = 2
+const BUBBLE_ROW = 3
+
+const SWEAT_CONFIG: DropConfig = Object.freeze({
+  width: 72,
+  height: 100,
+  count: 2,
+  interval: 33,
+  smallScale: 0.26,
+  holdScale: 0.3,
+  minScale: 0.24,
+  scaleSmoothing: 0.2,
+  laneRatios: Object.freeze([0.3, 0.7]),
+  jitterRatio: 0.06,
+  spawnY: -20,
+  spawnRange: 20,
+  despawnMargin: 16,
+  maxLifeBase: 1700,
+  maxLifeJitter: 1100,
+  speedBase: 0.55,
+  speedJitter: 0.35,
+  laneSpeedStep: 0.05,
+  fadeInRatio: 0.3,
+  fadeOutRatio: 0.85,
+})
+
+const TEAR_CONFIG: DropConfig = Object.freeze({
+  width: 200,
+  height: 60,
+  count: 2,
+  interval: 33,
+  smallScale: 0.33,
+  holdScale: 0.39,
+  minScale: 0.3,
+  scaleSmoothing: 0.2,
+  laneRatios: Object.freeze([0.15, 0.85]),
+  jitterRatio: 0.04,
+  spawnY: -10,
+  spawnRange: 8,
+  despawnMargin: 8,
+  maxLifeBase: 900,
+  maxLifeJitter: 400,
+  speedBase: 0.45,
+  speedJitter: 0.2,
+  laneSpeedStep: 0.04,
+  fadeInRatio: 0.25,
+  fadeOutRatio: 0.75,
+})
+
+let emoticonTexture: PiuTexture | null = null
+
+function getEmoticonTexture() {
+  if (!emoticonTexture) emoticonTexture = new Texture('emoticon.png')
+  return emoticonTexture
+}
+
+function toColorString(color: number): string {
+  return `#${color.toString(16).padStart(6, '0')}`
+}
+
+function primaryColor(face?: FaceState): string {
+  return toColorString(face ? toPiuColorNumber(face.theme.primary) : DEFAULT_FACE_PRIMARY_COLOR)
+}
+
+function secondaryColor(face?: FaceState): string {
+  return toColorString(face ? toPiuColorNumber(face.theme.secondary) : DEFAULT_FACE_SECONDARY_COLOR)
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value))
+}
+
+function centeredSpriteX(width: number) {
+  return Math.round((width - SPRITE_CELL_SIZE) / 2)
+}
+
+function centeredSpriteY(height: number) {
+  return Math.round((height - SPRITE_CELL_SIZE) / 2)
+}
+
+function spriteVariantForScale(scale: number, minScale: number, holdScale: number) {
+  const normalized = (scale - minScale) / Math.max(0.01, holdScale - minScale)
+  return clamp(Math.round(normalized * (SPRITE_FRAME_COUNT - 1)), 0, SPRITE_FRAME_COUNT - 1)
+}
+
+function drawSpriteCell(port: PiuPort, row: number, variant: number, color: string, x: number, y: number) {
+  const frame = clamp(variant, 0, SPRITE_FRAME_COUNT - 1)
+  port.drawTexture(
+    getEmoticonTexture(),
+    color,
+    Math.round(x),
+    Math.round(y),
+    frame * SPRITE_CELL_SIZE,
+    row * SPRITE_CELL_SIZE,
+    SPRITE_CELL_SIZE,
+    SPRITE_CELL_SIZE,
+  )
+}
+
+class SpritePulseBehavior extends Behavior {
+  #row = HEART_ROW
+  #width = 40
+  #height = 40
+  #interval = 33
+  #fraction = 0
+  #primary = primaryColor()
+
+  onCreate(port: PiuPort, data: EmoticonOptions = {}, row = HEART_ROW) {
+    this.#row = row
+    this.#width = data.width ?? port.width ?? this.#width
+    this.#height = data.height ?? port.height ?? this.#height
+    this.#interval = data.interval ?? this.#interval
+    port.interval = this.#interval
   }
-  onDisplaying(shape: WithSkin) {
-    this.tick(shape, 0)
-    shape.start()
+
+  onDisplaying(port: PiuPort) {
+    port.invalidate()
+    port.start()
   }
-  onUndisplaying(shape: WithSkin) {
-    shape.stop()
+
+  onUndisplaying(port: PiuPort) {
+    port.stop()
   }
-  onTimeChanged(shape: WithSkin) {
-    this.tick(shape, shape.interval ?? this.interval)
+
+  onTimeChanged(port: PiuPort) {
+    this.#fraction += (2 * Math.PI) / 100
+    port.invalidate()
   }
-  onFaceState(shape: WithSkin, face: FaceState) {
-    this.primary = primaryColor(face)
-    this.secondary = secondaryColor(face)
-    shape.skin = new Skin({ fill: this.secondary ?? 0x000000, stroke: this.primary ?? 0xffffff })
+
+  onFaceState(port: PiuPort, face: FaceState) {
+    const nextPrimary = primaryColor(face)
+    if (nextPrimary === this.#primary) return
+    this.#primary = nextPrimary
+    port.invalidate()
   }
-  tick(shape: WithSkin, dt: number) {
-    const primary = this.primary ?? 0xffffff
-    const secondary = this.secondary ?? 0x000000
-    const path = new outline.CanvasPath()
-    let drawn = 0
-    for (const drop of this.drops) {
-      drop.life += dt
-      const t = drop.life / drop.maxLife
-      let targetScale = t < 0.3 ? this.smallScale + (this.holdScale - this.smallScale) * (t / 0.3) : this.holdScale
-      if (t > 0.85) {
-        const k = 1 - (t - 0.85) / 0.15
-        targetScale *= Math.max(0, k)
-      }
-      targetScale = Math.max(this.minScale, targetScale)
-      drop.scale += (targetScale - drop.scale) * this.scaleSmoothing
-      const scale = drop.scale
-      drop.y += drop.speed * (dt / 16.67)
-      if (drop.y > this.height + 16) {
-        this.respawn(drop)
-        continue
-      }
-      this.appendDropPath(path, drop.x, drop.y, scale)
-      drawn += 1
-    }
-    this.drawCount = drawn
-    if (drawn > 0) {
-      shape.strokeOutline = outline.stroke(path, 2)
-      shape.fillOutline = undefined
-    } else {
-      shape.strokeOutline = undefined
-      shape.fillOutline = undefined
-    }
-    shape.skin = new Skin({ fill: secondary, stroke: primary })
-  }
-  appendDropPath(path: OutlinePath, x: number, y: number, scale: number) {
-    const sx = scale
-    const sy = scale
-    path.moveTo(x + 0 * sx, y + -20 * sy)
-    path.quadraticCurveTo(x + -6 * sx, y + -6 * sy, x + -10 * sx, y + 6 * sy)
-    path.quadraticCurveTo(x + -12 * sx, y + 12 * sy, x + -12 * sx, y + 18 * sy)
-    path.quadraticCurveTo(x + -12 * sx, y + 30 * sy, x + 0 * sx, y + 36 * sy)
-    path.quadraticCurveTo(x + 12 * sx, y + 30 * sy, x + 12 * sx, y + 18 * sy)
-    path.quadraticCurveTo(x + 12 * sx, y + 12 * sy, x + 10 * sx, y + 6 * sy)
-    path.quadraticCurveTo(x + 6 * sx, y + -6 * sy, x + 0 * sx, y + -20 * sy)
-    path.closePath()
-  }
-  buildLaneXs() {
-    if (this.count <= 1) return [this.width * 0.5]
-    return [this.width * 0.3, this.width * 0.7]
-  }
-  spawnDrop(laneIndex = 0, initial = false): Drop {
-    const maxLife = 1700 + Math.random() * 1100
-    const baseOffset = (maxLife / this.count) * (laneIndex % this.count)
-    const startOffset = initial ? baseOffset + Math.random() * (maxLife * 0.05) : 0
-    const laneX = this.laneXs[laneIndex % this.laneXs.length] ?? this.width * 0.5
-    const jitter = this.width * 0.06
-    const scale = Math.max(this.minScale, this.holdScale)
-    return {
-      x: laneX + (Math.random() - 0.5) * jitter,
-      y: -20 - Math.random() * 20,
-      speed: 0.55 + Math.random() * 0.35 + (laneIndex % this.count) * 0.05,
-      life: startOffset,
-      maxLife,
-      scale,
-      laneIndex,
-    }
-  }
-  respawn(drop: Drop) {
-    const maxLife = 1700 + Math.random() * 1100
-    const laneIndex = drop.laneIndex % this.count
-    const laneX = this.laneXs[laneIndex % this.laneXs.length] ?? this.width * 0.5
-    const jitter = this.width * 0.06
-    drop.x = laneX + (Math.random() - 0.5) * jitter
-    drop.y = -20 - Math.random() * 20
-    drop.speed = 0.55 + Math.random() * 0.35 + laneIndex * 0.05
-    drop.life = 0
-    drop.maxLife = maxLife
-    drop.scale = Math.max(this.minScale, this.holdScale)
+
+  onDraw(port: PiuPort) {
+    port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
+    const pulse = (Math.sin(this.#fraction) + 1) / 2
+    const variant = clamp(Math.round(pulse * (SPRITE_FRAME_COUNT - 1)), 0, SPRITE_FRAME_COUNT - 1)
+    drawSpriteCell(port, this.#row, variant, this.#primary, centeredSpriteX(this.#width), centeredSpriteY(this.#height))
   }
 }
 
-class TearBehavior extends Behavior {
-  width = 200
-  height = 60
-  count = 2
-  interval = 33
-  smallScale = 0.33
-  holdScale = 0.39
-  minScale = 0.3
-  scaleSmoothing = 0.2
-  drops: Drop[] = []
-  laneXs: number[] = []
-  tickCount = 0
-  primary: number | null = null
-  secondary: number | null = null
-  onCreate(shape: WithSkin, data: EmoticonOptions = {}) {
-    this.drops = []
-    this.width = (data.width as number) ?? shape.width ?? this.width
-    this.height = (data.height as number) ?? shape.height ?? this.height
-    this.count = Math.max(1, Math.min(2, (data.count as number) ?? this.count))
-    this.interval = (data.interval as number) ?? this.interval
-    this.smallScale = (data.smallScale as number) ?? this.smallScale
-    this.holdScale = (data.holdScale as number) ?? this.holdScale
-    this.minScale = Math.max(this.minScale, this.smallScale * 0.9)
-    this.laneXs = this.buildLaneXs()
-    for (let i = 0; i < this.count; i++) this.drops.push(this.spawnDrop(i, true))
-    shape.interval = this.interval
-    this.tickCount = 0
+class DropBehavior extends Behavior {
+  #config = SWEAT_CONFIG
+  #width = SWEAT_CONFIG.width
+  #height = SWEAT_CONFIG.height
+  #count = SWEAT_CONFIG.count
+  #interval = SWEAT_CONFIG.interval
+  #smallScale = SWEAT_CONFIG.smallScale
+  #holdScale = SWEAT_CONFIG.holdScale
+  #minScale = SWEAT_CONFIG.minScale
+  #scaleSmoothing = SWEAT_CONFIG.scaleSmoothing
+  #drops: Drop[] = []
+  #laneXs: number[] = []
+  #primary = primaryColor()
+
+  onCreate(port: PiuPort, data: EmoticonOptions = {}, config = SWEAT_CONFIG) {
+    this.#config = config
+    this.#width = data.width ?? port.width ?? config.width
+    this.#height = data.height ?? port.height ?? config.height
+    this.#count = clamp(data.count ?? config.count, 1, 2)
+    this.#interval = data.interval ?? config.interval
+    this.#smallScale = data.smallScale ?? config.smallScale
+    this.#holdScale = data.holdScale ?? config.holdScale
+    this.#minScale = Math.max(config.minScale, this.#smallScale * 0.9)
+    this.#scaleSmoothing = config.scaleSmoothing
+    this.#laneXs = this.#buildLaneXs()
+    this.#drops = []
+    for (let i = 0; i < this.#count; i++) {
+      this.#drops.push(this.#spawnDrop(i, true))
+    }
+    port.interval = this.#interval
   }
-  onDisplaying(shape: WithSkin) {
-    this.tick(shape, 0)
-    shape.start()
+
+  onDisplaying(port: PiuPort) {
+    this.#advance(0)
+    port.invalidate()
+    port.start()
   }
-  onUndisplaying(shape: WithSkin) {
-    shape.stop()
+
+  onUndisplaying(port: PiuPort) {
+    port.stop()
   }
-  onTimeChanged(shape: WithSkin) {
-    this.tick(shape, shape.interval ?? this.interval)
+
+  onTimeChanged(port: PiuPort) {
+    this.#advance(port.interval ?? this.#interval)
+    port.invalidate()
   }
-  onFaceState(shape: WithSkin, face: FaceState) {
-    this.primary = primaryColor(face)
-    this.secondary = secondaryColor(face)
-    shape.skin = new Skin({ fill: this.secondary ?? 0x000000, stroke: this.primary ?? 0xffffff })
+
+  onFaceState(port: PiuPort, face: FaceState) {
+    const nextPrimary = primaryColor(face)
+    if (nextPrimary === this.#primary) return
+    this.#primary = nextPrimary
+    port.invalidate()
   }
-  tick(shape: WithSkin, dt: number) {
-    const primary = this.primary ?? 0xffffff
-    const secondary = this.secondary ?? 0x000000
-    const path = new outline.CanvasPath()
-    this.tickCount += 1
-    let drawn = 0
-    for (const drop of this.drops) {
+
+  onDraw(port: PiuPort) {
+    port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
+    for (const drop of this.#drops) {
+      const variant = spriteVariantForScale(drop.scale, this.#minScale, this.#holdScale)
+      drawSpriteCell(
+        port,
+        DROP_ROW,
+        variant,
+        this.#primary,
+        drop.x - SPRITE_CELL_SIZE / 2,
+        drop.y - SPRITE_CELL_SIZE / 2,
+      )
+    }
+  }
+
+  #advance(dt: number) {
+    for (const drop of this.#drops) {
       drop.life += dt
       const t = drop.life / drop.maxLife
-      let targetScale = t < 0.25 ? this.smallScale + (this.holdScale - this.smallScale) * (t / 0.25) : this.holdScale
-      if (t > 0.75) {
-        const k = 1 - (t - 0.75) / 0.25
+      let targetScale =
+        t < this.#config.fadeInRatio
+          ? this.#smallScale + (this.#holdScale - this.#smallScale) * (t / this.#config.fadeInRatio)
+          : this.#holdScale
+      if (t > this.#config.fadeOutRatio) {
+        const k = 1 - (t - this.#config.fadeOutRatio) / (1 - this.#config.fadeOutRatio)
         targetScale *= Math.max(0, k)
       }
       if (!Number.isFinite(targetScale) || !Number.isFinite(drop.x) || !Number.isFinite(drop.y)) {
-        this.respawn(drop)
+        this.#respawn(drop)
         continue
       }
-      targetScale = Math.max(this.minScale, targetScale)
-      drop.scale += (targetScale - drop.scale) * this.scaleSmoothing
-      const scale = drop.scale
+      targetScale = Math.max(this.#minScale, targetScale)
+      drop.scale += (targetScale - drop.scale) * this.#scaleSmoothing
       drop.y += drop.speed * (dt / 16.67)
-      if (drop.y > this.height + 8) {
-        this.respawn(drop)
-        continue
-      }
-      this.appendDropPath(path, drop.x, drop.y, scale)
-      drawn += 1
+      if (drop.y > this.#height + this.#config.despawnMargin) this.#respawn(drop)
     }
-    if (drawn > 0) {
-      shape.strokeOutline = outline.stroke(path, 2)
-      shape.fillOutline = undefined
-    } else {
-      shape.strokeOutline = undefined
-      shape.fillOutline = undefined
-    }
-    shape.skin = new Skin({ fill: secondary, stroke: primary })
   }
-  buildLaneXs() {
-    if (this.count <= 1) return [this.width * 0.5]
-    return [this.width * 0.15, this.width * 0.85]
+
+  #buildLaneXs() {
+    if (this.#count <= 1) return [this.#width * 0.5]
+    return [this.#width * this.#config.laneRatios[0], this.#width * this.#config.laneRatios[1]]
   }
-  appendDropPath(path: OutlinePath, x: number, y: number, scale: number) {
-    const sx = scale
-    const sy = scale
-    path.moveTo(x + 0 * sx, y + -12 * sy)
-    path.quadraticCurveTo(x + -4 * sx, y + -2 * sy, x + -7 * sx, y + 5 * sy)
-    path.quadraticCurveTo(x + -8 * sx, y + 10 * sy, x + -8 * sx, y + 14 * sy)
-    path.quadraticCurveTo(x + -8 * sx, y + 22 * sy, x + 0 * sx, y + 26 * sy)
-    path.quadraticCurveTo(x + 8 * sx, y + 22 * sy, x + 8 * sx, y + 14 * sy)
-    path.quadraticCurveTo(x + 8 * sx, y + 10 * sy, x + 7 * sx, y + 5 * sy)
-    path.quadraticCurveTo(x + 4 * sx, y + -2 * sy, x + 0 * sx, y + -12 * sy)
-    path.closePath()
-  }
-  spawnDrop(laneIndex = 0, initial = false): Drop {
-    const laneX = this.laneXs[laneIndex % this.laneXs.length] ?? this.width * 0.5
-    const jitter = this.width * 0.04
-    const maxLife = 900 + Math.random() * 400
-    const baseOffset = (maxLife / this.count) * (laneIndex % this.count)
+
+  #spawnDrop(laneIndex = 0, initial = false): Drop {
+    const maxLife = this.#config.maxLifeBase + Math.random() * this.#config.maxLifeJitter
+    const baseOffset = (maxLife / this.#count) * (laneIndex % this.#count)
     const startOffset = initial ? baseOffset + Math.random() * (maxLife * 0.05) : 0
-    const scale = Math.max(this.minScale, this.holdScale)
+    const laneX = this.#laneXs[laneIndex % this.#laneXs.length] ?? this.#width * 0.5
+    const jitter = this.#width * this.#config.jitterRatio
     return {
       x: laneX + (Math.random() - 0.5) * jitter,
-      y: -10 - Math.random() * 8,
-      speed: 0.45 + Math.random() * 0.2 + (laneIndex % this.count) * 0.04,
+      y: this.#config.spawnY - Math.random() * this.#config.spawnRange,
+      speed:
+        this.#config.speedBase +
+        Math.random() * this.#config.speedJitter +
+        (laneIndex % this.#count) * this.#config.laneSpeedStep,
       life: startOffset,
       maxLife,
-      scale,
+      scale: Math.max(this.#minScale, this.#holdScale),
       laneIndex,
     }
   }
-  respawn(drop: Drop) {
-    const maxLife = 900 + Math.random() * 400
-    const laneIndex = drop.laneIndex % this.count
-    const laneX = this.laneXs[laneIndex % this.laneXs.length] ?? this.width * 0.5
-    const jitter = this.width * 0.04
+
+  #respawn(drop: Drop) {
+    const laneIndex = drop.laneIndex % this.#count
+    const laneX = this.#laneXs[laneIndex % this.#laneXs.length] ?? this.#width * 0.5
+    const jitter = this.#width * this.#config.jitterRatio
     drop.x = laneX + (Math.random() - 0.5) * jitter
-    drop.y = -10 - Math.random() * 8
-    drop.speed = 0.45 + Math.random() * 0.2 + laneIndex * 0.04
+    drop.y = this.#config.spawnY - Math.random() * this.#config.spawnRange
+    drop.speed =
+      this.#config.speedBase + Math.random() * this.#config.speedJitter + laneIndex * this.#config.laneSpeedStep
     drop.life = 0
-    drop.maxLife = maxLife
-    drop.scale = Math.max(this.minScale, this.holdScale)
+    drop.maxLife = this.#config.maxLifeBase + Math.random() * this.#config.maxLifeJitter
+    drop.scale = Math.max(this.#minScale, this.#holdScale)
   }
 }
 
-type Bubble = { x: number; y: number; vx: number; r: number }
-
 class SleepyBubbleBehavior extends Behavior {
-  width = 48
-  height = 64
-  count = 4
-  bubbles: Bubble[] = []
-  shape: WithSkin | null = null
-  primary: number | null = null
-  secondary: number | null = null
-  onCreate(container: PiuContainer, data: EmoticonOptions = {}) {
-    this.width = data.width ?? container.width ?? this.width
-    this.height = data.height ?? container.height ?? this.height
-    this.count = data.count ?? this.count
-    this.bubbles = []
-    this.shape = new Shape(null, { left: 0, top: 0, width: this.width, height: this.height }) as WithSkin
-    container.add(this.shape)
-    for (let i = 0; i < this.count; i++) {
-      this.bubbles.push({
-        x: Math.random() * this.width,
+  #width = 48
+  #height = 64
+  #count = 4
+  #interval = 33
+  #bubbles: Bubble[] = []
+  #primary = primaryColor()
+  #secondary = secondaryColor()
+
+  onCreate(port: PiuPort, data: EmoticonOptions = {}) {
+    this.#width = data.width ?? port.width ?? this.#width
+    this.#height = data.height ?? port.height ?? this.#height
+    this.#count = data.count ?? this.#count
+    this.#interval = data.interval ?? this.#interval
+    this.#bubbles = []
+    for (let i = 0; i < this.#count; i++) {
+      this.#bubbles.push({
+        x: Math.random() * this.#width,
         vx: 0,
-        y: Math.random() * this.height,
+        y: Math.random() * this.#height,
         r: 4 + Math.random() * 3,
       })
     }
-    container.interval = data.interval ?? 33
+    port.interval = this.#interval
   }
-  onTimeChanged(_container: PiuContainer) {
-    this.tick()
+
+  onDisplaying(port: PiuPort) {
+    this.#advance()
+    port.invalidate()
+    port.start()
   }
-  onDisplaying(container: PiuContainer) {
-    this.tick()
-    container.start?.()
+
+  onUndisplaying(port: PiuPort) {
+    port.stop()
   }
-  onUndisplaying(container: PiuContainer) {
-    container.stop?.()
+
+  onTimeChanged(port: PiuPort) {
+    this.#advance()
+    port.invalidate()
   }
-  onFaceState(_container: PiuContainer, face: FaceState) {
-    this.primary = primaryColor(face)
-    this.secondary = secondaryColor(face)
+
+  onFaceState(port: PiuPort, face: FaceState) {
+    const nextPrimary = primaryColor(face)
+    const nextSecondary = secondaryColor(face)
+    if (nextPrimary === this.#primary && nextSecondary === this.#secondary) return
+    this.#primary = nextPrimary
+    this.#secondary = nextSecondary
+    port.invalidate()
   }
-  tick() {
-    const width = this.width
-    const height = this.height
-    const primary = this.primary ?? 0xffffff
-    const secondary = this.secondary ?? 0x000000
-    const shape = this.shape
-    if (!shape) return
-    const path = new outline.CanvasPath()
-    for (const b of this.bubbles) {
-      const upwardSpeed = 1 - b.r / 12
-      b.vx = b.vx * 0.85 + 0.1 * (Math.random() - 0.5)
-      b.x += b.vx
-      b.x = Math.max(b.r, Math.min(width - b.r, b.x))
-      b.y = b.y + upwardSpeed * 2
-      if (b.y > height - b.r) {
-        b.y = b.r
-        b.x = width * (1 - Math.random() * 0.2)
-        b.vx = -3
-      }
-      b.r = Math.max(3, Math.min(12, b.r + 0.2 * (Math.random() - 0.5)))
-      const cy = height - b.y
-      if (path.arc) {
-        path.moveTo(b.x + b.r, cy)
-        path.arc(b.x, cy, b.r, 0, 2 * Math.PI)
-        path.closePath()
-      }
+
+  onDraw(port: PiuPort) {
+    port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
+    for (const bubble of this.#bubbles) {
+      const variant = clamp(Math.round((bubble.r - 3) / 3), 0, SPRITE_FRAME_COUNT - 1)
+      const cy = this.#height - bubble.y
+      drawSpriteCell(
+        port,
+        BUBBLE_ROW,
+        variant,
+        this.#primary,
+        bubble.x - SPRITE_CELL_SIZE / 2,
+        cy - SPRITE_CELL_SIZE / 2,
+      )
     }
-    shape.strokeOutline = outline.stroke(path, 2)
-    shape.fillOutline = undefined
-    shape.skin = new Skin({ fill: secondary, stroke: primary })
+  }
+
+  #advance() {
+    for (const bubble of this.#bubbles) {
+      const upwardSpeed = 1 - bubble.r / 12
+      bubble.vx = bubble.vx * 0.85 + 0.1 * (Math.random() - 0.5)
+      bubble.x += bubble.vx
+      bubble.x = clamp(bubble.x, bubble.r, this.#width - bubble.r)
+      bubble.y += upwardSpeed * 2
+      if (bubble.y > this.#height - bubble.r) {
+        bubble.y = bubble.r
+        bubble.x = this.#width * (1 - Math.random() * 0.2)
+        bubble.vx = -3
+      }
+      bubble.r = clamp(bubble.r + 0.2 * (Math.random() - 0.5), 3, 12)
+    }
   }
 }
 
-const Heart = defineShapeTemplate((opts: EmoticonOptions) => ({
+const Heart = Port.template((opts: EmoticonOptions) => ({
   left: opts.left ?? 12,
   right: opts.right,
   top: opts.top ?? 12,
   bottom: opts.bottom,
   width: opts.width ?? 40,
   height: opts.height ?? 40,
-  Behavior: class extends HeartBehavior {
-    onCreate(shape: WithSkin) {
-      super.onCreate(shape, opts)
+  Behavior: class extends SpritePulseBehavior {
+    onCreate(port: PiuPort) {
+      super.onCreate(port, opts, HEART_ROW)
     }
   },
 }))
 
-const Angry = defineShapeTemplate((opts: EmoticonOptions) => ({
+const Angry = Port.template((opts: EmoticonOptions) => ({
   left: opts.left ?? 12,
   right: opts.right,
   top: opts.top ?? 12,
   bottom: opts.bottom,
   width: opts.width ?? 40,
   height: opts.height ?? 40,
-  Behavior: class extends AngryBehavior {
-    onCreate(shape: WithSkin) {
-      super.onCreate(shape, opts)
+  Behavior: class extends SpritePulseBehavior {
+    onCreate(port: PiuPort) {
+      super.onCreate(port, opts, ANGRY_ROW)
     }
   },
 }))
 
-const Sweat = defineShapeTemplate((opts: EmoticonOptions) => ({
+const Sweat = Port.template((opts: EmoticonOptions) => ({
   left: opts.left ?? 8,
   right: opts.right,
   top: opts.top ?? 10,
   bottom: opts.bottom,
-  width: opts.width ?? 72,
-  height: opts.height ?? 100,
-  Behavior: class extends SweatBehavior {
-    onCreate(shape: WithSkin) {
-      super.onCreate(shape, opts)
+  width: opts.width ?? SWEAT_CONFIG.width,
+  height: opts.height ?? SWEAT_CONFIG.height,
+  Behavior: class extends DropBehavior {
+    onCreate(port: PiuPort) {
+      super.onCreate(port, opts, SWEAT_CONFIG)
     }
   },
 }))
 
-const Tear = defineShapeTemplate((opts: EmoticonOptions) => ({
+const Tear = Port.template((opts: EmoticonOptions) => ({
   left: opts.left ?? 60,
   right: opts.right,
   top: opts.top ?? 96,
   bottom: opts.bottom,
-  width: opts.width ?? 200,
-  height: opts.height ?? 60,
-  Behavior: class extends TearBehavior {
-    onCreate(shape: WithSkin) {
-      super.onCreate(shape, opts)
+  width: opts.width ?? TEAR_CONFIG.width,
+  height: opts.height ?? TEAR_CONFIG.height,
+  Behavior: class extends DropBehavior {
+    onCreate(port: PiuPort) {
+      super.onCreate(port, opts, TEAR_CONFIG)
     }
   },
 }))
 
-const Sleepy = Container.template((opts: EmoticonOptions) => ({
+const Sleepy = Port.template((opts: EmoticonOptions) => ({
   left: opts.left ?? 16,
   right: opts.right,
   top: opts.top ?? 8,
@@ -582,8 +497,8 @@ const Sleepy = Container.template((opts: EmoticonOptions) => ({
   width: opts.width ?? 48,
   height: opts.height ?? 64,
   Behavior: class extends SleepyBubbleBehavior {
-    onCreate(container: PiuContainer) {
-      super.onCreate(container, opts)
+    onCreate(port: PiuPort) {
+      super.onCreate(port, opts)
     }
   },
 }))

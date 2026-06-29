@@ -14,6 +14,28 @@ import {
   toPiuColorNumber,
 } from '../../host/modules/ui/state/face-state.js'
 
+function extractMethodBlocks(source: string, methodName: string): string[] {
+  const blocks: string[] = []
+  const pattern = new RegExp(`${methodName}\\([^)]*\\)\\s*\\{`, 'g')
+  let match: RegExpExecArray | null = pattern.exec(source)
+  while (match) {
+    const open = source.indexOf('{', match.index)
+    let depth = 0
+    for (let i = open; i < source.length; i++) {
+      const ch = source[i]
+      if (ch === '{') depth += 1
+      if (ch === '}') depth -= 1
+      if (depth === 0) {
+        blocks.push(source.slice(match.index, i + 1))
+        pattern.lastIndex = i + 1
+        break
+      }
+    }
+    match = pattern.exec(source)
+  }
+  return blocks
+}
+
 test('FaceState is DataView backed and uses numeric emotion and ColorRGB theme state', () => {
   const face = createFaceState()
 
@@ -48,6 +70,10 @@ test('UI manifests register the cdv FaceState view definition', () => {
       transform: 'cdv',
       json: true,
     })
+    assert.ok(
+      manifest.resources['*-alpha'].includes('../../../reference/moddable-avatar/assets/images/emoticon'),
+      `${manifestPath} should bundle the emoticon sprite atlas`,
+    )
   }
 })
 
@@ -58,4 +84,34 @@ test('FaceBehavior applies breathing without reassigning coordinates on every ti
   assert.ok(match, 'FaceBehavior.onTimeChanged should be present')
   assert.doesNotMatch(match[0], /container\.coordinates\s*=/)
   assert.match(match[0], /container\.moveBy\(0, dy\)/)
+})
+
+test('Emoticon effects render through Port and a texture atlas', () => {
+  const source = readFileSync('host/modules/ui/components/effects/emoticon.ts', 'utf8')
+
+  assert.match(source, /\bPort\.template\(/)
+  assert.match(source, /new Texture\('emoticon\.png'\)/)
+  assert.doesNotMatch(source, /from 'commodetto\/outline'/)
+  assert.doesNotMatch(source, /\bnew Shape\b/)
+  assert.doesNotMatch(source, /\bnew Skin\b/)
+  assert.doesNotMatch(source, /\bnew Style\b/)
+})
+
+test('UI animation hot paths do not allocate Piu skins/styles or update text each tick', () => {
+  const hotPathFiles = [
+    'host/modules/ui/components/status-bar/chat-status-bar.ts',
+    'host/modules/ui/components/effects/emoticon.ts',
+    'host/modules/ui/components/face/behaviors/face.ts',
+    'host/modules/ui/components/drawer/drawer.ts',
+  ]
+
+  for (const file of hotPathFiles) {
+    const source = readFileSync(file, 'utf8')
+    const blocks = extractMethodBlocks(source, 'onTimeChanged')
+    assert.ok(blocks.length > 0, `${file} should have an onTimeChanged hot path`)
+    for (const block of blocks) {
+      assert.doesNotMatch(block, /\bnew\s+(Skin|Style)\b/, `${file} should not allocate Skin/Style in onTimeChanged`)
+      assert.doesNotMatch(block, /\.string\s*=/, `${file} should not update text in onTimeChanged`)
+    }
+  }
 })

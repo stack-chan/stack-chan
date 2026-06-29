@@ -182,8 +182,8 @@ flowchart TD
 - [x] 対応済み：再設計後の本線では、旧 `Renderer` 契約を正規 API として扱わない。
 - [x] 対応済み：後方互換用の adapter、deprecated API、旧 import alias を残さない方針に固定する。
 - [x] 対応済み：UI は Piu `Application`、`Behavior`、`Template`、`Port`、`Skin`、`Texture` を直接使う方針に固定する。
-- [ ] 未対応：移行後の merge 条件として、互換層と旧名の残存を検索で検出する手順を CI またはレビュー手順へ入れる。
-- [ ] 未対応：検索対象は `RendererCompat`、`renderer-`、`useRenderer`、`addDecorator`、`removeDecorator`、`robot.renderer`、`renderer.type`、`renderers-piu`、`firmware/tests` とする。
+- [x] 対応済み：移行後の merge 条件として、互換層と旧名の残存を `npm run check:legacy-names` で検出する手順を PR テンプレートへ入れる。
+- [x] 対応済み：検索対象は `RendererCompat`、`renderer-`、`useRenderer`、`addDecorator`、`removeDecorator`、`robot.renderer`、`renderer.type`、`renderers-piu`、`firmware/tests` とする。
 
 ### 1. UI 層の移行
 

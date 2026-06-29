@@ -11,6 +11,7 @@
 - [ ] `cd firmware && npm run format`
 - [ ] `cd firmware && npm run lint`
 - [ ] `cd firmware && npm run test`
+- [ ] `cd firmware && npm run check:legacy-names`
 - [ ] Other checks were run when relevant
 
 ## Affected Areas

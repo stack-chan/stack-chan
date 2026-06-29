@@ -97,6 +97,23 @@ test('Emoticon effects render through Port and a texture atlas', () => {
   assert.doesNotMatch(source, /\bnew Style\b/)
 })
 
+test('Standard face eye and mouth render updates through Port hot paths', () => {
+  const eye = readFileSync('host/modules/ui/components/face/parts/eye.ts', 'utf8')
+  const mouth = readFileSync('host/modules/ui/components/face/parts/mouth.ts', 'utf8')
+
+  assert.match(eye, /\bPort\.template\(/)
+  assert.match(eye, /\.drawSkin\(/)
+  assert.doesNotMatch(eye, /from 'commodetto\/outline'/)
+  assert.doesNotMatch(eye, /\bdefineShapeTemplate\b/)
+  assert.doesNotMatch(eye, /\bnew Shape\b/)
+  assert.doesNotMatch(eye, /coordinates\s*=/)
+
+  assert.match(mouth, /\bPort\.template\(/)
+  assert.match(mouth, /\.fillColor\(/)
+  assert.doesNotMatch(mouth, /\bnew Skin\b/)
+  assert.doesNotMatch(mouth, /coordinates\s*=/)
+})
+
 test('UI animation hot paths do not allocate Piu skins/styles or update text each tick', () => {
   const hotPathFiles = [
     'host/modules/ui/components/status-bar/chat-status-bar.ts',

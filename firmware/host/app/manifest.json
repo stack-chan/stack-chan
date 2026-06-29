@@ -33,7 +33,6 @@
       "./runtime-context",
       "./runtime-input",
       "./runtime-lighting",
-      "./runtime-motion",
       "./runtime-ui",
       "$(MODULES)/network/http/*"
     ],

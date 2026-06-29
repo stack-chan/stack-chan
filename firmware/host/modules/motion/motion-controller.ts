@@ -1,10 +1,17 @@
-import type { Driver } from 'capabilities'
-import { type Pose, Rotation, randomBetween, Vector3 } from 'stackchan-util'
+import { type Maybe, type Pose, Rotation, type Rotation as RotationType, randomBetween, Vector3 } from 'stackchan-util'
 import Timer from 'timer'
 
 const INTERVAL_POSE = 1000 / 10
 
-type RuntimeMotionPose = {
+export type MotionDriver = {
+  applyRotation: (ori: RotationType, time?: number) => Promise<void>
+  getRotation: () => Promise<Maybe<RotationType>>
+  setTorque: (torque: boolean) => Promise<void>
+  onAttached?: () => void
+  onDetached?: () => void
+}
+
+export type MotionControllerPose = {
   body: Pose
   eyes: {
     left: Pose
@@ -12,16 +19,16 @@ type RuntimeMotionPose = {
   }
 }
 
-export type RuntimeMotionConstructorParam = {
-  driver: Driver
-  pose?: RuntimeMotionPose
+export type MotionControllerConstructorParam = {
+  driver: MotionDriver
+  pose?: MotionControllerPose
 }
 
-type RuntimeMotionOptions = {
+type MotionControllerOptions = {
   isPaused: () => boolean
 }
 
-function createDefaultPose(): RuntimeMotionPose {
+function createDefaultPose(): MotionControllerPose {
   return {
     body: {
       position: {
@@ -64,16 +71,16 @@ function createDefaultPose(): RuntimeMotionPose {
   }
 }
 
-export class StackchanRuntimeMotion {
-  #driver: Driver
+export class MotionController {
+  #driver: MotionDriver
   #gazePoint: Vector3 | null = null
   #isMoving = false
-  #options: RuntimeMotionOptions
-  #pose: RuntimeMotionPose
+  #options: MotionControllerOptions
+  #pose: MotionControllerPose
   #updatePoseHandler: Timer
   updating = false
 
-  constructor(params: RuntimeMotionConstructorParam, options: RuntimeMotionOptions) {
+  constructor(params: MotionControllerConstructorParam, options: MotionControllerOptions) {
     this.#options = options
     this.#pose = params.pose ?? createDefaultPose()
     this.useDriver(params.driver)
@@ -81,7 +88,7 @@ export class StackchanRuntimeMotion {
     void this.#updatePoseHandler
   }
 
-  get driver(): Driver {
+  get driver(): MotionDriver {
     return this.#driver
   }
 
@@ -93,7 +100,7 @@ export class StackchanRuntimeMotion {
     return this.#pose
   }
 
-  useDriver(driver: Driver) {
+  useDriver(driver: MotionDriver) {
     if (this.#driver != null) {
       this.#driver.onDetached?.()
     }

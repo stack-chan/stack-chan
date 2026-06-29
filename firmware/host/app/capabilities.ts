@@ -3,18 +3,13 @@ import type { RobotCamera } from 'camera'
 import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
 import type IMU from 'imu'
 import type Led from 'led'
+import type { MotionControllerPose, MotionDriver } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
-import type { Maybe, Pose, Rotation, Vector3 } from 'stackchan-util'
+import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
 
-export type Driver = {
-  applyRotation: (ori: Rotation, time?: number) => Promise<void>
-  getRotation: () => Promise<Maybe<Rotation>>
-  setTorque: (torque: boolean) => Promise<void>
-  onAttached?: () => void
-  onDetached?: () => void
-}
+export type Driver = MotionDriver
 
 export type TTS = {
   stream: (text: string, volume?: number) => Promise<void>
@@ -58,13 +53,7 @@ export type FaceCapability = {
 }
 
 export type MotionCapability = {
-  pose: {
-    body: Pose
-    eyes: {
-      left: Pose
-      right: Pose
-    }
-  }
+  pose: MotionControllerPose
   driver: Driver
   lookAt(position: Vector3): void
   lookAway(): void

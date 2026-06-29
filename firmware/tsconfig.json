@@ -29,6 +29,9 @@
       "capabilities": [
         "./host/app/capabilities"
       ],
+      "motion-controller": [
+        "./host/modules/motion/motion-controller"
+      ],
       "runtime-context": [
         "./host/app/runtime-context"
       ],

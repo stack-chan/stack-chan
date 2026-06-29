@@ -4,6 +4,7 @@
     "../../app/manifest_typings.json"
   ],
   "modules": {
+    "motion-controller": "./motion-controller",
     "wasm-driver": "./wasm/wasm-driver",
     "dynamixel-driver": "./wasm/dynamixel-driver",
     "m5stackchan-servo-driver": "./wasm/m5stackchan-servo-driver",

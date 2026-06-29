@@ -1,10 +1,10 @@
 import type { RobotUI, StackchanContext } from 'capabilities'
 import type { Emotion, FaceThemeKey } from 'face-state'
+import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
 import { type RuntimeLightingConstructorParam, StackchanRuntimeLighting } from 'runtime-lighting'
-import { type RuntimeMotionConstructorParam, StackchanRuntimeMotion } from 'runtime-motion'
 import { StackchanRuntimeUI } from 'runtime-ui'
 import { generateDeviceSeed, type Maybe, type Pose, type Vector3 } from 'stackchan-util'
 import Timer from 'timer'
@@ -15,7 +15,7 @@ type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
   RuntimeCameraConstructorParam &
   RuntimeInputConstructorParam &
   RuntimeLightingConstructorParam &
-  RuntimeMotionConstructorParam & {
+  MotionControllerConstructorParam & {
     ui: RobotUI
   }
 
@@ -27,7 +27,7 @@ export class StackchanRuntimeContext {
   #cameraRuntime: StackchanRuntimeCamera
   #inputRuntime: StackchanRuntimeInput
   #lightingRuntime: StackchanRuntimeLighting
-  #motionRuntime: StackchanRuntimeMotion
+  #motionController: MotionController
   #paused: boolean
   #uiRuntime: StackchanRuntimeUI
   #updateFaceHandler: Timer
@@ -36,13 +36,13 @@ export class StackchanRuntimeContext {
   constructor(params: RuntimeContextConstructorParam) {
     this.seed = generateDeviceSeed()
     this.#paused = false
-    this.#motionRuntime = new StackchanRuntimeMotion(params, {
+    this.#motionController = new MotionController(params, {
       isPaused: () => this.#paused,
     })
     this.#uiRuntime = new StackchanRuntimeUI(params.ui, {
       getContext: () => this as unknown as StackchanContext,
-      getPose: () => this.#motionRuntime.pose,
-      getGazePoint: () => this.#motionRuntime.gazePoint,
+      getPose: () => this.#motionController.pose,
+      getGazePoint: () => this.#motionController.gazePoint,
       isPaused: () => this.#paused,
     })
     this.#audioRuntime = new StackchanRuntimeAudio(params, {
@@ -78,8 +78,8 @@ export class StackchanRuntimeContext {
    *
    * @param driver - Driver class instance
    */
-  useDriver(driver: RuntimeMotionConstructorParam['driver']) {
-    this.#motionRuntime.useDriver(driver)
+  useDriver(driver: MotionControllerConstructorParam['driver']) {
+    this.#motionController.useDriver(driver)
   }
 
   /**
@@ -124,7 +124,7 @@ export class StackchanRuntimeContext {
    * @returns pose instances
    */
   get pose() {
-    return this.#motionRuntime.pose
+    return this.#motionController.pose
   }
 
   /**
@@ -192,7 +192,7 @@ export class StackchanRuntimeContext {
    * @param position - the position of the point to look at
    */
   lookAt(position: Vector3) {
-    this.#motionRuntime.lookAt(position)
+    this.#motionController.lookAt(position)
   }
 
   /**
@@ -229,7 +229,7 @@ export class StackchanRuntimeContext {
    * Unregister the focus point.
    */
   lookAway() {
-    this.#motionRuntime.lookAway()
+    this.#motionController.lookAway()
   }
 
   /**
@@ -239,7 +239,7 @@ export class StackchanRuntimeContext {
    * @experimental
    */
   async setPose(pose: Pose, time?: number): Promise<void> {
-    return this.#motionRuntime.setPose(pose, time)
+    return this.#motionController.setPose(pose, time)
   }
 
   /**
@@ -248,7 +248,7 @@ export class StackchanRuntimeContext {
    * @returns void when the robot completes setting the torque
    */
   async setTorque(torque: boolean): Promise<void> {
-    return this.#motionRuntime.setTorque(torque)
+    return this.#motionController.setTorque(torque)
   }
 
   /**
@@ -278,7 +278,7 @@ export class StackchanRuntimeContext {
   }
 
   get driver() {
-    return this.#motionRuntime.driver
+    return this.#motionController.driver
   }
 
   get tts() {
@@ -316,7 +316,7 @@ export class StackchanRuntimeContext {
    * and trigger move if necessary to see the gaze point.
    */
   async updatePose(_id?: unknown) {
-    return this.#motionRuntime.updatePose(_id)
+    return this.#motionController.updatePose(_id)
   }
 
   /**

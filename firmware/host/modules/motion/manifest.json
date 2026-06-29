@@ -11,6 +11,7 @@
     "protocols/*": "./protocols/*"
   },
   "preload": [
+    "motion-controller",
     "protocols/dynamixel",
     "dynamixel-driver",
     "m5stackchan-servo",

@@ -329,9 +329,10 @@ flowchart TD
 ### 9. Input、Lighting、Camera、Preferences、Util の移行
 
 - [x] 対応済み：`firmware/stackchan/touch*` と `firmware/stackchan/imu*` を `firmware/host/modules/input` へ移す。
-- [ ] 未対応：button、touch、touch panel、IMU の入力を短い event struct へ正規化する。
-- [ ] 未対応：入力イベントを Piu や MOD へ raw object のまま渡さない。
-- [ ] 未対応：入力の polling で `Timer.repeat(async () => ...)` を使わない。
+- [x] 対応済み：touch、touch panel、IMU の入力 callback を短い `InputEvent` へ正規化する。
+- [ ] 未対応：button の公開 API を `read()` 付き raw object ではなく `ButtonInputEvent` へ置き換える。
+- [ ] 未対応：MOD 境界に公開される `button.read()`、`touchPanel.sample()`、`imu.sample()` を event callback API へ置き換える。
+- [x] 対応済み：入力の polling で `Timer.repeat(async () => ...)` を使わない。
 - [x] 対応済み：`firmware/stackchan/led` を `firmware/host/modules/lighting` へ移す。
 - [x] 対応済み：py32 差分を lighting module の platform manifest または module 内部差分として扱う。
 - [x] 対応済み：`firmware/stackchan/camera.ts` を `firmware/host/modules/camera` へ移す。

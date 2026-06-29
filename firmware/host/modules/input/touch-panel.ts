@@ -1,3 +1,4 @@
+import { createTouchPanelInputEvent, type TouchPanelInputEvent } from 'input-event'
 import Time from 'time'
 import Timer from 'timer'
 import {
@@ -29,8 +30,7 @@ export default class TouchPanel {
   #recognizer: GestureRecognizer
   #interval: number
   #lastSample: TouchPanelSample = []
-  onSample: (sample: TouchPanelSample, ticks: number) => void
-  onGesture: (gesture: TouchPanelGesture) => void
+  onEvent: (event: TouchPanelInputEvent) => void
 
   constructor(TouchPanelConstructor: TouchPanelConstructor, options: TouchPanelOptions = {}) {
     this.#recognizer = new GestureRecognizer(options)
@@ -64,11 +64,12 @@ export default class TouchPanel {
     this.#timer = Timer.repeat(() => {
       const ticks = Time.ticks
       const sample = this.sample()
-      this.onSample?.(sample, ticks)
 
-      // Gesture recognition is derived from the same raw Si12T sample exposed to mods.
       const gesture = this.#recognizer.update(sample, ticks)
-      if (gesture) this.onGesture?.(gesture)
+      if (gesture) {
+        const intensity = Math.max(sample[0] ?? 0, sample[1] ?? 0, sample[2] ?? 0)
+        this.onEvent?.(createTouchPanelInputEvent(gesture.type, this.#recognizer.getPosition(sample), intensity, ticks))
+      }
     }, this.#interval)
   }
 

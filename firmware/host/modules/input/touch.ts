@@ -1,3 +1,4 @@
+import { createTouchInputEvent, type TouchInputEvent } from 'input-event'
 import config from 'mc/config'
 import Time from 'time'
 import Timer from 'timer'
@@ -5,9 +6,7 @@ import Timer from 'timer'
 export default class Touch {
   // biome-ignore lint/suspicious/noExplicitAny: touch driver of device don't have type
   #touch: any
-  onTouchBegan: (x: number, y: number, ticks: number) => void
-  onTouchMoved: (x: number, y: number, ticks: number) => void
-  onTouchEnded: (x: number, y: number, ticks: number) => void
+  onEvent: (event: TouchInputEvent) => void
 
   // biome-ignore lint/suspicious/noExplicitAny: touch driver of device don't have type
   constructor(TouchConstructor: new (param: unknown) => any) {
@@ -29,10 +28,10 @@ export default class Touch {
         if (last) {
           last.x = point.x
           last.y = point.y
-          this.onTouchMoved?.(point.x, point.y, Time.ticks)
+          this.onEvent?.(createTouchInputEvent('moved', id, point.x, point.y, Time.ticks))
         } else {
           touch.points[id] = { x: point.x, y: point.y }
-          this.onTouchBegan?.(point.x, point.y, Time.ticks)
+          this.onEvent?.(createTouchInputEvent('began', id, point.x, point.y, Time.ticks))
         }
       }
 
@@ -41,7 +40,7 @@ export default class Touch {
           const last = touch.points[i]
           if (last) {
             touch.points[i] = undefined
-            this.onTouchEnded?.(last.x, last.y, Time.ticks)
+            this.onEvent?.(createTouchInputEvent('ended', i, last.x, last.y, Time.ticks))
           }
         }
       }
@@ -75,7 +74,7 @@ export default class Touch {
           case 3:
             if (point.down) {
               point.down = undefined
-              this.onTouchEnded?.(point.x, point.y, Time.ticks)
+              this.onEvent?.(createTouchInputEvent('ended', 0, point.x, point.y, Time.ticks))
               point.x = undefined
               point.y = undefined
             }
@@ -84,8 +83,8 @@ export default class Touch {
           case 2:
             if (!point.down) {
               point.down = true
-              this.onTouchBegan?.(point.x, point.y, Time.ticks)
-            } else this.onTouchMoved?.(point.x, point.y, Time.ticks)
+              this.onEvent?.(createTouchInputEvent('began', 0, point.x, point.y, Time.ticks))
+            } else this.onEvent?.(createTouchInputEvent('moved', 0, point.x, point.y, Time.ticks))
             break
         }
       }, interval)

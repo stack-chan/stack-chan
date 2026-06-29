@@ -384,7 +384,8 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       shake: Emotion.HOT,
     }
     robot.imu.start()
-    robot.imu.onMotionDetect = (type) => {
+    robot.imu.onEvent = (event) => {
+      const type = event.motion
       trace(`[IMU] motion detected: ${type}\n`)
       if (motionDetectPreviousEmotion === undefined) motionDetectPreviousEmotion = currentEmotion
       if (motionDetectRestoreTimer) Timer.clear(motionDetectRestoreTimer)
@@ -435,17 +436,18 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   if (robot.touchPanel != null) {
     let lastForwardSwipeTicks: number | undefined
     let lastBackwardSwipeTicks: number | undefined
-    robot.touchPanel.onGesture = (gesture) => {
-      trace(`[TouchPanel] gesture: ${gesture.type}\n`)
-      if (gesture.type !== 'forwardSwipe' && gesture.type !== 'backwardSwipe') return
+    robot.touchPanel.onEvent = (event) => {
+      const type = event.gesture
+      trace(`[TouchPanel] gesture: ${type}\n`)
+      if (type !== 'forwardSwipe' && type !== 'backwardSwipe') return
 
-      if (gesture.type === 'forwardSwipe') lastForwardSwipeTicks = gesture.ticks
-      else lastBackwardSwipeTicks = gesture.ticks
+      if (type === 'forwardSwipe') lastForwardSwipeTicks = event.ticks
+      else lastBackwardSwipeTicks = event.ticks
 
       const hasRecentForwardSwipe =
-        lastForwardSwipeTicks !== undefined && gesture.ticks - lastForwardSwipeTicks <= TOUCH_PANEL_PETTING_WINDOW_MS
+        lastForwardSwipeTicks !== undefined && event.ticks - lastForwardSwipeTicks <= TOUCH_PANEL_PETTING_WINDOW_MS
       const hasRecentBackwardSwipe =
-        lastBackwardSwipeTicks !== undefined && gesture.ticks - lastBackwardSwipeTicks <= TOUCH_PANEL_PETTING_WINDOW_MS
+        lastBackwardSwipeTicks !== undefined && event.ticks - lastBackwardSwipeTicks <= TOUCH_PANEL_PETTING_WINDOW_MS
       if (hasRecentForwardSwipe && hasRecentBackwardSwipe) {
         trace('[TouchPanel] petting detected: set emotion HAPPY with heart effect\n')
         if (pettingPreviousEmotion === undefined) pettingPreviousEmotion = currentEmotion

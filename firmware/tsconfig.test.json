@@ -37,6 +37,12 @@
       "motion-controller": [
         "host/modules/motion/motion-controller.ts"
       ],
+      "imu-motion": [
+        "host/modules/input/imu-motion.ts"
+      ],
+      "touch-panel-gesture": [
+        "host/modules/input/touch-panel-gesture.ts"
+      ],
       "timer": [
         "host/modules/testing/fakes/timer.ts"
       ],

@@ -8,6 +8,7 @@
     "touch": "./touch",
     "touch-panel": "./touch-panel",
     "touch-panel-gesture": "./touch-panel-gesture",
+    "input-event": "./input-event",
     "imu": "./imu",
     "imu-motion": "./imu-motion"
   },

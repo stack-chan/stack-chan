@@ -5,6 +5,7 @@ import {
   type MotionRecognizerOptions,
   type MotionType,
 } from 'imu-motion'
+import { createIMUInputEvent, type IMUInputEvent } from 'input-event'
 import Time from 'time'
 import Timer from 'timer'
 
@@ -26,8 +27,7 @@ export default class IMU {
   #recognizer: MotionRecognizer
   #interval: number
   #lastSample: IMUSample = {}
-  onSample: (sample: IMUSample, ticks: number) => void
-  onMotionDetect: (type: MotionType) => void
+  onEvent: (event: IMUInputEvent) => void
 
   constructor(IMUConstructor: IMUConstructor, options: IMUOptions = {}) {
     this.#recognizer = new MotionRecognizer(options)
@@ -46,9 +46,8 @@ export default class IMU {
     this.#timer = Timer.repeat(() => {
       const ticks = Time.ticks
       const sample = this.sample()
-      this.onSample?.(sample, ticks)
       const motion = this.#recognizer.update(sample, ticks)
-      if (motion) this.onMotionDetect?.(motion.type)
+      if (motion) this.onEvent?.(createIMUInputEvent(motion.type, ticks))
     }, this.#interval)
   }
 

@@ -3,9 +3,11 @@ import test from 'node:test'
 
 import SingleWaitSlot from '../internal/single-wait-slot.js'
 
-test('SingleWaitSlot releases the slot after timeout', async () => {
+test('SingleWaitSlot releases the slot after timeout', () => {
   let scheduled: (() => void) | null = null
+  let timedOut = false
   const handles: unknown[] = []
+  let result: number[] | undefined | 'unset' = 'unset'
   const slot = new SingleWaitSlot<number[]>(
     (handler) => {
       scheduled = handler
@@ -18,21 +20,30 @@ test('SingleWaitSlot releases the slot after timeout', async () => {
     },
   )
 
-  const promise = slot.wait(10)
+  slot.wait(
+    10,
+    (value) => {
+      result = value
+    },
+    () => {
+      timedOut = true
+    },
+  )
   assert.equal(slot.isWaiting, true)
   assert.ok(scheduled, 'timer handler should be scheduled')
   scheduled?.()
 
-  const result = await promise
   assert.equal(result, undefined)
+  assert.equal(timedOut, true)
   assert.equal(slot.isWaiting, false)
   assert.equal(handles.length, 1)
   assert.equal(typeof handles[0], 'symbol')
 })
 
-test('SingleWaitSlot clears timer when resolving explicitly', async () => {
+test('SingleWaitSlot clears timer when resolving explicitly', () => {
   let scheduled: (() => void) | null = null
   let clearedHandle: unknown = null
+  let result: number[] | undefined
   const timerHandle = Symbol('timer')
   const slot = new SingleWaitSlot<number[]>(
     (handler) => {
@@ -44,13 +55,14 @@ test('SingleWaitSlot clears timer when resolving explicitly', async () => {
     },
   )
 
-  const promise = slot.wait(10)
+  slot.wait(10, (value) => {
+    result = value
+  })
   assert.equal(slot.isWaiting, true)
   assert.ok(scheduled, 'timer handler should be scheduled')
 
   slot.resolve([1, 2, 3])
 
-  const result = await promise
   assert.deepEqual(result, [1, 2, 3])
   assert.equal(slot.isWaiting, false)
   assert.equal(clearedHandle, timerHandle)
@@ -58,4 +70,15 @@ test('SingleWaitSlot clears timer when resolving explicitly', async () => {
   // resolving again should be ignored
   slot.resolve([4, 5, 6])
   assert.equal(slot.isWaiting, false)
+})
+
+test('SingleWaitSlot rejects overlapping waits without queuing them', () => {
+  const slot = new SingleWaitSlot<number[]>(
+    () => Symbol('timer'),
+    () => {},
+  )
+
+  slot.wait(10, () => {})
+
+  assert.throws(() => slot.wait(10, () => {}), /already in use/)
 })

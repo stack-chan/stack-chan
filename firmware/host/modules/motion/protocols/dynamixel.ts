@@ -210,6 +210,7 @@ type DynamixelConstructorParam = {
   id: number
   baudrate?: number
 }
+type CommandCallback = (values: Uint8Array | undefined) => void
 
 class Dynamixel {
   static packetHandler: PacketHandler
@@ -228,11 +229,9 @@ class Dynamixel {
   #onCommandRead: (buffer: Uint8Array, length: number) => void
   #txBuf: Uint8Array
   #waitSlot: SingleWaitSlot<Uint8Array>
-  #queueTail: Promise<void>
   constructor({ id, baudrate = 1_000_000 }: DynamixelConstructorParam) {
     this.#id = id
     this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
-    this.#queueTail = Promise.resolve()
     this.#onCommandRead = (values, _length) => {
       this.#waitSlot.resolve(values)
     }
@@ -257,11 +256,15 @@ class Dynamixel {
     return this.#id
   }
 
-  async #dispatchCommand(
+  #dispatchCommand(
     instruction: Instruction,
     address?: Address,
+    onResult: CommandCallback = () => {},
     ...parameters: number[]
-  ): Promise<Uint8Array | undefined> {
+  ): void {
+    if (this.#waitSlot.isWaiting) {
+      throw new Error('command is already waiting for response')
+    }
     this.#txBuf[0] = 0xff
     this.#txBuf[1] = 0xff
     this.#txBuf[2] = 0xfd
@@ -307,7 +310,7 @@ class Dynamixel {
     } finally {
       packetHandler.format = originalFormat
     }
-    return this.#waitSlot.wait(200, () => {
+    this.#waitSlot.wait(200, onResult, () => {
       trace('timeout.\n')
     })
   }
@@ -317,12 +320,13 @@ class Dynamixel {
     address?: Address,
     ...parameters: number[]
   ): Promise<Uint8Array | undefined> {
-    const run = this.#queueTail.then(() => this.#dispatchCommand(instruction, address, ...parameters))
-    this.#queueTail = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+    return new Promise((resolve, reject) => {
+      try {
+        this.#dispatchCommand(instruction, address, resolve, ...parameters)
+      } catch (error) {
+        reject(error)
+      }
+    })
   }
 
   /**

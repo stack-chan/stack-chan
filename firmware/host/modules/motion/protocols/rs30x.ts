@@ -179,6 +179,7 @@ class PacketHandler extends Serial {
 type RS30XConstructorParam = {
   id: number
 }
+type CommandCallback = (values: Uint8Array | undefined) => void
 
 let packetHandler: PacketHandler = null
 class RS30X {
@@ -186,11 +187,9 @@ class RS30X {
   #onCommandRead: (buffer: Uint8Array, length: number) => void
   #txBuf: Uint8Array
   #waitSlot: SingleWaitSlot<Uint8Array>
-  #queueTail: Promise<void>
   constructor({ id }: RS30XConstructorParam) {
     this.#id = id
     this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
-    this.#queueTail = Promise.resolve()
     this.#onCommandRead = (values, _length) => {
       this.#waitSlot.resolve(values)
     }
@@ -219,7 +218,10 @@ class RS30X {
     return this.#id
   }
 
-  async #dispatchCommand(...values: number[]): Promise<Uint8Array | undefined> {
+  #dispatchCommand(onResult: CommandCallback, ...values: number[]): void {
+    if (this.#waitSlot.isWaiting) {
+      throw new Error('command is already waiting for response')
+    }
     this.#txBuf[0] = 0xfa
     this.#txBuf[1] = 0xaf
     this.#txBuf[2] = this.#id
@@ -243,18 +245,19 @@ class RS30X {
     } finally {
       packetHandler.format = originalFormat
     }
-    return this.#waitSlot.wait(100, () => {
+    this.#waitSlot.wait(100, onResult, () => {
       trace('timeout.\n')
     })
   }
 
   async #sendCommand(...values: number[]): Promise<Uint8Array | undefined> {
-    const run = this.#queueTail.then(() => this.#dispatchCommand(...values))
-    this.#queueTail = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+    return new Promise((resolve, reject) => {
+      try {
+        this.#dispatchCommand(resolve, ...values)
+      } catch (error) {
+        reject(error)
+      }
+    })
   }
 
   async setMaxTorque(maxTorque: number): Promise<void> {

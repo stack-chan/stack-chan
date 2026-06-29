@@ -175,6 +175,8 @@ type SCServoConstructorParam = {
     port: number
   }>
 }
+type CommandCallback = (values: Uint8Array | undefined) => void
+type ErrorCallback = (error: unknown) => void
 
 let packetHandler: PacketHandler = null
 let packetHandlerSerialKey: string | null = null
@@ -183,13 +185,12 @@ class SCServo {
   #onCommandRead: (buffer: Uint8Array, length: number) => void
   #txBuf: Uint8Array
   #waitSlot: SingleWaitSlot<Uint8Array>
-  #queueTail: Promise<void>
   #offset: number
   #awaitWriteResponse: boolean
+  #isWriting = false
   constructor({ id, awaitWriteResponse = true, serial: serialOverride }: SCServoConstructorParam) {
     this.#id = id
     this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
-    this.#queueTail = Promise.resolve()
     this.#offset = 0
     this.#awaitWriteResponse = awaitWriteResponse
     this.#onCommandRead = (values, _length) => {
@@ -228,7 +229,18 @@ class SCServo {
     return this.#id
   }
 
-  async #dispatchCommand(command: Command, address: Address, ...values: number[]): Promise<Uint8Array | undefined> {
+  #dispatchCommand(
+    command: Command,
+    address: Address,
+    onResult: CommandCallback,
+    onError: ErrorCallback,
+    ...values: number[]
+  ): void {
+    const waitsForResponse = command === COMMAND.READ || this.#awaitWriteResponse
+    if (this.#isWriting || (waitsForResponse && this.#waitSlot.isWaiting)) {
+      throw new Error('command is already waiting for response')
+    }
+    this.#isWriting = true
     this.#txBuf[0] = 0xff
     this.#txBuf[1] = 0xff
     this.#txBuf[2] = this.#id
@@ -243,40 +255,59 @@ class SCServo {
     this.#txBuf[idx] = checksum(this.#txBuf, idx)
     idx++
     // trace(`writing: ${this.#txBuf.subarray(0, idx)}\n`)
-    await this.#writePacket(idx)
-    if (command !== COMMAND.READ && !this.#awaitWriteResponse) {
-      return
-    }
-    return this.#waitSlot.wait(40, () => {
-      trace('timeout.\n')
-    })
+    this.#writePacket(
+      idx,
+      () => {
+        this.#isWriting = false
+        if (!waitsForResponse) {
+          onResult(undefined)
+          return
+        }
+        this.#waitSlot.wait(40, onResult, () => {
+          trace('timeout.\n')
+        })
+      },
+      (error) => {
+        this.#isWriting = false
+        onError(error)
+      },
+    )
   }
 
-  async #writePacket(length: number): Promise<void> {
-    for (let attempt = 0; ; attempt++) {
-      const originalFormat = packetHandler.format
-      packetHandler.format = 'buffer'
-      try {
-        packetHandler.write(this.#txBuf.subarray(0, length))
-        return
-      } catch (error) {
-        if (attempt >= 1) {
-          throw error
-        }
-        await new Promise<void>((resolve) => Timer.set(() => resolve(), 1))
-      } finally {
-        packetHandler.format = originalFormat
+  #writePacket(length: number, onWritten: () => void, onError: ErrorCallback, attempt = 0): void {
+    const originalFormat = packetHandler.format
+    let written = false
+    packetHandler.format = 'buffer'
+    try {
+      packetHandler.write(this.#txBuf.subarray(0, length))
+      written = true
+    } catch (error) {
+      if (attempt >= 1) {
+        onError(error)
+      } else {
+        Timer.set(() => this.#writePacket(length, onWritten, onError, attempt + 1), 1)
       }
+    } finally {
+      packetHandler.format = originalFormat
+    }
+    if (!written) {
+      return
+    }
+    try {
+      onWritten()
+    } catch (error) {
+      onError(error)
     }
   }
 
   async #sendCommand(command: Command, address: Address, ...values: number[]): Promise<Uint8Array | undefined> {
-    const run = this.#queueTail.then(() => this.#dispatchCommand(command, address, ...values))
-    this.#queueTail = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+    return new Promise((resolve, reject) => {
+      try {
+        this.#dispatchCommand(command, address, resolve, reject, ...values)
+      } catch (error) {
+        reject(error)
+      }
+    })
   }
 
   async #lock(): Promise<unknown> {

@@ -282,8 +282,8 @@ flowchart TD
 - [x] 対応済み：`firmware/stackchan/drivers` を `firmware/host/modules/motion` へ移す。
 - [x] 対応済み：`scservo`、`rs30x`、`dynamixel` を `modules/motion/protocols` へ分ける。
 - [x] 対応済み：首の pan、tilt、torque、追従制御を `modules/motion` の controller 層に置く。
-- [ ] 未対応：低レイヤの送受信待ちから `Promise` queue を取り除く。
-- [ ] 未対応：低レイヤの送受信待ちは callback、待ち slot、timeout state で表す。
+- [x] 対応済み：低レイヤの送受信待ちから `Promise` queue を取り除く。
+- [x] 対応済み：低レイヤの送受信待ちは callback、待ち slot、timeout state で表す。
 - [ ] 未対応：上位 API が待ち合わせを必要とする場合だけ、app 境界で callback を `Promise` に変換する。
 - [ ] 未対応：fake servo transport を追加し、lin で motion controller の状態遷移を検証する。
 

@@ -2,7 +2,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
-import { getImageAvatarPack, IMAGE_AVATAR_PACKS } from '../../stackchan/ui/components/face/parts/image/image-avatar-pack.js'
+import {
+  getImageAvatarPack,
+  IMAGE_AVATAR_PACKS,
+} from '../../stackchan/ui/components/face/parts/image/image-avatar-pack.js'
 import {
   frameIndexForRatio,
   resolveExpressionName,
@@ -53,7 +56,7 @@ test('image avatar state helpers clamp ratios and map emotions to expressions', 
   assert.equal(resolveExpressionName(pack, 'DOUBTFUL'), 'normal')
 })
 
-test('renderer manifests keep bundled demo masks but leave ImageAvatarLite sprites to the sample MOD', () => {
+test('UI manifests keep bundled demo masks but leave ImageAvatarLite sprites to the sample MOD', () => {
   const demoExpected = [
     'stackchan-demo-head-normal',
     'stackchan-demo-eye-left-normal',
@@ -63,10 +66,7 @@ test('renderer manifests keep bundled demo masks but leave ImageAvatarLite sprit
     'stackchan-demo-hand-right-normal',
   ].map((name) => `../assets/images/faces/image-avatar/stackchan-demo/${name}`)
 
-  for (const manifestPath of [
-    'stackchan/ui/manifest.json',
-    'stackchan/ui/manifest_wasm.json',
-  ]) {
+  for (const manifestPath of ['stackchan/ui/manifest.json', 'stackchan/ui/manifest_wasm.json']) {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
     const alphaResources = manifest.resources['*-alpha'] as string[]
     const colorResources = (manifest.resources['*-color'] ?? []) as string[]

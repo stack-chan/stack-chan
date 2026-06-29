@@ -31,7 +31,7 @@ $ npm run generate-apidoc
 ｽﾀｯｸﾁｬﾝの機能にアクセスするには`Robot`クラスを使います。
 ｽﾀｯｸﾁｬﾝの機能の差し替えやカスタマイズができるように、次のクラスが定義されています。
 
-- [Renderer](#renderer): 顔の描画
+- [RobotUI](#robotui): Piu Application、顔、エフェクト、ドロワーUIの制御
 - [Driver](#driver): モータ等の駆動
 - [TTS](#tts): 音声合成
 
@@ -65,7 +65,7 @@ $ npm run generate-apidoc
 
 ### Robot
 
-### Renderer
+### RobotUI
 
 ### Driver
 

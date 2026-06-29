@@ -87,7 +87,7 @@
     "tts": {
       "type": "local"
     },
-    "renderer": {
+    "ui": {
       "type": "simple"
     }
   },

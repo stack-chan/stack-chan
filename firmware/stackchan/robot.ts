@@ -46,14 +46,14 @@ export type TTS = {
 }
 
 /**
- * The display renderer
+ * The display UI controller.
  */
-export type Renderer = {
+export type RobotUI = {
   update: (interval: number, faceContext: Readonly<FaceContext>) => void
-  addDecorator(decorator: FaceDecorator): void
-  removeDecorator(decorator: FaceDecorator): void
+  addEffect(effect: UIEffect, key?: string): void
+  removeEffect(effect: UIEffect): void
   application?: unknown
-  setFace?: (face: PiuContainer) => void
+  setFace(face: PiuContainer): void
 }
 
 export type DrawerButtonRegistration = {
@@ -91,7 +91,7 @@ type ButtonName = (typeof buttonNames)[number]
  */
 type RobotConstructorParam<T extends string> = {
   driver: Driver
-  renderer: Renderer
+  ui: RobotUI
   tts: TTS
   button: { [key in T]: Button }
   pose?: {
@@ -111,7 +111,7 @@ type RobotConstructorParam<T extends string> = {
 }
 
 const LEFT_RIGHT = Object.freeze(['left', 'right'])
-type FaceDecorator = PiuContent
+type UIEffect = PiuContent
 export class Robot {
   /**
    * A Facade class that provides quick access for Stack-chan features
@@ -139,20 +139,20 @@ export class Robot {
   #tone: Tone
   #led: Record<string, InstanceType<typeof Led>>
   #isMoving: boolean
-  #renderer: Renderer
+  #ui: RobotUI
   #paused: boolean
   #faceContext: FaceContext
   #emotion: Emotion
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
-  #balloon: FaceDecorator
+  #balloon: UIEffect
   #drawerCallbacks: Map<string, (robot: Robot) => unknown>
   #drawerRegistry: DrawerButtonRegistry
   #drawerBehavior: Record<string, unknown> | null
   updating: boolean
   constructor(params: RobotConstructorParam<ButtonName>) {
     this.seed = generateDeviceSeed()
-    this.useRenderer(params.renderer)
+    this.useUI(params.ui)
     this.useDriver(params.driver)
     this.useTTS(params.tts)
     this.#isMoving = false
@@ -247,12 +247,12 @@ export class Robot {
   }
 
   /**
-   * set a Renderer instance to Robot and register callbacks
+   * set a UI controller instance to Robot.
    *
-   * @param renderer - Renderer class instance
+   * @param ui - UI controller instance
    */
-  useRenderer(renderer: Renderer) {
-    this.#renderer = renderer
+  useUI(ui: RobotUI) {
+    this.#ui = ui
   }
 
   /**
@@ -428,7 +428,7 @@ export class Robot {
       this.hideBalloon()
     }
     this.#balloon = new SpeechBalloon({ ...option, text })
-    this.#renderer.addDecorator(this.#balloon)
+    this.#ui.addEffect(this.#balloon)
   }
 
   /**
@@ -436,7 +436,7 @@ export class Robot {
    */
   hideBalloon() {
     if (this.#balloon != null) {
-      this.renderer.removeDecorator(this.#balloon)
+      this.#ui.removeEffect(this.#balloon)
       this.#balloon = null
     }
   }
@@ -504,11 +504,11 @@ export class Robot {
     return this.#tts
   }
 
-  get renderer(): Renderer {
-    return this.#renderer
+  get ui(): RobotUI {
+    return this.#ui
   }
 
-  get application(): DrawerButtonRegistry {
+  get drawer(): DrawerButtonRegistry {
     return this.#drawerRegistry
   }
 
@@ -520,7 +520,7 @@ export class Robot {
         setButtonState?: (key: string, active: boolean) => void
       }
     | undefined {
-    const app = this.#renderer?.application as { drawerController?: unknown } | undefined
+    const app = this.#ui?.application as { drawerController?: unknown } | undefined
     return app?.drawerController as
       | {
           setButtons?: (buttons: unknown[]) => void
@@ -532,7 +532,7 @@ export class Robot {
   }
 
   private ensureDrawerBehavior(): Record<string, unknown> | null {
-    const app = this.#renderer?.application as { behavior?: Record<string, unknown> } | undefined
+    const app = this.#ui?.application as { behavior?: Record<string, unknown> } | undefined
     if (!app) return null
     if (!app.behavior) {
       app.behavior = new (class extends Behavior {})() as unknown as Record<string, unknown>
@@ -603,7 +603,7 @@ export class Robot {
   /**
    * Update the robot face.
    * Process the robot's emotion, pose, gaze point and so on
-   * to modify the face context and passes it to Renderer#update
+   * to modify the face context and pass it to RobotUI#update.
    */
   updateFace() {
     if (this.#paused) {
@@ -627,7 +627,7 @@ export class Robot {
         eye.gazeY = Math.cos(p)
       }
     }
-    this.#renderer.update(INTERVAL_FACE, this.#faceContext)
+    this.#ui.update(INTERVAL_FACE, this.#faceContext)
   }
 
   /**

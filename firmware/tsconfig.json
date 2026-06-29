@@ -47,18 +47,6 @@
       "effects/multirow-balloon": [
         "./stackchan/ui/components/bubble/multirow-balloon"
       ],
-      "renderer-compat": [
-        "./stackchan/ui/application/renderer-compat"
-      ],
-      "renderer-simple": [
-        "./stackchan/ui/application/renderer-simple"
-      ],
-      "renderer-dog": [
-        "./stackchan/ui/application/renderer-dog"
-      ],
-      "renderer-small": [
-        "./stackchan/ui/application/renderer-small"
-      ],
       "behaviors/*": [
         "./stackchan/ui/components/face/behaviors/*"
       ],
@@ -99,7 +87,6 @@
         "./stackchan/ui/components/face/parts/dog/*",
         "./stackchan/ui/components/face/parts/image/*",
         "./stackchan/ui/state/*",
-        "./stackchan/renderers/*",
         "./stackchan/services/*",
         "./stackchan/speeches/*",
         "./stackchan/transcriptions/*",

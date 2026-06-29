@@ -1,10 +1,10 @@
 import loadPreferences from 'loadPreference'
-import { createHeartDecorator, createSweatDecorator } from 'decorator'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
+import { Emoticon } from 'effects/emoticon'
 import Whisper from 'stt-whisper'
 
-const heartDecorator = createHeartDecorator({ x: 20, y: 20 })
-const sweatDecorator = createSweatDecorator({ x: 20, y: 20 })
+const heartDecorator = new Emoticon({ key: 'heart', left: 20, top: 20 })
+const sweatDecorator = new Emoticon({ key: 'sweat', left: 20, top: 20 })
 
 const INSTRUCTIONS = `
 You are "スタックちゃん (Stack-chan)", the palm-sized super kawaii companion robot baby.
@@ -67,14 +67,14 @@ export function onRobotCreated(robot) {
     async function handleError(message) {
       trace(`${message}\n`)
       talking = false
-      robot.renderer.removeDecorator(decorator)
+      robot.ui.removeEffect(decorator)
       robot.setEmotion('NEUTRAL')
       await robot.say(message)
     }
 
     // set up recording face
     decorator = heartDecorator
-    robot.renderer.addDecorator(decorator)
+    robot.ui.addEffect(decorator)
     robot.setEmotion('HAPPY')
 
     // recording
@@ -101,9 +101,9 @@ export function onRobotCreated(robot) {
     trace(`transcription text:${result.value}\n`)
 
     // set up thinking dace
-    robot.renderer.removeDecorator(decorator)
+    robot.ui.removeEffect(decorator)
     decorator = sweatDecorator
-    robot.renderer.addDecorator(decorator)
+    robot.ui.addEffect(decorator)
     robot.setEmotion('DOUBTFUL')
 
     // completions
@@ -121,7 +121,7 @@ export function onRobotCreated(robot) {
     talking = false
 
     // set up default face
-    robot.renderer.removeDecorator(decorator)
+    robot.ui.removeEffect(decorator)
     robot.setEmotion('NEUTRAL')
 
     return

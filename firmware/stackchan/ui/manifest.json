@@ -8,11 +8,6 @@
     "../utilities/manifest_utility.json"
   ],
   "modules": {
-    "renderer-simple": "./application/renderer-simple",
-    "renderer-image": "./application/renderer-image",
-    "renderer-dog": "./application/renderer-dog",
-    "renderer-compat": "./application/renderer-compat",
-    "renderer-small": "./application/renderer-small",
     "app-controller": "./application/app-controller",
     "chat-status-bar": "./components/status-bar/chat-status-bar",
     "common-view": "./views/main/common-view",
@@ -95,10 +90,6 @@
     "piu/Text",
     "piu/Timeline",
     "piu/Transition",
-    "renderer-simple",
-    "renderer-image",
-    "renderer-dog",
-    "renderer-small",
     "face-skin",
     "piuDie",
     "piuFont",

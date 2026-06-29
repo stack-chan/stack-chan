@@ -1,28 +1,23 @@
 import loadPreferences from 'loadPreference'
-import {
-  createAngryDecorator,
-  createBubbleDecorator,
-  createHeartDecorator,
-  createPaleDecorator,
-  createSweatDecorator,
-} from 'decorator'
 import { ChatGPTDialogue } from 'dialogue-chatgpt'
+import { Emoticon } from 'effects/emoticon'
 import { HttpServerService } from 'http-server-service'
 
 //
 // Face parameters
 //
-const bubble = createBubbleDecorator({
-  x: 10,
-  y: 20,
+const bubble = new Emoticon({
+  key: 'sleepy',
+  left: 10,
+  top: 20,
   width: 50,
   height: 60,
 })
 
-const heart = createHeartDecorator({ x: 20, y: 20 })
-const angry = createAngryDecorator({ x: 20, y: 20 })
-const pale = createPaleDecorator({ x: 20, y: 20 })
-const sweat = createSweatDecorator({ x: 20, y: 20 })
+const heart = new Emoticon({ key: 'heart', left: 20, top: 20 })
+const angry = new Emoticon({ key: 'angry', left: 20, top: 20 })
+const pale = new Emoticon({ key: 'tear', left: 20, top: 20 })
+const sweat = new Emoticon({ key: 'sweat', left: 20, top: 20 })
 let decorator
 
 const EMOTIONS = ['NEUTRAL', 'HAPPY', 'SLEEPY', 'DOUBTFUL', 'SAD', 'ANGRY', 'COLD', 'HOT']
@@ -127,7 +122,7 @@ function onRobotCreated(robot) {
     robot.setEmotion(emotion)
 
     if (decorator) {
-      robot.renderer.removeDecorator(decorator)
+      robot.ui.removeEffect(decorator)
     }
 
     switch (emotion) {
@@ -151,7 +146,7 @@ function onRobotCreated(robot) {
     }
 
     if (decorator) {
-      robot.renderer.addDecorator(decorator)
+      robot.ui.addEffect(decorator)
     }
 
     return c.text('OK')

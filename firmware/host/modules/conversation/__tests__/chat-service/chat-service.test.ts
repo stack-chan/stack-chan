@@ -115,6 +115,6 @@ async function runTest() {
 }
 
 runTest().catch((error) => {
-  trace(`not ok ${error}\n`)
+  trace(`${error}\n`)
   throw error
 })

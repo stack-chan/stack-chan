@@ -112,6 +112,9 @@ behavior.toggleSpeech = () => {
   }
   controller.setDrawerButtonState('toggleSpeech', speechVisible)
 }
+
+trace('ok\n')
+
 let tick = -1
 Timer.repeat(() => {
   tick += 32

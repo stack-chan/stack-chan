@@ -114,6 +114,22 @@ test('Standard face eye and mouth render updates through Port hot paths', () => 
   assert.doesNotMatch(mouth, /coordinates\s*=/)
 })
 
+test('Dog face accent parts render updates through Port hot paths', () => {
+  for (const file of [
+    'host/modules/ui/components/face/parts/dog/eyebrow.ts',
+    'host/modules/ui/components/face/parts/dog/mouth.ts',
+    'host/modules/ui/components/face/parts/dog/nose.ts',
+  ]) {
+    const source = readFileSync(file, 'utf8')
+    assert.match(source, /\bPort\.template\(/, `${file} should use Port.template`)
+    assert.match(source, /\.fillColor\(/, `${file} should draw through Port.fillColor`)
+    assert.doesNotMatch(source, /from 'commodetto\/outline'/, `${file} should not use Outline`)
+    assert.doesNotMatch(source, /\bdefineShapeTemplate\b/, `${file} should not use Shape templates`)
+    assert.doesNotMatch(source, /\bnew Skin\b/, `${file} should not allocate Skin`)
+    assert.doesNotMatch(source, /coordinates\s*=/, `${file} should not update coordinates`)
+  }
+})
+
 test('UI animation hot paths do not allocate Piu skins/styles or update text each tick', () => {
   const hotPathFiles = [
     'host/modules/ui/components/status-bar/chat-status-bar.ts',

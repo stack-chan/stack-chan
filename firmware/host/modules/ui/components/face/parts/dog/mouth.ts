@@ -1,9 +1,6 @@
-import { Outline } from 'commodetto/outline'
 import type { FaceSkinPalette } from 'face-skin'
 import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
-import type { Skin as PiuSkin } from 'piu/MC'
-import type { Shape as PiuShape } from 'piu/shape'
-import { defineShapeTemplate } from 'template'
+import { type Port as PiuPort, Port } from 'piu/MC'
 
 export type DogMouthOptions = {
   cx: number
@@ -16,63 +13,97 @@ export type DogMouthOptions = {
   canvasHeight?: number
 }
 
-type PositionedShape = Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
-  skin?: PiuSkin
-  state?: number
-  fillOutline?: Outline
-  strokeOutline?: Outline
+const CLEAR_COLOR = 'transparent'
+const STROKE = 3
+
+function colorString(color: number): string {
+  return `#${color.toString(16).padStart(6, '0')}`
 }
 
-export const DogMouth = defineShapeTemplate((opts: DogMouthOptions) => {
-  const {
-    cx,
-    cy,
-    minWidth = 50,
-    maxWidth = 60,
-    minHeight = 8,
-    maxHeight = 24,
-    canvasWidth = 320,
-    canvasHeight = 200,
-  } = opts
+class DogMouthBehavior extends Behavior {
+  #cx = 0
+  #cy = 0
+  #minWidth = 50
+  #maxWidth = 60
+  #minHeight = 8
+  #maxHeight = 24
+  #canvasWidth = 320
+  #canvasHeight = 200
+  #open = 0
+  #lastOpen = -1
+  #primary = colorString(DEFAULT_FACE_PRIMARY_COLOR)
+  #hasPalette = false
+
+  onCreate(port: PiuPort, opts: Required<DogMouthOptions>) {
+    this.#cx = opts.cx
+    this.#cy = opts.cy
+    this.#minWidth = opts.minWidth
+    this.#maxWidth = opts.maxWidth
+    this.#minHeight = opts.minHeight
+    this.#maxHeight = opts.maxHeight
+    this.#canvasWidth = opts.canvasWidth
+    this.#canvasHeight = opts.canvasHeight
+    port.invalidate()
+  }
+
+  onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
+    this.#hasPalette = true
+    const nextPrimary = colorString(palette.primaryColor)
+    if (nextPrimary === this.#primary) return
+    this.#primary = nextPrimary
+    port.invalidate()
+  }
+
+  onFaceState(port: PiuPort, face: FaceState) {
+    let needsDraw = false
+    if (!this.#hasPalette) {
+      const nextPrimary = colorString(toPiuColorNumber(face.theme.primary))
+      if (nextPrimary !== this.#primary) {
+        this.#primary = nextPrimary
+        needsDraw = true
+      }
+    }
+    const open = face.mouth.open
+    if (open === this.#lastOpen && !needsDraw) return
+    this.#lastOpen = open
+    this.#open = open
+    port.invalidate()
+  }
+
+  onDraw(port: PiuPort) {
+    port.fillColor(CLEAR_COLOR, 0, 0, this.#canvasWidth, this.#canvasHeight)
+    const h = this.#minHeight + (this.#maxHeight - this.#minHeight) * this.#open
+    const w = this.#minWidth + (this.#maxWidth - this.#minWidth) * this.#open
+    const x = this.#cx - w / 2
+    const y = this.#cy - h / 2
+    const centerX = this.#cx - STROKE / 2
+    port.fillColor(this.#primary, Math.round(x), Math.round(y), Math.round(w), STROKE)
+    port.fillColor(this.#primary, Math.round(centerX), Math.round(y), STROKE, Math.round(Math.max(8, h)))
+    if (h > 16) {
+      port.fillColor(this.#primary, Math.round(x + w / 4), Math.round(y + 16), Math.round(w / 2), STROKE)
+    }
+  }
+}
+
+export const DogMouth = Port.template((opts: DogMouthOptions) => {
+  const data = {
+    cx: opts.cx,
+    cy: opts.cy,
+    minWidth: opts.minWidth ?? 50,
+    maxWidth: opts.maxWidth ?? 60,
+    minHeight: opts.minHeight ?? 8,
+    maxHeight: opts.maxHeight ?? 24,
+    canvasWidth: opts.canvasWidth ?? 320,
+    canvasHeight: opts.canvasHeight ?? 200,
+  }
   return {
     left: 0,
     top: 0,
-    width: canvasWidth,
-    height: canvasHeight,
-    skin: new Skin({ stroke: DEFAULT_FACE_PRIMARY_COLOR }),
-    Behavior: class extends Behavior {
-      lastOpen = -1
-      palette: FaceSkinPalette | null = null
-      onFaceSkin(shape: PositionedShape, palette: FaceSkinPalette) {
-        this.palette = palette
-        shape.skin = palette.palette
-        shape.state = palette.primaryState
-      }
-      onFaceState(shape: PositionedShape, face: FaceState) {
-        if (!this.palette) {
-          shape.skin = new Skin({ stroke: toPiuColorNumber(face.theme.primary) })
-        }
-        const open = face.mouth.open
-        if (open !== this.lastOpen) {
-          this.updatePath(shape, open)
-        }
-      }
-      updatePath(shape: PositionedShape, open: number) {
-        this.lastOpen = open
-        const h = minHeight + (maxHeight - minHeight) * open
-        const w = minWidth + (maxWidth - minWidth) * open
-        const x = cx - w / 2
-        const y = cy - h / 2
-        const path = new Outline.CanvasPath()
-        path.moveTo(x, y)
-        path.bezierCurveTo(x, y + 20, cx, y + 20, cx, y)
-        path.bezierCurveTo(cx, y + 20, x + w, y + 20, x + w, y)
-        if (h > 16) {
-          path.moveTo(x + w / 4, y + 16)
-          path.bezierCurveTo(x + w / 8, y + h, x + (w * 7) / 8, y + h, x + (w * 3) / 4, y + 16)
-        }
-        shape.strokeOutline = Outline.stroke(path, 3)
-        shape.fillOutline = undefined
+    width: data.canvasWidth,
+    height: data.canvasHeight,
+    Behavior: class extends DogMouthBehavior {
+      onCreate(port: PiuPort) {
+        super.onCreate(port, data)
       }
     },
   }

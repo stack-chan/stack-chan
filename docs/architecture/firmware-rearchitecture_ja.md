@@ -219,7 +219,7 @@ flowchart TD
 - [x] 対応済み：呼吸などの周期更新で `coordinates` を毎フレーム更新しない実装へ変える。
 - [x] 対応済み：絵文字の描画更新を `Port`、`Texture`、必要最小の `invalidate` に寄せる。
 - [x] 対応済み：標準顔の目と口の描画更新を `Port`、`Texture`、`Skin`、必要最小の `invalidate` に寄せる。
-- [ ] 未対応：犬顔の眉、鼻、口の描画更新を `Port`、`Texture`、`Skin.template`、`variant`、必要最小の `invalidate` に寄せる。
+- [x] 対応済み：犬顔の眉、鼻、口の描画更新を `Port` と必要最小の `invalidate` に寄せる。
 - [ ] 未対応：吹き出しの描画更新を `Port`、`Texture`、`Skin.template`、`variant`、必要最小の `invalidate` に寄せる。
 - [x] 対応済み：毎フレーム `new Skin()`、`new Style()`、`Label.string` 更新が発生しないことを確認する。
 

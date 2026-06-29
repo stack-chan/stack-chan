@@ -78,6 +78,7 @@
         "./host/app/*",
         "./host/app/default-behavior/*",
         "./host/app/default-behavior/wasm/*",
+        "./host/modules/camera/*",
         "./host/modules/input/*",
         "./stackchan/*",
         "./stackchan/ble/*",

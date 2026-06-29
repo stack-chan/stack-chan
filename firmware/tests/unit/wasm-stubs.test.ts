@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import FallbackCamera from '../../stackchan/camera.js'
+import FallbackCamera from '../../host/modules/camera/camera.js'
+import Camera from '../../host/modules/camera/wasm/camera.js'
 import {
   DynamixelDriver,
   M5StackChanServoDriver,
@@ -11,7 +12,6 @@ import {
   SCServoDriver,
   WasmDriver,
 } from '../../stackchan/drivers/wasm/wasm-driver.js'
-import Camera from '../../stackchan/wasm/camera.js'
 import Microphone from '../../stackchan/wasm/microphone.js'
 import Tone from '../../stackchan/wasm/tone.js'
 
@@ -85,9 +85,8 @@ for (const [name, Driver] of driverCases) {
 test('WASM manifest keeps concrete servo driver module specifiers as facades for Moddable resolution', () => {
   const manifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
 
-  assert.equal(manifest.modules.camera, '../../stackchan/wasm/camera')
   assert.equal(manifest.modules['wasm-audio-bridge'], '../../stackchan/wasm/audio-bridge')
-  assert.equal(manifest.modules['wasm-camera-bridge'], '../../stackchan/wasm/camera-bridge')
+  assert.ok(manifest.include.includes('../modules/camera/manifest_wasm.json'))
   assert.ok(manifest.preload.includes('wasm-camera-bridge'))
   assert.equal(manifest.modules['embedded:io/audio/in'], '../../stackchan/wasm/audio-in')
   assert.equal(manifest.modules['wasm-driver'], '../../stackchan/drivers/wasm/wasm-driver')
@@ -175,12 +174,12 @@ test('real-device camera preview stays independent from the WASM-only RuntimeBit
 })
 
 test('WASM camera preview uses a native RuntimeBitmapPort binding before falling back to mosaic', () => {
-  const manifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
-  const previewSource = readFileSync('stackchan/wasm/camera-preview.ts', 'utf8')
-  const portSource = readFileSync('stackchan/runtime-bitmap-port.js', 'utf8')
+  const manifest = JSON.parse(readFileSync('host/modules/camera/manifest_wasm.json', 'utf8'))
+  const previewSource = readFileSync('host/modules/camera/wasm/camera-preview.ts', 'utf8')
+  const portSource = readFileSync('host/modules/camera/wasm/runtime-bitmap-port.js', 'utf8')
 
-  assert.equal(manifest.modules['camera-preview'], '../../stackchan/wasm/camera-preview')
-  assert.equal(manifest.modules['runtime-bitmap-port'], '../../stackchan/runtime-bitmap-port')
+  assert.equal(manifest.modules['camera-preview'], './wasm/camera-preview')
+  assert.equal(manifest.modules['runtime-bitmap-port'], './wasm/runtime-bitmap-port')
   assert.match(portSource, /drawBitmap\(bitmap, x, y, sx = 0, sy = 0, sw = bitmap\.width, sh = bitmap\.height\)/)
   assert.match(portSource, /xs_stackchan_runtime_bitmap_port_draw/)
   assert.match(previewSource, /import RuntimeBitmapPort from 'runtime-bitmap-port'/)

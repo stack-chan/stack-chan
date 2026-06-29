@@ -6,9 +6,9 @@ import { test } from 'node:test'
 const firmwareRoot = process.cwd()
 
 const nativeBindingModules = [
-  'stackchan/runtime-bitmap-port.js',
+  'host/modules/camera/wasm/runtime-bitmap-port.js',
   'stackchan/wasm/audio-bridge.js',
-  'stackchan/wasm/camera-bridge.js',
+  'host/modules/camera/wasm/camera-bridge.js',
 ]
 
 test('native binding bridge modules use Moddable Native API instead of @ syntax', () => {

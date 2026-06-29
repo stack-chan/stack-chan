@@ -1,0 +1,20 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../app/manifest_typings.json"
+  ],
+  "modules": {
+    "camera": "./camera"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "strictPropertyInitialization": false,
+        "strictFunctionTypes": false
+      }
+    }
+  }
+}

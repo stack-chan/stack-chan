@@ -13,7 +13,7 @@
     "ignoreDeprecations": "6.0",
     "paths": {
       "camera": [
-        "stackchan/wasm/camera.ts"
+        "host/modules/camera/wasm/camera.ts"
       ],
       "wasm-driver": [
         "stackchan/drivers/wasm/wasm-driver.ts"
@@ -39,11 +39,11 @@
   "include": [
     "stackchan/drivers/payload-buffer.ts",
     "stackchan/drivers/wasm/**/*.ts",
-    "stackchan/camera.ts",
+    "host/modules/camera/camera.ts",
     "host/modules/ui/views/camera-preview/camera-preview-utils.ts",
     "host/modules/input/touch-panel-gesture.ts",
     "host/modules/input/imu-motion.ts",
-    "stackchan/wasm/camera.ts",
+    "host/modules/camera/wasm/camera.ts",
     "stackchan/wasm/microphone.ts",
     "stackchan/drivers/m5stackchan-servo.ts",
     "host/modules/lighting/py32-io-expander.ts",

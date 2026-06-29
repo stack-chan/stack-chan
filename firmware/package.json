@@ -8,6 +8,7 @@
     "format:fix": "npm run format -- --write",
     "lint": "biome lint stackchan mods tests scripts",
     "lint:fix": "npm run lint -- --write",
+    "check:legacy-names": "node scripts/check-legacy-names.js",
     "extract-font-chars": "node scripts/extract-font-chars.js",
     "generate-speech-coqui": "node scripts/generate-speech-coqui.js",
     "generate-speech-voicevox": "node scripts/generate-speech-voicevox.js",

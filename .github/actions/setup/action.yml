@@ -35,6 +35,9 @@ runs:
         set -euo pipefail
         github_api_get() {
           curl -fsSL \
+            --retry 5 \
+            --retry-all-errors \
+            --retry-delay 10 \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \

@@ -10,7 +10,7 @@
   },
   "modules": {
     "twohex_stub": "./twohex_stub",
-    "mac-address": "../../../stackchan/utilities/sim/mac-address",
+    "mac-address": "../../../host/modules/util/sim/mac-address",
     "*": ["./*"]
   },
   "resources": {

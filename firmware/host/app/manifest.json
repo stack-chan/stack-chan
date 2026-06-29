@@ -16,7 +16,8 @@
     "../../stackchan/services/manifest_service.json",
     "../../stackchan/speeches/manifest_speech.json",
     "../../stackchan/transcriptions/manifest_transcription.json",
-    "../../stackchan/utilities/manifest_utility.json",
+    "../modules/util/manifest.json",
+    "../modules/preferences/manifest.json",
     "./manifest_typings.json",
     "./manifest_microphone.json"
   ],

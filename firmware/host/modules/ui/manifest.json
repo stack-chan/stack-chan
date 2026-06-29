@@ -5,7 +5,7 @@
     "$(MODDABLE)/examples/manifest_piu.json",
     "$(MODDABLE)/modules/piu/MC/outline/manifest.json",
     "$(MODULES)/commodetto/outline/manifest.json",
-    "../../../stackchan/utilities/manifest_utility.json"
+    "../util/manifest.json"
   ],
   "modules": {
     "app-controller": "./application/app-controller",

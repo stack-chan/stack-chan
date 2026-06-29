@@ -2,7 +2,7 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../../../stackchan/utilities/manifest_utility.json",
+    "../../../host/modules/util/manifest.json",
     "../../../stackchan/dialogues/manifest_dialogue.json",
     "../../../host/app/manifest_typings.json"
   ],

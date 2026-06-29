@@ -3,7 +3,7 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/modules/io/manifest.json",
-    "../utilities/manifest_utility.json"
+    "../../host/modules/util/manifest.json"
   ],
   "modules": {
     "*": ["./*", "./internal/*"]

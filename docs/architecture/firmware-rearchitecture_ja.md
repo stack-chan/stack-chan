@@ -257,9 +257,9 @@ flowchart TD
 - [ ] 未対応：`firmware/host/modules/input` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/lighting` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/motion` を作成し、`manifest.json` と `manifest.test.json` を置く。
-- [ ] 未対応：`firmware/host/modules/preferences` を作成し、`manifest.json` と `manifest.test.json` を置く。
+- [x] 対応済み：`firmware/host/modules/preferences` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/testing` を作成し、共有 fake と test helper を置く。
-- [ ] 未対応：`firmware/host/modules/util` を作成し、`manifest.json` と `manifest.test.json` を置く。
+- [x] 対応済み：`firmware/host/modules/util` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：module 群は `firmware/stackchan/components` ではなく `firmware/host/modules` に置く。
 - [ ] 未対応：各 module は実装、manifest、test、test manifest、専用 fake を同じディレクトリに持つ。
 - [ ] 未対応：二つ以上の module で使う fake timer、fake transport、fake provider、fake Piu event は `modules/testing` に置く。
@@ -318,9 +318,9 @@ flowchart TD
 - [ ] 未対応：py32 差分を lighting module の platform manifest または module 内部差分として扱う。
 - [ ] 未対応：`firmware/stackchan/camera.ts` を `firmware/host/modules/camera` へ移す。
 - [ ] 未対応：camera の実機実装、WASM stub、lin stub を platform manifest で切り替える。
-- [ ] 未対応：`firmware/stackchan/utilities` を `firmware/host/modules/util` と `firmware/host/modules/preferences` へ分ける。
-- [ ] 未対応：数学系 helper は `modules/util` に置く。
-- [ ] 未対応：`loadPreferences` と設定 schema は `modules/preferences` に置く。
+- [x] 対応済み：`firmware/stackchan/utilities` を `firmware/host/modules/util` と `firmware/host/modules/preferences` へ分ける。
+- [x] 対応済み：数学系 helper は `modules/util` に置く。
+- [x] 対応済み：`loadPreferences` と設定 schema は `modules/preferences` に置く。
 - [ ] 未対応：`loadPreferences` を直接呼ぶ場所を app と preferences に限定する。
 - [ ] 未対応：module 内で設定を読む必要がある場合は、app から注入された config を使う。
 - [ ] 未対応：sample MOD が直接 preference を読む境界を許可するか、注入 config に寄せるかを決める。

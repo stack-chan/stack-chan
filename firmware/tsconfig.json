@@ -99,10 +99,13 @@
         "./host/modules/ui/components/face/parts/dog/*",
         "./host/modules/ui/components/face/parts/image/*",
         "./host/modules/ui/state/*",
+        "./host/modules/util/*",
+        "./host/modules/util/esp32/*",
+        "./host/modules/util/sim/*",
+        "./host/modules/preferences/*",
         "./stackchan/services/*",
         "./stackchan/speeches/*",
-        "./stackchan/transcriptions/*",
-        "./stackchan/utilities/*"
+        "./stackchan/transcriptions/*"
       ],
       "commodetto/*": [
         "./node_modules/@moddable/typings/commodetto/*"
@@ -171,7 +174,7 @@
         "./stackchan/speeches/calculate-power"
       ],
       "mac-address": [
-        "./utilities/esp32/mac-address"
+        "./host/modules/util/esp32/mac-address"
       ],
       "default-mods/on-robot-created": [
         "./host/app/default-behavior/on-robot-created"

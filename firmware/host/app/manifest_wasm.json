@@ -8,7 +8,8 @@
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
     "../modules/ui/manifest_wasm.json",
-    "../../stackchan/utilities/manifest_wasm_utility.json",
+    "../modules/util/manifest.json",
+    "../modules/preferences/manifest.json",
     "./manifest_typings.json"
   ],
   "modules": {

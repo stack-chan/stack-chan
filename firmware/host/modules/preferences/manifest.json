@@ -1,16 +1,17 @@
 {
   "include": [
     "$(MODULES)/files/preference/manifest.json",
+    "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/base/structuredClone/manifest.json",
     "$(MODULES)/base/deepEqual/manifest.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../../host/app/manifest_typings.json"
+    "../../app/manifest_typings.json"
   ],
   "modules": {
-    "*": ["./*"],
-    "mac-address": "sim/mac-address"
+    "consts": "./consts",
+    "loadPreference": "./loadPreference"
   },
-  "preload": ["consts", "stackchan-util", "mac-address"],
+  "preload": ["consts"],
   "typescript": {
     "tsconfig": {
       "compilerOptions": {

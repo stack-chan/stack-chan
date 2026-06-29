@@ -3,7 +3,7 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
-    "../utilities/manifest_utility.json",
+    "../../host/modules/util/manifest.json",
     "../../host/app/manifest_typings.json"
   ],
   "modules": {

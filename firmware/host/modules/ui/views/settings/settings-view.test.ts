@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { test } from 'node:test'
+
+const settingsViewPath = 'host/modules/ui/views/settings/settings-view.ts'
+const defaultLaunchPath = 'stackchan/default-mods/on-launch.ts'
+
+test('settings view owns the Piu setup screen construction', () => {
+  const settingsSource = readFileSync(settingsViewPath, 'utf8')
+  const launchSource = readFileSync(defaultLaunchPath, 'utf8')
+  const uiManifest = JSON.parse(readFileSync('host/modules/ui/manifest.json', 'utf8'))
+  const wasmUiManifest = JSON.parse(readFileSync('host/modules/ui/manifest_wasm.json', 'utf8'))
+
+  assert.match(settingsSource, /export const buildSettingsView/)
+  assert.match(settingsSource, /export const updateSettingsStatusLabels/)
+  assert.match(settingsSource, /new Container/)
+  assert.match(settingsSource, /new Column/)
+  assert.match(settingsSource, /new Label/)
+  assert.match(settingsSource, /Stack-chan Setup/)
+  assert.match(settingsSource, /Press A to test connection/)
+
+  assert.match(launchSource, /from 'settings-view'/)
+  assert.match(launchSource, /buildSettingsView/)
+  assert.match(launchSource, /updateSettingsStatusLabels/)
+  assert.doesNotMatch(launchSource, /new Container/)
+  assert.doesNotMatch(launchSource, /new Column/)
+  assert.doesNotMatch(launchSource, /new Label/)
+  assert.doesNotMatch(launchSource, /new Skin/)
+  assert.doesNotMatch(launchSource, /new Style/)
+
+  assert.equal(uiManifest.modules['settings-view'], './views/settings/settings-view')
+  assert.equal(wasmUiManifest.modules['settings-view'], './views/settings/settings-view')
+})

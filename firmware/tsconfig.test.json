@@ -52,6 +52,7 @@
     "host/modules/ui/state/face-context.ts",
     "host/modules/ui/components/face/parts/image/image-avatar-pack.ts",
     "host/modules/ui/components/face/parts/image/image-avatar-state.ts",
+    "host/modules/ui/views/settings/settings-view.test.ts",
     "tests/unit/**/*.ts"
   ],
   "exclude": []

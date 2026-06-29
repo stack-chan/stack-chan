@@ -12,6 +12,7 @@
     "chat-status-bar": "./components/status-bar/chat-status-bar",
     "common-view": "./views/main/common-view",
     "face-view": "./views/main/face-view",
+    "settings-view": "./views/settings/settings-view",
     "face-context": "./state/face-context",
     "face-skin": "./state/face-skin",
     "template": "./components/face/template",

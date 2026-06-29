@@ -35,6 +35,9 @@
       "face-view": [
         "./host/modules/ui/views/main/face-view"
       ],
+      "settings-view": [
+        "./host/modules/ui/views/settings/settings-view"
+      ],
       "template": [
         "./host/modules/ui/components/face/template"
       ],
@@ -76,6 +79,7 @@
         "./host/modules/ui/views/main/*",
         "./host/modules/ui/views/splash/*",
         "./host/modules/ui/views/camera-preview/*",
+        "./host/modules/ui/views/settings/*",
         "./host/modules/ui/components/status-bar/*",
         "./host/modules/ui/components/drawer/*",
         "./host/modules/ui/components/effects/*",

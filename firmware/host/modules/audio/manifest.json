@@ -9,6 +9,7 @@
     "$(MODDABLE)/modules/base/uuid/manifest.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
     "$(MODDABLE)/modules/data/url/manifest.json",
+    "../util/manifest.json",
     "./manifest_file.json",
     "../../app/manifest_typings.json"
   ],

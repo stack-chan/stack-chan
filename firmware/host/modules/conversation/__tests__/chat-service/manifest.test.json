@@ -1,0 +1,19 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "chat": "../../chat",
+    "ChatAudioIO": "../../../testing/fakes/ChatAudioIO",
+    "*": ["./chat-service.test"]
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

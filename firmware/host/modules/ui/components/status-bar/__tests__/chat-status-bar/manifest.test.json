@@ -1,0 +1,12 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../../../manifest.json",
+    "../../../../../testing/manifest.json"
+  ],
+  "modules": {
+    "*": ["./chat-status-bar.test"]
+  }
+}

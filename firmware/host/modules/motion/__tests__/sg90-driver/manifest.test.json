@@ -1,0 +1,11 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json"
+  ],
+  "modules": {
+    "py32-io-expander": "../fakes/py32-io-expander-stub",
+    "*": ["./sg90-driver.test"]
+  }
+}

@@ -3,7 +3,9 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
+    "$(MODULES)/base/structuredClone/manifest.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
+    "../util/manifest.json",
     "../connectivity/mcp-client/manifest.json"
   ],
   "modules": {

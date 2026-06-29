@@ -9,7 +9,6 @@
     "includes": [
       "host/**",
       "mods/**",
-      "tests/**",
       "scripts/**",
       "!host/modules/camera/wasm/runtime-bitmap-port.js",
       "!host/modules/audio/wasm/audio-bridge.js",

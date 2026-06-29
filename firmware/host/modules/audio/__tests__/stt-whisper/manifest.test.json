@@ -1,0 +1,38 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../util/manifest.json",
+    "../../manifest.json",
+    "../../../../app/manifest_typings.json"
+  ],
+  "modules": {
+    "*": ["./stt-whisper.test"]
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "data": {
+    "*": ["$(MODULES)/crypt/data/ca233"]
+  },
+  "config": {
+    "token": "YOUR_API_KEY_HERE"
+  },
+  "creation": {
+    "static": 442368,
+    "chunk": {
+      "initial": 8192,
+      "incremental": 2048
+    },
+    "heap": {
+      "initial": 512,
+      "incremental": 64
+    },
+    "stack": 512,
+    "keys": {
+      "available": 512
+    }
+  }
+}

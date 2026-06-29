@@ -366,16 +366,16 @@ flowchart TD
 
 ### 12. テスト配置と実行方法の移行
 
-- [ ] 未対応：`firmware/tests` の内容を対象 module または UI ディレクトリへ移す。
-- [ ] 未対応：`firmware/tests/unit` の内容を対象 module または UI ディレクトリへ移す。
-- [ ] 未対応：集約テストディレクトリとしての `firmware/tests` を削除する。
+- [x] 対応済み：`firmware/tests` の内容を対象 module または UI ディレクトリへ移す。
+- [x] 対応済み：`firmware/tests/unit` の内容を対象 module または UI ディレクトリへ移す。
+- [x] 対応済み：集約テストディレクトリとしての `firmware/tests` を削除する。
 - [ ] 未対応：各 module と UI view に `manifest.test.json` を置く。
 - [ ] 未対応：各 `manifest.test.json` は本体の `manifest.json` と `modules/testing/manifest.json` を include する。
 - [ ] 未対応：テスト用 main は同じディレクトリの `*.test.ts` を読む。
 - [ ] 未対応：成功時は `ok` を trace し、失敗時は例外を throw する。
 - [ ] 未対応：合否判定は `mcconfig -m -d -p lin/m5stack -t run` の終了ステータスで行う。
 - [ ] 未対応：`trace("not ok ...")` を合否判定に使わない。
-- [ ] 未対応：Node.js の `node:test` は移行補助と pure helper の検証に限定する。
+- [x] 対応済み：Node.js の `node:test` は移行補助と pure helper の検証に限定する。
 - [ ] 未対応：移行後の正規テスト判定は Moddable の lin 実行結果に寄せる。
 - [ ] 未対応：CI は `firmware/host/modules/**/manifest.test.json` を列挙して実行する。
 - [ ] 未対応：CI は `firmware/host/modules/ui/**/manifest.test.json` を列挙して実行する。
@@ -418,9 +418,9 @@ flowchart TD
 - [x] 対応済み：UI 互換層削除後に web 側の `npm test` を実行する。
 - [x] 対応済み：UI 互換層削除後に変更対象 MOD の mcrun を実行する。
 - [x] 対応済み：UI 互換層削除後に lin 向け manifest 群の build を確認する。
-- [ ] 未対応：module 移行後に `npm run format` を再実行する。
-- [ ] 未対応：module 移行後に `npm run lint` を再実行する。
-- [ ] 未対応：module 移行後に `npm run test:unit` を再実行する。
+- [x] 対応済み：module 移行後に `npm run format` を再実行する。
+- [x] 対応済み：module 移行後に `npm run lint` を再実行する。
+- [x] 対応済み：module 移行後に `npm run test:unit` を再実行する。
 - [ ] 未対応：module 移行後に `npm run build:wasm` を再実行する。
 - [ ] 未対応：module 移行後に `npm run smoke:lin` を再実行する。
 - [ ] 未対応：module 移行後に web 側の `npm test` を再実行する。
@@ -437,7 +437,7 @@ flowchart TD
 - [ ] 未対応：Piu が `Renderer` 互換層を経由していない。
 - [ ] 未対応：Piu Application、View、Drawer、StatusBar、Bubble、Effects、Face が `firmware/host/modules/ui` 配下にある。
 - [ ] 未対応：各機能の本体、単体テスト、test manifest が同じ module または UI ディレクトリにある。
-- [ ] 未対応：`firmware/tests` が存在しない。
+- [x] 対応済み：`firmware/tests` が存在しない。
 - [ ] 未対応：低レイヤの Timer、描画、入力、driver 処理に新規 `async` と `Promise` が入っていない。
 - [ ] 未対応：platform 差分が manifest で切り替わる。
 - [ ] 未対応：通常コードに WASM 専用 import が混ざっていない。

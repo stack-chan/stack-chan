@@ -1,0 +1,23 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_net.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/io/listener/listen/manifest_listen.json",
+    "../../../../../app/manifest_typings.json",
+    "../../manifest.json",
+    "../../../mcp-server/manifest.json"
+  ],
+  "modules": {
+    "*": ["./mcp-client-service.test"]
+  },
+  "platforms": {
+    "lin": {
+      "config": {
+        "network": {
+          "interface": "ethernet"
+        }
+      }
+    }
+  }
+}

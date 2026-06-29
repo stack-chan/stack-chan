@@ -17,9 +17,9 @@ Stack-chan is a JavaScript-driven M5Stack-embedded robot. The codebase is primar
 - **Services**: Background services (HTTP server, network, preferences)
 
 ### Key Directories
-- `stackchan/`: Core firmware source code
+- `host/`: Core firmware source code
 - `mods/`: Modular applications that can be loaded at runtime
-- `tests/`: Test modules for various components
+- tests: Co-located under the target `host`, `mods`, or platform implementation
 - `typings/`: TypeScript definitions for the Moddable platform
 - `case/`: 3D printable robot case files
 - `schematics/`: PCB designs for control boards
@@ -82,7 +82,8 @@ Uses lefthook for pre-commit hooks:
 
 ## Testing Approach
 
-Test modules are located in `tests/` directory, organized by component type. Each test has its own manifest.json for isolated testing.
+Moddable test modules live under the target implementation with `manifest.test.json` for isolated execution.
+Node.js unit tests live next to pure helper implementations and run through `npm run test:unit`.
 
 ## Pull Request Review Guidance
 

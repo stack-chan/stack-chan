@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist-tests",
+    "rootDir": ".",
     "noEmit": false,
     "rewriteRelativeImportExtensions": true,
     "allowJs": false,
@@ -48,12 +49,21 @@
     "host/modules/motion/m5stackchan-servo.ts",
     "host/modules/lighting/py32-io-expander.ts",
     "host/modules/motion/internal/single-wait-slot.ts",
-    "host/modules/motion/__tests__/**/*.ts",
     "host/modules/ui/state/face-state.ts",
     "host/modules/ui/components/face/parts/image/image-avatar-pack.ts",
     "host/modules/ui/components/face/parts/image/image-avatar-state.ts",
+    "host/app/*.test.ts",
+    "host/modules/input/*.test.ts",
+    "host/modules/lighting/*.test.ts",
+    "host/modules/motion/__tests__/*.test.ts",
+    "host/modules/ui/application/*.test.ts",
+    "host/modules/ui/components/face/parts/image/__tests__/*.test.ts",
+    "host/modules/ui/state/*.test.ts",
+    "host/modules/ui/views/camera-preview/*.test.ts",
     "host/modules/ui/views/settings/settings-view.test.ts",
-    "tests/unit/**/*.ts"
+    "host/modules/ui/views/splash/*.test.ts",
+    "host/platforms/*.test.ts",
+    "host/platforms/wasm/*.test.ts"
   ],
   "exclude": []
 }

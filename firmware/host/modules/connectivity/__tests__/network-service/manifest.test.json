@@ -1,0 +1,10 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json"
+  ],
+  "modules": {
+    "*": ["./network-service.test"]
+  }
+}

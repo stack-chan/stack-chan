@@ -84,14 +84,13 @@ interface ToolParameter {
 
 ## テスト
 
-テスト実装は `tests/services/mcp-server-service` にあります。
+テスト実装は `host/modules/connectivity/mcp-server/__tests__/mcp-server-service` にあります。
 
 ### 実行方法
 
 ```bash
-cd tests/services/mcp-server-service
 source ~/.local/share/xs-dev-export.sh
-mcconfig -m -d -p lin
+mcconfig -m -d -p lin -t run ./host/modules/connectivity/mcp-server/__tests__/mcp-server-service/manifest.test.json
 ```
 
 ### テスト用ツール

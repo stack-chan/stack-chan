@@ -1,9 +1,0 @@
-{
-  "include": [
-    "../../../host/modules/ui/manifest.json",
-    "../../../host/modules/testing/manifest.json"
-  ],
-  "modules": {
-    "*": ["./main"]
-  }
-}

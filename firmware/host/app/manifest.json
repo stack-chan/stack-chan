@@ -28,6 +28,7 @@
       "./compose",
       "./capabilities",
       "./runtime-context",
+      "./runtime-ui",
       "$(MODULES)/network/http/*"
     ],
     "startup-splash": "../modules/ui/views/splash/splash-view",

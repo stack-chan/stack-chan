@@ -1,11 +1,10 @@
 import type { RobotCamera } from 'camera'
-import type { Button, DrawerButtonSpec, DrawerCapability, Driver, RobotUI, StackchanContext, TTS } from 'capabilities'
-import { SpeechBalloon } from 'effects/speech-balloon'
-import { createFaceState, type Emotion, type FaceState, type FaceThemeKey, setColorRGB } from 'face-state'
+import type { Button, Driver, RobotUI, StackchanContext, TTS } from 'capabilities'
+import type { Emotion, FaceThemeKey } from 'face-state'
 import type IMU from 'imu'
 import type Led from 'led'
 import type Microphone from 'microphone'
-import type { Content as PiuContent } from 'piu/MC'
+import { StackchanRuntimeUI } from 'runtime-ui'
 import { generateDeviceSeed, type Maybe, noop, type Pose, Rotation, randomBetween, Vector3 } from 'stackchan-util'
 import Timer from 'timer'
 import type Tone from 'tone'
@@ -50,13 +49,11 @@ type RuntimeContextConstructorParam<T extends string> = {
   led?: Record<string, Led>
 }
 
-const LEFT_RIGHT = Object.freeze(['left', 'right'])
-type UIEffect = PiuContent
 export class StackchanRuntimeContext {
   /**
    * App-owned runtime context that drives hardware, UI, and product behavior.
    */
-  #gazePoint: Vector3
+  #gazePoint: Vector3 | null = null
   #pose: {
     body: Pose
     eyes: {
@@ -65,7 +62,6 @@ export class StackchanRuntimeContext {
     }
   }
   seed: number
-  #mouthOpen: number
   #tts: TTS
   #driver: Driver
   #button: { [key in ButtonName]: Button }
@@ -77,24 +73,23 @@ export class StackchanRuntimeContext {
   #tone: Tone
   #led: Record<string, InstanceType<typeof Led>>
   #isMoving: boolean
-  #ui: RobotUI
+  #uiRuntime: StackchanRuntimeUI
   #paused: boolean
-  #faceState: FaceState
-  #emotion: Emotion
   #updatePoseHandler: Timer
   #updateFaceHandler: Timer
-  #balloon: UIEffect
-  #drawerCallbacks: Map<string, (context: StackchanContext) => unknown>
-  #drawerRegistry: DrawerCapability
-  #drawerBehavior: Record<string, unknown> | null
   updating: boolean
   constructor(params: RuntimeContextConstructorParam<ButtonName>) {
     this.seed = generateDeviceSeed()
-    this.useUI(params.ui)
+    this.#paused = false
+    this.#uiRuntime = new StackchanRuntimeUI(params.ui, {
+      getContext: () => this as unknown as StackchanContext,
+      getPose: () => this.#pose,
+      getGazePoint: () => this.#gazePoint,
+      isPaused: () => this.#paused,
+    })
     this.useDriver(params.driver)
     this.useTTS(params.tts)
     this.#isMoving = false
-    this.#mouthOpen = 0
     this.#button = params.button
     this.#touch = params.touch
     this.#touchPanel = params.touchPanel
@@ -148,17 +143,6 @@ export class StackchanRuntimeContext {
     this.#updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
     void this.#updatePoseHandler
     void this.#updateFaceHandler
-    this.#paused = false
-    this.#faceState = createFaceState()
-    this.#emotion = this.#faceState.emotion
-    this.#drawerCallbacks = new Map()
-    this.#drawerBehavior = null
-    this.#drawerRegistry = {
-      addDrawerButton: (button) => this.addDrawerButton(button),
-      removeDrawerButton: (key) => this.removeDrawerButton(key),
-      clearDrawerButtons: () => this.clearDrawerButtons(),
-      setDrawerButtonState: (key, active) => this.setDrawerButtonState(key, active),
-    }
   }
 
   /**
@@ -174,13 +158,13 @@ export class StackchanRuntimeContext {
     this.#tts = tts
     this.#tts.onPlayed = (volume: number) => {
       if (volume === 0) {
-        this.#mouthOpen = 0
+        this.#uiRuntime.setMouthOpen(0)
       } else {
-        this.#mouthOpen = Math.min(volume / 2000, 1.0)
+        this.#uiRuntime.setMouthOpen(Math.min(volume / 2000, 1.0))
       }
     }
     this.#tts.onDone = () => {
-      this.#mouthOpen = 0
+      this.#uiRuntime.setMouthOpen(0)
     }
   }
 
@@ -190,7 +174,7 @@ export class StackchanRuntimeContext {
    * @param ui - UI controller instance
    */
   useUI(ui: RobotUI) {
-    this.#ui = ui
+    this.#uiRuntime.useUI(ui)
   }
 
   /**
@@ -362,21 +346,14 @@ export class StackchanRuntimeContext {
       width: 80,
     },
   ) {
-    if (this.#balloon != null) {
-      this.hideBalloon()
-    }
-    this.#balloon = new SpeechBalloon({ ...option, text })
-    this.#ui.addEffect(this.#balloon)
+    this.#uiRuntime.showBalloon(text, option)
   }
 
   /**
    * Hide balloon decorator
    */
   hideBalloon() {
-    if (this.#balloon != null) {
-      this.#ui.removeEffect(this.#balloon)
-      this.#balloon = null
-    }
+    this.#uiRuntime.hideBalloon()
   }
 
   /**
@@ -413,7 +390,7 @@ export class StackchanRuntimeContext {
    * @param{b} - blue value [0-255]
    */
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void {
-    setColorRGB(this.#faceState.theme[key], r, g, b)
+    this.#uiRuntime.setColor(key, r, g, b)
   }
 
   /**
@@ -424,14 +401,11 @@ export class StackchanRuntimeContext {
    * @param emotion - emotion
    */
   setEmotion(emotion: Emotion) {
-    this.#emotion = emotion
+    this.#uiRuntime.setEmotion(emotion)
   }
 
   setMouthOpen(value: number) {
-    if (value < 0 || value > 1) {
-      throw new Error('value must be between 0 and 1')
-    }
-    this.#mouthOpen = value
+    this.#uiRuntime.setMouthOpen(value)
   }
 
   get driver(): Driver {
@@ -443,92 +417,11 @@ export class StackchanRuntimeContext {
   }
 
   get ui(): RobotUI {
-    return this.#ui
+    return this.#uiRuntime.ui
   }
 
-  get drawer(): DrawerCapability {
-    return this.#drawerRegistry
-  }
-
-  private getDrawerController():
-    | {
-        setButtons?: (buttons: unknown[]) => void
-        addButton?: (button: unknown) => void
-        removeButton?: (key: string) => void
-        setButtonState?: (key: string, active: boolean) => void
-      }
-    | undefined {
-    const app = this.#ui?.application as { drawerController?: unknown } | undefined
-    return app?.drawerController as
-      | {
-          setButtons?: (buttons: unknown[]) => void
-          addButton?: (button: unknown) => void
-          removeButton?: (key: string) => void
-          setButtonState?: (key: string, active: boolean) => void
-        }
-      | undefined
-  }
-
-  private ensureDrawerBehavior(): Record<string, unknown> | null {
-    const app = this.#ui?.application as { behavior?: Record<string, unknown> } | undefined
-    if (!app) return null
-    if (!app.behavior) {
-      app.behavior = new (class extends Behavior {})() as unknown as Record<string, unknown>
-    }
-    this.#drawerBehavior = app.behavior
-    return this.#drawerBehavior
-  }
-
-  private addDrawerButton({ key, label, callback, kind, initialState }: DrawerButtonSpec): void {
-    this.#drawerCallbacks.set(key, callback)
-    const behavior = this.ensureDrawerBehavior()
-    if (behavior) {
-      const runCallback = () => {
-        try {
-          const result = callback(this as unknown as StackchanContext)
-          if (result && typeof (result as { catch?: (handler: (err: unknown) => void) => void }).catch === 'function') {
-            ;(result as { catch: (handler: (err: unknown) => void) => void }).catch((err: unknown) => {
-              trace(`[DrawerButton] callback rejected key=${key} err=${String(err)}\n`)
-            })
-          }
-        } catch (err) {
-          trace(`[DrawerButton] callback error key=${key} err=${String(err)}\n`)
-        }
-      }
-      const desc =
-        Object.getOwnPropertyDescriptor(behavior, key) ??
-        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(behavior), key)
-      if (desc && desc.writable === false) {
-        trace(`[DrawerButton] skip binding key=${key} (not writable)\n`)
-      } else {
-        ;(behavior as Record<string, () => void>)[key] = runCallback
-      }
-    }
-    const controller = this.getDrawerController()
-    controller?.addButton?.({ key, label, kind })
-    if (initialState !== undefined) {
-      this.setDrawerButtonState(key, initialState)
-    }
-  }
-
-  private removeDrawerButton(key: string): void {
-    this.#drawerCallbacks.delete(key)
-    if (this.#drawerBehavior) {
-      delete (this.#drawerBehavior as Record<string, unknown>)[key]
-    }
-    const controller = this.getDrawerController()
-    controller?.removeButton?.(key)
-  }
-
-  private clearDrawerButtons(): void {
-    this.#drawerCallbacks.clear()
-    const controller = this.getDrawerController()
-    controller?.setButtons?.([])
-  }
-
-  private setDrawerButtonState(key: string, active: boolean): void {
-    const controller = this.getDrawerController()
-    controller?.setButtonState?.(key, active)
+  get drawer() {
+    return this.#uiRuntime.drawer
   }
 
   pause() {
@@ -544,28 +437,7 @@ export class StackchanRuntimeContext {
    * to modify the face state and pass it to RobotUI#update.
    */
   updateFace() {
-    if (this.#paused) {
-      return
-    }
-    this.#faceState.mouth.open = this.#mouthOpen
-
-    this.#faceState.emotion = this.#emotion
-    if (this.#gazePoint != null) {
-      const relativeGazePoint = Vector3.rotate(this.#gazePoint, {
-        r: 0.0,
-        y: -this.#pose.body.rotation.y,
-        p: -this.#pose.body.rotation.p,
-      })
-      for (const key of LEFT_RIGHT) {
-        const pos = this.#pose.eyes[key].position
-        const relative = Vector3.sub(relativeGazePoint, [pos.x, pos.y, pos.z])
-        const { y, p } = Rotation.fromVector3(relative)
-        const eye = this.#faceState.eyes[key]
-        eye.gazeX = Math.cos(y)
-        eye.gazeY = Math.cos(p)
-      }
-    }
-    this.#ui.update(INTERVAL_FACE, this.#faceState)
+    this.#uiRuntime.updateFace(INTERVAL_FACE)
   }
 
   /**

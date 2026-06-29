@@ -352,7 +352,7 @@ flowchart TD
 - [x] 対応済み：`firmware/host/platforms/esp32` を作成する。
 - [x] 対応済み：`firmware/host/platforms/m5stackchan_cores3` を作成する。
 - [x] 対応済み：module 固有ではない WASM platform 差分を `firmware/host/platforms/wasm` へ移す。
-- [ ] 未対応：通常コードから WASM 専用 import を取り除く。
+- [x] 対応済み：通常コードから WASM 専用 import を取り除く。
 - [x] 対応済み：platform 差分を TypeScript の runtime branch ではなく manifest の include、modules、platforms で表す。
 - [x] 対応済み：ESP32 target ごとの差分を platform manifest で表し、app composition に混ぜない。
 - [x] 対応済み：`m5stack_fire` の audio input 差分を app composition ではなく audio module の platform manifest で表す。

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import { test } from 'node:test'
 import Microphone from '../../modules/audio/wasm/microphone.js'
 import Tone from '../../modules/audio/wasm/tone.js'
@@ -74,6 +75,34 @@ const driverCases: Array<[string, DriverConstructor]> = [
   ['scservo', SCServoDriver],
 ]
 
+const SOURCE_EXTENSIONS = new Set(['.js', '.ts'])
+const IMPORT_SPECIFIER = /(?:from\s+|import\(\s*)['"]([^'"]+)['"]/g
+
+function listSourceFiles(root: string): string[] {
+  return readdirSync(root).flatMap((entry) => {
+    const path = join(root, entry)
+    const stat = statSync(path)
+    if (stat.isDirectory()) return listSourceFiles(path)
+    return SOURCE_EXTENSIONS.has(path.slice(path.lastIndexOf('.'))) ? [path] : []
+  })
+}
+
+function importSpecifiers(source: string): string[] {
+  return [...source.matchAll(IMPORT_SPECIFIER)].map((match) => match[1])
+}
+
+function isWasmImport(specifier: string): boolean {
+  return specifier.includes('/wasm/') || specifier.includes('/wasm-') || specifier === 'wasm-driver'
+}
+
+function isWasmSource(path: string): boolean {
+  return (
+    path.startsWith('host/platforms/wasm/') ||
+    path.startsWith('host/app/default-behavior/wasm/') ||
+    path.includes('/wasm/')
+  )
+}
+
 function readDriverRotation(driver: InstanceType<DriverConstructor>): unknown {
   let result: unknown
   driver.getRotation((value) => {
@@ -118,6 +147,19 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
       'py32-led': '../../modules/lighting/wasm/py32-led',
     },
   )
+})
+
+test('WASM-only imports stay under wasm platform and wasm implementation files', () => {
+  const offenders = listSourceFiles('host')
+    .map((path) => relative('.', path))
+    .filter((path) => !isWasmSource(path))
+    .flatMap((path) =>
+      importSpecifiers(readFileSync(path, 'utf8'))
+        .filter(isWasmImport)
+        .map((specifier) => `${path}: ${specifier}`),
+    )
+
+  assert.deepEqual(offenders, [])
 })
 
 test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', () => {

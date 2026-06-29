@@ -27,7 +27,12 @@
       "./main",
       "./compose",
       "./capabilities",
+      "./runtime-audio",
+      "./runtime-camera",
       "./runtime-context",
+      "./runtime-input",
+      "./runtime-lighting",
+      "./runtime-motion",
       "./runtime-ui",
       "$(MODULES)/network/http/*"
     ],

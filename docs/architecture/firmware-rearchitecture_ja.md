@@ -253,7 +253,7 @@ flowchart TD
 
 ### 3. Robot Facade の分解
 
-- [ ] 未対応：`firmware/host/app/runtime-context.ts` が driver、TTS、input、camera、LED、drawer、face、motion を直接抱える構造を解消する。
+- [x] 対応済み：`firmware/host/app/runtime-context.ts` が driver、TTS、input、camera、LED、drawer、face、motion を直接抱える構造を解消する。
 - [x] 対応済み：Face、Motion、Audio、Input、Lighting、Camera、Conversation、Connectivity の公開契約を個別に定義する。
 - [x] 対応済み：`Robot` は互換 Facade として残さず、新しい app composition の戻り値または context 型へ置き換える。
 - [x] 対応済み：MOD へ渡す API を `Robot` の肥大化ではなく、必要な capability を束ねた型として再定義する。

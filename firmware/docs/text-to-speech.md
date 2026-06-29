@@ -80,15 +80,15 @@ export const speeches = {
 * Run `npm run generate-speech-[google|coqui|voicevox]`
   * this script get voice data from server and saves wave files under `host/modules/audio/assets/sounds`
 * Flash firmware with assets
-* Call `Robot#speak(sentense: string)` with the sentense.
+* Call `context.say(sentence: string)` with the sentence.
 
 ```javascript
 import { speeches } from 'speeches'
 const keys = Object.keys(speeches)
 
-export async function onRobotCreated(robot) {
-  await robot.say('hello')
-  await robot.say(keys[0] /* 'niceToMeetYou' */)
+export async function onContextCreated(context) {
+  await context.say('hello')
+  await context.say(keys[0] /* 'niceToMeetYou' */)
 }
 ```
 
@@ -108,11 +108,11 @@ export async function onRobotCreated(robot) {
 }
 ```
 
-* Call `Robot#say(sentense: string)`
+* Call `context.say(sentence: string)`
 
 ```javascript
 // ...
-export async function onRobotCreated(robot) {
-  await robot.say('Now I can speak any sentense you want.')
+export async function onContextCreated(context) {
+  await context.say('Now I can speak any sentence you want.')
 }
 ```

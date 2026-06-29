@@ -28,14 +28,15 @@ $ npm run generate-apidoc
 
 ## Architecture
 
-The `Robot` class is used to access the functions of the Stack-chan.
-The following classes are defined to allow replacement and customization of Stack-chan functions.
+Mods receive a `StackchanContext` capability object from `onContextCreated`.
+The context exposes a small set of capabilities so UI, motion, speech, and input implementations can be replaced independently.
 
+- [StackchanContext](#stackchancontext): Runtime capabilities passed to mods
 - [RobotUI](#robotui): Controls the Piu application, face, effects, and drawer UI
 - [Driver](#driver): Drives motors, etc.
 - [TTS](#tts): Speech synthesis
 
-// TODO: Class diagram and description
+// TODO: Capability diagram and description
 
 ## Coordinate system
 
@@ -60,7 +61,7 @@ Correspondence with the coordinate system can also be referenced in the actual s
 
 ## Classes
 
-### Robot
+### StackchanContext
 
 ### RobotUI
 

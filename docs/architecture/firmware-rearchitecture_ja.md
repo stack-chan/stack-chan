@@ -401,13 +401,13 @@ flowchart TD
 ### 14. 旧文書と参照の整理
 
 - [x] 対応済み：`firmware/docs/api.md` と `firmware/docs/api_ja.md` の Renderer API 記載を RobotUI API へ更新する。
-- [ ] 未対応：`docs/piu-renderer.md` を削除または新 UI 設計文書へ置き換える。
-- [ ] 未対応：`docs/piu-renderer_ja.md` を削除または新 UI 設計文書へ置き換える。
-- [ ] 未対応：`firmware/docs/0002-image-face.md` の旧 renderer 前提を削除または更新する。
+- [x] 対応済み：`docs/piu-renderer.md` を削除または新 UI 設計文書へ置き換える。
+- [x] 対応済み：`docs/piu-renderer_ja.md` を削除または新 UI 設計文書へ置き換える。
+- [x] 対応済み：`firmware/docs/0002-image-face.md` の旧 renderer 前提を削除または更新する。
 - [x] 対応済み：`firmware/face-context-as-views.md` を `FaceState` 方針に合わせて削除または更新する。
-- [ ] 未対応：`firmware/piu-faster.md` を UI performance 方針として統合する。
-- [ ] 未対応：`CLAUDE.md` の旧構成参照を削除または更新する。
-- [ ] 未対応：`renderer.type`、`renderers-piu`、旧 renderer API を説明する残存文書を削除または更新する。
+- [x] 対応済み：`firmware/piu-faster.md` を UI performance 方針として統合する。
+- [x] 対応済み：`CLAUDE.md` の旧構成参照を削除または更新する。
+- [x] 対応済み：`renderer.type`、`renderers-piu`、旧 renderer API を説明する残存文書を削除または更新する。
 - [x] 対応済み：tracked tree に旧 `firmware/stackchan/renderers` と旧 `firmware/stackchan/renderers-piu` が残っていないことを確認する。
 - [x] 対応済み：ローカルに空ディレクトリが残る場合でも、manifest、import、document から参照しない。
 
@@ -431,8 +431,8 @@ flowchart TD
 - [x] 対応済み：module 移行後に `firmware/host/modules/ui/**/manifest.test.json` をすべて実行する。
 - [ ] 未対応：module 移行後に対象 ESP32 board の build を実行する。
 - [ ] 未対応：module 移行後に changed MOD と sample MOD の mcrun を実行する。
-- [ ] 未対応：module 移行後に旧 API 検索を実行し、許可した履歴文書以外に旧名が残らないことを確認する。
-- [ ] 未対応：`npm run check:legacy-names` で検出される旧 renderer 文書と generated API docs を削除または更新する。
+- [x] 対応済み：module 移行後に旧 API 検索を実行し、許可した移行計画文書と検査テスト以外に旧名が残らないことを確認する。
+- [x] 対応済み：`npm run check:legacy-names` で検出される旧 renderer 文書と generated API docs を削除または更新する。
 
 ### 16. Merge 条件
 

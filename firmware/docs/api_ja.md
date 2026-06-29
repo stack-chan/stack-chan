@@ -26,16 +26,17 @@ tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32
 $ npm run generate-apidoc
 ```
 
-## クラス構成
+## 構成
 
-ｽﾀｯｸﾁｬﾝの機能にアクセスするには`Robot`クラスを使います。
-ｽﾀｯｸﾁｬﾝの機能の差し替えやカスタマイズができるように、次のクラスが定義されています。
+MODは`onContextCreated`から`StackchanContext`を受け取ります。
+`StackchanContext`は、UI、motion、speech、inputの実装を独立して差し替えられるように、少数のcapabilityを公開します。
 
+- [StackchanContext](#stackchancontext): MODに渡されるruntime capabilityの集合
 - [RobotUI](#robotui): Piu Application、顔、エフェクト、ドロワーUIの制御
 - [Driver](#driver): モータ等の駆動
 - [TTS](#tts): 音声合成
 
-// TODO: クラス図と説明
+// TODO: capability図と説明
 
 ## 座標系
 
@@ -61,9 +62,9 @@ $ npm run generate-apidoc
 ｽﾀｯｸﾁｬﾝのAPIにおいては __座標の単位はメートル、角度の単位はラジアンになります__ 。
 座標系との対応は実際のソースコード（[`mods/examples/look_around`](../mods/examples/look_around/)など）も参考にしてください。
 
-## クラス
+## 型
 
-### Robot
+### StackchanContext
 
 ### RobotUI
 

@@ -12,7 +12,7 @@ Stack-chan is a JavaScript-driven M5Stack-embedded robot. The codebase is primar
 - **Host Program**: Core firmware (`host/app/main.ts`) that provides the robot framework
 - **MODs**: User applications that extend functionality (in `mods/` directory)
 - **Drivers**: Hardware abstraction for different servo types (PWM, DYNAMIXEL, RS30X, SCServo)
-- **Renderers**: Face display systems (simple-face, dog-face)
+- **UI modules**: Piu Application, views, drawer, status bar, bubbles, effects, and face components under `host/modules/ui`
 - **TTS Engines**: Text-to-speech providers (local, remote, VoiceVox, ElevenLabs, OpenAI)
 - **Services**: Background services (HTTP server, network, preferences)
 
@@ -63,14 +63,14 @@ The build system uses environment variables to specify target platforms:
 
 1. Write MOD in `mods/` directory with `manifest.json` and `mod.js`
 2. Use `npm run mod mods/your-mod/manifest.json` for rapid iteration
-3. MODs can override core functionality via `onLaunch` and `onRobotCreated` hooks
+3. MODs can add behavior via `onLaunch` and `onContextCreated` hooks
 
 ## Hardware Configuration
 
 Configuration is managed through preferences system with these key areas:
 - `driver`: Servo motor configuration (type: scservo, dynamixel, pwm, rs30x, none)
 - `tts`: Text-to-speech engine selection
-- `renderer`: Face display renderer selection
+- `ui`: Piu UI and face selection
 - `wifi`: Network configuration
 
 ## Git Hooks

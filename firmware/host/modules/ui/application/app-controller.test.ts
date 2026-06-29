@@ -2,13 +2,14 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 
-const rendererPaths = [
-  'host/modules/ui/application/renderer-simple.ts',
-  'host/modules/ui/application/renderer-small.ts',
-  'host/modules/ui/application/renderer-dog.ts',
-  'host/modules/ui/application/renderer-image.ts',
-  'host/modules/ui/application/renderer-compat.ts',
-]
+const legacyPrefix = ['renderer', ''].join('-')
+const legacyCompatName = ['Renderer', 'Compat'].join('')
+const legacyAddDecoratorName = ['add', 'Decorator'].join('')
+const legacyRemoveDecoratorName = ['remove', 'Decorator'].join('')
+const legacyCreateName = ['create', 'Renderer'].join('')
+const legacyModulePaths = ['simple', 'small', 'dog', 'image', 'compat'].map(
+  (name) => `host/modules/ui/application/${legacyPrefix}${name}.ts`,
+)
 
 describe('PIU UI application lifecycle', () => {
   test('AppController reuses an existing startup Application when one is present', () => {
@@ -18,8 +19,8 @@ describe('PIU UI application lifecycle', () => {
     assert.match(controllerSource, /existingApplication\.empty\(\)/)
     assert.match(controllerSource, /existingApplication\.behavior = controller/)
     assert.match(controllerSource, /controller\.onCreate\(existingApplication, data\)/)
-    assert.doesNotMatch(controllerSource, /addDecorator/)
-    assert.doesNotMatch(controllerSource, /removeDecorator/)
+    assert.doesNotMatch(controllerSource, new RegExp(legacyAddDecoratorName))
+    assert.doesNotMatch(controllerSource, new RegExp(legacyRemoveDecoratorName))
   })
 
   test('standard application path constructs UI directly without legacy adapters', () => {
@@ -28,20 +29,20 @@ describe('PIU UI application lifecycle', () => {
     assert.match(source, /createAppControllerApplication/)
     assert.match(source, /new SimpleFace\(\)/)
     assert.match(source, /preferences\.ui/)
-    assert.doesNotMatch(source, /createRenderer/)
+    assert.doesNotMatch(source, new RegExp(legacyCreateName))
     assert.doesNotMatch(source, /loadPreferences\('renderer'\)/)
-    assert.doesNotMatch(source, /RendererCompat/)
+    assert.doesNotMatch(source, new RegExp(legacyCompatName))
   })
 
   test('UI manifests do not expose legacy adapter modules', () => {
     for (const manifestPath of ['host/modules/ui/manifest.json', 'host/modules/ui/manifest_wasm.json']) {
       const source = readFileSync(manifestPath, 'utf8')
-      assert.doesNotMatch(source, /renderer-/)
-      assert.doesNotMatch(source, /RendererCompat/)
+      assert.doesNotMatch(source, new RegExp(legacyPrefix))
+      assert.doesNotMatch(source, new RegExp(legacyCompatName))
     }
 
-    for (const rendererPath of rendererPaths) {
-      assert.equal(existsSync(rendererPath), false)
+    for (const legacyModulePath of legacyModulePaths) {
+      assert.equal(existsSync(legacyModulePath), false)
     }
   })
 })

@@ -3,7 +3,7 @@ import Timer from 'timer'
 /**
  * @brief calibrates SCServo offset angle
  * @note This mod is under construction. setting pan/tilt offset does not work properly.
- * @param {Robot} robot
+ * @param {*} context - Stack-chan runtime context
  */
 function traceError(context, error) {
   if (error != null) {
@@ -32,10 +32,10 @@ function setOffsetAndSave(servo, label, angle) {
   })
 }
 
-function onContextCreated(robot) {
-  const pan = robot._driver._pan
-  const tilt = robot._driver._tilt
-  robot.button.a.onEvent = (event) => {
+function onContextCreated(context) {
+  const pan = context._driver._pan
+  const tilt = context._driver._tilt
+  context.button.a.onEvent = (event) => {
     if (!event.pressed) {
       return
     }
@@ -44,7 +44,7 @@ function onContextCreated(robot) {
       if (panAngle !== undefined) setOffsetAndSave(pan, 'pan', panAngle)
     })
   }
-  robot.button.b.onEvent = (event) => {
+  context.button.b.onEvent = (event) => {
     if (!event.pressed) {
       return
     }
@@ -53,7 +53,7 @@ function onContextCreated(robot) {
       if (tiltAngle !== undefined) setOffsetAndSave(tilt, 'tilt', tiltAngle)
     })
   }
-  robot.button.c.onEvent = (event) => {
+  context.button.c.onEvent = (event) => {
     if (!event.pressed) {
       return
     }

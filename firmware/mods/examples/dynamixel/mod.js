@@ -4,12 +4,12 @@ import Timer from 'timer'
 
 /**
  * Press button A to change rotation
- * @param {*} r - Robot instance
+ * @param {*} context - Stack-chan runtime context
  */
-export function onContextCreated(r) {
+export function onContextCreated(context) {
   let count = 0
-  const driver = r.driver
-  r.button.a.onEvent = (event) => {
+  const driver = context.driver
+  context.button.a.onEvent = (event) => {
     if (event.pressed) {
       return
     }

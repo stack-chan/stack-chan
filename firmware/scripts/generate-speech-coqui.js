@@ -116,8 +116,8 @@ if (input) {
   } else {
     process.chdir(cwd) // change CurrentDirectory to saved(firmware Directory)
     console.log(`cwd   :${process.cwd()}`)
-    console.log('input :./stackchan/assets/sounds/speeches_ja.js')
-    options.input = path.resolve('./stackchan/assets/sounds/speeches_ja.js')
+    console.log('input :./host/modules/audio/assets/sounds/speeches_ja.js')
+    options.input = path.resolve('./host/modules/audio/assets/sounds/speeches_ja.js')
   }
   console.log(`      (${options.input})`)
 }

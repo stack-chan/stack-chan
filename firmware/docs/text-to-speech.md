@@ -78,7 +78,7 @@ export const speeches = {
 ```
 
 * Run `npm run generate-speech-[google|coqui|voicevox]`
-  * this script get voice data from server and saves wave files under `stackchan/assets/sounds`
+  * this script get voice data from server and saves wave files under `host/modules/audio/assets/sounds`
 * Flash firmware with assets
 * Call `Robot#speak(sentense: string)` with the sentense.
 

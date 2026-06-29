@@ -32,7 +32,7 @@
 * 共通オプション
   * --input 入力ファイル名
     省略時はカレントディレクトリに speeches.js がある場合はそちらになります
-    無い場合は ./stackchan/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
+    無い場合は ./host/modules/audio/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
   * --output 出力ディレクトリ
     省略時は入力ファイルのあるディレクトリの配下に assets ディレクトリがある場合はそちらになります
     assets ディレクトリがない場合は入力ファイルと同じディレクトリになります
@@ -60,7 +60,7 @@
 * 共通オプション
   * --input 入力ファイル名
     省略時はカレントディレクトリに speeches.js がある場合はそちらになります
-    無い場合は ./stackchan/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
+    無い場合は ./host/modules/audio/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
   * --output 出力ディレクトリ
     省略時は入力ファイルのあるディレクトリの配下に assets ディレクトリがある場合はそちらになります
      assets ディレクトリがない場合は入力ファイルと同じディレクトリになります
@@ -97,7 +97,7 @@
 * 共通オプション
   * --input 入力ファイル名
     省略時はカレントディレクトリに speeches.js がある場合はそちらになります
-    無い場合は ./stackchan/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
+    無い場合は ./host/modules/audio/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
   * --output 出力ディレクトリ
     省略時は入力ファイルのあるディレクトリの配下に assets ディレクトリがある場合はそちらになります
      assets ディレクトリがない場合は入力ファイルと同じディレクトリになります

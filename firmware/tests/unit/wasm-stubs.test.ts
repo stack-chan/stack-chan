@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
+import Microphone from '../../host/modules/audio/wasm/microphone.js'
+import Tone from '../../host/modules/audio/wasm/tone.js'
 import FallbackCamera from '../../host/modules/camera/camera.js'
 import Camera from '../../host/modules/camera/wasm/camera.js'
 import {
@@ -12,8 +14,6 @@ import {
   SCServoDriver,
   WasmDriver,
 } from '../../host/modules/motion/wasm/wasm-driver.js'
-import Microphone from '../../stackchan/wasm/microphone.js'
-import Tone from '../../stackchan/wasm/tone.js'
 
 type Rotation = { y: number; p: number; r: number }
 type DriverConstructor = new (
@@ -85,12 +85,10 @@ for (const [name, Driver] of driverCases) {
 test('WASM manifest keeps concrete servo driver module specifiers as facades for Moddable resolution', () => {
   const manifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
 
-  assert.equal(manifest.modules['wasm-audio-bridge'], '../../stackchan/wasm/audio-bridge')
+  assert.ok(manifest.include.includes('../modules/audio/manifest_wasm.json'))
   assert.ok(manifest.include.includes('../modules/camera/manifest_wasm.json'))
   assert.ok(manifest.include.includes('../modules/motion/manifest_wasm.json'))
   assert.ok(manifest.preload.includes('wasm-camera-bridge'))
-  assert.equal(manifest.modules['embedded:io/audio/in'], '../../stackchan/wasm/audio-in')
-  assert.equal(manifest.modules['embedded:io/audio/in'], '../../stackchan/wasm/audio-in')
   assert.ok(manifest.include.includes('../modules/input/manifest.json'))
   assert.ok(manifest.preload.includes('touch-panel'))
   assert.ok(manifest.preload.includes('touch-panel-gesture'))
@@ -102,6 +100,38 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
       'py32-led': '../modules/lighting/wasm/py32-led',
     },
   )
+})
+
+test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', () => {
+  const manifest = JSON.parse(readFileSync('host/modules/audio/manifest_wasm.json', 'utf8'))
+
+  assert.deepEqual(
+    {
+      'wasm-audio-bridge': manifest.modules['wasm-audio-bridge'],
+      tone: manifest.modules.tone,
+      microphone: manifest.modules.microphone,
+      'embedded:io/audio/in': manifest.modules['embedded:io/audio/in'],
+      'tts-local': manifest.modules['tts-local'],
+      'tts-remote': manifest.modules['tts-remote'],
+      'tts-voicevox': manifest.modules['tts-voicevox'],
+      'tts-voicevox-web': manifest.modules['tts-voicevox-web'],
+      'tts-elevenlabs': manifest.modules['tts-elevenlabs'],
+      'tts-openai': manifest.modules['tts-openai'],
+    },
+    {
+      'wasm-audio-bridge': './wasm/audio-bridge',
+      tone: './wasm/tone',
+      microphone: './wasm/microphone',
+      'embedded:io/audio/in': './wasm/audio-in',
+      'tts-local': './wasm/tts-local',
+      'tts-remote': './wasm/tts-remote',
+      'tts-voicevox': './wasm/tts-voicevox',
+      'tts-voicevox-web': './wasm/tts-voicevox-web',
+      'tts-elevenlabs': './wasm/tts-elevenlabs',
+      'tts-openai': './wasm/tts-openai',
+    },
+  )
+  assert.ok(manifest.preload.includes('wasm-audio-bridge'))
 })
 
 test('WASM servo driver facade files re-export the consolidated WasmDriver through a manifest module specifier', () => {

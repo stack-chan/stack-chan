@@ -41,8 +41,10 @@ firmware/
       audio/
         manifest.json
         manifest.test.json
+        manifest_wasm.json
         assets/
           sounds/
+        wasm/
       camera/
         manifest.json
         manifest.test.json
@@ -252,7 +254,7 @@ flowchart TD
 
 ### 4. Modules 構造の作成
 
-- [ ] 未対応：`firmware/host/modules/audio` を作成し、`manifest.json` と `manifest.test.json` を置く。
+- [x] 対応済み：`firmware/host/modules/audio` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/camera` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/conversation` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/connectivity` を作成し、`manifest.json` と `manifest.test.json` を置く。
@@ -278,12 +280,13 @@ flowchart TD
 
 ### 6. Audio の移行
 
-- [ ] 未対応：`firmware/stackchan/speeches` を `firmware/host/modules/audio` へ移す。
-- [ ] 未対応：`firmware/stackchan/microphone.ts` を `firmware/host/modules/audio` へ移す。
-- [ ] 未対応：`firmware/stackchan/tone.ts` を `firmware/host/modules/audio` へ移す。
-- [ ] 未対応：`firmware/stackchan/transcriptions` を `firmware/host/modules/audio` へ移す。
-- [ ] 未対応：`firmware/stackchan/assets/sounds` を `firmware/host/modules/audio/assets/sounds` へ移す。
-- [ ] 未対応：TTS provider ごとの実装ファイルは維持し、audio module の manifest で選択する。
+- [x] 対応済み：`firmware/stackchan/speeches` を `firmware/host/modules/audio` へ移す。
+- [x] 対応済み：`firmware/stackchan/microphone.ts` を `firmware/host/modules/audio` へ移す。
+- [x] 対応済み：`firmware/stackchan/tone.ts` を `firmware/host/modules/audio` へ移す。
+- [x] 対応済み：`firmware/stackchan/transcriptions` を `firmware/host/modules/audio` へ移す。
+- [x] 対応済み：`firmware/stackchan/assets/sounds` を `firmware/host/modules/audio/assets/sounds` へ移す。
+- [x] 対応済み：`firmware/stackchan/wasm` の音声 stub を `firmware/host/modules/audio/wasm` へ移す。
+- [x] 対応済み：TTS provider ごとの実装ファイルは維持し、audio module の manifest で選択する。
 - [ ] 未対応：ストリーミング再生と再生完了通知を callback 契約へ統一する。
 - [ ] 未対応：`onPlayed` と `onDone` の通知方向は維持し、`stream()` の戻り値へ完了制御を集めない。
 - [ ] 未対応：録音 buffer と再生 buffer の所有者を型または契約で明示する。
@@ -333,7 +336,7 @@ flowchart TD
 - [ ] 未対応：`firmware/host/platforms/wasm` を作成する。
 - [ ] 未対応：`firmware/host/platforms/lin` を作成する。
 - [ ] 未対応：`firmware/host/platforms/m5stackchan_cores3` を作成する。
-- [ ] 未対応：`firmware/stackchan/wasm` を `firmware/host/platforms/wasm` へ移す。
+- [ ] 未対応：module 固有ではない WASM platform 差分を `firmware/host/platforms/wasm` へ移す。
 - [ ] 未対応：通常コードから WASM 専用 import を取り除く。
 - [ ] 未対応：platform 差分を TypeScript の runtime branch ではなく manifest の include、modules、platforms で表す。
 - [ ] 未対応：ESP32 target ごとの差分を platform manifest で表し、app composition に混ぜない。

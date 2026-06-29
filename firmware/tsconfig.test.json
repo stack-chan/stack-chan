@@ -44,7 +44,7 @@
     "host/modules/input/touch-panel-gesture.ts",
     "host/modules/input/imu-motion.ts",
     "host/modules/camera/wasm/camera.ts",
-    "stackchan/wasm/microphone.ts",
+    "host/modules/audio/wasm/microphone.ts",
     "host/modules/motion/m5stackchan-servo.ts",
     "host/modules/lighting/py32-io-expander.ts",
     "host/modules/motion/internal/single-wait-slot.ts",

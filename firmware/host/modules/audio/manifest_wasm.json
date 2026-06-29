@@ -1,0 +1,20 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../app/manifest_typings.json"
+  ],
+  "modules": {
+    "wasm-audio-bridge": "./wasm/audio-bridge",
+    "tone": "./wasm/tone",
+    "microphone": "./wasm/microphone",
+    "embedded:io/audio/in": "./wasm/audio-in",
+    "tts-local": "./wasm/tts-local",
+    "tts-remote": "./wasm/tts-remote",
+    "tts-voicevox": "./wasm/tts-voicevox",
+    "tts-voicevox-web": "./wasm/tts-voicevox-web",
+    "tts-elevenlabs": "./wasm/tts-elevenlabs",
+    "tts-openai": "./wasm/tts-openai",
+    "tts-stub": "./wasm/tts-stub"
+  },
+  "preload": ["wasm-audio-bridge"]
+}

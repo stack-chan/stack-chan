@@ -9,6 +9,7 @@
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
     "../modules/motion/manifest.json",
+    "../modules/audio/manifest.json",
     "../../stackchan/ble/manifest_ble.json",
     "../../stackchan/dialogues/manifest_dialogue.json",
     "../modules/camera/manifest.json",
@@ -16,16 +17,12 @@
     "../modules/ui/manifest.json",
     "../modules/input/manifest.json",
     "../../stackchan/services/manifest_service.json",
-    "../../stackchan/speeches/manifest_speech.json",
-    "../../stackchan/transcriptions/manifest_transcription.json",
     "../modules/util/manifest.json",
     "../modules/preferences/manifest.json",
-    "./manifest_typings.json",
-    "./manifest_microphone.json"
+    "./manifest_typings.json"
   ],
   "modules": {
     "*": [
-      "../../stackchan/tone",
       "./main",
       "./compose",
       "./capabilities",

@@ -79,6 +79,8 @@
         "./host/app/default-behavior/*",
         "./host/app/default-behavior/wasm/*",
         "./host/modules/camera/*",
+        "./host/modules/audio/*",
+        "./host/modules/audio/wasm/*",
         "./host/modules/input/*",
         "./stackchan/*",
         "./stackchan/ble/*",
@@ -107,9 +109,7 @@
         "./host/modules/util/esp32/*",
         "./host/modules/util/sim/*",
         "./host/modules/preferences/*",
-        "./stackchan/services/*",
-        "./stackchan/speeches/*",
-        "./stackchan/transcriptions/*"
+        "./stackchan/services/*"
       ],
       "commodetto/*": [
         "./node_modules/@moddable/typings/commodetto/*"
@@ -175,7 +175,7 @@
         "./host/app/default-behavior/wasm/on-launch"
       ],
       "calculate-power": [
-        "./stackchan/speeches/calculate-power"
+        "./host/modules/audio/calculate-power"
       ],
       "mac-address": [
         "./host/modules/util/esp32/mac-address"

@@ -80,7 +80,7 @@ export const speeches = {
 ```
 
 * npm run generate-speech-[google|coqui|voicevox]を実行します
-  * このスクリプトはサーバーから音声データを取得し、stackchan/assets/soundsにwaveファイルを保存します
+  * このスクリプトはサーバーから音声データを取得し、host/modules/audio/assets/soundsにwaveファイルを保存します
 * 音声ファイルとともにファームウェアを書き込みます
 * `Robot#say(sentense: string)`を呼び出します
 

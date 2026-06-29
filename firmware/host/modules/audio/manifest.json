@@ -6,22 +6,27 @@
     "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
     "$(MODDABLE)/examples/pins/audioout/openai-stream/manifest_openaistreamer.json",
     "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
+    "$(MODDABLE)/modules/base/uuid/manifest.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
     "$(MODDABLE)/modules/data/url/manifest.json",
+    "$(MODDABLE)/modules/io/audioin/manifest.json",
     "./manifest_file.json",
-    "../../host/app/manifest_typings.json"
+    "../../app/manifest_typings.json"
   ],
   "modules": {
     "*": [
       "./*",
       "$(MODDABLE)/examples/pins/audioout/http-stream/calculatePower",
-      "../../typings/elevenlabsstreamer",
-      "../../typings/resourcestreamer",
-      "../../typings/wavstreamer",
-      "../../typings/mp3streamer"
+      "../../../typings/elevenlabsstreamer",
+      "../../../typings/resourcestreamer",
+      "../../../typings/wavstreamer",
+      "../../../typings/mp3streamer"
     ]
   },
   "preload": [
+    "microphone",
+    "tone",
+    "stt-whisper",
     "calculatePower",
     "tts-local",
     "tts-remote",
@@ -31,11 +36,17 @@
     "tts-openai"
   ],
   "data": {
-    "*": ["$(MODULES)/crypt/data/ca109"]
+    "*": ["$(MODULES)/crypt/data/ca109", "$(MODULES)/crypt/data/ca236"]
   },
   "config": {
     "tls": {
       "DHE_RSA": false
+    }
+  },
+  "defines": {
+    "audioIn": {
+      "sampleRate": 16000,
+      "bitsPerSample": 16
     }
   },
   "platforms": {

@@ -75,6 +75,11 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   assert.ok(!wasmManifest.modules['*'].includes('../../app/runtime-motion'))
   assert.ok(!wasmManifest.modules['*'].includes('../../stackchan/robot'))
   assert.equal(wasmManifest.modules['app-default-behavior'], '../../app/default-behavior/wasm/behavior')
+  assert.equal(
+    wasmManifest.modules['app-default-behavior/on-context-created'],
+    '../../app/default-behavior/on-context-created',
+  )
+  assert.equal(wasmManifest.modules['app-default-behavior/*'], undefined)
   assert.equal(wasmManifest.modules['app-behavior'], '../../app/app-behavior')
 
   assert.doesNotMatch(runtimeContext, /createFaceState/)

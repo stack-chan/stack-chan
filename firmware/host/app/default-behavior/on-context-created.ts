@@ -46,7 +46,7 @@ function errorMessage(error: unknown): string {
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
-    Timer.set(resolve, ms)
+    Timer.set(() => resolve(), ms)
   })
 }
 

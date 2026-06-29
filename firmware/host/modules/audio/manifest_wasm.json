@@ -4,10 +4,12 @@
     "../../app/manifest_typings.json"
   ],
   "modules": {
+    "audio-buffer": "./audio-buffer",
     "wasm-audio-bridge": "./wasm/audio-bridge",
     "tone": "./wasm/tone",
     "microphone": "./wasm/microphone",
     "embedded:io/audio/in": "./wasm/audio-in",
+    "tts-types": "./tts-types",
     "tts-local": "./wasm/tts-local",
     "tts-remote": "./wasm/tts-remote",
     "tts-voicevox": "./wasm/tts-voicevox",

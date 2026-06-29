@@ -167,10 +167,12 @@ test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', (
 
   assert.deepEqual(
     {
+      'audio-buffer': manifest.modules['audio-buffer'],
       'wasm-audio-bridge': manifest.modules['wasm-audio-bridge'],
       tone: manifest.modules.tone,
       microphone: manifest.modules.microphone,
       'embedded:io/audio/in': manifest.modules['embedded:io/audio/in'],
+      'tts-types': manifest.modules['tts-types'],
       'tts-local': manifest.modules['tts-local'],
       'tts-remote': manifest.modules['tts-remote'],
       'tts-voicevox': manifest.modules['tts-voicevox'],
@@ -179,10 +181,12 @@ test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', (
       'tts-openai': manifest.modules['tts-openai'],
     },
     {
+      'audio-buffer': './audio-buffer',
       'wasm-audio-bridge': './wasm/audio-bridge',
       tone: './wasm/tone',
       microphone: './wasm/microphone',
       'embedded:io/audio/in': './wasm/audio-in',
+      'tts-types': './tts-types',
       'tts-local': './wasm/tts-local',
       'tts-remote': './wasm/tts-remote',
       'tts-voicevox': './wasm/tts-voicevox',
@@ -264,6 +268,11 @@ test('WASM manifest selects the wasm app default behavior without an app-layer r
   assert.ok(appManifest.include.includes('../platforms/wasm/manifest.json'))
   assert.equal(manifest.modules['app-default-behavior'], '../../app/default-behavior/wasm/behavior')
   assert.equal(manifest.modules['app-default-behavior/wasm/behavior'], '../../app/default-behavior/wasm/behavior')
+  assert.equal(
+    manifest.modules['app-default-behavior/on-context-created'],
+    '../../app/default-behavior/on-context-created',
+  )
+  assert.equal(manifest.modules['app-default-behavior/*'], undefined)
   assert.ok(manifest.preload.includes('app-default-behavior'))
 })
 

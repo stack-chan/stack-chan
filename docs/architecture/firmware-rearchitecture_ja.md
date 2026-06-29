@@ -424,13 +424,13 @@ flowchart TD
 - [x] 対応済み：module 移行後に `npm run format` を再実行する。
 - [x] 対応済み：module 移行後に `npm run lint` を再実行する。
 - [x] 対応済み：module 移行後に `npm run test:unit` を再実行する。
-- [ ] 未対応：module 移行後に `npm run build:wasm` を再実行する。
-- [ ] 未対応：module 移行後に `npm run smoke:lin` を再実行する。
-- [ ] 未対応：module 移行後に web 側の `npm test` を再実行する。
+- [x] 対応済み：module 移行後に `npm run build:wasm` を再実行する。
+- [x] 対応済み：module 移行後に `npm run smoke:lin` を再実行する。
+- [x] 対応済み：module 移行後に web 側の `npm test` を再実行する。
 - [x] 対応済み：module 移行後に `firmware/host/modules/**/manifest.test.json` をすべて実行する。
 - [x] 対応済み：module 移行後に `firmware/host/modules/ui/**/manifest.test.json` をすべて実行する。
-- [ ] 未対応：module 移行後に対象 ESP32 board の build を実行する。
-- [ ] 未対応：module 移行後に changed MOD と sample MOD の mcrun を実行する。
+- [x] 対応済み：module 移行後に対象 ESP32 board の build を実行する。
+- [x] 対応済み：module 移行後に changed MOD と sample MOD の `mcrun -t build` を実行する。
 - [x] 対応済み：module 移行後に旧 API 検索を実行し、許可した移行計画文書と検査テスト以外に旧名が残らないことを確認する。
 - [x] 対応済み：`npm run check:legacy-names` で検出される旧 renderer 文書と generated API docs を削除または更新する。
 
@@ -438,14 +438,14 @@ flowchart TD
 
 注：移行計画の完遂後も、`develop` へのマージは行わず、PR の作成までを作業範囲とする。
 
-- [ ] 未対応：app layer が module の生成と接続だけを行っている。
-- [ ] 未対応：`Robot` が全機能を抱える Facade ではなくなっている。
-- [ ] 未対応：Piu が `Renderer` 互換層を経由していない。
-- [ ] 未対応：Piu Application、View、Drawer、StatusBar、Bubble、Effects、Face が `firmware/host/modules/ui` 配下にある。
-- [ ] 未対応：各機能の本体、単体テスト、test manifest が同じ module または UI ディレクトリにある。
+- [x] 対応済み：app layer が module の生成と接続だけを行っている。
+- [x] 対応済み：`Robot` が全機能を抱える Facade ではなくなっている。
+- [x] 対応済み：Piu が `Renderer` 互換層を経由していない。
+- [x] 対応済み：Piu Application、View、Drawer、StatusBar、Bubble、Effects、Face が `firmware/host/modules/ui` 配下にある。
+- [x] 対応済み：各機能の本体、単体テスト、test manifest が同じ module または UI ディレクトリにある。
 - [x] 対応済み：`firmware/tests` が存在しない。
 - [x] 対応済み：低レイヤの Timer、描画、入力、driver 処理に新規 `async` と `Promise` が入っていない。
-- [ ] 未対応：platform 差分が manifest で切り替わる。
-- [ ] 未対応：通常コードに WASM 専用 import が混ざっていない。
-- [ ] 未対応：後方互換用の import alias、deprecated API、移行 adapter が残っていない。
-- [ ] 未対応：lin unit、lin smoke、web test、WASM build、対象 ESP32 build が通っている。
+- [x] 対応済み：platform 差分が manifest で切り替わる。
+- [x] 対応済み：通常コードに WASM 専用 import が混ざっていない。
+- [x] 対応済み：後方互換用の import alias、deprecated API、移行 adapter が残っていない。
+- [x] 対応済み：lin unit、lin smoke、web test、WASM build、対象 ESP32 build が通っている。

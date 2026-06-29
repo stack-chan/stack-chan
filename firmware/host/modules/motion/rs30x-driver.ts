@@ -1,4 +1,4 @@
-import RS30X from 'rs30x'
+import RS30X from 'protocols/rs30x'
 import type { Maybe, Rotation } from 'stackchan-util'
 import type Timer from 'timer'
 

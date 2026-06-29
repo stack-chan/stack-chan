@@ -1,4 +1,4 @@
-import SCServo from 'scservo'
+import SCServo from 'protocols/scservo'
 import type { Maybe, Rotation } from 'stackchan-util'
 import type Timer from 'timer'
 

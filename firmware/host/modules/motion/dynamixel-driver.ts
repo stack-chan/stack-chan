@@ -1,4 +1,4 @@
-import Dynamixel, { OPERATING_MODE } from 'dynamixel'
+import Dynamixel, { OPERATING_MODE } from 'protocols/dynamixel'
 import type { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'
 

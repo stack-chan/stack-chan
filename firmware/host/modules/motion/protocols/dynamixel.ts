@@ -1,10 +1,8 @@
 import Serial from 'embedded:io/serial'
 import config from 'mc/config'
-
+import { PayloadBuffer } from 'payload-buffer'
 import SingleWaitSlot from 'single-wait-slot'
 import Timer from 'timer'
-
-import { PayloadBuffer } from './payload-buffer'
 
 type Maybe<T> =
   | {

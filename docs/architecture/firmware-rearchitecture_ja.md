@@ -280,7 +280,7 @@ flowchart TD
 ### 5. Motion の移行
 
 - [x] 対応済み：`firmware/stackchan/drivers` を `firmware/host/modules/motion` へ移す。
-- [ ] 未対応：`scservo`、`rs30x`、`dynamixel` を `modules/motion/protocols` へ分ける。
+- [x] 対応済み：`scservo`、`rs30x`、`dynamixel` を `modules/motion/protocols` へ分ける。
 - [ ] 未対応：首の pan、tilt、torque、追従制御を `modules/motion` の controller 層に置く。
 - [ ] 未対応：低レイヤの送受信待ちから `Promise` queue を取り除く。
 - [ ] 未対応：低レイヤの送受信待ちは callback、待ち slot、timeout state で表す。

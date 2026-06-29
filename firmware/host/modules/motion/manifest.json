@@ -7,17 +7,20 @@
     "../lighting/manifest.json"
   ],
   "modules": {
-    "*": ["./*", "./internal/*"]
+    "*": ["./*", "./internal/*"],
+    "protocols/*": "./protocols/*"
   },
   "preload": [
-    "dynamixel",
+    "protocols/dynamixel",
     "dynamixel-driver",
     "m5stackchan-servo",
     "m5stackchan-servo-driver",
     "none-driver",
+    "protocols/rs30x",
+    "protocols/scservo",
+    "sg90-driver",
     "rs30x-driver",
     "scservo-driver",
-    "sg90-driver",
     "payload-buffer",
     "internal/single-wait-slot"
   ],

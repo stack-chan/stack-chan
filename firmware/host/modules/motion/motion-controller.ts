@@ -3,10 +3,13 @@ import Timer from 'timer'
 
 const INTERVAL_POSE = 1000 / 10
 
+export type MotionCompletion = (error?: unknown) => void
+export type MotionResultCallback<T> = (result: T) => void
+
 export type MotionDriver = {
-  applyRotation: (ori: RotationType, time?: number) => Promise<void>
-  getRotation: () => Promise<Maybe<RotationType>>
-  setTorque: (torque: boolean) => Promise<void>
+  applyRotation: (ori: RotationType, time?: number, callback?: MotionCompletion) => void
+  getRotation: (callback: MotionResultCallback<Maybe<RotationType>>) => void
+  setTorque: (torque: boolean, callback?: MotionCompletion) => void
   onAttached?: () => void
   onDetached?: () => void
 }
@@ -120,46 +123,91 @@ export class MotionController {
     this.#gazePoint = null
   }
 
-  async setPose(pose: Pose, time?: number): Promise<void> {
-    return this.#driver.applyRotation(pose.rotation, time)
+  setPose(pose: Pose, time?: number, callback?: MotionCompletion): void {
+    this.#driver.applyRotation(pose.rotation, time, callback)
   }
 
-  async setTorque(torque: boolean): Promise<void> {
-    return this.#driver.setTorque(torque)
+  setTorque(torque: boolean, callback?: MotionCompletion): void {
+    this.#driver.setTorque(torque, callback)
   }
 
-  async updatePose(_id?: unknown) {
+  updatePose(_id?: unknown): void {
     if (this.updating || this.#options.isPaused()) {
       return
     }
     this.updating = true
-    const result = await this.#driver.getRotation()
-    if (result.success) {
-      this.#pose.body.rotation = result.value
-    }
+    try {
+      this.#driver.getRotation((result) => {
+        let waitingForMotion = false
+        try {
+          if (result.success) {
+            this.#pose.body.rotation = result.value
+          }
 
-    const gazePoint = this.#gazePoint
-    if (!this.#isMoving && gazePoint != null) {
-      const relativeGazePoint = Vector3.rotate(gazePoint, {
-        r: 0.0,
-        y: -this.#pose.body.rotation.y,
-        p: -this.#pose.body.rotation.p,
+          const gazePoint = this.#gazePoint
+          if (!this.#isMoving && gazePoint != null) {
+            const relativeGazePoint = Vector3.rotate(gazePoint, {
+              r: 0.0,
+              y: -this.#pose.body.rotation.y,
+              p: -this.#pose.body.rotation.p,
+            })
+            const { y, p } = Rotation.fromVector3(relativeGazePoint)
+            if (y > Math.PI / 6 || y < -Math.PI / 6 || p > Math.PI / 6 || p < -Math.PI / 6) {
+              this.#isMoving = true
+              waitingForMotion = true
+              const time = randomBetween(0.5, 1.0)
+              try {
+                this.#driver.setTorque(true, (torqueError) => {
+                  if (torqueError) {
+                    trace(`[MotionController] set torque failed: ${String(torqueError)}\n`)
+                    this.#isMoving = false
+                    this.updating = false
+                    return
+                  }
+                  try {
+                    this.#driver.applyRotation(Rotation.fromVector3(gazePoint), time, (moveError) => {
+                      if (moveError) {
+                        trace(`[MotionController] apply rotation failed: ${String(moveError)}\n`)
+                        this.#isMoving = false
+                      } else {
+                        Timer.set(
+                          () => {
+                            try {
+                              this.#driver.setTorque(false, () => {
+                                this.#isMoving = false
+                              })
+                            } catch (error) {
+                              trace(`[MotionController] release torque failed: ${String(error)}\n`)
+                              this.#isMoving = false
+                            }
+                          },
+                          time * 1000 + 50,
+                        )
+                      }
+                      this.updating = false
+                    })
+                  } catch (error) {
+                    trace(`[MotionController] apply rotation failed: ${String(error)}\n`)
+                    this.#isMoving = false
+                    this.updating = false
+                  }
+                })
+              } catch (error) {
+                trace(`[MotionController] set torque failed: ${String(error)}\n`)
+                this.#isMoving = false
+                waitingForMotion = false
+              }
+            }
+          }
+        } finally {
+          if (!waitingForMotion) {
+            this.updating = false
+          }
+        }
       })
-      const { y, p } = Rotation.fromVector3(relativeGazePoint)
-      if (y > Math.PI / 6 || y < -Math.PI / 6 || p > Math.PI / 6 || p < -Math.PI / 6) {
-        this.#isMoving = true
-        const time = randomBetween(0.5, 1.0)
-        await this.#driver.setTorque(true)
-        await this.#driver.applyRotation(Rotation.fromVector3(gazePoint), time)
-        Timer.set(
-          async () => {
-            await this.#driver.setTorque(false)
-            this.#isMoving = false
-          },
-          time * 1000 + 50,
-        )
-      }
+    } catch (error) {
+      trace(`[MotionController] get rotation failed: ${String(error)}\n`)
+      this.updating = false
     }
-    this.updating = false
   }
 }

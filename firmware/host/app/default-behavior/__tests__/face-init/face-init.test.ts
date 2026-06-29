@@ -26,10 +26,6 @@ const robot = {
     removeEffect: () => {},
     setFace: () => {},
   },
-  driver: {
-    setTorque: () => {},
-    applyRotation: () => {},
-  },
   led: {},
   button: {
     a: null,
@@ -38,6 +34,8 @@ const robot = {
   },
   lookAway: () => {},
   lookAt: () => {},
+  setPose: () => Promise.resolve(),
+  setTorque: () => Promise.resolve(),
   showBalloon: () => {},
   hideBalloon: () => {},
   setEmotion: () => {},

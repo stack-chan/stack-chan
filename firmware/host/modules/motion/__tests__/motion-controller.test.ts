@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 import type { Maybe, Pose, Rotation } from 'stackchan-util'
 import { writeAliasPackage } from '../../testing/node-alias-package.js'
-import type { MotionDriver } from '../motion-controller.js'
+import type { MotionCompletion, MotionDriver, MotionResultCallback } from '../motion-controller.js'
 
 type FakeTimer = {
   advance(milliseconds: number): void
@@ -20,21 +20,23 @@ class FakeMotionDriver implements MotionDriver {
   rotation: Rotation = { y: 0, p: 0, r: 0 }
   torqueStates: boolean[] = []
 
-  async applyRotation(rotation: Rotation, time?: number): Promise<void> {
+  applyRotation(rotation: Rotation, time?: number, callback?: MotionCompletion): void {
     this.appliedRotation = rotation
     this.appliedTime = time
     this.rotation = rotation
+    callback?.()
   }
 
-  async getRotation(): Promise<Maybe<Rotation>> {
-    return {
+  getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
+    callback({
       success: true,
       value: this.rotation,
-    }
+    })
   }
 
-  async setTorque(torque: boolean): Promise<void> {
+  setTorque(torque: boolean, callback?: MotionCompletion): void {
     this.torqueStates.push(torque)
+    callback?.()
   }
 
   onAttached(): void {
@@ -55,6 +57,18 @@ function installBareSpecifierPackages(): void {
   writeAliasPackage(modulesRoot, 'stackchan-util', resolve(modulesRoot, 'util/stackchan-util.js'))
 }
 
+function waitForMotion(start: (callback: MotionCompletion) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    start((error) => {
+      if (error != null) {
+        reject(error)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
 test('MotionController follows gaze point and releases torque after movement', async () => {
   installBareSpecifierPackages()
   const [{ MotionController }, { default: fakeTimer }] = await Promise.all([
@@ -69,7 +83,7 @@ test('MotionController follows gaze point and releases torque after movement', a
   assert.equal(driver.attached, 1)
 
   controller.lookAt([1, 1, 0])
-  await controller.updatePose()
+  controller.updatePose()
 
   assert.equal(driver.torqueStates[0], true)
   assert.ok(driver.appliedRotation)
@@ -100,14 +114,14 @@ test('MotionController delegates driver replacement, torque, and explicit pose u
   assert.equal(driver.detached, 1)
   assert.equal(nextDriver.attached, 1)
 
-  await controller.setTorque(true)
+  await waitForMotion((callback) => controller.setTorque(true, callback))
   assert.equal(nextDriver.torqueStates[0], true)
 
   const pose: Pose = {
     position: { x: 0, y: 0, z: 0 },
     rotation: { y: 0.2, p: -0.1, r: 0 },
   }
-  await controller.setPose(pose, 0.25)
+  await waitForMotion((callback) => controller.setPose(pose, 0.25, callback))
 
   assert.equal(nextDriver.appliedRotation?.y, 0.2)
   assert.equal(nextDriver.appliedRotation?.p, -0.1)

@@ -1,3 +1,5 @@
+import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
+import { notifyCompletion } from 'motion-driver-callback'
 import Dynamixel, { OPERATING_MODE } from 'protocols/dynamixel'
 import type { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'
@@ -82,7 +84,11 @@ export class DynamixelDriver {
     this._interval = 125
   }
 
-  async setTorque(torque: boolean): Promise<void> {
+  setTorque(torque: boolean, callback?: MotionCompletion): void {
+    notifyCompletion(this.#setTorque(torque), callback)
+  }
+
+  async #setTorque(torque: boolean): Promise<void> {
     this._torque = torque
     // Avoid temporary array/promise allocations on low-memory targets.
     for (const control of this._controls) {
@@ -146,22 +152,23 @@ export class DynamixelDriver {
     }, this._interval)
   }
 
-  async applyRotation(ori: Rotation): Promise<void> {
+  applyRotation(ori: Rotation, _time = 0.5, callback?: MotionCompletion): void {
     const panAngle = (ori.y * 180) / Math.PI
     const tiltAngle = (ori.p * 180) / Math.PI
     this._controls[0].goalPosition = Math.floor(((panAngle + 180) * 4096) / 360)
     this._controls[1].goalPosition = Math.floor(((Math.min(Math.max(tiltAngle, -30), 10) + 180) * 4096) / 360)
+    callback?.()
   }
 
-  async getRotation(): Promise<Maybe<Rotation>> {
+  getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
     const [p1, p2] = this._controls.map((c) => (c.presentPosition * 360) / 4096 - 180)
-    return {
+    callback({
       success: true,
       value: {
         y: (p1 * Math.PI) / 180,
         p: (p2 * Math.PI) / 180,
         r: 0.0,
       },
-    }
+    })
   }
 }

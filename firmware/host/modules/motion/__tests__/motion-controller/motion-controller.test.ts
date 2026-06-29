@@ -1,4 +1,9 @@
-import { MotionController, type MotionDriver } from 'motion-controller'
+import {
+  type MotionCompletion,
+  MotionController,
+  type MotionDriver,
+  type MotionResultCallback,
+} from 'motion-controller'
 import type { Maybe, Pose, Rotation } from 'stackchan-util'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
@@ -17,21 +22,23 @@ class FakeMotionDriver implements MotionDriver {
   rotation: Rotation = { y: 0, p: 0, r: 0 }
   torqueStates: boolean[] = []
 
-  async applyRotation(rotation: Rotation, time?: number): Promise<void> {
+  applyRotation(rotation: Rotation, time?: number, callback?: MotionCompletion): void {
     this.appliedRotation = rotation
     this.appliedTime = time
     this.rotation = rotation
+    callback?.()
   }
 
-  async getRotation(): Promise<Maybe<Rotation>> {
-    return {
+  getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
+    callback({
       success: true,
       value: this.rotation,
-    }
+    })
   }
 
-  async setTorque(torque: boolean): Promise<void> {
+  setTorque(torque: boolean, callback?: MotionCompletion): void {
     this.torqueStates.push(torque)
+    callback?.()
   }
 
   onAttached(): void {
@@ -41,6 +48,18 @@ class FakeMotionDriver implements MotionDriver {
   onDetached(): void {
     this.detached += 1
   }
+}
+
+function waitForMotion(start: (callback: MotionCompletion) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    start((error) => {
+      if (error != null) {
+        reject(error)
+      } else {
+        resolve()
+      }
+    })
+  })
 }
 
 async function runTest() {
@@ -53,7 +72,7 @@ async function runTest() {
   equal(driver.attached, 1, 'initial driver should be attached')
 
   controller.lookAt([1, 1, 0])
-  await controller.updatePose()
+  controller.updatePose()
 
   equal(driver.torqueStates[0], true, 'lookAt update should enable torque before moving')
   assert(driver.appliedRotation != null, 'lookAt update should apply a face rotation')
@@ -71,14 +90,14 @@ async function runTest() {
   equal(driver.detached, 1, 'replacing driver should detach the previous driver')
   equal(nextDriver.attached, 1, 'replacing driver should attach the next driver')
 
-  await controller.setTorque(true)
+  await waitForMotion((callback) => controller.setTorque(true, callback))
   equal(nextDriver.torqueStates[0], true, 'setTorque should delegate to the active driver')
 
   const pose: Pose = {
     position: { x: 0, y: 0, z: 0 },
     rotation: { y: 0.2, p: -0.1, r: 0 },
   }
-  await controller.setPose(pose, 0.25)
+  await waitForMotion((callback) => controller.setPose(pose, 0.25, callback))
   equal(nextDriver.appliedRotation?.y, 0.2, 'setPose should delegate yaw to the active driver')
   equal(nextDriver.appliedRotation?.p, -0.1, 'setPose should delegate pitch to the active driver')
   equal(nextDriver.appliedTime, 0.25, 'setPose should pass motion time to the active driver')

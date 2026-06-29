@@ -1,5 +1,7 @@
 type Rotation = { y: number; p: number; r: number }
 type Maybe<T> = { success: true; value: T } | { success: false; error?: string }
+type MotionCompletion = (error?: unknown) => void
+type MotionResultCallback<T> = (result: T) => void
 
 type HostDriverBridge = {
   applyRotation?: (message: { rotation: Rotation; time?: number }) => void
@@ -46,25 +48,29 @@ export class WasmDriver {
     void _options
   }
 
-  async applyRotation(rotation: Rotation, time?: number): Promise<void> {
-    assertValidRotation(rotation)
-    this.#rotation = { ...rotation }
-    writeTrace(
-      `[WasmDriver] applyRotation y=${rotation.y} p=${rotation.p} r=${rotation.r} time=${time === undefined ? '' : time}\n`,
-    )
-    globalThis.Host?.Driver?.applyRotation?.({ rotation, time })
-    return Promise.resolve()
+  applyRotation(rotation: Rotation, time?: number, callback?: MotionCompletion): void {
+    try {
+      assertValidRotation(rotation)
+      this.#rotation = { ...rotation }
+      writeTrace(
+        `[WasmDriver] applyRotation y=${rotation.y} p=${rotation.p} r=${rotation.r} time=${time === undefined ? '' : time}\n`,
+      )
+      globalThis.Host?.Driver?.applyRotation?.({ rotation, time })
+      callback?.()
+    } catch (error) {
+      callback?.(error)
+    }
   }
 
-  getRotation(): Promise<Maybe<Rotation>> {
+  getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
     const rotation = globalThis.Host?.Driver?.getRotation?.() ?? this.#rotation
-    return Promise.resolve({ success: true, value: { ...rotation } })
+    callback({ success: true, value: { ...rotation } })
   }
 
-  setTorque(torque: boolean): Promise<void> {
+  setTorque(torque: boolean, callback?: MotionCompletion): void {
     writeTrace(`[WasmDriver] setTorque torque=${torque ? 1 : 0}\n`)
     globalThis.Host?.Driver?.setTorque?.(torque)
-    return Promise.resolve()
+    callback?.()
   }
 }
 

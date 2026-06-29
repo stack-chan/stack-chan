@@ -3,13 +3,11 @@ import type { RobotCamera } from 'camera'
 import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
 import type IMU from 'imu'
 import type Led from 'led'
-import type { MotionControllerPose, MotionDriver } from 'motion-controller'
+import type { MotionControllerPose } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
-
-export type Driver = MotionDriver
 
 export type TTS = {
   stream: (text: string, volume?: number) => Promise<void>
@@ -54,7 +52,6 @@ export type FaceCapability = {
 
 export type MotionCapability = {
   pose: MotionControllerPose
-  driver: Driver
   lookAt(position: Vector3): void
   lookAway(): void
   setPose(pose: Pose, time?: number): Promise<void>

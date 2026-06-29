@@ -80,6 +80,10 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       target.ui.addEffect(emoticonEffect)
     }
   }
+  const poseForRotation = (rotation: typeof robot.pose.body.rotation) => ({
+    position: { ...robot.pose.body.position },
+    rotation,
+  })
 
   let faceMode: 'simple' | 'dog' | 'image' = 'simple'
   let cameraPreviewTimer: ReturnType<typeof Timer.set> | undefined
@@ -132,7 +136,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         pettingHoldTimer = undefined
         canceledPettingMotion = true
       }
-      if (canceledPettingMotion) void target.driver.setTorque(false)
+      if (canceledPettingMotion) void target.setTorque(false)
       setEmotionWithEffect(target, nextEmotion)
     },
   })
@@ -196,7 +200,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   let isFollowing = false
   const toggleLookAround = async () => {
     isFollowing = !isFollowing
-    robot.driver.setTorque(isFollowing)
+    await robot.setTorque(isFollowing)
     robot.drawer.setDrawerButtonState('toggleLookAround', isFollowing)
     const text = isFollowing ? 'looking' : 'look away'
     robot.showBalloon(text)
@@ -228,19 +232,19 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
    */
   const testMotion = (onComplete: () => void) => {
     robot.showBalloon('moving...')
-    void robot.driver.setTorque(true)
+    void robot.setTorque(true)
 
     const rotations = [LEFT, RIGHT, DOWN, UP, FORWARD]
     let index = 0
     const step = () => {
       const rot = rotations[index]
       if (!rot) {
-        void robot.driver.setTorque(false)
+        void robot.setTorque(false)
         robot.hideBalloon()
         onComplete()
         return
       }
-      void robot.driver.applyRotation(rot)
+      void robot.setPose(poseForRotation(rot))
       index += 1
       Timer.set(step, 1000)
     }
@@ -470,30 +474,30 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
           )
           void (async () => {
             try {
-              await robot.driver.setTorque(true)
+              await robot.setTorque(true)
               // Multiple visible steps make this read as head shaking, not a single pose change.
-              await robot.driver.applyRotation(leftRight(firstDirection), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+              await robot.setPose(poseForRotation(leftRight(firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
               await asyncWait(TOUCH_PANEL_PET_MOTION_STEP_MS)
-              await robot.driver.applyRotation(leftRight(-firstDirection), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+              await robot.setPose(poseForRotation(leftRight(-firstDirection)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
               await asyncWait(TOUCH_PANEL_PET_MOTION_STEP_MS)
-              await robot.driver.applyRotation(leftRight(firstDirection * 0.55), TOUCH_PANEL_PET_MOTION_STEP_SEC)
+              await robot.setPose(poseForRotation(leftRight(firstDirection * 0.55)), TOUCH_PANEL_PET_MOTION_STEP_SEC)
               await asyncWait(TOUCH_PANEL_PET_MOTION_STEP_MS)
               // Keep the happy reaction looking upward until the restore timer returns to the original pose.
-              await robot.driver.applyRotation(upRotation, TOUCH_PANEL_PET_MOTION_STEP_SEC)
+              await robot.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
               pettingHoldTimer = Timer.set(() => {
                 pettingHoldTimer = undefined
                 void (async () => {
                   try {
-                    await robot.driver.applyRotation(upRotation, TOUCH_PANEL_PET_MOTION_STEP_SEC)
+                    await robot.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
                   } catch (error) {
                     trace(`[TouchPanel] pet hold motion error ${errorMessage(error)}\n`)
-                    await robot.driver.setTorque(false)
+                    await robot.setTorque(false)
                   }
                 })()
               }, TOUCH_PANEL_PET_MOTION_STEP_MS * 2)
             } catch (error) {
               trace(`[TouchPanel] pet motion error ${errorMessage(error)}\n`)
-              await robot.driver.setTorque(false)
+              await robot.setTorque(false)
             } finally {
               pettingMotionActive = false
             }
@@ -511,11 +515,11 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
           if (pettingPreviousRotation) {
             void (async () => {
               try {
-                await robot.driver.applyRotation(pettingPreviousRotation, TOUCH_PANEL_PET_MOTION_STEP_SEC)
+                await robot.setPose(poseForRotation(pettingPreviousRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
               } catch (error) {
                 trace(`[TouchPanel] restore motion error ${errorMessage(error)}\n`)
               } finally {
-                await robot.driver.setTorque(false)
+                await robot.setTorque(false)
               }
             })()
           }

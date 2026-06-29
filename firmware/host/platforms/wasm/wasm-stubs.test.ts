@@ -16,12 +16,14 @@ import {
 } from '../../modules/motion/wasm/wasm-driver.js'
 
 type Rotation = { y: number; p: number; r: number }
+type MotionCompletion = (error?: unknown) => void
+type MotionResultCallback<T> = (result: T) => void
 type DriverConstructor = new (
   options?: unknown,
 ) => {
-  applyRotation(rotation: Rotation, time?: number): Promise<void>
-  getRotation(): Promise<unknown>
-  setTorque(torque: boolean): Promise<void>
+  applyRotation(rotation: Rotation, time?: number, callback?: MotionCompletion): void
+  getRotation(callback: MotionResultCallback<unknown>): void
+  setTorque(torque: boolean, callback?: MotionCompletion): void
 }
 
 type HostCameraTestBridge = {
@@ -72,11 +74,27 @@ const driverCases: Array<[string, DriverConstructor]> = [
   ['scservo', SCServoDriver],
 ]
 
+function readDriverRotation(driver: InstanceType<DriverConstructor>): unknown {
+  let result: unknown
+  driver.getRotation((value) => {
+    result = value
+  })
+  return result
+}
+
+function runDriverCommand(start: (callback: MotionCompletion) => void): unknown {
+  let callbackError: unknown
+  start((error) => {
+    callbackError = error
+  })
+  return callbackError
+}
+
 for (const [name, Driver] of driverCases) {
-  test(`${name} WASM driver alias uses the consolidated WasmDriver bridge`, async () => {
+  test(`${name} WASM driver alias uses the consolidated WasmDriver bridge`, () => {
     assert.equal(Driver, WasmDriver)
 
-    const result = await new Driver().getRotation()
+    const result = readDriverRotation(new Driver())
 
     assert.deepEqual(result, { success: true, value: { y: 0, p: 0, r: 0 } })
   })
@@ -250,7 +268,7 @@ test('WASM camera preview can be dismissed by touch or an automatic timeout', ()
   assert.doesNotMatch(modSource, /robot\.camera\.stop\(\)/)
 })
 
-test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', async () => {
+test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', () => {
   const calls: unknown[] = []
   const previousHost = globalThis.Host
   globalThis.Host = {
@@ -265,16 +283,17 @@ test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver br
     const driver = new WasmDriver()
     const rotation = { y: 0.25, p: -0.125, r: 0.05 }
 
-    await driver.applyRotation(rotation, 0.75)
+    const error = runDriverCommand((callback) => driver.applyRotation(rotation, 0.75, callback))
 
+    assert.equal(error, undefined)
     assert.deepEqual(calls, [{ rotation, time: 0.75 }])
-    assert.deepEqual(await driver.getRotation(), { success: true, value: rotation })
+    assert.deepEqual(readDriverRotation(driver), { success: true, value: rotation })
   } finally {
     globalThis.Host = previousHost
   }
 })
 
-test('WasmDriver applyRotation rejects invalid rotation payloads without mutating state or calling the host bridge', async () => {
+test('WasmDriver applyRotation rejects invalid rotation payloads without mutating state or calling the host bridge', () => {
   const calls: unknown[] = []
   const previousHost = globalThis.Host
   globalThis.Host = {
@@ -288,12 +307,18 @@ test('WasmDriver applyRotation rejects invalid rotation payloads without mutatin
   try {
     const driver = new WasmDriver()
     const validRotation = { y: 0.25, p: -0.125, r: 0.05 }
-    await driver.applyRotation(validRotation)
+    assert.equal(
+      runDriverCommand((callback) => driver.applyRotation(validRotation, undefined, callback)),
+      undefined,
+    )
 
-    await assert.rejects(() => driver.applyRotation({ y: Number.NaN, p: 0, r: 0 } as Rotation), TypeError)
+    const error = runDriverCommand((callback) =>
+      driver.applyRotation({ y: Number.NaN, p: 0, r: 0 } as Rotation, undefined, callback),
+    )
 
+    assert.ok(error instanceof TypeError)
     assert.deepEqual(calls, [{ rotation: validRotation, time: undefined }])
-    assert.deepEqual(await driver.getRotation(), {
+    assert.deepEqual(readDriverRotation(driver), {
       success: true,
       value: validRotation,
     })
@@ -302,7 +327,7 @@ test('WasmDriver applyRotation rejects invalid rotation payloads without mutatin
   }
 })
 
-test('WasmDriver setTorque forwards torque state to the browser Host.Driver bridge when present', async () => {
+test('WasmDriver setTorque forwards torque state to the browser Host.Driver bridge when present', () => {
   const calls: unknown[] = []
   const previousHost = globalThis.Host
   globalThis.Host = {
@@ -314,8 +339,9 @@ test('WasmDriver setTorque forwards torque state to the browser Host.Driver brid
   }
 
   try {
-    await new WasmDriver().setTorque(true)
+    const error = runDriverCommand((callback) => new WasmDriver().setTorque(true, callback))
 
+    assert.equal(error, undefined)
     assert.deepEqual(calls, [true])
   } finally {
     globalThis.Host = previousHost

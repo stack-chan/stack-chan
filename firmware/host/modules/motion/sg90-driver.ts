@@ -1,4 +1,5 @@
 import PWM from 'embedded:io/pwm'
+import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
 import type { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -72,13 +73,13 @@ export class PWMServoDriver {
     this._offsetTilt = param.offsetTilt ?? 0
   }
 
-  async setTorque(/* torque: boolean */): Promise<void> {
+  setTorque(_torque: boolean, callback?: MotionCompletion): void {
     // We cannot change torque via Stack-chan board for now.
     // torque keeps on while 5V supplied.
-    return
+    callback?.()
   }
 
-  async applyRotation(rotation: Rotation, time = 0.5): Promise<void> {
+  applyRotation(rotation: Rotation, time = 0.5, callback?: MotionCompletion): void {
     trace(`applyPose: ${JSON.stringify(rotation)}\n`)
     if (this._driveHandler != null) {
       trace('clearing\n')
@@ -107,16 +108,17 @@ export class PWMServoDriver {
       this._tiltRef.current = t
       cnt += 1
     }, INTERVAL)
+    callback?.()
   }
 
-  async getRotation(): Promise<Maybe<Rotation>> {
-    return {
+  getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
+    callback({
       success: true,
       value: {
         y: (Math.PI * this._panRef.current) / 180,
         p: (Math.PI * this._tiltRef.current) / 180,
         r: 0.0,
       },
-    }
+    })
   }
 }

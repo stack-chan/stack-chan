@@ -1,3 +1,5 @@
+import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
+import { notifyCompletion, notifyMaybe } from 'motion-driver-callback'
 import SCServo from 'protocols/scservo'
 import type { Maybe, Rotation } from 'stackchan-util'
 import type Timer from 'timer'
@@ -16,27 +18,37 @@ export class SCServoDriver {
     this._tilt = new SCServo({ id: param.tiltId })
   }
 
-  async setTorque(torque: boolean): Promise<void> {
-    await Promise.all([this._pan.setTorque(torque), this._tilt.setTorque(torque)])
+  setTorque(torque: boolean, callback?: MotionCompletion): void {
+    notifyCompletion(Promise.all([this._pan.setTorque(torque), this._tilt.setTorque(torque)]), callback)
   }
 
-  async applyRotation(ori: Rotation, time = 0.5): Promise<void> {
+  applyRotation(ori: Rotation, time = 0.5, callback?: MotionCompletion): void {
     const panAngle = 100 - (ori.y * 180) / Math.PI
     const tiltAngle = 100 - Math.min(Math.max((ori.p * 180) / Math.PI, -25), 10)
     trace(`applying (${ori.y}, ${ori.p}) => (${panAngle}, ${tiltAngle})\n`)
     if (time === 0) {
-      await Promise.all([this._pan.setAngle(panAngle), this._tilt.setAngle(tiltAngle)])
+      notifyCompletion(Promise.all([this._pan.setAngle(panAngle), this._tilt.setAngle(tiltAngle)]), callback)
     } else {
-      await Promise.all([
-        this._pan.setAngleInTime(panAngle, time * 1000),
-        this._tilt.setAngleInTime(tiltAngle, time * 1000),
-      ])
+      notifyCompletion(
+        Promise.all([
+          this._pan.setAngleInTime(panAngle, time * 1000),
+          this._tilt.setAngleInTime(tiltAngle, time * 1000),
+        ]),
+        callback,
+      )
     }
   }
-  async getRotation(): Promise<Maybe<Rotation>> {
+  getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
+    notifyMaybe(this.#readRotation(), callback)
+  }
+
+  async #readRotation(): Promise<Maybe<Rotation>> {
     const [p1, p2] = await Promise.allSettled([this._pan.readStatus(), this._tilt.readStatus()])
     if (p1.status !== 'fulfilled' || p2.status !== 'fulfilled') {
-      return
+      return {
+        success: false,
+        reason: 'response unavailable',
+      }
     }
     if (!p1.value.success || !p2.value.success) {
       return {

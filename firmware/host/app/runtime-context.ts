@@ -1,6 +1,6 @@
 import type { RobotUI, StackchanContext } from 'capabilities'
 import type { Emotion, FaceThemeKey } from 'face-state'
-import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
+import { type MotionCompletion, MotionController, type MotionControllerConstructorParam } from 'motion-controller'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
@@ -18,6 +18,22 @@ type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
   MotionControllerConstructorParam & {
     ui: RobotUI
   }
+
+function waitForMotion(start: (callback: MotionCompletion) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      start((error) => {
+        if (error != null) {
+          reject(error)
+        } else {
+          resolve()
+        }
+      })
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
 
 export class StackchanRuntimeContext {
   /**
@@ -239,7 +255,7 @@ export class StackchanRuntimeContext {
    * @experimental
    */
   async setPose(pose: Pose, time?: number): Promise<void> {
-    return this.#motionController.setPose(pose, time)
+    return waitForMotion((callback) => this.#motionController.setPose(pose, time, callback))
   }
 
   /**
@@ -248,7 +264,7 @@ export class StackchanRuntimeContext {
    * @returns void when the robot completes setting the torque
    */
   async setTorque(torque: boolean): Promise<void> {
-    return this.#motionController.setTorque(torque)
+    return waitForMotion((callback) => this.#motionController.setTorque(torque, callback))
   }
 
   /**
@@ -275,10 +291,6 @@ export class StackchanRuntimeContext {
 
   setMouthOpen(value: number) {
     this.#uiRuntime.setMouthOpen(value)
-  }
-
-  get driver() {
-    return this.#motionController.driver
   }
 
   get tts() {
@@ -315,8 +327,8 @@ export class StackchanRuntimeContext {
    * Get the current pose from the Driver
    * and trigger move if necessary to see the gaze point.
    */
-  async updatePose(_id?: unknown) {
-    return this.#motionController.updatePose(_id)
+  updatePose(_id?: unknown): void {
+    this.#motionController.updatePose(_id)
   }
 
   /**

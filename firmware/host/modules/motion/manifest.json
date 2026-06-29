@@ -12,6 +12,7 @@
   },
   "preload": [
     "motion-controller",
+    "motion-driver-callback",
     "protocols/dynamixel",
     "dynamixel-driver",
     "m5stackchan-servo",

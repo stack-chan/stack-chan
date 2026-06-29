@@ -6,6 +6,8 @@ import {
   rawPositionToAngle,
   rotationToM5StackChanServoAngles,
 } from 'm5stackchan-servo'
+import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
+import { notifyCompletion, notifyMaybe } from 'motion-driver-callback'
 import SCServo from 'protocols/scservo'
 import { getSharedPY32IOExpander } from 'py32-io-expander'
 import type { Maybe, Rotation } from 'stackchan-util'
@@ -72,12 +74,20 @@ export class M5StackChanServoDriver {
     this.#servoPower?.setEnabled(false)
   }
 
-  async setTorque(torque: boolean): Promise<void> {
+  setTorque(torque: boolean, callback?: MotionCompletion): void {
+    notifyCompletion(this.#setTorque(torque), callback)
+  }
+
+  async #setTorque(torque: boolean): Promise<void> {
     await this.#pan.setTorque(torque)
     await this.#tilt.setTorque(torque)
   }
 
-  async applyRotation(ori: Rotation, time = 0.5): Promise<void> {
+  applyRotation(ori: Rotation, time = 0.5, callback?: MotionCompletion): void {
+    notifyCompletion(this.#applyRotation(ori, time), callback)
+  }
+
+  async #applyRotation(ori: Rotation, time = 0.5): Promise<void> {
     const angles = rotationToM5StackChanServoAngles(ori)
     const panRawPosition = angleToRawPosition(angles.yaw, this.#config.yaw)
     const tiltRawPosition = angleToRawPosition(angles.pitch, this.#config.pitch)
@@ -91,7 +101,11 @@ export class M5StackChanServoDriver {
     }
   }
 
-  async getRotation(): Promise<Maybe<Rotation>> {
+  getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
+    notifyMaybe(this.#readRotation(), callback)
+  }
+
+  async #readRotation(): Promise<Maybe<Rotation>> {
     const panStatus = await this.#pan.readRawPosition()
     if (!panStatus.success) {
       return {

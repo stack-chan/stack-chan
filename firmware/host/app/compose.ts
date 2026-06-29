@@ -11,6 +11,7 @@ import { M5StackChanServoDriver } from 'm5stackchan-servo-driver'
 import config from 'mc/config'
 import Microphone from 'microphone'
 import Modules from 'modules'
+import type { MotionDriver } from 'motion-controller'
 import { NetworkService } from 'network-service'
 import { NoneDriver } from 'none-driver'
 import { ImageAvatarFace } from 'parts/image/image-avatar-face'
@@ -28,7 +29,7 @@ import { TTS as OpenAITTS } from 'tts-openai'
 import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
-import type { Button, Driver, RobotUI, StackchanContext, TTS } from './capabilities'
+import type { Button, RobotUI, StackchanContext, TTS } from './capabilities'
 import { StackchanRuntimeContext } from './runtime-context'
 
 type DeviceButton = Button & {
@@ -115,7 +116,7 @@ export function getHostDeviceEnvironment(): HostDeviceEnvironment {
 }
 
 export function createStackchanContext(): StackchanContext {
-  const drivers = new Map<string, (param: unknown) => Driver>([
+  const drivers = new Map<string, (param: unknown) => MotionDriver>([
     ['scservo', (param) => new SCServoDriver(param as ConstructorParameters<typeof SCServoDriver>[0])],
     [
       'm5stackchan',

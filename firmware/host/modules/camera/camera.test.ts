@@ -31,7 +31,11 @@ test('camera manifest selects runtime implementation by platform', () => {
   assert.equal(manifest.platforms.win.modules.camera, './lin/camera')
   for (const target of deviceTargets) {
     assert.equal(manifest.platforms[target].modules.camera, './device/camera')
-    assert.ok(manifest.platforms[target].include.includes('$(MODDABLE)/modules/io/imagein/camera/manifest.json'))
+    assert.ok(manifest.platforms[target].include.includes('./manifest_device.json'))
+    assert.equal(
+      manifest.platforms[target].include.includes('$(MODDABLE)/modules/io/imagein/camera/manifest.json'),
+      false,
+    )
   }
   assert.equal(wasmManifest.modules.camera, './wasm/camera')
 })

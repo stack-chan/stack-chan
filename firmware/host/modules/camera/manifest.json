@@ -13,7 +13,7 @@
     "esp32/m5stack_cores3": {
       "include": [
         "$(MODDABLE)/modules/io/manifest.json",
-        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+        "./manifest_device.json"
       ],
       "modules": {
         "camera": "./device/camera"
@@ -22,7 +22,7 @@
     "esp32/m5stackchan_cores3": {
       "include": [
         "$(MODDABLE)/modules/io/manifest.json",
-        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+        "./manifest_device.json"
       ],
       "modules": {
         "camera": "./device/camera"
@@ -31,7 +31,7 @@
     "esp32/m5atom_s3r_cam": {
       "include": [
         "$(MODDABLE)/modules/io/manifest.json",
-        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+        "./manifest_device.json"
       ],
       "modules": {
         "camera": "./device/camera"
@@ -40,7 +40,7 @@
     "esp32/m5atom_s3r_m12": {
       "include": [
         "$(MODDABLE)/modules/io/manifest.json",
-        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+        "./manifest_device.json"
       ],
       "modules": {
         "camera": "./device/camera"
@@ -49,7 +49,7 @@
     "esp32/lilygo_t_camera_plus_s3": {
       "include": [
         "$(MODDABLE)/modules/io/manifest.json",
-        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+        "./manifest_device.json"
       ],
       "modules": {
         "camera": "./device/camera"
@@ -58,7 +58,7 @@
     "esp32/xiao_esp32s3_sense": {
       "include": [
         "$(MODDABLE)/modules/io/manifest.json",
-        "$(MODDABLE)/modules/io/imagein/camera/manifest.json"
+        "./manifest_device.json"
       ],
       "modules": {
         "camera": "./device/camera"

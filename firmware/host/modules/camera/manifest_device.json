@@ -1,0 +1,18 @@
+{
+  "preload": ["embedded:io/image/in/camera"],
+  "modules": {
+    "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+    "embedded:io/image/in/camera": "$(MODDABLE)/modules/io/imagein/camera/esp32/camera"
+  },
+  "dependencies": [
+    {
+      "name": "esp32-camera",
+      "version": "^2.0.10",
+      "includes": ["conversions/include", "driver/include"]
+    },
+    {
+      "name": "esp_jpeg",
+      "idf": "espressif__esp_jpeg"
+    }
+  ]
+}

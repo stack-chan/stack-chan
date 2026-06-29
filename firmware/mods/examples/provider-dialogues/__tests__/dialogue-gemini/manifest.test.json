@@ -2,9 +2,8 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../../../util/manifest.json",
     "../../manifest.json",
-    "../../../../app/manifest_typings.json"
+    "../../../../../host/app/manifest_typings.json"
   ],
   "modules": {
     "*": ["./dialogue-gemini.test"]

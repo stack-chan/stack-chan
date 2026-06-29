@@ -89,6 +89,7 @@
         "./host/modules/connectivity/wasm/*",
         "./host/modules/conversation/*",
         "./host/modules/conversation/chat-audioio/*",
+        "./mods/examples/provider-dialogues/*",
         "./host/modules/input/*",
         "./host/modules/motion/*",
         "./host/modules/motion/internal/*",

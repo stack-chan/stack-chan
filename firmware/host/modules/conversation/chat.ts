@@ -1,4 +1,5 @@
 import ChatAudioIO from 'ChatAudioIO'
+import { type ChatFunctionCallSnapshot, ChatSessionState, type ChatTranscriptSnapshot } from 'chat-state'
 
 export type ChatState =
   | 'FAILED'
@@ -56,6 +57,7 @@ type ChatServiceOptions = {
   tools?: Record<string, ChatTool>
   callbacks?: ChatCallbacks
   chatAudioIOCtor?: new (chatOptions: Record<string, unknown>) => ChatAudioIO
+  sessionState?: ChatSessionState
 }
 
 type ChatFunctionSchema = {
@@ -131,8 +133,10 @@ export class ChatService {
   #state: ChatState = 'DISCONNECTED'
   #error = ''
   #callbacks: Required<ChatCallbacks>
+  #sessionState: ChatSessionState
 
   constructor(options: ChatServiceOptions) {
+    this.#sessionState = options.sessionState ?? new ChatSessionState()
     const callbacks = options.callbacks ?? {}
     this.#callbacks = {
       onStateChanged: callbacks.onStateChanged ?? noop,
@@ -164,14 +168,23 @@ export class ChatService {
       onStateChanged: (state: number) => {
         this.#state = mapState(state, chatAudioIOConstants)
         this.#error = this.#chat.error ?? ''
+        this.#sessionState.setState(this.#state, this.#error)
         this.#callbacks.onStateChanged(this.#state, this.#error || undefined)
       },
       onInputLevelChanged: (level: number) => this.#callbacks.onInputLevelChanged(level),
       onOutputLevelChanged: (level: number) => this.#callbacks.onOutputLevelChanged(level),
-      onInputTranscript: (text: string, more: boolean) => this.#callbacks.onInputTranscript(text, more),
-      onOutputTranscript: (text: string, more: boolean) => this.#callbacks.onOutputTranscript(text, more),
-      onFunctionCall: (call: string, name: string, params: Record<string, unknown>) =>
-        this.#callbacks.onFunctionCall(call, name, params),
+      onInputTranscript: (text: string, more: boolean) => {
+        this.#sessionState.appendTranscript('input', text, more)
+        this.#callbacks.onInputTranscript(text, more)
+      },
+      onOutputTranscript: (text: string, more: boolean) => {
+        this.#sessionState.appendTranscript('output', text, more)
+        this.#callbacks.onOutputTranscript(text, more)
+      },
+      onFunctionCall: (call: string, name: string, params: Record<string, unknown>) => {
+        this.#sessionState.recordFunctionCall(call, name, params)
+        this.#callbacks.onFunctionCall(call, name, params)
+      },
     })
   }
 
@@ -181,6 +194,14 @@ export class ChatService {
 
   get error(): string {
     return this.#error
+  }
+
+  get transcript(): ChatTranscriptSnapshot {
+    return this.#sessionState.transcript
+  }
+
+  get functionCalls(): ChatFunctionCallSnapshot[] {
+    return this.#sessionState.functionCalls
   }
 
   start(): void {
@@ -200,6 +221,7 @@ export class ChatService {
   }
 
   sendFunctionResult(call: string, name: string, result: unknown): void {
+    this.#sessionState.recordFunctionResult(call, name, result)
     this.#chat.sendFunctionResult(call, name, result)
   }
 

@@ -100,7 +100,7 @@ $ npm run deploy --target=esp32/m5stack
 
 ```console
 # targetは esp32/m5stack または esp32/m5stack_core2 から指定
-$ npm run mod --target=esp32/m5stack mods/chatgpt/manifest.json
+$ npm run mod --target=esp32/m5stack mods/examples/chatgpt/manifest.json
 ```
 
 ## キャラクター設定（systemメッセージ）の変更

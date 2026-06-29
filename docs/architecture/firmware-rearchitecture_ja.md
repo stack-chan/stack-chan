@@ -306,11 +306,11 @@ flowchart TD
 
 - [x] 対応済み：`firmware/stackchan/services/chat.ts` を `firmware/host/modules/conversation` へ移す。
 - [x] 対応済み：`firmware/stackchan/dialogues` を `firmware/host/modules/conversation` へ整理する。
-- [ ] 未対応：旧 provider demo は core から外し、会話デモとして残すものだけを `firmware/mods/examples` へ移す。
-- [ ] 未対応：コアの会話実装は Moddable の `ChatAudioIO` を第一候補にする。
-- [ ] 未対応：手製の会話 loop を新規に増やさない。
-- [ ] 未対応：MCP tool 呼び出しは conversation から connectivity への明示依存として表す。
-- [ ] 未対応：transcript と tool call の状態を conversation module の状態として扱う。
+- [x] 対応済み：旧 provider demo は core から外し、会話デモとして残すものだけを `firmware/mods/examples` へ移す。
+- [x] 対応済み：コアの会話実装は Moddable の `ChatAudioIO` を第一候補にする。
+- [x] 対応済み：手製の会話 loop を新規に増やさない。
+- [x] 対応済み：MCP tool 呼び出しは conversation から connectivity への明示依存として表す。
+- [x] 対応済み：transcript と tool call の状態を conversation module の状態として扱う。
 
 ### 8. Connectivity の移行
 
@@ -361,7 +361,7 @@ flowchart TD
 - [ ] 未対応：`firmware/mods` を利用者向け MOD と sample だけを置く場所にする。
 - [ ] 未対応：sample MOD を `firmware/mods/examples` へ移す。
 - [x] 対応済み：product default behavior を `firmware/mods` から `firmware/host/app/default-behavior` へ移す。
-- [ ] 未対応：古い provider demo を core 依存から切り離す。
+- [x] 対応済み：古い provider demo を core 依存から切り離す。
 - [x] 対応済み：MOD API の公開面を capability 単位で再定義し、旧 `Robot` 互換 API を残さない。
 
 ### 12. テスト配置と実行方法の移行

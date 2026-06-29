@@ -99,7 +99,7 @@ Write the mod with the following command:
 
 ```console
 # Choose target from esp32/m5stack or esp32/m5stack_core2
-$ npm run mod --target=esp32/m5stack mods/chatgpt/manifest.json
+$ npm run mod --target=esp32/m5stack mods/examples/chatgpt/manifest.json
 ```
 
 ## Changing character settings (system messages)

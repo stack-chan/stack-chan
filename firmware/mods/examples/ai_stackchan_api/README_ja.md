@@ -57,7 +57,7 @@
 cd (YOUR_WORKING_DIRECTORY)/stack-chan/firmware
 npm run build --target=esp32/m5stack_core2 ssid=YOUR_WIFI_SSID password=YOUR_WIFI_PASSWORD
 npm run deploy --target=esp32/m5stack_core2
-npm run mod --target=esp32/m5stack_core2 ./mods/ai_stackchan_api/manifest.json
+npm run mod --target=esp32/m5stack_core2 ./mods/examples/ai_stackchan_api/manifest.json
 ```
 
 ## Web API一覧

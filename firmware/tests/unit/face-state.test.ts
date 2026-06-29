@@ -50,3 +50,12 @@ test('UI manifests register the cdv FaceState view definition', () => {
     })
   }
 })
+
+test('FaceBehavior applies breathing without reassigning coordinates on every tick', () => {
+  const source = readFileSync('host/modules/ui/components/face/behaviors/face.ts', 'utf8')
+  const match = source.match(/onTimeChanged\(container: PiuContainer\) \{[\s\S]*?\n {2}\}\n\n {2}onTouchEnded/)
+
+  assert.ok(match, 'FaceBehavior.onTimeChanged should be present')
+  assert.doesNotMatch(match[0], /container\.coordinates\s*=/)
+  assert.match(match[0], /container\.moveBy\(0, dy\)/)
+})

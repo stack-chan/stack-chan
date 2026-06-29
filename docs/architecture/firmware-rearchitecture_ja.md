@@ -216,7 +216,7 @@ flowchart TD
 - [x] 対応済み：`emotion` を文字列ではなく数値 enum として扱う。
 - [x] 対応済み：theme 色の内部表現を `ColorRGB` 構造体に固定する。
 - [x] 対応済み：Piu 境界でだけ `ColorRGB` を `0xRRGGBB` へ pack する。
-- [ ] 未対応：呼吸などの周期更新で `coordinates` を毎フレーム更新しない実装へ変える。
+- [x] 対応済み：呼吸などの周期更新で `coordinates` を毎フレーム更新しない実装へ変える。
 - [ ] 未対応：目、口、吹き出し、絵文字の描画更新を `Port`、`Texture`、`Skin.template`、`variant`、必要最小の `invalidate` に寄せる。
 - [ ] 未対応：毎フレーム `new Skin()`、`new Style()`、`Label.string` 更新が発生しないことを確認する。
 

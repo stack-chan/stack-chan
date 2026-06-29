@@ -196,6 +196,41 @@ test('runtime state machines keep internal state as numeric constants', () => {
   assert.match(settings, /settingsStatusToLabel/, 'settings labels should convert status at the UI boundary')
 })
 
+test('UI palette state stays numeric and converts colors at Piu render boundaries', () => {
+  const colorStateSources = [
+    join(MODULE_ROOT, 'ui', 'components', 'effects', 'emoticon.ts'),
+    join(MODULE_ROOT, 'ui', 'components', 'face', 'parts', 'mouth.ts'),
+    join(MODULE_ROOT, 'ui', 'components', 'face', 'parts', 'dog', 'eyebrow.ts'),
+    join(MODULE_ROOT, 'ui', 'components', 'face', 'parts', 'dog', 'mouth.ts'),
+    join(MODULE_ROOT, 'ui', 'components', 'face', 'parts', 'dog', 'nose.ts'),
+  ]
+
+  for (const sourcePath of colorStateSources) {
+    const source = readFileSync(sourcePath, 'utf8')
+    assert.doesNotMatch(
+      source,
+      /#(?:primary|secondary)[^=\n]*=\s*(?:colorString|toColorString)\(/,
+      `${sourcePath} should not store converted color strings`,
+    )
+    assert.doesNotMatch(
+      source,
+      /const next(?:Primary|Secondary)\s*=\s*(?:colorString|toColorString)\(/,
+      `${sourcePath} should compare numeric color state before rendering`,
+    )
+    assert.doesNotMatch(
+      source,
+      /#(?:primary|secondary)\s*:\s*string\b/,
+      `${sourcePath} should type palette state as numeric color values`,
+    )
+  }
+
+  const emoticon = readFileSync(join(MODULE_ROOT, 'ui', 'components', 'effects', 'emoticon.ts'), 'utf8')
+  assert.match(emoticon, /function primaryColor\(face\?: FaceState\): number/)
+  assert.match(emoticon, /function secondaryColor\(face\?: FaceState\): number/)
+  assert.match(emoticon, /function drawSpriteCell\([^)]*color: number/)
+  assert.match(emoticon, /drawTexture\(\s*getEmoticonTexture\(\),\s*colorString\(color\)/)
+})
+
 test('shared fakes live in modules/testing and module-local fakes stay under module tests', () => {
   assert.ok(existsSync(join(MODULE_ROOT, 'testing/fakes/ChatAudioIO.js')))
   assert.ok(existsSync(join(MODULE_ROOT, 'testing/fakes/timer.ts')))

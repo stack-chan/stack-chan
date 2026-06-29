@@ -12,9 +12,14 @@ export type DogNoseOptions = {
 }
 
 const CLEAR_COLOR = 'transparent'
+const colorStringCache = new Map<number, string>()
 
 function colorString(color: number): string {
-  return `#${color.toString(16).padStart(6, '0')}`
+  const cached = colorStringCache.get(color)
+  if (cached) return cached
+  const value = `#${color.toString(16).padStart(6, '0')}`
+  colorStringCache.set(color, value)
+  return value
 }
 
 class DogNoseBehavior extends Behavior {
@@ -26,7 +31,7 @@ class DogNoseBehavior extends Behavior {
   #canvasHeight = 200
   #open = 0
   #lastOpen = -1
-  #primary = colorString(DEFAULT_FACE_PRIMARY_COLOR)
+  #primary = DEFAULT_FACE_PRIMARY_COLOR
   #hasPalette = false
 
   onCreate(port: PiuPort, opts: Required<DogNoseOptions>) {
@@ -41,7 +46,7 @@ class DogNoseBehavior extends Behavior {
 
   onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
     this.#hasPalette = true
-    const nextPrimary = colorString(palette.primaryColor)
+    const nextPrimary = palette.primaryColor
     if (nextPrimary === this.#primary) return
     this.#primary = nextPrimary
     port.invalidate()
@@ -50,7 +55,7 @@ class DogNoseBehavior extends Behavior {
   onFaceState(port: PiuPort, face: FaceState) {
     let needsDraw = false
     if (!this.#hasPalette) {
-      const nextPrimary = colorString(toPiuColorNumber(face.theme.primary))
+      const nextPrimary = toPiuColorNumber(face.theme.primary)
       if (nextPrimary !== this.#primary) {
         this.#primary = nextPrimary
         needsDraw = true
@@ -67,7 +72,13 @@ class DogNoseBehavior extends Behavior {
     port.fillColor(CLEAR_COLOR, 0, 0, this.#canvasWidth, this.#canvasHeight)
     const h = this.#minHeight + (this.#maxHeight - this.#minHeight) * this.#open
     const y = this.#cy - h / 2
-    port.fillColor(this.#primary, Math.round(this.#cx - 8), Math.round(y - 16), 16, Math.round(Math.max(4, h)))
+    port.fillColor(
+      colorString(this.#primary),
+      Math.round(this.#cx - 8),
+      Math.round(y - 16),
+      16,
+      Math.round(Math.max(4, h)),
+    )
   }
 }
 

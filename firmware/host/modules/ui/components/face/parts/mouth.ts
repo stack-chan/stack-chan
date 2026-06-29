@@ -12,9 +12,14 @@ export type MouthOptions = {
 }
 
 const CLEAR_COLOR = 'transparent'
+const colorStringCache = new Map<number, string>()
 
 function colorString(color: number): string {
-  return `#${color.toString(16).padStart(6, '0')}`
+  const cached = colorStringCache.get(color)
+  if (cached) return cached
+  const value = `#${color.toString(16).padStart(6, '0')}`
+  colorStringCache.set(color, value)
+  return value
 }
 
 class MouthBehavior extends Behavior {
@@ -24,7 +29,7 @@ class MouthBehavior extends Behavior {
   #maxHeight = 58
   #open = 0
   #lastOpen = -1
-  #primary = colorString(DEFAULT_FACE_PRIMARY_COLOR)
+  #primary = DEFAULT_FACE_PRIMARY_COLOR
   #hasPalette = false
 
   onCreate(port: PiuPort, opts: Required<MouthOptions>) {
@@ -37,7 +42,7 @@ class MouthBehavior extends Behavior {
 
   onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
     this.#hasPalette = true
-    const nextPrimary = colorString(palette.primaryColor)
+    const nextPrimary = palette.primaryColor
     if (nextPrimary === this.#primary) return
     this.#primary = nextPrimary
     port.invalidate()
@@ -47,7 +52,7 @@ class MouthBehavior extends Behavior {
     const open = face.mouth.open
     let needsDraw = false
     if (!this.#hasPalette) {
-      const nextPrimary = colorString(toPiuColorNumber(face.theme.primary))
+      const nextPrimary = toPiuColorNumber(face.theme.primary)
       if (nextPrimary !== this.#primary) {
         this.#primary = nextPrimary
         needsDraw = true
@@ -64,7 +69,7 @@ class MouthBehavior extends Behavior {
     const h = this.#minHeight + (this.#maxHeight - this.#minHeight) * this.#open
     const w = this.#minWidth + (this.#maxWidth - this.#minWidth) * (1 - this.#open)
     port.fillColor(
-      this.#primary,
+      colorString(this.#primary),
       Math.round((this.#maxWidth - w) / 2),
       Math.round((this.#maxHeight - h) / 2),
       Math.round(w),

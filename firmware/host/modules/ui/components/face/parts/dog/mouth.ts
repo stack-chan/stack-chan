@@ -15,9 +15,14 @@ export type DogMouthOptions = {
 
 const CLEAR_COLOR = 'transparent'
 const STROKE = 3
+const colorStringCache = new Map<number, string>()
 
 function colorString(color: number): string {
-  return `#${color.toString(16).padStart(6, '0')}`
+  const cached = colorStringCache.get(color)
+  if (cached) return cached
+  const value = `#${color.toString(16).padStart(6, '0')}`
+  colorStringCache.set(color, value)
+  return value
 }
 
 class DogMouthBehavior extends Behavior {
@@ -31,7 +36,7 @@ class DogMouthBehavior extends Behavior {
   #canvasHeight = 200
   #open = 0
   #lastOpen = -1
-  #primary = colorString(DEFAULT_FACE_PRIMARY_COLOR)
+  #primary = DEFAULT_FACE_PRIMARY_COLOR
   #hasPalette = false
 
   onCreate(port: PiuPort, opts: Required<DogMouthOptions>) {
@@ -48,7 +53,7 @@ class DogMouthBehavior extends Behavior {
 
   onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
     this.#hasPalette = true
-    const nextPrimary = colorString(palette.primaryColor)
+    const nextPrimary = palette.primaryColor
     if (nextPrimary === this.#primary) return
     this.#primary = nextPrimary
     port.invalidate()
@@ -57,7 +62,7 @@ class DogMouthBehavior extends Behavior {
   onFaceState(port: PiuPort, face: FaceState) {
     let needsDraw = false
     if (!this.#hasPalette) {
-      const nextPrimary = colorString(toPiuColorNumber(face.theme.primary))
+      const nextPrimary = toPiuColorNumber(face.theme.primary)
       if (nextPrimary !== this.#primary) {
         this.#primary = nextPrimary
         needsDraw = true
@@ -77,10 +82,11 @@ class DogMouthBehavior extends Behavior {
     const x = this.#cx - w / 2
     const y = this.#cy - h / 2
     const centerX = this.#cx - STROKE / 2
-    port.fillColor(this.#primary, Math.round(x), Math.round(y), Math.round(w), STROKE)
-    port.fillColor(this.#primary, Math.round(centerX), Math.round(y), STROKE, Math.round(Math.max(8, h)))
+    const primary = colorString(this.#primary)
+    port.fillColor(primary, Math.round(x), Math.round(y), Math.round(w), STROKE)
+    port.fillColor(primary, Math.round(centerX), Math.round(y), STROKE, Math.round(Math.max(8, h)))
     if (h > 16) {
-      port.fillColor(this.#primary, Math.round(x + w / 4), Math.round(y + 16), Math.round(w / 2), STROKE)
+      port.fillColor(primary, Math.round(x + w / 4), Math.round(y + 16), Math.round(w / 2), STROKE)
     }
   }
 }

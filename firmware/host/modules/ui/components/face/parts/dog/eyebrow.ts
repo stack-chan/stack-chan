@@ -11,9 +11,14 @@ export type EyebrowOptions = {
 }
 
 const CLEAR_COLOR = 'transparent'
+const colorStringCache = new Map<number, string>()
 
 function colorString(color: number): string {
-  return `#${color.toString(16).padStart(6, '0')}`
+  const cached = colorStringCache.get(color)
+  if (cached) return cached
+  const value = `#${color.toString(16).padStart(6, '0')}`
+  colorStringCache.set(color, value)
+  return value
 }
 
 class DogEyebrowBehavior extends Behavior {
@@ -26,7 +31,7 @@ class DogEyebrowBehavior extends Behavior {
   #eyeOpen = 1
   #emotion: FaceState['emotion'] = Emotion.NEUTRAL
   #lastKey = ''
-  #primary = colorString(DEFAULT_FACE_PRIMARY_COLOR)
+  #primary = DEFAULT_FACE_PRIMARY_COLOR
   #hasPalette = false
 
   onCreate(port: PiuPort, opts: Required<EyebrowOptions>) {
@@ -41,7 +46,7 @@ class DogEyebrowBehavior extends Behavior {
 
   onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
     this.#hasPalette = true
-    const nextPrimary = colorString(palette.primaryColor)
+    const nextPrimary = palette.primaryColor
     if (nextPrimary === this.#primary) return
     this.#primary = nextPrimary
     port.invalidate()
@@ -50,7 +55,7 @@ class DogEyebrowBehavior extends Behavior {
   onFaceState(port: PiuPort, face: FaceState) {
     let needsDraw = false
     if (!this.#hasPalette) {
-      const nextPrimary = colorString(toPiuColorNumber(face.theme.primary))
+      const nextPrimary = toPiuColorNumber(face.theme.primary)
       if (nextPrimary !== this.#primary) {
         this.#primary = nextPrimary
         needsDraw = true
@@ -74,7 +79,7 @@ class DogEyebrowBehavior extends Behavior {
     const height = this.#emotion === Emotion.SLEEPY ? 4 : 6
     const x = this.#cx + 8 * this.#direction - width / 2
     const y = this.#cy - 20 - this.#eyeOpen * 2 + (direction < 0 ? 4 : 0)
-    port.fillColor(this.#primary, Math.round(x), Math.round(y), width, height)
+    port.fillColor(colorString(this.#primary), Math.round(x), Math.round(y), width, height)
   }
 }
 

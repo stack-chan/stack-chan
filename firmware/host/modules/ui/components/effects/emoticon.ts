@@ -125,22 +125,27 @@ const TEAR_CONFIG: DropConfig = Object.freeze({
 })
 
 let emoticonTexture: PiuTexture | null = null
+const colorStringCache = new Map<number, string>()
 
 function getEmoticonTexture() {
   if (!emoticonTexture) emoticonTexture = new Texture('emoticon.png')
   return emoticonTexture
 }
 
-function toColorString(color: number): string {
-  return `#${color.toString(16).padStart(6, '0')}`
+function colorString(color: number): string {
+  const cached = colorStringCache.get(color)
+  if (cached) return cached
+  const value = `#${color.toString(16).padStart(6, '0')}`
+  colorStringCache.set(color, value)
+  return value
 }
 
-function primaryColor(face?: FaceState): string {
-  return toColorString(face ? toPiuColorNumber(face.theme.primary) : DEFAULT_FACE_PRIMARY_COLOR)
+function primaryColor(face?: FaceState): number {
+  return face ? toPiuColorNumber(face.theme.primary) : DEFAULT_FACE_PRIMARY_COLOR
 }
 
-function secondaryColor(face?: FaceState): string {
-  return toColorString(face ? toPiuColorNumber(face.theme.secondary) : DEFAULT_FACE_SECONDARY_COLOR)
+function secondaryColor(face?: FaceState): number {
+  return face ? toPiuColorNumber(face.theme.secondary) : DEFAULT_FACE_SECONDARY_COLOR
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -160,11 +165,11 @@ function spriteVariantForScale(scale: number, minScale: number, holdScale: numbe
   return clamp(Math.round(normalized * (SPRITE_FRAME_COUNT - 1)), 0, SPRITE_FRAME_COUNT - 1)
 }
 
-function drawSpriteCell(port: PiuPort, row: number, variant: number, color: string, x: number, y: number) {
+function drawSpriteCell(port: PiuPort, row: number, variant: number, color: number, x: number, y: number) {
   const frame = clamp(variant, 0, SPRITE_FRAME_COUNT - 1)
   port.drawTexture(
     getEmoticonTexture(),
-    color,
+    colorString(color),
     Math.round(x),
     Math.round(y),
     frame * SPRITE_CELL_SIZE,

@@ -28,7 +28,7 @@ async function runTest() {
   equal(Object.keys(mcpTools).length, 1, 'MCP tool should become ChatTool')
   const remoteEcho = mcpTools.remoteEcho
   assert(remoteEcho, 'MCP remoteEcho tool should exist')
-  if (!remoteEcho || !remoteEcho.execute) {
+  if (!remoteEcho?.execute) {
     throw new Error('MCP remoteEcho tool should exist')
   }
   equal(await remoteEcho.execute({ value: 'ok' }), 'remoteEcho:ok', 'MCP tool result should normalize')

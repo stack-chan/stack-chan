@@ -2,7 +2,7 @@
 
 作成日：2026-06-28
 
-更新日：2026-06-29
+更新日：2026-06-30
 
 対象：`firmware/host` と `firmware/mods` を中心とする Moddable ファームウェア。
 
@@ -368,6 +368,10 @@ flowchart TD
 
 ### 12. テスト配置と実行方法の移行
 
+この節では、テストを移動して実行できる状態と、振る舞いを保証する状態を分けて扱う。
+
+ソースコード文字列の正規表現検査は、移行漏れ検出または構成検査であり、振る舞いテストとして数えない。
+
 - [x] 対応済み：`firmware/tests` の内容を対象 module または UI ディレクトリへ移す。
 - [x] 対応済み：`firmware/tests/unit` の内容を対象 module または UI ディレクトリへ移す。
 - [x] 対応済み：集約テストディレクトリとしての `firmware/tests` を削除する。
@@ -385,6 +389,18 @@ flowchart TD
 - [x] 対応済み：Piu の Application や描画イベントを使うテストは `lin/m5stack` を既定にする。
 - [x] 対応済み：画面を使わない純粋ロジックは `lin` で実行できるようにする。
 - [x] 対応済み：実機依存の確認は unit test ではなく smoke として分ける。
+- [ ] 未対応：`firmware/host/modules/ui/views/splash/splash-view.test.ts` のソース文字列 assert を棚卸しし、振る舞いテスト、manifest 構造検査、移行漏れ検査へ分類し直す。
+- [ ] 未対応：`assert.match(source, ...)` と `assert.doesNotMatch(source, ...)` で実装行を追認しているテストを、振る舞いテストの達成条件から外す。
+- [ ] 未対応：`$MODDABLE/documentation/xs/xst.md`、`$MODDABLE/xs/tools/xst.c`、`$MODDABLE/tests` 配下の既存テストを読み、`$DONE`、`$DO`、`$TESTMC.timeout`、async module の扱いを Stack-chan のテスト runner 方針へ反映する。
+- [ ] 未対応：Moddable API に依存するテストは、`xst` で足りるもの、`mcconfig` で生成した `mcsim` が必要なもの、実機 smoke に回すものへ分ける。
+- [ ] 未対応：起動時選択の待ち合わせを `app-default-behavior/startup-choice` のような明示的な module 識別子で import できる単位へ切り出す。
+- [ ] 未対応：起動時選択テストでは fake timer、fake Application、fake splash hook を注入し、3秒後の自動 boot、タッチ時の settings 遷移、二重 resolve の抑止、選択後の後始末を検証する。
+- [ ] 未対応：起動スプラッシュのテストでは `showStartupSplash` の戻り値、Piu tree、Label 表示、touch callback を `lin/m5stack` の test manifest 上で検証し、`new Application` や `new Label` の文字列検査に依存しない。
+- [ ] 未対応：WASM default behavior のテストでは、manifest が解決する module 識別子と起動 hook の呼び出し結果を検証し、`app-default-behavior/wasm/on-launch` という文字列の有無だけを合否にしない。
+- [ ] 未対応：Moddable に依存しない pure helper は Node.js でテストしてよいが、相対パス import ではなく manifest と同じ module 識別子を解決する loader または alias 設定を用意する。
+- [ ] 未対応：Node.js テストで Moddable global、Timer、Piu、Modules、Preference を扱う場合は、明示的な mock を注入し、実装ファイルの文字列走査で代用しない。
+- [ ] 未対応：構成検査として残すソース文字列検査は `check:legacy-names` または architecture lint に寄せ、振る舞いテストと別の名前で CI に表示する。
+- [ ] 未対応：書き換え後のテストを `npm run test:unit`、`npm run test:moddable`、必要に応じて `xst` 直接実行で検証し、PR の Validation に分けて記録する。
 
 ### 13. 非同期境界の移行
 
@@ -433,6 +449,7 @@ flowchart TD
 - [x] 対応済み：module 移行後に changed MOD と sample MOD の `mcrun -t build` を実行する。
 - [x] 対応済み：module 移行後に旧 API 検索を実行し、許可した移行計画文書と検査テスト以外に旧名が残らないことを確認する。
 - [x] 対応済み：`npm run check:legacy-names` で検出される旧 renderer 文書と generated API docs を削除または更新する。
+- [ ] 未対応：ソースコード文字列の追認に依存している UI 起動テストを振る舞いテストへ置き換えた後で、`npm run test:unit`、`npm run test:moddable`、必要な `xst` 検証を再実行する。
 
 ### 16. Merge 条件
 
@@ -449,3 +466,4 @@ flowchart TD
 - [x] 対応済み：通常コードに WASM 専用 import が混ざっていない。
 - [x] 対応済み：後方互換用の import alias、deprecated API、移行 adapter が残っていない。
 - [x] 対応済み：lin unit、lin smoke、web test、WASM build、対象 ESP32 build が通っている。
+- [ ] 未対応：起動スプラッシュと起動時選択のテストが、ソースコード文字列の追認ではなく実行時の振る舞いを検証している。

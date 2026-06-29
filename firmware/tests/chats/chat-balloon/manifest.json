@@ -8,9 +8,9 @@
   "resources": {
     "*-alpha": [
       {
-        "source": "../../../stackchan/assets/fonts/k8x12",
+        "source": "../../../host/modules/ui/assets/fonts/k8x12",
         "size": 12,
-        "characterFiles": "../../../stackchan/assets/fonts/k8x12-chars.txt",
+        "characterFiles": "../../../host/modules/ui/assets/fonts/k8x12-chars.txt",
         "monochrome": true
       }
     ]

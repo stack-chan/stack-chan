@@ -67,9 +67,9 @@
     "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
     "*-alpha": [
       {
-        "source": "../../stackchan/assets/fonts/k8x12",
+        "source": "../modules/ui/assets/fonts/k8x12",
         "size": 12,
-        "characterFiles": "../../stackchan/assets/fonts/k8x12-chars.txt",
+        "characterFiles": "../modules/ui/assets/fonts/k8x12-chars.txt",
         "monochrome": true
       }
     ]

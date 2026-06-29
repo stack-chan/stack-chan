@@ -16,7 +16,7 @@
 
 ## 目標構成
 
-移行後の `firmware/host` は、起動と合成、module、platform、asset を分ける。
+移行後の `firmware/host` は、起動と合成、module、platform を分ける。
 
 `firmware/mods` は、利用者向け MOD と sample MOD だけを置く。
 
@@ -41,6 +41,8 @@ firmware/
       audio/
         manifest.json
         manifest.test.json
+        assets/
+          sounds/
       camera/
         manifest.json
         manifest.test.json
@@ -72,6 +74,9 @@ firmware/
       ui/
         manifest.json
         manifest.test.json
+        assets/
+          fonts/
+          images/
         application/
           app-controller.ts
         views/
@@ -92,10 +97,6 @@ firmware/
       m5stackchan_cores3/
       lin/
       wasm/
-    assets/
-      fonts/
-      images/
-      sounds/
 ```
 
 矢印は、左の module が右の契約を使う向きを示す。
@@ -112,7 +113,7 @@ flowchart TD
   UIViews["host/modules/ui/views"]
   UIComponents["host/modules/ui/components"]
   UIState["host/modules/ui/state"]
-  Assets["host/assets"]
+  UIAssets["host/modules/ui/assets"]
 
   Audio["host/modules/audio"]
   Camera["host/modules/camera"]
@@ -151,7 +152,7 @@ flowchart TD
   UIViews --> UIComponents
   UIViews --> UIState
   UIComponents --> UIState
-  UIComponents --> Assets
+  UIComponents --> UIAssets
 
   Conversation --> Audio
   Conversation --> Connectivity
@@ -205,6 +206,7 @@ flowchart TD
 - [x] 対応済み：SpeechBalloon と MultiRowBalloon を `firmware/host/modules/ui/components/bubble` に置く。
 - [x] 対応済み：顔の部品、顔表示 Behavior、顔関連 skin を `firmware/host/modules/ui/components/face` に置く。
 - [x] 対応済み：顔状態を `firmware/host/modules/ui/state` に置く。
+- [x] 対応済み：UI 画像と UI フォントを `firmware/host/modules/ui/assets` に置く。
 - [x] 対応済み：UI manifest と tsconfig から `renderer-*` alias を削除する。
 - [x] 対応済み：`renderer` preference と config 名を `ui` へ置き換える。
 - [x] 対応済み：default mod と sample mod の UI 呼び出しを `robot.ui.addEffect`、`robot.ui.removeEffect`、`robot.ui.setFace`、`robot.drawer` へ更新する。
@@ -280,6 +282,7 @@ flowchart TD
 - [ ] 未対応：`firmware/stackchan/microphone.ts` を `firmware/host/modules/audio` へ移す。
 - [ ] 未対応：`firmware/stackchan/tone.ts` を `firmware/host/modules/audio` へ移す。
 - [ ] 未対応：`firmware/stackchan/transcriptions` を `firmware/host/modules/audio` へ移す。
+- [ ] 未対応：`firmware/stackchan/assets/sounds` を `firmware/host/modules/audio/assets/sounds` へ移す。
 - [ ] 未対応：TTS provider ごとの実装ファイルは維持し、audio module の manifest で選択する。
 - [ ] 未対応：ストリーミング再生と再生完了通知を callback 契約へ統一する。
 - [ ] 未対応：`onPlayed` と `onDone` の通知方向は維持し、`stream()` の戻り値へ完了制御を集めない。

@@ -65,7 +65,7 @@ test('UI manifests keep bundled demo masks but leave ImageAvatarLite sprites to 
     'stackchan-demo-mouth-normal',
     'stackchan-demo-hand-left-normal',
     'stackchan-demo-hand-right-normal',
-  ].map((name) => `../../../stackchan/assets/images/faces/image-avatar/stackchan-demo/${name}`)
+  ].map((name) => `./assets/images/faces/image-avatar/stackchan-demo/${name}`)
 
   for (const manifestPath of ['host/modules/ui/manifest.json', 'host/modules/ui/manifest_wasm.json']) {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))

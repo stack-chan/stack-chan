@@ -69,9 +69,9 @@
 - `reference/moddable-avatar/assets/images/mouth.png`
 
 コピー先:
-- `stackchan/assets/images/faces/image-face/moddable-avatar/eye.png`
-- `stackchan/assets/images/faces/image-face/moddable-avatar/eyelid.png`
-- `stackchan/assets/images/faces/image-face/moddable-avatar/mouth.png`
+- `host/modules/ui/assets/images/faces/image-face/moddable-avatar/eye.png`
+- `host/modules/ui/assets/images/faces/image-face/moddable-avatar/eyelid.png`
+- `host/modules/ui/assets/images/faces/image-face/moddable-avatar/mouth.png`
 
 命名を `moddable-avatar` 配下に分離し、既存アセットとの衝突を避ける。
 `eyelid.png` は `24x24 x 7` のタイル幅/フレーム数を維持したまま、`open -> close -> open` になる並びで再構成する。
@@ -86,6 +86,31 @@
 
 ### 4. ファイル構成
 追加案:
+
+```text
+host/
+  modules/
+    ui/
+      assets/
+        images/
+          faces/
+            image-face/
+              moddable-avatar/
+                eye.png
+                eyelid.png
+                mouth.png
+      components/
+        face/
+          parts/
+            image/
+              atlas.ts
+              eye-sprite.ts
+              iris-sprite.ts
+              eyelid-sprite.ts
+              mouth-sprite.ts
+```
+
+旧構成の参考:
 
 ```text
 stackchan/

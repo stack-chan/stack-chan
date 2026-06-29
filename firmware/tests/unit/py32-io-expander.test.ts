@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { getSharedPY32IOExpander, normalizeLedRange, rgbToRgb565 } from '../../stackchan/led/py32-io-expander.js'
+import {
+  getSharedPY32IOExpander,
+  normalizeLedRange,
+  rgbToRgb565,
+} from '../../host/modules/lighting/py32-io-expander.js'
 
 describe('PY32 IO Expander helpers', () => {
   it('converts RGB888 to RGB565 in the same layout as the reference firmware', () => {

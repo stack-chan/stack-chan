@@ -83,7 +83,7 @@
         "./stackchan/ble/*",
         "./stackchan/dialogues/*",
         "./stackchan/drivers/*",
-        "./stackchan/led/*",
+        "./host/modules/lighting/*",
         "./host/modules/ui/application/*",
         "./host/modules/ui/views/main/*",
         "./host/modules/ui/views/splash/*",

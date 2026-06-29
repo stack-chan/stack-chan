@@ -46,7 +46,7 @@
     "stackchan/wasm/camera.ts",
     "stackchan/wasm/microphone.ts",
     "stackchan/drivers/m5stackchan-servo.ts",
-    "stackchan/led/py32-io-expander.ts",
+    "host/modules/lighting/py32-io-expander.ts",
     "stackchan/drivers/internal/single-wait-slot.ts",
     "stackchan/drivers/__tests__/**/*.ts",
     "host/modules/ui/state/face-state.ts",

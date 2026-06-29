@@ -11,7 +11,7 @@
     "../../stackchan/drivers/manifest_driver.json",
     "../../stackchan/ble/manifest_ble.json",
     "../../stackchan/dialogues/manifest_dialogue.json",
-    "../../stackchan/led/manifest_led.json",
+    "../modules/lighting/manifest.json",
     "../modules/ui/manifest.json",
     "../modules/input/manifest.json",
     "../../stackchan/services/manifest_service.json",

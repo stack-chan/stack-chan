@@ -255,7 +255,7 @@ flowchart TD
 - [ ] 未対応：`firmware/host/modules/conversation` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/connectivity` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/input` を作成し、`manifest.json` と `manifest.test.json` を置く。
-- [ ] 未対応：`firmware/host/modules/lighting` を作成し、`manifest.json` と `manifest.test.json` を置く。
+- [x] 対応済み：`firmware/host/modules/lighting` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/motion` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [x] 対応済み：`firmware/host/modules/preferences` を作成し、`manifest.json` と `manifest.test.json` を置く。
 - [ ] 未対応：`firmware/host/modules/testing` を作成し、共有 fake と test helper を置く。
@@ -314,8 +314,8 @@ flowchart TD
 - [ ] 未対応：button、touch、touch panel、IMU の入力を短い event struct へ正規化する。
 - [ ] 未対応：入力イベントを Piu や MOD へ raw object のまま渡さない。
 - [ ] 未対応：入力の polling で `Timer.repeat(async () => ...)` を使わない。
-- [ ] 未対応：`firmware/stackchan/led` を `firmware/host/modules/lighting` へ移す。
-- [ ] 未対応：py32 差分を lighting module の platform manifest または module 内部差分として扱う。
+- [x] 対応済み：`firmware/stackchan/led` を `firmware/host/modules/lighting` へ移す。
+- [x] 対応済み：py32 差分を lighting module の platform manifest または module 内部差分として扱う。
 - [ ] 未対応：`firmware/stackchan/camera.ts` を `firmware/host/modules/camera` へ移す。
 - [ ] 未対応：camera の実機実装、WASM stub、lin stub を platform manifest で切り替える。
 - [x] 対応済み：`firmware/stackchan/utilities` を `firmware/host/modules/util` と `firmware/host/modules/preferences` へ分ける。

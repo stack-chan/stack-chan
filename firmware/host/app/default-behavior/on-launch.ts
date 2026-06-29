@@ -71,7 +71,27 @@ export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () 
     'wifi.ssid': preferenceString('ssid'),
     'wifi.password': preferenceString('password'),
   }
-  const labels = buildSettingsView(startupChoice.application, status)
+  const testConnection = () => {
+    if (status['wifi.ssid'].length === 0 || status['wifi.password'].length === 0) {
+      return
+    }
+    stopNetworkConnection()
+    connectStoredWiFi(
+      status,
+      labels,
+      () => {
+        trace('connection complete\n')
+        status.wifi = 'connected'
+        updateSettingsStatusLabels(labels, status)
+      },
+      () => {
+        trace('connection failed\n')
+        status.wifi = 'failed'
+        updateSettingsStatusLabels(labels, status)
+      },
+    )
+  }
+  const labels = buildSettingsView(startupChoice.application, status, { onConnect: testConnection })
 
   new PreferenceServer({
     onPreferenceChanged: (key, value) => {
@@ -90,26 +110,5 @@ export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () 
     keys: PREF_KEYS,
   })
 
-  if (globalThis.button) {
-    globalThis.button.a.onChanged = () => {
-      if (status['wifi.ssid'].length > 0 && status['wifi.password'].length > 0) {
-        stopNetworkConnection()
-        connectStoredWiFi(
-          status,
-          labels,
-          () => {
-            trace('connection complete\n')
-            status.wifi = 'connected'
-            updateSettingsStatusLabels(labels, status)
-          },
-          () => {
-            trace('connection failed\n')
-            status.wifi = 'failed'
-            updateSettingsStatusLabels(labels, status)
-          },
-        )
-      }
-    }
-  }
   return false
 }

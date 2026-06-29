@@ -17,7 +17,8 @@ test('settings view owns the Piu setup screen construction', () => {
   assert.match(settingsSource, /new Column/)
   assert.match(settingsSource, /new Label/)
   assert.match(settingsSource, /Stack-chan Setup/)
-  assert.match(settingsSource, /Press A to test connection/)
+  assert.match(settingsSource, /Tap to test connection/)
+  assert.match(settingsSource, /onTouchEnded/)
 
   assert.match(launchSource, /from 'settings-view'/)
   assert.match(launchSource, /buildSettingsView/)
@@ -27,6 +28,7 @@ test('settings view owns the Piu setup screen construction', () => {
   assert.doesNotMatch(launchSource, /new Label/)
   assert.doesNotMatch(launchSource, /new Skin/)
   assert.doesNotMatch(launchSource, /new Style/)
+  assert.doesNotMatch(launchSource, /globalThis\.button/)
 
   assert.equal(uiManifest.modules['settings-view'], './views/settings/settings-view')
   assert.equal(wasmUiManifest.modules['settings-view'], './views/settings/settings-view')

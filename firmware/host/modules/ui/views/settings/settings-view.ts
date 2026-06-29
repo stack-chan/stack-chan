@@ -1,4 +1,10 @@
-import type { Application as PiuApplication, Label as PiuLabel, Skin as PiuSkin, Style as PiuStyle } from 'piu/MC'
+import type {
+  Application as PiuApplication,
+  Container as PiuContainer,
+  Label as PiuLabel,
+  Skin as PiuSkin,
+  Style as PiuStyle,
+} from 'piu/MC'
 import { Column, Container, Label, Skin, Style } from 'piu/MC'
 
 export type SettingsStatus = {
@@ -14,6 +20,10 @@ export type SettingsStatusLabels = {
   ssid: PiuLabel
   password: PiuLabel
   hint: PiuLabel
+}
+
+export type SettingsViewOptions = {
+  onConnect?: () => void
 }
 
 let screenSkin: PiuSkin | null = null
@@ -49,7 +59,11 @@ function getLabelStyle() {
   return labelStyle
 }
 
-export const buildSettingsView = (application: PiuApplication, status: SettingsStatus): SettingsStatusLabels => {
+export const buildSettingsView = (
+  application: PiuApplication,
+  status: SettingsStatus,
+  options: SettingsViewOptions = {},
+): SettingsStatusLabels => {
   const labels: SettingsStatusLabels = {
     ble: new Label(null, { left: 0, right: 0, height: 22, style: getLabelStyle() }),
     wifi: new Label(null, { left: 0, right: 0, height: 22, style: getLabelStyle() }),
@@ -60,11 +74,12 @@ export const buildSettingsView = (application: PiuApplication, status: SettingsS
   application.empty()
   application.skin = getScreenSkin()
   application.add(
-    new Container(null, {
+    new Container(options, {
       left: 0,
       right: 0,
       top: 0,
       bottom: 0,
+      active: true,
       contents: [
         new Column(null, {
           left: 10,
@@ -86,6 +101,17 @@ export const buildSettingsView = (application: PiuApplication, status: SettingsS
           ],
         }),
       ],
+      Behavior: class extends Behavior {
+        options: SettingsViewOptions | null = null
+
+        onCreate(_container: PiuContainer, data: SettingsViewOptions) {
+          this.options = data
+        }
+
+        onTouchEnded() {
+          this.options?.onConnect?.()
+        }
+      },
     }),
   )
   updateSettingsStatusLabels(labels, status)
@@ -98,5 +124,5 @@ export const updateSettingsStatusLabels = (labels: SettingsStatusLabels, status:
   const maskedPassword = status['wifi.password'] ? status['wifi.password'].replace(/./g, '*') : 'not set'
   labels.password.string = `password: ${maskedPassword}`
   labels.wifi.string = `Wi-Fi: ${status.wifi}`
-  labels.hint.string = 'Press A to test connection'
+  labels.hint.string = 'Tap to test connection'
 }

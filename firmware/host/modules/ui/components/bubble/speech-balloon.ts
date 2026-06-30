@@ -1,4 +1,4 @@
-import { createFaceState, type FaceState, toPiuColorNumber } from 'face-state'
+import { createFaceState, type FaceState, toPiuColorNumber, toPiuColorString } from 'face-state'
 import {
   Container,
   Content,
@@ -22,7 +22,7 @@ const defaultOptions = {
   left: 16,
   right: 16,
   bottom: 12,
-  minHeight: 32,
+  minHeight: 44,
   paddingX: 18,
   paddingY: 10,
   text: 'Hello from Stack-chan',
@@ -50,6 +50,16 @@ type BalloonOptions = {
 }
 
 type WithSkin = PiuContent & { skin?: unknown }
+type ResizableContainer = PiuContainer & {
+  coordinates?: {
+    left?: number
+    right?: number
+    top?: number
+    bottom?: number
+    width?: number
+    height?: number
+  }
+}
 
 type BalloonContainerOptions = {
   name?: string
@@ -70,10 +80,11 @@ function resolveDimension(value: number | undefined, fallback: number): number {
 
 function getTextStyle(font: string, color: number | string): PiuStyle {
   if (!textStyleCache) textStyleCache = new Map()
-  const key = `${font}:${color}`
+  const styleColor = typeof color === 'number' ? toPiuColorString(color) : color
+  const key = `${font}:${styleColor}`
   const cached = textStyleCache.get(key)
   if (cached) return cached
-  const style = new Style({ font, color, horizontal: 'left' })
+  const style = new Style({ font, color: styleColor, horizontal: 'left' })
   textStyleCache.set(key, style)
   return style
 }
@@ -83,9 +94,10 @@ function getBubbleSkin(color: number): PiuSkin {
   const cached = bubbleSkinCache.get(color)
   if (cached) return cached
   if (!bubbleTexture) bubbleTexture = new Texture('bubble.png')
+  const skinColor = toPiuColorString(color)
   const skin = new Skin({
     texture: bubbleTexture,
-    color: [color],
+    color: [skinColor],
     x: 0,
     y: 0,
     width: 204,
@@ -158,6 +170,12 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
     return Math.max(minHeight, paddingY * 2 + lineHeight * lines)
   }
 
+  const applyHeight = (self: ResizableContainer, height: number) => {
+    const currentHeight = self.coordinates?.height ?? self.height
+    if (currentHeight === height) return
+    self.coordinates = { ...(self.coordinates ?? {}), height }
+  }
+
   const containerOptions: BalloonContainerOptions = {
     name: opts.name ?? 'SpeechBalloon',
     clip: true,
@@ -206,7 +224,7 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
         bodyText.string = text ?? ''
         if (fixedHeight === undefined) {
           const nextHeight = resolveHeight(self, text ?? '')
-          if (self.height !== nextHeight) self.height = nextHeight
+          applyHeight(self as ResizableContainer, nextHeight)
         }
       }
 

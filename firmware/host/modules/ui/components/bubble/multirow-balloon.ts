@@ -1,4 +1,4 @@
-import { createFaceState, type FaceState, toPiuColorNumber } from 'face-state'
+import { createFaceState, type FaceState, toPiuColorNumber, toPiuColorString } from 'face-state'
 import {
   type Container as PiuContainer,
   type Content as PiuContent,
@@ -50,10 +50,11 @@ function colorString(color: number): string {
 
 function getTextStyle(font: string, color: number | string): PiuStyle {
   if (!textStyleCache) textStyleCache = new Map()
-  const key = `${font}:${color}`
+  const styleColor = typeof color === 'number' ? toPiuColorString(color) : color
+  const key = `${font}:${styleColor}`
   const cached = textStyleCache.get(key)
   if (cached) return cached
-  const style = new Style({ font, color, horizontal: 'left' })
+  const style = new Style({ font, color: styleColor, horizontal: 'left' })
   textStyleCache.set(key, style)
   return style
 }

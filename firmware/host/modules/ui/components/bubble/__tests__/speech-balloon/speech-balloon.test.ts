@@ -26,8 +26,16 @@ const streamBalloon = new SpeechBalloon({
   text: '',
   font: 'k8x12-12',
 }) as unknown as Content
+const lookBalloon = new SpeechBalloon({
+  right: 20,
+  top: 10,
+  width: 80,
+  text: 'looking',
+  font: 'k8x12-12',
+}) as unknown as Content
 app.add(fixedBalloon)
 app.add(streamBalloon)
+app.add(lookBalloon)
 
 type BalloonBehavior = {
   onDisplaying?: (content: Content) => void
@@ -46,6 +54,16 @@ type BalloonNode = Content & {
   skin?: unknown
   style?: unknown
   string?: string
+}
+
+type BalloonLayout = Content & {
+  coordinates?: {
+    height?: number
+  }
+}
+
+function measuredHeight(content: BalloonLayout): number {
+  return content.coordinates?.height ?? content.height
 }
 
 // Force behavior initialization
@@ -78,6 +96,14 @@ assert(themedText.string === 'stream update', 'setText should update balloon tex
 streamBalloonAny.behavior?.clear?.(streamBalloon)
 assert(themedText.string === '', 'clear should empty balloon text')
 
+const lookBalloonAny = lookBalloon as unknown as BalloonContent
+lookBalloonAny.behavior?.onDisplaying?.(lookBalloon)
+lookBalloonAny.behavior?.onFaceState?.(lookBalloon, defaultFace)
+assert(
+  measuredHeight(lookBalloon as BalloonLayout) >= 44,
+  'short top-positioned balloon should keep enough height for texture caps',
+)
+
 const chunks = [
   'このテキストは SpeechBalloon の',
   ' 自動折り返しと高さ伸長の',
@@ -102,6 +128,6 @@ Timer.repeat(() => {
   else streamBalloonAny.behavior?.setText?.(streamBalloon, '')
 }, 5000)
 
-assert(app.length === 2, 'two balloons should be attached')
+assert(app.length === 3, 'three balloons should be attached')
 
 trace('ok\n')

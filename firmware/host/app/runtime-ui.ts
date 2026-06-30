@@ -23,7 +23,6 @@ type RuntimeUIOptions = {
 export class StackchanRuntimeUI {
   #balloon: UIEffect | null = null
   #drawerBehavior: Record<string, unknown> | null = null
-  #drawerCallbacks = new Map<string, (context: StackchanContext) => unknown>()
   #drawerRegistry: DrawerCapability
   #emotion: Emotion
   #faceState: FaceState
@@ -159,7 +158,6 @@ export class StackchanRuntimeUI {
   }
 
   private addDrawerButton({ key, label, callback, kind, initialState }: DrawerButtonSpec): void {
-    this.#drawerCallbacks.set(key, callback)
     const behavior = this.ensureDrawerBehavior()
     if (behavior) {
       const runCallback = () => {
@@ -191,7 +189,6 @@ export class StackchanRuntimeUI {
   }
 
   private removeDrawerButton(key: string): void {
-    this.#drawerCallbacks.delete(key)
     if (this.#drawerBehavior) {
       delete (this.#drawerBehavior as Record<string, unknown>)[key]
     }
@@ -200,7 +197,6 @@ export class StackchanRuntimeUI {
   }
 
   private clearDrawerButtons(): void {
-    this.#drawerCallbacks.clear()
     const controller = this.getDrawerController()
     controller?.setButtons?.([])
   }

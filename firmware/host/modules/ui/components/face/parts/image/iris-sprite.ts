@@ -1,5 +1,5 @@
 import type { FaceSkinPalette } from 'face-skin'
-import type { FaceEyeKey, FaceState } from 'face-state'
+import { type FaceEyeKey, type FaceState, toPiuColorString } from 'face-state'
 import { gazeToOffset, IMAGE_FACE_TEXTURE_PATHS, IRIS_SPRITE } from 'parts/image/atlas'
 import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 
@@ -28,7 +28,7 @@ function createIrisSkin(color: number): PiuSkin {
     texture: { path: IMAGE_FACE_TEXTURE_PATHS.iris },
     width: IRIS_SPRITE.width,
     height: IRIS_SPRITE.height,
-    color,
+    color: toPiuColorString(color),
   })
 }
 

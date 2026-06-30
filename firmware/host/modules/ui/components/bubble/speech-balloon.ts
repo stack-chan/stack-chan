@@ -15,8 +15,8 @@ import {
 } from 'piu/MC'
 
 let bubbleTexture: PiuTexture | null = null
-const bubbleSkinCache = new Map<number, PiuSkin>()
-const textStyleCache = new Map<string, PiuStyle>()
+let bubbleSkinCache: Map<number, PiuSkin> | null = null
+let textStyleCache: Map<string, PiuStyle> | null = null
 
 const defaultOptions = {
   left: 16,
@@ -69,6 +69,7 @@ function resolveDimension(value: number | undefined, fallback: number): number {
 }
 
 function getTextStyle(font: string, color: number | string): PiuStyle {
+  if (!textStyleCache) textStyleCache = new Map()
   const key = `${font}:${color}`
   const cached = textStyleCache.get(key)
   if (cached) return cached
@@ -78,6 +79,7 @@ function getTextStyle(font: string, color: number | string): PiuStyle {
 }
 
 function getBubbleSkin(color: number): PiuSkin {
+  if (!bubbleSkinCache) bubbleSkinCache = new Map()
   const cached = bubbleSkinCache.get(color)
   if (cached) return cached
   if (!bubbleTexture) bubbleTexture = new Texture('bubble.png')

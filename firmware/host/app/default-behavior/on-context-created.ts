@@ -231,7 +231,11 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       cameraPreviewTimer = Timer.set(restoreCameraPreview, CAMERA_PREVIEW_DURATION_MS)
     } catch (error) {
       trace(`[CameraPreview] error ${errorMessage(error)}\n`)
-      target.showBalloon('camera error')
+      try {
+        target.showBalloon('camera error')
+      } catch (balloonError) {
+        trace(`[CameraPreview] error balloon failed ${errorMessage(balloonError)}\n`)
+      }
     } finally {
       hideBalloonLater(1200)
     }

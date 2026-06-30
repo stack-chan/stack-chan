@@ -1,5 +1,6 @@
 import { AppController } from 'app-controller'
 import { FaceBehavior } from 'behaviors/face'
+import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
 import { Application, Container, Content, type Container as PiuContainer } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
@@ -97,5 +98,11 @@ assert((recorder.skinHits ?? 0) > skinHitsBeforeResume, 'resume should replay th
 const recorderBehavior = recorder.behavior as RecorderBehavior
 assert(typeof recorderBehavior.onFaceState === 'function', 'recorder should receive face context events')
 assert(typeof recorderBehavior.onFaceSkin === 'function', 'recorder should receive face skin events')
+
+controller.setDrawerButtonState('speech', true)
+controller.addEffect(new SpeechBalloon({ name: 'speech', text: 'hello' }), 'speech')
+controller.update(32, desired)
+controller.removeEffectByKey('speech')
+controller.setDrawerButtonState('speech', false)
 
 trace('ok\n')

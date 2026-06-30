@@ -2,6 +2,7 @@ import { type FaceSkinPalette, updateFaceSkinPalette } from 'face-skin'
 import { copyFaceState, createFaceState, type FaceState } from 'face-state'
 import { createBlinkMotion } from 'motions/blink'
 import { createBreathMotion } from 'motions/breath'
+import { createSaccadeMotion } from 'motions/saccade'
 import type { FaceMotion } from 'motions/types'
 import { DogEyebrow } from 'parts/dog/eyebrow'
 import { DogMouth } from 'parts/dog/mouth'
@@ -56,7 +57,7 @@ export class FaceBehavior extends Behavior {
     this.#motions = motions ?? [
       createBlinkMotion({ openMin: 400, openMax: 5000, closeMin: 200, closeMax: 400 }),
       createBreathMotion({ duration: 6000 }),
-      // createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
+      createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
     this.#current = createFaceState()
     this.#desired = createFaceState()
@@ -74,6 +75,9 @@ export class FaceBehavior extends Behavior {
   onCreate(container: PiuContainer) {
     container.interval = this.intervalMs
     copyFaceState(this.#current, this.#desired)
+    if (!this.#paused) {
+      container.start?.()
+    }
     this.updateSkinPalette(container, this.#current)
     if (this.#skinPalette) {
       container.distribute('onFaceSkin', this.#skinPalette)
@@ -118,7 +122,7 @@ export class FaceBehavior extends Behavior {
     if (!this.#hasBaseCoordinates) {
       this.captureBaseCoordinates(container)
     }
-    const nextBreathOffset = this.#current.breath * this.#breathPixels
+    const nextBreathOffset = Math.round(this.#current.breath * this.#breathPixels)
     const dy = nextBreathOffset - this.#breathOffset
     if (dy !== 0) {
       container.moveBy(0, dy)

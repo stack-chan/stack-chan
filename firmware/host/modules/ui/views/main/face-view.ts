@@ -6,7 +6,13 @@ import {
   type TemplateFunction,
 } from 'common-view'
 import { type FaceSkinPalette, updateFaceSkinPalette } from 'face-skin'
-import { copyFaceState, createFaceState, DEFAULT_FACE_SECONDARY_COLOR, type FaceState } from 'face-state'
+import {
+  copyFaceState,
+  createFaceState,
+  DEFAULT_FACE_SECONDARY_COLOR,
+  type FaceState,
+  toPiuColorString,
+} from 'face-state'
 import {
   Container,
   Die,
@@ -43,9 +49,9 @@ class FaceViewBehavior extends CommonViewBehavior {
   face: PiuContainer | null = null
   faceRegion: DieRegion | null = null
   effects: PiuContainer | null = null
-  effectsSet = new Set<PiuContent>()
-  effectsByKey = new Map<string, PiuContent>()
-  effectKeys = new Map<PiuContent, string>()
+  effectsSet: Set<PiuContent> | null = null
+  effectsByKey: Map<string, PiuContent> | null = null
+  effectKeys: Map<PiuContent, string> | null = null
   autoTheme = true
   lastPalette: FaceSkinPalette | null = null
   lastFaceState: FaceState | null = null
@@ -66,6 +72,9 @@ class FaceViewBehavior extends CommonViewBehavior {
     this.face = data.FACE
     this.faceRegion = data.FACE_REGION
     this.effects = data.EFFECTS
+    this.effectsSet = new Set()
+    this.effectsByKey = new Map()
+    this.effectKeys = new Map()
     this.autoTheme = data.skin === undefined
   }
 
@@ -108,36 +117,42 @@ class FaceViewBehavior extends CommonViewBehavior {
 
   addEffect(effect: PiuContent, key?: string): void {
     if (!this.effects) return
+    const effectsSet = this.getEffectsSet()
+    const effectsByKey = this.getEffectsByKey()
+    const effectKeys = this.getEffectKeys()
     const resolvedKey = key ?? (effect as PiuContent & { name?: string }).name
     if (resolvedKey) {
-      const existing = this.effectsByKey.get(resolvedKey)
+      const existing = effectsByKey.get(resolvedKey)
       if (existing && existing !== effect) {
         this.removeEffect(existing)
       }
-      this.effectsByKey.set(resolvedKey, effect)
-      this.effectKeys.set(effect, resolvedKey)
+      effectsByKey.set(resolvedKey, effect)
+      effectKeys.set(effect, resolvedKey)
     }
-    if (this.effectsSet.has(effect)) return
-    this.effectsSet.add(effect)
+    if (effectsSet.has(effect)) return
+    effectsSet.add(effect)
     this.effects.add(effect)
   }
 
   removeEffect(effect: PiuContent): void {
-    if (!this.effects || !this.effectsSet.has(effect)) return
-    this.effectsSet.delete(effect)
+    const effectsSet = this.getEffectsSet()
+    if (!this.effects || !effectsSet.has(effect)) return
+    const effectsByKey = this.getEffectsByKey()
+    const effectKeys = this.getEffectKeys()
+    effectsSet.delete(effect)
     effect.stop?.()
     this.effects.remove(effect)
-    const key = this.effectKeys.get(effect)
+    const key = effectKeys.get(effect)
     if (key) {
-      this.effectKeys.delete(effect)
-      if (this.effectsByKey.get(key) === effect) {
-        this.effectsByKey.delete(key)
+      effectKeys.delete(effect)
+      if (effectsByKey.get(key) === effect) {
+        effectsByKey.delete(key)
       }
     }
   }
 
   removeEffectByKey(key: string): void {
-    const effect = this.effectsByKey.get(key)
+    const effect = this.getEffectsByKey().get(key)
     if (effect) {
       this.removeEffect(effect)
     }
@@ -202,6 +217,21 @@ class FaceViewBehavior extends CommonViewBehavior {
     else this.main.add(face)
     this.applyFaceState(face)
   }
+
+  private getEffectsSet(): Set<PiuContent> {
+    if (!this.effectsSet) this.effectsSet = new Set()
+    return this.effectsSet
+  }
+
+  private getEffectsByKey(): Map<string, PiuContent> {
+    if (!this.effectsByKey) this.effectsByKey = new Map()
+    return this.effectsByKey
+  }
+
+  private getEffectKeys(): Map<PiuContent, string> {
+    if (!this.effectKeys) this.effectKeys = new Map()
+    return this.effectKeys
+  }
 }
 
 export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = Container.template(
@@ -248,7 +278,7 @@ export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = 
     if (!$.EFFECTS) {
       $.EFFECTS = effects
     }
-    const skin = $.skin ?? new Skin({ fill: DEFAULT_FACE_SECONDARY_COLOR })
+    const skin = $.skin ?? new Skin({ fill: toPiuColorString(DEFAULT_FACE_SECONDARY_COLOR) })
     return {
       left: 0,
       right: 0,

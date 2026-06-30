@@ -11,6 +11,7 @@ import {
   toColorString,
   toEmotionName,
   toPiuColorNumber,
+  toPiuColorString,
 } from './face-state.js'
 
 test('FaceState is DataView backed and uses numeric emotion and ColorRGB theme state', () => {
@@ -25,6 +26,7 @@ test('FaceState is DataView backed and uses numeric emotion and ColorRGB theme s
   setColorRGB(face.theme.primary, 0x12, 0x34, 0x56)
   setColorRGB(face.theme.secondary, 0xab, 0xcd, 0xef)
   assert.equal(toPiuColorNumber(face.theme.primary), 0x123456)
+  assert.equal(toPiuColorString(toPiuColorNumber(face.theme.primary)), '#123456')
   assert.equal(toColorString(face.theme.secondary), '#abcdef')
 
   const copied = createFaceState()

@@ -23,7 +23,7 @@ const defaultOptions = {
 }
 
 const CLEAR_COLOR = 'transparent'
-const textStyleCache = new Map<string, PiuStyle>()
+let textStyleCache: Map<string, PiuStyle> | null = null
 
 type MultiRowBalloonOptions = {
   name?: string
@@ -49,6 +49,7 @@ function colorString(color: number): string {
 }
 
 function getTextStyle(font: string, color: number | string): PiuStyle {
+  if (!textStyleCache) textStyleCache = new Map()
   const key = `${font}:${color}`
   const cached = textStyleCache.get(key)
   if (cached) return cached

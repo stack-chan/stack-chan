@@ -339,6 +339,10 @@ export function toPiuColorNumber(color: ColorRGB): number {
   return (color.r << 16) | (color.g << 8) | color.b
 }
 
+export function toPiuColorString(color: number): string {
+  return `#${toHexByte((color >> 16) & 0xff)}${toHexByte((color >> 8) & 0xff)}${toHexByte(color & 0xff)}`
+}
+
 export function toColorString(color: ColorRGB): string {
   return `#${toHexByte(color.r)}${toHexByte(color.g)}${toHexByte(color.b)}`
 }

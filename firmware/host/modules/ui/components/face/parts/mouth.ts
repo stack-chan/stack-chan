@@ -12,9 +12,10 @@ export type MouthOptions = {
 }
 
 const CLEAR_COLOR = 'transparent'
-const colorStringCache = new Map<number, string>()
+let colorStringCache: Map<number, string> | null = null
 
 function colorString(color: number): string {
+  if (!colorStringCache) colorStringCache = new Map()
   const cached = colorStringCache.get(color)
   if (cached) return cached
   const value = `#${color.toString(16).padStart(6, '0')}`

@@ -32,10 +32,11 @@ export class CommonViewBehavior extends Behavior {
   drawer: PiuContainer | null = null
   drawerOpen = false
   drawerButtons: DrawerButtonSpec[] = []
-  drawerStates = new Map<string, boolean>()
+  drawerStates: Map<string, boolean> | null = null
 
   onCreate(container: PiuContainer, data: CommonViewParams) {
     this.container = container
+    this.drawerStates = new Map()
     const missing: string[] = []
     if (!data.MAIN) missing.push('MAIN')
     if (!data.APP_BAR) missing.push('APP_BAR')
@@ -97,7 +98,8 @@ export class CommonViewBehavior extends Behavior {
   }
 
   setDrawerButtonState(key: string, active: boolean): void {
-    this.drawerStates.set(key, active)
+    const states = this.getDrawerStates()
+    states.set(key, active)
     const drawer = this.drawer
     const behavior = drawer?.behavior as DrawerBehavior | undefined
     const updated = behavior?.setButtonState?.(drawer as PiuContainer, key, active)
@@ -114,7 +116,7 @@ export class CommonViewBehavior extends Behavior {
     this.drawer = new Drawer({ buttons: this.drawerButtons })
     if (this.drawer) {
       container.add(this.drawer)
-      for (const [key, active] of this.drawerStates.entries()) {
+      for (const [key, active] of this.getDrawerStates().entries()) {
         const behavior = this.drawer.behavior as DrawerBehavior | undefined
         behavior?.setButtonState?.(this.drawer, key, active)
       }
@@ -137,6 +139,11 @@ export class CommonViewBehavior extends Behavior {
     overlay.active = active
     overlay.visible = true
     overlay.backgroundTouch = active
+  }
+
+  private getDrawerStates(): Map<string, boolean> {
+    if (!this.drawerStates) this.drawerStates = new Map()
+    return this.drawerStates
   }
 }
 

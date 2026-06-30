@@ -51,6 +51,9 @@ test('FaceBehavior applies breathing without reassigning coordinates on every ti
   assert.ok(match, 'FaceBehavior.onTimeChanged should be present')
   assert.doesNotMatch(match[0], /container\.coordinates\s*=/)
   assert.match(match[0], /container\.moveBy\(0, dy\)/)
+  assert.match(source, /createBlinkMotion\(/)
+  assert.match(source, /createBreathMotion\(/)
+  assert.match(source, /createSaccadeMotion\(/)
 })
 
 test('Emoticon effects render through Port and a texture atlas', () => {
@@ -64,16 +67,25 @@ test('Emoticon effects render through Port and a texture atlas', () => {
   assert.doesNotMatch(source, /\bnew Style\b/)
 })
 
-test('Standard face eye and mouth render updates through Port hot paths', () => {
+test('Standard face keeps expressive eyes while avoiding direct path allocation in onFaceState', () => {
   const eye = readFileSync('host/modules/ui/components/face/parts/eye.ts', 'utf8')
   const mouth = readFileSync('host/modules/ui/components/face/parts/mouth.ts', 'utf8')
 
-  assert.match(eye, /\bPort\.template\(/)
-  assert.match(eye, /\.drawSkin\(/)
-  assert.doesNotMatch(eye, /from 'commodetto\/outline'/)
-  assert.doesNotMatch(eye, /\bdefineShapeTemplate\b/)
-  assert.doesNotMatch(eye, /\bnew Shape\b/)
-  assert.doesNotMatch(eye, /coordinates\s*=/)
+  assert.match(eye, /from 'commodetto\/outline'/)
+  assert.match(eye, /\bdefineShapeTemplate\b/)
+  assert.match(eye, /\bContainer\.template\(/)
+  assert.match(eye, /path\.arc\(/)
+  assert.match(eye, /case Emotion\.ANGRY:/)
+  assert.match(eye, /case Emotion\.SAD:/)
+  assert.match(eye, /case Emotion\.HAPPY:/)
+  assert.match(eye, /case Emotion\.SLEEPY:/)
+  assert.match(eye, /let eyelidOutlineCache: Map<.*> \| null = null/)
+  assert.match(eye, /if \(!eyelidOutlineCache\) eyelidOutlineCache = new Map\(\)/)
+  assert.match(eye, /\bquantizeUnit\(/)
+  for (const block of extractMethodBlocks(eye, 'onFaceState')) {
+    assert.doesNotMatch(block, /\bnew\s+(Skin|Outline\.CanvasPath)\b/)
+    assert.doesNotMatch(block, /Outline\.(?:fill|stroke)\(/)
+  }
 
   assert.match(mouth, /\bPort\.template\(/)
   assert.match(mouth, /\.fillColor\(/)
@@ -81,19 +93,24 @@ test('Standard face eye and mouth render updates through Port hot paths', () => 
   assert.doesNotMatch(mouth, /coordinates\s*=/)
 })
 
-test('Dog face accent parts render updates through Port hot paths', () => {
-  for (const file of [
-    'host/modules/ui/components/face/parts/dog/eyebrow.ts',
-    'host/modules/ui/components/face/parts/dog/mouth.ts',
-    'host/modules/ui/components/face/parts/dog/nose.ts',
-  ]) {
+test('Dog face accent parts preserve curved shapes and cache generated outlines', () => {
+  const files = [
+    ['host/modules/ui/components/face/parts/dog/eyebrow.ts', /path\.ellipse\(/],
+    ['host/modules/ui/components/face/parts/dog/mouth.ts', /path\.bezierCurveTo\(/],
+    ['host/modules/ui/components/face/parts/dog/nose.ts', /path\.quadraticCurveTo\(/],
+  ] as const
+
+  for (const [file, curvePattern] of files) {
     const source = readFileSync(file, 'utf8')
-    assert.match(source, /\bPort\.template\(/, `${file} should use Port.template`)
-    assert.match(source, /\.fillColor\(/, `${file} should draw through Port.fillColor`)
-    assert.doesNotMatch(source, /from 'commodetto\/outline'/, `${file} should not use Outline`)
-    assert.doesNotMatch(source, /\bdefineShapeTemplate\b/, `${file} should not use Shape templates`)
-    assert.doesNotMatch(source, /\bnew Skin\b/, `${file} should not allocate Skin`)
+    assert.match(source, /from 'commodetto\/outline'/, `${file} should use Outline for curved accents`)
+    assert.match(source, /\bdefineShapeTemplate\b/, `${file} should use Shape templates for curved accents`)
+    assert.match(source, curvePattern, `${file} should preserve its original curved path primitive`)
+    assert.match(source, /OutlineCache = new Map/, `${file} should cache generated outlines`)
     assert.doesNotMatch(source, /coordinates\s*=/, `${file} should not update coordinates`)
+    for (const block of extractMethodBlocks(source, 'onFaceState')) {
+      assert.doesNotMatch(block, /\bnew\s+(Skin|Outline\.CanvasPath)\b/, `${file} should not allocate in onFaceState`)
+      assert.doesNotMatch(block, /Outline\.(?:fill|stroke)\(/, `${file} should not fill/stroke outlines in onFaceState`)
+    }
   }
 })
 
@@ -101,8 +118,10 @@ test('Bubble components avoid Shape backgrounds and reuse palette resources', ()
   const speech = readFileSync('host/modules/ui/components/bubble/speech-balloon.ts', 'utf8')
   const multirow = readFileSync('host/modules/ui/components/bubble/multirow-balloon.ts', 'utf8')
 
-  assert.match(speech, /const bubbleSkinCache = new Map/)
-  assert.match(speech, /const textStyleCache = new Map/)
+  assert.match(speech, /let bubbleSkinCache: Map<.*> \| null = null/)
+  assert.match(speech, /let textStyleCache: Map<.*> \| null = null/)
+  assert.match(speech, /if \(!bubbleSkinCache\) bubbleSkinCache = new Map\(\)/)
+  assert.match(speech, /if \(!textStyleCache\) textStyleCache = new Map\(\)/)
   assert.match(speech, /new Texture\('bubble\.png'\)/)
   assert.match(speech, /getBubbleSkin\(bubbleColor\)/)
 

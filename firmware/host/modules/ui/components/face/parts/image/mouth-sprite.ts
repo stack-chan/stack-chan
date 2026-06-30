@@ -1,5 +1,5 @@
 import type { FaceSkinPalette } from 'face-skin'
-import type { FaceState } from 'face-state'
+import { type FaceState, toPiuColorString } from 'face-state'
 import { IMAGE_FACE_TEXTURE_PATHS, MOUTH_SPRITE, openToVariant } from 'parts/image/atlas'
 import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 
@@ -24,7 +24,7 @@ function createMouthSkin(color: number): PiuSkin {
     height: MOUTH_SPRITE.height,
     variants: MOUTH_SPRITE.width,
     states: MOUTH_SPRITE.height,
-    color,
+    color: toPiuColorString(color),
   })
 }
 

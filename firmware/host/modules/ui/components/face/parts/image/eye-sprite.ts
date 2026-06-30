@@ -1,5 +1,5 @@
 import type { FaceSkinPalette } from 'face-skin'
-import type { FaceEyeKey } from 'face-state'
+import { type FaceEyeKey, toPiuColorString } from 'face-state'
 import { EYELID_SPRITE } from 'parts/image/atlas'
 import { EyelidSprite } from 'parts/image/eyelid-sprite'
 import { IrisSprite } from 'parts/image/iris-sprite'
@@ -16,7 +16,7 @@ type PositionedContainer = PiuContainer & {
 }
 
 function createScleraSkin(color: number): PiuSkin {
-  return new Skin({ fill: color })
+  return new Skin({ fill: toPiuColorString(color) })
 }
 
 export const EyeSprite = Container.template((opts: EyeSpriteOptions) => {

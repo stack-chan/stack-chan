@@ -11,6 +11,8 @@
 Stack-chan's firmware consists of a program that provide the basic operation of Stack-chan (host), and a user application (mod).
 Once the host is written, the mod can be installed in a short time for fast development.
 First write the host, and then write the mods as needed.
+When no MOD is installed, the host runs the product default behavior.
+When a MOD is installed, that MOD replaces the product default behavior and receives the runtime context through `onContextCreated`.
 
 ### Manifest File
 
@@ -118,6 +120,13 @@ $ npm run deploy --target=esp32/m5stack_cores3
 
 The program will be saved under the `$MODDABLE/build/` directory.
 
+If written correctly, the face of Stack-chan will appear a few seconds after startup.
+With the product default behavior, the M5Stack buttons change Stack-chan's behavior as follows:
+
+- **A Button** (in the case of CoreS3, the bottom-left area of the screen) ... Stack-chan will look in a random direction every 5 seconds.
+- **B Button** (in the case of CoreS3, the bottom-center area of the screen) ... Stack-chan will look left, right, down, and up.
+- **C Button** (in the case of CoreS3, the bottom-right area of the screen) ... The color of Stack-chan's face will invert.
+
 ## Debugging
 
 You can debug the program using the following commands:
@@ -157,12 +166,11 @@ $ npm run mod --target=esp32/m5stack_core2 [mod manifest file path]
 $ npm run mod --target=esp32/m5stack_cores3 [mod manifest file path]
 ```
 
-If written correctly, the face of Stack-chan will appear a few seconds after startup.
-The M5Stack buttons will change Stack-chan's behavior as follows:
+The standard command expects a MOD manifest that resolves to JavaScript modules.
+If a MOD is authored in TypeScript, compile it to JavaScript first and point the manifest used by `mcrun` at the generated files.
 
-- **A Button** (in the case of CoreS3, the bottom-left area of the screen) ... Stack-chan will look in a random direction every 5 seconds.
-- **B Button** (in the case of CoreS3, the bottom-center area of the screen) ... Stack-chan will look left, right, down, and up.
-- **C Button** (in the case of CoreS3, the bottom-right area of the screen) ... The color of Stack-chan's face will invert.
+After installation, the MOD runs instead of the product default behavior.
+The exact button and screen behavior depends on the installed MOD.
 
 **Example: Installing [`mods/examples/look_around`](../mods/examples/look_around/)**
 
@@ -211,6 +219,7 @@ Stub running...
 Erasing flash (this may take a while)...
 Chip erase completed successfully in 25.4s
 Hard reset
+```
 
 ## Next Step
 

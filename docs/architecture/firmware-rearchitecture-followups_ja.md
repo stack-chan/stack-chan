@@ -120,7 +120,7 @@ Moddable manifest は include、platform 条件、resources の pseudo target、
 - production manifest に test 用ファイルが混入していない。
 - sample MOD が host 公開 module specifier だけを参照している。
 
-## 5. `default-behavior` と MOD の所有権
+## 5. `default-behavior` と MOD の置換規則
 
 ### 起きた問題
 
@@ -128,27 +128,67 @@ Moddable manifest は include、platform 条件、resources の pseudo target、
 
 この名前と実態のずれが、host と mods の境界を読み取りづらくしていた。
 
-### 代替案
+また、default behavior を app behavior として常時追加すると、installed MOD と同時に実行される。
 
-`default-behavior` を本当に MOD と同じ立場へ寄せる案がある。
+これは従来挙動と異なる。
 
-たとえば `mods/default/` に default behavior を置き、host は常に module 名 `mod` を import する。
+従来は、MOD が存在する場合は MOD を優先し、製品既定動作は実行しなかった。
 
-installed mod がある場合は installed mod が優先され、存在しない場合は host に同梱した `mods/default/mod` が fallback になる構成を検討する。
+### 解決策
 
-この方式なら、default behavior と利用者 MOD が同じ interface で書ける。
+`default-behavior` は `firmware/host/app/default-behavior` に置く。
+
+ただし、実行規則は installed MOD の fallback に限定する。
+
+`Modules.has("mod")` が true の場合、host は `mod` だけを import して実行する。
+
+この場合、product default behavior は `onLaunch` も `onContextCreated` も実行しない。
+
+`Modules.has("mod")` が false の場合だけ、host に同梱した product default behavior を実行する。
+
+この規則により、利用者 MOD のボタン割り当てや画面操作を default behavior が上書きしない。
+
+また、`firmware/mods` は利用者向け MOD と sample MOD だけを置く場所として維持できる。
+
+## 6. sample MOD の TypeScript 化
+
+### 起きた問題
+
+sample MOD の API 齟齬は、MOD が JavaScript で書かれており、`StackchanContext` 型で検査されていなかったことが根本原因の一つである。
+
+TypeScript で書けば、存在しない `driver`、`useTTS`、streaming microphone などの呼び出しを早く検出できる。
+
+ただし、標準の `npm run mod` は `mcrun` へ MOD manifest を渡す経路であり、installed MOD の source を直接 TypeScript として扱う共通手順はまだ整っていない。
+
+Moddable の `mcconfig` と `mcpack` は TypeScript source を扱える。
+
+一方で、`mcrun` は実行経路によって TypeScript を拒否する分岐を持つ。
+
+そのため、現時点で「MOD manifest に `.ts` を書けば標準経路で常に動く」とは扱わない。
+
+### 解決策
+
+sample MOD は TypeScript source で書く。
+
+書き込み前に TypeScript を generated JavaScript へ変換し、`mcrun` に渡す manifest は generated JavaScript を指す。
+
+この prebuild を共通化するため、`npm run mod:ts` または同等の helper script を追加する。
+
+TypeScript 化では、単に拡張子を変えるだけでは不十分である。
+
+sample MOD は `StackchanContext` の公開 capability だけを import し、host 内部 module へ相対 path で依存しないようにする。
+
+不足している機能がある場合は、sample 側の呼び出しを削るか、host の公開 capability として設計してから追加する。
 
 ### 確認すべき点
 
-- `Modules.has("mod")` が host 内 fallback に対してどう振る舞うか。
-- installed mod と host 同梱 `mod` の優先順位が期待通りか。
-- preload 済み module は mod で override できないという Moddable の制約に引っかからないか。
-- default behavior を host firmware に含めるのか、factory default の `.xsa` として扱うのか。
-- default behavior から利用者 MOD へ置き換わるときの capability surface が同一か。
+- generated JavaScript を MOD manifest から安定して参照できるか。
+- source map や xsbug 上の行番号をどう扱うか。
+- sample MOD の型チェックを CI の軽量 preflight に含められるか。
+- `StackchanContext` 型を利用者 MOD から import できる公開 module specifier にできるか。
+- TypeScript source の相対 import が host 内部境界を越えていないことを lint で保証できるか。
 
-この案は小さな spike で検証する。
-
-## 6. CI と preflight
+## 7. CI と preflight
 
 ### 起きた問題
 
@@ -210,7 +250,7 @@ mcconfig -d -p wasm -t build "$PWD/host/app/manifest_wasm.json"
 
 この方法なら、Moddable が生成した module specifier 解決を使いながら、native build より前に TypeScript error を検出できる。
 
-## 7. bundle workflow
+## 8. bundle workflow
 
 ### 起きた問題
 
@@ -230,7 +270,7 @@ PR では、bundle できる可能性を軽量に保証する preflight を実�
 
 `mcbundle` も `-m` を付けた場合に実ビルドへ進むため、PR では生成のみ、merge 後に実ビルドという分担にできる。
 
-## 8. 今後の優先順位
+## 9. 今後の優先順位
 
 短期の改善は次の順で進める。
 
@@ -239,12 +279,12 @@ PR では、bundle できる可能性を軽量に保証する preflight を実�
 3. `mcconfig` 生成だけの `check:manifest` を追加する。
 4. `check:manifest` で Moddable warning を分類し、未知の missing module と missing resource を失敗扱いにする。
 5. 相対 import の lint を追加し、module 境界を越える相対 import を禁止する。
-6. `mods/default` fallback 方式の spike を行う。
+6. sample MOD の TypeScript prebuild と `mod:ts` workflow を追加する。
 7. 生成済み Moddable tsconfig を使った TypeScript preflight を検討する。
 
 この順序なら、重い build を減らす前に、build でしか見つからなかった問題を軽量検査へ移せる。
 
-## 9. 設計上の結論
+## 10. 設計上の結論
 
 今回の作業で見えた課題は、`host` と `mods` の境界だけではない。
 

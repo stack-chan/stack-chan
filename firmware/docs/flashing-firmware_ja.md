@@ -11,6 +11,8 @@
 ｽﾀｯｸﾁｬﾝのファームウェアは、ｽﾀｯｸﾁｬﾝの基本動作を提供するプログラム（ホスト）とユーザアプリケーション（MOD）から構成されます。
 一度ホストを書き込んでしまえば、ユーザアプリケーションのインストールは短時間で終わるため高速な開発が可能です。
 最初にホストを書き込み、必要に応じて MOD の書き込みを行います。
+MOD がインストールされていない場合、ホストは製品既定動作を実行します。
+MOD がインストールされている場合、製品既定動作は実行されず、MOD が `onContextCreated` で runtime context を受け取ります。
 
 ### マニフェストファイル
 
@@ -36,7 +38,7 @@
 | tts.type          | [TTS](./text-to-speech_ja.md) の種類            | "local", "voicevox", "remote", "voicevox-web", "elevenlabs", "openai"                         |
 | tts.host          | TTS がサーバと通信する場合のホスト名            | "localhost", "ttsserver.local" などの文字列 |
 | tts.port          | TTS がサーバと通信する場合のポート番号          | 1~65535                                     |
-| tts.volume          | TTS を再生する時の音量          | 0~1                                     |
+| tts.volume        | TTS を再生する時の音量                        | 0~1                                         |
 
 また、`"include"`キーの配下にリスト形式で他のマニフェストファイルのパスを指定できます。
 
@@ -170,6 +172,12 @@ $ npm run mod --target=esp32/m5stack_core2 [modのマニフェストファイル
 $ npm run mod --target=esp32/m5stack_cores3 [modのマニフェストファイルのパス]
 ```
 
+標準のコマンドは、JavaScript module を解決する MOD manifest を対象にします。
+TypeScript で MOD を書く場合は、事前に JavaScript へ変換し、`mcrun` に渡す manifest から生成後のファイルを参照します。
+
+書き込み後は、MOD が製品既定動作の代わりに実行されます。
+ボタンや画面操作の意味は、インストールした MOD の実装で決まります。
+
 **例: [`mods/examples/look_around`](../mods/examples/look_around/)をインストールする**
 
 ```console
@@ -187,7 +195,7 @@ Installing mod...complete
 
 ## (オプショナル)フラッシュ領域の消去
 
-MODを描き込み後、MODを書き込みする前の挙動に戻したい時は、次のコマンドで書き込んだMODを消去することができます。
+MODを書き込み後、MODを書き込む前の挙動に戻したい時は、次のコマンドで書き込んだMODを消去することができます。
 
 > [!NOTE]  
 > コマンドを実行するとMODの領域だけでなく、フラッシュ領域全体を消去します。  

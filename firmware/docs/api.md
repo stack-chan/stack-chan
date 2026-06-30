@@ -4,23 +4,10 @@
 
 The detailed API document is under construction.
 
-The source codes of Stack-chan has `TSDoc` style comments.
+Stack-chan firmware sources include `TSDoc` style comments.
+The repository keeps `firmware/tsconfig.json` for Node-side checks and API document generation.
 
-For generating documents, you need `tsconfig.json` under `firmware` directory.
-To do this, run `build` task once.
-It automatically generates `tsconfig.json` and creates a link.
-
-```console
-$ npm run build
-...
-> stack-chan@0.2.1 postbuild /home/user/repos/stack-chan/firmware
-> ln -sf $MODDABLE/build/tmp/${npm_config_target=esp32/m5stack}/debug/app/modules/tsconfig.json ./tsconfig.json
-
-$ file tsconfig.json
-tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32/m5stack/debug/app/modules/tsconfig.json
-```
-
-Then you can generate documents under `docs/api` by running:
+Generate documents under `docs/api` by running:
 
 ```console
 $ npm run generate-apidoc
@@ -33,8 +20,8 @@ The context exposes a small set of capabilities so UI, motion, speech, and input
 
 - [StackchanContext](#stackchancontext): Runtime capabilities passed to mods
 - [RobotUI](#robotui): Controls the Piu application, face, effects, and drawer UI
-- [Driver](#driver): Drives motors, etc.
-- [TTS](#tts): Speech synthesis
+- [Motion capability](#motion-capability): Controls neck pose and gaze movement through the public motion API
+- [Audio capability](#audio-capability): Plays speech through the public audio API
 
 // TODO: Capability diagram and description
 
@@ -57,16 +44,22 @@ Also, the direction of rotation is the direction in which the right-hand screw a
 - Yaw axis (rotation around Z-axis) positive direction... Stack-chan looking to the left
 
 In Stack-chan's API, __the unit of coordinates is meters and the unit of angles is radians__.
-Correspondence with the coordinate system can also be referenced in the actual source code (e.g. [`mods/examples/look_around`](../mods/examples/look_around/) etc.)"
+Correspondence with the coordinate system can also be referenced in the actual source code (e.g. [`mods/examples/look_around`](../mods/examples/look_around/) etc.).
 
-## Classes
+## Public Types
 
 ### StackchanContext
 
 ### RobotUI
 
-### Driver
+### Motion capability
 
-### TTS
+The public motion API exposes `pose`, `lookAt`, `lookAway`, `setPose`, and `setTorque`.
+Low-level driver objects are internal to `host/modules/motion` and are not exposed to MODs.
+
+### Audio capability
+
+The public audio API exposes speech playback through the capability object passed to MODs.
+Provider objects for local, remote, Voicevox, ElevenLabs, and OpenAI speech are internal to `host/modules/audio`.
 
 - [Using Text To Speech(TTS)](./text-to-speech.md)

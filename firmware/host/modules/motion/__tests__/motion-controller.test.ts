@@ -82,11 +82,12 @@ test('MotionController follows gaze point and releases torque after movement', a
 
   assert.equal(driver.attached, 1)
 
-  controller.lookAt([1, 1, 0])
+  controller.lookAt([1, 2, 2])
   controller.updatePose()
 
   assert.equal(driver.torqueStates[0], true)
   assert.ok(driver.appliedRotation)
+  assert.equal(driver.appliedRotation.p, -Math.atan2(2, Math.sqrt(1 ** 2 + 2 ** 2)))
   assert.ok(driver.appliedTime != null && driver.appliedTime >= 0.5)
   assert.ok(driver.appliedTime != null && driver.appliedTime <= 1.0)
 

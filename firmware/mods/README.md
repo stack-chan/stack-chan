@@ -5,6 +5,12 @@ For instructions on how to write mods, please refer to [Build and Write Programs
 
 Some mods require a network connection or an external server to run (as of writing).
 
+Installing a MOD replaces the product default behavior supplied by the host.
+Button and screen behavior therefore depends on the installed MOD.
+
+The standard `npm run mod` path currently installs JavaScript modules.
+TypeScript-authored MODs should be compiled to JavaScript before invoking `mcrun` until the repository provides a shared `mod:ts` workflow.
+
 ## M5StackChan CoreS3 Smoke
 
 - [m5stackchan_smoke](./examples/m5stackchan_smoke/): Servo-power and head LED smoke check for M5StackChan CoreS3. See [M5StackChan CoreS3 smoke check](../docs/m5stackchan-cores3-smoke.md).

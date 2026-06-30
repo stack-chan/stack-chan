@@ -5,22 +5,9 @@
 APIの詳しいドキュメントは現在作成中です。
 
 ｽﾀｯｸﾁｬﾝのソースコードには `TSDoc` 形式のコメントがついています。
-このコメントを元にマークダウン形式でAPIドキュメントを生成できます。
+このリポジトリでは、Node.js 側の検査と API ドキュメント生成のために `firmware/tsconfig.json` を保持しています。
 
-APIドキュメントを生成するには、`firmware`ディレクトリの下に`tsconfig.json`が必要です。
-一度Stack-chanのファームウェアをビルドすると`tsconfig.json`が自動的に生成され、リンクが作成されます。
-
-```console
-$ npm run build
-...
-> stack-chan@0.2.1 postbuild /home/user/repos/stack-chan/firmware
-> ln -sf $MODDABLE/build/tmp/${npm_config_target=esp32/m5stack}/debug/app/modules/tsconfig.json ./tsconfig.json
-
-$ file tsconfig.json
-tsconfig.json: symbolic link to /home/user/.local/share/moddable/build/tmp/esp32/m5stack/debug/app/modules/tsconfig.json
-```
-
-その後、次のコマンドを実行することで`docs/api`ディレクトリ配下にドキュメントを生成できます。
+次のコマンドを実行すると、`docs/api` ディレクトリ配下にドキュメントを生成できます。
 
 ```console
 $ npm run generate-apidoc
@@ -33,8 +20,8 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 
 - [StackchanContext](#stackchancontext): MODに渡されるruntime capabilityの集合
 - [RobotUI](#robotui): Piu Application、顔、エフェクト、ドロワーUIの制御
-- [Driver](#driver): モータ等の駆動
-- [TTS](#tts): 音声合成
+- [Motion capability](#motion-capability): 公開 motion API による首姿勢と視線移動の制御
+- [Audio capability](#audio-capability): 公開 audio API による音声再生
 
 // TODO: capability図と説明
 
@@ -68,8 +55,14 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 
 ### RobotUI
 
-### Driver
+### Motion capability
 
-### TTS
+公開 motion API は、`pose`、`lookAt`、`lookAway`、`setPose`、`setTorque` を提供します。
+低レイヤの driver object は `host/modules/motion` の内部実装であり、MOD には公開しません。
+
+### Audio capability
+
+公開 audio API は、MOD に渡す capability object から音声再生機能を提供します。
+local、remote、Voicevox、ElevenLabs、OpenAI などの provider object は `host/modules/audio` の内部実装です。
 
 - [TTS（音声合成）の使用](./text-to-speech_ja.md)

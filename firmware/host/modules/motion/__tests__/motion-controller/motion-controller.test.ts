@@ -71,11 +71,16 @@ async function runTest() {
 
   equal(driver.attached, 1, 'initial driver should be attached')
 
-  controller.lookAt([1, 1, 0])
+  controller.lookAt([1, 2, 2])
   controller.updatePose()
 
+  const expectedPitch = -Math.atan2(2, Math.sqrt(1 ** 2 + 2 ** 2))
   equal(driver.torqueStates[0], true, 'lookAt update should enable torque before moving')
   assert(driver.appliedRotation != null, 'lookAt update should apply a face rotation')
+  assert(
+    Math.abs(driver.appliedRotation.p - expectedPitch) < 0.000001,
+    'lookAt update should use xy distance when calculating pitch',
+  )
   assert(driver.appliedTime != null && driver.appliedTime >= 0.5, 'lookAt movement should use random motion time')
   assert(driver.appliedTime != null && driver.appliedTime <= 1.0, 'lookAt movement should cap random motion time')
 

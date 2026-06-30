@@ -81,7 +81,7 @@ function writeRotationFromVector3(target: RotationType, vector: Vector3): void {
 
 function writeRotationFromComponents(target: RotationType, x: number, y: number, z: number): void {
   target.y = Math.atan2(y, x)
-  target.p = -Math.atan2(z, Math.sqrt(x ** 2 + x ** 2))
+  target.p = -Math.atan2(z, Math.sqrt(x ** 2 + y ** 2))
   target.r = 0
 }
 

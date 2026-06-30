@@ -26,6 +26,7 @@
     "*": [
       "./main",
       "./app-behavior",
+      "./app-behavior-resolver",
       "./compose",
       "./capabilities",
       "./runtime-audio",

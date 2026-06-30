@@ -22,6 +22,10 @@
 
 `firmware/mods` は、利用者向け MOD と sample MOD だけを置く。
 
+製品既定動作は `firmware/host/app/default-behavior` に置く。
+
+installed MOD が存在する場合、製品既定動作は実行しない。
+
 `firmware/stackchan` は移行元としてだけ扱い、移行後の目標構成には残さない。
 
 ```text
@@ -119,6 +123,7 @@ firmware/
 ```mermaid
 flowchart TD
   App["host/app<br/>main, compose, default-behavior"]
+  DefaultBehavior["host/app/default-behavior<br/>product fallback behavior"]
   PublicAPI["public capability API<br/>MOD に渡す契約"]
   Mods["mods<br/>examples, user mods"]
 
@@ -141,7 +146,10 @@ flowchart TD
 
   Platforms["host/platforms<br/>esp32, m5stackchan_cores3, lin, wasm"]
 
+  App -- "no installed MOD" --> DefaultBehavior
+  App -- "installed MOD" --> Mods
   App --> PublicAPI
+  DefaultBehavior --> PublicAPI
   App --> UIApp
   App --> Audio
   App --> Camera
@@ -271,6 +279,7 @@ flowchart TD
 - [x] 対応済み：`firmware/package.json` の build、smoke、test script を新しい app manifest へ更新する。
 - [x] 対応済み：製品既定動作を `firmware/host/app/default-behavior` に置く。
 - [x] 対応済み：`firmware/stackchan/default-mods` を app default behavior へ移し、MOD ディレクトリを利用者向け拡張とサンプルに限定する。
+- [x] 対応済み：installed MOD が存在する場合は product default behavior を実行せず、MOD だけを app behavior として起動する。
 
 ### 3. Robot Facade の分解
 
@@ -279,7 +288,7 @@ flowchart TD
 - [x] 対応済み：`Robot` は互換 Facade として残さず、新しい app composition の戻り値または context 型へ置き換える。
 - [x] 対応済み：MOD へ渡す API を `Robot` の肥大化ではなく、必要な capability を束ねた型として再定義する。
 - [x] 対応済み：Drawer と Face は UI capability として公開し、motion や audio から直接参照しない。
-- [x] 対応済み：product default behavior は `Robot` のメソッド追加ではなく、app の振る舞いとして登録する。
+- [x] 対応済み：product default behavior は `Robot` のメソッド追加ではなく、installed MOD が存在しない場合の app fallback behavior として登録する。
 
 ### 4. Modules 構造の作成
 
@@ -302,6 +311,7 @@ flowchart TD
 - [x] 対応済み：`firmware/stackchan/drivers` を `firmware/host/modules/motion` へ移す。
 - [x] 対応済み：`scservo`、`rs30x`、`dynamixel` を `modules/motion/protocols` へ分ける。
 - [x] 対応済み：首の pan、tilt、torque、追従制御を `modules/motion` の controller 層に置く。
+- [x] 対応済み：`Rotation.fromVector3` と `MotionController` の pitch 計算を `sqrt(x^2 + y^2)` に揃え、x と y が異なるベクトルで検証する。
 - [x] 対応済み：低レイヤの送受信待ちから `Promise` queue を取り除く。
 - [x] 対応済み：低レイヤの送受信待ちは callback、待ち slot、timeout state で表す。
 - [x] 対応済み：上位 API が待ち合わせを必要とする場合だけ、app 境界で callback を `Promise` に変換する。
@@ -385,6 +395,11 @@ flowchart TD
 - [x] 対応済み：product default behavior を `firmware/mods` から `firmware/host/app/default-behavior` へ移す。
 - [x] 対応済み：古い provider demo を core 依存から切り離す。
 - [x] 対応済み：MOD API の公開面を capability 単位で再定義し、旧 `Robot` 互換 API を残さない。
+- [ ] 未対応：sample MOD を TypeScript source として型検査できる構成へ移す。
+      標準の `npm run mod` は `mcrun` に JavaScript module を渡す前提にし、TypeScript source は build step で generated JavaScript へ変換する。
+- [ ] 未対応：sample MOD を `StackchanContext` の公開 capability 型に合わせて書き直す。
+      `driver`、`useTTS`、streaming microphone など、現行の公開 API に存在しない呼び出しは、公開 capability を追加するか sample 側から外す。
+- [ ] 未対応：TypeScript MOD の共通実行経路として `npm run mod:ts` または同等の prebuild script を追加し、manifest が generated JavaScript を指す構成を標準化する。
 
 ### 12. テスト配置と実行方法の移行
 
@@ -427,6 +442,8 @@ flowchart TD
 - [x] 対応済み：production manifest の `app-default-behavior/*` を明示的な module specifier の列挙へ置き換える。
 - [x] 対応済み：production manifest が `*.test.ts`、`*.architecture.ts`、`__tests__` を解決対象に含む場合に失敗する architecture check を追加する。
 - [x] 対応済み：`*.test.ts` に残っている manifest 固定テストを `*.architecture.ts` または manifest preflight へ移す。
+- [x] 対応済み：installed MOD が product default behavior を置き換える構成を architecture check で検査する。
+- [x] 対応済み：installed MOD が存在する場合に product default behavior を app behavior 配列へ含めないことを Node.js の挙動テストで検証する。
 
 ### 13. 非同期境界の移行
 

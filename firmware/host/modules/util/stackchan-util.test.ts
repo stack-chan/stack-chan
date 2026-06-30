@@ -27,6 +27,7 @@ test('stackchan util vector and rotation helpers use the shared tuple contracts'
   const rotation = Rotation.fromVector3([1, 1, 0])
   assert.ok(rotation.y > 0)
   assert.equal(rotation.r, 0)
+  assert.equal(Rotation.fromVector3([1, 2, 2]).p, -Math.atan2(2, Math.sqrt(1 ** 2 + 2 ** 2)))
 
   assert.deepEqual(hslToRgb(0, 1, 0.5), [255, 0, 0])
   assert.equal(typeof generateDeviceSeed(), 'number')

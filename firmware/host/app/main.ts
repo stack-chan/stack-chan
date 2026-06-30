@@ -2,16 +2,12 @@ import { loadPreferenceConfig } from 'loadPreference'
 import defaultBehavior from 'app-default-behavior'
 import Modules from 'modules'
 import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavior } from './app-behavior'
+import { resolveAppBehaviors } from './app-behavior-resolver'
 import { createStackchanContext, getHostDeviceEnvironment, installSimulatorButtons } from './compose'
 
-function resolveAppBehaviors(): StackchanAppBehavior[] {
-  const behaviors: StackchanAppBehavior[] = [defaultBehavior]
+function loadAppBehaviors(): StackchanAppBehavior[] {
   trace('[main] checking mod override\n')
-  if (Modules.has('mod')) {
-    const behavior = Modules.importNow('mod') as StackchanAppBehavior
-    behaviors.push(behavior)
-  }
-  return behaviors
+  return resolveAppBehaviors(Modules, defaultBehavior)
 }
 
 async function main() {
@@ -19,7 +15,7 @@ async function main() {
   installSimulatorButtons()
 
   trace('[main] loading app behaviors\n')
-  const appBehaviors = resolveAppBehaviors()
+  const appBehaviors = loadAppBehaviors()
   const shouldCreateContext = await runLaunchBehaviors(appBehaviors)
   trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
   if (!shouldCreateContext) return

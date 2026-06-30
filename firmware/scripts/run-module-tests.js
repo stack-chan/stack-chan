@@ -6,7 +6,7 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 
-const DEFAULT_ROOTS = ['host/modules']
+const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods/examples']
 const XSBUG_HOST = process.env.STACKCHAN_MODULE_TEST_XSBUG_HOST ?? '127.0.0.1'
 const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '8000', 10)
 const BUILD_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS ?? '180000', 10)
@@ -52,8 +52,37 @@ function isRunnableManifest(path) {
   return typeof manifest.modules?.main === 'string'
 }
 
+function localManifestPath(basePath, includePath) {
+  if (!includePath.startsWith('.')) return undefined
+  const path = resolve(dirname(basePath), includePath)
+  return existsSync(path) && statSync(path).isFile() ? path : undefined
+}
+
+function manifestUsesPiu(manifestPath, seen = new Set()) {
+  const normalizedPath = relativePath(manifestPath)
+  if (normalizedPath.includes('host/modules/ui/')) return true
+  if (seen.has(manifestPath)) return false
+  seen.add(manifestPath)
+
+  const manifest = readJson(manifestPath)
+  const values = JSON.stringify({
+    include: manifest.include ?? [],
+    modules: manifest.modules ?? {},
+    platforms: manifest.platforms ?? {},
+  })
+  if (/host\/modules\/ui\/manifest|modules\/ui\/manifest|startup-splash|settings-view|piu\/MC/.test(values)) {
+    return true
+  }
+
+  for (const includePath of manifest.include ?? []) {
+    const localPath = localManifestPath(manifestPath, includePath)
+    if (localPath && manifestUsesPiu(localPath, seen)) return true
+  }
+  return false
+}
+
 function selectPlatform(manifestPath) {
-  return relativePath(manifestPath).includes('host/modules/ui/') ? 'lin/m5stack' : 'lin'
+  return manifestUsesPiu(manifestPath) ? 'lin/m5stack' : 'lin'
 }
 
 function platformBuildSegment(platform) {

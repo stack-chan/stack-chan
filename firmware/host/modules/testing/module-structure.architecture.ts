@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 
 const MODULE_ROOT = 'host/modules'
+const PRODUCTION_MANIFEST_ROOTS = ['host/app', 'host/modules', 'host/platforms', 'mods/examples'] as const
 const RUNTIME_MODULES = [
   'audio',
   'camera',
@@ -34,6 +35,32 @@ function walkFiles(root: string): string[] {
 
 function readJson(path: string) {
   return JSON.parse(readFileSync(path, 'utf8'))
+}
+
+function collectStringValues(value: unknown): string[] {
+  if (typeof value === 'string') return [value]
+  if (Array.isArray(value)) return value.flatMap(collectStringValues)
+  if (value && typeof value === 'object') return Object.values(value).flatMap(collectStringValues)
+  return []
+}
+
+function isProductionManifest(path: string): boolean {
+  return (
+    /[/\\]manifest(?:_[^/\\]+)?\.json$/.test(path) &&
+    !path.endsWith('manifest.test.json') &&
+    !path.endsWith('manifest_local.json')
+  )
+}
+
+function isTestOrArchitectureTarget(value: string): boolean {
+  const normalized = value.replaceAll('\\', '/')
+  return (
+    normalized.includes('/__tests__/') ||
+    normalized.startsWith('__tests__/') ||
+    normalized.includes('manifest.test.json') ||
+    /\.test(?:$|[./])/.test(normalized) ||
+    /\.architecture(?:$|[./])/.test(normalized)
+  )
 }
 
 function extractMethodBlocks(source: string, methodName: string): string[] {
@@ -319,6 +346,18 @@ test('sample MOD relative manifest includes resolve from examples directories', 
       }
     }
   }
+})
+
+test('production manifests do not resolve test or architecture sources', () => {
+  const offenders = PRODUCTION_MANIFEST_ROOTS.flatMap((root) => walkFiles(root))
+    .filter(isProductionManifest)
+    .flatMap((manifestPath) =>
+      collectStringValues(readJson(manifestPath))
+        .filter(isTestOrArchitectureTarget)
+        .map((value) => `${manifestPath}: ${value}`),
+    )
+
+  assert.deepEqual(offenders, [])
 })
 
 test('module Moddable test manifests include implementation and testing manifests', () => {

@@ -35,6 +35,10 @@ function isTestSource(path: string): boolean {
   return path.endsWith('.test.ts') || path.includes('/__tests__/')
 }
 
+function readManifest(path: string) {
+  return JSON.parse(readFileSync(path, 'utf8'))
+}
+
 test('WASM-only imports stay under wasm platform and wasm implementation files', () => {
   const offenders = listSourceFiles('host')
     .map((path) => relative('.', path))
@@ -46,6 +50,114 @@ test('WASM-only imports stay under wasm platform and wasm implementation files',
     )
 
   assert.deepEqual(offenders, [])
+})
+
+test('WASM manifest keeps concrete servo driver module specifiers as facades for Moddable resolution', () => {
+  const manifest = readManifest('host/platforms/wasm/manifest.json')
+
+  assert.ok(manifest.include.includes('../../modules/audio/manifest_wasm.json'))
+  assert.ok(manifest.include.includes('../../modules/camera/manifest_wasm.json'))
+  assert.ok(manifest.include.includes('../../modules/motion/manifest_wasm.json'))
+  assert.ok(manifest.preload.includes('wasm-camera-bridge'))
+  assert.ok(manifest.include.includes('../../modules/input/manifest.json'))
+  assert.ok(manifest.preload.includes('touch-panel'))
+  assert.ok(manifest.preload.includes('touch-panel-gesture'))
+  assert.deepEqual(
+    {
+      'py32-led': manifest.modules['py32-led'],
+    },
+    {
+      'py32-led': '../../modules/lighting/wasm/py32-led',
+    },
+  )
+})
+
+test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', () => {
+  const manifest = readManifest('host/modules/audio/manifest_wasm.json')
+
+  assert.deepEqual(
+    {
+      'audio-buffer': manifest.modules['audio-buffer'],
+      'wasm-audio-bridge': manifest.modules['wasm-audio-bridge'],
+      tone: manifest.modules.tone,
+      microphone: manifest.modules.microphone,
+      'embedded:io/audio/in': manifest.modules['embedded:io/audio/in'],
+      'tts-types': manifest.modules['tts-types'],
+      'tts-local': manifest.modules['tts-local'],
+      'tts-remote': manifest.modules['tts-remote'],
+      'tts-voicevox': manifest.modules['tts-voicevox'],
+      'tts-voicevox-web': manifest.modules['tts-voicevox-web'],
+      'tts-elevenlabs': manifest.modules['tts-elevenlabs'],
+      'tts-openai': manifest.modules['tts-openai'],
+    },
+    {
+      'audio-buffer': './audio-buffer',
+      'wasm-audio-bridge': './wasm/audio-bridge',
+      tone: './wasm/tone',
+      microphone: './wasm/microphone',
+      'embedded:io/audio/in': './wasm/audio-in',
+      'tts-types': './tts-types',
+      'tts-local': './wasm/tts-local',
+      'tts-remote': './wasm/tts-remote',
+      'tts-voicevox': './wasm/tts-voicevox',
+      'tts-voicevox-web': './wasm/tts-voicevox-web',
+      'tts-elevenlabs': './wasm/tts-elevenlabs',
+      'tts-openai': './wasm/tts-openai',
+    },
+  )
+  assert.ok(manifest.preload.includes('wasm-audio-bridge'))
+})
+
+test('WASM servo driver manifest keeps facade module specifiers', () => {
+  const manifest = readManifest('host/modules/motion/manifest_wasm.json')
+
+  assert.deepEqual(
+    {
+      'dynamixel-driver': manifest.modules['dynamixel-driver'],
+      'm5stackchan-servo-driver': manifest.modules['m5stackchan-servo-driver'],
+      'none-driver': manifest.modules['none-driver'],
+      'sg90-driver': manifest.modules['sg90-driver'],
+      'rs30x-driver': manifest.modules['rs30x-driver'],
+      'scservo-driver': manifest.modules['scservo-driver'],
+    },
+    {
+      'dynamixel-driver': './wasm/dynamixel-driver',
+      'm5stackchan-servo-driver': './wasm/m5stackchan-servo-driver',
+      'none-driver': './wasm/none-driver',
+      'sg90-driver': './wasm/sg90-driver',
+      'rs30x-driver': './wasm/rs30x-driver',
+      'scservo-driver': './wasm/scservo-driver',
+    },
+  )
+})
+
+test('WASM manifest selects the wasm app default behavior without an app-layer runtime branch', () => {
+  const appManifest = readManifest('host/app/manifest_wasm.json')
+  const manifest = readManifest('host/platforms/wasm/manifest.json')
+
+  assert.ok(appManifest.include.includes('../platforms/wasm/manifest.json'))
+  assert.equal(manifest.modules['app-default-behavior'], '../../app/default-behavior/wasm/behavior')
+  assert.equal(manifest.modules['app-default-behavior/wasm/behavior'], '../../app/default-behavior/wasm/behavior')
+  assert.equal(
+    manifest.modules['app-default-behavior/on-context-created'],
+    '../../app/default-behavior/on-context-created',
+  )
+  assert.equal(manifest.modules['app-default-behavior/*'], undefined)
+  assert.ok(manifest.preload.includes('app-default-behavior'))
+})
+
+test('real-device camera preview manifest resolves the shared UI preview module', () => {
+  const manifest = readManifest('host/app/manifest.json')
+
+  assert.equal(manifest.modules['camera-preview'], '../modules/ui/views/camera-preview/camera-preview-view')
+  assert.equal(manifest.modules['camera-preview-utils'], '../modules/ui/views/camera-preview/camera-preview-utils')
+})
+
+test('WASM camera preview manifest resolves the native RuntimeBitmapPort binding', () => {
+  const manifest = readManifest('host/modules/camera/manifest_wasm.json')
+
+  assert.equal(manifest.modules['camera-preview'], './wasm/camera-preview')
+  assert.equal(manifest.modules['runtime-bitmap-port'], './wasm/runtime-bitmap-port')
 })
 
 test('WASM servo driver facade files re-export the consolidated WasmDriver through a manifest module specifier', () => {

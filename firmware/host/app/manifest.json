@@ -41,7 +41,9 @@
     "camera-preview-utils": "../modules/ui/views/camera-preview/camera-preview-utils",
     "app-behavior": "./app-behavior",
     "app-default-behavior": "./default-behavior/behavior",
-    "app-default-behavior/*": "./default-behavior/*"
+    "app-default-behavior/on-context-created": "./default-behavior/on-context-created",
+    "app-default-behavior/on-launch": "./default-behavior/on-launch",
+    "app-default-behavior/startup-choice": "./default-behavior/startup-choice"
   },
   "preload": [
     "runtime-context",

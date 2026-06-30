@@ -246,7 +246,7 @@ flowchart TD
 - [x] 対応済み：呼吸、瞬き、サッケードを標準顔、DogFace、ImageFace に適用するデフォルトモーションへ戻す。
 - [x] 対応済み：AppController 配下の実 Piu timer で `FaceBehavior` が動くことを `lin/m5stack` の Moddable test で検証する。
 - [x] 対応済み：呼吸の移動量を整数ピクセルの目標 offset 差分にし、lin で小数 `moveBy` が丸め落とされても動きが消えないようにする。
-- [ ] 未対応：呼吸、瞬き、サッケードのデフォルト有効範囲を手動確認結果から調整する。
+- [x] 対応済み：呼吸、瞬き、サッケードのデフォルト有効範囲を手動確認結果から調整する。
 - [x] 対応済み：UI performance の architecture check は `Shape` と `Outline` の一律禁止ではなく、hot path の allocation を抑える条件へ書き換える。
 - [x] 対応済み：表情部品では `Shape` と `Outline` を許可し、禁止対象を `onTimeChanged` と高頻度 `onFaceState` 内の `new Outline.CanvasPath()`、`Outline.fill()`、`Outline.stroke()`、`new Skin()` に限定する。
 - [x] 対応済み：連続値で変化する `open`、`eye.open`、感情表現は段階量子化し、量子化キーごとの path cache で再描画時の allocation を抑える。
@@ -404,8 +404,8 @@ flowchart TD
 - [x] 対応済み：Node.js の `node:test` は移行補助と pure helper の検証に限定する。
 - [x] 対応済み：`mcconfig -m -d -p lin/m5stack -t run` は現在の lin/m5stack makefile に存在しないため、正規手順から外す。
 - [x] 対応済み：移行後の正規テスト判定は `npm run test:moddable` に寄せる。
-- [x] 対応済み：CI は `firmware/host/modules/**/manifest.test.json` を列挙して実行する。
-- [x] 対応済み：CI は `firmware/host/modules/ui/**/manifest.test.json` を列挙して実行する。
+- [x] 対応済み：CI は `firmware/host/app/**/manifest.test.json`、`firmware/host/modules/**/manifest.test.json`、`firmware/mods/examples/**/manifest.test.json` を列挙して実行する。
+- [x] 対応済み：CI は Piu を使う `host/app`、`host/modules/ui`、sample MOD の test manifest を `lin/m5stack` で実行できる。
 - [x] 対応済み：Piu の Application や描画イベントを使うテストは `lin/m5stack` を既定にする。
 - [x] 対応済み：画面を使わない純粋ロジックは `lin` で実行できるようにする。
 - [x] 対応済み：実機依存の確認は unit test ではなく smoke として分ける。
@@ -421,12 +421,12 @@ flowchart TD
 - [x] 対応済み：Node.js テストで Moddable global、Timer、Piu、Modules、Preference を扱う場合は、明示的な mock を注入し、実装ファイルの文字列走査で代用しない。
 - [x] 対応済み：構成検査として残すソース文字列検査は `check:legacy-names` または architecture lint に寄せ、振る舞いテストと別の名前で CI に表示する。
 - [x] 対応済み：書き換え後のテストを `npm run test:unit`、`npm run test:moddable`、必要に応じて `xst` 直接実行で検証し、PR の Validation に分けて記録する。
-- [ ] 未対応：`npm run test:moddable` の既定列挙対象に `host/app` の runnable `manifest.test.json` を含める。
-- [ ] 未対応：sample MOD の `manifest.test.json` を CI 対象に含めるか、手動対象として扱うかを決め、`npm run test:moddable` と文書の説明を一致させる。
-- [ ] 未対応：Piu を使う `host/app` と sample MOD の Moddable test は、`lin` ではなく `lin/m5stack` で実行する条件を `run-module-tests.js` に入れる。
-- [ ] 未対応：production manifest の `app-default-behavior/*` を明示的な module specifier の列挙へ置き換える。
-- [ ] 未対応：production manifest が `*.test.ts`、`*.architecture.ts`、`__tests__` を解決対象に含む場合に失敗する architecture check を追加する。
-- [ ] 未対応：`*.test.ts` に残っている manifest 固定テストを `*.architecture.ts` または manifest preflight へ移す。
+- [x] 対応済み：`npm run test:moddable` の既定列挙対象に `host/app` の runnable `manifest.test.json` を含める。
+- [x] 対応済み：sample MOD の `manifest.test.json` は CI 対象として扱い、`npm run test:moddable` と文書の説明を一致させる。
+- [x] 対応済み：Piu を使う `host/app` と sample MOD の Moddable test は、`lin` ではなく `lin/m5stack` で実行する条件を `run-module-tests.js` に入れる。
+- [x] 対応済み：production manifest の `app-default-behavior/*` を明示的な module specifier の列挙へ置き換える。
+- [x] 対応済み：production manifest が `*.test.ts`、`*.architecture.ts`、`__tests__` を解決対象に含む場合に失敗する architecture check を追加する。
+- [x] 対応済み：`*.test.ts` に残っている manifest 固定テストを `*.architecture.ts` または manifest preflight へ移す。
 
 ### 13. 非同期境界の移行
 
@@ -452,7 +452,7 @@ flowchart TD
 - [x] 対応済み：`renderer.type`、`renderers-piu`、旧 renderer API を説明する残存文書を削除または更新する。
 - [x] 対応済み：tracked tree に旧 `firmware/stackchan/renderers` と旧 `firmware/stackchan/renderers-piu` が残っていないことを確認する。
 - [x] 対応済み：ローカルに空ディレクトリが残る場合でも、manifest、import、document から参照しない。
-- [ ] 未対応：`firmware/chat.md` の `Robot/Mod`、`FaceContext`、旧 `tests/chats/` 前提を `StackchanContext`、capability API、移行後の test 配置へ更新する。
+- [x] 対応済み：`firmware/chat.md` の `Robot/Mod`、`FaceContext`、旧 `tests/chats/` 前提を `StackchanContext`、capability API、移行後の test 配置へ更新する。
 
 ### 15. 検証
 
@@ -484,7 +484,7 @@ flowchart TD
 - [x] 対応済み：描画復元後に `npm run test:moddable -- host/modules/ui` を実行し、UI 配下の Moddable test manifest を `lin/m5stack` で検証する。
 - [x] 対応済み：描画復元後に `npm run smoke:lin` を実行する。
 - [x] 対応済み：描画復元後に `npm run build:wasm` を実行する。
-- [ ] 未対応：ユーザーの手元の `lin/m5stack` で標準顔、DogFace、ImageFace を表示し、既定色、口形状、呼吸、瞬き、サッケードを目視で確認する。
+- [x] 対応済み：ユーザーの手元の `lin/m5stack` で標準顔、DogFace、ImageFace を表示し、既定色、口形状、呼吸、瞬き、サッケードを目視で確認する。
 - [x] 対応済み：表示退行を検出するため、`lin/m5stack` の描画状態を使った visual smoke を追加する。
 
 ### 16. Merge 条件

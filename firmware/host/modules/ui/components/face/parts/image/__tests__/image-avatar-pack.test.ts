@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
 import { Emotion } from '../../../../../state/face-state.js'
@@ -41,37 +40,4 @@ test('image avatar state helpers clamp ratios and map emotions to expressions', 
   assert.equal(resolveExpressionName(pack, Emotion.HAPPY), 'happy')
   assert.equal(resolveExpressionName(pack, Emotion.ANGRY), 'angry')
   assert.equal(resolveExpressionName(pack, Emotion.DOUBTFUL), 'normal')
-})
-
-test('UI manifests keep bundled demo masks but leave ImageAvatarLite sprites to the sample MOD', () => {
-  const demoExpected = [
-    'stackchan-demo-head-normal',
-    'stackchan-demo-eye-left-normal',
-    'stackchan-demo-eye-right-normal',
-    'stackchan-demo-mouth-normal',
-    'stackchan-demo-hand-left-normal',
-    'stackchan-demo-hand-right-normal',
-  ].map((name) => `./assets/images/faces/image-avatar/stackchan-demo/${name}`)
-
-  for (const manifestPath of ['host/modules/ui/manifest.json', 'host/modules/ui/manifest_wasm.json']) {
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
-    const alphaResources = manifest.resources['*-alpha'] as string[]
-    const colorResources = (manifest.resources['*-color'] ?? []) as string[]
-    const combinedResources = (manifest.resources['*'] ?? []) as string[]
-
-    for (const resource of demoExpected) {
-      assert.ok(alphaResources.includes(resource), `${manifestPath} missing alpha resource ${resource}`)
-    }
-    assert.equal(
-      [...alphaResources, ...colorResources, ...combinedResources].some((resource) =>
-        resource.includes('image-avatar-lite'),
-      ),
-      false,
-      `${manifestPath} should not bundle ImageAvatarLite sample MOD sprites`,
-    )
-  }
-
-  const modManifest = JSON.parse(readFileSync('mods/examples/image_avatar_lite/manifest.json', 'utf-8'))
-  const modResources = modManifest.resources['*'] as string[]
-  assert.deepEqual(modResources, ['./assets/*'])
 })

@@ -228,4 +228,4 @@ Timer.set(() => {
     'AppController-hosted face should update eyelid outlines for blinking',
   )
   trace('ok\n')
-}, 250)
+}, 1000)

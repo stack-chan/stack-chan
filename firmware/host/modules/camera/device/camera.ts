@@ -50,6 +50,8 @@ function closeFrame(frame: DisposableCameraBuffer | undefined): void {
 }
 
 export default class Camera implements RobotCamera {
+  readonly available = true
+
   #camera: NativeImageInCamera | undefined
   #frame: DisposableCameraBuffer | undefined
   #width = DEFAULT_WIDTH

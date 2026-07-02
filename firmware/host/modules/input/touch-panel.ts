@@ -29,6 +29,7 @@ export default class TouchPanel {
   #timer: Timer | undefined
   #recognizer: GestureRecognizer
   #interval: number
+  #sampleErrorReported = false
   #lastSample: TouchPanelSample = []
   onEvent: (event: TouchPanelInputEvent) => void
 
@@ -63,7 +64,17 @@ export default class TouchPanel {
     if (this.#timer) return
     this.#timer = Timer.repeat(() => {
       const ticks = Time.ticks
-      const sample = this.#sample()
+      let sample: TouchPanelSample
+      try {
+        sample = this.#sample()
+        this.#sampleErrorReported = false
+      } catch (error) {
+        if (!this.#sampleErrorReported) {
+          trace(`[TouchPanel] sample error ${errorMessage(error)}\n`)
+          this.#sampleErrorReported = true
+        }
+        return
+      }
 
       const gesture = this.#recognizer.update(sample, ticks)
       if (gesture) {
@@ -87,3 +98,10 @@ export default class TouchPanel {
 }
 
 export { GestureRecognizer, type TouchPanelGesture, type TouchPanelGestureType, type TouchPanelSample }
+
+function errorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message: unknown }).message)
+  }
+  return String(error)
+}

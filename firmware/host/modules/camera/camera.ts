@@ -16,6 +16,7 @@ export type CameraCaptureOptions = {
 }
 
 export interface RobotCamera {
+  readonly available?: boolean
   start(options?: CameraCaptureOptions): Promise<void> | void
   stop(): Promise<void> | void
   capture(options?: CameraCaptureOptions): Promise<CameraFrame | undefined>

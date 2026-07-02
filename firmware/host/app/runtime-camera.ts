@@ -1,6 +1,7 @@
 import type { RobotCamera } from 'camera'
 
 const NULL_CAMERA: RobotCamera = {
+  available: false,
   start() {},
   stop() {},
   async capture() {

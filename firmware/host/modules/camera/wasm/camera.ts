@@ -59,6 +59,8 @@ function copyFrameToWasmHeap(frame: CameraFrame): CameraFrame {
 }
 
 export default class Camera implements RobotCamera {
+  readonly available = true
+
   #started = false
 
   constructor(_options?: unknown) {

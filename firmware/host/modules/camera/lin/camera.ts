@@ -3,6 +3,8 @@ import type { CameraCaptureOptions, CameraFrame, RobotCamera } from '../camera.j
 export type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } from '../camera.js'
 
 export default class Camera implements RobotCamera {
+  readonly available = false
+
   constructor(_options?: unknown) {
     void _options
   }

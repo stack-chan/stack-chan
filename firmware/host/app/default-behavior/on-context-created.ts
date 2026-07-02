@@ -207,8 +207,21 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   })
 
   const runCameraPreview = async (target: typeof robot) => {
+    let didPauseTouchPanel = false
+    let previewFrame:
+      | {
+          width: number
+          height: number
+          imageType: 'rgb565le' | 'yuv422' | 'jpeg'
+          buffer: ArrayBuffer
+        }
+      | undefined
     try {
       target.showBalloon('starting camera...')
+      if (target.touchPanel) {
+        target.touchPanel.stop()
+        didPauseTouchPanel = true
+      }
       await target.camera.start({ width: 200, height: 120, imageType: 'rgb565le', useBrowserCamera: true })
       const frame = await target.camera.capture({ width: 200, height: 120, imageType: 'rgb565le' })
       if (!frame) {
@@ -216,15 +229,29 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         target.showBalloon('camera unavailable')
         return
       }
+      previewFrame = {
+        width: frame.width,
+        height: frame.height,
+        imageType: frame.imageType,
+        buffer: frame.buffer.slice(0),
+      }
+      frame.close?.()
+      await target.camera.stop()
+      if (didPauseTouchPanel) {
+        target.touchPanel?.start()
+        didPauseTouchPanel = false
+      }
       target.ui.setFace(
-        createCameraPreviewFace(frame, {
+        createCameraPreviewFace(previewFrame, {
           onRender: (mode) => {
             trace(`[CameraPreview] render mode=${mode}\n`)
           },
           onDismiss: restoreCameraPreview,
         }),
       )
-      trace(`[CameraPreview] rendered ${frame.width}x${frame.height} ${frame.imageType} via Piu Port\n`)
+      trace(
+        `[CameraPreview] rendered ${previewFrame.width}x${previewFrame.height} ${previewFrame.imageType} via Piu Port\n`,
+      )
       closeDrawer()
       target.showBalloon('camera preview')
       if (cameraPreviewTimer) Timer.clear(cameraPreviewTimer)
@@ -237,16 +264,28 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         trace(`[CameraPreview] error balloon failed ${errorMessage(balloonError)}\n`)
       }
     } finally {
+      try {
+        await target.camera.stop()
+      } catch (stopError) {
+        trace(`[CameraPreview] stop error ${errorMessage(stopError)}\n`)
+      }
+      if (didPauseTouchPanel) {
+        try {
+          target.touchPanel?.start()
+        } catch (touchPanelError) {
+          trace(`[CameraPreview] touch panel restart error ${errorMessage(touchPanelError)}\n`)
+        }
+      }
       hideBalloonLater(1200)
     }
   }
-  robot.drawer.addDrawerButton({
-    key: 'cameraPreview',
-    label: 'Camera',
-    callback: (target) => {
-      void runCameraPreview(target)
-    },
-  })
+  if (robot.camera.available !== false) {
+    robot.drawer.addDrawerButton({
+      key: 'cameraPreview',
+      label: 'Camera',
+      callback: (target) => runCameraPreview(target),
+    })
+  }
 
   /**
    * Look around (Drawer toggle)

@@ -1,5 +1,5 @@
 import { onContextCreated } from 'app-default-behavior/on-context-created'
-import { equal } from 'testing/assert'
+import { assert, equal } from 'testing/assert'
 
 trace('=== default-mod face init test ===\n')
 
@@ -31,6 +31,9 @@ const robot = {
     a: null,
     b: null,
     c: null,
+  },
+  camera: {
+    available: false,
   },
   lookAway: () => {},
   lookAt: () => {},
@@ -66,5 +69,9 @@ equal(drawerStates[0]?.[0], 'toggleFace', 'toggleFace state should be initialize
 equal(drawerStates[0]?.[1], false, 'toggleFace should start inactive')
 equal(events[0]?.[0], 'onFaceMode', 'initial face mode should be distributed')
 equal(events[0]?.[1], 'simple', 'initial face mode should be simple')
+assert(
+  buttons.every((button) => button.key !== 'cameraPreview'),
+  'cameraPreview button should not be registered when camera is unavailable',
+)
 
 trace('ok\n')

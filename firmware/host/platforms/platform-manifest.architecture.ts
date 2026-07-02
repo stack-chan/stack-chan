@@ -6,6 +6,7 @@ const stackchanAppManifest = JSON.parse(readFileSync('host/app/manifest.json', '
 const esp32PlatformManifest = JSON.parse(readFileSync('host/platforms/esp32/manifest.json', 'utf8'))
 const m5StackChanPlatformManifest = JSON.parse(readFileSync('host/platforms/m5stackchan_cores3/manifest.json', 'utf8'))
 const m5StackChanStackchanManifest = JSON.parse(readFileSync('host/app/manifest_m5stackchan_cores3.json', 'utf8'))
+const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 
 describe('Stack-chan platform manifest', () => {
   test('gives M5StackChan CoreS3 the same expandable XS creation heap as CoreS3', () => {
@@ -63,8 +64,12 @@ describe('Stack-chan platform manifest', () => {
       assert.match(smokeSource, new RegExp(`robot\\.${api}\\b`), `smoke MOD should exercise robot.${api}`)
     }
     assert.match(smokeSource, /M5StackChan CoreS3 smoke/)
-    assert.match(smokeDocs, /esp32:\.\/host\/platforms\/m5stackchan_cores3/)
-    assert.match(smokeDocs, /host\/app\/manifest_m5stackchan_cores3\.json/)
+    assert.equal(
+      packageJson.scripts['build:m5stackchan_cores3'],
+      'mcconfig -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t build "$PWD/host/app/manifest_m5stackchan_cores3.json"',
+    )
+    assert.match(smokeDocs, /npm run build:m5stackchan_cores3/)
+    assert.match(smokeDocs, /npm run deploy:m5stackchan_cores3/)
     assert.match(smokeDocs, /mods\/examples\/m5stackchan_smoke\/manifest\.json/)
   })
 })

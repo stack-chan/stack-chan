@@ -9,19 +9,19 @@ Related tracking issues: #406, #408, #409, #412.
 Run these commands from `firmware/`.
 
 ```console
-$ mcconfig -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t build "$PWD/host/app/manifest_m5stackchan_cores3.json"
+$ npm run build:m5stackchan_cores3
 ```
 
 To flash the host when hardware is connected:
 
 ```console
-$ mcconfig -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t deploy "$PWD/host/app/manifest_m5stackchan_cores3.json"
+$ npm run deploy:m5stackchan_cores3
 ```
 
 ## Install the smoke MOD
 
 ```console
-$ npm run mod --target=esp32:./host/platforms/m5stackchan_cores3 ./mods/examples/m5stackchan_smoke/manifest.json
+$ npm run mod:m5stackchan_cores3 ./mods/examples/m5stackchan_smoke/manifest.json
 ```
 
 ## Expected smoke sequence

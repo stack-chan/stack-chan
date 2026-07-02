@@ -11,6 +11,7 @@ import {
   createFaceState,
   DEFAULT_FACE_SECONDARY_COLOR,
   type FaceState,
+  faceStatesEqual,
   toPiuColorString,
 } from 'face-state'
 import {
@@ -34,6 +35,10 @@ type FaceContainerBehavior = {
   onFaceUpdate?: (container: PiuContainer, face: FaceState) => void
   rehydrate?: (container: PiuContainer, face: FaceState, palette?: FaceSkinPalette | null) => void
   getBaseCoordinates?: (container: PiuContainer) => { left: number; top: number }
+}
+type FaceEffectBehavior = {
+  onFaceSkin?: (content: PiuContent, palette: FaceSkinPalette) => void
+  onFaceState?: (content: PiuContent, face: FaceState) => void
 }
 
 export type FaceViewParams = FaceViewBaseParams &
@@ -81,6 +86,8 @@ class FaceViewBehavior extends CommonViewBehavior {
   onFaceUpdate(_container: PiuContainer, faceState: FaceState) {
     if (this.lastFaceState === null) {
       this.lastFaceState = createFaceState()
+    } else if (faceStatesEqual(faceState, this.lastFaceState)) {
+      return
     }
     copyFaceState(faceState, this.lastFaceState)
     const palette = updateFaceSkinPalette(this.lastPalette, faceState)
@@ -132,6 +139,7 @@ class FaceViewBehavior extends CommonViewBehavior {
     if (effectsSet.has(effect)) return
     effectsSet.add(effect)
     this.effects.add(effect)
+    this.applyEffectState(effect)
   }
 
   removeEffect(effect: PiuContent): void {
@@ -174,6 +182,14 @@ class FaceViewBehavior extends CommonViewBehavior {
     }
     face.distribute?.('onFaceState', faceState)
     this.rehydrateFace(face, faceState, this.lastPalette)
+  }
+
+  private applyEffectState(effect: PiuContent): void {
+    const behavior = effect.behavior as FaceEffectBehavior | undefined
+    if (this.lastPalette) {
+      behavior?.onFaceSkin?.(effect, this.lastPalette)
+    }
+    behavior?.onFaceState?.(effect, this.lastFaceState ?? createFaceState())
   }
 
   setFace(face: PiuContainer): void {

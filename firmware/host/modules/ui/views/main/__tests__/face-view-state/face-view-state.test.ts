@@ -100,8 +100,28 @@ assert(typeof recorderBehavior.onFaceState === 'function', 'recorder should rece
 assert(typeof recorderBehavior.onFaceSkin === 'function', 'recorder should receive face skin events')
 
 controller.setDrawerButtonState('speech', true)
+const effectRecorder = new Content(null, {
+  Behavior: class extends Behavior {
+    onCreate(content: RecorderContent) {
+      content.contextPrimary = -1
+      content.skinPrimary = -1
+    }
+
+    onFaceState(content: RecorderContent, face: FaceState) {
+      content.contextPrimary = toPiuColorNumber(face.theme.primary)
+    }
+
+    onFaceSkin(content: RecorderContent, palette: { primaryColor: number }) {
+      content.skinPrimary = palette.primaryColor
+    }
+  },
+}) as RecorderContent
+controller.addEffect(effectRecorder, 'recorder')
+equal(effectRecorder.skinPrimary, expectedPrimary, 'addEffect should apply the active palette')
+equal(effectRecorder.contextPrimary, expectedPrimary, 'addEffect should apply the active context')
 controller.addEffect(new SpeechBalloon({ name: 'speech', text: 'hello' }), 'speech')
 controller.update(32, desired)
+controller.removeEffectByKey('recorder')
 controller.removeEffectByKey('speech')
 controller.setDrawerButtonState('speech', false)
 

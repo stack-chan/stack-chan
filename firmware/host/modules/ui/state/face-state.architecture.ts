@@ -24,19 +24,17 @@ function extractMethodBlocks(source: string, methodName: string): string[] {
   return blocks
 }
 
-test('UI manifests register the cdv FaceState view definition', () => {
-  const header = readFileSync('host/modules/ui/state/face-state-view.h', 'utf8')
-  assert.match(header, /typedef struct \{\n {2}uint8_t r;/)
-  assert.match(header, /typedef struct \{\n {2}MouthState mouth;/)
-  assert.match(header, /uint8_t emotion;/)
+test('FaceState stays on plain objects instead of DataView-backed cdv views', () => {
+  const faceState = readFileSync('host/modules/ui/state/face-state.ts', 'utf8')
+  assert.doesNotMatch(faceState, /\bDataView\b/)
+  assert.doesNotMatch(faceState, /\bArrayBuffer\b/)
+  assert.match(faceState, /export type FaceState = \{/)
+  assert.match(faceState, /export function copyFaceState/)
+  assert.match(faceState, /export function faceStatesEqual/)
 
   for (const manifestPath of ['host/modules/ui/manifest.json', 'host/modules/ui/manifest_wasm.json']) {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-    assert.deepEqual(manifest.modules['face-state-view'], {
-      source: './state/face-state-view',
-      transform: 'cdv',
-      json: true,
-    })
+    assert.equal(manifest.modules['face-state-view'], undefined)
     assert.ok(
       manifest.resources['*-alpha'].includes('./assets/images/emoticon'),
       `${manifestPath} should bundle the emoticon sprite atlas`,
@@ -54,6 +52,7 @@ test('FaceBehavior applies breathing without reassigning coordinates on every ti
   assert.match(source, /createBlinkMotion\(/)
   assert.match(source, /createBreathMotion\(/)
   assert.match(source, /createSaccadeMotion\(/)
+  assert.match(source, /faceStatesEqual\(this\.#current, this\.#lastDistributed\)/)
 })
 
 test('Emoticon effects render through Port and a texture atlas', () => {

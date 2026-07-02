@@ -6,7 +6,6 @@ import {
   createFaceState,
   Emotion,
   emotionFromName,
-  FaceState,
   setColorRGB,
   toColorString,
   toEmotionName,
@@ -14,11 +13,11 @@ import {
   toPiuColorString,
 } from './face-state.js'
 
-test('FaceState is DataView backed and uses numeric emotion and ColorRGB theme state', () => {
+test('FaceState uses plain mutable objects with numeric emotion and ColorRGB theme state', () => {
   const face = createFaceState()
 
-  assert.ok(face.buffer instanceof ArrayBuffer)
-  assert.equal(face.byteLength, FaceState.BYTE_LENGTH)
+  assert.equal(typeof face, 'object')
+  assert.equal(face.mouth.open, 0)
   assert.equal(face.emotion, Emotion.NEUTRAL)
   assert.equal(toEmotionName(Emotion.HAPPY), 'HAPPY')
   assert.equal(emotionFromName('happy'), Emotion.HAPPY)

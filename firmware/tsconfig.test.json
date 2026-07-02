@@ -46,6 +46,15 @@
       "timer": [
         "host/modules/testing/fakes/timer.ts"
       ],
+      "time": [
+        "host/modules/testing/fakes/time.ts"
+      ],
+      "mc/config": [
+        "host/modules/testing/fakes/mc-config.ts"
+      ],
+      "input-event": [
+        "host/modules/input/input-event.ts"
+      ],
       "startup-splash": [
         "host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts"
       ],
@@ -80,6 +89,7 @@
     "host/modules/camera/*.test.ts",
     "host/modules/ui/views/camera-preview/camera-preview-utils.ts",
     "host/modules/input/touch-panel-gesture.ts",
+    "host/modules/input/touch.ts",
     "host/modules/input/imu-motion.ts",
     "host/modules/camera/wasm/camera.ts",
     "host/modules/connectivity/network-state.ts",
@@ -92,6 +102,8 @@
     "host/modules/testing/*.test.ts",
     "host/modules/testing/node-alias-package.ts",
     "host/modules/testing/fakes/timer.ts",
+    "host/modules/testing/fakes/time.ts",
+    "host/modules/testing/fakes/mc-config.ts",
     "host/app/default-behavior/startup-choice.ts",
     "host/app/app-behavior-resolver.ts",
     "host/app/default-behavior/wasm/on-launch.ts",
@@ -106,6 +118,7 @@
     "host/modules/ui/components/face/parts/image/image-avatar-state.ts",
     "host/app/*.test.ts",
     "host/modules/input/*.test.ts",
+    "host/modules/input/__tests__/*.test.ts",
     "host/modules/lighting/*.test.ts",
     "host/modules/motion/__tests__/*.test.ts",
     "host/modules/ui/application/*.test.ts",

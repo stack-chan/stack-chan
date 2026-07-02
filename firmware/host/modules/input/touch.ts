@@ -6,12 +6,42 @@ import Timer from 'timer'
 export default class Touch {
   // biome-ignore lint/suspicious/noExplicitAny: touch driver of device don't have type
   #touch: any
+  #releaseTimer: ReturnType<typeof Timer.set> | undefined
   onEvent: (event: TouchInputEvent) => void
 
   // biome-ignore lint/suspicious/noExplicitAny: touch driver of device don't have type
   constructor(TouchConstructor: new (param: unknown) => any) {
     trace('[Touch] constructor: instantiating\n')
     let touchCount = config.touchCount ?? 1
+    const releaseDebounceMs = Number.isFinite(config.touchReleaseDebounceMs)
+      ? Math.max(0, config.touchReleaseDebounceMs)
+      : 0
+    const clearPendingRelease = () => {
+      if (this.#releaseTimer) {
+        Timer.clear(this.#releaseTimer)
+        this.#releaseTimer = undefined
+      }
+    }
+    const hasActiveTouch = (mask: number) => {
+      const points = this.#touch.points
+      for (let i = 0; mask; i += 1, mask >>= 1) {
+        if (mask & 1 && points[i]) return true
+      }
+      return false
+    }
+    const emitEnded = (mask: number) => {
+      clearPendingRelease()
+      const touch = this.#touch
+      for (let i = 0; mask; i += 1, mask >>= 1) {
+        if (mask & 1) {
+          const last = touch.points[i]
+          if (last) {
+            touch.points[i] = undefined
+            this.onEvent?.(createTouchInputEvent('ended', i, last.x, last.y, Time.ticks))
+          }
+        }
+      }
+    }
     const onSample = () => {
       const touch = this.#touch
       const points = touch.sample()
@@ -24,6 +54,7 @@ export default class Touch {
         const last = touch.points[id]
 
         mask ^= 1 << id
+        clearPendingRelease()
         // this.rotate?.(point);
         if (last) {
           last.x = point.x
@@ -35,15 +66,15 @@ export default class Touch {
         }
       }
 
-      for (let i = 0; mask; i += 1, mask >>= 1) {
-        if (mask & 1) {
-          const last = touch.points[i]
-          if (last) {
-            touch.points[i] = undefined
-            this.onEvent?.(createTouchInputEvent('ended', i, last.x, last.y, Time.ticks))
-          }
-        }
+      if (!mask) return
+
+      if (releaseDebounceMs && 0 === points.length && hasActiveTouch(mask)) {
+        clearPendingRelease()
+        this.#releaseTimer = Timer.set(() => emitEnded(mask), releaseDebounceMs)
+        return
       }
+
+      emitEnded(mask)
     }
     const touch = new TouchConstructor({ onSample })
     this.#touch = touch

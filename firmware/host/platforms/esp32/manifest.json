@@ -49,6 +49,7 @@
       },
       "config": {
         "touchIntervalMs": 50,
+        "touchReleaseDebounceMs": 75,
         "driver": {
           "type": "dynamixel",
           "panId": 1,
@@ -62,6 +63,11 @@
           "receive": 6
         },
         "virtualButton": false
+      },
+      "defines": {
+        "ft6206": {
+          "hz": 400000
+        }
       }
     },
     "esp32/m5stackchan_cores3": {

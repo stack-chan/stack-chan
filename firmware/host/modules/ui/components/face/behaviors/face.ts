@@ -137,8 +137,17 @@ export class FaceBehavior extends Behavior {
     // container.bubble('onFaceState', this.#current)
   }
 
-  onTouchEnded(container: PiuContainer) {
+  onTouchEnded(container: PiuContainer, id?: number, x?: number, y?: number) {
+    trace(`[Face] touch ended id=${id} x=${x} y=${y}\n`)
     container.bubble('onFaceTouch')
+  }
+
+  onTouchBegan(_container: PiuContainer, id: number, x: number, y: number) {
+    trace(`[Face] touch began id=${id} x=${x} y=${y}\n`)
+  }
+
+  onTouchMoved(_container: PiuContainer, id: number, x: number, y: number) {
+    trace(`[Face] touch moved id=${id} x=${x} y=${y}\n`)
   }
 
   getBaseCoordinates(container: PiuContainer): { left: number; top: number } {

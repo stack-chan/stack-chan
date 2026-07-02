@@ -102,14 +102,31 @@ const device = {
   sensor: {
     Touch: class {
       constructor(options) {
+        const touchOptions = { ...options }
+        const onSample = touchOptions.onSample
+        const onError = touchOptions.onError
+        trace('[m5stackchan-cores3] Touch provider init hz=400000 polling\n')
+        if (typeof onSample === 'function') {
+          touchOptions.onSample = () => {
+            trace('[m5stackchan-cores3] Touch onSample\n')
+            onSample()
+          }
+        }
+        if (typeof onError === 'function') {
+          touchOptions.onError = (error) => {
+            trace(`[m5stackchan-cores3] Touch error ${error}\n`)
+            onError(error)
+          }
+        }
         const result = new Touch({
-          ...options,
+          ...touchOptions,
           sensor: {
             ...device.I2C.internal,
             io: device.io.SMBus,
+            hz: 400_000,
           },
         })
-        result.configure({ threshold: 20 })
+        result.configure({ threshold: 20, active: false, timeout: 10 })
         // biome-ignore lint/correctness/noConstructorReturn: Moddable device providers return native peripheral instances.
         return result
       }

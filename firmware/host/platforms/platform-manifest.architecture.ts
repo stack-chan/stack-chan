@@ -6,6 +6,7 @@ const stackchanAppManifest = JSON.parse(readFileSync('host/app/manifest.json', '
 const esp32PlatformManifest = JSON.parse(readFileSync('host/platforms/esp32/manifest.json', 'utf8'))
 const m5StackChanPlatformManifest = JSON.parse(readFileSync('host/platforms/m5stackchan_cores3/manifest.json', 'utf8'))
 const m5StackChanStackchanManifest = JSON.parse(readFileSync('host/app/manifest_m5stackchan_cores3.json', 'utf8'))
+const m5StackChanProviderSource = readFileSync('host/platforms/m5stackchan_cores3/host/provider.js', 'utf8')
 
 describe('Stack-chan platform manifest', () => {
   test('gives M5StackChan CoreS3 the same expandable XS creation heap as CoreS3', () => {
@@ -24,6 +25,19 @@ describe('Stack-chan platform manifest', () => {
       '$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json',
       '$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json',
     ])
+    assert.equal(esp32PlatformManifest.platforms['esp32/m5stack_cores3'].config.touchReleaseDebounceMs, 75)
+    assert.equal(esp32PlatformManifest.platforms['esp32/m5stack_cores3'].defines.ft6206.hz, 400000)
+    assert.equal(m5StackChanPlatformManifest.config.touchReleaseDebounceMs, 75)
+    assert.equal(m5StackChanPlatformManifest.config.touchIdleIntervalMs, 50)
+    assert.equal(m5StackChanPlatformManifest.config.touchActiveIntervalMs, 8)
+    assert.equal(m5StackChanPlatformManifest.defines.ft6206.hz, 400000)
+    assert.equal(m5StackChanPlatformManifest.modules['embedded:sensor/Touch/FT6x06'], './host/ft6206_async_m5stackchan')
+    assert.match(m5StackChanProviderSource, /hz:\s*400_000/, 'M5StackChan CoreS3 Touch provider should use 400kHz I2C')
+    assert.doesNotMatch(
+      m5StackChanProviderSource,
+      /interrupt:\s*{/,
+      'CoreS3 touch should poll instead of waiting on GPIO21 edge interrupts',
+    )
     assert.equal(m5StackChanPlatformManifest.config.driver.type, 'm5stackchan')
     assert.deepEqual(m5StackChanPlatformManifest.config.driver.serial, {
       transmit: 6,

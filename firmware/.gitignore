@@ -3,6 +3,7 @@
 /scripts/key.json
 /docs/api
 /dist/
+/dist-architecture/
 /dist-tests/
 
 # Bundle file

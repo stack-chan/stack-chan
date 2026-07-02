@@ -173,7 +173,8 @@ $ npm run mod --target=esp32/m5stack_cores3 [modのマニフェストファイ�
 ```
 
 標準のコマンドは、JavaScript module を解決する MOD manifest を対象にします。
-TypeScript で MOD を書く場合は、事前に JavaScript へ変換し、`mcrun` に渡す manifest から生成後のファイルを参照します。
+ESP32 と lin target では、Moddable toolchain 経由で TypeScript module も扱えます。
+WASM host で確認する場合も、`lin` など TypeScript 対応済み target で build した `.xsb` または archive を読み込ませます。
 
 書き込み後は、MOD が製品既定動作の代わりに実行されます。
 ボタンや画面操作の意味は、インストールした MOD の実装で決まります。

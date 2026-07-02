@@ -166,8 +166,9 @@ $ npm run mod --target=esp32/m5stack_core2 [mod manifest file path]
 $ npm run mod --target=esp32/m5stack_cores3 [mod manifest file path]
 ```
 
-The standard command expects a MOD manifest that resolves to JavaScript modules.
-If a MOD is authored in TypeScript, compile it to JavaScript first and point the manifest used by `mcrun` at the generated files.
+The standard command accepts MOD manifests that resolve to JavaScript modules.
+ESP32 and lin targets can also use TypeScript modules through the Moddable toolchain.
+For the WASM host, build the MOD with a TypeScript-capable target such as `lin`, then load the generated `.xsb` or archive.
 
 After installation, the MOD runs instead of the product default behavior.
 The exact button and screen behavior depends on the installed MOD.

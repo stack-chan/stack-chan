@@ -8,8 +8,9 @@ MODの書き込み方法は[プログラムのビルドと書き込み](../docs/
 MOD をインストールすると、ホストの製品既定動作は実行されません。
 ボタンや画面操作の意味は、インストールした MOD の実装で決まります。
 
-標準の `npm run mod` は JavaScript module を書き込み対象にします。
-TypeScript で MOD を書く場合は、現時点では事前に JavaScript へ変換してから `mcrun` に渡す構成が必要です。
+MOD は JavaScript または TypeScript module として書けます。
+TypeScript で MOD を書く場合は、公開された Stack-chan capability 型と Moddable の module specifier だけを使います。
+WASM host で使う MOD も、`lin` など TypeScript 対応済み target で build した `.xsb` または archive を読み込ませます。
 
 ## M5StackChan CoreS3 Smoke
 

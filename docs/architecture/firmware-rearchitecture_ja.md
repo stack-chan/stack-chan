@@ -396,10 +396,12 @@ flowchart TD
 - [x] 対応済み：古い provider demo を core 依存から切り離す。
 - [x] 対応済み：MOD API の公開面を capability 単位で再定義し、旧 `Robot` 互換 API を残さない。
 - [ ] 未対応：sample MOD を TypeScript source として型検査できる構成へ移す。
-      標準の `npm run mod` は `mcrun` に JavaScript module を渡す前提にし、TypeScript source は build step で generated JavaScript へ変換する。
+      `mcrun -p lin` など TypeScript module 対応済み target で build し、stack-chan 側に独自の generated JavaScript prebuild を持たない。
+      WASM host 用の MOD も、この build で生成した `.xsb` またはそれを含む archive を読み込ませる。
 - [ ] 未対応：sample MOD を `StackchanContext` の公開 capability 型に合わせて書き直す。
       `driver`、`useTTS`、streaming microphone など、現行の公開 API に存在しない呼び出しは、公開 capability を追加するか sample 側から外す。
-- [ ] 未対応：TypeScript MOD の共通実行経路として `npm run mod:ts` または同等の prebuild script を追加し、manifest が generated JavaScript を指す構成を標準化する。
+- [ ] 未対応：MOD から `StackchanContext` などの公開型を `import type` できる module specifier を用意する。
+      実行時 module を増やさず、型配布だけを目的にする。
 
 ### 12. テスト配置と実行方法の移行
 

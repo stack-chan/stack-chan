@@ -8,8 +8,9 @@ Some mods require a network connection or an external server to run (as of writi
 Installing a MOD replaces the product default behavior supplied by the host.
 Button and screen behavior therefore depends on the installed MOD.
 
-The standard `npm run mod` path currently installs JavaScript modules.
-TypeScript-authored MODs should be compiled to JavaScript before invoking `mcrun` until the repository provides a shared `mod:ts` workflow.
+MODs can be authored as JavaScript or TypeScript modules.
+TypeScript MODs should use only the public Stack-chan capability types and Moddable module specifiers.
+MODs for the WASM host should also be built with a TypeScript-capable target such as `lin`, then loaded from the generated `.xsb` or archive.
 
 ## M5StackChan CoreS3 Smoke
 

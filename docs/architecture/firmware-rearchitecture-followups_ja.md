@@ -158,21 +158,29 @@ sample MOD の API 齟齬は、MOD が JavaScript で書かれており、`Stack
 
 TypeScript で書けば、存在しない `driver`、`useTTS`、streaming microphone などの呼び出しを早く検出できる。
 
-ただし、標準の `npm run mod` は `mcrun` へ MOD manifest を渡す経路であり、installed MOD の source を直接 TypeScript として扱う共通手順はまだ整っていない。
+標準の `npm run mod` は `mcrun` へ MOD manifest を渡す経路である。
 
-Moddable の `mcconfig` と `mcpack` は TypeScript source を扱える。
+Moddable の `mcconfig`、`mcpack`、および ESP32、lin などの make fragment を持つ `mcrun` 経路は TypeScript source を扱える。
 
-一方で、`mcrun` は実行経路によって TypeScript を拒否する分岐を持つ。
+WASM host は、lin や esp32 向けに build した MOD の `.xsb` を読み込める。
 
-そのため、現時点で「MOD manifest に `.ts` を書けば標準経路で常に動く」とは扱わない。
+そのため、WASM host で実行する MOD であっても、MOD 自体の build target を `wasm` にする必要はない。
+
+WASM `mcrun` の `make.json` 経路に TypeScript support を追加することは、この移行の前提にしない。
 
 ### 解決策
 
 sample MOD は TypeScript source で書く。
 
-書き込み前に TypeScript を generated JavaScript へ変換し、`mcrun` に渡す manifest は generated JavaScript を指す。
+MOD の build は、Moddable の `mcrun` が持つ TypeScript module 経路をそのまま使う。
 
-この prebuild を共通化するため、`npm run mod:ts` または同等の helper script を追加する。
+ローカル確認と CI では、デバイスなしで実行しやすい `lin` target を標準にする。
+
+ESP32 実機へ install する場合は、従来どおり対象 device target を指定する。
+
+stack-chan 側には、TypeScript を generated JavaScript へ事前変換する独自 workflow を持たない。
+
+WASM host での確認では、`lin` などで build した `.xsb` またはそれを含む archive を読み込ませる。
 
 TypeScript 化では、単に拡張子を変えるだけでは不十分である。
 
@@ -182,7 +190,8 @@ sample MOD は `StackchanContext` の公開 capability だけを import し、ho
 
 ### 確認すべき点
 
-- generated JavaScript を MOD manifest から安定して参照できるか。
+- `lin` target で build した TypeScript MOD の `.xsb` または archive を WASM host が継続して読み込めるか。
+- WASM host 用に配布する MOD で、platform 固有の native code や resource 前提が混入していないか。
 - source map や xsbug 上の行番号をどう扱うか。
 - sample MOD の型チェックを CI の軽量 preflight に含められるか。
 - `StackchanContext` 型を利用者 MOD から import できる公開 module specifier にできるか。
@@ -279,7 +288,7 @@ PR では、bundle できる可能性を軽量に保証する preflight を実�
 3. `mcconfig` 生成だけの `check:manifest` を追加する。
 4. `check:manifest` で Moddable warning を分類し、未知の missing module と missing resource を失敗扱いにする。
 5. 相対 import の lint を追加し、module 境界を越える相対 import を禁止する。
-6. sample MOD の TypeScript prebuild と `mod:ts` workflow を追加する。
+6. sample MOD の TypeScript 化と公開型 specifier を追加する。
 7. 生成済み Moddable tsconfig を使った TypeScript preflight を検討する。
 
 この順序なら、重い build を減らす前に、build でしか見つからなかった問題を軽量検査へ移せる。

@@ -1,7 +1,6 @@
 import { type Maybe, type Pose, type Rotation as RotationType, randomBetween, type Vector3 } from 'stackchan-util'
 import Timer from 'timer'
 
-const INTERVAL_POSE = 1000 / 10
 const GAZE_THRESHOLD = Math.PI / 6
 
 export type MotionCompletion = (error?: unknown) => void
@@ -112,14 +111,14 @@ export class MotionController {
   #pendingMotionTime = 0
   #pose: MotionControllerPose
   #relativeGazeRotation: RotationType = { y: 0, p: 0, r: 0 }
-  #updatePoseHandler: ReturnType<typeof Timer.repeat>
+  #updatePoseHandler: ReturnType<typeof Timer.repeat> | undefined
   updating = false
 
   constructor(params: MotionControllerConstructorParam, options: MotionControllerOptions) {
     this.#options = options
     this.#pose = params.pose ?? createDefaultPose()
     this.useDriver(params.driver)
-    this.#updatePoseHandler = Timer.repeat(this.updatePose.bind(this), INTERVAL_POSE)
+    // CPU regression investigation: temporarily disable servo pose polling.
     void this.#updatePoseHandler
   }
 
@@ -136,7 +135,9 @@ export class MotionController {
   }
 
   close(): void {
-    Timer.clear(this.#updatePoseHandler)
+    if (this.#updatePoseHandler) {
+      Timer.clear(this.#updatePoseHandler)
+    }
   }
 
   useDriver(driver: MotionDriver) {

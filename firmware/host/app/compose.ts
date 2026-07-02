@@ -8,7 +8,6 @@ import { DynamixelDriver } from 'dynamixel-driver'
 import IMU from 'imu'
 import Led from 'led'
 import { M5StackChanServoDriver } from 'm5stackchan-servo-driver'
-import config from 'mc/config'
 import Microphone from 'microphone'
 import Modules from 'modules'
 import type { MotionDriver } from 'motion-controller'
@@ -20,8 +19,6 @@ import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import Tone from 'tone'
-import Touch from 'touch'
-import TouchPanel from 'touch-panel'
 import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as OpenAITTS } from 'tts-openai'
@@ -185,10 +182,10 @@ export function createStackchanContext(preferences: PreferenceConfig): Stackchan
   const ui = UI(uiPrefs)
   const tts = TTS(ttsPrefs)
 
-  const touch = config.Touch ? new Touch(config.Touch) : undefined
-  const touchPanel = globalEnv.device?.sensor?.TouchPanel
-    ? new TouchPanel(globalEnv.device.sensor.TouchPanel as ConstructorParameters<typeof TouchPanel>[0])
-    : undefined
+  // CPU regression investigation: temporarily disable touch polling from config.Touch.
+  const touch = undefined
+  // CPU regression investigation: temporarily disable device.sensor.TouchPanel polling.
+  const touchPanel = undefined
   const imu = globalEnv.device?.sensor?.IMU
     ? new IMU(globalEnv.device.sensor.IMU as ConstructorParameters<typeof IMU>[0])
     : undefined

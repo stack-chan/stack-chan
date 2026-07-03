@@ -32,7 +32,7 @@ export function onContextCreated(robot) {
         }
 
         try {
-          robot.setEmotion(nextEmotion)
+          robot.face.setEmotion(nextEmotion)
           return `Robot emotion changed to: ${upperEmotion}`
         } catch (error) {
           return `Error setting emotion: ${error}`
@@ -58,7 +58,7 @@ export function onContextCreated(robot) {
         }
 
         try {
-          const result = await robot.say(message)
+          const result = await robot.audio.say(message)
           if (result.success) {
             return `Robot said: "${result.value}"`
           }

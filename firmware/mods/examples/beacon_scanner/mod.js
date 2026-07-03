@@ -48,16 +48,16 @@ export function onContextCreated(robot) {
    * @note A workaround due to the sample rate of the mod resource being fixed at 11025.
    * M5Stack CoreS3 cannot play at a sample rate of 11025, so we use a nearby valid common value.
    **/
-  robot.useTTS(new LocalTTS({ sampleRate: 11000 }))
+  robot.audio.useTTS(new LocalTTS({ sampleRate: 11000 }))
   scanner.handleData = (dataPacket) => {
     const { major: count, minor: command } = dataPacket
     trace(`got: ${count}, ${command}\n`)
     if (command === 1) {
       const hello = hellos[Math.floor(randomBetween(0, hellos.length))]
-      robot.say(hello)
+      robot.audio.say(hello)
     } else if (command === 2) {
       const bye = byes[Math.floor(randomBetween(0, byes.length))]
-      robot.say(bye)
+      robot.audio.say(bye)
     }
   }
 }

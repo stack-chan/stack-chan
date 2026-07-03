@@ -1,13 +1,25 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
-import type { RobotUI, StackchanContext } from 'capabilities'
+import type {
+  AudioCapability,
+  ConnectivityCapability,
+  ConversationCapability,
+  FaceCapability,
+  InputCapability,
+  LifecycleCapability,
+  LightingCapability,
+  MotionCapability,
+  RobotUI,
+  RuntimeUICapability,
+  StackchanContext,
+} from 'capabilities'
 import type { Emotion, FaceThemeKey } from 'face-state'
-import { type MotionCompletion, MotionController, type MotionControllerConstructorParam } from 'motion-controller'
+import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
 import { type RuntimeLightingConstructorParam, StackchanRuntimeLighting } from 'runtime-lighting'
 import { StackchanRuntimeUI } from 'runtime-ui'
-import { generateDeviceSeed, type Maybe, type Pose, type Vector3 } from 'stackchan-util'
+import { type Maybe, type Pose, type Vector3, waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
 
 const INTERVAL_FACE = 1000 / 30
@@ -17,47 +29,40 @@ type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
   RuntimeInputConstructorParam &
   RuntimeLightingConstructorParam &
   MotionControllerConstructorParam & {
+    connectivity?: ConnectivityCapability
     ui: RobotUI
   }
 
-function waitForMotion(start: (callback: MotionCompletion) => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    try {
-      start((error) => {
-        if (error != null) {
-          reject(error)
-        } else {
-          resolve()
-        }
-      })
-    } catch (error) {
-      reject(error)
-    }
-  })
-}
-
-export class StackchanRuntimeContext {
+export class StackchanRuntimeContext implements StackchanContext {
   /**
    * App-owned runtime context that delegates each capability to a focused runtime.
    */
+  #audioCapability: AudioCapability
   #audioRuntime: StackchanRuntimeAudio
+  #connectivityCapability: ConnectivityCapability
+  #conversationCapability: ConversationCapability
   #cameraRuntime: StackchanRuntimeCamera
+  #faceCapability: FaceCapability
+  #inputCapability: InputCapability
   #inputRuntime: StackchanRuntimeInput
+  #lifecycleCapability: LifecycleCapability
+  #lightingCapability: LightingCapability
   #lightingRuntime: StackchanRuntimeLighting
+  #motionCapability: MotionCapability
   #motionController: MotionController
   #paused: boolean
+  #uiCapability: RuntimeUICapability
   #uiRuntime: StackchanRuntimeUI
-  #updateFaceHandler: Timer
-  seed: number
+  #updateFaceHandler: Timer | undefined
+  #closed = false
 
   constructor(params: RuntimeContextConstructorParam) {
-    this.seed = generateDeviceSeed()
     this.#paused = false
     this.#motionController = new MotionController(params, {
       isPaused: () => this.#paused,
     })
     this.#uiRuntime = new StackchanRuntimeUI(params.ui, {
-      getContext: () => this as unknown as StackchanContext,
+      getContext: () => this,
       getPose: () => this.#motionController.pose,
       getGazePoint: () => this.#motionController.gazePoint,
       isPaused: () => this.#paused,
@@ -68,8 +73,49 @@ export class StackchanRuntimeContext {
     this.#inputRuntime = new StackchanRuntimeInput(params)
     this.#cameraRuntime = new StackchanRuntimeCamera(params)
     this.#lightingRuntime = new StackchanRuntimeLighting(params)
-    this.#updateFaceHandler = Timer.repeat(this.updateFace.bind(this), INTERVAL_FACE)
+    this.#updateFaceHandler = Timer.repeat(this.#updateFace, INTERVAL_FACE)
     void this.#updateFaceHandler
+    this.#faceCapability = this.createFaceCapability()
+    this.#motionCapability = this.createMotionCapability()
+    this.#audioCapability = this.createAudioCapability()
+    this.#inputCapability = this.createInputCapability()
+    this.#lifecycleCapability = this.createLifecycleCapability()
+    this.#lightingCapability = this.createLightingCapability()
+    this.#conversationCapability = this.createConversationCapability()
+    this.#connectivityCapability = params.connectivity ?? {}
+    this.#uiCapability = this.createUICapability()
+  }
+
+  get face(): FaceCapability {
+    return this.#faceCapability
+  }
+
+  get motion(): MotionCapability {
+    return this.#motionCapability
+  }
+
+  get audio(): AudioCapability {
+    return this.#audioCapability
+  }
+
+  get input(): InputCapability {
+    return this.#inputCapability
+  }
+
+  get lighting(): LightingCapability {
+    return this.#lightingCapability
+  }
+
+  get conversation(): ConversationCapability {
+    return this.#conversationCapability
+  }
+
+  get connectivity(): ConnectivityCapability {
+    return this.#connectivityCapability
+  }
+
+  get lifecycle(): LifecycleCapability {
+    return this.#lifecycleCapability
   }
 
   /**
@@ -79,24 +125,6 @@ export class StackchanRuntimeContext {
    */
   useTTS(tts: RuntimeAudioConstructorParam['tts']) {
     this.#audioRuntime.useTTS(tts)
-  }
-
-  /**
-   * Set a UI controller instance.
-   *
-   * @param ui - UI controller instance
-   */
-  useUI(ui: RobotUI) {
-    this.#uiRuntime.useUI(ui)
-  }
-
-  /**
-   * Set a driver instance and register callbacks.
-   *
-   * @param driver - Driver class instance
-   */
-  useDriver(driver: MotionControllerConstructorParam['driver']) {
-    this.#motionController.useDriver(driver)
   }
 
   /**
@@ -256,7 +284,7 @@ export class StackchanRuntimeContext {
    * @experimental
    */
   async setPose(pose: Pose, time?: number): Promise<void> {
-    return waitForMotion((callback) => this.#motionController.setPose(pose, time, callback))
+    return waitForCompletion((callback) => this.#motionController.setPose(pose, time, callback))
   }
 
   /**
@@ -265,7 +293,7 @@ export class StackchanRuntimeContext {
    * @returns void when the robot completes setting the torque
    */
   async setTorque(torque: boolean): Promise<void> {
-    return waitForMotion((callback) => this.#motionController.setTorque(torque, callback))
+    return waitForCompletion((callback) => this.#motionController.setTorque(torque, callback))
   }
 
   /**
@@ -298,38 +326,12 @@ export class StackchanRuntimeContext {
     return this.#audioRuntime.tts
   }
 
-  get ui(): RobotUI {
-    return this.#uiRuntime.ui
+  get ui(): RuntimeUICapability {
+    return this.#uiCapability
   }
 
   get drawer() {
     return this.#uiRuntime.drawer
-  }
-
-  pause() {
-    this.#paused = true
-  }
-
-  resume() {
-    this.#paused = false
-  }
-
-  /**
-   * Update the robot face.
-   * Process the robot's emotion, pose, gaze point and so on
-   * to modify the face state and pass it to RobotUI#update.
-   */
-  updateFace() {
-    this.#uiRuntime.updateFace(INTERVAL_FACE)
-  }
-
-  /**
-   * Update the robot pose.
-   * Get the current pose from the Driver
-   * and trigger move if necessary to see the gaze point.
-   */
-  updatePose(_id?: unknown): void {
-    this.#motionController.updatePose(_id)
   }
 
   /**
@@ -383,5 +385,193 @@ export class StackchanRuntimeContext {
    */
   lightRainbow(ledName: string, index?: number, count?: number) {
     this.#lightingRuntime.lightRainbow(ledName, index, count)
+  }
+
+  private createFaceCapability(): FaceCapability {
+    return {
+      setColor: (key, r, g, b) => this.setColor(key, r, g, b),
+      setEmotion: (emotion) => this.setEmotion(emotion),
+      setMouthOpen: (value) => this.setMouthOpen(value),
+    }
+  }
+
+  private createMotionCapability(): MotionCapability {
+    const context = this
+    return {
+      get pose() {
+        return context.pose
+      },
+      lookAt(position) {
+        context.lookAt(position)
+      },
+      lookAway() {
+        context.lookAway()
+      },
+      setPose(pose, time) {
+        return context.setPose(pose, time)
+      },
+      setTorque(torque) {
+        return context.setTorque(torque)
+      },
+    }
+  }
+
+  private createAudioCapability(): AudioCapability {
+    const context = this
+    return {
+      get tts() {
+        return context.tts
+      },
+      get microphone() {
+        return context.microphone
+      },
+      useTTS(tts) {
+        context.useTTS(tts)
+      },
+      say(text, volume) {
+        return context.say(text, volume)
+      },
+      record(durationMilliSec) {
+        return context.record(durationMilliSec)
+      },
+      tone(hz, duration, volume) {
+        return context.tone(hz, duration, volume)
+      },
+      playAudio(buffer) {
+        return context.playAudio(buffer)
+      },
+    }
+  }
+
+  private createInputCapability(): InputCapability {
+    const context = this
+    return {
+      get button() {
+        return context.button
+      },
+      get touch() {
+        return context.touch
+      },
+      get touchPanel() {
+        return context.touchPanel
+      },
+      get imu() {
+        return context.imu
+      },
+    }
+  }
+
+  private createLifecycleCapability(): LifecycleCapability {
+    return {
+      close: () => this.#close(),
+    }
+  }
+
+  private createLightingCapability(): LightingCapability {
+    const context = this
+    return {
+      get led() {
+        return context.led
+      },
+      lightOn(ledName, r, g, b, duration, index, count) {
+        context.lightOn(ledName, r, g, b, duration, index, count)
+      },
+      lightOff(ledName, index, count) {
+        context.lightOff(ledName, index, count)
+      },
+      lightBlink(ledName, r, g, b, duration, index, count) {
+        context.lightBlink(ledName, r, g, b, duration, index, count)
+      },
+      lightRainbow(ledName, index, count) {
+        context.lightRainbow(ledName, index, count)
+      },
+    }
+  }
+
+  private createConversationCapability(): ConversationCapability {
+    return {
+      say: (text, volume) => this.say(text, volume),
+    }
+  }
+
+  private createUICapability(): RuntimeUICapability {
+    const context = this
+    return {
+      get controller() {
+        return context.#uiRuntime.ui
+      },
+      update(interval, faceState) {
+        context.#uiRuntime.ui.update(interval, faceState)
+      },
+      addEffect(effect, key) {
+        context.#uiRuntime.ui.addEffect(effect, key)
+      },
+      removeEffect(effect) {
+        context.#uiRuntime.ui.removeEffect(effect)
+      },
+      get application() {
+        return context.#uiRuntime.ui.application
+      },
+      setFace(face) {
+        context.#uiRuntime.ui.setFace(face)
+      },
+      setDrawerButtons(buttons) {
+        context.#uiRuntime.ui.setDrawerButtons(buttons)
+      },
+      addDrawerButton(button) {
+        context.#uiRuntime.ui.addDrawerButton(button)
+      },
+      removeDrawerButton(key) {
+        context.#uiRuntime.ui.removeDrawerButton(key)
+      },
+      setDrawerButtonState(key, active) {
+        context.#uiRuntime.ui.setDrawerButtonState(key, active)
+      },
+      bindDrawerAction(key, callback) {
+        return context.#uiRuntime.ui.bindDrawerAction(key, callback)
+      },
+      unbindDrawerAction(key) {
+        context.#uiRuntime.ui.unbindDrawerAction(key)
+      },
+      openDrawer() {
+        context.#uiRuntime.ui.openDrawer()
+      },
+      closeDrawer() {
+        context.#uiRuntime.ui.closeDrawer()
+      },
+      toggleDrawer() {
+        context.#uiRuntime.ui.toggleDrawer()
+      },
+      get drawer() {
+        return context.drawer
+      },
+      showBalloon(text, option) {
+        context.showBalloon(text, option)
+      },
+      hideBalloon() {
+        context.hideBalloon()
+      },
+    }
+  }
+
+  /**
+   * Update the robot face.
+   * Process the robot's emotion, pose, gaze point and so on
+   * to modify the face state and pass it to RobotUI#update.
+   */
+  #updateFace = () => {
+    this.#uiRuntime.updateFace(INTERVAL_FACE)
+  }
+
+  async #close(): Promise<void> {
+    if (this.#closed) return
+    this.#closed = true
+    if (this.#updateFaceHandler) {
+      Timer.clear(this.#updateFaceHandler)
+      this.#updateFaceHandler = undefined
+    }
+    this.#motionController.close()
+    this.#inputRuntime.close()
+    await this.#cameraRuntime.stop()
   }
 }

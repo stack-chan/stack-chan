@@ -34,7 +34,7 @@ export function onContextCreated(robot, option) {
       if (typeof emotion === 'string') {
         const nextEmotion = emotionFromName(emotion)
         if (nextEmotion !== undefined) {
-          robot.setEmotion(nextEmotion)
+          robot.face.setEmotion(nextEmotion)
           return `Emotion set to ${emotion.toUpperCase()}`
         }
       }
@@ -67,26 +67,26 @@ export function onContextCreated(robot, option) {
       trace(`${message}\n`)
       talking = false
       robot.ui.removeEffect(decorator)
-      robot.setEmotion(Emotion.NEUTRAL)
-      await robot.say(message)
+      robot.face.setEmotion(Emotion.NEUTRAL)
+      await robot.audio.say(message)
     }
 
     // set up recording face
     decorator = heartDecorator
     robot.ui.addEffect(decorator)
-    robot.setEmotion(Emotion.HAPPY)
+    robot.face.setEmotion(Emotion.HAPPY)
 
     // recording
     trace('start recording.\n')
     let buffer
     try {
-      buffer = await robot.record()
+      buffer = await robot.audio.record()
     } catch (error) {
       trace(`recording failed: ${error.message}`)
       handleError('録音できませんでした')
       return
     }
-    await robot.tone(600, 100)
+    await robot.audio.tone(600, 100)
     trace('end recording.\n')
 
     // transcription
@@ -103,7 +103,7 @@ export function onContextCreated(robot, option) {
     robot.ui.removeEffect(decorator)
     decorator = sweatDecorator
     robot.ui.addEffect(decorator)
-    robot.setEmotion(Emotion.DOUBTFUL)
+    robot.face.setEmotion(Emotion.DOUBTFUL)
 
     // completions
     trace('start completion.\n')
@@ -116,22 +116,22 @@ export function onContextCreated(robot, option) {
     trace(`completion text:${result.value}\n`)
 
     // speech
-    await robot.say(result.value)
+    await robot.audio.say(result.value)
     talking = false
 
     // set up default face
     robot.ui.removeEffect(decorator)
-    robot.setEmotion(Emotion.NEUTRAL)
+    robot.face.setEmotion(Emotion.NEUTRAL)
 
     return
   }
 
   async function startTalk() {
-    await robot.tone(1000, 100)
+    await robot.audio.tone(1000, 100)
     await talk()
   }
 
-  robot.button.a.onEvent = (event) => {
+  robot.input.button.a.onEvent = (event) => {
     if (event.pressed) {
       startTalk().catch((error) => trace(`talk failed: ${error}\n`))
     }

@@ -43,7 +43,7 @@ function onContextCreated(robot, option) {
       const centerY = face.y + face.h / 2
       target.y = 0.8 * ((320 - centerX) / 320)
       target.z = centerY / 480
-      robot.lookAt([target.x, target.y, target.z])
+      robot.motion.lookAt([target.x, target.y, target.z])
     },
   })
 }

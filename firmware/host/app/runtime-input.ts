@@ -48,6 +48,12 @@ export class StackchanRuntimeInput {
   get imu(): IMU | undefined {
     return this.#imu
   }
+
+  close(): void {
+    this.#touch?.close()
+    this.#touchPanel?.close()
+    this.#imu?.close()
+  }
 }
 
 function createButtonInputs(

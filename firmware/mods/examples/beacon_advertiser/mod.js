@@ -26,7 +26,7 @@ export function onContextCreated(robot) {
    * @note A workaround due to the sample rate of the mod resource being fixed at 11025.
    * M5Stack CoreS3 cannot play at a sample rate of 11025, so we use a nearby valid common value.
    **/
-  robot.useTTS(new LocalTTS({ sampleRate: 11000 }))
+  robot.audio.useTTS(new LocalTTS({ sampleRate: 11000 }))
   const dataPacket = new BeaconDataPacket(UUID, 0, 1, -40)
   const advertiser = new Advertiser()
   const sendCommand = (command) => {
@@ -45,17 +45,17 @@ export function onContextCreated(robot) {
   }
 
   const sayAndSend = async (message, command) => {
-    await robot.say(message)
+    await robot.audio.say(message)
     sendCommand(command)
   }
 
-  robot.button.a.onEvent = (event) => {
+  robot.input.button.a.onEvent = (event) => {
     if (event.pressed) {
       const hello = hellos[Math.floor(randomBetween(0, hellos.length))]
       sayAndSend(hello, 1).catch((error) => trace(`hello failed: ${error}\n`))
     }
   }
-  robot.button.b.onEvent = (event) => {
+  robot.input.button.b.onEvent = (event) => {
     if (event.pressed) {
       const bye = byes[Math.floor(randomBetween(0, byes.length))]
       sayAndSend(bye, 2).catch((error) => trace(`bye failed: ${error}\n`))

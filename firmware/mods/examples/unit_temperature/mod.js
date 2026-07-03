@@ -13,12 +13,12 @@ const param = {
 export function onContextCreated(robot) {
   const targetLoop = () => {
     const sample = sensor.sample()
-    robot.showBalloon(
+    robot.ui.showBalloon(
       `Temperature: ${sample.thermometer.temperature.toFixed(2)} C.
       Humidity: ${sample.hygrometer.humidity.toFixed(2)} %`,
       param,
     )
-    Timer.set((_id) => robot.hideBalloon(), 10 * 1000)
+    Timer.set((_id) => robot.ui.hideBalloon(), 10 * 1000)
   }
   Timer.set(targetLoop, 3 * 1000, 60 * 1000)
 }

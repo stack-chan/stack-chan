@@ -1,7 +1,21 @@
-import type { DrawerButtonSpec, DrawerCapability, RobotUI, StackchanContext, UIEffect } from 'capabilities'
+import type {
+  DrawerButtonSpec,
+  DrawerButtonViewSpec,
+  DrawerCapability,
+  RobotUI,
+  StackchanContext,
+  UIEffect,
+} from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type Emotion, type FaceState, type FaceThemeKey, setColorRGB } from 'face-state'
-import { type Pose, Rotation, Vector3 } from 'stackchan-util'
+import {
+  type Pose,
+  type Rotation,
+  type Vector3,
+  writeBodyRelativeVector3,
+  writePositionRelativeVector3,
+  writeRotationFromVector3,
+} from 'stackchan-util'
 
 const LEFT_RIGHT = Object.freeze(['left', 'right'] as const)
 
@@ -22,12 +36,16 @@ type RuntimeUIOptions = {
 
 export class StackchanRuntimeUI {
   #balloon: UIEffect | null = null
-  #drawerBehavior: Record<string, unknown> | null = null
+  #drawerButtonSpecs = new Map<string, DrawerButtonSpec>()
+  #drawerButtonStates = new Map<string, boolean>()
   #drawerRegistry: DrawerCapability
   #emotion: Emotion
+  #eyeGazePoint: Vector3 = [0, 0, 0]
+  #eyeGazeRotation: Rotation = { y: 0, p: 0, r: 0 }
   #faceState: FaceState
   #mouthOpen = 0
   #options: RuntimeUIOptions
+  #relativeGazePoint: Vector3 = [0, 0, 0]
   #ui: RobotUI
 
   constructor(ui: RobotUI, options: RuntimeUIOptions) {
@@ -52,7 +70,10 @@ export class StackchanRuntimeUI {
   }
 
   useUI(ui: RobotUI) {
+    if (ui === this.#ui) return
+    this.detachDrawerBindings()
     this.#ui = ui
+    this.rebuildDrawerBindings()
   }
 
   showBalloon(
@@ -110,99 +131,82 @@ export class StackchanRuntimeUI {
     this.#faceState.emotion = this.#emotion
 
     if (gazePoint != null) {
-      const relativeGazePoint = Vector3.rotate(gazePoint, {
-        r: 0.0,
-        y: -pose.body.rotation.y,
-        p: -pose.body.rotation.p,
-      })
+      writeBodyRelativeVector3(this.#relativeGazePoint, gazePoint, pose.body.rotation)
       for (const key of LEFT_RIGHT) {
         const pos = pose.eyes[key].position
-        const relative = Vector3.sub(relativeGazePoint, [pos.x, pos.y, pos.z])
-        const { y, p } = Rotation.fromVector3(relative)
+        writePositionRelativeVector3(this.#eyeGazePoint, this.#relativeGazePoint, pos)
+        writeRotationFromVector3(this.#eyeGazeRotation, this.#eyeGazePoint)
         const eye = this.#faceState.eyes[key]
-        eye.gazeX = Math.cos(y)
-        eye.gazeY = Math.cos(p)
+        eye.gazeX = Math.cos(this.#eyeGazeRotation.y)
+        eye.gazeY = Math.cos(this.#eyeGazeRotation.p)
       }
     }
 
     this.#ui.update(interval, this.#faceState)
   }
 
-  private getDrawerController():
-    | {
-        setButtons?: (buttons: unknown[]) => void
-        addButton?: (button: unknown) => void
-        removeButton?: (key: string) => void
-        setButtonState?: (key: string, active: boolean) => void
-      }
-    | undefined {
-    const app = this.#ui?.application as { drawerController?: unknown } | undefined
-    return app?.drawerController as
-      | {
-          setButtons?: (buttons: unknown[]) => void
-          addButton?: (button: unknown) => void
-          removeButton?: (key: string) => void
-          setButtonState?: (key: string, active: boolean) => void
-        }
-      | undefined
-  }
-
-  private ensureDrawerBehavior(): Record<string, unknown> | null {
-    const app = this.#ui?.application as { behavior?: Record<string, unknown> } | undefined
-    if (!app) return null
-    if (!app.behavior) {
-      app.behavior = new (class extends Behavior {})() as unknown as Record<string, unknown>
-    }
-    this.#drawerBehavior = app.behavior
-    return this.#drawerBehavior
-  }
-
   private addDrawerButton({ key, label, callback, kind, initialState }: DrawerButtonSpec): void {
-    const behavior = this.ensureDrawerBehavior()
-    if (behavior) {
-      const runCallback = () => {
-        try {
-          const result = callback(this.#options.getContext())
-          if (result && typeof (result as { catch?: (handler: (err: unknown) => void) => void }).catch === 'function') {
-            ;(result as { catch: (handler: (err: unknown) => void) => void }).catch((err: unknown) => {
-              trace(`[DrawerButton] callback rejected key=${key} err=${String(err)}\n`)
-            })
-          }
-        } catch (err) {
-          trace(`[DrawerButton] callback error key=${key} err=${String(err)}\n`)
-        }
-      }
-      const desc =
-        Object.getOwnPropertyDescriptor(behavior, key) ??
-        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(behavior), key)
-      if (desc && desc.writable === false) {
-        trace(`[DrawerButton] skip binding key=${key} (not writable)\n`)
-      } else {
-        ;(behavior as Record<string, () => void>)[key] = runCallback
-      }
-    }
-    const controller = this.getDrawerController()
-    controller?.addButton?.({ key, label, kind })
+    this.#drawerButtonSpecs.set(key, { key, label, callback, kind, initialState })
+    this.bindDrawerButton({ key, label, callback, kind, initialState })
+    this.#ui.addDrawerButton({ key, label, kind })
     if (initialState !== undefined) {
       this.setDrawerButtonState(key, initialState)
     }
   }
 
-  private removeDrawerButton(key: string): void {
-    if (this.#drawerBehavior) {
-      delete (this.#drawerBehavior as Record<string, unknown>)[key]
+  private bindDrawerButton({ key, callback }: DrawerButtonSpec): void {
+    const runCallback = () => {
+      try {
+        const result = callback(this.#options.getContext())
+        if (result && typeof (result as { catch?: (handler: (err: unknown) => void) => void }).catch === 'function') {
+          ;(result as { catch: (handler: (err: unknown) => void) => void }).catch((err: unknown) => {
+            trace(`[DrawerButton] callback rejected key=${key} err=${String(err)}\n`)
+          })
+        }
+      } catch (err) {
+        trace(`[DrawerButton] callback error key=${key} err=${String(err)}\n`)
+      }
     }
-    const controller = this.getDrawerController()
-    controller?.removeButton?.(key)
+    if (!this.#ui.bindDrawerAction(key, runCallback)) {
+      trace(`[DrawerButton] skip binding key=${key}\n`)
+    }
+  }
+
+  private removeDrawerButton(key: string): void {
+    this.#drawerButtonSpecs.delete(key)
+    this.#drawerButtonStates.delete(key)
+    this.#ui.unbindDrawerAction(key)
+    this.#ui.removeDrawerButton(key)
   }
 
   private clearDrawerButtons(): void {
-    const controller = this.getDrawerController()
-    controller?.setButtons?.([])
+    this.detachDrawerBindings()
+    this.#drawerButtonSpecs.clear()
+    this.#drawerButtonStates.clear()
+    this.#ui.setDrawerButtons([])
   }
 
   private setDrawerButtonState(key: string, active: boolean): void {
-    const controller = this.getDrawerController()
-    controller?.setButtonState?.(key, active)
+    this.#drawerButtonStates.set(key, active)
+    this.#ui.setDrawerButtonState(key, active)
+  }
+
+  private detachDrawerBindings(): void {
+    for (const key of this.#drawerButtonSpecs.keys()) {
+      this.#ui.unbindDrawerAction(key)
+    }
+  }
+
+  private rebuildDrawerBindings(): void {
+    const buttons: DrawerButtonViewSpec[] = []
+    for (const spec of this.#drawerButtonSpecs.values()) {
+      this.bindDrawerButton(spec)
+      buttons.push({ key: spec.key, label: spec.label, kind: spec.kind })
+    }
+
+    this.#ui.setDrawerButtons(buttons)
+    for (const [key, active] of this.#drawerButtonStates) {
+      this.#ui.setDrawerButtonState(key, active)
+    }
   }
 }

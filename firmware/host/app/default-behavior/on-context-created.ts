@@ -1,11 +1,11 @@
 import type { StackchanAppBehavior } from 'app-behavior'
 import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
-import { createCameraPreviewFace } from 'camera-preview'
+import { type CameraPreviewFrame, createCameraPreviewFace, prepareCameraPreviewFrame } from 'camera-preview'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-state'
 import type { MotionType } from 'imu'
 import type { Content as PiuContent } from 'piu/MC'
-import { randomBetween } from 'stackchan-util'
+import { randomBetween, wait } from 'stackchan-util'
 import Timer from 'timer'
 
 const FORWARD = {
@@ -42,12 +42,6 @@ function errorMessage(error: unknown): string {
     return String((error as { message: unknown }).message)
   }
   return String(error)
-}
-
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    Timer.set(() => resolve(), ms)
-  })
 }
 
 export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreated']> = (robot) => {
@@ -143,8 +137,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     robot.drawer.setDrawerButtonState('toggleFace', faceMode !== 'simple')
     app?.distribute?.('onFaceMode', faceMode)
   }
-  const closeDrawer = () =>
-    (robot.ui.application as { distribute?: (event: string) => void } | undefined)?.distribute?.('onDrawerClose')
+  const closeDrawer = () => robot.ui.closeDrawer()
   const createCurrentFace = () =>
     faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
   const restoreCameraPreview = () => {
@@ -207,40 +200,19 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   })
 
   const runCameraPreview = async (target: typeof robot) => {
-    let didPauseTouchPanel = false
-    let previewFrame:
-      | {
-          width: number
-          height: number
-          imageType: 'rgb565le' | 'yuv422' | 'jpeg'
-          buffer: ArrayBuffer
-        }
-      | undefined
+    let previewFrame: CameraPreviewFrame | undefined
     try {
       target.showBalloon('starting camera...')
-      if (target.touchPanel) {
-        target.touchPanel.stop()
-        didPauseTouchPanel = true
-      }
-      await target.camera.start({ width: 200, height: 120, imageType: 'rgb565le', useBrowserCamera: true })
+      await target.camera.start({ width: 200, height: 120, imageType: 'rgb565le' })
       const frame = await target.camera.capture({ width: 200, height: 120, imageType: 'rgb565le' })
       if (!frame) {
         trace('[CameraPreview] capture returned no frame\n')
         target.showBalloon('camera unavailable')
         return
       }
-      previewFrame = {
-        width: frame.width,
-        height: frame.height,
-        imageType: frame.imageType,
-        buffer: frame.buffer.slice(0),
-      }
+      previewFrame = prepareCameraPreviewFrame(frame)
       frame.close?.()
       await target.camera.stop()
-      if (didPauseTouchPanel) {
-        target.touchPanel?.start()
-        didPauseTouchPanel = false
-      }
       target.ui.setFace(
         createCameraPreviewFace(previewFrame, {
           onRender: (mode) => {
@@ -268,13 +240,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         await target.camera.stop()
       } catch (stopError) {
         trace(`[CameraPreview] stop error ${errorMessage(stopError)}\n`)
-      }
-      if (didPauseTouchPanel) {
-        try {
-          target.touchPanel?.start()
-        } catch (touchPanelError) {
-          trace(`[CameraPreview] touch panel restart error ${errorMessage(touchPanelError)}\n`)
-        }
       }
       hideBalloonLater(1200)
     }

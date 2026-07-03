@@ -17,7 +17,7 @@ function onContextCreated(robot) {
       rotation.y = txt.yaw
       rotation.p = txt.pitch
       trace(`____got! yaw: ${txt.yaw} pitch: ${txt.pitch}\n`)
-      robot.setPose({ rotation }, 0.1)
+      robot.motion.setPose({ rotation }, 0.1)
     }
   })
 }

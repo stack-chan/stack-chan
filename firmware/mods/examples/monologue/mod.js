@@ -7,11 +7,11 @@ const keys = Object.keys(speeches)
 async function sayMonologue(robot) {
   const idx = Math.floor(randomBetween(0, keys.length))
   const key = keys[idx]
-  await robot.say(config.tts.type === 'local' ? key : speeches[key])
+  await robot.audio.say(config.tts.type === 'local' ? key : speeches[key])
 }
 
 function onContextCreated(robot) {
-  robot.button.a.onEvent = (event) => {
+  robot.input.button.a.onEvent = (event) => {
     if (event.pressed) {
       sayMonologue(robot)
     }

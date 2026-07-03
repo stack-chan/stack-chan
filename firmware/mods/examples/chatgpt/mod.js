@@ -46,7 +46,7 @@ export function onContextCreated(robot, option) {
           message,
         }),
       )
-      await robot.say(message)
+      await robot.audio.say(message)
     }
     chatting = false
   }
@@ -71,21 +71,21 @@ export function onContextCreated(robot, option) {
 
   // Event handler
   let isFollowing = false
-  robot.button.a.onEvent = function handleButtonAEvent(event) {
+  robot.input.button.a.onEvent = function handleButtonAEvent(event) {
     if (event.pressed) {
       trace('pressed A\n')
       trace('Look around\n')
       isFollowing = !isFollowing
     }
   }
-  robot.button.b.onEvent = function handleButtonBEvent(event) {
+  robot.input.button.b.onEvent = function handleButtonBEvent(event) {
     if (event.pressed) {
       trace('pressed B\n')
       trace('Chat test\n')
       chatAndSay('おはようございます').catch((error) => trace(`chat failed: ${error}\n`))
     }
   }
-  robot.button.c.onEvent = function handleButtonCEvent(event) {
+  robot.input.button.c.onEvent = function handleButtonCEvent(event) {
     if (event.pressed) {
       trace('pressed C\n')
       trace('TTS test\n')
@@ -98,22 +98,22 @@ export function onContextCreated(robot, option) {
       return
     }
     chatting = true
-    await robot.say('こんにちは。ぼくｽﾀｯｸﾁｬﾝ！')
-    await robot.say('よろしくね。')
+    await robot.audio.say('こんにちは。ぼくｽﾀｯｸﾁｬﾝ！')
+    await robot.audio.say('よろしくね。')
     chatting = false
   }
 
   // Look around
   const lookAround = () => {
     if (!isFollowing) {
-      robot.lookAway()
+      robot.motion.lookAway()
       return
     }
     const x = randomBetween(0.4, 1.0)
     const y = randomBetween(-0.4, 0.4)
     const z = randomBetween(-0.02, 0.2)
     trace(`looking at: [${x}, ${y}, ${z}]\n`)
-    robot.lookAt([x, y, z])
+    robot.motion.lookAt([x, y, z])
   }
   Timer.repeat(lookAround, 5000)
 }

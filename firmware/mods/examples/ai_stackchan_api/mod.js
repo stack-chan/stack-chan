@@ -54,13 +54,13 @@ async function chatAndSay(robot, dialogue, message) {
     return 'お話中です'
   }
   chatting = true
-  robot.showBalloon('Now thinking...')
+  robot.ui.showBalloon('Now thinking...')
   const result = await dialogue.post(message)
   if (!result.success) {
     trace(`failed: ${result.reason}`)
     chatting = false
-    robot.hideBalloon()
-    await robot.say('わかりません！')
+    robot.ui.hideBalloon()
+    await robot.audio.say('わかりません！')
     return '問題が発生しました'
   }
 
@@ -68,12 +68,12 @@ async function chatAndSay(robot, dialogue, message) {
   //for (const message of messages) {
   //  trace(message)
   //  trace('\n')
-  //  await robot.say(message)
+  //  await robot.audio.say(message)
   //}
   trace(result.value)
   trace('\n')
-  robot.hideBalloon()
-  await robot.say(result.value)
+  robot.ui.hideBalloon()
+  await robot.audio.say(result.value)
   chatting = false
   return result.value
 }
@@ -88,19 +88,19 @@ function onContextCreated(robot, option) {
     context: CONTEXT,
   })
 
-  robot.button.a.onEvent = (event) => {
+  robot.input.button.a.onEvent = (event) => {
     if (event.pressed) {
-      robot.showBalloon('TTS test...')
-      robot.say('TTSテスト。TTSテスト').then(
-        () => robot.hideBalloon(),
+      robot.ui.showBalloon('TTS test...')
+      robot.audio.say('TTSテスト。TTSテスト').then(
+        () => robot.ui.hideBalloon(),
         (error) => {
           trace(`speech failed: ${error}\n`)
-          robot.hideBalloon()
+          robot.ui.hideBalloon()
         },
       )
     }
   }
-  robot.button.b.onEvent = (event) => {
+  robot.input.button.b.onEvent = (event) => {
     if (event.pressed) {
       chatAndSay(robot, dialogue, 'おはようございます').catch((error) => trace(`chat failed: ${error}\n`))
     }
@@ -112,7 +112,7 @@ function onContextCreated(robot, option) {
     const formData = await c.req.formData()
     const say = formData.say
     const _lang = formData.lang
-    await robot.say(say)
+    await robot.audio.say(say)
 
     return c.text('OK')
   })
@@ -133,7 +133,7 @@ function onContextCreated(robot, option) {
     const formData = await c.req.formData()
     const expression = Number(formData.expression)
     const emotion = EMOTIONS.at(expression)
-    if (emotion !== undefined) robot.setEmotion(emotion)
+    if (emotion !== undefined) robot.face.setEmotion(emotion)
 
     if (decorator) {
       robot.ui.removeEffect(decorator)

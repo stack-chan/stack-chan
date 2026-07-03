@@ -8,7 +8,7 @@ const keys = Object.keys(speeches)
 
 async function sayHooray(robot) {
   const key = keys[Math.floor(randomBetween(0, keys.length))]
-  await robot.say(key)
+  await robot.audio.say(key)
 }
 
 function onContextCreated(robot) {
@@ -24,7 +24,7 @@ function onContextCreated(robot) {
   const ws = new WebSocket('ws://192.168.7.112:8080')
   ws.addEventListener('open', () => {
     trace('connected\n')
-    robot.setTorque(true)
+    robot.motion.setTorque(true)
     connected = true
   })
   ws.addEventListener('message', (event) => {
@@ -33,7 +33,7 @@ function onContextCreated(robot) {
   })
   ws.addEventListener('close', () => {
     trace('disconnected\n')
-    robot.setTorque(false)
+    robot.motion.setTorque(false)
     connected = false
   })
 
@@ -45,7 +45,7 @@ function onContextCreated(robot) {
     // simple low pass filter
     rotation.y = rotation.y * 0.5 + pose.yaw * 0.5
     rotation.p = rotation.p * 0.5 + pose.pitch * 0.5
-    robot.setPose(
+    robot.motion.setPose(
       {
         rotation,
       },
@@ -54,7 +54,7 @@ function onContextCreated(robot) {
 
     // emotion
     const nextEmotion = typeof pose.emotion === 'string' ? emotionFromName(pose.emotion) : pose.emotion
-    if (nextEmotion !== undefined) robot.setEmotion(nextEmotion)
+    if (nextEmotion !== undefined) robot.face.setEmotion(nextEmotion)
 
     // hooray on rising edge
     if (!hooray && pose.hooray && !speaking) {

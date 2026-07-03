@@ -8,6 +8,7 @@ import { DynamixelDriver } from 'dynamixel-driver'
 import IMU from 'imu'
 import Led from 'led'
 import { M5StackChanServoDriver } from 'm5stackchan-servo-driver'
+import config from 'mc/config'
 import Microphone from 'microphone'
 import Modules from 'modules'
 import type { MotionDriver } from 'motion-controller'
@@ -19,13 +20,15 @@ import { RS30XDriver } from 'rs30x-driver'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import Tone from 'tone'
+import Touch, { type TouchOptions } from 'touch'
+import TouchPanel from 'touch-panel'
 import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as OpenAITTS } from 'tts-openai'
 import { TTS as RemoteTTS } from 'tts-remote'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
-import type { RobotUI, StackchanContext, TTS } from './capabilities'
+import type { ConnectivityCapability, RobotLed, RobotUI, StackchanContext, TTS } from './capabilities'
 import { StackchanRuntimeContext } from './runtime-context'
 
 type DeviceButton = {
@@ -39,19 +42,20 @@ type SimulatorButtonCtor = new (options: {
   read: () => number | undefined
 }
 
-type RobotLed = Pick<Led, 'on' | 'off' | 'blink' | 'rainbow'>
-
 type UIOptions = {
   avatar?: string
   drawerButtons?: DrawerButtonSpec[]
   displayListLength?: number
 }
 
+export type StackchanContextOptions = {
+  connectivity?: ConnectivityCapability
+}
+
 type GlobalEnvironment = {
   button?: Partial<Record<'a' | 'b' | 'c' | 'power', DeviceButton>>
   device?: {
     sensor?: {
-      TouchPanel?: new (options: unknown) => unknown
       IMU?: new (options: unknown) => unknown
     }
   }
@@ -77,6 +81,20 @@ function createStackchanUI(face: PiuContainer, options: UIOptions = {}, displayL
     },
     { displayListLength },
   )
+}
+
+function configNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function createTouchOptions(): TouchOptions {
+  return {
+    count: configNumber(config.touchCount),
+    intervalMs: configNumber(config.touchIntervalMs),
+    idleIntervalMs: configNumber(config.touchIdleIntervalMs),
+    activeIntervalMs: configNumber(config.touchActiveIntervalMs),
+    releaseDebounceMs: configNumber(config.touchReleaseDebounceMs),
+  }
 }
 
 // wrapper button class for simulator
@@ -111,7 +129,10 @@ export function getHostDeviceEnvironment(): HostDeviceEnvironment {
   return globalEnv.device
 }
 
-export function createStackchanContext(preferences: PreferenceConfig): StackchanContext {
+export function createStackchanContext(
+  preferences: PreferenceConfig,
+  options: StackchanContextOptions = {},
+): StackchanContext {
   const drivers = new Map<string, (param: unknown) => MotionDriver>([
     ['scservo', (param) => new SCServoDriver(param as ConstructorParameters<typeof SCServoDriver>[0])],
     [
@@ -182,14 +203,14 @@ export function createStackchanContext(preferences: PreferenceConfig): Stackchan
   const ui = UI(uiPrefs)
   const tts = TTS(ttsPrefs)
 
-  // CPU regression investigation: temporarily disable touch polling from config.Touch.
-  const touch = undefined
-  // CPU regression investigation: temporarily disable device.sensor.TouchPanel polling.
-  const touchPanel = undefined
+  const touch = config.Touch ? new Touch(config.Touch, createTouchOptions()) : undefined
+  const touchPanel = config.TouchPanel
+    ? new TouchPanel(config.TouchPanel as ConstructorParameters<typeof TouchPanel>[0])
+    : undefined
   const imu = globalEnv.device?.sensor?.IMU
     ? new IMU(globalEnv.device.sensor.IMU as ConstructorParameters<typeof IMU>[0])
     : undefined
-  const microphone = Modules.has('embedded:io/audio/in') ? new Microphone() : undefined
+  const microphone = Modules.has('audio-in') ? new Microphone() : undefined
   const camera = new Camera()
   const tone = new Tone({ volume: ttsPrefs.volume })
 
@@ -229,9 +250,12 @@ export function createStackchanContext(preferences: PreferenceConfig): Stackchan
       return [[key, new Led(candidate as { pin: number; length?: number; order?: string })]]
     },
   )
-  const led = Object.fromEntries(ledEntries)
+  const led: Record<string, RobotLed> = {}
+  for (const [key, value] of ledEntries) {
+    led[key] = value
+  }
 
-  return new StackchanRuntimeContext({
+  const contextParams = {
     driver,
     ui,
     tts,
@@ -239,9 +263,12 @@ export function createStackchanContext(preferences: PreferenceConfig): Stackchan
     touch,
     touchPanel,
     imu,
+    connectivity: options.connectivity,
     tone,
     microphone,
     camera,
-    led: led as ConstructorParameters<typeof StackchanRuntimeContext>[0]['led'],
-  } as ConstructorParameters<typeof StackchanRuntimeContext>[0]) as unknown as StackchanContext
+    led,
+  } satisfies ConstructorParameters<typeof StackchanRuntimeContext>[0]
+  const context: StackchanContext = new StackchanRuntimeContext(contextParams)
+  return context
 }

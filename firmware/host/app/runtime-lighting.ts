@@ -1,11 +1,11 @@
-import type Led from 'led'
+import type { RobotLed } from 'capabilities'
 
 export type RuntimeLightingConstructorParam = {
-  led?: Record<string, Led>
+  led?: Record<string, RobotLed>
 }
 
 export class StackchanRuntimeLighting {
-  #led: Record<string, Led>
+  #led: Record<string, RobotLed>
 
   constructor(params: RuntimeLightingConstructorParam) {
     this.#led = params.led ?? {}

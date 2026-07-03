@@ -35,8 +35,8 @@ const sleepy = new Emoticon({ key: 'sleepy', left: 10, top: 20, width: 50, heigh
 const EMOTIONS = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.SLEEPY]
 
 export function onContextCreated(robot) {
-  robot.setColor('primary', 0x22, 0x22, 0x22)
-  robot.setColor('primary', 0xfa, 0xfa, 0xfa)
+  robot.face.setColor('primary', 0x22, 0x22, 0x22)
+  robot.face.setColor('primary', 0xfa, 0xfa, 0xfa)
   let idx = 0
   let d = null
   Timer.repeat(() => {
@@ -45,7 +45,7 @@ export function onContextCreated(robot) {
     }
     d = BALLOONS[idx]
     robot.ui.addEffect(d)
-    robot.setEmotion(EMOTIONS[idx])
+    robot.face.setEmotion(EMOTIONS[idx])
     if (EMOTIONS[idx] === Emotion.SLEEPY) {
       robot.ui.addEffect(sleepy)
     } else {
@@ -56,7 +56,7 @@ export function onContextCreated(robot) {
 
   let count = 0
   Timer.repeat(() => {
-    robot.setColor('secondary', ...hslToRgb(count, 1, 0.3))
+    robot.face.setColor('secondary', ...hslToRgb(count, 1, 0.3))
     count = (count + 20) % 360
   }, 1000)
 }

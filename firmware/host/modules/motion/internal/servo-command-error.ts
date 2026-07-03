@@ -4,7 +4,6 @@ export class CommandTimeoutError extends Error {
 
   constructor(protocol: string, timeoutMs: number) {
     super(`${protocol} command timed out after ${timeoutMs}ms`)
-    this.name = 'CommandTimeoutError'
     this.protocol = protocol
     this.timeoutMs = timeoutMs
   }

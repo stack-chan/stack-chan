@@ -289,6 +289,18 @@ test('motion protocol continuable command errors are reported through callbacks'
   }
 })
 
+test('SCServo no-response writes complete outside the serial callback stack', () => {
+  const scservo = readFileSync(join(MODULE_ROOT, 'motion', 'protocols', 'scservo.ts'), 'utf8')
+  assert.match(scservo, /const waitsForResponse = command === COMMAND\.READ \|\| this\.#awaitWriteResponse/)
+  assert.match(scservo, /function deferNoResponseResult\(onResult: CommandCallback, onError: ErrorCallback\): void/)
+  assert.match(
+    scservo,
+    /Timer\.set\(\(\) => \{\s*try \{\s*onResult\(undefined\)/,
+    'no-response writes must not synchronously cascade pan/tilt callbacks from Serial.onReadable',
+  )
+  assert.match(scservo, /if \(!waitsForResponse\) \{\s*deferNoResponseResult\(onResult, onError\)/)
+})
+
 test('motion duration units are converted at driver protocol boundaries', () => {
   const controller = readFileSync(join(MODULE_ROOT, 'motion', 'motion-controller.ts'), 'utf8')
   const rs30xDriver = readFileSync(join(MODULE_ROOT, 'motion', 'rs30x-driver.ts'), 'utf8')

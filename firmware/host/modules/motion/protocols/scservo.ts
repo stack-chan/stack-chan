@@ -182,8 +182,16 @@ type CommandCallback = (values: Uint8Array | undefined) => void
 type ErrorCallback = (error: unknown) => void
 type CompletionCallback = (error?: unknown) => void
 type ResultCallback<T> = (result: Maybe<T>) => void
+type PendingCommand = {
+  command: Command
+  address: Address
+  onResult: CommandCallback
+  onError: ErrorCallback
+  values: number[]
+}
 const COMMAND_BUSY_ERROR = 'command is already waiting for response'
-const COMMAND_TIMEOUT_MS = 40
+const COMMAND_TIMEOUT_MS = 120
+const COMMAND_RECOVERY_DELAY_MS = 20
 
 function reasonFromError(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -199,6 +207,18 @@ function failureFromError<T>(error: unknown): Maybe<T> {
   }
 }
 
+function deferNoResponseResult(onResult: CommandCallback, onError: ErrorCallback): void {
+  // The M5StackChan driver chains pan/tilt writes. Keep no-response writes off the
+  // current Serial.onReadable stack so nested callbacks cannot exhaust the XS stack.
+  Timer.set(() => {
+    try {
+      onResult(undefined)
+    } catch (error) {
+      onError(error)
+    }
+  }, 0)
+}
+
 let packetHandler: PacketHandler = null
 let packetHandlerSerialKey: string | null = null
 class SCServo {
@@ -206,6 +226,7 @@ class SCServo {
   #onCommandRead: (buffer: Uint8Array, length: number) => void
   #txBuf: Uint8Array
   #waitSlot: SingleWaitSlot<Uint8Array>
+  #commandQueue: PendingCommand[] = []
   #offset: number
   #awaitWriteResponse: boolean
   #isWriting = false
@@ -282,20 +303,23 @@ class SCServo {
       () => {
         this.#isWriting = false
         if (!waitsForResponse) {
-          onResult(undefined)
+          deferNoResponseResult(onResult, onError)
           return
         }
         const waiting = this.#waitSlot.wait(COMMAND_TIMEOUT_MS, onResult, () => {
-          trace('timeout.\n')
+          trace(`[scservo] timeout id=${this.#id} command=${command} address=${address}\n`)
           onError(new CommandTimeoutError('scservo', COMMAND_TIMEOUT_MS))
         })
         if (!waiting) {
           onError(new Error(COMMAND_BUSY_ERROR))
+        } else {
+          Timer.set(this.#drainCommandQueue, 0)
         }
       },
       (error) => {
         this.#isWriting = false
         onError(error)
+        Timer.set(this.#drainCommandQueue, 0)
       },
     )
     return true
@@ -334,7 +358,34 @@ class SCServo {
     onError: ErrorCallback,
     ...values: number[]
   ): boolean {
-    return this.#dispatchCommand(command, address, onResult, onError, ...values)
+    this.#commandQueue.push({ command, address, onResult, onError, values })
+    this.#drainCommandQueue()
+    return true
+  }
+
+  #drainCommandQueue = (): void => {
+    if (this.#isWriting || this.#waitSlot.isWaiting) return
+    const pending = this.#commandQueue.shift()
+    if (pending == null) return
+    this.#dispatchCommand(
+      pending.command,
+      pending.address,
+      (values) => {
+        try {
+          pending.onResult(values)
+        } finally {
+          Timer.set(this.#drainCommandQueue, 0)
+        }
+      },
+      (error) => {
+        try {
+          pending.onError(error)
+        } finally {
+          Timer.set(this.#drainCommandQueue, error instanceof CommandTimeoutError ? COMMAND_RECOVERY_DELAY_MS : 0)
+        }
+      },
+      ...pending.values,
+    )
   }
 
   #lock(callback?: CompletionCallback): void {

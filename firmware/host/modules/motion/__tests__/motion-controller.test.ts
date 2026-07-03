@@ -17,6 +17,7 @@ class FakeMotionDriver implements MotionDriver {
   appliedTime: number | undefined
   attached = 0
   detached = 0
+  getRotationCalls = 0
   rotation: Rotation = { y: 0, p: 0, r: 0 }
   torqueStates: boolean[] = []
 
@@ -28,6 +29,7 @@ class FakeMotionDriver implements MotionDriver {
   }
 
   getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
+    this.getRotationCalls += 1
     callback({
       success: true,
       value: this.rotation,
@@ -57,18 +59,6 @@ function installBareSpecifierPackages(): void {
   writeAliasPackage(modulesRoot, 'stackchan-util', resolve(modulesRoot, 'util/stackchan-util.js'))
 }
 
-function waitForMotion(start: (callback: MotionCompletion) => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    start((error) => {
-      if (error != null) {
-        reject(error)
-      } else {
-        resolve()
-      }
-    })
-  })
-}
-
 test('MotionController follows gaze point and releases torque after movement', async () => {
   installBareSpecifierPackages()
   const [{ MotionController }, { default: fakeTimer }] = await Promise.all([
@@ -83,7 +73,6 @@ test('MotionController follows gaze point and releases torque after movement', a
   assert.equal(driver.attached, 1)
 
   controller.lookAt([1, 2, 2])
-  controller.updatePose()
 
   assert.equal(driver.torqueStates[0], true)
   assert.ok(driver.appliedRotation)
@@ -98,11 +87,87 @@ test('MotionController follows gaze point and releases torque after movement', a
   assert.equal(controller.gazePoint, null)
 })
 
-test('MotionController delegates driver replacement, torque, and explicit pose updates', async () => {
+test('MotionController polls pose only while gaze tracking needs it', async () => {
   installBareSpecifierPackages()
   const [{ MotionController }, { default: fakeTimer }] = await Promise.all([
     import('../motion-controller.js'),
     import('timer') as Promise<{ default: FakeTimer }>,
+  ])
+  fakeTimer.reset()
+  const driver = new FakeMotionDriver()
+  const controller = new MotionController({ driver }, { isPaused: () => false })
+
+  fakeTimer.advance(500)
+  assert.equal(driver.getRotationCalls, 0)
+
+  controller.lookAt([1, 2, 2])
+  assert.equal(driver.getRotationCalls, 1)
+
+  fakeTimer.advance(100)
+  assert.ok(driver.getRotationCalls > 1)
+
+  controller.lookAway()
+  fakeTimer.advance(1100)
+  const callsAfterMotionSettled = driver.getRotationCalls
+  fakeTimer.advance(500)
+
+  assert.equal(driver.getRotationCalls, callsAfterMotionSettled)
+  controller.close()
+})
+
+test('MotionController treats lookAt(undefined) as gaze release', async () => {
+  installBareSpecifierPackages()
+  const [{ MotionController }, { default: fakeTimer }] = await Promise.all([
+    import('../motion-controller.js'),
+    import('timer') as Promise<{ default: FakeTimer }>,
+  ])
+  fakeTimer.reset()
+  const driver = new FakeMotionDriver()
+  const controller = new MotionController({ driver }, { isPaused: () => false })
+
+  controller.lookAt([1, 2, 2])
+  assert.equal(controller.gazePoint?.[0], 1)
+
+  controller.lookAt(undefined)
+  assert.equal(controller.gazePoint, null)
+
+  fakeTimer.advance(1100)
+  const callsAfterMotionSettled = driver.getRotationCalls
+  fakeTimer.advance(500)
+
+  assert.equal(driver.getRotationCalls, callsAfterMotionSettled)
+  controller.close()
+})
+
+test('MotionController close clears polling and pending torque release timers', async () => {
+  installBareSpecifierPackages()
+  const [{ MotionController }, { default: fakeTimer }] = await Promise.all([
+    import('../motion-controller.js'),
+    import('timer') as Promise<{ default: FakeTimer }>,
+  ])
+  fakeTimer.reset()
+  const driver = new FakeMotionDriver()
+  const controller = new MotionController({ driver }, { isPaused: () => false })
+
+  controller.lookAt([1, 2, 2])
+  assert.equal(driver.torqueStates[0], true)
+
+  controller.close()
+  const callsAfterClose = driver.getRotationCalls
+  fakeTimer.advance(1200)
+
+  assert.deepEqual(driver.torqueStates, [true])
+  assert.equal(driver.getRotationCalls, callsAfterClose)
+})
+
+test('MotionController delegates driver replacement, torque, and explicit pose updates', async () => {
+  installBareSpecifierPackages()
+  const [{ MotionController }, { default: fakeTimer }, { waitForCompletion }] = await Promise.all([
+    import('../motion-controller.js'),
+    import('timer') as Promise<{ default: FakeTimer }>,
+    import('stackchan-util') as Promise<{
+      waitForCompletion: (start: (callback: MotionCompletion) => void) => Promise<void>
+    }>,
   ])
   fakeTimer.reset()
   const driver = new FakeMotionDriver()
@@ -115,16 +180,30 @@ test('MotionController delegates driver replacement, torque, and explicit pose u
   assert.equal(driver.detached, 1)
   assert.equal(nextDriver.attached, 1)
 
-  await waitForMotion((callback) => controller.setTorque(true, callback))
+  await waitForCompletion((callback) => controller.setTorque(true, callback))
   assert.equal(nextDriver.torqueStates[0], true)
 
   const pose: Pose = {
     position: { x: 0, y: 0, z: 0 },
     rotation: { y: 0.2, p: -0.1, r: 0 },
   }
-  await waitForMotion((callback) => controller.setPose(pose, 0.25, callback))
+  await waitForCompletion((callback) => controller.setPose(pose, 0.25, callback))
 
   assert.equal(nextDriver.appliedRotation?.y, 0.2)
   assert.equal(nextDriver.appliedRotation?.p, -0.1)
   assert.equal(nextDriver.appliedTime, 0.25)
+})
+
+test('motion duration conversion helpers name protocol time units', async () => {
+  installBareSpecifierPackages()
+  const { motionDurationSecondsToCentiseconds, motionDurationSecondsToMilliseconds } = await import(
+    '../motion-controller.js'
+  )
+
+  assert.equal(motionDurationSecondsToMilliseconds(0.5), 500)
+  assert.equal(motionDurationSecondsToMilliseconds(0.1234), 123)
+  assert.equal(motionDurationSecondsToMilliseconds(-1), 0)
+  assert.equal(motionDurationSecondsToCentiseconds(0.5), 50)
+  assert.equal(motionDurationSecondsToCentiseconds(0.126), 13)
+  assert.equal(motionDurationSecondsToCentiseconds(-1), 0)
 })

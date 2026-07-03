@@ -1,5 +1,6 @@
-import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
+import type { MotionCompletion, MotionDurationSeconds, MotionResultCallback } from 'motion-controller'
 import Dynamixel, { OPERATING_MODE } from 'protocols/dynamixel'
+import { isCommandTimeoutReason } from 'servo-command-error'
 import type { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -36,6 +37,11 @@ class PControl {
       if (result.success && result.value > 4096) {
         this._offset = 4096
       } else if (result.success === false) {
+        const timeoutError = commandTimeoutErrorFromReason(result.reason)
+        if (timeoutError != null) {
+          callback(timeoutError)
+          return
+        }
         trace(`${this.name} ... failed to read initial position for offset detection\n`)
       }
       this.goalPosition = 2048
@@ -69,6 +75,11 @@ class PControl {
   #updateCurrent(callback: MotionCompletion): void {
     this.servo.readPresentPosition((result) => {
       if (result.success === false) {
+        const timeoutError = commandTimeoutErrorFromReason(result.reason)
+        if (timeoutError != null) {
+          callback(timeoutError)
+          return
+        }
         callback()
         return
       }
@@ -79,6 +90,10 @@ class PControl {
       this.servo.setGoalCurrent(current, callback)
     })
   }
+}
+
+function commandTimeoutErrorFromReason(reason: string | undefined): Error | undefined {
+  return isCommandTimeoutReason(reason) ? new Error(reason) : undefined
 }
 
 export class DynamixelDriver {
@@ -235,7 +250,7 @@ export class DynamixelDriver {
     }, this._interval)
   }
 
-  applyRotation(ori: Rotation, _time = 0.5, callback?: MotionCompletion): void {
+  applyRotation(ori: Rotation, _time: MotionDurationSeconds = 0.5, callback?: MotionCompletion): void {
     const panAngle = (ori.y * 180) / Math.PI
     const tiltAngle = (ori.p * 180) / Math.PI
     this._controls[0].goalPosition = Math.floor(((panAngle + 180) * 4096) / 360)

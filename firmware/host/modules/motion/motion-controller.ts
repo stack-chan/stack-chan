@@ -1,13 +1,25 @@
-import { type Maybe, type Pose, type Rotation as RotationType, randomBetween, type Vector3 } from 'stackchan-util'
+import {
+  type Maybe,
+  type Pose,
+  type Rotation as RotationType,
+  randomBetween,
+  type Vector3,
+  writeBodyRelativeVector3,
+  writeRotationFromVector3,
+} from 'stackchan-util'
 import Timer from 'timer'
 
+const INTERVAL_POSE = 1000 / 10
 const GAZE_THRESHOLD = Math.PI / 6
 
+export type MotionDurationSeconds = number
+export type ServoGoalTimeMilliseconds = number
+export type ServoGoalTimeCentiseconds = number
 export type MotionCompletion = (error?: unknown) => void
 export type MotionResultCallback<T> = (result: T) => void
 
 export type MotionDriver = {
-  applyRotation: (ori: RotationType, time?: number, callback?: MotionCompletion) => void
+  applyRotation: (ori: RotationType, time?: MotionDurationSeconds, callback?: MotionCompletion) => void
   getRotation: (callback: MotionResultCallback<Maybe<RotationType>>) => void
   setTorque: (torque: boolean, callback?: MotionCompletion) => void
   onAttached?: () => void
@@ -29,6 +41,14 @@ export type MotionControllerConstructorParam = {
 
 type MotionControllerOptions = {
   isPaused: () => boolean
+}
+
+export function motionDurationSecondsToMilliseconds(duration: MotionDurationSeconds): ServoGoalTimeMilliseconds {
+  return Math.max(0, Math.round(duration * 1000))
+}
+
+export function motionDurationSecondsToCentiseconds(duration: MotionDurationSeconds): ServoGoalTimeCentiseconds {
+  return Math.max(0, Math.round(duration * 100))
 }
 
 function createDefaultPose(): MotionControllerPose {
@@ -74,34 +94,6 @@ function createDefaultPose(): MotionControllerPose {
   }
 }
 
-function writeRotationFromVector3(target: RotationType, vector: Vector3): void {
-  writeRotationFromComponents(target, vector[0], vector[1], vector[2])
-}
-
-function writeRotationFromComponents(target: RotationType, x: number, y: number, z: number): void {
-  target.y = Math.atan2(y, x)
-  target.p = -Math.atan2(z, Math.sqrt(x ** 2 + y ** 2))
-  target.r = 0
-}
-
-function writeRelativeGazeRotation(target: RotationType, gazePoint: Vector3, bodyRotation: RotationType): void {
-  const x = gazePoint[0]
-  const y = gazePoint[1]
-  const z = gazePoint[2]
-  const inverseYaw = -bodyRotation.y
-  const cosY = Math.cos(inverseYaw)
-  const sinY = Math.sin(inverseYaw)
-  const yawX = x * cosY - y * sinY
-  const yawY = x * sinY + y * cosY
-  const inversePitch = -bodyRotation.p
-  const cosP = Math.cos(inversePitch)
-  const sinP = Math.sin(inversePitch)
-  const relativeX = yawX * cosP - z * sinP
-  const relativeY = yawY
-  const relativeZ = yawX * sinP + z * cosP
-  writeRotationFromComponents(target, relativeX, relativeY, relativeZ)
-}
-
 export class MotionController {
   #driver: MotionDriver
   #gazePoint: Vector3 | null = null
@@ -110,16 +102,17 @@ export class MotionController {
   #options: MotionControllerOptions
   #pendingMotionTime = 0
   #pose: MotionControllerPose
+  #relativeGazePoint: Vector3 = [0, 0, 0]
   #relativeGazeRotation: RotationType = { y: 0, p: 0, r: 0 }
+  #releaseTorqueHandler: ReturnType<typeof Timer.set> | undefined
   #updatePoseHandler: ReturnType<typeof Timer.repeat> | undefined
+  #updatePose = () => this.updatePose()
   updating = false
 
   constructor(params: MotionControllerConstructorParam, options: MotionControllerOptions) {
     this.#options = options
     this.#pose = params.pose ?? createDefaultPose()
     this.useDriver(params.driver)
-    // CPU regression investigation: temporarily disable servo pose polling.
-    void this.#updatePoseHandler
   }
 
   get driver(): MotionDriver {
@@ -135,9 +128,8 @@ export class MotionController {
   }
 
   close(): void {
-    if (this.#updatePoseHandler) {
-      Timer.clear(this.#updatePoseHandler)
-    }
+    this.#stopPosePolling()
+    this.#clearReleaseTorqueTimer()
   }
 
   useDriver(driver: MotionDriver) {
@@ -148,12 +140,19 @@ export class MotionController {
     this.#driver.onAttached?.()
   }
 
-  lookAt(position: Vector3) {
+  lookAt(position?: Vector3 | null) {
+    if (position == null) {
+      this.lookAway()
+      return
+    }
     this.#gazePoint = position
+    this.#startPosePolling()
+    this.updatePose()
   }
 
   lookAway() {
     this.#gazePoint = null
+    this.#stopPosePollingIfIdle()
   }
 
   setPose(pose: Pose, time?: number, callback?: MotionCompletion): void {
@@ -189,7 +188,8 @@ export class MotionController {
 
       const gazePoint = this.#gazePoint
       if (!this.#isMoving && gazePoint != null) {
-        writeRelativeGazeRotation(this.#relativeGazeRotation, gazePoint, this.#pose.body.rotation)
+        writeBodyRelativeVector3(this.#relativeGazePoint, gazePoint, this.#pose.body.rotation)
+        writeRotationFromVector3(this.#relativeGazeRotation, this.#relativeGazePoint)
         const y = this.#relativeGazeRotation.y
         const p = this.#relativeGazeRotation.p
         if (y > GAZE_THRESHOLD || y < -GAZE_THRESHOLD || p > GAZE_THRESHOLD || p < -GAZE_THRESHOLD) {
@@ -209,6 +209,7 @@ export class MotionController {
     } finally {
       if (!waitingForMotion) {
         this.updating = false
+        this.#stopPosePollingIfIdle()
       }
     }
   }
@@ -218,6 +219,7 @@ export class MotionController {
       trace(`[MotionController] set torque failed: ${String(torqueError)}\n`)
       this.#isMoving = false
       this.updating = false
+      this.#stopPosePollingIfIdle()
       return
     }
     try {
@@ -226,6 +228,7 @@ export class MotionController {
       trace(`[MotionController] apply rotation failed: ${String(error)}\n`)
       this.#isMoving = false
       this.updating = false
+      this.#stopPosePollingIfIdle()
     }
   }
 
@@ -233,23 +236,28 @@ export class MotionController {
     if (moveError) {
       trace(`[MotionController] apply rotation failed: ${String(moveError)}\n`)
       this.#isMoving = false
+      this.#stopPosePollingIfIdle()
     } else {
       try {
-        Timer.set(this.#releaseTorque, this.#pendingMotionTime * 1000 + 50)
+        this.#clearReleaseTorqueTimer()
+        this.#releaseTorqueHandler = Timer.set(this.#releaseTorque, this.#pendingMotionTime * 1000 + 50)
       } catch (error) {
         trace(`[MotionController] release torque failed: ${String(error)}\n`)
         this.#isMoving = false
+        this.#stopPosePollingIfIdle()
       }
     }
     this.updating = false
   }
 
   #releaseTorque = () => {
+    this.#releaseTorqueHandler = undefined
     try {
       this.#driver.setTorque(false, this.#handleTorqueReleased)
     } catch (error) {
       trace(`[MotionController] release torque failed: ${String(error)}\n`)
       this.#isMoving = false
+      this.#stopPosePollingIfIdle()
     }
   }
 
@@ -258,5 +266,28 @@ export class MotionController {
       trace(`[MotionController] release torque failed: ${String(releaseError)}\n`)
     }
     this.#isMoving = false
+    this.#stopPosePollingIfIdle()
+  }
+
+  #startPosePolling(): void {
+    if (this.#updatePoseHandler) return
+    this.#updatePoseHandler = Timer.repeat(this.#updatePose, INTERVAL_POSE)
+  }
+
+  #stopPosePolling(): void {
+    if (!this.#updatePoseHandler) return
+    Timer.clear(this.#updatePoseHandler)
+    this.#updatePoseHandler = undefined
+  }
+
+  #stopPosePollingIfIdle(): void {
+    if (this.#gazePoint != null || this.#isMoving) return
+    this.#stopPosePolling()
+  }
+
+  #clearReleaseTorqueTimer(): void {
+    if (!this.#releaseTorqueHandler) return
+    Timer.clear(this.#releaseTorqueHandler)
+    this.#releaseTorqueHandler = undefined
   }
 }

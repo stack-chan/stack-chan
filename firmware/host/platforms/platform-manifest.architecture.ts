@@ -6,7 +6,16 @@ const stackchanAppManifest = JSON.parse(readFileSync('host/app/manifest.json', '
 const esp32PlatformManifest = JSON.parse(readFileSync('host/platforms/esp32/manifest.json', 'utf8'))
 const m5StackChanPlatformManifest = JSON.parse(readFileSync('host/platforms/m5stackchan_cores3/manifest.json', 'utf8'))
 const m5StackChanStackchanManifest = JSON.parse(readFileSync('host/app/manifest_m5stackchan_cores3.json', 'utf8'))
+const m5StackChanProviderSource = readFileSync('host/platforms/m5stackchan_cores3/host/provider.js', 'utf8')
+const m5StackChanTouchSource = readFileSync(
+  'host/platforms/m5stackchan_cores3/host/ft6206_async_m5stackchan.js',
+  'utf8',
+)
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
+
+function npmRunScripts(source: string): string[] {
+  return Array.from(source.matchAll(/\bnpm run ([\w:-]+)/g), ([, script]) => script)
+}
 
 describe('Stack-chan platform manifest', () => {
   test('gives M5StackChan CoreS3 the same expandable XS creation heap as CoreS3', () => {
@@ -25,6 +34,24 @@ describe('Stack-chan platform manifest', () => {
       '$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json',
       '$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json',
     ])
+    assert.equal(esp32PlatformManifest.platforms['esp32/m5stack_cores3'].config.touchReleaseDebounceMs, 75)
+    assert.equal(esp32PlatformManifest.platforms['esp32/m5stack_cores3'].defines.ft6206.hz, 400000)
+    assert.equal(m5StackChanPlatformManifest.config.touchReleaseDebounceMs, 75)
+    assert.equal(m5StackChanPlatformManifest.config.touchIdleIntervalMs, 50)
+    assert.equal(m5StackChanPlatformManifest.config.touchActiveIntervalMs, 8)
+    assert.equal(m5StackChanPlatformManifest.defines.ft6206.hz, 400000)
+    assert.equal(m5StackChanPlatformManifest.modules['embedded:sensor/Touch/FT6x06'], './host/ft6206_async_m5stackchan')
+    assert.match(m5StackChanProviderSource, /hz:\s*400_000/, 'M5StackChan CoreS3 Touch provider should use 400kHz I2C')
+    assert.doesNotMatch(
+      m5StackChanProviderSource,
+      /interrupt:\s*{/,
+      'CoreS3 touch should poll instead of waiting on GPIO21 edge interrupts',
+    )
+    assert.match(
+      m5StackChanTouchSource,
+      /writeUint8\(REG_INT_MODE,\s*0x00/,
+      'CoreS3 touch controller should be configured for polling mode',
+    )
     assert.equal(m5StackChanPlatformManifest.config.driver.type, 'm5stackchan')
     assert.deepEqual(m5StackChanPlatformManifest.config.driver.serial, {
       transmit: 6,
@@ -60,16 +87,31 @@ describe('Stack-chan platform manifest', () => {
     assert.deepEqual(smokeManifest.modules, { '*': ['./mod'] })
     assert.equal(smokeManifest.config, undefined)
 
-    for (const api of ['lightOn', 'lightBlink', 'lightRainbow', 'lightOff', 'setTorque', 'setPose']) {
-      assert.match(smokeSource, new RegExp(`robot\\.${api}\\b`), `smoke MOD should exercise robot.${api}`)
+    for (const api of ['lightOn', 'lightBlink', 'lightRainbow', 'lightOff']) {
+      assert.match(
+        smokeSource,
+        new RegExp(`robot\\.lighting\\.${api}\\b`),
+        `smoke MOD should exercise robot.lighting.${api}`,
+      )
+    }
+    for (const api of ['setTorque', 'setPose']) {
+      assert.match(
+        smokeSource,
+        new RegExp(`robot\\.motion\\.${api}\\b`),
+        `smoke MOD should exercise robot.motion.${api}`,
+      )
     }
     assert.match(smokeSource, /M5StackChan CoreS3 smoke/)
-    assert.equal(
-      packageJson.scripts['build:m5stackchan_cores3'],
-      'mcconfig -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t build "$PWD/host/app/manifest_m5stackchan_cores3.json"',
-    )
-    assert.match(smokeDocs, /npm run build:m5stackchan_cores3/)
-    assert.match(smokeDocs, /npm run deploy:m5stackchan_cores3/)
+    const documentedScripts = npmRunScripts(smokeDocs)
+    assert.ok(documentedScripts.includes('build:m5stackchan_cores3'))
+    assert.ok(documentedScripts.includes('deploy:m5stackchan_cores3'))
+    assert.ok(documentedScripts.includes('mod:m5stackchan_cores3'))
+    for (const script of documentedScripts) {
+      assert.ok(packageJson.scripts[script], `smoke docs reference missing npm script: ${script}`)
+    }
+    assert.match(packageJson.scripts['build:m5stackchan_cores3'], /esp32:\.\/host\/platforms\/m5stackchan_cores3/)
+    assert.match(packageJson.scripts['build:m5stackchan_cores3'], /host\/app\/manifest_m5stackchan_cores3\.json/)
+    assert.match(packageJson.scripts['mod:m5stackchan_cores3'], /esp32:\.\/host\/platforms\/m5stackchan_cores3/)
     assert.match(smokeDocs, /mods\/examples\/m5stackchan_smoke\/manifest\.json/)
   })
 })

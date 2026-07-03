@@ -1,17 +1,11 @@
 {
+  "include": ["../io-expander/manifest.json"],
   "modules": {
     "*": ["$(MODULES)/drivers/neostrand/*", "./led"],
-    "py32-io-expander": "./py32-io-expander",
     "py32-led": "./py32-led",
     "piu/Timeline": "$(MODULES)/piu/All/piuTimeline"
   },
-  "preload": [
-    "neostrand",
-    "piu/Timeline",
-    "led",
-    "py32-io-expander",
-    "py32-led"
-  ],
+  "preload": ["neostrand", "piu/Timeline", "led", "py32-led"],
   "platforms": {
     "esp32": {
       "include": ["$(MODULES)/drivers/neopixel/manifest.json"]

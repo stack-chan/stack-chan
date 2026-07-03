@@ -2,6 +2,7 @@ type Rotation = { y: number; p: number; r: number }
 type Maybe<T> = { success: true; value: T } | { success: false; error?: string }
 type MotionCompletion = (error?: unknown) => void
 type MotionResultCallback<T> = (result: T) => void
+type MotionDurationSeconds = number
 
 type HostDriverBridge = {
   applyRotation?: (message: { rotation: Rotation; time?: number }) => void
@@ -55,7 +56,7 @@ export class WasmDriver {
     void _options
   }
 
-  applyRotation(rotation: Rotation, time?: number, callback?: MotionCompletion): void {
+  applyRotation(rotation: Rotation, time?: MotionDurationSeconds, callback?: MotionCompletion): void {
     try {
       assertValidRotation(rotation)
       copyRotation(rotation, this.#rotation)

@@ -2,6 +2,7 @@ import Serial from 'embedded:io/serial'
 import config from 'mc/config'
 import { PayloadBuffer } from 'payload-buffer'
 
+import { CommandTimeoutError } from 'servo-command-error'
 import SingleWaitSlot from 'single-wait-slot'
 import Timer from 'timer'
 
@@ -14,6 +15,8 @@ type Maybe<T> =
       success: false
       reason?: string
     }
+
+export type SCServoGoalTimeMilliseconds = number
 
 // utilities
 function clamp(v: number, min: number, max: number): number {
@@ -180,6 +183,7 @@ type ErrorCallback = (error: unknown) => void
 type CompletionCallback = (error?: unknown) => void
 type ResultCallback<T> = (result: Maybe<T>) => void
 const COMMAND_BUSY_ERROR = 'command is already waiting for response'
+const COMMAND_TIMEOUT_MS = 40
 
 function reasonFromError(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -281,8 +285,9 @@ class SCServo {
           onResult(undefined)
           return
         }
-        const waiting = this.#waitSlot.wait(40, onResult, () => {
+        const waiting = this.#waitSlot.wait(COMMAND_TIMEOUT_MS, onResult, () => {
           trace('timeout.\n')
+          onError(new CommandTimeoutError('scservo', COMMAND_TIMEOUT_MS))
         })
         if (!waiting) {
           onError(new Error(COMMAND_BUSY_ERROR))
@@ -474,13 +479,17 @@ class SCServo {
   /**
    * sets angle within goal time
    * @param angle angle(degree)
-   * @param goalTime time(millisecond)
+   * @param goalTimeMilliseconds time in milliseconds
    * @returns TBD
    */
-  setAngleInTime(angle: number, goalTime: number, callback?: CompletionCallback): void {
+  setAngleInTime(
+    angle: number,
+    goalTimeMilliseconds: SCServoGoalTimeMilliseconds,
+    callback?: CompletionCallback,
+  ): void {
     // 0 <= a <= 1023
     const a = Math.floor(clamp(((angle + this.#offset) * 1024) / 200, 0, 0x03ff))
-    this.setRawPositionInTime(a, goalTime, callback)
+    this.setRawPositionInTime(a, goalTimeMilliseconds, callback)
   }
 
   setRawPosition(rawPosition: number, callback?: CompletionCallback): void {
@@ -488,7 +497,11 @@ class SCServo {
     this.#sendCommand(COMMAND.WRITE, ADDRESS.GOAL_POSITION, () => callback?.(), callback ?? (() => {}), ...le(position))
   }
 
-  setRawPositionInTime(rawPosition: number, goalTime: number, callback?: CompletionCallback): void {
+  setRawPositionInTime(
+    rawPosition: number,
+    goalTimeMilliseconds: SCServoGoalTimeMilliseconds,
+    callback?: CompletionCallback,
+  ): void {
     const position = Math.floor(clamp(rawPosition, 0, 0x03ff))
     this.#sendCommand(
       COMMAND.WRITE,
@@ -496,7 +509,7 @@ class SCServo {
       () => callback?.(),
       callback ?? (() => {}),
       ...le(position),
-      ...le(goalTime),
+      ...le(goalTimeMilliseconds),
     )
   }
 

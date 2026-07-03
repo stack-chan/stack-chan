@@ -1,5 +1,10 @@
 import PWM from 'embedded:io/pwm'
-import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
+import {
+  type MotionCompletion,
+  type MotionDurationSeconds,
+  type MotionResultCallback,
+  motionDurationSecondsToMilliseconds,
+} from 'motion-controller'
 import type { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -81,7 +86,7 @@ export class PWMServoDriver {
     callback?.()
   }
 
-  applyRotation(rotation: Rotation, time = 0.5, callback?: MotionCompletion): void {
+  applyRotation(rotation: Rotation, time: MotionDurationSeconds = 0.5, callback?: MotionCompletion): void {
     trace(`applyPose: ${JSON.stringify(rotation)}\n`)
     if (this._driveHandler != null) {
       trace('clearing\n')
@@ -93,7 +98,7 @@ export class PWMServoDriver {
     const diffPan = (rotation.y * 180) / Math.PI - startPan
     const diffTilt = (rotation.p * 180) / Math.PI - startTilt
     let cnt = 0
-    const numFrame = (time * 1000) / INTERVAL
+    const numFrame = motionDurationSecondsToMilliseconds(time) / INTERVAL
     this._driveHandler = Timer.repeat(() => {
       if (cnt >= numFrame) {
         Timer.clear(this._driveHandler)

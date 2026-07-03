@@ -4,21 +4,15 @@ import {
   type MotionDriver,
   type MotionResultCallback,
 } from 'motion-controller'
-import type { Maybe, Pose, Rotation } from 'stackchan-util'
+import { type Maybe, type Pose, type Rotation, wait, waitForCompletion } from 'stackchan-util'
 import { assert, equal } from 'testing/assert'
-import Timer from 'timer'
-
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    Timer.set(() => resolve(), ms)
-  })
-}
 
 class FakeMotionDriver implements MotionDriver {
   appliedRotation: Rotation | null = null
   appliedTime: number | undefined
   attached = 0
   detached = 0
+  getRotationCalls = 0
   rotation: Rotation = { y: 0, p: 0, r: 0 }
   torqueStates: boolean[] = []
 
@@ -30,6 +24,7 @@ class FakeMotionDriver implements MotionDriver {
   }
 
   getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
+    this.getRotationCalls += 1
     callback({
       success: true,
       value: this.rotation,
@@ -50,18 +45,6 @@ class FakeMotionDriver implements MotionDriver {
   }
 }
 
-function waitForMotion(start: (callback: MotionCompletion) => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    start((error) => {
-      if (error != null) {
-        reject(error)
-      } else {
-        resolve()
-      }
-    })
-  })
-}
-
 async function runTest() {
   trace('=== motion controller test ===\n')
 
@@ -72,7 +55,6 @@ async function runTest() {
   equal(driver.attached, 1, 'initial driver should be attached')
 
   controller.lookAt([1, 2, 2])
-  controller.updatePose()
 
   const expectedPitch = -Math.atan2(2, Math.sqrt(1 ** 2 + 2 ** 2))
   equal(driver.torqueStates[0], true, 'lookAt update should enable torque before moving')
@@ -90,19 +72,36 @@ async function runTest() {
   controller.lookAway()
   equal(controller.gazePoint, null, 'lookAway should clear the gaze point')
 
+  const pollingDriver = new FakeMotionDriver()
+  const pollingController = new MotionController({ driver: pollingDriver }, { isPaused: () => false })
+  await wait(500)
+  equal(pollingDriver.getRotationCalls, 0, 'pose polling should stay idle without a gaze point')
+
+  pollingController.lookAt([1, 2, 2])
+  equal(pollingDriver.getRotationCalls, 1, 'lookAt should sample pose immediately')
+  await wait(100)
+  assert(pollingDriver.getRotationCalls > 1, 'lookAt should start timer-driven pose polling')
+
+  pollingController.lookAway()
+  await wait(1100)
+  const callsAfterMotionSettled = pollingDriver.getRotationCalls
+  await wait(500)
+  equal(pollingDriver.getRotationCalls, callsAfterMotionSettled, 'pose polling should stop after gaze clears')
+  pollingController.close()
+
   const nextDriver = new FakeMotionDriver()
   controller.useDriver(nextDriver)
   equal(driver.detached, 1, 'replacing driver should detach the previous driver')
   equal(nextDriver.attached, 1, 'replacing driver should attach the next driver')
 
-  await waitForMotion((callback) => controller.setTorque(true, callback))
+  await waitForCompletion((callback) => controller.setTorque(true, callback))
   equal(nextDriver.torqueStates[0], true, 'setTorque should delegate to the active driver')
 
   const pose: Pose = {
     position: { x: 0, y: 0, z: 0 },
     rotation: { y: 0.2, p: -0.1, r: 0 },
   }
-  await waitForMotion((callback) => controller.setPose(pose, 0.25, callback))
+  await waitForCompletion((callback) => controller.setPose(pose, 0.25, callback))
   equal(nextDriver.appliedRotation?.y, 0.2, 'setPose should delegate yaw to the active driver')
   equal(nextDriver.appliedRotation?.p, -0.1, 'setPose should delegate pitch to the active driver')
   equal(nextDriver.appliedTime, 0.25, 'setPose should pass motion time to the active driver')

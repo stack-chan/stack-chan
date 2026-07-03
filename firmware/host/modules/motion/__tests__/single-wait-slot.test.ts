@@ -7,7 +7,8 @@ test('SingleWaitSlot releases the slot after timeout', () => {
   let scheduled: (() => void) | null = null
   let timedOut = false
   const handles: unknown[] = []
-  let result: number[] | undefined | 'unset' = 'unset'
+  let result: number[] | undefined
+  let called = false
   const slot = new SingleWaitSlot<number[]>(
     (handler) => {
       scheduled = handler
@@ -24,6 +25,7 @@ test('SingleWaitSlot releases the slot after timeout', () => {
     slot.wait(
       10,
       (value) => {
+        called = true
         result = value
       },
       () => {
@@ -36,6 +38,7 @@ test('SingleWaitSlot releases the slot after timeout', () => {
   assert.ok(scheduled, 'timer handler should be scheduled')
   scheduled?.()
 
+  assert.equal(called, false)
   assert.equal(result, undefined)
   assert.equal(timedOut, true)
   assert.equal(slot.isWaiting, false)

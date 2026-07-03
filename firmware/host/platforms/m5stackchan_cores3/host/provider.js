@@ -102,14 +102,16 @@ const device = {
   sensor: {
     Touch: class {
       constructor(options) {
+        trace('[m5stackchan-cores3] Touch provider init hz=400000 polling\n')
         const result = new Touch({
           ...options,
           sensor: {
             ...device.I2C.internal,
             io: device.io.SMBus,
+            hz: 400_000,
           },
         })
-        result.configure({ threshold: 20 })
+        result.configure({ threshold: 20, active: false, timeout: 10 })
         // biome-ignore lint/correctness/noConstructorReturn: Moddable device providers return native peripheral instances.
         return result
       }

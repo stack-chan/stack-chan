@@ -1,4 +1,9 @@
-import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
+import {
+  type MotionCompletion,
+  type MotionDurationSeconds,
+  type MotionResultCallback,
+  motionDurationSecondsToCentiseconds,
+} from 'motion-controller'
 import { reasonFromError } from 'motion-driver-callback'
 import RS30X from 'protocols/rs30x'
 import type { Maybe, Rotation } from 'stackchan-util'
@@ -32,7 +37,7 @@ export class RS30XDriver {
     })
   }
 
-  applyRotation(ori: Rotation, time = 0.5, callback?: MotionCompletion): void {
+  applyRotation(ori: Rotation, time: MotionDurationSeconds = 0.5, callback?: MotionCompletion): void {
     const panAngle = -(ori.y * 180) / Math.PI
     const tiltAngle = Math.min(Math.max((-ori.p * 180) / Math.PI, -25), 10)
     trace(`applying (${ori.y}, ${ori.p}) => (${panAngle}, ${tiltAngle})\n`)
@@ -45,12 +50,13 @@ export class RS30XDriver {
         this._tilt.setAngle(tiltAngle, callback)
       })
     } else {
-      this._pan.setAngleInTime(panAngle, time, (panError) => {
+      const goalTimeCentiseconds = motionDurationSecondsToCentiseconds(time)
+      this._pan.setAngleInTime(panAngle, goalTimeCentiseconds, (panError) => {
         if (panError != null) {
           callback?.(panError)
           return
         }
-        this._tilt.setAngleInTime(tiltAngle, time, callback)
+        this._tilt.setAngleInTime(tiltAngle, goalTimeCentiseconds, callback)
       })
     }
   }

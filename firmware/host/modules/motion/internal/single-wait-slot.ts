@@ -1,7 +1,7 @@
 export type TimerHandle = unknown
 export type SetTimer = (handler: () => void, timeout: number) => TimerHandle
 export type ClearTimer = (handle: TimerHandle) => void
-export type WaitSlotCallback<T> = (value: T | undefined) => void
+export type WaitSlotCallback<T> = (value: T) => void
 
 export default class SingleWaitSlot<T> {
   #setTimer: SetTimer
@@ -27,11 +27,9 @@ export default class SingleWaitSlot<T> {
       callback(value)
     }
     this.#timerHandle = this.#setTimer(() => {
-      const callback = this.#callback
       this.#callback = null
       this.#timerHandle = null
       onTimeout?.()
-      callback?.(undefined)
     }, timeout)
     return true
   }

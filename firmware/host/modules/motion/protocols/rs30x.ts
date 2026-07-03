@@ -2,6 +2,7 @@ import Serial from 'embedded:io/serial'
 import config from 'mc/config'
 import { PayloadBuffer } from 'payload-buffer'
 
+import { CommandTimeoutError } from 'servo-command-error'
 import SingleWaitSlot from 'single-wait-slot'
 import Timer from 'timer'
 
@@ -21,6 +22,7 @@ export const Rotation = Object.freeze({
   CCW: 1,
 })
 export type Rotation = (typeof Rotation)[keyof typeof Rotation]
+export type RS30XGoalTimeCentiseconds = number
 
 // constants
 const COMMANDS = Object.freeze({
@@ -184,6 +186,7 @@ type ErrorCallback = (error: unknown) => void
 type CompletionCallback = (error?: unknown) => void
 type ValueCallback<T> = (value: T | undefined, error?: unknown) => void
 const COMMAND_BUSY_ERROR = 'command is already waiting for response'
+const COMMAND_TIMEOUT_MS = 100
 
 let packetHandler: PacketHandler = null
 class RS30X {
@@ -253,8 +256,9 @@ class RS30X {
     } finally {
       packetHandler.format = originalFormat
     }
-    const waiting = this.#waitSlot.wait(100, onResult, () => {
+    const waiting = this.#waitSlot.wait(COMMAND_TIMEOUT_MS, onResult, () => {
       trace('timeout.\n')
+      onError(new CommandTimeoutError('rs30x', COMMAND_TIMEOUT_MS))
     })
     if (!waiting) {
       onError(new Error(COMMAND_BUSY_ERROR))
@@ -316,13 +320,18 @@ class RS30X {
   /**
    * sets angle within goal time
    * @param angle angle(degree)
-   * @param goalTime time(millisecond)
+   * @param goalTimeCentiseconds time in 10ms units
    * @returns TBD
    */
-  setAngleInTime(angle: number, goalTime: number, callback?: CompletionCallback): void {
+  setAngleInTime(angle: number, goalTimeCentiseconds: RS30XGoalTimeCentiseconds, callback?: CompletionCallback): void {
     const a = Math.max(-150, Math.min(150, angle)) * 10
-    const g = goalTime * 100
-    this.#sendCommand(() => callback?.(), callback ?? (() => {}), ...COMMANDS.SET_ANGLE_IN_TIME, ...be(a), ...be(g))
+    this.#sendCommand(
+      () => callback?.(),
+      callback ?? (() => {}),
+      ...COMMANDS.SET_ANGLE_IN_TIME,
+      ...be(a),
+      ...be(goalTimeCentiseconds),
+    )
   }
 
   setComplianceSlope(rotation: Rotation, angle: number, callback?: CompletionCallback): void {

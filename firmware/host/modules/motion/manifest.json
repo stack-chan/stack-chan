@@ -4,7 +4,7 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/modules/io/manifest.json",
     "../util/manifest.json",
-    "../lighting/manifest.json"
+    "../io-expander/manifest.json"
   ],
   "modules": {
     "*": ["./*", "./internal/*"],
@@ -23,8 +23,10 @@
     "sg90-driver",
     "rs30x-driver",
     "scservo-driver",
+    "protocols/dynamixel-codec",
     "payload-buffer",
-    "internal/single-wait-slot"
+    "internal/single-wait-slot",
+    "internal/servo-command-error"
   ],
   "typescript": {
     "tsconfig": {

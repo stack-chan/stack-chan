@@ -1,4 +1,9 @@
-import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
+import {
+  type MotionCompletion,
+  type MotionDurationSeconds,
+  type MotionResultCallback,
+  motionDurationSecondsToMilliseconds,
+} from 'motion-controller'
 import SCServo from 'protocols/scservo'
 import type { Maybe, Rotation } from 'stackchan-util'
 import type Timer from 'timer'
@@ -31,7 +36,7 @@ export class SCServoDriver {
     })
   }
 
-  applyRotation(ori: Rotation, time = 0.5, callback?: MotionCompletion): void {
+  applyRotation(ori: Rotation, time: MotionDurationSeconds = 0.5, callback?: MotionCompletion): void {
     const panAngle = 100 - (ori.y * 180) / Math.PI
     const tiltAngle = 100 - Math.min(Math.max((ori.p * 180) / Math.PI, -25), 10)
     trace(`applying (${ori.y}, ${ori.p}) => (${panAngle}, ${tiltAngle})\n`)
@@ -44,13 +49,13 @@ export class SCServoDriver {
         this._tilt.setAngle(tiltAngle, callback)
       })
     } else {
-      const goalTime = time * 1000
-      this._pan.setAngleInTime(panAngle, goalTime, (panError) => {
+      const goalTimeMilliseconds = motionDurationSecondsToMilliseconds(time)
+      this._pan.setAngleInTime(panAngle, goalTimeMilliseconds, (panError) => {
         if (panError != null) {
           callback?.(panError)
           return
         }
-        this._tilt.setAngleInTime(tiltAngle, goalTime, callback)
+        this._tilt.setAngleInTime(tiltAngle, goalTimeMilliseconds, callback)
       })
     }
   }

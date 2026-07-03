@@ -1,6 +1,15 @@
 import Serial from 'embedded:io/serial'
 import config from 'mc/config'
 import { PayloadBuffer } from 'payload-buffer'
+import {
+  angleToDynamixelPosition,
+  dynamixelPositionToAngle,
+  dynamixelStatusPayloadHasData,
+  int16FromDynamixelPayload,
+  int32FromDynamixelPayload,
+  int32ToDynamixelBytes,
+} from 'protocols/dynamixel-codec'
+import { CommandTimeoutError } from 'servo-command-error'
 import SingleWaitSlot from 'single-wait-slot'
 import Timer from 'timer'
 
@@ -14,9 +23,6 @@ type Maybe<T> =
       reason?: string
     }
 
-function le(v: number): [number, number] {
-  return [(v & 0xff00) >> 8, v & 0xff]
-}
 function el(h: number, l: number) {
   return ((h << 8) & 0xff00) + (l & 0xff)
 }
@@ -215,6 +221,7 @@ type ErrorCallback = (error: unknown) => void
 type CompletionCallback = (error?: unknown) => void
 type ValueCallback<T> = (value: T | undefined, error?: unknown) => void
 const COMMAND_BUSY_ERROR = 'command is already waiting for response'
+const COMMAND_TIMEOUT_MS = 200
 
 function reasonFromError(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -333,8 +340,9 @@ class Dynamixel {
     } finally {
       packetHandler.format = originalFormat
     }
-    const waiting = this.#waitSlot.wait(200, onResult, () => {
+    const waiting = this.#waitSlot.wait(COMMAND_TIMEOUT_MS, onResult, () => {
       trace('timeout.\n')
+      onError(new CommandTimeoutError('dynamixel', COMMAND_TIMEOUT_MS))
     })
     if (!waiting) {
       onError(new Error(COMMAND_BUSY_ERROR))
@@ -407,19 +415,12 @@ class Dynamixel {
    * @param accel - profile acceleration
    */
   setProfileAcceleration(accel: number, callback?: CompletionCallback): void {
-    const a = accel & 0xff
-    const b = (accel >> 8) & 0xff
-    const c = (accel >> 16) & 0xff
-    const d = (accel >> 24) & 0xff
     this.#sendCommand(
       INSTRUCTION.WRITE,
       ADDRESS.PROFILE_ACCELERATION,
       () => callback?.(),
       callback ?? (() => {}),
-      a,
-      b,
-      c,
-      d,
+      ...int32ToDynamixelBytes(accel),
     )
   }
 
@@ -429,19 +430,12 @@ class Dynamixel {
    * @param velocity - goal velocity (ma)
    */
   setProfileVelocity(velocity: number, callback?: CompletionCallback): void {
-    const a = velocity & 0xff
-    const b = (velocity >> 8) & 0xff
-    const c = (velocity >> 16) & 0xff
-    const d = (velocity >> 24) & 0xff
     this.#sendCommand(
       INSTRUCTION.WRITE,
       ADDRESS.PROFILE_VELOCITY,
       () => callback?.(),
       callback ?? (() => {}),
-      a,
-      b,
-      c,
-      d,
+      ...int32ToDynamixelBytes(velocity),
     )
   }
 
@@ -460,12 +454,13 @@ class Dynamixel {
    * @param position - goal position (4096 per rotation)
    */
   setGoalPosition(position: number, callback?: CompletionCallback): void {
-    const a = position & 0xff
-    const b = (position >> 8) & 0xff
-    const c = (position >> 16) & 0xff
-    const d = (position >> 24) & 0xff
-    // trace(`${a}, ${b}, ${c}, ${d}\n`)
-    this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_POSITION, () => callback?.(), callback ?? (() => {}), a, b, c, d)
+    this.#sendCommand(
+      INSTRUCTION.WRITE,
+      ADDRESS.GOAL_POSITION,
+      () => callback?.(),
+      callback ?? (() => {}),
+      ...int32ToDynamixelBytes(position),
+    )
   }
 
   /**
@@ -474,7 +469,7 @@ class Dynamixel {
    * @returns
    */
   setGoalAngle(angle: number, callback?: CompletionCallback): void {
-    const position = (angle * 4096) / 360
+    const position = angleToDynamixelPosition(angle)
     this.setGoalPosition(position, callback)
   }
 
@@ -487,13 +482,12 @@ class Dynamixel {
    * @param angle - offset angle
    */
   setOffsetAngle(angle: number, callback?: CompletionCallback): void {
-    const value = (Math.abs(angle) * 360) / 4096
     this.#sendCommand(
       INSTRUCTION.WRITE,
       ADDRESS.HOMING_OFFSET,
       () => callback?.(),
       callback ?? (() => {}),
-      ...le(value),
+      ...int32ToDynamixelBytes(angleToDynamixelPosition(angle)),
     )
   }
 
@@ -615,15 +609,18 @@ class Dynamixel {
           callback(undefined, new Error('failed to read offset angle'))
           return
         }
-        const isCcw = Boolean(values[0] & 0x8000)
-        let offset = ((values[1] & 0x7fff) << 8) | values[0]
-        if (isCcw) {
-          offset *= -1
+        if (values[1] !== 0) {
+          callback(undefined, new Error(`servo returned error code: ${values[1]} while reading offset angle`))
+          return
         }
-        callback(offset)
+        if (!dynamixelStatusPayloadHasData(values, 4)) {
+          callback(undefined, new Error('failed to read offset angle'))
+          return
+        }
+        callback(dynamixelPositionToAngle(int32FromDynamixelPayload(values)))
       },
       (error) => callback(undefined, error),
-      2,
+      4,
     )
   }
 
@@ -636,19 +633,18 @@ class Dynamixel {
       INSTRUCTION.READ,
       ADDRESS.PRESENT_CURRENT,
       (values) => {
-        if (values != null && values.length >= 4) {
-          if (values[1] !== 0) {
-            callback({
-              success: false,
-              reason: `servo returned error code: ${values[1]}`,
-            })
-            return
-          }
-          const current = values[2] | (values[3] << 8)
+        if (values != null && values.length >= 2 && values[1] !== 0) {
+          callback({
+            success: false,
+            reason: `servo returned error code: ${values[1]}`,
+          })
+          return
+        }
+        if (dynamixelStatusPayloadHasData(values, 2)) {
           callback({
             success: true,
             value: {
-              current: current >= 0x8000 ? current - 0x10000 : current,
+              current: int16FromDynamixelPayload(values),
             },
           })
           return
@@ -672,18 +668,17 @@ class Dynamixel {
       INSTRUCTION.READ,
       ADDRESS.PRESENT_VELOCITY,
       (values) => {
-        if (values != null && values.length >= 4) {
-          if (values[1] !== 0) {
-            callback({
-              success: false,
-              reason: `servo returned error code: ${values[1]}`,
-            })
-            return
-          }
-          const velocity = values[2] | (values[3] << 8)
+        if (values != null && values.length >= 2 && values[1] !== 0) {
+          callback({
+            success: false,
+            reason: `servo returned error code: ${values[1]}`,
+          })
+          return
+        }
+        if (dynamixelStatusPayloadHasData(values, 4)) {
           callback({
             success: true,
-            value: velocity >= 0x8000 ? velocity - 0x10000 : velocity,
+            value: int32FromDynamixelPayload(values),
           })
           return
         }
@@ -705,18 +700,17 @@ class Dynamixel {
       INSTRUCTION.READ,
       ADDRESS.PRESENT_POSITION,
       (values) => {
-        if (values != null && values.length >= 4) {
-          if (values[1] !== 0) {
-            callback({
-              success: false,
-              reason: `servo returned error code: ${values[1]}`,
-            })
-            return
-          }
-          const position = values[2] | (values[3] << 8)
+        if (values != null && values.length >= 2 && values[1] !== 0) {
+          callback({
+            success: false,
+            reason: `servo returned error code: ${values[1]}`,
+          })
+          return
+        }
+        if (dynamixelStatusPayloadHasData(values, 4)) {
           callback({
             success: true,
-            value: position >= 0x8000 ? position - 0x10000 : position,
+            value: int32FromDynamixelPayload(values),
           })
           return
         }

@@ -1,4 +1,4 @@
-import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
+import type { MotionCompletion, MotionDurationSeconds, MotionResultCallback } from 'motion-controller'
 import type { Maybe, Rotation } from 'stackchan-util'
 
 export class NoneDriver {
@@ -10,7 +10,7 @@ export class NoneDriver {
     callback?.()
   }
 
-  applyRotation(_rotation: Rotation, _time?: number, callback?: MotionCompletion): void {
+  applyRotation(_rotation: Rotation, _time?: MotionDurationSeconds, callback?: MotionCompletion): void {
     // do nothing
     callback?.()
   }

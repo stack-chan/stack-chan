@@ -6,7 +6,12 @@ import {
   rawPositionToAngle,
   rotationToM5StackChanServoAngles,
 } from 'm5stackchan-servo'
-import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
+import {
+  type MotionCompletion,
+  type MotionDurationSeconds,
+  type MotionResultCallback,
+  motionDurationSecondsToMilliseconds,
+} from 'motion-controller'
 import SCServo from 'protocols/scservo'
 import { type PY32IOExpander, tryGetSharedPY32IOExpander } from 'py32-io-expander'
 import type { Maybe, Rotation } from 'stackchan-util'
@@ -82,7 +87,7 @@ export class M5StackChanServoDriver {
     })
   }
 
-  applyRotation(ori: Rotation, time = 0.5, callback?: MotionCompletion): void {
+  applyRotation(ori: Rotation, time: MotionDurationSeconds = 0.5, callback?: MotionCompletion): void {
     const angles = rotationToM5StackChanServoAngles(ori)
     const panRawPosition = angleToRawPosition(angles.yaw, this.#config.yaw)
     const tiltRawPosition = angleToRawPosition(angles.pitch, this.#config.pitch)
@@ -95,13 +100,13 @@ export class M5StackChanServoDriver {
         this.#tilt.setRawPosition(tiltRawPosition, callback)
       })
     } else {
-      const goalTime = time * 1000
-      this.#pan.setRawPositionInTime(panRawPosition, goalTime, (panError) => {
+      const goalTimeMilliseconds = motionDurationSecondsToMilliseconds(time)
+      this.#pan.setRawPositionInTime(panRawPosition, goalTimeMilliseconds, (panError) => {
         if (panError != null) {
           callback?.(panError)
           return
         }
-        this.#tilt.setRawPositionInTime(tiltRawPosition, goalTime, callback)
+        this.#tilt.setRawPositionInTime(tiltRawPosition, goalTimeMilliseconds, callback)
       })
     }
   }

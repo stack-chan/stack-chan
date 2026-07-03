@@ -3,6 +3,7 @@ import defaultBehavior from 'app-default-behavior'
 import Modules from 'modules'
 import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavior } from './app-behavior'
 import { resolveAppBehaviors } from './app-behavior-resolver'
+import { startHostBootServices } from './boot-services'
 import { createStackchanContext, getHostDeviceEnvironment, installSimulatorButtons } from './compose'
 
 function loadAppBehaviors(): StackchanAppBehavior[] {
@@ -13,6 +14,7 @@ function loadAppBehaviors(): StackchanAppBehavior[] {
 async function main() {
   trace('[main] start\n')
   installSimulatorButtons()
+  const bootServices = startHostBootServices()
 
   trace('[main] loading app behaviors\n')
   const appBehaviors = loadAppBehaviors()
@@ -21,7 +23,7 @@ async function main() {
   if (!shouldCreateContext) return
 
   const preferences = loadPreferenceConfig()
-  const context = createStackchanContext(preferences)
+  const context = createStackchanContext(preferences, { connectivity: bootServices.connectivity })
   trace('[main] app context created\n')
   await runContextCreatedBehaviors(appBehaviors, context, {
     device: getHostDeviceEnvironment(),

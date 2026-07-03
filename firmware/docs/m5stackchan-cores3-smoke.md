@@ -2,6 +2,8 @@
 
 This smoke check exercises the current M5StackChan CoreS3 servo-power and 12 RGB LED paths with a small MOD. It is intended for manual hardware validation and does not require secrets or network configuration.
 
+Keep `host/app/manifest_local.json` free of private bench configuration. The checked-in file intentionally contains an empty `"config"` object; add local driver, Wi-Fi, or TTS settings only in your working copy.
+
 Related tracking issues: #406, #408, #409, #412.
 
 ## Build the host

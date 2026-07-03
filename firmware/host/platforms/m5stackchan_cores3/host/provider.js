@@ -118,6 +118,9 @@ const device = {
     },
     TouchPanel: class {
       constructor(options) {
+        trace(
+          `[m5stackchan-cores3] TouchPanel provider init channels=${options?.channels ?? 3} sensitivityLevel=${options?.sensitivityLevel ?? 3}\n`,
+        )
         // biome-ignore lint/correctness/noConstructorReturn: Moddable device providers return native peripheral instances.
         return new TouchPanel({
           ...options,

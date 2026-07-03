@@ -57,6 +57,7 @@ type GlobalEnvironment = {
   device?: {
     sensor?: {
       IMU?: new (options: unknown) => unknown
+      TouchPanel?: ConstructorParameters<typeof TouchPanel>[0]
     }
   }
   Host?: {
@@ -204,9 +205,13 @@ export function createStackchanContext(
   const tts = TTS(ttsPrefs)
 
   const touch = config.Touch ? new Touch(config.Touch, createTouchOptions()) : undefined
-  const touchPanel = config.TouchPanel
-    ? new TouchPanel(config.TouchPanel as ConstructorParameters<typeof TouchPanel>[0])
-    : undefined
+  const touchPanelConstructor = (config.TouchPanel ?? globalEnv.device?.sensor?.TouchPanel) as
+    | ConstructorParameters<typeof TouchPanel>[0]
+    | undefined
+  if (touchPanelConstructor && !config.TouchPanel) {
+    trace('[main] using device.sensor.TouchPanel fallback\n')
+  }
+  const touchPanel = touchPanelConstructor ? new TouchPanel(touchPanelConstructor) : undefined
   const imu = globalEnv.device?.sensor?.IMU
     ? new IMU(globalEnv.device.sensor.IMU as ConstructorParameters<typeof IMU>[0])
     : undefined

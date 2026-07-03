@@ -34,6 +34,7 @@ export default class TouchPanel {
   onEvent: (event: TouchPanelInputEvent) => void
 
   constructor(TouchPanelConstructor: TouchPanelConstructor, options: TouchPanelOptions = {}) {
+    trace('[TouchPanel] constructor: instantiating\n')
     this.#recognizer = new GestureRecognizer(options)
     const driverOptions = {
       channels: options.channels ?? 3,
@@ -62,6 +63,7 @@ export default class TouchPanel {
 
   start(): void {
     if (this.#timer) return
+    trace(`[TouchPanel] start interval=${this.#interval}ms\n`)
     this.#timer = Timer.repeat(() => {
       const ticks = Time.ticks
       let sample: TouchPanelSample
@@ -86,6 +88,7 @@ export default class TouchPanel {
 
   stop(): void {
     if (this.#timer) {
+      trace('[TouchPanel] stop\n')
       Timer.clear(this.#timer)
       this.#timer = undefined
     }

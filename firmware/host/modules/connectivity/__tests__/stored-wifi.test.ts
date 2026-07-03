@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { writeAliasPackage } from '../../testing/node-alias-package.js'
+import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
 
 type FakeNetworkManager = {
   completeLastConnection(): void
@@ -15,6 +15,10 @@ type FakeNetworkManager = {
 
 type FakePreference = {
   resetPreference(values?: Record<string, unknown>): void
+}
+
+type FakeConfig = {
+  resetConfig(values?: Record<string, unknown>): void
 }
 
 function credentials(
@@ -36,15 +40,22 @@ function installBareSpecifierPackages(): void {
     hasDefaultExport: true,
   })
   writeAliasPackage(modulesRoot, 'stored-wifi', resolve(modulesRoot, 'connectivity/stored-wifi.js'))
+  writeAliasPackageSubpath(modulesRoot, 'mc', 'config', resolve(modulesRoot, 'testing/fakes/mc-config.js'), {
+    hasDefaultExport: true,
+  })
+  writeAliasPackageSubpath(hostRoot, 'mc', 'config', resolve(modulesRoot, 'testing/fakes/mc-config.js'), {
+    hasDefaultExport: true,
+  })
   writeAliasPackage(hostRoot, 'stored-wifi', resolve(modulesRoot, 'connectivity/stored-wifi.js'))
 }
 
-async function setup(values: Record<string, unknown> = {}) {
+async function setup(values: Record<string, unknown> = {}, configValues: Record<string, unknown> = {}) {
   installBareSpecifierPackages()
-  const [{ connectStoredWiFi, stopStoredWiFiConnection }, networkManager, preference] = await Promise.all([
+  const [{ connectStoredWiFi, stopStoredWiFiConnection }, networkManager, preference, mcConfig] = await Promise.all([
     import('../stored-wifi.js'),
     import('./fakes/network-manager.js') as Promise<FakeNetworkManager>,
     import('../../testing/fakes/preference.js') as Promise<FakePreference>,
+    import('../../testing/fakes/mc-config.js') as Promise<FakeConfig>,
   ])
   const traces: string[] = []
   ;(globalThis as typeof globalThis & { trace: (...messages: unknown[]) => void }).trace = (...messages) => {
@@ -52,6 +63,7 @@ async function setup(values: Record<string, unknown> = {}) {
   }
   networkManager.resetNetworkManager()
   preference.resetPreference(values)
+  mcConfig.resetConfig(configValues)
   return { connectStoredWiFi, stopStoredWiFiConnection, networkManager, preference, traces }
 }
 
@@ -102,6 +114,52 @@ test('startHostBootServices starts stored Wi-Fi before app behavior launch can r
   assert.deepEqual(credentials(networkManager.getStartedConnections()), [{ ssid: 'boot-ap', password: 'boot-secret' }])
   networkManager.completeLastConnection()
   assert.deepEqual(await services.connectivity.network?.ready, { status: 'connected' })
+})
+
+test('startHostBootServices starts Wi-Fi from root mc config before preferences are loaded', async () => {
+  const { networkManager } = await setup({}, { ssid: 'config-ap', password: 'config-secret' })
+  const { startHostBootServices } = await import('../../../app/boot-services.js')
+
+  const services = startHostBootServices()
+
+  assert.deepEqual(credentials(networkManager.getStartedConnections()), [
+    { ssid: 'config-ap', password: 'config-secret' },
+  ])
+  networkManager.completeLastConnection()
+  assert.deepEqual(await services.connectivity.network?.ready, { status: 'connected' })
+})
+
+test('startHostBootServices accepts nested mc config Wi-Fi credentials for compatibility', async () => {
+  const { networkManager } = await setup({}, { wifi: { ssid: 'nested-ap', password: 'nested-secret' } })
+  const { startHostBootServices } = await import('../../../app/boot-services.js')
+
+  const services = startHostBootServices()
+
+  assert.deepEqual(credentials(networkManager.getStartedConnections()), [
+    { ssid: 'nested-ap', password: 'nested-secret' },
+  ])
+  networkManager.completeLastConnection()
+  assert.deepEqual(await services.connectivity.network?.ready, { status: 'connected' })
+})
+
+test('startHostBootServices skips legacy Wi-Fi when ChatAudioIO networking is enabled', async () => {
+  const { networkManager } = await setup(
+    {},
+    {
+      ssid: 'config-ap',
+      password: 'config-secret',
+      chatType: 'openAIRealtime',
+    },
+  )
+  const { startHostBootServices } = await import('../../../app/boot-services.js')
+
+  const services = startHostBootServices()
+
+  assert.deepEqual(networkManager.getStartedConnections(), [])
+  assert.deepEqual(await services.connectivity.network?.ready, {
+    status: 'skipped',
+    reason: 'legacy Wi-Fi disabled for ChatAudioIO',
+  })
 })
 
 test('startHostBootServices exposes skipped network readiness when Wi-Fi credentials are unavailable', async () => {

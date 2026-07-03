@@ -1,7 +1,7 @@
 // biome-ignore lint/correctness/noUnusedImports: kept with the parked image-face setup below.
 import { ImageFace } from 'behaviors/face'
 import { ChatService, ChatState, chatStateToName } from 'chat'
-import { hasValidChatType } from 'chat-audioio-config'
+import { hasValidChatType, normalizeChatConfig } from 'chat-audioio-config'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { EmotionNames, emotionFromName } from 'face-state'
 import config from 'mc/config'
@@ -170,7 +170,7 @@ You are a cute, energetic, and polite community-built robot who enjoys talking w
 `
 
 export function onContextCreated(robot) {
-  const rawChatConfig = config.chat ?? {}
+  const rawChatConfig = normalizeChatConfig(config)
   const chatConfig = {
     ...rawChatConfig,
     voiceID: rawChatConfig.voiceID ?? 'marin',

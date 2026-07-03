@@ -1,3 +1,4 @@
+import config from 'mc/config'
 import { connectStoredWiFi } from 'stored-wifi'
 
 export type NetworkReadyResult =
@@ -15,6 +16,19 @@ export type HostBootServices = {
       ready: Promise<NetworkReadyResult>
     }
   }
+}
+
+type BootWiFiConfig = {
+  ssid?: unknown
+  password?: unknown
+}
+
+type BootConfig = BootWiFiConfig & {
+  chat?: {
+    type?: unknown
+  }
+  chatType?: unknown
+  wifi?: BootWiFiConfig
 }
 
 const NOT_STARTED: NetworkReadyResult = {
@@ -56,7 +70,12 @@ function startStoredWiFi(): Promise<NetworkReadyResult> {
     }
 
     try {
+      if (usesChatAudioIONetworking()) {
+        finish({ status: 'skipped', reason: 'legacy Wi-Fi disabled for ChatAudioIO' })
+        return
+      }
       const started = connectStoredWiFi({
+        ...getBootWiFiCredentials(),
         onConnected: () => finish({ status: 'connected' }),
         onError: (reason) => {
           const message = reason ?? 'connection failed'
@@ -73,4 +92,21 @@ function startStoredWiFi(): Promise<NetworkReadyResult> {
       finish({ status: 'failed', reason: message })
     }
   })
+}
+
+function usesChatAudioIONetworking(): boolean {
+  const bootConfig = config as BootConfig
+  const chatType = bootConfig.chatType ?? bootConfig.chat?.type
+  return typeof chatType === 'string' && chatType.length > 0
+}
+
+function getBootWiFiCredentials(): { ssid?: string; password?: string } {
+  const bootConfig = config as BootConfig
+  const wifi = bootConfig.wifi ?? {}
+  const ssid = bootConfig.ssid ?? wifi.ssid
+  const password = bootConfig.password ?? wifi.password
+  return {
+    ssid: typeof ssid === 'string' ? ssid : undefined,
+    password: typeof password === 'string' ? password : undefined,
+  }
 }

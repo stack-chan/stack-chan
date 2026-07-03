@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { Emotion } from '../../../../../state/face-state.js'
-import { getImageAvatarPack, IMAGE_AVATAR_PACKS } from '../image-avatar-pack.js'
+import { getImageAvatarPack, IMAGE_AVATAR_PACKS, registerImageAvatarPack } from '../image-avatar-pack.js'
 import { frameIndexForRatio, resolveExpressionName } from '../image-avatar-state.js'
 
 test('demo image avatar pack describes a complete face, mouth, and hands sprite set', () => {
@@ -24,6 +24,17 @@ test('demo image avatar pack describes a complete face, mouth, and hands sprite 
 
 test('ImageAvatarLite packs live in the sample MOD instead of the host registry', () => {
   assert.equal(getImageAvatarPack('image-avatar-lite-slime'), IMAGE_AVATAR_PACKS['stackchan-demo'])
+})
+
+test('MODs can register image avatar packs by id', () => {
+  const pack = {
+    ...IMAGE_AVATAR_PACKS['stackchan-demo'],
+    id: 'test-registered-avatar',
+    displayName: 'Test registered avatar',
+  }
+
+  assert.equal(registerImageAvatarPack(pack), pack)
+  assert.equal(getImageAvatarPack('test-registered-avatar'), pack)
 })
 
 test('image avatar pack lookup falls back to the bundled demo pack', () => {

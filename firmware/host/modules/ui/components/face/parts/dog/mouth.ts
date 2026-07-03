@@ -1,7 +1,7 @@
 import { Outline } from 'commodetto/outline'
 import type { FaceSkinPalette } from 'face-skin'
 import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
-import { getStrokeSkin, quantizeUnit, unitFromStep } from 'parts/shape-utils'
+import { getStrokeSkin, quantizeUnit, rememberCachedValue, unitFromStep } from 'parts/shape-utils'
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { defineShapeTemplate } from 'template'
@@ -57,8 +57,7 @@ function getDogMouthStrokeOutline(
   }
 
   const outline = Outline.stroke(path, STROKE)
-  dogMouthOutlineCache.set(key, outline)
-  return outline
+  return rememberCachedValue(dogMouthOutlineCache, key, outline)
 }
 
 export const DogMouth = defineShapeTemplate((opts: DogMouthOptions) => {

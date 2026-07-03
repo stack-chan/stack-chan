@@ -44,10 +44,6 @@ type MultiRowBalloonOptions = {
 
 type BodyText = PiuText
 
-function colorString(color: number): string {
-  return `#${color.toString(16).padStart(6, '0')}`
-}
-
 function getTextStyle(font: string, color: number | string): PiuStyle {
   if (!textStyleCache) textStyleCache = new Map()
   const styleColor = typeof color === 'number' ? toPiuColorString(color) : color
@@ -124,11 +120,13 @@ export const MultiRowBalloon = Container.template((opts: MultiRowBalloonOptions 
               const primary = currentPrimary ?? 0xffffff
               const secondary = currentSecondary ?? 0x000000
               const stroke = 2
-              port.fillColor(colorString(secondary), 0, 0, w, h)
-              port.fillColor(colorString(primary), 0, 0, w, stroke)
-              port.fillColor(colorString(primary), 0, h - stroke, w, stroke)
-              port.fillColor(colorString(primary), 0, 0, stroke, h)
-              port.fillColor(colorString(primary), w - stroke, 0, stroke, h)
+              const primaryColor = toPiuColorString(primary)
+              const secondaryColor = toPiuColorString(secondary)
+              port.fillColor(secondaryColor, 0, 0, w, h)
+              port.fillColor(primaryColor, 0, 0, w, stroke)
+              port.fillColor(primaryColor, 0, h - stroke, w, stroke)
+              port.fillColor(primaryColor, 0, 0, stroke, h)
+              port.fillColor(primaryColor, w - stroke, 0, stroke, h)
             }
           },
         }) as PiuPort

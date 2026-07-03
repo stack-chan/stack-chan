@@ -24,18 +24,23 @@ import {
 } from 'piu/MC'
 
 type FaceViewAnchors = {
-  FACE?: PiuContainer
+  FACE?: FaceViewCustomFace
   EFFECTS?: PiuContainer
   FACE_REGION?: DieRegion
 }
 
 type FaceViewBaseParams = CommonViewParams
 type DieRegion = PiuContainer & { set: (x: number, y: number, w: number, h: number) => DieRegion; cut: () => void }
-type FaceContainerBehavior = {
+
+export type FaceViewBaseCoordinates = { left: number; top: number }
+export type FaceViewCustomFaceBehavior = {
+  readonly breathPixels?: number
   onFaceUpdate?: (container: PiuContainer, face: FaceState) => void
   rehydrate?: (container: PiuContainer, face: FaceState, palette?: FaceSkinPalette | null) => void
-  getBaseCoordinates?: (container: PiuContainer) => { left: number; top: number }
+  getBaseCoordinates?: (container: PiuContainer) => FaceViewBaseCoordinates
 }
+export type FaceViewCustomFace = PiuContainer & { behavior?: FaceViewCustomFaceBehavior }
+
 type FaceEffectBehavior = {
   onFaceSkin?: (content: PiuContent, palette: FaceSkinPalette) => void
   onFaceState?: (content: PiuContent, face: FaceState) => void
@@ -43,15 +48,92 @@ type FaceEffectBehavior = {
 
 export type FaceViewParams = FaceViewBaseParams &
   FaceViewAnchors & {
-    face?: PiuContainer
+    face?: FaceViewCustomFace
     effects?: PiuContainer
     skin?: PiuSkin
   }
 
 export type FaceViewTemplateCtor = TemplateFunction<FaceViewParams, PiuContainer>
 
+type PositionedFace = FaceViewCustomFace & {
+  left?: number
+  top?: number
+  width?: number
+  height?: number
+  bounds?: { width?: number; height?: number }
+  coordinates?: {
+    left?: number
+    top?: number
+    width?: number
+    height?: number
+    right?: number
+    bottom?: number
+  }
+}
+
+type FaceLayout = {
+  left: number
+  top: number
+  width: number
+  height: number
+  breathPad: number
+}
+
+function faceNumber(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function faceBehavior(face: FaceViewCustomFace): FaceViewCustomFaceBehavior | undefined {
+  return face.behavior as FaceViewCustomFaceBehavior | undefined
+}
+
+function measureFaceLayout(face: FaceViewCustomFace): FaceLayout {
+  const positioned = face as PositionedFace
+  const coordinates = positioned.coordinates ?? {}
+  const breathPad = Math.max(0, Math.round(faceBehavior(face)?.breathPixels ?? 0))
+  return {
+    left: faceNumber(coordinates.left, faceNumber(positioned.left)),
+    top: faceNumber(coordinates.top, faceNumber(positioned.top)),
+    width: faceNumber(coordinates.width, faceNumber(positioned.width, faceNumber(positioned.bounds?.width))),
+    height: faceNumber(coordinates.height, faceNumber(positioned.height, faceNumber(positioned.bounds?.height))),
+    breathPad,
+  }
+}
+
+function readFaceBaseCoordinates(face: FaceViewCustomFace): FaceViewBaseCoordinates {
+  const positioned = face as PositionedFace
+  const coordinates = positioned.coordinates ?? {}
+  return {
+    left: faceNumber(coordinates.left, faceNumber(positioned.left)),
+    top: faceNumber(coordinates.top, faceNumber(positioned.top)),
+  }
+}
+
+function setFaceBaseCoordinates(face: FaceViewCustomFace, left: number, top: number): void {
+  const positioned = face as PositionedFace
+  positioned.coordinates = {
+    ...(positioned.coordinates ?? {}),
+    left,
+    top,
+  }
+}
+
+function resizeFaceRegion(region: DieRegion, visualLeft: number, visualTop: number, layout: FaceLayout): void {
+  const width = layout.width + layout.breathPad * 2
+  const height = layout.height + layout.breathPad * 2
+  const positioned = region as PositionedFace
+  positioned.coordinates = {
+    ...(positioned.coordinates ?? {}),
+    left: visualLeft - layout.breathPad,
+    top: visualTop - layout.breathPad,
+    width,
+    height,
+  }
+  region.set(0, 0, width, height).cut()
+}
+
 class FaceViewBehavior extends CommonViewBehavior {
-  face: PiuContainer | null = null
+  face: FaceViewCustomFace | null = null
   faceRegion: DieRegion | null = null
   effects: PiuContainer | null = null
   effectsSet: Set<PiuContent> | null = null
@@ -95,7 +177,7 @@ class FaceViewBehavior extends CommonViewBehavior {
       this.onFaceSkin(_container, palette)
     }
     const face = this.face
-    const behavior = face?.behavior as FaceContainerBehavior | undefined
+    const behavior = face ? faceBehavior(face) : undefined
     behavior?.onFaceUpdate?.(face as PiuContainer, faceState as FaceState)
     this.onFaceState?.(_container, faceState as FaceState)
   }
@@ -166,8 +248,8 @@ class FaceViewBehavior extends CommonViewBehavior {
     }
   }
 
-  rehydrateFace(face: PiuContainer, faceState: FaceState, palette = this.lastPalette): void {
-    const behavior = face.behavior as FaceContainerBehavior | undefined
+  rehydrateFace(face: FaceViewCustomFace, faceState: FaceState, palette = this.lastPalette): void {
+    const behavior = faceBehavior(face)
     if (behavior?.rehydrate) {
       behavior.rehydrate(face, faceState, palette)
       return
@@ -175,7 +257,7 @@ class FaceViewBehavior extends CommonViewBehavior {
     behavior?.onFaceUpdate?.(face, faceState as FaceState)
   }
 
-  applyFaceState(face: PiuContainer): void {
+  applyFaceState(face: FaceViewCustomFace): void {
     const faceState = this.lastFaceState ?? createFaceState()
     if (this.lastPalette) {
       face.distribute?.('onFaceSkin', this.lastPalette)
@@ -192,24 +274,16 @@ class FaceViewBehavior extends CommonViewBehavior {
     behavior?.onFaceState?.(effect, this.lastFaceState ?? createFaceState())
   }
 
-  setFace(face: PiuContainer): void {
+  setFace(face: FaceViewCustomFace): void {
     if (!face || this.face === face) return
     const currentFace = this.face
-    const currentBehavior = currentFace?.behavior as FaceContainerBehavior | undefined
     const currentParent = currentFace
       ? (((currentFace as PiuContent & { container?: PiuContainer }).container ??
           this.faceRegion) as PiuContainer | null)
       : null
-    const currentCoordinates =
-      currentFace && currentBehavior?.getBaseCoordinates
-        ? currentBehavior.getBaseCoordinates(currentFace)
-        : currentFace?.coordinates
-          ? { ...currentFace.coordinates }
-          : null
+    const currentCoordinates = currentFace ? this.getFaceVisualCoordinates(currentFace) : null
     this.face = face
-    if (currentCoordinates) {
-      face.coordinates = { ...(face.coordinates ?? {}), ...currentCoordinates }
-    }
+    this.prepareFaceForRegion(face, currentCoordinates)
 
     if (currentFace && currentParent) {
       currentParent.remove(currentFace)
@@ -232,6 +306,28 @@ class FaceViewBehavior extends CommonViewBehavior {
     if (this.effects) this.main.insert(face, this.effects)
     else this.main.add(face)
     this.applyFaceState(face)
+  }
+
+  private getFaceVisualCoordinates(face: FaceViewCustomFace): FaceViewBaseCoordinates {
+    const behavior = faceBehavior(face)
+    const base = behavior?.getBaseCoordinates ? behavior.getBaseCoordinates(face) : readFaceBaseCoordinates(face)
+    if (!this.faceRegion) return base
+    const region = this.faceRegion as PositionedFace
+    const regionCoordinates = region.coordinates ?? {}
+    return {
+      left: faceNumber(regionCoordinates.left, faceNumber(region.left)) + base.left,
+      top: faceNumber(regionCoordinates.top, faceNumber(region.top)) + base.top,
+    }
+  }
+
+  private prepareFaceForRegion(face: FaceViewCustomFace, visualCoordinates: FaceViewBaseCoordinates | null): void {
+    if (!this.faceRegion || !visualCoordinates) {
+      if (visualCoordinates) setFaceBaseCoordinates(face, visualCoordinates.left, visualCoordinates.top)
+      return
+    }
+    const layout = measureFaceLayout(face)
+    setFaceBaseCoordinates(face, layout.breathPad, layout.breathPad)
+    resizeFaceRegion(this.faceRegion, visualCoordinates.left, visualCoordinates.top, layout)
   }
 
   private getEffectsSet(): Set<PiuContent> {
@@ -257,25 +353,15 @@ export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = 
     if (!$.FACE) {
       $.FACE = face
     }
-    const faceBehavior = face.behavior as { breathPixels?: number } | undefined
-    const breathPad = Math.max(0, Math.round(faceBehavior?.breathPixels ?? 0))
-    const faceCoords = face.coordinates ?? {}
-    const faceWidth = face.width ?? face.bounds?.width ?? 0
-    const faceHeight = face.height ?? face.bounds?.height ?? 0
-    const faceLeft = faceCoords.left ?? (face as PiuContent & { left?: number }).left ?? 0
-    const faceTop = faceCoords.top ?? (face as PiuContent & { top?: number }).top ?? 0
-
-    face.coordinates = {
-      left: breathPad,
-      top: breathPad,
-    }
+    const layout = measureFaceLayout(face)
+    setFaceBaseCoordinates(face, layout.breathPad, layout.breathPad)
 
     const faceRegion = new Die($, {
       anchor: 'FACE_REGION',
-      left: faceLeft - breathPad,
-      top: faceTop - breathPad,
-      width: faceWidth + breathPad * 2,
-      height: faceHeight + breathPad * 2,
+      left: layout.left - layout.breathPad,
+      top: layout.top - layout.breathPad,
+      width: layout.width + layout.breathPad * 2,
+      height: layout.height + layout.breathPad * 2,
       clip: true,
       Behavior: class extends Behavior {
         onDisplaying(die: DieRegion) {

@@ -1,4 +1,4 @@
-import type { Emotion as EmotionValue } from '../../../../state/face-state.js'
+import type { Emotion as EmotionValue } from 'face-state'
 
 export type ImageAvatarSpriteSheet = {
   texture: string
@@ -171,6 +171,20 @@ export const STACKCHAN_DEMO_IMAGE_AVATAR_PACK: ImageAvatarPack = {
 
 export const IMAGE_AVATAR_PACKS: Record<string, ImageAvatarPack> = {
   [STACKCHAN_DEMO_IMAGE_AVATAR_PACK.id]: STACKCHAN_DEMO_IMAGE_AVATAR_PACK,
+}
+
+export function registerImageAvatarPack(pack: ImageAvatarPack): ImageAvatarPack {
+  if (!pack.id) {
+    throw new Error('ImageAvatarPack.id is required')
+  }
+  IMAGE_AVATAR_PACKS[pack.id] = pack
+  return pack
+}
+
+export function registerImageAvatarPacks(packs: Record<string, ImageAvatarPack>): void {
+  for (const id in packs) {
+    registerImageAvatarPack(packs[id])
+  }
 }
 
 export function getImageAvatarPack(id: string | undefined): ImageAvatarPack {

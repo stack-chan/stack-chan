@@ -1,5 +1,5 @@
 import type { FaceSkinPalette } from 'face-skin'
-import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
+import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber, toPiuColorString } from 'face-state'
 import { type Port as PiuPort, Port } from 'piu/MC'
 
 export type MouthOptions = {
@@ -18,7 +18,7 @@ function colorString(color: number): string {
   if (!colorStringCache) colorStringCache = new Map()
   const cached = colorStringCache.get(color)
   if (cached) return cached
-  const value = `#${color.toString(16).padStart(6, '0')}`
+  const value = toPiuColorString(color)
   colorStringCache.set(color, value)
   return value
 }

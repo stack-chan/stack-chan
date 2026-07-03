@@ -17,21 +17,13 @@ import { Application } from 'piu/MC'
 
 export type AppControllerParams = FaceViewParams
 
-type DrawerControllerHost = {
-  drawerController?: {
-    setButtons?: (buttons: DrawerButtonSpec[]) => void
-    addButton?: (button: DrawerButtonSpec) => void
-    removeButton?: (key: string) => void
-    setButtonState?: (key: string, active: boolean) => void
-  }
-}
-
 type GlobalWithApplication = typeof globalThis & {
   application?: PiuApplication
 }
 
 export class AppController extends Behavior {
   #application: PiuApplication | null = null
+  #drawerActionKeys = new Set<string>()
   #view: PiuContainer | null = null
   #viewBehavior: FaceViewBehavior | null = null
 
@@ -40,7 +32,6 @@ export class AppController extends Behavior {
     const main = data.main ?? new FaceMainTemplate(data, { anchor: 'MAIN' })
     const viewData: FaceViewParams = { ...data, main }
     this.showView(FaceView, viewData)
-    this.attachControllers()
   }
 
   get application(): PiuApplication {
@@ -106,6 +97,24 @@ export class AppController extends Behavior {
     this.#viewBehavior?.toggleDrawer?.()
   }
 
+  bindDrawerAction(key: string, callback: () => void): boolean {
+    const target = this as unknown as Record<string, unknown>
+    const ownsKey = this.#drawerActionKeys.has(key)
+    if (!ownsKey && typeof target[key] === 'function') {
+      trace(`[AppController] drawer action key collision: ${key}\n`)
+      return false
+    }
+    target[key] = callback
+    this.#drawerActionKeys.add(key)
+    return true
+  }
+
+  unbindDrawerAction(key: string): void {
+    if (!this.#drawerActionKeys.has(key)) return
+    delete (this as unknown as Record<string, unknown>)[key]
+    this.#drawerActionKeys.delete(key)
+  }
+
   onDrawerToggle(): void {
     trace('[AppController] onDrawerToggle\n')
     this.toggleDrawer()
@@ -124,17 +133,6 @@ export class AppController extends Behavior {
   onFaceTouch(): void {
     trace('[AppController] onFaceTouch\n')
     this.onDrawerToggle()
-  }
-
-  private attachControllers(): void {
-    if (!this.#application) return
-    const host = this.#application as DrawerControllerHost
-    host.drawerController = {
-      setButtons: (buttons) => this.setDrawerButtons(buttons),
-      addButton: (button) => this.addDrawerButton(button),
-      removeButton: (key) => this.removeDrawerButton(key),
-      setButtonState: (key, active) => this.setDrawerButtonState(key, active),
-    }
   }
 }
 

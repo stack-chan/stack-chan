@@ -1,4 +1,4 @@
-import { type FaceSkinPalette, updateFaceSkinPalette } from 'face-skin'
+import type { FaceSkinPalette } from 'face-skin'
 import { copyFaceState, createFaceState, type FaceState, faceStatesEqual } from 'face-state'
 import { createBlinkMotion } from 'motions/blink'
 import { createBreathMotion } from 'motions/breath'
@@ -77,15 +77,12 @@ export class FaceBehavior extends Behavior {
   onCreate(container: PiuContainer) {
     container.interval = this.intervalMs
     copyFaceState(this.#current, this.#desired)
-    if (!this.#paused) {
-      container.start?.()
-    }
-    this.updateSkinPalette(container, this.#current)
-    if (this.#skinPalette) {
-      container.distribute('onFaceSkin', this.#skinPalette)
-      container.bubble('onFaceSkin', this.#skinPalette)
-    }
+    this.distributeFaceSkin(container)
     this.distributeFaceState(container, true)
+  }
+
+  onUndisplaying(container: PiuContainer) {
+    container.stop?.()
   }
 
   onDisplaying(container: PiuContainer) {
@@ -95,10 +92,7 @@ export class FaceBehavior extends Behavior {
     if (!this.#paused) {
       container.start?.()
     }
-    if (this.#skinPalette) {
-      container.distribute('onFaceSkin', this.#skinPalette)
-      container.bubble('onFaceSkin', this.#skinPalette)
-    }
+    this.distributeFaceSkin(container)
     this.distributeFaceState(container, true)
   }
 
@@ -128,11 +122,6 @@ export class FaceBehavior extends Behavior {
       container.moveBy(0, dy)
       this.#breathOffset = nextBreathOffset
     }
-    const paletteChanged = this.updateSkinPalette(container, this.#current)
-    if (paletteChanged && this.#skinPalette) {
-      container.distribute('onFaceSkin', this.#skinPalette)
-      container.bubble('onFaceSkin', this.#skinPalette)
-    }
     this.distributeFaceState(container)
   }
 
@@ -152,9 +141,6 @@ export class FaceBehavior extends Behavior {
     copyFaceState(face, this.#desired)
     if (palette !== undefined) {
       this.#skinPalette = palette
-      ;(container as PiuContainer & { faceSkin?: FaceSkinPalette }).faceSkin = this.#skinPalette ?? undefined
-    } else {
-      this.updateSkinPalette(container, face)
     }
     if (!this.#hasBaseCoordinates) {
       this.captureBaseCoordinates(container)
@@ -175,10 +161,7 @@ export class FaceBehavior extends Behavior {
     container.visible = true
     container.active = true
     container.start?.()
-    if (this.#skinPalette) {
-      container.distribute('onFaceSkin', this.#skinPalette)
-      container.bubble('onFaceSkin', this.#skinPalette)
-    }
+    this.distributeFaceSkin(container)
     this.distributeFaceState(container, true)
     container.bubble('onFaceState', this.#current)
   }
@@ -187,14 +170,11 @@ export class FaceBehavior extends Behavior {
     return this.#breathPixels
   }
 
-  private updateSkinPalette(container: PiuContainer, face: FaceState): boolean {
-    const next = updateFaceSkinPalette(this.#skinPalette, face)
-    const changed = next !== this.#skinPalette
-    this.#skinPalette = next
+  private distributeFaceSkin(container: PiuContainer): void {
     if (this.#skinPalette) {
-      ;(container as PiuContainer & { faceSkin?: FaceSkinPalette }).faceSkin = this.#skinPalette
+      container.distribute('onFaceSkin', this.#skinPalette)
+      container.bubble('onFaceSkin', this.#skinPalette)
     }
-    return changed
   }
 
   private distributeFaceState(container: PiuContainer, force = false): void {
@@ -238,7 +218,6 @@ export const FaceBase: FaceTemplateCtor = Container.template(($: FaceBaseParams,
     bottom: params.bottom,
     width: params.width,
     height: params.height,
-    // skin: new Skin({ fill: '#ff0000' }),
     active: true,
     contents,
     Behavior: class extends FaceBehavior {

@@ -1,6 +1,10 @@
 {
   "include": [
     "../../../../manifest.json",
+    "../../../../../audio/manifest.json",
+    "../../../../../camera/manifest.json",
+    "../../../../../input/manifest.json",
+    "../../../../../motion/manifest.json",
     "../../../../../testing/manifest.json"
   ],
   "resources": {
@@ -14,6 +18,8 @@
     ]
   },
   "modules": {
+    "capabilities": "../../../../../../app/capabilities",
+    "runtime-ui": "../../../../../../app/runtime-ui",
     "main": "./face-view-state.test"
   }
 }

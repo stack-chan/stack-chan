@@ -12,6 +12,19 @@ test('ImageAvatarLite sample MOD owns its pack assets and license notice', () =>
   assert.match(notice, /Copyright \(c\) 2021 Takao Akaki/)
 })
 
+test('image avatar packs use public registration and manifest module specifiers', () => {
+  const packSource = readFileSync('host/modules/ui/components/face/parts/image/image-avatar-pack.ts', 'utf8')
+  const modSource = readFileSync('mods/examples/image_avatar_lite/mod.js', 'utf8')
+
+  assert.match(packSource, /from 'face-state'/)
+  assert.doesNotMatch(packSource, /from '\.\.\//)
+  assert.match(packSource, /export function registerImageAvatarPack\(/)
+  assert.match(packSource, /export function registerImageAvatarPacks\(/)
+  assert.match(modSource, /registerImageAvatarPacks\(IMAGE_AVATAR_LITE_PACKS\)/)
+  assert.match(modSource, /new ImageAvatarFace\(\{ pack: 'image-avatar-lite-slime' \}\)/)
+  assert.doesNotMatch(modSource, /pack: getImageAvatarLitePack\(\)/)
+})
+
 test('UI manifests keep bundled demo masks but leave ImageAvatarLite sprites to the sample MOD', () => {
   const demoExpected = [
     'stackchan-demo-head-normal',

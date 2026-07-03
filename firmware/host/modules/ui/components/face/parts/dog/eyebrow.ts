@@ -1,7 +1,7 @@
 import { Outline } from 'commodetto/outline'
 import type { FaceSkinPalette } from 'face-skin'
 import { DEFAULT_FACE_PRIMARY_COLOR, Emotion, type FaceEyeKey, type FaceState, toPiuColorNumber } from 'face-state'
-import { FULL_TURN, getFillStrokeSkin, quantizeUnit, unitFromStep } from 'parts/shape-utils'
+import { FULL_TURN, getFillStrokeSkin, quantizeUnit, rememberCachedValue, unitFromStep } from 'parts/shape-utils'
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { defineShapeTemplate } from 'template'
@@ -46,8 +46,7 @@ function getDogEyebrowFillOutline(
   path.ellipse(cxAdj, cyAdj, 12, 5, (Math.PI / 8) * d, 0, FULL_TURN)
 
   const outline = Outline.fill(path)
-  dogEyebrowOutlineCache.set(key, outline)
-  return outline
+  return rememberCachedValue(dogEyebrowOutlineCache, key, outline)
 }
 
 export const DogEyebrow = defineShapeTemplate((opts: EyebrowOptions) => {

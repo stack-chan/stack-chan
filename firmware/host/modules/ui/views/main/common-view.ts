@@ -47,7 +47,7 @@ export class CommonViewBehavior extends Behavior {
     this.main = data.MAIN as PiuContainer
     this.appBar = data.APP_BAR as PiuContent
     this.overlay = data.OVERLAY as PiuContainer
-    this.drawerButtons = data.drawerButtons ?? []
+    this.drawerButtons = [...(data.drawerButtons ?? [])]
     this.drawer = new Drawer({ buttons: this.drawerButtons })
     if (this.drawer && this.container) this.container.add(this.drawer)
     this.setOverlayActive(false)
@@ -79,22 +79,29 @@ export class CommonViewBehavior extends Behavior {
   }
 
   setDrawerButtons(buttons: DrawerButtonSpec[]): void {
-    this.drawerButtons = [...buttons]
-    this.replaceDrawer()
+    this.drawerButtons = buttons.map((button) => this.withStoredDrawerState(button))
+    this.syncDrawerButtons()
   }
 
   addDrawerButton(button: DrawerButtonSpec): void {
+    const nextButton = this.withStoredDrawerState(button)
     const index = this.drawerButtons.findIndex((item) => item.key === button.key)
-    if (index >= 0) this.drawerButtons[index] = button
-    else this.drawerButtons.push(button)
-    this.replaceDrawer()
+    if (index >= 0) this.drawerButtons[index] = nextButton
+    else this.drawerButtons.push(nextButton)
+    const drawer = this.drawer
+    const behavior = drawer?.behavior as DrawerBehavior | undefined
+    if (drawer && behavior?.addButton?.(drawer, nextButton)) return
+    this.syncDrawerButtons()
   }
 
   removeDrawerButton(key: string): void {
-    const next = this.drawerButtons.filter((item) => item.key !== key)
-    if (next.length === this.drawerButtons.length) return
-    this.drawerButtons = next
-    this.replaceDrawer()
+    const index = this.drawerButtons.findIndex((item) => item.key === key)
+    if (index < 0) return
+    this.drawerButtons.splice(index, 1)
+    const drawer = this.drawer
+    const behavior = drawer?.behavior as DrawerBehavior | undefined
+    if (drawer && behavior?.removeButton?.(drawer, key)) return
+    this.syncDrawerButtons()
   }
 
   setDrawerButtonState(key: string, active: boolean): void {
@@ -105,7 +112,17 @@ export class CommonViewBehavior extends Behavior {
     const updated = behavior?.setButtonState?.(drawer as PiuContainer, key, active)
     const index = this.drawerButtons.findIndex((item) => item.key === key)
     if (index >= 0) this.drawerButtons[index] = { ...this.drawerButtons[index], active }
-    if (!updated) this.replaceDrawer()
+    if (!updated && index >= 0) this.syncDrawerButtons()
+  }
+
+  private syncDrawerButtons(): void {
+    const drawer = this.drawer
+    const behavior = drawer?.behavior as DrawerBehavior | undefined
+    if (drawer && behavior?.setButtons?.(drawer, this.drawerButtons)) {
+      this.applyStoredDrawerStates()
+      return
+    }
+    this.replaceDrawer()
   }
 
   private replaceDrawer(): void {
@@ -116,10 +133,7 @@ export class CommonViewBehavior extends Behavior {
     this.drawer = new Drawer({ buttons: this.drawerButtons })
     if (this.drawer) {
       container.add(this.drawer)
-      for (const [key, active] of this.getDrawerStates().entries()) {
-        const behavior = this.drawer.behavior as DrawerBehavior | undefined
-        behavior?.setButtonState?.(this.drawer, key, active)
-      }
+      this.applyStoredDrawerStates()
       const behavior = this.drawer.behavior as DrawerBehavior | undefined
       if (behavior?.setOpen && wasOpen) {
         this.drawerOpen = true
@@ -144,6 +158,20 @@ export class CommonViewBehavior extends Behavior {
   private getDrawerStates(): Map<string, boolean> {
     if (!this.drawerStates) this.drawerStates = new Map()
     return this.drawerStates
+  }
+
+  private withStoredDrawerState(button: DrawerButtonSpec): DrawerButtonSpec {
+    const active = this.getDrawerStates().get(button.key)
+    return active === undefined ? button : { ...button, active }
+  }
+
+  private applyStoredDrawerStates(): void {
+    const drawer = this.drawer
+    const behavior = drawer?.behavior as DrawerBehavior | undefined
+    if (!drawer || !behavior?.setButtonState) return
+    for (const [key, active] of this.getDrawerStates().entries()) {
+      behavior.setButtonState(drawer, key, active)
+    }
   }
 }
 

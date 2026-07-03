@@ -1,7 +1,7 @@
 import { Outline } from 'commodetto/outline'
 import type { FaceSkinPalette } from 'face-skin'
 import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
-import { getFillStrokeSkin, quantizeUnit, unitFromStep } from 'parts/shape-utils'
+import { getFillStrokeSkin, quantizeUnit, rememberCachedValue, unitFromStep } from 'parts/shape-utils'
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { defineShapeTemplate } from 'template'
@@ -46,8 +46,7 @@ function getDogNoseFillOutline(
   path.closePath()
 
   const outline = Outline.fill(path)
-  dogNoseOutlineCache.set(key, outline)
-  return outline
+  return rememberCachedValue(dogNoseOutlineCache, key, outline)
 }
 
 export const DogNose = defineShapeTemplate((opts: DogNoseOptions) => {

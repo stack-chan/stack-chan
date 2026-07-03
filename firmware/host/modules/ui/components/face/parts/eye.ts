@@ -8,7 +8,7 @@ import {
   type FaceState,
   toPiuColorNumber,
 } from 'face-state'
-import { FULL_TURN, getFillSkin, quantizeUnit, unitFromStep } from 'parts/shape-utils'
+import { FULL_TURN, getFillSkin, quantizeUnit, rememberCachedValue, unitFromStep } from 'parts/shape-utils'
 import type { Container as PiuContainer, Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { defineShapeTemplate } from 'template'
@@ -59,8 +59,7 @@ function getIrisFillOutline(radius: number): Outline {
   path.arc(radius, radius, radius, 0, FULL_TURN)
   path.closePath()
   const outline = Outline.fill(path)
-  irisOutlineCache.set(radius, outline)
-  return outline
+  return rememberCachedValue(irisOutlineCache, radius, outline)
 }
 
 function getEyelidFillOutline(
@@ -114,8 +113,7 @@ function getEyelidFillOutline(
   }
 
   const outline = Outline.fill(path)
-  eyelidOutlineCache.set(key, outline)
-  return outline
+  return rememberCachedValue(eyelidOutlineCache, key, outline)
 }
 
 export const Eyelid = defineShapeTemplate((opts: EyelidOptions) => {

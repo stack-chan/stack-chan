@@ -34,7 +34,6 @@ export type ColorRGB = {
   r: number
   g: number
   b: number
-  pad: number
 }
 
 export type MouthState = {
@@ -65,9 +64,6 @@ export type FaceState = {
   eyes: EyesState
   breath: number
   emotion: Emotion
-  pad0: number
-  pad1: number
-  pad2: number
   theme: ThemeState
 }
 
@@ -82,12 +78,9 @@ const DEFAULT_FACE_STATE: Readonly<FaceState> = {
   },
   breath: 1,
   emotion: Emotion.NEUTRAL,
-  pad0: 0,
-  pad1: 0,
-  pad2: 0,
   theme: {
-    primary: { r: 0xff, g: 0xff, b: 0xff, pad: 0 },
-    secondary: { r: 0x00, g: 0x00, b: 0x00, pad: 0 },
+    primary: { r: 0xff, g: 0xff, b: 0xff },
+    secondary: { r: 0x00, g: 0x00, b: 0x00 },
   },
 }
 
@@ -112,12 +105,11 @@ function toHexByte(value: number): string {
   return `${HEX_DIGITS[(clamped >> 4) & 0x0f]}${HEX_DIGITS[clamped & 0x0f]}`
 }
 
-function createColorRGB(r: number, g: number, b: number, pad = 0): ColorRGB {
+function createColorRGB(r: number, g: number, b: number): ColorRGB {
   return {
     r: clampByte(r),
     g: clampByte(g),
     b: clampByte(b),
-    pad: clampByte(pad),
   }
 }
 
@@ -130,9 +122,6 @@ export function createFaceState(): FaceState {
     },
     breath: DEFAULT_FACE_STATE.breath,
     emotion: DEFAULT_FACE_STATE.emotion,
-    pad0: DEFAULT_FACE_STATE.pad0,
-    pad1: DEFAULT_FACE_STATE.pad1,
-    pad2: DEFAULT_FACE_STATE.pad2,
     theme: {
       primary: { ...DEFAULT_FACE_STATE.theme.primary },
       secondary: { ...DEFAULT_FACE_STATE.theme.secondary },
@@ -157,9 +146,6 @@ export function copyFaceState(src: Readonly<FaceState>, dst: FaceState): void {
 
   dst.breath = src.breath
   dst.emotion = src.emotion
-  dst.pad0 = src.pad0
-  dst.pad1 = src.pad1
-  dst.pad2 = src.pad2
 
   copyColorRGB(src.theme.primary, dst.theme.primary)
   copyColorRGB(src.theme.secondary, dst.theme.secondary)
@@ -176,26 +162,19 @@ export function faceStatesEqual(left: Readonly<FaceState>, right: Readonly<FaceS
     left.eyes.right.gazeY === right.eyes.right.gazeY &&
     left.breath === right.breath &&
     left.emotion === right.emotion &&
-    left.pad0 === right.pad0 &&
-    left.pad1 === right.pad1 &&
-    left.pad2 === right.pad2 &&
     colorEquals(left.theme.primary, right.theme.primary) &&
-    left.theme.primary.pad === right.theme.primary.pad &&
-    colorEquals(left.theme.secondary, right.theme.secondary) &&
-    left.theme.secondary.pad === right.theme.secondary.pad
+    colorEquals(left.theme.secondary, right.theme.secondary)
   )
 }
 
 export function copyColorRGB(src: Readonly<ColorRGB>, dst: ColorRGB): void {
   setColorRGB(dst, src.r, src.g, src.b)
-  dst.pad = clampByte(src.pad)
 }
 
 export function setColorRGB(color: ColorRGB, r: number, g: number, b: number): void {
   color.r = clampByte(r)
   color.g = clampByte(g)
   color.b = clampByte(b)
-  color.pad = 0
 }
 
 export function colorEquals(left: Readonly<ColorRGB>, right: Readonly<ColorRGB>): boolean {

@@ -1,6 +1,13 @@
 import { FaceBase, type FaceBaseParams } from 'behaviors/face'
-import { createFaceState, type FaceState } from 'face-state'
-import { getImageAvatarPack, type ImageAvatarPack, type ImageAvatarStaticSprite } from 'parts/image/image-avatar-pack'
+import type { FaceState } from 'face-state'
+import {
+  getImageAvatarPack,
+  type ImageAvatarEyeSprite,
+  type ImageAvatarMouthSprite,
+  type ImageAvatarPack,
+  type ImageAvatarSpriteSheet,
+  type ImageAvatarStaticSprite,
+} from 'parts/image/image-avatar-pack'
 import { frameIndexForRatio, resolveExpressionName } from 'parts/image/image-avatar-state'
 import type { Content as PiuContent, Skin as PiuSkin } from 'piu/MC'
 
@@ -27,39 +34,42 @@ type ExpressionSpriteContentParams = SpriteContentParams & {
   resolveSprite: (pack: ImageAvatarPack, expression: string) => ImageAvatarStaticSprite
 }
 
-type AnimatedFrame = {
-  texture: string
-  frameWidth: number
-  frameHeight: number
-  frameCount: number
-  ratio: number
-  x: number
-  y: number
-  color?: string
-}
+type AnimatedSpriteSource = ImageAvatarEyeSprite | ImageAvatarMouthSprite
 
 type AnimatedSpriteContentParams = SpriteContentParams & {
-  resolveFrame: (pack: ImageAvatarPack, face: FaceState) => AnimatedFrame
+  resolveSource: (pack: ImageAvatarPack, expression: string) => AnimatedSpriteSource
+  resolveFrames: (source: AnimatedSpriteSource) => ImageAvatarSpriteSheet
+  readRatio: (face: FaceState) => number
+  initialRatio: number
 }
 
 function createStaticSkin(sprite: ImageAvatarStaticSprite): PiuSkin {
-  return new Skin({
+  const dictionary: { texture: { path: string }; width: number; height: number; color?: string } = {
     texture: { path: sprite.texture },
     width: sprite.width,
     height: sprite.height,
-    ...(sprite.color === undefined ? {} : { color: sprite.color }),
-  })
+  }
+  if (sprite.color !== undefined) dictionary.color = sprite.color
+  return new Skin(dictionary)
 }
 
-function createAnimatedSkin(frame: AnimatedFrame): PiuSkin {
-  return new Skin({
-    texture: { path: frame.texture },
-    width: frame.frameWidth,
-    height: frame.frameHeight,
-    variants: frame.frameWidth,
-    states: frame.frameHeight,
-    ...(frame.color === undefined ? {} : { color: frame.color }),
-  })
+function createAnimatedSkin(source: AnimatedSpriteSource, frames: ImageAvatarSpriteSheet): PiuSkin {
+  const dictionary: {
+    texture: { path: string }
+    width: number
+    height: number
+    variants: number
+    states: number
+    color?: string
+  } = {
+    texture: { path: frames.texture },
+    width: frames.frameWidth,
+    height: frames.frameHeight,
+    variants: frames.frameWidth,
+    states: frames.frameHeight,
+  }
+  if (source.color !== undefined) dictionary.color = source.color
+  return new Skin(dictionary)
 }
 
 const ExpressionSprite = Content.template((opts: ExpressionSpriteContentParams) => {
@@ -85,28 +95,68 @@ const ExpressionSprite = Content.template((opts: ExpressionSpriteContentParams) 
 })
 
 const AnimatedSprite = Content.template((opts: AnimatedSpriteContentParams) => {
-  const initial = opts.resolveFrame(opts.pack, createFaceState())
+  const initialExpression = opts.pack.defaultExpression
+  const initialSource = opts.resolveSource(opts.pack, initialExpression)
+  const initialFrames = opts.resolveFrames(initialSource)
+  const initialVariant = frameIndexForRatio(opts.initialRatio, initialFrames.frameCount)
   return {
-    left: initial.x,
-    top: initial.y,
-    width: initial.frameWidth,
-    height: initial.frameHeight,
-    skin: createAnimatedSkin(initial),
-    variant: frameIndexForRatio(initial.ratio, initial.frameCount),
+    left: initialSource.x,
+    top: initialSource.y,
+    width: initialFrames.frameWidth,
+    height: initialFrames.frameHeight,
+    skin: createAnimatedSkin(initialSource, initialFrames),
+    variant: initialVariant,
     Behavior: class extends Behavior {
-      lastTexture = initial.texture
-      lastVariant = -1
+      lastColor = initialSource.color
+      lastExpression = initialExpression
+      lastFrameCount = initialFrames.frameCount
+      lastFrameHeight = initialFrames.frameHeight
+      lastFrameWidth = initialFrames.frameWidth
+      lastTexture = initialFrames.texture
+      lastVariant = initialVariant
+      lastX = initialSource.x
+      lastY = initialSource.y
+
       onFaceState(content: PositionedContent, face: FaceState) {
-        const frame = opts.resolveFrame(opts.pack, face)
-        if (frame.texture !== this.lastTexture) {
-          this.lastTexture = frame.texture
-          content.coordinates = { left: frame.x, top: frame.y, width: frame.frameWidth, height: frame.frameHeight }
-          content.skin = createAnimatedSkin(frame)
+        const expression = resolveExpressionName(opts.pack, face.emotion)
+        if (expression !== this.lastExpression) {
+          this.lastExpression = expression
+          const source = opts.resolveSource(opts.pack, expression)
+          const frames = opts.resolveFrames(source)
+          this.updateSource(content, source, frames)
         }
-        const variant = frameIndexForRatio(frame.ratio, frame.frameCount)
+        const variant = frameIndexForRatio(opts.readRatio(face), this.lastFrameCount)
         if (variant === this.lastVariant) return
         this.lastVariant = variant
         content.variant = variant
+      }
+
+      updateSource(content: PositionedContent, source: AnimatedSpriteSource, frames: ImageAvatarSpriteSheet) {
+        const geometryChanged =
+          source.x !== this.lastX ||
+          source.y !== this.lastY ||
+          frames.frameWidth !== this.lastFrameWidth ||
+          frames.frameHeight !== this.lastFrameHeight
+        const skinChanged =
+          frames.texture !== this.lastTexture ||
+          source.color !== this.lastColor ||
+          frames.frameWidth !== this.lastFrameWidth ||
+          frames.frameHeight !== this.lastFrameHeight
+
+        this.lastColor = source.color
+        this.lastFrameCount = frames.frameCount
+        this.lastFrameHeight = frames.frameHeight
+        this.lastFrameWidth = frames.frameWidth
+        this.lastTexture = frames.texture
+        this.lastX = source.x
+        this.lastY = source.y
+
+        if (geometryChanged) {
+          content.coordinates = { left: source.x, top: source.y, width: frames.frameWidth, height: frames.frameHeight }
+        }
+        if (skinChanged) {
+          content.skin = createAnimatedSkin(source, frames)
+        }
       }
     },
   }
@@ -140,27 +190,24 @@ export const ImageAvatarFace = FaceBase.template(($: ImageAvatarFaceParams = {})
       }),
       new AnimatedSprite({
         pack,
-        resolveFrame: (avatarPack, face) => {
-          const expression = resolveExpressionName(avatarPack, face.emotion)
-          const eye = avatarPack.expressions[expression].eyes.left
-          return { ...eye.blinkFrames, x: eye.x, y: eye.y, color: eye.color, ratio: face.eyes.left.open }
-        },
+        resolveSource: (avatarPack, expression) => avatarPack.expressions[expression].eyes.left,
+        resolveFrames: (source) => (source as ImageAvatarEyeSprite).blinkFrames,
+        readRatio: (face) => face.eyes.left.open,
+        initialRatio: 1,
       }),
       new AnimatedSprite({
         pack,
-        resolveFrame: (avatarPack, face) => {
-          const expression = resolveExpressionName(avatarPack, face.emotion)
-          const eye = avatarPack.expressions[expression].eyes.right
-          return { ...eye.blinkFrames, x: eye.x, y: eye.y, color: eye.color, ratio: face.eyes.right.open }
-        },
+        resolveSource: (avatarPack, expression) => avatarPack.expressions[expression].eyes.right,
+        resolveFrames: (source) => (source as ImageAvatarEyeSprite).blinkFrames,
+        readRatio: (face) => face.eyes.right.open,
+        initialRatio: 1,
       }),
       new AnimatedSprite({
         pack,
-        resolveFrame: (avatarPack, face) => {
-          const expression = resolveExpressionName(avatarPack, face.emotion)
-          const mouth = avatarPack.expressions[expression].mouth
-          return { ...mouth.frames, x: mouth.x, y: mouth.y, color: mouth.color, ratio: face.mouth.open }
-        },
+        resolveSource: (avatarPack, expression) => avatarPack.expressions[expression].mouth,
+        resolveFrames: (source) => (source as ImageAvatarMouthSprite).frames,
+        readRatio: (face) => face.mouth.open,
+        initialRatio: 0,
       }),
     ],
   }

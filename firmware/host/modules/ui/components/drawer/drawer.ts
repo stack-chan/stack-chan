@@ -154,6 +154,9 @@ type DrawerBehavior = {
   isOpen: boolean
   toggle: (container: PiuContainer) => void
   setOpen: (container: PiuContainer, open: boolean) => void
+  setButtons?: (container: PiuContainer, buttons: DrawerButtonSpec[]) => boolean
+  addButton?: (container: PiuContainer, button: DrawerButtonSpec) => boolean
+  removeButton?: (container: PiuContainer, key: string) => boolean
   setButtonState?: (container: PiuContainer, key: string, active: boolean) => boolean
 }
 
@@ -193,11 +196,13 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
     Behavior: class extends Behavior {
       coordinates = { right: drawerHiddenOffset, width: drawerWidth, top: 0, bottom: 0 } as unknown as Coordinates
       isOpen = false
+      buttonList: PiuContainer | null = null
       timeline: Timeline | null = null
       offset = drawerHiddenOffset
 
       onCreate(container: PiuContainer, _data?: DrawerDictionary) {
         container.interval = 16
+        this.buttonList = this.findButtonList(container)
         this.applyPosition(container, this.offset)
       }
       onTimeChanged(container: PiuContainer) {
@@ -239,33 +244,60 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
       toggle(container: PiuContainer) {
         this.setOpen(container, !this.isOpen)
       }
+      setButtons(container: PiuContainer, buttons: DrawerButtonSpec[]) {
+        const list = this.getButtonList(container)
+        if (!list) return false
+        list.empty()
+        for (const button of buttons) {
+          list.add(new DrawerButton(button))
+        }
+        return true
+      }
+      addButton(container: PiuContainer, button: DrawerButtonSpec) {
+        const list = this.getButtonList(container)
+        if (!list) return false
+        const existing = this.findButtonInList(list, button.key)
+        const next = existing?.next as PiuContent | null | undefined
+        if (existing) {
+          list.remove(existing)
+        }
+        const node = new DrawerButton(button)
+        if (next) list.insert(node, next)
+        else list.add(node)
+        return true
+      }
+      removeButton(container: PiuContainer, key: string) {
+        const list = this.getButtonList(container)
+        if (!list) return false
+        const button = this.findButtonInList(list, key)
+        if (!button) return false
+        list.remove(button)
+        return true
+      }
       setButtonState(container: PiuContainer, key: string, active: boolean) {
-        const button = this.findButton(container, key)
+        const list = this.getButtonList(container)
+        const button = list ? this.findButtonInList(list, key) : null
         if (!button) return false
         const behavior = button.behavior as { setActive?: (content: PiuContainer, state: boolean) => void } | undefined
         behavior?.setActive?.(button, active)
         return true
       }
-      findButton(container: PiuContainer, key: string): PiuContainer | null {
-        const stack: PiuContent[] = []
-        let current: PiuContent | null = container.first as PiuContent | null
+      getButtonList(container: PiuContainer): PiuContainer | null {
+        if (this.buttonList) return this.buttonList
+        this.buttonList = this.findButtonList(container)
+        return this.buttonList
+      }
+      findButtonList(container: PiuContainer): PiuContainer | null {
+        const scroller = container.first as PiuContainer | null
+        return (scroller?.first as PiuContainer | null) ?? null
+      }
+      findButtonInList(list: PiuContainer, key: string): PiuContainer | null {
+        let current: PiuContent | null = list.first as PiuContent | null
         while (current) {
-          stack.push(current)
+          if ((current as PiuContainer).name === key) {
+            return current as PiuContainer
+          }
           current = current.next as PiuContent | null
-        }
-        while (stack.length > 0) {
-          const node = stack.pop() as PiuContent
-          if ((node as PiuContainer).name === key) {
-            return node as PiuContainer
-          }
-          const first = (node as PiuContainer).first as PiuContent | null
-          if (first) {
-            let child: PiuContent | null = first
-            while (child) {
-              stack.push(child)
-              child = child.next as PiuContent | null
-            }
-          }
         }
         return null
       }

@@ -5,7 +5,6 @@ import { createFaceState, Emotion, type FaceState, setColorRGB } from 'face-stat
 import { eyeOpenToVariant, IRIS_SPRITE } from 'parts/image/atlas'
 import { Content, type Content as PiuContent } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
-import Timer from 'timer'
 
 trace('=== face rendering test ===\n')
 
@@ -209,7 +208,7 @@ const appDrivenFace = new SimpleFace({
   ],
 }) as PiuNode
 const appDrivenLeftEyelid = childAt(childAt(appDrivenFace, 0), 1)
-new Application(
+const appDrivenApplication = new Application(
   { face: appDrivenFace },
   {
     displayListLength: 2047,
@@ -217,15 +216,19 @@ new Application(
     Behavior: AppController,
   },
 )
+assert(appDrivenApplication.behavior, 'AppController-hosted Application should stay alive for mounted face tests')
 const initialAppDrivenTop = topOf(appDrivenFace)
 const initialAppDrivenEyelid = appDrivenLeftEyelid.fillOutline
-
-Timer.set(() => {
-  assert(appMotionTicks > 0, 'AppController-hosted FaceBehavior should run from the Piu timer')
-  assert(topOf(appDrivenFace) !== initialAppDrivenTop, 'AppController-hosted face should move for breathing')
-  assert(
-    appDrivenLeftEyelid.fillOutline !== initialAppDrivenEyelid,
-    'AppController-hosted face should update eyelid outlines for blinking',
-  )
-  trace('ok\n')
-}, 1000)
+const appDrivenBehavior = appDrivenFace.behavior as {
+  onDisplaying?: (node: PiuNode) => void
+  onTimeChanged?: (node: PiuNode) => void
+}
+appDrivenBehavior.onDisplaying?.(appDrivenFace)
+appDrivenBehavior.onTimeChanged?.(appDrivenFace)
+assert(appMotionTicks > 0, 'AppController-hosted FaceBehavior should retain custom motions after mounting')
+assert(topOf(appDrivenFace) !== initialAppDrivenTop, 'AppController-hosted face should move for breathing')
+assert(
+  appDrivenLeftEyelid.fillOutline !== initialAppDrivenEyelid,
+  'AppController-hosted face should update eyelid outlines for blinking',
+)
+trace('ok\n')

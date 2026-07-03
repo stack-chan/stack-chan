@@ -1,4 +1,5 @@
 import getMacAddress from 'mac-address'
+import Timer from 'timer'
 
 function HashCodeFromString(str: string): number {
   /**
@@ -36,6 +37,30 @@ export function generateDeviceSeed(): number {
     trace(`Failed to get MAC address: ${error}, using fallback seed\n`)
     return HashCodeFromString(`fallback-${Date.now()}`)
   }
+}
+
+export function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    Timer.set(() => resolve(), ms)
+  })
+}
+
+export type CompletionCallback = (error?: unknown) => void
+
+export function waitForCompletion(start: (callback: CompletionCallback) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      start((error) => {
+        if (error != null) {
+          reject(error)
+        } else {
+          resolve()
+        }
+      })
+    } catch (error) {
+      reject(error)
+    }
+  })
 }
 
 export function colorsFromSeed(seed: number): [number[], number[]] {
@@ -172,6 +197,39 @@ export type Pose = {
   rotation: Rotation
 }
 
+export function writeRotationFromComponents(target: Rotation, x: number, y: number, z: number): void {
+  target.y = Math.atan2(y, x)
+  target.p = -Math.atan2(z, Math.sqrt(x ** 2 + y ** 2))
+  target.r = 0
+}
+
+export function writeRotationFromVector3(target: Rotation, vector: Vector3): void {
+  writeRotationFromComponents(target, vector[0], vector[1], vector[2])
+}
+
+export function writeBodyRelativeVector3(target: Vector3, point: Vector3, bodyRotation: Rotation): void {
+  const x = point[0]
+  const y = point[1]
+  const z = point[2]
+  const inverseYaw = -bodyRotation.y
+  const cosY = Math.cos(inverseYaw)
+  const sinY = Math.sin(inverseYaw)
+  const yawX = x * cosY - y * sinY
+  const yawY = x * sinY + y * cosY
+  const inversePitch = -bodyRotation.p
+  const cosP = Math.cos(inversePitch)
+  const sinP = Math.sin(inversePitch)
+  target[0] = yawX * cosP - z * sinP
+  target[1] = yawY
+  target[2] = yawX * sinP + z * cosP
+}
+
+export function writePositionRelativeVector3(target: Vector3, point: Vector3, position: Position): void {
+  target[0] = point[0] - position.x
+  target[1] = point[1] - position.y
+  target[2] = point[2] - position.z
+}
+
 export const Rotation = Object.freeze({
   /**
    * A utility object for working with Rotation values.
@@ -182,13 +240,9 @@ export const Rotation = Object.freeze({
      * @param v - the Vector3 value to be converted.
      * @returns the corresponding Rotation value.
      */
-    const yaw = Math.atan2(v[1], v[0])
-    const pitch = -Math.atan2(v[2], Math.sqrt(v[0] ** 2 + v[1] ** 2))
-    return {
-      y: yaw,
-      p: pitch,
-      r: 0,
-    }
+    const rotation = { y: 0, p: 0, r: 0 }
+    writeRotationFromVector3(rotation, v)
+    return rotation
   },
 })
 

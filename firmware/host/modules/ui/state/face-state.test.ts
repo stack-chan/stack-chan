@@ -19,6 +19,8 @@ test('FaceState uses plain mutable objects with numeric emotion and ColorRGB the
   assert.equal(typeof face, 'object')
   assert.equal(face.mouth.open, 0)
   assert.equal(face.emotion, Emotion.NEUTRAL)
+  assert.equal('pad0' in face, false)
+  assert.equal('pad' in face.theme.primary, false)
   assert.equal(toEmotionName(Emotion.HAPPY), 'HAPPY')
   assert.equal(emotionFromName('happy'), Emotion.HAPPY)
 

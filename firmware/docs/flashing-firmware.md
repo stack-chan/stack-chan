@@ -24,6 +24,8 @@ For all configuration items, please refer to the [Moddable official documentatio
 
 StackChan can change settings such as motor types and pin assignments from the manifest file. You can modify [`stack-chan/firmware/host/app/manifest_local.json`](../host/app/manifest_local.json) for local settings. The following settings can be written under the `"config"` key.
 
+`manifest_local.json` is intentionally checked in with an empty `"config"` object so private IP addresses, API keys, and bench-specific servo settings are not committed. If you build without adding local driver settings, the firmware uses the platform/app defaults. On a generic bench build this may select the default serial servo driver, so set `config.driver.type` explicitly when your hardware uses a different driver.
+
 | Key               | Description                                                                | Available values                     |
 | ----------------- | -------------------------------------------------------------------------- | ------------------------------------ |
 | driver.type       | Type of motor driver                                                       | "scservo", "rs30x", "pwm", "none", "dynamixel"    |

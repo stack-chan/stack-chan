@@ -16,8 +16,23 @@
       "camera": [
         "host/modules/camera/wasm/camera.ts"
       ],
+      "capabilities": [
+        "host/modules/testing/fakes/capabilities.ts"
+      ],
       "audio-buffer": [
         "host/modules/audio/audio-buffer.ts"
+      ],
+      "tts-types": [
+        "host/modules/audio/tts-types.ts"
+      ],
+      "audio-in": [
+        "host/modules/testing/fakes/audio-in.ts"
+      ],
+      "pins/audioout": [
+        "host/modules/testing/fakes/audio-out.ts"
+      ],
+      "calculate-power": [
+        "host/modules/testing/fakes/calculate-power.ts"
       ],
       "wasm-driver": [
         "host/modules/motion/wasm/wasm-driver.ts"
@@ -37,14 +52,59 @@
       "motion-controller": [
         "host/modules/motion/motion-controller.ts"
       ],
+      "microphone": [
+        "host/modules/testing/fakes/microphone-type.ts"
+      ],
+      "tone": [
+        "host/modules/testing/fakes/tone-type.ts"
+      ],
       "imu-motion": [
         "host/modules/input/imu-motion.ts"
+      ],
+      "imu": [
+        "host/modules/input/imu.ts"
+      ],
+      "led": [
+        "host/modules/lighting/led.ts"
+      ],
+      "touch": [
+        "host/modules/input/touch.ts"
+      ],
+      "touch-panel": [
+        "host/modules/input/touch-panel.ts"
       ],
       "touch-panel-gesture": [
         "host/modules/input/touch-panel-gesture.ts"
       ],
+      "stored-wifi": [
+        "host/modules/connectivity/stored-wifi.ts"
+      ],
+      "network-manager": [
+        "host/modules/connectivity/__tests__/fakes/network-manager.ts"
+      ],
+      "preference": [
+        "host/modules/testing/fakes/preference.ts"
+      ],
+      "consts": [
+        "host/modules/preferences/consts.ts"
+      ],
+      "modules": [
+        "host/modules/testing/fakes/modules.ts"
+      ],
+      "structuredClone": [
+        "host/modules/testing/fakes/structured-clone.ts"
+      ],
       "timer": [
         "host/modules/testing/fakes/timer.ts"
+      ],
+      "time": [
+        "host/modules/testing/fakes/time.ts"
+      ],
+      "mc/config": [
+        "host/modules/testing/fakes/mc-config.ts"
+      ],
+      "input-event": [
+        "host/modules/input/input-event.ts"
       ],
       "startup-splash": [
         "host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts"
@@ -72,50 +132,9 @@
     "skipLibCheck": true
   },
   "include": [
-    "host/modules/motion/payload-buffer.ts",
-    "host/modules/audio/audio-buffer.ts",
-    "host/modules/audio/__tests__/*.test.ts",
-    "host/modules/motion/wasm/**/*.ts",
-    "host/modules/camera/camera.ts",
-    "host/modules/camera/*.test.ts",
-    "host/modules/ui/views/camera-preview/camera-preview-utils.ts",
-    "host/modules/input/touch-panel-gesture.ts",
-    "host/modules/input/imu-motion.ts",
-    "host/modules/camera/wasm/camera.ts",
-    "host/modules/connectivity/network-state.ts",
-    "host/modules/connectivity/__tests__/*.test.ts",
-    "host/modules/audio/wasm/microphone.ts",
-    "host/modules/motion/m5stackchan-servo.ts",
-    "host/modules/motion/motion-controller.ts",
-    "host/modules/lighting/py32-io-expander.ts",
-    "host/modules/motion/internal/single-wait-slot.ts",
-    "host/modules/testing/*.test.ts",
-    "host/modules/testing/node-alias-package.ts",
-    "host/modules/testing/fakes/timer.ts",
-    "host/app/default-behavior/startup-choice.ts",
-    "host/app/app-behavior-resolver.ts",
-    "host/app/default-behavior/wasm/on-launch.ts",
-    "host/app/__tests__/*.test.ts",
-    "host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts",
-    "host/modules/util/stackchan-util.ts",
-    "host/modules/util/*.test.ts",
-    "host/modules/util/sim/mac-address.ts",
-    "host/modules/preferences/*.test.ts",
-    "host/modules/ui/state/face-state.ts",
-    "host/modules/ui/components/face/parts/image/image-avatar-pack.ts",
-    "host/modules/ui/components/face/parts/image/image-avatar-state.ts",
-    "host/app/*.test.ts",
-    "host/modules/input/*.test.ts",
-    "host/modules/lighting/*.test.ts",
-    "host/modules/motion/__tests__/*.test.ts",
-    "host/modules/ui/application/*.test.ts",
-    "host/modules/ui/components/face/parts/image/__tests__/*.test.ts",
-    "host/modules/ui/state/*.test.ts",
-    "host/modules/ui/views/camera-preview/*.test.ts",
-    "host/modules/ui/views/settings/settings-view.test.ts",
-    "host/modules/ui/views/splash/*.test.ts",
-    "host/platforms/*.test.ts",
-    "host/platforms/wasm/*.test.ts"
+    "host/**/*.test.ts"
   ],
-  "exclude": []
+  "exclude": [
+    "host/**/__tests__/*/*.test.ts"
+  ]
 }

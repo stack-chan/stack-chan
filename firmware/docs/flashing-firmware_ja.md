@@ -28,6 +28,10 @@ MOD がインストールされている場合、製品既定動作は実行さ�
 ユーザが変更する設定は[`stack-chan/firmware/host/app/manifest_local.json`](../host/app/manifest_local.json)にまとまっています。
 `"config"`キーの配下に次のような設定が書けます。
 
+`manifest_local.json` は、私設 IP アドレス、API キー、ベンチ固有のサーボ設定をコミットしないため、空の `"config"` として管理しています。
+ローカルの driver 設定を追加せずにビルドした場合、firmware は platform/app の既定値を使います。
+汎用ベンチ環境では既定のシリアルサーボ driver が選ばれる可能性があるため、異なる driver を使う場合は `config.driver.type` を明示してください。
+
 | キー              | 説明                                            | 使用可能な値                                |
 | ----------------- | ----------------------------------------------- | ------------------------------------------- |
 | driver.type       | モータドライバの種類                            | "scservo", "rs30x", "pwm", "none", "dynamixel"           |

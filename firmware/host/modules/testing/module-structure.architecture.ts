@@ -10,6 +10,7 @@ const RUNTIME_MODULES = [
   'camera',
   'connectivity',
   'conversation',
+  'io-expander',
   'input',
   'lighting',
   'motion',
@@ -89,11 +90,37 @@ function isSourceFile(path: string): boolean {
   return /\.(?:ts|js)$/.test(path)
 }
 
+function extractModuleSpecifiers(source: string): string[] {
+  const specifiers: string[] = []
+  for (const match of source.matchAll(/\bimport\s+(?:[^'"]+\s+from\s+)?['"]([^'"]+)['"]/g)) {
+    specifiers.push(match[1])
+  }
+  for (const match of source.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)) {
+    specifiers.push(match[1])
+  }
+  return specifiers
+}
+
+function isInternalModuleSpecifier(specifier: string): boolean {
+  return (
+    specifier.startsWith('../') ||
+    specifier.startsWith('host/') ||
+    specifier.startsWith('modules/') ||
+    specifier.startsWith('platforms/') ||
+    specifier.startsWith('app/') ||
+    specifier.includes('/internal/')
+  )
+}
+
 test('runtime modules own implementation manifests and tests under host/modules', () => {
   for (const moduleName of RUNTIME_MODULES) {
     const moduleDir = join(MODULE_ROOT, moduleName)
     assert.ok(existsSync(join(moduleDir, 'manifest.json')), `${moduleName} should have manifest.json`)
-    assert.ok(existsSync(join(moduleDir, 'manifest.test.json')), `${moduleName} should have manifest.test.json`)
+    assert.equal(
+      existsSync(join(moduleDir, 'manifest.test.json')),
+      false,
+      `${moduleName} should not keep a placeholder manifest.test.json`,
+    )
 
     const files = walkFiles(moduleDir)
     assert.ok(
@@ -225,8 +252,47 @@ test('motion protocol continuable command errors are reported through callbacks'
   }
 })
 
+test('motion duration units are converted at driver protocol boundaries', () => {
+  const controller = readFileSync(join(MODULE_ROOT, 'motion', 'motion-controller.ts'), 'utf8')
+  const rs30xDriver = readFileSync(join(MODULE_ROOT, 'motion', 'rs30x-driver.ts'), 'utf8')
+  const scservoDriver = readFileSync(join(MODULE_ROOT, 'motion', 'scservo-driver.ts'), 'utf8')
+  const m5stackchanDriver = readFileSync(join(MODULE_ROOT, 'motion', 'm5stackchan-servo-driver.ts'), 'utf8')
+  const sg90Driver = readFileSync(join(MODULE_ROOT, 'motion', 'sg90-driver.ts'), 'utf8')
+  const dynamixelDriver = readFileSync(join(MODULE_ROOT, 'motion', 'dynamixel-driver.ts'), 'utf8')
+  const rs30xProtocol = readFileSync(join(MODULE_ROOT, 'motion', 'protocols', 'rs30x.ts'), 'utf8')
+  const scservoProtocol = readFileSync(join(MODULE_ROOT, 'motion', 'protocols', 'scservo.ts'), 'utf8')
+
+  assert.match(controller, /export type MotionDurationSeconds = number/)
+  assert.match(controller, /export type ServoGoalTimeMilliseconds = number/)
+  assert.match(controller, /export type ServoGoalTimeCentiseconds = number/)
+  assert.match(controller, /motionDurationSecondsToMilliseconds/)
+  assert.match(controller, /motionDurationSecondsToCentiseconds/)
+  assert.match(rs30xDriver, /motionDurationSecondsToCentiseconds\(time\)/)
+  assert.match(rs30xDriver, /goalTimeCentiseconds/)
+  assert.match(scservoDriver, /motionDurationSecondsToMilliseconds\(time\)/)
+  assert.match(scservoDriver, /goalTimeMilliseconds/)
+  assert.match(m5stackchanDriver, /motionDurationSecondsToMilliseconds\(time\)/)
+  assert.match(m5stackchanDriver, /goalTimeMilliseconds/)
+  assert.match(sg90Driver, /motionDurationSecondsToMilliseconds\(time\) \/ INTERVAL/)
+  assert.match(dynamixelDriver, /_time: MotionDurationSeconds/)
+  assert.match(rs30xProtocol, /export type RS30XGoalTimeCentiseconds = number/)
+  assert.match(rs30xProtocol, /goalTimeCentiseconds: RS30XGoalTimeCentiseconds/)
+  assert.doesNotMatch(rs30xProtocol, /goalTime\s*\*\s*100/)
+  assert.match(scservoProtocol, /export type SCServoGoalTimeMilliseconds = number/)
+  assert.match(scservoProtocol, /goalTimeMilliseconds: SCServoGoalTimeMilliseconds/)
+  assert.doesNotMatch(rs30xDriver, /setAngleInTime\([^,\n]+,\s*time[,)]/)
+  assert.doesNotMatch(scservoDriver, /setAngleInTime\([^,\n]+,\s*time \* 1000/)
+  assert.doesNotMatch(m5stackchanDriver, /setRawPositionInTime\([^,\n]+,\s*time \* 1000/)
+})
+
 test('optional PY32 hardware initialization is reported without making consumers throw', () => {
-  const expander = readFileSync(join(MODULE_ROOT, 'lighting', 'py32-io-expander.ts'), 'utf8')
+  const expander = readFileSync(join(MODULE_ROOT, 'io-expander', 'py32-io-expander.ts'), 'utf8')
+  const motionManifest = readJson(join(MODULE_ROOT, 'motion', 'manifest.json'))
+  const lightingManifest = readJson(join(MODULE_ROOT, 'lighting', 'manifest.json'))
+
+  assert.ok(motionManifest.include.includes('../io-expander/manifest.json'))
+  assert.ok(!motionManifest.include.includes('../lighting/manifest.json'))
+  assert.ok(lightingManifest.include.includes('../io-expander/manifest.json'))
   assert.match(expander, /export function tryGetSharedPY32IOExpander/)
   assert.match(expander, /onError\?\.\(error\)/)
 
@@ -348,6 +414,18 @@ test('sample MOD relative manifest includes resolve from examples directories', 
   }
 })
 
+test('sample MOD sources import only public or sample-local modules', () => {
+  const offenders = walkFiles(join('mods', 'examples'))
+    .filter(isSourceFile)
+    .flatMap((sourcePath) =>
+      extractModuleSpecifiers(readFileSync(sourcePath, 'utf8'))
+        .filter(isInternalModuleSpecifier)
+        .map((specifier) => `${sourcePath}: ${specifier}`),
+    )
+
+  assert.deepEqual(offenders, [])
+})
+
 test('production manifests do not resolve test or architecture sources', () => {
   const offenders = PRODUCTION_MANIFEST_ROOTS.flatMap((root) => walkFiles(root))
     .filter(isProductionManifest)
@@ -358,6 +436,26 @@ test('production manifests do not resolve test or architecture sources', () => {
     )
 
   assert.deepEqual(offenders, [])
+})
+
+test('Node unit test tsconfig discovers host tests by glob and excludes Moddable test entries', () => {
+  const tsconfig = readJson('tsconfig.test.json')
+
+  assert.deepEqual(tsconfig.include, ['host/**/*.test.ts'])
+  assert.deepEqual(tsconfig.exclude, ['host/**/__tests__/*/*.test.ts'])
+
+  const manifestTestSources = walkFiles('host')
+    .filter((path) => path.endsWith('.test.ts'))
+    .filter((path) => existsSync(join(dirname(path), 'manifest.test.json')))
+
+  assert.ok(manifestTestSources.length > 0, 'Moddable manifest tests should exist')
+  for (const testPath of manifestTestSources) {
+    assert.match(
+      testPath,
+      /[/\\]__tests__[/\\][^/\\]+[/\\][^/\\]+\.test\.ts$/,
+      `${testPath} should match the tsconfig.test.json Moddable exclude pattern`,
+    )
+  }
 })
 
 test('module Moddable test manifests include implementation and testing manifests', () => {
@@ -386,7 +484,6 @@ test('Moddable test manifests use local test modules as main entries', () => {
   for (const manifestPath of manifestPaths) {
     const manifest = readJson(manifestPath)
     const mainEntry = manifest.modules?.main
-    if (!mainEntry) continue
     assert.equal(typeof mainEntry, 'string', `${manifestPath} should define modules.main`)
 
     assert.match(mainEntry, /^\.\/[^/]+\.test$/, `${manifestPath} should use a local *.test module`)
@@ -404,7 +501,6 @@ test('Moddable test main entries trace ok and avoid not ok status strings', () =
   for (const manifestPath of manifestPaths) {
     const manifest = readJson(manifestPath)
     const mainEntry = manifest.modules?.main
-    if (!mainEntry) continue
     assert.equal(typeof mainEntry, 'string', `${manifestPath} should define modules.main`)
 
     const testFile = existsSync(join(dirname(manifestPath), `${mainEntry.slice(2)}.ts`))

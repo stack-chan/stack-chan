@@ -13,6 +13,7 @@ export type ChatType = 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' 
 
 export type ChatConfig = {
   type: ChatType
+  apiKey?: string
   instructions?: string
   voiceID?: string
   providerID?: string
@@ -162,6 +163,7 @@ export class ChatService {
       voiceID: config.voiceID,
       providerID: config.providerID,
       modelID: config.modelID,
+      apiKey: config.apiKey,
       functions: functions.length > 0 ? functions : undefined,
       onStateChanged: (state: number) => {
         this.#state = mapState(state, chatAudioIOConstants)

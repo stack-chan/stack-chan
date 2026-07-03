@@ -94,7 +94,11 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       await robot.setPose(poseForRotation(upRotation), TOUCH_PANEL_PET_MOTION_STEP_SEC)
     } catch (error) {
       trace(`[TouchPanel] pet hold motion error ${errorMessage(error)}\n`)
-      await robot.setTorque(false)
+      try {
+        await robot.setTorque(false)
+      } catch (torqueError) {
+        trace(`[TouchPanel] pet hold torque release error ${errorMessage(torqueError)}\n`)
+      }
     }
   }
   const runPettingMotion = async (
@@ -119,7 +123,11 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       }, TOUCH_PANEL_PET_MOTION_STEP_MS * 2)
     } catch (error) {
       trace(`[TouchPanel] pet motion error ${errorMessage(error)}\n`)
-      await robot.setTorque(false)
+      try {
+        await robot.setTorque(false)
+      } catch (torqueError) {
+        trace(`[TouchPanel] pet motion torque release error ${errorMessage(torqueError)}\n`)
+      }
     } finally {
       pettingMotionActive = false
     }
@@ -130,7 +138,11 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     } catch (error) {
       trace(`[TouchPanel] restore motion error ${errorMessage(error)}\n`)
     } finally {
-      await robot.setTorque(false)
+      try {
+        await robot.setTorque(false)
+      } catch (torqueError) {
+        trace(`[TouchPanel] restore torque release error ${errorMessage(torqueError)}\n`)
+      }
     }
   }
 
@@ -184,7 +196,11 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         pettingHoldTimer = undefined
         canceledPettingMotion = true
       }
-      if (canceledPettingMotion) void target.setTorque(false)
+      if (canceledPettingMotion) {
+        void target
+          .setTorque(false)
+          .catch((error) => trace(`[TouchPanel] canceled petting torque release error ${errorMessage(error)}\n`))
+      }
       setEmotionWithEffect(target, nextEmotion)
     },
   })
@@ -289,13 +305,19 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
    */
   let isFollowing = false
   const toggleLookAround = async () => {
-    isFollowing = !isFollowing
-    await robot.setTorque(isFollowing)
-    robot.drawer.setDrawerButtonState('toggleLookAround', isFollowing)
-    const text = isFollowing ? 'looking' : 'look away'
-    robot.showBalloon(text)
-    await wait(1000)
-    robot.hideBalloon()
+    const nextFollowing = !isFollowing
+    try {
+      await robot.setTorque(nextFollowing)
+      isFollowing = nextFollowing
+      robot.drawer.setDrawerButtonState('toggleLookAround', isFollowing)
+      const text = isFollowing ? 'looking' : 'look away'
+      robot.showBalloon(text)
+      await wait(1000)
+      robot.hideBalloon()
+    } catch (error) {
+      trace(`[Look] toggle error ${errorMessage(error)}\n`)
+      robot.drawer.setDrawerButtonState('toggleLookAround', isFollowing)
+    }
   }
   const targetLoop = () => {
     if (!isFollowing) {
@@ -502,7 +524,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         if (!event.pressed) {
           return
         }
-        void toggleLookAround()
+        void toggleLookAround().catch((error) => trace(`[Button] look error ${errorMessage(error)}\n`))
       }
     }
     if (robot.button.b != null) {
@@ -564,7 +586,9 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
           trace(
             `[TouchPanel] pet motion shake yaw=${yawAmount.toFixed(3)} pitch=${pitch.toFixed(3)} direction=${firstDirection}\n`,
           )
-          void runPettingMotion(upRotation, leftRight, firstDirection)
+          void runPettingMotion(upRotation, leftRight, firstDirection).catch((error) =>
+            trace(`[TouchPanel] pet motion rejected ${errorMessage(error)}\n`),
+          )
         }
         pettingRestoreTimer = Timer.set(() => {
           const restoreEmotion = pettingPreviousEmotion ?? Emotion.NEUTRAL
@@ -576,7 +600,9 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
             pettingHoldTimer = undefined
           }
           if (pettingPreviousRotation) {
-            void runPettingRestoreMotion(pettingPreviousRotation)
+            void runPettingRestoreMotion(pettingPreviousRotation).catch((error) =>
+              trace(`[TouchPanel] restore motion rejected ${errorMessage(error)}\n`),
+            )
           }
           pettingPreviousEmotion = undefined
           pettingPreviousRotation = undefined

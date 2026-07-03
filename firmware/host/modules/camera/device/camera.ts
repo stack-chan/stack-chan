@@ -1,6 +1,7 @@
 import NativeCamera from 'embedded:io/image/in/camera'
 import Bitmap from 'commodetto/Bitmap'
 import type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } from '../camera.js'
+import { waitForInitialCameraFrame } from './initial-frame.js'
 
 export type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } from '../camera.js'
 
@@ -8,6 +9,10 @@ const DEFAULT_WIDTH = 176
 const DEFAULT_HEIGHT = 144
 const DEFAULT_IMAGE_TYPE: CameraImageType = 'rgb565le'
 const FORMAT_DISPOSABLE_BUFFER = 'buffer/disposable'
+const INITIAL_FRAME_TIMEOUT_MS = 500
+const INITIAL_FRAME_POLL_MS = 30
+
+export type DeviceCameraConstructorOptions = Record<string, never>
 
 type DisposableCameraBuffer = ArrayBuffer & {
   close?: () => void
@@ -58,7 +63,7 @@ export default class Camera implements RobotCamera {
   #height = DEFAULT_HEIGHT
   #imageType: CameraImageType = DEFAULT_IMAGE_TYPE
 
-  constructor(_options?: unknown) {
+  constructor(_options?: DeviceCameraConstructorOptions) {
     void _options
   }
 
@@ -96,7 +101,7 @@ export default class Camera implements RobotCamera {
     const camera = this.#camera
     if (!camera) return undefined
 
-    const frame = this.#takeFrame(camera)
+    const frame = this.#takeFrame(camera) ?? (await this.#waitForFrame(camera))
     if (!frame) return undefined
 
     let isClosed = false
@@ -132,6 +137,16 @@ export default class Camera implements RobotCamera {
     const frame = this.#frame ?? camera.read()
     this.#frame = undefined
     return frame
+  }
+
+  #waitForFrame(camera: NativeImageInCamera): Promise<DisposableCameraBuffer | undefined> {
+    return waitForInitialCameraFrame({
+      isCurrent: () => camera === this.#camera,
+      onTimeout: () => trace('[camera] capture timed out waiting for first frame\n'),
+      pollMs: INITIAL_FRAME_POLL_MS,
+      takeFrame: () => this.#takeFrame(camera),
+      timeoutMs: INITIAL_FRAME_TIMEOUT_MS,
+    })
   }
 
   #shouldRestart(options: CameraCaptureOptions): boolean {

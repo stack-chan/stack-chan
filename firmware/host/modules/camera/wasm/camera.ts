@@ -5,9 +5,18 @@ export type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } 
 const DEFAULT_WIDTH = 96
 const DEFAULT_HEIGHT = 96
 const DEFAULT_IMAGE_TYPE: CameraImageType = 'rgb565le'
+const DEFAULT_USE_BROWSER_CAMERA = true
+
+export type WasmCameraConstructorOptions = {
+  useBrowserCamera?: boolean
+}
+
+export type WasmCameraStartOptions = CameraCaptureOptions & {
+  useBrowserCamera?: boolean
+}
 
 type HostCameraBridge = {
-  start?: (options?: CameraCaptureOptions) => Promise<void> | void
+  start?: (options?: WasmCameraStartOptions) => Promise<void> | void
   stop?: () => Promise<void> | void
   capture?: (options?: CameraCaptureOptions) => Promise<CameraFrame | undefined> | CameraFrame | undefined
 }
@@ -30,6 +39,23 @@ function normalizeDimension(value: number | undefined, fallback: number): number
   }
   const normalized = value | 0
   return normalized > 0 ? normalized : fallback
+}
+
+function resolveUseBrowserCamera(options: WasmCameraStartOptions | undefined, defaultValue: boolean): boolean {
+  return options?.useBrowserCamera ?? defaultValue
+}
+
+function createHostCameraStartOptions(
+  options: WasmCameraStartOptions | undefined,
+  defaultUseBrowserCamera: boolean,
+): WasmCameraStartOptions {
+  const startOptions: WasmCameraStartOptions = {
+    useBrowserCamera: resolveUseBrowserCamera(options, defaultUseBrowserCamera),
+  }
+  if (options?.width !== undefined) startOptions.width = options.width
+  if (options?.height !== undefined) startOptions.height = options.height
+  if (options?.imageType !== undefined) startOptions.imageType = options.imageType
+  return startOptions
 }
 
 function writeRgb565Le(view: Uint8Array, width: number, height: number): void {
@@ -62,23 +88,24 @@ export default class Camera implements RobotCamera {
   readonly available = true
 
   #started = false
+  #useBrowserCamera: boolean
 
-  constructor(_options?: unknown) {
-    void _options
+  constructor(options: WasmCameraConstructorOptions = {}) {
+    this.#useBrowserCamera = options.useBrowserCamera ?? DEFAULT_USE_BROWSER_CAMERA
   }
 
-  async start(options?: CameraCaptureOptions): Promise<void> {
+  async start(options?: WasmCameraStartOptions): Promise<void> {
     const wasmBridge = wasmCameraBridge()
     if (wasmBridge) {
       await wasmBridge.start(
         normalizeDimension(options?.width, DEFAULT_WIDTH),
         normalizeDimension(options?.height, DEFAULT_HEIGHT),
-        Boolean(options?.useBrowserCamera),
+        resolveUseBrowserCamera(options, this.#useBrowserCamera),
       )
       this.#started = true
       return
     }
-    await hostCamera()?.start?.(options)
+    await hostCamera()?.start?.(createHostCameraStartOptions(options, this.#useBrowserCamera))
     this.#started = true
   }
 

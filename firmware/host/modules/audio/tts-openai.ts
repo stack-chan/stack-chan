@@ -1,8 +1,8 @@
 /* eslint-disable prefer-const */
 
-import calculatePower from 'calculate-power'
 import OpenAIStreamer from 'openaistreamer'
-import AudioOut from 'pins/audioout'
+import type AudioOut from 'pins/audioout'
+import { runTTSPlayback } from 'tts-playback-lifecycle'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 
 /* global trace, SharedArrayBuffer */
@@ -41,56 +41,27 @@ export class TTS {
     this.volume = props.volume ?? 0.5
   }
   stream(text: string, volume?: number, callback?: TTSCompletion): void {
-    if (this.streaming) {
-      callback?.(new Error('already playing'))
-      return
-    }
-    this.streaming = true
-    const { onPlayed, onDone } = this
-    this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: 24000 })
-    this.audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
-    const audio = this.audio
-    const streamer = new OpenAIStreamer({
-      input: text,
-      key: this.token,
-      model: this.model,
-      voice: this.voice,
-      speed: this.speed,
-      instructions: this.instructions,
-      response_format: 'wav',
-      audio: {
-        out: audio,
-        stream: 0,
-      },
-      onPlayed(buffer) {
-        const power = calculatePower(buffer)
-        onPlayed?.(power)
-      },
-      onReady(state) {
-        trace(`Ready: ${state}\n`)
-        if (state) {
-          audio.start()
-        } else {
-          audio.stop()
-        }
-      },
-      onError: (e) => {
-        trace('ERROR: ', e, '\n')
-        this.streaming = false
-        streamer?.close()
-        this.audio?.close()
-        this.audio = undefined
-        callback?.(e)
-      },
-      onDone: () => {
-        trace('DONE\n')
-        this.streaming = false
-        streamer?.close()
-        this.audio?.close()
-        this.audio = undefined
-        onDone?.()
-        callback?.()
-      },
+    runTTSPlayback(this, callback, (lifecycle) => {
+      const audio = lifecycle.openAudio({ streams: 1, bitsPerSample: 16, sampleRate: 24000 }, volume ?? this.volume)
+      lifecycle.attach(
+        new OpenAIStreamer({
+          input: text,
+          key: this.token,
+          model: this.model,
+          voice: this.voice,
+          speed: this.speed,
+          instructions: this.instructions,
+          response_format: 'wav',
+          audio: {
+            out: audio,
+            stream: 0,
+          },
+          onPlayed: lifecycle.onPlayed,
+          onReady: lifecycle.onReady,
+          onError: lifecycle.onError,
+          onDone: lifecycle.onDone,
+        }),
+      )
     })
   }
 }

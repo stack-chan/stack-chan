@@ -1,9 +1,8 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { TTS } from 'capabilities'
 import type Microphone from 'microphone'
-import { type Maybe, noop } from 'stackchan-util'
+import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
 import type Tone from 'tone'
-import type { TTSCompletion } from 'tts-types'
 
 export type RuntimeAudioConstructorParam = {
   tts: TTS
@@ -13,22 +12,6 @@ export type RuntimeAudioConstructorParam = {
 
 type RuntimeAudioOptions = {
   onMouthOpenChanged?: (value: number) => void
-}
-
-function waitForSpeech(start: (callback: TTSCompletion) => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    try {
-      start((error) => {
-        if (error != null) {
-          reject(error)
-        } else {
-          resolve()
-        }
-      })
-    } catch (error) {
-      reject(error)
-    }
-  })
 }
 
 export class StackchanRuntimeAudio {
@@ -68,7 +51,7 @@ export class StackchanRuntimeAudio {
 
   async say(text: string, volume?: number): Promise<Maybe<string>> {
     try {
-      await waitForSpeech((callback) => this.#tts.stream(text, volume, callback))
+      await waitForCompletion((callback) => this.#tts.stream(text, volume, callback))
       return {
         success: true,
         value: text,
@@ -97,9 +80,7 @@ export class StackchanRuntimeAudio {
   }
 
   async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
-    const player = this.#tone as unknown as
-      | { play?: (buffer: BorrowedAudioBuffer) => Promise<boolean> | boolean }
-      | undefined
-    return (await player?.play?.(buffer)) ?? false
+    if (!this.#tone) return false
+    return this.#tone.play(buffer)
   }
 }

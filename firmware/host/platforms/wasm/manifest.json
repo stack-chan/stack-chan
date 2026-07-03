@@ -14,15 +14,18 @@
     "../../modules/connectivity/manifest_wasm.json",
     "../../modules/input/manifest.json",
     "../../modules/util/manifest.json",
-    "../../modules/preferences/manifest.json",
+    "../../modules/preferences/manifest_wasm.json",
     "../../app/manifest_typings.json"
   ],
   "modules": {
     "*": [
       "../../app/main",
       "../../app/app-behavior",
+      "../../app/app-behavior-resolver",
+      "../../app/boot-services",
       "../../app/compose",
       "../../app/capabilities",
+      "../../app/setup-mode",
       "../../app/runtime-audio",
       "../../app/runtime-camera",
       "../../app/runtime-context",

@@ -1,5 +1,5 @@
-import AudioIn from 'embedded:io/audio/in'
 import { type OwnedAudioBuffer, ownAudioBuffer } from 'audio-buffer'
+import AudioIn from 'audio-in'
 
 export default class Microphone {
   recording: boolean
@@ -40,36 +40,61 @@ export default class Microphone {
     this.recording = true
     const HEADER_SIZE = 44
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       let writeOffset = 0
-      const audioin = new AudioIn({
-        onReadable(size) {
-          const remaining = dataView.byteLength - writeOffset
-          trace(`${remaining}\n`)
-          const chunkSize = Math.min(size, remaining)
-          const chunk = this.read(chunkSize)
+      let audioin: AudioIn | undefined
+      // biome-ignore lint/style/useConst: AudioIn callback closes over the buffer before AudioIn exposes its format fields.
+      let wavBuffer: ArrayBuffer
+      // biome-ignore lint/style/useConst: AudioIn callback closes over the view before AudioIn exposes its format fields.
+      let dataView: Uint8Array
+      let finished = false
+      const finish = () => {
+        if (finished) return
+        finished = true
+        audioin?.close()
+        this.recording = false
+        resolve(ownAudioBuffer(wavBuffer))
+      }
+      const fail = (error: unknown) => {
+        if (finished) return
+        finished = true
+        audioin?.close()
+        this.recording = false
+        reject(error)
+      }
 
-          if (!chunk) {
-            this.close()
-            resolve(ownAudioBuffer(wavBuffer))
-          } else {
-            dataView.set(new Uint8Array(chunk), writeOffset)
-            writeOffset += chunkSize
-            if (writeOffset >= dataView.byteLength) {
-              this.close()
-              resolve(ownAudioBuffer(wavBuffer))
+      try {
+        audioin = new AudioIn({
+          onReadable(size) {
+            const remaining = dataView.byteLength - writeOffset
+            trace(`${remaining}\n`)
+            const chunkSize = Math.min(size, remaining)
+            const chunk = this.read(chunkSize)
+
+            if (!chunk) {
+              finish()
+            } else {
+              dataView.set(new Uint8Array(chunk), writeOffset)
+              writeOffset += chunkSize
+              if (writeOffset >= dataView.byteLength) {
+                finish()
+              }
             }
-          }
-        },
-      })
+          },
+        })
+      } catch (error) {
+        this.recording = false
+        reject(error)
+        return
+      }
 
       // generate header
       const { sampleRate, channels, bitsPerSample } = audioin
       const byteRate = sampleRate * channels * (bitsPerSample >> 3)
       const contentLength = (durationMilliSec / 1000) * byteRate
-      const wavBuffer = new ArrayBuffer(HEADER_SIZE + contentLength)
+      wavBuffer = new ArrayBuffer(HEADER_SIZE + contentLength)
       const headerView = new DataView(wavBuffer)
-      const dataView = new Uint8Array(wavBuffer, HEADER_SIZE)
+      dataView = new Uint8Array(wavBuffer, HEADER_SIZE)
 
       headerView.setUint8(0, 'R'.charCodeAt(0))
       headerView.setUint8(1, 'I'.charCodeAt(0))
@@ -98,7 +123,11 @@ export default class Microphone {
       headerView.setUint32(40, contentLength, true)
 
       // start recording
-      audioin.start()
+      try {
+        audioin.start()
+      } catch (error) {
+        fail(error)
+      }
     })
   }
 }

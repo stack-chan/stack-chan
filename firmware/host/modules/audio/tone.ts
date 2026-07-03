@@ -1,3 +1,4 @@
+import type { BorrowedAudioBuffer } from 'audio-buffer'
 import AudioOut from 'pins/audioout'
 
 export type ToneProperty = {
@@ -28,5 +29,11 @@ export default class Tone {
         resolve()
       }
     })
+  }
+
+  async play(buffer: BorrowedAudioBuffer): Promise<boolean> {
+    void buffer
+    trace('Audio buffer playback is not supported on this target\n')
+    return false
   }
 }

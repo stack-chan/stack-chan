@@ -1,4 +1,4 @@
-import { sampleRgb565LeMosaic } from 'camera-preview-utils'
+import { sampleRgb565LeMosaic, toPiuColorString } from 'camera-preview-utils'
 import Bitmap from 'commodetto/Bitmap'
 import { Container, type Container as PiuContainer, type Port as PiuPort } from 'piu/MC'
 import RuntimeBitmapPort from 'runtime-bitmap-port'
@@ -12,6 +12,7 @@ export type CameraPreviewOptions = {
   onRender?: (mode: CameraPreviewRenderMode) => void
   onDismiss?: () => void
 }
+export type CameraPreviewFrame = CameraFrame
 
 const PREVIEW_LEFT = 60
 const PREVIEW_TOP = 60
@@ -20,11 +21,6 @@ const PREVIEW_BACKGROUND = '#101010'
 
 type BitmapPort = PiuPort & {
   drawBitmap?: (bitmap: Bitmap, x: number, y: number, sx?: number, sy?: number, sw?: number, sh?: number) => void
-}
-
-function piuColor(color: number): string {
-  const hex = color.toString(16).padStart(6, '0')
-  return `#${hex}`
 }
 
 function canDrawFrameAsBitmap(frame: CameraFrame): boolean {
@@ -47,7 +43,11 @@ function drawRgb565Bitmap(port: BitmapPort, frame: CameraFrame): boolean {
   return true
 }
 
-export function createCameraPreviewFace(frame: CameraFrame, options: CameraPreviewOptions = {}): PiuContainer {
+export function prepareCameraPreviewFrame(frame: CameraFrame): CameraPreviewFrame {
+  return frame
+}
+
+export function createCameraPreviewFace(frame: CameraPreviewFrame, options: CameraPreviewOptions = {}): PiuContainer {
   const previewPort = new RuntimeBitmapPort(
     { frame, options },
     {
@@ -89,7 +89,7 @@ export function createCameraPreviewFace(frame: CameraFrame, options: CameraPrevi
             height: CAMERA_PREVIEW_HEIGHT,
             blockSize: PREVIEW_BLOCK_SIZE,
           })) {
-            port.fillColor(piuColor(block.color), block.x, block.y, block.width, block.height)
+            port.fillColor(toPiuColorString(block.color), block.x, block.y, block.width, block.height)
           }
           this.reportRenderMode('mosaic')
         }

@@ -1,11 +1,11 @@
 /* eslint-disable prefer-const */
 
 import type HTTPClient from 'embedded:network/http/client'
-import calculatePower from 'calculate-power'
 import { File } from 'file'
 import Headers from 'headers'
 import config from 'mc/config'
-import AudioOut from 'pins/audioout'
+import type AudioOut from 'pins/audioout'
+import { beginTTSPlayback } from 'tts-playback-lifecycle'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 import WavStreamer from 'wavstreamer'
 
@@ -102,82 +102,58 @@ export class TTS {
     })
   }
   stream(key: string, volume?: number, callback?: TTSCompletion): void {
-    if (this.streaming) {
-      callback?.(new Error('already playing'))
-      return
-    }
-    this.streaming = true
+    const lifecycle = beginTTSPlayback(this, callback)
+    if (!lifecycle) return
 
     const host = this.host
     const port = this.port
     const speakerId = this.speakerId
     this.getQuery(key, speakerId).then(
       () => {
-        const { onPlayed, onDone } = this
-        const file = new File(QUERY_PATH)
-        trace(`file opened. length: ${file.length}, position: ${file.position}`)
-        this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate })
-        this.audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
-        const audio = this.audio
-        const streamer = new WavStreamer({
-          http: device.network.http,
-          host,
-          port,
-          path: encodeURI(`/synthesis?speaker=${speakerId}`),
-          audio: {
-            out: audio,
-            stream: 0,
-          },
-          bufferDuration: 600,
-          request: {
-            method: 'POST',
-            headers: new Headers([
-              ['content-type', 'application/json'],
-              ['content-length', `${file.length}`],
-            ]),
-            onWritable(count) {
-              const chunk = file.read(ArrayBuffer, count)
-              if (chunk != null) {
-                this.write(chunk)
-              }
-            },
-          },
-          onPlayed(buffer) {
-            const power = calculatePower(buffer)
-            onPlayed?.(power)
-          },
-          onReady(state) {
-            trace(`Ready: ${state}\n`)
-            if (state) {
-              audio.start()
-            } else {
-              audio.stop()
-            }
-          },
-          onError: (e) => {
-            file.close()
-            trace('ERROR: ', e, '\n')
-            this.streaming = false
-            streamer?.close()
-            this.audio?.close()
-            this.audio = undefined
-            callback?.(e)
-          },
-          onDone: () => {
-            file.close()
-            trace('DONE\n')
-            this.streaming = false
-            streamer?.close()
-            this.audio?.close()
-            this.audio = undefined
-            onDone?.()
-            callback?.()
-          },
-        })
+        try {
+          const file = new File(QUERY_PATH)
+          lifecycle.addCleanup(() => file.close())
+          trace(`file opened. length: ${file.length}, position: ${file.position}`)
+          const audio = lifecycle.openAudio(
+            { streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate },
+            volume ?? this.volume,
+          )
+          lifecycle.attach(
+            new WavStreamer({
+              http: device.network.http,
+              host,
+              port,
+              path: encodeURI(`/synthesis?speaker=${speakerId}`),
+              audio: {
+                out: audio,
+                stream: 0,
+              },
+              bufferDuration: 600,
+              request: {
+                method: 'POST',
+                headers: new Headers([
+                  ['content-type', 'application/json'],
+                  ['content-length', `${file.length}`],
+                ]),
+                onWritable(count) {
+                  const chunk = file.read(ArrayBuffer, count)
+                  if (chunk != null) {
+                    this.write(chunk)
+                  }
+                },
+              },
+              onPlayed: lifecycle.onPlayed,
+              onReady: lifecycle.onReady,
+              onError: lifecycle.onError,
+              onDone: lifecycle.onDone,
+            }),
+          )
+        } catch (error) {
+          lifecycle.fail(error)
+        }
       },
       (error) => {
-        this.streaming = false
-        callback?.(error)
+        lifecycle.fail(error)
       },
     )
   }

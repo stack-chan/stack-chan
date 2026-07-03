@@ -22,6 +22,17 @@ export type MosaicOptions = {
   blockSize: number
 }
 
+const HEX_DIGITS = '0123456789abcdef'
+
+function hexByte(value: number): string {
+  const byte = value & 0xff
+  return `${HEX_DIGITS[(byte >> 4) & 0x0f]}${HEX_DIGITS[byte & 0x0f]}`
+}
+
+export function toPiuColorString(color: number): string {
+  return `#${hexByte(color >> 16)}${hexByte(color >> 8)}${hexByte(color)}`
+}
+
 export function rgb565LeToPiuColor(buffer: ArrayBuffer, byteOffset: number): number {
   const view = new Uint8Array(buffer)
   const pixel = view[byteOffset] | (view[byteOffset + 1] << 8)

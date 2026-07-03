@@ -1,5 +1,11 @@
 import { Container, type Container as PiuContainer, type Port as PiuPort, Port } from 'piu/MC'
-import { type CameraFrame, sampleRgb565LeMosaic } from './camera-preview-utils.js'
+import {
+  type CameraFrame,
+  type CameraImageType,
+  type MosaicBlock,
+  sampleRgb565LeMosaic,
+  toPiuColorString,
+} from './camera-preview-utils.js'
 
 export const CAMERA_PREVIEW_WIDTH = 200
 export const CAMERA_PREVIEW_HEIGHT = 120
@@ -10,19 +16,34 @@ export type CameraPreviewOptions = {
   onDismiss?: () => void
 }
 
+export type CameraPreviewFrame = {
+  width: number
+  height: number
+  imageType: CameraImageType
+  blocks: MosaicBlock[]
+}
+
 const PREVIEW_LEFT = 60
 const PREVIEW_TOP = 60
 const PREVIEW_BLOCK_SIZE = 48
 const PREVIEW_BACKGROUND = '#101010'
 
-function piuColor(color: number): string {
-  const hex = color.toString(16).padStart(6, '0')
-  return `#${hex}`
+export function prepareCameraPreviewFrame(frame: CameraFrame): CameraPreviewFrame {
+  return {
+    width: CAMERA_PREVIEW_WIDTH,
+    height: CAMERA_PREVIEW_HEIGHT,
+    imageType: frame.imageType,
+    blocks: sampleRgb565LeMosaic(frame, {
+      width: CAMERA_PREVIEW_WIDTH,
+      height: CAMERA_PREVIEW_HEIGHT,
+      blockSize: PREVIEW_BLOCK_SIZE,
+    }),
+  }
 }
 
-export function createCameraPreviewFace(frame: CameraFrame, options: CameraPreviewOptions = {}): PiuContainer {
+export function createCameraPreviewFace(preview: CameraPreviewFrame, options: CameraPreviewOptions = {}): PiuContainer {
   const previewPort = new Port(
-    { frame, options },
+    { preview, options },
     {
       left: 0,
       top: 0,
@@ -30,12 +51,12 @@ export function createCameraPreviewFace(frame: CameraFrame, options: CameraPrevi
       height: CAMERA_PREVIEW_HEIGHT,
       active: true,
       Behavior: class extends Behavior {
-        frame: CameraFrame | null = null
+        preview: CameraPreviewFrame | null = null
         options: CameraPreviewOptions | null = null
         didReportRenderMode = false
 
-        onCreate(_port: PiuPort, data: { frame: CameraFrame; options: CameraPreviewOptions }) {
-          this.frame = data.frame
+        onCreate(_port: PiuPort, data: { preview: CameraPreviewFrame; options: CameraPreviewOptions }) {
+          this.preview = data.preview
           this.options = data.options
         }
 
@@ -49,15 +70,11 @@ export function createCameraPreviewFace(frame: CameraFrame, options: CameraPrevi
 
         onDraw(port: PiuPort) {
           port.fillColor(PREVIEW_BACKGROUND, 0, 0, CAMERA_PREVIEW_WIDTH, CAMERA_PREVIEW_HEIGHT)
-          const frame = this.frame
-          if (!frame) return
+          const preview = this.preview
+          if (!preview) return
 
-          for (const block of sampleRgb565LeMosaic(frame, {
-            width: CAMERA_PREVIEW_WIDTH,
-            height: CAMERA_PREVIEW_HEIGHT,
-            blockSize: PREVIEW_BLOCK_SIZE,
-          })) {
-            port.fillColor(piuColor(block.color), block.x, block.y, block.width, block.height)
+          for (const block of preview.blocks) {
+            port.fillColor(toPiuColorString(block.color), block.x, block.y, block.width, block.height)
           }
           this.reportRenderMode()
         }

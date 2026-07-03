@@ -1,17 +1,12 @@
 declare const setTimeout: (callback: () => void, delay?: number) => unknown
 
 import type { BorrowedAudioBuffer } from 'audio-buffer'
+import type { WasmAudioOutputBridge } from './audio-bridge-contract.js'
 
-type WasmAudioBridge = {
-  close: () => void
-  playStatus: () => number
-  setTimer?: (callback: () => void, delay?: number) => unknown
-  startPlayBuffer: (buffer: ArrayBuffer) => void
-  tone: (hz: number, duration: number, volume?: number) => void
-}
+const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50
 
 type AudioBridgeGlobal = typeof globalThis & {
-  __stackchanWasmAudioBridge?: WasmAudioBridge
+  __stackchanWasmAudioBridge?: WasmAudioOutputBridge
   Host?: {
     AudioOut?: {
       close?: () => void
@@ -21,7 +16,7 @@ type AudioBridgeGlobal = typeof globalThis & {
   }
 }
 
-const getAudioBridge = (): WasmAudioBridge => {
+const getAudioBridge = (): WasmAudioOutputBridge => {
   const env = globalThis as AudioBridgeGlobal
   let playStatus = -1
   return (
@@ -45,7 +40,7 @@ const getAudioBridge = (): WasmAudioBridge => {
   )
 }
 
-const schedule = (audioBridge: WasmAudioBridge, callback: () => void, delay: number) => {
+const schedule = (audioBridge: WasmAudioOutputBridge, callback: () => void, delay: number) => {
   if (audioBridge.setTimer) audioBridge.setTimer(callback, delay)
   else setTimeout(callback, delay)
 }
@@ -71,7 +66,7 @@ export default class Tone {
       const poll = () => {
         const status = audioBridge.playStatus()
         if (status === 0) {
-          schedule(audioBridge, poll, 50)
+          schedule(audioBridge, poll, WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS)
           return
         }
         resolve(status > 0)

@@ -26,3 +26,21 @@ test('loadPreference is imported only by app composition and preferences module'
 
   assert.deepEqual(offenders, [])
 })
+
+test('loadPreference resolves optional MOD config lazily', () => {
+  const source = readFileSync('host/modules/preferences/loadPreference.ts', 'utf8')
+
+  assert.match(source, /function loadModConfig\(\): ConfigRecord/)
+  assert.match(source, /try \{/)
+  assert.match(source, /Modules\.has\('mod\/config'\)/)
+  assert.doesNotMatch(source, /const modConfig: ConfigRecord = Modules\.has/)
+})
+
+test('web preference console uses the canonical ui preference domain for face type', () => {
+  const source = readFileSync('../web/preference/index.html', 'utf8')
+
+  assert.match(source, /['"]ui\.type['"]/)
+  assert.match(source, /name="ui\.type"/)
+  assert.match(source, /id="ui\.type"/)
+  assert.doesNotMatch(source, /renderer\.type/)
+})

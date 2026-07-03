@@ -211,6 +211,23 @@ test('WASM microphone falls back to an empty buffer when Host.AudioIn is unavail
   assert.equal(result.byteLength, 0)
 })
 
+test('WASM microphone rejects browser Host.AudioIn bridge errors', async () => {
+  const previousHost = globalThis.Host
+  globalThis.Host = {
+    AudioIn: {
+      async record() {
+        throw new Error('permission denied')
+      },
+    },
+  }
+
+  try {
+    await assert.rejects(() => new Microphone().record(1000), /permission denied/)
+  } finally {
+    globalThis.Host = previousHost
+  }
+})
+
 test('WASM synthetic camera captures deterministic RGB565LE frames', async () => {
   const camera = new Camera()
 
@@ -243,7 +260,7 @@ test('WASM camera forwards start and stop to the browser Host.Camera bridge when
     await camera.start({ width: 2, height: 2 })
     await camera.stop()
 
-    assert.deepEqual(calls, [{ start: { width: 2, height: 2 } }, { stop: true }])
+    assert.deepEqual(calls, [{ start: { width: 2, height: 2, useBrowserCamera: true } }, { stop: true }])
   } finally {
     globalThis.Host = previousHost
   }
@@ -267,7 +284,7 @@ test('WASM camera uses the native browser camera bridge when it is preloaded', a
 
   try {
     const camera = new Camera()
-    await camera.start({ width: 200, height: 120, imageType: 'rgb565le', useBrowserCamera: true })
+    await camera.start({ width: 200, height: 120, imageType: 'rgb565le' })
     const frame = await camera.capture({ width: 200, height: 120, imageType: 'rgb565le' })
     await camera.stop()
 
@@ -279,6 +296,28 @@ test('WASM camera uses the native browser camera bridge when it is preloaded', a
     assert.ok(frame)
     assert.notEqual(frame.buffer, buffer)
     assert.deepEqual(new Uint8Array(frame.buffer), new Uint8Array(buffer))
+  } finally {
+    setWasmCameraBridge(previousBridge)
+  }
+})
+
+test('WASM camera constructor can disable the browser camera default', async () => {
+  const calls: unknown[] = []
+  const previousBridge = setWasmCameraBridge({
+    start(width, height, useBrowserCamera) {
+      calls.push({ start: { width, height, useBrowserCamera } })
+    },
+    stop() {},
+    capture() {
+      return undefined
+    },
+  })
+
+  try {
+    const camera = new Camera({ useBrowserCamera: false })
+    await camera.start({ width: 3, height: 4 })
+
+    assert.deepEqual(calls, [{ start: { width: 3, height: 4, useBrowserCamera: false } }])
   } finally {
     setWasmCameraBridge(previousBridge)
   }

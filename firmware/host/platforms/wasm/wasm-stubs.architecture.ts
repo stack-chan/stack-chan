@@ -58,6 +58,7 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
   assert.ok(manifest.include.includes('../../modules/audio/manifest_wasm.json'))
   assert.ok(manifest.include.includes('../../modules/camera/manifest_wasm.json'))
   assert.ok(manifest.include.includes('../../modules/motion/manifest_wasm.json'))
+  assert.ok(manifest.include.includes('../../modules/preferences/manifest_wasm.json'))
   assert.ok(manifest.preload.includes('wasm-camera-bridge'))
   assert.ok(manifest.include.includes('../../modules/input/manifest.json'))
   assert.ok(manifest.preload.includes('touch-panel'))
@@ -72,16 +73,51 @@ test('WASM manifest keeps concrete servo driver module specifiers as facades for
   )
 })
 
+test('WASM preferences use an in-memory Preference implementation', () => {
+  const platformManifest = readManifest('host/platforms/wasm/manifest.json')
+  const connectivityManifest = readManifest('host/modules/connectivity/manifest_wasm.json')
+  const preferencesManifest = readManifest('host/modules/preferences/manifest_wasm.json')
+  const preferenceSource = readFileSync('host/modules/preferences/wasm/preference.ts', 'utf8')
+
+  assert.ok(platformManifest.include.includes('../../modules/preferences/manifest_wasm.json'))
+  assert.ok(connectivityManifest.include.includes('../preferences/manifest_wasm.json'))
+  assert.equal(preferencesManifest.modules.preference, './wasm/preference')
+  assert.ok(!preferencesManifest.include.includes('$(MODULES)/files/preference/manifest.json'))
+  assert.match(preferenceSource, /Object\.create\(null\)/)
+  assert.match(preferenceSource, /get\(domain: string, key: string\): unknown/)
+  assert.match(preferenceSource, /set\(domain: string, key: string, value: unknown\): void/)
+  assert.match(preferenceSource, /export default Preference/)
+})
+
+test('WASM source imports omit TypeScript file extensions', () => {
+  const offenders = listSourceFiles('host')
+    .map((path) => relative('.', path))
+    .filter((path) => isWasmSource(path) && !isTestSource(path))
+    .flatMap((path) =>
+      importSpecifiers(readFileSync(path, 'utf8'))
+        .filter((specifier) => specifier.endsWith('.ts'))
+        .map((specifier) => `${path}: ${specifier}`),
+    )
+
+  assert.deepEqual(offenders, [])
+})
+
 test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', () => {
   const manifest = readManifest('host/modules/audio/manifest_wasm.json')
+  const microphone = readFileSync('host/modules/audio/wasm/microphone.ts', 'utf8')
+  const tone = readFileSync('host/modules/audio/wasm/tone.ts', 'utf8')
+  const contract = readFileSync('host/modules/audio/wasm/audio-bridge-contract.ts', 'utf8')
+  const nativeBridge = readFileSync('host/modules/audio/wasm/audio-bridge.js', 'utf8')
+  const cameraBridge = readFileSync('host/modules/camera/wasm/camera-bridge.js', 'utf8')
 
   assert.deepEqual(
     {
       'audio-buffer': manifest.modules['audio-buffer'],
       'wasm-audio-bridge': manifest.modules['wasm-audio-bridge'],
+      'wasm-audio-bridge-contract': manifest.modules['wasm-audio-bridge-contract'],
       tone: manifest.modules.tone,
       microphone: manifest.modules.microphone,
-      'embedded:io/audio/in': manifest.modules['embedded:io/audio/in'],
+      'audio-in': manifest.modules['audio-in'],
       'tts-types': manifest.modules['tts-types'],
       'tts-local': manifest.modules['tts-local'],
       'tts-remote': manifest.modules['tts-remote'],
@@ -93,9 +129,10 @@ test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', (
     {
       'audio-buffer': './audio-buffer',
       'wasm-audio-bridge': './wasm/audio-bridge',
+      'wasm-audio-bridge-contract': './wasm/audio-bridge-contract',
       tone: './wasm/tone',
       microphone: './wasm/microphone',
-      'embedded:io/audio/in': './wasm/audio-in',
+      'audio-in': './wasm/audio-in',
       'tts-types': './tts-types',
       'tts-local': './wasm/tts-local',
       'tts-remote': './wasm/tts-remote',
@@ -106,6 +143,39 @@ test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', (
     },
   )
   assert.ok(manifest.preload.includes('wasm-audio-bridge'))
+  assert.match(contract, /export type WasmAudioBridge/)
+  assert.match(contract, /WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50/)
+  assert.match(microphone, /WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS/)
+  assert.match(tone, /WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS/)
+  assert.match(microphone, /import type \{ WasmAudioInputBridge \} from '\.\/audio-bridge-contract\.js'/)
+  assert.match(tone, /import type \{ WasmAudioOutputBridge \} from '\.\/audio-bridge-contract\.js'/)
+  assert.match(microphone, /const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50/)
+  assert.match(tone, /const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50/)
+  assert.doesNotMatch(microphone, /^import (?!type).*audio-bridge-contract/m)
+  assert.doesNotMatch(tone, /^import (?!type).*audio-bridge-contract/m)
+  assert.doesNotMatch(microphone, /schedule\(audioBridge, poll, 50\)/)
+  assert.doesNotMatch(tone, /schedule\(audioBridge, poll, 50\)/)
+  assert.doesNotMatch(nativeBridge, /export default/)
+  assert.doesNotMatch(cameraBridge, /export default/)
+  assert.match(nativeBridge, /globalThis\.__stackchanWasmAudioBridge =/)
+  assert.match(cameraBridge, /globalThis\.__stackchanWasmCameraBridge =/)
+})
+
+test('WASM camera owns the browser camera default option', () => {
+  const cameraTypes = readFileSync('host/modules/camera/camera.ts', 'utf8')
+  const wasmCamera = readFileSync('host/modules/camera/wasm/camera.ts', 'utf8')
+  const deviceCamera = readFileSync('host/modules/camera/device/camera.ts', 'utf8')
+  const defaultBehavior = readFileSync('host/app/default-behavior/on-context-created.ts', 'utf8')
+
+  assert.doesNotMatch(cameraTypes, /useBrowserCamera/)
+  assert.doesNotMatch(defaultBehavior, /useBrowserCamera/)
+  assert.match(wasmCamera, /const DEFAULT_USE_BROWSER_CAMERA = true/)
+  assert.match(wasmCamera, /export type WasmCameraConstructorOptions = \{/)
+  assert.match(wasmCamera, /export type WasmCameraStartOptions = CameraCaptureOptions & \{/)
+  assert.match(wasmCamera, /useBrowserCamera\?: boolean/)
+  assert.match(wasmCamera, /resolveUseBrowserCamera\(options, this\.#useBrowserCamera\)/)
+  assert.match(deviceCamera, /export type DeviceCameraConstructorOptions = Record<string, never>/)
+  assert.doesNotMatch(deviceCamera, /WasmCameraConstructorOptions/)
 })
 
 test('WASM servo driver manifest keeps facade module specifiers', () => {
@@ -144,6 +214,17 @@ test('WASM manifest selects the wasm app default behavior without an app-layer r
   )
   assert.equal(manifest.modules['app-default-behavior/*'], undefined)
   assert.ok(manifest.preload.includes('app-default-behavior'))
+})
+
+test('WASM manifest keeps the shared app runtime module list in sync with the host app manifest', () => {
+  const appManifest = readManifest('host/app/manifest.json')
+  const wasmManifest = readManifest('host/platforms/wasm/manifest.json')
+  const hostAppModules = appManifest.modules['*']
+    .filter((specifier: string) => specifier.startsWith('./'))
+    .map((specifier: string) => `../../app/${specifier.slice(2)}`)
+  const wasmAppModules = wasmManifest.modules['*'].filter((specifier: string) => specifier.startsWith('../../app/'))
+
+  assert.deepEqual(wasmAppModules, hostAppModules)
 })
 
 test('real-device camera preview manifest resolves the shared UI preview module', () => {
@@ -192,7 +273,7 @@ test('App main lets an installed MOD replace the product default behavior', () =
   assert.match(mainSource, /resolveAppBehaviors\(Modules, defaultBehavior\)/)
   assert.match(mainSource, /runLaunchBehaviors\(appBehaviors\)/)
   assert.match(mainSource, /loadPreferenceConfig\(\)/)
-  assert.match(mainSource, /createStackchanContext\(preferences\)/)
+  assert.match(mainSource, /createStackchanContext\(preferences, \{ connectivity: bootServices\.connectivity \}\)/)
   assert.match(mainSource, /runContextCreatedBehaviors\(appBehaviors, context, \{/)
   assert.match(mainSource, /device: getHostDeviceEnvironment\(\)/)
   assert.match(mainSource, /config: preferences/)
@@ -217,6 +298,18 @@ test('real-device camera preview stays independent from the WASM-only RuntimeBit
   assert.match(previewSource, /this\.options\?\.onRender\?\.\('mosaic'\)/)
 })
 
+test('camera preview keeps sampled mosaic blocks instead of copied full frames', () => {
+  const previewSource = readFileSync('host/modules/ui/views/camera-preview/camera-preview-view.ts', 'utf8')
+  const behaviorSource = readFileSync('host/app/default-behavior/on-context-created.ts', 'utf8')
+
+  assert.match(behaviorSource, /prepareCameraPreviewFrame\(frame\)/)
+  assert.doesNotMatch(behaviorSource, /frame\.buffer\.slice\(0\)/)
+  assert.doesNotMatch(behaviorSource, /buffer:\s*frame\.buffer/)
+  assert.match(previewSource, /prepareCameraPreviewFrame/)
+  assert.match(previewSource, /blocks: MosaicBlock\[\]/)
+  assert.match(previewSource, /for \(const block of preview\.blocks\)/)
+})
+
 test('WASM camera preview uses a native RuntimeBitmapPort binding before falling back to mosaic', () => {
   const previewSource = readFileSync('host/modules/camera/wasm/camera-preview.ts', 'utf8')
   const portSource = readFileSync('host/modules/camera/wasm/runtime-bitmap-port.js', 'utf8')
@@ -225,6 +318,8 @@ test('WASM camera preview uses a native RuntimeBitmapPort binding before falling
   assert.match(portSource, /xs_stackchan_runtime_bitmap_port_draw/)
   assert.match(previewSource, /import RuntimeBitmapPort from 'runtime-bitmap-port'/)
   assert.match(previewSource, /from 'camera-preview-utils'/)
+  assert.match(previewSource, /prepareCameraPreviewFrame\(frame: CameraFrame\): CameraPreviewFrame/)
+  assert.match(previewSource, /return frame/)
   assert.doesNotMatch(previewSource, /^import (?!type).*from '\.\.\//m)
   assert.match(previewSource, /new RuntimeBitmapPort\(/)
   assert.match(previewSource, /reportRenderMode\('runtime-bitmap-port'\)/)
@@ -242,8 +337,8 @@ test('WASM camera preview can be dismissed by touch or an automatic timeout', ()
   assert.match(previewSource, /this\.options\?\.onDismiss\?\.\(\)/)
   assert.match(modSource, /CAMERA_PREVIEW_DURATION_MS = 5000/)
   assert.match(modSource, /onDismiss: restoreCameraPreview/)
-  assert.match(modSource, /distribute\?\.\('onDrawerClose'\)/)
   assert.match(modSource, /closeDrawer\(\)/)
+  assert.match(modSource, /robot\.ui\.closeDrawer\(\)/)
   assert.match(modSource, /Timer\.set\(restoreCameraPreview, CAMERA_PREVIEW_DURATION_MS\)/)
   assert.doesNotMatch(modSource, /robot\.camera\.stop\(\)/)
 })

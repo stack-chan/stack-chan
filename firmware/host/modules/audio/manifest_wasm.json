@@ -6,9 +6,10 @@
   "modules": {
     "audio-buffer": "./audio-buffer",
     "wasm-audio-bridge": "./wasm/audio-bridge",
+    "wasm-audio-bridge-contract": "./wasm/audio-bridge-contract",
     "tone": "./wasm/tone",
     "microphone": "./wasm/microphone",
-    "embedded:io/audio/in": "./wasm/audio-in",
+    "audio-in": "./wasm/audio-in",
     "tts-types": "./tts-types",
     "tts-local": "./wasm/tts-local",
     "tts-remote": "./wasm/tts-remote",

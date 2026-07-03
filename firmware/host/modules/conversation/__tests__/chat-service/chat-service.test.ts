@@ -1,6 +1,6 @@
 import type ChatAudioIOBase from 'ChatAudioIO'
 import ChatAudioIO from 'ChatAudioIO'
-import { ChatService, ChatState, type ChatState as ChatStateValue, type ChatTool } from 'chat'
+import { ChatService, ChatState, type ChatState as ChatStateValue, type ChatTool, MAX_TRANSCRIPT_CHARS } from 'chat'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
 
@@ -80,6 +80,15 @@ instance.emitOutputTranscript('hi', false)
 equal(service.transcript.input, 'hello', 'input transcript should be kept by conversation state')
 equal(service.transcript.output, 'hi', 'output transcript should be kept by conversation state')
 
+let longChunk = ''
+for (let i = 0; i < 128; i += 1) {
+  longChunk += '0123456789abcdef'
+}
+for (let i = 0; i < 3; i += 1) {
+  instance.emitOutputTranscript(longChunk, true)
+}
+equal(service.transcript.output.length, MAX_TRANSCRIPT_CHARS, 'output transcript should keep a bounded tail')
+
 instance.emitFunctionCall('call-1', 'sample', { foo: 'bar' })
 const requestedCall = service.functionCalls[0]
 equal(requestedCall ? requestedCall.name : undefined, 'sample', 'function call name should be kept')
@@ -97,6 +106,10 @@ equal(completedCall ? completedCall.status : undefined, 'completed', 'function r
 service.stop()
 equal(states[2], ChatState.DISCONNECTING, 'state should map to DISCONNECTING')
 equal(states[3], ChatState.DISCONNECTED, 'state should map to DISCONNECTED')
+
+service.start()
+equal(service.transcript.input, '', 'start should clear input transcript for the next session')
+equal(service.transcript.output, '', 'start should clear output transcript for the next session')
 
 trace('ok\n')
 Timer.set(() => {}, 1000)

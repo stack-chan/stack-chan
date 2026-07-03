@@ -30,6 +30,8 @@ export function chatStateToName(state: ChatState): ChatStateName {
 
 export type ChatTranscriptRole = 'input' | 'output'
 
+export const MAX_TRANSCRIPT_CHARS = 4096
+
 export type ChatTranscriptSnapshot = {
   input: string
   output: string
@@ -49,6 +51,10 @@ const MAX_FUNCTION_CALLS = 16
 
 function cloneRecord(record: Record<string, unknown>): Record<string, unknown> {
   return { ...record }
+}
+
+function trimTranscript(text: string): string {
+  return text.length > MAX_TRANSCRIPT_CHARS ? text.slice(text.length - MAX_TRANSCRIPT_CHARS) : text
 }
 
 export class ChatSessionState {
@@ -110,9 +116,7 @@ export class ChatSessionState {
       params: cloneRecord(params ?? {}),
       status: 'requested',
     })
-    while (this.#functionCalls.length > MAX_FUNCTION_CALLS) {
-      this.#functionCalls.shift()
-    }
+    this.#trimFunctionCalls()
   }
 
   recordFunctionResult(call: string, name: string, result: unknown): void {
@@ -131,6 +135,7 @@ export class ChatSessionState {
       status: 'completed',
       result,
     })
+    this.#trimFunctionCalls()
   }
 
   clearFunctionCalls(): void {
@@ -138,10 +143,17 @@ export class ChatSessionState {
   }
 
   #setTranscript(role: ChatTranscriptRole, text: string): void {
+    const next = trimTranscript(text)
     if (role === 'input') {
-      this.#inputTranscript = text
+      this.#inputTranscript = next
       return
     }
-    this.#outputTranscript = text
+    this.#outputTranscript = next
+  }
+
+  #trimFunctionCalls(): void {
+    while (this.#functionCalls.length > MAX_FUNCTION_CALLS) {
+      this.#functionCalls.shift()
+    }
   }
 }

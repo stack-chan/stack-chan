@@ -21,10 +21,11 @@
       "../../../typings/resourcestreamer",
       "../../../typings/wavstreamer",
       "../../../typings/mp3streamer"
-    ]
+    ],
+    "audio-in": "./audio-in"
   },
   "preload": [
-    "embedded:io/audio/in",
+    "audio-in",
     "audio-buffer",
     "microphone",
     "tone",
@@ -100,7 +101,7 @@
     },
     "esp32/m5stack_fire": {
       "modules": {
-        "embedded:io/audio/in": "./platforms/m5stack-fire/audio-in"
+        "audio-in": "./platforms/m5stack-fire/audio-in"
       }
     },
     "esp32/m5stack_cores3": {

@@ -9,7 +9,21 @@ type ConfigRecord = Record<string, any>
 export type PreferenceDomain = keyof typeof DOMAIN
 export type PreferenceConfig = Record<PreferenceDomain, ConfigRecord>
 
-const modConfig: ConfigRecord = Modules.has('mod/config') ? (Modules.importNow('mod/config') as ConfigRecord) : {}
+const LEGACY_RENDERER_DOMAIN = 'renderer'
+let modConfig: ConfigRecord | undefined
+
+function loadModConfig(): ConfigRecord {
+  if (modConfig) return modConfig
+  try {
+    modConfig = Modules.has('mod/config') ? (Modules.importNow('mod/config') as ConfigRecord) : {}
+  } catch (error) {
+    trace(
+      `[preferences] mod config unavailable: ${error && typeof error === 'object' && 'message' in error ? error.message : error}\n`,
+    )
+    modConfig = {}
+  }
+  return modConfig
+}
 
 const PREFERENCE_DOMAINS: PreferenceDomain[] = [
   DOMAIN.wifi,
@@ -21,8 +35,8 @@ const PREFERENCE_DOMAINS: PreferenceDomain[] = [
 ]
 
 export default function loadPreferences(category: PreferenceDomain): ConfigRecord {
-  const mcPreference = structuredClone(config[category.toLowerCase()] ?? {})
-  const modPreference = structuredClone(modConfig[category.toLowerCase()] ?? {})
+  const mcPreference = structuredClone((config[category.toLowerCase()] ?? {}) as ConfigRecord)
+  const modPreference = structuredClone((loadModConfig()[category.toLowerCase()] ?? {}) as ConfigRecord)
 
   const preference = { ...mcPreference, ...modPreference }
 
@@ -31,6 +45,16 @@ export default function loadPreferences(category: PreferenceDomain): ConfigRecor
     const value = Preference.get(domain, key)
     if (value != null) {
       preference[key] = ctor(value)
+    }
+  }
+
+  if (category === DOMAIN.ui && Preference.get(DOMAIN.ui, 'type') == null) {
+    const legacyType = Preference.get(LEGACY_RENDERER_DOMAIN, 'type')
+    if (legacyType != null) {
+      preference.type = String(legacyType)
+      // Write back to the canonical domain so legacy migration is one-shot.
+      Preference.set(DOMAIN.ui, 'type', preference.type)
+      trace(`[preferences] migrated ${LEGACY_RENDERER_DOMAIN}.type to ${DOMAIN.ui}.type\n`)
     }
   }
 

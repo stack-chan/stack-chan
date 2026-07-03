@@ -1,10 +1,11 @@
-import { rgb565LeToPiuColor, sampleRgb565LeMosaic } from 'camera-preview-utils'
+import { rgb565LeToPiuColor, sampleRgb565LeMosaic, toPiuColorString } from 'camera-preview-utils'
 import { equal } from 'testing/assert'
 
 trace('=== camera-preview utils test ===\n')
 
 const pixels = new Uint8Array([0x00, 0xf8, 0xe0, 0x07, 0x1f, 0x00, 0xff, 0xff]).buffer
 
+equal(toPiuColorString(0x0000ff), '#0000ff', 'Piu color strings should keep leading zeros')
 equal(rgb565LeToPiuColor(pixels, 0), 0xff0000, 'red RGB565LE pixel should map to Piu red')
 equal(rgb565LeToPiuColor(pixels, 2), 0x00ff00, 'green RGB565LE pixel should map to Piu green')
 equal(rgb565LeToPiuColor(pixels, 4), 0x0000ff, 'blue RGB565LE pixel should map to Piu blue')

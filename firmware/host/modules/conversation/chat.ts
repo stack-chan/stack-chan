@@ -7,7 +7,7 @@ import {
   type ChatTranscriptSnapshot,
 } from 'chat-state'
 
-export { ChatState, type ChatStateName, ChatStateNames, chatStateToName } from 'chat-state'
+export { ChatState, type ChatStateName, ChatStateNames, chatStateToName, MAX_TRANSCRIPT_CHARS } from 'chat-state'
 
 export type ChatType = 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' | 'humeAIEVI' | 'openAIRealtime'
 
@@ -203,6 +203,7 @@ export class ChatService {
   }
 
   start(): void {
+    this.#sessionState.clearTranscript()
     this.#chat.connect()
   }
 

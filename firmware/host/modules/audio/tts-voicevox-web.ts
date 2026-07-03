@@ -1,10 +1,10 @@
 /* eslint-disable prefer-const */
 
 import type HTTPClient from 'embedded:network/http/client'
-import calculatePower from 'calculate-power'
 import { fetch } from 'fetch'
 import MP3Streamer from 'mp3streamer'
-import AudioOut from 'pins/audioout'
+import type AudioOut from 'pins/audioout'
+import { beginTTSPlayback } from 'tts-playback-lifecycle'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 import { URL } from 'url'
 
@@ -64,64 +64,40 @@ export class TTS {
   }
 
   stream(key: string, volume?: number, callback?: TTSCompletion): void {
-    if (this.streaming) {
-      callback?.(new Error('already playing'))
-      return
-    }
-    this.streaming = true
+    const lifecycle = beginTTSPlayback(this, callback)
+    if (!lifecycle) return
 
     const speakerId = this.speakerId
     this.getQuery(key, speakerId).then(
       (streamUrl) => {
-        const url = new URL(streamUrl)
-        const { onPlayed, onDone } = this
-
-        this.audio = new AudioOut({ streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate ?? 22050 })
-        this.audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
-        const audio = this.audio
-        const streamer = new MP3Streamer({
-          http: device.network.https,
-          host: url.host,
-          path: url.pathname,
-          port: 443,
-          audio: {
-            out: audio,
-            stream: 0,
-          },
-          onPlayed(buffer) {
-            const power = calculatePower(buffer)
-            onPlayed?.(power)
-          },
-          onReady(state) {
-            trace(`Ready: ${state}\n`)
-            if (state) {
-              audio.start()
-            } else {
-              audio.stop()
-            }
-          },
-          onError: (e) => {
-            trace('ERROR: ', e, '\n')
-            this.streaming = false
-            streamer?.close()
-            this.audio?.close()
-            this.audio = undefined
-            callback?.(e)
-          },
-          onDone: () => {
-            trace('DONE\n')
-            this.streaming = false
-            streamer?.close()
-            this.audio?.close()
-            this.audio = undefined
-            onDone?.()
-            callback?.()
-          },
-        })
+        try {
+          const url = new URL(streamUrl)
+          const audio = lifecycle.openAudio(
+            { streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate ?? 22050 },
+            volume ?? this.volume,
+          )
+          lifecycle.attach(
+            new MP3Streamer({
+              http: device.network.https,
+              host: url.host,
+              path: url.pathname,
+              port: 443,
+              audio: {
+                out: audio,
+                stream: 0,
+              },
+              onPlayed: lifecycle.onPlayed,
+              onReady: lifecycle.onReady,
+              onError: lifecycle.onError,
+              onDone: lifecycle.onDone,
+            }),
+          )
+        } catch (error) {
+          lifecycle.fail(error)
+        }
       },
       (error) => {
-        this.streaming = false
-        callback?.(new Error(`getQuery failed: ${error}`))
+        lifecycle.fail(new Error(`getQuery failed: ${error}`))
       },
     )
   }

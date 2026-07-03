@@ -1,7 +1,7 @@
 import NativeCamera from 'embedded:io/image/in/camera'
+import { waitForInitialCameraFrame } from 'camera-initial-frame'
 import Bitmap from 'commodetto/Bitmap'
 import type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } from '../camera.js'
-import { waitForInitialCameraFrame } from './initial-frame.js'
 
 export type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } from '../camera.js'
 

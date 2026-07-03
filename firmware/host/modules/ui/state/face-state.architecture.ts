@@ -99,7 +99,7 @@ test('Standard face keeps expressive eyes while avoiding direct path allocation 
   assert.match(shapeCache, /export const UNIT_OPEN_STEPS = 12/)
   assert.match(shapeCache, /export const SHAPE_CACHE_ENTRY_LIMIT = 128/)
   assert.match(shapeCache, /export function rememberCachedValue/)
-  assert.match(shapeUtils, /from '\.\/shape-cache'/)
+  assert.match(shapeUtils, /from 'parts\/shape-cache'/)
   assert.match(eye, /from 'commodetto\/outline'/)
   assert.match(eye, /\bdefineShapeTemplate\b/)
   assert.match(eye, /\bContainer\.template\(/)

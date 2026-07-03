@@ -5,7 +5,7 @@
   ],
   "modules": {
     "*": ["./mod"],
-    "./image-avatar-lite-packs": "./image-avatar-lite-packs"
+    "image-avatar-lite-packs": "./image-avatar-lite-packs"
   },
   "resources": {
     "*": ["./assets/*"]

@@ -25,7 +25,7 @@ test('settings view owns the Piu setup screen construction', () => {
   assert.doesNotMatch(launchSource, /from 'settings-view'/)
   assert.doesNotMatch(launchSource, /buildSettingsView/)
   assert.doesNotMatch(launchSource, /updateSettingsStatusLabels/)
-  assert.match(launchSource, /from '\.\.\/setup-mode'/)
+  assert.match(launchSource, /from 'setup-mode'/)
   assert.match(setupModeSource, /from 'settings-view'/)
   assert.match(setupModeSource, /buildSettingsView/)
   assert.match(setupModeSource, /updateSettingsStatusLabels/)

@@ -90,6 +90,11 @@ function isSourceFile(path: string): boolean {
   return /\.(?:ts|js)$/.test(path)
 }
 
+type ModuleSpecifierUse = {
+  readonly specifier: string
+  readonly typeOnly: boolean
+}
+
 function extractModuleSpecifiers(source: string): string[] {
   const specifiers: string[] = []
   for (const match of source.matchAll(/\bimport\s+(?:[^'"]+\s+from\s+)?['"]([^'"]+)['"]/g)) {
@@ -97,6 +102,20 @@ function extractModuleSpecifiers(source: string): string[] {
   }
   for (const match of source.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)) {
     specifiers.push(match[1])
+  }
+  return specifiers
+}
+
+function extractRuntimeModuleSpecifierUses(source: string): ModuleSpecifierUse[] {
+  const specifiers: ModuleSpecifierUse[] = []
+  for (const match of source.matchAll(/\bimport\s+(type\s+)?(?:[^'"]+\s+from\s+)?['"]([^'"]+)['"]/g)) {
+    specifiers.push({ specifier: match[2], typeOnly: match[1] !== undefined })
+  }
+  for (const match of source.matchAll(/\bexport\s+(type\s+)?[^'"]*\s+from\s+['"]([^'"]+)['"]/g)) {
+    specifiers.push({ specifier: match[2], typeOnly: match[1] !== undefined })
+  }
+  for (const match of source.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)) {
+    specifiers.push({ specifier: match[1], typeOnly: false })
   }
   return specifiers
 }
@@ -110,6 +129,10 @@ function isInternalModuleSpecifier(specifier: string): boolean {
     specifier.startsWith('app/') ||
     specifier.includes('/internal/')
   )
+}
+
+function isRelativeModuleSpecifier(specifier: string): boolean {
+  return specifier.startsWith('./') || specifier.startsWith('../')
 }
 
 test('runtime modules own implementation manifests and tests under host/modules', () => {
@@ -128,6 +151,20 @@ test('runtime modules own implementation manifests and tests under host/modules'
       `${moduleName} should own tests`,
     )
   }
+})
+
+test('production runtime imports use manifest module specifiers instead of relative paths', () => {
+  const offenders = PRODUCTION_MANIFEST_ROOTS.flatMap((root) => walkFiles(root))
+    .filter(isSourceFile)
+    .filter((path) => !isTestOrArchitectureTarget(path))
+    .flatMap((sourcePath) =>
+      extractRuntimeModuleSpecifierUses(readFileSync(sourcePath, 'utf8'))
+        .filter(({ typeOnly }) => !typeOnly)
+        .filter(({ specifier }) => isRelativeModuleSpecifier(specifier))
+        .map(({ specifier }) => `${sourcePath}: ${specifier}`),
+    )
+
+  assert.deepEqual(offenders, [])
 })
 
 test('low-level motion, input, and UI modules avoid async and Promise control flow', () => {

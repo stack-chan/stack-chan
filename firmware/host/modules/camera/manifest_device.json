@@ -2,6 +2,7 @@
   "preload": ["embedded:io/image/in/camera"],
   "modules": {
     "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+    "camera-initial-frame": "./device/initial-frame",
     "embedded:io/image/in/camera": "$(MODDABLE)/modules/io/imagein/camera/esp32/camera"
   },
   "dependencies": [

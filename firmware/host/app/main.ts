@@ -1,10 +1,10 @@
 import { loadPreferenceConfig } from 'loadPreference'
+import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavior } from 'app-behavior'
+import { resolveAppBehaviors } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
+import { startHostBootServices } from 'boot-services'
+import { createStackchanContext, getHostDeviceEnvironment, installSimulatorButtons } from 'compose'
 import Modules from 'modules'
-import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavior } from './app-behavior'
-import { resolveAppBehaviors } from './app-behavior-resolver'
-import { startHostBootServices } from './boot-services'
-import { createStackchanContext, getHostDeviceEnvironment, installSimulatorButtons } from './compose'
 
 function loadAppBehaviors(): StackchanAppBehavior[] {
   trace('[main] checking mod override\n')

@@ -1,12 +1,12 @@
 // biome-ignore lint/correctness/noUnusedImports: kept with the parked image-face setup below.
 import { ImageFace } from 'behaviors/face'
 import { ChatService, ChatState, chatStateToName } from 'chat'
+import { hasValidChatType } from 'chat-audioio-config'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { EmotionNames, emotionFromName } from 'face-state'
 import config from 'mc/config'
 import { randomBetween } from 'stackchan-util'
 import Timer from 'timer'
-import { hasValidChatType } from './config.js'
 
 const DEFAULT_MOUTH_SCALE = 1 / 2000
 const BALLOON_CHAR_WIDTH_PX = 8

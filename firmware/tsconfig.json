@@ -35,6 +35,12 @@
       "runtime-context": [
         "./host/app/runtime-context"
       ],
+      "camera-initial-frame": [
+        "./host/modules/camera/device/initial-frame"
+      ],
+      "chat-audioio-config": [
+        "./mods/examples/chat_audioio/config"
+      ],
       "chat-status-bar": [
         "./host/modules/ui/components/status-bar/chat-status-bar"
       ],
@@ -70,6 +76,9 @@
       ],
       "drawer": [
         "./host/modules/ui/components/drawer/drawer"
+      ],
+      "image-avatar-lite-packs": [
+        "./mods/examples/image_avatar_lite/image-avatar-lite-packs"
       ],
       "*": [
         "./node_modules/@moddable/typings/*",

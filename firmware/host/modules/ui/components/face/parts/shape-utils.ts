@@ -9,7 +9,7 @@ export {
   SHAPE_CACHE_ENTRY_LIMIT,
   UNIT_OPEN_STEPS,
   unitFromStep,
-} from './shape-cache'
+} from 'parts/shape-cache'
 
 let fillSkinCache: Map<number, PiuSkin> | null = null
 let strokeSkinCache: Map<number, PiuSkin> | null = null

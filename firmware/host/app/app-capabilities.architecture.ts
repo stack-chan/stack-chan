@@ -93,7 +93,7 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   assert.doesNotMatch(defaultOnLaunch, /from 'stored-wifi'/)
   assert.doesNotMatch(defaultOnLaunch, /from 'settings-view'/)
   assert.doesNotMatch(defaultOnLaunch, /from 'preference-server'/)
-  assert.match(defaultOnLaunch, /from '\.\.\/setup-mode'/)
+  assert.match(defaultOnLaunch, /from 'setup-mode'/)
   assert.match(setupMode, /from 'stored-wifi'/)
   assert.match(setupMode, /from 'settings-view'/)
   assert.match(setupMode, /from 'preference-server'/)

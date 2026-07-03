@@ -1,4 +1,4 @@
-export type CameraImageType = 'rgb565le' | 'yuv422' | 'jpeg'
+export type CameraImageType = 'rgb565le' | 'rgb565be' | 'yuv422' | 'jpeg'
 
 export type CameraFrame = {
   width: number
@@ -22,6 +22,12 @@ export type MosaicOptions = {
   blockSize: number
 }
 
+export type FrameCopyOptions = {
+  width: number
+  height: number
+  byteOrder?: 'le' | 'be'
+}
+
 const HEX_DIGITS = '0123456789abcdef'
 
 function hexByte(value: number): string {
@@ -33,9 +39,18 @@ export function toPiuColorString(color: number): string {
   return `#${hexByte(color >> 16)}${hexByte(color >> 8)}${hexByte(color)}`
 }
 
-export function rgb565LeToPiuColor(buffer: ArrayBuffer, byteOffset: number): number {
+function isRgb565ImageType(imageType: CameraImageType): imageType is 'rgb565le' | 'rgb565be' {
+  return imageType === 'rgb565le' || imageType === 'rgb565be'
+}
+
+function byteOrderForImageType(imageType: CameraImageType): 'le' | 'be' {
+  return imageType === 'rgb565be' ? 'be' : 'le'
+}
+
+export function rgb565ToPiuColor(buffer: ArrayBuffer, byteOffset: number, byteOrder: 'le' | 'be' = 'le'): number {
   const view = new Uint8Array(buffer)
-  const pixel = view[byteOffset] | (view[byteOffset + 1] << 8)
+  const pixel =
+    byteOrder === 'be' ? (view[byteOffset] << 8) | view[byteOffset + 1] : view[byteOffset] | (view[byteOffset + 1] << 8)
   const red5 = (pixel >> 11) & 0x1f
   const green6 = (pixel >> 5) & 0x3f
   const blue5 = pixel & 0x1f
@@ -46,6 +61,10 @@ export function rgb565LeToPiuColor(buffer: ArrayBuffer, byteOffset: number): num
   return (red << 16) | (green << 8) | blue
 }
 
+export function rgb565LeToPiuColor(buffer: ArrayBuffer, byteOffset: number): number {
+  return rgb565ToPiuColor(buffer, byteOffset, 'le')
+}
+
 function clampSampleCoordinate(value: number, maxExclusive: number): number {
   const coordinate = value | 0
   if (coordinate < 0) return 0
@@ -53,11 +72,12 @@ function clampSampleCoordinate(value: number, maxExclusive: number): number {
   return coordinate
 }
 
-export function sampleRgb565LeMosaic(frame: CameraFrame, options: MosaicOptions): MosaicBlock[] {
-  if (frame.imageType !== 'rgb565le' || frame.width <= 0 || frame.height <= 0) {
+export function sampleRgb565Mosaic(frame: CameraFrame, options: MosaicOptions): MosaicBlock[] {
+  if (!isRgb565ImageType(frame.imageType) || frame.width <= 0 || frame.height <= 0) {
     return []
   }
 
+  const byteOrder = byteOrderForImageType(frame.imageType)
   const blockSize = Math.max(1, options.blockSize | 0)
   const targetWidth = Math.max(1, options.width | 0)
   const targetHeight = Math.max(1, options.height | 0)
@@ -77,10 +97,60 @@ export function sampleRgb565LeMosaic(frame: CameraFrame, options: MosaicOptions)
         y,
         width,
         height,
-        color: rgb565LeToPiuColor(frame.buffer, byteOffset),
+        color: rgb565ToPiuColor(frame.buffer, byteOffset, byteOrder),
       })
     }
   }
 
   return blocks
+}
+
+export function sampleRgb565LeMosaic(frame: CameraFrame, options: MosaicOptions): MosaicBlock[] {
+  return frame.imageType === 'rgb565le' ? sampleRgb565Mosaic(frame, options) : []
+}
+
+export function copyRgb565Frame(frame: CameraFrame, options: FrameCopyOptions): ArrayBuffer {
+  const targetWidth = Math.max(1, options.width | 0)
+  const targetHeight = Math.max(1, options.height | 0)
+  const targetByteOrder = options.byteOrder ?? byteOrderForImageType(frame.imageType)
+  const sourceByteOrder = byteOrderForImageType(frame.imageType)
+  const swapBytes = sourceByteOrder !== targetByteOrder
+  const target = new Uint8Array(targetWidth * targetHeight * 2)
+  if (!isRgb565ImageType(frame.imageType) || frame.width <= 0 || frame.height <= 0) {
+    return target.buffer
+  }
+
+  const source = new Uint8Array(frame.buffer)
+  const requiredBytes = frame.width * frame.height * 2
+  if (source.byteLength < requiredBytes) {
+    return target.buffer
+  }
+
+  for (let y = 0; y < targetHeight; y += 1) {
+    const sourceY = clampSampleCoordinate((y * frame.height) / targetHeight, frame.height)
+    const targetRow = y * targetWidth * 2
+    const sourceRow = sourceY * frame.width * 2
+
+    for (let x = 0; x < targetWidth; x += 1) {
+      const sourceX = clampSampleCoordinate((x * frame.width) / targetWidth, frame.width)
+      const sourceOffset = sourceRow + sourceX * 2
+      const targetOffset = targetRow + x * 2
+      if (swapBytes) {
+        target[targetOffset] = source[sourceOffset + 1]
+        target[targetOffset + 1] = source[sourceOffset]
+      } else {
+        target[targetOffset] = source[sourceOffset]
+        target[targetOffset + 1] = source[sourceOffset + 1]
+      }
+    }
+  }
+
+  return target.buffer
+}
+
+export function copyRgb565LeFrame(frame: CameraFrame, options: FrameCopyOptions): ArrayBuffer {
+  if (frame.imageType === 'rgb565le') return copyRgb565Frame(frame, options)
+  const targetWidth = Math.max(1, options.width | 0)
+  const targetHeight = Math.max(1, options.height | 0)
+  return new ArrayBuffer(targetWidth * targetHeight * 2)
 }

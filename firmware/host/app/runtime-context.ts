@@ -571,7 +571,7 @@ export class StackchanRuntimeContext implements StackchanContext {
       this.#updateFaceHandler = undefined
     }
     this.#motionController.close()
+    await this.#cameraRuntime.close()
     this.#inputRuntime.close()
-    await this.#cameraRuntime.stop()
   }
 }

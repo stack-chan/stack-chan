@@ -1,9 +1,11 @@
 import type { StackchanAppBehavior } from 'app-behavior'
 import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
+import type { CameraImageType } from 'camera'
 import { type CameraPreviewFrame, createCameraPreviewFace, prepareCameraPreviewFrame } from 'camera-preview'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-state'
 import type { MotionType } from 'imu'
+import config from 'mc/config'
 import type { Content as PiuContent } from 'piu/MC'
 import { randomBetween, wait } from 'stackchan-util'
 import Timer from 'timer'
@@ -31,6 +33,9 @@ const UP = {
 }
 const RECORD_PLAYBACK_DURATION_MS = 2000
 const CAMERA_PREVIEW_DURATION_MS = 5000
+const CAMERA_PREVIEW_STOP_DELAY_MS = 120
+const CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE: CameraImageType =
+  (config as { format?: string }).format === 'RGB565BE' ? 'rgb565be' : 'rgb565le'
 const TOUCH_PANEL_PETTING_WINDOW_MS = 1500
 const TOUCH_PANEL_HAPPY_DURATION_MS = 5000
 const TOUCH_PANEL_PET_MOTION_STEP_MS = 220
@@ -200,19 +205,45 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   })
 
   const runCameraPreview = async (target: typeof robot) => {
+    let frame: Awaited<ReturnType<typeof target.camera.capture>> | undefined
     let previewFrame: CameraPreviewFrame | undefined
+    const stopCameraAfterPreviewPaint = () =>
+      new Promise<void>((resolve) => {
+        Timer.set(() => {
+          try {
+            trace('[CameraPreview] camera stop begin\n')
+            const result = target.camera.stop()
+            if (result && typeof (result as { then?: unknown }).then === 'function') {
+              ;(result as Promise<void>).then(
+                () => {
+                  trace('[CameraPreview] camera stop done\n')
+                  resolve()
+                },
+                (stopError: unknown) => {
+                  trace(`[CameraPreview] stop error ${errorMessage(stopError)}\n`)
+                  resolve()
+                },
+              )
+            } else {
+              trace('[CameraPreview] camera stop done\n')
+              resolve()
+            }
+          } catch (stopError) {
+            trace(`[CameraPreview] stop error ${errorMessage(stopError)}\n`)
+            resolve()
+          }
+        }, CAMERA_PREVIEW_STOP_DELAY_MS)
+      })
     try {
       target.showBalloon('starting camera...')
-      await target.camera.start({ width: 200, height: 120, imageType: 'rgb565le' })
-      const frame = await target.camera.capture({ width: 200, height: 120, imageType: 'rgb565le' })
+      await target.camera.start({ width: 200, height: 120, imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE })
+      frame = await target.camera.capture({ width: 200, height: 120, imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE })
       if (!frame) {
         trace('[CameraPreview] capture returned no frame\n')
         target.showBalloon('camera unavailable')
         return
       }
       previewFrame = prepareCameraPreviewFrame(frame)
-      frame.close?.()
-      await target.camera.stop()
       target.ui.setFace(
         createCameraPreviewFace(previewFrame, {
           onRender: (mode) => {
@@ -236,11 +267,12 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         trace(`[CameraPreview] error balloon failed ${errorMessage(balloonError)}\n`)
       }
     } finally {
-      try {
-        await target.camera.stop()
-      } catch (stopError) {
-        trace(`[CameraPreview] stop error ${errorMessage(stopError)}\n`)
+      if (frame) {
+        trace('[CameraPreview] frame close begin\n')
+        frame.close?.()
+        trace('[CameraPreview] frame close done\n')
       }
+      await stopCameraAfterPreviewPaint()
       hideBalloonLater(1200)
     }
   }

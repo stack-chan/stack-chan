@@ -4,6 +4,11 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { writeAliasPackage } from '../testing/node-alias-package.js'
+import {
+  type CameraCaptureRequest,
+  cameraCaptureRequestMatches,
+  normalizeCameraCaptureRequest,
+} from './device/capture-options.js'
 import Camera from './lin/camera.js'
 
 function installBareSpecifierPackages(): void {
@@ -39,6 +44,18 @@ test('device camera initial frame wait retries after an empty first read', async
   timer.default.advance(30)
 
   assert.equal(await pending, frame)
+})
+
+test('device camera restart check compares requested capture options', () => {
+  const defaults: CameraCaptureRequest = { width: 176, height: 144, imageType: 'rgb565le' }
+  const current = normalizeCameraCaptureRequest({ width: 200, height: 120, imageType: 'rgb565le' }, defaults)
+
+  assert.equal(cameraCaptureRequestMatches({ width: 200, height: 120, imageType: 'rgb565le' }, current, defaults), true)
+  assert.equal(
+    cameraCaptureRequestMatches({ width: 240, height: 176, imageType: 'rgb565le' }, current, defaults),
+    false,
+  )
+  assert.equal(cameraCaptureRequestMatches({ width: 200, height: 120, imageType: 'jpeg' }, current, defaults), false)
 })
 
 test('device camera initial frame wait times out when no frame arrives', async () => {

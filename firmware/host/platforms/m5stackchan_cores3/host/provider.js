@@ -44,6 +44,7 @@ const device = {
       io: I2C,
       data: 12,
       clock: 11,
+      port: 1,
     },
   },
   Serial: {

@@ -15,6 +15,8 @@ export default class Camera implements RobotCamera {
 
   stop(): void {}
 
+  close(): void {}
+
   async capture(_options?: CameraCaptureOptions): Promise<CameraFrame | undefined> {
     void _options
     return undefined

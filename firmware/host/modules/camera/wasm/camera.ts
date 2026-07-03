@@ -58,7 +58,7 @@ function createHostCameraStartOptions(
   return startOptions
 }
 
-function writeRgb565Le(view: Uint8Array, width: number, height: number): void {
+function writeRgb565(view: Uint8Array, width: number, height: number, imageType: CameraImageType): void {
   let offset = 0
   const widthScale = Math.max(1, width - 1)
   const heightScale = Math.max(1, height - 1)
@@ -70,8 +70,13 @@ function writeRgb565Le(view: Uint8Array, width: number, height: number): void {
       const blue = (y * 31) / heightScale
       const pixel = ((red & 0x1f) << 11) | ((green & 0x3f) << 5) | (blue & 0x1f)
 
-      view[offset] = pixel & 0xff
-      view[offset + 1] = (pixel >> 8) & 0xff
+      if (imageType === 'rgb565be') {
+        view[offset] = (pixel >> 8) & 0xff
+        view[offset + 1] = pixel & 0xff
+      } else {
+        view[offset] = pixel & 0xff
+        view[offset + 1] = (pixel >> 8) & 0xff
+      }
       offset += 2
     }
   }
@@ -138,14 +143,14 @@ export default class Camera implements RobotCamera {
     }
 
     const imageType = options.imageType ?? DEFAULT_IMAGE_TYPE
-    if (imageType !== 'rgb565le') {
+    if (imageType !== 'rgb565le' && imageType !== 'rgb565be') {
       return undefined
     }
 
     const width = normalizeDimension(options.width, DEFAULT_WIDTH)
     const height = normalizeDimension(options.height, DEFAULT_HEIGHT)
     const buffer = new ArrayBuffer(width * height * 2)
-    writeRgb565Le(new Uint8Array(buffer), width, height)
+    writeRgb565(new Uint8Array(buffer), width, height, imageType)
 
     return {
       width,

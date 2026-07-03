@@ -40,7 +40,19 @@ describe('Stack-chan platform manifest', () => {
     assert.equal(m5StackChanPlatformManifest.config.touchIdleIntervalMs, 50)
     assert.equal(m5StackChanPlatformManifest.config.touchActiveIntervalMs, 8)
     assert.equal(m5StackChanPlatformManifest.defines.ft6206.hz, 400000)
+    assert.deepEqual(m5StackChanPlatformManifest.defines.camera, {
+      xclk: -1,
+      xclk_freq_hz: 20000000,
+      scl: -1,
+      sda: -1,
+      i2c_port: 1,
+    })
     assert.equal(m5StackChanPlatformManifest.modules['embedded:sensor/Touch/FT6x06'], './host/ft6206_async_m5stackchan')
+    assert.match(
+      m5StackChanProviderSource,
+      /internal:\s*{\s*io:\s*I2C,\s*data:\s*12,\s*clock:\s*11,\s*port:\s*1,/s,
+      'M5StackChan CoreS3 internal I2C should use port 1 so camera SCCB can share the bus',
+    )
     assert.match(m5StackChanProviderSource, /hz:\s*400_000/, 'M5StackChan CoreS3 Touch provider should use 400kHz I2C')
     assert.doesNotMatch(
       m5StackChanProviderSource,
@@ -72,13 +84,15 @@ describe('Stack-chan platform manifest', () => {
     })
   })
 
-  test('provides a M5StackChan CoreS3 smoke MOD with no private config', () => {
+  test('provides a M5StackChan CoreS3 smoke MOD and target-specific app config', () => {
     const smokeManifest = JSON.parse(readFileSync('mods/examples/m5stackchan_smoke/manifest.json', 'utf8'))
     const smokeSource = readFileSync('mods/examples/m5stackchan_smoke/mod.js', 'utf8')
     const smokeDocs = readFileSync('docs/m5stackchan-cores3-smoke.md', 'utf8')
 
     assert.deepEqual(m5StackChanStackchanManifest.include, ['./manifest.json'])
-    assert.equal(m5StackChanStackchanManifest.config, undefined)
+    assert.deepEqual(m5StackChanStackchanManifest.config, {
+      enablePowerButton: false,
+    })
     assert.equal(m5StackChanPlatformManifest.config.driver.type, 'm5stackchan')
     assert.equal(m5StackChanPlatformManifest.config.driver.serial.transmit, 6)
     assert.equal(m5StackChanPlatformManifest.config.driver.serial.receive, 7)

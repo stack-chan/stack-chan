@@ -382,6 +382,16 @@ test('WASM synthetic camera start and stop are safe around capture', async () =>
   assert.equal(frame?.buffer.byteLength, 2 * 2 * 2)
 })
 
+test('WASM synthetic camera can produce big-endian RGB565 frames', async () => {
+  const camera = new Camera()
+
+  const frame = await camera.capture({ width: 2, height: 1, imageType: 'rgb565be' })
+  const pixels = new Uint8Array(frame?.buffer ?? new ArrayBuffer(0))
+
+  assert.equal(frame?.imageType, 'rgb565be')
+  assert.deepEqual([...pixels.slice(2, 4)], [0xff, 0xe0])
+})
+
 test('WASM synthetic camera keeps unsupported formats and JPEG convenience out of scope', async () => {
   const camera = new Camera()
 

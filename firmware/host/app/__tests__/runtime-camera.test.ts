@@ -53,6 +53,112 @@ test('StackchanRuntimeCamera pauses touchPanel for an explicit camera session', 
   ])
 })
 
+test('StackchanRuntimeCamera completes synchronous stop without adding a promise turn', () => {
+  const events: string[] = []
+  const camera: RobotCamera = {
+    start() {
+      events.push('camera.start')
+    },
+    stop() {
+      events.push('camera.stop')
+    },
+    async capture() {
+      events.push('camera.capture')
+      return frame()
+    },
+  }
+  const touchPanel = {
+    stop() {
+      events.push('touch.stop')
+    },
+    start() {
+      events.push('touch.start')
+    },
+  }
+
+  const runtime = new StackchanRuntimeCamera({ camera, touchPanel })
+
+  runtime.camera.start()
+  const result = runtime.camera.stop()
+
+  assert.equal(result, undefined)
+  assert.deepEqual(events, ['touch.stop', 'camera.start', 'camera.stop', 'touch.start'])
+})
+
+test('StackchanRuntimeCamera waits for asynchronous stop before resuming touchPanel', async () => {
+  const events: string[] = []
+  let resolveStop: (() => void) | undefined
+  const camera: RobotCamera = {
+    start() {
+      events.push('camera.start')
+    },
+    stop() {
+      events.push('camera.stop')
+      return new Promise<void>((resolve) => {
+        resolveStop = resolve
+      })
+    },
+    async capture() {
+      events.push('camera.capture')
+      return frame()
+    },
+  }
+  const touchPanel = {
+    stop() {
+      events.push('touch.stop')
+    },
+    start() {
+      events.push('touch.start')
+    },
+  }
+
+  const runtime = new StackchanRuntimeCamera({ camera, touchPanel })
+
+  runtime.camera.start()
+  const pending = runtime.camera.stop()
+  assert.deepEqual(events, ['touch.stop', 'camera.start', 'camera.stop'])
+
+  resolveStop?.()
+  await pending
+
+  assert.deepEqual(events, ['touch.stop', 'camera.start', 'camera.stop', 'touch.start'])
+})
+
+test('StackchanRuntimeCamera close releases the camera without resuming touchPanel', () => {
+  const events: string[] = []
+  const camera: RobotCamera = {
+    start() {
+      events.push('camera.start')
+    },
+    stop() {
+      events.push('camera.stop')
+    },
+    close() {
+      events.push('camera.close')
+    },
+    async capture() {
+      events.push('camera.capture')
+      return frame()
+    },
+  }
+  const touchPanel = {
+    stop() {
+      events.push('touch.stop')
+    },
+    start() {
+      events.push('touch.start')
+    },
+  }
+
+  const runtime = new StackchanRuntimeCamera({ camera, touchPanel })
+
+  runtime.camera.start()
+  const result = runtime.close()
+
+  assert.equal(result, undefined)
+  assert.deepEqual(events, ['touch.stop', 'camera.start', 'camera.stop', 'camera.close'])
+})
+
 test('StackchanRuntimeCamera brackets direct capture calls with touchPanel pause and resume', async () => {
   const events: string[] = []
   const camera: RobotCamera = {

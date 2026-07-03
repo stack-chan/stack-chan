@@ -47,7 +47,7 @@ export default class TouchPanel {
 
   #sample(): TouchPanelSample {
     this.#lastSample = this.#driver.sample()
-    return [...this.#lastSample]
+    return this.#lastSample
   }
 
   configure(options: TouchPanelOptions): void {

@@ -39,7 +39,6 @@ static void stackchanRuntimeBitmapPortDrawAux(void* it, PiuView* view, PiuCoordi
 	else {
 		xsmcGet(xsVar(6), xsVar(1), xsID_buffer);
 		xsmcGetBufferReadable(xsVar(6), &data, &dataSize);
-		PocoDisableGC(poco);
 		bits.pixels = (PocoPixel*)(cb->bits.offset + (char*)data);
 	}
 

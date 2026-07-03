@@ -28,6 +28,7 @@
     "startup-splash": "./views/splash/splash-view",
     "camera-preview": "./views/camera-preview/camera-preview-view",
     "camera-preview-utils": "./views/camera-preview/camera-preview-utils",
+    "runtime-bitmap-port": "./views/camera-preview/runtime-bitmap-port",
     "piuDie": "$(PIU)/MC/piuDie",
     "piuFont": "$(PIU)/MC/piuFont",
     "piuRegion": "$(PIU)/MC/piuRegion",

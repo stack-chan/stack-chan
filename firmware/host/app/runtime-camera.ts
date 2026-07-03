@@ -4,9 +4,19 @@ const NULL_CAMERA: RobotCamera = {
   available: false,
   start() {},
   stop() {},
+  close() {},
   async capture() {
     return undefined
   },
+}
+
+function traceMessage(message: string): void {
+  ;(globalThis as typeof globalThis & { trace?: (message: string) => void }).trace?.(message)
+}
+
+function isThenable(value: unknown): value is Promise<void> {
+  if (!value || typeof value !== 'object') return false
+  return typeof (value as { then?: unknown }).then === 'function'
 }
 
 type ManagedTouchPanel = {
@@ -38,11 +48,25 @@ export class StackchanRuntimeCamera implements RobotCamera {
     return this
   }
 
-  async start(options?: Parameters<RobotCamera['start']>[0]): Promise<void> {
+  start(options?: Parameters<RobotCamera['start']>[0]): Promise<void> | void {
     const wasActive = this.#cameraActive
     if (!wasActive) this.#pauseTouchPanel()
     try {
-      await this.#camera.start(options)
+      traceMessage('[runtime-camera] start begin\n')
+      const result = this.#camera.start(options)
+      if (isThenable(result)) {
+        return result.then(
+          () => {
+            traceMessage('[runtime-camera] start done\n')
+            this.#cameraActive = true
+          },
+          (error) => {
+            if (!wasActive) this.#resumeTouchPanel()
+            throw error
+          },
+        )
+      }
+      traceMessage('[runtime-camera] start done\n')
       this.#cameraActive = true
     } catch (error) {
       if (!wasActive) this.#resumeTouchPanel()
@@ -50,13 +74,60 @@ export class StackchanRuntimeCamera implements RobotCamera {
     }
   }
 
-  async stop(): Promise<void> {
+  stop(): Promise<void> | void {
     const wasActive = this.#cameraActive
+    const finish = () => {
+      traceMessage('[runtime-camera] stop camera done\n')
+      this.#cameraActive = false
+      if (wasActive) {
+        traceMessage('[runtime-camera] touch panel resume begin\n')
+        this.#resumeTouchPanel()
+        traceMessage('[runtime-camera] touch panel resume done\n')
+      }
+    }
+
     try {
-      await this.#camera.stop()
-    } finally {
+      traceMessage('[runtime-camera] stop begin\n')
+      const result = this.#camera.stop()
+      if (isThenable(result)) {
+        return result.then(
+          () => finish(),
+          (error) => {
+            this.#cameraActive = false
+            if (wasActive) this.#resumeTouchPanel()
+            throw error
+          },
+        )
+      }
+      finish()
+    } catch (error) {
       this.#cameraActive = false
       if (wasActive) this.#resumeTouchPanel()
+      throw error
+    }
+  }
+
+  close(): Promise<void> | void {
+    const finish = () => {
+      const result = this.#camera.close?.()
+      const done = () => {
+        traceMessage('[runtime-camera] close done\n')
+      }
+      if (isThenable(result)) return result.then(done)
+      done()
+    }
+
+    try {
+      traceMessage('[runtime-camera] close begin\n')
+      const result = this.#camera.stop()
+      this.#cameraActive = false
+      this.#touchPanelPaused = false
+      if (isThenable(result)) return result.then(() => finish())
+      return finish()
+    } catch (error) {
+      this.#cameraActive = false
+      this.#touchPanelPaused = false
+      throw error
     }
   }
 
@@ -64,7 +135,10 @@ export class StackchanRuntimeCamera implements RobotCamera {
     const wasActive = this.#cameraActive
     if (!wasActive) this.#pauseTouchPanel()
     try {
-      return await this.#camera.capture(options)
+      traceMessage('[runtime-camera] capture begin\n')
+      const frame = await this.#camera.capture(options)
+      traceMessage(`[runtime-camera] capture done frame=${frame ? 'yes' : 'no'}\n`)
+      return frame
     } finally {
       if (!wasActive) this.#resumeTouchPanel()
     }
@@ -82,9 +156,7 @@ export class StackchanRuntimeCamera implements RobotCamera {
     try {
       this.#touchPanel.start()
     } catch (error) {
-      ;(globalThis as typeof globalThis & { trace?: (message: string) => void }).trace?.(
-        `[runtime-camera] touch panel restart error ${errorMessage(error)}\n`,
-      )
+      traceMessage(`[runtime-camera] touch panel restart error ${errorMessage(error)}\n`)
     }
   }
 }

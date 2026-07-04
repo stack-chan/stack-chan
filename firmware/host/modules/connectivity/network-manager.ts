@@ -8,6 +8,10 @@ export type StartNetworkConnectionOptions = NetworkServiceOptions & {
 let currentNetworkService: NetworkService | undefined
 
 export function startNetworkConnection(options: StartNetworkConnectionOptions): NetworkService {
+  if (currentNetworkService?.matchesCredentials(options)) {
+    currentNetworkService.join(options.onConnected, options.onError)
+    return currentNetworkService
+  }
   stopNetworkConnection()
   currentNetworkService = new NetworkService(options)
   currentNetworkService.connect(options.onConnected, options.onError)

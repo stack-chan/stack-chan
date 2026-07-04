@@ -79,6 +79,12 @@
       "stored-wifi": [
         "host/modules/connectivity/stored-wifi.ts"
       ],
+      "network-service": [
+        "host/modules/connectivity/network-service.ts"
+      ],
+      "network-state": [
+        "host/modules/connectivity/network-state.ts"
+      ],
       "network-manager": [
         "host/modules/connectivity/__tests__/fakes/network-manager.ts"
       ],
@@ -99,6 +105,15 @@
       ],
       "time": [
         "host/modules/testing/fakes/time.ts"
+      ],
+      "sntp": [
+        "host/modules/connectivity/__tests__/fakes/sntp.ts"
+      ],
+      "embedded:network/interface/wifi": [
+        "host/modules/connectivity/__tests__/fakes/ecma-wifi.ts"
+      ],
+      "ecma-wifi": [
+        "host/modules/connectivity/__tests__/fakes/ecma-wifi.ts"
       ],
       "mc/config": [
         "host/modules/testing/fakes/mc-config.ts"

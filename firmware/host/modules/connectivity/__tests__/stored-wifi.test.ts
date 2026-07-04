@@ -142,24 +142,24 @@ test('startHostBootServices accepts nested mc config Wi-Fi credentials for compa
   assert.deepEqual(await services.connectivity.network?.ready, { status: 'connected' })
 })
 
-test('startHostBootServices skips legacy Wi-Fi when ChatAudioIO networking is enabled', async () => {
+test('startHostBootServices starts Wi-Fi with ChatAudioIO config present', async () => {
   const { networkManager } = await setup(
     {},
     {
       ssid: 'config-ap',
       password: 'config-secret',
-      chatType: 'openAIRealtime',
+      chat: { type: 'openAIRealtime' },
     },
   )
   const { startHostBootServices } = await import('../../../app/boot-services.js')
 
   const services = startHostBootServices()
 
-  assert.deepEqual(networkManager.getStartedConnections(), [])
-  assert.deepEqual(await services.connectivity.network?.ready, {
-    status: 'skipped',
-    reason: 'legacy Wi-Fi disabled for ChatAudioIO',
-  })
+  assert.deepEqual(credentials(networkManager.getStartedConnections()), [
+    { ssid: 'config-ap', password: 'config-secret' },
+  ])
+  networkManager.completeLastConnection()
+  assert.deepEqual(await services.connectivity.network?.ready, { status: 'connected' })
 })
 
 test('startHostBootServices exposes skipped network readiness when Wi-Fi credentials are unavailable', async () => {

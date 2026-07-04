@@ -9,23 +9,24 @@ equal(hasValidChatType({ type: '' }), false, 'empty chat type should disable cha
 
 equal(hasValidChatType({ type: 'openAIRealtime' }), true, 'non-empty chat type should enable chat')
 
+const nestedConfig = normalizeChatConfig({
+  chat: {
+    type: 'openAIRealtime',
+    modelID: 'gpt-realtime-mini',
+    voiceID: 'marin',
+    apiKey: 'test-api-key',
+  },
+})
+equal(nestedConfig.type, 'openAIRealtime', 'nested chat type should map to chat config type')
+equal(nestedConfig.modelID, 'gpt-realtime-mini', 'nested chat modelID should map to chat config modelID')
+equal(nestedConfig.voiceID, 'marin', 'nested chat voiceID should map to chat config voiceID')
+equal(nestedConfig.apiKey, 'test-api-key', 'nested chat apiKey should map to chat config apiKey')
+
 const rootConfig = normalizeChatConfig({
   chatType: 'openAIRealtime',
-  chatModelID: 'gpt-realtime-mini',
-  chatVoiceID: 'marin',
-  chatApiKey: 'test-api-key',
-})
-equal(rootConfig.type, 'openAIRealtime', 'root chatType should map to chat config type')
-equal(rootConfig.modelID, 'gpt-realtime-mini', 'root chatModelID should map to chat config modelID')
-equal(rootConfig.voiceID, 'marin', 'root chatVoiceID should map to chat config voiceID')
-equal(rootConfig.apiKey, 'test-api-key', 'root chatApiKey should map to chat config apiKey')
-
-const nestedConfig = normalizeChatConfig({
-  chat: { type: 'nested', apiKey: 'nested-key' },
-  chatType: 'root',
   chatApiKey: 'root-key',
 })
-equal(nestedConfig.type, 'nested', 'nested chat type should take precedence')
-equal(nestedConfig.apiKey, 'nested-key', 'nested chat apiKey should take precedence')
+equal(rootConfig.type, undefined, 'root chatType should not enable chat')
+equal(rootConfig.apiKey, undefined, 'root chatApiKey should not map to chat config apiKey')
 
 trace('ok\n')

@@ -208,6 +208,9 @@
       ],
       "mcp-client": [
         "./host/modules/connectivity/mcp-client/mcp-client"
+      ],
+      "ecma-wifi": [
+        "./host/modules/connectivity/ecma-wifi"
       ]
     },
     "types": [

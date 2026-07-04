@@ -1,10 +1,12 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODDABLE)/examples/manifest_net.json",
     "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODULES)/network/net/manifest.json",
+    "$(MODULES)/network/socket/manifest.json",
+    "$(MODULES)/network/sntp/manifest.json",
     "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
-    "$(MODULES)/network/wifi/manifest.json",
+    "$(MODULES)/io/wifi/manifest.json",
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
     "$(MODULES)/network/mdns/manifest.json",
@@ -24,10 +26,10 @@
     ],
     "stk-server": "./ble/stk-server",
     "beacon-packet": "./ble/beacon-packet",
-    "stored-wifi": "./stored-wifi",
-    "wifi/connection": "$(MODDABLE)/examples/network/wifi/wificonnection/wificonnection"
+    "ecma-wifi": "./ecma-wifi",
+    "stored-wifi": "./stored-wifi"
   },
-  "preload": ["wifi/connection", "stk-server", "beacon-packet"],
+  "preload": ["stk-server", "beacon-packet"],
   "ble": {
     "*": ["$(MODULES)/network/ble/uart/bleservices/*"]
   },

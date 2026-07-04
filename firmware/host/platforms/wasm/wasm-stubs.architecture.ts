@@ -265,7 +265,7 @@ test('WASM PY32 LED facade re-exports the shared LED stub through a manifest mod
   assert.doesNotMatch(source, /\.\//)
 })
 
-test('App main lets an installed MOD replace the product default behavior', () => {
+test('App main lets an installed MOD override only the behavior hooks it defines', () => {
   const mainSource = readFileSync('host/app/main.ts', 'utf8')
   const behaviorSource = readFileSync('host/app/app-behavior-resolver.ts', 'utf8')
 
@@ -279,7 +279,11 @@ test('App main lets an installed MOD replace the product default behavior', () =
   assert.match(mainSource, /config: preferences/)
   assert.match(behaviorSource, /modules\.has\('mod'\)/)
   assert.match(behaviorSource, /modules\.importNow\('mod'\)/)
-  assert.match(behaviorSource, /return \[modules\.importNow\('mod'\)\]/)
+  assert.match(
+    behaviorSource,
+    /mergeDefinedBehavior\(defaultBehavior, modules\.importNow\('mod'\) as Partial<TBehavior>\)/,
+  )
+  assert.match(behaviorSource, /if \(value !== undefined\)/)
   assert.match(behaviorSource, /return \[defaultBehavior\]/)
   assert.doesNotMatch(behaviorSource, /behaviors\.push\(/)
   assert.doesNotMatch(mainSource, /config\.wasm/)

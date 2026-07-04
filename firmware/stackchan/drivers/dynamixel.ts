@@ -1,10 +1,7 @@
 import Serial from 'embedded:io/serial'
 import config from 'mc/config'
-
 import SingleWaitSlot from 'single-wait-slot'
 import Timer from 'timer'
-
-import { PayloadBuffer } from './payload-buffer'
 
 type Maybe<T> =
   | {
@@ -16,11 +13,11 @@ type Maybe<T> =
       reason?: string
     }
 
-function le(v: number): [number, number] {
-  return [(v & 0xff00) >> 8, v & 0xff]
-}
 function el(h: number, l: number) {
   return ((h << 8) & 0xff00) + (l & 0xff)
+}
+function dwordLe(v: number): [number, number, number, number] {
+  return [v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >> 24) & 0xff]
 }
 
 let packetHandler: PacketHandler = null
@@ -72,10 +69,11 @@ const ADDRESS = {
   HOMING_OFFSET: 20,
   TORQUE_ENABLE: 64,
   LED: 65,
+  STATUS_RETURN_LEVEL: 68,
   GOAL_CURRENT: 102,
-  GOAL_POSITION: 116,
   PROFILE_ACCELERATION: 108,
   PROFILE_VELOCITY: 112,
+  GOAL_POSITION: 116,
   PRESENT_CURRENT: 126,
   PRESENT_VELOCITY: 128,
   PRESENT_POSITION: 132,
@@ -94,92 +92,107 @@ function assertNeverRxState(state: never): never {
 }
 
 class PacketHandler extends Serial {
-  #callbacks: Map<number, (buffer: Uint8Array, length: number) => void>
+  #callbacks: Map<number, (buffer: Uint8Array, offset: number, length: number) => void>
   #rxBuffer: Uint8Array
-  #payloadBuffer: PayloadBuffer
+  #chunkBuffer: Uint8Array
   #idx: number
   #state: RxState
   #count: number
+
   constructor(option) {
     const onReadable = function (this: PacketHandler, bytesReadable: number) {
-      const rxBuf = this.#rxBuffer
-      let bytes = bytesReadable
-      while (bytes > 0) {
-        // NOTE: We can safely read a number
-        rxBuf[this.#idx++] = this.read() as number
-        bytes -= 1
-        switch (this.#state) {
-          case RX_STATE.SEEK:
-            if (this.#idx === 1 && rxBuf[0] !== 0xff) {
-              this.#idx = 0
-            }
-            if (this.#idx === 2 && rxBuf[1] !== 0xff) {
-              this.#idx = 0
-            }
-            if (this.#idx >= 3) {
-              if (rxBuf[2] === 0xfd) {
-                this.#state = RX_STATE.HEAD
-              } else {
-                // reset seek
-                // trace('seeking failed. reset\n')
-                this.#idx = 0
-              }
-            }
-            break
-          case RX_STATE.HEAD:
-            if (this.#idx >= 7) {
-              this.#count = (rxBuf[6] << 8) | rxBuf[5]
-              this.#state = RX_STATE.BODY
-              // trace(`length: ${this.#count}\n`)
-            }
-            break
-          case RX_STATE.BODY:
-            this.#count -= 1
-            if (this.#count === 0) {
-              const id = rxBuf[4]
-              const command = rxBuf[7] as Instruction
-              if (command === INSTRUCTION.WRITE || command === INSTRUCTION.READ) {
-                // trace(`got echo.  ... ${rxBuf.subarray(0, this.#idx)} ignoring\n`)
-              } else if (command === INSTRUCTION.STATUS) {
-                // trace(`got response for ${id}. triggering callback ... ${rxBuf.subarray(0, this.#idx)} \n`)
-                const payloadLength = this.#idx - 8
-                const payloadView = this.#payloadBuffer.copyFrom(rxBuf, payloadLength, 7)
-                const payload = new Uint8Array(payloadLength)
-                payload.set(payloadView.subarray(0, payloadLength))
-                this.#callbacks.get(id)?.(payload, payloadLength)
-              } else {
-                // trace(`something wrong for ${id}. ${rxBuf.subarray(0, this.#idx)} \n`)
-                const payloadLength = this.#idx - 8
-                const payloadView = this.#payloadBuffer.copyFrom(rxBuf, payloadLength, 7)
-                const payload = new Uint8Array(payloadLength)
-                payload.set(payloadView.subarray(0, payloadLength))
-                this.#callbacks.get(id)?.(payload, payloadLength)
-              }
-              this.#idx = 0
-              this.#state = RX_STATE.SEEK
-            }
-            break
-          default:
-            assertNeverRxState(this.#state)
+      let remaining = bytesReadable
+      while (remaining > 0) {
+        const requestLength = remaining > this.#chunkBuffer.length ? this.#chunkBuffer.length : remaining
+        const readLength = this.read(this.#chunkBuffer.subarray(0, requestLength)) as number
+        if (readLength == null || readLength <= 0) {
+          return
         }
-        // noop
+        this.#consumeChunk(this.#chunkBuffer, readLength)
+        remaining -= readLength
       }
     }
     super({
       ...option,
-      format: 'number',
+      format: 'buffer',
       onReadable,
     })
-    this.#callbacks = new Map<number, (buffer: Uint8Array, length: number) => void>()
-    this.#rxBuffer = new Uint8Array(64)
-    this.#payloadBuffer = new PayloadBuffer(32)
+    this.#callbacks = new Map<number, (buffer: Uint8Array, offset: number, length: number) => void>()
+    this.#rxBuffer = new Uint8Array(96)
+    this.#chunkBuffer = new Uint8Array(32)
     this.#idx = 0
     this.#state = RX_STATE.SEEK
+    this.#count = 0
   }
+
+  #resetSeek() {
+    this.#idx = 0
+    this.#state = RX_STATE.SEEK
+    this.#count = 0
+  }
+
+  #consumeChunk(source: Uint8Array, length: number): void {
+    const rxBuf = this.#rxBuffer
+    for (let i = 0; i < length; i++) {
+      if (this.#idx >= rxBuf.length) {
+        this.#resetSeek()
+      }
+      rxBuf[this.#idx++] = source[i]
+      switch (this.#state) {
+        case RX_STATE.SEEK:
+          if (this.#idx === 1 && rxBuf[0] !== 0xff) {
+            this.#idx = 0
+          }
+          if (this.#idx === 2 && rxBuf[1] !== 0xff) {
+            this.#idx = 0
+          }
+          if (this.#idx >= 3) {
+            if (rxBuf[2] === 0xfd) {
+              this.#state = RX_STATE.HEAD
+            } else {
+              this.#idx = 0
+            }
+          }
+          break
+        case RX_STATE.HEAD:
+          if (this.#idx >= 7) {
+            this.#count = (rxBuf[6] << 8) | rxBuf[5]
+            this.#state = RX_STATE.BODY
+          }
+          break
+        case RX_STATE.BODY:
+          this.#count -= 1
+          if (this.#count <= 0) {
+            const packetLength = this.#idx
+            const receivedCrc = rxBuf[packetLength - 2] | (rxBuf[packetLength - 1] << 8)
+            const expectedCrc = checksum(rxBuf, 0, packetLength - 2) & 0xffff
+            if (receivedCrc !== expectedCrc) {
+              this.#resetSeek()
+              break
+            }
+            const command = rxBuf[7] as Instruction
+            if (command !== INSTRUCTION.WRITE && command !== INSTRUCTION.READ) {
+              const callback = this.#callbacks.get(rxBuf[4])
+              if (callback != null) {
+                const payloadLength = this.#idx - 9
+                if (payloadLength > 0) {
+                  callback(rxBuf, 7, payloadLength)
+                }
+              }
+            }
+            this.#resetSeek()
+          }
+          break
+        default:
+          assertNeverRxState(this.#state)
+      }
+    }
+  }
+
   hasCallbackOf(id: number): boolean {
     return this.#callbacks.has(id)
   }
-  registerCallback(id: number, callback: (buffer: Uint8Array, length: number) => void) {
+  registerCallback(id: number, callback: (buffer: Uint8Array, offset: number, length: number) => void) {
     this.#callbacks.set(id, callback)
   }
   removeCallback(id: number) {
@@ -213,32 +226,69 @@ type DynamixelConstructorParam = {
   baudrate?: number
 }
 
+type PendingCommand = {
+  target: Dynamixel
+  id: number
+  instruction: Instruction
+  address: Address | null
+  parameters: number[]
+  waitForResponse: boolean
+  expectedResponseMinLength: number
+  resolve: (value: number | undefined) => void
+  reject: (reason: unknown) => void
+}
+
 class Dynamixel {
+  static #queue: PendingCommand[] = []
+  static #queueRunning = false
   static packetHandler: PacketHandler
   static setBaud(baud: number): void {
-    // Dynamixel.packetHandler?.close()
-    // Dynamixel.packetHandler = new PacketHandler({
     packetHandler?.close()
     packetHandler = new PacketHandler({
       receive: config.serial?.receive ?? 6,
       transmit: config.serial?.transmit ?? 7,
-      baud: baud,
+      baud,
       port: 1,
     })
   }
+
   #id: number
-  #onCommandRead: (buffer: Uint8Array, length: number) => void
+  #onCommandRead: (buffer: Uint8Array, offset: number, length: number) => void
   #txBuf: Uint8Array
-  #waitSlot: SingleWaitSlot<Uint8Array>
-  #queueTail: Promise<void>
+  #responseBuffer: Uint8Array
+  #responseLength: number
+  #expectedResponseMinLength: number
+  #waitSlot: SingleWaitSlot<number>
+  #statusReturnLevel: 0 | 1 | 2
+
   constructor({ id, baudrate = 1_000_000 }: DynamixelConstructorParam) {
     this.#id = id
-    this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
-    this.#queueTail = Promise.resolve()
-    this.#onCommandRead = (values, _length) => {
-      this.#waitSlot.resolve(values)
-    }
     this.#txBuf = new Uint8Array(64)
+    this.#responseBuffer = new Uint8Array(16)
+    this.#responseLength = 0
+    this.#expectedResponseMinLength = 0
+    this.#waitSlot = new SingleWaitSlot<number>(Timer.set, Timer.clear)
+    this.#statusReturnLevel = 2
+    this.#onCommandRead = (buffer, offset, length) => {
+      if (!this.#waitSlot.isWaiting) {
+        return
+      }
+      if (buffer[offset] !== INSTRUCTION.STATUS) {
+        return
+      }
+      const minLength = length >= 2 && buffer[offset + 1] !== 0 ? 2 : this.#expectedResponseMinLength
+      if (length < minLength) {
+        return
+      }
+      if (this.#responseBuffer.length < length) {
+        this.#responseBuffer = new Uint8Array(length)
+      }
+      for (let i = 0; i < length; i++) {
+        this.#responseBuffer[i] = buffer[offset + i]
+      }
+      this.#responseLength = length
+      this.#waitSlot.resolve(length)
+    }
     if (packetHandler == null) {
       packetHandler = new PacketHandler({
         receive: config.serial?.receive ?? 6,
@@ -252,93 +302,157 @@ class Dynamixel {
     }
     packetHandler.registerCallback(this.#id, this.#onCommandRead)
   }
+
   teardown(): void {
     packetHandler.removeCallback(this.#id)
   }
+
   get id(): number {
     return this.#id
   }
 
-  async #dispatchCommand(
-    instruction: Instruction,
-    address?: Address,
-    ...parameters: number[]
-  ): Promise<Uint8Array | undefined> {
+  #writeCommandPacket(command: PendingCommand): void {
     this.#txBuf[0] = 0xff
     this.#txBuf[1] = 0xff
     this.#txBuf[2] = 0xfd
     this.#txBuf[3] = 0x00
-    this.#txBuf[4] = this.#id
-
-    this.#txBuf[7] = instruction // write or read
+    this.#txBuf[4] = command.id
+    this.#txBuf[7] = command.instruction
     let idx = 8
-    if (address) {
-      this.#txBuf[idx++] = address & 0xff
-      this.#txBuf[idx++] = (address >> 8) & 0xff
+
+    if (command.address != null) {
+      this.#txBuf[idx++] = command.address & 0xff
+      this.#txBuf[idx++] = (command.address >> 8) & 0xff
     }
 
-    if (instruction === INSTRUCTION.READ) {
-      const numRead = parameters[0] ?? 1
+    if (command.instruction === INSTRUCTION.READ) {
+      const numRead = command.parameters[0] ?? 1
       this.#txBuf[idx++] = numRead & 0xff
       this.#txBuf[idx++] = (numRead >> 8) & 0xff
     } else {
-      for (const v of parameters) {
-        this.#txBuf[idx++] = v
+      for (let i = 0; i < command.parameters.length; i++) {
+        this.#txBuf[idx++] = command.parameters[i]
       }
     }
 
-    const len = idx - 5 // instruction(1) + params(0~) + crc(2)
+    const len = idx - 5
     this.#txBuf[5] = len & 0xff
     this.#txBuf[6] = (len >> 8) & 0xff
-
     const crc = checksum(this.#txBuf, 0, idx)
     this.#txBuf[idx++] = crc & 0xff
     this.#txBuf[idx++] = (crc >> 8) & 0xff
-    /*
-    trace('writing: ')
-    for (const n of this.#txBuf.subarray(0, idx)) {
-      trace(Number(n).toString(16).padStart(2, '0'))
-      trace(' ')
+    packetHandler.write(this.#txBuf.subarray(0, idx))
+  }
+
+  #dispatchCommandWithWait(command: PendingCommand): Promise<number | undefined> {
+    this.#responseLength = 0
+    this.#expectedResponseMinLength = command.expectedResponseMinLength
+    const waitPromise = this.#waitSlot.wait(60)
+    this.#writeCommandPacket(command)
+    return waitPromise
+  }
+
+  static async #processQueue(): Promise<void> {
+    while (Dynamixel.#queue.length > 0) {
+      const command = Dynamixel.#queue.shift()
+      if (command == null) {
+        continue
+      }
+      try {
+        if (!command.waitForResponse) {
+          command.target.#writeCommandPacket(command)
+          command.resolve(undefined)
+          continue
+        }
+        const result = await command.target.#dispatchCommandWithWait(command)
+        command.resolve(result)
+      } catch (error) {
+        command.reject(error)
+      }
     }
-    trace('\n')
-    */
-    const originalFormat = packetHandler.format
-    packetHandler.format = 'buffer'
-    try {
-      packetHandler.write(this.#txBuf.subarray(0, idx))
-    } finally {
-      packetHandler.format = originalFormat
-    }
-    return this.#waitSlot.wait(200, () => {
-      trace('timeout.\n')
+    Dynamixel.#queueRunning = false
+  }
+
+  #sendCommand(
+    instruction: Instruction,
+    address: Address | null,
+    waitForResponse: boolean,
+    expectedResponseMinLength: number,
+    ...parameters: number[]
+  ): Promise<number | undefined> {
+    return new Promise((resolve, reject) => {
+      Dynamixel.#queue.push({
+        target: this,
+        id: this.#id,
+        instruction,
+        address,
+        parameters,
+        waitForResponse,
+        expectedResponseMinLength,
+        resolve,
+        reject,
+      })
+      if (!Dynamixel.#queueRunning) {
+        Dynamixel.#queueRunning = true
+        void Dynamixel.#processQueue()
+      }
     })
   }
 
-  async #sendCommand(
+  #sendReadCommand(address: Address, readLength: number): Promise<number | undefined> {
+    return this.#sendCommand(INSTRUCTION.READ, address, true, 2 + readLength, readLength)
+  }
+
+  #sendWriteCommand(address: Address, ...parameters: number[]): Promise<number | undefined> {
+    const waitForResponse = this.#statusReturnLevel === 2
+    return this.#sendCommand(INSTRUCTION.WRITE, address, waitForResponse, waitForResponse ? 2 : 0, ...parameters)
+  }
+
+  #sendInstructionCommand(
     instruction: Instruction,
-    address?: Address,
+    waitForResponse = true,
+    expectedResponseMinLength = 2,
     ...parameters: number[]
-  ): Promise<Uint8Array | undefined> {
-    const run = this.#queueTail.then(() => this.#dispatchCommand(instruction, address, ...parameters))
-    this.#queueTail = run.then(
-      () => undefined,
-      () => undefined,
+  ): Promise<number | undefined> {
+    return this.#sendCommand(instruction, null, waitForResponse, expectedResponseMinLength, ...parameters)
+  }
+
+  #hasValidResponse(minLength: number): boolean {
+    if (this.#responseBuffer[0] !== INSTRUCTION.STATUS) {
+      return false
+    }
+    if (this.#responseLength >= minLength) {
+      return true
+    }
+    return this.#responseLength >= 2 && this.#responseBuffer[1] !== 0
+  }
+
+  #readSignedWord(offset: number): number {
+    const value = this.#responseBuffer[offset] | (this.#responseBuffer[offset + 1] << 8)
+    return value >= 0x8000 ? value - 0x10000 : value
+  }
+
+  #readSignedDword(offset: number): number {
+    return (
+      this.#responseBuffer[offset] |
+      (this.#responseBuffer[offset + 1] << 8) |
+      (this.#responseBuffer[offset + 2] << 16) |
+      (this.#responseBuffer[offset + 3] << 24)
     )
-    return run
   }
 
   /**
    * resets values to factory default
    */
   async factoryReset(): Promise<unknown> {
-    return this.#sendCommand(INSTRUCTION.FACTORY_RESET, null, 0x01 /* reset values except id and baudrate*/)
+    return this.#sendInstructionCommand(INSTRUCTION.FACTORY_RESET, true, 2, 0x01)
   }
 
   /**
    * reboots servo
    */
   async reboot(): Promise<unknown> {
-    return this.#sendCommand(INSTRUCTION.REBOOT)
+    return this.#sendInstructionCommand(INSTRUCTION.REBOOT, true, 2)
   }
 
   /**
@@ -348,7 +462,7 @@ class Dynamixel {
    */
   async setOperatingMode(mode: OperatingMode): Promise<unknown> {
     await this.setTorque(false)
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.OPERATING_MODE, mode)
+    return this.#sendWriteCommand(ADDRESS.OPERATING_MODE, mode)
   }
 
   /**
@@ -357,7 +471,20 @@ class Dynamixel {
    */
   async setBaudrate(baudrate: Baudrate): Promise<unknown> {
     await this.setTorque(false)
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.BAUDRATE, baudrate)
+    return this.#sendWriteCommand(ADDRESS.BAUDRATE, baudrate)
+  }
+
+  async setStatusReturnLevel(level: 0 | 1 | 2): Promise<unknown> {
+    const waitForResponse = this.#statusReturnLevel === 2
+    const result = await this.#sendCommand(
+      INSTRUCTION.WRITE,
+      ADDRESS.STATUS_RETURN_LEVEL,
+      waitForResponse,
+      waitForResponse ? 2 : 0,
+      level,
+    )
+    this.#statusReturnLevel = level
+    return result
   }
 
   /**
@@ -369,7 +496,7 @@ class Dynamixel {
     const b = (accel >> 8) & 0xff
     const c = (accel >> 16) & 0xff
     const d = (accel >> 24) & 0xff
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.PROFILE_ACCELERATION, a, b, c, d)
+    return this.#sendWriteCommand(ADDRESS.PROFILE_ACCELERATION, a, b, c, d)
   }
 
   /**
@@ -382,7 +509,7 @@ class Dynamixel {
     const b = (velocity >> 8) & 0xff
     const c = (velocity >> 16) & 0xff
     const d = (velocity >> 24) & 0xff
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.PROFILE_VELOCITY, a, b, c, d)
+    return this.#sendWriteCommand(ADDRESS.PROFILE_VELOCITY, a, b, c, d)
   }
 
   /**
@@ -392,7 +519,7 @@ class Dynamixel {
   async setGoalCurrent(current: number): Promise<unknown> {
     const a = current & 0xff
     const b = (current >> 8) & 0xff
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_CURRENT, a, b)
+    return this.#sendWriteCommand(ADDRESS.GOAL_CURRENT, a, b)
   }
 
   /**
@@ -404,8 +531,7 @@ class Dynamixel {
     const b = (position >> 8) & 0xff
     const c = (position >> 16) & 0xff
     const d = (position >> 24) & 0xff
-    // trace(`${a}, ${b}, ${c}, ${d}\n`)
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_POSITION, a, b, c, d)
+    return this.#sendWriteCommand(ADDRESS.GOAL_POSITION, a, b, c, d)
   }
 
   /**
@@ -419,7 +545,7 @@ class Dynamixel {
   }
 
   async setLED(on: boolean): Promise<unknown> {
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.LED, Number(on))
+    return this.#sendWriteCommand(ADDRESS.LED, Number(on))
   }
 
   /**
@@ -427,8 +553,9 @@ class Dynamixel {
    * @param angle - offset angle
    */
   async setOffsetAngle(angle: number): Promise<unknown> {
-    const value = (Math.abs(angle) * 360) / 4096
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.HOMING_OFFSET, ...le(value))
+    const raw = (angle * 4096) / 360
+    const value = raw < 0 ? Math.ceil(raw) : Math.floor(raw)
+    return this.#sendWriteCommand(ADDRESS.HOMING_OFFSET, ...dwordLe(value))
   }
 
   setId(id: number): void {
@@ -444,7 +571,7 @@ class Dynamixel {
       throw new Error(`id(${id}) is already used\n`)
     }
     await this.setTorque(false)
-    const promise = this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.ID, id)
+    const promise = this.#sendWriteCommand(ADDRESS.ID, id)
     const oldId = this.#id
     this.#id = id
     packetHandler.registerCallback(this.#id, this.#onCommandRead)
@@ -458,7 +585,7 @@ class Dynamixel {
    * @param enable - enable
    */
   async setTorque(enable: boolean): Promise<unknown> {
-    return this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.TORQUE_ENABLE, Number(enable))
+    return this.#sendWriteCommand(ADDRESS.TORQUE_ENABLE, Number(enable))
   }
 
   /**
@@ -466,15 +593,14 @@ class Dynamixel {
    * @returns Model number
    */
   async readModelNumber(): Promise<number> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.MODEL_NUMBER, 2)
-    if (values == null || values.length < 4) {
+    const length = await this.#sendReadCommand(ADDRESS.MODEL_NUMBER, 2)
+    if (length == null || !this.#hasValidResponse(4)) {
       throw new Error('failed to read model number')
     }
-    if (values[1] !== 0) {
-      throw new Error(`servo returned error code: ${values[1]} while reading model number`)
+    if (this.#responseBuffer[1] !== 0) {
+      throw new Error(`servo returned error code: ${this.#responseBuffer[1]} while reading model number`)
     }
-    // payload layout: [instruction/status, status_code, low, high]
-    return el(values[3], values[2])
+    return el(this.#responseBuffer[3], this.#responseBuffer[2])
   }
 
   /**
@@ -482,12 +608,12 @@ class Dynamixel {
    * @returns Firmware version
    */
   async readFirmwareVersion(): Promise<Maybe<{ version: number }>> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.VERSION_OF_FIRMWARE, 1)
-    if (values != null && values.length >= 3 && values[1] === 0) {
+    const length = await this.#sendReadCommand(ADDRESS.VERSION_OF_FIRMWARE, 1)
+    if (length != null && this.#hasValidResponse(3) && this.#responseBuffer[1] === 0) {
       return {
         success: true,
         value: {
-          version: values[2],
+          version: this.#responseBuffer[2],
         },
       }
     }
@@ -502,16 +628,14 @@ class Dynamixel {
    * @returns offset angle
    */
   async readOffsetAngle(): Promise<number> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.HOMING_OFFSET, 2)
-    if (values == null || values.length < 2) {
+    const length = await this.#sendReadCommand(ADDRESS.HOMING_OFFSET, 4)
+    if (length == null || !this.#hasValidResponse(6)) {
       throw new Error('failed to read offset angle')
     }
-    const isCcw = Boolean(values[0] & 0x8000)
-    let offset = ((values[1] & 0x7fff) << 8) | values[0]
-    if (isCcw) {
-      offset *= -1
+    if (this.#responseBuffer[1] !== 0) {
+      throw new Error(`servo returned error code: ${this.#responseBuffer[1]} while reading offset angle`)
     }
-    return offset
+    return this.#readSignedDword(2)
   }
 
   /**
@@ -519,19 +643,18 @@ class Dynamixel {
    * @returns current value
    */
   async readPresentCurrent(): Promise<Maybe<{ current: number }>> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_CURRENT, 2)
-    if (values != null && values.length >= 4) {
-      if (values[1] !== 0) {
+    const length = await this.#sendReadCommand(ADDRESS.PRESENT_CURRENT, 2)
+    if (length != null && this.#hasValidResponse(4)) {
+      if (this.#responseBuffer[1] !== 0) {
         return {
           success: false,
-          reason: `servo returned error code: ${values[1]}`,
+          reason: `servo returned error code: ${this.#responseBuffer[1]}`,
         }
       }
-      const current = values[2] | (values[3] << 8)
       return {
         success: true,
         value: {
-          current: current >= 0x8000 ? current - 0x10000 : current,
+          current: this.#readSignedWord(2),
         },
       }
     }
@@ -546,18 +669,17 @@ class Dynamixel {
    * @returns velocity value
    */
   async readPresentVelocity(): Promise<Maybe<number>> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_VELOCITY, 4)
-    if (values != null && values.length >= 4) {
-      if (values[1] !== 0) {
+    const length = await this.#sendReadCommand(ADDRESS.PRESENT_VELOCITY, 4)
+    if (length != null && this.#hasValidResponse(6)) {
+      if (this.#responseBuffer[1] !== 0) {
         return {
           success: false,
-          reason: `servo returned error code: ${values[1]}`,
+          reason: `servo returned error code: ${this.#responseBuffer[1]}`,
         }
       }
-      const velocity = values[2] | (values[3] << 8)
       return {
         success: true,
-        value: velocity >= 0x8000 ? velocity - 0x10000 : velocity,
+        value: this.#readSignedDword(2),
       }
     }
     return {
@@ -565,27 +687,31 @@ class Dynamixel {
     }
   }
 
+  async readPresentPositionValue(): Promise<number | undefined> {
+    const length = await this.#sendReadCommand(ADDRESS.PRESENT_POSITION, 4)
+    if (length == null || !this.#hasValidResponse(6)) {
+      return undefined
+    }
+    if (this.#responseBuffer[1] !== 0) {
+      return undefined
+    }
+    return this.#readSignedDword(2)
+  }
+
   /**
    * reads present position (4096 per rotation)
    * @returns position value
    */
   async readPresentPosition(): Promise<Maybe<number>> {
-    const values = await this.#sendCommand(INSTRUCTION.READ, ADDRESS.PRESENT_POSITION, 4)
-    if (values != null && values.length >= 4) {
-      if (values[1] !== 0) {
-        return {
-          success: false,
-          reason: `servo returned error code: ${values[1]}`,
-        }
-      }
-      const position = values[2] | (values[3] << 8)
+    const position = await this.readPresentPositionValue()
+    if (position == null) {
       return {
-        success: true,
-        value: position >= 0x8000 ? position - 0x10000 : position,
+        success: false,
       }
     }
     return {
-      success: false,
+      success: true,
+      value: position,
     }
   }
 }

@@ -1,6 +1,7 @@
 {
   "include": [
     "../../../../modules/ui/manifest.json",
+    "../../../../modules/camera/manifest.json",
     "../../../../modules/testing/manifest.json"
   ],
   "modules": {

@@ -1,5 +1,5 @@
 name: Setup
-description: Setup Node.js, ModdableSDK and ESP-IDF environments
+description: Setup Node.js, ModdableSDK, ESP-IDF and Emscripten environments
 inputs:
   target-branch:
     description: "Target branch or tag to setup environment"
@@ -21,6 +21,10 @@ runs:
     - run: npm ci
       working-directory: ./firmware
       shell: bash
+    - name: Setup Emscripten for WASM simulator
+      uses: mymindstorm/setup-emsdk@v16
+      with:
+        version: 3.1.2
     - name: Install Moddable Linux tool dependencies
       run: |
         sudo apt-get update

@@ -2,10 +2,23 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../../manifest.json",
+    "$(MODULES)/network/sntp/manifest.json",
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "main": "./network-service.test"
+    "main": "./network-service.test",
+    "network-service": "../../network-service",
+    "network-state": "../../network-state",
+    "ecma-wifi": "./fake-ecma-wifi"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "strictPropertyInitialization": false,
+        "strictFunctionTypes": false
+      }
+    }
   }
 }

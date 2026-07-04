@@ -41,10 +41,6 @@ jobs:
       - name: Bundle firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
-      - name: Setup Emscripten for WASM simulator
-        uses: mymindstorm/setup-emsdk@v16
-        with:
-          version: 3.1.2
       - name: Build WASM simulator firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm

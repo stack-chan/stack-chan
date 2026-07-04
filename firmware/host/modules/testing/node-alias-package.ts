@@ -1,5 +1,17 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
+
+let atomicWriteCounter = 0
+
+// node --test runs each test file in its own process, and several files write the
+// same shared node_modules/<alias> packages concurrently. A plain writeFileSync lets
+// one process read a half-written package.json ("Invalid package config"), so publish
+// each file atomically via a per-process temp file + rename.
+function atomicWriteFileSync(path: string, content: string): void {
+  const tempPath = `${path}.${process.pid}.${atomicWriteCounter++}.tmp`
+  writeFileSync(tempPath, content)
+  renameSync(tempPath, path)
+}
 
 export function writeAliasPackage(
   modulesRoot: string,
@@ -13,8 +25,8 @@ export function writeAliasPackage(
   const targetSpecifier = relative(packageRoot, target).replaceAll('\\', '/')
   const importSpecifier = targetSpecifier.startsWith('.') ? targetSpecifier : `./${targetSpecifier}`
   mkdirSync(packageRoot, { recursive: true })
-  writeFileSync(`${packageRoot}/package.json`, JSON.stringify({ type: 'module', exports: './index.js' }))
-  writeFileSync(
+  atomicWriteFileSync(`${packageRoot}/package.json`, JSON.stringify({ type: 'module', exports: './index.js' }))
+  atomicWriteFileSync(
     `${packageRoot}/index.js`,
     [
       `export * from ${JSON.stringify(importSpecifier)};`,
@@ -46,7 +58,7 @@ export function writeAliasPackageSubpath(
 
   mkdirSync(dirname(entryPath), { recursive: true })
   exports[`./${subpath}`] = `./${subpath}.js`
-  writeFileSync(
+  atomicWriteFileSync(
     packagePath,
     JSON.stringify({
       ...packageConfig,
@@ -54,7 +66,7 @@ export function writeAliasPackageSubpath(
       exports,
     }),
   )
-  writeFileSync(
+  atomicWriteFileSync(
     entryPath,
     [
       `export * from ${JSON.stringify(importSpecifier)};`,

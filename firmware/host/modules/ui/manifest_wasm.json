@@ -13,6 +13,7 @@
     "common-view": "./views/main/common-view",
     "face-view": "./views/main/face-view",
     "settings-view": "./views/settings/settings-view",
+    "settings-status-model": "./views/settings/settings-status-model",
     "face-state": "./state/face-state",
     "face-skin": "./state/face-skin",
     "template": "./components/face/template",

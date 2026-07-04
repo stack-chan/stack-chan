@@ -362,7 +362,7 @@ test('runtime state machines keep internal state as numeric constants', () => {
     join(MODULE_ROOT, 'connectivity', 'network-state.ts'),
     join(MODULE_ROOT, 'input', 'touch-panel-gesture.ts'),
     join(MODULE_ROOT, 'ui', 'components', 'status-bar', 'chat-status-bar.ts'),
-    join(MODULE_ROOT, 'ui', 'views', 'settings', 'settings-view.ts'),
+    join(MODULE_ROOT, 'ui', 'views', 'settings', 'settings-status-model.ts'),
   ]
 
   for (const sourcePath of stateSources) {
@@ -376,10 +376,11 @@ test('runtime state machines keep internal state as numeric constants', () => {
     )
   }
 
-  const settings = readFileSync(join(MODULE_ROOT, 'ui', 'views', 'settings', 'settings-view.ts'), 'utf8')
-  assert.match(settings, /ble: SettingsStatusValue/, 'settings BLE status should be numeric')
-  assert.match(settings, /wifi: SettingsStatusValue/, 'settings Wi-Fi status should be numeric')
-  assert.match(settings, /settingsStatusToLabel/, 'settings labels should convert status at the UI boundary')
+  const settingsModel = readFileSync(join(MODULE_ROOT, 'ui', 'views', 'settings', 'settings-status-model.ts'), 'utf8')
+  assert.match(settingsModel, /ble: SettingsStatusValue/, 'settings BLE status should be numeric')
+  assert.match(settingsModel, /wifi: SettingsStatusValue/, 'settings Wi-Fi status should be numeric')
+  const settingsView = readFileSync(join(MODULE_ROOT, 'ui', 'views', 'settings', 'settings-view.ts'), 'utf8')
+  assert.match(settingsView, /settingsStatusToLabel/, 'settings labels should convert status at the UI boundary')
 })
 
 test('UI palette state stays numeric and converts colors at Piu render boundaries', () => {

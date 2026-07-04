@@ -23,7 +23,7 @@ type BootWiFiConfig = {
   password?: unknown
 }
 
-type BootConfig = BootWiFiConfig & {
+type BootConfig = {
   wifi?: BootWiFiConfig
 }
 
@@ -89,8 +89,8 @@ function startStoredWiFi(): Promise<NetworkReadyResult> {
 function getBootWiFiCredentials(): { ssid?: string; password?: string } {
   const bootConfig = config as BootConfig
   const wifi = bootConfig.wifi ?? {}
-  const ssid = bootConfig.ssid ?? wifi.ssid
-  const password = bootConfig.password ?? wifi.password
+  const ssid = wifi.ssid
+  const password = wifi.password
   return {
     ssid: typeof ssid === 'string' ? ssid : undefined,
     password: typeof password === 'string' ? password : undefined,

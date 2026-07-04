@@ -26,6 +26,7 @@
       "../../app/compose",
       "../../app/capabilities",
       "../../app/setup-mode",
+      "../../app/settings-status",
       "../../app/runtime-audio",
       "../../app/runtime-camera",
       "../../app/runtime-context",

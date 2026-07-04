@@ -116,17 +116,17 @@ test('startHostBootServices starts stored Wi-Fi when host boot services are expl
   assert.deepEqual(await services.connectivity.network?.ready, { status: 'connected' })
 })
 
-test('startHostBootServices starts Wi-Fi from root mc config before preferences are loaded', async () => {
+test('startHostBootServices ignores root mc config Wi-Fi credentials reserved for Moddable setup', async () => {
   const { networkManager } = await setup({}, { ssid: 'config-ap', password: 'config-secret' })
   const { startHostBootServices } = await import('../../../app/boot-services.js')
 
   const services = startHostBootServices()
 
-  assert.deepEqual(credentials(networkManager.getStartedConnections()), [
-    { ssid: 'config-ap', password: 'config-secret' },
-  ])
-  networkManager.completeLastConnection()
-  assert.deepEqual(await services.connectivity.network?.ready, { status: 'connected' })
+  assert.deepEqual(credentials(networkManager.getStartedConnections()), [])
+  assert.deepEqual(await services.connectivity.network?.ready, {
+    status: 'skipped',
+    reason: 'missing Wi-Fi credentials',
+  })
 })
 
 test('startHostBootServices accepts nested mc config Wi-Fi credentials for compatibility', async () => {
@@ -146,8 +146,7 @@ test('startHostBootServices starts Wi-Fi with ChatAudioIO config present', async
   const { networkManager } = await setup(
     {},
     {
-      ssid: 'config-ap',
-      password: 'config-secret',
+      wifi: { ssid: 'config-ap', password: 'config-secret' },
       chat: { type: 'openAIRealtime' },
     },
   )

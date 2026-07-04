@@ -1,8 +1,10 @@
+import { loadPreferenceConfig } from 'loadPreference'
 import { PREF_KEYS } from 'consts'
 import { NetworkConnectionState, type NetworkConnectionState as NetworkState } from 'network-state'
 import { PreferenceServer } from 'preference-server'
-import { buildSettingsView, type SettingsStatus, SettingsStatusValue, updateSettingsStatusLabels } from 'settings-view'
-import { connectStoredWiFi, readStoredWiFiPreference, stopStoredWiFiConnection } from 'stored-wifi'
+import { createInitialSettingsStatus } from 'settings-status'
+import { buildSettingsView, SettingsStatusValue, updateSettingsStatusLabels } from 'settings-view'
+import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
 
 type SetupApplication = Parameters<typeof buildSettingsView>[0]
 
@@ -28,12 +30,7 @@ function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatus
 }
 
 export function startSetupMode(application: SetupApplication): void {
-  const status: SettingsStatus = {
-    ble: SettingsStatusValue.NOT_CONNECTED,
-    wifi: SettingsStatusValue.NOT_CONNECTED,
-    'wifi.ssid': readStoredWiFiPreference('ssid'),
-    'wifi.password': readStoredWiFiPreference('password'),
-  }
+  const status = createInitialSettingsStatus(loadPreferenceConfig())
   const testConnection = () => {
     if (status['wifi.ssid'].length === 0 || status['wifi.password'].length === 0) {
       return

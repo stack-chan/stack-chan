@@ -30,6 +30,7 @@
       "./compose",
       "./capabilities",
       "./setup-mode",
+      "./settings-status",
       "./runtime-audio",
       "./runtime-camera",
       "./runtime-context",

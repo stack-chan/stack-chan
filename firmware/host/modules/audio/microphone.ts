@@ -43,9 +43,7 @@ export default class Microphone {
     return new Promise((resolve, reject) => {
       let writeOffset = 0
       let audioin: AudioIn | undefined
-      // biome-ignore lint/style/useConst: AudioIn callback closes over the buffer before AudioIn exposes its format fields.
       let wavBuffer: ArrayBuffer
-      // biome-ignore lint/style/useConst: AudioIn callback closes over the view before AudioIn exposes its format fields.
       let dataView: Uint8Array
       let finished = false
       const finish = () => {

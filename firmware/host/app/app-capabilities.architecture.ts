@@ -35,9 +35,9 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
 
   assert.doesNotMatch(main, /createRobot\(\)/)
   assert.ok(
-    main.indexOf('const bootServices = startHostBootServices()') <
-      main.indexOf('const appBehaviors = loadAppBehaviors()'),
-    'host boot services should start before MOD launch behavior can replace defaults',
+    main.indexOf('const shouldCreateContext = await runLaunchBehaviors(appBehaviors)') <
+      main.indexOf('const bootServices = startHostBootServices()'),
+    'host boot services should start after launch behavior has shown the splash screen',
   )
   assert.match(main, /createStackchanContext\(preferences, \{ connectivity: bootServices\.connectivity \}\)/)
   assert.doesNotMatch(compose, /as unknown as StackchanContext/)
@@ -61,6 +61,7 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   assert.ok(manifest.modules['*'].includes('./runtime-ui'))
   assert.ok(!manifest.modules['*'].includes('./runtime-motion'))
   assert.ok(!manifest.modules['*'].includes('../../stackchan/robot'))
+  assert.ok(!manifest.include.includes('$(MODDABLE)/examples/manifest_net.json'))
   assert.ok(motionManifest.preload.includes('motion-controller'))
   assert.equal(motionWasmManifest.modules['motion-controller'], './motion-controller')
   assert.equal(manifest.modules['app-default-behavior'], './default-behavior/behavior')

@@ -97,7 +97,7 @@ test('connectStoredWiFi accepts settings-screen credential overrides', async () 
   assert.equal(networkManager.getStopCount(), 1)
 })
 
-test('startHostBootServices starts stored Wi-Fi before app behavior launch can replace defaults', async () => {
+test('startHostBootServices starts stored Wi-Fi when host boot services are explicitly started', async () => {
   const { networkManager, preference } = await setup({
     'wifi.ssid': 'boot-ap',
     'wifi.password': 'boot-secret',

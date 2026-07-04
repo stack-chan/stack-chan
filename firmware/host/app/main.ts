@@ -14,7 +14,6 @@ function loadAppBehaviors(): StackchanAppBehavior[] {
 async function main() {
   trace('[main] start\n')
   installSimulatorButtons()
-  const bootServices = startHostBootServices()
 
   trace('[main] loading app behaviors\n')
   const appBehaviors = loadAppBehaviors()
@@ -22,6 +21,7 @@ async function main() {
   trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
   if (!shouldCreateContext) return
 
+  const bootServices = startHostBootServices()
   const preferences = loadPreferenceConfig()
   const context = createStackchanContext(preferences, { connectivity: bootServices.connectivity })
   trace('[main] app context created\n')

@@ -1,0 +1,18 @@
+{
+  "include": ["$(MODULES)/network/sntp/manifest.json"],
+  "modules": {
+    "network-service": "../../network-service",
+    "network-state": "../../network-state",
+    "ecma-wifi": "./fake-ecma-wifi"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "strictPropertyInitialization": false,
+        "strictFunctionTypes": false
+      }
+    }
+  }
+}

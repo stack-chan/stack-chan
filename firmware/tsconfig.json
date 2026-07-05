@@ -11,7 +11,8 @@
     "allowImportingTsExtensions": true,
     "module": "es2022",
     "lib": [
-      "es2024"
+      "es2024",
+      "ESNext.Disposable"
     ],
     "outDir": "dist",
     "sourceMap": true,

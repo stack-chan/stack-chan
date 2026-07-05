@@ -122,6 +122,25 @@ $ npm run deploy --target=esp32/m5stack_cores3
 
 The program will be saved under the `$MODDABLE/build/` directory.
 
+### For dedicated control boards (M5StackChan CoreS3 / Stack-chan RT)
+
+Boards with a dedicated control board ship their own **subplatform**, which already defines the servo driver type and serial-bus pins. Use the board-specific npm scripts below instead of the generic `--target=` commands above; each one selects the subplatform (`-p esp32:./host/platforms/<board>`) and its matching app manifest automatically.
+
+| Task                    | M5StackChan CoreS3 (M5StackChan / SCS servo bus) | Stack-chan RT (Dynamixel bus)                     |
+| ----------------------- | ------------------------------------------------ | ------------------------------------------------- |
+| Build only              | `npm run build:m5stackchan_cores3`               | `npm run build:stackchan_rt`                      |
+| Build & flash           | `npm run deploy:m5stackchan_cores3`              | `npm run deploy:stackchan_rt`                     |
+| Flash (alias of deploy) | `npm run flash:m5stackchan_cores3`               | `npm run flash:stackchan_rt`                      |
+| Debug (xsbug)           | `npm run debug:m5stackchan_cores3`               | `npm run debug:stackchan_rt`                      |
+| Install a MOD           | `npm run mod:m5stackchan_cores3 [mod manifest]`  | `npm run mod:stackchan_rt [mod manifest]`         |
+
+The board-specific driver type and servo bus pins live in each subplatform manifest:
+
+- M5StackChan CoreS3: [`host/platforms/m5stackchan_cores3/manifest.json`](../host/platforms/m5stackchan_cores3/manifest.json) — `m5stackchan` driver, serial TX6 / RX7.
+- Stack-chan RT: [`host/platforms/stackchan_rt/manifest.json`](../host/platforms/stackchan_rt/manifest.json) — `dynamixel` driver, serial TX7 / RX6.
+
+Put per-device settings such as Wi-Fi credentials and API keys in the board's app manifest ([`host/app/manifest_m5stackchan_cores3.json`](../host/app/manifest_m5stackchan_cores3.json) / [`host/app/manifest_stackchan_rt.json`](../host/app/manifest_stackchan_rt.json)) under `"config"`. Keep secrets out of commits — add them locally only. On boot, the log line `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` shows the serial pins actually in use.
+
 If written correctly, the face of Stack-chan will appear a few seconds after startup.
 With the product default behavior, the M5Stack buttons change Stack-chan's behavior as follows:
 

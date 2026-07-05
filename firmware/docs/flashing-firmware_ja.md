@@ -130,6 +130,25 @@ $ npm run deploy --target=esp32/m5stack_cores3
 
 ビルドしたプログラムは`$MODDABLE/build/`ディレクトリ配下に保存されます。
 
+### 専用基板の場合（M5StackChan CoreS3 / Stack-chan RT）
+
+専用のコントロール基板を持つボードは、サーボの driver 種別とシリアルバスのピンをあらかじめ定義した**サブプラットフォーム**を同梱しています。これらのボードでは、上記の汎用 `--target=` コマンドではなく、次のボード専用 npm スクリプトを使ってください。サブプラットフォーム（`-p esp32:./host/platforms/<board>`）と対応するアプリ manifest が自動的に選択されます。
+
+| 用途                       | M5StackChan CoreS3（m5stackchan / SCS サーボバス） | Stack-chan RT（Dynamixel バス）             |
+| -------------------------- | -------------------------------------------------- | ------------------------------------------- |
+| ビルドのみ                 | `npm run build:m5stackchan_cores3`                 | `npm run build:stackchan_rt`                |
+| ビルド＋書き込み           | `npm run deploy:m5stackchan_cores3`                | `npm run deploy:stackchan_rt`               |
+| 書き込み（deploy の別名）  | `npm run flash:m5stackchan_cores3`                 | `npm run flash:stackchan_rt`                |
+| デバッグ（xsbug）          | `npm run debug:m5stackchan_cores3`                 | `npm run debug:stackchan_rt`                |
+| MOD の書き込み             | `npm run mod:m5stackchan_cores3 [modのパス]`       | `npm run mod:stackchan_rt [modのパス]`      |
+
+ボード固有の driver 種別とサーボバスのピンは、各サブプラットフォームの manifest にまとまっています。
+
+- M5StackChan CoreS3: [`host/platforms/m5stackchan_cores3/manifest.json`](../host/platforms/m5stackchan_cores3/manifest.json) — `m5stackchan` driver、シリアル TX6 / RX7。
+- Stack-chan RT: [`host/platforms/stackchan_rt/manifest.json`](../host/platforms/stackchan_rt/manifest.json) — `dynamixel` driver、シリアル TX7 / RX6。
+
+Wi-Fi 認証情報や API キーなどのデバイス固有の設定は、各ボードのアプリ manifest（[`host/app/manifest_m5stackchan_cores3.json`](../host/app/manifest_m5stackchan_cores3.json) / [`host/app/manifest_stackchan_rt.json`](../host/app/manifest_stackchan_rt.json)）の `"config"` 配下に書いてください。秘密情報はコミットせず、ローカルにのみ追加してください。起動時のログ `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` で実際に使われているシリアルピンを確認できます。
+
 正しく書き込めていれば起動から数秒後にｽﾀｯｸﾁｬﾝの顔が表示されます。
 M5Stack のボタンを押すと次のように変わります。
 

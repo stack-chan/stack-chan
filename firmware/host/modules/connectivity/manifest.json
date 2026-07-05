@@ -6,7 +6,6 @@
     "$(MODULES)/network/socket/manifest.json",
     "$(MODULES)/network/sntp/manifest.json",
     "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
-    "$(MODULES)/io/wifi/manifest.json",
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
     "$(MODULES)/network/mdns/manifest.json",
@@ -32,6 +31,35 @@
   "preload": ["stk-server", "beacon-packet"],
   "ble": {
     "*": ["$(MODULES)/network/ble/uart/bleservices/*"]
+  },
+  "platforms": {
+    "esp32": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"]
+    },
+    "esp": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"]
+    },
+    "pico": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"]
+    },
+    "zephyr": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"]
+    },
+    "mac": {
+      "modules": {
+        "ecma-wifi": "./sim/ecma-wifi"
+      }
+    },
+    "lin": {
+      "modules": {
+        "ecma-wifi": "./sim/ecma-wifi"
+      }
+    },
+    "win": {
+      "modules": {
+        "ecma-wifi": "./sim/ecma-wifi"
+      }
+    }
   },
   "typescript": {
     "tsconfig": {

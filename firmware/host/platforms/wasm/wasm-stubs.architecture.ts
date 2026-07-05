@@ -292,24 +292,18 @@ test('App main lets an installed MOD override only the behavior hooks it defines
   assert.doesNotMatch(mainSource, /defaultMod/)
 })
 
-test('real-device camera preview draws retained RGB565 frames through the shared RuntimeBitmapPort binding', () => {
+test('default camera preview avoids WASM-only RuntimeBitmapPort bindings', () => {
   const previewSource = readFileSync('host/modules/ui/views/camera-preview/camera-preview-view.ts', 'utf8')
 
-  assert.match(previewSource, /import RuntimeBitmapPort from 'runtime-bitmap-port'/)
-  assert.match(previewSource, /new RuntimeBitmapPort\(/)
-  assert.match(previewSource, /copyRgb565Frame/)
-  assert.match(previewSource, /import config from 'mc\/config'/)
-  assert.match(previewSource, /PREVIEW_BITMAP_FORMAT/)
-  assert.match(previewSource, /PREVIEW_BITMAP_BYTE_ORDER/)
-  assert.match(
-    previewSource,
-    /new Bitmap\(preview\.width, preview\.height, PREVIEW_BITMAP_FORMAT, preview\.buffer, 0\)/,
-  )
-  assert.match(previewSource, /this\.reportRenderMode\('bitmap'\)/)
+  assert.doesNotMatch(previewSource, /runtime-bitmap-port/)
+  assert.doesNotMatch(previewSource, /new RuntimeBitmapPort\(/)
+  assert.doesNotMatch(previewSource, /import config from 'mc\/config'/)
+  assert.match(previewSource, /new Port\(/)
+  assert.match(previewSource, /this\.reportRenderMode\('mosaic'\)/)
   assert.match(previewSource, /onRender\?: \(mode: CameraPreviewRenderMode\) => void/)
 })
 
-test('camera preview keeps a retained preview-size frame and a mosaic fallback', () => {
+test('default camera preview prepares a simulator-safe mosaic frame', () => {
   const previewSource = readFileSync('host/modules/ui/views/camera-preview/camera-preview-view.ts', 'utf8')
   const behaviorSource = readFileSync('host/app/default-behavior/on-context-created.ts', 'utf8')
 
@@ -319,8 +313,6 @@ test('camera preview keeps a retained preview-size frame and a mosaic fallback',
   assert.doesNotMatch(behaviorSource, /frame\.buffer\.slice\(0\)/)
   assert.doesNotMatch(behaviorSource, /buffer:\s*frame\.buffer/)
   assert.match(previewSource, /prepareCameraPreviewFrame/)
-  assert.match(previewSource, /buffer: copyRgb565Frame\(frame,/)
-  assert.match(previewSource, /byteOrder: PREVIEW_BITMAP_BYTE_ORDER/)
   assert.match(previewSource, /blocks: MosaicBlock\[\]/)
   assert.match(previewSource, /for \(const block of preview\.blocks\)/)
 })

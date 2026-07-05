@@ -38,6 +38,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          install-emscripten: "true"
       - name: Bundle firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle

@@ -79,6 +79,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+        with:
+          install-emscripten: ${{ matrix.name == 'wasm' && 'true' || 'false' }}
       - name: Build firmware (${{ matrix.name }})
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && ${{ matrix.command }}

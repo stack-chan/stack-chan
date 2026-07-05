@@ -11,6 +11,8 @@ const m5StackChanTouchSource = readFileSync(
   'host/platforms/m5stackchan_cores3/host/ft6206_async_m5stackchan.js',
   'utf8',
 )
+const stackchanRtPlatformManifest = JSON.parse(readFileSync('host/platforms/stackchan_rt/manifest.json', 'utf8'))
+const stackchanRtAppManifest = JSON.parse(readFileSync('host/app/manifest_stackchan_rt.json', 'utf8'))
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 
 function npmRunScripts(source: string): string[] {
@@ -27,6 +29,13 @@ describe('Stack-chan platform manifest', () => {
 
     assert.deepEqual(m5StackChanCoreS3Creation, coreS3Creation)
     assert.equal(m5StackChanCoreS3Creation.heap.incremental, 256)
+
+    // stackchan_rt is a SUBPLATFORM build (fullplatform "esp32/stackchan_rt"); without its own
+    // platforms entry it would inherit the target's fixed-size heap and abort with "memory full".
+    const stackchanRtCreation = esp32PlatformManifest.platforms['esp32/stackchan_rt']?.creation
+    assert.deepEqual(stackchanRtCreation, coreS3Creation)
+    assert.equal(stackchanRtCreation.heap.incremental, 256)
+    assert.equal(stackchanRtCreation.keys.incremental, 32)
   })
 
   test('keeps M5StackChan CoreS3 platform wiring on the PY32 servo power and head LED paths', () => {
@@ -127,5 +136,39 @@ describe('Stack-chan platform manifest', () => {
     assert.match(packageJson.scripts['build:m5stackchan_cores3'], /host\/app\/manifest_m5stackchan_cores3\.json/)
     assert.match(packageJson.scripts['mod:m5stackchan_cores3'], /esp32:\.\/host\/platforms\/m5stackchan_cores3/)
     assert.match(smokeDocs, /mods\/examples\/m5stackchan_smoke\/manifest\.json/)
+  })
+
+  test('defines the stackchan_rt CoreS3 subplatform with Dynamixel bus pins', () => {
+    // stackchan_rt is a CoreS3-based subplatform whose distinguishing feature is the
+    // Dynamixel driver on TX=7/RX=6 (the RT servo bus), not the default SCServo bus.
+    assert.deepEqual(stackchanRtPlatformManifest.include, [
+      '$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json',
+    ])
+    assert.equal(stackchanRtPlatformManifest.build.SUBPLATFORM, 'stackchan_rt')
+    // A SUBPLATFORM build resolves $(SUBPLATFORMDIRECTORY)/host/provider, so the subplatform
+    // must ship its own device provider. Reuse the stock CoreS3 touch/display/IMU wiring.
+    const stackchanRtProviderSource = readFileSync('host/platforms/stackchan_rt/host/provider.js', 'utf8')
+    assert.match(stackchanRtProviderSource, /from 'M5StackCoreS3Touch'/)
+    assert.match(stackchanRtProviderSource, /export default device/)
+    assert.equal(stackchanRtPlatformManifest.config.driver.type, 'dynamixel')
+    assert.deepEqual(stackchanRtPlatformManifest.config.driver.serial, {
+      transmit: 7,
+      receive: 6,
+      port: 1,
+      baud: 1000000,
+    })
+    // The Dynamixel protocol prefers driver.serial, but keep the top-level serial aligned too.
+    assert.deepEqual(stackchanRtPlatformManifest.config.serial, {
+      transmit: 7,
+      receive: 6,
+      port: 1,
+      baud: 1000000,
+    })
+    assert.deepEqual(stackchanRtAppManifest.include, ['./manifest.json'])
+
+    assert.match(packageJson.scripts['build:stackchan_rt'], /esp32:\.\/host\/platforms\/stackchan_rt/)
+    assert.match(packageJson.scripts['build:stackchan_rt'], /host\/app\/manifest_stackchan_rt\.json/)
+    assert.match(packageJson.scripts['deploy:stackchan_rt'], /esp32:\.\/host\/platforms\/stackchan_rt/)
+    assert.match(packageJson.scripts['mod:stackchan_rt'], /esp32:\.\/host\/platforms\/stackchan_rt/)
   })
 })

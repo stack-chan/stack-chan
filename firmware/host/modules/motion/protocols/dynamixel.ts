@@ -212,16 +212,34 @@ function checksum(arr: number[] | Uint8Array, start = 0, end = arr.length): numb
   return crc16
 }
 
+type DynamixelSerialConfig = Partial<{
+  receive: number
+  transmit: number
+  port: number
+  baud: number
+}>
 type DynamixelConstructorParam = {
   id: number
   baudrate?: number
+  commandTimeoutMs?: number
+  serial?: DynamixelSerialConfig
 }
 type CommandCallback = (values: Uint8Array | undefined) => void
 type ErrorCallback = (error: unknown) => void
 type CompletionCallback = (error?: unknown) => void
 type ValueCallback<T> = (value: T | undefined, error?: unknown) => void
+type PendingCommand = {
+  instruction: Instruction
+  address: Address | undefined
+  onResult: CommandCallback
+  onError: ErrorCallback
+  parameters: number[]
+}
 const COMMAND_BUSY_ERROR = 'command is already waiting for response'
-const COMMAND_TIMEOUT_MS = 200
+const DEFAULT_COMMAND_TIMEOUT_MS = 200
+// Give the half-duplex bus a short breather after a timeout before the next command
+// so a late/echoed response cannot be misread as the reply to the following command.
+const COMMAND_RECOVERY_DELAY_MS = 20
 
 function reasonFromError(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -254,19 +272,36 @@ class Dynamixel {
   #onCommandRead: (buffer: Uint8Array, length: number) => void
   #txBuf: Uint8Array
   #waitSlot: SingleWaitSlot<Uint8Array>
-  constructor({ id, baudrate = 1_000_000 }: DynamixelConstructorParam) {
+  #commandQueue: PendingCommand[] = []
+  #isWriting = false
+  #commandTimeoutMs: number
+  constructor({
+    id,
+    baudrate = 1_000_000,
+    commandTimeoutMs = DEFAULT_COMMAND_TIMEOUT_MS,
+    serial,
+  }: DynamixelConstructorParam) {
     this.#id = id
+    this.#commandTimeoutMs = commandTimeoutMs
     this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
     this.#onCommandRead = (values, _length) => {
       this.#waitSlot.resolve(values)
     }
     this.#txBuf = new Uint8Array(64)
     if (packetHandler == null) {
+      // Prefer the driver-specific serial config (e.g. the stackchan_rt subplatform's
+      // driver.serial) so the Dynamixel bus pins are not silently inherited from the
+      // top-level config.serial that targets the default SCServo bus.
+      const receive = serial?.receive ?? config.serial?.receive ?? 6
+      const transmit = serial?.transmit ?? config.serial?.transmit ?? 7
+      const port = serial?.port ?? 1
+      const baud = serial?.baud ?? baudrate
+      trace(`[dynamixel] serial port=${port} tx=${transmit} rx=${receive} baud=${baud}\n`)
       packetHandler = new PacketHandler({
-        receive: config.serial?.receive ?? 6,
-        transmit: config.serial?.transmit ?? 7,
-        baud: baudrate,
-        port: 1,
+        receive,
+        transmit,
+        baud,
+        port,
       })
     }
     if (packetHandler.hasCallbackOf(id)) {
@@ -288,10 +323,11 @@ class Dynamixel {
     onError: ErrorCallback = () => {},
     ...parameters: number[]
   ): boolean {
-    if (this.#waitSlot.isWaiting) {
+    if (this.#isWriting || this.#waitSlot.isWaiting) {
       onError(new Error(COMMAND_BUSY_ERROR))
       return false
     }
+    this.#isWriting = true
     this.#txBuf[0] = 0xff
     this.#txBuf[1] = 0xff
     this.#txBuf[2] = 0xfd
@@ -335,14 +371,18 @@ class Dynamixel {
     try {
       packetHandler.write(this.#txBuf.subarray(0, idx))
     } catch (error) {
+      this.#isWriting = false
       onError(error)
       return false
     } finally {
       packetHandler.format = originalFormat
     }
-    const waiting = this.#waitSlot.wait(COMMAND_TIMEOUT_MS, onResult, () => {
-      trace('timeout.\n')
-      onError(new CommandTimeoutError('dynamixel', COMMAND_TIMEOUT_MS))
+    this.#isWriting = false
+    const waiting = this.#waitSlot.wait(this.#commandTimeoutMs, onResult, () => {
+      trace(
+        `[dynamixel] timeout id=${this.#id} instruction=${instruction} address=${address} after ${this.#commandTimeoutMs}ms\n`,
+      )
+      onError(new CommandTimeoutError('dynamixel', this.#commandTimeoutMs))
     })
     if (!waiting) {
       onError(new Error(COMMAND_BUSY_ERROR))
@@ -351,6 +391,12 @@ class Dynamixel {
     return true
   }
 
+  /**
+   * Serializes commands per servo instance. Overlapping commands (e.g. the periodic
+   * control loop racing an external setTorque) would otherwise collide on the shared
+   * half-duplex bus and surface as busy/timeout errors, so every command is queued and
+   * dispatched one at a time. Mirrors the SCServo driver's command queue.
+   */
   #sendCommand(
     instruction: Instruction,
     address: Address | undefined,
@@ -358,7 +404,39 @@ class Dynamixel {
     onError: ErrorCallback,
     ...parameters: number[]
   ): boolean {
-    return this.#dispatchCommand(instruction, address, onResult, onError, ...parameters)
+    this.#commandQueue.push({ instruction, address, onResult, onError, parameters })
+    this.#drainCommandQueue()
+    return true
+  }
+
+  #drainCommandQueue = (): void => {
+    if (this.#isWriting || this.#waitSlot.isWaiting) {
+      return
+    }
+    const pending = this.#commandQueue.shift()
+    if (pending == null) {
+      return
+    }
+    this.#dispatchCommand(
+      pending.instruction,
+      pending.address,
+      (values) => {
+        try {
+          pending.onResult(values)
+        } finally {
+          Timer.set(this.#drainCommandQueue, 0)
+        }
+      },
+      (error) => {
+        try {
+          pending.onError(error)
+        } finally {
+          // Timeouts get a short recovery delay so a late reply cannot bleed into the next command.
+          Timer.set(this.#drainCommandQueue, error instanceof CommandTimeoutError ? COMMAND_RECOVERY_DELAY_MS : 0)
+        }
+      },
+      ...pending.parameters,
+    )
   }
 
   /**

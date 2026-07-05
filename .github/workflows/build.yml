@@ -74,6 +74,8 @@ jobs:
             command: npm run build --target=esp32/m5stack_cores3
           - name: m5stackchan_cores3
             command: npm run build:m5stackchan_cores3
+          - name: stackchan_rt
+            command: npm run build:stackchan_rt
           - name: wasm
             command: npm run build:wasm
     steps:

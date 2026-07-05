@@ -8,6 +8,21 @@ type DynamixelDriverProps = {
   panId: number
   tiltId: number
   baud: number
+  commandTimeoutMs?: number
+  serial?: Partial<{
+    receive: number
+    transmit: number
+    port: number
+    baud: number
+  }>
+}
+
+function isTimeoutError(error: unknown): boolean {
+  if (error == null) {
+    return false
+  }
+  const message = error instanceof Error ? error.message : String(error)
+  return isCommandTimeoutReason(message)
 }
 
 class PControl {
@@ -37,9 +52,10 @@ class PControl {
       if (result.success && result.value > 4096) {
         this._offset = 4096
       } else if (result.success === false) {
-        const timeoutError = commandTimeoutErrorFromReason(result.reason)
-        if (timeoutError != null) {
-          callback(timeoutError)
+        // During initialization a timeout is treated as an error so control() re-runs the
+        // whole init sequence next cycle instead of leaving the servo half-configured.
+        if (isCommandTimeoutReason(result.reason)) {
+          callback(new Error(result.reason))
           return
         }
         trace(`${this.name} ... failed to read initial position for offset detection\n`)
@@ -60,6 +76,13 @@ class PControl {
     if (this._lastGoalPosition !== this.goalPosition) {
       this.servo.setGoalPosition(this.goalPosition + this._offset, (goalError) => {
         if (goalError != null) {
+          // A transient bus timeout must not stop the control loop. Skip this cycle and
+          // retry next tick; keep _lastGoalPosition unchanged so the write is re-attempted.
+          if (isTimeoutError(goalError)) {
+            trace(`[DynamixelDriver] ${this.name} goal position timeout; skip this cycle\n`)
+            callback()
+            return
+          }
           callback(goalError)
           return
         }
@@ -75,10 +98,8 @@ class PControl {
   #updateCurrent(callback: MotionCompletion): void {
     this.servo.readPresentPosition((result) => {
       if (result.success === false) {
-        const timeoutError = commandTimeoutErrorFromReason(result.reason)
-        if (timeoutError != null) {
-          callback(timeoutError)
-          return
+        if (isCommandTimeoutReason(result.reason)) {
+          trace(`[DynamixelDriver] ${this.name} present position timeout; skip this cycle\n`)
         }
         callback()
         return
@@ -87,13 +108,20 @@ class PControl {
       const position = this.presentPosition
       const positionError = Math.abs(this.goalPosition - position)
       const current = Math.min(Math.max(positionError * this.gain, this.minCurrent), this.saturation)
-      this.servo.setGoalCurrent(current, callback)
+      this.servo.setGoalCurrent(current, (currentError) => {
+        if (currentError != null) {
+          if (isTimeoutError(currentError)) {
+            trace(`[DynamixelDriver] ${this.name} goal current timeout; skip this cycle\n`)
+            callback()
+            return
+          }
+          callback(currentError)
+          return
+        }
+        callback()
+      })
     })
   }
-}
-
-function commandTimeoutErrorFromReason(reason: string | undefined): Error | undefined {
-  return isCommandTimeoutReason(reason) ? new Error(reason) : undefined
 }
 
 export class DynamixelDriver {
@@ -110,8 +138,18 @@ export class DynamixelDriver {
   #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
 
   constructor(param: DynamixelDriverProps) {
-    this._pan = new Dynamixel({ id: param.panId, baudrate: param.baud })
-    this._tilt = new Dynamixel({ id: param.tiltId, baudrate: param.baud })
+    this._pan = new Dynamixel({
+      id: param.panId,
+      baudrate: param.baud,
+      commandTimeoutMs: param.commandTimeoutMs,
+      serial: param.serial,
+    })
+    this._tilt = new Dynamixel({
+      id: param.tiltId,
+      baudrate: param.baud,
+      commandTimeoutMs: param.commandTimeoutMs,
+      serial: param.serial,
+    })
     this._controls = [new PControl(this._pan, 1.0, 80, 40, 'pan'), new PControl(this._tilt, 4, 800, 0, 'tilt')]
     this._torque = true
     this._initialized = false
@@ -162,10 +200,18 @@ export class DynamixelDriver {
     }
     this._running = true
     if (!this._initialized) {
-      this._initialized = true
       this.#initialize((error) => {
-        if (error != null || !this._torque) {
-          this.#finishControl(error, callback)
+        if (error != null) {
+          // Init failed (typically a startup bus timeout). Leave _initialized false so the
+          // next control cycle retries the full init sequence instead of running update()
+          // against a servo that was never configured.
+          trace(`[DynamixelDriver] initialization failed: ${String(error)}; will retry\n`)
+          this.#finishControl(undefined, callback)
+          return
+        }
+        this._initialized = true
+        if (!this._torque) {
+          this.#finishControl(undefined, callback)
           return
         }
         this.#updateControlAt(0, callback)

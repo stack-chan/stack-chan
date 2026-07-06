@@ -253,9 +253,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       })
     try {
       target.showBalloon('starting camera...')
-      // The camera SCCB shares the internal I2C bus with the IMU on CoreS3-based boards.
-      // Pause IMU polling for the duration of the preview so the two don't contend for the bus.
-      target.imu?.stop()
       await target.camera.start({ width: 200, height: 120, imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE })
       frame = await target.camera.capture({ width: 200, height: 120, imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE })
       if (!frame) {
@@ -295,8 +292,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         trace('[CameraPreview] frame close done\n')
       }
       await stopCameraAfterPreviewPaint()
-      // Camera fully stopped and off the I2C bus: resume IMU motion polling.
-      target.imu?.start()
       hideBalloonLater(1200)
     }
   }

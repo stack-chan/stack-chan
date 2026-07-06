@@ -7,7 +7,7 @@
     "audio-buffer": "./audio-buffer",
     "wasm-audio-bridge": "./wasm/audio-bridge",
     "wasm-audio-bridge-contract": "./wasm/audio-bridge-contract",
-    "tone": "./wasm/tone",
+    "speaker": "./wasm/speaker",
     "microphone": "./wasm/microphone",
     "audio-in": "./wasm/audio-in",
     "tts-types": "./tts-types",

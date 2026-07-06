@@ -55,7 +55,7 @@
     "touch-panel-gesture",
     "imu",
     "imu-motion",
-    "tone"
+    "speaker"
   ],
   "strip": [],
   "config": {

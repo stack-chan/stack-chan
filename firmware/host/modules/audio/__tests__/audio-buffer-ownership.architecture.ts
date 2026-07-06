@@ -15,9 +15,9 @@ test('audio buffer APIs document record ownership and playback borrowing', () =>
   const capabilities = readFileSync('host/app/capabilities.ts', 'utf8')
   const runtimeAudio = readFileSync('host/app/runtime-audio.ts', 'utf8')
   const microphone = readFileSync('host/modules/audio/microphone.ts', 'utf8')
-  const tone = readFileSync('host/modules/audio/tone.ts', 'utf8')
+  const speaker = readFileSync('host/modules/audio/speaker.ts', 'utf8')
   const wasmMicrophone = readFileSync('host/modules/audio/wasm/microphone.ts', 'utf8')
-  const wasmTone = readFileSync('host/modules/audio/wasm/tone.ts', 'utf8')
+  const wasmSpeaker = readFileSync('host/modules/audio/wasm/speaker.ts', 'utf8')
 
   assert.match(bufferTypes, /export type OwnedAudioBuffer/)
   assert.match(bufferTypes, /export type BorrowedAudioBuffer/)
@@ -29,20 +29,20 @@ test('audio buffer APIs document record ownership and playback borrowing', () =>
   assert.match(capabilities, /record\(durationMilliSec\?: number\): Promise<OwnedAudioBuffer>/)
   assert.match(capabilities, /playAudio\(buffer: BorrowedAudioBuffer\): Promise<boolean>/)
   assert.match(runtimeAudio, /playAudio\(buffer: BorrowedAudioBuffer\): Promise<boolean>/)
-  assert.match(tone, /play\(buffer: BorrowedAudioBuffer\): Promise<boolean>/)
-  assert.match(wasmTone, /play\(buffer: BorrowedAudioBuffer\): Promise<boolean>/)
+  assert.match(speaker, /play\(buffer: BorrowedAudioBuffer\): Promise<boolean>/)
+  assert.match(wasmSpeaker, /play\(buffer: BorrowedAudioBuffer\): Promise<boolean>/)
 })
 
 test('playback path forwards large ArrayBuffers without copy helpers', () => {
   const playbackSources = [
     readFileSync('host/app/runtime-audio.ts', 'utf8'),
-    readFileSync('host/modules/audio/wasm/tone.ts', 'utf8'),
+    readFileSync('host/modules/audio/wasm/speaker.ts', 'utf8'),
   ].join('\n')
 
   for (const pattern of playbackCopyPatterns) {
     assert.doesNotMatch(playbackSources, pattern)
   }
-  assert.match(playbackSources, /this\.#tone\.play\(buffer\)/)
+  assert.match(playbackSources, /this\.#speaker\.play\(buffer\)/)
   assert.match(playbackSources, /audioBridge\.startPlayBuffer\(buffer\)/)
 })
 

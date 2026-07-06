@@ -45,7 +45,7 @@ const schedule = (audioBridge: WasmAudioOutputBridge, callback: () => void, dela
   else setTimeout(callback, delay)
 }
 
-export default class Tone {
+export default class Speaker {
   constructor(_options?: unknown) {
     void _options
   }

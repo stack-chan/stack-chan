@@ -28,7 +28,7 @@ test('StackchanRuntimeAudio forwards borrowed buffers to the target player', asy
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   const buffer = new ArrayBuffer(4) as BorrowedAudioBuffer
   let forwarded: BorrowedAudioBuffer | undefined
-  const tone = {
+  const speaker = {
     tone: async () => {},
     play: async (next: BorrowedAudioBuffer) => {
       forwarded = next
@@ -36,7 +36,7 @@ test('StackchanRuntimeAudio forwards borrowed buffers to the target player', asy
     },
   }
 
-  const runtime = new StackchanRuntimeAudio({ tts: fakeTTS(), tone })
+  const runtime = new StackchanRuntimeAudio({ tts: fakeTTS(), speaker })
 
   assert.equal(await runtime.playAudio(buffer), true)
   assert.equal(forwarded, buffer)
@@ -46,15 +46,15 @@ test('StackchanRuntimeAudio reports unsupported playback as false', async () => 
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   const buffer = new ArrayBuffer(4) as BorrowedAudioBuffer
-  const runtimeWithoutTone = new StackchanRuntimeAudio({ tts: fakeTTS() })
+  const runtimeWithoutSpeaker = new StackchanRuntimeAudio({ tts: fakeTTS() })
   const runtimeUnsupported = new StackchanRuntimeAudio({
     tts: fakeTTS(),
-    tone: {
+    speaker: {
       tone: async () => {},
       play: async () => false,
     },
   })
 
-  assert.equal(await runtimeWithoutTone.playAudio(buffer), false)
+  assert.equal(await runtimeWithoutSpeaker.playAudio(buffer), false)
   assert.equal(await runtimeUnsupported.playAudio(buffer), false)
 })

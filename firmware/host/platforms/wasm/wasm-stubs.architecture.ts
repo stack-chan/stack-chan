@@ -102,10 +102,10 @@ test('WASM source imports omit TypeScript file extensions', () => {
   assert.deepEqual(offenders, [])
 })
 
-test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', () => {
+test('WASM audio manifest owns audio bridge, microphone, speaker, and TTS stubs', () => {
   const manifest = readManifest('host/modules/audio/manifest_wasm.json')
   const microphone = readFileSync('host/modules/audio/wasm/microphone.ts', 'utf8')
-  const tone = readFileSync('host/modules/audio/wasm/tone.ts', 'utf8')
+  const speaker = readFileSync('host/modules/audio/wasm/speaker.ts', 'utf8')
   const contract = readFileSync('host/modules/audio/wasm/audio-bridge-contract.ts', 'utf8')
   const nativeBridge = readFileSync('host/modules/audio/wasm/audio-bridge.js', 'utf8')
   const cameraBridge = readFileSync('host/modules/camera/wasm/camera-bridge.js', 'utf8')
@@ -115,7 +115,7 @@ test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', (
       'audio-buffer': manifest.modules['audio-buffer'],
       'wasm-audio-bridge': manifest.modules['wasm-audio-bridge'],
       'wasm-audio-bridge-contract': manifest.modules['wasm-audio-bridge-contract'],
-      tone: manifest.modules.tone,
+      speaker: manifest.modules.speaker,
       microphone: manifest.modules.microphone,
       'audio-in': manifest.modules['audio-in'],
       'tts-types': manifest.modules['tts-types'],
@@ -130,7 +130,7 @@ test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', (
       'audio-buffer': './audio-buffer',
       'wasm-audio-bridge': './wasm/audio-bridge',
       'wasm-audio-bridge-contract': './wasm/audio-bridge-contract',
-      tone: './wasm/tone',
+      speaker: './wasm/speaker',
       microphone: './wasm/microphone',
       'audio-in': './wasm/audio-in',
       'tts-types': './tts-types',
@@ -146,15 +146,15 @@ test('WASM audio manifest owns audio bridge, microphone, tone, and TTS stubs', (
   assert.match(contract, /export type WasmAudioBridge/)
   assert.match(contract, /WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50/)
   assert.match(microphone, /WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS/)
-  assert.match(tone, /WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS/)
+  assert.match(speaker, /WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS/)
   assert.match(microphone, /import type \{ WasmAudioInputBridge \} from '\.\/audio-bridge-contract\.js'/)
-  assert.match(tone, /import type \{ WasmAudioOutputBridge \} from '\.\/audio-bridge-contract\.js'/)
+  assert.match(speaker, /import type \{ WasmAudioOutputBridge \} from '\.\/audio-bridge-contract\.js'/)
   assert.match(microphone, /const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50/)
-  assert.match(tone, /const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50/)
+  assert.match(speaker, /const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50/)
   assert.doesNotMatch(microphone, /^import (?!type).*audio-bridge-contract/m)
-  assert.doesNotMatch(tone, /^import (?!type).*audio-bridge-contract/m)
+  assert.doesNotMatch(speaker, /^import (?!type).*audio-bridge-contract/m)
   assert.doesNotMatch(microphone, /schedule\(audioBridge, poll, 50\)/)
-  assert.doesNotMatch(tone, /schedule\(audioBridge, poll, 50\)/)
+  assert.doesNotMatch(speaker, /schedule\(audioBridge, poll, 50\)/)
   assert.doesNotMatch(nativeBridge, /export default/)
   assert.doesNotMatch(cameraBridge, /export default/)
   assert.match(nativeBridge, /globalThis\.__stackchanWasmAudioBridge =/)

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import Microphone from '../../modules/audio/wasm/microphone.js'
-import Tone from '../../modules/audio/wasm/tone.js'
+import Speaker from '../../modules/audio/wasm/speaker.js'
 import FallbackCamera from '../../modules/camera/lin/camera.js'
 import Camera from '../../modules/camera/wasm/camera.js'
 import {
@@ -408,7 +408,7 @@ test('lin camera backend is safe when no device camera exists', async () => {
   assert.equal('captureJpeg' in camera, false)
 })
 
-test('WASM tone forwards tone requests and close to the browser Host.AudioOut bridge', async () => {
+test('WASM speaker forwards tone requests and close to the browser Host.AudioOut bridge', async () => {
   const previousHost = globalThis.Host
   const calls: unknown[] = []
   globalThis.Host = {
@@ -423,10 +423,10 @@ test('WASM tone forwards tone requests and close to the browser Host.AudioOut br
   }
 
   try {
-    const tone = new Tone()
+    const speaker = new Speaker()
 
-    await tone.tone(440, 250, 0.5)
-    tone.close()
+    await speaker.tone(440, 250, 0.5)
+    speaker.close()
 
     assert.deepEqual(calls, [{ hz: 440, duration: 250, volume: 0.5 }, 'close'])
   } finally {
@@ -434,7 +434,7 @@ test('WASM tone forwards tone requests and close to the browser Host.AudioOut br
   }
 })
 
-test('WASM tone plays buffers through the browser Host.AudioOut bridge', async () => {
+test('WASM speaker plays buffers through the browser Host.AudioOut bridge', async () => {
   const previousHost = globalThis.Host
   const buffers: ArrayBuffer[] = []
   globalThis.Host = {
@@ -448,7 +448,7 @@ test('WASM tone plays buffers through the browser Host.AudioOut bridge', async (
 
   try {
     const buffer = new Uint8Array([1, 2, 3]).buffer
-    const result = await new Tone().play(buffer)
+    const result = await new Speaker().play(buffer)
 
     assert.equal(result, true)
     assert.deepEqual(buffers, [buffer])

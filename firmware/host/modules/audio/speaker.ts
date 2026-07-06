@@ -9,7 +9,7 @@ export type ToneProperty = {
   volume?: number
 }
 
-export default class Tone {
+export default class Speaker {
   volume: number
 
   constructor(props: ToneProperty) {
@@ -66,7 +66,7 @@ export default class Tone {
         }
       })
     } catch (error) {
-      trace(`Tone.play error ${error}\n`)
+      trace(`Speaker.play error ${error}\n`)
       return false
     }
   }

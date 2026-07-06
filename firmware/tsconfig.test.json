@@ -55,8 +55,8 @@
       "microphone": [
         "host/modules/testing/fakes/microphone-type.ts"
       ],
-      "tone": [
-        "host/modules/testing/fakes/tone-type.ts"
+      "speaker": [
+        "host/modules/testing/fakes/speaker-type.ts"
       ],
       "imu-motion": [
         "host/modules/input/imu-motion.ts"

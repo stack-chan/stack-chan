@@ -21,7 +21,7 @@ import { RS30XDriver } from 'rs30x-driver'
 import { StackchanRuntimeContext } from 'runtime-context'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
-import Tone from 'tone'
+import Speaker from 'speaker'
 import Touch, { type TouchOptions } from 'touch'
 import TouchPanel from 'touch-panel'
 import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
@@ -217,7 +217,7 @@ export function createStackchanContext(
     : undefined
   const microphone = Modules.has('audio-in') ? new Microphone() : undefined
   const camera = new Camera()
-  const tone = new Tone({ volume: ttsPrefs.volume })
+  const speaker = new Speaker({ volume: ttsPrefs.volume })
 
   const configLed = preferences.led
   const ledEntries: [string, RobotLed][] = Object.entries(configLed).flatMap(
@@ -269,7 +269,7 @@ export function createStackchanContext(
     touchPanel,
     imu,
     connectivity: options.connectivity,
-    tone,
+    speaker,
     microphone,
     camera,
     led,

@@ -1,13 +1,13 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { TTS } from 'capabilities'
 import type Microphone from 'microphone'
+import type Speaker from 'speaker'
 import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
-import type Tone from 'tone'
 
 export type RuntimeAudioConstructorParam = {
   tts: TTS
   microphone?: Microphone
-  tone?: Tone
+  speaker?: Speaker
 }
 
 type RuntimeAudioOptions = {
@@ -17,13 +17,13 @@ type RuntimeAudioOptions = {
 export class StackchanRuntimeAudio {
   #microphone: Microphone | undefined
   #options: RuntimeAudioOptions
-  #tone: Tone | undefined
+  #speaker: Speaker | undefined
   #tts: TTS
 
   constructor(params: RuntimeAudioConstructorParam, options: RuntimeAudioOptions = {}) {
     this.#options = options
     this.#microphone = params.microphone
-    this.#tone = params.tone
+    this.#speaker = params.speaker
     this.useTTS(params.tts)
   }
 
@@ -76,11 +76,11 @@ export class StackchanRuntimeAudio {
     if (volume !== undefined && (volume < 0 || volume > 1)) {
       throw new Error('Volume must be between 0 and 1')
     }
-    return this.#tone?.tone(hz, duration, volume)
+    return this.#speaker?.tone(hz, duration, volume)
   }
 
   async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
-    if (!this.#tone) return false
-    return this.#tone.play(buffer)
+    if (!this.#speaker) return false
+    return this.#speaker.play(buffer)
   }
 }

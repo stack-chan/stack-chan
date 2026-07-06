@@ -28,7 +28,7 @@
     "audio-in",
     "audio-buffer",
     "microphone",
-    "tone",
+    "speaker",
     "stt-whisper",
     "calculatePower",
     "tts-local",

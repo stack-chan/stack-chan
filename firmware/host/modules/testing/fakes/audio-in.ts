@@ -1,4 +1,5 @@
 type AudioInOptions = {
+  channels?: number
   onReadable?: (this: AudioIn, size: number, sampleCount?: number) => void
 }
 
@@ -15,6 +16,7 @@ export default class AudioIn {
   #onReadable?: AudioInOptions['onReadable']
 
   constructor(options: AudioInOptions = {}) {
+    this.channels = options.channels ?? this.channels
     this.#onReadable = options.onReadable
     instances.push(this)
   }

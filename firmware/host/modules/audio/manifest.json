@@ -112,6 +112,42 @@
           "sampleRate": 24000
         }
       }
+    },
+    "esp32/m5stackchan_cores3": {
+      "modules": {
+        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin"
+      },
+      "dependency": [
+        {
+          "idf": "esp_driver_i2s"
+        }
+      ],
+      "defines": {
+        "audioOut": {
+          "bitsPerSample": 16,
+          "numChannels": 1,
+          "sampleRate": 24000
+        }
+      }
+    },
+    "esp32/stackchan_rt": {
+      "modules": {
+        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin"
+      },
+      "dependency": [
+        {
+          "idf": "esp_driver_i2s"
+        }
+      ],
+      "defines": {
+        "audioOut": {
+          "bitsPerSample": 16,
+          "numChannels": 1,
+          "sampleRate": 24000
+        }
+      }
     }
   },
   "typescript": {

@@ -52,6 +52,16 @@ test('Microphone.record clears recording state after a completed recording', asy
   assert.equal(microphone.recording, false)
 })
 
+test('Microphone.record opens AudioIn as mono', async () => {
+  const { Microphone, audioIn } = await setup([oneByte(1)])
+  const microphone = new Microphone()
+
+  await recordOneByte(microphone, audioIn)
+
+  const [instance] = audioIn.getAudioInInstances()
+  assert.equal(instance.channels, 1)
+})
+
 test('Microphone.record rejects overlapping recordings while one is active', async () => {
   const { Microphone, audioIn } = await setup([oneByte(1)])
   const microphone = new Microphone()

@@ -1,6 +1,8 @@
 import { type OwnedAudioBuffer, ownAudioBuffer } from 'audio-buffer'
 import AudioIn from 'audio-in'
 
+const CHANNELS = 1
+
 export default class Microphone {
   recording: boolean
   #audioIn: AudioIn | null
@@ -17,6 +19,7 @@ export default class Microphone {
     }
     const self = this
     this.#audioIn = new AudioIn({
+      channels: CHANNELS,
       onReadable(size, sampleCount) {
         if (self.onReadable) {
           self.onReadable.call(this, size, sampleCount)
@@ -63,6 +66,7 @@ export default class Microphone {
 
       try {
         audioin = new AudioIn({
+          channels: CHANNELS,
           onReadable(size) {
             const remaining = dataView.byteLength - writeOffset
             trace(`${remaining}\n`)

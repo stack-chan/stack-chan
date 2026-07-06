@@ -150,6 +150,21 @@ describe('Stack-chan platform manifest', () => {
     const stackchanRtProviderSource = readFileSync('host/platforms/stackchan_rt/host/provider.js', 'utf8')
     assert.match(stackchanRtProviderSource, /from 'M5StackCoreS3Touch'/)
     assert.match(stackchanRtProviderSource, /export default device/)
+    // The camera SCCB reuses the internal I2C bus (defines.camera sda/scl=-1, i2c_port=1). For
+    // esp32-camera to find an already-initialized bus handle, the internal bus must be pinned to
+    // port 1 — otherwise SCCB_Use_Port(1) fails and camera init fails. Mirrors M5StackChan CoreS3.
+    assert.match(
+      stackchanRtProviderSource,
+      /internal:\s*\{[^}]*data:\s*12,[^}]*clock:\s*11,[^}]*port:\s*1\b/s,
+      'stackchan_rt internal I2C should use port 1 so the camera SCCB can share the bus',
+    )
+    assert.deepEqual(stackchanRtPlatformManifest.defines.camera, {
+      xclk: -1,
+      xclk_freq_hz: 20000000,
+      scl: -1,
+      sda: -1,
+      i2c_port: 1,
+    })
     assert.equal(stackchanRtPlatformManifest.config.driver.type, 'dynamixel')
     assert.deepEqual(stackchanRtPlatformManifest.config.driver.serial, {
       transmit: 7,

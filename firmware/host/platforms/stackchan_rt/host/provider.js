@@ -47,6 +47,9 @@ const device = {
       io: I2C,
       data: 12,
       clock: 11,
+      // Pin the internal I2C bus to port 1 so the camera SCCB (i2c_port=1, sda/scl=-1)
+      // can reuse this already-initialized bus instead of failing to find one.
+      port: 1,
     },
   },
   Serial: {

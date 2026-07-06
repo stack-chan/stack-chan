@@ -69,6 +69,14 @@ export class AppController extends Behavior {
     this.#viewBehavior?.setFace?.(face)
   }
 
+  setMain(content: PiuContainer): void {
+    this.#viewBehavior?.setMain?.(content)
+  }
+
+  showFace(): void {
+    this.#viewBehavior?.showFace?.()
+  }
+
   setDrawerButtons(buttons: DrawerButtonSpec[]): void {
     this.#viewBehavior?.setDrawerButtons?.(buttons)
   }

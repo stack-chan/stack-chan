@@ -1,7 +1,7 @@
 import type { StackchanAppBehavior } from 'app-behavior'
 import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
 import type { CameraImageType } from 'camera'
-import { type CameraPreviewFrame, createCameraPreviewFace, prepareCameraPreviewFrame } from 'camera-preview'
+import { type CameraPreviewFrame, createCameraPreviewDialog, prepareCameraPreviewFrame } from 'camera-preview'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-state'
 import type { MotionType } from 'imu'
@@ -162,7 +162,8 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       Timer.clear(cameraPreviewTimer)
       cameraPreviewTimer = undefined
     }
-    robot.ui.setFace(createCurrentFace())
+    // Restore the preserved face main component (keeps the current avatar mode/emotion).
+    robot.ui.showFace()
     robot.hideBalloon()
   }
   robot.drawer.addDrawerButton({
@@ -252,6 +253,9 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       })
     try {
       target.showBalloon('starting camera...')
+      // The camera SCCB shares the internal I2C bus with the IMU on CoreS3-based boards.
+      // Pause IMU polling for the duration of the preview so the two don't contend for the bus.
+      target.imu?.stop()
       await target.camera.start({ width: 200, height: 120, imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE })
       frame = await target.camera.capture({ width: 200, height: 120, imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE })
       if (!frame) {
@@ -260,8 +264,11 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         return
       }
       previewFrame = prepareCameraPreviewFrame(frame)
-      target.ui.setFace(
-        createCameraPreviewFace(previewFrame, {
+      // Swap the whole main area for a full-area preview dialog; AppBar/Drawer stay active on top.
+      // The dialog draws its own caption, so no preview-time balloon is needed.
+      target.ui.setMain(
+        createCameraPreviewDialog(previewFrame, {
+          caption: 'camera preview',
           onRender: (mode) => {
             trace(`[CameraPreview] render mode=${mode}\n`)
           },
@@ -272,7 +279,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         `[CameraPreview] rendered ${previewFrame.width}x${previewFrame.height} ${previewFrame.imageType} via Piu Port\n`,
       )
       closeDrawer()
-      target.showBalloon('camera preview')
       if (cameraPreviewTimer) Timer.clear(cameraPreviewTimer)
       cameraPreviewTimer = Timer.set(restoreCameraPreview, CAMERA_PREVIEW_DURATION_MS)
     } catch (error) {
@@ -289,6 +295,8 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         trace('[CameraPreview] frame close done\n')
       }
       await stopCameraAfterPreviewPaint()
+      // Camera fully stopped and off the I2C bus: resume IMU motion polling.
+      target.imu?.start()
       hideBalloonLater(1200)
     }
   }

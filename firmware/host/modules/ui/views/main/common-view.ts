@@ -22,6 +22,19 @@ export type CommonViewParams = CommonViewAnchors & {
   drawerButtons?: DrawerButtonSpec[]
 }
 
+/**
+ * Optional, Face-independent lifecycle hooks a swappable main content may implement.
+ * None of these touch FaceState/skin, so any PiuContainer qualifies as MainContent.
+ */
+export type MainContentBehavior = {
+  onShow?: (content: PiuContainer) => void
+  onHide?: (content: PiuContainer) => void
+  onDispose?: (content: PiuContainer) => void
+}
+
+/** A swappable main-area component: any PiuContainer with optional lifecycle hooks. */
+export type MainContent = PiuContainer & { behavior?: MainContentBehavior }
+
 export type CommonViewTemplateCtor = TemplateFunction<CommonViewParams, PiuContainer>
 
 export class CommonViewBehavior extends Behavior {
@@ -51,6 +64,25 @@ export class CommonViewBehavior extends Behavior {
     this.drawer = new Drawer({ buttons: this.drawerButtons })
     if (this.drawer && this.container) this.container.add(this.drawer)
     this.setOverlayActive(false)
+  }
+
+  /**
+   * Replace the swappable MAIN component while keeping AppBar/Overlay/Drawer intact.
+   * The new content is inserted below the AppBar so the main area stays the bottom layer.
+   */
+  setMain(content: MainContent): void {
+    if (!this.container || this.main === content) return
+    const previous = this.main
+    if (previous) {
+      this.container.remove(previous)
+      ;(previous.behavior as MainContentBehavior | undefined)?.onHide?.(previous)
+    }
+    this.main = content
+    // Insert before the AppBar (always present via zero-height fallback) to preserve z-order.
+    const anchor = this.appBar ?? this.overlay
+    if (anchor) this.container.insert(content, anchor)
+    else this.container.add(content)
+    ;(content.behavior as MainContentBehavior | undefined)?.onShow?.(content)
   }
 
   openDrawer(): void {

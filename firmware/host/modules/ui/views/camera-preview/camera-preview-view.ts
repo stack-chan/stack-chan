@@ -1,4 +1,3 @@
-import { FaceBase } from 'behaviors/face'
 import {
   type CameraFrame,
   type CameraImageType,
@@ -6,7 +5,8 @@ import {
   sampleRgb565Mosaic,
   toPiuColorString,
 } from 'camera-preview-utils'
-import { type Container as PiuContainer, type Port as PiuPort, Port } from 'piu/MC'
+import type { MainContent } from 'common-view'
+import { Container, Label, type Port as PiuPort, Port, Skin, Style } from 'piu/MC'
 
 export const CAMERA_PREVIEW_WIDTH = 200
 export const CAMERA_PREVIEW_HEIGHT = 120
@@ -15,6 +15,8 @@ export type CameraPreviewRenderMode = 'mosaic'
 export type CameraPreviewOptions = {
   onRender?: (mode: CameraPreviewRenderMode) => void
   onDismiss?: () => void
+  /** Caption drawn at the bottom of the full-area dialog. */
+  caption?: string
 }
 
 export type CameraPreviewFrame = {
@@ -24,10 +26,14 @@ export type CameraPreviewFrame = {
   blocks: MosaicBlock[]
 }
 
+// The preview sits centered on a full-area dialog background (60,60 centers 200x120 on a 320x240 screen).
 const PREVIEW_LEFT = 60
 const PREVIEW_TOP = 60
 const PREVIEW_BLOCK_SIZE = 48
 const PREVIEW_BACKGROUND = '#101010'
+const DIALOG_BACKGROUND = '#000000'
+const CAPTION_COLOR = '#ffffff'
+const DEFAULT_CAPTION = 'camera preview'
 
 export function prepareCameraPreviewFrame(frame: CameraFrame): CameraPreviewFrame {
   return {
@@ -42,12 +48,19 @@ export function prepareCameraPreviewFrame(frame: CameraFrame): CameraPreviewFram
   }
 }
 
-export function createCameraPreviewFace(preview: CameraPreviewFrame, options: CameraPreviewOptions = {}): PiuContainer {
+/**
+ * Build the camera preview as a full-area, Face-independent main component (MainContent).
+ * It is mounted via `ui.setMain(...)` and dismissed via `ui.showFace()`; AppBar/Drawer stay active on top.
+ */
+export function createCameraPreviewDialog(
+  preview: CameraPreviewFrame,
+  options: CameraPreviewOptions = {},
+): MainContent {
   const previewPort = new Port(
     { preview, options },
     {
-      left: 0,
-      top: 0,
+      left: PREVIEW_LEFT,
+      top: PREVIEW_TOP,
       width: CAMERA_PREVIEW_WIDTH,
       height: CAMERA_PREVIEW_HEIGHT,
       active: true,
@@ -94,12 +107,51 @@ export function createCameraPreviewFace(preview: CameraPreviewFrame, options: Ca
     },
   )
 
-  return new FaceBase({
-    left: PREVIEW_LEFT,
-    top: PREVIEW_TOP,
-    width: CAMERA_PREVIEW_WIDTH,
-    height: CAMERA_PREVIEW_HEIGHT,
-    motions: [],
-    contents: [previewPort],
+  const caption = new Label(null, {
+    left: 0,
+    right: 0,
+    bottom: 8,
+    height: 20,
+    style: new Style({ font: '16px Open Sans', color: CAPTION_COLOR, horizontal: 'center' }),
+    string: options.caption ?? DEFAULT_CAPTION,
   })
+
+  return new Container(
+    { options },
+    {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      active: true,
+      backgroundTouch: true,
+      skin: new Skin({ fill: DIALOG_BACKGROUND }),
+      contents: [previewPort, caption],
+      Behavior: class extends Behavior {
+        options: CameraPreviewOptions | null = null
+
+        onCreate(_container: unknown, data: { options: CameraPreviewOptions }) {
+          this.options = data.options
+        }
+
+        // Tapping anywhere on the dialog (outside the preview port) dismisses it.
+        onTouchEnded() {
+          this.options?.onDismiss?.()
+        }
+
+        // MainContentBehavior hooks (Face-independent lifecycle).
+        onShow(container: { first?: { invalidate?: () => void } }) {
+          container.first?.invalidate?.()
+        }
+
+        onHide() {
+          this.options = null
+        }
+
+        onDispose() {
+          this.options = null
+        }
+      },
+    },
+  ) as MainContent
 }

@@ -27,6 +27,7 @@ export default class IMU {
   #recognizer: MotionRecognizer
   #interval: number
   #lastSample: IMUSample = {}
+  #sampleErrorReported = false
   onEvent: (event: IMUInputEvent) => void
 
   constructor(IMUConstructor: IMUConstructor, options: IMUOptions = {}) {
@@ -45,7 +46,19 @@ export default class IMU {
     if (this.#timer) return
     this.#timer = Timer.repeat(() => {
       const ticks = Time.ticks
-      const sample = this.#sample()
+      let sample: IMUSample
+      try {
+        sample = this.#sample()
+        this.#sampleErrorReported = false
+      } catch (error) {
+        // Transient I2C read failures (e.g. bus contention while the camera SCCB is active)
+        // must not tear down the polling timer; skip this tick and keep going.
+        if (!this.#sampleErrorReported) {
+          trace(`[IMU] sample error ${errorMessage(error)}\n`)
+          this.#sampleErrorReported = true
+        }
+        return
+      }
       const motion = this.#recognizer.update(sample, ticks)
       if (motion) this.onEvent?.(createIMUInputEvent(motion.type, ticks))
     }, this.#interval)
@@ -69,6 +82,13 @@ function copySample(sample: IMUSample): IMUSample {
     ...(sample.accelerometer && { accelerometer: { ...sample.accelerometer } }),
     ...(sample.gyroscope && { gyroscope: { ...sample.gyroscope } }),
   }
+}
+
+function errorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message: unknown }).message)
+  }
+  return String(error)
 }
 
 export { type IMUSample, type IMUVector3, MotionRecognizer, type MotionType }

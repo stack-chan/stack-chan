@@ -37,6 +37,10 @@ export type RobotUI = {
   removeEffect(effect: UIEffect): void
   application?: unknown
   setFace(face: PiuContainer): void
+  /** Replace the swappable main component (e.g. a full-area dialog) while keeping AppBar/Drawer active. */
+  setMain(content: PiuContainer): void
+  /** Restore the face as the main component after a dialog was shown via setMain. */
+  showFace(): void
   setDrawerButtons(buttons: DrawerButtonViewSpec[]): void
   addDrawerButton(button: DrawerButtonViewSpec): void
   removeDrawerButton(key: string): void

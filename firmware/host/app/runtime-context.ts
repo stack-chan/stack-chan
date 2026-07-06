@@ -515,6 +515,12 @@ export class StackchanRuntimeContext implements StackchanContext {
       setFace(face) {
         context.#uiRuntime.ui.setFace(face)
       },
+      setMain(content) {
+        context.#uiRuntime.ui.setMain(content)
+      },
+      showFace() {
+        context.#uiRuntime.ui.showFace()
+      },
       setDrawerButtons(buttons) {
         context.#uiRuntime.ui.setDrawerButtons(buttons)
       },

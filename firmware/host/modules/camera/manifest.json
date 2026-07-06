@@ -28,6 +28,15 @@
         "camera": "./device/camera"
       }
     },
+    "esp32/stackchan_rt": {
+      "include": [
+        "$(MODDABLE)/modules/io/manifest.json",
+        "./manifest_device.json"
+      ],
+      "modules": {
+        "camera": "./device/camera"
+      }
+    },
     "esp32/m5atom_s3r_cam": {
       "include": [
         "$(MODDABLE)/modules/io/manifest.json",

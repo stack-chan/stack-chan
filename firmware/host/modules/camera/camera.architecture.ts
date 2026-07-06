@@ -8,6 +8,7 @@ test('camera manifest selects runtime implementation by platform', () => {
   const deviceTargets = [
     'esp32/m5stack_cores3',
     'esp32/m5stackchan_cores3',
+    'esp32/stackchan_rt',
     'esp32/m5atom_s3r_cam',
     'esp32/m5atom_s3r_m12',
     'esp32/lilygo_t_camera_plus_s3',

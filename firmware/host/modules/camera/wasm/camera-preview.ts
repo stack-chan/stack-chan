@@ -1,6 +1,7 @@
 import { sampleRgb565LeMosaic, toPiuColorString } from 'camera-preview-utils'
 import Bitmap from 'commodetto/Bitmap'
-import { Container, type Container as PiuContainer, type Port as PiuPort } from 'piu/MC'
+import type { MainContent } from 'common-view'
+import { Container, Label, type Port as PiuPort, Skin, Style } from 'piu/MC'
 import RuntimeBitmapPort from 'runtime-bitmap-port'
 import type { CameraFrame } from '../camera.js'
 
@@ -11,6 +12,8 @@ export type CameraPreviewRenderMode = 'runtime-bitmap-port' | 'mosaic'
 export type CameraPreviewOptions = {
   onRender?: (mode: CameraPreviewRenderMode) => void
   onDismiss?: () => void
+  /** Caption drawn at the bottom of the full-area dialog. */
+  caption?: string
 }
 export type CameraPreviewFrame = CameraFrame
 
@@ -18,6 +21,9 @@ const PREVIEW_LEFT = 60
 const PREVIEW_TOP = 60
 const PREVIEW_BLOCK_SIZE = 48
 const PREVIEW_BACKGROUND = '#101010'
+const DIALOG_BACKGROUND = '#000000'
+const CAPTION_COLOR = '#ffffff'
+const DEFAULT_CAPTION = 'camera preview'
 
 type BitmapPort = PiuPort & {
   drawBitmap?: (bitmap: Bitmap, x: number, y: number, sx?: number, sy?: number, sw?: number, sh?: number) => void
@@ -47,12 +53,12 @@ export function prepareCameraPreviewFrame(frame: CameraFrame): CameraPreviewFram
   return frame
 }
 
-export function createCameraPreviewFace(frame: CameraPreviewFrame, options: CameraPreviewOptions = {}): PiuContainer {
+export function createCameraPreviewDialog(frame: CameraPreviewFrame, options: CameraPreviewOptions = {}): MainContent {
   const previewPort = new RuntimeBitmapPort(
     { frame, options },
     {
-      left: 0,
-      top: 0,
+      left: PREVIEW_LEFT,
+      top: PREVIEW_TOP,
       width: CAMERA_PREVIEW_WIDTH,
       height: CAMERA_PREVIEW_HEIGHT,
       active: true,
@@ -103,11 +109,51 @@ export function createCameraPreviewFace(frame: CameraPreviewFrame, options: Came
     },
   )
 
-  return new Container(null, {
-    left: PREVIEW_LEFT,
-    top: PREVIEW_TOP,
-    width: CAMERA_PREVIEW_WIDTH,
-    height: CAMERA_PREVIEW_HEIGHT,
-    contents: [previewPort],
+  const caption = new Label(null, {
+    left: 0,
+    right: 0,
+    bottom: 8,
+    height: 20,
+    style: new Style({ font: '16px Open Sans', color: CAPTION_COLOR, horizontal: 'center' }),
+    string: options.caption ?? DEFAULT_CAPTION,
   })
+
+  return new Container(
+    { options },
+    {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      active: true,
+      backgroundTouch: true,
+      skin: new Skin({ fill: DIALOG_BACKGROUND }),
+      contents: [previewPort, caption],
+      Behavior: class extends Behavior {
+        options: CameraPreviewOptions | null = null
+
+        onCreate(_container: unknown, data: { options: CameraPreviewOptions }) {
+          this.options = data.options
+        }
+
+        // Tapping anywhere on the dialog (outside the preview port) dismisses it.
+        onTouchEnded() {
+          this.options?.onDismiss?.()
+        }
+
+        // MainContentBehavior hooks (Face-independent lifecycle).
+        onShow(container: { first?: { invalidate?: () => void } }) {
+          container.first?.invalidate?.()
+        }
+
+        onHide() {
+          this.options = null
+        }
+
+        onDispose() {
+          this.options = null
+        }
+      },
+    },
+  ) as MainContent
 }

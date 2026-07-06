@@ -134,6 +134,8 @@ function resizeFaceRegion(region: DieRegion, visualLeft: number, visualTop: numb
 
 class FaceViewBehavior extends CommonViewBehavior {
   face: FaceViewCustomFace | null = null
+  /** The face main component (FaceMainTemplate). Preserved across setMain swaps so the face can be restored. */
+  faceMain: PiuContainer | null = null
   faceRegion: DieRegion | null = null
   effects: PiuContainer | null = null
   effectsSet: Set<PiuContent> | null = null
@@ -149,6 +151,7 @@ class FaceViewBehavior extends CommonViewBehavior {
     if (!main) {
       throw new Error('[FaceView] missing MAIN container')
     }
+    this.faceMain = main
     if (!data.FACE || !data.EFFECTS || !data.FACE_REGION) {
       const missing: string[] = []
       if (!data.FACE) missing.push('FACE')
@@ -166,6 +169,8 @@ class FaceViewBehavior extends CommonViewBehavior {
   }
 
   onFaceUpdate(_container: PiuContainer, faceState: FaceState) {
+    // While a non-face main component is shown, pause face animation; showFace() resyncs on restore.
+    if (this.faceMain && this.main !== this.faceMain) return
     if (this.lastFaceState === null) {
       this.lastFaceState = createFaceState()
     } else if (faceStatesEqual(faceState, this.lastFaceState)) {
@@ -184,8 +189,8 @@ class FaceViewBehavior extends CommonViewBehavior {
 
   onFaceSkin(_container: PiuContainer, palette: FaceSkinPalette) {
     this.lastPalette = palette
-    if (this.autoTheme && this.main) {
-      this.main.skin = palette.secondary
+    if (this.autoTheme && this.faceMain) {
+      this.faceMain.skin = palette.secondary
     }
     this.face?.distribute?.('onFaceSkin', palette)
     if (this.face) {
@@ -287,7 +292,7 @@ class FaceViewBehavior extends CommonViewBehavior {
 
     if (currentFace && currentParent) {
       currentParent.remove(currentFace)
-      if (currentParent === this.main && this.effects) {
+      if (currentParent === this.faceMain && this.effects) {
         currentParent.insert(face, this.effects)
       } else {
         currentParent.add(face)
@@ -302,10 +307,17 @@ class FaceViewBehavior extends CommonViewBehavior {
       return
     }
 
-    if (!this.main) return
-    if (this.effects) this.main.insert(face, this.effects)
-    else this.main.add(face)
+    if (!this.faceMain) return
+    if (this.effects) this.faceMain.insert(face, this.effects)
+    else this.faceMain.add(face)
     this.applyFaceState(face)
+  }
+
+  /** Restore the face main component (e.g. after a dialog was shown via setMain) and resync its state. */
+  showFace(): void {
+    if (!this.faceMain || this.main === this.faceMain) return
+    this.setMain(this.faceMain)
+    if (this.face) this.applyFaceState(this.face)
   }
 
   private getFaceVisualCoordinates(face: FaceViewCustomFace): FaceViewBaseCoordinates {

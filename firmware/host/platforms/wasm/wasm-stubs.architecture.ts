@@ -230,8 +230,23 @@ test('WASM manifest keeps the shared app runtime module list in sync with the ho
 test('real-device camera preview manifest resolves the shared UI preview module', () => {
   const manifest = readManifest('host/app/manifest.json')
 
+  // The generic/default alias (used by the Linux simulator) stays on the mosaic-only view so no
+  // WASM-only native binding leaks into the Linux import graph.
   assert.equal(manifest.modules['camera-preview'], '../modules/ui/views/camera-preview/camera-preview-view')
   assert.equal(manifest.modules['camera-preview-utils'], '../modules/ui/views/camera-preview/camera-preview-utils')
+})
+
+test('device camera preview overrides the alias with the RuntimeBitmapPort bitmap variant', () => {
+  // esp32 device builds include manifest_device.json, which overrides camera-preview with a
+  // bitmap-capable module so the real camera image is drawn (mosaic remains the fallback).
+  const deviceManifest = readManifest('host/modules/camera/manifest_device.json')
+  assert.equal(deviceManifest.modules['camera-preview'], './device/camera-preview')
+
+  const devicePreviewSource = readFileSync('host/modules/camera/device/camera-preview.ts', 'utf8')
+  assert.match(devicePreviewSource, /import RuntimeBitmapPort from 'runtime-bitmap-port'/)
+  assert.match(devicePreviewSource, /reportRenderMode\('bitmap'\)/)
+  // Falls back to the mosaic path when bitmap drawing is unavailable.
+  assert.match(devicePreviewSource, /reportRenderMode\('mosaic'\)/)
 })
 
 test('WASM camera preview manifest resolves the native RuntimeBitmapPort binding', () => {

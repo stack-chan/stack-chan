@@ -4,7 +4,8 @@
     "*": "$(MODDABLE)/modules/io/common/builtinCommon",
     "camera-capture-options": "./device/capture-options",
     "camera-initial-frame": "./device/initial-frame",
-    "embedded:io/image/in/camera": "$(MODDABLE)/modules/io/imagein/camera/esp32/camera"
+    "embedded:io/image/in/camera": "$(MODDABLE)/modules/io/imagein/camera/esp32/camera",
+    "camera-preview": "./device/camera-preview"
   },
   "dependencies": [
     {

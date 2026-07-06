@@ -23,6 +23,13 @@
         "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
       }
     },
+    "esp32/stackchan_rt": {
+      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
+      "modules": {
+        "ChatAudioIO": "./chat-audioio/worker-stack",
+        "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+      }
+    },
     "mac": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {

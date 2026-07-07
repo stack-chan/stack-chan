@@ -4,7 +4,8 @@ import type HTTPClient from 'embedded:network/http/client'
 import { fetch } from 'fetch'
 import MP3Streamer from 'mp3streamer'
 import type AudioOut from 'pins/audioout'
-import { beginTTSPlayback } from 'tts-playback-lifecycle'
+import { getTelemetry, truncateReason } from 'telemetry'
+import { beginTTSPlayback, classifyTTSError } from 'tts-playback-lifecycle'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 import { URL } from 'url'
 
@@ -29,6 +30,7 @@ export type TTSProperty = {
 }
 
 export class TTS {
+  readonly telemetryName = 'voicevox-web'
   audio?: AudioOut
   onPlayed?: TTSPlaybackListener
   onDone?: TTSDoneListener
@@ -68,8 +70,10 @@ export class TTS {
     if (!lifecycle) return
 
     const speakerId = this.speakerId
+    const querySpan = getTelemetry().begin('tts', 'query', { engine: this.telemetryName })
     this.getQuery(key, speakerId).then(
       (streamUrl) => {
+        querySpan.end()
         try {
           const url = new URL(streamUrl)
           const audio = lifecycle.openAudio(
@@ -97,6 +101,7 @@ export class TTS {
         }
       },
       (error) => {
+        querySpan.fail(classifyTTSError(error), { data: { reason: truncateReason(String(error)) } })
         lifecycle.fail(new Error(`getQuery failed: ${error}`))
       },
     )

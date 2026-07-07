@@ -15,6 +15,7 @@ export type TTSProperty = {
 }
 
 export class TTS {
+  readonly telemetryName = 'local'
   audio?: AudioOut
   onPlayed?: TTSPlaybackListener
   onDone?: TTSDoneListener

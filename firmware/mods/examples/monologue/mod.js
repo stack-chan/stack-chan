@@ -11,9 +11,12 @@ async function sayMonologue(robot) {
 }
 
 function onContextCreated(robot) {
-  robot.input.button.a.onEvent = (event) => {
-    if (event.pressed) {
-      sayMonologue(robot)
+  const buttons = robot.input.button
+  if (buttons?.a) {
+    buttons.a.onEvent = (event) => {
+      if (event.pressed) {
+        sayMonologue(robot)
+      }
     }
   }
 }

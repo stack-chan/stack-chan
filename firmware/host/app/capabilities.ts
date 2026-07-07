@@ -208,14 +208,71 @@ export type StackchanCapabilityNamespaces = {
   ui: RuntimeUICapability
 }
 
-export type StackchanLegacyFlatCapability = FaceCapability &
-  MotionCapability &
-  AudioCapability &
-  InputCapability &
-  LightingCapability &
-  CameraCapability &
-  ConversationCapability &
-  ConnectivityCapability &
-  UICapability
+/**
+ * @deprecated Use the namespaced capabilities on `StackchanCapabilityNamespaces`
+ * (`context.face`, `context.motion`, `context.audio`, etc.) instead.
+ */
+export type StackchanLegacyFlatCapability = {
+  /** @deprecated Use `context.face.setColor(...)` instead. */
+  setColor: FaceCapability['setColor']
+  /** @deprecated Use `context.face.setEmotion(...)` instead. */
+  setEmotion: FaceCapability['setEmotion']
+  /** @deprecated Use `context.face.setMouthOpen(...)` instead. */
+  setMouthOpen: FaceCapability['setMouthOpen']
+  /** @deprecated Use `context.motion.pose` instead. */
+  pose: MotionCapability['pose']
+  /** @deprecated Use `context.motion.lookAt(...)` instead. */
+  lookAt: MotionCapability['lookAt']
+  /** @deprecated Use `context.motion.lookAway()` instead. */
+  lookAway: MotionCapability['lookAway']
+  /** @deprecated Use `context.motion.setPose(...)` instead. */
+  setPose: MotionCapability['setPose']
+  /** @deprecated Use `context.motion.setTorque(...)` instead. */
+  setTorque: MotionCapability['setTorque']
+  /** @deprecated Use `context.audio.tts` instead. */
+  tts: AudioCapability['tts']
+  /** @deprecated Use `context.audio.microphone` instead. */
+  microphone?: AudioCapability['microphone']
+  /** @deprecated Use `context.audio.useTTS(...)` instead. */
+  useTTS: AudioCapability['useTTS']
+  /** @deprecated Use `context.audio.say(...)` instead. */
+  say: AudioCapability['say']
+  /** @deprecated Use `context.audio.record(...)` instead. */
+  record: AudioCapability['record']
+  /** @deprecated Use `context.audio.tone(...)` instead. */
+  tone: AudioCapability['tone']
+  /** @deprecated Use `context.audio.playAudio(...)` instead. */
+  playAudio: AudioCapability['playAudio']
+  /** @deprecated Use `context.input.button` instead. */
+  button?: InputCapability['button']
+  /** @deprecated Use `context.input.touch` instead. */
+  touch?: InputCapability['touch']
+  /** @deprecated Use `context.input.touchPanel` instead. */
+  touchPanel?: InputCapability['touchPanel']
+  /** @deprecated Use `context.input.imu` instead. */
+  imu?: InputCapability['imu']
+  /** @deprecated Use `context.lighting.led` instead. */
+  led: LightingCapability['led']
+  /** @deprecated Use `context.lighting.lightOn(...)` instead. */
+  lightOn: LightingCapability['lightOn']
+  /** @deprecated Use `context.lighting.lightOff(...)` instead. */
+  lightOff: LightingCapability['lightOff']
+  /** @deprecated Use `context.lighting.lightBlink(...)` instead. */
+  lightBlink: LightingCapability['lightBlink']
+  /** @deprecated Use `context.lighting.lightRainbow(...)` instead. */
+  lightRainbow: LightingCapability['lightRainbow']
+  /** @deprecated Use `context.camera` instead. */
+  camera: CameraCapability['camera']
+  /** @deprecated Use `context.connectivity.network` instead. */
+  network?: ConnectivityCapability['network']
+  /** @deprecated Use `context.ui.ui` instead. */
+  ui: UICapability['ui']
+  /** @deprecated Use `context.ui.drawer` instead. */
+  drawer: UICapability['drawer']
+  /** @deprecated Use `context.ui.showBalloon(...)` instead. */
+  showBalloon: UICapability['showBalloon']
+  /** @deprecated Use `context.ui.hideBalloon()` instead. */
+  hideBalloon: UICapability['hideBalloon']
+}
 
 export type StackchanContext = StackchanCapabilityNamespaces & StackchanLegacyFlatCapability

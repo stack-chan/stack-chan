@@ -13,7 +13,7 @@ export function onContextCreated(robot) {
     this.read(samples.buffer)
 
     const power = calculatePower(samples.buffer)
-    robot.setMouthOpen(Math.min(power / threshold, 1.0))
+    robot.face.setMouthOpen(Math.min(power / threshold, 1.0))
   }
 
   microphone.start()

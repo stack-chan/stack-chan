@@ -3,20 +3,27 @@ import Timer from 'timer'
 
 export function onContextCreated(robot) {
   let isFollowing = false
-  robot.input.button.a.onEvent = (event) => {
-    if (event.pressed) {
-      trace('pressed A\n')
-      isFollowing = !isFollowing
+  const buttons = robot.input.button
+  if (buttons?.a) {
+    buttons.a.onEvent = (event) => {
+      if (event.pressed) {
+        trace('pressed A\n')
+        isFollowing = !isFollowing
+      }
     }
   }
-  robot.input.button.b.onEvent = (event) => {
-    if (event.pressed) {
-      trace('pressed B\n')
+  if (buttons?.b) {
+    buttons.b.onEvent = (event) => {
+      if (event.pressed) {
+        trace('pressed B\n')
+      }
     }
   }
-  robot.input.button.c.onEvent = (event) => {
-    if (event.pressed) {
-      trace('pressed C\n')
+  if (buttons?.c) {
+    buttons.c.onEvent = (event) => {
+      if (event.pressed) {
+        trace('pressed C\n')
+      }
     }
   }
   const targetLoop = () => {

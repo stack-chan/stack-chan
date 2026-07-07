@@ -9,17 +9,20 @@ import Timer from 'timer'
 export function onContextCreated(context) {
   let count = 0
   const driver = context.driver
-  context.button.a.onEvent = (event) => {
-    if (event.pressed) {
-      return
+  const buttons = context.input.button
+  if (buttons?.a) {
+    buttons.a.onEvent = (event) => {
+      if (event.pressed) {
+        return
+      }
+      const ori = {
+        y: count * 0.1 - 1.0,
+        p: 0,
+        r: 0,
+      }
+      driver.applyRotation(ori)
+      count = (count + 1) % 20
     }
-    const ori = {
-      y: count * 0.1 - 1.0,
-      p: 0,
-      r: 0,
-    }
-    driver.applyRotation(ori)
-    count = (count + 1) % 20
   }
 }
 

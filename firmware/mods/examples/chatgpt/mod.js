@@ -71,25 +71,32 @@ export function onContextCreated(robot, option) {
 
   // Event handler
   let isFollowing = false
-  robot.input.button.a.onEvent = function handleButtonAEvent(event) {
-    if (event.pressed) {
-      trace('pressed A\n')
-      trace('Look around\n')
-      isFollowing = !isFollowing
+  const buttons = robot.input.button
+  if (buttons?.a) {
+    buttons.a.onEvent = function handleButtonAEvent(event) {
+      if (event.pressed) {
+        trace('pressed A\n')
+        trace('Look around\n')
+        isFollowing = !isFollowing
+      }
     }
   }
-  robot.input.button.b.onEvent = function handleButtonBEvent(event) {
-    if (event.pressed) {
-      trace('pressed B\n')
-      trace('Chat test\n')
-      chatAndSay('おはようございます').catch((error) => trace(`chat failed: ${error}\n`))
+  if (buttons?.b) {
+    buttons.b.onEvent = function handleButtonBEvent(event) {
+      if (event.pressed) {
+        trace('pressed B\n')
+        trace('Chat test\n')
+        chatAndSay('おはようございます').catch((error) => trace(`chat failed: ${error}\n`))
+      }
     }
   }
-  robot.input.button.c.onEvent = function handleButtonCEvent(event) {
-    if (event.pressed) {
-      trace('pressed C\n')
-      trace('TTS test\n')
-      sayGreeting().catch((error) => trace(`greeting failed: ${error}\n`))
+  if (buttons?.c) {
+    buttons.c.onEvent = function handleButtonCEvent(event) {
+      if (event.pressed) {
+        trace('pressed C\n')
+        trace('TTS test\n')
+        sayGreeting().catch((error) => trace(`greeting failed: ${error}\n`))
+      }
     }
   }
 

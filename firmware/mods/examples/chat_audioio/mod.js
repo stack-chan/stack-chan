@@ -312,7 +312,7 @@ export function onContextCreated(robot) {
   const flushMouthOpen = () => {
     if (pendingMouthStep === lastMouthStep) return
     lastMouthStep = pendingMouthStep
-    robot.setMouthOpen(lastMouthStep * MOUTH_QUANTIZE_STEP)
+    robot.face.setMouthOpen(lastMouthStep * MOUTH_QUANTIZE_STEP)
   }
 
   const queueMouthStep = (step, immediate = false) => {

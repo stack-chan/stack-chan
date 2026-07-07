@@ -9,23 +9,30 @@ export function onContextCreated(robot) {
     { r: 0, g: 255, b: 0 },
     { r: 0, g: 0, b: 255 },
   ]
-  robot.input.button.a.onEvent = (event) => {
-    if (event.pressed) {
-      const firstColor = colors.shift()
-      colors.push(firstColor)
-      robot.lighting.lightOn('a', firstColor.r, firstColor.g, firstColor.b)
+  const buttons = robot.input.button
+  if (buttons?.a) {
+    buttons.a.onEvent = (event) => {
+      if (event.pressed) {
+        const firstColor = colors.shift()
+        colors.push(firstColor)
+        robot.lighting.lightOn('a', firstColor.r, firstColor.g, firstColor.b)
+      }
     }
   }
 
-  robot.input.button.b.onEvent = (event) => {
-    if (event.pressed) {
-      robot.lighting.lightOff('a')
+  if (buttons?.b) {
+    buttons.b.onEvent = (event) => {
+      if (event.pressed) {
+        robot.lighting.lightOff('a')
+      }
     }
   }
 
-  robot.input.button.c.onEvent = (event) => {
-    if (event.pressed) {
-      robot.lighting.lightRainbow('a')
+  if (buttons?.c) {
+    buttons.c.onEvent = (event) => {
+      if (event.pressed) {
+        robot.lighting.lightRainbow('a')
+      }
     }
   }
 }

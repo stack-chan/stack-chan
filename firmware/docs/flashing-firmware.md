@@ -99,47 +99,39 @@ If Stack-chan is shaking her head left and right, the configuration has been suc
 
 Reference: [About the firmware for Stack-chan M5Go Bottom version (Japanese)](https://raspberrypi.mongonta.com/softwares-for-stackchan/)
 
-## Writing the base program (hosts)
+## Writing the base program (host)
 
 As stated above, Stack-chan's firmware comprises a base program (host) and a user application (MOD).
-The following commands are used to build and write a host.
+The following command builds and flashes the standard M5StackChan CoreS3 host.
 
 _No `sudo` required for the command._
 
 ```console
-# For M5Stack Basic/Gray/Fire
-$ npm run build
-$ npm run deploy
-
-# For M5Stack Core2
-$ npm run build --target=esp32/m5stack_core2
-$ npm run deploy --target=esp32/m5stack_core2
-
-# For M5Stack CoreS3
-$ npm run build --target=esp32/m5stack_cores3
-$ npm run deploy --target=esp32/m5stack_cores3
+$ npm run flash
 ```
 
+Use `npm run build` when you only want to verify the standard build.
 The program will be saved under the `$MODDABLE/build/` directory.
 
-### For dedicated control boards (M5StackChan CoreS3 / Stack-chan RT)
+### Stack-chan subplatforms
 
-Boards with a dedicated control board ship their own **subplatform**, which already defines the servo driver type and serial-bus pins. Use the board-specific npm scripts below instead of the generic `--target=` commands above; each one selects the subplatform (`-p esp32:./host/platforms/<board>`) and its matching app manifest automatically.
+Stack-chan hardware variants ship their own **subplatform**, which already defines the servo driver type and bus pins. Use the board-specific npm scripts below instead of generic `--target=` commands; each one selects the subplatform (`-p esp32:./host/platforms/<board>`) and its matching app manifest automatically.
 
-| Task                    | M5StackChan CoreS3 (M5StackChan / SCS servo bus) | Stack-chan RT (Dynamixel bus)                     |
-| ----------------------- | ------------------------------------------------ | ------------------------------------------------- |
-| Build only              | `npm run build:m5stackchan_cores3`               | `npm run build:stackchan_rt`                      |
-| Build & flash           | `npm run deploy:m5stackchan_cores3`              | `npm run deploy:stackchan_rt`                     |
-| Flash (alias of deploy) | `npm run flash:m5stackchan_cores3`               | `npm run flash:stackchan_rt`                      |
-| Debug (xsbug)           | `npm run debug:m5stackchan_cores3`               | `npm run debug:stackchan_rt`                      |
-| Install a MOD           | `npm run mod:m5stackchan_cores3 [mod manifest]`  | `npm run mod:stackchan_rt [mod manifest]`         |
+| Task                    | M5StackChan CoreS3 | Stack-chan RT | Takao Core2 + SG90 |
+| ----------------------- | ------------------ | ------------- | ------------------ |
+| Build only              | `npm run build` or `npm run build:m5stackchan_cores3` | `npm run build:stackchan_rt` | `npm run build:takao_core2_sg90` |
+| Build and flash         | `npm run flash` or `npm run flash:m5stackchan_cores3` | `npm run flash:stackchan_rt` | `npm run flash:takao_core2_sg90` |
+| Run deploy task         | `npm run deploy` or `npm run deploy:m5stackchan_cores3` | `npm run deploy:stackchan_rt` | `npm run deploy:takao_core2_sg90` |
+| Debug (xsbug)           | `npm run debug` or `npm run debug:m5stackchan_cores3` | `npm run debug:stackchan_rt` | `npm run debug:takao_core2_sg90` |
+| Install a MOD           | `npm run mod -- [mod manifest]` or `npm run mod:m5stackchan_cores3 -- [mod manifest]` | `npm run mod:stackchan_rt -- [mod manifest]` | `npm run mod:takao_core2_sg90 -- [mod manifest]` |
 
 The board-specific driver type and servo bus pins live in each subplatform manifest:
 
 - M5StackChan CoreS3: [`host/platforms/m5stackchan_cores3/manifest.json`](../host/platforms/m5stackchan_cores3/manifest.json) — `m5stackchan` driver, serial TX6 / RX7.
 - Stack-chan RT: [`host/platforms/stackchan_rt/manifest.json`](../host/platforms/stackchan_rt/manifest.json) — `dynamixel` driver, serial TX7 / RX6.
+- Takao Core2 + SG90: [`host/platforms/takao_core2_sg90/manifest.json`](../host/platforms/takao_core2_sg90/manifest.json) — `pwm` driver, pan PWM19 / tilt PWM27.
 
-Put per-device settings such as Wi-Fi credentials and API keys in the board's app manifest ([`host/app/manifest_m5stackchan_cores3.json`](../host/app/manifest_m5stackchan_cores3.json) / [`host/app/manifest_stackchan_rt.json`](../host/app/manifest_stackchan_rt.json)) under `"config"`. Keep secrets out of commits — add them locally only. On boot, the log line `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` shows the serial pins actually in use.
+Put per-device settings such as Wi-Fi credentials and API keys in the board's app manifest under `"config"`. Keep secrets out of commits and add them locally only. On boot, the log line `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` shows the RT serial pins actually in use.
 
 If written correctly, the face of Stack-chan will appear a few seconds after startup.
 With the product default behavior, the M5Stack buttons change Stack-chan's behavior as follows:
@@ -150,19 +142,13 @@ With the product default behavior, the M5Stack buttons change Stack-chan's behav
 
 ## Debugging
 
-You can debug the program using the following commands:
+You can start the selected host under the Moddable debugger with:
 
 ```
-# For M5Stack Basic/Gray/Fire
 $ npm run debug
-
-# For M5Stack Core2
-$ npm run debug --target=esp32/m5stack_core2
-
-# For M5Stack CoreS3
-$ npm run debug --target=esp32/m5stack_cores3
 ```
 
+Use the board-specific debug scripts from the table above for Stack-chan RT or Takao Core2 + SG90.
 These commands will open Moddable's debugger `xsbug` and connect it to the M5Stack.
 
 ![xsbug](./images/xsbug.png)
@@ -177,14 +163,7 @@ The following command is used to build and write a mod.
 _No `sudo` required for the command._
 
 ```console
-# For M5Stack Basic/Gray/Fire
-$ npm run mod [mod manifest file path]
-
-# For M5Stack Core2
-$ npm run mod --target=esp32/m5stack_core2 [mod manifest file path]
-
-# For M5Stack CoreS3
-$ npm run mod --target=esp32/m5stack_cores3 [mod manifest file path]
+$ npm run mod -- [mod manifest file path]
 ```
 
 The standard command accepts MOD manifests that resolve to JavaScript modules.
@@ -197,10 +176,10 @@ The exact button and screen behavior depends on the installed MOD.
 **Example: Installing [`mods/examples/look_around`](../mods/examples/look_around/)**
 
 ```console
-$ npm run mod ./mods/examples/look_around/manifest.json
+$ npm run mod -- ./mods/examples/look_around/manifest.json
 
 > stack-chan@0.2.1 mod
-> mcrun -d -m -p ${npm_config_target=esp32/m5stack} ${npm_argument} "./mods/examples/look_around/manifest.json"
+> node scripts/firmware.mjs mod ./mods/examples/look_around/manifest.json
 
 # xsc mod.xsb
 # xsc check.xsb

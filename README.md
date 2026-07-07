@@ -53,7 +53,7 @@ cd firmware
 npm run setup
 npm run doctor
 npm run test
-npm run build
+npm run flash
 ```
 
 Generated web assets under `web/flash` and `web/schematics` are published from the `gh-pages` branch by GitHub Actions. Treat them as deployment outputs, not hand-maintained source files.

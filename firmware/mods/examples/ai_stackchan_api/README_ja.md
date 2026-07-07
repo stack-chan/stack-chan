@@ -52,12 +52,13 @@
 ※日本語対応にする場合は"model"を"eleven_multilingual_v2"にしてください。
 
 ### 2. ビルド、書き込み
-次の手順でModを書き込みます。--targetは使用するデバイスを指定してください。
+次の手順でModを書き込みます。標準構成は M5StackChan CoreS3 です。
+タカオ版 Core2 + SG90 では `build:takao_core2_sg90` / `flash:takao_core2_sg90` / `mod:takao_core2_sg90` を使います。
 ```
 cd (YOUR_WORKING_DIRECTORY)/stack-chan/firmware
-npm run build --target=esp32/m5stack_core2 ssid=YOUR_WIFI_SSID password=YOUR_WIFI_PASSWORD
-npm run deploy --target=esp32/m5stack_core2
-npm run mod --target=esp32/m5stack_core2 ./mods/examples/ai_stackchan_api/manifest.json
+npm run build -- ssid=YOUR_WIFI_SSID password=YOUR_WIFI_PASSWORD
+npm run flash
+npm run mod -- ./mods/examples/ai_stackchan_api/manifest.json
 ```
 
 ## Web API一覧

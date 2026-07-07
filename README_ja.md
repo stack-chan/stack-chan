@@ -53,7 +53,7 @@ cd firmware
 npm run setup
 npm run doctor
 npm run test
-npm run build
+npm run flash
 ```
 
 `web/flash` と `web/schematics` は GitHub Actions から `gh-pages` ブランチへ配布される生成物です。手作業で保守するソースではなく、デプロイ成果物として扱ってください。

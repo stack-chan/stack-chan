@@ -87,9 +87,8 @@ INFO:     Uvicorn running on http://0.0.0.0:50021 (Press CTRL+C to quit)
 このときｽﾀｯｸﾁｬﾝを無線LANネットワークに接続するために、SSIDとパスワードを指定します。
 
 ```console
-# targetは esp32/m5stack または esp32/m5stack_core2 から指定
-$ npm run build --target=esp32/m5stack ssid=[使用するネットワークのSSID] password=[使用するネットワークのパスワード]
-$ npm run deploy --target=esp32/m5stack
+$ npm run build -- ssid=[使用するネットワークのSSID] password=[使用するネットワークのパスワード]
+$ npm run flash
 ```
 
 参考：[Moddableの公式ドキュメント（英語）](https://github.com/Moddable-OpenSource/moddable/tree/public/examples#wifi-configuration)
@@ -99,8 +98,7 @@ $ npm run deploy --target=esp32/m5stack
 次のコマンドでmodを書き込みます。
 
 ```console
-# targetは esp32/m5stack または esp32/m5stack_core2 から指定
-$ npm run mod --target=esp32/m5stack mods/examples/chatgpt/manifest.json
+$ npm run mod -- mods/examples/chatgpt/manifest.json
 ```
 
 ## キャラクター設定（systemメッセージ）の変更

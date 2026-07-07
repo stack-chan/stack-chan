@@ -86,9 +86,8 @@ Write the host for Stack-chan.
 At this time, specify the SSID and password to connect Stack-chan to the wireless LAN network.
 
 ```console
-# Choose target from esp32/m5stack or esp32/m5stack_core2
-$ npm run build --target=esp32/m5stack ssid=[Network SSID to use] password=[Network password to use]
-$ npm run deploy --target=esp32/m5stack
+$ npm run build -- ssid=[Network SSID to use] password=[Network password to use]
+$ npm run flash
 ```
 
 Reference: [Moddable's official documentation](https://github.com/Moddable-OpenSource/moddable/tree/public/examples#wifi-configuration)
@@ -98,8 +97,7 @@ Reference: [Moddable's official documentation](https://github.com/Moddable-OpenS
 Write the mod with the following command:
 
 ```console
-# Choose target from esp32/m5stack or esp32/m5stack_core2
-$ npm run mod --target=esp32/m5stack mods/examples/chatgpt/manifest.json
+$ npm run mod -- mods/examples/chatgpt/manifest.json
 ```
 
 ## Changing character settings (system messages)

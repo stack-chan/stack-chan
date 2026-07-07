@@ -22,6 +22,8 @@
     "build:m5stackchan_cores3": "node scripts/firmware.mjs build m5stackchan_cores3",
     "build:stackchan_rt": "node scripts/firmware.mjs build stackchan_rt",
     "build:takao_core2_sg90": "node scripts/firmware.mjs build takao_core2_sg90",
+    "build:m5stack": "mcconfig -d -m -p esp32/m5stack -t build \"$PWD/host/app/manifest_local.json\"",
+    "build:m5stack_cores3": "mcconfig -d -m -p esp32/m5stack_cores3 -t build \"$PWD/host/app/manifest_local.json\"",
     "build:lin": "mcconfig -d -m -p lin -t build \"$PWD/host/app/manifest_local.json\"",
     "smoke:lin": "bash scripts/smoke-lin.sh",
     "build:wasm": "mcconfig -d -m -p wasm -t build \"$PWD/host/app/manifest_wasm.json\" && mkdir -p ../web/simulator && cp $MODDABLE/build/bin/wasm/debug/app/mc.js $MODDABLE/build/bin/wasm/debug/app/mc.wasm ../web/simulator/",

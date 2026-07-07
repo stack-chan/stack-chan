@@ -44,6 +44,16 @@ if (targetOption) {
   process.exit(1)
 }
 
+// npm swallows `--target=...` into this env var instead of argv; without this
+// guard the wrapper would silently fall back to the default device.
+if (process.env.npm_config_target) {
+  console.error(`[stack-chan] --target is not supported by this command wrapper: ${process.env.npm_config_target}`)
+  console.error(
+    '[stack-chan] Use a named script such as npm run build:m5stack, npm run build:m5stackchan_cores3, or npm run flash:takao_core2_sg90.',
+  )
+  process.exit(1)
+}
+
 const deviceName = resolveDevice(
   readOption(rawArgs, 'device') ?? process.env.STACKCHAN_DEVICE ?? firstDeviceArg(rawArgs),
 )

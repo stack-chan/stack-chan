@@ -79,6 +79,12 @@
       "stored-wifi": [
         "host/modules/connectivity/stored-wifi.ts"
       ],
+      "preference-server": [
+        "host/modules/connectivity/preference-server.ts"
+      ],
+      "preference-write-guard": [
+        "host/modules/connectivity/preference-write-guard.ts"
+      ],
       "network-service": [
         "host/modules/connectivity/network-service.ts"
       ],
@@ -111,6 +117,9 @@
       ],
       "sntp": [
         "host/modules/connectivity/__tests__/fakes/sntp.ts"
+      ],
+      "uartserver": [
+        "host/modules/connectivity/__tests__/fakes/uartserver.ts"
       ],
       "embedded:network/interface/wifi": [
         "host/modules/connectivity/__tests__/fakes/ecma-wifi.ts"

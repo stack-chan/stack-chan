@@ -57,7 +57,7 @@ export function startSetupMode(application: SetupApplication): void {
   }
   const labels = buildSettingsView(application, status, { onConnect: testConnection })
 
-  new PreferenceServer({
+  const preferenceServer = new PreferenceServer({
     onPreferenceChanged: (key, value) => {
       trace(`preference changed! ${key}: ${value}\n`)
       status[key] = value
@@ -73,4 +73,5 @@ export function startSetupMode(application: SetupApplication): void {
     },
     keys: PREF_KEYS,
   })
+  preferenceServer.enableWrites()
 }

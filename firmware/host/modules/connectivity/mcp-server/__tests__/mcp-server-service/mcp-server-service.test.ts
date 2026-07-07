@@ -65,6 +65,7 @@ trace('Starting MCP Server Test...\n')
 
 const server = new MCPServerService({
   port: 8080,
+  token: 'test-token',
   tools: [helloWorldTool, addNumbersTool, getCurrentTimeTool],
 })
 
@@ -79,12 +80,15 @@ trace('MCP endpoint: POST http://localhost:8080/mcp\n')
 trace('\nExample requests:\n')
 trace('1. Initialize:\n')
 trace('   POST /mcp\n')
+trace('   Authorization: Bearer test-token\n')
 trace('   {"jsonrpc":"2.0","id":"1","method":"initialize","params":{}}\n\n')
 trace('2. List tools:\n')
 trace('   POST /mcp\n')
+trace('   Authorization: Bearer test-token\n')
 trace('   {"jsonrpc":"2.0","id":"2","method":"tools/list","params":{}}\n\n')
 trace('3. Call tool:\n')
 trace('   POST /mcp\n')
+trace('   Authorization: Bearer test-token\n')
 trace(
   '   {"jsonrpc":"2.0","id":"3","method":"tools/call","params":{"name":"hello_world","arguments":{"name":"Stack-chan"}}}\n\n',
 )

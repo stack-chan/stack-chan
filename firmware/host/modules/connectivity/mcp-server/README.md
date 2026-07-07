@@ -10,6 +10,7 @@ ModdableでMCPサーバーを実装するためのクラスです。Model Contex
 - JSON-RPC 2.0プロトコル対応
 - 動的ツール登録・削除
 - エラーハンドリング
+- Bearer token認証
 - TypeScript型定義
 
 ## API
@@ -17,7 +18,7 @@ ModdableでMCPサーバーを実装するためのクラスです。Model Contex
 ### エンドポイント
 
 - `GET /health` - ヘルスチェック
-- `POST /mcp` - MCPプロトコルメッセージ
+- `POST /mcp` - MCPプロトコルメッセージ（`Authorization: Bearer <token>` 必須）
 
 ### サポートするMCPメソッド
 
@@ -51,6 +52,7 @@ const helloTool: Tool = {
 // サーバーの起動
 const server = new MCPServerService({
   port: 8080,
+  token: 'your-secret-token',
   tools: [helloTool]
 })
 ```
@@ -61,6 +63,15 @@ const server = new MCPServerService({
 
 * `port`: ポート番号（デフォルト: `8080`）
 * `tools`: ツールのリスト（デフォルト: 空配列）
+* `token`: MCPエンドポイント用Bearer token。未指定時はPreferenceの `mcp.token` を使用します。
+
+`token` も `mcp.token` も未設定の場合、サーバーは起動しますが `POST /mcp` は `401` を返します。これにより、明示的にトークンを設定するまでLAN内やWebページからロボット操作用のMCP RPCを呼び出せません。
+
+### トークンの設定
+
+`setup-mode` のPreference同期で `mcp.token` に任意の長い文字列を設定してください。
+
+MCPクライアントには同じ値をBearer tokenとして指定します。
 
 ### ツール定義
 
@@ -112,11 +123,13 @@ curl http://localhost:8080/health
 # 初期化
 curl -X POST http://localhost:8080/mcp \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <mcp.token>" \
   -d '{"jsonrpc":"2.0","id":"1","method":"initialize","params":{}}'
 
 # ツール実行
 curl -X POST http://localhost:8080/mcp \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <mcp.token>" \
   -d '{"jsonrpc":"2.0","id":"2","method":"tools/call","params":{"name":"hello_world","arguments":{"name":"Stack-chan"}}}'
 ```
 
@@ -128,7 +141,10 @@ VSCodeとGitHub Copilot(agentモード)を使う場合、 `.vscode/mcp.json` を
 {
   "servers": {
     "stackchan-mcp": {
-      "url": "http://<ｽﾀｯｸﾁｬﾝのIPアドレス>:8080/mcp"
+      "url": "http://<ｽﾀｯｸﾁｬﾝのIPアドレス>:8080/mcp",
+      "headers": {
+        "Authorization": "Bearer <mcp.token>"
+      }
     }
   }
 }

@@ -73,6 +73,7 @@ async function testMCPClient(): Promise<void> {
   trace('Starting dummy MCP server...\n')
   const _server = new MCPServerService({
     port: 8081, // Use different port to avoid conflicts
+    token: 'test-token',
     tools: testTools,
   })
 
@@ -84,6 +85,7 @@ async function testMCPClient(): Promise<void> {
     trace('Creating MCP client...\n')
     const client = new MCPClientService({
       url: 'http://localhost:8081/mcp',
+      token: 'test-token',
     })
 
     // Test 1: Initialize client

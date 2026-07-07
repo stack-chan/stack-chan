@@ -5,6 +5,7 @@ export const DOMAIN = {
   tts: 'tts',
   ai: 'ai',
   led: 'led',
+  mcp: 'mcp',
 } as const
 
 export const PREF_KEYS: readonly [keyof typeof DOMAIN, string, StringConstructor | NumberConstructor][] = Object.freeze(
@@ -23,6 +24,7 @@ export const PREF_KEYS: readonly [keyof typeof DOMAIN, string, StringConstructor
     [DOMAIN.tts, 'volume', Number],
     [DOMAIN.ai, 'token', String],
     [DOMAIN.ai, 'context', String],
+    [DOMAIN.mcp, 'token', String],
   ],
   true,
 )

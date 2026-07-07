@@ -12,17 +12,21 @@ function traceError(context, error) {
 }
 
 function readAngle(servo, label, callback) {
-  servo.readStatus((result) => {
+  servo.readAngle((result) => {
     if (!result.success) {
       trace(`${label} read failed: ${result.reason}\n`)
       callback(undefined)
       return
     }
-    callback(result.value.angle)
+    callback(result.value)
   })
 }
 
 function setOffsetAndSave(servo, label, angle) {
+  if (servo.setOffsetAngle == null || servo.saveSettings == null) {
+    trace(`${label} offset calibration is not supported\n`)
+    return
+  }
   servo.setOffsetAngle(angle - 90, (offsetError) => {
     if (offsetError != null) {
       traceError(`${label} offset failed`, offsetError)
@@ -33,56 +37,74 @@ function setOffsetAndSave(servo, label, angle) {
 }
 
 function onContextCreated(context) {
-  const pan = context._driver._pan
-  const tilt = context._driver._tilt
-  context.button.a.onEvent = (event) => {
-    if (!event.pressed) {
-      return
-    }
-    trace('setting pan offset\n')
-    readAngle(pan, 'pan', (panAngle) => {
-      if (panAngle !== undefined) setOffsetAndSave(pan, 'pan', panAngle)
-    })
-  }
-  context.button.b.onEvent = (event) => {
-    if (!event.pressed) {
-      return
-    }
-    trace('setting tilt offset\n')
-    readAngle(tilt, 'tilt', (tiltAngle) => {
-      if (tiltAngle !== undefined) setOffsetAndSave(tilt, 'tilt', tiltAngle)
-    })
-  }
-  context.button.c.onEvent = (event) => {
-    if (!event.pressed) {
-      return
-    }
-    trace('setting zero\n')
-    tilt.setAngle(100, (tiltError) => {
-      if (tiltError != null) {
-        traceError('tilt angle failed', tiltError)
-        return
-      }
-      pan.setAngle(100, (panError) => {
-        if (panError != null) {
-          traceError('pan angle failed', panError)
-          return
-        }
-        Timer.set(() => {
-          tilt.setTorque(false, (tiltTorqueError) => {
-            if (tiltTorqueError != null) {
-              traceError('tilt torque failed', tiltTorqueError)
-              return
-            }
-            pan.setTorque(false, (panTorqueError) => traceError('pan torque failed', panTorqueError))
-          })
-        }, 500)
-      })
-    })
+  const calibration = context.motion.calibration
+  const pan = calibration?.pan
+  const tilt = calibration?.tilt
+  const buttons = context.input.button
+  const buttonA = buttons?.a
+  const buttonB = buttons?.b
+  const buttonC = buttons?.c
+
+  if (pan == null || tilt == null || buttons == null) {
+    trace('calibration requires motion calibration support and buttons\n')
+    return
   }
 
-  pan.setOffsetAngle(0, (error) => traceError('pan reset offset failed', error))
-  tilt.setOffsetAngle(0, (error) => traceError('tilt reset offset failed', error))
+  if (buttonA != null) {
+    buttonA.onEvent = (event) => {
+      if (!event.pressed) {
+        return
+      }
+      trace('setting pan offset\n')
+      readAngle(pan, 'pan', (panAngle) => {
+        if (panAngle !== undefined) setOffsetAndSave(pan, 'pan', panAngle)
+      })
+    }
+  }
+  if (buttonB != null) {
+    buttonB.onEvent = (event) => {
+      if (!event.pressed) {
+        return
+      }
+      trace('setting tilt offset\n')
+      readAngle(tilt, 'tilt', (tiltAngle) => {
+        if (tiltAngle !== undefined) setOffsetAndSave(tilt, 'tilt', tiltAngle)
+      })
+    }
+  }
+
+  if (buttonC != null) {
+    buttonC.onEvent = (event) => {
+      if (!event.pressed) {
+        return
+      }
+      trace('setting zero\n')
+      tilt.setAngle(100, (tiltError) => {
+        if (tiltError != null) {
+          traceError('tilt angle failed', tiltError)
+          return
+        }
+        pan.setAngle(100, (panError) => {
+          if (panError != null) {
+            traceError('pan angle failed', panError)
+            return
+          }
+          Timer.set(() => {
+            tilt.setTorque(false, (tiltTorqueError) => {
+              if (tiltTorqueError != null) {
+                traceError('tilt torque failed', tiltTorqueError)
+                return
+              }
+              pan.setTorque(false, (panTorqueError) => traceError('pan torque failed', panTorqueError))
+            })
+          }, 500)
+        })
+      })
+    }
+  }
+
+  pan.setOffsetAngle?.(0, (error) => traceError('pan reset offset failed', error))
+  tilt.setOffsetAngle?.(0, (error) => traceError('tilt reset offset failed', error))
 
   let polling = false
   Timer.repeat(() => {
@@ -98,6 +120,11 @@ function onContextCreated(context) {
       readAngle(tilt, 'tilt', (tiltAngle) => {
         if (tiltAngle === undefined) {
           polling = false
+          return
+        }
+        if (pan.readOffsetAngle == null || tilt.readOffsetAngle == null) {
+          polling = false
+          trace(`(pan, tilt) => (${panAngle}, ${tiltAngle}), offset read is not supported\n`)
           return
         }
         pan.readOffsetAngle((panOffsetResult) => {

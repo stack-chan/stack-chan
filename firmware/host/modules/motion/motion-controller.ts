@@ -17,11 +17,28 @@ export type ServoGoalTimeMilliseconds = number
 export type ServoGoalTimeCentiseconds = number
 export type MotionCompletion = (error?: unknown) => void
 export type MotionResultCallback<T> = (result: T) => void
+export type MotionCalibrationAxis = 'pan' | 'tilt'
+
+export type MotionCalibrationServo = {
+  readAngle(callback: MotionResultCallback<Maybe<number>>): void
+  setAngle: {
+    (angle: number, callback?: MotionCompletion): void
+    (angle: number, time: MotionDurationSeconds, callback?: MotionCompletion): void
+  }
+  setTorque(torque: boolean, callback?: MotionCompletion): void
+  flashId?(id: number, callback?: MotionCompletion): void
+  readOffsetAngle?(callback: MotionResultCallback<Maybe<number>>): void
+  setOffsetAngle?(angle: number, callback?: MotionCompletion): void
+  saveSettings?(callback?: MotionCompletion): void
+}
+
+export type MotionCalibrationCapability = Record<MotionCalibrationAxis, MotionCalibrationServo>
 
 export type MotionDriver = {
   applyRotation: (ori: RotationType, time?: MotionDurationSeconds, callback?: MotionCompletion) => void
   getRotation: (callback: MotionResultCallback<Maybe<RotationType>>) => void
   setTorque: (torque: boolean, callback?: MotionCompletion) => void
+  calibration?: MotionCalibrationCapability
   onAttached?: () => void
   onDetached?: () => void
 }
@@ -117,6 +134,10 @@ export class MotionController {
 
   get driver(): MotionDriver {
     return this.#driver
+  }
+
+  get calibration(): MotionCalibrationCapability | undefined {
+    return this.#driver.calibration
   }
 
   get gazePoint(): Vector3 | null {

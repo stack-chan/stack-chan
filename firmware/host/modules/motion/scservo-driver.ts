@@ -1,4 +1,6 @@
 import {
+  type MotionCalibrationCapability,
+  type MotionCalibrationServo,
   type MotionCompletion,
   type MotionDurationSeconds,
   type MotionResultCallback,
@@ -13,10 +15,51 @@ type SCServoDriverProps = {
   tiltId: number
 }
 
+function createCalibrationServo(servo: SCServo): MotionCalibrationServo {
+  return {
+    readAngle(callback) {
+      servo.readStatus((result) => {
+        if (!result.success) {
+          callback({ success: false, reason: result.reason })
+          return
+        }
+        callback({ success: true, value: result.value.angle })
+      })
+    },
+    setAngle(angle, timeOrCallback?: MotionDurationSeconds | MotionCompletion, callback?: MotionCompletion) {
+      if (typeof timeOrCallback === 'function') {
+        servo.setAngle(angle, timeOrCallback)
+        return
+      }
+      if (timeOrCallback == null) {
+        servo.setAngle(angle, callback)
+        return
+      }
+      servo.setAngleInTime(angle, motionDurationSecondsToMilliseconds(timeOrCallback), callback)
+    },
+    setTorque(torque, callback) {
+      servo.setTorque(torque, callback)
+    },
+    flashId(id, callback) {
+      servo.flashId(id, callback)
+    },
+    readOffsetAngle(callback) {
+      servo.readOffsetAngle(callback)
+    },
+    setOffsetAngle(angle, callback) {
+      servo.setOffsetAngle(angle, callback)
+    },
+    saveSettings(callback) {
+      servo.saveSettings(callback)
+    },
+  }
+}
+
 export class SCServoDriver {
   _pan: SCServo
   _tilt: SCServo
   _handler: ReturnType<typeof Timer.repeat>
+  calibration: MotionCalibrationCapability
   #rotation: Rotation = { y: 0, p: 0, r: 0 }
   #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
   #rotationErrorResult: { success: false; reason?: string } = { success: false }
@@ -24,6 +67,10 @@ export class SCServoDriver {
   constructor(param: SCServoDriverProps) {
     this._pan = new SCServo({ id: param.panId })
     this._tilt = new SCServo({ id: param.tiltId })
+    this.calibration = {
+      pan: createCalibrationServo(this._pan),
+      tilt: createCalibrationServo(this._tilt),
+    }
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {

@@ -13,7 +13,11 @@ import type {
   StackchanContext,
 } from 'capabilities'
 import type { Emotion, FaceThemeKey } from 'face-state'
-import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
+import {
+  type MotionCalibrationCapability,
+  MotionController,
+  type MotionControllerConstructorParam,
+} from 'motion-controller'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
@@ -170,6 +174,10 @@ export class StackchanRuntimeContext implements StackchanContext {
    */
   get pose() {
     return this.#motionController.pose
+  }
+
+  get calibration(): MotionCalibrationCapability | undefined {
+    return this.#motionController.calibration
   }
 
   /**
@@ -400,6 +408,9 @@ export class StackchanRuntimeContext implements StackchanContext {
     return {
       get pose() {
         return context.pose
+      },
+      get calibration() {
+        return context.calibration
       },
       lookAt(position) {
         context.lookAt(position)

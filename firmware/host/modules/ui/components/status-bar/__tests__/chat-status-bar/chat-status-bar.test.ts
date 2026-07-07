@@ -50,18 +50,18 @@ behavior.onChatState?.(bar, ChatStatusBarState.CONNECTING)
 assert(statusIndicator.visible === true, 'connecting indicator should be visible')
 assert(statusIcon.visible === false, 'status icon should be hidden while connecting')
 
-behavior.onChatState?.(bar, ChatStatusBarState.SPEAKING)
-assert(levelTrack.visible === true, 'level track should be visible in SPEAKING')
-assert(statusIcon.visible === true, 'status icon should be visible in SPEAKING')
-equal(statusIcon.state, 0, 'SPEAKING should use microphone input icon state')
+behavior.onChatState?.(bar, ChatStatusBarState.LISTENING)
+assert(levelTrack.visible === true, 'level track should be visible in LISTENING')
+assert(statusIcon.visible === true, 'status icon should be visible in LISTENING')
+equal(statusIcon.state, 0, 'LISTENING should use microphone input icon state')
 
 behavior.onChatInputLevel?.(bar, 1000)
 equal(levelFill.height, 8, 'half input level should fill half the track')
 
-behavior.onChatState?.(bar, ChatStatusBarState.LISTENING)
-assert(levelTrack.visible === false, 'level track should be hidden in LISTENING')
-assert(statusIcon.visible === true, 'status icon should be visible in LISTENING')
-equal(statusIcon.state, 1, 'LISTENING should use output icon state')
+behavior.onChatState?.(bar, ChatStatusBarState.SPEAKING)
+assert(levelTrack.visible === false, 'level track should be hidden in SPEAKING')
+assert(statusIcon.visible === true, 'status icon should be visible in SPEAKING')
+equal(statusIcon.state, 1, 'SPEAKING should use output icon state')
 
 const normalFillSkin = levelFill.skin
 behavior.onChatState?.(bar, ChatStatusBarState.FAILED, 'boom')

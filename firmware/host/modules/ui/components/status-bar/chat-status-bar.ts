@@ -103,8 +103,8 @@ class ChatStatusBarBehavior extends Behavior {
 
   updateUI() {
     if (!this.#levelTrack || !this.#levelFill || !this.#statusIcon || !this.#indicator) return
-    const isListening = this.#state === ChatStatusBarState.SPEAKING
-    const isSpeaking = this.#state === ChatStatusBarState.LISTENING
+    const isListening = this.#state === ChatStatusBarState.LISTENING
+    const isSpeaking = this.#state === ChatStatusBarState.SPEAKING
     const isConnecting = this.#state === ChatStatusBarState.CONNECTING
     this.#levelTrack.visible = isListening
     this.#statusIcon.visible = isListening || isSpeaking

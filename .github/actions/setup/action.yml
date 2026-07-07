@@ -29,7 +29,7 @@ runs:
       if: inputs.install-emscripten == 'true'
       uses: mymindstorm/setup-emsdk@v16
       with:
-        version: 3.1.2
+        version: 5.0.1
     - name: Install Moddable Linux tool dependencies
       run: |
         sudo apt-get update

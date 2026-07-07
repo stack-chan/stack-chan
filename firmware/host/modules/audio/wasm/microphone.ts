@@ -75,6 +75,11 @@ export default class Microphone {
     })
   }
 
+  // Matches the device Microphone contract used by the runtime audio close path.
+  stop() {
+    this.close()
+  }
+
   close() {
     getAudioBridge().close()
   }

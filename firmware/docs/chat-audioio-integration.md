@@ -16,9 +16,9 @@ flowchart TD
   Conversation["host/modules/conversation"]
   ChatService["ChatService"]
   ChatAudioIO["ChatAudioIO"]
-  UI["context.ui / context.drawer / context.showBalloon"]
-  Face["context.setMouthOpen / context.setEmotion"]
-  Audio["context.say / context.tts"]
+  UI["context.ui / context.ui.drawer / context.ui.showBalloon"]
+  Face["context.face.setMouthOpen / context.face.setEmotion"]
+  Audio["context.audio.say / context.audio.tts"]
 
   Behavior --> Context
   Behavior --> ChatService
@@ -34,7 +34,7 @@ flowchart TD
 `ChatService` は状態、入力レベル、出力レベル、 transcript、function call を callback で上位へ通知する。
 
 上位の product behavior または利用者 MOD は、その callback を `StackchanContext` の capability API に変換する。
-たとえば transcript は `context.showBalloon()`、出力レベルは `context.setMouthOpen()`、開始と停止は `context.drawer` のボタン状態へ反映する。
+たとえば transcript は `context.ui.showBalloon()`、出力レベルは `context.face.setMouthOpen()`、開始と停止は `context.ui.drawer` のボタン状態へ反映する。
 
 ## ChatService の境界
 
@@ -71,8 +71,8 @@ export class ChatService {
 会話状態の表示は `StackchanContext` の UI capability を使う。
 
 - 接続中と切断中は、Drawer ボタンの状態または status bar へ反映する。
-- ユーザー発話と AI 応答は、`context.showBalloon()` または `context.ui.addEffect()` で表示する。
-- AI 応答の出力レベルは、`context.setMouthOpen()` に渡す。
+- ユーザー発話と AI 応答は、`context.ui.showBalloon()` または `context.ui.addEffect()` で表示する。
+- AI 応答の出力レベルは、`context.face.setMouthOpen()` に渡す。
 - エラーは会話 module で握りつぶさず、`onStateChanged(state, error)` で上位へ返す。
 
 口の開きは `0..1` にクランプする。
@@ -143,6 +143,6 @@ sample MOD 固有の設定や provider wiring は、`mods/examples/<sample>/__te
 - `ChatService` は `ChatAudioIO` の状態と transcript を callback へ中継する。
 - Drawer ボタンは `StackchanContext` 経由で開始と停止を切り替える。
 - transcript 表示は UI capability を通す。
-- 出力レベルは `context.setMouthOpen()` だけで顔へ反映する。
+- 出力レベルは `context.face.setMouthOpen()` だけで顔へ反映する。
 - `host/modules/conversation` は `host/modules/ui` に依存しない。
 - sample MOD の test manifest は `mods/examples` 配下に置く。

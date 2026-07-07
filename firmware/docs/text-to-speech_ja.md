@@ -82,15 +82,15 @@ export const speeches = {
 * npm run generate-speech-[google|coqui|voicevox]を実行します
   * このスクリプトはサーバーから音声データを取得し、host/modules/audio/assets/soundsにwaveファイルを保存します
 * 音声ファイルとともにファームウェアを書き込みます
-* `context.say(sentence: string)`を呼び出します
+* `context.audio.say(sentence: string)`を呼び出します
 
 ```javascript
 import { speeches } from 'speeches'
 const keys = Object.keys(speeches)
 
 export async function onContextCreated(context) {
-  await context.say('hello')
-  await context.say(keys[0] /* 'niceToMeetYou' */)
+  await context.audio.say('hello')
+  await context.audio.say(keys[0] /* 'niceToMeetYou' */)
 }
 ```
 
@@ -111,11 +111,11 @@ export async function onContextCreated(context) {
 }
 ```
 
-* `context.say(sentence: string)`を呼び出します。
+* `context.audio.say(sentence: string)`を呼び出します。
 
 ```javascript
 // ...
 export async function onContextCreated(context) {
-  await context.say('Now I can speak any sentence you want.')
+  await context.audio.say('Now I can speak any sentence you want.')
 }
 ```

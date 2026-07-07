@@ -1,14 +1,6 @@
 import config from 'mc/config'
+import type { NetworkReadyResult } from 'capabilities'
 import { connectStoredWiFi } from 'stored-wifi'
-
-export type NetworkReadyResult =
-  | {
-      status: 'connected'
-    }
-  | {
-      status: 'skipped' | 'failed'
-      reason: string
-    }
 
 export type HostBootServices = {
   connectivity: {

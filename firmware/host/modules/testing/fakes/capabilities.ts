@@ -12,3 +12,12 @@ export type RobotLed = {
   blink(r: number, g: number, b: number, duration: number, index?: number, count?: number): void
   rainbow(index?: number, count?: number): void
 }
+
+export type NetworkReadyResult =
+  | {
+      status: 'connected'
+    }
+  | {
+      status: 'skipped' | 'failed'
+      reason: string
+    }

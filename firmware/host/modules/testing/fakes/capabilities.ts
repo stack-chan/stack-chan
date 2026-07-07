@@ -5,3 +5,10 @@ export type TTS = {
   onPlayed?: TTSPlaybackListener
   onDone?: TTSDoneListener
 }
+
+export type RobotLed = {
+  on(r: number, g: number, b: number, duration?: number, index?: number, count?: number): void
+  off(index?: number, count?: number): void
+  blink(r: number, g: number, b: number, duration: number, index?: number, count?: number): void
+  rainbow(index?: number, count?: number): void
+}

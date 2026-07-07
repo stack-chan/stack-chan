@@ -42,4 +42,10 @@ export class StackchanRuntimeLighting {
       led.rainbow(index, count)
     }
   }
+
+  close(): void {
+    for (const led of Object.values(this.#led)) {
+      led.off()
+    }
+  }
 }

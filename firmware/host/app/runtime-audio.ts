@@ -83,4 +83,10 @@ export class StackchanRuntimeAudio {
     if (!this.#speaker) return false
     return this.#speaker.play(buffer)
   }
+
+  close(): void {
+    this.#microphone?.stop()
+    this.#tts.onPlayed = noop
+    this.#tts.onDone = noop
+  }
 }

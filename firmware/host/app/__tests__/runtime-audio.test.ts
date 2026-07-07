@@ -58,3 +58,30 @@ test('StackchanRuntimeAudio reports unsupported playback as false', async () => 
   assert.equal(await runtimeWithoutSpeaker.playAudio(buffer), false)
   assert.equal(await runtimeUnsupported.playAudio(buffer), false)
 })
+
+test('StackchanRuntimeAudio close stops the microphone and detaches TTS callbacks', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let stopped = false
+  const microphone = {
+    recording: false,
+    start: () => {},
+    stop: () => {
+      stopped = true
+    },
+    record: async () => {
+      throw new Error('not used')
+    },
+  }
+  const tts = fakeTTS()
+  let mouthOpen = -1
+
+  const runtime = new StackchanRuntimeAudio({ tts, microphone }, { onMouthOpenChanged: (value) => (mouthOpen = value) })
+  runtime.close()
+
+  assert.equal(stopped, true)
+  const playbackTTS = runtime.tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
+  playbackTTS.onPlayed?.(2000)
+  playbackTTS.onDone?.()
+  assert.equal(mouthOpen, -1)
+})

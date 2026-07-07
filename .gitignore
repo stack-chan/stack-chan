@@ -40,3 +40,4 @@ web/simulator/mc.wasm
 # Generated while profiling/debugging firmware
 firmware/profile.png
 firmware/stackchan.png
+.xsdb.json

@@ -579,5 +579,8 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#motionController.close()
     await this.#cameraRuntime.close()
     this.#inputRuntime.close()
+    this.#audioRuntime.close()
+    this.#lightingRuntime.close()
+    // connectivity is owned by boot-services, not this context, so it stays open.
   }
 }

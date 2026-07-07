@@ -17,13 +17,13 @@ $ npm run build:m5stackchan_cores3
 To flash the host when hardware is connected:
 
 ```console
-$ npm run deploy:m5stackchan_cores3
+$ npm run flash:m5stackchan_cores3
 ```
 
 ## Install the smoke MOD
 
 ```console
-$ npm run mod:m5stackchan_cores3 ./mods/examples/m5stackchan_smoke/manifest.json
+$ npm run mod:m5stackchan_cores3 -- ./mods/examples/m5stackchan_smoke/manifest.json
 ```
 
 ## Expected smoke sequence

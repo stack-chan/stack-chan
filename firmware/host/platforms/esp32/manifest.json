@@ -30,6 +30,23 @@
         }
       }
     },
+    "esp32/takao_core2_sg90": {
+      "creation": {
+        "static": 442368,
+        "chunk": {
+          "initial": 8192,
+          "incremental": 2048
+        },
+        "heap": {
+          "initial": 512,
+          "incremental": 64
+        },
+        "stack": 512,
+        "keys": {
+          "available": 512
+        }
+      }
+    },
     "esp32/m5stack_cores3": {
       "creation": {
         "static": 0,

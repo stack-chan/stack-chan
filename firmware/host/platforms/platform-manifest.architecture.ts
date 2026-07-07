@@ -13,6 +13,9 @@ const m5StackChanTouchSource = readFileSync(
 )
 const stackchanRtPlatformManifest = JSON.parse(readFileSync('host/platforms/stackchan_rt/manifest.json', 'utf8'))
 const stackchanRtAppManifest = JSON.parse(readFileSync('host/app/manifest_stackchan_rt.json', 'utf8'))
+const takaoPlatformManifest = JSON.parse(readFileSync('host/platforms/takao_core2_sg90/manifest.json', 'utf8'))
+const takaoAppManifest = JSON.parse(readFileSync('host/app/manifest_takao_core2_sg90.json', 'utf8'))
+const takaoProviderSource = readFileSync('host/platforms/takao_core2_sg90/host/provider.js', 'utf8')
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 
 function npmRunScripts(source: string): string[] {
@@ -36,6 +39,11 @@ describe('Stack-chan platform manifest', () => {
     assert.deepEqual(stackchanRtCreation, coreS3Creation)
     assert.equal(stackchanRtCreation.heap.incremental, 256)
     assert.equal(stackchanRtCreation.keys.incremental, 32)
+
+    const core2Creation = esp32PlatformManifest.platforms['esp32/m5stack_core2'].creation
+    const takaoCreation = esp32PlatformManifest.platforms['esp32/takao_core2_sg90']?.creation
+    assert.deepEqual(takaoCreation, core2Creation)
+    assert.equal(takaoCreation.keys.available, 512)
   })
 
   test('keeps M5StackChan CoreS3 platform wiring on the PY32 servo power and head LED paths', () => {
@@ -99,9 +107,7 @@ describe('Stack-chan platform manifest', () => {
     const smokeDocs = readFileSync('docs/m5stackchan-cores3-smoke.md', 'utf8')
 
     assert.deepEqual(m5StackChanStackchanManifest.include, ['./manifest.json'])
-    assert.deepEqual(m5StackChanStackchanManifest.config, {
-      enablePowerButton: false,
-    })
+    assert.equal(m5StackChanStackchanManifest.config.enablePowerButton, false)
     assert.equal(m5StackChanPlatformManifest.config.driver.type, 'm5stackchan')
     assert.equal(m5StackChanPlatformManifest.config.driver.serial.transmit, 6)
     assert.equal(m5StackChanPlatformManifest.config.driver.serial.receive, 7)
@@ -127,14 +133,14 @@ describe('Stack-chan platform manifest', () => {
     assert.match(smokeSource, /M5StackChan CoreS3 smoke/)
     const documentedScripts = npmRunScripts(smokeDocs)
     assert.ok(documentedScripts.includes('build:m5stackchan_cores3'))
-    assert.ok(documentedScripts.includes('deploy:m5stackchan_cores3'))
+    assert.ok(documentedScripts.includes('flash:m5stackchan_cores3'))
     assert.ok(documentedScripts.includes('mod:m5stackchan_cores3'))
     for (const script of documentedScripts) {
       assert.ok(packageJson.scripts[script], `smoke docs reference missing npm script: ${script}`)
     }
-    assert.match(packageJson.scripts['build:m5stackchan_cores3'], /esp32:\.\/host\/platforms\/m5stackchan_cores3/)
-    assert.match(packageJson.scripts['build:m5stackchan_cores3'], /host\/app\/manifest_m5stackchan_cores3\.json/)
-    assert.match(packageJson.scripts['mod:m5stackchan_cores3'], /esp32:\.\/host\/platforms\/m5stackchan_cores3/)
+    assert.match(packageJson.scripts['build:m5stackchan_cores3'], /firmware\.mjs build m5stackchan_cores3/)
+    assert.match(packageJson.scripts['flash:m5stackchan_cores3'], /firmware\.mjs flash m5stackchan_cores3/)
+    assert.match(packageJson.scripts['mod:m5stackchan_cores3'], /firmware\.mjs mod m5stackchan_cores3/)
     assert.match(smokeDocs, /mods\/examples\/m5stackchan_smoke\/manifest\.json/)
   })
 
@@ -181,9 +187,39 @@ describe('Stack-chan platform manifest', () => {
     })
     assert.deepEqual(stackchanRtAppManifest.include, ['./manifest.json'])
 
-    assert.match(packageJson.scripts['build:stackchan_rt'], /esp32:\.\/host\/platforms\/stackchan_rt/)
-    assert.match(packageJson.scripts['build:stackchan_rt'], /host\/app\/manifest_stackchan_rt\.json/)
-    assert.match(packageJson.scripts['deploy:stackchan_rt'], /esp32:\.\/host\/platforms\/stackchan_rt/)
-    assert.match(packageJson.scripts['mod:stackchan_rt'], /esp32:\.\/host\/platforms\/stackchan_rt/)
+    assert.match(packageJson.scripts['build:stackchan_rt'], /firmware\.mjs build stackchan_rt/)
+    assert.match(packageJson.scripts['deploy:stackchan_rt'], /firmware\.mjs deploy stackchan_rt/)
+    assert.match(packageJson.scripts['mod:stackchan_rt'], /firmware\.mjs mod stackchan_rt/)
+  })
+
+  test('defines the Takao Core2 SG90 subplatform with PWM servo pins', () => {
+    assert.deepEqual(takaoPlatformManifest.include, ['$(BUILD)/devices/esp32/targets/m5stack_core2/manifest.json'])
+    assert.equal(takaoPlatformManifest.build.SUBPLATFORM, 'takao_core2_sg90')
+    assert.match(takaoProviderSource, /data:\s*32/)
+    assert.match(takaoProviderSource, /clock:\s*33/)
+    assert.match(takaoProviderSource, /displayDC:\s*15/)
+    assert.match(takaoProviderSource, /displaySelect:\s*5/)
+    assert.deepEqual(takaoPlatformManifest.config.driver, {
+      type: 'pwm',
+      pwmPan: 19,
+      pwmTilt: 27,
+    })
+    assert.deepEqual(takaoPlatformManifest.config.serial, {
+      transmit: 14,
+      receive: 13,
+    })
+    assert.equal(takaoPlatformManifest.config.tts.sampleRate, 24000)
+    assert.deepEqual(takaoAppManifest, {
+      include: ['./manifest.json'],
+      config: {
+        enablePowerButton: false,
+      },
+    })
+
+    assert.match(packageJson.scripts['build:takao_core2_sg90'], /firmware\.mjs build takao_core2_sg90/)
+    assert.match(packageJson.scripts['deploy:takao_core2_sg90'], /firmware\.mjs deploy takao_core2_sg90/)
+    assert.match(packageJson.scripts['flash:takao_core2_sg90'], /firmware\.mjs flash takao_core2_sg90/)
+    assert.match(packageJson.scripts['debug:takao_core2_sg90'], /firmware\.mjs debug takao_core2_sg90/)
+    assert.match(packageJson.scripts['mod:takao_core2_sg90'], /firmware\.mjs mod takao_core2_sg90/)
   })
 })

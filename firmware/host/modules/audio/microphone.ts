@@ -6,11 +6,13 @@ const CHANNELS = 1
 export default class Microphone {
   recording: boolean
   #audioIn: AudioIn | null
+  #abortRecording: (() => void) | null
   onReadable?: (this: AudioIn, byteLength: number, sampleCount?: number) => void
 
   constructor() {
     this.recording = false
     this.#audioIn = null
+    this.#abortRecording = null
   }
 
   start() {
@@ -33,6 +35,7 @@ export default class Microphone {
   stop() {
     this.#audioIn?.close()
     this.#audioIn = null
+    this.#abortRecording?.()
     this.recording = false
   }
 
@@ -52,6 +55,7 @@ export default class Microphone {
       const finish = () => {
         if (finished) return
         finished = true
+        this.#abortRecording = null
         audioin?.close()
         this.recording = false
         resolve(ownAudioBuffer(wavBuffer))
@@ -59,10 +63,13 @@ export default class Microphone {
       const fail = (error: unknown) => {
         if (finished) return
         finished = true
+        this.#abortRecording = null
         audioin?.close()
         this.recording = false
         reject(error)
       }
+      // Lets stop() abort a finite recording so close() never leaves the microphone held.
+      this.#abortRecording = () => fail(new Error('recording aborted'))
 
       try {
         audioin = new AudioIn({
@@ -85,6 +92,7 @@ export default class Microphone {
           },
         })
       } catch (error) {
+        this.#abortRecording = null
         this.recording = false
         reject(error)
         return

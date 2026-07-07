@@ -6,9 +6,10 @@
   ],
   "modules": {
     "stackchan-util": "./stackchan-util",
+    "telemetry": "./telemetry",
     "mac-address": "./sim/mac-address"
   },
-  "preload": ["stackchan-util", "mac-address"],
+  "preload": ["stackchan-util", "telemetry", "mac-address"],
   "platforms": {
     "esp32": {
       "modules": {

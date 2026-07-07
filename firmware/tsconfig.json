@@ -207,6 +207,9 @@
       "mac-address": [
         "./host/modules/util/esp32/mac-address"
       ],
+      "telemetry": [
+        "./host/modules/util/telemetry"
+      ],
       "mcp-client": [
         "./host/modules/connectivity/mcp-client/mcp-client"
       ],

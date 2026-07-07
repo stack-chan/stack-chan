@@ -1,3 +1,4 @@
+import { getFakeWiFiScanResults } from 'fake-wifi-scan-results'
 import Timer from 'timer'
 
 type WiFiOptions = {
@@ -9,7 +10,7 @@ type WiFiConnectOptions = {
 }
 
 type WiFiScanOptions = {
-  onFound?: (item: { ssid: string }) => void
+  onFound?: (item: { ssid?: string; rssi?: number }) => void
   onComplete?: () => void
 }
 
@@ -55,6 +56,9 @@ export default class SimWiFi {
   }
 
   scan(options: WiFiScanOptions = {}): void {
+    for (const result of getFakeWiFiScanResults()) {
+      options.onFound?.(result)
+    }
     options.onComplete?.()
   }
 

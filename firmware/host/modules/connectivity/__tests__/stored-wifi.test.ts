@@ -8,7 +8,7 @@ import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-
 type FakeNetworkManager = {
   completeLastConnection(): void
   failLastConnection(reason?: string): void
-  getStartedConnections(): Array<{ ssid: string; password: string }>
+  getStartedConnections(): Array<{ ssid: string; password: string; scanBeforeConnect?: boolean }>
   getStopCount(): number
   resetNetworkManager(): void
 }
@@ -22,7 +22,7 @@ type FakeConfig = {
 }
 
 function credentials(
-  connections: Array<{ ssid: string; password: string }>,
+  connections: Array<{ ssid: string; password: string; scanBeforeConnect?: boolean }>,
 ): Array<{ ssid: string; password: string }> {
   return connections.map(({ ssid, password }) => ({ ssid, password }))
 }
@@ -40,6 +40,12 @@ function installBareSpecifierPackages(): void {
     hasDefaultExport: true,
   })
   writeAliasPackage(modulesRoot, 'stored-wifi', resolve(modulesRoot, 'connectivity/stored-wifi.js'))
+  writeAliasPackage(modulesRoot, 'timer', resolve(modulesRoot, 'testing/fakes/timer.js'), { hasDefaultExport: true })
+  writeAliasPackage(modulesRoot, 'mac-address', resolve(modulesRoot, 'util/sim/mac-address.js'), {
+    hasDefaultExport: true,
+  })
+  writeAliasPackage(hostRoot, 'stackchan-util', resolve(modulesRoot, 'util/stackchan-util.js'))
+  writeAliasPackage(hostRoot, 'boot-network-recovery', resolve(hostRoot, 'app/boot-network-recovery.js'))
   writeAliasPackageSubpath(modulesRoot, 'mc', 'config', resolve(modulesRoot, 'testing/fakes/mc-config.js'), {
     hasDefaultExport: true,
   })
@@ -97,7 +103,7 @@ test('connectStoredWiFi accepts settings-screen credential overrides', async () 
   assert.equal(networkManager.getStopCount(), 1)
 })
 
-test('startHostBootServices starts stored Wi-Fi when host boot services are explicitly started', async () => {
+test('startHostBootServices starts stored Wi-Fi with scan before connect when host boot services are explicitly started', async () => {
   const { networkManager, preference } = await setup({
     'wifi.ssid': 'boot-ap',
     'wifi.password': 'boot-secret',
@@ -112,6 +118,7 @@ test('startHostBootServices starts stored Wi-Fi when host boot services are expl
   const services = startHostBootServices()
 
   assert.deepEqual(credentials(networkManager.getStartedConnections()), [{ ssid: 'boot-ap', password: 'boot-secret' }])
+  assert.equal(networkManager.getStartedConnections()[0]?.scanBeforeConnect, true)
   networkManager.completeLastConnection()
   assert.deepEqual(await services.connectivity.network?.ready, { status: 'connected' })
 })
@@ -182,7 +189,7 @@ test('startHostBootServices exposes failed network readiness with a traceable re
   })
   const { startHostBootServices } = await import('../../../app/boot-services.js')
 
-  const services = startHostBootServices()
+  const services = startHostBootServices({ wifi: { maxAttempts: 1 } })
   networkManager.failLastConnection('authentication failed')
 
   assert.deepEqual(await services.connectivity.network?.ready, {

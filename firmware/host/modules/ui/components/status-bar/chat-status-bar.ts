@@ -103,12 +103,13 @@ class ChatStatusBarBehavior extends Behavior {
 
   updateUI() {
     if (!this.#levelTrack || !this.#levelFill || !this.#statusIcon || !this.#indicator) return
-    const isListening = this.#state === ChatStatusBarState.SPEAKING
-    const isSpeaking = this.#state === ChatStatusBarState.LISTENING
+    // ChatAudioIO.SPEAKING means user input; LISTENING means assistant output.
+    const isUserSpeaking = this.#state === ChatStatusBarState.SPEAKING
+    const isUserListening = this.#state === ChatStatusBarState.LISTENING
     const isConnecting = this.#state === ChatStatusBarState.CONNECTING
-    this.#levelTrack.visible = isListening
-    this.#statusIcon.visible = isListening || isSpeaking
-    this.#statusIcon.state = isSpeaking ? 1 : 0
+    this.#levelTrack.visible = isUserSpeaking
+    this.#statusIcon.visible = isUserSpeaking || isUserListening
+    this.#statusIcon.state = isUserListening ? 1 : 0
     this.#indicator.visible = isConnecting
     if (isConnecting) {
       this.#indicator.interval = 250

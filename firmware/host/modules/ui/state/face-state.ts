@@ -151,6 +151,17 @@ export function copyFaceState(src: Readonly<FaceState>, dst: FaceState): void {
   copyColorRGB(src.theme.secondary, dst.theme.secondary)
 }
 
+export function quantizeBreathForPixels(breath: number, pixels: number): number {
+  if (!Number.isFinite(breath)) return 0
+  const steps = Math.max(1, Math.round(pixels))
+  return Math.round(breath * steps) / steps
+}
+
+export function copyFaceStateForDistribution(src: Readonly<FaceState>, dst: FaceState, breathPixels: number): void {
+  copyFaceState(src, dst)
+  dst.breath = quantizeBreathForPixels(src.breath, breathPixels)
+}
+
 export function faceStatesEqual(left: Readonly<FaceState>, right: Readonly<FaceState>): boolean {
   return (
     left.mouth.open === right.mouth.open &&

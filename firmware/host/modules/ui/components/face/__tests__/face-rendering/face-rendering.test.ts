@@ -24,6 +24,7 @@ type PiuNode = {
 
 type BreathRecorder = PiuNode & {
   lastBreath?: number
+  calls?: number
 }
 
 function childAt(container: PiuNode, index: number): PiuNode {
@@ -149,6 +150,7 @@ const breathRecorder = new Content(null, {
   height: 1,
   Behavior: class extends Behavior {
     onFaceState(content: BreathRecorder, face: FaceState) {
+      content.calls = (content.calls ?? 0) + 1
       content.lastBreath = face.breath
     }
   },
@@ -166,6 +168,49 @@ for (let i = 0; i < 32; i++) {
   breathChanged ||= breathRecorder.lastBreath !== initialBreath
 }
 assert(breathChanged, 'default FaceBehavior should update face breath')
+
+let controlledBreath = 0
+const controlledRecorder = new Content(null, {
+  left: 0,
+  top: 0,
+  width: 1,
+  height: 1,
+  Behavior: class extends Behavior {
+    onFaceState(content: BreathRecorder, face: FaceState) {
+      content.calls = (content.calls ?? 0) + 1
+      content.lastBreath = face.breath
+    }
+  },
+}) as BreathRecorder
+const controlledFace = new FaceBase({
+  contents: [controlledRecorder as unknown as PiuContent],
+  intervalMs: 33,
+  motions: [
+    (_tick, face) => {
+      face.breath = controlledBreath
+    },
+  ],
+}) as PiuNode
+const controlledBehavior = controlledFace.behavior as {
+  onCreate?: (node: PiuNode) => void
+  onTimeChanged?: (node: PiuNode) => void
+}
+controlledBehavior.onCreate?.(controlledFace)
+controlledBehavior.onTimeChanged?.(controlledFace)
+const callsAfterZero = controlledRecorder.calls
+controlledBreath = 0.08
+controlledBehavior.onTimeChanged?.(controlledFace)
+equal(
+  controlledRecorder.calls,
+  callsAfterZero,
+  'FaceBehavior should skip onFaceState distribution for sub-pixel breath changes',
+)
+controlledBreath = 0.09
+controlledBehavior.onTimeChanged?.(controlledFace)
+assert(
+  (controlledRecorder.calls ?? 0) > (callsAfterZero ?? 0),
+  'FaceBehavior should distribute onFaceState after breath crosses a rendered pixel',
+)
 
 const movingFace = new SimpleFace({ intervalMs: 33 }) as PiuNode
 const movingLeftEye = childAt(movingFace, 0)

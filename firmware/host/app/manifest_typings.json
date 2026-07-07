@@ -1,0 +1,13 @@
+{
+  "modules": {
+    "*": ["../../typings/*"],
+    "piu/*": ["../../typings/piu/*"]
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "lib": ["es2025", "esnext.disposable"]
+      }
+    }
+  }
+}

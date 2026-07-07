@@ -7,13 +7,12 @@
   },
   "files": {
     "includes": [
-      "stackchan/**",
+      "host/**",
       "mods/**",
-      "tests/**",
       "scripts/**",
-      "!stackchan/runtime-bitmap-port.js",
-      "!stackchan/wasm/audio-bridge.js",
-      "!stackchan/wasm/camera-bridge.js"
+      "!host/modules/camera/wasm/runtime-bitmap-port.js",
+      "!host/modules/audio/wasm/audio-bridge.js",
+      "!host/modules/camera/wasm/camera-bridge.js"
     ],
     "ignoreUnknown": false
   },

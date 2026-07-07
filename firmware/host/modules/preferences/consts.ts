@@ -1,0 +1,30 @@
+export const DOMAIN = {
+  wifi: 'wifi',
+  driver: 'driver',
+  ui: 'ui',
+  tts: 'tts',
+  ai: 'ai',
+  led: 'led',
+} as const
+
+export const PREF_KEYS: readonly [keyof typeof DOMAIN, string, StringConstructor | NumberConstructor][] = Object.freeze(
+  [
+    [DOMAIN.wifi, 'ssid', String],
+    [DOMAIN.wifi, 'password', String],
+    [DOMAIN.ui, 'type', String],
+    [DOMAIN.driver, 'type', String],
+    [DOMAIN.driver, 'baudrate', Number],
+    [DOMAIN.driver, 'offsetPan', Number],
+    [DOMAIN.driver, 'offsetTilt', Number],
+    [DOMAIN.tts, 'type', String],
+    [DOMAIN.tts, 'host', String],
+    [DOMAIN.tts, 'port', Number],
+    [DOMAIN.tts, 'token', String],
+    [DOMAIN.tts, 'volume', Number],
+    [DOMAIN.ai, 'token', String],
+    [DOMAIN.ai, 'context', String],
+  ],
+  true,
+)
+
+export const DEFAULT_FONT = 'OpenSans-Regular-24.bf4'

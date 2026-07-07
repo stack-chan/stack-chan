@@ -11,6 +11,8 @@
 ｽﾀｯｸﾁｬﾝのファームウェアは、ｽﾀｯｸﾁｬﾝの基本動作を提供するプログラム（ホスト）とユーザアプリケーション（MOD）から構成されます。
 一度ホストを書き込んでしまえば、ユーザアプリケーションのインストールは短時間で終わるため高速な開発が可能です。
 最初にホストを書き込み、必要に応じて MOD の書き込みを行います。
+MOD がインストールされていない場合、ホストは製品既定動作を実行します。
+MOD がインストールされている場合、製品既定動作は実行されず、MOD が `onContextCreated` で runtime context を受け取ります。
 
 ### マニフェストファイル
 
@@ -23,8 +25,12 @@
 ## 設定変更
 
 ｽﾀｯｸﾁｬﾝが使うモータの種類やピンアサインなどをマニフェストファイルから変更できます。
-ユーザが変更する設定は[`stack-chan/firmware/stackchan/manifest_local.json`](../stackchan/manifest_local.json)にまとまっています。
+ユーザが変更する設定は[`stack-chan/firmware/host/app/manifest_local.json`](../host/app/manifest_local.json)にまとまっています。
 `"config"`キーの配下に次のような設定が書けます。
+
+`manifest_local.json` は、私設 IP アドレス、API キー、ベンチ固有のサーボ設定をコミットしないため、空の `"config"` として管理しています。
+ローカルの driver 設定を追加せずにビルドした場合、firmware は platform/app の既定値を使います。
+汎用ベンチ環境では既定のシリアルサーボ driver が選ばれる可能性があるため、異なる driver を使う場合は `config.driver.type` を明示してください。
 
 | キー              | 説明                                            | 使用可能な値                                |
 | ----------------- | ----------------------------------------------- | ------------------------------------------- |
@@ -36,7 +42,7 @@
 | tts.type          | [TTS](./text-to-speech_ja.md) の種類            | "local", "voicevox", "remote", "voicevox-web", "elevenlabs", "openai"                         |
 | tts.host          | TTS がサーバと通信する場合のホスト名            | "localhost", "ttsserver.local" などの文字列 |
 | tts.port          | TTS がサーバと通信する場合のポート番号          | 1~65535                                     |
-| tts.volume          | TTS を再生する時の音量          | 0~1                                     |
+| tts.volume        | TTS を再生する時の音量                        | 0~1                                         |
 
 また、`"include"`キーの配下にリスト形式で他のマニフェストファイルのパスを指定できます。
 
@@ -104,25 +110,36 @@ M5Stack Basic の Port.C を使う場合:
 ## 基本プログラム（ホスト）の書き込み
 
 前述の通りｽﾀｯｸﾁｬﾝのファームウェアは基本プログラム（ホスト）とユーザアプリケーション（MOD）から構成されます。
-次のコマンドで基本プログラム（ホスト）の書き込みを行います。
+次のコマンドで、標準構成の M5StackChan CoreS3 ホストをビルドして書き込みます。
 
 _コマンドに`sudo`をつける必要はありません。_
 
 ```console
-# M5Stack Basic/Gray/Fireの場合
-$ npm run build
-$ npm run deploy
-
-# M5Stack Core2の場合
-$ npm run build --target=esp32/m5stack_core2
-$ npm run deploy --target=esp32/m5stack_core2
-
-# M5Stack CoreS3の場合
-$ npm run build --target=esp32/m5stack_cores3
-$ npm run deploy --target=esp32/m5stack_cores3
+$ npm run flash
 ```
 
+ビルドだけ確認したい場合は `npm run build` を使います。
 ビルドしたプログラムは`$MODDABLE/build/`ディレクトリ配下に保存されます。
+
+### Stack-chan サブプラットフォーム
+
+Stack-chan の各ハードウェア構成は、サーボの driver 種別とバスのピンをあらかじめ定義した**サブプラットフォーム**を同梱しています。汎用 `--target=` コマンドではなく、次の npm スクリプトを使ってください。サブプラットフォーム（`-p esp32:./host/platforms/<board>`）と対応するアプリ manifest が自動的に選択されます。
+
+| 用途                      | M5StackChan CoreS3 | Stack-chan RT | タカオ版 Core2 + SG90 |
+| ------------------------- | ------------------ | ------------- | --------------------- |
+| ビルドのみ                | `npm run build` または `npm run build:m5stackchan_cores3` | `npm run build:stackchan_rt` | `npm run build:takao_core2_sg90` |
+| ビルドから書き込みまで    | `npm run flash` または `npm run flash:m5stackchan_cores3` | `npm run flash:stackchan_rt` | `npm run flash:takao_core2_sg90` |
+| deploy task を実行        | `npm run deploy` または `npm run deploy:m5stackchan_cores3` | `npm run deploy:stackchan_rt` | `npm run deploy:takao_core2_sg90` |
+| デバッグ（xsbug）         | `npm run debug` または `npm run debug:m5stackchan_cores3` | `npm run debug:stackchan_rt` | `npm run debug:takao_core2_sg90` |
+| MOD の書き込み            | `npm run mod -- [modのパス]` または `npm run mod:m5stackchan_cores3 -- [modのパス]` | `npm run mod:stackchan_rt -- [modのパス]` | `npm run mod:takao_core2_sg90 -- [modのパス]` |
+
+ボード固有の driver 種別とサーボバスのピンは、各サブプラットフォームの manifest にまとまっています。
+
+- M5StackChan CoreS3: [`host/platforms/m5stackchan_cores3/manifest.json`](../host/platforms/m5stackchan_cores3/manifest.json) — `m5stackchan` driver、シリアル TX6 / RX7。
+- Stack-chan RT: [`host/platforms/stackchan_rt/manifest.json`](../host/platforms/stackchan_rt/manifest.json) — `dynamixel` driver、シリアル TX7 / RX6。
+- タカオ版 Core2 + SG90: [`host/platforms/takao_core2_sg90/manifest.json`](../host/platforms/takao_core2_sg90/manifest.json) — `pwm` driver、pan PWM19 / tilt PWM27。
+
+Wi-Fi 認証情報や API キーなどのデバイス固有の設定は、各ボードのアプリ manifest の `"config"` 配下に書いてください。秘密情報はコミットせず、ローカルにのみ追加してください。起動時のログ `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` で RT が実際に使うシリアルピンを確認できます。
 
 正しく書き込めていれば起動から数秒後にｽﾀｯｸﾁｬﾝの顔が表示されます。
 M5Stack のボタンを押すと次のように変わります。
@@ -133,19 +150,13 @@ M5Stack のボタンを押すと次のように変わります。
 
 ## デバッグ
 
-次のコマンドでプログラムのデバッグが可能です
+次のコマンドで、選択したホストを Moddable のデバッガで起動できます。
 
 ```console
-# M5Stack Basic/Gray/Fireの場合
 $ npm run debug
-
-# M5Stack Core2の場合
-$ npm run debug --target=esp32/m5stack_core2
-
-# M5Stack CoreS3の場合
-$ npm run debug --target=esp32/m5stack_cores3
 ```
 
+Stack-chan RT やタカオ版 Core2 + SG90 では、上の表にあるボード別の debug script を使います。
 このコマンドはModdableのデバッガ`xsbug`を開き、M5Stackと接続します。
 
 ![xsbug](./images/xsbug.png)
@@ -160,23 +171,23 @@ $ npm run debug --target=esp32/m5stack_cores3
 _コマンドに`sudo`をつける必要はありません。_
 
 ```console
-# M5Stack Basic/Gray/Fireの場合
-$ npm run mod [modのマニフェストファイルのパス]
-
-# M5Stack Core2の場合
-$ npm run mod --target=esp32/m5stack_core2 [modのマニフェストファイルのパス]
-
-# M5Stack CoreS3の場合
-$ npm run mod --target=esp32/m5stack_cores3 [modのマニフェストファイルのパス]
+$ npm run mod -- [modのマニフェストファイルのパス]
 ```
 
-**例: [`mods/look_around`](../mods/look_around/)をインストールする**
+標準のコマンドは、JavaScript module を解決する MOD manifest を対象にします。
+ESP32 と lin target では、Moddable toolchain 経由で TypeScript module も扱えます。
+WASM host で確認する場合も、`lin` など TypeScript 対応済み target で build した `.xsb` または archive を読み込ませます。
+
+書き込み後は、MOD が製品既定動作の代わりに実行されます。
+ボタンや画面操作の意味は、インストールした MOD の実装で決まります。
+
+**例: [`mods/examples/look_around`](../mods/examples/look_around/)をインストールする**
 
 ```console
-$ npm run mod ./mods/look_around/manifest.json
+$ npm run mod -- ./mods/examples/look_around/manifest.json
 
 > stack-chan@0.2.1 mod
-> mcrun -d -m -p ${npm_config_target=esp32/m5stack} ${npm_argument} "./mods/look_around/manifest.json"
+> node scripts/firmware.mjs mod ./mods/examples/look_around/manifest.json
 
 # xsc mod.xsb
 # xsc check.xsb
@@ -187,7 +198,7 @@ Installing mod...complete
 
 ## (オプショナル)フラッシュ領域の消去
 
-MODを描き込み後、MODを書き込みする前の挙動に戻したい時は、次のコマンドで書き込んだMODを消去することができます。
+MODを書き込み後、MODを書き込む前の挙動に戻したい時は、次のコマンドで書き込んだMODを消去することができます。
 
 > [!NOTE]  
 > コマンドを実行するとMODの領域だけでなく、フラッシュ領域全体を消去します。  

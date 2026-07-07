@@ -36,7 +36,7 @@ See also official documents of each of them.
 $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 ```
 
-* save server configuration under `config.tts.host|port` of `stackchan/manifest_local.json`
+* save server configuration under `config.tts.host|port` of `host/app/manifest_local.json`
 
 ```json
 {
@@ -51,7 +51,7 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 
 ### ElevenLabs TTS
 * Get through [API KEY](https://docs.elevenlabs.io/authentication/01-xi-api-key) and get API KEY.
-* Set API KEY to `config.tts` of `stackchan/manifest_local.json`.
+* Set API KEY to `config.tts` of `host/app/manifest_local.json`.
 ```json
 {
     "config": {
@@ -65,7 +65,7 @@ $ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
 
 ## Usage(Pregenerated)
 
-* write down sentenses to speech in the format below (See `mods/monologue/speeches_monologue.js` and other examples)
+* write down sentenses to speech in the format below (See `mods/examples/monologue/speeches_monologue.js` and other examples)
 
 ```javascript
 // speeches.js
@@ -78,17 +78,17 @@ export const speeches = {
 ```
 
 * Run `npm run generate-speech-[google|coqui|voicevox]`
-  * this script get voice data from server and saves wave files under `stackchan/assets/sounds`
+  * this script get voice data from server and saves wave files under `host/modules/audio/assets/sounds`
 * Flash firmware with assets
-* Call `Robot#speak(sentense: string)` with the sentense.
+* Call `context.say(sentence: string)` with the sentence.
 
 ```javascript
 import { speeches } from 'speeches'
 const keys = Object.keys(speeches)
 
-export async function onRobotCreated(robot) {
-  await robot.say('hello')
-  await robot.say(keys[0] /* 'niceToMeetYou' */)
+export async function onContextCreated(context) {
+  await context.say('hello')
+  await context.say(keys[0] /* 'niceToMeetYou' */)
 }
 ```
 
@@ -108,11 +108,11 @@ export async function onRobotCreated(robot) {
 }
 ```
 
-* Call `Robot#say(sentense: string)`
+* Call `context.say(sentence: string)`
 
 ```javascript
 // ...
-export async function onRobotCreated(robot) {
-  await robot.say('Now I can speak any sentense you want.')
+export async function onContextCreated(context) {
+  await context.say('Now I can speak any sentence you want.')
 }
 ```

@@ -1,0 +1,19 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./tts-voicevox.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "config": {
+    "host": "127.0.0.1"
+  }
+}

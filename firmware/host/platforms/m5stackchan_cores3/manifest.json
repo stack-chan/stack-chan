@@ -1,0 +1,67 @@
+{
+  "build": {
+    "SUBPLATFORM": "m5stackchan_cores3"
+  },
+  "include": [
+    "$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json",
+    "$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json"
+  ],
+  "modules": {
+    "embedded:sensor/Touch/FT6x06": "./host/ft6206_async_m5stackchan",
+    "m5stack-cores3/setup-target": "$(BUILD)/devices/esp32/targets/m5stack_cores3/setup-target",
+    "setup/target": "./setup-target",
+    "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
+    "pins/audioout": "../core_s3_audioout"
+  },
+  "config": {
+    "driver": {
+      "type": "m5stackchan",
+      "panId": 1,
+      "tiltId": 2,
+      "yawZeroPosition": 460,
+      "pitchZeroPosition": 620,
+      "serial": {
+        "transmit": 6,
+        "receive": 7,
+        "port": 1,
+        "baud": 1000000
+      },
+      "servoPower": {
+        "type": "py32",
+        "pin": 0,
+        "address": 111
+      }
+    },
+    "led": {
+      "head": {
+        "type": "py32",
+        "length": 12,
+        "ledPin": 13,
+        "address": 111
+      }
+    },
+    "serial": {
+      "transmit": 6,
+      "receive": 7,
+      "port": 1,
+      "baud": 1000000
+    },
+    "touchIntervalMs": 50,
+    "touchIdleIntervalMs": 50,
+    "touchActiveIntervalMs": 8,
+    "touchReleaseDebounceMs": 75,
+    "virtualButton": false
+  },
+  "defines": {
+    "camera": {
+      "xclk": -1,
+      "xclk_freq_hz": 20000000,
+      "scl": -1,
+      "sda": -1,
+      "i2c_port": 1
+    },
+    "ft6206": {
+      "hz": 400000
+    }
+  }
+}

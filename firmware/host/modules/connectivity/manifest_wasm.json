@@ -1,0 +1,13 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../preferences/manifest_wasm.json"
+  ],
+  "modules": {
+    "network-manager": "./wasm/network-manager",
+    "network-state": "./network-state",
+    "network-service": "./wasm/network-service",
+    "stored-wifi": "./stored-wifi",
+    "preference-server": "./wasm/preference-server"
+  }
+}

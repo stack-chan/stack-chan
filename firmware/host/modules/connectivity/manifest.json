@@ -1,0 +1,71 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODULES)/network/net/manifest.json",
+    "$(MODULES)/network/socket/manifest.json",
+    "$(MODULES)/network/sntp/manifest.json",
+    "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
+    "$(MODULES)/network/ble/manifest_server.json",
+    "$(MODULES)/network/ble/manifest_client.json",
+    "$(MODULES)/network/mdns/manifest.json",
+    "../util/manifest.json",
+    "../preferences/manifest.json",
+    "./http-server/manifest.json",
+    "./mcp-server/manifest.json",
+    "./mcp-client/manifest.json",
+    "../../app/manifest_typings.json"
+  ],
+  "modules": {
+    "*": [
+      "./*",
+      "$(MODULES)/network/ble/uart/uartserver",
+      "../../../typings/btutils",
+      "../../../typings/uartserver"
+    ],
+    "stk-server": "./ble/stk-server",
+    "beacon-packet": "./ble/beacon-packet",
+    "ecma-wifi": "./ecma-wifi",
+    "stored-wifi": "./stored-wifi"
+  },
+  "preload": ["stk-server", "beacon-packet"],
+  "ble": {
+    "*": ["$(MODULES)/network/ble/uart/bleservices/*"]
+  },
+  "platforms": {
+    "esp32": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"]
+    },
+    "esp": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"]
+    },
+    "pico": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"]
+    },
+    "zephyr": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"]
+    },
+    "mac": {
+      "modules": {
+        "ecma-wifi": "./sim/ecma-wifi"
+      }
+    },
+    "lin": {
+      "modules": {
+        "ecma-wifi": "./sim/ecma-wifi"
+      }
+    },
+    "win": {
+      "modules": {
+        "ecma-wifi": "./sim/ecma-wifi"
+      }
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

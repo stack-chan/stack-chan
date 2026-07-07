@@ -50,6 +50,15 @@ jobs:
       - name: Run firmware tests
         working-directory: ./firmware
         run: npm run test
+      - name: Run legacy name checks
+        working-directory: ./firmware
+        run: npm run check:legacy-names
+      - name: Run architecture checks
+        working-directory: ./firmware
+        run: npm run check:architecture
+      - name: Run Moddable module tests
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable
       - name: Smoke test Linux simulator startup
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run smoke:lin
@@ -62,12 +71,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - esp32/m5stack
-          - esp32/m5stack_cores3
+        include:
+          - name: m5stack
+            command: npm run build --target=esp32/m5stack
+          - name: m5stack_cores3
+            command: npm run build --target=esp32/m5stack_cores3
+          - name: m5stackchan_cores3
+            command: npm run build:m5stackchan_cores3
+          - name: stackchan_rt
+            command: npm run build:stackchan_rt
+          - name: wasm
+            command: npm run build:wasm
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - name: Build firmware
+        with:
+          install-emscripten: ${{ matrix.name == 'wasm' && 'true' || 'false' }}
+      - name: Build firmware (${{ matrix.name }})
         working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build --target=${{ matrix.target }}
+        run: source "$HOME/.local/share/xs-dev-export.sh" && ${{ matrix.command }}

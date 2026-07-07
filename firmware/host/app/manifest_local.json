@@ -1,0 +1,4 @@
+{
+  "include": ["./manifest.json"],
+  "config": {}
+}

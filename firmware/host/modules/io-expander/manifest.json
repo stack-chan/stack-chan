@@ -1,0 +1,20 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json"
+  ],
+  "modules": {
+    "py32-io-expander": "./py32-io-expander"
+  },
+  "preload": ["py32-io-expander"],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "strictPropertyInitialization": false,
+        "strictFunctionTypes": false
+      }
+    }
+  }
+}

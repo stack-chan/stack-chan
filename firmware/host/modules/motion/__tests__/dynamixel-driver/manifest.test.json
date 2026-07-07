@@ -1,0 +1,12 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "py32-io-expander": "../fakes/py32-io-expander-stub",
+    "main": "./dynamixel-driver.test"
+  }
+}

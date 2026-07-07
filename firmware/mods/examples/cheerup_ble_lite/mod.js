@@ -1,0 +1,76 @@
+import { emotionFromName } from 'face-state'
+import { speeches } from 'speeches_cheerup'
+import { randomBetween } from 'stackchan-util'
+import StkServer from 'stk-server'
+import Timer from 'timer'
+
+const keys = Object.keys(speeches)
+
+async function sayHooray(robot) {
+  const key = keys[Math.floor(randomBetween(0, keys.length))]
+  await robot.audio.say(key)
+}
+
+function onContextCreated(robot) {
+  let pose
+  let hooray = false
+  let speaking = false
+  let connected = false
+  const rotation = {
+    y: 0,
+    p: 0,
+    r: 0,
+  }
+  new StkServer({
+    onConnected: () => {
+      trace('connected\n')
+      robot.motion.setTorque(true)
+      connected = true
+    },
+    onReceive: (newPose) => {
+      pose = newPose
+    },
+    onDisconnected: () => {
+      robot.motion.setTorque(false)
+      connected = false
+    },
+  })
+  Timer.repeat(() => {
+    if (pose == null || !connected) {
+      return
+    }
+
+    // simple low pass filter
+    rotation.y = rotation.y * 0.5 + pose.yaw * 0.5
+    rotation.p = rotation.p * 0.5 + pose.pitch * 0.5
+    robot.motion.setPose(
+      {
+        rotation,
+      },
+      0.1, // immediate update
+    )
+
+    // emotion
+    const nextEmotion = typeof pose.emotion === 'string' ? emotionFromName(pose.emotion) : pose.emotion
+    if (nextEmotion !== undefined) robot.face.setEmotion(nextEmotion)
+
+    // hooray on rising edge
+    if (!hooray && pose.hooray && !speaking) {
+      speaking = true
+      sayHooray(robot).then(
+        () => {
+          speaking = false
+        },
+        (error) => {
+          trace(`hooray failed: ${error}\n`)
+          speaking = false
+        },
+      )
+    }
+    hooray = pose.hooray
+  }, 100)
+}
+
+export default {
+  onContextCreated,
+}

@@ -23,6 +23,10 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   const touch = readFileSync('host/modules/input/touch.ts', 'utf8')
   const motionController = readFileSync('host/modules/motion/motion-controller.ts', 'utf8')
   const manifest = JSON.parse(readFileSync('host/app/manifest.json', 'utf8'))
+  const baseManifest = JSON.parse(readFileSync('host/app/manifest_base.json', 'utf8'))
+  const factoryRegistryManifest = JSON.parse(readFileSync('host/app/manifest_factory_registry.json', 'utf8'))
+  const allFactoriesManifest = JSON.parse(readFileSync('host/app/manifest_factories_all.json', 'utf8'))
+  const audioManifest = JSON.parse(readFileSync('host/modules/audio/manifest.json', 'utf8'))
   const motionManifest = JSON.parse(readFileSync('host/modules/motion/manifest.json', 'utf8'))
   const motionWasmManifest = JSON.parse(readFileSync('host/modules/motion/manifest_wasm.json', 'utf8'))
   const wasmAppManifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8'))
@@ -50,27 +54,71 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   assert.match(touch, /idleIntervalMs/)
   assert.match(touch, /activeIntervalMs/)
 
-  assert.ok(manifest.modules['*'].includes('./app-behavior'))
-  assert.ok(manifest.modules['*'].includes('./setup-mode'))
-  assert.ok(manifest.modules['*'].includes('./capabilities'))
-  assert.ok(manifest.modules['*'].includes('./runtime-audio'))
-  assert.ok(manifest.modules['*'].includes('./runtime-camera'))
-  assert.ok(manifest.modules['*'].includes('./runtime-context'))
-  assert.ok(manifest.modules['*'].includes('./runtime-input'))
-  assert.ok(manifest.modules['*'].includes('./runtime-lighting'))
-  assert.ok(manifest.modules['*'].includes('./runtime-ui'))
-  assert.ok(!manifest.modules['*'].includes('./runtime-motion'))
-  assert.ok(!manifest.modules['*'].includes('../../stackchan/robot'))
-  assert.ok(!manifest.include.includes('$(MODDABLE)/examples/manifest_net.json'))
+  assert.deepEqual(manifest.include, ['./manifest_base.json', './manifest_factories_all.json'])
+  assert.ok(baseManifest.include.includes('./manifest_factory_registry.json'))
+  assert.equal(factoryRegistryManifest.modules['stackchan-factory-registry'], './factory-registry/registry')
+  assert.equal(factoryRegistryManifest.modules['stackchan-factory-registry/ui'], './factory-registry/ui')
+  assert.equal(
+    factoryRegistryManifest.modules['stackchan-factory-registry/register/motion/*'],
+    './factory-registry/register/motion/*',
+  )
+  assert.equal(
+    factoryRegistryManifest.modules['stackchan-factory-registry/register/tts/*'],
+    './factory-registry/register/tts/*',
+  )
+  assert.equal(
+    factoryRegistryManifest.modules['stackchan-factory-registry/register/ui/*'],
+    './factory-registry/register/ui/*',
+  )
+  assert.ok(baseManifest.modules['*'].includes('./app-behavior'))
+  assert.ok(baseManifest.modules['*'].includes('./setup-mode'))
+  assert.ok(baseManifest.modules['*'].includes('./capabilities'))
+  assert.ok(baseManifest.modules['*'].includes('./runtime-audio'))
+  assert.ok(baseManifest.modules['*'].includes('./runtime-camera'))
+  assert.ok(baseManifest.modules['*'].includes('./runtime-context'))
+  assert.ok(baseManifest.modules['*'].includes('./runtime-input'))
+  assert.ok(baseManifest.modules['*'].includes('./runtime-lighting'))
+  assert.ok(baseManifest.modules['*'].includes('./runtime-ui'))
+  assert.ok(!baseManifest.modules['*'].includes('./runtime-motion'))
+  assert.ok(!baseManifest.modules['*'].includes('../../stackchan/robot'))
+  assert.ok(!baseManifest.include.includes('$(MODDABLE)/examples/manifest_net.json'))
   assert.ok(motionManifest.preload.includes('motion-controller'))
+  assert.deepEqual(motionManifest.preload, ['motion-controller'])
+  assert.deepEqual(audioManifest.preload, ['audio-in', 'audio-buffer', 'microphone', 'speaker'])
+  assert.deepEqual(allFactoriesManifest.preload.sort(), [
+    'stackchan-factory-registry/register/motion/dynamixel',
+    'stackchan-factory-registry/register/motion/m5stackchan',
+    'stackchan-factory-registry/register/motion/none',
+    'stackchan-factory-registry/register/motion/pwm',
+    'stackchan-factory-registry/register/motion/rs30x',
+    'stackchan-factory-registry/register/motion/scservo',
+    'stackchan-factory-registry/register/tts/elevenlabs',
+    'stackchan-factory-registry/register/tts/local',
+    'stackchan-factory-registry/register/tts/openai',
+    'stackchan-factory-registry/register/tts/remote',
+    'stackchan-factory-registry/register/tts/voicevox',
+    'stackchan-factory-registry/register/tts/voicevox-web',
+    'stackchan-factory-registry/register/ui/dog',
+    'stackchan-factory-registry/register/ui/image',
+    'stackchan-factory-registry/register/ui/simple',
+    'stackchan-factory-registry/register/ui/small-face',
+  ])
+  assert.doesNotMatch(compose, /from 'scservo-driver'/)
+  assert.doesNotMatch(compose, /from 'sg90-driver'/)
+  assert.doesNotMatch(compose, /from 'dynamixel-driver'/)
+  assert.doesNotMatch(compose, /from 'tts-local'/)
+  assert.doesNotMatch(compose, /from 'tts-openai'/)
+  assert.doesNotMatch(compose, /from 'behaviors\/face'/)
   assert.equal(motionWasmManifest.modules['motion-controller'], './motion-controller')
-  assert.equal(manifest.modules['app-default-behavior'], './default-behavior/behavior')
-  assert.equal(manifest.modules['app-default-behavior/on-context-created'], './default-behavior/on-context-created')
-  assert.equal(manifest.modules['app-default-behavior/on-launch'], './default-behavior/on-launch')
-  assert.equal(manifest.modules['app-default-behavior/startup-choice'], './default-behavior/startup-choice')
-  assert.equal(manifest.modules['app-default-behavior/*'], undefined)
-  assert.equal(manifest.modules['app-behavior'], './app-behavior')
+  assert.equal(baseManifest.modules['app-default-behavior'], './default-behavior/behavior')
+  assert.equal(baseManifest.modules['app-default-behavior/on-context-created'], './default-behavior/on-context-created')
+  assert.equal(baseManifest.modules['app-default-behavior/on-launch'], './default-behavior/on-launch')
+  assert.equal(baseManifest.modules['app-default-behavior/startup-choice'], './default-behavior/startup-choice')
+  assert.equal(baseManifest.modules['app-default-behavior/*'], undefined)
+  assert.equal(baseManifest.modules['app-behavior'], './app-behavior')
   assert.ok(wasmAppManifest.include.includes('../platforms/wasm/manifest.json'))
+  assert.ok(wasmAppManifest.include.includes('./manifest_factory_registry.json'))
+  assert.ok(wasmAppManifest.include.includes('./manifest_factories_all.json'))
   assert.ok(wasmManifest.modules['*'].includes('../../app/app-behavior'))
   assert.ok(wasmManifest.modules['*'].includes('../../app/setup-mode'))
   assert.ok(wasmManifest.modules['*'].includes('../../app/capabilities'))

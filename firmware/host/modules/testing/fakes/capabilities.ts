@@ -12,3 +12,5 @@ export type RobotLed = {
   blink(r: number, g: number, b: number, duration: number, index?: number, count?: number): void
   rainbow(index?: number, count?: number): void
 }
+
+export type RobotUI = Record<string, unknown>

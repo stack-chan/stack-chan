@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, test } from 'node:test'
 
-const manifestPath = 'host/app/manifest.json'
+const manifestPath = 'host/app/manifest_base.json'
 const wasmAppManifestPath = 'host/app/manifest_wasm.json'
 const wasmManifestPath = 'host/platforms/wasm/manifest.json'
 const splashFontResource = '$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24'

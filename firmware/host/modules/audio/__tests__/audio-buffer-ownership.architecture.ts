@@ -64,7 +64,7 @@ test('wasm TTS engines share one stub through stable module specifiers', () => {
 test('audio owns TTS contract types used by app capabilities', () => {
   const ttsTypesPath = 'host/modules/audio/tts-types.ts'
   const capabilities = readFileSync('host/app/capabilities.ts', 'utf8')
-  const appManifest = JSON.parse(readFileSync('host/app/manifest.json', 'utf8')) as {
+  const appManifest = JSON.parse(readFileSync('host/app/manifest_base.json', 'utf8')) as {
     include: string[]
   }
   const audioWasmManifest = JSON.parse(readFileSync('host/modules/audio/manifest_wasm.json', 'utf8')) as {

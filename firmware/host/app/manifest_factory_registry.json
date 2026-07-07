@@ -1,0 +1,9 @@
+{
+  "modules": {
+    "stackchan-factory-registry": "./factory-registry/registry",
+    "stackchan-factory-registry/ui": "./factory-registry/ui",
+    "stackchan-factory-registry/register/motion/*": "./factory-registry/register/motion/*",
+    "stackchan-factory-registry/register/tts/*": "./factory-registry/register/tts/*",
+    "stackchan-factory-registry/register/ui/*": "./factory-registry/register/ui/*"
+  }
+}

@@ -160,7 +160,7 @@ export class MCPServerService {
     }
 
     if (!this.#token) {
-      trace('MCP Server authentication token is not configured; POST /mcp is disabled\n')
+      trace('MCP Server authentication token is not configured; POST /mcp allows unauthenticated requests\n')
     }
 
     this.#startServer()
@@ -217,7 +217,7 @@ export class MCPServerService {
         const authResult = authorizeMCPRequest(this.#getAuthorizationHeader(request), this.#token)
         if (authResult.authorized === false) {
           response = this.#createResponse(401, {
-            error: authResult.reason === 'token-not-configured' ? 'MCP token is not configured' : 'Unauthorized',
+            error: 'Unauthorized',
           })
         } else {
           response = await this.#handleMCPMessage(request)

@@ -1,3 +1,4 @@
+import { createMotionCalibrationServo } from 'motion-calibration-servo'
 import {
   type MotionCalibrationCapability,
   type MotionCompletion,
@@ -5,7 +6,6 @@ import {
   type MotionResultCallback,
   motionDurationSecondsToMilliseconds,
 } from 'motion-controller'
-import { createMotionCalibrationServo } from 'motion-calibration-servo'
 import SCServo from 'protocols/scservo'
 import type { Maybe, Rotation } from 'stackchan-util'
 import type Timer from 'timer'
@@ -15,15 +15,18 @@ type SCServoDriverProps = {
   tiltId: number
 }
 
+type SCServoStatusFailure = { success: false; reason?: string }
+
 function createCalibrationServo(servo: SCServo) {
   return createMotionCalibrationServo({
     readAngle(callback) {
       servo.readStatus((result) => {
-        if (!result.success) {
-          callback({ success: false, reason: result.reason })
+        if (result.success) {
+          callback({ success: true, value: result.value.angle })
           return
         }
-        callback({ success: true, value: result.value.angle })
+        const failure = result as SCServoStatusFailure
+        callback({ success: false, reason: failure.reason })
       })
     },
     setAngle(angle, callback) {

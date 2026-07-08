@@ -1,3 +1,4 @@
+import { createMotionCalibrationServo } from 'motion-calibration-servo'
 import {
   type MotionCalibrationCapability,
   type MotionCompletion,
@@ -5,7 +6,6 @@ import {
   type MotionResultCallback,
   motionDurationSecondsToCentiseconds,
 } from 'motion-controller'
-import { createMotionCalibrationServo } from 'motion-calibration-servo'
 import { reasonFromError } from 'motion-driver-callback'
 import RS30X from 'protocols/rs30x'
 import type { Maybe, Rotation } from 'stackchan-util'

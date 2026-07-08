@@ -30,11 +30,8 @@ test('createSettingsNetworkEntries deduplicates SSIDs and keeps the strongest re
 })
 
 test('createSettingsNetworkEntries ignores empty SSIDs and sorts unknown signal by SSID', () => {
-  assert.deepEqual(
-    createSettingsNetworkEntries([{ ssid: '' }, { ssid: '  ' }, { ssid: 'Zoo' }, { ssid: 'Alpha' }]),
-    [
-      { ssid: 'Alpha', signal: undefined, label: 'Alpha' },
-      { ssid: 'Zoo', signal: undefined, label: 'Zoo' },
-    ],
-  )
+  assert.deepEqual(createSettingsNetworkEntries([{ ssid: '' }, { ssid: '  ' }, { ssid: 'Zoo' }, { ssid: 'Alpha' }]), [
+    { ssid: 'Alpha', signal: undefined, label: 'Alpha' },
+    { ssid: 'Zoo', signal: undefined, label: 'Zoo' },
+  ])
 })

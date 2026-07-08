@@ -3,12 +3,12 @@ import { DOMAIN, PREF_KEYS } from 'consts'
 import { NetworkConnectionState, type NetworkConnectionState as NetworkState } from 'network-state'
 import Preference from 'preference'
 import { PreferenceServer } from 'preference-server'
-import { createInitialSettingsStatus } from 'settings-status'
 import { createSettingsNetworkEntries, type RawWiFiScanResult, type SettingsNetworkEntry } from 'settings-network-list'
+import { createInitialSettingsStatus } from 'settings-status'
 import {
   buildSettingsView,
-  SettingsStatusValue,
   type SettingsStatusLabels,
+  SettingsStatusValue,
   updateSettingsNetworkLabels,
   updateSettingsStatusLabels,
 } from 'settings-view'

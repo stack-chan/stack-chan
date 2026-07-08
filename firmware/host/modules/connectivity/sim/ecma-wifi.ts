@@ -1,6 +1,6 @@
 import { getFakeWiFiScanResults } from 'fake-wifi-scan-results'
-import type { RawWiFiScanResult } from 'wifi-scan-types'
 import Timer from 'timer'
+import type { RawWiFiScanResult } from 'wifi-scan-types'
 
 type WiFiOptions = {
   onChanged?: (this: SimWiFi, property: string) => void

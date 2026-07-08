@@ -6,12 +6,12 @@ import type {
   Style as PiuStyle,
 } from 'piu/MC'
 import { Column, Container, Label, Skin, Style } from 'piu/MC'
+import type { SettingsNetworkEntry } from 'settings-network-list'
 import type { SettingsStatus, SettingsStatusValue as SettingsStatusValueModel } from 'settings-status-model'
 import {
   SettingsStatusValue as SettingsStatusValueConst,
   settingsStatusToLabel as settingsStatusToLabelImpl,
 } from 'settings-status-model'
-import type { SettingsNetworkEntry } from 'settings-network-list'
 
 export const SettingsStatusValue = SettingsStatusValueConst
 export const settingsStatusToLabel = settingsStatusToLabelImpl
@@ -104,66 +104,69 @@ export const buildSettingsView = (
   application.empty()
   application.skin = getScreenSkin()
   application.add(
-    new Container({ options, networkState }, {
-      left: 0,
-      right: 0,
-      top: 0,
-      bottom: 0,
-      active: true,
-      contents: [
-        new Column(null, {
-          left: 10,
-          right: 10,
+    new Container(
+      { options, networkState },
+      {
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        active: true,
+        contents: [
+          new Column(null, {
+            left: 10,
+            right: 10,
             top: CONTENT_TOP,
-          contents: [
-            new Label(null, {
-              left: 0,
-              right: 0,
-              height: TITLE_ROW_HEIGHT,
-              string: 'Stack-chan Setup',
-              style: getTitleStyle(),
-            }),
-            labels.ble,
-            labels.ssid,
-            labels.password,
-            labels.wifi,
-            labels.scan,
-            ...labels.networks,
-            labels.hint,
-          ],
-        }),
-      ],
-      Behavior: class extends Behavior {
-        options: SettingsViewOptions | null = null
-        networkState: { networks: SettingsNetworkEntry[] } = { networks: [] }
+            contents: [
+              new Label(null, {
+                left: 0,
+                right: 0,
+                height: TITLE_ROW_HEIGHT,
+                string: 'Stack-chan Setup',
+                style: getTitleStyle(),
+              }),
+              labels.ble,
+              labels.ssid,
+              labels.password,
+              labels.wifi,
+              labels.scan,
+              ...labels.networks,
+              labels.hint,
+            ],
+          }),
+        ],
+        Behavior: class extends Behavior {
+          options: SettingsViewOptions | null = null
+          networkState: { networks: SettingsNetworkEntry[] } = { networks: [] }
 
-        onCreate(
-          _container: PiuContainer,
-          data: { options: SettingsViewOptions; networkState: { networks: SettingsNetworkEntry[] } },
-        ) {
-          this.options = data.options
-          this.networkState = data.networkState
-        }
-
-        onTouchEnded(_container: PiuContainer, _id?: number, _x?: number, y?: number) {
-          if (typeof y === 'number') {
-            if (y >= SCAN_TOUCH_TOP && y < NETWORK_TOUCH_TOP) {
-              this.options?.onScan?.()
-              return
-            }
-            if (y >= NETWORK_TOUCH_TOP && y < CONNECT_TOUCH_TOP) {
-              const index = Math.floor((y - NETWORK_TOUCH_TOP) / NETWORK_ROW_HEIGHT)
-              const network = this.networkState.networks[index]
-              if (network) {
-                this.options?.onSelectNetwork?.(network)
-              }
-              return
-            }
+          onCreate(
+            _container: PiuContainer,
+            data: { options: SettingsViewOptions; networkState: { networks: SettingsNetworkEntry[] } },
+          ) {
+            this.options = data.options
+            this.networkState = data.networkState
           }
-          this.options?.onConnect?.()
-        }
+
+          onTouchEnded(_container: PiuContainer, _id?: number, _x?: number, y?: number) {
+            if (typeof y === 'number') {
+              if (y >= SCAN_TOUCH_TOP && y < NETWORK_TOUCH_TOP) {
+                this.options?.onScan?.()
+                return
+              }
+              if (y >= NETWORK_TOUCH_TOP && y < CONNECT_TOUCH_TOP) {
+                const index = Math.floor((y - NETWORK_TOUCH_TOP) / NETWORK_ROW_HEIGHT)
+                const network = this.networkState.networks[index]
+                if (network) {
+                  this.options?.onSelectNetwork?.(network)
+                }
+                return
+              }
+            }
+            this.options?.onConnect?.()
+          }
+        },
       },
-    }),
+    ),
   )
   updateSettingsStatusLabels(labels, status)
   updateSettingsNetworkLabels(labels, [])
@@ -187,7 +190,11 @@ export const updateSettingsNetworkLabels = (
   const visibleNetworks = networks.slice(0, labels.networks.length)
   for (let index = 0; index < labels.networks.length; index += 1) {
     const network = visibleNetworks[index]
-    labels.networks[index].string = network ? `${index + 1}. ${network.label}` : index === 0 ? 'No networks scanned' : ''
+    labels.networks[index].string = network
+      ? `${index + 1}. ${network.label}`
+      : index === 0
+        ? 'No networks scanned'
+        : ''
   }
   labels.networkState.networks = visibleNetworks
 }

@@ -1,0 +1,53 @@
+import TextDecoder from 'text/decoder'
+
+/**
+ * @brief face tracking mod with UnitV2
+ * @param {*} robot
+ */
+function onContextCreated(robot, option) {
+  const device = option.device
+  if (!device?.network?.http?.io) {
+    throw new Error('This device does not support a network HTTP client.')
+  }
+
+  const decoder = new TextDecoder()
+  const target = {
+    x: 0.8,
+    y: 0,
+    z: 0,
+  }
+  const client = new device.network.http.io({
+    ...device.network.http,
+    host: 'unitv2.local',
+    port: 80,
+  })
+  const _request = client.request({
+    method: 'POST',
+    path: '/func/result',
+    onReadable(count) {
+      let result
+      try {
+        const text = decoder.decode(this.read(count))
+        result = JSON.parse(text.split('|')[0])
+      } catch (_e) {
+        trace('parse failed.\n')
+        return
+      }
+      const face = result.face?.[0]
+      if (face == null) {
+        trace('no face detected.\n')
+        return
+      }
+
+      const centerX = face.x + face.w / 2
+      const centerY = face.y + face.h / 2
+      target.y = 0.8 * ((320 - centerX) / 320)
+      target.z = centerY / 480
+      robot.motion.lookAt([target.x, target.y, target.z])
+    },
+  })
+}
+
+export default {
+  onContextCreated,
+}

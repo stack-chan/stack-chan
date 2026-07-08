@@ -1,0 +1,14 @@
+{
+  "include": ["../platforms/wasm/manifest.json"],
+  "resources": {
+    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
+    "*-alpha": [
+      {
+        "source": "../modules/ui/assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../modules/ui/assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      }
+    ]
+  }
+}

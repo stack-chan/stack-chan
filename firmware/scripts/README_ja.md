@@ -32,13 +32,13 @@
 * 共通オプション
   * --input 入力ファイル名
     省略時はカレントディレクトリに speeches.js がある場合はそちらになります
-    無い場合は ./stackchan/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
+    無い場合は ./host/modules/audio/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
   * --output 出力ディレクトリ
     省略時は入力ファイルのあるディレクトリの配下に assets ディレクトリがある場合はそちらになります
     assets ディレクトリがない場合は入力ファイルと同じディレクトリになります
 
 * 実行例
-    `～/stack-chan/firmware$ npm run generate-speech-google -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets`
+    `～/stack-chan/firmware$ npm run generate-speech-google -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets`
     ※オプションを指定する場合はコマンドの後に上記のように ' -- ' をつけてください
 
 ## generate-speech-coqui  （[CoquiTTS](https://github.com/coqui-ai/TTS#readme)用）
@@ -50,9 +50,9 @@
   `$ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC`
 * generate-speech-coqui の独自オプション
   * --host TTS-Serverの動いているホストのホスト名またはIPアドレス
-    通常 stackchan/manifest_local.json から読み込みますがこちらを指定した場合はこちらが優先されます どちらかで指定が必要です
+    通常 host/app/manifest_local.json から読み込みますがこちらを指定した場合はこちらが優先されます どちらかで指定が必要です
   * --port TTS-Serverのポート
-    通常 stackchan/manifest_local.json から読み込みますがこちらを指定した場合はこちらが優先されます どちらかで指定が必要です
+    通常 host/app/manifest_local.json から読み込みますがこちらを指定した場合はこちらが優先されます どちらかで指定が必要です
   * --shift  pitch-shift.js によるピッチシフト
     0.5(1オクターブ下げる) ～ 2(1オクターブ上げる)　 1でノーマル(CoquiTTSの出力そのまま)となります
     省略時は入力ファイルの SynthProps.shift の値となりますがそちらも未定義の場合は1.5となります
@@ -60,13 +60,13 @@
 * 共通オプション
   * --input 入力ファイル名
     省略時はカレントディレクトリに speeches.js がある場合はそちらになります
-    無い場合は ./stackchan/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
+    無い場合は ./host/modules/audio/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
   * --output 出力ディレクトリ
     省略時は入力ファイルのあるディレクトリの配下に assets ディレクトリがある場合はそちらになります
      assets ディレクトリがない場合は入力ファイルと同じディレクトリになります
 
 * 実行例
-    `～/stack-chan/firmware$ npm run generate-speech-coqui -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets`
+    `～/stack-chan/firmware$ npm run generate-speech-coqui -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets`
     ※オプションを指定する場合はコマンドの後に上記のように ' -- ' をつけてください
 
 ## generate-speech-voicevox  （[VOICEVOX](https://voicevox.hiroshiba.jp/)用）
@@ -97,12 +97,12 @@
 * 共通オプション
   * --input 入力ファイル名
     省略時はカレントディレクトリに speeches.js がある場合はそちらになります
-    無い場合は ./stackchan/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
+    無い場合は ./host/modules/audio/assets/sounds/speeches_ja.js となります（～stack-chan/firmware ディレクトリでの実行を想定）
   * --output 出力ディレクトリ
     省略時は入力ファイルのあるディレクトリの配下に assets ディレクトリがある場合はそちらになります
      assets ディレクトリがない場合は入力ファイルと同じディレクトリになります
 * 実行例
-     ～/stack-chan/firmware$ npm run generate-speech-voicevox -- --input=./mods/monologue/speeches_monologue.js --output=./mods/monologue/assets
+     ～/stack-chan/firmware$ npm run generate-speech-voicevox -- --input=./mods/examples/monologue/speeches_monologue.js --output=./mods/examples/monologue/assets
       ※オプションを指定する場合はコマンドの後に上記のように ' -- ' をつけてください
 
 ## ライセンスについて

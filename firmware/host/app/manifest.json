@@ -1,3 +1,12 @@
 {
-  "include": ["./manifest_base.json", "./manifest_factories_all.json"]
+  "include": ["./manifest_base.json", "./manifest_factories_all.json"],
+  "bundle": {
+    "id": "tech.moddable.stackchan",
+    "devices": [
+      "com.m5stack",
+      "com.m5stack.fire",
+      "com.m5stack.core2",
+      "com.m5stack.cores3"
+    ]
+  }
 }

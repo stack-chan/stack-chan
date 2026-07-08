@@ -1,6 +1,6 @@
+import { DOMAIN } from 'consts'
 import Headers from 'headers'
 import listen, { Response } from 'listen'
-import { DOMAIN } from 'consts'
 import { authorizeMCPRequest, normalizeMCPToken } from 'mcp-auth'
 import Preference from 'preference'
 
@@ -215,7 +215,7 @@ export class MCPServerService {
 
       if (method === 'POST' && pathname === '/mcp') {
         const authResult = authorizeMCPRequest(this.#getAuthorizationHeader(request), this.#token)
-        if (!authResult.authorized) {
+        if (authResult.authorized === false) {
           response = this.#createResponse(401, {
             error: authResult.reason === 'token-not-configured' ? 'MCP token is not configured' : 'Unauthorized',
           })

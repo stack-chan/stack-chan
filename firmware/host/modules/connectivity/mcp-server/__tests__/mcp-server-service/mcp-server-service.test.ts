@@ -63,8 +63,9 @@ const getCurrentTimeTool: Tool = {
 // Start MCP Server
 trace('Starting MCP Server Test...\n')
 
+const testPort = 18080
 const server = new MCPServerService({
-  port: 8080,
+  port: testPort,
   token: 'test-token',
   tools: [helloWorldTool, addNumbersTool, getCurrentTimeTool],
 })
@@ -74,9 +75,9 @@ for (const tool of server.getTools()) {
   trace(`  - ${tool.name}: ${tool.description}\n`)
 }
 
-trace('Server is running on http://localhost:8080\n')
-trace('Health check endpoint: GET http://localhost:8080/health\n')
-trace('MCP endpoint: POST http://localhost:8080/mcp\n')
+trace(`Server is running on http://localhost:${testPort}\n`)
+trace(`Health check endpoint: GET http://localhost:${testPort}/health\n`)
+trace(`MCP endpoint: POST http://localhost:${testPort}/mcp\n`)
 trace('\nExample requests:\n')
 trace('1. Initialize:\n')
 trace('   POST /mcp\n')

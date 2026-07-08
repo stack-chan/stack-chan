@@ -19,12 +19,13 @@ export function createRegisteredStackchanUI(
   options: StackchanUIOptions = {},
   displayListLength = 2048,
 ): RobotUI {
+  const resolvedDisplayListLength = options.displayListLength ?? displayListLength
   return createAppControllerApplication(
     {
       face,
       appBar: new ChatStatusBar(),
       drawerButtons: options.drawerButtons,
     },
-    { displayListLength },
+    { displayListLength: resolvedDisplayListLength },
   )
 }

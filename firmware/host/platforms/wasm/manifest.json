@@ -42,6 +42,7 @@
     "app-default-behavior": "../../app/default-behavior/wasm/behavior",
     "app-default-behavior/wasm/behavior": "../../app/default-behavior/wasm/behavior",
     "app-default-behavior/wasm/on-launch": "../../app/default-behavior/wasm/on-launch",
+    "app-default-behavior/startup-choice": "../../app/default-behavior/startup-choice",
     "app-default-behavior/on-context-created": "../../app/default-behavior/on-context-created"
   },
   "preload": [

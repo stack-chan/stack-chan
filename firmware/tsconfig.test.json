@@ -127,6 +127,9 @@
       "startup-splash": [
         "host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts"
       ],
+      "setup-mode": [
+        "host/app/default-behavior/__tests__/startup-choice/setup-mode-stub.ts"
+      ],
       "settings-status-model": [
         "host/modules/ui/views/settings/settings-status-model.ts"
       ],

@@ -15,11 +15,13 @@ export type StartupChoiceTimer = {
 export type StartupChoiceDependencies = {
   timer: StartupChoiceTimer
   showStartupSplash(options: { onTouch?: () => void }): unknown
+  autoBootDelayMs?: number
 }
 
 export function waitForStartupChoice<Application>({
   timer,
   showStartupSplash,
+  autoBootDelayMs = STARTUP_AUTO_BOOT_DELAY_MS,
 }: StartupChoiceDependencies): Promise<StartupChoiceResult<Application>> {
   return new Promise((resolve) => {
     let isResolved = false
@@ -38,6 +40,6 @@ export function waitForStartupChoice<Application>({
         handles.settings = timer.set(() => choose('settings', application), 0)
       },
     }) as Application
-    handles.autoBoot = timer.set(() => choose('boot', application), STARTUP_AUTO_BOOT_DELAY_MS)
+    handles.autoBoot = timer.set(() => choose('boot', application), autoBootDelayMs)
   })
 }

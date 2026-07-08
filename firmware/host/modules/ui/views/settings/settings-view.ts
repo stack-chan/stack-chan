@@ -47,12 +47,16 @@ export type SettingsPasswordViewOptions = {
 }
 
 const CONTENT_TOP = 8
+const SCREEN_WIDTH = 320
 const HEADER_HEIGHT = 36
 const STATUS_ROW_HEIGHT = 24
 const NETWORK_ROW_HEIGHT = 40
 const SCAN_TOUCH_TOP = CONTENT_TOP + HEADER_HEIGHT + STATUS_ROW_HEIGHT
 const SCAN_TOUCH_BOTTOM = SCAN_TOUCH_TOP + STATUS_ROW_HEIGHT
 const NETWORK_LIST_TOP = SCAN_TOUCH_BOTTOM + 6
+const PASSWORD_HEADER_HEIGHT = 46
+const PASSWORD_TITLE_HEIGHT = 26
+const PASSWORD_SSID_HEIGHT = 20
 const PASSWORD_KEYBOARD_HEIGHT = 164
 
 let screenSkin: PiuSkin | null = null
@@ -186,7 +190,7 @@ export const buildSettingsView = (
   const labels: SettingsStatusLabels = {
     wifi: new Label(null, { left: 0, right: 0, height: STATUS_ROW_HEIGHT, style: getLabelStyle() }),
     scan: new Label(null, { left: 0, right: 0, height: STATUS_ROW_HEIGHT, style: getLabelStyle() }),
-    list: new Column(null, { left: 0, right: 0, top: 0 }),
+    list: new Column(null, { left: 0, width: SCREEN_WIDTH, top: 0 }),
     networkState,
     options,
   }
@@ -281,7 +285,7 @@ export const updateSettingsNetworkLabels = (
       labels.list.add(
         new Port(data, {
           left: 0,
-          right: 0,
+          width: SCREEN_WIDTH,
           height: NETWORK_ROW_HEIGHT,
           active: true,
           Behavior: class extends Behavior {
@@ -321,7 +325,7 @@ export const updateSettingsNetworkLabels = (
               port.fillColor('#000000', 0, 0, port.width, port.height)
               port.fillColor('#303030', 0, port.height - 1, port.width, 1)
               drawSignalIcon(port, this.data.network.signal, 10, 11)
-              port.drawString(this.data.network.ssid, getNetworkStyle(), '#ffffff', 42, 4, port.width - 52, 32)
+              port.drawString(this.data.network.ssid, getNetworkStyle(), '#ffffff', 42, 4, SCREEN_WIDTH - 52, 32)
             }
           },
         }),
@@ -357,21 +361,21 @@ export const buildSettingsPasswordView = (
         new Container(null, {
           left: 0,
           right: 0,
-          height: 70,
+          height: PASSWORD_HEADER_HEIGHT,
           active: true,
           contents: [
             new Label(null, {
               left: 10,
               right: 10,
-              height: HEADER_HEIGHT,
+              height: PASSWORD_TITLE_HEIGHT,
               string: 'Wi-Fi Password',
               style: getTitleStyle(),
             }),
             new Label(null, {
               left: 10,
               right: 10,
-              top: HEADER_HEIGHT,
-              height: STATUS_ROW_HEIGHT,
+              top: PASSWORD_TITLE_HEIGHT,
+              height: PASSWORD_SSID_HEIGHT,
               string: `SSID: ${ssid}`,
               style: getLabelStyle(),
             }),

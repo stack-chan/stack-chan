@@ -323,15 +323,9 @@ function writePartsAliases(): void {
     'image/iris-sprite',
     'image/mouth-sprite',
   ]
-  writePackageExport(
-    packageRoot,
-    Object.fromEntries(subpaths.map((subpath) => [`./${subpath}`, `./${subpath}.js`])),
-  )
+  writePackageExport(packageRoot, Object.fromEntries(subpaths.map((subpath) => [`./${subpath}`, `./${subpath}.js`])))
   for (const subpath of subpaths) {
-    writeReexport(
-      resolve(packageRoot, `${subpath}.js`),
-      dist(`host/modules/ui/components/face/parts/${subpath}.js`),
-    )
+    writeReexport(resolve(packageRoot, `${subpath}.js`), dist(`host/modules/ui/components/face/parts/${subpath}.js`))
   }
 }
 
@@ -344,7 +338,9 @@ export function installUiNodeTestAliases(): void {
   writeAliasPackage(modulesRoot, 'face-skin', dist('host/modules/ui/state/face-skin.js'))
   writeAliasPackage(modulesRoot, 'stackchan-util', dist('host/modules/util/stackchan-util.js'))
   writeAliasPackage(modulesRoot, 'timer', dist('host/modules/testing/fakes/timer.js'), { hasDefaultExport: true })
-  writeAliasPackage(modulesRoot, 'mac-address', dist('host/modules/util/sim/mac-address.js'), { hasDefaultExport: true })
+  writeAliasPackage(modulesRoot, 'mac-address', dist('host/modules/util/sim/mac-address.js'), {
+    hasDefaultExport: true,
+  })
   writeAliasPackage(modulesRoot, 'drawer', dist('host/modules/ui/components/drawer/drawer.js'))
   writeAliasPackage(modulesRoot, 'common-view', dist('host/modules/ui/views/main/common-view.js'))
   writeAliasPackage(modulesRoot, 'face-view', dist('host/modules/ui/views/main/face-view.js'))
@@ -352,13 +348,13 @@ export function installUiNodeTestAliases(): void {
   writeAliasPackageSubpath(modulesRoot, 'motions', 'types', dist('host/modules/ui/components/face/motions/types.js'))
   writeAliasPackageSubpath(modulesRoot, 'motions', 'blink', dist('host/modules/ui/components/face/motions/blink.js'))
   writeAliasPackageSubpath(modulesRoot, 'motions', 'breath', dist('host/modules/ui/components/face/motions/breath.js'))
-  writeAliasPackageSubpath(modulesRoot, 'motions', 'saccade', dist('host/modules/ui/components/face/motions/saccade.js'))
   writeAliasPackageSubpath(
     modulesRoot,
-    'effects',
-    'emoticon',
-    dist('host/modules/ui/components/effects/emoticon.js'),
+    'motions',
+    'saccade',
+    dist('host/modules/ui/components/face/motions/saccade.js'),
   )
+  writeAliasPackageSubpath(modulesRoot, 'effects', 'emoticon', dist('host/modules/ui/components/effects/emoticon.js'))
   writeAliasPackageSubpath(
     modulesRoot,
     'effects',

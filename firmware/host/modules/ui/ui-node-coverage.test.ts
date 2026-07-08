@@ -312,7 +312,10 @@ test('Emoticon variants invalidate, draw atlas frames, and react to theme change
     assert.ok((port.invalidated ?? 0) > 1)
     behavior.onFaceState?.(port, themedFace(0xff00aa, 0x003355))
     behavior.onDraw?.(port)
-    assert.ok(port.draws?.some((entry) => entry[0] === 'drawTexture'), `${key} should draw from the atlas`)
+    assert.ok(
+      port.draws?.some((entry) => entry[0] === 'drawTexture'),
+      `${key} should draw from the atlas`,
+    )
     behavior.onUndisplaying?.(port)
     assert.equal(port.running, false)
   }

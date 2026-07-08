@@ -1,11 +1,11 @@
 import {
   type MotionCalibrationCapability,
-  type MotionCalibrationServo,
   type MotionCompletion,
   type MotionDurationSeconds,
   type MotionResultCallback,
   motionDurationSecondsToMilliseconds,
 } from 'motion-controller'
+import { createMotionCalibrationServo } from 'motion-calibration-servo'
 import SCServo from 'protocols/scservo'
 import type { Maybe, Rotation } from 'stackchan-util'
 import type Timer from 'timer'
@@ -15,8 +15,8 @@ type SCServoDriverProps = {
   tiltId: number
 }
 
-function createCalibrationServo(servo: SCServo): MotionCalibrationServo {
-  return {
+function createCalibrationServo(servo: SCServo) {
+  return createMotionCalibrationServo({
     readAngle(callback) {
       servo.readStatus((result) => {
         if (!result.success) {
@@ -26,23 +26,17 @@ function createCalibrationServo(servo: SCServo): MotionCalibrationServo {
         callback({ success: true, value: result.value.angle })
       })
     },
-    setAngle(angle, timeOrCallback?: MotionDurationSeconds | MotionCompletion, callback?: MotionCompletion) {
-      if (typeof timeOrCallback === 'function') {
-        servo.setAngle(angle, timeOrCallback)
-        return
-      }
-      if (timeOrCallback == null) {
-        servo.setAngle(angle, callback)
-        return
-      }
-      servo.setAngleInTime(angle, motionDurationSecondsToMilliseconds(timeOrCallback), callback)
+    setAngle(angle, callback) {
+      servo.setAngle(angle, callback)
+    },
+    setAngleInTime(angle, goalTimeMilliseconds, callback) {
+      servo.setAngleInTime(angle, goalTimeMilliseconds, callback)
     },
     setTorque(torque, callback) {
       servo.setTorque(torque, callback)
     },
-    flashId(id, callback) {
-      servo.flashId(id, callback)
-    },
+    convertDuration: motionDurationSecondsToMilliseconds,
+    flashId: (id, callback) => servo.flashId(id, callback),
     readOffsetAngle(callback) {
       servo.readOffsetAngle(callback)
     },
@@ -52,7 +46,7 @@ function createCalibrationServo(servo: SCServo): MotionCalibrationServo {
     saveSettings(callback) {
       servo.saveSettings(callback)
     },
-  }
+  })
 }
 
 export class SCServoDriver {

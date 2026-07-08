@@ -1,11 +1,11 @@
 import {
   type MotionCalibrationCapability,
-  type MotionCalibrationServo,
   type MotionCompletion,
   type MotionDurationSeconds,
   type MotionResultCallback,
   motionDurationSecondsToCentiseconds,
 } from 'motion-controller'
+import { createMotionCalibrationServo } from 'motion-calibration-servo'
 import { reasonFromError } from 'motion-driver-callback'
 import RS30X from 'protocols/rs30x'
 import type { Maybe, Rotation } from 'stackchan-util'
@@ -16,8 +16,8 @@ type RS30XDriverProps = {
   tiltId: number
 }
 
-function createCalibrationServo(servo: RS30X): MotionCalibrationServo {
-  return {
+function createCalibrationServo(servo: RS30X) {
+  return createMotionCalibrationServo({
     readAngle(callback) {
       servo.readStatus((angle, error) => {
         if (angle == null) {
@@ -27,24 +27,18 @@ function createCalibrationServo(servo: RS30X): MotionCalibrationServo {
         callback({ success: true, value: angle })
       })
     },
-    setAngle(angle, timeOrCallback?: MotionDurationSeconds | MotionCompletion, callback?: MotionCompletion) {
-      if (typeof timeOrCallback === 'function') {
-        servo.setAngle(angle, timeOrCallback)
-        return
-      }
-      if (timeOrCallback == null) {
-        servo.setAngle(angle, callback)
-        return
-      }
-      servo.setAngleInTime(angle, motionDurationSecondsToCentiseconds(timeOrCallback), callback)
+    setAngle(angle, callback) {
+      servo.setAngle(angle, callback)
+    },
+    setAngleInTime(angle, goalTimeCentiseconds, callback) {
+      servo.setAngleInTime(angle, goalTimeCentiseconds, callback)
     },
     setTorque(torque, callback) {
       servo.setTorque(torque, callback)
     },
-    flashId(id, callback) {
-      servo.flashId(id, callback)
-    },
-  }
+    convertDuration: motionDurationSecondsToCentiseconds,
+    flashId: (id, callback) => servo.flashId(id, callback),
+  })
 }
 
 export class RS30XDriver {

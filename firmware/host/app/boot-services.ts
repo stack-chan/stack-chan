@@ -1,6 +1,7 @@
 import config from 'mc/config'
 import { wait } from 'stackchan-util'
 import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
+import type { NetworkReadyResult } from 'capabilities'
 import {
   bootWiFiFailureMessage,
   networkReadyResultForRecoveryChoice,
@@ -8,18 +9,7 @@ import {
   type BootWiFiRecoveryChoice,
 } from 'boot-network-recovery'
 
-export type NetworkReadyResult =
-  | {
-      status: 'connected'
-    }
-  | {
-      status: 'skipped'
-      reason: string
-    }
-  | {
-      status: 'failed'
-      reason: string
-    }
+export type { NetworkReadyResult } from 'capabilities'
 
 export type HostBootServices = {
   connectivity: {

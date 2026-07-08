@@ -48,7 +48,6 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string
     showWiFiRecoveryChoice({
       message: status.message,
       onRetry: () => choose('retry'),
-      onOffline: () => choose('offline'),
     })
     if (globalEnv.button?.a) {
       globalEnv.button.a.onChanged = () => choose('retry')

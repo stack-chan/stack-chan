@@ -15,7 +15,6 @@ export type WiFiConnectionStatusOptions = {
 export type WiFiRecoveryChoiceOptions = {
   message: string
   onRetry?: () => void
-  onOffline?: () => void
 }
 
 const TITLE_FONT = '24px Open Sans'
@@ -24,7 +23,6 @@ const MESSAGE_FONT = 'k8x12-12'
 let backgroundSkin: PiuSkin | null = null
 let titleStyle: PiuStyle | null = null
 let messageStyle: PiuStyle | null = null
-let hintStyle: PiuStyle | null = null
 let currentMessageLabel: PiuLabel | null = null
 let currentHintLabel: PiuLabel | null = null
 let currentTouchHandler: (() => void) | undefined
@@ -58,18 +56,6 @@ function getMessageStyle() {
   return messageStyle
 }
 
-function getHintStyle() {
-  if (!hintStyle) {
-    hintStyle = new Style({
-      font: MESSAGE_FONT,
-      color: '#ffffff',
-      horizontal: 'center',
-      vertical: 'middle',
-    })
-  }
-  return hintStyle
-}
-
 function updateStartupSplash(options: StartupSplashOptions): void {
   currentTouchHandler = options.onTouch
   if (currentMessageLabel) {
@@ -93,7 +79,7 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
     right: 0,
     height: 24,
     string: options.hint ?? '',
-    style: getHintStyle(),
+    style: getMessageStyle(),
   })
   currentMessageLabel = messageLabel
   currentHintLabel = hintLabel

@@ -11,61 +11,120 @@
     "allowImportingTsExtensions": true,
     "module": "es2022",
     "lib": [
-      "es2024"
+      "es2024",
+      "ESNext.Disposable"
     ],
     "outDir": "dist",
     "sourceMap": true,
     "target": "es2024",
     "paths": {
-      "face-context": [
-        "./stackchan/renderers-piu/face-context"
+      "face-state": [
+        "./host/modules/ui/state/face-state"
+      ],
+      "face-skin": [
+        "./host/modules/ui/state/face-skin"
+      ],
+      "app-controller": [
+        "./host/modules/ui/application/app-controller"
+      ],
+      "capabilities": [
+        "./host/app/capabilities"
+      ],
+      "motion-controller": [
+        "./host/modules/motion/motion-controller"
+      ],
+      "runtime-context": [
+        "./host/app/runtime-context"
+      ],
+      "camera-initial-frame": [
+        "./host/modules/camera/device/initial-frame"
+      ],
+      "chat-audioio-config": [
+        "./mods/examples/chat_audioio/config"
+      ],
+      "chat-status-bar": [
+        "./host/modules/ui/components/status-bar/chat-status-bar"
+      ],
+      "common-view": [
+        "./host/modules/ui/views/main/common-view"
+      ],
+      "face-view": [
+        "./host/modules/ui/views/main/face-view"
+      ],
+      "settings-view": [
+        "./host/modules/ui/views/settings/settings-view"
+      ],
+      "template": [
+        "./host/modules/ui/components/face/template"
       ],
       "effects/*": [
-        "./stackchan/renderers-piu/effects/*"
+        "./host/modules/ui/components/effects/*"
       ],
-      "renderer-compat": [
-        "./stackchan/renderers-piu/renderer-compat"
+      "effects/speech-balloon": [
+        "./host/modules/ui/components/bubble/speech-balloon"
       ],
-      "renderer-simple": [
-        "./stackchan/renderers-piu/renderer-simple"
-      ],
-      "renderer-dog": [
-        "./stackchan/renderers-piu/renderer-dog"
-      ],
-      "renderer-small": [
-        "./stackchan/renderers-piu/renderer-small"
+      "effects/multirow-balloon": [
+        "./host/modules/ui/components/bubble/multirow-balloon"
       ],
       "behaviors/*": [
-        "./stackchan/renderers-piu/behaviors/*"
+        "./host/modules/ui/components/face/behaviors/*"
       ],
       "parts/*": [
-        "./stackchan/renderers-piu/parts/*"
+        "./host/modules/ui/components/face/parts/*"
       ],
       "motions/*": [
-        "./stackchan/renderers-piu/motions/*"
+        "./host/modules/ui/components/face/motions/*"
       ],
       "drawer": [
-        "./stackchan/renderers-piu/drawer"
+        "./host/modules/ui/components/drawer/drawer"
       ],
-      "mocks/*": [
-        "./tests/chats/mocks/*"
+      "image-avatar-lite-packs": [
+        "./mods/examples/image_avatar_lite/image-avatar-lite-packs"
       ],
       "*": [
         "./node_modules/@moddable/typings/*",
         "./node_modules/@moddable/typings/ble/*",
         "./typings/*",
-        "./stackchan/*",
-        "./stackchan/ble/*",
-        "./stackchan/default-mods/*",
-        "./stackchan/dialogues/*",
-        "./stackchan/drivers/*",
-        "./stackchan/led/*",
-        "./stackchan/renderers-piu/*",
-        "./stackchan/renderers/*",
-        "./stackchan/services/*",
-        "./stackchan/speeches/*",
-        "./stackchan/transcriptions/*",
-        "./stackchan/utilities/*"
+        "./host/app/*",
+        "./host/app/default-behavior/*",
+        "./host/app/default-behavior/wasm/*",
+        "./host/modules/camera/*",
+        "./host/modules/audio/*",
+        "./host/modules/audio/wasm/*",
+        "./host/modules/connectivity/*",
+        "./host/modules/connectivity/ble/*",
+        "./host/modules/connectivity/http-server/*",
+        "./host/modules/connectivity/mcp-client/*",
+        "./host/modules/connectivity/mcp-server/*",
+        "./host/modules/connectivity/wasm/*",
+        "./host/modules/conversation/*",
+        "./host/modules/conversation/chat-audioio/*",
+        "./mods/examples/provider-dialogues/*",
+        "./host/modules/input/*",
+        "./host/modules/motion/*",
+        "./host/modules/motion/internal/*",
+        "./host/modules/lighting/*",
+        "./host/modules/ui/application/*",
+        "./host/modules/ui/views/main/*",
+        "./host/modules/ui/views/splash/*",
+        "./host/modules/ui/views/camera-preview/*",
+        "./host/modules/ui/views/settings/*",
+        "./host/modules/ui/components/status-bar/*",
+        "./host/modules/ui/components/drawer/*",
+        "./host/modules/ui/components/effects/*",
+        "./host/modules/ui/components/bubble/*",
+        "./host/modules/ui/components/face/*",
+        "./host/modules/ui/components/face/behaviors/*",
+        "./host/modules/ui/components/face/motions/*",
+        "./host/modules/ui/components/face/parts/*",
+        "./host/modules/ui/components/face/parts/dog/*",
+        "./host/modules/ui/components/face/parts/image/*",
+        "./host/modules/ui/state/*",
+        "./host/modules/input/*",
+        "./host/modules/util/*",
+        "./host/modules/util/esp32/*",
+        "./host/modules/util/sim/*",
+        "./host/modules/preferences/*"
       ],
       "commodetto/*": [
         "./node_modules/@moddable/typings/commodetto/*"
@@ -118,23 +177,41 @@
       "embedded:network/dns/resolver/*": [
         "./node_modules/@moddable/typings/embedded_network/dns/resolver/*"
       ],
-      "default-mods/mod": [
-        "./stackchan/default-mods/mod"
+      "app-behavior": [
+        "./host/app/app-behavior"
       ],
-      "default-mods/on-launch": [
-        "./stackchan/default-mods/on-launch"
+      "app-default-behavior": [
+        "./host/app/default-behavior/behavior"
+      ],
+      "app-default-behavior/on-launch": [
+        "./host/app/default-behavior/on-launch"
+      ],
+      "app-default-behavior/on-context-created": [
+        "./host/app/default-behavior/on-context-created"
+      ],
+      "app-default-behavior/wasm/behavior": [
+        "./host/app/default-behavior/wasm/behavior"
+      ],
+      "app-default-behavior/wasm/on-launch": [
+        "./host/app/default-behavior/wasm/on-launch"
+      ],
+      "testing/assert": [
+        "./host/modules/testing/assert"
+      ],
+      "testing/fakes/ChatAudioIO": [
+        "./host/modules/testing/fakes/ChatAudioIO"
       ],
       "calculate-power": [
-        "./stackchan/speeches/calculate-power"
+        "./host/modules/audio/calculate-power"
       ],
       "mac-address": [
-        "./utilities/esp32/mac-address"
-      ],
-      "default-mods/on-robot-created": [
-        "./stackchan/default-mods/on-robot-created"
+        "./host/modules/util/esp32/mac-address"
       ],
       "mcp-client": [
-        "./stackchan/services/mcp-client/mcp-client"
+        "./host/modules/connectivity/mcp-client/mcp-client"
+      ],
+      "ecma-wifi": [
+        "./host/modules/connectivity/ecma-wifi"
       ]
     },
     "types": [
@@ -144,8 +221,7 @@
     ]
   },
   "include": [
-    "./stackchan/**/*",
-    "./mods/**/*",
-    "./tests/**/*"
+    "./host/**/*",
+    "./mods/**/*"
   ]
 }

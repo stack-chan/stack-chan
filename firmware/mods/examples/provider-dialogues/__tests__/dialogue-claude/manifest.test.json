@@ -1,0 +1,19 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json",
+    "../../../../../host/app/manifest_typings.json"
+  ],
+  "modules": {
+    "main": "./dialogue-claude.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "config": {
+    "token": "YOUR_API_KEY_HERE"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json",
+    "../provider-dialogues/manifest.json"
+  ],
+  "modules": {
+    "*": ["./mod"]
+  },
+  "data": {
+    "*": [
+      "$(MODDABLE)/modules/crypt/data/ca109",
+      "$(MODDABLE)/modules/crypt/data/ca35"
+    ]
+  }
+}

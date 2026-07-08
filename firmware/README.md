@@ -18,9 +18,25 @@
 * Designed with separate host program and user applications (MODs). Flashing only MODs is very fast, allowing for an efficient development cycle.
 * [Supports firmware flashing from a web browser](docs/flashing-firmware-web_ja.md)
 
+## First commands
+
+The standard firmware target is M5StackChan CoreS3.
+If this is your first time, start with:
+
+```console
+$ npm i
+$ npm run setup
+$ npm run doctor
+$ npm run flash
+```
+
+`npm run flash` builds and flashes the standard host.
+For Stack-chan RT or the Takao Core2 + SG90 build, use `npm run flash:stackchan_rt` or `npm run flash:takao_core2_sg90`.
+When iterating on a MOD, pass the MOD manifest: `npm run mod -- mods/examples/look_around/manifest.json`.
+
 ## Directory structure
 
-- [stackchan](./stackchan/): Firmware source code.
+- [host](./host/): Host application and firmware modules.
 - [mods](./mods/): Source code of mods.
 - [scripts](./scripts/): Scripts for Stack-chan's voice synthesis, etc.
 - [typings](./typings/): TypeScript type definition files (d.ts).

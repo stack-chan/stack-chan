@@ -2,6 +2,8 @@
 
 This smoke check exercises the current M5StackChan CoreS3 servo-power and 12 RGB LED paths with a small MOD. It is intended for manual hardware validation and does not require secrets or network configuration.
 
+Keep `host/app/manifest_local.json` free of private bench configuration. The checked-in file intentionally contains an empty `"config"` object; add local driver, Wi-Fi, or TTS settings only in your working copy.
+
 Related tracking issues: #406, #408, #409, #412.
 
 ## Build the host
@@ -9,19 +11,19 @@ Related tracking issues: #406, #408, #409, #412.
 Run these commands from `firmware/`.
 
 ```console
-$ mcconfig -d -m -p esp32:./platforms/m5stackchan_cores3 -t build "$PWD/stackchan/manifest_m5stackchan_cores3.json"
+$ npm run build:m5stackchan_cores3
 ```
 
 To flash the host when hardware is connected:
 
 ```console
-$ mcconfig -d -m -p esp32:./platforms/m5stackchan_cores3 -t deploy "$PWD/stackchan/manifest_m5stackchan_cores3.json"
+$ npm run flash:m5stackchan_cores3
 ```
 
 ## Install the smoke MOD
 
 ```console
-$ npm run mod --target=esp32:./platforms/m5stackchan_cores3 ./mods/m5stackchan_smoke/manifest.json
+$ npm run mod:m5stackchan_cores3 -- ./mods/examples/m5stackchan_smoke/manifest.json
 ```
 
 ## Expected smoke sequence
@@ -39,4 +41,4 @@ Open `xsbug` or serial logs and verify these log prefixes:
 - `[M5StackChan CoreS3 smoke] LED: lightOff`
 - `[M5StackChan CoreS3 smoke] complete`
 
-The servo motion is intentionally small. Keep the device clear of obstructions before running the check. The LED names and PY32 wiring come from `platforms/m5stackchan_cores3/manifest.json`.
+The servo motion is intentionally small. Keep the device clear of obstructions before running the check. The LED names and PY32 wiring come from `host/platforms/m5stackchan_cores3/manifest.json`.

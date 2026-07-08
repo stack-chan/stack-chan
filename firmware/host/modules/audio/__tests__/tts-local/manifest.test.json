@@ -1,0 +1,19 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "resources": {
+    "*": "$(MODDABLE)/examples/assets/sounds/*"
+  },
+  "modules": {
+    "main": "./tts-local.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  }
+}

@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist-tests",
+    "rootDir": ".",
     "noEmit": false,
     "rewriteRelativeImportExtensions": true,
     "allowJs": false,
@@ -13,46 +14,148 @@
     "ignoreDeprecations": "6.0",
     "paths": {
       "camera": [
-        "stackchan/wasm/camera.ts"
+        "host/modules/camera/wasm/camera.ts"
+      ],
+      "capabilities": [
+        "host/modules/testing/fakes/capabilities.ts"
+      ],
+      "audio-buffer": [
+        "host/modules/audio/audio-buffer.ts"
+      ],
+      "tts-types": [
+        "host/modules/audio/tts-types.ts"
+      ],
+      "audio-in": [
+        "host/modules/testing/fakes/audio-in.ts"
+      ],
+      "pins/audioout": [
+        "host/modules/testing/fakes/audio-out.ts"
+      ],
+      "calculate-power": [
+        "host/modules/testing/fakes/calculate-power.ts"
       ],
       "wasm-driver": [
-        "stackchan/drivers/wasm/wasm-driver.ts"
+        "host/modules/motion/wasm/wasm-driver.ts"
       ],
-      "face-context": [
-        "stackchan/renderers-piu/face-context.ts"
+      "face-state": [
+        "host/modules/ui/state/face-state.ts"
       ],
       "parts/*": [
-        "stackchan/renderers-piu/parts/*"
+        "host/modules/ui/components/face/parts/*"
       ],
       "parts/image/image-avatar-pack": [
-        "stackchan/renderers-piu/parts/image/image-avatar-pack.ts"
+        "host/modules/ui/components/face/parts/image/image-avatar-pack.ts"
       ],
       "parts/image/image-avatar-state": [
-        "stackchan/renderers-piu/parts/image/image-avatar-state.ts"
+        "host/modules/ui/components/face/parts/image/image-avatar-state.ts"
+      ],
+      "motion-controller": [
+        "host/modules/motion/motion-controller.ts"
+      ],
+      "microphone": [
+        "host/modules/testing/fakes/microphone-type.ts"
+      ],
+      "speaker": [
+        "host/modules/testing/fakes/speaker-type.ts"
+      ],
+      "imu-motion": [
+        "host/modules/input/imu-motion.ts"
+      ],
+      "imu": [
+        "host/modules/input/imu.ts"
+      ],
+      "led": [
+        "host/modules/lighting/led.ts"
+      ],
+      "touch": [
+        "host/modules/input/touch.ts"
+      ],
+      "touch-panel": [
+        "host/modules/input/touch-panel.ts"
+      ],
+      "touch-panel-gesture": [
+        "host/modules/input/touch-panel-gesture.ts"
+      ],
+      "stored-wifi": [
+        "host/modules/connectivity/stored-wifi.ts"
+      ],
+      "network-service": [
+        "host/modules/connectivity/network-service.ts"
+      ],
+      "network-state": [
+        "host/modules/connectivity/network-state.ts"
+      ],
+      "loadPreference": [
+        "host/modules/preferences/loadPreference.ts"
+      ],
+      "network-manager": [
+        "host/modules/connectivity/__tests__/fakes/network-manager.ts"
+      ],
+      "preference": [
+        "host/modules/testing/fakes/preference.ts"
+      ],
+      "consts": [
+        "host/modules/preferences/consts.ts"
+      ],
+      "modules": [
+        "host/modules/testing/fakes/modules.ts"
+      ],
+      "structuredClone": [
+        "host/modules/testing/fakes/structured-clone.ts"
+      ],
+      "timer": [
+        "host/modules/testing/fakes/timer.ts"
+      ],
+      "time": [
+        "host/modules/testing/fakes/time.ts"
+      ],
+      "sntp": [
+        "host/modules/connectivity/__tests__/fakes/sntp.ts"
+      ],
+      "embedded:network/interface/wifi": [
+        "host/modules/connectivity/__tests__/fakes/ecma-wifi.ts"
+      ],
+      "ecma-wifi": [
+        "host/modules/connectivity/__tests__/fakes/ecma-wifi.ts"
+      ],
+      "mc/config": [
+        "host/modules/testing/fakes/mc-config.ts"
+      ],
+      "input-event": [
+        "host/modules/input/input-event.ts"
+      ],
+      "startup-splash": [
+        "host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts"
+      ],
+      "settings-status-model": [
+        "host/modules/ui/views/settings/settings-status-model.ts"
+      ],
+      "app-behavior-resolver": [
+        "host/app/app-behavior-resolver.ts"
+      ],
+      "app-default-behavior/startup-choice": [
+        "host/app/default-behavior/startup-choice.ts"
+      ],
+      "app-default-behavior/wasm/on-launch": [
+        "host/app/default-behavior/wasm/on-launch.ts"
+      ],
+      "mac-address": [
+        "host/modules/util/sim/mac-address.ts"
+      ],
+      "stackchan-util": [
+        "host/modules/util/stackchan-util.ts"
       ]
     },
     "types": [
-      "node"
+      "node",
+      "./node_modules/@moddable/typings/xs"
     ],
     "skipLibCheck": true
   },
   "include": [
-    "stackchan/drivers/payload-buffer.ts",
-    "stackchan/drivers/wasm/**/*.ts",
-    "stackchan/camera.ts",
-    "stackchan/camera-preview-utils.ts",
-    "stackchan/touch-panel-gesture.ts",
-    "stackchan/imu-motion.ts",
-    "stackchan/wasm/camera.ts",
-    "stackchan/wasm/microphone.ts",
-    "stackchan/drivers/m5stackchan-servo.ts",
-    "stackchan/led/py32-io-expander.ts",
-    "stackchan/drivers/internal/single-wait-slot.ts",
-    "stackchan/drivers/__tests__/**/*.ts",
-    "stackchan/renderers-piu/face-context.ts",
-    "stackchan/renderers-piu/parts/image/image-avatar-pack.ts",
-    "stackchan/renderers-piu/parts/image/image-avatar-state.ts",
-    "tests/unit/**/*.ts"
+    "host/**/*.test.ts"
   ],
-  "exclude": []
+  "exclude": [
+    "host/**/__tests__/*/*.test.ts"
+  ]
 }

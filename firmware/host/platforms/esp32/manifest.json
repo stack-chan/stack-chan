@@ -1,0 +1,167 @@
+{
+  "platforms": {
+    "esp32/m5stack_core2": {
+      "creation": {
+        "static": 442368,
+        "chunk": {
+          "initial": 8192,
+          "incremental": 2048
+        },
+        "heap": {
+          "initial": 512,
+          "incremental": 64
+        },
+        "stack": 512,
+        "keys": {
+          "available": 512
+        }
+      },
+      "config": {
+        "driver": {
+          "pwmPan": 19,
+          "pwmTilt": 27
+        },
+        "tts": {
+          "sampleRate": 24000
+        },
+        "serial": {
+          "transmit": 14,
+          "receive": 13
+        }
+      }
+    },
+    "esp32/takao_core2_sg90": {
+      "creation": {
+        "static": 442368,
+        "chunk": {
+          "initial": 8192,
+          "incremental": 2048
+        },
+        "heap": {
+          "initial": 512,
+          "incremental": 64
+        },
+        "stack": 512,
+        "keys": {
+          "available": 512
+        }
+      }
+    },
+    "esp32/m5stack_cores3": {
+      "creation": {
+        "static": 0,
+        "chunk": {
+          "initial": 262144,
+          "incremental": 0
+        },
+        "heap": {
+          "initial": 4096,
+          "incremental": 256
+        },
+        "stack": 512,
+        "keys": {
+          "initial": 32,
+          "incremental": 32
+        }
+      },
+      "config": {
+        "touchIntervalMs": 50,
+        "touchReleaseDebounceMs": 75,
+        "driver": {
+          "type": "dynamixel",
+          "panId": 1,
+          "tiltId": 2
+        },
+        "tts": {
+          "sampleRate": 24000
+        },
+        "serial": {
+          "transmit": 7,
+          "receive": 6
+        },
+        "virtualButton": false
+      },
+      "defines": {
+        "ft6206": {
+          "hz": 400000
+        }
+      }
+    },
+    "esp32/m5stackchan_cores3": {
+      "creation": {
+        "static": 0,
+        "chunk": {
+          "initial": 262144,
+          "incremental": 0
+        },
+        "heap": {
+          "initial": 4096,
+          "incremental": 256
+        },
+        "stack": 512,
+        "keys": {
+          "initial": 32,
+          "incremental": 32
+        }
+      }
+    },
+    "esp32/stackchan_rt": {
+      "creation": {
+        "static": 0,
+        "chunk": {
+          "initial": 262144,
+          "incremental": 0
+        },
+        "heap": {
+          "initial": 4096,
+          "incremental": 256
+        },
+        "stack": 512,
+        "keys": {
+          "initial": 32,
+          "incremental": 32
+        }
+      }
+    },
+    "esp32/m5atom_s3": {
+      "config": {
+        "ui": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "esp32/m5atom_s3r": {
+      "config": {
+        "ui": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "esp32/m5atom_s3_echo_base": {
+      "config": {
+        "ui": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    },
+    "esp32/m5atom_s3r_echo_base": {
+      "config": {
+        "ui": {
+          "type": "small-face"
+        },
+        "driver": {
+          "type": "none"
+        }
+      }
+    }
+  }
+}

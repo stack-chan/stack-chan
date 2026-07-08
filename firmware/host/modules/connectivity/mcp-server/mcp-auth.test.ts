@@ -12,17 +12,27 @@ test('authorizeMCPRequest rejects a missing authorization header', () => {
     authorized: false,
     reason: 'missing-authorization',
   })
+  assert.deepEqual(authorizeMCPRequest('', 'secret-token'), {
+    authorized: false,
+    reason: 'missing-authorization',
+  })
 })
 
-test('authorizeMCPRequest rejects an invalid bearer token', () => {
-  assert.deepEqual(authorizeMCPRequest('Bearer wrong-token', 'secret-token'), {
-    authorized: false,
-    reason: 'invalid-authorization',
-  })
+test('authorizeMCPRequest rejects invalid bearer tokens', () => {
+  for (const authorization of ['Bearer wrong-token', 'Bearer', 'Basic secret-token']) {
+    assert.deepEqual(authorizeMCPRequest(authorization, 'secret-token'), {
+      authorized: false,
+      reason: 'invalid-authorization',
+    })
+  }
 })
 
 test('authorizeMCPRequest rejects requests when no token is configured', () => {
   assert.deepEqual(authorizeMCPRequest('Bearer secret-token', undefined), {
+    authorized: false,
+    reason: 'token-not-configured',
+  })
+  assert.deepEqual(authorizeMCPRequest('Bearer secret-token', ''), {
     authorized: false,
     reason: 'token-not-configured',
   })

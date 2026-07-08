@@ -16,6 +16,17 @@ export function normalizeMCPToken(value: unknown): string | undefined {
   return token.length > 0 ? token : undefined
 }
 
+function constantTimeEqual(left: string, right: string): boolean {
+  const length = Math.max(left.length, right.length)
+  let difference = left.length ^ right.length
+
+  for (let index = 0; index < length; index += 1) {
+    difference |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0)
+  }
+
+  return difference === 0
+}
+
 export function authorizeMCPRequest(authorization: unknown, configuredToken: unknown): MCPAuthResult {
   const token = normalizeMCPToken(configuredToken)
   if (!token) {
@@ -27,7 +38,7 @@ export function authorizeMCPRequest(authorization: unknown, configuredToken: unk
   }
 
   const match = authorization.match(/^Bearer\s+(.+)$/i)
-  if (!match || match[1].trim() !== token) {
+  if (!match || !constantTimeEqual(match[1].trim(), token)) {
     return { authorized: false, reason: 'invalid-authorization' }
   }
 

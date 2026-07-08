@@ -1,5 +1,11 @@
 import type { FaceSkinPalette } from 'face-skin'
-import { copyFaceState, copyFaceStateForDistribution, createFaceState, type FaceState, faceStatesEqual } from 'face-state'
+import {
+  copyFaceState,
+  copyFaceStateForDistribution,
+  createFaceState,
+  type FaceState,
+  faceStatesEqual,
+} from 'face-state'
 import { createBlinkMotion } from 'motions/blink'
 import { createBreathMotion } from 'motions/breath'
 import { createSaccadeMotion } from 'motions/saccade'

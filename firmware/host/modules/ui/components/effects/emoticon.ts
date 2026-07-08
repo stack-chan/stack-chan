@@ -1,3 +1,4 @@
+import { SPRITE_PULSE_FRAME_COUNT, spritePulseVariantForFraction } from 'effects/emoticon-pulse'
 import {
   DEFAULT_FACE_PRIMARY_COLOR,
   DEFAULT_FACE_SECONDARY_COLOR,
@@ -5,7 +6,6 @@ import {
   toPiuColorNumber,
   toPiuColorString,
 } from 'face-state'
-import { spritePulseVariantForFraction, SPRITE_PULSE_FRAME_COUNT } from 'effects/emoticon-pulse'
 import {
   Container,
   type Content as PiuContent,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { spritePulseVariantForFraction } from './emoticon-pulse.js'
+import { spritePulseVariantForFraction } from '../emoticon-pulse.js'
 
 test('sprite pulse variant stays stable across sub-frame ticks', () => {
   assert.equal(spritePulseVariantForFraction(0), 2)

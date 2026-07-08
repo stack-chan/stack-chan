@@ -1,13 +1,13 @@
-import config from 'mc/config'
-import { wait } from 'stackchan-util'
-import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
-import type { NetworkReadyResult } from 'capabilities'
 import {
+  type BootWiFiRecoveryChoice,
   bootWiFiFailureMessage,
   networkReadyResultForRecoveryChoice,
   shouldRetryBootWiFiAttempt,
-  type BootWiFiRecoveryChoice,
 } from 'boot-network-recovery'
+import type { NetworkReadyResult } from 'capabilities'
+import config from 'mc/config'
+import { wait } from 'stackchan-util'
+import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
 
 export type { NetworkReadyResult } from 'capabilities'
 
@@ -74,7 +74,9 @@ export function getHostBootServices(): HostBootServices {
   return bootServices
 }
 
-async function startStoredWiFi(options: NonNullable<HostBootServicesOptions['wifi']> = {}): Promise<NetworkReadyResult> {
+async function startStoredWiFi(
+  options: NonNullable<HostBootServicesOptions['wifi']> = {},
+): Promise<NetworkReadyResult> {
   const maxAttempts = options.maxAttempts ?? DEFAULT_BOOT_WIFI_MAX_ATTEMPTS
   const retryDelayMs = options.retryDelayMs ?? DEFAULT_BOOT_WIFI_RETRY_DELAY_MS
   for (;;) {

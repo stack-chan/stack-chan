@@ -48,6 +48,7 @@ function createManualTimer(): ManualTimer {
       return handle
     },
     clear(handle) {
+      assert.notEqual(handle, undefined)
       timer.clearCalls.push(handle)
       if (typeof handle === 'object' && handle != null && 'active' in handle) {
         ;(handle as TimerHandle).active = false
@@ -111,6 +112,7 @@ test('startup choice automatically boots after the configured delay', async () =
 
   assert.deepEqual(await choice, { choice: 'boot', application })
   assert.equal(timer.handles[0].active, false)
+  assert.deepEqual(timer.clearCalls, [timer.handles[0]])
 })
 
 test('startup choice enters settings when the splash is touched before auto boot', async () => {

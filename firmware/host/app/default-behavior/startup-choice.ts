@@ -26,12 +26,17 @@ export function waitForStartupChoice<Application>({
   return new Promise((resolve) => {
     let isResolved = false
     const handles: { autoBoot?: unknown; settings?: unknown } = {}
+    const clearTimer = (handle: unknown | undefined) => {
+      if (handle !== undefined) {
+        timer.clear(handle)
+      }
+    }
 
     const choose = (choice: StartupChoice, application: Application) => {
       if (isResolved) return
       isResolved = true
-      timer.clear(handles.autoBoot)
-      timer.clear(handles.settings)
+      clearTimer(handles.autoBoot)
+      clearTimer(handles.settings)
       resolve({ choice, application })
     }
 

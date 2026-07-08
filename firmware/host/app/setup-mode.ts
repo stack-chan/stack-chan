@@ -8,6 +8,8 @@ import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
 
 type SetupApplication = Parameters<typeof buildSettingsView>[0]
 
+const BLE_PREFERENCE_WRITE_WINDOW_MS = 5 * 60 * 1000
+
 function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatusValue {
   switch (state) {
     case NetworkConnectionState.SCANNING:
@@ -73,5 +75,5 @@ export function startSetupMode(application: SetupApplication): void {
     },
     keys: PREF_KEYS,
   })
-  preferenceServer.enableWrites()
+  preferenceServer.enableWrites(BLE_PREFERENCE_WRITE_WINDOW_MS)
 }

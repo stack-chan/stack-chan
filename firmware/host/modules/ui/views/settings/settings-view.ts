@@ -104,7 +104,7 @@ function getLabelStyle() {
 function getNetworkStyle() {
   if (!networkStyle) {
     networkStyle = new Style({
-      font: '18px Open Sans',
+      font: 'k8x12-12',
       color: '#ffffff',
       horizontal: 'left',
       vertical: 'middle',

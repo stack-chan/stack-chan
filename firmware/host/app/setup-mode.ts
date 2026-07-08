@@ -48,7 +48,6 @@ export function startSetupMode(application: SetupApplication): void {
 
   const showSettingsView = () => {
     labels = buildSettingsView(application, status, {
-      onConnect: testConnection,
       onScan: scanNetworks,
       onSelectNetwork: selectNetwork,
     })

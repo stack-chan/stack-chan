@@ -2,12 +2,18 @@ import { KeyboardField } from 'common/keyboard'
 import { HorizontalExpandingKeyboard } from 'keyboard'
 import type {
   Application as PiuApplication,
+  Column as PiuColumn,
   Container as PiuContainer,
+  Content as PiuContent,
   Label as PiuLabel,
+  Port as PiuPort,
+  Scroller as PiuScroller,
   Skin as PiuSkin,
+  SkinConstructor as PiuSkinConstructor,
   Style as PiuStyle,
+  StyleConstructor as PiuStyleConstructor,
 } from 'piu/MC'
-import { Column, Container, Label, Skin, Style } from 'piu/MC'
+import { Column, Container, Label, Port, Scroller, Skin, Style } from 'piu/MC'
 import type { SettingsNetworkEntry } from 'settings-network-list'
 import type { SettingsStatus, SettingsStatusValue as SettingsStatusValueModel } from 'settings-status-model'
 import {
@@ -21,20 +27,16 @@ export type SettingsStatusValue = SettingsStatusValueModel
 export type { SettingsStatus }
 
 export type SettingsStatusLabels = {
-  ble: PiuLabel
   wifi: PiuLabel
-  ssid: PiuLabel
-  password: PiuLabel
   scan: PiuLabel
-  networks: PiuLabel[]
+  list: PiuColumn
   networkState: {
     networks: SettingsNetworkEntry[]
   }
-  hint: PiuLabel
+  options: SettingsViewOptions
 }
 
 export type SettingsViewOptions = {
-  onConnect?: () => void
   onScan?: () => void
   onSelectNetwork?: (network: SettingsNetworkEntry) => void
 }
@@ -44,25 +46,31 @@ export type SettingsPasswordViewOptions = {
   onPassword?: (password: string) => void
 }
 
-const STATUS_ROW_HEIGHT = 20
-const NETWORK_ROW_HEIGHT = 20
-const NETWORK_ROW_COUNT = 3
 const CONTENT_TOP = 8
-const TITLE_ROW_HEIGHT = 26
-const STATUS_ROWS_BEFORE_SCAN = 4
-const SCAN_TOUCH_TOP = CONTENT_TOP + TITLE_ROW_HEIGHT + STATUS_ROW_HEIGHT * STATUS_ROWS_BEFORE_SCAN
-const NETWORK_TOUCH_TOP = SCAN_TOUCH_TOP + STATUS_ROW_HEIGHT
-const CONNECT_TOUCH_TOP = NETWORK_TOUCH_TOP + NETWORK_ROW_HEIGHT * NETWORK_ROW_COUNT
+const HEADER_HEIGHT = 36
+const STATUS_ROW_HEIGHT = 24
+const NETWORK_ROW_HEIGHT = 40
+const SCAN_TOUCH_TOP = CONTENT_TOP + HEADER_HEIGHT + STATUS_ROW_HEIGHT
+const SCAN_TOUCH_BOTTOM = SCAN_TOUCH_TOP + STATUS_ROW_HEIGHT
+const NETWORK_LIST_TOP = SCAN_TOUCH_BOTTOM + 6
 const PASSWORD_KEYBOARD_HEIGHT = 164
 
 let screenSkin: PiuSkin | null = null
+let rowPressedSkin: PiuSkin | null = null
 let titleStyle: PiuStyle | null = null
 let labelStyle: PiuStyle | null = null
-let keyboardFieldStyle: PiuStyle | null = null
+let networkStyle: PiuStyle | null = null
+let keyboardFieldSkinTemplate: SkinTemplate | null = null
+let keyboardFieldStyleTemplate: StyleTemplate | null = null
 
 function getScreenSkin() {
   if (!screenSkin) screenSkin = new Skin({ fill: '#000000' })
   return screenSkin
+}
+
+function getRowPressedSkin() {
+  if (!rowPressedSkin) rowPressedSkin = new Skin({ fill: '#202020' })
+  return rowPressedSkin
 }
 
 function getTitleStyle() {
@@ -89,16 +97,82 @@ function getLabelStyle() {
   return labelStyle
 }
 
-function getKeyboardFieldStyle() {
-  if (!keyboardFieldStyle) {
-    keyboardFieldStyle = new Style({
-      font: '20px Open Sans',
-      color: '#000000',
+function getNetworkStyle() {
+  if (!networkStyle) {
+    networkStyle = new Style({
+      font: '18px Open Sans',
+      color: '#ffffff',
       horizontal: 'left',
       vertical: 'middle',
     })
   }
-  return keyboardFieldStyle
+  return networkStyle
+}
+
+function getKeyboardFieldSkinTemplate(): SkinTemplate {
+  if (!keyboardFieldSkinTemplate) {
+    keyboardFieldSkinTemplate = Skin.template({ fill: '#ffffff' }) as SkinTemplate
+  }
+  return keyboardFieldSkinTemplate
+}
+
+function getKeyboardFieldStyleTemplate(): StyleTemplate {
+  if (!keyboardFieldStyleTemplate) {
+    keyboardFieldStyleTemplate = Style.template({
+      font: '20px Open Sans',
+      color: '#000000',
+      horizontal: 'left',
+      vertical: 'middle',
+    }) as StyleTemplate
+  }
+  return keyboardFieldStyleTemplate
+}
+
+function signalBars(signal: number | undefined): number {
+  if (signal === undefined) return 1
+  if (signal >= -60) return 4
+  if (signal >= -70) return 3
+  if (signal >= -82) return 2
+  return 1
+}
+
+function drawSignalIcon(port: PiuPort, signal: number | undefined, x: number, y: number): void {
+  const bars = signalBars(signal)
+  for (let index = 0; index < 4; index += 1) {
+    const height = 5 + index * 4
+    port.fillColor(index < bars ? '#ffffff' : '#505050', x + index * 6, y + 18 - height, 4, height)
+  }
+}
+
+class VerticalScrollerBehavior extends Behavior {
+  anchor = 0
+  y = 0
+  waiting = false
+
+  onTouchBegan(content: PiuContent, _id: number, _x: number, y: number) {
+    const scroller = content as PiuScroller
+    this.anchor = scroller.scroll.y ?? 0
+    this.y = y
+    this.waiting = true
+  }
+
+  onTouchMoved(content: PiuContent, id: number, x: number, y: number, ticks: number) {
+    const scroller = content as PiuScroller
+    const delta = y - this.y
+    if (this.waiting) {
+      if (Math.abs(delta) < 8) return
+      this.waiting = false
+      scroller.captureTouch(id as unknown as string, x, y, ticks)
+    }
+    scroller.scrollTo(0, this.anchor - delta)
+  }
+}
+
+type NetworkRowData = {
+  network: SettingsNetworkEntry
+  options: SettingsViewOptions
+  moved?: boolean
+  startY?: number
 }
 
 export const buildSettingsView = (
@@ -110,18 +184,13 @@ export const buildSettingsView = (
     networks: [] as SettingsNetworkEntry[],
   }
   const labels: SettingsStatusLabels = {
-    ble: new Label(null, { left: 0, right: 0, height: STATUS_ROW_HEIGHT, style: getLabelStyle() }),
     wifi: new Label(null, { left: 0, right: 0, height: STATUS_ROW_HEIGHT, style: getLabelStyle() }),
-    ssid: new Label(null, { left: 0, right: 0, height: STATUS_ROW_HEIGHT, style: getLabelStyle() }),
-    password: new Label(null, { left: 0, right: 0, height: STATUS_ROW_HEIGHT, style: getLabelStyle() }),
     scan: new Label(null, { left: 0, right: 0, height: STATUS_ROW_HEIGHT, style: getLabelStyle() }),
-    networks: Array.from(
-      { length: NETWORK_ROW_COUNT },
-      () => new Label(null, { left: 0, right: 0, height: NETWORK_ROW_HEIGHT, style: getLabelStyle() }),
-    ),
+    list: new Column(null, { left: 0, right: 0, top: 0 }),
     networkState,
-    hint: new Label(null, { left: 0, right: 0, height: STATUS_ROW_HEIGHT, style: getLabelStyle() }),
+    options,
   }
+
   application.empty()
   application.skin = getScreenSkin()
   application.add(
@@ -142,48 +211,40 @@ export const buildSettingsView = (
               new Label(null, {
                 left: 0,
                 right: 0,
-                height: TITLE_ROW_HEIGHT,
-                string: 'Stack-chan Setup',
+                height: HEADER_HEIGHT,
+                string: 'Wi-Fi Setup',
                 style: getTitleStyle(),
               }),
-              labels.ble,
-              labels.ssid,
-              labels.password,
               labels.wifi,
               labels.scan,
-              ...labels.networks,
-              labels.hint,
             ],
+          }),
+          new Scroller(null, {
+            left: 0,
+            right: 0,
+            top: NETWORK_LIST_TOP,
+            bottom: 0,
+            active: true,
+            backgroundTouch: true,
+            clip: true,
+            Behavior: VerticalScrollerBehavior,
+            contents: [labels.list],
           }),
         ],
         Behavior: class extends Behavior {
           options: SettingsViewOptions | null = null
-          networkState: { networks: SettingsNetworkEntry[] } = { networks: [] }
 
           onCreate(
             _container: PiuContainer,
             data: { options: SettingsViewOptions; networkState: { networks: SettingsNetworkEntry[] } },
           ) {
             this.options = data.options
-            this.networkState = data.networkState
           }
 
           onTouchEnded(_container: PiuContainer, _id?: number, _x?: number, y?: number) {
-            if (typeof y === 'number') {
-              if (y >= SCAN_TOUCH_TOP && y < NETWORK_TOUCH_TOP) {
-                this.options?.onScan?.()
-                return
-              }
-              if (y >= NETWORK_TOUCH_TOP && y < CONNECT_TOUCH_TOP) {
-                const index = Math.floor((y - NETWORK_TOUCH_TOP) / NETWORK_ROW_HEIGHT)
-                const network = this.networkState.networks[index]
-                if (network) {
-                  this.options?.onSelectNetwork?.(network)
-                }
-                return
-              }
+            if (typeof y === 'number' && y >= SCAN_TOUCH_TOP && y < SCAN_TOUCH_BOTTOM) {
+              this.options?.onScan?.()
             }
-            this.options?.onConnect?.()
           }
         },
       },
@@ -195,29 +256,79 @@ export const buildSettingsView = (
 }
 
 export const updateSettingsStatusLabels = (labels: SettingsStatusLabels, status: SettingsStatus): void => {
-  labels.ble.string = `BLE: ${settingsStatusToLabel(status.ble)}`
-  labels.ssid.string = `SSID: ${status['wifi.ssid'] || 'not set'}`
-  const maskedPassword = status['wifi.password'] ? status['wifi.password'].replace(/./g, '*') : 'not set'
-  labels.password.string = `password: ${maskedPassword}`
   labels.wifi.string = `Wi-Fi: ${settingsStatusToLabel(status.wifi)}`
-  labels.scan.string = status.wifi === SettingsStatusValue.SCANNING ? 'Scanning Wi-Fi...' : 'Tap here to scan Wi-Fi'
-  labels.hint.string = 'Tap to test connection'
+  labels.scan.string = status.wifi === SettingsStatusValue.SCANNING ? 'Scanning...' : 'Scan Wi-Fi'
 }
 
 export const updateSettingsNetworkLabels = (
   labels: SettingsStatusLabels,
   networks: readonly SettingsNetworkEntry[],
 ): void => {
-  const visibleNetworks = networks.slice(0, labels.networks.length)
-  for (let index = 0; index < labels.networks.length; index += 1) {
-    const network = visibleNetworks[index]
-    labels.networks[index].string = network
-      ? `${index + 1}. ${network.label}`
-      : index === 0
-        ? 'No networks scanned'
-        : ''
+  labels.list.empty()
+  if (networks.length === 0) {
+    labels.list.add(
+      new Label(null, {
+        left: 10,
+        right: 10,
+        height: NETWORK_ROW_HEIGHT,
+        string: 'No networks scanned',
+        style: getLabelStyle(),
+      }),
+    )
+  } else {
+    for (const network of networks) {
+      const data: NetworkRowData = { network, options: labels.options }
+      labels.list.add(
+        new Port(data, {
+          left: 0,
+          right: 0,
+          height: NETWORK_ROW_HEIGHT,
+          active: true,
+          Behavior: class extends Behavior {
+            data: NetworkRowData | null = null
+
+            onCreate(_port: PiuPort, rowData: NetworkRowData) {
+              this.data = rowData
+            }
+
+            onTouchBegan(port: PiuPort, _id: number, _x: number, y: number) {
+              if (!this.data) return
+              this.data.startY = y
+              this.data.moved = false
+              port.skin = getRowPressedSkin()
+            }
+
+            onTouchMoved(port: PiuPort, _id: number, _x: number, y: number) {
+              if (!this.data) return
+              if (this.data.startY !== undefined && Math.abs(y - this.data.startY) >= 8) {
+                this.data.moved = true
+                port.skin = null
+              }
+            }
+
+            onTouchCancelled(port: PiuPort) {
+              port.skin = null
+            }
+
+            onTouchEnded(port: PiuPort) {
+              port.skin = null
+              if (!this.data || this.data.moved) return
+              this.data.options.onSelectNetwork?.(this.data.network)
+            }
+
+            onDraw(port: PiuPort) {
+              if (!this.data) return
+              port.fillColor('#000000', 0, 0, port.width, port.height)
+              port.fillColor('#303030', 0, port.height - 1, port.width, 1)
+              drawSignalIcon(port, this.data.network.signal, 10, 11)
+              port.drawString(this.data.network.ssid, getNetworkStyle(), '#ffffff', 42, 4, port.width - 52, 32)
+            }
+          },
+        }),
+      )
+    }
   }
-  labels.networkState.networks = visibleNetworks
+  labels.networkState.networks = [...networks]
 }
 
 export const buildSettingsPasswordView = (
@@ -228,57 +339,58 @@ export const buildSettingsPasswordView = (
   const data: {
     options: SettingsPasswordViewOptions
     password?: string
-    FIELD?: unknown
+    FIELD?: { visible?: boolean }
     KEYBOARD?: { add: (content: unknown) => void; length: number; first?: unknown }
   } = { options }
 
   application.empty()
   application.skin = getScreenSkin()
   application.add(
-    new Container(data, {
+    new Column(data, {
       left: 0,
       right: 0,
       top: 0,
       bottom: 0,
       active: true,
+      skin: getScreenSkin(),
       contents: [
-        new Column(null, {
-          left: 10,
-          right: 10,
-          top: CONTENT_TOP,
+        new Container(null, {
+          left: 0,
+          right: 0,
+          height: 70,
+          active: true,
           contents: [
             new Label(null, {
-              left: 0,
-              right: 0,
-              height: TITLE_ROW_HEIGHT,
+              left: 10,
+              right: 10,
+              height: HEADER_HEIGHT,
               string: 'Wi-Fi Password',
               style: getTitleStyle(),
             }),
             new Label(null, {
-              left: 0,
-              right: 0,
+              left: 10,
+              right: 10,
+              top: HEADER_HEIGHT,
               height: STATUS_ROW_HEIGHT,
               string: `SSID: ${ssid}`,
               style: getLabelStyle(),
             }),
-            new Label(null, {
-              left: 0,
-              right: 0,
-              height: STATUS_ROW_HEIGHT,
-              string: 'Enter password, then OK',
-              style: getLabelStyle(),
-            }),
           ],
+          Behavior: class extends Behavior {
+            onTouchEnded() {
+              options.onBack?.()
+            }
+          },
         }),
         KeyboardField(data, {
           anchor: 'FIELD',
           password: true,
-          left: 10,
-          right: 10,
-          top: 76,
-          height: 30,
-          skin: new Skin({ fill: '#ffffff' }),
-          style: getKeyboardFieldStyle(),
+          left: 32,
+          right: 0,
+          top: 0,
+          bottom: 0,
+          Skin: getKeyboardFieldSkinTemplate(),
+          Style: getKeyboardFieldStyleTemplate(),
           visible: false,
         }),
         new Container(data, {
@@ -287,13 +399,13 @@ export const buildSettingsPasswordView = (
           right: 0,
           bottom: 0,
           height: PASSWORD_KEYBOARD_HEIGHT,
-          skin: new Skin({ fill: '#ffffff' }),
+          Skin: getKeyboardFieldSkinTemplate(),
         }),
       ],
       Behavior: class extends Behavior {
         data: typeof data | null = null
 
-        onCreate(_container: PiuContainer, viewData: typeof data) {
+        onCreate(_column: PiuColumn, viewData: typeof data) {
           this.data = viewData
           this.addKeyboard()
         }
@@ -308,28 +420,30 @@ export const buildSettingsPasswordView = (
           if (!this.data?.KEYBOARD) return
           this.data.KEYBOARD.add(
             HorizontalExpandingKeyboard(this.data, {
-              style: getKeyboardFieldStyle(),
+              style: new (getKeyboardFieldStyleTemplate())(),
               target: this.data.FIELD,
               doTransition: true,
             }),
           )
         }
 
-        onKeyboardOK(_container: PiuContainer, password: string) {
+        onKeyboardOK(_column: PiuColumn, password: string) {
           if (!this.data) return
           this.data.password = password
+          if (this.data.FIELD) this.data.FIELD.visible = false
         }
 
-        onKeyboardTransitionFinished(_container: PiuContainer, out: boolean) {
+        onKeyboardTransitionFinished(_column: PiuColumn, out: boolean) {
           if (!this.data) return
           if (out) {
             this.data.options.onPassword?.(this.data.password ?? '')
-          } else {
-            const field = this.data.FIELD as { visible?: boolean } | undefined
-            if (field) field.visible = true
+          } else if (this.data.FIELD) {
+            this.data.FIELD.visible = true
           }
         }
       },
     }),
   )
 }
+type SkinTemplate = PiuSkinConstructor & { new (): PiuSkin }
+type StyleTemplate = PiuStyleConstructor & { new (): PiuStyle }

@@ -21,8 +21,11 @@ test('settings view owns the Piu setup screen construction', () => {
   assert.match(settingsSource, /new Container/)
   assert.match(settingsSource, /new Column/)
   assert.match(settingsSource, /new Label/)
-  assert.match(settingsSource, /Stack-chan Setup/)
-  assert.match(settingsSource, /Tap to test connection/)
+  assert.match(settingsSource, /new Scroller/)
+  assert.match(settingsSource, /new Port/)
+  assert.match(settingsSource, /drawSignalIcon/)
+  assert.match(settingsSource, /Wi-Fi Setup/)
+  assert.match(settingsSource, /Scan Wi-Fi/)
   assert.match(settingsSource, /onTouchEnded/)
 
   assert.doesNotMatch(launchSource, /from 'settings-view'/)

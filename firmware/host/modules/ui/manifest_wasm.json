@@ -3,6 +3,7 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/input/expanding-keyboard/horizontal/manifest.json",
     "$(MODDABLE)/modules/piu/MC/outline/manifest.json",
     "$(MODULES)/commodetto/outline/manifest.json",
     "../util/manifest.json"

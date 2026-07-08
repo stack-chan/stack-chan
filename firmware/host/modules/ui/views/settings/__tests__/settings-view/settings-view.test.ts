@@ -1,5 +1,10 @@
 import { Application } from 'piu/MC'
-import { buildSettingsView, SettingsStatusValue, updateSettingsStatusLabels } from 'settings-view'
+import {
+  buildSettingsPasswordView,
+  buildSettingsView,
+  SettingsStatusValue,
+  updateSettingsStatusLabels,
+} from 'settings-view'
 import { equal } from 'testing/assert'
 
 trace('=== settings-view test ===\n')
@@ -49,5 +54,23 @@ equal(labels.ble.string, 'BLE: off', 'BLE label should update')
 equal(labels.ssid.string, 'SSID: not set', 'SSID label should fall back when unset')
 equal(labels.password.string, 'password: not set', 'password label should fall back when unset')
 equal(labels.wifi.string, 'Wi-Fi: connected', 'Wi-Fi label should update')
+
+let password = ''
+buildSettingsPasswordView(application, 'stackchan-ap', {
+  onPassword(value) {
+    password = value
+  },
+})
+
+equal(application.length, 1, 'password view should replace application contents')
+const passwordRoot = application.first as unknown as {
+  behavior: {
+    onKeyboardOK: (container: unknown, value: string) => void
+    onKeyboardTransitionFinished: (container: unknown, out: boolean) => void
+  }
+}
+passwordRoot.behavior.onKeyboardOK(passwordRoot, 'new-secret')
+passwordRoot.behavior.onKeyboardTransitionFinished(passwordRoot, true)
+equal(password, 'new-secret', 'password view should submit expanding keyboard input')
 
 trace('ok\n')

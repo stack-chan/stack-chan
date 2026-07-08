@@ -1,3 +1,5 @@
+import { KeyboardField } from 'common/keyboard'
+import { HorizontalExpandingKeyboard } from 'keyboard'
 import type {
   Application as PiuApplication,
   Container as PiuContainer,
@@ -37,6 +39,11 @@ export type SettingsViewOptions = {
   onSelectNetwork?: (network: SettingsNetworkEntry) => void
 }
 
+export type SettingsPasswordViewOptions = {
+  onBack?: () => void
+  onPassword?: (password: string) => void
+}
+
 const STATUS_ROW_HEIGHT = 20
 const NETWORK_ROW_HEIGHT = 20
 const NETWORK_ROW_COUNT = 3
@@ -46,10 +53,12 @@ const STATUS_ROWS_BEFORE_SCAN = 4
 const SCAN_TOUCH_TOP = CONTENT_TOP + TITLE_ROW_HEIGHT + STATUS_ROW_HEIGHT * STATUS_ROWS_BEFORE_SCAN
 const NETWORK_TOUCH_TOP = SCAN_TOUCH_TOP + STATUS_ROW_HEIGHT
 const CONNECT_TOUCH_TOP = NETWORK_TOUCH_TOP + NETWORK_ROW_HEIGHT * NETWORK_ROW_COUNT
+const PASSWORD_KEYBOARD_HEIGHT = 164
 
 let screenSkin: PiuSkin | null = null
 let titleStyle: PiuStyle | null = null
 let labelStyle: PiuStyle | null = null
+let keyboardFieldStyle: PiuStyle | null = null
 
 function getScreenSkin() {
   if (!screenSkin) screenSkin = new Skin({ fill: '#000000' })
@@ -78,6 +87,18 @@ function getLabelStyle() {
     })
   }
   return labelStyle
+}
+
+function getKeyboardFieldStyle() {
+  if (!keyboardFieldStyle) {
+    keyboardFieldStyle = new Style({
+      font: '20px Open Sans',
+      color: '#000000',
+      horizontal: 'left',
+      vertical: 'middle',
+    })
+  }
+  return keyboardFieldStyle
 }
 
 export const buildSettingsView = (
@@ -197,4 +218,118 @@ export const updateSettingsNetworkLabels = (
         : ''
   }
   labels.networkState.networks = visibleNetworks
+}
+
+export const buildSettingsPasswordView = (
+  application: PiuApplication,
+  ssid: string,
+  options: SettingsPasswordViewOptions = {},
+): void => {
+  const data: {
+    options: SettingsPasswordViewOptions
+    password?: string
+    FIELD?: unknown
+    KEYBOARD?: { add: (content: unknown) => void; length: number; first?: unknown }
+  } = { options }
+
+  application.empty()
+  application.skin = getScreenSkin()
+  application.add(
+    new Container(data, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      active: true,
+      contents: [
+        new Column(null, {
+          left: 10,
+          right: 10,
+          top: CONTENT_TOP,
+          contents: [
+            new Label(null, {
+              left: 0,
+              right: 0,
+              height: TITLE_ROW_HEIGHT,
+              string: 'Wi-Fi Password',
+              style: getTitleStyle(),
+            }),
+            new Label(null, {
+              left: 0,
+              right: 0,
+              height: STATUS_ROW_HEIGHT,
+              string: `SSID: ${ssid}`,
+              style: getLabelStyle(),
+            }),
+            new Label(null, {
+              left: 0,
+              right: 0,
+              height: STATUS_ROW_HEIGHT,
+              string: 'Enter password, then OK',
+              style: getLabelStyle(),
+            }),
+          ],
+        }),
+        KeyboardField(data, {
+          anchor: 'FIELD',
+          password: true,
+          left: 10,
+          right: 10,
+          top: 76,
+          height: 30,
+          skin: new Skin({ fill: '#ffffff' }),
+          style: getKeyboardFieldStyle(),
+          visible: false,
+        }),
+        new Container(data, {
+          anchor: 'KEYBOARD',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: PASSWORD_KEYBOARD_HEIGHT,
+          skin: new Skin({ fill: '#ffffff' }),
+        }),
+      ],
+      Behavior: class extends Behavior {
+        data: typeof data | null = null
+
+        onCreate(_container: PiuContainer, viewData: typeof data) {
+          this.data = viewData
+          this.addKeyboard()
+        }
+
+        onTouchEnded() {
+          if (this.data?.KEYBOARD && this.data.KEYBOARD.length !== 1) {
+            this.addKeyboard()
+          }
+        }
+
+        addKeyboard() {
+          if (!this.data?.KEYBOARD) return
+          this.data.KEYBOARD.add(
+            HorizontalExpandingKeyboard(this.data, {
+              style: getKeyboardFieldStyle(),
+              target: this.data.FIELD,
+              doTransition: true,
+            }),
+          )
+        }
+
+        onKeyboardOK(_container: PiuContainer, password: string) {
+          if (!this.data) return
+          this.data.password = password
+        }
+
+        onKeyboardTransitionFinished(_container: PiuContainer, out: boolean) {
+          if (!this.data) return
+          if (out) {
+            this.data.options.onPassword?.(this.data.password ?? '')
+          } else {
+            const field = this.data.FIELD as { visible?: boolean } | undefined
+            if (field) field.visible = true
+          }
+        }
+      },
+    }),
+  )
 }

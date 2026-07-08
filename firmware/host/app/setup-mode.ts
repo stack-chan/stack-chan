@@ -6,6 +6,7 @@ import { PreferenceServer } from 'preference-server'
 import { createSettingsNetworkEntries, type RawWiFiScanResult, type SettingsNetworkEntry } from 'settings-network-list'
 import { createInitialSettingsStatus } from 'settings-status'
 import {
+  buildSettingsPasswordView,
   buildSettingsView,
   type SettingsStatusLabels,
   SettingsStatusValue,
@@ -44,6 +45,15 @@ export function startSetupMode(application: SetupApplication): void {
   let labels: SettingsStatusLabels
   let scanSession: WiFiScanSession | undefined
   let scanResults: RawWiFiScanResult[] = []
+
+  const showSettingsView = () => {
+    labels = buildSettingsView(application, status, {
+      onConnect: testConnection,
+      onScan: scanNetworks,
+      onSelectNetwork: selectNetwork,
+    })
+    updateNetworkList()
+  }
 
   const updateNetworkList = () => {
     updateSettingsNetworkLabels(labels, createSettingsNetworkEntries(scanResults))
@@ -84,7 +94,15 @@ export function startSetupMode(application: SetupApplication): void {
   const selectNetwork = (network: SettingsNetworkEntry) => {
     status['wifi.ssid'] = network.ssid
     Preference.set(DOMAIN.wifi, 'ssid', network.ssid)
-    updateSettingsStatusLabels(labels, status)
+    buildSettingsPasswordView(application, network.ssid, {
+      onBack: showSettingsView,
+      onPassword: (password) => {
+        status['wifi.password'] = password
+        Preference.set(DOMAIN.wifi, 'password', password)
+        showSettingsView()
+        testConnection()
+      },
+    })
   }
 
   const testConnection = () => {
@@ -111,11 +129,7 @@ export function startSetupMode(application: SetupApplication): void {
       },
     })
   }
-  labels = buildSettingsView(application, status, {
-    onConnect: testConnection,
-    onScan: scanNetworks,
-    onSelectNetwork: selectNetwork,
-  })
+  showSettingsView()
 
   new PreferenceServer({
     onPreferenceChanged: (key, value) => {

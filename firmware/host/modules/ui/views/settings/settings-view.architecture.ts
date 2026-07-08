@@ -14,7 +14,10 @@ test('settings view owns the Piu setup screen construction', () => {
   const wasmUiManifest = JSON.parse(readFileSync('host/modules/ui/manifest_wasm.json', 'utf8'))
 
   assert.match(settingsSource, /export const buildSettingsView/)
+  assert.match(settingsSource, /export const buildSettingsPasswordView/)
   assert.match(settingsSource, /export const updateSettingsStatusLabels/)
+  assert.match(settingsSource, /HorizontalExpandingKeyboard/)
+  assert.match(settingsSource, /KeyboardField/)
   assert.match(settingsSource, /new Container/)
   assert.match(settingsSource, /new Column/)
   assert.match(settingsSource, /new Label/)
@@ -38,4 +41,6 @@ test('settings view owns the Piu setup screen construction', () => {
 
   assert.equal(uiManifest.modules['settings-view'], './views/settings/settings-view')
   assert.equal(wasmUiManifest.modules['settings-view'], './views/settings/settings-view')
+  assert.match(JSON.stringify(uiManifest.include), /expanding-keyboard\/horizontal\/manifest\.json/)
+  assert.match(JSON.stringify(wasmUiManifest.include), /expanding-keyboard\/horizontal\/manifest\.json/)
 })

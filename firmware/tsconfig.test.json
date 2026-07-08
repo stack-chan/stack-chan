@@ -133,6 +133,9 @@
       "settings-status-model": [
         "host/modules/ui/views/settings/settings-status-model.ts"
       ],
+      "boot-network-recovery": [
+        "host/app/boot-network-recovery.ts"
+      ],
       "app-behavior-resolver": [
         "host/app/app-behavior-resolver.ts"
       ],

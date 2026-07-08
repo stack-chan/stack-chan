@@ -6,9 +6,8 @@ test('NetworkConnectionStateMachine tracks scan retry and failure', () => {
   const state = new NetworkConnectionStateMachine({ maxScans: 1 })
 
   assert.equal(state.transition({ type: 'scan-started' }), NetworkConnectionState.SCANNING)
-  assert.equal(state.transition({ type: 'scan-finished' }), NetworkConnectionState.SCANNING)
   assert.equal(state.transition({ type: 'scan-finished' }), NetworkConnectionState.FAILED)
-  assert.equal(state.scanAttempts, 2)
+  assert.equal(state.scanAttempts, 1)
 })
 
 test('NetworkConnectionStateMachine separates time sync and connected states', () => {

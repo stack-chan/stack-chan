@@ -36,7 +36,7 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   assert.doesNotMatch(main, /createRobot\(\)/)
   assert.ok(
     main.indexOf('const shouldCreateContext = await runLaunchBehaviors(appBehaviors)') <
-      main.indexOf('const bootServices = startHostBootServices()'),
+      main.indexOf('const bootServices = startHostBootServices'),
     'host boot services should start after launch behavior has shown the splash screen',
   )
   assert.match(main, /createStackchanContext\(preferences, \{ connectivity: bootServices\.connectivity \}\)/)

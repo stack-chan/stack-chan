@@ -2,13 +2,60 @@ import { loadPreferenceConfig } from 'loadPreference'
 import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavior } from 'app-behavior'
 import { resolveAppBehaviors } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
-import { startHostBootServices } from 'boot-services'
+import { type BootWiFiStatus, startHostBootServices } from 'boot-services'
 import { createStackchanContext, getHostDeviceEnvironment, installSimulatorButtons } from 'compose'
 import Modules from 'modules'
+import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
+
+type DeviceButton = {
+  onChanged: (this: DeviceButton) => void
+}
+
+type GlobalEnvironment = {
+  button?: Partial<Record<'a' | 'c', DeviceButton>>
+}
+
+const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
+const noopButtonHandler = () => undefined
 
 function loadAppBehaviors(): StackchanAppBehavior[] {
   trace('[main] checking mod override\n')
   return resolveAppBehaviors(Modules, defaultBehavior)
+}
+
+function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string }): Promise<'retry' | 'offline'> {
+  return new Promise((resolve) => {
+    let resolved = false
+    const previousAHandler = globalEnv.button?.a?.onChanged
+    const previousCHandler = globalEnv.button?.c?.onChanged
+
+    const restoreButtons = () => {
+      if (globalEnv.button?.a) {
+        globalEnv.button.a.onChanged = previousAHandler ?? noopButtonHandler
+      }
+      if (globalEnv.button?.c) {
+        globalEnv.button.c.onChanged = previousCHandler ?? noopButtonHandler
+      }
+    }
+    const choose = (choice: 'retry' | 'offline') => {
+      if (resolved) return
+      resolved = true
+      restoreButtons()
+      resolve(choice)
+    }
+
+    trace(`[network] ${status.message}: ${status.reason}\n`)
+    showWiFiRecoveryChoice({
+      message: status.message,
+      onRetry: () => choose('retry'),
+    })
+    if (globalEnv.button?.a) {
+      globalEnv.button.a.onChanged = () => choose('retry')
+    }
+    if (globalEnv.button?.c) {
+      globalEnv.button.c.onChanged = () => choose('offline')
+    }
+  })
 }
 
 async function main() {
@@ -21,7 +68,14 @@ async function main() {
   trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
   if (!shouldCreateContext) return
 
-  const bootServices = startHostBootServices()
+  const bootServices = startHostBootServices({
+    wifi: {
+      onStatusChanged: showWiFiConnectionStatus,
+      promptRecoveryChoice: waitForBootWiFiRecoveryChoice,
+    },
+  })
+  const networkReady = await bootServices.connectivity.network.ready
+  trace(`[main] network ready: ${networkReady.status}\n`)
   const preferences = loadPreferenceConfig()
   const context = createStackchanContext(preferences, { connectivity: bootServices.connectivity })
   trace('[main] app context created\n')

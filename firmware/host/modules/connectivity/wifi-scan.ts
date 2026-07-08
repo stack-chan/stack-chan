@@ -2,16 +2,17 @@ import WiFi from 'ecma-wifi'
 import type { RawWiFiScanResult, ScanWiFiNetworksOptions, WiFiScanSession } from 'wifi-scan-types'
 
 export function scanWiFiNetworks(options: ScanWiFiNetworksOptions): WiFiScanSession {
-  const wifi = new WiFi()
+  let wifi: InstanceType<typeof WiFi> | undefined
   let closed = false
 
   const close = () => {
     if (closed) return
     closed = true
-    wifi.close?.()
+    wifi?.close?.()
   }
 
   try {
+    wifi = new WiFi()
     wifi.scan({
       onFound: (item: RawWiFiScanResult) => {
         options.onFound?.(item)

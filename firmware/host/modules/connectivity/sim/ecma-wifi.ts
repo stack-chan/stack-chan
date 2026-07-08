@@ -1,4 +1,5 @@
 import { getFakeWiFiScanResults } from 'fake-wifi-scan-results'
+import type { RawWiFiScanResult } from 'wifi-scan-types'
 import Timer from 'timer'
 
 type WiFiOptions = {
@@ -10,7 +11,7 @@ type WiFiConnectOptions = {
 }
 
 type WiFiScanOptions = {
-  onFound?: (item: { ssid?: string; rssi?: number }) => void
+  onFound?: (item: RawWiFiScanResult) => void
   onComplete?: () => void
 }
 

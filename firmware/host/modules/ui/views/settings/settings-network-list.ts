@@ -1,9 +1,6 @@
-export type RawWiFiScanResult = {
-  ssid?: string
-  SSID?: string
-  rssi?: number
-  RSSI?: number
-}
+import type { RawWiFiScanResult } from '../../../connectivity/wifi-scan-types.js'
+
+export type { RawWiFiScanResult } from '../../../connectivity/wifi-scan-types.js'
 
 export type SettingsNetworkEntry = {
   ssid: string

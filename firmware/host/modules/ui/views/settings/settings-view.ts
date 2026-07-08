@@ -40,7 +40,10 @@ export type SettingsViewOptions = {
 const STATUS_ROW_HEIGHT = 20
 const NETWORK_ROW_HEIGHT = 20
 const NETWORK_ROW_COUNT = 3
-const SCAN_TOUCH_TOP = 114
+const CONTENT_TOP = 8
+const TITLE_ROW_HEIGHT = 26
+const STATUS_ROWS_BEFORE_SCAN = 4
+const SCAN_TOUCH_TOP = CONTENT_TOP + TITLE_ROW_HEIGHT + STATUS_ROW_HEIGHT * STATUS_ROWS_BEFORE_SCAN
 const NETWORK_TOUCH_TOP = SCAN_TOUCH_TOP + STATUS_ROW_HEIGHT
 const CONNECT_TOUCH_TOP = NETWORK_TOUCH_TOP + NETWORK_ROW_HEIGHT * NETWORK_ROW_COUNT
 
@@ -111,12 +114,12 @@ export const buildSettingsView = (
         new Column(null, {
           left: 10,
           right: 10,
-          top: 8,
+            top: CONTENT_TOP,
           contents: [
             new Label(null, {
               left: 0,
               right: 0,
-              height: 26,
+              height: TITLE_ROW_HEIGHT,
               string: 'Stack-chan Setup',
               style: getTitleStyle(),
             }),

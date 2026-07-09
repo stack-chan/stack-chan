@@ -40,8 +40,35 @@
       "face-state": [
         "host/modules/ui/state/face-state.ts"
       ],
+      "face-skin": [
+        "host/modules/ui/state/face-skin.ts"
+      ],
+      "drawer": [
+        "host/modules/ui/components/drawer/drawer.ts"
+      ],
+      "common-view": [
+        "host/modules/ui/views/main/common-view.ts"
+      ],
+      "face-view": [
+        "host/modules/ui/views/main/face-view.ts"
+      ],
+      "effects/*": [
+        "host/modules/ui/components/effects/*.ts"
+      ],
+      "effects/multirow-balloon": [
+        "host/modules/ui/components/bubble/multirow-balloon.ts"
+      ],
+      "effects/speech-balloon": [
+        "host/modules/ui/components/bubble/speech-balloon.ts"
+      ],
+      "behaviors/*": [
+        "host/modules/ui/components/face/behaviors/*.ts"
+      ],
+      "motions/*": [
+        "host/modules/ui/components/face/motions/*.ts"
+      ],
       "parts/*": [
-        "host/modules/ui/components/face/parts/*"
+        "host/modules/ui/components/face/parts/*.ts"
       ],
       "parts/image/image-avatar-pack": [
         "host/modules/ui/components/face/parts/image/image-avatar-pack.ts"
@@ -130,6 +157,9 @@
       "settings-status-model": [
         "host/modules/ui/views/settings/settings-status-model.ts"
       ],
+      "template": [
+        "host/modules/ui/components/face/template.ts"
+      ],
       "app-behavior-resolver": [
         "host/app/app-behavior-resolver.ts"
       ],
@@ -144,6 +174,12 @@
       ],
       "stackchan-util": [
         "host/modules/util/stackchan-util.ts"
+      ],
+      "piu/*": [
+        "node_modules/@moddable/typings/piu/*.d.ts"
+      ],
+      "commodetto/*": [
+        "node_modules/@moddable/typings/commodetto/*.d.ts"
       ]
     },
     "types": [

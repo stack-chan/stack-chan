@@ -26,6 +26,7 @@
       "./main",
       "./app-behavior",
       "./app-behavior-resolver",
+      "./boot-network-recovery",
       "./boot-services",
       "./compose",
       "./capabilities",

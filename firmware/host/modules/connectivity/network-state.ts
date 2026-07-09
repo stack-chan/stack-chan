@@ -69,7 +69,7 @@ export class NetworkConnectionStateMachine {
       case 'scan-finished':
         this.#scanAttempts += 1
         this.#state =
-          this.#scanAttempts > this.#maxScans ? NetworkConnectionState.FAILED : NetworkConnectionState.SCANNING
+          this.#scanAttempts >= this.#maxScans ? NetworkConnectionState.FAILED : NetworkConnectionState.SCANNING
         break
       case 'connect-requested':
         this.#state = NetworkConnectionState.CONNECTING

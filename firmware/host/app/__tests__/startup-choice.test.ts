@@ -30,6 +30,12 @@ type FakeTimer = {
 type StartupSplashStub = {
   resetStartupSplashCalls(): void
   startupSplashCallCount(): number
+  touchStartupSplash(): void
+}
+
+type SetupModeStub = {
+  resetSetupModeCalls(): void
+  startedSetupModeApplications(): unknown[]
 }
 
 function createManualTimer(): ManualTimer {
@@ -42,6 +48,7 @@ function createManualTimer(): ManualTimer {
       return handle
     },
     clear(handle) {
+      assert.notEqual(handle, undefined)
       timer.clearCalls.push(handle)
       if (typeof handle === 'object' && handle != null && 'active' in handle) {
         ;(handle as TimerHandle).active = false
@@ -78,6 +85,11 @@ function installBareSpecifierPackages(): void {
     'startup-splash',
     resolve(appRoot, 'default-behavior/__tests__/startup-choice/startup-splash-stub.js'),
   )
+  writeAliasPackage(
+    hostRoot,
+    'setup-mode',
+    resolve(appRoot, 'default-behavior/__tests__/startup-choice/setup-mode-stub.js'),
+  )
 }
 
 test('startup choice automatically boots after the configured delay', async () => {
@@ -100,6 +112,7 @@ test('startup choice automatically boots after the configured delay', async () =
 
   assert.deepEqual(await choice, { choice: 'boot', application })
   assert.equal(timer.handles[0].active, false)
+  assert.deepEqual(timer.clearCalls, [timer.handles[0]])
 })
 
 test('startup choice enters settings when the splash is touched before auto boot', async () => {
@@ -158,13 +171,15 @@ test('startup choice resolves only once and ignores later timer callbacks', asyn
 
 test('wasm onLaunch shows the startup splash and resolves after the visible delay', async () => {
   installBareSpecifierPackages()
-  const [{ onLaunch }, { default: timer }, startupSplash] = await Promise.all([
+  const [{ onLaunch }, { default: timer }, startupSplash, setupMode] = await Promise.all([
     import('app-default-behavior/wasm/on-launch') as Promise<WasmOnLaunchModule>,
     import('timer') as Promise<{ default: FakeTimer }>,
     import('startup-splash') as Promise<StartupSplashStub>,
+    import('setup-mode') as Promise<SetupModeStub>,
   ])
   timer.reset()
   startupSplash.resetStartupSplashCalls()
+  setupMode.resetSetupModeCalls()
 
   let resolved = false
   const result = onLaunch()
@@ -181,4 +196,25 @@ test('wasm onLaunch shows the startup splash and resolves after the visible dela
   timer.advance(1)
 
   assert.equal(await result, true)
+  assert.deepEqual(setupMode.startedSetupModeApplications(), [])
+})
+
+test('wasm onLaunch enters setup mode when the startup splash is touched', async () => {
+  installBareSpecifierPackages()
+  const [{ onLaunch }, { default: timer }, startupSplash, setupMode] = await Promise.all([
+    import('app-default-behavior/wasm/on-launch') as Promise<WasmOnLaunchModule>,
+    import('timer') as Promise<{ default: FakeTimer }>,
+    import('startup-splash') as Promise<StartupSplashStub>,
+    import('setup-mode') as Promise<SetupModeStub>,
+  ])
+  timer.reset()
+  startupSplash.resetStartupSplashCalls()
+  setupMode.resetSetupModeCalls()
+
+  const result = onLaunch()
+  startupSplash.touchStartupSplash()
+  timer.advance(0)
+
+  assert.equal(await result, false)
+  assert.deepEqual(setupMode.startedSetupModeApplications(), [{ type: 'startup-splash' }])
 })

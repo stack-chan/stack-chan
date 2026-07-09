@@ -7,6 +7,9 @@
     "network-manager": "./wasm/network-manager",
     "network-state": "./network-state",
     "network-service": "./wasm/network-service",
+    "fake-wifi-scan-results": "./fake-wifi-scan-results",
+    "wifi-scan": "./wasm/wifi-scan",
+    "wifi-scan-types": "./wifi-scan-types",
     "stored-wifi": "./stored-wifi",
     "preference-server": "./wasm/preference-server"
   }

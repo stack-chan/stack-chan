@@ -99,3 +99,18 @@ test('NetworkService scanAndConnect connects when the target access point is fou
   assert.equal(getFakeWiFiInstances()[0]?.connectOptions?.SSID, 'stackchan-ap')
   service.close()
 })
+
+test('NetworkService scanAndConnect reports scan exhaustion when the target access point is not found', async () => {
+  const { NetworkService } = await setup()
+  FakeWiFi.scanResults = [{ ssid: 'other-ap' }]
+  let failureReason = ''
+  const service = new NetworkService({ ssid: 'stackchan-ap', password: 'secret' })
+
+  service.scanAndConnect(undefined, (reason) => {
+    failureReason = reason ?? ''
+  })
+
+  assert.equal(failureReason, 'Access point "stackchan-ap" not found')
+  assert.equal(getFakeWiFiInstances()[0]?.connectOptions, undefined)
+  service.close()
+})

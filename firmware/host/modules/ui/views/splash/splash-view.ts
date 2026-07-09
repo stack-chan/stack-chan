@@ -86,6 +86,7 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
   currentTouchHandler = options.onTouch
 
   return new Application(options, {
+    commandListLength: 4096,
     displayListLength: 4096,
     touchCount: 1,
     skin: getBackgroundSkin(),

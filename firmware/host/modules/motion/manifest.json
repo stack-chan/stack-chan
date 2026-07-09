@@ -10,24 +10,7 @@
     "*": ["./*", "./internal/*"],
     "protocols/*": "./protocols/*"
   },
-  "preload": [
-    "motion-controller",
-    "motion-driver-callback",
-    "protocols/dynamixel",
-    "dynamixel-driver",
-    "m5stackchan-servo",
-    "m5stackchan-servo-driver",
-    "none-driver",
-    "protocols/rs30x",
-    "protocols/scservo",
-    "sg90-driver",
-    "rs30x-driver",
-    "scservo-driver",
-    "protocols/dynamixel-codec",
-    "payload-buffer",
-    "internal/single-wait-slot",
-    "internal/servo-command-error"
-  ],
+  "preload": ["motion-controller"],
   "typescript": {
     "tsconfig": {
       "compilerOptions": {

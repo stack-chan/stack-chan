@@ -52,6 +52,15 @@
       "motion-controller": [
         "host/modules/motion/motion-controller.ts"
       ],
+      "stackchan-factory-registry": [
+        "host/app/factory-registry/registry.ts"
+      ],
+      "stackchan-factory-registry/ui": [
+        "host/app/factory-registry/ui.ts"
+      ],
+      "stackchan-factory-registry/register/*": [
+        "host/app/factory-registry/register/*"
+      ],
       "microphone": [
         "host/modules/testing/fakes/microphone-type.ts"
       ],

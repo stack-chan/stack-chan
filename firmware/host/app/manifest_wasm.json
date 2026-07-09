@@ -1,5 +1,9 @@
 {
-  "include": ["../platforms/wasm/manifest.json"],
+  "include": [
+    "../platforms/wasm/manifest.json",
+    "./manifest_factory_registry.json",
+    "./manifest_factories_all.json"
+  ],
   "resources": {
     "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
     "*-alpha": [

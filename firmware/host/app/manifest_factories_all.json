@@ -1,0 +1,20 @@
+{
+  "preload": [
+    "stackchan-factory-registry/register/motion/dynamixel",
+    "stackchan-factory-registry/register/motion/m5stackchan",
+    "stackchan-factory-registry/register/motion/none",
+    "stackchan-factory-registry/register/motion/pwm",
+    "stackchan-factory-registry/register/motion/rs30x",
+    "stackchan-factory-registry/register/motion/scservo",
+    "stackchan-factory-registry/register/tts/elevenlabs",
+    "stackchan-factory-registry/register/tts/local",
+    "stackchan-factory-registry/register/tts/openai",
+    "stackchan-factory-registry/register/tts/remote",
+    "stackchan-factory-registry/register/tts/voicevox",
+    "stackchan-factory-registry/register/tts/voicevox-web",
+    "stackchan-factory-registry/register/ui/dog",
+    "stackchan-factory-registry/register/ui/image",
+    "stackchan-factory-registry/register/ui/simple",
+    "stackchan-factory-registry/register/ui/small-face"
+  ]
+}

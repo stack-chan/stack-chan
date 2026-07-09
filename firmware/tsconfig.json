@@ -36,6 +36,15 @@
       "runtime-context": [
         "./host/app/runtime-context"
       ],
+      "stackchan-factory-registry": [
+        "./host/app/factory-registry/registry"
+      ],
+      "stackchan-factory-registry/ui": [
+        "./host/app/factory-registry/ui"
+      ],
+      "stackchan-factory-registry/register/*": [
+        "./host/app/factory-registry/register/*"
+      ],
       "camera-initial-frame": [
         "./host/modules/camera/device/initial-frame"
       ],

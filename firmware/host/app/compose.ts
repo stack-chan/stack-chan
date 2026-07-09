@@ -1,35 +1,17 @@
 import type { PreferenceConfig } from 'loadPreference'
-import { createAppControllerApplication } from 'app-controller'
-import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
 import Camera from 'camera'
-import type { ConnectivityCapability, RobotLed, RobotUI, StackchanContext, TTS } from 'capabilities'
-import { ChatStatusBar } from 'chat-status-bar'
-import type { DrawerButtonSpec } from 'drawer'
-import { DynamixelDriver } from 'dynamixel-driver'
+import type { ConnectivityCapability, RobotLed, StackchanContext } from 'capabilities'
 import IMU from 'imu'
 import Led from 'led'
-import { M5StackChanServoDriver } from 'm5stackchan-servo-driver'
 import config from 'mc/config'
 import Microphone from 'microphone'
 import Modules from 'modules'
-import type { MotionDriver } from 'motion-controller'
-import { NoneDriver } from 'none-driver'
-import { ImageAvatarFace } from 'parts/image/image-avatar-face'
-import type { Container as PiuContainer } from 'piu/MC'
 import PY32Led from 'py32-led'
-import { RS30XDriver } from 'rs30x-driver'
 import { StackchanRuntimeContext } from 'runtime-context'
-import { SCServoDriver } from 'scservo-driver'
-import { PWMServoDriver } from 'sg90-driver'
 import Speaker from 'speaker'
+import { getMotionDriverFactory, getTTSFactory, getUIFactory } from 'stackchan-factory-registry'
 import Touch, { type TouchOptions } from 'touch'
 import TouchPanel from 'touch-panel'
-import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
-import { TTS as LocalTTS } from 'tts-local'
-import { TTS as OpenAITTS } from 'tts-openai'
-import { TTS as RemoteTTS } from 'tts-remote'
-import { TTS as VoiceVoxTTS } from 'tts-voicevox'
-import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
 
 type DeviceButton = {
   read: () => number
@@ -40,12 +22,6 @@ type SimulatorButtonCtor = new (options: {
   onPush?: () => void
 }) => {
   read: () => number | undefined
-}
-
-type UIOptions = {
-  avatar?: string
-  drawerButtons?: DrawerButtonSpec[]
-  displayListLength?: number
 }
 
 export type StackchanContextOptions = {
@@ -68,21 +44,6 @@ type GlobalEnvironment = {
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 
 export type HostDeviceEnvironment = GlobalEnvironment['device']
-
-function asUIOptions(param: unknown): UIOptions {
-  return (param ?? {}) as UIOptions
-}
-
-function createStackchanUI(face: PiuContainer, options: UIOptions = {}, displayListLength = 2048): RobotUI {
-  return createAppControllerApplication(
-    {
-      face,
-      appBar: new ChatStatusBar(),
-      drawerButtons: options.drawerButtons,
-    },
-    { displayListLength },
-  )
-}
 
 function configNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
@@ -134,58 +95,22 @@ export function createStackchanContext(
   preferences: PreferenceConfig,
   options: StackchanContextOptions = {},
 ): StackchanContext {
-  const drivers = new Map<string, (param: unknown) => MotionDriver>([
-    ['scservo', (param) => new SCServoDriver(param as ConstructorParameters<typeof SCServoDriver>[0])],
-    [
-      'm5stackchan',
-      (param) => new M5StackChanServoDriver(param as ConstructorParameters<typeof M5StackChanServoDriver>[0]),
-    ],
-    ['dynamixel', (param) => new DynamixelDriver(param as ConstructorParameters<typeof DynamixelDriver>[0])],
-    ['pwm', (param) => new PWMServoDriver(param as ConstructorParameters<typeof PWMServoDriver>[0])],
-    ['rs30x', (param) => new RS30XDriver(param as ConstructorParameters<typeof RS30XDriver>[0])],
-    ['none', () => new NoneDriver()],
-  ])
-  const ttsEngines = new Map<string, (param: unknown) => TTS>([
-    ['local', (param) => new LocalTTS(param as ConstructorParameters<typeof LocalTTS>[0])],
-    ['remote', (param) => new RemoteTTS(param as ConstructorParameters<typeof RemoteTTS>[0])],
-    ['voicevox', (param) => new VoiceVoxTTS(param as ConstructorParameters<typeof VoiceVoxTTS>[0])],
-    ['voicevox-web', (param) => new VoiceVoxWebTTS(param as ConstructorParameters<typeof VoiceVoxWebTTS>[0])],
-    ['elevenlabs', (param) => new ElevenLabsTTS(param as ConstructorParameters<typeof ElevenLabsTTS>[0])],
-    ['openai', (param) => new OpenAITTS(param as ConstructorParameters<typeof OpenAITTS>[0])],
-  ])
-  const uiControllers = new Map<string, (param: unknown) => RobotUI>([
-    ['dog', (param) => createStackchanUI(new DogFace(), asUIOptions(param))],
-    ['simple', (param) => createStackchanUI(new SimpleFace(), asUIOptions(param))],
-    [
-      'image',
-      (param) => {
-        const options = asUIOptions(param)
-        return createStackchanUI(
-          new ImageAvatarFace({ pack: options.avatar }),
-          options,
-          options.displayListLength ?? 4096,
-        )
-      },
-    ],
-    ['small-face', (param) => createStackchanUI(new SmallFace(), asUIOptions(param))],
-  ])
-
   const errors: string[] = []
 
   // Servo Driver
   const driverPrefs = preferences.driver
   const driverKey = driverPrefs.type ?? 'scservo'
-  const Driver = drivers.get(driverKey)
+  const Driver = getMotionDriverFactory(driverKey)
 
   // TTS
   const ttsPrefs = preferences.tts
   const ttsKey = ttsPrefs.type ?? 'local'
-  const TTS = ttsEngines.get(ttsKey)
+  const TTS = getTTSFactory(ttsKey)
 
   // UI
   const uiPrefs = preferences.ui
   const uiKey = uiPrefs.type ?? 'simple'
-  const UI = uiControllers.get(uiKey)
+  const UI = getUIFactory(uiKey)
 
   if (!Driver || !TTS || !UI) {
     for (const [key, klass] of [

@@ -217,7 +217,7 @@ test('WASM manifest selects the wasm app default behavior without an app-layer r
 })
 
 test('WASM manifest keeps the shared app runtime module list in sync with the host app manifest', () => {
-  const appManifest = readManifest('host/app/manifest.json')
+  const appManifest = readManifest('host/app/manifest_base.json')
   const wasmManifest = readManifest('host/platforms/wasm/manifest.json')
   const hostAppModules = appManifest.modules['*']
     .filter((specifier: string) => specifier.startsWith('./'))
@@ -228,7 +228,7 @@ test('WASM manifest keeps the shared app runtime module list in sync with the ho
 })
 
 test('real-device camera preview manifest resolves the shared UI preview module', () => {
-  const manifest = readManifest('host/app/manifest.json')
+  const manifest = readManifest('host/app/manifest_base.json')
 
   // The generic/default alias (used by the Linux simulator) stays on the mosaic-only view so no
   // WASM-only native binding leaks into the Linux import graph.

@@ -3,6 +3,7 @@ import { NetworkService, type NetworkServiceOptions } from 'network-service'
 export type StartNetworkConnectionOptions = NetworkServiceOptions & {
   onConnected?: () => void
   onError?: (reason?: string) => void
+  scanBeforeConnect?: boolean
 }
 
 let currentNetworkService: NetworkService | undefined
@@ -14,7 +15,11 @@ export function startNetworkConnection(options: StartNetworkConnectionOptions): 
   }
   stopNetworkConnection()
   currentNetworkService = new NetworkService(options)
-  currentNetworkService.connect(options.onConnected, options.onError)
+  if (options.scanBeforeConnect) {
+    currentNetworkService.scanAndConnect(options.onConnected, options.onError)
+  } else {
+    currentNetworkService.connect(options.onConnected, options.onError)
+  }
   return currentNetworkService
 }
 

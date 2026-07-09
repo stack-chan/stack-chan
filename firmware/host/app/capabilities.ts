@@ -137,7 +137,11 @@ export type NetworkReadyResult =
       status: 'connected'
     }
   | {
-      status: 'skipped' | 'failed'
+      status: 'skipped'
+      reason: string
+    }
+  | {
+      status: 'failed'
       reason: string
     }
 

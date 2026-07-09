@@ -3,11 +3,13 @@ import config from 'mc/config'
 import { PayloadBuffer } from 'payload-buffer'
 import {
   angleToDynamixelPosition,
+  dynamixelCrc16,
   dynamixelPositionToAngle,
   dynamixelStatusPayloadHasData,
   int16FromDynamixelPayload,
   int32FromDynamixelPayload,
   int32ToDynamixelBytes,
+  verifyDynamixelPacketCrc,
 } from 'protocols/dynamixel-codec'
 import { CommandTimeoutError } from 'servo-command-error'
 import SingleWaitSlot from 'single-wait-slot'
@@ -144,6 +146,11 @@ class PacketHandler extends Serial {
               const command = rxBuf[7] as Instruction
               if (command === INSTRUCTION.WRITE || command === INSTRUCTION.READ) {
                 // trace(`got echo.  ... ${rxBuf.subarray(0, this.#idx)} ignoring\n`)
+              } else if (!verifyDynamixelPacketCrc(rxBuf, this.#idx)) {
+                // Discard corrupted packets. The pending command times out and
+                // surfaces a CommandTimeoutError, which the command queue already
+                // handles with a recovery delay (same policy as the SCServo driver).
+                trace(`[dynamixel] crc mismatch for id=${id}. discarding ${rxBuf.subarray(0, this.#idx)}\n`)
               } else if (command === INSTRUCTION.STATUS) {
                 // trace(`got response for ${id}. triggering callback ... ${rxBuf.subarray(0, this.#idx)} \n`)
                 const payloadLength = this.#idx - 8
@@ -189,27 +196,6 @@ class PacketHandler extends Serial {
   removeCallback(id: number) {
     this.#callbacks.delete(id)
   }
-}
-
-/**
- * calculates checksum
- * @param arr - packet array except checksum
- * @returns checksum number
- */
-function checksum(arr: number[] | Uint8Array, start = 0, end = arr.length): number {
-  let crc16 = 0
-  for (let i = start; i < end; i++) {
-    const n = arr[i]
-    crc16 ^= n << 8
-    for (let i = 0; i < 8; i++) {
-      if (crc16 & 0x8000) {
-        crc16 = (crc16 << 1) ^ 0x8005
-      } else {
-        crc16 = crc16 << 1
-      }
-    }
-  }
-  return crc16
 }
 
 type DynamixelSerialConfig = Partial<{
@@ -355,7 +341,7 @@ class Dynamixel {
     this.#txBuf[5] = len & 0xff
     this.#txBuf[6] = (len >> 8) & 0xff
 
-    const crc = checksum(this.#txBuf, 0, idx)
+    const crc = dynamixelCrc16(this.#txBuf, 0, idx)
     this.#txBuf[idx++] = crc & 0xff
     this.#txBuf[idx++] = (crc >> 8) & 0xff
     /*

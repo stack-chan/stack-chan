@@ -25,6 +25,9 @@
     "stk-server": "./ble/stk-server",
     "beacon-packet": "./ble/beacon-packet",
     "ecma-wifi": "./ecma-wifi",
+    "fake-wifi-scan-results": "./fake-wifi-scan-results",
+    "wifi-scan": "./wifi-scan",
+    "wifi-scan-types": "./wifi-scan-types",
     "stored-wifi": "./stored-wifi"
   },
   "preload": ["stk-server", "beacon-packet"],

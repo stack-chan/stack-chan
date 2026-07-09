@@ -3,6 +3,7 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/input/expanding-keyboard/horizontal/manifest.json",
     "$(MODDABLE)/modules/piu/MC/outline/manifest.json",
     "$(MODULES)/commodetto/outline/manifest.json",
     "../util/manifest.json"
@@ -13,6 +14,7 @@
     "common-view": "./views/main/common-view",
     "face-view": "./views/main/face-view",
     "settings-view": "./views/settings/settings-view",
+    "settings-network-list": "./views/settings/settings-network-list",
     "settings-status-model": "./views/settings/settings-status-model",
     "face-state": "./state/face-state",
     "face-skin": "./state/face-skin",

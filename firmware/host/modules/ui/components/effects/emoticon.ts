@@ -1,3 +1,4 @@
+import { SPRITE_PULSE_FRAME_COUNT, spritePulseVariantForFraction } from 'effects/emoticon-pulse'
 import {
   DEFAULT_FACE_PRIMARY_COLOR,
   DEFAULT_FACE_SECONDARY_COLOR,
@@ -77,7 +78,7 @@ type DropConfig = {
 }
 
 const SPRITE_CELL_SIZE = 32
-const SPRITE_FRAME_COUNT = 4
+const SPRITE_FRAME_COUNT = SPRITE_PULSE_FRAME_COUNT
 const CLEAR_COLOR = 'transparent'
 const HEART_ROW = 0
 const ANGRY_ROW = 1
@@ -193,6 +194,7 @@ class SpritePulseBehavior extends Behavior {
   #interval = 33
   #fraction = 0
   #primary = primaryColor()
+  #variant = spritePulseVariantForFraction(0)
 
   onCreate(port: PiuPort, data: EmoticonOptions = {}, row = HEART_ROW) {
     this.#row = row
@@ -213,6 +215,9 @@ class SpritePulseBehavior extends Behavior {
 
   onTimeChanged(port: PiuPort) {
     this.#fraction += (2 * Math.PI) / 100
+    const nextVariant = spritePulseVariantForFraction(this.#fraction)
+    if (nextVariant === this.#variant) return
+    this.#variant = nextVariant
     port.invalidate()
   }
 
@@ -225,9 +230,14 @@ class SpritePulseBehavior extends Behavior {
 
   onDraw(port: PiuPort) {
     port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
-    const pulse = (Math.sin(this.#fraction) + 1) / 2
-    const variant = clamp(Math.round(pulse * (SPRITE_FRAME_COUNT - 1)), 0, SPRITE_FRAME_COUNT - 1)
-    drawSpriteCell(port, this.#row, variant, this.#primary, centeredSpriteX(this.#width), centeredSpriteY(this.#height))
+    drawSpriteCell(
+      port,
+      this.#row,
+      this.#variant,
+      this.#primary,
+      centeredSpriteX(this.#width),
+      centeredSpriteY(this.#height),
+    )
   }
 }
 

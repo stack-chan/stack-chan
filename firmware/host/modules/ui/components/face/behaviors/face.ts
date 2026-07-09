@@ -1,5 +1,11 @@
 import type { FaceSkinPalette } from 'face-skin'
-import { copyFaceState, createFaceState, type FaceState, faceStatesEqual } from 'face-state'
+import {
+  copyFaceState,
+  copyFaceStateForDistribution,
+  createFaceState,
+  type FaceState,
+  faceStatesEqual,
+} from 'face-state'
 import { createBlinkMotion } from 'motions/blink'
 import { createBreathMotion } from 'motions/breath'
 import { createSaccadeMotion } from 'motions/saccade'
@@ -45,6 +51,7 @@ export class FaceBehavior extends Behavior {
   #current: FaceState
   #desired: FaceState
   #lastDistributed: FaceState
+  #nextDistributed: FaceState
   #motions: FaceMotion[]
   #baseCoordinates: { left: number; top: number }
   #hasBaseCoordinates: boolean
@@ -63,6 +70,7 @@ export class FaceBehavior extends Behavior {
     this.#current = createFaceState()
     this.#desired = createFaceState()
     this.#lastDistributed = createFaceState()
+    this.#nextDistributed = createFaceState()
     this.#baseCoordinates = { left: 0, top: 0 }
     this.#hasBaseCoordinates = false
     this.#paused = false
@@ -178,9 +186,10 @@ export class FaceBehavior extends Behavior {
   }
 
   private distributeFaceState(container: PiuContainer, force = false): void {
-    if (!force && faceStatesEqual(this.#current, this.#lastDistributed)) return
-    copyFaceState(this.#current, this.#lastDistributed)
-    container.distribute('onFaceState', this.#current)
+    copyFaceStateForDistribution(this.#current, this.#nextDistributed, this.#breathPixels)
+    if (!force && faceStatesEqual(this.#nextDistributed, this.#lastDistributed)) return
+    copyFaceState(this.#nextDistributed, this.#lastDistributed)
+    container.distribute('onFaceState', this.#nextDistributed)
     // container.bubble('onFaceState', this.#current)
   }
 

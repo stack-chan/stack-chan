@@ -3,9 +3,12 @@ import { test } from 'node:test'
 
 import {
   copyFaceState,
+  copyFaceStateForDistribution,
   createFaceState,
   Emotion,
   emotionFromName,
+  faceStatesEqual,
+  quantizeBreathForPixels,
   setColorRGB,
   toColorString,
   toEmotionName,
@@ -35,4 +38,23 @@ test('FaceState uses plain mutable objects with numeric emotion and ColorRGB the
   assert.equal(copied.emotion, face.emotion)
   assert.equal(toPiuColorNumber(copied.theme.primary), 0x123456)
   assert.equal(toPiuColorNumber(copied.theme.secondary), 0xabcdef)
+})
+
+test('FaceState distribution quantizes breath to rendered pixels', () => {
+  const previous = createFaceState()
+  const next = createFaceState()
+  const previousDistributed = createFaceState()
+  const nextDistributed = createFaceState()
+
+  previous.breath = 0
+  next.breath = 0.08
+  copyFaceStateForDistribution(previous, previousDistributed, 6)
+  copyFaceStateForDistribution(next, nextDistributed, 6)
+  assert.equal(quantizeBreathForPixels(next.breath, 6), 0)
+  assert.equal(faceStatesEqual(previousDistributed, nextDistributed), true)
+
+  next.breath = 0.09
+  copyFaceStateForDistribution(next, nextDistributed, 6)
+  assert.equal(quantizeBreathForPixels(next.breath, 6), 1 / 6)
+  assert.equal(faceStatesEqual(previousDistributed, nextDistributed), false)
 })

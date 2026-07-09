@@ -74,7 +74,6 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#cameraRuntime = new StackchanRuntimeCamera(params)
     this.#lightingRuntime = new StackchanRuntimeLighting(params)
     this.#updateFaceHandler = Timer.repeat(this.#updateFace, INTERVAL_FACE)
-    void this.#updateFaceHandler
     this.#faceCapability = this.createFaceCapability()
     this.#motionCapability = this.createMotionCapability()
     this.#audioCapability = this.createAudioCapability()
@@ -388,75 +387,82 @@ export class StackchanRuntimeContext implements StackchanContext {
   }
 
   private createFaceCapability(): FaceCapability {
+    const uiRuntime = this.#uiRuntime
     return {
-      setColor: (key, r, g, b) => this.setColor(key, r, g, b),
-      setEmotion: (emotion) => this.setEmotion(emotion),
-      setMouthOpen: (value) => this.setMouthOpen(value),
+      setColor(key, r, g, b) {
+        uiRuntime.setColor(key, r, g, b)
+      },
+      setEmotion(emotion) {
+        uiRuntime.setEmotion(emotion)
+      },
+      setMouthOpen(value) {
+        uiRuntime.setMouthOpen(value)
+      },
     }
   }
 
   private createMotionCapability(): MotionCapability {
-    const context = this
+    const motionController = this.#motionController
     return {
       get pose() {
-        return context.pose
+        return motionController.pose
       },
       lookAt(position) {
-        context.lookAt(position)
+        motionController.lookAt(position)
       },
       lookAway() {
-        context.lookAway()
+        motionController.lookAway()
       },
       setPose(pose, time) {
-        return context.setPose(pose, time)
+        return waitForCompletion((callback) => motionController.setPose(pose, time, callback))
       },
       setTorque(torque) {
-        return context.setTorque(torque)
+        return waitForCompletion((callback) => motionController.setTorque(torque, callback))
       },
     }
   }
 
   private createAudioCapability(): AudioCapability {
-    const context = this
+    const audioRuntime = this.#audioRuntime
     return {
       get tts() {
-        return context.tts
+        return audioRuntime.tts
       },
       get microphone() {
-        return context.microphone
+        return audioRuntime.microphone
       },
       useTTS(tts) {
-        context.useTTS(tts)
+        audioRuntime.useTTS(tts)
       },
       say(text, volume) {
-        return context.say(text, volume)
+        return audioRuntime.say(text, volume)
       },
       record(durationMilliSec) {
-        return context.record(durationMilliSec)
+        return audioRuntime.record(durationMilliSec)
       },
       tone(hz, duration, volume) {
-        return context.tone(hz, duration, volume)
+        return audioRuntime.tone(hz, duration, volume)
       },
       playAudio(buffer) {
-        return context.playAudio(buffer)
+        return audioRuntime.playAudio(buffer)
       },
     }
   }
 
   private createInputCapability(): InputCapability {
-    const context = this
+    const inputRuntime = this.#inputRuntime
     return {
       get button() {
-        return context.button
+        return inputRuntime.button
       },
       get touch() {
-        return context.touch
+        return inputRuntime.touch
       },
       get touchPanel() {
-        return context.touchPanel
+        return inputRuntime.touchPanel
       },
       get imu() {
-        return context.imu
+        return inputRuntime.imu
       },
     }
   }
@@ -468,94 +474,97 @@ export class StackchanRuntimeContext implements StackchanContext {
   }
 
   private createLightingCapability(): LightingCapability {
-    const context = this
+    const lightingRuntime = this.#lightingRuntime
     return {
       get led() {
-        return context.led
+        return lightingRuntime.led
       },
       lightOn(ledName, r, g, b, duration, index, count) {
-        context.lightOn(ledName, r, g, b, duration, index, count)
+        lightingRuntime.lightOn(ledName, r, g, b, duration, index, count)
       },
       lightOff(ledName, index, count) {
-        context.lightOff(ledName, index, count)
+        lightingRuntime.lightOff(ledName, index, count)
       },
       lightBlink(ledName, r, g, b, duration, index, count) {
-        context.lightBlink(ledName, r, g, b, duration, index, count)
+        lightingRuntime.lightBlink(ledName, r, g, b, duration, index, count)
       },
       lightRainbow(ledName, index, count) {
-        context.lightRainbow(ledName, index, count)
+        lightingRuntime.lightRainbow(ledName, index, count)
       },
     }
   }
 
   private createConversationCapability(): ConversationCapability {
+    const audioRuntime = this.#audioRuntime
     return {
-      say: (text, volume) => this.say(text, volume),
+      say(text, volume) {
+        return audioRuntime.say(text, volume)
+      },
     }
   }
 
   private createUICapability(): RuntimeUICapability {
-    const context = this
+    const uiRuntime = this.#uiRuntime
     return {
       get controller() {
-        return context.#uiRuntime.ui
+        return uiRuntime.ui
       },
       update(interval, faceState) {
-        context.#uiRuntime.ui.update(interval, faceState)
+        uiRuntime.ui.update(interval, faceState)
       },
       addEffect(effect, key) {
-        context.#uiRuntime.ui.addEffect(effect, key)
+        uiRuntime.ui.addEffect(effect, key)
       },
       removeEffect(effect) {
-        context.#uiRuntime.ui.removeEffect(effect)
+        uiRuntime.ui.removeEffect(effect)
       },
       get application() {
-        return context.#uiRuntime.ui.application
+        return uiRuntime.ui.application
       },
       setFace(face) {
-        context.#uiRuntime.ui.setFace(face)
+        uiRuntime.ui.setFace(face)
       },
       setMain(content) {
-        context.#uiRuntime.ui.setMain(content)
+        uiRuntime.ui.setMain(content)
       },
       showFace() {
-        context.#uiRuntime.ui.showFace()
+        uiRuntime.ui.showFace()
       },
       setDrawerButtons(buttons) {
-        context.#uiRuntime.ui.setDrawerButtons(buttons)
+        uiRuntime.ui.setDrawerButtons(buttons)
       },
       addDrawerButton(button) {
-        context.#uiRuntime.ui.addDrawerButton(button)
+        uiRuntime.ui.addDrawerButton(button)
       },
       removeDrawerButton(key) {
-        context.#uiRuntime.ui.removeDrawerButton(key)
+        uiRuntime.ui.removeDrawerButton(key)
       },
       setDrawerButtonState(key, active) {
-        context.#uiRuntime.ui.setDrawerButtonState(key, active)
+        uiRuntime.ui.setDrawerButtonState(key, active)
       },
       bindDrawerAction(key, callback) {
-        return context.#uiRuntime.ui.bindDrawerAction(key, callback)
+        return uiRuntime.ui.bindDrawerAction(key, callback)
       },
       unbindDrawerAction(key) {
-        context.#uiRuntime.ui.unbindDrawerAction(key)
+        uiRuntime.ui.unbindDrawerAction(key)
       },
       openDrawer() {
-        context.#uiRuntime.ui.openDrawer()
+        uiRuntime.ui.openDrawer()
       },
       closeDrawer() {
-        context.#uiRuntime.ui.closeDrawer()
+        uiRuntime.ui.closeDrawer()
       },
       toggleDrawer() {
-        context.#uiRuntime.ui.toggleDrawer()
+        uiRuntime.ui.toggleDrawer()
       },
       get drawer() {
-        return context.drawer
+        return uiRuntime.drawer
       },
       showBalloon(text, option) {
-        context.showBalloon(text, option)
+        uiRuntime.showBalloon(text, option)
       },
       hideBalloon() {
-        context.hideBalloon()
+        uiRuntime.hideBalloon()
       },
     }
   }

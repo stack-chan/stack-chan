@@ -80,15 +80,15 @@ export const speeches = {
 * Run `npm run generate-speech-[google|coqui|voicevox]`
   * this script get voice data from server and saves wave files under `host/modules/audio/assets/sounds`
 * Flash firmware with assets
-* Call `context.say(sentence: string)` with the sentence.
+* Call `context.audio.say(sentence: string)` with the sentence.
 
 ```javascript
 import { speeches } from 'speeches'
 const keys = Object.keys(speeches)
 
 export async function onContextCreated(context) {
-  await context.say('hello')
-  await context.say(keys[0] /* 'niceToMeetYou' */)
+  await context.audio.say('hello')
+  await context.audio.say(keys[0] /* 'niceToMeetYou' */)
 }
 ```
 
@@ -108,11 +108,11 @@ export async function onContextCreated(context) {
 }
 ```
 
-* Call `context.say(sentence: string)`
+* Call `context.audio.say(sentence: string)`
 
 ```javascript
 // ...
 export async function onContextCreated(context) {
-  await context.say('Now I can speak any sentence you want.')
+  await context.audio.say('Now I can speak any sentence you want.')
 }
 ```

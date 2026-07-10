@@ -105,8 +105,8 @@ test('StackchanRuntimeAudio close detaches TTS callbacks even when the microphon
   const runtime = new StackchanRuntimeAudio({ tts, microphone }, { onMouthOpenChanged: (value) => (mouthOpen = value) })
 
   assert.throws(() => runtime.close(), /stop failure/)
-  const playbackTTS = runtime.tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
-  playbackTTS.onPlayed?.(2000)
-  playbackTTS.onDone?.()
+  const ttsCallbacks = runtime.tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
+  ttsCallbacks.onPlayed?.(2000)
+  ttsCallbacks.onDone?.()
   assert.equal(mouthOpen, -1)
 })

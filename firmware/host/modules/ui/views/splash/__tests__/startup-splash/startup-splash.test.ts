@@ -5,34 +5,36 @@ trace('=== startup-splash test ===\n')
 
 let touchCount = 0
 const application = showStartupSplash({
-  onTouch() {
+  onSettings() {
     touchCount += 1
   },
 })
 
-const root = application.first as unknown as {
-  active: boolean
+const column = application.first as unknown as {
   first: {
-    first: {
+    string: string
+    next: {
       string: string
-      next: {
-        string: string
+    }
+  }
+  next: {
+    first: {
+      behavior: {
+        onTouchBegan: (container: unknown, id: number, x: number, y: number) => void
+        onTouchEnded: (container: unknown) => void
       }
     }
   }
-  behavior: {
-    onTouchBegan: (container: unknown) => void
-  }
 }
-const column = root.first
 const title = column.first
 const message = title.next
+const settingsButton = column.next.first
 
-equal(root.active, true, 'splash root should receive touch events')
 equal(title.string, 'Stack-chan', 'splash title should show the product name')
-equal(message.string, 'Starting...', 'splash message should show startup progress')
+equal(message.string, 'まもなく起動します', 'splash message should show startup progress')
 
-root.behavior.onTouchBegan(root)
-equal(touchCount, 1, 'splash touch should call the provided callback')
+settingsButton.behavior.onTouchBegan(settingsButton, 0, 0, 0)
+settingsButton.behavior.onTouchEnded(settingsButton)
+equal(touchCount, 1, 'visible settings action should call the provided callback')
 
 trace('ok\n')

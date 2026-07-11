@@ -5,7 +5,6 @@ import type {
   Column as PiuColumn,
   Container as PiuContainer,
   Content as PiuContent,
-  Label as PiuLabel,
   Port as PiuPort,
   Scroller as PiuScroller,
   Skin as PiuSkin,
@@ -20,6 +19,8 @@ import {
   SettingsStatusValue as SettingsStatusValueConst,
   settingsStatusToLabel as settingsStatusToLabelImpl,
 } from 'settings-status-model'
+import { ActionButton, ScreenHeader, setActionButtonEnabled, setActionButtonLabel } from 'ui-controls'
+import { UI, uiStyles } from 'ui-theme'
 
 export const SettingsStatusValue = SettingsStatusValueConst
 export const settingsStatusToLabel = settingsStatusToLabelImpl
@@ -27,8 +28,9 @@ export type SettingsStatusValue = SettingsStatusValueModel
 export type { SettingsStatus }
 
 export type SettingsStatusLabels = {
-  wifi: PiuLabel
-  scan: PiuLabel
+  wifi: PiuContent & { string?: string }
+  scan: PiuContainer
+  boot: PiuContainer
   list: PiuColumn
   networkState: {
     networks: SettingsNetworkEntry[]
@@ -37,6 +39,8 @@ export type SettingsStatusLabels = {
 }
 
 export type SettingsViewOptions = {
+  onBack?: () => void
+  onBoot?: () => void
   onScan?: () => void
   onSelectNetwork?: (network: SettingsNetworkEntry) => void
 }
@@ -46,66 +50,29 @@ export type SettingsPasswordViewOptions = {
   onPassword?: (password: string) => void
 }
 
-const CONTENT_TOP = 8
-const SCREEN_WIDTH = 320
-const HEADER_HEIGHT = 36
-const STATUS_ROW_HEIGHT = 24
+const STATUS_TOP = UI.headerHeight + 4
+const STATUS_HEIGHT = 28
+const ACTION_TOP = STATUS_TOP + STATUS_HEIGHT + 4
+const NETWORK_LIST_TOP = ACTION_TOP + UI.touchTarget + 6
 const NETWORK_ROW_HEIGHT = 40
-const SCAN_TOUCH_TOP = CONTENT_TOP + HEADER_HEIGHT + STATUS_ROW_HEIGHT
-const SCAN_TOUCH_BOTTOM = SCAN_TOUCH_TOP + STATUS_ROW_HEIGHT
-const NETWORK_LIST_TOP = SCAN_TOUCH_BOTTOM + 6
-const PASSWORD_HEADER_HEIGHT = 46
-const PASSWORD_TITLE_HEIGHT = 26
-const PASSWORD_SSID_HEIGHT = 20
 const PASSWORD_KEYBOARD_HEIGHT = 164
+const MAX_SSID_CHARS = 30
 
-let screenSkin: PiuSkin | null = null
 let rowPressedSkin: PiuSkin | null = null
-let titleStyle: PiuStyle | null = null
-let labelStyle: PiuStyle | null = null
 let networkStyle: PiuStyle | null = null
 let keyboardFieldSkinTemplate: SkinTemplate | null = null
 let keyboardFieldStyleTemplate: StyleTemplate | null = null
 
-function getScreenSkin() {
-  if (!screenSkin) screenSkin = new Skin({ fill: '#000000' })
-  return screenSkin
-}
-
 function getRowPressedSkin() {
-  if (!rowPressedSkin) rowPressedSkin = new Skin({ fill: '#202020' })
+  if (!rowPressedSkin) rowPressedSkin = new Skin({ fill: UI.colors.surfacePressed })
   return rowPressedSkin
-}
-
-function getTitleStyle() {
-  if (!titleStyle) {
-    titleStyle = new Style({
-      font: '20px Open Sans',
-      color: '#ffffff',
-      horizontal: 'left',
-      vertical: 'middle',
-    })
-  }
-  return titleStyle
-}
-
-function getLabelStyle() {
-  if (!labelStyle) {
-    labelStyle = new Style({
-      font: '16px Open Sans',
-      color: '#ffffff',
-      horizontal: 'left',
-      vertical: 'middle',
-    })
-  }
-  return labelStyle
 }
 
 function getNetworkStyle() {
   if (!networkStyle) {
     networkStyle = new Style({
       font: 'k8x12-12',
-      color: '#ffffff',
+      color: UI.colors.text,
       horizontal: 'left',
       vertical: 'middle',
     })
@@ -132,6 +99,11 @@ function getKeyboardFieldStyleTemplate(): StyleTemplate {
   return keyboardFieldStyleTemplate
 }
 
+function fitSSID(ssid: string): string {
+  if (ssid.length <= MAX_SSID_CHARS) return ssid
+  return `${ssid.slice(0, MAX_SSID_CHARS - 3)}...`
+}
+
 function signalBars(signal: number | undefined): number {
   if (signal === undefined) return 1
   if (signal >= -60) return 4
@@ -144,7 +116,7 @@ function drawSignalIcon(port: PiuPort, signal: number | undefined, x: number, y:
   const bars = signalBars(signal)
   for (let index = 0; index < 4; index += 1) {
     const height = 5 + index * 4
-    port.fillColor(index < bars ? '#ffffff' : '#505050', x + index * 6, y + 18 - height, 4, height)
+    port.fillColor(index < bars ? UI.colors.text : UI.colors.disabled, x + index * 6, y + 18 - height, 4, height)
   }
 }
 
@@ -184,75 +156,58 @@ export const buildSettingsView = (
   status: SettingsStatus,
   options: SettingsViewOptions = {},
 ): SettingsStatusLabels => {
-  const networkState = {
-    networks: [] as SettingsNetworkEntry[],
-  }
+  const styles = uiStyles()
+  const networkState = { networks: [] as SettingsNetworkEntry[] }
+  const scan = new ActionButton(
+    { icon: 'scan', label: 'スキャン', onTap: options.onScan },
+    { left: 8, top: ACTION_TOP, width: 148 },
+  )
+  const boot = new ActionButton(
+    { icon: 'play', label: '起動', onTap: options.onBoot, enabled: false, tone: 'success' },
+    { left: 164, top: ACTION_TOP, width: 148 },
+  )
   const labels: SettingsStatusLabels = {
-    wifi: new Label(null, { left: 0, right: 0, height: STATUS_ROW_HEIGHT, style: getLabelStyle() }),
-    scan: new Label(null, { left: 0, right: 0, height: STATUS_ROW_HEIGHT, style: getLabelStyle() }),
-    list: new Column(null, { left: 0, width: SCREEN_WIDTH, top: 0 }),
+    wifi: new Label(null, {
+      left: 12,
+      right: 12,
+      top: STATUS_TOP,
+      height: STATUS_HEIGHT,
+      style: styles.bodyMuted,
+    }),
+    scan,
+    boot,
+    list: new Column(null, { left: 0, width: UI.screenWidth, top: 0 }),
     networkState,
     options,
   }
 
   application.empty()
-  application.skin = getScreenSkin()
+  application.skin = styles.screen
   application.add(
-    new Container(
-      { options, networkState },
-      {
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        active: true,
-        contents: [
-          new Column(null, {
-            left: 10,
-            right: 10,
-            top: CONTENT_TOP,
-            contents: [
-              new Label(null, {
-                left: 0,
-                right: 0,
-                height: HEADER_HEIGHT,
-                string: 'Wi-Fi Setup',
-                style: getTitleStyle(),
-              }),
-              labels.wifi,
-              labels.scan,
-            ],
-          }),
-          new Scroller(null, {
-            left: 0,
-            right: 0,
-            top: NETWORK_LIST_TOP,
-            bottom: 0,
-            active: true,
-            backgroundTouch: true,
-            clip: true,
-            Behavior: VerticalScrollerBehavior,
-            contents: [labels.list],
-          }),
-        ],
-        Behavior: class extends Behavior {
-          options: SettingsViewOptions | null = null
-
-          onCreate(
-            _container: PiuContainer,
-            data: { options: SettingsViewOptions; networkState: { networks: SettingsNetworkEntry[] } },
-          ) {
-            this.options = data.options
-          }
-
-          onTouchEnded(_container: PiuContainer, _id?: number, _x?: number, y?: number) {
-            if (typeof y === 'number' && y >= SCAN_TOUCH_TOP && y < SCAN_TOUCH_BOTTOM) {
-              this.options?.onScan?.()
-            }
-          }
-        },
-      },
-    ),
+    new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      skin: styles.screen,
+      contents: [
+        new ScreenHeader({ title: 'Wi-Fi設定', leading: 'back', onLeading: options.onBack }),
+        labels.wifi,
+        scan,
+        boot,
+        new Scroller(null, {
+          left: 0,
+          right: 0,
+          top: NETWORK_LIST_TOP,
+          bottom: 0,
+          active: true,
+          backgroundTouch: true,
+          clip: true,
+          Behavior: VerticalScrollerBehavior,
+          contents: [labels.list],
+        }),
+      ],
+    }),
   )
   updateSettingsStatusLabels(labels, status)
   updateSettingsNetworkLabels(labels, [])
@@ -261,22 +216,26 @@ export const buildSettingsView = (
 
 export const updateSettingsStatusLabels = (labels: SettingsStatusLabels, status: SettingsStatus): void => {
   labels.wifi.string = `Wi-Fi: ${settingsStatusToLabel(status.wifi)}`
-  labels.scan.string = status.wifi === SettingsStatusValue.SCANNING ? 'Scanning...' : 'Scan Wi-Fi'
+  const scanning = status.wifi === SettingsStatusValue.SCANNING
+  setActionButtonLabel(labels.scan, scanning ? 'スキャン中' : 'スキャン')
+  setActionButtonEnabled(labels.scan, !scanning)
+  setActionButtonEnabled(labels.boot, status.wifi === SettingsStatusValue.CONNECTED)
 }
 
 export const updateSettingsNetworkLabels = (
   labels: SettingsStatusLabels,
   networks: readonly SettingsNetworkEntry[],
 ): void => {
+  const styles = uiStyles()
   labels.list.empty()
   if (networks.length === 0) {
     labels.list.add(
       new Label(null, {
-        left: 10,
-        right: 10,
+        left: 12,
+        right: 12,
         height: NETWORK_ROW_HEIGHT,
-        string: 'No networks scanned',
-        style: getLabelStyle(),
+        string: 'ネットワークなし',
+        style: styles.bodyMuted,
       }),
     )
   } else {
@@ -285,7 +244,7 @@ export const updateSettingsNetworkLabels = (
       labels.list.add(
         new Port(data, {
           left: 0,
-          width: SCREEN_WIDTH,
+          width: UI.screenWidth,
           height: NETWORK_ROW_HEIGHT,
           active: true,
           Behavior: class extends Behavior {
@@ -322,10 +281,10 @@ export const updateSettingsNetworkLabels = (
 
             onDraw(port: PiuPort) {
               if (!this.data) return
-              port.fillColor('#000000', 0, 0, port.width, port.height)
-              port.fillColor('#303030', 0, port.height - 1, port.width, 1)
+              port.fillColor(UI.colors.background, 0, 0, port.width, port.height)
+              port.fillColor(UI.colors.border, 0, port.height - 1, port.width, 1)
               drawSignalIcon(port, this.data.network.signal, 10, 11)
-              port.drawString(this.data.network.ssid, getNetworkStyle(), '#ffffff', 42, 4, SCREEN_WIDTH - 52, 32)
+              port.drawString(fitSSID(this.data.network.ssid), getNetworkStyle(), UI.colors.text, 42, 4, 268, 32)
             }
           },
         }),
@@ -340,6 +299,7 @@ export const buildSettingsPasswordView = (
   ssid: string,
   options: SettingsPasswordViewOptions = {},
 ): void => {
+  const styles = uiStyles()
   const data: {
     options: SettingsPasswordViewOptions
     password?: string
@@ -348,7 +308,7 @@ export const buildSettingsPasswordView = (
   } = { options }
 
   application.empty()
-  application.skin = getScreenSkin()
+  application.skin = styles.screen
   application.add(
     new Column(data, {
       left: 0,
@@ -356,35 +316,23 @@ export const buildSettingsPasswordView = (
       top: 0,
       bottom: 0,
       active: true,
-      skin: getScreenSkin(),
+      skin: styles.screen,
       contents: [
         new Container(null, {
           left: 0,
           right: 0,
-          height: PASSWORD_HEADER_HEIGHT,
-          active: true,
+          height: 72,
           contents: [
+            new ScreenHeader({ title: 'Wi-Fiパスワード', leading: 'back', onLeading: options.onBack }),
             new Label(null, {
-              left: 10,
-              right: 10,
-              height: PASSWORD_TITLE_HEIGHT,
-              string: 'Wi-Fi Password',
-              style: getTitleStyle(),
-            }),
-            new Label(null, {
-              left: 10,
-              right: 10,
-              top: PASSWORD_TITLE_HEIGHT,
-              height: PASSWORD_SSID_HEIGHT,
-              string: `SSID: ${ssid}`,
-              style: getLabelStyle(),
+              left: 12,
+              right: 12,
+              top: UI.headerHeight,
+              height: 28,
+              string: fitSSID(ssid),
+              style: styles.bodyMuted,
             }),
           ],
-          Behavior: class extends Behavior {
-            onTouchEnded() {
-              options.onBack?.()
-            }
-          },
         }),
         KeyboardField(data, {
           anchor: 'FIELD',
@@ -415,9 +363,7 @@ export const buildSettingsPasswordView = (
         }
 
         onTouchEnded() {
-          if (this.data?.KEYBOARD && this.data.KEYBOARD.length !== 1) {
-            this.addKeyboard()
-          }
+          if (this.data?.KEYBOARD && this.data.KEYBOARD.length !== 1) this.addKeyboard()
         }
 
         addKeyboard() {
@@ -439,15 +385,13 @@ export const buildSettingsPasswordView = (
 
         onKeyboardTransitionFinished(_column: PiuColumn, out: boolean) {
           if (!this.data) return
-          if (out) {
-            this.data.options.onPassword?.(this.data.password ?? '')
-          } else if (this.data.FIELD) {
-            this.data.FIELD.visible = true
-          }
+          if (out) this.data.options.onPassword?.(this.data.password ?? '')
+          else if (this.data.FIELD) this.data.FIELD.visible = true
         }
       },
     }),
   )
 }
+
 type SkinTemplate = PiuSkinConstructor & { new (): PiuSkin }
 type StyleTemplate = PiuStyleConstructor & { new (): PiuStyle }

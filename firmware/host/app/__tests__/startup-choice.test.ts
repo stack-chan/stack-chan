@@ -30,12 +30,13 @@ type FakeTimer = {
 type StartupSplashStub = {
   resetStartupSplashCalls(): void
   startupSplashCallCount(): number
-  touchStartupSplash(): void
+  pressStartupSettings(): void
 }
 
 type SetupModeStub = {
   resetSetupModeCalls(): void
   startedSetupModeApplications(): unknown[]
+  finishSetupMode(choice: 'back' | 'boot'): void
 }
 
 function createManualTimer(): ManualTimer {
@@ -115,22 +116,22 @@ test('startup choice automatically boots after the configured delay', async () =
   assert.deepEqual(timer.clearCalls, [timer.handles[0]])
 })
 
-test('startup choice enters settings when the splash is touched before auto boot', async () => {
+test('startup choice enters settings when the visible settings action is pressed', async () => {
   installBareSpecifierPackages()
   const { waitForStartupChoice } = (await import('app-default-behavior/startup-choice')) as StartupChoiceModule
   const timer = createManualTimer()
   const application = { id: 'startup-application' }
-  let onTouch: (() => void) | undefined
+  let onSettings: (() => void) | undefined
 
   const choice = waitForStartupChoice({
     timer,
     showStartupSplash: (options) => {
-      onTouch = options.onTouch
+      onSettings = options.onSettings
       return application as never
     },
   })
 
-  onTouch?.()
+  onSettings?.()
 
   assert.equal(timer.handles.length, 2)
   assert.equal(timer.handles[1].interval, 0)
@@ -147,19 +148,19 @@ test('startup choice resolves only once and ignores later timer callbacks', asyn
   const { waitForStartupChoice } = (await import('app-default-behavior/startup-choice')) as StartupChoiceModule
   const timer = createManualTimer()
   const application = { id: 'startup-application' }
-  let onTouch: (() => void) | undefined
+  let onSettings: (() => void) | undefined
   const observed: unknown[] = []
 
   const choice = waitForStartupChoice({
     timer,
     showStartupSplash: (options) => {
-      onTouch = options.onTouch
+      onSettings = options.onSettings
       return application as never
     },
   })
   choice.then((result) => observed.push(result))
 
-  onTouch?.()
+  onSettings?.()
   timer.fire(timer.handles[1])
   timer.fire(timer.handles[0])
   timer.fire(timer.handles[1])
@@ -199,7 +200,7 @@ test('wasm onLaunch shows the startup splash and resolves after the visible dela
   assert.deepEqual(setupMode.startedSetupModeApplications(), [])
 })
 
-test('wasm onLaunch enters setup mode when the startup splash is touched', async () => {
+test('wasm onLaunch boots after setup is explicitly finished', async () => {
   installBareSpecifierPackages()
   const [{ onLaunch }, { default: timer }, startupSplash, setupMode] = await Promise.all([
     import('app-default-behavior/wasm/on-launch') as Promise<WasmOnLaunchModule>,
@@ -212,9 +213,36 @@ test('wasm onLaunch enters setup mode when the startup splash is touched', async
   setupMode.resetSetupModeCalls()
 
   const result = onLaunch()
-  startupSplash.touchStartupSplash()
+  startupSplash.pressStartupSettings()
   timer.advance(0)
+  await Promise.resolve()
 
-  assert.equal(await result, false)
   assert.deepEqual(setupMode.startedSetupModeApplications(), [{ type: 'startup-splash' }])
+  setupMode.finishSetupMode('boot')
+  assert.equal(await result, true)
+})
+
+test('wasm onLaunch returns to a fresh splash when setup goes back', async () => {
+  installBareSpecifierPackages()
+  const [{ onLaunch }, { default: timer }, startupSplash, setupMode] = await Promise.all([
+    import('app-default-behavior/wasm/on-launch') as Promise<WasmOnLaunchModule>,
+    import('timer') as Promise<{ default: FakeTimer }>,
+    import('startup-splash') as Promise<StartupSplashStub>,
+    import('setup-mode') as Promise<SetupModeStub>,
+  ])
+  timer.reset()
+  startupSplash.resetStartupSplashCalls()
+  setupMode.resetSetupModeCalls()
+
+  const result = onLaunch()
+  startupSplash.pressStartupSettings()
+  timer.advance(0)
+  await Promise.resolve()
+  setupMode.finishSetupMode('back')
+  await Promise.resolve()
+  await Promise.resolve()
+
+  assert.equal(startupSplash.startupSplashCallCount(), 2)
+  timer.advance(8000)
+  assert.equal(await result, true)
 })

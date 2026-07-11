@@ -31,6 +31,7 @@ type FoundationStyles = {
   disabled: PiuSkin
   accent: PiuSkin
   success: PiuSkin
+  brand: PiuStyle
   title: PiuStyle
   body: PiuStyle
   bodyMuted: PiuStyle
@@ -49,26 +50,32 @@ export function uiStyles(): FoundationStyles {
     disabled: new Skin({ fill: UI.colors.disabled }),
     accent: new Skin({ fill: UI.colors.accent }),
     success: new Skin({ fill: UI.colors.success }),
+    brand: new Style({
+      font: '24px Open Sans',
+      color: UI.colors.text,
+      horizontal: 'center',
+      vertical: 'middle',
+    }),
     title: new Style({
-      font: '20px Open Sans',
+      font: 'k8x12-12',
       color: UI.colors.text,
       horizontal: 'left',
       vertical: 'middle',
     }),
     body: new Style({
-      font: '16px Open Sans',
+      font: 'k8x12-12',
       color: UI.colors.text,
       horizontal: 'left',
       vertical: 'middle',
     }),
     bodyMuted: new Style({
-      font: '16px Open Sans',
+      font: 'k8x12-12',
       color: UI.colors.textMuted,
       horizontal: 'left',
       vertical: 'middle',
     }),
     button: new Style({
-      font: '16px Open Sans',
+      font: 'k8x12-12',
       color: UI.colors.text,
       horizontal: 'center',
       vertical: 'middle',

@@ -36,6 +36,14 @@ export type ActionButtonBehavior = {
   setLabel(container: PiuContainer, label: string): void
 }
 
+export type ScreenHeaderData = {
+  title: string
+  leading?: 'back' | 'menu'
+  trailing?: 'close' | 'settings'
+  onLeading?: () => void
+  onTrailing?: () => void
+}
+
 function drawSteps(port: PiuPort, color: string, points: readonly [number, number][]) {
   for (const [x, y] of points) port.fillColor(color, x, y, 3, 3)
 }
@@ -233,10 +241,58 @@ export const ActionButton = Container.template(($: ActionButtonData) => {
   }
 })
 
+export const ScreenHeader = Container.template(($: ScreenHeaderData) => {
+  const styles = uiStyles()
+  const contents: PiuContent[] = [
+    new Label(null, {
+      left: $.leading ? 48 : 12,
+      right: $.trailing ? 48 : 12,
+      top: 0,
+      bottom: 0,
+      string: $.title,
+      style: styles.title,
+    }),
+  ]
+  if ($.leading) {
+    contents.unshift(
+      new ActionButton(
+        {
+          icon: $.leading,
+          onTap: $.onLeading,
+        },
+        { left: 0, top: -2, width: UI.touchTarget, height: UI.touchTarget },
+      ),
+    )
+  }
+  if ($.trailing) {
+    contents.push(
+      new ActionButton(
+        {
+          icon: $.trailing,
+          onTap: $.onTrailing,
+        },
+        { right: 0, top: -2, width: UI.touchTarget, height: UI.touchTarget },
+      ),
+    )
+  }
+  return {
+    left: 0,
+    right: 0,
+    top: 0,
+    height: UI.headerHeight,
+    skin: styles.surface,
+    contents,
+  }
+})
+
 export function setActionButtonEnabled(button: PiuContainer | null | undefined, enabled: boolean) {
   ;(button?.behavior as ActionButtonBehavior | undefined)?.setEnabled?.(button as PiuContainer, enabled)
 }
 
 export function setActionButtonSelected(button: PiuContainer | null | undefined, selected: boolean) {
   ;(button?.behavior as ActionButtonBehavior | undefined)?.setSelected?.(button as PiuContainer, selected)
+}
+
+export function setActionButtonLabel(button: PiuContainer | null | undefined, label: string) {
+  ;(button?.behavior as ActionButtonBehavior | undefined)?.setLabel?.(button as PiuContainer, label)
 }

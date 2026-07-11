@@ -37,15 +37,15 @@ const labels = buildSettingsView(
 
 equal(application.length, 1, 'settings view should replace application contents')
 equal(labels.wifi.string, 'Wi-Fi: not connected', 'Wi-Fi label should reflect status')
-equal(labels.scan.string, 'Scan Wi-Fi', 'scan label should request scan')
-
-const root = application.first as unknown as {
+const scanButton = labels.scan as unknown as {
   behavior: {
-    onTouchEnded: (container: unknown, id: number, x: number, y: number) => void
+    onTouchBegan: (container: unknown, id: number, x: number, y: number) => void
+    onTouchEnded: (container: unknown) => void
   }
 }
-root.behavior.onTouchEnded(root, 0, 10, 70)
-equal(scanCount, 1, 'touching scan row should request Wi-Fi scan')
+scanButton.behavior.onTouchBegan(scanButton, 0, 0, 0)
+scanButton.behavior.onTouchEnded(scanButton)
+equal(scanCount, 1, 'pressing the visible scan action should request Wi-Fi scan')
 
 updateSettingsNetworkLabels(labels, [
   { ssid: 'stackchan-ap', signal: -42, label: 'stackchan-ap (-42 dBm)' },

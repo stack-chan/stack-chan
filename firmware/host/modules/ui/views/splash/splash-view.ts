@@ -1,10 +1,11 @@
-import type { Application as PiuApplication, Label as PiuLabel, Skin as PiuSkin, Style as PiuStyle } from 'piu/MC'
-import { Application, Column, Container, Label, Skin, Style } from 'piu/MC'
+import type { Application as PiuApplication, Container as PiuContainer, Label as PiuLabel } from 'piu/MC'
+import { Application, Column, Container, Label } from 'piu/MC'
+import { ActionButton } from 'ui-controls'
+import { UI, uiStyles } from 'ui-theme'
 
 export type StartupSplashOptions = {
   message?: string
-  hint?: string
-  onTouch?: () => void
+  onSettings?: () => void
 }
 
 export type WiFiConnectionStatusOptions = {
@@ -15,127 +16,101 @@ export type WiFiConnectionStatusOptions = {
 export type WiFiRecoveryChoiceOptions = {
   message: string
   onRetry?: () => void
+  onOffline?: () => void
 }
 
-const TITLE_FONT = '24px Open Sans'
-const MESSAGE_FONT = 'k8x12-12'
-
-let backgroundSkin: PiuSkin | null = null
-let titleStyle: PiuStyle | null = null
-let messageStyle: PiuStyle | null = null
 let currentMessageLabel: PiuLabel | null = null
-let currentHintLabel: PiuLabel | null = null
-let currentTouchHandler: (() => void) | undefined
+let currentActionArea: PiuContainer | null = null
 
-function getBackgroundSkin() {
-  if (!backgroundSkin) backgroundSkin = new Skin({ fill: '#000000' })
-  return backgroundSkin
+function showActions(contents: PiuContainer[]) {
+  if (!currentActionArea) return
+  currentActionArea.empty()
+  for (const content of contents) currentActionArea.add(content)
 }
 
-function getTitleStyle() {
-  if (!titleStyle) {
-    titleStyle = new Style({
-      font: TITLE_FONT,
-      color: '#ffffff',
-      horizontal: 'center',
-      vertical: 'middle',
-    })
-  }
-  return titleStyle
-}
-
-function getMessageStyle() {
-  if (!messageStyle) {
-    messageStyle = new Style({
-      font: MESSAGE_FONT,
-      color: '#ffffff',
-      horizontal: 'center',
-      vertical: 'middle',
-    })
-  }
-  return messageStyle
-}
-
-function updateStartupSplash(options: StartupSplashOptions): void {
-  currentTouchHandler = options.onTouch
-  if (currentMessageLabel) {
-    currentMessageLabel.string = options.message ?? 'Starting...'
-  }
-  if (currentHintLabel) {
-    currentHintLabel.string = options.hint ?? ''
-  }
+function setMessage(message: string) {
+  if (currentMessageLabel) currentMessageLabel.string = message
 }
 
 export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplication {
+  const styles = uiStyles()
   const messageLabel = new Label(null, {
-    left: 0,
-    right: 0,
+    left: 12,
+    right: 12,
     height: 28,
-    string: options.message ?? 'Starting...',
-    style: getMessageStyle(),
+    string: options.message ?? 'まもなく起動します',
+    style: styles.bodyMuted,
   })
-  const hintLabel = new Label(null, {
+  const actionArea = new Container(null, {
     left: 0,
     right: 0,
-    height: 24,
-    string: options.hint ?? '',
-    style: getMessageStyle(),
+    bottom: 12,
+    height: UI.touchTarget,
   })
   currentMessageLabel = messageLabel
-  currentHintLabel = hintLabel
-  currentTouchHandler = options.onTouch
+  currentActionArea = actionArea
 
-  return new Application(options, {
+  const application = new Application(options, {
     commandListLength: 4096,
     displayListLength: 4096,
     touchCount: 1,
-    skin: getBackgroundSkin(),
+    skin: styles.screen,
     contents: [
-      new Container(options, {
+      new Column(null, {
         left: 0,
         right: 0,
-        top: 0,
-        bottom: 0,
-        active: true,
+        top: 66,
         contents: [
-          new Column(null, {
+          new Label(null, {
             left: 0,
             right: 0,
-            top: 76,
-            contents: [
-              new Label(null, {
-                left: 0,
-                right: 0,
-                height: 36,
-                string: 'Stack-chan',
-                style: getTitleStyle(),
-              }),
-              messageLabel,
-              hintLabel,
-            ],
+            height: 42,
+            string: 'Stack-chan',
+            style: styles.brand,
           }),
+          messageLabel,
         ],
-        Behavior: class extends Behavior {
-          onTouchBegan() {
-            currentTouchHandler?.()
-          }
-        },
       }),
+      actionArea,
     ],
   })
+
+  showActions([
+    new ActionButton(
+      {
+        icon: 'settings',
+        label: '設定',
+        onTap: options.onSettings,
+      },
+      { left: 104, width: 112 },
+    ),
+  ])
+  return application
 }
 
 export function showWiFiConnectionStatus(options: WiFiConnectionStatusOptions): void {
-  updateStartupSplash({
-    message: `Wi-Fi接続中... (${options.attempt}/${options.maxAttempts})`,
-    hint: '',
-  })
+  setMessage(`Wi-Fi接続中 (${options.attempt}/${options.maxAttempts})`)
+  showActions([])
 }
 
 export function showWiFiRecoveryChoice(options: WiFiRecoveryChoiceOptions): void {
-  updateStartupSplash({
-    message: options.message,
-    hint: 'A: リトライ / C: オフラインで起動',
-    onTouch: options.onRetry,
-  })
+  setMessage(options.message)
+  showActions([
+    new ActionButton(
+      {
+        icon: 'retry',
+        label: '再試行',
+        onTap: options.onRetry,
+      },
+      { left: 8, width: 148 },
+    ),
+    new ActionButton(
+      {
+        icon: 'offline',
+        label: 'オフライン',
+        onTap: options.onOffline,
+      },
+      { left: 164, width: 148 },
+    ),
+  ])
 }

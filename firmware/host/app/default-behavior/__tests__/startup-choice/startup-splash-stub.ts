@@ -1,9 +1,9 @@
 let calls = 0
-let onTouch: (() => void) | undefined
+let onSettings: (() => void) | undefined
 
-export function showStartupSplash(options: { onTouch?: () => void } = {}): unknown {
+export function showStartupSplash(options: { onSettings?: () => void } = {}): unknown {
   calls += 1
-  onTouch = options.onTouch
+  onSettings = options.onSettings
   return { type: 'startup-splash' }
 }
 
@@ -13,9 +13,9 @@ export function startupSplashCallCount(): number {
 
 export function resetStartupSplashCalls(): void {
   calls = 0
-  onTouch = undefined
+  onSettings = undefined
 }
 
-export function touchStartupSplash(): void {
-  onTouch?.()
+export function pressStartupSettings(): void {
+  onSettings?.()
 }

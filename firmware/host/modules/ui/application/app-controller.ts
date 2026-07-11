@@ -136,6 +136,7 @@ export class AppController extends Behavior {
   onDrawerClose(): void {
     trace('[AppController] onDrawerClose\n')
     this.closeDrawer()
+    this.#application?.distribute('onMenuReveal')
   }
 
   onFaceTouch(): void {

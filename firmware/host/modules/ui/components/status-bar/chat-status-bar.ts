@@ -15,6 +15,7 @@ export const ChatStatusBarState = Object.freeze({
 export type ChatStatusBarState = (typeof ChatStatusBarState)[keyof typeof ChatStatusBarState]
 
 const barHeight = 44
+export const MENU_VISIBLE_MS = 4000
 const levelHeight = 16
 const levelWidth = 4
 const iconSize = 16
@@ -83,13 +84,30 @@ class ChatStatusBarBehavior extends Behavior {
   #levelFill?: Content
   #statusIcon?: Content
   #indicator?: Content
+  #menuButton?: Container
 
   onCreate(container: Container) {
     this.#statusIcon = container.content('statusIcon') as Content
     this.#indicator = container.content('statusIndicator') as Content
     this.#levelTrack = container.content('levelTrack') as Container
     this.#levelFill = this.#levelTrack?.first as Content
+    this.#menuButton = container.content('menuButton') as Container
     this.updateUI()
+  }
+
+  onDisplaying(container: Container) {
+    this.showMenu(container)
+  }
+
+  onMenuReveal(container: Container) {
+    this.showMenu(container)
+  }
+
+  onFinished(container: Container) {
+    if (!this.#menuButton) return
+    this.#menuButton.visible = false
+    this.#menuButton.active = false
+    container.stop()
   }
 
   onChatState(_container: Container, state: ChatStatusBarState, _error?: string) {
@@ -130,6 +148,16 @@ class ChatStatusBarBehavior extends Behavior {
     const ratio = Math.min(Math.max(this.#inputLevel / 2000, 0), 1)
     const height = Math.round(levelHeight * ratio)
     this.#levelFill.height = height
+  }
+
+  showMenu(container: Container) {
+    if (!this.#menuButton) return
+    this.#menuButton.visible = true
+    this.#menuButton.active = true
+    container.stop()
+    container.duration = MENU_VISIBLE_MS
+    container.time = 0
+    container.start()
   }
 }
 
@@ -185,6 +213,7 @@ export const ChatStatusBar = Container.template(() => {
       }),
       new ActionButton(
         {
+          name: 'menuButton',
           icon: 'menu',
           action: 'onDrawerToggle',
         },

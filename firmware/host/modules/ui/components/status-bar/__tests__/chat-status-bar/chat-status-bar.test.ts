@@ -11,6 +11,8 @@ const app = new Application(null, {
 type StatusBarBehavior = {
   onChatState?: (container: unknown, state: number, error?: string) => void
   onChatInputLevel?: (container: unknown, level: number) => void
+  onFinished?: (container: unknown) => void
+  onMenuReveal?: (container: unknown) => void
 }
 
 type StatusBarContent = {
@@ -32,6 +34,12 @@ type StatusIndicator = {
 
 type LevelTrack = {
   first?: LevelFill
+  next?: MenuButton
+  visible?: boolean
+}
+
+type MenuButton = {
+  active?: boolean
   visible?: boolean
 }
 
@@ -45,7 +53,15 @@ const statusIcon = bar.first as StatusIcon
 const statusIndicator = statusIcon.next as StatusIndicator
 const levelTrack = statusIndicator.next as LevelTrack
 const levelFill = levelTrack.first as LevelFill
+const menuButton = levelTrack.next as MenuButton
 const behavior = bar.behavior as StatusBarBehavior
+
+behavior.onFinished?.(bar)
+assert(menuButton.visible === false, 'menu button should hide when its reveal timer finishes')
+assert(menuButton.active === false, 'hidden menu button should not intercept touches')
+behavior.onMenuReveal?.(bar)
+assert(menuButton.visible === true, 'menu button should be revealed again on request')
+assert(menuButton.active === true, 'revealed menu button should accept touches')
 
 behavior.onChatState?.(bar, ChatStatusBarState.CONNECTING)
 assert(statusIndicator.visible === true, 'connecting indicator should be visible')

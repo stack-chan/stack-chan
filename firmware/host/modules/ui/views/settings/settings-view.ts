@@ -55,7 +55,10 @@ const STATUS_HEIGHT = 28
 const ACTION_TOP = STATUS_TOP + STATUS_HEIGHT + 4
 const NETWORK_LIST_TOP = ACTION_TOP + UI.touchTarget + 6
 const NETWORK_ROW_HEIGHT = 40
-const PASSWORD_KEYBOARD_HEIGHT = 164
+const PASSWORD_HEADER_HEIGHT = 68
+const PASSWORD_FIELD_TOP = PASSWORD_HEADER_HEIGHT + 2
+const PASSWORD_FIELD_HEIGHT = 32
+const PASSWORD_KEYBOARD_TOP = PASSWORD_FIELD_TOP + PASSWORD_FIELD_HEIGHT + 4
 const MAX_SSID_CHARS = 30
 
 let rowPressedSkin: PiuSkin | null = null
@@ -310,7 +313,7 @@ export const buildSettingsPasswordView = (
   application.empty()
   application.skin = styles.screen
   application.add(
-    new Column(data, {
+    new Container(data, {
       left: 0,
       right: 0,
       top: 0,
@@ -321,7 +324,8 @@ export const buildSettingsPasswordView = (
         new Container(null, {
           left: 0,
           right: 0,
-          height: 72,
+          top: 0,
+          height: PASSWORD_HEADER_HEIGHT,
           contents: [
             new ScreenHeader({ title: 'Wi-Fiパスワード', leading: 'back', onLeading: options.onBack }),
             new Label(null, {
@@ -337,10 +341,10 @@ export const buildSettingsPasswordView = (
         KeyboardField(data, {
           anchor: 'FIELD',
           password: true,
-          left: 32,
-          right: 0,
-          top: 0,
-          bottom: 0,
+          left: 12,
+          right: 12,
+          top: PASSWORD_FIELD_TOP,
+          height: PASSWORD_FIELD_HEIGHT,
           Skin: getKeyboardFieldSkinTemplate(),
           Style: getKeyboardFieldStyleTemplate(),
           visible: false,
@@ -349,15 +353,15 @@ export const buildSettingsPasswordView = (
           anchor: 'KEYBOARD',
           left: 0,
           right: 0,
+          top: PASSWORD_KEYBOARD_TOP,
           bottom: 0,
-          height: PASSWORD_KEYBOARD_HEIGHT,
           Skin: getKeyboardFieldSkinTemplate(),
         }),
       ],
       Behavior: class extends Behavior {
         data: typeof data | null = null
 
-        onCreate(_column: PiuColumn, viewData: typeof data) {
+        onCreate(_container: PiuContainer, viewData: typeof data) {
           this.data = viewData
           this.addKeyboard()
         }
@@ -377,13 +381,13 @@ export const buildSettingsPasswordView = (
           )
         }
 
-        onKeyboardOK(_column: PiuColumn, password: string) {
+        onKeyboardOK(_container: PiuContainer, password: string) {
           if (!this.data) return
           this.data.password = password
           if (this.data.FIELD) this.data.FIELD.visible = false
         }
 
-        onKeyboardTransitionFinished(_column: PiuColumn, out: boolean) {
+        onKeyboardTransitionFinished(_container: PiuContainer, out: boolean) {
           if (!this.data) return
           if (out) this.data.options.onPassword?.(this.data.password ?? '')
           else if (this.data.FIELD) this.data.FIELD.visible = true

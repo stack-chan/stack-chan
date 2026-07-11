@@ -1,5 +1,6 @@
 declare module 'uartserver' {
   class UARTServer {
+    close(): void
     deviceName: string
     notifyValue(characteristic: string, data: ArrayBuffer): void
     onConnected(): void

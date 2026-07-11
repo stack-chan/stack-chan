@@ -14,7 +14,7 @@ export type StartupChoiceTimer = {
 
 export type StartupChoiceDependencies = {
   timer: StartupChoiceTimer
-  showStartupSplash(options: { onTouch?: () => void }): unknown
+  showStartupSplash(options: { onSettings?: () => void }): unknown
   autoBootDelayMs?: number
 }
 
@@ -41,7 +41,7 @@ export function waitForStartupChoice<Application>({
     }
 
     const application = showStartupSplash({
-      onTouch: () => {
+      onSettings: () => {
         handles.settings = timer.set(() => choose('settings', application), 0)
       },
     }) as Application

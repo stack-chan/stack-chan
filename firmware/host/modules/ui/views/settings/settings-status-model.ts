@@ -14,20 +14,20 @@ export const SettingsStatusValue = Object.freeze({
 export type SettingsStatusValue = (typeof SettingsStatusValue)[keyof typeof SettingsStatusValue]
 
 const settingsStatusLabels = Object.freeze([
-  'not connected',
-  'connected',
-  'connecting',
-  'scanning',
-  'syncing time',
-  'reconnecting',
-  'failed',
-  'closed',
-  'ready',
-  'off',
+  '未接続',
+  '接続済み',
+  '接続中',
+  'スキャン中',
+  '時刻同期中',
+  '再接続中',
+  '接続失敗',
+  '終了',
+  '準備完了',
+  'オフ',
 ] as const)
 
 export function settingsStatusToLabel(status: SettingsStatusValue): string {
-  return settingsStatusLabels[status] ?? 'unknown'
+  return settingsStatusLabels[status] ?? '不明'
 }
 
 export type SettingsStatus = {

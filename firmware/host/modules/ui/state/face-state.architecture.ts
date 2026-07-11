@@ -213,9 +213,9 @@ test('CommonView mutates drawer items incrementally after batch creation', () =>
   const commonView = readFileSync('host/modules/ui/views/main/common-view.ts', 'utf8')
   const drawer = readFileSync('host/modules/ui/components/drawer/drawer.ts', 'utf8')
 
-  assert.match(drawer, /addButton\(container: PiuContainer, button: DrawerButtonSpec\)/)
+  assert.match(drawer, /addButton\(container: PiuContainer, button: DrawerButtonViewSpec\)/)
   assert.match(drawer, /removeButton\(container: PiuContainer, key: string\)/)
-  assert.match(drawer, /setButtons\(container: PiuContainer, buttons: DrawerButtonSpec\[\]\)/)
+  assert.match(drawer, /setButtons\(container: PiuContainer, buttons: DrawerButtonViewSpec\[\]\)/)
   assert.match(commonView, /new Drawer\(\{ buttons: this\.drawerButtons \}\)/)
 
   for (const methodName of ['addDrawerButton', 'removeDrawerButton', 'setDrawerButtonState']) {

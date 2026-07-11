@@ -1,5 +1,6 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { RobotCamera } from 'camera'
+import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
 import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
 import type IMU from 'imu'
 import type { ButtonInputEvent } from 'input-event'
@@ -24,12 +25,7 @@ export type RobotLed = {
   rainbow(index?: number, count?: number): void
 }
 
-export type DrawerButtonViewSpec = {
-  key: string
-  label: string
-  kind?: 'action' | 'toggle'
-  active?: boolean
-}
+export type { DrawerButtonViewSpec, DrawerOption }
 
 export type RobotUI = {
   update: (interval: number, faceState: FaceState) => void
@@ -45,7 +41,7 @@ export type RobotUI = {
   addDrawerButton(button: DrawerButtonViewSpec): void
   removeDrawerButton(key: string): void
   setDrawerButtonState(key: string, active: boolean): void
-  bindDrawerAction(key: string, callback: () => void): boolean
+  bindDrawerAction(key: string, callback: (value?: string) => void): boolean
   unbindDrawerAction(key: string): void
   openDrawer(): void
   closeDrawer(): void
@@ -59,9 +55,12 @@ export type Button = {
 export type DrawerButtonSpec = {
   key: string
   label: string
-  callback: (context: StackchanContext) => unknown
-  kind?: 'action' | 'toggle'
+  callback: (context: StackchanContext, value?: string) => unknown
+  kind?: 'action' | 'choice' | 'swatch' | 'toggle'
   initialState?: boolean
+  value?: string
+  options?: DrawerOption[]
+  icon?: IconName
 }
 
 export type DrawerCapability = {

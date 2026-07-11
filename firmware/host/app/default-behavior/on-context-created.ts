@@ -51,7 +51,14 @@ function errorMessage(error: unknown): string {
 
 export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreated']> = (robot) => {
   const emotions: Emotion[] = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
-  let emotionIndex = emotions.indexOf(Emotion.NEUTRAL)
+  const emotionOptions = [
+    { value: String(Emotion.NEUTRAL), label: '通常' },
+    { value: String(Emotion.HAPPY), label: 'うれしい' },
+    { value: String(Emotion.ANGRY), label: '怒り' },
+    { value: String(Emotion.SAD), label: '悲しい' },
+    { value: String(Emotion.HOT), label: '暑い' },
+    { value: String(Emotion.SLEEPY), label: '眠い' },
+  ]
   let speechVisible = false
   let emoticonEffect: PiuContent | null = null
   let currentEmotion: Emotion = Emotion.NEUTRAL
@@ -151,7 +158,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   const syncFaceMode = (
     app = robot.ui.application as { distribute?: (event: string, payload: unknown) => void } | undefined,
   ) => {
-    robot.drawer.setDrawerButtonState('toggleFace', faceMode !== 'simple')
     app?.distribute?.('onFaceMode', faceMode)
   }
   const closeDrawer = () => robot.ui.closeDrawer()
@@ -168,11 +174,17 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   }
   robot.drawer.addDrawerButton({
     key: 'toggleFace',
-    label: 'Face',
-    kind: 'toggle',
-    initialState: false,
-    callback: (target) => {
-      faceMode = faceMode === 'simple' ? 'dog' : faceMode === 'dog' ? 'image' : 'simple'
+    label: '顔',
+    kind: 'choice',
+    value: faceMode,
+    options: [
+      { value: 'simple', label: 'シンプル' },
+      { value: 'dog', label: 'いぬ' },
+      { value: 'image', label: '画像' },
+    ],
+    callback: (target, value) => {
+      if (value !== 'simple' && value !== 'dog' && value !== 'image') return
+      faceMode = value
       target.ui.setFace(createCurrentFace())
       const app = target.ui.application as { distribute?: (event: string, payload: unknown) => void } | undefined
       syncFaceMode(app)
@@ -181,10 +193,13 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   syncFaceMode()
   robot.drawer.addDrawerButton({
     key: 'cycleEmotion',
-    label: 'Emotion',
-    callback: (target) => {
-      emotionIndex = (emotionIndex + 1) % emotions.length
-      const nextEmotion = emotions[emotionIndex]
+    label: '表情',
+    kind: 'choice',
+    value: String(currentEmotion),
+    options: emotionOptions,
+    callback: (target, value) => {
+      const nextEmotion = Number(value) as Emotion
+      if (!emotions.includes(nextEmotion) && nextEmotion !== Emotion.NEUTRAL) return
       let canceledPettingMotion = false
       if (pettingRestoreTimer) {
         Timer.clear(pettingRestoreTimer)
@@ -207,7 +222,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   })
   robot.drawer.addDrawerButton({
     key: 'toggleSpeech',
-    label: 'Speech',
+    label: '吹き出し',
     kind: 'toggle',
     initialState: speechVisible,
     callback: (target) => {
@@ -265,7 +280,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       // The dialog draws its own caption, so no preview-time balloon is needed.
       target.ui.setMain(
         createCameraPreviewDialog(previewFrame, {
-          caption: 'camera preview',
           onRender: (mode) => {
             trace(`[CameraPreview] render mode=${mode}\n`)
           },
@@ -298,7 +312,8 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   if (robot.camera.available !== false) {
     robot.drawer.addDrawerButton({
       key: 'cameraPreview',
-      label: 'Camera',
+      label: 'カメラ',
+      icon: 'camera',
       callback: (target) => runCameraPreview(target),
     })
   }
@@ -336,7 +351,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   Timer.repeat(targetLoop, 5000)
   robot.drawer.addDrawerButton({
     key: 'toggleLookAround',
-    label: 'Look',
+    label: '見回す',
     kind: 'toggle',
     initialState: isFollowing,
     callback: toggleLookAround,
@@ -378,7 +393,8 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   }
   robot.drawer.addDrawerButton({
     key: 'servoTest',
-    label: 'Servo',
+    label: 'サーボ',
+    icon: 'play',
     callback: runServoTest,
   })
 
@@ -460,34 +476,50 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   }
   robot.drawer.addDrawerButton({
     key: 'playTone',
-    label: 'playTone',
+    label: '音を再生',
+    icon: 'play',
     callback: runPlayTone,
   })
   robot.drawer.addDrawerButton({
     key: 'recordPlayback',
-    label: 'Record and playback',
+    label: '録音と再生',
+    icon: 'microphone',
     callback: runRecordPlayback,
   })
 
   /**
    * Change color (Drawer action)
    */
-  let flag = false
-  const toggleColor = () => {
-    if (flag) {
+  let colorMode: 'dark' | 'light' = 'light'
+  const colorOptions = [
+    { value: 'light', label: '白', color: '#ffffff' },
+    { value: 'dark', label: '黒', color: '#000000' },
+  ]
+  function selectColor(_target: typeof robot, value?: string) {
+    if (value === 'dark' || value === 'light') applyColor(value)
+  }
+  const registerColorDrawerButton = () => {
+    robot.drawer.addDrawerButton({
+      key: 'toggleColor',
+      label: '配色',
+      kind: 'swatch',
+      value: colorMode,
+      options: colorOptions,
+      callback: selectColor,
+    })
+  }
+  const applyColor = (value: 'dark' | 'light') => {
+    colorMode = value
+    if (colorMode === 'light') {
       robot.setColor('primary', 0xff, 0xff, 0xff)
       robot.setColor('secondary', 0x00, 0x00, 0x00)
     } else {
       robot.setColor('primary', 0x00, 0x00, 0x00)
       robot.setColor('secondary', 0xff, 0xff, 0xff)
     }
-    flag = !flag
+    registerColorDrawerButton()
   }
-  robot.drawer.addDrawerButton({
-    key: 'toggleColor',
-    label: 'Color',
-    callback: toggleColor,
-  })
+  registerColorDrawerButton()
 
   if (robot.imu != null) {
     const motionEmotionMap: Record<MotionType, Emotion> = {
@@ -507,12 +539,10 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
 
       const motionEmotion = motionEmotionMap[type]
       setEmotionWithEffect(robot, motionEmotion)
-      emotionIndex = Math.max(0, emotions.indexOf(motionEmotion))
       motionDetectRestoreTimer = Timer.set(() => {
         if (currentEmotion === motionEmotion) {
           const restoreEmotion = motionDetectPreviousEmotion ?? Emotion.NEUTRAL
           trace(`[IMU] restore emotion ${restoreEmotion}\n`)
-          emotionIndex = Math.max(0, emotions.indexOf(restoreEmotion))
           setEmotionWithEffect(robot, restoreEmotion)
         }
         motionDetectPreviousEmotion = undefined
@@ -543,7 +573,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         if (!event.pressed) {
           return
         }
-        toggleColor()
+        applyColor(colorMode === 'light' ? 'dark' : 'light')
       }
     }
   }
@@ -572,7 +602,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
           Timer.clear(pettingHoldTimer)
           pettingHoldTimer = undefined
         }
-        emotionIndex = emotions.indexOf(Emotion.HAPPY)
         setEmotionWithEffect(robot, Emotion.HAPPY)
         if (!pettingMotionActive) {
           pettingMotionActive = true
@@ -596,7 +625,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         pettingRestoreTimer = Timer.set(() => {
           const restoreEmotion = pettingPreviousEmotion ?? Emotion.NEUTRAL
           trace(`[TouchPanel] restore emotion ${restoreEmotion}\n`)
-          emotionIndex = Math.max(0, emotions.indexOf(restoreEmotion))
           setEmotionWithEffect(robot, restoreEmotion)
           if (pettingHoldTimer) {
             Timer.clear(pettingHoldTimer)

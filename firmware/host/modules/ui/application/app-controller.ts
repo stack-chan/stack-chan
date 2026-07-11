@@ -1,4 +1,4 @@
-import type { DrawerButtonSpec } from 'drawer'
+import type { DrawerButtonViewSpec } from 'drawer'
 import type { FaceState } from 'face-state'
 import {
   FaceMainTemplate,
@@ -77,11 +77,11 @@ export class AppController extends Behavior {
     this.#viewBehavior?.showFace?.()
   }
 
-  setDrawerButtons(buttons: DrawerButtonSpec[]): void {
+  setDrawerButtons(buttons: DrawerButtonViewSpec[]): void {
     this.#viewBehavior?.setDrawerButtons?.(buttons)
   }
 
-  addDrawerButton(button: DrawerButtonSpec): void {
+  addDrawerButton(button: DrawerButtonViewSpec): void {
     this.#viewBehavior?.addDrawerButton?.(button)
   }
 
@@ -105,14 +105,14 @@ export class AppController extends Behavior {
     this.#viewBehavior?.toggleDrawer?.()
   }
 
-  bindDrawerAction(key: string, callback: () => void): boolean {
+  bindDrawerAction(key: string, callback: (value?: string) => void): boolean {
     const target = this as unknown as Record<string, unknown>
     const ownsKey = this.#drawerActionKeys.has(key)
     if (!ownsKey && typeof target[key] === 'function') {
       trace(`[AppController] drawer action key collision: ${key}\n`)
       return false
     }
-    target[key] = callback
+    target[key] = (_content: PiuContent, value?: string) => callback(value)
     this.#drawerActionKeys.add(key)
     return true
   }
@@ -136,6 +136,7 @@ export class AppController extends Behavior {
   onDrawerClose(): void {
     trace('[AppController] onDrawerClose\n')
     this.closeDrawer()
+    this.#application?.distribute('onMenuReveal')
   }
 
   onFaceTouch(): void {

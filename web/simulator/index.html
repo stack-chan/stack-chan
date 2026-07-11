@@ -12,47 +12,87 @@
         }
       }
     </script>
+    <script
+      src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.min.js"
+      integrity="sha384-mooE85Luwgx+AyykX7e90VcN8/QCFTSIwPuHLmvcsLVoA0en7lKYb9XlOzn5G2co"
+      crossorigin="anonymous"
+    ></script>
   </head>
   <body>
     <main class="app-shell">
-      <section class="hero">
-        <h1>ｽﾀｯｸﾁｬﾝWebシミュレーター</h1>
-        <p>ブラウザ上でｽﾀｯｸﾁｬﾝのWASMアプリと3Dボディを操作できます。</p>
-        <ul class="usage-list">
-          <li>3Dビューでドラッグ: 視点変更</li>
-          <li>3Dビューでホイール: ズーム</li>
-          <li>ｽﾀｯｸﾁｬﾝの画面をクリック/ドラッグ: ｽﾀｯｸﾁｬﾝを操作</li>
-        </ul>
-      </section>
+      <header class="topbar">
+        <h1><span>ｽﾀｯｸﾁｬﾝ</span><span class="surface-name"> Web Simulator</span></h1>
+        <p id="simulator-info" role="status">WASMを読み込み中</p>
+      </header>
 
-      <section class="simulator-layout">
-        <div class="viewport-card">
+      <div class="simulator-layout">
+        <section class="simulator-stage" aria-label="ｽﾀｯｸﾁｬﾝ3Dシミュレーター">
           <canvas id="stackchan-viewport" aria-label="3D Stack-chan simulator"></canvas>
           <canvas id="simulator-screen" width="320" height="240" aria-label="Stack-chan screen canvas"></canvas>
-        </div>
+        </section>
 
-        <aside class="control-card">
-          <h2>状態</h2>
-          <p id="simulator-info">Loading WASM…</p>
-          <div class="mod-installer">
-            <label class="file-button" for="mod-archive-input">Install .xsa</label>
+        <aside class="inspector" aria-label="シミュレーター操作">
+          <section class="tool-section" aria-labelledby="mod-heading">
+            <div class="section-heading">
+              <h2 id="mod-heading">MOD</h2>
+              <div class="icon-actions">
+                <a
+                  class="icon-button"
+                  href="./samples/stackchan-sample-mod.xsa"
+                  download="stackchan-sample-mod.xsa"
+                  aria-label="サンプルMODをダウンロード"
+                  title="サンプルMODをダウンロード"
+                >
+                  <i data-lucide="download" aria-hidden="true"></i>
+                </a>
+                <button
+                  class="icon-button"
+                  id="simulator-restart-button"
+                  type="button"
+                  aria-label="シミュレーターを再起動"
+                  title="シミュレーターを再起動"
+                >
+                  <i data-lucide="rotate-cw" aria-hidden="true"></i>
+                </button>
+                <button
+                  class="icon-button danger"
+                  id="mod-clear-button"
+                  type="button"
+                  aria-label="MODを削除"
+                  title="MODを削除"
+                >
+                  <i data-lucide="trash-2" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+            <label class="command-button" for="mod-archive-input">
+              <i data-lucide="upload" aria-hidden="true"></i>
+              <span>MODを追加</span>
+            </label>
             <input id="mod-archive-input" type="file" accept=".xsa,application/octet-stream" />
-            <a class="sample-download" href="./samples/stackchan-sample-mod.xsa" download="stackchan-sample-mod.xsa"
-              >Download sample .xsa</a
-            >
-            <button id="simulator-restart-button" type="button">Restart simulator</button>
-            <button id="mod-clear-button" type="button">Clear MOD</button>
-            <p id="mod-install-status">MOD: empty</p>
-          </div>
-          <div class="camera-controls" aria-label="browser camera controls">
-            <button id="browser-camera-button" type="button">ブラウザカメラ開始</button>
-            <p id="browser-camera-status">Cameraボタンから自動開始を試します。必要ならこのボタンで許可してください。</p>
-          </div>
-          <pre id="trace-log" aria-label="firmware trace log"></pre>
+            <p id="mod-install-status" role="status">MODなし</p>
+          </section>
+
+          <section class="tool-section" aria-labelledby="camera-heading">
+            <h2 id="camera-heading">カメラ</h2>
+            <button id="browser-camera-button" class="command-button" type="button">
+              <i data-lucide="camera" aria-hidden="true"></i>
+              <span>カメラを接続</span>
+            </button>
+            <p id="browser-camera-status" role="status">未接続</p>
+          </section>
+
+          <section class="trace-section" aria-labelledby="trace-heading">
+            <h2 id="trace-heading">ログ</h2>
+            <pre id="trace-log" aria-label="firmware trace log"></pre>
+          </section>
         </aside>
-      </section>
+      </div>
     </main>
 
     <script type="module" src="./simulator.mjs"></script>
+    <script>
+      globalThis.lucide?.createIcons()
+    </script>
   </body>
 </html>

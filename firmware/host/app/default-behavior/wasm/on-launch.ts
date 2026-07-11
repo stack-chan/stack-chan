@@ -6,14 +6,14 @@ import Timer from 'timer'
 const SPLASH_VISIBLE_MS = 8000
 
 export const onLaunch = async (): Promise<boolean> => {
-  const startupChoice = await waitForStartupChoice<ReturnType<typeof showStartupSplash>>({
-    timer: Timer,
-    showStartupSplash,
-    autoBootDelayMs: SPLASH_VISIBLE_MS,
-  })
-  if (startupChoice.choice === 'boot') {
-    return true
+  while (true) {
+    const startupChoice = await waitForStartupChoice<ReturnType<typeof showStartupSplash>>({
+      timer: Timer,
+      showStartupSplash,
+      autoBootDelayMs: SPLASH_VISIBLE_MS,
+    })
+    if (startupChoice.choice === 'boot') return true
+    const setupChoice = await startSetupMode(startupChoice.application)
+    if (setupChoice === 'boot') return true
   }
-  startSetupMode(startupChoice.application)
-  return false
 }

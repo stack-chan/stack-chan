@@ -1,0 +1,147 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --card: #ffffff;
+  --ink: #2b2620;
+  --accent: #e2792f;
+  --accent-ink: #ffffff;
+  --line: #d8d0c2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.editor-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  height: 100vh;
+}
+
+.editor-header h1 {
+  margin: 0 0 4px;
+  font-size: 1.4rem;
+}
+
+.editor-header p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 480px;
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.panel-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.panel-card h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+button {
+  font: inherit;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #faf7f0;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.baud-row {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.status {
+  margin: 4px 0;
+  font-size: 0.9rem;
+}
+
+.hint {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: #6d6558;
+}
+
+progress {
+  width: 100%;
+}
+
+#code-preview,
+#log-output {
+  margin: 0;
+  padding: 8px;
+  background: #221d18;
+  color: #e8e2d6;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  overflow: auto;
+  max-height: 240px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+@media (max-width: 960px) {
+  .editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-card {
+    min-height: 60vh;
+  }
+}

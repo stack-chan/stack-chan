@@ -123,6 +123,10 @@ assert(
   buttons.every((button) => button.key !== 'cameraPreview'),
   'cameraPreview button should not be registered when camera is unavailable',
 )
+assert(
+  buttons.some((button) => button.key === 'speakStackchan'),
+  'speakStackchan button should be registered',
+)
 assert(touchPanel.onEvent, 'touchPanel handler should be registered')
 touchPanel.onEvent?.({ gesture: 'forwardSwipe', position: 0.25, intensity: 3, ticks: 100 })
 touchPanel.onEvent?.({ gesture: 'backwardSwipe', position: 0.75, intensity: 3, ticks: 500 })

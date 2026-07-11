@@ -202,6 +202,8 @@ export function createStackchanContext(
     throw new Error(errors.join('\n'))
   }
 
+  trace(`[main] TTS engine: ${ttsKey}\n`)
+
   const driver = Driver(driverPrefs)
   const ui = UI(uiPrefs)
   const tts = TTS(ttsPrefs)

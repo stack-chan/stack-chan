@@ -82,6 +82,12 @@ describe('Stack-chan platform manifest', () => {
       'CoreS3 touch controller should be configured for polling mode',
     )
     assert.equal(m5StackChanPlatformManifest.config.driver.type, 'm5stackchan')
+    assert.deepEqual(m5StackChanPlatformManifest.config.tts, {
+      type: 'stackchan-voice',
+      voice: 'normal',
+      speed: 100,
+      volume: 0.1,
+    })
     assert.deepEqual(m5StackChanPlatformManifest.config.driver.serial, {
       transmit: 6,
       receive: 7,

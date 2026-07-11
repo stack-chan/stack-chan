@@ -50,7 +50,13 @@
     "touchIdleIntervalMs": 50,
     "touchActiveIntervalMs": 8,
     "touchReleaseDebounceMs": 75,
-    "virtualButton": false
+    "virtualButton": false,
+    "tts": {
+      "type": "stackchan-voice",
+      "voice": "normal",
+      "speed": 100,
+      "volume": 0.1
+    }
   },
   "defines": {
     "camera": {

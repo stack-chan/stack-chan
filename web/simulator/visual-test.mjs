@@ -211,6 +211,22 @@ async function inspectViewport(page, name, width, height) {
     await page.waitForTimeout(700)
     const passwordSignature = await screenSignature()
     assert.notEqual(passwordSignature, settingsSignature, 'network selection must open the password screen')
+    const passwordLayout = await page.evaluate(() => {
+      const screen = document.querySelector('#simulator-screen')
+      const pixels = screen.getContext('2d')
+      const brightnessAt = (x, y) => {
+        const [r, g, b] = pixels.getImageData(x, y, 1, 1).data
+        return r + g + b
+      }
+      return {
+        field: brightnessAt(20, 60),
+        gap: brightnessAt(20, 74),
+        bottomKey: brightnessAt(10, 220),
+      }
+    })
+    assert.equal(passwordLayout.field > 600, true, 'password field must remain visible above the keyboard')
+    assert.equal(passwordLayout.gap < 100, true, 'password field and keyboard must not overlap')
+    assert.equal(passwordLayout.bottomKey > 300, true, 'keyboard bottom row must remain visible')
     await page.screenshot({ path: '/tmp/stackchan-password.png', fullPage: true })
     await savePiuScreen('password')
     await touchPiu(22, 20)

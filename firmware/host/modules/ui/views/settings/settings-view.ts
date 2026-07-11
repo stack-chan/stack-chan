@@ -55,10 +55,10 @@ const STATUS_HEIGHT = 28
 const ACTION_TOP = STATUS_TOP + STATUS_HEIGHT + 4
 const NETWORK_LIST_TOP = ACTION_TOP + UI.touchTarget + 6
 const NETWORK_ROW_HEIGHT = 40
-const PASSWORD_HEADER_HEIGHT = 68
-const PASSWORD_FIELD_TOP = PASSWORD_HEADER_HEIGHT + 2
-const PASSWORD_FIELD_HEIGHT = 32
-const PASSWORD_KEYBOARD_TOP = PASSWORD_FIELD_TOP + PASSWORD_FIELD_HEIGHT + 4
+const PASSWORD_SSID_HEIGHT = 12
+const PASSWORD_FIELD_TOP = UI.headerHeight + PASSWORD_SSID_HEIGHT
+const PASSWORD_FIELD_HEIGHT = 20
+const PASSWORD_KEYBOARD_HEIGHT = 164
 const MAX_SSID_CHARS = 30
 
 let rowPressedSkin: PiuSkin | null = null
@@ -325,14 +325,14 @@ export const buildSettingsPasswordView = (
           left: 0,
           right: 0,
           top: 0,
-          height: PASSWORD_HEADER_HEIGHT,
+          height: PASSWORD_FIELD_TOP,
           contents: [
             new ScreenHeader({ title: 'Wi-Fiパスワード', leading: 'back', onLeading: options.onBack }),
             new Label(null, {
               left: 12,
               right: 12,
               top: UI.headerHeight,
-              height: 28,
+              height: PASSWORD_SSID_HEIGHT,
               string: fitSSID(ssid),
               style: styles.bodyMuted,
             }),
@@ -353,8 +353,8 @@ export const buildSettingsPasswordView = (
           anchor: 'KEYBOARD',
           left: 0,
           right: 0,
-          top: PASSWORD_KEYBOARD_TOP,
           bottom: 0,
+          height: PASSWORD_KEYBOARD_HEIGHT,
           Skin: getKeyboardFieldSkinTemplate(),
         }),
       ],

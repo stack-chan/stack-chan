@@ -105,7 +105,7 @@ export class AppController extends Behavior {
     this.#viewBehavior?.toggleDrawer?.()
   }
 
-  bindDrawerAction(key: string, callback: () => void): boolean {
+  bindDrawerAction(key: string, callback: (value?: string) => void): boolean {
     const target = this as unknown as Record<string, unknown>
     const ownsKey = this.#drawerActionKeys.has(key)
     if (!ownsKey && typeof target[key] === 'function') {

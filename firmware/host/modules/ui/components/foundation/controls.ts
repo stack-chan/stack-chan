@@ -7,6 +7,7 @@ export type IconName =
   | 'camera'
   | 'close'
   | 'menu'
+  | 'microphone'
   | 'offline'
   | 'palette'
   | 'play'
@@ -20,6 +21,7 @@ export type ActionButtonData = {
   icon: IconName
   label?: string
   onTap?: () => void
+  action?: string
   enabled?: boolean
   selected?: boolean
   tone?: 'default' | 'accent' | 'success'
@@ -121,6 +123,13 @@ function drawIcon(port: PiuPort, icon: IconName, color: string) {
       port.fillColor(color, cx - 3, cy - 2, 7, 7)
       port.fillColor(color, cx - 5, cy - 9, 10, 4)
       return
+    case 'microphone':
+      port.fillColor(color, cx - 4, cy - 9, 8, 14)
+      port.fillColor(color, cx - 8, cy + 1, 3, 5)
+      port.fillColor(color, cx + 5, cy + 1, 3, 5)
+      port.fillColor(color, cx - 5, cy + 6, 10, 3)
+      port.fillColor(color, cx - 2, cy + 9, 4, 4)
+      return
     case 'palette':
       port.fillColor('#ef6262', cx - 8, cy - 7, 7, 7)
       port.fillColor('#42bde8', cx + 1, cy - 7, 7, 7)
@@ -129,7 +138,7 @@ function drawIcon(port: PiuPort, icon: IconName, color: string) {
   }
 }
 
-const Icon = Port.template((_$: MutableButtonData) => ({
+export const IconView = Port.template((_$: MutableButtonData) => ({
   width: 32,
   height: 32,
   active: false,
@@ -147,14 +156,12 @@ const Icon = Port.template((_$: MutableButtonData) => ({
 }))
 
 export const ActionButton = Container.template(($: ActionButtonData) => {
-  const data: MutableButtonData = {
-    ...$,
-    enabled: $.enabled !== false,
-    selected: $.selected === true,
-  }
+  const data = $ as MutableButtonData
+  data.enabled = $.enabled !== false
+  data.selected = $.selected === true
   const styles = uiStyles()
   const iconOnly = !data.label
-  const contents: PiuContent[] = [new Icon(data, { left: iconOnly ? 6 : 8, top: 6 })]
+  const contents: PiuContent[] = [new IconView(data, { left: iconOnly ? 6 : 8, top: 6 })]
   if (data.label) {
     contents.push(
       new Label(null, {
@@ -210,7 +217,10 @@ export const ActionButton = Container.template(($: ActionButtonData) => {
       }
       onTouchEnded(container: PiuContainer) {
         this.apply(container)
-        if (!this.moved && this.data?.enabled) this.data.onTap?.()
+        if (!this.moved && this.data?.enabled) {
+          this.data.onTap?.()
+          if (this.data.action) container.bubble(this.data.action)
+        }
         this.moved = false
       }
       setEnabled(container: PiuContainer, enabled: boolean) {

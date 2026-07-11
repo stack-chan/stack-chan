@@ -1,4 +1,5 @@
 import { Container, Content, Skin } from 'piu/MC'
+import { ActionButton } from 'ui-controls'
 
 export const ChatStatusBarState = Object.freeze({
   FAILED: 0,
@@ -13,7 +14,7 @@ export const ChatStatusBarState = Object.freeze({
 
 export type ChatStatusBarState = (typeof ChatStatusBarState)[keyof typeof ChatStatusBarState]
 
-const barHeight = 18
+const barHeight = 44
 const levelHeight = 16
 const levelWidth = 4
 const iconSize = 16
@@ -182,6 +183,13 @@ export const ChatStatusBar = Container.template(() => {
           }),
         ],
       }),
+      new ActionButton(
+        {
+          icon: 'menu',
+          action: 'onDrawerToggle',
+        },
+        { right: 0, top: 0, width: 44, height: 44 },
+      ),
     ],
     Behavior: ChatStatusBarBehavior,
   }

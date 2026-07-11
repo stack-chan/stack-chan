@@ -27,8 +27,17 @@ export type RobotLed = {
 export type DrawerButtonViewSpec = {
   key: string
   label: string
-  kind?: 'action' | 'toggle'
+  kind?: 'action' | 'choice' | 'swatch' | 'toggle'
   active?: boolean
+  value?: string
+  options?: DrawerOption[]
+  icon?: 'camera' | 'microphone' | 'play'
+}
+
+export type DrawerOption = {
+  value: string
+  label: string
+  color?: string
 }
 
 export type RobotUI = {
@@ -45,7 +54,7 @@ export type RobotUI = {
   addDrawerButton(button: DrawerButtonViewSpec): void
   removeDrawerButton(key: string): void
   setDrawerButtonState(key: string, active: boolean): void
-  bindDrawerAction(key: string, callback: () => void): boolean
+  bindDrawerAction(key: string, callback: (value?: string) => void): boolean
   unbindDrawerAction(key: string): void
   openDrawer(): void
   closeDrawer(): void
@@ -59,9 +68,12 @@ export type Button = {
 export type DrawerButtonSpec = {
   key: string
   label: string
-  callback: (context: StackchanContext) => unknown
-  kind?: 'action' | 'toggle'
+  callback: (context: StackchanContext, value?: string) => unknown
+  kind?: 'action' | 'choice' | 'swatch' | 'toggle'
   initialState?: boolean
+  value?: string
+  options?: DrawerOption[]
+  icon?: 'camera' | 'microphone' | 'play'
 }
 
 export type DrawerCapability = {

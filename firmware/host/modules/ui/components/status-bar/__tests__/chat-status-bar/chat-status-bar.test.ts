@@ -26,6 +26,7 @@ type StatusIcon = {
 }
 
 type StatusIndicator = {
+  next?: LevelTrack
   visible?: boolean
 }
 
@@ -42,7 +43,7 @@ type LevelFill = {
 const bar = app.first as unknown as StatusBarContent
 const statusIcon = bar.first as StatusIcon
 const statusIndicator = statusIcon.next as StatusIndicator
-const levelTrack = bar.last as LevelTrack
+const levelTrack = statusIndicator.next as LevelTrack
 const levelFill = levelTrack.first as LevelFill
 const behavior = bar.behavior as StatusBarBehavior
 

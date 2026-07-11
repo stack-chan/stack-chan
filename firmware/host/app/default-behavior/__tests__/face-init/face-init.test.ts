@@ -4,7 +4,7 @@ import { assert, equal } from 'testing/assert'
 
 trace('=== default-mod face init test ===\n')
 
-const buttons: { key?: string }[] = []
+const buttons: { key?: string; kind?: string; value?: string; options?: unknown[] }[] = []
 const drawerStates: [string, boolean][] = []
 const events: [string, unknown][] = []
 const emotions: unknown[] = []
@@ -88,8 +88,10 @@ try {
 }
 
 equal(buttons[0]?.key, 'toggleFace', 'toggleFace button should be registered')
-equal(drawerStates[0]?.[0], 'toggleFace', 'toggleFace state should be initialized')
-equal(drawerStates[0]?.[1], false, 'toggleFace should start inactive')
+equal(buttons[0]?.kind, 'choice', 'face selection should use an option menu')
+equal(buttons[0]?.value, 'simple', 'face selection should expose its current value')
+equal(buttons[0]?.options?.length, 3, 'face selection should expose every mode')
+equal(drawerStates.length, 0, 'choice controls should not masquerade as binary toggles')
 equal(events[0]?.[0], 'onFaceMode', 'initial face mode should be distributed')
 equal(events[0]?.[1], 'simple', 'initial face mode should be simple')
 assert(

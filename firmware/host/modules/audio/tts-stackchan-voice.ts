@@ -7,12 +7,7 @@ import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-ty
 
 const OUTPUT_SAMPLE_RATE = 24000
 const BYTES_PER_SAMPLE = 2
-const ASYNC_BUFFER_SAMPLES = 1024
-const ASYNC_BUFFER_COUNT = 4
-// AudioOut.Async completes a write when its bytes have entered the device DMA,
-// not when the speaker has played them.  Queue enough silence after synthesis
-// to push the final speech samples out of the CoreS3 DMA before closing it.
-const DRAIN_SAMPLES = OUTPUT_SAMPLE_RATE / 2
+const FIFO_LENGTH = 64
 
 export type TTSProperty = {
   onPlayed?: TTSPlaybackListener
@@ -26,15 +21,6 @@ type PCMChunk = {
   buffer: ArrayBuffer
   bytes: Uint8Array
   samples: number
-  power: number
-}
-
-type AsyncAudioOut = AudioOut & {
-  write(buffer: ArrayBuffer, completion: (error: Error | null) => void): void
-}
-
-type AudioOutWithAsync = typeof AudioOut & {
-  Async: new (options: { sampleRate: number; bitsPerSample: 16; channels: 1 }) => AsyncAudioOut
 }
 
 export class TTS {
@@ -45,11 +31,17 @@ export class TTS {
   readonly speed: number
   readonly voice: StackchanVoice
 
-  #output?: AsyncAudioOut
+  #output?: AudioOut
   #lifecycle?: TTSPlaybackLifecycle
   #generating = false
-  #drainSamples = 0
-  #queued = 0
+  #draining = false
+  #freeBytes = 0
+  #pendingBytes = 0
+  #fifoHead = 0
+  #fifoTail = 0
+  #fifoCount = 0
+  readonly #fifoBytes = new Uint32Array(FIFO_LENGTH)
+  readonly #fifoPower = new Float64Array(FIFO_LENGTH)
   readonly #chunks: PCMChunk[]
 
   constructor(props: TTSProperty = {}) {
@@ -59,9 +51,9 @@ export class TTS {
     this.speed = props.speed ?? 100
     const preset = props.voice === 'cute' ? StackchanVoice.Cute : StackchanVoice.Normal
     this.voice = new StackchanVoice(preset, new Resource('stackchan-ja.aqd'))
-    this.#chunks = Array.from({ length: ASYNC_BUFFER_COUNT }, () => {
-      const buffer = new ArrayBuffer(ASYNC_BUFFER_SAMPLES * BYTES_PER_SAMPLE)
-      return { buffer, bytes: new Uint8Array(buffer), samples: ASYNC_BUFFER_SAMPLES, power: 0 }
+    this.#chunks = [256, 128, 64, 32, 16, 8, 4, 2, 1].map((samples) => {
+      const buffer = new ArrayBuffer(samples * BYTES_PER_SAMPLE)
+      return { buffer, bytes: new Uint8Array(buffer), samples }
     })
   }
 
@@ -73,13 +65,12 @@ export class TTS {
       this.#resetPlayback(lifecycle)
       this.voice.say(text, this.speed)
       this.#generating = true
-      this.#drainSamples = DRAIN_SAMPLES
 
-      const AsyncAudioOut = (AudioOut as AudioOutWithAsync).Async
-      const output = new AsyncAudioOut({
+      const output = new AudioOut({
         sampleRate: OUTPUT_SAMPLE_RATE,
         bitsPerSample: 16,
         channels: 1,
+        onWritable: (size) => this.#onWritable(size),
       })
       output.volume = volume ?? this.volume
       this.#output = output
@@ -93,10 +84,6 @@ export class TTS {
         }
       })
       output.start()
-      for (const chunk of this.#chunks) {
-        if (!this.#queueChunk(chunk)) break
-      }
-      if (this.#queued === 0) lifecycle.onDone()
     } catch (error) {
       lifecycle.fail(error)
     }
@@ -105,65 +92,99 @@ export class TTS {
   #resetPlayback(lifecycle: TTSPlaybackLifecycle): void {
     this.#lifecycle = lifecycle
     this.#generating = false
-    this.#drainSamples = 0
-    this.#queued = 0
+    this.#draining = false
+    this.#freeBytes = 0
+    this.#pendingBytes = 0
+    this.#fifoHead = 0
+    this.#fifoTail = 0
+    this.#fifoCount = 0
   }
 
-  #queueChunk(chunk: PCMChunk): boolean {
+  #onWritable(size: number): void {
     const lifecycle = this.#lifecycle
     const output = this.#output
-    if (!lifecycle || !output || !this.streaming || !this.#generating) return false
+    if (!lifecycle || !output || !this.streaming) return
 
     try {
-      const samples = this.voice.read24(chunk.buffer)
-      if (samples === 0) {
-        this.#generating = false
-        return false
+      const writable = size - (size % BYTES_PER_SAMPLE)
+      const consumed = Math.max(0, writable - this.#freeBytes)
+      this.#reportConsumed(consumed, lifecycle)
+      this.#freeBytes = writable
+
+      if (this.#draining) {
+        if (this.#pendingBytes === 0) lifecycle.onDone()
+        return
       }
-      if (samples < chunk.samples) {
-        chunk.bytes.fill(0, samples * BYTES_PER_SAMPLE)
-        this.#generating = false
-        this.#drainSamples = Math.max(0, this.#drainSamples - (chunk.samples - samples))
+
+      let remaining = writable
+      while (remaining >= BYTES_PER_SAMPLE) {
+        const chunk = this.#chunkFor(remaining)
+        let power = 0
+
+        if (this.#generating) {
+          const samples = this.voice.read24(chunk.buffer)
+          if (samples === 0) {
+            this.#generating = false
+            chunk.bytes.fill(0)
+          } else {
+            if (samples < chunk.samples) {
+              chunk.bytes.fill(0, samples * BYTES_PER_SAMPLE)
+              this.#generating = false
+            }
+            power = calculatePower(chunk.buffer)
+          }
+        } else {
+          chunk.bytes.fill(0)
+        }
+
+        output.write(chunk.buffer)
+        this.#freeBytes -= chunk.buffer.byteLength
+        this.#enqueue(chunk.buffer.byteLength, power)
+        remaining -= chunk.buffer.byteLength
       }
-      chunk.power = calculatePower(chunk.buffer)
-      this.#queued += 1
-      output.write(chunk.buffer, (error) => this.#onChunkPlayed(chunk, error))
-      return true
+
+      // Once synthesis ends, the rest of this writable DMA window has been
+      // zero-filled. Subsequent onWritable calls are therefore hardware
+      // progress notifications; no fixed drain delay is required.
+      if (!this.#generating) this.#draining = true
     } catch (error) {
       lifecycle.fail(error)
-      return false
     }
   }
 
-  #queueDrain(chunk: PCMChunk): boolean {
-    const lifecycle = this.#lifecycle
-    const output = this.#output
-    if (!lifecycle || !output || !this.streaming || this.#drainSamples <= 0) return false
-
-    try {
-      chunk.bytes.fill(0)
-      chunk.power = 0
-      this.#drainSamples = Math.max(0, this.#drainSamples - chunk.samples)
-      this.#queued += 1
-      output.write(chunk.buffer, (error) => this.#onChunkPlayed(chunk, error))
-      return true
-    } catch (error) {
-      lifecycle.fail(error)
-      return false
+  #chunkFor(byteLength: number): PCMChunk {
+    for (const chunk of this.#chunks) {
+      if (chunk.buffer.byteLength <= byteLength) return chunk
     }
+    return this.#chunks[this.#chunks.length - 1]
   }
 
-  #onChunkPlayed(chunk: PCMChunk, error: Error | null): void {
-    const lifecycle = this.#lifecycle
-    if (!lifecycle || !this.streaming) return
-    this.#queued -= 1
-    if (error) {
-      lifecycle.fail(error)
-      return
+  #enqueue(bytes: number, power: number): void {
+    if (this.#fifoCount >= FIFO_LENGTH) throw new Error('stackchan-voice playback queue overflow')
+    this.#fifoBytes[this.#fifoTail] = bytes
+    this.#fifoPower[this.#fifoTail] = power
+    this.#fifoTail = (this.#fifoTail + 1) % FIFO_LENGTH
+    this.#fifoCount += 1
+    this.#pendingBytes += bytes
+  }
+
+  #reportConsumed(bytes: number, lifecycle: TTSPlaybackLifecycle): void {
+    let remaining = bytes
+    let weightedPower = 0
+    let consumed = 0
+    while (remaining > 0 && this.#fifoCount > 0) {
+      const entryBytes = this.#fifoBytes[this.#fifoHead]
+      const take = Math.min(remaining, entryBytes)
+      weightedPower += this.#fifoPower[this.#fifoHead] * take
+      consumed += take
+      remaining -= take
+      this.#pendingBytes -= take
+      this.#fifoBytes[this.#fifoHead] = entryBytes - take
+      if (this.#fifoBytes[this.#fifoHead] === 0) {
+        this.#fifoHead = (this.#fifoHead + 1) % FIFO_LENGTH
+        this.#fifoCount -= 1
+      }
     }
-    lifecycle.onPower(chunk.power)
-    if (this.#generating && this.#queueChunk(chunk)) return
-    if (!this.#generating && this.#drainSamples > 0 && this.#queueDrain(chunk)) return
-    if (this.#queued === 0) lifecycle.onDone()
+    if (consumed > 0) lifecycle.onPower(weightedPower / consumed)
   }
 }

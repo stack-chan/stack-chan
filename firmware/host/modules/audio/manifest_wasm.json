@@ -17,6 +17,7 @@
     "tts-voicevox-web": "./wasm/tts-voicevox-web",
     "tts-elevenlabs": "./wasm/tts-elevenlabs",
     "tts-openai": "./wasm/tts-openai",
+    "tts-stackchan-voice": "./wasm/tts-stackchan-voice",
     "tts-stub": "./wasm/tts-stub"
   },
   "preload": ["wasm-audio-bridge"]

@@ -1,6 +1,7 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/modules/io/audioout/manifest.json",
     "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
     "$(MODDABLE)/examples/pins/audioout/http-stream/manifest_wavstreamer.json",
     "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
@@ -11,7 +12,8 @@
     "$(MODDABLE)/modules/data/url/manifest.json",
     "../util/manifest.json",
     "./manifest_file.json",
-    "../../app/manifest_typings.json"
+    "../../app/manifest_typings.json",
+    "../../../vendor/stackchan-voice/manifest.json"
   ],
   "modules": {
     "*": [
@@ -36,7 +38,8 @@
     "tts-voicevox",
     "tts-voicevox-web",
     "tts-elevenlabs",
-    "tts-openai"
+    "tts-openai",
+    "tts-stackchan-voice"
   ],
   "data": {
     "*": ["$(MODULES)/crypt/data/ca109", "$(MODULES)/crypt/data/ca236"]
@@ -67,9 +70,6 @@
       }
     },
     "lin": {
-      "build": {
-        "LIBRARIES": "-lasound"
-      },
       "modules": {
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
         "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/lin/audioin"

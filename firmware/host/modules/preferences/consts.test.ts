@@ -8,5 +8,7 @@ test('preference domains and keys describe the app configuration surface', () =>
   assert.equal(DOMAIN.driver, 'driver')
   assert.ok(PREF_KEYS.some(([domain, key, ctor]) => domain === DOMAIN.ui && key === 'type' && ctor === String))
   assert.ok(PREF_KEYS.some(([domain, key, ctor]) => domain === DOMAIN.driver && key === 'baudrate' && ctor === Number))
+  assert.ok(PREF_KEYS.some(([domain, key, ctor]) => domain === DOMAIN.tts && key === 'voice' && ctor === String))
+  assert.ok(PREF_KEYS.some(([domain, key, ctor]) => domain === DOMAIN.tts && key === 'speed' && ctor === Number))
   assert.equal(DEFAULT_FONT, 'OpenSans-Regular-24.bf4')
 })

@@ -50,7 +50,15 @@ test('wasm TTS engines share one stub through stable module specifiers', () => {
   const manifest = JSON.parse(readFileSync('host/modules/audio/manifest_wasm.json', 'utf8')) as {
     modules: Record<string, string>
   }
-  const engines = ['tts-local', 'tts-remote', 'tts-voicevox', 'tts-voicevox-web', 'tts-elevenlabs', 'tts-openai']
+  const engines = [
+    'tts-local',
+    'tts-remote',
+    'tts-voicevox',
+    'tts-voicevox-web',
+    'tts-elevenlabs',
+    'tts-openai',
+    'tts-stackchan-voice',
+  ]
 
   assert.equal(manifest.modules['tts-stub'], './wasm/tts-stub')
   assert.match(readFileSync('host/modules/audio/wasm/tts-stub.ts', 'utf8'), /export class TTS/)
@@ -122,6 +130,17 @@ test('device TTS engines delegate playback state and AudioOut lifecycle to the s
     assert.doesNotMatch(source, /new AudioOut\(/, `${file} should not construct AudioOut directly`)
     assert.doesNotMatch(source, /this\.streaming\s*=\s*true/, `${file} should not own streaming activation`)
   }
+
+  const streamingSource = readFileSync('host/modules/audio/tts-stackchan-voice.ts', 'utf8')
+  assert.match(streamingSource, /from 'tts-playback-lifecycle'/)
+  assert.match(streamingSource, /beginTTSPlayback\(this, callback/)
+  assert.match(streamingSource, /lifecycle\.addCleanup\(/)
+  assert.match(streamingSource, /new AudioOut\(/)
+  assert.match(streamingSource, /new Resource\('stackchan-ja\.aqd'\)/)
+  assert.match(streamingSource, /props\.volume \?\? 0\.1/)
+  assert.match(streamingSource, /props\.speed \?\? 100/)
+  assert.match(streamingSource, /lifecycle\.onPower\(/)
+  assert.doesNotMatch(streamingSource, /this\.streaming\s*=\s*true/)
 })
 
 test('Whisper multipart upload does not concatenate the whole recording buffer', () => {

@@ -125,6 +125,7 @@ test('WASM audio manifest owns audio bridge, microphone, speaker, and TTS stubs'
       'tts-voicevox-web': manifest.modules['tts-voicevox-web'],
       'tts-elevenlabs': manifest.modules['tts-elevenlabs'],
       'tts-openai': manifest.modules['tts-openai'],
+      'tts-stackchan-voice': manifest.modules['tts-stackchan-voice'],
     },
     {
       'audio-buffer': './audio-buffer',
@@ -140,6 +141,7 @@ test('WASM audio manifest owns audio bridge, microphone, speaker, and TTS stubs'
       'tts-voicevox-web': './wasm/tts-voicevox-web',
       'tts-elevenlabs': './wasm/tts-elevenlabs',
       'tts-openai': './wasm/tts-openai',
+      'tts-stackchan-voice': './wasm/tts-stackchan-voice',
     },
   )
   assert.ok(manifest.preload.includes('wasm-audio-bridge'))

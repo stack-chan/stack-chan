@@ -1,0 +1,26 @@
+{
+  "upstream": "https://github.com/meganetaaan/stackchan-voice",
+  "revision": "db23bb893f680a2073b33d9c8429d95baec424ab",
+  "dirty": true,
+  "dictionary": {
+    "file": "data/stackchan-ja.aqd",
+    "sha256": "57414645e35d8f2e14bf964d3b92ee0aeb7311db2121fb8c07c08d026c0c8d47",
+    "source": "Contemporary Written Japanese UniDic",
+    "version": "3.1.1",
+    "license": "modified BSD"
+  },
+  "files": {
+    "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "NOTICE": "34224dac8599039f7f859c476f13dd7508cd1a6b0299841ffdf53ebebca13c79",
+    "include/aq_synth.h": "cdb9a651c098a1f9bd343326e3bebc3460959771cf422e9a1c9c923c2f983b9b",
+    "include/aqk2r.h": "a486f2b91bcaa52156ace892f1b6c49161fd4a933e221784930bac772932f43a",
+    "src/aq_synth.c": "d5a9cfc51edda8239403fca25266c2c6c96cfb44b2b3039bad14f4be29de1a19",
+    "src/aqk2r_compat.c": "7ca795db8c29c134433dbf2e2a0f333e701bf533b55e94d19322b502f7788b9a",
+    "moddable/stackchanvoice.c": "76109e998b6dc3c102f3a8d90185c6a6dae982f62a3b07278f9b849ddc163a8b",
+    "moddable/stackchanvoice.js": "82b0c91502f1a13fd797765a16bfeac782493a114059c42320a6e3892c279860",
+    "data/stackchan-ja.aqd": "57414645e35d8f2e14bf964d3b92ee0aeb7311db2121fb8c07c08d026c0c8d47",
+    "data/SOURCE.json": "15bc99f12b08a11883fcecd0ce391792961e55fe689f803f6d72684534457116",
+    "data/UNIDIC-BSD.txt": "f1ff7b7ffb196d1ec8efd04902a46a42d069ecd55d2e8cdfb48fee7c9ce2a60e",
+    "data/UNIDIC-AUTHORS.txt": "414e5e1d5b884474250dd04ac79c12c6375b0c7085dda969c545d03174f603ad"
+  }
+}

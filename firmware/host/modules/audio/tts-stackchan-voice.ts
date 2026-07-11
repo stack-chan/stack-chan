@@ -9,6 +9,10 @@ const OUTPUT_SAMPLE_RATE = 24000
 const BYTES_PER_SAMPLE = 2
 const ASYNC_BUFFER_SAMPLES = 1024
 const ASYNC_BUFFER_COUNT = 4
+// AudioOut.Async completes a write when its bytes have entered the device DMA,
+// not when the speaker has played them.  Queue enough silence after synthesis
+// to push the final speech samples out of the CoreS3 DMA before closing it.
+const DRAIN_SAMPLES = OUTPUT_SAMPLE_RATE / 2
 
 export type TTSProperty = {
   onPlayed?: TTSPlaybackListener
@@ -26,7 +30,7 @@ type PCMChunk = {
 }
 
 type AsyncAudioOut = AudioOut & {
-  write(buffer: ArrayBuffer, completion: () => void): void
+  write(buffer: ArrayBuffer, completion: (error: Error | null) => void): void
 }
 
 type AudioOutWithAsync = typeof AudioOut & {
@@ -44,6 +48,7 @@ export class TTS {
   #output?: AsyncAudioOut
   #lifecycle?: TTSPlaybackLifecycle
   #generating = false
+  #drainSamples = 0
   #queued = 0
   readonly #chunks: PCMChunk[]
 
@@ -68,6 +73,7 @@ export class TTS {
       this.#resetPlayback(lifecycle)
       this.voice.say(text, this.speed)
       this.#generating = true
+      this.#drainSamples = DRAIN_SAMPLES
 
       const AsyncAudioOut = (AudioOut as AudioOutWithAsync).Async
       const output = new AsyncAudioOut({
@@ -99,6 +105,7 @@ export class TTS {
   #resetPlayback(lifecycle: TTSPlaybackLifecycle): void {
     this.#lifecycle = lifecycle
     this.#generating = false
+    this.#drainSamples = 0
     this.#queued = 0
   }
 
@@ -116,10 +123,11 @@ export class TTS {
       if (samples < chunk.samples) {
         chunk.bytes.fill(0, samples * BYTES_PER_SAMPLE)
         this.#generating = false
+        this.#drainSamples = Math.max(0, this.#drainSamples - (chunk.samples - samples))
       }
       chunk.power = calculatePower(chunk.buffer)
       this.#queued += 1
-      output.write(chunk.buffer, () => this.#onChunkPlayed(chunk))
+      output.write(chunk.buffer, (error) => this.#onChunkPlayed(chunk, error))
       return true
     } catch (error) {
       lifecycle.fail(error)
@@ -127,12 +135,35 @@ export class TTS {
     }
   }
 
-  #onChunkPlayed(chunk: PCMChunk): void {
+  #queueDrain(chunk: PCMChunk): boolean {
+    const lifecycle = this.#lifecycle
+    const output = this.#output
+    if (!lifecycle || !output || !this.streaming || this.#drainSamples <= 0) return false
+
+    try {
+      chunk.bytes.fill(0)
+      chunk.power = 0
+      this.#drainSamples = Math.max(0, this.#drainSamples - chunk.samples)
+      this.#queued += 1
+      output.write(chunk.buffer, (error) => this.#onChunkPlayed(chunk, error))
+      return true
+    } catch (error) {
+      lifecycle.fail(error)
+      return false
+    }
+  }
+
+  #onChunkPlayed(chunk: PCMChunk, error: Error | null): void {
     const lifecycle = this.#lifecycle
     if (!lifecycle || !this.streaming) return
     this.#queued -= 1
+    if (error) {
+      lifecycle.fail(error)
+      return
+    }
     lifecycle.onPower(chunk.power)
     if (this.#generating && this.#queueChunk(chunk)) return
+    if (!this.#generating && this.#drainSamples > 0 && this.#queueDrain(chunk)) return
     if (this.#queued === 0) lifecycle.onDone()
   }
 }

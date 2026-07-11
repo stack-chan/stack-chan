@@ -136,6 +136,8 @@ test('device TTS engines delegate playback state and AudioOut lifecycle to the s
   assert.match(streamingSource, /beginTTSPlayback\(this, callback/)
   assert.match(streamingSource, /lifecycle\.addCleanup\(/)
   assert.match(streamingSource, /new AsyncAudioOut\(/)
+  assert.match(streamingSource, /const DRAIN_SAMPLES = OUTPUT_SAMPLE_RATE \/ 2/)
+  assert.match(streamingSource, /#queueDrain\(/)
   assert.match(streamingSource, /new Resource\('stackchan-ja\.aqd'\)/)
   assert.match(streamingSource, /props\.volume \?\? 0\.1/)
   assert.match(streamingSource, /props\.speed \?\? 100/)

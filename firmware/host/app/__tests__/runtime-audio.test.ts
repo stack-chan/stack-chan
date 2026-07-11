@@ -85,3 +85,28 @@ test('StackchanRuntimeAudio close stops the microphone and detaches TTS callback
   playbackTTS.onDone?.()
   assert.equal(mouthOpen, -1)
 })
+
+test('StackchanRuntimeAudio close detaches TTS callbacks even when the microphone stop fails', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  const microphone = {
+    recording: false,
+    start: () => {},
+    stop: () => {
+      throw new Error('stop failure')
+    },
+    record: async () => {
+      throw new Error('not used')
+    },
+  }
+  const tts = fakeTTS()
+  let mouthOpen = -1
+
+  const runtime = new StackchanRuntimeAudio({ tts, microphone }, { onMouthOpenChanged: (value) => (mouthOpen = value) })
+
+  assert.throws(() => runtime.close(), /stop failure/)
+  const playbackTTS = runtime.tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
+  playbackTTS.onPlayed?.(2000)
+  playbackTTS.onDone?.()
+  assert.equal(mouthOpen, -1)
+})

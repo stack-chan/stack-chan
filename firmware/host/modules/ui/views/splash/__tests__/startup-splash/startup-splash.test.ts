@@ -36,7 +36,7 @@ const title = column.first
 const message = title.next
 const settingsButton = column.next.first
 
-equal(title.string, 'Stack-chan', 'splash title should show the product name')
+equal(title.string, 'Stack-chan[・＿・]', 'splash title should show the product name')
 equal(message.string, 'まもなく起動します', 'splash message should show startup progress')
 
 settingsButton.behavior.onTouchBegan(settingsButton, 0, 0, 0)

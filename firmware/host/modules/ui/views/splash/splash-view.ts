@@ -65,7 +65,7 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
             left: 0,
             right: 0,
             height: 42,
-            string: 'Stack-chan',
+            string: 'Stack-chan[・＿・]',
             style: styles.brand,
           }),
           messageLabel,

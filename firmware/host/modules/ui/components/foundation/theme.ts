@@ -51,7 +51,7 @@ export function uiStyles(): FoundationStyles {
     accent: new Skin({ fill: UI.colors.accent }),
     success: new Skin({ fill: UI.colors.success }),
     brand: new Style({
-      font: '24px Open Sans',
+      font: 'k8x12-24',
       color: UI.colors.text,
       horizontal: 'center',
       vertical: 'middle',

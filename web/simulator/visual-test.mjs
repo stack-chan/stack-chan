@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium } from 'playwright-core'
 
@@ -54,6 +54,7 @@ async function inspectViewport(page, name, width, height) {
     const inspector = document.querySelector('.inspector')
     const viewport = document.querySelector('#stackchan-viewport')
     const screen = document.querySelector('#simulator-screen')
+    const trace = document.querySelector('#trace-log')
     const stageRect = stage.getBoundingClientRect()
     const inspectorRect = inspector.getBoundingClientRect()
     const viewportRect = viewport.getBoundingClientRect()
@@ -88,16 +89,19 @@ async function inspectViewport(page, name, width, height) {
 
     return {
       bodyWidth: document.body.scrollWidth,
+      cursor: getComputedStyle(viewport).cursor,
       iconCount: document.querySelectorAll('svg.lucide').length,
       inspectorRect: { left: inspectorRect.left, top: inspectorRect.top, width: inspectorRect.width },
       sceneColors,
       screenColors: screenColors.size,
       stageRect: { left: stageRect.left, top: stageRect.top, right: stageRect.right, bottom: stageRect.bottom },
+      traceClientHeight: trace.clientHeight,
       viewportRect: { width: viewportRect.width, height: viewportRect.height },
     }
   })
 
   assert.equal(result.bodyWidth <= width, true, `${name}: page must not overflow horizontally`)
+  assert.notEqual(result.cursor, 'none', `${name}: 3D viewport must keep a visible cursor`)
   assert.equal(result.iconCount >= 5, true, `${name}: Lucide controls must render`)
   assert.equal(
     result.viewportRect.width > 0 && result.viewportRect.height >= 420,
@@ -107,10 +111,52 @@ async function inspectViewport(page, name, width, height) {
   assert.equal(result.screenColors > 3, true, `${name}: Piu screen canvas must contain rendered pixels`)
   assert.equal(result.sceneColors > 3, true, `${name}: WebGL canvas must contain a nonblank scene`)
   if (width > 760) {
+    const stableStageHeight = Math.round(result.stageRect.bottom - result.stageRect.top)
     assert.equal(
       result.stageRect.right <= result.inspectorRect.left,
       true,
       `${name}: inspector must not overlap the scene`
+    )
+    const overflowLayout = await page.evaluate(() => {
+      const stage = document.querySelector('.simulator-stage')
+      const trace = document.querySelector('#trace-log')
+      trace.textContent = Array.from({ length: 200 }, (_, index) => `log line ${index}`).join('\n')
+      return {
+        stageHeight: Math.round(stage.getBoundingClientRect().height),
+        traceClientHeight: trace.clientHeight,
+        traceScrollHeight: trace.scrollHeight,
+      }
+    })
+    assert.equal(
+      overflowLayout.stageHeight,
+      stableStageHeight,
+      `${name}: overflowing logs must not resize the 3D scene`
+    )
+    assert.equal(
+      overflowLayout.traceScrollHeight > overflowLayout.traceClientHeight,
+      true,
+      `${name}: overflowing logs must scroll inside the log view`
+    )
+
+    const observedResize = await page.evaluate(async () => {
+      const layout = document.querySelector('.simulator-layout')
+      const stage = document.querySelector('.simulator-stage')
+      const viewport = document.querySelector('#stackchan-viewport')
+      layout.style.gridTemplateColumns = 'minmax(0, 1fr) 400px'
+      await new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame)))
+      const rect = stage.getBoundingClientRect()
+      const ratio = Math.min(devicePixelRatio, 2)
+      const result = {
+        expectedWidth: Math.round(rect.width * ratio),
+        renderWidth: viewport.width,
+      }
+      layout.style.gridTemplateColumns = ''
+      return result
+    })
+    assert.equal(
+      Math.abs(observedResize.renderWidth - observedResize.expectedWidth) <= 1,
+      true,
+      `${name}: parent resize must update the WebGL drawing buffer`
     )
   } else {
     assert.equal(
@@ -149,6 +195,10 @@ async function inspectViewport(page, name, width, height) {
       )
       await page.waitForTimeout(300)
     }
+    const savePiuScreen = async (screenName) => {
+      const dataUrl = await page.evaluate(() => document.querySelector('#simulator-screen').toDataURL('image/png'))
+      writeFileSync(`/tmp/stackchan-screen-${screenName}.png`, Buffer.from(dataUrl.split(',')[1], 'base64'))
+    }
 
     const splashSignature = await screenSignature()
     await touchPiu(160, 206)
@@ -158,18 +208,22 @@ async function inspectViewport(page, name, width, height) {
     await touchPiu(82, 98)
     await page.waitForTimeout(600)
     await touchPiu(160, 146)
+    await page.waitForTimeout(700)
     const passwordSignature = await screenSignature()
     assert.notEqual(passwordSignature, settingsSignature, 'network selection must open the password screen')
     await page.screenshot({ path: '/tmp/stackchan-password.png', fullPage: true })
+    await savePiuScreen('password')
     await touchPiu(22, 20)
     await touchPiu(22, 20)
     await page.waitForTimeout(8500)
     const mainSignature = await screenSignature()
     assert.notEqual(mainSignature, splashSignature, 'auto boot must open the main face')
+    await page.waitForTimeout(4500)
     await page.screenshot({ path: '/tmp/stackchan-main.png', fullPage: true })
-    await touchPiu(298, 22)
+    await savePiuScreen('main-menu-hidden')
+    await touchPiu(160, 120)
     const drawerSignature = await screenSignature()
-    assert.notEqual(drawerSignature, mainSignature, 'visible menu action must open the drawer')
+    assert.notEqual(drawerSignature, mainSignature, 'face touch must open the drawer after the menu button hides')
     await page.screenshot({ path: '/tmp/stackchan-drawer.png', fullPage: true })
     await touchPiu(220, 26)
     const faceMenuSignature = await screenSignature()
@@ -180,6 +234,7 @@ async function inspectViewport(page, name, width, height) {
     const dogFaceSignature = await screenSignature()
     assert.notEqual(dogFaceSignature, mainSignature, 'selecting a face option must update the face')
     await page.screenshot({ path: '/tmp/stackchan-dog-face.png', fullPage: true })
+    await savePiuScreen('menu-revealed')
     await touchPiu(298, 22)
     await touchPiu(220, 170)
     await page.waitForTimeout(1500)
@@ -200,7 +255,7 @@ try {
   await inspectViewport(page, 'desktop', 1280, 800)
   await inspectViewport(page, 'mobile', 390, 844)
   console.log(
-    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed}.png'
+    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed}.png and /tmp/stackchan-screen-{password,main-menu-hidden,menu-revealed}.png'
   )
 } finally {
   await browser.close()

@@ -79,8 +79,9 @@ class StackchanScene {
     this.#createFeet()
     this.#createScreen()
     this.#resize()
-
-    window.addEventListener('resize', () => this.#resize())
+    this.resizeTarget = this.viewport.parentElement ?? this.viewport
+    this.resizeObserver = new ResizeObserver(() => this.#resize())
+    this.resizeObserver.observe(this.resizeTarget)
   }
 
   #createLights() {
@@ -248,7 +249,8 @@ class StackchanScene {
   }
 
   #resize() {
-    const { width, height } = this.viewport.getBoundingClientRect()
+    const { width, height } = this.resizeTarget?.getBoundingClientRect() ?? this.viewport.getBoundingClientRect()
+    if (width <= 0 || height <= 0) return
     this.renderer.setSize(width, height, false)
     this.camera.aspect = width / height
     this.camera.updateProjectionMatrix()

@@ -50,6 +50,7 @@ describe('simulator MOD archive install input', () => {
 
 describe('simulator frontend guidance', () => {
   const css = readFileSync(new URL('./simulator.css', import.meta.url), 'utf8')
+  const simulatorSource = readFileSync(new URL('./simulator.mjs', import.meta.url), 'utf8')
 
   it('starts with the usable simulator and avoids explanatory hero copy', () => {
     assert.doesNotMatch(html, /class="hero"/)
@@ -60,5 +61,23 @@ describe('simulator frontend guidance', () => {
   it('keeps the primary 3D scene unframed and avoids prohibited decoration', () => {
     assert.doesNotMatch(css, /radial-gradient|border-radius:\s*2[0-9]px|border-radius:\s*999px/)
     assert.doesNotMatch(html, /viewport-card|control-card/)
+  })
+
+  it('keeps desktop logs scrollable without resizing the scene', () => {
+    assert.match(css, /\.app-shell\s*{[^}]*height:\s*100dvh;[^}]*overflow:\s*hidden;/s)
+    assert.match(css, /#trace-log\s*{[^}]*min-height:\s*0;[^}]*overflow:\s*auto;/s)
+    assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.app-shell\s*{[^}]*height:\s*auto;/)
+  })
+
+  it('resizes the WebGL renderer from its parent element', () => {
+    assert.match(simulatorSource, /new ResizeObserver\(\(\) => this\.#resize\(\)\)/)
+    assert.match(simulatorSource, /this\.resizeObserver\.observe\(this\.resizeTarget\)/)
+    assert.match(simulatorSource, /this\.resizeTarget\?\.getBoundingClientRect\(\)/)
+    assert.doesNotMatch(simulatorSource, /window\.addEventListener\('resize'/)
+  })
+
+  it('keeps a visible interaction cursor over the 3D view', () => {
+    assert.match(css, /#stackchan-viewport\s*{[^}]*cursor:\s*default;/s)
+    assert.doesNotMatch(css, /#stackchan-viewport\s*{[^}]*cursor:\s*none;/s)
   })
 })

@@ -342,11 +342,10 @@ const BLOCK_DEFINITIONS = [
   },
   {
     type: 'stackchan_set_pose',
-    message0: '頭を 上下 %1 度 左右 %2 度 かたむき %3 度 に向ける %4 秒かけて',
+    message0: '頭を 上下 %1 度 左右 %2 度 に向ける %3 秒かけて',
     args0: [
       { type: 'field_number', name: 'PITCH', value: 0, min: -60, max: 60 },
       { type: 'field_number', name: 'YAW', value: 0, min: -60, max: 60 },
-      { type: 'field_number', name: 'ROLL', value: 0, min: -60, max: 60 },
       { type: 'field_number', name: 'TIME', value: 0.5, min: 0, precision: 0.1 },
     ],
     previousStatement: null,
@@ -581,9 +580,8 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
   forBlock['stackchan_set_pose'] = (block) => {
     const pitch = Number(block.getFieldValue('PITCH'))
     const yaw = Number(block.getFieldValue('YAW'))
-    const roll = Number(block.getFieldValue('ROLL'))
     const time = Number(block.getFieldValue('TIME'))
-    return `await robot.motion.setPose({ rotation: { p: (${pitch} * Math.PI) / 180, y: (${yaw} * Math.PI) / 180, r: (${roll} * Math.PI) / 180 } }, ${time})\n`
+    return `await robot.motion.setPose({ rotation: { p: (${pitch} * Math.PI) / 180, y: (${yaw} * Math.PI) / 180, r: 0 } }, ${time})\n`
   }
 
   forBlock['stackchan_light_on'] = (block) => {

@@ -207,12 +207,19 @@ static const aq_reson_t AQ_VOWEL_FORMANTS[5][3] = {
  * bandwidths: a naive x1.15 pushed /i/,/e/ F2/F3 into the 3850 clamp, piling up
  * a sharp near-Nyquist resonance heard as a metallic "キン" ring on い-row.
  * Selected by the voice preset; gains are shared (front vowels stay loud). */
+/* Harshness fix round 2 (user ear: still piercing after source tilt alone):
+ * the piercing 2-3.3 kHz band is re-amplified by the cute table's own F2/F3
+ * resonances (e.g. /a/ F2 at 2196 Hz with a needle-thin 110 Hz bandwidth), so
+ * source tilt alone hits diminishing returns. F2/F3 bandwidths are widened
+ * 1.8x (F1 untouched -- vowel identity and loudness live there), dropping
+ * each peak ~5 dB exactly in the piercing band. Center frequencies unchanged
+ * (the cute cue is formant POSITION), DC-unity preserved (b0 = 1 - a1 - a2). */
 static const aq_reson_t AQ_VOWEL_FORMANTS_CUTE[5][3] = {
-    {{1.424828f,-0.931755f,0.506927f},{-0.294440f,-0.917233f,2.211673f},{-1.448524f,-0.790081f,3.238606f}},
-    {{1.914110f,-0.946506f,0.032396f},{-1.272181f,-0.790081f,3.062263f},{-1.446825f,-0.777768f,3.224592f}},
-    {{1.832286f,-0.946506f,0.114220f},{-0.821677f,-0.917233f,2.738910f},{-1.467810f,-0.790081f,3.257891f}},
-    {{1.758837f,-0.939101f,0.180264f},{-1.387569f,-0.790081f,3.177651f},{-1.131634f,-0.790081f,2.921715f}},
-    {{1.766119f,-0.939101f,0.172982f},{0.678313f,-0.924465f,1.246152f},{-1.445259f,-0.790081f,3.235341f}},
+    {{1.424828f,-0.931755f,0.506927f},{-0.284439f,-0.855980f,2.140418f},{-1.318240f,-0.654348f,2.972588f}},
+    {{1.914110f,-0.946506f,0.032396f},{-1.157757f,-0.654348f,2.812106f},{-1.308447f,-0.636107f,2.944554f}},
+    {{1.832286f,-0.946506f,0.114220f},{-0.793767f,-0.855980f,2.649747f},{-1.335791f,-0.654348f,2.990139f}},
+    {{1.758837f,-0.939101f,0.180264f},{-1.262767f,-0.654348f,2.917115f},{-1.029852f,-0.654348f,2.684200f}},
+    {{1.766119f,-0.939101f,0.172982f},{0.657334f,-0.868166f,1.210832f},{-1.315268f,-0.654348f,2.969616f}},
 };
 
 /* Aspiration (/h/) formants: SAME frequencies as each vowel, but with the
@@ -229,12 +236,19 @@ static const aq_reson_t AQ_ASPIRATION[5][3] = {
     {{1.665926f,-0.802590f,0.136664f},{-1.544336f,-0.836376f,3.380712f},{-0.839209f,-0.780829f,2.620037f}},
     {{1.671054f,-0.802590f,0.131535f},{0.925106f,-0.871582f,0.946476f},{-1.616019f,-0.791634f,3.407654f}},
 };
+/* Cute aspiration follows the round-2/3 harshness fix: with the cute VOWEL
+ * F2/F3 widened 1.8x, this table (derived from the old, narrow vowels) was no
+ * longer wider than the vowels it whispers -- white noise through its
+ * 2.2/3.2 kHz poles made the か VOT gap the loudest >2kHz spike left (82.5%
+ * of frame energy). F2/F3 widened 1.8x here too (F1/B1 unchanged, same
+ * center frequencies, DC-unity), so /h/, VOT gaps, and devoiced vowels
+ * soften in step with the widened vowels. */
 static const aq_reson_t AQ_ASPIRATION_CUTE[5][3] = {
-    {{1.322386f,-0.802590f,0.480203f},{-0.285054f,-0.859685f,2.144739f},{-1.326028f,-0.662103f,2.988130f}},
-    {{1.762593f,-0.802590f,0.039997f},{-1.164597f,-0.662103f,2.826700f},{-1.316694f,-0.644151f,2.960845f}},
-    {{1.687246f,-0.802590f,0.115344f},{-0.795483f,-0.859685f,2.655168f},{-1.343683f,-0.662103f,3.005785f}},
-    {{1.625984f,-0.802590f,0.176606f},{-1.270227f,-0.662103f,2.932330f},{-1.035936f,-0.662103f,2.698038f}},
-    {{1.632716f,-0.802590f,0.169874f},{0.658626f,-0.871582f,1.212956f},{-1.323039f,-0.662103f,2.985141f}},
+    {{1.322386f,-0.802590f,0.480203f},{-0.268326f,-0.761747f,2.030073f},{-1.124405f,-0.476065f,2.600470f}},
+    {{1.762593f,-0.802590f,0.039997f},{-0.987520f,-0.476065f,2.463585f},{-1.104282f,-0.453083f,2.557365f}},
+    {{1.687246f,-0.802590f,0.115344f},{-0.748801f,-0.761747f,2.510549f},{-1.139376f,-0.476065f,2.615441f}},
+    {{1.625984f,-0.802590f,0.176606f},{-1.077089f,-0.476065f,2.553154f},{-0.878422f,-0.476065f,2.354487f}},
+    {{1.632716f,-0.802590f,0.169874f},{0.623393f,-0.780827f,1.157434f},{-1.121871f,-0.476065f,2.597936f}},
 };
 
 /* Speaker voice presets. Adding a voice is one row here; aq_synth_set_voice
@@ -244,12 +258,25 @@ typedef struct {
     uint8_t  accent_range;           /* pitch-excursion scale % (liveliness) */
     uint8_t  dur_scale;              /* duration scale % (>100 = slower) */
     float    breath;                 /* aspiration noise mixed into voiced source */
+    float    tilt;                   /* voiced-source spectral tilt (0 = off) */
+    float    gain_scale;             /* output loudness trim (1.0 = unchanged) */
     const aq_reson_t (*vowels)[3];   /* vowel formant set */
 } aq_voice_preset_t;
 
+/* Cute-voice harshness fix (user ear report: 音圧が強くて耳障り). The high F0
+ * (440) drives harmonics straight into the up-shifted F2/F3 around 2.5-3.3 kHz
+ * -- measured >2 kHz energy was 10.7% of total vs 0.6% for the normal voice,
+ * i.e. ~18x more power in the ear's most sensitive band, plus ~1.4% of samples
+ * in the soft-clip knee (audible grit). Two per-voice knobs, both 0/1.0 (off)
+ * for the normal voice so its output stays byte-identical:
+ * - tilt: one-pole lowpass MIX on the voiced excitation
+ *   (y = (1-t)*x + t*y1): t=0.30 is ~-5 dB at 3 kHz, ~-0.4 dB at 500 Hz --
+ *   a gentle source-tilt (softer phonation), not a formant change.
+ * - gain_scale: overall trim so the cute voice sits at/below the normal
+ *   voice's RMS instead of above it (also clears the clip knee). */
 static const aq_voice_preset_t AQ_VOICES[2] = {
-    { AQ_BASE_F0,      100u, 100u, 0.00f, AQ_VOWEL_FORMANTS },       /* 0: normal */
-    { AQ_BASE_F0_HIGH, 150u, 122u, 0.05f, AQ_VOWEL_FORMANTS_CUTE },  /* 1: cute (small speaker) */
+    { AQ_BASE_F0,      100u, 100u, 0.00f, 0.00f, 1.00f, AQ_VOWEL_FORMANTS },       /* 0: normal */
+    { AQ_BASE_F0_HIGH, 150u, 122u, 0.05f, 0.35f, 0.80f, AQ_VOWEL_FORMANTS_CUTE },  /* 1: cute */
 };
 /* /n/ (alveolar) and /m/ (bilabial) are DISTINCT: different F2 locus (m~1000,
  * n~1700) and anti-resonance frequency (m~900, n~1600 Hz). One shared table
@@ -1257,6 +1284,14 @@ static int16_t synth_one(aq_synth_t *s) {
             s->nz1 = nz;
             x += s->breath * nz;
         }
+        if (s->tilt > 0.0f) {
+            /* per-voice source tilt: one-pole lowpass mix softens the phonation
+             * (see AQ_VOICES note). Off (0.0) for the normal voice -> this
+             * branch is skipped and the output stays byte-identical. */
+            float t = (1.0f - s->tilt) * x + s->tilt * s->tilt_y1;
+            s->tilt_y1 = t;
+            x = t;
+        }
         if (s->use_antireson) {   /* nasal anti-resonance (spectral null) */
             float z = x + s->zero_b1 * s->zx1 + AQ_NASAL_ZERO_B2 * s->zx2;
             s->zx2 = s->zx1;
@@ -1287,12 +1322,27 @@ static int16_t synth_one(aq_synth_t *s) {
             s->bhp_y1 = y0;
             x = y0 * AQ_BURST_HP_COMP;
         }
+        if (s->tilt > 0.0f) {
+            /* Cute-voice round 3 (user ear: か still pierces): the k-burst and
+             * especially its VOT aspiration gap are NOISE segments, so they
+             * bypassed the voiced-source tilt -- measured, the gap frame hit
+             * 82.5% >2kHz energy (white noise through the cute aspiration
+             * table's 2.2/3.2 kHz poles) while the widened vowels now sit at
+             * ~5%. Apply the same per-voice tilt to the noise excitation so
+             * consonant noise softens with the vowels around it. Normal
+             * voice: tilt 0, branch skipped, byte-identical. */
+            float t = (1.0f - s->tilt) * x + s->tilt * s->tilt_y1;
+            s->tilt_y1 = t;
+            x = t;
+        }
     } else {
         x = 0.0f;   /* silence: filter rings down while gain fades to 0 */
     }
 
     {
-        float g = s->cur_gain;
+        /* per-voice loudness trim BEFORE the soft clip, so trimming also pulls
+         * peaks out of the knee (multiply by 1.0f is exact: voice 0 unchanged) */
+        float g = s->cur_gain * s->gain_scale;
         if (s->soft_attack && s->seg_total != 0u) {
             /* gradual breath onset: ramp the noise amplitude 0.30 -> 1.0 across
              * the segment so /h/,/f/ swell in instead of bursting. A hard noise
@@ -1342,6 +1392,7 @@ static void reset_runtime(aq_synth_t *s) {
     s->shm_factor = 1.0f;
     s->rng = 1u;
     s->nz1 = 0.0f;
+    s->tilt_y1 = 0.0f;
     s->bhp_x1 = 0.0f;
     s->bhp_y1 = 0.0f;
     s->filter_primed = 0u;
@@ -1416,6 +1467,9 @@ void aq_synth_set_voice(aq_synth_t *s, uint8_t voice) {
     s->accent_range = v->accent_range;
     s->dur_scale = v->dur_scale;
     s->breath = v->breath;
+    s->tilt = v->tilt;
+    s->tilt_y1 = 0.0f;
+    s->gain_scale = v->gain_scale;
     s->vowel_tbl = (const void *)v->vowels;
 }
 

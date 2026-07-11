@@ -27,6 +27,11 @@ typedef struct {
     uint8_t accent_range;    /* pitch-excursion scale % (voice liveliness); 100 = default */
     uint8_t dur_scale;       /* per-voice duration scale %; 100 = normal, >100 = slower */
     float breath;            /* aspiration noise mixed into voiced source; 0 = none */
+    float tilt;              /* voiced-source spectral tilt (one-pole LP mix, 0 = off):
+                              * softens the 2-4 kHz band the up-shifted cute formants
+                              * push into the ear's most sensitive region */
+    float tilt_y1;           /* tilt filter state */
+    float gain_scale;        /* per-voice output loudness trim (1.0 = unchanged) */
     const void *vowel_tbl;   /* aq_reson_t[5][3] vowel set for this voice (normal/cute) */
     const uint8_t *koe;
     size_t pos;

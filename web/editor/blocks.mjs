@@ -11,6 +11,38 @@ const HELPER_HEX_TO_RGB = `function hexToRgb(hex) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }`
 
+// Event dispatch helpers. A driver exposes a single \`onEvent\`, so multiple
+// blocks for the same driver (e.g. button press + release, or several IMU
+// motions) must share one handler. Each helper stores per-key handlers on the
+// driver object and installs one dispatching \`onEvent\` the first time.
+const HELPER_ON_BUTTON = `function onButton(robot, name, edge, handler) {
+  const button = robot.input.button?.[name]
+  if (!button) return
+  ;(button.__handlers ??= {})[edge] = handler
+  if (button.__wired) return
+  button.__wired = true
+  button.onEvent = (event) => button.__handlers[event.pressed ? 'press' : 'release']?.(event)
+}`
+
+const HELPER_ON_IMU = `function onImu(robot, motion, handler) {
+  const imu = robot.input.imu
+  if (!imu) return
+  ;(imu.__handlers ??= {})[motion] = handler
+  if (imu.__wired) return
+  imu.__wired = true
+  imu.onEvent = (event) => imu.__handlers[event.motion]?.(event)
+  imu.start?.()
+}`
+
+const HELPER_ON_TOUCH_PANEL = `function onTouchPanel(robot, gesture, handler) {
+  const panel = robot.input.touchPanel
+  if (!panel) return
+  ;(panel.__handlers ??= {})[gesture] = handler
+  if (panel.__wired) return
+  panel.__wired = true
+  panel.onEvent = (event) => panel.__handlers[event.gesture]?.(event)
+}`
+
 /**
  * Wrap generated workspace code into a complete mod.js source.
  * Imports and helpers are included only when the body references them.
@@ -24,6 +56,9 @@ export function assembleModSource(body) {
 
   const helpers = []
   if (/\bhexToRgb\s*\(/.test(body)) helpers.push(HELPER_HEX_TO_RGB)
+  if (/\bonButton\s*\(/.test(body)) helpers.push(HELPER_ON_BUTTON)
+  if (/\bonImu\s*\(/.test(body)) helpers.push(HELPER_ON_IMU)
+  if (/\bonTouchPanel\s*\(/.test(body)) helpers.push(HELPER_ON_TOUCH_PANEL)
 
   const indentedBody = body
     .split('\n')
@@ -68,6 +103,7 @@ const BLOCK_STYLE = {
   speech: 160,
   motion: 230,
   light: 60,
+  ui: 200,
   util: 330,
 }
 
@@ -81,7 +117,7 @@ const BLOCK_DEFINITIONS = [
   },
   {
     type: 'stackchan_on_button',
-    message0: 'ボタン %1 が押されたとき %2 %3',
+    message0: 'ボタン %1 が %2 とき %3 %4',
     args0: [
       {
         type: 'field_dropdown',
@@ -92,11 +128,72 @@ const BLOCK_DEFINITIONS = [
           ['C', 'c'],
         ],
       },
+      {
+        type: 'field_dropdown',
+        name: 'EDGE',
+        options: [
+          ['押された', 'press'],
+          ['離された', 'release'],
+        ],
+      },
       { type: 'input_dummy' },
       { type: 'input_statement', name: 'DO' },
     ],
     colour: BLOCK_STYLE.event,
-    tooltip: '本体のボタンが押されたときに実行します',
+    tooltip: '本体のボタンが押された/離されたときに実行します',
+  },
+  {
+    type: 'stackchan_on_imu',
+    message0: '本体が %1 とき %2 %3',
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'MOTION',
+        options: [
+          ['ゆさぶられた', 'shake'],
+          ['前に倒れた', 'fallenForward'],
+          ['後ろに倒れた', 'fallenBackward'],
+          ['左に倒れた', 'fallenLeft'],
+          ['右に倒れた', 'fallenRight'],
+          ['さかさまになった', 'upsideDown'],
+        ],
+      },
+      { type: 'input_dummy' },
+      { type: 'input_statement', name: 'DO' },
+    ],
+    colour: BLOCK_STYLE.event,
+    tooltip: '本体を動かしたとき(加速度センサー)に実行します',
+  },
+  {
+    type: 'stackchan_on_touch',
+    message0: '画面が %1 されたとき %2 %3',
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'GESTURE',
+        options: [
+          ['タッチ', 'press'],
+          ['はなす', 'release'],
+          ['右にスワイプ', 'forwardSwipe'],
+          ['左にスワイプ', 'backwardSwipe'],
+        ],
+      },
+      { type: 'input_dummy' },
+      { type: 'input_statement', name: 'DO' },
+    ],
+    colour: BLOCK_STYLE.event,
+    tooltip: '画面(タッチパネル)を操作したときに実行します',
+  },
+  {
+    type: 'stackchan_on_drawer_button',
+    message0: 'ドロワーに %1 ボタンをつくって 押されたら %2 %3',
+    args0: [
+      { type: 'field_input', name: 'LABEL', text: 'ボタン' },
+      { type: 'input_dummy' },
+      { type: 'input_statement', name: 'DO' },
+    ],
+    colour: BLOCK_STYLE.event,
+    tooltip: '画面のドロワー(引き出しメニュー)にボタンを追加し、押されたときに実行します',
   },
   {
     type: 'stackchan_every',
@@ -224,6 +321,20 @@ const BLOCK_DEFINITIONS = [
     tooltip: 'サーボモーターのトルクを切り替えます',
   },
   {
+    type: 'stackchan_set_pose',
+    message0: '頭を 上下 %1 度 左右 %2 度 かたむき %3 度 に向ける %4 秒かけて',
+    args0: [
+      { type: 'field_number', name: 'PITCH', value: 0, min: -60, max: 60 },
+      { type: 'field_number', name: 'YAW', value: 0, min: -60, max: 60 },
+      { type: 'field_number', name: 'ROLL', value: 0, min: -60, max: 60 },
+      { type: 'field_number', name: 'TIME', value: 0.5, min: 0, precision: 0.1 },
+    ],
+    previousStatement: null,
+    nextStatement: null,
+    colour: BLOCK_STYLE.motion,
+    tooltip: '頭の向きを指定した角度に動かします(動き終わるまで待ちます)',
+  },
+  {
     type: 'stackchan_light_on',
     message0: 'LED %1 を %2 で点ける',
     args0: [
@@ -252,6 +363,46 @@ const BLOCK_DEFINITIONS = [
     nextStatement: null,
     colour: BLOCK_STYLE.light,
     tooltip: 'LEDをレインボー点灯します',
+  },
+  {
+    type: 'stackchan_light_blink',
+    message0: 'LED %1 を %2 で %3 ミリ秒ごとに点滅',
+    args0: [
+      { type: 'field_input', name: 'NAME', text: 'a' },
+      { type: 'field_dropdown', name: 'COLOR', options: COLOR_OPTIONS },
+      { type: 'field_number', name: 'INTERVAL', value: 250, min: 1 },
+    ],
+    previousStatement: null,
+    nextStatement: null,
+    colour: BLOCK_STYLE.light,
+    tooltip: 'LEDを点滅させます(LEDがある機種のみ)',
+  },
+  {
+    type: 'stackchan_drawer_control',
+    message0: 'ドロワーを %1',
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'ACTION',
+        options: [
+          ['開く', 'openDrawer'],
+          ['閉じる', 'closeDrawer'],
+          ['切り替える', 'toggleDrawer'],
+        ],
+      },
+    ],
+    previousStatement: null,
+    nextStatement: null,
+    colour: BLOCK_STYLE.ui,
+    tooltip: '画面のドロワー(引き出しメニュー)を開閉します',
+  },
+  {
+    type: 'stackchan_show_face',
+    message0: 'かおにもどす',
+    previousStatement: null,
+    nextStatement: null,
+    colour: BLOCK_STYLE.ui,
+    tooltip: 'メイン画面をかおの表示にもどします',
   },
   {
     type: 'stackchan_wait',
@@ -296,6 +447,20 @@ function asyncHandlerBody(generator, block) {
   return body.replace(/\s+$/, '')
 }
 
+// Build an event-handler arrow function that runs a statement body inside a
+// fire-and-forget async IIFE (so `await` works and errors are traced).
+// `param` is the callback parameter name ('event' for input events, '' for the
+// drawer button which takes none).
+function eventHandler(body, errorTag, param = 'event') {
+  const indented = body.replace(/^/gm, '  ')
+  return (
+    `(${param}) => {\n` +
+    `  void (async () => {\n${indented}\n` +
+    `  })().catch((error) => trace('${errorTag} handler failed: ' + error + '\\n'))\n` +
+    `}`
+  )
+}
+
 /**
  * Register Stack-chan blocks and their JavaScript generators.
  * `Blockly` is the UMD global; `generator` is javascript.javascriptGenerator.
@@ -312,16 +477,28 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
 
   forBlock['stackchan_on_button'] = (block, gen) => {
     const button = block.getFieldValue('BUTTON')
+    const edge = block.getFieldValue('EDGE')
     const body = asyncHandlerBody(gen, block)
-    return (
-      `if (robot.input.button?.${button}) {\n` +
-      `  robot.input.button.${button}.onEvent = (event) => {\n` +
-      `    if (!event.pressed) return\n` +
-      `    void (async () => {\n${body.replace(/^/gm, '    ')}\n` +
-      `    })().catch((error) => trace('button ${button} handler failed: ' + error + '\\n'))\n` +
-      `  }\n` +
-      `}\n`
-    )
+    return `onButton(robot, '${button}', '${edge}', ${eventHandler(body, `button ${button}`)})\n`
+  }
+
+  forBlock['stackchan_on_imu'] = (block, gen) => {
+    const motion = block.getFieldValue('MOTION')
+    const body = asyncHandlerBody(gen, block)
+    return `onImu(robot, '${motion}', ${eventHandler(body, 'imu')})\n`
+  }
+
+  forBlock['stackchan_on_touch'] = (block, gen) => {
+    const gesture = block.getFieldValue('GESTURE')
+    const body = asyncHandlerBody(gen, block)
+    return `onTouchPanel(robot, '${gesture}', ${eventHandler(body, 'touch')})\n`
+  }
+
+  forBlock['stackchan_on_drawer_button'] = (block, gen) => {
+    const label = escapeSingleQuoted(block.getFieldValue('LABEL'))
+    const key = escapeSingleQuoted(block.id)
+    const body = asyncHandlerBody(gen, block)
+    return `robot.ui.drawer?.addDrawerButton({ key: '${key}', label: '${label}', callback: ${eventHandler(body, 'drawer', '')} })\n`
   }
 
   forBlock['stackchan_every'] = (block, gen) => {
@@ -381,6 +558,14 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
     return `await robot.motion.setTorque(${block.getFieldValue('TORQUE')})\n`
   }
 
+  forBlock['stackchan_set_pose'] = (block) => {
+    const pitch = Number(block.getFieldValue('PITCH'))
+    const yaw = Number(block.getFieldValue('YAW'))
+    const roll = Number(block.getFieldValue('ROLL'))
+    const time = Number(block.getFieldValue('TIME'))
+    return `await robot.motion.setPose({ rotation: { p: (${pitch} * Math.PI) / 180, y: (${yaw} * Math.PI) / 180, r: (${roll} * Math.PI) / 180 } }, ${time})\n`
+  }
+
   forBlock['stackchan_light_on'] = (block) => {
     const name = escapeSingleQuoted(block.getFieldValue('NAME'))
     const color = block.getFieldValue('COLOR')
@@ -394,6 +579,19 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
   forBlock['stackchan_light_rainbow'] = (block) => {
     return `robot.lighting.lightRainbow('${escapeSingleQuoted(block.getFieldValue('NAME'))}')\n`
   }
+
+  forBlock['stackchan_light_blink'] = (block) => {
+    const name = escapeSingleQuoted(block.getFieldValue('NAME'))
+    const color = block.getFieldValue('COLOR')
+    const interval = Number(block.getFieldValue('INTERVAL'))
+    return `robot.lighting.lightBlink('${name}', ...hexToRgb('${color}'), ${interval})\n`
+  }
+
+  forBlock['stackchan_drawer_control'] = (block) => {
+    return `robot.ui.${block.getFieldValue('ACTION')}()\n`
+  }
+
+  forBlock['stackchan_show_face'] = () => `robot.ui.showFace()\n`
 
   forBlock['stackchan_wait'] = (block) => {
     return `await wait(${Number(block.getFieldValue('DURATION'))})\n`
@@ -422,6 +620,9 @@ export const TOOLBOX = {
         { kind: 'block', type: 'stackchan_on_start' },
         { kind: 'block', type: 'stackchan_on_button' },
         { kind: 'block', type: 'stackchan_every' },
+        { kind: 'block', type: 'stackchan_on_imu' },
+        { kind: 'block', type: 'stackchan_on_touch' },
+        { kind: 'block', type: 'stackchan_on_drawer_button' },
       ],
     },
     {
@@ -460,6 +661,7 @@ export const TOOLBOX = {
       contents: [
         { kind: 'block', type: 'stackchan_look_at' },
         { kind: 'block', type: 'stackchan_look_away' },
+        { kind: 'block', type: 'stackchan_set_pose' },
         { kind: 'block', type: 'stackchan_set_torque' },
       ],
     },
@@ -471,6 +673,16 @@ export const TOOLBOX = {
         { kind: 'block', type: 'stackchan_light_on' },
         { kind: 'block', type: 'stackchan_light_off' },
         { kind: 'block', type: 'stackchan_light_rainbow' },
+        { kind: 'block', type: 'stackchan_light_blink' },
+      ],
+    },
+    {
+      kind: 'category',
+      name: 'がめん',
+      colour: `${BLOCK_STYLE.ui}`,
+      contents: [
+        { kind: 'block', type: 'stackchan_drawer_control' },
+        { kind: 'block', type: 'stackchan_show_face' },
       ],
     },
     {

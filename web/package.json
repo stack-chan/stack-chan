@@ -4,8 +4,8 @@
   "description": "Stack-chan development server",
   "scripts": {
     "dev": "live-server --verbose",
-    "test": "node --test simulator/*.test.mjs editor/*.test.mjs icon-assets.test.mjs",
-    "test:visual": "node simulator/visual-test.mjs"
+    "test": "node --test simulator/*.test.mjs editor/*.test.mjs *.test.mjs",
+    "test:visual": "node visual-pages-test.mjs && node simulator/visual-test.mjs"
   },
   "keywords": [],
   "author": "Shinya Ishikawa",

@@ -22,6 +22,17 @@ const installProgress = document.getElementById('install-progress')
 const sampleButton = document.getElementById('sample-button')
 const clearButton = document.getElementById('clear-button')
 const logOutput = document.getElementById('log-output')
+const outputTabs = [...document.querySelectorAll('[role="tab"]')]
+
+for (const tab of outputTabs) {
+  tab.addEventListener('click', () => {
+    for (const candidate of outputTabs) {
+      const selected = candidate === tab
+      candidate.setAttribute('aria-selected', String(selected))
+      document.getElementById(candidate.getAttribute('aria-controls')).hidden = !selected
+    }
+  })
+}
 
 const logLines = []
 function log(text) {

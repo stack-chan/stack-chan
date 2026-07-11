@@ -56,6 +56,9 @@ jobs:
       - name: Run architecture checks
         working-directory: ./firmware
         run: npm run check:architecture
+      - name: Run manifest preflight
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run check:manifest
       - name: Run Moddable module tests
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable

@@ -283,10 +283,10 @@ PR では、bundle できる可能性を軽量に保証する preflight を実�
 
 短期の改善は次の順で進める。
 
-1. production manifest の広い glob を明示列挙へ寄せる。
-2. production manifest に test 用ファイルが混入しない architecture check を追加する。
-3. `mcconfig` 生成だけの `check:manifest` を追加する。
-4. `check:manifest` で Moddable warning を分類し、未知の missing module と missing resource を失敗扱いにする。
+1. production manifest の広い glob を明示列挙へ寄せる。(実装済み)
+2. production manifest に test 用ファイルが混入しない architecture check を追加する。(実装済み)
+3. `mcconfig` 生成だけの `check:manifest` を追加する。(実装済み: `npm run check:manifest`)
+4. `check:manifest` で Moddable warning を分類し、未知の missing module と missing resource を失敗扱いにする。(実装済み: `scripts/check-manifest.js` の allowlist)
 5. 相対 import の lint を追加し、module 境界を越える相対 import を禁止する。
 6. sample MOD の TypeScript 化と公開型 specifier を追加する。
 7. 生成済み Moddable tsconfig を使った TypeScript preflight を検討する。

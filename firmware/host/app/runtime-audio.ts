@@ -85,8 +85,11 @@ export class StackchanRuntimeAudio {
   }
 
   close(): void {
-    this.#microphone?.stop()
-    this.#tts.onPlayed = noop
-    this.#tts.onDone = noop
+    try {
+      this.#microphone?.stop()
+    } finally {
+      this.#tts.onPlayed = noop
+      this.#tts.onDone = noop
+    }
   }
 }

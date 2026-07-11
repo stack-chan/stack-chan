@@ -577,10 +577,31 @@ export class StackchanRuntimeContext implements StackchanContext {
       this.#updateFaceHandler = undefined
     }
     this.#motionController.close()
-    await this.#cameraRuntime.close()
-    this.#inputRuntime.close()
-    this.#audioRuntime.close()
-    this.#lightingRuntime.close()
+    let closeError: unknown
+    let hasCloseError = false
+    const rememberCloseError = (error: unknown) => {
+      if (hasCloseError) return
+      closeError = error
+      hasCloseError = true
+    }
+    try {
+      await this.#cameraRuntime.close()
+    } catch (error) {
+      rememberCloseError(error)
+    } finally {
+      for (const closeRuntime of [
+        () => this.#inputRuntime.close(),
+        () => this.#audioRuntime.close(),
+        () => this.#lightingRuntime.close(),
+      ]) {
+        try {
+          closeRuntime()
+        } catch (error) {
+          rememberCloseError(error)
+        }
+      }
+    }
+    if (hasCloseError) throw closeError
     // connectivity is owned by boot-services, not this context, so it stays open.
   }
 }

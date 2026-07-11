@@ -1,5 +1,6 @@
 import type { PREF_KEYS } from 'consts'
 import Preference from 'preference'
+import { validatePreferenceWrite } from 'preference-write-guard'
 import Timer from 'timer'
 import { SERVICE_UUID, UARTServer } from 'uartserver'
 
@@ -16,6 +17,8 @@ export class PreferenceServer extends UARTServer {
   #keys
   #rxBuffer = ''
   #timeout
+  #writesEnabled = false
+  #writeWindowTimer
   #handlePreferenceChanged?: (key: string, value: PreferenceValue) => void
   #handleConnected?: () => void
   #handleDisconnected?: () => void
@@ -29,6 +32,37 @@ export class PreferenceServer extends UARTServer {
     }
     this.#keys = Array.isArray(option.keys) ? option.keys.slice() : []
   }
+
+  /**
+   * Opens the opt-in write window. BLE preference writes are rejected unless
+   * this window is open. When `durationMs` is given the window closes
+   * automatically after that time; otherwise it stays open until
+   * `disableWrites()` is called.
+   */
+  enableWrites(durationMs?: number) {
+    this.#clearWriteWindowTimer()
+    this.#writesEnabled = true
+    if (durationMs != null && durationMs > 0) {
+      this.#writeWindowTimer = Timer.set(() => {
+        this.#writeWindowTimer = undefined
+        this.#writesEnabled = false
+        trace('BLE preference write window closed\n')
+      }, durationMs)
+    }
+  }
+
+  disableWrites() {
+    this.#clearWriteWindowTimer()
+    this.#writesEnabled = false
+  }
+
+  #clearWriteWindowTimer() {
+    if (this.#writeWindowTimer != null) {
+      Timer.clear(this.#writeWindowTimer)
+      this.#writeWindowTimer = undefined
+    }
+  }
+
   onConnected() {
     super.onConnected()
     this.#handleConnected?.()
@@ -119,6 +153,16 @@ export class PreferenceServer extends UARTServer {
   }
 
   receiveAndSetPreference(domain: string, key: string, value: PreferenceValue) {
+    const decision = validatePreferenceWrite({
+      allowedKeys: this.#keys,
+      writesEnabled: this.#writesEnabled,
+      domain,
+      key,
+    })
+    if (decision.allowed === false) {
+      trace(`rejected BLE preference write (${decision.reason}): ${domain}.${key}\n`)
+      return
+    }
     const currentValue = Preference.get(domain, key)
     if (currentValue !== value) {
       trace(`changing preference ... ${domain}.${key}: ${value}\n`)

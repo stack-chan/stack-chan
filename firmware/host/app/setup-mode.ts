@@ -19,6 +19,8 @@ import type { WiFiScanSession } from 'wifi-scan-types'
 
 type SetupApplication = Parameters<typeof buildSettingsView>[0]
 
+const BLE_PREFERENCE_WRITE_WINDOW_MS = 5 * 60 * 1000
+
 function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatusValue {
   switch (state) {
     case NetworkConnectionState.SCANNING:
@@ -130,7 +132,7 @@ export function startSetupMode(application: SetupApplication): void {
   }
   showSettingsView()
 
-  new PreferenceServer({
+  const preferenceServer = new PreferenceServer({
     onPreferenceChanged: (key, value) => {
       trace(`preference changed! ${key}: ${value}\n`)
       status[key] = value
@@ -146,4 +148,5 @@ export function startSetupMode(application: SetupApplication): void {
     },
     keys: PREF_KEYS,
   })
+  preferenceServer.enableWrites(BLE_PREFERENCE_WRITE_WINDOW_MS)
 }

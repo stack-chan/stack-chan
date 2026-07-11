@@ -8,6 +8,10 @@ import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-ty
 const OUTPUT_SAMPLE_RATE = 24000
 const BYTES_PER_SAMPLE = 2
 const FIFO_LENGTH = 64
+// ESP32 AudioOut uses 4092-byte DMA descriptors. Matching that size keeps the
+// fixed playback-power FIFO bounded even when synthesis and DMA interrupts
+// overlap, while retaining an approximately 85 ms lip-sync cadence.
+const DMA_CHUNK_SAMPLES = 2046
 
 export type TTSProperty = {
   onPlayed?: TTSPlaybackListener
@@ -51,7 +55,7 @@ export class TTS {
     this.speed = props.speed ?? 100
     const preset = props.voice === 'cute' ? StackchanVoice.Cute : StackchanVoice.Normal
     this.voice = new StackchanVoice(preset, new Resource('stackchan-ja.aqd'))
-    this.#chunks = [256, 128, 64, 32, 16, 8, 4, 2, 1].map((samples) => {
+    this.#chunks = [DMA_CHUNK_SAMPLES, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1].map((samples) => {
       const buffer = new ArrayBuffer(samples * BYTES_PER_SAMPLE)
       return { buffer, bytes: new Uint8Array(buffer), samples }
     })

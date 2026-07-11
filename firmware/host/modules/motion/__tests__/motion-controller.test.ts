@@ -5,7 +5,12 @@ import { fileURLToPath } from 'node:url'
 
 import type { Maybe, Pose, Rotation } from 'stackchan-util'
 import { writeAliasPackage } from '../../testing/node-alias-package.js'
-import type { MotionCompletion, MotionDriver, MotionResultCallback } from '../motion-controller.js'
+import type {
+  MotionCalibrationCapability,
+  MotionCompletion,
+  MotionDriver,
+  MotionResultCallback,
+} from '../motion-controller.js'
 
 type FakeTimer = {
   advance(milliseconds: number): void
@@ -20,6 +25,7 @@ class FakeMotionDriver implements MotionDriver {
   getRotationCalls = 0
   rotation: Rotation = { y: 0, p: 0, r: 0 }
   torqueStates: boolean[] = []
+  calibration?: MotionCalibrationCapability
 
   applyRotation(rotation: Rotation, time?: number, callback?: MotionCompletion): void {
     this.appliedRotation = rotation
@@ -192,6 +198,44 @@ test('MotionController delegates driver replacement, torque, and explicit pose u
   assert.equal(nextDriver.appliedRotation?.y, 0.2)
   assert.equal(nextDriver.appliedRotation?.p, -0.1)
   assert.equal(nextDriver.appliedTime, 0.25)
+})
+
+test('MotionController exposes calibration from the active driver only', async () => {
+  installBareSpecifierPackages()
+  const { MotionController } = await import('../motion-controller.js')
+  const calibration: MotionCalibrationCapability = {
+    pan: {
+      readAngle: (callback) => callback({ success: true, value: 0 }),
+      setAngle: (_angle, timeOrCallback?: number | MotionCompletion, callback?: MotionCompletion) => {
+        if (typeof timeOrCallback === 'function') {
+          timeOrCallback()
+          return
+        }
+        callback?.()
+      },
+      setTorque: (_torque, callback) => callback?.(),
+    },
+    tilt: {
+      readAngle: (callback) => callback({ success: true, value: 0 }),
+      setAngle: (_angle, timeOrCallback?: number | MotionCompletion, callback?: MotionCompletion) => {
+        if (typeof timeOrCallback === 'function') {
+          timeOrCallback()
+          return
+        }
+        callback?.()
+      },
+      setTorque: (_torque, callback) => callback?.(),
+    },
+  }
+  const driver = new FakeMotionDriver()
+  driver.calibration = calibration
+  const controller = new MotionController({ driver }, { isPaused: () => false })
+
+  assert.equal(controller.calibration, calibration)
+
+  controller.useDriver(new FakeMotionDriver())
+  assert.equal(controller.calibration, undefined)
+  controller.close()
 })
 
 test('motion duration conversion helpers name protocol time units', async () => {

@@ -1,4 +1,6 @@
+import { createMotionCalibrationServo } from 'motion-calibration-servo'
 import {
+  type MotionCalibrationCapability,
   type MotionCompletion,
   type MotionDurationSeconds,
   type MotionResultCallback,
@@ -14,10 +16,36 @@ type RS30XDriverProps = {
   tiltId: number
 }
 
+function createCalibrationServo(servo: RS30X) {
+  return createMotionCalibrationServo({
+    readAngle(callback) {
+      servo.readStatus((angle, error) => {
+        if (angle == null) {
+          callback({ success: false, reason: error == null ? 'response corrupted' : reasonFromError(error) })
+          return
+        }
+        callback({ success: true, value: angle })
+      })
+    },
+    setAngle(angle, callback) {
+      servo.setAngle(angle, callback)
+    },
+    setAngleInTime(angle, goalTimeCentiseconds, callback) {
+      servo.setAngleInTime(angle, goalTimeCentiseconds, callback)
+    },
+    setTorque(torque, callback) {
+      servo.setTorque(torque, callback)
+    },
+    convertDuration: motionDurationSecondsToCentiseconds,
+    flashId: (id, callback) => servo.flashId(id, callback),
+  })
+}
+
 export class RS30XDriver {
   _pan: RS30X
   _tilt: RS30X
   _handler: ReturnType<typeof Timer.repeat>
+  calibration: MotionCalibrationCapability
   #rotation: Rotation = { y: 0, p: 0, r: 0 }
   #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
   #rotationErrorResult: { success: false; reason?: string } = { success: false }
@@ -25,6 +53,10 @@ export class RS30XDriver {
   constructor(param: RS30XDriverProps) {
     this._pan = new RS30X({ id: param.panId })
     this._tilt = new RS30X({ id: param.tiltId })
+    this.calibration = {
+      pan: createCalibrationServo(this._pan),
+      tilt: createCalibrationServo(this._tilt),
+    }
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {

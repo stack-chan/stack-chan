@@ -84,6 +84,12 @@ class StackchanScene {
     this.resizeObserver.observe(this.resizeTarget)
   }
 
+  dispose() {
+    this.resizeObserver?.disconnect()
+    this.controls?.dispose()
+    this.renderer?.dispose()
+  }
+
   #createLights() {
     this.scene.add(new THREE.HemisphereLight(0xffefe0, 0x223355, 2.6))
     const key = new THREE.DirectionalLight(0xffffff, 3)
@@ -607,6 +613,10 @@ function describeModStatus(result, installedMod = null) {
   if (result?.status === 'error') {
     return `MODエラー · ${result.error}`
   }
+  if (result?.status === 'saved' && installedMod) {
+    const lifetime = installedMod.storage === 'memory' ? ' · セッション保存' : ' · 保存済み'
+    return `${installedMod.name} · ${formatByteSize(installedMod.size)}${lifetime}`
+  }
   if (installedMod) {
     const lifetime = installedMod.storage === 'memory' ? ' · セッション保存' : ' · 保存済み'
     return `${installedMod.name} · ${formatByteSize(installedMod.size)}${lifetime}`
@@ -624,6 +634,7 @@ async function refreshSavedModStatus() {
 }
 
 const scene = new StackchanScene({ viewport, screen })
+window.addEventListener('pagehide', () => scene.dispose(), { once: true })
 const driverBridge = createHostDriverBridge({
   onRotation: (rotation, time) => {
     console.log('[bridge] Host.Driver.applyRotation', { rotation, time })

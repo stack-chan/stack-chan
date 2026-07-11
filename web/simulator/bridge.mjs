@@ -124,15 +124,22 @@ export function createHostAudioOutBridge({
   let context
 
   return {
-    async tone({ hz = 440, duration = 100, volume = 1 } = {}) {
+    async tone({ hz, duration, volume } = {}) {
+      // Guard against non-finite values: the wasm audio bridge always passes a
+      // volume argument, so an omitted volume arrives as NaN (not undefined) and
+      // a destructuring default would not apply. Setting an AudioParam to a
+      // non-finite value throws.
+      const frequency = Number.isFinite(hz) ? hz : 440
+      const durationMs = Number.isFinite(duration) ? Math.max(0, duration) : 100
+      const level = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 1
       context ??= createAudioContext()
       if (context.state === 'suspended' && typeof context.resume === 'function') {
         await context.resume()
       }
       const oscillator = context.createOscillator()
       const gain = context.createGain()
-      oscillator.frequency.value = hz
-      gain.gain.value = volume
+      oscillator.frequency.value = frequency
+      gain.gain.value = level
       oscillator.connect(gain)
       gain.connect(context.destination)
       const startTime = context.currentTime
@@ -145,8 +152,8 @@ export function createHostAudioOutBridge({
         oscillator.onended = finish
         try {
           oscillator.start(startTime)
-          oscillator.stop(startTime + duration / 1000)
-          fallback = setTimeoutFn?.(finish, duration + 250)
+          oscillator.stop(startTime + durationMs / 1000)
+          fallback = setTimeoutFn?.(finish, durationMs + 250)
         } catch (error) {
           if (fallback !== undefined) clearTimeoutFn?.(fallback)
           reject(error)

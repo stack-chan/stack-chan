@@ -491,6 +491,23 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
    * Change color (Drawer action)
    */
   let colorMode: 'dark' | 'light' = 'light'
+  const colorOptions = [
+    { value: 'light', label: '白', color: '#ffffff' },
+    { value: 'dark', label: '黒', color: '#000000' },
+  ]
+  function selectColor(_target: typeof robot, value?: string) {
+    if (value === 'dark' || value === 'light') applyColor(value)
+  }
+  const registerColorDrawerButton = () => {
+    robot.drawer.addDrawerButton({
+      key: 'toggleColor',
+      label: '配色',
+      kind: 'swatch',
+      value: colorMode,
+      options: colorOptions,
+      callback: selectColor,
+    })
+  }
   const applyColor = (value: 'dark' | 'light') => {
     colorMode = value
     if (colorMode === 'light') {
@@ -500,21 +517,9 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       robot.setColor('primary', 0x00, 0x00, 0x00)
       robot.setColor('secondary', 0xff, 0xff, 0xff)
     }
+    registerColorDrawerButton()
   }
-  const selectColor = (_target: typeof robot, value?: string) => {
-    if (value === 'dark' || value === 'light') applyColor(value)
-  }
-  robot.drawer.addDrawerButton({
-    key: 'toggleColor',
-    label: '配色',
-    kind: 'swatch',
-    value: 'light',
-    options: [
-      { value: 'light', label: '白', color: '#ffffff' },
-      { value: 'dark', label: '黒', color: '#000000' },
-    ],
-    callback: selectColor,
-  })
+  registerColorDrawerButton()
 
   if (robot.imu != null) {
     const motionEmotionMap: Record<MotionType, Emotion> = {

@@ -1,5 +1,6 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { RobotCamera } from 'camera'
+import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
 import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
 import type IMU from 'imu'
 import type { ButtonInputEvent } from 'input-event'
@@ -24,21 +25,7 @@ export type RobotLed = {
   rainbow(index?: number, count?: number): void
 }
 
-export type DrawerButtonViewSpec = {
-  key: string
-  label: string
-  kind?: 'action' | 'choice' | 'swatch' | 'toggle'
-  active?: boolean
-  value?: string
-  options?: DrawerOption[]
-  icon?: 'camera' | 'microphone' | 'play'
-}
-
-export type DrawerOption = {
-  value: string
-  label: string
-  color?: string
-}
+export type { DrawerButtonViewSpec, DrawerOption }
 
 export type RobotUI = {
   update: (interval: number, faceState: FaceState) => void
@@ -73,7 +60,7 @@ export type DrawerButtonSpec = {
   initialState?: boolean
   value?: string
   options?: DrawerOption[]
-  icon?: 'camera' | 'microphone' | 'play'
+  icon?: IconName
 }
 
 export type DrawerCapability = {

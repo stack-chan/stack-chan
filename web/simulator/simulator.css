@@ -247,11 +247,11 @@ button:disabled {
   border-radius: 6px;
   background: #101214;
   color: #cbd2d8;
-  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
   font-size: 0.72rem;
   line-height: 1.45;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 @media (max-width: 760px) {

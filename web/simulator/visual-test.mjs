@@ -231,15 +231,24 @@ async function inspectViewport(page, name, width, height) {
     await savePiuScreen('password')
     await touchPiu(22, 20)
     await touchPiu(22, 20)
-    await page.waitForTimeout(8500)
-    const mainSignature = await screenSignature()
+    const waitForScreenChange = async (previousSignature, timeoutMs) => {
+      const deadline = Date.now() + timeoutMs
+      let signature = previousSignature
+      while (signature === previousSignature && Date.now() < deadline) {
+        await page.waitForTimeout(200)
+        signature = await screenSignature()
+      }
+      return signature
+    }
+    const mainSignature = await waitForScreenChange(splashSignature, 20000)
     assert.notEqual(mainSignature, splashSignature, 'auto boot must open the main face')
-    await page.waitForTimeout(4500)
+    const menuHiddenSignature = await waitForScreenChange(mainSignature, 6000)
+    assert.notEqual(menuHiddenSignature, mainSignature, 'main menu must hide after auto boot')
     await page.screenshot({ path: '/tmp/stackchan-main.png', fullPage: true })
     await savePiuScreen('main-menu-hidden')
     await touchPiu(160, 120)
     const drawerSignature = await screenSignature()
-    assert.notEqual(drawerSignature, mainSignature, 'face touch must open the drawer after the menu button hides')
+    assert.notEqual(drawerSignature, menuHiddenSignature, 'face touch must open the drawer after the menu button hides')
     await page.screenshot({ path: '/tmp/stackchan-drawer.png', fullPage: true })
     await touchPiu(220, 26)
     const faceMenuSignature = await screenSignature()
@@ -248,7 +257,7 @@ async function inspectViewport(page, name, width, height) {
     await touchPiu(220, 110)
     await touchPiu(60, 120)
     const dogFaceSignature = await screenSignature()
-    assert.notEqual(dogFaceSignature, mainSignature, 'selecting a face option must update the face')
+    assert.notEqual(dogFaceSignature, menuHiddenSignature, 'selecting a face option must update the face')
     const dogNoseVisible = await page.evaluate(() => {
       const screen = document.querySelector('#simulator-screen')
       const [r, g, b] = screen.getContext('2d').getImageData(160, 124, 1, 1).data
@@ -270,9 +279,10 @@ async function inspectViewport(page, name, width, height) {
   }
 }
 
-await waitForServer()
-const browser = await chromium.launch({ executablePath, headless: true, args: ['--no-sandbox'] })
+let browser
 try {
+  await waitForServer()
+  browser = await chromium.launch({ executablePath, headless: true, args: ['--no-sandbox'] })
   const page = await browser.newPage()
   await inspectViewport(page, 'desktop', 1280, 800)
   await inspectViewport(page, 'mobile', 390, 844)
@@ -280,6 +290,6 @@ try {
     'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed}.png and /tmp/stackchan-screen-{password,main-menu-hidden,menu-revealed}.png'
   )
 } finally {
-  await browser.close()
+  await browser?.close()
   server?.kill('SIGTERM')
 }

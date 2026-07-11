@@ -1,4 +1,4 @@
-import type { DrawerButtonSpec } from 'drawer'
+import type { DrawerButtonViewSpec } from 'drawer'
 import type { FaceState } from 'face-state'
 import {
   FaceMainTemplate,
@@ -77,11 +77,11 @@ export class AppController extends Behavior {
     this.#viewBehavior?.showFace?.()
   }
 
-  setDrawerButtons(buttons: DrawerButtonSpec[]): void {
+  setDrawerButtons(buttons: DrawerButtonViewSpec[]): void {
     this.#viewBehavior?.setDrawerButtons?.(buttons)
   }
 
-  addDrawerButton(button: DrawerButtonSpec): void {
+  addDrawerButton(button: DrawerButtonViewSpec): void {
     this.#viewBehavior?.addDrawerButton?.(button)
   }
 

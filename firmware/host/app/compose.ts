@@ -4,7 +4,7 @@ import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
 import Camera from 'camera'
 import type { ConnectivityCapability, RobotLed, RobotUI, StackchanContext, TTS } from 'capabilities'
 import { ChatStatusBar } from 'chat-status-bar'
-import type { DrawerButtonSpec } from 'drawer'
+import type { DrawerButtonViewSpec } from 'drawer'
 import { DynamixelDriver } from 'dynamixel-driver'
 import IMU from 'imu'
 import Led from 'led'
@@ -44,7 +44,7 @@ type SimulatorButtonCtor = new (options: {
 
 type UIOptions = {
   avatar?: string
-  drawerButtons?: DrawerButtonSpec[]
+  drawerButtons?: DrawerButtonViewSpec[]
   displayListLength?: number
 }
 

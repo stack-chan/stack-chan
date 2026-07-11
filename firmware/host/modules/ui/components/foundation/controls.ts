@@ -32,6 +32,13 @@ type MutableButtonData = ActionButtonData & {
   selected: boolean
 }
 
+function actionButtonSkin(data: MutableButtonData, styles: ReturnType<typeof uiStyles>) {
+  if (!data.enabled) return styles.disabled
+  if (data.selected || data.tone === 'accent') return styles.accent
+  if (data.tone === 'success') return styles.success
+  return styles.surface
+}
+
 export type ActionButtonBehavior = {
   setEnabled(container: PiuContainer, enabled: boolean): void
   setSelected(container: PiuContainer, selected: boolean): void
@@ -180,14 +187,7 @@ export const ActionButton = Container.template(($: ActionButtonData) => {
     width: iconOnly ? UI.touchTarget : undefined,
     height: UI.touchTarget,
     active: data.enabled,
-    skin:
-      data.tone === 'accent'
-        ? styles.accent
-        : data.tone === 'success'
-          ? styles.success
-          : data.selected
-            ? styles.accent
-            : styles.surface,
+    skin: actionButtonSkin(data, styles),
     contents,
     Behavior: class extends Behavior implements ActionButtonBehavior {
       data: MutableButtonData | null = null
@@ -242,10 +242,7 @@ export const ActionButton = Container.template(($: ActionButtonData) => {
         if (labelContent) labelContent.string = label
       }
       apply(container: PiuContainer) {
-        if (!this.data?.enabled) container.skin = styles.disabled
-        else if (this.data.selected || this.data.tone === 'accent') container.skin = styles.accent
-        else if (this.data.tone === 'success') container.skin = styles.success
-        else container.skin = styles.surface
+        if (this.data) container.skin = actionButtonSkin(this.data, styles)
       }
     },
   }

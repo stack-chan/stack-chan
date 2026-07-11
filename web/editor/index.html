@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="../assets/stackchan-favicon-32.png" type="image/png" />
+    <title>ｽﾀｯｸﾁｬﾝ ブロックエディタ</title>
+    <link rel="stylesheet" href="./editor.css" />
+    <script src="https://unpkg.com/blockly@11.2.2/blockly_compressed.js"></script>
+    <script src="https://unpkg.com/blockly@11.2.2/blocks_compressed.js"></script>
+    <script src="https://unpkg.com/blockly@11.2.2/javascript_compressed.js"></script>
+    <script src="https://unpkg.com/blockly@11.2.2/msg/ja.js"></script>
+  </head>
+  <body>
+    <main class="editor-shell">
+      <header class="editor-header">
+        <h1>ｽﾀｯｸﾁｬﾝ ブロックエディタ</h1>
+        <p>
+          ブロックでMODを組み立てて、ブラウザ内のmcrun(WebAssembly)でビルドし、
+          <a href="../simulator/" target="_blank" rel="noopener">Webシミュレーター</a
+          >やWebSerial経由の実機にインストールできます。
+        </p>
+      </header>
+
+      <section class="editor-layout">
+        <div id="blockly-workspace" class="workspace-card" aria-label="Blockly workspace"></div>
+
+        <aside class="side-panel">
+          <div class="panel-card">
+            <h2>ビルド</h2>
+            <div class="button-row">
+              <button id="build-button" type="button" class="primary">ビルド (mc.xsa)</button>
+              <button id="download-button" type="button" disabled>.xsaをダウンロード</button>
+            </div>
+            <div class="button-row">
+              <button id="install-simulator-button" type="button" disabled>シミュレータにインストール</button>
+              <button id="install-device-button" type="button" disabled>実機に書き込み (WebSerial)</button>
+            </div>
+            <p class="hint">
+              実機書き込みは esptool-js でブートローダ経由。MODを xs パーティションに書き、再起動後に動きます。
+            </p>
+            <p id="build-status" class="status">未ビルド</p>
+            <progress id="install-progress" max="1" value="0" hidden></progress>
+          </div>
+
+          <div class="panel-card">
+            <h2>生成コード (mod.js)</h2>
+            <pre id="code-preview" aria-label="generated mod.js"></pre>
+          </div>
+
+          <div class="panel-card">
+            <h2>ワークスペース</h2>
+            <div class="button-row">
+              <button id="sample-button" type="button">サンプルを読み込む</button>
+              <button id="clear-button" type="button">全部消す</button>
+            </div>
+            <p class="hint">ワークスペースは自動的にブラウザへ保存されます。</p>
+          </div>
+
+          <div class="panel-card">
+            <h2>ログ</h2>
+            <pre id="log-output" aria-label="build and install log"></pre>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script type="module" src="./editor.mjs"></script>
+  </body>
+</html>

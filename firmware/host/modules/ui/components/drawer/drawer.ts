@@ -14,13 +14,15 @@ import Timeline from 'piu/Timeline'
 import { type IconName, IconView } from 'ui-controls'
 import { UI } from 'ui-theme'
 
+export type { IconName } from 'ui-controls'
+
 export type DrawerOption = {
   value: string
   label: string
   color?: string
 }
 
-export type DrawerButtonSpec = {
+export type DrawerButtonViewSpec = {
   key: string
   label: string
   kind?: 'action' | 'choice' | 'swatch' | 'toggle'
@@ -86,7 +88,7 @@ class DrawerScrollerBehavior extends Behavior {
   }
 }
 
-const DrawerButton = Container.template(($: DrawerButtonSpec) => {
+const DrawerButton = Container.template(($: DrawerButtonViewSpec) => {
   const skins = getDrawerSkins()
   const isToggle = $.kind === 'toggle'
   const isChoice = $.kind === 'choice' || $.kind === 'swatch'
@@ -139,13 +141,13 @@ const DrawerButton = Container.template(($: DrawerButtonSpec) => {
     contents,
     Behavior: class extends Behavior {
       action?: string
-      kind?: DrawerButtonSpec['kind']
+      kind?: DrawerButtonViewSpec['kind']
       icon?: PiuContent | null
       label?: PiuContent | null
       startX = 0
       startY = 0
       moved = false
-      onCreate(content: PiuContainer, data: DrawerButtonSpec) {
+      onCreate(content: PiuContainer, data: DrawerButtonViewSpec) {
         this.action = data.key
         this.kind = data.kind
         this.icon = data.kind === 'toggle' ? (content.first as PiuContent | null) : null
@@ -224,8 +226,23 @@ const DrawerChoice = Container.template(($: DrawerChoiceData) => {
     skin: $.selected ? skins.drawerButtonPressedSkin : skins.drawerButtonSkin,
     contents,
     Behavior: class extends Behavior {
+      startX = 0
+      startY = 0
+      moved = false
+      onTouchBegan(_content: PiuContainer, _id: number, x: number, y: number) {
+        this.startX = x
+        this.startY = y
+        this.moved = false
+      }
+      onTouchMoved(_content: PiuContainer, _id: number, x: number, y: number) {
+        if (Math.abs(x - this.startX) > 6 || Math.abs(y - this.startY) > 6) this.moved = true
+      }
+      onTouchCancelled() {
+        this.moved = false
+      }
       onTouchEnded(content: PiuContainer) {
-        content.bubble('onDrawerChoiceSelected', { key: $.key, value: $.option.value })
+        if (!this.moved) content.bubble('onDrawerChoiceSelected', { key: $.key, value: $.option.value })
+        this.moved = false
       }
     },
   }
@@ -250,20 +267,35 @@ const DrawerChoiceBack = Container.template(() => {
       }),
     ],
     Behavior: class extends Behavior {
+      startX = 0
+      startY = 0
+      moved = false
+      onTouchBegan(_content: PiuContainer, _id: number, x: number, y: number) {
+        this.startX = x
+        this.startY = y
+        this.moved = false
+      }
+      onTouchMoved(_content: PiuContainer, _id: number, x: number, y: number) {
+        if (Math.abs(x - this.startX) > 6 || Math.abs(y - this.startY) > 6) this.moved = true
+      }
+      onTouchCancelled() {
+        this.moved = false
+      }
       onTouchEnded(content: PiuContainer) {
-        content.bubble('onDrawerChoiceBack')
+        if (!this.moved) content.bubble('onDrawerChoiceBack')
+        this.moved = false
       }
     },
   }
 })
 
-type DrawerDictionary = { buttons?: DrawerButtonSpec[] }
+type DrawerDictionary = { buttons?: DrawerButtonViewSpec[] }
 type DrawerBehavior = {
   isOpen: boolean
   toggle: (container: PiuContainer) => void
   setOpen: (container: PiuContainer, open: boolean) => void
-  setButtons?: (container: PiuContainer, buttons: DrawerButtonSpec[]) => boolean
-  addButton?: (container: PiuContainer, button: DrawerButtonSpec) => boolean
+  setButtons?: (container: PiuContainer, buttons: DrawerButtonViewSpec[]) => boolean
+  addButton?: (container: PiuContainer, button: DrawerButtonViewSpec) => boolean
   removeButton?: (container: PiuContainer, key: string) => boolean
   setButtonState?: (container: PiuContainer, key: string, active: boolean) => boolean
 }
@@ -307,7 +339,7 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
       buttonList: PiuContainer | null = null
       timeline: Timeline | null = null
       offset = drawerHiddenOffset
-      buttons: DrawerButtonSpec[] = []
+      buttons: DrawerButtonViewSpec[] = []
 
       onCreate(container: PiuContainer, data?: DrawerDictionary) {
         container.interval = 16
@@ -354,14 +386,14 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
       toggle(container: PiuContainer) {
         this.setOpen(container, !this.isOpen)
       }
-      setButtons(container: PiuContainer, buttons: DrawerButtonSpec[]) {
+      setButtons(container: PiuContainer, buttons: DrawerButtonViewSpec[]) {
         const list = this.getButtonList(container)
         if (!list) return false
         this.buttons = [...buttons]
         this.renderButtons(list)
         return true
       }
-      addButton(container: PiuContainer, button: DrawerButtonSpec) {
+      addButton(container: PiuContainer, button: DrawerButtonViewSpec) {
         const list = this.getButtonList(container)
         if (!list) return false
         const buttonIndex = this.buttons.findIndex((item) => item.key === button.key)
@@ -418,6 +450,8 @@ export const Drawer: DrawerTemplateCtor = Container.template((d: DrawerDictionar
         const list = this.getButtonList(container)
         const button = list ? this.findButtonInList(list, key) : null
         if (!button) return false
+        const spec = this.buttons.find((item) => item.key === key)
+        if (spec) spec.active = active
         const behavior = button.behavior as { setActive?: (content: PiuContainer, state: boolean) => void } | undefined
         behavior?.setActive?.(button, active)
         return true

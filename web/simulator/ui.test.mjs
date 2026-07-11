@@ -37,7 +37,6 @@ describe('simulator MOD archive install input', () => {
     assert.match(simulatorSource, /async restart\(\)/)
     assert.match(simulatorSource, /modRestartButton\.addEventListener\('click', async \(\) => \{/)
     assert.match(simulatorSource, /await wasmView\.restart\(\)/)
-    assert.match(simulatorSource, /await wasmView\.restart\(\)/)
   })
 
   it('launches a saved MOD without showing interaction instructions', () => {

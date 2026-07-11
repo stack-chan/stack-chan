@@ -56,6 +56,7 @@ export function uiStyles(): FoundationStyles {
       horizontal: 'center',
       vertical: 'middle',
     }),
+    // These styles are semantically distinct so callers can evolve typography without changing view contracts.
     title: new Style({
       font: 'k8x12-12',
       color: UI.colors.text,

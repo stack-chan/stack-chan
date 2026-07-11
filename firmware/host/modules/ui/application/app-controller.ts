@@ -112,7 +112,7 @@ export class AppController extends Behavior {
       trace(`[AppController] drawer action key collision: ${key}\n`)
       return false
     }
-    target[key] = callback
+    target[key] = (_content: PiuContent, value?: string) => callback(value)
     this.#drawerActionKeys.add(key)
     return true
   }

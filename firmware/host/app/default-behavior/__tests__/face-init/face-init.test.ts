@@ -4,11 +4,21 @@ import { assert, equal } from 'testing/assert'
 
 trace('=== default-mod face init test ===\n')
 
-const buttons: { key?: string; kind?: string; value?: string; options?: unknown[] }[] = []
+type RegisteredButton = {
+  key?: string
+  kind?: string
+  value?: string
+  options?: unknown[]
+  callback?: (target: unknown, value?: string) => void
+}
+
+const buttons: RegisteredButton[] = []
 const drawerStates: [string, boolean][] = []
 const events: [string, unknown][] = []
 const emotions: unknown[] = []
 const effects: unknown[] = []
+const faces: unknown[] = []
+const colors: [string, number, number, number][] = []
 const touchPanel: {
   onEvent?: (event: {
     gesture: 'forwardSwipe' | 'backwardSwipe'
@@ -20,7 +30,7 @@ const touchPanel: {
 
 const robot = {
   drawer: {
-    addDrawerButton: (button: { key?: string }) => {
+    addDrawerButton: (button: RegisteredButton) => {
       buttons.push(button)
     },
     setDrawerButtonState: (key: string, active: boolean) => {
@@ -37,7 +47,9 @@ const robot = {
       effects.push(effect)
     },
     removeEffect: () => {},
-    setFace: () => {},
+    setFace: (face: unknown) => {
+      faces.push(face)
+    },
     closeDrawer: () => {},
   },
   led: {},
@@ -64,6 +76,9 @@ const robot = {
   hideBalloon: () => {},
   setEmotion: (emotion: unknown) => {
     emotions.push(emotion)
+  },
+  setColor: (key: string, r: number, g: number, b: number) => {
+    colors.push([key, r, g, b])
   },
 }
 
@@ -94,6 +109,16 @@ equal(buttons[0]?.options?.length, 3, 'face selection should expose every mode')
 equal(drawerStates.length, 0, 'choice controls should not masquerade as binary toggles')
 equal(events[0]?.[0], 'onFaceMode', 'initial face mode should be distributed')
 equal(events[0]?.[1], 'simple', 'initial face mode should be simple')
+buttons.find((button) => button.key === 'toggleFace')?.callback?.(robot, 'dog')
+equal(faces.length, 1, 'face choice should replace the rendered face')
+equal(events[events.length - 1]?.[1], 'dog', 'face choice should distribute the selected face mode')
+buttons.find((button) => button.key === 'cycleEmotion')?.callback?.(robot, String(Emotion.ANGRY))
+equal(emotions[emotions.length - 1], Emotion.ANGRY, 'emotion choice should update the face context')
+buttons.find((button) => button.key === 'toggleColor')?.callback?.(robot, 'dark')
+equal(colors[colors.length - 2]?.[0], 'primary', 'color choice should update the primary face color')
+equal(colors[colors.length - 2]?.[1], 0x00, 'dark color choice should make the primary face color black')
+equal(colors[colors.length - 1]?.[0], 'secondary', 'color choice should update the secondary face color')
+equal(colors[colors.length - 1]?.[1], 0xff, 'dark color choice should make the secondary face color white')
 assert(
   buttons.every((button) => button.key !== 'cameraPreview'),
   'cameraPreview button should not be registered when camera is unavailable',

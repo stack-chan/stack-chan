@@ -233,6 +233,12 @@ async function inspectViewport(page, name, width, height) {
     await touchPiu(60, 120)
     const dogFaceSignature = await screenSignature()
     assert.notEqual(dogFaceSignature, mainSignature, 'selecting a face option must update the face')
+    const dogNoseVisible = await page.evaluate(() => {
+      const screen = document.querySelector('#simulator-screen')
+      const [r, g, b] = screen.getContext('2d').getImageData(160, 124, 1, 1).data
+      return r + g + b > 300
+    })
+    assert.equal(dogNoseVisible, true, 'dog face selection must render its nose at the face center')
     await page.screenshot({ path: '/tmp/stackchan-dog-face.png', fullPage: true })
     await savePiuScreen('menu-revealed')
     await touchPiu(298, 22)

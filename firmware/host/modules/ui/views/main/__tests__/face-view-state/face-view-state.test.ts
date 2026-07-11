@@ -189,6 +189,30 @@ const application = new Application(appData, {
 
 const controller = application.behavior as AppController
 const initialDrawer = findDrawer(application as unknown as PiuContainer)
+let selectedChoice = ''
+assert(
+  controller.bindDrawerAction('choiceTest', (value) => {
+    selectedChoice = value ?? ''
+  }),
+  'choice callback should bind to the application controller',
+)
+controller.addDrawerButton({
+  key: 'choiceTest',
+  label: 'Choice',
+  kind: 'choice',
+  value: 'first',
+  options: [
+    { value: 'first', label: 'First' },
+    { value: 'second', label: 'Second' },
+  ],
+})
+const initialDrawerBehavior = initialDrawer.behavior as {
+  onDrawerChoiceSelected?: (container: PiuContainer, selection: { key: string; value: string }) => void
+}
+initialDrawerBehavior.onDrawerChoiceSelected?.(initialDrawer, { key: 'choiceTest', value: 'second' })
+equal(selectedChoice, 'second', 'drawer choice selection should bubble to its bound application callback')
+controller.unbindDrawerAction('choiceTest')
+controller.removeDrawerButton('choiceTest')
 controller.addDrawerButton({ key: 'dynamicA', label: 'Dynamic A' })
 equal(
   findDrawer(application as unknown as PiuContainer),

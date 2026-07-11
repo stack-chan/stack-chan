@@ -171,6 +171,15 @@ async function inspectViewport(page, name, width, height) {
     const drawerSignature = await screenSignature()
     assert.notEqual(drawerSignature, mainSignature, 'visible menu action must open the drawer')
     await page.screenshot({ path: '/tmp/stackchan-drawer.png', fullPage: true })
+    await touchPiu(220, 26)
+    const faceMenuSignature = await screenSignature()
+    assert.notEqual(faceMenuSignature, drawerSignature, 'face mode must open an option menu')
+    await page.screenshot({ path: '/tmp/stackchan-face-menu.png', fullPage: true })
+    await touchPiu(220, 110)
+    await touchPiu(60, 120)
+    const dogFaceSignature = await screenSignature()
+    assert.notEqual(dogFaceSignature, mainSignature, 'selecting a face option must update the face')
+    await page.screenshot({ path: '/tmp/stackchan-dog-face.png', fullPage: true })
   }
 }
 
@@ -180,7 +189,9 @@ try {
   const page = await browser.newPage()
   await inspectViewport(page, 'desktop', 1280, 800)
   await inspectViewport(page, 'mobile', 390, 844)
-  console.log('visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer}.png')
+  console.log(
+    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face}.png'
+  )
 } finally {
   await browser.close()
   server?.kill('SIGTERM')

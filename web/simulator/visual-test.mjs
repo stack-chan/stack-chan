@@ -180,6 +180,16 @@ async function inspectViewport(page, name, width, height) {
     const dogFaceSignature = await screenSignature()
     assert.notEqual(dogFaceSignature, mainSignature, 'selecting a face option must update the face')
     await page.screenshot({ path: '/tmp/stackchan-dog-face.png', fullPage: true })
+    await touchPiu(298, 22)
+    await touchPiu(220, 170)
+    await page.waitForTimeout(1500)
+    const cameraSignature = await screenSignature()
+    assert.notEqual(cameraSignature, dogFaceSignature, 'camera action must open a preview')
+    await page.screenshot({ path: '/tmp/stackchan-camera.png', fullPage: true })
+    await touchPiu(298, 64)
+    const cameraClosedSignature = await screenSignature()
+    assert.notEqual(cameraClosedSignature, cameraSignature, 'camera close action must leave the preview')
+    await page.screenshot({ path: '/tmp/stackchan-camera-closed.png', fullPage: true })
   }
 }
 
@@ -190,7 +200,7 @@ try {
   await inspectViewport(page, 'desktop', 1280, 800)
   await inspectViewport(page, 'mobile', 390, 844)
   console.log(
-    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face}.png'
+    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed}.png'
   )
 } finally {
   await browser.close()

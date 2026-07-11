@@ -132,7 +132,7 @@ export function createCameraPreviewDialog(frame: CameraPreviewFrame, options: Ca
       contents: [
         previewPort,
         caption,
-        new ActionButton({ icon: 'close', onTap: options.onDismiss }, { right: 0, top: 0 }),
+        new ActionButton({ icon: 'close', onTap: options.onDismiss }, { right: 0, top: 44 }),
       ],
       Behavior: class extends Behavior {
         options: CameraPreviewOptions | null = null

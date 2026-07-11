@@ -318,6 +318,9 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#uiRuntime.setEmotion(emotion)
   }
 
+  /**
+   * @deprecated Use `context.face.setMouthOpen(...)` instead.
+   */
   setMouthOpen(value: number) {
     this.#uiRuntime.setMouthOpen(value)
   }

@@ -131,9 +131,12 @@ export function onContextCreated(robot, option) {
     await talk()
   }
 
-  robot.input.button.a.onEvent = (event) => {
-    if (event.pressed) {
-      startTalk().catch((error) => trace(`talk failed: ${error}\n`))
+  const buttons = robot.input.button
+  if (buttons?.a) {
+    buttons.a.onEvent = (event) => {
+      if (event.pressed) {
+        startTalk().catch((error) => trace(`talk failed: ${error}\n`))
+      }
     }
   }
 }

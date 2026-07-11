@@ -49,16 +49,21 @@ export function onContextCreated(robot) {
     sendCommand(command)
   }
 
-  robot.input.button.a.onEvent = (event) => {
-    if (event.pressed) {
-      const hello = hellos[Math.floor(randomBetween(0, hellos.length))]
-      sayAndSend(hello, 1).catch((error) => trace(`hello failed: ${error}\n`))
+  const buttons = robot.input.button
+  if (buttons?.a) {
+    buttons.a.onEvent = (event) => {
+      if (event.pressed) {
+        const hello = hellos[Math.floor(randomBetween(0, hellos.length))]
+        sayAndSend(hello, 1).catch((error) => trace(`hello failed: ${error}\n`))
+      }
     }
   }
-  robot.input.button.b.onEvent = (event) => {
-    if (event.pressed) {
-      const bye = byes[Math.floor(randomBetween(0, byes.length))]
-      sayAndSend(bye, 2).catch((error) => trace(`bye failed: ${error}\n`))
+  if (buttons?.b) {
+    buttons.b.onEvent = (event) => {
+      if (event.pressed) {
+        const bye = byes[Math.floor(randomBetween(0, byes.length))]
+        sayAndSend(bye, 2).catch((error) => trace(`bye failed: ${error}\n`))
+      }
     }
   }
 }

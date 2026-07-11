@@ -180,10 +180,15 @@ test('sample MODs use namespaced context capabilities', () => {
   visit(root)
 
   const flatApiPattern =
-    /\brobot\.(say|record|tone|playAudio|useTTS|lookAt|lookAway|setPose|setTorque|setEmotion|setColor|showBalloon|hideBalloon|lightOn|lightOff|lightBlink|lightRainbow|button|touch|touchPanel|imu|led|tts|microphone|drawer)\b/
+    /\brobot\.(say|record|tone|playAudio|useTTS|lookAt|lookAway|setPose|setTorque|setEmotion|setColor|setMouthOpen|showBalloon|hideBalloon|lightOn|lightOff|lightBlink|lightRainbow|button|touch|touchPanel|imu|led|tts|microphone|drawer)\b/
+  const excludedFromIssue515 = new Set(['mods/examples/setup_rs30x/mod.js', 'mods/examples/calibration/mod.js'])
+  const unsafeButtonPattern = /\b(?:robot\.input\.button|context\.button)\.[abc]\.onEvent\b/
 
   for (const file of files) {
     const source = readFileSync(file, 'utf8')
     assert.doesNotMatch(source, flatApiPattern, `${file} should use namespaced StackchanContext capabilities`)
+    if (!excludedFromIssue515.has(file)) {
+      assert.doesNotMatch(source, unsafeButtonPattern, `${file} should guard optional button capabilities`)
+    }
   }
 })

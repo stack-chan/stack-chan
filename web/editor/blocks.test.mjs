@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { assembleModSource, COLOR_OPTIONS, EMOTION_OPTIONS, escapeSingleQuoted } from './blocks.mjs'
+import { assembleModSource, COLOR_OPTIONS, EMOTION_OPTIONS, escapeSingleQuoted, NOTE_OPTIONS } from './blocks.mjs'
 
 test('escapeSingleQuoted keeps a field_input value a valid single-quoted literal', () => {
   assert.equal(escapeSingleQuoted('primary'), 'primary')
@@ -97,5 +97,10 @@ test('block option tables are well-formed', () => {
   for (const [label, value] of COLOR_OPTIONS) {
     assert.ok(label.length > 0)
     assert.match(value, /^#[0-9a-f]{6}$/)
+  }
+  for (const [label, value] of NOTE_OPTIONS) {
+    assert.ok(label.length > 0)
+    const hz = Number(value)
+    assert.ok(Number.isInteger(hz) && hz >= 20 && hz <= 20000, `note ${label} has a valid frequency`)
   }
 })

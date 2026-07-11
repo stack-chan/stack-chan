@@ -97,6 +97,26 @@ export const COLOR_OPTIONS = [
   ['ピンク', '#ff70d8'],
 ]
 
+// Musical notes (C major, 2 octaves + top C) as dropdown label -> frequency Hz.
+// robot.audio.tone() takes Hz, so the value is the frequency directly.
+export const NOTE_OPTIONS = [
+  ['ド4', '262'],
+  ['レ4', '294'],
+  ['ミ4', '330'],
+  ['ファ4', '349'],
+  ['ソ4', '392'],
+  ['ラ4', '440'],
+  ['シ4', '494'],
+  ['ド5', '523'],
+  ['レ5', '587'],
+  ['ミ5', '659'],
+  ['ファ5', '698'],
+  ['ソ5', '784'],
+  ['ラ5', '880'],
+  ['シ5', '988'],
+  ['ド6', '1047'],
+]
+
 const BLOCK_STYLE = {
   event: 290,
   face: 20,
@@ -271,15 +291,15 @@ const BLOCK_DEFINITIONS = [
   },
   {
     type: 'stackchan_tone',
-    message0: '高さ %1 Hzの音を %2 ミリ秒ならす',
+    message0: '音 %1 を %2 ミリ秒ならす',
     args0: [
-      { type: 'field_number', name: 'FREQUENCY', value: 440, min: 20 },
-      { type: 'field_number', name: 'DURATION', value: 200, min: 1 },
+      { type: 'field_dropdown', name: 'NOTE', options: NOTE_OPTIONS },
+      { type: 'field_number', name: 'DURATION', value: 300, min: 1 },
     ],
     previousStatement: null,
     nextStatement: null,
     colour: BLOCK_STYLE.speech,
-    tooltip: 'ブザー音をならします',
+    tooltip: 'ドレミの音をならします',
   },
   {
     type: 'stackchan_look_at',
@@ -540,9 +560,9 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
   forBlock['stackchan_hide_balloon'] = () => `robot.ui.hideBalloon()\n`
 
   forBlock['stackchan_tone'] = (block) => {
-    const frequency = Number(block.getFieldValue('FREQUENCY'))
+    const note = Number(block.getFieldValue('NOTE'))
     const duration = Number(block.getFieldValue('DURATION'))
-    return `await robot.audio.tone(${frequency}, ${duration})\n`
+    return `await robot.audio.tone(${note}, ${duration})\n`
   }
 
   forBlock['stackchan_look_at'] = (block) => {

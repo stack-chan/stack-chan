@@ -124,7 +124,7 @@ const DrawerButton = Container.template(($: DrawerButtonSpec) => {
         right: 12,
         top: 24,
         height: 24,
-        string: selected?.label ?? '',
+        string: `${selected?.label ?? ''}  >`,
         style: skins.drawerButtonStyle,
       }),
     )

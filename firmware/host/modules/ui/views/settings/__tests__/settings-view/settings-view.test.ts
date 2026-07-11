@@ -11,6 +11,7 @@ import { equal } from 'testing/assert'
 trace('=== settings-view test ===\n')
 
 let scanCount = 0
+let bootCount = 0
 let selectedSSID = ''
 const application = new Application(null, {
   displayListLength: 4096,
@@ -26,6 +27,9 @@ const labels = buildSettingsView(
     'wifi.password': 'secret',
   },
   {
+    onBoot() {
+      bootCount += 1
+    },
     onScan() {
       scanCount += 1
     },
@@ -36,7 +40,7 @@ const labels = buildSettingsView(
 )
 
 equal(application.length, 1, 'settings view should replace application contents')
-equal(labels.wifi.string, 'Wi-Fi: not connected', 'Wi-Fi label should reflect status')
+equal(labels.wifi.string, 'Wi-Fi: 未接続', 'Wi-Fi label should reflect status')
 const scanButton = labels.scan as unknown as {
   behavior: {
     onTouchBegan: (container: unknown, id: number, x: number, y: number) => void
@@ -70,7 +74,18 @@ updateSettingsStatusLabels(labels, {
   wifi: SettingsStatusValue.CONNECTED,
 })
 
-equal(labels.wifi.string, 'Wi-Fi: connected', 'Wi-Fi label should update')
+equal(labels.wifi.string, 'Wi-Fi: 接続済み', 'Wi-Fi label should update')
+const bootButton = labels.boot as unknown as {
+  active: boolean
+  behavior: {
+    onTouchBegan: (container: unknown, id: number, x: number, y: number) => void
+    onTouchEnded: (container: unknown) => void
+  }
+}
+equal(bootButton.active, true, 'connected settings should enable the boot action')
+bootButton.behavior.onTouchBegan(bootButton, 0, 0, 0)
+bootButton.behavior.onTouchEnded(bootButton)
+equal(bootCount, 1, 'connected settings should continue to the main application')
 
 let password = ''
 buildSettingsPasswordView(application, 'stackchan-ap', {

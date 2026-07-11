@@ -139,6 +139,54 @@ describe('Host.Audio bridge', () => {
     assert.equal(context.closed, true)
   })
 
+  it('clamps non-finite hz/volume so AudioParam is never set to NaN', async () => {
+    // real AudioParam throws when set to a non-finite value; the wasm bridge
+    // sends a NaN volume when a MOD calls tone() without one.
+    const makeParam = () => {
+      let stored = 0
+      return {
+        get value() {
+          return stored
+        },
+        set value(next) {
+          if (!Number.isFinite(next)) throw new TypeError('non-finite AudioParam value')
+          stored = next
+        },
+      }
+    }
+    let oscillator
+    let gain
+    const context = {
+      currentTime: 0,
+      createOscillator() {
+        oscillator = { frequency: makeParam(), onended: undefined, connect() {}, start() {}, stop() {} }
+        return oscillator
+      },
+      createGain() {
+        gain = { kind: 'gain', gain: makeParam(), connect() {} }
+        return gain
+      },
+      destination: 'destination',
+      state: 'running',
+    }
+    const bridge = createHostAudioOutBridge({
+      createAudioContext: () => context,
+      setTimeoutFn: (fn) => {
+        fn()
+        return 0
+      },
+      clearTimeoutFn: () => {},
+    })
+
+    await bridge.tone({ hz: 440, duration: 300, volume: Number.NaN })
+    assert.equal(oscillator.frequency.value, 440)
+    assert.equal(gain.gain.value, 1) // NaN volume falls back to full volume
+
+    await bridge.tone({ hz: Number.NaN, duration: Number.NaN, volume: 2 })
+    assert.equal(oscillator.frequency.value, 440) // NaN hz falls back to 440
+    assert.equal(gain.gain.value, 1) // volume clamped to [0, 1]
+  })
+
   it('resolves tone playback with a duration fallback when onended does not fire', async () => {
     const scheduled = []
     const context = {

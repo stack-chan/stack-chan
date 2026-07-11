@@ -241,10 +241,7 @@ class StackchanScene {
     screenHole.closePath()
     frameShape.holes.push(screenHole)
 
-    const frame = new THREE.Mesh(
-      new THREE.ShapeGeometry(frameShape),
-      new THREE.MeshBasicMaterial({ color: 0x211a17 })
-    )
+    const frame = new THREE.Mesh(new THREE.ShapeGeometry(frameShape), new THREE.MeshBasicMaterial({ color: 0x211a17 }))
     frame.position.set(framePlacement.x, framePlacement.y, framePlacement.z)
     this.headGroup.add(frame)
     this.screenMesh.renderOrder = 1
@@ -371,7 +368,7 @@ class WasmView {
       this.launch(archive)
     } catch (error) {
       console.error('[bridge] WASM load failed', error)
-      this.info.textContent = `WASM未検出: firmware で npm run build:wasm を実行し、mc.js / mc.wasm を web/simulator/ にコピーしてください。(${error.message})`
+      this.info.textContent = 'WASMを読み込めませんでした'
       this.#drawFallbackFace()
     }
   }
@@ -510,7 +507,7 @@ class WasmView {
     ]
     const format = pixelFormats[which] ?? `format ${which}`
     console.log('[bridge] onFormatChanged', { which, format, xs: `${major}.${minor}.${patch}` })
-    this.info.textContent = `WASM ready: ${format} / XS ${major}.${minor}.${patch}`
+    this.info.textContent = '準備完了'
   }
 
   onStart(interval) {
@@ -571,18 +568,17 @@ const cameraBridge = createHostCameraBridge()
 if (browserCameraButton) {
   browserCameraButton.addEventListener('click', async () => {
     browserCameraButton.disabled = true
-    if (browserCameraStatus) browserCameraStatus.textContent = 'ブラウザカメラを開始しています…'
+    if (browserCameraStatus) browserCameraStatus.textContent = '接続中'
     try {
       await cameraBridge.start({ useBrowserCamera: true })
       if (browserCameraStatus) {
         browserCameraStatus.textContent = cameraBridge.isBrowserCameraStarted()
-          ? 'ブラウザカメラ準備完了。ドロワーのCameraでプレビューできます。'
-          : 'ブラウザカメラは使えませんでした。合成フレームで続行します。'
+          ? '接続済み'
+          : '利用できません · 合成映像'
       }
     } catch (error) {
       console.warn('[bridge] browser camera button failed', error)
-      if (browserCameraStatus)
-        browserCameraStatus.textContent = 'ブラウザカメラ開始に失敗しました。合成フレームで続行します。'
+      if (browserCameraStatus) browserCameraStatus.textContent = '接続失敗 · 合成映像'
     } finally {
       browserCameraButton.disabled = false
     }
@@ -598,29 +594,22 @@ console.log('[bridge] global Host.Button/Audio/Camera constructors installed')
 
 function describeModStatus(result, installedMod = null) {
   if (result?.status === 'prepared') {
-    return `MOD: ${result.name} (${formatByteSize(result.size)}) prepared for launch archive`
+    return `${result.name} · ${formatByteSize(result.size)} · 起動準備済み`
   }
   if (result?.status === 'installed') {
-    return `MOD: ${result.name} (${formatByteSize(result.size)}) installed via ${result.hook}`
+    return `${result.name} · ${formatByteSize(result.size)} · 適用済み`
   }
   if (result?.status === 'unsupported') {
-    return `MOD: ${result.name} (${formatByteSize(result.size)}) saved; this WASM build has no MOD install hook yet`
+    return `${result.name} · ${formatByteSize(result.size)} · 保存済み`
   }
   if (result?.status === 'error') {
-    return `MOD: error (${result.error})`
+    return `MODエラー · ${result.error}`
   }
   if (installedMod) {
-    const lifetime = installedMod.storage === 'memory' ? ' stored in memory (session-only)' : ' saved'
-    return `MOD: ${installedMod.name} (${formatByteSize(installedMod.size)})${lifetime}`
+    const lifetime = installedMod.storage === 'memory' ? ' · セッション保存' : ' · 保存済み'
+    return `${installedMod.name} · ${formatByteSize(installedMod.size)}${lifetime}`
   }
-  return 'MOD: empty'
-}
-
-function describeModLaunchInstruction(installedMod) {
-  if (installedMod.storage === 'memory') {
-    return 'click Restart simulator to launch it during this browser session'
-  }
-  return 'click Restart simulator to launch it'
+  return 'MODなし'
 }
 
 async function refreshSavedModStatus() {
@@ -669,10 +658,8 @@ modArchiveInput.addEventListener('change', async (event) => {
   try {
     const bytes = new Uint8Array(await file.arrayBuffer())
     const installedMod = await modStorage.saveInstalledMod({ name: file.name, bytes })
-    modInstallStatus.textContent = `${describeModStatus(
-      { status: 'saved' },
-      installedMod
-    )}; ${describeModLaunchInstruction(installedMod)}`
+    modInstallStatus.textContent = `${describeModStatus({ status: 'saved' }, installedMod)} · 再起動中`
+    await wasmView.restart()
   } catch (error) {
     console.error('[bridge] MOD archive save failed', error)
     modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
@@ -682,7 +669,7 @@ modArchiveInput.addEventListener('change', async (event) => {
 })
 modRestartButton.addEventListener('click', async () => {
   try {
-    modInstallStatus.textContent = 'MOD: restarting simulator...'
+    modInstallStatus.textContent = '再起動中'
     await wasmView.restart()
   } catch (error) {
     console.error('[bridge] simulator restart failed', error)

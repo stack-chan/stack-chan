@@ -8,8 +8,8 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  background: #0f1117;
-  color: #f7efe7;
+  background: #111315;
+  color: #f4f6f7;
 }
 
 * {
@@ -18,79 +18,96 @@
 
 body {
   margin: 0;
+  min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 18% 12%, rgba(255, 170, 115, 0.18), transparent 28rem),
-    radial-gradient(circle at 82% 20%, rgba(121, 184, 255, 0.18), transparent 24rem), #0f1117;
+  background: #111315;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+a,
+label {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .app-shell {
-  width: min(1120px, calc(100vw - 32px));
-  margin: 0 auto;
-  padding: 48px 0;
+  display: grid;
+  grid-template-rows: 52px minmax(0, 1fr);
+  width: 100%;
+  min-height: 100vh;
 }
 
-.hero {
-  margin-bottom: 28px;
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 0 16px;
+  border-bottom: 1px solid #33383d;
+  background: #191c1f;
 }
 
 h1,
 h2,
 p {
-  margin-top: 0;
+  margin: 0;
 }
 
 h1 {
-  margin-bottom: 10px;
-  font-size: 1.35rem;
-  line-height: 1.25;
+  overflow: hidden;
+  font-size: 1rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.hero p {
-  max-width: 720px;
-  color: #d8d0c8;
-  line-height: 1.6;
+h2 {
+  font-size: 0.82rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: #c5ccd2;
 }
 
-.usage-list {
-  margin: 12px 0 0;
-  padding-left: 1.2em;
-  color: #d8d0c8;
-  line-height: 1.65;
+#simulator-info {
+  overflow: hidden;
+  color: #83d9aa;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .simulator-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 20px;
-  align-items: stretch;
+  min-height: 0;
 }
 
-.viewport-card,
-.control-card {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
-  overflow: hidden;
-}
-
-.viewport-card {
+.simulator-stage {
   position: relative;
-  min-height: 620px;
+  min-width: 0;
+  min-height: 540px;
+  overflow: hidden;
+  background: #0b0d0e;
 }
 
 #stackchan-viewport {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 620px;
-  cursor: default;
+  min-height: 540px;
+  cursor: grab;
   touch-action: none;
 }
 
 #stackchan-viewport:active {
-  cursor: default;
+  cursor: grabbing;
 }
 
 #simulator-screen {
@@ -101,67 +118,95 @@ h1 {
   height: 240px;
 }
 
-.control-card {
-  padding: 24px;
+.inspector {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  border-left: 1px solid #33383d;
+  background: #191c1f;
 }
 
-.control-card h2 {
-  margin-bottom: 8px;
-}
-
-#simulator-info {
-  min-height: 3em;
-  color: #bfb7ad;
-  line-height: 1.5;
-}
-
-button,
-.file-button,
-.sample-download {
-  border: 0;
-  border-radius: 999px;
-  padding: 12px 16px;
-  background: #f7efe7;
-  color: #19130f;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    transform 140ms ease,
-    background 140ms ease;
-}
-
-button:hover,
-.file-button:hover,
-.sample-download:hover {
-  transform: translateY(-1px);
-  background: #ffd2aa;
-}
-
-.mod-installer {
+.tool-section,
+.trace-section {
   display: grid;
   gap: 10px;
-  margin: 20px 0 24px;
-  padding: 16px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 16px;
+  border-bottom: 1px solid #33383d;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.icon-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.icon-button,
+.command-button {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #454c52;
+  border-radius: 6px;
+  background: #262b2f;
+  color: #f4f6f7;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.icon-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+
+.command-button {
+  width: 100%;
+  padding: 10px 14px;
+  font-weight: 650;
+}
+
+.icon-button:hover,
+.command-button:hover {
+  border-color: #6c7881;
+  background: #30373c;
+}
+
+.icon-button:focus-visible,
+.command-button:focus-visible {
+  outline: 3px solid #42bde8;
+  outline-offset: 2px;
+}
+
+.icon-button.danger:hover {
+  border-color: #ef6262;
+  color: #ff9b9b;
+}
+
+.icon-button svg,
+.command-button svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  stroke-width: 2;
 }
 
 button:disabled {
   cursor: wait;
-  opacity: 0.72;
-  transform: none;
-}
-
-button[aria-pressed="true"] {
-  background: #8bd3ff;
-}
-
-.file-button,
-.sample-download {
-  display: inline-flex;
-  justify-content: center;
-  text-align: center;
-  text-decoration: none;
+  opacity: 0.6;
 }
 
 #mod-archive-input {
@@ -172,66 +217,68 @@ button[aria-pressed="true"] {
   pointer-events: none;
 }
 
-#mod-install-status {
-  min-height: 2.8em;
-  margin: 0;
-  color: #bfb7ad;
-  font-size: 0.9rem;
-  line-height: 1.45;
-}
-
-.camera-controls {
-  display: grid;
-  gap: 8px;
-  margin: 12px 0 0;
-}
-
-#browser-camera-button {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 12px;
-  background: #ffb36b;
-  color: #21160f;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-#browser-camera-button:disabled {
-  cursor: wait;
-  opacity: 0.72;
-}
-
+#mod-install-status,
 #browser-camera-status {
-  margin: 0;
-  color: #a9b9c9;
-  font-size: 0.82rem;
-  line-height: 1.5;
+  min-height: 1.4em;
+  color: #aeb7be;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.trace-section {
+  min-height: 180px;
+  flex: 1;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-bottom: 0;
 }
 
 #trace-log {
-  height: 420px;
-  margin: 16px 0 0;
-  padding: 12px;
+  min-height: 150px;
+  margin: 0;
+  padding: 10px;
   overflow: auto;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.24);
-  color: #d8d0c8;
-  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
+  border: 1px solid #33383d;
+  border-radius: 6px;
+  background: #101214;
+  color: #cbd2d8;
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 0.72rem;
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-@media (max-width: 880px) {
-  .simulator-layout {
-    grid-template-columns: 1fr;
+@media (max-width: 760px) {
+  .app-shell {
+    grid-template-rows: 48px auto;
   }
 
-  .viewport-card,
+  .topbar {
+    padding: 0 10px;
+  }
+
+  .surface-name {
+    display: none;
+  }
+
+  .simulator-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(420px, 62vh) auto;
+  }
+
+  .simulator-stage,
   #stackchan-viewport {
-    min-height: 480px;
+    min-height: 420px;
+  }
+
+  .inspector {
+    overflow: visible;
+    border-top: 1px solid #33383d;
+    border-left: 0;
+  }
+
+  .trace-section {
+    min-height: 260px;
   }
 }

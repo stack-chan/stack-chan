@@ -8,7 +8,8 @@ describe('simulator MOD sample download', () => {
   it('offers a downloadable sample .xsa next to the installer', () => {
     assert.match(html, /href="\.\/samples\/stackchan-sample-mod\.xsa"/)
     assert.match(html, /download="stackchan-sample-mod\.xsa"/)
-    assert.match(html, />Download sample \.xsa</)
+    assert.match(html, /aria-label="サンプルMODをダウンロード"/)
+    assert.match(html, /data-lucide="download"/)
   })
 
   it('documents that the sample visibly changes the face after restart', () => {
@@ -29,20 +30,35 @@ describe('simulator MOD archive install input', () => {
     assert.doesNotMatch(simulatorSource, /event\.currentTarget\.value = ''/)
   })
 
-  it('offers an explicit restart control for launching a saved MOD archive', () => {
+  it('offers an icon restart control', () => {
     assert.match(html, /id="simulator-restart-button"/)
-    assert.match(html, />Restart simulator</)
+    assert.match(html, /aria-label="シミュレーターを再起動"/)
+    assert.match(html, /data-lucide="rotate-cw"/)
     assert.match(simulatorSource, /async restart\(\)/)
     assert.match(simulatorSource, /modRestartButton\.addEventListener\('click', async \(\) => \{/)
     assert.match(simulatorSource, /await wasmView\.restart\(\)/)
-    assert.match(simulatorSource, /click Restart simulator to launch it/)
+    assert.match(simulatorSource, /await wasmView\.restart\(\)/)
   })
 
-  it('tells users memory-backed MOD saves are session-only but restartable', () => {
+  it('launches a saved MOD without showing interaction instructions', () => {
     assert.match(simulatorSource, /installedMod\.storage === 'memory'/)
-    assert.match(simulatorSource, /stored in memory \(session-only\)/)
-    assert.match(simulatorSource, /session-only/)
-    assert.match(simulatorSource, /click Restart simulator to launch it during this browser session/)
-    assert.doesNotMatch(simulatorSource, /before reloading this page/)
+    assert.match(simulatorSource, /セッション保存/)
+    assert.doesNotMatch(simulatorSource, /click Restart simulator/)
+    assert.doesNotMatch(html, /usage-list/)
+  })
+})
+
+describe('simulator frontend guidance', () => {
+  const css = readFileSync(new URL('./simulator.css', import.meta.url), 'utf8')
+
+  it('starts with the usable simulator and avoids explanatory hero copy', () => {
+    assert.doesNotMatch(html, /class="hero"/)
+    assert.doesNotMatch(html, /ドラッグ:|ホイール:/)
+    assert.match(html, /class="simulator-stage"/)
+  })
+
+  it('keeps the primary 3D scene unframed and avoids prohibited decoration', () => {
+    assert.doesNotMatch(css, /radial-gradient|border-radius:\s*2[0-9]px|border-radius:\s*999px/)
+    assert.doesNotMatch(html, /viewport-card|control-card/)
   })
 })

@@ -5,18 +5,18 @@ on:
     branches:
       - develop
     paths:
-      - 'firmware/**'
-      - 'web/simulator/**'
-      - '.github/actions/setup/action.yml'
-      - '.github/workflows/bundle.yml'
+      - "firmware/**"
+      - "web/**"
+      - ".github/actions/setup/action.yml"
+      - ".github/workflows/bundle.yml"
   pull_request:
     branches:
       - develop
     paths:
-      - 'firmware/**'
-      - 'web/simulator/**'
-      - '.github/actions/setup/action.yml'
-      - '.github/workflows/bundle.yml'
+      - "firmware/**"
+      - "web/**"
+      - ".github/actions/setup/action.yml"
+      - ".github/workflows/bundle.yml"
 
 permissions:
   contents: read
@@ -65,6 +65,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: gh-pages
+      - name: Checkout website source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: website-source
       - name: Download firmware bundle
         uses: actions/download-artifact@v8
         with:
@@ -85,6 +90,10 @@ jobs:
             echo "WASM simulator artifact is empty"
             exit 1
           fi
+          rsync -a --delete \
+            --exclude '/schematics/' \
+            --exclude '/flash/tech.moddable.stackchan/' \
+            ./website-source/web/ ./web/
           rm -rf ./web/flash/tech.moddable.stackchan ./web/simulator
           mkdir -p ./web/flash/tech.moddable.stackchan ./web/simulator
           cp -R ./firmware-bundle/. ./web/flash/tech.moddable.stackchan/
@@ -93,10 +102,10 @@ jobs:
         run: |
           git config user.name 'GitHub Action'
           git config user.email 'action@github.com'
-          git add ./web/flash/tech.moddable.stackchan ./web/simulator
+          git add --all ./web
           if git diff --cached --quiet; then
             echo "No bundle changes to deploy"
             exit 0
           fi
-          git commit -m "Deploy firmware bundle from ${{ github.sha }}"
+          git commit -m "Deploy website and firmware bundle from ${{ github.sha }}"
           git push origin HEAD:gh-pages

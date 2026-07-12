@@ -47,6 +47,9 @@ test('tool pages expose consistent navigation without changing integration ids',
   assert.match(editorScript, /\.output-tabs \[role="tab"\]/)
   assert.match(editorScript, /ArrowRight/)
   assert.match(editorScript, /candidate\.tabIndex = selected \? 0 : -1/)
+
+  const editorStyles = readFileSync('editor/editor.css', 'utf8')
+  assert.match(editorStyles, /\.blocklyTreeLabel\s*{[^}]*color:\s*#202428/s)
 })
 
 test('shared controls preserve the native hidden state', () => {

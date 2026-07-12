@@ -17,6 +17,8 @@ import { Eye } from 'parts/eye'
 import { EyeSprite } from 'parts/image/eye-sprite'
 import { MouthSprite } from 'parts/image/mouth-sprite'
 import { Mouth } from 'parts/mouth'
+import { RelaxedEye } from 'parts/relaxed-eye'
+import { RelaxedMouth } from 'parts/relaxed-mouth'
 import type {
   Container as PiuContainer,
   ContainerDictionary as PiuContainerDictionary,
@@ -275,6 +277,19 @@ export const SmallFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams 
     ],
   }
 })
+
+export const RelaxedFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams = {}) => ({
+  left: $.left ?? DEFAULT_FACE_LEFT,
+  top: $.top ?? DEFAULT_FACE_TOP,
+  width: $.width ?? DEFAULT_FACE_WIDTH,
+  height: $.height ?? DEFAULT_FACE_HEIGHT,
+  motions: $.motions ?? [createBreathMotion({ duration: 6000 })],
+  contents: [
+    new RelaxedEye({ cx: 30, cy: 38, side: 'left' }),
+    new RelaxedEye({ cx: 170, cy: 38, side: 'right' }),
+    new RelaxedMouth({ cx: 100, cy: 88 }),
+  ],
+}))
 
 export const DogFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams = {}) => {
   const left = $.left ?? DEFAULT_FACE_LEFT

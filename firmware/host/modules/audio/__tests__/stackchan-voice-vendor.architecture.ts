@@ -6,6 +6,22 @@ import { test } from 'node:test'
 
 const vendorRoot = 'vendor/stackchan-voice'
 
+test('stackchan-voice native resources are limited to the supported CoreS3 target', () => {
+  const manifest = JSON.parse(readFileSync('host/modules/audio/manifest.json', 'utf8')) as {
+    include: string[]
+    modules: Record<string, string | string[]>
+    platforms: Record<string, { include?: string[]; modules?: Record<string, string> }>
+  }
+  const coreS3 = manifest.platforms['esp32/m5stackchan_cores3']
+
+  assert.equal(manifest.include.includes('../../../vendor/stackchan-voice/manifest.json'), false)
+  assert.equal(manifest.include.includes('$(MODDABLE)/modules/io/audioout/manifest.json'), false)
+  assert.match(readFileSync('host/modules/audio/tts-stackchan-voice.ts', 'utf8'), /unavailable on this target/)
+  assert.ok(coreS3.include?.includes('../../../vendor/stackchan-voice/manifest.json'))
+  assert.ok(coreS3.include?.includes('$(MODDABLE)/modules/io/audioout/manifest.json'))
+  assert.equal(coreS3.modules?.['tts-stackchan-voice'], './stackchan-voice/tts-stackchan-voice')
+})
+
 test('stackchan-voice vendor snapshot matches its recorded provenance', () => {
   const provenance = JSON.parse(readFileSync(join(vendorRoot, 'VENDOR_SOURCE.json'), 'utf8')) as {
     dictionary: { file: string; sha256: string; license: string }

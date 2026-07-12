@@ -131,7 +131,7 @@ test('device TTS engines delegate playback state and AudioOut lifecycle to the s
     assert.doesNotMatch(source, /this\.streaming\s*=\s*true/, `${file} should not own streaming activation`)
   }
 
-  const streamingSource = readFileSync('host/modules/audio/tts-stackchan-voice.ts', 'utf8')
+  const streamingSource = readFileSync('host/modules/audio/stackchan-voice/tts-stackchan-voice.ts', 'utf8')
   assert.match(streamingSource, /from 'tts-playback-lifecycle'/)
   assert.match(streamingSource, /beginTTSPlayback\(this, callback/)
   assert.match(streamingSource, /lifecycle\.addCleanup\(/)

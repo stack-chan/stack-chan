@@ -1,7 +1,6 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_typings.json",
-    "$(MODDABLE)/modules/io/audioout/manifest.json",
     "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
     "$(MODDABLE)/examples/pins/audioout/http-stream/manifest_wavstreamer.json",
     "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
@@ -12,8 +11,7 @@
     "$(MODDABLE)/modules/data/url/manifest.json",
     "../util/manifest.json",
     "./manifest_file.json",
-    "../../app/manifest_typings.json",
-    "../../../vendor/stackchan-voice/manifest.json"
+    "../../app/manifest_typings.json"
   ],
   "modules": {
     "*": [
@@ -114,9 +112,14 @@
       }
     },
     "esp32/m5stackchan_cores3": {
+      "include": [
+        "$(MODDABLE)/modules/io/audioout/manifest.json",
+        "../../../vendor/stackchan-voice/manifest.json"
+      ],
       "modules": {
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
-        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin"
+        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin",
+        "tts-stackchan-voice": "./stackchan-voice/tts-stackchan-voice"
       },
       "dependency": [
         {

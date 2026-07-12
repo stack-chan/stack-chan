@@ -241,8 +241,12 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     label: 'Speak',
     callback: async (target) => {
       closeDrawer()
-      const result = await target.audio.say(SPEECH_SYNTHESIS_TEXT)
-      if ('reason' in result) trace(`[SpeechSynthesis] ${result.reason}\n`)
+      try {
+        const result = await target.audio.say(SPEECH_SYNTHESIS_TEXT)
+        if ('reason' in result) trace(`[SpeechSynthesis] ${result.reason}\n`)
+      } catch (error) {
+        trace(`[SpeechSynthesis] error ${errorMessage(error)}\n`)
+      }
     },
   })
 

@@ -42,6 +42,10 @@ for (const [from, to] of files) {
   copyFileSync(join(source, from), target)
 }
 
+const noticePath = join(destination, 'NOTICE')
+const notice = readFileSync(noticePath, 'utf8').replaceAll('data/frontend/UNIDIC-', 'data/UNIDIC-')
+writeFileSync(noticePath, notice)
+
 const manifest = {
   modules: {
     stackchanvoice: './moddable/stackchanvoice',

@@ -39,6 +39,11 @@ test('stackchan-voice vendor snapshot matches its recorded provenance', () => {
 
   assert.equal(provenance.files[provenance.dictionary.file], provenance.dictionary.sha256)
   assert.equal(provenance.dictionary.license, 'modified BSD')
+
+  const notice = readFileSync(join(vendorRoot, 'NOTICE'), 'utf8')
+  assert.doesNotMatch(notice, /data\/frontend\/UNIDIC-/)
+  assert.match(notice, /data\/UNIDIC-AUTHORS\.txt/)
+  assert.match(notice, /data\/UNIDIC-BSD\.txt/)
 })
 
 test('default behavior exposes stackchan-voice synthesis from the drawer', () => {
@@ -46,4 +51,5 @@ test('default behavior exposes stackchan-voice synthesis from the drawer', () =>
   assert.match(source, /SPEECH_SYNTHESIS_TEXT = 'こんにちわ。すたっくちゃんです。'/)
   assert.match(source, /key: 'speakStackchan'/)
   assert.match(source, /target\.audio\.say\(SPEECH_SYNTHESIS_TEXT\)/)
+  assert.match(source, /\[SpeechSynthesis\] error \$\{errorMessage\(error\)\}/)
 })

@@ -173,8 +173,8 @@ void xs_scv_read24(xsMachine *the)
 			if (!scv_next_source(m, &sample))
 				break;
 			m->resampleTriplet[0] = m->resamplePrevious;
-			m->resampleTriplet[1] = (int16_t)(((int32_t)m->resamplePrevious + (int32_t)sample) / 2);
-			m->resampleTriplet[2] = sample;
+			m->resampleTriplet[1] = (int16_t)(((int32_t)m->resamplePrevious * 2 + (int32_t)sample) / 3);
+			m->resampleTriplet[2] = (int16_t)(((int32_t)m->resamplePrevious + (int32_t)sample * 2) / 3);
 			m->resamplePrevious = sample;
 			m->resampleIndex = 0u;
 		}

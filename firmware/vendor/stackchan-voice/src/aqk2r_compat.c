@@ -16,6 +16,10 @@ static uint32_t g_dic_index = 0u;
 #define AQK2R_POS_COUNT 8u
 #define AQK2R_MATCH_MAX 3u
 
+typedef char aqk2r_cost_layout_fits_workbuf[
+    (AQD_BLOCK_MAX + (AQK2R_SPAN_MAX + 1u) * AQK2R_POS_COUNT * sizeof(int32_t) <=
+     SIZE_AQK2R_MIN_WORK_BUF) ? 1 : -1];
+
 typedef struct {
     const char *utf8;
     const char *roman;
@@ -605,7 +609,7 @@ uint8_t CAqK2R_Create(uint8_t *workbuf, uint32_t workbuf_size) {
     g_dic_blocks = get_u32(header + 16u);
     g_dic_index = get_u32(header + 20u);
     if (g_dic_size < AQD_HEADER_SIZE || g_dic_blocks == 0u || g_dic_index != AQD_HEADER_SIZE ||
-        g_dic_index + g_dic_blocks * 4u > g_dic_size) return AQK2R_ERR_DIC_FORMAT;
+        g_dic_blocks > (g_dic_size - g_dic_index) / 4u) return AQK2R_ERR_DIC_FORMAT;
     expected_crc = get_u32(header + 48u);
     if (dic_crc32(AQD_HEADER_SIZE, g_dic_size - AQD_HEADER_SIZE, &crc_ok) != expected_crc || !crc_ok)
         return AQK2R_ERR_DIC_FORMAT;

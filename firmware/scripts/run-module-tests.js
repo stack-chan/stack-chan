@@ -9,7 +9,7 @@ import { startXsbugServer } from './lib/xsbug-log-server.js'
 const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods/examples']
 const XSBUG_HOST = process.env.STACKCHAN_MODULE_TEST_XSBUG_HOST ?? '127.0.0.1'
 const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '15000', 10)
-const BUILD_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS ?? '180000', 10)
+const BUILD_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS ?? '360000', 10)
 const FILTER = process.env.STACKCHAN_MODULE_TEST_FILTER
 // Incremental builds are safe: mcconfig regenerates the makefile on every run and
 // the generated mc.xs.c rule depends on every manifest in the include chain, so
@@ -19,7 +19,9 @@ const CLEAN = process.env.STACKCHAN_MODULE_TEST_CLEAN === '1'
 const JOBS = (() => {
   const parsed = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_JOBS ?? '', 10)
   if (Number.isFinite(parsed) && parsed >= 1) return parsed
-  return Math.min(4, availableParallelism())
+  // Each mcconfig build already compiles with make --jobs 8 internally; leave
+  // CPU headroom or cold builds on 4-core CI runners exceed the build timeout.
+  return Math.min(4, Math.max(1, availableParallelism() - 2))
 })()
 // Explicit per-test X display numbers: xvfb-run -a probes lock files and races
 // when several instances start concurrently.

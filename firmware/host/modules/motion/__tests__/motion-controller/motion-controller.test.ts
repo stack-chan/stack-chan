@@ -1,10 +1,10 @@
 import {
   type MotionCompletion,
   MotionController,
-  motionDurationSecondsToCentiseconds,
-  motionDurationSecondsToMilliseconds,
   type MotionDriver,
   type MotionResultCallback,
+  motionDurationSecondsToCentiseconds,
+  motionDurationSecondsToMilliseconds,
 } from 'motion-controller'
 import { type Maybe, type Pose, type Rotation, wait, waitForCompletion } from 'stackchan-util'
 import { assert, equal } from 'testing/assert'

@@ -4,67 +4,134 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="../assets/stackchan-favicon-32.png" type="image/png" />
-    <title>ｽﾀｯｸﾁｬﾝ ブロックエディタ</title>
+    <link rel="apple-touch-icon" href="../assets/stackchan-apple-touch-icon.png" />
+    <title>ブロックエディタ | ｽﾀｯｸﾁｬﾝ</title>
+    <link rel="stylesheet" href="../global.css" />
     <link rel="stylesheet" href="./editor.css" />
-    <script src="https://unpkg.com/blockly@11.2.2/blockly_compressed.js"></script>
-    <script src="https://unpkg.com/blockly@11.2.2/blocks_compressed.js"></script>
-    <script src="https://unpkg.com/blockly@11.2.2/javascript_compressed.js"></script>
-    <script src="https://unpkg.com/blockly@11.2.2/msg/ja.js"></script>
+    <script
+      src="https://unpkg.com/blockly@11.2.2/blockly_compressed.js"
+      integrity="sha384-nXdS/O1XBg7d1iom7upZrVOtjvQfnVGDx67ecaCgU823024LIITNe/9Vf3o9ouRl"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/blockly@11.2.2/blocks_compressed.js"
+      integrity="sha384-HrJy1eOfAncgHWDhGobRG4+LW7lqYE6yk+XU5mArpfriaJP69d+R+sdziP7jswuL"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/blockly@11.2.2/javascript_compressed.js"
+      integrity="sha384-De44udSvZv11/XTEpKugzXvo25LZZR95qk6vZAXaPLMDt3QWmp6ZAZX4tmQvyZG3"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/blockly@11.2.2/msg/ja.js"
+      integrity="sha384-vwDwBIqpZ3trnzftlXPz5I2KLW59rnUE3qmcgJ/PRqFMMtz0GRpLJcwHfc0X7s2r"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.min.js"
+      integrity="sha384-mooE85Luwgx+AyykX7e90VcN8/QCFTSIwPuHLmvcsLVoA0en7lKYb9XlOzn5G2co"
+      crossorigin="anonymous"
+    ></script>
   </head>
   <body>
     <main class="editor-shell">
-      <header class="editor-header">
-        <h1>ｽﾀｯｸﾁｬﾝ ブロックエディタ</h1>
-        <p>
-          ブロックでMODを組み立てて、ブラウザ内のmcrun(WebAssembly)でビルドし、
-          <a href="../simulator/" target="_blank" rel="noopener">Webシミュレーター</a
-          >やWebSerial経由の実機にインストールできます。
-        </p>
+      <header class="topbar">
+        <a class="brand-link" href="../"
+          ><img src="../assets/stackchan-symbol.png" alt="" /><span
+            >ｽﾀｯｸﾁｬﾝ<span class="surface-name"> ブロックエディタ</span></span
+          ></a
+        >
+        <div class="workspace-actions" aria-label="ワークスペース操作">
+          <button
+            id="sample-button"
+            class="icon-button"
+            type="button"
+            title="サンプルを読み込む"
+            aria-label="サンプルを読み込む"
+          >
+            <i data-lucide="file-input"></i>
+          </button>
+          <button
+            id="clear-button"
+            class="icon-button danger-button"
+            type="button"
+            title="ワークスペースを消去"
+            aria-label="ワークスペースを消去"
+          >
+            <i data-lucide="trash-2"></i>
+          </button>
+        </div>
+        <nav class="tool-nav" aria-label="ツール">
+          <a href="../" title="ホーム" aria-label="ホーム"><i data-lucide="home"></i></a
+          ><a href="../flash/" title="書き込み" aria-label="書き込み"><i data-lucide="cpu"></i></a
+          ><a href="../preference/" title="設定" aria-label="設定"><i data-lucide="sliders-horizontal"></i></a
+          ><a href="../simulator/" title="シミュレーター" aria-label="シミュレーター"><i data-lucide="box"></i></a
+          ><a href="../editor/" aria-current="page" title="エディタ" aria-label="エディタ"
+            ><i data-lucide="blocks"></i
+          ></a>
+        </nav>
       </header>
-
-      <section class="editor-layout">
-        <div id="blockly-workspace" class="workspace-card" aria-label="Blockly workspace"></div>
-
-        <aside class="side-panel">
-          <div class="panel-card">
-            <h2>ビルド</h2>
-            <div class="button-row">
-              <button id="build-button" type="button" class="primary">ビルド (mc.xsa)</button>
-              <button id="download-button" type="button" disabled>.xsaをダウンロード</button>
+      <div class="editor-layout">
+        <section id="blockly-workspace" class="workspace" aria-label="Blocklyワークスペース"></section>
+        <aside class="editor-inspector" aria-label="ビルドとインストール">
+          <section class="build-section">
+            <div class="section-heading">
+              <h1>MOD</h1>
+              <p id="build-status" class="status-line" role="status">未ビルド</p>
             </div>
-            <div class="button-row">
-              <button id="install-simulator-button" type="button" disabled>シミュレータにインストール</button>
-              <button id="install-device-button" type="button" disabled>実機に書き込み (WebSerial)</button>
+            <button id="build-button" type="button" class="primary-button">
+              <i data-lucide="hammer"></i><span>ビルド</span>
+            </button>
+            <div class="install-grid">
+              <button id="download-button" type="button" disabled title="XSAをダウンロード">
+                <i data-lucide="download"></i><span>ダウンロード</span>
+              </button>
+              <button id="install-simulator-button" type="button" disabled>
+                <i data-lucide="box"></i><span>シミュレーターへ</span>
+              </button>
+              <button id="install-device-button" type="button" disabled>
+                <i data-lucide="usb"></i><span>実機へ書き込み</span>
+              </button>
             </div>
-            <p class="hint">
-              実機書き込みは esptool-js でブートローダ経由。MODを xs パーティションに書き、再起動後に動きます。
-            </p>
-            <p id="build-status" class="status">未ビルド</p>
-            <progress id="install-progress" max="1" value="0" hidden></progress>
-          </div>
-
-          <div class="panel-card">
-            <h2>生成コード (mod.js)</h2>
-            <pre id="code-preview" aria-label="generated mod.js"></pre>
-          </div>
-
-          <div class="panel-card">
-            <h2>ワークスペース</h2>
-            <div class="button-row">
-              <button id="sample-button" type="button">サンプルを読み込む</button>
-              <button id="clear-button" type="button">全部消す</button>
+            <progress id="install-progress" max="1" value="0" hidden aria-label="書き込み進行状況"></progress>
+          </section>
+          <section class="output-section">
+            <div class="output-tabs" role="tablist" aria-label="出力表示">
+              <button
+                id="code-tab"
+                class="output-tab"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="code-panel"
+              >
+                生成コード
+              </button>
+              <button
+                id="log-tab"
+                class="output-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="log-panel"
+              >
+                ログ
+              </button>
             </div>
-            <p class="hint">ワークスペースは自動的にブラウザへ保存されます。</p>
-          </div>
-
-          <div class="panel-card">
-            <h2>ログ</h2>
-            <pre id="log-output" aria-label="build and install log"></pre>
-          </div>
+            <div id="code-panel" class="output-panel" role="tabpanel" aria-labelledby="code-tab">
+              <pre id="code-preview" aria-label="生成されたmod.js"></pre>
+            </div>
+            <div id="log-panel" class="output-panel" role="tabpanel" aria-labelledby="log-tab" hidden>
+              <pre id="log-output" aria-label="ビルドとインストールのログ"></pre>
+            </div>
+          </section>
         </aside>
-      </section>
+      </div>
     </main>
-
     <script type="module" src="./editor.mjs"></script>
+    <script>
+      globalThis.lucide?.createIcons()
+    </script>
   </body>
 </html>

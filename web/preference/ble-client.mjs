@@ -81,9 +81,7 @@ class SimpleBLEClient {
 
     for (let i = 0; i < buf.length; i += chunkSize) {
       const chunk = buf.slice(i, i + chunkSize)
-      await this.#rx_characteristic?.writeValue(chunk).catch((reason) => {
-        console.warn(`write failed: ${reason}`)
-      })
+      await this.#rx_characteristic?.writeValue(chunk)
     }
   }
 }

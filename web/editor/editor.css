@@ -30,6 +30,9 @@ body {
   overflow: hidden;
   background: #e7ebed;
 }
+.blocklyTreeLabel {
+  color: #202428;
+}
 .editor-inspector {
   display: flex;
   min-width: 0;

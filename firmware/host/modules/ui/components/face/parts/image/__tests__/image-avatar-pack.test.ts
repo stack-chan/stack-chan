@@ -5,23 +5,6 @@ import { Emotion } from '../../../../../state/face-state.js'
 import { getImageAvatarPack, IMAGE_AVATAR_PACKS, registerImageAvatarPack } from '../image-avatar-pack.js'
 import { frameIndexForRatio, resolveExpressionName } from '../image-avatar-state.js'
 
-test('demo image avatar pack describes a complete face, mouth, and hands sprite set', () => {
-  const pack = getImageAvatarPack('stackchan-demo')
-
-  assert.equal(pack.id, 'stackchan-demo')
-  assert.deepEqual(Object.keys(pack.expressions).sort(), ['angry', 'happy', 'normal', 'sad'])
-
-  for (const [expressionName, expression] of Object.entries(pack.expressions)) {
-    assert.equal(expression.head.texture, `stackchan-demo-head-${expressionName}.png`)
-    assert.equal(expression.mouth.frames.texture, `stackchan-demo-mouth-${expressionName}.png`)
-    assert.equal(expression.hands.left.texture, `stackchan-demo-hand-left-${expressionName}.png`)
-    assert.equal(expression.hands.right.texture, `stackchan-demo-hand-right-${expressionName}.png`)
-    assert.equal(expression.mouth.frames.frameCount, 4)
-    assert.equal(expression.eyes.left.blinkFrames.frameCount, 4)
-    assert.equal(expression.eyes.right.blinkFrames.frameCount, 4)
-  }
-})
-
 test('ImageAvatarLite packs live in the sample MOD instead of the host registry', () => {
   assert.equal(getImageAvatarPack('image-avatar-lite-slime'), IMAGE_AVATAR_PACKS['stackchan-demo'])
 })

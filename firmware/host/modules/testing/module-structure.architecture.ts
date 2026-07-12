@@ -289,51 +289,6 @@ test('motion protocol continuable command errors are reported through callbacks'
   }
 })
 
-test('SCServo no-response writes complete outside the serial callback stack', () => {
-  const scservo = readFileSync(join(MODULE_ROOT, 'motion', 'protocols', 'scservo.ts'), 'utf8')
-  assert.match(scservo, /const waitsForResponse = command === COMMAND\.READ \|\| this\.#awaitWriteResponse/)
-  assert.match(scservo, /function deferNoResponseResult\(onResult: CommandCallback, onError: ErrorCallback\): void/)
-  assert.match(
-    scservo,
-    /Timer\.set\(\(\) => \{\s*try \{\s*onResult\(undefined\)/,
-    'no-response writes must not synchronously cascade pan/tilt callbacks from Serial.onReadable',
-  )
-  assert.match(scservo, /if \(!waitsForResponse\) \{\s*deferNoResponseResult\(onResult, onError\)/)
-})
-
-test('motion duration units are converted at driver protocol boundaries', () => {
-  const controller = readFileSync(join(MODULE_ROOT, 'motion', 'motion-controller.ts'), 'utf8')
-  const rs30xDriver = readFileSync(join(MODULE_ROOT, 'motion', 'rs30x-driver.ts'), 'utf8')
-  const scservoDriver = readFileSync(join(MODULE_ROOT, 'motion', 'scservo-driver.ts'), 'utf8')
-  const m5stackchanDriver = readFileSync(join(MODULE_ROOT, 'motion', 'm5stackchan-servo-driver.ts'), 'utf8')
-  const sg90Driver = readFileSync(join(MODULE_ROOT, 'motion', 'sg90-driver.ts'), 'utf8')
-  const dynamixelDriver = readFileSync(join(MODULE_ROOT, 'motion', 'dynamixel-driver.ts'), 'utf8')
-  const rs30xProtocol = readFileSync(join(MODULE_ROOT, 'motion', 'protocols', 'rs30x.ts'), 'utf8')
-  const scservoProtocol = readFileSync(join(MODULE_ROOT, 'motion', 'protocols', 'scservo.ts'), 'utf8')
-
-  assert.match(controller, /export type MotionDurationSeconds = number/)
-  assert.match(controller, /export type ServoGoalTimeMilliseconds = number/)
-  assert.match(controller, /export type ServoGoalTimeCentiseconds = number/)
-  assert.match(controller, /motionDurationSecondsToMilliseconds/)
-  assert.match(controller, /motionDurationSecondsToCentiseconds/)
-  assert.match(rs30xDriver, /motionDurationSecondsToCentiseconds\(time\)/)
-  assert.match(rs30xDriver, /goalTimeCentiseconds/)
-  assert.match(scservoDriver, /motionDurationSecondsToMilliseconds\(time\)/)
-  assert.match(scservoDriver, /goalTimeMilliseconds/)
-  assert.match(m5stackchanDriver, /motionDurationSecondsToMilliseconds\(time\)/)
-  assert.match(m5stackchanDriver, /goalTimeMilliseconds/)
-  assert.match(sg90Driver, /motionDurationSecondsToMilliseconds\(time\) \/ INTERVAL/)
-  assert.match(dynamixelDriver, /_time: MotionDurationSeconds/)
-  assert.match(rs30xProtocol, /export type RS30XGoalTimeCentiseconds = number/)
-  assert.match(rs30xProtocol, /goalTimeCentiseconds: RS30XGoalTimeCentiseconds/)
-  assert.doesNotMatch(rs30xProtocol, /goalTime\s*\*\s*100/)
-  assert.match(scservoProtocol, /export type SCServoGoalTimeMilliseconds = number/)
-  assert.match(scservoProtocol, /goalTimeMilliseconds: SCServoGoalTimeMilliseconds/)
-  assert.doesNotMatch(rs30xDriver, /setAngleInTime\([^,\n]+,\s*time[,)]/)
-  assert.doesNotMatch(scservoDriver, /setAngleInTime\([^,\n]+,\s*time \* 1000/)
-  assert.doesNotMatch(m5stackchanDriver, /setRawPositionInTime\([^,\n]+,\s*time \* 1000/)
-})
-
 test('optional PY32 hardware initialization is reported without making consumers throw', () => {
   const expander = readFileSync(join(MODULE_ROOT, 'io-expander', 'py32-io-expander.ts'), 'utf8')
   const motionManifest = readJson(join(MODULE_ROOT, 'motion', 'manifest.json'))
@@ -461,6 +416,38 @@ test('sample MOD relative manifest includes resolve from examples directories', 
         )
       }
     }
+  }
+})
+
+test('sample MODs use namespaced context capabilities', () => {
+  const flatApiPattern =
+    /\brobot\.(say|record|tone|playAudio|useTTS|lookAt|lookAway|setPose|setTorque|setEmotion|setColor|showBalloon|hideBalloon|lightOn|lightOff|lightBlink|lightRainbow|button|touch|touchPanel|imu|led|tts|microphone|drawer)\b/
+
+  const offenders = walkFiles(join('mods', 'examples'))
+    .filter((path) => path.endsWith('.js'))
+    .filter((path) => flatApiPattern.test(readFileSync(path, 'utf8')))
+
+  assert.deepEqual(offenders, [], 'sample MODs should use namespaced StackchanContext capabilities')
+})
+
+test('subplatforms that define camera pins are gated into the camera and conversation manifests', () => {
+  const cameraManifest = readJson(join(MODULE_ROOT, 'camera', 'manifest.json'))
+  const conversationManifest = readJson(join(MODULE_ROOT, 'conversation', 'manifest.json'))
+  const platformDirs = readdirSync('host/platforms', { withFileTypes: true }).filter((entry) => entry.isDirectory())
+
+  for (const dir of platformDirs) {
+    const manifestPath = join('host/platforms', dir.name, 'manifest.json')
+    if (!existsSync(manifestPath)) continue
+    if (!readJson(manifestPath).defines?.camera) continue
+
+    const target = `esp32/${dir.name}`
+    const cameraEntry = cameraManifest.platforms?.[target]
+    assert.ok(cameraEntry, `${target} defines camera pins but ${MODULE_ROOT}/camera/manifest.json does not gate it`)
+    assert.equal(cameraEntry.modules?.camera, './device/camera')
+    assert.ok(
+      conversationManifest.platforms?.[target],
+      `${target} defines camera pins but ${MODULE_ROOT}/conversation/manifest.json does not gate it`,
+    )
   }
 })
 

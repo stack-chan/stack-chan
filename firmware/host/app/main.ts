@@ -65,6 +65,8 @@ async function main() {
 
   trace('[main] loading app behaviors\n')
   const appBehaviors = loadAppBehaviors()
+  // Launch behaviors run before startHostBootServices so the splash screen is
+  // visible while network setup blocks.
   const shouldCreateContext = await runLaunchBehaviors(appBehaviors)
   trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
   if (!shouldCreateContext) return

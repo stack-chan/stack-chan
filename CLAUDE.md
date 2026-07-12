@@ -82,8 +82,11 @@ Uses lefthook for pre-commit hooks:
 
 ## Testing Approach
 
-Moddable test modules live under the target implementation with `manifest.test.json` for isolated execution.
+Moddable test modules live under the target implementation with `manifest.test.json`; substantial tests get their own manifest for isolated execution.
+Cheap constructor smokes are consolidated into shared manifests (`host/modules/__tests__/module-smoke`, `mods/examples/provider-dialogues/__tests__/dialogue-smoke`) because each manifest pays a full mcconfig build.
 Node.js unit tests live next to pure helper implementations and run through `npm run test:unit`.
+Prefer XS-driven Moddable tests for behavior that touches the platform (Piu, Timer, drivers); keep Node.js tests for pure logic.
+Tests must exercise behavior — do not write tests that merely re-assert source text or manifest values; record such constraints as why-comments in the source instead.
 
 ## Pull Request Review Guidance
 

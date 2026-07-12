@@ -3,10 +3,10 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "../../manifest.json",
-    "../../../testing/manifest.json"
+    "../../../../../host/app/manifest_typings.json"
   ],
   "modules": {
-    "main": "./tts-voicevox-web.test"
+    "main": "./dialogue-smoke.test"
   },
   "defines": {
     "main": {

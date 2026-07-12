@@ -25,8 +25,7 @@
         const connectionStatus = document.getElementById('connection-status')
         const saveStatus = document.getElementById('save-status')
         const controls = [...form.querySelectorAll('input, select, textarea, button')]
-        let submitting = null
-        let pendingPreferences = new Set()
+        let submitting = false
         const currentValues = new Map()
 
         const setStatus = (element, text, state = '') => {
@@ -71,7 +70,7 @@
 
         form.addEventListener('submit', async (event) => {
           event.preventDefault()
-          if (!client.isConnected() || submitting != null) return
+          if (!client.isConnected() || submitting) return
           const props = [
             'wifi.ssid',
             'wifi.password',
@@ -101,20 +100,17 @@
           }
           submitButton.disabled = true
           setStatus(saveStatus, '保存中…')
-          pendingPreferences = new Set(Object.keys(payload))
+          submitting = true
           try {
             await client.send({ _batch: payload })
-            submitting = setTimeout(() => {
-              submitting = null
-              pendingPreferences.clear()
-              submitButton.disabled = false
-              setStatus(saveStatus, '応答がありません。接続を確認して再度保存してください。', 'error')
-            }, 3000)
+            for (const [prop, value] of Object.entries(payload)) currentValues.set(prop, value)
+            setStatus(saveStatus, '設定を送信しました。', 'success')
           } catch (error) {
             console.error(error)
-            pendingPreferences.clear()
-            submitButton.disabled = false
             setStatus(saveStatus, `保存できませんでした: ${error.message ?? error}`, 'error')
+          } finally {
+            submitting = false
+            submitButton.disabled = !client.isConnected()
           }
         })
 
@@ -122,21 +118,12 @@
           deviceName: 'STK',
           onCharacteristicValueChanged: ({ prop, value }) => {
             currentValues.set(prop, String(value))
-            pendingPreferences.delete(prop)
-            if (submitting != null && pendingPreferences.size === 0) {
-              clearTimeout(submitting)
-              submitting = null
-              submitButton.disabled = false
-              setStatus(saveStatus, '設定を保存しました。', 'success')
-            }
             const element = document.querySelector(`[name="${prop}"]`)
             if (element != null) element.value = value
           },
         })
         client.onDisconnected = () => {
-          if (submitting != null) clearTimeout(submitting)
-          submitting = null
-          pendingPreferences.clear()
+          submitting = false
           currentValues.clear()
           setStatus(saveStatus, '接続が切れました。保存されていない項目を確認してください。', 'warning')
           updateView()

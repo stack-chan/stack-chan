@@ -28,7 +28,8 @@ test('tool pages expose consistent navigation without changing integration ids',
   }
   assert.match(preference, /role="alert"|data-state.*error|setStatus\([^)]*'error'/s)
   assert.match(preference, /currentValues\.get\(prop\) !== value/)
-  assert.match(preference, /pendingPreferences\.delete\(prop\)/)
+  assert.doesNotMatch(preference, /pendingPreferences|setTimeout/)
+  assert.match(preference, /設定を送信しました/)
   assert.match(preference, /変更する項目がありません/)
 
   const editor = readFileSync('editor/index.html', 'utf8')
@@ -46,6 +47,11 @@ test('tool pages expose consistent navigation without changing integration ids',
   assert.match(editorScript, /\.output-tabs \[role="tab"\]/)
   assert.match(editorScript, /ArrowRight/)
   assert.match(editorScript, /candidate\.tabIndex = selected \? 0 : -1/)
+})
+
+test('shared controls preserve the native hidden state', () => {
+  const css = readFileSync('global.css', 'utf8')
+  assert.match(css, /\[hidden\]\s*{[^}]*display:\s*none\s*!important/s)
 })
 
 test('third-party scripts that handle editable data use subresource integrity', () => {

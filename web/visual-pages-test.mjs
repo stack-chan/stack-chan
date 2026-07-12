@@ -70,6 +70,9 @@ try {
           bodyWidth: document.body.scrollWidth,
           topbar: { left: topbar.left, right: topbar.right, height: topbar.height },
           clippedText: interactive.filter((element) => element.scrollWidth > element.clientWidth + 1).length,
+          visibleHiddenElements: [...document.querySelectorAll('[hidden]')].filter(
+            (element) => getComputedStyle(element).display !== 'none'
+          ).length,
         }
       })
       assert.equal(layout.bodyWidth <= width, true, `${pageName}/${viewportName}: page must not overflow horizontally`)
@@ -84,6 +87,7 @@ try {
         `${pageName}/${viewportName}: header height must remain stable`
       )
       assert.equal(layout.clippedText, 0, `${pageName}/${viewportName}: interactive text must not be clipped`)
+      assert.equal(layout.visibleHiddenElements, 0, `${pageName}/${viewportName}: hidden controls must not be rendered`)
       await page.screenshot({ path: `/tmp/stackchan-${pageName}-${viewportName}.png`, fullPage: true })
     }
   }

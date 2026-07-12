@@ -1,16 +1,34 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
-import { createServer } from 'node:net'
-import { tmpdir } from 'node:os'
+import { availableParallelism, tmpdir } from 'node:os'
 import { basename, dirname, join, relative, resolve } from 'node:path'
+import { startXsbugServer } from './lib/xsbug-log-server.js'
 
 const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods/examples']
 const XSBUG_HOST = process.env.STACKCHAN_MODULE_TEST_XSBUG_HOST ?? '127.0.0.1'
-const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '8000', 10)
+const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '15000', 10)
 const BUILD_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS ?? '180000', 10)
 const FILTER = process.env.STACKCHAN_MODULE_TEST_FILTER
+// Incremental builds are safe: mcconfig regenerates the makefile on every run and
+// the generated mc.xs.c rule depends on every manifest in the include chain, so
+// stale outputs cannot survive a manifest or module edit. CLEAN exists as an
+// escape hatch for a corrupted build tree.
+const CLEAN = process.env.STACKCHAN_MODULE_TEST_CLEAN === '1'
+const JOBS = (() => {
+  const parsed = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_JOBS ?? '', 10)
+  if (Number.isFinite(parsed) && parsed >= 1) return parsed
+  return Math.min(4, availableParallelism())
+})()
+// Explicit per-test X display numbers: xvfb-run -a probes lock files and races
+// when several instances start concurrently.
+const DISPLAY_BASE = 100 + (process.pid % 1000)
+// mcsim is a GtkApplication with a fixed application-id and no
+// G_APPLICATION_NON_UNIQUE, so a second instance on the same DBus session bus
+// hands its .so to the first one and exits 0. A private bus per test keeps
+// concurrent simulators (and any mcsim the user has open) independent.
+const HAS_DBUS_RUN_SESSION = spawnSync('dbus-run-session', ['--version'], { stdio: 'ignore' }).status === 0
 
 const MODDABLE = process.env.MODDABLE
 if (!MODDABLE) {
@@ -103,81 +121,83 @@ function readBinDir(platform, name) {
   return match[1]
 }
 
-function printProcessFailure(label, result) {
-  const stdout = result.stdout?.toString() ?? ''
-  const stderr = result.stderr?.toString() ?? ''
-  console.error(`${label} failed with exit code ${result.status}`)
-  if (stdout.length > 0) console.error(stdout)
-  if (stderr.length > 0) console.error(stderr)
+// Tests sharing a build-output directory would corrupt each other under
+// parallel execution; the directory name is the test directory basename.
+function assertUniqueNames(manifestPaths) {
+  const seen = new Map()
+  for (const manifestPath of manifestPaths) {
+    const key = `${platformBuildSegment(selectPlatform(manifestPath))}/${basename(dirname(manifestPath))}`
+    const existing = seen.get(key)
+    if (existing) {
+      console.error(`Duplicate test directory name shares build output "${key}":`)
+      console.error(`  ${relativePath(existing)}`)
+      console.error(`  ${relativePath(manifestPath)}`)
+      process.exit(1)
+    }
+    seen.set(key, manifestPath)
+  }
 }
 
-function buildManifest({ manifestPath, platform, port, name }) {
-  removeBuildOutput(platform, name)
-  const result = spawnSync(
+function runProcess(command, args, { timeout }) {
+  return new Promise((resolveRun) => {
+    const child = spawn(command, args, { cwd: firmwareRoot })
+    let stdout = ''
+    let stderr = ''
+    let timedOut = false
+    child.stdout.setEncoding('utf8')
+    child.stderr.setEncoding('utf8')
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk
+    })
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+    })
+    const timer = setTimeout(() => {
+      timedOut = true
+      child.kill('SIGTERM')
+    }, timeout)
+    child.on('error', (error) => {
+      clearTimeout(timer)
+      resolveRun({ status: null, stdout, stderr, error, timedOut })
+    })
+    child.on('close', (status) => {
+      clearTimeout(timer)
+      resolveRun({ status, stdout, stderr, timedOut })
+    })
+  })
+}
+
+function formatProcessFailure(label, result) {
+  const lines = [`${label} failed with exit code ${result.status}`]
+  if (result.stdout.length > 0) lines.push(result.stdout)
+  if (result.stderr.length > 0) lines.push(result.stderr)
+  return lines
+}
+
+async function buildManifest({ manifestPath, platform, port, name, output }) {
+  if (CLEAN) removeBuildOutput(platform, name)
+  const label = `mcconfig ${relativePath(manifestPath)}`
+  const result = await runProcess(
     'mcconfig',
     ['-d', '-x', `${XSBUG_HOST}:${port}`, '-m', '-p', platform, '-t', 'build', manifestPath],
-    {
-      cwd: firmwareRoot,
-      encoding: 'utf8',
-      timeout: BUILD_TIMEOUT_MS,
-      maxBuffer: 20 * 1024 * 1024,
-    },
+    { timeout: BUILD_TIMEOUT_MS },
   )
 
   if (result.error) {
-    console.error(result.error.stack ?? result.error.message)
+    output.push(result.error.stack ?? result.error.message)
+    return false
+  }
+  if (result.timedOut) {
+    output.push(`${label} timed out after ${BUILD_TIMEOUT_MS}ms`)
+    if (result.stdout.length > 0) output.push(result.stdout)
+    if (result.stderr.length > 0) output.push(result.stderr)
     return false
   }
   if (result.status !== 0) {
-    printProcessFailure(`mcconfig ${relativePath(manifestPath)}`, result)
+    output.push(...formatProcessFailure(label, result))
     return false
   }
   return true
-}
-
-function startXsbugServer(logPath) {
-  let log = ''
-  let promptBuffer = ''
-  let resolveReady
-  writeFileSync(logPath, '')
-  const ready = new Promise((resolveReadyPromise) => {
-    resolveReady = resolveReadyPromise
-  })
-
-  const append = (chunk) => {
-    log += chunk
-    writeFileSync(logPath, log)
-  }
-
-  const server = createServer((socket) => {
-    socket.setEncoding('utf8')
-    socket.on('data', (chunk) => {
-      append(chunk)
-      promptBuffer += chunk
-      if (/<(login|break|bubble)\b/.test(promptBuffer)) {
-        socket.write('\r\n<go/>\r\n')
-        promptBuffer = ''
-      } else {
-        promptBuffer = promptBuffer.slice(-128)
-      }
-    })
-    socket.on('error', (error) => {
-      append(`\n[xsbug socket error] ${error.stack ?? error.message}\n`)
-    })
-  })
-
-  server.listen(0, XSBUG_HOST, () => {
-    resolveReady(server.address().port)
-  })
-
-  return {
-    ready,
-    close: () =>
-      new Promise((resolveClose) => {
-        server.close(() => resolveClose())
-      }),
-    getLog: () => log,
-  }
 }
 
 function killProcessGroup(child) {
@@ -189,7 +209,7 @@ function killProcessGroup(child) {
   }
 }
 
-async function runSimulator({ binDir, port, logServer }) {
+async function runSimulator({ binDir, port, logServer, display, configHome }) {
   const simulator = join(MODDABLE, 'build', 'bin', 'lin', 'release', 'mcsim')
   if (!existsSync(simulator)) throw new Error(`mcsim not found at ${simulator}`)
 
@@ -197,13 +217,25 @@ async function runSimulator({ binDir, port, logServer }) {
     let settled = false
     let stdout = ''
     let stderr = ''
-    const child = spawn('xvfb-run', ['-a', simulator, join(binDir, 'mc.so')], {
+    const xvfbCommand = ['xvfb-run', '-n', String(display), simulator, join(binDir, 'mc.so')]
+    const [command, ...args] = HAS_DBUS_RUN_SESSION ? ['dbus-run-session', '--', ...xvfbCommand] : xvfbCommand
+    const child = spawn(command, args, {
       cwd: firmwareRoot,
       detached: true,
       env: {
         ...process.env,
         XSBUG_HOST,
         XSBUG_PORT: String(port),
+        // mcsim copies mc.so into $XDG_CONFIG_HOME/tech.moddable.mcsim/ and
+        // runs it from there; concurrent instances sharing the default
+        // ~/.config would overwrite each other's mapped archive (SIGBUS).
+        XDG_CONFIG_HOME: configHome,
+        // Keep the private session bus from auto-spawning accessibility,
+        // gvfs, and portal daemons per test.
+        NO_AT_BRIDGE: '1',
+        GTK_A11Y: 'none',
+        GIO_USE_VFS: 'local',
+        GTK_USE_PORTAL: '0',
       },
     })
 
@@ -244,16 +276,17 @@ async function runSimulator({ binDir, port, logServer }) {
   })
 }
 
-function printRuntimeFailure(manifestPath, result, logPath) {
-  console.error(`Runtime failed: ${relativePath(manifestPath)} (${result.status})`)
-  if (result.message) console.error(result.message)
+function formatRuntimeFailure(manifestPath, result, logPath) {
+  const lines = [`Runtime failed: ${relativePath(manifestPath)} (${result.status})`]
+  if (result.message) lines.push(result.message)
   if (result.code != null || result.signal != null) {
-    console.error(`mcsim exit: code=${result.code ?? 'null'} signal=${result.signal ?? 'null'}`)
+    lines.push(`mcsim exit: code=${result.code ?? 'null'} signal=${result.signal ?? 'null'}`)
   }
-  if (result.stdout) console.error(result.stdout)
-  if (result.stderr) console.error(result.stderr)
-  console.error(`xsbug log: ${logPath}`)
-  console.error(result.log.split('\n').slice(-40).join('\n'))
+  if (result.stdout) lines.push(result.stdout)
+  if (result.stderr) lines.push(result.stderr)
+  lines.push(`xsbug log: ${logPath}`)
+  lines.push(result.log.split('\n').slice(-40).join('\n'))
+  return lines
 }
 
 async function collectManifestPaths(args) {
@@ -277,44 +310,104 @@ async function collectManifestPaths(args) {
   return runnable
 }
 
+async function runOne(manifestPath, index) {
+  const name = basename(dirname(manifestPath))
+  const platform = selectPlatform(manifestPath)
+  const logPath = join(workRoot, `${name}.xsbug.log`)
+  const logServer = startXsbugServer(logPath, XSBUG_HOST)
+  const port = await logServer.ready
+  const label = `${relativePath(manifestPath)} [${platform}]`
+  const output = []
+
+  try {
+    if (!(await buildManifest({ manifestPath, platform, port, name, output }))) {
+      return { label, ok: false, reason: 'build failed', output }
+    }
+
+    const binDir = readBinDir(platform, name)
+    const configHome = join(workRoot, `config-${name}`)
+    mkdirSync(configHome, { recursive: true })
+    const result = await runSimulator({ binDir, port, logServer, display: DISPLAY_BASE + index, configHome })
+    if (result.status === 'ok') {
+      return { label, ok: true, output }
+    }
+    output.push(...formatRuntimeFailure(manifestPath, result, logPath))
+    return { label, ok: false, reason: result.status, output }
+  } finally {
+    await logServer.close()
+  }
+}
+
 const manifestPaths = await collectManifestPaths(process.argv.slice(2))
 if (manifestPaths.length === 0) {
   console.log('No runnable Moddable test manifests found.')
   process.exit(0)
 }
 
-let failures = 0
-console.log(`Running ${manifestPaths.length} Moddable test manifest(s)`)
+assertUniqueNames(manifestPaths)
 
-for (const manifestPath of manifestPaths) {
-  const name = basename(dirname(manifestPath))
-  const platform = selectPlatform(manifestPath)
-  const logPath = join(workRoot, `${name}.xsbug.log`)
-  const logServer = startXsbugServer(logPath)
-  const port = await logServer.ready
-  const label = `${relativePath(manifestPath)} [${platform}]`
+let jobs = Math.min(JOBS, manifestPaths.length)
+if (jobs > 1 && !HAS_DBUS_RUN_SESSION) {
+  console.warn('dbus-run-session not found; running 1 job at a time (concurrent mcsim instances would collide)')
+  jobs = 1
+}
+console.log(
+  `Running ${manifestPaths.length} Moddable test manifest(s) with ${jobs} job(s)${CLEAN ? ', clean build' : ''}`,
+)
 
-  try {
-    process.stdout.write(`- ${label} ... `)
-    if (!buildManifest({ manifestPath, platform, port, name })) {
-      failures += 1
-      console.log('build failed')
-      continue
-    }
-
-    const binDir = readBinDir(platform, name)
-    const result = await runSimulator({ binDir, port, logServer })
-    if (result.status === 'ok') {
-      console.log('ok')
-    } else {
-      failures += 1
-      console.log('failed')
-      printRuntimeFailure(manifestPath, result, logPath)
-    }
-  } finally {
-    await logServer.close()
+// The XS core objects live in a lib directory shared by every app of the same
+// platform segment; build one manifest per segment up front so parallel builds
+// never race on populating it.
+if (jobs > 1) {
+  const warmups = new Map()
+  for (const manifestPath of manifestPaths) {
+    const segment = platformBuildSegment(selectPlatform(manifestPath))
+    if (!warmups.has(segment)) warmups.set(segment, manifestPath)
+  }
+  for (const [segment, manifestPath] of warmups) {
+    process.stdout.write(`- warm-up build [${segment}] ${relativePath(manifestPath)} ... `)
+    const output = []
+    const ok = await buildManifest({
+      manifestPath,
+      platform: selectPlatform(manifestPath),
+      port: 5002,
+      name: basename(dirname(manifestPath)),
+      output,
+    })
+    console.log(ok ? 'ok' : 'failed')
+    if (!ok && output.length > 0) console.error(output.join('\n'))
   }
 }
+
+let cursor = 0
+let failures = 0
+
+async function worker() {
+  while (true) {
+    const index = cursor++
+    if (index >= manifestPaths.length) return
+    const manifestPath = manifestPaths[index]
+    let result
+    try {
+      result = await runOne(manifestPath, index)
+    } catch (error) {
+      result = {
+        label: relativePath(manifestPath),
+        ok: false,
+        output: [error.stack ?? String(error)],
+      }
+    }
+    if (result.ok) {
+      console.log(`- ${result.label} ... ok`)
+    } else {
+      failures += 1
+      console.log(`- ${result.label} ... failed`)
+      if (result.output.length > 0) console.error(result.output.join('\n'))
+    }
+  }
+}
+
+await Promise.all(Array.from({ length: jobs }, () => worker()))
 
 if (failures > 0) {
   console.error(`${failures} Moddable test manifest(s) failed`)

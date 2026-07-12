@@ -68,6 +68,7 @@
       }
     },
     "lin": {
+      "include": ["$(MODDABLE)/modules/io/audioout/manifest.json"],
       "modules": {
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
         "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/lin/audioin"

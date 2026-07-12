@@ -12,10 +12,12 @@ test('stackchan-voice native resources are limited to the supported CoreS3 targe
     modules: Record<string, string | string[]>
     platforms: Record<string, { include?: string[]; modules?: Record<string, string> }>
   }
+  const lin = manifest.platforms.lin
   const coreS3 = manifest.platforms['esp32/m5stackchan_cores3']
 
   assert.equal(manifest.include.includes('../../../vendor/stackchan-voice/manifest.json'), false)
   assert.equal(manifest.include.includes('$(MODDABLE)/modules/io/audioout/manifest.json'), false)
+  assert.ok(lin.include?.includes('$(MODDABLE)/modules/io/audioout/manifest.json'))
   assert.match(readFileSync('host/modules/audio/tts-stackchan-voice.ts', 'utf8'), /unavailable on this target/)
   assert.ok(coreS3.include?.includes('../../../vendor/stackchan-voice/manifest.json'))
   assert.ok(coreS3.include?.includes('$(MODDABLE)/modules/io/audioout/manifest.json'))

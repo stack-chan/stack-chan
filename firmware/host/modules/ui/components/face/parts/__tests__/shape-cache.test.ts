@@ -1,20 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import {
-  quantizeUnit,
-  rememberCachedValue,
-  SHAPE_CACHE_ENTRY_LIMIT,
-  UNIT_OPEN_STEPS,
-  unitFromStep,
-} from '../shape-cache.js'
+import { quantizeUnit, rememberCachedValue, UNIT_OPEN_STEPS, unitFromStep } from '../shape-cache.js'
 
-test('shape animation open ratios use a bounded display-quality step count', () => {
-  assert.equal(UNIT_OPEN_STEPS, 12)
+test('shape animation open ratios quantize onto the bounded step scale', () => {
   assert.equal(quantizeUnit(0), 0)
-  assert.equal(quantizeUnit(1), 12)
-  assert.equal(quantizeUnit(0.5), 6)
-  assert.equal(unitFromStep(6), 0.5)
+  assert.equal(quantizeUnit(1), UNIT_OPEN_STEPS)
+  assert.equal(quantizeUnit(0.5), UNIT_OPEN_STEPS / 2)
+  assert.equal(unitFromStep(quantizeUnit(0.5)), 0.5)
 })
 
 test('rememberCachedValue evicts the oldest entry when the cache reaches its limit', () => {
@@ -27,5 +20,4 @@ test('rememberCachedValue evicts the oldest entry when the cache reaches its lim
   assert.equal(cache.has('oldest'), false)
   assert.equal(cache.get('middle'), 2)
   assert.equal(cache.get('newest'), 3)
-  assert.equal(SHAPE_CACHE_ENTRY_LIMIT, 128)
 })

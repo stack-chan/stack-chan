@@ -2,24 +2,29 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../../../util/manifest.json",
-    "../../manifest.json",
-    "../../../../app/manifest_typings.json",
-    "../../../testing/manifest.json"
+    "../../util/manifest.json",
+    "../../audio/manifest.json",
+    "../../connectivity/__tests__/network-service/manifest.json",
+    "../../../app/manifest_typings.json",
+    "../../testing/manifest.json"
   ],
+  "resources": {
+    "*": "$(MODDABLE)/examples/assets/sounds/*"
+  },
+  "data": {
+    "*": ["$(MODULES)/crypt/data/ca233"]
+  },
   "modules": {
-    "main": "./stt-whisper.test"
+    "main": "./module-smoke.test"
   },
   "defines": {
     "main": {
       "async": 1
     }
   },
-  "data": {
-    "*": ["$(MODULES)/crypt/data/ca233"]
-  },
   "config": {
-    "token": "YOUR_API_KEY_HERE"
+    "token": "YOUR_API_KEY_HERE",
+    "host": "127.0.0.1"
   },
   "creation": {
     "static": 442368,

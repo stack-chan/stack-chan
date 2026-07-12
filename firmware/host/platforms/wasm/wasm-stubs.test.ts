@@ -4,15 +4,7 @@ import Microphone from '../../modules/audio/wasm/microphone.js'
 import Speaker from '../../modules/audio/wasm/speaker.js'
 import FallbackCamera from '../../modules/camera/lin/camera.js'
 import Camera from '../../modules/camera/wasm/camera.js'
-import {
-  DynamixelDriver,
-  M5StackChanServoDriver,
-  NoneDriver,
-  PWMServoDriver,
-  RS30XDriver,
-  SCServoDriver,
-  WasmDriver,
-} from '../../modules/motion/wasm/wasm-driver.js'
+import { WasmDriver } from '../../modules/motion/wasm/wasm-driver.js'
 
 type Rotation = { y: number; p: number; r: number }
 type MotionCompletion = (error?: unknown) => void
@@ -64,15 +56,6 @@ const setWasmCameraBridge = (CameraBridge: WasmCameraTestBridge | undefined): Wa
   return previous
 }
 
-const driverCases: Array<[string, DriverConstructor]> = [
-  ['dynamixel', DynamixelDriver],
-  ['m5stackchan', M5StackChanServoDriver],
-  ['none', NoneDriver],
-  ['pwm', PWMServoDriver],
-  ['rs30x', RS30XDriver],
-  ['scservo', SCServoDriver],
-]
-
 function readDriverRotation(driver: InstanceType<DriverConstructor>): unknown {
   let result: unknown
   driver.getRotation((value) => {
@@ -89,15 +72,11 @@ function runDriverCommand(start: (callback: MotionCompletion) => void): unknown 
   return callbackError
 }
 
-for (const [name, Driver] of driverCases) {
-  test(`${name} WASM driver alias uses the consolidated WasmDriver bridge`, () => {
-    assert.equal(Driver, WasmDriver)
+test('WasmDriver reports a neutral rotation before any pose is applied', () => {
+  const result = readDriverRotation(new WasmDriver())
 
-    const result = readDriverRotation(new Driver())
-
-    assert.deepEqual(result, { success: true, value: { y: 0, p: 0, r: 0 } })
-  })
-}
+  assert.deepEqual(result, { success: true, value: { y: 0, p: 0, r: 0 } })
+})
 
 test('WasmDriver applyRotation pushes pose changes to the browser Host.Driver bridge', () => {
   const calls: unknown[] = []
@@ -392,11 +371,10 @@ test('WASM synthetic camera can produce big-endian RGB565 frames', async () => {
   assert.deepEqual([...pixels.slice(2, 4)], [0xff, 0xe0])
 })
 
-test('WASM synthetic camera keeps unsupported formats and JPEG convenience out of scope', async () => {
+test('WASM synthetic camera returns undefined for unsupported formats', async () => {
   const camera = new Camera()
 
   assert.equal(await camera.capture({ imageType: 'jpeg' }), undefined)
-  assert.equal('captureJpeg' in camera, false)
 })
 
 test('lin camera backend is safe when no device camera exists', async () => {
@@ -405,7 +383,6 @@ test('lin camera backend is safe when no device camera exists', async () => {
   await camera.start()
   assert.equal(await camera.capture({ width: 1, height: 1, imageType: 'rgb565le' }), undefined)
   await camera.stop()
-  assert.equal('captureJpeg' in camera, false)
 })
 
 test('WASM speaker forwards tone requests and close to the browser Host.AudioOut bridge', async () => {

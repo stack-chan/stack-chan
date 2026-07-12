@@ -19,6 +19,7 @@
     "test": "npm run test:unit",
     "test:unit": "rm -rf dist-tests && tsc --project tsconfig.test.json && node --test \"dist-tests/host/**/*.test.js\"",
     "test:moddable": "node scripts/run-module-tests.js",
+    "test:device": "node scripts/run-device-smoke.js",
     "build": "node scripts/firmware.mjs build",
     "build:m5stackchan_cores3": "node scripts/firmware.mjs build m5stackchan_cores3",
     "build:stackchan_rt": "node scripts/firmware.mjs build stackchan_rt",

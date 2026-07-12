@@ -5,6 +5,7 @@
     "$(MODDABLE)/examples/pins/audioout/http-stream/manifest_wavstreamer.json",
     "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
     "$(MODDABLE)/examples/pins/audioout/openai-stream/manifest_openaistreamer.json",
+    "$(MODDABLE)/examples/pins/audioout/mp3-http-stream/manifest_mp3streamer.json",
     "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
     "$(MODDABLE)/modules/base/uuid/manifest.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
@@ -116,6 +117,7 @@
     "esp32/m5stackchan_cores3": {
       "modules": {
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+        "web-radio-player": "./platforms/m5stackchan-cores3/web-radio-player",
         "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin"
       },
       "dependency": [
@@ -127,7 +129,10 @@
         "audioOut": {
           "bitsPerSample": 16,
           "numChannels": 1,
-          "sampleRate": 24000
+          "sampleRate": 24000,
+          "queueLength": 12,
+          "streams": 1,
+          "mixerBytes": 256
         }
       }
     },

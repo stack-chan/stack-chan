@@ -31,6 +31,9 @@
       "pins/audioout": [
         "host/modules/testing/fakes/audio-out.ts"
       ],
+      "mp3streamer": [
+        "host/modules/testing/fakes/mp3streamer.ts"
+      ],
       "calculate-power": [
         "host/modules/testing/fakes/calculate-power.ts"
       ],

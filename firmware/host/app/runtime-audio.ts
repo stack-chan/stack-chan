@@ -1,5 +1,5 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
-import type { TTS } from 'capabilities'
+import type { TTS, WebRadioCapability, WebRadioStartOptions } from 'capabilities'
 import type Microphone from 'microphone'
 import type Speaker from 'speaker'
 import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
@@ -8,6 +8,7 @@ export type RuntimeAudioConstructorParam = {
   tts: TTS
   microphone?: Microphone
   speaker?: Speaker
+  webRadio?: WebRadioCapability
 }
 
 type RuntimeAudioOptions = {
@@ -19,11 +20,14 @@ export class StackchanRuntimeAudio {
   #options: RuntimeAudioOptions
   #speaker: Speaker | undefined
   #tts: TTS
+  #webRadio: WebRadioCapability | undefined
+  #busy = false
 
   constructor(params: RuntimeAudioConstructorParam, options: RuntimeAudioOptions = {}) {
     this.#options = options
     this.#microphone = params.microphone
     this.#speaker = params.speaker
+    this.#webRadio = params.webRadio
     this.useTTS(params.tts)
   }
 
@@ -33,6 +37,28 @@ export class StackchanRuntimeAudio {
 
   get tts(): TTS {
     return this.#tts
+  }
+
+  get webRadio(): WebRadioCapability | undefined {
+    if (!this.#webRadio) return undefined
+    const runtime = this
+    return {
+      get state() {
+        return runtime.#webRadio?.state ?? 'idle'
+      },
+      start(options: WebRadioStartOptions) {
+        if (runtime.#busy) return Promise.reject(new Error('audio busy'))
+        const webRadio = runtime.#webRadio
+        if (!webRadio) return Promise.reject(new Error('WebRadio is not supported'))
+        return webRadio.start(options)
+      },
+      stop() {
+        runtime.#webRadio?.stop()
+      },
+      setVolume(volume: number) {
+        runtime.#webRadio?.setVolume(volume)
+      },
+    }
   }
 
   useTTS(tts: TTS) {
@@ -50,6 +76,8 @@ export class StackchanRuntimeAudio {
   }
 
   async say(text: string, volume?: number): Promise<Maybe<string>> {
+    this.#webRadio?.stop()
+    this.#busy = true
     try {
       await waitForCompletion((callback) => this.#tts.stream(text, volume, callback))
       return {
@@ -62,6 +90,8 @@ export class StackchanRuntimeAudio {
         success: false,
         reason: String(reason),
       }
+    } finally {
+      this.#busy = false
     }
   }
 
@@ -76,20 +106,36 @@ export class StackchanRuntimeAudio {
     if (volume !== undefined && (volume < 0 || volume > 1)) {
       throw new Error('Volume must be between 0 and 1')
     }
-    return this.#speaker?.tone(hz, duration, volume)
+    this.#webRadio?.stop()
+    this.#busy = true
+    try {
+      await this.#speaker?.tone(hz, duration, volume)
+    } finally {
+      this.#busy = false
+    }
   }
 
   async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
     if (!this.#speaker) return false
-    return this.#speaker.play(buffer)
+    this.#webRadio?.stop()
+    this.#busy = true
+    try {
+      return await this.#speaker.play(buffer)
+    } finally {
+      this.#busy = false
+    }
   }
 
   close(): void {
     try {
-      this.#microphone?.stop()
+      this.#webRadio?.stop()
     } finally {
-      this.#tts.onPlayed = noop
-      this.#tts.onDone = noop
+      try {
+        this.#microphone?.stop()
+      } finally {
+        this.#tts.onPlayed = noop
+        this.#tts.onDone = noop
+      }
     }
   }
 }

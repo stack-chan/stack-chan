@@ -10,6 +10,7 @@ const instances: AudioOut[] = []
 
 export default class AudioOut {
   static readonly Volume = 4
+  static readonly Flush = 0
   closed = false
   enqueued: Array<{ stream: number; kind: number; value: number }> = []
   options: AudioOutOptions
@@ -24,7 +25,7 @@ export default class AudioOut {
     instances.push(this)
   }
 
-  enqueue(stream: number, kind: number, value: number): void {
+  enqueue(stream: number, kind: number, value = 0): void {
     this.enqueued.push({ stream, kind, value })
   }
 

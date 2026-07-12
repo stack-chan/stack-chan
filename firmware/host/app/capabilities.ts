@@ -103,6 +103,25 @@ export type AudioCapability = {
    * the buffer is empty, or playback fails.
    */
   playAudio(buffer: BorrowedAudioBuffer): Promise<boolean>
+  /** Continuous MP3 streaming, available only on supported targets. */
+  webRadio?: WebRadioCapability
+}
+
+export type WebRadioState = 'idle' | 'connecting' | 'buffering' | 'playing' | 'stalled' | 'retrying' | 'error'
+
+export type WebRadioStartOptions = {
+  url: string
+  volume?: number
+  sampleRate?: number
+  reconnect?: boolean
+  onStateChanged?: (state: WebRadioState, reason?: string) => void
+}
+
+export type WebRadioCapability = {
+  readonly state: WebRadioState
+  start(options: WebRadioStartOptions): Promise<void>
+  stop(): void
+  setVolume(volume: number): void
 }
 
 export type InputCapability = {

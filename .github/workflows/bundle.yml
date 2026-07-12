@@ -70,6 +70,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           path: website-source
+          persist-credentials: false
       - name: Download firmware bundle
         uses: actions/download-artifact@v8
         with:
@@ -93,6 +94,7 @@ jobs:
           rsync -a --delete \
             --exclude '/schematics/' \
             --exclude '/flash/tech.moddable.stackchan/' \
+            --exclude '/simulator/' \
             ./website-source/web/ ./web/
           rm -rf ./web/flash/tech.moddable.stackchan ./web/simulator
           mkdir -p ./web/flash/tech.moddable.stackchan ./web/simulator

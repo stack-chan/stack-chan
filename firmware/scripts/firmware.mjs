@@ -3,7 +3,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { aliases, devices } from './lib/devices.mjs'
+import { aliases, devices, resolveDevice } from './lib/devices.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -129,14 +129,6 @@ function firstDeviceArg(values) {
 
 function isDeviceName(value) {
   return Boolean(value && (devices[value] || aliases[value]))
-}
-
-function resolveDevice(value) {
-  const name = aliases[value] ?? value
-  if (devices[name]) return name
-  console.error(`[stack-chan] Unknown device: ${value}`)
-  console.error(`[stack-chan] Supported devices: ${Object.keys(devices).join(', ')}`)
-  process.exit(1)
 }
 
 function printHelp() {

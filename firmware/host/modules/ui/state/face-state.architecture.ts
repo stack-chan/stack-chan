@@ -73,7 +73,9 @@ test('face parts bound their outline caches and avoid allocation in onFaceState'
     if (file.includes('/dog/')) {
       assert.doesNotMatch(source, /coordinates\s*=/, `${file} should not update coordinates`)
     }
-    for (const block of extractMethodBlocks(source, 'onFaceState')) {
+    const blocks = extractMethodBlocks(source, 'onFaceState')
+    assert.ok(blocks.length > 0, `${file} should define an onFaceState handler`)
+    for (const block of blocks) {
       assert.doesNotMatch(block, /\bnew\s+(Skin|Outline\.CanvasPath)\b/, `${file} should not allocate in onFaceState`)
       assert.doesNotMatch(block, /Outline\.(?:fill|stroke)\(/, `${file} should not fill/stroke outlines in onFaceState`)
     }
@@ -83,7 +85,9 @@ test('face parts bound their outline caches and avoid allocation in onFaceState'
 test('ImageAvatar animated sprites avoid per-frame allocation in onFaceState', () => {
   const source = readFileSync('host/modules/ui/components/face/parts/image/image-avatar-face.ts', 'utf8')
 
-  for (const block of extractMethodBlocks(source, 'onFaceState')) {
+  const blocks = extractMethodBlocks(source, 'onFaceState')
+  assert.ok(blocks.length > 0, 'image-avatar-face.ts should define an onFaceState handler')
+  for (const block of blocks) {
     assert.doesNotMatch(block, /\.\.\./)
     assert.doesNotMatch(block, /\bnew\s+Skin\b/)
   }

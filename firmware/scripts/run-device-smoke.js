@@ -21,7 +21,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { createReadStream, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { aliases, devices } from './lib/devices.mjs'
+import { devices, resolveDevice } from './lib/devices.mjs'
 import { startXsbugServer } from './lib/xsbug-log-server.js'
 
 const TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS ?? '120000', 10)
@@ -46,15 +46,10 @@ function hasFlag(values, name) {
   return values.includes(`--${name}`)
 }
 
-function resolveDevice(value) {
-  const name = aliases[value] ?? value
-  if (devices[name]) return name
-  console.error(`[device-smoke] Unknown device: ${value}`)
-  console.error(`[device-smoke] Supported devices: ${Object.keys(devices).join(', ')}`)
-  process.exit(1)
-}
-
-const deviceName = resolveDevice(readOption(rawArgs, 'device') ?? process.env.STACKCHAN_DEVICE ?? 'default')
+const deviceName = resolveDevice(
+  readOption(rawArgs, 'device') ?? process.env.STACKCHAN_DEVICE ?? 'default',
+  '[device-smoke]',
+)
 const device = devices[deviceName]
 const platform = `esp32:${device.platform}`
 const modManifest = resolve(readOption(rawArgs, 'mod') ?? 'mods/examples/m5stackchan_smoke/manifest.json')

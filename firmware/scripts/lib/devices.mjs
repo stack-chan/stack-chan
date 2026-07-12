@@ -22,3 +22,11 @@ export const aliases = {
   rt: 'stackchan_rt',
   takao: 'takao_core2_sg90',
 }
+
+export function resolveDevice(value, prefix = '[stack-chan]') {
+  const name = aliases[value] ?? value
+  if (devices[name]) return name
+  console.error(`${prefix} Unknown device: ${value}`)
+  console.error(`${prefix} Supported devices: ${Object.keys(devices).join(', ')}`)
+  process.exit(1)
+}

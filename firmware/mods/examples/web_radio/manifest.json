@@ -1,0 +1,18 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../host/app/manifest_typings.json"
+  ],
+  "modules": {
+    "*": ["./mod", "./types"]
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "useUnknownInCatchVariables": false
+      }
+    }
+  }
+}

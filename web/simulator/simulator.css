@@ -139,7 +139,7 @@ h2 {
 
 .icon-button:hover,
 .command-button:hover {
-  border-color: #697780;
+  border-color: var(--line-hover);
   background: var(--surface-hover);
 }
 

@@ -8,11 +8,31 @@
     <title>ブロックエディタ | ｽﾀｯｸﾁｬﾝ</title>
     <link rel="stylesheet" href="../global.css" />
     <link rel="stylesheet" href="./editor.css" />
-    <script src="https://unpkg.com/blockly@11.2.2/blockly_compressed.js"></script>
-    <script src="https://unpkg.com/blockly@11.2.2/blocks_compressed.js"></script>
-    <script src="https://unpkg.com/blockly@11.2.2/javascript_compressed.js"></script>
-    <script src="https://unpkg.com/blockly@11.2.2/msg/ja.js"></script>
-    <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.min.js"></script>
+    <script
+      src="https://unpkg.com/blockly@11.2.2/blockly_compressed.js"
+      integrity="sha384-nXdS/O1XBg7d1iom7upZrVOtjvQfnVGDx67ecaCgU823024LIITNe/9Vf3o9ouRl"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/blockly@11.2.2/blocks_compressed.js"
+      integrity="sha384-HrJy1eOfAncgHWDhGobRG4+LW7lqYE6yk+XU5mArpfriaJP69d+R+sdziP7jswuL"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/blockly@11.2.2/javascript_compressed.js"
+      integrity="sha384-De44udSvZv11/XTEpKugzXvo25LZZR95qk6vZAXaPLMDt3QWmp6ZAZX4tmQvyZG3"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/blockly@11.2.2/msg/ja.js"
+      integrity="sha384-vwDwBIqpZ3trnzftlXPz5I2KLW59rnUE3qmcgJ/PRqFMMtz0GRpLJcwHfc0X7s2r"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.min.js"
+      integrity="sha384-mooE85Luwgx+AyykX7e90VcN8/QCFTSIwPuHLmvcsLVoA0en7lKYb9XlOzn5G2co"
+      crossorigin="anonymous"
+    ></script>
   </head>
   <body>
     <main class="editor-shell">
@@ -44,10 +64,12 @@
         </div>
         <nav class="tool-nav" aria-label="ツール">
           <a href="../" title="ホーム" aria-label="ホーム"><i data-lucide="home"></i></a
-          ><a href="../flash/" title="書き込み"><i data-lucide="cpu"></i></a
-          ><a href="../preference/" title="設定"><i data-lucide="sliders-horizontal"></i></a
-          ><a href="../simulator/" title="シミュレーター"><i data-lucide="box"></i></a
-          ><a href="../editor/" aria-current="page" title="エディタ"><i data-lucide="blocks"></i></a>
+          ><a href="../flash/" title="書き込み" aria-label="書き込み"><i data-lucide="cpu"></i></a
+          ><a href="../preference/" title="設定" aria-label="設定"><i data-lucide="sliders-horizontal"></i></a
+          ><a href="../simulator/" title="シミュレーター" aria-label="シミュレーター"><i data-lucide="box"></i></a
+          ><a href="../editor/" aria-current="page" title="エディタ" aria-label="エディタ"
+            ><i data-lucide="blocks"></i
+          ></a>
         </nav>
       </header>
       <div class="editor-layout">

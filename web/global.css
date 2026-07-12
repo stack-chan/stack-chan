@@ -14,6 +14,7 @@
   --surface-hover: #2b3237;
   --line: #343a3f;
   --line-strong: #4b555c;
+  --line-hover: #697780;
   --text: #f4f6f7;
   --muted: #aeb7be;
   --accent: #42bde8;
@@ -79,7 +80,7 @@ button,
 button:hover,
 .button:hover,
 .icon-button:hover {
-  border-color: #697780;
+  border-color: var(--line-hover);
   background: var(--surface-hover);
 }
 
@@ -109,6 +110,11 @@ button:disabled,
 .primary-button:hover {
   border-color: var(--accent);
   background: var(--accent);
+}
+
+.danger-button {
+  border-color: var(--line-strong);
+  color: var(--danger);
 }
 
 .danger-button:hover {

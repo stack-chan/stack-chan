@@ -8,7 +8,12 @@
     <link rel="stylesheet" href="../global.css" />
     <link rel="stylesheet" href="preference.css" />
     <title>設定 | ｽﾀｯｸﾁｬﾝ</title>
-    <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.min.js"></script>
+    <script
+      src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.min.js"
+      integrity="sha384-mooE85Luwgx+AyykX7e90VcN8/QCFTSIwPuHLmvcsLVoA0en7lKYb9XlOzn5G2co"
+      crossorigin="anonymous"
+      defer
+    ></script>
     <script type="module">
       import SimpleBLEClient from './ble-client.mjs'
 
@@ -21,6 +26,8 @@
         const saveStatus = document.getElementById('save-status')
         const controls = [...form.querySelectorAll('input, select, textarea, button')]
         let submitting = null
+        let pendingPreferences = new Set()
+        const currentValues = new Map()
 
         const setStatus = (element, text, state = '') => {
           element.textContent = text
@@ -84,19 +91,28 @@
           const payload = {}
           for (const prop of props) {
             const value = document.getElementById(prop)?.value
-            if (value != null && value.trimEnd().length > 0) payload[prop] = value
+            if (value != null && value.trimEnd().length > 0 && currentValues.get(prop) !== value) {
+              payload[prop] = value
+            }
+          }
+          if (Object.keys(payload).length === 0) {
+            setStatus(saveStatus, '変更する項目がありません。')
+            return
           }
           submitButton.disabled = true
           setStatus(saveStatus, '保存中…')
+          pendingPreferences = new Set(Object.keys(payload))
           try {
             await client.send({ _batch: payload })
             submitting = setTimeout(() => {
               submitting = null
+              pendingPreferences.clear()
               submitButton.disabled = false
               setStatus(saveStatus, '応答がありません。接続を確認して再度保存してください。', 'error')
             }, 3000)
           } catch (error) {
             console.error(error)
+            pendingPreferences.clear()
             submitButton.disabled = false
             setStatus(saveStatus, `保存できませんでした: ${error.message ?? error}`, 'error')
           }
@@ -105,7 +121,9 @@
         const client = new SimpleBLEClient({
           deviceName: 'STK',
           onCharacteristicValueChanged: ({ prop, value }) => {
-            if (submitting != null) {
+            currentValues.set(prop, String(value))
+            pendingPreferences.delete(prop)
+            if (submitting != null && pendingPreferences.size === 0) {
               clearTimeout(submitting)
               submitting = null
               submitButton.disabled = false
@@ -118,6 +136,8 @@
         client.onDisconnected = () => {
           if (submitting != null) clearTimeout(submitting)
           submitting = null
+          pendingPreferences.clear()
+          currentValues.clear()
           setStatus(saveStatus, '接続が切れました。保存されていない項目を確認してください。', 'warning')
           updateView()
         }
@@ -137,11 +157,11 @@
         >
         <nav class="tool-nav" aria-label="ツール">
           <a href="../" title="ホーム" aria-label="ホーム"><i data-lucide="home"></i></a
-          ><a href="../flash/" title="書き込み"><i data-lucide="cpu"></i></a
-          ><a href="../preference/" aria-current="page" title="設定"
+          ><a href="../flash/" title="書き込み" aria-label="書き込み"><i data-lucide="cpu"></i></a
+          ><a href="../preference/" aria-current="page" title="設定" aria-label="設定"
             ><i data-lucide="sliders-horizontal"></i><span class="nav-label">設定</span></a
-          ><a href="../simulator/" title="シミュレーター"><i data-lucide="box"></i></a
-          ><a href="../editor/" title="エディタ"><i data-lucide="blocks"></i></a>
+          ><a href="../simulator/" title="シミュレーター" aria-label="シミュレーター"><i data-lucide="box"></i></a
+          ><a href="../editor/" title="エディタ" aria-label="エディタ"><i data-lucide="blocks"></i></a>
         </nav>
       </header>
       <div class="preference-layout">

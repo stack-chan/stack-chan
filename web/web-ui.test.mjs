@@ -27,6 +27,9 @@ test('tool pages expose consistent navigation without changing integration ids',
     assert.match(preference, new RegExp(`id="${id}"`))
   }
   assert.match(preference, /role="alert"|data-state.*error|setStatus\([^)]*'error'/s)
+  assert.match(preference, /currentValues\.get\(prop\) !== value/)
+  assert.match(preference, /pendingPreferences\.delete\(prop\)/)
+  assert.match(preference, /変更する項目がありません/)
 
   const editor = readFileSync('editor/index.html', 'utf8')
   for (const id of [
@@ -39,4 +42,20 @@ test('tool pages expose consistent navigation without changing integration ids',
     assert.match(editor, new RegExp(`id="${id}"`))
   }
   assert.match(editor, /role="tablist"/)
+  const editorScript = readFileSync('editor/editor.mjs', 'utf8')
+  assert.match(editorScript, /\.output-tabs \[role="tab"\]/)
+  assert.match(editorScript, /ArrowRight/)
+  assert.match(editorScript, /candidate\.tabIndex = selected \? 0 : -1/)
+})
+
+test('third-party scripts that handle editable data use subresource integrity', () => {
+  for (const page of ['preference/index.html', 'editor/index.html']) {
+    const html = readFileSync(page, 'utf8')
+    const externalScripts = [...html.matchAll(/<script[^>]+src="https:\/\/unpkg\.com\/[^>]+>/g)]
+    assert.notEqual(externalScripts.length, 0)
+    for (const [script] of externalScripts) {
+      assert.match(script, /integrity="sha384-/, `${page} external script should have SRI`)
+      assert.match(script, /crossorigin="anonymous"/, `${page} external script should use anonymous CORS`)
+    }
+  }
 })

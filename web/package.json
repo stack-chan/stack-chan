@@ -12,7 +12,7 @@
   "devDependencies": {
     "live-server": "^1.2.2",
     "playwright-core": "^1.61.1",
-    "prettier": "^3.9.4"
+    "prettier": "^3.9.5"
   },
   "dependencies": {
     "lucide": "^1.24.0"

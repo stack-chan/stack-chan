@@ -6,7 +6,11 @@ const m5stackchanCoreS3Dependencies = [
   ['espressif/esp32-camera', '^2.0.10'],
 ]
 
-/** Seeds the generated CoreS3 IDF manifest before Moddable adds dependencies. */
+/**
+ * Seeds the generated CoreS3 IDF manifest before Moddable adds dependencies.
+ * @param {{moddableDirectory: string, mode: string}} options - Moddable root and build directory mode.
+ * @returns {string} Path to the prepared IDF component manifest.
+ */
 export function prepareM5StackChanCoreS3IdfDependencies({ moddableDirectory, mode }) {
   if (!moddableDirectory) throw new Error('MODDABLE environment variable is required')
   if (!['debug', 'instrument', 'release'].includes(mode)) throw new Error(`Unsupported build mode: ${mode}`)

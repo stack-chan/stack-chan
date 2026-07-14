@@ -49,6 +49,12 @@ test('uses the generated directory for each ESP32 build mode', () => {
   }
 })
 
+/**
+ * Counts non-overlapping occurrences in a string.
+ * @param {string} source - Text to search.
+ * @param {string} value - Value to count.
+ * @returns {number} Number of occurrences.
+ */
 function count(source, value) {
   return source.split(value).length - 1
 }

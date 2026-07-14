@@ -85,6 +85,12 @@ switch (command) {
     process.exit(1)
 }
 
+/**
+ * Runs a firmware tool or prints the command during a dry run.
+ * @param {string} bin - Executable name.
+ * @param {string[]} binArgs - Command-line arguments.
+ * @param {string} cwd - Working directory for the subprocess.
+ */
 function run(bin, binArgs, cwd = process.cwd()) {
   console.log(`[stack-chan] ${command}: ${device.label}`)
   console.log(`[stack-chan] platform=${platform}`)
@@ -104,6 +110,11 @@ function run(bin, binArgs, cwd = process.cwd()) {
   process.exit(result.status ?? 1)
 }
 
+/**
+ * Finds the package directory represented by a path, if any.
+ * @param {string} value - Package directory, package.json, or manifest path.
+ * @returns {string|null} Resolved package directory.
+ */
 function findPackageDirectory(value) {
   const resolved = path.resolve(value)
   if (!existsSync(resolved)) return null
@@ -114,6 +125,12 @@ function findPackageDirectory(value) {
   return null
 }
 
+/**
+ * Reads a long option supplied as either --name value or --name=value.
+ * @param {string[]} values - Command-line arguments.
+ * @param {string} name - Option name without leading dashes.
+ * @returns {string|undefined} Option value.
+ */
 function readOption(values, name) {
   const prefix = `--${name}=`
   const index = values.indexOf(`--${name}`)
@@ -121,7 +138,11 @@ function readOption(values, name) {
   return values.find((value) => value.startsWith(prefix))?.slice(prefix.length)
 }
 
-/** Resolves the Moddable output mode and selector arguments for this invocation. */
+/**
+ * Resolves the Moddable output mode and selector arguments for this invocation.
+ * @param {string[]} values - Command-line arguments.
+ * @returns {{mode: string, args: string[]}} Build directory mode and mcconfig selector arguments.
+ */
 function readBuildConfiguration(values) {
   const mode = readOption(values, 'mode') ?? process.env.STACKCHAN_BUILD_MODE
   if (mode) {
@@ -138,6 +159,11 @@ function readBuildConfiguration(values) {
   return { mode: 'debug', args: ['-d'] }
 }
 
+/**
+ * Returns positional and short-form arguments while removing long options.
+ * @param {string[]} values - Command-line arguments.
+ * @returns {string[]} Remaining arguments.
+ */
 function positionalArgs(values) {
   const result = []
   for (let index = 0; index < values.length; index += 1) {
@@ -151,24 +177,45 @@ function positionalArgs(values) {
   return result
 }
 
+/**
+ * Finds the first named device argument or selects the default device.
+ * @param {string[]} values - Command-line arguments.
+ * @returns {string} Resolved device name candidate.
+ */
 function firstDeviceArg(values) {
   return positionalArgs(values).find(isDeviceName) ?? 'm5stackchan_cores3'
 }
 
+/**
+ * Tests whether a value names a supported device or alias.
+ * @param {string} value - Candidate device name.
+ * @returns {boolean} Whether the value is a known device name.
+ */
 function isDeviceName(value) {
   return Boolean(value && (devices[value] || aliases[value]))
 }
 
-/** Returns whether an argument selects a Moddable output mode. */
+/**
+ * Tests whether an argument selects a Moddable output mode.
+ * @param {string} value - Command-line argument.
+ * @returns {boolean} Whether the argument selects a build mode.
+ */
 function isBuildModeFlag(value) {
   return value === '-i' || isDebugBuildFlag(value)
 }
 
-/** Returns whether an argument selects a debug build and debugger behavior. */
+/**
+ * Tests whether an argument selects a debug build and debugger behavior.
+ * @param {string} value - Command-line argument.
+ * @returns {boolean} Whether the argument is a debug selector.
+ */
 function isDebugBuildFlag(value) {
   return ['-d', '-dn', '-dx', '-dl'].includes(value)
 }
 
+/**
+ * Prints command usage and supported devices.
+ */
 function printHelp() {
   console.log(`Usage:
   npm run build

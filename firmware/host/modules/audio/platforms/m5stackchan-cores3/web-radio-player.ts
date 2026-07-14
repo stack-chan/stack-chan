@@ -2,10 +2,10 @@ import MP3Streamer from 'buffered-mp3streamer'
 import type { WebRadioCapability, WebRadioStartOptions, WebRadioState } from 'capabilities'
 import Timer from 'timer'
 import { URL } from 'url'
-import ResamplingAudioOut from 'web-radio-audio-out'
+import WebRadioAudioOut from 'web-radio-audio-out'
 
 type NetworkTransport = new (options: never) => unknown
-type Session = { audio: ResamplingAudioOut; streamer?: MP3Streamer; generation: number }
+type Session = { audio: WebRadioAudioOut; streamer?: MP3Streamer; generation: number }
 
 declare const device: {
   network: {
@@ -72,7 +72,7 @@ export default class WebRadioPlayer implements WebRadioCapability {
 
   setVolume(volume: number): void {
     this.#volume = checkedVolume(volume)
-    this.#session?.audio.enqueue(0, ResamplingAudioOut.Volume, Math.round(this.#volume * 256))
+    this.#session?.audio.enqueue(0, WebRadioAudioOut.Volume, Math.round(this.#volume * 256))
   }
 
   #validateOptions(options: WebRadioStartOptions): void {
@@ -90,7 +90,7 @@ export default class WebRadioPlayer implements WebRadioCapability {
     const generation = ++this.#generation
     this.#hasPlayed = false
     try {
-      const audio = new ResamplingAudioOut({
+      const audio = new WebRadioAudioOut({
         streams: 1,
         bitsPerSample: 16,
         numChannels: 1,
@@ -98,7 +98,7 @@ export default class WebRadioPlayer implements WebRadioCapability {
       })
       const session: Session = { audio, generation }
       this.#session = session
-      audio.enqueue(0, ResamplingAudioOut.Volume, Math.round(this.#volume * 256))
+      audio.enqueue(0, WebRadioAudioOut.Volume, Math.round(this.#volume * 256))
       this.#setState(this.#backoffIndex > 0 ? 'retrying' : 'buffering')
       const path = `${url.pathname}${url.search}` || '/'
       session.streamer = new MP3Streamer({
@@ -172,7 +172,7 @@ export default class WebRadioPlayer implements WebRadioCapability {
       trace(`WebRadio streamer close failed: ${String(error)}\n`)
     }
     try {
-      session.audio.enqueue(0, ResamplingAudioOut.Flush)
+      session.audio.enqueue(0, WebRadioAudioOut.Flush)
       session.audio.stop()
     } catch (error) {
       trace(`WebRadio audio stop failed: ${String(error)}\n`)

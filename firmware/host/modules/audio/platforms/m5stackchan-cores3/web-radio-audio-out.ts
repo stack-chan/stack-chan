@@ -31,13 +31,12 @@ type AudioOutOptions = {
 }
 
 /**
- * AudioOut facade for CoreS3 WebRadio.
+ * AudioOut facade dedicated to CoreS3 WebRadio.
  *
- * CoreS3 cannot reliably clock the AW88298 at 44.1 kHz. The Core 1 worker
- * converts WebRadio PCM to 24 kHz and this facade drains its shared ring into
- * the ECMA-419 AudioOut FIFO.
+ * The Core 1 worker converts decoded MP3 PCM to 24 kHz and writes it to a
+ * shared ring. This facade drains that ring into the ECMA-419 AudioOut FIFO.
  */
-export default class ResamplingAudioOut {
+export default class WebRadioAudioOut {
   static readonly Samples = 1
   static readonly Flush = 2
   static readonly Callback = 3
@@ -102,8 +101,8 @@ export default class ResamplingAudioOut {
   }
 
   enqueue(_stream: number, kind: number, value?: unknown): this {
-    if (kind === ResamplingAudioOut.Flush) return this
-    if (kind === ResamplingAudioOut.Volume) {
+    if (kind === WebRadioAudioOut.Flush) return this
+    if (kind === WebRadioAudioOut.Volume) {
       const volume = Number(value ?? 0) / 256
       this.#audio.volume = Math.max(0, Math.min(1, volume))
       return this

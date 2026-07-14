@@ -127,7 +127,7 @@
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
         "esp32-mp3-decoder": "./platforms/m5stackchan-cores3/esp32-mp3-decoder",
         "web-radio-player": "./platforms/m5stackchan-cores3/web-radio-player",
-        "web-radio-audio-out": "./platforms/m5stackchan-cores3/resampling-audio-out",
+        "web-radio-audio-out": "./platforms/m5stackchan-cores3/web-radio-audio-out",
         "pcm-resampler": "./platforms/m5stackchan-cores3/pcm-resampler",
         "buffered-mp3streamer": "./platforms/m5stackchan-cores3/worker-mp3streamer",
         "buffered-mp3streamer-core": "./platforms/m5stackchan-cores3/buffered-mp3streamer",

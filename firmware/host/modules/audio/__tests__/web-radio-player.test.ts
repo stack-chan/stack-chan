@@ -88,7 +88,7 @@ test('CoreS3 WebRadio prebuffers enough compressed and decoded MP3 data to cover
 })
 
 test('CoreS3 WebRadio forwards worker-resampled PCM into the onWritable ECMA-419 AudioOut', () => {
-  const output = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/resampling-audio-out.ts', 'utf8')
+  const output = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/web-radio-audio-out.ts', 'utf8')
 
   assert.match(output, /from 'embedded:io\/audio\/out'/)
   assert.doesNotMatch(output, /from 'pins\/audioout'/)

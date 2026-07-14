@@ -41,7 +41,7 @@
         "host/modules/testing/fakes/mp3streamer.ts"
       ],
       "web-radio-audio-out": [
-        "host/modules/audio/platforms/m5stackchan-cores3/resampling-audio-out.ts"
+        "host/modules/audio/platforms/m5stackchan-cores3/web-radio-audio-out.ts"
       ],
       "pcm-resampler": [
         "host/modules/testing/fakes/pcm-resampler.ts"

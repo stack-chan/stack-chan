@@ -2,7 +2,15 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
-const pages = ['index.html', 'flash/index.html', 'preference/index.html', 'editor/index.html', 'simulator/index.html']
+const pages = [
+  'index.html',
+  'flash/index.html',
+  'preference/index.html',
+  'editor/index.html',
+  'editor/tutorial.html',
+  'face-editor/index.html',
+  'simulator/index.html',
+]
 
 test('all web tools use the shared Japanese application shell', () => {
   for (const page of pages) {
@@ -58,7 +66,7 @@ test('shared controls preserve the native hidden state', () => {
 })
 
 test('third-party scripts that handle editable data use subresource integrity', () => {
-  for (const page of ['preference/index.html', 'editor/index.html']) {
+  for (const page of ['preference/index.html', 'editor/index.html', 'face-editor/index.html']) {
     const html = readFileSync(page, 'utf8')
     const externalScripts = [...html.matchAll(/<script[^>]+src="https:\/\/unpkg\.com\/[^>]+>/g)]
     assert.notEqual(externalScripts.length, 0)

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stack-chan.github.io/schemas/face-asset-v1.schema.json",
+  "title": "Stack-chan Face Asset",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "version", "name", "emotion", "colors", "mouth"],
+  "properties": {
+    "format": { "const": "tech.stackchan.face" },
+    "version": { "const": 1 },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "\\S"
+    },
+    "emotion": {
+      "enum": [
+        "NEUTRAL",
+        "HAPPY",
+        "ANGRY",
+        "SAD",
+        "SLEEPY",
+        "DOUBTFUL",
+        "COLD",
+        "HOT"
+      ]
+    },
+    "colors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary"],
+      "properties": {
+        "primary": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "secondary": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+      }
+    },
+    "mouth": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}

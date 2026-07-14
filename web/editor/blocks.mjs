@@ -11,36 +11,102 @@ const HELPER_HEX_TO_RGB = `function hexToRgb(hex) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }`
 
+const HELPER_VISUAL_RUNTIME = `let visualLoopBudget = 10000
+function resetVisualLoopBudget() { visualLoopBudget = 10000 }
+function visualLoopGuard(blockId) {
+  if (--visualLoopBudget <= 0) {
+    const error = new Error('ループの実行上限を超えました')
+    error.visualBlockId = blockId
+    throw error
+  }
+}
+
+function reportVisualError(errorCode, blockId, error, context = '') {
+  trace('#stackchan ' + JSON.stringify({
+    schema_version: 1,
+    component: 'visual-programming',
+    event: 'error',
+    error_code: errorCode,
+    block_id: error?.visualBlockId || blockId,
+    message: (context ? context + ': ' : '') + String(error),
+  }) + '\\n')
+}
+
+function createVisualRuntime(robot) {
+  robot.__visualProgram?.dispose?.()
+  const disposers = []
+  const runtime = {
+    add(disposer) {
+      if (typeof disposer === 'function') disposers.push(disposer)
+      return disposer
+    },
+    dispose() {
+      while (disposers.length) {
+        try { disposers.pop()() } catch (error) { reportVisualError('VP_LIFECYCLE_CLEANUP', '', error) }
+      }
+    },
+  }
+  robot.__visualProgram = runtime
+  return runtime
+}`
+
 // Event dispatch helpers. A driver exposes a single \`onEvent\`, so multiple
 // blocks for the same driver (e.g. button press + release, or several IMU
 // motions) must share one handler. Each helper stores per-key handlers on the
 // driver object and installs one dispatching \`onEvent\` the first time.
 const HELPER_ON_BUTTON = `function onButton(robot, name, edge, handler) {
   const button = robot.input.button?.[name]
-  if (!button) return
+  if (!button) return undefined
+  const previous = button.onEvent
   ;(button.__handlers ??= {})[edge] = handler
-  if (button.__wired) return
-  button.__wired = true
-  button.onEvent = (event) => button.__handlers[event.pressed ? 'press' : 'release']?.(event)
+  if (!button.__visualWired) {
+    button.__visualWired = true
+    button.onEvent = (event) => button.__handlers[event.pressed ? 'press' : 'release']?.(event) ?? previous?.(event)
+  }
+  return () => {
+    delete button.__handlers?.[edge]
+    if (Object.keys(button.__handlers ?? {}).length === 0) {
+      button.onEvent = previous
+      button.__visualWired = false
+    }
+  }
 }`
 
 const HELPER_ON_IMU = `function onImu(robot, motion, handler) {
   const imu = robot.input.imu
-  if (!imu) return
+  if (!imu) return undefined
+  const previous = imu.onEvent
   ;(imu.__handlers ??= {})[motion] = handler
-  if (imu.__wired) return
-  imu.__wired = true
-  imu.onEvent = (event) => imu.__handlers[event.motion]?.(event)
-  imu.start?.()
+  if (!imu.__visualWired) {
+    imu.__visualWired = true
+    imu.onEvent = (event) => imu.__handlers[event.motion]?.(event) ?? previous?.(event)
+    imu.start?.()
+  }
+  return () => {
+    delete imu.__handlers?.[motion]
+    if (Object.keys(imu.__handlers ?? {}).length === 0) {
+      imu.onEvent = previous
+      imu.__visualWired = false
+    }
+  }
 }`
 
 const HELPER_ON_TOUCH_PANEL = `function onTouchPanel(robot, gesture, handler) {
   const panel = robot.input.touchPanel
-  if (!panel) return
+  if (!panel) return undefined
+  const previous = panel.onEvent
   ;(panel.__handlers ??= {})[gesture] = handler
-  if (panel.__wired) return
-  panel.__wired = true
-  panel.onEvent = (event) => panel.__handlers[event.gesture]?.(event)
+  if (!panel.__visualWired) {
+    panel.__visualWired = true
+    panel.onEvent = (event) => panel.__handlers[event.gesture]?.(event) ?? previous?.(event)
+  }
+  return () => {
+    delete panel.__handlers?.[gesture]
+    if (Object.keys(panel.__handlers ?? {}).length === 0) {
+      panel.onEvent = previous
+      panel.__visualWired = false
+    }
+  }
 }`
 
 /**
@@ -54,7 +120,7 @@ export function assembleModSource(body) {
   if (utilNames.length) imports.push(`import { ${utilNames.join(', ')} } from 'stackchan-util'`)
   if (/\bEmotion\s*\./.test(body)) imports.push("import { Emotion } from 'face-state'")
 
-  const helpers = []
+  const helpers = [HELPER_VISUAL_RUNTIME]
   if (/\bhexToRgb\s*\(/.test(body)) helpers.push(HELPER_HEX_TO_RGB)
   if (/\bonButton\s*\(/.test(body)) helpers.push(HELPER_ON_BUTTON)
   if (/\bonImu\s*\(/.test(body)) helpers.push(HELPER_ON_IMU)
@@ -69,7 +135,9 @@ export function assembleModSource(body) {
   const sections = []
   if (imports.length) sections.push(imports.join('\n'))
   if (helpers.length) sections.push(helpers.join('\n\n'))
-  sections.push(`export async function onContextCreated(robot) {\n${indentedBody}\n}`)
+  sections.push(
+    `export async function onContextCreated(robot) {\n  const runtime = createVisualRuntime(robot)\n${indentedBody}\n}`
+  )
   return `${sections.join('\n\n')}\n`
 }
 
@@ -470,12 +538,13 @@ function asyncHandlerBody(generator, block) {
 // fire-and-forget async IIFE (so `await` works and errors are traced).
 // `param` is the callback parameter name ('event' for input events, '' for the
 // drawer button which takes none).
-function eventHandler(body, errorTag, param = 'event') {
+function eventHandler(body, errorTag, blockId, param = 'event') {
   const indented = body.replace(/^/gm, '  ')
   return (
     `(${param}) => {\n` +
+    `  resetVisualLoopBudget()\n` +
     `  void (async () => {\n${indented}\n` +
-    `  })().catch((error) => trace('${errorTag} handler failed: ' + error + '\\n'))\n` +
+    `  })().catch((error) => reportVisualError('VP_RUNTIME_HANDLER', '${escapeSingleQuoted(blockId)}', error, '${escapeSingleQuoted(errorTag)}'))\n` +
     `}`
   )
 }
@@ -491,44 +560,50 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
 
   forBlock['stackchan_on_start'] = (block, gen) => {
     const body = asyncHandlerBody(gen, block)
-    return `;(async () => {\n${body}\n})().catch((error) => trace('start handler failed: ' + error + '\\n'))\n`
+    return `resetVisualLoopBudget()\n;(async () => {\n${body}\n})().catch((error) => reportVisualError('VP_RUNTIME_START', '${escapeSingleQuoted(block.id)}', error))\n`
   }
 
   forBlock['stackchan_on_button'] = (block, gen) => {
     const button = block.getFieldValue('BUTTON')
     const edge = block.getFieldValue('EDGE')
     const body = asyncHandlerBody(gen, block)
-    return `onButton(robot, '${button}', '${edge}', ${eventHandler(body, `button ${button}`)})\n`
+    return `runtime.add(onButton(robot, '${button}', '${edge}', ${eventHandler(body, `button ${button}`, block.id)}))\n`
   }
 
   forBlock['stackchan_on_imu'] = (block, gen) => {
     const motion = block.getFieldValue('MOTION')
     const body = asyncHandlerBody(gen, block)
-    return `onImu(robot, '${motion}', ${eventHandler(body, 'imu')})\n`
+    return `runtime.add(onImu(robot, '${motion}', ${eventHandler(body, 'imu', block.id)}))\n`
   }
 
   forBlock['stackchan_on_touch'] = (block, gen) => {
     const gesture = block.getFieldValue('GESTURE')
     const body = asyncHandlerBody(gen, block)
-    return `onTouchPanel(robot, '${gesture}', ${eventHandler(body, 'touch')})\n`
+    return `runtime.add(onTouchPanel(robot, '${gesture}', ${eventHandler(body, 'touch', block.id)}))\n`
   }
 
   forBlock['stackchan_on_drawer_button'] = (block, gen) => {
     const label = escapeSingleQuoted(block.getFieldValue('LABEL'))
     const key = escapeSingleQuoted(block.id)
     const body = asyncHandlerBody(gen, block)
-    return `robot.ui.drawer?.addDrawerButton({ key: '${key}', label: '${label}', callback: ${eventHandler(body, 'drawer', '')} })\n`
+    return (
+      `robot.ui.drawer?.addDrawerButton({ key: '${key}', label: '${label}', callback: ${eventHandler(body, 'drawer', block.id, '')} })\n` +
+      `runtime.add(() => robot.ui.drawer?.removeDrawerButton?.('${key}'))\n`
+    )
   }
 
   forBlock['stackchan_every'] = (block, gen) => {
     const seconds = Number(block.getFieldValue('SECONDS'))
     const interval = Math.max(1, Math.round(seconds * 1000))
     const body = asyncHandlerBody(gen, block)
+    const timerName = `visualTimer_${String(block.id).replace(/[^A-Za-z0-9_$]/g, '_')}`
     return (
-      `Timer.repeat(() => {\n` +
+      `const ${timerName} = Timer.repeat(() => {\n` +
+      `  resetVisualLoopBudget()\n` +
       `  void (async () => {\n${body.replace(/^/gm, '  ')}\n` +
-      `  })().catch((error) => trace('timer handler failed: ' + error + '\\n'))\n` +
-      `}, ${interval})\n`
+      `  })().catch((error) => reportVisualError('VP_RUNTIME_TIMER', '${escapeSingleQuoted(block.id)}', error))\n` +
+      `}, ${interval})\n` +
+      `runtime.add(() => Timer.clear(${timerName}))\n`
     )
   }
 
@@ -624,6 +699,52 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
     const min = Number(block.getFieldValue('MIN'))
     const max = Number(block.getFieldValue('MAX'))
     return [`randomBetween(${min}, ${max})`, Order.FUNCTION_CALL]
+  }
+
+  registerAsyncProcedureGenerators(generator, Order)
+}
+
+export function registerAsyncProcedureGenerators(generator, Order) {
+  const forBlock = generator.forBlock ?? generator
+  const definition = (block, gen) => {
+    const functionName = gen.getProcedureName(block.getFieldValue('NAME'))
+    let prefix = ''
+    if (gen.STATEMENT_PREFIX) prefix += gen.injectId(gen.STATEMENT_PREFIX, block)
+    if (gen.STATEMENT_SUFFIX) prefix += gen.injectId(gen.STATEMENT_SUFFIX, block)
+    if (prefix) prefix = gen.prefixLines(prefix, gen.INDENT)
+
+    let loopTrap = ''
+    if (gen.INFINITE_LOOP_TRAP) {
+      loopTrap = gen.prefixLines(gen.injectId(gen.INFINITE_LOOP_TRAP, block), gen.INDENT)
+    }
+    const branch = block.getInput('STACK') ? gen.statementToCode(block, 'STACK') : ''
+    let returnValue = block.getInput('RETURN') ? gen.valueToCode(block, 'RETURN', Order.NONE) || '' : ''
+    const suffixBeforeReturn = branch && returnValue ? prefix : ''
+    if (returnValue) returnValue = `${gen.INDENT}return ${returnValue};\n`
+    const args = block.getVars().map((variable) => gen.getVariableName(variable))
+    let code =
+      `async function ${functionName}(${args.join(', ')}) {\n` +
+      prefix +
+      loopTrap +
+      branch +
+      suffixBeforeReturn +
+      returnValue +
+      '}'
+    code = gen.scrub_(block, code)
+    gen.definitions_[`%${functionName}`] = code
+    return null
+  }
+
+  forBlock.procedures_defreturn = definition
+  forBlock.procedures_defnoreturn = definition
+  forBlock.procedures_callreturn = (block, gen) => {
+    const functionName = gen.getProcedureName(block.getFieldValue('NAME'))
+    const args = block.getVars().map((_variable, index) => gen.valueToCode(block, `ARG${index}`, Order.NONE) || 'null')
+    return [`await ${functionName}(${args.join(', ')})`, Order.AWAIT ?? Order.FUNCTION_CALL]
+  }
+  forBlock.procedures_callnoreturn = (block, gen) => {
+    const [code] = forBlock.procedures_callreturn(block, gen)
+    return `${code};\n`
   }
 }
 
@@ -762,7 +883,19 @@ export const TOOLBOX = {
         { kind: 'block', type: 'text_join' },
       ],
     },
+    {
+      kind: 'category',
+      name: 'リスト',
+      categorystyle: 'list_category',
+      contents: [
+        { kind: 'block', type: 'lists_create_with' },
+        { kind: 'block', type: 'lists_length' },
+        { kind: 'block', type: 'lists_getIndex' },
+        { kind: 'block', type: 'lists_setIndex' },
+      ],
+    },
     { kind: 'category', name: '変数', categorystyle: 'variable_category', custom: 'VARIABLE' },
+    { kind: 'category', name: '関数', categorystyle: 'procedure_category', custom: 'PROCEDURE' },
   ],
 }
 

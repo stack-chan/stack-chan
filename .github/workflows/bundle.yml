@@ -33,6 +33,7 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
         with:
+          target-branch: "8.3.0"
           install-emscripten: "true"
       - name: Bundle firmware
         working-directory: ./firmware

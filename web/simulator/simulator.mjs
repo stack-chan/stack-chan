@@ -52,7 +52,11 @@ class StackchanScene {
     this.camera = new THREE.PerspectiveCamera(35, 1, 0.1, 1000)
     this.camera.position.set(42, 28, 155)
 
-    this.renderer = new THREE.WebGLRenderer({ canvas: viewport, antialias: true, alpha: false })
+    this.renderer = new THREE.WebGLRenderer({
+      canvas: viewport,
+      antialias: true,
+      alpha: false,
+    })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
@@ -142,7 +146,11 @@ class StackchanScene {
 
         const outline = new THREE.LineSegments(
           new THREE.EdgesGeometry(geometry, 24),
-          new THREE.LineBasicMaterial({ color: 0x3d3128, transparent: true, opacity: 0.1 })
+          new THREE.LineBasicMaterial({
+            color: 0x3d3128,
+            transparent: true,
+            opacity: 0.1,
+          })
         )
         outline.position.copy(this.shell.position)
         outline.rotation.copy(this.shell.rotation)
@@ -186,7 +194,11 @@ class StackchanScene {
 
     const outline = new THREE.LineSegments(
       new THREE.EdgesGeometry(geometry, 24),
-      new THREE.LineBasicMaterial({ color: 0x3d3128, transparent: true, opacity: 0.18 })
+      new THREE.LineBasicMaterial({
+        color: 0x3d3128,
+        transparent: true,
+        opacity: 0.18,
+      })
     )
     this.headGroup.add(outline)
   }
@@ -201,14 +213,20 @@ class StackchanScene {
     )
     const outlineGeometry = new THREE.EdgesGeometry(geometry, 24)
 
-    for (const placement of computeFootPlacements({ tuning: this.geometryTuning })) {
+    for (const placement of computeFootPlacements({
+      tuning: this.geometryTuning,
+    })) {
       const foot = new THREE.Mesh(geometry, this.footMaterial)
       foot.position.set(placement.x, placement.y, placement.z)
       this.feetGroup.add(foot)
 
       const outline = new THREE.LineSegments(
         outlineGeometry,
-        new THREE.LineBasicMaterial({ color: 0x3d3128, transparent: true, opacity: 0.16 })
+        new THREE.LineBasicMaterial({
+          color: 0x3d3128,
+          transparent: true,
+          opacity: 0.16,
+        })
       )
       outline.position.copy(foot.position)
       this.feetGroup.add(outline)
@@ -223,7 +241,10 @@ class StackchanScene {
 
     const plane = computeScreenPlane({ margin: 5 })
     const geometry = new THREE.PlaneGeometry(plane.width, plane.height)
-    const material = new THREE.MeshBasicMaterial({ map: this.screenTexture, toneMapped: false })
+    const material = new THREE.MeshBasicMaterial({
+      map: this.screenTexture,
+      toneMapped: false,
+    })
     this.screenMesh = new THREE.Mesh(geometry, material)
     this.screenMesh.position.set(plane.x, plane.y, plane.z)
     this.headGroup.add(this.screenMesh)
@@ -301,7 +322,10 @@ class StackchanScene {
     )
     this.raycaster.setFromCamera(this.pointerNdc, this.camera)
     const [hit] = this.raycaster.intersectObject(this.screenMesh, false)
-    return screenPointFromUv(hit?.uv, { width: this.screen.width, height: this.screen.height })
+    return screenPointFromUv(hit?.uv, {
+      width: this.screen.width,
+      height: this.screen.height,
+    })
   }
 
   render(timeMs) {
@@ -326,7 +350,16 @@ class StackchanScene {
 }
 
 class WasmView {
-  constructor({ scene, screen, info, traceLog, modStorage, onModInstallStatus = () => {} }) {
+  constructor({
+    scene,
+    screen,
+    info,
+    traceLog,
+    modStorage,
+    onModInstallStatus = () => {},
+    onReady = () => {},
+    onError = () => {},
+  }) {
     this.scene = scene
     this.screen = screen
     this.info = info
@@ -334,17 +367,22 @@ class WasmView {
     this.traceLines = []
     this.modStorage = modStorage
     this.onModInstallStatus = onModInstallStatus
+    this.onReady = onReady
+    this.onError = onError
+    this.runCount = 0
     this.interval = 0
     this.tracking = 0
     this.when = 0
     this.image = null
     this.bufferChangeCount = 0
+    this.pendingReadyInstallation = null
+    this.readyTimeout = 0
 
     this.#bindTouches()
   }
 
   start() {
-    this.#loadWasm()
+    return this.#loadWasm()
   }
 
   #bindTouches() {
@@ -372,12 +410,15 @@ class WasmView {
       this.fxMainLaunch = this.mc._fxMainLaunch
       this.fxMainQuit = this.mc._fxMainQuit
       this.fxMainTouch = this.mc._fxMainTouch
-      const archive = await this.installSavedModArchive()
-      this.launch(archive)
+      const installation = await this.installSavedModArchive()
+      this.#awaitFirmwareReady(installation.result)
+      this.launch(installation.pointer)
     } catch (error) {
+      this.#clearPendingReady()
       console.error('[bridge] WASM load failed', error)
       this.info.textContent = 'WASMを読み込めませんでした'
       this.#drawFallbackFace()
+      this.onError(error)
     }
   }
 
@@ -387,19 +428,49 @@ class WasmView {
       const result = installModArchiveIntoWasm(this.mc, installedMod)
       console.log('[bridge] MOD archive install', result)
       this.onModInstallStatus(result, installedMod)
-      return result.pointer ?? undefined
+      if (installedMod && result.status !== 'prepared' && result.status !== 'installed') {
+        throw new Error(`MODアーカイブを起動できません (${result.status})`)
+      }
+      return { pointer: result.pointer ?? undefined, result }
     } catch (error) {
       const result = { status: 'error', error: error.message }
       console.error('[bridge] MOD archive install failed', error)
       this.onModInstallStatus(result)
-      return undefined
+      throw error
     }
+  }
+
+  #reportReady(installation) {
+    this.#clearPendingReady()
+    this.runCount += 1
+    this.onReady({ runCount: this.runCount, installation })
+  }
+
+  #awaitFirmwareReady(installation) {
+    this.#clearPendingReady()
+    this.pendingReadyInstallation = installation
+    this.readyTimeout = window.setTimeout(() => {
+      if (!this.pendingReadyInstallation) return
+      this.#clearPendingReady()
+      const error = new Error('ファームウェアの起動準備がタイムアウトしました')
+      this.info.textContent = error.message
+      this.onError(error)
+    }, 30_000)
+  }
+
+  #clearPendingReady() {
+    if (this.readyTimeout) window.clearTimeout(this.readyTimeout)
+    this.readyTimeout = 0
+    this.pendingReadyInstallation = null
   }
 
   #handleFirmwarePrint(text) {
     this.#applyFirmwareDriverTrace(text)
     this.#appendTrace(text)
     console.log(`[firmware] ${text}`)
+    if (String(text).includes('[main] app behaviors ready') && this.pendingReadyInstallation) {
+      this.#reportReady(this.pendingReadyInstallation)
+    }
   }
 
   #handleFirmwareError(text) {
@@ -415,6 +486,7 @@ class WasmView {
     }
     this.traceLog.textContent = this.traceLines.join('\n')
     this.traceLog.scrollTop = this.traceLog.scrollHeight
+    notifyEditor({ type: 'stackchan-simulator-trace', text: String(text) })
   }
 
   #applyFirmwareDriverTrace(text) {
@@ -477,8 +549,14 @@ class WasmView {
     this.bufferChangeCount = 0
     this.screen.getContext('2d').clearRect(0, 0, this.screen.width, this.screen.height)
     this.scene.markScreenDirty()
-    const archive = await this.installSavedModArchive()
-    this.launch(archive)
+    const installation = await this.installSavedModArchive()
+    this.#awaitFirmwareReady(installation.result)
+    try {
+      this.launch(installation.pointer)
+    } catch (error) {
+      this.#clearPendingReady()
+      throw error
+    }
   }
 
   idle(timeStamp) {
@@ -514,7 +592,11 @@ class WasmView {
       '4-bit Color Look-up Table',
     ]
     const format = pixelFormats[which] ?? `format ${which}`
-    console.log('[bridge] onFormatChanged', { which, format, xs: `${major}.${minor}.${patch}` })
+    console.log('[bridge] onFormatChanged', {
+      which,
+      format,
+      xs: `${major}.${minor}.${patch}`,
+    })
     this.info.textContent = '準備完了'
   }
 
@@ -569,7 +651,9 @@ const traceLog = document.getElementById('trace-log')
 const modStorage = createModStorage()
 const browserCameraButton = document.getElementById('browser-camera-button')
 const browserCameraStatus = document.getElementById('browser-camera-status')
-const buttonBridge = createHostButtonBridge({ logger: (message) => console.log(message) })
+const buttonBridge = createHostButtonBridge({
+  logger: (message) => console.log(message),
+})
 const audioOutBridge = createHostAudioOutBridge()
 const audioInBridge = createHostAudioInBridge()
 const cameraBridge = createHostCameraBridge()
@@ -629,7 +713,10 @@ async function refreshSavedModStatus() {
     const installedMod = await modStorage.loadInstalledMod()
     modInstallStatus.textContent = describeModStatus({ status: installedMod ? 'saved' : 'empty' }, installedMod)
   } catch (error) {
-    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
+    modInstallStatus.textContent = describeModStatus({
+      status: 'error',
+      error: error.message,
+    })
   }
 }
 
@@ -659,9 +746,43 @@ const wasmView = new WasmView({
   onModInstallStatus: (result, installedMod) => {
     modInstallStatus.textContent = describeModStatus(result, installedMod)
   },
+  onReady: ({ runCount, installation }) => {
+    notifyEditor({
+      type: 'stackchan-simulator-ready',
+      runCount,
+      installationStatus: installation.status,
+    })
+  },
+  onError: (error) => {
+    notifyEditor({
+      type: 'stackchan-simulator-status',
+      status: 'error',
+      error: String(error.message ?? error),
+    })
+  },
 })
 globalThis.gxView = wasmView
 console.log('[bridge] global gxView installed')
+
+function notifyEditor(message) {
+  const target = window.opener ?? (window.parent !== window ? window.parent : null)
+  target?.postMessage(message, location.origin)
+}
+
+window.addEventListener('message', async (event) => {
+  if (event.origin !== location.origin || event.data?.type !== 'stackchan-editor-command') return
+  try {
+    if (event.data.command === 'restart') await wasmView.restart()
+    if (event.data.command === 'button') buttonBridge.push(event.data.name)
+  } catch (error) {
+    notifyEditor({
+      type: 'stackchan-simulator-status',
+      status: 'error',
+      error: String(error.message ?? error),
+    })
+  }
+})
+
 refreshSavedModStatus().finally(() => wasmView.start())
 
 modArchiveInput.addEventListener('change', async (event) => {
@@ -670,12 +791,18 @@ modArchiveInput.addEventListener('change', async (event) => {
   if (!file) return
   try {
     const bytes = new Uint8Array(await file.arrayBuffer())
-    const installedMod = await modStorage.saveInstalledMod({ name: file.name, bytes })
+    const installedMod = await modStorage.saveInstalledMod({
+      name: file.name,
+      bytes,
+    })
     modInstallStatus.textContent = `${describeModStatus({ status: 'saved' }, installedMod)} · 再起動中`
     await wasmView.restart()
   } catch (error) {
     console.error('[bridge] MOD archive save failed', error)
-    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
+    modInstallStatus.textContent = describeModStatus({
+      status: 'error',
+      error: error.message,
+    })
   } finally {
     input.value = ''
   }
@@ -686,7 +813,10 @@ modRestartButton.addEventListener('click', async () => {
     await wasmView.restart()
   } catch (error) {
     console.error('[bridge] simulator restart failed', error)
-    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
+    modInstallStatus.textContent = describeModStatus({
+      status: 'error',
+      error: error.message,
+    })
   }
 })
 modClearButton.addEventListener('click', async () => {
@@ -695,7 +825,10 @@ modClearButton.addEventListener('click', async () => {
     modInstallStatus.textContent = describeModStatus({ status: 'empty' })
   } catch (error) {
     console.error('[bridge] MOD archive clear failed', error)
-    modInstallStatus.textContent = describeModStatus({ status: 'error', error: error.message })
+    modInstallStatus.textContent = describeModStatus({
+      status: 'error',
+      error: error.message,
+    })
   }
 })
 bindViewportScreenTouches({ viewport, scene, wasmView })
@@ -761,6 +894,10 @@ function bindViewportScreenTouches({ viewport, scene, wasmView }) {
     },
     { capture: true }
   )
-  viewport.addEventListener('pointerup', (event) => finish(event, 2), { capture: true })
-  viewport.addEventListener('pointercancel', (event) => finish(event, 1), { capture: true })
+  viewport.addEventListener('pointerup', (event) => finish(event, 2), {
+    capture: true,
+  })
+  viewport.addEventListener('pointercancel', (event) => finish(event, 1), {
+    capture: true,
+  })
 }

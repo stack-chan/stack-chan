@@ -13,7 +13,7 @@ import {
 } from './bridge.mjs'
 
 describe('Host.Button bridge', () => {
-  it('keeps constructible active-low buttons for button-aware MOD compatibility', () => {
+  it('emits normalized press and release edges for button-aware MOD compatibility', () => {
     const scheduled = []
     const events = []
     const bridge = createHostButtonBridge({
@@ -25,18 +25,21 @@ describe('Host.Button bridge', () => {
     })
     const firmwareButton = new bridge.Button.a({ onPush: () => events.push('firmware:a') })
 
-    assert.equal(firmwareButton.read(), 1)
-    assert.equal(bridge.read('a'), 1)
-    bridge.push('a')
-
+    assert.equal(bridge.Button.read('a'), 0)
     assert.equal(firmwareButton.read(), 0)
     assert.equal(bridge.read('a'), 0)
+    bridge.push('a')
+
+    assert.equal(firmwareButton.read(), 1)
+    assert.equal(bridge.Button.read('a'), 1)
+    assert.equal(bridge.read('a'), 1)
     assert.deepEqual(events, ['[bridge] Host.Button.a pushed', 'firmware:a'])
     assert.equal(scheduled[0].delay, 120)
 
     scheduled[0].callback()
-    assert.equal(firmwareButton.read(), 1)
-    assert.equal(bridge.read('a'), 1)
+    assert.equal(firmwareButton.read(), 0)
+    assert.equal(bridge.read('a'), 0)
+    assert.deepEqual(events, ['[bridge] Host.Button.a pushed', 'firmware:a', 'firmware:a'])
   })
 
   it('ignores unknown button names without throwing', () => {

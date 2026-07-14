@@ -4,8 +4,13 @@ import { test } from 'node:test'
 import {
   bytesToBinaryString,
   findXsPartition,
+  findAppPartition,
   installModToDevice,
+  equalBytes,
+  removeModFromDevice,
+  xsArchiveByteLength,
   parsePartitionTable,
+  parseEspAppDescriptor,
   PARTITION_TABLE_OFFSET,
   PARTITION_TABLE_SIZE,
 } from './esptool-installer.mjs'
@@ -37,6 +42,22 @@ const CORES3_TABLE = makePartitionTable([
   { type: 0x01, subtype: 0x82, offset: 0xfe0000, size: 0x10000, label: 'storage' },
 ])
 
+function makeAppHeader(version = '8.3.0-1-gabcdef', projectName = 'xs_esp32') {
+  const bytes = new Uint8Array(256)
+  const view = new DataView(bytes.buffer)
+  view.setUint32(0x20, 0xabcd5432, true)
+  bytes.set(new TextEncoder().encode(version), 0x30)
+  bytes.set(new TextEncoder().encode(projectName), 0x50)
+  return bytes
+}
+
+function makeArchive(size = 32) {
+  const archive = new Uint8Array(size)
+  new DataView(archive.buffer).setUint32(0, size, false)
+  archive.set([0x58, 0x53, 0x5f, 0x41], 4)
+  return archive
+}
+
 test('parsePartitionTable reads all entries and stops at the terminator', () => {
   const parts = parsePartitionTable(CORES3_TABLE)
   assert.equal(parts.length, 5)
@@ -48,6 +69,15 @@ test('findXsPartition locates the mod partition by type/subtype', () => {
   const xs = findXsPartition(parsePartitionTable(CORES3_TABLE))
   assert.equal(xs.offset, 0xfa0000)
   assert.equal(xs.size, 0x40000)
+})
+
+test('reads the factory app descriptor used for firmware/XS compatibility checks', () => {
+  assert.equal(findAppPartition(parsePartitionTable(CORES3_TABLE)).offset, 0x10000)
+  assert.deepEqual(parseEspAppDescriptor(makeAppHeader()), {
+    version: '8.3.0-1-gabcdef',
+    projectName: 'xs_esp32',
+  })
+  assert.equal(parseEspAppDescriptor(new Uint8Array(256)), null)
 })
 
 test('findXsPartition works for a different board layout (4MB)', () => {
@@ -64,7 +94,7 @@ test('findXsPartition throws when there is no xs partition', () => {
 })
 
 test('bytesToBinaryString preserves every byte value', () => {
-  const bytes = new Uint8Array([0, 1, 65, 127, 128, 200, 255])
+  const bytes = Uint8Array.from({ length: 0x8000 + 257 }, (_, index) => index & 0xff)
   const s = bytesToBinaryString(bytes)
   assert.equal(s.length, bytes.length)
   assert.deepEqual(
@@ -73,8 +103,35 @@ test('bytesToBinaryString preserves every byte value', () => {
   )
 })
 
+test('installModToDevice never writes when preflight is rejected', async () => {
+  const calls = []
+  const fakeLoader = {
+    transport: {
+      async disconnect() {
+        calls.push('disconnect')
+      },
+    },
+    async main() {
+      return 'ESP32-S3'
+    },
+    async readFlash(address) {
+      if (address === PARTITION_TABLE_OFFSET) return CORES3_TABLE
+      if (address === 0x10000) return makeAppHeader()
+      throw new Error(`unexpected read: 0x${address.toString(16)}`)
+    },
+    async writeFlash() {
+      calls.push('write')
+    },
+  }
+  await assert.rejects(
+    installModToDevice(async () => fakeLoader, {}, makeArchive(), { onPreflight: () => false }),
+    /キャンセル/
+  )
+  assert.deepEqual(calls, ['disconnect'])
+})
+
 test('installModToDevice reads the table, targets the xs offset, and resets', async () => {
-  const archive = new Uint8Array([0, 0, 0, 8, 0x58, 0x53, 0x5f, 0x41]) // looks like an XS_A atom
+  const archive = makeArchive()
   const calls = []
   const fakeLoader = {
     async main() {
@@ -83,9 +140,10 @@ test('installModToDevice reads the table, targets the xs offset, and resets', as
     },
     async readFlash(addr, size) {
       calls.push(['readFlash', addr, size])
-      assert.equal(addr, PARTITION_TABLE_OFFSET)
-      assert.equal(size, PARTITION_TABLE_SIZE)
-      return CORES3_TABLE
+      if (addr === PARTITION_TABLE_OFFSET) return CORES3_TABLE
+      if (addr === 0x10000) return makeAppHeader()
+      if (addr === 0xfa0000 && size === 32 && calls.some(([name]) => name === 'writeFlash')) return archive
+      return new Uint8Array(size).fill(0xff)
     },
     async writeFlash(opts) {
       calls.push(['writeFlash', opts.fileArray[0].address, opts.fileArray[0].data.length])
@@ -100,16 +158,65 @@ test('installModToDevice reads the table, targets the xs offset, and resets', as
     },
   }
   let progress = 0
-  await installModToDevice(async () => fakeLoader, {}, archive, { onProgress: (r) => (progress = r) })
+  let preflight
+  const result = await installModToDevice(async () => fakeLoader, {}, archive, {
+    onProgress: (ratio) => (progress = ratio),
+    onPreflight: (information) => {
+      preflight = information
+      return true
+    },
+  })
   assert.deepEqual(
     calls.map((c) => c[0]),
-    ['main', 'readFlash', 'writeFlash', 'resetToRunApp']
+    ['main', 'readFlash', 'readFlash', 'readFlash', 'writeFlash', 'readFlash', 'resetToRunApp']
   )
   assert.equal(progress, 1)
+  assert.equal(result.verified, true)
+  assert.deepEqual(preflight.firmware, { version: '8.3.0-1-gabcdef', projectName: 'xs_esp32' })
+})
+
+test('installModToDevice does not reboot when readback verification fails', async () => {
+  const archive = makeArchive()
+  const calls = []
+  let wrote = false
+  const fakeLoader = {
+    transport: {
+      async disconnect() {
+        calls.push('disconnect')
+      },
+    },
+    async main() {
+      return 'ESP32-S3'
+    },
+    async readFlash(address, size) {
+      if (address === PARTITION_TABLE_OFFSET) return CORES3_TABLE
+      if (address === 0x10000) return makeAppHeader()
+      if (address === 0xfa0000 && size === 32 && !wrote) return new Uint8Array(size).fill(0xff)
+      if (address === 0xfa0000 && wrote) {
+        const mismatched = archive.slice()
+        mismatched[mismatched.length - 1] ^= 0xff
+        return mismatched
+      }
+      throw new Error(`unexpected read: 0x${address.toString(16)} / ${size}`)
+    },
+    async writeFlash() {
+      wrote = true
+      calls.push('write')
+    },
+    async resetToRunApp() {
+      calls.push('reset')
+    },
+  }
+
+  await assert.rejects(
+    installModToDevice(async () => fakeLoader, {}, archive),
+    /書き込み後の検証に失敗しました/
+  )
+  assert.deepEqual(calls, ['write', 'disconnect'])
 })
 
 test('installModToDevice rejects a MOD larger than the partition', async () => {
-  const big = new Uint8Array(0x50000)
+  const big = makeArchive(0x50000)
   const fakeLoader = {
     async main() {
       return 'ESP32-S3'
@@ -126,4 +233,60 @@ test('installModToDevice rejects a MOD larger than the partition', async () => {
     installModToDevice(async () => fakeLoader, {}, big),
     /MODが大きすぎます/
   )
+})
+
+test('archive helpers validate the header size and compare verification bytes', () => {
+  const archive = makeArchive(64)
+  assert.equal(xsArchiveByteLength(archive), 64)
+  assert.equal(xsArchiveByteLength(new Uint8Array(8)), null)
+  assert.equal(equalBytes(archive, archive.slice()), true)
+  archive[10] = 1
+  assert.equal(equalBytes(archive, makeArchive(64)), false)
+})
+
+test('removeModFromDevice clears the first xs sector and reboots', async () => {
+  const calls = []
+  const existing = makeArchive(64)
+  let wrote = false
+  const fakeLoader = {
+    async main() {
+      return 'ESP32-S3'
+    },
+    async readFlash(address, size) {
+      if (address === PARTITION_TABLE_OFFSET) return CORES3_TABLE
+      if (address === 0x10000) return makeAppHeader()
+      if (address === 0xfa0000 && wrote) return new Uint8Array(size).fill(0xff)
+      if (address === 0xfa0000 && size === 32) return existing.slice(0, 32)
+      if (address === 0xfa0000 && size === existing.length) return existing
+      throw new Error(`unexpected read: 0x${address.toString(16)} / ${size}`)
+    },
+    async writeFlash(options) {
+      calls.push(options.fileArray[0])
+      wrote = true
+    },
+    async resetToRunApp() {
+      calls.push('reset')
+    },
+  }
+  let preflight
+  let backup
+  const result = await removeModFromDevice(
+    async () => fakeLoader,
+    {},
+    {
+      onPreflight: (information) => {
+        preflight = information
+        return true
+      },
+      onBackup: (bytes) => {
+        backup = bytes
+      },
+    }
+  )
+  assert.equal(calls[0].address, 0xfa0000)
+  assert.equal(calls[0].data.length, 4096)
+  assert.equal(calls[1], 'reset')
+  assert.equal(preflight.firmware.version, '8.3.0-1-gabcdef')
+  assert.deepEqual(backup, existing)
+  assert.equal(result.verified, true)
 })

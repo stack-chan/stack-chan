@@ -36,12 +36,6 @@ type DeviceButton = {
   onChanged: (this: DeviceButton) => void
 }
 
-type SimulatorButtonCtor = new (options: {
-  onPush?: () => void
-}) => {
-  read: () => number | undefined
-}
-
 type UIOptions = {
   avatar?: string
   drawerButtons?: DrawerButtonViewSpec[]
@@ -59,9 +53,6 @@ type GlobalEnvironment = {
       IMU?: new (options: unknown) => unknown
       TouchPanel?: ConstructorParameters<typeof TouchPanel>[0]
     }
-  }
-  Host?: {
-    Button?: Partial<Record<'a' | 'b' | 'c', SimulatorButtonCtor>>
   }
 }
 
@@ -97,34 +88,6 @@ function createTouchOptions(): TouchOptions {
     idleIntervalMs: configNumber(config.touchIdleIntervalMs),
     activeIntervalMs: configNumber(config.touchActiveIntervalMs),
     releaseDebounceMs: configNumber(config.touchReleaseDebounceMs),
-  }
-}
-
-// wrapper button class for simulator
-class SimButton {
-  #button: { read: () => number | undefined }
-  onChanged = () => {}
-  constructor(button: SimulatorButtonCtor) {
-    const self = this
-    this.#button = new button({
-      onPush() {
-        self.onChanged()
-      },
-    })
-  }
-  read() {
-    return this.#button.read() ?? 1
-  }
-}
-
-export function installSimulatorButtons() {
-  if (!globalEnv.Host?.Button || globalEnv.button) return
-  trace('[main] installing simulator buttons\n')
-  const { a, b, c } = globalEnv.Host.Button
-  globalEnv.button = {
-    ...(a && { a: new SimButton(a) }),
-    ...(b && { b: new SimButton(b) }),
-    ...(c && { c: new SimButton(c) }),
   }
 }
 

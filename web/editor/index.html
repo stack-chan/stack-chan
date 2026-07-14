@@ -42,7 +42,91 @@
             >ｽﾀｯｸﾁｬﾝ<span class="surface-name"> ブロックエディタ</span></span
           ></a
         >
+        <div class="project-controls" aria-label="プロジェクト設定">
+          <input id="project-name" type="text" maxlength="64" aria-label="プロジェクト名" />
+          <select id="target-device" aria-label="対象機種"></select>
+          <select id="recent-projects" aria-label="最近使ったプロジェクト">
+            <option value="">最近使ったプロジェクト</option>
+          </select>
+        </div>
         <div class="workspace-actions" aria-label="ワークスペース操作">
+          <button
+            id="new-project-button"
+            class="icon-button"
+            type="button"
+            title="新しいプロジェクト"
+            aria-label="新しいプロジェクト"
+          >
+            <i data-lucide="file-plus-2"></i>
+          </button>
+          <button
+            id="duplicate-project-button"
+            class="icon-button"
+            type="button"
+            title="プロジェクトを複製"
+            aria-label="プロジェクトを複製"
+          >
+            <i data-lucide="copy-plus"></i>
+          </button>
+          <button
+            id="import-button"
+            class="icon-button"
+            type="button"
+            title="プロジェクトを読み込む"
+            aria-label="プロジェクトを読み込む"
+          >
+            <i data-lucide="folder-open"></i>
+          </button>
+          <input id="project-file-input" type="file" accept=".json,.stackchan-blocks.json" hidden />
+          <button
+            id="export-button"
+            class="icon-button"
+            type="button"
+            title="プロジェクトを保存"
+            aria-label="プロジェクトを保存"
+          >
+            <i data-lucide="save"></i>
+          </button>
+          <button
+            id="asset-button"
+            class="icon-button"
+            type="button"
+            title="アセットを追加"
+            aria-label="アセットを追加"
+          >
+            <i data-lucide="image-plus"></i>
+          </button>
+          <input id="asset-file-input" type="file" multiple hidden />
+          <button
+            id="metrics-button"
+            class="icon-button"
+            type="button"
+            title="評価ログを保存"
+            aria-label="評価ログを保存"
+          >
+            <i data-lucide="bar-chart-3"></i>
+          </button>
+          <a
+            id="tutorial-link"
+            class="icon-button"
+            href="./tutorial.html"
+            target="_blank"
+            rel="noopener"
+            title="チュートリアル"
+            aria-label="チュートリアルを開く"
+          >
+            <i data-lucide="circle-help"></i>
+          </a>
+          <button
+            id="recovery-button"
+            class="icon-button warning-button"
+            type="button"
+            title="退避した破損データを保存"
+            aria-label="退避した破損データを保存"
+            hidden
+          >
+            <i data-lucide="shield-alert"></i>
+          </button>
           <button
             id="sample-button"
             class="icon-button"
@@ -60,6 +144,16 @@
             aria-label="ワークスペースを消去"
           >
             <i data-lucide="trash-2"></i>
+          </button>
+          <button
+            id="mobile-project-menu-button"
+            class="icon-button mobile-project-menu-button"
+            type="button"
+            title="プロジェクトメニュー"
+            aria-label="プロジェクトメニューを開く"
+            aria-haspopup="dialog"
+          >
+            <i data-lucide="ellipsis"></i>
           </button>
         </div>
         <nav class="tool-nav" aria-label="ツール">
@@ -83,15 +177,28 @@
             <button id="build-button" type="button" class="primary-button">
               <i data-lucide="hammer"></i><span>ビルド</span>
             </button>
+            <div id="capability-summary" class="capability-summary" aria-live="polite"></div>
+            <div id="asset-summary" class="asset-summary" aria-live="polite"></div>
+            <label class="asset-mode">
+              <input id="embed-assets" type="checkbox" checked />
+              <span>アセットをMODへ埋め込む</span>
+            </label>
             <div class="install-grid">
               <button id="download-button" type="button" disabled title="XSAをダウンロード">
                 <i data-lucide="download"></i><span>ダウンロード</span>
               </button>
               <button id="install-simulator-button" type="button" disabled>
-                <i data-lucide="box"></i><span>シミュレーターへ</span>
+                <i data-lucide="play"></i><span>シミュレーターで実行</span>
               </button>
               <button id="install-device-button" type="button" disabled>
                 <i data-lucide="usb"></i><span>実機へ書き込み</span>
+              </button>
+              <button id="restore-device-button" type="button" disabled>
+                <i data-lucide="history"></i><span>バックアップを復元</span>
+              </button>
+              <input id="restore-file-input" type="file" accept=".xsa" hidden />
+              <button id="remove-device-button" class="danger-button" type="button" disabled>
+                <i data-lucide="trash-2"></i><span>実機のMODを削除</span>
               </button>
             </div>
             <progress id="install-progress" max="1" value="0" hidden aria-label="書き込み進行状況"></progress>
@@ -118,6 +225,16 @@
               >
                 ログ
               </button>
+              <button
+                id="diagnostics-tab"
+                class="output-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="diagnostics-panel"
+              >
+                診断 <span id="diagnostics-count" class="count-badge">0</span>
+              </button>
             </div>
             <div id="code-panel" class="output-panel" role="tabpanel" aria-labelledby="code-tab">
               <pre id="code-preview" aria-label="生成されたmod.js"></pre>
@@ -125,10 +242,87 @@
             <div id="log-panel" class="output-panel" role="tabpanel" aria-labelledby="log-tab" hidden>
               <pre id="log-output" aria-label="ビルドとインストールのログ"></pre>
             </div>
+            <div
+              id="diagnostics-panel"
+              class="output-panel diagnostics-panel"
+              role="tabpanel"
+              aria-labelledby="diagnostics-tab"
+              hidden
+            >
+              <ol id="diagnostics-list" aria-label="プロジェクト診断"></ol>
+            </div>
           </section>
         </aside>
       </div>
     </main>
+    <dialog id="mobile-project-dialog" class="mobile-project-dialog" aria-labelledby="mobile-project-dialog-title">
+      <header>
+        <h2 id="mobile-project-dialog-title">プロジェクトメニュー</h2>
+        <button id="mobile-project-dialog-close" type="button" aria-label="プロジェクトメニューを閉じる">
+          <i data-lucide="x"></i>
+        </button>
+      </header>
+      <div class="mobile-project-dialog-body">
+        <label>
+          <span>対象機種</span>
+          <select id="mobile-target-device"></select>
+        </label>
+        <label>
+          <span>最近使ったプロジェクト</span>
+          <select id="mobile-recent-projects"></select>
+        </label>
+        <div class="mobile-project-actions">
+          <button type="button" data-editor-action="new-project-button">
+            <i data-lucide="file-plus-2"></i><span>新しいプロジェクト</span>
+          </button>
+          <button type="button" data-editor-action="duplicate-project-button">
+            <i data-lucide="copy-plus"></i><span>プロジェクトを複製</span>
+          </button>
+          <button type="button" data-editor-action="sample-button">
+            <i data-lucide="file-input"></i><span>サンプルを読み込む</span>
+          </button>
+          <button type="button" data-editor-action="metrics-button">
+            <i data-lucide="bar-chart-3"></i><span>評価ログを保存</span>
+          </button>
+          <button id="mobile-recovery-action" type="button" data-editor-action="recovery-button" hidden>
+            <i data-lucide="shield-alert"></i><span>退避した破損データを保存</span>
+          </button>
+          <button type="button" data-editor-action="tutorial-link">
+            <i data-lucide="circle-help"></i><span>チュートリアルを開く</span>
+          </button>
+          <button class="danger-button" type="button" data-editor-action="clear-button">
+            <i data-lucide="trash-2"></i><span>ワークスペースを消去</span>
+          </button>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="sample-dialog" class="sample-dialog" aria-labelledby="sample-dialog-title">
+      <header>
+        <div>
+          <h2 id="sample-dialog-title">サンプルを選ぶ</h2>
+          <p>プロジェクトのワークスペースを選んだサンプルへ置き換えます。</p>
+        </div>
+        <button id="sample-close" type="button" aria-label="サンプル選択を閉じる"><i data-lucide="x"></i></button>
+      </header>
+      <div id="sample-list" class="sample-list"></div>
+    </dialog>
+    <dialog id="simulator-dialog" class="simulator-dialog" aria-labelledby="simulator-dialog-title">
+      <header>
+        <h2 id="simulator-dialog-title">シミュレーター</h2>
+        <div class="simulator-controls">
+          <button id="simulator-restart" type="button"><i data-lucide="rotate-cw"></i><span>再実行</span></button>
+          <button id="simulator-stop" type="button"><i data-lucide="square"></i><span>停止</span></button>
+          <button id="simulator-close" type="button"><i data-lucide="x"></i><span>閉じる</span></button>
+        </div>
+      </header>
+      <div class="simulator-inputs" aria-label="シミュレーター入力">
+        <span>ボタン入力</span>
+        <button type="button" data-simulator-button="a">A</button>
+        <button type="button" data-simulator-button="b">B</button>
+        <button type="button" data-simulator-button="c">C</button>
+      </div>
+      <iframe id="simulator-frame" title="Stack-chan Webシミュレーター"></iframe>
+    </dialog>
     <script type="module" src="./editor.mjs"></script>
     <script>
       globalThis.lucide?.createIcons()

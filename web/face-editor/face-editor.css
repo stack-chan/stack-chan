@@ -1,0 +1,127 @@
+.face-editor-shell {
+  min-height: 100dvh;
+}
+.topbar .tool-nav {
+  margin-left: auto;
+}
+.face-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(280px, 380px);
+  min-height: calc(100dvh - var(--header-height));
+}
+.face-preview {
+  display: grid;
+  place-items: center;
+  background: #101316;
+}
+.face-canvas {
+  position: relative;
+  width: min(70vw, 480px);
+  aspect-ratio: 1;
+  border: 12px solid #444b50;
+  border-radius: 16%;
+  background: #202020;
+  color: #fff;
+}
+.eye,
+.mouth {
+  position: absolute;
+  display: block;
+  background: currentcolor;
+}
+.eye {
+  top: 34%;
+  width: 18%;
+  height: 8%;
+  border-radius: 50%;
+}
+.eye.left {
+  left: 20%;
+}
+.eye.right {
+  right: 20%;
+}
+.mouth {
+  top: 62%;
+  left: 35%;
+  width: 30%;
+  min-height: 4px;
+  border-radius: 999px;
+}
+.face-canvas[data-emotion='HAPPY'] .eye {
+  height: 12%;
+  border-radius: 50% 50% 10% 10%;
+  clip-path: inset(55% 0 0);
+}
+.face-canvas[data-emotion='ANGRY'] .eye.left,
+.face-canvas[data-emotion='SAD'] .eye.right {
+  transform: rotate(14deg);
+}
+.face-canvas[data-emotion='ANGRY'] .eye.right,
+.face-canvas[data-emotion='SAD'] .eye.left {
+  transform: rotate(-14deg);
+}
+.face-canvas[data-emotion='SLEEPY'] .eye {
+  height: 3%;
+}
+.face-canvas[data-emotion='DOUBTFUL'] .eye.left {
+  height: 3%;
+  transform: translateY(12px);
+}
+.face-canvas[data-emotion='COLD'] .mouth {
+  left: 40%;
+  width: 20%;
+  clip-path: polygon(0 50%, 20% 0, 40% 100%, 60% 0, 80% 100%, 100% 50%, 80% 100%, 20% 100%);
+}
+.face-canvas[data-emotion='HOT'] .eye {
+  height: 4%;
+  transform: rotate(4deg);
+}
+.face-canvas[data-emotion='HOT'] .mouth {
+  top: 58%;
+  left: 38%;
+  width: 24%;
+  min-height: 18%;
+  border-radius: 50%;
+}
+.face-controls {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 28px;
+  background: var(--surface);
+}
+.face-controls h1 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.face-controls label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.face-controls input,
+.face-controls select {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text);
+}
+.face-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@media (max-width: 720px) {
+  .face-editor-layout {
+    grid-template-columns: 1fr;
+  }
+  .face-preview {
+    min-height: 48dvh;
+  }
+  .face-canvas {
+    width: min(75vw, 340px);
+  }
+}

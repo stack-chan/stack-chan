@@ -57,7 +57,11 @@ export function createHostButtonBridge({
   setTimeoutFn = globalThis.setTimeout,
   resetDelayMs = 120,
 } = {}) {
-  const states = Object.fromEntries(BUTTON_NAMES.map((name) => [name, { pressed: 1, firmwareCallbacks: new Set() }]))
+  // Moddable's Button driver normalizes read() to 1 while pressed and 0 while
+  // released, regardless of the physical pin's active-low wiring. Host.Button
+  // must expose that normalized contract because SimButton passes read()
+  // directly to StackchanRuntimeInput.
+  const states = Object.fromEntries(BUTTON_NAMES.map((name) => [name, { pressed: 0, firmwareCallbacks: new Set() }]))
 
   const Button = Object.fromEntries(
     BUTTON_NAMES.map((name) => [
@@ -73,6 +77,9 @@ export function createHostButtonBridge({
       },
     ])
   )
+  Object.defineProperty(Button, 'read', {
+    value: (name) => states[name]?.pressed,
+  })
 
   return {
     Button,
@@ -80,10 +87,11 @@ export function createHostButtonBridge({
       const state = states[name]
       if (!state) return
       logger(`[bridge] Host.Button.${name} pushed`)
-      state.pressed = 0
+      state.pressed = 1
       for (const callback of state.firmwareCallbacks) callback()
       setTimeoutFn(() => {
-        state.pressed = 1
+        state.pressed = 0
+        for (const callback of state.firmwareCallbacks) callback()
       }, resetDelayMs)
     },
     read(name) {

@@ -13,10 +13,44 @@ body {
   gap: 5px;
   margin-left: auto;
 }
+.project-controls {
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+  margin-left: 12px;
+}
+.project-controls input,
+.project-controls select {
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised, #25292d);
+  color: var(--text);
+}
+.project-controls input {
+  width: min(220px, 20vw);
+  padding: 0 9px;
+}
+.project-controls select {
+  width: min(210px, 18vw);
+  padding: 0 6px;
+}
+#recent-projects {
+  width: min(220px, 18vw);
+}
+.workspace-actions a.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .workspace-actions + .tool-nav {
   margin-left: 0;
   padding-left: 8px;
   border-left: 1px solid var(--line);
+}
+.mobile-project-menu-button {
+  display: none;
 }
 .editor-layout {
   display: grid;
@@ -69,6 +103,49 @@ body {
 .build-section > button {
   width: 100%;
 }
+.capability-summary {
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+.capability-summary[data-severity='error'] {
+  color: var(--danger, #ff8c86);
+}
+.asset-summary {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.asset-chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 4px 0 0;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.asset-chip button {
+  min-width: 16px;
+  min-height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.asset-mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.asset-mode input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
 .install-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -78,9 +155,6 @@ body {
   min-width: 0;
   padding: 8px;
   font-size: 0.78rem;
-}
-.install-grid button:last-child {
-  grid-column: 1 / -1;
 }
 progress {
   width: 100%;
@@ -108,6 +182,17 @@ progress {
   color: var(--muted);
   font-size: 0.78rem;
 }
+.count-badge {
+  display: inline-flex;
+  min-width: 18px;
+  min-height: 18px;
+  align-items: center;
+  justify-content: center;
+  margin-left: 3px;
+  border-radius: 9px;
+  background: #343a40;
+  font-size: 0.68rem;
+}
 .output-tab[aria-selected='true'] {
   box-shadow: inset 0 -2px var(--accent);
   color: var(--text);
@@ -132,6 +217,200 @@ progress {
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
+.diagnostics-panel {
+  overflow: auto;
+  padding: 10px;
+  background: #15181b;
+}
+.diagnostics-panel ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.diagnostic-button {
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #202428;
+  color: var(--text);
+  text-align: left;
+}
+.diagnostic-button[data-severity='error'] {
+  border-color: #a94a4a;
+}
+.diagnostic-code {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  font-size: 0.68rem;
+}
+.simulator-dialog {
+  width: min(1100px, 94vw);
+  height: min(820px, 92dvh);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+.sample-dialog {
+  width: min(720px, 92vw);
+  max-height: 86dvh;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+.mobile-project-dialog {
+  width: min(360px, calc(100vw - 24px));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+.mobile-project-dialog::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+.mobile-project-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.mobile-project-dialog h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.mobile-project-dialog-body {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+.mobile-project-dialog-body label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.mobile-project-dialog-body select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text);
+}
+.mobile-project-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.mobile-project-actions button {
+  justify-content: flex-start;
+  min-height: 48px;
+  text-align: left;
+}
+.sample-dialog::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+.sample-dialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.sample-dialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.sample-dialog h2,
+.sample-dialog p {
+  margin: 0;
+}
+.sample-dialog h2 {
+  font-size: 1rem;
+}
+.sample-dialog p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.sample-list {
+  display: grid;
+  gap: 9px;
+  padding: 14px;
+  overflow: auto;
+}
+.sample-card {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-raised, #25292d);
+  color: var(--text);
+  text-align: left;
+}
+.sample-card strong {
+  font-size: 0.88rem;
+}
+.sample-card span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.simulator-dialog::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+.simulator-dialog[open] {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+.simulator-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.simulator-dialog h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.simulator-controls,
+.simulator-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.simulator-controls button,
+.simulator-inputs button {
+  min-height: 32px;
+  padding: 5px 9px;
+}
+.simulator-inputs {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.simulator-dialog iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #111;
+}
 @media (max-width: 760px) {
   body {
     overflow: auto;
@@ -155,14 +434,65 @@ progress {
     padding-left: 3px;
     border-left: 0;
   }
+  .project-controls {
+    flex: 1;
+    margin-left: 4px;
+  }
+  .project-controls input {
+    width: 100%;
+  }
+  .project-controls select {
+    width: 42%;
+  }
+  #recent-projects,
+  #tutorial-link,
+  #metrics-button {
+    display: none;
+  }
   .workspace-actions .icon-button {
     width: 36px;
     min-width: 36px;
     min-height: 36px;
   }
 }
+@media (max-width: 1400px) {
+  .brand-link {
+    flex: 0 0 30px;
+  }
+  .brand-link > span {
+    display: none;
+  }
+  #recent-projects {
+    width: min(170px, 16vw);
+  }
+}
 @media (max-width: 430px) {
   .brand-link span {
+    display: none;
+  }
+  .project-controls select {
+    display: none;
+  }
+  .project-controls {
+    min-width: 100px;
+  }
+  .project-controls input {
+    min-width: 100px;
+  }
+  .tool-nav a:not([aria-current='page']) {
+    display: none;
+  }
+  #sample-button,
+  #clear-button,
+  #new-project-button,
+  #duplicate-project-button,
+  #recovery-button {
+    display: none;
+  }
+  .mobile-project-menu-button {
+    display: inline-flex;
+  }
+  .simulator-controls span {
     display: none;
   }
 }

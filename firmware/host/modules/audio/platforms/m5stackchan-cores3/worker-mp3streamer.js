@@ -79,9 +79,13 @@ export default class {
     Atomics.store(this.#completion, 0, 0)
     this.#audio?.detachSharedOutput(this.#output)
     this.#closeNetwork()
-    this.#worker?.postMessage({ id: 'close' })
-    this.#worker?.terminate()
-    this.#worker = this.#audio = this.#input = this.#output = this.#networkOptions = undefined
+    try {
+      this.#worker?.postMessage({ id: 'close' })
+    } catch {
+      this.#worker?.terminate()
+      this.#worker = undefined
+    }
+    this.#audio = this.#input = this.#output = this.#networkOptions = undefined
   }
 
   #openNetwork() {
@@ -178,6 +182,10 @@ export default class {
   }
 
   #onMessage(message) {
+    if (message.id === 'closed') {
+      this.#worker = undefined
+      return
+    }
     if (this.#closed) return
     switch (message.id) {
       case 'output':

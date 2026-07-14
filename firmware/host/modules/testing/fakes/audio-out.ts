@@ -26,6 +26,8 @@ export default class AudioOut {
     offset?: number
     count?: number
   }> = []
+  enqueueFailure: unknown
+  stopFailure: unknown
   options: AudioOutOptions
   started = 0
   stopped = 0
@@ -39,6 +41,7 @@ export default class AudioOut {
   }
 
   enqueue(stream: number, kind: number, value: unknown = 0, repeat?: number, offset?: number, count?: number): void {
+    if (this.enqueueFailure !== undefined) throw this.enqueueFailure
     this.enqueued.push({ stream, kind, value, repeat, offset, count })
   }
 
@@ -51,6 +54,7 @@ export default class AudioOut {
   }
 
   stop(): void {
+    if (this.stopFailure !== undefined) throw this.stopFailure
     this.stopped += 1
   }
 

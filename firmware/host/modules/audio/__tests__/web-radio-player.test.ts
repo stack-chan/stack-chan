@@ -4,8 +4,12 @@ import { dirname, resolve } from 'node:path'
 import { beforeEach, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { getAudioOutInstances, resetAudioOut } from '../../testing/fakes/audio-out.js'
-import { getMP3StreamerInstances, resetMP3Streamers } from '../../testing/fakes/mp3streamer.js'
+import { getAudioOutInstances, resetAudioOut, setAudioOutConstructorFailure } from '../../testing/fakes/audio-out.js'
+import {
+  getMP3StreamerInstances,
+  resetMP3Streamers,
+  setMP3StreamerConstructorFailure,
+} from '../../testing/fakes/mp3streamer.js'
 import Timer from '../../testing/fakes/timer.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
 
@@ -78,6 +82,7 @@ test('CoreS3 WebRadio prebuffers enough compressed and decoded MP3 data to cover
   assert.match(streamer, /this\.#input\.readableView\(available\)/)
   assert.match(streamer, /this\.#input\.advanceRead\(source\.byteLength\)/)
   assert.match(streamer, /#consumeReadBuffer\(byteLength\)/)
+  assert.match(streamer, /#readBuffer = this\.#mp3 = undefined/)
   assert.doesNotMatch(streamer, /readBuffer\.copyWithin\(0, consumed/)
   assert.doesNotMatch(streamer, /options\.http|\.request\(/)
 })
@@ -106,6 +111,7 @@ test('CoreS3 WebRadio receives into a shared ring and decodes MP3 on a Core 1 wo
   const worker = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/web-radio-stream-worker.js', 'utf8')
   const manifest = readFileSync('host/modules/audio/manifest.json', 'utf8')
   const decoder = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/esp32-mp3-decoder.c', 'utf8')
+  const decoderProxy = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/esp32-mp3-decoder.js', 'utf8')
 
   assert.match(proxy, /new Worker\('web-radio-stream-worker'/)
   assert.match(proxy, /core: 1/)
@@ -122,6 +128,8 @@ test('CoreS3 WebRadio receives into a shared ring and decodes MP3 on a Core 1 wo
   assert.match(proxy, /#scheduleNetworkReconnect\(error \? String\(error\) : 'connection closed'\)/)
   assert.match(proxy, /this\.#networkReconnectTimer = Timer\.set\(\(\) => this\.#openNetwork\(\), delay\)/)
   assert.doesNotMatch(proxy, /postMessage\(\{ id: 'end'/)
+  assert.match(proxy, /this\.#worker\?\.postMessage\(\{ id: 'close' \}\)/)
+  assert.doesNotMatch(proxy, /postMessage\(\{ id: 'close' \}\)\s+this\.#worker\?\.terminate\(\)/)
   assert.match(proxy, /new Int32Array\(new SharedArrayBuffer\(4\)\)/)
   assert.match(proxy, /outputSampleRate: this\.#audio\.sampleRate/)
   assert.doesNotMatch(proxy, /postMessage\(\{ id: 'played'/)
@@ -138,6 +146,7 @@ test('CoreS3 WebRadio receives into a shared ring and decodes MP3 on a Core 1 wo
   assert.match(worker, /this\.#output\.writableBytes < maximumOutputCount \* 2/)
   assert.match(worker, /resamplePCM16Mono\(/)
   assert.match(worker, /self\.postMessage\(\{ id: 'output' \}\)/)
+  assert.match(worker, /self\.postMessage\(\{ id: 'closed' \}\)[\s\S]+self\.close\(\)/)
   assert.doesNotMatch(worker, /postMessage\(\{ id: 'pcm'/)
   assert.match(worker, /Atomics\.load\(this\.#completion, 0\)/)
   assert.match(worker, /let callbacks = MAX_COMPLETION_CALLBACKS_PER_PUMP/)
@@ -163,6 +172,8 @@ test('CoreS3 WebRadio receives into a shared ring and decodes MP3 on a Core 1 wo
   assert.match(decoder, /heap_caps_malloc\(MP3_PCM_SCRATCH_BYTES, MALLOC_CAP_SPIRAM \| MALLOC_CAP_8BIT\)/)
   assert.match(decoder, /mixed = \(int32_t\)source\[0\] \+ source\[1\]/)
   assert.doesNotMatch(decoder, /codec_log_allocations|gTrackCodecAllocations|web-radio-decoder-memory/)
+  assert.match(decoderProxy, /const MP3_MAX_FRAME_BYTES = 2048/)
+  assert.match(decoderProxy, /if \(length > MP3_MAX_FRAME_BYTES\) return/)
 })
 
 test('WebRadioPlayer parses HTTPS URL, limits volume, and controls AudioOut readiness', async () => {
@@ -214,12 +225,65 @@ test('WebRadioPlayer selects HTTP defaults and reconnects with backoff', async (
   assert.deepEqual(first.options.http, { name: 'http' })
 
   first.options.onError?.('offline')
+  first.options.onDone?.()
   assert.equal(player.state, 'retrying')
   assert.equal(first.closed, true)
   Timer.advance(999)
   assert.equal(getMP3StreamerInstances().length, 1)
   Timer.advance(1)
   assert.equal(getMP3StreamerInstances().length, 2)
+})
+
+test('WebRadioPlayer retries synchronous AudioOut construction failures', async () => {
+  const { default: WebRadioPlayer } = (await import(
+    '../platforms/m5stackchan-cores3/web-radio-player.js'
+  )) as WebRadioModule
+  setAudioOutConstructorFailure(new Error('AudioOut allocation failed'))
+  const player = new WebRadioPlayer()
+
+  await player.start({ url: 'https://radio.example.test/stream' })
+  assert.equal(player.state, 'retrying')
+  assert.equal(getAudioOutInstances().length, 0)
+
+  setAudioOutConstructorFailure(undefined)
+  Timer.advance(1000)
+  assert.equal(getAudioOutInstances().length, 1)
+  assert.equal(getMP3StreamerInstances().length, 1)
+})
+
+test('WebRadioPlayer closes AudioOut and retries synchronous streamer construction failures', async () => {
+  const { default: WebRadioPlayer } = (await import(
+    '../platforms/m5stackchan-cores3/web-radio-player.js'
+  )) as WebRadioModule
+  setMP3StreamerConstructorFailure(new Error('streamer allocation failed'))
+  const player = new WebRadioPlayer()
+
+  await player.start({ url: 'https://radio.example.test/stream' })
+  assert.equal(player.state, 'retrying')
+  assert.equal(getAudioOutInstances()[0].closed, true)
+
+  setMP3StreamerConstructorFailure(undefined)
+  Timer.advance(1000)
+  assert.equal(getMP3StreamerInstances().length, 1)
+})
+
+test('WebRadioPlayer closes AudioOut when flush or stop throws', async () => {
+  const { default: WebRadioPlayer } = (await import(
+    '../platforms/m5stackchan-cores3/web-radio-player.js'
+  )) as WebRadioModule
+  const flushFailurePlayer = new WebRadioPlayer()
+  await flushFailurePlayer.start({ url: 'https://radio.example.test/stream' })
+  const flushFailureAudio = getAudioOutInstances()[0]
+  flushFailureAudio.enqueueFailure = new Error('flush failed')
+  flushFailurePlayer.stop()
+  assert.equal(flushFailureAudio.closed, true)
+
+  const stopFailurePlayer = new WebRadioPlayer()
+  await stopFailurePlayer.start({ url: 'https://radio.example.test/stream' })
+  const stopFailureAudio = getAudioOutInstances()[1]
+  stopFailureAudio.stopFailure = new Error('stop failed')
+  stopFailurePlayer.stop()
+  assert.equal(stopFailureAudio.closed, true)
 })
 
 test('WebRadioPlayer stop cancels reconnect and is idempotent', async () => {

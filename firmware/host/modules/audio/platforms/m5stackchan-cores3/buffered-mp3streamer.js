@@ -81,7 +81,7 @@ export default class {
       this.#audio.callbacks[this.#stream] = null
     }
     this.#mp3?.close()
-    this.#input = this.#audio = this.#playing = this.#pending = this.#free = this.#mp3 = undefined
+    this.#input = this.#audio = this.#playing = this.#pending = this.#free = this.#readBuffer = this.#mp3 = undefined
   }
 
   end(error) {

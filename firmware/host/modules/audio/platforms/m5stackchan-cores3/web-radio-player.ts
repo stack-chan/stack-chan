@@ -89,29 +89,33 @@ export default class WebRadioPlayer implements WebRadioCapability {
     const url = new URL(options.url)
     const generation = ++this.#generation
     this.#hasPlayed = false
-    const audio = new ResamplingAudioOut({
-      streams: 1,
-      bitsPerSample: 16,
-      numChannels: 1,
-      sampleRate: OUTPUT_PCM_SAMPLE_RATE,
-    })
-    audio.enqueue(0, ResamplingAudioOut.Volume, Math.round(this.#volume * 256))
-    const session: Session = { audio, generation }
-    this.#session = session
-    this.#setState(this.#backoffIndex > 0 ? 'retrying' : 'buffering')
-    const path = `${url.pathname}${url.search}` || '/'
-    session.streamer = new MP3Streamer({
-      protocol: url.protocol === 'https:' ? 'https' : 'http',
-      http: url.protocol === 'https:' ? device.network.https : device.network.http,
-      host: url.hostname,
-      port: url.port ? Number(url.port) : url.protocol === 'https:' ? 443 : 80,
-      path,
-      audio: { out: audio, stream: 0, sampleRate: DECODED_PCM_SAMPLE_RATE },
-      onReady: (ready) => this.#onReady(generation, ready),
-      onPlayed: () => this.#onPlayed(generation),
-      onError: (reason) => this.#fail(generation, String(reason)),
-      onDone: () => this.#fail(generation, 'stream ended'),
-    })
+    try {
+      const audio = new ResamplingAudioOut({
+        streams: 1,
+        bitsPerSample: 16,
+        numChannels: 1,
+        sampleRate: OUTPUT_PCM_SAMPLE_RATE,
+      })
+      const session: Session = { audio, generation }
+      this.#session = session
+      audio.enqueue(0, ResamplingAudioOut.Volume, Math.round(this.#volume * 256))
+      this.#setState(this.#backoffIndex > 0 ? 'retrying' : 'buffering')
+      const path = `${url.pathname}${url.search}` || '/'
+      session.streamer = new MP3Streamer({
+        protocol: url.protocol === 'https:' ? 'https' : 'http',
+        http: url.protocol === 'https:' ? device.network.https : device.network.http,
+        host: url.hostname,
+        port: url.port ? Number(url.port) : url.protocol === 'https:' ? 443 : 80,
+        path,
+        audio: { out: audio, stream: 0, sampleRate: DECODED_PCM_SAMPLE_RATE },
+        onReady: (ready) => this.#onReady(generation, ready),
+        onPlayed: () => this.#onPlayed(generation),
+        onError: (reason) => this.#fail(generation, String(reason)),
+        onDone: () => this.#fail(generation, 'stream ended'),
+      })
+    } catch (error) {
+      this.#fail(generation, String(error))
+    }
   }
 
   #onReady(generation: number, ready: boolean): void {
@@ -138,6 +142,7 @@ export default class WebRadioPlayer implements WebRadioCapability {
 
   #fail(generation: number, reason: string): void {
     if (!this.#isCurrent(generation)) return
+    this.#generation += 1
     this.#clearStallTimer()
     this.#closeSession()
     if (this.#stopped || !this.#options?.reconnect) {
@@ -154,7 +159,7 @@ export default class WebRadioPlayer implements WebRadioCapability {
   }
 
   #isCurrent(generation: number): boolean {
-    return !this.#stopped && this.#session?.generation === generation
+    return !this.#stopped && this.#generation === generation
   }
 
   #closeSession(): void {
@@ -169,6 +174,10 @@ export default class WebRadioPlayer implements WebRadioCapability {
     try {
       session.audio.enqueue(0, ResamplingAudioOut.Flush)
       session.audio.stop()
+    } catch (error) {
+      trace(`WebRadio audio stop failed: ${String(error)}\n`)
+    }
+    try {
       session.audio.close()
     } catch (error) {
       trace(`WebRadio audio close failed: ${String(error)}\n`)

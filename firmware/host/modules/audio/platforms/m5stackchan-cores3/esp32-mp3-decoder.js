@@ -9,6 +9,7 @@ const SAMPLE_RATES = Object.freeze([
   Object.freeze([22050, 24000, 16000]),
   Object.freeze([44100, 48000, 32000]),
 ])
+const MP3_MAX_FRAME_BYTES = 2048
 
 /**
  * MP3 frame decoder backed by Espressif's ESP32-S3 optimized audio codec.
@@ -37,10 +38,13 @@ export default class extends Native('xs_esp32_mp3_destructor') {
     info.position = position
     if (info.length === 0) {
       const next = findFrame(buffer, position + 1, end)
-      if (next !== undefined) info.length = next - position
-      else {
-        if (end - start >= 2048) return
-        info.length = 2048
+      if (next !== undefined) {
+        const length = next - position
+        if (length > MP3_MAX_FRAME_BYTES) return
+        info.length = length
+      } else {
+        if (end - start >= MP3_MAX_FRAME_BYTES) return
+        info.length = MP3_MAX_FRAME_BYTES
       }
     }
     return info

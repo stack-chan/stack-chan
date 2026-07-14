@@ -26,10 +26,17 @@ const server = createServer((request, response) => {
   response.on('close', () => {
     closed = true
     const elapsed = Math.max(1, Date.now() - startedAt)
-    const average = Math.floor((sent / elapsed) * 1000)
+    const transmitted = request.socket.bytesWritten || sent
+    const average = Math.floor((transmitted / elapsed) * 1000)
     console.log(
-      `[http-throughput-server] closed peer=${peer} elapsed=${elapsed}ms queued=${sent} average=${average}B/s`,
+      `[http-throughput-server] closed peer=${peer} elapsed=${elapsed}ms transmitted=${transmitted} average=${average}B/s`,
     )
+  })
+  request.socket.on('error', (error) => {
+    console.log(`[http-throughput-server] socket error peer=${peer} error=${error.message}`)
+  })
+  response.on('error', (error) => {
+    console.log(`[http-throughput-server] response error peer=${peer} error=${error.message}`)
   })
 
   function write() {

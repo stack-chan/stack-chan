@@ -172,10 +172,19 @@ self.onmessage = (message) => {
       streamer?.end(message.reason)
       break
     case 'close':
-      if (completionTimer !== undefined) Timer.clear(completionTimer)
+      try {
+        if (completionTimer !== undefined) Timer.clear(completionTimer)
+        streamer?.close()
+      } catch (error) {
+        trace(`[web-radio-worker] close failed: ${String(error)}\n`)
+      }
       completionTimer = undefined
-      streamer?.close()
       streamer = audio = undefined
+      try {
+        self.postMessage({ id: 'closed' })
+      } finally {
+        self.close()
+      }
       break
   }
 }

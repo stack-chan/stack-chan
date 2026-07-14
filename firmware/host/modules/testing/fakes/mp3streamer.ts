@@ -11,12 +11,14 @@ export type FakeMP3StreamerOptions = {
   onDone?: () => void
 }
 
+let constructorFailure: unknown
 const instances: MP3Streamer[] = []
 
 export default class MP3Streamer {
   closed = false
   options: FakeMP3StreamerOptions
   constructor(options: FakeMP3StreamerOptions) {
+    if (constructorFailure !== undefined) throw constructorFailure
     this.options = options
     instances.push(this)
   }
@@ -30,5 +32,10 @@ export function getMP3StreamerInstances(): MP3Streamer[] {
 }
 
 export function resetMP3Streamers(): void {
+  constructorFailure = undefined
   instances.length = 0
+}
+
+export function setMP3StreamerConstructorFailure(error: unknown): void {
+  constructorFailure = error
 }

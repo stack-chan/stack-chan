@@ -82,7 +82,7 @@ function startTest() {
   stopTimer = Timer.set(() => stopTest('duration'), durationSeconds * 1000)
 }
 
-if (!ssid || !password || !host) throw new Error('testWiFi and throughput.host config are required')
+if (!ssid || !host) throw new Error('testWiFi.ssid and throughput.host config are required')
 if (protocol !== 'http' && protocol !== 'https') throw new Error('throughput.protocol must be http or https')
 
 trace(`[http-throughput] connecting ssid=${ssid}\n`)
@@ -96,4 +96,4 @@ wifi = new WiFi({
     startTest()
   },
 })
-wifi.connect({ SSID: ssid, password, secure: true })
+wifi.connect(password ? { SSID: ssid, password, secure: true } : { SSID: ssid })

@@ -1,8 +1,6 @@
 import { Outline } from 'commodetto/outline'
-import type { FaceSkinPalette } from 'face-skin'
-import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
-import { getFillSkin } from 'parts/shape-utils'
-import type { Shape as PiuShape } from 'piu/shape'
+import { DEFAULT_FACE_PRIMARY_COLOR } from 'face-state'
+import { FacePrimaryColorBehavior, getFillSkin } from 'parts/shape-utils'
 import { defineShapeTemplate } from 'template'
 
 export type RelaxedMouthOptions = { cx: number; cy: number; width?: number; height?: number }
@@ -31,20 +29,6 @@ export const RelaxedMouth = defineShapeTemplate((options: RelaxedMouthOptions) =
     height,
     skin: getFillSkin(DEFAULT_FACE_PRIMARY_COLOR),
     strokeOutline: mouthOutline(width, height),
-    Behavior: class extends Behavior {
-      #hasPalette = false
-      #color = DEFAULT_FACE_PRIMARY_COLOR
-      onFaceSkin(shape: PiuShape, palette: FaceSkinPalette) {
-        this.#hasPalette = true
-        shape.skin = palette.primary
-      }
-      onFaceState(shape: PiuShape, face: FaceState) {
-        if (this.#hasPalette) return
-        const color = toPiuColorNumber(face.theme.primary)
-        if (color === this.#color) return
-        this.#color = color
-        shape.skin = getFillSkin(color)
-      }
-    },
+    Behavior: FacePrimaryColorBehavior,
   }
 })

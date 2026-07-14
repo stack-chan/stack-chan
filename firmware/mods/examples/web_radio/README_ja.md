@@ -14,7 +14,7 @@ npm run mod:m5stackchan_cores3 -- ./mods/examples/web_radio/manifest.json
 
 ## 制約
 
-- 既定局は `https://ice2.somafm.com/groovesalad-128-mp3` です。
+- 既定局は `https://ice5.somafm.com/groovesalad-128-mp3` です。
 - 44.1kHzの直接MP3ストリームだけを対象とします。
 - プレイリスト、リダイレクト、AAC、Ogg、HLS、曲名表示には対応しません。
 - TTS、tone、音声バッファ再生を開始するとラジオは停止し、自動再開しません。

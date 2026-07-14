@@ -4,6 +4,7 @@ import { test } from 'node:test'
 
 const notesSource = readFileSync('host/modules/ui/components/effects/music-notes.ts', 'utf8')
 const faceSource = readFileSync('host/modules/ui/components/face/behaviors/face.ts', 'utf8')
+const modSource = readFileSync('mods/examples/web_radio/mod.ts', 'utf8')
 
 test('RelaxedFace uses only the breath motion', () => {
   const relaxedFace = faceSource.slice(
@@ -14,13 +15,21 @@ test('RelaxedFace uses only the breath motion', () => {
   assert.doesNotMatch(relaxedFace, /createBlinkMotion|createSaccadeMotion/)
 })
 
-test('MusicNotes time updates do not allocate or modify Piu coordinates', () => {
-  const timeChanged = notesSource.slice(notesSource.indexOf('onTimeChanged'), notesSource.indexOf('onDraw'))
-  assert.doesNotMatch(timeChanged, /\bnew\s|\.coordinates|\.moveBy|new Skin|new Texture/)
-  assert.match(timeChanged, /port\.invalidate\(\)/)
+test('MusicNotes uses two fixed emoticon sprites without animation timers', () => {
+  assert.match(notesSource, /new Texture\('emoticon\.png'\)/)
+  assert.match(notesSource, /const MUSIC_ROW = 4/)
+  assert.match(notesSource, /new StaticNote\(\{ left: LEFT_NOTE_X/)
+  assert.match(notesSource, /new StaticNote\(\{ right: RIGHT_NOTE_X/)
+  assert.match(notesSource, /const LEFT_NOTE_X = 12/)
+  assert.match(notesSource, /const RIGHT_NOTE_X = 12/)
+  assert.doesNotMatch(notesSource, /onTimeChanged|\.start\(\)|\.stop\(\)|interval:/)
 })
 
-test('MusicNotes starts and stops with display lifecycle', () => {
-  assert.match(notesSource, /onDisplaying[\s\S]*port\.start\(\)/)
-  assert.match(notesSource, /onUndisplaying[\s\S]*port\.stop\(\)/)
+test('WebRadio keeps the configured face and confines notes to the side regions', () => {
+  assert.doesNotMatch(modSource, /\.setFace\(|RelaxedFace/)
+  assert.match(modSource, /const QUIET_VOLUME = 0\.05/)
+  assert.match(modSource, /setFaceMotionEnabled\?\.\(false\)/)
+  assert.match(notesSource, /const LEFT_NOTE_Y = 72/)
+  assert.match(notesSource, /const RIGHT_NOTE_Y = 104/)
+  assert.doesNotMatch(notesSource, /particle|coordinates|moveBy/)
 })

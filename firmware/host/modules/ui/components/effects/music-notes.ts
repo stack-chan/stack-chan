@@ -1,8 +1,7 @@
 import type { FaceSkinPalette } from 'face-skin'
 import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber, toPiuColorString } from 'face-state'
-import { type Port as PiuPort, Port } from 'piu/MC'
+import { Container, type Port as PiuPort, type Texture as PiuTexture, Port, Texture } from 'piu/MC'
 
-type Particle = { x: number; y: number; speed: number; phase: number; life: number; maxLife: number; kind: number }
 export type MusicNotesOptions = {
   left?: number
   right?: number
@@ -10,51 +9,56 @@ export type MusicNotesOptions = {
   bottom?: number
   width?: number
   height?: number
-  interval?: number
 }
 
-const PARTICLE_COUNT = 5
-const TWO_PI = Math.PI * 2
-
-function reset(particle: Particle, index: number, width: number, height: number): void {
-  particle.x = Math.round(width * (0.12 + ((index * 0.19) % 0.76)))
-  particle.y = height + 12 + index * 17
-  particle.speed = 0.32 + (index % 3) * 0.08
-  particle.phase = index * 1.31
-  particle.life = 0
-  particle.maxLife = 2400 + index * 260
-  particle.kind = index % 2
+type StaticNoteOptions = {
+  left?: number
+  right?: number
+  top: number
+  variant: number
 }
 
-class MusicNotesBehavior extends Behavior {
-  #particles: Particle[] = []
-  #width = 320
-  #height = 180
+const SPRITE_SIZE = 32
+const MUSIC_ROW = 4
+const MUSIC_ROW_Y = MUSIC_ROW * SPRITE_SIZE
+const LEFT_NOTE_X = 12
+const RIGHT_NOTE_X = 12
+const LEFT_NOTE_Y = 72
+const RIGHT_NOTE_Y = 104
+
+let texture: PiuTexture | undefined
+let colorCache: Map<number, string> | undefined
+
+function getTexture(): PiuTexture {
+  texture ??= new Texture('emoticon.png')
+  return texture
+}
+
+function colorString(color: number): string {
+  colorCache ??= new Map()
+  const cached = colorCache.get(color)
+  if (cached) return cached
+  const value = toPiuColorString(color)
+  colorCache.set(color, value)
+  return value
+}
+
+class StaticMusicNoteBehavior extends Behavior {
   #color = DEFAULT_FACE_PRIMARY_COLOR
   #hasPalette = false
+  #variant = 2
 
-  onCreate(port: PiuPort, options: MusicNotesOptions = {}) {
-    this.#width = options.width ?? port.width ?? this.#width
-    this.#height = options.height ?? port.height ?? this.#height
-    port.interval = options.interval ?? 33
-    for (let index = 0; index < PARTICLE_COUNT; index += 1) {
-      const particle = { x: 0, y: 0, speed: 0, phase: 0, life: 0, maxLife: 0, kind: 0 }
-      reset(particle, index, this.#width, this.#height)
-      particle.life = index * 310
-      this.#particles.push(particle)
-    }
+  onCreate(_port: PiuPort, options: StaticNoteOptions) {
+    this.#variant = options.variant
   }
 
   onDisplaying(port: PiuPort) {
-    port.start()
-  }
-
-  onUndisplaying(port: PiuPort) {
-    port.stop()
+    port.invalidate()
   }
 
   onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
     this.#hasPalette = true
+    if (this.#color === palette.primaryColor) return
     this.#color = palette.primaryColor
     port.invalidate()
   }
@@ -67,46 +71,44 @@ class MusicNotesBehavior extends Behavior {
     port.invalidate()
   }
 
-  onTimeChanged(port: PiuPort) {
-    const interval = port.interval ?? 33
-    for (let index = 0; index < this.#particles.length; index += 1) {
-      const particle = this.#particles[index]
-      particle.life += interval
-      particle.y -= particle.speed * interval
-      particle.phase += interval * 0.002
-      if (particle.y < -20 || particle.life >= particle.maxLife) reset(particle, index, this.#width, this.#height)
-    }
-    port.invalidate()
-  }
-
   onDraw(port: PiuPort) {
-    port.fillColor('transparent', 0, 0, this.#width, this.#height)
-    const color = toPiuColorString(this.#color)
-    for (const particle of this.#particles) {
-      const progress = particle.life / particle.maxLife
-      const scale = progress < 0.2 ? 0.55 + progress * 2.25 : progress > 0.8 ? 1 - (progress - 0.8) * 2.25 : 1
-      const unit = Math.max(1, Math.round(3 * scale))
-      const x = Math.round(particle.x + Math.sin(particle.phase * TWO_PI) * 10)
-      const y = Math.round(particle.y)
-      port.fillColor(color, x + unit * 2, y, unit, unit * 5)
-      port.fillColor(color, x + unit * 3, y, unit * 3, unit)
-      if (particle.kind) port.fillColor(color, x + unit * 5, y, unit, unit * 4)
-      port.fillColor(color, x, y + unit * 4, unit * 3, unit * 2)
-      if (particle.kind) port.fillColor(color, x + unit * 3, y + unit * 3, unit * 3, unit * 2)
-    }
+    port.fillColor('transparent', 0, 0, SPRITE_SIZE, SPRITE_SIZE)
+    port.drawTexture(
+      getTexture(),
+      colorString(this.#color),
+      0,
+      0,
+      this.#variant * SPRITE_SIZE,
+      MUSIC_ROW_Y,
+      SPRITE_SIZE,
+      SPRITE_SIZE,
+    )
   }
 }
 
-export const MusicNotes = Port.template((options: MusicNotesOptions = {}) => ({
+const StaticNote = Port.template((options: StaticNoteOptions) => ({
+  left: options.left,
+  right: options.right,
+  top: options.top,
+  width: SPRITE_SIZE,
+  height: SPRITE_SIZE,
+  Behavior: class extends StaticMusicNoteBehavior {
+    onCreate(port: PiuPort) {
+      super.onCreate(port, options)
+    }
+  },
+}))
+
+export const MusicNotes = Container.template((options: MusicNotesOptions = {}) => ({
   left: options.left ?? 0,
   right: options.right ?? 0,
   top: options.top ?? 0,
   bottom: options.bottom ?? 0,
   width: options.width,
   height: options.height,
-  Behavior: class extends MusicNotesBehavior {
-    onCreate(port: PiuPort) {
-      super.onCreate(port, options)
-    }
-  },
+  active: false,
+  contents: [
+    new StaticNote({ left: LEFT_NOTE_X, top: LEFT_NOTE_Y, variant: 2 }),
+    new StaticNote({ right: RIGHT_NOTE_X, top: RIGHT_NOTE_Y, variant: 1 }),
+  ],
 }))

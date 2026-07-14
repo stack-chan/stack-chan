@@ -1,10 +1,10 @@
 /// <reference path="./types.d.ts" />
 
-import { RelaxedFace } from 'behaviors/face'
 import type { StackchanContext, WebRadioState } from 'capabilities'
 import { MusicNotes } from 'effects/music-notes'
 
-const STREAM_URL = 'https://ice2.somafm.com/groovesalad-128-mp3'
+const STREAM_URL = 'https://ice5.somafm.com/groovesalad-128-mp3'
+const QUIET_VOLUME = 0.05
 const EFFECT_KEY = 'web-radio:music-notes'
 const DRAWER_KEY = 'web-radio:toggle'
 
@@ -30,6 +30,7 @@ function onRadioState(context: StackchanContext, state: WebRadioState, reason?: 
   hideNotes(context)
   if (state === 'error') {
     requested = false
+    context.ui.setFaceMotionEnabled?.(true)
     context.drawer.setDrawerButtonState(DRAWER_KEY, false)
     context.showBalloon(`Radio error: ${reason ?? 'unknown error'}`)
   }
@@ -45,17 +46,19 @@ async function startRadio(context: StackchanContext): Promise<void> {
     return
   }
   requested = true
+  context.ui.setFaceMotionEnabled?.(false)
   context.drawer.setDrawerButtonState(DRAWER_KEY, true)
   starting = radio
     .start({
       url: STREAM_URL,
-      volume: 0.5,
+      volume: QUIET_VOLUME,
       sampleRate: 44100,
       reconnect: true,
       onStateChanged: (state, reason) => onRadioState(context, state, reason),
     })
     .catch((error) => {
       requested = false
+      context.ui.setFaceMotionEnabled?.(true)
       hideNotes(context)
       context.drawer.setDrawerButtonState(DRAWER_KEY, false)
       context.showBalloon(`Radio error: ${String(error)}`)
@@ -69,12 +72,12 @@ async function startRadio(context: StackchanContext): Promise<void> {
 function stopRadio(context: StackchanContext): void {
   requested = false
   context.audio.webRadio?.stop()
+  context.ui.setFaceMotionEnabled?.(true)
   hideNotes(context)
   context.drawer.setDrawerButtonState(DRAWER_KEY, false)
 }
 
 async function initialize(context: StackchanContext): Promise<void> {
-  context.ui.setFace(new RelaxedFace())
   context.drawer.addDrawerButton({
     key: DRAWER_KEY,
     label: 'Radio',

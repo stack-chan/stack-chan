@@ -1,10 +1,8 @@
 import AudioOut from 'embedded:io/audio/out'
-import resamplePCM16Mono from 'pcm-resampler'
 
 const OUTPUT_SAMPLE_RATE = 24000
-const WRITE_QUEUE_LENGTH = 48
+const AUDIO_QUEUE_LENGTH = 48
 
-type AudioBuffer = ArrayBuffer | SharedArrayBuffer | Uint8Array
 type SharedOutputRing = {
   readableView(maximum?: number): Uint8Array
   advanceRead(count: number): void
@@ -12,7 +10,7 @@ type SharedOutputRing = {
 type ECMA419AudioOut = {
   readonly sampleRate: number
   volume: number
-  write(buffer: AudioBuffer): void
+  write(buffer: Uint8Array): void
   start(): void
   stop(): void
   close(): void
@@ -25,19 +23,6 @@ type ECMA419AudioOutConstructor = new (options: {
   onWritable(size: number): void
 }) => ECMA419AudioOut
 
-type Completion = {
-  callbackValue?: number
-  completed: boolean
-}
-
-type QueuedWrite = {
-  buffer: ArrayBuffer | SharedArrayBuffer
-  end: number
-  position: number
-  completion: Completion
-  recyclable: boolean
-}
-
 type AudioOutOptions = {
   streams?: number
   bitsPerSample?: number
@@ -48,10 +33,9 @@ type AudioOutOptions = {
 /**
  * AudioOut facade for CoreS3 WebRadio.
  *
- * CoreS3 cannot reliably clock the AW88298 at 44.1 kHz. The WebRadio worker
- * normally supplies mono 16-bit PCM already converted to 24 kHz, which this
- * facade forwards without copying. The stateful converter remains as a
- * fallback for callers that supply PCM at another rate.
+ * CoreS3 cannot reliably clock the AW88298 at 44.1 kHz. The Core 1 worker
+ * converts WebRadio PCM to 24 kHz and this facade drains its shared ring into
+ * the ECMA-419 AudioOut FIFO.
  */
 export default class ResamplingAudioOut {
   static readonly Samples = 1
@@ -62,28 +46,20 @@ export default class ResamplingAudioOut {
   static readonly Tone = 6
   static readonly Silence = 7
 
-  readonly callbacks: Array<(value: number) => void> = []
-  callback: (value: number) => void = () => {}
   readonly sampleRate = OUTPUT_SAMPLE_RATE
   readonly numChannels = 1
   readonly bitsPerSample = 16
   readonly streams = 1
 
   #audio: ECMA419AudioOut
-  #sourceSampleRate: number
-  #resamplerState = new Int32Array(new SharedArrayBuffer(3 * Int32Array.BYTES_PER_ELEMENT))
-  #free: SharedArrayBuffer[] = []
-  #queue: QueuedWrite[] = []
   #sharedOutput: SharedOutputRing | undefined
   #sharedCompletion: Int32Array | undefined
   #onSharedOutputWritten: (() => void) | undefined
   #writableBytes = 0
-  #lastCompletion: Completion | undefined
   #closed = false
   #started = false
 
-  constructor(options: AudioOutOptions) {
-    this.#sourceSampleRate = options.sampleRate ?? 44100
+  constructor(_options: AudioOutOptions) {
     const Output = AudioOut as unknown as ECMA419AudioOutConstructor
     this.#audio = new Output({
       bitsPerSample: 16,
@@ -125,72 +101,14 @@ export default class ResamplingAudioOut {
     if (this.#started) this.#drainWritable()
   }
 
-  enqueue(stream: number, kind: number, value?: unknown, repeat?: number, offset?: number, count?: number): this {
+  enqueue(_stream: number, kind: number, value?: unknown): this {
     if (kind === ResamplingAudioOut.Flush) return this
     if (kind === ResamplingAudioOut.Volume) {
       const volume = Number(value ?? 0) / 256
       this.#audio.volume = Math.max(0, Math.min(1, volume))
       return this
     }
-    if (kind === ResamplingAudioOut.Callback) {
-      if (!this.#lastCompletion) throw new Error('Callback requires a preceding RawSamples buffer')
-      this.#lastCompletion.callbackValue = Number(value ?? 0)
-      this.#deliverCompletion(this.#lastCompletion)
-      return this
-    }
-    if (kind !== ResamplingAudioOut.RawSamples) {
-      throw new Error(`Unsupported CoreS3 WebRadio audio command: ${kind}`)
-    }
-    if (this.#closed) throw new Error('AudioOut is closed')
-    if (this.#queue.length >= WRITE_QUEUE_LENGTH) {
-      throw new Error('CoreS3 WebRadio audio queue is full')
-    }
-    if (repeat !== undefined && repeat !== 1) {
-      throw new Error('CoreS3 WebRadio does not support repeated PCM buffers')
-    }
-    if (stream !== 0) throw new Error('CoreS3 WebRadio supports one audio stream')
-    if (!(value instanceof ArrayBuffer || value instanceof SharedArrayBuffer)) {
-      throw new TypeError('RawSamples requires an ArrayBuffer')
-    }
-
-    const inputOffset = offset ?? 0
-    const inputCount = count ?? Math.floor(value.byteLength / 2) - inputOffset
-    const completion: Completion = { completed: false }
-    this.#lastCompletion = completion
-    if (this.#sourceSampleRate === OUTPUT_SAMPLE_RATE) {
-      this.#queue.push({
-        buffer: value,
-        end: (inputOffset + inputCount) * 2,
-        position: inputOffset * 2,
-        completion,
-        recyclable: false,
-      })
-    } else {
-      const maximumOutputCount =
-        Math.floor((inputCount * OUTPUT_SAMPLE_RATE + this.#sourceSampleRate - 1) / this.#sourceSampleRate) + 1
-      let outputBuffer = this.#free.shift()
-      if (!outputBuffer || outputBuffer.byteLength < maximumOutputCount * 2) {
-        outputBuffer = new SharedArrayBuffer(maximumOutputCount * 2)
-      }
-      const outputCount = resamplePCM16Mono(
-        value,
-        inputOffset,
-        inputCount,
-        outputBuffer,
-        this.#sourceSampleRate,
-        OUTPUT_SAMPLE_RATE,
-        this.#resamplerState,
-      )
-      this.#queue.push({
-        buffer: outputBuffer,
-        end: outputCount * 2,
-        position: 0,
-        completion,
-        recyclable: true,
-      })
-    }
-    if (this.#started) this.#drainWritable()
-    return this
+    throw new Error(`Unsupported CoreS3 WebRadio audio command: ${kind}`)
   }
 
   #onWritable(size: number): void {
@@ -202,30 +120,13 @@ export default class ResamplingAudioOut {
   #drainWritable(): void {
     let sharedWritten = 0
     while (this.#writableBytes >= 2) {
-      if (this.#queue.length) {
-        const entry = this.#queue[0]
-        let use = Math.min(this.#writableBytes, entry.end - entry.position)
-        use &= ~1
-        if (!use) break
-        this.#audio.write(new Uint8Array(entry.buffer, entry.position, use))
-        entry.position += use
-        this.#writableBytes -= use
-        if (entry.position !== entry.end) continue
-
-        this.#queue.shift()
-        if (entry.recyclable) this.#free.push(entry.buffer as SharedArrayBuffer)
-        entry.completion.completed = true
-        this.#deliverCompletion(entry.completion)
-        continue
-      }
-
       const output = this.#sharedOutput
       const completion = this.#sharedCompletion
       if (!output || !completion) break
       const source = output.readableView(this.#writableBytes)
       const use = source.byteLength & ~1
       if (!use) break
-      const samples = use === source.byteLength ? source : new Uint8Array(source.buffer, source.byteOffset, use)
+      const samples = use === source.byteLength ? source : source.subarray(0, use)
       this.#audio.write(samples)
       output.advanceRead(use)
       Atomics.add(completion, 0, use)
@@ -235,16 +136,8 @@ export default class ResamplingAudioOut {
     if (sharedWritten) this.#onSharedOutputWritten?.()
   }
 
-  #deliverCompletion(completion: Completion): void {
-    if (!completion.completed || completion.callbackValue === undefined) {
-      return
-    }
-    this.callbacks[0]?.(completion.callbackValue)
-  }
-
   length(stream: number): number {
-    if (stream !== 0) return 0
-    return WRITE_QUEUE_LENGTH - this.#queue.length
+    return stream === 0 ? AUDIO_QUEUE_LENGTH : 0
   }
 
   mix(): never {
@@ -266,9 +159,7 @@ export default class ResamplingAudioOut {
   close(): void {
     this.#closed = true
     this.#audio.close()
-    this.#queue.length = 0
     this.#writableBytes = 0
-    this.#free.length = 0
     this.#sharedOutput = undefined
     this.#sharedCompletion = undefined
     this.#onSharedOutputWritten = undefined

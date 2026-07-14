@@ -43,7 +43,7 @@ beforeEach(() => {
   ;(globalThis as typeof globalThis & { trace: (...args: unknown[]) => void }).trace = () => {}
 })
 
-test('WebRadio bundles the CA certificate required by the default SomaFM stream', () => {
+test('WebRadio bundles the CA certificate required by supported HTTPS streams', () => {
   const manifest = JSON.parse(readFileSync('host/modules/audio/manifest.json', 'utf8')) as {
     data: { '*': string[] }
   }
@@ -85,14 +85,12 @@ test('CoreS3 WebRadio forwards worker-resampled PCM into the onWritable ECMA-419
   assert.doesNotMatch(output, /\.Async/)
   assert.doesNotMatch(output, /callback\?: \(error:/)
   assert.match(output, /this\.#audio\.volume = 0/)
-  assert.match(output, /#resamplerState = new Int32Array\(new SharedArrayBuffer/)
-  assert.match(output, /resamplePCM16Mono\(/)
-  assert.match(output, /this\.#sourceSampleRate === OUTPUT_SAMPLE_RATE/)
-  assert.match(output, /recyclable: false/)
+  assert.doesNotMatch(output, /from 'pcm-resampler'|resamplePCM16Mono|#queue|QueuedWrite/)
+  assert.doesNotMatch(output, /RawSamples requires|recyclable/)
   assert.match(output, /this\.#writableBytes = size\s+this\.#drainWritable\(\)/)
   assert.match(output, /output\.readableView\(this\.#writableBytes\)/)
   assert.match(output, /Atomics\.add\(completion, 0, use\)/)
-  assert.match(output, /recyclable: true,[\s\S]+if \(this\.#started\) this\.#drainWritable\(\)/)
+  assert.match(output, /if \(this\.#started\) this\.#drainWritable\(\)/)
   assert.doesNotMatch(output, /web-radio-audio-buffer/)
 })
 
@@ -157,6 +155,7 @@ test('CoreS3 WebRadio receives into a shared ring and decodes MP3 on a Core 1 wo
   assert.match(decoder, /heap_caps_calloc\(count, size, fallback \| MALLOC_CAP_8BIT\)/)
   assert.match(decoder, /heap_caps_malloc\(MP3_PCM_SCRATCH_BYTES, MALLOC_CAP_SPIRAM \| MALLOC_CAP_8BIT\)/)
   assert.match(decoder, /mixed = \(int32_t\)source\[0\] \+ source\[1\]/)
+  assert.doesNotMatch(decoder, /codec_log_allocations|gTrackCodecAllocations|web-radio-decoder-memory/)
 })
 
 test('WebRadioPlayer parses HTTPS URL, limits volume, and controls AudioOut readiness', async () => {

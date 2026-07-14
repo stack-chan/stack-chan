@@ -15,16 +15,6 @@ let playedBuffers = 0
 let hostIndex = 0
 let reconnectTimer
 
-function peakOf(buffer) {
-  const samples = new Int16Array(buffer)
-  let peak = 0
-  for (let index = 0; index < samples.length; index += 64) {
-    const value = Math.abs(samples[index])
-    if (value > peak) peak = value
-  }
-  return peak
-}
-
 function startRadio() {
   const host = STREAM_HOSTS[hostIndex]
   hostIndex = (hostIndex + 1) % STREAM_HOSTS.length
@@ -43,10 +33,9 @@ function startRadio() {
         audio.start()
       }
     },
-    onPlayed(buffer) {
+    onPlayed() {
       playedBuffers += 1
-      if (playedBuffers === 1 || playedBuffers % 32 === 0)
-        trace(`[web-radio-test] played=${playedBuffers} peak=${peakOf(buffer)}\n`)
+      if (playedBuffers === 1 || playedBuffers % 32 === 0) trace(`[web-radio-test] played=${playedBuffers}\n`)
     },
     onError(reason) {
       trace(`[web-radio-test] error=${String(reason)}\n`)

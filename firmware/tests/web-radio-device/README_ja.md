@@ -5,7 +5,7 @@ UI、顔、MOD、サーボは起動しません。
 
 通常の stack-chan host が保存した `wifi/ssid` と `wifi/password` を使用し、HTTP の MP3 ストリームを再生します。
 HTTP受信はメインXSから512KBの共有リングへ退避し、MP3デコードはCore 1 Workerで実行します。
-ログにはデコード済みバッファ数とPCMピーク値を出力します。
+ログには再生済みバッファ数を出力します。
 CPUとメモリはxsdbの `info instruments` で確認します。
 
 ```console

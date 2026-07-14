@@ -3,73 +3,12 @@
 #include "mc.xs.h"
 
 #include "esp_heap_caps.h"
-#include "esp_memory_utils.h"
 #include "esp_mp3_dec.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 
 #define MP3_MAX_SAMPLES_PER_FRAME 1152
 #define MP3_MAX_CHANNELS 2
 #define MP3_PCM_SCRATCH_BYTES (MP3_MAX_SAMPLES_PER_FRAME * MP3_MAX_CHANNELS * sizeof(int16_t))
 #define MP3_RESERVOIR_BYTES 8192
-#define MP3_TRACKED_ALLOCATIONS 16
-
-static size_t gCodecInternalBytes;
-static size_t gCodecPSRAMBytes;
-static uint16_t gCodecInternalBlocks;
-static uint16_t gCodecPSRAMBlocks;
-static uint8_t gTrackCodecAllocations;
-static size_t gCodecAllocationBytes[MP3_TRACKED_ALLOCATIONS];
-static char gCodecAllocationHeap[MP3_TRACKED_ALLOCATIONS];
-static uint8_t gCodecAllocationCount;
-static size_t gInternalFreeBeforeOpen;
-static size_t gInternalLargestBeforeOpen;
-static uint8_t gScratchInPSRAM;
-
-static void codec_track_allocation(size_t bytes, uint32_t capability)
-{
-	if (!gTrackCodecAllocations)
-		return;
-	if (gCodecAllocationCount < MP3_TRACKED_ALLOCATIONS) {
-		gCodecAllocationBytes[gCodecAllocationCount] = bytes;
-		gCodecAllocationHeap[gCodecAllocationCount] =
-			(MALLOC_CAP_INTERNAL == capability) ? 'I' : 'P';
-		gCodecAllocationCount += 1;
-	}
-	if (MALLOC_CAP_INTERNAL == capability) {
-		gCodecInternalBytes += bytes;
-		gCodecInternalBlocks += 1;
-	}
-	else {
-		gCodecPSRAMBytes += bytes;
-		gCodecPSRAMBlocks += 1;
-	}
-}
-
-static void codec_log_allocations(int result)
-{
-	char diagnostic[256];
-	size_t used;
-	c_snprintf(diagnostic, sizeof(diagnostic),
-		"[web-radio-decoder-memory] result=%d scratch=%c internal=%u/%u psram=%u/%u freeBefore=%u largestBefore=%u freeAfter=%u largestAfter=%u stackHighWater=%u\n",
-		result,
-		gScratchInPSRAM ? 'P' : 'I',
-		(unsigned int)gCodecInternalBytes, (unsigned int)gCodecInternalBlocks,
-		(unsigned int)gCodecPSRAMBytes, (unsigned int)gCodecPSRAMBlocks,
-		(unsigned int)gInternalFreeBeforeOpen, (unsigned int)gInternalLargestBeforeOpen,
-		(unsigned int)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
-		(unsigned int)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
-		(unsigned int)uxTaskGetStackHighWaterMark(NULL));
-	modLog_transmit(diagnostic);
-
-	used = (size_t)c_snprintf(diagnostic, sizeof(diagnostic), "[web-radio-decoder-allocations]");
-	for (uint8_t index = 0; (index < gCodecAllocationCount) && (used < (sizeof(diagnostic) - 20)); index++) {
-		used += (size_t)c_snprintf(diagnostic + used, sizeof(diagnostic) - used,
-			" %u%c", (unsigned int)gCodecAllocationBytes[index], gCodecAllocationHeap[index]);
-	}
-	c_snprintf(diagnostic + used, sizeof(diagnostic) - used, "\n");
-	modLog_transmit(diagnostic);
-}
 
 static void *codec_heap_allocate(size_t count, size_t size, uint8_t clear)
 {
@@ -82,17 +21,13 @@ static void *codec_heap_allocate(size_t count, size_t size, uint8_t clear)
 		result = heap_caps_calloc(count, size, preferred | MALLOC_CAP_8BIT);
 	else
 		result = heap_caps_malloc(bytes, preferred | MALLOC_CAP_8BIT);
-	if (result) {
-		codec_track_allocation(bytes, preferred);
+	if (result)
 		return result;
-	}
 
 	if (clear)
 		result = heap_caps_calloc(count, size, fallback | MALLOC_CAP_8BIT);
 	else
 		result = heap_caps_malloc(bytes, fallback | MALLOC_CAP_8BIT);
-	if (result)
-		codec_track_allocation(bytes, fallback);
 	return result;
 }
 
@@ -167,19 +102,8 @@ void xs_esp32_mp3_constructor(xsMachine *the)
 		xsUnknownError("no memory for MP3 PCM buffer");
 	}
 
-	gCodecInternalBytes = 0;
-	gCodecPSRAMBytes = 0;
-	gCodecInternalBlocks = 0;
-	gCodecPSRAMBlocks = 0;
-	gCodecAllocationCount = 0;
-	gScratchInPSRAM = esp_ptr_external_ram(decoder->scratch) ? 1 : 0;
-	gInternalFreeBeforeOpen = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-	gInternalLargestBeforeOpen = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-	gTrackCodecAllocations = 1;
 	openResult = esp_mp3_dec_open(NULL, 0, &decoder->handle);
 	if (ESP_AUDIO_ERR_OK != openResult) {
-		gTrackCodecAllocations = 0;
-		codec_log_allocations((int)openResult);
 		heap_caps_free(decoder->scratch);
 		c_free(decoder);
 		xsUnknownError("ESP MP3 decoder open failed");
@@ -221,10 +145,6 @@ void xs_esp32_mp3_decode(xsMachine *the)
 	frame.buffer = (uint8_t *)decoder->scratch;
 	frame.len = MP3_PCM_SCRATCH_BYTES;
 	result = esp_mp3_dec_decode(decoder->handle, &raw, &frame, &info);
-	if (gTrackCodecAllocations) {
-		gTrackCodecAllocations = 0;
-		codec_log_allocations((int)result);
-	}
 	consumed = raw.consumed ? raw.consumed : inputBytes;
 	if (consumed > inputBytes)
 		xsUnknownError("MP3 decoder consumed invalid input length");

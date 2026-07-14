@@ -301,7 +301,22 @@ try {
         const metricsDownload = await captureBrowserDownload(page, () => page.locator('#metrics-button').click())
         const metricsReport = JSON.parse(metricsDownload.bytes.toString('utf8'))
         assert.equal(metricsReport.format, 'tech.stackchan.visual-metrics')
+        assert.equal(metricsReport.context.target, 'm5stackchan-cores3')
+        assert.equal(Number.isFinite(metricsReport.summary.firstBuildMs), true)
         assert.equal(Number.isFinite(metricsReport.summary.firstSimulatorMs), true)
+        assert.equal(
+          metricsReport.summary.firstSimulatorMs <= 15 * 60 * 1000,
+          true,
+          `scripted first-run flow must remain within 15 minutes: ${metricsReport.summary.firstSimulatorMs} ms`
+        )
+        assert.equal(
+          metricsReport.events.some((event) => event.event === 'build_succeeded'),
+          true
+        )
+        assert.equal(
+          metricsReport.events.some((event) => event.event === 'simulator_succeeded'),
+          true
+        )
 
         const assetChooserPromise = page.waitForEvent('filechooser')
         await page.locator('#asset-button').click()

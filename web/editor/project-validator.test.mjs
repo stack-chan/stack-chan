@@ -3,6 +3,34 @@ import test from 'node:test'
 import { analyzeWorkspace } from './project-validator.mjs'
 import { toolboxForTarget } from './capabilities.mjs'
 
+test('rejects an empty workspace before build', () => {
+  const result = analyzeWorkspace({ blocks: { blocks: [] } })
+  assert.equal(result.canBuild, false)
+  assert.deepEqual(
+    result.diagnostics.map((item) => item.code),
+    ['VP_EMPTY']
+  )
+})
+
+test('warns about a condition loop that may not stop', () => {
+  const result = analyzeWorkspace({
+    blocks: {
+      blocks: [
+        {
+          id: 'start',
+          type: 'stackchan_on_start',
+          inputs: { DO: { block: { id: 'loop', type: 'controls_whileUntil' } } },
+        },
+      ],
+    },
+  })
+  assert.equal(result.canBuild, true)
+  assert.deepEqual(
+    result.diagnostics.map((item) => [item.code, item.blockId]),
+    [['VP_UNBOUNDED_LOOP', 'loop']]
+  )
+})
+
 test('collects required capabilities from nested blocks', () => {
   const workspace = {
     blocks: {

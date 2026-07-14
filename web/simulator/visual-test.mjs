@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium } from 'playwright-core'
 
@@ -309,6 +309,28 @@ async function inspectViewport(page, name, width, height) {
     assert.notEqual(cameraClosedSignature, cameraSignature, 'camera close action must leave the preview')
     await page.screenshot({ path: '/tmp/stackchan-camera-closed.png', fullPage: true })
     await savePiuScreen('camera-closed')
+
+    const beforeSampleSignature = await screenSignature()
+    await page.locator('#mod-archive-input').setInputFiles({
+      name: 'stackchan-sample-mod.xsa',
+      mimeType: 'application/octet-stream',
+      buffer: readFileSync(resolve('simulator/samples/stackchan-sample-mod.xsa')),
+    })
+    await page.waitForFunction(
+      () => document.querySelector('#trace-log')?.textContent.includes('[sample-mod] onContextCreated'),
+      undefined,
+      { timeout: 30_000 }
+    )
+    await page.waitForFunction(
+      () => document.querySelector('#mod-install-status')?.textContent.includes('適用済み'),
+      undefined,
+      { timeout: 30_000 }
+    )
+    const sampleModSignature = await waitForScreenChange(beforeSampleSignature, 10_000)
+    assert.notEqual(sampleModSignature, beforeSampleSignature, 'the checked-in sample MOD must visibly update the face')
+    await page.screenshot({ path: '/tmp/stackchan-sample-mod.png', fullPage: true })
+    await savePiuScreen('sample-mod')
+    await page.locator('#mod-clear-button').click()
   }
 }
 
@@ -320,7 +342,7 @@ try {
   await inspectViewport(page, 'desktop', 1280, 800)
   await inspectViewport(page, 'mobile', 390, 844)
   console.log(
-    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed}.png and /tmp/stackchan-screen-{settings,network-list,password,main-menu-hidden,drawer,face-menu,dog-face,camera,camera-closed}.png'
+    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed,sample-mod}.png and /tmp/stackchan-screen-{settings,network-list,password,main-menu-hidden,drawer,face-menu,dog-face,camera,camera-closed,sample-mod}.png'
   )
 } finally {
   await browser?.close()

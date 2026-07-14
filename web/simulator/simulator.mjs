@@ -747,6 +747,9 @@ const wasmView = new WasmView({
     modInstallStatus.textContent = describeModStatus(result, installedMod)
   },
   onReady: ({ runCount, installation }) => {
+    if (installation?.status === 'prepared') {
+      modInstallStatus.textContent = describeModStatus({ ...installation, status: 'installed' })
+    }
     notifyEditor({
       type: 'stackchan-simulator-ready',
       runCount,

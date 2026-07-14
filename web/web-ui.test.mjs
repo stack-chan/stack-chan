@@ -57,6 +57,31 @@ test('shared controls preserve the native hidden state', () => {
   assert.match(css, /\[hidden\]\s*{[^}]*display:\s*none\s*!important/s)
 })
 
+test('flash tool exposes the M5StackChan CoreS3 firmware target', () => {
+  const html = readFileSync('flash/index.html', 'utf8')
+  assert.match(html, /<option value="esp32_m5stackchan_cores3">M5StackChan CoreS3<\/option>/)
+  assert.doesNotMatch(html, /<option value="esp32_m5stack_fire">/)
+  assert.match(html, /`manifest_\$\{event\.target\.value\}\.json`/)
+
+  const manifest = JSON.parse(readFileSync('flash/manifest_esp32_m5stackchan_cores3.json', 'utf8'))
+  assert.equal(manifest.builds.length, 1)
+  assert.equal(manifest.builds[0].chipFamily, 'ESP32-S3')
+  assert.deepEqual(manifest.builds[0].parts, [
+    {
+      path: 'tech.moddable.stackchan/m5stackchan_cores3/bootloader.bin',
+      offset: 0,
+    },
+    {
+      path: 'tech.moddable.stackchan/m5stackchan_cores3/partition-table.bin',
+      offset: 32768,
+    },
+    {
+      path: 'tech.moddable.stackchan/m5stackchan_cores3/xs_esp32.bin',
+      offset: 65536,
+    },
+  ])
+})
+
 test('third-party scripts that handle editable data use subresource integrity', () => {
   for (const page of ['preference/index.html', 'editor/index.html']) {
     const html = readFileSync(page, 'utf8')

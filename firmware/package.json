@@ -29,7 +29,7 @@
     "build:lin": "mcconfig -d -m -p lin -t build \"$PWD/host/app/manifest_local.json\"",
     "smoke:lin": "bash scripts/smoke-lin.sh",
     "build:wasm": "bash scripts/build-wasm.sh",
-    "bundle": "mcbundle -d -m \"$PWD/host/app/manifest.json\"",
+    "bundle": "node scripts/bundle.mjs",
     "deploy": "node scripts/firmware.mjs deploy",
     "deploy:m5stackchan_cores3": "node scripts/firmware.mjs deploy m5stackchan_cores3",
     "deploy:stackchan_rt": "node scripts/firmware.mjs deploy stackchan_rt",

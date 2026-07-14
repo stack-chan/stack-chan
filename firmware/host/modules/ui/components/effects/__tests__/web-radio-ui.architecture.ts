@@ -15,21 +15,38 @@ test('RelaxedFace uses only the breath motion', () => {
   assert.doesNotMatch(relaxedFace, /createBlinkMotion|createSaccadeMotion/)
 })
 
-test('MusicNotes uses two fixed emoticon sprites without animation timers', () => {
+test('MusicNotes fades two fixed side sprites while lifting them 30 pixels', () => {
   assert.match(notesSource, /new Texture\('emoticon\.png'\)/)
   assert.match(notesSource, /const MUSIC_ROW = 4/)
-  assert.match(notesSource, /new StaticNote\(\{ left: LEFT_NOTE_X/)
-  assert.match(notesSource, /new StaticNote\(\{ right: RIGHT_NOTE_X/)
+  assert.match(notesSource, /const RISE_PIXELS = 30/)
+  assert.match(notesSource, /const ANIMATION_INTERVAL_MS = 150/)
+  assert.match(notesSource, /new FloatingNote\(\{ left: LEFT_NOTE_X/)
+  assert.match(notesSource, /new FloatingNote\(\{ right: RIGHT_NOTE_X/)
   assert.match(notesSource, /const LEFT_NOTE_X = 12/)
   assert.match(notesSource, /const RIGHT_NOTE_X = 12/)
-  assert.doesNotMatch(notesSource, /onTimeChanged|\.start\(\)|\.stop\(\)|interval:/)
+  assert.match(notesSource, /const rise = Math\.round\(RISE_PIXELS \* progress \* \(2 - progress\)\)/)
+  assert.match(notesSource, /const alpha = Math\.round\(255 \* \(1 - progress\)\)/)
+  const timeChanged = notesSource.slice(notesSource.indexOf('onTimeChanged'), notesSource.indexOf('onDraw'))
+  assert.match(timeChanged, /port\.invalidate\(\)/)
+  assert.match(timeChanged, /wasVisible \|\| this\.#elapsed < FADE_DURATION_MS/)
+  assert.doesNotMatch(timeChanged, /\bnew\s|\.coordinates|\.moveBy|new Skin|new Texture/)
 })
 
-test('WebRadio keeps the configured face and confines notes to the side regions', () => {
+test('WebRadio pauses periodic face motion and confines notes to the side regions while playing', () => {
   assert.doesNotMatch(modSource, /\.setFace\(|RelaxedFace/)
   assert.match(modSource, /const QUIET_VOLUME = 0\.05/)
   assert.match(modSource, /setFaceMotionEnabled\?\.\(false\)/)
+  assert.match(modSource, /setFaceMotionEnabled\?\.\(true\)/)
   assert.match(notesSource, /const LEFT_NOTE_Y = 72/)
   assert.match(notesSource, /const RIGHT_NOTE_Y = 104/)
   assert.doesNotMatch(notesSource, /particle|coordinates|moveBy/)
+})
+
+test('WebRadio drawer offers stop, SomaFM stations, and a direct non-Soma MP3 station', () => {
+  assert.match(modSource, /kind: 'choice'/)
+  assert.match(modSource, /label: 'ラジオ停止'/)
+  assert.match(modSource, /label: 'Groove Salad'/)
+  assert.match(modSource, /label: 'Radio Paradise'/)
+  assert.match(modSource, /http:\/\/ice2\.somafm\.com\/groovesalad-128-mp3/)
+  assert.match(modSource, /http:\/\/stream-tx1\.radioparadise\.com\/mp3-128/)
 })

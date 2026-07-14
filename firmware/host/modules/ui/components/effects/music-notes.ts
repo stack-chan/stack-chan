@@ -1,5 +1,5 @@
 import type { FaceSkinPalette } from 'face-skin'
-import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber, toPiuColorString } from 'face-state'
+import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
 import { Container, type Port as PiuPort, type Texture as PiuTexture, Port, Texture } from 'piu/MC'
 
 export type MusicNotesOptions = {
@@ -11,14 +11,20 @@ export type MusicNotesOptions = {
   height?: number
 }
 
-type StaticNoteOptions = {
+type FloatingNoteOptions = {
   left?: number
   right?: number
-  top: number
+  baseY: number
+  phase: number
   variant: number
 }
 
 const SPRITE_SIZE = 32
+const RISE_PIXELS = 30
+const NOTE_HEIGHT = SPRITE_SIZE + RISE_PIXELS
+const ANIMATION_INTERVAL_MS = 150
+const FADE_DURATION_MS = 1200
+const CYCLE_DURATION_MS = 1800
 const MUSIC_ROW = 4
 const MUSIC_ROW_Y = MUSIC_ROW * SPRITE_SIZE
 const LEFT_NOTE_X = 12
@@ -27,33 +33,31 @@ const LEFT_NOTE_Y = 72
 const RIGHT_NOTE_Y = 104
 
 let texture: PiuTexture | undefined
-let colorCache: Map<number, string> | undefined
 
 function getTexture(): PiuTexture {
   texture ??= new Texture('emoticon.png')
   return texture
 }
 
-function colorString(color: number): string {
-  colorCache ??= new Map()
-  const cached = colorCache.get(color)
-  if (cached) return cached
-  const value = toPiuColorString(color)
-  colorCache.set(color, value)
-  return value
-}
-
-class StaticMusicNoteBehavior extends Behavior {
+class FloatingMusicNoteBehavior extends Behavior {
   #color = DEFAULT_FACE_PRIMARY_COLOR
+  #elapsed = 0
   #hasPalette = false
   #variant = 2
 
-  onCreate(_port: PiuPort, options: StaticNoteOptions) {
+  onCreate(port: PiuPort, options: FloatingNoteOptions) {
+    this.#elapsed = options.phase
     this.#variant = options.variant
+    port.interval = ANIMATION_INTERVAL_MS
   }
 
   onDisplaying(port: PiuPort) {
     port.invalidate()
+    port.start()
+  }
+
+  onUndisplaying(port: PiuPort) {
+    port.stop()
   }
 
   onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
@@ -71,13 +75,24 @@ class StaticMusicNoteBehavior extends Behavior {
     port.invalidate()
   }
 
+  onTimeChanged(port: PiuPort) {
+    const wasVisible = this.#elapsed < FADE_DURATION_MS
+    this.#elapsed += ANIMATION_INTERVAL_MS
+    if (this.#elapsed >= CYCLE_DURATION_MS) this.#elapsed -= CYCLE_DURATION_MS
+    if (wasVisible || this.#elapsed < FADE_DURATION_MS) port.invalidate()
+  }
+
   onDraw(port: PiuPort) {
-    port.fillColor('transparent', 0, 0, SPRITE_SIZE, SPRITE_SIZE)
+    port.fillColor('transparent', 0, 0, SPRITE_SIZE, NOTE_HEIGHT)
+    if (this.#elapsed >= FADE_DURATION_MS) return
+    const progress = this.#elapsed / FADE_DURATION_MS
+    const rise = Math.round(RISE_PIXELS * progress * (2 - progress))
+    const alpha = Math.round(255 * (1 - progress))
     port.drawTexture(
       getTexture(),
-      colorString(this.#color),
+      (this.#color * 256 + alpha) >>> 0,
       0,
-      0,
+      RISE_PIXELS - rise,
       this.#variant * SPRITE_SIZE,
       MUSIC_ROW_Y,
       SPRITE_SIZE,
@@ -86,13 +101,13 @@ class StaticMusicNoteBehavior extends Behavior {
   }
 }
 
-const StaticNote = Port.template((options: StaticNoteOptions) => ({
+const FloatingNote = Port.template((options: FloatingNoteOptions) => ({
   left: options.left,
   right: options.right,
-  top: options.top,
+  top: options.baseY - RISE_PIXELS,
   width: SPRITE_SIZE,
-  height: SPRITE_SIZE,
-  Behavior: class extends StaticMusicNoteBehavior {
+  height: NOTE_HEIGHT,
+  Behavior: class extends FloatingMusicNoteBehavior {
     onCreate(port: PiuPort) {
       super.onCreate(port, options)
     }
@@ -108,7 +123,7 @@ export const MusicNotes = Container.template((options: MusicNotesOptions = {}) =
   height: options.height,
   active: false,
   contents: [
-    new StaticNote({ left: LEFT_NOTE_X, top: LEFT_NOTE_Y, variant: 2 }),
-    new StaticNote({ right: RIGHT_NOTE_X, top: RIGHT_NOTE_Y, variant: 1 }),
+    new FloatingNote({ left: LEFT_NOTE_X, baseY: LEFT_NOTE_Y, phase: 0, variant: 2 }),
+    new FloatingNote({ right: RIGHT_NOTE_X, baseY: RIGHT_NOTE_Y, phase: CYCLE_DURATION_MS / 2, variant: 1 }),
   ],
 }))

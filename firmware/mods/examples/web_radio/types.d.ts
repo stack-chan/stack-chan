@@ -1,6 +1,6 @@
 declare module 'effects/music-notes' {
-  import type { Port as PiuPort } from 'piu/MC'
-  export const MusicNotes: { new (): PiuPort }
+  import type { Container as PiuContainer } from 'piu/MC'
+  export const MusicNotes: { new (): PiuContainer }
 }
 
 declare module 'capabilities' {
@@ -34,11 +34,11 @@ declare module 'capabilities' {
       addDrawerButton(button: {
         key: string
         label: string
-        kind: 'toggle'
-        initialState: boolean
-        callback: (context: StackchanContext) => unknown
+        kind: 'choice'
+        value: string
+        options: { value: string; label: string }[]
+        callback: (context: StackchanContext, value?: string) => unknown
       }): void
-      setDrawerButtonState(key: string, active: boolean): void
     }
     ui: {
       addEffect(effect: PiuContent, key?: string): void

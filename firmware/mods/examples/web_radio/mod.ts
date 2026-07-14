@@ -3,14 +3,28 @@
 import type { StackchanContext, WebRadioState } from 'capabilities'
 import { MusicNotes } from 'effects/music-notes'
 
-const STREAM_URL = 'https://ice5.somafm.com/groovesalad-128-mp3'
 const QUIET_VOLUME = 0.05
 const EFFECT_KEY = 'web-radio:music-notes'
-const DRAWER_KEY = 'web-radio:toggle'
+const DRAWER_KEY = 'web-radio:station'
+const OFF_VALUE = 'off'
+const STATIONS = [
+  { value: 'groovesalad', label: 'Groove Salad', url: 'http://ice2.somafm.com/groovesalad-128-mp3' },
+  { value: 'dronezone', label: 'Drone Zone', url: 'http://ice2.somafm.com/dronezone-128-mp3' },
+  { value: 'deepspaceone', label: 'Deep Space One', url: 'http://ice2.somafm.com/deepspaceone-128-mp3' },
+  { value: 'spacestation', label: 'Space Station Soma', url: 'http://ice2.somafm.com/spacestation-128-mp3' },
+  { value: 'secretagent', label: 'Secret Agent', url: 'http://ice2.somafm.com/secretagent-128-mp3' },
+  { value: 'beatblender', label: 'Beat Blender', url: 'http://ice2.somafm.com/beatblender-128-mp3' },
+  { value: 'indiepop', label: 'Indie Pop Rocks!', url: 'http://ice2.somafm.com/indiepop-128-mp3' },
+  { value: 'radioparadise', label: 'Radio Paradise', url: 'http://stream-tx1.radioparadise.com/mp3-128' },
+] as const
+const DEFAULT_STATION = STATIONS[0].value
+const DRAWER_OPTIONS = [
+  { value: OFF_VALUE, label: 'ラジオ停止' },
+  ...STATIONS.map(({ value, label }) => ({ value, label })),
+]
 
 const notes = new MusicNotes()
-let requested = false
-let starting: Promise<void> | undefined
+let selectedValue: string = DEFAULT_STATION
 
 function showNotes(context: StackchanContext): void {
   context.ui.addEffect(notes, EFFECT_KEY)
@@ -20,8 +34,8 @@ function hideNotes(context: StackchanContext): void {
   context.ui.removeEffect(notes)
 }
 
-function onRadioState(context: StackchanContext, state: WebRadioState, reason?: string): void {
-  context.drawer.setDrawerButtonState(DRAWER_KEY, requested && state !== 'idle' && state !== 'error')
+function onRadioState(context: StackchanContext, value: string, state: WebRadioState, reason?: string): void {
+  if (value !== selectedValue) return
   if (state === 'playing') {
     context.hideBalloon()
     showNotes(context)
@@ -29,66 +43,46 @@ function onRadioState(context: StackchanContext, state: WebRadioState, reason?: 
   }
   hideNotes(context)
   if (state === 'error') {
-    requested = false
     context.ui.setFaceMotionEnabled?.(true)
-    context.drawer.setDrawerButtonState(DRAWER_KEY, false)
     context.showBalloon(`Radio error: ${reason ?? 'unknown error'}`)
   }
 }
 
-async function startRadio(context: StackchanContext): Promise<void> {
-  if (starting) return starting
+function selectStation(context: StackchanContext, value: string): void {
+  const station = STATIONS.find((candidate) => candidate.value === value)
+  if (value !== OFF_VALUE && !station) return
+  selectedValue = value
   const radio = context.audio.webRadio
+  radio?.stop()
+  hideNotes(context)
+  context.hideBalloon()
+  if (!station) {
+    context.ui.setFaceMotionEnabled?.(true)
+    return
+  }
   if (!radio) {
-    requested = false
-    context.drawer.setDrawerButtonState(DRAWER_KEY, false)
+    context.ui.setFaceMotionEnabled?.(true)
     context.showBalloon('WebRadio is not supported on this target.')
     return
   }
-  requested = true
   context.ui.setFaceMotionEnabled?.(false)
-  context.drawer.setDrawerButtonState(DRAWER_KEY, true)
-  starting = radio
+  void radio
     .start({
-      url: STREAM_URL,
+      url: station.url,
       volume: QUIET_VOLUME,
       sampleRate: 44100,
       reconnect: true,
-      onStateChanged: (state, reason) => onRadioState(context, state, reason),
+      onStateChanged: (state, reason) => onRadioState(context, station.value, state, reason),
     })
     .catch((error) => {
-      requested = false
+      if (selectedValue !== station.value) return
       context.ui.setFaceMotionEnabled?.(true)
       hideNotes(context)
-      context.drawer.setDrawerButtonState(DRAWER_KEY, false)
       context.showBalloon(`Radio error: ${String(error)}`)
     })
-    .finally(() => {
-      starting = undefined
-    })
-  return starting
-}
-
-function stopRadio(context: StackchanContext): void {
-  requested = false
-  context.audio.webRadio?.stop()
-  context.ui.setFaceMotionEnabled?.(true)
-  hideNotes(context)
-  context.drawer.setDrawerButtonState(DRAWER_KEY, false)
 }
 
 async function initialize(context: StackchanContext): Promise<void> {
-  context.drawer.addDrawerButton({
-    key: DRAWER_KEY,
-    label: 'Radio',
-    kind: 'toggle',
-    initialState: false,
-    callback: (nextContext) => {
-      if (requested) stopRadio(nextContext)
-      else void startRadio(nextContext)
-    },
-  })
-
   const network = context.connectivity.network
   if (!network) {
     context.showBalloon('Network is not available on this target.')
@@ -99,7 +93,17 @@ async function initialize(context: StackchanContext): Promise<void> {
     context.showBalloon(`Network unavailable: ${ready.reason}`)
     return
   }
-  await startRadio(context)
+  context.drawer.addDrawerButton({
+    key: DRAWER_KEY,
+    label: 'ラジオ',
+    kind: 'choice',
+    value: selectedValue,
+    options: DRAWER_OPTIONS,
+    callback: (nextContext, value) => {
+      if (value) selectStation(nextContext, value)
+    },
+  })
+  selectStation(context, selectedValue)
 }
 
 export function onContextCreated(context: StackchanContext): void {

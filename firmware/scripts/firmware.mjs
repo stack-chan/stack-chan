@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
+import { prepareM5StackChanCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -38,6 +39,15 @@ const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg))
 const platform = `esp32:${device.platform}`
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
+
+if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
+  try {
+    prepareM5StackChanCoreS3IdfDependencies({ moddableDirectory: process.env.MODDABLE, mode: 'debug' })
+  } catch (error) {
+    console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
+    process.exit(1)
+  }
+}
 
 switch (command) {
   case 'build':

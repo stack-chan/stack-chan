@@ -94,11 +94,7 @@
   },
   "bundle": {
     "id": "tech.moddable.stackchan",
-    "devices": [
-      "com.m5stack",
-      "com.m5stack.core2",
-      "com.m5stack.cores3"
-    ]
+    "devices": ["com.m5stack", "com.m5stack.core2", "com.m5stack.cores3"]
   },
   "typescript": {
     "tsconfig": {

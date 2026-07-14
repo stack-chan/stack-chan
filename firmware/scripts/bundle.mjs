@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-import { cpSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import { cpSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { prepareM5StackChanCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url))
 const firmwareDirectory = path.resolve(scriptsDirectory, '..')
@@ -25,31 +26,15 @@ if (!process.env.MODDABLE) {
   process.exit(1)
 }
 
+prepareM5StackChanCoreS3IdfDependencies({ moddableDirectory: process.env.MODDABLE, mode: buildMode })
 run('mcbundle', ['-m', manifestPath], appDirectory)
 run(
   'mcconfig',
-  [
-    '-m',
-    '-p',
-    'esp32:./host/platforms/m5stackchan_cores3',
-    '-s',
-    signature,
-    '-t',
-    'build',
-    m5stackchanManifestPath,
-  ],
+  ['-m', '-p', 'esp32:./host/platforms/m5stackchan_cores3', '-s', signature, '-t', 'build', m5stackchanManifestPath],
   firmwareDirectory,
 )
 
-const buildDirectory = path.join(
-  process.env.MODDABLE,
-  'build',
-  'bin',
-  'esp32',
-  targetName,
-  buildMode,
-  'app',
-)
+const buildDirectory = path.join(process.env.MODDABLE, 'build', 'bin', 'esp32', targetName, buildMode, 'app')
 
 mkdirSync(targetDirectory, { recursive: true })
 for (const binary of binaries) {

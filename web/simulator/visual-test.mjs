@@ -219,9 +219,11 @@ async function inspectViewport(page, name, width, height) {
     const settingsSignature = await waitForScreenChange(splashSignature, 5_000)
     assert.notEqual(settingsSignature, splashSignature, 'settings action must leave the splash screen')
     await page.screenshot({ path: '/tmp/stackchan-settings.png', fullPage: true })
+    await savePiuScreen('settings')
     await touchPiu(82, 98)
     const networkListSignature = await waitForScreenChange(settingsSignature, 10_000)
     assert.notEqual(networkListSignature, settingsSignature, 'network settings must open the scanned network list')
+    await savePiuScreen('network-list')
     await touchPiu(160, 146)
     const passwordSignature = await waitForScreenChange(networkListSignature, 5_000)
     assert.notEqual(passwordSignature, networkListSignature, 'network selection must open the password screen')
@@ -277,10 +279,12 @@ async function inspectViewport(page, name, width, height) {
     const drawerSignature = await screenSignature()
     assert.notEqual(drawerSignature, menuHiddenSignature, 'face touch must open the drawer after the menu button hides')
     await page.screenshot({ path: '/tmp/stackchan-drawer.png', fullPage: true })
+    await savePiuScreen('drawer')
     await touchPiu(220, 26)
     const faceMenuSignature = await screenSignature()
     assert.notEqual(faceMenuSignature, drawerSignature, 'face mode must open an option menu')
     await page.screenshot({ path: '/tmp/stackchan-face-menu.png', fullPage: true })
+    await savePiuScreen('face-menu')
     await touchPiu(220, 110)
     await touchPiu(60, 120)
     const dogFaceSignature = await screenSignature()
@@ -292,17 +296,19 @@ async function inspectViewport(page, name, width, height) {
     })
     assert.equal(dogNoseVisible, true, 'dog face selection must render its nose at the face center')
     await page.screenshot({ path: '/tmp/stackchan-dog-face.png', fullPage: true })
-    await savePiuScreen('menu-revealed')
+    await savePiuScreen('dog-face')
     await touchPiu(298, 22)
     await touchPiu(220, 170)
     await page.waitForTimeout(1500)
     const cameraSignature = await screenSignature()
     assert.notEqual(cameraSignature, dogFaceSignature, 'camera action must open a preview')
     await page.screenshot({ path: '/tmp/stackchan-camera.png', fullPage: true })
+    await savePiuScreen('camera')
     await touchPiu(298, 64)
     const cameraClosedSignature = await screenSignature()
     assert.notEqual(cameraClosedSignature, cameraSignature, 'camera close action must leave the preview')
     await page.screenshot({ path: '/tmp/stackchan-camera-closed.png', fullPage: true })
+    await savePiuScreen('camera-closed')
   }
 }
 
@@ -314,7 +320,7 @@ try {
   await inspectViewport(page, 'desktop', 1280, 800)
   await inspectViewport(page, 'mobile', 390, 844)
   console.log(
-    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed}.png and /tmp/stackchan-screen-{password,main-menu-hidden,menu-revealed}.png'
+    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed}.png and /tmp/stackchan-screen-{settings,network-list,password,main-menu-hidden,drawer,face-menu,dog-face,camera,camera-closed}.png'
   )
 } finally {
   await browser?.close()

@@ -2,7 +2,7 @@ import type { PreferenceConfig } from 'loadPreference'
 import { createAppControllerApplication } from 'app-controller'
 import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
 import Camera from 'camera'
-import type { ConnectivityCapability, RobotLed, RobotUI, StackchanContext, TTS } from 'capabilities'
+import type { ConnectivityCapability, RobotLed, RobotUI, StackchanContext, TTS, WebRadioCapability } from 'capabilities'
 import { ChatStatusBar } from 'chat-status-bar'
 import type { DrawerButtonViewSpec } from 'drawer'
 import { DynamixelDriver } from 'dynamixel-driver'
@@ -68,6 +68,8 @@ type GlobalEnvironment = {
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 
 export type HostDeviceEnvironment = GlobalEnvironment['device']
+
+type WebRadioPlayerConstructor = new () => WebRadioCapability
 
 function asUIOptions(param: unknown): UIOptions {
   return (param ?? {}) as UIOptions
@@ -218,6 +220,9 @@ export function createStackchanContext(
   const microphone = Modules.has('audio-in') ? new Microphone() : undefined
   const camera = new Camera()
   const speaker = new Speaker({ volume: ttsPrefs.volume })
+  const webRadio = Modules.has('web-radio-player')
+    ? new (Modules.importNow('web-radio-player') as WebRadioPlayerConstructor)()
+    : undefined
 
   const configLed = preferences.led
   const ledEntries: [string, RobotLed][] = Object.entries(configLed).flatMap(
@@ -270,6 +275,7 @@ export function createStackchanContext(
     imu,
     connectivity: options.connectivity,
     speaker,
+    webRadio,
     microphone,
     camera,
     led,

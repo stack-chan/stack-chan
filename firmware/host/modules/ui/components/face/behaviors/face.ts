@@ -17,6 +17,8 @@ import { Eye } from 'parts/eye'
 import { EyeSprite } from 'parts/image/eye-sprite'
 import { MouthSprite } from 'parts/image/mouth-sprite'
 import { Mouth } from 'parts/mouth'
+import { RelaxedEye } from 'parts/relaxed-eye'
+import { RelaxedMouth } from 'parts/relaxed-mouth'
 import type {
   Container as PiuContainer,
   ContainerDictionary as PiuContainerDictionary,
@@ -53,6 +55,7 @@ export class FaceBehavior extends Behavior {
   #lastDistributed: FaceState
   #nextDistributed: FaceState
   #motions: FaceMotion[]
+  #motionsEnabled: boolean
   #baseCoordinates: { left: number; top: number }
   #hasBaseCoordinates: boolean
   #paused: boolean
@@ -67,6 +70,7 @@ export class FaceBehavior extends Behavior {
       createBreathMotion({ duration: 6000 }),
       createSaccadeMotion({ updateMin: 300, updateMax: 2000, gain: 0.2 }),
     ]
+    this.#motionsEnabled = true
     this.#current = createFaceState()
     this.#desired = createFaceState()
     this.#lastDistributed = createFaceState()
@@ -97,7 +101,7 @@ export class FaceBehavior extends Behavior {
     if (!this.#hasBaseCoordinates) {
       this.captureBaseCoordinates(container)
     }
-    if (!this.#paused) {
+    if (!this.#paused && this.#motionsEnabled) {
       container.start?.()
     }
     this.distributeFaceSkin(container)
@@ -113,7 +117,7 @@ export class FaceBehavior extends Behavior {
   }
 
   onTimeChanged(container: PiuContainer) {
-    if (this.#paused) {
+    if (this.#paused || !this.#motionsEnabled) {
       return
     }
     const interval = container.interval ?? this.intervalMs
@@ -168,7 +172,7 @@ export class FaceBehavior extends Behavior {
     this.#paused = false
     container.visible = true
     container.active = true
-    container.start?.()
+    if (this.#motionsEnabled) container.start?.()
     this.distributeFaceSkin(container)
     this.distributeFaceState(container, true)
     container.bubble('onFaceState', this.#current)
@@ -176,6 +180,22 @@ export class FaceBehavior extends Behavior {
 
   get breathPixels(): number {
     return this.#breathPixels
+  }
+
+  setMotionsEnabled(container: PiuContainer, enabled: boolean) {
+    if (this.#motionsEnabled === enabled) return
+    this.#motionsEnabled = enabled
+    if (enabled) {
+      if (!this.#paused) container.start?.()
+      return
+    }
+    container.stop?.()
+    if (this.#breathOffset !== 0) {
+      container.moveBy(0, -this.#breathOffset)
+      this.#breathOffset = 0
+    }
+    copyFaceState(this.#desired, this.#current)
+    this.distributeFaceState(container, true)
   }
 
   private distributeFaceSkin(container: PiuContainer): void {
@@ -275,6 +295,19 @@ export const SmallFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams 
     ],
   }
 })
+
+export const RelaxedFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams = {}) => ({
+  left: $.left ?? DEFAULT_FACE_LEFT,
+  top: $.top ?? DEFAULT_FACE_TOP,
+  width: $.width ?? DEFAULT_FACE_WIDTH,
+  height: $.height ?? DEFAULT_FACE_HEIGHT,
+  motions: $.motions ?? [createBreathMotion({ duration: 6000 })],
+  contents: [
+    new RelaxedEye({ cx: 30, cy: 38, side: 'left' }),
+    new RelaxedEye({ cx: 170, cy: 38, side: 'right' }),
+    new RelaxedMouth({ cx: 100, cy: 88 }),
+  ],
+}))
 
 export const DogFace: FaceTemplateCtor = FaceBase.template(($: FaceBaseParams = {}) => {
   const left = $.left ?? DEFAULT_FACE_LEFT

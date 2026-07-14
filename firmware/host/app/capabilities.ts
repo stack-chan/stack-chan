@@ -33,6 +33,8 @@ export type RobotUI = {
   removeEffect(effect: UIEffect): void
   application?: unknown
   setFace(face: PiuContainer): void
+  /** Enable or disable periodic face motions without replacing or hiding the current face. */
+  setFaceMotionEnabled?(enabled: boolean): void
   /** Replace the swappable main component (e.g. a full-area dialog) while keeping AppBar/Drawer active. */
   setMain(content: PiuContainer): void
   /** Restore the face as the main component after a dialog was shown via setMain. */
@@ -103,6 +105,25 @@ export type AudioCapability = {
    * the buffer is empty, or playback fails.
    */
   playAudio(buffer: BorrowedAudioBuffer): Promise<boolean>
+  /** Continuous MP3 streaming, available only on supported targets. */
+  webRadio?: WebRadioCapability
+}
+
+export type WebRadioState = 'idle' | 'connecting' | 'buffering' | 'playing' | 'stalled' | 'retrying' | 'error'
+
+export type WebRadioStartOptions = {
+  url: string
+  volume?: number
+  sampleRate?: number
+  reconnect?: boolean
+  onStateChanged?: (state: WebRadioState, reason?: string) => void
+}
+
+export type WebRadioCapability = {
+  readonly state: WebRadioState
+  start(options: WebRadioStartOptions): Promise<void>
+  stop(): void
+  setVolume(volume: number): void
 }
 
 export type InputCapability = {

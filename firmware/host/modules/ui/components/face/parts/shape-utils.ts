@@ -1,5 +1,7 @@
-import { toPiuColorString } from 'face-state'
+import type { FaceSkinPalette } from 'face-skin'
+import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber, toPiuColorString } from 'face-state'
 import { type Skin as PiuSkin, Skin } from 'piu/MC'
+import type { Shape as PiuShape } from 'piu/shape'
 
 export const FULL_TURN = 2 * Math.PI
 
@@ -14,6 +16,24 @@ export {
 let fillSkinCache: Map<number, PiuSkin> | null = null
 let strokeSkinCache: Map<number, PiuSkin> | null = null
 let fillStrokeSkinCache: Map<number, PiuSkin> | null = null
+
+export class FacePrimaryColorBehavior extends Behavior {
+  #hasPalette = false
+  #color = DEFAULT_FACE_PRIMARY_COLOR
+
+  onFaceSkin(shape: PiuShape, palette: FaceSkinPalette) {
+    this.#hasPalette = true
+    shape.skin = palette.primary
+  }
+
+  onFaceState(shape: PiuShape, face: FaceState) {
+    if (this.#hasPalette) return
+    const color = toPiuColorNumber(face.theme.primary)
+    if (color === this.#color) return
+    this.#color = color
+    shape.skin = getFillSkin(color)
+  }
+}
 
 export function getFillSkin(color: number): PiuSkin {
   if (!fillSkinCache) fillSkinCache = new Map()

@@ -140,9 +140,29 @@ try {
       await page.waitForSelector('.topbar')
       const layout = await page.evaluate(() => {
         const topbar = document.querySelector('.topbar').getBoundingClientRect()
+        const accessibleName = (element) => {
+          const direct = element.getAttribute('aria-label')?.trim()
+          if (direct) return direct
+          const referenced = (element.getAttribute('aria-labelledby') ?? '')
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((id) => document.getElementById(id)?.textContent?.trim() ?? '')
+            .filter(Boolean)
+            .join(' ')
+          if (referenced) return referenced
+          const labels = [...(element.labels ?? [])]
+            .map((label) => label.textContent?.trim() ?? '')
+            .filter(Boolean)
+            .join(' ')
+          if (labels) return labels
+          return element.textContent?.trim() || element.getAttribute('title')?.trim() || ''
+        }
         // Long user-entered text in inputs scrolls horizontally by design; verify
         // fixed action labels and select values instead.
         const interactive = [...document.querySelectorAll('button, a, select')]
+        const accessibilityTargets = [
+          ...document.querySelectorAll('button, a[href], input:not([type="hidden"]), select, textarea, [role="tab"]'),
+        ]
         return {
           bodyWidth: document.body.scrollWidth,
           topbar: {
@@ -158,6 +178,9 @@ try {
           visibleHiddenElements: [...document.querySelectorAll('[hidden]')].filter(
             (element) => getComputedStyle(element).display !== 'none'
           ).length,
+          unnamedInteractive: accessibilityTargets
+            .filter((element) => element.getClientRects().length > 0 && !accessibleName(element))
+            .map((element) => element.id || element.outerHTML.slice(0, 120)),
         }
       })
       assert.equal(layout.bodyWidth <= width, true, `${pageName}/${viewportName}: page must not overflow horizontally`)
@@ -173,6 +196,11 @@ try {
       )
       assert.deepEqual(layout.clippedText, [], `${pageName}/${viewportName}: interactive text must not be clipped`)
       assert.equal(layout.visibleHiddenElements, 0, `${pageName}/${viewportName}: hidden controls must not be rendered`)
+      assert.deepEqual(
+        layout.unnamedInteractive,
+        [],
+        `${pageName}/${viewportName}: every visible interactive element must have an accessible name`
+      )
       await page.screenshot({
         path: `/tmp/stackchan-${pageName}-${viewportName}.png`,
         fullPage: true,

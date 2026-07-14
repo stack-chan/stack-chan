@@ -39,7 +39,19 @@ async function inspectViewport(page, name, width, height) {
   await page.setViewportSize({ width, height })
   await page.goto(`${baseUrl}/simulator/`, { waitUntil: 'networkidle' })
   await page.waitForSelector('#stackchan-viewport')
-  await page.waitForTimeout(1200)
+  await page.waitForFunction(
+    () => {
+      const screen = document.querySelector('#simulator-screen')
+      const pixels = screen?.getContext('2d')?.getImageData(0, 0, screen.width, screen.height).data
+      if (!pixels) return false
+      const colors = new Set()
+      for (let offset = 0; offset < pixels.length; offset += 128) {
+        colors.add(`${pixels[offset]},${pixels[offset + 1]},${pixels[offset + 2]}`)
+      }
+      return colors.size > 3
+    },
+    { timeout: 30_000 }
+  )
 
   const result = await page.evaluate(async () => {
     await new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame)))
@@ -192,38 +204,6 @@ async function inspectViewport(page, name, width, height) {
       const dataUrl = await page.evaluate(() => document.querySelector('#simulator-screen').toDataURL('image/png'))
       writeFileSync(`/tmp/stackchan-screen-${screenName}.png`, Buffer.from(dataUrl.split(',')[1], 'base64'))
     }
-
-    const splashSignature = await screenSignature()
-    await touchPiu(160, 206)
-    const settingsSignature = await screenSignature()
-    assert.notEqual(settingsSignature, splashSignature, 'settings action must leave the splash screen')
-    await page.screenshot({ path: '/tmp/stackchan-settings.png', fullPage: true })
-    await touchPiu(82, 98)
-    await page.waitForTimeout(600)
-    await touchPiu(160, 146)
-    await page.waitForTimeout(700)
-    const passwordSignature = await screenSignature()
-    assert.notEqual(passwordSignature, settingsSignature, 'network selection must open the password screen')
-    const passwordLayout = await page.evaluate(() => {
-      const screen = document.querySelector('#simulator-screen')
-      const pixels = screen.getContext('2d')
-      const brightnessAt = (x, y) => {
-        const [r, g, b] = pixels.getImageData(x, y, 1, 1).data
-        return r + g + b
-      }
-      return {
-        field: brightnessAt(20, 60),
-        gap: brightnessAt(20, 74),
-        bottomKey: brightnessAt(10, 220),
-      }
-    })
-    assert.equal(passwordLayout.field > 600, true, 'password field must remain visible above the keyboard')
-    assert.equal(passwordLayout.gap < 100, true, 'password field and keyboard must not overlap')
-    assert.equal(passwordLayout.bottomKey > 300, true, 'keyboard bottom row must remain visible')
-    await page.screenshot({ path: '/tmp/stackchan-password.png', fullPage: true })
-    await savePiuScreen('password')
-    await touchPiu(22, 20)
-    await touchPiu(22, 20)
     const waitForScreenChange = async (previousSignature, timeoutMs) => {
       const deadline = Date.now() + timeoutMs
       let signature = previousSignature
@@ -233,6 +213,60 @@ async function inspectViewport(page, name, width, height) {
       }
       return signature
     }
+
+    const splashSignature = await screenSignature()
+    await touchPiu(160, 206)
+    const settingsSignature = await waitForScreenChange(splashSignature, 5_000)
+    assert.notEqual(settingsSignature, splashSignature, 'settings action must leave the splash screen')
+    await page.screenshot({ path: '/tmp/stackchan-settings.png', fullPage: true })
+    await touchPiu(82, 98)
+    const networkListSignature = await waitForScreenChange(settingsSignature, 10_000)
+    assert.notEqual(networkListSignature, settingsSignature, 'network settings must open the scanned network list')
+    await touchPiu(160, 146)
+    const passwordSignature = await waitForScreenChange(networkListSignature, 5_000)
+    assert.notEqual(passwordSignature, networkListSignature, 'network selection must open the password screen')
+    const readPasswordLayout = () =>
+      page.evaluate(() => {
+        const screen = document.querySelector('#simulator-screen')
+        const pixels = screen.getContext('2d')
+        const brightnessAt = (x, y) => {
+          const [r, g, b] = pixels.getImageData(x, y, 1, 1).data
+          return r + g + b
+        }
+        return {
+          field: brightnessAt(20, 60),
+          gap: brightnessAt(20, 74),
+          bottomKey: brightnessAt(10, 220),
+        }
+      })
+    const passwordDeadline = Date.now() + 5_000
+    let passwordLayout = await readPasswordLayout()
+    while (
+      !(passwordLayout.field > 600 && passwordLayout.gap < 100 && passwordLayout.bottomKey > 300) &&
+      Date.now() < passwordDeadline
+    ) {
+      await page.waitForTimeout(100)
+      passwordLayout = await readPasswordLayout()
+    }
+    await page.screenshot({ path: '/tmp/stackchan-password.png', fullPage: true })
+    await savePiuScreen('password')
+    assert.equal(
+      passwordLayout.field > 600,
+      true,
+      `password field must remain visible above the keyboard: ${JSON.stringify(passwordLayout)}`
+    )
+    assert.equal(
+      passwordLayout.gap < 100,
+      true,
+      `password field and keyboard must not overlap: ${JSON.stringify(passwordLayout)}`
+    )
+    assert.equal(
+      passwordLayout.bottomKey > 300,
+      true,
+      `keyboard bottom row must remain visible: ${JSON.stringify(passwordLayout)}`
+    )
+    await touchPiu(22, 20)
+    await touchPiu(22, 20)
     const mainSignature = await waitForScreenChange(splashSignature, 20000)
     assert.notEqual(mainSignature, splashSignature, 'auto boot must open the main face')
     const menuHiddenSignature = await waitForScreenChange(mainSignature, 6000)

@@ -443,19 +443,6 @@ try {
                                 fields: { BOOL: 'TRUE' },
                               },
                             },
-                            DO: {
-                              block: {
-                                type: 'stackchan_trace',
-                                inputs: {
-                                  TEXT: {
-                                    shadow: {
-                                      type: 'text',
-                                      fields: { TEXT: 'loop' },
-                                    },
-                                  },
-                                },
-                              },
-                            },
                           },
                         },
                       },

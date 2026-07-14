@@ -9,10 +9,23 @@ let constructorFailure: unknown
 const instances: AudioOut[] = []
 
 export default class AudioOut {
+  static readonly Samples = 1
+  static readonly Flush = 2
+  static readonly Callback = 3
   static readonly Volume = 4
-  static readonly Flush = 0
+  static readonly RawSamples = 5
+  static readonly Tone = 6
+  static readonly Silence = 7
+  callbacks: Array<((value: number) => void) | null> = []
   closed = false
-  enqueued: Array<{ stream: number; kind: number; value: number }> = []
+  enqueued: Array<{
+    stream: number
+    kind: number
+    value: unknown
+    repeat?: number
+    offset?: number
+    count?: number
+  }> = []
   options: AudioOutOptions
   started = 0
   stopped = 0
@@ -25,8 +38,12 @@ export default class AudioOut {
     instances.push(this)
   }
 
-  enqueue(stream: number, kind: number, value = 0): void {
-    this.enqueued.push({ stream, kind, value })
+  enqueue(stream: number, kind: number, value: unknown = 0, repeat?: number, offset?: number, count?: number): void {
+    this.enqueued.push({ stream, kind, value, repeat, offset, count })
+  }
+
+  length(_stream: number): number {
+    return 12
   }
 
   start(): void {

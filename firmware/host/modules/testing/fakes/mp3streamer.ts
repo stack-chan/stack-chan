@@ -1,10 +1,12 @@
 export type FakeMP3StreamerOptions = {
+  protocol?: 'http' | 'https'
   http: unknown
   host: string
   port: number
   path: string
   audio: { out: unknown; stream: number; sampleRate?: number }
   onReady?: (ready: boolean) => void
+  onPlayed?: (buffer?: unknown) => void
   onError?: (reason: string) => void
   onDone?: () => void
 }

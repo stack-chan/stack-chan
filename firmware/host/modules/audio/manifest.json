@@ -7,6 +7,7 @@
     "$(MODDABLE)/examples/pins/audioout/openai-stream/manifest_openaistreamer.json",
     "$(MODDABLE)/examples/pins/audioout/mp3-http-stream/manifest_mp3streamer.json",
     "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
+    "$(MODDABLE)/modules/base/worker/manifest.json",
     "$(MODDABLE)/modules/base/uuid/manifest.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
     "$(MODDABLE)/modules/data/url/manifest.json",
@@ -40,7 +41,11 @@
     "tts-openai"
   ],
   "data": {
-    "*": ["$(MODULES)/crypt/data/ca109", "$(MODULES)/crypt/data/ca236"]
+    "*": [
+      "$(MODULES)/crypt/data/ca109",
+      "$(MODULES)/crypt/data/ca176",
+      "$(MODULES)/crypt/data/ca236"
+    ]
   },
   "config": {
     "tls": {
@@ -115,24 +120,36 @@
       }
     },
     "esp32/m5stackchan_cores3": {
+      "build": {
+        "SDKCONFIGPATH": "./platforms/m5stackchan-cores3/sdkconfig"
+      },
       "modules": {
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+        "esp32-mp3-decoder": "./platforms/m5stackchan-cores3/esp32-mp3-decoder",
         "web-radio-player": "./platforms/m5stackchan-cores3/web-radio-player",
+        "web-radio-audio-out": "./platforms/m5stackchan-cores3/resampling-audio-out",
+        "pcm-resampler": "./platforms/m5stackchan-cores3/pcm-resampler",
+        "buffered-mp3streamer": "./platforms/m5stackchan-cores3/worker-mp3streamer",
+        "buffered-mp3streamer-core": "./platforms/m5stackchan-cores3/buffered-mp3streamer",
+        "web-radio-byte-ring": "./platforms/m5stackchan-cores3/shared-byte-ring",
+        "web-radio-stream-worker": "./platforms/m5stackchan-cores3/web-radio-stream-worker",
         "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin"
       },
       "dependency": [
         {
           "idf": "esp_driver_i2s"
+        },
+        {
+          "name": "esp_audio_codec",
+          "version": "^2.6.0",
+          "includes": ["include/decoder", "include/decoder/impl"]
         }
       ],
       "defines": {
         "audioOut": {
           "bitsPerSample": 16,
           "numChannels": 1,
-          "sampleRate": 24000,
-          "queueLength": 12,
-          "streams": 1,
-          "mixerBytes": 256
+          "sampleRate": 24000
         }
       }
     },

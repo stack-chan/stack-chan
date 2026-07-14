@@ -11,6 +11,7 @@ const m5StackChanTouchSource = readFileSync(
   'host/platforms/m5stackchan_cores3/host/ft6206_async_m5stackchan.js',
   'utf8',
 )
+const coreS3AudioOutSource = readFileSync('host/platforms/core_s3_audioout.js', 'utf8')
 const stackchanRtPlatformManifest = JSON.parse(readFileSync('host/platforms/stackchan_rt/manifest.json', 'utf8'))
 const stackchanRtAppManifest = JSON.parse(readFileSync('host/app/manifest_stackchan_rt.json', 'utf8'))
 const takaoPlatformManifest = JSON.parse(readFileSync('host/platforms/takao_core2_sg90/manifest.json', 'utf8'))
@@ -82,6 +83,12 @@ describe('Stack-chan platform manifest', () => {
       'CoreS3 touch controller should be configured for polling mode',
     )
     assert.equal(m5StackChanPlatformManifest.config.driver.type, 'm5stackchan')
+    assert.match(coreS3AudioOutSource, /globalThis\.amp\.sampleRate = this\.sampleRate/)
+    assert.doesNotMatch(
+      coreS3AudioOutSource,
+      /globalThis\.amp\.volume\s*=/,
+      'AudioOut should not force the amplifier back to a loud volume',
+    )
     assert.deepEqual(m5StackChanPlatformManifest.config.driver.serial, {
       transmit: 6,
       receive: 7,

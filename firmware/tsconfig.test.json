@@ -31,8 +31,20 @@
       "pins/audioout": [
         "host/modules/testing/fakes/audio-out.ts"
       ],
+      "embedded:io/audio/out": [
+        "host/modules/testing/fakes/audio-out.ts"
+      ],
       "mp3streamer": [
         "host/modules/testing/fakes/mp3streamer.ts"
+      ],
+      "buffered-mp3streamer": [
+        "host/modules/testing/fakes/mp3streamer.ts"
+      ],
+      "web-radio-audio-out": [
+        "host/modules/audio/platforms/m5stackchan-cores3/resampling-audio-out.ts"
+      ],
+      "pcm-resampler": [
+        "host/modules/testing/fakes/pcm-resampler.ts"
       ],
       "calculate-power": [
         "host/modules/testing/fakes/calculate-power.ts"

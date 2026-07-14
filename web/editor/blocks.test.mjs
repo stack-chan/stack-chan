@@ -30,6 +30,38 @@ test('escapeSingleQuoted keeps a field_input value a valid single-quoted literal
   }
 })
 
+test('education blocks do not expose arbitrary JavaScript input', () => {
+  let definitions = []
+  registerStackchanBlocks(
+    {
+      defineBlocksWithJsonArray(value) {
+        definitions = value
+      },
+    },
+    { forBlock: {} },
+    { NONE: 0, FUNCTION_CALL: 1, AWAIT: 2 }
+  )
+
+  assert.equal(definitions.length > 0, true)
+  assert.deepEqual(
+    definitions
+      .filter((definition) => /(?:javascript|raw[_-]?js|eval)/i.test(definition.type))
+      .map((definition) => definition.type),
+    []
+  )
+  assert.deepEqual(
+    definitions.flatMap((definition) =>
+      (definition.args0 ?? [])
+        .filter(
+          (argument) =>
+            argument.type === 'field_multilinetext' || /^(?:CODE|SOURCE|JAVASCRIPT|RAW_JS)$/i.test(argument.name ?? '')
+        )
+        .map((argument) => `${definition.type}:${argument.name ?? argument.type}`)
+    ),
+    []
+  )
+})
+
 test('assembleModSource wraps the body in onContextCreated', () => {
   const source = assembleModSource('robot.face.setEmotion(Emotion.HAPPY)\n')
   assert.match(source, /export async function onContextCreated\(robot\) \{/)

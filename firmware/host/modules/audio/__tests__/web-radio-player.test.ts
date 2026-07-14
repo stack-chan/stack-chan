@@ -51,6 +51,13 @@ test('WebRadio bundles the CA certificate required by supported HTTPS streams', 
   assert.ok(manifest.data['*'].includes('$(MODULES)/crypt/data/ca176'))
 })
 
+test('App composes the WebRadio module constructor without unwrapping a default export', () => {
+  const compose = readFileSync('host/app/compose.ts', 'utf8')
+
+  assert.match(compose, /new \(Modules\.importNow\('web-radio-player'\) as WebRadioPlayerConstructor\)\(\)/)
+  assert.doesNotMatch(compose, /Modules\.importNow\('web-radio-player'\)[^\n]*\.default/)
+})
+
 test('CoreS3 WebRadio prebuffers enough compressed and decoded MP3 data to cover network stalls', () => {
   const streamer = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/buffered-mp3streamer.js', 'utf8')
 

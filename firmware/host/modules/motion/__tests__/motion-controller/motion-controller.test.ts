@@ -3,6 +3,8 @@ import {
   MotionController,
   type MotionDriver,
   type MotionResultCallback,
+  motionDurationSecondsToCentiseconds,
+  motionDurationSecondsToMilliseconds,
 } from 'motion-controller'
 import { type Maybe, type Pose, type Rotation, wait, waitForCompletion } from 'stackchan-util'
 import { assert, equal } from 'testing/assert'
@@ -88,6 +90,35 @@ async function runTest() {
   await wait(500)
   equal(pollingDriver.getRotationCalls, callsAfterMotionSettled, 'pose polling should stop after gaze clears')
   pollingController.close()
+
+  const releaseDriver = new FakeMotionDriver()
+  const releaseController = new MotionController({ driver: releaseDriver }, { isPaused: () => false })
+  releaseController.lookAt([1, 2, 2])
+  equal(releaseController.gazePoint?.[0], 1, 'lookAt should set the gaze point')
+  releaseController.lookAt(undefined)
+  equal(releaseController.gazePoint, null, 'lookAt(undefined) should release the gaze point')
+  await wait(1100)
+  const releaseCallsAfterSettled = releaseDriver.getRotationCalls
+  await wait(500)
+  equal(releaseDriver.getRotationCalls, releaseCallsAfterSettled, 'pose polling should stop after lookAt(undefined)')
+  releaseController.close()
+
+  const closingDriver = new FakeMotionDriver()
+  const closingController = new MotionController({ driver: closingDriver }, { isPaused: () => false })
+  closingController.lookAt([1, 2, 2])
+  equal(closingDriver.torqueStates[0], true, 'lookAt should enable torque before close')
+  closingController.close()
+  const callsAfterClose = closingDriver.getRotationCalls
+  await wait(1200)
+  equal(closingDriver.torqueStates.length, 1, 'close should cancel the pending torque release timer')
+  equal(closingDriver.getRotationCalls, callsAfterClose, 'close should stop pose polling')
+
+  equal(motionDurationSecondsToMilliseconds(0.5), 500, 'seconds should convert to milliseconds')
+  equal(motionDurationSecondsToMilliseconds(0.1234), 123, 'millisecond conversion should round to integers')
+  equal(motionDurationSecondsToMilliseconds(-1), 0, 'millisecond conversion should clamp negative durations')
+  equal(motionDurationSecondsToCentiseconds(0.5), 50, 'seconds should convert to centiseconds')
+  equal(motionDurationSecondsToCentiseconds(0.126), 13, 'centisecond conversion should round to integers')
+  equal(motionDurationSecondsToCentiseconds(-1), 0, 'centisecond conversion should clamp negative durations')
 
   const nextDriver = new FakeMotionDriver()
   controller.useDriver(nextDriver)

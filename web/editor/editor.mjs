@@ -22,6 +22,34 @@ const installProgress = document.getElementById('install-progress')
 const sampleButton = document.getElementById('sample-button')
 const clearButton = document.getElementById('clear-button')
 const logOutput = document.getElementById('log-output')
+const outputTabs = [...document.querySelectorAll('.output-tabs [role="tab"]')]
+
+function selectOutputTab(tab) {
+  for (const candidate of outputTabs) {
+    const selected = candidate === tab
+    candidate.setAttribute('aria-selected', String(selected))
+    candidate.tabIndex = selected ? 0 : -1
+    const panel = document.getElementById(candidate.getAttribute('aria-controls'))
+    if (panel != null) panel.hidden = !selected
+  }
+}
+
+for (const tab of outputTabs) {
+  tab.addEventListener('click', () => selectOutputTab(tab))
+  tab.addEventListener('keydown', (event) => {
+    const index = outputTabs.indexOf(tab)
+    let nextIndex
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % outputTabs.length
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + outputTabs.length) % outputTabs.length
+    else if (event.key === 'Home') nextIndex = 0
+    else if (event.key === 'End') nextIndex = outputTabs.length - 1
+    else return
+    event.preventDefault()
+    outputTabs[nextIndex].focus()
+    selectOutputTab(outputTabs[nextIndex])
+  })
+}
+selectOutputTab(outputTabs.find((tab) => tab.getAttribute('aria-selected') === 'true') ?? outputTabs[0])
 
 const logLines = []
 function log(text) {

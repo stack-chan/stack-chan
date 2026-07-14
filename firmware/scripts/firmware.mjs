@@ -35,14 +35,15 @@ const deviceName = resolveDevice(
   readOption(rawArgs, 'device') ?? process.env.STACKCHAN_DEVICE ?? firstDeviceArg(rawArgs),
 )
 const device = devices[deviceName]
-const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg))
+const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg) && !isBuildModeFlag(arg))
 const platform = `esp32:${device.platform}`
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
+const { mode: buildMode, args: buildModeArgs } = readBuildConfiguration(rawArgs)
 
 if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
   try {
-    prepareM5StackChanCoreS3IdfDependencies({ moddableDirectory: process.env.MODDABLE, mode: 'debug' })
+    prepareM5StackChanCoreS3IdfDependencies({ moddableDirectory: process.env.MODDABLE, mode: buildMode })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
     process.exit(1)
@@ -51,16 +52,16 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
 
 switch (command) {
   case 'build':
-    run('mcconfig', ['-d', '-m', '-p', platform, '-t', 'build', path.resolve(manifest), ...args])
+    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, '-t', 'build', path.resolve(manifest), ...args])
     break
   case 'flash':
-    run('mcconfig', ['-d', '-m', '-p', platform, path.resolve(manifest), ...args])
+    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, path.resolve(manifest), ...args])
     break
   case 'deploy':
-    run('mcconfig', ['-d', '-m', '-p', platform, '-t', 'deploy', path.resolve(manifest), ...args])
+    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, '-t', 'deploy', path.resolve(manifest), ...args])
     break
   case 'debug':
-    run('mcconfig', ['-d', '-m', '-p', platform, path.resolve(manifest), ...args])
+    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, path.resolve(manifest), ...args])
     break
   case 'mod': {
     const modInput = args[0]
@@ -120,6 +121,23 @@ function readOption(values, name) {
   return values.find((value) => value.startsWith(prefix))?.slice(prefix.length)
 }
 
+/** Resolves the Moddable output mode and selector arguments for this invocation. */
+function readBuildConfiguration(values) {
+  const mode = readOption(values, 'mode') ?? process.env.STACKCHAN_BUILD_MODE
+  if (mode) {
+    if (mode === 'debug') return { mode, args: ['-d'] }
+    if (mode === 'instrument') return { mode, args: ['-i'] }
+    if (mode === 'release') return { mode, args: [] }
+    console.error(`[stack-chan] Unsupported build mode: ${mode}`)
+    console.error('[stack-chan] Use --mode=debug, --mode=instrument, or --mode=release.')
+    process.exit(1)
+  }
+  const debugFlag = values.find(isDebugBuildFlag)
+  if (debugFlag) return { mode: 'debug', args: [debugFlag] }
+  if (values.includes('-i')) return { mode: 'instrument', args: ['-i'] }
+  return { mode: 'debug', args: ['-d'] }
+}
+
 function positionalArgs(values) {
   const result = []
   for (let index = 0; index < values.length; index += 1) {
@@ -141,6 +159,16 @@ function isDeviceName(value) {
   return Boolean(value && (devices[value] || aliases[value]))
 }
 
+/** Returns whether an argument selects a Moddable output mode. */
+function isBuildModeFlag(value) {
+  return value === '-i' || isDebugBuildFlag(value)
+}
+
+/** Returns whether an argument selects a debug build and debugger behavior. */
+function isDebugBuildFlag(value) {
+  return ['-d', '-dn', '-dx', '-dl'].includes(value)
+}
+
 function printHelp() {
   console.log(`Usage:
   npm run build
@@ -156,5 +184,7 @@ Devices:
 Examples:
   npm run flash:stackchan_rt
   npm run build:takao_core2_sg90
+  npm run build:m5stackchan_cores3 -- --mode=release
+  npm run build:m5stackchan_cores3 -- --mode=instrument
   STACKCHAN_DEVICE=takao_core2_sg90 npm run mod -- mods/examples/look_around/manifest.json`)
 }

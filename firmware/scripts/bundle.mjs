@@ -56,6 +56,7 @@ run('zip', ['-r', path.basename(bundleZipPath), bundleName], appDirectory)
 
 console.log(`[stack-chan] bundle target added: ${targetName}`)
 
+/** Ensures a bundled firmware binary exists and is not empty. */
 function assertNonEmpty(filePath) {
   let size
   try {
@@ -71,6 +72,7 @@ function assertNonEmpty(filePath) {
   }
 }
 
+/** Verifies that a target firmware image fits its factory app partition. */
 function assertFitsFactoryPartition(directory) {
   const partitionTablePath = path.join(directory, 'partition-table.bin')
   const firmwarePath = path.join(directory, 'xs_esp32.bin')
@@ -105,6 +107,7 @@ function assertFitsFactoryPartition(directory) {
   )
 }
 
+/** Runs a bundle subprocess and propagates failures to the caller. */
 function run(command, args, cwd) {
   const result = spawnSync(command, args, { cwd, stdio: 'inherit' })
   if (result.error) {

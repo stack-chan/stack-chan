@@ -22,6 +22,33 @@ test('prepares both managed components without duplicating them', () => {
   }
 })
 
+test('uses the generated directory for each ESP32 build mode', () => {
+  const moddableDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))
+
+  try {
+    for (const mode of ['debug', 'instrument', 'release']) {
+      const manifestPath = prepareM5StackChanCoreS3IdfDependencies({ moddableDirectory, mode })
+      assert.equal(
+        manifestPath,
+        path.join(
+          moddableDirectory,
+          'build',
+          'tmp',
+          'esp32',
+          'm5stackchan_cores3',
+          mode,
+          'app',
+          'xsProj-esp32s3',
+          'main',
+          'idf_component.yml',
+        ),
+      )
+    }
+  } finally {
+    rmSync(moddableDirectory, { recursive: true, force: true })
+  }
+})
+
 function count(source, value) {
   return source.split(value).length - 1
 }

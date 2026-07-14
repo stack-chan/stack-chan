@@ -44,6 +44,8 @@ test('App exposes capability contracts instead of the concrete Robot facade at t
   assert.match(compose, /new Touch\(config\.Touch, createTouchOptions\(\)\)/)
   assert.match(compose, /config\.TouchPanel \?\? globalEnv\.device\?\.sensor\?\.TouchPanel/)
   assert.match(compose, /new TouchPanel\(touchPanelConstructor\)/)
+  assert.match(compose, /new \(Modules\.importNow\('web-radio-player'\) as WebRadioPlayerConstructor\)\(\)/)
+  assert.doesNotMatch(compose, /Modules\.importNow\('web-radio-player'\)[^\n]*\.default/)
   assert.doesNotMatch(compose, /from 'robot'/)
   assert.doesNotMatch(touch, /from 'mc\/config'/)
   assert.match(touch, /export type TouchOptions/)

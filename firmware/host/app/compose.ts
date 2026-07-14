@@ -221,7 +221,7 @@ export function createStackchanContext(
   const camera = new Camera()
   const speaker = new Speaker({ volume: ttsPrefs.volume })
   const webRadio = Modules.has('web-radio-player')
-    ? new (Modules.importNow('web-radio-player') as { default: WebRadioPlayerConstructor }).default()
+    ? new (Modules.importNow('web-radio-player') as WebRadioPlayerConstructor)()
     : undefined
 
   const configLed = preferences.led

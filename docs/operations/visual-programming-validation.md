@@ -64,12 +64,25 @@ npm run metrics:aggregate -- participant-1.json participant-2.json
 - キーボードによるタブ移動とダイアログのEscキー終了を確認した。
 - 模擬ローダーで、読戻し照合が失敗した場合に成功を返さず、再起動も行わないことを確認した。
 - ファームウェア単体試験141件とアーキテクチャ試験53件が成功した。
-- 6ターゲットのmanifest検査と387ファイルのlintが成功した。
+- 6ターゲットのmanifest検査、22件のModdableテストmanifest、388ファイルのlintが成功した。
+- Linuxシミュレーターを10秒間動作させ、`[main] app behaviors ready`まで到達し、異常終了しないことを確認した。
 - Moddable SDK 8.3.0とEmscripten 5.0.1から、WASM入力ブリッジを含むシミュレーターファームウェアを再生成した。
 - Moddable SDK 8.3.0とEmscripten 5.0.1からブラウザ用ビルドツールを再生成し、追跡済み成果物と一致することを確認した。
 - ブラウザ用ビルドツールをEmscripten 5.0.1で2回再生成し、`tools.js`のSHA-256が`f24188a0ef7ac675a52724e028e1a8d18436b1b57436702c2797d7aa1d810157`、`tools.wasm`が`8b505e47ecba9039333129ac6a7501e852efed1f4b74f970e6f932739171fd02`で再現することを確認した。
+- `m5stack_cores3`、`m5stackchan_cores3`、`stackchan_rt`、`takao_core2_sg90`のターゲットビルドが成功した。
 - Web依存関係の監査結果は脆弱性0件だった。
 - ファームウェアの実行依存を対象にした監査結果は脆弱性0件だった。
+
+## 検出した既存の全デバイスビルド問題
+
+Visual Programmingの対象機種であるCoreS3系とは別に、従来機種を含む`npm run bundle`で次の問題を検出しました。
+
+- `com.m5stack`は4 MiB構成のfactory app partitionを`0x154dc0`バイト超過するが、`mcconfig`は終了コード0を返し、超過したバイナリがバンドルへ含まれる。
+- 基準ブランチ`origin/develop`でも同じビルドが`0x157fd0`バイト超過するため、Visual Programmingによる回帰ではない。
+- `com.m5stack.fire`は`embedded:io/audio/in`を解決できず、基準ブランチとVisual Programmingブランチの両方でビルドに失敗する。
+- `mcbundle`はFireの失敗後も終了コード0を返し、Fireの空ディレクトリをZIPへ含める。
+
+このため、CoreS3系の個別ビルドは合格ですが、全デバイスバンドルは合格扱いにしていません。
 
 CoreS3実機での書き込み、読戻し照合、復元、削除は未実施です。
 

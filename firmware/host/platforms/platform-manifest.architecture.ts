@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describe, test } from 'node:test'
 
 const esp32PlatformManifest = JSON.parse(readFileSync('host/platforms/esp32/manifest.json', 'utf8'))
+const coreS3AudioOutSource = readFileSync('host/platforms/core_s3_audioout.js', 'utf8')
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 
 type Subplatform = {
@@ -89,6 +90,15 @@ describe('Stack-chan platform manifest', () => {
         assert.deepEqual(manifest.config.serial, manifest.config.driver.serial)
       }
     }
+  })
+
+  test('CoreS3 AudioOut applies the sample rate without overriding amplifier volume', () => {
+    assert.match(coreS3AudioOutSource, /globalThis\.amp\.sampleRate = this\.sampleRate/)
+    assert.doesNotMatch(
+      coreS3AudioOutSource,
+      /globalThis\.amp\.volume\s*=/,
+      'AudioOut should not force the amplifier back to a loud volume',
+    )
   })
 
   test('camera-sharing subplatform providers pin the internal I2C bus to port 1', () => {

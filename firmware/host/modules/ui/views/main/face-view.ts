@@ -38,6 +38,7 @@ export type FaceViewCustomFaceBehavior = {
   onFaceUpdate?: (container: PiuContainer, face: FaceState) => void
   rehydrate?: (container: PiuContainer, face: FaceState, palette?: FaceSkinPalette | null) => void
   getBaseCoordinates?: (container: PiuContainer) => FaceViewBaseCoordinates
+  setMotionsEnabled?: (container: PiuContainer, enabled: boolean) => void
 }
 export type FaceViewCustomFace = PiuContainer & { behavior?: FaceViewCustomFaceBehavior }
 
@@ -144,6 +145,7 @@ class FaceViewBehavior extends CommonViewBehavior {
   autoTheme = true
   lastPalette: FaceSkinPalette | null = null
   lastFaceState: FaceState | null = null
+  faceMotionEnabled = true
 
   onCreate(container: PiuContainer, data: FaceViewParams) {
     super.onCreate(container, data)
@@ -289,6 +291,7 @@ class FaceViewBehavior extends CommonViewBehavior {
     const currentCoordinates = currentFace ? this.getFaceVisualCoordinates(currentFace) : null
     this.face = face
     this.prepareFaceForRegion(face, currentCoordinates)
+    faceBehavior(face)?.setMotionsEnabled?.(face, this.faceMotionEnabled)
 
     if (currentFace && currentParent) {
       currentParent.remove(currentFace)
@@ -311,6 +314,13 @@ class FaceViewBehavior extends CommonViewBehavior {
     if (this.effects) this.faceMain.insert(face, this.effects)
     else this.faceMain.add(face)
     this.applyFaceState(face)
+  }
+
+  setFaceMotionEnabled(enabled: boolean): void {
+    if (this.faceMotionEnabled === enabled) return
+    this.faceMotionEnabled = enabled
+    const face = this.face
+    if (face) faceBehavior(face)?.setMotionsEnabled?.(face, enabled)
   }
 
   /** Restore the face main component (e.g. after a dialog was shown via setMain) and resync its state. */

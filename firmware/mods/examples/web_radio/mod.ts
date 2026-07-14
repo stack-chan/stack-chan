@@ -3,7 +3,7 @@
 import type { StackchanContext, WebRadioState } from 'capabilities'
 import { MusicNotes } from 'effects/music-notes'
 
-const QUIET_VOLUME = 0.05
+const RADIO_VOLUME = 0.2
 const EFFECT_KEY = 'web-radio:music-notes'
 const DRAWER_KEY = 'web-radio:station'
 const OFF_VALUE = 'off'
@@ -78,7 +78,7 @@ function selectStation(context: StackchanContext, value: string): void {
   void radio
     .start({
       url: station.url,
-      volume: QUIET_VOLUME,
+      volume: RADIO_VOLUME,
       sampleRate: 44100,
       reconnect: true,
       onStateChanged: (state, reason) => onRadioState(context, station.value, state, reason),

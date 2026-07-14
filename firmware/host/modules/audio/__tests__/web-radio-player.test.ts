@@ -197,7 +197,7 @@ test('WebRadioPlayer parses HTTPS URL, limits volume, and controls AudioOut read
   assert.deepEqual(streamer.options.http, { name: 'https' })
   assert.equal(audio.options.sampleRate, 24000)
   assert.equal(streamer.options.audio.sampleRate, 44100)
-  assert.equal(audio.enqueued[0].value, 13)
+  assert.equal(audio.enqueued[0].value, Math.round(0.2 * 256))
 
   streamer.options.onReady?.(true)
   assert.equal(player.state, 'buffering')
@@ -321,5 +321,5 @@ test('WebRadioPlayer limits runtime volume changes to the safe maximum', async (
 
   assert.equal(audio.enqueued[0].value, 3)
   player.setVolume(0.5)
-  assert.equal(audio.enqueued.at(-1)?.value, 13)
+  assert.equal(audio.enqueued.at(-1)?.value, Math.round(0.2 * 256))
 })

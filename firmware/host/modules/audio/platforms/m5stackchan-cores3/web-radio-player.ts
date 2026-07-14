@@ -16,7 +16,7 @@ declare const device: {
 
 const BACKOFF_SECONDS = [1, 2, 4, 8, 16, 30] as const
 const STALL_TIMEOUT_MS = 10_000
-const MAX_WEB_RADIO_VOLUME = 0.05
+const MAX_WEB_RADIO_VOLUME = 0.2
 const DECODED_PCM_SAMPLE_RATE = 44100
 const OUTPUT_PCM_SAMPLE_RATE = 24000
 

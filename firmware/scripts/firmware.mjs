@@ -125,7 +125,7 @@ function readOption(values, name) {
 function readBuildConfiguration(values) {
   const mode = readOption(values, 'mode') ?? process.env.STACKCHAN_BUILD_MODE
   if (mode) {
-    if (mode === 'debug') return { mode, args: ['-d'] }
+    if (mode === 'debug') return { mode, args: [values.find(isDebugBuildFlag) ?? '-d'] }
     if (mode === 'instrument') return { mode, args: ['-i'] }
     if (mode === 'release') return { mode, args: [] }
     console.error(`[stack-chan] Unsupported build mode: ${mode}`)

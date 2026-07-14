@@ -9,18 +9,18 @@
   ],
   "modules": {
     "*": ["./main"],
-    "esp32-mp3-decoder": "../../host/modules/audio/platforms/m5stackchan-cores3/esp32-mp3-decoder",
-    "web-radio-audio-out": "../../host/modules/audio/platforms/m5stackchan-cores3/resampling-audio-out",
-    "pcm-resampler": "../../host/modules/audio/platforms/m5stackchan-cores3/pcm-resampler",
-    "buffered-mp3streamer": "../../host/modules/audio/platforms/m5stackchan-cores3/worker-mp3streamer",
-    "buffered-mp3streamer-core": "../../host/modules/audio/platforms/m5stackchan-cores3/buffered-mp3streamer",
-    "web-radio-byte-ring": "../../host/modules/audio/platforms/m5stackchan-cores3/shared-byte-ring",
-    "web-radio-stream-worker": "../../host/modules/audio/platforms/m5stackchan-cores3/web-radio-stream-worker"
+    "esp32-mp3-decoder": "../../platforms/m5stackchan-cores3/esp32-mp3-decoder",
+    "web-radio-audio-out": "../../platforms/m5stackchan-cores3/resampling-audio-out",
+    "pcm-resampler": "../../platforms/m5stackchan-cores3/pcm-resampler",
+    "buffered-mp3streamer": "../../platforms/m5stackchan-cores3/worker-mp3streamer",
+    "buffered-mp3streamer-core": "../../platforms/m5stackchan-cores3/buffered-mp3streamer",
+    "web-radio-byte-ring": "../../platforms/m5stackchan-cores3/shared-byte-ring",
+    "web-radio-stream-worker": "../../platforms/m5stackchan-cores3/web-radio-stream-worker"
   },
   "platforms": {
     "esp32/m5stackchan_cores3": {
       "build": {
-        "SDKCONFIGPATH": "../../host/modules/audio/platforms/m5stackchan-cores3/sdkconfig"
+        "SDKCONFIGPATH": "../../platforms/m5stackchan-cores3/sdkconfig"
       },
       "dependency": [
         {

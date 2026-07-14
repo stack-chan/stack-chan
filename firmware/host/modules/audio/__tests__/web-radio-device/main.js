@@ -1,9 +1,9 @@
 import WiFi from 'embedded:network/interface/wifi'
 import MP3Streamer from 'buffered-mp3streamer'
-import Preference from 'preference'
-import AudioOut from 'web-radio-audio-out'
 import config from 'mc/config'
+import Preference from 'preference'
 import Timer from 'timer'
+import AudioOut from 'web-radio-audio-out'
 
 const STREAM_HOSTS = ['ice5.somafm.com', 'ice3.somafm.com']
 const STREAM_PATH = '/groovesalad-128-mp3'

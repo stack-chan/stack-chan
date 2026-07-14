@@ -4,6 +4,7 @@ export type FakeMP3StreamerOptions = {
   host: string
   port: number
   path: string
+  reconnect?: boolean
   audio: { out: unknown; stream: number; sampleRate?: number }
   onReady?: (ready: boolean) => void
   onPlayed?: (buffer?: unknown) => void

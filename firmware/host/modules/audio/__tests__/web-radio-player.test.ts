@@ -125,7 +125,6 @@ test('CoreS3 WebRadio receives into a shared ring and decodes MP3 on a Core 1 wo
   assert.match(proxy, /input\.writableView\(request\.readable\)/)
   assert.match(proxy, /input\.advanceWrite\(target\.byteLength\)/)
   assert.match(proxy, /import Timer from 'timer'/)
-  assert.match(proxy, /#scheduleNetworkReconnect\(error \? String\(error\) : 'connection closed'\)/)
   assert.match(proxy, /this\.#networkReconnectTimer = Timer\.set\(\(\) => this\.#openNetwork\(\), delay\)/)
   assert.doesNotMatch(proxy, /postMessage\(\{ id: 'end'/)
   assert.match(proxy, /this\.#worker\?\.postMessage\(\{ id: 'close' \}\)/)
@@ -222,6 +221,7 @@ test('WebRadioPlayer selects HTTP defaults and reconnects with backoff', async (
   const first = getMP3StreamerInstances()[0]
   assert.equal(first.options.protocol, 'http')
   assert.equal(first.options.port, 80)
+  assert.equal(first.options.reconnect, true)
   assert.deepEqual(first.options.http, { name: 'http' })
 
   first.options.onError?.('offline')
@@ -232,6 +232,28 @@ test('WebRadioPlayer selects HTTP defaults and reconnects with backoff', async (
   assert.equal(getMP3StreamerInstances().length, 1)
   Timer.advance(1)
   assert.equal(getMP3StreamerInstances().length, 2)
+})
+
+test('WebRadioPlayer reports transport failures without retry when reconnect is disabled', async () => {
+  const { default: WebRadioPlayer } = (await import(
+    '../platforms/m5stackchan-cores3/web-radio-player.js'
+  )) as WebRadioModule
+  const states: string[] = []
+  const player = new WebRadioPlayer()
+  await player.start({
+    url: 'http://radio.example.test/stream',
+    reconnect: false,
+    onStateChanged: (state) => states.push(state),
+  })
+  const streamer = getMP3StreamerInstances()[0]
+  assert.equal(streamer.options.reconnect, false)
+
+  streamer.options.onError?.('offline')
+  assert.equal(player.state, 'error')
+  assert.equal(streamer.closed, true)
+  Timer.advance(30_000)
+  assert.equal(getMP3StreamerInstances().length, 1)
+  assert.deepEqual(states, ['connecting', 'buffering', 'error'])
 })
 
 test('WebRadioPlayer retries synchronous AudioOut construction failures', async () => {

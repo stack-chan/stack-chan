@@ -107,6 +107,7 @@ export default class WebRadioPlayer implements WebRadioCapability {
         host: url.hostname,
         port: url.port ? Number(url.port) : url.protocol === 'https:' ? 443 : 80,
         path,
+        reconnect: options.reconnect,
         audio: { out: audio, stream: 0, sampleRate: DECODED_PCM_SAMPLE_RATE },
         onReady: (ready) => this.#onReady(generation, ready),
         onPlayed: () => this.#onPlayed(generation),

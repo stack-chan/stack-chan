@@ -7,6 +7,7 @@ declare module "mp3streamer" {
     host: string,
     port: number,
     path: string,
+    reconnect?: boolean,
     audio: {
       out: AudioOut,
       sampleRate?: number,

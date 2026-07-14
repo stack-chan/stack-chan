@@ -19,6 +19,7 @@ export default class {
   #networkGeneration = 0
   #networkReconnectTimer
   #networkBackoffIndex = 0
+  #reconnect = true
   #input = SharedByteRing.allocate(COMPRESSED_RING_BYTES)
   #output = SharedByteRing.allocate(PCM_RING_BYTES)
   #receivedBytes = 0
@@ -29,6 +30,7 @@ export default class {
     if (options.onReady) this.#callbacks.onReady = options.onReady
     if (options.onError) this.#callbacks.onError = options.onError
     if (options.onDone) this.#callbacks.onDone = options.onDone
+    this.#reconnect = options.reconnect ?? true
 
     this.#audio = options.audio.out
     this.#audio.attachSharedOutput(this.#output, this.#completion, () => {
@@ -114,7 +116,7 @@ export default class {
             this.#networkBackoffIndex = 0
             return
           }
-          this.#scheduleNetworkReconnect(`http status ${status}`)
+          this.#handleNetworkFailure(`http status ${status}`)
         },
         onReadable: (count) => {
           if (!this.#isCurrentNetwork(generation, http, request)) return
@@ -126,7 +128,7 @@ export default class {
           trace(
             `[web-radio-network] http done error=${error ? String(error) : 'none'} connectionReceived=${this.#connectionReceivedBytes} totalReceived=${this.#receivedBytes} buffered=${this.#input.readableBytes}\n`,
           )
-          this.#scheduleNetworkReconnect(error ? String(error) : 'connection closed')
+          this.#handleNetworkFailure(error ? String(error) : 'connection closed')
         },
       })
       this.#request = request
@@ -136,7 +138,7 @@ export default class {
         http?.close()
       } catch {}
       this.#http = this.#request = undefined
-      this.#scheduleNetworkReconnect(String(error))
+      this.#handleNetworkFailure(String(error))
     }
   }
 
@@ -157,6 +159,15 @@ export default class {
 
   #isCurrentNetwork(generation, http, request) {
     return !this.#closed && generation === this.#networkGeneration && http === this.#http && request === this.#request
+  }
+
+  #handleNetworkFailure(reason) {
+    if (this.#reconnect) {
+      this.#scheduleNetworkReconnect(reason)
+      return
+    }
+    this.#closeNetwork()
+    this.#callbacks.onError?.call(this, reason)
   }
 
   #scheduleNetworkReconnect(reason) {

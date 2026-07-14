@@ -4,6 +4,7 @@ import { test } from 'node:test'
 
 const notesSource = readFileSync('host/modules/ui/components/effects/music-notes.ts', 'utf8')
 const faceSource = readFileSync('host/modules/ui/components/face/behaviors/face.ts', 'utf8')
+const statusBarSource = readFileSync('host/modules/ui/components/status-bar/chat-status-bar.ts', 'utf8')
 const modSource = readFileSync('mods/examples/web_radio/mod.ts', 'utf8')
 
 test('RelaxedFace uses only the breath motion', () => {
@@ -49,4 +50,15 @@ test('WebRadio drawer offers stop, SomaFM stations, and a direct non-Soma MP3 st
   assert.match(modSource, /label: 'Radio Paradise'/)
   assert.match(modSource, /http:\/\/ice2\.somafm\.com\/groovesalad-128-mp3/)
   assert.match(modSource, /http:\/\/stream-tx1\.radioparadise\.com\/mp3-128/)
+})
+
+test('WebRadio reuses the AppBar connection indicator without impersonating ChatService state', () => {
+  assert.match(modSource, /onConnectionIndicator/)
+  assert.match(modSource, /state === 'connecting'/)
+  assert.match(modSource, /state === 'buffering'/)
+  assert.match(modSource, /state === 'stalled'/)
+  assert.match(modSource, /state === 'retrying'/)
+  assert.doesNotMatch(modSource, /onChatState/)
+  assert.match(statusBarSource, /onConnectionIndicator/)
+  assert.match(statusBarSource, /ChatStatusBarState\.CONNECTING \|\| this\.#connectionPending/)
 })

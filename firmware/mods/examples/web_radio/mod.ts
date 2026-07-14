@@ -34,8 +34,16 @@ function hideNotes(context: StackchanContext): void {
   context.ui.removeEffect(notes)
 }
 
+function setConnectionIndicator(context: StackchanContext, visible: boolean): void {
+  context.ui.application?.distribute?.('onConnectionIndicator', visible)
+}
+
 function onRadioState(context: StackchanContext, value: string, state: WebRadioState, reason?: string): void {
   if (value !== selectedValue) return
+  setConnectionIndicator(
+    context,
+    state === 'connecting' || state === 'buffering' || state === 'stalled' || state === 'retrying',
+  )
   if (state === 'playing') {
     context.hideBalloon()
     showNotes(context)
@@ -52,6 +60,7 @@ function selectStation(context: StackchanContext, value: string): void {
   const station = STATIONS.find((candidate) => candidate.value === value)
   if (value !== OFF_VALUE && !station) return
   selectedValue = value
+  setConnectionIndicator(context, false)
   const radio = context.audio.webRadio
   radio?.stop()
   hideNotes(context)
@@ -76,6 +85,7 @@ function selectStation(context: StackchanContext, value: string): void {
     })
     .catch((error) => {
       if (selectedValue !== station.value) return
+      setConnectionIndicator(context, false)
       context.ui.setFaceMotionEnabled?.(true)
       hideNotes(context)
       context.showBalloon(`Radio error: ${String(error)}`)

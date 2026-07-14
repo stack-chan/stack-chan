@@ -41,6 +41,9 @@ declare module 'capabilities' {
       }): void
     }
     ui: {
+      application?: {
+        distribute?(event: 'onConnectionIndicator', visible: boolean): void
+      }
       addEffect(effect: PiuContent, key?: string): void
       removeEffect(effect: PiuContent): void
       setFaceMotionEnabled?(enabled: boolean): void

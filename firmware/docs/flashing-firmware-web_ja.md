@@ -17,7 +17,8 @@ Moddableなどの環境構築が不要なので気軽に試せます。
 
 ![書き込み画面](./images/web-flash-top.png)
 
-* セレクトボックスでM5Stackの種類を選択（M5Stack、M5Stack Fire、M5Stack Core2、M5Stack CoreS3）します
+* セレクトボックスでM5Stackの種類を選択（M5Stack、M5Stack Core2、M5Stack CoreS3、M5StackChan CoreS3）します
+* M5StackChan CoreS3専用のサーボ、電源、LED構成を使う場合は「M5StackChan CoreS3」を選択します
 * 「Flash Stack-chan firmware」を選択します
 
 ![接続画面](./images/web-flash-connect.png)

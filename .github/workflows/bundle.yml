@@ -33,7 +33,7 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
         with:
-          target-branch: "8.3.0"
+          target-branch: "8.3.1"
           install-emscripten: "true"
       - name: Install web test dependencies
         working-directory: ./web

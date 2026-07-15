@@ -77,7 +77,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
         with:
-          target-branch: "8.3.0"
+          target-branch: "8.3.1"
           install-emscripten: "true"
       - name: Install web test dependencies
         working-directory: ./web
@@ -123,7 +123,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
         with:
-          target-branch: ${{ (matrix.name == 'wasm' || matrix.name == 'editor-tools') && '8.3.0' || '' }}
+          target-branch: ${{ (matrix.name == 'wasm' || matrix.name == 'editor-tools') && '8.3.1' || '' }}
           install-emscripten: ${{ (matrix.name == 'wasm' || matrix.name == 'editor-tools') && 'true' || 'false' }}
       - name: Build firmware (${{ matrix.name }})
         working-directory: ./firmware

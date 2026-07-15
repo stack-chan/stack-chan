@@ -89,7 +89,7 @@ assert.equal(faceSchema.properties.version.const, FACE_ASSET_VERSION)
 assert.deepEqual(faceSchema.properties.emotion.enum, FACE_ASSET_EMOTIONS)
 assert.deepEqual(faceSchema.required, ['format', 'version', 'name', 'emotion', 'colors', 'mouth'])
 
-const moddableVersion = '8.3.0'
+const moddableVersion = '8.3.1'
 for (const [name, source] of [
   ['simulator build script', simulatorBuildScript],
   ['editor tools build script', editorToolsBuildScript],

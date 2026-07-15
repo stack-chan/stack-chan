@@ -21,7 +21,7 @@ Blockly-based MOD editor for Stack-chan. Everything runs client-side:
 
 ## Rebuilding `vendor/tools.wasm`
 
-The tools binary embeds a Moddable SDK version (currently **8.3.0**, XS 17.8) and is generated with **Emscripten 5.0.1**. Rebuild it whenever either toolchain is updated:
+The tools binary embeds a Moddable SDK version (currently **8.3.1**, XS 17.8) and is generated with **Emscripten 5.0.1**. Rebuild it whenever either toolchain is updated:
 
 ```sh
 cd firmware
@@ -78,7 +78,7 @@ xsbug handshake on native USB-serial-JTAG parts (CoreS3).
 Requirements:
 
 - A browser with WebSerial (Chrome / Edge).
-- The flashed Stack-chan firmware's XS version must be **≥ the archive's** (8.3.0 / XS 17.8
+- The flashed Stack-chan firmware's XS version must be **≥ the archive's** (8.3.1 / XS 17.8
   here) — see [XS version compatibility](#xs-version-compatibility). No debug build needed.
 - The `-p wasm` archive runs on the ESP32 device because `fxMapArchive` gates only on the
   XS version, skips the signature, and remaps symbols by name at install time — so the

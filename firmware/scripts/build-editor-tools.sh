@@ -3,7 +3,7 @@ set -euo pipefail
 
 : "${MODDABLE:?MODDABLE must point to the Moddable SDK}"
 
-EXPECTED_MODDABLE_VERSION="8.3.0"
+EXPECTED_MODDABLE_VERSION="8.3.1"
 ACTUAL_MODDABLE_VERSION="$(tr -d '[:space:]' < "$MODDABLE/tools/VERSION")"
 if [[ "$ACTUAL_MODDABLE_VERSION" != "$EXPECTED_MODDABLE_VERSION" ]]; then
   echo "error: Moddable SDK $EXPECTED_MODDABLE_VERSION is required (found $ACTUAL_MODDABLE_VERSION)" >&2

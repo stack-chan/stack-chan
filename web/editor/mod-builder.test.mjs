@@ -18,9 +18,9 @@ import { profileFor } from './capabilities.mjs'
 test('detectToolsVersionMismatch parses the TOOL warning', () => {
   const logs = [
     '### -p wasm',
-    'Moddable SDK tools mismatch between binary (8.3.0) and source (9.0.0)! Rebuilding tools.',
+    'Moddable SDK tools mismatch between binary (8.3.1) and source (9.0.0)! Rebuilding tools.',
   ]
-  assert.equal(detectToolsVersionMismatch(logs), '8.3.0')
+  assert.equal(detectToolsVersionMismatch(logs), '8.3.1')
   assert.equal(detectToolsVersionMismatch(['no mismatch here']), null)
 })
 

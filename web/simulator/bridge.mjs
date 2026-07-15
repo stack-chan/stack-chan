@@ -88,8 +88,10 @@ export function createHostButtonBridge({
       if (!state) return
       logger(`[bridge] Host.Button.${name} pushed`)
       state.pressed = 1
+      const currentGeneration = (state.generation = (state.generation ?? 0) + 1)
       for (const callback of state.firmwareCallbacks) callback()
       setTimeoutFn(() => {
+        if (state.generation !== currentGeneration) return
         state.pressed = 0
         for (const callback of state.firmwareCallbacks) callback()
       }, resetDelayMs)

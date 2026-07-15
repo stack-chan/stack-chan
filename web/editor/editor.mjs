@@ -1,6 +1,11 @@
 import { registerStackchanBlocks, TOOLBOX, generateModSource } from './blocks.mjs'
 import { buildModArchive, isXsArchive, manifestForProjectAssets, xsArchiveVersion } from './mod-builder.mjs'
-import { createEsptoolLoader, installModToDevice, removeModFromDevice } from './esptool-installer.mjs'
+import {
+  createEsptoolLoader,
+  DEVICE_OPERATION_STATUS,
+  installModToDevice,
+  removeModFromDevice,
+} from './esptool-installer.mjs'
 import { createModStorage, formatByteSize } from '../simulator/mod-storage.mjs'
 import { DEVICE_PROFILES, inspectDeploymentCompatibility, profileFor, toolboxForTarget } from './capabilities.mjs'
 import {
@@ -14,7 +19,7 @@ import {
   serializeVisualProject,
 } from './project-format.mjs'
 import { analyzeWorkspace } from './project-validator.mjs'
-import { FACE_ASSET_MEDIA_TYPE, applyFaceAssetToSource, parseFaceAsset } from './face-assets.mjs'
+import { addFaceAssetToProject, FACE_ASSET_MEDIA_TYPE, applyFaceAssetToSource, parseFaceAsset } from './face-assets.mjs'
 import { createMetricsReport } from './metrics.mjs'
 import { parseVisualTrace } from './runtime-diagnostics.mjs'
 import {
@@ -258,6 +263,7 @@ workspace.updateToolbox(toolboxForTarget(TOOLBOX, targetDeviceSelect.value))
 let currentSource = ''
 let currentArchive = null
 let currentAnalysis
+let currentGenerationError = null
 let simulatorMetricPending = false
 let deviceOperationPending = false
 
@@ -285,18 +291,21 @@ function queueProjectSave() {
     })
 }
 
-function persistProject() {
-  currentProject = createVisualProject({
-    ...currentProject,
+function persistProject(project = currentProject) {
+  const nextProject = createVisualProject({
+    ...project,
     name: projectNameInput.value,
     target: targetDeviceSelect.value,
     workspace: workspaceState(),
-    settings: { ...currentProject.settings, embedAssets: embedAssetsInput.checked },
+    settings: { ...project.settings, embedAssets: embedAssetsInput.checked },
     updatedAt: new Date().toISOString(),
   })
-  projectLibrary = updateProjectLibrary(projectLibrary, currentProject)
+  const nextProjectLibrary = updateProjectLibrary(projectLibrary, nextProject)
+  currentProject = nextProject
+  projectLibrary = nextProjectLibrary
   queueProjectSave()
   renderRecentProjects()
+  return currentProject
 }
 
 function renderRecentProjects() {
@@ -400,24 +409,15 @@ function renderAssets() {
 }
 
 function addFaceAsset(asset) {
-  const normalized = parseFaceAsset(JSON.stringify(asset))
-  const path = `assets/${normalized.name.replace(/[^\p{L}\p{N}._-]/gu, '_')}.stackchan-face.json`
-  const entry = {
-    path,
-    mediaType: FACE_ASSET_MEDIA_TYPE,
-    encoding: 'utf8',
-    data: `${JSON.stringify(normalized, null, 2)}\n`,
-  }
-  currentProject.assets = [...currentProject.assets.filter((item) => item.path !== path), entry]
-  currentProject.settings.faceAsset = path
+  return addFaceAssetToProject(currentProject, asset)
 }
 
 try {
   const stagedFaceAsset = localStorage.getItem('stackchan-face-asset-staging')
   if (stagedFaceAsset && new URLSearchParams(location.search).get('face-asset') === 'staging') {
-    addFaceAsset(parseFaceAsset(stagedFaceAsset))
+    const stagedProject = addFaceAsset(parseFaceAsset(stagedFaceAsset))
+    persistProject(stagedProject)
     localStorage.removeItem('stackchan-face-asset-staging')
-    persistProject()
     history.replaceState(null, '', location.pathname)
     setStatus('顔エディタのアセットを追加しました')
   }
@@ -438,7 +438,21 @@ function recordMetric(event, detail = {}) {
 recordMetric('editor_opened', { target: currentProject.target, browser: navigator.userAgent })
 
 function renderAnalysis() {
-  currentAnalysis = analyzeWorkspace(workspaceState(), { target: targetDeviceSelect.value })
+  const workspaceAnalysis = analyzeWorkspace(workspaceState(), { target: targetDeviceSelect.value })
+  currentAnalysis = currentGenerationError
+    ? {
+        ...workspaceAnalysis,
+        canBuild: false,
+        diagnostics: [
+          ...workspaceAnalysis.diagnostics,
+          {
+            severity: 'error',
+            code: 'VP_CODE_GENERATION_FAILED',
+            message: `コードを生成できません: ${currentGenerationError}`,
+          },
+        ],
+      }
+    : workspaceAnalysis
   diagnosticsList.replaceChildren()
   diagnosticsCount.textContent = String(currentAnalysis.diagnostics.length)
 
@@ -477,17 +491,21 @@ function renderAnalysis() {
 
 function refreshCode() {
   currentArchive = null
+  currentGenerationError = null
   downloadButton.disabled = true
   installSimulatorButton.disabled = true
   refreshDeviceActionButtons()
   try {
     const generatedSource = generateModSource(javascriptGenerator, workspace)
     const selectedFaceAsset = currentProject.assets.find((asset) => asset.path === currentProject.settings.faceAsset)
-    currentSource = selectedFaceAsset
+    const nextSource = selectedFaceAsset
       ? applyFaceAssetToSource(generatedSource, parseFaceAsset(new TextDecoder().decode(assetBytes(selectedFaceAsset))))
       : generatedSource
+    currentSource = nextSource
     codePreview.textContent = currentSource
   } catch (error) {
+    currentSource = ''
+    currentGenerationError = String(error.message ?? error)
     codePreview.textContent = `// コード生成エラー: ${error.message}`
   }
   renderAnalysis()
@@ -877,6 +895,10 @@ async function writeArchiveToDevice(archive, label, { requirements = currentAnal
       },
       onBackup: (backup) => downloadBytes(backup, `${currentProject.name}-device-backup.xsa`),
     })
+    if (result.status === DEVICE_OPERATION_STATUS.CANCELLED) {
+      setStatus('実機への書き込みをキャンセルしました')
+      return
+    }
     setStatus(`実機への書き込みと検証が終了しました (${result.chip})`)
     recordMetric('device_installed', { size: archive.length, target: targetDeviceSelect.value })
   } catch (error) {
@@ -920,8 +942,9 @@ removeDeviceButton.addEventListener('click', async () => {
     deviceOperationPending = true
     refreshDeviceActionButtons()
     port = await navigator.serial.requestPort()
-    await removeModFromDevice(createEsptoolLoader, port, {
+    const result = await removeModFromDevice(createEsptoolLoader, port, {
       onLog: log,
+      onPrompt: (message) => setStatus(message),
       onPreflight: ({ chip, partition, firmware }) => {
         const compatibility = inspectDeploymentCompatibility(targetDeviceSelect.value, {
           chip,
@@ -943,6 +966,10 @@ removeDeviceButton.addEventListener('click', async () => {
       },
       onBackup: (backup) => downloadBytes(backup, `${currentProject.name}-before-remove-backup.xsa`),
     })
+    if (result.status === DEVICE_OPERATION_STATUS.CANCELLED) {
+      setStatus('実機のMOD削除をキャンセルしました')
+      return
+    }
     setStatus('実機のMODを削除しました')
     recordMetric('device_mod_removed')
   } catch (error) {

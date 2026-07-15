@@ -155,9 +155,9 @@ export async function buildModArchive(
 
     const projectDirectory = `/mod/${buildDirectoryName(name)}`
     FS.mkdirTree(projectDirectory)
+    for (const file of files) writeProjectFile(FS, projectDirectory, file)
     FS.writeFile(`${projectDirectory}/manifest.json`, JSON.stringify(manifest, null, 2))
     FS.writeFile(`${projectDirectory}/mod.js`, modJs)
-    for (const file of files) writeProjectFile(FS, projectDirectory, file)
     FS.chdir(projectDirectory)
 
     const exitCode = runTool(

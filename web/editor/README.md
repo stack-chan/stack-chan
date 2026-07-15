@@ -104,5 +104,5 @@ loader.
 ## Project and learning guides
 
 - The versioned authoring format and safety contract are defined in `docs/specs/visual-programming.md`.
-- The Japanese 5, 15, and 30 minute walkthrough is in `TUTORIAL_ja.md`.
+- The Japanese 5-, 15-, and 30-minute walkthrough is in `TUTORIAL_ja.md`.
 - Evaluation events can be exported from the chart button in the editor header.

@@ -39,12 +39,18 @@ function median(values) {
 }
 
 export function aggregateMetricsReports(reports, { simulatorPassMs = 15 * 60 * 1000 } = {}) {
+  const optionalDuration = (value) => value == null || (Number.isFinite(value) && value >= 0)
+  const failureCount = (value) => Number.isInteger(value) && value >= 0
   const valid = reports.filter(
     (report) =>
       report?.format === VISUAL_METRICS_FORMAT &&
       report.version === VISUAL_METRICS_VERSION &&
       report.summary &&
-      Array.isArray(report.events)
+      Array.isArray(report.events) &&
+      optionalDuration(report.summary.firstSimulatorMs) &&
+      optionalDuration(report.summary.firstDeviceMs) &&
+      failureCount(report.summary.buildFailures) &&
+      failureCount(report.summary.deviceFailures)
   )
   const simulatorTimes = valid.map((report) => report.summary.firstSimulatorMs).filter(Number.isFinite)
   const deviceTimes = valid.map((report) => report.summary.firstDeviceMs).filter(Number.isFinite)

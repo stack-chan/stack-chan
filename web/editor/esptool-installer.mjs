@@ -24,6 +24,11 @@ const PARTITION_TYPE_APP = 0x00
 const PARTITION_SUBTYPE_FACTORY = 0x00
 const ESP_APP_DESC_MAGIC = 0xabcd5432
 export const ESP_APP_HEADER_SIZE = 256
+export const DEVICE_OPERATION_STATUS = Object.freeze({
+  CANCELLED: 'cancelled',
+  INSTALLED: 'installed',
+  REMOVED: 'removed',
+})
 
 /**
  * Parse an ESP-IDF partition table image and return every partition entry.
@@ -176,7 +181,16 @@ export async function installModToDevice(
       firmware,
       archiveSize: archive.length,
     })
-    if (!approved) throw new Error('利用者が実機書き込みをキャンセルしました')
+    if (!approved) {
+      onLog('[flash] 利用者が実機書き込みをキャンセルしました')
+      return {
+        status: DEVICE_OPERATION_STATUS.CANCELLED,
+        operation: 'install',
+        chip,
+        partition: xs,
+        firmware,
+      }
+    }
 
     onLog('[flash] 現在のMODをバックアップしています…')
     const currentHeader = await esploader.readFlash(xs.offset, 32)
@@ -221,7 +235,7 @@ export async function installModToDevice(
       onLog(`[flash] 自動リセットに失敗しました（本体のRESETボタンでも起動できます）: ${error.message ?? error}`)
       onPrompt('書き込み完了。自動で再起動しない場合は本体のRESETボタンを押すとMODが動きます')
     }
-    return { chip, partition: xs, backup, verified: verify }
+    return { status: DEVICE_OPERATION_STATUS.INSTALLED, chip, partition: xs, backup, verified: verify }
   } finally {
     // release the WebSerial port so the device can run and can be reconnected
     try {
@@ -242,6 +256,9 @@ export async function removeModFromDevice(loaderFactory, port, options = {}) {
     const partitions = parsePartitionTable(tableBytes)
     const xs = findXsPartition(partitions)
     const app = findAppPartition(partitions)
+    if (blankArchive.length > xs.size) {
+      throw new Error(`xsパーティションが小さすぎます (${blankArchive.length} > ${xs.size} バイト)`)
+    }
     const firmware = parseEspAppDescriptor(await esploader.readFlash(app.offset, ESP_APP_HEADER_SIZE))
     if (!firmware?.version) throw new Error('ファームウェアのバージョン情報を読み取れません')
     const approved = await (options.onPreflight ?? (() => true))({
@@ -251,7 +268,16 @@ export async function removeModFromDevice(loaderFactory, port, options = {}) {
       firmware,
       remove: true,
     })
-    if (!approved) throw new Error('利用者がMOD削除をキャンセルしました')
+    if (!approved) {
+      onLog('[flash] 利用者がMOD削除をキャンセルしました')
+      return {
+        status: DEVICE_OPERATION_STATUS.CANCELLED,
+        operation: 'remove',
+        chip,
+        partition: xs,
+        firmware,
+      }
+    }
 
     const currentHeader = await esploader.readFlash(xs.offset, 32)
     const currentSize = xsArchiveByteLength(currentHeader)
@@ -272,8 +298,13 @@ export async function removeModFromDevice(loaderFactory, port, options = {}) {
     })
     const written = await esploader.readFlash(xs.offset, blankArchive.length)
     if (!equalBytes(written, blankArchive)) throw new Error('MOD削除後の検証に失敗しました')
-    await esploader.resetToRunApp?.()
-    return { chip, partition: xs, firmware, backup, verified: true }
+    try {
+      await esploader.resetToRunApp?.()
+    } catch (error) {
+      onLog(`[flash] 自動リセットに失敗しました（本体のRESETボタンでも起動できます）: ${error.message ?? error}`)
+      options.onPrompt?.('MOD削除完了。自動で再起動しない場合は本体のRESETボタンを押してください')
+    }
+    return { status: DEVICE_OPERATION_STATUS.REMOVED, chip, partition: xs, firmware, backup, verified: true }
   } finally {
     try {
       await esploader.transport?.disconnect?.()

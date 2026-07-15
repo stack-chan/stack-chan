@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { applyFaceAssetToSource, createFaceAsset, parseFaceAsset } from './face-assets.mjs'
+import { addFaceAssetToProject, applyFaceAssetToSource, createFaceAsset, parseFaceAsset } from './face-assets.mjs'
 
 test('face asset round-trips with normalized colors and mouth range', () => {
   const asset = createFaceAsset({ name: '笑顔', emotion: 'HAPPY', primary: '#ABCDEF', mouth: 2 })
@@ -28,4 +28,18 @@ test('external face assets reject fields and values outside the published schema
   ]) {
     assert.throws(() => parseFaceAsset(JSON.stringify(invalid)), /顔アセット/)
   }
+})
+
+test('staging a face asset leaves the current project unchanged until persistence succeeds', () => {
+  const current = {
+    assets: [],
+    settings: { educationalProfile: true, embedAssets: true, faceAsset: null },
+  }
+  const next = addFaceAssetToProject(current, createFaceAsset({ name: '追加の顔', emotion: 'HAPPY' }))
+
+  assert.deepEqual(current.assets, [])
+  assert.equal(current.settings.faceAsset, null)
+  assert.notEqual(next.assets, current.assets)
+  assert.notEqual(next.settings, current.settings)
+  assert.equal(next.settings.faceAsset, 'assets/追加の顔.stackchan-face.json')
 })

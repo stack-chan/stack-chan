@@ -133,9 +133,10 @@ export function inspectDeploymentCompatibility(
       xsVersion !== undefined &&
       (!Array.isArray(xsVersion) || profile.xsArchiveVersion.join('.') !== xsVersion.join('.'))
     ) {
+      const detectedXsVersion = Array.isArray(xsVersion) ? xsVersion.join('.') : '不明'
       diagnostics.push({
         code: 'VP_XS_VERSION_MISMATCH',
-        message: `${profile.label}のXS ${profile.xsArchiveVersion.join('.')}に対して、MODはXS ${xsVersion?.join('.') ?? '不明'}です`,
+        message: `${profile.label}のXS ${profile.xsArchiveVersion.join('.')}に対して、MODはXS ${detectedXsVersion}です`,
       })
     }
   }

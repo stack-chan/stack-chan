@@ -49,6 +49,21 @@ test('multiple participant reports aggregate median and 15 minute pass count', (
   })
 })
 
+test('metrics aggregation excludes malformed participant summaries', () => {
+  const valid = createMetricsReport([])
+  const malformed = [
+    { ...valid, summary: { ...valid.summary, buildFailures: '1' } },
+    { ...valid, summary: { ...valid.summary, deviceFailures: Number.NaN } },
+    { ...valid, summary: { ...valid.summary, firstSimulatorMs: Number.POSITIVE_INFINITY } },
+    { ...valid, summary: { ...valid.summary, firstDeviceMs: -1 } },
+  ]
+
+  const aggregate = aggregateMetricsReports([valid, ...malformed])
+  assert.equal(aggregate.participantCount, 1)
+  assert.equal(aggregate.buildFailures, 0)
+  assert.equal(aggregate.deviceFailures, 0)
+})
+
 test('metrics aggregation CLI reads participant files and emits the aggregate report', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'stackchan-visual-metrics-'))
   try {

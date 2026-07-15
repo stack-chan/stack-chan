@@ -28,6 +28,14 @@ describe('simulator MOD sample download', () => {
     assert.deepEqual(xsArchiveVersion(archive), profileFor('simulator').xsArchiveVersion)
   })
 
+  it('does not expose host-specific build paths', () => {
+    const archive = readFileSync(new URL('./samples/stackchan-sample-mod.xsa', import.meta.url))
+    const text = archive.toString('latin1')
+
+    assert.doesNotMatch(text, /\/(?:home|Users|tmp)\//)
+    assert.doesNotMatch(text, /[A-Za-z]:\\/)
+  })
+
   it('uses the current named onContextCreated lifecycle hook', () => {
     const source = readFileSync(new URL('./samples/sample-mod/mod.js', import.meta.url), 'utf8')
 

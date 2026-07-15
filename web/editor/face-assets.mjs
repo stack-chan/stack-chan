@@ -74,6 +74,22 @@ export function parseFaceAsset(text) {
   return createFaceAsset(value)
 }
 
+export function addFaceAssetToProject(project, asset) {
+  const normalized = parseFaceAsset(JSON.stringify(asset))
+  const path = `assets/${normalized.name.replace(/[^\p{L}\p{N}._-]/gu, '_')}.stackchan-face.json`
+  const entry = {
+    path,
+    mediaType: FACE_ASSET_MEDIA_TYPE,
+    encoding: 'utf8',
+    data: `${JSON.stringify(normalized, null, 2)}\n`,
+  }
+  return {
+    ...project,
+    assets: [...project.assets.filter((item) => item.path !== path), entry],
+    settings: { ...project.settings, faceAsset: path },
+  }
+}
+
 function rgb(hex) {
   const value = Number.parseInt(hex.slice(1), 16)
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255]

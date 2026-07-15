@@ -442,12 +442,20 @@ progress {
     width: 100%;
   }
   .project-controls select {
-    width: 42%;
+    display: none;
   }
   #recent-projects,
   #tutorial-link,
-  #metrics-button {
+  #metrics-button,
+  #sample-button,
+  #clear-button,
+  #new-project-button,
+  #duplicate-project-button,
+  #recovery-button {
     display: none;
+  }
+  .mobile-project-menu-button {
+    display: inline-flex;
   }
   .workspace-actions .icon-button {
     width: 36px;
@@ -470,9 +478,6 @@ progress {
   .brand-link span {
     display: none;
   }
-  .project-controls select {
-    display: none;
-  }
   .project-controls {
     min-width: 100px;
   }
@@ -481,16 +486,6 @@ progress {
   }
   .tool-nav a:not([aria-current='page']) {
     display: none;
-  }
-  #sample-button,
-  #clear-button,
-  #new-project-button,
-  #duplicate-project-button,
-  #recovery-button {
-    display: none;
-  }
-  .mobile-project-menu-button {
-    display: inline-flex;
   }
   .simulator-controls span {
     display: none;

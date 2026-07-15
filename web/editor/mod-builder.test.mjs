@@ -163,3 +163,14 @@ test('buildModArchive accepts dots within a safe asset filename', async () => {
   })
   assert.equal(isXsArchive(archive), true)
 })
+
+test('generated manifest and source take precedence over colliding embedded files', async () => {
+  const archive = await buildModArchive(createTools, {
+    modJs: 'export function onContextCreated() {}',
+    files: [
+      { path: 'manifest.json', bytes: new TextEncoder().encode('{ invalid json') },
+      { path: 'mod.js', bytes: new TextEncoder().encode('export function {{{ broken') },
+    ],
+  })
+  assert.equal(isXsArchive(archive), true)
+})

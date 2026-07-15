@@ -11,13 +11,14 @@ const HELPER_HEX_TO_RGB = `function hexToRgb(hex) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }`
 
-const HELPER_VISUAL_RUNTIME = `let visualLoopBudget = 10000
-function resetVisualLoopBudget() { visualLoopBudget = 10000 }
-function visualLoopGuard(blockId) {
-  if (--visualLoopBudget <= 0) {
-    const error = new Error('ループの実行上限を超えました')
-    error.visualBlockId = blockId
-    throw error
+const HELPER_VISUAL_RUNTIME = `function createVisualLoopGuard() {
+  let visualLoopBudget = 10000
+  return function visualLoopGuard(blockId) {
+    if (--visualLoopBudget <= 0) {
+      const error = new Error('ループの実行上限を超えました')
+      error.visualBlockId = blockId
+      throw error
+    }
   }
 }
 
@@ -57,16 +58,23 @@ function createVisualRuntime(robot) {
 const HELPER_ON_BUTTON = `function onButton(robot, name, edge, handler) {
   const button = robot.input.button?.[name]
   if (!button) return undefined
-  const previous = button.onEvent
-  ;(button.__handlers ??= {})[edge] = handler
+  const handlers = (button.__handlers ??= {})
+  const callbacks = (handlers[edge] ??= new Set())
+  callbacks.add(handler)
   if (!button.__visualWired) {
     button.__visualWired = true
-    button.onEvent = (event) => button.__handlers[event.pressed ? 'press' : 'release']?.(event) ?? previous?.(event)
+    button.__visualPrevious = button.onEvent
+    button.onEvent = (event) => {
+      for (const callback of [...(button.__handlers?.[event.pressed ? 'press' : 'release'] ?? [])]) callback(event)
+      button.__visualPrevious?.(event)
+    }
   }
   return () => {
-    delete button.__handlers?.[edge]
+    callbacks.delete(handler)
+    if (callbacks.size === 0) delete handlers[edge]
     if (Object.keys(button.__handlers ?? {}).length === 0) {
-      button.onEvent = previous
+      button.onEvent = button.__visualPrevious
+      delete button.__visualPrevious
       button.__visualWired = false
     }
   }
@@ -75,17 +83,24 @@ const HELPER_ON_BUTTON = `function onButton(robot, name, edge, handler) {
 const HELPER_ON_IMU = `function onImu(robot, motion, handler) {
   const imu = robot.input.imu
   if (!imu) return undefined
-  const previous = imu.onEvent
-  ;(imu.__handlers ??= {})[motion] = handler
+  const handlers = (imu.__handlers ??= {})
+  const callbacks = (handlers[motion] ??= new Set())
+  callbacks.add(handler)
   if (!imu.__visualWired) {
     imu.__visualWired = true
-    imu.onEvent = (event) => imu.__handlers[event.motion]?.(event) ?? previous?.(event)
+    imu.__visualPrevious = imu.onEvent
+    imu.onEvent = (event) => {
+      for (const callback of [...(imu.__handlers?.[event.motion] ?? [])]) callback(event)
+      imu.__visualPrevious?.(event)
+    }
     imu.start?.()
   }
   return () => {
-    delete imu.__handlers?.[motion]
+    callbacks.delete(handler)
+    if (callbacks.size === 0) delete handlers[motion]
     if (Object.keys(imu.__handlers ?? {}).length === 0) {
-      imu.onEvent = previous
+      imu.onEvent = imu.__visualPrevious
+      delete imu.__visualPrevious
       imu.__visualWired = false
     }
   }
@@ -94,16 +109,23 @@ const HELPER_ON_IMU = `function onImu(robot, motion, handler) {
 const HELPER_ON_TOUCH_PANEL = `function onTouchPanel(robot, gesture, handler) {
   const panel = robot.input.touchPanel
   if (!panel) return undefined
-  const previous = panel.onEvent
-  ;(panel.__handlers ??= {})[gesture] = handler
+  const handlers = (panel.__handlers ??= {})
+  const callbacks = (handlers[gesture] ??= new Set())
+  callbacks.add(handler)
   if (!panel.__visualWired) {
     panel.__visualWired = true
-    panel.onEvent = (event) => panel.__handlers[event.gesture]?.(event) ?? previous?.(event)
+    panel.__visualPrevious = panel.onEvent
+    panel.onEvent = (event) => {
+      for (const callback of [...(panel.__handlers?.[event.gesture] ?? [])]) callback(event)
+      panel.__visualPrevious?.(event)
+    }
   }
   return () => {
-    delete panel.__handlers?.[gesture]
+    callbacks.delete(handler)
+    if (callbacks.size === 0) delete handlers[gesture]
     if (Object.keys(panel.__handlers ?? {}).length === 0) {
-      panel.onEvent = previous
+      panel.onEvent = panel.__visualPrevious
+      delete panel.__visualPrevious
       panel.__visualWired = false
     }
   }
@@ -136,7 +158,7 @@ export function assembleModSource(body) {
   if (imports.length) sections.push(imports.join('\n'))
   if (helpers.length) sections.push(helpers.join('\n\n'))
   sections.push(
-    `export async function onContextCreated(robot) {\n  const runtime = createVisualRuntime(robot)\n${indentedBody}\n}`
+    `export async function onContextCreated(robot) {\n  const runtime = createVisualRuntime(robot)\n  const visualLoopGuard = createVisualLoopGuard()\n${indentedBody}\n}`
   )
   return `${sections.join('\n\n')}\n`
 }
@@ -542,8 +564,8 @@ function eventHandler(body, errorTag, blockId, param = 'event') {
   const indented = body.replace(/^/gm, '  ')
   return (
     `(${param}) => {\n` +
-    `  resetVisualLoopBudget()\n` +
-    `  void (async () => {\n${indented}\n` +
+    `  void (async () => {\n` +
+    `    const visualLoopGuard = createVisualLoopGuard()\n${indented}\n` +
     `  })().catch((error) => reportVisualError('VP_RUNTIME_HANDLER', '${escapeSingleQuoted(blockId)}', error, '${escapeSingleQuoted(errorTag)}'))\n` +
     `}`
   )
@@ -560,7 +582,7 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
 
   forBlock['stackchan_on_start'] = (block, gen) => {
     const body = asyncHandlerBody(gen, block)
-    return `resetVisualLoopBudget()\n;(async () => {\n${body}\n})().catch((error) => reportVisualError('VP_RUNTIME_START', '${escapeSingleQuoted(block.id)}', error))\n`
+    return `;(async () => {\n  const visualLoopGuard = createVisualLoopGuard()\n${body}\n})().catch((error) => reportVisualError('VP_RUNTIME_START', '${escapeSingleQuoted(block.id)}', error))\n`
   }
 
   forBlock['stackchan_on_button'] = (block, gen) => {
@@ -599,8 +621,8 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
     const timerName = `visualTimer_${String(block.id).replace(/[^A-Za-z0-9_$]/g, '_')}`
     return (
       `const ${timerName} = Timer.repeat(() => {\n` +
-      `  resetVisualLoopBudget()\n` +
-      `  void (async () => {\n${body.replace(/^/gm, '  ')}\n` +
+      `  void (async () => {\n` +
+      `    const visualLoopGuard = createVisualLoopGuard()\n${body.replace(/^/gm, '  ')}\n` +
       `  })().catch((error) => reportVisualError('VP_RUNTIME_TIMER', '${escapeSingleQuoted(block.id)}', error))\n` +
       `}, ${interval})\n` +
       `runtime.add(() => Timer.clear(${timerName}))\n`

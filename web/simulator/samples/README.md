@@ -21,12 +21,13 @@ export async function onContextCreated(robot) {
 }
 ```
 
-To rebuild it:
+To rebuild it with Moddable SDK 8.3.1, use the release configuration so the
+archive does not embed host-specific source paths:
 
 ```sh
 cd web/simulator/samples
-mcrun -d -m ./sample-mod/manifest.json
-cp "$MODDABLE/build/bin/lin/mc/debug/sample-mod/mc.xsa" ./stackchan-sample-mod.xsa
+mcrun -m ./sample-mod/manifest.json
+cp "$MODDABLE/build/bin/lin/mc/release/sample-mod/mc.xsa" ./stackchan-sample-mod.xsa
 ```
 
 The file is intended for exercising download/upload/persistence and launch-archive plumbing; it is not a production MOD example. After installing it and clicking **Restart simulator**, the face colors should change to cyan/pink and a `sample .xsa OK` balloon should appear.

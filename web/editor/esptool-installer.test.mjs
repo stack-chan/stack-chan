@@ -3,6 +3,7 @@ import { test } from 'node:test'
 
 import {
   bytesToBinaryString,
+  DEVICE_OPERATION_STATUS,
   findXsPartition,
   findAppPartition,
   installModToDevice,
@@ -42,7 +43,7 @@ const CORES3_TABLE = makePartitionTable([
   { type: 0x01, subtype: 0x82, offset: 0xfe0000, size: 0x10000, label: 'storage' },
 ])
 
-function makeAppHeader(version = '8.3.0-1-gabcdef', projectName = 'xs_esp32') {
+function makeAppHeader(version = '8.3.1', projectName = 'xs_esp32') {
   const bytes = new Uint8Array(256)
   const view = new DataView(bytes.buffer)
   view.setUint32(0x20, 0xabcd5432, true)
@@ -74,7 +75,7 @@ test('findXsPartition locates the mod partition by type/subtype', () => {
 test('reads the factory app descriptor used for firmware/XS compatibility checks', () => {
   assert.equal(findAppPartition(parsePartitionTable(CORES3_TABLE)).offset, 0x10000)
   assert.deepEqual(parseEspAppDescriptor(makeAppHeader()), {
-    version: '8.3.0-1-gabcdef',
+    version: '8.3.1',
     projectName: 'xs_esp32',
   })
   assert.equal(parseEspAppDescriptor(new Uint8Array(256)), null)
@@ -103,7 +104,7 @@ test('bytesToBinaryString preserves every byte value', () => {
   )
 })
 
-test('installModToDevice never writes when preflight is rejected', async () => {
+test('installModToDevice returns cancellation without writing when preflight is rejected', async () => {
   const calls = []
   const fakeLoader = {
     transport: {
@@ -123,10 +124,11 @@ test('installModToDevice never writes when preflight is rejected', async () => {
       calls.push('write')
     },
   }
-  await assert.rejects(
-    installModToDevice(async () => fakeLoader, {}, makeArchive(), { onPreflight: () => false }),
-    /キャンセル/
-  )
+  const result = await installModToDevice(async () => fakeLoader, {}, makeArchive(), {
+    onPreflight: () => false,
+  })
+  assert.equal(result.status, DEVICE_OPERATION_STATUS.CANCELLED)
+  assert.equal(result.operation, 'install')
   assert.deepEqual(calls, ['disconnect'])
 })
 
@@ -172,7 +174,7 @@ test('installModToDevice reads the table, targets the xs offset, and resets', as
   )
   assert.equal(progress, 1)
   assert.equal(result.verified, true)
-  assert.deepEqual(preflight.firmware, { version: '8.3.0-1-gabcdef', projectName: 'xs_esp32' })
+  assert.deepEqual(preflight.firmware, { version: '8.3.1', projectName: 'xs_esp32' })
 })
 
 test('installModToDevice does not reboot when readback verification fails', async () => {
@@ -286,7 +288,97 @@ test('removeModFromDevice clears the first xs sector and reboots', async () => {
   assert.equal(calls[0].address, 0xfa0000)
   assert.equal(calls[0].data.length, 4096)
   assert.equal(calls[1], 'reset')
-  assert.equal(preflight.firmware.version, '8.3.0-1-gabcdef')
+  assert.equal(preflight.firmware.version, '8.3.1')
   assert.deepEqual(backup, existing)
   assert.equal(result.verified, true)
+})
+
+test('removeModFromDevice returns cancellation without writing', async () => {
+  const calls = []
+  const fakeLoader = {
+    transport: {
+      async disconnect() {
+        calls.push('disconnect')
+      },
+    },
+    async main() {
+      return 'ESP32-S3'
+    },
+    async readFlash(address) {
+      if (address === PARTITION_TABLE_OFFSET) return CORES3_TABLE
+      if (address === 0x10000) return makeAppHeader()
+      throw new Error(`unexpected read: 0x${address.toString(16)}`)
+    },
+    async writeFlash() {
+      calls.push('write')
+    },
+  }
+
+  const result = await removeModFromDevice(async () => fakeLoader, {}, { onPreflight: () => false })
+  assert.equal(result.status, DEVICE_OPERATION_STATUS.CANCELLED)
+  assert.equal(result.operation, 'remove')
+  assert.deepEqual(calls, ['disconnect'])
+})
+
+test('removeModFromDevice rejects an xs partition smaller than the blank archive', async () => {
+  const tinyXsTable = makePartitionTable([
+    { type: 0x00, subtype: 0x00, offset: 0x10000, size: 0x100000, label: 'factory' },
+    { type: 0x40, subtype: 0x01, offset: 0x110000, size: 2048, label: 'xs' },
+  ])
+  const calls = []
+  const fakeLoader = {
+    async main() {
+      return 'ESP32-S3'
+    },
+    async readFlash(address) {
+      if (address === PARTITION_TABLE_OFFSET) return tinyXsTable
+      throw new Error(`unexpected read: 0x${address.toString(16)}`)
+    },
+    async writeFlash() {
+      calls.push('write')
+    },
+  }
+
+  await assert.rejects(
+    removeModFromDevice(async () => fakeLoader, {}),
+    /xsパーティションが小さすぎます/
+  )
+  assert.deepEqual(calls, [])
+})
+
+test('removeModFromDevice reports reset failure without losing verified success', async () => {
+  const logs = []
+  const prompts = []
+  let wrote = false
+  const fakeLoader = {
+    async main() {
+      return 'ESP32-S3'
+    },
+    async readFlash(address, size) {
+      if (address === PARTITION_TABLE_OFFSET) return CORES3_TABLE
+      if (address === 0x10000) return makeAppHeader()
+      if (address === 0xfa0000 && wrote) return new Uint8Array(size).fill(0xff)
+      if (address === 0xfa0000 && size === 32) return new Uint8Array(size).fill(0xff)
+      throw new Error(`unexpected read: 0x${address.toString(16)} / ${size}`)
+    },
+    async writeFlash() {
+      wrote = true
+    },
+    async resetToRunApp() {
+      throw new Error('USB reset unavailable')
+    },
+  }
+
+  const result = await removeModFromDevice(
+    async () => fakeLoader,
+    {},
+    {
+      onLog: (message) => logs.push(message),
+      onPrompt: (message) => prompts.push(message),
+    }
+  )
+  assert.equal(result.status, DEVICE_OPERATION_STATUS.REMOVED)
+  assert.equal(result.verified, true)
+  assert.match(logs.at(-1), /自動リセットに失敗/)
+  assert.match(prompts.at(-1), /RESETボタン/)
 })

@@ -67,7 +67,8 @@ test('assembleModSource wraps the body in onContextCreated', () => {
   assert.match(source, /export async function onContextCreated\(robot\) \{/)
   assert.match(source, /^  robot\.face\.setEmotion\(Emotion\.HAPPY\)$/m)
   assert.match(source, /import \{ Emotion \} from 'face-state'/)
-  assert.match(source, /function visualLoopGuard\(blockId\)/)
+  assert.match(source, /function createVisualLoopGuard\(\)/)
+  assert.match(source, /return function visualLoopGuard\(blockId\)/)
 })
 
 test('assembleModSource only imports what the body uses', () => {
@@ -151,10 +152,44 @@ test('generated runtime clears timers on reload and enforces the loop budget', a
   robot.__visualProgram.dispose()
   assert.equal(active.size, 0)
 
-  const loopSource = assembleModSource(
-    'resetVisualLoopBudget()\nfor (let index = 0; index < 10001; index += 1) visualLoopGuard()\n'
-  )
+  const loopSource = assembleModSource('for (let index = 0; index < 10001; index += 1) visualLoopGuard()\n')
   await assert.rejects(evaluateModule(loopSource).onContextCreated({}), /ループの実行上限/)
+})
+
+test('overlapping event handlers keep independent loop budgets', async () => {
+  let releaseFirst
+  const firstGate = new Promise((resolve) => {
+    releaseFirst = resolve
+  })
+  const generator = {
+    forBlock: {},
+    statementToCode: (block) =>
+      block.id === 'first-event'
+        ? "for (let index = 0; index < 9999; index += 1) visualLoopGuard('first-loop')\nawait robot.firstGate\nvisualLoopGuard('first-loop')\n"
+        : '',
+  }
+  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, { NONE: 0, FUNCTION_CALL: 1, AWAIT: 2 })
+  const eventBlock = (id, button) => ({
+    id,
+    getFieldValue(name) {
+      return name === 'BUTTON' ? button : 'press'
+    },
+  })
+  const source = assembleModSource(
+    generator.forBlock.stackchan_on_button(eventBlock('first-event', 'a'), generator) +
+      generator.forBlock.stackchan_on_button(eventBlock('second-event', 'b'), generator)
+  )
+  const traces = []
+  const robot = { firstGate, input: { button: { a: {}, b: {} } } }
+  await evaluateModule(source, { trace: (line) => traces.push(line) }).onContextCreated(robot)
+
+  robot.input.button.a.onEvent({ pressed: true })
+  robot.input.button.b.onEvent({ pressed: true })
+  releaseFirst()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+
+  assert.equal(traces.length, 1)
+  assert.equal(JSON.parse(traces[0].replace(/^#stackchan /, '')).block_id, 'first-loop')
 })
 
 test('an event handler reports the exact loop block that exhausted its budget', async () => {
@@ -199,6 +234,62 @@ test('assembleModSource injects event dispatch helpers only when used', () => {
 
   const plain = assembleModSource('robot.ui.showFace()\n')
   assert.doesNotMatch(plain, /function onButton|function onImu|function onTouchPanel/)
+})
+
+test('event dispatch helpers preserve duplicate handlers and remove only their own callback', async () => {
+  const source = assembleModSource(`
+robot.removeFirstButton = onButton(robot, 'a', 'press', () => { robot.firstButton += 1 })
+robot.removeSecondButton = onButton(robot, 'a', 'press', () => { robot.secondButton += 1 })
+robot.removeFirstImu = onImu(robot, 'shake', () => { robot.firstImu += 1 })
+robot.removeSecondImu = onImu(robot, 'shake', () => { robot.secondImu += 1 })
+robot.removeFirstTouch = onTouchPanel(robot, 'tap', () => { robot.firstTouch += 1 })
+robot.removeSecondTouch = onTouchPanel(robot, 'tap', () => { robot.secondTouch += 1 })
+`)
+  const previousCalls = []
+  const previousButton = () => previousCalls.push('button')
+  const previousImu = () => previousCalls.push('imu')
+  const previousTouch = () => previousCalls.push('touch')
+  const robot = {
+    firstButton: 0,
+    secondButton: 0,
+    firstImu: 0,
+    secondImu: 0,
+    firstTouch: 0,
+    secondTouch: 0,
+    input: {
+      button: { a: { onEvent: previousButton } },
+      imu: { onEvent: previousImu },
+      touchPanel: { onEvent: previousTouch },
+    },
+  }
+  await evaluateModule(source).onContextCreated(robot)
+
+  robot.input.button.a.onEvent({ pressed: true })
+  robot.input.imu.onEvent({ motion: 'shake' })
+  robot.input.touchPanel.onEvent({ gesture: 'tap' })
+  assert.deepEqual(
+    [robot.firstButton, robot.secondButton, robot.firstImu, robot.secondImu, robot.firstTouch, robot.secondTouch],
+    [1, 1, 1, 1, 1, 1]
+  )
+  assert.deepEqual(previousCalls, ['button', 'imu', 'touch'])
+
+  robot.removeFirstButton()
+  robot.removeFirstImu()
+  robot.removeFirstTouch()
+  robot.input.button.a.onEvent({ pressed: true })
+  robot.input.imu.onEvent({ motion: 'shake' })
+  robot.input.touchPanel.onEvent({ gesture: 'tap' })
+  assert.deepEqual(
+    [robot.firstButton, robot.secondButton, robot.firstImu, robot.secondImu, robot.firstTouch, robot.secondTouch],
+    [1, 2, 1, 2, 1, 2]
+  )
+
+  robot.removeSecondButton()
+  robot.removeSecondImu()
+  robot.removeSecondTouch()
+  assert.equal(robot.input.button.a.onEvent, previousButton)
+  assert.equal(robot.input.imu.onEvent, previousImu)
+  assert.equal(robot.input.touchPanel.onEvent, previousTouch)
 })
 
 test('assembleModSource emits valid JavaScript for the new event blocks', () => {

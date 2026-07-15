@@ -69,6 +69,7 @@ const pages = [
 ]
 const viewports = [
   ['desktop', 1280, 800],
+  ['tablet', 600, 800],
   ['mobile', 390, 844],
 ]
 
@@ -95,6 +96,7 @@ try {
   for (const [viewportName, width, height] of viewports) {
     await page.setViewportSize({ width, height })
     for (const [pageName, pathname] of pages) {
+      if (viewportName === 'tablet' && pageName !== 'editor') continue
       if (pageName === 'editor' && viewportName === 'desktop') {
         await page.evaluate(
           (legacyWorkspace) =>
@@ -155,7 +157,13 @@ try {
             .filter(Boolean)
             .join(' ')
           if (labels) return labels
-          return element.textContent?.trim() || element.getAttribute('title')?.trim() || ''
+          if (element.matches('button, a[href], [role="tab"]')) {
+            return element.textContent?.trim() || element.getAttribute('title')?.trim() || ''
+          }
+          if (element instanceof HTMLInputElement && ['button', 'submit', 'reset'].includes(element.type)) {
+            return element.value.trim() || element.getAttribute('title')?.trim() || ''
+          }
+          return element.getAttribute('title')?.trim() || ''
         }
         // Long user-entered text in inputs scrolls horizontally by design; verify
         // fixed action labels and select values instead.
@@ -178,6 +186,7 @@ try {
           visibleHiddenElements: [...document.querySelectorAll('[hidden]')].filter(
             (element) => getComputedStyle(element).display !== 'none'
           ).length,
+          projectMenuButtonVisible: document.querySelector('#mobile-project-menu-button')?.getClientRects().length > 0,
           unnamedInteractive: accessibilityTargets
             .filter((element) => element.getClientRects().length > 0 && !accessibleName(element))
             .map((element) => element.id || element.outerHTML.slice(0, 120)),
@@ -201,6 +210,13 @@ try {
         [],
         `${pageName}/${viewportName}: every visible interactive element must have an accessible name`
       )
+      if (pageName === 'editor' && width <= 760) {
+        assert.equal(
+          layout.projectMenuButtonVisible,
+          true,
+          `${pageName}/${viewportName}: hidden project actions must have a visible menu`
+        )
+      }
       await page.screenshot({
         path: `/tmp/stackchan-${pageName}-${viewportName}.png`,
         fullPage: true,
@@ -526,6 +542,32 @@ try {
         })
         assert.match(runtimeSelection.rootClass ?? '', /blocklySelected/, JSON.stringify(runtimeSelection))
         await page.locator('#simulator-close').click()
+
+        await page.evaluate(() => {
+          const generator = globalThis.javascript?.javascriptGenerator
+          globalThis.__stackchanOriginalWorkspaceToCode = generator.workspaceToCode
+          generator.workspaceToCode = () => {
+            throw new Error('forced generation failure')
+          }
+        })
+        await page.locator('#build-button').click()
+        await page.locator('.diagnostic-code').filter({ hasText: 'VP_CODE_GENERATION_FAILED' }).waitFor()
+        assert.match(await page.locator('#code-preview').innerText(), /forced generation failure/)
+        assert.equal(await page.locator('#build-button').isEnabled(), false, 'generation failure disables stale build')
+        assert.equal(
+          await page.locator('#install-simulator-button').isEnabled(),
+          false,
+          'generation failure invalidates the previous archive'
+        )
+        await page.evaluate(() => {
+          const generator = globalThis.javascript?.javascriptGenerator
+          generator.workspaceToCode = globalThis.__stackchanOriginalWorkspaceToCode
+          delete globalThis.__stackchanOriginalWorkspaceToCode
+          document.querySelector('#target-device').dispatchEvent(new Event('change', { bubbles: true }))
+        })
+        await page.waitForFunction(
+          () => !document.querySelector('#code-preview')?.textContent.includes('forced generation failure')
+        )
 
         const fileChooserPromise = page.waitForEvent('filechooser')
         await page.locator('#import-button').click()

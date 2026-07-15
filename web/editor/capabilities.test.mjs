@@ -38,6 +38,15 @@ test('deployment compatibility checks chip family and exact XS archive version',
     wrongXs.diagnostics.map((item) => item.code),
     ['VP_XS_VERSION_MISMATCH']
   )
+  const malformedXs = inspectDeploymentCompatibility('m5stackchan-cores3', {
+    chip: 'ESP32-S3',
+    xsVersion: '17.8.0',
+  })
+  assert.deepEqual(
+    malformedXs.diagnostics.map((item) => item.code),
+    ['VP_XS_VERSION_MISMATCH']
+  )
+  assert.match(malformedXs.diagnostics[0].message, /MODはXS 不明です/)
   const wrongFirmware = inspectDeploymentCompatibility('m5stackchan-cores3', {
     chip: 'ESP32-S3',
     xsVersion: [17, 8, 0],

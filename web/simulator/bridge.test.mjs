@@ -47,6 +47,26 @@ describe('Host.Button bridge', () => {
     assert.doesNotThrow(() => bridge.push('x'))
     assert.equal(bridge.read('x'), undefined)
   })
+
+  it('keeps a repeated push pressed until the latest release timeout', () => {
+    const scheduled = []
+    const edges = []
+    const bridge = createHostButtonBridge({
+      logger: () => {},
+      setTimeoutFn: (callback) => scheduled.push(callback),
+    })
+    new bridge.Button.a({ onPush: () => edges.push(bridge.read('a')) })
+
+    bridge.push('a')
+    bridge.push('a')
+    scheduled[0]()
+    assert.equal(bridge.read('a'), 1)
+    assert.deepEqual(edges, [1, 1])
+
+    scheduled[1]()
+    assert.equal(bridge.read('a'), 0)
+    assert.deepEqual(edges, [1, 1, 0])
+  })
 })
 
 describe('WASM screen diagnostics', () => {

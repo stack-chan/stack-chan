@@ -21,7 +21,11 @@ if [[ "$EMCC_VERSION_LINE" != *" $EXPECTED_EMSCRIPTEN_VERSION "* ]]; then
   exit 1
 fi
 
-make -C "$MODDABLE/build/makefiles/wasm" -f tools.mk GOAL=release \
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+MAKE_DIR="$MODDABLE/build/makefiles/wasm"
+make -C "$MAKE_DIR" -f tools.mk clean GOAL=release
+make -C "$MAKE_DIR" -f tools.mk GOAL=release \
+  XSC="$SCRIPT_DIR/xsc-without-debug-paths.sh" \
   LINK_FLAGS="-s ENVIRONMENT=web,node -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORT_NAME=tools -s INVOKE_RUN=0 -s FORCE_FILESYSTEM=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s EXIT_RUNTIME=0 -s \"EXPORTED_RUNTIME_METHODS=['FS','cwrap','ccall','callMain','ENV']\""
 
 cp "$MODDABLE/build/bin/wasm/release/tools.js" "$MODDABLE/build/bin/wasm/release/tools.wasm" \

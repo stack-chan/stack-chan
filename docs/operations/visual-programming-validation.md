@@ -74,7 +74,7 @@ npm run metrics:aggregate -- participant-1.json participant-2.json
 - Moddable SDK 8.3.1とEmscripten 5.0.1から、WASM入力ブリッジを含むシミュレーターファームウェアを再生成した。
 - Moddable SDK 8.3.1とEmscripten 5.0.1からブラウザ用ビルドツールを再生成し、追跡済み成果物と一致することを確認した。
 - 配信ワークフローでもブラウザ用ビルドツールを再生成し、完全性検査と追跡済み成果物との差分検査に合格した場合だけ公開処理へ進むようにした。
-- ブラウザ用ビルドツールをEmscripten 5.0.1で2回再生成し、`tools.js`のSHA-256が`f24188a0ef7ac675a52724e028e1a8d18436b1b57436702c2797d7aa1d810157`、`tools.wasm`が`ad6b9171de85a7a6d3b7c7738c30d49669ca1a05f1b0bcfe005facf6e8b600a2`で再現することを確認した。
+- ブラウザ用ビルドツールをEmscripten 5.0.1で2回再生成し、`tools.js`のSHA-256が`f24188a0ef7ac675a52724e028e1a8d18436b1b57436702c2797d7aa1d810157`、`tools.wasm`が`491eda86686136659670bd5428ec68cdd1c6d8dee4ef2a641d7d606bf3d0e21a`で再現することを確認した。
 - `m5stack_cores3`、`m5stackchan_cores3`、`stackchan_rt`、`takao_core2_sg90`のターゲットビルドが成功した。
 - Moddable SDK 8.3.1でCoreS3 WebRadioを追加した`develop`へ追従した後も`m5stackchan_cores3`のビルドが成功し、app partitionは74%空いていることを確認した。
 - Web依存関係の監査結果は脆弱性0件だった。

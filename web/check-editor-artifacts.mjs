@@ -19,6 +19,7 @@ const [
   bundleWorkflow,
   simulatorBuildScript,
   editorToolsBuildScript,
+  editorToolsXscWrapper,
   setupAction,
   homeHtml,
   tutorialHtml,
@@ -38,6 +39,7 @@ const [
   readFile(new URL('../.github/workflows/bundle.yml', import.meta.url), 'utf8'),
   readFile(new URL('../firmware/scripts/build-wasm.sh', import.meta.url), 'utf8'),
   readFile(new URL('../firmware/scripts/build-editor-tools.sh', import.meta.url), 'utf8'),
+  readFile(new URL('../firmware/scripts/xsc-without-debug-paths.sh', import.meta.url), 'utf8'),
   readFile(new URL('../.github/actions/setup/action.yml', import.meta.url), 'utf8'),
   readFile(new URL('./index.html', import.meta.url), 'utf8'),
   readFile(new URL('./editor/tutorial.html', import.meta.url), 'utf8'),
@@ -45,6 +47,13 @@ const [
 ])
 
 assert.deepEqual([...toolsWasm.subarray(0, 4)], [0, 0x61, 0x73, 0x6d], 'tools.wasm must be a WebAssembly module')
+for (const absoluteHomePrefix of ['/home/', '/Users/']) {
+  assert.equal(
+    toolsWasm.includes(Buffer.from(absoluteHomePrefix)),
+    false,
+    `tools.wasm must not embed a build host path beginning with ${absoluteHomePrefix}`
+  )
+}
 assert.equal(
   createHash('sha384').update(esptoolBundle).digest('hex'),
   'f1474e04de7e5849e77d6c1650e487b1c604b356919fbd25a8b7720dccab333aee1c30dfdbb26789394ddb06ec3c8bde',
@@ -113,6 +122,11 @@ assert.ok(
   setupAction.includes(`version: ${emscriptenVersion}`),
   `setup action must install Emscripten ${emscriptenVersion}`
 )
+assert.ok(
+  editorToolsBuildScript.includes('XSC="$SCRIPT_DIR/xsc-without-debug-paths.sh"'),
+  'editor tools build must use the deterministic xsc wrapper'
+)
+assert.match(editorToolsXscWrapper, /\[\[ "\$arg" != "-d" \]\]/)
 for (const [name, source] of [
   ['build workflow', buildWorkflow],
   ['bundle workflow', bundleWorkflow],

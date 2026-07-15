@@ -203,8 +203,6 @@ if (!Blockly || !javascriptGenerator) {
 }
 
 registerStackchanBlocks(Blockly, javascriptGenerator, Order)
-javascriptGenerator.INFINITE_LOOP_TRAP = 'visualLoopGuard(%1);\n'
-javascriptGenerator.addReservedWords('robot,Timer,Emotion,wait,randomBetween,hexToRgb,trace')
 
 const workspace = Blockly.inject(workspaceHost, {
   toolbox: TOOLBOX,

@@ -6,6 +6,25 @@
  * (start / button / interval) register handlers on the robot context.
  */
 
+export const VISUAL_RUNTIME_RESERVED_WORDS = Object.freeze([
+  'robot',
+  'Timer',
+  'Emotion',
+  'wait',
+  'randomBetween',
+  'hexToRgb',
+  'trace',
+  'createVisualLoopGuard',
+  'visualLoopGuard',
+  'reportVisualError',
+  'createVisualRuntime',
+  'runtime',
+  'onButton',
+  'onImu',
+  'onTouchPanel',
+  'event',
+])
+
 const HELPER_HEX_TO_RGB = `function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16)
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
@@ -40,6 +59,10 @@ function createVisualRuntime(robot) {
     add(disposer) {
       if (typeof disposer === 'function') disposers.push(disposer)
       return disposer
+    },
+    addTimer(timer) {
+      runtime.add(() => Timer.clear(timer))
+      return timer
     },
     dispose() {
       while (disposers.length) {
@@ -576,6 +599,7 @@ function eventHandler(body, errorTag, blockId, param = 'event') {
  * `Blockly` is the UMD global; `generator` is javascript.javascriptGenerator.
  */
 export function registerStackchanBlocks(Blockly, generator, Order) {
+  configureVisualGenerator(generator)
   Blockly.defineBlocksWithJsonArray(BLOCK_DEFINITIONS)
 
   const forBlock = generator.forBlock ?? generator
@@ -618,14 +642,12 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
     const seconds = Number(block.getFieldValue('SECONDS'))
     const interval = Math.max(1, Math.round(seconds * 1000))
     const body = asyncHandlerBody(gen, block)
-    const timerName = `visualTimer_${String(block.id).replace(/[^A-Za-z0-9_$]/g, '_')}`
     return (
-      `const ${timerName} = Timer.repeat(() => {\n` +
+      `runtime.addTimer(Timer.repeat(() => {\n` +
       `  void (async () => {\n` +
       `    const visualLoopGuard = createVisualLoopGuard()\n${body.replace(/^/gm, '  ')}\n` +
       `  })().catch((error) => reportVisualError('VP_RUNTIME_TIMER', '${escapeSingleQuoted(block.id)}', error))\n` +
-      `}, ${interval})\n` +
-      `runtime.add(() => Timer.clear(${timerName}))\n`
+      `}, ${interval}))\n`
     )
   }
 
@@ -726,6 +748,11 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
   registerAsyncProcedureGenerators(generator, Order)
 }
 
+export function configureVisualGenerator(generator) {
+  generator.INFINITE_LOOP_TRAP = 'visualLoopGuard(%1);\n'
+  generator.addReservedWords?.(VISUAL_RUNTIME_RESERVED_WORDS.join(','))
+}
+
 export function registerAsyncProcedureGenerators(generator, Order) {
   const forBlock = generator.forBlock ?? generator
   const definition = (block, gen) => {
@@ -743,7 +770,7 @@ export function registerAsyncProcedureGenerators(generator, Order) {
     let returnValue = block.getInput('RETURN') ? gen.valueToCode(block, 'RETURN', Order.NONE) || '' : ''
     const suffixBeforeReturn = branch && returnValue ? prefix : ''
     if (returnValue) returnValue = `${gen.INDENT}return ${returnValue};\n`
-    const args = block.getVars().map((variable) => gen.getVariableName(variable))
+    const args = ['visualLoopGuard', ...block.getVars().map((variable) => gen.getVariableName(variable))]
     let code =
       `async function ${functionName}(${args.join(', ')}) {\n` +
       prefix +
@@ -761,7 +788,10 @@ export function registerAsyncProcedureGenerators(generator, Order) {
   forBlock.procedures_defnoreturn = definition
   forBlock.procedures_callreturn = (block, gen) => {
     const functionName = gen.getProcedureName(block.getFieldValue('NAME'))
-    const args = block.getVars().map((_variable, index) => gen.valueToCode(block, `ARG${index}`, Order.NONE) || 'null')
+    const args = [
+      'visualLoopGuard',
+      ...block.getVars().map((_variable, index) => gen.valueToCode(block, `ARG${index}`, Order.NONE) || 'null'),
+    ]
     return [`await ${functionName}(${args.join(', ')})`, Order.AWAIT ?? Order.FUNCTION_CALL]
   }
   forBlock.procedures_callnoreturn = (block, gen) => {

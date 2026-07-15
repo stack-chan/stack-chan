@@ -62,6 +62,34 @@ test('education blocks do not expose arbitrary JavaScript input', () => {
   )
 })
 
+test('generator reserves every identifier injected into the visual runtime scope', () => {
+  let reservedWords = ''
+  const generator = {
+    forBlock: {},
+    addReservedWords(words) {
+      reservedWords = words
+    },
+  }
+
+  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, { NONE: 0, FUNCTION_CALL: 1, AWAIT: 2 })
+
+  assert.equal(generator.INFINITE_LOOP_TRAP, 'visualLoopGuard(%1);\n')
+  const reserved = new Set(reservedWords.split(','))
+  for (const name of [
+    'runtime',
+    'visualLoopGuard',
+    'createVisualRuntime',
+    'createVisualLoopGuard',
+    'reportVisualError',
+    'onButton',
+    'onImu',
+    'onTouchPanel',
+    'event',
+  ]) {
+    assert.equal(reserved.has(name), true, `${name} must be reserved`)
+  }
+})
+
 test('assembleModSource wraps the body in onContextCreated', () => {
   const source = assembleModSource('robot.face.setEmotion(Emotion.HAPPY)\n')
   assert.match(source, /export async function onContextCreated\(robot\) \{/)
@@ -140,9 +168,10 @@ test('generated runtime clears timers on reload and enforces the loop budget', a
       active.delete(token)
     },
   }
-  const timerSource = assembleModSource(
-    'const visualTimer = Timer.repeat(() => {}, 1000)\nruntime.add(() => Timer.clear(visualTimer))\n'
-  ).replace("import Timer from 'timer'", '')
+  const timerSource = assembleModSource('runtime.addTimer(Timer.repeat(() => {}, 1000))\n').replace(
+    "import Timer from 'timer'",
+    ''
+  )
   const { onContextCreated } = evaluateModule(timerSource, { Timer })
   const robot = {}
   await onContextCreated(robot)
@@ -217,6 +246,63 @@ test('an event handler reports the exact loop block that exhausted its budget', 
   assert.equal(diagnostic.error_code, 'VP_RUNTIME_HANDLER')
   assert.equal(diagnostic.block_id, 'loop-id')
   assert.match(diagnostic.message, /^button a: Error: ループの実行上限/)
+})
+
+test('procedures inherit a fresh loop budget from each event invocation', async () => {
+  const generator = {
+    forBlock: {},
+    definitions_: {},
+    INDENT: '  ',
+    addReservedWords() {},
+    getProcedureName: (name) => name,
+    getVariableName: (name) => name,
+    injectId: (template, block) => template.replace('%1', `'${block.id}'`),
+    prefixLines: (text, prefix) => text.replace(/^(?!$)/gm, prefix),
+    statementToCode: (block) => {
+      if (block.id === 'procedure-definition') {
+        return "  for (let index = 0; index < 9998; index += 1) visualLoopGuard('procedure-loop')\n"
+      }
+      return generator.forBlock.procedures_callnoreturn(
+        {
+          getFieldValue: () => 'guardedProcedure',
+          getVars: () => [],
+        },
+        generator
+      )
+    },
+    valueToCode: () => '',
+    scrub_: (_block, code) => code,
+  }
+  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, { NONE: 0, FUNCTION_CALL: 1, AWAIT: 2 })
+
+  const definition = {
+    id: 'procedure-definition',
+    getFieldValue: () => 'guardedProcedure',
+    getInput: (name) => name === 'STACK',
+    getVars: () => [],
+  }
+  generator.forBlock.procedures_defnoreturn(definition, generator)
+  assert.match(generator.definitions_['%guardedProcedure'], /^async function guardedProcedure\(visualLoopGuard\)/)
+
+  const eventBlock = {
+    id: 'event-id',
+    getFieldValue(name) {
+      return name === 'BUTTON' ? 'a' : 'press'
+    },
+  }
+  const body =
+    `${generator.definitions_['%guardedProcedure']}\n` + generator.forBlock.stackchan_on_button(eventBlock, generator)
+  const source = assembleModSource(body)
+  const traces = []
+  const robot = { input: { button: { a: {} } } }
+  await evaluateModule(source, { trace: (line) => traces.push(line) }).onContextCreated(robot)
+
+  robot.input.button.a.onEvent({ pressed: true })
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  robot.input.button.a.onEvent({ pressed: true })
+  await new Promise((resolve) => setTimeout(resolve, 0))
+
+  assert.deepEqual(traces, [])
 })
 
 test('assembleModSource injects event dispatch helpers only when used', () => {
@@ -354,13 +440,13 @@ test('procedure generators are async so speech and wait blocks remain valid insi
     getVars: () => ['count'],
   }
   generator.forBlock.procedures_defreturn(definition, generator)
-  assert.match(generator.definitions_['%greet'], /^async function greet\(count\)/)
+  assert.match(generator.definitions_['%greet'], /^async function greet\(visualLoopGuard, count\)/)
   assert.match(generator.definitions_['%greet'], /await robot\.audio\.say/)
 
   const call = {
     getFieldValue: () => 'greet',
     getVars: () => ['count'],
   }
-  assert.deepEqual(generator.forBlock.procedures_callreturn(call, generator), ['await greet(42)', 4])
-  assert.equal(generator.forBlock.procedures_callnoreturn(call, generator), 'await greet(42);\n')
+  assert.deepEqual(generator.forBlock.procedures_callreturn(call, generator), ['await greet(visualLoopGuard, 42)', 4])
+  assert.equal(generator.forBlock.procedures_callnoreturn(call, generator), 'await greet(visualLoopGuard, 42);\n')
 })

@@ -4,19 +4,24 @@ import { test } from 'node:test'
 import { assembleModSource } from './blocks.mjs'
 import {
   buildModArchive,
+  buildDirectoryName,
+  DEFAULT_MOD_MANIFEST,
   detectToolsVersionMismatch,
   findFileWithSuffix,
   isXsArchive,
+  manifestForProjectAssets,
   xsArchiveVersion,
 } from './mod-builder.mjs'
 import createTools from './vendor/tools.js'
+import { profileFor } from './capabilities.mjs'
+import { applyFaceAssetToSource, createFaceAsset } from './face-assets.mjs'
 
 test('detectToolsVersionMismatch parses the TOOL warning', () => {
   const logs = [
     '### -p wasm',
-    'Moddable SDK tools mismatch between binary (8.3.0) and source (9.0.0)! Rebuilding tools.',
+    'Moddable SDK tools mismatch between binary (8.3.1) and source (9.0.0)! Rebuilding tools.',
   ]
-  assert.equal(detectToolsVersionMismatch(logs), '8.3.0')
+  assert.equal(detectToolsVersionMismatch(logs), '8.3.1')
   assert.equal(detectToolsVersionMismatch(['no mismatch here']), null)
 })
 
@@ -24,6 +29,12 @@ test('findFileWithSuffix picks the first match', () => {
   const paths = ['/a/b.txt', '/a/mc.xsa', '/a/other.xsa']
   assert.equal(findFileWithSuffix(paths, '.xsa'), '/a/mc.xsa')
   assert.equal(findFileWithSuffix(paths, '.bin'), undefined)
+})
+
+test('project display names cannot escape the virtual build directory', () => {
+  assert.equal(buildDirectoryName('../秘密/../../etc'), 'etc')
+  assert.equal(buildDirectoryName('顔のMOD'), 'MOD')
+  assert.equal(buildDirectoryName('hello-world_2'), 'hello-world_2')
 })
 
 test('isXsArchive rejects non-archives', () => {
@@ -56,7 +67,7 @@ test('buildModArchive compiles a mod to a valid XS archive via wasm mcrun', asyn
   assert.ok(archive.length > 100, `archive too small: ${archive.length}`)
   assert.ok(isXsArchive(archive), 'archive must start with XS_A atom')
   const version = xsArchiveVersion(archive)
-  assert.ok(version && version[0] >= 17, `unexpected XS version: ${version}`)
+  assert.deepEqual(version, profileFor('m5stackchan-cores3').xsArchiveVersion)
   const text = logs.join('\n')
   assert.match(text, /mcrun/, 'log should include the mcrun invocation')
   assert.match(text, /xsa/, 'log should include the xsa archive step')
@@ -119,4 +130,71 @@ test('buildModArchive surfaces syntax errors from xsc', async () => {
       return true
     }
   )
+})
+
+test('buildModArchive embeds project assets through the standard MOD resources manifest', async () => {
+  const assets = [{ path: 'assets/faces/greeting.txt' }]
+  const archive = await buildModArchive(createTools, {
+    modJs: 'export function onContextCreated() {}',
+    name: 'assets',
+    manifest: manifestForProjectAssets(assets),
+    files: [{ path: assets[0].path, bytes: new TextEncoder().encode('hello') }],
+  })
+  assert.equal(isXsArchive(archive), true)
+})
+
+test('buildModArchive compiles a generated Shape Face implementation', async () => {
+  const source = applyFaceAssetToSource(
+    assembleModSource("robot.ui.showBalloon(String('Shape face ready'))\n"),
+    createFaceAsset({
+      name: '左右非対称フェイス',
+      emotion: 'HAPPY',
+      primary: '#30e0ff',
+      secondary: '#301020',
+      mouth: 0.65,
+      shape: {
+        eyes: {
+          left: { x: 42, y: 35, radius: 11, eyelidWidth: 30, eyelidHeight: 26 },
+          right: { x: 164, y: 42, radius: 6, eyelidWidth: 21, eyelidHeight: 18 },
+        },
+        mouth: { x: 106, y: 91, minWidth: 28, maxWidth: 110, minHeight: 5, maxHeight: 48 },
+      },
+    })
+  )
+  assert.match(source, /robot\.ui\.setFace/)
+  const archive = await buildModArchive(createTools, { modJs: source, name: 'shape-face' })
+  assert.equal(isXsArchive(archive), true)
+})
+
+test('manifestForProjectAssets omits resources when project embedding is disabled', () => {
+  assert.equal(manifestForProjectAssets([]), DEFAULT_MOD_MANIFEST)
+})
+
+test('buildModArchive rejects project files that escape the project directory', async () => {
+  await assert.rejects(
+    buildModArchive(createTools, {
+      modJs: 'export function onContextCreated() {}',
+      files: [{ path: '../secret', bytes: new Uint8Array([1]) }],
+    }),
+    /invalid project file path/
+  )
+})
+
+test('buildModArchive accepts dots within a safe asset filename', async () => {
+  const archive = await buildModArchive(createTools, {
+    modJs: 'export function onContextCreated() {}',
+    files: [{ path: 'assets/face..draft.txt', bytes: new TextEncoder().encode('safe') }],
+  })
+  assert.equal(isXsArchive(archive), true)
+})
+
+test('generated manifest and source take precedence over colliding embedded files', async () => {
+  const archive = await buildModArchive(createTools, {
+    modJs: 'export function onContextCreated() {}',
+    files: [
+      { path: 'manifest.json', bytes: new TextEncoder().encode('{ invalid json') },
+      { path: 'mod.js', bytes: new TextEncoder().encode('export function {{{ broken') },
+    ],
+  })
+  assert.equal(isXsArchive(archive), true)
 })

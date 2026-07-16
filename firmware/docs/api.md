@@ -68,6 +68,10 @@ MODs must check for `undefined` before attaching touch handlers.
 `context.connectivity.network?.ready` resolves to `connected`, `skipped`, or `failed`.
 Network-dependent MODs can await it and handle `skipped` or `failed` without importing host-internal network modules.
 
+`options.tail` in `context.ui.showBalloon(text, options)` accepts `top-left`, `top-right`, `bottom-left`, or
+`bottom-right`. When omitted, bottom placement uses `top-left`, while an explicit `top` position uses
+`bottom-left`.
+
 The legacy flat methods such as `context.say(...)`, `context.lookAt(...)`, `context.showBalloon(...)`, and `context.useTTS(...)` remain as compatibility shims for existing MODs.
 They are deprecated for new code and may be removed after the sample MODs and downstream MODs have moved to the namespaced API.
 

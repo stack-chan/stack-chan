@@ -73,6 +73,10 @@ MOD は touch handler を登録する前に `undefined` を確認してくださ
 `context.connectivity.network?.ready` は `connected`、`skipped`、`failed` のいずれかへ解決されます。
 network が必要な MOD は、host 内部の network module を import せずにこれを await し、`skipped` や `failed` を扱えます。
 
+`context.ui.showBalloon(text, options)` の `options.tail` では、吹き出しのトンガリを
+`top-left`、`top-right`、`bottom-left`、`bottom-right` から選べます。
+未指定時は、下配置なら `top-left`、`top` を指定した上配置なら `bottom-left` が選ばれます。
+
 `context.say(...)`、`context.lookAt(...)`、`context.showBalloon(...)`、`context.useTTS(...)` などの flat API は、既存 MOD 互換の shim として残しています。
 新規コードでは非推奨です。
 sample MOD と downstream MOD の移行後に削除対象になります。

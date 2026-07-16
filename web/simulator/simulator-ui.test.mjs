@@ -12,7 +12,6 @@ test('simulator exposes a browser camera start button for permission-gated getUs
   assert.match(script, /cameraBridge\.start\(\{ useBrowserCamera: true \}\)/)
 })
 
-
 test('does not render obsolete A-D demo buttons', () => {
   const html = readFileSync('simulator/index.html', 'utf8')
   const script = readFileSync('simulator/simulator.mjs', 'utf8')
@@ -30,4 +29,13 @@ test('does not render obsolete A-D demo buttons', () => {
   assert.equal(script.includes('setHtmlAction'), false)
   assert.match(script, /Button: buttonBridge\.Button/)
   assert.match(bridge, /createHostButtonBridge/)
+})
+
+test('reports simulator readiness only after app behaviors are initialized', () => {
+  const script = readFileSync('simulator/simulator.mjs', 'utf8')
+
+  assert.match(script, /#awaitFirmwareReady\(installation\.result\)\s+this\.launch\(installation\.pointer\)/)
+  assert.match(script, /includes\('\[main\] app behaviors ready'\)/)
+  assert.match(script, /this\.#reportReady\(this\.pendingReadyInstallation\)/)
+  assert.doesNotMatch(script, /this\.launch\(installation\.pointer\)\s+this\.#reportReady\(installation\.result\)/)
 })

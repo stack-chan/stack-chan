@@ -33,12 +33,6 @@ h2 {
   white-space: nowrap;
 }
 
-#simulator-info + .tool-nav {
-  margin-left: 0;
-  padding-left: 8px;
-  border-left: 1px solid var(--line);
-}
-
 .simulator-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -223,11 +217,6 @@ button:disabled {
   #simulator-info {
     max-width: 92px;
   }
-  #simulator-info + .tool-nav {
-    padding-left: 0;
-    border-left: 0;
-  }
-
   .simulator-layout {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(420px, 62vh) auto;

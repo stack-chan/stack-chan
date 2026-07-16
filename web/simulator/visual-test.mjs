@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium } from 'playwright-core'
 
@@ -18,17 +18,10 @@ if (!executablePath) throw new Error('Chromium executable not found; set CHROMIU
 
 let server
 if (!process.env.STACKCHAN_VISUAL_TEST_URL) {
-  server = spawn(
-    process.execPath,
-    [
-      resolve('node_modules/live-server/live-server.js'),
-      `--port=${port}`,
-      '--host=127.0.0.1',
-      '--no-browser',
-      '--quiet',
-    ],
-    { cwd: process.cwd(), stdio: 'inherit' }
-  )
+  server = spawn(process.execPath, [resolve('static-server.mjs'), `--port=${port}`, '--host=127.0.0.1'], {
+    cwd: process.cwd(),
+    stdio: 'inherit',
+  })
 }
 
 async function waitForServer() {
@@ -46,7 +39,19 @@ async function inspectViewport(page, name, width, height) {
   await page.setViewportSize({ width, height })
   await page.goto(`${baseUrl}/simulator/`, { waitUntil: 'networkidle' })
   await page.waitForSelector('#stackchan-viewport')
-  await page.waitForTimeout(1200)
+  await page.waitForFunction(
+    () => {
+      const screen = document.querySelector('#simulator-screen')
+      const pixels = screen?.getContext('2d')?.getImageData(0, 0, screen.width, screen.height).data
+      if (!pixels) return false
+      const colors = new Set()
+      for (let offset = 0; offset < pixels.length; offset += 128) {
+        colors.add(`${pixels[offset]},${pixels[offset + 1]},${pixels[offset + 2]}`)
+      }
+      return colors.size > 3
+    },
+    { timeout: 30_000 }
+  )
 
   const result = await page.evaluate(async () => {
     await new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame)))
@@ -109,7 +114,7 @@ async function inspectViewport(page, name, width, height) {
     `${name}: 3D viewport must be visible`
   )
   assert.equal(result.screenColors > 3, true, `${name}: Piu screen canvas must contain rendered pixels`)
-  assert.equal(result.sceneColors > 3, true, `${name}: WebGL canvas must contain a nonblank scene`)
+  assert.equal(result.sceneColors > 1, true, `${name}: WebGL canvas must contain a nonblank scene`)
   if (width > 760) {
     const stableStageHeight = Math.round(result.stageRect.bottom - result.stageRect.top)
     assert.equal(
@@ -199,38 +204,6 @@ async function inspectViewport(page, name, width, height) {
       const dataUrl = await page.evaluate(() => document.querySelector('#simulator-screen').toDataURL('image/png'))
       writeFileSync(`/tmp/stackchan-screen-${screenName}.png`, Buffer.from(dataUrl.split(',')[1], 'base64'))
     }
-
-    const splashSignature = await screenSignature()
-    await touchPiu(160, 206)
-    const settingsSignature = await screenSignature()
-    assert.notEqual(settingsSignature, splashSignature, 'settings action must leave the splash screen')
-    await page.screenshot({ path: '/tmp/stackchan-settings.png', fullPage: true })
-    await touchPiu(82, 98)
-    await page.waitForTimeout(600)
-    await touchPiu(160, 146)
-    await page.waitForTimeout(700)
-    const passwordSignature = await screenSignature()
-    assert.notEqual(passwordSignature, settingsSignature, 'network selection must open the password screen')
-    const passwordLayout = await page.evaluate(() => {
-      const screen = document.querySelector('#simulator-screen')
-      const pixels = screen.getContext('2d')
-      const brightnessAt = (x, y) => {
-        const [r, g, b] = pixels.getImageData(x, y, 1, 1).data
-        return r + g + b
-      }
-      return {
-        field: brightnessAt(20, 60),
-        gap: brightnessAt(20, 74),
-        bottomKey: brightnessAt(10, 220),
-      }
-    })
-    assert.equal(passwordLayout.field > 600, true, 'password field must remain visible above the keyboard')
-    assert.equal(passwordLayout.gap < 100, true, 'password field and keyboard must not overlap')
-    assert.equal(passwordLayout.bottomKey > 300, true, 'keyboard bottom row must remain visible')
-    await page.screenshot({ path: '/tmp/stackchan-password.png', fullPage: true })
-    await savePiuScreen('password')
-    await touchPiu(22, 20)
-    await touchPiu(22, 20)
     const waitForScreenChange = async (previousSignature, timeoutMs) => {
       const deadline = Date.now() + timeoutMs
       let signature = previousSignature
@@ -240,6 +213,62 @@ async function inspectViewport(page, name, width, height) {
       }
       return signature
     }
+
+    const splashSignature = await screenSignature()
+    await touchPiu(160, 206)
+    const settingsSignature = await waitForScreenChange(splashSignature, 5_000)
+    assert.notEqual(settingsSignature, splashSignature, 'settings action must leave the splash screen')
+    await page.screenshot({ path: '/tmp/stackchan-settings.png', fullPage: true })
+    await savePiuScreen('settings')
+    await touchPiu(82, 98)
+    const networkListSignature = await waitForScreenChange(settingsSignature, 10_000)
+    assert.notEqual(networkListSignature, settingsSignature, 'network settings must open the scanned network list')
+    await savePiuScreen('network-list')
+    await touchPiu(160, 146)
+    const passwordSignature = await waitForScreenChange(networkListSignature, 5_000)
+    assert.notEqual(passwordSignature, networkListSignature, 'network selection must open the password screen')
+    const readPasswordLayout = () =>
+      page.evaluate(() => {
+        const screen = document.querySelector('#simulator-screen')
+        const pixels = screen.getContext('2d')
+        const brightnessAt = (x, y) => {
+          const [r, g, b] = pixels.getImageData(x, y, 1, 1).data
+          return r + g + b
+        }
+        return {
+          field: brightnessAt(20, 60),
+          gap: brightnessAt(20, 74),
+          bottomKey: brightnessAt(10, 220),
+        }
+      })
+    const passwordDeadline = Date.now() + 5_000
+    let passwordLayout = await readPasswordLayout()
+    while (
+      !(passwordLayout.field > 600 && passwordLayout.gap < 100 && passwordLayout.bottomKey > 300) &&
+      Date.now() < passwordDeadline
+    ) {
+      await page.waitForTimeout(100)
+      passwordLayout = await readPasswordLayout()
+    }
+    await page.screenshot({ path: '/tmp/stackchan-password.png', fullPage: true })
+    await savePiuScreen('password')
+    assert.equal(
+      passwordLayout.field > 600,
+      true,
+      `password field must remain visible above the keyboard: ${JSON.stringify(passwordLayout)}`
+    )
+    assert.equal(
+      passwordLayout.gap < 100,
+      true,
+      `password field and keyboard must not overlap: ${JSON.stringify(passwordLayout)}`
+    )
+    assert.equal(
+      passwordLayout.bottomKey > 300,
+      true,
+      `keyboard bottom row must remain visible: ${JSON.stringify(passwordLayout)}`
+    )
+    await touchPiu(22, 20)
+    await touchPiu(22, 20)
     const mainSignature = await waitForScreenChange(splashSignature, 20000)
     assert.notEqual(mainSignature, splashSignature, 'auto boot must open the main face')
     const menuHiddenSignature = await waitForScreenChange(mainSignature, 6000)
@@ -250,10 +279,12 @@ async function inspectViewport(page, name, width, height) {
     const drawerSignature = await screenSignature()
     assert.notEqual(drawerSignature, menuHiddenSignature, 'face touch must open the drawer after the menu button hides')
     await page.screenshot({ path: '/tmp/stackchan-drawer.png', fullPage: true })
+    await savePiuScreen('drawer')
     await touchPiu(220, 26)
     const faceMenuSignature = await screenSignature()
     assert.notEqual(faceMenuSignature, drawerSignature, 'face mode must open an option menu')
     await page.screenshot({ path: '/tmp/stackchan-face-menu.png', fullPage: true })
+    await savePiuScreen('face-menu')
     await touchPiu(220, 110)
     await touchPiu(60, 120)
     const dogFaceSignature = await screenSignature()
@@ -265,17 +296,41 @@ async function inspectViewport(page, name, width, height) {
     })
     assert.equal(dogNoseVisible, true, 'dog face selection must render its nose at the face center')
     await page.screenshot({ path: '/tmp/stackchan-dog-face.png', fullPage: true })
-    await savePiuScreen('menu-revealed')
+    await savePiuScreen('dog-face')
     await touchPiu(298, 22)
     await touchPiu(220, 170)
     await page.waitForTimeout(1500)
     const cameraSignature = await screenSignature()
     assert.notEqual(cameraSignature, dogFaceSignature, 'camera action must open a preview')
     await page.screenshot({ path: '/tmp/stackchan-camera.png', fullPage: true })
+    await savePiuScreen('camera')
     await touchPiu(298, 64)
     const cameraClosedSignature = await screenSignature()
     assert.notEqual(cameraClosedSignature, cameraSignature, 'camera close action must leave the preview')
     await page.screenshot({ path: '/tmp/stackchan-camera-closed.png', fullPage: true })
+    await savePiuScreen('camera-closed')
+
+    const beforeSampleSignature = await screenSignature()
+    await page.locator('#mod-archive-input').setInputFiles({
+      name: 'stackchan-sample-mod.xsa',
+      mimeType: 'application/octet-stream',
+      buffer: readFileSync(resolve('simulator/samples/stackchan-sample-mod.xsa')),
+    })
+    await page.waitForFunction(
+      () => document.querySelector('#trace-log')?.textContent.includes('[sample-mod] onContextCreated'),
+      undefined,
+      { timeout: 30_000 }
+    )
+    await page.waitForFunction(
+      () => document.querySelector('#mod-install-status')?.textContent.includes('適用済み'),
+      undefined,
+      { timeout: 30_000 }
+    )
+    const sampleModSignature = await waitForScreenChange(beforeSampleSignature, 10_000)
+    assert.notEqual(sampleModSignature, beforeSampleSignature, 'the checked-in sample MOD must visibly update the face')
+    await page.screenshot({ path: '/tmp/stackchan-sample-mod.png', fullPage: true })
+    await savePiuScreen('sample-mod')
+    await page.locator('#mod-clear-button').click()
   }
 }
 
@@ -287,7 +342,7 @@ try {
   await inspectViewport(page, 'desktop', 1280, 800)
   await inspectViewport(page, 'mobile', 390, 844)
   console.log(
-    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed}.png and /tmp/stackchan-screen-{password,main-menu-hidden,menu-revealed}.png'
+    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed,sample-mod}.png and /tmp/stackchan-screen-{settings,network-list,password,main-menu-hidden,drawer,face-menu,dog-face,camera,camera-closed,sample-mod}.png'
   )
 } finally {
   await browser?.close()

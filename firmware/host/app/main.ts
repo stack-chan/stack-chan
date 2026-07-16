@@ -3,7 +3,7 @@ import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavi
 import { resolveAppBehaviors } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
 import { type BootWiFiStatus, startHostBootServices } from 'boot-services'
-import { createStackchanContext, getHostDeviceEnvironment, installSimulatorButtons } from 'compose'
+import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
 import Modules from 'modules'
 import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
 
@@ -17,6 +17,13 @@ type GlobalEnvironment = {
 
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 const noopButtonHandler = () => undefined
+
+function installPlatformInputBridge(): void {
+  if (!Modules.has('wasm-button-bridge')) return
+  const bridge = Modules.importNow('wasm-button-bridge') as { installWasmButtons?: () => void }
+  bridge.installWasmButtons?.()
+  trace('[main] installed WASM button bridge\n')
+}
 
 function loadAppBehaviors(): StackchanAppBehavior[] {
   trace('[main] checking mod override\n')
@@ -61,7 +68,7 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string
 
 async function main() {
   trace('[main] start\n')
-  installSimulatorButtons()
+  installPlatformInputBridge()
 
   trace('[main] loading app behaviors\n')
   const appBehaviors = loadAppBehaviors()

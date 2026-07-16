@@ -185,37 +185,29 @@ export type LifecycleCapability = {
   close(): Promise<void>
 }
 
+export type BalloonTail = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
+export type ShowBalloonOptions = {
+  left?: number
+  right?: number
+  top?: number
+  bottom?: number
+  width?: number
+  height?: number
+  tail?: BalloonTail
+}
+
 export type RuntimeUICapability = RobotUI & {
   controller: RobotUI
   drawer: DrawerCapability
-  showBalloon(
-    text: string,
-    option?: {
-      left?: number
-      right?: number
-      top?: number
-      bottom?: number
-      width?: number
-      height?: number
-    },
-  ): void
+  showBalloon(text: string, option?: ShowBalloonOptions): void
   hideBalloon(): void
 }
 
 export type UICapability = {
   ui: RuntimeUICapability
   drawer: DrawerCapability
-  showBalloon(
-    text: string,
-    option?: {
-      left?: number
-      right?: number
-      top?: number
-      bottom?: number
-      width?: number
-      height?: number
-    },
-  ): void
+  showBalloon(text: string, option?: ShowBalloonOptions): void
   hideBalloon(): void
 }
 

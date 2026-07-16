@@ -140,6 +140,7 @@ try {
         waitUntil: 'domcontentloaded',
       })
       await page.waitForSelector('.topbar')
+      await page.waitForSelector('.tool-menu-button')
       const layout = await page.evaluate(() => {
         const topbar = document.querySelector('.topbar').getBoundingClientRect()
         const accessibleName = (element) => {
@@ -187,6 +188,8 @@ try {
             (element) => getComputedStyle(element).display !== 'none'
           ).length,
           projectMenuButtonVisible: document.querySelector('#mobile-project-menu-button')?.getClientRects().length > 0,
+          toolMenuButtonVisible: document.querySelector('.tool-menu-button')?.getClientRects().length > 0,
+          legacyToolNavCount: document.querySelectorAll('.tool-nav').length,
           unnamedInteractive: accessibilityTargets
             .filter((element) => element.getClientRects().length > 0 && !accessibleName(element))
             .map((element) => element.id || element.outerHTML.slice(0, 120)),
@@ -205,6 +208,8 @@ try {
       )
       assert.deepEqual(layout.clippedText, [], `${pageName}/${viewportName}: interactive text must not be clipped`)
       assert.equal(layout.visibleHiddenElements, 0, `${pageName}/${viewportName}: hidden controls must not be rendered`)
+      assert.equal(layout.toolMenuButtonVisible, true, `${pageName}/${viewportName}: left tool menu must be visible`)
+      assert.equal(layout.legacyToolNavCount, 0, `${pageName}/${viewportName}: right tool navigation must be removed`)
       assert.deepEqual(
         layout.unnamedInteractive,
         [],
@@ -221,24 +226,112 @@ try {
         path: `/tmp/stackchan-${pageName}-${viewportName}.png`,
         fullPage: true,
       })
+      if (pageName === 'editor' && viewportName === 'desktop') {
+        const stressLayout = await page.evaluate(() => {
+          const section = document.querySelector('.build-section')
+          const status = document.querySelector('#build-status')
+          const assetSummary = document.querySelector('#asset-summary')
+          const originalStatus = status.textContent
+          status.textContent =
+            'ビルド成功: very-long-project-name-without-any-break-opportunity-012345678901234567890123456789.xsa'
+
+          const chip = document.createElement('span')
+          chip.className = 'asset-chip'
+          const label = document.createElement('span')
+          label.className = 'asset-chip-label'
+          label.textContent =
+            'extremely-long-face-asset-name-without-any-break-opportunity-012345678901234567890123456789.stackchan-face.json'
+          const remove = document.createElement('button')
+          remove.type = 'button'
+          remove.textContent = '×'
+          chip.append(label, remove)
+          assetSummary.append(chip)
+
+          const sectionRect = section.getBoundingClientRect()
+          const buttonRects = [...section.querySelectorAll('button')].map((button) => button.getBoundingClientRect())
+          const result = {
+            sectionOverflow: section.scrollWidth - section.clientWidth,
+            buttonOverflow: Math.max(...buttonRects.map((rect) => rect.right - sectionRect.right), 0),
+          }
+          chip.remove()
+          status.textContent = originalStatus
+          return result
+        })
+        assert.equal(stressLayout.sectionOverflow, 0, 'editor build section must contain long status and asset names')
+        assert.equal(stressLayout.buttonOverflow <= 0.5, true, 'editor build buttons must remain inside their section')
+      }
+      if (pageName === 'home' && viewportName === 'desktop') {
+        await page.locator('.tool-menu-button').click()
+        await page.locator('#tool-drawer[open]').waitFor({ state: 'visible' })
+        assert.equal(await page.locator('#tool-drawer .tool-drawer-link').count(), 7)
+        assert.match(await page.locator('#tool-drawer [aria-current="page"]').innerText(), /ホーム/)
+        await page.screenshot({ path: '/tmp/stackchan-tool-drawer.png', fullPage: true })
+        await page.keyboard.press('Escape')
+        await page.locator('#tool-drawer').waitFor({ state: 'hidden' })
+      }
       if (pageName === 'face-editor' && viewportName === 'desktop') {
         await page.locator('#face-name').fill('あつい顔')
         await page.locator('#face-emotion').selectOption('HOT')
         await page.locator('#primary-color').fill('#ff7040')
         await page.locator('#secondary-color').fill('#301010')
         await page.locator('#mouth-open').fill('0.8')
+        await page.locator('#left-eye-x').fill('46')
+        await page.locator('#right-eye-radius').fill('12')
+        await page.locator('#mouth-max-width').fill('108')
         assert.equal(await page.locator('#face-canvas').getAttribute('data-emotion'), 'HOT')
+        assert.match(await page.locator('#shape-code-preview').textContent(), /new Eye\(\{ cx: 46/)
         const faceDownload = await captureBrowserDownload(page, () => page.locator('#download-face').click())
         assert.equal(faceDownload.download.suggestedFilename(), 'あつい顔.stackchan-face.json')
         assert.equal(faceDownload.type, 'application/vnd.stackchan.face+json')
-        assert.deepEqual(JSON.parse(faceDownload.bytes.toString('utf8')), {
-          format: 'tech.stackchan.face',
-          version: 1,
-          name: 'あつい顔',
-          emotion: 'HOT',
-          colors: { primary: '#ff7040', secondary: '#301010' },
-          mouth: 0.8,
+        const downloadedFace = JSON.parse(faceDownload.bytes.toString('utf8'))
+        assert.equal(downloadedFace.format, 'tech.stackchan.face')
+        assert.equal(downloadedFace.version, 1)
+        assert.equal(downloadedFace.kind, 'shape')
+        assert.equal(downloadedFace.name, 'あつい顔')
+        assert.equal(downloadedFace.emotion, 'HOT')
+        assert.deepEqual(downloadedFace.colors, { primary: '#ff7040', secondary: '#301010' })
+        assert.equal(downloadedFace.mouth, 0.8)
+        assert.deepEqual(downloadedFace.canvas, { left: 60, top: 60, width: 200, height: 120 })
+        assert.equal(downloadedFace.shape.eyes.left.x, 46)
+        assert.equal(downloadedFace.shape.eyes.right.radius, 12)
+        assert.equal(downloadedFace.shape.eyes.right.eyelidWidth >= 24, true)
+        assert.equal(downloadedFace.shape.eyes.right.eyelidHeight >= 24, true)
+        assert.equal(downloadedFace.shape.mouth.maxWidth, 108)
+        await page.locator('#reset-face').click()
+        assert.equal(await page.locator('#left-eye-x').inputValue(), '30')
+        assert.equal(await page.locator('#left-eyelid-width').inputValue(), '16')
+        assert.equal(await page.locator('#left-eyelid-height').inputValue(), '16')
+        const faceChooserPromise = page.waitForEvent('filechooser')
+        await page.locator('#load-face').click()
+        const faceChooser = await faceChooserPromise
+        await faceChooser.setFiles({
+          name: 'あつい顔.stackchan-face.json',
+          mimeType: 'application/vnd.stackchan.face+json',
+          buffer: faceDownload.bytes,
         })
+        assert.equal(await page.locator('#left-eye-x').inputValue(), '46')
+        assert.equal(await page.locator('#right-eye-radius').inputValue(), '12')
+        assert.equal(await page.locator('#mouth-max-width').inputValue(), '108')
+        const dragPoints = await page.evaluate(() => {
+          const svg = document.querySelector('#face-canvas')
+          const matrix = svg.getScreenCTM()
+          const point = (x, y) => {
+            const transformed = new DOMPoint(x, y).matrixTransform(matrix)
+            return { x: transformed.x, y: transformed.y }
+          }
+          return {
+            start: point(60 + 46, 60 + 33),
+            end: point(60 + 70, 60 + 45),
+          }
+        })
+        await page.mouse.move(dragPoints.start.x, dragPoints.start.y)
+        await page.mouse.down()
+        await page.mouse.move(dragPoints.end.x, dragPoints.end.y, { steps: 4 })
+        await page.mouse.up()
+        const draggedLeftX = Number(await page.locator('#left-eye-x').inputValue())
+        const draggedLeftY = Number(await page.locator('#left-eye-y').inputValue())
+        assert.equal(Math.abs(draggedLeftX - 70) <= 1, true)
+        assert.equal(Math.abs(draggedLeftY - 45) <= 1, true)
         await page.screenshot({
           path: '/tmp/stackchan-face-editor-hot.png',
           fullPage: true,
@@ -246,6 +339,12 @@ try {
         await page.locator('#send-to-editor').click()
         await page.waitForURL(/\/editor\/?\?face-asset=staging/)
         await page.locator('#asset-summary').filter({ hasText: 'あつい顔.stackchan-face.json' }).waitFor()
+        assert.match(await page.locator('#code-preview').innerText(), /FaceBase\.template/)
+        assert.match(
+          await page.locator('#code-preview').innerText(),
+          new RegExp(`new Eye\\(\\{ cx: ${draggedLeftX}, cy: ${draggedLeftY}`)
+        )
+        assert.match(await page.locator('#code-preview').innerText(), /robot\.ui\.setFace/)
         assert.match(await page.locator('#code-preview').innerText(), /setEmotion\(Emotion\.HOT\)/)
         await page.locator('#build-button').click()
         await page.waitForFunction(() => document.querySelector('#build-status')?.textContent.includes('ビルド成功'))
@@ -257,6 +356,19 @@ try {
       }
       if (pageName === 'editor' && viewportName === 'desktop') {
         assert.match(await page.locator('#code-preview').innerText(), /旧形式から移行/, 'legacy workspace migration')
+        const sourceBeforeClear = await page.locator('#code-preview').innerText()
+        await page.locator('#clear-button').click()
+        await page.locator('#clear-workspace-dialog[open]').waitFor({ state: 'visible' })
+        assert.match(await page.locator('#clear-workspace-project-name').innerText(), /はじめてのMOD/)
+        await page.screenshot({ path: '/tmp/stackchan-editor-clear-confirm.png', fullPage: true })
+        await page.locator('#clear-workspace-cancel').click()
+        await page.locator('#clear-workspace-dialog').waitFor({ state: 'hidden' })
+        assert.equal(await page.locator('#code-preview').innerText(), sourceBeforeClear, 'cancel keeps the workspace')
+        await page.locator('#clear-button').click()
+        await page.locator('#clear-workspace-confirm').click()
+        await page.locator('#clear-workspace-dialog').waitFor({ state: 'hidden' })
+        await page.waitForFunction(() => document.querySelector('#diagnostics-list')?.textContent.includes('VP_EMPTY'))
+        assert.match(await page.locator('#build-status').innerText(), /ワークスペースを消去しました/)
         await page.locator('#code-tab').focus()
         await page.keyboard.press('ArrowRight')
         assert.equal(await page.locator('#log-tab').getAttribute('aria-selected'), 'true', 'keyboard tab navigation')
@@ -372,10 +484,19 @@ try {
             JSON.stringify({
               format: 'tech.stackchan.face',
               version: 1,
+              kind: 'shape',
               name: 'ブラウザ確認',
               emotion: 'HAPPY',
               colors: { primary: '#30e0ff', secondary: '#202020' },
               mouth: 0.4,
+              canvas: { left: 60, top: 60, width: 200, height: 120 },
+              shape: {
+                eyes: {
+                  left: { x: 30, y: 33, radius: 8, eyelidWidth: 24, eyelidHeight: 24 },
+                  right: { x: 170, y: 36, radius: 8, eyelidWidth: 24, eyelidHeight: 24 },
+                },
+                mouth: { x: 100, y: 88, minWidth: 50, maxWidth: 90, minHeight: 8, maxHeight: 58 },
+              },
             })
           ),
         })

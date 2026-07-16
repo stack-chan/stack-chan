@@ -23,12 +23,19 @@ test('all web tools use the shared Japanese application shell', () => {
   }
 })
 
-test('tool pages expose consistent navigation without changing integration ids', () => {
-  for (const page of pages.slice(1)) {
+test('tool pages load the shared left drawer without changing integration ids', () => {
+  for (const page of pages) {
     const html = readFileSync(page, 'utf8')
-    assert.match(html, /class="tool-nav"/, `${page} should expose tool navigation`)
-    assert.match(html, /aria-current="page"/, `${page} should identify the current tool`)
+    assert.match(html, /tool-navigation\.mjs/, `${page} should load shared tool navigation`)
+    assert.doesNotMatch(html, /class="tool-nav"/, `${page} should not duplicate the retired right navigation`)
   }
+  const navigation = readFileSync('tool-navigation.mjs', 'utf8')
+  for (const id of ['home', 'flash', 'preference', 'simulator', 'editor', 'face-editor', 'tutorial']) {
+    assert.match(navigation, new RegExp(`id: '${id}'`), `drawer should expose ${id}`)
+  }
+  assert.match(navigation, /topbar\.prepend\(button\)/)
+  assert.match(navigation, /dialog\.showModal\(\)/)
+  assert.match(navigation, /aria-current/)
 
   const preference = readFileSync('preference/index.html', 'utf8')
   for (const id of ['ble-connect-button', 'ble-disconnect-button', 'form-preference', 'settings-form']) {
@@ -55,9 +62,12 @@ test('tool pages expose consistent navigation without changing integration ids',
   assert.match(editorScript, /\.output-tabs \[role="tab"\]/)
   assert.match(editorScript, /ArrowRight/)
   assert.match(editorScript, /candidate\.tabIndex = selected \? 0 : -1/)
+  assert.match(editorScript, /label\.className = 'asset-chip-label'/)
 
   const editorStyles = readFileSync('editor/editor.css', 'utf8')
   assert.match(editorStyles, /\.blocklyTreeLabel\s*{[^}]*color:\s*#202428/s)
+  assert.match(editorStyles, /\.build-section\s*{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s)
+  assert.match(editorStyles, /\.asset-chip-label\s*{[^}]*text-overflow:\s*ellipsis/s)
 })
 
 test('shared controls preserve the native hidden state', () => {

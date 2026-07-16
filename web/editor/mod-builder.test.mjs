@@ -14,6 +14,7 @@ import {
 } from './mod-builder.mjs'
 import createTools from './vendor/tools.js'
 import { profileFor } from './capabilities.mjs'
+import { applyFaceAssetToSource, createFaceAsset } from './face-assets.mjs'
 
 test('detectToolsVersionMismatch parses the TOOL warning', () => {
   const logs = [
@@ -139,6 +140,29 @@ test('buildModArchive embeds project assets through the standard MOD resources m
     manifest: manifestForProjectAssets(assets),
     files: [{ path: assets[0].path, bytes: new TextEncoder().encode('hello') }],
   })
+  assert.equal(isXsArchive(archive), true)
+})
+
+test('buildModArchive compiles a generated Shape Face implementation', async () => {
+  const source = applyFaceAssetToSource(
+    assembleModSource("robot.ui.showBalloon(String('Shape face ready'))\n"),
+    createFaceAsset({
+      name: '左右非対称フェイス',
+      emotion: 'HAPPY',
+      primary: '#30e0ff',
+      secondary: '#301020',
+      mouth: 0.65,
+      shape: {
+        eyes: {
+          left: { x: 42, y: 35, radius: 11, eyelidWidth: 30, eyelidHeight: 26 },
+          right: { x: 164, y: 42, radius: 6, eyelidWidth: 21, eyelidHeight: 18 },
+        },
+        mouth: { x: 106, y: 91, minWidth: 28, maxWidth: 110, minHeight: 5, maxHeight: 48 },
+      },
+    })
+  )
+  assert.match(source, /robot\.ui\.setFace/)
+  const archive = await buildModArchive(createTools, { modJs: source, name: 'shape-face' })
   assert.equal(isXsArchive(archive), true)
 })
 

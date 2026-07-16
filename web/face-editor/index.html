@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>顔エディタ | ｽﾀｯｸﾁｬﾝ</title>
+    <title>Shape顔エディタ | ｽﾀｯｸﾁｬﾝ</title>
     <link rel="icon" href="../assets/stackchan-favicon-32.png" type="image/png" />
     <link rel="apple-touch-icon" href="../assets/stackchan-apple-touch-icon.png" />
     <link rel="stylesheet" href="../global.css" />
@@ -18,47 +18,168 @@
     <main class="face-editor-shell">
       <header class="topbar">
         <a class="brand-link" href="../"
-          ><img src="../assets/stackchan-symbol.png" alt="" /><span>ｽﾀｯｸﾁｬﾝ 顔エディタ</span></a
+          ><img src="../assets/stackchan-symbol.png" alt="" /><span
+            >ｽﾀｯｸﾁｬﾝ<span class="surface-name"> Shape顔エディタ</span></span
+          ></a
         >
-        <nav class="tool-nav" aria-label="ツール">
-          <a href="../" title="ホーム" aria-label="ホーム"><i data-lucide="home"></i></a>
-          <a href="../editor/" title="ブロックエディタ" aria-label="ブロックエディタ"><i data-lucide="blocks"></i></a>
-          <a href="./" aria-current="page" title="顔エディタ" aria-label="顔エディタ"><i data-lucide="smile"></i></a>
-        </nav>
-      </header>
-      <section class="face-editor-layout">
-        <div class="face-preview" aria-label="顔アセットのプレビュー">
-          <div id="face-canvas" class="face-canvas">
-            <span class="eye left"></span><span class="eye right"></span><span id="mouth" class="mouth"></span>
-          </div>
+        <div class="face-header-actions">
+          <button
+            id="load-face"
+            class="icon-button"
+            type="button"
+            title="Shape顔を読み込む"
+            aria-label="Shape顔を読み込む"
+          >
+            <i data-lucide="folder-open"></i>
+          </button>
+          <input id="face-file-input" type="file" accept=".stackchan-face.json,application/json" hidden />
+          <button id="reset-face" class="icon-button" type="button" title="標準配置に戻す" aria-label="標準配置に戻す">
+            <i data-lucide="rotate-ccw"></i>
+          </button>
+          <button id="download-face" type="button"><i data-lucide="download"></i><span>JSONを保存</span></button>
+          <button id="send-to-editor" class="primary-button" type="button">
+            <i data-lucide="blocks"></i><span>ブロックエディタで使う</span>
+          </button>
         </div>
-        <form id="face-form" class="face-controls">
-          <h1>顔アセット</h1>
-          <label>名前<input id="face-name" value="マイフェイス" maxlength="64" /></label>
-          <label
-            >表情
-            <select id="face-emotion">
-              <option value="NEUTRAL">ふつう</option>
-              <option value="HAPPY">うれしい</option>
-              <option value="ANGRY">おこった</option>
-              <option value="SAD">かなしい</option>
-              <option value="SLEEPY">ねむい</option>
-              <option value="DOUBTFUL">こまった</option>
-              <option value="COLD">さむい</option>
-              <option value="HOT">あつい</option>
-            </select>
-          </label>
-          <label>線の色<input id="primary-color" type="color" value="#ffffff" /></label>
-          <label>背景色<input id="secondary-color" type="color" value="#202020" /></label>
-          <label>口の開き<input id="mouth-open" type="range" min="0" max="1" step="0.1" value="0.2" /></label>
-          <div class="face-actions">
-            <button id="download-face" type="button">JSONを保存</button>
-            <button id="send-to-editor" class="primary-button" type="button">ブロックエディタで使う</button>
+      </header>
+
+      <div class="face-editor-layout">
+        <section class="face-preview-pane" aria-labelledby="preview-heading">
+          <div class="preview-heading">
+            <div>
+              <p class="eyebrow">320 × 240 preview</p>
+              <h1 id="preview-heading">Shape Face</h1>
+            </div>
+            <p>目と口をドラッグして配置できます。</p>
           </div>
-          <p id="face-status" role="status"></p>
+          <div class="face-screen">
+            <svg
+              id="face-canvas"
+              class="face-canvas"
+              viewBox="0 0 320 240"
+              role="img"
+              aria-label="Shape型Faceのプレビュー"
+              data-emotion="NEUTRAL"
+            >
+              <rect class="screen-background" x="0" y="0" width="320" height="240"></rect>
+              <g id="face-frame">
+                <rect id="face-frame-background" class="face-frame-background"></rect>
+                <rect id="face-frame-outline" class="face-frame-outline"></rect>
+                <g class="shape-part eye-part" data-part="left-eye" tabindex="0" role="button" aria-label="左目">
+                  <circle id="left-eye-iris" class="eye-iris"></circle>
+                  <path id="left-eye-lid" class="eye-lid"></path>
+                </g>
+                <g class="shape-part eye-part" data-part="right-eye" tabindex="0" role="button" aria-label="右目">
+                  <circle id="right-eye-iris" class="eye-iris"></circle>
+                  <path id="right-eye-lid" class="eye-lid"></path>
+                </g>
+                <g class="shape-part mouth-part" data-part="mouth" tabindex="0" role="button" aria-label="口">
+                  <rect id="mouth-preview" class="mouth"></rect>
+                </g>
+              </g>
+            </svg>
+          </div>
+          <p id="face-status" class="face-status" role="status">Shape型Faceを編集中です。</p>
+          <details class="generated-face-code">
+            <summary>生成されるFace実装</summary>
+            <pre id="shape-code-preview"></pre>
+          </details>
+        </section>
+
+        <form id="face-form" class="face-controls">
+          <fieldset>
+            <legend>基本設定</legend>
+            <label>名前<input id="face-name" value="マイShapeフェイス" maxlength="64" /></label>
+            <label
+              >初期表情
+              <select id="face-emotion">
+                <option value="NEUTRAL">ふつう</option>
+                <option value="HAPPY">うれしい</option>
+                <option value="ANGRY">おこった</option>
+                <option value="SAD">かなしい</option>
+                <option value="SLEEPY">ねむい</option>
+                <option value="DOUBTFUL">こまった</option>
+                <option value="COLD">さむい</option>
+                <option value="HOT">あつい</option>
+              </select>
+            </label>
+            <div class="control-grid">
+              <label>主色<input id="primary-color" type="color" value="#ffffff" /></label>
+              <label>背景色<input id="secondary-color" type="color" value="#202020" /></label>
+            </div>
+            <label
+              >口の初期開度
+              <span class="range-control"
+                ><input id="mouth-open" type="range" min="0" max="1" step="0.05" value="0.2" /><output
+                  id="mouth-open-output"
+                  for="mouth-open"
+                  >0.20</output
+                ></span
+              >
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Face領域</legend>
+            <div class="number-grid">
+              <label>左<input id="canvas-left" type="number" min="0" max="280" step="1" value="60" /></label>
+              <label>上<input id="canvas-top" type="number" min="0" max="200" step="1" value="60" /></label>
+              <label>幅<input id="canvas-width" type="number" min="40" max="320" step="1" value="200" /></label>
+              <label>高さ<input id="canvas-height" type="number" min="40" max="240" step="1" value="120" /></label>
+            </div>
+          </fieldset>
+
+          <details open>
+            <summary>左目</summary>
+            <p class="control-hint">まぶたは目と同じ中心に置かれ、瞳全体を覆う大きさに保たれます。</p>
+            <div class="number-grid shape-control-group" data-control-part="left-eye">
+              <label>X<input id="left-eye-x" type="number" min="0" max="320" step="1" value="30" /></label>
+              <label>Y<input id="left-eye-y" type="number" min="0" max="240" step="1" value="33" /></label>
+              <label>瞳半径<input id="left-eye-radius" type="number" min="2" max="40" step="1" value="8" /></label>
+              <label
+                >まぶた幅<input id="left-eyelid-width" type="number" min="16" max="120" step="1" value="16"
+              /></label>
+              <label
+                >まぶた高さ<input id="left-eyelid-height" type="number" min="16" max="120" step="1" value="16"
+              /></label>
+            </div>
+          </details>
+
+          <details open>
+            <summary>右目</summary>
+            <p class="control-hint">まぶたは目と同じ中心に置かれ、瞳全体を覆う大きさに保たれます。</p>
+            <div class="number-grid shape-control-group" data-control-part="right-eye">
+              <label>X<input id="right-eye-x" type="number" min="0" max="320" step="1" value="170" /></label>
+              <label>Y<input id="right-eye-y" type="number" min="0" max="240" step="1" value="36" /></label>
+              <label>瞳半径<input id="right-eye-radius" type="number" min="2" max="40" step="1" value="8" /></label>
+              <label
+                >まぶた幅<input id="right-eyelid-width" type="number" min="16" max="120" step="1" value="16"
+              /></label>
+              <label
+                >まぶた高さ<input id="right-eyelid-height" type="number" min="16" max="120" step="1" value="16"
+              /></label>
+            </div>
+          </details>
+
+          <details open>
+            <summary>口</summary>
+            <div class="number-grid shape-control-group" data-control-part="mouth">
+              <label>X<input id="mouth-x" type="number" min="0" max="320" step="1" value="100" /></label>
+              <label>Y<input id="mouth-y" type="number" min="0" max="240" step="1" value="88" /></label>
+              <label>開いた幅<input id="mouth-min-width" type="number" min="1" max="320" step="1" value="50" /></label>
+              <label>閉じた幅<input id="mouth-max-width" type="number" min="1" max="320" step="1" value="90" /></label>
+              <label
+                >閉じた高さ<input id="mouth-min-height" type="number" min="1" max="240" step="1" value="8"
+              /></label>
+              <label
+                >開いた高さ<input id="mouth-max-height" type="number" min="1" max="240" step="1" value="58"
+              /></label>
+            </div>
+          </details>
         </form>
-      </section>
+      </div>
     </main>
+    <script type="module" src="../tool-navigation.mjs"></script>
     <script type="module" src="./face-editor.mjs"></script>
     <script>
       globalThis.lucide?.createIcons()

@@ -23,6 +23,7 @@ export const VISUAL_RUNTIME_RESERVED_WORDS = Object.freeze([
   'onImu',
   'onTouchPanel',
   'event',
+  '_StackchanVisualShapeFace',
 ])
 
 const HELPER_HEX_TO_RGB = `function hexToRgb(hex) {

@@ -88,6 +88,9 @@ const mobileProjectDialogClose = document.getElementById('mobile-project-dialog-
 const mobileTargetDeviceSelect = document.getElementById('mobile-target-device')
 const mobileRecentProjectsSelect = document.getElementById('mobile-recent-projects')
 const mobileRecoveryAction = document.getElementById('mobile-recovery-action')
+const clearWorkspaceDialog = document.getElementById('clear-workspace-dialog')
+const clearWorkspaceProjectName = document.getElementById('clear-workspace-project-name')
+const clearWorkspaceConfirm = document.getElementById('clear-workspace-confirm')
 
 function selectOutputTab(tab) {
   for (const candidate of outputTabs) {
@@ -374,7 +377,11 @@ function renderAssets() {
   for (const asset of currentProject.assets) {
     const chip = document.createElement('span')
     chip.className = 'asset-chip'
-    chip.append(document.createTextNode(asset.path.replace(/^assets\//, '')))
+    const label = document.createElement('span')
+    label.className = 'asset-chip-label'
+    label.textContent = asset.path.replace(/^assets\//, '')
+    label.title = label.textContent
+    chip.append(label)
     const remove = document.createElement('button')
     remove.type = 'button'
     remove.textContent = '×'
@@ -544,8 +551,16 @@ sampleButton.addEventListener('click', () => sampleDialog.showModal())
 sampleClose.addEventListener('click', () => sampleDialog.close())
 
 clearButton.addEventListener('click', () => {
+  clearWorkspaceProjectName.textContent = currentProject.name
+  clearWorkspaceDialog.showModal()
+})
+
+clearWorkspaceConfirm.addEventListener('click', () => {
   workspace.clear()
   refreshCode()
+  persistProject()
+  setStatus(`「${currentProject.name}」のワークスペースを消去しました`)
+  recordMetric('workspace_cleared')
 })
 
 projectNameInput.addEventListener('change', () => {

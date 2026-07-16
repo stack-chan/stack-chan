@@ -96,7 +96,21 @@ const faceSchema = JSON.parse(faceSchemaText)
 assert.equal(faceSchema.properties.format.const, FACE_ASSET_FORMAT)
 assert.equal(faceSchema.properties.version.const, FACE_ASSET_VERSION)
 assert.deepEqual(faceSchema.properties.emotion.enum, FACE_ASSET_EMOTIONS)
-assert.deepEqual(faceSchema.required, ['format', 'version', 'name', 'emotion', 'colors', 'mouth'])
+assert.deepEqual(faceSchema.required, [
+  'format',
+  'version',
+  'kind',
+  'name',
+  'emotion',
+  'colors',
+  'mouth',
+  'canvas',
+  'shape',
+])
+assert.equal(faceSchema.properties.kind.const, 'shape')
+assert.deepEqual(faceSchema.properties.canvas.required, ['left', 'top', 'width', 'height'])
+assert.deepEqual(faceSchema.properties.shape.required, ['eyes', 'mouth'])
+assert.deepEqual(faceSchema.properties.shape.properties.eyes.required, ['left', 'right'])
 
 const moddableVersion = '8.3.1'
 for (const [name, source] of [

@@ -9,9 +9,6 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.topbar .tool-nav {
-  margin-left: auto;
-}
 .tutorial-shell {
   width: min(900px, calc(100% - 32px));
   margin: 0 auto;

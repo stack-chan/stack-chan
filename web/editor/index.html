@@ -156,15 +156,6 @@
             <i data-lucide="ellipsis"></i>
           </button>
         </div>
-        <nav class="tool-nav" aria-label="ツール">
-          <a href="../" title="ホーム" aria-label="ホーム"><i data-lucide="home"></i></a
-          ><a href="../flash/" title="書き込み" aria-label="書き込み"><i data-lucide="cpu"></i></a
-          ><a href="../preference/" title="設定" aria-label="設定"><i data-lucide="sliders-horizontal"></i></a
-          ><a href="../simulator/" title="シミュレーター" aria-label="シミュレーター"><i data-lucide="box"></i></a
-          ><a href="../editor/" aria-current="page" title="エディタ" aria-label="エディタ"
-            ><i data-lucide="blocks"></i
-          ></a>
-        </nav>
       </header>
       <div class="editor-layout">
         <section id="blockly-workspace" class="workspace" aria-label="Blocklyワークスペース"></section>
@@ -306,6 +297,30 @@
       </header>
       <div id="sample-list" class="sample-list"></div>
     </dialog>
+    <dialog
+      id="clear-workspace-dialog"
+      class="confirm-dialog"
+      aria-labelledby="clear-workspace-dialog-title"
+      aria-describedby="clear-workspace-dialog-description"
+    >
+      <form method="dialog">
+        <header>
+          <div>
+            <h2 id="clear-workspace-dialog-title">ワークスペースを消去しますか？</h2>
+            <p id="clear-workspace-dialog-description">
+              現在のプロジェクトからすべてのブロックを取り除き、自動保存します。
+            </p>
+          </div>
+        </header>
+        <p class="confirm-target">対象：<strong id="clear-workspace-project-name"></strong></p>
+        <div class="confirm-dialog-actions">
+          <button id="clear-workspace-cancel" type="submit" value="cancel">キャンセル</button>
+          <button id="clear-workspace-confirm" class="danger-button" type="submit" value="confirm">
+            ワークスペースを消去
+          </button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="simulator-dialog" class="simulator-dialog" aria-labelledby="simulator-dialog-title">
       <header>
         <h2 id="simulator-dialog-title">シミュレーター</h2>
@@ -323,6 +338,7 @@
       </div>
       <iframe id="simulator-frame" title="Stack-chan Webシミュレーター"></iframe>
     </dialog>
+    <script type="module" src="../tool-navigation.mjs"></script>
     <script type="module" src="./editor.mjs"></script>
     <script>
       globalThis.lucide?.createIcons()

@@ -10,17 +10,17 @@
 | VP-04 | 対象にない能力をツールボックスから除外し、既存ブロックはビルド前に拒否する。                                                | `project-validator.mjs`と`project-validator.test.mjs`          |
 | VP-05 | 再実行時にタイマーと入力ハンドラーを破棄し、条件ループへ実行上限を入れる。                                                  | `blocks.mjs`と`blocks.test.mjs`                                |
 | VP-06 | 任意JavaScript入力を持たず、外部依存をSRIまたは検証済みvendorで固定する。                                                   | `visual-programming.md`と`check-editor-artifacts.mjs`          |
-| VP-07 | 新規、複製、最近使ったプロジェクト、入出力、自動保存、破損データ退避を使える。                                              | IndexedDB保存、エディタUI、再読込を含むブラウザ回帰試験        |
+| VP-07 | 新規、複製、最近使ったプロジェクト、入出力、自動保存、破損データ退避、確認付きワークスペース消去を使える。                  | IndexedDB保存、エディタUI、再読込を含むブラウザ回帰試験        |
 | VP-08 | 空、孤立、未対応能力、停止しないループ、未使用変数と関数を診断する。                                                        | `project-validator.mjs`と診断タブ                              |
 | VP-09 | XSAをIndexedDBへ渡し、エディタ内ダイアログでシミュレーターを起動、停止、再実行できる。起動成功はMODの準備完了後に通知する。 | `editor.mjs`、`simulator.mjs`、ブラウザ回帰試験                |
 | VP-10 | シミュレーター入力からMODのイベントハンドラーを起動し、構造化された実行時エラーから対応ブロックを選択できる。               | WASM入力ブリッジ、`runtime-diagnostics.mjs`、ブラウザ回帰試験  |
 | VP-11 | 書込前に実チップ、factoryファームウェア版、XS版、パーティション、容量を確認し、バックアップ、照合、復元、削除ができる。     | `esptool-installer.mjs`、単体試験、CoreS3実機スモーク試験      |
 | VP-12 | 表情、発話、動作、LED、入力、条件、反復、変数、リスト、非同期関数を組み合わせられる。                                       | `blocks.mjs`、`samples.mjs`、5サンプル実ブラウザビルド         |
-| VP-13 | 版付き顔アセットをJSONとして作成、検証、保存できる。                                                                        | 実装、JSON Schema、`face-assets.test.mjs`                      |
-| VP-14 | 顔エディタからブロックエディタへ渡し、標準resourcesとしてXSAへ埋め込める。                                                  | `face-editor/`、`mod-builder.test.mjs`、統合シミュレーター確認 |
+| VP-13 | バージョン1のShape顔アセットをJSONとして作成、検証、保存できる。                                                            | 実装、JSON Schema、`face-assets.test.mjs`                      |
+| VP-14 | 顔エディタでFace領域、左右の目、まぶた、口を編集し、`FaceBase`実装としてXSAへ組み込める。                                   | `face-editor/`、`mod-builder.test.mjs`、統合シミュレーター確認 |
 | VP-15 | シミュレーターとエディタ用WASMを固定手順で再生成し、CIと配信で検査できる。                                                  | 生成スクリプト、`build.yml`、`bundle.yml`、成果物固定検査      |
 | VP-16 | 単体、実コンパイル、レスポンシブ、5サンプル、統合シミュレーターの回帰試験をCIで実行する。                                   | `npm test`と`npm run test:visual`                              |
-| VP-17 | キーボード操作、ラベル、タブ、ダイアログ、390 px幅のレイアウトを提供する。                                                  | エディタHTML/CSSとデスクトップ・モバイル回帰試験               |
+| VP-17 | キーボード操作、ラベル、タブ、ダイアログ、共通左ドロワー、390 px幅のレイアウトを提供する。                                  | エディタHTML/CSSとデスクトップ・モバイル回帰試験               |
 | VP-18 | 5分、15分、30分の製品内チュートリアルとコード移行、復旧手順を提供する。                                                     | `tutorial.html`、`TUTORIAL_ja.md`、ブラウザ目視確認            |
 | VP-19 | 初回ビルド、シミュレーター、実機、失敗を記録し、複数ログの中央値と合格数を集計できる。                                      | `metrics.mjs`、集計CLI、`visual-programming-validation.md`     |
 

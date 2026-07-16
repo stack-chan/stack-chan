@@ -44,11 +44,6 @@ body {
   align-items: center;
   justify-content: center;
 }
-.workspace-actions + .tool-nav {
-  margin-left: 0;
-  padding-left: 8px;
-  border-left: 1px solid var(--line);
-}
 .mobile-project-menu-button {
   display: none;
 }
@@ -78,23 +73,32 @@ body {
 }
 .build-section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 10px;
   padding: 16px;
   border-bottom: 1px solid var(--line);
 }
+.build-section > * {
+  min-width: 0;
+  max-width: 100%;
+}
 .section-heading {
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 .section-heading h1 {
+  flex: 0 0 auto;
   margin: 0;
   color: #c5ccd2;
   font-size: 0.82rem;
   letter-spacing: 0;
 }
 .section-heading .status-line {
+  min-width: 0;
   overflow: hidden;
   text-align: right;
   text-overflow: ellipsis;
@@ -108,6 +112,7 @@ body {
   color: var(--muted);
   font-size: 0.72rem;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 .capability-summary[data-severity='error'] {
   color: var(--danger, #ff8c86);
@@ -115,9 +120,11 @@ body {
 .asset-summary {
   color: var(--muted);
   font-size: 0.7rem;
+  overflow-wrap: anywhere;
 }
 .asset-chip {
   display: inline-flex;
+  min-width: 0;
   max-width: 100%;
   align-items: center;
   gap: 4px;
@@ -126,7 +133,15 @@ body {
   border: 1px solid var(--line);
   border-radius: 10px;
 }
+.asset-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .asset-chip button {
+  flex: 0 0 auto;
   min-width: 16px;
   min-height: 16px;
   padding: 0;
@@ -149,12 +164,19 @@ body {
 .install-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+  width: 100%;
   gap: 7px;
 }
 .install-grid button {
   min-width: 0;
+  max-width: 100%;
   padding: 8px;
   font-size: 0.78rem;
+}
+.install-grid button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 progress {
   width: 100%;
@@ -257,6 +279,55 @@ progress {
   border-radius: 10px;
   background: var(--surface);
   color: var(--text);
+}
+
+.confirm-dialog {
+  width: min(460px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.confirm-dialog::backdrop {
+  background: rgb(0 0 0 / 64%);
+}
+
+.confirm-dialog form {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+
+.confirm-dialog h2 {
+  margin-bottom: 6px;
+  font-size: 1.05rem;
+}
+
+.confirm-dialog header p,
+.confirm-target {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.confirm-target {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #111416;
+}
+
+.confirm-target strong {
+  color: var(--text);
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 .sample-dialog {
   width: min(720px, 92vw);
@@ -430,10 +501,6 @@ progress {
     border-top: 1px solid var(--line);
     border-left: 0;
   }
-  .workspace-actions + .tool-nav {
-    padding-left: 3px;
-    border-left: 0;
-  }
   .project-controls {
     flex: 1;
     margin-left: 4px;
@@ -483,9 +550,6 @@ progress {
   }
   .project-controls input {
     min-width: 100px;
-  }
-  .tool-nav a:not([aria-current='page']) {
-    display: none;
   }
   .simulator-controls span {
     display: none;

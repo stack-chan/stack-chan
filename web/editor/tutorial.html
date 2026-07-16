@@ -18,12 +18,6 @@
     <header class="topbar">
       <a class="brand-link" href="../"><img src="../assets/stackchan-symbol.png" alt="" /><span>ｽﾀｯｸﾁｬﾝ</span></a>
       <strong>ブロックエディタ チュートリアル</strong>
-      <nav class="tool-nav" aria-label="ツール">
-        <a href="../" title="ホーム" aria-label="ホーム"><i data-lucide="home"></i></a>
-        <a href="./" aria-current="page" title="エディタへ戻る" aria-label="エディタへ戻る"
-          ><i data-lucide="blocks"></i
-        ></a>
-      </nav>
     </header>
     <main class="tutorial-shell">
       <header class="tutorial-hero">
@@ -69,11 +63,13 @@
       <section id="thirty" class="lesson-card">
         <div class="lesson-time">30分</div>
         <div>
-          <h2>自分の顔アセットを組み込む</h2>
+          <h2>自分のShape型Faceを組み込む</h2>
           <ol>
-            <li><a href="../face-editor/">顔エディタ</a>で表情、色、口の開きを調整します。</li>
+            <li><a href="../face-editor/">Shape顔エディタ</a>でFace領域、左右の目、まぶた、口を調整します。</li>
+            <li>プレビュー上で目と口をドラッグし、配置を確認します。</li>
             <li>「ブロックエディタで使う」を押し、アセット欄の「使用中」を確認します。</li>
-            <li>ビルドしてシミュレーターで表示を確認します。</li>
+            <li>生成コードに`FaceBase.template`と`robot.ui.setFace`が含まれることを確認します。</li>
+            <li>ビルドしてシミュレーターでShape型Faceの表示を確認します。</li>
             <li>保存ボタンから編集用の`.stackchan-blocks.json`を保存します。</li>
             <li>必要に応じて実行用の`.xsa`も保存し、二つの成果物を分けて管理します。</li>
           </ol>
@@ -92,6 +88,7 @@
         <p>実機書き込み前の既存MODは自動でバックアップされ、「バックアップを復元」から戻せます。</p>
       </section>
     </main>
+    <script type="module" src="../tool-navigation.mjs"></script>
     <script>
       globalThis.lucide?.createIcons()
     </script>

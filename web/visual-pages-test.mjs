@@ -327,6 +327,7 @@ try {
           mimeType: 'application/vnd.stackchan.face+json',
           buffer: faceDownload.bytes,
         })
+        await page.waitForFunction(() => document.querySelector('#left-eye-x')?.value === '46')
         assert.equal(await page.locator('#left-eye-x').inputValue(), '46')
         assert.equal(await page.locator('#right-eye-radius').inputValue(), '12')
         assert.equal(await page.locator('#mouth-max-width').inputValue(), '108')

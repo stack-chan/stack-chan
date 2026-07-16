@@ -92,11 +92,18 @@ function getTextStyle(font: string, color: number | string): PiuStyle {
   return style
 }
 
-const tailTextureCoordinates: Record<SpeechBalloonTail, { x: number; y: number }> = {
-  'bottom-left': { x: 0, y: 0 },
-  'bottom-right': { x: 204, y: 0 },
-  'top-left': { x: 0, y: 332 },
-  'top-right': { x: 204, y: 332 },
+type BubbleTextureRegion = {
+  x: number
+  y: number
+  height: number
+  top: number
+}
+
+const tailTextureRegions: Record<SpeechBalloonTail, BubbleTextureRegion> = {
+  'bottom-left': { x: 0, y: 0, height: 25, top: 12 },
+  'bottom-right': { x: 204, y: 0, height: 25, top: 12 },
+  'top-left': { x: 0, y: 25, height: 28, top: 15 },
+  'top-right': { x: 204, y: 25, height: 28, top: 15 },
 }
 
 function resolveTail(options: BalloonOptions): SpeechBalloonTail {
@@ -111,17 +118,17 @@ function getBubbleSkin(color: number, tail: SpeechBalloonTail): PiuSkin {
   if (cached) return cached
   if (!bubbleTexture) bubbleTexture = new Texture('bubble.png')
   const skinColor = toPiuColorString(color)
-  const textureCoordinates = tailTextureCoordinates[tail]
+  const textureRegion = tailTextureRegions[tail]
   const skin = new Skin({
     texture: bubbleTexture,
     color: [skinColor],
-    x: textureCoordinates.x,
-    y: textureCoordinates.y,
+    x: textureRegion.x,
+    y: textureRegion.y,
     width: 204,
-    height: 332,
+    height: textureRegion.height,
     left: 24,
     right: 24,
-    top: 12,
+    top: textureRegion.top,
     bottom: 12,
   })
   bubbleSkinCache.set(key, skin)

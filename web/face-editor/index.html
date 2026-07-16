@@ -66,14 +66,21 @@
                 <rect id="face-frame-background" class="face-frame-background"></rect>
                 <rect id="face-frame-outline" class="face-frame-outline"></rect>
                 <g class="shape-part eye-part" data-part="left-eye" tabindex="0" role="button" aria-label="左目">
-                  <circle id="left-eye-iris" class="eye-iris"></circle>
+                  <rect id="left-eye-iris" class="eye-iris"></rect>
                   <path id="left-eye-lid" class="eye-lid"></path>
                 </g>
                 <g class="shape-part eye-part" data-part="right-eye" tabindex="0" role="button" aria-label="右目">
-                  <circle id="right-eye-iris" class="eye-iris"></circle>
+                  <rect id="right-eye-iris" class="eye-iris"></rect>
                   <path id="right-eye-lid" class="eye-lid"></path>
                 </g>
-                <g class="shape-part mouth-part" data-part="mouth" tabindex="0" role="button" aria-label="口">
+                <g
+                  id="mouth-part"
+                  class="shape-part mouth-part"
+                  data-part="mouth"
+                  tabindex="0"
+                  role="button"
+                  aria-label="口"
+                >
                   <rect id="mouth-preview" class="mouth"></rect>
                 </g>
               </g>
@@ -110,10 +117,10 @@
             <label
               >口の初期開度
               <span class="range-control"
-                ><input id="mouth-open" type="range" min="0" max="1" step="0.05" value="0.2" /><output
+                ><input id="mouth-open" type="range" min="0" max="1" step="0.05" value="0" /><output
                   id="mouth-open-output"
                   for="mouth-open"
-                  >0.20</output
+                  >0.00</output
                 ></span
               >
             </label>
@@ -133,9 +140,27 @@
             <summary>左目</summary>
             <p class="control-hint">まぶたは目と同じ中心に置かれ、瞳全体を覆う大きさに保たれます。</p>
             <div class="number-grid shape-control-group" data-control-part="left-eye">
+              <label
+                >瞳形状
+                <select id="left-eye-shape">
+                  <option value="circle">円</option>
+                  <option value="roundRect">角丸矩形</option>
+                </select>
+              </label>
               <label>X<input id="left-eye-x" type="number" min="0" max="320" step="1" value="30" /></label>
               <label>Y<input id="left-eye-y" type="number" min="0" max="240" step="1" value="33" /></label>
-              <label>瞳半径<input id="left-eye-radius" type="number" min="2" max="40" step="1" value="8" /></label>
+              <label data-eye-shape-field="circle"
+                >瞳半径<input id="left-eye-radius" type="number" min="2" max="40" step="1" value="8"
+              /></label>
+              <label data-eye-shape-field="roundRect" hidden
+                >幅<input id="left-eye-width" type="number" min="4" max="120" step="1" value="16"
+              /></label>
+              <label data-eye-shape-field="roundRect" hidden
+                >高さ<input id="left-eye-height" type="number" min="4" max="120" step="1" value="16"
+              /></label>
+              <label data-eye-shape-field="roundRect" hidden
+                >R<input id="left-eye-r" type="number" min="0" max="8" step="1" value="4"
+              /></label>
               <label
                 >まぶた幅（自動）<input id="left-eyelid-width" type="number" value="16" readonly aria-readonly="true"
               /></label>
@@ -154,9 +179,27 @@
             <summary>右目</summary>
             <p class="control-hint">まぶたは目と同じ中心に置かれ、瞳全体を覆う大きさに保たれます。</p>
             <div class="number-grid shape-control-group" data-control-part="right-eye">
+              <label
+                >瞳形状
+                <select id="right-eye-shape">
+                  <option value="circle">円</option>
+                  <option value="roundRect">角丸矩形</option>
+                </select>
+              </label>
               <label>X<input id="right-eye-x" type="number" min="0" max="320" step="1" value="170" /></label>
               <label>Y<input id="right-eye-y" type="number" min="0" max="240" step="1" value="36" /></label>
-              <label>瞳半径<input id="right-eye-radius" type="number" min="2" max="40" step="1" value="8" /></label>
+              <label data-eye-shape-field="circle"
+                >瞳半径<input id="right-eye-radius" type="number" min="2" max="40" step="1" value="8"
+              /></label>
+              <label data-eye-shape-field="roundRect" hidden
+                >幅<input id="right-eye-width" type="number" min="4" max="120" step="1" value="16"
+              /></label>
+              <label data-eye-shape-field="roundRect" hidden
+                >高さ<input id="right-eye-height" type="number" min="4" max="120" step="1" value="16"
+              /></label>
+              <label data-eye-shape-field="roundRect" hidden
+                >R<input id="right-eye-r" type="number" min="0" max="8" step="1" value="4"
+              /></label>
               <label
                 >まぶた幅（自動）<input id="right-eyelid-width" type="number" value="16" readonly aria-readonly="true"
               /></label>
@@ -173,7 +216,11 @@
 
           <details open>
             <summary>口</summary>
-            <div class="number-grid shape-control-group" data-control-part="mouth">
+            <label class="toggle-control">
+              <input id="mouth-visible" type="checkbox" checked />
+              <span>口を描画する</span>
+            </label>
+            <div id="mouth-shape-controls" class="number-grid shape-control-group" data-control-part="mouth">
               <label>X<input id="mouth-x" type="number" min="0" max="320" step="1" value="100" /></label>
               <label>Y<input id="mouth-y" type="number" min="0" max="240" step="1" value="88" /></label>
               <label>開いた幅<input id="mouth-min-width" type="number" min="1" max="320" step="1" value="50" /></label>

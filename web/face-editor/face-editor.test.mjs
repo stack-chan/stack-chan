@@ -23,16 +23,25 @@ test('Shape face editor exposes geometry, preview, persistence, and editor hando
     'canvas-top',
     'canvas-width',
     'canvas-height',
+    'left-eye-shape',
     'left-eye-x',
     'left-eye-y',
     'left-eye-radius',
+    'left-eye-width',
+    'left-eye-height',
+    'left-eye-r',
     'left-eyelid-width',
     'left-eyelid-height',
+    'right-eye-shape',
     'right-eye-x',
     'right-eye-y',
     'right-eye-radius',
+    'right-eye-width',
+    'right-eye-height',
+    'right-eye-r',
     'right-eyelid-width',
     'right-eyelid-height',
+    'mouth-visible',
     'mouth-x',
     'mouth-y',
     'mouth-min-width',
@@ -51,9 +60,18 @@ test('Shape face editor exposes geometry, preview, persistence, and editor hando
   assert.match(source, /ArrowLeft/)
   assert.match(source, /parseFaceAsset\(await file\.text\(\)\)/)
   assert.match(source, /\.stackchan-face\.json/)
-  assert.match(source, /eyelidWidth\.value = String\(diameter\)/)
+  assert.match(source, /group\.eyelidWidth\.value = String\(width\)/)
+  assert.match(source, /syncEyeControls/)
+  assert.match(source, /elements\.mouthPart\.toggleAttribute\('hidden', !shape\.mouth\.visible\)/)
   assert.match(source, /mouthPreview\.removeAttribute\('rx'\)/)
   assert.doesNotMatch(source, /mouthPreview\.setAttribute\('rx'/)
+  assert.match(html, /<rect id="left-eye-iris"/)
+  assert.match(html, /id="left-eye-shape"[\s\S]*?value="circle"[\s\S]*?value="roundRect"/)
+  assert.match(html, /id="mouth-visible"[^>]*checked/)
+  assert.match(html, /id="mouth-open"[^>]*value="0"/)
+  assert.match(html, /id="mouth-open-output"[\s\S]*?>0\.00</)
+  assert.match(source, /applyAsset\(createFaceAsset\(\)\)/)
+  assert.doesNotMatch(source, /createFaceAsset\(\{\s*mouth:\s*0\.2\s*\}\)/)
   assert.match(html, /瞳全体を覆う大きさ/)
   assert.match(html, /まぶた幅（自動）/)
   for (const id of ['left-eyelid-width', 'left-eyelid-height', 'right-eyelid-width', 'right-eyelid-height']) {
@@ -62,6 +80,7 @@ test('Shape face editor exposes geometry, preview, persistence, and editor hando
   assert.match(styles, /\.shape-part/)
   assert.match(styles, /aspect-ratio: 4 \/ 3/)
   assert.match(styles, /input\[readonly\]/)
+  assert.match(styles, /\.toggle-control/)
   const emotionOptions = [...html.matchAll(/<option value="([A-Z]+)">/g)].map((match) => match[1])
   assert.deepEqual(emotionOptions, FACE_ASSET_EMOTIONS)
 })

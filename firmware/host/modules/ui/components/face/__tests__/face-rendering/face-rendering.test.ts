@@ -2,6 +2,7 @@ import { AppController } from 'app-controller'
 import { DogFace, FaceBase, ImageFace, SimpleFace } from 'behaviors/face'
 import { createFaceSkinPalette } from 'face-skin'
 import { createFaceState, Emotion, type FaceState, setColorRGB } from 'face-state'
+import { Eye } from 'parts/eye'
 import { eyeOpenToVariant, IRIS_SPRITE } from 'parts/image/atlas'
 import { Content, type Content as PiuContent } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
@@ -64,6 +65,24 @@ equal(simpleLeftEyelid.skin, defaultPalette.secondary, 'standard eyelid should u
 assert(simpleLeftIris.fillOutline, 'standard iris should render through a Shape fill outline')
 assert(simpleLeftEyelid.fillOutline, 'standard eyelid should render through a Shape fill outline')
 assert(simpleMouth, 'standard mouth should be present')
+
+const roundRectEye = new Eye({
+  cx: 50,
+  cy: 40,
+  shape: 'roundRect',
+  width: 28,
+  height: 16,
+  r: 5,
+  side: 'left',
+  eyelidWidth: 28,
+  eyelidHeight: 16,
+}) as PiuNode
+const roundRectIris = childAt(roundRectEye, 0)
+const roundRectEyelid = childAt(roundRectEye, 1)
+assert(roundRectIris.fillOutline, 'round rect iris should render through a Shape fill outline')
+assert(roundRectEyelid.fillOutline, 'round rect iris should retain an eyelid')
+equal(roundRectIris.coordinates?.width, 28, 'round rect iris should preserve its width')
+equal(roundRectIris.coordinates?.height, 16, 'round rect iris should preserve its height')
 
 const neutralEyelid = simpleLeftEyelid.fillOutline
 const angryFace = createFaceState()

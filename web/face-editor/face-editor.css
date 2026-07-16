@@ -242,6 +242,26 @@ body {
   cursor: default;
 }
 
+.face-controls input:disabled,
+.face-controls select:disabled,
+.shape-control-group[data-disabled='true'] {
+  opacity: 0.55;
+}
+
+.face-controls .toggle-control {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.face-controls .toggle-control input {
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+}
+
 .control-grid,
 .number-grid {
   display: grid;

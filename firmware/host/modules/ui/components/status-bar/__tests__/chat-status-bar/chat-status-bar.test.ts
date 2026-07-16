@@ -11,6 +11,7 @@ const app = new Application(null, {
 type StatusBarBehavior = {
   onChatState?: (container: unknown, state: number, error?: string) => void
   onChatInputLevel?: (container: unknown, level: number) => void
+  onConnectionIndicator?: (container: unknown, visible: boolean) => void
   onFinished?: (container: unknown) => void
   onMenuReveal?: (container: unknown) => void
 }
@@ -71,6 +72,15 @@ behavior.onChatState?.(bar, ChatStatusBarState.SPEAKING)
 assert(levelTrack.visible === true, 'level track should be visible while user is speaking')
 assert(statusIcon.visible === true, 'status icon should be visible while user is speaking')
 equal(statusIcon.state, 0, 'user speaking should use microphone input icon state')
+
+behavior.onConnectionIndicator?.(bar, true)
+assert(statusIndicator.visible === true, 'external connection indicator should be visible')
+assert(levelTrack.visible === false, 'external connection indicator should take priority over the level track')
+assert(statusIcon.visible === false, 'external connection indicator should take priority over the status icon')
+behavior.onConnectionIndicator?.(bar, false)
+assert(statusIndicator.visible === false, 'external connection indicator should hide when connection is ready')
+assert(levelTrack.visible === true, 'level track should return after the external connection is ready')
+assert(statusIcon.visible === true, 'status icon should return after the external connection is ready')
 
 behavior.onChatInputLevel?.(bar, 1000)
 equal(levelFill.height, 8, 'half input level should fill half the track')

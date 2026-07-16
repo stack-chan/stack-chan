@@ -1,17 +1,38 @@
-.app {
-  font-size: 1.8em;
-  justify-content:center;
-  max-width: 300px;
-  gap: .5em;
-  margin: auto;
+.flash-workspace {
+  display: grid;
+  min-height: calc(100dvh - var(--header-height));
+  place-items: center;
+  padding: 24px;
 }
-.select-target {
-  max-height: 2.5em;
-  width: 100%;
+.flash-panel {
+  width: min(100%, 460px);
 }
-.button-flash-container {
+.field {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.field label {
+  color: #cbd2d8;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+.button-flash-container,
+.button-flash {
   width: 100%;
 }
 .button-flash {
-  width: 100%;
+  min-height: 48px;
+}
+.compatibility-message {
+  margin: 12px 0 0;
+  color: var(--danger);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .flash-workspace {
+    place-items: start center;
+    padding: 28px 14px;
+  }
 }

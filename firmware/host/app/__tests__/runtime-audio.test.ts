@@ -110,3 +110,108 @@ test('StackchanRuntimeAudio close detaches TTS callbacks even when the microphon
   ttsCallbacks.onDone?.()
   assert.equal(mouthOpen, -1)
 })
+
+test('StackchanRuntimeAudio stops WebRadio before starting other playback', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let stops = 0
+  const webRadio = {
+    state: 'playing' as const,
+    start: async () => {},
+    stop: () => {
+      stops += 1
+    },
+    setVolume: () => {},
+  }
+  const runtime = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    webRadio,
+    speaker: { tone: async () => {}, play: async () => true },
+  })
+
+  await runtime.say('hello')
+  await runtime.tone(440, 20)
+  await runtime.playAudio(new ArrayBuffer(2) as BorrowedAudioBuffer)
+  assert.equal(stops, 3)
+})
+
+test('StackchanRuntimeAudio rejects WebRadio start while TTS is busy', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let complete: ((error?: unknown) => void) | undefined
+  let radioStarts = 0
+  const runtime = new StackchanRuntimeAudio({
+    tts: { stream: (_text, _volume, callback) => (complete = callback) },
+    webRadio: {
+      state: 'idle',
+      start: async () => {
+        radioStarts += 1
+      },
+      stop: () => {},
+      setVolume: () => {},
+    },
+  })
+
+  const speech = runtime.say('hello')
+  await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/radio.mp3' }), /audio busy/)
+  assert.equal(radioStarts, 0)
+  complete?.()
+  await speech
+  await runtime.webRadio?.start({ url: 'https://example.test/radio.mp3' })
+  assert.equal(radioStarts, 1)
+})
+
+test('StackchanRuntimeAudio stays busy until all overlapping playback completes', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let finishTone: (() => void) | undefined
+  let finishPlayback: (() => void) | undefined
+  let radioStarts = 0
+  const runtime = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    webRadio: {
+      state: 'idle',
+      start: async () => {
+        radioStarts += 1
+      },
+      stop: () => {},
+      setVolume: () => {},
+    },
+    speaker: {
+      tone: () => new Promise<void>((resolve) => (finishTone = resolve)),
+      play: () => new Promise<boolean>((resolve) => (finishPlayback = () => resolve(true))),
+    },
+  })
+
+  const tone = runtime.tone(440, 20)
+  const playback = runtime.playAudio(new ArrayBuffer(2) as BorrowedAudioBuffer)
+  await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/radio.mp3' }), /audio busy/)
+
+  finishTone?.()
+  await tone
+  await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/radio.mp3' }), /audio busy/)
+
+  finishPlayback?.()
+  await playback
+  await runtime.webRadio?.start({ url: 'https://example.test/radio.mp3' })
+  assert.equal(radioStarts, 1)
+})
+
+test('StackchanRuntimeAudio close stops WebRadio', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let stopped = false
+  const runtime = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    webRadio: {
+      state: 'playing',
+      start: async () => {},
+      stop: () => {
+        stopped = true
+      },
+      setVolume: () => {},
+    },
+  })
+  runtime.close()
+  assert.equal(stopped, true)
+})

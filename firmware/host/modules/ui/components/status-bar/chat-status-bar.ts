@@ -79,6 +79,7 @@ class IndicatorBehavior extends Behavior {
 
 class ChatStatusBarBehavior extends Behavior {
   #state: ChatStatusBarState = ChatStatusBarState.DISCONNECTED
+  #connectionPending = false
   #inputLevel = 0
   #levelTrack?: Container
   #levelFill?: Content
@@ -120,14 +121,20 @@ class ChatStatusBarBehavior extends Behavior {
     this.updateLevel()
   }
 
+  onConnectionIndicator(_container: Container, visible: boolean) {
+    if (this.#connectionPending === visible) return
+    this.#connectionPending = visible
+    this.updateUI()
+  }
+
   updateUI() {
     if (!this.#levelTrack || !this.#levelFill || !this.#statusIcon || !this.#indicator) return
     // ChatAudioIO.SPEAKING means user input; LISTENING means assistant output.
     const isUserSpeaking = this.#state === ChatStatusBarState.SPEAKING
     const isUserListening = this.#state === ChatStatusBarState.LISTENING
-    const isConnecting = this.#state === ChatStatusBarState.CONNECTING
-    this.#levelTrack.visible = isUserSpeaking
-    this.#statusIcon.visible = isUserSpeaking || isUserListening
+    const isConnecting = this.#state === ChatStatusBarState.CONNECTING || this.#connectionPending
+    this.#levelTrack.visible = !isConnecting && isUserSpeaking
+    this.#statusIcon.visible = !isConnecting && (isUserSpeaking || isUserListening)
     this.#statusIcon.state = isUserListening ? 1 : 0
     this.#indicator.visible = isConnecting
     if (isConnecting) {

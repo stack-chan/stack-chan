@@ -1,0 +1,51 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/modules/io/wifi/manifest.json",
+    "$(MODDABLE)/modules/files/preference/manifest.json",
+    "$(MODDABLE)/modules/base/worker/manifest.json",
+    "$(MODDABLE)/examples/pins/audioout/mp3-http-stream/manifest_mp3streamer.json",
+    "$(MODDABLE)/modules/pins/i2s/manifest.json"
+  ],
+  "modules": {
+    "*": ["./main"],
+    "esp32-mp3-decoder": "../../platforms/m5stackchan-cores3/esp32-mp3-decoder",
+    "web-radio-audio-out": "../../platforms/m5stackchan-cores3/web-radio-audio-out",
+    "pcm-resampler": "../../platforms/m5stackchan-cores3/pcm-resampler",
+    "buffered-mp3streamer": "../../platforms/m5stackchan-cores3/worker-mp3streamer",
+    "buffered-mp3streamer-core": "../../platforms/m5stackchan-cores3/buffered-mp3streamer",
+    "web-radio-byte-ring": "../../platforms/m5stackchan-cores3/shared-byte-ring",
+    "web-radio-stream-worker": "../../platforms/m5stackchan-cores3/web-radio-stream-worker"
+  },
+  "platforms": {
+    "esp32/m5stackchan_cores3": {
+      "build": {
+        "SDKCONFIGPATH": "../../platforms/m5stackchan-cores3/sdkconfig"
+      },
+      "dependency": [
+        {
+          "name": "esp_audio_codec",
+          "version": "^2.6.0",
+          "includes": ["include/decoder", "include/decoder/impl"]
+        }
+      ]
+    }
+  },
+  "config": {
+    "startupSound": false
+  },
+  "defines": {
+    "audioOut": {
+      "bitsPerSample": 16,
+      "numChannels": 1,
+      "sampleRate": 24000
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "lib": ["es2025", "esnext.disposable"]
+      }
+    }
+  }
+}

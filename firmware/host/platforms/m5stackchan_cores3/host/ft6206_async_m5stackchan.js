@@ -77,6 +77,8 @@ class FT6206 {
           delete io.configure
           this.configure(pending)
           io.writeUint8(REG_TIMEOUT, timeout, () => {
+            // INT_MODE 0x00 = polling. GPIO21 edge interrupts are unreliable on
+            // CoreS3, so touch is sampled on a timer instead of waiting on IRQ.
             io.writeUint8(REG_INT_MODE, 0x00, () => {
               trace(
                 `[m5stackchan-cores3] Touch polling ready idle=${idleIntervalMs}ms active=${activeIntervalMs}ms releaseDebounce=${releaseDebounceMs}ms\n`,

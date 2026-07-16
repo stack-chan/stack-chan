@@ -4,15 +4,15 @@
   "description": "Stack-chan development server",
   "scripts": {
     "dev": "live-server --verbose",
-    "test": "node --test simulator/*.test.mjs editor/*.test.mjs icon-assets.test.mjs",
-    "test:visual": "node simulator/visual-test.mjs"
+    "test": "node --test simulator/*.test.mjs editor/*.test.mjs *.test.mjs",
+    "test:visual": "node visual-pages-test.mjs && node simulator/visual-test.mjs"
   },
   "keywords": [],
   "author": "Shinya Ishikawa",
   "devDependencies": {
     "live-server": "^1.2.2",
     "playwright-core": "^1.61.1",
-    "prettier": "^3.9.4"
+    "prettier": "^3.9.5"
   },
   "dependencies": {
     "lucide": "^1.24.0"

@@ -42,3 +42,21 @@ Open `xsbug` or serial logs and verify these log prefixes:
 - `[M5StackChan CoreS3 smoke] complete`
 
 The servo motion is intentionally small. Keep the device clear of obstructions before running the check. The LED names and PY32 wiring come from `host/platforms/m5stackchan_cores3/manifest.json`.
+
+## Automated runner
+
+`scripts/run-device-smoke.js` automates the install-and-verify loop: it installs the smoke MOD via `mcrun -dn` (no xsbug GUI), collects device traces through a local xsbug log server, and passes when `[M5StackChan CoreS3 smoke] complete` appears.
+
+```console
+$ UPLOAD_PORT=/dev/ttyACM0 npm run test:device
+```
+
+Options and environment:
+
+- `--device <name>` / `STACKCHAN_DEVICE` — target device (default `m5stackchan_cores3`)
+- `--flash` — build and deploy the host firmware before installing the MOD
+- `--mod <manifest>` — smoke MOD manifest (default `mods/examples/m5stackchan_smoke/manifest.json`)
+- `STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS` — per-attempt timeout (default 120000)
+- `STACKCHAN_DEVICE_SMOKE_RETRIES` — retries on channel drop (default 2)
+
+The xsbug serial bridge is known to be unstable on CoreS3, so timed-out attempts retry automatically. `--channel serial` falls back to watching the raw serial console for crash markers only — `trace()` output is not visible on raw serial (it only flows over the xsbug protocol in debug builds), so serial mode verifies boot stability, not smoke completion.

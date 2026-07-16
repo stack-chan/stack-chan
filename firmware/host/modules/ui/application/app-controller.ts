@@ -69,6 +69,10 @@ export class AppController extends Behavior {
     this.#viewBehavior?.setFace?.(face)
   }
 
+  setFaceMotionEnabled(enabled: boolean): void {
+    this.#viewBehavior?.setFaceMotionEnabled?.(enabled)
+  }
+
   setMain(content: PiuContainer): void {
     this.#viewBehavior?.setMain?.(content)
   }

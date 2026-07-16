@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Stack-chan Web Simulator</title>
+    <link rel="icon" href="../assets/stackchan-favicon-32.png" type="image/png" />
+    <link rel="apple-touch-icon" href="../assets/stackchan-apple-touch-icon.png" />
+    <title>Webシミュレーター | ｽﾀｯｸﾁｬﾝ</title>
+    <link rel="stylesheet" href="../global.css" />
     <link rel="stylesheet" href="./simulator.css" />
     <script type="importmap">
       {
@@ -21,8 +24,20 @@
   <body>
     <main class="app-shell">
       <header class="topbar">
-        <h1><span>ｽﾀｯｸﾁｬﾝ</span><span class="surface-name"> Web Simulator</span></h1>
+        <a class="brand-link" href="../"
+          ><img src="../assets/stackchan-symbol.png" alt="" /><span
+            >ｽﾀｯｸﾁｬﾝ<span class="surface-name"> Webシミュレーター</span></span
+          ></a
+        >
         <p id="simulator-info" role="status">WASMを読み込み中</p>
+        <nav class="tool-nav" aria-label="ツール">
+          <a href="../" title="ホーム" aria-label="ホーム"><i data-lucide="home"></i></a
+          ><a href="../flash/" title="書き込み" aria-label="書き込み"><i data-lucide="cpu"></i></a
+          ><a href="../preference/" title="設定" aria-label="設定"><i data-lucide="sliders-horizontal"></i></a
+          ><a href="../simulator/" aria-current="page" title="シミュレーター" aria-label="シミュレーター"
+            ><i data-lucide="box"></i></a
+          ><a href="../editor/" title="エディタ" aria-label="エディタ"><i data-lucide="blocks"></i></a>
+        </nav>
       </header>
 
       <div class="simulator-layout">

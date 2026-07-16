@@ -15,12 +15,54 @@
 // Fallback when the version cannot be detected from the tools binary output.
 // The TOOL base class verifies $(MODDABLE)/tools/VERSION against the version
 // baked into the binary, so this must match vendor/tools.wasm.
-export const DEFAULT_TOOLS_VERSION = '8.3.0'
+export const DEFAULT_TOOLS_VERSION = '8.3.1'
 
 export const DEFAULT_MOD_MANIFEST = {
   modules: {
     '*': ['./mod'],
   },
+}
+
+export function manifestForProjectAssets(assets = []) {
+  if (assets.length === 0) return DEFAULT_MOD_MANIFEST
+  return {
+    ...DEFAULT_MOD_MANIFEST,
+    resources: {
+      '*': assets.map((asset) => `./${validateProjectPath(asset.path)}`),
+    },
+  }
+}
+
+function validateProjectPath(path) {
+  const normalized = String(path ?? '')
+  const segments = normalized.split('/')
+  if (
+    !normalized ||
+    normalized.startsWith('/') ||
+    normalized.includes('\\') ||
+    /[\u0000-\u001f:]/.test(normalized) ||
+    segments.some((segment) => !segment || segment === '.' || segment === '..')
+  ) {
+    throw new TypeError(`invalid project file path: ${path}`)
+  }
+  return normalized
+}
+
+export function buildDirectoryName(name) {
+  const value = String(name ?? '')
+    .normalize('NFKC')
+    .replace(/[^A-Za-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 64)
+  return value || 'mod'
+}
+
+function writeProjectFile(FS, projectDirectory, file) {
+  const path = validateProjectPath(file.path)
+  const parts = path.split('/')
+  parts.pop()
+  if (parts.length) FS.mkdirTree(`${projectDirectory}/${parts.join('/')}`)
+  FS.writeFile(`${projectDirectory}/${path}`, file.bytes)
 }
 
 /**
@@ -92,12 +134,13 @@ function runTool(tools, argv, log) {
  * @param options.modJs   MOD JavaScript source (contents of mod.js)
  * @param options.manifest MOD manifest object (default: modules: * -> ./mod)
  * @param options.name    project directory name; becomes part of the signature
+ * @param options.files   additional project files such as embedded assets
  * @param options.onLog   receives each build log line
  * @returns Uint8Array of the mc.xsa archive
  */
 export async function buildModArchive(
   createTools,
-  { modJs, manifest = DEFAULT_MOD_MANIFEST, name = 'mod', onLog } = {}
+  { modJs, manifest = DEFAULT_MOD_MANIFEST, name = 'mod', files = [], onLog } = {}
 ) {
   const logs = []
   const log = (text) => {
@@ -110,8 +153,9 @@ export async function buildModArchive(
     const tools = await instantiateTools(createTools, { toolsVersion, log })
     const { FS } = tools
 
-    const projectDirectory = `/mod/${name}`
+    const projectDirectory = `/mod/${buildDirectoryName(name)}`
     FS.mkdirTree(projectDirectory)
+    for (const file of files) writeProjectFile(FS, projectDirectory, file)
     FS.writeFile(`${projectDirectory}/manifest.json`, JSON.stringify(manifest, null, 2))
     FS.writeFile(`${projectDirectory}/mod.js`, modJs)
     FS.chdir(projectDirectory)

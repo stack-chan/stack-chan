@@ -195,6 +195,135 @@ p {
   background: var(--surface);
 }
 
+.tool-menu-button {
+  flex: 0 0 auto;
+  border-color: transparent;
+  background: transparent;
+}
+
+.tool-drawer {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.tool-drawer::backdrop {
+  background: rgb(0 0 0 / 62%);
+}
+
+.tool-drawer-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(360px, calc(100vw - 32px));
+  height: 100dvh;
+  border-right: 1px solid var(--line-strong);
+  background: var(--surface);
+  box-shadow: 18px 0 48px rgb(0 0 0 / 38%);
+}
+
+.tool-drawer-panel > header {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px 12px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tool-drawer-panel h1,
+.tool-drawer-section h2 {
+  margin: 0;
+}
+
+.tool-drawer-panel h1 {
+  font-size: 1.1rem;
+}
+
+.tool-drawer-eyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tool-drawer-content {
+  overflow: auto;
+  padding: 18px 12px 32px;
+}
+
+.tool-drawer-section + .tool-drawer-section {
+  margin-top: 22px;
+}
+
+.tool-drawer-section h2 {
+  padding: 0 8px 7px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+}
+
+.tool-drawer-section nav {
+  display: grid;
+  gap: 3px;
+}
+
+.tool-drawer-link {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.tool-drawer-link:hover,
+.tool-drawer-link[aria-current='page'] {
+  border-color: var(--line);
+  background: var(--surface-raised);
+}
+
+.tool-drawer-link[aria-current='page'] {
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.tool-drawer-link > svg {
+  width: 21px;
+  height: 21px;
+  justify-self: center;
+  color: var(--accent);
+}
+
+.tool-drawer-link strong,
+.tool-drawer-link small {
+  display: block;
+}
+
+.tool-drawer-link strong {
+  margin-bottom: 2px;
+  font-size: 0.86rem;
+}
+
+.tool-drawer-link small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
 .brand-link {
   display: inline-flex;
   min-width: 0;
@@ -216,39 +345,6 @@ p {
 .surface-name {
   color: var(--muted);
   font-weight: 500;
-}
-
-.tool-nav {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 3px;
-  margin-left: auto;
-}
-
-.tool-nav a {
-  display: inline-flex;
-  min-width: 40px;
-  min-height: 40px;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 7px 9px;
-  border-radius: 5px;
-  color: var(--muted);
-  font-size: 0.8rem;
-  text-decoration: none;
-}
-
-.tool-nav a:hover,
-.tool-nav a[aria-current='page'] {
-  background: var(--surface-hover);
-  color: var(--text);
-}
-
-.tool-nav svg {
-  width: 18px;
-  height: 18px;
 }
 
 .page-content {
@@ -327,17 +423,8 @@ p {
     width: 28px;
     height: 28px;
   }
-  .surface-name,
-  .nav-label {
+  .surface-name {
     display: none;
-  }
-  .tool-nav {
-    gap: 0;
-  }
-  .tool-nav a {
-    min-width: 36px;
-    min-height: 36px;
-    padding: 6px;
   }
   .page-content {
     padding: 22px 14px 32px;

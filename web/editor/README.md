@@ -13,22 +13,28 @@ Blockly-based MOD editor for Stack-chan. Everything runs client-side:
 | `index.html` / `editor.mjs` / `editor.css` | Editor page, wiring, and styles                                      |
 | `blocks.mjs`                               | Block definitions, JavaScript generators, toolbox, `mod.js` assembly |
 | `mod-builder.mjs`                          | Client-side build pipeline driving the WASM Moddable tools           |
+| `project-storage.mjs`                      | IndexedDB persistence and legacy localStorage migration              |
 | `esptool-installer.mjs`                    | WebSerial device install via esptool-js (flashes the `xs` partition) |
 | `vendor/tools.js`, `vendor/tools.wasm`     | Moddable SDK tools compiled with Emscripten                          |
+| `vendor/esptool-js-0.5.7.bundle.mjs`       | Pinned local WebSerial flasher bundle (Apache-2.0)                   |
 | `*.test.mjs`                               | Node unit tests (`npm test` in `web/`)                               |
 
 ## Rebuilding `vendor/tools.wasm`
 
-The tools binary embeds a Moddable SDK version (currently **8.3.0**, XS 17.8). Rebuild it whenever the SDK is updated:
+The tools binary embeds a Moddable SDK version (currently **8.3.1**, XS 17.8) and is generated with **Emscripten 5.0.1**. Rebuild it whenever either toolchain is updated:
 
 ```sh
-cd "$MODDABLE/build/makefiles/wasm"
-make -f tools.mk GOAL=release LINK_FLAGS="-s ENVIRONMENT=web,node -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORT_NAME=tools -s INVOKE_RUN=0 -s FORCE_FILESYSTEM=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -s EXIT_RUNTIME=0 -s \"EXPORTED_RUNTIME_METHODS=['FS','cwrap','ccall','callMain','ENV']\""
-cp "$MODDABLE/build/bin/wasm/release/tools.js" "$MODDABLE/build/bin/wasm/release/tools.wasm" web/editor/vendor/
+cd firmware
+source "$HOME/.local/share/xs-dev-export.sh"
+source "/path/to/emsdk-5.0.1/emsdk_env.sh"
+npm run build:editor-tools
 ```
 
 Notes:
 
+- `firmware/scripts/build-editor-tools.sh` owns the Emscripten flags and copies both generated files into `web/editor/vendor/`.
+- The script rejects Moddable SDK or Emscripten versions that differ from the versions above.
+- CI runs the same command and fails when regeneration changes either tracked vendor file.
 - `ENVIRONMENT=web,node` keeps the module loadable from both the browser and the Node test runner.
 - `mod-builder.mjs` writes `/moddable/tools/VERSION` into the virtual filesystem before running `mcrun`; when the binary disagrees it detects the mismatch warning and retries with the binary's version, so a version bump usually needs no code change.
 
@@ -72,17 +78,16 @@ xsbug handshake on native USB-serial-JTAG parts (CoreS3).
 Requirements:
 
 - A browser with WebSerial (Chrome / Edge).
-- The flashed Stack-chan firmware's XS version must be **≥ the archive's** (8.3.0 / XS 17.8
+- The flashed Stack-chan firmware's XS version must be **≥ the archive's** (8.3.1 / XS 17.8
   here) — see [XS version compatibility](#xs-version-compatibility). No debug build needed.
 - The `-p wasm` archive runs on the ESP32 device because `fxMapArchive` gates only on the
   XS version, skips the signature, and remaps symbols by name at install time — so the
   build platform need not match the device. Verified end-to-end on an M5Stack CoreS3
   (face + balloon appear after the auto-reboot).
 
-esptool-js is loaded from its self-contained browser bundle
-(`https://unpkg.com/esptool-js@0.5.7/bundle.js`), which inlines pako and the per-chip
-flasher stubs (the plain ESM entry fails on the bare `pako` dependency, and esm.sh
-mangles the stub JSON's base64).
+esptool-js 0.5.7 is checked into `vendor/` with its Apache-2.0 license and loaded locally.
+Its self-contained browser bundle inlines pako and the per-chip flasher stubs.
+`check:editor-artifacts` verifies the SHA-384 digest against the reviewed npm artifact.
 
 ## Tests
 
@@ -95,3 +100,9 @@ npm test
 network needed). `esptool-installer.test.mjs` covers partition-table parsing, `xs`
 partition lookup across board layouts, and the install/flash sequence with a stubbed
 loader.
+
+## Project and learning guides
+
+- The versioned authoring format and safety contract are defined in `docs/specs/visual-programming.md`.
+- The Japanese 5-, 15-, and 30-minute walkthrough is in `TUTORIAL_ja.md`.
+- Evaluation events can be exported from the chart button in the editor header.

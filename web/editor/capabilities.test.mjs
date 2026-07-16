@@ -1,0 +1,78 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+
+import { inspectDeploymentCompatibility, requirementsForBlockTypes, unsupportedRequirements } from './capabilities.mjs'
+
+test('capability requirements are unique and target-aware', () => {
+  assert.deepEqual(requirementsForBlockTypes(['stackchan_on_imu', 'stackchan_on_imu', 'stackchan_say']), [
+    'audio.speech',
+    'input.imu',
+  ])
+  assert.deepEqual(unsupportedRequirements('simulator', ['input.imu', 'face']), ['input.imu'])
+})
+
+test('deployment compatibility checks chip family and exact XS archive version', () => {
+  assert.equal(
+    inspectDeploymentCompatibility('m5stackchan-cores3', {
+      chip: 'ESP32-S3',
+      xsVersion: [17, 8, 0],
+      firmwareVersion: '8.3.0-1-gabcdef',
+      requireFirmware: true,
+      requireArchive: true,
+    }).compatible,
+    true
+  )
+  const wrongChip = inspectDeploymentCompatibility('m5stackchan-cores3', {
+    chip: 'ESP32-C3',
+    xsVersion: [17, 8, 0],
+  })
+  assert.deepEqual(
+    wrongChip.diagnostics.map((item) => item.code),
+    ['VP_DEVICE_CHIP_MISMATCH']
+  )
+  const wrongXs = inspectDeploymentCompatibility('m5stackchan-cores3', {
+    chip: 'ESP32-S3',
+    xsVersion: [17, 7, 0],
+  })
+  assert.deepEqual(
+    wrongXs.diagnostics.map((item) => item.code),
+    ['VP_XS_VERSION_MISMATCH']
+  )
+  const malformedXs = inspectDeploymentCompatibility('m5stackchan-cores3', {
+    chip: 'ESP32-S3',
+    xsVersion: '17.8.0',
+  })
+  assert.deepEqual(
+    malformedXs.diagnostics.map((item) => item.code),
+    ['VP_XS_VERSION_MISMATCH']
+  )
+  assert.match(malformedXs.diagnostics[0].message, /MODはXS 不明です/)
+  const wrongFirmware = inspectDeploymentCompatibility('m5stackchan-cores3', {
+    chip: 'ESP32-S3',
+    xsVersion: [17, 8, 0],
+    firmwareVersion: '8.2.1',
+    requireFirmware: true,
+  })
+  assert.deepEqual(
+    wrongFirmware.diagnostics.map((item) => item.code),
+    ['VP_FIRMWARE_VERSION_MISMATCH']
+  )
+  const simulatorInstall = inspectDeploymentCompatibility('simulator', {
+    firmwareVersion: '8.3.0',
+    requireFirmware: true,
+  })
+  assert.deepEqual(
+    simulatorInstall.diagnostics.map((item) => item.code),
+    ['VP_DEVICE_TARGET_UNSUPPORTED']
+  )
+
+  const missingDeviceEvidence = inspectDeploymentCompatibility('m5stackchan-cores3', {
+    firmwareVersion: '8.3.0',
+    requireFirmware: true,
+    requireArchive: true,
+  })
+  assert.deepEqual(
+    missingDeviceEvidence.diagnostics.map((item) => item.code),
+    ['VP_DEVICE_CHIP_MISSING', 'VP_XS_VERSION_MISSING']
+  )
+})

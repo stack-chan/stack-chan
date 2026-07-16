@@ -33,7 +33,19 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
         with:
+          target-branch: "8.3.1"
           install-emscripten: "true"
+      - name: Install web test dependencies
+        working-directory: ./firmware
+        run: npm --prefix ../web ci
+      - name: Rebuild editor tools for release verification
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:editor-tools
+      - name: Verify release editor tools
+        working-directory: ./firmware
+        run: |
+          npm --prefix ../web run check:editor-artifacts
+          git diff --exit-code -- ':(top)web/editor/vendor/tools.js' ':(top)web/editor/vendor/tools.wasm'
       - name: Bundle firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle

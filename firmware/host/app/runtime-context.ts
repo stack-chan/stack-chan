@@ -10,6 +10,7 @@ import type {
   MotionCapability,
   RobotUI,
   RuntimeUICapability,
+  ShowBalloonOptions,
   StackchanContext,
 } from 'capabilities'
 import type { Emotion, FaceThemeKey } from 'face-state'
@@ -245,21 +246,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    *
    * @param text - the text on the balloon
    */
-  showBalloon(
-    text: string,
-    option: {
-      left?: number
-      right?: number
-      top?: number
-      bottom?: number
-      width?: number
-      height?: number
-    } = {
-      right: 20,
-      top: 10,
-      width: 80,
-    },
-  ) {
+  showBalloon(text: string, option: ShowBalloonOptions = {}) {
     this.#uiRuntime.showBalloon(text, option)
   }
 

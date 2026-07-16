@@ -349,11 +349,25 @@ const runtimeUI = new StackchanRuntimeUI(controller, {
 runtimeUI.setColor('primary', 0x12, 0x34, 0x56)
 runtimeUI.setColor('secondary', 0xab, 0xcd, 0xef)
 runtimeUI.updateFace(32)
-runtimeUI.showBalloon('runtime balloon', { left: 8, top: 8, width: 120 })
+runtimeUI.showBalloon('runtime balloon')
 
 const runtimeBalloon = appData.EFFECTS?.last
 assert(runtimeBalloon != null, 'showBalloon should attach a speech balloon effect')
 const attachedBalloon = runtimeBalloon as BalloonContent
+type PositionedBalloon = BalloonContent & {
+  coordinates?: {
+    left?: number
+    right?: number
+    top?: number
+    bottom?: number
+    height?: number
+  }
+}
+const positionedBalloon = attachedBalloon as PositionedBalloon
+equal(positionedBalloon.coordinates?.left, 16, 'showBalloon should use the default left margin')
+equal(positionedBalloon.coordinates?.right, 16, 'showBalloon should use the default right margin')
+equal(positionedBalloon.coordinates?.bottom, 12, 'showBalloon should anchor the default balloon to the bottom')
+equal(positionedBalloon.coordinates?.top, undefined, 'showBalloon should not anchor the default balloon to the top')
 assert(
   attachedBalloon.first?.skin !== defaultSkin,
   'showBalloon should replay the active face state to newly attached balloons',

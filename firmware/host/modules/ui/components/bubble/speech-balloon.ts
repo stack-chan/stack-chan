@@ -15,7 +15,7 @@ import {
 } from 'piu/MC'
 
 let bubbleTexture: PiuTexture | null = null
-let bubbleSkinCache: Map<number, PiuSkin> | null = null
+let bubbleSkinCache: Map<string, PiuSkin> | null = null
 let textStyleCache: Map<string, PiuStyle> | null = null
 
 const defaultOptions = {
@@ -28,6 +28,8 @@ const defaultOptions = {
   text: 'Hello from Stack-chan',
   font: 'k8x12-12',
 }
+
+type SpeechBalloonTail = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
 type BalloonOptions = {
   name?: string
@@ -43,6 +45,7 @@ type BalloonOptions = {
   paddingY?: number
   text?: string
   font?: string
+  tail?: SpeechBalloonTail
   // Legacy options kept for compatibility.
   space?: number
   radius?: number
@@ -89,17 +92,31 @@ function getTextStyle(font: string, color: number | string): PiuStyle {
   return style
 }
 
-function getBubbleSkin(color: number): PiuSkin {
+const tailTextureCoordinates: Record<SpeechBalloonTail, { x: number; y: number }> = {
+  'bottom-left': { x: 0, y: 0 },
+  'bottom-right': { x: 204, y: 0 },
+  'top-left': { x: 0, y: 332 },
+  'top-right': { x: 204, y: 332 },
+}
+
+function resolveTail(options: BalloonOptions): SpeechBalloonTail {
+  if (options.tail !== undefined) return options.tail
+  return options.top !== undefined ? 'bottom-left' : 'top-left'
+}
+
+function getBubbleSkin(color: number, tail: SpeechBalloonTail): PiuSkin {
   if (!bubbleSkinCache) bubbleSkinCache = new Map()
-  const cached = bubbleSkinCache.get(color)
+  const key = `${color}:${tail}`
+  const cached = bubbleSkinCache.get(key)
   if (cached) return cached
   if (!bubbleTexture) bubbleTexture = new Texture('bubble.png')
   const skinColor = toPiuColorString(color)
+  const textureCoordinates = tailTextureCoordinates[tail]
   const skin = new Skin({
     texture: bubbleTexture,
     color: [skinColor],
-    x: 0,
-    y: 0,
+    x: textureCoordinates.x,
+    y: textureCoordinates.y,
     width: 204,
     height: 332,
     left: 24,
@@ -107,7 +124,7 @@ function getBubbleSkin(color: number): PiuSkin {
     top: 12,
     bottom: 12,
   })
-  bubbleSkinCache.set(color, skin)
+  bubbleSkinCache.set(key, skin)
   return skin
 }
 
@@ -117,6 +134,7 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
   const paddingY = resolveDimension(opts.paddingY ?? opts.padding, defaultOptions.paddingY)
   const minHeight = resolveDimension(opts.minHeight, defaultOptions.minHeight)
   const fixedHeight = opts.height
+  const tail = resolveTail(opts)
 
   const style = getTextStyle(o.font, '#000')
   const lineHeight = Math.max(1, style.measure('Mg').height ?? 0)
@@ -215,7 +233,7 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
         currentSecondary = secondary
         const bubbleColor = primary
         const textColor = secondary === bubbleColor ? 0x000000 : secondary
-        background.skin = getBubbleSkin(bubbleColor)
+        background.skin = getBubbleSkin(bubbleColor, tail)
         bodyText.style = getTextStyle(o.font, textColor)
       }
 
@@ -275,4 +293,4 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
   return containerOptions
 })
 
-export type { BalloonOptions as SpeechBalloonOptions }
+export type { BalloonOptions as SpeechBalloonOptions, SpeechBalloonTail }

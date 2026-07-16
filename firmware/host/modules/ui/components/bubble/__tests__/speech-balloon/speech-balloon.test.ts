@@ -1,4 +1,4 @@
-import { SpeechBalloon } from 'effects/speech-balloon'
+import { SpeechBalloon, type SpeechBalloonTail } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB } from 'face-state'
 import { Application, type Content, Skin, Style } from 'piu/MC'
 import { assert } from 'testing/assert'
@@ -33,9 +33,13 @@ const lookBalloon = new SpeechBalloon({
   text: 'looking',
   font: 'k8x12-12',
 }) as unknown as Content
+const defaultBalloon = new SpeechBalloon({
+  text: '1行目\n2行目',
+}) as unknown as Content
 app.add(fixedBalloon)
 app.add(streamBalloon)
 app.add(lookBalloon)
+app.add(defaultBalloon)
 
 type BalloonBehavior = {
   onDisplaying?: (content: Content) => void
@@ -58,6 +62,10 @@ type BalloonNode = Content & {
 
 type BalloonLayout = Content & {
   coordinates?: {
+    left?: number
+    right?: number
+    top?: number
+    bottom?: number
     height?: number
   }
 }
@@ -72,6 +80,7 @@ const defaultFace = createFaceState()
 fixedBalloonAny.behavior?.onDisplaying?.(fixedBalloon)
 fixedBalloonAny.behavior?.onFaceState?.(fixedBalloon, defaultFace)
 fixedBalloonAny.behavior?.setText?.(fixedBalloon, '固定表示の Balloon です。')
+const fixedBackgroundSkin = fixedBalloonAny.first?.skin
 
 const streamBalloonAny = streamBalloon as unknown as BalloonContent
 streamBalloonAny.behavior?.onDisplaying?.(streamBalloon)
@@ -80,6 +89,35 @@ const defaultBackground = streamBalloonAny.first as BalloonNode
 const defaultText = defaultBackground.next as BalloonNode
 const defaultBackgroundSkin = defaultBackground.skin
 const defaultTextStyle = defaultText.style
+assert(
+  fixedBackgroundSkin !== defaultBackgroundSkin,
+  'top and bottom placement should automatically select different tail directions',
+)
+
+const defaultBalloonAny = defaultBalloon as unknown as BalloonContent
+defaultBalloonAny.behavior?.onDisplaying?.(defaultBalloon)
+defaultBalloonAny.behavior?.onFaceState?.(defaultBalloon, defaultFace)
+const defaultLayout = defaultBalloon as BalloonLayout
+assert(defaultLayout.coordinates?.left === 16, 'default balloon should keep a 16px left margin')
+assert(defaultLayout.coordinates?.right === 16, 'default balloon should keep a 16px right margin')
+assert(defaultLayout.coordinates?.bottom === 12, 'default balloon should keep a 12px bottom margin')
+assert(defaultLayout.coordinates?.top === undefined, 'default balloon should be anchored to the bottom')
+assert(measuredHeight(defaultLayout) === 44, 'default balloon should fit two k8x12 lines in 44px')
+
+const tails: SpeechBalloonTail[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+const tailSkins = tails.map((tail) => {
+  const balloon = new SpeechBalloon({ tail, text: tail }) as unknown as Content
+  const balloonAny = balloon as unknown as BalloonContent
+  balloonAny.behavior?.onDisplaying?.(balloon)
+  balloonAny.behavior?.onFaceState?.(balloon, defaultFace)
+  return balloonAny.first?.skin
+})
+for (let i = 0; i < tailSkins.length; i += 1) {
+  assert(tailSkins[i] != null, `${tails[i]} should initialize a bubble skin`)
+  for (let j = i + 1; j < tailSkins.length; j += 1) {
+    assert(tailSkins[i] !== tailSkins[j], `${tails[i]} and ${tails[j]} should use different texture regions`)
+  }
+}
 
 const themedFace = createFaceState()
 setColorRGB(themedFace.theme.primary, 0x12, 0x34, 0x56)
@@ -128,6 +166,6 @@ Timer.repeat(() => {
   else streamBalloonAny.behavior?.setText?.(streamBalloon, '')
 }, 5000)
 
-assert(app.length === 3, 'three balloons should be attached')
+assert(app.length === 4, 'four balloons should be attached')
 
 trace('ok\n')

@@ -41,6 +41,19 @@ async function captureBrowserDownload(page, trigger) {
   return { download, bytes: Buffer.from(captured.bytes), type: captured.type }
 }
 
+async function openProjectMenu(page) {
+  const menu = page.locator('#project-menu')
+  if (await menu.isHidden()) {
+    await page.locator('#project-menu-button').click()
+    await menu.waitFor({ state: 'visible' })
+  }
+}
+
+async function clickProjectAction(page, actionId) {
+  await openProjectMenu(page)
+  await page.locator(`#${actionId}`).click()
+}
+
 let server
 if (!process.env.STACKCHAN_PAGES_TEST_URL) {
   server = spawn(process.execPath, [resolve('static-server.mjs'), `--port=${port}`, '--host=127.0.0.1'], {
@@ -187,7 +200,7 @@ try {
           visibleHiddenElements: [...document.querySelectorAll('[hidden]')].filter(
             (element) => getComputedStyle(element).display !== 'none'
           ).length,
-          projectMenuButtonVisible: document.querySelector('#mobile-project-menu-button')?.getClientRects().length > 0,
+          projectMenuButtonVisible: document.querySelector('#project-menu-button')?.getClientRects().length > 0,
           toolMenuButtonVisible: document.querySelector('.tool-menu-button')?.getClientRects().length > 0,
           legacyToolNavCount: document.querySelectorAll('.tool-nav').length,
           unnamedInteractive: accessibilityTargets
@@ -278,6 +291,11 @@ try {
         await page.locator('#left-eye-x').fill('46')
         await page.locator('#right-eye-radius').fill('12')
         await page.locator('#mouth-max-width').fill('108')
+        assert.equal(await page.locator('#left-eyelid-width').isEditable(), false)
+        assert.equal(await page.locator('#left-eyelid-height').isEditable(), false)
+        assert.equal(await page.locator('#right-eyelid-width').inputValue(), '24')
+        assert.equal(await page.locator('#right-eyelid-height').inputValue(), '24')
+        assert.equal(await page.locator('#mouth-preview').getAttribute('rx'), null)
         assert.equal(await page.locator('#face-canvas').getAttribute('data-emotion'), 'HOT')
         assert.match(await page.locator('#shape-code-preview').textContent(), /new Eye\(\{ cx: 46/)
         const faceDownload = await captureBrowserDownload(page, () => page.locator('#download-face').click())
@@ -294,8 +312,8 @@ try {
         assert.deepEqual(downloadedFace.canvas, { left: 60, top: 60, width: 200, height: 120 })
         assert.equal(downloadedFace.shape.eyes.left.x, 46)
         assert.equal(downloadedFace.shape.eyes.right.radius, 12)
-        assert.equal(downloadedFace.shape.eyes.right.eyelidWidth >= 24, true)
-        assert.equal(downloadedFace.shape.eyes.right.eyelidHeight >= 24, true)
+        assert.equal(downloadedFace.shape.eyes.right.eyelidWidth, 24)
+        assert.equal(downloadedFace.shape.eyes.right.eyelidHeight, 24)
         assert.equal(downloadedFace.shape.mouth.maxWidth, 108)
         await page.locator('#reset-face').click()
         assert.equal(await page.locator('#left-eye-x').inputValue(), '30')
@@ -339,6 +357,8 @@ try {
         await page.locator('#send-to-editor').click()
         await page.waitForURL(/\/editor\/?\?face-asset=staging/)
         await page.locator('#asset-summary').filter({ hasText: 'あつい顔.stackchan-face.json' }).waitFor()
+        assert.equal(await page.locator('#face-selection-label').innerText(), 'あつい顔')
+        assert.doesNotMatch(await page.locator('#asset-summary').innerText(), /使用中|使う/)
         assert.match(await page.locator('#code-preview').innerText(), /FaceBase\.template/)
         assert.match(
           await page.locator('#code-preview').innerText(),
@@ -346,6 +366,18 @@ try {
         )
         assert.match(await page.locator('#code-preview').innerText(), /robot\.ui\.setFace/)
         assert.match(await page.locator('#code-preview').innerText(), /setEmotion\(Emotion\.HOT\)/)
+        await page.locator('#face-selection-button').click()
+        const faceOptions = page.locator('.face-selection-option')
+        assert.equal(await faceOptions.count(), 2)
+        assert.equal(await faceOptions.filter({ hasText: 'あつい顔' }).getAttribute('aria-checked'), 'true')
+        await page.locator('.face-selection-option[data-face-asset=""]').click()
+        assert.equal(await page.locator('#face-selection-label').innerText(), '標準Face')
+        assert.doesNotMatch(await page.locator('#code-preview').innerText(), /_StackchanVisualShapeFace/)
+        await page.locator('#face-selection-button').click()
+        await faceOptions.filter({ hasText: 'あつい顔' }).click()
+        assert.equal(await page.locator('#face-selection-label').innerText(), 'あつい顔')
+        assert.match(await page.locator('#code-preview').innerText(), /_StackchanVisualShapeFace/)
+        await page.screenshot({ path: '/tmp/stackchan-editor-face-selection.png', fullPage: true })
         await page.locator('#build-button').click()
         await page.waitForFunction(() => document.querySelector('#build-status')?.textContent.includes('ビルド成功'))
         await page.locator('#install-simulator-button').click()
@@ -356,15 +388,67 @@ try {
       }
       if (pageName === 'editor' && viewportName === 'desktop') {
         assert.match(await page.locator('#code-preview').innerText(), /旧形式から移行/, 'legacy workspace migration')
+        const projectNamePencil = page.locator('#project-name-display svg')
+        await page.locator('#project-name-display').hover()
+        await page.waitForFunction(
+          () => Number(getComputedStyle(document.querySelector('#project-name-display svg')).opacity) > 0.95
+        )
+        assert.equal(
+          (await projectNamePencil.evaluate((element) => Number(getComputedStyle(element).opacity))) > 0.95,
+          true
+        )
+        await page.locator('#project-name-display').click()
+        await page.locator('#project-name').fill('名前の編集テスト')
+        await page.locator('#project-name').press('Enter')
+        assert.equal(await page.locator('#project-name-label').innerText(), '名前の編集テスト')
+        await page.locator('#project-name-display').click()
+        await page.locator('#project-name').fill('はじめてのMOD')
+        await page.locator('#project-name').press('Enter')
+
+        const blockPath = page.locator('.blocklyBlockCanvas .blocklyDraggable .blocklyPath').first()
+        await blockPath.hover({ force: true })
+        assert.equal(
+          await blockPath.evaluate((element) => getComputedStyle(element).cursor),
+          'pointer',
+          'Blockly block hover cursor must remain visible'
+        )
+        assert.equal(await page.locator('.target-device-control svg').count(), 1, 'target device has a visible icon')
+        assert.equal(
+          await page.locator('.project-controls #recent-projects-button').count(),
+          0,
+          'recent projects are removed from the header'
+        )
+        await openProjectMenu(page)
+        const recentProjectsButton = page.locator('#recent-projects-button')
+        const recentProjectsSubmenu = page.locator('#recent-projects-submenu')
+        assert.equal(await recentProjectsButton.isVisible(), true)
+        await recentProjectsButton.hover()
+        await recentProjectsSubmenu.waitFor({ state: 'visible' })
+        const submenuPlacement = await page.evaluate(() => {
+          const trigger = document.querySelector('#recent-projects-button').getBoundingClientRect()
+          const submenu = document.querySelector('#recent-projects-submenu').getBoundingClientRect()
+          return { triggerLeft: trigger.left, submenuRight: submenu.right }
+        })
+        assert.equal(
+          submenuPlacement.submenuRight <= submenuPlacement.triggerLeft,
+          true,
+          'desktop recent projects submenu opens to the side'
+        )
+        assert.equal((await page.locator('.recent-project-item').count()) >= 1, true)
+        await page.screenshot({ path: '/tmp/stackchan-editor-project-submenu.png', fullPage: true })
+        await page.mouse.move(0, 0)
+        await recentProjectsSubmenu.waitFor({ state: 'hidden' })
+        await page.keyboard.press('Escape')
+
         const sourceBeforeClear = await page.locator('#code-preview').innerText()
-        await page.locator('#clear-button').click()
+        await clickProjectAction(page, 'clear-button')
         await page.locator('#clear-workspace-dialog[open]').waitFor({ state: 'visible' })
         assert.match(await page.locator('#clear-workspace-project-name').innerText(), /はじめてのMOD/)
         await page.screenshot({ path: '/tmp/stackchan-editor-clear-confirm.png', fullPage: true })
         await page.locator('#clear-workspace-cancel').click()
         await page.locator('#clear-workspace-dialog').waitFor({ state: 'hidden' })
         assert.equal(await page.locator('#code-preview').innerText(), sourceBeforeClear, 'cancel keeps the workspace')
-        await page.locator('#clear-button').click()
+        await clickProjectAction(page, 'clear-button')
         await page.locator('#clear-workspace-confirm').click()
         await page.locator('#clear-workspace-dialog').waitFor({ state: 'hidden' })
         await page.waitForFunction(() => document.querySelector('#diagnostics-list')?.textContent.includes('VP_EMPTY'))
@@ -376,17 +460,17 @@ try {
         assert.equal(await page.locator('#diagnostics-tab').getAttribute('aria-selected'), 'true')
         await page.keyboard.press('Home')
         assert.equal(await page.locator('#code-tab').getAttribute('aria-selected'), 'true')
-        await page.locator('#sample-button').click()
+        await clickProjectAction(page, 'sample-button')
         await page.locator('#sample-dialog[open]').waitFor({ state: 'visible' })
         assert.equal(await page.locator('.sample-card').count(), 5, 'editor: five samples must be available')
         await page.keyboard.press('Escape')
         await page.locator('#sample-dialog').waitFor({ state: 'hidden' })
-        await page.locator('#sample-button').click()
+        await clickProjectAction(page, 'sample-button')
         await page.locator('#sample-dialog[open]').waitFor({ state: 'visible' })
         const sampleIds = ['hello', 'buttons', 'timer-motion', 'sensors', 'logic']
         for (const [index, sampleId] of sampleIds.entries()) {
           if (index > 0) {
-            await page.locator('#sample-button').click()
+            await clickProjectAction(page, 'sample-button')
             await page.locator('#sample-dialog[open]').waitFor({ state: 'visible' })
           }
           await page.locator(`[data-sample-id="${sampleId}"]`).click()
@@ -402,7 +486,7 @@ try {
         assert.equal(archiveDownload.bytes.subarray(4, 8).toString(), 'XS_A', 'downloaded build must be an XSA')
         assert.match(await page.locator('#code-preview').innerText(), /visualLoopGuard\([^)]/)
         assert.equal(await page.locator('#install-device-button').isEnabled(), true, 'CoreS3 device install target')
-        assert.equal(await page.locator('#restore-device-button').isEnabled(), true, 'CoreS3 backup restore target')
+        assert.equal(await page.locator('#restore-device-button').count(), 0, 'automatic backup restore is removed')
         assert.equal(await page.locator('#remove-device-button').isEnabled(), true, 'CoreS3 MOD removal target')
         await page.locator('#target-device').selectOption('simulator')
         await page.locator('#build-button').click()
@@ -413,20 +497,15 @@ try {
           'simulator target must never enable device install'
         )
         assert.equal(
-          await page.locator('#restore-device-button').isEnabled(),
-          false,
-          'simulator target must never enable device restore'
-        )
-        assert.equal(
           await page.locator('#remove-device-button').isEnabled(),
           false,
           'simulator target must never enable device removal'
         )
         await page.locator('#target-device').selectOption('m5stackchan-cores3')
-        await page.locator('#duplicate-project-button').click()
+        await clickProjectAction(page, 'duplicate-project-button')
         assert.match(await page.locator('#project-name').inputValue(), /のコピー$/)
-        assert.equal((await page.locator('#recent-projects option').count()) >= 3, true)
-        const projectDownload = await captureBrowserDownload(page, () => page.locator('#export-button').click())
+        assert.equal((await page.locator('.recent-project-item').count()) >= 2, true)
+        const projectDownload = await captureBrowserDownload(page, () => clickProjectAction(page, 'export-button'))
         assert.match(projectDownload.download.suggestedFilename(), /\.stackchan-blocks\.json$/)
         const downloadedProject = JSON.parse(projectDownload.bytes.toString('utf8'))
         assert.equal(downloadedProject.format, 'tech.stackchan.visual-project')
@@ -454,8 +533,14 @@ try {
         await page.locator('#simulator-stop').click()
         assert.equal(await page.locator('#simulator-frame').getAttribute('src'), 'about:blank')
         await page.locator('#simulator-close').click()
-        const metricsDownload = await captureBrowserDownload(page, () => page.locator('#metrics-button').click())
-        const metricsReport = JSON.parse(metricsDownload.bytes.toString('utf8'))
+        const metricsReport = await page.evaluate(async () => {
+          const { createMetricsReport } = await import('./metrics.mjs')
+          const events = JSON.parse(localStorage.getItem('stackchan-visual-metrics-v1') ?? '[]')
+          return createMetricsReport(events, {
+            project: document.querySelector('#project-name').value,
+            target: document.querySelector('#target-device').value,
+          })
+        })
         assert.equal(metricsReport.format, 'tech.stackchan.visual-metrics')
         assert.equal(metricsReport.context.target, 'm5stackchan-cores3')
         assert.equal(Number.isFinite(metricsReport.summary.firstBuildMs), true)
@@ -475,7 +560,7 @@ try {
         )
 
         const assetChooserPromise = page.waitForEvent('filechooser')
-        await page.locator('#asset-button').click()
+        await clickProjectAction(page, 'asset-button')
         const assetChooser = await assetChooserPromise
         await assetChooser.setFiles({
           name: 'browser-test.stackchan-face.json',
@@ -515,7 +600,7 @@ try {
         await page.locator('#asset-summary').filter({ hasText: 'browser-test.stackchan-face.json' }).waitFor()
         assert.match(await page.locator('#code-preview').innerText(), /setEmotion\(Emotion\.HAPPY\)/)
         assert.equal(await page.locator('#embed-assets').isChecked(), true)
-        assert.equal((await page.locator('#recent-projects option').count()) >= 3, true, 'IndexedDB recent projects')
+        assert.equal((await page.locator('.recent-project-item').count()) >= 2, true, 'IndexedDB recent projects')
         assert.equal(
           await page.locator('#install-simulator-button').isEnabled(),
           false,
@@ -548,7 +633,7 @@ try {
         await page.locator('#embed-assets').check()
 
         const largeAssetChooserPromise = page.waitForEvent('filechooser')
-        await page.locator('#asset-button').click()
+        await clickProjectAction(page, 'asset-button')
         const largeAssetChooser = await largeAssetChooserPromise
         await largeAssetChooser.setFiles([
           {
@@ -594,7 +679,7 @@ try {
         await page.locator('#asset-summary').filter({ hasText: 'large-b.bin' }).waitFor()
 
         const runtimeProjectChooserPromise = page.waitForEvent('filechooser')
-        await page.locator('#import-button').click()
+        await clickProjectAction(page, 'import-button')
         const runtimeProjectChooser = await runtimeProjectChooserPromise
         await runtimeProjectChooser.setFiles({
           name: 'runtime-diagnostic.stackchan-blocks.json',
@@ -691,7 +776,7 @@ try {
         )
 
         const fileChooserPromise = page.waitForEvent('filechooser')
-        await page.locator('#import-button').click()
+        await clickProjectAction(page, 'import-button')
         const fileChooser = await fileChooserPromise
         await fileChooser.setFiles({
           name: 'corrupt.stackchan-blocks.json',
@@ -699,6 +784,7 @@ try {
           buffer: Buffer.from('{broken json'),
         })
         await page.waitForTimeout(500)
+        await openProjectMenu(page)
         const recoveryState = {
           status: await page.locator('#build-status').innerText(),
           visible: await page.locator('#recovery-button').isVisible(),
@@ -740,37 +826,42 @@ try {
         await page.waitForFunction(() =>
           document.querySelector('#log-output')?.textContent.includes('IndexedDBのプロジェクトを復元できませんでした')
         )
+        await openProjectMenu(page)
         await page.locator('#recovery-button').waitFor({ state: 'visible' })
       }
       if (pageName === 'editor' && viewportName === 'mobile') {
-        await page.locator('#mobile-project-menu-button').click()
-        await page.locator('#mobile-project-dialog[open]').waitFor({ state: 'visible' })
+        await openProjectMenu(page)
         for (const actionId of [
           'new-project-button',
           'duplicate-project-button',
+          'import-button',
+          'export-button',
+          'asset-button',
           'sample-button',
-          'metrics-button',
           'recovery-button',
-          'tutorial-link',
           'clear-button',
         ]) {
-          assert.equal(
-            await page.locator(`[data-editor-action="${actionId}"]`).isVisible(),
-            true,
-            `mobile project menu exposes ${actionId}`
-          )
+          assert.equal(await page.locator(`#${actionId}`).isVisible(), true, `mobile project menu exposes ${actionId}`)
         }
         assert.equal((await page.locator('#mobile-target-device option').count()) >= 3, true)
-        assert.equal((await page.locator('#mobile-recent-projects option').count()) >= 1, true)
+        assert.equal(await page.locator('#recent-projects-button').isVisible(), true)
+        await page.locator('#recent-projects-button').click()
+        await page.locator('#recent-projects-submenu').waitFor({ state: 'visible' })
+        assert.equal((await page.locator('.recent-project-item').count()) >= 1, true)
         await page.screenshot({ path: '/tmp/stackchan-editor-mobile-menu.png', fullPage: true })
         await page.locator('#mobile-target-device').selectOption('simulator')
         assert.equal(await page.locator('#target-device').inputValue(), 'simulator')
         await page.locator('#mobile-target-device').selectOption('m5stackchan-cores3')
-        await page.locator('[data-editor-action="duplicate-project-button"]').click()
+        await page.locator('#duplicate-project-button').click()
         assert.match(await page.locator('#project-name').inputValue(), /のコピー$/)
-        await page.locator('#mobile-project-menu-button').click()
-        assert.equal((await page.locator('#mobile-recent-projects option').count()) >= 2, true)
-        await page.locator('#mobile-project-dialog-close').click()
+        await openProjectMenu(page)
+        await page.locator('#recent-projects-button').click()
+        const recentProjectItems = page.locator('.recent-project-item')
+        assert.equal((await recentProjectItems.count()) >= 2, true)
+        const previousProjectName = await recentProjectItems.nth(1).locator('strong').innerText()
+        await recentProjectItems.nth(1).click()
+        assert.equal(await page.locator('#project-name-label').innerText(), previousProjectName)
+        await page.locator('#project-menu').waitFor({ state: 'hidden' })
       }
     }
   }

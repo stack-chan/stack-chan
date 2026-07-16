@@ -235,6 +235,13 @@ body {
   background: var(--surface-raised);
 }
 
+.face-controls input[readonly] {
+  border-color: var(--line);
+  background: #1b1f22;
+  color: var(--muted);
+  cursor: default;
+}
+
 .control-grid,
 .number-grid {
   display: grid;

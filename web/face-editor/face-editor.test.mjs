@@ -52,9 +52,16 @@ test('Shape face editor exposes geometry, preview, persistence, and editor hando
   assert.match(source, /parseFaceAsset\(await file\.text\(\)\)/)
   assert.match(source, /\.stackchan-face\.json/)
   assert.match(source, /eyelidWidth\.value = String\(diameter\)/)
+  assert.match(source, /mouthPreview\.removeAttribute\('rx'\)/)
+  assert.doesNotMatch(source, /mouthPreview\.setAttribute\('rx'/)
   assert.match(html, /瞳全体を覆う大きさ/)
+  assert.match(html, /まぶた幅（自動）/)
+  for (const id of ['left-eyelid-width', 'left-eyelid-height', 'right-eyelid-width', 'right-eyelid-height']) {
+    assert.match(html, new RegExp(`id="${id}"[\\s\\S]*?readonly`))
+  }
   assert.match(styles, /\.shape-part/)
   assert.match(styles, /aspect-ratio: 4 \/ 3/)
+  assert.match(styles, /input\[readonly\]/)
   const emotionOptions = [...html.matchAll(/<option value="([A-Z]+)">/g)].map((match) => match[1])
   assert.deepEqual(emotionOptions, FACE_ASSET_EMOTIONS)
 })

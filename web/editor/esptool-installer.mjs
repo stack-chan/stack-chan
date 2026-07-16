@@ -139,14 +139,7 @@ export async function installModToDevice(
   loaderFactory,
   port,
   archive,
-  {
-    onLog = () => {},
-    onProgress = () => {},
-    onPrompt = () => {},
-    onPreflight = () => true,
-    onBackup = () => {},
-    verify = true,
-  } = {}
+  { onLog = () => {}, onProgress = () => {}, onPrompt = () => {}, onPreflight = () => true, verify = true } = {}
 ) {
   if (!(archive instanceof Uint8Array) || archive.length === 0) throw new Error('MODアーカイブが空です')
   if (xsArchiveByteLength(archive) !== archive.length) throw new Error('XSアーカイブのヘッダーまたはサイズが不正です')
@@ -192,18 +185,6 @@ export async function installModToDevice(
       }
     }
 
-    onLog('[flash] 現在のMODをバックアップしています…')
-    const currentHeader = await esploader.readFlash(xs.offset, 32)
-    const currentSize = xsArchiveByteLength(currentHeader)
-    let backup = null
-    if (currentSize && currentSize <= xs.size) {
-      backup = await esploader.readFlash(xs.offset, currentSize)
-      onBackup(backup)
-      onLog(`[flash] 現在のMODを ${backup.length} バイト保存しました`)
-    } else {
-      onLog('[flash] 既存のMODはありません')
-    }
-
     onLog('[flash] MODを書き込んでいます…')
     await esploader.writeFlash({
       fileArray: [{ data: bytesToBinaryString(archive), address: xs.offset }],
@@ -235,7 +216,7 @@ export async function installModToDevice(
       onLog(`[flash] 自動リセットに失敗しました（本体のRESETボタンでも起動できます）: ${error.message ?? error}`)
       onPrompt('書き込み完了。自動で再起動しない場合は本体のRESETボタンを押すとMODが動きます')
     }
-    return { status: DEVICE_OPERATION_STATUS.INSTALLED, chip, partition: xs, backup, verified: verify }
+    return { status: DEVICE_OPERATION_STATUS.INSTALLED, chip, partition: xs, firmware, verified: verify }
   } finally {
     // release the WebSerial port so the device can run and can be reconnected
     try {
@@ -279,15 +260,6 @@ export async function removeModFromDevice(loaderFactory, port, options = {}) {
       }
     }
 
-    const currentHeader = await esploader.readFlash(xs.offset, 32)
-    const currentSize = xsArchiveByteLength(currentHeader)
-    let backup = null
-    if (currentSize && currentSize <= xs.size) {
-      backup = await esploader.readFlash(xs.offset, currentSize)
-      options.onBackup?.(backup)
-      onLog(`[flash] 削除前のMODを ${backup.length} バイト保存しました`)
-    }
-
     await esploader.writeFlash({
       fileArray: [{ data: bytesToBinaryString(blankArchive), address: xs.offset }],
       flashSize: 'keep',
@@ -304,7 +276,7 @@ export async function removeModFromDevice(loaderFactory, port, options = {}) {
       onLog(`[flash] 自動リセットに失敗しました（本体のRESETボタンでも起動できます）: ${error.message ?? error}`)
       options.onPrompt?.('MOD削除完了。自動で再起動しない場合は本体のRESETボタンを押してください')
     }
-    return { status: DEVICE_OPERATION_STATUS.REMOVED, chip, partition: xs, firmware, backup, verified: true }
+    return { status: DEVICE_OPERATION_STATUS.REMOVED, chip, partition: xs, firmware, verified: true }
   } finally {
     try {
       await esploader.transport?.disconnect?.()

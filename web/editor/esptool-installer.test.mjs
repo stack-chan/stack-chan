@@ -170,10 +170,11 @@ test('installModToDevice reads the table, targets the xs offset, and resets', as
   })
   assert.deepEqual(
     calls.map((c) => c[0]),
-    ['main', 'readFlash', 'readFlash', 'readFlash', 'writeFlash', 'readFlash', 'resetToRunApp']
+    ['main', 'readFlash', 'readFlash', 'writeFlash', 'readFlash', 'resetToRunApp']
   )
   assert.equal(progress, 1)
   assert.equal(result.verified, true)
+  assert.equal('backup' in result, false)
   assert.deepEqual(preflight.firmware, { version: '8.3.1', projectName: 'xs_esp32' })
 })
 
@@ -193,7 +194,6 @@ test('installModToDevice does not reboot when readback verification fails', asyn
     async readFlash(address, size) {
       if (address === PARTITION_TABLE_OFFSET) return CORES3_TABLE
       if (address === 0x10000) return makeAppHeader()
-      if (address === 0xfa0000 && size === 32 && !wrote) return new Uint8Array(size).fill(0xff)
       if (address === 0xfa0000 && wrote) {
         const mismatched = archive.slice()
         mismatched[mismatched.length - 1] ^= 0xff
@@ -248,7 +248,6 @@ test('archive helpers validate the header size and compare verification bytes', 
 
 test('removeModFromDevice clears the first xs sector and reboots', async () => {
   const calls = []
-  const existing = makeArchive(64)
   let wrote = false
   const fakeLoader = {
     async main() {
@@ -258,8 +257,6 @@ test('removeModFromDevice clears the first xs sector and reboots', async () => {
       if (address === PARTITION_TABLE_OFFSET) return CORES3_TABLE
       if (address === 0x10000) return makeAppHeader()
       if (address === 0xfa0000 && wrote) return new Uint8Array(size).fill(0xff)
-      if (address === 0xfa0000 && size === 32) return existing.slice(0, 32)
-      if (address === 0xfa0000 && size === existing.length) return existing
       throw new Error(`unexpected read: 0x${address.toString(16)} / ${size}`)
     },
     async writeFlash(options) {
@@ -271,7 +268,6 @@ test('removeModFromDevice clears the first xs sector and reboots', async () => {
     },
   }
   let preflight
-  let backup
   const result = await removeModFromDevice(
     async () => fakeLoader,
     {},
@@ -280,17 +276,14 @@ test('removeModFromDevice clears the first xs sector and reboots', async () => {
         preflight = information
         return true
       },
-      onBackup: (bytes) => {
-        backup = bytes
-      },
     }
   )
   assert.equal(calls[0].address, 0xfa0000)
   assert.equal(calls[0].data.length, 4096)
   assert.equal(calls[1], 'reset')
   assert.equal(preflight.firmware.version, '8.3.1')
-  assert.deepEqual(backup, existing)
   assert.equal(result.verified, true)
+  assert.equal('backup' in result, false)
 })
 
 test('removeModFromDevice returns cancellation without writing', async () => {
@@ -358,7 +351,6 @@ test('removeModFromDevice reports reset failure without losing verified success'
       if (address === PARTITION_TABLE_OFFSET) return CORES3_TABLE
       if (address === 0x10000) return makeAppHeader()
       if (address === 0xfa0000 && wrote) return new Uint8Array(size).fill(0xff)
-      if (address === 0xfa0000 && size === 32) return new Uint8Array(size).fill(0xff)
       throw new Error(`unexpected read: 0x${address.toString(16)} / ${size}`)
     },
     async writeFlash() {

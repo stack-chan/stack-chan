@@ -42,138 +42,112 @@
             >ｽﾀｯｸﾁｬﾝ<span class="surface-name"> ブロックエディタ</span></span
           ></a
         >
-        <div class="project-controls" aria-label="プロジェクト設定">
-          <input id="project-name" type="text" maxlength="64" aria-label="プロジェクト名" />
-          <select id="target-device" aria-label="対象機種"></select>
-          <select id="recent-projects" aria-label="最近使ったプロジェクト">
-            <option value="">最近使ったプロジェクト</option>
-          </select>
+        <div class="project-name-control">
+          <button
+            id="project-name-display"
+            class="project-name-display"
+            type="button"
+            aria-label="プロジェクト名を編集"
+          >
+            <span id="project-name-label">はじめてのMOD</span>
+            <i data-lucide="pencil"></i>
+          </button>
+          <input id="project-name" type="text" maxlength="64" aria-label="プロジェクト名" hidden />
         </div>
-        <div class="workspace-actions" aria-label="ワークスペース操作">
+        <div class="project-controls" aria-label="プロジェクト設定">
+          <div class="target-device-control" title="対象機種">
+            <i data-lucide="cpu" aria-hidden="true"></i>
+            <select id="target-device" aria-label="対象機種"></select>
+          </div>
+        </div>
+        <div class="project-menu-control">
           <button
-            id="new-project-button"
-            class="icon-button"
+            id="project-menu-button"
+            class="project-menu-button"
             type="button"
-            title="新しいプロジェクト"
-            aria-label="新しいプロジェクト"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            aria-controls="project-menu"
           >
-            <i data-lucide="file-plus-2"></i>
+            <span>プロジェクト</span>
+            <i data-lucide="chevron-down"></i>
           </button>
-          <button
-            id="duplicate-project-button"
-            class="icon-button"
-            type="button"
-            title="プロジェクトを複製"
-            aria-label="プロジェクトを複製"
-          >
-            <i data-lucide="copy-plus"></i>
-          </button>
-          <button
-            id="import-button"
-            class="icon-button"
-            type="button"
-            title="プロジェクトを読み込む"
-            aria-label="プロジェクトを読み込む"
-          >
-            <i data-lucide="folder-open"></i>
-          </button>
+          <div id="project-menu" class="project-menu" role="menu" aria-label="プロジェクト操作" hidden>
+            <div class="project-menu-context">
+              <label class="project-menu-target">
+                <span>対象機種</span>
+                <select id="mobile-target-device"></select>
+              </label>
+              <div id="recent-projects-control" class="project-submenu-control">
+                <button
+                  id="recent-projects-button"
+                  class="project-submenu-trigger"
+                  type="button"
+                  role="menuitem"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-controls="recent-projects-submenu"
+                >
+                  <i data-lucide="history"></i>
+                  <span>最近開いたプロジェクト</span>
+                  <i class="project-submenu-chevron" data-lucide="chevron-left"></i>
+                </button>
+                <div
+                  id="recent-projects-submenu"
+                  class="project-submenu"
+                  role="menu"
+                  aria-label="最近開いたプロジェクト"
+                  hidden
+                >
+                  <div id="recent-projects-list" class="recent-projects-list"></div>
+                </div>
+              </div>
+              <div class="project-menu-separator" role="separator"></div>
+            </div>
+            <div class="project-menu-actions">
+              <button id="new-project-button" type="button" role="menuitem">
+                <i data-lucide="file-plus-2"></i><span>新しいプロジェクト</span>
+              </button>
+              <button id="duplicate-project-button" type="button" role="menuitem">
+                <i data-lucide="copy-plus"></i><span>プロジェクトを複製</span>
+              </button>
+              <button id="import-button" type="button" role="menuitem">
+                <i data-lucide="folder-open"></i><span>プロジェクトを読み込む</span>
+              </button>
+              <button id="export-button" type="button" role="menuitem">
+                <i data-lucide="download"></i><span>ファイルとして書き出す</span>
+              </button>
+              <button id="asset-button" type="button" role="menuitem">
+                <i data-lucide="image-plus"></i><span>アセットを追加</span>
+              </button>
+              <button id="sample-button" type="button" role="menuitem">
+                <i data-lucide="file-input"></i><span>サンプルを読み込む</span>
+              </button>
+              <button id="recovery-button" class="warning-button" type="button" role="menuitem" hidden>
+                <i data-lucide="shield-alert"></i><span>破損データを書き出す</span>
+              </button>
+              <div class="project-menu-separator" role="separator"></div>
+              <button id="clear-button" class="danger-button" type="button" role="menuitem">
+                <i data-lucide="trash-2"></i><span>ワークスペースを消去</span>
+              </button>
+            </div>
+          </div>
           <input id="project-file-input" type="file" accept=".json,.stackchan-blocks.json" hidden />
-          <button
-            id="export-button"
-            class="icon-button"
-            type="button"
-            title="プロジェクトを保存"
-            aria-label="プロジェクトを保存"
-          >
-            <i data-lucide="save"></i>
-          </button>
-          <button
-            id="asset-button"
-            class="icon-button"
-            type="button"
-            title="アセットを追加"
-            aria-label="アセットを追加"
-          >
-            <i data-lucide="image-plus"></i>
-          </button>
           <input id="asset-file-input" type="file" multiple hidden />
-          <button
-            id="metrics-button"
-            class="icon-button"
-            type="button"
-            title="評価ログを保存"
-            aria-label="評価ログを保存"
-          >
-            <i data-lucide="bar-chart-3"></i>
-          </button>
-          <a
-            id="tutorial-link"
-            class="icon-button"
-            href="./tutorial.html"
-            target="_blank"
-            rel="noopener"
-            title="チュートリアル"
-            aria-label="チュートリアルを開く"
-          >
-            <i data-lucide="circle-help"></i>
-          </a>
-          <button
-            id="recovery-button"
-            class="icon-button warning-button"
-            type="button"
-            title="退避した破損データを保存"
-            aria-label="退避した破損データを保存"
-            hidden
-          >
-            <i data-lucide="shield-alert"></i>
-          </button>
-          <button
-            id="sample-button"
-            class="icon-button"
-            type="button"
-            title="サンプルを読み込む"
-            aria-label="サンプルを読み込む"
-          >
-            <i data-lucide="file-input"></i>
-          </button>
-          <button
-            id="clear-button"
-            class="icon-button danger-button"
-            type="button"
-            title="ワークスペースを消去"
-            aria-label="ワークスペースを消去"
-          >
-            <i data-lucide="trash-2"></i>
-          </button>
-          <button
-            id="mobile-project-menu-button"
-            class="icon-button mobile-project-menu-button"
-            type="button"
-            title="プロジェクトメニュー"
-            aria-label="プロジェクトメニューを開く"
-            aria-haspopup="dialog"
-          >
-            <i data-lucide="ellipsis"></i>
-          </button>
         </div>
       </header>
       <div class="editor-layout">
         <section id="blockly-workspace" class="workspace" aria-label="Blocklyワークスペース"></section>
-        <aside class="editor-inspector" aria-label="ビルドとインストール">
-          <section class="build-section">
+        <aside class="editor-inspector" aria-label="MOD、アセットと出力">
+          <section class="build-section" aria-labelledby="build-section-heading">
             <div class="section-heading">
-              <h1>MOD</h1>
+              <h1 id="build-section-heading">MOD</h1>
               <p id="build-status" class="status-line" role="status">未ビルド</p>
             </div>
             <button id="build-button" type="button" class="primary-button">
               <i data-lucide="hammer"></i><span>ビルド</span>
             </button>
             <div id="capability-summary" class="capability-summary" aria-live="polite"></div>
-            <div id="asset-summary" class="asset-summary" aria-live="polite"></div>
-            <label class="asset-mode">
-              <input id="embed-assets" type="checkbox" checked />
-              <span>アセットをMODへ埋め込む</span>
-            </label>
             <div class="install-grid">
               <button id="download-button" type="button" disabled title="XSAをダウンロード">
                 <i data-lucide="download"></i><span>ダウンロード</span>
@@ -184,15 +158,42 @@
               <button id="install-device-button" type="button" disabled>
                 <i data-lucide="usb"></i><span>実機へ書き込み</span>
               </button>
-              <button id="restore-device-button" type="button" disabled>
-                <i data-lucide="history"></i><span>バックアップを復元</span>
-              </button>
-              <input id="restore-file-input" type="file" accept=".xsa" hidden />
               <button id="remove-device-button" class="danger-button" type="button" disabled>
                 <i data-lucide="trash-2"></i><span>実機のMODを削除</span>
               </button>
             </div>
             <progress id="install-progress" max="1" value="0" hidden aria-label="書き込み進行状況"></progress>
+          </section>
+          <section class="asset-section" aria-labelledby="asset-section-heading">
+            <div class="section-heading">
+              <h1 id="asset-section-heading">アセット</h1>
+            </div>
+            <div class="face-selection">
+              <span class="face-selection-heading">Face</span>
+              <div class="face-selection-control">
+                <button
+                  id="face-selection-button"
+                  class="face-selection-button"
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-controls="face-selection-menu"
+                >
+                  <i data-lucide="smile"></i>
+                  <span id="face-selection-label">標準Face</span>
+                  <span class="face-selection-state">使用中</span>
+                  <i class="face-selection-chevron" data-lucide="chevron-down"></i>
+                </button>
+                <div id="face-selection-menu" class="face-selection-menu" role="menu" aria-label="Faceを選択" hidden>
+                  <div id="face-selection-list" class="face-selection-list"></div>
+                </div>
+              </div>
+            </div>
+            <div id="asset-summary" class="asset-summary" aria-live="polite"></div>
+            <label class="asset-mode">
+              <input id="embed-assets" type="checkbox" checked />
+              <span>アセットをMODへ埋め込む</span>
+            </label>
           </section>
           <section class="output-section">
             <div class="output-tabs" role="tablist" aria-label="出力表示">
@@ -246,47 +247,6 @@
         </aside>
       </div>
     </main>
-    <dialog id="mobile-project-dialog" class="mobile-project-dialog" aria-labelledby="mobile-project-dialog-title">
-      <header>
-        <h2 id="mobile-project-dialog-title">プロジェクトメニュー</h2>
-        <button id="mobile-project-dialog-close" type="button" aria-label="プロジェクトメニューを閉じる">
-          <i data-lucide="x"></i>
-        </button>
-      </header>
-      <div class="mobile-project-dialog-body">
-        <label>
-          <span>対象機種</span>
-          <select id="mobile-target-device"></select>
-        </label>
-        <label>
-          <span>最近使ったプロジェクト</span>
-          <select id="mobile-recent-projects"></select>
-        </label>
-        <div class="mobile-project-actions">
-          <button type="button" data-editor-action="new-project-button">
-            <i data-lucide="file-plus-2"></i><span>新しいプロジェクト</span>
-          </button>
-          <button type="button" data-editor-action="duplicate-project-button">
-            <i data-lucide="copy-plus"></i><span>プロジェクトを複製</span>
-          </button>
-          <button type="button" data-editor-action="sample-button">
-            <i data-lucide="file-input"></i><span>サンプルを読み込む</span>
-          </button>
-          <button type="button" data-editor-action="metrics-button">
-            <i data-lucide="bar-chart-3"></i><span>評価ログを保存</span>
-          </button>
-          <button id="mobile-recovery-action" type="button" data-editor-action="recovery-button" hidden>
-            <i data-lucide="shield-alert"></i><span>退避した破損データを保存</span>
-          </button>
-          <button type="button" data-editor-action="tutorial-link">
-            <i data-lucide="circle-help"></i><span>チュートリアルを開く</span>
-          </button>
-          <button class="danger-button" type="button" data-editor-action="clear-button">
-            <i data-lucide="trash-2"></i><span>ワークスペースを消去</span>
-          </button>
-        </div>
-      </div>
-    </dialog>
     <dialog id="sample-dialog" class="sample-dialog" aria-labelledby="sample-dialog-title">
       <header>
         <div>

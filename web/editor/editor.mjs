@@ -20,7 +20,6 @@ import {
 } from './project-format.mjs'
 import { analyzeWorkspace } from './project-validator.mjs'
 import { addFaceAssetToProject, FACE_ASSET_MEDIA_TYPE, applyFaceAssetToSource, parseFaceAsset } from './face-assets.mjs'
-import { createMetricsReport } from './metrics.mjs'
 import { parseVisualTrace } from './runtime-diagnostics.mjs'
 import {
   createRecoveryRecord,
@@ -55,6 +54,8 @@ const clearButton = document.getElementById('clear-button')
 const logOutput = document.getElementById('log-output')
 const outputTabs = [...document.querySelectorAll('.output-tabs [role="tab"]')]
 const projectNameInput = document.getElementById('project-name')
+const projectNameDisplay = document.getElementById('project-name-display')
+const projectNameLabel = document.getElementById('project-name-label')
 const targetDeviceSelect = document.getElementById('target-device')
 const importButton = document.getElementById('import-button')
 const exportButton = document.getElementById('export-button')
@@ -65,29 +66,30 @@ const diagnosticsCount = document.getElementById('diagnostics-count')
 const assetButton = document.getElementById('asset-button')
 const assetFileInput = document.getElementById('asset-file-input')
 const assetSummary = document.getElementById('asset-summary')
+const faceSelectionButton = document.getElementById('face-selection-button')
+const faceSelectionLabel = document.getElementById('face-selection-label')
+const faceSelectionMenu = document.getElementById('face-selection-menu')
+const faceSelectionList = document.getElementById('face-selection-list')
 const embedAssetsInput = document.getElementById('embed-assets')
 const simulatorDialog = document.getElementById('simulator-dialog')
 const simulatorFrame = document.getElementById('simulator-frame')
 const simulatorRestart = document.getElementById('simulator-restart')
 const simulatorStop = document.getElementById('simulator-stop')
 const simulatorClose = document.getElementById('simulator-close')
-const restoreDeviceButton = document.getElementById('restore-device-button')
-const restoreFileInput = document.getElementById('restore-file-input')
 const removeDeviceButton = document.getElementById('remove-device-button')
-const metricsButton = document.getElementById('metrics-button')
 const newProjectButton = document.getElementById('new-project-button')
 const duplicateProjectButton = document.getElementById('duplicate-project-button')
-const recentProjectsSelect = document.getElementById('recent-projects')
+const recentProjectsControl = document.getElementById('recent-projects-control')
+const recentProjectsButton = document.getElementById('recent-projects-button')
+const recentProjectsSubmenu = document.getElementById('recent-projects-submenu')
+const recentProjectsList = document.getElementById('recent-projects-list')
 const recoveryButton = document.getElementById('recovery-button')
 const sampleDialog = document.getElementById('sample-dialog')
 const sampleList = document.getElementById('sample-list')
 const sampleClose = document.getElementById('sample-close')
-const mobileProjectMenuButton = document.getElementById('mobile-project-menu-button')
-const mobileProjectDialog = document.getElementById('mobile-project-dialog')
-const mobileProjectDialogClose = document.getElementById('mobile-project-dialog-close')
+const projectMenuButton = document.getElementById('project-menu-button')
+const projectMenu = document.getElementById('project-menu')
 const mobileTargetDeviceSelect = document.getElementById('mobile-target-device')
-const mobileRecentProjectsSelect = document.getElementById('mobile-recent-projects')
-const mobileRecoveryAction = document.getElementById('mobile-recovery-action')
 const clearWorkspaceDialog = document.getElementById('clear-workspace-dialog')
 const clearWorkspaceProjectName = document.getElementById('clear-workspace-project-name')
 const clearWorkspaceConfirm = document.getElementById('clear-workspace-confirm')
@@ -256,6 +258,7 @@ try {
   loadWorkspace(SAMPLE_WORKSPACE)
 }
 projectNameInput.value = currentProject.name
+renderProjectName()
 targetDeviceSelect.value = DEVICE_PROFILES[currentProject.target] ? currentProject.target : 'portable'
 currentProject.target = targetDeviceSelect.value
 embedAssetsInput.checked = currentProject.settings.embedAssets
@@ -272,7 +275,6 @@ function refreshDeviceActionButtons() {
   const available =
     !deviceOperationPending && 'serial' in navigator && profileFor(targetDeviceSelect.value).deviceInstall
   installDeviceButton.disabled = !available || !currentArchive
-  restoreDeviceButton.disabled = !available
   removeDeviceButton.disabled = !available
 }
 
@@ -295,7 +297,7 @@ function queueProjectSave() {
 function persistProject(project = currentProject) {
   const nextProject = createVisualProject({
     ...project,
-    name: projectNameInput.value,
+    name: projectNameInput.value.trim() || 'はじめてのMOD',
     target: targetDeviceSelect.value,
     workspace: workspaceState(),
     settings: { ...project.settings, embedAssets: embedAssetsInput.checked },
@@ -304,20 +306,50 @@ function persistProject(project = currentProject) {
   const nextProjectLibrary = updateProjectLibrary(projectLibrary, nextProject)
   currentProject = nextProject
   projectLibrary = nextProjectLibrary
+  projectNameInput.value = nextProject.name
   queueProjectSave()
+  renderProjectName()
   renderRecentProjects()
   return currentProject
 }
 
 function renderRecentProjects() {
-  const selected = currentProject?.id ?? ''
-  recentProjectsSelect.replaceChildren(new Option('最近使ったプロジェクト', ''))
-  for (const project of projectLibrary) {
-    const option = new Option(project.name, project.id)
-    option.title = `${project.name} · ${new Date(project.updatedAt).toLocaleString('ja-JP')}`
-    recentProjectsSelect.append(option)
+  const projects = projectLibrary.some((project) => project.id === currentProject?.id)
+    ? projectLibrary
+    : [currentProject, ...projectLibrary].filter(Boolean)
+  recentProjectsList.replaceChildren()
+  recentProjectsButton.disabled = projects.length === 0
+  if (projects.length === 0) {
+    const empty = document.createElement('p')
+    empty.className = 'recent-projects-empty'
+    empty.textContent = '最近開いたプロジェクトはありません'
+    recentProjectsList.append(empty)
+    setRecentProjectsSubmenuOpen(false)
+    return
   }
-  recentProjectsSelect.value = projectLibrary.some((project) => project.id === selected) ? selected : ''
+  for (const project of projects) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'recent-project-item'
+    button.dataset.projectId = project.id
+    button.setAttribute('role', 'menuitem')
+    if (project.id === currentProject.id) button.setAttribute('aria-current', 'true')
+
+    const copy = document.createElement('span')
+    copy.className = 'recent-project-item-copy'
+    const name = document.createElement('strong')
+    name.textContent = project.name
+    const detail = document.createElement('small')
+    const updatedAt = new Date(project.updatedAt).toLocaleString('ja-JP')
+    detail.textContent = project.id === currentProject.id ? `現在開いています · ${updatedAt}` : updatedAt
+    copy.append(name, detail)
+    button.append(copy)
+    button.addEventListener('click', () => {
+      setProjectMenuOpen(false)
+      activateProject(project, `「${project.name}」を開きました`)
+    })
+    recentProjectsList.append(button)
+  }
 }
 
 function copySelectOptions(source, target) {
@@ -325,30 +357,146 @@ function copySelectOptions(source, target) {
   target.value = source.value
 }
 
-function openMobileProjectDialog() {
-  copySelectOptions(targetDeviceSelect, mobileTargetDeviceSelect)
-  copySelectOptions(recentProjectsSelect, mobileRecentProjectsSelect)
-  mobileRecoveryAction.hidden = recoveryButton.hidden
-  mobileProjectDialog.showModal()
+function renderProjectName() {
+  const name = projectNameInput.value.trim() || currentProject?.name || 'はじめてのMOD'
+  projectNameLabel.textContent = name
+  projectNameDisplay.title = name
+  projectNameDisplay.setAttribute('aria-label', `プロジェクト名「${name}」を編集`)
 }
 
-mobileProjectMenuButton.addEventListener('click', openMobileProjectDialog)
-mobileProjectDialogClose.addEventListener('click', () => mobileProjectDialog.close())
+function startProjectNameEdit() {
+  projectNameInput.value = currentProject.name
+  projectNameDisplay.hidden = true
+  projectNameInput.hidden = false
+  projectNameInput.focus()
+  projectNameInput.select()
+}
+
+function finishProjectNameEdit({ cancel = false, focusDisplay = false } = {}) {
+  if (projectNameInput.hidden) return
+  projectNameInput.value = cancel ? currentProject.name : projectNameInput.value.trim() || 'はじめてのMOD'
+  if (!cancel) persistProject()
+  projectNameInput.hidden = true
+  projectNameDisplay.hidden = false
+  renderProjectName()
+  if (focusDisplay) projectNameDisplay.focus()
+}
+
+function visibleProjectMenuItems() {
+  return [recentProjectsButton, ...projectMenu.querySelectorAll('.project-menu-actions > [role="menuitem"]')].filter(
+    (item) => !item.hidden && !item.disabled && item.getClientRects().length > 0
+  )
+}
+
+function visibleRecentProjectItems() {
+  return [...recentProjectsList.querySelectorAll('[role="menuitem"]')].filter(
+    (item) => !item.hidden && item.getClientRects().length > 0
+  )
+}
+
+function setRecentProjectsSubmenuOpen(open, { focusItem = false } = {}) {
+  const nextOpen = Boolean(open && !recentProjectsButton.disabled && !projectMenu.hidden)
+  recentProjectsSubmenu.hidden = !nextOpen
+  recentProjectsButton.setAttribute('aria-expanded', String(nextOpen))
+  if (nextOpen && focusItem) requestAnimationFrame(() => visibleRecentProjectItems()[0]?.focus())
+}
+
+function setProjectMenuOpen(open, { focusItem = false } = {}) {
+  if (open) copySelectOptions(targetDeviceSelect, mobileTargetDeviceSelect)
+  else setRecentProjectsSubmenuOpen(false)
+  projectMenu.hidden = !open
+  projectMenuButton.setAttribute('aria-expanded', String(open))
+  if (open && focusItem) requestAnimationFrame(() => visibleProjectMenuItems()[0]?.focus())
+}
+
+projectNameDisplay.addEventListener('click', startProjectNameEdit)
+projectNameInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    finishProjectNameEdit({ focusDisplay: true })
+  } else if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    finishProjectNameEdit({ cancel: true, focusDisplay: true })
+  }
+})
+projectNameInput.addEventListener('blur', () => finishProjectNameEdit())
+
+projectMenuButton.addEventListener('click', (event) => {
+  event.stopPropagation()
+  setProjectMenuOpen(projectMenu.hidden, { focusItem: projectMenu.hidden })
+})
+projectMenu.addEventListener('click', (event) => {
+  const menuItem = event.target.closest('[role="menuitem"]')
+  if (menuItem && menuItem !== recentProjectsButton) setProjectMenuOpen(false)
+})
+projectMenu.addEventListener('keydown', (event) => {
+  const items = visibleProjectMenuItems()
+  const index = items.indexOf(document.activeElement)
+  if (index < 0) return
+  let nextIndex
+  if (event.key === 'ArrowDown') nextIndex = (index + 1) % items.length
+  else if (event.key === 'ArrowUp') nextIndex = (index - 1 + items.length) % items.length
+  else if (event.key === 'Home') nextIndex = 0
+  else if (event.key === 'End') nextIndex = items.length - 1
+  else return
+  event.preventDefault()
+  items[nextIndex]?.focus()
+})
+recentProjectsControl.addEventListener('mouseenter', () => {
+  if (innerWidth > 760 && matchMedia('(hover: hover)').matches) setRecentProjectsSubmenuOpen(true)
+})
+recentProjectsControl.addEventListener('mouseleave', () => {
+  if (innerWidth > 760 && matchMedia('(hover: hover)').matches) setRecentProjectsSubmenuOpen(false)
+})
+recentProjectsControl.addEventListener('focusout', (event) => {
+  if (innerWidth > 760 && !recentProjectsControl.contains(event.relatedTarget)) {
+    setRecentProjectsSubmenuOpen(false)
+  }
+})
+recentProjectsButton.addEventListener('click', (event) => {
+  const shouldToggle = innerWidth <= 760 || event.detail === 0
+  setRecentProjectsSubmenuOpen(shouldToggle ? recentProjectsSubmenu.hidden : true)
+})
+recentProjectsButton.addEventListener('keydown', (event) => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return
+  event.preventDefault()
+  event.stopPropagation()
+  setRecentProjectsSubmenuOpen(true, { focusItem: true })
+})
+recentProjectsSubmenu.addEventListener('keydown', (event) => {
+  const items = visibleRecentProjectItems()
+  const index = items.indexOf(document.activeElement)
+  if (['Escape', 'ArrowRight'].includes(event.key)) {
+    event.preventDefault()
+    event.stopPropagation()
+    setRecentProjectsSubmenuOpen(false)
+    recentProjectsButton.focus()
+    return
+  }
+  if (index < 0) return
+  let nextIndex
+  if (event.key === 'ArrowDown') nextIndex = (index + 1) % items.length
+  else if (event.key === 'ArrowUp') nextIndex = (index - 1 + items.length) % items.length
+  else if (event.key === 'Home') nextIndex = 0
+  else if (event.key === 'End') nextIndex = items.length - 1
+  else return
+  event.preventDefault()
+  event.stopPropagation()
+  items[nextIndex]?.focus()
+})
+document.addEventListener('click', (event) => {
+  if (!projectMenu.hidden && !event.target.closest('.project-menu-control')) setProjectMenuOpen(false)
+})
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || projectMenu.hidden) return
+  setProjectMenuOpen(false)
+  projectMenuButton.focus()
+})
+
 mobileTargetDeviceSelect.addEventListener('change', () => {
   targetDeviceSelect.value = mobileTargetDeviceSelect.value
   targetDeviceSelect.dispatchEvent(new Event('change', { bubbles: true }))
-})
-mobileRecentProjectsSelect.addEventListener('change', () => {
-  recentProjectsSelect.value = mobileRecentProjectsSelect.value
-  mobileProjectDialog.close()
-  recentProjectsSelect.dispatchEvent(new Event('change', { bubbles: true }))
-})
-mobileProjectDialog.addEventListener('click', (event) => {
-  const action = event.target.closest('[data-editor-action]')
-  if (!action) return
-  const target = document.getElementById(action.dataset.editorAction)
-  mobileProjectDialog.close()
-  target?.click()
 })
 
 function activateProject(project, message) {
@@ -368,7 +516,105 @@ function activateProject(project, message) {
   setStatus(message)
 }
 
+function faceAssetEntries() {
+  return currentProject.assets
+    .filter((asset) => asset.mediaType === FACE_ASSET_MEDIA_TYPE)
+    .map((asset) => {
+      let name = asset.path.replace(/^assets\//, '').replace(/\.stackchan-face\.json$/i, '')
+      try {
+        name = parseFaceAsset(new TextDecoder().decode(assetBytes(asset))).name
+      } catch {
+        // Invalid Face assets remain visible so the project can remove them.
+      }
+      return { asset, name }
+    })
+}
+
+function visibleFaceSelectionItems() {
+  return [...faceSelectionList.querySelectorAll('[role="menuitemradio"]')].filter(
+    (item) => !item.hidden && item.getClientRects().length > 0
+  )
+}
+
+function setFaceSelectionMenuOpen(open, { focusItem = false } = {}) {
+  faceSelectionMenu.hidden = !open
+  faceSelectionButton.setAttribute('aria-expanded', String(open))
+  if (open && focusItem) requestAnimationFrame(() => visibleFaceSelectionItems()[0]?.focus())
+}
+
+function renderFaceSelection() {
+  const entries = faceAssetEntries()
+  const selectedPath = currentProject.settings.faceAsset ?? ''
+  const selected = entries.find(({ asset }) => asset.path === selectedPath)
+  faceSelectionLabel.textContent = selected?.name ?? '標準Face'
+  faceSelectionButton.title = selected ? `使用中のFace: ${selected.name}` : '使用中のFace: 標準Face'
+  faceSelectionList.replaceChildren()
+
+  const options = [
+    { path: '', name: '標準Face', detail: 'ファームウェア標準' },
+    ...entries.map(({ asset, name }) => ({ path: asset.path, name, detail: 'カスタムFace' })),
+  ]
+  for (const option of options) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'face-selection-option'
+    button.dataset.faceAsset = option.path
+    button.setAttribute('role', 'menuitemradio')
+    button.setAttribute('aria-checked', String(option.path === selectedPath))
+    const marker = document.createElement('span')
+    marker.className = 'face-selection-option-marker'
+    marker.textContent = '✓'
+    marker.setAttribute('aria-hidden', 'true')
+    const copy = document.createElement('span')
+    copy.className = 'face-selection-option-copy'
+    const name = document.createElement('strong')
+    name.textContent = option.name
+    const detail = document.createElement('small')
+    detail.textContent = option.detail
+    copy.append(name, detail)
+    button.append(marker, copy)
+    button.addEventListener('click', () => {
+      setFaceSelectionMenuOpen(false)
+      currentProject.settings.faceAsset = option.path || null
+      persistProject()
+      renderFaceSelection()
+      refreshCode()
+      setStatus(`Faceを「${option.name}」へ切り替えました`)
+    })
+    faceSelectionList.append(button)
+  }
+}
+
+faceSelectionButton.addEventListener('click', (event) => {
+  event.stopPropagation()
+  setFaceSelectionMenuOpen(faceSelectionMenu.hidden, { focusItem: faceSelectionMenu.hidden })
+})
+faceSelectionMenu.addEventListener('keydown', (event) => {
+  const items = visibleFaceSelectionItems()
+  const index = items.indexOf(document.activeElement)
+  if (items.length === 0) return
+  let nextIndex
+  if (event.key === 'ArrowDown') nextIndex = index < 0 ? 0 : (index + 1) % items.length
+  else if (event.key === 'ArrowUp') nextIndex = index < 0 ? items.length - 1 : (index - 1 + items.length) % items.length
+  else if (event.key === 'Home') nextIndex = 0
+  else if (event.key === 'End') nextIndex = items.length - 1
+  else return
+  event.preventDefault()
+  items[nextIndex]?.focus()
+})
+document.addEventListener('click', (event) => {
+  if (!faceSelectionMenu.hidden && !event.target.closest('.face-selection-control')) {
+    setFaceSelectionMenuOpen(false)
+  }
+})
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || faceSelectionMenu.hidden) return
+  setFaceSelectionMenuOpen(false)
+  faceSelectionButton.focus()
+})
+
 function renderAssets() {
+  renderFaceSelection()
   assetSummary.replaceChildren()
   if (currentProject.assets.length === 0) {
     assetSummary.textContent = 'アセットなし'
@@ -394,21 +640,6 @@ function renderAssets() {
       refreshCode()
     })
     chip.append(remove)
-    if (asset.mediaType === FACE_ASSET_MEDIA_TYPE) {
-      const use = document.createElement('button')
-      use.type = 'button'
-      const selected = currentProject.settings.faceAsset === asset.path
-      use.textContent = selected ? '使用中' : '使う'
-      use.title = `${asset.path}を起動時の顔に設定`
-      use.disabled = selected
-      use.addEventListener('click', () => {
-        currentProject.settings.faceAsset = asset.path
-        persistProject()
-        renderAssets()
-        refreshCode()
-      })
-      chip.append(use)
-    }
     assetSummary.append(chip)
   }
 }
@@ -563,11 +794,6 @@ clearWorkspaceConfirm.addEventListener('click', () => {
   recordMetric('workspace_cleared')
 })
 
-projectNameInput.addEventListener('change', () => {
-  projectNameInput.value = projectNameInput.value.trim() || 'はじめてのMOD'
-  persistProject()
-})
-
 targetDeviceSelect.addEventListener('change', () => {
   workspace.updateToolbox(toolboxForTarget(TOOLBOX, targetDeviceSelect.value))
   persistProject()
@@ -591,11 +817,6 @@ duplicateProjectButton.addEventListener('click', () => {
   persistProject()
   activateProject(duplicateVisualProject(currentProject), 'プロジェクトを複製しました')
   recordMetric('project_duplicated')
-})
-
-recentProjectsSelect.addEventListener('change', () => {
-  const project = projectLibrary.find((candidate) => candidate.id === recentProjectsSelect.value)
-  if (project) activateProject(project, `「${project.name}」を開きました`)
 })
 
 recoveryButton.addEventListener('click', () => {
@@ -772,18 +993,6 @@ downloadButton.addEventListener('click', () => {
   downloadBytes(currentArchive, `${currentProject.name}.xsa`)
 })
 
-metricsButton.addEventListener('click', () => {
-  const events = JSON.parse(localStorage.getItem(METRICS_STORAGE_KEY) ?? '[]')
-  const report = createMetricsReport(events, { project: currentProject.name, target: currentProject.target })
-  downloadBytes(
-    `${JSON.stringify(report, null, 2)}\n`,
-    `${currentProject.name}-visual-metrics.json`,
-    'application/json'
-  )
-})
-
-document.getElementById('tutorial-link').addEventListener('click', () => recordMetric('tutorial_opened'))
-
 installSimulatorButton.addEventListener('click', async () => {
   if (!currentArchive) return
   try {
@@ -856,7 +1065,7 @@ window.addEventListener('message', (event) => {
   }
 })
 
-async function writeArchiveToDevice(archive, label, { requirements = currentAnalysis.requirements } = {}) {
+async function writeArchiveToDevice(archive) {
   if (!profileFor(targetDeviceSelect.value).deviceInstall) {
     setStatus(`${profileFor(targetDeviceSelect.value).label}は実機書き込みの対象ではありません`)
     return
@@ -879,7 +1088,7 @@ async function writeArchiveToDevice(archive, label, { requirements = currentAnal
         installProgress.value = ratio
       },
       onPrompt: (message) => setStatus(message),
-      onPreflight: ({ chip, partition, firmware, archiveSize }) => {
+      onPreflight: ({ chip, firmware }) => {
         const archiveVersion = xsArchiveVersion(archive)
         const compatibility = inspectDeploymentCompatibility(targetDeviceSelect.value, {
           chip,
@@ -889,24 +1098,17 @@ async function writeArchiveToDevice(archive, label, { requirements = currentAnal
           requireArchive: true,
         })
         if (!compatibility.compatible) {
-          globalThis.alert(
-            `安全確認で不一致を検出したため書き込みません。\n${compatibility.diagnostics
+          throw new Error(
+            `安全確認で不一致を検出したため書き込みません: ${compatibility.diagnostics
               .map((item) => item.message)
-              .join('\n')}`
+              .join(' / ')}`
           )
-          return false
         }
-        return globalThis.confirm(
-          `${profileFor(targetDeviceSelect.value).label}へ「${label}」を書き込みます。\n` +
-            `検出チップ: ${chip}\nファームウェア: ${firmware.projectName} ${firmware.version}\n` +
-            `XS互換性: ${archiveVersion.join('.')}（対象と一致）\n` +
-            `書き込み先: xs @ 0x${partition.offset.toString(16)}\n` +
-            `サイズ: ${formatByteSize(archiveSize)} / ${formatByteSize(partition.size)}\n` +
-            `使用する能力: ${requirements === null ? '復元ファイルのため情報なし' : requirements.join(', ') || 'なし'}\n` +
-            '既存のMODはバックアップしてから置き換えます。続行しますか？'
+        log(
+          `[flash] 互換性を確認しました: ${chip} / ${firmware.projectName} ${firmware.version} / XS ${archiveVersion.join('.')}`
         )
+        return true
       },
-      onBackup: (backup) => downloadBytes(backup, `${currentProject.name}-device-backup.xsa`),
     })
     if (result.status === DEVICE_OPERATION_STATUS.CANCELLED) {
       setStatus('実機への書き込みをキャンセルしました')
@@ -927,18 +1129,7 @@ async function writeArchiveToDevice(archive, label, { requirements = currentAnal
 }
 
 installDeviceButton.addEventListener('click', async () => {
-  if (currentArchive) await writeArchiveToDevice(currentArchive, currentProject.name)
-})
-
-restoreDeviceButton.addEventListener('click', () => restoreFileInput.click())
-restoreFileInput.addEventListener('change', async () => {
-  const [file] = restoreFileInput.files ?? []
-  if (!file) return
-  try {
-    await writeArchiveToDevice(new Uint8Array(await file.arrayBuffer()), file.name, { requirements: null })
-  } finally {
-    restoreFileInput.value = ''
-  }
+  if (currentArchive) await writeArchiveToDevice(currentArchive)
 })
 
 removeDeviceButton.addEventListener('click', async () => {
@@ -965,19 +1156,17 @@ removeDeviceButton.addEventListener('click', async () => {
           requireFirmware: true,
         })
         if (!compatibility.compatible) {
-          globalThis.alert(
-            `安全確認で不一致を検出したため削除しません。\n${compatibility.diagnostics
+          throw new Error(
+            `安全確認で不一致を検出したため削除しません: ${compatibility.diagnostics
               .map((item) => item.message)
-              .join('\n')}`
+              .join(' / ')}`
           )
-          return false
         }
         return globalThis.confirm(
           `${profileFor(targetDeviceSelect.value).label}（${chip} / ${firmware.version}）のxsパーティション ` +
             `(0x${partition.offset.toString(16)}) からMODを削除します。続行しますか？`
         )
       },
-      onBackup: (backup) => downloadBytes(backup, `${currentProject.name}-before-remove-backup.xsa`),
     })
     if (result.status === DEVICE_OPERATION_STATUS.CANCELLED) {
       setStatus('実機のMOD削除をキャンセルしました')

@@ -104,8 +104,8 @@ function setValues(group, value) {
 function setEyeValues(group, eye) {
   setValues(group, eye)
   const diameter = eye.radius * 2
-  group.eyelidWidth.min = String(diameter)
-  group.eyelidHeight.min = String(diameter)
+  group.eyelidWidth.value = String(diameter)
+  group.eyelidHeight.value = String(diameter)
 }
 
 function applyAsset(asset) {
@@ -180,7 +180,7 @@ function render() {
   elements.mouthPreview.setAttribute('y', shape.mouth.y - mouthHeight / 2)
   elements.mouthPreview.setAttribute('width', mouthWidth)
   elements.mouthPreview.setAttribute('height', mouthHeight)
-  elements.mouthPreview.setAttribute('rx', Math.min(mouthWidth, mouthHeight) / 2)
+  elements.mouthPreview.removeAttribute('rx')
 
   elements.mouthOpenOutput.value = open.toFixed(2)
   elements.codePreview.textContent = `${shapeFaceDefinition(asset)}
@@ -199,10 +199,8 @@ function setStatus(message, state = '') {
 elements.form.addEventListener('input', () => {
   for (const eyeControls of [controls.leftEye, controls.rightEye]) {
     const diameter = Number(eyeControls.radius.value) * 2
-    eyeControls.eyelidWidth.min = String(diameter)
-    eyeControls.eyelidHeight.min = String(diameter)
-    if (Number(eyeControls.eyelidWidth.value) < diameter) eyeControls.eyelidWidth.value = String(diameter)
-    if (Number(eyeControls.eyelidHeight.value) < diameter) eyeControls.eyelidHeight.value = String(diameter)
+    eyeControls.eyelidWidth.value = String(diameter)
+    eyeControls.eyelidHeight.value = String(diameter)
   }
   render()
   setStatus('Shape型Faceを編集中です。')

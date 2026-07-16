@@ -280,6 +280,52 @@ async function inspectViewport(page, name, width, height) {
     assert.notEqual(drawerSignature, menuHiddenSignature, 'face touch must open the drawer after the menu button hides')
     await page.screenshot({ path: '/tmp/stackchan-drawer.png', fullPage: true })
     await savePiuScreen('drawer')
+
+    await page.evaluate(() => {
+      const originalPlay = globalThis.Host.AudioOut.play
+      globalThis.__stackchanSpeechProbe = {
+        byteLength: 0,
+        completed: false,
+        dataBytes: 0,
+        error: '',
+        format: '',
+        played: false,
+        sampleRate: 0,
+      }
+      globalThis.Host.AudioOut.play = async (buffer) => {
+        const probe = globalThis.__stackchanSpeechProbe
+        const view = new DataView(buffer)
+        const bytes = new Uint8Array(buffer)
+        probe.byteLength = buffer.byteLength
+        probe.dataBytes = view.getUint32(40, true)
+        probe.format = String.fromCharCode(...bytes.subarray(0, 4), ...bytes.subarray(8, 12))
+        probe.sampleRate = view.getUint32(24, true)
+        try {
+          probe.played = await originalPlay(buffer)
+          return probe.played
+        } catch (error) {
+          probe.error = String(error)
+          throw error
+        } finally {
+          probe.completed = true
+        }
+      }
+    })
+    await touchPiu(220, 170)
+    await page.waitForFunction(() => globalThis.__stackchanSpeechProbe?.completed, undefined, { timeout: 30_000 })
+    const speech = await page.evaluate(() => globalThis.__stackchanSpeechProbe)
+    assert.equal(speech.error, '', `stackchan-voice browser playback must not fail: ${speech.error}`)
+    assert.equal(speech.played, true, 'stackchan-voice WAV must decode and play through the browser Audio bridge')
+    assert.equal(speech.format, 'RIFFWAVE', 'stackchan-voice must render a WAV container')
+    assert.equal(speech.sampleRate, 24_000, 'stackchan-voice WAV must use its 24 kHz output rate')
+    assert.equal(speech.dataBytes > 0, true, 'stackchan-voice must synthesize non-empty PCM')
+    assert.equal(
+      speech.byteLength,
+      speech.dataBytes + 44,
+      'stackchan-voice WAV header must describe the synthesized PCM'
+    )
+
+    await touchPiu(160, 120)
     await touchPiu(220, 26)
     const faceMenuSignature = await screenSignature()
     assert.notEqual(faceMenuSignature, drawerSignature, 'face mode must open an option menu')

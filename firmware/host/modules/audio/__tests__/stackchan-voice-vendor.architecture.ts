@@ -6,11 +6,15 @@ import { test } from 'node:test'
 
 const vendorRoot = 'vendor/stackchan-voice'
 
-test('stackchan-voice native resources are limited to the supported CoreS3 target', () => {
+test('stackchan-voice native resources are limited to CoreS3 and the WASM simulator', () => {
   const manifest = JSON.parse(readFileSync('host/modules/audio/manifest.json', 'utf8')) as {
     include: string[]
     modules: Record<string, string | string[]>
     platforms: Record<string, { include?: string[]; modules?: Record<string, string> }>
+  }
+  const wasmManifest = JSON.parse(readFileSync('host/modules/audio/manifest_wasm.json', 'utf8')) as {
+    include: string[]
+    modules: Record<string, string>
   }
   const lin = manifest.platforms.lin
   const coreS3 = manifest.platforms['esp32/m5stackchan_cores3']
@@ -22,6 +26,8 @@ test('stackchan-voice native resources are limited to the supported CoreS3 targe
   assert.ok(coreS3.include?.includes('../../../vendor/stackchan-voice/manifest.json'))
   assert.ok(coreS3.include?.includes('$(MODDABLE)/modules/io/audioout/manifest.json'))
   assert.equal(coreS3.modules?.['tts-stackchan-voice'], './stackchan-voice/tts-stackchan-voice')
+  assert.ok(wasmManifest.include.includes('../../../vendor/stackchan-voice/manifest.json'))
+  assert.equal(wasmManifest.modules['tts-stackchan-voice'], './wasm/tts-stackchan-voice')
 })
 
 test('stackchan-voice vendor snapshot matches its recorded provenance', () => {
@@ -52,4 +58,14 @@ test('default behavior exposes stackchan-voice synthesis from the drawer', () =>
   assert.match(source, /key: 'speakStackchan'/)
   assert.match(source, /target\.audio\.say\(SPEECH_SYNTHESIS_TEXT\)/)
   assert.match(source, /\[SpeechSynthesis\] error \$\{errorMessage\(error\)\}/)
+})
+
+test('the block editor speech command selects stackchan-voice on CoreS3 and WASM', () => {
+  const blocks = readFileSync('../web/editor/blocks.mjs', 'utf8')
+  const coreS3 = JSON.parse(readFileSync('host/platforms/m5stackchan_cores3/manifest.json', 'utf8'))
+  const wasm = JSON.parse(readFileSync('host/platforms/wasm/manifest.json', 'utf8'))
+
+  assert.match(blocks, /return `await robot\.audio\.say\(String\(\$\{text\}\)\)\\n`/)
+  assert.equal(coreS3.config.tts.type, 'stackchan-voice')
+  assert.equal(wasm.config.tts.type, 'stackchan-voice')
 })

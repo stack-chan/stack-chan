@@ -6,6 +6,11 @@ Blockly-based MOD editor for Stack-chan. Everything runs client-side:
 2. **Build** — compile the MOD in the browser with the Moddable tools (`mcrun` → `xsc` → `xsa`) built to WebAssembly (`vendor/tools.js` + `vendor/tools.wasm`). The output is an XS archive (`mc.xsa`) containing xsb bytecode.
 3. **Install** — into the [WASM simulator](../simulator/) (saved to IndexedDB, loaded at simulator launch), or onto a real device over WebSerial by flashing the archive into the device's `xs` flash partition with esptool-js. See [Installing to a real device](#installing-to-a-real-device).
 
+The 「おしゃべり」 block calls `robot.audio.say(...)`. M5StackChan CoreS3
+firmware and the WASM simulator both select the bundled offline
+`stackchan-voice` engine, so the generated MOD uses the same synthesizer in the
+browser and on the device.
+
 ## Files
 
 | File                                       | Role                                                                 |

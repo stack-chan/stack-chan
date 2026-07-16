@@ -1,7 +1,8 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../../app/manifest_typings.json"
+    "../../app/manifest_typings.json",
+    "../../../vendor/stackchan-voice/manifest.json"
   ],
   "modules": {
     "audio-buffer": "./audio-buffer",
@@ -18,6 +19,7 @@
     "tts-elevenlabs": "./wasm/tts-elevenlabs",
     "tts-openai": "./wasm/tts-openai",
     "tts-stackchan-voice": "./wasm/tts-stackchan-voice",
+    "stackchan-voice-wav": "./wasm/stackchan-voice-wav",
     "tts-stub": "./wasm/tts-stub"
   },
   "preload": ["wasm-audio-bridge"]

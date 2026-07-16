@@ -28,27 +28,28 @@ test('playback path forwards large ArrayBuffers without copy helpers', () => {
   }
 })
 
-test('wasm TTS engines share one stub through stable module specifiers', () => {
+test('wasm remote TTS engines share one stub while stackchan-voice keeps its native renderer', () => {
   const manifest = JSON.parse(readFileSync('host/modules/audio/manifest_wasm.json', 'utf8')) as {
+    include: string[]
     modules: Record<string, string>
   }
-  const engines = [
-    'tts-local',
-    'tts-remote',
-    'tts-voicevox',
-    'tts-voicevox-web',
-    'tts-elevenlabs',
-    'tts-openai',
-    'tts-stackchan-voice',
-  ]
+  const stubbedEngines = ['tts-local', 'tts-remote', 'tts-voicevox', 'tts-voicevox-web', 'tts-elevenlabs', 'tts-openai']
 
   assert.equal(manifest.modules['tts-stub'], './wasm/tts-stub')
   assert.match(readFileSync('host/modules/audio/wasm/tts-stub.ts', 'utf8'), /export class TTS/)
 
-  for (const engine of engines) {
+  for (const engine of stubbedEngines) {
     assert.equal(manifest.modules[engine], `./wasm/${engine}`)
     assert.equal(readFileSync(`host/modules/audio/wasm/${engine}.ts`, 'utf8').trim(), "export { TTS } from 'tts-stub'")
   }
+
+  assert.ok(manifest.include.includes('../../../vendor/stackchan-voice/manifest.json'))
+  assert.equal(manifest.modules['tts-stackchan-voice'], './wasm/tts-stackchan-voice')
+  const stackchanVoice = readFileSync('host/modules/audio/wasm/tts-stackchan-voice.ts', 'utf8')
+  assert.match(stackchanVoice, /from 'stackchanvoice'/)
+  assert.match(stackchanVoice, /renderStackchanVoiceWav/)
+  assert.match(stackchanVoice, /startPlayBuffer\(rendered\.buffer\)/)
+  assert.doesNotMatch(stackchanVoice, /from 'tts-stub'/)
 })
 
 test('conversation modules stay independent of app layer contracts', () => {

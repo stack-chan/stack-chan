@@ -3,6 +3,7 @@ import type {
   DrawerButtonViewSpec,
   DrawerCapability,
   RobotUI,
+  ShowBalloonOptions,
   StackchanContext,
   UIEffect,
 } from 'capabilities'
@@ -76,21 +77,7 @@ export class StackchanRuntimeUI {
     this.rebuildDrawerBindings()
   }
 
-  showBalloon(
-    text: string,
-    option: {
-      left?: number
-      right?: number
-      top?: number
-      bottom?: number
-      width?: number
-      height?: number
-    } = {
-      right: 20,
-      top: 10,
-      width: 80,
-    },
-  ) {
+  showBalloon(text: string, option: ShowBalloonOptions = {}) {
     if (this.#balloon != null) {
       this.hideBalloon()
     }

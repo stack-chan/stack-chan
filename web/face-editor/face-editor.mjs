@@ -9,6 +9,8 @@ const elements = {
   secondary: element('secondary-color'),
   mouthOpen: element('mouth-open'),
   mouthOpenOutput: element('mouth-open-output'),
+  mouthVisible: element('mouth-visible'),
+  mouthShapeControls: element('mouth-shape-controls'),
   canvas: element('face-canvas'),
   faceFrame: element('face-frame'),
   frameBackground: element('face-frame-background'),
@@ -17,6 +19,7 @@ const elements = {
   leftLid: element('left-eye-lid'),
   rightIris: element('right-eye-iris'),
   rightLid: element('right-eye-lid'),
+  mouthPart: element('mouth-part'),
   mouthPreview: element('mouth-preview'),
   status: element('face-status'),
   codePreview: element('shape-code-preview'),
@@ -31,16 +34,24 @@ const controls = {
     height: element('canvas-height'),
   },
   leftEye: {
+    shape: element('left-eye-shape'),
     x: element('left-eye-x'),
     y: element('left-eye-y'),
     radius: element('left-eye-radius'),
+    width: element('left-eye-width'),
+    height: element('left-eye-height'),
+    r: element('left-eye-r'),
     eyelidWidth: element('left-eyelid-width'),
     eyelidHeight: element('left-eyelid-height'),
   },
   rightEye: {
+    shape: element('right-eye-shape'),
     x: element('right-eye-x'),
     y: element('right-eye-y'),
     radius: element('right-eye-radius'),
+    width: element('right-eye-width'),
+    height: element('right-eye-height'),
+    r: element('right-eye-r'),
     eyelidWidth: element('right-eyelid-width'),
     eyelidHeight: element('right-eyelid-height'),
   },
@@ -58,6 +69,25 @@ function values(group) {
   return Object.fromEntries(Object.entries(group).map(([key, input]) => [key, Number(input.value)]))
 }
 
+function eyeValues(group) {
+  const eye = {
+    shape: group.shape.value,
+    x: Number(group.x.value),
+    y: Number(group.y.value),
+    eyelidWidth: Number(group.eyelidWidth.value),
+    eyelidHeight: Number(group.eyelidHeight.value),
+  }
+  if (eye.shape === 'roundRect') {
+    return {
+      ...eye,
+      width: Number(group.width.value),
+      height: Number(group.height.value),
+      r: Number(group.r.value),
+    }
+  }
+  return { ...eye, radius: Number(group.radius.value) }
+}
+
 export function assetFromShapeEditorValues({
   name,
   emotion,
@@ -67,6 +97,7 @@ export function assetFromShapeEditorValues({
   canvas,
   leftEye,
   rightEye,
+  mouthVisible,
   mouthShape,
 }) {
   return createFaceAsset({
@@ -78,7 +109,7 @@ export function assetFromShapeEditorValues({
     canvas,
     shape: {
       eyes: { left: leftEye, right: rightEye },
-      mouth: mouthShape,
+      mouth: { ...mouthShape, visible: mouthVisible },
     },
   })
 }
@@ -91,8 +122,9 @@ function currentAsset() {
     secondary: elements.secondary.value,
     mouth: Number(elements.mouthOpen.value),
     canvas: values(controls.canvas),
-    leftEye: values(controls.leftEye),
-    rightEye: values(controls.rightEye),
+    leftEye: eyeValues(controls.leftEye),
+    rightEye: eyeValues(controls.rightEye),
+    mouthVisible: elements.mouthVisible.checked,
     mouthShape: values(controls.mouth),
   })
 }
@@ -102,10 +134,52 @@ function setValues(group, value) {
 }
 
 function setEyeValues(group, eye) {
-  setValues(group, eye)
-  const diameter = eye.radius * 2
-  group.eyelidWidth.value = String(diameter)
-  group.eyelidHeight.value = String(diameter)
+  group.shape.value = eye.shape
+  group.x.value = String(eye.x)
+  group.y.value = String(eye.y)
+  if (eye.shape === 'roundRect') {
+    group.width.value = String(eye.width)
+    group.height.value = String(eye.height)
+    group.r.value = String(eye.r)
+  } else {
+    group.radius.value = String(eye.radius)
+  }
+  group.eyelidWidth.value = String(eye.eyelidWidth)
+  group.eyelidHeight.value = String(eye.eyelidHeight)
+  syncEyeControls(group)
+}
+
+function setShapeFieldVisibility(input, visible) {
+  input.disabled = !visible
+  input.closest('label').hidden = !visible
+}
+
+function syncEyeControls(group) {
+  const roundRect = group.shape.value === 'roundRect'
+  setShapeFieldVisibility(group.radius, !roundRect)
+  for (const input of [group.width, group.height, group.r]) setShapeFieldVisibility(input, roundRect)
+
+  let width
+  let height
+  if (roundRect) {
+    width = Number(group.width.value)
+    height = Number(group.height.value)
+    const maximumR = Math.max(0, Math.min(width, height) / 2)
+    group.r.max = String(maximumR)
+    group.r.value = String(Math.min(maximumR, Math.max(0, Number(group.r.value))))
+  } else {
+    width = Number(group.radius.value) * 2
+    height = width
+  }
+  group.eyelidWidth.value = String(width)
+  group.eyelidHeight.value = String(height)
+}
+
+function syncMouthControls() {
+  const visible = elements.mouthVisible.checked
+  elements.mouthOpen.disabled = !visible
+  elements.mouthShapeControls.dataset.disabled = String(!visible)
+  for (const input of Object.values(controls.mouth)) input.disabled = !visible
 }
 
 function applyAsset(asset) {
@@ -115,17 +189,27 @@ function applyAsset(asset) {
   elements.primary.value = normalized.colors.primary
   elements.secondary.value = normalized.colors.secondary
   elements.mouthOpen.value = String(normalized.mouth)
+  elements.mouthVisible.checked = normalized.shape.mouth.visible
   setValues(controls.canvas, normalized.canvas)
   setEyeValues(controls.leftEye, normalized.shape.eyes.left)
   setEyeValues(controls.rightEye, normalized.shape.eyes.right)
   setValues(controls.mouth, normalized.shape.mouth)
+  syncMouthControls()
   render()
 }
 
-function setCircle(circle, eye) {
-  circle.setAttribute('cx', eye.x)
-  circle.setAttribute('cy', eye.y)
-  circle.setAttribute('r', eye.radius)
+function setIris(rectangle, eye) {
+  const roundRect = eye.shape === 'roundRect'
+  const width = roundRect ? eye.width : eye.radius * 2
+  const height = roundRect ? eye.height : eye.radius * 2
+  const r = roundRect ? eye.r : eye.radius
+  rectangle.dataset.shape = eye.shape
+  rectangle.setAttribute('x', eye.x - width / 2)
+  rectangle.setAttribute('y', eye.y - height / 2)
+  rectangle.setAttribute('width', width)
+  rectangle.setAttribute('height', height)
+  rectangle.setAttribute('rx', r)
+  rectangle.setAttribute('ry', r)
 }
 
 function eyelidPath(eye, side, emotion) {
@@ -168,11 +252,12 @@ function render() {
     rectangle.setAttribute('height', canvas.height)
   }
 
-  setCircle(elements.leftIris, shape.eyes.left)
-  setCircle(elements.rightIris, shape.eyes.right)
+  setIris(elements.leftIris, shape.eyes.left)
+  setIris(elements.rightIris, shape.eyes.right)
   setLid(elements.leftLid, shape.eyes.left, 'left', asset.emotion)
   setLid(elements.rightLid, shape.eyes.right, 'right', asset.emotion)
 
+  elements.mouthPart.toggleAttribute('hidden', !shape.mouth.visible)
   const open = asset.mouth
   const mouthWidth = shape.mouth.minWidth + (shape.mouth.maxWidth - shape.mouth.minWidth) * (1 - open)
   const mouthHeight = shape.mouth.minHeight + (shape.mouth.maxHeight - shape.mouth.minHeight) * open
@@ -197,11 +282,8 @@ function setStatus(message, state = '') {
 }
 
 elements.form.addEventListener('input', () => {
-  for (const eyeControls of [controls.leftEye, controls.rightEye]) {
-    const diameter = Number(eyeControls.radius.value) * 2
-    eyeControls.eyelidWidth.value = String(diameter)
-    eyeControls.eyelidHeight.value = String(diameter)
-  }
+  for (const eyeControls of [controls.leftEye, controls.rightEye]) syncEyeControls(eyeControls)
+  syncMouthControls()
   render()
   setStatus('Shape型Faceを編集中です。')
 })
@@ -321,4 +403,4 @@ element('send-to-editor').addEventListener('click', () => {
   location.href = '../editor/?face-asset=staging'
 })
 
-applyAsset(createFaceAsset({ mouth: 0.2 }))
+applyAsset(createFaceAsset())

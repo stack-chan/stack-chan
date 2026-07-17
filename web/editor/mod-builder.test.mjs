@@ -154,14 +154,25 @@ test('buildModArchive compiles a generated Shape Face implementation', async () 
       mouth: 0.65,
       shape: {
         eyes: {
-          left: { x: 42, y: 35, radius: 11, eyelidWidth: 30, eyelidHeight: 26 },
+          left: {
+            x: 42,
+            y: 35,
+            shape: 'roundRect',
+            width: 30,
+            height: 20,
+            r: 6,
+            eyelidWidth: 30,
+            eyelidHeight: 20,
+          },
           right: { x: 164, y: 42, radius: 6, eyelidWidth: 21, eyelidHeight: 18 },
         },
-        mouth: { x: 106, y: 91, minWidth: 28, maxWidth: 110, minHeight: 5, maxHeight: 48 },
+        mouth: { visible: false, x: 106, y: 91, minWidth: 28, maxWidth: 110, minHeight: 5, maxHeight: 48 },
       },
     })
   )
   assert.match(source, /robot\.ui\.setFace/)
+  assert.match(source, /shape: 'roundRect'/)
+  assert.doesNotMatch(source, /new Mouth/)
   const archive = await buildModArchive(createTools, { modJs: source, name: 'shape-face' })
   assert.equal(isXsArchive(archive), true)
 })

@@ -2,6 +2,7 @@ export const FACE_ASSET_FORMAT = 'tech.stackchan.face'
 export const FACE_ASSET_VERSION = 1
 export const FACE_ASSET_MEDIA_TYPE = 'application/vnd.stackchan.face+json'
 export const FACE_ASSET_KIND_SHAPE = 'shape'
+export const FACE_ASSET_EYE_SHAPES = Object.freeze(['circle', 'roundRect'])
 export const FACE_ASSET_EMOTIONS = Object.freeze([
   'NEUTRAL',
   'HAPPY',
@@ -14,22 +15,25 @@ export const FACE_ASSET_EMOTIONS = Object.freeze([
 ])
 
 const EMOTIONS = new Set(FACE_ASSET_EMOTIONS)
+const EYE_SHAPES = new Set(FACE_ASSET_EYE_SHAPES)
 const ROOT_FIELDS = new Set(['format', 'version', 'kind', 'name', 'emotion', 'colors', 'mouth', 'canvas', 'shape'])
 const COLOR_FIELDS = new Set(['primary', 'secondary'])
 const CANVAS_FIELDS = new Set(['left', 'top', 'width', 'height'])
 const SHAPE_FIELDS = new Set(['eyes', 'mouth'])
 const EYES_FIELDS = new Set(['left', 'right'])
-const EYE_FIELDS = new Set(['x', 'y', 'radius', 'eyelidWidth', 'eyelidHeight'])
-const MOUTH_FIELDS = new Set(['x', 'y', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight'])
+const CIRCLE_EYE_FIELDS = new Set(['x', 'y', 'shape', 'radius', 'eyelidWidth', 'eyelidHeight'])
+const ROUND_RECT_EYE_FIELDS = new Set(['x', 'y', 'shape', 'width', 'height', 'r', 'eyelidWidth', 'eyelidHeight'])
+const MOUTH_FIELDS = new Set(['visible', 'x', 'y', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight'])
+const DEFAULT_ROUND_RECT_EYE = Object.freeze({ width: 16, height: 16, r: 4 })
 
 export const DEFAULT_SHAPE_FACE = Object.freeze({
   canvas: Object.freeze({ left: 60, top: 60, width: 200, height: 120 }),
   shape: Object.freeze({
     eyes: Object.freeze({
-      left: Object.freeze({ x: 30, y: 33, radius: 8, eyelidWidth: 16, eyelidHeight: 16 }),
-      right: Object.freeze({ x: 170, y: 36, radius: 8, eyelidWidth: 16, eyelidHeight: 16 }),
+      left: Object.freeze({ x: 30, y: 33, shape: 'circle', radius: 8, eyelidWidth: 16, eyelidHeight: 16 }),
+      right: Object.freeze({ x: 170, y: 36, shape: 'circle', radius: 8, eyelidWidth: 16, eyelidHeight: 16 }),
     }),
-    mouth: Object.freeze({ x: 100, y: 88, minWidth: 50, maxWidth: 90, minHeight: 8, maxHeight: 58 }),
+    mouth: Object.freeze({ visible: true, x: 100, y: 88, minWidth: 50, maxWidth: 90, minHeight: 8, maxHeight: 58 }),
   }),
 })
 
@@ -60,17 +64,38 @@ function validNumber(value, minimum, maximum) {
 
 function normalizeEye(value, fallback, canvas) {
   const eye = isRecord(value) ? value : {}
-  const maximumRadius = Math.min(40, canvas.width / 2, canvas.height / 2)
-  const radius = clamp(eye.radius, 2, maximumRadius, fallback.radius)
-  const diameter = radius * 2
+  const shape = eye.shape === 'roundRect' ? 'roundRect' : 'circle'
   const maximumEyelidWidth = Math.min(120, canvas.width)
   const maximumEyelidHeight = Math.min(120, canvas.height)
-  const eyelidWidth = clamp(eye.eyelidWidth, diameter, maximumEyelidWidth, Math.max(diameter, fallback.eyelidWidth))
-  const eyelidHeight = clamp(eye.eyelidHeight, diameter, maximumEyelidHeight, Math.max(diameter, fallback.eyelidHeight))
+  let irisWidth
+  let irisHeight
+  let geometry
+  if (shape === 'roundRect') {
+    const width = clamp(eye.width, 4, maximumEyelidWidth, DEFAULT_ROUND_RECT_EYE.width)
+    const height = clamp(eye.height, 4, maximumEyelidHeight, DEFAULT_ROUND_RECT_EYE.height)
+    const r = clamp(eye.r, 0, Math.min(width, height) / 2, DEFAULT_ROUND_RECT_EYE.r)
+    irisWidth = width
+    irisHeight = height
+    geometry = { width, height, r }
+  } else {
+    const maximumRadius = Math.min(40, canvas.width / 2, canvas.height / 2)
+    const radius = clamp(eye.radius, 2, maximumRadius, fallback.radius)
+    irisWidth = radius * 2
+    irisHeight = radius * 2
+    geometry = { radius }
+  }
+  const eyelidWidth = clamp(eye.eyelidWidth, irisWidth, maximumEyelidWidth, Math.max(irisWidth, fallback.eyelidWidth))
+  const eyelidHeight = clamp(
+    eye.eyelidHeight,
+    irisHeight,
+    maximumEyelidHeight,
+    Math.max(irisHeight, fallback.eyelidHeight)
+  )
   return {
     x: clamp(eye.x, eyelidWidth / 2, canvas.width - eyelidWidth / 2, fallback.x),
     y: clamp(eye.y, eyelidHeight / 2, canvas.height - eyelidHeight / 2, fallback.y),
-    radius,
+    shape,
+    ...geometry,
     eyelidWidth,
     eyelidHeight,
   }
@@ -83,6 +108,7 @@ function normalizeMouth(value, fallback, canvas) {
   const minHeight = clamp(mouth.minHeight, 1, canvas.height, fallback.minHeight)
   const maxHeight = clamp(mouth.maxHeight, minHeight, canvas.height, fallback.maxHeight)
   return {
+    visible: mouth.visible !== false,
     x: clamp(mouth.x, 0, canvas.width, fallback.x),
     y: clamp(mouth.y, 0, canvas.height, fallback.y),
     minWidth,
@@ -137,12 +163,33 @@ export function createFaceAsset({
 }
 
 function validateEye(eye, canvas) {
-  const maximumRadius = Math.min(40, canvas.width / 2, canvas.height / 2)
+  if (!isRecord(eye)) return false
+  const shape = eye.shape ?? 'circle'
+  if (!EYE_SHAPES.has(shape)) return false
+  let irisWidth
+  let irisHeight
+  if (shape === 'roundRect') {
+    const maximumWidth = Math.min(120, canvas.width)
+    const maximumHeight = Math.min(120, canvas.height)
+    if (
+      !exactFields(eye, ROUND_RECT_EYE_FIELDS) ||
+      !validNumber(eye.width, 4, maximumWidth) ||
+      !validNumber(eye.height, 4, maximumHeight) ||
+      !validNumber(eye.r, 0, Math.min(eye.width, eye.height) / 2)
+    ) {
+      return false
+    }
+    irisWidth = eye.width
+    irisHeight = eye.height
+  } else {
+    const maximumRadius = Math.min(40, canvas.width / 2, canvas.height / 2)
+    if (!exactFields(eye, CIRCLE_EYE_FIELDS) || !validNumber(eye.radius, 2, maximumRadius)) return false
+    irisWidth = eye.radius * 2
+    irisHeight = eye.radius * 2
+  }
   return (
-    exactFields(eye, EYE_FIELDS) &&
-    validNumber(eye.radius, 2, maximumRadius) &&
-    validNumber(eye.eyelidWidth, eye.radius * 2, Math.min(120, canvas.width)) &&
-    validNumber(eye.eyelidHeight, eye.radius * 2, Math.min(120, canvas.height)) &&
+    validNumber(eye.eyelidWidth, irisWidth, Math.min(120, canvas.width)) &&
+    validNumber(eye.eyelidHeight, irisHeight, Math.min(120, canvas.height)) &&
     validNumber(eye.x, eye.eyelidWidth / 2, canvas.width - eye.eyelidWidth / 2) &&
     validNumber(eye.y, eye.eyelidHeight / 2, canvas.height - eye.eyelidHeight / 2)
   )
@@ -182,6 +229,7 @@ function validateShapeFaceAsset(value) {
   const mouth = value.shape.mouth
   return (
     exactFields(mouth, MOUTH_FIELDS) &&
+    (mouth.visible === undefined || typeof mouth.visible === 'boolean') &&
     validNumber(mouth.x, 0, canvas.width) &&
     validNumber(mouth.y, 0, canvas.height) &&
     validNumber(mouth.minWidth, 1, canvas.width) &&
@@ -234,29 +282,36 @@ export function shapeFaceDefinition(asset) {
   const normalized = createFaceAsset(asset)
   const { canvas, shape } = normalized
   const eye = (value, side) =>
-    `new Eye({ cx: ${number(value.x)}, cy: ${number(value.y)}, radius: ${number(value.radius)}, side: '${side}', eyelidWidth: ${number(value.eyelidWidth)}, eyelidHeight: ${number(value.eyelidHeight)} })`
+    value.shape === 'roundRect'
+      ? `new Eye({ cx: ${number(value.x)}, cy: ${number(value.y)}, shape: 'roundRect', width: ${number(value.width)}, height: ${number(value.height)}, r: ${number(value.r)}, side: '${side}', eyelidWidth: ${number(value.eyelidWidth)}, eyelidHeight: ${number(value.eyelidHeight)} })`
+      : `new Eye({ cx: ${number(value.x)}, cy: ${number(value.y)}, radius: ${number(value.radius)}, side: '${side}', eyelidWidth: ${number(value.eyelidWidth)}, eyelidHeight: ${number(value.eyelidHeight)} })`
+  const contents = [eye(shape.eyes.left, 'left'), eye(shape.eyes.right, 'right')]
+  if (shape.mouth.visible) {
+    contents.push(
+      `new Mouth({ cx: ${number(shape.mouth.x)}, cy: ${number(shape.mouth.y)}, minWidth: ${number(shape.mouth.minWidth)}, maxWidth: ${number(shape.mouth.maxWidth)}, minHeight: ${number(shape.mouth.minHeight)}, maxHeight: ${number(shape.mouth.maxHeight)} })`
+    )
+  }
   return `const _StackchanVisualShapeFace = FaceBase.template(($ = {}) => ({
   left: $.left ?? ${number(canvas.left)},
   top: $.top ?? ${number(canvas.top)},
   width: $.width ?? ${number(canvas.width)},
   height: $.height ?? ${number(canvas.height)},
   contents: [
-    ${eye(shape.eyes.left, 'left')},
-    ${eye(shape.eyes.right, 'right')},
-    new Mouth({ cx: ${number(shape.mouth.x)}, cy: ${number(shape.mouth.y)}, minWidth: ${number(shape.mouth.minWidth)}, maxWidth: ${number(shape.mouth.maxWidth)}, minHeight: ${number(shape.mouth.minHeight)}, maxHeight: ${number(shape.mouth.maxHeight)} }),
+    ${contents.join(',\n    ')},
   ],
 }))`
 }
 
 export function faceAssetStatements(asset) {
   const normalized = createFaceAsset(asset)
-  return [
+  const statements = [
     'robot.ui.setFace(new _StackchanVisualShapeFace({}))',
     `robot.face.setEmotion(Emotion.${normalized.emotion})`,
     `robot.face.setColor('primary', ${rgb(normalized.colors.primary).join(', ')})`,
     `robot.face.setColor('secondary', ${rgb(normalized.colors.secondary).join(', ')})`,
-    `robot.face.setMouthOpen(${number(normalized.mouth)})`,
-  ].join('\n')
+  ]
+  if (normalized.shape.mouth.visible) statements.push(`robot.face.setMouthOpen(${number(normalized.mouth)})`)
+  return statements.join('\n')
 }
 
 function prependImport(source, statement, moduleName) {
@@ -277,7 +332,9 @@ export function applyFaceAssetToSource(source, asset) {
     .map((line) => `  ${line}`)
     .join('\n')
   result = result.replace(marker, `${marker}\n${statements}`)
-  result = prependImport(result, "import { Mouth } from 'parts/mouth'", 'parts/mouth')
+  if (normalized.shape.mouth.visible) {
+    result = prependImport(result, "import { Mouth } from 'parts/mouth'", 'parts/mouth')
+  }
   result = prependImport(result, "import { Eye } from 'parts/eye'", 'parts/eye')
   result = prependImport(result, "import { FaceBase } from 'behaviors/face'", 'behaviors/face')
   result = prependImport(result, "import { Emotion } from 'face-state'", 'face-state')

@@ -107,6 +107,17 @@ export async function onContextCreated(robot) {
   assert.ok(isXsArchive(archive))
 })
 
+test('buildModArchive compiles the generated list-based singing helper', async () => {
+  const source = assembleModSource(
+    "await singScore(robot, 120, [['C4', 1, 'き'], ['C4', 1, 'ら'], ['R', 0.5, '']])\n"
+  )
+  assert.match(source, /function singingScoreToKoe/)
+  assert.match(source, /await singScore\(robot, 120/)
+
+  const archive = await buildModArchive(createTools, { modJs: source, name: 'sing-score' })
+  assert.ok(isXsArchive(archive))
+})
+
 test('buildModArchive compiles a MOD using the new event/motion/ui blocks', async () => {
   // assembleModSource injects the event dispatch helpers + imports; this checks
   // the generated source for the new blocks actually compiles on the device.

@@ -75,6 +75,47 @@ test('rejects statement blocks left outside an event', () => {
   assert.equal(result.diagnostics[0].code, 'VP_ORPHAN_TOP_LEVEL')
 })
 
+test('rejects legacy song events connected directly to an event instead of a song parent', () => {
+  const direct = analyzeWorkspace({
+    blocks: {
+      blocks: [
+        {
+          id: 'drawer',
+          type: 'stackchan_on_drawer_button',
+          inputs: { DO: { block: { id: 'note', type: 'stackchan_song_note' } } },
+        },
+      ],
+    },
+  })
+  assert.equal(direct.canBuild, false)
+  assert.deepEqual(
+    direct.diagnostics.map((item) => [item.code, item.blockId]),
+    [['VP_LEGACY_SONG_EVENT', 'note']]
+  )
+
+  const nested = analyzeWorkspace({
+    blocks: {
+      blocks: [
+        {
+          id: 'start',
+          type: 'stackchan_on_start',
+          inputs: {
+            DO: {
+              block: {
+                id: 'song',
+                type: 'stackchan_sing',
+                inputs: { SCORE: { block: { id: 'note', type: 'stackchan_song_note' } } },
+              },
+            },
+          },
+        },
+      ],
+    },
+  })
+  assert.equal(nested.canBuild, true)
+  assert.deepEqual(nested.diagnostics, [])
+})
+
 test('capability-aware toolbox removes unsupported hardware blocks', () => {
   const toolbox = {
     contents: [

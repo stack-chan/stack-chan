@@ -127,6 +127,7 @@
         "SDKCONFIGPATH": "./platforms/m5stackchan-cores3/sdkconfig"
       },
       "modules": {
+        "~": "./tts-stackchan-voice",
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
         "esp32-mp3-decoder": "./platforms/m5stackchan-cores3/esp32-mp3-decoder",
         "web-radio-player": "./platforms/m5stackchan-cores3/web-radio-player",

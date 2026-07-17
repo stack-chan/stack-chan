@@ -52,6 +52,16 @@ test('wasm remote TTS engines share one stub while stackchan-voice keeps its nat
   assert.doesNotMatch(stackchanVoice, /from 'tts-stub'/)
 })
 
+test('M5StackChan CoreS3 excludes the fallback stackchan-voice module before selecting the device renderer', () => {
+  const manifest = JSON.parse(readFileSync('host/modules/audio/manifest.json', 'utf8')) as {
+    platforms: Record<string, { modules: Record<string, string> }>
+  }
+  const modules = manifest.platforms['esp32/m5stackchan_cores3'].modules
+
+  assert.equal(modules['~'], './tts-stackchan-voice')
+  assert.equal(modules['tts-stackchan-voice'], './stackchan-voice/tts-stackchan-voice')
+})
+
 test('conversation modules stay independent of app layer contracts', () => {
   const conversationFiles: string[] = []
   const visit = (dir: string) => {

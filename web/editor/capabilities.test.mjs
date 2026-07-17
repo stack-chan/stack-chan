@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { inspectDeploymentCompatibility, requirementsForBlockTypes, unsupportedRequirements } from './capabilities.mjs'
+import {
+  inspectDeploymentCompatibility,
+  requirementsForBlockTypes,
+  toolboxForTarget,
+  unsupportedRequirements,
+} from './capabilities.mjs'
 
 test('capability requirements are unique and target-aware', () => {
   assert.deepEqual(requirementsForBlockTypes(['stackchan_on_imu', 'stackchan_on_imu', 'stackchan_say']), [
@@ -9,6 +14,29 @@ test('capability requirements are unique and target-aware', () => {
     'input.imu',
   ])
   assert.deepEqual(unsupportedRequirements('simulator', ['input.imu', 'face']), ['input.imu'])
+})
+
+test('singing blocks are available only on stackchan-voice targets', () => {
+  assert.deepEqual(requirementsForBlockTypes(['stackchan_sing', 'stackchan_song_note']), ['audio.singing'])
+  assert.deepEqual(unsupportedRequirements('m5stackchan-cores3', ['audio.singing']), [])
+  assert.deepEqual(unsupportedRequirements('simulator', ['audio.singing']), [])
+  assert.deepEqual(unsupportedRequirements('portable', ['audio.singing']), ['audio.singing'])
+
+  const toolbox = {
+    contents: [
+      {
+        contents: [
+          { kind: 'block', type: 'stackchan_say' },
+          { kind: 'block', type: 'stackchan_sing' },
+          { kind: 'block', type: 'stackchan_song_note' },
+        ],
+      },
+    ],
+  }
+  assert.deepEqual(
+    toolboxForTarget(toolbox, 'portable').contents[0].contents.map((entry) => entry.type),
+    ['stackchan_say']
+  )
 })
 
 test('deployment compatibility checks chip family and exact XS archive version', () => {

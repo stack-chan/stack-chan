@@ -62,12 +62,21 @@ export class TTS {
   }
 
   stream(text: string, volume?: number, callback?: TTSCompletion): void {
+    this.#stream(text, false, volume, callback)
+  }
+
+  streamKoe(koe: string, volume?: number, callback?: TTSCompletion): void {
+    this.#stream(koe, true, volume, callback)
+  }
+
+  #stream(source: string, isKoe: boolean, volume?: number, callback?: TTSCompletion): void {
     const lifecycle = beginTTSPlayback(this, callback)
     if (!lifecycle) return
 
     try {
       this.#resetPlayback(lifecycle)
-      this.voice.say(text, this.speed)
+      if (isKoe) this.voice.koe(source, this.speed)
+      else this.voice.say(source, this.speed)
       this.#generating = true
 
       const output = new AudioOut({

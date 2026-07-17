@@ -210,6 +210,16 @@ export class StackchanRuntimeContext implements StackchanContext {
     return this.#audioRuntime.say(text, volume)
   }
 
+  /**
+   * Sing raw stackchan-voice koe notation when the active TTS supports it.
+   *
+   * @param koe - romanized koe notation with `#` note annotations
+   * @returns the koe notation when singing finishes, otherwise the reason why it fails.
+   */
+  async sing(koe: string, volume?: number): Promise<Maybe<string>> {
+    return this.#audioRuntime.sing(koe, volume)
+  }
+
   async record(durationMilliSec?: number): Promise<OwnedAudioBuffer> {
     return this.#audioRuntime.record(durationMilliSec)
   }
@@ -417,6 +427,9 @@ export class StackchanRuntimeContext implements StackchanContext {
       },
       say(text, volume) {
         return context.say(text, volume)
+      },
+      sing(koe, volume) {
+        return context.sing(koe, volume)
       },
       record(durationMilliSec) {
         return context.record(durationMilliSec)

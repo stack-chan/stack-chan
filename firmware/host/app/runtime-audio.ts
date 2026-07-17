@@ -95,6 +95,28 @@ export class StackchanRuntimeAudio {
     }
   }
 
+  async sing(koe: string, volume?: number): Promise<Maybe<string>> {
+    this.#webRadio?.stop()
+    this.#activeOperations += 1
+    try {
+      const tts = this.#tts
+      if (!tts.streamKoe) throw new Error('The active TTS does not support singing.')
+      await waitForCompletion((callback) => tts.streamKoe(koe, volume, callback))
+      return {
+        success: true,
+        value: koe,
+      }
+    } catch (reason) {
+      trace('error\n')
+      return {
+        success: false,
+        reason: String(reason),
+      }
+    } finally {
+      this.#activeOperations -= 1
+    }
+  }
+
   async record(durationMilliSec?: number): Promise<OwnedAudioBuffer> {
     if (!this.#microphone) {
       throw Error('This device does not support a microphone.')

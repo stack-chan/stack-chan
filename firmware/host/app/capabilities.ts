@@ -13,6 +13,8 @@ import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-ty
 
 export type TTS = {
   stream: (text: string, volume?: number, callback?: TTSCompletion) => void
+  /** Streams raw stackchan-voice koe notation when the provider supports singing. */
+  streamKoe?: (koe: string, volume?: number, callback?: TTSCompletion) => void
   onPlayed?: TTSPlaybackListener
   onDone?: TTSDoneListener
 }
@@ -97,6 +99,8 @@ export type AudioCapability = {
    */
   useTTS(tts: TTS): void
   say(text: string, volume?: number): Promise<Maybe<string>>
+  /** Sings raw koe notation. Returns a failure when the active TTS does not support singing. */
+  sing(koe: string, volume?: number): Promise<Maybe<string>>
   record(durationMilliSec?: number): Promise<OwnedAudioBuffer>
   tone(hz: number, duration: number, volume?: number): Promise<void>
   /**

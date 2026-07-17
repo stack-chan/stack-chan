@@ -20,8 +20,47 @@ function installBareSpecifierPackages(): void {
 function fakeTTS() {
   return {
     stream: (_text: string, _volume?: number, callback?: (error?: unknown) => void) => callback?.(),
+    streamKoe: (_koe: string, _volume?: number, callback?: (error?: unknown) => void) => callback?.(),
   }
 }
+
+test('StackchanRuntimeAudio forwards singing koe to providers that support it', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  let received: { koe: string; volume?: number } | undefined
+  const runtime = new StackchanRuntimeAudio({
+    tts: {
+      stream: (_text, _volume, callback) => callback?.(),
+      streamKoe: (koe, volume, callback) => {
+        received = { koe, volume }
+        callback?.()
+      },
+    },
+  })
+
+  const result = await runtime.sing('#C4,500ki', 0.25)
+
+  assert.deepEqual(received, { koe: '#C4,500ki', volume: 0.25 })
+  assert.deepEqual(result, { success: true, value: '#C4,500ki' })
+})
+
+test('StackchanRuntimeAudio reports singing as unsupported for other TTS providers', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  const testGlobal = globalThis as typeof globalThis & { trace?: (message: string) => void }
+  testGlobal.trace = () => {}
+  const runtime = new StackchanRuntimeAudio({
+    tts: { stream: (_text, _volume, callback) => callback?.() },
+  })
+
+  try {
+    const result = await runtime.sing('#C4,500ki')
+    assert.equal(result.success, false)
+    if (!result.success) assert.match(result.reason, /does not support singing/)
+  } finally {
+    delete testGlobal.trace
+  }
+})
 
 test('StackchanRuntimeAudio forwards borrowed buffers to the target player', async () => {
   installBareSpecifierPackages()
@@ -130,9 +169,10 @@ test('StackchanRuntimeAudio stops WebRadio before starting other playback', asyn
   })
 
   await runtime.say('hello')
+  await runtime.sing('#A4,20a')
   await runtime.tone(440, 20)
   await runtime.playAudio(new ArrayBuffer(2) as BorrowedAudioBuffer)
-  assert.equal(stops, 3)
+  assert.equal(stops, 4)
 })
 
 test('StackchanRuntimeAudio rejects WebRadio start while TTS is busy', async () => {

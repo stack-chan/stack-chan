@@ -11,6 +11,12 @@ firmware and the WASM simulator both select the bundled offline
 `stackchan-voice` engine, so the generated MOD uses the same synthesizer in the
 browser and on the device.
 
+The 「テンポ … で歌う」 block contains note and rest blocks. A note specifies
+its pitch, beat count, and one kana mora; the generator compiles the score to
+`robot.audio.sing(...)` with raw `koe` notation. Singing is offered for the
+M5StackChan CoreS3 and WASM simulator profiles, which both run the same bundled
+engine.
+
 ## Files
 
 | File                                       | Role                                                                 |

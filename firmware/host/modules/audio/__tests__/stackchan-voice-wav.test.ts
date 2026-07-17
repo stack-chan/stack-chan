@@ -2,12 +2,14 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import {
+  renderStackchanVoiceKoeWav,
   renderStackchanVoiceWav,
   STACKCHAN_VOICE_OUTPUT_SAMPLE_RATE,
   type StackchanVoiceRenderer,
 } from '../wasm/stackchan-voice-wav.js'
 
 class FakeStackchanVoice implements StackchanVoiceRenderer {
+  readonly koeCalls: Array<{ koe: string; speed?: number }> = []
   readonly sayCalls: Array<{ text: string; speed?: number }> = []
   #offset = 0
 
@@ -15,6 +17,11 @@ class FakeStackchanVoice implements StackchanVoiceRenderer {
 
   say(text: string, speed?: number): void {
     this.sayCalls.push({ text, speed })
+    this.#offset = 0
+  }
+
+  koe(koe: string, speed?: number): void {
+    this.koeCalls.push({ koe, speed })
     this.#offset = 0
   }
 
@@ -74,6 +81,20 @@ test('renderStackchanVoiceWav grows its PCM buffer and clamps volume', async () 
   assert.deepEqual([...new Int16Array(rendered.buffer, 44, 4)], [20000, -20000, 20000, -20000])
 })
 
+test('renderStackchanVoiceKoeWav starts the renderer with singing koe notation', async () => {
+  const voice = new FakeStackchanVoice(new Int16Array([500, -500]))
+
+  const rendered = await renderStackchanVoiceKoeWav(voice, '#C4,500ki#D4,500ra', {
+    chunkSamples: 2,
+    schedule: queueMicrotask,
+    speed: 90,
+  })
+
+  assert.deepEqual(voice.koeCalls, [{ koe: '#C4,500ki#D4,500ra', speed: 90 }])
+  assert.deepEqual(voice.sayCalls, [])
+  assert.equal(rendered.samples, 2)
+})
+
 test('renderStackchanVoiceWav emits an empty but valid WAV for an empty utterance', async () => {
   const rendered = await renderStackchanVoiceWav(new FakeStackchanVoice(new Int16Array()), '', {
     schedule: queueMicrotask,
@@ -105,6 +126,7 @@ test('renderStackchanVoiceWav yields before and between native chunks', async ()
 
 test('renderStackchanVoiceWav rejects a renderer that exceeds the sample bound', async () => {
   const endlessVoice: StackchanVoiceRenderer = {
+    koe: () => {},
     say: () => {},
     read24: (buffer) => {
       new Int16Array(buffer).fill(1)

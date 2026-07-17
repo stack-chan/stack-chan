@@ -11,4 +11,8 @@ export class TTS {
   stream(_text: string, _volume?: number, callback?: TTSCompletion): void {
     callback?.(new Error('stackchan-voice is unavailable on this target'))
   }
+
+  streamKoe(_koe: string, _volume?: number, callback?: TTSCompletion): void {
+    callback?.(new Error('stackchan-voice singing is unavailable on this target'))
+  }
 }

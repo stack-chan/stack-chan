@@ -58,4 +58,23 @@ equal(callbackCalls, 1, 'completed device playback should invoke its callback on
 equal(callbackError, undefined, 'completed device playback should not report an error')
 equal(tts.streaming, false, 'completed device playback should clear streaming state')
 
+let singingCallbackCalls = 0
+let singingCallbackError: unknown
+tts.streamKoe('#C4,500ki#D4,500ra', undefined, (error) => {
+  singingCallbackCalls += 1
+  singingCallbackError = error
+})
+
+equal(state.koes.length, 1, 'device TTS should synthesize one singing utterance')
+equal(state.koes[0].koe, '#C4,500ki#D4,500ra', 'device TTS should forward raw koe notation')
+equal(state.koes[0].speed, 130, 'device TTS should use the configured speed for singing consonants')
+equal(state.audio.started, 2, 'device singing should use the same AudioOut playback path')
+assert(
+  state.audio.writes.slice(2).some((write) => write.some((byte) => byte !== 0)),
+  'device singing should write synthesized PCM',
+)
+equal(singingCallbackCalls, 1, 'completed device singing should invoke its callback once')
+equal(singingCallbackError, undefined, 'completed device singing should not report an error')
+equal(tts.streaming, false, 'completed device singing should clear streaming state')
+
 trace('ok\n')

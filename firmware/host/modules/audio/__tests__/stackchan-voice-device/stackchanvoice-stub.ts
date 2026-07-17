@@ -15,6 +15,11 @@ export default class StackchanVoice {
     state.says.push({ speed, text })
   }
 
+  koe(koe: string, speed: number): void {
+    this.#finished = false
+    state.koes.push({ koe, speed })
+  }
+
   read24(buffer: ArrayBuffer): number {
     if (this.#finished) return 0
     const samples = new Int16Array(buffer)

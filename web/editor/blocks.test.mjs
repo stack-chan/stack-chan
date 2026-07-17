@@ -9,6 +9,8 @@ import {
   NOTE_OPTIONS,
   registerStackchanBlocks,
   registerAsyncProcedureGenerators,
+  SINGING_NOTE_OPTIONS,
+  singingMoraToKoe,
   TOOLBOX,
 } from './blocks.mjs'
 
@@ -28,6 +30,74 @@ test('escapeSingleQuoted keeps a field_input value a valid single-quoted literal
     // eslint-disable-next-line no-eval
     assert.equal(eval(`'${escapeSingleQuoted(raw)}'`), raw)
   }
+})
+
+test('singingMoraToKoe converts hiragana, katakana, yoon, moraic n, and long vowels', () => {
+  assert.equal(singingMoraToKoe('き'), 'ki')
+  assert.equal(singingMoraToKoe('キャ'), 'kya')
+  assert.equal(singingMoraToKoe('デャ'), 'dya')
+  assert.equal(singingMoraToKoe('ウォ'), 'o')
+  assert.equal(singingMoraToKoe('ヰ'), 'i')
+  assert.equal(singingMoraToKoe('ん'), 'n')
+  assert.equal(singingMoraToKoe('ー', 'ko'), 'o')
+  assert.throws(() => singingMoraToKoe('ー'), /前には母音/)
+  assert.throws(() => singingMoraToKoe('きら'), /かな1モーラ/)
+  assert.throws(() => singingMoraToKoe('っ'), /かな1モーラ/)
+})
+
+test('singing blocks compile a typed score into tempo-exact koe notation', () => {
+  const generator = { forBlock: {} }
+  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, {
+    NONE: 0,
+    FUNCTION_CALL: 1,
+    AWAIT: 2,
+  })
+
+  const event = (type, fields, next = null) => ({
+    type,
+    getFieldValue: (name) => fields[name],
+    getNextBlock: () => next,
+  })
+  const rest = event('stackchan_song_rest', { BEATS: 0.5 })
+  const longVowel = event('stackchan_song_note', { NOTE: 'G4', BEATS: 2, LYRIC: 'ー' }, rest)
+  const second = event('stackchan_song_note', { NOTE: 'C+4', BEATS: 0.5, LYRIC: 'ラ' }, longVowel)
+  const first = event('stackchan_song_note', { NOTE: 'C4', BEATS: 1, LYRIC: 'き' }, second)
+  const song = {
+    getFieldValue: (name) => (name === 'BPM' ? 120 : undefined),
+    getInputTargetBlock: (name) => (name === 'SCORE' ? first : null),
+  }
+
+  assert.equal(
+    generator.forBlock.stackchan_sing(song),
+    "await robot.audio.sing('#C4,500ki#C+4,250ra#G4,1000a#R,250')\n"
+  )
+  assert.equal(generator.forBlock.stackchan_song_note(first), '')
+  assert.equal(generator.forBlock.stackchan_song_rest(rest), '')
+})
+
+test('singing block generator rejects an empty or out-of-range score', () => {
+  const generator = { forBlock: {} }
+  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, {
+    NONE: 0,
+    FUNCTION_CALL: 1,
+    AWAIT: 2,
+  })
+  const emptySong = {
+    getFieldValue: () => 120,
+    getInputTargetBlock: () => null,
+  }
+  const longNote = {
+    type: 'stackchan_song_note',
+    getFieldValue: (name) => ({ NOTE: 'C4', BEATS: 16, LYRIC: 'あ' })[name],
+    getNextBlock: () => null,
+  }
+  const slowSong = {
+    getFieldValue: () => 20,
+    getInputTargetBlock: () => longNote,
+  }
+
+  assert.throws(() => generator.forBlock.stackchan_sing(emptySong), /音符または休符/)
+  assert.throws(() => generator.forBlock.stackchan_sing(slowSong), /20〜8000/)
 })
 
 test('education blocks do not expose arbitrary JavaScript input', () => {
@@ -410,6 +480,10 @@ test('block option tables are well-formed', () => {
     assert.ok(label.length > 0)
     const hz = Number(value)
     assert.ok(Number.isInteger(hz) && hz >= 20 && hz <= 20000, `note ${label} has a valid frequency`)
+  }
+  for (const [label, value] of SINGING_NOTE_OPTIONS) {
+    assert.ok(label.length > 0)
+    assert.match(value, /^[A-G](?:[+-])?[0-8]$/)
   }
 })
 

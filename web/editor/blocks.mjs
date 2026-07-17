@@ -231,6 +231,221 @@ export const NOTE_OPTIONS = [
   ['ド6', '1047'],
 ]
 
+// stackchan-voice singing notes use equal-tempered note names rather than Hz.
+// Keep the beginner-facing labels aligned with the tone block while exposing
+// chromatic pitches for melodies that leave C major.
+export const SINGING_NOTE_OPTIONS = [
+  ['ド4', 'C4'],
+  ['ド♯4', 'C+4'],
+  ['レ4', 'D4'],
+  ['レ♯4', 'D+4'],
+  ['ミ4', 'E4'],
+  ['ファ4', 'F4'],
+  ['ファ♯4', 'F+4'],
+  ['ソ4', 'G4'],
+  ['ソ♯4', 'G+4'],
+  ['ラ4', 'A4'],
+  ['ラ♯4', 'A+4'],
+  ['シ4', 'B4'],
+  ['ド5', 'C5'],
+  ['ド♯5', 'C+5'],
+  ['レ5', 'D5'],
+  ['レ♯5', 'D+5'],
+  ['ミ5', 'E5'],
+  ['ファ5', 'F5'],
+  ['ファ♯5', 'F+5'],
+  ['ソ5', 'G5'],
+  ['ソ♯5', 'G+5'],
+  ['ラ5', 'A5'],
+  ['ラ♯5', 'A+5'],
+  ['シ5', 'B5'],
+  ['ド6', 'C6'],
+]
+
+const SINGING_MORA_TO_KOE = Object.freeze({
+  あ: 'a',
+  い: 'i',
+  う: 'u',
+  え: 'e',
+  お: 'o',
+  ぁ: 'a',
+  ぃ: 'i',
+  ぅ: 'u',
+  ぇ: 'e',
+  ぉ: 'o',
+  か: 'ka',
+  き: 'ki',
+  く: 'ku',
+  け: 'ke',
+  こ: 'ko',
+  が: 'ga',
+  ぎ: 'gi',
+  ぐ: 'gu',
+  げ: 'ge',
+  ご: 'go',
+  さ: 'sa',
+  し: 'shi',
+  す: 'su',
+  せ: 'se',
+  そ: 'so',
+  ざ: 'za',
+  じ: 'ji',
+  ず: 'zu',
+  ぜ: 'ze',
+  ぞ: 'zo',
+  た: 'ta',
+  ち: 'chi',
+  つ: 'tsu',
+  て: 'te',
+  と: 'to',
+  だ: 'da',
+  ぢ: 'ji',
+  づ: 'zu',
+  で: 'de',
+  ど: 'do',
+  な: 'na',
+  に: 'ni',
+  ぬ: 'nu',
+  ね: 'ne',
+  の: 'no',
+  は: 'ha',
+  ひ: 'hi',
+  ふ: 'fu',
+  へ: 'he',
+  ほ: 'ho',
+  ば: 'ba',
+  び: 'bi',
+  ぶ: 'bu',
+  べ: 'be',
+  ぼ: 'bo',
+  ぱ: 'pa',
+  ぴ: 'pi',
+  ぷ: 'pu',
+  ぺ: 'pe',
+  ぽ: 'po',
+  ま: 'ma',
+  み: 'mi',
+  む: 'mu',
+  め: 'me',
+  も: 'mo',
+  や: 'ya',
+  ゆ: 'yu',
+  よ: 'yo',
+  ら: 'ra',
+  り: 'ri',
+  る: 'ru',
+  れ: 're',
+  ろ: 'ro',
+  わ: 'wa',
+  ゐ: 'i',
+  ゑ: 'e',
+  を: 'o',
+  ん: 'n',
+  きゃ: 'kya',
+  きゅ: 'kyu',
+  きょ: 'kyo',
+  ぎゃ: 'gya',
+  ぎゅ: 'gyu',
+  ぎょ: 'gyo',
+  しゃ: 'sha',
+  しゅ: 'shu',
+  しょ: 'sho',
+  じゃ: 'ja',
+  じゅ: 'ju',
+  じょ: 'jo',
+  ちゃ: 'cha',
+  ちゅ: 'chu',
+  ちょ: 'cho',
+  にゃ: 'nya',
+  にゅ: 'nyu',
+  にょ: 'nyo',
+  ひゃ: 'hya',
+  ひゅ: 'hyu',
+  ひょ: 'hyo',
+  びゃ: 'bya',
+  びゅ: 'byu',
+  びょ: 'byo',
+  ぴゃ: 'pya',
+  ぴゅ: 'pyu',
+  ぴょ: 'pyo',
+  みゃ: 'mya',
+  みゅ: 'myu',
+  みょ: 'myo',
+  りゃ: 'rya',
+  りゅ: 'ryu',
+  りょ: 'ryo',
+  ふぁ: 'fa',
+  ふぃ: 'fi',
+  ふぇ: 'fe',
+  ふぉ: 'fo',
+  てぃ: 'ti',
+  とぅ: 'tu',
+  でぃ: 'di',
+  どぅ: 'du',
+  しぇ: 'she',
+  ちぇ: 'che',
+  じぇ: 'je',
+  うぃ: 'wi',
+  うぇ: 'we',
+  うぉ: 'o',
+  ゔ: 'vu',
+  ゔぁ: 'va',
+  ゔぃ: 'vi',
+  ゔぇ: 've',
+  ゔぉ: 'vo',
+  きぇ: 'kye',
+  ぎぇ: 'gye',
+  いぇ: 'ye',
+  ひぇ: 'hye',
+  びぇ: 'bye',
+  ぴぇ: 'pye',
+  みぇ: 'mye',
+  にぇ: 'nye',
+  りぇ: 'rye',
+  てゅ: 'tyu',
+  でゅ: 'dyu',
+  でゃ: 'dya',
+  でょ: 'dyo',
+  てゃ: 'tya',
+  てょ: 'tyo',
+  つぁ: 'tsa',
+  つぃ: 'tsi',
+  つぇ: 'tse',
+  つぉ: 'tso',
+  すぃ: 'si',
+  ずぃ: 'zi',
+  ふゅ: 'fyu',
+  ゔゅ: 'vyu',
+  ゕ: 'ka',
+  ゖ: 'ke',
+  ゎ: 'wa',
+})
+
+const STACKCHAN_VOICE_MAX_KOE_LENGTH = 2047
+
+function katakanaToHiragana(value) {
+  return [...value]
+    .map((character) => {
+      const code = character.charCodeAt(0)
+      return code >= 0x30a1 && code <= 0x30f6 ? String.fromCharCode(code - 0x60) : character
+    })
+    .join('')
+}
+
+/** Convert exactly one kana mora from a singing block into raw koe notation. */
+export function singingMoraToKoe(value, previousMora = '') {
+  const input = String(value).trim()
+  const mora = katakanaToHiragana(input)
+  if (mora === 'ー') {
+    const previousVowel = /[aiueo]$/.exec(previousMora)?.[0]
+    if (previousVowel) return previousVowel
+    throw new RangeError('長音「ー」の前には母音を持つ歌詞が必要です')
+  }
+  const koe = SINGING_MORA_TO_KOE[mora]
+  if (koe) return koe
+  throw new RangeError(`歌詞「${input || '（空）'}」は、かな1モーラで入力してください`)
+}
+
 const BLOCK_STYLE = {
   event: 290,
   face: 20,
@@ -385,6 +600,41 @@ const BLOCK_DEFINITIONS = [
     nextStatement: null,
     colour: BLOCK_STYLE.speech,
     tooltip: '音声合成でしゃべります(しゃべり終わるまで待ちます)',
+  },
+  {
+    type: 'stackchan_sing',
+    message0: 'テンポ %1 で歌う %2 %3',
+    args0: [
+      { type: 'field_number', name: 'BPM', value: 120, min: 20, max: 300, precision: 1 },
+      { type: 'input_dummy' },
+      { type: 'input_statement', name: 'SCORE', check: 'StackchanSongEvent' },
+    ],
+    previousStatement: null,
+    nextStatement: null,
+    colour: BLOCK_STYLE.speech,
+    tooltip: '音符ごとの歌詞をstackchan-voiceで歌います',
+  },
+  {
+    type: 'stackchan_song_note',
+    message0: '音符 %1 を %2 拍で「%3」と歌う',
+    args0: [
+      { type: 'field_dropdown', name: 'NOTE', options: SINGING_NOTE_OPTIONS },
+      { type: 'field_number', name: 'BEATS', value: 1, min: 0.125, max: 16, precision: 0.125 },
+      { type: 'field_input', name: 'LYRIC', text: 'き' },
+    ],
+    previousStatement: 'StackchanSongEvent',
+    nextStatement: 'StackchanSongEvent',
+    colour: BLOCK_STYLE.speech,
+    tooltip: 'かな1モーラを指定した音高と長さで歌います（例: き、きゃ、ん、ー）',
+  },
+  {
+    type: 'stackchan_song_rest',
+    message0: '%1 拍 休む',
+    args0: [{ type: 'field_number', name: 'BEATS', value: 1, min: 0.125, max: 16, precision: 0.125 }],
+    previousStatement: 'StackchanSongEvent',
+    nextStatement: 'StackchanSongEvent',
+    colour: BLOCK_STYLE.speech,
+    tooltip: '指定した拍数だけ休符を入れます',
   },
   {
     type: 'stackchan_show_balloon',
@@ -575,6 +825,50 @@ export function escapeSingleQuoted(value) {
   return String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 }
 
+function songDurationMilliseconds(beatsValue, bpm) {
+  const beats = Number(beatsValue)
+  if (!Number.isFinite(beats) || beats <= 0) throw new RangeError('音符と休符の拍数は0より大きくしてください')
+  const duration = Math.round((60_000 * beats) / bpm)
+  if (duration < 20 || duration > 8000) {
+    throw new RangeError(`テンポ${bpm}では${beats}拍が${duration}ミリ秒になります（20〜8000ミリ秒にしてください）`)
+  }
+  return duration
+}
+
+function singingKoeFromBlock(block) {
+  const bpm = Number(block.getFieldValue('BPM'))
+  if (!Number.isFinite(bpm) || bpm < 20 || bpm > 300) {
+    throw new RangeError('歌うテンポは20〜300 BPMにしてください')
+  }
+
+  let event = block.getInputTargetBlock?.('SCORE')
+  let eventCount = 0
+  let koe = ''
+  let previousMora = ''
+  while (event) {
+    eventCount += 1
+    if (eventCount > 256) throw new RangeError('1つの歌うブロックには音符と休符を256個まで置けます')
+    const duration = songDurationMilliseconds(event.getFieldValue('BEATS'), bpm)
+    if (event.type === 'stackchan_song_note') {
+      const note = String(event.getFieldValue('NOTE'))
+      if (!/^[A-G](?:[+-])?[0-8]$/.test(note)) throw new RangeError(`歌唱音符「${note}」が不正です`)
+      const mora = singingMoraToKoe(event.getFieldValue('LYRIC'), previousMora)
+      koe += `#${note},${duration}${mora}`
+      previousMora = mora
+    } else if (event.type === 'stackchan_song_rest') {
+      koe += `#R,${duration}`
+    } else {
+      throw new TypeError(`歌うブロック内に未対応のブロック「${event.type}」があります`)
+    }
+    if (koe.length > STACKCHAN_VOICE_MAX_KOE_LENGTH) {
+      throw new RangeError('歌が長すぎます。1つの歌うブロックを複数に分けてください')
+    }
+    event = event.getNextBlock?.()
+  }
+  if (eventCount === 0) throw new RangeError('歌うブロックに音符または休符を追加してください')
+  return koe
+}
+
 function asyncHandlerBody(generator, block) {
   const body = generator.statementToCode(block, 'DO')
   return body.replace(/\s+$/, '')
@@ -670,6 +964,16 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
     const text = gen.valueToCode(block, 'TEXT', Order.NONE) || "''"
     return `await robot.audio.say(String(${text}))\n`
   }
+
+  forBlock['stackchan_sing'] = (block) => {
+    return `await robot.audio.sing('${escapeSingleQuoted(singingKoeFromBlock(block))}')\n`
+  }
+
+  // These blocks are score data consumed by their enclosing stackchan_sing
+  // block, not standalone JavaScript statements. Returning no code also keeps
+  // a detached score event from producing an invalid MOD.
+  forBlock['stackchan_song_note'] = () => ''
+  forBlock['stackchan_song_rest'] = () => ''
 
   forBlock['stackchan_show_balloon'] = (block, gen) => {
     const text = gen.valueToCode(block, 'TEXT', Order.NONE) || "''"
@@ -837,6 +1141,9 @@ export const TOOLBOX = {
           type: 'stackchan_say',
           inputs: { TEXT: { shadow: { type: 'text', fields: { TEXT: 'こんにちは' } } } },
         },
+        { kind: 'block', type: 'stackchan_sing' },
+        { kind: 'block', type: 'stackchan_song_note' },
+        { kind: 'block', type: 'stackchan_song_rest' },
         {
           kind: 'block',
           type: 'stackchan_show_balloon',

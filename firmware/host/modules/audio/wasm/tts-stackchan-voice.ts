@@ -1,7 +1,7 @@
 declare const setTimeout: (callback: () => void, delay?: number) => unknown
 
 import Resource from 'Resource'
-import { renderStackchanVoiceWav } from 'stackchan-voice-wav'
+import { renderStackchanVoiceKoeWav, renderStackchanVoiceWav } from 'stackchan-voice-wav'
 import StackchanVoice from 'stackchanvoice'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 import type { WasmAudioOutputBridge } from './audio-bridge-contract.js'
@@ -72,6 +72,14 @@ export class TTS {
   }
 
   stream(text: string, volume?: number, callback?: TTSCompletion): void {
+    this.#stream(text, false, volume, callback)
+  }
+
+  streamKoe(koe: string, volume?: number, callback?: TTSCompletion): void {
+    this.#stream(koe, true, volume, callback)
+  }
+
+  #stream(source: string, isKoe: boolean, volume?: number, callback?: TTSCompletion): void {
     if (this.streaming) {
       callback?.(new Error('already playing'))
       return
@@ -89,7 +97,8 @@ export class TTS {
     }
 
     const audioBridge = getAudioBridge()
-    void renderStackchanVoiceWav(this.voice, text, {
+    const render = isKoe ? renderStackchanVoiceKoeWav : renderStackchanVoiceWav
+    void render(this.voice, source, {
       schedule: (callback) => schedule(audioBridge, callback, 0),
       speed: this.speed,
       volume: volume ?? this.volume,

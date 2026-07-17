@@ -11,6 +11,7 @@ export type StackchanVoiceTestState = {
     writesAreUint8Arrays: boolean[]
   }
   constructors: Array<{ preset: number; resourceName: string }>
+  koes: Array<{ koe: string; speed: number }>
   says: Array<{ speed: number; text: string }>
 }
 
@@ -23,6 +24,7 @@ export const state: StackchanVoiceTestState = {
     writesAreUint8Arrays: [],
   },
   constructors: [],
+  koes: [],
   says: [],
 }
 
@@ -35,5 +37,6 @@ export function resetState(): void {
     writesAreUint8Arrays: [],
   }
   state.constructors.length = 0
+  state.koes.length = 0
   state.says.length = 0
 }

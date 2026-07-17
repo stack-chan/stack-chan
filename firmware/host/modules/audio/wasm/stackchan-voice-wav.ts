@@ -11,6 +11,7 @@ const WAV_HEADER_BYTES = 44
 
 export type StackchanVoiceRenderer = {
   say(text: string, speed?: number): void
+  koe(koe: string, speed?: number): void
   read24(buffer: ArrayBuffer): number
 }
 
@@ -117,9 +118,10 @@ class PCMCollector {
   }
 }
 
-export function renderStackchanVoiceWav(
+function renderStackchanVoiceInputWav(
   voice: StackchanVoiceRenderer,
-  text: string,
+  source: string,
+  isKoe: boolean,
   options: StackchanVoiceRenderOptions = {},
 ): Promise<RenderedStackchanVoice> {
   const chunkSamples = positiveInteger(options.chunkSamples, DEFAULT_CHUNK_SAMPLES, 'chunkSamples')
@@ -161,7 +163,8 @@ export function renderStackchanVoiceWav(
     const renderNext = (): void => {
       try {
         if (!started) {
-          voice.say(text, speed)
+          if (isKoe) voice.koe(source, speed)
+          else voice.say(source, speed)
           started = true
         }
 
@@ -188,4 +191,20 @@ export function renderStackchanVoiceWav(
     // monopolize the simulator UI event loop.
     scheduleTask(renderNext)
   })
+}
+
+export function renderStackchanVoiceWav(
+  voice: StackchanVoiceRenderer,
+  text: string,
+  options: StackchanVoiceRenderOptions = {},
+): Promise<RenderedStackchanVoice> {
+  return renderStackchanVoiceInputWav(voice, text, false, options)
+}
+
+export function renderStackchanVoiceKoeWav(
+  voice: StackchanVoiceRenderer,
+  koe: string,
+  options: StackchanVoiceRenderOptions = {},
+): Promise<RenderedStackchanVoice> {
+  return renderStackchanVoiceInputWav(voice, koe, true, options)
 }

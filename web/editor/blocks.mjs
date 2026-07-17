@@ -22,6 +22,13 @@ export const VISUAL_RUNTIME_RESERVED_WORDS = Object.freeze([
   'onButton',
   'onImu',
   'onTouchPanel',
+  'SINGING_MORA_TO_KOE',
+  'STACKCHAN_VOICE_MAX_KOE_LENGTH',
+  'katakanaToHiragana',
+  'singingMoraToKoe',
+  'songDurationMilliseconds',
+  'singingScoreToKoe',
+  'singScore',
   'event',
   '_StackchanVisualShapeFace',
 ])
@@ -171,6 +178,7 @@ export function assembleModSource(body) {
   if (/\bonButton\s*\(/.test(body)) helpers.push(HELPER_ON_BUTTON)
   if (/\bonImu\s*\(/.test(body)) helpers.push(HELPER_ON_IMU)
   if (/\bonTouchPanel\s*\(/.test(body)) helpers.push(HELPER_ON_TOUCH_PANEL)
+  if (/\bsingScore\s*\(/.test(body)) helpers.push(HELPER_SING_SCORE)
 
   const indentedBody = body
     .split('\n')
@@ -602,6 +610,38 @@ const BLOCK_DEFINITIONS = [
     tooltip: '音声合成でしゃべります(しゃべり終わるまで待ちます)',
   },
   {
+    type: 'stackchan_sing_score',
+    message0: 'テンポ %1 で %2 を歌う',
+    args0: [
+      { type: 'field_number', name: 'BPM', value: 120, min: 20, max: 300, precision: 1 },
+      { type: 'input_value', name: 'SCORE', check: 'Array' },
+    ],
+    previousStatement: null,
+    nextStatement: null,
+    colour: BLOCK_STYLE.speech,
+    tooltip: '音階、拍、歌詞のトリプルを並べたリストをstackchan-voiceで歌います',
+  },
+  {
+    type: 'stackchan_song_note_tuple',
+    message0: '音符 %1 を %2 拍で「%3」と歌う',
+    args0: [
+      { type: 'field_dropdown', name: 'NOTE', options: SINGING_NOTE_OPTIONS },
+      { type: 'field_number', name: 'BEATS', value: 1, min: 0.125, max: 16, precision: 0.125 },
+      { type: 'field_input', name: 'LYRIC', text: 'き' },
+    ],
+    output: 'Array',
+    colour: BLOCK_STYLE.speech,
+    tooltip: '歌唱リストへ入れる［音階、拍、かな1モーラ］のトリプルです',
+  },
+  {
+    type: 'stackchan_song_rest_tuple',
+    message0: '%1 拍の休符',
+    args0: [{ type: 'field_number', name: 'BEATS', value: 1, min: 0.125, max: 16, precision: 0.125 }],
+    output: 'Array',
+    colour: BLOCK_STYLE.speech,
+    tooltip: '歌唱リストへ入れる［R、拍、空の歌詞］のトリプルです',
+  },
+  {
     type: 'stackchan_sing',
     message0: 'テンポ %1 で歌う %2 %3',
     args0: [
@@ -835,6 +875,67 @@ function songDurationMilliseconds(beatsValue, bpm) {
   return duration
 }
 
+/** Convert a score of [note, beats, lyric] triples into raw stackchan-voice koe notation. */
+export function singingScoreToKoe(bpmValue, scoreValue) {
+  const bpm = Number(bpmValue)
+  if (!Number.isFinite(bpm) || bpm < 20 || bpm > 300) {
+    throw new RangeError('歌うテンポは20〜300 BPMにしてください')
+  }
+  if (!Array.isArray(scoreValue)) throw new TypeError('歌唱データは音符と休符を並べたリストにしてください')
+  if (scoreValue.length === 0) throw new RangeError('歌唱リストに音符または休符を追加してください')
+  if (scoreValue.length > 256) throw new RangeError('1つの歌唱リストには音符と休符を256個まで置けます')
+
+  let koe = ''
+  let previousMora = ''
+  for (let index = 0; index < scoreValue.length; index += 1) {
+    const event = scoreValue[index]
+    if (!Array.isArray(event) || event.length !== 3) {
+      throw new TypeError(`${index + 1}番目の歌唱データは［音階、拍、歌詞］の3項目にしてください`)
+    }
+    const note = String(event[0] ?? '')
+      .trim()
+      .toUpperCase()
+    const duration = songDurationMilliseconds(event[1], bpm)
+    const lyric = String(event[2] ?? '').trim()
+    if (note === 'R') {
+      if (lyric) throw new RangeError(`${index + 1}番目の休符には歌詞を指定できません`)
+      koe += `#R,${duration}`
+    } else {
+      if (!/^[A-G](?:[+-])?[0-8]$/.test(note)) {
+        throw new RangeError(`${index + 1}番目の歌唱音符「${note || '（空）'}」が不正です`)
+      }
+      const mora = singingMoraToKoe(lyric, previousMora)
+      koe += `#${note},${duration}${mora}`
+      previousMora = mora
+    }
+    if (koe.length > STACKCHAN_VOICE_MAX_KOE_LENGTH) {
+      throw new RangeError('歌が長すぎます。歌唱リストを複数の歌うブロックに分けてください')
+    }
+  }
+  return koe
+}
+
+async function singScore(robot, bpm, score) {
+  const koe = singingScoreToKoe(bpm, score)
+  const result = await robot.audio.sing(koe)
+  if (!result?.success) throw new Error(result?.reason || '歌唱に失敗しました')
+  return result
+}
+
+const HELPER_SING_SCORE = `const SINGING_MORA_TO_KOE = Object.freeze(${JSON.stringify(SINGING_MORA_TO_KOE)})
+
+const STACKCHAN_VOICE_MAX_KOE_LENGTH = ${STACKCHAN_VOICE_MAX_KOE_LENGTH}
+
+${katakanaToHiragana.toString()}
+
+${singingMoraToKoe.toString()}
+
+${songDurationMilliseconds.toString()}
+
+${singingScoreToKoe.toString()}
+
+${singScore.toString()}`
+
 function singingKoeFromBlock(block) {
   const bpm = Number(block.getFieldValue('BPM'))
   if (!Number.isFinite(bpm) || bpm < 20 || bpm > 300) {
@@ -867,6 +968,17 @@ function singingKoeFromBlock(block) {
   }
   if (eventCount === 0) throw new RangeError('歌うブロックに音符または休符を追加してください')
   return koe
+}
+
+function legacySongEventCode(block) {
+  let parent = block.getParent?.()
+  while (parent) {
+    if (parent.type === 'stackchan_sing') return ''
+    parent = parent.getParent?.()
+  }
+  throw new Error(
+    '旧形式の音符・休符ブロックは直接実行できません。トリプル形式の音符・休符をリストへ入れてください',
+  )
 }
 
 function asyncHandlerBody(generator, block) {
@@ -969,11 +1081,29 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
     return `await robot.audio.sing('${escapeSingleQuoted(singingKoeFromBlock(block))}')\n`
   }
 
-  // These blocks are score data consumed by their enclosing stackchan_sing
-  // block, not standalone JavaScript statements. Returning no code also keeps
-  // a detached score event from producing an invalid MOD.
-  forBlock['stackchan_song_note'] = () => ''
-  forBlock['stackchan_song_rest'] = () => ''
+  forBlock['stackchan_sing_score'] = (block, gen) => {
+    const bpm = Number(block.getFieldValue('BPM'))
+    const score = gen.valueToCode(block, 'SCORE', Order.NONE) || '[]'
+    return `await singScore(robot, ${bpm}, ${score})\n`
+  }
+
+  forBlock['stackchan_song_note_tuple'] = (block) => {
+    const note = escapeSingleQuoted(block.getFieldValue('NOTE'))
+    const beats = Number(block.getFieldValue('BEATS'))
+    const lyric = escapeSingleQuoted(block.getFieldValue('LYRIC'))
+    return [`['${note}', ${beats}, '${lyric}']`, Order.ATOMIC ?? Order.NONE]
+  }
+
+  forBlock['stackchan_song_rest_tuple'] = (block) => {
+    const beats = Number(block.getFieldValue('BEATS'))
+    return [`['R', ${beats}, '']`, Order.ATOMIC ?? Order.NONE]
+  }
+
+  // Keep the original statement-score blocks loadable for projects created
+  // during PR development. They remain valid only inside the original parent;
+  // a detached block now fails instead of silently generating an empty handler.
+  forBlock['stackchan_song_note'] = legacySongEventCode
+  forBlock['stackchan_song_rest'] = legacySongEventCode
 
   forBlock['stackchan_show_balloon'] = (block, gen) => {
     const text = gen.valueToCode(block, 'TEXT', Order.NONE) || "''"
@@ -1141,9 +1271,46 @@ export const TOOLBOX = {
           type: 'stackchan_say',
           inputs: { TEXT: { shadow: { type: 'text', fields: { TEXT: 'こんにちは' } } } },
         },
-        { kind: 'block', type: 'stackchan_sing' },
-        { kind: 'block', type: 'stackchan_song_note' },
-        { kind: 'block', type: 'stackchan_song_rest' },
+        {
+          kind: 'block',
+          type: 'stackchan_sing_score',
+          inputs: {
+            SCORE: {
+              block: {
+                type: 'lists_create_with',
+                extraState: { itemCount: 4 },
+                inputs: {
+                  ADD0: {
+                    block: {
+                      type: 'stackchan_song_note_tuple',
+                      fields: { NOTE: 'C4', BEATS: 1, LYRIC: 'き' },
+                    },
+                  },
+                  ADD1: {
+                    block: {
+                      type: 'stackchan_song_note_tuple',
+                      fields: { NOTE: 'C4', BEATS: 1, LYRIC: 'ら' },
+                    },
+                  },
+                  ADD2: {
+                    block: {
+                      type: 'stackchan_song_note_tuple',
+                      fields: { NOTE: 'G4', BEATS: 1, LYRIC: 'き' },
+                    },
+                  },
+                  ADD3: {
+                    block: {
+                      type: 'stackchan_song_note_tuple',
+                      fields: { NOTE: 'G4', BEATS: 1, LYRIC: 'ら' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        { kind: 'block', type: 'stackchan_song_note_tuple' },
+        { kind: 'block', type: 'stackchan_song_rest_tuple' },
         {
           kind: 'block',
           type: 'stackchan_show_balloon',

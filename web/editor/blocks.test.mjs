@@ -11,6 +11,7 @@ import {
   registerAsyncProcedureGenerators,
   SINGING_NOTE_OPTIONS,
   singingMoraToKoe,
+  singingScoreToKoe,
   TOOLBOX,
 } from './blocks.mjs'
 
@@ -45,6 +46,67 @@ test('singingMoraToKoe converts hiragana, katakana, yoon, moraic n, and long vow
   assert.throws(() => singingMoraToKoe('っ'), /かな1モーラ/)
 })
 
+test('singingScoreToKoe converts tempo and note triples into exact koe notation', () => {
+  assert.equal(
+    singingScoreToKoe(120, [
+      ['C4', 1, 'き'],
+      ['C+4', 0.5, 'ラ'],
+      ['G4', 2, 'ー'],
+      ['R', 0.5, ''],
+    ]),
+    '#C4,500ki#C+4,250ra#G4,1000a#R,250'
+  )
+  assert.throws(() => singingScoreToKoe(120, []), /音符または休符/)
+  assert.throws(() => singingScoreToKoe(120, [['C4', 1]]), /3項目/)
+  assert.throws(() => singingScoreToKoe(120, [['R', 1, 'ら']]), /休符には歌詞/)
+  assert.throws(() => singingScoreToKoe(120, [['H4', 1, 'ら']]), /歌唱音符/)
+  assert.throws(() => singingScoreToKoe(20, [['C4', 16, 'ら']]), /20〜8000/)
+})
+
+test('list-based singing blocks generate one score helper call from note triples', () => {
+  const generator = {
+    forBlock: {},
+    valueToCode: (_block, name) => (name === 'SCORE' ? "[['C4', 1, 'き'], ['R', 0.5, '']]" : ''),
+  }
+  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, {
+    NONE: 99,
+    ATOMIC: 0,
+    FUNCTION_CALL: 1,
+    AWAIT: 2,
+  })
+
+  const fieldBlock = (fields) => ({ getFieldValue: (name) => fields[name] })
+  assert.equal(
+    generator.forBlock.stackchan_sing_score(fieldBlock({ BPM: 120 }), generator),
+    "await singScore(robot, 120, [['C4', 1, 'き'], ['R', 0.5, '']])\n"
+  )
+  assert.deepEqual(generator.forBlock.stackchan_song_note_tuple(fieldBlock({ NOTE: 'C+4', BEATS: 0.5, LYRIC: 'ラ' })), [
+    "['C+4', 0.5, 'ラ']",
+    0,
+  ])
+  assert.deepEqual(generator.forBlock.stackchan_song_rest_tuple(fieldBlock({ BEATS: 2 })), ["['R', 2, '']", 0])
+})
+
+test('generated singScore helper calls robot.audio.sing and surfaces provider failures', async () => {
+  const source = assembleModSource("await singScore(robot, 120, [['C4', 1, 'き'], ['R', 0.5, '']])")
+  assert.match(source, /function singingScoreToKoe/)
+  let received = ''
+  const robot = {
+    audio: {
+      sing: async (koe) => {
+        received = koe
+        return { success: true, value: koe }
+      },
+    },
+  }
+
+  await evaluateModule(source).onContextCreated(robot)
+  assert.equal(received, '#C4,500ki#R,250')
+
+  const unavailable = { audio: { sing: async () => ({ success: false, reason: 'singing unavailable' }) } }
+  await assert.rejects(evaluateModule(source).onContextCreated(unavailable), /singing unavailable/)
+})
+
 test('singing blocks compile a typed score into tempo-exact koe notation', () => {
   const generator = { forBlock: {} }
   registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, {
@@ -71,8 +133,13 @@ test('singing blocks compile a typed score into tempo-exact koe notation', () =>
     generator.forBlock.stackchan_sing(song),
     "await robot.audio.sing('#C4,500ki#C+4,250ra#G4,1000a#R,250')\n"
   )
-  assert.equal(generator.forBlock.stackchan_song_note(first), '')
-  assert.equal(generator.forBlock.stackchan_song_rest(rest), '')
+  const legacyParent = { type: 'stackchan_sing' }
+  assert.equal(generator.forBlock.stackchan_song_note({ getParent: () => legacyParent }), '')
+  assert.equal(generator.forBlock.stackchan_song_rest({ getParent: () => legacyParent }), '')
+  assert.throws(
+    () => generator.forBlock.stackchan_song_note({ getParent: () => null }),
+    /旧形式の音符・休符ブロックは直接実行できません/
+  )
 })
 
 test('singing block generator rejects an empty or out-of-range score', () => {
@@ -493,6 +560,21 @@ test('toolbox categories do not repeat an identical block entry', () => {
     const entries = category.contents.filter((entry) => entry.kind === 'block').map((entry) => JSON.stringify(entry))
     assert.equal(new Set(entries).size, entries.length, `${category.name} contains a duplicate block entry`)
   }
+})
+
+test('singing toolbox starts with a list of note triples and hides legacy statement-score blocks', () => {
+  const speech = TOOLBOX.contents.find((category) => category.name === 'おしゃべり')
+  const types = speech.contents.filter((entry) => entry.kind === 'block').map((entry) => entry.type)
+  assert.ok(types.includes('stackchan_sing_score'))
+  assert.ok(types.includes('stackchan_song_note_tuple'))
+  assert.ok(types.includes('stackchan_song_rest_tuple'))
+  assert.equal(types.includes('stackchan_sing'), false)
+  assert.equal(types.includes('stackchan_song_note'), false)
+  assert.equal(types.includes('stackchan_song_rest'), false)
+
+  const sing = speech.contents.find((entry) => entry.type === 'stackchan_sing_score')
+  assert.equal(sing.inputs.SCORE.block.type, 'lists_create_with')
+  assert.equal(sing.inputs.SCORE.block.extraState.itemCount, 4)
 })
 
 test('procedure generators are async so speech and wait blocks remain valid inside functions', () => {

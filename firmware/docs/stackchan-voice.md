@@ -62,8 +62,10 @@ Singing is optional on the active TTS provider. `robot.audio.sing(...)`
 returns a failed result instead of silently speaking the notation when the
 current provider does not implement singing.
 
-The block editor hides the raw notation. Its 「テンポ … で歌う」 block contains
-typed note and rest blocks. Each note takes a pitch, a beat count, and one kana
-mora. The generator converts the score to exact milliseconds and romanized
-`koe`, so CoreS3 and the browser simulator play the same score without doing
-text-to-koe conversion at playback time.
+The block editor hides the raw notation. Its 「テンポ … で…を歌う」 block takes
+one score list and one global BPM. Every list item has the same
+`[pitch, beats, lyric]` triple shape; a rest uses `['R', beats, '']`. The
+generated helper validates the list, converts beat counts to exact
+milliseconds, romanizes each one-kana-mora lyric, and calls
+`robot.audio.sing(...)`. CoreS3 and the browser simulator therefore play the
+same score without doing text-to-koe conversion inside the voice provider.

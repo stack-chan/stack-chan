@@ -481,6 +481,76 @@ try {
           await page.waitForFunction(() => document.querySelector('#build-status')?.textContent.includes('ビルド成功'))
           assert.equal(await page.locator('#install-simulator-button').isEnabled(), true, `${sampleId}: build`)
         }
+
+        const singingProjectChooserPromise = page.waitForEvent('filechooser')
+        await clickProjectAction(page, 'import-button')
+        const singingProjectChooser = await singingProjectChooserPromise
+        await singingProjectChooser.setFiles({
+          name: 'singing-score.stackchan-blocks.json',
+          mimeType: 'application/json',
+          buffer: Buffer.from(
+            JSON.stringify({
+              blocks: {
+                languageVersion: 0,
+                blocks: [
+                  {
+                    type: 'stackchan_on_drawer_button',
+                    fields: { LABEL: 'うたう' },
+                    inputs: {
+                      DO: {
+                        block: {
+                          type: 'stackchan_sing_score',
+                          fields: { BPM: 120 },
+                          inputs: {
+                            SCORE: {
+                              block: {
+                                type: 'lists_create_with',
+                                extraState: { itemCount: 3 },
+                                inputs: {
+                                  ADD0: {
+                                    block: {
+                                      type: 'stackchan_song_note_tuple',
+                                      fields: { NOTE: 'C4', BEATS: 1, LYRIC: 'き' },
+                                    },
+                                  },
+                                  ADD1: {
+                                    block: {
+                                      type: 'stackchan_song_note_tuple',
+                                      fields: { NOTE: 'C4', BEATS: 1, LYRIC: 'ら' },
+                                    },
+                                  },
+                                  ADD2: {
+                                    block: {
+                                      type: 'stackchan_song_rest_tuple',
+                                      fields: { BEATS: 0.5 },
+                                    },
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            })
+          ),
+        })
+        await page.waitForFunction(() =>
+          document.querySelector('#build-status')?.textContent.includes('読み込みました')
+        )
+        assert.equal(await page.locator('#diagnostics-count').innerText(), '0', 'singing score diagnostics')
+        const singingSource = await page.locator('#code-preview').innerText()
+        assert.match(singingSource, /function singingScoreToKoe/)
+        assert.match(singingSource, /await singScore\(robot, 120/)
+        assert.match(singingSource, /\['C4', 1, 'き'\]/)
+        assert.match(singingSource, /\['C4', 1, 'ら'\]/)
+        assert.match(singingSource, /\['R', 0\.5, ''\]/)
+        await page.locator('#build-button').click()
+        await page.waitForFunction(() => document.querySelector('#build-status')?.textContent.includes('ビルド成功'))
+
         assert.match(await page.locator('#build-status').innerText(), /ビルド成功: (?!0 B)/)
         const archiveDownload = await captureBrowserDownload(page, () => page.locator('#download-button').click())
         assert.match(archiveDownload.download.suggestedFilename(), /\.xsa$/)

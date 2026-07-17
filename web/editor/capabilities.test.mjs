@@ -17,7 +17,9 @@ test('capability requirements are unique and target-aware', () => {
 })
 
 test('singing blocks are available only on stackchan-voice targets', () => {
-  assert.deepEqual(requirementsForBlockTypes(['stackchan_sing', 'stackchan_song_note']), ['audio.singing'])
+  assert.deepEqual(requirementsForBlockTypes(['stackchan_sing_score', 'stackchan_song_note_tuple']), [
+    'audio.singing',
+  ])
   assert.deepEqual(unsupportedRequirements('m5stackchan-cores3', ['audio.singing']), [])
   assert.deepEqual(unsupportedRequirements('simulator', ['audio.singing']), [])
   assert.deepEqual(unsupportedRequirements('portable', ['audio.singing']), ['audio.singing'])
@@ -27,8 +29,8 @@ test('singing blocks are available only on stackchan-voice targets', () => {
       {
         contents: [
           { kind: 'block', type: 'stackchan_say' },
-          { kind: 'block', type: 'stackchan_sing' },
-          { kind: 'block', type: 'stackchan_song_note' },
+          { kind: 'block', type: 'stackchan_sing_score' },
+          { kind: 'block', type: 'stackchan_song_note_tuple' },
         ],
       },
     ],

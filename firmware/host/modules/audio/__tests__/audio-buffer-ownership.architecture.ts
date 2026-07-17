@@ -99,6 +99,8 @@ test('device TTS engines delegate playback state and AudioOut lifecycle to the s
   assert.match(streamingSource, /onWritable: \(size\) => this\.#onWritable\(size\)/)
   assert.match(streamingSource, /writable - this\.#freeBytes/)
   assert.match(streamingSource, /const DMA_CHUNK_SAMPLES = 2046/)
+  assert.match(streamingSource, /output\.write\(chunk\.bytes\)/)
+  assert.doesNotMatch(streamingSource, /output\.write\(chunk\.buffer\)/)
   assert.doesNotMatch(streamingSource, /DRAIN_SAMPLES|drainTimer/)
   assert.match(streamingSource, /new Resource\('stackchan-ja\.aqd'\)/)
   assert.match(streamingSource, /props\.volume \?\? 0\.1/)

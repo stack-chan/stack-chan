@@ -141,7 +141,7 @@ export class TTS {
           chunk.bytes.fill(0)
         }
 
-        output.write(chunk.buffer)
+        output.write(chunk.bytes)
         this.#freeBytes -= chunk.buffer.byteLength
         this.#enqueue(chunk.buffer.byteLength, power)
         remaining -= chunk.buffer.byteLength

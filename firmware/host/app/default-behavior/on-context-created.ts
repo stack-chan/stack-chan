@@ -41,6 +41,7 @@ const TOUCH_PANEL_HAPPY_DURATION_MS = 5000
 const TOUCH_PANEL_PET_MOTION_STEP_MS = 220
 const TOUCH_PANEL_PET_MOTION_STEP_SEC = TOUCH_PANEL_PET_MOTION_STEP_MS / 1000
 const MOTION_DETECT_COLD_DURATION_MS = 5000
+const SPEECH_SYNTHESIS_TEXT = 'こんにちわ。すたっくちゃんです。'
 
 function errorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -233,6 +234,19 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         target.hideBalloon()
       }
       robot.drawer.setDrawerButtonState('toggleSpeech', speechVisible)
+    },
+  })
+  robot.drawer.addDrawerButton({
+    key: 'speakStackchan',
+    label: 'Speak',
+    callback: async (target) => {
+      closeDrawer()
+      try {
+        const result = await target.audio.say(SPEECH_SYNTHESIS_TEXT)
+        if ('reason' in result) trace(`[SpeechSynthesis] ${result.reason}\n`)
+      } catch (error) {
+        trace(`[SpeechSynthesis] error ${errorMessage(error)}\n`)
+      }
     },
   })
 

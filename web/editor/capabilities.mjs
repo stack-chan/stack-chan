@@ -1,6 +1,7 @@
 export const CAPABILITIES = Object.freeze({
   FACE: 'face',
   SPEECH: 'audio.speech',
+  SINGING: 'audio.singing',
   TONE: 'audio.tone',
   MOTION: 'motion',
   LIGHTING: 'lighting',
@@ -30,6 +31,7 @@ export const DEVICE_PROFILES = Object.freeze({
     capabilities: [
       CAPABILITIES.FACE,
       CAPABILITIES.SPEECH,
+      CAPABILITIES.SINGING,
       CAPABILITIES.TONE,
       CAPABILITIES.MOTION,
       CAPABILITIES.BUTTONS,
@@ -57,6 +59,12 @@ export const BLOCK_CAPABILITIES = Object.freeze({
   stackchan_set_color: [CAPABILITIES.FACE],
   stackchan_set_mouth: [CAPABILITIES.FACE],
   stackchan_say: [CAPABILITIES.SPEECH],
+  stackchan_sing: [CAPABILITIES.SINGING],
+  stackchan_sing_score: [CAPABILITIES.SINGING],
+  stackchan_song_note_tuple: [CAPABILITIES.SINGING],
+  stackchan_song_rest_tuple: [CAPABILITIES.SINGING],
+  stackchan_song_note: [CAPABILITIES.SINGING],
+  stackchan_song_rest: [CAPABILITIES.SINGING],
   stackchan_show_balloon: [CAPABILITIES.DRAWER],
   stackchan_hide_balloon: [CAPABILITIES.DRAWER],
   stackchan_tone: [CAPABILITIES.TONE],

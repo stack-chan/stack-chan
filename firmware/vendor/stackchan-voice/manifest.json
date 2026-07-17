@@ -1,0 +1,18 @@
+{
+  "modules": {
+    "stackchanvoice": "./moddable/stackchanvoice",
+    "*": [
+      "./include/*",
+      "./src/aq_synth",
+      "./src/aqk2r_compat"
+    ]
+  },
+  "preload": [
+    "stackchanvoice"
+  ],
+  "data": {
+    "*": [
+      "./data/stackchan-ja"
+    ]
+  }
+}

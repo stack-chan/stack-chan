@@ -28,19 +28,38 @@ test('playback path forwards large ArrayBuffers without copy helpers', () => {
   }
 })
 
-test('wasm TTS engines share one stub through stable module specifiers', () => {
+test('wasm remote TTS engines share one stub while stackchan-voice keeps its native renderer', () => {
   const manifest = JSON.parse(readFileSync('host/modules/audio/manifest_wasm.json', 'utf8')) as {
+    include: string[]
     modules: Record<string, string>
   }
-  const engines = ['tts-local', 'tts-remote', 'tts-voicevox', 'tts-voicevox-web', 'tts-elevenlabs', 'tts-openai']
+  const stubbedEngines = ['tts-local', 'tts-remote', 'tts-voicevox', 'tts-voicevox-web', 'tts-elevenlabs', 'tts-openai']
 
   assert.equal(manifest.modules['tts-stub'], './wasm/tts-stub')
   assert.match(readFileSync('host/modules/audio/wasm/tts-stub.ts', 'utf8'), /export class TTS/)
 
-  for (const engine of engines) {
+  for (const engine of stubbedEngines) {
     assert.equal(manifest.modules[engine], `./wasm/${engine}`)
     assert.equal(readFileSync(`host/modules/audio/wasm/${engine}.ts`, 'utf8').trim(), "export { TTS } from 'tts-stub'")
   }
+
+  assert.ok(manifest.include.includes('../../../vendor/stackchan-voice/manifest.json'))
+  assert.equal(manifest.modules['tts-stackchan-voice'], './wasm/tts-stackchan-voice')
+  const stackchanVoice = readFileSync('host/modules/audio/wasm/tts-stackchan-voice.ts', 'utf8')
+  assert.match(stackchanVoice, /from 'stackchanvoice'/)
+  assert.match(stackchanVoice, /renderStackchanVoiceWav/)
+  assert.match(stackchanVoice, /startPlayBuffer\(rendered\.buffer\)/)
+  assert.doesNotMatch(stackchanVoice, /from 'tts-stub'/)
+})
+
+test('M5StackChan CoreS3 excludes the fallback stackchan-voice module before selecting the device renderer', () => {
+  const manifest = JSON.parse(readFileSync('host/modules/audio/manifest.json', 'utf8')) as {
+    platforms: Record<string, { modules: Record<string, string> }>
+  }
+  const modules = manifest.platforms['esp32/m5stackchan_cores3'].modules
+
+  assert.equal(modules['~'], './tts-stackchan-voice')
+  assert.equal(modules['tts-stackchan-voice'], './stackchan-voice/tts-stackchan-voice')
 })
 
 test('conversation modules stay independent of app layer contracts', () => {
@@ -81,6 +100,23 @@ test('device TTS engines delegate playback state and AudioOut lifecycle to the s
     assert.doesNotMatch(source, /new AudioOut\(/, `${file} should not construct AudioOut directly`)
     assert.doesNotMatch(source, /this\.streaming\s*=\s*true/, `${file} should not own streaming activation`)
   }
+
+  const streamingSource = readFileSync('host/modules/audio/stackchan-voice/tts-stackchan-voice.ts', 'utf8')
+  assert.match(streamingSource, /from 'tts-playback-lifecycle'/)
+  assert.match(streamingSource, /beginTTSPlayback\(this, callback/)
+  assert.match(streamingSource, /lifecycle\.addCleanup\(/)
+  assert.match(streamingSource, /new AudioOut\(/)
+  assert.match(streamingSource, /onWritable: \(size\) => this\.#onWritable\(size\)/)
+  assert.match(streamingSource, /writable - this\.#freeBytes/)
+  assert.match(streamingSource, /const DMA_CHUNK_SAMPLES = 2046/)
+  assert.match(streamingSource, /output\.write\(chunk\.bytes\)/)
+  assert.doesNotMatch(streamingSource, /output\.write\(chunk\.buffer\)/)
+  assert.doesNotMatch(streamingSource, /DRAIN_SAMPLES|drainTimer/)
+  assert.match(streamingSource, /new Resource\('stackchan-ja\.aqd'\)/)
+  assert.match(streamingSource, /props\.volume \?\? 0\.1/)
+  assert.match(streamingSource, /props\.speed \?\? 100/)
+  assert.match(streamingSource, /lifecycle\.onPower\(/)
+  assert.doesNotMatch(streamingSource, /this\.streaming\s*=\s*true/)
 })
 
 test('Whisper multipart upload does not concatenate the whole recording buffer', () => {

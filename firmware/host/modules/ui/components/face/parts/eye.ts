@@ -13,17 +13,26 @@ import type { Container as PiuContainer, Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
 import { defineShapeTemplate } from 'template'
 
+export type EyeShape = 'circle' | 'roundRect'
+
 export type EyeOptions = {
   cx: number
   cy: number
+  shape?: EyeShape
   radius?: number
+  width?: number
+  height?: number
+  r?: number
   side: FaceEyeKey
   eyelidWidth?: number
   eyelidHeight?: number
 }
 
 type IrisOptions = {
-  radius: number
+  shape: EyeShape
+  width: number
+  height: number
+  r: number
   left: number
   top: number
 }
@@ -47,19 +56,25 @@ type PositionedContent = PiuShape & {
   coordinates?: { left?: number; top?: number; width?: number; height?: number }
 }
 
-let irisOutlineCache: Map<number, Outline> | null = null
+let irisOutlineCache: Map<string, Outline> | null = null
 let eyelidOutlineCache: Map<string, Outline> | null = null
 
-function getIrisFillOutline(radius: number): Outline {
+function getIrisFillOutline(shape: EyeShape, width: number, height: number, r: number): Outline {
   if (!irisOutlineCache) irisOutlineCache = new Map()
-  const cached = irisOutlineCache.get(radius)
+  const key = `${shape}:${width}:${height}:${r}`
+  const cached = irisOutlineCache.get(key)
   if (cached) return cached
 
-  const path = new Outline.CanvasPath()
-  path.arc(radius, radius, radius, 0, FULL_TURN)
-  path.closePath()
-  const outline = Outline.fill(path)
-  return rememberCachedValue(irisOutlineCache, radius, outline)
+  let outline: Outline
+  if (shape === 'roundRect') {
+    outline = Outline.fill(Outline.RoundRectPath(0, 0, width, height, r))
+  } else {
+    const circle = new Outline.CanvasPath()
+    circle.arc(r, r, r, 0, FULL_TURN)
+    circle.closePath()
+    outline = Outline.fill(circle)
+  }
+  return rememberCachedValue(irisOutlineCache, key, outline)
 }
 
 function getEyelidFillOutline(
@@ -167,20 +182,18 @@ export const Eyelid = defineShapeTemplate((opts: EyelidOptions) => {
 })
 
 const Iris = defineShapeTemplate((opts: IrisOptions) => {
-  const radius = opts.radius
-  const diameter = radius * 2
   return {
     left: opts.left,
     top: opts.top,
-    width: diameter,
-    height: diameter,
+    width: opts.width,
+    height: opts.height,
     skin: getFillSkin(DEFAULT_FACE_PRIMARY_COLOR),
     Behavior: class extends Behavior {
       #palette: FaceSkinPalette | null = null
       #primary = DEFAULT_FACE_PRIMARY_COLOR
 
       onCreate(shape: PositionedShape) {
-        shape.fillOutline = getIrisFillOutline(radius)
+        shape.fillOutline = getIrisFillOutline(opts.shape, opts.width, opts.height, opts.r)
         shape.strokeOutline = undefined
       }
 
@@ -201,16 +214,27 @@ const Iris = defineShapeTemplate((opts: IrisOptions) => {
 })
 
 export const Eye = Container.template((opts: EyeOptions) => {
+  const shape = opts.shape ?? 'circle'
   const radius = opts.radius ?? 8
   const diameter = radius * 2
-  const eyelidWidth = opts.eyelidWidth ?? radius * 3
-  const eyelidHeight = opts.eyelidHeight ?? radius * 3
-  const width = Math.max(diameter, eyelidWidth)
-  const height = Math.max(diameter, eyelidHeight)
-  const irisBaseLeft = (width - diameter) / 2
-  const irisBaseTop = (height - diameter) / 2
-  const irisBaseCoordinates = { left: irisBaseLeft, top: irisBaseTop, width: diameter, height: diameter }
-  const iris = new Iris({ radius, left: irisBaseLeft, top: irisBaseTop }) as PositionedContent
+  const irisWidth = shape === 'roundRect' ? Math.max(2, opts.width ?? 16) : diameter
+  const irisHeight = shape === 'roundRect' ? Math.max(2, opts.height ?? 16) : diameter
+  const irisRadius = shape === 'roundRect' ? Math.max(0, Math.min(opts.r ?? 4, irisWidth / 2, irisHeight / 2)) : radius
+  const eyelidWidth = opts.eyelidWidth ?? (shape === 'circle' ? radius * 3 : irisWidth)
+  const eyelidHeight = opts.eyelidHeight ?? (shape === 'circle' ? radius * 3 : irisHeight)
+  const width = Math.max(irisWidth, eyelidWidth)
+  const height = Math.max(irisHeight, eyelidHeight)
+  const irisBaseLeft = (width - irisWidth) / 2
+  const irisBaseTop = (height - irisHeight) / 2
+  const irisBaseCoordinates = { left: irisBaseLeft, top: irisBaseTop, width: irisWidth, height: irisHeight }
+  const iris = new Iris({
+    shape,
+    width: irisWidth,
+    height: irisHeight,
+    r: irisRadius,
+    left: irisBaseLeft,
+    top: irisBaseTop,
+  }) as PositionedContent
 
   return {
     clip: true,

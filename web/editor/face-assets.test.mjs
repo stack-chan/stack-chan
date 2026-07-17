@@ -27,9 +27,11 @@ test('Shape face asset round-trips with geometry and normalized theme values', (
   assert.equal(restored.colors.primary, '#abcdef')
   assert.equal(restored.mouth, 1)
   assert.equal(restored.shape.eyes.left.x, 44)
+  assert.equal(restored.shape.eyes.left.shape, 'circle')
   assert.equal(restored.shape.eyes.left.radius, 11)
   assert.equal(restored.shape.eyes.left.eyelidWidth, 22)
   assert.equal(restored.shape.eyes.left.eyelidHeight, 22)
+  assert.equal(restored.shape.mouth.visible, true)
   assert.equal(restored.shape.mouth.maxWidth, 104)
 })
 
@@ -37,8 +39,10 @@ test('Shape face creation restores defaults for null optional groups', () => {
   const asset = createFaceAsset({ colors: null, canvas: null, shape: null })
   assert.deepEqual(asset.canvas, { left: 60, top: 60, width: 200, height: 120 })
   assert.equal(asset.shape.eyes.left.x, 30)
+  assert.equal(asset.shape.eyes.left.shape, 'circle')
   assert.equal(asset.shape.eyes.left.eyelidWidth, 16)
   assert.equal(asset.shape.eyes.left.eyelidHeight, 16)
+  assert.equal(asset.shape.mouth.visible, true)
   assert.equal(asset.shape.mouth.maxWidth, 90)
 })
 
@@ -53,10 +57,56 @@ test('eyelids stay centered on and large enough to cover their irises', () => {
   assert.deepEqual(asset.shape.eyes.left, {
     x: 20,
     y: 20,
+    shape: 'circle',
     radius: 20,
     eyelidWidth: 40,
     eyelidHeight: 40,
   })
+})
+
+test('round rect irises and hidden mouths round-trip into generated Face source', () => {
+  const asset = createFaceAsset({
+    mouth: 0.7,
+    shape: {
+      eyes: {
+        left: { shape: 'roundRect', x: 42, y: 38, width: 30, height: 18, r: 5 },
+        right: { shape: 'circle', x: 158, y: 40, radius: 10 },
+      },
+      mouth: { visible: false, x: 100, y: 90 },
+    },
+  })
+  const restored = parseFaceAsset(JSON.stringify(asset))
+  assert.deepEqual(restored.shape.eyes.left, {
+    x: 42,
+    y: 38,
+    shape: 'roundRect',
+    width: 30,
+    height: 18,
+    r: 5,
+    eyelidWidth: 30,
+    eyelidHeight: 18,
+  })
+  assert.equal(restored.shape.mouth.visible, false)
+
+  const definition = shapeFaceDefinition(restored)
+  assert.match(definition, /shape: 'roundRect', width: 30, height: 18, r: 5/)
+  assert.doesNotMatch(definition, /new Mouth/)
+
+  const source = 'export async function onContextCreated(robot) {\n  const runtime = createVisualRuntime(robot)\n}\n'
+  const result = applyFaceAssetToSource(source, restored)
+  assert.doesNotMatch(result, /import \{ Mouth \}/)
+  assert.doesNotMatch(result, /setMouthOpen/)
+})
+
+test('legacy circle eyes and mouths without visibility migrate to current defaults', () => {
+  const legacy = createFaceAsset({ name: '旧Shapeフェイス' })
+  delete legacy.shape.eyes.left.shape
+  delete legacy.shape.eyes.right.shape
+  delete legacy.shape.mouth.visible
+  const restored = parseFaceAsset(JSON.stringify(legacy))
+  assert.equal(restored.shape.eyes.left.shape, 'circle')
+  assert.equal(restored.shape.eyes.right.shape, 'circle')
+  assert.equal(restored.shape.mouth.visible, true)
 })
 
 test('Shape face source creates a real FaceBase implementation', () => {
@@ -92,6 +142,7 @@ test('face asset replaces the active Face through the public UI capability', () 
   assert.match(result, /robot\.ui\.setFace\(new _StackchanVisualShapeFace\(\{\}\)\)/)
   assert.match(result, /Emotion\.SAD/)
   assert.match(result, /setColor\('secondary', 1, 2, 3\)/)
+  assert.match(result, /setMouthOpen\(0\)/)
 })
 
 test('external Shape assets reject unknown fields and invalid geometry', () => {
@@ -132,7 +183,33 @@ test('external Shape assets reject unknown fields and invalid geometry', () => {
       ...valid,
       shape: {
         ...valid.shape,
+        eyes: {
+          ...valid.shape.eyes,
+          left: {
+            x: 30,
+            y: 33,
+            shape: 'roundRect',
+            width: 20,
+            height: 12,
+            r: 7,
+            eyelidWidth: 20,
+            eyelidHeight: 12,
+          },
+        },
+      },
+    },
+    {
+      ...valid,
+      shape: {
+        ...valid.shape,
         mouth: { ...valid.shape.mouth, minWidth: 100, maxWidth: 20 },
+      },
+    },
+    {
+      ...valid,
+      shape: {
+        ...valid.shape,
+        mouth: { ...valid.shape.mouth, visible: 'yes' },
       },
     },
   ]) {

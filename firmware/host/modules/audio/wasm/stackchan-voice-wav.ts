@@ -1,7 +1,11 @@
+declare const setTimeout: (callback: () => void, delay?: number) => unknown
+
 export const STACKCHAN_VOICE_OUTPUT_SAMPLE_RATE = 24000
+export const STACKCHAN_VOICE_MAX_DURATION_SECONDS = 60
 
 const BYTES_PER_SAMPLE = 2
 const DEFAULT_CHUNK_SAMPLES = 2048
+const DEFAULT_MAX_SAMPLES = STACKCHAN_VOICE_OUTPUT_SAMPLE_RATE * STACKCHAN_VOICE_MAX_DURATION_SECONDS
 const INITIAL_PCM_CAPACITY = 8192
 const WAV_HEADER_BYTES = 44
 
@@ -12,6 +16,8 @@ export type StackchanVoiceRenderer = {
 
 export type StackchanVoiceRenderOptions = {
   chunkSamples?: number
+  maxSamples?: number
+  schedule?: (callback: () => void) => unknown
   speed?: number
   volume?: number
 }
@@ -40,6 +46,20 @@ function writeUint32LE(target: Uint8Array, offset: number, value: number): void 
   target[offset + 3] = (value >>> 24) & 0xff
 }
 
+function positiveInteger(value: number | undefined, fallback: number, name: string): number {
+  const normalized = Math.floor(value ?? fallback)
+  if (!Number.isFinite(normalized) || normalized < 1) {
+    throw new RangeError(`${name} must be a positive integer`)
+  }
+  return normalized
+}
+
+function validateSampleCount(samples: number, capacity: number): void {
+  if (!Number.isInteger(samples) || samples < 0 || samples > capacity) {
+    throw new RangeError(`invalid stackchan-voice sample count: ${samples}`)
+  }
+}
+
 class PCMCollector {
   #bytes = new Uint8Array(INITIAL_PCM_CAPACITY)
   #length = 0
@@ -48,9 +68,7 @@ class PCMCollector {
 
   append(buffer: ArrayBuffer, samples: number, volume: number): void {
     const source = new Int16Array(buffer)
-    if (!Number.isInteger(samples) || samples < 0 || samples > source.length) {
-      throw new RangeError(`invalid stackchan-voice sample count: ${samples}`)
-    }
+    validateSampleCount(samples, source.length)
 
     this.#ensureCapacity(this.#length + samples * BYTES_PER_SAMPLE)
     for (let index = 0; index < samples; index += 1) {
@@ -103,17 +121,71 @@ export function renderStackchanVoiceWav(
   voice: StackchanVoiceRenderer,
   text: string,
   options: StackchanVoiceRenderOptions = {},
-): RenderedStackchanVoice {
-  const chunkSamples = Math.max(1, Math.floor(options.chunkSamples ?? DEFAULT_CHUNK_SAMPLES))
+): Promise<RenderedStackchanVoice> {
+  const chunkSamples = positiveInteger(options.chunkSamples, DEFAULT_CHUNK_SAMPLES, 'chunkSamples')
+  const maxSamples = positiveInteger(options.maxSamples, DEFAULT_MAX_SAMPLES, 'maxSamples')
+  const schedule = options.schedule ?? ((callback: () => void) => setTimeout(callback, 0))
   const speed = options.speed ?? 100
   const volume = Math.max(0, Math.min(1, options.volume ?? 1))
   const chunk = new ArrayBuffer(chunkSamples * BYTES_PER_SAMPLE)
+  const completionProbe = new ArrayBuffer(BYTES_PER_SAMPLE)
   const collector = new PCMCollector()
 
-  voice.say(text, speed)
-  while (true) {
-    const samples = voice.read24(chunk)
-    if (samples === 0) return collector.finish()
-    collector.append(chunk, samples, volume)
-  }
+  return new Promise((resolve, reject) => {
+    let renderedSamples = 0
+    let started = false
+
+    const rejectLimit = () => {
+      reject(new RangeError(`stackchan-voice rendering exceeded the maximum of ${maxSamples} samples`))
+    }
+
+    const scheduleTask = (task: () => void): void => {
+      try {
+        schedule(task)
+      } catch (error) {
+        reject(error)
+      }
+    }
+
+    const probeCompletion = (): void => {
+      try {
+        const samples = voice.read24(completionProbe)
+        validateSampleCount(samples, 1)
+        if (samples === 0) resolve(collector.finish())
+        else rejectLimit()
+      } catch (error) {
+        reject(error)
+      }
+    }
+
+    const renderNext = (): void => {
+      try {
+        if (!started) {
+          voice.say(text, speed)
+          started = true
+        }
+
+        const samples = voice.read24(chunk)
+        validateSampleCount(samples, chunkSamples)
+        if (samples === 0) {
+          resolve(collector.finish())
+          return
+        }
+        if (samples > maxSamples - renderedSamples) {
+          rejectLimit()
+          return
+        }
+
+        collector.append(chunk, samples, volume)
+        renderedSamples += samples
+        scheduleTask(renderedSamples === maxSamples ? probeCompletion : renderNext)
+      } catch (error) {
+        reject(error)
+      }
+    }
+
+    // Yield before starting and between chunks so native synthesis cannot
+    // monopolize the simulator UI event loop.
+    scheduleTask(renderNext)
+  })
 }

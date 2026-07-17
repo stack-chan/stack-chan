@@ -9,7 +9,7 @@ type RegisteredButton = {
   kind?: string
   value?: string
   options?: unknown[]
-  callback?: (target: unknown, value?: string) => void
+  callback?: (target: unknown, value?: string) => Promise<void> | void
 }
 
 const buttons: RegisteredButton[] = []
@@ -19,6 +19,8 @@ const emotions: unknown[] = []
 const effects: unknown[] = []
 const faces: unknown[] = []
 const colors: [string, number, number, number][] = []
+const speechRequests: string[] = []
+let drawerCloseCount = 0
 const touchPanel: {
   onEvent?: (event: {
     gesture: 'forwardSwipe' | 'backwardSwipe'
@@ -29,6 +31,12 @@ const touchPanel: {
 } = {}
 
 const robot = {
+  audio: {
+    say: (text: string) => {
+      speechRequests.push(text)
+      return Promise.resolve({})
+    },
+  },
   drawer: {
     addDrawerButton: (button: RegisteredButton) => {
       buttons.push(button)
@@ -50,7 +58,9 @@ const robot = {
     setFace: (face: unknown) => {
       faces.push(face)
     },
-    closeDrawer: () => {},
+    closeDrawer: () => {
+      drawerCloseCount += 1
+    },
   },
   led: {},
   button: {
@@ -123,14 +133,23 @@ assert(
   buttons.every((button) => button.key !== 'cameraPreview'),
   'cameraPreview button should not be registered when camera is unavailable',
 )
-assert(
-  buttons.some((button) => button.key === 'speakStackchan'),
-  'speakStackchan button should be registered',
-)
+const speakButton = buttons.find((button) => button.key === 'speakStackchan')
+assert(speakButton, 'speakStackchan button should be registered')
 assert(touchPanel.onEvent, 'touchPanel handler should be registered')
 touchPanel.onEvent?.({ gesture: 'forwardSwipe', position: 0.25, intensity: 3, ticks: 100 })
 touchPanel.onEvent?.({ gesture: 'backwardSwipe', position: 0.75, intensity: 3, ticks: 500 })
 equal(emotions[emotions.length - 1], Emotion.HAPPY, 'petting swipe pair should set HAPPY emotion')
 assert(effects.length > 0, 'petting should add a visible emotion effect')
 
-trace('ok\n')
+Promise.resolve(speakButton?.callback?.(robot)).then(
+  () => {
+    equal(speechRequests.length, 1, 'speakStackchan should request one utterance')
+    equal(speechRequests[0], 'こんにちわ。すたっくちゃんです。', 'speakStackchan should request its greeting')
+    equal(drawerCloseCount, 1, 'speakStackchan should close the drawer before speaking')
+    trace('ok\n')
+  },
+  (error) => {
+    trace(`speakStackchan callback error: ${String(error)}\n`)
+    throw error
+  },
+)

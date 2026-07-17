@@ -49,9 +49,9 @@ function getAudioBridge(): WasmAudioOutputBridge {
   )
 }
 
-function schedule(audioBridge: WasmAudioOutputBridge, callback: () => void): void {
-  if (audioBridge.setTimer) audioBridge.setTimer(callback, WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS)
-  else setTimeout(callback, WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS)
+function schedule(audioBridge: WasmAudioOutputBridge, callback: () => void, delay: number): void {
+  if (audioBridge.setTimer) audioBridge.setTimer(callback, delay)
+  else setTimeout(callback, delay)
 }
 
 export class TTS {
@@ -88,34 +88,40 @@ export class TTS {
       }
     }
 
-    try {
-      const rendered = renderStackchanVoiceWav(this.voice, text, {
-        speed: this.speed,
-        volume: volume ?? this.volume,
-      })
-      if (rendered.samples === 0) {
-        finish()
-        return
-      }
-
-      const audioBridge = getAudioBridge()
-      audioBridge.startPlayBuffer(rendered.buffer)
-      this.onPlayed?.(rendered.power)
-
-      const poll = () => {
+    const audioBridge = getAudioBridge()
+    void renderStackchanVoiceWav(this.voice, text, {
+      schedule: (callback) => schedule(audioBridge, callback, 0),
+      speed: this.speed,
+      volume: volume ?? this.volume,
+    }).then(
+      (rendered) => {
         if (!this.streaming) return
-        const status = audioBridge.playStatus()
-        if (status === 0) {
-          schedule(audioBridge, poll)
-        } else if (status > 0) {
+        if (rendered.samples === 0) {
           finish()
-        } else {
-          finish(new Error('stackchan-voice browser playback failed'))
+          return
         }
-      }
-      poll()
-    } catch (error) {
-      finish(error)
-    }
+
+        try {
+          audioBridge.startPlayBuffer(rendered.buffer)
+          this.onPlayed?.(rendered.power)
+
+          const poll = () => {
+            if (!this.streaming) return
+            const status = audioBridge.playStatus()
+            if (status === 0) {
+              schedule(audioBridge, poll, WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS)
+            } else if (status > 0) {
+              finish()
+            } else {
+              finish(new Error('stackchan-voice browser playback failed'))
+            }
+          }
+          poll()
+        } catch (error) {
+          finish(error)
+        }
+      },
+      (error) => finish(error),
+    )
   }
 }

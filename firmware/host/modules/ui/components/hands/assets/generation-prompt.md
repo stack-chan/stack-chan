@@ -41,7 +41,9 @@ Avoid: realistic anatomy, skinny fingers, long fingers, fingernails, finger join
 
 The side-open source was generated in built-in tool mode with
 `hands-source-right.png` as a style reference. The selected source was then
-edited once to make the eight screen-plane directions explicit.
+edited once to make the eight screen-plane directions explicit. Its eight
+sprites are stored as row 5 of the current `hands-source-right.png` authoring
+sheet rather than as a separate runtime or source texture.
 
 Initial generation prompt:
 

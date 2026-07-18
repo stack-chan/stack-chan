@@ -35,10 +35,11 @@ Rows, from top to bottom:
 9. left open
 10. left side-open
 
-`hands-source-right.png` is the built-in image generation result.
-`hands-source-right-alpha.png` is the same source after chroma-key removal.
-`hands-source-right-side-open.png` is the separately generated side-view row,
-and `hands-source-right-side-open-alpha.png` is its chroma-keyed source.
+`hands-source-right.png` is the five-row authoring sheet assembled from the
+built-in image generation results. `hands-source-right-alpha.png` is the same
+five-row source after chroma-key removal. The side-open artwork was generated
+separately, then appended as row 5 so source rows and runtime state rows use the
+same order.
 The left-hand rows are generated from the right-hand rows. The direction is
 remapped before mirroring so that, for example, both `right/up-right` and
 `left/up-right` still gesture toward the upper right.
@@ -56,19 +57,8 @@ python "${CODEX_HOME:-$HOME/.codex}/skills/.system/imagegen/scripts/remove_chrom
   --despill \
   --force
 
-python "${CODEX_HOME:-$HOME/.codex}/skills/.system/imagegen/scripts/remove_chroma_key.py" \
-  --input host/modules/ui/components/hands/assets/hands-source-right-side-open.png \
-  --out host/modules/ui/components/hands/assets/hands-source-right-side-open-alpha.png \
-  --auto-key border \
-  --soft-matte \
-  --transparent-threshold 12 \
-  --opaque-threshold 220 \
-  --despill \
-  --force
-
 python host/modules/ui/components/hands/tools/build-static-atlas.py \
   host/modules/ui/components/hands/assets/hands-source-right-alpha.png \
-  host/modules/ui/components/hands/assets/hands-source-right-side-open-alpha.png \
   host/modules/ui/components/hands/assets
 ```
 

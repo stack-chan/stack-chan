@@ -10,12 +10,15 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw
 
 
-BASE_STATE_COUNT = 4
 STATE_COUNT = 5
 DIRECTION_COUNT = 8
 CELL_SIZE = 88
 TARGET_EXTENT = 76
 MIRRORED_DIRECTION = (0, 7, 6, 5, 4, 3, 2, 1)
+# The first four rows came from one generation and side-open from another. Keep
+# their source-scale normalization independent even though they now live in one
+# five-row authoring sheet.
+SOURCE_SCALE_GROUPS = ((0, 4), (4, 5))
 
 
 def find_components(
@@ -118,29 +121,32 @@ def save_preview(outer: Image.Image, inner: Image.Image, path: Path) -> None:
     preview.convert("RGB").save(path, optimize=True)
 
 
-def extract_state_rows(
-    source_path: Path, row_count: int
-) -> tuple[list[list[Image.Image]], list[list[Image.Image]]]:
+def extract_state_rows(source_path: Path) -> tuple[list[list[Image.Image]], list[list[Image.Image]]]:
     source = Image.open(source_path).convert("RGBA")
-    bounds = find_components(source.getchannel("A"), row_count)
-    maximum_extent = max(max(right - left, bottom - top) for left, top, right, bottom in bounds)
-    scale = TARGET_EXTENT / maximum_extent
+    bounds = find_components(source.getchannel("A"), STATE_COUNT)
+    scales = [0.0] * STATE_COUNT
+    for first_state, state_limit in SOURCE_SCALE_GROUPS:
+        group_bounds = bounds[
+            first_state * DIRECTION_COUNT : state_limit * DIRECTION_COUNT
+        ]
+        maximum_extent = max(
+            max(right - left, bottom - top) for left, top, right, bottom in group_bounds
+        )
+        for state in range(first_state, state_limit):
+            scales[state] = TARGET_EXTENT / maximum_extent
 
-    outer_rows: list[list[Image.Image]] = [[] for _ in range(row_count)]
-    inner_rows: list[list[Image.Image]] = [[] for _ in range(row_count)]
+    outer_rows: list[list[Image.Image]] = [[] for _ in range(STATE_COUNT)]
+    inner_rows: list[list[Image.Image]] = [[] for _ in range(STATE_COUNT)]
     for index, sprite_bounds in enumerate(bounds):
         outer, inner = create_masks(source, sprite_bounds)
         row = index // DIRECTION_COUNT
-        outer_rows[row].append(normalize(outer, scale))
-        inner_rows[row].append(normalize(inner, scale))
+        outer_rows[row].append(normalize(outer, scales[row]))
+        inner_rows[row].append(normalize(inner, scales[row]))
     return outer_rows, inner_rows
 
 
-def build(base_source_path: Path, side_open_source_path: Path, output_directory: Path) -> None:
-    right_outer, right_inner = extract_state_rows(base_source_path, BASE_STATE_COUNT)
-    side_outer, side_inner = extract_state_rows(side_open_source_path, 1)
-    right_outer.extend(side_outer)
-    right_inner.extend(side_inner)
+def build(source_path: Path, output_directory: Path) -> None:
+    right_outer, right_inner = extract_state_rows(source_path)
 
     atlas_width = CELL_SIZE * DIRECTION_COUNT
     atlas_height = CELL_SIZE * STATE_COUNT * 2
@@ -168,11 +174,10 @@ def build(base_source_path: Path, side_open_source_path: Path, output_directory:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("base_source", type=Path, help="RGBA sheet containing four rows and eight columns")
-    parser.add_argument("side_open_source", type=Path, help="RGBA sheet containing one row and eight columns")
+    parser.add_argument("source", type=Path, help="RGBA sheet containing five rows and eight columns")
     parser.add_argument("output_directory", type=Path)
     arguments = parser.parse_args()
-    build(arguments.base_source, arguments.side_open_source, arguments.output_directory)
+    build(arguments.source, arguments.output_directory)
 
 
 if __name__ == "__main__":

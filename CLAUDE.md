@@ -17,10 +17,11 @@ Stack-chan is a JavaScript-driven M5Stack-embedded robot. The codebase is primar
 - **Services**: Background services (HTTP server, network, preferences)
 
 ### Key Directories
-- `host/`: Core firmware source code
-- `mods/`: Modular applications that can be loaded at runtime
-- tests: Co-located under the target `host`, `mods`, or platform implementation
-- `typings/`: TypeScript definitions for the Moddable platform
+- `firmware/host/`: Core firmware source code
+- `firmware/mods/`: Modular applications that can be loaded at runtime
+- tests: Co-located under the target `firmware/host`, `firmware/mods`, or platform implementation
+- `firmware/typings/`: TypeScript definitions for the Moddable platform
+- `firmware/dist/`: Generated firmware programs and intermediate build files; do not edit or commit them
 - `case/`: 3D printable robot case files
 - `schematics/`: PCB designs for control boards
 
@@ -34,11 +35,21 @@ All commands should be run from the `firmware/` directory:
 - `npm run doctor` - Check development environment status
 
 ### Building and Deployment
-- `npm run build` - Build firmware for esp32/m5stack (default target)
+- `npm run build` - Build firmware for M5StackChan CoreS3 (default target)
 - `npm run deploy` - Build and flash firmware to connected device
 - `npm run debug` - Build and flash with debug mode
 - `npm run mod` - Flash a MOD to already-deployed firmware (fast development cycle)
 - `npm run bundle` - Create a bundle of the firmware
+- `npm run clean` - Remove generated files under `firmware/dist`
+
+### Firmware Build Output Contract
+
+- Use the repository npm scripts instead of invoking `mcconfig`, `mcrun`, or `mcpack` directly. The wrappers supply the managed Moddable `-o` argument.
+- Normal host, MOD, and test builds write programs to `firmware/dist/bin/` and intermediate files to `firmware/dist/tmp/`.
+- The host application name is always `stack-chan-host`.
+- Do not add a custom `-o`; repository commands reject it to keep worktree output isolated under `firmware/dist`.
+- `npm run clean` removes all generated files under `firmware/dist`.
+- `npm run bundle` is the exception: standard-device intermediate builds created internally by `mcbundle` remain under `$MODDABLE/build`. The Stack-chan-specific bundle target still uses `firmware/dist`.
 
 ### Code Quality
 - `npm run lint` - Run Biome linter
@@ -55,14 +66,19 @@ All commands should be run from the `firmware/` directory:
 
 ## Target Configuration
 
-The build system uses environment variables to specify target platforms:
-- Default target: `esp32/m5stack`
-- Override with: `npm_config_target=esp32/m5stack_core2 npm run build`
+The default target is M5StackChan CoreS3. Select other supported hardware through the named npm scripts, for example:
+
+- `npm run build:stackchan_rt`
+- `npm run build:takao_core2_sg90`
+- `npm run flash:stackchan_rt`
+- `npm run flash:takao_core2_sg90`
+
+Do not use `--target` or `npm_config_target`; the firmware command wrapper rejects generic target overrides so that the matching platform and application manifest are selected together.
 
 ## MOD Development Workflow
 
-1. Write MOD in `mods/` directory with `manifest.json` and `mod.js`
-2. Use `npm run mod mods/your-mod/manifest.json` for rapid iteration
+1. Write MOD in `firmware/mods/` with `manifest.json` and `mod.js`
+2. From `firmware/`, use `npm run mod -- mods/your-mod/manifest.json` for rapid iteration
 3. MODs can add behavior via `onLaunch` and `onContextCreated` hooks
 
 ## Hardware Configuration

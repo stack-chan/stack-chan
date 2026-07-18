@@ -44,11 +44,10 @@ if [[ -z "$FONTBM" || ! -x "$FONTBM" ]]; then
 fi
 
 MANIFEST="$FIRMWARE_DIR/host/app/manifest_wasm.json"
-# mcconfig names the build output directory after the manifest's parent dir
-# (host/app -> "app"), so derive it instead of hardcoding to survive a rename.
-APP_NAME="$(basename "$(dirname "$MANIFEST")")"
-TMP_DIR="$MODDABLE/build/tmp/wasm/debug/$APP_NAME"
-BIN_DIR="$MODDABLE/build/bin/wasm/debug/$APP_NAME"
+OUTPUT_DIR="$FIRMWARE_DIR/dist"
+APP_NAME="stack-chan-host"
+TMP_DIR="$OUTPUT_DIR/tmp/wasm/debug/$APP_NAME"
+BIN_DIR="$OUTPUT_DIR/bin/wasm/debug/$APP_NAME"
 
 LINK_OPTIONS="-s ENVIRONMENT=web \
  -s ALLOW_MEMORY_GROWTH=1 \
@@ -61,7 +60,8 @@ LINK_OPTIONS="-s ENVIRONMENT=web \
  -sEXPORTED_RUNTIME_METHODS=HEAP8,HEAPU8"
 
 # generate the makefile and mc.xs.c without building
-mcconfig -d -p wasm -t build "$MANIFEST"
+mkdir -p "$OUTPUT_DIR"
+mcconfig -d -p wasm -t build -o "$OUTPUT_DIR" "$MANIFEST"
 
 # force a relink so a LINK_OPTIONS change always takes effect
 rm -f "$BIN_DIR/mc.js"

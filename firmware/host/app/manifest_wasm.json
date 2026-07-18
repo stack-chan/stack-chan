@@ -1,4 +1,7 @@
 {
+  "build": {
+    "NAME": "stack-chan-host"
+  },
   "include": ["../platforms/wasm/manifest.json"],
   "resources": {
     "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],

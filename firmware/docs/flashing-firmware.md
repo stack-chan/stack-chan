@@ -111,7 +111,9 @@ $ npm run flash
 ```
 
 Use `npm run build` when you only want to verify the standard build.
-The program will be saved under the `$MODDABLE/build/` directory.
+The program and intermediate files are saved under `firmware/dist/bin/` and `firmware/dist/tmp/`.
+The host application name is `stack-chan-host`.
+Run `npm run clean` to remove all generated files under `firmware/dist/`.
 
 ### Stack-chan subplatforms
 

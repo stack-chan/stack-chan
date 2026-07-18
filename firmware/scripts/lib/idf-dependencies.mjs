@@ -8,21 +8,21 @@ const m5stackchanCoreS3Dependencies = [
 
 /**
  * Seeds the generated CoreS3 IDF manifest before Moddable adds dependencies.
- * @param {{moddableDirectory: string, mode: string}} options - Moddable root and build directory mode.
+ * @param {{outputDirectory: string, applicationName: string, mode: string}} options - Build output configuration.
  * @returns {string} Path to the prepared IDF component manifest.
  */
-export function prepareM5StackChanCoreS3IdfDependencies({ moddableDirectory, mode }) {
-  if (!moddableDirectory) throw new Error('MODDABLE environment variable is required')
+export function prepareM5StackChanCoreS3IdfDependencies({ outputDirectory, applicationName, mode }) {
+  if (!outputDirectory) throw new Error('Build output directory is required')
+  if (!applicationName) throw new Error('Application name is required')
   if (!['debug', 'instrument', 'release'].includes(mode)) throw new Error(`Unsupported build mode: ${mode}`)
 
   const mainDirectory = path.join(
-    moddableDirectory,
-    'build',
+    outputDirectory,
     'tmp',
     'esp32',
     'm5stackchan_cores3',
     mode,
-    'app',
+    applicationName,
     'xsProj-esp32s3',
     'main',
   )

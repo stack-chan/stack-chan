@@ -6,38 +6,49 @@ import { test } from 'node:test'
 import { prepareM5StackChanCoreS3IdfDependencies } from './idf-dependencies.mjs'
 
 test('prepares both managed components without duplicating them', () => {
-  const moddableDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))
+  const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))
 
   try {
-    const manifestPath = prepareM5StackChanCoreS3IdfDependencies({ moddableDirectory, mode: 'debug' })
+    const manifestPath = prepareM5StackChanCoreS3IdfDependencies({
+      outputDirectory,
+      applicationName: 'stack-chan-host',
+      mode: 'debug',
+    })
     const first = readFileSync(manifestPath, 'utf8')
-    prepareM5StackChanCoreS3IdfDependencies({ moddableDirectory, mode: 'debug' })
+    prepareM5StackChanCoreS3IdfDependencies({
+      outputDirectory,
+      applicationName: 'stack-chan-host',
+      mode: 'debug',
+    })
     const second = readFileSync(manifestPath, 'utf8')
 
     assert.equal(second, first)
     assert.equal(count(second, 'espressif/esp_audio_codec:'), 1)
     assert.equal(count(second, 'espressif/esp32-camera:'), 1)
   } finally {
-    rmSync(moddableDirectory, { recursive: true, force: true })
+    rmSync(outputDirectory, { recursive: true, force: true })
   }
 })
 
 test('uses the generated directory for each ESP32 build mode', () => {
-  const moddableDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))
+  const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))
 
   try {
     for (const mode of ['debug', 'instrument', 'release']) {
-      const manifestPath = prepareM5StackChanCoreS3IdfDependencies({ moddableDirectory, mode })
+      const manifestPath = prepareM5StackChanCoreS3IdfDependencies({
+        outputDirectory,
+        applicationName: 'stack-chan-host',
+        mode,
+      })
       assert.equal(
         manifestPath,
         path.join(
-          moddableDirectory,
-          'build',
+          outputDirectory,
           'tmp',
           'esp32',
           'm5stackchan_cores3',
           mode,
-          'app',
+          'stack-chan-host',
           'xsProj-esp32s3',
           'main',
           'idf_component.yml',
@@ -45,7 +56,7 @@ test('uses the generated directory for each ESP32 build mode', () => {
       )
     }
   } finally {
-    rmSync(moddableDirectory, { recursive: true, force: true })
+    rmSync(outputDirectory, { recursive: true, force: true })
   }
 })
 

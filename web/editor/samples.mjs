@@ -100,7 +100,7 @@ export const VISUAL_SAMPLES = Object.freeze([
   {
     id: 'sensors',
     title: '4. センサーとLED',
-    description: '振るとLEDを虹色にし、前スワイプで吹き出しを表示します。',
+    description: '振るとLEDを虹色にし、頭部を前方へスワイプすると吹き出しを表示します。',
     workspace: {
       blocks: {
         languageVersion: 0,
@@ -113,7 +113,7 @@ export const VISUAL_SAMPLES = Object.freeze([
             inputs: { DO: { block: { type: 'stackchan_light_rainbow', fields: { NAME: 'a' } } } },
           },
           {
-            type: 'stackchan_on_touch',
+            type: 'stackchan_on_head_touch',
             x: 340,
             y: 24,
             fields: { GESTURE: 'forwardSwipe' },

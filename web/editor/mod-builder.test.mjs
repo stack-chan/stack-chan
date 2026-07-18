@@ -124,7 +124,7 @@ test('buildModArchive compiles a MOD using the new event/motion/ui blocks', asyn
   const body =
     "onButton(robot, 'a', 'release', (event) => {\n  void (async () => {\n    robot.face.setEmotion(Emotion.HAPPY)\n  })().catch((error) => trace('button a handler failed: ' + error + '\\n'))\n})\n" +
     "onImu(robot, 'shake', (event) => {\n  void (async () => {\n    await robot.audio.say(String('わっ'))\n  })().catch((error) => trace('imu handler failed: ' + error + '\\n'))\n})\n" +
-    "onTouchPanel(robot, 'forwardSwipe', (event) => {\n  void (async () => {\n    robot.ui.toggleDrawer()\n  })().catch((error) => trace('touch handler failed: ' + error + '\\n'))\n})\n" +
+    "onHeadTouch(robot, 'petting', (event) => {\n  void (async () => {\n    robot.ui.toggleDrawer()\n  })().catch((error) => trace('head touch handler failed: ' + error + '\\n'))\n})\n" +
     "robot.ui.drawer?.addDrawerButton({ key: 'k', label: 'ボタン', callback: () => {\n  void (async () => {\n    robot.ui.showFace()\n  })().catch((error) => trace('drawer handler failed: ' + error + '\\n'))\n} })\n" +
     'await robot.motion.setPose({ rotation: { p: (30 * Math.PI) / 180, y: (-45 * Math.PI) / 180, r: (0 * Math.PI) / 180 } }, 0.5)\n' +
     "robot.lighting.lightBlink('a', ...hexToRgb('#ff4040'), 250)\n"

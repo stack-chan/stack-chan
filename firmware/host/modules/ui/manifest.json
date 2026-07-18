@@ -20,6 +20,8 @@
     "settings-status-model": "./views/settings/settings-status-model",
     "face-state": "./state/face-state",
     "face-skin": "./state/face-skin",
+    "hand-sprites": "./components/hands/hand-sprites",
+    "hands": "./components/hands/hands",
     "template": "./components/face/template",
     "motions/*": "./components/face/motions/*",
     "drawer": "./components/drawer/drawer",
@@ -41,6 +43,10 @@
     "piuView": "$(PIU)/MC/piuView"
   },
   "resources": {
+    "*-alpha-monochrome": [
+      "./components/hands/assets/hands-outer-mask",
+      "./components/hands/assets/hands-inner-mask"
+    ],
     "*-alpha": [
       "./assets/images/microphone",
       "./assets/images/indicator",

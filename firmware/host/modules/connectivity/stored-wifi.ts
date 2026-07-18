@@ -34,3 +34,10 @@ export function connectStoredWiFi(options: StoredWiFiConnectionOptions = {}): bo
 export function stopStoredWiFiConnection(): void {
   stopNetworkConnection()
 }
+
+/** Clears both credentials so even manifest defaults are explicitly overridden on the next boot. */
+export function clearStoredWiFiCredentials(): void {
+  stopStoredWiFiConnection()
+  Preference.set(DOMAIN.wifi, 'ssid', '')
+  Preference.set(DOMAIN.wifi, 'password', '')
+}

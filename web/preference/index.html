@@ -22,6 +22,7 @@
         const connectButton = document.getElementById('ble-connect-button')
         const disconnectButton = document.getElementById('ble-disconnect-button')
         const submitButton = document.getElementById('preference-submit-button')
+        const clearWiFiButton = document.getElementById('wifi-clear-button')
         const connectionStatus = document.getElementById('connection-status')
         const saveStatus = document.getElementById('save-status')
         const controls = [...form.querySelectorAll('input, select, textarea, button')]
@@ -65,6 +66,32 @@
           } finally {
             disconnectButton.disabled = false
             if (!client.isConnected()) updateView()
+          }
+        })
+
+        clearWiFiButton.addEventListener('click', async () => {
+          if (!client.isConnected() || submitting) return
+          if (!globalThis.confirm('保存済みのSSIDとパスワードを消去しますか？次回はオフラインで起動します。')) return
+          clearWiFiButton.disabled = true
+          submitButton.disabled = true
+          submitting = true
+          setStatus(saveStatus, 'Wi-Fi設定を消去中…')
+          try {
+            const payload = { 'wifi.ssid': '', 'wifi.password': '' }
+            await client.send({ _batch: payload })
+            for (const [prop, value] of Object.entries(payload)) {
+              currentValues.set(prop, value)
+              const element = document.getElementById(prop)
+              if (element != null) element.value = value
+            }
+            setStatus(saveStatus, 'Wi-Fi設定を消去しました。再起動後はオフラインになります。', 'success')
+          } catch (error) {
+            console.error(error)
+            setStatus(saveStatus, `Wi-Fi設定を消去できませんでした: ${error.message ?? error}`, 'error')
+          } finally {
+            submitting = false
+            clearWiFiButton.disabled = !client.isConnected()
+            submitButton.disabled = !client.isConnected()
           }
         })
 
@@ -169,6 +196,9 @@
                   ><input type="password" name="wifi.password" id="wifi.password" autocomplete="off"
                 /></label>
               </div>
+              <button id="wifi-clear-button" class="danger-button wifi-clear-button" type="button">
+                <i data-lucide="trash-2"></i><span>Wi-Fi設定を消去</span>
+              </button>
             </section>
             <section class="section-block">
               <h2>外観</h2>

@@ -1,5 +1,6 @@
 import { Application } from 'piu/MC'
 import {
+  buildSettingsOfflineConfirmationView,
   buildSettingsPasswordView,
   buildSettingsView,
   SettingsStatusValue,
@@ -12,6 +13,7 @@ trace('=== settings-view test ===\n')
 
 let scanCount = 0
 let bootCount = 0
+let offlineCount = 0
 let selectedSSID = ''
 const application = new Application(null, {
   displayListLength: 4096,
@@ -29,6 +31,9 @@ const labels = buildSettingsView(
   {
     onBoot() {
       bootCount += 1
+    },
+    onOffline() {
+      offlineCount += 1
     },
     onScan() {
       scanCount += 1
@@ -50,6 +55,24 @@ const scanButton = labels.scan as unknown as {
 scanButton.behavior.onTouchBegan(scanButton, 0, 0, 0)
 scanButton.behavior.onTouchEnded(scanButton)
 equal(scanCount, 1, 'pressing the visible scan action should request Wi-Fi scan')
+
+const bootButton = labels.boot as unknown as {
+  active: boolean
+  behavior: {
+    onTouchBegan: (container: unknown, id: number, x: number, y: number) => void
+    onTouchEnded: (container: unknown) => void
+  }
+}
+equal(bootButton.active, true, 'disconnected settings should enable the offline action')
+bootButton.behavior.onTouchBegan(bootButton, 0, 0, 0)
+bootButton.behavior.onTouchEnded(bootButton)
+equal(offlineCount, 1, 'disconnected settings should request offline confirmation')
+
+updateSettingsStatusLabels(labels, {
+  ble: SettingsStatusValue.OFF,
+  wifi: SettingsStatusValue.SYNCING_TIME,
+})
+equal(bootButton.active, false, 'time synchronization should keep boot and offline actions disabled')
 
 updateSettingsNetworkLabels(labels, [
   { ssid: 'stackchan-ap', signal: -42, label: 'stackchan-ap (-42 dBm)' },
@@ -75,17 +98,28 @@ updateSettingsStatusLabels(labels, {
 })
 
 equal(labels.wifi.string, 'Wi-Fi: 接続済み', 'Wi-Fi label should update')
-const bootButton = labels.boot as unknown as {
-  active: boolean
-  behavior: {
-    onTouchBegan: (container: unknown, id: number, x: number, y: number) => void
-    onTouchEnded: (container: unknown) => void
-  }
-}
 equal(bootButton.active, true, 'connected settings should enable the boot action')
 bootButton.behavior.onTouchBegan(bootButton, 0, 0, 0)
 bootButton.behavior.onTouchEnded(bootButton)
 equal(bootCount, 1, 'connected settings should continue to the main application')
+
+let offlineConfirmed = 0
+buildSettingsOfflineConfirmationView(application, {
+  onConfirm() {
+    offlineConfirmed += 1
+  },
+})
+const confirmationRoot = application.first as unknown as {
+  last: {
+    behavior: {
+      onTouchBegan: (container: unknown, id: number, x: number, y: number) => void
+      onTouchEnded: (container: unknown) => void
+    }
+  }
+}
+confirmationRoot.last.behavior.onTouchBegan(confirmationRoot.last, 0, 0, 0)
+confirmationRoot.last.behavior.onTouchEnded(confirmationRoot.last)
+equal(offlineConfirmed, 1, 'offline confirmation should require the explicit destructive action')
 
 let password = ''
 buildSettingsPasswordView(application, 'stackchan-ap', {

@@ -31,6 +31,9 @@ export type SettingsStatusLabels = {
   wifi: PiuContent & { string?: string }
   scan: PiuContainer
   boot: PiuContainer
+  bootState: {
+    connected: boolean
+  }
   list: PiuColumn
   networkState: {
     networks: SettingsNetworkEntry[]
@@ -41,6 +44,7 @@ export type SettingsStatusLabels = {
 export type SettingsViewOptions = {
   onBack?: () => void
   onBoot?: () => void
+  onOffline?: () => void
   onScan?: () => void
   onSelectNetwork?: (network: SettingsNetworkEntry) => void
 }
@@ -48,6 +52,11 @@ export type SettingsViewOptions = {
 export type SettingsPasswordViewOptions = {
   onBack?: () => void
   onPassword?: (password: string) => void
+}
+
+export type SettingsOfflineConfirmationViewOptions = {
+  onCancel?: () => void
+  onConfirm?: () => void
 }
 
 const STATUS_TOP = UI.headerHeight + 4
@@ -161,12 +170,21 @@ export const buildSettingsView = (
 ): SettingsStatusLabels => {
   const styles = uiStyles()
   const networkState = { networks: [] as SettingsNetworkEntry[] }
+  const bootState = { connected: status.wifi === SettingsStatusValue.CONNECTED }
   const scan = new ActionButton(
     { icon: 'scan', label: 'スキャン', onTap: options.onScan },
     { left: 8, top: ACTION_TOP, width: 148 },
   )
   const boot = new ActionButton(
-    { icon: 'play', label: '起動', onTap: options.onBoot, enabled: false, tone: 'success' },
+    {
+      icon: 'play',
+      label: bootState.connected ? '起動' : 'オフライン',
+      onTap: () => {
+        if (bootState.connected) options.onBoot?.()
+        else options.onOffline?.()
+      },
+      tone: 'success',
+    },
     { left: 164, top: ACTION_TOP, width: 148 },
   )
   const labels: SettingsStatusLabels = {
@@ -179,6 +197,7 @@ export const buildSettingsView = (
     }),
     scan,
     boot,
+    bootState,
     list: new Column(null, { left: 0, width: UI.screenWidth, top: 0 }),
     networkState,
     options,
@@ -222,7 +241,50 @@ export const updateSettingsStatusLabels = (labels: SettingsStatusLabels, status:
   const scanning = status.wifi === SettingsStatusValue.SCANNING
   setActionButtonLabel(labels.scan, scanning ? 'スキャン中' : 'スキャン')
   setActionButtonEnabled(labels.scan, !scanning)
-  setActionButtonEnabled(labels.boot, status.wifi === SettingsStatusValue.CONNECTED)
+  const connecting =
+    status.wifi === SettingsStatusValue.CONNECTING ||
+    status.wifi === SettingsStatusValue.SYNCING_TIME ||
+    status.wifi === SettingsStatusValue.RECONNECTING
+  labels.bootState.connected = status.wifi === SettingsStatusValue.CONNECTED
+  setActionButtonLabel(labels.boot, labels.bootState.connected ? '起動' : 'オフライン')
+  setActionButtonEnabled(labels.boot, !scanning && !connecting)
+}
+
+export const buildSettingsOfflineConfirmationView = (
+  application: PiuApplication,
+  options: SettingsOfflineConfirmationViewOptions = {},
+): void => {
+  const styles = uiStyles()
+  application.empty()
+  application.skin = styles.screen
+  application.add(
+    new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      skin: styles.screen,
+      contents: [
+        new ScreenHeader({ title: 'オフライン起動', leading: 'back', onLeading: options.onCancel }),
+        new Label(null, {
+          left: 20,
+          right: 20,
+          top: UI.headerHeight + 18,
+          height: 72,
+          string: '保存済みのSSIDとパスワードを消去して\nオフラインで起動しますか？',
+          style: styles.body,
+        }),
+        new ActionButton(
+          { icon: 'back', label: 'キャンセル', onTap: options.onCancel },
+          { left: 8, bottom: 16, width: 148 },
+        ),
+        new ActionButton(
+          { icon: 'play', label: '消去して起動', onTap: options.onConfirm, tone: 'danger' },
+          { left: 164, bottom: 16, width: 148 },
+        ),
+      ],
+    }),
+  )
 }
 
 export const updateSettingsNetworkLabels = (

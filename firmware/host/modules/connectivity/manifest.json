@@ -26,6 +26,12 @@
     "beacon-packet": "./ble/beacon-packet",
     "ecma-wifi": "./ecma-wifi",
     "fake-wifi-scan-results": "./fake-wifi-scan-results",
+    "local-peer-capability": "./sim/local-peer-capability",
+    "local-peer-codec": "./local-peer-codec",
+    "local-peer-frame": "./local-peer-frame",
+    "local-peer-radio-types": "./local-peer-radio-types",
+    "local-peer-service": "./local-peer-service",
+    "local-peer-types": "./local-peer-types",
     "wifi-scan": "./wifi-scan",
     "wifi-scan-types": "./wifi-scan-types",
     "stored-wifi": "./stored-wifi"
@@ -36,7 +42,11 @@
   },
   "platforms": {
     "esp32": {
-      "include": ["$(MODULES)/io/wifi/manifest.json"]
+      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "modules": {
+        "local-peer-capability": "./local-peer-capability",
+        "local-peer-radio": "./esp32/local-peer-radio"
+      }
     },
     "esp": {
       "include": ["$(MODULES)/io/wifi/manifest.json"]

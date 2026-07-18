@@ -38,7 +38,7 @@ test('tool pages load the shared left drawer without changing integration ids', 
   assert.match(navigation, /aria-current/)
 
   const preference = readFileSync('preference/index.html', 'utf8')
-  for (const id of ['ble-connect-button', 'ble-disconnect-button', 'form-preference', 'settings-form']) {
+  for (const id of ['ble-connect-button', 'ble-disconnect-button', 'form-preference', 'settings-form', 'wifi-clear-button']) {
     assert.match(preference, new RegExp(`id="${id}"`))
   }
   assert.match(preference, /role="alert"|data-state.*error|setStatus\([^)]*'error'/s)
@@ -46,6 +46,8 @@ test('tool pages load the shared left drawer without changing integration ids', 
   assert.doesNotMatch(preference, /pendingPreferences|setTimeout/)
   assert.match(preference, /設定を送信しました/)
   assert.match(preference, /変更する項目がありません/)
+  assert.match(preference, /globalThis\.confirm\('保存済みのSSIDとパスワードを消去しますか/)
+  assert.match(preference, /\{ 'wifi\.ssid': '', 'wifi\.password': '' \}/)
 
   const editor = readFileSync('editor/index.html', 'utf8')
   for (const id of [

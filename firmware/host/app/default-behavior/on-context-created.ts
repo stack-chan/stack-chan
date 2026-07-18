@@ -196,25 +196,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   })
   syncFaceMode()
   robot.drawer.addDrawerButton({
-    key: 'handAnimation',
-    label: '手',
-    kind: 'choice',
-    value: handAnimation,
-    options: [
-      { value: 'none', label: '無し' },
-      { value: 'rock-paper-scissors', label: 'グーチョキパー' },
-      { value: 'clap', label: '拍手' },
-      { value: 'thinking', label: '考え中' },
-    ],
-    callback: (target, value) => {
-      if (!isHandAnimationName(value)) return
-      handAnimation = value
-      target.ui.setHandAnimation(handAnimation)
-      target.ui.closeDrawer()
-    },
-  })
-  syncHandAnimation()
-  robot.drawer.addDrawerButton({
     key: 'cycleEmotion',
     label: '表情',
     kind: 'choice',
@@ -271,6 +252,25 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       }
     },
   })
+  robot.drawer.addDrawerButton({
+    key: 'handAnimation',
+    label: '手',
+    kind: 'choice',
+    value: handAnimation,
+    options: [
+      { value: 'none', label: '無し' },
+      { value: 'rock-paper-scissors', label: 'グーチョキパー' },
+      { value: 'clap', label: '拍手' },
+      { value: 'thinking', label: '考え中' },
+    ],
+    callback: (target, value) => {
+      if (!isHandAnimationName(value)) return
+      handAnimation = value
+      target.ui.setHandAnimation(handAnimation)
+      target.ui.closeDrawer()
+    },
+  })
+  syncHandAnimation()
 
   const runCameraPreview = async (target: typeof robot) => {
     let frame: Awaited<ReturnType<typeof target.camera.capture>> | undefined

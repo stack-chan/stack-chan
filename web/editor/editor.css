@@ -324,6 +324,16 @@ body {
 .face-selection-control {
   position: relative;
 }
+.edit-face-button {
+  width: 100%;
+  min-height: 36px;
+  justify-content: flex-start;
+  font-size: 0.72rem;
+}
+.edit-face-button > svg {
+  width: 16px;
+  height: 16px;
+}
 .face-selection-button {
   width: 100%;
   min-height: 40px;

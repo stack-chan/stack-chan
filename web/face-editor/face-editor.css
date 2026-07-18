@@ -326,7 +326,7 @@ body {
 }
 
 @media (max-width: 620px) {
-  .face-header-actions button:not(.icon-button) span {
+  #download-face span {
     display: none;
   }
 

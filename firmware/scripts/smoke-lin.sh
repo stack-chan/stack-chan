@@ -67,10 +67,8 @@ if [[ -n "$forbidden_imports" ]]; then
   exit 1
 fi
 
-set +e
-timeout "$smoke_timeout" env XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" xvfb-run -a "$MODDABLE/build/bin/lin/release/mcsim" "$output_dir/bin/$platform_path/debug/$app_name/mc.so"
-status=$?
-set -e
+status=0
+timeout "$smoke_timeout" env XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" xvfb-run -a "$MODDABLE/build/bin/lin/release/mcsim" "$output_dir/bin/$platform_path/debug/$app_name/mc.so" || status=$?
 
 if [[ "$status" -ne 124 ]]; then
   cat "$xsbug_log" >&2 || true

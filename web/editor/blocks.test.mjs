@@ -574,6 +574,7 @@ test('head touch helper recognizes petting in both directions within 1.5 seconds
   const emit = (gesture, ticks) => touchPanel.onEvent({ gesture, position: 0, intensity: 3, ticks })
   emit('forwardSwipe', 100)
   emit('backwardSwipe', 1600)
+  emit('backwardSwipe', 1700)
   emit('forwardSwipe', 3600)
   emit('backwardSwipe', 3700)
   emit('backwardSwipe', 5600)
@@ -596,6 +597,7 @@ test('head touch helper recognizes petting in both directions within 1.5 seconds
     [
       ['forwardSwipe', 100],
       ['backwardSwipe', 1600],
+      ['backwardSwipe', 1700],
       ['forwardSwipe', 3600],
       ['backwardSwipe', 3700],
       ['backwardSwipe', 5600],

@@ -155,10 +155,11 @@ const HELPER_ON_HEAD_TOUCH = `function onHeadTouch(robot, gesture, handler) {
         (event.gesture === 'forwardSwipe' || event.gesture === 'backwardSwipe') &&
         Number.isFinite(panel.__visualLastForwardSwipeTicks) &&
         Number.isFinite(panel.__visualLastBackwardSwipeTicks) &&
-        event.ticks - panel.__visualLastForwardSwipeTicks <= pettingWindowMs &&
-        event.ticks - panel.__visualLastBackwardSwipeTicks <= pettingWindowMs
+        Math.abs(panel.__visualLastForwardSwipeTicks - panel.__visualLastBackwardSwipeTicks) <= pettingWindowMs
       ) {
         const pettingEvent = { ...event, gesture: 'petting' }
+        delete panel.__visualLastForwardSwipeTicks
+        delete panel.__visualLastBackwardSwipeTicks
         for (const callback of [...(panel.__handlers?.petting ?? [])]) callback(pettingEvent)
       }
       panel.__visualPrevious?.(event)

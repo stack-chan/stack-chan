@@ -1,5 +1,6 @@
-import { Container, Content, Skin } from 'piu/MC'
+import { Container, Content, Label, Skin } from 'piu/MC'
 import { ActionButton } from 'ui-controls'
+import { uiStyles } from 'ui-theme'
 
 export const ChatStatusBarState = Object.freeze({
   FAILED: 0,
@@ -23,8 +24,13 @@ const iconLeft = 8
 const iconTop = (barHeight - iconSize) / 2
 const levelLeft = iconLeft + iconSize + 4
 
+export type AppBarMode = Readonly<
+  { kind: 'face' } | { kind: 'launcher'; title: string } | { kind: 'app'; title: string }
+>
+
 type ChatStatusSkins = {
   bar: Skin
+  chrome: Skin
   levelTrack: Skin
   levelFill: Skin
   errorFill: Skin
@@ -38,6 +44,7 @@ function getSkins(): ChatStatusSkins {
   if (!cachedSkins) {
     cachedSkins = {
       bar: new Skin({ fill: 'transparent' }),
+      chrome: new Skin({ fill: '#202428' }),
       levelTrack: new Skin({ fill: '#2c2c2c' }),
       levelFill: new Skin({ fill: '#4caf50' }),
       errorFill: new Skin({ fill: '#ff5252' }),
@@ -78,6 +85,7 @@ class IndicatorBehavior extends Behavior {
 }
 
 class ChatStatusBarBehavior extends Behavior {
+  #mode: AppBarMode = { kind: 'face' }
   #state: ChatStatusBarState = ChatStatusBarState.DISCONNECTED
   #connectionPending = false
   #inputLevel = 0
@@ -86,6 +94,10 @@ class ChatStatusBarBehavior extends Behavior {
   #statusIcon?: Content
   #indicator?: Content
   #menuButton?: Container
+  #appsButton?: Container
+  #backButton?: Container
+  #title?: Label
+  #miniAppsAvailable = false
 
   onCreate(container: Container) {
     this.#statusIcon = container.content('statusIcon') as Content
@@ -93,6 +105,9 @@ class ChatStatusBarBehavior extends Behavior {
     this.#levelTrack = container.content('levelTrack') as Container
     this.#levelFill = this.#levelTrack?.first as Content
     this.#menuButton = container.content('menuButton') as Container
+    this.#appsButton = container.content('appsButton') as Container
+    this.#backButton = container.content('backButton') as Container
+    this.#title = container.content('title') as Label
     this.updateUI()
   }
 
@@ -109,6 +124,39 @@ class ChatStatusBarBehavior extends Behavior {
     this.#menuButton.visible = false
     this.#menuButton.active = false
     container.stop()
+  }
+
+  onAppBarMode(container: Container, mode: AppBarMode) {
+    this.#mode = mode
+    const faceMode = mode.kind === 'face'
+    const skins = getSkins()
+    container.skin = faceMode ? skins.bar : skins.chrome
+    if (this.#title) {
+      this.#title.string = faceMode ? '' : mode.title
+      this.#title.visible = !faceMode
+    }
+    if (this.#backButton) {
+      this.#backButton.visible = !faceMode
+      this.#backButton.active = !faceMode
+    }
+    if (this.#appsButton) {
+      this.#appsButton.visible = faceMode && this.#miniAppsAvailable
+      this.#appsButton.active = faceMode && this.#miniAppsAvailable
+    }
+    if (this.#menuButton) {
+      this.#menuButton.visible = faceMode
+      this.#menuButton.active = faceMode
+    }
+    if (faceMode) this.showMenu(container)
+    else container.stop()
+    this.updateUI()
+  }
+
+  onMiniAppAvailability(_container: Container, available: boolean) {
+    this.#miniAppsAvailable = available
+    if (!this.#appsButton || this.#mode.kind !== 'face') return
+    this.#appsButton.visible = available
+    this.#appsButton.active = available
   }
 
   onChatState(_container: Container, state: ChatStatusBarState, _error?: string) {
@@ -129,6 +177,13 @@ class ChatStatusBarBehavior extends Behavior {
 
   updateUI() {
     if (!this.#levelTrack || !this.#levelFill || !this.#statusIcon || !this.#indicator) return
+    if (this.#mode.kind !== 'face') {
+      this.#levelTrack.visible = false
+      this.#statusIcon.visible = false
+      this.#indicator.visible = false
+      this.#indicator.stop()
+      return
+    }
     // ChatAudioIO.SPEAKING means user input; LISTENING means assistant output.
     const isUserSpeaking = this.#state === ChatStatusBarState.SPEAKING
     const isUserListening = this.#state === ChatStatusBarState.LISTENING
@@ -158,7 +213,7 @@ class ChatStatusBarBehavior extends Behavior {
   }
 
   showMenu(container: Container) {
-    if (!this.#menuButton) return
+    if (!this.#menuButton || this.#mode.kind !== 'face') return
     this.#menuButton.visible = true
     this.#menuButton.active = true
     container.stop()
@@ -170,6 +225,7 @@ class ChatStatusBarBehavior extends Behavior {
 
 export const ChatStatusBar = Container.template(() => {
   const skins = getSkins()
+  const styles = uiStyles()
   return {
     name: 'ChatStatusBar',
     anchor: 'APP_BAR',
@@ -179,6 +235,25 @@ export const ChatStatusBar = Container.template(() => {
     height: barHeight,
     skin: skins.bar,
     contents: [
+      new ActionButton(
+        {
+          name: 'backButton',
+          icon: 'back',
+          action: 'onMiniAppBack',
+          enabled: true,
+        },
+        { left: 0, top: 0, width: 44, height: 44, visible: false, active: false },
+      ),
+      new Label(null, {
+        name: 'title',
+        left: 48,
+        right: 12,
+        top: 0,
+        bottom: 0,
+        visible: false,
+        string: '',
+        style: styles.title,
+      }),
       new Content(null, {
         name: 'statusIcon',
         left: iconLeft,
@@ -218,6 +293,15 @@ export const ChatStatusBar = Container.template(() => {
           }),
         ],
       }),
+      new ActionButton(
+        {
+          name: 'appsButton',
+          icon: 'apps',
+          action: 'onMiniAppLauncher',
+          enabled: true,
+        },
+        { right: 44, top: 0, width: 44, height: 44, visible: false, active: false },
+      ),
       new ActionButton(
         {
           name: 'menuButton',

@@ -4,6 +4,7 @@ import { resolveAppBehaviors } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
 import { type BootWiFiStatus, startHostBootServices } from 'boot-services'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
+import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'experimental-mini-app-loader'
 import Modules from 'modules'
 import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
 
@@ -25,9 +26,12 @@ function installPlatformInputBridge(): void {
   trace('[main] installed WASM button bridge\n')
 }
 
-function loadAppBehaviors(): StackchanAppBehavior[] {
+function loadAppBehaviors(miniAppArchivePresent: boolean): StackchanAppBehavior[] {
   trace('[main] checking mod override\n')
-  return resolveAppBehaviors(Modules, defaultBehavior)
+  if (miniAppArchivePresent) {
+    trace('[main] miniapp archive present; host-realm mod override disabled\n')
+  }
+  return resolveAppBehaviors(Modules, defaultBehavior, { allowModOverride: !miniAppArchivePresent })
 }
 
 function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string }): Promise<'retry' | 'offline'> {
@@ -69,9 +73,11 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string
 async function main() {
   trace('[main] start\n')
   installPlatformInputBridge()
+  const miniAppArchivePresent = Modules.has('miniapp')
+  const experimentalMiniApps = prepareExperimentalMiniApps()
 
   trace('[main] loading app behaviors\n')
-  const appBehaviors = loadAppBehaviors()
+  const appBehaviors = loadAppBehaviors(miniAppArchivePresent)
   // Launch behaviors run before startHostBootServices so the splash screen is
   // visible while network setup blocks.
   const shouldCreateContext = await runLaunchBehaviors(appBehaviors)
@@ -88,6 +94,7 @@ async function main() {
   trace(`[main] network ready: ${networkReady.status}\n`)
   const preferences = loadPreferenceConfig()
   const context = createStackchanContext(preferences, { connectivity: bootServices.connectivity })
+  registerExperimentalMiniApps(experimentalMiniApps, context.ui.miniApps)
   trace('[main] app context created\n')
   await runContextCreatedBehaviors(appBehaviors, context, {
     device: getHostDeviceEnvironment(),

@@ -4,6 +4,7 @@ import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
 import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
 import type IMU from 'imu'
 import type { ButtonInputEvent } from 'input-event'
+import type { MiniAppRegistryCapability } from 'mini-app'
 import type { MotionControllerPose, MotionDurationSeconds } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
@@ -26,8 +27,10 @@ export type RobotLed = {
 }
 
 export type { DrawerButtonViewSpec, DrawerOption }
+export type { MiniAppContext, MiniAppDefinition, MiniAppInstance, MiniAppRegistryCapability } from 'mini-app'
 
 export type RobotUI = {
+  readonly miniApps: MiniAppRegistryCapability
   update: (interval: number, faceState: FaceState) => void
   addEffect(effect: UIEffect, key?: string): void
   removeEffect(effect: UIEffect): void

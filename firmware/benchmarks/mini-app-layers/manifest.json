@@ -1,0 +1,31 @@
+{
+  "include": ["../../host/modules/ui/manifest.json"],
+  "modules": {
+    "main": "./main"
+  },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../host/modules/ui/assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../host/modules/ui/assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      }
+    ]
+  },
+  "creation": {
+    "static": 131072,
+    "chunk": {
+      "initial": 4096,
+      "incremental": 1024
+    },
+    "heap": {
+      "initial": 1024,
+      "incremental": 256
+    },
+    "stack": 768,
+    "keys": {
+      "available": 768
+    }
+  }
+}

@@ -24,6 +24,8 @@
     "test:http-throughput-server": "node host/modules/audio/__tests__/http-throughput-device/server.mjs",
     "test:http-throughput-device:build": "mcconfig -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t build \"$PWD/host/modules/audio/__tests__/http-throughput-device/manifest.json\"",
     "test:http-throughput-device:flash": "mcconfig -d -m -p esp32:./host/platforms/m5stackchan_cores3 \"$PWD/host/modules/audio/__tests__/http-throughput-device/manifest.json\"",
+    "benchmark:mini-app-layers:build": "mcconfig -i -m -p esp32/m5stack_core2 -t build \"$PWD/benchmarks/mini-app-layers/manifest.json\"",
+    "benchmark:mini-app-layers:flash": "mcconfig -i -m -p esp32/m5stack_core2 \"$PWD/benchmarks/mini-app-layers/manifest.json\"",
     "test:device": "node scripts/run-device-smoke.js",
     "build": "node scripts/firmware.mjs build",
     "build:m5stackchan_cores3": "node scripts/firmware.mjs build m5stackchan_cores3",

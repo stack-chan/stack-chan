@@ -1,0 +1,14 @@
+{
+  "defines": {
+    "XS_MODS": 1
+  },
+  "include": [
+    "../../../modules/ui/manifest.json",
+    "../../../modules/testing/manifest.json"
+  ],
+  "modules": {
+    "experimental-mini-app-loader": "../../experimental-mini-app-loader",
+    "modules": "../../../modules/testing/fakes/modules",
+    "main": "./experimental-mini-app-loader.test"
+  }
+}

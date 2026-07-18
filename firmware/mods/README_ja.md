@@ -16,6 +16,9 @@ MOD は JavaScript または TypeScript module として書けます。
 TypeScript で MOD を書く場合は、公開された Stack-chan capability 型と Moddable の module specifier だけを使います。
 WASM host で使う MOD も、`lin` など TypeScript 対応済み target で build した `.xsb` または archive を読み込ませます。
 
+顔画面とホストの AppBar を維持したまま Piu UI を追加する場合は、experimental の[ミニアプリ](../docs/mini-apps_ja.md)を利用できます。
+実装例は [mini_app_sample](./examples/mini_app_sample/) にあります。
+
 ## M5StackChan CoreS3 Smoke
 
 - [m5stackchan_smoke](./examples/m5stackchan_smoke/): M5StackChan CoreS3 のサーボ電源とヘッドLEDの smoke 確認です。手順は [M5StackChan CoreS3 smoke check](../docs/m5stackchan-cores3-smoke.md) を参照してください。

@@ -30,6 +30,7 @@
       "./boot-services",
       "./compose",
       "./capabilities",
+      "./experimental-mini-app-loader",
       "./setup-mode",
       "./settings-status",
       "./runtime-audio",

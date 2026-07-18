@@ -26,6 +26,7 @@
       "../../app/boot-services",
       "../../app/compose",
       "../../app/capabilities",
+      "../../app/experimental-mini-app-loader",
       "../../app/setup-mode",
       "../../app/settings-status",
       "../../app/runtime-audio",

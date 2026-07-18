@@ -62,3 +62,94 @@ test('catalog lookup translates direct and rendered template strings', async () 
   assert.equal(t('接続できませんでした: timeout'), 'Could not connect: timeout')
   await initializeI18n({ locale: 'ja', loader: async (locale) => catalogs[locale] })
 })
+
+test('existing DOM text and attributes can switch between locales', async () => {
+  const globals = ['CustomEvent', 'Element', 'MutationObserver', 'Node', 'NodeFilter', 'document']
+  const originalDescriptors = new Map(globals.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]))
+
+  class FakeElement {
+    constructor(tagName, attributes = {}) {
+      this.tagName = tagName
+      this.nodeType = 1
+      this.attributes = new Map(Object.entries(attributes))
+    }
+
+    closest() {
+      return null
+    }
+
+    getAttribute(name) {
+      return this.attributes.has(name) ? this.attributes.get(name) : null
+    }
+
+    setAttribute(name, value) {
+      this.attributes.set(name, String(value))
+    }
+  }
+
+  class FakeMutationObserver {
+    disconnect() {}
+    observe() {}
+  }
+
+  const root = new FakeElement('HTML')
+  const label = new FakeElement('BUTTON', { title: '接続済み', 'aria-label': '接続済み' })
+  const textNode = { nodeType: 3, nodeValue: ' 接続済み ', parentElement: label }
+  const fakeDocument = {
+    documentElement: root,
+    dispatchEvent() {},
+    createTreeWalker(_root, type) {
+      const nodes = type === 4 ? [textNode] : [root, label]
+      let index = 0
+      return {
+        currentNode: null,
+        nextNode() {
+          if (index >= nodes.length) return false
+          this.currentNode = nodes[index]
+          index += 1
+          return true
+        },
+      }
+    },
+  }
+  const catalogs = {
+    ja: { 接続済み: '接続済み' },
+    en: { 接続済み: 'Connected' },
+    'zh-CN': { 接続済み: '已连接' },
+  }
+
+  try {
+    const replacements = {
+      CustomEvent: class CustomEvent {},
+      Element: FakeElement,
+      MutationObserver: FakeMutationObserver,
+      Node: { TEXT_NODE: 3 },
+      NodeFilter: { SHOW_ELEMENT: 1, SHOW_TEXT: 4 },
+      document: fakeDocument,
+    }
+    for (const [name, value] of Object.entries(replacements)) {
+      Object.defineProperty(globalThis, name, { configurable: true, writable: true, value })
+    }
+
+    const loader = async (locale) => catalogs[locale]
+    await initializeI18n({ locale: 'en', loader })
+    assert.equal(textNode.nodeValue, ' Connected ')
+    assert.equal(label.getAttribute('title'), 'Connected')
+    assert.equal(label.getAttribute('aria-label'), 'Connected')
+
+    await initializeI18n({ locale: 'zh-CN', loader })
+    assert.equal(textNode.nodeValue, ' 已连接 ')
+    assert.equal(label.getAttribute('title'), '已连接')
+    assert.equal(label.getAttribute('aria-label'), '已连接')
+
+    await initializeI18n({ locale: 'ja', loader })
+    assert.equal(textNode.nodeValue, ' 接続済み ')
+    assert.equal(label.getAttribute('title'), '接続済み')
+    assert.equal(label.getAttribute('aria-label'), '接続済み')
+  } finally {
+    for (const [name, descriptor] of originalDescriptors) {
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor)
+      else delete globalThis[name]
+    }
+  }
+})

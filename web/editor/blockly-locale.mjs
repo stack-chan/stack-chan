@@ -1,4 +1,6 @@
 const BLOCKLY_VERSION = '11.2.2'
+// Blockly locale bundles expose messages through script side effects rather
+// than ESM exports, so load the reviewed upstream files with pinned integrity.
 const MESSAGE_SCRIPTS = Object.freeze({
   ja: {
     name: 'ja',
@@ -10,7 +12,7 @@ const MESSAGE_SCRIPTS = Object.freeze({
   },
 })
 
-export function blocklyMessageUrl(locale) {
+function blocklyMessageUrl(locale) {
   const descriptor = MESSAGE_SCRIPTS[locale]
   return descriptor ? `https://unpkg.com/blockly@${BLOCKLY_VERSION}/msg/${descriptor.name}.js` : null
 }

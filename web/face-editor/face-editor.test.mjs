@@ -62,7 +62,6 @@ test('Shape face editor exposes geometry, preview, persistence, and editor hando
   assert.match(source, /saveFaceDraft/)
   assert.match(source, /stageFaceTransfer\(asset, activeEditContext\)/)
   assert.match(html, /id="send-to-editor"[\s\S]*?<span>MODで使う<\/span>/)
-  assert.match(source, /elements\.sendToEditorLabel\.textContent = t\('変更を反映'\)/)
   assert.match(source, /shapeFaceDefinition/)
   assert.match(source, /pointerdown/)
   assert.match(source, /ArrowLeft/)

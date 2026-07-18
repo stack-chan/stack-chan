@@ -7,6 +7,8 @@ let japaneseCatalog = Object.freeze({})
 let activeCatalog = Object.freeze({})
 let templateEntries = []
 let observer
+const canonicalText = new WeakMap()
+const canonicalAttributes = new WeakMap()
 
 function hasBrowserStorage() {
   return typeof globalThis.localStorage !== 'undefined'
@@ -97,29 +99,48 @@ export function getLocale() {
 const SKIPPED_TEXT_PARENTS = new Set(['CODE', 'PRE', 'SCRIPT', 'STYLE'])
 const TRANSLATED_ATTRIBUTES = ['aria-label', 'placeholder', 'title']
 
-function translateTextNode(node) {
+function textSource(node, refreshSource) {
+  if (refreshSource || !canonicalText.has(node)) canonicalText.set(node, node.nodeValue ?? '')
+  return canonicalText.get(node)
+}
+
+function attributeSource(element, attribute, refreshSource) {
+  const current = element.getAttribute(attribute)
+  const sources = canonicalAttributes.get(element)
+  if (current === null) {
+    if (refreshSource) sources?.delete(attribute)
+    return null
+  }
+  if (sources && !refreshSource && sources.has(attribute)) return sources.get(attribute)
+  const nextSources = sources ?? new Map()
+  nextSources.set(attribute, current)
+  if (!sources) canonicalAttributes.set(element, nextSources)
+  return current
+}
+
+function translateTextNode(node, refreshSource = false) {
   if (
     !node.parentElement ||
     SKIPPED_TEXT_PARENTS.has(node.parentElement.tagName) ||
     node.parentElement.closest('[translate="no"]')
   )
     return
-  const source = node.nodeValue ?? ''
+  const source = textSource(node, refreshSource)
   const trimmed = source.trim()
   if (!trimmed) return
   const translated = t(trimmed)
-  if (translated === trimmed) return
   const start = source.indexOf(trimmed)
-  node.nodeValue = `${source.slice(0, start)}${translated}${source.slice(start + trimmed.length)}`
+  const rendered = `${source.slice(0, start)}${translated}${source.slice(start + trimmed.length)}`
+  if (node.nodeValue !== rendered) node.nodeValue = rendered
 }
 
-function translateElementAttributes(element) {
+function translateElementAttributes(element, refreshedAttributes) {
   if (element.closest('[translate="no"]')) return
   for (const attribute of TRANSLATED_ATTRIBUTES) {
-    const source = element.getAttribute(attribute)
-    if (!source) continue
+    const source = attributeSource(element, attribute, refreshedAttributes?.has(attribute) ?? false)
+    if (source === null) continue
     const translated = t(source)
-    if (translated !== source) element.setAttribute(attribute, translated)
+    if (element.getAttribute(attribute) !== translated) element.setAttribute(attribute, translated)
   }
 }
 
@@ -136,33 +157,42 @@ export function translateDocument(root = globalThis.document) {
   while (elementWalker.nextNode()) translateElementAttributes(elementWalker.currentNode)
 }
 
+const observerOptions = {
+  subtree: true,
+  childList: true,
+  characterData: true,
+  attributes: true,
+  attributeFilter: TRANSLATED_ATTRIBUTES,
+}
+
+function observeDocument() {
+  if (observer && document.documentElement) observer.observe(document.documentElement, observerOptions)
+}
+
 function startObserver() {
   if (observer || typeof MutationObserver === 'undefined' || !document.documentElement) return
   observer = new MutationObserver((records) => {
     observer.disconnect()
     try {
+      const changedText = new Set()
+      const changedAttributes = new Map()
+      const addedNodes = []
       for (const record of records) {
-        if (record.type === 'characterData') translateTextNode(record.target)
-        else if (record.type === 'attributes') translateElementAttributes(record.target)
-        else for (const node of record.addedNodes) translateDocument(node)
+        if (record.type === 'characterData') changedText.add(record.target)
+        else if (record.type === 'attributes' && record.attributeName) {
+          const attributes = changedAttributes.get(record.target) ?? new Set()
+          attributes.add(record.attributeName)
+          changedAttributes.set(record.target, attributes)
+        } else if (record.type === 'childList') addedNodes.push(...record.addedNodes)
       }
+      for (const node of changedText) translateTextNode(node, true)
+      for (const [element, attributes] of changedAttributes) translateElementAttributes(element, attributes)
+      for (const node of addedNodes) translateDocument(node)
     } finally {
-      observer.observe(document.documentElement, {
-        subtree: true,
-        childList: true,
-        characterData: true,
-        attributes: true,
-        attributeFilter: TRANSLATED_ATTRIBUTES,
-      })
+      observeDocument()
     }
   })
-  observer.observe(document.documentElement, {
-    subtree: true,
-    childList: true,
-    characterData: true,
-    attributes: true,
-    attributeFilter: TRANSLATED_ATTRIBUTES,
-  })
+  observeDocument()
 }
 
 export async function initializeI18n({ locale = resolveLocale(), loader = defaultCatalogLoader } = {}) {
@@ -189,7 +219,13 @@ export async function initializeI18n({ locale = resolveLocale(), loader = defaul
   rebuildTemplateEntries()
   if (typeof document !== 'undefined') {
     document.documentElement.lang = activeLocale
-    translateDocument(document)
+    const reconnectObserver = Boolean(observer)
+    observer?.disconnect()
+    try {
+      translateDocument(document)
+    } finally {
+      if (reconnectObserver) observeDocument()
+    }
     startObserver()
     document.dispatchEvent(new CustomEvent('stackchan:localechange', { detail: { locale: activeLocale } }))
   }

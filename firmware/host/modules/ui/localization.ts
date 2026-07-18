@@ -7,11 +7,18 @@ export const DEFAULT_LOCALE: SupportedLocale = 'ja'
 type InterpolationValue = string | number
 type InterpolationValues = Record<string, InterpolationValue>
 
-// Set the language through the documented accessor after construction. Some
-// Moddable SDK revisions read the first constructor argument for both fields.
-const locals = new Locals('locals')
-locals.language = DEFAULT_LOCALE
 let currentLocale: SupportedLocale = DEFAULT_LOCALE
+let locals: Locals | undefined
+
+function getLocals(): Locals {
+  if (!locals) {
+    // Construct Locals only after the application starts. Creating this native
+    // object while xsl links preloaded modules is unsupported by some targets.
+    locals = new Locals('locals')
+    locals.language = currentLocale
+  }
+  return locals
+}
 
 export function normalizeLocale(value: unknown): SupportedLocale | undefined {
   if (typeof value !== 'string') return undefined
@@ -24,7 +31,7 @@ export function normalizeLocale(value: unknown): SupportedLocale | undefined {
 
 export function setLocalizationLanguage(value: unknown): SupportedLocale {
   currentLocale = normalizeLocale(value) ?? DEFAULT_LOCALE
-  locals.language = currentLocale
+  if (locals) locals.language = currentLocale
   return currentLocale
 }
 
@@ -37,7 +44,7 @@ export function getLocalizationLanguage(): SupportedLocale {
 }
 
 export function localize(key: string, values: InterpolationValues = {}): string {
-  const message = locals.get(key)
+  const message = getLocals().get(key)
   return message.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (placeholder, name: string) =>
     Object.hasOwn(values, name) ? String(values[name]) : placeholder,
   )

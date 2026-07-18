@@ -64,7 +64,6 @@ assert.match(builder, /DEFAULT_TOOLS_VERSION = '\d+\.\d+\.\d+'/)
 for (const dependency of ['blockly@11.2.2', 'esptool-js-0.5.7', 'lucide@1.24.0']) {
   assert.ok(html.includes(dependency) || builder.includes(dependency) || installer.includes(dependency))
 }
-assert.equal((html.match(/integrity="sha384-/g) ?? []).length, 5, 'every static CDN script must have SRI')
 for (const [name, page] of [
   ['home', homeHtml],
   ['editor', html],

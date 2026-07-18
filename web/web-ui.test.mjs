@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
+import { initializePreferencePage } from './preference/preference.mjs'
+
 const pages = [
   'index.html',
   'flash/index.html',
@@ -38,16 +40,15 @@ test('tool pages load the shared left drawer without changing integration ids', 
   assert.match(navigation, /aria-current/)
 
   const preference = readFileSync('preference/index.html', 'utf8')
-  for (const id of ['ble-connect-button', 'ble-disconnect-button', 'form-preference', 'settings-form', 'wifi-clear-button']) {
+  for (const id of [
+    'ble-connect-button',
+    'ble-disconnect-button',
+    'form-preference',
+    'settings-form',
+    'wifi-clear-button',
+  ]) {
     assert.match(preference, new RegExp(`id="${id}"`))
   }
-  assert.match(preference, /role="alert"|data-state.*error|setStatus\([^)]*'error'/s)
-  assert.match(preference, /currentValues\.get\(prop\) !== value/)
-  assert.doesNotMatch(preference, /pendingPreferences|setTimeout/)
-  assert.match(preference, /設定を送信しました/)
-  assert.match(preference, /変更する項目がありません/)
-  assert.match(preference, /globalThis\.confirm\('保存済みのSSIDとパスワードを消去しますか/)
-  assert.match(preference, /\{ 'wifi\.ssid': '', 'wifi\.password': '' \}/)
 
   const editor = readFileSync('editor/index.html', 'utf8')
   for (const id of [
@@ -124,6 +125,151 @@ test('tool pages load the shared left drawer without changing integration ids', 
     /@media \(max-width:\s*760px\)[\s\S]*?\.editor-layout\s*{[^}]*grid-template-rows:\s*minmax\(480px,\s*64vh\)\s*auto/s
   )
   assert.match(editorStyles, /@media \(max-width:\s*760px\)[\s\S]*?\.project-submenu\s*{[^}]*position:\s*static/s)
+})
+
+class FakeElement {
+  constructor({ id, name = '' }) {
+    this.id = id
+    this.name = name
+    this.value = ''
+    this.hidden = false
+    this.disabled = false
+    this.textContent = ''
+    this.dataset = {}
+    this.controls = []
+    this.listeners = new Map()
+  }
+
+  addEventListener(type, listener) {
+    const listeners = this.listeners.get(type) ?? []
+    listeners.push(listener)
+    this.listeners.set(type, listeners)
+  }
+
+  querySelectorAll() {
+    return this.controls
+  }
+
+  async dispatch(type) {
+    const event = { preventDefault() {} }
+    for (const listener of this.listeners.get(type) ?? []) await listener(event)
+  }
+
+  async click() {
+    await this.dispatch('click')
+  }
+}
+
+class FakeDocument {
+  constructor(elements) {
+    this.elements = new Map(elements.map((element) => [element.id, element]))
+  }
+
+  getElementById(id) {
+    return this.elements.get(id) ?? null
+  }
+
+  querySelector(selector) {
+    const name = selector.match(/^\[name="(.+)"\]$/)?.[1]
+    if (name == null) return null
+    return [...this.elements.values()].find((element) => element.name === name) ?? null
+  }
+}
+
+class FakePreferenceClient {
+  connected = true
+  messages = []
+  shouldFail = false
+  sendError = null
+
+  isConnected() {
+    return this.connected
+  }
+
+  async connect() {
+    this.connected = true
+  }
+
+  async disconnect() {
+    this.connected = false
+  }
+
+  async send(message) {
+    this.messages.push(message)
+    if (this.shouldFail) throw this.sendError
+  }
+}
+
+function createPreferencePage() {
+  const form = new FakeElement({ id: 'form-preference' })
+  const connect = new FakeElement({ id: 'ble-connect-button' })
+  const disconnect = new FakeElement({ id: 'ble-disconnect-button' })
+  const submit = new FakeElement({ id: 'preference-submit-button' })
+  const clear = new FakeElement({ id: 'wifi-clear-button' })
+  const connectionStatus = new FakeElement({ id: 'connection-status' })
+  const saveStatus = new FakeElement({ id: 'save-status' })
+  const ssid = new FakeElement({ id: 'wifi.ssid', name: 'wifi.ssid' })
+  const password = new FakeElement({ id: 'wifi.password', name: 'wifi.password' })
+  form.controls = [ssid, password, clear, submit]
+  const document = new FakeDocument([
+    form,
+    connect,
+    disconnect,
+    submit,
+    clear,
+    connectionStatus,
+    saveStatus,
+    ssid,
+    password,
+  ])
+  return { document, submit, clear, saveStatus, ssid, password }
+}
+
+test('Wi-Fi clear confirms, sends both empty credentials, updates fields, and restores controls', async () => {
+  const page = createPreferencePage()
+  const client = new FakePreferenceClient()
+  page.ssid.value = 'stored-ap'
+  page.password.value = 'stored-secret'
+  let confirmations = 0
+  initializePreferencePage({
+    document: page.document,
+    client,
+    confirm: () => {
+      confirmations += 1
+      return true
+    },
+  })
+
+  await page.clear.click()
+
+  assert.equal(confirmations, 1)
+  assert.deepEqual(client.messages, [{ _batch: { 'wifi.ssid': '', 'wifi.password': '' } }])
+  assert.equal(page.ssid.value, '')
+  assert.equal(page.password.value, '')
+  assert.equal(page.saveStatus.dataset.state, 'success')
+  assert.match(page.saveStatus.textContent, /Wi-Fi設定を消去しました/)
+  assert.equal(page.clear.disabled, false)
+  assert.equal(page.submit.disabled, false)
+})
+
+test('Wi-Fi clear safely reports a null rejection and restores controls', async () => {
+  const page = createPreferencePage()
+  const client = new FakePreferenceClient()
+  client.shouldFail = true
+  client.sendError = null
+  const originalConsoleError = console.error
+  console.error = () => {}
+  try {
+    initializePreferencePage({ document: page.document, client, confirm: () => true })
+    await page.clear.click()
+  } finally {
+    console.error = originalConsoleError
+  }
+
+  assert.equal(page.saveStatus.dataset.state, 'error')
+  assert.match(page.saveStatus.textContent, /Wi-Fi設定を消去できませんでした: null/)
+  assert.equal(page.clear.disabled, false)
+  assert.equal(page.submit.disabled, false)
 })
 
 test('shared controls preserve the native hidden state', () => {

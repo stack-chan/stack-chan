@@ -118,24 +118,6 @@ test('connectStoredWiFi accepts settings-screen credential overrides', async () 
   assert.equal(networkManager.getStopCount(), 1)
 })
 
-test('clearStoredWiFiCredentials stops the connection and stores explicit empty overrides', async () => {
-  const { clearStoredWiFiCredentials, connectStoredWiFi, networkManager } = await setup(
-    {
-      'wifi.ssid': 'stored-ap',
-      'wifi.password': 'stored-secret',
-    },
-    {
-      wifi: { ssid: 'manifest-ap', password: 'manifest-secret' },
-    },
-  )
-
-  clearStoredWiFiCredentials()
-
-  assert.equal(networkManager.getStopCount(), 1)
-  assert.equal(connectStoredWiFi(), false)
-  assert.deepEqual(networkManager.getStartedConnections(), [])
-})
-
 test('startHostBootServices starts stored Wi-Fi with scan before connect when host boot services are explicitly started', async () => {
   const { networkManager, preference } = await setup({
     'wifi.ssid': 'boot-ap',

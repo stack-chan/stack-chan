@@ -12,9 +12,15 @@ platform="${STACKCHAN_LIN_SMOKE_PLATFORM:-lin/m5stack}"
 platform_path="${platform//\//\/}"
 smoke_timeout="${STACKCHAN_LIN_SMOKE_TIMEOUT:-10s}"
 xsbug_host="${STACKCHAN_LIN_XSBUG_HOST:-127.0.0.1}"
-xsbug_port="${STACKCHAN_LIN_XSBUG_PORT:-5002}"
+xsbug_port="${STACKCHAN_LIN_XSBUG_PORT:-0}"
 xsbug_log="$(mktemp "${TMPDIR:-/tmp}/stackchan-lin-xsbug-log.XXXXXX")"
 server_log="$(mktemp "${TMPDIR:-/tmp}/stackchan-lin-xsbug-server.XXXXXX")"
+smoke_build_root="${STACKCHAN_LIN_SMOKE_BUILD_ROOT:-}"
+remove_smoke_build_root=0
+if [[ -z "$smoke_build_root" ]]; then
+  smoke_build_root="$(mktemp -d "${TMPDIR:-/tmp}/stackchan-lin-smoke-build.XXXXXX")"
+  remove_smoke_build_root=1
+fi
 server_pid=""
 
 cleanup() {
@@ -22,19 +28,11 @@ cleanup() {
     kill "$server_pid" 2>/dev/null || true
     wait "$server_pid" 2>/dev/null || true
   fi
+  if [[ "$remove_smoke_build_root" -eq 1 ]]; then
+    rm -rf -- "$smoke_build_root"
+  fi
 }
 trap cleanup EXIT
-
-rm -rf "$MODDABLE/build/tmp/$platform_path/debug/app" "$MODDABLE/build/bin/$platform_path/debug/app"
-mcconfig -dl -x "$xsbug_host:$xsbug_port" -m -p "$platform" -t build "$PWD/host/app/manifest_local.json"
-
-build_dir="$MODDABLE/build/tmp/$platform_path/debug/app"
-forbidden_imports=$(find "$build_dir" -path '*/tsc/*' -type f -name '*.js' -exec grep -nE 'runtime-bitmap-port|wasm-audio-bridge|wasm-camera-bridge' {} + || true)
-if [[ -n "$forbidden_imports" ]]; then
-  printf '%s\n' "$forbidden_imports"
-  echo "WASM-only native binding leaked into the Linux/default import graph" >&2
-  exit 1
-fi
 
 XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" XSBUG_LOG_PATH="$xsbug_log" node ./scripts/xsbug-log-smoke-server.js >"$server_log" 2>&1 &
 server_pid=$!
@@ -56,9 +54,25 @@ if ! grep -q 'xsbug smoke log server listening' "$server_log" 2>/dev/null; then
   echo "xsbug smoke log server did not become ready" >&2
   exit 1
 fi
+xsbug_port="$(sed -n 's/.*:\([0-9][0-9]*\)$/\1/p' "$server_log" | head -1)"
+if [[ -z "$xsbug_port" ]]; then
+  cat "$server_log" >&2 || true
+  echo "xsbug smoke log server did not report its listening port" >&2
+  exit 1
+fi
+
+mcconfig -dl -x "$xsbug_host:$xsbug_port" -m -p "$platform" -t build -o "$smoke_build_root" "$PWD/host/app/manifest_local.json"
+
+build_dir="$smoke_build_root/tmp/$platform_path/debug/app"
+forbidden_imports=$(find "$build_dir" -path '*/tsc/*' -type f -name '*.js' -exec grep -nE 'runtime-bitmap-port|wasm-audio-bridge|wasm-camera-bridge' {} + || true)
+if [[ -n "$forbidden_imports" ]]; then
+  printf '%s\n' "$forbidden_imports"
+  echo "WASM-only native binding leaked into the Linux/default import graph" >&2
+  exit 1
+fi
 
 set +e
-timeout "$smoke_timeout" env XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" xvfb-run -a "$MODDABLE/build/bin/lin/release/mcsim" "$MODDABLE/build/bin/$platform_path/debug/app/mc.so"
+timeout "$smoke_timeout" env XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" xvfb-run -a "$MODDABLE/build/bin/lin/release/mcsim" "$smoke_build_root/bin/$platform_path/debug/app/mc.so"
 status=$?
 set -e
 

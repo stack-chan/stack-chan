@@ -20,15 +20,21 @@ class ESP32LocalPeerRadio extends Native('xs_local_peer_radio_destructor') {
     this.#receive = options.onReceive
     this.#wifi = new WiFi({ onChanged() {} })
     const connected = this.#wifi.connection >= 300
+    let nativeReady = false
     try {
       nativeConstruct.call(this, {
         connected,
         offlineChannel: options.offlineChannel,
         sharedKey: options.sharedKey,
       })
+      nativeReady = true
       this.id = nativeGetID.call(this)
     } catch (error) {
-      this.#wifi.close()
+      try {
+        if (nativeReady) nativeClose.call(this)
+      } finally {
+        this.#wifi.close()
+      }
       throw error
     }
   }

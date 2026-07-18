@@ -8,6 +8,7 @@
 #include "esp_mac.h"
 #include "esp_now.h"
 #include "esp_wifi.h"
+#include "freertos/FreeRTOS.h"
 #include "mbedtls/md.h"
 
 #define LOCAL_PEER_ID_BYTES 6
@@ -26,6 +27,7 @@ typedef struct {
 } LocalPeerRadioRecord, *LocalPeerRadio;
 
 static LocalPeerRadio gLocalPeerRadio;
+static portMUX_TYPE gLocalPeerRadioMux = portMUX_INITIALIZER_UNLOCKED;
 static const uint8_t gBroadcastAddress[LOCAL_PEER_ID_BYTES] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static const uint8_t gKeyDomain[] = "stackchan-local-peer-v1:";
 
@@ -33,6 +35,19 @@ static void localPeerRelease(LocalPeerRadio radio)
 {
 	if (0 == __atomic_sub_fetch(&radio->useCount, 1, __ATOMIC_SEQ_CST))
 		c_free(radio);
+}
+
+static LocalPeerRadio localPeerAcquire(void)
+{
+	LocalPeerRadio radio;
+	portENTER_CRITICAL(&gLocalPeerRadioMux);
+	radio = gLocalPeerRadio;
+	if (radio && !radio->closed)
+		__atomic_add_fetch(&radio->useCount, 1, __ATOMIC_SEQ_CST);
+	else
+		radio = NULL;
+	portEXIT_CRITICAL(&gLocalPeerRadioMux);
+	return radio;
 }
 
 static uint8_t localPeerHexNibble(char value)
@@ -86,9 +101,8 @@ static void localPeerThrowESPError(xsMachine *the, const char *operation, esp_er
 	xsUnknownError(message);
 }
 
-static esp_err_t localPeerAddOrUpdate(const uint8_t *address, uint8_t secure)
+static esp_err_t localPeerAddOrUpdate(LocalPeerRadio radio, const uint8_t *address, uint8_t secure)
 {
-	LocalPeerRadio radio = gLocalPeerRadio;
 	esp_now_peer_info_t peer = {0};
 	esp_err_t error;
 
@@ -141,7 +155,7 @@ static void localPeerSentCallback(const esp_now_send_info_t *info, esp_now_send_
 static void localPeerSentCallback(const uint8_t *address, esp_now_send_status_t status)
 #endif
 {
-	LocalPeerRadio radio = gLocalPeerRadio;
+	LocalPeerRadio radio = localPeerAcquire();
 	uint8_t message = (ESP_NOW_SEND_SUCCESS == status);
 	(void)status;
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
@@ -149,8 +163,7 @@ static void localPeerSentCallback(const uint8_t *address, esp_now_send_status_t 
 #else
 	(void)address;
 #endif
-	if (!radio || radio->closed) return;
-	__atomic_add_fetch(&radio->useCount, 1, __ATOMIC_SEQ_CST);
+	if (!radio) return;
 	if (0 != modMessagePostToMachine(radio->the, &message, sizeof(message), localPeerSentDeliver, radio))
 		localPeerRelease(radio);
 }
@@ -161,13 +174,13 @@ static void localPeerReceiveCallback(const esp_now_recv_info_t *info, const uint
 static void localPeerReceiveCallback(const uint8_t *legacyAddress, const uint8_t *data, int dataLength)
 #endif
 {
-	LocalPeerRadio radio = gLocalPeerRadio;
+	LocalPeerRadio radio;
 	uint8_t message[LOCAL_PEER_RECEIVE_HEADER_BYTES + LOCAL_PEER_MAX_FRAME_BYTES];
 	const uint8_t *sourceAddress;
 	esp_now_peer_info_t peer = {0};
 	uint8_t secure = 0;
 
-	if (!radio || radio->closed || (dataLength < 0) || (dataLength > LOCAL_PEER_MAX_FRAME_BYTES)) return;
+	if ((dataLength < 0) || (dataLength > LOCAL_PEER_MAX_FRAME_BYTES)) return;
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 	if (!info || !info->src_addr) return;
 	sourceAddress = info->src_addr;
@@ -175,6 +188,8 @@ static void localPeerReceiveCallback(const uint8_t *legacyAddress, const uint8_t
 	if (!legacyAddress) return;
 	sourceAddress = legacyAddress;
 #endif
+	radio = localPeerAcquire();
+	if (!radio) return;
 	if (ESP_OK == esp_now_get_peer(sourceAddress, &peer))
 		secure = peer.encrypt;
 	c_memcpy(message, sourceAddress, LOCAL_PEER_ID_BYTES);
@@ -183,7 +198,6 @@ static void localPeerReceiveCallback(const uint8_t *legacyAddress, const uint8_t
 	message[8] = (uint8_t)(dataLength >> 8);
 	c_memcpy(message + LOCAL_PEER_RECEIVE_HEADER_BYTES, data, dataLength);
 
-	__atomic_add_fetch(&radio->useCount, 1, __ATOMIC_SEQ_CST);
 	if (0 != modMessagePostToMachine(
 		radio->the,
 		message,
@@ -196,10 +210,21 @@ static void localPeerReceiveCallback(const uint8_t *legacyAddress, const uint8_t
 
 static void localPeerNativeClose(LocalPeerRadio radio)
 {
-	if (!radio || radio->closed) return;
-	radio->closed = 1;
-	if (gLocalPeerRadio == radio) {
-		gLocalPeerRadio = NULL;
+	uint8_t deinitialize = 0;
+	uint8_t releaseOwner = 0;
+	if (!radio) return;
+	portENTER_CRITICAL(&gLocalPeerRadioMux);
+	if (!radio->closed) {
+		radio->closed = 1;
+		releaseOwner = 1;
+		if (gLocalPeerRadio == radio) {
+			gLocalPeerRadio = NULL;
+			deinitialize = 1;
+		}
+	}
+	portEXIT_CRITICAL(&gLocalPeerRadioMux);
+	if (!releaseOwner) return;
+	if (deinitialize) {
 		esp_now_unregister_send_cb();
 		esp_now_unregister_recv_cb();
 		esp_now_deinit();
@@ -218,9 +243,13 @@ void xs_local_peer_radio_constructor(xsMachine *the)
 	esp_err_t error;
 	uint8_t connected = 0;
 	int32_t offlineChannel = 1;
+	uint8_t occupied;
 	xsSlot value;
 
-	if (gLocalPeerRadio)
+	portENTER_CRITICAL(&gLocalPeerRadioMux);
+	occupied = (NULL != gLocalPeerRadio);
+	portEXIT_CRITICAL(&gLocalPeerRadioMux);
+	if (occupied)
 		xsUnknownError("a local peer radio is already open");
 	if (xsmcGet(value, xsArg(0), xsID("connected")))
 		connected = xsmcToBoolean(value);
@@ -269,7 +298,9 @@ void xs_local_peer_radio_constructor(xsMachine *the)
 		c_free(radio);
 		localPeerThrowESPError(the, "initialize local peer radio", error);
 	}
+	portENTER_CRITICAL(&gLocalPeerRadioMux);
 	gLocalPeerRadio = radio;
+	portEXIT_CRITICAL(&gLocalPeerRadioMux);
 	if (radio->hasKey) {
 		error = esp_now_set_pmk(radio->key);
 		if (ESP_OK != error) goto fail;
@@ -278,7 +309,7 @@ void xs_local_peer_radio_constructor(xsMachine *the)
 	if (ESP_OK != error) goto fail;
 	error = esp_now_register_recv_cb(localPeerReceiveCallback);
 	if (ESP_OK != error) goto fail;
-	error = localPeerAddOrUpdate(gBroadcastAddress, 0);
+	error = localPeerAddOrUpdate(radio, gBroadcastAddress, 0);
 	if (ESP_OK != error) goto fail;
 
 	xsmcSetHostData(xsThis, radio);
@@ -286,11 +317,7 @@ void xs_local_peer_radio_constructor(xsMachine *the)
 	return;
 
 fail:
-	gLocalPeerRadio = NULL;
-	esp_now_unregister_send_cb();
-	esp_now_unregister_recv_cb();
-	esp_now_deinit();
-	c_free(radio);
+	localPeerNativeClose(radio);
 	localPeerThrowESPError(the, "configure local peer radio", error);
 }
 
@@ -324,7 +351,7 @@ void xs_local_peer_radio_add_peer(xsMachine *the)
 		xsRangeError("invalid peer ID");
 	if (secure && !radio->hasKey)
 		xsUnknownError("secure peer requires a shared key");
-	esp_err_t error = localPeerAddOrUpdate(address, secure);
+	esp_err_t error = localPeerAddOrUpdate(radio, address, secure);
 	if (ESP_OK != error)
 		localPeerThrowESPError(the, "add local peer", error);
 }

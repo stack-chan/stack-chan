@@ -1,13 +1,12 @@
-import Timer from 'timer'
 import { decodeUTF8, encodeUTF8, fnv1a32 } from 'local-peer-codec'
 import {
   decodeLocalPeerFrame,
   encodeLocalPeerFrame,
   fragmentLocalPeerPayload,
   LOCAL_PEER_FRAGMENT_BYTES,
+  type LocalPeerFrame,
   LocalPeerFrameFlag,
   LocalPeerFrameKind,
-  type LocalPeerFrame,
 } from 'local-peer-frame'
 import type { LocalPeerRadio, LocalPeerRadioFactory, LocalPeerRadioReceiveEvent } from 'local-peer-radio-types'
 import {
@@ -21,6 +20,7 @@ import {
   type LocalPeerOpenOptions,
   type LocalPeerSession,
 } from 'local-peer-types'
+import Timer from 'timer'
 
 const DEFAULT_OFFLINE_CHANNEL = 1
 const DEFAULT_DISCOVERY_TIMEOUT_MS = 750
@@ -448,7 +448,9 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
           this.#handleAcknowledgement(peerId, event.secure, frame)
           break
         case LocalPeerFrameKind.DATA:
-          this.#handleData(peerId, event.secure, frame)
+          void this.#handleData(peerId, event.secure, frame).catch((error) => {
+            trace(`[local-peer] received data failed: ${String(error)}\n`)
+          })
           break
       }
     } catch (error) {
@@ -482,7 +484,7 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     pending.resolve({ messageId: formatMessageId(frame.messageId), peerId, attempts: pending.attempts })
   }
 
-  #handleData(peerId: string, secure: boolean, frame: LocalPeerFrame): void {
+  async #handleData(peerId: string, secure: boolean, frame: LocalPeerFrame): Promise<void> {
     if (frame.flags !== LocalPeerFrameFlag.RELIABLE && frame.flags !== LocalPeerFrameFlag.BROADCAST) return
     if (frame.fragmentCount > Math.ceil(MAX_MESSAGE_BYTES / LOCAL_PEER_FRAGMENT_BYTES)) return
     const reliable = frame.flags === LocalPeerFrameFlag.RELIABLE
@@ -540,11 +542,12 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     }
 
     this.#rememberPeer(peerId, undefined, reliable && secure)
+    // Complete the ACK before invoking subscribers. A subscriber may immediately
+    // send a reply or close the session; either action must not overtake or cancel
+    // acknowledgement of a message that has already been accepted for delivery.
+    if (reliable && !(await this.#sendAcknowledgement(peerId, frame.messageId))) return
+    if (this.closed) return
     const duplicate = this.#wasDelivered(key)
-    // Queue the ACK before invoking subscribers. A subscriber may immediately
-    // send a reply, and placing that fragmented reply ahead of the ACK can make
-    // the sender exhaust its bounded acknowledgement timeout.
-    if (reliable) void this.#sendAcknowledgement(peerId, frame.messageId)
     if (!duplicate) {
       this.#deliver({
         id: formatMessageId(frame.messageId),
@@ -555,7 +558,7 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     }
   }
 
-  async #sendAcknowledgement(peerId: string, messageId: number): Promise<void> {
+  async #sendAcknowledgement(peerId: string, messageId: number): Promise<boolean> {
     try {
       this.#addPeer(peerId)
       await this.#sendRadio(
@@ -570,8 +573,10 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
           payload: new Uint8Array(0),
         }),
       )
+      return true
     } catch (error) {
       trace(`[local-peer] acknowledgement failed: ${String(error)}\n`)
+      return false
     }
   }
 

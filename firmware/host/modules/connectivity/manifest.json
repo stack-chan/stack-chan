@@ -49,27 +49,44 @@
       }
     },
     "esp": {
-      "include": ["$(MODULES)/io/wifi/manifest.json"]
+      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "modules": {
+        "~": "./local-peer-capability"
+      }
     },
     "pico": {
-      "include": ["$(MODULES)/io/wifi/manifest.json"]
+      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "modules": {
+        "~": "./local-peer-capability"
+      }
     },
     "zephyr": {
-      "include": ["$(MODULES)/io/wifi/manifest.json"]
+      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "modules": {
+        "~": "./local-peer-capability"
+      }
     },
     "mac": {
       "modules": {
+        "~": "./local-peer-capability",
         "ecma-wifi": "./sim/ecma-wifi"
       }
     },
     "lin": {
       "modules": {
+        "~": "./local-peer-capability",
         "ecma-wifi": "./sim/ecma-wifi"
       }
     },
     "win": {
       "modules": {
+        "~": "./local-peer-capability",
         "ecma-wifi": "./sim/ecma-wifi"
+      }
+    },
+    "wasm": {
+      "modules": {
+        "~": "./local-peer-capability"
       }
     }
   },

@@ -12,8 +12,6 @@ import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 
-export { LocalPeerError } from 'local-peer-types'
-
 export type {
   JsonValue,
   LocalPeerBroadcastReceipt,
@@ -25,6 +23,7 @@ export type {
   LocalPeerOpenOptions,
   LocalPeerSession,
 } from 'local-peer-types'
+export { LocalPeerError } from 'local-peer-types'
 
 export type TTS = {
   stream: (text: string, volume?: number, callback?: TTSCompletion) => void

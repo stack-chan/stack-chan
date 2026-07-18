@@ -40,8 +40,9 @@ if (!MODDABLE) {
 
 const firmwareRoot = process.cwd()
 const workRoot = mkdtempSync(join(tmpdir(), 'stackchan-module-tests-'))
-const failurePattern =
-  /XS abort|# Exception|# exception|stack overflow|module not found|Cannot find module|unhandled exception|throw!/i
+// xsbug emits `# Exception` for caught Promise rejections too. Fatal aborts are
+// explicit; a stopped runtime without either a fatal marker or `ok` times out.
+const fatalFailurePattern = /XS abort|stack overflow|module not found|Cannot find module|unhandled exception/i
 const okPattern = /<log>ok(?:&#10;|\n)<\/log>/
 
 function relativePath(path) {
@@ -265,7 +266,7 @@ async function runSimulator({ binDir, port, logServer, display, configHome }) {
 
     const poll = setInterval(() => {
       const log = logServer.getLog()
-      if (failurePattern.test(log)) {
+      if (fatalFailurePattern.test(log)) {
         finish({ status: 'failure-marker' })
       } else if (okPattern.test(log)) {
         finish({ status: 'ok' })

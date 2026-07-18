@@ -1,28 +1,13 @@
-import assert from 'node:assert/strict'
-import { dirname, resolve } from 'node:path'
-import { test } from 'node:test'
-import { fileURLToPath } from 'node:url'
-
-import Timer from '../../testing/fakes/timer.js'
-import { writeAliasPackage } from '../../testing/node-alias-package.js'
+import { decodeLocalPeerFrame, LocalPeerFrameKind } from 'local-peer-frame'
 import type {
   LocalPeerRadio,
   LocalPeerRadioFactory,
   LocalPeerRadioOptions,
   LocalPeerRadioReceiveEvent,
-} from '../local-peer-radio-types.js'
-import type { LocalPeerMessage } from '../local-peer-types.js'
-
-const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
-writeAliasPackage(modulesRoot, 'local-peer-codec', resolve(modulesRoot, 'connectivity/local-peer-codec.js'))
-writeAliasPackage(modulesRoot, 'local-peer-frame', resolve(modulesRoot, 'connectivity/local-peer-frame.js'))
-writeAliasPackage(modulesRoot, 'local-peer-types', resolve(modulesRoot, 'connectivity/local-peer-types.js'))
-writeAliasPackage(modulesRoot, 'timer', resolve(modulesRoot, 'testing/fakes/timer.js'), { hasDefaultExport: true })
-
-const { decodeLocalPeerFrame, LocalPeerFrameKind } = await import('../local-peer-frame.js')
-const { LocalPeerService } = await import('../local-peer-service.js')
-
-;(globalThis as typeof globalThis & { trace: (...messages: unknown[]) => void }).trace = () => undefined
+} from 'local-peer-radio-types'
+import { LocalPeerService } from 'local-peer-service'
+import type { LocalPeerMessage, LocalPeerSession } from 'local-peer-types'
+import { assert, equal } from 'testing/assert'
 
 type DropFrame = (from: string, to: string | undefined, data: ArrayBuffer) => boolean
 
@@ -53,19 +38,18 @@ class FakeRadioNetwork {
       const bothSecured = sender.securePeers.has(recipient.id) && recipient.securePeers.has(sender.id)
       if (pointToPoint && bothSecured && sender.sharedKey !== recipient.sharedKey) continue
       const secure = pointToPoint && bothSecured && sender.sharedKey !== undefined
-      const copy = data.slice(0)
-      recipient.receive({ peerId: sender.id, data: copy, secure })
+      recipient.receive({ peerId: sender.id, data: data.slice(0), secure })
     }
   }
 }
 
 class FakeRadio implements LocalPeerRadio {
+  readonly id: string
   readonly securePeers = new Set<string>()
   readonly sharedKey?: string
   closed = false
   #network: FakeRadioNetwork
   #onReceive: (event: LocalPeerRadioReceiveEvent) => void
-  readonly id: string
 
   constructor(network: FakeRadioNetwork, id: string, options: LocalPeerRadioOptions) {
     this.#network = network
@@ -87,6 +71,9 @@ class FakeRadio implements LocalPeerRadio {
   async send(peerId: string | undefined, data: ArrayBuffer): Promise<void> {
     if (this.closed) throw new Error('closed')
     if (this.#network.failSend) throw new Error('injected send failure')
+    // Hardware receive callbacks run on a later event-loop turn. Preserve that
+    // boundary so the fake does not create impossible recursive radio stacks.
+    await Promise.resolve()
     this.#network.deliver(this, peerId, data)
   }
 
@@ -101,7 +88,15 @@ class FakeRadio implements LocalPeerRadio {
   }
 }
 
-async function openPair(options: { sharedKey?: string; services?: [string, string] } = {}) {
+type OpenPair = {
+  network: FakeRadioNetwork
+  first: LocalPeerService
+  second: LocalPeerService
+  firstSession: LocalPeerSession
+  secondSession: LocalPeerSession
+}
+
+async function openPair(options: { sharedKey?: string; services?: [string, string] } = {}): Promise<OpenPair> {
   const network = new FakeRadioNetwork()
   const first = new LocalPeerService('001122334455', network.factory('001122334455'))
   const second = new LocalPeerService('AABBCCDDEEFF', network.factory('AABBCCDDEEFF'))
@@ -118,23 +113,46 @@ async function openPair(options: { sharedKey?: string; services?: [string, strin
   return { network, first, second, firstSession, secondSession }
 }
 
-test('local peer discovery finds only peers in the same service', async () => {
-  Timer.reset()
-  const pair = await openPair()
-  assert.deepEqual(await pair.firstSession.discover({ timeoutMs: 0 }), [
-    { id: 'AABBCCDDEEFF', name: 'second', secure: false },
-  ])
+function closePair(pair: OpenPair): void {
   pair.firstSession.close()
   pair.secondSession.close()
+}
+
+function deepEqual(actual: unknown, expected: unknown, message: string): void {
+  equal(JSON.stringify(actual), JSON.stringify(expected), message)
+}
+
+async function expectCode(promise: Promise<unknown>, code: string, message: string): Promise<void> {
+  let caught: unknown
+  try {
+    await promise
+  } catch (error) {
+    caught = error
+  }
+  assert(caught !== undefined, `${message}: expected rejection`)
+  equal((caught as { code?: string })?.code, code, message)
+}
+
+async function settle(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
+async function testDiscovery(): Promise<void> {
+  const pair = await openPair()
+  deepEqual(
+    await pair.firstSession.discover({ timeoutMs: 0 }),
+    [{ id: 'AABBCCDDEEFF', name: 'second', secure: false }],
+    'discovery should find a peer in the same service',
+  )
+  closePair(pair)
 
   const isolated = await openPair({ services: ['service.one', 'service.two'] })
-  assert.deepEqual(await isolated.firstSession.discover({ timeoutMs: 0 }), [])
-  isolated.firstSession.close()
-  isolated.secondSession.close()
-})
+  deepEqual(await isolated.firstSession.discover({ timeoutMs: 0 }), [], 'discovery should isolate services')
+  closePair(isolated)
+}
 
-test('local peer reliable messages reassemble, acknowledge, and support unsubscribe', async () => {
-  Timer.reset()
+async function testReliableDelivery(): Promise<void> {
   const pair = await openPair()
   await pair.firstSession.discover({ timeoutMs: 0 })
   await pair.secondSession.discover({ timeoutMs: 0 })
@@ -143,21 +161,21 @@ test('local peer reliable messages reassemble, acknowledge, and support unsubscr
   const payload = { text: 'あ'.repeat(400), pose: { pan: 0.25, tilt: -0.1 } }
 
   const receipt = await pair.firstSession.send('AABBCCDDEEFF', 'pose.changed', payload)
-  assert.equal(receipt.peerId, 'AABBCCDDEEFF')
-  assert.equal(receipt.attempts, 1)
-  assert.equal(received.length, 1)
-  assert.deepEqual(received[0].payload, payload)
-  assert.equal(received[0].peer.id, '001122334455')
+  await settle()
+  equal(receipt.peerId, 'AABBCCDDEEFF', 'delivery receipt should identify the peer')
+  equal(receipt.attempts, 1, 'delivery should be acknowledged on the first attempt')
+  equal(received.length, 1, 'reassembled message should be delivered once')
+  deepEqual(received[0]?.payload, payload, 'fragmented UTF-8 payload should be reassembled')
+  equal(received[0]?.peer.id, '001122334455', 'message should identify its sender')
 
   unsubscribe()
   await pair.firstSession.send('AABBCCDDEEFF', 'pose.changed', { text: 'ignored' })
-  assert.equal(received.length, 1)
-  pair.firstSession.close()
-  pair.secondSession.close()
-})
+  await settle()
+  equal(received.length, 1, 'unsubscribe should stop delivery')
+  closePair(pair)
+}
 
-test('local peer queues an acknowledgement before a subscriber reply', async () => {
-  Timer.reset()
+async function testAcknowledgementOrder(): Promise<void> {
   const pair = await openPair()
   await pair.firstSession.discover({ timeoutMs: 0 })
   await pair.secondSession.discover({ timeoutMs: 0 })
@@ -175,30 +193,33 @@ test('local peer queues an acknowledgement before a subscriber reply', async () 
   })
 
   await pair.firstSession.send('AABBCCDDEEFF', 'request', { value: 1 })
-  await reply
+  await settle()
+  assert(reply !== undefined, 'request subscriber should send a reply')
+  if (reply) await reply
+  deepEqual(
+    secondPeerFrames.slice(0, 2),
+    [LocalPeerFrameKind.ACK, LocalPeerFrameKind.DATA],
+    'acknowledgement should be sent before a subscriber reply',
+  )
+  closePair(pair)
+}
 
-  assert.deepEqual(secondPeerFrames.slice(0, 2), [LocalPeerFrameKind.ACK, LocalPeerFrameKind.DATA])
-  pair.firstSession.close()
-  pair.secondSession.close()
-})
-
-test('local peer broadcast is delivered without acknowledgement', async () => {
-  Timer.reset()
+async function testBroadcast(): Promise<void> {
   const pair = await openPair()
   const received: LocalPeerMessage[] = []
   pair.secondSession.subscribe('*', (message) => received.push(message))
   const receipt = await pair.firstSession.broadcast('presence', { online: true })
-  assert.match(receipt.messageId, /^[0-9a-f]{8}$/)
-  assert.deepEqual(
+  await settle()
+  assert(/^[0-9a-f]{8}$/.test(receipt.messageId), 'broadcast should return a hexadecimal message id')
+  deepEqual(
     received.map((message) => message.payload),
     [{ online: true }],
+    'broadcast should be delivered',
   )
-  pair.firstSession.close()
-  pair.secondSession.close()
-})
+  closePair(pair)
+}
 
-test('local peer retries duplicate data without delivering it twice and eventually times out', async () => {
-  Timer.reset()
+async function testRetryDeduplication(): Promise<void> {
   const pair = await openPair()
   await pair.firstSession.discover({ timeoutMs: 0 })
   await pair.secondSession.discover({ timeoutMs: 0 })
@@ -208,22 +229,16 @@ test('local peer retries duplicate data without delivering it twice and eventual
   })
   pair.network.dropFrame = (_from, _to, data) => decodeLocalPeerFrame(data)?.kind === LocalPeerFrameKind.ACK
 
-  const sending = pair.firstSession.send('AABBCCDDEEFF', 'retry', { value: 1 })
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    await Promise.resolve()
-    await Promise.resolve()
-    Timer.advance(250)
-  }
-  await assert.rejects(sending, (error: unknown) => {
-    return error instanceof Error && error.name === 'LocalPeerError' && 'code' in error && error.code === 'timeout'
-  })
-  assert.equal(deliveries, 1)
-  pair.firstSession.close()
-  pair.secondSession.close()
-})
+  await expectCode(
+    pair.firstSession.send('AABBCCDDEEFF', 'retry', { value: 1 }),
+    'timeout',
+    'missing acknowledgements should time out',
+  )
+  equal(deliveries, 1, 'retried data should not be delivered twice')
+  closePair(pair)
+}
 
-test('local peer shared key marks acknowledged point-to-point peers secure', async () => {
-  Timer.reset()
+async function testSharedKey(): Promise<void> {
   const pair = await openPair({ sharedKey: 'correct horse battery staple' })
   await pair.firstSession.discover({ timeoutMs: 0 })
   await pair.secondSession.discover({ timeoutMs: 0 })
@@ -232,56 +247,86 @@ test('local peer shared key marks acknowledged point-to-point peers secure', asy
     message = received
   })
   await pair.firstSession.send('AABBCCDDEEFF', 'secure', { protected: true })
-  assert.equal(message?.peer.secure, true)
-  pair.firstSession.close()
-  pair.secondSession.close()
-})
+  await settle()
+  equal(message?.peer.secure, true, 'shared-key point-to-point traffic should be secure')
+  closePair(pair)
+}
 
-test('local peer reports peer registration failures through the abstract error contract', async () => {
-  Timer.reset()
+async function testPeerRegistrationFailure(): Promise<void> {
   const pair = await openPair()
   await pair.firstSession.discover({ timeoutMs: 0 })
   pair.network.failAdd = true
+  await expectCode(
+    pair.firstSession.send('AABBCCDDEEFF', 'hello', { value: 1 }),
+    'transport',
+    'peer registration failures should use the abstract transport error',
+  )
+  closePair(pair)
+}
 
-  await assert.rejects(pair.firstSession.send('AABBCCDDEEFF', 'hello', { value: 1 }), (error: unknown) => {
-    return error instanceof Error && 'code' in error && error.code === 'transport'
-  })
-  pair.firstSession.close()
-  pair.secondSession.close()
-})
-
-test('local peer failed open releases the radio and allows a later session', async () => {
-  Timer.reset()
+async function testFailedOpenCleanup(): Promise<void> {
   const network = new FakeRadioNetwork()
   const service = new LocalPeerService('001122334455', network.factory('001122334455'))
   network.failSend = true
-
-  await assert.rejects(service.open({ service: 'test.stackchan' }), (error: unknown) => {
-    return error instanceof Error && 'code' in error && error.code === 'transport'
-  })
-  assert.equal(network.endpoints.size, 0)
+  await expectCode(service.open({ service: 'test.stackchan' }), 'transport', 'failed open should report transport')
+  equal(network.endpoints.size, 0, 'failed open should release its radio')
 
   network.failSend = false
   const session = await service.open({ service: 'test.stackchan' })
   session.close()
-})
+}
 
-test('local peer close cancels an active discovery wait and reserves wildcard for subscriptions', async () => {
-  Timer.reset()
+async function testCloseAndWildcard(): Promise<void> {
   const pair = await openPair()
   const wildcardMessages: LocalPeerMessage[] = []
   pair.firstSession.subscribe('*', (message) => wildcardMessages.push(message))
-  await assert.rejects(pair.firstSession.broadcast('*', { invalid: true }), (error: unknown) => {
-    return error instanceof Error && 'code' in error && error.code === 'invalid-argument'
-  })
+  await expectCode(
+    pair.firstSession.broadcast('*', { invalid: true }),
+    'invalid-argument',
+    'wildcard should be reserved for subscriptions',
+  )
 
   const discovering = pair.firstSession.discover({ timeoutMs: 1000 })
-  await Promise.resolve()
-  await Promise.resolve()
+  await settle()
   pair.firstSession.close()
-  await assert.rejects(discovering, (error: unknown) => {
-    return error instanceof Error && 'code' in error && error.code === 'closed'
-  })
-  assert.deepEqual(wildcardMessages, [])
+  await expectCode(discovering, 'closed', 'close should cancel active discovery')
+  deepEqual(wildcardMessages, [], 'discovery should not deliver wildcard messages')
   pair.secondSession.close()
+}
+
+async function testCloseFromSubscriber(): Promise<void> {
+  const pair = await openPair()
+  await pair.firstSession.discover({ timeoutMs: 0 })
+  await pair.secondSession.discover({ timeoutMs: 0 })
+  let handlerRan = false
+  pair.secondSession.subscribe('close', () => {
+    handlerRan = true
+    pair.secondSession.close()
+  })
+
+  const receipt = await pair.firstSession.send('AABBCCDDEEFF', 'close', { accepted: true })
+  await settle()
+  equal(receipt.attempts, 1, 'subscriber close should not cancel an accepted message acknowledgement')
+  equal(handlerRan, true, 'subscriber should run after acknowledgement completes')
+  pair.firstSession.close()
+}
+
+async function runTest(): Promise<void> {
+  trace('=== local-peer-service XS test ===\n')
+  await testDiscovery()
+  await testReliableDelivery()
+  await testAcknowledgementOrder()
+  await testBroadcast()
+  await testRetryDeduplication()
+  await testSharedKey()
+  await testPeerRegistrationFailure()
+  await testFailedOpenCleanup()
+  await testCloseAndWildcard()
+  await testCloseFromSubscriber()
+  trace('ok\n')
+}
+
+runTest().catch((error) => {
+  trace(`local-peer-service XS test failed: ${String(error)}\n`)
+  throw error
 })

@@ -488,10 +488,10 @@ export class StackchanRuntimeContext implements StackchanContext {
 
   private createConnectivityCapability(connectivity: ConnectivityCapability): ConnectivityCapability {
     const localPeer = connectivity.localPeer
-    if (!localPeer) return { network: connectivity.network }
+    if (!localPeer) return connectivity
     const context = this
     return {
-      network: connectivity.network,
+      ...connectivity,
       localPeer: {
         get id() {
           return localPeer.id

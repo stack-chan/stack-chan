@@ -8,6 +8,10 @@ export type JsonValue =
       [key: string]: JsonValue
     }
 
+// This contract deliberately exposes only transport-neutral peer identities,
+// messages, and errors. Platform manifests select the radio implementation so
+// applications remain portable across device and simulator targets.
+
 export type LocalPeerInfo = {
   /** Stable, opaque identifier. Applications must not interpret its format. */
   id: string

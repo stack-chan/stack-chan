@@ -20,7 +20,7 @@ const {
 test('local peer UTF-8 codec round-trips ASCII, Japanese, and supplementary characters', () => {
   const value = 'Stack-chan ｽﾀｯｸﾁｬﾝ 🤖'
   assert.equal(decodeUTF8(encodeUTF8(value)), value)
-  assert.equal(fnv1a32(value), fnv1a32(value))
+  assert.equal(fnv1a32(value), 0xe6f8ccbc)
 })
 
 test('local peer frames preserve metadata and split at the v1-compatible boundary', () => {

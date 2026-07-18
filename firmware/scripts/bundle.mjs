@@ -10,7 +10,7 @@ import {
   hostApplicationName,
   moddableOutputArguments,
 } from './lib/build-output.mjs'
-import { prepareM5StackChanCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
+import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url))
 const firmwareDirectory = path.resolve(scriptsDirectory, '..')
@@ -21,54 +21,84 @@ const bundleName = 'tech.moddable.stackchan'
 const bundleDirectory = path.join(appDirectory, bundleName)
 const bundleZipPath = path.join(appDirectory, `${bundleName}.zip`)
 const targetName = 'm5stackchan_cores3'
-const targetDirectory = path.join(bundleDirectory, targetName)
 const buildMode = 'release'
 const signature = 'stackchan.moddable.tech'
 const binaries = ['bootloader.bin', 'partition-table.bin', 'xs_esp32.bin']
-const bundleTargets = ['com.m5stack', 'com.m5stack.core2', 'com.m5stack.cores3', targetName]
+const bundleTargets = [
+  { directoryName: 'com.m5stack', platform: 'esp32/m5stack', outputPlatform: 'm5stack', manifest: manifestPath },
+  {
+    directoryName: 'com.m5stack.core2',
+    platform: 'esp32/m5stack_core2',
+    outputPlatform: 'm5stack_core2',
+    manifest: manifestPath,
+  },
+  {
+    directoryName: 'com.m5stack.cores3',
+    platform: 'esp32/m5stack_cores3',
+    outputPlatform: 'm5stack_cores3',
+    manifest: manifestPath,
+    prepareIdfDependencies: true,
+  },
+  {
+    directoryName: targetName,
+    platform: 'esp32:./host/platforms/m5stackchan_cores3',
+    outputPlatform: targetName,
+    manifest: m5stackchanManifestPath,
+    prepareIdfDependencies: true,
+  },
+]
 
 if (!process.env.MODDABLE) {
   console.error('[stack-chan] MODDABLE environment variable is required')
   process.exit(1)
 }
 
-prepareM5StackChanCoreS3IdfDependencies({
-  outputDirectory: buildOutputDirectory,
-  applicationName: hostApplicationName,
-  mode: buildMode,
-})
 ensureBuildOutputDirectory()
-run('mcbundle', ['-m', manifestPath], appDirectory)
-run(
-  'mcconfig',
-  [
-    '-m',
-    '-p',
-    'esp32:./host/platforms/m5stackchan_cores3',
-    '-s',
-    signature,
-    '-t',
-    'build',
-    ...moddableOutputArguments(),
-    m5stackchanManifestPath,
-  ],
-  firmwareDirectory,
-)
-
-const buildDirectory = path.join(buildOutputDirectory, 'bin', 'esp32', targetName, buildMode, hostApplicationName)
-
-mkdirSync(targetDirectory, { recursive: true })
-for (const binary of binaries) {
-  const source = path.join(buildDirectory, binary)
-  const destination = path.join(targetDirectory, binary)
-  assertNonEmpty(source)
-  cpSync(source, destination)
-  assertNonEmpty(destination)
-}
+rmSync(bundleDirectory, { recursive: true, force: true })
+mkdirSync(bundleDirectory, { recursive: true })
 
 for (const bundleTarget of bundleTargets) {
-  const directory = path.join(bundleDirectory, bundleTarget)
-  for (const binary of binaries) assertNonEmpty(path.join(directory, binary))
+  if (bundleTarget.prepareIdfDependencies) {
+    prepareCoreS3IdfDependencies({
+      outputDirectory: buildOutputDirectory,
+      platformName: bundleTarget.outputPlatform,
+      applicationName: hostApplicationName,
+      mode: buildMode,
+    })
+  }
+  run(
+    'mcconfig',
+    [
+      '-m',
+      '-p',
+      bundleTarget.platform,
+      '-s',
+      signature,
+      '-t',
+      'build',
+      ...moddableOutputArguments(),
+      bundleTarget.manifest,
+    ],
+    firmwareDirectory,
+  )
+
+  const buildDirectory = path.join(
+    buildOutputDirectory,
+    'bin',
+    'esp32',
+    bundleTarget.outputPlatform,
+    buildMode,
+    hostApplicationName,
+  )
+  const directory = path.join(bundleDirectory, bundleTarget.directoryName)
+  mkdirSync(directory, { recursive: true })
+  for (const binary of binaries) {
+    const source = path.join(buildDirectory, binary)
+    const destination = path.join(directory, binary)
+    assertNonEmpty(source)
+    cpSync(source, destination)
+    assertNonEmpty(destination)
+  }
   assertFitsFactoryPartition(directory)
 }
 

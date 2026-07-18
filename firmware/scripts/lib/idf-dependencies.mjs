@@ -1,18 +1,23 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-const m5stackchanCoreS3Dependencies = [
-  ['espressif/esp_audio_codec', '^2.6.0'],
-  ['espressif/esp32-camera', '^2.0.10'],
-]
+const dependenciesByPlatform = {
+  m5stack_cores3: [['espressif/esp32-camera', '^2.0.10']],
+  m5stackchan_cores3: [
+    ['espressif/esp_audio_codec', '^2.6.0'],
+    ['espressif/esp32-camera', '^2.0.10'],
+  ],
+}
 
 /**
- * Seeds the generated CoreS3 IDF manifest before Moddable adds dependencies.
- * @param {{outputDirectory: string, applicationName: string, mode: string}} options - Build output configuration.
+ * Seeds a generated CoreS3 IDF manifest before Moddable adds dependencies.
+ * @param {{outputDirectory: string, platformName: string, applicationName: string, mode: string}} options - Build output configuration.
  * @returns {string} Path to the prepared IDF component manifest.
  */
-export function prepareM5StackChanCoreS3IdfDependencies({ outputDirectory, applicationName, mode }) {
+export function prepareCoreS3IdfDependencies({ outputDirectory, platformName, applicationName, mode }) {
   if (!outputDirectory) throw new Error('Build output directory is required')
+  const dependencies = dependenciesByPlatform[platformName]
+  if (!dependencies) throw new Error(`Unsupported CoreS3 platform: ${platformName}`)
   if (!applicationName) throw new Error('Application name is required')
   if (!['debug', 'instrument', 'release'].includes(mode)) throw new Error(`Unsupported build mode: ${mode}`)
 
@@ -20,7 +25,7 @@ export function prepareM5StackChanCoreS3IdfDependencies({ outputDirectory, appli
     outputDirectory,
     'tmp',
     'esp32',
-    'm5stackchan_cores3',
+    platformName,
     mode,
     applicationName,
     'xsProj-esp32s3',
@@ -37,7 +42,7 @@ export function prepareM5StackChanCoreS3IdfDependencies({ outputDirectory, appli
     throw new Error(`IDF component manifest has no dependencies block: ${manifestPath}`)
   }
 
-  for (const [name, version] of m5stackchanCoreS3Dependencies) {
+  for (const [name, version] of dependencies) {
     if (manifest.includes(`  ${name}:`)) continue
     if (!manifest.endsWith('\n')) manifest += '\n'
     manifest += `  ${name}: ${version}\n`

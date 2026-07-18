@@ -11,7 +11,7 @@ import {
   moddableOutputArguments,
 } from './lib/build-output.mjs'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
-import { prepareM5StackChanCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
+import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -58,8 +58,9 @@ const outputArgs = moddableOutputArguments()
 
 if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
   try {
-    prepareM5StackChanCoreS3IdfDependencies({
+    prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
+      platformName: deviceName,
       applicationName: hostApplicationName,
       mode: buildMode,
     })

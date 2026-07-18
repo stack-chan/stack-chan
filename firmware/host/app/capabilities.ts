@@ -29,8 +29,8 @@ export type RobotLed = {
   rainbow(index?: number, count?: number): void
 }
 
-export type { DrawerButtonViewSpec, DrawerOption }
 export type { MiniAppContext, MiniAppDefinition, MiniAppInstance, MiniAppRegistryCapability } from 'mini-app'
+export type { DrawerButtonViewSpec, DrawerOption }
 
 export type RobotUI = {
   readonly miniApps: MiniAppRegistryCapability

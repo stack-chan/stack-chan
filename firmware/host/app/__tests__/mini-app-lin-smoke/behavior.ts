@@ -1,6 +1,6 @@
 import type { StackchanAppBehavior } from 'app-behavior'
-import type { StackchanContext } from 'capabilities'
 import type { AppController } from 'app-controller'
+import type { StackchanContext } from 'capabilities'
 import type { Container as PiuContainer } from 'piu/MC'
 import Timer from 'timer'
 

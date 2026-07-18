@@ -122,7 +122,8 @@ def save_preview(outer: Image.Image, inner: Image.Image, path: Path) -> None:
 
 
 def extract_state_rows(source_path: Path) -> tuple[list[list[Image.Image]], list[list[Image.Image]]]:
-    source = Image.open(source_path).convert("RGBA")
+    with Image.open(source_path) as image:
+        source = image.convert("RGBA")
     bounds = find_components(source.getchannel("A"), STATE_COUNT)
     scales = [0.0] * STATE_COUNT
     for first_state, state_limit in SOURCE_SCALE_GROUPS:

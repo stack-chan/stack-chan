@@ -31,6 +31,7 @@ export const MiniAppLauncher = Container.template(($: MiniAppLauncherData) => {
             right: 0,
             top: 8,
             bottom: 8,
+            active: true,
             clip: true,
             contents: [new Column(null, { left: 0, right: 0, top: 0, contents: rows })],
           }),

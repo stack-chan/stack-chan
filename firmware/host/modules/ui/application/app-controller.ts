@@ -1,3 +1,4 @@
+import type { AppBarMode } from 'chat-status-bar'
 import type { DrawerButtonViewSpec } from 'drawer'
 import type { FaceState } from 'face-state'
 import {
@@ -7,7 +8,6 @@ import {
   type FaceViewParams,
   type FaceViewTemplateCtor,
 } from 'face-view'
-import type { AppBarMode } from 'chat-status-bar'
 import type { HandAnimationName } from 'hands'
 import {
   MINI_APP_BAR_HEIGHT,
@@ -162,10 +162,12 @@ export class AppController extends Behavior {
     })
 
     let instance: MiniAppInstance | null = null
+    let dispose: (() => void) | undefined
     try {
       instance = unwrapMiniAppInstance(definition.create(context))
+      dispose = instance.dispose?.bind(instance)
       if (closeRequested) {
-        this.#disposeMiniAppContent(instance.content, instance.dispose)
+        this.#disposeMiniAppContent(instance.content, dispose)
         this.showFace()
         return true
       }
@@ -173,7 +175,7 @@ export class AppController extends Behavior {
       this.#activeMiniApp = {
         definition,
         content: instance.content,
-        dispose: instance.dispose,
+        dispose,
         token,
       }
       this.#miniAppScreen = 'app'
@@ -182,7 +184,7 @@ export class AppController extends Behavior {
       return true
     } catch (error) {
       trace(`[MiniApp] launch failed id=${id} error=${String(error)}\n`)
-      if (instance) this.#disposeMiniAppContent(instance.content, instance.dispose)
+      if (instance) this.#disposeMiniAppContent(instance.content, dispose)
       this.#activeMiniApp = null
       this.#miniAppScreen = 'launcher'
       this.#renderMiniAppLauncher()

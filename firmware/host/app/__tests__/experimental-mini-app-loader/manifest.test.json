@@ -9,6 +9,7 @@
   "modules": {
     "experimental-mini-app-loader": "../../experimental-mini-app-loader",
     "experimental-mini-app-piu": "../../experimental-mini-app-piu",
+    "experimental-mini-app-registration": "../../experimental-mini-app-registration",
     "modules": "../../../modules/testing/fakes/modules",
     "main": "./experimental-mini-app-loader.test"
   }

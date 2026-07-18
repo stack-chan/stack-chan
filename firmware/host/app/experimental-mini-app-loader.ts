@@ -1,5 +1,6 @@
-import type { MiniAppDefinition, MiniAppRegistryCapability } from 'mini-app'
 import * as MiniAppPiuNamespace from 'experimental-mini-app-piu'
+import { rollbackExperimentalMiniAppRegistrations } from 'experimental-mini-app-registration'
+import type { MiniAppDefinition, MiniAppRegistryCapability } from 'mini-app'
 import Modules from 'modules'
 import * as TimelineNamespace from 'piu/Timeline'
 
@@ -107,7 +108,9 @@ export function registerExperimentalMiniApps(
   try {
     for (const definition of pack.definitions) unregister.push(registry.register(definition))
   } catch (error) {
-    for (let index = unregister.length - 1; index >= 0; index -= 1) unregister[index]()
+    rollbackExperimentalMiniAppRegistrations(unregister, (rollbackError) => {
+      trace(`[MiniApp] experimental archive rollback failed error=${String(rollbackError)}\n`)
+    })
     trace(`[MiniApp] experimental archive registration rolled back error=${String(error)}\n`)
   }
 }

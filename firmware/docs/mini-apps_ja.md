@@ -98,8 +98,8 @@ Piu の constructor と prototype もホストと共有するため、親子参�
 Core2 で階層の影響を比較するため、深さ 0、4、8、16 の同じアニメーションを順番に動かす benchmark を用意しています。
 
 ```console
-$ npm run benchmark:mini-app-layers:build
-$ npm run benchmark:mini-app-layers:flash
+npm run benchmark:mini-app-layers:build
+npm run benchmark:mini-app-layers:flash
 ```
 
 benchmark は 5 秒ごとに Frames Drawn、Pixels Drawn、Piu Command List Used、XS の slot と chunk の使用量を出力します。

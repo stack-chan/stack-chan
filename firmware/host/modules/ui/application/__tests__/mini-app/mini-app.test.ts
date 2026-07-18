@@ -49,19 +49,21 @@ const unregister = controller.miniApps.register({
   title: 'Lifecycle',
   create(context) {
     receivedContext = context
+    const content = new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      Behavior: class extends Behavior {
+        onDispose() {
+          behaviorDisposals += 1
+        }
+      },
+    })
     return {
-      content: new Container(null, {
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        Behavior: class extends Behavior {
-          onDispose() {
-            behaviorDisposals += 1
-          }
-        },
-      }),
+      content,
       dispose() {
+        assert(this.content === content, 'dispose should retain the MiniAppInstance receiver')
         instanceDisposals += 1
       },
     }

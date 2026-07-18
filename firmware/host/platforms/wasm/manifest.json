@@ -28,6 +28,7 @@
       "../../app/capabilities",
       "../../app/experimental-mini-app-loader",
       "../../app/experimental-mini-app-piu",
+      "../../app/experimental-mini-app-registration",
       "../../app/setup-mode",
       "../../app/settings-status",
       "../../app/runtime-audio",

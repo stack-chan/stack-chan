@@ -28,6 +28,7 @@ const positioned = viewport as PositionedContainer
 equal(positioned.coordinates?.top ?? positioned.top, 44, 'launcher viewport should reserve the AppBar height')
 
 const scroller = launcher.first as PiuContainer
+assert(scroller.active === true, 'launcher scroller should accept touch input')
 const column = scroller.first as PiuContainer
 const button = column.first as PiuContainer
 assert(button, 'launcher should create one named action for each registered app')

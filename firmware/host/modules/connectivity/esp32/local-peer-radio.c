@@ -2,6 +2,7 @@
 #include "xsmc.h"
 #include "xsHost.h"
 #include "mc.xs.h"
+#include "fips180.h"
 
 #include "esp_err.h"
 #include "esp_idf_version.h"
@@ -9,16 +10,14 @@
 #include "esp_now.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
-#include "mbedtls/md.h"
 
 #define LOCAL_PEER_ID_BYTES 6
 #define LOCAL_PEER_ID_CHARS 12
 #define LOCAL_PEER_KEY_BYTES 16
-#define LOCAL_PEER_AUTH_KEY_BYTES 32
+#define LOCAL_PEER_AUTH_KEY_BYTES SHA256_DGSTSIZE
 #define LOCAL_PEER_AUTH_TAG_BYTES 16
 #define LOCAL_PEER_MAX_FRAME_BYTES 250
 #define LOCAL_PEER_MAX_AUTHENTICATED_FRAME_BYTES (LOCAL_PEER_MAX_FRAME_BYTES - LOCAL_PEER_AUTH_TAG_BYTES)
-#define LOCAL_PEER_MAX_SHARED_KEY_BYTES 64
 #define LOCAL_PEER_RECEIVE_HEADER_BYTES 9
 
 typedef struct {
@@ -90,22 +89,19 @@ static uint8_t localPeerDeriveKey(
 	size_t outputLength
 )
 {
-	uint8_t input[(sizeof(gAuthenticationKeyDomain) - 1) + LOCAL_PEER_MAX_SHARED_KEY_BYTES];
 	uint8_t digest[LOCAL_PEER_AUTH_KEY_BYTES];
-	const mbedtls_md_info_t *md = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-	uint8_t success = 0;
+	struct sha256 hash;
 
-	if (!md || (domainLength + sharedKeyLength > sizeof(input)) || (outputLength > sizeof(digest)))
+	if (outputLength > sizeof(digest))
 		return 0;
-	c_memcpy(input, domain, domainLength);
-	c_memcpy(input + domainLength, sharedKey, sharedKeyLength);
-	if (0 == mbedtls_md(md, input, domainLength + sharedKeyLength, digest)) {
-		c_memcpy(output, digest, outputLength);
-		success = 1;
-	}
-	c_memset(input, 0, sizeof(input));
+	sha256_create(&hash);
+	sha256_update(&hash, domain, (uint32_t)domainLength);
+	sha256_update(&hash, sharedKey, (uint32_t)sharedKeyLength);
+	sha256_fin(&hash, digest);
+	c_memcpy(output, digest, outputLength);
+	c_memset(&hash, 0, sizeof(hash));
 	c_memset(digest, 0, sizeof(digest));
-	return success;
+	return 1;
 }
 
 static uint8_t localPeerCreateAuthenticationTag(
@@ -117,30 +113,33 @@ static uint8_t localPeerCreateAuthenticationTag(
 	uint8_t *tag
 )
 {
-	uint8_t authenticated[LOCAL_PEER_ID_BYTES * 2 + LOCAL_PEER_MAX_AUTHENTICATED_FRAME_BYTES];
+	uint8_t pad[SHA256_BLKSIZE];
 	uint8_t digest[LOCAL_PEER_AUTH_KEY_BYTES];
-	const mbedtls_md_info_t *md = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-	uint8_t success = 0;
+	struct sha256 hash;
 
-	if (!md || (dataLength > LOCAL_PEER_MAX_AUTHENTICATED_FRAME_BYTES))
+	if (dataLength > LOCAL_PEER_MAX_AUTHENTICATED_FRAME_BYTES)
 		return 0;
-	c_memcpy(authenticated, sourceAddress, LOCAL_PEER_ID_BYTES);
-	c_memcpy(authenticated + LOCAL_PEER_ID_BYTES, destinationAddress, LOCAL_PEER_ID_BYTES);
-	c_memcpy(authenticated + (LOCAL_PEER_ID_BYTES * 2), data, dataLength);
-	if (0 == mbedtls_md_hmac(
-		md,
-		radio->authKey,
-		LOCAL_PEER_AUTH_KEY_BYTES,
-		authenticated,
-		(LOCAL_PEER_ID_BYTES * 2) + dataLength,
-		digest
-	)) {
-		c_memcpy(tag, digest, LOCAL_PEER_AUTH_TAG_BYTES);
-		success = 1;
-	}
-	c_memset(authenticated, 0, sizeof(authenticated));
+	c_memset(pad, 0, sizeof(pad));
+	c_memcpy(pad, radio->authKey, LOCAL_PEER_AUTH_KEY_BYTES);
+	for (size_t index = 0; index < sizeof(pad); index++)
+		pad[index] ^= 0x36;
+	sha256_create(&hash);
+	sha256_update(&hash, pad, sizeof(pad));
+	sha256_update(&hash, sourceAddress, LOCAL_PEER_ID_BYTES);
+	sha256_update(&hash, destinationAddress, LOCAL_PEER_ID_BYTES);
+	sha256_update(&hash, data, (uint32_t)dataLength);
+	sha256_fin(&hash, digest);
+	for (size_t index = 0; index < sizeof(pad); index++)
+		pad[index] ^= 0x36 ^ 0x5c;
+	sha256_create(&hash);
+	sha256_update(&hash, pad, sizeof(pad));
+	sha256_update(&hash, digest, sizeof(digest));
+	sha256_fin(&hash, digest);
+	c_memcpy(tag, digest, LOCAL_PEER_AUTH_TAG_BYTES);
+	c_memset(&hash, 0, sizeof(hash));
+	c_memset(pad, 0, sizeof(pad));
 	c_memset(digest, 0, sizeof(digest));
-	return success;
+	return 1;
 }
 
 static uint8_t localPeerAuthenticationTagMatches(const uint8_t *actual, const uint8_t *expected)

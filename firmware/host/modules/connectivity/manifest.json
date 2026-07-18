@@ -48,6 +48,9 @@
         "local-peer-radio": "./esp32/local-peer-radio"
       }
     },
+    "esp32/m5stack": {
+      "include": ["./manifest_local_peer_unsupported.json"]
+    },
     "esp": {
       "include": ["$(MODULES)/io/wifi/manifest.json"],
       "modules": {

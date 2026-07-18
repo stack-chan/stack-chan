@@ -1,7 +1,10 @@
 # ローカル P2P メッセージ通信
 
-ESP32 系のｽﾀｯｸﾁｬﾝでは、インターネットを経由しない近距離の P2P メッセージ通信を MOD から利用できます。
+対応する ESP32 系のｽﾀｯｸﾁｬﾝでは、インターネットを経由しない近距離の P2P メッセージ通信を MOD から利用できます。
 通信方式の違いはホスト側が吸収するため、MOD は `context.connectivity.localPeer` だけを使用します。
+
+現行実装は Core2/CoreS3 系を含む容量に余裕のある ESP32 ターゲットで利用できます。
+factory app 領域の容量が限られる `esp32/m5stack` では、`context.connectivity.localPeer` は `undefined` です。
 
 ## セッションを開く
 

@@ -1,9 +1,11 @@
-import { loadPreferenceConfig } from 'loadPreference'
+import loadPreferences, { loadPreferenceConfig } from 'loadPreference'
 import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavior } from 'app-behavior'
 import { resolveAppBehaviors } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
 import { type BootWiFiStatus, startHostBootServices } from 'boot-services'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
+import { DOMAIN } from 'consts'
+import { initializeLocalization } from 'localization'
 import Modules from 'modules'
 import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
 
@@ -69,6 +71,7 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string
 async function main() {
   trace('[main] start\n')
   installPlatformInputBridge()
+  initializeLocalization(loadPreferences(DOMAIN.ui).language)
 
   trace('[main] loading app behaviors\n')
   const appBehaviors = loadAppBehaviors()

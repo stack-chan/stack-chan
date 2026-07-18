@@ -15,7 +15,10 @@
       defer
     ></script>
     <script type="module">
+      import { i18nReady, t } from '../i18n.mjs'
       import SimpleBLEClient from './ble-client.mjs'
+
+      await i18nReady
 
       document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('form-preference')
@@ -39,17 +42,17 @@
           controls.forEach((control) => {
             control.disabled = !connected
           })
-          setStatus(connectionStatus, connected ? '接続済み' : '未接続', connected ? 'success' : '')
+          setStatus(connectionStatus, t(connected ? '接続済み' : '未接続'), connected ? 'success' : '')
         }
 
         connectButton.addEventListener('click', async () => {
           connectButton.disabled = true
-          setStatus(connectionStatus, '接続中…')
+          setStatus(connectionStatus, t('接続中…'))
           try {
             await client.connect()
           } catch (error) {
             console.error(error)
-            setStatus(connectionStatus, `接続できませんでした: ${error.message ?? error}`, 'error')
+            setStatus(connectionStatus, t('接続できませんでした: {error}', { error: error.message ?? error }), 'error')
           } finally {
             connectButton.disabled = false
             if (client.isConnected()) updateView()
@@ -61,7 +64,7 @@
             await client.disconnect()
           } catch (error) {
             console.error(error)
-            setStatus(connectionStatus, `切断できませんでした: ${error.message ?? error}`, 'error')
+            setStatus(connectionStatus, t('切断できませんでした: {error}', { error: error.message ?? error }), 'error')
           } finally {
             disconnectButton.disabled = false
             if (!client.isConnected()) updateView()
@@ -78,6 +81,7 @@
             'driver.offsetPan',
             'driver.offsetTilt',
             'ui.type',
+            'ui.language',
             'tts.type',
             'tts.host',
             'tts.port',
@@ -95,19 +99,19 @@
             }
           }
           if (Object.keys(payload).length === 0) {
-            setStatus(saveStatus, '変更する項目がありません。')
+            setStatus(saveStatus, t('変更する項目がありません。'))
             return
           }
           submitButton.disabled = true
-          setStatus(saveStatus, '保存中…')
+          setStatus(saveStatus, t('保存中…'))
           submitting = true
           try {
             await client.send({ _batch: payload })
             for (const [prop, value] of Object.entries(payload)) currentValues.set(prop, value)
-            setStatus(saveStatus, '設定を送信しました。', 'success')
+            setStatus(saveStatus, t('設定を送信しました。'), 'success')
           } catch (error) {
             console.error(error)
-            setStatus(saveStatus, `保存できませんでした: ${error.message ?? error}`, 'error')
+            setStatus(saveStatus, t('保存できませんでした: {error}', { error: error.message ?? error }), 'error')
           } finally {
             submitting = false
             submitButton.disabled = !client.isConnected()
@@ -125,7 +129,7 @@
         client.onDisconnected = () => {
           submitting = false
           currentValues.clear()
-          setStatus(saveStatus, '接続が切れました。保存されていない項目を確認してください。', 'warning')
+          setStatus(saveStatus, t('接続が切れました。保存されていない項目を確認してください。'), 'warning')
           updateView()
         }
 
@@ -178,6 +182,13 @@
                   ><select name="ui.type" id="ui.type">
                     <option value="simple">シンプル</option>
                     <option value="dog">いぬ</option>
+                  </select></label
+                ><label class="form-field"
+                  ><span>本体の表示言語</span
+                  ><select name="ui.language" id="ui.language">
+                    <option value="ja" translate="no">日本語</option>
+                    <option value="en" translate="no">English</option>
+                    <option value="zh-CN" translate="no">简体中文</option>
                   </select></label
                 >
               </div>

@@ -1,3 +1,4 @@
+import { getLocalizationLanguage } from 'localization'
 import type { Skin as PiuSkin, Style as PiuStyle } from 'piu/MC'
 import { Skin, Style } from 'piu/MC'
 
@@ -31,6 +32,7 @@ type FoundationStyles = {
   disabled: PiuSkin
   accent: PiuSkin
   success: PiuSkin
+  danger: PiuSkin
   brand: PiuStyle
   title: PiuStyle
   body: PiuStyle
@@ -40,9 +42,16 @@ type FoundationStyles = {
 }
 
 let cached: FoundationStyles | null = null
+let cachedFont = ''
+
+export function uiFont(): string {
+  return getLocalizationLanguage() === 'zh-CN' ? 'StackchanCJK-12' : 'k8x12-12'
+}
 
 export function uiStyles(): FoundationStyles {
-  if (cached) return cached
+  const font = uiFont()
+  if (cached && cachedFont === font) return cached
+  cachedFont = font
   cached = {
     screen: new Skin({ fill: UI.colors.background }),
     surface: new Skin({ fill: UI.colors.surface }),
@@ -50,6 +59,7 @@ export function uiStyles(): FoundationStyles {
     disabled: new Skin({ fill: UI.colors.disabled }),
     accent: new Skin({ fill: UI.colors.accent }),
     success: new Skin({ fill: UI.colors.success }),
+    danger: new Skin({ fill: UI.colors.error }),
     brand: new Style({
       font: 'k8x12-24',
       color: UI.colors.text,
@@ -58,31 +68,31 @@ export function uiStyles(): FoundationStyles {
     }),
     // These styles are semantically distinct so callers can evolve typography without changing view contracts.
     title: new Style({
-      font: 'k8x12-12',
+      font,
       color: UI.colors.text,
       horizontal: 'left',
       vertical: 'middle',
     }),
     body: new Style({
-      font: 'k8x12-12',
+      font,
       color: UI.colors.text,
       horizontal: 'left',
       vertical: 'middle',
     }),
     bodyMuted: new Style({
-      font: 'k8x12-12',
+      font,
       color: UI.colors.textMuted,
       horizontal: 'left',
       vertical: 'middle',
     }),
     button: new Style({
-      font: 'k8x12-12',
+      font,
       color: UI.colors.text,
       horizontal: 'center',
       vertical: 'middle',
     }),
     compact: new Style({
-      font: 'k8x12-12',
+      font,
       color: UI.colors.text,
       horizontal: 'left',
       vertical: 'middle',

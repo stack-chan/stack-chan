@@ -1,4 +1,5 @@
 import { BLOCK_CAPABILITIES, profileFor, requirementsForBlockTypes } from './capabilities.mjs'
+import { t } from '../i18n.mjs'
 
 const EVENT_BLOCKS = new Set([
   'stackchan_on_start',
@@ -46,7 +47,7 @@ export function analyzeWorkspace(workspace, { target = 'm5stackchan-cores3' } = 
   const blockById = new Map(blocks.filter((block) => block.id !== null).map((block) => [block.id, block]))
 
   if (blocks.length === 0) {
-    diagnostics.push({ severity: 'error', code: 'VP_EMPTY', message: 'ブロックを一つ以上配置してください' })
+    diagnostics.push({ severity: 'error', code: 'VP_EMPTY', message: t('ブロックを一つ以上配置してください') })
   }
 
   for (const block of topBlocks) {
@@ -55,7 +56,7 @@ export function analyzeWorkspace(workspace, { target = 'm5stackchan-cores3' } = 
         severity: 'error',
         code: 'VP_ORPHAN_TOP_LEVEL',
         blockId: block.id ?? null,
-        message: '処理ブロックをイベントブロックの内側へ接続してください',
+        message: t('処理ブロックをイベントブロックの内側へ接続してください'),
       })
     }
   }
@@ -76,7 +77,7 @@ export function analyzeWorkspace(workspace, { target = 'm5stackchan-cores3' } = 
         severity: 'warning',
         code: 'VP_UNBOUNDED_LOOP',
         blockId: block.id,
-        message: '条件ループは停止しない可能性があります。シミュレーターで確認してください',
+        message: t('条件ループは停止しない可能性があります。シミュレーターで確認してください'),
       })
     }
   }
@@ -88,14 +89,14 @@ export function analyzeWorkspace(workspace, { target = 'm5stackchan-cores3' } = 
       diagnostics.push({
         severity: 'warning',
         code: 'VP_UNUSED_VARIABLE',
-        message: `変数「${variable.name ?? id}」はブロックから使われていません`,
+        message: t('変数「{name}」はブロックから使われていません', { name: variable.name ?? id }),
       })
     } else if (references.every((block) => block.type === 'variables_set')) {
       diagnostics.push({
         severity: 'warning',
         code: 'VP_WRITE_ONLY_VARIABLE',
         blockId: references[0].id,
-        message: `変数「${variable.name ?? id}」には値を入れていますが、読み出していません`,
+        message: t('変数「{name}」には値を入れていますが、読み出していません', { name: variable.name ?? id }),
       })
     }
   }
@@ -114,7 +115,7 @@ export function analyzeWorkspace(workspace, { target = 'm5stackchan-cores3' } = 
         severity: 'warning',
         code: 'VP_UNUSED_PROCEDURE',
         blockId: definition.id,
-        message: `関数「${name || '名前なし'}」は呼び出されていません`,
+        message: t('関数「{name}」は呼び出されていません', { name: name || t('名前なし') }),
       })
     }
   }
@@ -129,7 +130,10 @@ export function analyzeWorkspace(workspace, { target = 'm5stackchan-cores3' } = 
       code: 'VP_UNSUPPORTED_CAPABILITY',
       blockId: source?.id ?? null,
       capability,
-      message: `${profileFor(target).label}は「${capability}」に対応していません`,
+      message: t('{profile}は「{capability}」に対応していません', {
+        profile: t(profileFor(target).label),
+        capability,
+      }),
     })
   }
 

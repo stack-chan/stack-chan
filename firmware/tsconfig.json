@@ -54,6 +54,9 @@
       "settings-view": [
         "./host/modules/ui/views/settings/settings-view"
       ],
+      "localization": [
+        "./host/modules/ui/localization"
+      ],
       "template": [
         "./host/modules/ui/components/face/template"
       ],

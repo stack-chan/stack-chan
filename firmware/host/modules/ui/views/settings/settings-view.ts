@@ -1,5 +1,6 @@
 import { KeyboardField } from 'common/keyboard'
 import { HorizontalExpandingKeyboard } from 'keyboard'
+import { localize, type SupportedLocale } from 'localization'
 import type {
   Application as PiuApplication,
   Column as PiuColumn,
@@ -20,7 +21,7 @@ import {
   settingsStatusToLabel as settingsStatusToLabelImpl,
 } from 'settings-status-model'
 import { ActionButton, ScreenHeader, setActionButtonEnabled, setActionButtonLabel } from 'ui-controls'
-import { UI, uiStyles } from 'ui-theme'
+import { UI, uiFont, uiStyles } from 'ui-theme'
 
 export const SettingsStatusValue = SettingsStatusValueConst
 export const settingsStatusToLabel = settingsStatusToLabelImpl
@@ -41,6 +42,7 @@ export type SettingsStatusLabels = {
 export type SettingsViewOptions = {
   onBack?: () => void
   onBoot?: () => void
+  onLanguage?: () => void
   onScan?: () => void
   onSelectNetwork?: (network: SettingsNetworkEntry) => void
 }
@@ -48,6 +50,12 @@ export type SettingsViewOptions = {
 export type SettingsPasswordViewOptions = {
   onBack?: () => void
   onPassword?: (password: string) => void
+}
+
+export type SettingsLanguageViewOptions = {
+  current: SupportedLocale
+  onBack?: () => void
+  onSelect?: (locale: SupportedLocale) => void
 }
 
 const STATUS_TOP = UI.headerHeight + 4
@@ -63,6 +71,7 @@ const MAX_SSID_CHARS = 30
 
 let rowPressedSkin: PiuSkin | null = null
 let networkStyle: PiuStyle | null = null
+let networkStyleFont = ''
 let keyboardFieldSkinTemplate: SkinTemplate | null = null
 let keyboardFieldStyleTemplate: StyleTemplate | null = null
 
@@ -72,9 +81,11 @@ function getRowPressedSkin() {
 }
 
 function getNetworkStyle() {
-  if (!networkStyle) {
+  const font = uiFont()
+  if (!networkStyle || networkStyleFont !== font) {
+    networkStyleFont = font
     networkStyle = new Style({
-      font: 'k8x12-12',
+      font,
       color: UI.colors.text,
       horizontal: 'left',
       vertical: 'middle',
@@ -162,11 +173,17 @@ export const buildSettingsView = (
   const styles = uiStyles()
   const networkState = { networks: [] as SettingsNetworkEntry[] }
   const scan = new ActionButton(
-    { icon: 'scan', label: 'スキャン', onTap: options.onScan },
+    { icon: 'scan', label: localize('settings.scan'), onTap: options.onScan },
     { left: 8, top: ACTION_TOP, width: 148 },
   )
   const boot = new ActionButton(
-    { icon: 'play', label: '起動', onTap: options.onBoot, enabled: false, tone: 'success' },
+    {
+      icon: 'play',
+      label: localize('settings.boot'),
+      onTap: options.onBoot,
+      enabled: false,
+      tone: 'success',
+    },
     { left: 164, top: ACTION_TOP, width: 148 },
   )
   const labels: SettingsStatusLabels = {
@@ -194,7 +211,13 @@ export const buildSettingsView = (
       bottom: 0,
       skin: styles.screen,
       contents: [
-        new ScreenHeader({ title: 'Wi-Fi設定', leading: 'back', onLeading: options.onBack }),
+        new ScreenHeader({
+          title: localize('settings.wifiTitle'),
+          leading: 'back',
+          trailing: 'language',
+          onLeading: options.onBack,
+          onTrailing: options.onLanguage,
+        }),
         labels.wifi,
         scan,
         boot,
@@ -218,9 +241,9 @@ export const buildSettingsView = (
 }
 
 export const updateSettingsStatusLabels = (labels: SettingsStatusLabels, status: SettingsStatus): void => {
-  labels.wifi.string = `Wi-Fi: ${settingsStatusToLabel(status.wifi)}`
+  labels.wifi.string = localize('settings.wifiStatus', { status: settingsStatusToLabel(status.wifi) })
   const scanning = status.wifi === SettingsStatusValue.SCANNING
-  setActionButtonLabel(labels.scan, scanning ? 'スキャン中' : 'スキャン')
+  setActionButtonLabel(labels.scan, localize(scanning ? 'settings.scanning' : 'settings.scan'))
   setActionButtonEnabled(labels.scan, !scanning)
   setActionButtonEnabled(labels.boot, status.wifi === SettingsStatusValue.CONNECTED)
 }
@@ -237,7 +260,7 @@ export const updateSettingsNetworkLabels = (
         left: 12,
         right: 12,
         height: NETWORK_ROW_HEIGHT,
-        string: 'ネットワークなし',
+        string: localize('settings.noNetworks'),
         style: styles.bodyMuted,
       }),
     )
@@ -327,7 +350,7 @@ export const buildSettingsPasswordView = (
           top: 0,
           height: PASSWORD_FIELD_TOP,
           contents: [
-            new ScreenHeader({ title: 'Wi-Fiパスワード', leading: 'back', onLeading: options.onBack }),
+            new ScreenHeader({ title: localize('settings.passwordTitle'), leading: 'back', onLeading: options.onBack }),
             new Label(null, {
               left: 12,
               right: 12,
@@ -393,6 +416,42 @@ export const buildSettingsPasswordView = (
           else if (this.data.FIELD) this.data.FIELD.visible = true
         }
       },
+    }),
+  )
+}
+
+export const buildSettingsLanguageView = (application: PiuApplication, options: SettingsLanguageViewOptions): void => {
+  const styles = uiStyles()
+  const choices: readonly [SupportedLocale, string][] = [
+    ['ja', 'language.japanese'],
+    ['en', 'language.english'],
+    ['zh-CN', 'language.chineseSimplified'],
+  ]
+
+  application.empty()
+  application.skin = styles.screen
+  application.add(
+    new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      skin: styles.screen,
+      contents: [
+        new ScreenHeader({ title: localize('settings.languageTitle'), leading: 'back', onLeading: options.onBack }),
+        ...choices.map(
+          ([locale, key], index) =>
+            new ActionButton(
+              {
+                icon: 'language',
+                label: localize(key),
+                selected: options.current === locale,
+                onTap: () => options.onSelect?.(locale),
+              },
+              { left: 8, right: 8, top: UI.headerHeight + 8 + index * (UI.touchTarget + 8) },
+            ),
+        ),
+      ],
     }),
   )
 }

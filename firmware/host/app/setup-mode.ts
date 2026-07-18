@@ -1,11 +1,13 @@
 import { loadPreferenceConfig } from 'loadPreference'
 import { DOMAIN, PREF_KEYS } from 'consts'
+import { getLocalizationLanguage, normalizeLocale, type SupportedLocale, setLocalizationLanguage } from 'localization'
 import { NetworkConnectionState, type NetworkConnectionState as NetworkState } from 'network-state'
 import Preference from 'preference'
 import { PreferenceServer } from 'preference-server'
 import { createSettingsNetworkEntries, type RawWiFiScanResult, type SettingsNetworkEntry } from 'settings-network-list'
 import { createInitialSettingsStatus } from 'settings-status'
 import {
+  buildSettingsLanguageView,
   buildSettingsPasswordView,
   buildSettingsView,
   type SettingsStatusLabels,
@@ -19,6 +21,7 @@ import type { WiFiScanSession } from 'wifi-scan-types'
 
 type SetupApplication = Parameters<typeof buildSettingsView>[0]
 export type SetupModeResult = 'back' | 'boot'
+type SetupView = 'settings' | 'password' | 'language'
 
 function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatusValue {
   switch (state) {
@@ -49,6 +52,8 @@ export function startSetupMode(application: SetupApplication): Promise<SetupMode
     let scanResults: RawWiFiScanResult[] = []
     let preferenceServer: PreferenceServer | undefined
     let finished = false
+    let currentView: SetupView = 'settings'
+    let currentPasswordSSID = ''
 
     const finish = (result: SetupModeResult) => {
       if (finished) return
@@ -61,24 +66,75 @@ export function startSetupMode(application: SetupApplication): Promise<SetupMode
     }
 
     const showSettingsView = () => {
+      currentView = 'settings'
       labels = buildSettingsView(application, status, {
         onBack: () => finish('back'),
         onBoot: () => finish('boot'),
+        onLanguage: showLanguageView,
         onScan: scanNetworks,
         onSelectNetwork: selectNetwork,
       })
       updateNetworkList()
     }
 
+    const showLanguageView = () => {
+      scanSession?.close()
+      scanSession = undefined
+      if (status.wifi === SettingsStatusValue.SCANNING) status.wifi = SettingsStatusValue.NOT_CONNECTED
+      currentView = 'language'
+      buildSettingsLanguageView(application, {
+        current: getLocalizationLanguage(),
+        onBack: showSettingsView,
+        onSelect: (locale: SupportedLocale) => applyLanguage(locale, true),
+      })
+    }
+
     const updateNetworkList = () => {
+      if (currentView !== 'settings') return
       updateSettingsNetworkLabels(labels, createSettingsNetworkEntries(scanResults))
+    }
+
+    const updateStatusLabels = () => {
+      if (currentView !== 'settings') return
+      updateSettingsStatusLabels(labels, status)
+    }
+
+    const showPasswordView = (ssid: string) => {
+      currentView = 'password'
+      currentPasswordSSID = ssid
+      buildSettingsPasswordView(application, ssid, {
+        onBack: showSettingsView,
+        onPassword: (password) => {
+          status['wifi.password'] = password
+          Preference.set(DOMAIN.wifi, 'password', password)
+          showSettingsView()
+          testConnection()
+        },
+      })
+    }
+
+    const applyLanguage = (value: unknown, persist: boolean) => {
+      const locale = setLocalizationLanguage(value)
+      status['ui.language'] = locale
+      if (persist || normalizeLocale(value) !== locale) Preference.set(DOMAIN.ui, 'language', locale)
+      switch (currentView) {
+        case 'settings':
+          showSettingsView()
+          break
+        case 'password':
+          showPasswordView(currentPasswordSSID)
+          break
+        case 'language':
+          showLanguageView()
+          break
+      }
     }
 
     const scanNetworks = () => {
       scanSession?.close()
       scanResults = []
       status.wifi = SettingsStatusValue.SCANNING
-      updateSettingsStatusLabels(labels, status)
+      updateStatusLabels()
       updateNetworkList()
       let scanFinished = false
       const nextScanSession = scanWiFiNetworks({
@@ -90,7 +146,7 @@ export function startSetupMode(application: SetupApplication): Promise<SetupMode
           scanFinished = true
           scanSession = undefined
           if (status.wifi === SettingsStatusValue.SCANNING) status.wifi = SettingsStatusValue.NOT_CONNECTED
-          updateSettingsStatusLabels(labels, status)
+          updateStatusLabels()
           updateNetworkList()
         },
         onError: (message?: string) => {
@@ -98,7 +154,7 @@ export function startSetupMode(application: SetupApplication): Promise<SetupMode
           scanSession = undefined
           trace(`Wi-Fi scan failed${message ? `: ${message}` : ''}\n`)
           status.wifi = SettingsStatusValue.FAILED
-          updateSettingsStatusLabels(labels, status)
+          updateStatusLabels()
         },
       })
       scanSession = scanFinished ? undefined : nextScanSession
@@ -107,15 +163,7 @@ export function startSetupMode(application: SetupApplication): Promise<SetupMode
     const selectNetwork = (network: SettingsNetworkEntry) => {
       status['wifi.ssid'] = network.ssid
       Preference.set(DOMAIN.wifi, 'ssid', network.ssid)
-      buildSettingsPasswordView(application, network.ssid, {
-        onBack: showSettingsView,
-        onPassword: (password) => {
-          status['wifi.password'] = password
-          Preference.set(DOMAIN.wifi, 'password', password)
-          showSettingsView()
-          testConnection()
-        },
-      })
+      showPasswordView(network.ssid)
     }
 
     const testConnection = () => {
@@ -126,17 +174,17 @@ export function startSetupMode(application: SetupApplication): Promise<SetupMode
         password: status['wifi.password'],
         onStateChanged: (state: NetworkState) => {
           status.wifi = settingsWifiStatusFromNetworkState(state)
-          updateSettingsStatusLabels(labels, status)
+          updateStatusLabels()
         },
         onConnected: () => {
           trace('connection complete\n')
           status.wifi = SettingsStatusValue.CONNECTED
-          updateSettingsStatusLabels(labels, status)
+          updateStatusLabels()
         },
         onError: () => {
           trace('connection failed\n')
           status.wifi = SettingsStatusValue.FAILED
-          updateSettingsStatusLabels(labels, status)
+          updateStatusLabels()
         },
       })
     }
@@ -145,16 +193,20 @@ export function startSetupMode(application: SetupApplication): Promise<SetupMode
     preferenceServer = new PreferenceServer({
       onPreferenceChanged: (key, value) => {
         trace(`preference changed! ${key}: ${value}\n`)
+        if (key === `${DOMAIN.ui}.language`) {
+          applyLanguage(value, false)
+          return
+        }
         status[key] = value
-        updateSettingsStatusLabels(labels, status)
+        updateStatusLabels()
       },
       onConnected: () => {
         status.ble = SettingsStatusValue.CONNECTED
-        updateSettingsStatusLabels(labels, status)
+        updateStatusLabels()
       },
       onDisconnected: () => {
         status.ble = SettingsStatusValue.NOT_CONNECTED
-        updateSettingsStatusLabels(labels, status)
+        updateStatusLabels()
       },
       keys: PREF_KEYS,
     })

@@ -6,8 +6,11 @@ import {
   saveFaceDraft,
   stageFaceTransfer,
 } from './face-editor-storage.mjs'
+import { i18nReady, t } from '../i18n.mjs'
 
 let activeEditContext = null
+
+await i18nReady
 
 const element = (id) => document.getElementById(id)
 const elements = {
@@ -288,7 +291,7 @@ export function onContextCreated(robot) {
 }
 
 function setStatus(message, state = '') {
-  elements.status.textContent = message
+  elements.status.textContent = t(message)
   elements.status.dataset.state = state
 }
 
@@ -434,7 +437,7 @@ function loadInitialFace() {
   if (fromProject) {
     try {
       const transfer = loadFaceEditContext()
-      if (!transfer?.edit) throw new TypeError('編集元の情報がありません')
+      if (!transfer?.edit) throw new TypeError(t('編集元の情報がありません'))
       activeEditContext = transfer.edit
       return {
         asset: transfer.asset,
@@ -482,8 +485,8 @@ function loadInitialFace() {
 
 const initialFace = loadInitialFace()
 if (activeEditContext) {
-  elements.sendToEditorLabel.textContent = '変更を反映'
-  elements.sendToEditor.title = '変更をMODへ反映して戻る'
+  elements.sendToEditorLabel.textContent = t('変更を反映')
+  elements.sendToEditor.title = t('変更をMODへ反映して戻る')
 }
 const initialAsset = applyAsset(initialFace.asset)
 if (persistDraft(initialAsset)) setStatus(initialFace.message, initialFace.state)

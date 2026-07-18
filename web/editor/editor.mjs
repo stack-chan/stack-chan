@@ -1,4 +1,6 @@
-import { registerStackchanBlocks, TOOLBOX, generateModSource } from './blocks.mjs'
+import { registerStackchanBlocks, localizedToolbox, generateModSource } from './blocks.mjs'
+import { loadBlocklyMessages } from './blockly-locale.mjs'
+import { getLocale, i18nReady, t } from '../i18n.mjs'
 import { buildModArchive, isXsArchive, manifestForProjectAssets, xsArchiveVersion } from './mod-builder.mjs'
 import {
   createEsptoolLoader,
@@ -36,6 +38,11 @@ import {
   saveFaceEditContext,
 } from '../face-editor/face-editor-storage.mjs'
 import createTools from './vendor/tools.js'
+
+await i18nReady
+await loadBlocklyMessages(getLocale())
+
+const TOOLBOX = localizedToolbox()
 
 const WORKSPACE_STORAGE_KEY = 'stackchan-blockly-workspace'
 const PROJECT_STORAGE_KEY = 'stackchan-visual-project-v1'
@@ -138,7 +145,7 @@ function log(text) {
 }
 
 function setStatus(text) {
-  buildStatus.textContent = text
+  buildStatus.textContent = t(text)
 }
 
 const SAMPLE_WORKSPACE = {
@@ -206,7 +213,7 @@ const SAMPLE_WORKSPACE = {
 for (const [value, profile] of Object.entries(DEVICE_PROFILES)) {
   const option = document.createElement('option')
   option.value = value
-  option.textContent = profile.label
+  option.textContent = t(profile.label)
   targetDeviceSelect.append(option)
 }
 
@@ -334,7 +341,7 @@ function renderRecentProjects() {
   if (projects.length === 0) {
     const empty = document.createElement('p')
     empty.className = 'recent-projects-empty'
-    empty.textContent = '最近開いたプロジェクトはありません'
+    empty.textContent = t('最近開いたプロジェクトはありません')
     recentProjectsList.append(empty)
     setRecentProjectsSubmenuOpen(false)
     return
@@ -352,13 +359,16 @@ function renderRecentProjects() {
     const name = document.createElement('strong')
     name.textContent = project.name
     const detail = document.createElement('small')
-    const updatedAt = new Date(project.updatedAt).toLocaleString('ja-JP')
-    detail.textContent = project.id === currentProject.id ? `現在開いています · ${updatedAt}` : updatedAt
+    const updatedAt = new Intl.DateTimeFormat(getLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(
+      new Date(project.updatedAt)
+    )
+    detail.textContent =
+      project.id === currentProject.id ? t('現在開いています · {updatedAt}', { updatedAt }) : updatedAt
     copy.append(name, detail)
     button.append(copy)
     button.addEventListener('click', () => {
       setProjectMenuOpen(false)
-      activateProject(project, `「${project.name}」を開きました`)
+      activateProject(project, t('「{name}」を開きました', { name: project.name }))
     })
     recentProjectsList.append(button)
   }
@@ -373,7 +383,7 @@ function renderProjectName() {
   const name = projectNameInput.value.trim() || currentProject?.name || 'はじめてのMOD'
   projectNameLabel.textContent = name
   projectNameDisplay.title = name
-  projectNameDisplay.setAttribute('aria-label', `プロジェクト名「${name}」を編集`)
+  projectNameDisplay.setAttribute('aria-label', t('プロジェクト名「{name}」を編集', { name }))
 }
 
 function startProjectNameEdit() {
@@ -558,15 +568,18 @@ function renderFaceSelection() {
   const entries = faceAssetEntries()
   const selectedPath = currentProject.settings.faceAsset ?? ''
   const selected = entries.find(({ asset }) => asset.path === selectedPath)
-  faceSelectionLabel.textContent = selected?.name ?? '標準Face'
-  faceSelectionButton.title = selected ? `使用中のFace: ${selected.name}` : '使用中のFace: 標準Face'
+  const selectedName = selected?.name ?? t('標準Face')
+  faceSelectionLabel.textContent = selectedName
+  faceSelectionButton.title = t('使用中のFace: {name}', { name: selectedName })
   editFaceButton.disabled = !selected
-  editFaceButton.title = selected ? `「${selected.name}」を顔エディタで編集` : '標準Faceは編集できません'
+  editFaceButton.title = selected
+    ? t('「{name}」を顔エディタで編集', { name: selected.name })
+    : t('標準Faceは編集できません')
   faceSelectionList.replaceChildren()
 
   const options = [
-    { path: '', name: '標準Face', detail: 'ファームウェア標準' },
-    ...entries.map(({ asset, name }) => ({ path: asset.path, name, detail: 'カスタムFace' })),
+    { path: '', name: t('標準Face'), detail: t('ファームウェア標準') },
+    ...entries.map(({ asset, name }) => ({ path: asset.path, name, detail: t('カスタムFace') })),
   ]
   for (const option of options) {
     const button = document.createElement('button')
@@ -593,7 +606,7 @@ function renderFaceSelection() {
       persistProject()
       renderFaceSelection()
       refreshCode()
-      setStatus(`Faceを「${option.name}」へ切り替えました`)
+      setStatus(t('Faceを「{name}」へ切り替えました', { name: option.name }))
     })
     faceSelectionList.append(button)
   }
@@ -617,7 +630,7 @@ async function openSelectedFaceEditor() {
   try {
     const asset = parseFaceAsset(new TextDecoder().decode(assetBytes(entry)))
     persistProject()
-    if (!(await projectSave)) throw new Error('MODプロジェクトを保存できませんでした')
+    if (!(await projectSave)) throw new Error(t('MODプロジェクトを保存できませんでした'))
     saveFaceEditContext(asset, { projectId: currentProject.id, assetPath: entry.path })
     location.href = '../face-editor/?face-edit=project'
   } catch (error) {
@@ -664,7 +677,7 @@ function renderAssets() {
   renderFaceSelection()
   assetSummary.replaceChildren()
   if (currentProject.assets.length === 0) {
-    assetSummary.textContent = 'アセットなし'
+    assetSummary.textContent = t('アセットなし')
     return
   }
   for (const asset of currentProject.assets) {
@@ -678,7 +691,7 @@ function renderAssets() {
     const remove = document.createElement('button')
     remove.type = 'button'
     remove.textContent = '×'
-    remove.title = `${asset.path}を削除`
+    remove.title = t('{path}を削除', { path: asset.path })
     remove.addEventListener('click', () => {
       currentProject.assets = currentProject.assets.filter((candidate) => candidate.path !== asset.path)
       if (currentProject.settings.faceAsset === asset.path) currentProject.settings.faceAsset = null
@@ -698,14 +711,14 @@ function addFaceAsset(asset, options) {
 try {
   if (new URLSearchParams(location.search).get('face-asset') === 'staging') {
     const stagedTransfer = loadStagedFaceTransfer()
-    if (!stagedTransfer) throw new Error('顔エディタからの受け渡しデータがありません')
+    if (!stagedTransfer) throw new Error(t('顔エディタからの受け渡しデータがありません'))
     const edit = stagedTransfer.edit
     if (edit && edit.projectId !== currentProject.id) {
-      throw new Error('編集元と現在のMODプロジェクトが一致しません')
+      throw new Error(t('編集元と現在のMODプロジェクトが一致しません'))
     }
     const stagedProject = addFaceAsset(stagedTransfer.asset, edit ? { replacePath: edit.assetPath } : undefined)
     persistProject(stagedProject)
-    if (!(await projectSave)) throw new Error('顔アセットを含むMODプロジェクトを保存できませんでした')
+    if (!(await projectSave)) throw new Error(t('顔アセットを含むMODプロジェクトを保存できませんでした'))
     clearStagedFaceTransfer()
     clearFaceEditContext()
     history.replaceState(null, '', location.pathname)
@@ -739,7 +752,7 @@ function renderAnalysis() {
           {
             severity: 'error',
             code: 'VP_CODE_GENERATION_FAILED',
-            message: `コードを生成できません: ${currentGenerationError}`,
+            message: t('コードを生成できません: {error}', { error: currentGenerationError }),
           },
         ],
       }
@@ -756,10 +769,11 @@ function renderAnalysis() {
     button.dataset.severity = diagnostic.severity
     const code = document.createElement('span')
     code.className = 'diagnostic-code'
-    code.textContent = `${diagnostic.severity === 'error' ? 'エラー' : '警告'} · ${diagnostic.code}`
-    button.append(code, document.createTextNode(diagnostic.message))
+    code.textContent = `${t(diagnostic.severity === 'error' ? 'エラー' : '警告')} · ${diagnostic.code}`
+    const diagnosticMessage = t(diagnostic.message)
+    button.append(code, document.createTextNode(diagnosticMessage))
     if (diagnostic.blockId) {
-      workspace.getBlockById(diagnostic.blockId)?.setWarningText(diagnostic.message, 'visual-validator')
+      workspace.getBlockById(diagnostic.blockId)?.setWarningText(diagnosticMessage, 'visual-validator')
       button.addEventListener('click', () => {
         const block = workspace.getBlockById(diagnostic.blockId)
         if (!block) return
@@ -772,10 +786,15 @@ function renderAnalysis() {
   }
 
   const profile = profileFor(targetDeviceSelect.value)
-  const xsLabel = profile.xsArchiveVersion ? ` · XS ${profile.xsArchiveVersion.join('.')}` : ' · XS版は書き込み前に確認'
+  const xsLabel = profile.xsArchiveVersion
+    ? ` · XS ${profile.xsArchiveVersion.join('.')}`
+    : ` · ${t('XS版は書き込み前に確認')}`
+  const profileLabel = t(profile.label)
   capabilitySummary.textContent = currentAnalysis.requirements.length
-    ? `${profile.label}${xsLabel} · 使用する能力: ${currentAnalysis.requirements.join(', ')}`
-    : `${profile.label}${xsLabel} · 追加のハードウェア能力は使いません`
+    ? `${profileLabel}${xsLabel} · ${t('使用する能力: {requirements}', {
+        requirements: currentAnalysis.requirements.join(', '),
+      })}`
+    : `${profileLabel}${xsLabel} · ${t('追加のハードウェア能力は使いません')}`
   capabilitySummary.dataset.severity = currentAnalysis.canBuild ? 'ok' : 'error'
   buildButton.disabled = !currentAnalysis.canBuild
 }
@@ -819,14 +838,14 @@ for (const sample of VISUAL_SAMPLES) {
   button.className = 'sample-card'
   button.dataset.sampleId = sample.id
   const title = document.createElement('strong')
-  title.textContent = sample.title
+  title.textContent = t(sample.title)
   const description = document.createElement('span')
-  description.textContent = sample.description
+  description.textContent = t(sample.description)
   button.append(title, description)
   button.addEventListener('click', () => {
     loadWorkspace(sample.workspace)
     refreshCode()
-    setStatus(`サンプル「${sample.title}」を読み込みました`)
+    setStatus(t('サンプル「{title}」を読み込みました', { title: t(sample.title) }))
     recordMetric('sample_loaded', { sample: sample.id })
     sampleDialog.close()
   })
@@ -1122,7 +1141,11 @@ window.addEventListener('message', (event) => {
 
 async function writeArchiveToDevice(archive) {
   if (!profileFor(targetDeviceSelect.value).deviceInstall) {
-    setStatus(`${profileFor(targetDeviceSelect.value).label}は実機書き込みの対象ではありません`)
+    setStatus(
+      t('{profile}は実機書き込みの対象ではありません', {
+        profile: t(profileFor(targetDeviceSelect.value).label),
+      })
+    )
     return
   }
   if (!('serial' in navigator)) {
@@ -1189,7 +1212,11 @@ installDeviceButton.addEventListener('click', async () => {
 
 removeDeviceButton.addEventListener('click', async () => {
   if (!profileFor(targetDeviceSelect.value).deviceInstall) {
-    setStatus(`${profileFor(targetDeviceSelect.value).label}は実機操作の対象ではありません`)
+    setStatus(
+      t('{profile}は実機操作の対象ではありません', {
+        profile: t(profileFor(targetDeviceSelect.value).label),
+      })
+    )
     return
   }
   if (!('serial' in navigator)) {
@@ -1218,8 +1245,15 @@ removeDeviceButton.addEventListener('click', async () => {
           )
         }
         return globalThis.confirm(
-          `${profileFor(targetDeviceSelect.value).label}（${chip} / ${firmware.version}）のxsパーティション ` +
-            `(0x${partition.offset.toString(16)}) からMODを削除します。続行しますか？`
+          t(
+            '{profile}（{chip} / {firmwareVersion}）のxsパーティション（{offset}）からMODを削除します。続行しますか？',
+            {
+              profile: t(profileFor(targetDeviceSelect.value).label),
+              chip,
+              firmwareVersion: firmware.version,
+              offset: `0x${partition.offset.toString(16)}`,
+            }
+          )
         )
       },
     })

@@ -42,7 +42,7 @@ test('tool pages load the shared left drawer without changing integration ids', 
   for (const id of ['ble-connect-button', 'ble-disconnect-button', 'form-preference', 'settings-form']) {
     assert.match(preference, new RegExp(`id="${id}"`))
   }
-  assert.match(preference, /role="alert"|data-state.*error|setStatus\([^)]*'error'/s)
+  assert.match(preference, /role="alert"|data-state.*error|setStatus\([^\n]*, 'error'\)/s)
   assert.match(preference, /currentValues\.get\(prop\) !== value/)
   assert.doesNotMatch(preference, /pendingPreferences|setTimeout/)
   assert.match(preference, /設定を送信しました/)

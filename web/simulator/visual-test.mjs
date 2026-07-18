@@ -385,6 +385,7 @@ try {
   await waitForServer()
   browser = await chromium.launch({ executablePath, headless: true, args: ['--no-sandbox'] })
   const page = await browser.newPage()
+  await page.addInitScript(() => localStorage.setItem('stackchan.locale', 'ja'))
   await inspectViewport(page, 'desktop', 1280, 800)
   await inspectViewport(page, 'mobile', 390, 844)
   console.log(

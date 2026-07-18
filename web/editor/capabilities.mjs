@@ -1,3 +1,5 @@
+import { t } from '../i18n.mjs'
+
 export const CAPABILITIES = Object.freeze({
   FACE: 'face',
   SPEECH: 'audio.speech',
@@ -115,19 +117,23 @@ export function inspectDeploymentCompatibility(
   if (requireFirmware && !profile.deviceInstall) {
     diagnostics.push({
       code: 'VP_DEVICE_TARGET_UNSUPPORTED',
-      message: `${profile.label}はWebSerial実機書き込みの対象ではありません`,
+      message: t('{profile}はWebSerial実機書き込みの対象ではありません', { profile: t(profile.label) }),
     })
   }
   if (profile.chipPatterns.length) {
     if (requireFirmware && !chip) {
       diagnostics.push({
         code: 'VP_DEVICE_CHIP_MISSING',
-        message: `${profile.label}の実チップを確認できません`,
+        message: t('{profile}の実チップを確認できません', { profile: t(profile.label) }),
       })
     } else if (chip && !profile.chipPatterns.some((pattern) => String(chip).includes(pattern))) {
       diagnostics.push({
         code: 'VP_DEVICE_CHIP_MISMATCH',
-        message: `${profile.label}の対象チップ（${profile.chipPatterns.join(', ')}）と検出結果「${chip}」が一致しません`,
+        message: t('{profile}の対象チップ（{expected}）と検出結果「{chip}」が一致しません', {
+          profile: t(profile.label),
+          expected: profile.chipPatterns.join(', '),
+          chip,
+        }),
       })
     }
   }
@@ -135,16 +141,20 @@ export function inspectDeploymentCompatibility(
     if (requireArchive && xsVersion === undefined) {
       diagnostics.push({
         code: 'VP_XS_VERSION_MISSING',
-        message: 'MODのXSバージョンを確認できません',
+        message: t('MODのXSバージョンを確認できません'),
       })
     } else if (
       xsVersion !== undefined &&
       (!Array.isArray(xsVersion) || profile.xsArchiveVersion.join('.') !== xsVersion.join('.'))
     ) {
-      const detectedXsVersion = Array.isArray(xsVersion) ? xsVersion.join('.') : '不明'
+      const detectedXsVersion = Array.isArray(xsVersion) ? xsVersion.join('.') : t('不明')
       diagnostics.push({
         code: 'VP_XS_VERSION_MISMATCH',
-        message: `${profile.label}のXS ${profile.xsArchiveVersion.join('.')}に対して、MODはXS ${detectedXsVersion}です`,
+        message: t('{profile}のXS {expected}に対して、MODはXS {actual}です', {
+          profile: t(profile.label),
+          expected: profile.xsArchiveVersion.join('.'),
+          actual: detectedXsVersion,
+        }),
       })
     }
   }
@@ -152,12 +162,16 @@ export function inspectDeploymentCompatibility(
     if (!firmwareVersion) {
       diagnostics.push({
         code: 'VP_FIRMWARE_VERSION_MISSING',
-        message: `${profile.label}のファームウェアバージョンを確認できません`,
+        message: t('{profile}のファームウェアバージョンを確認できません', { profile: t(profile.label) }),
       })
     } else if (!profile.firmwareVersionPrefixes.some((prefix) => String(firmwareVersion).startsWith(prefix))) {
       diagnostics.push({
         code: 'VP_FIRMWARE_VERSION_MISMATCH',
-        message: `ファームウェア ${firmwareVersion} は、${profile.label}の対応範囲（${profile.firmwareVersionPrefixes.join(', ')}系）に含まれません`,
+        message: t('ファームウェア {firmwareVersion} は、{profile}の対応範囲（{prefixes}系）に含まれません', {
+          firmwareVersion,
+          profile: t(profile.label),
+          prefixes: profile.firmwareVersionPrefixes.join(', '),
+        }),
       })
     }
   }

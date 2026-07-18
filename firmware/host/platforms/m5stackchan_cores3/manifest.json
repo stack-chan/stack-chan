@@ -1,6 +1,7 @@
 {
   "build": {
-    "SUBPLATFORM": "m5stackchan_cores3"
+    "SUBPLATFORM": "m5stackchan_cores3",
+    "C_FLAGS_SUBPLATFORM": "-DI2S_DMA_BUFFER_MAX_SIZE=2048"
   },
   "include": [
     "$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json",

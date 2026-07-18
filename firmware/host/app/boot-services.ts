@@ -5,6 +5,7 @@ import {
   shouldRetryBootWiFiAttempt,
 } from 'boot-network-recovery'
 import type { NetworkReadyResult } from 'capabilities'
+import { localize } from 'localization'
 import config from 'mc/config'
 import { wait } from 'stackchan-util'
 import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
@@ -85,7 +86,7 @@ async function startStoredWiFi(
       options.onStatusChanged?.({
         attempt,
         maxAttempts,
-        message: 'Wi-Fi接続中...',
+        message: localize('splash.connecting', { attempt, maxAttempts }),
       })
       const result = await connectStoredWiFiOnce()
       if (result.status !== 'failed') {

@@ -1,5 +1,7 @@
+import { setLocalizationLanguage } from 'localization'
 import { Application } from 'piu/MC'
 import {
+  buildSettingsLanguageView,
   buildSettingsPasswordView,
   buildSettingsView,
   SettingsStatusValue,
@@ -104,5 +106,44 @@ const passwordRoot = application.first as unknown as {
 passwordRoot.behavior.onKeyboardOK(passwordRoot, 'new-secret')
 passwordRoot.behavior.onKeyboardTransitionFinished(passwordRoot, true)
 equal(password, 'new-secret', 'password view should submit expanding keyboard input')
+
+let selectedLanguage = ''
+buildSettingsLanguageView(application, {
+  current: 'ja',
+  onSelect(locale) {
+    selectedLanguage = locale
+  },
+})
+const languageRoot = application.first as unknown as {
+  first: {
+    next: {
+      next: {
+        behavior: {
+          onTouchBegan: (container: unknown, id: number, x: number, y: number) => void
+          onTouchEnded: (container: unknown) => void
+        }
+      }
+    }
+  }
+}
+const englishButton = languageRoot.first.next.next
+englishButton.behavior.onTouchBegan(englishButton, 0, 0, 0)
+englishButton.behavior.onTouchEnded(englishButton)
+equal(selectedLanguage, 'en', 'language view should expose English as a touch action')
+
+setLocalizationLanguage('en')
+const englishLabels = buildSettingsView(application, {
+  ble: SettingsStatusValue.OFF,
+  wifi: SettingsStatusValue.NOT_CONNECTED,
+})
+equal(englishLabels.wifi.string, 'Wi-Fi: Disconnected', 'settings view should switch to English immediately')
+
+setLocalizationLanguage('zh-CN')
+const chineseLabels = buildSettingsView(application, {
+  ble: SettingsStatusValue.OFF,
+  wifi: SettingsStatusValue.CONNECTED,
+})
+equal(chineseLabels.wifi.string, 'Wi-Fi：已连接', 'settings view should switch to Simplified Chinese immediately')
+setLocalizationLanguage('ja')
 
 trace('ok\n')

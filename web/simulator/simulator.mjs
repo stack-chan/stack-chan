@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'https://unpkg.com/three@0.164.1/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { STLLoader } from 'https://unpkg.com/three@0.164.1/examples/jsm/loaders/STLLoader.js'
+import { i18nReady, t } from '../i18n.mjs'
 
 import {
   clientPointFromTouch,
@@ -32,6 +33,8 @@ import {
   stepRotationToward,
 } from './geometry.mjs'
 import { createModStorage, formatByteSize } from './mod-storage.mjs'
+
+await i18nReady
 
 const DRIVER_MAX_ANGULAR_SPEED = 2.4
 
@@ -416,7 +419,7 @@ class WasmView {
     } catch (error) {
       this.#clearPendingReady()
       console.error('[bridge] WASM load failed', error)
-      this.info.textContent = 'WASMを読み込めませんでした'
+      this.info.textContent = t('WASMを読み込めませんでした')
       this.#drawFallbackFace()
       this.onError(error)
     }
@@ -452,7 +455,7 @@ class WasmView {
     this.readyTimeout = window.setTimeout(() => {
       if (!this.pendingReadyInstallation) return
       this.#clearPendingReady()
-      const error = new Error('ファームウェアの起動準備がタイムアウトしました')
+      const error = new Error(t('ファームウェアの起動準備がタイムアウトしました'))
       this.info.textContent = error.message
       this.onError(error)
     }, 30_000)
@@ -597,7 +600,7 @@ class WasmView {
       format,
       xs: `${major}.${minor}.${patch}`,
     })
-    this.info.textContent = '準備完了'
+    this.info.textContent = t('準備完了')
   }
 
   onStart(interval) {
@@ -660,17 +663,17 @@ const cameraBridge = createHostCameraBridge()
 if (browserCameraButton) {
   browserCameraButton.addEventListener('click', async () => {
     browserCameraButton.disabled = true
-    if (browserCameraStatus) browserCameraStatus.textContent = '接続中'
+    if (browserCameraStatus) browserCameraStatus.textContent = t('接続中')
     try {
       await cameraBridge.start({ useBrowserCamera: true })
       if (browserCameraStatus) {
         browserCameraStatus.textContent = cameraBridge.isBrowserCameraStarted()
-          ? '接続済み'
-          : '利用できません · 合成映像'
+          ? t('接続済み')
+          : t('利用できません · 合成映像')
       }
     } catch (error) {
       console.warn('[bridge] browser camera button failed', error)
-      if (browserCameraStatus) browserCameraStatus.textContent = '接続失敗 · 合成映像'
+      if (browserCameraStatus) browserCameraStatus.textContent = t('接続失敗 · 合成映像')
     } finally {
       browserCameraButton.disabled = false
     }
@@ -686,26 +689,30 @@ console.log('[bridge] global Host.Button/Audio/Camera constructors installed')
 
 function describeModStatus(result, installedMod = null) {
   if (result?.status === 'prepared') {
-    return `${result.name} · ${formatByteSize(result.size)} · 起動準備済み`
+    return t('{name} · {size} · 起動準備済み', { name: result.name, size: formatByteSize(result.size) })
   }
   if (result?.status === 'installed') {
-    return `${result.name} · ${formatByteSize(result.size)} · 適用済み`
+    return t('{name} · {size} · 適用済み', { name: result.name, size: formatByteSize(result.size) })
   }
   if (result?.status === 'unsupported') {
-    return `${result.name} · ${formatByteSize(result.size)} · 保存済み`
+    return t('{name} · {size} · 保存済み', { name: result.name, size: formatByteSize(result.size) })
   }
   if (result?.status === 'error') {
-    return `MODエラー · ${result.error}`
+    return t('MODエラー · {error}', { error: result.error })
   }
   if (result?.status === 'saved' && installedMod) {
-    const lifetime = installedMod.storage === 'memory' ? ' · セッション保存' : ' · 保存済み'
-    return `${installedMod.name} · ${formatByteSize(installedMod.size)}${lifetime}`
+    return t(installedMod.storage === 'memory' ? '{name} · {size} · セッション保存' : '{name} · {size} · 保存済み', {
+      name: installedMod.name,
+      size: formatByteSize(installedMod.size),
+    })
   }
   if (installedMod) {
-    const lifetime = installedMod.storage === 'memory' ? ' · セッション保存' : ' · 保存済み'
-    return `${installedMod.name} · ${formatByteSize(installedMod.size)}${lifetime}`
+    return t(installedMod.storage === 'memory' ? '{name} · {size} · セッション保存' : '{name} · {size} · 保存済み', {
+      name: installedMod.name,
+      size: formatByteSize(installedMod.size),
+    })
   }
-  return 'MODなし'
+  return t('MODなし')
 }
 
 async function refreshSavedModStatus() {
@@ -798,7 +805,7 @@ modArchiveInput.addEventListener('change', async (event) => {
       name: file.name,
       bytes,
     })
-    modInstallStatus.textContent = `${describeModStatus({ status: 'saved' }, installedMod)} · 再起動中`
+    modInstallStatus.textContent = `${describeModStatus({ status: 'saved' }, installedMod)} · ${t('再起動中')}`
     await wasmView.restart()
   } catch (error) {
     console.error('[bridge] MOD archive save failed', error)
@@ -812,7 +819,7 @@ modArchiveInput.addEventListener('change', async (event) => {
 })
 modRestartButton.addEventListener('click', async () => {
   try {
-    modInstallStatus.textContent = '再起動中'
+    modInstallStatus.textContent = t('再起動中')
     await wasmView.restart()
   } catch (error) {
     console.error('[bridge] simulator restart failed', error)

@@ -1,3 +1,4 @@
+import { localize } from 'localization'
 import type { NetworkReadyResult } from './boot-services.js'
 
 export type BootWiFiRecoveryChoice = 'retry' | 'offline'
@@ -19,9 +20,9 @@ export function classifyBootWiFiFailure(reason: string): BootWiFiFailureKind {
 
 export function bootWiFiFailureMessage(reason: string): string {
   if (classifyBootWiFiFailure(reason) === 'scan-exhausted') {
-    return '保存済みWi-Fiが見つかりません'
+    return localize('boot.wifiNotFound')
   }
-  return 'Wi-Fi接続に失敗しました'
+  return localize('boot.wifiFailed')
 }
 
 export function networkReadyResultForRecoveryChoice(

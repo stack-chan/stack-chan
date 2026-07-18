@@ -1,3 +1,5 @@
+import { localize } from 'localization'
+
 export const SettingsStatusValue = Object.freeze({
   NOT_CONNECTED: 0,
   CONNECTED: 1,
@@ -14,20 +16,20 @@ export const SettingsStatusValue = Object.freeze({
 export type SettingsStatusValue = (typeof SettingsStatusValue)[keyof typeof SettingsStatusValue]
 
 const settingsStatusLabels = Object.freeze([
-  '未接続',
-  '接続済み',
-  '接続中',
-  'スキャン中',
-  '時刻同期中',
-  '再接続中',
-  '接続失敗',
-  '終了',
-  '準備完了',
-  'オフ',
+  'status.notConnected',
+  'status.connected',
+  'status.connecting',
+  'status.scanning',
+  'status.syncingTime',
+  'status.reconnecting',
+  'status.failed',
+  'status.closed',
+  'status.ready',
+  'status.off',
 ] as const)
 
 export function settingsStatusToLabel(status: SettingsStatusValue): string {
-  return settingsStatusLabels[status] ?? '不明'
+  return localize(settingsStatusLabels[status] ?? 'status.unknown')
 }
 
 export type SettingsStatus = {
@@ -35,4 +37,5 @@ export type SettingsStatus = {
   wifi: SettingsStatusValue
   'wifi.ssid'?: string
   'wifi.password'?: string
+  'ui.language'?: string
 }

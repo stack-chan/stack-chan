@@ -97,6 +97,7 @@ try {
   })
   const page = await browser.newPage({ acceptDownloads: true })
   await page.addInitScript(() => {
+    localStorage.setItem('stackchan.locale', 'ja')
     if (!('serial' in navigator)) {
       Object.defineProperty(navigator, 'serial', {
         configurable: true,

@@ -34,6 +34,18 @@ $ npm run flash
 Stack-chan RT やタカオ版 Core2 + SG90 では `npm run flash:stackchan_rt` または `npm run flash:takao_core2_sg90` を使います。
 MOD の開発だけを繰り返す場合は `npm run mod -- mods/examples/look_around/manifest.json` のように MOD の manifest を指定します。
 
+## ビルド出力
+
+ファームウェア開発にはリポジトリの npm scripts を使ってください。これらのコマンドは Moddable の出力先を管理し、通常のホスト、MOD、テストの生成物を `firmware/dist/` 配下に保存します。
+
+- プログラムは `firmware/dist/bin/`、中間生成物は `firmware/dist/tmp/` 配下に生成されます。
+- ホストアプリケーション名は `stack-chan-host` です。
+- `npm run clean` は `firmware/dist/` 配下の生成物をすべて削除します。
+- リポジトリのビルド手順では、独自の `-o` を指定したり、`mcconfig`、`mcrun`、`mcpack` を直接実行したりしないでください。
+- `npm run bundle` は例外です。`mcbundle` が内部で生成する標準デバイス向け中間生成物は `$MODDABLE/build/` に残ります。Stack-chan 固有の bundle ターゲットには `firmware/dist/` が使われます。
+
+ターゲット別のコマンドと詳しい出力先は、[プログラムのビルドと書き込み](docs/flashing-firmware_ja.md)を参照してください。
+
 ## ディレクトリ構成
 
 - [host](./host/): ホストアプリケーションとファームウェア module のソースコードです。
@@ -41,6 +53,7 @@ MOD の開発だけを繰り返す場合は `npm run mod -- mods/examples/look_a
 - [scripts](./scripts/): ｽﾀｯｸﾁｬﾝの音声合成などに用いるスクリプトです。
 - [typings](./typings/): TypeScriptの型定義ファイル（d.ts）です。
     - ※ｽﾀｯｸﾁｬﾝのファームウェアは一部を除きTypeScriptで実装されているので別途型定義ファイルは必要ありませんが、Moddable SDKの新しめのモジュールは型定義ファイルが提供されていないため、それを補う用途で置いてあります。
+- `dist/`: ファームウェアのプログラムと中間生成物です。ビルドスクリプトが管理し、Git の追跡対象にはなりません。
 
 ## ドキュメント
 

@@ -4,11 +4,12 @@ const EVENT_BLOCKS = new Set([
   'stackchan_on_start',
   'stackchan_on_button',
   'stackchan_on_imu',
-  'stackchan_on_touch',
+  'stackchan_on_head_touch',
   'stackchan_on_drawer_button',
   'stackchan_every',
 ])
 const ALLOWED_TOP_LEVEL_BLOCKS = new Set([...EVENT_BLOCKS, 'procedures_defreturn', 'procedures_defnoreturn'])
+const LEGACY_SONG_EVENT_BLOCKS = new Set(['stackchan_song_note', 'stackchan_song_rest'])
 
 function fieldIdentity(field) {
   if (field && typeof field === 'object') return String(field.id ?? field.name ?? '')
@@ -42,13 +43,14 @@ export function analyzeWorkspace(workspace, { target = 'm5stackchan-cores3' } = 
   const blocks = flattenWorkspace(workspace)
   const topBlocks = workspace?.blocks?.blocks ?? []
   const diagnostics = []
+  const blockById = new Map(blocks.filter((block) => block.id !== null).map((block) => [block.id, block]))
 
   if (blocks.length === 0) {
     diagnostics.push({ severity: 'error', code: 'VP_EMPTY', message: 'ブロックを一つ以上配置してください' })
   }
 
   for (const block of topBlocks) {
-    if (!ALLOWED_TOP_LEVEL_BLOCKS.has(block.type)) {
+    if (!ALLOWED_TOP_LEVEL_BLOCKS.has(block.type) && !LEGACY_SONG_EVENT_BLOCKS.has(block.type)) {
       diagnostics.push({
         severity: 'error',
         code: 'VP_ORPHAN_TOP_LEVEL',
@@ -56,6 +58,16 @@ export function analyzeWorkspace(workspace, { target = 'm5stackchan-cores3' } = 
         message: '処理ブロックをイベントブロックの内側へ接続してください',
       })
     }
+  }
+
+  for (const block of blocks.filter((item) => LEGACY_SONG_EVENT_BLOCKS.has(item.type))) {
+    if (blockById.get(block.parentId)?.type === 'stackchan_sing') continue
+    diagnostics.push({
+      severity: 'error',
+      code: 'VP_LEGACY_SONG_EVENT',
+      blockId: block.id,
+      message: '旧形式の音符・休符は直接実行できません。トリプル形式のブロックをリストへ入れてください',
+    })
   }
 
   for (const block of blocks) {

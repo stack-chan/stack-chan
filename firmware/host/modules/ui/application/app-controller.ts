@@ -8,6 +8,7 @@ import {
   type FaceViewTemplateCtor,
 } from 'face-view'
 import type { AppBarMode } from 'chat-status-bar'
+import type { HandAnimationName } from 'hands'
 import {
   MINI_APP_BAR_HEIGHT,
   type MiniAppContext,
@@ -111,6 +112,10 @@ export class AppController extends Behavior {
 
   setFace(face: PiuContainer): void {
     this.#viewBehavior?.setFace?.(face)
+  }
+
+  setHandAnimation(animation: HandAnimationName): void {
+    this.#viewBehavior?.setHandAnimation?.(animation)
   }
 
   setFaceMotionEnabled(enabled: boolean): void {

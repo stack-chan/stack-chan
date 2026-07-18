@@ -231,3 +231,28 @@ test('staging a Shape face leaves the current project unchanged until persistenc
   assert.equal(next.settings.faceAsset, 'assets/追加の顔.stackchan-face.json')
   assert.equal(JSON.parse(next.assets[0].data).kind, 'shape')
 })
+
+test('editing a staged Shape face replaces its stable asset path even when its name changes', () => {
+  const original = addFaceAssetToProject(
+    { assets: [], settings: { educationalProfile: true, embedAssets: true, faceAsset: null } },
+    createFaceAsset({ name: '元の顔', emotion: 'NEUTRAL' })
+  )
+  const originalPath = original.settings.faceAsset
+
+  const edited = addFaceAssetToProject(original, createFaceAsset({ name: '変更後の顔', emotion: 'HOT' }), {
+    replacePath: originalPath,
+  })
+
+  assert.equal(edited.assets.length, 1)
+  assert.equal(edited.assets[0].path, originalPath)
+  assert.equal(edited.settings.faceAsset, originalPath)
+  assert.equal(JSON.parse(edited.assets[0].data).name, '変更後の顔')
+  assert.equal(JSON.parse(edited.assets[0].data).emotion, 'HOT')
+  assert.throws(
+    () =>
+      addFaceAssetToProject(original, createFaceAsset({ name: '不明な顔' }), {
+        replacePath: 'assets/missing.stackchan-face.json',
+      }),
+    /更新対象/
+  )
+})

@@ -79,7 +79,10 @@
       "type": "none"
     },
     "tts": {
-      "type": "local"
+      "type": "stackchan-voice",
+      "voice": "normal",
+      "speed": 100,
+      "volume": 0.5
     },
     "ui": {
       "type": "simple"

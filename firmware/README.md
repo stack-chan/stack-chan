@@ -34,6 +34,18 @@ $ npm run flash
 For Stack-chan RT or the Takao Core2 + SG90 build, use `npm run flash:stackchan_rt` or `npm run flash:takao_core2_sg90`.
 When iterating on a MOD, pass the MOD manifest: `npm run mod -- mods/examples/look_around/manifest.json`.
 
+## Build output
+
+Use the repository npm scripts for firmware development. They manage the Moddable output directory and keep normal host, MOD, and test build artifacts under `firmware/dist/`:
+
+- Programs are written under `firmware/dist/bin/` and intermediate files under `firmware/dist/tmp/`.
+- The host application name is `stack-chan-host`.
+- `npm run clean` removes all generated files under `firmware/dist/`.
+- Do not pass a custom `-o` or invoke `mcconfig`, `mcrun`, or `mcpack` directly when using the repository workflow.
+- `npm run bundle` is the exception: standard-device intermediate builds created by `mcbundle` remain under `$MODDABLE/build/`. The Stack-chan-specific bundle target still uses `firmware/dist/`.
+
+See [Building and Writing Programs](docs/flashing-firmware.md) for target-specific commands and detailed output paths.
+
 ## Directory structure
 
 - [host](./host/): Host application and firmware modules.
@@ -41,6 +53,7 @@ When iterating on a MOD, pass the MOD manifest: `npm run mod -- mods/examples/lo
 - [scripts](./scripts/): Scripts for Stack-chan's voice synthesis, etc.
 - [typings](./typings/): TypeScript type definition files (d.ts).
     - Stack-chan firmware is implemented in TypeScript, so no separate type definition files are needed.
+- `dist/`: Generated firmware programs and intermediate build files. This directory is managed by the build scripts and ignored by Git.
 
 ## Documents
 

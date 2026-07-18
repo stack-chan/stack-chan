@@ -4,6 +4,7 @@ import type { CameraImageType } from 'camera'
 import { type CameraPreviewFrame, createCameraPreviewDialog, prepareCameraPreviewFrame } from 'camera-preview'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-state'
+import { type HandAnimationName, isHandAnimationName } from 'hands'
 import type { MotionType } from 'imu'
 import config from 'mc/config'
 import type { Content as PiuContent } from 'piu/MC'
@@ -41,6 +42,7 @@ const TOUCH_PANEL_HAPPY_DURATION_MS = 5000
 const TOUCH_PANEL_PET_MOTION_STEP_MS = 220
 const TOUCH_PANEL_PET_MOTION_STEP_SEC = TOUCH_PANEL_PET_MOTION_STEP_MS / 1000
 const MOTION_DETECT_COLD_DURATION_MS = 5000
+const SPEECH_SYNTHESIS_TEXT = 'こんにちわ。すたっくちゃんです。'
 
 function errorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -154,12 +156,14 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   }
 
   let faceMode: 'simple' | 'dog' | 'image' = 'simple'
+  let handAnimation: HandAnimationName = 'none'
   let cameraPreviewTimer: ReturnType<typeof Timer.set> | undefined
   const syncFaceMode = (
     app = robot.ui.application as { distribute?: (event: string, payload: unknown) => void } | undefined,
   ) => {
     app?.distribute?.('onFaceMode', faceMode)
   }
+  const syncHandAnimation = () => robot.ui.setHandAnimation(handAnimation)
   const closeDrawer = () => robot.ui.closeDrawer()
   const createCurrentFace = () =>
     faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
@@ -235,6 +239,38 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       robot.drawer.setDrawerButtonState('toggleSpeech', speechVisible)
     },
   })
+  robot.drawer.addDrawerButton({
+    key: 'speakStackchan',
+    label: 'Speak',
+    callback: async (target) => {
+      closeDrawer()
+      try {
+        const result = await target.audio.say(SPEECH_SYNTHESIS_TEXT)
+        if ('reason' in result) trace(`[SpeechSynthesis] ${result.reason}\n`)
+      } catch (error) {
+        trace(`[SpeechSynthesis] error ${errorMessage(error)}\n`)
+      }
+    },
+  })
+  robot.drawer.addDrawerButton({
+    key: 'handAnimation',
+    label: '手',
+    kind: 'choice',
+    value: handAnimation,
+    options: [
+      { value: 'none', label: '無し' },
+      { value: 'rock-paper-scissors', label: 'グーチョキパー' },
+      { value: 'clap', label: '拍手' },
+      { value: 'thinking', label: '考え中' },
+    ],
+    callback: (target, value) => {
+      if (!isHandAnimationName(value)) return
+      handAnimation = value
+      target.ui.setHandAnimation(handAnimation)
+      target.ui.closeDrawer()
+    },
+  })
+  syncHandAnimation()
 
   const runCameraPreview = async (target: typeof robot) => {
     let frame: Awaited<ReturnType<typeof target.camera.capture>> | undefined

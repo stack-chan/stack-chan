@@ -21,6 +21,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { createReadStream, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
 import { devices, resolveDevice } from './lib/devices.mjs'
 import { startXsbugServer } from './lib/xsbug-log-server.js'
 
@@ -55,6 +56,8 @@ const platform = `esp32:${device.platform}`
 const modManifest = resolve(readOption(rawArgs, 'mod') ?? 'mods/examples/m5stackchan_smoke/manifest.json')
 const channel = readOption(rawArgs, 'channel') ?? 'xsbug'
 const workRoot = mkdtempSync(join(tmpdir(), 'stackchan-device-smoke-'))
+ensureBuildOutputDirectory()
+const outputArgs = moddableOutputArguments()
 
 function killProcessGroup(child) {
   if (!child.pid || child.killed) return
@@ -78,9 +81,11 @@ function decodeXsbugLog(log) {
 
 function flashHostFirmware() {
   console.log(`[device-smoke] building and deploying host firmware for ${device.label}`)
-  const result = spawnSync('mcconfig', ['-d', '-m', '-p', platform, '-t', 'deploy', resolve(device.manifest)], {
-    stdio: 'inherit',
-  })
+  const result = spawnSync(
+    'mcconfig',
+    ['-d', '-m', '-p', platform, '-t', 'deploy', ...outputArgs, resolve(device.manifest)],
+    { stdio: 'inherit' },
+  )
   if (result.status !== 0) {
     console.error('[device-smoke] host firmware deploy failed')
     process.exit(result.status ?? 1)
@@ -96,7 +101,7 @@ async function runXsbugAttempt(attempt) {
   return await new Promise((resolveRun) => {
     let settled = false
     let echoedLength = 0
-    const child = spawn('mcrun', ['-dn', '-x', `127.0.0.1:${port}`, '-m', '-p', platform, modManifest], {
+    const child = spawn('mcrun', ['-dn', '-x', `127.0.0.1:${port}`, '-m', '-p', platform, ...outputArgs, modManifest], {
       detached: true,
       env: process.env,
     })

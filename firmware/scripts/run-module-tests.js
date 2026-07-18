@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } fr
 import { readdir } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import { basename, dirname, join, relative, resolve } from 'node:path'
+import { buildOutputDirectory, ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
 import { startXsbugServer } from './lib/xsbug-log-server.js'
 
 const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods/examples']
@@ -38,6 +39,8 @@ if (!MODDABLE) {
   process.exit(1)
 }
 
+ensureBuildOutputDirectory()
+const outputArgs = moddableOutputArguments()
 const firmwareRoot = process.cwd()
 const workRoot = mkdtempSync(join(tmpdir(), 'stackchan-module-tests-'))
 const failurePattern =
@@ -111,12 +114,12 @@ function platformBuildSegment(platform) {
 
 function removeBuildOutput(platform, name) {
   const segment = platformBuildSegment(platform)
-  rmSync(join(MODDABLE, 'build', 'tmp', segment, 'debug', name), { recursive: true, force: true })
-  rmSync(join(MODDABLE, 'build', 'bin', segment, 'debug', name), { recursive: true, force: true })
+  rmSync(join(buildOutputDirectory, 'tmp', segment, 'debug', name), { recursive: true, force: true })
+  rmSync(join(buildOutputDirectory, 'bin', segment, 'debug', name), { recursive: true, force: true })
 }
 
 function readBinDir(platform, name) {
-  const makefile = join(MODDABLE, 'build', 'tmp', platformBuildSegment(platform), 'debug', name, 'makefile')
+  const makefile = join(buildOutputDirectory, 'tmp', platformBuildSegment(platform), 'debug', name, 'makefile')
   const source = readFileSync(makefile, 'utf8')
   const match = source.match(/^BIN_DIR = (.+)$/m)
   if (!match) throw new Error(`BIN_DIR not found in ${makefile}`)
@@ -181,7 +184,7 @@ async function buildManifest({ manifestPath, platform, port, name, output }) {
   const label = `mcconfig ${relativePath(manifestPath)}`
   const result = await runProcess(
     'mcconfig',
-    ['-d', '-x', `${XSBUG_HOST}:${port}`, '-m', '-p', platform, '-t', 'build', manifestPath],
+    ['-d', '-x', `${XSBUG_HOST}:${port}`, '-m', '-p', platform, '-t', 'build', ...outputArgs, manifestPath],
     { timeout: BUILD_TIMEOUT_MS },
   )
 

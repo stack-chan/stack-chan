@@ -8,15 +8,17 @@ fi
 
 export PATH="$PWD/node_modules/.bin:$PATH"
 
+firmware_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+output_dir="$firmware_dir/dist"
+app_name="${STACKCHAN_LIN_SMOKE_APP_NAME:-stack-chan-host}"
 platform="${STACKCHAN_LIN_SMOKE_PLATFORM:-lin/m5stack}"
 platform_path="${platform//\//\/}"
 smoke_timeout="${STACKCHAN_LIN_SMOKE_TIMEOUT:-10s}"
 xsbug_host="${STACKCHAN_LIN_XSBUG_HOST:-127.0.0.1}"
 xsbug_port="${STACKCHAN_LIN_XSBUG_PORT:-5002}"
-manifest="${STACKCHAN_LIN_SMOKE_MANIFEST:-$PWD/host/app/manifest_local.json}"
+manifest="${STACKCHAN_LIN_SMOKE_MANIFEST:-$firmware_dir/host/app/manifest_local.json}"
 archive_manifest="${STACKCHAN_LIN_SMOKE_ARCHIVE_MANIFEST:-}"
 expected_log="${STACKCHAN_LIN_SMOKE_EXPECT:-[main] app behaviors ready}"
-project_name="$(basename "$(dirname "$manifest")")"
 xsbug_log="$(mktemp "${TMPDIR:-/tmp}/stackchan-lin-xsbug-log.XXXXXX")"
 server_log="$(mktemp "${TMPDIR:-/tmp}/stackchan-lin-xsbug-server.XXXXXX")"
 config_home="$(mktemp -d "${TMPDIR:-/tmp}/stackchan-lin-mcsim-config.XXXXXX")"
@@ -33,10 +35,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-rm -rf "$MODDABLE/build/tmp/$platform_path/debug/$project_name" "$MODDABLE/build/bin/$platform_path/debug/$project_name"
-mcconfig -dl -x "$xsbug_host:$xsbug_port" -m -p "$platform" -t build "$manifest"
+mkdir -p "$output_dir"
+rm -rf "$output_dir/tmp/$platform_path/debug/$app_name" "$output_dir/bin/$platform_path/debug/$app_name"
+mcconfig -dl -x "$xsbug_host:$xsbug_port" -m -p "$platform" -t build -o "$output_dir" "$manifest"
 
-build_dir="$MODDABLE/build/tmp/$platform_path/debug/$project_name"
+build_dir="$output_dir/tmp/$platform_path/debug/$app_name"
 forbidden_imports=$(find "$build_dir" -path '*/tsc/*' -type f -name '*.js' -exec grep -nE 'runtime-bitmap-port|wasm-audio-bridge|wasm-camera-bridge' {} + || true)
 if [[ -n "$forbidden_imports" ]]; then
   printf '%s\n' "$forbidden_imports"
@@ -44,12 +47,12 @@ if [[ -n "$forbidden_imports" ]]; then
   exit 1
 fi
 
-mcsim_args=("$MODDABLE/build/bin/$platform_path/debug/$project_name/mc.so")
+mcsim_args=("$output_dir/bin/$platform_path/debug/$app_name/mc.so")
 if [[ -n "$archive_manifest" ]]; then
   archive_name="$(basename "$(dirname "$archive_manifest")")"
   archive_platform="${platform%%/*}"
-  mcrun -d -m -p "$platform" -t build "$archive_manifest"
-  archive_path="$MODDABLE/build/bin/$archive_platform/mc/debug/$archive_name/mc.xsa"
+  mcrun -d -m -p "$platform" -t build -o "$output_dir" "$archive_manifest"
+  archive_path="$output_dir/bin/$archive_platform/mc/debug/$archive_name/mc.xsa"
   if [[ ! -f "$archive_path" ]]; then
     echo "mcrun did not produce the expected archive: $archive_path" >&2
     exit 1

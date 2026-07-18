@@ -119,7 +119,10 @@ $ npm run flash
 ```
 
 ビルドだけ確認したい場合は `npm run build` を使います。
-ビルドしたプログラムは`$MODDABLE/build/`ディレクトリ配下に保存されます。
+ビルドしたプログラムと中間生成物は `firmware/dist/bin/` と `firmware/dist/tmp/` 配下に保存されます。
+ホストアプリケーション名は `stack-chan-host` です。
+`npm run clean` を実行すると、`firmware/dist/` 配下の生成物をすべて削除できます。
+`npm run bundle` は例外で、`mcbundle` が生成する標準デバイス向け中間生成物は `$MODDABLE/build/` に保存されます。
 
 ### Stack-chan サブプラットフォーム
 

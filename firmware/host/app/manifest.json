@@ -1,4 +1,7 @@
 {
+  "build": {
+    "NAME": "stack-chan-host"
+  },
   "defines": {
     "XS_MODS": 1
   },

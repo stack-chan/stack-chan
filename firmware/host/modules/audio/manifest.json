@@ -38,7 +38,8 @@
     "tts-voicevox",
     "tts-voicevox-web",
     "tts-elevenlabs",
-    "tts-openai"
+    "tts-openai",
+    "tts-stackchan-voice"
   ],
   "data": {
     "*": [
@@ -73,9 +74,7 @@
       }
     },
     "lin": {
-      "build": {
-        "LIBRARIES": "-lasound"
-      },
+      "include": ["$(MODDABLE)/modules/io/audioout/manifest.json"],
       "modules": {
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
         "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/lin/audioin"
@@ -120,10 +119,15 @@
       }
     },
     "esp32/m5stackchan_cores3": {
+      "include": [
+        "$(MODDABLE)/modules/io/audioout/manifest.json",
+        "../../../vendor/stackchan-voice/manifest.json"
+      ],
       "build": {
         "SDKCONFIGPATH": "./platforms/m5stackchan-cores3/sdkconfig"
       },
       "modules": {
+        "~": "./tts-stackchan-voice",
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
         "esp32-mp3-decoder": "./platforms/m5stackchan-cores3/esp32-mp3-decoder",
         "web-radio-player": "./platforms/m5stackchan-cores3/web-radio-player",
@@ -133,7 +137,8 @@
         "buffered-mp3streamer-core": "./platforms/m5stackchan-cores3/buffered-mp3streamer",
         "web-radio-byte-ring": "./platforms/m5stackchan-cores3/shared-byte-ring",
         "web-radio-stream-worker": "./platforms/m5stackchan-cores3/web-radio-stream-worker",
-        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin"
+        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin",
+        "tts-stackchan-voice": "./stackchan-voice/tts-stackchan-voice"
       },
       "dependency": [
         {

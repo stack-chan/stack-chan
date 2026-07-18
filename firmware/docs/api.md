@@ -112,8 +112,12 @@ Low-level driver objects are internal to `host/modules/motion` and are not expos
 The public audio API exposes speech playback through the capability object passed to MODs.
 Provider objects for local, remote, Voicevox, ElevenLabs, and OpenAI speech are internal to `host/modules/audio`.
 
+`sing(koe, volume?)` plays stackchan-voice singing notation when the active TTS provider supports it.
+It returns a failed result for providers without singing support; it never sends the notation to ordinary speech synthesis as text.
+
 `playAudio(buffer)` returns `true` only when the target accepts the borrowed buffer and playback completes.
 It returns `false` when the target does not support buffer playback, the buffer is empty, or playback fails.
 Callers must keep ownership of the buffer and should treat `false` as an observable unsupported-or-not-played result.
 
 - [Using Text To Speech(TTS)](./text-to-speech.md)
+- [stackchan-voice speech and singing](./stackchan-voice.md)

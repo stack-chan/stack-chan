@@ -61,6 +61,7 @@ export function navigationItemForPath(pathname) {
 function navigationLink(item, rootUrl, currentId) {
   const anchor = document.createElement('a')
   anchor.className = 'tool-drawer-link'
+  anchor.dataset.toolId = item.id
   anchor.href = new URL(item.href, rootUrl).href
   if (item.id === currentId) anchor.setAttribute('aria-current', 'page')
 

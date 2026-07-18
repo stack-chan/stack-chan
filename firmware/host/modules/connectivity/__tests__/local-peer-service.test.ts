@@ -156,6 +156,32 @@ test('local peer reliable messages reassemble, acknowledge, and support unsubscr
   pair.secondSession.close()
 })
 
+test('local peer queues an acknowledgement before a subscriber reply', async () => {
+  Timer.reset()
+  const pair = await openPair()
+  await pair.firstSession.discover({ timeoutMs: 0 })
+  await pair.secondSession.discover({ timeoutMs: 0 })
+  const secondPeerFrames: number[] = []
+  pair.network.dropFrame = (from, to, data) => {
+    if (from === 'AABBCCDDEEFF' && to === '001122334455') {
+      const frame = decodeLocalPeerFrame(data)
+      if (frame) secondPeerFrames.push(frame.kind)
+    }
+    return false
+  }
+  let reply: Promise<unknown> | undefined
+  pair.secondSession.subscribe('request', () => {
+    reply = pair.secondSession.send('001122334455', 'reply', { value: 2 })
+  })
+
+  await pair.firstSession.send('AABBCCDDEEFF', 'request', { value: 1 })
+  await reply
+
+  assert.deepEqual(secondPeerFrames.slice(0, 2), [LocalPeerFrameKind.ACK, LocalPeerFrameKind.DATA])
+  pair.firstSession.close()
+  pair.secondSession.close()
+})
+
 test('local peer broadcast is delivered without acknowledgement', async () => {
   Timer.reset()
   const pair = await openPair()
@@ -189,7 +215,7 @@ test('local peer retries duplicate data without delivering it twice and eventual
     Timer.advance(250)
   }
   await assert.rejects(sending, (error: unknown) => {
-    return error instanceof Error && 'code' in error && error.code === 'timeout'
+    return error instanceof Error && error.name === 'LocalPeerError' && 'code' in error && error.code === 'timeout'
   })
   assert.equal(deliveries, 1)
   pair.firstSession.close()

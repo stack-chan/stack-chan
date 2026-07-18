@@ -541,6 +541,10 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
 
     this.#rememberPeer(peerId, undefined, reliable && secure)
     const duplicate = this.#wasDelivered(key)
+    // Queue the ACK before invoking subscribers. A subscriber may immediately
+    // send a reply, and placing that fragmented reply ahead of the ACK can make
+    // the sender exhaust its bounded acknowledgement timeout.
+    if (reliable) void this.#sendAcknowledgement(peerId, frame.messageId)
     if (!duplicate) {
       this.#deliver({
         id: formatMessageId(frame.messageId),
@@ -549,7 +553,6 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
         payload: envelope.payload,
       })
     }
-    if (reliable) void this.#sendAcknowledgement(peerId, frame.messageId)
   }
 
   async #sendAcknowledgement(peerId: string, messageId: number): Promise<void> {

@@ -37,10 +37,11 @@ export class LocalPeerError extends Error {
 
   constructor(code: LocalPeerErrorCode, message: string) {
     super(message)
-    this.name = 'LocalPeerError'
     this.code = code
   }
 }
+
+LocalPeerError.prototype.name = 'LocalPeerError'
 
 export type LocalPeerOpenOptions = {
   /** Logical application namespace. Only peers using the same service can communicate. */

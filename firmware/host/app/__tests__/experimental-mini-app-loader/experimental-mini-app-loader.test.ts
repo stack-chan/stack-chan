@@ -17,7 +17,7 @@ const definition = {
 
 type CapturedOptions = {
   globals: Record<string, unknown>
-  modules: Record<string, unknown>
+  modules: Record<string, { namespace?: Record<string, unknown> }>
   resolveHook(specifier: string, referrer: string): string
 }
 let capturedOptions: CapturedOptions | null = null
@@ -58,10 +58,15 @@ assert(pack, 'loader should return a pack when an archive miniapp module is pres
 assert(capturedOptions, 'loader should construct a compartment')
 const options = capturedOptions as unknown as CapturedOptions
 assert(!('Application' in options.globals), 'Application should not be endowed into the mini app compartment')
-assert(!('Container' in options.globals), 'Piu constructors should not be installed as globals')
+assert(options.globals.Container === Container, 'approved Piu constructors should be installed as globals')
+assert(typeof options.globals.Skin === 'function', 're-exported Piu constructors should be installed as globals')
 assert('archive' in options.globals, 'the mod should receive only its own archive resource capability')
 assert('piu/MC' in options.modules, 'compartment should expose the attenuated Piu module')
 assert(!('modules' in options.modules), 'host Modules should not be exposed to the compartment')
+const piuNamespace = options.modules['piu/MC'].namespace ?? {}
+assert(piuNamespace.Container === Container, 'attenuated Piu module should export Container')
+assert(typeof piuNamespace.Skin === 'function', 'attenuated Piu module should export re-exported Piu constructors')
+assert(!('Application' in piuNamespace), 'attenuated Piu module should exclude Application')
 equal(options.resolveHook('piu/MC', 'miniapp'), 'piu/MC', 'allowlisted imports should resolve')
 assert(!isMiniAppImportAllowed('http'), 'imports outside the mini app allowlist should be rejected')
 assert(definition.create() instanceof Container, 'allowlisted Piu constructors should remain usable')

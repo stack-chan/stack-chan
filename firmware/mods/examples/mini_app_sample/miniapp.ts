@@ -1,5 +1,6 @@
 import type { MiniAppDefinition } from 'capabilities'
-import { Behavior, Container, Port, Skin } from 'piu/MC'
+import 'piu/MC'
+import type { Port as PiuPort } from 'piu/MC'
 
 const background = new Skin({ fill: '#101214' })
 
@@ -7,22 +8,22 @@ class SamplePortBehavior extends Behavior {
   #x = 24
   #direction = 1
 
-  onDisplaying(port: Port): void {
+  onDisplaying(port: PiuPort): void {
     port.interval = 32
     port.start()
   }
 
-  onUndisplaying(port: Port): void {
+  onUndisplaying(port: PiuPort): void {
     port.stop()
   }
 
-  onTimeChanged(port: Port): void {
+  onTimeChanged(port: PiuPort): void {
     this.#x += this.#direction * 3
     if (this.#x >= port.width - 24 || this.#x <= 24) this.#direction *= -1
     port.invalidate()
   }
 
-  onDraw(port: Port): void {
+  onDraw(port: PiuPort): void {
     port.fillColor('#101214', 0, 0, port.width, port.height)
     port.fillColor('#42bde8', this.#x - 20, Math.floor(port.height / 2) - 20, 40, 40)
     port.fillColor('#ffffff', this.#x - 8, Math.floor(port.height / 2) - 7, 5, 5)

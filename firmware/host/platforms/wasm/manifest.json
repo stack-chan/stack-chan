@@ -27,6 +27,7 @@
       "../../app/compose",
       "../../app/capabilities",
       "../../app/experimental-mini-app-loader",
+      "../../app/experimental-mini-app-piu",
       "../../app/setup-mode",
       "../../app/settings-status",
       "../../app/runtime-audio",

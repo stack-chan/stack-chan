@@ -1,16 +1,9 @@
 import type { MiniAppDefinition, MiniAppRegistryCapability } from 'mini-app'
+import * as MiniAppPiuNamespace from 'experimental-mini-app-piu'
 import Modules from 'modules'
-import * as MCNamespace from 'piu/MC'
-import Timeline from 'piu/Timeline'
+import * as TimelineNamespace from 'piu/Timeline'
 
-type VirtualModuleEnvironment = Record<string, unknown>
-
-type VirtualModuleSource = {
-  bindings: Array<{ export: string }>
-  execute(environment: VirtualModuleEnvironment): void
-}
-
-type ModuleDescriptor = { archive: unknown; path: string } | { source: VirtualModuleSource }
+type ModuleDescriptor = { archive: unknown; path: string } | { namespace: Record<string, unknown> }
 
 type MiniAppCompartment = {
   importNow(specifier: string): Record<string, unknown>
@@ -36,30 +29,6 @@ export type ExperimentalMiniAppPack = Readonly<{
   compartment: MiniAppCompartment
 }>
 
-const ALLOWED_PIU_EXPORTS = Object.freeze([
-  'Behavior',
-  'Column',
-  'Container',
-  'Content',
-  'Die',
-  'Label',
-  'Layout',
-  'Port',
-  'Row',
-  'Scroller',
-  'Skin',
-  'Style',
-  'Text',
-  'Texture',
-  'Transition',
-  'blendColors',
-  'hsl',
-  'hsla',
-  'rgb',
-  'rgba',
-  'template',
-] as const)
-
 const ALLOWED_MINI_APP_IMPORTS = Object.freeze(['miniapp', 'piu/MC', 'piu/Timeline'] as const)
 
 declare const Compartment: MiniAppCompartmentConstructor | undefined
@@ -68,26 +37,10 @@ export function isMiniAppImportAllowed(specifier: string): boolean {
   return (ALLOWED_MINI_APP_IMPORTS as readonly string[]).includes(specifier)
 }
 
-function createVirtualModule(exports: Record<string, unknown>): ModuleDescriptor {
-  const names = Object.keys(exports)
-  return {
-    source: {
-      bindings: names.map((name) => ({ export: name })),
-      execute(environment) {
-        for (const name of names) environment[name] = exports[name]
-      },
-    },
-  }
-}
-
 function createPiuEndowments(): Record<string, unknown> {
-  const namespace = MCNamespace as unknown as Record<string, unknown>
-  const endowments: Record<string, unknown> = {}
-  for (const name of ALLOWED_PIU_EXPORTS) {
-    const value = namespace[name]
-    if (value !== undefined) endowments[name] = value
-  }
-  return Object.freeze(endowments)
+  // Compartment shares native Piu constructors reliably through an actual
+  // module namespace. The wrapper module exports only the approved subset.
+  return MiniAppPiuNamespace as unknown as Record<string, unknown>
 }
 
 function defaultMiniAppHostGlobals(): MiniAppHostGlobals {
@@ -119,16 +72,17 @@ export function prepareExperimentalMiniApps(
 
   try {
     const piu = createPiuEndowments()
-    const globals = Object.freeze({ archive })
-    const timeline = Object.freeze({ default: Timeline })
+    // Moddable's Piu typings compile constructors as ambient globals even when
+    // TypeScript source imports piu/MC, so expose the same attenuated subset in
+    // both forms. Application and all host capabilities remain excluded.
+    const globals = Object.freeze({ archive, ...piu })
     const compartment = new Compartment({
-      // Piu is available only through the attenuated virtual modules below.
       // The archive capability is limited to resources bundled in this mod.
       globals,
       modules: {
         miniapp: { archive, path: 'miniapp' },
-        'piu/MC': createVirtualModule(piu),
-        'piu/Timeline': createVirtualModule(timeline),
+        'piu/MC': { namespace: piu },
+        'piu/Timeline': { namespace: TimelineNamespace as unknown as Record<string, unknown> },
       },
       resolveHook(specifier) {
         if (isMiniAppImportAllowed(specifier)) return specifier

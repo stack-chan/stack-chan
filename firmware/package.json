@@ -35,6 +35,7 @@
     "build:m5stack_cores3": "mcconfig -d -m -p esp32/m5stack_cores3 -t build \"$PWD/host/app/manifest_local.json\"",
     "build:lin": "mcconfig -d -m -p lin -t build \"$PWD/host/app/manifest_local.json\"",
     "smoke:lin": "bash scripts/smoke-lin.sh",
+    "smoke:mini-app:lin": "bash scripts/smoke-mini-app-lin.sh",
     "build:wasm": "bash scripts/build-wasm.sh",
     "build:editor-tools": "bash scripts/build-editor-tools.sh",
     "bundle": "node scripts/bundle.mjs",

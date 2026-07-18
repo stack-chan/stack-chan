@@ -325,6 +325,9 @@ class HandsBehavior extends Behavior {
   }
 
   onTimeChanged(port: PiuPort): void {
+    // Timeline mutates the preallocated numeric motion model. Keep this paint
+    // hot path free of allocation and layout mutation; it only invalidates the
+    // old and new fixed-cell regions through #applyMotion.
     const phase = this.#phases[this.#phaseIndex]
     if (!phase) return
     phase.timeline.seekTo(port.time)
@@ -535,7 +538,11 @@ class HandsBehavior extends Behavior {
   }
 }
 
-/** A fixed full-screen Port that draws both animated, theme-colored hand sprites. */
+/**
+ * A fixed full-screen Port that draws both animated, theme-colored hands.
+ * Both hands share this one content node so animation never changes Piu
+ * coordinates or calls moveBy; only sprite selection and invalidation change.
+ */
 export const Hands = Port.template(() => ({
   name: 'hands',
   left: 0,

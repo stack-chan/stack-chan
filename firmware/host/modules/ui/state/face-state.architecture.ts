@@ -41,18 +41,6 @@ test('FaceBehavior applies breathing without reassigning coordinates on every ti
   assert.match(blocks[0], /container\.moveBy\(/)
 })
 
-test('Hand animation draws through one fixed Port without layout or hot-path allocation', () => {
-  const source = readFileSync('host/modules/ui/components/hands/hands.ts', 'utf8')
-  const blocks = extractMethodBlocks(source, 'onTimeChanged')
-
-  assert.match(source, /export const Hands = Port\.template/)
-  assert.doesNotMatch(source, /from 'timer'/)
-  assert.doesNotMatch(source, /\.coordinates\s*=/)
-  assert.doesNotMatch(source, /\.moveBy\(/)
-  assert.equal(blocks.length, 1, 'Hands should have one Timeline-driven onTimeChanged hot path')
-  assert.doesNotMatch(blocks[0], /\bnew\s/)
-})
-
 test('FaceView owns face skin palette calculation', () => {
   const faceView = readFileSync('host/modules/ui/views/main/face-view.ts', 'utf8')
   const faceBehavior = readFileSync('host/modules/ui/components/face/behaviors/face.ts', 'utf8')

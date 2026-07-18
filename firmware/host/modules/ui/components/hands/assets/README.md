@@ -3,6 +3,9 @@
 The runtime hand colors are not baked into these images. Draw
 `hands-outer-mask.png` with the face primary color, then draw
 `hands-inner-mask.png` at the same position with the face secondary color.
+The UI manifests use Moddable's supported `*-alpha-monochrome` resource target
+so both masks stay compact four-bit alpha textures while retaining their PNG
+resource names at the Piu API boundary.
 
 Both atlases are 768 x 960 pixels and use 96 x 96 pixel cells.
 
@@ -42,27 +45,29 @@ Regenerate the masks and preview with:
 
 ```sh
 python "${CODEX_HOME:-$HOME/.codex}/skills/.system/imagegen/scripts/remove_chroma_key.py" \
-  --input hands-source-right.png \
-  --out hands-source-right-alpha.png \
+  --input host/modules/ui/components/hands/assets/hands-source-right.png \
+  --out host/modules/ui/components/hands/assets/hands-source-right-alpha.png \
   --auto-key border \
   --soft-matte \
   --transparent-threshold 12 \
   --opaque-threshold 220 \
-  --despill
+  --despill \
+  --force
 
 python "${CODEX_HOME:-$HOME/.codex}/skills/.system/imagegen/scripts/remove_chroma_key.py" \
-  --input hands-source-right-side-open.png \
-  --out hands-source-right-side-open-alpha.png \
+  --input host/modules/ui/components/hands/assets/hands-source-right-side-open.png \
+  --out host/modules/ui/components/hands/assets/hands-source-right-side-open-alpha.png \
   --auto-key border \
   --soft-matte \
   --transparent-threshold 12 \
   --opaque-threshold 220 \
-  --despill
+  --despill \
+  --force
 
-python ../tools/build-static-atlas.py \
-  hands-source-right-alpha.png \
-  hands-source-right-side-open-alpha.png \
-  .
+python host/modules/ui/components/hands/tools/build-static-atlas.py \
+  host/modules/ui/components/hands/assets/hands-source-right-alpha.png \
+  host/modules/ui/components/hands/assets/hands-source-right-side-open-alpha.png \
+  host/modules/ui/components/hands/assets
 ```
 
 The source generation prompt is recorded in `generation-prompt.md`.

@@ -14,6 +14,10 @@ test('capability requirements are unique and target-aware', () => {
     'input.imu',
   ])
   assert.deepEqual(unsupportedRequirements('simulator', ['input.imu', 'face']), ['input.imu'])
+  assert.deepEqual(requirementsForBlockTypes(['stackchan_on_head_touch']), ['input.headTouch'])
+  assert.deepEqual(unsupportedRequirements('m5stackchan-cores3', ['input.headTouch']), [])
+  assert.deepEqual(unsupportedRequirements('simulator', ['input.headTouch']), ['input.headTouch'])
+  assert.deepEqual(unsupportedRequirements('portable', ['input.headTouch']), ['input.headTouch'])
 })
 
 test('singing blocks are available only on stackchan-voice targets', () => {

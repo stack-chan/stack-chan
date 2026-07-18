@@ -4,6 +4,7 @@ import type { CameraImageType } from 'camera'
 import { type CameraPreviewFrame, createCameraPreviewDialog, prepareCameraPreviewFrame } from 'camera-preview'
 import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-state'
+import { type HandAnimationName, isHandAnimationName } from 'hands'
 import type { MotionType } from 'imu'
 import config from 'mc/config'
 import type { Content as PiuContent } from 'piu/MC'
@@ -155,12 +156,14 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   }
 
   let faceMode: 'simple' | 'dog' | 'image' = 'simple'
+  let handAnimation: HandAnimationName = 'none'
   let cameraPreviewTimer: ReturnType<typeof Timer.set> | undefined
   const syncFaceMode = (
     app = robot.ui.application as { distribute?: (event: string, payload: unknown) => void } | undefined,
   ) => {
     app?.distribute?.('onFaceMode', faceMode)
   }
+  const syncHandAnimation = () => robot.ui.setHandAnimation(handAnimation)
   const closeDrawer = () => robot.ui.closeDrawer()
   const createCurrentFace = () =>
     faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
@@ -249,6 +252,25 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       }
     },
   })
+  robot.drawer.addDrawerButton({
+    key: 'handAnimation',
+    label: '手',
+    kind: 'choice',
+    value: handAnimation,
+    options: [
+      { value: 'none', label: '無し' },
+      { value: 'rock-paper-scissors', label: 'グーチョキパー' },
+      { value: 'clap', label: '拍手' },
+      { value: 'thinking', label: '考え中' },
+    ],
+    callback: (target, value) => {
+      if (!isHandAnimationName(value)) return
+      handAnimation = value
+      target.ui.setHandAnimation(handAnimation)
+      target.ui.closeDrawer()
+    },
+  })
+  syncHandAnimation()
 
   const runCameraPreview = async (target: typeof robot) => {
     let frame: Awaited<ReturnType<typeof target.camera.capture>> | undefined

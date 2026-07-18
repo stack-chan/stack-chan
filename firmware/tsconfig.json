@@ -51,6 +51,12 @@
       "face-view": [
         "./host/modules/ui/views/main/face-view"
       ],
+      "hand-sprites": [
+        "./host/modules/ui/components/hands/hand-sprites"
+      ],
+      "hands": [
+        "./host/modules/ui/components/hands/hands"
+      ],
       "settings-view": [
         "./host/modules/ui/views/settings/settings-view"
       ],

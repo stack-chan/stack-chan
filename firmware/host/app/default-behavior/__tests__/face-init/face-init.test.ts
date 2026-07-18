@@ -6,9 +6,11 @@ trace('=== default-mod face init test ===\n')
 
 type RegisteredButton = {
   key?: string
+  label?: string
   kind?: string
+  initialState?: boolean
   value?: string
-  options?: unknown[]
+  options?: { value?: string; label?: string }[]
   callback?: (target: unknown, value?: string) => Promise<void> | void
 }
 
@@ -18,6 +20,7 @@ const events: [string, unknown][] = []
 const emotions: unknown[] = []
 const effects: unknown[] = []
 const faces: unknown[] = []
+const selectedHandAnimations: string[] = []
 const colors: [string, number, number, number][] = []
 const speechRequests: string[] = []
 let drawerCloseCount = 0
@@ -57,6 +60,9 @@ const robot = {
     removeEffect: () => {},
     setFace: (face: unknown) => {
       faces.push(face)
+    },
+    setHandAnimation: (animation: string) => {
+      selectedHandAnimations.push(animation)
     },
     closeDrawer: () => {
       drawerCloseCount += 1
@@ -119,6 +125,31 @@ equal(buttons[0]?.options?.length, 3, 'face selection should expose every mode')
 equal(drawerStates.length, 0, 'choice controls should not masquerade as binary toggles')
 equal(events[0]?.[0], 'onFaceMode', 'initial face mode should be distributed')
 equal(events[0]?.[1], 'simple', 'initial face mode should be simple')
+const handsButton = buttons.find((button) => button.key === 'handAnimation')
+equal(handsButton?.kind, 'choice', 'hands should be exposed as a hierarchical option menu')
+equal(handsButton?.value, 'none', 'hands should start with no animation')
+equal(handsButton?.options?.length, 4, 'hands should expose every animation mode')
+equal(handsButton?.options?.[0]?.label, '無し', 'the first hand option should hide the hands')
+equal(handsButton?.options?.[1]?.label, 'グーチョキパー', 'the hand menu should expose rock-paper-scissors')
+equal(handsButton?.options?.[2]?.label, '拍手', 'the hand menu should expose clapping')
+equal(handsButton?.options?.[3]?.label, '考え中', 'the hand menu should expose thinking')
+equal(selectedHandAnimations[0], 'none', 'hands should initially be hidden through the typed UI API')
+const handAnimations = ['none', 'rock-paper-scissors', 'clap', 'thinking'] as const
+const drawerCloseCountBeforeHandSelections = drawerCloseCount
+for (const animation of handAnimations) {
+  const selectionCount = selectedHandAnimations.length
+  handsButton?.callback?.(robot, animation)
+  equal(selectedHandAnimations[selectionCount], animation, `${animation} should use the typed hand animation API`)
+}
+equal(
+  drawerCloseCount - drawerCloseCountBeforeHandSelections,
+  handAnimations.length,
+  'hand animation choices should close the drawer so the result is visible',
+)
+const selectionCountBeforeInvalidAnimation = selectedHandAnimations.length
+handsButton?.callback?.(robot, 'wave')
+equal(selectedHandAnimations.length, selectionCountBeforeInvalidAnimation, 'unknown hand animations should be ignored')
+equal(drawerStates.length, 0, 'hand choices should not masquerade as binary toggles')
 buttons.find((button) => button.key === 'toggleFace')?.callback?.(robot, 'dog')
 equal(faces.length, 1, 'face choice should replace the rendered face')
 equal(events[events.length - 1]?.[1], 'dog', 'face choice should distribute the selected face mode')
@@ -141,11 +172,12 @@ touchPanel.onEvent?.({ gesture: 'backwardSwipe', position: 0.75, intensity: 3, t
 equal(emotions[emotions.length - 1], Emotion.HAPPY, 'petting swipe pair should set HAPPY emotion')
 assert(effects.length > 0, 'petting should add a visible emotion effect')
 
+const drawerCloseCountBeforeSpeech = drawerCloseCount
 Promise.resolve(speakButton?.callback?.(robot)).then(
   () => {
     equal(speechRequests.length, 1, 'speakStackchan should request one utterance')
     equal(speechRequests[0], 'こんにちわ。すたっくちゃんです。', 'speakStackchan should request its greeting')
-    equal(drawerCloseCount, 1, 'speakStackchan should close the drawer before speaking')
+    equal(drawerCloseCount - drawerCloseCountBeforeSpeech, 1, 'speakStackchan should close the drawer before speaking')
     trace('ok\n')
   },
   (error) => {

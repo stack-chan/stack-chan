@@ -7,6 +7,7 @@ import {
   type FaceViewParams,
   type FaceViewTemplateCtor,
 } from 'face-view'
+import type { HandAnimationName } from 'hands'
 import type {
   ApplicationDictionary,
   Application as PiuApplication,
@@ -67,6 +68,10 @@ export class AppController extends Behavior {
 
   setFace(face: PiuContainer): void {
     this.#viewBehavior?.setFace?.(face)
+  }
+
+  setHandAnimation(animation: HandAnimationName): void {
+    this.#viewBehavior?.setHandAnimation?.(animation)
   }
 
   setFaceMotionEnabled(enabled: boolean): void {

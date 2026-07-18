@@ -14,6 +14,7 @@ import {
   faceStatesEqual,
   toPiuColorString,
 } from 'face-state'
+import { type HandAnimationName, Hands } from 'hands'
 import {
   Container,
   Die,
@@ -211,6 +212,10 @@ class FaceViewBehavior extends CommonViewBehavior {
     return true
   }
 
+  setHandAnimation(animation: HandAnimationName): void {
+    this.effects?.distribute('onHandAnimationChanged', animation)
+  }
+
   addEffect(effect: PiuContent, key?: string): void {
     if (!this.effects) return
     const effectsSet = this.getEffectsSet()
@@ -396,9 +401,23 @@ export const FaceMainTemplate: TemplateFunction<FaceViewParams, PiuContainer> = 
       $.FACE_REGION = faceRegion
     }
     faceRegion.add(face)
+    const hands = new Hands({})
     const effects =
       $.effects ??
-      new Container($, { left: 0, right: 0, top: 0, bottom: 0, active: false, clip: false, anchor: 'EFFECTS' })
+      new Container($, {
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        active: false,
+        clip: false,
+        anchor: 'EFFECTS',
+        contents: [hands],
+      })
+    if ($.effects) {
+      if (effects.first) effects.insert(hands, effects.first)
+      else effects.add(hands)
+    }
     if (!$.EFFECTS) {
       $.EFFECTS = effects
     }

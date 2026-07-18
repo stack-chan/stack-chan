@@ -9,10 +9,10 @@ Stack-chan is a JavaScript-driven M5Stack-embedded robot. The codebase is primar
 ## Core Architecture
 
 ### Modular Component System
-- **Host Program**: Core firmware (`host/app/main.ts`) that provides the robot framework
-- **MODs**: User applications that extend functionality (in `mods/` directory)
+- **Host Program**: Core firmware (`firmware/host/app/main.ts`) that provides the robot framework
+- **MODs**: User applications that extend functionality (in `firmware/mods/` directory)
 - **Drivers**: Hardware abstraction for different servo types (PWM, DYNAMIXEL, RS30X, SCServo)
-- **UI modules**: Piu Application, views, drawer, status bar, bubbles, effects, and face components under `host/modules/ui`
+- **UI modules**: Piu Application, views, drawer, status bar, bubbles, effects, and face components under `firmware/host/modules/ui`
 - **TTS Engines**: Text-to-speech providers (local, remote, VoiceVox, ElevenLabs, OpenAI)
 - **Services**: Background services (HTTP server, network, preferences)
 
@@ -99,7 +99,7 @@ Uses lefthook for pre-commit hooks:
 ## Testing Approach
 
 Moddable test modules live under the target implementation with `manifest.test.json`; substantial tests get their own manifest for isolated execution.
-Cheap constructor smokes are consolidated into shared manifests (`host/modules/__tests__/module-smoke`, `mods/examples/provider-dialogues/__tests__/dialogue-smoke`) because each manifest pays a full mcconfig build.
+Cheap constructor smokes are consolidated into shared manifests (`firmware/host/modules/__tests__/module-smoke`, `firmware/mods/examples/provider-dialogues/__tests__/dialogue-smoke`) because each manifest pays a full mcconfig build.
 Node.js unit tests live next to pure helper implementations and run through `npm run test:unit`.
 Prefer XS-driven Moddable tests for behavior that touches the platform (Piu, Timer, drivers); keep Node.js tests for pure logic.
 Tests must exercise behavior — do not write tests that merely re-assert source text or manifest values; record such constraints as why-comments in the source instead.

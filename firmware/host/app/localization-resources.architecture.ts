@@ -20,12 +20,21 @@ function placeholders(value: string): string[] {
   return [...value.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)].map((match) => match[1]).sort()
 }
 
+// Firmware resources use stable semantic keys, so placeholder names are an
+// explicit contract rather than being embedded in the key text.
+const placeholderContracts: Record<string, string[]> = {
+  'settings.wifiStatus': ['status'],
+  'splash.connecting': ['attempt', 'maxAttempts'],
+}
+
 test('firmware localization catalogs have matching keys and placeholders', () => {
   const japaneseKeys = Object.keys(catalogs.ja).sort()
   for (const locale of locales.slice(1)) {
     assert.deepEqual(Object.keys(catalogs[locale]).sort(), japaneseKeys, `${locale} keys`)
-    for (const key of japaneseKeys) {
-      assert.deepEqual(placeholders(catalogs[locale][key]), placeholders(catalogs.ja[key]), `${locale}: ${key}`)
+  }
+  for (const key of japaneseKeys) {
+    for (const locale of locales) {
+      assert.deepEqual(placeholders(catalogs[locale][key]), placeholderContracts[key] ?? [], `${locale}: ${key}`)
     }
   }
 })

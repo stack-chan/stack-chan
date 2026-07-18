@@ -459,6 +459,7 @@ try {
         assert.equal(await page.locator('#send-to-editor').getAttribute('title'), 'Apply changes to the MOD and return')
         await page.evaluate(() => import('/i18n.mjs').then(({ setLocale }) => setLocale('ja')))
         assert.equal(await page.locator('#send-to-editor span').innerText(), '変更を反映')
+        assert.equal(await page.locator('#send-to-editor').getAttribute('title'), '変更をMODへ反映して戻る')
         await page.locator('#face-name').fill('編集後のあつい顔')
         await page.locator('#face-emotion').selectOption('SAD')
         await page.locator('#left-eye-x').fill('76')

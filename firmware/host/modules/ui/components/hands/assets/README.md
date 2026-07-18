@@ -4,10 +4,12 @@ The runtime hand colors are not baked into these images. Draw
 `hands-outer-mask.png` with the face primary color, then draw
 `hands-inner-mask.png` at the same position with the face secondary color.
 The UI manifests use Moddable's supported `*-alpha-monochrome` resource target
-so both masks stay compact four-bit alpha textures while retaining their PNG
+so both masks stay compact one-bit alpha textures while retaining their PNG
 resource names at the Piu API boundary.
 
-Both atlases are 768 x 960 pixels and use 96 x 96 pixel cells.
+Both atlases are 704 x 880 pixels and use 88 x 88 pixel cells. The artwork
+still has a maximum 76-pixel extent; the smaller cells only remove transparent
+padding and do not scale the hands at runtime.
 
 Columns, from left to right:
 

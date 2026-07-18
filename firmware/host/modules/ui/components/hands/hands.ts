@@ -16,6 +16,7 @@ import Timeline from 'piu/Timeline'
 const ANIMATION_INTERVAL_MS = 100
 const HAND_SCREEN_WIDTH = 320
 const HALF_CELL = HAND_SPRITE_CELL_SIZE / 2
+const HAND_EDGE_CENTER_X = 48
 
 export const HAND_ANIMATION_NAMES = ['none', 'rock-paper-scissors', 'clap', 'thinking'] as const
 
@@ -111,8 +112,8 @@ function hand(shape: HandSpriteState, x: number, y: number, r: number): HandStat
 
 function pair(shape: HandSpriteState, y: number): HandPairState {
   return {
-    left: hand(shape, HALF_CELL, y, Math.PI / 4),
-    right: hand(shape, HAND_SCREEN_WIDTH - HALF_CELL, y, -Math.PI / 4),
+    left: hand(shape, HAND_EDGE_CENTER_X, y, Math.PI / 4),
+    right: hand(shape, HAND_SCREEN_WIDTH - HAND_EDGE_CENTER_X, y, -Math.PI / 4),
   }
 }
 
@@ -127,7 +128,7 @@ function clap(closed: boolean): HandPairState {
 function thinking(lowered: boolean): HandPairState {
   const inset = lowered ? 72 : 66
   return {
-    right: hand('point', HAND_SCREEN_WIDTH - inset - HALF_CELL, lowered ? 172 : 168, -Math.PI / 4),
+    right: hand('point', HAND_SCREEN_WIDTH - inset - HAND_EDGE_CENTER_X, lowered ? 172 : 168, -Math.PI / 4),
   }
 }
 
@@ -162,7 +163,7 @@ function defaultCompiledHand(handedness: Handedness): CompiledHandFrame {
   return {
     visible: false,
     shape: 'fist',
-    x: handedness === 'left' ? HALF_CELL : HAND_SCREEN_WIDTH - HALF_CELL,
+    x: handedness === 'left' ? HAND_EDGE_CENTER_X : HAND_SCREEN_WIDTH - HAND_EDGE_CENTER_X,
     y: 144,
     rotationUnits: 0,
   }
@@ -235,10 +236,10 @@ class HandsBehavior extends Behavior {
   #inner = toPiuColorString(DEFAULT_FACE_SECONDARY_COLOR)
   #loop = false
   #motion: MotionModel = {
-    leftX: HALF_CELL,
+    leftX: HAND_EDGE_CENTER_X,
     leftY: 144,
     leftRotation: 0,
-    rightX: HAND_SCREEN_WIDTH - HALF_CELL,
+    rightX: HAND_SCREEN_WIDTH - HAND_EDGE_CENTER_X,
     rightY: 144,
     rightRotation: 0,
   }
@@ -254,7 +255,7 @@ class HandsBehavior extends Behavior {
     shape: 'fist',
     direction: 'up',
     directionIndex: 0,
-    x: HALF_CELL,
+    x: HAND_EDGE_CENTER_X,
     y: 144,
     sourceX: 0,
     sourceY: handSpriteRow('left', 'fist') * HAND_SPRITE_CELL_SIZE,
@@ -266,7 +267,7 @@ class HandsBehavior extends Behavior {
     shape: 'fist',
     direction: 'up',
     directionIndex: 0,
-    x: HAND_SCREEN_WIDTH - HALF_CELL,
+    x: HAND_SCREEN_WIDTH - HAND_EDGE_CENTER_X,
     y: 144,
     sourceX: 0,
     sourceY: handSpriteRow('right', 'fist') * HAND_SPRITE_CELL_SIZE,

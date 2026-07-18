@@ -1,5 +1,5 @@
 /** Fixed cells let the renderer switch authored poses without runtime scaling or layout. */
-export const HAND_SPRITE_CELL_SIZE = 96
+export const HAND_SPRITE_CELL_SIZE = 88
 export const HAND_SPRITE_ATLAS_WIDTH = HAND_SPRITE_CELL_SIZE * 8
 export const HAND_SPRITE_ATLAS_HEIGHT = HAND_SPRITE_CELL_SIZE * 10
 export const HAND_ROTATION_UNITS_PER_TURN = 8192

@@ -13,7 +13,7 @@ import {
 import { type Port as PiuPort, type Texture as PiuTexture, Port, Texture } from 'piu/MC'
 import Timeline from 'piu/Timeline'
 
-const ANIMATION_INTERVAL_MS = 100
+const DEFAULT_ANIMATION_INTERVAL_MS = 100
 const HAND_SCREEN_WIDTH = 320
 const HALF_CELL = HAND_SPRITE_CELL_SIZE / 2
 const HAND_EDGE_CENTER_X = 48
@@ -46,6 +46,7 @@ export type HandAnimationFrame = Readonly<{
 
 export type HandAnimationSpec = Readonly<{
   frames: readonly HandAnimationFrame[]
+  intervalMs?: number
   loop: boolean
 }>
 
@@ -120,8 +121,8 @@ function pair(shape: HandSpriteState, y: number): HandPairState {
 function clap(closed: boolean): HandPairState {
   const centerOffset = closed ? 19 : 44
   return {
-    left: hand('side-open', HAND_SCREEN_WIDTH / 2 - centerOffset, 144, 0),
-    right: hand('side-open', HAND_SCREEN_WIDTH / 2 + centerOffset, 144, 0),
+    left: hand('side-open', HAND_SCREEN_WIDTH / 2 - centerOffset, 144, closed ? 0 : -Math.PI / 4),
+    right: hand('side-open', HAND_SCREEN_WIDTH / 2 + centerOffset, 144, closed ? 0 : Math.PI / 4),
   }
 }
 
@@ -146,7 +147,8 @@ const HAND_ANIMATION_SPECS: Readonly<Record<Exclude<HandAnimationName, 'none'>, 
     loop: true,
   },
   clap: {
-    frames: [frame(clap(false), 280, 240), frame(clap(true), 220, 110)],
+    frames: [frame(clap(false), 150, 90), frame(clap(true), 120, 50)],
+    intervalMs: 50,
     loop: true,
   },
   thinking: {
@@ -234,6 +236,7 @@ class HandsBehavior extends Behavior {
   #compiledFrames: readonly CompiledFrame[] = []
   #displaying = false
   #inner = toPiuColorString(DEFAULT_FACE_SECONDARY_COLOR)
+  #intervalMs = DEFAULT_ANIMATION_INTERVAL_MS
   #loop = false
   #motion: MotionModel = {
     leftX: HAND_EDGE_CENTER_X,
@@ -282,7 +285,7 @@ class HandsBehavior extends Behavior {
   }
 
   onCreate(port: PiuPort): void {
-    port.interval = ANIMATION_INTERVAL_MS
+    port.interval = DEFAULT_ANIMATION_INTERVAL_MS
   }
 
   onDisplaying(port: PiuPort): void {
@@ -371,6 +374,7 @@ class HandsBehavior extends Behavior {
       previous = next
     }
     this.#compiledFrames = compiled
+    this.#intervalMs = spec.intervalMs ?? DEFAULT_ANIMATION_INTERVAL_MS
     this.#loop = spec.loop
     if (compiled.length < 2 && !spec.loop) return
 
@@ -429,7 +433,7 @@ class HandsBehavior extends Behavior {
       this.#applyDiscreteFrame(port, phase.target)
     }
     this.#applyMotion(port)
-    port.interval = ANIMATION_INTERVAL_MS
+    port.interval = this.#intervalMs
     port.duration = phase.timeline.duration
     port.time = 0
     port.start()

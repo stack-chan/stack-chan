@@ -236,8 +236,9 @@ controller.setHandAnimation('clap')
 equal(leftHand.visible, true, 'clapping should show the left hand')
 equal(rightHand.visible, true, 'clapping should show the right hand')
 equal(leftHand.shape, 'side-open', 'clapping should use the edge-on hand sprite')
-equal(leftHand.direction, 'up', 'the left clapping fingertips should remain upright')
-equal(rightHand.direction, 'up', 'the right clapping fingertips should remain upright')
+equal(rightHand.shape, 'side-open', 'both clapping hands should remain edge-on')
+equal(leftHand.direction, 'up-left', 'the left clapping hand should lean outward')
+equal(rightHand.direction, 'up-right', 'the right clapping hand should lean outward')
 controller.setHandAnimation('thinking')
 equal(leftHand.visible, false, 'thinking should hide the unused left hand')
 equal(rightHand.visible, true, 'thinking should keep the chin-side right hand visible')
@@ -478,9 +479,9 @@ equal(newDrawerCalls.removed[0], 'swap', 'removeDrawerButton should update the c
 equal(oldDrawerCalls.removed.length, 0, 'removeDrawerButton should not mutate the old drawer controller after useUI')
 
 const finishHandTransition = () => {
-  hands.time = hands.duration
-  handsBehavior.onTimeChanged?.(hands)
+  hands.stop()
   handsBehavior.onFinished?.(hands)
+  hands.stop()
 }
 handsBehavior.onDisplaying?.(hands)
 controller.setHandAnimation('rock-paper-scissors')
@@ -489,11 +490,24 @@ finishHandTransition()
 assert(leftHand.shape !== initialRockPaperScissorsState, 'rock-paper-scissors should advance to another sprite')
 
 controller.setHandAnimation('clap')
-const openClapLeft = leftHand.x
+const outerClapLeft = leftHand.x
+const closingClapDuration = hands.duration
 finishHandTransition()
 const closedClapLeft = leftHand.x
-assert(closedClapLeft > openClapLeft + 16, 'clapping should move both hands toward the face center')
-assert(closedClapLeft < openClapLeft + 32, 'clapping should use a compact lateral motion')
+assert(closedClapLeft > outerClapLeft + 16, 'clapping should move both hands toward the face center')
+assert(closedClapLeft < outerClapLeft + 32, 'clapping should use a compact lateral motion')
+equal(leftHand.shape, 'side-open', 'clapping should remain edge-on while the hands meet')
+equal(rightHand.shape, 'side-open', 'both hands should remain edge-on while meeting')
+equal(leftHand.direction, 'up', 'the meeting left hand should be upright')
+equal(rightHand.direction, 'up', 'the meeting right hand should be upright')
+const openingClapDuration = hands.duration
+assert(closingClapDuration + openingClapDuration < 500, 'clapping should repeat more than twice per second')
+finishHandTransition()
+equal(leftHand.shape, 'side-open', 'clapping should stay edge-on while opening')
+equal(rightHand.shape, 'side-open', 'both hands should stay edge-on while opening')
+equal(leftHand.direction, 'up-left', 'the opening left hand should lean outward again')
+equal(rightHand.direction, 'up-right', 'the opening right hand should lean outward again')
+equal(leftHand.x, outerClapLeft, 'the left hand should return to its outer clapping position')
 
 controller.setHandAnimation('thinking')
 const initialThinkingTop = rightHand.y

@@ -14,13 +14,19 @@
 #define LOCAL_PEER_ID_BYTES 6
 #define LOCAL_PEER_ID_CHARS 12
 #define LOCAL_PEER_KEY_BYTES 16
+#define LOCAL_PEER_AUTH_KEY_BYTES 32
+#define LOCAL_PEER_AUTH_TAG_BYTES 16
 #define LOCAL_PEER_MAX_FRAME_BYTES 250
+#define LOCAL_PEER_MAX_AUTHENTICATED_FRAME_BYTES (LOCAL_PEER_MAX_FRAME_BYTES - LOCAL_PEER_AUTH_TAG_BYTES)
+#define LOCAL_PEER_MAX_SHARED_KEY_BYTES 64
 #define LOCAL_PEER_RECEIVE_HEADER_BYTES 9
 
 typedef struct {
 	xsMachine *the;
 	xsSlot object;
+	uint8_t id[LOCAL_PEER_ID_BYTES];
 	uint8_t key[LOCAL_PEER_KEY_BYTES];
+	uint8_t authKey[LOCAL_PEER_AUTH_KEY_BYTES];
 	uint8_t hasKey;
 	uint8_t closed;
 	uint16_t useCount;
@@ -29,7 +35,8 @@ typedef struct {
 static LocalPeerRadio gLocalPeerRadio;
 static portMUX_TYPE gLocalPeerRadioMux = portMUX_INITIALIZER_UNLOCKED;
 static const uint8_t gBroadcastAddress[LOCAL_PEER_ID_BYTES] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-static const uint8_t gKeyDomain[] = "stackchan-local-peer-v1:";
+static const uint8_t gEncryptionKeyDomain[] = "stackchan-local-peer-v1:";
+static const uint8_t gAuthenticationKeyDomain[] = "stackchan-local-peer-auth-v1:";
 
 static void localPeerRelease(LocalPeerRadio radio)
 {
@@ -72,6 +79,76 @@ static uint8_t localPeerParseID(xsMachine *the, xsSlot slot, uint8_t *address)
 		address[index] = (uint8_t)((high << 4) | low);
 	}
 	return 1;
+}
+
+static uint8_t localPeerDeriveKey(
+	const uint8_t *domain,
+	size_t domainLength,
+	const char *sharedKey,
+	size_t sharedKeyLength,
+	uint8_t *output,
+	size_t outputLength
+)
+{
+	uint8_t input[(sizeof(gAuthenticationKeyDomain) - 1) + LOCAL_PEER_MAX_SHARED_KEY_BYTES];
+	uint8_t digest[LOCAL_PEER_AUTH_KEY_BYTES];
+	const mbedtls_md_info_t *md = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+	uint8_t success = 0;
+
+	if (!md || (domainLength + sharedKeyLength > sizeof(input)) || (outputLength > sizeof(digest)))
+		return 0;
+	c_memcpy(input, domain, domainLength);
+	c_memcpy(input + domainLength, sharedKey, sharedKeyLength);
+	if (0 == mbedtls_md(md, input, domainLength + sharedKeyLength, digest)) {
+		c_memcpy(output, digest, outputLength);
+		success = 1;
+	}
+	c_memset(input, 0, sizeof(input));
+	c_memset(digest, 0, sizeof(digest));
+	return success;
+}
+
+static uint8_t localPeerCreateAuthenticationTag(
+	LocalPeerRadio radio,
+	const uint8_t *sourceAddress,
+	const uint8_t *destinationAddress,
+	const uint8_t *data,
+	size_t dataLength,
+	uint8_t *tag
+)
+{
+	uint8_t authenticated[LOCAL_PEER_ID_BYTES * 2 + LOCAL_PEER_MAX_AUTHENTICATED_FRAME_BYTES];
+	uint8_t digest[LOCAL_PEER_AUTH_KEY_BYTES];
+	const mbedtls_md_info_t *md = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+	uint8_t success = 0;
+
+	if (!md || (dataLength > LOCAL_PEER_MAX_AUTHENTICATED_FRAME_BYTES))
+		return 0;
+	c_memcpy(authenticated, sourceAddress, LOCAL_PEER_ID_BYTES);
+	c_memcpy(authenticated + LOCAL_PEER_ID_BYTES, destinationAddress, LOCAL_PEER_ID_BYTES);
+	c_memcpy(authenticated + (LOCAL_PEER_ID_BYTES * 2), data, dataLength);
+	if (0 == mbedtls_md_hmac(
+		md,
+		radio->authKey,
+		LOCAL_PEER_AUTH_KEY_BYTES,
+		authenticated,
+		(LOCAL_PEER_ID_BYTES * 2) + dataLength,
+		digest
+	)) {
+		c_memcpy(tag, digest, LOCAL_PEER_AUTH_TAG_BYTES);
+		success = 1;
+	}
+	c_memset(authenticated, 0, sizeof(authenticated));
+	c_memset(digest, 0, sizeof(digest));
+	return success;
+}
+
+static uint8_t localPeerAuthenticationTagMatches(const uint8_t *actual, const uint8_t *expected)
+{
+	uint8_t difference = 0;
+	for (uint8_t index = 0; index < LOCAL_PEER_AUTH_TAG_BYTES; index++)
+		difference |= actual[index] ^ expected[index];
+	return 0 == difference;
 }
 
 static void localPeerFormatID(const uint8_t *address, char *id)
@@ -177,21 +254,45 @@ static void localPeerReceiveCallback(const uint8_t *legacyAddress, const uint8_t
 	LocalPeerRadio radio;
 	uint8_t message[LOCAL_PEER_RECEIVE_HEADER_BYTES + LOCAL_PEER_MAX_FRAME_BYTES];
 	const uint8_t *sourceAddress;
-	esp_now_peer_info_t peer = {0};
+	uint8_t expectedTag[LOCAL_PEER_AUTH_TAG_BYTES];
 	uint8_t secure = 0;
+	uint8_t unicast = 0;
 
 	if ((dataLength < 0) || (dataLength > LOCAL_PEER_MAX_FRAME_BYTES)) return;
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-	if (!info || !info->src_addr) return;
+	if (!info || !info->src_addr || !info->des_addr) return;
 	sourceAddress = info->src_addr;
+	unicast = 0 != c_memcmp(info->des_addr, gBroadcastAddress, LOCAL_PEER_ID_BYTES);
 #else
 	if (!legacyAddress) return;
 	sourceAddress = legacyAddress;
 #endif
 	radio = localPeerAcquire();
 	if (!radio) return;
-	if (ESP_OK == esp_now_get_peer(sourceAddress, &peer))
-		secure = peer.encrypt;
+	if (radio->hasKey && (dataLength >= LOCAL_PEER_AUTH_TAG_BYTES)) {
+		int authenticatedLength = dataLength - LOCAL_PEER_AUTH_TAG_BYTES;
+		if (
+			localPeerCreateAuthenticationTag(
+				radio,
+				sourceAddress,
+				radio->id,
+				data,
+				(size_t)authenticatedLength,
+				expectedTag
+			) &&
+			localPeerAuthenticationTagMatches(data + authenticatedLength, expectedTag)
+		) {
+			dataLength = authenticatedLength;
+			secure = 1;
+		}
+	}
+	// ESP-NOW receive metadata does not expose whether a frame passed LMK
+	// authentication. Never infer authenticity from our local peer-table setting;
+	// reject keyed unicast unless its transport tag proves the sender and target.
+	if (radio->hasKey && unicast && !secure) {
+		localPeerRelease(radio);
+		return;
+	}
 	c_memcpy(message, sourceAddress, LOCAL_PEER_ID_BYTES);
 	message[6] = secure;
 	message[7] = (uint8_t)dataLength;
@@ -273,23 +374,39 @@ void xs_local_peer_radio_constructor(xsMachine *the)
 	radio->the = the;
 	radio->object = xsThis;
 	radio->useCount = 1;
+	if (ESP_OK != esp_read_mac(radio->id, ESP_MAC_WIFI_STA)) {
+		c_free(radio);
+		xsUnknownError("read local peer identity failed");
+	}
 
 	if (xsmcGet(value, xsArg(0), xsID("sharedKey")) && xsmcTest(value)) {
 		char sharedKey[65];
-		uint8_t input[sizeof(gKeyDomain) - 1 + 64];
-		uint8_t digest[32];
 		size_t keyLength;
-		const mbedtls_md_info_t *md;
 		xsmcToStringBuffer(value, sharedKey, sizeof(sharedKey));
 		keyLength = c_strlen(sharedKey);
-		c_memcpy(input, gKeyDomain, sizeof(gKeyDomain) - 1);
-		c_memcpy(input + sizeof(gKeyDomain) - 1, sharedKey, keyLength);
-		md = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-		if (!md || (0 != mbedtls_md(md, input, sizeof(gKeyDomain) - 1 + keyLength, digest))) {
+		if (
+			!localPeerDeriveKey(
+				gEncryptionKeyDomain,
+				sizeof(gEncryptionKeyDomain) - 1,
+				sharedKey,
+				keyLength,
+				radio->key,
+				LOCAL_PEER_KEY_BYTES
+			) ||
+			!localPeerDeriveKey(
+				gAuthenticationKeyDomain,
+				sizeof(gAuthenticationKeyDomain) - 1,
+				sharedKey,
+				keyLength,
+				radio->authKey,
+				LOCAL_PEER_AUTH_KEY_BYTES
+			)
+		) {
+			c_memset(sharedKey, 0, sizeof(sharedKey));
 			c_free(radio);
 			xsUnknownError("derive local peer key failed");
 		}
-		c_memcpy(radio->key, digest, LOCAL_PEER_KEY_BYTES);
+		c_memset(sharedKey, 0, sizeof(sharedKey));
 		radio->hasKey = 1;
 	}
 
@@ -374,7 +491,10 @@ void xs_local_peer_radio_send(xsMachine *the)
 	LocalPeerRadio radio = xsmcGetHostDataValidate(xsThis, xs_local_peer_radio_destructor);
 	uint8_t address[LOCAL_PEER_ID_BYTES];
 	uint8_t *data;
+	uint8_t authenticatedData[LOCAL_PEER_MAX_FRAME_BYTES];
+	uint8_t *sendData;
 	xsUnsignedValue dataLength;
+	size_t sendLength;
 	esp_err_t error;
 	if (radio->closed)
 		xsUnknownError("local peer radio is closed");
@@ -387,7 +507,25 @@ void xs_local_peer_radio_send(xsMachine *the)
 	xsmcGetBufferReadable(xsArg(1), (void **)&data, &dataLength);
 	if ((0 == dataLength) || (dataLength > LOCAL_PEER_MAX_FRAME_BYTES))
 		xsRangeError("invalid local peer frame length");
-	error = esp_now_send(address, data, dataLength);
+	sendData = data;
+	sendLength = dataLength;
+	if (radio->hasKey && (0 != c_memcmp(address, gBroadcastAddress, LOCAL_PEER_ID_BYTES))) {
+		if (dataLength > LOCAL_PEER_MAX_AUTHENTICATED_FRAME_BYTES)
+			xsRangeError("authenticated local peer frame is too large");
+		c_memcpy(authenticatedData, data, dataLength);
+		if (!localPeerCreateAuthenticationTag(
+			radio,
+			radio->id,
+			address,
+			data,
+			dataLength,
+			authenticatedData + dataLength
+		))
+			xsUnknownError("authenticate local peer frame failed");
+		sendData = authenticatedData;
+		sendLength += LOCAL_PEER_AUTH_TAG_BYTES;
+	}
+	error = esp_now_send(address, sendData, sendLength);
 	if (ESP_OK != error)
 		localPeerThrowESPError(the, "send local peer frame", error);
 }

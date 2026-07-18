@@ -1,6 +1,8 @@
 import { copyArrayBuffer } from 'local-peer-codec'
 
-export const LOCAL_PEER_FRAME_BYTES = 250
+// Leave room for transport authentication while staying within the smallest
+// datagram MTU supported by local peer backends.
+export const LOCAL_PEER_FRAME_BYTES = 234
 export const LOCAL_PEER_HEADER_BYTES = 18
 export const LOCAL_PEER_FRAGMENT_BYTES = LOCAL_PEER_FRAME_BYTES - LOCAL_PEER_HEADER_BYTES
 

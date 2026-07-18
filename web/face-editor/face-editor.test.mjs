@@ -4,9 +4,10 @@ import test from 'node:test'
 
 import { FACE_ASSET_EMOTIONS } from '../editor/face-assets.mjs'
 
-const [html, source, styles] = await Promise.all([
+const [html, source, storageSource, styles] = await Promise.all([
   readFile(new URL('./index.html', import.meta.url), 'utf8'),
   readFile(new URL('./face-editor.mjs', import.meta.url), 'utf8'),
+  readFile(new URL('./face-editor-storage.mjs', import.meta.url), 'utf8'),
   readFile(new URL('./face-editor.css', import.meta.url), 'utf8'),
 ])
 
@@ -54,7 +55,14 @@ test('Shape face editor exposes geometry, preview, persistence, and editor hando
   ]) {
     assert.match(html, new RegExp(`id="${id}"`))
   }
-  assert.match(source, /stackchan-face-asset-staging/)
+  assert.match(storageSource, /stackchan-face-asset-staging/)
+  assert.match(storageSource, /stackchan-face-editor-draft-v1/)
+  assert.match(source, /loadFaceEditContext/)
+  assert.match(source, /loadFaceDraft/)
+  assert.match(source, /saveFaceDraft/)
+  assert.match(source, /stageFaceTransfer\(asset, activeEditContext\)/)
+  assert.match(html, /id="send-to-editor"[\s\S]*?<span>MODで使う<\/span>/)
+  assert.match(source, /elements\.sendToEditorLabel\.textContent = '変更を反映'/)
   assert.match(source, /shapeFaceDefinition/)
   assert.match(source, /pointerdown/)
   assert.match(source, /ArrowLeft/)
@@ -81,6 +89,8 @@ test('Shape face editor exposes geometry, preview, persistence, and editor hando
   assert.match(styles, /aspect-ratio: 4 \/ 3/)
   assert.match(styles, /input\[readonly\]/)
   assert.match(styles, /\.toggle-control/)
+  assert.match(styles, /#download-face span\s*{\s*display: none;/)
+  assert.doesNotMatch(styles, /button:not\(\.icon-button\) span/)
   const emotionOptions = [...html.matchAll(/<option value="([A-Z]+)">/g)].map((match) => match[1])
   assert.deepEqual(emotionOptions, FACE_ASSET_EMOTIONS)
 })

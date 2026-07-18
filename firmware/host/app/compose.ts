@@ -28,6 +28,7 @@ import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as OpenAITTS } from 'tts-openai'
 import { TTS as RemoteTTS } from 'tts-remote'
+import { TTS as StackchanVoiceTTS } from 'tts-stackchan-voice'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
 
@@ -117,6 +118,7 @@ export function createStackchanContext(
     ['voicevox-web', (param) => new VoiceVoxWebTTS(param as ConstructorParameters<typeof VoiceVoxWebTTS>[0])],
     ['elevenlabs', (param) => new ElevenLabsTTS(param as ConstructorParameters<typeof ElevenLabsTTS>[0])],
     ['openai', (param) => new OpenAITTS(param as ConstructorParameters<typeof OpenAITTS>[0])],
+    ['stackchan-voice', (param) => new StackchanVoiceTTS(param as ConstructorParameters<typeof StackchanVoiceTTS>[0])],
   ])
   const uiControllers = new Map<string, (param: unknown) => RobotUI>([
     ['dog', (param) => createStackchanUI(new DogFace(), asUIOptions(param))],
@@ -164,6 +166,8 @@ export function createStackchanContext(
     }
     throw new Error(errors.join('\n'))
   }
+
+  trace(`[main] TTS engine: ${ttsKey}\n`)
 
   const driver = Driver(driverPrefs)
   const ui = UI(uiPrefs)

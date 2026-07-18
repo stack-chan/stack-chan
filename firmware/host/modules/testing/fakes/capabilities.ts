@@ -2,6 +2,7 @@ import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-ty
 
 export type TTS = {
   stream: (text: string, volume?: number, callback?: TTSCompletion) => void
+  streamKoe?: (koe: string, volume?: number, callback?: TTSCompletion) => void
   onPlayed?: TTSPlaybackListener
   onDone?: TTSDoneListener
 }

@@ -36,6 +36,7 @@ test('tool pages load the shared left drawer without changing integration ids', 
     assert.match(navigation, new RegExp(`id: '${id}'`), `drawer should expose ${id}`)
   }
   assert.match(navigation, /topbar\.prepend\(button\)/)
+  assert.match(navigation, /anchor\.dataset\.toolId = item\.id/)
   assert.match(navigation, /dialog\.showModal\(\)/)
   assert.match(navigation, /aria-current/)
 
@@ -68,6 +69,7 @@ test('tool pages load the shared left drawer without changing integration ids', 
     'face-selection-label',
     'face-selection-menu',
     'face-selection-list',
+    'edit-face-button',
   ]) {
     assert.match(editor, new RegExp(`id="${id}"`))
   }
@@ -95,6 +97,9 @@ test('tool pages load the shared left drawer without changing integration ids', 
   assert.match(editorScript, /setProjectMenuOpen/)
   assert.match(editorScript, /setRecentProjectsSubmenuOpen/)
   assert.match(editorScript, /renderFaceSelection/)
+  assert.match(editorScript, /saveFaceEditContext/)
+  assert.match(editorScript, /faceEditorNavigationLink\?\.addEventListener/)
+  assert.match(editorScript, /window\.addEventListener\('pageshow', renderFaceSelection\)/)
   assert.match(editorScript, /role', 'menuitemradio'/)
   assert.match(editorScript, /startProjectNameEdit/)
   assert.doesNotMatch(editorScript, /use\.textContent = selected \? '使用中' : '使う'/)

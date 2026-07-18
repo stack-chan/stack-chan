@@ -118,8 +118,12 @@ wasm audio bridge は、現在の public capability 実装で唯一、非同期 
 公開 audio API は、MOD に渡す capability object から音声再生機能を提供します。
 local、remote、Voicevox、ElevenLabs、OpenAI などの provider object は `host/modules/audio` の内部実装です。
 
+`sing(koe, volume?)` は、使用中の TTS provider が対応している場合に stackchan-voice の歌唱記法を再生します。
+歌唱非対応の provider では失敗結果を返し、歌唱記法を通常の文章として読み上げることはありません。
+
 `playAudio(buffer)` は、target が借用 buffer を受け取り、再生が完了した場合だけ `true` を返します。
 target が buffer 再生に未対応、buffer が空、または再生に失敗した場合は `false` を返します。
 呼び出し側は buffer の所有権を保持し、`false` を未対応または未再生として扱ってください。
 
 - [TTS（音声合成）の使用](./text-to-speech_ja.md)
+- [stackchan-voice の発話・歌唱](./stackchan-voice.md)

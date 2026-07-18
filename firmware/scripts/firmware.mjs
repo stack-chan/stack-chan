@@ -3,12 +3,26 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
+import {
+  assertNoCustomBuildOutput,
+  buildOutputDirectory,
+  ensureBuildOutputDirectory,
+  hostApplicationName,
+  moddableOutputArguments,
+} from './lib/build-output.mjs'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
-import { prepareM5StackChanCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
+import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
 const targetOption = readOption(rawArgs, 'target')
+
+try {
+  assertNoCustomBuildOutput(rawArgs)
+} catch (error) {
+  console.error(`[stack-chan] ${error.message}`)
+  process.exit(1)
+}
 
 if (!command || command === 'help' || command === '--help' || command === '-h') {
   printHelp()
@@ -40,10 +54,16 @@ const platform = `esp32:${device.platform}`
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
 const { mode: buildMode, args: buildModeArgs } = readBuildConfiguration(rawArgs)
+const outputArgs = moddableOutputArguments()
 
 if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
   try {
-    prepareM5StackChanCoreS3IdfDependencies({ moddableDirectory: process.env.MODDABLE, mode: buildMode })
+    prepareCoreS3IdfDependencies({
+      outputDirectory: buildOutputDirectory,
+      platformName: deviceName,
+      applicationName: hostApplicationName,
+      mode: buildMode,
+    })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
     process.exit(1)
@@ -52,16 +72,36 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
 
 switch (command) {
   case 'build':
-    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, '-t', 'build', path.resolve(manifest), ...args])
+    run('mcconfig', [
+      ...buildModeArgs,
+      '-m',
+      '-p',
+      platform,
+      '-t',
+      'build',
+      ...outputArgs,
+      path.resolve(manifest),
+      ...args,
+    ])
     break
   case 'flash':
-    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, path.resolve(manifest), ...args])
+    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, ...outputArgs, path.resolve(manifest), ...args])
     break
   case 'deploy':
-    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, '-t', 'deploy', path.resolve(manifest), ...args])
+    run('mcconfig', [
+      ...buildModeArgs,
+      '-m',
+      '-p',
+      platform,
+      '-t',
+      'deploy',
+      ...outputArgs,
+      path.resolve(manifest),
+      ...args,
+    ])
     break
   case 'debug':
-    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, path.resolve(manifest), ...args])
+    run('mcconfig', [...buildModeArgs, '-m', '-p', platform, ...outputArgs, path.resolve(manifest), ...args])
     break
   case 'mod': {
     const modInput = args[0]
@@ -73,9 +113,9 @@ switch (command) {
     }
     const packageDirectory = findPackageDirectory(modInput)
     if (packageDirectory) {
-      run('mcpack', ['mcrun', '-d', '-m', '-p', platform, ...args.slice(1)], packageDirectory)
+      run('mcpack', ['mcrun', '-d', '-m', '-p', platform, ...outputArgs, ...args.slice(1)], packageDirectory)
     } else {
-      run('mcrun', ['-d', '-m', '-p', platform, modInput, ...args.slice(1)])
+      run('mcrun', ['-d', '-m', '-p', platform, ...outputArgs, modInput, ...args.slice(1)])
     }
     break
   }
@@ -95,12 +135,14 @@ function run(bin, binArgs, cwd = process.cwd()) {
   console.log(`[stack-chan] ${command}: ${device.label}`)
   console.log(`[stack-chan] platform=${platform}`)
   if (command !== 'mod') console.log(`[stack-chan] manifest=${manifest}`)
+  console.log(`[stack-chan] output=${buildOutputDirectory}`)
   if (cwd !== process.cwd()) console.log(`[stack-chan] cwd=${cwd}`)
   if (dryRun) {
     console.log([bin, ...binArgs].join(' '))
     return
   }
 
+  ensureBuildOutputDirectory()
   const result = spawnSync(bin, binArgs, { cwd, stdio: 'inherit' })
   if (result.error) {
     console.error(`[stack-chan] ${bin}を実行できませんでした: ${result.error.message}`)

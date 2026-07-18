@@ -2,6 +2,7 @@ import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { RobotCamera } from 'camera'
 import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
 import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
+import type { HandAnimationName } from 'hands'
 import type IMU from 'imu'
 import type { ButtonInputEvent } from 'input-event'
 import type { LocalPeerCapability } from 'local-peer-types'
@@ -27,6 +28,8 @@ export { LocalPeerError } from 'local-peer-types'
 
 export type TTS = {
   stream: (text: string, volume?: number, callback?: TTSCompletion) => void
+  /** Streams raw stackchan-voice koe notation when the provider supports singing. */
+  streamKoe?: (koe: string, volume?: number, callback?: TTSCompletion) => void
   onPlayed?: TTSPlaybackListener
   onDone?: TTSDoneListener
 }
@@ -47,6 +50,8 @@ export type RobotUI = {
   removeEffect(effect: UIEffect): void
   application?: unknown
   setFace(face: PiuContainer): void
+  /** Select one of the built-in hand animations shown around the face. */
+  setHandAnimation(animation: HandAnimationName): void
   /** Enable or disable periodic face motions without replacing or hiding the current face. */
   setFaceMotionEnabled?(enabled: boolean): void
   /** Replace the swappable main component (e.g. a full-area dialog) while keeping AppBar/Drawer active. */
@@ -111,6 +116,8 @@ export type AudioCapability = {
    */
   useTTS(tts: TTS): void
   say(text: string, volume?: number): Promise<Maybe<string>>
+  /** Sings raw koe notation. Returns a failure when the active TTS does not support singing. */
+  sing(koe: string, volume?: number): Promise<Maybe<string>>
   record(durationMilliSec?: number): Promise<OwnedAudioBuffer>
   tone(hz: number, duration: number, volume?: number): Promise<void>
   /**

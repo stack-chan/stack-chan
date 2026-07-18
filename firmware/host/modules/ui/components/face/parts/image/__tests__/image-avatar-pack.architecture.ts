@@ -18,11 +18,12 @@ test('UI manifests leave ImageAvatarLite sprites to the sample MOD', () => {
   for (const manifestPath of ['host/modules/ui/manifest.json', 'host/modules/ui/manifest_wasm.json']) {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
     const alphaResources = (manifest.resources['*-alpha'] ?? []) as string[]
+    const maskResources = (manifest.resources['*-mask'] ?? []) as string[]
     const colorResources = (manifest.resources['*-color'] ?? []) as string[]
     const combinedResources = (manifest.resources['*'] ?? []) as string[]
 
     assert.equal(
-      [...alphaResources, ...colorResources, ...combinedResources].some((resource) =>
+      [...alphaResources, ...maskResources, ...colorResources, ...combinedResources].some((resource) =>
         resource.includes('image-avatar-lite'),
       ),
       false,

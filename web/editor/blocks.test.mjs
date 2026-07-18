@@ -9,6 +9,9 @@ import {
   NOTE_OPTIONS,
   registerStackchanBlocks,
   registerAsyncProcedureGenerators,
+  SINGING_NOTE_OPTIONS,
+  singingMoraToKoe,
+  singingScoreToKoe,
   TOOLBOX,
 } from './blocks.mjs'
 
@@ -28,6 +31,140 @@ test('escapeSingleQuoted keeps a field_input value a valid single-quoted literal
     // eslint-disable-next-line no-eval
     assert.equal(eval(`'${escapeSingleQuoted(raw)}'`), raw)
   }
+})
+
+test('singingMoraToKoe converts hiragana, katakana, yoon, moraic n, and long vowels', () => {
+  assert.equal(singingMoraToKoe('き'), 'ki')
+  assert.equal(singingMoraToKoe('キャ'), 'kya')
+  assert.equal(singingMoraToKoe('デャ'), 'dya')
+  assert.equal(singingMoraToKoe('ウォ'), 'o')
+  assert.equal(singingMoraToKoe('ヰ'), 'i')
+  assert.equal(singingMoraToKoe('ん'), 'n')
+  assert.equal(singingMoraToKoe('ー', 'ko'), 'o')
+  assert.throws(() => singingMoraToKoe('ー'), /前には母音/)
+  assert.throws(() => singingMoraToKoe('きら'), /かな1モーラ/)
+  assert.throws(() => singingMoraToKoe('っ'), /かな1モーラ/)
+})
+
+test('singingScoreToKoe converts tempo and note triples into exact koe notation', () => {
+  assert.equal(
+    singingScoreToKoe(120, [
+      ['C4', 1, 'き'],
+      ['C+4', 0.5, 'ラ'],
+      ['G4', 2, 'ー'],
+      ['R', 0.5, ''],
+    ]),
+    '#C4,500ki#C+4,250ra#G4,1000a#R,250'
+  )
+  assert.throws(() => singingScoreToKoe(120, []), /音符または休符/)
+  assert.throws(() => singingScoreToKoe(120, [['C4', 1]]), /3項目/)
+  assert.throws(() => singingScoreToKoe(120, [['R', 1, 'ら']]), /休符には歌詞/)
+  assert.throws(() => singingScoreToKoe(120, [['H4', 1, 'ら']]), /歌唱音符/)
+  assert.throws(() => singingScoreToKoe(20, [['C4', 16, 'ら']]), /20〜8000/)
+})
+
+test('list-based singing blocks generate one score helper call from note triples', () => {
+  const generator = {
+    forBlock: {},
+    valueToCode: (_block, name) => (name === 'SCORE' ? "[['C4', 1, 'き'], ['R', 0.5, '']]" : ''),
+  }
+  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, {
+    NONE: 99,
+    ATOMIC: 0,
+    FUNCTION_CALL: 1,
+    AWAIT: 2,
+  })
+
+  const fieldBlock = (fields) => ({ getFieldValue: (name) => fields[name] })
+  assert.equal(
+    generator.forBlock.stackchan_sing_score(fieldBlock({ BPM: 120 }), generator),
+    "await singScore(robot, 120, [['C4', 1, 'き'], ['R', 0.5, '']])\n"
+  )
+  assert.deepEqual(generator.forBlock.stackchan_song_note_tuple(fieldBlock({ NOTE: 'C+4', BEATS: 0.5, LYRIC: 'ラ' })), [
+    "['C+4', 0.5, 'ラ']",
+    0,
+  ])
+  assert.deepEqual(generator.forBlock.stackchan_song_rest_tuple(fieldBlock({ BEATS: 2 })), ["['R', 2, '']", 0])
+})
+
+test('generated singScore helper calls robot.audio.sing and surfaces provider failures', async () => {
+  const source = assembleModSource("await singScore(robot, 120, [['C4', 1, 'き'], ['R', 0.5, '']])")
+  assert.match(source, /function singingScoreToKoe/)
+  let received = ''
+  const robot = {
+    audio: {
+      sing: async (koe) => {
+        received = koe
+        return { success: true, value: koe }
+      },
+    },
+  }
+
+  await evaluateModule(source).onContextCreated(robot)
+  assert.equal(received, '#C4,500ki#R,250')
+
+  const unavailable = { audio: { sing: async () => ({ success: false, reason: 'singing unavailable' }) } }
+  await assert.rejects(evaluateModule(source).onContextCreated(unavailable), /singing unavailable/)
+})
+
+test('singing blocks compile a typed score into tempo-exact koe notation', () => {
+  const generator = { forBlock: {} }
+  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, {
+    NONE: 0,
+    FUNCTION_CALL: 1,
+    AWAIT: 2,
+  })
+
+  const event = (type, fields, next = null) => ({
+    type,
+    getFieldValue: (name) => fields[name],
+    getNextBlock: () => next,
+  })
+  const rest = event('stackchan_song_rest', { BEATS: 0.5 })
+  const longVowel = event('stackchan_song_note', { NOTE: 'G4', BEATS: 2, LYRIC: 'ー' }, rest)
+  const second = event('stackchan_song_note', { NOTE: 'C+4', BEATS: 0.5, LYRIC: 'ラ' }, longVowel)
+  const first = event('stackchan_song_note', { NOTE: 'C4', BEATS: 1, LYRIC: 'き' }, second)
+  const song = {
+    getFieldValue: (name) => (name === 'BPM' ? 120 : undefined),
+    getInputTargetBlock: (name) => (name === 'SCORE' ? first : null),
+  }
+
+  assert.equal(
+    generator.forBlock.stackchan_sing(song),
+    "await robot.audio.sing('#C4,500ki#C+4,250ra#G4,1000a#R,250')\n"
+  )
+  const legacyParent = { type: 'stackchan_sing' }
+  assert.equal(generator.forBlock.stackchan_song_note({ getParent: () => legacyParent }), '')
+  assert.equal(generator.forBlock.stackchan_song_rest({ getParent: () => legacyParent }), '')
+  assert.throws(
+    () => generator.forBlock.stackchan_song_note({ getParent: () => null }),
+    /旧形式の音符・休符ブロックは直接実行できません/
+  )
+})
+
+test('singing block generator rejects an empty or out-of-range score', () => {
+  const generator = { forBlock: {} }
+  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, {
+    NONE: 0,
+    FUNCTION_CALL: 1,
+    AWAIT: 2,
+  })
+  const emptySong = {
+    getFieldValue: () => 120,
+    getInputTargetBlock: () => null,
+  }
+  const longNote = {
+    type: 'stackchan_song_note',
+    getFieldValue: (name) => ({ NOTE: 'C4', BEATS: 16, LYRIC: 'あ' })[name],
+    getNextBlock: () => null,
+  }
+  const slowSong = {
+    getFieldValue: () => 20,
+    getInputTargetBlock: () => longNote,
+  }
+
+  assert.throws(() => generator.forBlock.stackchan_sing(emptySong), /音符または休符/)
+  assert.throws(() => generator.forBlock.stackchan_sing(slowSong), /20〜8000/)
 })
 
 test('education blocks do not expose arbitrary JavaScript input', () => {
@@ -62,6 +199,38 @@ test('education blocks do not expose arbitrary JavaScript input', () => {
   )
 })
 
+test('head touch block exposes head sensor gestures and generates a petting handler', () => {
+  let definitions = []
+  const generator = { forBlock: {}, statementToCode: () => '' }
+  registerStackchanBlocks(
+    {
+      defineBlocksWithJsonArray(value) {
+        definitions = value
+      },
+    },
+    generator,
+    { NONE: 0, FUNCTION_CALL: 1, AWAIT: 2 }
+  )
+
+  const definition = definitions.find(({ type }) => type === 'stackchan_on_head_touch')
+  assert.equal(definition.message0, '頭部タッチセンサが %1 とき %2 %3')
+  assert.equal(definition.tooltip, '頭上の静電容量式タッチセンサを操作したときに実行します')
+  assert.deepEqual(definition.args0[0].options, [
+    ['タッチされた', 'press'],
+    ['はなされた', 'release'],
+    ['前方へスワイプされた', 'forwardSwipe'],
+    ['後方へスワイプされた', 'backwardSwipe'],
+    ['なでられた', 'petting'],
+  ])
+
+  const code = generator.forBlock.stackchan_on_head_touch(
+    { id: 'head-touch-id', getFieldValue: () => 'petting' },
+    generator
+  )
+  assert.match(code, /^runtime\.add\(onHeadTouch\(robot, 'petting',/)
+  assert.match(code, /reportVisualError\('VP_RUNTIME_HANDLER', 'head-touch-id', error, 'head touch'\)/)
+})
+
 test('generator reserves every identifier injected into the visual runtime scope', () => {
   let reservedWords = ''
   const generator = {
@@ -83,7 +252,7 @@ test('generator reserves every identifier injected into the visual runtime scope
     'reportVisualError',
     'onButton',
     'onImu',
-    'onTouchPanel',
+    'onHeadTouch',
     'event',
   ]) {
     assert.equal(reserved.has(name), true, `${name} must be reserved`)
@@ -309,17 +478,17 @@ test('assembleModSource injects event dispatch helpers only when used', () => {
   const withButton = assembleModSource("onButton(robot, 'a', 'press', (event) => {})\n")
   assert.match(withButton, /function onButton\(robot, name, edge, handler\)/)
   assert.doesNotMatch(withButton, /function onImu/)
-  assert.doesNotMatch(withButton, /function onTouchPanel/)
+  assert.doesNotMatch(withButton, /function onHeadTouch/)
 
   const withImu = assembleModSource("onImu(robot, 'shake', (event) => {})\n")
   assert.match(withImu, /function onImu\(robot, motion, handler\)/)
   assert.match(withImu, /imu\.start\?\.\(\)/) // IMU must be started
 
-  const withTouch = assembleModSource("onTouchPanel(robot, 'forwardSwipe', (event) => {})\n")
-  assert.match(withTouch, /function onTouchPanel\(robot, gesture, handler\)/)
+  const withHeadTouch = assembleModSource("onHeadTouch(robot, 'forwardSwipe', (event) => {})\n")
+  assert.match(withHeadTouch, /function onHeadTouch\(robot, gesture, handler\)/)
 
   const plain = assembleModSource('robot.ui.showFace()\n')
-  assert.doesNotMatch(plain, /function onButton|function onImu|function onTouchPanel/)
+  assert.doesNotMatch(plain, /function onButton|function onImu|function onHeadTouch/)
 })
 
 test('event dispatch helpers preserve duplicate handlers and remove only their own callback', async () => {
@@ -328,70 +497,138 @@ robot.removeFirstButton = onButton(robot, 'a', 'press', () => { robot.firstButto
 robot.removeSecondButton = onButton(robot, 'a', 'press', () => { robot.secondButton += 1 })
 robot.removeFirstImu = onImu(robot, 'shake', () => { robot.firstImu += 1 })
 robot.removeSecondImu = onImu(robot, 'shake', () => { robot.secondImu += 1 })
-robot.removeFirstTouch = onTouchPanel(robot, 'tap', () => { robot.firstTouch += 1 })
-robot.removeSecondTouch = onTouchPanel(robot, 'tap', () => { robot.secondTouch += 1 })
+robot.removeFirstHeadTouch = onHeadTouch(robot, 'press', () => { robot.firstHeadTouch += 1 })
+robot.removeSecondHeadTouch = onHeadTouch(robot, 'press', () => { robot.secondHeadTouch += 1 })
 `)
   const previousCalls = []
   const previousButton = () => previousCalls.push('button')
   const previousImu = () => previousCalls.push('imu')
-  const previousTouch = () => previousCalls.push('touch')
+  const previousHeadTouch = () => previousCalls.push('headTouch')
   const robot = {
     firstButton: 0,
     secondButton: 0,
     firstImu: 0,
     secondImu: 0,
-    firstTouch: 0,
-    secondTouch: 0,
+    firstHeadTouch: 0,
+    secondHeadTouch: 0,
     input: {
       button: { a: { onEvent: previousButton } },
       imu: { onEvent: previousImu },
-      touchPanel: { onEvent: previousTouch },
+      touchPanel: { onEvent: previousHeadTouch },
     },
   }
   await evaluateModule(source).onContextCreated(robot)
 
   robot.input.button.a.onEvent({ pressed: true })
   robot.input.imu.onEvent({ motion: 'shake' })
-  robot.input.touchPanel.onEvent({ gesture: 'tap' })
+  robot.input.touchPanel.onEvent({ gesture: 'press', ticks: 100 })
   assert.deepEqual(
-    [robot.firstButton, robot.secondButton, robot.firstImu, robot.secondImu, robot.firstTouch, robot.secondTouch],
+    [
+      robot.firstButton,
+      robot.secondButton,
+      robot.firstImu,
+      robot.secondImu,
+      robot.firstHeadTouch,
+      robot.secondHeadTouch,
+    ],
     [1, 1, 1, 1, 1, 1]
   )
-  assert.deepEqual(previousCalls, ['button', 'imu', 'touch'])
+  assert.deepEqual(previousCalls, ['button', 'imu', 'headTouch'])
 
   robot.removeFirstButton()
   robot.removeFirstImu()
-  robot.removeFirstTouch()
+  robot.removeFirstHeadTouch()
   robot.input.button.a.onEvent({ pressed: true })
   robot.input.imu.onEvent({ motion: 'shake' })
-  robot.input.touchPanel.onEvent({ gesture: 'tap' })
+  robot.input.touchPanel.onEvent({ gesture: 'press', ticks: 200 })
   assert.deepEqual(
-    [robot.firstButton, robot.secondButton, robot.firstImu, robot.secondImu, robot.firstTouch, robot.secondTouch],
+    [
+      robot.firstButton,
+      robot.secondButton,
+      robot.firstImu,
+      robot.secondImu,
+      robot.firstHeadTouch,
+      robot.secondHeadTouch,
+    ],
     [1, 2, 1, 2, 1, 2]
   )
 
   robot.removeSecondButton()
   robot.removeSecondImu()
-  robot.removeSecondTouch()
+  robot.removeSecondHeadTouch()
   assert.equal(robot.input.button.a.onEvent, previousButton)
   assert.equal(robot.input.imu.onEvent, previousImu)
-  assert.equal(robot.input.touchPanel.onEvent, previousTouch)
+  assert.equal(robot.input.touchPanel.onEvent, previousHeadTouch)
+})
+
+test('head touch helper recognizes petting in both directions within 1.5 seconds', async () => {
+  const source = assembleModSource(
+    "runtime.add(onHeadTouch(robot, 'petting', (event) => { robot.pettingEvents.push(event) }))\n"
+  )
+  const previousEvents = []
+  const previous = (event) => previousEvents.push(event)
+  const touchPanel = { onEvent: previous }
+  const robot = { pettingEvents: [], input: { touchPanel } }
+  await evaluateModule(source).onContextCreated(robot)
+
+  const emit = (gesture, ticks) => touchPanel.onEvent({ gesture, position: 0, intensity: 3, ticks })
+  emit('forwardSwipe', 100)
+  emit('backwardSwipe', 1600)
+  emit('backwardSwipe', 1700)
+  emit('forwardSwipe', 3600)
+  emit('backwardSwipe', 3700)
+  emit('backwardSwipe', 5600)
+  emit('forwardSwipe', 5700)
+  emit('forwardSwipe', 7600)
+  emit('forwardSwipe', 7700)
+  emit('backwardSwipe', 9600)
+  emit('forwardSwipe', 11200)
+
+  assert.deepEqual(
+    robot.pettingEvents.map(({ gesture, ticks }) => [gesture, ticks]),
+    [
+      ['petting', 1600],
+      ['petting', 3700],
+      ['petting', 5700],
+    ]
+  )
+  assert.deepEqual(
+    previousEvents.map(({ gesture, ticks }) => [gesture, ticks]),
+    [
+      ['forwardSwipe', 100],
+      ['backwardSwipe', 1600],
+      ['backwardSwipe', 1700],
+      ['forwardSwipe', 3600],
+      ['backwardSwipe', 3700],
+      ['backwardSwipe', 5600],
+      ['forwardSwipe', 5700],
+      ['forwardSwipe', 7600],
+      ['forwardSwipe', 7700],
+      ['backwardSwipe', 9600],
+      ['forwardSwipe', 11200],
+    ]
+  )
+
+  robot.__visualProgram.dispose()
+  assert.equal(touchPanel.onEvent, previous)
+  assert.equal(touchPanel.__visualLastForwardSwipeTicks, undefined)
+  assert.equal(touchPanel.__visualLastBackwardSwipeTicks, undefined)
 })
 
 test('assembleModSource emits valid JavaScript for the new event blocks', () => {
-  // representative generator output for on_button / on_imu / on_touch /
+  // representative generator output for on_button / on_imu / on_head_touch /
   // on_drawer_button / set_pose / light_blink / drawer_control
   const body =
     "onButton(robot, 'a', 'release', (event) => {\n  void (async () => {\n    robot.face.setEmotion(Emotion.HAPPY)\n  })().catch((error) => trace('button a handler failed: ' + error + '\\n'))\n})\n" +
     "onImu(robot, 'shake', (event) => {\n  void (async () => {\n    await robot.audio.say(String('わっ'))\n  })().catch((error) => trace('imu handler failed: ' + error + '\\n'))\n})\n" +
-    "onTouchPanel(robot, 'forwardSwipe', (event) => {\n  void (async () => {\n    robot.ui.toggleDrawer()\n  })().catch((error) => trace('touch handler failed: ' + error + '\\n'))\n})\n" +
+    "onHeadTouch(robot, 'petting', (event) => {\n  void (async () => {\n    robot.ui.toggleDrawer()\n  })().catch((error) => trace('head touch handler failed: ' + error + '\\n'))\n})\n" +
     "robot.ui.drawer?.addDrawerButton({ key: 'k', label: 'ボタン', callback: () => {\n  void (async () => {\n    robot.ui.showFace()\n  })().catch((error) => trace('drawer handler failed: ' + error + '\\n'))\n} })\n" +
     'await robot.motion.setPose({ rotation: { p: (30 * Math.PI) / 180, y: (-45 * Math.PI) / 180, r: 0 } }, 0.5)\n' +
     "robot.lighting.lightBlink('a', ...hexToRgb('#ff4040'), 250)\n"
   const source = assembleModSource(body)
   assert.match(source, /function onButton/)
   assert.match(source, /function onImu/)
-  assert.match(source, /function onTouchPanel/)
+  assert.match(source, /function onHeadTouch/)
   assert.match(source, /function hexToRgb/)
   const stripped = source.replace(/^import .*$/gm, '').replace('export async function', 'async function')
   assert.doesNotThrow(() => new Function(stripped))
@@ -411,6 +648,10 @@ test('block option tables are well-formed', () => {
     const hz = Number(value)
     assert.ok(Number.isInteger(hz) && hz >= 20 && hz <= 20000, `note ${label} has a valid frequency`)
   }
+  for (const [label, value] of SINGING_NOTE_OPTIONS) {
+    assert.ok(label.length > 0)
+    assert.match(value, /^[A-G](?:[+-])?[0-8]$/)
+  }
 })
 
 test('toolbox categories do not repeat an identical block entry', () => {
@@ -419,6 +660,21 @@ test('toolbox categories do not repeat an identical block entry', () => {
     const entries = category.contents.filter((entry) => entry.kind === 'block').map((entry) => JSON.stringify(entry))
     assert.equal(new Set(entries).size, entries.length, `${category.name} contains a duplicate block entry`)
   }
+})
+
+test('singing toolbox starts with a list of note triples and hides legacy statement-score blocks', () => {
+  const speech = TOOLBOX.contents.find((category) => category.name === 'おしゃべり')
+  const types = speech.contents.filter((entry) => entry.kind === 'block').map((entry) => entry.type)
+  assert.ok(types.includes('stackchan_sing_score'))
+  assert.ok(types.includes('stackchan_song_note_tuple'))
+  assert.ok(types.includes('stackchan_song_rest_tuple'))
+  assert.equal(types.includes('stackchan_sing'), false)
+  assert.equal(types.includes('stackchan_song_note'), false)
+  assert.equal(types.includes('stackchan_song_rest'), false)
+
+  const sing = speech.contents.find((entry) => entry.type === 'stackchan_sing_score')
+  assert.equal(sing.inputs.SCORE.block.type, 'lists_create_with')
+  assert.equal(sing.inputs.SCORE.block.extraState.itemCount, 4)
 })
 
 test('procedure generators are async so speech and wait blocks remain valid inside functions', () => {

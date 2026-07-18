@@ -253,9 +253,16 @@ export function parseFaceAsset(text) {
   return createFaceAsset(value)
 }
 
-export function addFaceAssetToProject(project, asset) {
+export function addFaceAssetToProject(project, asset, { replacePath = null } = {}) {
   const normalized = parseFaceAsset(JSON.stringify(asset))
-  const path = `assets/${normalized.name.replace(/[^\p{L}\p{N}._-]/gu, '_')}.stackchan-face.json`
+  const generatedPath = `assets/${normalized.name.replace(/[^\p{L}\p{N}._-]/gu, '_')}.stackchan-face.json`
+  const path = replacePath == null ? generatedPath : String(replacePath)
+  if (replacePath != null) {
+    const replaced = project.assets.find((item) => item.path === path)
+    if (!replaced || replaced.mediaType !== FACE_ASSET_MEDIA_TYPE) {
+      throw new TypeError('更新対象の顔アセットがプロジェクトにありません')
+    }
+  }
   const entry = {
     path,
     mediaType: FACE_ASSET_MEDIA_TYPE,

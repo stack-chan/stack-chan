@@ -8,6 +8,9 @@ fi
 
 export PATH="$PWD/node_modules/.bin:$PATH"
 
+firmware_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+output_dir="$firmware_dir/dist"
+app_name="stack-chan-host"
 platform="${STACKCHAN_LIN_SMOKE_PLATFORM:-lin/m5stack}"
 platform_path="${platform//\//\/}"
 smoke_timeout="${STACKCHAN_LIN_SMOKE_TIMEOUT:-10s}"
@@ -15,21 +18,12 @@ xsbug_host="${STACKCHAN_LIN_XSBUG_HOST:-127.0.0.1}"
 xsbug_port="${STACKCHAN_LIN_XSBUG_PORT:-0}"
 xsbug_log="$(mktemp "${TMPDIR:-/tmp}/stackchan-lin-xsbug-log.XXXXXX")"
 server_log="$(mktemp "${TMPDIR:-/tmp}/stackchan-lin-xsbug-server.XXXXXX")"
-smoke_build_root="${STACKCHAN_LIN_SMOKE_BUILD_ROOT:-}"
-remove_smoke_build_root=0
-if [[ -z "$smoke_build_root" ]]; then
-  smoke_build_root="$(mktemp -d "${TMPDIR:-/tmp}/stackchan-lin-smoke-build.XXXXXX")"
-  remove_smoke_build_root=1
-fi
 server_pid=""
 
 cleanup() {
   if [[ -n "$server_pid" ]] && kill -0 "$server_pid" 2>/dev/null; then
     kill "$server_pid" 2>/dev/null || true
     wait "$server_pid" 2>/dev/null || true
-  fi
-  if [[ "$remove_smoke_build_root" -eq 1 ]]; then
-    rm -rf -- "$smoke_build_root"
   fi
 }
 trap cleanup EXIT
@@ -61,9 +55,11 @@ if [[ -z "$xsbug_port" ]]; then
   exit 1
 fi
 
-mcconfig -dl -x "$xsbug_host:$xsbug_port" -m -p "$platform" -t build -o "$smoke_build_root" "$PWD/host/app/manifest_local.json"
+mkdir -p "$output_dir"
+rm -rf "$output_dir/tmp/$platform_path/debug/$app_name" "$output_dir/bin/$platform_path/debug/$app_name"
+mcconfig -dl -x "$xsbug_host:$xsbug_port" -m -p "$platform" -t build -o "$output_dir" "$firmware_dir/host/app/manifest_local.json"
 
-build_dir="$smoke_build_root/tmp/$platform_path/debug/app"
+build_dir="$output_dir/tmp/$platform_path/debug/$app_name"
 forbidden_imports=$(find "$build_dir" -path '*/tsc/*' -type f -name '*.js' -exec grep -nE 'runtime-bitmap-port|wasm-audio-bridge|wasm-camera-bridge' {} + || true)
 if [[ -n "$forbidden_imports" ]]; then
   printf '%s\n' "$forbidden_imports"
@@ -72,7 +68,7 @@ if [[ -n "$forbidden_imports" ]]; then
 fi
 
 set +e
-timeout "$smoke_timeout" env XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" xvfb-run -a "$MODDABLE/build/bin/lin/release/mcsim" "$smoke_build_root/bin/$platform_path/debug/app/mc.so"
+timeout "$smoke_timeout" env XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" xvfb-run -a "$MODDABLE/build/bin/lin/release/mcsim" "$output_dir/bin/$platform_path/debug/$app_name/mc.so"
 status=$?
 set -e
 

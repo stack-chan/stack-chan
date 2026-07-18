@@ -20,6 +20,8 @@
     "settings-status-model": "./views/settings/settings-status-model",
     "face-state": "./state/face-state",
     "face-skin": "./state/face-skin",
+    "hand-sprites": "./components/hands/hand-sprites",
+    "hands": "./components/hands/hands",
     "template": "./components/face/template",
     "motions/*": "./components/face/motions/*",
     "drawer": "./components/drawer/drawer",
@@ -41,7 +43,11 @@
     "piuView": "$(PIU)/MC/piuView"
   },
   "resources": {
-    "*-alpha": [
+    "*-alpha-monochrome": [
+      "./components/hands/assets/hands-outer-mask",
+      "./components/hands/assets/hands-inner-mask"
+    ],
+    "*-mask": [
       "./assets/images/microphone",
       "./assets/images/indicator",
       "./assets/images/bubble",
@@ -72,9 +78,7 @@
       "./assets/images/faces/image-avatar/stackchan-demo/stackchan-demo-eye-right-angry",
       "./assets/images/faces/image-avatar/stackchan-demo/stackchan-demo-mouth-angry",
       "./assets/images/faces/image-avatar/stackchan-demo/stackchan-demo-hand-left-angry",
-      "./assets/images/faces/image-avatar/stackchan-demo/stackchan-demo-hand-right-angry"
-    ],
-    "*-mask": [
+      "./assets/images/faces/image-avatar/stackchan-demo/stackchan-demo-hand-right-angry",
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-20",
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16",
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"

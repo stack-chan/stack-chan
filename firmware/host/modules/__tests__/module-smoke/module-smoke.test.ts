@@ -4,9 +4,11 @@
 import config from 'mc/config'
 import { NetworkService } from 'network-service'
 import STT from 'stt-whisper'
+import { equal } from 'testing/assert'
 import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as OpenAITTS } from 'tts-openai'
+import { TTS as StackchanVoiceTTS } from 'tts-stackchan-voice'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
 
@@ -35,6 +37,15 @@ trace('smoke: tts-voicevox\n')
 
 void new VoiceVoxWebTTS({ token, onPlayed, onDone })
 trace('smoke: tts-voicevox-web\n')
+
+const stackchanVoice = new StackchanVoiceTTS({ onPlayed, onDone })
+let stackchanVoiceCallbackCalled = false
+stackchanVoice.stream('hello', undefined, (error) => {
+  equal(String(error), 'Error: stackchan-voice is unavailable on this target')
+  stackchanVoiceCallbackCalled = true
+})
+equal(stackchanVoiceCallbackCalled, true, 'unavailable stackchan-voice should report through its callback')
+trace('smoke: tts-stackchan-voice unavailable\n')
 
 void new STT({ apiKey: token })
 trace('smoke: stt-whisper\n')

@@ -25,6 +25,7 @@ export type TTSPlaybackLifecycle = {
   attach<T extends Closable>(streamer: T): T
   addCleanup(cleanup: () => void): void
   onPlayed(buffer: ArrayBuffer): void
+  onPower(power: number): void
   onReady(state: boolean): void
   onError(error: unknown): void
   onDone(): void
@@ -77,6 +78,10 @@ export function createTTSPlaybackLifecycle(owner: TTSPlaybackOwner, callback?: T
     onPlayed(buffer: ArrayBuffer): void {
       if (completed) return
       owner.onPlayed?.(calculatePower(buffer))
+    },
+    onPower(power: number): void {
+      if (completed) return
+      owner.onPlayed?.(power)
     },
     onReady(state: boolean): void {
       if (completed || !owner.audio) return

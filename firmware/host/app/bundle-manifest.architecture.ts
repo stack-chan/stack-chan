@@ -4,9 +4,12 @@ import { test } from 'node:test'
 
 type FontResource = {
   source?: string
+  name?: string
   size?: number
   characters?: string
   characterFiles?: string | string[]
+  blocks?: string[]
+  localization?: boolean
 }
 
 const manifest = JSON.parse(readFileSync('host/app/manifest.json', 'utf8')) as {
@@ -30,4 +33,13 @@ test('the 24px splash font only bundles glyphs used by the product title', () =>
   assert.ok(font, 'expected the k8x12 24px splash font resource')
   assert.equal(font.characters, 'Stack-chan[・＿・]')
   assert.equal(font.characterFiles, undefined)
+})
+
+test('the CJK font bundles only glyphs used by localization catalogs', () => {
+  const font = manifest.resources?.['*-alpha']?.find((resource) => resource.name === 'StackchanCJK')
+
+  assert.ok(font, 'expected the StackchanCJK font resource')
+  assert.equal(font.localization, true)
+  assert.equal(font.characters, ' ')
+  assert.deepEqual(font.blocks, [])
 })

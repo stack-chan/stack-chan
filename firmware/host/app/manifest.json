@@ -93,7 +93,8 @@
         "source": "../modules/ui/assets/fonts/StackchanCJK-Regular",
         "name": "StackchanCJK",
         "size": 12,
-        "blocks": ["Basic Latin"],
+        "characters": " ",
+        "blocks": [],
         "localization": true,
         "monochrome": true
       },

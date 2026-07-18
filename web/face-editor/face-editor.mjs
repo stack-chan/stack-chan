@@ -1,4 +1,13 @@
 import { FACE_ASSET_MEDIA_TYPE, createFaceAsset, parseFaceAsset, shapeFaceDefinition } from '../editor/face-assets.mjs'
+import {
+  clearFaceEditContext,
+  loadFaceDraft,
+  loadFaceEditContext,
+  saveFaceDraft,
+  stageFaceTransfer,
+} from './face-editor-storage.mjs'
+
+let activeEditContext = null
 
 const element = (id) => document.getElementById(id)
 const elements = {
@@ -24,6 +33,8 @@ const elements = {
   status: element('face-status'),
   codePreview: element('shape-code-preview'),
   fileInput: element('face-file-input'),
+  sendToEditor: element('send-to-editor'),
+  sendToEditorLabel: document.querySelector('#send-to-editor span'),
 }
 
 const controls = {
@@ -195,7 +206,7 @@ function applyAsset(asset) {
   setEyeValues(controls.rightEye, normalized.shape.eyes.right)
   setValues(controls.mouth, normalized.shape.mouth)
   syncMouthControls()
-  render()
+  return render()
 }
 
 function setIris(rectangle, eye) {
@@ -281,14 +292,24 @@ function setStatus(message, state = '') {
   elements.status.dataset.state = state
 }
 
+function persistDraft(asset) {
+  try {
+    saveFaceDraft(asset)
+    return true
+  } catch (error) {
+    setStatus(`下書きを保存できませんでした: ${error.message}`, 'error')
+    return false
+  }
+}
+
 elements.form.addEventListener('input', () => {
   for (const eyeControls of [controls.leftEye, controls.rightEye]) syncEyeControls(eyeControls)
   syncMouthControls()
-  render()
-  setStatus('Shape型Faceを編集中です。')
+  const asset = render()
+  if (persistDraft(asset)) setStatus('Shape型Faceを編集中です。')
 })
 
-elements.form.addEventListener('change', () => applyAsset(currentAsset()))
+elements.form.addEventListener('change', () => persistDraft(applyAsset(currentAsset())))
 
 function pointInCanvas(event) {
   const bounds = elements.canvas.getBoundingClientRect()
@@ -338,7 +359,7 @@ elements.canvas.addEventListener('pointermove', (event) => {
 const endDrag = (event) => {
   if (drag?.pointerId === event.pointerId) {
     drag = null
-    applyAsset(currentAsset())
+    persistDraft(applyAsset(currentAsset()))
   }
 }
 elements.canvas.addEventListener('pointerup', endDrag)
@@ -358,7 +379,7 @@ for (const part of elements.canvas.querySelectorAll('[data-part]')) {
     const step = event.shiftKey ? 5 : 1
     group.x.value = String(Number(group.x.value) + movement[0] * step)
     group.y.value = String(Number(group.y.value) + movement[1] * step)
-    applyAsset(currentAsset())
+    persistDraft(applyAsset(currentAsset()))
   })
 }
 
@@ -368,8 +389,8 @@ elements.fileInput.addEventListener('change', async () => {
   if (!file) return
   try {
     const asset = parseFaceAsset(await file.text())
-    applyAsset(asset)
-    setStatus(`「${asset.name}」を読み込みました。`, 'success')
+    const rendered = applyAsset(asset)
+    if (persistDraft(rendered)) setStatus(`「${asset.name}」を読み込みました。`, 'success')
   } catch (error) {
     setStatus(`Shape顔を読み込めませんでした: ${error.message}`, 'error')
   } finally {
@@ -378,8 +399,8 @@ elements.fileInput.addEventListener('change', async () => {
 })
 
 element('reset-face').addEventListener('click', () => {
-  applyAsset(createFaceAsset())
-  setStatus('標準のShape配置へ戻しました。', 'success')
+  const asset = applyAsset(createFaceAsset())
+  if (persistDraft(asset)) setStatus('標準のShape配置へ戻しました。', 'success')
 })
 
 element('download-face').addEventListener('click', () => {
@@ -396,11 +417,73 @@ element('download-face').addEventListener('click', () => {
   setStatus('Shape顔プロジェクトを保存しました。', 'success')
 })
 
-element('send-to-editor').addEventListener('click', () => {
+elements.sendToEditor.addEventListener('click', () => {
   const asset = render()
-  localStorage.setItem('stackchan-face-asset-staging', JSON.stringify(asset))
-  setStatus('Shape型Faceを保存しました。ブロックエディタを開きます。', 'success')
-  location.href = '../editor/?face-asset=staging'
+  try {
+    saveFaceDraft(asset)
+    stageFaceTransfer(asset, activeEditContext)
+    setStatus('Shape型Faceを保存しました。ブロックエディタを開きます。', 'success')
+    location.href = '../editor/?face-asset=staging'
+  } catch (error) {
+    setStatus(`ブロックエディタへ顔を渡せませんでした: ${error.message}`, 'error')
+  }
 })
 
-applyAsset(createFaceAsset())
+function loadInitialFace() {
+  const fromProject = new URLSearchParams(location.search).get('face-edit') === 'project'
+  if (fromProject) {
+    try {
+      const transfer = loadFaceEditContext()
+      if (!transfer?.edit) throw new TypeError('編集元の情報がありません')
+      activeEditContext = transfer.edit
+      return {
+        asset: transfer.asset,
+        message: `「${transfer.asset.name}」をMODプロジェクトから読み込みました。`,
+        state: 'success',
+      }
+    } catch (error) {
+      try {
+        const draft = loadFaceDraft()
+        if (draft) {
+          return {
+            asset: draft,
+            message: `MODの顔データを読み込めなかったため、下書きを復元しました: ${error.message}`,
+            state: 'error',
+          }
+        }
+      } catch {
+        // The original edit-context error is more useful than a secondary draft error.
+      }
+      return {
+        asset: createFaceAsset(),
+        message: `MODの顔データを読み込めなかったため、標準Faceを開きました: ${error.message}`,
+        state: 'error',
+      }
+    }
+  }
+
+  try {
+    clearFaceEditContext()
+  } catch {
+    // A stale context is ignored unless this page was explicitly opened for project editing.
+  }
+  try {
+    const draft = loadFaceDraft()
+    if (draft) return { asset: draft, message: '前回の下書きを復元しました。', state: 'success' }
+  } catch (error) {
+    return {
+      asset: createFaceAsset(),
+      message: `保存された下書きを読み込めなかったため、標準Faceを開きました: ${error.message}`,
+      state: 'error',
+    }
+  }
+  return { asset: createFaceAsset(), message: 'Shape型Faceを編集中です。', state: '' }
+}
+
+const initialFace = loadInitialFace()
+if (activeEditContext) {
+  elements.sendToEditorLabel.textContent = '変更を反映'
+  elements.sendToEditor.title = '変更をMODへ反映して戻る'
+}
+const initialAsset = applyAsset(initialFace.asset)
+if (persistDraft(initialAsset)) setStatus(initialFace.message, initialFace.state)

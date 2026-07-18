@@ -282,6 +282,10 @@ try {
         await page.keyboard.press('Escape')
         await page.locator('#tool-drawer').waitFor({ state: 'hidden' })
       }
+      if (pageName === 'face-editor' && viewportName === 'mobile') {
+        assert.equal(await page.locator('#send-to-editor span').isVisible(), true)
+        assert.equal(await page.locator('#send-to-editor span').innerText(), 'MODで使う')
+      }
       if (pageName === 'face-editor' && viewportName === 'desktop') {
         assert.equal(await page.locator('#mouth-open').inputValue(), '0')
         assert.equal(await page.locator('#mouth-open-output').innerText(), '0.00')
@@ -394,6 +398,11 @@ try {
         const draggedLeftY = Number(await page.locator('#left-eye-y').inputValue())
         assert.equal(Math.abs(draggedLeftX - 70) <= 1, true)
         assert.equal(Math.abs(draggedLeftY - 45) <= 1, true)
+        await page.reload({ waitUntil: 'domcontentloaded' })
+        assert.equal(await page.locator('#face-name').inputValue(), 'あつい顔')
+        assert.equal(Number(await page.locator('#left-eye-x').inputValue()), draggedLeftX)
+        assert.equal(Number(await page.locator('#left-eye-y').inputValue()), draggedLeftY)
+        assert.match(await page.locator('#face-status').innerText(), /下書きを復元しました/)
         await page.screenshot({
           path: '/tmp/stackchan-face-editor-hot.png',
           fullPage: true,
@@ -421,11 +430,51 @@ try {
         assert.equal(await faceOptions.filter({ hasText: 'あつい顔' }).getAttribute('aria-checked'), 'true')
         await page.locator('.face-selection-option[data-face-asset=""]').click()
         assert.equal(await page.locator('#face-selection-label').innerText(), '標準Face')
+        assert.equal(await page.locator('#edit-face-button').isDisabled(), true)
         assert.doesNotMatch(await page.locator('#code-preview').innerText(), /_StackchanVisualShapeFace/)
         await page.locator('#face-selection-button').click()
         await faceOptions.filter({ hasText: 'あつい顔' }).click()
         assert.equal(await page.locator('#face-selection-label').innerText(), 'あつい顔')
+        assert.equal(await page.locator('#edit-face-button').isEnabled(), true)
         assert.match(await page.locator('#code-preview').innerText(), /_StackchanVisualShapeFace/)
+
+        await page.locator('#edit-face-button').click()
+        await page.waitForURL(/\/face-editor\/?\?face-edit=project/)
+        await page.goBack({ waitUntil: 'domcontentloaded' })
+        await page.waitForURL(/\/editor\/?$/)
+        assert.equal(await page.locator('#edit-face-button').isEnabled(), true)
+
+        await page.locator('.tool-menu-button').click()
+        await page.locator('#tool-drawer[open]').waitFor({ state: 'visible' })
+        await page.locator('.tool-drawer-link[data-tool-id="face-editor"]').click()
+        await page.waitForURL(/\/face-editor\/?\?face-edit=project/)
+        assert.equal(await page.locator('#face-name').inputValue(), 'あつい顔')
+        assert.equal(Number(await page.locator('#left-eye-x').inputValue()), draggedLeftX)
+        assert.equal(Number(await page.locator('#left-eye-y').inputValue()), draggedLeftY)
+        assert.match(await page.locator('#face-status').innerText(), /MODプロジェクトから読み込みました/)
+        assert.equal(await page.locator('#send-to-editor span').innerText(), '変更を反映')
+        await page.locator('#face-name').fill('編集後のあつい顔')
+        await page.locator('#face-emotion').selectOption('SAD')
+        await page.locator('#left-eye-x').fill('76')
+        await page.locator('#send-to-editor').click()
+        await page.waitForURL(/\/editor\/?\?face-asset=staging/)
+        await page.locator('#face-selection-label').filter({ hasText: '編集後のあつい顔' }).waitFor()
+        assert.equal(await page.locator('.asset-chip').count(), 1)
+        assert.match(await page.locator('#asset-summary').innerText(), /あつい顔\.stackchan-face\.json/)
+        assert.doesNotMatch(await page.locator('#asset-summary').innerText(), /編集後のあつい顔\.stackchan-face\.json/)
+        assert.match(await page.locator('#build-status').innerText(), /顔エディタの変更を反映しました/)
+        assert.match(await page.locator('#code-preview').innerText(), /new Eye\(\{ cx: 76/)
+        assert.match(await page.locator('#code-preview').innerText(), /setEmotion\(Emotion\.SAD\)/)
+        await page.locator('#face-selection-button').click()
+        assert.equal(await page.locator('.face-selection-option').count(), 2)
+        assert.equal(
+          await page
+            .locator('.face-selection-option')
+            .filter({ hasText: '編集後のあつい顔' })
+            .getAttribute('aria-checked'),
+          'true'
+        )
+        await page.keyboard.press('Escape')
         await page.screenshot({ path: '/tmp/stackchan-editor-face-selection.png', fullPage: true })
         await page.locator('#build-button').click()
         await page.waitForFunction(() => document.querySelector('#build-status')?.textContent.includes('ビルド成功'))

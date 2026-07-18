@@ -29,6 +29,12 @@ import {
 } from './project-library.mjs'
 import { createProjectStorage } from './project-storage.mjs'
 import { VISUAL_SAMPLES, sampleById } from './samples.mjs'
+import {
+  clearFaceEditContext,
+  clearStagedFaceTransfer,
+  loadStagedFaceTransfer,
+  saveFaceEditContext,
+} from '../face-editor/face-editor-storage.mjs'
 import createTools from './vendor/tools.js'
 
 const WORKSPACE_STORAGE_KEY = 'stackchan-blockly-workspace'
@@ -70,6 +76,8 @@ const faceSelectionButton = document.getElementById('face-selection-button')
 const faceSelectionLabel = document.getElementById('face-selection-label')
 const faceSelectionMenu = document.getElementById('face-selection-menu')
 const faceSelectionList = document.getElementById('face-selection-list')
+const editFaceButton = document.getElementById('edit-face-button')
+const faceEditorNavigationLink = document.querySelector('.tool-drawer-link[data-tool-id="face-editor"]')
 const embedAssetsInput = document.getElementById('embed-assets')
 const simulatorDialog = document.getElementById('simulator-dialog')
 const simulatorFrame = document.getElementById('simulator-frame')
@@ -282,16 +290,20 @@ function workspaceState() {
   return Blockly.serialization.workspaces.save(workspace)
 }
 
-let projectSave = Promise.resolve()
+let projectSave = Promise.resolve(true)
 function queueProjectSave() {
   const snapshot = structuredClone({ currentProject, projects: projectLibrary })
-  projectSave = projectSave
-    .catch(() => {})
-    .then(() => projectStorage.saveState(snapshot))
-    .catch((error) => {
+  projectSave = projectSave.then(async () => {
+    try {
+      await projectStorage.saveState(snapshot)
+      return true
+    } catch (error) {
       log(`プロジェクトを自動保存できませんでした: ${error.message}`)
       setStatus('自動保存に失敗しました。プロジェクトを書き出してください。')
-    })
+      return false
+    }
+  })
+  return projectSave
 }
 
 function persistProject(project = currentProject) {
@@ -548,6 +560,8 @@ function renderFaceSelection() {
   const selected = entries.find(({ asset }) => asset.path === selectedPath)
   faceSelectionLabel.textContent = selected?.name ?? '標準Face'
   faceSelectionButton.title = selected ? `使用中のFace: ${selected.name}` : '使用中のFace: 標準Face'
+  editFaceButton.disabled = !selected
+  editFaceButton.title = selected ? `「${selected.name}」を顔エディタで編集` : '標準Faceは編集できません'
   faceSelectionList.replaceChildren()
 
   const options = [
@@ -589,6 +603,39 @@ faceSelectionButton.addEventListener('click', (event) => {
   event.stopPropagation()
   setFaceSelectionMenuOpen(faceSelectionMenu.hidden, { focusItem: faceSelectionMenu.hidden })
 })
+
+async function openSelectedFaceEditor() {
+  const assetPath = currentProject.settings.faceAsset
+  const entry = currentProject.assets.find(
+    (asset) => asset.path === assetPath && asset.mediaType === FACE_ASSET_MEDIA_TYPE
+  )
+  if (!entry) {
+    setStatus('編集するカスタムFaceを選択してください')
+    return
+  }
+  editFaceButton.disabled = true
+  try {
+    const asset = parseFaceAsset(new TextDecoder().decode(assetBytes(entry)))
+    persistProject()
+    if (!(await projectSave)) throw new Error('MODプロジェクトを保存できませんでした')
+    saveFaceEditContext(asset, { projectId: currentProject.id, assetPath: entry.path })
+    location.href = '../face-editor/?face-edit=project'
+  } catch (error) {
+    log(`顔エディタを開けませんでした: ${error.message}`)
+    setStatus(`顔エディタを開けませんでした: ${error.message}`)
+    renderFaceSelection()
+  }
+}
+
+editFaceButton.addEventListener('click', openSelectedFaceEditor)
+faceEditorNavigationLink?.addEventListener('click', (event) => {
+  const selectedFace = faceAssetEntries().some(({ asset }) => asset.path === currentProject.settings.faceAsset)
+  if (!selectedFace) return
+  event.preventDefault()
+  document.getElementById('tool-drawer')?.close()
+  void openSelectedFaceEditor()
+})
+window.addEventListener('pageshow', renderFaceSelection)
 faceSelectionMenu.addEventListener('keydown', (event) => {
   const items = visibleFaceSelectionItems()
   const index = items.indexOf(document.activeElement)
@@ -644,21 +691,29 @@ function renderAssets() {
   }
 }
 
-function addFaceAsset(asset) {
-  return addFaceAssetToProject(currentProject, asset)
+function addFaceAsset(asset, options) {
+  return addFaceAssetToProject(currentProject, asset, options)
 }
 
 try {
-  const stagedFaceAsset = localStorage.getItem('stackchan-face-asset-staging')
-  if (stagedFaceAsset && new URLSearchParams(location.search).get('face-asset') === 'staging') {
-    const stagedProject = addFaceAsset(parseFaceAsset(stagedFaceAsset))
+  if (new URLSearchParams(location.search).get('face-asset') === 'staging') {
+    const stagedTransfer = loadStagedFaceTransfer()
+    if (!stagedTransfer) throw new Error('顔エディタからの受け渡しデータがありません')
+    const edit = stagedTransfer.edit
+    if (edit && edit.projectId !== currentProject.id) {
+      throw new Error('編集元と現在のMODプロジェクトが一致しません')
+    }
+    const stagedProject = addFaceAsset(stagedTransfer.asset, edit ? { replacePath: edit.assetPath } : undefined)
     persistProject(stagedProject)
-    localStorage.removeItem('stackchan-face-asset-staging')
+    if (!(await projectSave)) throw new Error('顔アセットを含むMODプロジェクトを保存できませんでした')
+    clearStagedFaceTransfer()
+    clearFaceEditContext()
     history.replaceState(null, '', location.pathname)
-    setStatus('顔エディタのアセットを追加しました')
+    setStatus(edit ? '顔エディタの変更を反映しました' : '顔エディタのアセットを追加しました')
   }
 } catch (error) {
   log(`顔アセットを読み込めませんでした: ${error.message}`)
+  setStatus(`顔アセットを読み込めませんでした: ${error.message}`)
 }
 
 function recordMetric(event, detail = {}) {

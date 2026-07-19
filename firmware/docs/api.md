@@ -56,6 +56,7 @@ Correspondence with the coordinate system can also be referenced in the actual s
 - `context.audio.useTTS(...)` for replacing the speech engine when a MOD owns that choice
 - `context.motion.lookAt(...)`, `context.motion.setPose(...)`, `context.motion.setTorque(...)`
 - `context.face.setEmotion(...)`, `context.face.setColor(...)`
+- `context.i18n.locale`, `context.i18n.localize(...)`
 - `context.ui.showBalloon(...)`, `context.ui.drawer.addDrawerButton(...)`
 - `context.input.touch`, `context.input.touchPanel`, `context.input.imu`
 - `context.lighting.lightOn(...)`, `context.camera.capture(...)`, `context.connectivity.network?.ready`
@@ -71,6 +72,10 @@ Network-dependent MODs can await it and handle `skipped` or `failed` without imp
 `options.tail` in `context.ui.showBalloon(text, options)` accepts `top-left`, `top-right`, `bottom-left`, or
 `bottom-right`. When omitted, bottom placement uses `top-left`, while an explicit `top` position uses
 `bottom-left`.
+
+Use `context.i18n.localize(key, values?)` for text shown by a MOD Drawer Button or Piu `Label`.
+It resolves the MOD catalog first, then the host catalog, and finally the key itself.
+See [Firmware localization](./localization.md) for catalog setup.
 
 The legacy flat methods such as `context.say(...)`, `context.lookAt(...)`, `context.showBalloon(...)`, and `context.useTTS(...)` remain as compatibility shims for existing MODs.
 They are deprecated for new code and may be removed after the sample MODs and downstream MODs have moved to the namespaced API.

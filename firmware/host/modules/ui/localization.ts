@@ -1,37 +1,57 @@
+import Resource from 'Resource'
+import {
+  DEFAULT_LOCALE,
+  type I18nCapability,
+  type LocalizationValues,
+  normalizeLocale,
+  resolveLocalizedMessage,
+} from 'localization-core'
 import { Locals } from 'piu/MC'
 
-export const SUPPORTED_LOCALES = Object.freeze(['ja', 'en', 'zh-CN'] as const)
-export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number]
-export const DEFAULT_LOCALE: SupportedLocale = 'ja'
+export {
+  DEFAULT_LOCALE,
+  type I18nCapability,
+  type LocalizationValue,
+  type LocalizationValues,
+  normalizeLocale,
+  SUPPORTED_LOCALES,
+  type SupportedLocale,
+} from 'localization-core'
 
-type InterpolationValue = string | number
-type InterpolationValues = Record<string, InterpolationValue>
+type SupportedLocale = I18nCapability['locale']
 
 let currentLocale: SupportedLocale = DEFAULT_LOCALE
-let locals: Locals | undefined
+let hostLocals: Locals | undefined
+let modLocals: Locals | undefined
+let hasModLocals: boolean | undefined
 
-function getLocals(): Locals {
-  if (!locals) {
+function getHostLocals(): Locals {
+  if (!hostLocals) {
     // Construct Locals only after the application starts. Creating this native
     // object while xsl links preloaded modules is unsupported by some targets.
-    locals = new Locals('locals')
-    locals.language = currentLocale
+    hostLocals = new Locals('locals')
+    hostLocals.language = currentLocale
   }
-  return locals
+  return hostLocals
 }
 
-export function normalizeLocale(value: unknown): SupportedLocale | undefined {
-  if (typeof value !== 'string') return undefined
-  const language = value.trim().toLowerCase().split(/[-_]/, 1)[0]
-  if (language === 'ja') return 'ja'
-  if (language === 'en') return 'en'
-  if (language === 'zh') return 'zh-CN'
-  return undefined
+function getModLocals(): Locals | undefined {
+  if (hasModLocals === undefined) {
+    // mcrun names MOD localization resources "modLocals". Locals currently
+    // constructs with English before its language setter can be used, so both
+    // the index and English table must be present.
+    hasModLocals = Resource.exists('modLocals.mhi') && Resource.exists('modLocals.en.mhr')
+  }
+  if (!hasModLocals || !Resource.exists(`modLocals.${currentLocale}.mhr`)) return undefined
+
+  if (!modLocals) modLocals = new Locals('modLocals')
+  if (modLocals.language !== currentLocale) modLocals.language = currentLocale
+  return modLocals
 }
 
 export function setLocalizationLanguage(value: unknown): SupportedLocale {
   currentLocale = normalizeLocale(value) ?? DEFAULT_LOCALE
-  if (locals) locals.language = currentLocale
+  if (hostLocals) hostLocals.language = currentLocale
   return currentLocale
 }
 
@@ -41,9 +61,19 @@ export function getLocalizationLanguage(): SupportedLocale {
   return currentLocale
 }
 
-export function localize(key: string, values: InterpolationValues = {}): string {
-  const message = getLocals().get(key)
-  return message.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (placeholder, name: string) =>
-    Object.hasOwn(values, name) ? String(values[name]) : placeholder,
-  )
+export function localize(key: string, values: LocalizationValues = {}): string {
+  return resolveLocalizedMessage(key, values, undefined, getHostLocals())
+}
+
+function localizeForContext(key: string, values: LocalizationValues = {}): string {
+  return resolveLocalizedMessage(key, values, getModLocals(), getHostLocals())
+}
+
+export function createI18nCapability(): I18nCapability {
+  return Object.freeze({
+    get locale() {
+      return currentLocale
+    },
+    localize: localizeForContext,
+  })
 }

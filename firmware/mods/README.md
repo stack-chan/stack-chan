@@ -12,6 +12,9 @@ MODs can be authored as JavaScript or TypeScript modules.
 TypeScript MODs should use only the public Stack-chan capability types and Moddable module specifiers.
 MODs for the WASM host should also be built with a TypeScript-capable target such as `lin`, then loaded from the generated `.xsb` or archive.
 
+See [Firmware localization](../docs/localization.md) for localized UI text through `context.i18n`.
+The minimal example is [`localized_drawer`](./examples/localized_drawer/).
+
 ## M5StackChan CoreS3 Smoke
 
 - [m5stackchan_smoke](./examples/m5stackchan_smoke/): Servo-power and head LED smoke check for M5StackChan CoreS3. See [M5StackChan CoreS3 smoke check](../docs/m5stackchan-cores3-smoke.md).

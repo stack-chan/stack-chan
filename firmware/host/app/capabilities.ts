@@ -5,6 +5,7 @@ import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
 import type { HandAnimationName } from 'hands'
 import type IMU from 'imu'
 import type { ButtonInputEvent } from 'input-event'
+import type { I18nCapability } from 'localization'
 import type { MotionControllerPose, MotionDurationSeconds } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
@@ -29,6 +30,7 @@ export type RobotLed = {
 }
 
 export type { DrawerButtonViewSpec, DrawerOption }
+export type { I18nCapability } from 'localization'
 
 export type RobotUI = {
   update: (interval: number, faceState: FaceState) => void
@@ -222,6 +224,7 @@ export type StackchanCapabilityNamespaces = {
   face: FaceCapability
   motion: MotionCapability
   audio: AudioCapability
+  i18n: I18nCapability
   input: InputCapability
   lighting: LightingCapability
   camera: RobotCamera

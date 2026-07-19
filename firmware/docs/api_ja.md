@@ -60,6 +60,7 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 - MOD が speech engine の選択を所有する場合の `context.audio.useTTS(...)`
 - `context.motion.lookAt(...)`、`context.motion.setPose(...)`、`context.motion.setTorque(...)`
 - `context.face.setEmotion(...)`、`context.face.setColor(...)`
+- `context.i18n.locale`、`context.i18n.localize(...)`
 - `context.ui.showBalloon(...)`、`context.ui.drawer.addDrawerButton(...)`
 - `context.input.touch`、`context.input.touchPanel`、`context.input.imu`
 - `context.lighting.lightOn(...)`、`context.camera.capture(...)`、`context.connectivity.network?.ready`
@@ -76,6 +77,10 @@ network が必要な MOD は、host 内部の network module を import せず�
 `context.ui.showBalloon(text, options)` の `options.tail` では、吹き出しのトンガリを
 `top-left`、`top-right`、`bottom-left`、`bottom-right` から選べます。
 未指定時は、下配置なら `top-left`、`top` を指定した上配置なら `bottom-left` が選ばれます。
+
+MOD の Drawer Button や Piu `Label` に表示する文字列は `context.i18n.localize(key, values?)` で取得します。
+MOD 自身の辞書、host 辞書、キー文字列の順に解決されます。
+辞書の追加方法は [Firmware のローカライズ](./localization_ja.md)を参照してください。
 
 `context.say(...)`、`context.lookAt(...)`、`context.showBalloon(...)`、`context.useTTS(...)` などの flat API は、既存 MOD 互換の shim として残しています。
 新規コードでは非推奨です。

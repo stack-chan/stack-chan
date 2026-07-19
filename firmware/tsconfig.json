@@ -63,6 +63,9 @@
       "localization": [
         "./host/modules/ui/localization"
       ],
+      "localization-core": [
+        "./host/modules/ui/localization-core"
+      ],
       "template": [
         "./host/modules/ui/components/face/template"
       ],

@@ -15,6 +15,7 @@ import type {
   StackchanContext,
 } from 'capabilities'
 import type { Emotion, FaceThemeKey } from 'face-state'
+import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
@@ -52,6 +53,7 @@ export class StackchanRuntimeContext implements StackchanContext {
   #lifecycleCapability: LifecycleCapability
   #lightingCapability: LightingCapability
   #lightingRuntime: StackchanRuntimeLighting
+  #localPeerSessions = new Set<LocalPeerSession>()
   #motionCapability: MotionCapability
   #motionController: MotionController
   #paused: boolean
@@ -89,7 +91,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#lifecycleCapability = this.createLifecycleCapability()
     this.#lightingCapability = this.createLightingCapability()
     this.#conversationCapability = this.createConversationCapability()
-    this.#connectivityCapability = params.connectivity ?? {}
+    this.#connectivityCapability = this.createConnectivityCapability(params.connectivity ?? {})
     this.#uiCapability = this.createUICapability()
   }
 
@@ -507,6 +509,40 @@ export class StackchanRuntimeContext implements StackchanContext {
     }
   }
 
+  private createConnectivityCapability(connectivity: ConnectivityCapability): ConnectivityCapability {
+    const localPeer = connectivity.localPeer
+    if (!localPeer) return connectivity
+    const context = this
+    return {
+      ...connectivity,
+      localPeer: {
+        get id() {
+          return localPeer.id
+        },
+        async open(options) {
+          if (context.#closed) throw new LocalPeerError('closed', 'Stack-chan context is closed')
+          const session = await localPeer.open(options)
+          if (context.#closed) {
+            session.close()
+            throw new LocalPeerError('closed', 'Stack-chan context is closed')
+          }
+          const trackedSession: LocalPeerSession = {
+            discover: (discoverOptions) => session.discover(discoverOptions),
+            send: (peerId, type, payload) => session.send(peerId, type, payload),
+            broadcast: (type, payload) => session.broadcast(type, payload),
+            subscribe: (type, handler) => session.subscribe(type, handler),
+            close() {
+              if (!context.#localPeerSessions.delete(trackedSession)) return
+              session.close()
+            },
+          }
+          context.#localPeerSessions.add(trackedSession)
+          return trackedSession
+        },
+      },
+    }
+  }
+
   private createUICapability(): RuntimeUICapability {
     const context = this
     return {
@@ -603,6 +639,14 @@ export class StackchanRuntimeContext implements StackchanContext {
       closeError = error
       hasCloseError = true
     }
+    for (const session of this.#localPeerSessions) {
+      try {
+        session.close()
+      } catch (error) {
+        rememberCloseError(error)
+      }
+    }
+    this.#localPeerSessions.clear()
     try {
       await this.#cameraRuntime.close()
     } catch (error) {

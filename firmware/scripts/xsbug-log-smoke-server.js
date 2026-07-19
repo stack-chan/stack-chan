@@ -45,5 +45,7 @@ server.on('error', (error) => {
 })
 
 server.listen(port, host, () => {
-  console.log(`xsbug smoke log server listening on ${host}:${port}`)
+  const address = server.address()
+  const listeningPort = typeof address === 'object' && address != null ? address.port : port
+  console.log(`xsbug smoke log server listening on ${host}:${listeningPort}`)
 })

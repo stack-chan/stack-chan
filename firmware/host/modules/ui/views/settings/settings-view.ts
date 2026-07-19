@@ -33,6 +33,7 @@ export const SettingsViewId = Object.freeze({
   WIFI: 1,
   PASSWORD: 2,
   LANGUAGE: 3,
+  OFFLINE: 4,
 } as const)
 
 export type SettingsViewId = (typeof SettingsViewId)[keyof typeof SettingsViewId]
@@ -48,6 +49,7 @@ export type SettingsViewState = Readonly<{
 export type SettingsViewActions = Readonly<{
   exit(): void
   boot(): void
+  bootOffline(): void
   navigate(view: SettingsViewId): void
   scanWifi(): void
   cancelWifiScan(): void
@@ -75,6 +77,9 @@ type SettingsWifiViewHandles = {
   wifi: PiuContent & { string?: string }
   scan: PiuContainer
   boot: PiuContainer
+  bootState: {
+    connected: boolean
+  }
   list: PiuColumn
   networkState: {
     networks: readonly SettingsNetworkEntry[]
@@ -245,6 +250,7 @@ const SettingsWifiView = {
   create(context: SettingsViewContext): SettingsViewInstance {
     const styles = uiStyles()
     const networkState = { networks: [] as SettingsNetworkEntry[] }
+    const bootState = { connected: context.state.status.wifi === SettingsStatusValue.CONNECTED }
     const scan = new ActionButton(
       { icon: 'scan', label: localize('settings.scan'), onTap: context.actions.scanWifi },
       { left: 8, top: ACTION_TOP, width: 148 },
@@ -252,9 +258,11 @@ const SettingsWifiView = {
     const boot = new ActionButton(
       {
         icon: 'play',
-        label: localize('settings.boot'),
-        onTap: context.actions.boot,
-        enabled: false,
+        label: localize(bootState.connected ? 'settings.boot' : 'splash.offline'),
+        onTap: () => {
+          if (bootState.connected) context.actions.boot()
+          else context.actions.navigate(SettingsViewId.OFFLINE)
+        },
         tone: 'success',
       },
       { left: 164, top: ACTION_TOP, width: 148 },
@@ -269,6 +277,7 @@ const SettingsWifiView = {
       }),
       scan,
       boot,
+      bootState,
       list: new Column(null, { left: 0, width: UI.screenWidth, top: 0 }),
       networkState,
       context,
@@ -321,7 +330,13 @@ function updateSettingsStatus(handles: SettingsWifiViewHandles, status: Settings
   const scanning = status.wifi === SettingsStatusValue.SCANNING
   setActionButtonLabel(handles.scan, localize(scanning ? 'settings.scanning' : 'settings.scan'))
   setActionButtonEnabled(handles.scan, !scanning)
-  setActionButtonEnabled(handles.boot, status.wifi === SettingsStatusValue.CONNECTED)
+  const connecting =
+    status.wifi === SettingsStatusValue.CONNECTING ||
+    status.wifi === SettingsStatusValue.SYNCING_TIME ||
+    status.wifi === SettingsStatusValue.RECONNECTING
+  handles.bootState.connected = status.wifi === SettingsStatusValue.CONNECTED
+  setActionButtonLabel(handles.boot, localize(handles.bootState.connected ? 'settings.boot' : 'splash.offline'))
+  setActionButtonEnabled(handles.boot, !scanning && !connecting)
 }
 
 function updateSettingsNetworks(handles: SettingsWifiViewHandles, networks: readonly SettingsNetworkEntry[]) {
@@ -393,6 +408,52 @@ function updateSettingsNetworks(handles: SettingsWifiViewHandles, networks: read
   }
   handles.networkState.networks = networks
 }
+
+const SettingsOfflineView = {
+  create(context: SettingsViewContext): SettingsViewInstance {
+    const styles = uiStyles()
+    const content = new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      skin: styles.screen,
+      contents: [
+        new ScreenHeader({
+          title: localize('settings.offlineTitle'),
+          leading: 'back',
+          onLeading: () => context.actions.navigate(SettingsViewId.WIFI),
+        }),
+        new Label(null, {
+          left: 20,
+          right: 20,
+          top: UI.headerHeight + 18,
+          height: 72,
+          string: localize('settings.offlineConfirm'),
+          style: styles.body,
+        }),
+        new ActionButton(
+          {
+            icon: 'back',
+            label: localize('settings.cancel'),
+            onTap: () => context.actions.navigate(SettingsViewId.WIFI),
+          },
+          { left: 8, bottom: 16, width: 148 },
+        ),
+        new ActionButton(
+          {
+            icon: 'play',
+            label: localize('settings.clearAndBoot'),
+            onTap: context.actions.bootOffline,
+            tone: 'danger',
+          },
+          { left: 164, bottom: 16, width: 148 },
+        ),
+      ],
+    })
+    return { content }
+  },
+} satisfies SettingsViewDefinition
 
 const SettingsPasswordView = {
   create(context: SettingsViewContext): SettingsViewInstance {
@@ -537,6 +598,7 @@ export const settingsViews: readonly SettingsViewDefinition[] = [
   SettingsWifiView,
   SettingsPasswordView,
   SettingsLanguageView,
+  SettingsOfflineView,
 ]
 
 type SkinTemplate = PiuSkinConstructor & { new (): PiuSkin }

@@ -14,7 +14,7 @@ import {
   type SettingsViewInstance,
   settingsViews,
 } from 'settings-view'
-import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
+import { clearStoredWiFiCredentials, connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
 import { scanWiFiNetworks } from 'wifi-scan'
 import type { WiFiScanSession } from 'wifi-scan-types'
 
@@ -62,6 +62,7 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       actions: {
         exit: () => finish('back'),
         boot: () => finish('boot'),
+        bootOffline: clearWiFiAndBootOffline,
         navigate: showView,
         scanWifi: scanNetworks,
         cancelWifiScan,
@@ -79,6 +80,15 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       preferenceServer?.close?.()
       if (result === 'back') stopStoredWiFiConnection()
       resolve(result)
+    }
+
+    function clearWiFiAndBootOffline() {
+      clearStoredWiFiCredentials()
+      status['wifi.ssid'] = ''
+      status['wifi.password'] = ''
+      status.wifi = SettingsStatusValue.NOT_CONNECTED
+      trace('[network] saved Wi-Fi credentials cleared for offline boot\n')
+      finish('boot')
     }
 
     function showView(id: SettingsViewId) {

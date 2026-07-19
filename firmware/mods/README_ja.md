@@ -23,6 +23,10 @@ WASM host で使う MOD も、`lin` など TypeScript 対応済み target で bu
 
 - [m5stackchan_smoke](./examples/m5stackchan_smoke/): M5StackChan CoreS3 のサーボ電源とヘッドLEDの smoke 確認です。手順は [M5StackChan CoreS3 smoke check](../docs/m5stackchan-cores3-smoke.md) を参照してください。
 
+## Local Peer Hello
+
+- [local_peer_hello](./examples/local_peer_hello/): インターネットを経由せず、近くのｽﾀｯｸﾁｬﾝを発見して型付きメッセージを送受信します。
+
 ## Look Around: きょろきょろｽﾀｯｸﾁｬﾝ
 
 ![きょろきょろｽﾀｯｸﾁｬﾝ](../docs/images/stackchan.gif)

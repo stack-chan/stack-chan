@@ -166,6 +166,24 @@
       "localization": [
         "host/modules/testing/fakes/localization.ts"
       ],
+      "local-peer-capability": [
+        "host/modules/connectivity/sim/local-peer-capability.ts"
+      ],
+      "local-peer-codec": [
+        "host/modules/connectivity/local-peer-codec.ts"
+      ],
+      "local-peer-frame": [
+        "host/modules/connectivity/local-peer-frame.ts"
+      ],
+      "local-peer-radio-types": [
+        "host/modules/connectivity/local-peer-radio-types.ts"
+      ],
+      "local-peer-service": [
+        "host/modules/connectivity/local-peer-service.ts"
+      ],
+      "local-peer-types": [
+        "host/modules/connectivity/local-peer-types.ts"
+      ],
       "stackchan-util": [
         "host/modules/util/stackchan-util.ts"
       ]

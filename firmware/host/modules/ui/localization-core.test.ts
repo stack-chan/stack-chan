@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   interpolateLocalizedMessage,
+  type LocalizationCatalog,
   normalizeLocale,
   resolveLocalizedMessage,
-  type LocalizationCatalog,
 } from './localization-core.js'
 
 function catalog(messages: Readonly<Record<string, string>>): LocalizationCatalog {

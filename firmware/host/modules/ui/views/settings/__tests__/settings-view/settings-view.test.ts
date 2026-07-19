@@ -47,6 +47,7 @@ let exitCount = 0
 let scanCount = 0
 let cancelScanCount = 0
 let bootCount = 0
+let offlineBootCount = 0
 let selectedSSID = ''
 let password = ''
 let selectedLanguage = ''
@@ -59,6 +60,9 @@ const context: SettingsViewContext = {
     },
     boot() {
       bootCount += 1
+    },
+    bootOffline() {
+      offlineBootCount += 1
     },
     navigate(view) {
       navigatedView = view
@@ -87,7 +91,7 @@ function mount(instance: SettingsViewInstance) {
   instance.update?.()
 }
 
-equal(settingsViews.length, 4, 'settings registry should contain menu, Wi-Fi, password, and language views')
+equal(settingsViews.length, 5, 'settings registry should contain menu, Wi-Fi, password, language, and offline views')
 
 const menuView = settingsViews[SettingsViewId.MENU].create(context)
 equal(application.length, 0, 'creating a settings view should not mount it')
@@ -114,6 +118,15 @@ const scanButton = wifiLabel.next as Touchable
 press(scanButton)
 equal(scanCount, 1, 'pressing the visible scan action should request Wi-Fi scan')
 
+const bootButton = scanButton.next as Touchable
+equal(bootButton.active, true, 'disconnected settings should enable the offline action')
+press(bootButton)
+equal(navigatedView, SettingsViewId.OFFLINE, 'disconnected settings should navigate to offline confirmation')
+
+status.wifi = SettingsStatusValue.SYNCING_TIME
+wifiView.update?.()
+equal(bootButton.active, false, 'time synchronization should keep boot and offline actions disabled')
+
 state.networks = [
   { ssid: 'stackchan-ap', signal: -42, label: 'stackchan-ap (-42 dBm)' },
   { ssid: 'guest-ap', signal: -76, label: 'guest-ap (-76 dBm)' },
@@ -130,12 +143,19 @@ status.wifi = SettingsStatusValue.CONNECTED
 wifiView.update?.()
 equal(wifiLabel.string, 'Wi-Fi: 接続済み', 'Wi-Fi label should update')
 equal(list.first, firstNetworkRow, 'status-only updates should preserve existing network rows')
-const bootButton = scanButton.next as Touchable
 equal(bootButton.active, true, 'connected settings should enable the boot action')
 press(bootButton)
 equal(bootCount, 1, 'connected settings should continue to the main application')
 wifiView.dispose?.()
 equal(cancelScanCount, 1, 'leaving the Wi-Fi view should cancel an active scan through the shared action')
+
+const offlineView = settingsViews[SettingsViewId.OFFLINE].create(context)
+mount(offlineView)
+const offlineHeader = offlineView.content.first as PiuContainer
+press(offlineHeader.first as Touchable)
+equal(navigatedView, SettingsViewId.WIFI, 'offline confirmation back button should return to Wi-Fi settings')
+press(offlineView.content.last as Touchable)
+equal(offlineBootCount, 1, 'offline confirmation should require the explicit destructive action')
 
 const passwordView = settingsViews[SettingsViewId.PASSWORD].create(context)
 mount(passwordView)

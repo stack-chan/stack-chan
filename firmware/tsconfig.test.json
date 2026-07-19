@@ -121,6 +121,9 @@
       "timer": [
         "host/modules/testing/fakes/timer.ts"
       ],
+      "uartserver": [
+        "host/modules/connectivity/__tests__/fakes/uartserver.ts"
+      ],
       "time": [
         "host/modules/testing/fakes/time.ts"
       ],

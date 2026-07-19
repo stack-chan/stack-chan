@@ -3,12 +3,8 @@ CONFIG_ESP_CONSOLE_UART=y
 CONFIG_ESP_CONSOLE_UART_NUM=0
 CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
 
-# The web editor reads this value from esp_app_desc before installing a MOD.
-# Host bundles require Moddable SDK 8.3.1; bundle.mjs checks that requirement
-# before building. Pin the same version here instead of letting ESP-IDF infer a
-# Git revision from the repository containing the output directory.
-CONFIG_APP_PROJECT_VER_FROM_CONFIG=y
-CONFIG_APP_PROJECT_VER="8.3.1"
+# The build wrappers append the actual $MODDABLE/tools/VERSION to a generated
+# copy of this file so the web editor can read it from esp_app_desc.
 
 CONFIG_ESP_SYSTEM_PANIC_GDBSTUB=n
 CONFIG_ESP_COREDUMP_ENABLE_TO_UART=n

@@ -11,6 +11,7 @@ import {
   moddableOutputArguments,
 } from './lib/build-output.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
+import { prepareCoreS3VersionSdkconfig } from './lib/moddable-version.mjs'
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url))
 const firmwareDirectory = path.resolve(scriptsDirectory, '..')
@@ -26,19 +27,19 @@ const buildMode = 'release'
 const signature = 'stackchan.moddable.tech'
 const binaries = ['bootloader.bin', 'partition-table.bin', 'xs_esp32.bin']
 const bundleTargets = ['com.m5stack', 'com.m5stack.core2', 'com.m5stack.cores3', targetName]
-const requiredModdableVersion = '8.3.1'
 
 if (!process.env.MODDABLE) {
   console.error('[stack-chan] MODDABLE environment variable is required')
   process.exit(1)
 }
-const moddableVersion = readFileSync(path.join(process.env.MODDABLE, 'tools', 'VERSION'), 'utf8').trim()
-if (moddableVersion !== requiredModdableVersion) {
-  console.error(
-    `[stack-chan] Moddable SDK ${requiredModdableVersion} is required (found ${moddableVersion || 'missing'})`,
-  )
+let versionSdkconfig
+try {
+  versionSdkconfig = prepareCoreS3VersionSdkconfig()
+} catch (error) {
+  console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
   process.exit(1)
 }
+const moddableVersion = versionSdkconfig.version
 
 // mcbundle does not forward its -o option to the mcconfig processes it
 // generates, so its standard device builds intentionally remain under the
@@ -71,6 +72,7 @@ run(
     m5stackchanManifestPath,
   ],
   firmwareDirectory,
+  { ...process.env, SDKCONFIGPATH: versionSdkconfig.directory },
 )
 
 const buildDirectory = path.join(buildOutputDirectory, 'bin', 'esp32', targetName, buildMode, hostApplicationName)
@@ -187,9 +189,10 @@ function assertFirmwareVersion(directory, expectedVersion) {
  * @param {string} command - Executable name.
  * @param {string[]} args - Command-line arguments.
  * @param {string} cwd - Working directory for the subprocess.
+ * @param {NodeJS.ProcessEnv} env - Environment for the subprocess.
  */
-function run(command, args, cwd) {
-  const result = spawnSync(command, args, { cwd, stdio: 'inherit' })
+function run(command, args, cwd, env = process.env) {
+  const result = spawnSync(command, args, { cwd, env, stdio: 'inherit' })
   if (result.error) {
     console.error(`[stack-chan] failed to run ${command}: ${result.error.message}`)
     process.exit(1)

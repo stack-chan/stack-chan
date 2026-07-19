@@ -55,6 +55,8 @@ my_mod/
 Every catalog must define the same keys and placeholder names.
 `en.json` is also required to initialize `Locals`.
 
+`en.json`
+
 ```json
 {
   "weather.drawer.forecast": "Weather",

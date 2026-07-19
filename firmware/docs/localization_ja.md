@@ -55,6 +55,8 @@ my_mod/
 すべての辞書に同じキーと同じ placeholder 名を定義します。
 `en.json` は `Locals` の初期化にも使うため必須です。
 
+`ja.json`
+
 ```json
 {
   "weather.drawer.forecast": "天気",

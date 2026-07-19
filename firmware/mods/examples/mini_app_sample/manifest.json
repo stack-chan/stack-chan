@@ -6,5 +6,8 @@
   ],
   "modules": {
     "miniapp": "./miniapp"
+  },
+  "resources": {
+    "*": ["./assets/stack-chan"]
   }
 }

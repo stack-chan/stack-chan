@@ -61,7 +61,7 @@ export default behavior
 ## 外部 archive の形式
 
 外部ミニアプリは、archive の `miniapp` module から定義の配列を default export します。
-[サンプル](../mods/examples/mini_app_sample/)は、`Port` でアニメーションを描画します。
+[サンプル](../mods/examples/mini_app_sample/)は、単一の`Port`でｽﾀｯｸﾁｬﾝのジャンプゲームを描画します。
 
 ```ts
 import type { MiniAppDefinition } from 'capabilities'

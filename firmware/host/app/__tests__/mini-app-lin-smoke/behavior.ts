@@ -1,13 +1,15 @@
 import type { StackchanAppBehavior } from 'app-behavior'
 import type { AppController } from 'app-controller'
 import type { StackchanContext } from 'capabilities'
-import type { Container as PiuContainer } from 'piu/MC'
+import type { Container as PiuContainer, Content as PiuContent, Port as PiuPort } from 'piu/MC'
 import Timer from 'timer'
 
 type TapBehavior = {
-  onTouchBegan?: (container: PiuContainer, id: number, x: number, y: number) => void
-  onTouchEnded?: (container: PiuContainer, id: number, x: number, y: number) => void
+  onTouchBegan?: (content: PiuContent, id: number, x: number, y: number) => void
+  onTouchEnded?: (content: PiuContent, id: number, x: number, y: number) => void
 }
+
+type GameBehavior = TapBehavior & { readonly jumping?: boolean; readonly score?: number }
 
 type TestAppBar = PiuContainer & {
   content(name: string): PiuContainer
@@ -32,11 +34,11 @@ function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => Timer.set(() => resolve(), milliseconds))
 }
 
-function tap(container: PiuContainer): void {
-  const behavior = container.behavior as TapBehavior | undefined
+function tap(content: PiuContent): void {
+  const behavior = content.behavior as TapBehavior | undefined
   assert(behavior?.onTouchBegan && behavior.onTouchEnded, 'target is not a tappable Piu control')
-  behavior.onTouchBegan(container, 0, 1, 1)
-  behavior.onTouchEnded(container, 0, 1, 1)
+  behavior.onTouchBegan(content, 0, 1, 1)
+  behavior.onTouchEnded(content, 0, 1, 1)
 }
 
 function topOf(content: PiuContainer): number {
@@ -77,9 +79,17 @@ async function runMiniAppSmoke(context: StackchanContext): Promise<void> {
   const appViewport = viewBehavior.main
   assert(appViewport && appViewport !== faceMain, 'sample app must replace the launcher')
   assert(topOf(appViewport) === 44, 'sample app must remain below the AppBar')
-  assert(appViewport.first, 'sample app content must be mounted in the viewport')
+  const game = appViewport.first as PiuContainer | null
+  const gamePort = game?.first as PiuPort | null
+  assert(gamePort?.active, 'sample game must mount an active Piu Port')
   assert(backButton.visible && backButton.active, 'running app must retain the host-owned Back button')
-  assert(String(title.string) === 'Piu サンプル', 'running app must set its AppBar title')
+  assert(String(title.string) === 'ｽﾀｯｸﾁｬﾝ JUMP', 'running app must set its AppBar title')
+
+  const gameBehavior = gamePort.behavior as GameBehavior | undefined
+  assert(gameBehavior?.score === 0, 'sample game must start with a zero score')
+  tap(gamePort)
+  assert(gameBehavior.jumping === true, 'tapping the game area must make Stack-chan jump')
+  await wait(80)
 
   tap(backButton)
   await wait(32)

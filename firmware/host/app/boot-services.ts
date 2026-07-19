@@ -5,6 +5,8 @@ import {
   shouldRetryBootWiFiAttempt,
 } from 'boot-network-recovery'
 import type { NetworkReadyResult } from 'capabilities'
+import { createLocalPeerCapability } from 'local-peer-capability'
+import type { LocalPeerCapability } from 'local-peer-types'
 import config from 'mc/config'
 import { wait } from 'stackchan-util'
 import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
@@ -16,6 +18,7 @@ export type HostBootServices = {
     network: {
       ready: Promise<NetworkReadyResult>
     }
+    localPeer?: LocalPeerCapability
   }
 }
 
@@ -60,11 +63,13 @@ let bootServices: HostBootServices = {
 
 export function startHostBootServices(options: HostBootServicesOptions = {}): HostBootServices {
   const networkReady = startStoredWiFi(options.wifi)
+  const localPeer = createLocalPeerCapability()
   bootServices = {
     connectivity: {
       network: {
         ready: networkReady,
       },
+      localPeer,
     },
   }
   return bootServices

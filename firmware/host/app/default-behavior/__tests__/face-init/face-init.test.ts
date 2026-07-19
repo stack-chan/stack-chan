@@ -180,15 +180,18 @@ touchPanel.onEvent?.({ gesture: 'backwardSwipe', position: 0.75, intensity: 3, t
 equal(emotions[emotions.length - 1], Emotion.HAPPY, 'petting swipe pair should set HAPPY emotion')
 assert(effects.length > 0, 'petting should add a visible emotion effect')
 
-const drawerCloseCountBeforeSpeech = drawerCloseCount
-Promise.resolve(speakButton?.callback?.(robot)).then(
-  async () => {
-    equal(speechRequests.length, 1, 'speakStackchan should request one utterance')
-    equal(speechRequests[0], 'こんにちわ。すたっくちゃんです。', 'speakStackchan should request its greeting')
-    equal(drawerCloseCount - drawerCloseCountBeforeSpeech, 1, 'speakStackchan should close the drawer before speaking')
+async function testSpeakStackchan() {
+  const drawerCloseCountBeforeSpeech = drawerCloseCount
+  await speakButton?.callback?.(robot)
+  equal(speechRequests.length, 1, 'speakStackchan should request one utterance')
+  equal(speechRequests[0], 'こんにちわ。すたっくちゃんです。', 'speakStackchan should request its greeting')
+  equal(drawerCloseCount - drawerCloseCountBeforeSpeech, 1, 'speakStackchan should close the drawer before speaking')
+}
 
-    const servoButton = buttons.find((button) => button.key === 'servoTest')
-    assert(servoButton, 'servoTest button should be registered')
+async function testServoRecovery() {
+  const servoButton = buttons.find((button) => button.key === 'servoTest')
+  assert(servoButton, 'servoTest button should be registered')
+  try {
     servoFailure = new Error('servo unavailable')
     await servoButton.callback?.(robot)
     assert(balloonMessages.includes('servo error'), 'servo failures should be visible instead of aborting the runtime')
@@ -196,11 +199,18 @@ Promise.resolve(speakButton?.callback?.(robot)).then(
 
     await servoButton.callback?.(robot)
     assert(torqueRequests.length > requestsAfterFirstFailure, 'servo failure should release the moving guard for retry')
+  } finally {
     servoFailure = undefined
-    trace('ok\n')
-  },
-  (error) => {
-    trace(`speakStackchan callback error: ${String(error)}\n`)
-    throw error
-  },
-)
+  }
+}
+
+async function runAsyncTests() {
+  await testSpeakStackchan()
+  await testServoRecovery()
+  trace('ok\n')
+}
+
+runAsyncTests().catch((error) => {
+  trace(`default behavior async test error: ${String(error)}\n`)
+  throw error
+})

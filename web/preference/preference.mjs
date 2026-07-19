@@ -153,7 +153,6 @@ export function initializePreferencePage({
         !readOnlyProps.has(prop) &&
         dirtyProps.has(prop) &&
         value != null &&
-        value.trimEnd().length > 0 &&
         currentValues.get(prop) !== value
       ) {
         payload[prop] = value

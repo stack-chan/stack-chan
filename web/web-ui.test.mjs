@@ -216,8 +216,9 @@ function createPreferencePage() {
   const ssid = new FakeElement({ id: 'wifi.ssid', name: 'wifi.ssid' })
   const password = new FakeElement({ id: 'wifi.password', name: 'wifi.password' })
   const driverType = new FakeElement({ id: 'driver.type', name: 'driver.type' })
+  const aiToken = new FakeElement({ id: 'ai.token', name: 'ai.token' })
   driverType.value = 'm5stackchan'
-  form.controls = [ssid, password, driverType, clear, submit]
+  form.controls = [ssid, password, driverType, aiToken, clear, submit]
   const document = new FakeDocument([
     form,
     connect,
@@ -229,8 +230,9 @@ function createPreferencePage() {
     ssid,
     password,
     driverType,
+    aiToken,
   ])
-  return { document, form, submit, clear, saveStatus, ssid, password, driverType }
+  return { document, form, submit, clear, saveStatus, ssid, password, driverType, aiToken }
 }
 
 test('preference page displays and locks the effective M5StackChan driver reported over BLE', () => {
@@ -269,6 +271,19 @@ test('explicitly selecting generic SCServo sends only the driver change', async 
   await page.form.dispatch('submit')
 
   assert.deepEqual(client.messages, [{ _batch: { 'driver.type': 'scservo' } }])
+})
+
+test('explicitly clearing an optional text field sends the empty value', async () => {
+  const page = createPreferencePage()
+  const client = new FakePreferenceClient()
+  const { onCharacteristicValueChanged } = initializePreferencePage({ document: page.document, client })
+  onCharacteristicValueChanged({ prop: 'ai.token', value: 'stored-token' })
+
+  page.aiToken.value = ''
+  await page.form.dispatch('input', page.aiToken)
+  await page.form.dispatch('submit')
+
+  assert.deepEqual(client.messages, [{ _batch: { 'ai.token': '' } }])
 })
 
 test('Wi-Fi clear confirms, sends both empty credentials, updates fields, and restores controls', async () => {

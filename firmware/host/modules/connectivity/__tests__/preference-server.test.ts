@@ -3,8 +3,8 @@ import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { writeAliasPackage } from '../../testing/node-alias-package.js'
 import { DOMAIN, PREF_KEYS } from '../../preferences/consts.js'
+import { writeAliasPackage } from '../../testing/node-alias-package.js'
 
 type FakePreference = {
   resetPreference(values?: Record<string, unknown>): void

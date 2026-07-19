@@ -31,7 +31,7 @@ export class PreferenceServer extends UARTServer {
       this.#handleConnected = option.onConnected
       this.#handleDisconnected = option.onDisconnected
     }
-    this.#keys = Array.isArray(option.keys) ? option.keys.slice() : []
+    this.#keys = Array.isArray(option?.keys) ? option.keys.slice() : []
     this.#effectiveValues = option?.effectiveValues ?? {}
     this.#readOnlyKeys = option?.readOnlyKeys ?? []
   }

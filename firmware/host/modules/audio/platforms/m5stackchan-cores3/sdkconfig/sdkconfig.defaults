@@ -3,6 +3,12 @@ CONFIG_ESP_CONSOLE_UART=y
 CONFIG_ESP_CONSOLE_UART_NUM=0
 CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
 
+# The web editor reads this value from esp_app_desc before installing a MOD.
+# Pin it to the Moddable SDK used to build the host instead of letting ESP-IDF
+# infer a Git revision from the repository containing the output directory.
+CONFIG_APP_PROJECT_VER_FROM_CONFIG=y
+CONFIG_APP_PROJECT_VER="8.3.1"
+
 CONFIG_ESP_SYSTEM_PANIC_GDBSTUB=n
 CONFIG_ESP_COREDUMP_ENABLE_TO_UART=n
 CONFIG_ESP_COREDUMP_ENABLE=n

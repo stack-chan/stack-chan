@@ -23,6 +23,9 @@ const faces: unknown[] = []
 const selectedHandAnimations: string[] = []
 const colors: [string, number, number, number][] = []
 const speechRequests: string[] = []
+const balloonMessages: string[] = []
+const torqueRequests: boolean[] = []
+let servoFailure: Error | undefined
 let drawerCloseCount = 0
 const touchPanel: {
   onEvent?: (event: {
@@ -86,9 +89,14 @@ const robot = {
   },
   lookAway: () => {},
   lookAt: () => {},
-  setPose: () => Promise.resolve(),
-  setTorque: () => Promise.resolve(),
-  showBalloon: () => {},
+  setPose: () => (servoFailure ? Promise.reject(servoFailure) : Promise.resolve()),
+  setTorque: (enabled: boolean) => {
+    torqueRequests.push(enabled)
+    return servoFailure ? Promise.reject(servoFailure) : Promise.resolve()
+  },
+  showBalloon: (message: string) => {
+    balloonMessages.push(message)
+  },
   hideBalloon: () => {},
   setEmotion: (emotion: unknown) => {
     emotions.push(emotion)
@@ -174,10 +182,21 @@ assert(effects.length > 0, 'petting should add a visible emotion effect')
 
 const drawerCloseCountBeforeSpeech = drawerCloseCount
 Promise.resolve(speakButton?.callback?.(robot)).then(
-  () => {
+  async () => {
     equal(speechRequests.length, 1, 'speakStackchan should request one utterance')
     equal(speechRequests[0], 'こんにちわ。すたっくちゃんです。', 'speakStackchan should request its greeting')
     equal(drawerCloseCount - drawerCloseCountBeforeSpeech, 1, 'speakStackchan should close the drawer before speaking')
+
+    const servoButton = buttons.find((button) => button.key === 'servoTest')
+    assert(servoButton, 'servoTest button should be registered')
+    servoFailure = new Error('servo unavailable')
+    await servoButton.callback?.(robot)
+    assert(balloonMessages.includes('servo error'), 'servo failures should be visible instead of aborting the runtime')
+    const requestsAfterFirstFailure = torqueRequests.length
+
+    await servoButton.callback?.(robot)
+    assert(torqueRequests.length > requestsAfterFirstFailure, 'servo failure should release the moving guard for retry')
+    servoFailure = undefined
     trace('ok\n')
   },
   (error) => {

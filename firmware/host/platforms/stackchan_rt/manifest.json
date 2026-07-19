@@ -10,6 +10,7 @@
   "config": {
     "driver": {
       "type": "dynamixel",
+      "typeLocked": true,
       "panId": 1,
       "tiltId": 2,
       "serial": {

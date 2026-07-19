@@ -34,7 +34,7 @@ MOD がインストールされている場合、製品既定動作は実行さ�
 
 | キー              | 説明                                            | 使用可能な値                                |
 | ----------------- | ----------------------------------------------- | ------------------------------------------- |
-| driver.type       | モータドライバの種類                            | "scservo", "rs30x", "pwm", "none", "dynamixel"           |
+| driver.type       | モータドライバの種類                            | "m5stackchan", "scservo", "rs30x", "pwm", "none", "dynamixel"           |
 | driver.panId      | パン軸（首の横回転）に使うシリアルサーボの ID   | 1~254                                       |
 | driver.tiltId     | チルト軸（首の縦回転）に使うシリアルサーボの ID | 1~254                                       |
 | driver.offsetPan  | パン軸のオフセット                              | -90~90                                      |
@@ -141,6 +141,8 @@ Stack-chan の各ハードウェア構成は、サーボの driver 種別とバ�
 - M5StackChan CoreS3: [`host/platforms/m5stackchan_cores3/manifest.json`](../host/platforms/m5stackchan_cores3/manifest.json) — `m5stackchan` driver、シリアル TX6 / RX7。
 - Stack-chan RT: [`host/platforms/stackchan_rt/manifest.json`](../host/platforms/stackchan_rt/manifest.json) — `dynamixel` driver、シリアル TX7 / RX6。
 - タカオ版 Core2 + SG90: [`host/platforms/takao_core2_sg90/manifest.json`](../host/platforms/takao_core2_sg90/manifest.json) — `pwm` driver、pan PWM19 / tilt PWM27。
+
+`m5stackchan` driver は SCServo プロトコルに加えて、M5StackChan 専用のゼロ位置、可動域、PY32 サーボ電源制御を提供します。安全のため、M5StackChan CoreS3 用ファームウェアは driver 種別を `m5stackchan` に、Stack-chan RT 用ファームウェアは `dynamixel` に固定します。どちらも保存済みの異なる `driver.type` は無視します。
 
 Wi-Fi 認証情報や API キーなどのデバイス固有の設定は、各ボードのアプリ manifest の `"config"` 配下に書いてください。秘密情報はコミットせず、ローカルにのみ追加してください。起動時のログ `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` で RT が実際に使うシリアルピンを確認できます。
 

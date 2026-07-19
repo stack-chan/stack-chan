@@ -42,7 +42,14 @@ function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatus
 
 export function startSetupMode(application: SettingsApplication): Promise<SetupModeResult> {
   return new Promise((resolve) => {
-    const status = createInitialSettingsStatus(loadPreferenceConfig())
+    const preferences = loadPreferenceConfig()
+    const status = createInitialSettingsStatus(preferences)
+    const effectiveValues = Object.fromEntries(
+      PREF_KEYS.flatMap(([domain, key]) => {
+        const value = preferences[domain]?.[key]
+        return value == null ? [] : [[`${domain}.${key}`, value]]
+      }),
+    )
     const viewState = {
       status,
       networks: [] as SettingsNetworkEntry[],
@@ -194,6 +201,8 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
         updateCurrentView()
       },
       keys: PREF_KEYS,
+      effectiveValues,
+      readOnlyKeys: preferences.driver.typeLocked === true ? ['driver.type'] : [],
     })
   })
 }

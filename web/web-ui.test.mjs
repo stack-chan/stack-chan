@@ -155,8 +155,8 @@ class FakeElement {
     return this.controls
   }
 
-  async dispatch(type) {
-    const event = { preventDefault() {} }
+  async dispatch(type, target = this) {
+    const event = { target, preventDefault() {} }
     for (const listener of this.listeners.get(type) ?? []) await listener(event)
   }
 
@@ -215,7 +215,9 @@ function createPreferencePage() {
   const saveStatus = new FakeElement({ id: 'save-status' })
   const ssid = new FakeElement({ id: 'wifi.ssid', name: 'wifi.ssid' })
   const password = new FakeElement({ id: 'wifi.password', name: 'wifi.password' })
-  form.controls = [ssid, password, clear, submit]
+  const driverType = new FakeElement({ id: 'driver.type', name: 'driver.type' })
+  driverType.value = 'm5stackchan'
+  form.controls = [ssid, password, driverType, clear, submit]
   const document = new FakeDocument([
     form,
     connect,
@@ -226,9 +228,48 @@ function createPreferencePage() {
     saveStatus,
     ssid,
     password,
+    driverType,
   ])
-  return { document, submit, clear, saveStatus, ssid, password }
+  return { document, form, submit, clear, saveStatus, ssid, password, driverType }
 }
+
+test('preference page displays and locks the effective M5StackChan driver reported over BLE', () => {
+  const page = createPreferencePage()
+  const client = new FakePreferenceClient()
+  const { onCharacteristicValueChanged } = initializePreferencePage({ document: page.document, client })
+
+  page.driverType.value = 'scservo'
+  onCharacteristicValueChanged({ prop: 'driver.type', value: 'm5stackchan', readOnly: true })
+
+  assert.equal(page.driverType.value, 'm5stackchan')
+  assert.equal(page.driverType.disabled, true)
+})
+
+test('saving another field never sends an untouched driver HTML default', async () => {
+  const page = createPreferencePage()
+  const client = new FakePreferenceClient()
+  initializePreferencePage({ document: page.document, client })
+
+  page.driverType.value = 'scservo'
+  page.ssid.value = 'new-ap'
+  await page.form.dispatch('input', page.ssid)
+  await page.form.dispatch('submit')
+
+  assert.deepEqual(client.messages, [{ _batch: { 'wifi.ssid': 'new-ap' } }])
+})
+
+test('explicitly selecting generic SCServo sends only the driver change', async () => {
+  const page = createPreferencePage()
+  const client = new FakePreferenceClient()
+  const { onCharacteristicValueChanged } = initializePreferencePage({ document: page.document, client })
+  onCharacteristicValueChanged({ prop: 'driver.type', value: 'm5stackchan' })
+
+  page.driverType.value = 'scservo'
+  await page.form.dispatch('change', page.driverType)
+  await page.form.dispatch('submit')
+
+  assert.deepEqual(client.messages, [{ _batch: { 'driver.type': 'scservo' } }])
+})
 
 test('Wi-Fi clear confirms, sends both empty credentials, updates fields, and restores controls', async () => {
   const page = createPreferencePage()

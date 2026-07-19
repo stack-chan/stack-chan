@@ -10,10 +10,14 @@ type PreferenceServerProps = {
   onConnected?: () => void
   onDisconnected?: () => void
   keys?: typeof PREF_KEYS
+  effectiveValues?: Readonly<Record<string, PreferenceValue>>
+  readOnlyKeys?: readonly string[]
 }
 export class PreferenceServer extends UARTServer {
   #tx_characteristic
   #keys
+  #effectiveValues
+  #readOnlyKeys
   #rxBuffer = ''
   #timeout
   #handlePreferenceChanged?: (key: string, value: PreferenceValue) => void
@@ -28,6 +32,8 @@ export class PreferenceServer extends UARTServer {
       this.#handleDisconnected = option.onDisconnected
     }
     this.#keys = Array.isArray(option.keys) ? option.keys.slice() : []
+    this.#effectiveValues = option?.effectiveValues ?? {}
+    this.#readOnlyKeys = option?.readOnlyKeys ?? []
   }
   onConnected() {
     super.onConnected()
@@ -48,9 +54,13 @@ export class PreferenceServer extends UARTServer {
       this.#tx_characteristic = characteristic
       for (const item of this.#keys) {
         const [domain, key] = item
-        const currentValue = Preference.get(domain, key)
+        const prop = `${domain}.${key}`
+        const readOnly = this.#readOnlyKeys.includes(prop)
+        const currentValue = readOnly
+          ? this.#effectiveValues[prop]
+          : (Preference.get(domain, key) ?? this.#effectiveValues[prop])
         if (currentValue != null) {
-          this.notifyPreference(`${domain}.${key}`, currentValue)
+          this.notifyPreference(prop, currentValue, readOnly)
         }
       }
     }
@@ -103,7 +113,7 @@ export class PreferenceServer extends UARTServer {
     }
   }
 
-  notifyPreference(prop, value) {
+  notifyPreference(prop, value, readOnly = false) {
     if (this.#tx_characteristic == null) {
       return
     }
@@ -113,19 +123,26 @@ export class PreferenceServer extends UARTServer {
         JSON.stringify({
           prop,
           value,
+          ...(readOnly ? { readOnly: true } : {}),
         }),
       ),
     )
   }
 
   receiveAndSetPreference(domain: string, key: string, value: PreferenceValue) {
-    const currentValue = Preference.get(domain, key)
+    const prop = `${domain}.${key}`
+    if (this.#readOnlyKeys.includes(prop)) {
+      trace(`ignoring read-only preference ... ${prop}: ${value}\n`)
+      const currentValue = this.#effectiveValues[prop]
+      if (currentValue != null) this.notifyPreference(prop, currentValue, true)
+      return
+    }
+    const currentValue = Preference.get(domain, key) ?? this.#effectiveValues[prop]
     if (currentValue !== value) {
       trace(`changing preference ... ${domain}.${key}: ${value}\n`)
       Preference.set(domain, key, value)
-      const pref = `${domain}.${key}`
-      this.notifyPreference(pref, value)
-      this.#handlePreferenceChanged?.(pref, value)
+      this.notifyPreference(prop, value)
+      this.#handlePreferenceChanged?.(prop, value)
     }
   }
 }

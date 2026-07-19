@@ -16,6 +16,7 @@
   "config": {
     "driver": {
       "type": "m5stackchan",
+      "typeLocked": true,
       "panId": 1,
       "tiltId": 2,
       "yawZeroPosition": 460,

@@ -396,42 +396,52 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   /**
    * Servo test (Drawer action)
    */
-  const testMotion = (onComplete: () => void) => {
-    robot.showBalloon('moving...')
-    void robot.setTorque(true)
-
-    const rotations = [LEFT, RIGHT, DOWN, UP, FORWARD]
-    let index = 0
-    const step = () => {
-      const rot = rotations[index]
-      if (!rot) {
-        void robot.setTorque(false)
-        robot.hideBalloon()
-        onComplete()
-        return
-      }
-      void robot.setPose(poseForRotation(rot))
-      index += 1
-      Timer.set(step, 1000)
-    }
-    step()
-  }
   let isMoving = false
-  const runServoTest = () => {
+  const runServoTest = async () => {
     if (isMoving) return
-    isFollowing = false
-    robot.lookAway()
-    robot.drawer.setDrawerButtonState('toggleLookAround', false)
     isMoving = true
-    testMotion(() => {
+    let failed = false
+    const rotations = [LEFT, RIGHT, DOWN, UP, FORWARD]
+    try {
+      isFollowing = false
+      robot.lookAway()
+      robot.drawer.setDrawerButtonState('toggleLookAround', false)
+      robot.showBalloon('moving...')
+      await robot.setTorque(true)
+      for (const rotation of rotations) {
+        await robot.setPose(poseForRotation(rotation))
+        await wait(1000)
+      }
+    } catch (error) {
+      failed = true
+      trace(`[ServoTest] motion error ${errorMessage(error)}\n`)
+      robot.showBalloon('servo error')
+    } finally {
+      try {
+        await robot.setTorque(false)
+      } catch (error) {
+        failed = true
+        trace(`[ServoTest] torque release error ${errorMessage(error)}\n`)
+        robot.showBalloon('servo error')
+      }
       isMoving = false
-    })
+      if (failed) {
+        Timer.set(() => robot.hideBalloon(), 1200)
+      } else {
+        robot.hideBalloon()
+      }
+    }
   }
+  const startServoTest = () =>
+    runServoTest().catch((error) => {
+      isMoving = false
+      trace(`[ServoTest] unexpected error ${errorMessage(error)}\n`)
+    })
   robot.drawer.addDrawerButton({
     key: 'servoTest',
     label: 'サーボ',
     icon: 'play',
-    callback: runServoTest,
+    callback: startServoTest,
   })
 
   /**
@@ -601,7 +611,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         if (!event.pressed) {
           return
         }
-        void runServoTest()
+        void startServoTest()
       }
     }
     if (robot.button.c != null) {

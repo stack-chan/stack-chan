@@ -5,8 +5,8 @@
   "include": ["../platforms/wasm/manifest.json"],
   "resources": {
     "*": ["./strings/*"],
-    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
-    "*-alpha": [
+    "*-mask": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24",
       {
         "source": "../modules/ui/assets/fonts/k8x12",
         "size": 12,
@@ -18,14 +18,17 @@
         "source": "../modules/ui/assets/fonts/StackchanCJK-Regular",
         "name": "StackchanCJK",
         "size": 12,
-        "blocks": ["Basic Latin"],
+        "characters": " ",
+        "blocks": [],
         "localization": true,
         "monochrome": true
-      },
+      }
+    ],
+    "*-alpha": [
       {
         "source": "../modules/ui/assets/fonts/k8x12",
         "size": 24,
-        "characterFiles": "../modules/ui/assets/fonts/k8x12-chars.txt",
+        "characters": "Stack-chan[・＿・]",
         "monochrome": true
       }
     ]

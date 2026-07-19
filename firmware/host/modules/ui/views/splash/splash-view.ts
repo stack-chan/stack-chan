@@ -80,7 +80,7 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
     new ActionButton(
       {
         icon: 'settings',
-        label: localize('splash.settings'),
+        label: localize('settings.title'),
         onTap: options.onSettings,
       },
       { left: 104, width: 112 },

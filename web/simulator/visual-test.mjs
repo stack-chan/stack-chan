@@ -220,9 +220,36 @@ async function inspectViewport(page, name, width, height) {
     assert.notEqual(settingsSignature, splashSignature, 'settings action must leave the splash screen')
     await page.screenshot({ path: '/tmp/stackchan-settings.png', fullPage: true })
     await savePiuScreen('settings')
+    await touchPiu(160, 106)
+    const languageSignature = await waitForScreenChange(settingsSignature, 5_000)
+    assert.notEqual(languageSignature, settingsSignature, 'language menu item must open language settings')
+    await savePiuScreen('language')
+    await touchPiu(160, 176)
+    const chineseLanguageSignature = await waitForScreenChange(languageSignature, 5_000)
+    assert.notEqual(chineseLanguageSignature, languageSignature, 'Chinese selection must rerender language settings')
+    await savePiuScreen('language-chinese')
+    await touchPiu(160, 124)
+    const englishLanguageSignature = await waitForScreenChange(chineseLanguageSignature, 5_000)
+    assert.notEqual(
+      englishLanguageSignature,
+      chineseLanguageSignature,
+      'English selection must rerender language settings'
+    )
+    await savePiuScreen('language-english')
+    await touchPiu(22, 20)
+    const localizedSettingsSignature = await waitForScreenChange(englishLanguageSignature, 5_000)
+    assert.notEqual(
+      localizedSettingsSignature,
+      englishLanguageSignature,
+      'language back action must open the localized settings menu'
+    )
+    await touchPiu(160, 66)
+    const wifiSettingsSignature = await waitForScreenChange(localizedSettingsSignature, 5_000)
+    assert.notEqual(wifiSettingsSignature, localizedSettingsSignature, 'Wi-Fi menu item must open network settings')
+    await savePiuScreen('wifi-settings')
     await touchPiu(82, 98)
-    const networkListSignature = await waitForScreenChange(settingsSignature, 10_000)
-    assert.notEqual(networkListSignature, settingsSignature, 'network settings must open the scanned network list')
+    const networkListSignature = await waitForScreenChange(wifiSettingsSignature, 10_000)
+    assert.notEqual(networkListSignature, wifiSettingsSignature, 'network settings must open the scanned network list')
     await savePiuScreen('network-list')
     await touchPiu(160, 146)
     const passwordSignature = await waitForScreenChange(networkListSignature, 5_000)
@@ -267,10 +294,22 @@ async function inspectViewport(page, name, width, height) {
       true,
       `keyboard bottom row must remain visible: ${JSON.stringify(passwordLayout)}`
     )
+    const passwordReadySignature = await screenSignature()
     await touchPiu(22, 20)
+    const wifiBackSignature = await waitForScreenChange(passwordReadySignature, 5_000)
+    assert.notEqual(wifiBackSignature, passwordReadySignature, 'password back action must open Wi-Fi settings')
     await touchPiu(22, 20)
-    const mainSignature = await waitForScreenChange(splashSignature, 20000)
-    assert.notEqual(mainSignature, splashSignature, 'auto boot must open the main face')
+    const settingsMenuSignature = await waitForScreenChange(wifiBackSignature, 5_000)
+    assert.notEqual(settingsMenuSignature, wifiBackSignature, 'Wi-Fi back action must open the settings menu')
+    await touchPiu(22, 20)
+    const returnedSplashSignature = await waitForScreenChange(settingsMenuSignature, 5_000)
+    assert.notEqual(
+      returnedSplashSignature,
+      settingsMenuSignature,
+      'settings back action must return to the splash screen'
+    )
+    const mainSignature = await waitForScreenChange(returnedSplashSignature, 20_000)
+    assert.notEqual(mainSignature, returnedSplashSignature, 'auto boot must open the main face')
     const menuHiddenSignature = await waitForScreenChange(mainSignature, 6000)
     assert.notEqual(menuHiddenSignature, mainSignature, 'main menu must hide after auto boot')
     await page.screenshot({ path: '/tmp/stackchan-main.png', fullPage: true })
@@ -389,7 +428,7 @@ try {
   await inspectViewport(page, 'desktop', 1280, 800)
   await inspectViewport(page, 'mobile', 390, 844)
   console.log(
-    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed,sample-mod}.png and /tmp/stackchan-screen-{settings,network-list,password,main-menu-hidden,drawer,face-menu,dog-face,camera,camera-closed,sample-mod}.png'
+    'visual checks passed: /tmp/stackchan-{desktop,mobile,settings,password,main,drawer,face-menu,dog-face,camera,camera-closed,sample-mod}.png and /tmp/stackchan-screen-{settings,language,language-chinese,language-english,wifi-settings,network-list,password,main-menu-hidden,drawer,face-menu,dog-face,camera,camera-closed,sample-mod}.png'
   )
 } finally {
   await browser?.close()

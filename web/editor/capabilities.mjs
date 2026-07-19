@@ -9,7 +9,7 @@ export const CAPABILITIES = Object.freeze({
   LIGHTING: 'lighting',
   BUTTONS: 'input.buttons',
   IMU: 'input.imu',
-  TOUCH: 'input.touch',
+  HEAD_TOUCH: 'input.headTouch',
   DRAWER: 'ui.drawer',
 })
 
@@ -37,7 +37,6 @@ export const DEVICE_PROFILES = Object.freeze({
       CAPABILITIES.TONE,
       CAPABILITIES.MOTION,
       CAPABILITIES.BUTTONS,
-      CAPABILITIES.TOUCH,
       CAPABILITIES.DRAWER,
     ],
   },
@@ -55,7 +54,7 @@ export const DEVICE_PROFILES = Object.freeze({
 export const BLOCK_CAPABILITIES = Object.freeze({
   stackchan_on_button: [CAPABILITIES.BUTTONS],
   stackchan_on_imu: [CAPABILITIES.IMU],
-  stackchan_on_touch: [CAPABILITIES.TOUCH],
+  stackchan_on_head_touch: [CAPABILITIES.HEAD_TOUCH],
   stackchan_on_drawer_button: [CAPABILITIES.DRAWER],
   stackchan_set_emotion: [CAPABILITIES.FACE],
   stackchan_set_color: [CAPABILITIES.FACE],

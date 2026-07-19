@@ -22,10 +22,10 @@ function getLocals(): Locals {
 
 export function normalizeLocale(value: unknown): SupportedLocale | undefined {
   if (typeof value !== 'string') return undefined
-  const normalized = value.trim().replaceAll('_', '-').toLowerCase()
-  if (normalized === 'ja' || normalized.startsWith('ja-')) return 'ja'
-  if (normalized === 'en' || normalized.startsWith('en-')) return 'en'
-  if (normalized === 'zh' || normalized.startsWith('zh-')) return 'zh-CN'
+  const language = value.trim().toLowerCase().split(/[-_]/, 1)[0]
+  if (language === 'ja') return 'ja'
+  if (language === 'en') return 'en'
+  if (language === 'zh') return 'zh-CN'
   return undefined
 }
 
@@ -35,9 +35,7 @@ export function setLocalizationLanguage(value: unknown): SupportedLocale {
   return currentLocale
 }
 
-export function initializeLocalization(value: unknown): SupportedLocale {
-  return setLocalizationLanguage(value)
-}
+export const initializeLocalization = setLocalizationLanguage
 
 export function getLocalizationLanguage(): SupportedLocale {
   return currentLocale

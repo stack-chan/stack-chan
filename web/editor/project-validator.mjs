@@ -5,7 +5,7 @@ const EVENT_BLOCKS = new Set([
   'stackchan_on_start',
   'stackchan_on_button',
   'stackchan_on_imu',
-  'stackchan_on_touch',
+  'stackchan_on_head_touch',
   'stackchan_on_drawer_button',
   'stackchan_every',
 ])

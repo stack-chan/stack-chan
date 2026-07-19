@@ -23,7 +23,7 @@ export const VISUAL_RUNTIME_RESERVED_WORDS = Object.freeze([
   'runtime',
   'onButton',
   'onImu',
-  'onTouchPanel',
+  'onHeadTouch',
   'SINGING_MORA_TO_KOE',
   'STACKCHAN_VOICE_MAX_KOE_LENGTH',
   'katakanaToHiragana',
@@ -139,9 +139,10 @@ const HELPER_ON_IMU = `function onImu(robot, motion, handler) {
   }
 }`
 
-const HELPER_ON_TOUCH_PANEL = `function onTouchPanel(robot, gesture, handler) {
+const HELPER_ON_HEAD_TOUCH = `function onHeadTouch(robot, gesture, handler) {
   const panel = robot.input.touchPanel
   if (!panel) return undefined
+  const pettingWindowMs = 1500
   const handlers = (panel.__handlers ??= {})
   const callbacks = (handlers[gesture] ??= new Set())
   callbacks.add(handler)
@@ -150,6 +151,19 @@ const HELPER_ON_TOUCH_PANEL = `function onTouchPanel(robot, gesture, handler) {
     panel.__visualPrevious = panel.onEvent
     panel.onEvent = (event) => {
       for (const callback of [...(panel.__handlers?.[event.gesture] ?? [])]) callback(event)
+      if (event.gesture === 'forwardSwipe') panel.__visualLastForwardSwipeTicks = event.ticks
+      if (event.gesture === 'backwardSwipe') panel.__visualLastBackwardSwipeTicks = event.ticks
+      if (
+        (event.gesture === 'forwardSwipe' || event.gesture === 'backwardSwipe') &&
+        Number.isFinite(panel.__visualLastForwardSwipeTicks) &&
+        Number.isFinite(panel.__visualLastBackwardSwipeTicks) &&
+        Math.abs(panel.__visualLastForwardSwipeTicks - panel.__visualLastBackwardSwipeTicks) <= pettingWindowMs
+      ) {
+        const pettingEvent = { ...event, gesture: 'petting' }
+        delete panel.__visualLastForwardSwipeTicks
+        delete panel.__visualLastBackwardSwipeTicks
+        for (const callback of [...(panel.__handlers?.petting ?? [])]) callback(pettingEvent)
+      }
       panel.__visualPrevious?.(event)
     }
   }
@@ -159,6 +173,8 @@ const HELPER_ON_TOUCH_PANEL = `function onTouchPanel(robot, gesture, handler) {
     if (Object.keys(panel.__handlers ?? {}).length === 0) {
       panel.onEvent = panel.__visualPrevious
       delete panel.__visualPrevious
+      delete panel.__visualLastForwardSwipeTicks
+      delete panel.__visualLastBackwardSwipeTicks
       panel.__visualWired = false
     }
   }
@@ -179,7 +195,7 @@ export function assembleModSource(body) {
   if (/\bhexToRgb\s*\(/.test(body)) helpers.push(HELPER_HEX_TO_RGB)
   if (/\bonButton\s*\(/.test(body)) helpers.push(HELPER_ON_BUTTON)
   if (/\bonImu\s*\(/.test(body)) helpers.push(HELPER_ON_IMU)
-  if (/\bonTouchPanel\s*\(/.test(body)) helpers.push(HELPER_ON_TOUCH_PANEL)
+  if (/\bonHeadTouch\s*\(/.test(body)) helpers.push(HELPER_ON_HEAD_TOUCH)
   if (/\bsingScore\s*\(/.test(body)) helpers.push(HELPER_SING_SCORE)
 
   const indentedBody = body
@@ -524,24 +540,25 @@ const BLOCK_DEFINITIONS = [
     tooltip: '本体を動かしたとき(加速度センサー)に実行します',
   },
   {
-    type: 'stackchan_on_touch',
-    message0: '画面が %1 されたとき %2 %3',
+    type: 'stackchan_on_head_touch',
+    message0: '頭部タッチセンサが %1 とき %2 %3',
     args0: [
       {
         type: 'field_dropdown',
         name: 'GESTURE',
         options: [
-          ['タッチ', 'press'],
-          ['はなす', 'release'],
-          ['右にスワイプ', 'forwardSwipe'],
-          ['左にスワイプ', 'backwardSwipe'],
+          ['タッチされた', 'press'],
+          ['はなされた', 'release'],
+          ['前方へスワイプされた', 'forwardSwipe'],
+          ['後方へスワイプされた', 'backwardSwipe'],
+          ['なでられた', 'petting'],
         ],
       },
       { type: 'input_dummy' },
       { type: 'input_statement', name: 'DO' },
     ],
     colour: BLOCK_STYLE.event,
-    tooltip: '画面(タッチパネル)を操作したときに実行します',
+    tooltip: '頭上の静電容量式タッチセンサを操作したときに実行します',
   },
   {
     type: 'stackchan_on_drawer_button',
@@ -1047,10 +1064,10 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
     return `runtime.add(onImu(robot, '${motion}', ${eventHandler(body, 'imu', block.id)}))\n`
   }
 
-  forBlock['stackchan_on_touch'] = (block, gen) => {
+  forBlock['stackchan_on_head_touch'] = (block, gen) => {
     const gesture = block.getFieldValue('GESTURE')
     const body = asyncHandlerBody(gen, block)
-    return `runtime.add(onTouchPanel(robot, '${gesture}', ${eventHandler(body, 'touch', block.id)}))\n`
+    return `runtime.add(onHeadTouch(robot, '${gesture}', ${eventHandler(body, 'head touch', block.id)}))\n`
   }
 
   forBlock['stackchan_on_drawer_button'] = (block, gen) => {
@@ -1265,7 +1282,7 @@ export const TOOLBOX = {
         { kind: 'block', type: 'stackchan_on_button' },
         { kind: 'block', type: 'stackchan_every' },
         { kind: 'block', type: 'stackchan_on_imu' },
-        { kind: 'block', type: 'stackchan_on_touch' },
+        { kind: 'block', type: 'stackchan_on_head_touch' },
         { kind: 'block', type: 'stackchan_on_drawer_button' },
       ],
     },

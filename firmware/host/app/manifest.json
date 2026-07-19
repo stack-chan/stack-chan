@@ -80,8 +80,8 @@
   },
   "resources": {
     "*": ["./strings/*"],
-    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
-    "*-alpha": [
+    "*-mask": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24",
       {
         "source": "../modules/ui/assets/fonts/k8x12",
         "size": 12,
@@ -97,7 +97,9 @@
         "blocks": [],
         "localization": true,
         "monochrome": true
-      },
+      }
+    ],
+    "*-alpha": [
       {
         "source": "../modules/ui/assets/fonts/k8x12",
         "size": 24,

@@ -5,7 +5,7 @@
   ],
   "resources": {
     "*": ["../../../../../../app/strings/*"],
-    "*-alpha": [
+    "*-mask": [
       {
         "source": "../../../../assets/fonts/k8x12",
         "size": 12,
@@ -17,7 +17,8 @@
         "source": "../../../../assets/fonts/StackchanCJK-Regular",
         "name": "StackchanCJK",
         "size": 12,
-        "blocks": ["Basic Latin"],
+        "characters": " ",
+        "blocks": [],
         "localization": true,
         "monochrome": true
       }

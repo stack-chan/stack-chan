@@ -26,12 +26,19 @@ const buildMode = 'release'
 const signature = 'stackchan.moddable.tech'
 const binaries = ['bootloader.bin', 'partition-table.bin', 'xs_esp32.bin']
 const bundleTargets = ['com.m5stack', 'com.m5stack.core2', 'com.m5stack.cores3', targetName]
+const requiredModdableVersion = '8.3.1'
 
 if (!process.env.MODDABLE) {
   console.error('[stack-chan] MODDABLE environment variable is required')
   process.exit(1)
 }
 const moddableVersion = readFileSync(path.join(process.env.MODDABLE, 'tools', 'VERSION'), 'utf8').trim()
+if (moddableVersion !== requiredModdableVersion) {
+  console.error(
+    `[stack-chan] Moddable SDK ${requiredModdableVersion} is required (found ${moddableVersion || 'missing'})`,
+  )
+  process.exit(1)
+}
 
 // mcbundle does not forward its -o option to the mcconfig processes it
 // generates, so its standard device builds intentionally remain under the

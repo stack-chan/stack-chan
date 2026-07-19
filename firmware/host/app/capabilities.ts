@@ -5,6 +5,7 @@ import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
 import type { HandAnimationName } from 'hands'
 import type IMU from 'imu'
 import type { ButtonInputEvent } from 'input-event'
+import type { LocalPeerCapability } from 'local-peer-types'
 import type { MiniAppRegistryCapability } from 'mini-app'
 import type { MotionControllerPose, MotionDurationSeconds } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
@@ -12,6 +13,19 @@ import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
+
+export type {
+  JsonValue,
+  LocalPeerBroadcastReceipt,
+  LocalPeerCapability,
+  LocalPeerDeliveryReceipt,
+  LocalPeerErrorCode,
+  LocalPeerInfo,
+  LocalPeerMessage,
+  LocalPeerOpenOptions,
+  LocalPeerSession,
+} from 'local-peer-types'
+export { LocalPeerError } from 'local-peer-types'
 
 export type TTS = {
   stream: (text: string, volume?: number, callback?: TTSCompletion) => void
@@ -185,6 +199,8 @@ export type NetworkCapability = {
 
 export type ConnectivityCapability = {
   network?: NetworkCapability
+  /** Connectionless local peer messaging. Present only on supported Wi-Fi targets. */
+  localPeer?: LocalPeerCapability
 }
 
 export type LifecycleCapability = {

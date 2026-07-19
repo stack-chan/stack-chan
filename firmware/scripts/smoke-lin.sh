@@ -15,7 +15,7 @@ platform="${STACKCHAN_LIN_SMOKE_PLATFORM:-lin/m5stack}"
 platform_path="${platform//\//\/}"
 smoke_timeout="${STACKCHAN_LIN_SMOKE_TIMEOUT:-10s}"
 xsbug_host="${STACKCHAN_LIN_XSBUG_HOST:-127.0.0.1}"
-xsbug_port="${STACKCHAN_LIN_XSBUG_PORT:-5002}"
+xsbug_port="${STACKCHAN_LIN_XSBUG_PORT:-0}"
 manifest="${STACKCHAN_LIN_SMOKE_MANIFEST:-$firmware_dir/host/app/manifest_local.json}"
 archive_manifest="${STACKCHAN_LIN_SMOKE_ARCHIVE_MANIFEST:-}"
 expected_log="${STACKCHAN_LIN_SMOKE_EXPECT:-[main] app behaviors ready}"
@@ -34,6 +34,33 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+
+XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" XSBUG_LOG_PATH="$xsbug_log" node ./scripts/xsbug-log-smoke-server.js >"$server_log" 2>&1 &
+server_pid=$!
+
+for _ in {1..50}; do
+  if grep -q 'xsbug smoke log server listening' "$server_log" 2>/dev/null; then
+    break
+  fi
+  if ! kill -0 "$server_pid" 2>/dev/null; then
+    cat "$server_log" >&2 || true
+    echo "xsbug smoke log server exited before startup" >&2
+    exit 1
+  fi
+  sleep 0.1
+done
+
+if ! grep -q 'xsbug smoke log server listening' "$server_log" 2>/dev/null; then
+  cat "$server_log" >&2 || true
+  echo "xsbug smoke log server did not become ready" >&2
+  exit 1
+fi
+xsbug_port="$(sed -n 's/.*:\([0-9][0-9]*\)$/\1/p' "$server_log" | head -1)"
+if [[ -z "$xsbug_port" ]]; then
+  cat "$server_log" >&2 || true
+  echo "xsbug smoke log server did not report its listening port" >&2
+  exit 1
+fi
 
 mkdir -p "$output_dir"
 rm -rf "$output_dir/tmp/$platform_path/debug/$app_name" "$output_dir/bin/$platform_path/debug/$app_name"
@@ -58,27 +85,6 @@ if [[ -n "$archive_manifest" ]]; then
     exit 1
   fi
   mcsim_args+=("$archive_path")
-fi
-
-XSBUG_HOST="$xsbug_host" XSBUG_PORT="$xsbug_port" XSBUG_LOG_PATH="$xsbug_log" node ./scripts/xsbug-log-smoke-server.js >"$server_log" 2>&1 &
-server_pid=$!
-
-for _ in {1..50}; do
-  if grep -q 'xsbug smoke log server listening' "$server_log" 2>/dev/null; then
-    break
-  fi
-  if ! kill -0 "$server_pid" 2>/dev/null; then
-    cat "$server_log" >&2 || true
-    echo "xsbug smoke log server exited before startup" >&2
-    exit 1
-  fi
-  sleep 0.1
-done
-
-if ! grep -q 'xsbug smoke log server listening' "$server_log" 2>/dev/null; then
-  cat "$server_log" >&2 || true
-  echo "xsbug smoke log server did not become ready" >&2
-  exit 1
 fi
 
 set +e

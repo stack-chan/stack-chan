@@ -33,6 +33,11 @@ function installBareSpecifierPackages(): void {
   writeAliasPackage(modulesRoot, 'consts', resolve(modulesRoot, 'preferences/consts.js'))
   writeAliasPackage(
     modulesRoot,
+    'local-peer-capability',
+    resolve(modulesRoot, 'connectivity/sim/local-peer-capability.js'),
+  )
+  writeAliasPackage(
+    modulesRoot,
     'network-manager',
     resolve(modulesRoot, 'connectivity/__tests__/fakes/network-manager.js'),
   )
@@ -46,6 +51,11 @@ function installBareSpecifierPackages(): void {
   })
   writeAliasPackage(hostRoot, 'stackchan-util', resolve(modulesRoot, 'util/stackchan-util.js'))
   writeAliasPackage(hostRoot, 'boot-network-recovery', resolve(hostRoot, 'app/boot-network-recovery.js'))
+  writeAliasPackage(
+    hostRoot,
+    'local-peer-capability',
+    resolve(modulesRoot, 'connectivity/sim/local-peer-capability.js'),
+  )
   writeAliasPackageSubpath(modulesRoot, 'mc', 'config', resolve(modulesRoot, 'testing/fakes/mc-config.js'), {
     hasDefaultExport: true,
   })
@@ -57,7 +67,12 @@ function installBareSpecifierPackages(): void {
 
 async function setup(values: Record<string, unknown> = {}, configValues: Record<string, unknown> = {}) {
   installBareSpecifierPackages()
-  const [{ connectStoredWiFi, stopStoredWiFiConnection }, networkManager, preference, mcConfig] = await Promise.all([
+  const [
+    { clearStoredWiFiCredentials, connectStoredWiFi, stopStoredWiFiConnection },
+    networkManager,
+    preference,
+    mcConfig,
+  ] = await Promise.all([
     import('../stored-wifi.js'),
     import('./fakes/network-manager.js') as Promise<FakeNetworkManager>,
     import('../../testing/fakes/preference.js') as Promise<FakePreference>,
@@ -70,7 +85,7 @@ async function setup(values: Record<string, unknown> = {}, configValues: Record<
   networkManager.resetNetworkManager()
   preference.resetPreference(values)
   mcConfig.resetConfig(configValues)
-  return { connectStoredWiFi, stopStoredWiFiConnection, networkManager, preference, traces }
+  return { clearStoredWiFiCredentials, connectStoredWiFi, stopStoredWiFiConnection, networkManager, preference, traces }
 }
 
 test('connectStoredWiFi starts a network connection from stored preferences', async () => {

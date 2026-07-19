@@ -63,18 +63,20 @@ export type HostDeviceEnvironment = GlobalEnvironment['device']
 
 type WebRadioPlayerConstructor = new () => WebRadioCapability
 
+const DEFAULT_UI_DISPLAY_LIST_LENGTH = 4096
+
 function asUIOptions(param: unknown): UIOptions {
   return (param ?? {}) as UIOptions
 }
 
-function createStackchanUI(face: PiuContainer, options: UIOptions = {}, displayListLength = 2048): RobotUI {
+function createStackchanUI(face: PiuContainer, options: UIOptions = {}): RobotUI {
   return createAppControllerApplication(
     {
       face,
       appBar: new ChatStatusBar(),
       drawerButtons: options.drawerButtons,
     },
-    { displayListLength },
+    { displayListLength: options.displayListLength ?? DEFAULT_UI_DISPLAY_LIST_LENGTH },
   )
 }
 
@@ -127,11 +129,7 @@ export function createStackchanContext(
       'image',
       (param) => {
         const options = asUIOptions(param)
-        return createStackchanUI(
-          new ImageAvatarFace({ pack: options.avatar }),
-          options,
-          options.displayListLength ?? 4096,
-        )
+        return createStackchanUI(new ImageAvatarFace({ pack: options.avatar }), options)
       },
     ],
     ['small-face', (param) => createStackchanUI(new SmallFace(), asUIOptions(param))],

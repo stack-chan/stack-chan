@@ -27,7 +27,47 @@ export const settingsStatusToLabel = settingsStatusToLabelImpl
 export type SettingsStatusValue = SettingsStatusValueModel
 export type { SettingsStatus }
 
-export type SettingsStatusLabels = {
+export const SettingsViewId = Object.freeze({
+  MENU: 0,
+  WIFI: 1,
+  PASSWORD: 2,
+} as const)
+
+export type SettingsViewId = (typeof SettingsViewId)[keyof typeof SettingsViewId]
+export type SettingsApplication = PiuApplication
+
+export type SettingsViewState = Readonly<{
+  status: SettingsStatus
+  networks: readonly SettingsNetworkEntry[]
+  selectedSSID: string
+}>
+
+export type SettingsViewActions = Readonly<{
+  exit(): void
+  boot(): void
+  navigate(view: SettingsViewId): void
+  scanWifi(): void
+  cancelWifiScan(): void
+  selectWifiNetwork(network: SettingsNetworkEntry): void
+  submitWifiPassword(password: string): void
+}>
+
+export type SettingsViewContext = Readonly<{
+  state: SettingsViewState
+  actions: SettingsViewActions
+}>
+
+export type SettingsViewInstance = Readonly<{
+  content: PiuContainer
+  update?(): void
+  dispose?(): void
+}>
+
+export type SettingsViewDefinition = Readonly<{
+  create(context: SettingsViewContext): SettingsViewInstance
+}>
+
+type SettingsWifiViewHandles = {
   wifi: PiuContent & { string?: string }
   scan: PiuContainer
   boot: PiuContainer
@@ -35,19 +75,7 @@ export type SettingsStatusLabels = {
   networkState: {
     networks: SettingsNetworkEntry[]
   }
-  options: SettingsViewOptions
-}
-
-export type SettingsViewOptions = {
-  onBack?: () => void
-  onBoot?: () => void
-  onScan?: () => void
-  onSelectNetwork?: (network: SettingsNetworkEntry) => void
-}
-
-export type SettingsPasswordViewOptions = {
-  onBack?: () => void
-  onPassword?: (password: string) => void
+  context: SettingsViewContext
 }
 
 const STATUS_TOP = UI.headerHeight + 4
@@ -149,53 +177,101 @@ class VerticalScrollerBehavior extends Behavior {
 
 type NetworkRowData = {
   network: SettingsNetworkEntry
-  options: SettingsViewOptions
+  context: SettingsViewContext
   moved?: boolean
   startY?: number
 }
 
-export const buildSettingsView = (
-  application: PiuApplication,
-  status: SettingsStatus,
-  options: SettingsViewOptions = {},
-): SettingsStatusLabels => {
-  const styles = uiStyles()
-  const networkState = { networks: [] as SettingsNetworkEntry[] }
-  const scan = new ActionButton(
-    { icon: 'scan', label: 'スキャン', onTap: options.onScan },
-    { left: 8, top: ACTION_TOP, width: 148 },
-  )
-  const boot = new ActionButton(
-    { icon: 'play', label: '起動', onTap: options.onBoot, enabled: false, tone: 'success' },
-    { left: 164, top: ACTION_TOP, width: 148 },
-  )
-  const labels: SettingsStatusLabels = {
-    wifi: new Label(null, {
-      left: 12,
-      right: 12,
-      top: STATUS_TOP,
-      height: STATUS_HEIGHT,
-      style: styles.bodyMuted,
-    }),
-    scan,
-    boot,
-    list: new Column(null, { left: 0, width: UI.screenWidth, top: 0 }),
-    networkState,
-    options,
-  }
-
-  application.empty()
-  application.skin = styles.screen
-  application.add(
-    new Container(null, {
+const SettingsMenuView = {
+  create(context: SettingsViewContext): SettingsViewInstance {
+    const styles = uiStyles()
+    const content = new Container(null, {
       left: 0,
       right: 0,
       top: 0,
       bottom: 0,
       skin: styles.screen,
       contents: [
-        new ScreenHeader({ title: 'Wi-Fi設定', leading: 'back', onLeading: options.onBack }),
-        labels.wifi,
+        new ScreenHeader({ title: '設定', leading: 'back', onLeading: context.actions.exit }),
+        new Scroller(null, {
+          left: 0,
+          right: 0,
+          top: UI.headerHeight,
+          bottom: 0,
+          active: true,
+          backgroundTouch: true,
+          clip: true,
+          Behavior: VerticalScrollerBehavior,
+          contents: [
+            new Column(null, {
+              left: 0,
+              right: 0,
+              top: 0,
+              contents: [
+                new ActionButton(
+                  {
+                    icon: 'wifi',
+                    label: 'Wi-Fi設定',
+                    onTap: () => context.actions.navigate(SettingsViewId.WIFI),
+                  },
+                  { left: 8, right: 8 },
+                ),
+              ],
+            }),
+          ],
+        }),
+      ],
+    })
+    return { content }
+  },
+} satisfies SettingsViewDefinition
+
+const SettingsWifiView = {
+  create(context: SettingsViewContext): SettingsViewInstance {
+    const styles = uiStyles()
+    const networkState = { networks: [] as SettingsNetworkEntry[] }
+    const scan = new ActionButton(
+      { icon: 'scan', label: 'スキャン', onTap: context.actions.scanWifi },
+      { left: 8, top: ACTION_TOP, width: 148 },
+    )
+    const boot = new ActionButton(
+      {
+        icon: 'play',
+        label: '起動',
+        onTap: context.actions.boot,
+        enabled: false,
+        tone: 'success',
+      },
+      { left: 164, top: ACTION_TOP, width: 148 },
+    )
+    const handles: SettingsWifiViewHandles = {
+      wifi: new Label(null, {
+        left: 12,
+        right: 12,
+        top: STATUS_TOP,
+        height: STATUS_HEIGHT,
+        style: styles.bodyMuted,
+      }),
+      scan,
+      boot,
+      list: new Column(null, { left: 0, width: UI.screenWidth, top: 0 }),
+      networkState,
+      context,
+    }
+
+    const content = new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      skin: styles.screen,
+      contents: [
+        new ScreenHeader({
+          title: 'Wi-Fi設定',
+          leading: 'back',
+          onLeading: () => context.actions.navigate(SettingsViewId.MENU),
+        }),
+        handles.wifi,
         scan,
         boot,
         new Scroller(null, {
@@ -207,32 +283,37 @@ export const buildSettingsView = (
           backgroundTouch: true,
           clip: true,
           Behavior: VerticalScrollerBehavior,
-          contents: [labels.list],
+          contents: [handles.list],
         }),
       ],
-    }),
-  )
-  updateSettingsStatusLabels(labels, status)
-  updateSettingsNetworkLabels(labels, [])
-  return labels
-}
+    })
 
-export const updateSettingsStatusLabels = (labels: SettingsStatusLabels, status: SettingsStatus): void => {
-  labels.wifi.string = `Wi-Fi: ${settingsStatusToLabel(status.wifi)}`
+    return {
+      content,
+      update() {
+        updateSettingsStatus(handles, context.state.status)
+        updateSettingsNetworks(handles, context.state.networks)
+      },
+      dispose() {
+        context.actions.cancelWifiScan()
+      },
+    }
+  },
+} satisfies SettingsViewDefinition
+
+function updateSettingsStatus(handles: SettingsWifiViewHandles, status: SettingsStatus): void {
+  handles.wifi.string = `Wi-Fi: ${settingsStatusToLabel(status.wifi)}`
   const scanning = status.wifi === SettingsStatusValue.SCANNING
-  setActionButtonLabel(labels.scan, scanning ? 'スキャン中' : 'スキャン')
-  setActionButtonEnabled(labels.scan, !scanning)
-  setActionButtonEnabled(labels.boot, status.wifi === SettingsStatusValue.CONNECTED)
+  setActionButtonLabel(handles.scan, scanning ? 'スキャン中' : 'スキャン')
+  setActionButtonEnabled(handles.scan, !scanning)
+  setActionButtonEnabled(handles.boot, status.wifi === SettingsStatusValue.CONNECTED)
 }
 
-export const updateSettingsNetworkLabels = (
-  labels: SettingsStatusLabels,
-  networks: readonly SettingsNetworkEntry[],
-): void => {
+function updateSettingsNetworks(handles: SettingsWifiViewHandles, networks: readonly SettingsNetworkEntry[]) {
   const styles = uiStyles()
-  labels.list.empty()
+  handles.list.empty()
   if (networks.length === 0) {
-    labels.list.add(
+    handles.list.add(
       new Label(null, {
         left: 12,
         right: 12,
@@ -243,8 +324,8 @@ export const updateSettingsNetworkLabels = (
     )
   } else {
     for (const network of networks) {
-      const data: NetworkRowData = { network, options: labels.options }
-      labels.list.add(
+      const data: NetworkRowData = { network, context: handles.context }
+      handles.list.add(
         new Port(data, {
           left: 0,
           width: UI.screenWidth,
@@ -279,7 +360,7 @@ export const updateSettingsNetworkLabels = (
             onTouchEnded(port: PiuPort) {
               port.skin = null
               if (!this.data || this.data.moved) return
-              this.data.options.onSelectNetwork?.(this.data.network)
+              this.data.context.actions.selectWifiNetwork(this.data.network)
             }
 
             onDraw(port: PiuPort) {
@@ -294,26 +375,20 @@ export const updateSettingsNetworkLabels = (
       )
     }
   }
-  labels.networkState.networks = [...networks]
+  handles.networkState.networks = [...networks]
 }
 
-export const buildSettingsPasswordView = (
-  application: PiuApplication,
-  ssid: string,
-  options: SettingsPasswordViewOptions = {},
-): void => {
-  const styles = uiStyles()
-  const data: {
-    options: SettingsPasswordViewOptions
-    password?: string
-    FIELD?: { visible?: boolean }
-    KEYBOARD?: { add: (content: unknown) => void; length: number; first?: unknown }
-  } = { options }
+const SettingsPasswordView = {
+  create(context: SettingsViewContext): SettingsViewInstance {
+    const styles = uiStyles()
+    const data: {
+      context: SettingsViewContext
+      password?: string
+      FIELD?: { visible?: boolean }
+      KEYBOARD?: { add: (content: unknown) => void; length: number; first?: unknown }
+    } = { context }
 
-  application.empty()
-  application.skin = styles.screen
-  application.add(
-    new Container(data, {
+    const content = new Container(data, {
       left: 0,
       right: 0,
       top: 0,
@@ -327,13 +402,17 @@ export const buildSettingsPasswordView = (
           top: 0,
           height: PASSWORD_FIELD_TOP,
           contents: [
-            new ScreenHeader({ title: 'Wi-Fiパスワード', leading: 'back', onLeading: options.onBack }),
+            new ScreenHeader({
+              title: 'Wi-Fiパスワード',
+              leading: 'back',
+              onLeading: () => context.actions.navigate(SettingsViewId.WIFI),
+            }),
             new Label(null, {
               left: 12,
               right: 12,
               top: UI.headerHeight,
               height: PASSWORD_SSID_HEIGHT,
-              string: fitSSID(ssid),
+              string: fitSSID(context.state.selectedSSID),
               style: styles.bodyMuted,
             }),
           ],
@@ -389,13 +468,21 @@ export const buildSettingsPasswordView = (
 
         onKeyboardTransitionFinished(_container: PiuContainer, out: boolean) {
           if (!this.data) return
-          if (out) this.data.options.onPassword?.(this.data.password ?? '')
+          if (out) this.data.context.actions.submitWifiPassword(this.data.password ?? '')
           else if (this.data.FIELD) this.data.FIELD.visible = true
         }
       },
-    }),
-  )
-}
+    })
+
+    return { content }
+  },
+} satisfies SettingsViewDefinition
+
+export const settingsViews: readonly SettingsViewDefinition[] = [
+  SettingsMenuView,
+  SettingsWifiView,
+  SettingsPasswordView,
+]
 
 type SkinTemplate = PiuSkinConstructor & { new (): PiuSkin }
 type StyleTemplate = PiuStyleConstructor & { new (): PiuStyle }

@@ -5,7 +5,6 @@
     "../../../../../host/modules/testing/manifest.json"
   ],
   "modules": {
-    "mod/config": "./receiver-config",
     "main": "./local-peer-hello-receiver.test"
   },
   "defines": {

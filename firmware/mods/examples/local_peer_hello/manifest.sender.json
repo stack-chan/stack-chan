@@ -1,9 +1,0 @@
-{
-  "include": ["./manifest.json"],
-  "config": {
-    "localPeerHello": {
-      "role": "sender",
-      "sendIntervalMs": 3000
-    }
-  }
-}

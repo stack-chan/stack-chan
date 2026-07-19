@@ -1,11 +1,10 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
-    "../../manifest.sender.json",
+    "../../manifest.json",
     "../../../../../host/modules/testing/manifest.json"
   ],
   "modules": {
-    "mod/config": "./sender-config",
     "main": "./local-peer-hello-sender.test"
   },
   "defines": {

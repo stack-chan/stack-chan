@@ -1,11 +1,5 @@
 {
   "include": ["$(MODDABLE)/examples/manifest_mod.json"],
-  "config": {
-    "localPeerHello": {
-      "role": "receiver",
-      "sendIntervalMs": 3000
-    }
-  },
   "modules": {
     "*": "./mod",
     "local-peer-hello-text": "./message-text"

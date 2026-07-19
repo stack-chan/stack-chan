@@ -171,7 +171,7 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
 
     preferenceServer = new PreferenceServer({
       onPreferenceChanged: (key, value) => {
-        trace(`preference changed! ${key}: ${value}\n`)
+        trace(`preference changed! ${key}\n`)
         status[key] = value
         updateCurrentView()
       },

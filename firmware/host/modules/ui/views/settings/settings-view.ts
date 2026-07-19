@@ -73,7 +73,7 @@ type SettingsWifiViewHandles = {
   boot: PiuContainer
   list: PiuColumn
   networkState: {
-    networks: SettingsNetworkEntry[]
+    networks: readonly SettingsNetworkEntry[]
   }
   context: SettingsViewContext
 }
@@ -310,6 +310,7 @@ function updateSettingsStatus(handles: SettingsWifiViewHandles, status: Settings
 }
 
 function updateSettingsNetworks(handles: SettingsWifiViewHandles, networks: readonly SettingsNetworkEntry[]) {
+  if (handles.networkState.networks === networks) return
   const styles = uiStyles()
   handles.list.empty()
   if (networks.length === 0) {
@@ -375,7 +376,7 @@ function updateSettingsNetworks(handles: SettingsWifiViewHandles, networks: read
       )
     }
   }
-  handles.networkState.networks = [...networks]
+  handles.networkState.networks = networks
 }
 
 const SettingsPasswordView = {

@@ -116,9 +116,11 @@ equal(list.length, 2, 'network list should retain every scanned SSID for scrolle
 press(list.first as Touchable)
 equal(selectedSSID, 'stackchan-ap', 'network row should select its SSID')
 
+const firstNetworkRow = list.first
 status.wifi = SettingsStatusValue.CONNECTED
 wifiView.update?.()
 equal(wifiLabel.string, 'Wi-Fi: 接続済み', 'Wi-Fi label should update')
+equal(list.first, firstNetworkRow, 'status-only updates should preserve existing network rows')
 const bootButton = scanButton.next as Touchable
 equal(bootButton.active, true, 'connected settings should enable the boot action')
 press(bootButton)

@@ -271,11 +271,22 @@ async function inspectViewport(page, name, width, height) {
       true,
       `keyboard bottom row must remain visible: ${JSON.stringify(passwordLayout)}`
     )
+    const passwordReadySignature = await screenSignature()
     await touchPiu(22, 20)
+    const wifiBackSignature = await waitForScreenChange(passwordReadySignature, 5_000)
+    assert.notEqual(wifiBackSignature, passwordReadySignature, 'password back action must open Wi-Fi settings')
     await touchPiu(22, 20)
+    const settingsMenuSignature = await waitForScreenChange(wifiBackSignature, 5_000)
+    assert.notEqual(settingsMenuSignature, wifiBackSignature, 'Wi-Fi back action must open the settings menu')
     await touchPiu(22, 20)
-    const mainSignature = await waitForScreenChange(splashSignature, 20000)
-    assert.notEqual(mainSignature, splashSignature, 'auto boot must open the main face')
+    const returnedSplashSignature = await waitForScreenChange(settingsMenuSignature, 5_000)
+    assert.notEqual(
+      returnedSplashSignature,
+      settingsMenuSignature,
+      'settings back action must return to the splash screen'
+    )
+    const mainSignature = await waitForScreenChange(returnedSplashSignature, 20_000)
+    assert.notEqual(mainSignature, returnedSplashSignature, 'auto boot must open the main face')
     const menuHiddenSignature = await waitForScreenChange(mainSignature, 6000)
     assert.notEqual(menuHiddenSignature, mainSignature, 'main menu must hide after auto boot')
     await page.screenshot({ path: '/tmp/stackchan-main.png', fullPage: true })

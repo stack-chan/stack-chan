@@ -19,6 +19,16 @@ xsbug_port="${STACKCHAN_LIN_XSBUG_PORT:-0}"
 manifest="${STACKCHAN_LIN_SMOKE_MANIFEST:-$firmware_dir/host/app/manifest_local.json}"
 archive_manifest="${STACKCHAN_LIN_SMOKE_ARCHIVE_MANIFEST:-}"
 expected_log="${STACKCHAN_LIN_SMOKE_EXPECT:-[main] app behaviors ready}"
+
+if [[ ! "$app_name" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]]; then
+  echo "Invalid smoke app name: $app_name" >&2
+  exit 1
+fi
+if [[ ! "$platform" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*(/[A-Za-z0-9_][A-Za-z0-9._-]*)*$ ]]; then
+  echo "Invalid smoke platform: $platform" >&2
+  exit 1
+fi
+
 xsbug_log="$(mktemp "${TMPDIR:-/tmp}/stackchan-lin-xsbug-log.XXXXXX")"
 server_log="$(mktemp "${TMPDIR:-/tmp}/stackchan-lin-xsbug-server.XXXXXX")"
 config_home="$(mktemp -d "${TMPDIR:-/tmp}/stackchan-lin-mcsim-config.XXXXXX")"
@@ -63,7 +73,14 @@ if [[ -z "$xsbug_port" ]]; then
 fi
 
 mkdir -p "$output_dir"
-rm -rf "$output_dir/tmp/$platform_path/debug/$app_name" "$output_dir/bin/$platform_path/debug/$app_name"
+output_root="$(realpath -m -- "$output_dir")"
+tmp_cleanup_target="$(realpath -m -- "$output_dir/tmp/$platform_path/debug/$app_name")"
+bin_cleanup_target="$(realpath -m -- "$output_dir/bin/$platform_path/debug/$app_name")"
+if [[ "$tmp_cleanup_target" != "$output_root/"* || "$bin_cleanup_target" != "$output_root/"* ]]; then
+  echo "Smoke cleanup target escapes output directory" >&2
+  exit 1
+fi
+rm -rf -- "$tmp_cleanup_target" "$bin_cleanup_target"
 mcconfig -dl -x "$xsbug_host:$xsbug_port" -m -p "$platform" -t build -o "$output_dir" "$manifest"
 
 build_dir="$output_dir/tmp/$platform_path/debug/$app_name"

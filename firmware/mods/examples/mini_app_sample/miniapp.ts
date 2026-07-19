@@ -35,6 +35,19 @@ function getStackchanTexture(): PiuTexture {
   return stackchanTexture
 }
 
+function intersects(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  targetX: number,
+  targetY: number,
+  targetWidth: number,
+  targetHeight: number,
+): boolean {
+  return x < targetX + targetWidth && x + width > targetX && y < targetY + targetHeight && y + height > targetY
+}
+
 class StackchanJumpBehavior extends Behavior {
   #groundY = 0
   #playerY = 0
@@ -114,27 +127,30 @@ class StackchanJumpBehavior extends Behavior {
       this.#speed = Math.min(MAX_SPEED, INITIAL_SPEED + (this.#score >> 2))
       this.#spawnObstacle(port)
       port.invalidate()
-    } else {
-      this.#invalidateSprite(port, oldPlayerY)
-      this.#invalidateSprite(port, this.#playerY)
-      this.#invalidateObstacle(port, oldObstacleX)
-      this.#invalidateObstacle(port, this.#obstacleX)
+      return
     }
 
-    if (!this.#collides()) return
-    this.#gameOver = true
-    port.stop()
-    port.invalidate()
+    if (this.#collides()) {
+      this.#gameOver = true
+      port.stop()
+      port.invalidate()
+      return
+    }
+
+    this.#invalidateSprite(port, oldPlayerY)
+    this.#invalidateSprite(port, this.#playerY)
+    this.#invalidateObstacle(port, oldObstacleX)
+    this.#invalidateObstacle(port, this.#obstacleX)
   }
 
   onDraw(port: PiuPort, x = 0, y = 0, width = port.width, height = port.height): void {
     port.fillColor(COLOR_BACKGROUND, x, y, width, height)
-    this.#drawClouds(port)
-    this.#drawGround(port)
-    this.#drawObstacle(port)
-    this.#drawPlayer(port)
-    this.#drawScore(port)
-    if (!this.#hasJumped && !this.#gameOver) this.#drawJumpHint(port)
+    this.#drawClouds(port, x, y, width, height)
+    this.#drawGround(port, x, y, width, height)
+    this.#drawObstacle(port, x, y, width, height)
+    this.#drawPlayer(port, x, y, width, height)
+    this.#drawScore(port, x, y, width, height)
+    if (!this.#hasJumped && !this.#gameOver) this.#drawJumpHint(port, x, y, width, height)
     if (this.#gameOver) this.#drawGameOver(port)
   }
 
@@ -198,21 +214,24 @@ class StackchanJumpBehavior extends Behavior {
     if (right > left && bottom > top) port.invalidate(left, top, right - left, bottom - top)
   }
 
-  #drawClouds(port: PiuPort): void {
+  #drawClouds(port: PiuPort, x: number, y: number, width: number, height: number): void {
+    if (!intersects(x, y, width, height, 208, 20, 96, 46)) return
     port.fillColor(COLOR_CLOUD, 208, 28, 48, 8)
     port.fillColor(COLOR_CLOUD, 218, 20, 28, 8)
     port.fillColor(COLOR_CLOUD, 274, 60, 30, 6)
     port.fillColor(COLOR_CLOUD, 280, 54, 18, 6)
   }
 
-  #drawGround(port: PiuPort): void {
+  #drawGround(port: PiuPort, x: number, y: number, width: number, height: number): void {
+    if (!intersects(x, y, width, height, 0, this.#groundY, port.width, 12)) return
     port.fillColor(COLOR_GROUND, 0, this.#groundY, port.width, 3)
     port.fillColor(COLOR_GROUND, 24, this.#groundY + 8, 18, 2)
     port.fillColor(COLOR_GROUND, 116, this.#groundY + 10, 26, 2)
     port.fillColor(COLOR_GROUND, 244, this.#groundY + 7, 20, 2)
   }
 
-  #drawPlayer(port: PiuPort): void {
+  #drawPlayer(port: PiuPort, x: number, y: number, width: number, height: number): void {
+    if (!intersects(x, y, width, height, PLAYER_X, this.#playerY, SPRITE_SIZE, SPRITE_SIZE)) return
     const sourceY = this.#onGround && !this.#gameOver ? 0 : SPRITE_SIZE
     port.drawTexture(
       getStackchanTexture(),
@@ -226,18 +245,20 @@ class StackchanJumpBehavior extends Behavior {
     )
   }
 
-  #drawObstacle(port: PiuPort): void {
-    const x = this.#obstacleX
+  #drawObstacle(port: PiuPort, x: number, y: number, width: number, height: number): void {
+    const obstacleX = this.#obstacleX
     const top = this.#groundY - this.#obstacleHeight
-    const stemX = x + ((this.#obstacleWidth - 8) >> 1)
+    if (!intersects(x, y, width, height, obstacleX, top, this.#obstacleWidth, this.#obstacleHeight)) return
+    const stemX = obstacleX + ((this.#obstacleWidth - 8) >> 1)
     port.fillColor(COLOR_OBSTACLE, stemX, top, 8, this.#obstacleHeight)
-    port.fillColor(COLOR_OBSTACLE, x, top + 10, 6, 8)
-    port.fillColor(COLOR_OBSTACLE, x, top + 10, 3, 15)
-    port.fillColor(COLOR_OBSTACLE, x + this.#obstacleWidth - 6, top + 17, 6, 7)
-    port.fillColor(COLOR_OBSTACLE, x + this.#obstacleWidth - 3, top + 10, 3, 14)
+    port.fillColor(COLOR_OBSTACLE, obstacleX, top + 10, 6, 8)
+    port.fillColor(COLOR_OBSTACLE, obstacleX, top + 10, 3, 15)
+    port.fillColor(COLOR_OBSTACLE, obstacleX + this.#obstacleWidth - 6, top + 17, 6, 7)
+    port.fillColor(COLOR_OBSTACLE, obstacleX + this.#obstacleWidth - 3, top + 10, 3, 14)
   }
 
-  #drawScore(port: PiuPort): void {
+  #drawScore(port: PiuPort, dirtyX: number, dirtyY: number, dirtyWidth: number, dirtyHeight: number): void {
+    if (!intersects(dirtyX, dirtyY, dirtyWidth, dirtyHeight, port.width - 34, 12, 30, 10)) return
     let divisor = 100
     let x = port.width - 34
     const value = this.#score % 1000
@@ -260,7 +281,8 @@ class StackchanJumpBehavior extends Behavior {
     }
   }
 
-  #drawJumpHint(port: PiuPort): void {
+  #drawJumpHint(port: PiuPort, x: number, y: number, width: number, height: number): void {
+    if (!intersects(x, y, width, height, 9, 23, 20, 33)) return
     port.fillColor(COLOR_ACCENT, 17, 31, 4, 18)
     port.fillColor(COLOR_ACCENT, 11, 31, 16, 4)
     port.fillColor(COLOR_ACCENT, 14, 27, 10, 4)

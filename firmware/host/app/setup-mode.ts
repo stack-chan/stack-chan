@@ -6,21 +6,18 @@ import { PreferenceServer } from 'preference-server'
 import { createSettingsNetworkEntries, type RawWiFiScanResult, type SettingsNetworkEntry } from 'settings-network-list'
 import { createInitialSettingsStatus } from 'settings-status'
 import {
-  buildSettingsOfflineConfirmationView,
-  buildSettingsPasswordView,
-  buildSettingsView,
-  type SettingsStatusLabels,
+  type SettingsApplication,
   SettingsStatusValue,
-  updateSettingsNetworkLabels,
-  updateSettingsStatusLabels,
+  type SettingsViewContext,
+  SettingsViewId,
+  type SettingsViewInstance,
+  settingsViews,
 } from 'settings-view'
 import { clearStoredWiFiCredentials, connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
 import { scanWiFiNetworks } from 'wifi-scan'
 import type { WiFiScanSession } from 'wifi-scan-types'
 
-type SetupApplication = Parameters<typeof buildSettingsView>[0]
 export type SetupModeResult = 'back' | 'boot'
-type SetupView = 'settings' | 'offline' | 'password'
 
 function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatusValue {
   switch (state) {
@@ -43,50 +40,45 @@ function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatus
   return SettingsStatusValue.NOT_CONNECTED
 }
 
-export function startSetupMode(application: SetupApplication): Promise<SetupModeResult> {
+export function startSetupMode(application: SettingsApplication): Promise<SetupModeResult> {
   return new Promise((resolve) => {
     const status = createInitialSettingsStatus(loadPreferenceConfig())
-    let labels: SettingsStatusLabels
+    const viewState = {
+      status,
+      networks: [] as SettingsNetworkEntry[],
+      selectedSSID: '',
+    }
+    let currentView: SettingsViewInstance | undefined
     let scanSession: WiFiScanSession | undefined
     let scanResults: RawWiFiScanResult[] = []
     let preferenceServer: PreferenceServer | undefined
     let finished = false
-    let currentView: SetupView = 'settings'
 
-    const finish = (result: SetupModeResult) => {
+    const viewContext: SettingsViewContext = {
+      state: viewState,
+      actions: {
+        exit: () => finish('back'),
+        boot: () => finish('boot'),
+        bootOffline: clearWiFiAndBootOffline,
+        navigate: showView,
+        scanWifi: scanNetworks,
+        cancelWifiScan,
+        selectWifiNetwork: selectNetwork,
+        submitWifiPassword,
+      },
+    }
+
+    function finish(result: SetupModeResult) {
       if (finished) return
       finished = true
-      scanSession?.close()
-      scanSession = undefined
+      currentView?.dispose?.()
+      currentView = undefined
       preferenceServer?.close?.()
       if (result === 'back') stopStoredWiFiConnection()
       resolve(result)
     }
 
-    const showSettingsView = () => {
-      currentView = 'settings'
-      labels = buildSettingsView(application, status, {
-        onBack: () => finish('back'),
-        onBoot: () => finish('boot'),
-        onOffline: showOfflineConfirmation,
-        onScan: scanNetworks,
-        onSelectNetwork: selectNetwork,
-      })
-      updateNetworkList()
-    }
-
-    const showOfflineConfirmation = () => {
-      scanSession?.close()
-      scanSession = undefined
-      if (status.wifi === SettingsStatusValue.SCANNING) status.wifi = SettingsStatusValue.NOT_CONNECTED
-      currentView = 'offline'
-      buildSettingsOfflineConfirmationView(application, {
-        onCancel: showSettingsView,
-        onConfirm: clearWiFiAndBootOffline,
-      })
-    }
-
-    const clearWiFiAndBootOffline = () => {
+    function clearWiFiAndBootOffline() {
       clearStoredWiFiCredentials()
       status['wifi.ssid'] = ''
       status['wifi.password'] = ''
@@ -95,34 +87,35 @@ export function startSetupMode(application: SetupApplication): Promise<SetupMode
       finish('boot')
     }
 
-    const updateNetworkList = () => {
-      if (currentView !== 'settings') return
-      updateSettingsNetworkLabels(labels, createSettingsNetworkEntries(scanResults))
+    function showView(id: SettingsViewId) {
+      currentView?.dispose?.()
+      const nextView = settingsViews[id].create(viewContext)
+      application.empty()
+      application.add(nextView.content)
+      currentView = nextView
+      currentView.update?.()
     }
 
-    const updateStatusLabels = () => {
-      if (currentView !== 'settings') return
-      updateSettingsStatusLabels(labels, status)
+    function updateCurrentView() {
+      currentView?.update?.()
     }
 
-    const showPasswordView = (ssid: string) => {
-      currentView = 'password'
-      buildSettingsPasswordView(application, ssid, {
-        onBack: showSettingsView,
-        onPassword: (password) => {
-          status['wifi.password'] = password
-          Preference.set(DOMAIN.wifi, 'password', password)
-          showSettingsView()
-          testConnection()
-        },
-      })
+    function updateNetworkList() {
+      viewState.networks = createSettingsNetworkEntries(scanResults)
+      updateCurrentView()
     }
 
-    const scanNetworks = () => {
+    function cancelWifiScan() {
       scanSession?.close()
+      scanSession = undefined
+      if (status.wifi === SettingsStatusValue.SCANNING) status.wifi = SettingsStatusValue.NOT_CONNECTED
+    }
+
+    function scanNetworks() {
+      cancelWifiScan()
       scanResults = []
       status.wifi = SettingsStatusValue.SCANNING
-      updateStatusLabels()
+      updateCurrentView()
       updateNetworkList()
       let scanFinished = false
       const nextScanSession = scanWiFiNetworks({
@@ -134,7 +127,7 @@ export function startSetupMode(application: SetupApplication): Promise<SetupMode
           scanFinished = true
           scanSession = undefined
           if (status.wifi === SettingsStatusValue.SCANNING) status.wifi = SettingsStatusValue.NOT_CONNECTED
-          updateStatusLabels()
+          updateCurrentView()
           updateNetworkList()
         },
         onError: (message?: string) => {
@@ -142,19 +135,27 @@ export function startSetupMode(application: SetupApplication): Promise<SetupMode
           scanSession = undefined
           trace(`Wi-Fi scan failed${message ? `: ${message}` : ''}\n`)
           status.wifi = SettingsStatusValue.FAILED
-          updateStatusLabels()
+          updateCurrentView()
         },
       })
       scanSession = scanFinished ? undefined : nextScanSession
     }
 
-    const selectNetwork = (network: SettingsNetworkEntry) => {
+    function selectNetwork(network: SettingsNetworkEntry) {
       status['wifi.ssid'] = network.ssid
+      viewState.selectedSSID = network.ssid
       Preference.set(DOMAIN.wifi, 'ssid', network.ssid)
-      showPasswordView(network.ssid)
+      showView(SettingsViewId.PASSWORD)
     }
 
-    const testConnection = () => {
+    function submitWifiPassword(password: string) {
+      status['wifi.password'] = password
+      Preference.set(DOMAIN.wifi, 'password', password)
+      showView(SettingsViewId.WIFI)
+      testConnection()
+    }
+
+    function testConnection() {
       if (status['wifi.ssid'].length === 0 || status['wifi.password'].length === 0) return
       stopStoredWiFiConnection()
       connectStoredWiFi({
@@ -162,35 +163,35 @@ export function startSetupMode(application: SetupApplication): Promise<SetupMode
         password: status['wifi.password'],
         onStateChanged: (state: NetworkState) => {
           status.wifi = settingsWifiStatusFromNetworkState(state)
-          updateStatusLabels()
+          updateCurrentView()
         },
         onConnected: () => {
           trace('connection complete\n')
           status.wifi = SettingsStatusValue.CONNECTED
-          updateStatusLabels()
+          updateCurrentView()
         },
         onError: () => {
           trace('connection failed\n')
           status.wifi = SettingsStatusValue.FAILED
-          updateStatusLabels()
+          updateCurrentView()
         },
       })
     }
-    showSettingsView()
+    showView(SettingsViewId.MENU)
 
     preferenceServer = new PreferenceServer({
       onPreferenceChanged: (key, value) => {
-        trace(`preference changed! ${key}: ${value}\n`)
+        trace(`preference changed! ${key}\n`)
         status[key] = value
-        updateStatusLabels()
+        updateCurrentView()
       },
       onConnected: () => {
         status.ble = SettingsStatusValue.CONNECTED
-        updateStatusLabels()
+        updateCurrentView()
       },
       onDisconnected: () => {
         status.ble = SettingsStatusValue.NOT_CONNECTED
-        updateStatusLabels()
+        updateCurrentView()
       },
       keys: PREF_KEYS,
     })

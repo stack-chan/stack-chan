@@ -17,6 +17,6 @@
     "prettier": "^3.9.5"
   },
   "dependencies": {
-    "lucide": "^1.24.0"
+    "lucide": "^1.25.0"
   }
 }

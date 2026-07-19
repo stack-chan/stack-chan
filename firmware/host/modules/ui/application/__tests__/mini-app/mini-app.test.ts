@@ -19,6 +19,11 @@ type ViewBehavior = {
   main?: PiuContainer
   faceMain?: PiuContainer
   appBar?: TestAppBar
+  drawerOpen?: boolean
+}
+
+type TestAppBarBehavior = {
+  onFinished?: (container: PiuContainer) => void
 }
 
 function topOf(content: PiuContainer): number {
@@ -37,7 +42,9 @@ const controller = application.behavior as AppController
 const view = application.first as PiuContainer
 const viewBehavior = view.behavior as ViewBehavior
 const appBar = viewBehavior.appBar as TestAppBar
+const appBarBehavior = appBar.behavior as TestAppBarBehavior
 const appsButton = appBar.content('appsButton') as PiuContainer
+const menuButton = appBar.content('menuButton') as PiuContainer
 const backButton = appBar.content('backButton') as PiuContainer
 const title = appBar.content('title') as unknown as { string?: string }
 
@@ -72,6 +79,20 @@ const unregister = controller.miniApps.register({
 
 assert(appsButton.visible === true, 'registering the first app should reveal the apps button')
 assert(appsButton.active === true, 'registered-app button should accept touches')
+
+appBarBehavior.onFinished?.(appBar)
+assert(menuButton.visible === false, 'AppBar timer should hide the drawer button')
+assert(appsButton.visible === false, 'AppBar timer should hide the apps button at the same time')
+controller.onFaceTouch()
+assert(viewBehavior.drawerOpen === false, 'face touch should reveal AppBar actions without opening the drawer')
+assert(menuButton.visible === true, 'face touch should reveal the drawer button')
+assert(appsButton.visible === true, 'face touch should reveal the apps button')
+controller.onDrawerToggle()
+assert(viewBehavior.drawerOpen === true, 'the revealed drawer button action should open the drawer')
+controller.onDrawerClose()
+assert(viewBehavior.drawerOpen === false, 'closing the drawer should restore the face interaction layer')
+assert(menuButton.visible === true, 'closing the drawer should reveal AppBar actions again')
+assert(appsButton.visible === true, 'closing the drawer should reveal the apps button again')
 
 controller.showMiniAppLauncher()
 assert(viewBehavior.main !== viewBehavior.faceMain, 'launcher should replace the face main content')

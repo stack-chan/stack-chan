@@ -13,7 +13,7 @@ type StatusBarBehavior = {
   onChatInputLevel?: (container: unknown, level: number) => void
   onConnectionIndicator?: (container: unknown, visible: boolean) => void
   onFinished?: (container: unknown) => void
-  onMenuReveal?: (container: unknown) => void
+  onAppBarReveal?: (container: unknown) => void
   onAppBarMode?: (container: unknown, mode: AppBarMode) => void
   onMiniAppAvailability?: (container: unknown, available: boolean) => void
 }
@@ -82,9 +82,16 @@ assert(appsButton.visible === true, 'face mode should restore the apps button')
 behavior.onFinished?.(bar)
 assert(menuButton.visible === false, 'menu button should hide when its reveal timer finishes')
 assert(menuButton.active === false, 'hidden menu button should not intercept touches')
-behavior.onMenuReveal?.(bar)
+assert(appsButton.visible === false, 'apps button should hide with the menu button')
+assert(appsButton.active === false, 'hidden apps button should not intercept touches')
+behavior.onMiniAppAvailability?.(bar, false)
+behavior.onMiniAppAvailability?.(bar, true)
+assert(appsButton.visible === false, 'availability changes should not bypass the hidden AppBar state')
+behavior.onAppBarReveal?.(bar)
 assert(menuButton.visible === true, 'menu button should be revealed again on request')
 assert(menuButton.active === true, 'revealed menu button should accept touches')
+assert(appsButton.visible === true, 'apps button should be revealed with the menu button')
+assert(appsButton.active === true, 'revealed apps button should accept touches')
 
 behavior.onChatState?.(bar, ChatStatusBarState.CONNECTING)
 assert(statusIndicator.visible === true, 'connecting indicator should be visible')

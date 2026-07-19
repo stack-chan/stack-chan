@@ -261,12 +261,12 @@ export class AppController extends Behavior {
   onDrawerClose(): void {
     trace('[AppController] onDrawerClose\n')
     this.closeDrawer()
-    this.#application?.distribute('onMenuReveal')
+    this.#application?.distribute('onAppBarReveal')
   }
 
   onFaceTouch(): void {
     trace('[AppController] onFaceTouch\n')
-    this.onDrawerToggle()
+    this.#application?.distribute('onAppBarReveal')
   }
 
   onMiniAppLauncher(): void {

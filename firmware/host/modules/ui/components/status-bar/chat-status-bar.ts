@@ -16,7 +16,7 @@ export const ChatStatusBarState = Object.freeze({
 export type ChatStatusBarState = (typeof ChatStatusBarState)[keyof typeof ChatStatusBarState]
 
 const barHeight = 44
-export const MENU_VISIBLE_MS = 4000
+export const FACE_ACTIONS_VISIBLE_MS = 4000
 const levelHeight = 16
 const levelWidth = 4
 const iconSize = 16
@@ -97,6 +97,7 @@ class ChatStatusBarBehavior extends Behavior {
   #appsButton?: Container
   #backButton?: Container
   #title?: Label
+  #faceActionsVisible = false
   #miniAppsAvailable = false
 
   onCreate(container: Container) {
@@ -108,21 +109,20 @@ class ChatStatusBarBehavior extends Behavior {
     this.#appsButton = container.content('appsButton') as Container
     this.#backButton = container.content('backButton') as Container
     this.#title = container.content('title') as Label
+    this.setFaceActionsVisible(true)
     this.updateUI()
   }
 
   onDisplaying(container: Container) {
-    this.showMenu(container)
+    this.showFaceActions(container)
   }
 
-  onMenuReveal(container: Container) {
-    this.showMenu(container)
+  onAppBarReveal(container: Container) {
+    this.showFaceActions(container)
   }
 
   onFinished(container: Container) {
-    if (!this.#menuButton) return
-    this.#menuButton.visible = false
-    this.#menuButton.active = false
+    this.setFaceActionsVisible(false)
     container.stop()
   }
 
@@ -139,24 +139,17 @@ class ChatStatusBarBehavior extends Behavior {
       this.#backButton.visible = !faceMode
       this.#backButton.active = !faceMode
     }
-    if (this.#appsButton) {
-      this.#appsButton.visible = faceMode && this.#miniAppsAvailable
-      this.#appsButton.active = faceMode && this.#miniAppsAvailable
+    if (faceMode) this.showFaceActions(container)
+    else {
+      this.setFaceActionsVisible(false)
+      container.stop()
     }
-    if (this.#menuButton) {
-      this.#menuButton.visible = faceMode
-      this.#menuButton.active = faceMode
-    }
-    if (faceMode) this.showMenu(container)
-    else container.stop()
     this.updateUI()
   }
 
   onMiniAppAvailability(_container: Container, available: boolean) {
     this.#miniAppsAvailable = available
-    if (!this.#appsButton || this.#mode.kind !== 'face') return
-    this.#appsButton.visible = available
-    this.#appsButton.active = available
+    this.setFaceActionsVisible(this.#faceActionsVisible)
   }
 
   onChatState(_container: Container, state: ChatStatusBarState, _error?: string) {
@@ -212,14 +205,27 @@ class ChatStatusBarBehavior extends Behavior {
     this.#levelFill.height = height
   }
 
-  showMenu(container: Container) {
-    if (!this.#menuButton || this.#mode.kind !== 'face') return
-    this.#menuButton.visible = true
-    this.#menuButton.active = true
+  showFaceActions(container: Container) {
+    if (this.#mode.kind !== 'face') return
+    this.setFaceActionsVisible(true)
     container.stop()
-    container.duration = MENU_VISIBLE_MS
+    container.duration = FACE_ACTIONS_VISIBLE_MS
     container.time = 0
     container.start()
+  }
+
+  setFaceActionsVisible(visible: boolean) {
+    const faceActionsVisible = visible && this.#mode.kind === 'face'
+    this.#faceActionsVisible = faceActionsVisible
+    if (this.#menuButton) {
+      this.#menuButton.visible = faceActionsVisible
+      this.#menuButton.active = faceActionsVisible
+    }
+    if (this.#appsButton) {
+      const appsVisible = faceActionsVisible && this.#miniAppsAvailable
+      this.#appsButton.visible = appsVisible
+      this.#appsButton.active = appsVisible
+    }
   }
 }
 

@@ -66,6 +66,8 @@ export function localize(key: string, values: LocalizationValues = {}): string {
 }
 
 function localizeForContext(key: string, values: LocalizationValues = {}): string {
+  // MOD-owned messages take precedence, while the host catalog remains a
+  // fallback for shared UI keys. Unknown keys stay visible for diagnosis.
   return resolveLocalizedMessage(key, values, getModLocals(), getHostLocals())
 }
 

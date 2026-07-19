@@ -224,6 +224,10 @@ export type StackchanCapabilityNamespaces = {
   face: FaceCapability
   motion: MotionCapability
   audio: AudioCapability
+  /**
+   * Host-owned localization boundary for MOD UI. Keeping this on the context
+   * lets the host select the locale and resolve installed MOD resources.
+   */
   i18n: I18nCapability
   input: InputCapability
   lighting: LightingCapability

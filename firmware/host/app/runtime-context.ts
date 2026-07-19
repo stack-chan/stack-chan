@@ -82,6 +82,8 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#faceCapability = this.createFaceCapability()
     this.#motionCapability = this.createMotionCapability()
     this.#audioCapability = this.createAudioCapability()
+    // Capture the host-owned localization service after boot selected a locale;
+    // MODs receive this stable boundary instead of importing host UI internals.
     this.#i18nCapability = createI18nCapability()
     this.#inputCapability = this.createInputCapability()
     this.#lifecycleCapability = this.createLifecycleCapability()

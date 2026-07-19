@@ -37,6 +37,9 @@
   font-size: 0.78rem;
   line-height: 1.3;
 }
+.wifi-clear-button {
+  margin-top: 16px;
+}
 .form-field-wide,
 .form-field-full {
   grid-column: 1 / -1;

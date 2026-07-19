@@ -14,125 +14,7 @@
       crossorigin="anonymous"
       defer
     ></script>
-    <script type="module">
-      import SimpleBLEClient from './ble-client.mjs'
-
-      document.addEventListener('DOMContentLoaded', () => {
-        const form = document.getElementById('form-preference')
-        const connectButton = document.getElementById('ble-connect-button')
-        const disconnectButton = document.getElementById('ble-disconnect-button')
-        const submitButton = document.getElementById('preference-submit-button')
-        const connectionStatus = document.getElementById('connection-status')
-        const saveStatus = document.getElementById('save-status')
-        const controls = [...form.querySelectorAll('input, select, textarea, button')]
-        let submitting = false
-        const currentValues = new Map()
-
-        const setStatus = (element, text, state = '') => {
-          element.textContent = text
-          element.dataset.state = state
-        }
-        const updateView = () => {
-          const connected = client.isConnected()
-          connectButton.hidden = connected
-          disconnectButton.hidden = !connected
-          controls.forEach((control) => {
-            control.disabled = !connected
-          })
-          setStatus(connectionStatus, connected ? '接続済み' : '未接続', connected ? 'success' : '')
-        }
-
-        connectButton.addEventListener('click', async () => {
-          connectButton.disabled = true
-          setStatus(connectionStatus, '接続中…')
-          try {
-            await client.connect()
-          } catch (error) {
-            console.error(error)
-            setStatus(connectionStatus, `接続できませんでした: ${error.message ?? error}`, 'error')
-          } finally {
-            connectButton.disabled = false
-            if (client.isConnected()) updateView()
-          }
-        })
-        disconnectButton.addEventListener('click', async () => {
-          disconnectButton.disabled = true
-          try {
-            await client.disconnect()
-          } catch (error) {
-            console.error(error)
-            setStatus(connectionStatus, `切断できませんでした: ${error.message ?? error}`, 'error')
-          } finally {
-            disconnectButton.disabled = false
-            if (!client.isConnected()) updateView()
-          }
-        })
-
-        form.addEventListener('submit', async (event) => {
-          event.preventDefault()
-          if (!client.isConnected() || submitting) return
-          const props = [
-            'wifi.ssid',
-            'wifi.password',
-            'driver.type',
-            'driver.offsetPan',
-            'driver.offsetTilt',
-            'ui.type',
-            'tts.type',
-            'tts.host',
-            'tts.port',
-            'tts.token',
-            'tts.voice',
-            'tts.volume',
-            'ai.token',
-            'ai.context',
-          ]
-          const payload = {}
-          for (const prop of props) {
-            const value = document.getElementById(prop)?.value
-            if (value != null && value.trimEnd().length > 0 && currentValues.get(prop) !== value) {
-              payload[prop] = value
-            }
-          }
-          if (Object.keys(payload).length === 0) {
-            setStatus(saveStatus, '変更する項目がありません。')
-            return
-          }
-          submitButton.disabled = true
-          setStatus(saveStatus, '保存中…')
-          submitting = true
-          try {
-            await client.send({ _batch: payload })
-            for (const [prop, value] of Object.entries(payload)) currentValues.set(prop, value)
-            setStatus(saveStatus, '設定を送信しました。', 'success')
-          } catch (error) {
-            console.error(error)
-            setStatus(saveStatus, `保存できませんでした: ${error.message ?? error}`, 'error')
-          } finally {
-            submitting = false
-            submitButton.disabled = !client.isConnected()
-          }
-        })
-
-        const client = new SimpleBLEClient({
-          deviceName: 'STK',
-          onCharacteristicValueChanged: ({ prop, value }) => {
-            currentValues.set(prop, String(value))
-            const element = document.querySelector(`[name="${prop}"]`)
-            if (element != null) element.value = value
-          },
-        })
-        client.onDisconnected = () => {
-          submitting = false
-          currentValues.clear()
-          setStatus(saveStatus, '接続が切れました。保存されていない項目を確認してください。', 'warning')
-          updateView()
-        }
-
-        updateView()
-        globalThis.lucide?.createIcons()
-      })
-    </script>
+    <script type="module" src="preference.mjs"></script>
   </head>
   <body>
     <main class="app-shell">
@@ -169,6 +51,9 @@
                   ><input type="password" name="wifi.password" id="wifi.password" autocomplete="off"
                 /></label>
               </div>
+              <button id="wifi-clear-button" class="danger-button wifi-clear-button" type="button">
+                <i data-lucide="trash-2"></i><span>Wi-Fi設定を消去</span>
+              </button>
             </section>
             <section class="section-block">
               <h2>外観</h2>

@@ -124,7 +124,7 @@
         "../../../vendor/stackchan-voice/manifest.json"
       ],
       "build": {
-        "SDKCONFIGPATH": "./platforms/m5stackchan-cores3/sdkconfig"
+        "SDKCONFIGPATH ?=": "./platforms/m5stackchan-cores3/sdkconfig"
       },
       "modules": {
         "~": "./tts-stackchan-voice",

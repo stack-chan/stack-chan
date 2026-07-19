@@ -12,6 +12,7 @@ import {
 } from './lib/build-output.mjs'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
+import { prepareCoreS3VersionSdkconfig } from './lib/moddable-version.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -55,6 +56,7 @@ const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFE
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
 const { mode: buildMode, args: buildModeArgs } = readBuildConfiguration(rawArgs)
 const outputArgs = moddableOutputArguments()
+let subprocessEnvironment = process.env
 
 if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
   try {
@@ -66,6 +68,13 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
     })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
+    process.exit(1)
+  }
+  try {
+    const versionSdkconfig = prepareCoreS3VersionSdkconfig()
+    subprocessEnvironment = { ...process.env, SDKCONFIGPATH: versionSdkconfig.directory }
+  } catch (error) {
+    console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
     process.exit(1)
   }
 }
@@ -143,7 +152,7 @@ function run(bin, binArgs, cwd = process.cwd()) {
   }
 
   ensureBuildOutputDirectory()
-  const result = spawnSync(bin, binArgs, { cwd, stdio: 'inherit' })
+  const result = spawnSync(bin, binArgs, { cwd, env: subprocessEnvironment, stdio: 'inherit' })
   if (result.error) {
     console.error(`[stack-chan] ${bin}を実行できませんでした: ${result.error.message}`)
     console.error('[stack-chan] npm run setup と npm run doctor を確認してください。')

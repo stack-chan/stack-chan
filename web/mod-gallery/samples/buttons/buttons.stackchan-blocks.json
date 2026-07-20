@@ -1,0 +1,82 @@
+{
+  "format": "tech.stackchan.visual-project",
+  "version": 1,
+  "id": "gallery-block-buttons",
+  "name": "ボタンでリアクション",
+  "target": "m5stackchan-cores3",
+  "workspace": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "stackchan_on_button",
+          "x": 24,
+          "y": 24,
+          "fields": { "BUTTON": "a" },
+          "inputs": {
+            "DO": {
+              "block": {
+                "type": "stackchan_set_emotion",
+                "fields": { "EMOTION": "HAPPY" },
+                "next": {
+                  "block": {
+                    "type": "stackchan_say",
+                    "inputs": { "TEXT": { "shadow": { "type": "text", "fields": { "TEXT": "うれしい!" } } } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "stackchan_on_button",
+          "x": 280,
+          "y": 24,
+          "fields": { "BUTTON": "b" },
+          "inputs": {
+            "DO": {
+              "block": {
+                "type": "stackchan_set_emotion",
+                "fields": { "EMOTION": "SLEEPY" },
+                "next": {
+                  "block": {
+                    "type": "stackchan_say",
+                    "inputs": { "TEXT": { "shadow": { "type": "text", "fields": { "TEXT": "ねむいな" } } } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "stackchan_on_button",
+          "x": 536,
+          "y": 24,
+          "fields": { "BUTTON": "c" },
+          "inputs": {
+            "DO": {
+              "block": {
+                "type": "stackchan_set_emotion",
+                "fields": { "EMOTION": "DOUBTFUL" },
+                "next": {
+                  "block": {
+                    "type": "stackchan_say",
+                    "inputs": { "TEXT": { "shadow": { "type": "text", "fields": { "TEXT": "なんだろう?" } } } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "assets": [],
+  "settings": {
+    "educationalProfile": true,
+    "embedAssets": true,
+    "faceAsset": null
+  },
+  "createdAt": "2026-07-19T00:00:00.000Z",
+  "updatedAt": "2026-07-19T00:00:00.000Z"
+}

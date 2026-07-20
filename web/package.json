@@ -5,7 +5,7 @@
   "description": "Stack-chan development server",
   "scripts": {
     "dev": "node static-server.mjs",
-    "test": "node --test simulator/*.test.mjs editor/*.test.mjs face-editor/*.test.mjs *.test.mjs",
+    "test": "node --test simulator/*.test.mjs editor/*.test.mjs face-editor/*.test.mjs mod-gallery/*.test.mjs *.test.mjs",
     "check:editor-artifacts": "node check-editor-artifacts.mjs",
     "test:visual": "node visual-pages-test.mjs && node simulator/visual-test.mjs",
     "metrics:aggregate": "node editor/aggregate-metrics-cli.mjs"

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 1,
+  "id": "tech.stackchan.samples.starter",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "はじめてのMOD",
+  "description": "顔の色と吹き出しを変えて、MODのインストールを確認するスターターです。",
+  "author": "Stack-chan Community",
+  "license": "Apache-2.0",
+  "source": {
+    "path": "sample-mod/manifest.json"
+  },
+  "targets": ["m5stackchan-cores3", "simulator"],
+  "capabilities": ["face", "ui.drawer"],
+  "artifacts": [
+    {
+      "format": "xsa",
+      "path": "stackchan-sample-mod.xsa",
+      "target": "m5stackchan-cores3"
+    }
+  ]
+}

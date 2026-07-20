@@ -29,6 +29,7 @@ import {
 } from './project-library.mjs'
 import { createProjectStorage } from './project-storage.mjs'
 import { VISUAL_SAMPLES, sampleById } from './samples.mjs'
+import { fetchExternalProject, projectUrlFromSearch } from './external-project.mjs'
 import {
   clearFaceEditContext,
   clearStagedFaceTransfer,
@@ -1238,3 +1239,16 @@ removeDeviceButton.addEventListener('click', async () => {
     refreshDeviceActionButtons()
   }
 })
+
+try {
+  const linkedProjectUrl = projectUrlFromSearch(location.search, location.href)
+  if (linkedProjectUrl) {
+    const linkedProject = await fetchExternalProject(linkedProjectUrl)
+    activateProject(linkedProject, `Galleryから「${linkedProject.name}」を読み込みました`)
+    history.replaceState(null, '', location.pathname)
+    recordMetric('gallery_project_loaded', { source: linkedProjectUrl.pathname })
+  }
+} catch (error) {
+  setStatus(`Galleryのプロジェクトを読み込めませんでした: ${error.message}`)
+  log(String(error.message ?? error))
+}

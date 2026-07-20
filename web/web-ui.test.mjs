@@ -10,6 +10,7 @@ const pages = [
   'preference/index.html',
   'editor/index.html',
   'editor/tutorial.html',
+  'mod-gallery/index.html',
   'face-editor/index.html',
   'simulator/index.html',
 ]
@@ -32,7 +33,7 @@ test('tool pages load the shared left drawer without changing integration ids', 
     assert.doesNotMatch(html, /class="tool-nav"/, `${page} should not duplicate the retired right navigation`)
   }
   const navigation = readFileSync('tool-navigation.mjs', 'utf8')
-  for (const id of ['home', 'flash', 'preference', 'simulator', 'editor', 'face-editor', 'tutorial']) {
+  for (const id of ['home', 'flash', 'preference', 'mod-gallery', 'simulator', 'editor', 'face-editor', 'tutorial']) {
     assert.match(navigation, new RegExp(`id: '${id}'`), `drawer should expose ${id}`)
   }
   assert.match(navigation, /topbar\.prepend\(button\)/)

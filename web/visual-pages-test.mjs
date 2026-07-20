@@ -76,6 +76,7 @@ const pages = [
   ['home', '/'],
   ['flash', '/flash/'],
   ['preference', '/preference/'],
+  ['mod-gallery', '/mod-gallery/'],
   ['editor', '/editor/'],
   ['tutorial', '/editor/tutorial.html'],
   ['face-editor', '/face-editor/'],
@@ -276,11 +277,29 @@ try {
       if (pageName === 'home' && viewportName === 'desktop') {
         await page.locator('.tool-menu-button').click()
         await page.locator('#tool-drawer[open]').waitFor({ state: 'visible' })
-        assert.equal(await page.locator('#tool-drawer .tool-drawer-link').count(), 7)
+        assert.equal(await page.locator('#tool-drawer .tool-drawer-link').count(), 8)
         assert.match(await page.locator('#tool-drawer [aria-current="page"]').innerText(), /ホーム/)
         await page.screenshot({ path: '/tmp/stackchan-tool-drawer.png', fullPage: true })
         await page.keyboard.press('Escape')
         await page.locator('#tool-drawer').waitFor({ state: 'hidden' })
+      }
+      if (pageName === 'mod-gallery' && viewportName === 'desktop') {
+        await page.locator('.mod-card').first().waitFor({ state: 'visible' })
+        assert.equal(await page.locator('.mod-card').count(), 5, 'gallery: common catalog entries')
+        assert.equal(await page.locator('.mod-card[data-mod-type="block"]').count(), 4, 'gallery: block samples')
+        await page.locator('#type-filter').selectOption('block')
+        assert.equal(await page.locator('.mod-card').count(), 4, 'gallery: block filter')
+        const editorHref = await page.locator('.mod-card .primary-button').first().getAttribute('href')
+        assert.match(editorHref, /\/editor\/\?project=/, 'gallery: block editor hand-off')
+        assert.match(decodeURIComponent(editorHref), /\.stackchan-blocks\.json$/, 'gallery: editable project URL')
+        const editorPage = await browser.newPage()
+        await editorPage.goto(editorHref, { waitUntil: 'domcontentloaded' })
+        await editorPage.waitForFunction(
+          () => document.querySelector('#project-name-label')?.textContent === 'あいさつと表情'
+        )
+        assert.equal(await editorPage.locator('#project-name-label').innerText(), 'あいさつと表情')
+        assert.match(await editorPage.locator('#build-status').innerText(), /Galleryから/)
+        await editorPage.close()
       }
       if (pageName === 'face-editor' && viewportName === 'mobile') {
         assert.equal(await page.locator('#send-to-editor span').isVisible(), true)

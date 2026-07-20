@@ -1,0 +1,43 @@
+{
+  "format": "tech.stackchan.visual-project",
+  "version": 1,
+  "id": "gallery-block-look-around",
+  "name": "定期的に見回す",
+  "target": "m5stackchan-cores3",
+  "workspace": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "stackchan_every",
+          "x": 24,
+          "y": 24,
+          "fields": { "SECONDS": 3 },
+          "inputs": {
+            "DO": {
+              "block": {
+                "type": "stackchan_look_at",
+                "fields": { "X": 1, "Y": 0.5, "Z": 0 },
+                "next": {
+                  "block": {
+                    "type": "stackchan_wait",
+                    "fields": { "DURATION": 500 },
+                    "next": { "block": { "type": "stackchan_look_away" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "assets": [],
+  "settings": {
+    "educationalProfile": true,
+    "embedAssets": true,
+    "faceAsset": null
+  },
+  "createdAt": "2026-07-19T00:00:00.000Z",
+  "updatedAt": "2026-07-19T00:00:00.000Z"
+}

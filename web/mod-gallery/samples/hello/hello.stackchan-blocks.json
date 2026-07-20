@@ -1,0 +1,59 @@
+{
+  "format": "tech.stackchan.visual-project",
+  "version": 1,
+  "id": "gallery-block-hello",
+  "name": "あいさつと表情",
+  "target": "m5stackchan-cores3",
+  "workspace": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "stackchan_on_start",
+          "x": 24,
+          "y": 24,
+          "inputs": {
+            "DO": {
+              "block": {
+                "type": "stackchan_set_emotion",
+                "fields": { "EMOTION": "HAPPY" },
+                "next": {
+                  "block": {
+                    "type": "stackchan_show_balloon",
+                    "inputs": {
+                      "TEXT": { "shadow": { "type": "text", "fields": { "TEXT": "こんにちは!" } } }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "stackchan_on_button",
+          "x": 24,
+          "y": 220,
+          "fields": { "BUTTON": "a" },
+          "inputs": {
+            "DO": {
+              "block": {
+                "type": "stackchan_say",
+                "inputs": {
+                  "TEXT": { "shadow": { "type": "text", "fields": { "TEXT": "ぼく ｽﾀｯｸﾁｬﾝ!" } } }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "assets": [],
+  "settings": {
+    "educationalProfile": true,
+    "embedAssets": true,
+    "faceAsset": null
+  },
+  "createdAt": "2026-07-19T00:00:00.000Z",
+  "updatedAt": "2026-07-19T00:00:00.000Z"
+}

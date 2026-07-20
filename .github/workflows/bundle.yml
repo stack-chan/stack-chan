@@ -119,6 +119,8 @@ jobs:
           mkdir -p ./web/flash/tech.moddable.stackchan ./web/simulator
           cp -R ./firmware-bundle/. ./web/flash/tech.moddable.stackchan/
           cp -R ./wasm-simulator/. ./web/simulator/
+          mkdir -p ./web/schemas
+          cp ./website-source/docs/specs/stackchan-mod.schema.json ./web/schemas/stackchan-mod.schema.json
       - name: Commit bundle update
         run: |
           git config user.name 'GitHub Action'

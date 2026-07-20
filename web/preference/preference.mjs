@@ -27,17 +27,45 @@ export function initializePreferencePage({
   const connectionStatus = requiredElement('connection-status')
   const saveStatus = requiredElement('save-status')
   const controls = [...form.querySelectorAll('input, select, textarea, button')]
+  const preferenceProps = [
+    'wifi.ssid',
+    'wifi.password',
+    'driver.type',
+    'driver.offsetPan',
+    'driver.offsetTilt',
+    'ui.type',
+    'ui.language',
+    'tts.type',
+    'tts.host',
+    'tts.port',
+    'tts.token',
+    'tts.voice',
+    'tts.volume',
+    'ai.token',
+    'ai.context',
+  ]
   let submitting = false
   const currentValues = new Map()
+  const dirtyProps = new Set()
+  const readOnlyProps = new Set()
 
   const setStatus = (element, text, state = '') => {
     element.textContent = text
     element.dataset.state = state
   }
-  const onCharacteristicValueChanged = ({ prop, value }) => {
+  const onCharacteristicValueChanged = ({ prop, value, readOnly = false }) => {
     currentValues.set(prop, String(value))
     const element = pageDocument.querySelector(`[name="${prop}"]`)
-    if (element != null) element.value = value
+    if (readOnly) {
+      readOnlyProps.add(prop)
+      dirtyProps.delete(prop)
+    } else {
+      readOnlyProps.delete(prop)
+    }
+    if (element != null) {
+      if (!dirtyProps.has(prop)) element.value = value
+      element.disabled = !client.isConnected() || readOnlyProps.has(prop)
+    }
   }
   const client =
     suppliedClient ??
@@ -50,10 +78,16 @@ export function initializePreferencePage({
     connectButton.hidden = connected
     disconnectButton.hidden = !connected
     controls.forEach((control) => {
-      control.disabled = !connected
+      control.disabled = !connected || readOnlyProps.has(control.name)
     })
     setStatus(connectionStatus, translateText(connected ? '接続済み' : '未接続'), connected ? 'success' : '')
   }
+  const markDirty = (event) => {
+    const prop = event.target?.name
+    if (preferenceProps.includes(prop) && !readOnlyProps.has(prop)) dirtyProps.add(prop)
+  }
+  form.addEventListener('input', markDirty)
+  form.addEventListener('change', markDirty)
 
   connectButton.addEventListener('click', async () => {
     connectButton.disabled = true
@@ -97,6 +131,7 @@ export function initializePreferencePage({
       await client.send({ _batch: payload })
       for (const [prop, value] of Object.entries(payload)) {
         currentValues.set(prop, value)
+        dirtyProps.delete(prop)
         const element = pageDocument.getElementById(prop)
         if (element != null) element.value = value
       }
@@ -118,27 +153,15 @@ export function initializePreferencePage({
   form.addEventListener('submit', async (event) => {
     event.preventDefault()
     if (!client.isConnected() || submitting) return
-    const props = [
-      'wifi.ssid',
-      'wifi.password',
-      'driver.type',
-      'driver.offsetPan',
-      'driver.offsetTilt',
-      'ui.type',
-      'ui.language',
-      'tts.type',
-      'tts.host',
-      'tts.port',
-      'tts.token',
-      'tts.voice',
-      'tts.volume',
-      'ai.token',
-      'ai.context',
-    ]
     const payload = {}
-    for (const prop of props) {
+    for (const prop of preferenceProps) {
       const value = pageDocument.getElementById(prop)?.value
-      if (value != null && value.trimEnd().length > 0 && currentValues.get(prop) !== value) {
+      if (
+        !readOnlyProps.has(prop) &&
+        dirtyProps.has(prop) &&
+        value != null &&
+        currentValues.get(prop) !== value
+      ) {
         payload[prop] = value
       }
     }
@@ -151,7 +174,10 @@ export function initializePreferencePage({
     submitting = true
     try {
       await client.send({ _batch: payload })
-      for (const [prop, value] of Object.entries(payload)) currentValues.set(prop, value)
+      for (const [prop, value] of Object.entries(payload)) {
+        currentValues.set(prop, value)
+        dirtyProps.delete(prop)
+      }
       setStatus(saveStatus, translateText('設定を送信しました。'), 'success')
     } catch (error) {
       console.error(error)
@@ -165,6 +191,8 @@ export function initializePreferencePage({
   client.onDisconnected = () => {
     submitting = false
     currentValues.clear()
+    dirtyProps.clear()
+    readOnlyProps.clear()
     setStatus(saveStatus, translateText('接続が切れました。保存されていない項目を確認してください。'), 'warning')
     updateView()
   }

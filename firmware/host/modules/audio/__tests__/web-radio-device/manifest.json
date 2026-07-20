@@ -20,7 +20,7 @@
   "platforms": {
     "esp32/m5stackchan_cores3": {
       "build": {
-        "SDKCONFIGPATH": "../../platforms/m5stackchan-cores3/sdkconfig"
+        "SDKCONFIGPATH ?=": "../../platforms/m5stackchan-cores3/sdkconfig"
       },
       "dependency": [
         {

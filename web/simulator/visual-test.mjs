@@ -413,6 +413,21 @@ async function inspectViewport(page, name, width, height) {
     )
     const sampleModSignature = await waitForScreenChange(beforeSampleSignature, 10_000)
     assert.notEqual(sampleModSignature, beforeSampleSignature, 'the checked-in sample MOD must visibly update the face')
+    const sampleModLog = await page.locator('#trace-log').textContent()
+    assert.doesNotMatch(
+      sampleModLog,
+      /display list overflowed|# Exception|XS abort/,
+      'the checked-in sample MOD must render without a runtime exception'
+    )
+    const sampleModHasVisiblePixels = await page.evaluate(() => {
+      const screen = document.querySelector('#simulator-screen')
+      const pixels = screen.getContext('2d').getImageData(0, 0, screen.width, screen.height).data
+      for (let index = 0; index < pixels.length; index += 4) {
+        if (pixels[index] || pixels[index + 1] || pixels[index + 2]) return true
+      }
+      return false
+    })
+    assert.equal(sampleModHasVisiblePixels, true, 'the checked-in sample MOD must not leave a black screen')
     await page.screenshot({ path: '/tmp/stackchan-sample-mod.png', fullPage: true })
     await savePiuScreen('sample-mod')
     await page.locator('#mod-clear-button').click()

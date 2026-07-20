@@ -80,12 +80,17 @@
                 <label class="form-field form-field-wide"
                   ><span>ドライバー</span
                   ><select name="driver.type" id="driver.type">
-                    <option value="scservo">SCServo</option>
+                    <option value="m5stackchan">M5StackChan Servo（CoreS3専用・推奨）</option>
+                    <option value="scservo">SCServo（汎用・外部配線向け）</option>
                     <option value="dynamixel">Dynamixel（Protocol 2）</option>
                     <option value="rs30x">RS30X</option>
                     <option value="pwm">PWM（SG-90）</option>
                     <option value="none">なし</option>
-                  </select></label
+                  </select>
+                  <small class="form-hint"
+                    >M5StackChan
+                    Servoは専用UART、ゼロ位置、可動域、PY32サーボ電源を設定します。CoreS3専用ファームウェアではこの項目に固定されます。</small
+                  ></label
                 ><label class="form-field"
                   ><span>パン オフセット</span
                   ><input type="number" name="driver.offsetPan" id="driver.offsetPan" value="0" /></label

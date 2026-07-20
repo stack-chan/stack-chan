@@ -28,7 +28,7 @@ StackChan can change settings such as motor types and pin assignments from the m
 
 | Key               | Description                                                                | Available values                     |
 | ----------------- | -------------------------------------------------------------------------- | ------------------------------------ |
-| driver.type       | Type of motor driver                                                       | "scservo", "rs30x", "pwm", "none", "dynamixel"    |
+| driver.type       | Type of motor driver                                                       | "m5stackchan", "scservo", "rs30x", "pwm", "none", "dynamixel"    |
 | driver.panId      | ID of the serial servo used for pan axis (horizontal rotation of the neck) | 1~254                                |
 | driver.tiltId     | ID of the serial servo used for tilt axis (vertical rotation of the neck)  | 1~254                                |
 | driver.offsetPan  | Offset of the pan axis                                                     | -90~90                               |
@@ -134,6 +134,8 @@ The board-specific driver type and servo bus pins live in each subplatform manif
 - M5StackChan CoreS3: [`host/platforms/m5stackchan_cores3/manifest.json`](../host/platforms/m5stackchan_cores3/manifest.json) — `m5stackchan` driver, serial TX6 / RX7.
 - Stack-chan RT: [`host/platforms/stackchan_rt/manifest.json`](../host/platforms/stackchan_rt/manifest.json) — `dynamixel` driver, serial TX7 / RX6.
 - Takao Core2 + SG90: [`host/platforms/takao_core2_sg90/manifest.json`](../host/platforms/takao_core2_sg90/manifest.json) — `pwm` driver, pan PWM19 / tilt PWM27.
+
+The `m5stackchan` driver adds M5StackChan-specific zero positions, motion limits, and PY32 servo-power control on top of the SCServo protocol. For safety, M5StackChan CoreS3 firmware locks the driver type to `m5stackchan`, while Stack-chan RT firmware locks it to `dynamixel`. Both ignore a different stored `driver.type`.
 
 Put per-device settings such as Wi-Fi credentials and API keys in the board's app manifest under `"config"`. Keep secrets out of commits and add them locally only. On boot, the log line `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` shows the RT serial pins actually in use.
 

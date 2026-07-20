@@ -3,6 +3,9 @@ CONFIG_ESP_CONSOLE_UART=y
 CONFIG_ESP_CONSOLE_UART_NUM=0
 CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
 
+# The build wrappers append the actual $MODDABLE/tools/VERSION to a generated
+# copy of this file so the web editor can read it from esp_app_desc.
+
 CONFIG_ESP_SYSTEM_PANIC_GDBSTUB=n
 CONFIG_ESP_COREDUMP_ENABLE_TO_UART=n
 CONFIG_ESP_COREDUMP_ENABLE=n

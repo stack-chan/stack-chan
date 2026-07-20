@@ -11,6 +11,7 @@ import {
   moddableOutputArguments,
 } from './lib/build-output.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
+import { prepareCoreS3VersionSdkconfig } from './lib/moddable-version.mjs'
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url))
 const firmwareDirectory = path.resolve(scriptsDirectory, '..')
@@ -31,6 +32,14 @@ if (!process.env.MODDABLE) {
   console.error('[stack-chan] MODDABLE environment variable is required')
   process.exit(1)
 }
+let versionSdkconfig
+try {
+  versionSdkconfig = prepareCoreS3VersionSdkconfig()
+} catch (error) {
+  console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
+  process.exit(1)
+}
+const moddableVersion = versionSdkconfig.version
 
 // mcbundle does not forward its -o option to the mcconfig processes it
 // generates, so its standard device builds intentionally remain under the
@@ -63,6 +72,7 @@ run(
     m5stackchanManifestPath,
   ],
   firmwareDirectory,
+  { ...process.env, SDKCONFIGPATH: versionSdkconfig.directory },
 )
 
 const buildDirectory = path.join(buildOutputDirectory, 'bin', 'esp32', targetName, buildMode, hostApplicationName)
@@ -80,6 +90,7 @@ for (const bundleTarget of bundleTargets) {
   const directory = path.join(bundleDirectory, bundleTarget)
   for (const binary of binaries) assertNonEmpty(path.join(directory, binary))
   assertFitsFactoryPartition(directory)
+  assertFirmwareVersion(directory, moddableVersion)
 }
 
 rmSync(bundleZipPath, { force: true })
@@ -145,13 +156,43 @@ function assertFitsFactoryPartition(directory) {
 }
 
 /**
+ * Ensures the ESP app descriptor exposes the Moddable SDK version used by the
+ * editor's MOD compatibility preflight. ESP-IDF otherwise falls back to the
+ * nearest repository's Git revision when builds use a repository-local output.
+ * @param {string} directory - Directory containing xs_esp32.bin.
+ * @param {string} expectedVersion - Moddable SDK version used for the build.
+ */
+function assertFirmwareVersion(directory, expectedVersion) {
+  const firmwarePath = path.join(directory, 'xs_esp32.bin')
+  const firmware = readFileSync(firmwarePath)
+  const descriptorMagic = 0xabcd5432
+  if (firmware.length < 0x70 || firmware.readUInt32LE(0x20) !== descriptorMagic) {
+    console.error(`[stack-chan] firmware app descriptor is missing: ${firmwarePath}`)
+    process.exit(1)
+  }
+
+  const nul = firmware.indexOf(0, 0x30)
+  const versionEnd = nul >= 0 && nul < 0x50 ? nul : 0x50
+  const actualVersion = firmware.toString('utf8', 0x30, versionEnd).trim()
+  if (actualVersion !== expectedVersion) {
+    console.error(
+      `[stack-chan] firmware version mismatch: ${firmwarePath} (${actualVersion || 'missing'} != ${expectedVersion})`,
+    )
+    process.exit(1)
+  }
+
+  console.log(`[stack-chan] bundle target firmware version: ${path.basename(directory)} (${actualVersion})`)
+}
+
+/**
  * Runs a bundle subprocess and propagates failures to the caller.
  * @param {string} command - Executable name.
  * @param {string[]} args - Command-line arguments.
  * @param {string} cwd - Working directory for the subprocess.
+ * @param {NodeJS.ProcessEnv} env - Environment for the subprocess.
  */
-function run(command, args, cwd) {
-  const result = spawnSync(command, args, { cwd, stdio: 'inherit' })
+function run(command, args, cwd, env = process.env) {
+  const result = spawnSync(command, args, { cwd, env, stdio: 'inherit' })
   if (result.error) {
     console.error(`[stack-chan] failed to run ${command}: ${result.error.message}`)
     process.exit(1)

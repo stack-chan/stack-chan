@@ -13,7 +13,10 @@ type Subplatform = {
     include?: string[]
     build?: { SUBPLATFORM?: string }
     defines?: { camera?: { i2c_port?: number } }
-    config?: { serial?: unknown; driver?: { serial?: unknown } }
+    config?: {
+      serial?: unknown
+      driver?: { type?: string; typeLocked?: boolean; serial?: unknown }
+    }
   }
 }
 
@@ -89,6 +92,19 @@ describe('Stack-chan platform manifest', () => {
       if (manifest.config?.serial && manifest.config?.driver?.serial) {
         assert.deepEqual(manifest.config.serial, manifest.config.driver.serial)
       }
+    }
+  })
+
+  test('dedicated smart-servo platforms lock their hardware driver', () => {
+    const expectedDrivers = new Map([
+      ['m5stackchan_cores3', 'm5stackchan'],
+      ['stackchan_rt', 'dynamixel'],
+    ])
+
+    for (const [platform, expectedType] of expectedDrivers) {
+      const manifest = readJson(join('host/platforms', platform, 'manifest.json'))
+      assert.equal(manifest.config?.driver?.type, expectedType)
+      assert.equal(manifest.config?.driver?.typeLocked, true)
     }
   })
 

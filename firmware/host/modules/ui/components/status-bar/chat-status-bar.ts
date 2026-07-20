@@ -38,6 +38,12 @@ type ChatStatusSkins = {
   indicator: Skin
 }
 
+function setControlVisible(control: Container | undefined, visible: boolean): void {
+  if (!control) return
+  control.visible = visible
+  control.active = visible
+}
+
 let cachedSkins: ChatStatusSkins | null = null
 
 function getSkins(): ChatStatusSkins {
@@ -135,10 +141,7 @@ class ChatStatusBarBehavior extends Behavior {
       this.#title.string = faceMode ? '' : mode.title
       this.#title.visible = !faceMode
     }
-    if (this.#backButton) {
-      this.#backButton.visible = !faceMode
-      this.#backButton.active = !faceMode
-    }
+    setControlVisible(this.#backButton, !faceMode)
     if (faceMode) this.showFaceActions(container)
     else {
       this.setFaceActionsVisible(false)
@@ -217,14 +220,10 @@ class ChatStatusBarBehavior extends Behavior {
   setFaceActionsVisible(visible: boolean) {
     const faceActionsVisible = visible && this.#mode.kind === 'face'
     this.#faceActionsVisible = faceActionsVisible
-    if (this.#menuButton) {
-      this.#menuButton.visible = faceActionsVisible
-      this.#menuButton.active = faceActionsVisible
-    }
+    setControlVisible(this.#menuButton, faceActionsVisible)
     if (this.#appsButton) {
       const appsVisible = faceActionsVisible && this.#miniAppsAvailable
-      this.#appsButton.visible = appsVisible
-      this.#appsButton.active = appsVisible
+      setControlVisible(this.#appsButton, appsVisible)
     }
   }
 }
@@ -278,7 +277,9 @@ export const ChatStatusBar = Container.template(() => {
         height: iconSize,
         skin: skins.indicator,
         variant: 0,
-        active: true,
+        // Piu Content hit testing follows `active` even while `visible` is false.
+        // The indicator is never interactive and must not cover the Back button.
+        active: false,
         visible: false,
         Behavior: IndicatorBehavior,
       }),

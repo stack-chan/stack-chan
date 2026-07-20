@@ -29,6 +29,7 @@ type StatusIcon = {
 }
 
 type StatusIndicator = {
+  active?: boolean
   visible?: boolean
 }
 
@@ -70,6 +71,7 @@ assert(appsButton.active === true, 'visible apps button should accept touches')
 behavior.onAppBarMode?.(bar, { kind: 'launcher', title: 'ミニアプリ' })
 assert(backButton.visible === true, 'launcher mode should show the host-owned back button')
 assert(backButton.active === true, 'launcher back button should accept touches')
+assert(app.hit(16, 22) === backButton, 'non-interactive status content must not intercept the Back button')
 assert(appsButton.visible === false, 'launcher mode should hide the apps button')
 assert(menuButton.visible === false, 'launcher mode should hide the drawer button')
 assert(title.visible === true, 'launcher mode should show a title')
@@ -95,6 +97,7 @@ assert(appsButton.active === true, 'revealed apps button should accept touches')
 
 behavior.onChatState?.(bar, ChatStatusBarState.CONNECTING)
 assert(statusIndicator.visible === true, 'connecting indicator should be visible')
+assert(statusIndicator.active === false, 'connecting indicator should never intercept touches')
 assert(statusIcon.visible === false, 'status icon should be hidden while connecting')
 
 behavior.onChatState?.(bar, ChatStatusBarState.SPEAKING)

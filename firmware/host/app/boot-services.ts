@@ -7,6 +7,7 @@ import {
 import type { NetworkReadyResult } from 'capabilities'
 import { createLocalPeerCapability } from 'local-peer-capability'
 import type { LocalPeerCapability } from 'local-peer-types'
+import { localize } from 'localization'
 import config from 'mc/config'
 import { wait } from 'stackchan-util'
 import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
@@ -90,7 +91,7 @@ async function startStoredWiFi(
       options.onStatusChanged?.({
         attempt,
         maxAttempts,
-        message: 'Wi-Fi接続中...',
+        message: localize('splash.connecting', { attempt, maxAttempts }),
       })
       const result = await connectStoredWiFiOnce()
       if (result.status !== 'failed') {

@@ -313,6 +313,18 @@ p {
   display: block;
 }
 
+.tool-drawer-language label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.tool-drawer-language select {
+  width: 100%;
+}
+
 .tool-drawer-link strong {
   margin-bottom: 2px;
   font-size: 0.86rem;

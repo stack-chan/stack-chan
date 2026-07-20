@@ -1,3 +1,4 @@
+import { setLocalizationLanguage } from 'localization'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import { Application } from 'piu/MC'
 import {
@@ -39,6 +40,7 @@ const state = {
   status,
   networks: [] as Array<{ ssid: string; signal: number; label: string }>,
   selectedSSID: 'stackchan-ap',
+  language: 'ja' as const,
 }
 let navigatedView = -1
 let exitCount = 0
@@ -48,6 +50,7 @@ let bootCount = 0
 let offlineBootCount = 0
 let selectedSSID = ''
 let password = ''
+let selectedLanguage = ''
 
 const context: SettingsViewContext = {
   state,
@@ -76,6 +79,9 @@ const context: SettingsViewContext = {
     submitWifiPassword(value) {
       password = value
     },
+    selectLanguage(locale) {
+      selectedLanguage = locale
+    },
   },
 }
 
@@ -85,7 +91,7 @@ function mount(instance: SettingsViewInstance) {
   instance.update?.()
 }
 
-equal(settingsViews.length, 4, 'settings registry should contain menu, Wi-Fi, password, and offline views')
+equal(settingsViews.length, 5, 'settings registry should contain menu, Wi-Fi, password, language, and offline views')
 
 const menuView = settingsViews[SettingsViewId.MENU].create(context)
 equal(application.length, 0, 'creating a settings view should not mount it')
@@ -95,6 +101,9 @@ const menuItems = menuScroller.first as PiuContainer
 const wifiMenuItem = menuItems.first as Touchable
 press(wifiMenuItem)
 equal(navigatedView, SettingsViewId.WIFI, 'Wi-Fi menu item should navigate through the shared action')
+const languageMenuItem = wifiMenuItem.next as Touchable
+press(languageMenuItem)
+equal(navigatedView, SettingsViewId.LANGUAGE, 'language menu item should navigate through the shared action')
 
 const menuHeader = menuView.content.first as PiuContainer
 press(menuHeader.first as Touchable)
@@ -159,5 +168,41 @@ const passwordRoot = passwordView.content as unknown as {
 passwordRoot.behavior.onKeyboardOK(passwordRoot, 'new-secret')
 passwordRoot.behavior.onKeyboardTransitionFinished(passwordRoot, true)
 equal(password, 'new-secret', 'password view should submit expanding keyboard input')
+
+const languageView = settingsViews[SettingsViewId.LANGUAGE].create(context)
+mount(languageView)
+const languageRoot = languageView.content as unknown as {
+  first: {
+    next: {
+      next: {
+        behavior: {
+          onTouchBegan: (container: unknown, id: number, x: number, y: number) => void
+          onTouchEnded: (container: unknown) => void
+        }
+      }
+    }
+  }
+}
+const englishButton = languageRoot.first.next.next
+englishButton.behavior.onTouchBegan(englishButton, 0, 0, 0)
+englishButton.behavior.onTouchEnded(englishButton)
+equal(selectedLanguage, 'en', 'language view should expose English as a touch action')
+
+setLocalizationLanguage('en')
+status.wifi = SettingsStatusValue.NOT_CONNECTED
+const englishView = settingsViews[SettingsViewId.WIFI].create(context)
+mount(englishView)
+const englishHeader = englishView.content.first as PiuContent
+const englishLabel = englishHeader.next as PiuContent & { string?: string }
+equal(englishLabel.string, 'Wi-Fi: Disconnected', 'settings view should switch to English immediately')
+
+setLocalizationLanguage('zh-CN')
+status.wifi = SettingsStatusValue.CONNECTED
+const chineseView = settingsViews[SettingsViewId.WIFI].create(context)
+mount(chineseView)
+const chineseHeader = chineseView.content.first as PiuContent
+const chineseLabel = chineseHeader.next as PiuContent & { string?: string }
+equal(chineseLabel.string, 'Wi-Fi：已连接', 'settings view should switch to Simplified Chinese immediately')
+setLocalizationLanguage('ja')
 
 trace('ok\n')

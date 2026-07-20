@@ -1,12 +1,19 @@
 import assert from 'node:assert/strict'
+import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 
-import {
+import { writeAliasPackage } from '../../modules/testing/node-alias-package.js'
+
+const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+writeAliasPackage(hostRoot, 'localization', resolve(hostRoot, 'modules/testing/fakes/localization.js'))
+
+const {
   bootWiFiFailureMessage,
   classifyBootWiFiFailure,
   networkReadyResultForRecoveryChoice,
   shouldRetryBootWiFiAttempt,
-} from '../boot-network-recovery.js'
+} = await import('../boot-network-recovery.js')
 
 test('boot Wi-Fi retry helper respects the configured attempt limit', () => {
   assert.equal(shouldRetryBootWiFiAttempt(1, 3), true)

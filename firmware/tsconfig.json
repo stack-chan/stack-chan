@@ -66,6 +66,12 @@
       "settings-view": [
         "./host/modules/ui/views/settings/settings-view"
       ],
+      "localization": [
+        "./host/modules/ui/localization"
+      ],
+      "localization-core": [
+        "./host/modules/ui/localization-core"
+      ],
       "template": [
         "./host/modules/ui/components/face/template"
       ],

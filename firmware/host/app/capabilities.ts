@@ -6,6 +6,7 @@ import type { HandAnimationName } from 'hands'
 import type IMU from 'imu'
 import type { ButtonInputEvent } from 'input-event'
 import type { LocalPeerCapability } from 'local-peer-types'
+import type { I18nCapability } from 'localization'
 import type { MiniAppRegistryCapability } from 'mini-app'
 import type { MotionControllerPose, MotionDurationSeconds } from 'motion-controller'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
@@ -43,6 +44,7 @@ export type RobotLed = {
   rainbow(index?: number, count?: number): void
 }
 
+export type { I18nCapability } from 'localization'
 export type { MiniAppContext, MiniAppDefinition, MiniAppInstance, MiniAppRegistryCapability } from 'mini-app'
 export type { DrawerButtonViewSpec, DrawerOption }
 
@@ -241,6 +243,11 @@ export type StackchanCapabilityNamespaces = {
   face: FaceCapability
   motion: MotionCapability
   audio: AudioCapability
+  /**
+   * Host-owned localization boundary for MOD UI. Keeping this on the context
+   * lets the host select the locale and resolve installed MOD resources.
+   */
+  i18n: I18nCapability
   input: InputCapability
   lighting: LightingCapability
   camera: RobotCamera

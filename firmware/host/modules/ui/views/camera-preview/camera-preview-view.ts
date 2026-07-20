@@ -6,6 +6,7 @@ import {
   toPiuColorString,
 } from 'camera-preview-utils'
 import type { MainContent } from 'common-view'
+import { localize } from 'localization'
 import { Container, Label, type Port as PiuPort, Port, Skin } from 'piu/MC'
 import { ActionButton } from 'ui-controls'
 import { uiStyles } from 'ui-theme'
@@ -34,7 +35,6 @@ const PREVIEW_TOP = 60
 const PREVIEW_BLOCK_SIZE = 48
 const PREVIEW_BACKGROUND = '#101010'
 const DIALOG_BACKGROUND = '#000000'
-const DEFAULT_CAPTION = 'カメラ'
 
 export function prepareCameraPreviewFrame(frame: CameraFrame): CameraPreviewFrame {
   return {
@@ -114,7 +114,7 @@ export function createCameraPreviewDialog(
     bottom: 8,
     height: 20,
     style: uiStyles().compact,
-    string: options.caption ?? DEFAULT_CAPTION,
+    string: options.caption ?? localize('camera.caption'),
   })
 
   return new Container(

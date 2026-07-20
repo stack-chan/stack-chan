@@ -6,6 +6,8 @@
  * (start / button / interval) register handlers on the robot context.
  */
 
+import { t } from '../i18n.mjs'
+
 export const VISUAL_RUNTIME_RESERVED_WORDS = Object.freeze([
   'robot',
   'Timer',
@@ -875,6 +877,24 @@ const BLOCK_DEFINITIONS = [
   },
 ]
 
+function localizeBlocklyData(value, key = '') {
+  if (Array.isArray(value)) {
+    if (value.length === 2 && typeof value[0] === 'string' && typeof value[1] === 'string') {
+      return [t(value[0]), value[1]]
+    }
+    return value.map((item) => localizeBlocklyData(item))
+  }
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value).map(([childKey, childValue]) => {
+      if (typeof childValue === 'string' && ['message0', 'tooltip', 'text', 'name'].includes(childKey)) {
+        return [childKey, t(childValue)]
+      }
+      return [childKey, localizeBlocklyData(childValue, childKey)]
+    })
+  )
+}
+
 // Escape a value for embedding inside a single-quoted JS string literal. Used
 // for `field_input` values (e.g. the LED NAME) so a name containing ' or \
 // cannot break the generated source.
@@ -993,9 +1013,7 @@ function legacySongEventCode(block) {
     if (parent.type === 'stackchan_sing') return ''
     parent = parent.getParent?.()
   }
-  throw new Error(
-    '旧形式の音符・休符ブロックは直接実行できません。トリプル形式の音符・休符をリストへ入れてください',
-  )
+  throw new Error('旧形式の音符・休符ブロックは直接実行できません。トリプル形式の音符・休符をリストへ入れてください')
 }
 
 function asyncHandlerBody(generator, block) {
@@ -1024,7 +1042,7 @@ function eventHandler(body, errorTag, blockId, param = 'event') {
  */
 export function registerStackchanBlocks(Blockly, generator, Order) {
   configureVisualGenerator(generator)
-  Blockly.defineBlocksWithJsonArray(BLOCK_DEFINITIONS)
+  Blockly.defineBlocksWithJsonArray(localizeBlocklyData(BLOCK_DEFINITIONS))
 
   const forBlock = generator.forBlock ?? generator
 
@@ -1441,6 +1459,10 @@ export const TOOLBOX = {
     { kind: 'category', name: '変数', categorystyle: 'variable_category', custom: 'VARIABLE' },
     { kind: 'category', name: '関数', categorystyle: 'procedure_category', custom: 'PROCEDURE' },
   ],
+}
+
+export function localizedToolbox() {
+  return localizeBlocklyData(TOOLBOX)
 }
 
 /**

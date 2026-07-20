@@ -172,6 +172,9 @@
       "mac-address": [
         "host/modules/util/sim/mac-address.ts"
       ],
+      "localization": [
+        "host/modules/testing/fakes/localization.ts"
+      ],
       "local-peer-capability": [
         "host/modules/connectivity/sim/local-peer-capability.ts"
       ],

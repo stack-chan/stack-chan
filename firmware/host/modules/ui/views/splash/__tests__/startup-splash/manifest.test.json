@@ -4,11 +4,13 @@
     "../../../../../testing/manifest.json"
   ],
   "resources": {
+    "*": ["../../../../../../app/strings/*"],
     "*-alpha": [
       {
         "source": "../../../../assets/fonts/k8x12",
         "size": 12,
         "characterFiles": "../../../../assets/fonts/k8x12-chars.txt",
+        "localization": true,
         "monochrome": true
       },
       {

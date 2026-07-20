@@ -14,6 +14,7 @@ function installBareSpecifierPackages(): void {
     'settings-status-model',
     resolve(modulesRoot, 'ui/views/settings/settings-status-model.js'),
   )
+  writeAliasPackage(hostRoot, 'localization', resolve(modulesRoot, 'testing/fakes/localization.js'))
 }
 
 async function setup() {

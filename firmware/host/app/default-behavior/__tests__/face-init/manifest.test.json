@@ -4,6 +4,9 @@
     "../../../../modules/camera/manifest.json",
     "../../../../modules/testing/manifest.json"
   ],
+  "resources": {
+    "*": ["../../../strings/*"]
+  },
   "modules": {
     "app-behavior": "./app-behavior-stub",
     "app-default-behavior/on-context-created": "../../on-context-created",

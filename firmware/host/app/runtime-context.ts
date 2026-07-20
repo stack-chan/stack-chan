@@ -4,6 +4,7 @@ import type {
   ConnectivityCapability,
   ConversationCapability,
   FaceCapability,
+  I18nCapability,
   InputCapability,
   LifecycleCapability,
   LightingCapability,
@@ -15,6 +16,7 @@ import type {
 } from 'capabilities'
 import type { Emotion, FaceThemeKey } from 'face-state'
 import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
+import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
@@ -45,6 +47,7 @@ export class StackchanRuntimeContext implements StackchanContext {
   #conversationCapability: ConversationCapability
   #cameraRuntime: StackchanRuntimeCamera
   #faceCapability: FaceCapability
+  #i18nCapability: I18nCapability
   #inputCapability: InputCapability
   #inputRuntime: StackchanRuntimeInput
   #lifecycleCapability: LifecycleCapability
@@ -81,6 +84,9 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#faceCapability = this.createFaceCapability()
     this.#motionCapability = this.createMotionCapability()
     this.#audioCapability = this.createAudioCapability()
+    // Capture the host-owned localization service after boot selected a locale;
+    // MODs receive this stable boundary instead of importing host UI internals.
+    this.#i18nCapability = createI18nCapability()
     this.#inputCapability = this.createInputCapability()
     this.#lifecycleCapability = this.createLifecycleCapability()
     this.#lightingCapability = this.createLightingCapability()
@@ -99,6 +105,10 @@ export class StackchanRuntimeContext implements StackchanContext {
 
   get audio(): AudioCapability {
     return this.#audioCapability
+  }
+
+  get i18n(): I18nCapability {
+    return this.#i18nCapability
   }
 
   get input(): InputCapability {

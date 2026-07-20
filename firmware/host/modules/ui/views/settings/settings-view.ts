@@ -1,5 +1,6 @@
 import { KeyboardField } from 'common/keyboard'
 import { HorizontalExpandingKeyboard } from 'keyboard'
+import { localize, type SupportedLocale } from 'localization'
 import type {
   Application as PiuApplication,
   Column as PiuColumn,
@@ -20,7 +21,7 @@ import {
   settingsStatusToLabel as settingsStatusToLabelImpl,
 } from 'settings-status-model'
 import { ActionButton, ScreenHeader, setActionButtonEnabled, setActionButtonLabel } from 'ui-controls'
-import { UI, uiStyles } from 'ui-theme'
+import { UI, uiFont, uiStyles } from 'ui-theme'
 
 export const SettingsStatusValue = SettingsStatusValueConst
 export const settingsStatusToLabel = settingsStatusToLabelImpl
@@ -31,7 +32,8 @@ export const SettingsViewId = Object.freeze({
   MENU: 0,
   WIFI: 1,
   PASSWORD: 2,
-  OFFLINE: 3,
+  LANGUAGE: 3,
+  OFFLINE: 4,
 } as const)
 
 export type SettingsViewId = (typeof SettingsViewId)[keyof typeof SettingsViewId]
@@ -41,6 +43,7 @@ export type SettingsViewState = Readonly<{
   status: SettingsStatus
   networks: readonly SettingsNetworkEntry[]
   selectedSSID: string
+  language: SupportedLocale
 }>
 
 export type SettingsViewActions = Readonly<{
@@ -52,6 +55,7 @@ export type SettingsViewActions = Readonly<{
   cancelWifiScan(): void
   selectWifiNetwork(network: SettingsNetworkEntry): void
   submitWifiPassword(password: string): void
+  selectLanguage(locale: SupportedLocale): void
 }>
 
 export type SettingsViewContext = Readonly<{
@@ -96,6 +100,7 @@ const MAX_SSID_CHARS = 30
 
 let rowPressedSkin: PiuSkin | null = null
 let networkStyle: PiuStyle | null = null
+let networkStyleFont = ''
 let keyboardFieldSkinTemplate: SkinTemplate | null = null
 let keyboardFieldStyleTemplate: StyleTemplate | null = null
 
@@ -105,9 +110,11 @@ function getRowPressedSkin() {
 }
 
 function getNetworkStyle() {
-  if (!networkStyle) {
+  const font = uiFont()
+  if (!networkStyle || networkStyleFont !== font) {
+    networkStyleFont = font
     networkStyle = new Style({
-      font: 'k8x12-12',
+      font,
       color: UI.colors.text,
       horizontal: 'left',
       vertical: 'middle',
@@ -197,7 +204,7 @@ const SettingsMenuView = {
       bottom: 0,
       skin: styles.screen,
       contents: [
-        new ScreenHeader({ title: '設定', leading: 'back', onLeading: context.actions.exit }),
+        new ScreenHeader({ title: localize('settings.title'), leading: 'back', onLeading: context.actions.exit }),
         new Scroller(null, {
           left: 0,
           right: 0,
@@ -216,8 +223,16 @@ const SettingsMenuView = {
                 new ActionButton(
                   {
                     icon: 'wifi',
-                    label: 'Wi-Fi設定',
+                    label: localize('settings.wifiTitle'),
                     onTap: () => context.actions.navigate(SettingsViewId.WIFI),
+                  },
+                  { left: 8, right: 8 },
+                ),
+                new ActionButton(
+                  {
+                    icon: 'language',
+                    label: localize('settings.languageTitle'),
+                    onTap: () => context.actions.navigate(SettingsViewId.LANGUAGE),
                   },
                   { left: 8, right: 8 },
                 ),
@@ -237,13 +252,13 @@ const SettingsWifiView = {
     const networkState = { networks: [] as SettingsNetworkEntry[] }
     const bootState = { connected: context.state.status.wifi === SettingsStatusValue.CONNECTED }
     const scan = new ActionButton(
-      { icon: 'scan', label: 'スキャン', onTap: context.actions.scanWifi },
+      { icon: 'scan', label: localize('settings.scan'), onTap: context.actions.scanWifi },
       { left: 8, top: ACTION_TOP, width: 148 },
     )
     const boot = new ActionButton(
       {
         icon: 'play',
-        label: bootState.connected ? '起動' : 'オフライン',
+        label: localize(bootState.connected ? 'settings.boot' : 'splash.offline'),
         onTap: () => {
           if (bootState.connected) context.actions.boot()
           else context.actions.navigate(SettingsViewId.OFFLINE)
@@ -276,7 +291,7 @@ const SettingsWifiView = {
       skin: styles.screen,
       contents: [
         new ScreenHeader({
-          title: 'Wi-Fi設定',
+          title: localize('settings.wifiTitle'),
           leading: 'back',
           onLeading: () => context.actions.navigate(SettingsViewId.MENU),
         }),
@@ -311,16 +326,16 @@ const SettingsWifiView = {
 } satisfies SettingsViewDefinition
 
 function updateSettingsStatus(handles: SettingsWifiViewHandles, status: SettingsStatus): void {
-  handles.wifi.string = `Wi-Fi: ${settingsStatusToLabel(status.wifi)}`
+  handles.wifi.string = localize('settings.wifiStatus', { status: settingsStatusToLabel(status.wifi) })
   const scanning = status.wifi === SettingsStatusValue.SCANNING
-  setActionButtonLabel(handles.scan, scanning ? 'スキャン中' : 'スキャン')
+  setActionButtonLabel(handles.scan, localize(scanning ? 'settings.scanning' : 'settings.scan'))
   setActionButtonEnabled(handles.scan, !scanning)
   const connecting =
     status.wifi === SettingsStatusValue.CONNECTING ||
     status.wifi === SettingsStatusValue.SYNCING_TIME ||
     status.wifi === SettingsStatusValue.RECONNECTING
   handles.bootState.connected = status.wifi === SettingsStatusValue.CONNECTED
-  setActionButtonLabel(handles.boot, handles.bootState.connected ? '起動' : 'オフライン')
+  setActionButtonLabel(handles.boot, localize(handles.bootState.connected ? 'settings.boot' : 'splash.offline'))
   setActionButtonEnabled(handles.boot, !scanning && !connecting)
 }
 
@@ -334,7 +349,7 @@ function updateSettingsNetworks(handles: SettingsWifiViewHandles, networks: read
         left: 12,
         right: 12,
         height: NETWORK_ROW_HEIGHT,
-        string: 'ネットワークなし',
+        string: localize('settings.noNetworks'),
         style: styles.bodyMuted,
       }),
     )
@@ -405,7 +420,7 @@ const SettingsOfflineView = {
       skin: styles.screen,
       contents: [
         new ScreenHeader({
-          title: 'オフライン起動',
+          title: localize('settings.offlineTitle'),
           leading: 'back',
           onLeading: () => context.actions.navigate(SettingsViewId.WIFI),
         }),
@@ -414,19 +429,24 @@ const SettingsOfflineView = {
           right: 20,
           top: UI.headerHeight + 18,
           height: 72,
-          string: '保存済みのSSIDとパスワードを消去して\nオフラインで起動しますか？',
+          string: localize('settings.offlineConfirm'),
           style: styles.body,
         }),
         new ActionButton(
           {
             icon: 'back',
-            label: 'キャンセル',
+            label: localize('settings.cancel'),
             onTap: () => context.actions.navigate(SettingsViewId.WIFI),
           },
           { left: 8, bottom: 16, width: 148 },
         ),
         new ActionButton(
-          { icon: 'play', label: '消去して起動', onTap: context.actions.bootOffline, tone: 'danger' },
+          {
+            icon: 'play',
+            label: localize('settings.clearAndBoot'),
+            onTap: context.actions.bootOffline,
+            tone: 'danger',
+          },
           { left: 164, bottom: 16, width: 148 },
         ),
       ],
@@ -460,7 +480,7 @@ const SettingsPasswordView = {
           height: PASSWORD_FIELD_TOP,
           contents: [
             new ScreenHeader({
-              title: 'Wi-Fiパスワード',
+              title: localize('settings.passwordTitle'),
               leading: 'back',
               onLeading: () => context.actions.navigate(SettingsViewId.WIFI),
             }),
@@ -535,10 +555,49 @@ const SettingsPasswordView = {
   },
 } satisfies SettingsViewDefinition
 
+const SettingsLanguageView = {
+  create(context: SettingsViewContext): SettingsViewInstance {
+    const styles = uiStyles()
+    const choices: readonly [SupportedLocale, string][] = [
+      ['ja', 'language.japanese'],
+      ['en', 'language.english'],
+      ['zh-CN', 'language.chineseSimplified'],
+    ]
+    const content = new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      skin: styles.screen,
+      contents: [
+        new ScreenHeader({
+          title: localize('settings.languageTitle'),
+          leading: 'back',
+          onLeading: () => context.actions.navigate(SettingsViewId.MENU),
+        }),
+        ...choices.map(
+          ([locale, key], index) =>
+            new ActionButton(
+              {
+                icon: 'language',
+                label: localize(key),
+                selected: context.state.language === locale,
+                onTap: () => context.actions.selectLanguage(locale),
+              },
+              { left: 8, right: 8, top: UI.headerHeight + 8 + index * (UI.touchTarget + 8) },
+            ),
+        ),
+      ],
+    })
+    return { content }
+  },
+} satisfies SettingsViewDefinition
+
 export const settingsViews: readonly SettingsViewDefinition[] = [
   SettingsMenuView,
   SettingsWifiView,
   SettingsPasswordView,
+  SettingsLanguageView,
   SettingsOfflineView,
 ]
 

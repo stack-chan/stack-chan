@@ -1,3 +1,5 @@
+import { getLocale, i18nReady, setLocale, SUPPORTED_LOCALES, t } from './i18n.mjs'
+
 export const TOOL_NAVIGATION_ITEMS = Object.freeze([
   { id: 'home', href: '', label: 'ホーム', description: 'Webツールの一覧', icon: 'home' },
   {
@@ -79,9 +81,9 @@ function navigationLink(item, rootUrl, currentId) {
 
   const copy = document.createElement('span')
   const label = document.createElement('strong')
-  label.textContent = item.label
+  label.textContent = t(item.label)
   const description = document.createElement('small')
-  description.textContent = item.description
+  description.textContent = t(item.description)
   copy.append(label, description)
   anchor.append(icon, copy)
   return anchor
@@ -91,11 +93,42 @@ function navigationSection(title, items, rootUrl, currentId) {
   const section = document.createElement('section')
   section.className = 'tool-drawer-section'
   const heading = document.createElement('h2')
-  heading.textContent = title
+  heading.textContent = t(title)
   const nav = document.createElement('nav')
-  nav.setAttribute('aria-label', title)
+  nav.setAttribute('aria-label', t(title))
   for (const item of items) nav.append(navigationLink(item, rootUrl, currentId))
   section.append(heading, nav)
+  return section
+}
+
+function languageSection() {
+  const section = document.createElement('section')
+  section.className = 'tool-drawer-section tool-drawer-language'
+  const label = document.createElement('label')
+  label.htmlFor = 'tool-language-select'
+  label.textContent = t('表示言語')
+  const select = document.createElement('select')
+  select.id = 'tool-language-select'
+  select.setAttribute('aria-label', t('表示言語'))
+  const names = new Map([
+    ['ja', '日本語'],
+    ['en', 'English'],
+    ['zh-CN', '简体中文'],
+  ])
+  for (const locale of SUPPORTED_LOCALES) {
+    const option = document.createElement('option')
+    option.value = locale
+    option.textContent = names.get(locale)
+    option.setAttribute('translate', 'no')
+    select.append(option)
+  }
+  select.value = getLocale()
+  select.addEventListener('change', async () => {
+    select.disabled = true
+    await setLocale(select.value)
+    location.reload()
+  })
+  section.append(label, select)
   return section
 }
 
@@ -111,8 +144,8 @@ export function installToolNavigation({
   const button = document.createElement('button')
   button.className = 'icon-button tool-menu-button'
   button.type = 'button'
-  button.title = 'ツールメニュー'
-  button.setAttribute('aria-label', 'ツールメニューを開く')
+  button.title = t('ツールメニュー')
+  button.setAttribute('aria-label', t('ツールメニューを開く'))
   button.setAttribute('aria-haspopup', 'dialog')
   button.setAttribute('aria-controls', 'tool-drawer')
   button.innerHTML = '<i data-lucide="menu" aria-hidden="true"></i>'
@@ -132,13 +165,13 @@ export function installToolNavigation({
   eyebrow.textContent = 'Stack-chan'
   const title = document.createElement('h1')
   title.id = 'tool-drawer-title'
-  title.textContent = 'Webツール'
+  title.textContent = t('Webツール')
   titleGroup.append(eyebrow, title)
 
   const close = document.createElement('button')
   close.className = 'icon-button'
   close.type = 'button'
-  close.setAttribute('aria-label', 'ツールメニューを閉じる')
+  close.setAttribute('aria-label', t('ツールメニューを閉じる'))
   close.innerHTML = '<i data-lucide="x" aria-hidden="true"></i>'
   header.append(titleGroup, close)
 
@@ -147,7 +180,8 @@ export function installToolNavigation({
   content.className = 'tool-drawer-content'
   content.append(
     navigationSection('ツール', TOOL_NAVIGATION_ITEMS, rootUrl, currentId),
-    navigationSection('ガイド', GUIDE_NAVIGATION_ITEMS, rootUrl, currentId)
+    navigationSection('ガイド', GUIDE_NAVIGATION_ITEMS, rootUrl, currentId),
+    languageSection()
   )
   panel.append(header, content)
   dialog.append(panel)
@@ -169,4 +203,7 @@ export function installToolNavigation({
   return { button, dialog, open, close: closeDialog }
 }
 
-if (typeof document !== 'undefined') installToolNavigation()
+if (typeof document !== 'undefined') {
+  await i18nReady
+  installToolNavigation()
+}

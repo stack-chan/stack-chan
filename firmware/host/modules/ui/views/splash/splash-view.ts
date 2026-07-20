@@ -1,3 +1,4 @@
+import { localize } from 'localization'
 import type { Application as PiuApplication, Container as PiuContainer, Label as PiuLabel } from 'piu/MC'
 import { Application, Column, Container, Label } from 'piu/MC'
 import { ActionButton } from 'ui-controls'
@@ -38,7 +39,7 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
     left: 12,
     right: 12,
     height: 28,
-    string: options.message ?? 'まもなく起動します',
+    string: options.message ?? localize('splash.starting'),
     style: styles.bodyMuted,
   })
   const actionArea = new Container(null, {
@@ -79,7 +80,7 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
     new ActionButton(
       {
         icon: 'settings',
-        label: '設定',
+        label: localize('settings.title'),
         onTap: options.onSettings,
       },
       { left: 104, width: 112 },
@@ -89,7 +90,7 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
 }
 
 export function showWiFiConnectionStatus(options: WiFiConnectionStatusOptions): void {
-  setMessage(`Wi-Fi接続中 (${options.attempt}/${options.maxAttempts})`)
+  setMessage(localize('splash.connecting', options))
   showActions([])
 }
 
@@ -99,7 +100,7 @@ export function showWiFiRecoveryChoice(options: WiFiRecoveryChoiceOptions): void
     new ActionButton(
       {
         icon: 'retry',
-        label: '再試行',
+        label: localize('splash.retry'),
         onTap: options.onRetry,
       },
       { left: 8, width: 148 },
@@ -107,7 +108,7 @@ export function showWiFiRecoveryChoice(options: WiFiRecoveryChoiceOptions): void
     new ActionButton(
       {
         icon: 'offline',
-        label: 'オフライン',
+        label: localize('splash.offline'),
         onTap: options.onOffline,
       },
       { left: 164, width: 148 },

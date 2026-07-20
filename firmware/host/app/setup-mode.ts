@@ -1,5 +1,6 @@
 import { loadPreferenceConfig } from 'loadPreference'
 import { DOMAIN, PREF_KEYS } from 'consts'
+import { getLocalizationLanguage, normalizeLocale, type SupportedLocale, setLocalizationLanguage } from 'localization'
 import { NetworkConnectionState, type NetworkConnectionState as NetworkState } from 'network-state'
 import Preference from 'preference'
 import { PreferenceServer } from 'preference-server'
@@ -54,8 +55,10 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       status,
       networks: [] as SettingsNetworkEntry[],
       selectedSSID: '',
+      language: getLocalizationLanguage(),
     }
     let currentView: SettingsViewInstance | undefined
+    let currentViewId: SettingsViewId = SettingsViewId.MENU
     let scanSession: WiFiScanSession | undefined
     let scanResults: RawWiFiScanResult[] = []
     let preferenceServer: PreferenceServer | undefined
@@ -72,6 +75,7 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
         cancelWifiScan,
         selectWifiNetwork: selectNetwork,
         submitWifiPassword,
+        selectLanguage: (locale: SupportedLocale) => applyLanguage(locale, true),
       },
     }
 
@@ -100,6 +104,7 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       application.empty()
       application.add(nextView.content)
       currentView = nextView
+      currentViewId = id
       currentView.update?.()
     }
 
@@ -116,6 +121,14 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       scanSession?.close()
       scanSession = undefined
       if (status.wifi === SettingsStatusValue.SCANNING) status.wifi = SettingsStatusValue.NOT_CONNECTED
+    }
+
+    function applyLanguage(value: unknown, persist: boolean) {
+      const locale = setLocalizationLanguage(value)
+      status['ui.language'] = locale
+      viewState.language = locale
+      if (persist || normalizeLocale(value) !== locale) Preference.set(DOMAIN.ui, 'language', locale)
+      showView(currentViewId)
     }
 
     function scanNetworks() {
@@ -189,6 +202,10 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
     preferenceServer = new PreferenceServer({
       onPreferenceChanged: (key, value) => {
         trace(`preference changed! ${key}\n`)
+        if (key === `${DOMAIN.ui}.language`) {
+          applyLanguage(value, false)
+          return
+        }
         status[key] = value
         updateCurrentView()
       },

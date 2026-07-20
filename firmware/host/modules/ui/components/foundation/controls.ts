@@ -7,6 +7,7 @@ export type IconName =
   | 'back'
   | 'camera'
   | 'close'
+  | 'language'
   | 'menu'
   | 'microphone'
   | 'offline'
@@ -25,7 +26,7 @@ export type ActionButtonData = {
   action?: string
   enabled?: boolean
   selected?: boolean
-  tone?: 'default' | 'accent' | 'success'
+  tone?: 'default' | 'accent' | 'success' | 'danger'
 }
 
 type MutableButtonData = ActionButtonData & {
@@ -37,6 +38,7 @@ function actionButtonSkin(data: MutableButtonData, styles: ReturnType<typeof uiS
   if (!data.enabled) return styles.disabled
   if (data.selected || data.tone === 'accent') return styles.accent
   if (data.tone === 'success') return styles.success
+  if (data.tone === 'danger') return styles.danger
   return styles.surface
 }
 
@@ -49,7 +51,7 @@ export type ActionButtonBehavior = {
 export type ScreenHeaderData = {
   title: string
   leading?: 'back' | 'menu'
-  trailing?: 'close' | 'settings'
+  trailing?: 'close' | 'language' | 'settings'
   onLeading?: () => void
   onTrailing?: () => void
 }
@@ -87,6 +89,13 @@ function drawIcon(port: PiuPort, icon: IconName, color: string) {
         port.fillColor(UI.colors.background, knob - 2, y - 2, 5, 6)
         port.fillColor(color, knob - 1, y - 1, 3, 4)
       }
+      return
+    case 'language':
+      port.fillColor(color, cx - 10, cy - 8, 20, 2)
+      port.fillColor(color, cx - 10, cy - 1, 14, 2)
+      port.fillColor(color, cx - 10, cy + 6, 9, 2)
+      port.fillColor(color, cx + 4, cy - 4, 2, 13)
+      port.fillColor(color, cx + 1, cy + 2, 8, 2)
       return
     case 'back':
       port.fillColor(color, cx - 8, cy - 1, 17, 3)

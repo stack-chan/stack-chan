@@ -1,3 +1,4 @@
+import { i18nReady, t } from '../i18n.mjs'
 import SimpleBLEClient from './ble-client.mjs'
 
 function errorDetail(error) {
@@ -11,6 +12,7 @@ export function initializePreferencePage({
   document: pageDocument = globalThis.document,
   confirm: confirmAction = globalThis.confirm,
   client: suppliedClient,
+  translate: translateText = t,
 } = {}) {
   const requiredElement = (id) => {
     const element = pageDocument.getElementById(id)
@@ -32,6 +34,7 @@ export function initializePreferencePage({
     'driver.offsetPan',
     'driver.offsetTilt',
     'ui.type',
+    'ui.language',
     'tts.type',
     'tts.host',
     'tts.port',
@@ -77,7 +80,7 @@ export function initializePreferencePage({
     controls.forEach((control) => {
       control.disabled = !connected || readOnlyProps.has(control.name)
     })
-    setStatus(connectionStatus, connected ? '接続済み' : '未接続', connected ? 'success' : '')
+    setStatus(connectionStatus, translateText(connected ? '接続済み' : '未接続'), connected ? 'success' : '')
   }
   const markDirty = (event) => {
     const prop = event.target?.name
@@ -88,12 +91,12 @@ export function initializePreferencePage({
 
   connectButton.addEventListener('click', async () => {
     connectButton.disabled = true
-    setStatus(connectionStatus, '接続中…')
+    setStatus(connectionStatus, translateText('接続中…'))
     try {
       await client.connect()
     } catch (error) {
       console.error(error)
-      setStatus(connectionStatus, `接続できませんでした: ${errorDetail(error)}`, 'error')
+      setStatus(connectionStatus, translateText('接続できませんでした: {error}', { error: errorDetail(error) }), 'error')
     } finally {
       connectButton.disabled = false
       if (client.isConnected()) updateView()
@@ -105,7 +108,7 @@ export function initializePreferencePage({
       await client.disconnect()
     } catch (error) {
       console.error(error)
-      setStatus(connectionStatus, `切断できませんでした: ${errorDetail(error)}`, 'error')
+      setStatus(connectionStatus, translateText('切断できませんでした: {error}', { error: errorDetail(error) }), 'error')
     } finally {
       disconnectButton.disabled = false
       if (!client.isConnected()) updateView()
@@ -116,13 +119,13 @@ export function initializePreferencePage({
     if (!client.isConnected() || submitting) return
     if (
       typeof confirmAction !== 'function' ||
-      !confirmAction('保存済みのSSIDとパスワードを消去しますか？次回はオフラインで起動します。')
+      !confirmAction(translateText('保存済みのSSIDとパスワードを消去しますか？次回はオフラインで起動します。'))
     )
       return
     clearWiFiButton.disabled = true
     submitButton.disabled = true
     submitting = true
-    setStatus(saveStatus, 'Wi-Fi設定を消去中…')
+    setStatus(saveStatus, translateText('Wi-Fi設定を消去中…'))
     try {
       const payload = { 'wifi.ssid': '', 'wifi.password': '' }
       await client.send({ _batch: payload })
@@ -132,10 +135,14 @@ export function initializePreferencePage({
         const element = pageDocument.getElementById(prop)
         if (element != null) element.value = value
       }
-      setStatus(saveStatus, 'Wi-Fi設定を消去しました。再起動後はオフラインになります。', 'success')
+      setStatus(saveStatus, translateText('Wi-Fi設定を消去しました。再起動後はオフラインになります。'), 'success')
     } catch (error) {
       console.error(error)
-      setStatus(saveStatus, `Wi-Fi設定を消去できませんでした: ${errorDetail(error)}`, 'error')
+      setStatus(
+        saveStatus,
+        translateText('Wi-Fi設定を消去できませんでした: {error}', { error: errorDetail(error) }),
+        'error'
+      )
     } finally {
       submitting = false
       clearWiFiButton.disabled = !client.isConnected()
@@ -159,11 +166,11 @@ export function initializePreferencePage({
       }
     }
     if (Object.keys(payload).length === 0) {
-      setStatus(saveStatus, '変更する項目がありません。')
+      setStatus(saveStatus, translateText('変更する項目がありません。'))
       return
     }
     submitButton.disabled = true
-    setStatus(saveStatus, '保存中…')
+    setStatus(saveStatus, translateText('保存中…'))
     submitting = true
     try {
       await client.send({ _batch: payload })
@@ -171,10 +178,10 @@ export function initializePreferencePage({
         currentValues.set(prop, value)
         dirtyProps.delete(prop)
       }
-      setStatus(saveStatus, '設定を送信しました。', 'success')
+      setStatus(saveStatus, translateText('設定を送信しました。'), 'success')
     } catch (error) {
       console.error(error)
-      setStatus(saveStatus, `保存できませんでした: ${errorDetail(error)}`, 'error')
+      setStatus(saveStatus, translateText('保存できませんでした: {error}', { error: errorDetail(error) }), 'error')
     } finally {
       submitting = false
       submitButton.disabled = !client.isConnected()
@@ -186,7 +193,7 @@ export function initializePreferencePage({
     currentValues.clear()
     dirtyProps.clear()
     readOnlyProps.clear()
-    setStatus(saveStatus, '接続が切れました。保存されていない項目を確認してください。', 'warning')
+    setStatus(saveStatus, translateText('接続が切れました。保存されていない項目を確認してください。'), 'warning')
     updateView()
   }
 
@@ -196,5 +203,8 @@ export function initializePreferencePage({
 }
 
 if (globalThis.document != null) {
-  globalThis.document.addEventListener('DOMContentLoaded', () => initializePreferencePage())
+  globalThis.document.addEventListener('DOMContentLoaded', async () => {
+    await i18nReady
+    initializePreferencePage()
+  })
 }

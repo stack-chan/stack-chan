@@ -6,6 +6,7 @@ import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-state'
 import { type HandAnimationName, isHandAnimationName } from 'hands'
 import type { MotionType } from 'imu'
+import { localize } from 'localization'
 import config from 'mc/config'
 import type { Content as PiuContent } from 'piu/MC'
 import { randomBetween, wait } from 'stackchan-util'
@@ -54,12 +55,12 @@ function errorMessage(error: unknown): string {
 export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreated']> = (robot) => {
   const emotions: Emotion[] = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
   const emotionOptions = [
-    { value: String(Emotion.NEUTRAL), label: '通常' },
-    { value: String(Emotion.HAPPY), label: 'うれしい' },
-    { value: String(Emotion.ANGRY), label: '怒り' },
-    { value: String(Emotion.SAD), label: '悲しい' },
-    { value: String(Emotion.HOT), label: '暑い' },
-    { value: String(Emotion.SLEEPY), label: '眠い' },
+    { value: String(Emotion.NEUTRAL), label: localize('drawer.emotion.neutral') },
+    { value: String(Emotion.HAPPY), label: localize('drawer.emotion.happy') },
+    { value: String(Emotion.ANGRY), label: localize('drawer.emotion.angry') },
+    { value: String(Emotion.SAD), label: localize('drawer.emotion.sad') },
+    { value: String(Emotion.HOT), label: localize('drawer.emotion.hot') },
+    { value: String(Emotion.SLEEPY), label: localize('drawer.emotion.sleepy') },
   ]
   let speechVisible = false
   let emoticonEffect: PiuContent | null = null
@@ -178,13 +179,13 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   }
   robot.drawer.addDrawerButton({
     key: 'toggleFace',
-    label: '顔',
+    label: localize('drawer.face'),
     kind: 'choice',
     value: faceMode,
     options: [
-      { value: 'simple', label: 'シンプル' },
-      { value: 'dog', label: 'いぬ' },
-      { value: 'image', label: '画像' },
+      { value: 'simple', label: localize('drawer.face.simple') },
+      { value: 'dog', label: localize('drawer.face.dog') },
+      { value: 'image', label: localize('drawer.face.image') },
     ],
     callback: (target, value) => {
       if (value !== 'simple' && value !== 'dog' && value !== 'image') return
@@ -197,7 +198,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   syncFaceMode()
   robot.drawer.addDrawerButton({
     key: 'cycleEmotion',
-    label: '表情',
+    label: localize('drawer.emotion'),
     kind: 'choice',
     value: String(currentEmotion),
     options: emotionOptions,
@@ -226,7 +227,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   })
   robot.drawer.addDrawerButton({
     key: 'toggleSpeech',
-    label: '吹き出し',
+    label: localize('drawer.balloon'),
     kind: 'toggle',
     initialState: speechVisible,
     callback: (target) => {
@@ -348,7 +349,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   if (robot.camera.available !== false) {
     robot.drawer.addDrawerButton({
       key: 'cameraPreview',
-      label: 'カメラ',
+      label: localize('drawer.camera'),
       icon: 'camera',
       callback: (target) => runCameraPreview(target),
     })
@@ -387,7 +388,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   Timer.repeat(targetLoop, 5000)
   robot.drawer.addDrawerButton({
     key: 'toggleLookAround',
-    label: '見回す',
+    label: localize('drawer.lookAround'),
     kind: 'toggle',
     initialState: isFollowing,
     callback: toggleLookAround,
@@ -439,7 +440,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     })
   robot.drawer.addDrawerButton({
     key: 'servoTest',
-    label: 'サーボ',
+    label: localize('drawer.servo'),
     icon: 'play',
     callback: startServoTest,
   })
@@ -522,13 +523,13 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   }
   robot.drawer.addDrawerButton({
     key: 'playTone',
-    label: '音を再生',
+    label: localize('drawer.playSound'),
     icon: 'play',
     callback: runPlayTone,
   })
   robot.drawer.addDrawerButton({
     key: 'recordPlayback',
-    label: '録音と再生',
+    label: localize('drawer.recordAndPlay'),
     icon: 'microphone',
     callback: runRecordPlayback,
   })
@@ -538,8 +539,8 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
    */
   let colorMode: 'dark' | 'light' = 'light'
   const colorOptions = [
-    { value: 'light', label: '白', color: '#ffffff' },
-    { value: 'dark', label: '黒', color: '#000000' },
+    { value: 'light', label: localize('drawer.color.light'), color: '#ffffff' },
+    { value: 'dark', label: localize('drawer.color.dark'), color: '#000000' },
   ]
   function selectColor(_target: typeof robot, value?: string) {
     if (value === 'dark' || value === 'light') applyColor(value)
@@ -547,7 +548,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   const registerColorDrawerButton = () => {
     robot.drawer.addDrawerButton({
       key: 'toggleColor',
-      label: '配色',
+      label: localize('drawer.colorScheme'),
       kind: 'swatch',
       value: colorMode,
       options: colorOptions,

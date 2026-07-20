@@ -15,6 +15,8 @@
     "chat-status-bar": "./components/status-bar/chat-status-bar",
     "ui-controls": "./components/foundation/controls",
     "ui-theme": "./components/foundation/theme",
+    "localization": "./localization",
+    "localization-core": "./localization-core",
     "common-view": "./views/main/common-view",
     "face-view": "./views/main/face-view",
     "settings-view": "./views/settings/settings-view",

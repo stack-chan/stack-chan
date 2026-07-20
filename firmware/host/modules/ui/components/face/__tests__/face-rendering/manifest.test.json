@@ -5,5 +5,8 @@
   ],
   "modules": {
     "main": "./face-rendering.test"
+  },
+  "creation": {
+    "stack": 512
   }
 }

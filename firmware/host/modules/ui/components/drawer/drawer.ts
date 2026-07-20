@@ -1,3 +1,4 @@
+import { localize } from 'localization'
 import {
   Column,
   Container,
@@ -12,7 +13,7 @@ import {
 } from 'piu/MC'
 import Timeline from 'piu/Timeline'
 import { type IconName, IconView } from 'ui-controls'
-import { UI } from 'ui-theme'
+import { UI, uiFont } from 'ui-theme'
 
 export type { IconName } from 'ui-controls'
 
@@ -47,15 +48,18 @@ type DrawerSkins = {
 }
 
 let cachedSkins: DrawerSkins | null = null
+let cachedFont = ''
 
 function getDrawerSkins(): DrawerSkins {
-  if (cachedSkins) return cachedSkins
+  const font = uiFont()
+  if (cachedSkins && cachedFont === font) return cachedSkins
+  cachedFont = font
   cachedSkins = {
     scrollerSkin: new Skin({ fill: UI.colors.surface }),
     drawerSkin: new Skin({ fill: UI.colors.surface }),
     drawerButtonSkin: new Skin({ fill: UI.colors.surface }),
     drawerButtonPressedSkin: new Skin({ fill: UI.colors.surfacePressed }),
-    drawerButtonStyle: new Style({ font: 'k8x12-12', color: UI.colors.text, horizontal: 'left' }),
+    drawerButtonStyle: new Style({ font, color: UI.colors.text, horizontal: 'left' }),
     toggleOnSkin: new Skin({ fill: UI.colors.success }),
     toggleOffSkin: new Skin({ fill: UI.colors.disabled }),
   }
@@ -262,7 +266,7 @@ const DrawerChoiceBack = Container.template(() => {
         right: 12,
         top: 0,
         bottom: 0,
-        string: '< 戻る',
+        string: localize('drawer.back'),
         style: skins.drawerButtonStyle,
       }),
     ],

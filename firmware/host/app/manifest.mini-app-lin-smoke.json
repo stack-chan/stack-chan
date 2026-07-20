@@ -1,0 +1,6 @@
+{
+  "include": [
+    "./__tests__/mini-app-lin-smoke/manifest.test.json",
+    "./manifest.json"
+  ]
+}

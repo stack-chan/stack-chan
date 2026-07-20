@@ -292,8 +292,11 @@ async function inspectViewport(page, name, width, height) {
     await page.screenshot({ path: '/tmp/stackchan-main.png', fullPage: true })
     await savePiuScreen('main-menu-hidden')
     await touchPiu(160, 120)
+    const appBarSignature = await screenSignature()
+    assert.notEqual(appBarSignature, menuHiddenSignature, 'face touch must reveal the AppBar actions')
+    await touchPiu(298, 22)
     const drawerSignature = await screenSignature()
-    assert.notEqual(drawerSignature, menuHiddenSignature, 'face touch must open the drawer after the menu button hides')
+    assert.notEqual(drawerSignature, appBarSignature, 'the revealed menu button must open the drawer')
     await page.screenshot({ path: '/tmp/stackchan-drawer.png', fullPage: true })
     await savePiuScreen('drawer')
 
@@ -342,6 +345,7 @@ async function inspectViewport(page, name, width, height) {
     )
 
     await touchPiu(160, 120)
+    await touchPiu(298, 22)
     await touchPiu(220, 26)
     const faceMenuSignature = await screenSignature()
     assert.notEqual(faceMenuSignature, drawerSignature, 'face mode must open an option menu')

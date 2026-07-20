@@ -13,6 +13,12 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
+      "piu/MC": [
+        "./node_modules/@moddable/typings/piu/MC.d.ts"
+      ],
+      "piu/*": [
+        "./node_modules/@moddable/typings/piu/*"
+      ],
       "camera": [
         "host/modules/camera/wasm/camera.ts"
       ],

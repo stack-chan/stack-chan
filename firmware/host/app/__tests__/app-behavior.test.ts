@@ -81,3 +81,17 @@ test('resolveAppBehaviors falls back to default launch when MOD only handles con
   assert.equal(behavior.onLaunch, defaultLaunch)
   assert.equal(behavior.onContextCreated, modContextCreated)
 })
+
+test('resolveAppBehaviors never imports a host-realm MOD when overrides are disabled', async () => {
+  installBareSpecifierPackages()
+  const { resolveAppBehaviors } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
+  const defaultBehavior: AppBehavior = { onLaunch: () => true }
+  const modules: AppBehaviorModules = {
+    has: () => true,
+    importNow: () => {
+      throw new Error('disabled MOD overrides must not be imported')
+    },
+  }
+
+  assert.deepEqual(resolveAppBehaviors(modules, defaultBehavior, { allowModOverride: false }), [defaultBehavior])
+})

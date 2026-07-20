@@ -17,6 +17,13 @@ export const TOOL_NAVIGATION_ITEMS = Object.freeze([
     icon: 'sliders-horizontal',
   },
   {
+    id: 'mod-gallery',
+    href: 'mod-gallery/',
+    label: 'MOD Gallery',
+    description: '公開済みMODを試して編集する',
+    icon: 'store',
+  },
+  {
     id: 'simulator',
     href: 'simulator/',
     label: 'シミュレーター',
@@ -54,6 +61,7 @@ export function navigationItemForPath(pathname) {
   if (/\/editor\/tutorial\.html$/.test(normalized)) return 'tutorial'
   if (/\/face-editor\/?$/.test(normalized)) return 'face-editor'
   if (/\/editor\/?$/.test(normalized)) return 'editor'
+  if (/\/mod-gallery\/?$/.test(normalized)) return 'mod-gallery'
   if (/\/simulator\/?$/.test(normalized)) return 'simulator'
   if (/\/preference\/?$/.test(normalized)) return 'preference'
   if (/\/flash\/?$/.test(normalized)) return 'flash'

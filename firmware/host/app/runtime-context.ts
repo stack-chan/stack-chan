@@ -549,6 +549,9 @@ export class StackchanRuntimeContext implements StackchanContext {
       get controller() {
         return context.#uiRuntime.ui
       },
+      get miniApps() {
+        return context.#uiRuntime.ui.miniApps
+      },
       update(interval, faceState) {
         context.#uiRuntime.ui.update(interval, faceState)
       },

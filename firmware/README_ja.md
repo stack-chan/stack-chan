@@ -61,6 +61,7 @@ MOD の開発だけを繰り返す場合は `npm run mod -- mods/examples/look_a
 - [プログラムのビルドと書き込み](docs/flashing-firmware_ja.md)
 - [API](docs/api_ja.md)
 - [MOD](mods/README_ja.md)
+- [ミニアプリ（experimental）](docs/mini-apps_ja.md)
 
 - [Webブラウザからのファームウェア書き込み](docs/flashing-firmware-web_ja.md)
 - [Webブラウザからの設定変更](docs/setting-preferences-web_ja.md)

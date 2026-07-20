@@ -10,6 +10,8 @@
   ],
   "modules": {
     "app-controller": "./application/app-controller",
+    "mini-app": "./application/mini-app",
+    "mini-app-launcher": "./views/mini-app/mini-app-launcher",
     "chat-status-bar": "./components/status-bar/chat-status-bar",
     "ui-controls": "./components/foundation/controls",
     "ui-theme": "./components/foundation/theme",

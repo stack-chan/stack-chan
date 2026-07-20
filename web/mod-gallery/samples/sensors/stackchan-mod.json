@@ -1,0 +1,17 @@
+{
+  "$schema": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 1,
+  "id": "tech.stackchan.samples.block-sensors",
+  "version": "1.0.0",
+  "type": "block",
+  "name": "センサーとLED",
+  "description": "本体を振るとLEDを虹色にし、頭部をスワイプすると吹き出しを表示します。",
+  "author": "Stack-chan Community",
+  "license": "Apache-2.0",
+  "source": {
+    "path": "sensors.stackchan-blocks.json"
+  },
+  "targets": ["m5stackchan-cores3"],
+  "capabilities": ["input.imu", "input.headTouch", "lighting", "ui.drawer"]
+}

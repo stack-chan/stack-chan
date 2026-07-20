@@ -110,7 +110,7 @@ export const VISUAL_SAMPLES = Object.freeze([
             x: 24,
             y: 24,
             fields: { MOTION: 'shake' },
-            inputs: { DO: { block: { type: 'stackchan_light_rainbow', fields: { NAME: 'a' } } } },
+            inputs: { DO: { block: { type: 'stackchan_light_rainbow', fields: { NAME: 'head' } } } },
           },
           {
             type: 'stackchan_on_head_touch',

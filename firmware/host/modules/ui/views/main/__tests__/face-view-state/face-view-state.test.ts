@@ -55,6 +55,11 @@ type DrawerControllerCalls = {
 function createDrawerTestUI(calls: DrawerControllerCalls) {
   const actions = new Map<string, () => void>()
   return {
+    miniApps: {
+      register() {
+        return () => {}
+      },
+    },
     update(_interval: number, _face: FaceState) {},
     addEffect(_effect: unknown) {},
     removeEffect(_effect: unknown) {},

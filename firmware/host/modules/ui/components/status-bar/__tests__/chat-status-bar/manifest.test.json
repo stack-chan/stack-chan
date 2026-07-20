@@ -8,5 +8,15 @@
   ],
   "modules": {
     "main": "./chat-status-bar.test"
+  },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../../assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../../assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      }
+    ]
   }
 }

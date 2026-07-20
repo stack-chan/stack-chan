@@ -1,0 +1,36 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../../manifest.json",
+    "../../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./mini-app.test"
+  },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      }
+    ]
+  },
+  "creation": {
+    "static": 110592,
+    "chunk": {
+      "initial": 2048,
+      "incremental": 512
+    },
+    "heap": {
+      "initial": 768,
+      "incremental": 128
+    },
+    "stack": 512,
+    "keys": {
+      "available": 512
+    }
+  }
+}

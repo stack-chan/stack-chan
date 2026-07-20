@@ -27,6 +27,12 @@
       "app-controller": [
         "./host/modules/ui/application/app-controller"
       ],
+      "mini-app": [
+        "./host/modules/ui/application/mini-app"
+      ],
+      "mini-app-launcher": [
+        "./host/modules/ui/views/mini-app/mini-app-launcher"
+      ],
       "capabilities": [
         "./host/app/capabilities"
       ],

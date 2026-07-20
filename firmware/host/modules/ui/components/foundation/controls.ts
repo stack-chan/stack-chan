@@ -3,6 +3,7 @@ import { Container, Label, Port } from 'piu/MC'
 import { UI, uiStyles } from 'ui-theme'
 
 export type IconName =
+  | 'apps'
   | 'back'
   | 'camera'
   | 'close'
@@ -65,6 +66,16 @@ function drawIcon(port: PiuPort, icon: IconName, color: string) {
   const cx = Math.floor(w / 2)
   const cy = Math.floor(h / 2)
   switch (icon) {
+    case 'apps':
+      for (const [dx, dy] of [
+        [-8, -8],
+        [2, -8],
+        [-8, 2],
+        [2, 2],
+      ] as const) {
+        port.fillColor(color, cx + dx, cy + dy, 7, 7)
+      }
+      return
     case 'menu':
       for (const y of [cy - 7, cy - 1, cy + 5]) port.fillColor(color, cx - 9, y, 18, 3)
       return

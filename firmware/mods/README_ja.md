@@ -19,6 +19,9 @@ WASM host で使う MOD も、`lin` など TypeScript 対応済み target で bu
 表示文字列は [`context.i18n` を使った firmware のローカライズ](../docs/localization_ja.md)を参照してください。
 最小サンプルは [`localized_drawer`](./examples/localized_drawer/) です。
 
+顔画面とホストの AppBar を維持したまま Piu UI を追加する場合は、experimental の[ミニアプリ](../docs/mini-apps_ja.md)を利用できます。
+実装例は [mini_app_sample](./examples/mini_app_sample/) にあります。
+
 ## M5StackChan CoreS3 Smoke
 
 - [m5stackchan_smoke](./examples/m5stackchan_smoke/): M5StackChan CoreS3 のサーボ電源とヘッドLEDの smoke 確認です。手順は [M5StackChan CoreS3 smoke check](../docs/m5stackchan-cores3-smoke.md) を参照してください。

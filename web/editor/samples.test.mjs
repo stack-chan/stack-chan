@@ -36,3 +36,12 @@ test('five representative samples have unique ids and buildable workspace struct
   }
   assert.equal(sampleById('missing'), VISUAL_SAMPLES[0])
 })
+
+test('sensor sample targets the CoreS3 head LED', () => {
+  const sensorBlocks = sampleById('sensors').workspace.blocks.blocks
+  const imuBlock = sensorBlocks.find((block) => block.type === 'stackchan_on_imu')
+  const rainbowBlock = imuBlock?.inputs?.DO?.block
+
+  assert.equal(rainbowBlock?.type, 'stackchan_light_rainbow')
+  assert.equal(rainbowBlock?.fields?.NAME, 'head')
+})

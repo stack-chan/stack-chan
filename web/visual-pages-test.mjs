@@ -462,6 +462,7 @@ try {
         await page.waitForURL(/\/face-editor\/?\?face-edit=project/)
         await page.goBack({ waitUntil: 'domcontentloaded' })
         await page.waitForURL(/\/editor\/?$/)
+        await page.waitForFunction(() => document.querySelector('#edit-face-button')?.disabled === false)
         assert.equal(await page.locator('#edit-face-button').isEnabled(), true)
 
         await page.locator('.tool-menu-button').click()

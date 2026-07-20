@@ -216,10 +216,11 @@ function createPreferencePage() {
   const saveStatus = new FakeElement({ id: 'save-status' })
   const ssid = new FakeElement({ id: 'wifi.ssid', name: 'wifi.ssid' })
   const password = new FakeElement({ id: 'wifi.password', name: 'wifi.password' })
+  const language = new FakeElement({ id: 'ui.language', name: 'ui.language' })
   const driverType = new FakeElement({ id: 'driver.type', name: 'driver.type' })
   const aiToken = new FakeElement({ id: 'ai.token', name: 'ai.token' })
   driverType.value = 'm5stackchan'
-  form.controls = [ssid, password, driverType, aiToken, clear, submit]
+  form.controls = [ssid, password, language, driverType, aiToken, clear, submit]
   const document = new FakeDocument([
     form,
     connect,
@@ -230,10 +231,11 @@ function createPreferencePage() {
     saveStatus,
     ssid,
     password,
+    language,
     driverType,
     aiToken,
   ])
-  return { document, form, submit, clear, saveStatus, ssid, password, driverType, aiToken }
+  return { document, form, submit, clear, saveStatus, ssid, password, language, driverType, aiToken }
 }
 
 test('preference page displays and locks the effective M5StackChan driver reported over BLE', () => {
@@ -332,6 +334,35 @@ test('Wi-Fi clear safely reports a null rejection and restores controls', async 
   assert.match(page.saveStatus.textContent, /Wi-Fi設定を消去できませんでした: null/)
   assert.equal(page.clear.disabled, false)
   assert.equal(page.submit.disabled, false)
+})
+
+test('preference actions localize runtime messages and save the selected device language', async () => {
+  const page = createPreferencePage()
+  const client = new FakePreferenceClient()
+  const translate = (source, params = {}) =>
+    `localized:${source.replace('{error}', Object.hasOwn(params, 'error') ? String(params.error) : '{error}')}`
+  let confirmation = ''
+  initializePreferencePage({
+    document: page.document,
+    client,
+    translate,
+    confirm: (message) => {
+      confirmation = message
+      return false
+    },
+  })
+
+  await page.clear.click()
+  assert.equal(
+    confirmation,
+    'localized:保存済みのSSIDとパスワードを消去しますか？次回はオフラインで起動します。'
+  )
+
+  page.language.value = 'en'
+  await page.form.dispatch('change', page.language)
+  await page.form.dispatch('submit')
+  assert.deepEqual(client.messages, [{ _batch: { 'ui.language': 'en' } }])
+  assert.equal(page.saveStatus.textContent, 'localized:設定を送信しました。')
 })
 
 test('shared controls preserve the native hidden state', () => {

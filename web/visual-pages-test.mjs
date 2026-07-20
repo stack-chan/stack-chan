@@ -98,6 +98,7 @@ try {
   })
   const page = await browser.newPage({ acceptDownloads: true })
   await page.addInitScript(() => {
+    localStorage.setItem('stackchan.locale', 'ja')
     if (!('serial' in navigator)) {
       Object.defineProperty(navigator, 'serial', {
         configurable: true,
@@ -461,6 +462,7 @@ try {
         await page.waitForURL(/\/face-editor\/?\?face-edit=project/)
         await page.goBack({ waitUntil: 'domcontentloaded' })
         await page.waitForURL(/\/editor\/?$/)
+        await page.waitForFunction(() => document.querySelector('#edit-face-button')?.disabled === false)
         assert.equal(await page.locator('#edit-face-button').isEnabled(), true)
 
         await page.locator('.tool-menu-button').click()
@@ -472,6 +474,12 @@ try {
         assert.equal(Number(await page.locator('#left-eye-y').inputValue()), draggedLeftY)
         assert.match(await page.locator('#face-status').innerText(), /MODプロジェクトから読み込みました/)
         assert.equal(await page.locator('#send-to-editor span').innerText(), '変更を反映')
+        await page.evaluate(() => import('/i18n.mjs').then(({ setLocale }) => setLocale('en')))
+        assert.equal(await page.locator('#send-to-editor span').innerText(), 'Apply Changes')
+        assert.equal(await page.locator('#send-to-editor').getAttribute('title'), 'Apply changes to the MOD and return')
+        await page.evaluate(() => import('/i18n.mjs').then(({ setLocale }) => setLocale('ja')))
+        assert.equal(await page.locator('#send-to-editor span').innerText(), '変更を反映')
+        assert.equal(await page.locator('#send-to-editor').getAttribute('title'), '変更をMODへ反映して戻る')
         await page.locator('#face-name').fill('編集後のあつい顔')
         await page.locator('#face-emotion').selectOption('SAD')
         await page.locator('#left-eye-x').fill('76')

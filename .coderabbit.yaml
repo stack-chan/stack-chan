@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+reviews:
+  path_instructions:
+    - path: "**/*.test.*"
+      instructions: |
+        Apply the test-design rules in AGENTS.md. Flag tests that read production
+        source as text only to re-assert constants, configuration values, or
+        implementation fragments. Do not flag relational invariants,
+        generated-artifact validation, dependency-boundary checks, documented
+        tombstones, or cases where source structure is the maintained contract.
+    - path: "**/*.architecture.*"
+      instructions: |
+        Apply the test-design rules in AGENTS.md. Flag tests that read production
+        source as text only to re-assert constants, configuration values, or
+        implementation fragments. Do not flag relational invariants,
+        generated-artifact validation, dependency-boundary checks, documented
+        tombstones, or cases where source structure is the maintained contract.

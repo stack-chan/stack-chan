@@ -1,0 +1,24 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "./device.manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "Resource": "./resource-stub",
+    "calculate-power": "../../../testing/fakes/calculate-power",
+    "embedded:io/audio/out": "./audio-out-stub",
+    "main": "./stackchan-voice-device.test",
+    "pins/audioout": "../../../testing/fakes/audio-out",
+    "stackchan-voice-test-state": "./test-state",
+    "stackchanvoice": "./stackchanvoice-stub"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

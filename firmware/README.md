@@ -4,83 +4,60 @@
 
 ## NOTE
 
+* __To those who arrived here looking for AI Stack-chan__ You may not find the information you're looking for here! "AI Stack-chan" is an Arduino-based application under development, primarily by @robo8080.
+    * https://github.com/robo8080/AI_StackChan2
 * The firmware part is under active development. Breaking changes to the API may occur.
-* We are currently working on [issue](https://github.com/meganetaaan/stack-chan/issues/65) to make install steps more user friendly. Please post your feedback if any problem.
+* We are currently working on [issue](https://github.com/stack-chan/stack-chan/issues/65) to make install steps more user friendly. Please post your feedback if any problem.
 * If you are friendly with Arduino IDE, [stack-chan-tester](https://github.com/mongonta0716/stack-chan-tester) by @mongonta0716 is another option to try (only for PWM servo).
 
-## Prerequisites
+## Features
 
-* Host computer
-    * Tested on Linux(Ubuntu 20.04)
-* M5Stack Basic
-* USB type-C cable
-* [ModdableSDK](https://github.com/Moddable-OpenSource/moddable)
-    * See [Getting Started Doc](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/Moddable%20SDK%20-%20Getting%20Started.md)
-* Node.js
+* Programming possible using JavaScript
+* Supports multiple types of servo motors (Feetech, FUTABA, DYNAMIXEL, PWM servo)
+* Supports cloud-based text-to-speech (VOICEVOX, ElevenLabs)
+* Designed with separate host program and user applications (MODs). Flashing only MODs is very fast, allowing for an efficient development cycle.
+* [Supports firmware flashing from a web browser](docs/flashing-firmware-web_ja.md)
 
-### (Optional) Using Docker Image
+## First commands
 
-This repository provides the build environment by Dockerfile. You can build, write and debug the firmware inside the Docker container. See [the instruction below](#optional-build-and-launch-docker-container).
+The standard firmware target is M5StackChan CoreS3.
+If this is your first time, start with:
 
-## How to Build and Flash Firmware
-
-### Clone this repo with submodules
-
-```
-git clone --recursive https://github.com/meganetaaan/stack-chan.git
-cd stack-chan/firmware
+```console
+$ npm i
+$ npm run setup
+$ npm run doctor
+$ npm run flash
 ```
 
-### (Optional) Build and Launch Docker Container
+`npm run flash` builds and flashes the standard host.
+For Stack-chan RT or the Takao Core2 + SG90 build, use `npm run flash:stackchan_rt` or `npm run flash:takao_core2_sg90`.
+When iterating on a MOD, pass the MOD manifest: `npm run mod -- mods/examples/look_around/manifest.json`.
 
-#### Using terminal
+## Build output
 
-```
-$user@host# ./build-container.sh
-$user@host# ./launch-container.sh
-$root@container# npm install
-```
+Use the repository npm scripts for firmware development. They manage the Moddable output directory and keep normal host, MOD, and test build artifacts under `firmware/dist/`:
 
-#### Using VSCode Development Container (devcontainer)
+- Programs are written under `firmware/dist/bin/` and intermediate files under `firmware/dist/tmp/`.
+- The host application name is `stack-chan-host`.
+- `npm run clean` removes all generated files under `firmware/dist/`.
+- Do not pass a custom `-o` or invoke `mcconfig`, `mcrun`, or `mcpack` directly when using the repository workflow.
+- `npm run bundle` is the exception: standard-device intermediate builds created by `mcbundle` remain under `$MODDABLE/build/`. The Stack-chan-specific bundle target still uses `firmware/dist/`.
 
-* Open command palette
-* Type and run `>Remote-Containers: Reopen in Container`
+See [Building and Writing Programs](docs/flashing-firmware.md) for target-specific commands and detailed output paths.
 
-### Connect Stack-chan to Your Host Computer
+## Directory structure
 
-![connect](./docs/images/connect.jpg)
+- [host](./host/): Host application and firmware modules.
+- [mods](./mods/): Source code of mods.
+- [scripts](./scripts/): Scripts for Stack-chan's voice synthesis, etc.
+- [typings](./typings/): TypeScript type definition files (d.ts).
+    - Stack-chan firmware is implemented in TypeScript, so no separate type definition files are needed.
+- `dist/`: Generated firmware programs and intermediate build files. This directory is managed by the build scripts and ignored by Git.
 
-### Build and Flash (w/o debug function)
+## Documents
 
-```sh
-# For M5Stack Basic/Gray/Fire
-npm run deploy
-
-# For M5Stack CORE2
-npm run deploy:m5stack_core2
-```
-
-### Build, Flash and Debug
-
-```sh
-# For M5Stack Basic/Gray/Fire
-npm run debug
-
-# For M5Stack CORE2
-npm run debug:m5stack_core2
-```
-
-This command flashes debug build to Stack-chan and launches `xsbug`, the debugger of ModdableSDK.
-See [xsbug(the official docs)](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md) for further details.
-
-## Default App Usage
-
-* __Button-A__: Show messages on balloon
-* __Button-B__: Hide messages 
-* __Button-C__: Toggle move/stop
-
-## API
-
-### TTS
-
-See [text-to-speech.md](./docs/text-to-speech.md)
+- [Building Environment](docs/getting-started.md)
+- [Building and Writing Programs](docs/flashing-firmware.md)
+- [API](docs/api.md)
+- [MOD](mods/README.md)

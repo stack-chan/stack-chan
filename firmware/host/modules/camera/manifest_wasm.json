@@ -1,0 +1,9 @@
+{
+  "include": ["./manifest.json"],
+  "modules": {
+    "camera": "./wasm/camera",
+    "wasm-camera-bridge": "./wasm/camera-bridge",
+    "camera-preview": "./wasm/camera-preview",
+    "runtime-bitmap-port": "../ui/views/camera-preview/runtime-bitmap-port"
+  }
+}

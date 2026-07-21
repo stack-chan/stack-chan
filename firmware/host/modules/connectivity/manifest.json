@@ -1,0 +1,103 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODULES)/network/net/manifest.json",
+    "$(MODULES)/network/socket/manifest.json",
+    "$(MODULES)/network/sntp/manifest.json",
+    "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
+    "$(MODULES)/network/ble/manifest_server.json",
+    "$(MODULES)/network/ble/manifest_client.json",
+    "$(MODULES)/network/mdns/manifest.json",
+    "../util/manifest.json",
+    "../preferences/manifest.json",
+    "./http-server/manifest.json",
+    "./mcp-server/manifest.json",
+    "./mcp-client/manifest.json",
+    "../../app/manifest_typings.json"
+  ],
+  "modules": {
+    "*": [
+      "./*",
+      "$(MODULES)/network/ble/uart/uartserver",
+      "../../../typings/uartserver"
+    ],
+    "stk-server": "./ble/stk-server",
+    "beacon-packet": "./ble/beacon-packet",
+    "ecma-wifi": "./ecma-wifi",
+    "fake-wifi-scan-results": "./fake-wifi-scan-results",
+    "local-peer-capability": "./sim/local-peer-capability",
+    "local-peer-codec": "./local-peer-codec",
+    "local-peer-frame": "./local-peer-frame",
+    "local-peer-radio-types": "./local-peer-radio-types",
+    "local-peer-service": "./local-peer-service",
+    "local-peer-types": "./local-peer-types",
+    "wifi-scan": "./wifi-scan",
+    "wifi-scan-types": "./wifi-scan-types",
+    "stored-wifi": "./stored-wifi"
+  },
+  "preload": ["stk-server", "beacon-packet"],
+  "ble": {
+    "*": ["$(MODULES)/network/ble/uart/bleservices/*"]
+  },
+  "platforms": {
+    "esp32": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "modules": {
+        "local-peer-capability": "./local-peer-capability",
+        "local-peer-radio": "./esp32/local-peer-radio"
+      }
+    },
+    "esp32/m5stack": {
+      "include": ["./manifest_local_peer_unsupported.json"]
+    },
+    "esp": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "modules": {
+        "~": "./local-peer-capability"
+      }
+    },
+    "pico": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "modules": {
+        "~": "./local-peer-capability"
+      }
+    },
+    "zephyr": {
+      "include": ["$(MODULES)/io/wifi/manifest.json"],
+      "modules": {
+        "~": "./local-peer-capability"
+      }
+    },
+    "mac": {
+      "modules": {
+        "~": "./local-peer-capability",
+        "ecma-wifi": "./sim/ecma-wifi"
+      }
+    },
+    "lin": {
+      "modules": {
+        "~": "./local-peer-capability",
+        "ecma-wifi": "./sim/ecma-wifi"
+      }
+    },
+    "win": {
+      "modules": {
+        "~": "./local-peer-capability",
+        "ecma-wifi": "./sim/ecma-wifi"
+      }
+    },
+    "wasm": {
+      "modules": {
+        "~": "./local-peer-capability"
+      }
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

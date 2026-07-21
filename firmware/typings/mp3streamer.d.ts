@@ -1,0 +1,31 @@
+declare module "mp3streamer" {
+  import type AudioOut from "pins/audioout"
+  import type HTTPClient from "embedded:network/http/client";
+  type MP3StreamerOptions = {
+    protocol?: "http" | "https",
+    http: typeof HTTPClient.constructor
+    host: string,
+    port: number,
+    path: string,
+    reconnect?: boolean,
+    audio: {
+      out: AudioOut,
+      sampleRate?: number,
+      stream: number,
+    },
+    request?: any,
+    onPlayed?: (buffer: ArrayBuffer) => void
+    onReady?: (state: boolean) => void
+    onError?: (message: string) => void
+    onDone?: () => void
+  }
+  export default class MP3Streamer {
+    constructor(options: MP3StreamerOptions);
+    close(): void;
+  }
+}
+
+declare module "buffered-mp3streamer" {
+  import MP3Streamer from "mp3streamer"
+  export default MP3Streamer
+}

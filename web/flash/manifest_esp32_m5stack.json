@@ -1,0 +1,23 @@
+{
+  "name": "Stack-chan",
+  "version": "1.0.0",
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "tech.moddable.stackchan/com.m5stack/bootloader.bin",
+          "offset": 4096
+        },
+        {
+          "path": "tech.moddable.stackchan/com.m5stack/partition-table.bin",
+          "offset": 32768
+        },
+        {
+          "path": "tech.moddable.stackchan/com.m5stack/xs_esp32.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}

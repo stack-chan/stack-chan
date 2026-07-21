@@ -1,0 +1,49 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": false,
+    "clientKind": "git",
+    "useIgnoreFile": false
+  },
+  "files": {
+    "includes": [
+      "host/**",
+      "mods/**",
+      "scripts/**",
+      "!host/modules/camera/wasm/runtime-bitmap-port.js",
+      "!host/modules/audio/wasm/audio-bridge.js",
+      "!host/modules/camera/wasm/camera-bridge.js"
+    ],
+    "ignoreUnknown": false
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noSwitchDeclarations": "off"
+      },
+      "style": {
+        "useNodejsImportProtocol": "off"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded",
+      "lineWidth": 120
+    }
+  },
+  "json": {
+    "formatter": {
+      "lineWidth": 80
+    }
+  }
+}

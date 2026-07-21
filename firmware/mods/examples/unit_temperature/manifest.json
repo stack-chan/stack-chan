@@ -1,0 +1,7 @@
+{
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "modules": {
+    "*": "./mod",
+    "embedded:sensor/Humidity-Temperature/SHT3x": "$(MODDABLE)/modules/drivers/sensors/sht3x/sht3x"
+  }
+}

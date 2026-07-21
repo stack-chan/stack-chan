@@ -1,0 +1,26 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../app/manifest_typings.json",
+    "../../../vendor/stackchan-voice/manifest.json"
+  ],
+  "modules": {
+    "audio-buffer": "./audio-buffer",
+    "wasm-audio-bridge": "./wasm/audio-bridge",
+    "wasm-audio-bridge-contract": "./wasm/audio-bridge-contract",
+    "speaker": "./wasm/speaker",
+    "microphone": "./wasm/microphone",
+    "audio-in": "./wasm/audio-in",
+    "tts-types": "./tts-types",
+    "tts-local": "./wasm/tts-local",
+    "tts-remote": "./wasm/tts-remote",
+    "tts-voicevox": "./wasm/tts-voicevox",
+    "tts-voicevox-web": "./wasm/tts-voicevox-web",
+    "tts-elevenlabs": "./wasm/tts-elevenlabs",
+    "tts-openai": "./wasm/tts-openai",
+    "tts-stackchan-voice": "./wasm/tts-stackchan-voice",
+    "stackchan-voice-wav": "./wasm/stackchan-voice-wav",
+    "tts-stub": "./wasm/tts-stub"
+  },
+  "preload": ["wasm-audio-bridge"]
+}

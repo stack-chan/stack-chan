@@ -1,0 +1,26 @@
+{
+  "include": [
+    "../../../../manifest.json",
+    "../../../../../audio/manifest.json",
+    "../../../../../camera/manifest.json",
+    "../../../../../input/manifest.json",
+    "../../../../../motion/manifest.json",
+    "../../../../../testing/manifest.json"
+  ],
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../../assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../../assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      }
+    ]
+  },
+  "modules": {
+    "capabilities": "../../../../../../app/capabilities",
+    "local-peer-types": "../../../../../connectivity/local-peer-types",
+    "runtime-ui": "../../../../../../app/runtime-ui",
+    "main": "./face-view-state.test"
+  }
+}

@@ -1,12 +1,15 @@
 # Stack-chan
 
+[![Build Stack-chan Firmware](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml/badge.svg)](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml)
+[![Discord server invitation](https://img.shields.io/badge/Discord-Join%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/eGhd9adnBm)
+
 [日本語](./README_ja.md)
 
 ![stackchan](./docs/images/stackchan.gif)
 
 Stack-chan is a JavaScript-driven M5Stack-embedded super-kawaii robot.
 
-* Video: https://youtu.be/BOrxkAhvjGE
+* Video (with English subtitles): https://youtu.be/fZb_mF08xV0
 * Official hashtag: [`#stackchan` | `#ｽﾀｯｸﾁｬﾝ` (JP)](https://twitter.com/search?q=%23stackchan%20OR%20%23%EF%BD%BD%EF%BE%80%EF%BD%AF%EF%BD%B8%EF%BE%81%EF%BD%AC%EF%BE%9D).
 
 ## Features
@@ -39,9 +42,29 @@ This repository includes all the component of the robot.
 
 * See [firmware/README.md](./firmware/README.md)
 
+## Development
+
+For contributor-oriented setup and pull request expectations, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+Typical firmware workflow:
+
+```bash
+cd firmware
+npm run setup
+npm run doctor
+npm run test
+npm run flash
+```
+
+Generated web assets under `web/flash` and `web/schematics` are published from the `gh-pages` branch by GitHub Actions. Treat them as deployment outputs, not hand-maintained source files.
+
+## Planning
+
+* Development roadmap: [docs/ROADMAP.md](./docs/ROADMAP.md)
+
 ## Contribution
 
-__Feature requests/Bug reports__ are extremely welcome! See [issues](https://github.com/meganetaaan/stack-chan/issues) page to post some.
+__Feature requests/Bug reports__ are extremely welcome! See [issues](https://github.com/stack-chan/stack-chan/issues) page to post some.
 
 __Wanna be a sponsor__? It would be my great honor. please visit my [sponsor](https://github.com/sponsors/meganetaaan/) page.
 
@@ -49,3 +72,15 @@ __Wanna be a sponsor__? It would be my great honor. please visit my [sponsor](ht
 
 Resources of this repository are distributed under Apache version 2.0 license.
 See [LICENSE](./LICENSE).
+
+## BibTeX
+
+```bibtex
+@misc{stackchan,
+  author       = {Shinya Ishikawa and the Stack-chan community},
+  title        = {Stack-chan: A JavaScript-driven Super-kawaii Robot},
+  year         = {2021},
+  howpublished = {\url{https://github.com/stack-chan/stack-chan}},
+  note         = {Open-source hardware and software.},
+}
+```

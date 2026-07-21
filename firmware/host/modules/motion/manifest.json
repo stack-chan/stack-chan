@@ -1,0 +1,41 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/modules/io/manifest.json",
+    "../util/manifest.json",
+    "../io-expander/manifest.json"
+  ],
+  "modules": {
+    "*": ["./*", "./internal/*"],
+    "protocols/*": "./protocols/*"
+  },
+  "preload": [
+    "motion-controller",
+    "motion-driver-callback",
+    "protocols/dynamixel",
+    "dynamixel-driver",
+    "m5stackchan-servo",
+    "m5stackchan-servo-driver",
+    "none-driver",
+    "protocols/rs30x",
+    "protocols/scservo",
+    "sg90-driver",
+    "rs30x-driver",
+    "scservo-driver",
+    "protocols/dynamixel-codec",
+    "payload-buffer",
+    "internal/single-wait-slot",
+    "internal/servo-command-error"
+  ],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "strictPropertyInitialization": false,
+        "strictFunctionTypes": false
+      }
+    }
+  }
+}

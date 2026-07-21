@@ -1,0 +1,22 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../../../manifest.json",
+    "../../../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./chat-status-bar.test"
+  },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../../assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../../assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      }
+    ]
+  }
+}

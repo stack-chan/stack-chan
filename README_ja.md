@@ -1,12 +1,15 @@
 # ｽﾀｯｸﾁｬﾝ(Stack-chan)
 
+[![ファームウェアのビルド](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml/badge.svg)](https://github.com/stack-chan/stack-chan/actions/workflows/build.yml)
+[![Discordサーバへの招待](https://img.shields.io/badge/Discord-Join%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/eGhd9adnBm)
+
 [English](./README.md)
 
 ![stackchan](./docs/images/stackchan.gif)
 
 ｽﾀｯｸﾁｬﾝはM5Stackで作られた、JavaScriptで動くｽｰﾊﾟｰｶﾜｲｲﾛﾎﾞｯﾄです。
 
-* 動画: https://youtu.be/BOrxkAhvjGE
+* 動画: https://youtu.be/fZb_mF08xV0
 * 公式ハッシュタグ: [`#stackchan` | `#ｽﾀｯｸﾁｬﾝ` (JP)](https://twitter.com/search?q=%23stackchan%20OR%20%23%EF%BD%BD%EF%BE%80%EF%BD%AF%EF%BD%B8%EF%BE%81%EF%BD%AC%EF%BE%9D).
 
 ## 機能
@@ -39,9 +42,29 @@
 
 * [firmware/README_ja.md](./firmware/README_ja.md)を参照ください。
 
+## 開発
+
+開発手順やPull Requestの前提は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。
+
+典型的な firmware 開発フロー:
+
+```bash
+cd firmware
+npm run setup
+npm run doctor
+npm run test
+npm run flash
+```
+
+`web/flash` と `web/schematics` は GitHub Actions から `gh-pages` ブランチへ配布される生成物です。手作業で保守するソースではなく、デプロイ成果物として扱ってください。
+
+## 開発計画
+
+* 開発ロードマップ: [docs/ROADMAP_ja.md](./docs/ROADMAP_ja.md)
+
 ## コントリビューション
 
-__機能追加のリクエスト/バグ報告__ を歓迎します！[issues](https://github.com/meganetaaan/stack-chan/issues)のページから投稿してください。
+__機能追加のリクエスト/バグ報告__ を歓迎します！[issues](https://github.com/stack-chan/stack-chan/issues)のページから投稿してください。
 
 __スポンサーになりたいですか__？光栄です！[sponsor](https://github.com/sponsors/meganetaaan/)のページを参照ください。
 
@@ -49,3 +72,15 @@ __スポンサーになりたいですか__？光栄です！[sponsor](https://g
 
 このリポジトリ配下のリソースはApache version 2.0ライセンスのもと配布されています。
 [LICENSE](./LICENSE)を確認してください。
+
+## BibTeX
+
+```bibtex
+@misc{stackchan,
+  author       = {Shinya Ishikawa and the Stack-chan community},
+  title        = {Stack-chan: A JavaScript-driven Super-kawaii Robot},
+  year         = {2021},
+  howpublished = {\url{https://github.com/stack-chan/stack-chan}},
+  note         = {Open-source hardware and software.},
+}
+```

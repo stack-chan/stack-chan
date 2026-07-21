@@ -1,0 +1,6 @@
+pre-commit:
+  parallel: true
+  commands:
+    check:
+      root: firmware/
+      run: npx biome check --staged --no-errors-on-unmatched --error-on-warnings

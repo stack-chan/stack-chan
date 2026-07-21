@@ -1,5 +1,10 @@
 /node_modules/
-/build/
 /tmp/
-/stackchan/assets/sounds/*.wav
 /scripts/key.json
+/docs/api
+/dist/
+/dist-architecture/
+/dist-tests/
+
+# Bundle file
+/host/app/tech.moddable.stackchan*

@@ -1,0 +1,212 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist-tests",
+    "rootDir": ".",
+    "noEmit": false,
+    "rewriteRelativeImportExtensions": true,
+    "allowJs": false,
+    "allowImportingTsExtensions": false,
+    "checkJs": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "paths": {
+      "piu/MC": [
+        "./node_modules/@moddable/typings/piu/MC.d.ts"
+      ],
+      "piu/*": [
+        "./node_modules/@moddable/typings/piu/*"
+      ],
+      "camera": [
+        "host/modules/camera/wasm/camera.ts"
+      ],
+      "capabilities": [
+        "host/modules/testing/fakes/capabilities.ts"
+      ],
+      "audio-buffer": [
+        "host/modules/audio/audio-buffer.ts"
+      ],
+      "tts-types": [
+        "host/modules/audio/tts-types.ts"
+      ],
+      "audio-in": [
+        "host/modules/testing/fakes/audio-in.ts"
+      ],
+      "pins/audioout": [
+        "host/modules/testing/fakes/audio-out.ts"
+      ],
+      "embedded:io/audio/out": [
+        "host/modules/testing/fakes/audio-out.ts"
+      ],
+      "mp3streamer": [
+        "host/modules/testing/fakes/mp3streamer.ts"
+      ],
+      "buffered-mp3streamer": [
+        "host/modules/testing/fakes/mp3streamer.ts"
+      ],
+      "web-radio-audio-out": [
+        "host/modules/audio/platforms/m5stackchan-cores3/web-radio-audio-out.ts"
+      ],
+      "pcm-resampler": [
+        "host/modules/testing/fakes/pcm-resampler.ts"
+      ],
+      "calculate-power": [
+        "host/modules/testing/fakes/calculate-power.ts"
+      ],
+      "wasm-driver": [
+        "host/modules/motion/wasm/wasm-driver.ts"
+      ],
+      "face-state": [
+        "host/modules/ui/state/face-state.ts"
+      ],
+      "parts/*": [
+        "host/modules/ui/components/face/parts/*"
+      ],
+      "parts/image/image-avatar-pack": [
+        "host/modules/ui/components/face/parts/image/image-avatar-pack.ts"
+      ],
+      "parts/image/image-avatar-state": [
+        "host/modules/ui/components/face/parts/image/image-avatar-state.ts"
+      ],
+      "motion-controller": [
+        "host/modules/motion/motion-controller.ts"
+      ],
+      "microphone": [
+        "host/modules/testing/fakes/microphone-type.ts"
+      ],
+      "speaker": [
+        "host/modules/testing/fakes/speaker-type.ts"
+      ],
+      "imu-motion": [
+        "host/modules/input/imu-motion.ts"
+      ],
+      "imu": [
+        "host/modules/input/imu.ts"
+      ],
+      "led": [
+        "host/modules/lighting/led.ts"
+      ],
+      "touch": [
+        "host/modules/input/touch.ts"
+      ],
+      "touch-panel": [
+        "host/modules/input/touch-panel.ts"
+      ],
+      "touch-panel-gesture": [
+        "host/modules/input/touch-panel-gesture.ts"
+      ],
+      "stored-wifi": [
+        "host/modules/connectivity/stored-wifi.ts"
+      ],
+      "network-service": [
+        "host/modules/connectivity/network-service.ts"
+      ],
+      "network-state": [
+        "host/modules/connectivity/network-state.ts"
+      ],
+      "loadPreference": [
+        "host/modules/preferences/loadPreference.ts"
+      ],
+      "network-manager": [
+        "host/modules/connectivity/__tests__/fakes/network-manager.ts"
+      ],
+      "preference": [
+        "host/modules/testing/fakes/preference.ts"
+      ],
+      "consts": [
+        "host/modules/preferences/consts.ts"
+      ],
+      "modules": [
+        "host/modules/testing/fakes/modules.ts"
+      ],
+      "structuredClone": [
+        "host/modules/testing/fakes/structured-clone.ts"
+      ],
+      "timer": [
+        "host/modules/testing/fakes/timer.ts"
+      ],
+      "uartserver": [
+        "host/modules/connectivity/__tests__/fakes/uartserver.ts"
+      ],
+      "time": [
+        "host/modules/testing/fakes/time.ts"
+      ],
+      "sntp": [
+        "host/modules/connectivity/__tests__/fakes/sntp.ts"
+      ],
+      "embedded:network/interface/wifi": [
+        "host/modules/connectivity/__tests__/fakes/ecma-wifi.ts"
+      ],
+      "ecma-wifi": [
+        "host/modules/connectivity/__tests__/fakes/ecma-wifi.ts"
+      ],
+      "mc/config": [
+        "host/modules/testing/fakes/mc-config.ts"
+      ],
+      "input-event": [
+        "host/modules/input/input-event.ts"
+      ],
+      "startup-splash": [
+        "host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts"
+      ],
+      "setup-mode": [
+        "host/app/default-behavior/__tests__/startup-choice/setup-mode-stub.ts"
+      ],
+      "settings-status-model": [
+        "host/modules/ui/views/settings/settings-status-model.ts"
+      ],
+      "boot-network-recovery": [
+        "host/app/boot-network-recovery.ts"
+      ],
+      "app-behavior-resolver": [
+        "host/app/app-behavior-resolver.ts"
+      ],
+      "app-default-behavior/startup-choice": [
+        "host/app/default-behavior/startup-choice.ts"
+      ],
+      "app-default-behavior/wasm/on-launch": [
+        "host/app/default-behavior/wasm/on-launch.ts"
+      ],
+      "mac-address": [
+        "host/modules/util/sim/mac-address.ts"
+      ],
+      "localization": [
+        "host/modules/testing/fakes/localization.ts"
+      ],
+      "local-peer-capability": [
+        "host/modules/connectivity/sim/local-peer-capability.ts"
+      ],
+      "local-peer-codec": [
+        "host/modules/connectivity/local-peer-codec.ts"
+      ],
+      "local-peer-frame": [
+        "host/modules/connectivity/local-peer-frame.ts"
+      ],
+      "local-peer-radio-types": [
+        "host/modules/connectivity/local-peer-radio-types.ts"
+      ],
+      "local-peer-service": [
+        "host/modules/connectivity/local-peer-service.ts"
+      ],
+      "local-peer-types": [
+        "host/modules/connectivity/local-peer-types.ts"
+      ],
+      "stackchan-util": [
+        "host/modules/util/stackchan-util.ts"
+      ]
+    },
+    "types": [
+      "node",
+      "./node_modules/@moddable/typings/xs"
+    ],
+    "skipLibCheck": true
+  },
+  "include": [
+    "host/**/*.test.ts"
+  ],
+  "exclude": [
+    "host/**/__tests__/*/*.test.ts"
+  ]
+}

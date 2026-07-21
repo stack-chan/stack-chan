@@ -1,0 +1,44 @@
+{
+  "build": {
+    "SUBPLATFORM": "stackchan_rt"
+  },
+  "include": ["$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json"],
+  "modules": {
+    "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
+    "pins/audioout": "../core_s3_audioout"
+  },
+  "config": {
+    "driver": {
+      "type": "dynamixel",
+      "typeLocked": true,
+      "panId": 1,
+      "tiltId": 2,
+      "serial": {
+        "transmit": 7,
+        "receive": 6,
+        "port": 1,
+        "baud": 1000000
+      }
+    },
+    "serial": {
+      "transmit": 7,
+      "receive": 6,
+      "port": 1,
+      "baud": 1000000
+    },
+    "touchIntervalMs": 50,
+    "virtualButton": false
+  },
+  "defines": {
+    "camera": {
+      "xclk": -1,
+      "xclk_freq_hz": 20000000,
+      "scl": -1,
+      "sda": -1,
+      "i2c_port": 1
+    },
+    "ft6206": {
+      "hz": 400000
+    }
+  }
+}

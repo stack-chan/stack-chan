@@ -1,0 +1,37 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json",
+    "../../../../../host/app/manifest_typings.json"
+  ],
+  "modules": {
+    "main": "./dialogue-chatgpt.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "data": {
+    "*": ["$(MODULES)/crypt/data/ca233"]
+  },
+  "config": {
+    "mcp": {}
+  },
+  "creation": {
+    "static": 110592,
+    "chunk": {
+      "initial": 1536,
+      "incremental": 512
+    },
+    "heap": {
+      "initial": 512,
+      "incremental": 64
+    },
+    "stack": 512,
+    "keys": {
+      "available": 512
+    }
+  }
+}

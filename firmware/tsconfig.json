@@ -1,209 +1,245 @@
 {
-	"compilerOptions": {
-		"baseUrl": "./",
-		"forceConsistentCasingInFileNames": true,
-		"module": "esnext",
-		"useDefineForClassFields": true,
-		"outDir": "/root/Projects/moddable/build/tmp/esp32/m5stack/debug/stackchan/modules",
-		"paths": {
-			"Resource": [
-				"/root/Projects/moddable/typings/Resource"
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "noImplicitAny": false,
+    "noImplicitThis": false,
+    "strictNullChecks": false,
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": true,
+    "module": "es2022",
+    "lib": [
+      "es2024",
+      "ESNext.Disposable"
+    ],
+    "outDir": "dist",
+    "sourceMap": true,
+    "target": "es2024",
+    "paths": {
+      "face-state": [
+        "./host/modules/ui/state/face-state"
+      ],
+      "face-skin": [
+        "./host/modules/ui/state/face-skin"
+      ],
+      "app-controller": [
+        "./host/modules/ui/application/app-controller"
+      ],
+      "mini-app": [
+        "./host/modules/ui/application/mini-app"
+      ],
+      "mini-app-launcher": [
+        "./host/modules/ui/views/mini-app/mini-app-launcher"
+      ],
+      "capabilities": [
+        "./host/app/capabilities"
+      ],
+      "motion-controller": [
+        "./host/modules/motion/motion-controller"
+      ],
+      "runtime-context": [
+        "./host/app/runtime-context"
+      ],
+      "camera-initial-frame": [
+        "./host/modules/camera/device/initial-frame"
+      ],
+      "chat-audioio-config": [
+        "./mods/examples/chat_audioio/config"
+      ],
+      "chat-status-bar": [
+        "./host/modules/ui/components/status-bar/chat-status-bar"
+      ],
+      "common-view": [
+        "./host/modules/ui/views/main/common-view"
+      ],
+      "face-view": [
+        "./host/modules/ui/views/main/face-view"
+      ],
+      "hand-sprites": [
+        "./host/modules/ui/components/hands/hand-sprites"
+      ],
+      "hands": [
+        "./host/modules/ui/components/hands/hands"
+      ],
+      "settings-view": [
+        "./host/modules/ui/views/settings/settings-view"
+      ],
+      "localization": [
+        "./host/modules/ui/localization"
+      ],
+      "localization-core": [
+        "./host/modules/ui/localization-core"
+      ],
+      "template": [
+        "./host/modules/ui/components/face/template"
+      ],
+      "effects/*": [
+        "./host/modules/ui/components/effects/*"
+      ],
+      "effects/speech-balloon": [
+        "./host/modules/ui/components/bubble/speech-balloon"
+      ],
+      "effects/multirow-balloon": [
+        "./host/modules/ui/components/bubble/multirow-balloon"
+      ],
+      "behaviors/*": [
+        "./host/modules/ui/components/face/behaviors/*"
+      ],
+      "parts/*": [
+        "./host/modules/ui/components/face/parts/*"
+      ],
+      "motions/*": [
+        "./host/modules/ui/components/face/motions/*"
+      ],
+      "drawer": [
+        "./host/modules/ui/components/drawer/drawer"
+      ],
+      "image-avatar-lite-packs": [
+        "./mods/examples/image_avatar_lite/image-avatar-lite-packs"
+      ],
+      "*": [
+        "./node_modules/@moddable/typings/*",
+        "./node_modules/@moddable/typings/ble/*",
+        "./typings/*",
+        "./host/app/*",
+        "./host/app/default-behavior/*",
+        "./host/app/default-behavior/wasm/*",
+        "./host/modules/camera/*",
+        "./host/modules/audio/*",
+        "./host/modules/audio/wasm/*",
+        "./host/modules/connectivity/*",
+        "./host/modules/connectivity/ble/*",
+        "./host/modules/connectivity/http-server/*",
+        "./host/modules/connectivity/mcp-client/*",
+        "./host/modules/connectivity/mcp-server/*",
+        "./host/modules/connectivity/wasm/*",
+        "./host/modules/conversation/*",
+        "./host/modules/conversation/chat-audioio/*",
+        "./mods/examples/provider-dialogues/*",
+        "./host/modules/input/*",
+        "./host/modules/motion/*",
+        "./host/modules/motion/internal/*",
+        "./host/modules/lighting/*",
+        "./host/modules/ui/application/*",
+        "./host/modules/ui/views/main/*",
+        "./host/modules/ui/views/splash/*",
+        "./host/modules/ui/views/camera-preview/*",
+        "./host/modules/ui/views/settings/*",
+        "./host/modules/ui/components/status-bar/*",
+        "./host/modules/ui/components/drawer/*",
+        "./host/modules/ui/components/effects/*",
+        "./host/modules/ui/components/bubble/*",
+        "./host/modules/ui/components/face/*",
+        "./host/modules/ui/components/face/behaviors/*",
+        "./host/modules/ui/components/face/motions/*",
+        "./host/modules/ui/components/face/parts/*",
+        "./host/modules/ui/components/face/parts/dog/*",
+        "./host/modules/ui/components/face/parts/image/*",
+        "./host/modules/ui/state/*",
+        "./host/modules/input/*",
+        "./host/modules/util/*",
+        "./host/modules/util/esp32/*",
+        "./host/modules/util/sim/*",
+        "./host/modules/preferences/*"
+      ],
+      "commodetto/*": [
+        "./node_modules/@moddable/typings/commodetto/*"
+      ],
+      "dns/*": [
+        "./node_modules/@moddable/typings/dns/*"
+      ],
+      "mc/*": [
+        "./node_modules/@moddable/typings/mc/*"
+      ],
+      "mod/*": [
+        "./node_modules/@moddable/typings/mod/*"
+      ],
+      "pins/*": [
+        "./node_modules/@moddable/typings/pins/*"
+      ],
+      "piu/*": [
+        "./node_modules/@moddable/typings/piu/*"
+      ],
+      "text/*": [
+        "./node_modules/@moddable/typings/text/*"
+      ],
+      "embedded:provider/*": [
+        "./node_modules/@moddable/typings/embedded_provider/*"
+      ],
+      "embedded:io/*": [
+        "./node_modules/@moddable/typings/embedded_io/*"
+      ],
+      "embedded:io/audio/*": [
+				"./node_modules/@moddable/typings/embedded_io/audio/*"
 			],
-			"base64": [
-				"/root/Projects/moddable/typings/base64"
+      "embedded:io/bluetooth/*": [
+				"./node_modules/@moddable/typings/embedded_io/bluetooth/*"
 			],
-			"debug": [
-				"/root/Projects/moddable/typings/debug"
+      "embedded:io/socket/*": [
+        "./node_modules/@moddable/typings/embedded_io/socket/*"
+      ],
+      "embedded:network/http/*": [
+        "./node_modules/@moddable/typings/embedded_network/http/*"
+      ],
+      "embedded:network/interface/*": [
+				"./node_modules/@moddable/typings/embedded_network/interface/*"
 			],
-			"dns": [
-				"/root/Projects/moddable/typings/dns"
+      "embedded:network/mqtt/*": [
+        "./node_modules/@moddable/typings/embedded_network/mqtt/*"
+      ],
+      "embedded:network/websocket/*": [
+				"./node_modules/@moddable/typings/embedded_network/websocket/*"
 			],
-			"file": [
-				"/root/Projects/moddable/typings/file"
-			],
-			"flash": [
-				"/root/Projects/moddable/typings/flash"
-			],
-			"hex": [
-				"/root/Projects/moddable/typings/hex"
-			],
-			"http": [
-				"/root/Projects/moddable/typings/http"
-			],
-			"instrumentation": [
-				"/root/Projects/moddable/typings/instrumentation"
-			],
-			"mdns": [
-				"/root/Projects/moddable/typings/mdns"
-			],
-			"net": [
-				"/root/Projects/moddable/typings/net"
-			],
-			"ping": [
-				"/root/Projects/moddable/typings/ping"
-			],
-			"preference": [
-				"/root/Projects/moddable/typings/preference"
-			],
-			"sntp": [
-				"/root/Projects/moddable/typings/sntp"
-			],
-			"socket": [
-				"/root/Projects/moddable/typings/socket"
-			],
-			"telnet": [
-				"/root/Projects/moddable/typings/telnet"
-			],
-			"time": [
-				"/root/Projects/moddable/typings/time"
-			],
-			"timer": [
-				"/root/Projects/moddable/typings/timer"
-			],
-			"uuid": [
-				"/root/Projects/moddable/typings/uuid"
-			],
-			"websocket": [
-				"/root/Projects/moddable/typings/websocket"
-			],
-			"wifi": [
-				"/root/Projects/moddable/typings/wifi"
-			],
-			"worker": [
-				"/root/Projects/moddable/typings/worker"
-			],
-			"zip": [
-				"/root/Projects/moddable/typings/zip"
-			],
-			"modules": [
-				"/workspaces/stack-chan/firmware/typings/modules"
-			],
-			"serial": [
-				"/workspaces/stack-chan/firmware/typings/serial"
-			],
-			"commodetto/Bitmap": [
-				"/root/Projects/moddable/typings/commodetto/Bitmap"
-			],
-			"commodetto/Poco": [
-				"/root/Projects/moddable/typings/commodetto/Poco"
-			],
-			"commodetto/parseBMF": [
-				"/root/Projects/moddable/typings/commodetto/parseBMF"
-			],
-			"commodetto/parseBMP": [
-				"/root/Projects/moddable/typings/commodetto/parseBMP"
-			],
-			"commodetto/parseRLE": [
-				"/root/Projects/moddable/typings/commodetto/parseRLE"
-			],
-			"commodetto/pixelsout": [
-				"/root/Projects/moddable/typings/commodetto/pixelsout"
-			],
-			"commodetto/readJPEG": [
-				"/root/Projects/moddable/typings/commodetto/readJPEG"
-			],
-			"piu/CombTransition": [
-				"/root/Projects/moddable/typings/piu/CombTransition"
-			],
-			"piu/MC": [
-				"/root/Projects/moddable/typings/piu/MC"
-			],
-			"piu/Sound": [
-				"/root/Projects/moddable/typings/piu/Sound"
-			],
-			"piu/WipeTransition": [
-				"/root/Projects/moddable/typings/piu/WipeTransition"
-			],
-			"piu/All": [
-				"/workspaces/stack-chan/firmware/typings/piu/All"
-			],
-			"piu/Timeline": [
-				"/workspaces/stack-chan/firmware/typings/piu/Timeline"
-			],
-			"dns/parser": [
-				"/root/Projects/moddable/typings/dns/parser"
-			],
-			"dns/serializer": [
-				"/root/Projects/moddable/typings/dns/serializer"
-			],
-			"dns/server": [
-				"/root/Projects/moddable/typings/dns/server"
-			],
-			"mc/config": [
-				"/root/Projects/moddable/typings/mc/config"
-			],
-			"pins/analog": [
-				"/root/Projects/moddable/typings/pins/analog"
-			],
-			"pins/audioin": [
-				"/root/Projects/moddable/typings/pins/audioin"
-			],
-			"pins/audioout": [
-				"/root/Projects/moddable/typings/pins/audioout"
-			],
-			"pins/digital": [
-				"/root/Projects/moddable/typings/pins/digital"
-			],
-			"pins/i2c": [
-				"/root/Projects/moddable/typings/pins/i2c"
-			],
-			"pins/pwm": [
-				"/root/Projects/moddable/typings/pins/pwm"
-			],
-			"pins/servo": [
-				"/root/Projects/moddable/typings/pins/servo"
-			],
-			"pins/smbus": [
-				"/root/Projects/moddable/typings/pins/smbus"
-			],
-			"avatar": [
-				"/workspaces/stack-chan/firmware/extern/avatar/src/avatar"
-			],
-			"balloon": [
-				"/workspaces/stack-chan/firmware/extern/avatar/src/balloon"
-			],
-			"emoticon": [
-				"/workspaces/stack-chan/firmware/extern/avatar/src/emoticon"
-			],
-			"marquee-label": [
-				"/workspaces/stack-chan/firmware/extern/avatar/src/marquee-label"
-			],
-			"rs30x": [
-				"/workspaces/stack-chan/firmware/extern/rs30x/src/rs30x"
-			],
-			"main": [
-				"/workspaces/stack-chan/firmware/stackchan/main"
-			],
-			"robot": [
-				"/workspaces/stack-chan/firmware/stackchan/robot"
-			],
-			"rs30x-driver": [
-				"/workspaces/stack-chan/firmware/stackchan/rs30x-driver"
-			],
-			"sg90-driver": [
-				"/workspaces/stack-chan/firmware/stackchan/sg90-driver"
-			]
-		},
-		"lib": [
-			"esnext"
-		],
-		"sourceMap": true,
-		"target": "ESNEXT",
-		"types": [
-			"/root/Projects/moddable/xs/includes/xs"
-		]
-	},
-	"files": [
-		"/workspaces/stack-chan/firmware/extern/avatar/src/avatar.ts",
-		"/workspaces/stack-chan/firmware/extern/avatar/src/balloon.ts",
-		"/workspaces/stack-chan/firmware/extern/avatar/src/emoticon.ts",
-		"/workspaces/stack-chan/firmware/extern/avatar/src/marquee-label.ts",
-		"/workspaces/stack-chan/firmware/extern/rs30x/src/rs30x.ts",
-		"/workspaces/stack-chan/firmware/stackchan/main.ts",
-		"/workspaces/stack-chan/firmware/stackchan/stackchan-mod.ts",
-		"/workspaces/stack-chan/firmware/stackchan/robot.ts",
-		"/workspaces/stack-chan/firmware/stackchan/button.ts",
-		"/workspaces/stack-chan/firmware/stackchan/rs30x-driver.ts",
-		"/workspaces/stack-chan/firmware/stackchan/sg90-driver.ts"
-	]
+      "embedded:network/dns/resolver/*": [
+        "./node_modules/@moddable/typings/embedded_network/dns/resolver/*"
+      ],
+      "app-behavior": [
+        "./host/app/app-behavior"
+      ],
+      "app-default-behavior": [
+        "./host/app/default-behavior/behavior"
+      ],
+      "app-default-behavior/on-launch": [
+        "./host/app/default-behavior/on-launch"
+      ],
+      "app-default-behavior/on-context-created": [
+        "./host/app/default-behavior/on-context-created"
+      ],
+      "app-default-behavior/wasm/behavior": [
+        "./host/app/default-behavior/wasm/behavior"
+      ],
+      "app-default-behavior/wasm/on-launch": [
+        "./host/app/default-behavior/wasm/on-launch"
+      ],
+      "testing/assert": [
+        "./host/modules/testing/assert"
+      ],
+      "testing/fakes/ChatAudioIO": [
+        "./host/modules/testing/fakes/ChatAudioIO"
+      ],
+      "calculate-power": [
+        "./host/modules/audio/calculate-power"
+      ],
+      "mac-address": [
+        "./host/modules/util/esp32/mac-address"
+      ],
+      "mcp-client": [
+        "./host/modules/connectivity/mcp-client/mcp-client"
+      ],
+      "ecma-wifi": [
+        "./host/modules/connectivity/ecma-wifi"
+      ]
+    },
+    "types": [
+      "./node_modules/@moddable/typings/xs",
+      "./node_modules/@moddable/typings/mcpack",
+      "./node_modules/@moddable/typings/easing"
+    ]
+  },
+  "include": [
+    "./host/**/*",
+    "./mods/**/*"
+  ]
 }

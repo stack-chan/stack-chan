@@ -43,12 +43,12 @@ Since the data is distributed under an [open source license](./LICENSE), please 
 Please clearly state the following two points in places where users of your works can see them (at the back of books, product introduction pages, instruction manuals, etc.)
 
 1. Stack-chan is developed and published by meganetaaan
-2. The URL of Stack-chan's GitHub repository (https:// github.com/meganetaaan/stack-chan) for the reference
+2. The URL of Stack-chan's GitHub repository (https:// github.com/stack-chan/stack-chan) for the reference
 
 Below is the example of acceptable description.
 
-Stack-chan is a hand-held super-kawaii communication robot developed and published by [meganetaaan](https://twitter.com/meganetaaan)
-Further details are: https://github.com/meganetaaan/stack-chan
+Stack-chan is a hand-held super-kawaii communication robot developed and published by [meganetaaan](https://twitter.com/stack_chan)
+Further details are: https://github.com/stack-chan/stack-chan
 
 ### Be politically/religious/ideological neutral and no attack
 

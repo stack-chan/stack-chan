@@ -1,0 +1,15 @@
+{
+  "include": ["../../manifest.json", "../../../testing/manifest.json"],
+  "modules": {
+    "~": "../../network-manager",
+    "network-manager": "../fakes/network-manager",
+    "main": "./stored-wifi-xs.test"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "strictNullChecks": false
+      }
+    }
+  }
+}

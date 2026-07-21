@@ -1,0 +1,240 @@
+body {
+  overflow: hidden;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-rows: var(--header-height) minmax(0, 1fr);
+  width: 100%;
+  height: 100dvh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+h2,
+p {
+  margin: 0;
+}
+
+h2 {
+  font-size: 0.82rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: #c5ccd2;
+}
+
+#simulator-info {
+  margin-left: auto;
+  overflow: hidden;
+  color: #83d9aa;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simulator-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.simulator-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 540px;
+  overflow: hidden;
+  background: #0b0d0e;
+  cursor: default;
+}
+
+#stackchan-viewport {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 540px;
+  cursor: default;
+  touch-action: none;
+}
+
+#stackchan-viewport:active {
+  cursor: grabbing;
+}
+
+#simulator-screen {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  width: 320px;
+  height: 240px;
+}
+
+.inspector {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.tool-section,
+.trace-section {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.icon-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.icon-button,
+.command-button {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.icon-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+
+.command-button {
+  width: 100%;
+  padding: 10px 14px;
+  font-weight: 650;
+}
+
+.icon-button:hover,
+.command-button:hover {
+  border-color: var(--line-hover);
+  background: var(--surface-hover);
+}
+
+.icon-button:focus-visible,
+.command-button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.icon-button.danger:hover {
+  border-color: #ef6262;
+  color: #ff9b9b;
+}
+
+.icon-button svg,
+.command-button svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  stroke-width: 2;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+#mod-archive-input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#mod-install-status,
+#browser-camera-status {
+  min-height: 1.4em;
+  color: #aeb7be;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.trace-section {
+  min-height: 180px;
+  flex: 1;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-bottom: 0;
+}
+
+#trace-log {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #101214;
+  color: #cbd2d8;
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 760px) {
+  body {
+    overflow: auto;
+  }
+
+  .app-shell {
+    grid-template-rows: var(--header-height) auto;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  #simulator-info {
+    max-width: 92px;
+  }
+  .simulator-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(420px, 62vh) auto;
+    overflow: visible;
+  }
+
+  .simulator-stage,
+  #stackchan-viewport {
+    min-height: 420px;
+  }
+
+  .inspector {
+    overflow: visible;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .trace-section {
+    min-height: 260px;
+  }
+}

@@ -30,6 +30,17 @@ export enum StackChanControl {
   STATUS = 48,
 }
 
+export enum StackChanErrorCode {
+  INVALID_REQUEST = 1,
+  INVALID_STREAM_DATA = 2,
+  TRANSPORT_OVERFLOW = 3,
+  AUDIO_OUTPUT = 4,
+  BUSY = 5,
+  SPEAKER_SEQUENCE_MISMATCH = 6,
+  SPEAKER_BUFFER_OVERFLOW = 7,
+  CAPTION_QUEUE_OVERFLOW = 8,
+}
+
 export enum StackChanStatus {
   IDLE = 0,
   RECOGNIZING = 1,

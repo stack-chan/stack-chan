@@ -2,6 +2,9 @@
 #include "xsHost.h"
 #include "driver/usb_serial_jtag.h"
 
+#define STACKCHAN_USB_RX_RING_BYTES (32 * 1024)
+#define STACKCHAN_USB_TX_RING_BYTES (16 * 1024)
+
 static uint8_t gUsbSerialOpen = 0;
 
 void xs_stackchan_usb_serial_open(xsMachine *the)
@@ -9,8 +12,8 @@ void xs_stackchan_usb_serial_open(xsMachine *the)
 	if (gUsbSerialOpen)
 		return;
 	usb_serial_jtag_driver_config_t config = {
-		.rx_buffer_size = 16 * 1024,
-		.tx_buffer_size = 16 * 1024,
+		.rx_buffer_size = STACKCHAN_USB_RX_RING_BYTES,
+		.tx_buffer_size = STACKCHAN_USB_TX_RING_BYTES,
 	};
 	if (ESP_OK != usb_serial_jtag_driver_install(&config))
 		xsUnknownError("USB serial driver installation failed");

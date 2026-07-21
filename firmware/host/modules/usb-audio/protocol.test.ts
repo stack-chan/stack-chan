@@ -7,10 +7,17 @@ import {
   STACKCHAN_PROTOCOL_VERSION,
   StackChanCapability,
   StackChanControl,
+  StackChanErrorCode,
   StackChanFrameParser,
   StackChanFrameType,
   StackChanStatus,
 } from './protocol.js'
+
+test('StackChan reports distinct speaker receive failures', () => {
+  assert.equal(StackChanErrorCode.SPEAKER_SEQUENCE_MISMATCH, 6)
+  assert.equal(StackChanErrorCode.SPEAKER_BUFFER_OVERFLOW, 7)
+  assert.equal(StackChanErrorCode.CAPTION_QUEUE_OVERFLOW, 8)
+})
 
 test('StackChan advertises sentence captions as an optional capability', () => {
   assert.equal(StackChanControl.SPEAKER_TEXT, 37)

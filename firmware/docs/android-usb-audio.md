@@ -19,12 +19,15 @@ npm run flash:android-usb-audio
 通常再生時の`AudioOut.volume`は`0.25`に固定する。
 通常manifestではUSB音声ブリッジを起動しない。
 `flash:android-usb-audio`は書き込み後にserial monitorを起動せず、CDCポートをAndroid向けに解放する。
+ビルドコマンドは、通常版と診断版のmanifestを切り替えた場合に同じtargetの生成物を自動消去してから再構築する。
+これにより、直前に使ったmanifestの音量や診断capabilityが残らない。
 
 生成物はリポジトリ内の`dist/bin/esp32/m5stackchan_cores3/release/stack-chan-host`へ出力される。
 
 ## 動作
 
 FirmwareはCore 1の高優先度WorkerでUSB受信を2 ms間隔でpollし、HELLO後に音声制御を受け付ける。
+native USB受信ringは32 KiBとし、1回16 KiBのreadを1回のpollで最大4回実行する。
 フレームのCRC32はnative実装で計算し、JavaScript VMがPCM転送を律速しないようにする。
 マイクは16 kHz、16 bit little-endian、mono、20 ms frameで送信する。
 スピーカーは8 kHz、16 kHz、24 kHzを受け付け、指定されたsample rateをそのまま`AudioOut`へ渡す。
@@ -50,8 +53,10 @@ Firmwareは実際にそのPCMを`AudioOut`へ渡す時点で、最大2行の吹�
 Androidから認識中状態を受けた場合は回転インジケーターを表示し、発話中はスピーカーアイコンを表示する。
 
 Androidへ返す`SPEAKER_CREDIT`は、追加送信できるbytes数を表す増分値である。
-一度に未消費にできるcreditは12 KiBとし、native USB受信ringの16 KiBを超えるburstを防ぐ。
+一度に未消費にできるcreditは8 KiBとする。
+16 KiBをreadした直後にcredit全量のPCMが届いても、未読データとの合計が32 KiBのnative USB受信ringに収まる。
 不正なsample rate、sequence、payload、queue超過は`ERROR`で通知し、該当する音声処理を停止する。
+スピーカー受信の`ERROR`は、sequence欠落をcode 6、PCM queue超過をcode 7、字幕queue超過をcode 8として区別する。
 
 `SPEAKER_TEXT`はcontrol値37、capability bit 6である。
 payloadは最大1,024 bytesのUTF-8とし、既存Firmwareとの互換性を保つため任意機能として扱う。

@@ -1,9 +1,9 @@
 # ブランチとリリースフロー
 
-このリポジトリでは、以下のブランチモデルを使用します。
+このリポジトリでは、リリースを凍結する際に以下のブランチモデルを使用します。
 
 ```text
-main <- develop <- feat/* | fix/*
+main <- release/* <- develop <- feat/* | fix/*
 ```
 
 ## ブランチの役割
@@ -12,6 +12,8 @@ main <- develop <- feat/* | fix/*
   リリース済み、またはリリース可能なソースを表し、利用者がセットアップ手順の基準として参照できる状態にします。
 - `develop` はデフォルトブランチであり、次回リリース向けの統合ブランチです。
   機能追加や修正の pull request は、原則としてこのブランチを向け先にします。
+- `release/*` は、確定した `develop` のコミットから作成する一時ブランチです。
+  凍結後はリリース用メタデータと `main` の履歴統合に必要な変更だけを追加します。
 - `feat/*` と `fix/*` は、個別の変更に対応する作業ブランチです。
 
 ## Pull request
@@ -25,14 +27,17 @@ main <- develop <- feat/* | fix/*
 
 ## リリース
 
-リリースでは、レビュー済みの変更を `develop` から `main` に移します。
+リリースでは、凍結してレビューした `develop` のスナップショットを、リリースブランチ経由で `main` に移します。
 
 想定するリリース手順は以下です。
 
-1. 機能追加と修正の pull request を `develop` にマージする。
-2. `develop` から `main` へのリリース pull request を作成する。
-3. 蓄積されたリリースノートと Changesets をレビューする。
-4. 検証後にリリース pull request をマージする。
+1. 対象の機能追加と修正を `develop` にマージし、リリース対象のコミットを確定する。
+2. そのコミットから `release/vX.Y.Z` を作り、現在の `main` の履歴をリリースブランチ上で統合する。
+3. package version を更新し、蓄積されたリリースノートと Changesets をレビューして、リリースブランチから `main` への pull request を作成する。
+4. 自動検証と実機検証の後にリリース pull request をマージし、生成された `main` のコミットへタグを付ける。
+5. 公開後に `main` を `develop` へマージする。
 
 Changesets のリリース基準ブランチは `develop` です。
-自動リリース pull request、バージョン更新、changelog 生成、ファームウェアへのバージョン埋め込みは今後の作業です。
+version とリリースノートはリリースブランチ上で更新します。
+安定版の `vX.Y.Z` タグをpushすると、versionを検証してfirmware bundleを再構築し、GitHub Releaseの成果物を公開します。
+リリース pull request の自動作成と、ファームウェアへの製品version埋め込みは今後の作業です。

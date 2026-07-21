@@ -36,6 +36,11 @@ const UP = {
 const RECORD_PLAYBACK_DURATION_MS = 2000
 const CAMERA_PREVIEW_DURATION_MS = 5000
 const CAMERA_PREVIEW_STOP_DELAY_MS = 120
+// Capture at the GC0308's native QQVGA size. The preview renderer scales this
+// to 200x120; requesting 200 pixels wide selects the larger 240x176 mode and
+// increases both the contiguous DMA requirement and frame overflow pressure.
+const CAMERA_PREVIEW_CAPTURE_WIDTH = 160
+const CAMERA_PREVIEW_CAPTURE_HEIGHT = 120
 const CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE: CameraImageType =
   (config as { format?: string }).format === 'RGB565BE' ? 'rgb565be' : 'rgb565le'
 const TOUCH_PANEL_PETTING_WINDOW_MS = 1500
@@ -305,8 +310,16 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
       })
     try {
       target.showBalloon('starting camera...')
-      await target.camera.start({ width: 200, height: 120, imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE })
-      frame = await target.camera.capture({ width: 200, height: 120, imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE })
+      await target.camera.start({
+        width: CAMERA_PREVIEW_CAPTURE_WIDTH,
+        height: CAMERA_PREVIEW_CAPTURE_HEIGHT,
+        imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE,
+      })
+      frame = await target.camera.capture({
+        width: CAMERA_PREVIEW_CAPTURE_WIDTH,
+        height: CAMERA_PREVIEW_CAPTURE_HEIGHT,
+        imageType: CAMERA_PREVIEW_CAPTURE_IMAGE_TYPE,
+      })
       if (!frame) {
         trace('[CameraPreview] capture returned no frame\n')
         target.showBalloon('camera unavailable')

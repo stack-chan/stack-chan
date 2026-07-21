@@ -23,6 +23,11 @@ CONFIG_SPIRAM_TYPE_AUTO=y
 CONFIG_SPIRAM_IGNORE_NOTFOUND=y
 CONFIG_SPIRAM_USE_MALLOC=y
 
+# Keep the camera DMA bounce buffer below the contiguous internal-RAM block
+# available after the Stack-chan host has started. Direct PSRAM DMA corrupts
+# RGB565 frames when it competes with the CoreS3 display on the 40 MHz PSRAM.
+CONFIG_CAMERA_DMA_BUFFER_SIZE_MAX=16384
+
 CONFIG_AUDIO_DECODER_MP3_SUPPORT=y
 CONFIG_AUDIO_DECODER_AAC_SUPPORT=n
 CONFIG_AUDIO_DECODER_G711_SUPPORT=n

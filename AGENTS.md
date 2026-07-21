@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides repository-wide guidance for coding agents working in this repository.
 
 ## Project Overview
 
@@ -102,7 +102,21 @@ Moddable test modules live under the target implementation with `manifest.test.j
 Cheap constructor smokes are consolidated into shared manifests (`firmware/host/modules/__tests__/module-smoke`, `firmware/mods/examples/provider-dialogues/__tests__/dialogue-smoke`) because each manifest pays a full mcconfig build.
 Node.js unit tests live next to pure helper implementations and run through `npm run test:unit`.
 Prefer XS-driven Moddable tests for behavior that touches the platform (Piu, Timer, drivers); keep Node.js tests for pure logic.
-Tests must exercise behavior — do not write tests that merely re-assert source text or manifest values; record such constraints as why-comments in the source instead.
+Tests must verify observable behavior or relational invariants.
+
+Do not:
+
+- Read production source as text merely to assert exact constants, configuration values, code fragments, or regular-expression matches.
+- Add tests that fail on a legitimate implementation-literal change without detecting a behavioral or architectural regression.
+
+It is valid to:
+
+- Parse generated artifacts or manifests and validate their schema.
+- Compare independently maintained files or dynamically discovered entries.
+- Verify dependency boundaries, completeness, tombstones, and relational invariants.
+- Read source when its structure is itself the maintained contract.
+
+If a constraint cannot be tested through behavior or a relational invariant, document the reason next to the source or configuration instead of adding a source-mirroring test.
 
 ## Pull Request Review Guidance
 

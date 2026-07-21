@@ -13,7 +13,10 @@
     "stackchan-usb-shared-output": "./shared-speaker-output",
     "stackchan-usb-diagnostics": "./diagnostics",
     "stackchan-usb-protocol": "./protocol",
-    "stackchan-usb-speaker-buffer": "./speaker-buffer"
+    "stackchan-usb-speaker-buffer": "./speaker-buffer",
+    "stackchan-usb-speaker-session": "./speaker-session",
+    "stackchan-usb-stream-gate": "./stream-gate",
+    "stackchan-usb-stream-tx-queue": "./stream-tx-queue"
   },
   "preload": ["stackchan-usb-audio"],
   "platforms": {

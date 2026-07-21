@@ -27,7 +27,7 @@ except ModuleNotFoundError:
 
 MAGIC = 0x5343
 MAGIC_BYTES = b"\x43\x53"
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 HEADER_BYTES = 20
 CRC_BYTES = 4
 MAX_PAYLOAD_BYTES = 4096
@@ -47,10 +47,11 @@ CONTROL_SPEAKER_DONE = 35
 CONTROL_SPEAKER_ABORT = 36
 CONTROL_SPEAKER_TEXT = 37
 
-CAPABILITIES = 0x17F
+CAPABILITIES = 0x37F
 CAPABILITY_SPEAKER_TEXT = 1 << 6
 CAPABILITY_DIAGNOSTICS = 1 << 7
 CAPABILITY_STATUS_ICON = 1 << 8
+CAPABILITY_STREAM_ID = 1 << 9
 DIAGNOSTICS_VERSION = 1
 DIAGNOSTICS_PAYLOAD_BYTES = 52
 
@@ -88,6 +89,7 @@ CSV_FIELDS = [
 class Frame:
     frame_type: int
     flags: int
+    stream_id: int
     sequence: int
     sample_rate: int
     payload: bytes
@@ -109,14 +111,13 @@ class FrameParser:
                 del self.pending[:magic_offset]
             if len(self.pending) < HEADER_BYTES + CRC_BYTES:
                 break
-            magic, version, frame_type, flags, reserved, sequence, sample_rate, length = struct.unpack_from(
+            magic, version, frame_type, flags, stream_id, sequence, sample_rate, length = struct.unpack_from(
                 "<HBBHHIII", self.pending
             )
             if (
                 magic != MAGIC
                 or version != PROTOCOL_VERSION
                 or frame_type > TYPE_DIAGNOSTICS
-                or reserved != 0
                 or length > MAX_PAYLOAD_BYTES
             ):
                 del self.pending[0]
@@ -134,6 +135,7 @@ class FrameParser:
                 Frame(
                     frame_type=frame_type,
                     flags=flags,
+                    stream_id=stream_id,
                     sequence=sequence,
                     sample_rate=sample_rate,
                     payload=candidate[HEADER_BYTES : HEADER_BYTES + length],
@@ -152,7 +154,7 @@ def encode_frame(frame: Frame) -> bytes:
         PROTOCOL_VERSION,
         frame.frame_type,
         frame.flags,
-        0,
+        frame.stream_id,
         frame.sequence & 0xFFFFFFFF,
         frame.sample_rate,
         len(frame.payload),
@@ -214,6 +216,7 @@ class DiagnosticSession:
         self.control_sequence = 0
         self.speaker_sequence = 0
         self.credit = 0
+        self.stream_id = 1
         self.sent_bytes = 0
         self.sent_frames = 0
         self.done = False
@@ -228,11 +231,18 @@ class DiagnosticSession:
         self.output_file.close()
         self.port.close()
 
-    def send_control(self, control: int, sample_rate: int = 0, payload: bytes = b"") -> None:
+    def send_control(
+        self,
+        control: int,
+        sample_rate: int = 0,
+        payload: bytes = b"",
+        stream_id: int = 0,
+    ) -> None:
         self._send(
             Frame(
                 frame_type=TYPE_CONTROL,
                 flags=control,
+                stream_id=stream_id,
                 sequence=self.control_sequence,
                 sample_rate=sample_rate,
                 payload=payload,
@@ -245,6 +255,7 @@ class DiagnosticSession:
             Frame(
                 frame_type=TYPE_SPEAKER_PCM,
                 flags=0,
+                stream_id=self.stream_id,
                 sequence=self.speaker_sequence,
                 sample_rate=sample_rate,
                 payload=payload,
@@ -271,6 +282,8 @@ class DiagnosticSession:
 
     def _handle_frame(self, frame: Frame) -> None:
         if frame.frame_type == TYPE_CONTROL:
+            if frame.stream_id != self.stream_id:
+                return
             if frame.flags == CONTROL_SPEAKER_CREDIT:
                 if len(frame.payload) != 4:
                     raise RuntimeError("invalid speaker credit")
@@ -282,6 +295,8 @@ class DiagnosticSession:
                 raise RuntimeError(f"Stack-chan returned protocol error {code}")
             return
         if frame.frame_type != TYPE_DIAGNOSTICS:
+            return
+        if frame.stream_id != self.stream_id:
             return
         diagnostics = parse_diagnostics(frame.payload)
         diagnostics.update(
@@ -309,7 +324,7 @@ def handshake(session: DiagnosticSession, timeout_seconds: float = 8) -> tuple[i
         chunk = session.port.read(min(max(waiting, 1), 16384))
         for frame in session.parser.push(chunk):
             if frame.frame_type == TYPE_CONTROL and frame.flags == CONTROL_HELLO_ACK:
-                if len(frame.payload) != 8:
+                if frame.stream_id != 0 or len(frame.payload) != 8:
                     raise RuntimeError("invalid HELLO_ACK")
                 return struct.unpack("<II", frame.payload)
             session._handle_frame(frame)
@@ -328,13 +343,19 @@ def run(args: argparse.Namespace) -> Path:
             return output
         if not capabilities & CAPABILITY_DIAGNOSTICS:
             raise RuntimeError("connected firmware does not advertise diagnostics")
+        if not capabilities & CAPABILITY_STREAM_ID:
+            raise RuntimeError("connected firmware does not advertise mandatory stream IDs")
         if args.caption and not capabilities & CAPABILITY_SPEAKER_TEXT:
             raise RuntimeError("connected firmware does not advertise speaker captions")
         frame_bytes = args.sample_rate * 2 * args.frame_ms // 1000
         if frame_bytes > max_payload:
             raise ValueError(f"PCM frame ({frame_bytes} bytes) exceeds negotiated maximum ({max_payload})")
         target_frames = round(args.duration * 1000 / args.frame_ms)
-        session.send_control(CONTROL_SPEAKER_START, sample_rate=args.sample_rate)
+        session.send_control(
+            CONTROL_SPEAKER_START,
+            sample_rate=args.sample_rate,
+            stream_id=session.stream_id,
+        )
 
         credit_deadline = time.monotonic() + 3
         while session.credit < frame_bytes and time.monotonic() < credit_deadline:
@@ -349,7 +370,12 @@ def run(args: argparse.Namespace) -> Path:
                 raise ValueError("--caption must contain non-whitespace text")
             if len(caption) > MAX_CAPTION_BYTES:
                 raise ValueError(f"--caption must be at most {MAX_CAPTION_BYTES} UTF-8 bytes")
-            session.send_control(CONTROL_SPEAKER_TEXT, sample_rate=args.sample_rate, payload=caption)
+            session.send_control(
+                CONTROL_SPEAKER_TEXT,
+                sample_rate=args.sample_rate,
+                payload=caption,
+                stream_id=session.stream_id,
+            )
 
         stream_started = time.monotonic()
         next_paced_send = stream_started
@@ -374,14 +400,22 @@ def run(args: argparse.Namespace) -> Path:
             if not sent:
                 time.sleep(0.001)
 
-        session.send_control(CONTROL_SPEAKER_END, sample_rate=args.sample_rate)
+        session.send_control(
+            CONTROL_SPEAKER_END,
+            sample_rate=args.sample_rate,
+            stream_id=session.stream_id,
+        )
         # Burst mode can finish USB transmission well before physical playback.
         done_deadline = time.monotonic() + max(10, args.duration + 5)
         while not session.done and time.monotonic() < done_deadline:
             session.receive()
             time.sleep(0.001)
         if not session.done:
-            session.send_control(CONTROL_SPEAKER_ABORT, sample_rate=args.sample_rate)
+            session.send_control(
+                CONTROL_SPEAKER_ABORT,
+                sample_rate=args.sample_rate,
+                stream_id=session.stream_id,
+            )
             raise TimeoutError("Stack-chan did not finish draining speaker PCM")
 
         diagnostics = session.latest_diagnostics

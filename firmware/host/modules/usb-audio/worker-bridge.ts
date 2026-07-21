@@ -13,6 +13,7 @@ import Timer from 'timer'
 import { SharedByteRing } from 'web-radio-byte-ring'
 import Worker from 'worker'
 import { StackChanStatus } from 'stackchan-usb-protocol'
+import { CurrentStreamGate } from 'stackchan-usb-stream-gate'
 
 export type UsbAudioPresentation = {
   onStatusChanged(status: StackChanStatus): void
@@ -47,6 +48,7 @@ type UsbAudioWorkerMessage = {
   sampleRate?: number
   text?: string
   status?: number
+  streamId?: number
   volume?: number
 }
 
@@ -79,6 +81,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
   #outputRing = SharedByteRing.allocate(SHARED_PCM_RING_BYTES)
   #outputStats = new Int32Array(new SharedArrayBuffer(SPEAKER_STATS_WORDS * Int32Array.BYTES_PER_ELEMENT))
   #audio: AudioOutput | undefined
+  #audioStreams = new CurrentStreamGate()
   #audioPumpTimer: ReturnType<typeof Timer.repeat> | undefined
   #audioStarted = false
   #audioEnded = false
@@ -93,6 +96,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
   #presentationPower = 0
   #presentationText = ''
   #presentationStatus = StackChanStatus.IDLE
+  #presentationStreamId = 0
 
   constructor(options: UsbAudioBridgeOptions = {}) {
     const worker = new Worker('stackchan-usb-audio-worker', USB_AUDIO_WORKER_OPTIONS)
@@ -141,9 +145,10 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
   #handleWorkerMessage(message: UsbAudioWorkerMessage): void {
     switch (message.id) {
       case 'audio-open':
-        this.#openAudio(message.sampleRate ?? 0)
+        this.#openAudio(message.sampleRate ?? 0, message.streamId ?? 0)
         break
       case 'audio-volume':
+        if (!this.#audioStreams.isCurrent(message.streamId ?? 0)) break
         try {
           if (this.#audio) this.#audio.volume = message.volume ?? 1
         } catch (error) {
@@ -151,19 +156,24 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
         }
         break
       case 'audio-start':
+        if (!this.#audioStreams.isCurrent(message.streamId ?? 0)) break
         this.#startAudio()
         break
       case 'audio-data':
+        if (!this.#audioStreams.isCurrent(message.streamId ?? 0)) break
         this.#drainAudio()
         break
       case 'audio-end':
+        if (!this.#audioStreams.isCurrent(message.streamId ?? 0)) break
         this.#audioEnded = true
         this.#drainAudio()
         break
       case 'audio-close':
-        this.#closeAudio()
+        this.#closeAudio(message.streamId ?? 0)
         break
       case 'playback-started':
+        if (!this.#audioStreams.isCurrent(message.streamId ?? 0)) break
+        this.#presentationStreamId = message.streamId ?? 0
         this.#presentationActive = true
         this.#presentationPower = 0
         this.#presentationText = ''
@@ -171,14 +181,17 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
         this.#notifyPresentation(this.#presentation, 'onPlaybackStarted')
         break
       case 'playback-power':
+        if (message.streamId !== this.#presentationStreamId) break
         this.#presentationPower = message.power ?? 0
         this.#notifyPresentation(this.#presentation, 'onPlaybackPower', this.#presentationPower)
         break
       case 'playback-text':
+        if (message.streamId !== this.#presentationStreamId) break
         if (message.text) this.#pendingCaptions.push({ position: message.position ?? 0, text: message.text })
         this.#flushCaptions()
         break
       case 'playback-stopped':
+        if (message.streamId !== this.#presentationStreamId) break
         this.#stopPresentation()
         break
       case 'status-changed':
@@ -200,10 +213,11 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
     }
   }
 
-  #openAudio(sampleRate: number): void {
+  #openAudio(sampleRate: number, streamId: number): void {
     this.#closeAudio()
+    this.#audioStreams.activate(streamId)
     if (sampleRate !== 8000 && sampleRate !== 16000 && sampleRate !== 24000) {
-      this.#failAudio(new RangeError(`unsupported speaker sample rate: ${sampleRate}`))
+      this.#failAudio(new RangeError(`unsupported speaker sample rate: ${sampleRate}`), streamId)
       return
     }
 
@@ -232,7 +246,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
       const amp = (globalThis as typeof globalThis & { amp?: { sampleRate: number } }).amp
       if (amp) amp.sampleRate = sampleRate
     } catch (error) {
-      this.#failAudio(error)
+      this.#failAudio(error, streamId)
     }
   }
 
@@ -329,19 +343,22 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
 
   #finishAudioDrain(): void {
     const worker = this.#worker
+    const streamId = this.#audioStreams.current
     this.#flushCaptions()
     this.#closeAudio()
-    worker?.postMessage({ id: 'audio-drained' })
+    worker?.postMessage({ id: 'audio-drained', streamId })
   }
 
-  #failAudio(error: unknown): void {
+  #failAudio(error: unknown, streamId = this.#audioStreams.current): void {
     trace(`[usb-audio] AudioOut failed: ${error instanceof Error ? error.message : String(error)}\n`)
     const worker = this.#worker
     this.#closeAudio()
-    worker?.postMessage({ id: 'audio-failed' })
+    worker?.postMessage({ id: 'audio-failed', streamId })
   }
 
-  #closeAudio(): void {
+  #closeAudio(expectedStreamId?: number): void {
+    if (expectedStreamId !== undefined && !this.#audioStreams.isCurrent(expectedStreamId)) return
+    const streamId = this.#audioStreams.current
     const audio = this.#audio
     this.#audio = undefined
     if (this.#audioPumpTimer) Timer.clear(this.#audioPumpTimer)
@@ -358,6 +375,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
     Atomics.store(this.#outputStats, SPEAKER_STATS_WRITABLE_BYTES, 0)
     this.#presentationPower = 0
     this.#notifyPresentation(this.#presentation, 'onPlaybackPower', 0)
+    if (streamId) this.#audioStreams.clearIfCurrent(streamId)
     if (!audio) return
     try {
       audio.stop()
@@ -389,6 +407,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
     this.#presentationPower = 0
     this.#presentationText = ''
     this.#pendingCaptions = []
+    this.#presentationStreamId = 0
   }
 
   #notifyPresentation(

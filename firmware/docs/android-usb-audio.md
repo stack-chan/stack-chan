@@ -38,6 +38,11 @@ Androidはcredit待ちとは独立した最大5秒の送信queueを持つ。
 PCMは80 ms単位で送信し、24 kHz時のpayloadを3,840 bytesにする。
 Piperの文単位合成とUSB送信を分離するため、次の文の合成を再生終了まで待たない。
 
+USB音声プロトコルはversion 2であり、headerの`streamId`を必須とする。
+`HELLO`、`HELLO_ACK`、`STATUS`だけは`streamId=0`とし、マイクとスピーカーの各sessionには0以外のIDを割り当てる。
+Firmwareは現在のIDと異なる遅延frameを破棄し、別sessionを停止、完了、加算しない。
+version 1との後方互換性は提供せず、AndroidとFirmwareのversionが一致しない接続はhandshakeで拒否する。
+
 Firmwareがcaption capabilityを返した場合、Androidは読み上げる文をUTF-8の`SPEAKER_TEXT`として対応するPCMの直前に送る。
 Firmwareは実際にそのPCMを`AudioOut`へ渡す時点で、最大2行の吹き出しを表示する。
 再生中はまばたき、呼吸、視線移動を停止し、PCMのRMSを0.1刻み、125 ms間隔で口の開きへ反映する。
@@ -50,6 +55,8 @@ Androidへ返す`SPEAKER_CREDIT`は、追加送信できるbytes数を表す増�
 
 `SPEAKER_TEXT`はcontrol値37、capability bit 6である。
 payloadは最大1,024 bytesのUTF-8とし、既存Firmwareとの互換性を保つため任意機能として扱う。
+
+`STREAM_ID`はcapability bit 9であり、version 2では必須である。
 
 `STATUS`はcontrol値48、capability bit 8である。
 payloadは1 byteで、`IDLE=0`、`RECOGNIZING=1`、`SPEAKING=2`とする。

@@ -46,7 +46,11 @@ class SharedSpeakerOutput implements UsbAudioSpeakerOutput {
     Atomics.store(ring.state, 0, 0)
     Atomics.store(ring.state, 1, 0)
     for (let index = 0; index < stats.length; index += 1) Atomics.store(stats, index, 0)
-    postMessage({ id: 'audio-open', sampleRate: options.sampleRate })
+    postMessage({ id: 'audio-open', sampleRate: options.sampleRate, streamId: options.streamId })
+  }
+
+  get streamId(): number {
+    return this.#options.streamId
   }
 
   get volume(): number {
@@ -55,7 +59,7 @@ class SharedSpeakerOutput implements UsbAudioSpeakerOutput {
 
   set volume(value: number) {
     this.#volume = value
-    this.#postMessage({ id: 'audio-volume', volume: value })
+    this.#postMessage({ id: 'audio-volume', volume: value, streamId: this.streamId })
   }
 
   get bufferedBytes(): number {
@@ -102,7 +106,7 @@ class SharedSpeakerOutput implements UsbAudioSpeakerOutput {
     if (this.#ring.readableBytes === 0) return
     if (!this.#startPosted) {
       this.#startPosted = true
-      this.#postMessage({ id: 'audio-start' })
+      this.#postMessage({ id: 'audio-start', streamId: this.streamId })
     }
   }
 
@@ -123,7 +127,7 @@ class SharedSpeakerOutput implements UsbAudioSpeakerOutput {
   finish(): void {
     if (this.#closed || this.#finished) return
     this.#finished = true
-    this.#postMessage({ id: 'audio-end' })
+    this.#postMessage({ id: 'audio-end', streamId: this.streamId })
   }
 
   handleDrained(): void {
@@ -144,7 +148,7 @@ class SharedSpeakerOutput implements UsbAudioSpeakerOutput {
   close(): void {
     if (this.#closed) return
     this.#closed = true
-    this.#postMessage({ id: 'audio-close' })
+    this.#postMessage({ id: 'audio-close', streamId: this.streamId })
   }
 }
 
@@ -172,12 +176,18 @@ export class SharedSpeakerOutputService {
     return this.#current?.writtenBytes ?? 0
   }
 
-  handleDrained(): void {
-    this.#current?.handleDrained()
+  get streamId(): number {
+    return this.#current?.streamId ?? 0
   }
 
-  handleFailed(): void {
-    this.#current?.handleFailed()
+  handleDrained(streamId: number): void {
+    if (this.#current?.streamId !== streamId) return
+    this.#current.handleDrained()
+  }
+
+  handleFailed(streamId: number): void {
+    if (this.#current?.streamId !== streamId) return
+    this.#current.handleFailed()
   }
 
   close(): void {

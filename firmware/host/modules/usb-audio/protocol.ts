@@ -1,5 +1,5 @@
 export const STACKCHAN_MAGIC = 0x5343
-export const STACKCHAN_PROTOCOL_VERSION = 1
+export const STACKCHAN_PROTOCOL_VERSION = 2
 export const STACKCHAN_HEADER_BYTES = 20
 export const STACKCHAN_CRC_BYTES = 4
 export const STACKCHAN_MAX_PAYLOAD_BYTES = 4096
@@ -46,6 +46,7 @@ export const StackChanCapability = {
   SPEAKER_TEXT: 1 << 6,
   DIAGNOSTICS: 1 << 7,
   STATUS_ICON: 1 << 8,
+  STREAM_ID: 1 << 9,
 } as const
 
 export const STACKCHAN_CAPABILITIES =
@@ -56,11 +57,13 @@ export const STACKCHAN_CAPABILITIES =
   StackChanCapability.SPEAKER_RATE_16000 |
   StackChanCapability.SPEAKER_RATE_24000 |
   StackChanCapability.SPEAKER_TEXT |
-  StackChanCapability.STATUS_ICON
+  StackChanCapability.STATUS_ICON |
+  StackChanCapability.STREAM_ID
 
 export type StackChanFrame = {
   type: StackChanFrameType
   flags?: number
+  streamId?: number
   sequence: number
   sampleRate?: number
   payload?: Uint8Array
@@ -88,6 +91,7 @@ export function crc32(bytes: Uint8Array, end = bytes.byteLength): number {
 export function encodeStackChanFrame(frame: StackChanFrame, checksum: StackChanCrc32 = crc32): Uint8Array {
   const payload = frame.payload ?? new Uint8Array(0)
   if (payload.byteLength > STACKCHAN_MAX_PAYLOAD_BYTES) throw new RangeError('payload is too large')
+  if ((frame.streamId ?? 0) < 0 || (frame.streamId ?? 0) > 0xffff) throw new RangeError('stream ID is out of range')
 
   const result = new Uint8Array(STACKCHAN_HEADER_BYTES + payload.byteLength + STACKCHAN_CRC_BYTES)
   const view = new DataView(result.buffer)
@@ -95,7 +99,7 @@ export function encodeStackChanFrame(frame: StackChanFrame, checksum: StackChanC
   view.setUint8(2, STACKCHAN_PROTOCOL_VERSION)
   view.setUint8(3, frame.type)
   view.setUint16(4, frame.flags ?? 0, true)
-  view.setUint16(6, 0, true)
+  view.setUint16(6, frame.streamId ?? 0, true)
   view.setUint32(8, frame.sequence >>> 0, true)
   view.setUint32(12, frame.sampleRate ?? 0, true)
   view.setUint32(16, payload.byteLength, true)
@@ -124,6 +128,7 @@ export function decodeStackChanFrame(bytes: Uint8Array, checksum: StackChanCrc32
   return {
     type,
     flags: view.getUint16(4, true),
+    streamId: view.getUint16(6, true),
     sequence: view.getUint32(8, true),
     sampleRate: view.getUint32(12, true),
     payload: bytes.slice(STACKCHAN_HEADER_BYTES, STACKCHAN_HEADER_BYTES + length),

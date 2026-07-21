@@ -12,14 +12,19 @@ const presentation: UsbAudioPresentation = {
     self.postMessage({ id: 'status-changed', status })
   },
   onPlaybackStarted() {
-    self.postMessage({ id: 'playback-started' })
+    self.postMessage({ id: 'playback-started', streamId: outputService?.streamId ?? 0 })
   },
   onPlaybackPower() {},
   onPlaybackText(text) {
-    self.postMessage({ id: 'playback-text', text, position: outputService?.writtenBytes ?? 0 })
+    self.postMessage({
+      id: 'playback-text',
+      text,
+      position: outputService?.writtenBytes ?? 0,
+      streamId: outputService?.streamId ?? 0,
+    })
   },
   onPlaybackStopped() {
-    self.postMessage({ id: 'playback-stopped' })
+    self.postMessage({ id: 'playback-stopped', streamId: outputService?.streamId ?? 0 })
   },
 }
 
@@ -40,6 +45,7 @@ self.onmessage = (message: {
   speakerVolume?: number
   diagnostics?: boolean
   output?: SharedSpeakerOutputBuffers
+  streamId?: number
 }) => {
   try {
     switch (message.id) {
@@ -56,10 +62,10 @@ self.onmessage = (message: {
         self.postMessage({ id: 'ready' })
         break
       case 'audio-drained':
-        outputService?.handleDrained()
+        outputService?.handleDrained(message.streamId ?? 0)
         break
       case 'audio-failed':
-        outputService?.handleFailed()
+        outputService?.handleFailed(message.streamId ?? 0)
         break
       case 'close':
         closeWorker()

@@ -4,6 +4,7 @@ import {
   decodeStackChanFrame,
   encodeStackChanFrame,
   STACKCHAN_CAPABILITIES,
+  STACKCHAN_PROTOCOL_VERSION,
   StackChanCapability,
   StackChanControl,
   StackChanFrameParser,
@@ -31,15 +32,31 @@ test('StackChan frame round trips with the Android wire layout', () => {
     sampleRate: 24000,
     payload: Uint8Array.of(1, 2, 3, 4),
   })
-  assert.deepEqual(Array.from(encoded.slice(0, 4)), [0x43, 0x53, 1, 2])
-  assert.equal(Buffer.from(encoded).toString('hex'), '43530102200000002a000000c05d0000040000000102030403a97e55')
+  assert.deepEqual(Array.from(encoded.slice(0, 4)), [0x43, 0x53, 2, 2])
+  assert.equal(Buffer.from(encoded).toString('hex'), '43530202200000002a000000c05d000004000000010203044304066c')
   assert.deepEqual(decodeStackChanFrame(encoded), {
     type: StackChanFrameType.SPEAKER_PCM,
     flags: StackChanControl.SPEAKER_START,
+    streamId: 0,
     sequence: 42,
     sampleRate: 24000,
     payload: Uint8Array.of(1, 2, 3, 4),
   })
+})
+
+test('StackChan protocol v2 requires and round trips stream IDs', () => {
+  const encoded = encodeStackChanFrame({
+    type: StackChanFrameType.SPEAKER_PCM,
+    streamId: 0x0201,
+    sequence: 7,
+    sampleRate: 24000,
+    payload: Uint8Array.of(1, 2),
+  })
+
+  assert.equal(STACKCHAN_PROTOCOL_VERSION, 2)
+  assert.deepEqual(Array.from(encoded.slice(6, 8)), [0x01, 0x02])
+  assert.equal(decodeStackChanFrame(encoded).streamId, 0x0201)
+  assert.notEqual(STACKCHAN_CAPABILITIES & StackChanCapability.STREAM_ID, 0)
 })
 
 test('StackChan parser accepts fragmented and coalesced frames', () => {

@@ -27,7 +27,7 @@ runs:
       shell: bash
     - name: Setup Emscripten for WASM simulator
       if: inputs.install-emscripten == 'true'
-      uses: mymindstorm/setup-emsdk@v16
+      uses: emscripten-core/setup-emsdk@v16
       with:
         version: 5.0.1
     - name: Install Moddable Linux tool dependencies

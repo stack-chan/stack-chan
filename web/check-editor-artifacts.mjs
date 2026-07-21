@@ -24,6 +24,7 @@ const [
   homeHtml,
   tutorialHtml,
   faceEditorHtml,
+  flashHtml,
 ] = await Promise.all([
   readFile(new URL('./editor/index.html', import.meta.url), 'utf8'),
   readFile(new URL('./simulator/index.html', import.meta.url), 'utf8'),
@@ -44,6 +45,7 @@ const [
   readFile(new URL('./index.html', import.meta.url), 'utf8'),
   readFile(new URL('./editor/tutorial.html', import.meta.url), 'utf8'),
   readFile(new URL('./face-editor/index.html', import.meta.url), 'utf8'),
+  readFile(new URL('./flash/index.html', import.meta.url), 'utf8'),
 ])
 
 assert.deepEqual([...toolsWasm.subarray(0, 4)], [0, 0x61, 0x73, 0x6d], 'tools.wasm must be a WebAssembly module')
@@ -61,14 +63,15 @@ assert.equal(
 )
 assert.match(esptoolLicense, /Apache License/)
 assert.match(builder, /DEFAULT_TOOLS_VERSION = '\d+\.\d+\.\d+'/)
-for (const dependency of ['blockly@11.2.2', 'esptool-js-0.5.7', 'lucide@1.24.0']) {
-  assert.ok(html.includes(dependency) || builder.includes(dependency) || installer.includes(dependency))
+for (const dependency of ['blockly@11.2.2', 'esp-web-tools@9.4.3', 'esptool-js-0.5.7', 'lucide@1.24.0']) {
+  assert.ok([html, flashHtml, builder, installer].some((source) => source.includes(dependency)))
 }
 for (const [name, page] of [
   ['home', homeHtml],
   ['editor', html],
   ['tutorial', tutorialHtml],
   ['face editor', faceEditorHtml],
+  ['flash', flashHtml],
   ['simulator', simulatorHtml],
 ]) {
   const externalScripts = [...page.matchAll(/<script\b[^>]*\bsrc="https:\/\/[^>]+>/g)]

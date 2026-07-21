@@ -395,8 +395,8 @@ test('flash tool exposes the M5StackChan CoreS3 firmware target', () => {
   ])
 })
 
-test('third-party scripts that handle editable data use subresource integrity', () => {
-  for (const page of ['preference/index.html', 'editor/index.html', 'face-editor/index.html']) {
+test('third-party scripts that handle editable or device data use subresource integrity', () => {
+  for (const page of ['flash/index.html', 'preference/index.html', 'editor/index.html', 'face-editor/index.html']) {
     const html = readFileSync(page, 'utf8')
     const externalScripts = [...html.matchAll(/<script[^>]+src="https:\/\/unpkg\.com\/[^>]+>/g)]
     assert.notEqual(externalScripts.length, 0)
@@ -404,5 +404,18 @@ test('third-party scripts that handle editable data use subresource integrity', 
       assert.match(script, /integrity="sha384-/, `${page} external script should have SRI`)
       assert.match(script, /crossorigin="anonymous"/, `${page} external script should use anonymous CORS`)
     }
+  }
+})
+
+test('flash tool pins integrity metadata for every esp-web-tools module chunk', () => {
+  const html = readFileSync('flash/index.html', 'utf8')
+  const importMapText = /<script type="importmap">([\s\S]*?)<\/script>/.exec(html)?.[1]
+  assert.ok(importMapText)
+  const integrity = JSON.parse(importMapText).integrity
+
+  assert.equal(Object.keys(integrity).length, 12)
+  for (const [url, hash] of Object.entries(integrity)) {
+    assert.match(url, /^https:\/\/unpkg\.com\/esp-web-tools@9\.4\.3\/dist\/web\/.+\.js\?module$/)
+    assert.match(hash, /^sha384-/)
   }
 })

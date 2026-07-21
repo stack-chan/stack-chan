@@ -1,0 +1,38 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/modules/base/worker/manifest.json",
+    "$(MODDABLE)/modules/io/manifest.json",
+    "$(MODDABLE)/modules/io/audioout/manifest.json",
+    "$(MODDABLE)/modules/data/text/decoder/manifest.json"
+  ],
+  "modules": {
+    "stackchan-usb-audio": "./worker-bridge",
+    "stackchan-usb-audio-core": "./bridge",
+    "stackchan-usb-audio-worker": "./worker",
+    "stackchan-usb-shared-output": "./shared-speaker-output",
+    "stackchan-usb-diagnostics": "./diagnostics",
+    "stackchan-usb-protocol": "./protocol",
+    "stackchan-usb-speaker-buffer": "./speaker-buffer"
+  },
+  "preload": ["stackchan-usb-audio"],
+  "platforms": {
+    "esp32/m5stackchan_cores3": {
+      "build": {
+        "C_INCLUDES": "-I$(IDF_PATH)/components/esp_driver_usb_serial_jtag/include"
+      },
+      "dependency": [{ "idf": "esp_driver_usb_serial_jtag" }],
+      "modules": {
+        "stackchan-usb-serial": "./usb-serial"
+      }
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "useUnknownInCatchVariables": false
+      }
+    }
+  }
+}

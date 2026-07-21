@@ -1,0 +1,12 @@
+{
+  "include": [
+    "./manifest_m5stackchan_cores3.json",
+    "../modules/usb-audio/manifest.json"
+  ],
+  "config": {
+    "usbAudio": {
+      "enabled": true,
+      "speakerVolume": 0.25
+    }
+  }
+}

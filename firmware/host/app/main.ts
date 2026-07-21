@@ -7,8 +7,10 @@ import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
 import { DOMAIN } from 'consts'
 import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'experimental-mini-app-loader'
 import { initializeLocalization } from 'localization'
+import config from 'mc/config'
 import Modules from 'modules'
 import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
+import { createUsbAudioPresentation, type UsbAudioPresentation } from 'usb-audio-presentation'
 
 type DeviceButton = {
   onChanged: (this: DeviceButton) => void
@@ -16,6 +18,21 @@ type DeviceButton = {
 
 type GlobalEnvironment = {
   button?: Partial<Record<'a' | 'c', DeviceButton>>
+}
+
+type UsbAudioBridgeControl = {
+  setPresentation(presentation?: UsbAudioPresentation): void
+  close(): void
+}
+
+type UsbAudioBridgeOptions = {
+  speakerVolume?: number
+  diagnostics?: boolean
+}
+
+type UsbAudioConfig = UsbAudioBridgeOptions & {
+  enabled?: boolean
+  presentationEnabled?: boolean
 }
 
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
@@ -26,6 +43,26 @@ function installPlatformInputBridge(): void {
   const bridge = Modules.importNow('wasm-button-bridge') as { installWasmButtons?: () => void }
   bridge.installWasmButtons?.()
   trace('[main] installed WASM button bridge\n')
+}
+
+function startConfiguredUsbAudioBridge(): UsbAudioBridgeControl | undefined {
+  const usbAudio = (config as { usbAudio?: UsbAudioConfig }).usbAudio
+  if (!usbAudio?.enabled) return
+  if (!Modules.has('stackchan-usb-audio')) {
+    throw new Error('USB audio is enabled, but the stackchan-usb-audio module is unavailable')
+  }
+  const startUsbAudioBridge = Modules.importNow('stackchan-usb-audio') as
+    | ((options?: UsbAudioBridgeOptions) => UsbAudioBridgeControl)
+    | undefined
+  if (typeof startUsbAudioBridge !== 'function') {
+    throw new Error('stackchan-usb-audio does not export a bridge starter')
+  }
+  const bridge = startUsbAudioBridge({
+    speakerVolume: usbAudio.speakerVolume,
+    diagnostics: usbAudio.diagnostics,
+  })
+  trace('[main] USB audio bridge started\n')
+  return bridge
 }
 
 function loadAppBehaviors(miniAppArchivePresent: boolean): StackchanAppBehavior[] {
@@ -74,6 +111,7 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string
 
 async function main() {
   trace('[main] start\n')
+  const usbAudioBridge = startConfiguredUsbAudioBridge()
   installPlatformInputBridge()
   initializeLocalization(loadPreferences(DOMAIN.ui).language)
   const miniAppArchivePresent = Modules.has('miniapp')
@@ -97,6 +135,9 @@ async function main() {
   trace(`[main] network ready: ${networkReady.status}\n`)
   const preferences = loadPreferenceConfig()
   const context = createStackchanContext(preferences, { connectivity: bootServices.connectivity })
+  if ((config as { usbAudio?: UsbAudioConfig }).usbAudio?.presentationEnabled !== false) {
+    usbAudioBridge?.setPresentation(createUsbAudioPresentation(context))
+  }
   registerExperimentalMiniApps(experimentalMiniApps, context.ui.miniApps)
   trace('[main] app context created\n')
   await runContextCreatedBehaviors(appBehaviors, context, {

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - develop
+      - main
     paths:
       - "firmware/**"
       - "web/**"
@@ -16,6 +17,7 @@ on:
   pull_request:
     branches:
       - develop
+      - main
     paths:
       - "firmware/**"
       - "web/**"

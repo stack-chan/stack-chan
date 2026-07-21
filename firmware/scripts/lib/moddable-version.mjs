@@ -53,13 +53,23 @@ CONFIG_APP_PROJECT_VER="${version}"
 
 /**
  * Writes a generated CoreS3 sdkconfig directory for Moddable's SDKCONFIGPATH.
- * @param {{moddableDirectory?: string, outputDirectory?: string, sourceDirectory?: string}} options - Generation inputs.
- * @returns {{directory: string, filePath: string, version: string}} Generated configuration details.
+ * @param {{moddableDirectory?: string, outputDirectory?: string, sourceDirectory?: string, partitionSourcePath?: string}} options - Generation inputs.
+ * @returns {{directory: string, filePath: string, partitionFilePath: string, version: string}} Generated configuration details.
  */
 export function prepareCoreS3VersionSdkconfig({
   moddableDirectory = process.env.MODDABLE,
   outputDirectory = buildOutputDirectory,
   sourceDirectory = coreS3SdkconfigSourceDirectory,
+  partitionSourcePath = path.join(
+    moddableDirectory ?? '',
+    'build',
+    'devices',
+    'esp32',
+    'targets',
+    'm5stack_cores3',
+    'sdkconfig',
+    'partitions.csv',
+  ),
 } = {}) {
   const version = readModdableVersion(moddableDirectory)
   const sourcePath = path.join(sourceDirectory, 'sdkconfig.defaults')
@@ -67,13 +77,17 @@ export function prepareCoreS3VersionSdkconfig({
   const sdkconfig = renderCoreS3VersionSdkconfig(source, version)
   const directory = path.join(outputDirectory, 'generated', 'sdkconfig', 'm5stackchan_cores3')
   const filePath = path.join(directory, 'sdkconfig.defaults')
+  const partitionFilePath = path.join(directory, 'partitions.csv')
+  const partitions = readFileSync(partitionSourcePath)
 
   mkdirSync(directory, { recursive: true })
   const previous = existsSync(filePath) ? readFileSync(filePath, 'utf8') : null
   if (previous !== sdkconfig) writeFileSync(filePath, sdkconfig)
+  const previousPartitions = existsSync(partitionFilePath) ? readFileSync(partitionFilePath) : null
+  if (!previousPartitions?.equals(partitions)) writeFileSync(partitionFilePath, partitions)
 
   console.log(`[stack-chan] prepared CoreS3 firmware version ${version}: ${filePath}`)
-  return { directory, filePath, version }
+  return { directory, filePath, partitionFilePath, version }
 }
 
 /**

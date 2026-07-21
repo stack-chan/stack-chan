@@ -1,11 +1,11 @@
 # Changesets Foundation
 
-This directory reserves the repository-level configuration for future changelog and release-note automation.
+This directory stores pending release notes for user-visible firmware and web changes.
 
 Current scope:
 
 - Track the release base branch as `develop`
-- Keep the repository ready for future release PR automation
-- Keep release automation separate from the current firmware and web package workflows
+- Review and consume pending Changesets on a frozen release branch
+- Publish validated firmware assets from stable `vX.Y.Z` tags using `docs/release-notes/vX.Y.Z.md`
 
-Future work can add the root package manager setup and release workflow once the maintainers decide how version bumps should map to firmware and web deliverables.
+Package version bumps and the curated release note remain explicit release-branch changes. Future work can automate release pull request creation and changelog generation.

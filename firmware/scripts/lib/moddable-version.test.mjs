@@ -32,8 +32,15 @@ test('prepares an SDKCONFIGPATH directory from MODDABLE tools VERSION', () => {
 
   try {
     mkdirSync(path.join(moddableDirectory, 'tools'), { recursive: true })
+    mkdirSync(path.join(moddableDirectory, 'build/devices/esp32/targets/m5stack_cores3/sdkconfig'), {
+      recursive: true,
+    })
     mkdirSync(sourceDirectory, { recursive: true })
     writeFileSync(path.join(moddableDirectory, 'tools', 'VERSION'), '9.0.0\n')
+    writeFileSync(
+      path.join(moddableDirectory, 'build/devices/esp32/targets/m5stack_cores3/sdkconfig/partitions.csv'),
+      'factory,app,factory,0x10000,0xFE0000\n',
+    )
     writeFileSync(path.join(sourceDirectory, 'sdkconfig.defaults'), 'CONFIG_SPIRAM=y\n')
 
     const result = prepareCoreS3VersionSdkconfig({ moddableDirectory, outputDirectory, sourceDirectory })
@@ -41,6 +48,7 @@ test('prepares an SDKCONFIGPATH directory from MODDABLE tools VERSION', () => {
     assert.equal(result.version, '9.0.0')
     assert.equal(result.directory, path.join(outputDirectory, 'generated', 'sdkconfig', 'm5stackchan_cores3'))
     assert.match(readFileSync(result.filePath, 'utf8'), /CONFIG_APP_PROJECT_VER="9\.0\.0"/)
+    assert.match(readFileSync(result.partitionFilePath, 'utf8'), /0xFE0000/)
   } finally {
     rmSync(fixture, { recursive: true, force: true })
   }

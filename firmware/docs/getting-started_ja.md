@@ -103,7 +103,7 @@ $ npm run update -- --device=esp32
 ```console
 $ npm run doctor
 
-> stack-chan@0.2.1 doctor
+> stack-chan@1.0.0 doctor
 > xs-dev doctor
 
 xs-dev environment info:

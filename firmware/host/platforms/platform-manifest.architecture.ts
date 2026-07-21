@@ -5,6 +5,11 @@ import { describe, test } from 'node:test'
 
 const esp32PlatformManifest = JSON.parse(readFileSync('host/platforms/esp32/manifest.json', 'utf8'))
 const coreS3AudioOutSource = readFileSync('host/platforms/core_s3_audioout.js', 'utf8')
+const coreS3SdkconfigSource = readFileSync(
+  'host/modules/audio/platforms/m5stackchan-cores3/sdkconfig/sdkconfig.defaults',
+  'utf8',
+)
+const defaultBehaviorSource = readFileSync('host/app/default-behavior/on-context-created.ts', 'utf8')
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 
 type Subplatform = {
@@ -131,6 +136,13 @@ describe('Stack-chan platform manifest', () => {
         `${subplatform.name} internal I2C should use port 1 so the camera SCCB can share the bus`,
       )
     }
+  })
+
+  test('CoreS3 camera preview fits the available internal DMA block', () => {
+    assert.match(coreS3SdkconfigSource, /^CONFIG_CAMERA_DMA_BUFFER_SIZE_MAX=16384$/m)
+    assert.doesNotMatch(coreS3SdkconfigSource, /^CONFIG_CAMERA_PSRAM_DMA=y$/m)
+    assert.match(defaultBehaviorSource, /^const CAMERA_PREVIEW_CAPTURE_WIDTH = 160$/m)
+    assert.match(defaultBehaviorSource, /^const CAMERA_PREVIEW_CAPTURE_HEIGHT = 120$/m)
   })
 
   test('the M5StackChan CoreS3 smoke MOD exercises hardware APIs and documents real npm scripts', () => {

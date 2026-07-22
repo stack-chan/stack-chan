@@ -353,10 +353,7 @@ test('preference actions localize runtime messages and save the selected device 
   })
 
   await page.clear.click()
-  assert.equal(
-    confirmation,
-    'localized:保存済みのSSIDとパスワードを消去しますか？次回はオフラインで起動します。'
-  )
+  assert.equal(confirmation, 'localized:保存済みのSSIDとパスワードを消去しますか？次回はオフラインで起動します。')
 
   page.language.value = 'en'
   await page.form.dispatch('change', page.language)
@@ -393,6 +390,17 @@ test('flash tool exposes the M5StackChan CoreS3 firmware target', () => {
       offset: 65536,
     },
   ])
+})
+
+test('device setup tools explain destructive flashing and BLE pairing prerequisites', () => {
+  const flash = readFileSync('flash/index.html', 'utf8')
+  assert.match(
+    flash,
+    /class="guidance-callout guidance-callout-warning"[\s\S]*?保存した設定[\s\S]*?インストール済みのMOD[\s\S]*?すべて消去/
+  )
+
+  const preference = readFileSync('preference/index.html', 'utf8')
+  assert.match(preference, /class="guidance-callout"[\s\S]*?起動画面[\s\S]*?「設定」を押し[\s\S]*?本体の設定画面/)
 })
 
 test('third-party scripts that handle editable or device data use subresource integrity', () => {

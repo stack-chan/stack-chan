@@ -77,6 +77,7 @@ const pages = [
   ['flash', '/flash/'],
   ['preference', '/preference/'],
   ['mod-gallery', '/mod-gallery/'],
+  ['mediapipe', '/mediapipe/'],
   ['editor', '/editor/'],
   ['tutorial', '/editor/tutorial.html'],
   ['face-editor', '/face-editor/'],
@@ -278,7 +279,7 @@ try {
       if (pageName === 'home' && viewportName === 'desktop') {
         await page.locator('.tool-menu-button').click()
         await page.locator('#tool-drawer[open]').waitFor({ state: 'visible' })
-        assert.equal(await page.locator('#tool-drawer .tool-drawer-link').count(), 8)
+        assert.equal(await page.locator('#tool-drawer .tool-drawer-link').count(), 9)
         assert.match(await page.locator('#tool-drawer [aria-current="page"]').innerText(), /ホーム/)
         await page.screenshot({ path: '/tmp/stackchan-tool-drawer.png', fullPage: true })
         await page.keyboard.press('Escape')
@@ -286,7 +287,7 @@ try {
       }
       if (pageName === 'mod-gallery' && viewportName === 'desktop') {
         await page.locator('.mod-card').first().waitFor({ state: 'visible' })
-        assert.equal(await page.locator('.mod-card').count(), 5, 'gallery: common catalog entries')
+        assert.equal(await page.locator('.mod-card').count(), 6, 'gallery: common catalog entries')
         assert.equal(await page.locator('.mod-card[data-mod-type="block"]').count(), 4, 'gallery: block samples')
         await page.locator('#type-filter').selectOption('block')
         assert.equal(await page.locator('.mod-card').count(), 4, 'gallery: block filter')
@@ -301,6 +302,27 @@ try {
         assert.equal(await editorPage.locator('#project-name-label').innerText(), 'あいさつと表情')
         assert.match(await editorPage.locator('#build-status').innerText(), /Galleryから/)
         await editorPage.close()
+        const deepLinkPage = await browser.newPage()
+        await deepLinkPage.goto(`${baseUrl}/mod-gallery/?mod=tech.stackchan.samples.mediapipe-ble`, {
+          waitUntil: 'domcontentloaded',
+        })
+        const selectedCard = deepLinkPage.locator('.mod-card-selected')
+        await selectedCard.waitFor({ state: 'visible' })
+        assert.equal(await selectedCard.getAttribute('data-mod-id'), 'tech.stackchan.samples.mediapipe-ble')
+        assert.equal(
+          await selectedCard.getByRole('button', { name: 'シミュレーターで試す' }).count(),
+          0,
+          'CoreS3-only MediaPipe MOD should not offer simulator installation'
+        )
+        assert.equal(await selectedCard.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
+        await deepLinkPage.close()
+      }
+      if (pageName === 'mediapipe' && viewportName === 'desktop') {
+        const installUrl = new URL(await page.locator('#install-mod-link').getAttribute('href'), page.url())
+        assert.equal(installUrl.pathname, new URL('../mod-gallery/', page.url()).pathname)
+        assert.equal(installUrl.searchParams.get('mod'), 'tech.stackchan.samples.mediapipe-ble')
+        assert.equal(await page.locator('#camera-button').isVisible(), true)
+        assert.equal(await page.locator('#ble-button').isVisible(), true)
       }
       if (pageName === 'face-editor' && viewportName === 'mobile') {
         assert.equal(await page.locator('#send-to-editor span').isVisible(), true)

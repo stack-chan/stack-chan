@@ -11,6 +11,7 @@ const pages = [
   'editor/index.html',
   'editor/tutorial.html',
   'mod-gallery/index.html',
+  'mediapipe/index.html',
   'face-editor/index.html',
   'simulator/index.html',
 ]
@@ -33,7 +34,17 @@ test('tool pages load the shared left drawer without changing integration ids', 
     assert.doesNotMatch(html, /class="tool-nav"/, `${page} should not duplicate the retired right navigation`)
   }
   const navigation = readFileSync('tool-navigation.mjs', 'utf8')
-  for (const id of ['home', 'flash', 'preference', 'mod-gallery', 'simulator', 'editor', 'face-editor', 'tutorial']) {
+  for (const id of [
+    'home',
+    'flash',
+    'preference',
+    'mod-gallery',
+    'mediapipe',
+    'simulator',
+    'editor',
+    'face-editor',
+    'tutorial',
+  ]) {
     assert.match(navigation, new RegExp(`id: '${id}'`), `drawer should expose ${id}`)
   }
   assert.match(navigation, /topbar\.prepend\(button\)/)
@@ -353,10 +364,7 @@ test('preference actions localize runtime messages and save the selected device 
   })
 
   await page.clear.click()
-  assert.equal(
-    confirmation,
-    'localized:保存済みのSSIDとパスワードを消去しますか？次回はオフラインで起動します。'
-  )
+  assert.equal(confirmation, 'localized:保存済みのSSIDとパスワードを消去しますか？次回はオフラインで起動します。')
 
   page.language.value = 'en'
   await page.form.dispatch('change', page.language)

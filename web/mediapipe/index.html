@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="../assets/stackchan-favicon-32.png" type="image/png" />
+    <link rel="apple-touch-icon" href="../assets/stackchan-apple-touch-icon.png" />
+    <link rel="stylesheet" href="../global.css" />
+    <link rel="stylesheet" href="./mediapipe.css" />
+    <title>MediaPipe BLE追従 | ｽﾀｯｸﾁｬﾝ</title>
+    <script
+      src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.min.js"
+      integrity="sha384-mooE85Luwgx+AyykX7e90VcN8/QCFTSIwPuHLmvcsLVoA0en7lKYb9XlOzn5G2co"
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <a class="brand-link" href="../"
+          ><img src="../assets/stackchan-symbol.png" alt="" /><span
+            >ｽﾀｯｸﾁｬﾝ<span class="surface-name"> MediaPipe BLE追従</span></span
+          ></a
+        >
+      </header>
+
+      <section class="tracking-page" aria-labelledby="page-title">
+        <header class="page-heading">
+          <div>
+            <p class="eyebrow">Web Bluetooth demo</p>
+            <h1 id="page-title">顔と手をｽﾀｯｸﾁｬﾝへ映す</h1>
+            <p>カメラ映像をブラウザ内のMediaPipeで解析し、顔向き、笑顔、手の位置と指の本数をBLEで送ります。</p>
+          </div>
+          <a
+            class="button primary-button"
+            href="../mod-gallery/?mod=tech.stackchan.samples.mediapipe-ble"
+            id="install-mod-link"
+            ><i data-lucide="download"></i><span>受信MODをインストール</span></a
+          >
+        </header>
+
+        <div class="demo-grid">
+          <section class="camera-panel" aria-labelledby="camera-heading">
+            <div class="panel-heading">
+              <div>
+                <h2 id="camera-heading">カメラ</h2>
+                <p id="camera-status" class="status-line" data-state="idle">未接続</p>
+              </div>
+              <div class="button-row">
+                <button id="camera-button" class="primary-button" type="button">
+                  <i data-lucide="camera"></i><span>カメラ開始</span>
+                </button>
+                <button id="camera-stop-button" type="button" disabled>
+                  <i data-lucide="camera-off"></i><span>停止</span>
+                </button>
+              </div>
+            </div>
+            <div class="camera-stage">
+              <video id="camera-video" playsinline muted></video>
+              <canvas id="tracking-canvas" aria-hidden="true"></canvas>
+              <p id="tracking-status">カメラ停止中</p>
+            </div>
+          </section>
+
+          <aside class="control-panel">
+            <section class="control-card" aria-labelledby="ble-heading">
+              <h2 id="ble-heading">BLE接続</h2>
+              <p id="ble-status" class="status-line" data-state="idle">未接続</p>
+              <div class="button-row stacked-buttons">
+                <button id="ble-button" class="primary-button" type="button">
+                  <i data-lucide="bluetooth"></i><span>ｽﾀｯｸﾁｬﾝへ接続</span>
+                </button>
+                <button id="ble-disconnect-button" type="button" disabled>
+                  <i data-lucide="unlink"></i><span>切断</span>
+                </button>
+              </div>
+              <p class="hint">
+                先に受信MODをCoreS3へ書き込み、MODが起動してから接続してください。ChromeまたはEdgeが必要です。
+              </p>
+              <a class="text-link" href="../flash/"><i data-lucide="cpu"></i>対応ファームウェアを書き込む</a>
+            </section>
+
+            <section class="control-card" aria-labelledby="values-heading">
+              <h2 id="values-heading">認識値</h2>
+              <dl class="tracking-values">
+                <div>
+                  <dt>顔向き</dt>
+                  <dd id="face-value">未検出</dd>
+                </div>
+                <div>
+                  <dt>表情</dt>
+                  <dd id="emotion-value">未検出</dd>
+                </div>
+                <div>
+                  <dt>左手</dt>
+                  <dd id="left-hand-value">未検出</dd>
+                </div>
+                <div>
+                  <dt>右手</dt>
+                  <dd id="right-hand-value">未検出</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section class="control-card privacy-note" aria-labelledby="privacy-heading">
+              <h2 id="privacy-heading">映像について</h2>
+              <p>カメラ映像は端末内で解析され、ｽﾀｯｸﾁｬﾝへは数値化した追跡結果だけが送られます。</p>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="../tool-navigation.mjs"></script>
+    <script type="module" src="./app.mjs"></script>
+    <script>
+      globalThis.lucide?.createIcons()
+    </script>
+  </body>
+</html>

@@ -187,6 +187,9 @@
       "local-peer-radio-types": [
         "host/modules/connectivity/local-peer-radio-types.ts"
       ],
+      "ble-local-peer-record": [
+        "host/modules/connectivity/ble/local-peer-record.ts"
+      ],
       "local-peer-service": [
         "host/modules/connectivity/local-peer-service.ts"
       ],

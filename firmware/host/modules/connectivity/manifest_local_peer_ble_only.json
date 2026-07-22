@@ -1,0 +1,6 @@
+{
+  "modules": {
+    "~": ["./esp32/local-peer-radio"],
+    "local-peer-transports": "./esp32/local-peer-transports-ble-only"
+  }
+}

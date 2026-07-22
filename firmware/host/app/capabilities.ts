@@ -201,7 +201,7 @@ export type NetworkCapability = {
 
 export type ConnectivityCapability = {
   network?: NetworkCapability
-  /** Connectionless local peer messaging. Present only on supported Wi-Fi targets. */
+  /** Nearby peer messaging over a platform-supported transport such as ESP-NOW or BLE Serial. */
   localPeer?: LocalPeerCapability
 }
 

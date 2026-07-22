@@ -8,8 +8,10 @@ on:
     paths:
       - "firmware/**"
       - "web/**"
+      - ".github/scripts/**"
       - ".github/actions/setup/action.yml"
       - ".github/workflows/bundle.yml"
+      - ".github/workflows/cloudflare-preview.yml"
   pull_request:
     branches:
       - develop
@@ -17,8 +19,10 @@ on:
     paths:
       - "firmware/**"
       - "web/**"
+      - ".github/scripts/**"
       - ".github/actions/setup/action.yml"
       - ".github/workflows/bundle.yml"
+      - ".github/workflows/cloudflare-preview.yml"
 
 permissions:
   contents: read
@@ -71,6 +75,56 @@ jobs:
         with:
           name: wasm-simulator
           path: ./web/simulator
+      - name: Checkout Pages baseline
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+        with:
+          ref: gh-pages
+          path: pages-baseline
+          persist-credentials: false
+      - name: Checkout clean preview source
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: preview-source
+          persist-credentials: false
+      - name: Assemble Cloudflare Pages preview
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          test -s ./pages-baseline/web/schematics/index.html
+          mkdir -p ./pages-preview
+          cp -R ./preview-source/web/. ./pages-preview/
+          rm -rf \
+            ./pages-preview/schematics \
+            ./pages-preview/flash/tech.moddable.stackchan \
+            ./pages-preview/simulator
+          mkdir -p \
+            ./pages-preview/flash/tech.moddable.stackchan \
+            ./pages-preview/simulator
+          cp -R ./pages-baseline/web/schematics ./pages-preview/schematics
+          cp -R \
+            ./firmware/host/app/tech.moddable.stackchan/. \
+            ./pages-preview/flash/tech.moddable.stackchan/
+          cp -R ./web/simulator/. ./pages-preview/simulator/
+          mkdir -p ./pages-preview/schemas
+          cp \
+            ./preview-source/docs/specs/stackchan-mod.schema.json \
+            ./pages-preview/schemas/stackchan-mod.schema.json
+      - name: Validate Cloudflare Pages preview
+        if: github.event_name == 'pull_request'
+        run: |
+          node --test .github/scripts/validate-pages-preview.test.mjs
+          node .github/scripts/validate-pages-preview.mjs ./pages-preview
+      - name: Upload Cloudflare Pages preview
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: cloudflare-pages-preview
+          path: ./pages-preview
+          retention-days: 2
+          if-no-files-found: error
 
   deploy:
     needs: build

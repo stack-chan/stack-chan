@@ -58,7 +58,7 @@ npm run flash
 
 Generated web assets under `web/flash` and `web/schematics` are published from the `gh-pages` branch by GitHub Actions. Treat them as deployment outputs, not hand-maintained source files.
 
-See [Configure Cloudflare Pages PR previews](./docs/operations/cloudflare-pr-preview.md) to enable a browser preview for each pull request.
+See [Configure Cloudflare Pages PR previews](./docs/operations/cloudflare-pr-preview.md) to enable browser previews for pull requests that change `firmware/**` or `web/**`.
 
 ## Planning
 

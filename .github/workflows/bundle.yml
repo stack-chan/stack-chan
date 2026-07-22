@@ -115,7 +115,7 @@ jobs:
       - name: Validate Cloudflare Pages preview
         if: github.event_name == 'pull_request'
         run: |
-          node --test .github/scripts/validate-pages-preview.test.mjs
+          node --test .github/scripts/*.test.mjs
           node .github/scripts/validate-pages-preview.mjs ./pages-preview
       - name: Upload Cloudflare Pages preview
         if: github.event_name == 'pull_request'

@@ -58,7 +58,7 @@ npm run flash
 
 `web/flash` と `web/schematics` は GitHub Actions から `gh-pages` ブランチへ配布される生成物です。手作業で保守するソースではなく、デプロイ成果物として扱ってください。
 
-Pull RequestごとのWebプレビューを有効にする方法は [Cloudflare Pages PRプレビューの設定](./docs/operations/cloudflare-pr-preview_ja.md) を参照してください。
+`firmware/**` または `web/**` を変更するPull RequestのWebプレビューを有効にする方法は [Cloudflare Pages PRプレビューの設定](./docs/operations/cloudflare-pr-preview_ja.md) を参照してください。
 
 ## 開発計画
 

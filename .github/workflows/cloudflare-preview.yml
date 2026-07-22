@@ -13,7 +13,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: cloudflare-preview-${{ github.event.workflow_run.pull_requests[0].number || github.event.pull_request.number || github.run_id }}
+  group: cloudflare-preview-${{ github.event.workflow_run.head_repository.id || github.event.pull_request.head.repo.id || github.repository_id }}-${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -65,6 +65,14 @@ jobs:
               core.notice(`Skipping stale or ineligible preview run for PR #${number}`)
             }
 
+      - name: Checkout trusted preview scripts
+        if: steps.pull_request.outputs.eligible == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted-source
+          persist-credentials: false
+
       - name: Report failed preview build
         if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion != 'success'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -74,28 +82,23 @@ jobs:
           RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         with:
           script: |
-            const marker = '<!-- stackchan-cloudflare-preview -->'
-            const body = `${marker}
-            ## Cloudflare PR preview
+            const { pathToFileURL } = require('node:url')
+            const helperUrl = pathToFileURL(
+              `${process.env.GITHUB_WORKSPACE}/trusted-source/.github/scripts/upsert-preview-comment.mjs`,
+            ).href
+            const { upsertPreviewComment } = await import(helperUrl)
+            const content = `## Cloudflare PR preview
 
             The preview build **${process.env.RUN_CONCLUSION}**. No new deployment was published.
 
             [Open the failed workflow run](${process.env.RUN_URL}). Any URL from an earlier comment is stale.`
-            const issue_number = Number(process.env.PR_NUMBER)
-            const comments = await github.paginate(github.rest.issues.listComments, {
+            await upsertPreviewComment({
+              github,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number,
+              issueNumber: Number(process.env.PR_NUMBER),
+              content,
             })
-            const existing = comments.find(
-              (comment) => comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker),
-            )
-            const request = { owner: context.repo.owner, repo: context.repo.repo, body }
-            if (existing) {
-              await github.rest.issues.updateComment({ ...request, comment_id: existing.id })
-            } else {
-              await github.rest.issues.createComment({ ...request, issue_number })
-            }
 
       - name: Download preview artifact
         if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion == 'success'
@@ -105,14 +108,6 @@ jobs:
           path: preview-upload/site
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id }}
-
-      - name: Checkout trusted validator
-        if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion == 'success'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ github.event.repository.default_branch }}
-          path: trusted-source
-          persist-credentials: false
 
       - name: Validate preview artifact
         if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion == 'success'
@@ -124,22 +119,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
-        run: |
-          set -euo pipefail
-          for name in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN CLOUDFLARE_PAGES_PROJECT; do
-            if [ -z "${!name:-}" ]; then
-              echo "::error::GitHub Actions setting $name is not configured"
-              exit 1
-            fi
-          done
-          if [[ ! "$CLOUDFLARE_ACCOUNT_ID" =~ ^[0-9a-f]{32}$ ]]; then
-            echo '::error::CLOUDFLARE_ACCOUNT_ID must be a 32-character hexadecimal ID'
-            exit 1
-          fi
-          if [[ ! "$CLOUDFLARE_PAGES_PROJECT" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
-            echo '::error::CLOUDFLARE_PAGES_PROJECT contains unsupported characters'
-            exit 1
-          fi
+        run: node ./trusted-source/.github/scripts/validate-cloudflare-config.mjs
 
       - name: Deploy preview to Cloudflare Pages
         if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion == 'success'
@@ -166,11 +146,14 @@ jobs:
           IMMUTABLE_URL: ${{ steps.cloudflare.outputs.deployment-url }}
         with:
           script: |
-            const marker = '<!-- stackchan-cloudflare-preview -->'
+            const { pathToFileURL } = require('node:url')
+            const helperUrl = pathToFileURL(
+              `${process.env.GITHUB_WORKSPACE}/trusted-source/.github/scripts/upsert-preview-comment.mjs`,
+            ).href
+            const { upsertPreviewComment } = await import(helperUrl)
             const previewUrl = process.env.PREVIEW_URL || process.env.IMMUTABLE_URL
             if (!previewUrl) throw new Error('Cloudflare did not return a preview URL')
-            const body = `${marker}
-            ## Cloudflare PR preview
+            const content = `## Cloudflare PR preview
 
             [Open the latest preview](${previewUrl}) for commit \`${process.env.HEAD_SHA.slice(0, 12)}\`.
 
@@ -178,26 +161,19 @@ jobs:
 
             > [!WARNING]
             > Pull request previews contain untrusted web and firmware code. Review the changes before granting WebSerial/Bluetooth permissions or flashing a device.`
-            const issue_number = Number(process.env.PR_NUMBER)
-            const comments = await github.paginate(github.rest.issues.listComments, {
+            await upsertPreviewComment({
+              github,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number,
+              issueNumber: Number(process.env.PR_NUMBER),
+              content,
             })
-            const existing = comments.find(
-              (comment) => comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker),
-            )
-            const request = { owner: context.repo.owner, repo: context.repo.repo, body }
-            if (existing) {
-              await github.rest.issues.updateComment({ ...request, comment_id: existing.id })
-            } else {
-              await github.rest.issues.createComment({ ...request, issue_number })
-            }
 
   close:
     if: github.event_name == 'pull_request_target' && github.event.action == 'closed'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       issues: write
     steps:
       - name: Find preview comment
@@ -215,28 +191,20 @@ jobs:
               (comment) => comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker),
             )
             core.setOutput('exists', String(exists))
+      - name: Checkout trusted preview scripts
+        if: steps.preview.outputs.exists == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted-source
+          persist-credentials: false
       - name: Validate Cloudflare configuration
         if: steps.preview.outputs.exists == 'true'
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
-        run: |
-          set -euo pipefail
-          for name in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN CLOUDFLARE_PAGES_PROJECT; do
-            if [ -z "${!name:-}" ]; then
-              echo "::error::GitHub Actions setting $name is not configured"
-              exit 1
-            fi
-          done
-          if [[ ! "$CLOUDFLARE_ACCOUNT_ID" =~ ^[0-9a-f]{32}$ ]]; then
-            echo '::error::CLOUDFLARE_ACCOUNT_ID must be a 32-character hexadecimal ID'
-            exit 1
-          fi
-          if [[ ! "$CLOUDFLARE_PAGES_PROJECT" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
-            echo '::error::CLOUDFLARE_PAGES_PROJECT contains unsupported characters'
-            exit 1
-          fi
+        run: node ./trusted-source/.github/scripts/validate-cloudflare-config.mjs
       - name: Create closed preview page
         if: steps.preview.outputs.exists == 'true'
         env:
@@ -316,23 +284,18 @@ jobs:
           PREVIEW_URL: ${{ steps.cloudflare.outputs.pages-deployment-alias-url }}
         with:
           script: |
-            const marker = '<!-- stackchan-cloudflare-preview -->'
-            const body = `${marker}
-            ## Cloudflare PR preview
+            const { pathToFileURL } = require('node:url')
+            const helperUrl = pathToFileURL(
+              `${process.env.GITHUB_WORKSPACE}/trusted-source/.github/scripts/upsert-preview-comment.mjs`,
+            ).href
+            const { upsertPreviewComment } = await import(helperUrl)
+            const content = `## Cloudflare PR preview
 
             This pull request is closed. Its preview has been replaced with a closed page${process.env.PREVIEW_URL ? ` at ${process.env.PREVIEW_URL}` : ''}.`
-            const issue_number = Number(process.env.PR_NUMBER)
-            const comments = await github.paginate(github.rest.issues.listComments, {
+            await upsertPreviewComment({
+              github,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number,
+              issueNumber: Number(process.env.PR_NUMBER),
+              content,
             })
-            const existing = comments.find(
-              (comment) => comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker),
-            )
-            const request = { owner: context.repo.owner, repo: context.repo.repo, body }
-            if (existing) {
-              await github.rest.issues.updateComment({ ...request, comment_id: existing.id })
-            } else {
-              await github.rest.issues.createComment({ ...request, issue_number })
-            }

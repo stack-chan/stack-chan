@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url'
 export const MAX_FILE_COUNT = 20_000
 export const MAX_FILE_SIZE = 25 * 1024 * 1024
 
-const REQUIRED_FILES = [
+export const REQUIRED_FILES = [
   'index.html',
   'flash/tech.moddable.stackchan/m5stackchan_cores3/bootloader.bin',
   'flash/tech.moddable.stackchan/m5stackchan_cores3/partition-table.bin',
@@ -18,7 +18,7 @@ const REQUIRED_FILES = [
   'schemas/stackchan-mod.schema.json',
   'schematics/index.html',
 ]
-const FORBIDDEN_FILES = new Set(['.assetsignore', '_routes.json', '_worker.js'])
+const FORBIDDEN_FILES = new Set(['.assetsignore', '_headers', '_redirects', '_routes.json', '_worker.js'])
 
 function displayPath(root, path) {
   return relative(root, path).split(sep).join('/') || '.'

@@ -92,3 +92,35 @@ python scripts/usb-audio-diagnostics.py \
 ```
 
 診断ツールは送受信bytes数、`AudioOut`書き込みbytes数、starvation回数、callback間隔をCSVへ記録する。
+同時に、PC側のUSB writeとreadについて、byte数とmicrosecond単位の相対時刻を`.wire.jsonl`へ記録する。
+wire logにはPCM本体と字幕本文を保存しない。
+
+Androidが保存した再生traceを使う場合は、次のように実行する。
+
+```bash
+python scripts/usb-audio-diagnostics.py \
+  --port /dev/ttyACM0 \
+  --replay-trace /path/to/playback-trace.jsonl \
+  --timing-scale 1 \
+  --wire-log dist/usb-audio-diagnostics/android-replay.wire.jsonl
+```
+
+replayerはschema version 2の`usb_write` eventからframeを再構築し、`startedElapsedUs`の間隔とwrite単位を維持する。
+PCM payloadには無音を使い、字幕payloadには同じbyte数のASCII文字列を使う。
+`--timing-scale 0`を指定すると、記録されたwriteを待ち時間なしで連続送信できる。
+
+受信処理の余裕を確認する試験では、最大16個の字幕frameをPCMの直前へ追加できる。
+
+```bash
+python scripts/usb-audio-diagnostics.py \
+  --port /dev/ttyACM0 \
+  --duration 10 \
+  --mode credit-driven \
+  --initial-caption-count 16 \
+  --initial-caption-bytes 1024 \
+  --combined-initial-pcm-frames 2
+```
+
+`--combined-initial-pcm-frames 2`は、字幕16 frameと先頭PCM 2 frameを一回のホストwriteへまとめる。
+wire logの`usb_write`には、write全体のbyte数と時刻に加え、`frames`へ各frameのoffsetとbyte数を記録する。
+この試験はAndroid実測traceの再現ではなく、USB受信余裕を確認する合成負荷試験である。

@@ -4,6 +4,8 @@
   },
   "include": ["$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json"],
   "modules": {
+    "embedded:io/audio/out-original": "../physical_audioout",
+    "embedded:io/audio/out": "../shared_audioout",
     "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
     "pins/audioout": "../core_s3_audioout"
   },

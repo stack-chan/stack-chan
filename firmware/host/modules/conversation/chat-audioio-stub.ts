@@ -40,5 +40,9 @@ export default class ChatAudioIO {
 
   changeMicrophone(_enabled: boolean): void {}
 
+  suspendInput(): void {}
+
+  resumeInput(_microphoneEnabled: boolean): void {}
+
   changeVolume(_volume: number): void {}
 }

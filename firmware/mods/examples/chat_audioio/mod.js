@@ -3,8 +3,8 @@ import { ImageFace } from 'behaviors/face'
 import { ChatService, ChatState, chatStateToName } from 'chat'
 import { hasValidChatType, normalizeChatConfig } from 'chat-audioio-config'
 import { SpeechBalloon } from 'effects/speech-balloon'
-import { EmotionNames, emotionFromName } from 'face-state'
 import config from 'mc/config'
+import { createRobotChatTools } from 'robot-chat-tools'
 import { randomBetween } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -18,90 +18,6 @@ const MOUTH_UPDATE_INTERVAL_MS = 125
 const MOUTH_QUANTIZE_STEP = 0.1
 const MOUTH_MAX_STEP = Math.round(1 / MOUTH_QUANTIZE_STEP)
 const MOUTH_LEVEL_STEP_DIVISOR = Math.round(MOUTH_QUANTIZE_STEP / DEFAULT_MOUTH_SCALE)
-const DEFAULT_TONE_DURATION_MS = 220
-const MIN_TONE_DURATION_MS = 30
-const MAX_TONE_DURATION_MS = 3000
-const MIN_TONE_HZ = 40
-const MAX_TONE_HZ = 4000
-// biome-ignore lint/correctness/noUnusedVariables: kept for the parked playTone implementation below.
-const MAX_TONE_COUNT = 64
-
-const NOTE_OFFSETS_FROM_A = {
-  C: -9,
-  D: -7,
-  E: -5,
-  F: -4,
-  G: -2,
-  A: 0,
-  B: 2,
-}
-
-const REST_NAMES = ['R', 'REST', 'PAUSE']
-
-const clampNumber = (value, min, max) => {
-  if (value < min) return min
-  if (value > max) return max
-  return value
-}
-
-// biome-ignore lint/correctness/noUnusedVariables: kept for the parked playTone implementation below.
-const wait = (durationMs) =>
-  new Promise((resolve) => {
-    Timer.set(resolve, durationMs)
-  })
-
-const parseToneDuration = (rawDuration) => {
-  const duration = Number.parseInt(rawDuration ?? `${DEFAULT_TONE_DURATION_MS}`, 10)
-  if (!Number.isFinite(duration)) return DEFAULT_TONE_DURATION_MS
-  return clampNumber(duration, MIN_TONE_DURATION_MS, MAX_TONE_DURATION_MS)
-}
-
-const noteToHz = (noteName, accidental, octaveRaw) => {
-  const baseOffset = NOTE_OFFSETS_FROM_A[noteName]
-  if (baseOffset == null) return null
-  let offset = baseOffset
-  if (accidental === '#') offset += 1
-  if (accidental === 'b' || accidental === 'B') offset -= 1
-  const octave = octaveRaw === undefined ? 4 : Number.parseInt(octaveRaw, 10)
-  if (!Number.isFinite(octave)) return null
-  offset += (octave - 4) * 12
-  const hz = Math.round(440 * 2 ** (offset / 12))
-  return clampNumber(hz, MIN_TONE_HZ, MAX_TONE_HZ)
-}
-
-// biome-ignore lint/correctness/noUnusedVariables: kept for the parked playTone implementation below.
-const parseToneToken = (token) => {
-  if (typeof token !== 'string') return null
-  const trimmed = token.trim()
-  if (trimmed.length === 0) return null
-
-  const restMatch = /^([A-Za-z]+)(?:[:/,]\s*(\d+))?$/.exec(trimmed)
-  if (restMatch && REST_NAMES.includes(restMatch[1].toUpperCase())) {
-    return { type: 'rest', duration: parseToneDuration(restMatch[2]) }
-  }
-
-  const noteMatch = /^([A-Ga-g])([#b]?)(-?\d+)?(?:[:/,]\s*(\d+))?$/.exec(trimmed)
-  if (noteMatch) {
-    const hz = noteToHz(noteMatch[1].toUpperCase(), noteMatch[2], noteMatch[3])
-    if (hz == null) return null
-    return {
-      type: 'tone',
-      hz,
-      duration: parseToneDuration(noteMatch[4]),
-    }
-  }
-
-  const freqMatch = /^(\d+(?:\.\d+)?)(?:[:/,]\s*(\d+))?$/.exec(trimmed)
-  if (freqMatch) {
-    const hz = clampNumber(Math.round(Number.parseFloat(freqMatch[1])), MIN_TONE_HZ, MAX_TONE_HZ)
-    return {
-      type: 'tone',
-      hz,
-      duration: parseToneDuration(freqMatch[2]),
-    }
-  }
-  return null
-}
 
 // biome-ignore lint/correctness/noUnusedVariables: alternative prompt kept for quick local switching.
 const INSTRUCTION_A = `
@@ -164,7 +80,7 @@ Conversation style:
 - Express energy and positivity clearly
 - Avoid childish expressions, slang, or baby talk
 - Do not act like a professional expert or a strict assistant
-- If the user asks to play music or melodies, call the playTone tool
+- If the user asks to play music or melodies, call the play_melody tool
 
 You are a cute, energetic, and polite community-built robot who enjoys talking with people.
 `
@@ -184,82 +100,10 @@ export function onContextCreated(robot) {
     return
   }
 
-  const tools = {
-    set_emotion: {
-      name: 'set_emotion',
-      description: "Set the robot's emotion",
-      parameters: {
-        type: 'object',
-        properties: {
-          emotion: {
-            type: 'string',
-            description: `Emotion to set for the robot. One of: ${EmotionNames.join(', ')}`,
-          },
-        },
-        required: ['emotion'],
-      },
-      execute: async ({ emotion }) => {
-        if (typeof emotion === 'string') {
-          const nextEmotion = emotionFromName(emotion)
-          if (nextEmotion !== undefined) {
-            robot.face.setEmotion(nextEmotion)
-            return `Emotion set to ${emotion.toUpperCase()}`
-          }
-        }
-        return `Invalid emotion: ${String(emotion)}`
-      },
-    },
-    playTone: {
-      name: 'playTone',
-      description:
-        'Play a sequence of tones. Each token can be note or frequency with optional duration: C4:220, F#4:180, 440:200, R:120.',
-      parameters: {
-        type: 'object',
-        properties: {
-          tones: {
-            type: 'array',
-            description: 'Ordered tone tokens to play',
-            items: {
-              type: 'string',
-            },
-          },
-        },
-        required: ['tones'],
-      },
-      // biome-ignore lint/correctness/noUnusedFunctionParameters: tone playback is currently stubbed while the implementation below is parked.
-      execute: async ({ tones }) => {
-        return new Promise((resolve) => {
-          Timer.set(() => {
-            trace('playTone finished\n')
-            resolve('playTone finished')
-          }, 3000)
-        })
-        /*
-        if (!Array.isArray(tones) || tones.length === 0) {
-          return 'No tones provided'
-        }
-        let played = 0
-        let skipped = 0
-        for (const rawToken of tones.slice(0, MAX_TONE_COUNT)) {
-          const parsed = parseToneToken(rawToken)
-          if (!parsed) {
-            skipped += 1
-            continue
-          }
-          if (parsed.type === 'rest') {
-            await wait(parsed.duration)
-            continue
-          }
-          await robot.audio.tone(parsed.hz, parsed.duration)
-          played += 1
-        }
-        const result = `playTone finished. played=${played}, skipped=${skipped}\n`
-        trace(result)
-        return result
-        */
-      },
-    },
-  }
+  let chat
+  const tools = createRobotChatTools(robot, {
+    runWithInputSuspended: (operation) => chat.runWithInputSuspended(operation),
+  })
 
   const app = robot.ui.application
   // robot.ui.setFace(new ImageFace({}))
@@ -492,7 +336,7 @@ export function onContextCreated(robot) {
     queueBalloonText(transcriptText, !more)
   }
 
-  const chat = new ChatService({
+  chat = new ChatService({
     config: chatConfig,
     tools,
     callbacks: {

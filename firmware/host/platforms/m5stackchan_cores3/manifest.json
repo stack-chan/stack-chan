@@ -8,6 +8,8 @@
     "$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json"
   ],
   "modules": {
+    "embedded:io/audio/out-original": "../physical_audioout",
+    "embedded:io/audio/out": "../shared_audioout",
     "embedded:sensor/Touch/FT6x06": "./host/ft6206_async_m5stackchan",
     "m5stack-cores3/setup-target": "$(BUILD)/devices/esp32/targets/m5stack_cores3/setup-target",
     "setup/target": "./setup-target",

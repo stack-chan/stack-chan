@@ -6,18 +6,10 @@ let activeLocale = DEFAULT_LOCALE
 let japaneseCatalog = Object.freeze({})
 let activeCatalog = Object.freeze({})
 let templateEntries = []
-let observer
-const canonicalText = new WeakMap()
-const canonicalAttributes = new WeakMap()
-
-function hasBrowserStorage() {
-  return typeof globalThis.localStorage !== 'undefined'
-}
 
 function storedLocale() {
-  if (!hasBrowserStorage()) return null
   try {
-    return globalThis.localStorage.getItem(LOCALE_STORAGE_KEY)
+    return globalThis.localStorage?.getItem(LOCALE_STORAGE_KEY) ?? null
   } catch {
     return null
   }
@@ -48,9 +40,11 @@ async function defaultCatalogLoader(locale) {
   return response.json()
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const interpolate = (value, params) =>
+  String(value).replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (placeholder, name) =>
+    Object.hasOwn(params, name) ? String(params[name]) : placeholder
+  )
 
 function rebuildTemplateEntries() {
   templateEntries = Object.keys(japaneseCatalog)
@@ -60,7 +54,7 @@ function rebuildTemplateEntries() {
       let cursor = 0
       let pattern = '^'
       for (const match of key.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)) {
-        pattern += escapeRegExp(key.slice(cursor, match.index)) + '([\\s\\S]+?)'
+        pattern += `${escapeRegExp(key.slice(cursor, match.index))}([\\s\\S]+?)`
         names.push(match[1])
         cursor = match.index + match[0].length
       }
@@ -69,130 +63,21 @@ function rebuildTemplateEntries() {
     })
 }
 
-function interpolate(value, params) {
-  return String(value).replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (placeholder, name) =>
-    Object.hasOwn(params, name) ? String(params[name]) : placeholder
-  )
-}
-
-function translateRenderedString(source) {
-  for (const entry of templateEntries) {
-    const match = entry.pattern.exec(source)
-    if (!match) continue
-    const params = Object.fromEntries(entry.names.map((name, index) => [name, match[index + 1]]))
-    return interpolate(activeCatalog[entry.key] ?? japaneseCatalog[entry.key] ?? entry.key, params)
-  }
-  return source
-}
-
 export function t(source, params = {}) {
   const translated = activeCatalog[source] ?? japaneseCatalog[source]
   if (translated !== undefined) return interpolate(translated, params)
   if (Object.keys(params).length > 0) return interpolate(source, params)
-  return translateRenderedString(source)
+  for (const entry of templateEntries) {
+    const match = entry.pattern.exec(source)
+    if (!match) continue
+    const renderedParams = Object.fromEntries(entry.names.map((name, index) => [name, match[index + 1]]))
+    return interpolate(activeCatalog[entry.key] ?? japaneseCatalog[entry.key] ?? entry.key, renderedParams)
+  }
+  return source
 }
 
 export function getLocale() {
   return activeLocale
-}
-
-const SKIPPED_TEXT_PARENTS = new Set(['CODE', 'PRE', 'SCRIPT', 'STYLE'])
-const TRANSLATED_ATTRIBUTES = ['aria-label', 'placeholder', 'title']
-
-function textSource(node, refreshSource) {
-  if (refreshSource || !canonicalText.has(node)) canonicalText.set(node, node.nodeValue ?? '')
-  return canonicalText.get(node)
-}
-
-function attributeSource(element, attribute, refreshSource) {
-  const current = element.getAttribute(attribute)
-  const sources = canonicalAttributes.get(element)
-  if (current === null) {
-    if (refreshSource) sources?.delete(attribute)
-    return null
-  }
-  if (sources && !refreshSource && sources.has(attribute)) return sources.get(attribute)
-  const nextSources = sources ?? new Map()
-  nextSources.set(attribute, current)
-  if (!sources) canonicalAttributes.set(element, nextSources)
-  return current
-}
-
-function translateTextNode(node, refreshSource = false) {
-  if (
-    !node.parentElement ||
-    SKIPPED_TEXT_PARENTS.has(node.parentElement.tagName) ||
-    node.parentElement.closest('[translate="no"]')
-  )
-    return
-  const source = textSource(node, refreshSource)
-  const trimmed = source.trim()
-  if (!trimmed) return
-  const translated = t(trimmed)
-  const start = source.indexOf(trimmed)
-  const rendered = `${source.slice(0, start)}${translated}${source.slice(start + trimmed.length)}`
-  if (node.nodeValue !== rendered) node.nodeValue = rendered
-}
-
-function translateElementAttributes(element, refreshedAttributes) {
-  if (element.closest('[translate="no"]')) return
-  for (const attribute of TRANSLATED_ATTRIBUTES) {
-    const source = attributeSource(element, attribute, refreshedAttributes?.has(attribute) ?? false)
-    if (source === null) continue
-    const translated = t(source)
-    if (element.getAttribute(attribute) !== translated) element.setAttribute(attribute, translated)
-  }
-}
-
-export function translateDocument(root = globalThis.document) {
-  if (!root || typeof NodeFilter === 'undefined') return
-  if (root.nodeType === Node.TEXT_NODE) {
-    translateTextNode(root)
-    return
-  }
-  if (root instanceof Element) translateElementAttributes(root)
-  const textWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-  while (textWalker.nextNode()) translateTextNode(textWalker.currentNode)
-  const elementWalker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT)
-  while (elementWalker.nextNode()) translateElementAttributes(elementWalker.currentNode)
-}
-
-const observerOptions = {
-  subtree: true,
-  childList: true,
-  characterData: true,
-  attributes: true,
-  attributeFilter: TRANSLATED_ATTRIBUTES,
-}
-
-function observeDocument() {
-  if (observer && document.documentElement) observer.observe(document.documentElement, observerOptions)
-}
-
-function startObserver() {
-  if (observer || typeof MutationObserver === 'undefined' || !document.documentElement) return
-  observer = new MutationObserver((records) => {
-    observer.disconnect()
-    try {
-      const changedText = new Set()
-      const changedAttributes = new Map()
-      const addedNodes = []
-      for (const record of records) {
-        if (record.type === 'characterData') changedText.add(record.target)
-        else if (record.type === 'attributes' && record.attributeName) {
-          const attributes = changedAttributes.get(record.target) ?? new Set()
-          attributes.add(record.attributeName)
-          changedAttributes.set(record.target, attributes)
-        } else if (record.type === 'childList') addedNodes.push(...record.addedNodes)
-      }
-      for (const node of changedText) translateTextNode(node, true)
-      for (const [element, attributes] of changedAttributes) translateElementAttributes(element, attributes)
-      for (const node of addedNodes) translateDocument(node)
-    } finally {
-      observeDocument()
-    }
-  })
-  observeDocument()
 }
 
 export async function initializeI18n({ locale = resolveLocale(), loader = defaultCatalogLoader } = {}) {
@@ -219,14 +104,6 @@ export async function initializeI18n({ locale = resolveLocale(), loader = defaul
   rebuildTemplateEntries()
   if (typeof document !== 'undefined') {
     document.documentElement.lang = activeLocale
-    const reconnectObserver = Boolean(observer)
-    observer?.disconnect()
-    try {
-      translateDocument(document)
-    } finally {
-      if (reconnectObserver) observeDocument()
-    }
-    startObserver()
     document.dispatchEvent(new CustomEvent('stackchan:localechange', { detail: { locale: activeLocale } }))
   }
   return activeLocale
@@ -234,10 +111,10 @@ export async function initializeI18n({ locale = resolveLocale(), loader = defaul
 
 export async function setLocale(locale, options = {}) {
   const normalized = normalizeLocale(locale) ?? DEFAULT_LOCALE
-  if (hasBrowserStorage()) {
-    try {
-      globalThis.localStorage.setItem(LOCALE_STORAGE_KEY, normalized)
-    } catch {}
+  try {
+    globalThis.localStorage?.setItem(LOCALE_STORAGE_KEY, normalized)
+  } catch {
+    // Storage may be disabled without preventing a live locale change.
   }
   return initializeI18n({ ...options, locale: normalized })
 }

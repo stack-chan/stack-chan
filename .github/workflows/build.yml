@@ -51,6 +51,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      - name: Install web dependencies
+        working-directory: ./firmware
+        run: npm --prefix ../web ci
       - name: Run firmware tests
         working-directory: ./firmware
         run: npm run test

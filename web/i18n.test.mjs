@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 
 import {
   DEFAULT_LOCALE,
@@ -32,14 +34,10 @@ test('all web catalogs expose the same keys and interpolation placeholders', asy
   )
   const japaneseKeys = Object.keys(catalogs.ja).sort()
   for (const locale of SUPPORTED_LOCALES) {
-    assert.deepEqual(Object.keys(catalogs[locale]).sort(), japaneseKeys, `${locale} should have the same keys as ja`)
+    assert.deepEqual(Object.keys(catalogs[locale]).sort(), japaneseKeys)
     for (const key of japaneseKeys) {
-      assert.equal(typeof catalogs[locale][key], 'string', `${locale}:${key} should be a string`)
-      assert.deepEqual(
-        placeholders(catalogs[locale][key]),
-        placeholders(key),
-        `${locale}:${key} should preserve placeholders`
-      )
+      assert.equal(typeof catalogs[locale][key], 'string')
+      assert.deepEqual(placeholders(catalogs[locale][key]), placeholders(key))
     }
   }
 })
@@ -63,93 +61,29 @@ test('catalog lookup translates direct and rendered template strings', async () 
   await initializeI18n({ locale: 'ja', loader: async (locale) => catalogs[locale] })
 })
 
-test('existing DOM text and attributes can switch between locales', async () => {
-  const globals = ['CustomEvent', 'Element', 'MutationObserver', 'Node', 'NodeFilter', 'document']
-  const originalDescriptors = new Map(globals.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]))
-
-  class FakeElement {
-    constructor(tagName, attributes = {}) {
-      this.tagName = tagName
-      this.nodeType = 1
-      this.attributes = new Map(Object.entries(attributes))
-    }
-
-    closest() {
-      return null
-    }
-
-    getAttribute(name) {
-      return this.attributes.has(name) ? this.attributes.get(name) : null
-    }
-
-    setAttribute(name, value) {
-      this.attributes.set(name, String(value))
+test('literal React translation keys exist in the catalogs', async () => {
+  const sourceRoot = fileURLToPath(new URL('./src/', import.meta.url))
+  const sourceFiles = []
+  const visit = async (directory) => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name)
+      if (entry.isDirectory()) await visit(path)
+      else if (/\.(?:ts|tsx)$/.test(entry.name)) sourceFiles.push(path)
     }
   }
+  await visit(sourceRoot)
 
-  class FakeMutationObserver {
-    disconnect() {}
-    observe() {}
-  }
-
-  const root = new FakeElement('HTML')
-  const label = new FakeElement('BUTTON', { title: '接続済み', 'aria-label': '接続済み' })
-  const textNode = { nodeType: 3, nodeValue: ' 接続済み ', parentElement: label }
-  const fakeDocument = {
-    documentElement: root,
-    dispatchEvent() {},
-    createTreeWalker(_root, type) {
-      const nodes = type === 4 ? [textNode] : [root, label]
-      let index = 0
-      return {
-        currentNode: null,
-        nextNode() {
-          if (index >= nodes.length) return false
-          this.currentNode = nodes[index]
-          index += 1
-          return true
-        },
-      }
-    },
-  }
-  const catalogs = {
-    ja: { 接続済み: '接続済み' },
-    en: { 接続済み: 'Connected' },
-    'zh-CN': { 接続済み: '已连接' },
-  }
-
-  try {
-    const replacements = {
-      CustomEvent: class CustomEvent {},
-      Element: FakeElement,
-      MutationObserver: FakeMutationObserver,
-      Node: { TEXT_NODE: 3 },
-      NodeFilter: { SHOW_ELEMENT: 1, SHOW_TEXT: 4 },
-      document: fakeDocument,
-    }
-    for (const [name, value] of Object.entries(replacements)) {
-      Object.defineProperty(globalThis, name, { configurable: true, writable: true, value })
-    }
-
-    const loader = async (locale) => catalogs[locale]
-    await initializeI18n({ locale: 'en', loader })
-    assert.equal(textNode.nodeValue, ' Connected ')
-    assert.equal(label.getAttribute('title'), 'Connected')
-    assert.equal(label.getAttribute('aria-label'), 'Connected')
-
-    await initializeI18n({ locale: 'zh-CN', loader })
-    assert.equal(textNode.nodeValue, ' 已连接 ')
-    assert.equal(label.getAttribute('title'), '已连接')
-    assert.equal(label.getAttribute('aria-label'), '已连接')
-
-    await initializeI18n({ locale: 'ja', loader })
-    assert.equal(textNode.nodeValue, ' 接続済み ')
-    assert.equal(label.getAttribute('title'), '接続済み')
-    assert.equal(label.getAttribute('aria-label'), '接続済み')
-  } finally {
-    for (const [name, descriptor] of originalDescriptors) {
-      if (descriptor) Object.defineProperty(globalThis, name, descriptor)
-      else delete globalThis[name]
+  const japanese = await catalog('ja')
+  for (const sourceFile of sourceFiles) {
+    const source = await readFile(sourceFile, 'utf8')
+    for (const match of source.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1)[^\\])*)\1/g)) {
+      const key = match[2].replace(/\\(['"])/g, '$1')
+      assert.ok(Object.hasOwn(japanese, key), `${sourceFile} uses an unknown translation key: ${key}`)
     }
   }
+})
+
+test('i18n no longer observes or rewrites rendered DOM', async () => {
+  const source = await readFile(new URL('./i18n.mjs', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /MutationObserver|createTreeWalker|translateDocument/)
 })

@@ -41,7 +41,7 @@ jobs:
         with:
           target-branch: "8.3.1"
           install-emscripten: "true"
-      - name: Install web test dependencies
+      - name: Install web dependencies
         working-directory: ./firmware
         run: npm --prefix ../web ci
       - name: Rebuild editor tools for release verification
@@ -65,16 +65,19 @@ jobs:
       - name: Build WASM simulator firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
+      - name: Build web application
+        working-directory: ./firmware
+        run: npm --prefix ../web run build
       - name: Upload firmware bundle
         uses: actions/upload-artifact@v7
         with:
           name: firmware-bundle
           path: ./firmware/host/app/tech.moddable.stackchan
-      - name: Upload WASM simulator
+      - name: Upload web application
         uses: actions/upload-artifact@v7
         with:
-          name: wasm-simulator
-          path: ./web/simulator
+          name: web-dist
+          path: ./web/dist
       - name: Checkout Pages baseline
         if: github.event_name == 'pull_request'
         uses: actions/checkout@v7
@@ -82,35 +85,24 @@ jobs:
           ref: gh-pages
           path: pages-baseline
           persist-credentials: false
-      - name: Checkout clean preview source
-        if: github.event_name == 'pull_request'
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.sha }}
-          path: preview-source
-          persist-credentials: false
       - name: Assemble Cloudflare Pages preview
         if: github.event_name == 'pull_request'
         run: |
           set -euo pipefail
           test -s ./pages-baseline/web/schematics/index.html
           mkdir -p ./pages-preview
-          cp -R ./preview-source/web/. ./pages-preview/
+          cp -R ./web/dist/. ./pages-preview/
           rm -rf \
             ./pages-preview/schematics \
-            ./pages-preview/flash/tech.moddable.stackchan \
-            ./pages-preview/simulator
-          mkdir -p \
-            ./pages-preview/flash/tech.moddable.stackchan \
-            ./pages-preview/simulator
+            ./pages-preview/flash/tech.moddable.stackchan
+          mkdir -p ./pages-preview/flash/tech.moddable.stackchan
           cp -R ./pages-baseline/web/schematics ./pages-preview/schematics
           cp -R \
             ./firmware/host/app/tech.moddable.stackchan/. \
             ./pages-preview/flash/tech.moddable.stackchan/
-          cp -R ./web/simulator/. ./pages-preview/simulator/
           mkdir -p ./pages-preview/schemas
           cp \
-            ./preview-source/docs/specs/stackchan-mod.schema.json \
+            ./docs/specs/stackchan-mod.schema.json \
             ./pages-preview/schemas/stackchan-mod.schema.json
       - name: Validate Cloudflare Pages preview
         if: github.event_name == 'pull_request'
@@ -151,30 +143,30 @@ jobs:
         with:
           name: firmware-bundle
           path: ./firmware-bundle
-      - name: Download WASM simulator
+      - name: Download web application
         uses: actions/download-artifact@v8
         with:
-          name: wasm-simulator
-          path: ./wasm-simulator
+          name: web-dist
+          path: ./web-dist
       - name: Update bundle files
         run: |
           if [ -z "$(find ./firmware-bundle -mindepth 1 -print -quit)" ]; then
             echo "Firmware bundle artifact is empty"
             exit 1
           fi
-          if [ -z "$(find ./wasm-simulator -mindepth 1 -print -quit)" ]; then
-            echo "WASM simulator artifact is empty"
+          if [ -z "$(find ./web-dist -mindepth 1 -print -quit)" ]; then
+            echo "Web application artifact is empty"
             exit 1
           fi
+          test -s ./web-dist/simulator/mc.js
+          test -s ./web-dist/simulator/mc.wasm
           rsync -a --delete \
             --exclude '/schematics/' \
             --exclude '/flash/tech.moddable.stackchan/' \
-            --exclude '/simulator/' \
-            ./website-source/web/ ./web/
-          rm -rf ./web/flash/tech.moddable.stackchan ./web/simulator
-          mkdir -p ./web/flash/tech.moddable.stackchan ./web/simulator
+            ./web-dist/ ./web/
+          rm -rf ./web/flash/tech.moddable.stackchan
+          mkdir -p ./web/flash/tech.moddable.stackchan
           cp -R ./firmware-bundle/. ./web/flash/tech.moddable.stackchan/
-          cp -R ./wasm-simulator/. ./web/simulator/
           mkdir -p ./web/schemas
           cp ./website-source/docs/specs/stackchan-mod.schema.json ./web/schemas/stackchan-mod.schema.json
       - name: Commit bundle update

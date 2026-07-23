@@ -13,7 +13,11 @@ import {
 } from 'local-peer-auth'
 import { copyArrayBuffer } from 'local-peer-codec'
 import type { LocalPeerRadio, LocalPeerRadioOptions } from 'local-peer-radio-types'
-import { UARTServer } from 'uartserver'
+import { SERVICE_UUID, UARTServer } from 'uartserver'
+
+// A legacy BLE advertising packet is limited to 31 bytes. Flags, this name,
+// and the 128-bit UART service UUID occupy 26 bytes in total.
+const BLE_DEVICE_NAME = 'STK'
 
 class BLELocalPeerServer extends UARTServer {
   #radio: BLELocalPeerRadio
@@ -21,7 +25,7 @@ class BLELocalPeerServer extends UARTServer {
   constructor(radio: BLELocalPeerRadio) {
     super()
     this.#radio = radio
-    this.deviceName = `STK-LP-${radio.id.slice(-4)}`
+    this.deviceName = BLE_DEVICE_NAME
   }
 
   onConnected(): void {
@@ -31,7 +35,13 @@ class BLELocalPeerServer extends UARTServer {
 
   onDisconnected(): void {
     this.#radio.onDisconnected()
-    super.onDisconnected()
+    this.startAdvertising({
+      advertisingData: {
+        flags: 6,
+        completeName: this.deviceName,
+        completeUUID128List: [SERVICE_UUID],
+      },
+    })
   }
 
   onCharacteristicNotifyEnabled(characteristic): void {

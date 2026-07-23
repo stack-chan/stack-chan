@@ -49,6 +49,7 @@
     "esp32": {
       "include": ["$(MODULES)/io/wifi/manifest.json"],
       "modules": {
+        "~": ["./sim/local-peer-transports"],
         "local-peer-capability": "./local-peer-capability",
         "local-peer-radio": "./esp32/local-peer-radio",
         "local-peer-transports": "./esp32/local-peer-transports"

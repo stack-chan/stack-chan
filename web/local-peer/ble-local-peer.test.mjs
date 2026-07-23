@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import { webcrypto } from 'node:crypto'
 import { test } from 'node:test'
 
-import { BLELocalPeerRecordDecoder, encodeBLELocalPeerRecord } from './ble-local-peer.mjs'
+import { BLELocalPeerCapability, BLELocalPeerRecordDecoder, encodeBLELocalPeerRecord } from './ble-local-peer.mjs'
+
+const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 
 test('BLE local-peer web codec reassembles 20-byte GATT chunks', async () => {
   const payload = Uint8Array.from({ length: 234 }, (_, index) => index)
@@ -48,4 +50,30 @@ test('BLE local-peer authentication covers source and destination identities', a
   assert.equal(record.authenticated, true)
   assert.equal(record.tag.byteLength, 16)
   assert.equal(Buffer.from(record.tag).toString('hex'), 'c146beea7bcde4b7933b3a74434b0bfb')
+})
+
+test('BLE local-peer chooser discovers the UART service without depending on a long device name', async () => {
+  let chooserOptions
+  const bluetooth = {
+    async requestDevice(options) {
+      chooserOptions = options
+      throw new Error('chooser stopped')
+    },
+  }
+  const storage = {
+    getItem() {
+      return '001122334455'
+    },
+    setItem() {},
+  }
+  const capability = new BLELocalPeerCapability({ bluetooth, crypto: webcrypto, storage })
+
+  await assert.rejects(
+    capability.open({ transport: 'ble', service: 'tech.stackchan.test' }),
+    /chooser stopped/
+  )
+  assert.deepEqual(chooserOptions, {
+    filters: [{ services: [UART_SERVICE_UUID] }],
+    optionalServices: [UART_SERVICE_UUID],
+  })
 })

@@ -273,7 +273,7 @@ class BLELocalPeerSession {
   async connect() {
     this.#key = this.#options.sharedKey ? await authenticationKey(this.#options.sharedKey, this.#crypto) : undefined
     this.#device = await this.#bluetooth.requestDevice({
-      filters: [{ namePrefix: 'STK-LP-' }],
+      filters: [{ services: [SERVICE_UUID] }],
       optionalServices: [SERVICE_UUID],
     })
     this.#device.addEventListener('gattserverdisconnected', () => this.close())

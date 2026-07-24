@@ -29,12 +29,15 @@ class BLELocalPeerServer extends UARTServer {
   }
 
   onConnected(): void {
+    if (this.#radio.closed) return
     super.onConnected()
     this.#radio.onConnected()
   }
 
   onDisconnected(): void {
+    if (this.#radio.closed) return
     this.#radio.onDisconnected()
+    if (this.#radio.closed) return
     this.startAdvertising({
       advertisingData: {
         flags: 6,
@@ -72,6 +75,10 @@ class BLELocalPeerRadio implements LocalPeerRadio {
     this.#onReceive = options.onReceive
     this.#authenticationKey = options.sharedKey ? deriveLocalPeerAuthenticationKey(options.sharedKey) : undefined
     this.#server = new BLELocalPeerServer(this)
+  }
+
+  get closed(): boolean {
+    return this.#closed
   }
 
   addPeer(peerId: string, _secure: boolean): void {
@@ -112,10 +119,12 @@ class BLELocalPeerRadio implements LocalPeerRadio {
   }
 
   onConnected(): void {
+    if (this.#closed) return
     this.#resetConnection()
   }
 
   onDisconnected(): void {
+    if (this.#closed) return
     this.#resetConnection()
   }
 

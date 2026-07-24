@@ -70,7 +70,7 @@ export class TrackingReceiver {
       // The public MOD motion capability completes through a Promise. Waiting
       // for an ignored callback would leave this slot occupied after one pose.
       this.#robot.motion
-        .setPose({ rotation: this.#rotation }, MOTION_DURATION_SECONDS)
+        .setPose({ rotation: { ...this.#rotation } }, MOTION_DURATION_SECONDS)
         .then(this.#onPoseApplied, this.#onPoseFailed)
     } catch (error) {
       this.#poseInFlight = false

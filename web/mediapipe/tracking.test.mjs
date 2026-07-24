@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { parseTrackingPayload } from '../../firmware/mods/examples/mediapipe_ble/tracking-message.js'
 import {
   countExtendedFingers,
+  encodeTrackingPayload,
   faceGeometry,
   facePartsFromBlendshapes,
   facePoseFromMatrix,
@@ -11,6 +13,7 @@ import {
   handVariant,
   palmCenter,
   SmileClassifier,
+  TRACKING_MESSAGE_VERSION,
   TrackingStateBuilder,
 } from './tracking.mjs'
 
@@ -126,6 +129,54 @@ test('face blendshapes map independent eyelids and jaw opening into unit values'
   assert.ok(Math.abs(parts.eyeOpen.left - 0.2) < 1e-9)
   assert.equal(parts.eyeOpen.right, 0.75)
   assert.equal(parts.mouthOpen, 0.6)
+})
+
+test('web encoder stays compatible with the canonical firmware decoder', () => {
+  const decoded = parseTrackingPayload(
+    encodeTrackingPayload(
+      {
+        face: {
+          yaw: 2,
+          pitch: -Math.PI,
+          emotion: 'happy',
+          eyeOpen: { left: 0.25, right: 0.75 },
+          mouthOpen: 0.5,
+        },
+        hands: {
+          left: { x: -2, y: 2, fingerCount: 3, variant: 7 },
+          right: { x: 2, y: -2, fingerCount: 0, variant: 0 },
+        },
+      },
+      { includeEmotion: true, includeHands: true, includeFaceParts: true }
+    )
+  )
+
+  assert.equal(decoded.version, TRACKING_MESSAGE_VERSION)
+  assert.deepEqual(decoded.face, { yaw: 0.75, pitch: -1.571 })
+  assert.equal(decoded.emotion, 'happy')
+  assert.deepEqual(decoded.hands.left, {
+    x: -2,
+    y: 2,
+    fingerCount: 3,
+    variant: 7,
+    relative: true,
+  })
+  assert.deepEqual(decoded.hands.right, {
+    x: 2,
+    y: -2,
+    fingerCount: 0,
+    variant: 0,
+    relative: true,
+  })
+  assert.deepEqual(decoded.faceParts, {
+    eyeOpen: { left: 64 / 255, right: 191 / 255 },
+    mouthOpen: 128 / 255,
+  })
+
+  const missingHands = parseTrackingPayload(
+    encodeTrackingPayload({ face: null, hands: { left: null, right: null } }, { includeHands: true })
+  )
+  assert.deepEqual(missingHands.hands, { left: null, right: null })
 })
 
 test('smile classifier applies hysteresis', () => {

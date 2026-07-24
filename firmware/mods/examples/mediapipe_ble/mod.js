@@ -1,6 +1,6 @@
 import { Hands } from 'hands'
 import { MEDIAPIPE_BLE_MESSAGE_TYPE, MEDIAPIPE_BLE_SERVICE } from 'mediapipe-tracking-message'
-import { TrackingReceiver, TRACKING_TICK_MS } from 'mediapipe-tracking-receiver'
+import { TRACKING_TICK_MS, TrackingReceiver } from 'mediapipe-tracking-receiver'
 import Timer from 'timer'
 
 const DISPLAY_NAME = 'stackchan-mediapipe'

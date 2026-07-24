@@ -56,6 +56,7 @@ equal(pair.right.pose.position.y, 180, 'right y should be relative to the face c
 
 const poses = []
 const poseCompletions = []
+const poseRotations = []
 const emotions = []
 const eyeStates = []
 const handStates = []
@@ -86,6 +87,7 @@ const robot = {
       return { catch() {} }
     },
     setPose(value, duration) {
+      poseRotations.push(value.rotation)
       poses.push({
         value: { rotation: { y: value.rotation.y, p: value.rotation.p, r: value.rotation.r } },
         duration,
@@ -138,6 +140,11 @@ equal(handStates.length, 1, 'unchanged hands should not be applied again')
 
 equal(receiver.receive([3, 0, -750, 500], 250), true, 'face-only updates should parse')
 receiver.tick(250)
+equal(poseRotations[0].y, 0.75, 'an in-flight pose should retain its original yaw snapshot')
+assert(
+  Math.abs(poseRotations[0].p + Math.PI / 2) < 0.001,
+  'an in-flight pose should retain its original pitch snapshot',
+)
 equal(emotions.length, 1, 'face-only packets should preserve emotion')
 equal(handStates.length, 1, 'face-only packets should preserve hand state')
 equal(poses.length, 1, 'the latest face update should be coalesced while the servo is busy')

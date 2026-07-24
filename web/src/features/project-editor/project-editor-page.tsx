@@ -365,7 +365,7 @@ export function ProjectEditorPage() {
             <DialogDescription>{t('ビルドしたMODをブラウザー内で実行します。')}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={() => editor.postSimulatorCommand('restart')}>
+            <Button variant="outline" onClick={editor.restartSimulator}>
               <RotateCw />
               {t('再実行')}
             </Button>
@@ -375,12 +375,7 @@ export function ProjectEditorPage() {
             </Button>
             <span className="ml-auto text-sm text-muted-foreground">{t('ボタン入力')}</span>
             {(['a', 'b', 'c'] as const).map((name) => (
-              <Button
-                key={name}
-                variant="outline"
-                size="icon"
-                onClick={() => editor.postSimulatorCommand('button', { name })}
-              >
+              <Button key={name} variant="outline" size="icon" onClick={() => editor.pushSimulatorButton(name)}>
                 {name.toUpperCase()}
               </Button>
             ))}
@@ -388,6 +383,7 @@ export function ProjectEditorPage() {
           <SimulatorFrame
             ref={editor.simulatorFrameRef}
             src={editor.simulatorSrc}
+            onMessage={editor.onSimulatorMessage}
             className="min-h-0 flex-1 rounded-xl border bg-simulator-stage"
           />
           <DialogFooter>

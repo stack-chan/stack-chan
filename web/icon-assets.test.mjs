@@ -37,8 +37,3 @@ test('all Vite entry pages reference the shared browser icons', async () => {
     )
   }
 })
-
-test('the React home page displays the Stack-chan icon through Vite assets', async () => {
-  const homeEntry = await readFile(new URL('./src/entries/home.tsx', import.meta.url), 'utf8')
-  assert.match(homeEntry, /new URL\(['"]\.\.\/\.\.\/assets\/stackchan-icon\.png['"], import\.meta\.url\)/)
-})

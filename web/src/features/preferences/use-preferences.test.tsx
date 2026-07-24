@@ -55,4 +55,22 @@ describe('usePreferences', () => {
     act(() => result.current.update('driver.type', 'changed'))
     expect(result.current.values['driver.type']).toBe('fixed')
   })
+
+  it('contains disconnect failures during unmount cleanup', async () => {
+    const disconnect = vi.fn(async () => {
+      throw new Error('adapter already closed')
+    })
+    const client: PreferenceClient = {
+      connect: async () => {},
+      disconnect,
+      isConnected: () => true,
+      send: async () => {},
+    }
+    const { unmount } = renderHook(() => usePreferences(() => client))
+
+    unmount()
+    await Promise.resolve()
+
+    expect(disconnect).toHaveBeenCalledOnce()
+  })
 })

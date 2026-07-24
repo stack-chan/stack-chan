@@ -75,7 +75,7 @@ export function AppShell({ current, surfaceName, rootHref, children, headerActio
           >
             <Menu aria-hidden="true" />
           </SheetTrigger>
-          <SheetContent side="left" className="w-[min(23rem,calc(100vw-2rem))]">
+          <SheetContent side="left" closeLabel={t('閉じる')} className="w-[min(23rem,calc(100vw-2rem))]">
             <SheetHeader className="border-b">
               <SheetTitle>{t('Webツール')}</SheetTitle>
               <SheetDescription>Stack-chan</SheetDescription>

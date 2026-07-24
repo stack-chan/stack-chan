@@ -98,7 +98,9 @@ jobs:
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
       - name: Run responsive and editor browser tests
         working-directory: ./firmware
-        run: npm --prefix ../web run test:visual
+        run: |
+          npm --prefix ../web run test:visual
+          npm --prefix ../web run test:i18n-visual
       - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v7

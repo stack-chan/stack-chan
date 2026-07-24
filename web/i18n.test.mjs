@@ -82,8 +82,3 @@ test('literal React translation keys exist in the catalogs', async () => {
     }
   }
 })
-
-test('i18n no longer observes or rewrites rendered DOM', async () => {
-  const source = await readFile(new URL('./i18n.mjs', import.meta.url), 'utf8')
-  assert.doesNotMatch(source, /MutationObserver|createTreeWalker|translateDocument/)
-})

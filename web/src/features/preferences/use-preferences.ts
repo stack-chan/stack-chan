@@ -64,7 +64,7 @@ export function usePreferences(
     }
     return () => {
       activeClient.onDisconnected = undefined
-      if (activeClient.isConnected()) void activeClient.disconnect()
+      if (activeClient.isConnected()) activeClient.disconnect().catch(() => {})
     }
   }, [])
 

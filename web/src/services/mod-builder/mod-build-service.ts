@@ -9,17 +9,6 @@ import { assetBytes } from '../../../editor/project-format.mjs'
 
 import { type ProjectAsset, type VisualProject } from '@/features/project-editor/project-types'
 
-const runModBuild = buildModArchive as unknown as (
-  createToolsFactory: typeof createTools,
-  options: {
-    modJs: string
-    name: string
-    manifest: unknown
-    files: { path: string; bytes: Uint8Array }[]
-    onLog: (message: string) => void
-  }
-) => Promise<Uint8Array>
-
 export type ModBuildResult = {
   archive: Uint8Array
   xsVersion: number[] | null
@@ -37,7 +26,7 @@ export async function buildVisualProjectMod({
 }): Promise<ModBuildResult> {
   const startedAt = performance.now()
   const embeddedAssets = project.settings.embedAssets ? project.assets : []
-  const archive = await runModBuild(createTools, {
+  const archive = await buildModArchive(createTools, {
     modJs: source,
     name: project.name,
     manifest: manifestForProjectAssets(embeddedAssets),

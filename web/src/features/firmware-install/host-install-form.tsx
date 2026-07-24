@@ -110,12 +110,7 @@ export function HostInstallForm() {
 
       <LogConsole entries={entries} onClear={clear} title={t('書き込みログ')} />
 
-      <AlertDialog
-        open={install.state.status === 'confirming'}
-        onOpenChange={(open) => {
-          if (!open && install.state.status === 'confirming') install.cancel()
-        }}
-      >
+      <AlertDialog open={install.state.status === 'confirming'}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogMedia>

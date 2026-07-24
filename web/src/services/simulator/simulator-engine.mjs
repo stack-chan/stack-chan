@@ -872,6 +872,7 @@ export class SimulatorEngine {
     this.wasmView.dispose()
     this.scene.dispose()
     this.cameraBridge.stop()
+    this.audioOutBridge.close()
     if (globalThis.Host === this.hostBridge && this.previousHost === undefined) {
       delete globalThis.Host
     } else if (globalThis.Host === this.hostBridge) {

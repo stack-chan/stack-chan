@@ -22,7 +22,7 @@ export function useSimulatorEngine() {
   const [operation, setOperation] = useState<OperationState>({ status: 'idle' })
   const [modState, setModState] = useState<ModState>({ result: { status: 'empty' } })
   const [cameraStatus, setCameraStatus] = useState<CameraStatus>({ status: 'idle' })
-  const { entries, append, clear } = useLogBuffer()
+  const { entries, append, clear } = useLogBuffer(120)
 
   useEffect(() => {
     const viewport = viewportRef.current

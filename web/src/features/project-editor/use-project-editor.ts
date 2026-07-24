@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
+import { type SimulatorFrameHandle } from '@/components/stackchan/simulator-frame'
 import { type OperationState } from '@/features/operations/operation-state'
 import {
   type BlocklyWorkspaceController,
@@ -51,27 +52,6 @@ const addFaceToProject = addFaceAssetToProject as unknown as (
   asset: unknown,
   options?: { replacePath?: string | null }
 ) => VisualProject
-const inspectCompatibility = inspectDeploymentCompatibility as unknown as (
-  target: string,
-  options: {
-    chip?: string
-    xsVersion?: number[] | null
-    firmwareVersion?: string
-    requireFirmware?: boolean
-    requireArchive?: boolean
-  }
-) => { compatible: boolean; diagnostics: { message: string }[] }
-const installDeviceArchive = installModToDevice as unknown as (
-  loaderFactory: typeof createEsptoolLoader,
-  port: unknown,
-  archive: Uint8Array,
-  options: Record<string, unknown>
-) => Promise<Record<string, unknown> & { status: string; chip?: string }>
-const removeDeviceArchive = removeModFromDevice as unknown as (
-  loaderFactory: typeof createEsptoolLoader,
-  port: unknown,
-  options: Record<string, unknown>
-) => Promise<Record<string, unknown> & { status: string }>
 
 type Confirmation = {
   title: string
@@ -110,7 +90,7 @@ export function useProjectEditor() {
   const projectsRef = useRef<VisualProject[]>([])
   const workspaceRef = useRef<BlocklyWorkspaceController | null>(null)
   const confirmationRef = useRef<Confirmation | null>(null)
-  const simulatorFrameRef = useRef<HTMLIFrameElement>(null)
+  const simulatorFrameRef = useRef<SimulatorFrameHandle>(null)
   const [project, setProject] = useState<VisualProject | null>(null)
   const [projects, setProjects] = useState<VisualProject[]>([])
   const [snapshot, setSnapshot] = useState<BlocklyWorkspaceSnapshot | null>(null)
@@ -245,20 +225,21 @@ export function useProjectEditor() {
     []
   )
 
-  useEffect(() => {
-    const receive = (event: MessageEvent) => {
-      if (event.origin !== location.origin || event.source !== simulatorFrameRef.current?.contentWindow) return
-      const message = event.data
+  const onSimulatorMessage = useCallback(
+    (value: unknown) => {
+      if (!value || typeof value !== 'object') return
+      const message = value as Record<string, unknown>
       if (message?.type === 'stackchan-simulator-trace') {
         appendLog(String(message.text ?? ''), 'trace', 'simulator')
       } else if (message?.type === 'stackchan-simulator-ready') {
+        const runCount = typeof message.runCount === 'number' ? message.runCount : 1
         setBuildOperation((current) =>
           current.status === 'success'
             ? {
                 ...current,
                 message:
-                  message.runCount > 1
-                    ? `シミュレーターでMODを再実行しました（${message.runCount}回目）`
+                  runCount > 1
+                    ? `シミュレーターでMODを再実行しました（${runCount}回目）`
                     : 'シミュレーターでMODを実行しています',
               }
             : current
@@ -266,10 +247,9 @@ export function useProjectEditor() {
       } else if (message?.type === 'stackchan-simulator-status' && message.status === 'error') {
         appendLog(String(message.error ?? 'シミュレーターエラー'), 'error', 'simulator')
       }
-    }
-    window.addEventListener('message', receive)
-    return () => window.removeEventListener('message', receive)
-  }, [appendLog])
+    },
+    [appendLog]
+  )
 
   const onWorkspaceChange = useCallback(
     (nextSnapshot: BlocklyWorkspaceSnapshot) => {
@@ -419,11 +399,11 @@ export function useProjectEditor() {
         source,
         onLog: (message) => appendLog(message, 'info', 'build'),
       })
-      const compatibility = inspectCompatibility(current.target, {
+      const compatibility = inspectDeploymentCompatibility(current.target, {
         xsVersion: result.xsVersion,
       })
       if (!compatibility.compatible) {
-        throw new Error(compatibility.diagnostics.map((item: { message: string }) => item.message).join('\n'))
+        throw new Error(compatibility.diagnostics.map((item) => item.message).join('\n'))
       }
       setArchive(result.archive)
       setBuildOperation({
@@ -458,15 +438,14 @@ export function useProjectEditor() {
   }, [appendLog, archive])
 
   const closeSimulator = useCallback(() => {
+    simulatorFrameRef.current?.stop()
     setSimulatorOpen(false)
     setSimulatorSrc('about:blank')
   }, [])
 
-  const postSimulatorCommand = useCallback((command: string, detail = {}) => {
-    simulatorFrameRef.current?.contentWindow?.postMessage(
-      { type: 'stackchan-editor-command', command, ...detail },
-      location.origin
-    )
+  const stopSimulator = useCallback(() => {
+    simulatorFrameRef.current?.stop()
+    setSimulatorSrc('about:blank')
   }, [])
 
   const askForConfirmation = useCallback(
@@ -503,7 +482,7 @@ export function useProjectEditor() {
     setDeviceOperation({ status: 'pending', message: 'USBデバイスを選択しています', progress: 0 })
     try {
       const port = await serial.requestPort()
-      const result = await installDeviceArchive(createEsptoolLoader, port, archive, {
+      const result = await installModToDevice(createEsptoolLoader, port, archive, {
         onLog: (message: string) => appendLog(message, 'info', 'device'),
         onProgress: (progress: number) =>
           setDeviceOperation({ status: 'pending', message: '実機へMODを書き込んでいます', progress }),
@@ -515,7 +494,7 @@ export function useProjectEditor() {
           chip: string
           firmware: { version: string; projectName: string }
         }) => {
-          const compatibility = inspectCompatibility(current.target, {
+          const compatibility = inspectDeploymentCompatibility(current.target, {
             chip,
             xsVersion: buildOperation.status === 'success' ? buildOperation.result.xsVersion : undefined,
             firmwareVersion: firmware.version,
@@ -523,7 +502,7 @@ export function useProjectEditor() {
             requireArchive: true,
           })
           if (!compatibility.compatible) {
-            throw new Error(compatibility.diagnostics.map((item: { message: string }) => item.message).join('\n'))
+            throw new Error(compatibility.diagnostics.map((item) => item.message).join('\n'))
           }
           return askForConfirmation({
             title: '実機へMODを書き込みますか？',
@@ -542,6 +521,12 @@ export function useProjectEditor() {
         })
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'NotFoundError') {
+        const message = 'USBデバイスの選択をキャンセルしました'
+        appendLog(message, 'warning', 'device')
+        setDeviceOperation({ status: 'cancelled', message })
+        return
+      }
       appendLog(String(error instanceof Error ? error.message : error), 'error', 'device')
       setDeviceOperation({ status: 'error', error: toAppError(error, 'device.install') })
     }
@@ -560,7 +545,7 @@ export function useProjectEditor() {
     setDeviceOperation({ status: 'pending', message: 'USBデバイスを選択しています' })
     try {
       const port = await serial.requestPort()
-      const result = await removeDeviceArchive(createEsptoolLoader, port, {
+      const result = await removeModFromDevice(createEsptoolLoader, port, {
         onLog: (message: string) => appendLog(message, 'info', 'device'),
         onPrompt: (message: string) => setDeviceOperation({ status: 'pending', message }),
         onPreflight: async ({
@@ -572,13 +557,13 @@ export function useProjectEditor() {
           partition: { offset: number }
           firmware: { version: string }
         }) => {
-          const compatibility = inspectCompatibility(current.target, {
+          const compatibility = inspectDeploymentCompatibility(current.target, {
             chip,
             firmwareVersion: firmware.version,
             requireFirmware: true,
           })
           if (!compatibility.compatible) {
-            throw new Error(compatibility.diagnostics.map((item: { message: string }) => item.message).join('\n'))
+            throw new Error(compatibility.diagnostics.map((item) => item.message).join('\n'))
           }
           return askForConfirmation({
             title: '実機のMODを削除しますか？',
@@ -595,6 +580,12 @@ export function useProjectEditor() {
         setDeviceOperation({ status: 'success', result, message: '実機のMODを削除しました' })
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'NotFoundError') {
+        const message = 'USBデバイスの選択をキャンセルしました'
+        appendLog(message, 'warning', 'device')
+        setDeviceOperation({ status: 'cancelled', message })
+        return
+      }
       appendLog(String(error instanceof Error ? error.message : error), 'error', 'device')
       setDeviceOperation({ status: 'error', error: toAppError(error, 'device.remove') })
     }
@@ -622,6 +613,7 @@ export function useProjectEditor() {
     simulatorOpen,
     simulatorSrc,
     simulatorFrameRef,
+    onSimulatorMessage,
     samples: VISUAL_SAMPLES,
     faceAssets,
     onWorkspaceChange,
@@ -686,9 +678,10 @@ export function useProjectEditor() {
     build,
     downloadArchive,
     runInSimulator,
-    stopSimulator: () => setSimulatorSrc('about:blank'),
+    stopSimulator,
     closeSimulator,
-    postSimulatorCommand,
+    restartSimulator: () => simulatorFrameRef.current?.restart(),
+    pushSimulatorButton: (name: 'a' | 'b' | 'c') => simulatorFrameRef.current?.pushButton(name),
     installToDevice,
     removeFromDevice,
     resolveConfirmation,

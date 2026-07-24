@@ -118,6 +118,24 @@ try {
   assert.equal(await page.locator('esp-web-install-button').count(), 0)
   assert.equal(await page.getByRole('button', { name: 'USBに接続して書き込む' }).count(), 1)
 
+  await page.goto(baseUrl, { waitUntil: 'networkidle' })
+  assert.equal(await page.locator('html.light').count(), 1, 'saved light theme must be active')
+  const productImage = page.getByRole('img', { name: 'ｽﾀｯｸﾁｬﾝ' })
+  assert.equal(await productImage.count(), 1)
+  assert.equal(
+    await productImage.evaluate((image) => image.complete && image.naturalWidth > 0),
+    true,
+    'the Vite home entry must render the shared Stack-chan image asset'
+  )
+  await page.getByRole('button', { name: 'ツールメニューを開く' }).click()
+  const toolMenu = page.getByRole('dialog', { name: 'Webツール' })
+  await toolMenu.waitFor()
+  const closeToolMenu = toolMenu.getByRole('button', { name: '閉じる' })
+  assert.equal(await closeToolMenu.count(), 1, 'the shared menu close button must use the active locale')
+  await page.screenshot({ path: '/tmp/stackchan-navigation-open.png', fullPage: true })
+  await closeToolMenu.click()
+  await toolMenu.waitFor({ state: 'hidden' })
+
   await page.goto(`${baseUrl}/editor/`, { waitUntil: 'networkidle' })
   const buildButton = page.getByRole('button', { name: 'ビルド', exact: true })
   await buildButton.waitFor()
@@ -133,6 +151,7 @@ try {
   await page.evaluate(() => localStorage.setItem('stackchan.theme', 'dark'))
   await page.reload({ waitUntil: 'networkidle' })
   assert.equal(await page.locator('html.dark').count(), 1, 'saved dark theme must apply before app interaction')
+  await page.screenshot({ path: '/tmp/stackchan-editor-dark.png', fullPage: false })
 } finally {
   await browser?.close()
   server?.kill('SIGTERM')

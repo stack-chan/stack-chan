@@ -1,5 +1,5 @@
 import { Bluetooth, Save, Trash2, Unplug } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useState, type ComponentProps, type ReactNode } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
 import { OperationStatus } from '@/components/stackchan/operation-status'
@@ -22,14 +22,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { type PreferenceKey } from '@/features/preferences/preference-model'
 import { usePreferences } from '@/features/preferences/use-preferences'
 
-type FieldProps = {
+type FieldProps = Omit<ComponentProps<'input'>, 'id' | 'name' | 'value' | 'disabled' | 'onChange'> & {
   name: PreferenceKey
   label: string
-  type?: string
-  placeholder?: string
-  step?: string
-  min?: string
-  max?: string
   wide?: boolean
 }
 
@@ -141,13 +136,13 @@ export function PreferencesPage() {
           {section(
             'Wi-Fi',
             <>
-              {inputField({ name: 'wifi.ssid', label: 'SSID', autoComplete: 'off' } as FieldProps)}
+              {inputField({ name: 'wifi.ssid', label: 'SSID', autoComplete: 'off' })}
               {inputField({
                 name: 'wifi.password',
                 label: 'パスワード',
                 type: 'password',
                 autoComplete: 'off',
-              } as FieldProps)}
+              })}
               <div className="sm:col-span-2">
                 <Button
                   type="button"

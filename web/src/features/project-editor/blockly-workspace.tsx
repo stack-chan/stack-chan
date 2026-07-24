@@ -7,7 +7,12 @@ import { useI18n } from '@/app/i18n-provider'
 import { type Locale } from '@/lib/i18n/catalogs'
 import { setLocale as setLegacyLocale } from '../../../i18n.mjs'
 import { blocklyMessagesFor } from '../../../editor/blockly-locale.mjs'
-import { generateModSource, localizedToolbox, registerStackchanBlocks } from '../../../editor/blocks.mjs'
+import {
+  defineStackchanBlocks,
+  generateModSource,
+  localizedToolbox,
+  registerStackchanBlocks,
+} from '../../../editor/blocks.mjs'
 import { toolboxForTarget } from '../../../editor/capabilities.mjs'
 
 export type BlocklyWorkspaceSnapshot = {
@@ -44,6 +49,7 @@ export function BlocklyWorkspace({
   const targetRef = useRef(target)
   const initialWorkspaceRef = useRef(initialWorkspace)
   const controllerRef = useRef<BlocklyWorkspaceController | null>(null)
+  const blocksRegisteredRef = useRef(false)
   onChangeRef.current = onChange
   onReadyRef.current = onReady
   targetRef.current = target
@@ -60,7 +66,12 @@ export function BlocklyWorkspace({
       await setLegacyLocale(locale)
       if (!active) return
       Blockly.setLocale(blocklyMessagesFor(locale))
-      registerStackchanBlocks(Blockly, javascriptGenerator, Order)
+      if (blocksRegisteredRef.current) {
+        defineStackchanBlocks(Blockly)
+      } else {
+        registerStackchanBlocks(Blockly, javascriptGenerator, Order)
+        blocksRegisteredRef.current = true
+      }
       const toolbox = toolboxForTarget(localizedToolbox(), targetRef.current)
       workspace = Blockly.inject(host, {
         toolbox,

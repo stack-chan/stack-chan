@@ -33,17 +33,6 @@ import { createModStorage } from '../../../simulator/mod-storage.mjs'
 
 type Filter = 'all' | 'block' | 'text'
 type Operations = Record<string, OperationState>
-type CompatibilityResult = {
-  compatible: boolean
-  diagnostics: { message: string }[]
-}
-type CompatibilityOptions = {
-  chip?: string
-  xsVersion?: number[] | null
-  firmwareVersion?: string
-  requireArchive?: boolean
-  requireFirmware?: boolean
-}
 type Confirmation = {
   mod: ModDefinition
   chip: string
@@ -55,20 +44,9 @@ type SerialNavigator = Navigator & {
   serial?: { requestPort: () => Promise<unknown> }
 }
 
-const inspectCompatibility = inspectDeploymentCompatibility as unknown as (
-  target: string,
-  options: CompatibilityOptions
-) => CompatibilityResult
-
-const installDeviceMod = installModToDevice as unknown as (
-  loaderFactory: unknown,
-  port: unknown,
-  bytes: Uint8Array,
-  options: {
-    onPreflight: (details: { chip: string; firmware: { projectName?: string; version: string } }) => Promise<boolean>
-    onProgress: (progress: number) => void
-  }
-) => Promise<{ status: string }>
+function formatDiagnostics(diagnostics: readonly { message: string }[]) {
+  return diagnostics.map((item) => item.message).join(' / ')
+}
 
 export function ModGalleryPage() {
   const { t } = useI18n()
@@ -134,12 +112,12 @@ export function ModGalleryPage() {
     (mod: ModDefinition, artifact: ModArtifact) =>
       run(mod, async () => {
         const bytes = await fetchModArchive(artifact)
-        const compatibility = inspectCompatibility('simulator', {
+        const compatibility = inspectDeploymentCompatibility('simulator', {
           xsVersion: xsArchiveVersion(bytes),
           requireArchive: true,
         })
         if (!compatibility.compatible) {
-          throw new Error(compatibility.diagnostics.map((item: { message: string }) => item.message).join(' / '))
+          throw new Error(formatDiagnostics(compatibility.diagnostics))
         }
         await createModStorage().saveInstalledMod({ name: `${mod.id}.xsa`, bytes })
         location.href = `../simulator/?gallery=${encodeURIComponent(mod.id)}`
@@ -156,9 +134,9 @@ export function ModGalleryPage() {
         const bytes = await fetchModArchive(artifact)
         const archiveVersion = xsArchiveVersion(bytes)
         const port = await serial.requestPort()
-        const result = await installDeviceMod(createEsptoolLoader, port, bytes, {
-          onPreflight: ({ chip, firmware }: { chip: string; firmware: { projectName?: string; version: string } }) => {
-            const compatibility = inspectCompatibility(artifact.target, {
+        const result = await installModToDevice(createEsptoolLoader, port, bytes, {
+          onPreflight: ({ chip, firmware }) => {
+            const compatibility = inspectDeploymentCompatibility(artifact.target, {
               chip,
               xsVersion: archiveVersion,
               firmwareVersion: firmware.version,
@@ -166,7 +144,7 @@ export function ModGalleryPage() {
               requireFirmware: true,
             })
             if (!compatibility.compatible) {
-              throw new Error(compatibility.diagnostics.map((item: { message: string }) => item.message).join(' / '))
+              throw new Error(formatDiagnostics(compatibility.diagnostics))
             }
             return new Promise<boolean>((resolve) => setConfirmation({ mod, chip, firmware, resolve }))
           },

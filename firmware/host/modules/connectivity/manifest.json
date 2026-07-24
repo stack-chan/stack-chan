@@ -9,6 +9,7 @@
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
     "$(MODULES)/network/mdns/manifest.json",
+    "$(MODULES)/crypt/digest/manifest.json",
     "../util/manifest.json",
     "../preferences/manifest.json",
     "./http-server/manifest.json",
@@ -24,12 +25,16 @@
     ],
     "stk-server": "./ble/stk-server",
     "beacon-packet": "./ble/beacon-packet",
+    "ble-local-peer-radio": "./ble/local-peer-radio",
+    "ble-local-peer-record": "./ble/local-peer-record",
     "ecma-wifi": "./ecma-wifi",
     "fake-wifi-scan-results": "./fake-wifi-scan-results",
     "local-peer-capability": "./sim/local-peer-capability",
     "local-peer-codec": "./local-peer-codec",
     "local-peer-frame": "./local-peer-frame",
     "local-peer-radio-types": "./local-peer-radio-types",
+    "local-peer-auth": "./local-peer-auth",
+    "local-peer-transports": "./sim/local-peer-transports",
     "local-peer-service": "./local-peer-service",
     "local-peer-types": "./local-peer-types",
     "wifi-scan": "./wifi-scan",
@@ -38,18 +43,20 @@
   },
   "preload": ["stk-server", "beacon-packet"],
   "ble": {
-    "*": ["$(MODULES)/network/ble/uart/bleservices/*"]
+    "*": ["./ble/bleservices/*"]
   },
   "platforms": {
     "esp32": {
       "include": ["$(MODULES)/io/wifi/manifest.json"],
       "modules": {
+        "~": ["./sim/local-peer-transports"],
         "local-peer-capability": "./local-peer-capability",
-        "local-peer-radio": "./esp32/local-peer-radio"
+        "local-peer-radio": "./esp32/local-peer-radio",
+        "local-peer-transports": "./esp32/local-peer-transports"
       }
     },
     "esp32/m5stack": {
-      "include": ["./manifest_local_peer_unsupported.json"]
+      "include": ["./manifest_local_peer_ble_only.json"]
     },
     "esp": {
       "include": ["$(MODULES)/io/wifi/manifest.json"],

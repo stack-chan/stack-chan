@@ -5,6 +5,7 @@ export type LocalPeerRadioReceiveEvent = {
 }
 
 export type LocalPeerRadioOptions = {
+  id: string
   offlineChannel: number
   sharedKey?: string
   onReceive: (event: LocalPeerRadioReceiveEvent) => void
@@ -19,3 +20,10 @@ export interface LocalPeerRadio {
 }
 
 export type LocalPeerRadioFactory = (options: LocalPeerRadioOptions) => LocalPeerRadio
+
+export type LocalPeerTransport = 'espnow' | 'ble'
+
+export type LocalPeerRadioRegistry = {
+  readonly defaultTransport: LocalPeerTransport
+  readonly factories: Partial<Record<LocalPeerTransport, LocalPeerRadioFactory>>
+}

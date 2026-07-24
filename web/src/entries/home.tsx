@@ -1,4 +1,4 @@
-import { ArrowRight, Blocks, Box, Cpu, SlidersHorizontal, Smile, Store, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Blocks, Box, Cpu, ScanFace, SlidersHorizontal, Smile, Store, type LucideIcon } from 'lucide-react'
 import { useEffect } from 'react'
 
 import { AppShell } from '@/app/app-shell'
@@ -34,6 +34,12 @@ const tools: Tool[] = [
     label: 'MOD Gallery',
     description: '公開済みMODを試して編集する',
     icon: Store,
+  },
+  {
+    href: 'mediapipe/',
+    label: 'MediaPipe BLE追従',
+    description: '顔と手の動きをBLEで送る',
+    icon: ScanFace,
   },
   {
     href: 'simulator/',

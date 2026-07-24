@@ -122,9 +122,13 @@ switch (command) {
     }
     const packageDirectory = findPackageDirectory(modInput)
     if (packageDirectory) {
-      run('mcpack', ['mcrun', '-d', '-m', '-p', platform, ...outputArgs, ...args.slice(1)], packageDirectory)
+      run(
+        'mcpack',
+        ['mcrun', ...buildModeArgs, '-m', '-p', platform, ...outputArgs, ...args.slice(1)],
+        packageDirectory,
+      )
     } else {
-      run('mcrun', ['-d', '-m', '-p', platform, ...outputArgs, modInput, ...args.slice(1)])
+      run('mcrun', [...buildModeArgs, '-m', '-p', platform, ...outputArgs, modInput, ...args.slice(1)])
     }
     break
   }

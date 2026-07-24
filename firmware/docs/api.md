@@ -29,7 +29,7 @@ The context exposes a small set of capabilities so UI, motion, speech, and input
 
 ![coordinate for Stack-chan](./images/coordinate.jpg)
 
-Stack-chan's coordinate system is a __right-handed__ system. When you bend your right hand's thumb, index finger, and middle finger so that they are perpendicular to each other, the thumb is the X-axis, the index finger is the Y-axis, and the middle finger is the Z-axis.
+Stack-chan's coordinate system is a **right-handed** system. When you bend your right hand's thumb, index finger, and middle finger so that they are perpendicular to each other, the thumb is the X-axis, the index finger is the Y-axis, and the middle finger is the Z-axis.
 
 When Stack-chan's face is facing forward, the positive direction of each axis is as follows:
 
@@ -43,7 +43,7 @@ Also, the direction of rotation is the direction in which the right-hand screw a
 - Pitch axis (rotation around Y-axis) positive direction... Stack-chan looking down
 - Yaw axis (rotation around Z-axis) positive direction... Stack-chan looking to the left
 
-In Stack-chan's API, __the unit of coordinates is meters and the unit of angles is radians__.
+In Stack-chan's API, **the unit of coordinates is meters and the unit of angles is radians**.
 Correspondence with the coordinate system can also be referenced in the actual source code (e.g. [`mods/examples/look_around`](../mods/examples/look_around/) etc.).
 
 ## Public Types
@@ -59,7 +59,7 @@ Correspondence with the coordinate system can also be referenced in the actual s
 - `context.i18n.locale`, `context.i18n.localize(...)`
 - `context.ui.showBalloon(...)`, `context.ui.drawer.addDrawerButton(...)`
 - `context.input.touch`, `context.input.touchPanel`, `context.input.imu`
-- `context.lighting.lightOn(...)`, `context.camera.capture(...)`, `context.connectivity.network?.ready`
+- `context.lighting.lightOn(...)`, `context.camera.capture(...)`, `context.connectivity.network?.ready`, `context.connectivity.localPeer`
 - `context.lifecycle.close()` for releasing runtime-owned timers, sensors, camera sessions, and motion timers
 
 Input devices are optional. `context.input.touch` is defined only when the platform exposes `config.Touch`,
@@ -68,6 +68,7 @@ MODs must check for `undefined` before attaching touch handlers.
 
 `context.connectivity.network?.ready` resolves to `connected`, `skipped`, or `failed`.
 Network-dependent MODs can await it and handle `skipped` or `failed` without importing host-internal network modules.
+Local peer sessions support ESP-NOW and BLE Serial through the same API; see [Local peer messaging](./local-peer-communication.md).
 
 `options.tail` in `context.ui.showBalloon(text, options)` accepts `top-left`, `top-right`, `bottom-left`, or
 `bottom-right`. When omitted, bottom placement uses `top-left`, while an explicit `top` position uses

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { type OperationState } from '@/features/operations/operation-state'
+import { cn } from '@/lib/utils'
 import { type ModDefinition } from '@/services/mod-gallery/mod-catalog-service'
 
 export type ModAction = {
@@ -22,12 +23,14 @@ export function ModCard({
   primaryAction,
   secondaryActions = [],
   operation = { status: 'idle' },
+  selected = false,
 }: {
   mod: ModDefinition
   badges: readonly string[]
   primaryAction?: ModAction
   secondaryActions?: readonly ModAction[]
   operation?: OperationState
+  selected?: boolean
 }) {
   const { t } = useI18n()
   const actions = primaryAction ? [primaryAction, ...secondaryActions] : secondaryActions
@@ -51,7 +54,16 @@ export function ModCard({
   }
 
   return (
-    <Card data-mod-id={mod.id} data-mod-type={mod.type} className="gap-4 transition-colors hover:border-primary/35">
+    <Card
+      data-mod-id={mod.id}
+      data-mod-type={mod.type}
+      data-selected={selected || undefined}
+      tabIndex={selected ? -1 : undefined}
+      className={cn(
+        'gap-4 transition-colors hover:border-primary/35',
+        selected && 'border-primary ring-2 ring-primary/30'
+      )}
+    >
       <CardHeader className="grid grid-cols-[1fr_auto] gap-x-3">
         <div className="min-w-0">
           <CardTitle>{t(mod.name)}</CardTitle>

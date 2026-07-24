@@ -7,6 +7,7 @@ const pages = [
   'flash/index.html',
   'preference/index.html',
   'mod-gallery/index.html',
+  'mediapipe/index.html',
   'simulator/index.html',
   'editor/index.html',
   'editor/tutorial.html',

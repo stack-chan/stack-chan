@@ -1,4 +1,4 @@
-import { Cpu, RotateCcw, Usb } from 'lucide-react'
+import { Cpu, RotateCcw, TriangleAlert, Usb } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
@@ -15,6 +15,7 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -84,6 +85,13 @@ export function HostInstallForm() {
               </SelectContent>
             </Select>
           </div>
+          <Alert className="border-amber-500/50 bg-amber-500/10" role="note">
+            <TriangleAlert aria-hidden="true" />
+            <AlertTitle>{t('書き込み前にご確認ください')}</AlertTitle>
+            <AlertDescription>
+              {t('書き込みを開始すると、本体に保存した設定とインストール済みのMODはすべて消去されます。')}
+            </AlertDescription>
+          </Alert>
           <OperationStatus
             state={operation}
             labels={{

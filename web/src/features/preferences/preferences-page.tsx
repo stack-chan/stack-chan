@@ -1,4 +1,4 @@
-import { Bluetooth, Save, Trash2, Unplug } from 'lucide-react'
+import { Bluetooth, Info, Save, Trash2, Unplug } from 'lucide-react'
 import { useState, type ComponentProps, type ReactNode } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -98,6 +99,12 @@ export function PreferencesPage() {
               <CardDescription>{t('BLEでｽﾀｯｸﾁｬﾝに接続します。')}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
+              <Alert role="note">
+                <Info aria-hidden="true" />
+                <AlertDescription>
+                  {t('接続する前に、ｽﾀｯｸﾁｬﾝの起動画面で「設定」を押し、本体の設定画面を開いてください。')}
+                </AlertDescription>
+              </Alert>
               {preferences.connected ? (
                 <Button variant="destructive" onClick={() => void preferences.disconnect()} disabled={preferences.busy}>
                   <Unplug data-icon="inline-start" />

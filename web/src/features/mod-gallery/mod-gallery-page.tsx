@@ -58,6 +58,7 @@ export function ModGalleryPage() {
   const [operations, setOperations] = useState<Operations>({})
   const [confirmation, setConfirmation] = useState<Confirmation>()
   const mounted = useRef(true)
+  const requestedMod = useMemo(() => new URL(location.href).searchParams.get('mod'), [])
 
   useEffect(() => {
     mounted.current = true
@@ -75,6 +76,16 @@ export function ModGalleryPage() {
       mounted.current = false
     }
   }, [])
+
+  useEffect(() => {
+    if (loading || !requestedMod) return
+    const selected = [...document.querySelectorAll<HTMLElement>('[data-mod-id]')].find(
+      (candidate) => candidate.dataset.modId === requestedMod
+    )
+    if (!selected) return
+    selected.focus({ preventScroll: true })
+    selected.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [loading, requestedMod])
 
   const visible = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('ja')
@@ -237,6 +248,7 @@ export function ModGalleryPage() {
                 <ModCard
                   key={mod.id}
                   mod={mod}
+                  selected={mod.id === requestedMod}
                   badges={badges}
                   operation={operations[mod.id]}
                   primaryAction={{
@@ -248,14 +260,16 @@ export function ModGalleryPage() {
               )
             }
             const artifact = mod.artifacts[0]
+            const supportsSimulator = mod.targets.includes('simulator')
             return (
               <ModCard
                 key={mod.id}
                 mod={mod}
+                selected={mod.id === requestedMod}
                 badges={badges}
                 operation={operations[mod.id]}
                 primaryAction={
-                  artifact
+                  artifact && supportsSimulator
                     ? {
                         label: t('シミュレーターで試す'),
                         icon: Play,
@@ -270,7 +284,7 @@ export function ModGalleryPage() {
                           label: t('実機へ書き込む'),
                           icon: Usb,
                           onClick: () => void installToDevice(mod, artifact),
-                          variant: 'outline' as const,
+                          variant: supportsSimulator ? ('outline' as const) : ('default' as const),
                         },
                       ]
                     : []),

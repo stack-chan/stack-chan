@@ -19,7 +19,7 @@
     "generate-speech-google": "cross-env GOOGLE_APPLICATION_CREDENTIALS=scripts/key.json node scripts/generate-speech-google.js",
     "generate-apidoc": "typedoc --entryPointStrategy expand --plugin typedoc-plugin-markdown --out docs/api ./host",
     "test": "npm run test:unit",
-    "test:unit": "rm -rf dist-tests && tsc --project tsconfig.test.json && node --test \"dist-tests/host/**/*.test.js\" scripts/lib/build-output.test.mjs scripts/lib/idf-dependencies.test.mjs scripts/lib/moddable-version.test.mjs scripts/lib/release-validation.test.mjs",
+    "test:unit": "rm -rf dist-tests && tsc --project tsconfig.test.json && node --test \"dist-tests/host/**/*.test.js\" scripts/lib/build-output.test.mjs scripts/lib/firmware-command.test.mjs scripts/lib/idf-dependencies.test.mjs scripts/lib/moddable-version.test.mjs scripts/lib/release-validation.test.mjs",
     "test:moddable": "node scripts/run-module-tests.js",
     "test:web-radio-device:build": "node scripts/run-mcconfig.mjs -d -m -p esp32:./host/platforms/m5stackchan_cores3 -t build \"$PWD/host/modules/audio/__tests__/web-radio-device/manifest.json\"",
     "test:web-radio-device:flash": "node scripts/run-mcconfig.mjs -d -m -p esp32:./host/platforms/m5stackchan_cores3 \"$PWD/host/modules/audio/__tests__/web-radio-device/manifest.json\"",

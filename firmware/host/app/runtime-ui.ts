@@ -8,7 +8,14 @@ import type {
   UIEffect,
 } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
-import { createFaceState, type Emotion, type FaceState, type FaceThemeKey, setColorRGB } from 'face-state'
+import {
+  createFaceState,
+  type Emotion,
+  type FaceEyeKey,
+  type FaceState,
+  type FaceThemeKey,
+  setColorRGB,
+} from 'face-state'
 import {
   type Pose,
   type Rotation,
@@ -41,6 +48,7 @@ export class StackchanRuntimeUI {
   #drawerButtonStates = new Map<string, boolean>()
   #drawerRegistry: DrawerCapability
   #emotion: Emotion
+  #eyeOpen = { left: 1, right: 1 }
   #eyeGazePoint: Vector3 = [0, 0, 0]
   #eyeGazeRotation: Rotation = { y: 0, p: 0, r: 0 }
   #faceState: FaceState
@@ -100,6 +108,13 @@ export class StackchanRuntimeUI {
     this.#emotion = emotion
   }
 
+  setEyeOpen(key: FaceEyeKey, value: number) {
+    if (value < 0 || value > 1) {
+      throw new Error('value must be between 0 and 1')
+    }
+    this.#eyeOpen[key] = value
+  }
+
   setMouthOpen(value: number) {
     if (value < 0 || value > 1) {
       throw new Error('value must be between 0 and 1')
@@ -115,6 +130,8 @@ export class StackchanRuntimeUI {
     const pose = this.#options.getPose()
     const gazePoint = this.#options.getGazePoint()
     this.#faceState.mouth.open = this.#mouthOpen
+    this.#faceState.eyes.left.open = this.#eyeOpen.left
+    this.#faceState.eyes.right.open = this.#eyeOpen.right
     this.#faceState.emotion = this.#emotion
 
     if (gazePoint != null) {

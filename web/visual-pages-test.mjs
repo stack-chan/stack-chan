@@ -39,6 +39,7 @@ const pages = [
   ['flash', '/flash/'],
   ['preference', '/preference/'],
   ['mod-gallery', '/mod-gallery/'],
+  ['mediapipe', '/mediapipe/'],
   ['editor', '/editor/'],
   ['tutorial', '/editor/tutorial.html'],
   ['face-editor', '/face-editor/'],
@@ -117,6 +118,39 @@ try {
   await page.goto(`${baseUrl}/flash/`, { waitUntil: 'networkidle' })
   assert.equal(await page.locator('esp-web-install-button').count(), 0)
   assert.equal(await page.getByRole('button', { name: 'USBに接続して書き込む' }).count(), 1)
+  assert.equal(
+    await page.getByRole('note').getByText('インストール済みのMOD', { exact: false }).count(),
+    1,
+    'the React flash tool must explain that installing erases device settings and MODs'
+  )
+
+  await page.goto(`${baseUrl}/preference/`, { waitUntil: 'networkidle' })
+  assert.equal(
+    await page.getByRole('note').getByText('本体の設定画面', { exact: false }).count(),
+    1,
+    'the React preference tool must explain the device-side pairing prerequisite'
+  )
+
+  await page.goto(`${baseUrl}/mediapipe/`, { waitUntil: 'networkidle' })
+  const installUrl = new URL(await page.locator('#install-mod-link').getAttribute('href'), page.url())
+  assert.equal(installUrl.pathname, new URL('../mod-gallery/', page.url()).pathname)
+  assert.equal(installUrl.searchParams.get('mod'), 'tech.stackchan.samples.mediapipe-ble')
+  assert.equal(await page.locator('#camera-button').isVisible(), true)
+  assert.equal(await page.locator('#ble-button').isVisible(), true)
+
+  await page.goto(`${baseUrl}/mod-gallery/?mod=tech.stackchan.samples.mediapipe-ble`, {
+    waitUntil: 'networkidle',
+  })
+  const selectedMediaPipeMod = page.locator(
+    '[data-mod-id="tech.stackchan.samples.mediapipe-ble"][data-selected="true"]'
+  )
+  await selectedMediaPipeMod.waitFor()
+  assert.equal(
+    await selectedMediaPipeMod.getByRole('button', { name: 'シミュレーターで試す' }).count(),
+    0,
+    'the CoreS3-only MediaPipe MOD must not offer simulator installation'
+  )
+  assert.equal(await selectedMediaPipeMod.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
 
   await page.goto(baseUrl, { waitUntil: 'networkidle' })
   assert.equal(await page.locator('html.light').count(), 1, 'saved light theme must be active')
@@ -132,6 +166,7 @@ try {
   await toolMenu.waitFor()
   const closeToolMenu = toolMenu.getByRole('button', { name: '閉じる' })
   assert.equal(await closeToolMenu.count(), 1, 'the shared menu close button must use the active locale')
+  assert.equal(await toolMenu.getByRole('link', { name: /MediaPipe BLE追従/ }).count(), 1)
   await page.screenshot({ path: '/tmp/stackchan-navigation-open.png', fullPage: true })
   await closeToolMenu.click()
   await toolMenu.waitFor({ state: 'hidden' })

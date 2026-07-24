@@ -45,6 +45,7 @@ export default defineConfig({
         flash: page('./flash/index.html'),
         preference: page('./preference/index.html'),
         gallery: page('./mod-gallery/index.html'),
+        mediapipe: page('./mediapipe/index.html'),
         simulator: page('./simulator/index.html'),
         editor: page('./editor/index.html'),
         tutorial: page('./editor/tutorial.html'),

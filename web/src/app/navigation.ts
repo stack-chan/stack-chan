@@ -1,7 +1,18 @@
-import { Blocks, Box, CircleHelp, Cpu, Home, SlidersHorizontal, Smile, Store, type LucideIcon } from 'lucide-react'
+import {
+  Blocks,
+  Box,
+  CircleHelp,
+  Cpu,
+  Home,
+  ScanFace,
+  SlidersHorizontal,
+  Smile,
+  Store,
+  type LucideIcon,
+} from 'lucide-react'
 
 export type NavigationId =
-  'home' | 'flash' | 'preference' | 'mod-gallery' | 'simulator' | 'editor' | 'face-editor' | 'tutorial'
+  'home' | 'flash' | 'preference' | 'mod-gallery' | 'mediapipe' | 'simulator' | 'editor' | 'face-editor' | 'tutorial'
 
 export type NavigationItem = {
   id: NavigationId
@@ -33,6 +44,13 @@ export const TOOL_NAVIGATION_ITEMS: readonly NavigationItem[] = [
     label: 'MOD Gallery',
     description: '公開済みMODを試して編集する',
     icon: Store,
+  },
+  {
+    id: 'mediapipe',
+    href: 'mediapipe/',
+    label: 'MediaPipe BLE追従',
+    description: '顔と手の動きをBLEで送る',
+    icon: ScanFace,
   },
   {
     id: 'simulator',

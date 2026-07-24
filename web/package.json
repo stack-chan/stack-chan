@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:legacy && npm run test:react",
-    "test:legacy": "node --test simulator/*.test.mjs editor/*.test.mjs face-editor/*.test.mjs mod-gallery/*.test.mjs *.test.mjs",
+    "test:legacy": "node --test simulator/*.test.mjs editor/*.test.mjs face-editor/*.test.mjs mediapipe/*.test.mjs mod-gallery/*.test.mjs local-peer/*.test.mjs *.test.mjs",
     "test:react": "vitest run",
     "test:i18n-visual": "npm run build && node i18n-visual-test.mjs",
     "check:editor-artifacts": "node check-editor-artifacts.mjs",

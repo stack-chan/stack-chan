@@ -152,7 +152,7 @@ export function BlocklyWorkspace({
   return (
     <div
       ref={hostRef}
-      className="h-full min-h-[34rem] w-full overflow-hidden rounded-xl border bg-card"
+      className="relative isolate z-0 h-full min-h-[34rem] w-full overflow-hidden rounded-xl border bg-card"
       aria-label={t('Blocklyワークスペース')}
     />
   )

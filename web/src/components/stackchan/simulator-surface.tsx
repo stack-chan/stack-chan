@@ -25,6 +25,7 @@ import {
   type InstalledMod,
   type SimulatorModResult,
 } from '@/services/simulator/simulator-engine.mjs'
+import { cn } from '@/lib/utils'
 
 const sampleModUrl = new URL('../../../simulator/samples/stackchan-sample-mod.xsa', import.meta.url).href
 
@@ -76,11 +77,15 @@ function describeMod(result: SimulatorModResult, installedMod?: InstalledMod | n
   return unhandledStatus
 }
 
-function SimulatorViewport({ viewportRef, screenRef }: Pick<SimulatorSurfaceController, 'viewportRef' | 'screenRef'>) {
+export function SimulatorViewport({
+  viewportRef,
+  screenRef,
+  className,
+}: Pick<SimulatorSurfaceController, 'viewportRef' | 'screenRef'> & { className?: string }) {
   const { t } = useI18n()
   return (
     <section
-      className="relative min-h-[26rem] overflow-hidden rounded-xl border bg-simulator-stage shadow-sm"
+      className={cn('relative min-h-[26rem] overflow-hidden rounded-xl border bg-simulator-stage shadow-sm', className)}
       aria-label={t('ｽﾀｯｸﾁｬﾝ3Dシミュレーター')}
     >
       <canvas
@@ -221,12 +226,27 @@ function SimulatorToolbar({ controller }: { controller: SimulatorSurfaceControll
   )
 }
 
-export function SimulatorSurface({ controller }: { controller: SimulatorSurfaceController }) {
+export function SimulatorSurface({
+  controller,
+  embedded = false,
+}: {
+  controller: SimulatorSurfaceController
+  embedded?: boolean
+}) {
   const { t } = useI18n()
   return (
-    <div className="page-container grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div
+      className={cn(
+        'grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]',
+        embedded ? 'h-full min-h-0 overflow-auto pr-1' : 'page-container'
+      )}
+    >
       <div className="grid min-w-0 gap-4">
-        <SimulatorViewport viewportRef={controller.viewportRef} screenRef={controller.screenRef} />
+        <SimulatorViewport
+          viewportRef={controller.viewportRef}
+          screenRef={controller.screenRef}
+          className={embedded ? 'min-h-[28rem]' : undefined}
+        />
         <OperationStatus
           state={controller.operation}
           labels={{
@@ -235,7 +255,12 @@ export function SimulatorSurface({ controller }: { controller: SimulatorSurfaceC
             error: t('シミュレーターを起動できませんでした'),
           }}
         />
-        <LogConsole entries={controller.logs} onClear={controller.clearLogs} title={t('ファームウェアログ')} />
+        <LogConsole
+          entries={controller.logs}
+          onClear={controller.clearLogs}
+          title={t('ファームウェアログ')}
+          viewportClassName={embedded ? 'h-36' : undefined}
+        />
       </div>
 
       <SimulatorToolbar controller={controller} />

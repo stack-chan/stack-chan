@@ -6,19 +6,43 @@ import { toAppError } from '@/lib/errors/app-error'
 import {
   type CameraStatus,
   type InstalledMod,
+  type SimulatorModStorage,
   type SimulatorModResult,
+  type SimulatorReady,
   SimulatorEngine,
 } from '@/services/simulator/simulator-engine.mjs'
+import { createMemoryModStorage, createModStorage } from '../../../simulator/mod-storage.mjs'
 
 type ModState = {
   result: SimulatorModResult
   installedMod?: InstalledMod | null
 }
 
-export function useSimulatorEngine() {
+type SimulatorEngineOptions = {
+  initialMod?: {
+    name: string
+    bytes: Uint8Array
+  }
+  persistence?: 'persistent' | 'session'
+  runtimeBaseUrl?: string
+  onTrace?: (message: string) => void
+  onReady?: (ready: SimulatorReady) => void
+  onError?: (error: unknown) => void
+}
+
+export function useSimulatorEngine({
+  initialMod,
+  persistence = 'persistent',
+  runtimeBaseUrl = new URL('../simulator/', document.baseURI).href,
+  onTrace,
+  onReady,
+  onError,
+}: SimulatorEngineOptions = {}) {
   const viewportRef = useRef<HTMLCanvasElement>(null)
   const screenRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<SimulatorEngine | null>(null)
+  const callbacksRef = useRef({ onTrace, onReady, onError })
+  callbacksRef.current = { onTrace, onReady, onError }
   const [operation, setOperation] = useState<OperationState>({ status: 'idle' })
   const [modState, setModState] = useState<ModState>({ result: { status: 'empty' } })
   const [cameraStatus, setCameraStatus] = useState<CameraStatus>({ status: 'idle' })
@@ -29,9 +53,14 @@ export function useSimulatorEngine() {
     const screen = screenRef.current
     if (!viewport || !screen) return
     let active = true
+    const modStorage = (
+      persistence === 'session' ? createMemoryModStorage() : createModStorage()
+    ) as SimulatorModStorage
     const engine = new SimulatorEngine({
       viewport,
       screen,
+      modStorage,
+      runtimeBaseUrl,
       onStatus: (status) => {
         if (!active) return
         if (status.status === 'pending') {
@@ -45,6 +74,7 @@ export function useSimulatorEngine() {
       onTrace: (message) => {
         if (!active) return
         append(message, message.startsWith('[err]') ? 'error' : 'trace', 'simulator')
+        callbacksRef.current.onTrace?.(message)
       },
       onModStatus: (result, installedMod) => {
         if (active) setModState({ result, installedMod })
@@ -52,17 +82,28 @@ export function useSimulatorEngine() {
       onCameraStatus: (status) => {
         if (active) setCameraStatus(status)
       },
+      onReady: (ready) => {
+        if (active) callbacksRef.current.onReady?.(ready)
+      },
+      onError: (error) => {
+        if (active) callbacksRef.current.onError?.(error)
+      },
     })
     engineRef.current = engine
-    void engine.start().catch((error) => {
-      if (active) setOperation({ status: 'error', error: toAppError(error, 'simulator.start') })
+    void (async () => {
+      if (initialMod) await modStorage.saveInstalledMod(initialMod)
+      if (active) await engine.start()
+    })().catch((error) => {
+      if (!active) return
+      setOperation({ status: 'error', error: toAppError(error, 'simulator.start') })
+      callbacksRef.current.onError?.(error)
     })
     return () => {
       active = false
       if (engineRef.current === engine) engineRef.current = null
       engine.dispose()
     }
-  }, [append])
+  }, [append, initialMod?.bytes, initialMod?.name, persistence, runtimeBaseUrl])
 
   const run = useCallback(async (action: (engine: SimulatorEngine) => Promise<void>) => {
     const engine = engineRef.current

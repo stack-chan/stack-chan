@@ -48,6 +48,7 @@ OUTPUT_DIR="$FIRMWARE_DIR/dist"
 APP_NAME="stack-chan-host"
 TMP_DIR="$OUTPUT_DIR/tmp/wasm/debug/$APP_NAME"
 BIN_DIR="$OUTPUT_DIR/bin/wasm/debug/$APP_NAME"
+RUNTIME_PRE_JS="$FIRMWARE_DIR/host/platforms/wasm/browser-runtime.pre.js"
 
 LINK_OPTIONS="-s ENVIRONMENT=web \
  -s ALLOW_MEMORY_GROWTH=1 \
@@ -56,6 +57,7 @@ LINK_OPTIONS="-s ENVIRONMENT=web \
  -s EXPORT_NAME=mc \
  -s INVOKE_RUN=0 \
  -s FORCE_FILESYSTEM=1 \
+ --pre-js $RUNTIME_PRE_JS \
  -sEXPORTED_FUNCTIONS=_fxMainIdle,_fxMainLaunch,_fxMainQuit,_fxMainTouch,_malloc,_free \
  -sEXPORTED_RUNTIME_METHODS=HEAP8,HEAPU8"
 

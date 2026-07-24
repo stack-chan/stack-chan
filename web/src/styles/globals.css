@@ -180,6 +180,12 @@
   ::selection {
     @apply bg-primary/25;
   }
+
+  .blocklyWidgetDiv,
+  .blocklyDropDownDiv,
+  .blocklyTooltipDiv {
+    z-index: 30 !important;
+  }
 }
 
 @layer utilities {

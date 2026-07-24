@@ -354,9 +354,10 @@ class WasmView {
     scene,
     screen,
     modStorage,
+    hostBridge,
+    runtimeBaseUrl,
     onStatus = () => {},
     onTrace = () => {},
-    onNotify = () => {},
     onModInstallStatus = () => {},
     onReady = () => {},
     onError = () => {},
@@ -364,12 +365,17 @@ class WasmView {
     this.scene = scene
     this.screen = screen
     this.modStorage = modStorage
+    this.runtimeBaseUrl = runtimeBaseUrl
     this.onStatus = onStatus
     this.onTrace = onTrace
-    this.onNotify = onNotify
     this.onModInstallStatus = onModInstallStatus
     this.onReady = onReady
     this.onError = onError
+    this.runtime = {
+      host: hostBridge,
+      view: this,
+      state: {},
+    }
     this.runCount = 0
     this.interval = 0
     this.tracking = 0
@@ -412,25 +418,39 @@ class WasmView {
     for (const [eventName, handler] of Object.entries(this.touchHandlers ?? {})) {
       this.screen.removeEventListener(eventName, handler)
     }
+    this.runtime.host = undefined
+    this.runtime.view = undefined
+    this.runtime.state = {}
+    this.mc = undefined
+    this.fxMainIdle = undefined
+    this.fxMainLaunch = undefined
+    this.fxMainQuit = undefined
+    this.fxMainTouch = undefined
   }
 
   async #loadWasm() {
     try {
       console.log('[bridge] importing mc.js')
       const wasmCacheKey = Date.now()
-      const moduleUrl = new URL('./mc.js', document.baseURI)
+      const moduleUrl = new URL('mc.js', this.runtimeBaseUrl)
       moduleUrl.searchParams.set('v', String(wasmCacheKey))
       const ns = await import(/* @vite-ignore */ moduleUrl.href)
-      this.mc = await ns.default({
+      if (this.disposed) return
+      const mc = await ns.default({
+        stackchanRuntime: this.runtime,
         locateFile: () => {
-          const wasmUrl = new URL('./mc.wasm', document.baseURI)
+          const wasmUrl = new URL('mc.wasm', this.runtimeBaseUrl)
           wasmUrl.searchParams.set('v', String(wasmCacheKey))
           return wasmUrl.href
         },
         print: (text) => this.#handleFirmwarePrint(text),
         printErr: (text) => this.#handleFirmwareError(text),
       })
-      if (this.disposed) return
+      if (this.disposed) {
+        mc._fxMainQuit?.()
+        return
+      }
+      this.mc = mc
       console.log('[bridge] mc.js module ready')
       this.fxMainIdle = this.mc._fxMainIdle
       this.fxMainLaunch = this.mc._fxMainLaunch
@@ -506,7 +526,6 @@ class WasmView {
 
   #appendTrace(text) {
     this.onTrace(String(text))
-    this.onNotify({ type: 'stackchan-simulator-trace', text: String(text) })
   }
 
   #applyFirmwareDriverTrace(text) {
@@ -660,11 +679,6 @@ class WasmView {
   }
 }
 
-function notifyHostWindow(message) {
-  const target = window.opener ?? (window.parent !== window ? window.parent : null)
-  target?.postMessage(message, location.origin)
-}
-
 function bindManagedViewportTouches({ viewport, scene, wasmView }) {
   const touchId = 0
   let activePointerId
@@ -729,6 +743,10 @@ export class SimulatorEngine {
     onTrace = () => {},
     onModStatus = () => {},
     onCameraStatus = () => {},
+    onReady = () => {},
+    onError = () => {},
+    modStorage = createModStorage(),
+    runtimeBaseUrl = new URL('../simulator/', document.baseURI).href,
   }) {
     this.viewport = viewport
     this.screen = screen
@@ -736,7 +754,9 @@ export class SimulatorEngine {
     this.onTrace = onTrace
     this.onModStatus = onModStatus
     this.onCameraStatus = onCameraStatus
-    this.modStorage = createModStorage()
+    this.onReady = onReady
+    this.onError = onError
+    this.modStorage = modStorage
     this.buttonBridge = createHostButtonBridge({ logger: (message) => this.onTrace(message) })
     this.audioOutBridge = createHostAudioOutBridge()
     this.audioInBridge = createHostAudioInBridge()
@@ -746,8 +766,6 @@ export class SimulatorEngine {
       onRotation: (rotation) => this.scene.applyDriverRotation(rotation),
       onTorque: (torque) => this.scene.setTorqueEnabled(torque),
     })
-    this.previousHost = globalThis.Host
-    this.previousGxView = globalThis.gxView
     this.hostBridge = {
       Button: this.buttonBridge.Button,
       AudioOut: this.audioOutBridge,
@@ -755,41 +773,31 @@ export class SimulatorEngine {
       Camera: this.cameraBridge,
       Driver: this.driverBridge,
     }
-    globalThis.Host = this.hostBridge
     this.wasmView = new WasmView({
       scene: this.scene,
       screen,
       modStorage: this.modStorage,
+      hostBridge: this.hostBridge,
+      runtimeBaseUrl,
       onStatus,
       onTrace,
-      onNotify: notifyHostWindow,
       onModInstallStatus: onModStatus,
       onReady: ({ runCount, installation }) => {
         if (installation?.status === 'prepared') {
           this.onModStatus({ ...installation, status: 'installed' })
         }
-        notifyHostWindow({
-          type: 'stackchan-simulator-ready',
+        this.onReady({
           runCount,
           installationStatus: installation.status,
         })
       },
-      onError: (error) => {
-        notifyHostWindow({
-          type: 'stackchan-simulator-status',
-          status: 'error',
-          error: String(error.message ?? error),
-        })
-      },
+      onError: (error) => this.onError(error),
     })
-    globalThis.gxView = this.wasmView
     this.unbindViewport = bindManagedViewportTouches({
       viewport,
       scene: this.scene,
       wasmView: this.wasmView,
     })
-    this.handleMessage = (event) => void this.#receiveMessage(event)
-    window.addEventListener('message', this.handleMessage)
   }
 
   async start() {
@@ -850,37 +858,14 @@ export class SimulatorEngine {
     this.buttonBridge.push(name)
   }
 
-  async #receiveMessage(event) {
-    if (event.origin !== location.origin || event.data?.type !== 'stackchan-editor-command') return
-    try {
-      if (event.data.command === 'restart') await this.restart()
-      if (event.data.command === 'button') this.pushButton(event.data.name)
-    } catch (error) {
-      notifyHostWindow({
-        type: 'stackchan-simulator-status',
-        status: 'error',
-        error: String(error.message ?? error),
-      })
-    }
-  }
-
   dispose() {
+    if (this.disposed) return
     this.disposed = true
     if (this.animationFrame) window.cancelAnimationFrame(this.animationFrame)
-    window.removeEventListener('message', this.handleMessage)
     this.unbindViewport?.()
     this.wasmView.dispose()
     this.scene.dispose()
     this.cameraBridge.stop()
     this.audioOutBridge.close()
-    if (globalThis.Host === this.hostBridge && this.previousHost === undefined) {
-      delete globalThis.Host
-    } else if (globalThis.Host === this.hostBridge) {
-      globalThis.Host = this.previousHost
-    }
-    if (globalThis.gxView === this.wasmView) {
-      if (this.previousGxView === undefined) delete globalThis.gxView
-      else globalThis.gxView = this.previousGxView
-    }
   }
 }

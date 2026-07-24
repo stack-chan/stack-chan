@@ -31,12 +31,14 @@ export function LogConsole({
   title = 'ログ',
   emptyMessage = 'ログはまだありません。',
   className,
+  viewportClassName,
 }: {
   entries: readonly LogEntry[]
   onClear?: () => void
   title?: string
   emptyMessage?: string
   className?: string
+  viewportClassName?: string
 }) {
   const { t } = useI18n()
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -139,7 +141,10 @@ export function LogConsole({
         role="log"
         aria-live="polite"
         aria-relevant="additions"
-        className="h-56 overflow-auto bg-console px-3 py-2 font-mono text-xs leading-5 text-console-foreground"
+        className={cn(
+          'h-56 overflow-auto bg-console px-3 py-2 font-mono text-xs leading-5 text-console-foreground',
+          viewportClassName
+        )}
         onScroll={(event) => {
           const element = event.currentTarget
           setPinnedToEnd(element.scrollHeight - element.scrollTop - element.clientHeight < 12)

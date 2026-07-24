@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
-import { type SimulatorFrameHandle } from '@/components/stackchan/simulator-frame'
 import { type OperationState } from '@/features/operations/operation-state'
 import {
   type BlocklyWorkspaceController,
@@ -11,6 +10,7 @@ import { type ProjectAnalysis, type ProjectAsset, type VisualProject } from '@/f
 import { useLogBuffer } from '@/hooks/use-log-buffer'
 import { toAppError } from '@/lib/errors/app-error'
 import { buildVisualProjectMod, type ModBuildResult } from '@/services/mod-builder/mod-build-service'
+import { type SimulatorReady } from '@/services/simulator/simulator-engine.mjs'
 import { DEVICE_OPERATION_STATUS, installModToDevice, removeModFromDevice } from '../../../editor/esptool-installer.mjs'
 import { createEsptoolLoader } from '../../../editor/esptool-installer.mjs'
 import {
@@ -40,7 +40,7 @@ import {
   loadStagedFaceTransfer,
   saveFaceEditContext,
 } from '../../../face-editor/face-editor-storage.mjs'
-import { createModStorage, formatByteSize } from '../../../simulator/mod-storage.mjs'
+import { formatByteSize } from '../../../simulator/mod-storage.mjs'
 
 const PROJECT_STORAGE_KEY = 'stackchan-visual-project-v1'
 
@@ -90,7 +90,6 @@ export function useProjectEditor() {
   const projectsRef = useRef<VisualProject[]>([])
   const workspaceRef = useRef<BlocklyWorkspaceController | null>(null)
   const confirmationRef = useRef<Confirmation | null>(null)
-  const simulatorFrameRef = useRef<SimulatorFrameHandle>(null)
   const [project, setProject] = useState<VisualProject | null>(null)
   const [projects, setProjects] = useState<VisualProject[]>([])
   const [snapshot, setSnapshot] = useState<BlocklyWorkspaceSnapshot | null>(null)
@@ -109,7 +108,6 @@ export function useProjectEditor() {
   const [archive, setArchive] = useState<Uint8Array | null>(null)
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [simulatorOpen, setSimulatorOpen] = useState(false)
-  const [simulatorSrc, setSimulatorSrc] = useState('about:blank')
   const { entries: logs, append: appendLog, clear: clearLogs } = useLogBuffer()
 
   const persistProject = useCallback(
@@ -225,28 +223,28 @@ export function useProjectEditor() {
     []
   )
 
-  const onSimulatorMessage = useCallback(
-    (value: unknown) => {
-      if (!value || typeof value !== 'object') return
-      const message = value as Record<string, unknown>
-      if (message?.type === 'stackchan-simulator-trace') {
-        appendLog(String(message.text ?? ''), 'trace', 'simulator')
-      } else if (message?.type === 'stackchan-simulator-ready') {
-        const runCount = typeof message.runCount === 'number' ? message.runCount : 1
-        setBuildOperation((current) =>
-          current.status === 'success'
-            ? {
-                ...current,
-                message:
-                  runCount > 1
-                    ? `シミュレーターでMODを再実行しました（${runCount}回目）`
-                    : 'シミュレーターでMODを実行しています',
-              }
-            : current
-        )
-      } else if (message?.type === 'stackchan-simulator-status' && message.status === 'error') {
-        appendLog(String(message.error ?? 'シミュレーターエラー'), 'error', 'simulator')
-      }
+  const onSimulatorTrace = useCallback(
+    (message: string) => appendLog(message, message.startsWith('[err]') ? 'error' : 'trace', 'simulator'),
+    [appendLog]
+  )
+
+  const onSimulatorReady = useCallback(({ runCount }: SimulatorReady) => {
+    setBuildOperation((current) =>
+      current.status === 'success'
+        ? {
+            ...current,
+            message:
+              runCount > 1
+                ? `シミュレーターでMODを再実行しました（${runCount}回目）`
+                : 'シミュレーターでMODを実行しています',
+          }
+        : current
+    )
+  }, [])
+
+  const onSimulatorError = useCallback(
+    (error: unknown) => {
+      appendLog(String(error instanceof Error ? error.message : error), 'error', 'simulator')
     },
     [appendLog]
   )
@@ -425,27 +423,12 @@ export function useProjectEditor() {
     downloadBlob(new Blob([archive as BlobPart]), `${current.name}.xsa`)
   }, [archive])
 
-  const runInSimulator = useCallback(async () => {
-    const current = projectRef.current
-    if (!archive || !current) return
-    try {
-      await createModStorage().saveInstalledMod({ name: `${current.name}.xsa`, bytes: archive })
-      setSimulatorSrc(`../simulator/?editor=${Date.now()}`)
-      setSimulatorOpen(true)
-    } catch (error) {
-      appendLog(String(error instanceof Error ? error.message : error), 'error', 'simulator')
-    }
-  }, [appendLog, archive])
+  const runInSimulator = useCallback(() => {
+    if (archive && projectRef.current) setSimulatorOpen(true)
+  }, [archive])
 
   const closeSimulator = useCallback(() => {
-    simulatorFrameRef.current?.stop()
     setSimulatorOpen(false)
-    setSimulatorSrc('about:blank')
-  }, [])
-
-  const stopSimulator = useCallback(() => {
-    simulatorFrameRef.current?.stop()
-    setSimulatorSrc('about:blank')
   }, [])
 
   const askForConfirmation = useCallback(
@@ -611,9 +594,9 @@ export function useProjectEditor() {
     clearLogs,
     confirmation,
     simulatorOpen,
-    simulatorSrc,
-    simulatorFrameRef,
-    onSimulatorMessage,
+    onSimulatorTrace,
+    onSimulatorReady,
+    onSimulatorError,
     samples: VISUAL_SAMPLES,
     faceAssets,
     onWorkspaceChange,
@@ -678,10 +661,7 @@ export function useProjectEditor() {
     build,
     downloadArchive,
     runInSimulator,
-    stopSimulator,
     closeSimulator,
-    restartSimulator: () => simulatorFrameRef.current?.restart(),
-    pushSimulatorButton: (name: 'a' | 'b' | 'c') => simulatorFrameRef.current?.pushButton(name),
     installToDevice,
     removeFromDevice,
     resolveConfirmation,

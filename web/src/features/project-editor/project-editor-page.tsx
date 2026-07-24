@@ -1,21 +1,9 @@
-import {
-  CopyPlus,
-  Download,
-  FileInput,
-  FilePlus2,
-  FolderOpen,
-  ImagePlus,
-  MoreHorizontal,
-  RotateCw,
-  Square,
-  Trash2,
-} from 'lucide-react'
+import { CopyPlus, Download, FileInput, FilePlus2, FolderOpen, ImagePlus, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
 import { LogConsole } from '@/components/stackchan/log-console'
 import { ModBuildControl } from '@/components/stackchan/mod-build-control'
-import { SimulatorFrame } from '@/components/stackchan/simulator-frame'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,14 +17,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BlocklyWorkspace } from '@/features/project-editor/blockly-workspace'
 import { ProjectAssetsPanel } from '@/features/project-editor/project-assets-panel'
+import { ProjectSimulatorDialog } from '@/features/project-editor/project-simulator-dialog'
 import { useProjectEditor } from '@/features/project-editor/use-project-editor'
 import { DEVICE_PROFILES } from '../../../editor/capabilities.mjs'
 
@@ -360,46 +342,17 @@ export function ProjectEditorPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog
+      <ProjectSimulatorDialog
         open={editor.simulatorOpen}
+        archive={editor.archive}
+        archiveName={`${project.name}.xsa`}
         onOpenChange={(open) => {
           if (!open) editor.closeSimulator()
         }}
-      >
-        <DialogContent className="h-[min(54rem,calc(100dvh-2rem))] sm:max-w-6xl" showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>{t('シミュレーター')}</DialogTitle>
-            <DialogDescription>{t('ビルドしたMODをブラウザー内で実行します。')}</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={editor.restartSimulator}>
-              <RotateCw />
-              {t('再実行')}
-            </Button>
-            <Button variant="outline" onClick={editor.stopSimulator}>
-              <Square />
-              {t('停止')}
-            </Button>
-            <span className="ml-auto text-sm text-muted-foreground">{t('ボタン入力')}</span>
-            {(['a', 'b', 'c'] as const).map((name) => (
-              <Button key={name} variant="outline" size="icon" onClick={() => editor.pushSimulatorButton(name)}>
-                {name.toUpperCase()}
-              </Button>
-            ))}
-          </div>
-          <SimulatorFrame
-            ref={editor.simulatorFrameRef}
-            src={editor.simulatorSrc}
-            onMessage={editor.onSimulatorMessage}
-            className="min-h-0 flex-1 rounded-xl border bg-simulator-stage"
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={editor.closeSimulator}>
-              {t('閉じる')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onTrace={editor.onSimulatorTrace}
+        onReady={editor.onSimulatorReady}
+        onError={editor.onSimulatorError}
+      />
     </>
   )
 }

@@ -139,6 +139,39 @@ try {
   await page.setViewportSize({ width: 1728, height: 900 })
   await page.goto(`${baseUrl}/editor/`, { waitUntil: 'networkidle' })
   pageErrors.length = 0
+  await page.getByRole('button', { name: 'ツールメニューを開く' }).click()
+  const editorToolMenu = page.getByRole('dialog', { name: 'Webツール' })
+  await editorToolMenu.waitFor()
+  const editorLayering = await page.evaluate(() => {
+    const sheet = document.querySelector('[data-slot="sheet-content"]')
+    const workspace = document.querySelector('[aria-label="Blocklyワークスペース"]')
+    const dropdown = document.querySelector('.blocklyDropDownDiv')
+    if (!sheet || !workspace) return null
+    const sheetRect = sheet.getBoundingClientRect()
+    const workspaceRect = workspace.getBoundingClientRect()
+    const x = sheetRect.left + Math.min(80, sheetRect.width / 2)
+    const y = Math.min(sheetRect.bottom - 20, Math.max(sheetRect.top + 80, workspaceRect.top + 20))
+    const topElement = document.elementFromPoint(x, y)
+    return {
+      sheetOwnsTopElement: Boolean(topElement && sheet.contains(topElement)),
+      workspaceIsolation: getComputedStyle(workspace).isolation,
+      workspaceZIndex: getComputedStyle(workspace).zIndex,
+      dropdownZIndex: dropdown ? Number(getComputedStyle(dropdown).zIndex) : -1,
+    }
+  })
+  assert.deepEqual(
+    editorLayering,
+    {
+      sheetOwnsTopElement: true,
+      workspaceIsolation: 'isolate',
+      workspaceZIndex: '0',
+      dropdownZIndex: 30,
+    },
+    'Blockly layers must stay below the AppBar and tool sidebar'
+  )
+  await editorToolMenu.getByRole('button', { name: '閉じる' }).click()
+  await editorToolMenu.waitFor({ state: 'hidden' })
+
   await page.getByRole('button', { name: 'プロジェクト操作' }).click()
   await page.getByRole('menuitem', { name: '新しいプロジェクト' }).waitFor()
   assert.deepEqual(
@@ -178,6 +211,39 @@ try {
     true,
     'a browser build must produce a downloadable MOD archive'
   )
+  await page.getByRole('button', { name: 'シミュレーターで実行' }).click()
+  const projectSimulator = page.getByRole('dialog', { name: 'シミュレーター' })
+  await projectSimulator.waitFor()
+  assert.equal(
+    await projectSimulator.locator('iframe').count(),
+    0,
+    'the project simulator must not embed a navigable page'
+  )
+  const simulatorLayout = await projectSimulator.evaluate((dialog) => {
+    const viewport = dialog.querySelector('[aria-label="ｽﾀｯｸﾁｬﾝ3Dシミュレーター"]')
+    const dialogRect = dialog.getBoundingClientRect()
+    const viewportRect = viewport?.getBoundingClientRect()
+    return {
+      dialogWidth: dialogRect.width,
+      dialogHeight: dialogRect.height,
+      viewportWidth: viewportRect?.width ?? 0,
+      viewportHeight: viewportRect?.height ?? 0,
+      viewportWidthAvailable: document.documentElement.clientWidth,
+      viewportHeightAvailable: document.documentElement.clientHeight,
+    }
+  })
+  assert.ok(
+    simulatorLayout.dialogWidth >= simulatorLayout.viewportWidthAvailable * 0.95,
+    'the project simulator dialog must use nearly the full viewport width'
+  )
+  assert.ok(
+    simulatorLayout.dialogHeight >= simulatorLayout.viewportHeightAvailable * 0.95,
+    'the project simulator dialog must use nearly the full viewport height'
+  )
+  assert.ok(simulatorLayout.viewportWidth >= 800, 'the embedded simulator viewport must remain usable on desktop')
+  assert.ok(simulatorLayout.viewportHeight >= 400, 'the embedded simulator viewport must remain tall enough to render')
+  await projectSimulator.getByRole('button', { name: '閉じる' }).click()
+  await projectSimulator.waitFor({ state: 'hidden' })
 
   await page.evaluate(() => localStorage.setItem('stackchan.theme', 'dark'))
   await page.reload({ waitUntil: 'networkidle' })

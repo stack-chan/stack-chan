@@ -393,6 +393,11 @@ function moddableOutputArgumentsFor(outputDirectory) {
  * a process environment value is overwritten while manifests are merged. A
  * final included manifest keeps the target configuration intact and supplies
  * the version overlay with normal manifest precedence.
+ *
+ * mcconfig resolves relative paths inside included manifests from the top-level
+ * manifest directory. Keep the wrapper beside the application manifest so
+ * resources such as characterFile continue to resolve; the caller removes it
+ * in a finally block.
  * @param {(typeof firmwareBundleTargets)[number]} target - Bundle target configuration.
  * @param {string} sdkconfigDirectory - Generated sdkconfig overlay directory.
  * @param {string} outputDirectory - Repository-local build output root.
@@ -401,7 +406,10 @@ function moddableOutputArgumentsFor(outputDirectory) {
 function prepareBundleManifest(target, sdkconfigDirectory, outputDirectory) {
   const directory = path.join(outputDirectory, 'generated', 'bundle-manifests', target.name)
   const overrideManifestPath = path.join(directory, 'sdkconfig.json')
-  const bundleManifestPath = path.join(directory, `${firmwareBundleName}.${target.name}.${process.pid}.manifest.json`)
+  const bundleManifestPath = path.join(
+    path.dirname(target.manifestPath),
+    `${firmwareBundleName}.${target.name}.${process.pid}.manifest.json`,
+  )
   mkdirSync(directory, { recursive: true })
   writeFileSync(overrideManifestPath, `${JSON.stringify({ build: { SDKCONFIGPATH: sdkconfigDirectory } }, null, 2)}\n`)
   writeFileSync(

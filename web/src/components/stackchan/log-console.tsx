@@ -68,69 +68,71 @@ export function LogConsole({
 
   return (
     <section className={cn('overflow-hidden rounded-xl border bg-card', className)} aria-label={t(title)}>
-      <header className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
-        <h2 className="mr-auto text-sm font-semibold">{t(title)}</h2>
-        <Select value={level} onValueChange={(value) => value && setLevel(value as LogLevel | 'all')}>
-          <SelectTrigger className="w-28" size="sm" aria-label={t('ログレベル')}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('すべて')}</SelectItem>
-            <SelectItem value="trace">trace</SelectItem>
-            <SelectItem value="info">info</SelectItem>
-            <SelectItem value="warning">warning</SelectItem>
-            <SelectItem value="error">error</SelectItem>
-          </SelectContent>
-        </Select>
-        {sources.length > 1 && (
-          <Select value={source} onValueChange={(value) => value && setSource(value as LogSource | 'all')}>
-            <SelectTrigger className="w-28" size="sm" aria-label={t('ログの生成元')}>
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b px-3 py-2">
+        <h2 className="min-w-0 truncate text-sm font-semibold">{t(title)}</h2>
+        <div className="flex shrink-0 items-center gap-2">
+          <Select value={level} onValueChange={(value) => value && setLevel(value as LogLevel | 'all')}>
+            <SelectTrigger className="w-28" size="sm" aria-label={t('ログレベル')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('すべて')}</SelectItem>
-              {sources.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {value}
-                </SelectItem>
-              ))}
+              <SelectItem value="trace">trace</SelectItem>
+              <SelectItem value="info">info</SelectItem>
+              <SelectItem value="warning">warning</SelectItem>
+              <SelectItem value="error">error</SelectItem>
             </SelectContent>
           </Select>
-        )}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => void copy()}
-                disabled={visible.length === 0}
-                aria-label={t('ログをコピー')}
-              />
-            }
-          >
-            {copied ? <Check /> : <Clipboard />}
-          </TooltipTrigger>
-          <TooltipContent>{t(copied ? 'コピーしました' : 'ログをコピー')}</TooltipContent>
-        </Tooltip>
-        {onClear && (
+          {sources.length > 1 && (
+            <Select value={source} onValueChange={(value) => value && setSource(value as LogSource | 'all')}>
+              <SelectTrigger className="w-28" size="sm" aria-label={t('ログの生成元')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('すべて')}</SelectItem>
+                {sources.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Tooltip>
             <TooltipTrigger
               render={
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={onClear}
-                  disabled={entries.length === 0}
-                  aria-label={t('ログを消去')}
+                  onClick={() => void copy()}
+                  disabled={visible.length === 0}
+                  aria-label={t('ログをコピー')}
                 />
               }
             >
-              <Trash2 />
+              {copied ? <Check /> : <Clipboard />}
             </TooltipTrigger>
-            <TooltipContent>{t('ログを消去')}</TooltipContent>
+            <TooltipContent>{t(copied ? 'コピーしました' : 'ログをコピー')}</TooltipContent>
           </Tooltip>
-        )}
+          {onClear && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={onClear}
+                    disabled={entries.length === 0}
+                    aria-label={t('ログを消去')}
+                  />
+                }
+              >
+                <Trash2 />
+              </TooltipTrigger>
+              <TooltipContent>{t('ログを消去')}</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </header>
       <div
         ref={viewportRef}

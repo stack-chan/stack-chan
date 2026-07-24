@@ -136,7 +136,38 @@ try {
   await closeToolMenu.click()
   await toolMenu.waitFor({ state: 'hidden' })
 
+  await page.setViewportSize({ width: 1728, height: 900 })
   await page.goto(`${baseUrl}/editor/`, { waitUntil: 'networkidle' })
+  pageErrors.length = 0
+  await page.getByRole('button', { name: 'プロジェクト操作' }).click()
+  await page.getByRole('menuitem', { name: '新しいプロジェクト' }).waitFor()
+  assert.deepEqual(
+    pageErrors.map((error) => error.message),
+    [],
+    'opening the project menu must not raise uncaught errors'
+  )
+  await page.keyboard.press('Escape')
+  await page.getByRole('tab', { name: 'ログ', exact: true }).click()
+  const editorLayout = await page.evaluate(() => {
+    const workspace = document.querySelector('[aria-label="Blocklyワークスペース"]')
+    const pageContainer = workspace?.parentElement?.parentElement
+    const copyButton = document.querySelector('button[aria-label="ログをコピー"]')
+    const clearButton = document.querySelector('button[aria-label="ログを消去"]')
+    return {
+      containerWidth: pageContainer?.getBoundingClientRect().width ?? 0,
+      copyY: copyButton?.getBoundingClientRect().y ?? -1,
+      clearY: clearButton?.getBoundingClientRect().y ?? -2,
+      viewportWidth: document.documentElement.clientWidth,
+      workspaceWidth: workspace?.getBoundingClientRect().width ?? 0,
+    }
+  })
+  assert.ok(
+    editorLayout.containerWidth >= editorLayout.viewportWidth * 0.95,
+    'the project editor must use the available wide-screen width'
+  )
+  assert.ok(editorLayout.workspaceWidth >= 1100, 'the Blockly workspace must remain wide on a wide desktop')
+  assert.equal(editorLayout.copyY, editorLayout.clearY, 'log actions must stay on the same row')
+
   const buildButton = page.getByRole('button', { name: 'ビルド', exact: true })
   await buildButton.waitFor()
   assert.equal(await buildButton.isEnabled(), true, 'the default visual project must be buildable')

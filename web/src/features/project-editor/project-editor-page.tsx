@@ -40,6 +40,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -103,7 +104,7 @@ export function ProjectEditorPage() {
   const project = editor.project
   return (
     <>
-      <div className="page-container grid min-w-0 gap-4">
+      <div className="page-container grid max-w-none! min-w-0 gap-4">
         <section className="grid items-end gap-3 rounded-xl border bg-card p-3 sm:grid-cols-[minmax(12rem,1fr)_minmax(12rem,18rem)_auto]">
           <ProjectNameField value={project.name} onCommit={editor.setName} />
           <div className="grid gap-1">
@@ -127,52 +128,58 @@ export function ProjectEditorPage() {
               <span className="hidden sm:inline">{t('プロジェクト')}</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-60">
-              <DropdownMenuLabel>{t('プロジェクト操作')}</DropdownMenuLabel>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>{t('最近開いたプロジェクト')}</DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="min-w-64">
-                  {editor.projects.map((candidate) => (
-                    <DropdownMenuItem key={candidate.id} onClick={() => editor.loadProject(candidate)}>
-                      <span className="min-w-0">
-                        <strong className="block truncate">{candidate.name}</strong>
-                        <small className="text-muted-foreground">
-                          {new Date(candidate.updatedAt).toLocaleString(editor.locale)}
-                        </small>
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>{t('プロジェクト操作')}</DropdownMenuLabel>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>{t('最近開いたプロジェクト')}</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="min-w-64">
+                    {editor.projects.map((candidate) => (
+                      <DropdownMenuItem key={candidate.id} onClick={() => editor.loadProject(candidate)}>
+                        <span className="min-w-0">
+                          <strong className="block truncate">{candidate.name}</strong>
+                          <small className="text-muted-foreground">
+                            {new Date(candidate.updatedAt).toLocaleString(editor.locale)}
+                          </small>
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={editor.newProject}>
-                <FilePlus2 />
-                {t('新しいプロジェクト')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={editor.duplicateProject}>
-                <CopyPlus />
-                {t('プロジェクトを複製')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => importRef.current?.click()}>
-                <FolderOpen />
-                {t('プロジェクトを読み込む')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={editor.exportProject}>
-                <Download />
-                {t('ファイルとして書き出す')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => assetRef.current?.click()}>
-                <ImagePlus />
-                {t('アセットを追加')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSamplesOpen(true)}>
-                <FileInput />
-                {t('サンプルを読み込む')}
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={editor.newProject}>
+                  <FilePlus2 />
+                  {t('新しいプロジェクト')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={editor.duplicateProject}>
+                  <CopyPlus />
+                  {t('プロジェクトを複製')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => importRef.current?.click()}>
+                  <FolderOpen />
+                  {t('プロジェクトを読み込む')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={editor.exportProject}>
+                  <Download />
+                  {t('ファイルとして書き出す')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => assetRef.current?.click()}>
+                  <ImagePlus />
+                  {t('アセットを追加')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSamplesOpen(true)}>
+                  <FileInput />
+                  {t('サンプルを読み込む')}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={() => setClearOpen(true)}>
-                <Trash2 />
-                {t('ワークスペースを消去')}
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuItem variant="destructive" onClick={() => setClearOpen(true)}>
+                  <Trash2 />
+                  {t('ワークスペースを消去')}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
           <input

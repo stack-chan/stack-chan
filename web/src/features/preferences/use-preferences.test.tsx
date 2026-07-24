@@ -56,6 +56,31 @@ describe('usePreferences', () => {
     expect(result.current.values['driver.type']).toBe('fixed')
   })
 
+  it('does not save a field reverted to its current device value', async () => {
+    let notify: (value: PreferenceValue) => void = () => {}
+    const send = vi.fn(async () => {})
+    const client: PreferenceClient = {
+      connect: async () => {},
+      disconnect: async () => {},
+      isConnected: () => true,
+      send,
+    }
+    const { result } = renderHook(() =>
+      usePreferences((onValue) => {
+        notify = onValue
+        return client
+      })
+    )
+    act(() => notify({ prop: 'wifi.ssid', value: 'stackchan' }))
+    act(() => result.current.update('wifi.ssid', 'new-network'))
+    act(() => result.current.update('wifi.ssid', 'stackchan'))
+
+    await act(() => result.current.save())
+
+    expect(send).not.toHaveBeenCalled()
+    expect(result.current.operation).toMatchObject({ status: 'cancelled' })
+  })
+
   it('keeps cleared Wi-Fi fields retryable when the immediate save fails', async () => {
     let notify: (value: PreferenceValue) => void = () => {}
     const send = vi.fn().mockRejectedValueOnce(new Error('connection lost')).mockResolvedValueOnce(undefined)

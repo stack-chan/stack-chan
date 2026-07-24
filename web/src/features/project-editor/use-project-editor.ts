@@ -29,6 +29,7 @@ import {
   projectFileName,
   serializeVisualProject,
 } from '../../../editor/project-format.mjs'
+import { fetchExternalProject, projectUrlFromSearch } from '../../../editor/external-project.mjs'
 import { duplicateVisualProject, updateProjectLibrary } from '../../../editor/project-library.mjs'
 import { createProjectStorage } from '../../../editor/project-storage.mjs'
 import { analyzeWorkspace } from '../../../editor/project-validator.mjs'
@@ -47,17 +48,19 @@ const PROJECT_STORAGE_KEY = 'stackchan-visual-project-v1'
 const makeVisualProject = createVisualProject as unknown as (
   options: Partial<VisualProject> & { workspace: Record<string, unknown> }
 ) => VisualProject
-const addFaceToProject = addFaceAssetToProject as unknown as (
-  project: VisualProject,
-  asset: unknown,
-  options?: { replacePath?: string | null }
-) => VisualProject
 
 type Confirmation = {
   title: string
   description: string
   confirmLabel: string
   resolve: (approved: boolean) => void
+}
+
+type RecoveryRecord = {
+  version: 1
+  capturedAt: string
+  error: string
+  raw: string
 }
 
 type SerialNavigator = Navigator & {
@@ -80,6 +83,12 @@ function sourceForProject(project: VisualProject, generatedSource: string) {
   const selected = project.assets.find((asset) => asset.path === path)
   if (!selected) return generatedSource
   return applyFaceAssetToSource(generatedSource, parseFaceAsset(new TextDecoder().decode(assetBytes(selected))))
+}
+
+function projectFieldChanged(current: unknown, next: unknown) {
+  if (Object.is(current, next)) return false
+  if (typeof current !== 'object' || current === null || typeof next !== 'object' || next === null) return true
+  return JSON.stringify(current) !== JSON.stringify(next)
 }
 
 export function useProjectEditor() {
@@ -106,6 +115,7 @@ export function useProjectEditor() {
     status: 'idle',
   })
   const [archive, setArchive] = useState<Uint8Array | null>(null)
+  const [recovery, setRecovery] = useState<RecoveryRecord | null>(null)
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [simulatorOpen, setSimulatorOpen] = useState(false)
   const { entries: logs, append: appendLog, clear: clearLogs } = useLogBuffer()
@@ -132,47 +142,62 @@ export function useProjectEditor() {
     [appendLog]
   )
 
-  const recalculate = useCallback((nextProject: VisualProject, nextSnapshot: BlocklyWorkspaceSnapshot) => {
-    setSnapshot(nextSnapshot)
-    let nextSource = nextSnapshot.source
-    let generationError = nextSnapshot.generationError
-    try {
-      nextSource = sourceForProject(nextProject, nextSnapshot.source)
-    } catch (error) {
-      generationError = String(error instanceof Error ? error.message : error)
-      nextSource = ''
-    }
-    setSource(nextSource)
-    const workspaceAnalysis = analyzeWorkspace(nextSnapshot.workspace, {
-      target: nextProject.target,
-    }) as ProjectAnalysis
-    if (generationError) {
-      workspaceAnalysis.canBuild = false
-      workspaceAnalysis.diagnostics = [
-        {
-          severity: 'error',
-          code: 'VP_GENERATION',
-          message: generationError,
-        },
-        ...workspaceAnalysis.diagnostics,
-      ]
-    }
-    setAnalysis(workspaceAnalysis)
-    setArchive(null)
-    setBuildOperation({ status: 'idle' })
-  }, [])
+  const recalculate = useCallback(
+    (
+      nextProject: VisualProject,
+      nextSnapshot: BlocklyWorkspaceSnapshot,
+      { invalidateBuild = true }: { invalidateBuild?: boolean } = {}
+    ) => {
+      setSnapshot(nextSnapshot)
+      let nextSource = nextSnapshot.source
+      let generationError = nextSnapshot.generationError
+      try {
+        nextSource = sourceForProject(nextProject, nextSnapshot.source)
+      } catch (error) {
+        generationError = String(error instanceof Error ? error.message : error)
+        nextSource = ''
+      }
+      setSource(nextSource)
+      const workspaceAnalysis = analyzeWorkspace(nextSnapshot.workspace, {
+        target: nextProject.target,
+      }) as ProjectAnalysis
+      if (generationError) {
+        workspaceAnalysis.canBuild = false
+        workspaceAnalysis.diagnostics = [
+          {
+            severity: 'error',
+            code: 'VP_GENERATION',
+            message: generationError,
+          },
+          ...workspaceAnalysis.diagnostics,
+        ]
+      }
+      setAnalysis(workspaceAnalysis)
+      if (invalidateBuild) {
+        setArchive(null)
+        setBuildOperation({ status: 'idle' })
+      }
+    },
+    []
+  )
 
   useEffect(() => {
     let active = true
     const load = async () => {
       let current: VisualProject | null = null
       let library: VisualProject[] = []
+      let recoveryRecord: RecoveryRecord | null = null
       try {
         const stored = await storageRef.current.loadState()
         current = (stored?.currentProject as VisualProject | undefined) ?? null
         library = (stored?.projects as VisualProject[] | undefined) ?? []
       } catch (error) {
         appendLog(`保存したプロジェクトを復元できませんでした: ${String(error)}`, 'error', 'system')
+      }
+      try {
+        recoveryRecord = (await storageRef.current.loadRecovery()) as RecoveryRecord | null
+      } catch (error) {
+        appendLog(`復旧データを読み込めませんでした: ${String(error)}`, 'error', 'system')
       }
       if (!current) {
         try {
@@ -185,17 +210,28 @@ export function useProjectEditor() {
       current ??= makeVisualProject({ workspace: sampleById('hello').workspace })
 
       try {
+        const linkedProjectUrl = projectUrlFromSearch(location.search, location.href)
+        if (linkedProjectUrl) {
+          current = (await fetchExternalProject(linkedProjectUrl)) as VisualProject
+          history.replaceState(null, '', location.pathname)
+          appendLog(`Galleryから「${current.name}」を読み込みました`, 'info', 'system')
+        }
+      } catch (error) {
+        appendLog(`Galleryのプロジェクトを読み込めませんでした: ${String(error)}`, 'error', 'system')
+      }
+
+      try {
         if (new URLSearchParams(location.search).get('face-asset') === 'staging') {
           const transfer = loadStagedFaceTransfer()
           if (!transfer) throw new Error('顔エディタからの受け渡しデータがありません')
           if (transfer.edit && transfer.edit.projectId !== current.id) {
             throw new Error('編集元と現在のMODプロジェクトが一致しません')
           }
-          current = addFaceToProject(
+          current = addFaceAssetToProject(
             current,
             transfer.asset,
             transfer.edit ? { replacePath: transfer.edit.assetPath } : undefined
-          ) as VisualProject
+          )
           clearStagedFaceTransfer()
           clearFaceEditContext()
           history.replaceState(null, '', location.pathname)
@@ -209,6 +245,7 @@ export function useProjectEditor() {
       projectsRef.current = library
       setProject(current)
       setProjects(library)
+      setRecovery(recoveryRecord)
     }
     void load()
     return () => {
@@ -258,7 +295,7 @@ export function useProjectEditor() {
         workspace: nextSnapshot.workspace,
         updatedAt: new Date().toISOString(),
       }) as VisualProject
-      recalculate(next, nextSnapshot)
+      recalculate(next, nextSnapshot, { invalidateBuild: true })
       persistProject(next)
     },
     [persistProject, recalculate]
@@ -272,14 +309,26 @@ export function useProjectEditor() {
     (changes: Partial<VisualProject>) => {
       const current = projectRef.current
       if (!current) return
+      const changedEntries = (
+        Object.entries(changes) as Array<[keyof VisualProject, VisualProject[keyof VisualProject]]>
+      ).filter(([key, value]) => projectFieldChanged(current[key], value))
+      if (changedEntries.length === 0) return current
+      const appliedChanges = Object.fromEntries(changedEntries) as Partial<VisualProject>
       const next = makeVisualProject({
         ...current,
-        ...changes,
+        ...appliedChanges,
         updatedAt: new Date().toISOString(),
       }) as VisualProject
       persistProject(next)
-      const currentSnapshot = workspaceRef.current?.snapshot() ?? snapshot
-      if (currentSnapshot) recalculate(next, currentSnapshot)
+      const invalidateBuild = changedEntries.some(([key]) => key === 'target' || key === 'assets' || key === 'settings')
+      if (invalidateBuild) {
+        const currentSnapshot = workspaceRef.current?.snapshot() ?? snapshot
+        if (currentSnapshot) recalculate(next, currentSnapshot, { invalidateBuild })
+        else {
+          setArchive(null)
+          setBuildOperation({ status: 'idle' })
+        }
+      }
       return next
     },
     [persistProject, recalculate, snapshot]
@@ -306,12 +355,24 @@ export function useProjectEditor() {
 
   const importProject = useCallback(
     async (file: File) => {
+      let raw = ''
       try {
         if (file.size > MAX_PROJECT_JSON_BYTES) {
           throw new Error(`プロジェクトは${formatByteSize(MAX_PROJECT_JSON_BYTES)}以下にしてください`)
         }
-        loadProject(parseVisualProject(await file.text()) as VisualProject)
+        raw = await file.text()
+        loadProject(parseVisualProject(raw) as VisualProject)
       } catch (error) {
+        const recoveryRecord: RecoveryRecord = {
+          version: 1,
+          capturedAt: new Date().toISOString(),
+          error: String(error instanceof Error ? error.message : error),
+          raw,
+        }
+        setRecovery(recoveryRecord)
+        void storageRef.current.saveRecovery(recoveryRecord).catch((storageError) => {
+          appendLog(`復旧データを保存できませんでした: ${String(storageError)}`, 'error', 'system')
+        })
         appendLog(String(error instanceof Error ? error.message : error), 'error', 'system')
       }
     },
@@ -323,6 +384,14 @@ export function useProjectEditor() {
     if (!current) return
     downloadBlob(new Blob([serializeVisualProject(current)], { type: 'application/json' }), projectFileName(current))
   }, [])
+
+  const exportRecovery = useCallback(() => {
+    if (!recovery) return
+    downloadBlob(
+      new Blob([`${JSON.stringify(recovery, null, 2)}\n`], { type: 'application/json' }),
+      `stackchan-project-recovery-${recovery.capturedAt.replace(/[:.]/g, '-')}.json`
+    )
+  }, [recovery])
 
   const addAssets = useCallback(
     async (files: File[]) => {
@@ -590,6 +659,7 @@ export function useProjectEditor() {
     buildOperation,
     deviceOperation,
     archive,
+    recovery,
     logs,
     clearLogs,
     confirmation,
@@ -648,6 +718,7 @@ export function useProjectEditor() {
     loadProject,
     importProject,
     exportProject,
+    exportRecovery,
     addAssets,
     loadSample: (sampleId: string) => {
       const sample = sampleById(sampleId)

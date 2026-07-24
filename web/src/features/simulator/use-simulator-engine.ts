@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
+import { useI18n } from '@/app/i18n-provider'
 import { type OperationState } from '@/features/operations/operation-state'
 import { useLogBuffer } from '@/hooks/use-log-buffer'
 import { toAppError } from '@/lib/errors/app-error'
@@ -9,6 +10,7 @@ import {
   type SimulatorModStorage,
   type SimulatorModResult,
   type SimulatorReady,
+  type SimulatorStatusCode,
   SimulatorEngine,
 } from '@/services/simulator/simulator-engine.mjs'
 import { createMemoryModStorage, createModStorage } from '../../../simulator/mod-storage.mjs'
@@ -30,6 +32,13 @@ type SimulatorEngineOptions = {
   onError?: (error: unknown) => void
 }
 
+const SIMULATOR_STATUS_MESSAGES: Record<SimulatorStatusCode, string> = {
+  'wasm-loading': 'WASMを読み込み中',
+  'wasm-load-failed': 'WASMを読み込めませんでした',
+  'firmware-ready-timeout': 'ファームウェアの起動準備がタイムアウトしました',
+  'firmware-ready': '準備完了',
+}
+
 export function useSimulatorEngine({
   initialMod,
   persistence = 'persistent',
@@ -38,15 +47,19 @@ export function useSimulatorEngine({
   onReady,
   onError,
 }: SimulatorEngineOptions = {}) {
+  const { t } = useI18n()
   const viewportRef = useRef<HTMLCanvasElement>(null)
   const screenRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<SimulatorEngine | null>(null)
-  const callbacksRef = useRef({ onTrace, onReady, onError })
-  callbacksRef.current = { onTrace, onReady, onError }
+  const callbacksRef = useRef({ onTrace, onReady, onError, t })
   const [operation, setOperation] = useState<OperationState>({ status: 'idle' })
   const [modState, setModState] = useState<ModState>({ result: { status: 'empty' } })
   const [cameraStatus, setCameraStatus] = useState<CameraStatus>({ status: 'idle' })
   const { entries, append, clear } = useLogBuffer(120)
+
+  useLayoutEffect(() => {
+    callbacksRef.current = { onTrace, onReady, onError, t }
+  }, [onError, onReady, onTrace, t])
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -63,12 +76,13 @@ export function useSimulatorEngine({
       runtimeBaseUrl,
       onStatus: (status) => {
         if (!active) return
+        const message = callbacksRef.current.t(SIMULATOR_STATUS_MESSAGES[status.code])
         if (status.status === 'pending') {
-          setOperation({ status: 'pending', message: status.message })
+          setOperation({ status: 'pending', message })
         } else if (status.status === 'success') {
-          setOperation({ status: 'success', result: undefined, message: status.message })
+          setOperation({ status: 'success', result: undefined, message })
         } else {
-          setOperation({ status: 'error', error: toAppError(status.message, 'simulator') })
+          setOperation({ status: 'error', error: toAppError(message, 'simulator') })
         }
       },
       onTrace: (message) => {

@@ -249,7 +249,14 @@ export function FaceControls({
               (value) => update((draft) => (draft.canvas[field] = value)),
               {
                 min: field === 'width' || field === 'height' ? 40 : 0,
-                max: field === 'left' || field === 'width' ? 320 : 240,
+                max:
+                  field === 'width'
+                    ? 320
+                    : field === 'height'
+                      ? 240
+                      : field === 'left'
+                        ? 320 - asset.canvas.width
+                        : 240 - asset.canvas.height,
               }
             )
           )}

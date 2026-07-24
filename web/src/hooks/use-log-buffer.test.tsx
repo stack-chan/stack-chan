@@ -26,4 +26,21 @@ describe('useLogBuffer', () => {
       expect(result.current.entries).toEqual([])
     }
   )
+
+  it('immediately trims existing entries when the capacity changes', () => {
+    const { result, rerender } = renderHook(({ capacity }) => useLogBuffer(capacity), {
+      initialProps: { capacity: 3 },
+    })
+    act(() => {
+      result.current.append('first')
+      result.current.append('second')
+      result.current.append('third')
+    })
+
+    rerender({ capacity: 1 })
+    expect(result.current.entries.map((entry) => entry.message)).toEqual(['third'])
+
+    rerender({ capacity: 0 })
+    expect(result.current.entries).toEqual([])
+  })
 })

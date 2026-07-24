@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
-import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { chromium } from 'playwright-core'
+
+import { resolveChromium, startPreview } from '../test-preview-server.mjs'
 
 if (!existsSync('simulator/mc.js') || !existsSync('simulator/mc.wasm')) {
   console.log('WASM simulator visual test skipped: run firmware npm run build:wasm first')
@@ -10,38 +10,14 @@ if (!existsSync('simulator/mc.js') || !existsSync('simulator/mc.wasm')) {
 }
 
 const port = Number(process.env.STACKCHAN_SIMULATOR_TEST_PORT ?? 8098)
-const baseUrl = process.env.STACKCHAN_SIMULATOR_TEST_URL ?? `http://127.0.0.1:${port}`
-const executablePath = [
-  process.env.CHROMIUM_PATH,
-  '/snap/bin/chromium',
-  '/usr/bin/chromium',
-  '/usr/bin/chromium-browser',
-  '/usr/bin/google-chrome',
-].find((candidate) => candidate && existsSync(candidate))
-if (!executablePath) throw new Error('Chromium executable not found; set CHROMIUM_PATH')
-
-let server
-if (!process.env.STACKCHAN_SIMULATOR_TEST_URL) {
-  server = spawn(
-    resolve('node_modules/.bin/vite'),
-    ['preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
-    { cwd: process.cwd(), stdio: 'inherit' }
-  )
-}
-
-async function waitForServer() {
-  for (let attempt = 0; attempt < 80; attempt += 1) {
-    try {
-      if ((await fetch(baseUrl)).ok) return
-    } catch {}
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 100))
-  }
-  throw new Error(`Vite preview did not start at ${baseUrl}`)
-}
+const executablePath = resolveChromium()
+const { baseUrl, server } = await startPreview({
+  port,
+  url: process.env.STACKCHAN_SIMULATOR_TEST_URL,
+})
 
 let browser
 try {
-  await waitForServer()
   browser = await chromium.launch({
     executablePath,
     headless: true,

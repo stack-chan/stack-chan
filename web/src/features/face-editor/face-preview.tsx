@@ -53,6 +53,10 @@ export function FacePreview({
 
   const partPosition = (part: FacePart) =>
     part === 'left-eye' ? asset.shape.eyes.left : part === 'right-eye' ? asset.shape.eyes.right : asset.shape.mouth
+  const clampPartPosition = (x: number, y: number) => ({
+    x: Math.round(Math.min(asset.canvas.width, Math.max(0, x))),
+    y: Math.round(Math.min(asset.canvas.height, Math.max(0, y))),
+  })
 
   const point = (event: PointerEvent) => {
     const bounds = svgRef.current?.getBoundingClientRect()
@@ -81,11 +85,11 @@ export function FacePreview({
     const active = drag.current
     if (!active || active.pointerId !== event.pointerId) return
     const cursor = point(event)
-    movePart(
-      active.part,
-      Math.round(Math.min(asset.canvas.width, Math.max(0, cursor.x - asset.canvas.left - active.offsetX))),
-      Math.round(Math.min(asset.canvas.height, Math.max(0, cursor.y - asset.canvas.top - active.offsetY)))
+    const next = clampPartPosition(
+      cursor.x - asset.canvas.left - active.offsetX,
+      cursor.y - asset.canvas.top - active.offsetY
     )
+    movePart(active.part, next.x, next.y)
   }
 
   const moveWithKeyboard = (part: FacePart, event: KeyboardEvent<SVGGElement>) => {
@@ -100,7 +104,8 @@ export function FacePreview({
     event.preventDefault()
     const current = partPosition(part)
     const step = event.shiftKey ? 5 : 1
-    movePart(part, current.x + direction[0] * step, current.y + direction[1] * step)
+    const next = clampPartPosition(current.x + direction[0] * step, current.y + direction[1] * step)
+    movePart(part, next.x, next.y)
   }
 
   const left = eyeGeometry(asset.shape.eyes.left)

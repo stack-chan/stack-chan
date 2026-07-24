@@ -63,6 +63,7 @@ export function ProjectSimulatorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="h-[calc(100dvh-1rem)] w-[calc(100dvw-1rem)] max-w-none! grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-none!"
+        closeLabel={t('閉じる')}
         showCloseButton={false}
       >
         <DialogHeader>

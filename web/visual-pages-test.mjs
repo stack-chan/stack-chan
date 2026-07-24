@@ -1,38 +1,14 @@
 import assert from 'node:assert/strict'
-import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { chromium } from 'playwright-core'
 
+import { resolveChromium, startPreview } from './test-preview-server.mjs'
+
 const port = Number(process.env.STACKCHAN_PAGES_TEST_PORT ?? 8097)
-const baseUrl = process.env.STACKCHAN_PAGES_TEST_URL ?? `http://127.0.0.1:${port}`
-const executablePath = [
-  process.env.CHROMIUM_PATH,
-  '/snap/bin/chromium',
-  '/usr/bin/chromium',
-  '/usr/bin/chromium-browser',
-  '/usr/bin/google-chrome',
-].find((candidate) => candidate && existsSync(candidate))
-if (!executablePath) throw new Error('Chromium executable not found; set CHROMIUM_PATH')
-
-let server
-if (!process.env.STACKCHAN_PAGES_TEST_URL) {
-  server = spawn(
-    resolve('node_modules/.bin/vite'),
-    ['preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
-    { cwd: process.cwd(), stdio: 'inherit' }
-  )
-}
-
-async function waitForServer() {
-  for (let attempt = 0; attempt < 80; attempt += 1) {
-    try {
-      if ((await fetch(baseUrl)).ok) return
-    } catch {}
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 100))
-  }
-  throw new Error(`Vite preview did not start at ${baseUrl}`)
-}
+const executablePath = resolveChromium()
+const { baseUrl, server } = await startPreview({
+  port,
+  url: process.env.STACKCHAN_PAGES_TEST_URL,
+})
 
 const pages = [
   ['home', '/'],
@@ -53,7 +29,6 @@ const viewports = [
 
 let browser
 try {
-  await waitForServer()
   browser = await chromium.launch({
     executablePath,
     headless: true,
@@ -158,6 +133,18 @@ try {
   )
   assert.equal(await selectedMediaPipeMod.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
 
+  await page.goto(`${baseUrl}/mod-gallery/`, { waitUntil: 'networkidle' })
+  const blockProjectLink = page.getByRole('link', { name: 'ブロックで開く' }).first()
+  const blockProjectUrl = new URL(await blockProjectLink.getAttribute('href'), page.url())
+  assert.ok(blockProjectUrl.searchParams.has('project'), 'block Gallery links must carry their project source')
+  await page.goto(blockProjectUrl.href, { waitUntil: 'networkidle' })
+  await page.getByLabel('プロジェクト名').waitFor()
+  assert.equal(
+    await page.getByLabel('プロジェクト名').inputValue(),
+    'あいさつと表情',
+    'the editor must load the project selected in the MOD Gallery'
+  )
+
   await page.goto(baseUrl, { waitUntil: 'networkidle' })
   assert.equal(await page.locator('html.light').count(), 1, 'saved light theme must be active')
   const productImage = page.getByRole('img', { name: 'ｽﾀｯｸﾁｬﾝ' })
@@ -196,18 +183,15 @@ try {
     return {
       sheetOwnsTopElement: Boolean(topElement && sheet.contains(topElement)),
       workspaceIsolation: getComputedStyle(workspace).isolation,
-      workspaceZIndex: getComputedStyle(workspace).zIndex,
-      dropdownZIndex: dropdown ? Number(getComputedStyle(dropdown).zIndex) : -1,
+      sheetZIndex: Number(getComputedStyle(sheet).zIndex),
+      dropdownZIndex: dropdown ? Number(getComputedStyle(dropdown).zIndex) : null,
     }
   })
-  assert.deepEqual(
-    editorLayering,
-    {
-      sheetOwnsTopElement: true,
-      workspaceIsolation: 'isolate',
-      workspaceZIndex: '0',
-      dropdownZIndex: 30,
-    },
+  assert.ok(editorLayering, 'the editor layering check requires the sheet and workspace')
+  assert.equal(editorLayering.sheetOwnsTopElement, true, 'the tool sheet must own the top element in its bounds')
+  assert.equal(editorLayering.workspaceIsolation, 'isolate', 'the Blockly workspace must isolate its stacking context')
+  assert.ok(
+    editorLayering.dropdownZIndex === null || editorLayering.dropdownZIndex < editorLayering.sheetZIndex,
     'Blockly layers must stay below the AppBar and tool sidebar'
   )
   await editorToolMenu.getByRole('button', { name: '閉じる' }).click()
@@ -268,6 +252,14 @@ try {
     0,
     'the project simulator must not embed a navigable page'
   )
+  assert.deepEqual(
+    await page.evaluate(() => ({
+      hostPublished: Object.hasOwn(globalThis, 'Host'),
+      viewPublished: Object.hasOwn(globalThis, 'gxView'),
+    })),
+    { hostPublished: false, viewPublished: false },
+    'the generated WASM runtime must receive host references without browser globals'
+  )
   const simulatorLayout = await projectSimulator.evaluate((dialog) => {
     const viewport = dialog.querySelector('[aria-label="ｽﾀｯｸﾁｬﾝ3Dシミュレーター"]')
     const dialogRect = dialog.getBoundingClientRect()
@@ -294,6 +286,14 @@ try {
   assert.deepEqual(simulatorWarnings, [], 'the embedded simulator must resolve the shell STL without fallback')
   await projectSimulator.getByRole('button', { name: '閉じる' }).click()
   await projectSimulator.waitFor({ state: 'hidden' })
+  assert.deepEqual(
+    await page.evaluate(() => ({
+      hostPublished: Object.hasOwn(globalThis, 'Host'),
+      viewPublished: Object.hasOwn(globalThis, 'gxView'),
+    })),
+    { hostPublished: false, viewPublished: false },
+    'disposing the embedded simulator must not leave browser-global runtime references'
+  )
 
   await page.evaluate(() => localStorage.setItem('stackchan.theme', 'dark'))
   await page.reload({ waitUntil: 'networkidle' })

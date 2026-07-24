@@ -3,7 +3,7 @@ import { type LucideIcon } from 'lucide-react'
 import { useI18n } from '@/app/i18n-provider'
 import { OperationStatus } from '@/components/stackchan/operation-status'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { type OperationState } from '@/features/operations/operation-state'
 import { cn } from '@/lib/utils'
@@ -38,19 +38,25 @@ export function ModCard({
 
   const renderAction = (action: ModAction, index: number) => {
     const Icon = action.icon
-    const button = (
-      <Button
-        className={index === 0 ? 'sm:flex-1' : undefined}
-        variant={action.variant ?? (index === 0 ? 'default' : 'outline')}
-        disabled={busy}
-        onClick={action.onClick}
-        render={action.href ? <a href={action.href} /> : undefined}
+    const className = index === 0 ? 'sm:flex-1' : undefined
+    const variant = action.variant ?? (index === 0 ? 'default' : 'outline')
+    const control = action.href ? (
+      <a
+        className={cn(buttonVariants({ variant }), className, busy && 'pointer-events-none opacity-50')}
+        href={busy ? undefined : action.href}
+        aria-disabled={busy || undefined}
+        tabIndex={busy ? -1 : undefined}
       >
+        <Icon data-icon="inline-start" />
+        {action.label}
+      </a>
+    ) : (
+      <Button className={className} variant={variant} disabled={busy} onClick={action.onClick}>
         <Icon data-icon="inline-start" />
         {action.label}
       </Button>
     )
-    return <span key={`${action.label}-${index}`}>{button}</span>
+    return <span key={`${action.label}-${index}`}>{control}</span>
   }
 
   return (

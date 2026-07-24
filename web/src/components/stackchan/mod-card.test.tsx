@@ -55,4 +55,31 @@ describe('ModCard', () => {
     expect(screen.getByRole('button', { name: '試す' })).toBeDisabled()
     expect(screen.getByRole('alert')).toHaveTextContent('保存中')
   })
+
+  it('removes pending link destinations while preserving link semantics', () => {
+    const { rerender } = render(
+      <I18nProvider>
+        <ModCard
+          mod={mod}
+          badges={[]}
+          primaryAction={{ label: 'ブロックで開く', icon: CirclePlay, href: 'https://example.test/editor/' }}
+        />
+      </I18nProvider>
+    )
+    expect(screen.getByRole('link', { name: 'ブロックで開く' })).toHaveAttribute('href', 'https://example.test/editor/')
+
+    rerender(
+      <I18nProvider>
+        <ModCard
+          mod={mod}
+          badges={[]}
+          primaryAction={{ label: 'ブロックで開く', icon: CirclePlay, href: 'https://example.test/editor/' }}
+          operation={{ status: 'pending', message: '保存中' }}
+        />
+      </I18nProvider>
+    )
+    const pendingAction = screen.getByText('ブロックで開く').closest('a')
+    expect(pendingAction).not.toHaveAttribute('href')
+    expect(pendingAction).toHaveAttribute('aria-disabled', 'true')
+  })
 })

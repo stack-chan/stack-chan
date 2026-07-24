@@ -57,6 +57,7 @@ export function ModGalleryPage() {
   const [loadError, setLoadError] = useState<string>()
   const [operations, setOperations] = useState<Operations>({})
   const [confirmation, setConfirmation] = useState<Confirmation>()
+  const confirmationRef = useRef<Confirmation | null>(null)
   const mounted = useRef(true)
   const requestedMod = useMemo(() => new URL(location.href).searchParams.get('mod'), [])
 
@@ -76,6 +77,15 @@ export function ModGalleryPage() {
       mounted.current = false
     }
   }, [])
+
+  useEffect(
+    () => () => {
+      const pending = confirmationRef.current
+      confirmationRef.current = null
+      pending?.resolve(false)
+    },
+    []
+  )
 
   useEffect(() => {
     if (loading || !requestedMod) return
@@ -101,6 +111,41 @@ export function ModGalleryPage() {
   const setOperation = useCallback((id: string, operation: OperationState) => {
     setOperations((current) => ({ ...current, [id]: operation }))
   }, [])
+
+  const requestConfirmation = useCallback(
+    (value: Omit<Confirmation, 'resolve'>) => {
+      const previous = confirmationRef.current
+      previous?.resolve(false)
+      if (previous) {
+        setOperation(previous.mod.id, {
+          status: 'cancelled',
+          message: t('書き込みをキャンセルしました'),
+        })
+      }
+      return new Promise<boolean>((resolve) => {
+        const pending = { ...value, resolve }
+        confirmationRef.current = pending
+        setConfirmation(pending)
+      })
+    },
+    [setOperation, t]
+  )
+
+  const resolveConfirmation = useCallback(
+    (approved: boolean) => {
+      const pending = confirmationRef.current
+      confirmationRef.current = null
+      setConfirmation(undefined)
+      pending?.resolve(approved)
+      if (!approved && pending) {
+        setOperation(pending.mod.id, {
+          status: 'cancelled',
+          message: t('書き込みをキャンセルしました'),
+        })
+      }
+    },
+    [setOperation, t]
+  )
 
   const run = useCallback(
     async (mod: ModDefinition, action: () => Promise<string>) => {
@@ -157,7 +202,7 @@ export function ModGalleryPage() {
             if (!compatibility.compatible) {
               throw new Error(formatDiagnostics(compatibility.diagnostics))
             }
-            return new Promise<boolean>((resolve) => setConfirmation({ mod, chip, firmware, resolve }))
+            return requestConfirmation({ mod, chip, firmware })
           },
           onProgress: (progress: number) =>
             setOperation(mod.id, {
@@ -171,19 +216,8 @@ export function ModGalleryPage() {
         }
         return t('MODを実機へ書き込みました')
       }),
-    [run, setOperation, t]
+    [requestConfirmation, run, setOperation, t]
   )
-
-  const resolveConfirmation = (approved: boolean) => {
-    confirmation?.resolve(approved)
-    if (!approved && confirmation) {
-      setOperation(confirmation.mod.id, {
-        status: 'cancelled',
-        message: t('書き込みをキャンセルしました'),
-      })
-    }
-    setConfirmation(undefined)
-  }
 
   return (
     <>

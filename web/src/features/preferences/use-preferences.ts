@@ -99,7 +99,8 @@ export function usePreferences(
 
   const update = useCallback((key: PreferenceKey, value: string) => {
     if (readOnlyRef.current.has(key)) return
-    dirty.current.add(key)
+    if (currentValues.current[key] === value) dirty.current.delete(key)
+    else dirty.current.add(key)
     setValues((current) => ({ ...current, [key]: value }))
   }, [])
 

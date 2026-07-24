@@ -1,4 +1,14 @@
-import { CopyPlus, Download, FileInput, FilePlus2, FolderOpen, ImagePlus, MoreHorizontal, Trash2 } from 'lucide-react'
+import {
+  CopyPlus,
+  Download,
+  FileInput,
+  FilePlus2,
+  FolderOpen,
+  ImagePlus,
+  MoreHorizontal,
+  ShieldAlert,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
@@ -38,7 +48,7 @@ import { BlocklyWorkspace } from '@/features/project-editor/blockly-workspace'
 import { ProjectAssetsPanel } from '@/features/project-editor/project-assets-panel'
 import { ProjectSimulatorDialog } from '@/features/project-editor/project-simulator-dialog'
 import { useProjectEditor } from '@/features/project-editor/use-project-editor'
-import { DEVICE_PROFILES } from '../../../editor/capabilities.mjs'
+import { DEVICE_PROFILES } from '@/editor/capabilities.mjs'
 
 function ProjectNameField({ value, onCommit }: { value: string; onCommit: (value: string) => void }) {
   const { t } = useI18n()
@@ -154,6 +164,12 @@ export function ProjectEditorPage() {
                   <FileInput />
                   {t('サンプルを読み込む')}
                 </DropdownMenuItem>
+                {editor.recovery && (
+                  <DropdownMenuItem onClick={editor.exportRecovery}>
+                    <ShieldAlert />
+                    {t('破損データを書き出す')}
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
@@ -267,7 +283,7 @@ export function ProjectEditorPage() {
       </div>
 
       <Dialog open={samplesOpen} onOpenChange={setSamplesOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl" closeLabel={t('閉じる')}>
           <DialogHeader>
             <DialogTitle>{t('サンプルを選ぶ')}</DialogTitle>
             <DialogDescription>{t('プロジェクトのワークスペースを選んだサンプルへ置き換えます。')}</DialogDescription>

@@ -1,6 +1,8 @@
+export type SimulatorStatusCode = 'wasm-loading' | 'wasm-load-failed' | 'firmware-ready-timeout' | 'firmware-ready'
+
 export type SimulatorStatus = {
   status: 'pending' | 'success' | 'error'
-  message: string
+  code: SimulatorStatusCode
 }
 
 export type SimulatorModResult = {
@@ -51,6 +53,7 @@ export class SimulatorEngine {
     onError?: (error: unknown) => void
   })
   start(): Promise<void>
+  refreshModStatus(): Promise<InstalledMod | null>
   installMod(file: File): Promise<void>
   restart(): Promise<void>
   clearMod(): Promise<void>

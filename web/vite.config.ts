@@ -1,11 +1,20 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 
 const page = (path: string) => fileURLToPath(new URL(path, import.meta.url))
+
+const wasmBuildId = () => {
+  const artifacts = [page('./simulator/mc.js'), page('./simulator/mc.wasm')]
+  if (artifacts.some((artifact) => !existsSync(artifact))) return 'development'
+  const hash = createHash('sha256')
+  for (const artifact of artifacts) hash.update(readFileSync(artifact))
+  return hash.digest('hex').slice(0, 16)
+}
 
 const copyRuntimeAssets = () => ({
   name: 'copy-stackchan-runtime-assets',
@@ -31,9 +40,13 @@ const copyRuntimeAssets = () => ({
 
 export default defineConfig({
   base: './',
+  define: {
+    'import.meta.env.VITE_WASM_BUILD_ID': JSON.stringify(wasmBuildId()),
+  },
   plugins: [react(), tailwindcss(), copyRuntimeAssets()],
   resolve: {
     alias: {
+      '@/editor': fileURLToPath(new URL('./editor', import.meta.url)),
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },

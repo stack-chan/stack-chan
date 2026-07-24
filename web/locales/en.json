@@ -168,7 +168,7 @@
   "自分のShape型Faceを組み込む": "Add your own Shape Face",
   "でFace領域、左右の目、まぶた、口を調整します。": " to adjust the Face area, eyes, eyelids, and mouth.",
   "プレビュー上で目と口をドラッグし、配置を確認します。": "Drag the eyes and mouth in the preview to check their placement.",
-  "「ブロックエディタで使う」を押し、アセット欄の「使用中」を確認します。": "Press “Use in Block Editor” and confirm that the asset is marked “In use.”",
+  "「MODで使う」または「変更を反映」を押し、アセット欄の「使用中」を確認します。": "Press “Use in MOD” or “Apply Changes,” then confirm that the asset is marked “In use.”",
   "生成コードに`FaceBase.template`と`robot.ui.setFace`が含まれることを確認します。": "Confirm that the generated code contains `FaceBase.template` and `robot.ui.setFace`.",
   "ビルドしてシミュレーターでShape型Faceの表示を確認します。": "Build the project and check the Shape Face in the simulator.",
   "保存ボタンから編集用の`.stackchan-blocks.json`を保存します。": "Use the save button to keep an editable `.stackchan-blocks.json` file.",

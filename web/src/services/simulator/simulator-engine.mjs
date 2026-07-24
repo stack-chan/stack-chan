@@ -420,6 +420,9 @@ class WasmView {
     for (const [eventName, handler] of Object.entries(this.touchHandlers ?? {})) {
       this.screen.removeEventListener(eventName, handler)
     }
+    // The Emscripten module retains this private runtime object. Clear its host
+    // graph explicitly; browser lifecycle tests verify that mounting and
+    // disposing the real generated module never publishes equivalent globals.
     this.runtime.host = undefined
     this.runtime.view = undefined
     this.runtime.state = {}
@@ -433,7 +436,7 @@ class WasmView {
   async #loadWasm() {
     try {
       console.log('[bridge] importing mc.js')
-      const wasmCacheKey = Date.now()
+      const wasmCacheKey = import.meta.env.VITE_WASM_BUILD_ID
       const moduleUrl = new URL('mc.js', this.runtimeBaseUrl)
       moduleUrl.searchParams.set('v', String(wasmCacheKey))
       const ns = await import(/* @vite-ignore */ moduleUrl.href)
@@ -464,7 +467,7 @@ class WasmView {
     } catch (error) {
       this.#clearPendingReady()
       console.error('[bridge] WASM load failed', error)
-      this.onStatus({ status: 'error', message: 'WASMを読み込めませんでした' })
+      this.onStatus({ status: 'error', code: 'wasm-load-failed' })
       this.#drawFallbackFace()
       this.onError(error)
     }
@@ -501,7 +504,7 @@ class WasmView {
       if (!this.pendingReadyInstallation) return
       this.#clearPendingReady()
       const error = new Error('ファームウェアの起動準備がタイムアウトしました')
-      this.onStatus({ status: 'error', message: error.message })
+      this.onStatus({ status: 'error', code: 'firmware-ready-timeout' })
       this.onError(error)
     }, 30_000)
   }
@@ -638,7 +641,7 @@ class WasmView {
       format,
       xs: `${major}.${minor}.${patch}`,
     })
-    this.onStatus({ status: 'success', message: '準備完了' })
+    this.onStatus({ status: 'success', code: 'firmware-ready' })
   }
 
   onStart(interval) {
@@ -725,6 +728,7 @@ function bindManagedViewportTouches({ viewport, scene, wasmView }) {
     },
     pointerup: (event) => finish(event, 2),
     pointercancel: (event) => finish(event, 1),
+    lostpointercapture: (event) => finish(event, 1),
   }
 
   for (const [eventName, handler] of Object.entries(handlers)) {
@@ -785,7 +789,7 @@ export class SimulatorEngine {
       onTrace,
       onModInstallStatus: onModStatus,
       onReady: ({ runCount, installation }) => {
-        if (installation?.status === 'prepared') {
+        if (installation.status === 'prepared') {
           this.onModStatus({ ...installation, status: 'installed' })
         }
         this.onReady({
@@ -803,7 +807,7 @@ export class SimulatorEngine {
   }
 
   async start() {
-    this.onStatus({ status: 'pending', message: 'WASMを読み込み中' })
+    this.onStatus({ status: 'pending', code: 'wasm-loading' })
     await this.refreshModStatus()
     await this.wasmView.start()
     if (this.disposed) return

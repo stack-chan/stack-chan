@@ -1,28 +1,34 @@
-import { TRACKING_MESSAGE_TYPE } from './tracking.mjs'
+import { encodeTrackingPayload, TRACKING_MESSAGE_TYPE } from './tracking.mjs'
+
+export const TRACKING_SEND_INTERVAL_MS = 100
 
 export class LatestTrackingSender {
   #inFlight = false
   #latest
-  #peerId
+  #faceDirty = false
   #session
 
-  constructor(session, peerId) {
+  constructor(session) {
     this.#session = session
-    this.#peerId = peerId
   }
 
   queue(payload) {
     this.#latest = payload
+    this.#faceDirty = true
   }
 
   async flush() {
-    if (this.#inFlight || !this.#latest) return false
-    const payload = this.#latest
-    this.#latest = undefined
+    if (this.#inFlight || !this.#latest || !this.#faceDirty) return false
+    const state = this.#latest
+    const payload = encodeTrackingPayload(state, { includeEmotion: true, includeHands: true, includeFaceParts: true })
+    this.#faceDirty = false
     this.#inFlight = true
     try {
-      await this.#session.send(this.#peerId, TRACKING_MESSAGE_TYPE, payload)
+      await this.#session.broadcast(TRACKING_MESSAGE_TYPE, payload)
       return true
+    } catch (error) {
+      if (this.#latest === state) this.#faceDirty = true
+      throw error
     } finally {
       this.#inFlight = false
     }
@@ -30,5 +36,6 @@ export class LatestTrackingSender {
 
   clear() {
     this.#latest = undefined
+    this.#faceDirty = false
   }
 }

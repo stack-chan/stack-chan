@@ -43,7 +43,7 @@
   },
   "preload": ["stk-server", "beacon-packet"],
   "ble": {
-    "*": ["$(MODULES)/network/ble/uart/bleservices/*"]
+    "*": ["./ble/bleservices/*"]
   },
   "platforms": {
     "esp32": {

@@ -3,10 +3,10 @@
   "format": "tech.stackchan.mod",
   "schemaVersion": 1,
   "id": "tech.stackchan.samples.mediapipe-ble",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "type": "text",
   "name": "MediaPipe BLE追従",
-  "description": "PCのカメラで認識した顔向き、表情、手の位置と指の本数をBLEで受信して再現します。BLE Serial対応ファームウェアが必要です。",
+  "description": "PCのカメラで認識した顔向き、表情、左右の目と口の開き、顔に対する手の位置、手の向きと指の本数をBLEで受信して再現します。BLE Serial対応ファームウェアが必要です。",
   "author": "Stack-chan Community",
   "license": "Apache-2.0",
   "source": {

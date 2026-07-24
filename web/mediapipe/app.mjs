@@ -1,5 +1,5 @@
 import BLELocalPeerCapability from '../local-peer/ble-local-peer.mjs'
-import { LatestTrackingSender } from './latest-sender.mjs'
+import { LatestTrackingSender, TRACKING_SEND_INTERVAL_MS } from './latest-sender.mjs'
 import { loadMediaPipe } from './media-pipe.mjs'
 import { TRACKING_SERVICE, TrackingStateBuilder } from './tracking.mjs'
 
@@ -39,14 +39,14 @@ function setBLEStatus(message, state = 'idle') {
 
 function formatHand(hand) {
   return hand
-    ? `${hand.fingerCount === 3 ? '3+' : hand.fingerCount}本 (${hand.x.toFixed(2)}, ${hand.y.toFixed(2)})`
+    ? `${hand.fingerCount === 3 ? '3+' : hand.fingerCount}本 / 向き${hand.variant} (${hand.x.toFixed(2)}, ${hand.y.toFixed(2)})`
     : '未検出'
 }
 
 function renderTrackingState(value) {
   const face = value.face
   document.getElementById('face-value').textContent = face
-    ? `yaw ${face.yaw.toFixed(2)} / pitch ${face.pitch.toFixed(2)}`
+    ? `yaw ${face.yaw.toFixed(2)} / pitch ${face.pitch.toFixed(2)} / 目 ${face.eyeOpen?.left.toFixed(2) ?? '-'}, ${face.eyeOpen?.right.toFixed(2) ?? '-'} / 口 ${face.mouthOpen?.toFixed(2) ?? '-'}`
     : '未検出'
   document.getElementById('emotion-value').textContent = face?.emotion === 'happy' ? '笑顔' : face ? '真顔' : '未検出'
   document.getElementById('left-hand-value').textContent = formatHand(value.hands.left)
@@ -143,12 +143,26 @@ async function connectBLE() {
     setBLEStatus('受信MODを探索しています…', 'busy')
     const peers = await session.discover({ timeoutMs: 900 })
     if (!peers[0]) throw new Error('MediaPipe受信MODが見つかりません')
-    sender = new LatestTrackingSender(session, peers[0].id)
+    sender = new LatestTrackingSender(session)
     sendTimer = setInterval(() => {
-      void sender.flush().catch((error) => {
-        setBLEStatus(`送信に失敗しました: ${errorMessage(error)}`, 'error')
-      })
-    }, 100)
+      const activeSender = sender
+      void activeSender
+        .flush()
+        .then((sent) => {
+          if (sender === activeSender && sent && bleStatus.dataset.state === 'busy') {
+            setBLEStatus(`${peers[0].name ?? 'ｽﾀｯｸﾁｬﾝ'}へ接続済み`, 'connected')
+          }
+        })
+        .catch((error) => {
+          if (sender !== activeSender) return
+          if (session?.closed) {
+            disconnectBLE()
+            setBLEStatus(`接続が切れました: ${errorMessage(error)}。再接続してください`, 'error')
+          } else {
+            setBLEStatus(`一時的に送信できません: ${errorMessage(error)}。再試行中です`, 'busy')
+          }
+        })
+    }, TRACKING_SEND_INTERVAL_MS)
     bleDisconnectButton.disabled = false
     setBLEStatus(`${peers[0].name ?? 'ｽﾀｯｸﾁｬﾝ'}へ接続済み`, 'connected')
   } catch (error) {

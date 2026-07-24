@@ -18,6 +18,9 @@ trace('=== face-view state test ===\n')
 
 type RecorderContent = Content & {
   contextPrimary?: number
+  eyeOpenLeft?: number
+  eyeOpenRight?: number
+  mouthOpen?: number
   skinPrimary?: number
   contextHits?: number
   skinHits?: number
@@ -117,6 +120,9 @@ const TestFace = Container.template(() => ({
 
         onFaceState(content: RecorderContent, face: FaceState) {
           content.contextPrimary = toPiuColorNumber(face.theme.primary)
+          content.eyeOpenLeft = face.eyes.left.open
+          content.eyeOpenRight = face.eyes.right.open
+          content.mouthOpen = face.mouth.open
           content.contextHits = (content.contextHits ?? 0) + 1
         }
 
@@ -422,7 +428,14 @@ const runtimeUI = new StackchanRuntimeUI(controller, {
 })
 runtimeUI.setColor('primary', 0x12, 0x34, 0x56)
 runtimeUI.setColor('secondary', 0xab, 0xcd, 0xef)
+runtimeUI.setEyeOpen('left', 0.25)
+runtimeUI.setEyeOpen('right', 0.75)
+runtimeUI.setMouthOpen(0.5)
 runtimeUI.updateFace(32)
+faceBehavior.onTimeChanged(nextFace)
+equal(recorder.eyeOpenLeft, 0.25, 'runtime face API should apply the left eyelid independently')
+equal(recorder.eyeOpenRight, 0.75, 'runtime face API should apply the right eyelid independently')
+equal(recorder.mouthOpen, 0.5, 'runtime face API should apply mouth opening')
 runtimeUI.showBalloon('runtime balloon')
 
 const runtimeBalloon = appData.EFFECTS?.last

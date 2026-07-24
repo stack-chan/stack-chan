@@ -1,6 +1,6 @@
 import { Hands } from 'hands'
 import { MEDIAPIPE_BLE_MESSAGE_TYPE, MEDIAPIPE_BLE_SERVICE } from 'mediapipe-tracking-message'
-import { TrackingReceiver } from 'mediapipe-tracking-receiver'
+import { TrackingReceiver, TRACKING_TICK_MS } from 'mediapipe-tracking-receiver'
 import Timer from 'timer'
 
 const DISPLAY_NAME = 'stackchan-mediapipe'
@@ -18,7 +18,8 @@ async function startTracking(robot) {
     service: MEDIAPIPE_BLE_SERVICE,
     displayName: DISPLAY_NAME,
   })
-  robot.ui.setFaceMotionEnabled?.(false)
+  // Keep the face clock running: it applies both the built-in blink/breath
+  // motions and face-state updates received from this MOD.
   const hands = new Hands({})
   robot.ui.addEffect(hands, EFFECT_KEY)
   const receiver = new TrackingReceiver(robot, hands)
@@ -27,7 +28,7 @@ async function startTracking(robot) {
       trace(`[mediapipe-ble] rejected invalid payload from ${message.peer.id}\n`)
     }
   })
-  Timer.repeat(() => receiver.tick(), 100)
+  Timer.repeat(() => receiver.tick(), TRACKING_TICK_MS)
   trace('[mediapipe-ble] ready for a browser connection\n')
 }
 

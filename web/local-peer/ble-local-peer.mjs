@@ -11,6 +11,11 @@ const FRAGMENT_BYTES = FRAME_BYTES - FRAME_HEADER_BYTES
 const MESSAGE_BYTES = 2048
 const MAX_FRAGMENTS = Math.ceil(MESSAGE_BYTES / FRAGMENT_BYTES)
 const AUTH_TAG_BYTES = 16
+// The CoreS3 negotiates ATT MTU 256, leaving 253 bytes for a characteristic
+// value. Keep a small margin, then fall back for older hosts and legacy MTUs.
+const GATT_CHUNK_BYTES = Object.freeze([244, 60, 20])
+const DEVICE_STORAGE_KEY = 'stackchan.localPeer.bleDevice'
+const STACKCHAN_DEVICE_NAME = 'STK'
 const AUTH_DOMAIN = new TextEncoder().encode('stackchan-local-peer-auth-v1:')
 const RecordKind = Object.freeze({ HELLO: 1, DATA: 2 })
 const FrameKind = Object.freeze({ DISCOVER: 1, ANNOUNCE: 2, DATA: 3, ACK: 4 })
@@ -206,6 +211,7 @@ export class BLELocalPeerCapability {
   #bluetooth
   #crypto
   #session
+  #storage
   id
 
   constructor({
@@ -216,6 +222,7 @@ export class BLELocalPeerCapability {
     if (!bluetooth) throw new Error('Web Bluetooth is not available')
     this.#bluetooth = bluetooth
     this.#crypto = crypto
+    this.#storage = storage
     const stored = storage?.getItem('stackchan.localPeer.id')
     this.id = /^[0-9a-f]{12}$/i.test(stored ?? '') ? stored.toUpperCase() : randomId(crypto)
     storage?.setItem('stackchan.localPeer.id', this.id)
@@ -224,7 +231,7 @@ export class BLELocalPeerCapability {
   async open(options) {
     if (this.#session && !this.#session.closed) throw new Error('a local peer session is already open')
     if (options.transport !== undefined && options.transport !== 'ble') throw new Error('Web client supports only BLE')
-    const session = new BLELocalPeerSession(this.id, options, this.#bluetooth, this.#crypto, () => {
+    const session = new BLELocalPeerSession(this.id, options, this.#bluetooth, this.#crypto, this.#storage, () => {
       if (this.#session === session) this.#session = undefined
     })
     this.#session = session
@@ -243,6 +250,7 @@ class BLELocalPeerSession {
   #options
   #bluetooth
   #crypto
+  #storage
   #onClose
   #device
   #rx
@@ -257,25 +265,39 @@ class BLELocalPeerSession {
   #reassemblies = new Map()
   #delivered = new Map()
   #remoteSecure = false
+  #writeChunkIndex = 0
   closed = false
 
-  constructor(id, options, bluetooth, cryptoProvider, onClose) {
+  constructor(id, options, bluetooth, cryptoProvider, storage, onClose) {
     const serviceBytes = typeof options?.service === 'string' ? new TextEncoder().encode(options.service).byteLength : 0
     if (serviceBytes < 1 || serviceBytes > 64) throw new TypeError('service must contain 1-64 UTF-8 bytes')
     this.#id = id
     this.#options = options
     this.#bluetooth = bluetooth
     this.#crypto = cryptoProvider
+    this.#storage = storage
     this.#onClose = onClose
     this.#serviceHash = fnv1a32(options.service)
   }
 
   async connect() {
     this.#key = this.#options.sharedKey ? await authenticationKey(this.#options.sharedKey, this.#crypto) : undefined
-    this.#device = await this.#bluetooth.requestDevice({
-      filters: [{ services: [SERVICE_UUID] }],
-      optionalServices: [SERVICE_UUID],
-    })
+    let permitted = []
+    try {
+      permitted = (await this.#bluetooth.getDevices?.()) ?? []
+    } catch {}
+    const rememberedId = this.#storage?.getItem(DEVICE_STORAGE_KEY)
+    const permittedStackchans = permitted.filter((device) => device.name === STACKCHAN_DEVICE_NAME)
+    this.#device =
+      permitted.find((device) => device.id === rememberedId) ??
+      (permittedStackchans.length === 1 ? permittedStackchans[0] : undefined)
+    if (!this.#device) {
+      this.#device = await this.#bluetooth.requestDevice({
+        filters: [{ services: [SERVICE_UUID] }],
+        optionalServices: [SERVICE_UUID],
+      })
+    }
+    if (this.#device.id) this.#storage?.setItem(DEVICE_STORAGE_KEY, this.#device.id)
     this.#device.addEventListener('gattserverdisconnected', () => this.close())
     const server = await this.#device.gatt.connect()
     const service = await server.getPrimaryService(SERVICE_UUID)
@@ -395,11 +417,24 @@ class BLELocalPeerSession {
       this.#key,
       this.#crypto
     )
-    for (let offset = 0; offset < record.byteLength; offset += 20) {
-      const chunk = record.slice(offset, offset + 20)
-      if (this.#rx.writeValueWithResponse) await this.#rx.writeValueWithResponse(chunk)
-      else await this.#rx.writeValue(chunk)
+    for (;;) {
+      const chunkBytes = GATT_CHUNK_BYTES[this.#writeChunkIndex]
+      let offset = 0
+      try {
+        for (; offset < record.byteLength; offset += chunkBytes) {
+          await this.#writeChunk(record.slice(offset, offset + chunkBytes))
+        }
+        return
+      } catch (error) {
+        if (offset !== 0 || this.#writeChunkIndex === GATT_CHUNK_BYTES.length - 1) throw error
+        this.#writeChunkIndex += 1
+      }
     }
+  }
+
+  async #writeChunk(chunk) {
+    if (this.#rx.writeValueWithResponse) await this.#rx.writeValueWithResponse(chunk)
+    else await this.#rx.writeValue(chunk)
   }
 
   async #receive(chunk) {

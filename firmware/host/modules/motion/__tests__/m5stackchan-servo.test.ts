@@ -60,4 +60,12 @@ describe('M5StackChan servo mapping', () => {
 
     assert.equal(angles.pitch, 300)
   })
+
+  test('allows StackChan upward pitch through the full 90-degree driver range', () => {
+    const { pitch } = createM5StackChanServoConfig()
+    const angles = rotationToM5StackChanServoAngles({ y: 0, p: -Math.PI / 2, r: 0 })
+
+    assert.equal(angles.pitch, 900)
+    assert.equal(angleToRawPosition(angles.pitch, pitch), 908)
+  })
 })

@@ -28,6 +28,7 @@ import {
   computeShellPlacementFromBounds,
   computeStackchanKinematics,
   createRoundedRectPath,
+  resolveSimulatorAssetUrl,
   screenPointFromUv,
   stepRotationToward,
 } from '../../../simulator/geometry.mjs'
@@ -36,9 +37,10 @@ import { createModStorage } from '../../../simulator/mod-storage.mjs'
 const DRIVER_MAX_ANGULAR_SPEED = 2.4
 
 class StackchanScene {
-  constructor({ viewport, screen }) {
+  constructor({ viewport, screen, runtimeBaseUrl }) {
     this.viewport = viewport
     this.screen = screen
+    this.runtimeBaseUrl = runtimeBaseUrl
     this.driverRotation = { y: 0, p: 0, r: 0 }
     this.targetDriverRotation = { y: 0, p: 0, r: 0 }
     this.lastDriverUpdateMs = undefined
@@ -132,7 +134,7 @@ class StackchanScene {
   #createShell() {
     const loader = new STLLoader()
     loader.load(
-      STACKCHAN_SHELL_STL.url,
+      resolveSimulatorAssetUrl(STACKCHAN_SHELL_STL.url, this.runtimeBaseUrl),
       (geometry) => {
         geometry.computeVertexNormals()
         const placement = computeShellPlacementFromBounds(STACKCHAN_SHELL_STL.sourceBoundsMm, {
@@ -761,7 +763,7 @@ export class SimulatorEngine {
     this.audioOutBridge = createHostAudioOutBridge()
     this.audioInBridge = createHostAudioInBridge()
     this.cameraBridge = createHostCameraBridge()
-    this.scene = new StackchanScene({ viewport, screen })
+    this.scene = new StackchanScene({ viewport, screen, runtimeBaseUrl })
     this.driverBridge = createHostDriverBridge({
       onRotation: (rotation) => this.scene.applyDriverRotation(rotation),
       onTorque: (torque) => this.scene.setTorqueEnabled(torque),

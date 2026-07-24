@@ -66,7 +66,13 @@ try {
   })
   const page = await context.newPage()
   const pageErrors = []
+  const simulatorWarnings = []
   page.on('pageerror', (error) => pageErrors.push(error))
+  page.on('console', (message) => {
+    if (message.type() === 'warning' && message.text().includes('[simulator] failed to load shell STL')) {
+      simulatorWarnings.push(message.text())
+    }
+  })
 
   for (const [viewportName, width, height] of viewports) {
     await page.setViewportSize({ width, height })
@@ -246,9 +252,17 @@ try {
     true,
     'a browser build must produce a downloadable MOD archive'
   )
+  simulatorWarnings.length = 0
+  const shellResponsePromise = page.waitForResponse(
+    (response) => response.url().endsWith('/simulator/assets/case/v1/shell.stl'),
+    { timeout: 30_000 }
+  )
   await page.getByRole('button', { name: 'シミュレーターで実行' }).click()
   const projectSimulator = page.getByRole('dialog', { name: 'シミュレーター' })
   await projectSimulator.waitFor()
+  const shellResponse = await shellResponsePromise
+  assert.equal(shellResponse.ok(), true, 'the embedded simulator must load the shell STL')
+  await projectSimulator.getByText('シミュレーターを実行中').waitFor({ timeout: 45_000 })
   assert.equal(
     await projectSimulator.locator('iframe').count(),
     0,
@@ -277,6 +291,7 @@ try {
   )
   assert.ok(simulatorLayout.viewportWidth >= 800, 'the embedded simulator viewport must remain usable on desktop')
   assert.ok(simulatorLayout.viewportHeight >= 400, 'the embedded simulator viewport must remain tall enough to render')
+  assert.deepEqual(simulatorWarnings, [], 'the embedded simulator must resolve the shell STL without fallback')
   await projectSimulator.getByRole('button', { name: '閉じる' }).click()
   await projectSimulator.waitFor({ state: 'hidden' })
 

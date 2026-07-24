@@ -12,7 +12,8 @@ import {
   handSpriteRow,
   nearestHandRotationUnits,
 } from 'hand-sprites'
-import { Texture } from 'piu/MC'
+import { Hands } from 'hands'
+import { Application, Texture } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
 
 trace('=== hand sprite renderer test ===\n')
@@ -89,4 +90,33 @@ for (let index = 0; index < states.length; index++) {
 }
 
 assert(outer !== inner, 'primary and secondary layers should use separate textures')
+
+const hands = new Hands({})
+const app = new Application(null, { contents: [hands] })
+hands.delegate('onHandPoseChanged', {
+  left: {
+    shape: 'peace',
+    pose: { position: { x: 64, y: 96 }, rotation: { r: Math.PI / 4 } },
+  },
+  right: {
+    shape: 'point',
+    pose: { position: { x: 256, y: 112 }, rotation: { r: -Math.PI / 4 } },
+  },
+})
+const behavior = hands.behavior as unknown as {
+  leftState: { visible: boolean; shape: HandSpriteState; x: number; y: number }
+  rightState: { visible: boolean; shape: HandSpriteState; x: number; y: number }
+}
+equal(behavior.leftState.visible, true, 'direct pose should show the left hand')
+equal(behavior.leftState.shape, 'peace', 'direct pose should select the left sprite')
+equal(behavior.leftState.x, 64, 'direct pose should position the left hand')
+equal(behavior.leftState.y, 96, 'direct pose should position the left hand vertically')
+equal(behavior.rightState.visible, true, 'direct pose should show the right hand')
+equal(behavior.rightState.shape, 'point', 'direct pose should select the right sprite')
+equal(behavior.rightState.x, 256, 'direct pose should position the right hand')
+equal(behavior.rightState.y, 112, 'direct pose should position the right hand vertically')
+hands.delegate('onHandPoseChanged', {})
+equal(behavior.leftState.visible, false, 'omitting the left hand should hide it')
+equal(behavior.rightState.visible, false, 'omitting the right hand should hide it')
+app.empty()
 trace('ok\n')

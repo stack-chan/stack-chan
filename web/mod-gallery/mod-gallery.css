@@ -121,6 +121,11 @@
   background: var(--surface-raised);
 }
 
+.mod-card-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
 .mod-card-header {
   display: flex;
   align-items: flex-start;

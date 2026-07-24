@@ -8,7 +8,13 @@ import {
   LocalPeerFrameFlag,
   LocalPeerFrameKind,
 } from 'local-peer-frame'
-import type { LocalPeerRadio, LocalPeerRadioFactory, LocalPeerRadioReceiveEvent } from 'local-peer-radio-types'
+import type {
+  LocalPeerRadio,
+  LocalPeerRadioFactory,
+  LocalPeerRadioReceiveEvent,
+  LocalPeerRadioRegistry,
+  LocalPeerTransport,
+} from 'local-peer-radio-types'
 import {
   type JsonValue,
   type LocalPeerBroadcastReceipt,
@@ -102,6 +108,9 @@ function validateBoundedText(label: string, value: string, maximumBytes: number,
 function validateOpenOptions(options: LocalPeerOpenOptions): void {
   if (!options || typeof options !== 'object') throw new LocalPeerError('invalid-argument', 'options are required')
   if (typeof options.service !== 'string') throw new LocalPeerError('invalid-argument', 'service must be a string')
+  if (options.transport !== undefined && options.transport !== 'espnow' && options.transport !== 'ble') {
+    throw new LocalPeerError('invalid-argument', 'transport must be espnow or ble')
+  }
   validateBoundedText('service', options.service, MAX_SERVICE_BYTES)
   if (options.displayName !== undefined) {
     if (typeof options.displayName !== 'string') {
@@ -183,18 +192,29 @@ function publicPeer(record: PeerRecord): LocalPeerInfo {
 
 export class LocalPeerService implements LocalPeerCapability {
   readonly id: string
-  #radioFactory: LocalPeerRadioFactory
+  #radioFactories: Partial<Record<LocalPeerTransport, LocalPeerRadioFactory>>
+  #defaultTransport: LocalPeerTransport
   #offlineChannel: number
   #session?: LocalPeerSessionImpl
 
-  constructor(id: string, radioFactory: LocalPeerRadioFactory, options: { offlineChannel?: number } = {}) {
+  constructor(
+    id: string,
+    radioFactoryOrRegistry: LocalPeerRadioFactory | LocalPeerRadioRegistry,
+    options: { offlineChannel?: number } = {},
+  ) {
     validatePeerId(id)
     const channel = options.offlineChannel ?? DEFAULT_OFFLINE_CHANNEL
     if (!Number.isInteger(channel) || channel < 1 || channel > 13) {
       throw new LocalPeerError('invalid-argument', 'offlineChannel must be between 1 and 13')
     }
     this.id = id.toUpperCase()
-    this.#radioFactory = radioFactory
+    if (typeof radioFactoryOrRegistry === 'function') {
+      this.#radioFactories = { espnow: radioFactoryOrRegistry }
+      this.#defaultTransport = 'espnow'
+    } else {
+      this.#radioFactories = radioFactoryOrRegistry.factories
+      this.#defaultTransport = radioFactoryOrRegistry.defaultTransport
+    }
     this.#offlineChannel = channel
   }
 
@@ -203,9 +223,12 @@ export class LocalPeerService implements LocalPeerCapability {
     if (this.#session && !this.#session.closed) {
       throw new LocalPeerError('invalid-argument', 'a local peer session is already open')
     }
+    const transport = options.transport ?? this.#defaultTransport
+    const radioFactory = this.#radioFactories[transport]
+    if (!radioFactory) throw new LocalPeerError('not-supported', `${transport} local peer transport is not supported`)
     let session: LocalPeerSessionImpl
     try {
-      session = new LocalPeerSessionImpl(this.id, this.#radioFactory, options, this.#offlineChannel, () => {
+      session = new LocalPeerSessionImpl(this.id, radioFactory, options, this.#offlineChannel, () => {
         if (this.#session === session) this.#session = undefined
       })
     } catch (error) {
@@ -253,6 +276,7 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     this.displayName = options.displayName
     this.#onClose = onClose
     this.#radio = radioFactory({
+      id,
       offlineChannel,
       sharedKey: this.sharedKey,
       onReceive: (event) => this.#handleRadioReceive(event),

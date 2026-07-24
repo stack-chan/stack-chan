@@ -12,6 +12,7 @@ const search = document.getElementById('mod-search')
 const typeFilter = document.getElementById('type-filter')
 
 let definitions = []
+let requestedMod = new URL(location.href).searchParams.get('mod')
 
 function setStatus(message = '') {
   status.textContent = message
@@ -158,9 +159,19 @@ function renderCard(definition) {
   } else {
     const artifact = definition.artifacts[0]
     if (artifact) {
+      const supportsSimulator = definition.targets.includes('simulator')
+      if (supportsSimulator) {
+        actions.append(
+          actionButton('シミュレーターで試す', 'play', () => installToSimulator(definition, artifact), 'primary-button')
+        )
+      }
       actions.append(
-        actionButton('シミュレーターで試す', 'play', () => installToSimulator(definition, artifact), 'primary-button'),
-        actionButton('実機へ書き込む', 'usb', () => installToDevice(definition, artifact))
+        actionButton(
+          '実機へ書き込む',
+          'usb',
+          () => installToDevice(definition, artifact),
+          supportsSimulator ? '' : 'primary-button'
+        )
       )
     }
     actions.append(linkAction('ソースを見る', 'file-code-2', definition.sourceUrl.href))
@@ -183,6 +194,16 @@ function render() {
   count.textContent = `${visible.length}件のMOD`
   empty.hidden = visible.length !== 0
   globalThis.lucide?.createIcons()
+  if (requestedMod) {
+    const card = [...list.querySelectorAll('.mod-card')].find((candidate) => candidate.dataset.modId === requestedMod)
+    if (card) {
+      card.classList.add('mod-card-selected')
+      card.tabIndex = -1
+      card.focus({ preventScroll: true })
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      requestedMod = undefined
+    }
+  }
 }
 
 search.addEventListener('input', render)

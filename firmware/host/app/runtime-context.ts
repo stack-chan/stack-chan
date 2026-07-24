@@ -14,7 +14,7 @@ import type {
   ShowBalloonOptions,
   StackchanContext,
 } from 'capabilities'
-import type { Emotion, FaceThemeKey } from 'face-state'
+import type { Emotion, FaceEyeKey, FaceThemeKey } from 'face-state'
 import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
@@ -327,6 +327,10 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#uiRuntime.setEmotion(emotion)
   }
 
+  setEyeOpen(key: FaceEyeKey, value: number) {
+    this.#uiRuntime.setEyeOpen(key, value)
+  }
+
   setMouthOpen(value: number) {
     this.#uiRuntime.setMouthOpen(value)
   }
@@ -400,6 +404,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     return {
       setColor: (key, r, g, b) => this.setColor(key, r, g, b),
       setEmotion: (emotion) => this.setEmotion(emotion),
+      setEyeOpen: (key, value) => this.setEyeOpen(key, value),
       setMouthOpen: (value) => this.setMouthOpen(value),
     }
   }

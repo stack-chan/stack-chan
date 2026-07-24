@@ -32,7 +32,50 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  firmware:
+    name: Release build (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: m5stack
+            command: npm run build:release:m5stack
+            bundle: true
+          - target: m5stack_core2
+            command: npm run build:release:m5stack_core2
+            bundle: true
+          - target: m5stack_cores3
+            command: npm run build:release:m5stack_cores3
+            bundle: true
+          - target: m5stackchan_cores3
+            command: npm run build:release:m5stackchan_cores3
+            bundle: true
+          - target: stackchan_rt
+            command: npm run build:release:stackchan_rt
+            bundle: false
+          - target: takao_core2_sg90
+            command: npm run build:release:takao_core2_sg90
+            bundle: false
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          target-branch: "8.3.1"
+      - name: Build release firmware
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && ${{ matrix.command }}
+      - name: Upload bundle target
+        if: matrix.bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: firmware-bundle-target-${{ matrix.target }}
+          path: ./firmware/dist/bundle-targets
+          if-no-files-found: error
+
+  web:
+    name: Bundle web artifacts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -41,9 +84,6 @@ jobs:
         with:
           target-branch: "8.3.1"
           install-emscripten: "true"
-      - name: Install web test dependencies
-        working-directory: ./firmware
-        run: npm --prefix ../web ci
       - name: Rebuild editor tools for release verification
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:editor-tools
@@ -52,26 +92,42 @@ jobs:
         run: |
           npm --prefix ../web run check:editor-artifacts
           git diff --exit-code -- ':(top)web/editor/vendor/tools.js' ':(top)web/editor/vendor/tools.wasm'
-      - name: Bundle firmware
-        working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
-      - name: Verify M5StackChan CoreS3 bundle target
-        working-directory: ./firmware
-        run: |
-          target="host/app/tech.moddable.stackchan/m5stackchan_cores3"
-          for binary in bootloader.bin partition-table.bin xs_esp32.bin; do
-            test -s "$target/$binary"
-          done
       - name: Build WASM simulator firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
+      - name: Upload WASM simulator
+        uses: actions/upload-artifact@v7
+        with:
+          name: wasm-simulator
+          path: ./web/simulator
+
+  build:
+    needs:
+      - firmware
+      - web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download bundle targets
+        uses: actions/download-artifact@v8
+        with:
+          pattern: firmware-bundle-target-*
+          path: ./firmware/dist/bundle-targets
+          merge-multiple: true
+      - name: Package firmware bundle
+        working-directory: ./firmware
+        run: npm run bundle:package
       - name: Upload firmware bundle
         uses: actions/upload-artifact@v7
         with:
           name: firmware-bundle
           path: ./firmware/host/app/tech.moddable.stackchan
-      - name: Upload WASM simulator
-        uses: actions/upload-artifact@v7
+          if-no-files-found: error
+      - name: Download WASM simulator
+        uses: actions/download-artifact@v8
         with:
           name: wasm-simulator
           path: ./web/simulator

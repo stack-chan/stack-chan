@@ -71,6 +71,13 @@
               <option value="esp32_m5stackchan_cores3">M5StackChan CoreS3</option>
             </select>
           </div>
+          <div class="guidance-callout guidance-callout-warning" role="note">
+            <i data-lucide="triangle-alert" aria-hidden="true"></i>
+            <div>
+              <strong>書き込み前にご確認ください</strong>
+              <p>書き込みを開始すると、本体に保存した設定とインストール済みのMODはすべて消去されます。</p>
+            </div>
+          </div>
           <esp-web-install-button manifest="manifest_esp32_m5stack.json" class="button-flash-container">
             <button slot="activate" class="button-flash primary-button">
               <i data-lucide="usb"></i><span>USBに接続して書き込む</span>

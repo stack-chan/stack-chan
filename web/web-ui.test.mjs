@@ -403,6 +403,17 @@ test('flash tool exposes the M5StackChan CoreS3 firmware target', () => {
   ])
 })
 
+test('device setup tools explain destructive flashing and BLE pairing prerequisites', () => {
+  const flash = readFileSync('flash/index.html', 'utf8')
+  assert.match(
+    flash,
+    /class="guidance-callout guidance-callout-warning"[\s\S]*?保存した設定[\s\S]*?インストール済みのMOD[\s\S]*?すべて消去/
+  )
+
+  const preference = readFileSync('preference/index.html', 'utf8')
+  assert.match(preference, /class="guidance-callout"[\s\S]*?起動画面[\s\S]*?「設定」を押し[\s\S]*?本体の設定画面/)
+})
+
 test('third-party scripts that handle editable or device data use subresource integrity', () => {
   for (const page of ['flash/index.html', 'preference/index.html', 'editor/index.html', 'face-editor/index.html']) {
     const html = readFileSync(page, 'utf8')

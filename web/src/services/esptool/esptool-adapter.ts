@@ -15,10 +15,16 @@ type EsptoolModule = {
   ) => {
     disconnect: () => Promise<void>
   }
-  ESPLoader: new (options: { transport: unknown; baudrate: number; terminal: LoaderTerminal }) => {
+  ESPLoader: new (options: {
+    transport: unknown
+    baudrate: number
+    romBaudrate: number
+    terminal: LoaderTerminal
+    debugLogging: boolean
+  }) => {
     main: () => Promise<string>
     writeFlash: (options: {
-      fileArray: { data: string; address: number }[]
+      fileArray: { data: Uint8Array; address: number }[]
       flashSize: string
       flashMode: string
       flashFreq: string
@@ -39,40 +45,75 @@ export type EsptoolAdapter = {
   disconnect: () => Promise<void>
 }
 
-const bytesToBinaryString = (bytes: Uint8Array) => {
-  let result = ''
-  const chunkSize = 0x8000
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    result += String.fromCharCode.apply(null, Array.from(bytes.subarray(index, index + chunkSize)))
+type EsptoolModuleLoader = () => Promise<EsptoolModule>
+
+const loadEsptoolModule: EsptoolModuleLoader = async () => (await import('esptool-js')) as unknown as EsptoolModule
+
+const createLoaderTerminal = (onLog: (message: string) => void) => {
+  let pending = ''
+
+  const emit = (value: string) => {
+    const normalized = value.replaceAll('\r', '')
+    for (const line of normalized.split('\n')) {
+      if (line) onLog(`[esptool] ${line}`)
+    }
   }
-  return result
+
+  const flush = () => {
+    if (!pending) return
+    emit(pending)
+    pending = ''
+  }
+
+  return {
+    terminal: {
+      clean() {
+        pending = ''
+      },
+      write(value: string) {
+        pending += value
+        const lines = pending.replaceAll('\r', '').split('\n')
+        pending = lines.pop() ?? ''
+        emit(lines.join('\n'))
+      },
+      writeLine(value: string) {
+        flush()
+        emit(value)
+      },
+    },
+    flush,
+  }
 }
 
 export async function createEsptoolAdapter(
   port: SerialPortLike,
   onLog: (message: string) => void,
-  baudrate = 115200
+  baudrate = 115200,
+  moduleLoader = loadEsptoolModule
 ): Promise<EsptoolAdapter> {
-  const module = (await import('../../../editor/vendor/esptool-js-0.5.7.bundle.mjs')) as EsptoolModule
-  const transport = new module.Transport(port, true)
+  const module = await moduleLoader()
+  const transport = new module.Transport(port, false)
+  const terminal = createLoaderTerminal(onLog)
   const loader = new module.ESPLoader({
     transport,
     baudrate,
-    terminal: {
-      clean() {},
-      write() {},
-      writeLine(line) {
-        onLog(`[esptool] ${line}`)
-      },
-    },
+    romBaudrate: 115200,
+    terminal: terminal.terminal,
+    debugLogging: true,
   })
 
   return {
-    inspect: () => loader.main(),
+    async inspect() {
+      try {
+        return await loader.main()
+      } finally {
+        terminal.flush()
+      }
+    },
     write: (files, reportProgress) =>
       loader.writeFlash({
         fileArray: files.map(({ bytes, address }) => ({
-          data: bytesToBinaryString(bytes),
+          data: bytes,
           address,
         })),
         flashSize: 'keep',

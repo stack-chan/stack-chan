@@ -56,7 +56,7 @@ try {
   assert.equal(response?.ok(), true)
   await page.getByRole('region', { name: 'ｽﾀｯｸﾁｬﾝ3Dシミュレーター' }).waitFor()
   await page.getByText('シミュレーターを実行中').waitFor({ timeout: 45_000 })
-  assert.equal(await page.locator('canvas[aria-label="3D Stack-chan simulator"]').count(), 1)
+  assert.equal(await page.locator('canvas[aria-label="ｽﾀｯｸﾁｬﾝ3Dシミュレーター"]').count(), 1)
   assert.equal(await page.getByRole('button', { name: 'カメラを接続' }).count(), 1)
   assert.deepEqual(errors, [])
   await page.screenshot({ path: '/tmp/stackchan-simulator-runtime.png', fullPage: true })

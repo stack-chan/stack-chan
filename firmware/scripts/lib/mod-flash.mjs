@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import path from 'node:path'
 import {
   findAppPartition,
@@ -10,6 +9,7 @@ import {
   xsArchiveByteLength,
 } from '../../../web/editor/esptool-installer.mjs'
 import { xsArchiveVersion } from '../../../web/editor/mod-builder.mjs'
+import { buildOutputDirectory } from './build-output.mjs'
 
 export const partitionTableOffset = 0x8000
 export const partitionTableSize = 0xc00
@@ -24,7 +24,12 @@ export const moddableEspAppProjectName = 'xs_esp32'
 export function resolveModArchivePath({ outputDirectory, mode, projectName }) {
   if (!outputDirectory) throw new Error('MOD output directory is required')
   if (!/^[^/\\]+$/.test(projectName)) throw new Error(`Invalid MOD project name: ${projectName || 'missing'}`)
-  const outputMode = mode === 'debug' ? 'debug' : 'release'
+  const outputMode = {
+    debug: 'debug',
+    instrument: 'instrument',
+    release: 'release',
+  }[mode]
+  if (!outputMode) throw new Error(`Unsupported MOD build mode: ${mode || 'missing'}`)
   return path.join(outputDirectory, 'bin', 'esp32', outputMode, projectName, `${projectName}.xsa`)
 }
 
@@ -57,7 +62,7 @@ export function installModArchive({
   chip,
   expectedProjectName = moddableEspAppProjectName,
   expectedFirmwareVersion,
-  temporaryDirectory = tmpdir(),
+  temporaryDirectory = path.join(buildOutputDirectory, 'tmp'),
   runCommand = executeCommand,
 }) {
   const archive = readFileSync(archivePath)
@@ -71,6 +76,7 @@ export function installModArchive({
   const archiveVersion = xsArchiveVersion(archive)
   if (!archiveVersion) throw new Error(`XS archive version is missing: ${archivePath}`)
 
+  mkdirSync(temporaryDirectory, { recursive: true })
   const workDirectory = mkdtempSync(path.join(temporaryDirectory, 'stackchan-mod-flash-'))
   const partitionTablePath = path.join(workDirectory, 'partition-table.bin')
   const appHeaderPath = path.join(workDirectory, 'app-header.bin')
@@ -167,10 +173,20 @@ export function esptoolConnectionArguments({ chip, port, baud } = {}) {
   return args
 }
 
+/**
+ * Formats an address or size for esptool.
+ * @param {number} value - Numeric value.
+ * @returns {string} Lowercase hexadecimal CLI value.
+ */
 function hex(value) {
   return `0x${value.toString(16)}`
 }
 
+/**
+ * Runs esptool and fails the installation on spawn or command errors.
+ * @param {string} command - Executable name.
+ * @param {string[]} args - Command arguments.
+ */
 function executeCommand(command, args) {
   console.log(`[stack-chan] ${command} ${args.join(' ')}`)
   const result = spawnSync(command, args, { stdio: 'inherit' })

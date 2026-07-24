@@ -401,10 +401,7 @@ function moddableOutputArgumentsFor(outputDirectory) {
 function prepareBundleManifest(target, sdkconfigDirectory, outputDirectory) {
   const directory = path.join(outputDirectory, 'generated', 'bundle-manifests', target.name)
   const overrideManifestPath = path.join(directory, 'sdkconfig.json')
-  const bundleManifestPath = path.join(
-    path.dirname(target.manifestPath),
-    `${firmwareBundleName}.${target.name}.${process.pid}.manifest.json`,
-  )
+  const bundleManifestPath = path.join(directory, `${firmwareBundleName}.${target.name}.${process.pid}.manifest.json`)
   mkdirSync(directory, { recursive: true })
   writeFileSync(overrideManifestPath, `${JSON.stringify({ build: { SDKCONFIGPATH: sdkconfigDirectory } }, null, 2)}\n`)
   writeFileSync(

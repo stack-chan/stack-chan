@@ -33,6 +33,7 @@ test('builds a release target through a final sdkconfig manifest override', () =
   const outputDirectory = path.join(root, 'output')
   const sdkconfigDirectory = path.join(moddableDirectory, 'build/devices/esp32/xsProj-esp32')
   const firmwareVersion = '8.3.1'
+  let generatedWrapperManifestPath
 
   try {
     mkdirSync(path.join(moddableDirectory, 'tools'), { recursive: true })
@@ -50,8 +51,12 @@ test('builds a release target through a final sdkconfig manifest override', () =
         assert.equal(env.MODDABLE, moddableDirectory)
         assert.equal(args[args.indexOf('-p') + 1], 'esp32/m5stack')
 
-        const wrapperManifestPath = args.at(-1)
-        const wrapper = JSON.parse(readFileSync(wrapperManifestPath, 'utf8'))
+        generatedWrapperManifestPath = args.at(-1)
+        assert.equal(
+          path.dirname(generatedWrapperManifestPath),
+          path.join(outputDirectory, 'generated/bundle-manifests/m5stack'),
+        )
+        const wrapper = JSON.parse(readFileSync(generatedWrapperManifestPath, 'utf8'))
         assert.equal(wrapper.include[0], path.join(firmwareDirectory, 'host/app/manifest.json'))
         const override = JSON.parse(readFileSync(wrapper.include[1], 'utf8'))
         assert.equal(override.build.SDKCONFIGPATH, path.join(outputDirectory, 'generated/sdkconfig/m5stack'))
@@ -66,6 +71,7 @@ test('builds a release target through a final sdkconfig manifest override', () =
 
     assert.equal(result.target.bundleId, 'com.m5stack')
     assert.equal(result.firmwareVersion, firmwareVersion)
+    assert.equal(existsSync(generatedWrapperManifestPath), false)
     assert.equal(
       existsSync(path.join(firmwareDirectory, `host/app/${firmwareBundleName}.m5stack.${process.pid}.manifest.json`)),
       false,

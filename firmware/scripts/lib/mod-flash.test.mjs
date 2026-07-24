@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
+import { buildOutputDirectory } from './build-output.mjs'
 import { esptoolConnectionArguments, installModArchive, resolveModArchivePath } from './mod-flash.mjs'
 
 test('resolves mcrun archives using the observable output contract', () => {
@@ -13,6 +14,14 @@ test('resolves mcrun archives using the observable output contract', () => {
       projectName: 'look_around',
     }),
     '/repo/firmware/dist/bin/esp32/debug/look_around/look_around.xsa',
+  )
+  assert.equal(
+    resolveModArchivePath({
+      outputDirectory: '/repo/firmware/dist',
+      mode: 'instrument',
+      projectName: 'look_around',
+    }),
+    '/repo/firmware/dist/bin/esp32/instrument/look_around/look_around.xsa',
   )
   assert.equal(
     resolveModArchivePath({
@@ -31,6 +40,7 @@ test('reads the live partition layout before writing and verifying a MOD', () =>
   const partitionTable = makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
   const appHeader = makeAppHeader({ version: '8.3.1', projectName: 'xs_esp32' })
   const calls = []
+  const scratchPaths = []
 
   try {
     writeFileSync(archivePath, archive)
@@ -40,10 +50,11 @@ test('reads the live partition layout before writing and verifying a MOD', () =>
       port: '/dev/ttyACM1',
       baud: 921600,
       expectedFirmwareVersion: '8.3.1',
-      temporaryDirectory: fixture,
       runCommand(command, args) {
         calls.push([command, args])
         if (args.includes('read-flash')) {
+          scratchPaths.push(args.at(-1))
+          assert.equal(path.dirname(path.dirname(args.at(-1))), path.join(buildOutputDirectory, 'tmp'))
           const address = Number(args.at(-3))
           writeFileSync(args.at(-1), address === 0x8000 ? partitionTable : appHeader)
         }
@@ -64,6 +75,7 @@ test('reads the live partition layout before writing and verifying a MOD', () =>
     assert.equal(result.firmware.projectName, 'xs_esp32')
     assert.ok(calls[2][1].includes('0xfa0000'))
     assert.ok(calls[3][1].includes('0xfa0000'))
+    assert.ok(scratchPaths.every((scratchPath) => !existsSync(path.dirname(scratchPath))))
   } finally {
     rmSync(fixture, { recursive: true, force: true })
   }

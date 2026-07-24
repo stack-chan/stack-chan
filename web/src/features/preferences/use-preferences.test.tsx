@@ -56,6 +56,35 @@ describe('usePreferences', () => {
     expect(result.current.values['driver.type']).toBe('fixed')
   })
 
+  it('keeps cleared Wi-Fi fields retryable when the immediate save fails', async () => {
+    let notify: (value: PreferenceValue) => void = () => {}
+    const send = vi.fn().mockRejectedValueOnce(new Error('connection lost')).mockResolvedValueOnce(undefined)
+    const client: PreferenceClient = {
+      connect: async () => {},
+      disconnect: async () => {},
+      isConnected: () => true,
+      send,
+    }
+    const { result } = renderHook(() =>
+      usePreferences((onValue) => {
+        notify = onValue
+        return client
+      })
+    )
+    act(() => {
+      notify({ prop: 'wifi.ssid', value: 'stackchan' })
+      notify({ prop: 'wifi.password', value: 'secret' })
+    })
+
+    await act(() => result.current.clearWifi())
+    expect(result.current.operation.status).toBe('error')
+
+    await act(() => result.current.save())
+    expect(send).toHaveBeenNthCalledWith(1, { _batch: { 'wifi.ssid': '', 'wifi.password': '' } })
+    expect(send).toHaveBeenNthCalledWith(2, { _batch: { 'wifi.ssid': '', 'wifi.password': '' } })
+    expect(result.current.operation.status).toBe('success')
+  })
+
   it('contains disconnect failures during unmount cleanup', async () => {
     const disconnect = vi.fn(async () => {
       throw new Error('adapter already closed')

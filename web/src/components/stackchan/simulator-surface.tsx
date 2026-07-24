@@ -84,9 +84,9 @@ function SimulatorViewport({ viewportRef, screenRef }: Pick<SimulatorSurfaceCont
       <canvas
         ref={viewportRef}
         className="absolute inset-0 size-full touch-none"
-        aria-label={t('3D Stack-chan simulator')}
+        aria-label={t('ｽﾀｯｸﾁｬﾝ3Dシミュレーター')}
       />
-      <canvas ref={screenRef} className="hidden" width="320" height="240" aria-label="Stack-chan screen canvas" />
+      <canvas ref={screenRef} className="hidden" width="320" height="240" aria-hidden="true" />
     </section>
   )
 }

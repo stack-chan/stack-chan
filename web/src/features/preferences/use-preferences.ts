@@ -137,6 +137,8 @@ export function usePreferences(
   }, [savePayload, values])
 
   const clearWifi = useCallback(async () => {
+    dirty.current.add('wifi.ssid')
+    dirty.current.add('wifi.password')
     setValues((current) => ({ ...current, 'wifi.ssid': '', 'wifi.password': '' }))
     await savePayload(
       { 'wifi.ssid': '', 'wifi.password': '' },

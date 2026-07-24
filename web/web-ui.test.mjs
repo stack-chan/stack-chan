@@ -11,6 +11,7 @@ const pages = [
   'editor/index.html',
   'editor/tutorial.html',
   'mod-gallery/index.html',
+  'mediapipe/index.html',
   'face-editor/index.html',
   'simulator/index.html',
 ]
@@ -33,7 +34,17 @@ test('tool pages load the shared left drawer without changing integration ids', 
     assert.doesNotMatch(html, /class="tool-nav"/, `${page} should not duplicate the retired right navigation`)
   }
   const navigation = readFileSync('tool-navigation.mjs', 'utf8')
-  for (const id of ['home', 'flash', 'preference', 'mod-gallery', 'simulator', 'editor', 'face-editor', 'tutorial']) {
+  for (const id of [
+    'home',
+    'flash',
+    'preference',
+    'mod-gallery',
+    'mediapipe',
+    'simulator',
+    'editor',
+    'face-editor',
+    'tutorial',
+  ]) {
     assert.match(navigation, new RegExp(`id: '${id}'`), `drawer should expose ${id}`)
   }
   assert.match(navigation, /topbar\.prepend\(button\)/)
@@ -353,10 +364,7 @@ test('preference actions localize runtime messages and save the selected device 
   })
 
   await page.clear.click()
-  assert.equal(
-    confirmation,
-    'localized:保存済みのSSIDとパスワードを消去しますか？次回はオフラインで起動します。'
-  )
+  assert.equal(confirmation, 'localized:保存済みのSSIDとパスワードを消去しますか？次回はオフラインで起動します。')
 
   page.language.value = 'en'
   await page.form.dispatch('change', page.language)
@@ -393,6 +401,17 @@ test('flash tool exposes the M5StackChan CoreS3 firmware target', () => {
       offset: 65536,
     },
   ])
+})
+
+test('device setup tools explain destructive flashing and BLE pairing prerequisites', () => {
+  const flash = readFileSync('flash/index.html', 'utf8')
+  assert.match(
+    flash,
+    /class="guidance-callout guidance-callout-warning"[\s\S]*?保存した設定[\s\S]*?インストール済みのMOD[\s\S]*?すべて消去/
+  )
+
+  const preference = readFileSync('preference/index.html', 'utf8')
+  assert.match(preference, /class="guidance-callout"[\s\S]*?起動画面[\s\S]*?「設定」を押し[\s\S]*?本体の設定画面/)
 })
 
 test('third-party scripts that handle editable or device data use subresource integrity', () => {

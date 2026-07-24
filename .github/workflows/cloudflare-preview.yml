@@ -26,52 +26,42 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - name: Resolve current pull request
-        id: pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const run = context.payload.workflow_run
-            let number = run.pull_requests?.[0]?.number
-            if (!number) {
-              const associated = await github.paginate(
-                github.rest.repos.listPullRequestsAssociatedWithCommit,
-                {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  commit_sha: run.head_sha,
-                },
-              )
-              number = associated.find((pull) => ['develop', 'main'].includes(pull.base.ref))?.number
-            }
-            if (!number) {
-              core.notice('No pull request is associated with this workflow run')
-              core.setOutput('eligible', 'false')
-              return
-            }
-
-            const { data: pull } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: number,
-            })
-            const allowedBase = ['develop', 'main'].includes(pull.base.ref)
-            const currentCommit = [pull.head.sha, pull.merge_commit_sha].includes(run.head_sha)
-            const eligible = pull.state === 'open' && allowedBase && currentCommit
-            core.setOutput('number', String(number))
-            core.setOutput('head_sha', pull.head.sha)
-            core.setOutput('eligible', String(eligible))
-            if (!eligible) {
-              core.notice(`Skipping stale or ineligible preview run for PR #${number}`)
-            }
-
       - name: Checkout trusted preview scripts
-        if: steps.pull_request.outputs.eligible == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.repository.default_branch }}
           path: trusted-source
           persist-credentials: false
+
+      - name: Resolve current pull request
+        id: pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { pathToFileURL } = require('node:url')
+            const helperUrl = pathToFileURL(
+              `${process.env.GITHUB_WORKSPACE}/trusted-source/.github/scripts/resolve-preview-pull-request.mjs`,
+            ).href
+            const { resolvePreviewPullRequest } = await import(helperUrl)
+            const run = context.payload.workflow_run
+            const resolution = await resolvePreviewPullRequest({
+              github,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run,
+            })
+            if (!resolution.number) {
+              core.notice('No pull request is associated with this workflow run')
+              core.setOutput('eligible', 'false')
+              return
+            }
+
+            core.setOutput('number', String(resolution.number))
+            core.setOutput('head_sha', resolution.headSha)
+            core.setOutput('eligible', String(resolution.eligible))
+            if (!resolution.eligible) {
+              core.notice(`Skipping stale or ineligible preview run for PR #${resolution.number}`)
+            }
 
       - name: Report failed preview build
         if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion != 'success'

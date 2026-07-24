@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
 
@@ -9,20 +9,24 @@ export type SimulatorFrameHandle = {
   stop: () => void
 }
 
-export const SimulatorFrame = forwardRef<
-  SimulatorFrameHandle,
-  {
-    title?: string
-    src?: string
-    className?: string
-    onMessage?: (message: unknown) => void
-  }
->(function SimulatorFrame({ title = 'Webシミュレーター', src = '../simulator/', className, onMessage }, forwardedRef) {
+export function SimulatorFrame({
+  title = 'Webシミュレーター',
+  src = '../simulator/',
+  className,
+  onMessage,
+  ref,
+}: {
+  title?: string
+  src?: string
+  className?: string
+  onMessage?: (message: unknown) => void
+  ref?: Ref<SimulatorFrameHandle>
+}) {
   const frameRef = useRef<HTMLIFrameElement>(null)
   const { t } = useI18n()
 
   useImperativeHandle(
-    forwardedRef,
+    ref,
     () => ({
       postCommand(command, detail = {}) {
         frameRef.current?.contentWindow?.postMessage(
@@ -67,4 +71,4 @@ export const SimulatorFrame = forwardRef<
       allow="camera; microphone"
     />
   )
-})
+}

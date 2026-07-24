@@ -72,6 +72,8 @@ function describeMod(result: SimulatorModResult, installedMod?: InstalledMod | n
     case 'error':
       return `MODエラー · ${result.error ?? '不明なエラー'}`
   }
+  const unhandledStatus: never = result.status
+  return unhandledStatus
 }
 
 function SimulatorViewport({ viewportRef, screenRef }: Pick<SimulatorSurfaceController, 'viewportRef' | 'screenRef'>) {

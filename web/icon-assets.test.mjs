@@ -22,8 +22,12 @@ test('all Vite entry pages reference the shared browser icons', async () => {
   for (const page of pages) {
     const pageUrl = new URL(`./${page}`, import.meta.url)
     const html = await readFile(pageUrl, 'utf8')
-    const favicon = html.match(/rel="icon" href="([^"]+)"/)?.[1]
-    const appleIcon = html.match(/rel="apple-touch-icon" href="([^"]+)"/)?.[1]
+    const linkHref = (rel) => {
+      const linkTag = html.match(new RegExp(`<link\\b[^>]*\\brel="${rel}"[^>]*>`))?.[0]
+      return linkTag?.match(/\bhref="([^"]+)"/)?.[1]
+    }
+    const favicon = linkHref('icon')
+    const appleIcon = linkHref('apple-touch-icon')
 
     assert.ok(favicon, `${page} should reference a favicon`)
     assert.ok(appleIcon, `${page} should reference an apple-touch-icon`)

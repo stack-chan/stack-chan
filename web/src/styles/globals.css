@@ -186,6 +186,14 @@
   .blocklyTooltipDiv {
     z-index: 30 !important;
   }
+
+  /*
+   * Blockly hides flyout scrollbars with an SVG presentation attribute.
+   * Restore that state after Tailwind Preflight's `svg { display: block }`.
+   */
+  .blocklyFlyoutScrollbar[display='none'] {
+    display: none;
+  }
 }
 
 @layer utilities {

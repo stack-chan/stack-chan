@@ -202,17 +202,43 @@ try {
   await editorToolMenu.getByRole('button', { name: '閉じる' }).click()
   await editorToolMenu.waitFor({ state: 'hidden' })
 
-  const eventCategory = page.getByRole('treeitem', { name: 'イベント', exact: true })
+  const blocklyWorkspace = page.getByRole('application', { name: 'Blocklyワークスペース', exact: true })
+  const originalWorkspaceHeight = await blocklyWorkspace.evaluate(
+    (workspace) => workspace.getBoundingClientRect().height
+  )
+  await blocklyWorkspace.evaluate((workspace) => {
+    workspace.style.height = '360px'
+    workspace.style.minHeight = '360px'
+  })
+  await page.waitForFunction(
+    () =>
+      Math.round(
+        document.querySelector('[aria-label="Blocklyワークスペース"]')?.getBoundingClientRect().height ?? 0
+      ) === 360
+  )
+  const speechCategory = page.getByRole('treeitem', { name: 'おしゃべり', exact: true })
   const toolboxFlyout = page.locator('.blocklyToolboxFlyout')
   const toolboxFlyoutScrollbar = page.locator('.blocklyToolboxFlyout + .blocklyFlyoutScrollbar')
-  await eventCategory.click()
+  await speechCategory.click()
   await toolboxFlyout.waitFor({ state: 'visible' })
-  await eventCategory.click()
+  await toolboxFlyoutScrollbar.waitFor({ state: 'visible' })
+  await speechCategory.click()
   await toolboxFlyout.waitFor({ state: 'hidden' })
   assert.equal(
     await toolboxFlyoutScrollbar.isVisible(),
     false,
     'closing a toolbox category must hide its flyout scrollbar'
+  )
+  await blocklyWorkspace.evaluate((workspace) => {
+    workspace.style.removeProperty('height')
+    workspace.style.removeProperty('min-height')
+  })
+  await page.waitForFunction(
+    (height) =>
+      Math.round(
+        document.querySelector('[aria-label="Blocklyワークスペース"]')?.getBoundingClientRect().height ?? 0
+      ) === Math.round(height),
+    originalWorkspaceHeight
   )
 
   await page.getByRole('button', { name: 'プロジェクト操作' }).click()

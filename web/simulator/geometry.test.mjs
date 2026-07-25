@@ -20,6 +20,7 @@ import {
   computeStackchanKinematics,
   nextLookAroundPose,
   nextSpeechScale,
+  resolveSimulatorAssetUrl,
   screenPointFromUv,
   stepRotationToward,
 } from './geometry.mjs'
@@ -84,21 +85,15 @@ describe('Stack-chan simulator geometry', () => {
   })
 
   it('clamps geometry tuning values to a safe visual range', () => {
-    assert.deepEqual(
-      computeGeometryTuning({ shellGap: '99', footHeight: '99', footForward: '-99' }),
-      {
-        shellOffset: { x: 0, y: 0, z: -12 },
-        feetOffset: { x: 0, y: 4, z: -8 },
-      }
-    )
+    assert.deepEqual(computeGeometryTuning({ shellGap: '99', footHeight: '99', footForward: '-99' }), {
+      shellOffset: { x: 0, y: 0, z: -12 },
+      feetOffset: { x: 0, y: 4, z: -8 },
+    })
 
-    assert.deepEqual(
-      computeGeometryTuning({ shellGap: '8', footHeight: '-2', footForward: '4' }),
-      {
-        shellOffset: { x: 0, y: 0, z: -8 },
-        feetOffset: { x: 0, y: -2, z: 4 },
-      }
-    )
+    assert.deepEqual(computeGeometryTuning({ shellGap: '8', footHeight: '-2', footForward: '4' }), {
+      shellOffset: { x: 0, y: 0, z: -8 },
+      feetOffset: { x: 0, y: -2, z: 4 },
+    })
   })
 
   it('creates a rounded-rectangle path bounded by the 54mm square', () => {
@@ -148,6 +143,13 @@ describe('Stack-chan simulator geometry', () => {
     assert.deepEqual(STACKCHAN_SHELL_STL.sourceBoundsMm.max, { x: 27, y: 41.5, z: 27 })
     assert.equal(STACKCHAN_SHELL_STL.frontOpeningWidthMm, 51.6)
     assert.equal(STACKCHAN_SHELL_STL.faceIncluded, false)
+  })
+
+  it('resolves simulator assets from the runtime directory when embedded on another page', () => {
+    assert.equal(
+      resolveSimulatorAssetUrl(STACKCHAN_SHELL_STL.url, 'https://preview.example/review-595/simulator/'),
+      'https://preview.example/review-595/simulator/assets/case/v1/shell.stl'
+    )
   })
 
   it('scales the STL shell opening to fit the 54mm M5Stack width instead of shrinking M5Stack to the outer shell', () => {

@@ -143,7 +143,7 @@ function languageSection() {
 export function installToolNavigation({
   topbar = document.querySelector('.topbar'),
   pathname = location.pathname,
-  rootUrl = new URL('./', import.meta.url),
+  rootUrl = new URL(document.querySelector('.brand-link')?.getAttribute('href') ?? './', document.baseURI),
 } = {}) {
   if (!topbar || topbar.querySelector('.tool-menu-button')) return null
 

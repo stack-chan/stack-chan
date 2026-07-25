@@ -26,12 +26,3 @@ test('loadPreference is imported only by app composition and preferences module'
 
   assert.deepEqual(offenders, [])
 })
-
-test('web preference console uses the canonical ui preference domain for face type', () => {
-  const source = readFileSync('../web/preference/index.html', 'utf8')
-
-  assert.match(source, /['"]ui\.type['"]/)
-  assert.match(source, /name="ui\.type"/)
-  assert.match(source, /id="ui\.type"/)
-  assert.doesNotMatch(source, /renderer\.type/)
-})

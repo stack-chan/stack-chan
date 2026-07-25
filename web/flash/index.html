@@ -5,91 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="../assets/stackchan-favicon-32.png" type="image/png" />
     <link rel="apple-touch-icon" href="../assets/stackchan-apple-touch-icon.png" />
-    <link rel="stylesheet" href="../global.css" />
-    <link rel="stylesheet" href="flash.css" />
+    <script vite-ignore src="../theme-init.js"></script>
     <title>ファームウェア書き込み | ｽﾀｯｸﾁｬﾝ</title>
-    <script type="importmap">
-      {
-        "integrity": {
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/esp32-D3NakGZR.js?module": "sha384-HyFNsFo4kyGOOD7l5pmgbntKe0sIzXzocrMotyVfUhE4nLZdYFyHYnkBoScR3+ix",
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/esp32c3-ulVL_2_M.js?module": "sha384-LHNFiaQ9J+6t+bS4J7l+Fm8qERJjGGVjiMA0v1qZmVe6BwICc/NoiVVJYvGTYZCe",
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/esp32c6-cpWtm3Jj.js?module": "sha384-hs6s0l5H/5DdMDpNkVQ3ddOY7X9NuFwxZR7S+1XvOSI+G2+PdIUfRnQrwPyTyg+H",
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/esp32h2-vvZklO0u.js?module": "sha384-eaiu7Z6ZtoYAv7CRp5ENCy5Toouq/fXUXnR/sWnUsPvJxOdEVQyAzJByKLGeAErD",
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/esp32s2-wDMulds7.js?module": "sha384-r4NuoURigOyLiaRElyR2/cxwIUvnPtDTn7haST2YSxfaLfYpwJjkZCMlufjOdRS9",
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/esp32s3-x90QvIED.js?module": "sha384-Ra0AMl2ls3Bmb83IfsJmPGuW+nJBz+NvzhWzfn85FJ4Xsj0etrt3vt4NhfRI9mhq",
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/esp8266-QjDUxVMt.js?module": "sha384-dmREGCtRyq8PCa7ZaY8TAr4bAcoy6hcL9pHf7XOsvP+Ulq3Kz1R4vcMYj3kijZAJ",
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/index-drxht7Uc.js?module": "sha384-wh44XksZzyb7+AowHGenJAU3jH6K44IIUnBDDJ609uB1NEa+GslpTgIZCFglepyD",
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/install-button.js?module": "sha384-HVaw4SZvyu8HBjefagkLFd/X68VYFAoRO1pYjV6m1+w768q5PIqoueY+9qmA7/zn",
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/install-dialog-28H-HNrD.js?module": "sha384-TYgQnSWhYO2lL4j5GdZtuQ2RG/b4RrH/8xbCvTIJMsuVT+UoesnWZw0emyk43k3E",
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/rom-tSFQmLD2.js?module": "sha384-O95RdvOjCBH53rZiQmr6viA1Pe44i2Ms2Ps/S2kNRWNPmgLS73ESScgATUP2YyNZ",
-          "https://unpkg.com/esp-web-tools@9.4.3/dist/web/styles-QAqj_a9t.js?module": "sha384-/gsI9BZ9f5wXgYeb4u95PmKGCEyv6oaALcsni6FVyQlL/2IRz5Ds8mkr4gxHBy3v"
-        }
-      }
-    </script>
-    <script
-      type="module"
-      src="https://unpkg.com/esp-web-tools@9.4.3/dist/web/install-button.js?module"
-      integrity="sha384-HVaw4SZvyu8HBjefagkLFd/X68VYFAoRO1pYjV6m1+w768q5PIqoueY+9qmA7/zn"
-      crossorigin="anonymous"
-    ></script>
-    <script
-      src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.min.js"
-      integrity="sha384-mooE85Luwgx+AyykX7e90VcN8/QCFTSIwPuHLmvcsLVoA0en7lKYb9XlOzn5G2co"
-      crossorigin="anonymous"
-    ></script>
-    <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        const button = document.querySelector('esp-web-install-button')
-        document.querySelector('.select-target').addEventListener('change', (event) => {
-          button.setAttribute('manifest', `manifest_${event.target.value}.json`)
-        })
-        globalThis.lucide?.createIcons()
-      })
-    </script>
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar">
-        <a class="brand-link" href="../"
-          ><img src="../assets/stackchan-symbol.png" alt="" /><span
-            >ｽﾀｯｸﾁｬﾝ<span class="surface-name"> ファームウェア書き込み</span></span
-          ></a
-        >
-      </header>
-      <div class="flash-workspace">
-        <section class="flash-panel" aria-labelledby="flash-heading">
-          <div class="page-heading">
-            <h1 id="flash-heading">ファームウェア書き込み</h1>
-            <p>USBで接続するｽﾀｯｸﾁｬﾝのボードを選択してください。</p>
-          </div>
-          <div class="field">
-            <label for="target-board">ボード</label
-            ><select id="target-board" class="select-target">
-              <option value="esp32_m5stack">M5Stack</option>
-              <option value="esp32_m5stack_core2">M5Stack Core2</option>
-              <option value="esp32_m5stack_cores3">M5Stack CoreS3</option>
-              <option value="esp32_m5stackchan_cores3">M5StackChan CoreS3</option>
-            </select>
-          </div>
-          <div class="guidance-callout guidance-callout-warning" role="note">
-            <i data-lucide="triangle-alert" aria-hidden="true"></i>
-            <div>
-              <strong>書き込み前にご確認ください</strong>
-              <p>書き込みを開始すると、本体に保存した設定とインストール済みのMODはすべて消去されます。</p>
-            </div>
-          </div>
-          <esp-web-install-button manifest="manifest_esp32_m5stack.json" class="button-flash-container">
-            <button slot="activate" class="button-flash primary-button">
-              <i data-lucide="usb"></i><span>USBに接続して書き込む</span>
-            </button>
-            <p class="compatibility-message" slot="unsupported" role="alert">
-              このブラウザはWeb Serialに対応していません。
-            </p>
-            <p class="compatibility-message" slot="not-allowed" role="alert">書き込みにはHTTPS接続が必要です。</p>
-          </esp-web-install-button>
-        </section>
-      </div>
-    </main>
-    <script type="module" src="../tool-navigation.mjs"></script>
+    <div id="root"></div>
+    <script type="module" src="../src/entries/flash.tsx"></script>
   </body>
 </html>

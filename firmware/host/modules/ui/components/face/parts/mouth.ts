@@ -30,8 +30,10 @@ class MouthBehavior extends Behavior {
   #maxHeight = 58
   #open = 0
   #lastOpen = -1
+  #lastSmile = NaN
   #primary = DEFAULT_FACE_PRIMARY_COLOR
   #hasPalette = false
+  #smile = 0
 
   onCreate(port: PiuPort, opts: Required<MouthOptions>) {
     this.#minWidth = opts.minWidth
@@ -51,6 +53,7 @@ class MouthBehavior extends Behavior {
 
   onFaceState(port: PiuPort, face: FaceState) {
     const open = face.mouth.open
+    const smile = Math.max(-1, Math.min(1, face.mouth.smile))
     let needsDraw = false
     if (!this.#hasPalette) {
       const nextPrimary = toPiuColorNumber(face.theme.primary)
@@ -59,9 +62,11 @@ class MouthBehavior extends Behavior {
         needsDraw = true
       }
     }
-    if (open === this.#lastOpen && !needsDraw) return
+    if (open === this.#lastOpen && smile === this.#lastSmile && !needsDraw) return
     this.#lastOpen = open
+    this.#lastSmile = smile
     this.#open = open
+    this.#smile = smile
     port.invalidate()
   }
 
@@ -69,13 +74,28 @@ class MouthBehavior extends Behavior {
     port.fillColor(CLEAR_COLOR, 0, 0, this.#maxWidth, this.#maxHeight)
     const h = this.#minHeight + (this.#maxHeight - this.#minHeight) * this.#open
     const w = this.#minWidth + (this.#maxWidth - this.#minWidth) * (1 - this.#open)
-    port.fillColor(
-      colorString(this.#primary),
-      Math.round((this.#maxWidth - w) / 2),
-      Math.round((this.#maxHeight - h) / 2),
-      Math.round(w),
-      Math.round(h),
-    )
+    const x = (this.#maxWidth - w) / 2
+    const y = (this.#maxHeight - h) / 2
+    const color = colorString(this.#primary)
+    const curvature = this.#smile * (1 - this.#open) * 6
+    if (Math.abs(curvature) < 0.25) {
+      port.fillColor(color, Math.round(x), Math.round(y), Math.round(w), Math.round(h))
+      return
+    }
+    const columns = 11
+    const columnWidth = w / columns
+    for (let index = 0; index < columns; index += 1) {
+      const normalizedX = (index + 0.5) / columns
+      const centeredX = normalizedX * 2 - 1
+      const offsetY = curvature * (1 - 2 * centeredX * centeredX)
+      port.fillColor(
+        color,
+        Math.round(x + index * columnWidth),
+        Math.round(y + offsetY),
+        Math.max(1, Math.ceil(columnWidth)),
+        Math.round(h),
+      )
+    }
   }
 }
 

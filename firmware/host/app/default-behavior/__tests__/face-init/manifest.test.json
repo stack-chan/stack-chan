@@ -1,5 +1,6 @@
 {
   "include": [
+    "../../../../modules/interaction/manifest.json",
     "../../../../modules/ui/manifest.json",
     "../../../../modules/camera/manifest.json",
     "../../../../modules/testing/manifest.json"
@@ -9,6 +10,7 @@
   },
   "modules": {
     "app-behavior": "./app-behavior-stub",
+    "app-default-behavior/interaction-behavior": "../../interaction-behavior",
     "app-default-behavior/on-context-created": "../../on-context-created",
     "imu": "./imu-stub",
     "main": "./face-init.test"

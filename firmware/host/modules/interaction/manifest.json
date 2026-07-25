@@ -1,0 +1,12 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json"
+  ],
+  "modules": {
+    "behavior-engine": "./behavior-engine",
+    "character-profile": "./character-profile",
+    "interaction-types": "./interaction-types"
+  },
+  "preload": ["behavior-engine", "character-profile", "interaction-types"]
+}

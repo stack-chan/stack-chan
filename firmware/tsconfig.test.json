@@ -64,6 +64,15 @@
       "face-state": [
         "host/modules/ui/state/face-state.ts"
       ],
+      "behavior-engine": [
+        "host/modules/interaction/behavior-engine.ts"
+      ],
+      "character-profile": [
+        "host/modules/interaction/character-profile.ts"
+      ],
+      "interaction-types": [
+        "host/modules/interaction/interaction-types.ts"
+      ],
       "parts/*": [
         "host/modules/ui/components/face/parts/*"
       ],

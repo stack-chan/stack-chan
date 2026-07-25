@@ -3,7 +3,6 @@ import type { FaceSkinPalette } from 'face-skin'
 import {
   DEFAULT_FACE_PRIMARY_COLOR,
   DEFAULT_FACE_SECONDARY_COLOR,
-  Emotion,
   type FaceEyeKey,
   type FaceState,
   toPiuColorNumber,
@@ -82,53 +81,44 @@ function getEyelidFillOutline(
   height: number,
   side: FaceEyeKey,
   openStep: number,
-  emotion: FaceState['emotion'],
+  lowerLidStep: number,
+  browTiltStep: number,
 ): Outline {
   if (!eyelidOutlineCache) eyelidOutlineCache = new Map()
-  const key = `${width}:${height}:${side}:${openStep}:${emotion}`
+  const key = `${width}:${height}:${side}:${openStep}:${lowerLidStep}:${browTiltStep}`
   const cached = eyelidOutlineCache.get(key)
   if (cached) return cached
 
   const w = width
   const h = height
-  const x = 0
-  const y = 0
   const open = unitFromStep(openStep)
+  const lowerLid = unitFromStep(lowerLidStep)
+  const browTilt = browTiltStep / 6
   const closedH = h * (1 - open)
+  const slope = browTilt * h * 0.22
+  const sideSlope = side === 'left' ? slope : -slope
+  const leftCover = clampCoordinate(closedH - sideSlope, h)
+  const rightCover = clampCoordinate(closedH + sideSlope, h)
+  const lowerTop = h * (1 - lowerLid * 0.4)
   const path = new Outline.CanvasPath()
-
-  switch (emotion) {
-    case Emotion.ANGRY:
-    case Emotion.SAD: {
-      let h1 = y + (h + closedH) / 2
-      let h2 = y + closedH
-      if (side === 'left') {
-        ;[h1, h2] = [h2, h1]
-      }
-      if (emotion === Emotion.SAD) {
-        ;[h1, h2] = [h2, h1]
-      }
-      path.moveTo(x, y)
-      path.lineTo(x, h1)
-      path.lineTo(x + w, h2)
-      path.lineTo(x + w, y)
-      path.closePath()
-      break
-    }
-    case Emotion.SLEEPY:
-      path.rect(x, y, w, h * 0.5 + closedH * 0.5)
-      break
-    case Emotion.HAPPY:
-      path.rect(x, y, w, closedH * 0.6)
-      path.rect(x, y + h * 0.6, w, h * 0.4)
-      break
-    default:
-      path.rect(x, y, w, closedH)
-      break
-  }
+  path.moveTo(0, 0)
+  path.lineTo(0, leftCover)
+  path.lineTo(w, rightCover)
+  path.lineTo(w, 0)
+  path.closePath()
+  if (lowerTop < h) path.rect(0, lowerTop, w, h - lowerTop)
 
   const outline = Outline.fill(path)
   return rememberCachedValue(eyelidOutlineCache, key, outline)
+}
+
+function clampCoordinate(value: number, maximum: number): number {
+  return Math.max(0, Math.min(maximum, value))
+}
+
+function quantizeSigned(value: number): number {
+  if (!Number.isFinite(value)) return 0
+  return Math.round(Math.max(-1, Math.min(1, value)) * 6)
 }
 
 export const Eyelid = defineShapeTemplate((opts: EyelidOptions) => {
@@ -140,13 +130,14 @@ export const Eyelid = defineShapeTemplate((opts: EyelidOptions) => {
     height,
     skin: getFillSkin(DEFAULT_FACE_SECONDARY_COLOR),
     Behavior: class extends Behavior {
+      #lastBrowTiltStep = -99
+      #lastLowerLidStep = -1
       #lastOpenStep = -1
-      #lastEmotion: FaceState['emotion'] | null = null
       #palette: FaceSkinPalette | null = null
       #secondary = DEFAULT_FACE_SECONDARY_COLOR
 
       onCreate(shape: PositionedShape) {
-        this.#updatePath(shape, quantizeUnit(1), Emotion.NEUTRAL)
+        this.#updatePath(shape, quantizeUnit(1), quantizeUnit(0), 0)
       }
 
       onFaceSkin(shape: PositionedShape, palette: FaceSkinPalette) {
@@ -165,16 +156,24 @@ export const Eyelid = defineShapeTemplate((opts: EyelidOptions) => {
 
         const eye = face.eyes[side]
         const openStep = quantizeUnit(eye.open)
-        const emotion = face.emotion
-        if (openStep === this.#lastOpenStep && emotion === this.#lastEmotion) return
+        const lowerLidStep = quantizeUnit(eye.lowerLid)
+        const browTiltStep = quantizeSigned(eye.browTilt)
+        if (
+          openStep === this.#lastOpenStep &&
+          lowerLidStep === this.#lastLowerLidStep &&
+          browTiltStep === this.#lastBrowTiltStep
+        ) {
+          return
+        }
 
-        this.#updatePath(shape, openStep, emotion)
+        this.#updatePath(shape, openStep, lowerLidStep, browTiltStep)
       }
 
-      #updatePath(shape: PositionedShape, openStep: number, emotion: FaceState['emotion']) {
+      #updatePath(shape: PositionedShape, openStep: number, lowerLidStep: number, browTiltStep: number) {
         this.#lastOpenStep = openStep
-        this.#lastEmotion = emotion
-        shape.fillOutline = getEyelidFillOutline(width, height, side, openStep, emotion)
+        this.#lastLowerLidStep = lowerLidStep
+        this.#lastBrowTiltStep = browTiltStep
+        shape.fillOutline = getEyelidFillOutline(width, height, side, openStep, lowerLidStep, browTiltStep)
         shape.strokeOutline = undefined
       }
     },

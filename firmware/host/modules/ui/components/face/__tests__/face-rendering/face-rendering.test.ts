@@ -1,7 +1,7 @@
 import { AppController } from 'app-controller'
 import { DogFace, FaceBase, ImageFace, SimpleFace } from 'behaviors/face'
 import { createFaceSkinPalette } from 'face-skin'
-import { createFaceState, Emotion, type FaceState, setColorRGB } from 'face-state'
+import { createFaceState, type FaceState, setColorRGB } from 'face-state'
 import { Eye } from 'parts/eye'
 import { eyeOpenToVariant, IRIS_SPRITE } from 'parts/image/atlas'
 import { Content, type Content as PiuContent } from 'piu/MC'
@@ -86,17 +86,17 @@ equal(roundRectIris.coordinates?.height, 16, 'round rect iris should preserve it
 
 const neutralEyelid = simpleLeftEyelid.fillOutline
 const angryFace = createFaceState()
-angryFace.emotion = Emotion.ANGRY
 angryFace.eyes.left.open = 0.5
+angryFace.eyes.left.browTilt = 0.85
 applyFaceState(simpleFace, angryFace)
-assertChanged(neutralEyelid, simpleLeftEyelid.fillOutline, 'standard eyelid should change for angry expression')
+assertChanged(neutralEyelid, simpleLeftEyelid.fillOutline, 'standard eyelid should change with continuous brow tilt')
 
 const angryEyelid = simpleLeftEyelid.fillOutline
 const happyFace = createFaceState()
-happyFace.emotion = Emotion.HAPPY
 happyFace.eyes.left.open = 0.5
+happyFace.eyes.left.lowerLid = 0.7
 applyFaceState(simpleFace, happyFace)
-assertChanged(angryEyelid, simpleLeftEyelid.fillOutline, 'standard eyelid should change for happy expression')
+assertChanged(angryEyelid, simpleLeftEyelid.fillOutline, 'standard eyelid should change with continuous lower lid')
 
 const themedFace = createFaceState()
 setColorRGB(themedFace.theme.primary, 0x12, 0x34, 0x56)
@@ -120,9 +120,10 @@ const dogLeftEyebrow = childAt(dogFace, 2)
 const dogMouth = childAt(dogFace, 4)
 const dogNose = childAt(dogFace, 5)
 const dogClosed = createFaceState()
-dogClosed.emotion = Emotion.SAD
 dogClosed.eyes.left.open = 0.7
+dogClosed.eyes.left.browTilt = -0.7
 dogClosed.mouth.open = 0
+dogClosed.mouth.smile = -0.65
 applyFaceState(dogFace, dogClosed)
 assert(dogLeftEyelid.fillOutline, 'DogFace eyelid should render through a Shape fill outline')
 assert(dogLeftEyebrow.fillOutline, 'DogFace eyebrow should render through a curved fill outline')
@@ -133,11 +134,12 @@ const dogEyebrowSad = dogLeftEyebrow.fillOutline
 const dogMouthClosed = dogMouth.strokeOutline
 const dogNoseClosed = dogNose.fillOutline
 const dogOpen = createFaceState()
-dogOpen.emotion = Emotion.ANGRY
 dogOpen.eyes.left.open = 0.2
+dogOpen.eyes.left.browTilt = 0.85
 dogOpen.mouth.open = 1
+dogOpen.mouth.smile = 0.8
 applyFaceState(dogFace, dogOpen)
-assertChanged(dogEyebrowSad, dogLeftEyebrow.fillOutline, 'DogFace eyebrow should change with expression and eye open')
+assertChanged(dogEyebrowSad, dogLeftEyebrow.fillOutline, 'DogFace eyebrow should change with continuous brow tilt')
 assertChanged(dogMouthClosed, dogMouth.strokeOutline, 'DogFace mouth should change with mouth open')
 assertChanged(dogNoseClosed, dogNose.fillOutline, 'DogFace nose should change with mouth open')
 

@@ -1,10 +1,12 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { RobotCamera } from 'camera'
+import type { BehaviorDefinition } from 'character-profile'
 import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
 import type { Emotion, FaceEyeKey, FaceState, FaceThemeKey } from 'face-state'
 import type { HandAnimationName } from 'hands'
 import type IMU from 'imu'
 import type { ButtonInputEvent } from 'input-event'
+import type { ActionDefinition, InteractionInput, InteractionSignal } from 'interaction-types'
 import type { LocalPeerCapability } from 'local-peer-types'
 import type { I18nCapability } from 'localization'
 import type { MiniAppRegistryCapability } from 'mini-app'
@@ -101,6 +103,23 @@ export type FaceCapability = {
   setEmotion(emotion: Emotion): void
   setEyeOpen(key: FaceEyeKey, value: number): void
   setMouthOpen(value: number): void
+}
+
+export type InteractionCapability = {
+  /**
+   * Installs the single BehaviorDefinition for this context.
+   */
+  install<const Actions extends Readonly<Record<string, ActionDefinition>>>(
+    definition: BehaviorDefinition<Actions>,
+  ): void
+  /**
+   * Sends a bounded semantic event to the host-owned Interaction runtime.
+   */
+  dispatch(input: InteractionInput): void
+  /**
+   * Updates a sampled signal without turning it into an event stream.
+   */
+  setSignal(signal: InteractionSignal): void
 }
 
 export type MotionCapability = {
@@ -241,6 +260,7 @@ export type UICapability = {
 }
 
 export type StackchanCapabilityNamespaces = {
+  interaction: InteractionCapability
   face: FaceCapability
   motion: MotionCapability
   audio: AudioCapability

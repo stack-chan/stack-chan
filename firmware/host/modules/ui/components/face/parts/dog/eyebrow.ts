@@ -1,6 +1,6 @@
 import { Outline } from 'commodetto/outline'
 import type { FaceSkinPalette } from 'face-skin'
-import { DEFAULT_FACE_PRIMARY_COLOR, Emotion, type FaceEyeKey, type FaceState, toPiuColorNumber } from 'face-state'
+import { DEFAULT_FACE_PRIMARY_COLOR, type FaceEyeKey, type FaceState, toPiuColorNumber } from 'face-state'
 import { FULL_TURN, getFillStrokeSkin, quantizeUnit, rememberCachedValue, unitFromStep } from 'parts/shape-utils'
 import type { Skin as PiuSkin } from 'piu/MC'
 import type { Shape as PiuShape } from 'piu/shape'
@@ -28,25 +28,29 @@ function getDogEyebrowFillOutline(
   cy: number,
   direction: number,
   openStep: number,
-  emotion: FaceState['emotion'],
+  browTiltStep: number,
 ): Outline {
   if (!dogEyebrowOutlineCache) dogEyebrowOutlineCache = new Map()
-  const key = `${cx}:${cy}:${direction}:${openStep}:${emotion}`
+  const key = `${cx}:${cy}:${direction}:${openStep}:${browTiltStep}`
   const cached = dogEyebrowOutlineCache.get(key)
   if (cached) return cached
 
   const open = unitFromStep(openStep)
-  let d = direction
-  if (emotion === Emotion.ANGRY) d *= 1.2
-  else if (emotion === Emotion.SAD) d *= -1
+  const browTilt = browTiltStep / 6
+  const d = direction * browTilt
 
   const path = new Outline.CanvasPath()
   const cxAdj = cx + 8 * direction
   const cyAdj = cy - 20 - open * 2
-  path.ellipse(cxAdj, cyAdj, 12, 5, (Math.PI / 8) * d, 0, FULL_TURN)
+  path.ellipse(cxAdj, cyAdj, 12, 5, (Math.PI / 6) * d, 0, FULL_TURN)
 
   const outline = Outline.fill(path)
   return rememberCachedValue(dogEyebrowOutlineCache, key, outline)
+}
+
+function quantizeSigned(value: number): number {
+  if (!Number.isFinite(value)) return 0
+  return Math.round(Math.max(-1, Math.min(1, value)) * 6)
 }
 
 export const DogEyebrow = defineShapeTemplate((opts: EyebrowOptions) => {
@@ -60,13 +64,13 @@ export const DogEyebrow = defineShapeTemplate((opts: EyebrowOptions) => {
     height: canvasHeight,
     skin: getFillStrokeSkin(DEFAULT_FACE_PRIMARY_COLOR),
     Behavior: class extends Behavior {
+      #lastBrowTiltStep = -99
       #lastOpenStep = -1
-      #lastEmotion: FaceState['emotion'] | null = null
       #palette: FaceSkinPalette | null = null
       #primary = DEFAULT_FACE_PRIMARY_COLOR
 
       onCreate(shape: PositionedShape) {
-        this.#updatePath(shape, quantizeUnit(1), Emotion.NEUTRAL)
+        this.#updatePath(shape, quantizeUnit(1), 0)
       }
 
       onFaceSkin(shape: PositionedShape, palette: FaceSkinPalette) {
@@ -85,15 +89,15 @@ export const DogEyebrow = defineShapeTemplate((opts: EyebrowOptions) => {
 
         const eye = face.eyes[side]
         const openStep = quantizeUnit(eye.open)
-        const emotion = face.emotion
-        if (openStep === this.#lastOpenStep && emotion === this.#lastEmotion) return
-        this.#updatePath(shape, openStep, emotion)
+        const browTiltStep = quantizeSigned(eye.browTilt)
+        if (openStep === this.#lastOpenStep && browTiltStep === this.#lastBrowTiltStep) return
+        this.#updatePath(shape, openStep, browTiltStep)
       }
 
-      #updatePath(shape: PositionedShape, openStep: number, emotion: FaceState['emotion']) {
+      #updatePath(shape: PositionedShape, openStep: number, browTiltStep: number) {
         this.#lastOpenStep = openStep
-        this.#lastEmotion = emotion
-        shape.fillOutline = getDogEyebrowFillOutline(cx, cy, direction, openStep, emotion)
+        this.#lastBrowTiltStep = browTiltStep
+        shape.fillOutline = getDogEyebrowFillOutline(cx, cy, direction, openStep, browTiltStep)
         shape.strokeOutline = undefined
       }
     },

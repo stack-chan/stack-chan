@@ -6,7 +6,9 @@ export const createBreathMotion: FaceMotionFactory<{
 }> = ({ duration }) => {
   let time = 0
   return (tickMillis, face) => {
-    time = (time + tickMillis) % duration
-    face.breath = quantize(Math.sin((2 * Math.PI * time) / duration), 8)
+    const rate = Number.isFinite(face.breathRate) ? Math.max(0, face.breathRate) : 1
+    const amplitude = Number.isFinite(face.breathAmplitude) ? Math.max(0, face.breathAmplitude) : 1
+    time = (time + tickMillis * rate) % duration
+    face.breath = quantize(Math.sin((2 * Math.PI * time) / duration) * amplitude, 8)
   }
 }

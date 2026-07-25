@@ -107,6 +107,7 @@
         "./host/app/default-behavior/*",
         "./host/app/default-behavior/wasm/*",
         "./host/modules/camera/*",
+        "./host/modules/interaction/*",
         "./host/modules/audio/*",
         "./host/modules/audio/wasm/*",
         "./host/modules/connectivity/*",

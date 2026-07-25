@@ -10,6 +10,7 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/data/crc/manifest.json",
+    "../modules/interaction/manifest.json",
     "../modules/motion/manifest.json",
     "../modules/audio/manifest.json",
     "../modules/connectivity/manifest.json",
@@ -40,6 +41,7 @@
       "./settings-status",
       "./runtime-audio",
       "./runtime-camera",
+      "./runtime-interaction",
       "./runtime-context",
       "./runtime-input",
       "./runtime-lighting",
@@ -51,6 +53,7 @@
     "camera-preview-utils": "../modules/ui/views/camera-preview/camera-preview-utils",
     "app-behavior": "./app-behavior",
     "app-default-behavior": "./default-behavior/behavior",
+    "app-default-behavior/interaction-behavior": "./default-behavior/interaction-behavior",
     "app-default-behavior/on-context-created": "./default-behavior/on-context-created",
     "app-default-behavior/on-launch": "./default-behavior/on-launch",
     "app-default-behavior/startup-choice": "./default-behavior/startup-choice"

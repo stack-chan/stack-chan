@@ -8,6 +8,7 @@ const PRODUCTION_MANIFEST_ROOTS = ['host/app', 'host/modules', 'host/platforms',
 const RUNTIME_MODULES = [
   'audio',
   'camera',
+  'interaction',
   'connectivity',
   'conversation',
   'io-expander',
@@ -370,7 +371,7 @@ test('UI palette state stays numeric and converts colors at Piu render boundarie
   assert.match(emoticon, /function primaryColor\(face\?: FaceState\): number/)
   assert.match(emoticon, /function secondaryColor\(face\?: FaceState\): number/)
   assert.match(emoticon, /function drawSpriteCell\([^)]*color: number/)
-  assert.match(emoticon, /drawTexture\(\s*getEmoticonTexture\(\),\s*colorString\(color\)/)
+  assert.match(emoticon, /drawTexture\(\s*getEmoticonTexture\(\),\s*colorString\(color,\s*opacityStep\)/)
 })
 
 test('shared fakes live in modules/testing and module-local fakes stay under module tests', () => {

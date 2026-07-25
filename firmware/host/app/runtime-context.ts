@@ -6,6 +6,7 @@ import type {
   FaceCapability,
   I18nCapability,
   InputCapability,
+  InteractionCapability,
   LifecycleCapability,
   LightingCapability,
   MotionCapability,
@@ -13,20 +14,31 @@ import type {
   RuntimeUICapability,
   ShowBalloonOptions,
   StackchanContext,
+  UIEffect,
 } from 'capabilities'
+import type { BehaviorDefinition } from 'character-profile'
+import { Emoticon } from 'effects/emoticon'
 import type { Emotion, FaceEyeKey, FaceThemeKey } from 'face-state'
+import type { BehaviorFrame } from 'interaction-types'
 import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
-import { type RuntimeLightingConstructorParam, StackchanRuntimeLighting } from 'runtime-lighting'
+import { emotionForExpression, RuntimeInteraction } from 'runtime-interaction'
+import {
+  type ManualLightingCommand,
+  type RuntimeLightingConstructorParam,
+  StackchanRuntimeLighting,
+} from 'runtime-lighting'
 import { StackchanRuntimeUI } from 'runtime-ui'
-import { type Maybe, type Pose, type Vector3, waitForCompletion } from 'stackchan-util'
+import { type Maybe, type Pose, type Rotation, type Vector3, waitForCompletion } from 'stackchan-util'
+import Time from 'time'
 import Timer from 'timer'
 
 const INTERVAL_FACE = 1000 / 30
+const INTERVAL_INTERACTION = 1000 / 20
 
 type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
   RuntimeCameraConstructorParam &
@@ -50,6 +62,29 @@ export class StackchanRuntimeContext implements StackchanContext {
   #i18nCapability: I18nCapability
   #inputCapability: InputCapability
   #inputRuntime: StackchanRuntimeInput
+  #interactionCapability: InteractionCapability
+  #interactionEffect: UIEffect | null = null
+  #interactionEffectKey: string | null = null
+  #interactionEffectOpacityStep = -1
+  #interactionLedCapturedCommand: ManualLightingCommand | undefined
+  #interactionLedLastAt = -Infinity
+  #interactionLedLastB = -1
+  #interactionLedLastG = -1
+  #interactionLedLastR = -1
+  #interactionLedLease = false
+  #interactionLedName: string | undefined
+  #interactionNow = 0
+  #interactionRawTicks: number | undefined
+  #interactionMotionBase: Rotation | null = null
+  #interactionMotionGaze: Vector3 | null = null
+  #interactionMotionLastAt = -Infinity
+  #interactionMotionLease = false
+  #interactionMotionPose: Pose = {
+    position: { x: 0, y: 0, z: 0 },
+    rotation: { y: 0, p: 0, r: 0 },
+  }
+  #interactionMotionReturnTimer: ReturnType<typeof Timer.set> | undefined
+  #interactionRuntime: RuntimeInteraction
   #lifecycleCapability: LifecycleCapability
   #lightingCapability: LightingCapability
   #lightingRuntime: StackchanRuntimeLighting
@@ -64,6 +99,8 @@ export class StackchanRuntimeContext implements StackchanContext {
 
   constructor(params: RuntimeContextConstructorParam) {
     this.#paused = false
+    const initialTicks = Time.ticks
+    if (Number.isFinite(initialTicks)) this.#interactionRawTicks = initialTicks
     this.#motionController = new MotionController(params, {
       isPaused: () => this.#paused,
     })
@@ -73,14 +110,22 @@ export class StackchanRuntimeContext implements StackchanContext {
       getGazePoint: () => this.#motionController.gazePoint,
       isPaused: () => this.#paused,
     })
+    this.#interactionRuntime = new RuntimeInteraction({
+      now: () => this.#interactionNow,
+      random: () => Math.random(),
+      frameIntervalMs: INTERVAL_INTERACTION,
+      applyFrame: this.#applyInteractionFrame,
+      applyLegacyEmotion: (emotion) => this.#uiRuntime.setEmotion(emotion),
+    })
     this.#audioRuntime = new StackchanRuntimeAudio(params, {
-      onMouthOpenChanged: (value) => this.#uiRuntime.setMouthOpen(value),
+      onMouthOpenChanged: (value) => this.setMouthOpen(value),
     })
     this.#inputRuntime = new StackchanRuntimeInput(params)
     this.#cameraRuntime = new StackchanRuntimeCamera(params)
-    this.#lightingRuntime = new StackchanRuntimeLighting(params)
+    this.#lightingRuntime = new StackchanRuntimeLighting(params, { now: () => this.#interactionNow })
     this.#updateFaceHandler = Timer.repeat(this.#updateFace, INTERVAL_FACE)
     void this.#updateFaceHandler
+    this.#interactionCapability = this.createInteractionCapability()
     this.#faceCapability = this.createFaceCapability()
     this.#motionCapability = this.createMotionCapability()
     this.#audioCapability = this.createAudioCapability()
@@ -97,6 +142,10 @@ export class StackchanRuntimeContext implements StackchanContext {
 
   get face(): FaceCapability {
     return this.#faceCapability
+  }
+
+  get interaction(): InteractionCapability {
+    return this.#interactionCapability
   }
 
   get motion(): MotionCapability {
@@ -260,6 +309,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    * @param position - the position of the point to look at
    */
   lookAt(position: Vector3) {
+    this.#prepareManualMotion()
     this.#motionController.lookAt(position)
   }
 
@@ -283,6 +333,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    * Unregister the focus point.
    */
   lookAway() {
+    this.#prepareManualMotion()
     this.#motionController.lookAway()
   }
 
@@ -293,6 +344,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    * @experimental
    */
   async setPose(pose: Pose, time?: number): Promise<void> {
+    this.#prepareManualMotion()
     return waitForCompletion((callback) => this.#motionController.setPose(pose, time, callback))
   }
 
@@ -302,6 +354,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    * @returns void when the robot completes setting the torque
    */
   async setTorque(torque: boolean): Promise<void> {
+    this.#prepareManualMotion()
     return waitForCompletion((callback) => this.#motionController.setTorque(torque, callback))
   }
 
@@ -324,7 +377,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    * @param emotion - emotion
    */
   setEmotion(emotion: Emotion) {
-    this.#uiRuntime.setEmotion(emotion)
+    this.#interactionRuntime.setBaseEmotion(emotion)
   }
 
   setEyeOpen(key: FaceEyeKey, value: number) {
@@ -332,7 +385,12 @@ export class StackchanRuntimeContext implements StackchanContext {
   }
 
   setMouthOpen(value: number) {
-    this.#uiRuntime.setMouthOpen(value)
+    if (!this.#interactionRuntime.installed) {
+      this.#uiRuntime.setMouthOpen(value)
+      return
+    }
+    this.#uiRuntime.setMouthOpen(0)
+    this.#interactionRuntime.setSignal({ type: 'speech-envelope', value })
   }
 
   get tts() {
@@ -358,6 +416,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    * @param count - Optional number of LEDs to animate
    */
   lightOn(ledName: string, r: number, g: number, b: number, duration?: number, index?: number, count?: number) {
+    this.#prepareManualLighting(ledName)
     this.#lightingRuntime.lightOn(ledName, r, g, b, duration, index, count)
   }
 
@@ -372,6 +431,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    * This method checks if the Led with the given name exists before attempting to turn it off.
    */
   lightOff(ledName: string, index?: number, count?: number) {
+    this.#prepareManualLighting(ledName)
     this.#lightingRuntime.lightOff(ledName, index, count)
   }
 
@@ -387,6 +447,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    * @param count - Optional number of LEDs to blink. If not provided, it will affect all LEDs from the index to the end.
    */
   lightBlink(ledName: string, r: number, g: number, b: number, duration: number, index?: number, count?: number) {
+    this.#prepareManualLighting(ledName)
     this.#lightingRuntime.lightBlink(ledName, r, g, b, duration, index, count)
   }
 
@@ -397,6 +458,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    * @param count - Optional number of Leds to apply the rainbow effect to.
    */
   lightRainbow(ledName: string, index?: number, count?: number) {
+    this.#prepareManualLighting(ledName)
     this.#lightingRuntime.lightRainbow(ledName, index, count)
   }
 
@@ -406,6 +468,17 @@ export class StackchanRuntimeContext implements StackchanContext {
       setEmotion: (emotion) => this.setEmotion(emotion),
       setEyeOpen: (key, value) => this.setEyeOpen(key, value),
       setMouthOpen: (value) => this.setMouthOpen(value),
+    }
+  }
+
+  private createInteractionCapability(): InteractionCapability {
+    return {
+      install: (definition: BehaviorDefinition) => {
+        this.#configureInteractionOutputs(definition)
+        this.#interactionRuntime.install(definition)
+      },
+      dispatch: (input) => this.#interactionRuntime.dispatch(input),
+      setSignal: (signal) => this.#interactionRuntime.setSignal(signal),
     }
   }
 
@@ -623,12 +696,261 @@ export class StackchanRuntimeContext implements StackchanContext {
     }
   }
 
+  #configureInteractionOutputs(definition: BehaviorDefinition): void {
+    const requestedLedName = definition.profile.output.ledName
+    if (requestedLedName !== undefined) {
+      if (this.#lightingRuntime.led[requestedLedName]) {
+        this.#interactionLedName = requestedLedName
+      } else {
+        this.#interactionLedName = undefined
+        trace(`[Interaction] configured LED is unavailable: ${requestedLedName}\n`)
+      }
+      return
+    }
+    this.#interactionLedName = Object.keys(this.#lightingRuntime.led)[0]
+  }
+
+  #applyInteractionFrame = (frame: BehaviorFrame): void => {
+    this.#uiRuntime.applyBehaviorFrame(frame, emotionForExpression(frame.expression))
+    this.#applyInteractionEffect(frame)
+    this.#applyInteractionMotion(frame)
+    this.#applyInteractionLighting(frame)
+  }
+
+  #applyInteractionEffect(frame: BehaviorFrame): void {
+    const key = frame.effect.key
+    const opacityStep = Math.max(0, Math.min(16, Math.round(frame.effect.opacity * 16)))
+    if (!key || opacityStep === 0) {
+      if (this.#interactionEffect) this.#uiRuntime.ui.removeEffect(this.#interactionEffect)
+      this.#interactionEffect = null
+      this.#interactionEffectKey = null
+      this.#interactionEffectOpacityStep = -1
+      return
+    }
+    if (!this.#interactionEffect || key !== this.#interactionEffectKey) {
+      if (this.#interactionEffect) this.#uiRuntime.ui.removeEffect(this.#interactionEffect)
+      this.#interactionEffect = new Emoticon({
+        key,
+        name: 'interaction-emotion',
+        opacity: opacityStep / 16,
+      })
+      this.#interactionEffectKey = key
+      this.#interactionEffectOpacityStep = opacityStep
+      this.#uiRuntime.ui.addEffect(this.#interactionEffect, 'emotion')
+      return
+    }
+    if (opacityStep === this.#interactionEffectOpacityStep) return
+    this.#interactionEffectOpacityStep = opacityStep
+    ;(
+      this.#interactionEffect as UIEffect & {
+        distribute?: (event: string, value: number) => void
+      }
+    ).distribute?.('onEffectOpacity', opacityStep / 16)
+  }
+
+  #applyInteractionMotion(frame: BehaviorFrame): void {
+    const profile = this.#interactionRuntime.profile
+    if (!profile) return
+    if (!frame.motion.active) {
+      if (this.#interactionMotionLease) this.#finishInteractionMotion()
+      return
+    }
+    if (!this.#interactionMotionLease) this.#beginInteractionMotion()
+    if (!this.#interactionMotionBase || frame.at - this.#interactionMotionLastAt < profile.motion.updateIntervalMs)
+      return
+    this.#interactionMotionLastAt = frame.at
+    const target = this.#interactionMotionPose.rotation
+    target.y = this.#interactionMotionBase.y + frame.motion.yaw
+    target.p = this.#interactionMotionBase.p + frame.motion.pitch
+    target.r = this.#interactionMotionBase.r + frame.motion.roll
+    try {
+      this.#motionController.setPose(this.#interactionMotionPose, profile.motion.updateIntervalMs / 1000, (error) => {
+        if (error) this.#handleInteractionMotionError(error)
+      })
+    } catch (error) {
+      this.#handleInteractionMotionError(error)
+    }
+  }
+
+  #beginInteractionMotion(): void {
+    if (this.#interactionMotionReturnTimer) {
+      Timer.clear(this.#interactionMotionReturnTimer)
+      this.#interactionMotionReturnTimer = undefined
+    }
+    const pose = this.#motionController.pose.body
+    this.#interactionMotionBase = { ...pose.rotation }
+    this.#interactionMotionPose.position.x = pose.position.x
+    this.#interactionMotionPose.position.y = pose.position.y
+    this.#interactionMotionPose.position.z = pose.position.z
+    const gaze = this.#motionController.gazePoint
+    this.#interactionMotionGaze = gaze ? [gaze[0], gaze[1], gaze[2]] : null
+    this.#motionController.lookAway()
+    this.#interactionMotionLease = true
+    this.#interactionMotionLastAt = -Infinity
+    try {
+      this.#motionController.setTorque(true, (error) => {
+        if (error) this.#handleInteractionMotionError(error)
+      })
+    } catch (error) {
+      this.#handleInteractionMotionError(error)
+    }
+  }
+
+  #finishInteractionMotion(): void {
+    const profile = this.#interactionRuntime.profile
+    const base = this.#interactionMotionBase
+    const gaze = this.#interactionMotionGaze
+    this.#interactionMotionLease = false
+    this.#interactionMotionBase = null
+    this.#interactionMotionGaze = null
+    this.#interactionMotionLastAt = -Infinity
+    if (!profile || !base) return
+    const target = this.#interactionMotionPose.rotation
+    target.y = base.y
+    target.p = base.p
+    target.r = base.r
+    try {
+      this.#motionController.setPose(this.#interactionMotionPose, profile.motion.returnMs / 1000, (error) => {
+        if (error) trace(`[Interaction] motion restore failed: ${String(error)}\n`)
+      })
+    } catch (error) {
+      trace(`[Interaction] motion restore failed: ${String(error)}\n`)
+    }
+    if (this.#interactionMotionReturnTimer) Timer.clear(this.#interactionMotionReturnTimer)
+    this.#interactionMotionReturnTimer = Timer.set(() => {
+      this.#interactionMotionReturnTimer = undefined
+      try {
+        this.#motionController.setTorque(false, (error) => {
+          if (error) trace(`[Interaction] torque release failed: ${String(error)}\n`)
+        })
+      } catch (error) {
+        trace(`[Interaction] torque release failed: ${String(error)}\n`)
+      }
+      if (gaze) this.#motionController.lookAt(gaze)
+    }, profile.motion.returnMs + 50)
+  }
+
+  #handleInteractionMotionError(error: unknown): void {
+    trace(`[Interaction] motion output failed: ${String(error)}\n`)
+    this.#abandonInteractionMotion()
+    try {
+      this.#motionController.setTorque(false, (releaseError) => {
+        if (releaseError) trace(`[Interaction] torque release failed: ${String(releaseError)}\n`)
+      })
+    } catch (releaseError) {
+      trace(`[Interaction] torque release failed: ${String(releaseError)}\n`)
+    }
+    this.#interactionRuntime.cancelActionsUsing('motion', 'output-error')
+  }
+
+  #abandonInteractionMotion(): void {
+    if (this.#interactionMotionReturnTimer) {
+      Timer.clear(this.#interactionMotionReturnTimer)
+      this.#interactionMotionReturnTimer = undefined
+    }
+    this.#interactionMotionLease = false
+    this.#interactionMotionBase = null
+    this.#interactionMotionGaze = null
+    this.#interactionMotionLastAt = -Infinity
+  }
+
+  #prepareManualMotion(): void {
+    if (!this.#interactionMotionLease && !this.#interactionMotionReturnTimer) return
+    const actionWasActive = this.#interactionMotionLease
+    this.#abandonInteractionMotion()
+    if (actionWasActive) this.#interactionRuntime.cancelActionsUsing('motion')
+  }
+
+  #applyInteractionLighting(frame: BehaviorFrame): void {
+    const profile = this.#interactionRuntime.profile
+    const ledName = this.#interactionLedName
+    if (!profile || !ledName) return
+    if (!frame.lighting.active) {
+      this.#restoreInteractionLighting()
+      return
+    }
+    if (!this.#interactionLedLease) {
+      this.#interactionLedCapturedCommand = this.#lightingRuntime.snapshotManualCommand(ledName)
+      this.#interactionLedLease = true
+      this.#interactionLedLastAt = -Infinity
+      this.#interactionLedLastR = -1
+      this.#interactionLedLastG = -1
+      this.#interactionLedLastB = -1
+    }
+    if (frame.at - this.#interactionLedLastAt < profile.output.lightingUpdateIntervalMs) return
+    const r = Math.max(0, Math.min(255, Math.round(frame.lighting.r * 255)))
+    const g = Math.max(0, Math.min(255, Math.round(frame.lighting.g * 255)))
+    const b = Math.max(0, Math.min(255, Math.round(frame.lighting.b * 255)))
+    if (r === this.#interactionLedLastR && g === this.#interactionLedLastG && b === this.#interactionLedLastB) return
+    this.#interactionLedLastAt = frame.at
+    this.#interactionLedLastR = r
+    this.#interactionLedLastG = g
+    this.#interactionLedLastB = b
+    this.#lightingRuntime.applyInteractionColor(ledName, r, g, b)
+  }
+
+  #restoreInteractionLighting(): void {
+    const ledName = this.#interactionLedName
+    if (!this.#interactionLedLease || !ledName) return
+    this.#interactionLedLease = false
+    this.#lightingRuntime.restoreManualCommand(ledName, this.#interactionLedCapturedCommand)
+    this.#interactionLedCapturedCommand = undefined
+    this.#interactionLedLastAt = -Infinity
+    this.#interactionLedLastR = -1
+    this.#interactionLedLastG = -1
+    this.#interactionLedLastB = -1
+  }
+
+  #prepareManualLighting(ledName: string): void {
+    if (!this.#interactionLedLease || ledName !== this.#interactionLedName) return
+    this.#interactionRuntime.cancelActionsUsing('lighting')
+  }
+
+  #releaseInteractionOutputs(): void {
+    if (this.#interactionEffect) {
+      this.#uiRuntime.ui.removeEffect(this.#interactionEffect)
+      this.#interactionEffect = null
+    }
+    this.#restoreInteractionLighting()
+    const ownedMotion = this.#interactionMotionLease || this.#interactionMotionReturnTimer !== undefined
+    if (ownedMotion) {
+      this.#abandonInteractionMotion()
+      try {
+        this.#motionController.setTorque(false)
+      } catch (error) {
+        trace(`[Interaction] close torque release failed: ${String(error)}\n`)
+      }
+    }
+  }
+
+  #advanceInteractionClock(): void {
+    // Device ticks roll over and the WASM Time binding has no counter.
+    // Accumulate rollover-safe deltas when available and use the host tick
+    // cadence as the simulator fallback.
+    const ticks = Time.ticks
+    let elapsed = INTERVAL_FACE
+    if (Number.isFinite(ticks)) {
+      if (this.#interactionRawTicks !== undefined) {
+        const measured = Time.delta(this.#interactionRawTicks, ticks)
+        if (Number.isFinite(measured) && measured >= 0) elapsed = measured
+      }
+      this.#interactionRawTicks = ticks
+    }
+    this.#interactionNow += elapsed
+  }
+
   /**
    * Update the robot face.
    * Process the robot's emotion, pose, gaze point and so on
    * to modify the face state and pass it to RobotUI#update.
    */
   #updateFace = () => {
+    this.#advanceInteractionClock()
+    try {
+      this.#interactionRuntime.tick()
+    } catch (error) {
+      trace(`[Interaction] tick failed: ${String(error)}\n`)
+    }
     this.#uiRuntime.updateFace(INTERVAL_FACE)
   }
 
@@ -639,6 +961,7 @@ export class StackchanRuntimeContext implements StackchanContext {
       Timer.clear(this.#updateFaceHandler)
       this.#updateFaceHandler = undefined
     }
+    this.#releaseInteractionOutputs()
     this.#motionController.close()
     let closeError: unknown
     let hasCloseError = false

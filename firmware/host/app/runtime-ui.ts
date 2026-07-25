@@ -9,6 +9,7 @@ import type {
 } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import {
+  applyLegacyEmotionPreset,
   createFaceState,
   type Emotion,
   type FaceEyeKey,
@@ -16,6 +17,7 @@ import {
   type FaceThemeKey,
   setColorRGB,
 } from 'face-state'
+import type { BehaviorFrame } from 'interaction-types'
 import {
   type Pose,
   type Rotation,
@@ -44,6 +46,7 @@ type RuntimeUIOptions = {
 
 export class StackchanRuntimeUI {
   #balloon: UIEffect | null = null
+  #behaviorFrame: BehaviorFrame | null = null
   #drawerButtonSpecs = new Map<string, DrawerButtonSpec>()
   #drawerButtonStates = new Map<string, boolean>()
   #drawerRegistry: DrawerCapability
@@ -106,6 +109,7 @@ export class StackchanRuntimeUI {
 
   setEmotion(emotion: Emotion) {
     this.#emotion = emotion
+    if (!this.#behaviorFrame) applyLegacyEmotionPreset(this.#faceState, emotion)
   }
 
   setEyeOpen(key: FaceEyeKey, value: number) {
@@ -122,6 +126,11 @@ export class StackchanRuntimeUI {
     this.#mouthOpen = value
   }
 
+  applyBehaviorFrame(frame: BehaviorFrame, emotion: Emotion): void {
+    this.#behaviorFrame = frame
+    this.#emotion = emotion
+  }
+
   updateFace(interval: number) {
     if (this.#options.isPaused()) {
       return
@@ -129,9 +138,26 @@ export class StackchanRuntimeUI {
 
     const pose = this.#options.getPose()
     const gazePoint = this.#options.getGazePoint()
-    this.#faceState.mouth.open = this.#mouthOpen
-    this.#faceState.eyes.left.open = this.#eyeOpen.left
-    this.#faceState.eyes.right.open = this.#eyeOpen.right
+    const behavior = this.#behaviorFrame
+    if (behavior) {
+      this.#faceState.mouth.open = Math.max(this.#mouthOpen, behavior.face.mouth.open)
+      this.#faceState.mouth.smile = behavior.face.mouth.smile
+      this.#faceState.breathAmplitude = behavior.face.breath.amplitude
+      this.#faceState.breathRate = behavior.face.breath.rate
+      for (const key of LEFT_RIGHT) {
+        const source = behavior.face.eyes[key]
+        const target = this.#faceState.eyes[key]
+        target.open = source.open
+        target.lowerLid = source.lowerLid
+        target.browTilt = source.browTilt
+        target.gazeX = source.gazeX
+        target.gazeY = source.gazeY
+      }
+    } else {
+      this.#faceState.mouth.open = this.#mouthOpen
+      this.#faceState.eyes.left.open = this.#eyeOpen.left
+      this.#faceState.eyes.right.open = this.#eyeOpen.right
+    }
     this.#faceState.emotion = this.#emotion
 
     if (gazePoint != null) {
@@ -141,8 +167,8 @@ export class StackchanRuntimeUI {
         writePositionRelativeVector3(this.#eyeGazePoint, this.#relativeGazePoint, pos)
         writeRotationFromVector3(this.#eyeGazeRotation, this.#eyeGazePoint)
         const eye = this.#faceState.eyes[key]
-        eye.gazeX = Math.cos(this.#eyeGazeRotation.y)
-        eye.gazeY = Math.cos(this.#eyeGazeRotation.p)
+        eye.gazeX = Math.max(-1, Math.min(1, eye.gazeX + Math.cos(this.#eyeGazeRotation.y)))
+        eye.gazeY = Math.max(-1, Math.min(1, eye.gazeY + Math.cos(this.#eyeGazeRotation.p)))
       }
     }
 

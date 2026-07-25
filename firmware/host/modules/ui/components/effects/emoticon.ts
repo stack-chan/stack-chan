@@ -31,6 +31,7 @@ export type EmoticonOptions = {
   lanes?: [number, number][]
   smallScale?: number
   holdScale?: number
+  opacity?: number
 }
 
 export type EmoticonParams = EmoticonOptions & {
@@ -139,12 +140,21 @@ function getEmoticonTexture() {
   return emoticonTexture
 }
 
-function colorString(color: number): string {
+function quantizeOpacity(opacity: number): number {
+  if (!Number.isFinite(opacity)) return 16
+  return Math.max(0, Math.min(16, Math.round(opacity * 16)))
+}
+
+function colorString(color: number, opacityStep = 16): string {
   if (!colorStringCache) colorStringCache = new Map()
-  const cached = colorStringCache.get(color)
+  const key = color * 17 + opacityStep
+  const cached = colorStringCache.get(key)
   if (cached) return cached
-  const value = toPiuColorString(color)
-  colorStringCache.set(color, value)
+  const alpha = Math.round((opacityStep / 16) * 255)
+    .toString(16)
+    .padStart(2, '0')
+  const value = `${toPiuColorString(color)}${alpha}`
+  colorStringCache.set(key, value)
   return value
 }
 
@@ -173,11 +183,19 @@ function spriteVariantForScale(scale: number, minScale: number, holdScale: numbe
   return clamp(Math.round(normalized * (SPRITE_FRAME_COUNT - 1)), 0, SPRITE_FRAME_COUNT - 1)
 }
 
-function drawSpriteCell(port: PiuPort, row: number, variant: number, color: number, x: number, y: number) {
+function drawSpriteCell(
+  port: PiuPort,
+  row: number,
+  variant: number,
+  color: number,
+  opacityStep: number,
+  x: number,
+  y: number,
+) {
   const frame = clamp(variant, 0, SPRITE_FRAME_COUNT - 1)
   port.drawTexture(
     getEmoticonTexture(),
-    colorString(color),
+    colorString(color, opacityStep),
     Math.round(x),
     Math.round(y),
     frame * SPRITE_CELL_SIZE,
@@ -192,6 +210,7 @@ class SpritePulseBehavior extends Behavior {
   #width = 40
   #height = 40
   #interval = 33
+  #opacityStep = 16
   #fraction = 0
   #primary = primaryColor()
   #variant = spritePulseVariantForFraction(0)
@@ -201,6 +220,7 @@ class SpritePulseBehavior extends Behavior {
     this.#width = data.width ?? port.width ?? this.#width
     this.#height = data.height ?? port.height ?? this.#height
     this.#interval = data.interval ?? this.#interval
+    this.#opacityStep = quantizeOpacity(data.opacity ?? 1)
     port.interval = this.#interval
   }
 
@@ -228,6 +248,13 @@ class SpritePulseBehavior extends Behavior {
     port.invalidate()
   }
 
+  onEffectOpacity(port: PiuPort, opacity: number) {
+    const next = quantizeOpacity(opacity)
+    if (next === this.#opacityStep) return
+    this.#opacityStep = next
+    port.invalidate()
+  }
+
   onDraw(port: PiuPort) {
     port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
     drawSpriteCell(
@@ -235,6 +262,7 @@ class SpritePulseBehavior extends Behavior {
       this.#row,
       this.#variant,
       this.#primary,
+      this.#opacityStep,
       centeredSpriteX(this.#width),
       centeredSpriteY(this.#height),
     )
@@ -250,6 +278,7 @@ class DropBehavior extends Behavior {
   #smallScale = SWEAT_CONFIG.smallScale
   #holdScale = SWEAT_CONFIG.holdScale
   #minScale = SWEAT_CONFIG.minScale
+  #opacityStep = 16
   #scaleSmoothing = SWEAT_CONFIG.scaleSmoothing
   #drops: Drop[] = []
   #laneXs: number[] = []
@@ -265,6 +294,7 @@ class DropBehavior extends Behavior {
     this.#holdScale = data.holdScale ?? config.holdScale
     this.#minScale = Math.max(config.minScale, this.#smallScale * 0.9)
     this.#scaleSmoothing = config.scaleSmoothing
+    this.#opacityStep = quantizeOpacity(data.opacity ?? 1)
     this.#laneXs = this.#buildLaneXs()
     this.#drops = []
     for (let i = 0; i < this.#count; i++) {
@@ -295,6 +325,13 @@ class DropBehavior extends Behavior {
     port.invalidate()
   }
 
+  onEffectOpacity(port: PiuPort, opacity: number) {
+    const next = quantizeOpacity(opacity)
+    if (next === this.#opacityStep) return
+    this.#opacityStep = next
+    port.invalidate()
+  }
+
   onDraw(port: PiuPort) {
     port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
     for (const drop of this.#drops) {
@@ -304,6 +341,7 @@ class DropBehavior extends Behavior {
         DROP_ROW,
         variant,
         this.#primary,
+        this.#opacityStep,
         drop.x - SPRITE_CELL_SIZE / 2,
         drop.y - SPRITE_CELL_SIZE / 2,
       )
@@ -377,6 +415,7 @@ class SleepyBubbleBehavior extends Behavior {
   #height = 64
   #count = 4
   #interval = 33
+  #opacityStep = 16
   #bubbles: Bubble[] = []
   #primary = primaryColor()
   #secondary = secondaryColor()
@@ -386,6 +425,7 @@ class SleepyBubbleBehavior extends Behavior {
     this.#height = data.height ?? port.height ?? this.#height
     this.#count = data.count ?? this.#count
     this.#interval = data.interval ?? this.#interval
+    this.#opacityStep = quantizeOpacity(data.opacity ?? 1)
     this.#bubbles = []
     for (let i = 0; i < this.#count; i++) {
       this.#bubbles.push({
@@ -422,6 +462,13 @@ class SleepyBubbleBehavior extends Behavior {
     port.invalidate()
   }
 
+  onEffectOpacity(port: PiuPort, opacity: number) {
+    const next = quantizeOpacity(opacity)
+    if (next === this.#opacityStep) return
+    this.#opacityStep = next
+    port.invalidate()
+  }
+
   onDraw(port: PiuPort) {
     port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
     for (const bubble of this.#bubbles) {
@@ -432,6 +479,7 @@ class SleepyBubbleBehavior extends Behavior {
         BUBBLE_ROW,
         variant,
         this.#primary,
+        this.#opacityStep,
         bubble.x - SPRITE_CELL_SIZE / 2,
         cy - SPRITE_CELL_SIZE / 2,
       )

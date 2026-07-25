@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import {
+  applyLegacyEmotionPreset,
   copyFaceState,
   copyFaceStateForDistribution,
   createFaceState,
@@ -57,4 +58,23 @@ test('FaceState distribution quantizes breath to rendered pixels', () => {
   copyFaceStateForDistribution(next, nextDistributed, 6)
   assert.equal(quantizeBreathForPixels(next.breath, 6), 1 / 6)
   assert.equal(faceStatesEqual(previousDistributed, nextDistributed), false)
+})
+
+test('legacy Emotion values map to continuous expression channels without replacing the state object', () => {
+  const face = createFaceState()
+  const left = face.eyes.left
+
+  applyLegacyEmotionPreset(face, Emotion.HAPPY)
+
+  assert.equal(face.eyes.left, left)
+  assert.equal(face.emotion, Emotion.HAPPY)
+  assert.equal(face.eyes.left.lowerLid, 0.65)
+  assert.equal(face.eyes.right.lowerLid, 0.65)
+  assert.equal(face.mouth.smile, 0.8)
+
+  applyLegacyEmotionPreset(face, Emotion.NEUTRAL)
+  assert.equal(face.eyes.left.open, 1)
+  assert.equal(face.eyes.left.lowerLid, 0)
+  assert.equal(face.eyes.left.browTilt, 0)
+  assert.equal(face.mouth.smile, 0)
 })

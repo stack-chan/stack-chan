@@ -1,5 +1,7 @@
 import { onContextCreated } from 'app-default-behavior/on-context-created'
+import type { BehaviorDefinition } from 'character-profile'
 import { Emotion } from 'face-state'
+import type { InteractionInput } from 'interaction-types'
 import { assert, equal } from 'testing/assert'
 
 trace('=== default-mod face init test ===\n')
@@ -22,11 +24,26 @@ const effects: unknown[] = []
 const faces: unknown[] = []
 const selectedHandAnimations: string[] = []
 const colors: [string, number, number, number][] = []
+const interactionEvents: InteractionInput[] = []
+const installedBehaviors: BehaviorDefinition[] = []
 const speechRequests: string[] = []
 const balloonMessages: string[] = []
 const torqueRequests: boolean[] = []
 let servoFailure: Error | undefined
+let poseRequestCount = 0
 let drawerCloseCount = 0
+let imuStarted = false
+const imu: {
+  onEvent?: (event: {
+    motion: 'shake' | 'fallenForward' | 'fallenBackward' | 'fallenLeft' | 'fallenRight' | 'upsideDown'
+    ticks: number
+  }) => void
+  start: () => void
+} = {
+  start: () => {
+    imuStarted = true
+  },
+}
 const touchPanel: {
   onEvent?: (event: {
     gesture: 'forwardSwipe' | 'backwardSwipe'
@@ -37,6 +54,15 @@ const touchPanel: {
 } = {}
 
 const robot = {
+  interaction: {
+    install: (definition: BehaviorDefinition) => {
+      installedBehaviors.push(definition)
+    },
+    dispatch: (event: InteractionInput) => {
+      interactionEvents.push(event)
+    },
+    setSignal: () => {},
+  },
   audio: {
     say: (text: string) => {
       speechRequests.push(text)
@@ -81,6 +107,7 @@ const robot = {
     available: false,
   },
   touchPanel,
+  imu,
   pose: {
     body: {
       position: { x: 0, y: 0, z: 0 },
@@ -89,7 +116,10 @@ const robot = {
   },
   lookAway: () => {},
   lookAt: () => {},
-  setPose: () => (servoFailure ? Promise.reject(servoFailure) : Promise.resolve()),
+  setPose: () => {
+    poseRequestCount += 1
+    return servoFailure ? Promise.reject(servoFailure) : Promise.resolve()
+  },
   setTorque: (enabled: boolean) => {
     torqueRequests.push(enabled)
     return servoFailure ? Promise.reject(servoFailure) : Promise.resolve()
@@ -127,6 +157,7 @@ try {
 }
 
 equal(buttons[0]?.key, 'toggleFace', 'toggleFace button should be registered')
+equal(installedBehaviors.length, 1, 'default behavior should install one BehaviorDefinition')
 equal(buttons[0]?.kind, 'choice', 'face selection should use an option menu')
 equal(buttons[0]?.value, 'simple', 'face selection should expose its current value')
 equal(buttons[0]?.options?.length, 3, 'face selection should expose every mode')
@@ -175,10 +206,24 @@ assert(
 const speakButton = buttons.find((button) => button.key === 'speakStackchan')
 assert(speakButton, 'speakStackchan button should be registered')
 assert(touchPanel.onEvent, 'touchPanel handler should be registered')
+assert(imuStarted, 'IMU should start when it is available')
+assert(imu.onEvent, 'IMU handler should be registered')
 touchPanel.onEvent?.({ gesture: 'forwardSwipe', position: 0.25, intensity: 3, ticks: 100 })
 touchPanel.onEvent?.({ gesture: 'backwardSwipe', position: 0.75, intensity: 3, ticks: 500 })
-equal(emotions[emotions.length - 1], Emotion.HAPPY, 'petting swipe pair should set HAPPY emotion')
-assert(effects.length > 0, 'petting should add a visible emotion effect')
+equal(
+  interactionEvents[interactionEvents.length - 1]?.type,
+  'petted',
+  'petting swipe pair should dispatch a semantic Interaction event',
+)
+equal(effects.length, 0, 'petting should leave effect rendering to the Interaction runtime')
+equal(poseRequestCount, 0, 'petting should leave neck motion to the Interaction runtime')
+equal(torqueRequests.length, 0, 'petting should leave torque control to the Interaction runtime')
+imu.onEvent?.({ motion: 'shake', ticks: 900 })
+const motionEvent = interactionEvents[interactionEvents.length - 1]
+equal(motionEvent?.type, 'body-motion', 'IMU motion should dispatch a semantic Interaction event')
+if (motionEvent?.type === 'body-motion') {
+  equal(motionEvent.motion, 'shaken', 'shake should map to the bounded Interaction body motion')
+}
 
 async function testSpeakStackchan() {
   const drawerCloseCountBeforeSpeech = drawerCloseCount

@@ -1,8 +1,14 @@
 import type { StackchanContext, UIEffect } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
-import { Container, Content, Skin } from 'piu/MC'
+import { Container, Content, Label, Skin, Style } from 'piu/MC'
 import { StackChanStatus } from 'stackchan-usb-protocol'
-import { formatUsbAudioCaption, USB_AUDIO_MOUTH_STEP, usbAudioMouthStep } from 'usb-audio-presentation-model'
+import {
+  formatUsbAudioCaption,
+  USB_AUDIO_MOUTH_STEP,
+  usbAudioConversationState,
+  usbAudioMouthStep,
+  usbAudioStatusVisual,
+} from 'usb-audio-presentation-model'
 import Timer from 'timer'
 
 const BALLOON_HEIGHT = 44
@@ -21,7 +27,7 @@ const statusMicrophoneSkin = new Skin({
   height: STATUS_ICON_SIZE,
   states: STATUS_ICON_SIZE,
 })
-const statusIndicatorSkin = new Skin({
+const statusRecognizingIndicatorSkin = new Skin({
   texture: { path: 'indicator.png' },
   color: ['#ffffff'],
   x: 0,
@@ -30,8 +36,23 @@ const statusIndicatorSkin = new Skin({
   height: STATUS_ICON_SIZE,
   variants: STATUS_ICON_SIZE,
 })
+const statusConnectingIndicatorSkin = new Skin({
+  texture: { path: 'indicator.png' },
+  color: ['#ffb000'],
+  x: 0,
+  y: 0,
+  width: STATUS_ICON_SIZE,
+  height: STATUS_ICON_SIZE,
+  variants: STATUS_ICON_SIZE,
+})
+const statusErrorStyle = new Style({
+  font: 'k8x12-12',
+  color: '#ff5252',
+  horizontal: 'center',
+  vertical: 'middle',
+})
 
-class RecognizingIndicatorBehavior extends Behavior {
+class SpinningIndicatorBehavior extends Behavior {
   #frame = 0
 
   onDisplaying(content: Content) {
@@ -51,28 +72,51 @@ class RecognizingIndicatorBehavior extends Behavior {
   }
 }
 
-const UsbAudioStatusBadge = Container.template((status: StackChanStatus) => ({
-  name: 'usb-audio-status',
-  right: 8,
-  top: 8,
-  width: STATUS_BADGE_SIZE,
-  height: STATUS_BADGE_SIZE,
-  skin: statusBadgeSkin,
-  active: false,
-  contents: [
-    new Content(null, {
-      left: STATUS_ICON_OFFSET,
-      top: STATUS_ICON_OFFSET,
-      width: STATUS_ICON_SIZE,
-      height: STATUS_ICON_SIZE,
-      skin: status === StackChanStatus.RECOGNIZING ? statusIndicatorSkin : statusMicrophoneSkin,
-      state: status === StackChanStatus.SPEAKING ? 1 : 0,
-      variant: 0,
-      active: false,
-      Behavior: status === StackChanStatus.RECOGNIZING ? RecognizingIndicatorBehavior : undefined,
-    }),
-  ],
-}))
+const UsbAudioStatusBadge = Container.template((status: StackChanStatus) => {
+  const visual = usbAudioStatusVisual(status)
+  const contents =
+    visual.kind === 'error'
+      ? [
+          new Label(null, {
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            string: '!',
+            style: statusErrorStyle,
+          }),
+        ]
+      : visual.kind === 'hidden'
+        ? []
+        : [
+            new Content(null, {
+              left: STATUS_ICON_OFFSET,
+              top: STATUS_ICON_OFFSET,
+              width: STATUS_ICON_SIZE,
+              height: STATUS_ICON_SIZE,
+              skin:
+                visual.kind === 'spinner'
+                  ? visual.color === 'amber'
+                    ? statusConnectingIndicatorSkin
+                    : statusRecognizingIndicatorSkin
+                  : statusMicrophoneSkin,
+              state: visual.kind === 'microphone' && visual.muted ? 1 : 0,
+              variant: 0,
+              active: false,
+              Behavior: visual.kind === 'spinner' ? SpinningIndicatorBehavior : undefined,
+            }),
+          ]
+  return {
+    name: 'usb-audio-status',
+    right: 8,
+    top: 8,
+    width: STATUS_BADGE_SIZE,
+    height: STATUS_BADGE_SIZE,
+    skin: statusBadgeSkin,
+    active: false,
+    contents,
+  }
+})
 
 type CaptionBalloon = UIEffect & {
   delegate?: (message: string, value?: string) => unknown
@@ -86,7 +130,10 @@ export type UsbAudioPresentation = {
   onPlaybackStopped(): void
 }
 
-export function createUsbAudioPresentation(context: StackchanContext): UsbAudioPresentation {
+export function createUsbAudioPresentation(
+  context: StackchanContext,
+  onConversationStateChanged?: (state: ReturnType<typeof usbAudioConversationState>) => void,
+): UsbAudioPresentation {
   let active = false
   let balloon: CaptionBalloon | undefined
   let statusBadge: UIEffect | undefined
@@ -149,6 +196,7 @@ export function createUsbAudioPresentation(context: StackchanContext): UsbAudioP
   return {
     onStatusChanged(nextStatus) {
       status = nextStatus
+      onConversationStateChanged?.(usbAudioConversationState(nextStatus))
       updateStatusBadge()
     },
 

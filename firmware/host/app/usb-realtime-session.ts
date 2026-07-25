@@ -28,6 +28,7 @@ export type RealtimeEventBridge = {
 export type UsbRealtimeSession = {
   setProvider(provider: RealtimeToolProvider): void
   setApplicationEventHandler(handler?: (event: Record<string, unknown>) => boolean): void
+  addApplicationEventHandler(handler: (event: Record<string, unknown>) => boolean): () => void
   sendApplicationEvent(event: Record<string, unknown>): void
   close(): void
 }
@@ -36,6 +37,7 @@ export function createUsbRealtimeSession(bridge: RealtimeEventBridge): UsbRealti
   let provider: RealtimeToolProvider = { tools: [] }
   let androidSessionCreated = false
   let applicationEventHandler: ((event: Record<string, unknown>) => boolean) | undefined
+  const applicationEventHandlers = new Set<(event: Record<string, unknown>) => boolean>()
 
   const send = (event: Record<string, unknown>) => bridge.sendEvent(JSON.stringify(event))
   const updateSession = () => {
@@ -66,6 +68,9 @@ export function createUsbRealtimeSession(bridge: RealtimeEventBridge): UsbRealti
       return
     }
     if (applicationEventHandler?.(event)) return
+    for (const handler of applicationEventHandlers) {
+      if (handler(event)) return
+    }
     switch (event.type) {
       case 'session.created':
         androidSessionCreated = true
@@ -111,6 +116,10 @@ export function createUsbRealtimeSession(bridge: RealtimeEventBridge): UsbRealti
     setApplicationEventHandler(handler) {
       applicationEventHandler = handler
     },
+    addApplicationEventHandler(handler) {
+      applicationEventHandlers.add(handler)
+      return () => applicationEventHandlers.delete(handler)
+    },
     sendApplicationEvent(event) {
       send(event)
     },
@@ -118,6 +127,7 @@ export function createUsbRealtimeSession(bridge: RealtimeEventBridge): UsbRealti
       bridge.setEventHandler(undefined)
       androidSessionCreated = false
       applicationEventHandler = undefined
+      applicationEventHandlers.clear()
     },
   }
 }

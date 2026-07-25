@@ -12,8 +12,10 @@ import Modules from 'modules'
 import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
 import { createUsbApprovalSession } from 'usb-approval-session'
 import { createUsbAudioPresentation, type UsbAudioPresentation } from 'usb-audio-presentation'
+import { createUsbConversationSession } from 'usb-conversation-session'
 import { createUsbRealtimeSession, type RealtimeToolProvider } from 'usb-realtime-session'
 import type { StackchanContext } from 'capabilities'
+import Timer from 'timer'
 
 type DeviceButton = {
   onChanged: (this: DeviceButton) => void
@@ -118,6 +120,12 @@ async function main() {
   trace('[main] start\n')
   const usbAudioBridge = startConfiguredUsbAudioBridge()
   const usbRealtimeSession = usbAudioBridge ? createUsbRealtimeSession(usbAudioBridge) : undefined
+  const usbConversationSession = usbRealtimeSession
+    ? createUsbConversationSession(usbRealtimeSession, {
+        set: (callback, milliseconds) => Timer.set(callback, milliseconds),
+        clear: (handle) => Timer.clear(handle as Timer),
+      })
+    : undefined
   installPlatformInputBridge()
   initializeLocalization(loadPreferences(DOMAIN.ui).language)
   const miniAppArchivePresent = Modules.has('miniapp')
@@ -140,13 +148,21 @@ async function main() {
   const networkReady = await bootServices.connectivity.network.ready
   trace(`[main] network ready: ${networkReady.status}\n`)
   const preferences = loadPreferenceConfig()
-  const context = createStackchanContext(preferences, { connectivity: bootServices.connectivity })
+  const context = createStackchanContext(preferences, {
+    connectivity: bootServices.connectivity,
+    remoteConversationSession: usbConversationSession?.remoteSession,
+  })
   if (usbRealtimeSession) {
     const usbApprovalSession = createUsbApprovalSession(usbRealtimeSession, context)
-    usbRealtimeSession.setApplicationEventHandler(usbApprovalSession.handleEvent)
+    usbRealtimeSession.addApplicationEventHandler(usbApprovalSession.handleEvent)
+    if (usbConversationSession) {
+      usbRealtimeSession.addApplicationEventHandler(usbConversationSession.handleEvent)
+    }
   }
   if ((config as { usbAudio?: UsbAudioConfig }).usbAudio?.presentationEnabled !== false) {
-    usbAudioBridge?.setPresentation(createUsbAudioPresentation(context))
+    usbAudioBridge?.setPresentation(
+      createUsbAudioPresentation(context, (state) => usbConversationSession?.updateState(state)),
+    )
   }
   if (Modules.has('stackchan-realtime-tools')) {
     const createProvider = Modules.importNow('stackchan-realtime-tools') as

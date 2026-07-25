@@ -174,8 +174,19 @@ export type CameraCapability = {
   camera: RobotCamera
 }
 
+export type RemoteConversationState = 'standby' | 'connecting' | 'listening' | 'recognizing' | 'speaking' | 'blocked'
+
+export type RemoteConversationSession = {
+  readonly state: RemoteConversationState
+  readonly lastError?: string
+  requestStart(): string
+  requestStop(): string
+  subscribe(listener: (state: RemoteConversationState, error?: string) => void): () => void
+}
+
 export type ConversationCapability = {
   say(text: string, volume?: number): Promise<Maybe<string>>
+  remoteSession?: RemoteConversationSession
 }
 
 export type NetworkReadyResult =

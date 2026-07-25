@@ -53,6 +53,9 @@ export enum StackChanStatus {
   IDLE = 0,
   RECOGNIZING = 1,
   SPEAKING = 2,
+  LISTENING = 3,
+  CONNECTING = 4,
+  ERROR = 5,
 }
 
 export const StackChanCapability = {
@@ -67,6 +70,7 @@ export const StackChanCapability = {
   STATUS_ICON: 1 << 8,
   STREAM_ID: 1 << 9,
   EVENT: 1 << 10,
+  STATUS_EXTENDED: 1 << 11,
 } as const
 
 export const STACKCHAN_CAPABILITIES =
@@ -79,7 +83,8 @@ export const STACKCHAN_CAPABILITIES =
   StackChanCapability.SPEAKER_TEXT |
   StackChanCapability.STATUS_ICON |
   StackChanCapability.STREAM_ID |
-  StackChanCapability.EVENT
+  StackChanCapability.EVENT |
+  StackChanCapability.STATUS_EXTENDED
 
 export type StackChanFrame = {
   type: StackChanFrameType

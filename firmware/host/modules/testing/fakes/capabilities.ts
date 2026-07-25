@@ -24,6 +24,16 @@ export type WebRadioCapability = {
   setVolume(volume: number): void
 }
 
+export type RemoteConversationState = 'standby' | 'connecting' | 'listening' | 'recognizing' | 'speaking' | 'blocked'
+
+export type RemoteConversationSession = {
+  readonly state: RemoteConversationState
+  readonly lastError?: string
+  requestStart(): string
+  requestStop(): string
+  subscribe(listener: (state: RemoteConversationState, error?: string) => void): () => void
+}
+
 export type RobotLed = {
   on(r: number, g: number, b: number, duration?: number, index?: number, count?: number): void
   off(index?: number, count?: number): void

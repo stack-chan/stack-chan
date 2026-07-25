@@ -46,6 +46,7 @@
       "./runtime-ui",
       "./usb-approval-model",
       "./usb-approval-session",
+      "./usb-conversation-session",
       "./usb-realtime-session",
       "$(MODULES)/network/http/*"
     ],

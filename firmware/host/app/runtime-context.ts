@@ -9,6 +9,7 @@ import type {
   LifecycleCapability,
   LightingCapability,
   MotionCapability,
+  RemoteConversationSession,
   RobotUI,
   RuntimeUICapability,
   ShowBalloonOptions,
@@ -34,6 +35,7 @@ type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
   RuntimeLightingConstructorParam &
   MotionControllerConstructorParam & {
     connectivity?: ConnectivityCapability
+    remoteConversationSession?: RemoteConversationSession
     ui: RobotUI
   }
 
@@ -90,7 +92,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#inputCapability = this.createInputCapability()
     this.#lifecycleCapability = this.createLifecycleCapability()
     this.#lightingCapability = this.createLightingCapability()
-    this.#conversationCapability = this.createConversationCapability()
+    this.#conversationCapability = this.createConversationCapability(params.remoteConversationSession)
     this.#connectivityCapability = this.createConnectivityCapability(params.connectivity ?? {})
     this.#uiCapability = this.createUICapability()
   }
@@ -503,9 +505,10 @@ export class StackchanRuntimeContext implements StackchanContext {
     }
   }
 
-  private createConversationCapability(): ConversationCapability {
+  private createConversationCapability(remoteSession?: RemoteConversationSession): ConversationCapability {
     return {
       say: (text, volume) => this.say(text, volume),
+      ...(remoteSession ? { remoteSession } : {}),
     }
   }
 

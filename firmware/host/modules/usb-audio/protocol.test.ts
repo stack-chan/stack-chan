@@ -31,7 +31,12 @@ test('StackChan advertises recognizing and speaking status icons', () => {
   assert.equal(StackChanControl.STATUS, 48)
   assert.equal(StackChanStatus.RECOGNIZING, 1)
   assert.equal(StackChanStatus.SPEAKING, 2)
+  assert.equal(StackChanStatus.LISTENING, 3)
+  assert.equal(StackChanStatus.CONNECTING, 4)
+  assert.equal(StackChanStatus.ERROR, 5)
   assert.notEqual(STACKCHAN_CAPABILITIES & StackChanCapability.STATUS_ICON, 0)
+  assert.equal(StackChanCapability.STATUS_EXTENDED, 1 << 11)
+  assert.notEqual(STACKCHAN_CAPABILITIES & StackChanCapability.STATUS_EXTENDED, 0)
 })
 
 test('StackChan advertises negotiated application EVENT support', () => {

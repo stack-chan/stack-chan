@@ -445,12 +445,16 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   #handleStatus(frame: StackChanFrame): void {
     const payload = frame.payload ?? new Uint8Array(0)
     const status = payload[0]
+    const maximumStatus =
+      (this.#peerCapabilities & StackChanCapability.STATUS_EXTENDED) !== 0
+        ? StackChanStatus.ERROR
+        : StackChanStatus.SPEAKING
     if (
       (frame.sampleRate ?? 0) !== 0 ||
       (frame.streamId ?? 0) !== 0 ||
       payload.byteLength !== 1 ||
       status < StackChanStatus.IDLE ||
-      status > StackChanStatus.SPEAKING
+      status > maximumStatus
     ) {
       this.#sendError(StackChanErrorCode.INVALID_REQUEST, frame.streamId ?? 0)
       return

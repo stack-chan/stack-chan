@@ -97,3 +97,26 @@ test('USB realtime session routes namespaced application events before raw Realt
   assert.equal(received[0].requestId, 'request-1')
   assert.equal(bridge.sent[0].type, 'session.update')
 })
+
+test('USB realtime session composes and unsubscribes application event handlers', () => {
+  const bridge = new FakeBridge()
+  const session = createUsbRealtimeSession(bridge)
+  const received: string[] = []
+  const unsubscribeApproval = session.addApplicationEventHandler((event) => {
+    if (event.type !== 'approval.request') return false
+    received.push('approval')
+    return true
+  })
+  session.addApplicationEventHandler((event) => {
+    if (event.type !== 'conversation.result') return false
+    received.push('conversation')
+    return true
+  })
+
+  bridge.receive({ schema: 'stackchan.event.v1', type: 'approval.request' })
+  bridge.receive({ schema: 'stackchan.event.v1', type: 'conversation.result' })
+  unsubscribeApproval()
+  bridge.receive({ schema: 'stackchan.event.v1', type: 'approval.request' })
+
+  assert.deepEqual(received, ['approval', 'conversation'])
+})

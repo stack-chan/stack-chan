@@ -13,7 +13,7 @@ import {
 } from './bridge.mjs'
 
 describe('Host.Button bridge', () => {
-  it('keeps constructible active-low buttons for button-aware MOD compatibility', () => {
+  it('emits normalized press and release edges for button-aware MOD compatibility', () => {
     const scheduled = []
     const events = []
     const bridge = createHostButtonBridge({
@@ -25,24 +25,47 @@ describe('Host.Button bridge', () => {
     })
     const firmwareButton = new bridge.Button.a({ onPush: () => events.push('firmware:a') })
 
-    assert.equal(firmwareButton.read(), 1)
-    assert.equal(bridge.read('a'), 1)
-    bridge.push('a')
-
+    assert.equal(bridge.Button.read('a'), 0)
     assert.equal(firmwareButton.read(), 0)
     assert.equal(bridge.read('a'), 0)
+    bridge.push('a')
+
+    assert.equal(firmwareButton.read(), 1)
+    assert.equal(bridge.Button.read('a'), 1)
+    assert.equal(bridge.read('a'), 1)
     assert.deepEqual(events, ['[bridge] Host.Button.a pushed', 'firmware:a'])
     assert.equal(scheduled[0].delay, 120)
 
     scheduled[0].callback()
-    assert.equal(firmwareButton.read(), 1)
-    assert.equal(bridge.read('a'), 1)
+    assert.equal(firmwareButton.read(), 0)
+    assert.equal(bridge.read('a'), 0)
+    assert.deepEqual(events, ['[bridge] Host.Button.a pushed', 'firmware:a', 'firmware:a'])
   })
 
   it('ignores unknown button names without throwing', () => {
     const bridge = createHostButtonBridge({ logger: () => {} })
     assert.doesNotThrow(() => bridge.push('x'))
     assert.equal(bridge.read('x'), undefined)
+  })
+
+  it('keeps a repeated push pressed until the latest release timeout', () => {
+    const scheduled = []
+    const edges = []
+    const bridge = createHostButtonBridge({
+      logger: () => {},
+      setTimeoutFn: (callback) => scheduled.push(callback),
+    })
+    new bridge.Button.a({ onPush: () => edges.push(bridge.read('a')) })
+
+    bridge.push('a')
+    bridge.push('a')
+    scheduled[0]()
+    assert.equal(bridge.read('a'), 1)
+    assert.deepEqual(edges, [1, 1])
+
+    scheduled[1]()
+    assert.equal(bridge.read('a'), 0)
+    assert.deepEqual(edges, [1, 1, 0])
   })
 })
 
@@ -137,6 +160,54 @@ describe('Host.Audio bridge', () => {
       ['close'],
     ])
     assert.equal(context.closed, true)
+  })
+
+  it('clamps non-finite hz/volume so AudioParam is never set to NaN', async () => {
+    // real AudioParam throws when set to a non-finite value; the wasm bridge
+    // sends a NaN volume when a MOD calls tone() without one.
+    const makeParam = () => {
+      let stored = 0
+      return {
+        get value() {
+          return stored
+        },
+        set value(next) {
+          if (!Number.isFinite(next)) throw new TypeError('non-finite AudioParam value')
+          stored = next
+        },
+      }
+    }
+    let oscillator
+    let gain
+    const context = {
+      currentTime: 0,
+      createOscillator() {
+        oscillator = { frequency: makeParam(), onended: undefined, connect() {}, start() {}, stop() {} }
+        return oscillator
+      },
+      createGain() {
+        gain = { kind: 'gain', gain: makeParam(), connect() {} }
+        return gain
+      },
+      destination: 'destination',
+      state: 'running',
+    }
+    const bridge = createHostAudioOutBridge({
+      createAudioContext: () => context,
+      setTimeoutFn: (fn) => {
+        fn()
+        return 0
+      },
+      clearTimeoutFn: () => {},
+    })
+
+    await bridge.tone({ hz: 440, duration: 300, volume: Number.NaN })
+    assert.equal(oscillator.frequency.value, 440)
+    assert.equal(gain.gain.value, 1) // NaN volume falls back to full volume
+
+    await bridge.tone({ hz: Number.NaN, duration: Number.NaN, volume: 2 })
+    assert.equal(oscillator.frequency.value, 440) // NaN hz falls back to 440
+    assert.equal(gain.gain.value, 1) // volume clamped to [0, 1]
   })
 
   it('resolves tone playback with a duration fallback when onended does not fire', async () => {

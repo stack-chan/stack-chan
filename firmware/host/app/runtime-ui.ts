@@ -3,11 +3,19 @@ import type {
   DrawerButtonViewSpec,
   DrawerCapability,
   RobotUI,
+  ShowBalloonOptions,
   StackchanContext,
   UIEffect,
 } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
-import { createFaceState, type Emotion, type FaceState, type FaceThemeKey, setColorRGB } from 'face-state'
+import {
+  createFaceState,
+  type Emotion,
+  type FaceEyeKey,
+  type FaceState,
+  type FaceThemeKey,
+  setColorRGB,
+} from 'face-state'
 import {
   type Pose,
   type Rotation,
@@ -40,6 +48,7 @@ export class StackchanRuntimeUI {
   #drawerButtonStates = new Map<string, boolean>()
   #drawerRegistry: DrawerCapability
   #emotion: Emotion
+  #eyeOpen = { left: 1, right: 1 }
   #eyeGazePoint: Vector3 = [0, 0, 0]
   #eyeGazeRotation: Rotation = { y: 0, p: 0, r: 0 }
   #faceState: FaceState
@@ -76,21 +85,7 @@ export class StackchanRuntimeUI {
     this.rebuildDrawerBindings()
   }
 
-  showBalloon(
-    text: string,
-    option: {
-      left?: number
-      right?: number
-      top?: number
-      bottom?: number
-      width?: number
-      height?: number
-    } = {
-      right: 20,
-      top: 10,
-      width: 80,
-    },
-  ) {
+  showBalloon(text: string, option: ShowBalloonOptions = {}) {
     if (this.#balloon != null) {
       this.hideBalloon()
     }
@@ -113,6 +108,13 @@ export class StackchanRuntimeUI {
     this.#emotion = emotion
   }
 
+  setEyeOpen(key: FaceEyeKey, value: number) {
+    if (value < 0 || value > 1) {
+      throw new Error('value must be between 0 and 1')
+    }
+    this.#eyeOpen[key] = value
+  }
+
   setMouthOpen(value: number) {
     if (value < 0 || value > 1) {
       throw new Error('value must be between 0 and 1')
@@ -128,6 +130,8 @@ export class StackchanRuntimeUI {
     const pose = this.#options.getPose()
     const gazePoint = this.#options.getGazePoint()
     this.#faceState.mouth.open = this.#mouthOpen
+    this.#faceState.eyes.left.open = this.#eyeOpen.left
+    this.#faceState.eyes.right.open = this.#eyeOpen.right
     this.#faceState.emotion = this.#emotion
 
     if (gazePoint != null) {
@@ -145,19 +149,20 @@ export class StackchanRuntimeUI {
     this.#ui.update(interval, this.#faceState)
   }
 
-  private addDrawerButton({ key, label, callback, kind, initialState }: DrawerButtonSpec): void {
-    this.#drawerButtonSpecs.set(key, { key, label, callback, kind, initialState })
-    this.bindDrawerButton({ key, label, callback, kind, initialState })
-    this.#ui.addDrawerButton({ key, label, kind })
+  private addDrawerButton({ key, label, callback, kind, initialState, value, options, icon }: DrawerButtonSpec): void {
+    const spec = { key, label, callback, kind, initialState, value, options, icon }
+    this.#drawerButtonSpecs.set(key, spec)
+    this.bindDrawerButton(spec)
+    this.#ui.addDrawerButton({ key, label, kind, value, options, icon })
     if (initialState !== undefined) {
       this.setDrawerButtonState(key, initialState)
     }
   }
 
   private bindDrawerButton({ key, callback }: DrawerButtonSpec): void {
-    const runCallback = () => {
+    const runCallback = (value?: string) => {
       try {
-        const result = callback(this.#options.getContext())
+        const result = callback(this.#options.getContext(), value)
         if (result && typeof (result as { catch?: (handler: (err: unknown) => void) => void }).catch === 'function') {
           ;(result as { catch: (handler: (err: unknown) => void) => void }).catch((err: unknown) => {
             trace(`[DrawerButton] callback rejected key=${key} err=${String(err)}\n`)
@@ -201,7 +206,14 @@ export class StackchanRuntimeUI {
     const buttons: DrawerButtonViewSpec[] = []
     for (const spec of this.#drawerButtonSpecs.values()) {
       this.bindDrawerButton(spec)
-      buttons.push({ key: spec.key, label: spec.label, kind: spec.kind })
+      buttons.push({
+        key: spec.key,
+        label: spec.label,
+        kind: spec.kind,
+        value: spec.value,
+        options: spec.options,
+        icon: spec.icon,
+      })
     }
 
     this.#ui.setDrawerButtons(buttons)

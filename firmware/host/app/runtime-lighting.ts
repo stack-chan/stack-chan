@@ -45,7 +45,11 @@ export class StackchanRuntimeLighting {
 
   close(): void {
     for (const led of Object.values(this.#led)) {
-      led.off()
+      try {
+        led.off()
+      } catch {
+        // best-effort shutdown: keep turning off the remaining LEDs
+      }
     }
   }
 }

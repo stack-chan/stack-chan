@@ -1,4 +1,4 @@
-import { Drawer, type DrawerBehavior, type DrawerButtonSpec } from 'drawer'
+import { Drawer, type DrawerBehavior, type DrawerButtonViewSpec } from 'drawer'
 import type {
   Container as PiuContainer,
   ContainerDictionary as PiuContainerDictionary,
@@ -19,7 +19,7 @@ type CommonViewAnchors = {
 export type CommonViewParams = CommonViewAnchors & {
   main?: PiuContainer
   appBar?: PiuContent
-  drawerButtons?: DrawerButtonSpec[]
+  drawerButtons?: DrawerButtonViewSpec[]
 }
 
 /**
@@ -44,7 +44,7 @@ export class CommonViewBehavior extends Behavior {
   overlay: PiuContainer | null = null
   drawer: PiuContainer | null = null
   drawerOpen = false
-  drawerButtons: DrawerButtonSpec[] = []
+  drawerButtons: DrawerButtonViewSpec[] = []
   drawerStates: Map<string, boolean> | null = null
 
   onCreate(container: PiuContainer, data: CommonViewParams) {
@@ -110,12 +110,12 @@ export class CommonViewBehavior extends Behavior {
     else this.openDrawer()
   }
 
-  setDrawerButtons(buttons: DrawerButtonSpec[]): void {
+  setDrawerButtons(buttons: DrawerButtonViewSpec[]): void {
     this.drawerButtons = buttons.map((button) => this.withStoredDrawerState(button))
     this.syncDrawerButtons()
   }
 
-  addDrawerButton(button: DrawerButtonSpec): void {
+  addDrawerButton(button: DrawerButtonViewSpec): void {
     const nextButton = this.withStoredDrawerState(button)
     const index = this.drawerButtons.findIndex((item) => item.key === button.key)
     if (index >= 0) this.drawerButtons[index] = nextButton
@@ -192,7 +192,7 @@ export class CommonViewBehavior extends Behavior {
     return this.drawerStates
   }
 
-  private withStoredDrawerState(button: DrawerButtonSpec): DrawerButtonSpec {
+  private withStoredDrawerState(button: DrawerButtonViewSpec): DrawerButtonViewSpec {
     const active = this.getDrawerStates().get(button.key)
     return active === undefined ? button : { ...button, active }
   }

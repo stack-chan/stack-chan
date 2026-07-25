@@ -16,7 +16,8 @@ You can flash the Stack-chan firmware from a web browser without ModdableSDK env
 
 ![Flashing screen](./images/web-flash-top.png)
 
-* Choose the type of M5Stack from the select box (M5Stack, M5Stack Fire, M5Stack Core2, M5Stack CoreS3)
+* Choose the type of M5Stack from the select box (M5Stack, M5Stack Core2, M5Stack CoreS3, M5StackChan CoreS3)
+* Choose "M5StackChan CoreS3" when using the M5StackChan CoreS3-specific servo, power, and LED configuration
 * Choose "Flash Stack-chan firmware"
 
 ![Connection screen](./images/web-flash-connect.png)

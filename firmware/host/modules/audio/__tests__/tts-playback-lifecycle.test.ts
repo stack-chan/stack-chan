@@ -106,3 +106,20 @@ test('TTS playback lifecycle rejects overlapping playback without firing onDone'
   active.onDone()
   assert.deepEqual(order, ['Error: already playing', 'done'])
 })
+
+test('TTS playback lifecycle forwards an already calculated streaming power value', async () => {
+  const { beginTTSPlayback } = await setup()
+  const powers: number[] = []
+  const owner = {
+    streaming: false,
+    onPlayed: (power: number) => powers.push(power),
+  }
+  const lifecycle = beginTTSPlayback(owner)
+
+  assert.ok(lifecycle)
+  lifecycle.onPower(1234)
+  lifecycle.onDone()
+  lifecycle.onPower(5678)
+
+  assert.deepEqual(powers, [1234])
+})

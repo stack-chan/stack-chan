@@ -1,4 +1,7 @@
 {
+  "build": {
+    "NAME": "stack-chan-host"
+  },
   "defines": {
     "XS_MODS": 1
   },
@@ -26,9 +29,13 @@
       "./main",
       "./app-behavior",
       "./app-behavior-resolver",
+      "./boot-network-recovery",
       "./boot-services",
       "./compose",
       "./capabilities",
+      "./experimental-mini-app-loader",
+      "./experimental-mini-app-piu",
+      "./experimental-mini-app-registration",
       "./setup-mode",
       "./settings-status",
       "./runtime-audio",
@@ -75,24 +82,38 @@
     "enablePowerButton": true
   },
   "resources": {
-    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
-    "*-alpha": [
+    "*": ["./strings/*"],
+    "*-mask": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24",
       {
         "source": "../modules/ui/assets/fonts/k8x12",
         "size": 12,
         "characterFiles": "../modules/ui/assets/fonts/k8x12-chars.txt",
+        "localization": true,
+        "monochrome": true
+      },
+      {
+        "source": "../modules/ui/assets/fonts/StackchanCJK-Regular",
+        "name": "StackchanCJK",
+        "size": 12,
+        "characters": " ",
+        "blocks": [],
+        "localization": true,
+        "monochrome": true
+      }
+    ],
+    "*-alpha": [
+      {
+        "source": "../modules/ui/assets/fonts/k8x12",
+        "size": 24,
+        "characters": "Stack-chan[・＿・]",
         "monochrome": true
       }
     ]
   },
   "bundle": {
     "id": "tech.moddable.stackchan",
-    "devices": [
-      "com.m5stack",
-      "com.m5stack.fire",
-      "com.m5stack.core2",
-      "com.m5stack.cores3"
-    ]
+    "devices": ["com.m5stack", "com.m5stack.core2", "com.m5stack.cores3"]
   },
   "typescript": {
     "tsconfig": {

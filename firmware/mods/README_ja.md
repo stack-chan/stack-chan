@@ -5,6 +5,10 @@ MODの書き込み方法は[プログラムのビルドと書き込み](../docs/
 
 一部のMODは動かすためにネットワーク接続や外部のサーバを準備する必要があります（執筆中）。
 
+## WebRadio
+
+- [web_radio](./examples/web_radio/): M5StackChan CoreS3でSomaFMのMP3ストリームを再生します。
+
 MOD をインストールすると、ホストの製品既定動作は実行されません。
 ボタンや画面操作の意味は、インストールした MOD の実装で決まります。
 
@@ -12,9 +16,19 @@ MOD は JavaScript または TypeScript module として書けます。
 TypeScript で MOD を書く場合は、公開された Stack-chan capability 型と Moddable の module specifier だけを使います。
 WASM host で使う MOD も、`lin` など TypeScript 対応済み target で build した `.xsb` または archive を読み込ませます。
 
+表示文字列は [`context.i18n` を使った firmware のローカライズ](../docs/localization_ja.md)を参照してください。
+最小サンプルは [`localized_drawer`](./examples/localized_drawer/) です。
+
+顔画面とホストの AppBar を維持したまま Piu UI を追加する場合は、experimental の[ミニアプリ](../docs/mini-apps_ja.md)を利用できます。
+実装例は [mini_app_sample](./examples/mini_app_sample/) にあります。
+
 ## M5StackChan CoreS3 Smoke
 
 - [m5stackchan_smoke](./examples/m5stackchan_smoke/): M5StackChan CoreS3 のサーボ電源とヘッドLEDの smoke 確認です。手順は [M5StackChan CoreS3 smoke check](../docs/m5stackchan-cores3-smoke.md) を参照してください。
+
+## Local Peer Hello
+
+- [local_peer_hello](./examples/local_peer_hello/): インターネットを経由せず、近くのｽﾀｯｸﾁｬﾝを発見して型付きメッセージを送受信します。
 
 ## Look Around: きょろきょろｽﾀｯｸﾁｬﾝ
 

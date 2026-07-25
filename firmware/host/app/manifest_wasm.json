@@ -1,12 +1,34 @@
 {
+  "build": {
+    "NAME": "stack-chan-host"
+  },
   "include": ["../platforms/wasm/manifest.json"],
   "resources": {
-    "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24"],
-    "*-alpha": [
+    "*": ["./strings/*"],
+    "*-mask": [
+      "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24",
       {
         "source": "../modules/ui/assets/fonts/k8x12",
         "size": 12,
         "characterFiles": "../modules/ui/assets/fonts/k8x12-chars.txt",
+        "localization": true,
+        "monochrome": true
+      },
+      {
+        "source": "../modules/ui/assets/fonts/StackchanCJK-Regular",
+        "name": "StackchanCJK",
+        "size": 12,
+        "characters": " ",
+        "blocks": [],
+        "localization": true,
+        "monochrome": true
+      }
+    ],
+    "*-alpha": [
+      {
+        "source": "../modules/ui/assets/fonts/k8x12",
+        "size": 24,
+        "characters": "Stack-chan[・＿・]",
         "monochrome": true
       }
     ]

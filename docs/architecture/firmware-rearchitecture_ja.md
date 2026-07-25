@@ -467,7 +467,7 @@ flowchart TD
 - [x] 対応済み：`firmware/docs/0002-image-face.md` の旧 renderer 前提を削除または更新する。
 - [x] 対応済み：`firmware/face-context-as-views.md` を `FaceState` 方針に合わせて削除または更新する。
 - [x] 対応済み：`firmware/piu-faster.md`（現 `firmware/docs/piu-performance-policy.md`）を UI performance 方針として統合する。
-- [x] 対応済み：`CLAUDE.md` の旧構成参照を削除または更新する。
+- [x] 対応済み：`AGENTS.md` の旧構成参照を削除または更新する。
 - [x] 対応済み：`renderer.type`、`renderers-piu`、旧 renderer API を説明する残存文書を削除または更新する。
 - [x] 対応済み：tracked tree に旧 `firmware/stackchan/renderers` と旧 `firmware/stackchan/renderers-piu` が残っていないことを確認する。
 - [x] 対応済み：ローカルに空ディレクトリが残る場合でも、manifest、import、document から参照しない。

@@ -2,6 +2,7 @@ import { AppController } from 'app-controller'
 import { DogFace, FaceBase, ImageFace, SimpleFace } from 'behaviors/face'
 import { createFaceSkinPalette } from 'face-skin'
 import { createFaceState, Emotion, type FaceState, setColorRGB } from 'face-state'
+import { Eye } from 'parts/eye'
 import { eyeOpenToVariant, IRIS_SPRITE } from 'parts/image/atlas'
 import { Content, type Content as PiuContent } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
@@ -24,6 +25,7 @@ type PiuNode = {
 
 type BreathRecorder = PiuNode & {
   lastBreath?: number
+  calls?: number
 }
 
 function childAt(container: PiuNode, index: number): PiuNode {
@@ -63,6 +65,24 @@ equal(simpleLeftEyelid.skin, defaultPalette.secondary, 'standard eyelid should u
 assert(simpleLeftIris.fillOutline, 'standard iris should render through a Shape fill outline')
 assert(simpleLeftEyelid.fillOutline, 'standard eyelid should render through a Shape fill outline')
 assert(simpleMouth, 'standard mouth should be present')
+
+const roundRectEye = new Eye({
+  cx: 50,
+  cy: 40,
+  shape: 'roundRect',
+  width: 28,
+  height: 16,
+  r: 5,
+  side: 'left',
+  eyelidWidth: 28,
+  eyelidHeight: 16,
+}) as PiuNode
+const roundRectIris = childAt(roundRectEye, 0)
+const roundRectEyelid = childAt(roundRectEye, 1)
+assert(roundRectIris.fillOutline, 'round rect iris should render through a Shape fill outline')
+assert(roundRectEyelid.fillOutline, 'round rect iris should retain an eyelid')
+equal(roundRectIris.coordinates?.width, 28, 'round rect iris should preserve its width')
+equal(roundRectIris.coordinates?.height, 16, 'round rect iris should preserve its height')
 
 const neutralEyelid = simpleLeftEyelid.fillOutline
 const angryFace = createFaceState()
@@ -149,6 +169,7 @@ const breathRecorder = new Content(null, {
   height: 1,
   Behavior: class extends Behavior {
     onFaceState(content: BreathRecorder, face: FaceState) {
+      content.calls = (content.calls ?? 0) + 1
       content.lastBreath = face.breath
     }
   },
@@ -166,6 +187,49 @@ for (let i = 0; i < 32; i++) {
   breathChanged ||= breathRecorder.lastBreath !== initialBreath
 }
 assert(breathChanged, 'default FaceBehavior should update face breath')
+
+let controlledBreath = 0
+const controlledRecorder = new Content(null, {
+  left: 0,
+  top: 0,
+  width: 1,
+  height: 1,
+  Behavior: class extends Behavior {
+    onFaceState(content: BreathRecorder, face: FaceState) {
+      content.calls = (content.calls ?? 0) + 1
+      content.lastBreath = face.breath
+    }
+  },
+}) as BreathRecorder
+const controlledFace = new FaceBase({
+  contents: [controlledRecorder as unknown as PiuContent],
+  intervalMs: 33,
+  motions: [
+    (_tick, face) => {
+      face.breath = controlledBreath
+    },
+  ],
+}) as PiuNode
+const controlledBehavior = controlledFace.behavior as {
+  onCreate?: (node: PiuNode) => void
+  onTimeChanged?: (node: PiuNode) => void
+}
+controlledBehavior.onCreate?.(controlledFace)
+controlledBehavior.onTimeChanged?.(controlledFace)
+const callsAfterZero = controlledRecorder.calls
+controlledBreath = 0.08
+controlledBehavior.onTimeChanged?.(controlledFace)
+equal(
+  controlledRecorder.calls,
+  callsAfterZero,
+  'FaceBehavior should skip onFaceState distribution for sub-pixel breath changes',
+)
+controlledBreath = 0.09
+controlledBehavior.onTimeChanged?.(controlledFace)
+assert(
+  (controlledRecorder.calls ?? 0) > (callsAfterZero ?? 0),
+  'FaceBehavior should distribute onFaceState after breath crosses a rendered pixel',
+)
 
 const movingFace = new SimpleFace({ intervalMs: 33 }) as PiuNode
 const movingLeftEye = childAt(movingFace, 0)

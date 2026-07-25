@@ -1,0 +1,24 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/modules/io/wifi/manifest.json",
+    "$(MODDABLE)/examples/io/tcp/httpsclient/manifest_httpsclient.json",
+    "$(MODDABLE)/modules/pins/i2s/manifest.json"
+  ],
+  "modules": {
+    "*": ["./main"]
+  },
+  "config": {
+    "startupSound": false
+  },
+  "data": {
+    "*": ["$(MODDABLE)/modules/crypt/data/ca176"]
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "lib": ["es2025", "esnext.disposable"]
+      }
+    }
+  }
+}

@@ -34,7 +34,7 @@ MOD がインストールされている場合、製品既定動作は実行さ�
 
 | キー              | 説明                                            | 使用可能な値                                |
 | ----------------- | ----------------------------------------------- | ------------------------------------------- |
-| driver.type       | モータドライバの種類                            | "scservo", "rs30x", "pwm", "none", "dynamixel"           |
+| driver.type       | モータドライバの種類                            | "m5stackchan", "scservo", "rs30x", "pwm", "none", "dynamixel"           |
 | driver.panId      | パン軸（首の横回転）に使うシリアルサーボの ID   | 1~254                                       |
 | driver.tiltId     | チルト軸（首の縦回転）に使うシリアルサーボの ID | 1~254                                       |
 | driver.offsetPan  | パン軸のオフセット                              | -90~90                                      |
@@ -119,7 +119,10 @@ $ npm run flash
 ```
 
 ビルドだけ確認したい場合は `npm run build` を使います。
-ビルドしたプログラムは`$MODDABLE/build/`ディレクトリ配下に保存されます。
+ビルドしたプログラムと中間生成物は `firmware/dist/bin/` と `firmware/dist/tmp/` 配下に保存されます。
+ホストアプリケーション名は `stack-chan-host` です。
+`npm run clean` を実行すると、`firmware/dist/` 配下の生成物をすべて削除できます。
+`npm run bundle` でも各ターゲットのビルド出力は `firmware/dist/` 配下に保存され、検証済みの成果物は `firmware/dist/bundle-targets/` に集約されます。最終的なディレクトリと ZIP は `firmware/host/app/` 配下に生成されます。
 
 ### Stack-chan サブプラットフォーム
 
@@ -131,6 +134,7 @@ Stack-chan の各ハードウェア構成は、サーボの driver 種別とバ�
 | ビルドから書き込みまで    | `npm run flash` または `npm run flash:m5stackchan_cores3` | `npm run flash:stackchan_rt` | `npm run flash:takao_core2_sg90` |
 | deploy task を実行        | `npm run deploy` または `npm run deploy:m5stackchan_cores3` | `npm run deploy:stackchan_rt` | `npm run deploy:takao_core2_sg90` |
 | デバッグ（xsbug）         | `npm run debug` または `npm run debug:m5stackchan_cores3` | `npm run debug:stackchan_rt` | `npm run debug:takao_core2_sg90` |
+| デバッグ（xsdb）          | `npm run debug:xsdb` または `npm run debug:xsdb:m5stackchan_cores3` | `npm run debug:xsdb:stackchan_rt` | `npm run debug:xsdb:takao_core2_sg90` |
 | MOD の書き込み            | `npm run mod -- [modのパス]` または `npm run mod:m5stackchan_cores3 -- [modのパス]` | `npm run mod:stackchan_rt -- [modのパス]` | `npm run mod:takao_core2_sg90 -- [modのパス]` |
 
 ボード固有の driver 種別とサーボバスのピンは、各サブプラットフォームの manifest にまとまっています。
@@ -138,6 +142,8 @@ Stack-chan の各ハードウェア構成は、サーボの driver 種別とバ�
 - M5StackChan CoreS3: [`host/platforms/m5stackchan_cores3/manifest.json`](../host/platforms/m5stackchan_cores3/manifest.json) — `m5stackchan` driver、シリアル TX6 / RX7。
 - Stack-chan RT: [`host/platforms/stackchan_rt/manifest.json`](../host/platforms/stackchan_rt/manifest.json) — `dynamixel` driver、シリアル TX7 / RX6。
 - タカオ版 Core2 + SG90: [`host/platforms/takao_core2_sg90/manifest.json`](../host/platforms/takao_core2_sg90/manifest.json) — `pwm` driver、pan PWM19 / tilt PWM27。
+
+`m5stackchan` driver は SCServo プロトコルに加えて、M5StackChan 専用のゼロ位置、可動域、PY32 サーボ電源制御を提供します。安全のため、M5StackChan CoreS3 用ファームウェアは driver 種別を `m5stackchan` に、Stack-chan RT 用ファームウェアは `dynamixel` に固定します。どちらも保存済みの異なる `driver.type` は無視します。
 
 Wi-Fi 認証情報や API キーなどのデバイス固有の設定は、各ボードのアプリ manifest の `"config"` 配下に書いてください。秘密情報はコミットせず、ローカルにのみ追加してください。起動時のログ `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` で RT が実際に使うシリアルピンを確認できます。
 
@@ -164,6 +170,18 @@ Stack-chan RT やタカオ版 Core2 + SG90 では、上の表にあるボード�
 `xsbug`を使うとログの確認やブレークポイントの設定（プログラムの特定行で一時停止する）、ステップ実行（プログラムを1行ずつ実行する）などができます。
 `xsbug`の詳しい使い方は[公式ドキュメント（英語）](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md)を参照してください。
 
+ターミナル上の`xsdb`を使う場合は次のコマンドを実行します。
+
+```console
+$ npm run debug:xsdb
+```
+
+複数のシリアルデバイスがある場合は、`--port`で対象を指定できます。
+
+```console
+$ npm run debug:xsdb -- --port /dev/ttyACM1
+```
+
 ## （オプション）ユーザアプリケーション（MOD）の書き込み
 
 次のコマンドでユーザアプリケーション（MOD）の書き込みを行います。
@@ -172,6 +190,16 @@ _コマンドに`sudo`をつける必要はありません。_
 
 ```console
 $ npm run mod -- [modのマニフェストファイルのパス]
+```
+
+`npm run mod`は`mcrun -t build`でXSアーカイブを生成した後、`esptool`で実機のpartition tableを読み、type `0x40` / subtype `1`の`xs`パーティションへ直接書き込みます。
+パーティションのoffsetは実機から取得され、アーカイブの形式、領域サイズ、選択したチップ、Moddable firmware descriptorを確認してから書き込みとverifyを行います。
+xsbugの書き込みチャネルを使わないため、ホストはdebug buildとrelease buildのどちらでも構いません。
+
+複数のシリアルデバイスがある場合は、`--port`または`STACKCHAN_PORT`で対象を指定してください。
+
+```console
+$ npm run mod -- ./mods/examples/look_around/manifest.json --port /dev/ttyACM1
 ```
 
 標準のコマンドは、JavaScript module を解決する MOD manifest を対象にします。
@@ -193,7 +221,8 @@ $ npm run mod -- ./mods/examples/look_around/manifest.json
 # xsc check.xsb
 # xsc mod/config.xsb
 # xsl look_around.xsa
-Installing mod...complete
+[stack-chan] MOD preflight: xs_esp32 8.3.1, XS 17.8.0, xs=0xfa0000/262144
+[stack-chan] MOD installed and verified: .../look_around.xsa
 ```
 
 ## (オプショナル)フラッシュ領域の消去

@@ -40,11 +40,25 @@ export default function loadPreferences(category: PreferenceDomain): ConfigRecor
   const modPreference = structuredClone((loadModConfig()[category.toLowerCase()] ?? {}) as ConfigRecord)
 
   const preference = { ...mcPreference, ...modPreference }
+  const lockedDriverType =
+    category === DOMAIN.driver && mcPreference.typeLocked === true && typeof mcPreference.type === 'string'
+      ? mcPreference.type
+      : undefined
+  if (lockedDriverType !== undefined) {
+    preference.type = lockedDriverType
+    preference.typeLocked = true
+  }
 
   const keys = PREF_KEYS.filter((s) => s[0] === category)
   for (const [domain, key, ctor] of keys) {
     const value = Preference.get(domain, key)
     if (value != null) {
+      if (domain === DOMAIN.driver && key === 'type' && lockedDriverType !== undefined) {
+        if (String(value) !== lockedDriverType) {
+          trace(`[preferences] ignored stored driver.type=${value}; platform locks it to ${lockedDriverType}\n`)
+        }
+        continue
+      }
       preference[key] = ctor(value)
     }
   }

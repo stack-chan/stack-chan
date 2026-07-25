@@ -4,15 +4,19 @@ import type {
   ConnectivityCapability,
   ConversationCapability,
   FaceCapability,
+  I18nCapability,
   InputCapability,
   LifecycleCapability,
   LightingCapability,
   MotionCapability,
   RobotUI,
   RuntimeUICapability,
+  ShowBalloonOptions,
   StackchanContext,
 } from 'capabilities'
-import type { Emotion, FaceThemeKey } from 'face-state'
+import type { Emotion, FaceEyeKey, FaceThemeKey } from 'face-state'
+import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
+import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
@@ -43,11 +47,13 @@ export class StackchanRuntimeContext implements StackchanContext {
   #conversationCapability: ConversationCapability
   #cameraRuntime: StackchanRuntimeCamera
   #faceCapability: FaceCapability
+  #i18nCapability: I18nCapability
   #inputCapability: InputCapability
   #inputRuntime: StackchanRuntimeInput
   #lifecycleCapability: LifecycleCapability
   #lightingCapability: LightingCapability
   #lightingRuntime: StackchanRuntimeLighting
+  #localPeerSessions = new Set<LocalPeerSession>()
   #motionCapability: MotionCapability
   #motionController: MotionController
   #paused: boolean
@@ -78,11 +84,14 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#faceCapability = this.createFaceCapability()
     this.#motionCapability = this.createMotionCapability()
     this.#audioCapability = this.createAudioCapability()
+    // Capture the host-owned localization service after boot selected a locale;
+    // MODs receive this stable boundary instead of importing host UI internals.
+    this.#i18nCapability = createI18nCapability()
     this.#inputCapability = this.createInputCapability()
     this.#lifecycleCapability = this.createLifecycleCapability()
     this.#lightingCapability = this.createLightingCapability()
     this.#conversationCapability = this.createConversationCapability()
-    this.#connectivityCapability = params.connectivity ?? {}
+    this.#connectivityCapability = this.createConnectivityCapability(params.connectivity ?? {})
     this.#uiCapability = this.createUICapability()
   }
 
@@ -96,6 +105,10 @@ export class StackchanRuntimeContext implements StackchanContext {
 
   get audio(): AudioCapability {
     return this.#audioCapability
+  }
+
+  get i18n(): I18nCapability {
+    return this.#i18nCapability
   }
 
   get input(): InputCapability {
@@ -209,6 +222,16 @@ export class StackchanRuntimeContext implements StackchanContext {
     return this.#audioRuntime.say(text, volume)
   }
 
+  /**
+   * Sing raw stackchan-voice koe notation when the active TTS supports it.
+   *
+   * @param koe - romanized koe notation with `#` note annotations
+   * @returns the koe notation when singing finishes, otherwise the reason why it fails.
+   */
+  async sing(koe: string, volume?: number): Promise<Maybe<string>> {
+    return this.#audioRuntime.sing(koe, volume)
+  }
+
   async record(durationMilliSec?: number): Promise<OwnedAudioBuffer> {
     return this.#audioRuntime.record(durationMilliSec)
   }
@@ -245,21 +268,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    *
    * @param text - the text on the balloon
    */
-  showBalloon(
-    text: string,
-    option: {
-      left?: number
-      right?: number
-      top?: number
-      bottom?: number
-      width?: number
-      height?: number
-    } = {
-      right: 20,
-      top: 10,
-      width: 80,
-    },
-  ) {
+  showBalloon(text: string, option: ShowBalloonOptions = {}) {
     this.#uiRuntime.showBalloon(text, option)
   }
 
@@ -316,6 +325,10 @@ export class StackchanRuntimeContext implements StackchanContext {
    */
   setEmotion(emotion: Emotion) {
     this.#uiRuntime.setEmotion(emotion)
+  }
+
+  setEyeOpen(key: FaceEyeKey, value: number) {
+    this.#uiRuntime.setEyeOpen(key, value)
   }
 
   setMouthOpen(value: number) {
@@ -391,6 +404,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     return {
       setColor: (key, r, g, b) => this.setColor(key, r, g, b),
       setEmotion: (emotion) => this.setEmotion(emotion),
+      setEyeOpen: (key, value) => this.setEyeOpen(key, value),
       setMouthOpen: (value) => this.setMouthOpen(value),
     }
   }
@@ -431,6 +445,9 @@ export class StackchanRuntimeContext implements StackchanContext {
       say(text, volume) {
         return context.say(text, volume)
       },
+      sing(koe, volume) {
+        return context.sing(koe, volume)
+      },
       record(durationMilliSec) {
         return context.record(durationMilliSec)
       },
@@ -439,6 +456,9 @@ export class StackchanRuntimeContext implements StackchanContext {
       },
       playAudio(buffer) {
         return context.playAudio(buffer)
+      },
+      get webRadio() {
+        return context.#audioRuntime.webRadio
       },
     }
   }
@@ -494,11 +514,48 @@ export class StackchanRuntimeContext implements StackchanContext {
     }
   }
 
+  private createConnectivityCapability(connectivity: ConnectivityCapability): ConnectivityCapability {
+    const localPeer = connectivity.localPeer
+    if (!localPeer) return connectivity
+    const context = this
+    return {
+      ...connectivity,
+      localPeer: {
+        get id() {
+          return localPeer.id
+        },
+        async open(options) {
+          if (context.#closed) throw new LocalPeerError('closed', 'Stack-chan context is closed')
+          const session = await localPeer.open(options)
+          if (context.#closed) {
+            session.close()
+            throw new LocalPeerError('closed', 'Stack-chan context is closed')
+          }
+          const trackedSession: LocalPeerSession = {
+            discover: (discoverOptions) => session.discover(discoverOptions),
+            send: (peerId, type, payload) => session.send(peerId, type, payload),
+            broadcast: (type, payload) => session.broadcast(type, payload),
+            subscribe: (type, handler) => session.subscribe(type, handler),
+            close() {
+              if (!context.#localPeerSessions.delete(trackedSession)) return
+              session.close()
+            },
+          }
+          context.#localPeerSessions.add(trackedSession)
+          return trackedSession
+        },
+      },
+    }
+  }
+
   private createUICapability(): RuntimeUICapability {
     const context = this
     return {
       get controller() {
         return context.#uiRuntime.ui
+      },
+      get miniApps() {
+        return context.#uiRuntime.ui.miniApps
       },
       update(interval, faceState) {
         context.#uiRuntime.ui.update(interval, faceState)
@@ -514,6 +571,12 @@ export class StackchanRuntimeContext implements StackchanContext {
       },
       setFace(face) {
         context.#uiRuntime.ui.setFace(face)
+      },
+      setHandAnimation(animation) {
+        context.#uiRuntime.ui.setHandAnimation(animation)
+      },
+      setFaceMotionEnabled(enabled) {
+        context.#uiRuntime.ui.setFaceMotionEnabled?.(enabled)
       },
       setMain(content) {
         context.#uiRuntime.ui.setMain(content)
@@ -577,10 +640,39 @@ export class StackchanRuntimeContext implements StackchanContext {
       this.#updateFaceHandler = undefined
     }
     this.#motionController.close()
-    await this.#cameraRuntime.close()
-    this.#inputRuntime.close()
-    this.#audioRuntime.close()
-    this.#lightingRuntime.close()
+    let closeError: unknown
+    let hasCloseError = false
+    const rememberCloseError = (error: unknown) => {
+      if (hasCloseError) return
+      closeError = error
+      hasCloseError = true
+    }
+    for (const session of this.#localPeerSessions) {
+      try {
+        session.close()
+      } catch (error) {
+        rememberCloseError(error)
+      }
+    }
+    this.#localPeerSessions.clear()
+    try {
+      await this.#cameraRuntime.close()
+    } catch (error) {
+      rememberCloseError(error)
+    } finally {
+      for (const closeRuntime of [
+        () => this.#inputRuntime.close(),
+        () => this.#audioRuntime.close(),
+        () => this.#lightingRuntime.close(),
+      ]) {
+        try {
+          closeRuntime()
+        } catch (error) {
+          rememberCloseError(error)
+        }
+      }
+    }
+    if (hasCloseError) throw closeError
     // connectivity is owned by boot-services, not this context, so it stays open.
   }
 }

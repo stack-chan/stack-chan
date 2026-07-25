@@ -13,11 +13,20 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
+      "piu/MC": [
+        "./node_modules/@moddable/typings/piu/MC.d.ts"
+      ],
+      "piu/*": [
+        "./node_modules/@moddable/typings/piu/*"
+      ],
       "camera": [
         "host/modules/camera/wasm/camera.ts"
       ],
       "capabilities": [
         "host/modules/testing/fakes/capabilities.ts"
+      ],
+      "crypt": [
+        "host/modules/connectivity/__tests__/fakes/crypt.ts"
       ],
       "audio-buffer": [
         "host/modules/audio/audio-buffer.ts"
@@ -30,6 +39,21 @@
       ],
       "pins/audioout": [
         "host/modules/testing/fakes/audio-out.ts"
+      ],
+      "embedded:io/audio/out": [
+        "host/modules/testing/fakes/audio-out.ts"
+      ],
+      "mp3streamer": [
+        "host/modules/testing/fakes/mp3streamer.ts"
+      ],
+      "buffered-mp3streamer": [
+        "host/modules/testing/fakes/mp3streamer.ts"
+      ],
+      "web-radio-audio-out": [
+        "host/modules/audio/platforms/m5stackchan-cores3/web-radio-audio-out.ts"
+      ],
+      "pcm-resampler": [
+        "host/modules/testing/fakes/pcm-resampler.ts"
       ],
       "calculate-power": [
         "host/modules/testing/fakes/calculate-power.ts"
@@ -109,6 +133,9 @@
       "timer": [
         "host/modules/testing/fakes/timer.ts"
       ],
+      "uartserver": [
+        "host/modules/connectivity/__tests__/fakes/uartserver.ts"
+      ],
       "time": [
         "host/modules/testing/fakes/time.ts"
       ],
@@ -130,8 +157,14 @@
       "startup-splash": [
         "host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts"
       ],
+      "setup-mode": [
+        "host/app/default-behavior/__tests__/startup-choice/setup-mode-stub.ts"
+      ],
       "settings-status-model": [
         "host/modules/ui/views/settings/settings-status-model.ts"
+      ],
+      "boot-network-recovery": [
+        "host/app/boot-network-recovery.ts"
       ],
       "app-behavior-resolver": [
         "host/app/app-behavior-resolver.ts"
@@ -144,6 +177,33 @@
       ],
       "mac-address": [
         "host/modules/util/sim/mac-address.ts"
+      ],
+      "localization": [
+        "host/modules/testing/fakes/localization.ts"
+      ],
+      "local-peer-capability": [
+        "host/modules/connectivity/sim/local-peer-capability.ts"
+      ],
+      "local-peer-codec": [
+        "host/modules/connectivity/local-peer-codec.ts"
+      ],
+      "local-peer-auth": [
+        "host/modules/connectivity/local-peer-auth.ts"
+      ],
+      "local-peer-frame": [
+        "host/modules/connectivity/local-peer-frame.ts"
+      ],
+      "local-peer-radio-types": [
+        "host/modules/connectivity/local-peer-radio-types.ts"
+      ],
+      "ble-local-peer-record": [
+        "host/modules/connectivity/ble/local-peer-record.ts"
+      ],
+      "local-peer-service": [
+        "host/modules/connectivity/local-peer-service.ts"
+      ],
+      "local-peer-types": [
+        "host/modules/connectivity/local-peer-types.ts"
       ],
       "stackchan-util": [
         "host/modules/util/stackchan-util.ts"

@@ -1,0 +1,124 @@
+name: Release Stack-chan
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "firmware/**"
+      - "web/**"
+      - "docs/release-notes/**"
+      - ".changeset/**"
+      - ".github/actions/setup/action.yml"
+      - ".github/workflows/release.yml"
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-release-assets:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Resolve and validate release metadata
+        id: metadata
+        working-directory: ./firmware
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "push" ]; then
+            tag="$RELEASE_REF"
+          else
+            tag="v$(node -p "require('./package.json').version")"
+          fi
+          npm run check:release -- "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+      - name: Verify tagged commit is on main
+        if: github.event_name == 'push'
+        env:
+          TAGGED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          tagged_commit=$(git rev-parse "$TAGGED_SHA^{commit}")
+          git merge-base --is-ancestor "$tagged_commit" refs/remotes/origin/main
+      - name: Setup firmware toolchain
+        uses: ./.github/actions/setup
+        with:
+          target-branch: "8.3.1"
+      - name: Build firmware bundle
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
+      - name: Verify bundled targets
+        working-directory: ./firmware
+        run: |
+          set -euo pipefail
+          bundle="host/app/tech.moddable.stackchan"
+          for target in com.m5stack com.m5stack.core2 com.m5stack.cores3 m5stackchan_cores3; do
+            for binary in bootloader.bin partition-table.bin xs_esp32.bin; do
+              test -s "$bundle/$target/$binary"
+            done
+          done
+      - name: Prepare release assets
+        working-directory: ./firmware
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          asset="stack-chan-firmware-v${VERSION}.zip"
+          cp "host/app/tech.moddable.stackchan.zip" "release-assets/$asset"
+          cd release-assets
+          sha256sum "$asset" > "$asset.sha256"
+          sha256sum --check "$asset.sha256"
+      - name: Upload release candidate assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: stack-chan-release-v${{ steps.metadata.outputs.version }}
+          path: ./firmware/release-assets
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'push'
+    needs: build-release-assets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download verified release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: stack-chan-release-v${{ needs.build-release-assets.outputs.version }}
+          path: ./release-assets
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build-release-assets.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          title="ｽﾀｯｸﾁｬﾝ $tag"
+          notes="docs/release-notes/v$VERSION.md"
+          firmware="release-assets/stack-chan-firmware-$tag.zip"
+          checksum="$firmware.sha256"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --verify-tag --title "$title" --notes-file "$notes" --draft=false --prerelease=false --latest
+            gh release upload "$tag" "$firmware" "$checksum" --clobber
+          else
+            gh release create "$tag" "$firmware" "$checksum" --verify-tag --title "$title" --notes-file "$notes" --latest
+          fi

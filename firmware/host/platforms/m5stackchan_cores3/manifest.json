@@ -1,6 +1,7 @@
 {
   "build": {
-    "SUBPLATFORM": "m5stackchan_cores3"
+    "SUBPLATFORM": "m5stackchan_cores3",
+    "C_FLAGS_SUBPLATFORM": "-DI2S_DMA_BUFFER_MAX_SIZE=2048"
   },
   "include": [
     "$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json",
@@ -16,6 +17,7 @@
   "config": {
     "driver": {
       "type": "m5stackchan",
+      "typeLocked": true,
       "panId": 1,
       "tiltId": 2,
       "yawZeroPosition": 460,
@@ -50,7 +52,13 @@
     "touchIdleIntervalMs": 50,
     "touchActiveIntervalMs": 8,
     "touchReleaseDebounceMs": 75,
-    "virtualButton": false
+    "virtualButton": false,
+    "tts": {
+      "type": "stackchan-voice",
+      "voice": "normal",
+      "speed": 100,
+      "volume": 0.1
+    }
   },
   "defines": {
     "camera": {

@@ -53,7 +53,7 @@ async function setup() {
   modules.resetModules()
   config.resetConfig({ ui: { type: 'simple' } })
   preference.resetPreference()
-  return { loadPreferences: loadPreference.default, preference, traces }
+  return { loadPreferences: loadPreference.default, modules, config, preference, traces }
 }
 
 test('loadPreferences migrates legacy renderer.type to ui.type when ui.type is absent', async () => {
@@ -86,4 +86,57 @@ test('loadPreferences keeps explicit ui.type when legacy renderer.type also exis
 
   assert.equal(loadPreferences(DOMAIN.ui).type, 'simple')
   assert.equal(preference.default.get(DOMAIN.ui, 'type'), 'simple')
+})
+
+test('loadPreferences ignores a stored driver type when the platform locks its driver', async () => {
+  const { loadPreferences, config, preference, traces } = await setup()
+  config.resetConfig({
+    driver: { type: 'm5stackchan', typeLocked: true },
+  })
+  preference.resetPreference({
+    'driver.type': 'scservo',
+  })
+
+  const driver = loadPreferences(DOMAIN.driver)
+
+  assert.equal(driver.type, 'm5stackchan')
+  assert.equal(driver.typeLocked, true)
+  assert.deepEqual(traces, ['[preferences] ignored stored driver.type=scservo; platform locks it to m5stackchan\n'])
+})
+
+test('loadPreferences keeps stored driver selection on an unlocked platform', async () => {
+  const { loadPreferences, config, preference } = await setup()
+  config.resetConfig({
+    driver: { type: 'm5stackchan' },
+  })
+  preference.resetPreference({
+    'driver.type': 'scservo',
+  })
+
+  assert.equal(loadPreferences(DOMAIN.driver).type, 'scservo')
+})
+
+test('loadPreferences does not let MOD config relax a platform driver lock', async () => {
+  const { modules, config } = await setup()
+  modules.resetModules({
+    'mod/config': { driver: { type: 'scservo', typeLocked: false } },
+  })
+  config.resetConfig({
+    driver: { type: 'm5stackchan', typeLocked: true },
+  })
+  const freshModule = await import(new URL('./loadPreference.js?platform-lock', import.meta.url).href)
+
+  const driver = freshModule.default(DOMAIN.driver)
+
+  assert.equal(driver.type, 'm5stackchan')
+  assert.equal(driver.typeLocked, true)
+})
+
+test('loadPreferences reads the MCP authentication token from preferences', async () => {
+  const { loadPreferences, preference } = await setup()
+  preference.resetPreference({
+    'mcp.token': 'secret-token',
+  })
+
+  assert.equal(loadPreferences(DOMAIN.mcp).token, 'secret-token')
 })

@@ -1,0 +1,121 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import test from 'node:test'
+
+import { isXsArchive, xsArchiveVersion } from '../editor/mod-builder.mjs'
+import { profileFor } from '../editor/capabilities.mjs'
+import { parseVisualProject } from '../editor/project-format.mjs'
+import { analyzeWorkspace } from '../editor/project-validator.mjs'
+import { loadModCatalog, parseModDefinition, validatePackagePath } from './mod-definition.mjs'
+
+const catalogUrl = new URL('./catalog.json', import.meta.url)
+
+async function fileFetch(url) {
+  try {
+    const text = readFileSync(url, 'utf8')
+    return { ok: true, status: 200, json: async () => JSON.parse(text) }
+  } catch {
+    return { ok: false, status: 404 }
+  }
+}
+
+test('共通MOD定義からテキストとブロックのGalleryを構成する', async () => {
+  const definitions = await loadModCatalog(catalogUrl, fileFetch)
+  assert.equal(definitions.length, 6)
+  assert.equal(definitions.filter((definition) => definition.type === 'text').length, 2)
+  assert.equal(definitions.filter((definition) => definition.type === 'block').length, 4)
+  assert.equal(new Set(definitions.map((definition) => definition.id)).size, definitions.length)
+
+  for (const definition of definitions) {
+    assert.equal(definition.sourceUrl.protocol, 'file:')
+    assert.doesNotThrow(() => readFileSync(definition.sourceUrl))
+    if (definition.type !== 'block') continue
+    const project = parseVisualProject(readFileSync(definition.sourceUrl, 'utf8'))
+    const analysis = analyzeWorkspace(project.workspace, { target: project.target })
+    assert.equal(analysis.canBuild, true, `${definition.id}: ${JSON.stringify(analysis.diagnostics)}`)
+    assert.deepEqual(analysis.diagnostics, [], `${definition.id}: 初期状態に診断を残さない`)
+    assert.deepEqual(analysis.requirements, [...definition.capabilities].sort())
+  }
+})
+
+test('テキストMODの成果物は既存の実行互換性を維持する', async () => {
+  const definitions = await loadModCatalog(catalogUrl, fileFetch)
+  const textMods = definitions.filter((definition) => definition.type === 'text')
+  assert.equal(textMods.length, 2)
+  for (const definition of textMods) {
+    assert.equal(definition.artifacts.length, 1, `${definition.id}: installable text MOD should include one artifact`)
+    const archive = readFileSync(definition.artifacts[0].url)
+    assert.equal(isXsArchive(archive), true, `${definition.id}: artifact should be an XS archive`)
+    assert.deepEqual(
+      xsArchiveVersion(archive),
+      profileFor('m5stackchan-cores3').xsArchiveVersion,
+      `${definition.id}: artifact should match the host XS`
+    )
+    assert.equal(
+      archive.includes(Buffer.from('/tmp/')),
+      false,
+      `${definition.id}: artifact should not expose build paths`
+    )
+    assert.equal(
+      archive.includes(Buffer.from('/home/')),
+      false,
+      `${definition.id}: artifact should not expose build paths`
+    )
+  }
+})
+
+test('MediaPipe GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
+  const firmware = new URL('../../firmware/mods/examples/mediapipe_ble/', import.meta.url)
+  const gallery = new URL('./samples/mediapipe-ble/mod/', import.meta.url)
+  for (const filename of ['manifest.json', 'mod.js', 'tracking-message.js', 'tracking-receiver.js']) {
+    assert.equal(
+      readFileSync(new URL(filename, gallery), 'utf8'),
+      readFileSync(new URL(filename, firmware), 'utf8'),
+      `${filename} should not drift between the firmware example and gallery package`
+    )
+  }
+})
+
+test('MOD定義は形式別の正本と安全なパッケージパスを要求する', () => {
+  const base = {
+    format: 'tech.stackchan.mod',
+    schemaVersion: 1,
+    id: 'tech.stackchan.test.sample',
+    version: '1.0.0',
+    name: 'test',
+    description: 'test MOD',
+    targets: ['simulator'],
+  }
+  assert.throws(() => parseModDefinition({ ...base, type: 'block', source: { path: 'manifest.json' } }), /block MOD/)
+  assert.throws(
+    () => parseModDefinition({ ...base, type: 'text', source: { path: 'sample.stackchan-blocks.json' } }),
+    /text MOD/
+  )
+  for (const path of ['/manifest.json', '../manifest.json', 'mod/../manifest.json', 'mod\\manifest.json']) {
+    assert.throws(() => validatePackagePath(path), /安全な相対パス/)
+  }
+})
+
+test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持つ', () => {
+  const schema = JSON.parse(
+    readFileSync(new URL('../../docs/specs/stackchan-mod.schema.json', import.meta.url), 'utf8')
+  )
+  assert.equal(schema.properties.format.const, 'tech.stackchan.mod')
+  assert.equal(schema.properties.schemaVersion.const, 1)
+  assert.equal(schema.$id, 'https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json')
+  for (const field of [
+    'format',
+    'schemaVersion',
+    'id',
+    'version',
+    'type',
+    'name',
+    'description',
+    'source',
+    'targets',
+  ]) {
+    assert.ok(schema.required.includes(field), `${field} must be required`)
+  }
+  const workflow = readFileSync(new URL('../../.github/workflows/bundle.yml', import.meta.url), 'utf8')
+  assert.match(workflow, /docs\/specs\/stackchan-mod\.schema\.json \.\/web\/schemas\/stackchan-mod\.schema\.json/)
+})

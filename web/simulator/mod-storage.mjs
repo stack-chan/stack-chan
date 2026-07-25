@@ -28,12 +28,30 @@ function normalizeBytes(bytes) {
   return new Uint8Array(bytes ?? [])
 }
 
-function createMemoryStorage() {
+export function validateModArchive(bytes) {
+  const normalized = normalizeBytes(bytes)
+  if (
+    normalized.length < 8 ||
+    normalized[4] !== 0x58 ||
+    normalized[5] !== 0x53 ||
+    normalized[6] !== 0x5f ||
+    normalized[7] !== 0x41
+  ) {
+    throw new TypeError('XSアーカイブのヘッダーが不正です')
+  }
+  const declaredSize = new DataView(normalized.buffer, normalized.byteOffset, normalized.byteLength).getUint32(0, false)
+  if (declaredSize !== normalized.byteLength) {
+    throw new TypeError(`XSアーカイブのサイズが不正です (${declaredSize} != ${normalized.byteLength})`)
+  }
+  return normalized
+}
+
+export function createMemoryModStorage() {
   let record = null
 
   return {
     async saveInstalledMod({ name, bytes }) {
-      const normalizedBytes = normalizeBytes(bytes)
+      const normalizedBytes = validateModArchive(bytes)
       record = {
         name,
         bytes: normalizedBytes,
@@ -57,7 +75,7 @@ export function createModStorage({
   databaseName = DEFAULT_DATABASE_NAME,
   storeName = DEFAULT_STORE_NAME,
 } = {}) {
-  if (!indexedDB?.open) return createMemoryStorage()
+  if (!indexedDB?.open) return createMemoryModStorage()
 
   async function withStore(mode, action) {
     const database = await openDatabase({ indexedDB, databaseName, storeName })
@@ -68,7 +86,7 @@ export function createModStorage({
 
   return {
     async saveInstalledMod({ name, bytes }) {
-      const normalizedBytes = normalizeBytes(bytes)
+      const normalizedBytes = validateModArchive(bytes)
       const record = {
         name,
         bytes: normalizedBytes.buffer.slice(
@@ -85,7 +103,7 @@ export function createModStorage({
     async loadInstalledMod() {
       const record = await withStore('readonly', (store) => requestAsPromise(store.get(INSTALLED_MOD_KEY)))
       if (!record) return null
-      const bytes = normalizeBytes(record.bytes)
+      const bytes = validateModArchive(record.bytes)
       return {
         name: record.name,
         bytes,

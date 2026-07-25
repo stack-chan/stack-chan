@@ -5,7 +5,9 @@
     "$(MODDABLE)/examples/pins/audioout/http-stream/manifest_wavstreamer.json",
     "$(MODDABLE)/examples/pins/audioout/elevenlabs-stream/manifest_elevenlabsstreamer.json",
     "$(MODDABLE)/examples/pins/audioout/openai-stream/manifest_openaistreamer.json",
+    "$(MODDABLE)/examples/pins/audioout/mp3-http-stream/manifest_mp3streamer.json",
     "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
+    "$(MODDABLE)/modules/base/worker/manifest.json",
     "$(MODDABLE)/modules/base/uuid/manifest.json",
     "$(MODDABLE)/modules/data/headers/manifest.json",
     "$(MODDABLE)/modules/data/url/manifest.json",
@@ -36,10 +38,15 @@
     "tts-voicevox",
     "tts-voicevox-web",
     "tts-elevenlabs",
-    "tts-openai"
+    "tts-openai",
+    "tts-stackchan-voice"
   ],
   "data": {
-    "*": ["$(MODULES)/crypt/data/ca109", "$(MODULES)/crypt/data/ca236"]
+    "*": [
+      "$(MODULES)/crypt/data/ca109",
+      "$(MODULES)/crypt/data/ca176",
+      "$(MODULES)/crypt/data/ca236"
+    ]
   },
   "config": {
     "tls": {
@@ -67,9 +74,7 @@
       }
     },
     "lin": {
-      "build": {
-        "LIBRARIES": "-lasound"
-      },
+      "include": ["$(MODDABLE)/modules/io/audioout/manifest.json"],
       "modules": {
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
         "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/lin/audioin"
@@ -114,13 +119,35 @@
       }
     },
     "esp32/m5stackchan_cores3": {
+      "include": [
+        "$(MODDABLE)/modules/io/audioout/manifest.json",
+        "../../../vendor/stackchan-voice/manifest.json"
+      ],
+      "build": {
+        "SDKCONFIGPATH ?=": "./platforms/m5stackchan-cores3/sdkconfig"
+      },
       "modules": {
+        "~": "./tts-stackchan-voice",
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
-        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin"
+        "esp32-mp3-decoder": "./platforms/m5stackchan-cores3/esp32-mp3-decoder",
+        "web-radio-player": "./platforms/m5stackchan-cores3/web-radio-player",
+        "web-radio-audio-out": "./platforms/m5stackchan-cores3/web-radio-audio-out",
+        "pcm-resampler": "./platforms/m5stackchan-cores3/pcm-resampler",
+        "buffered-mp3streamer": "./platforms/m5stackchan-cores3/worker-mp3streamer",
+        "buffered-mp3streamer-core": "./platforms/m5stackchan-cores3/buffered-mp3streamer",
+        "web-radio-byte-ring": "./platforms/m5stackchan-cores3/shared-byte-ring",
+        "web-radio-stream-worker": "./platforms/m5stackchan-cores3/web-radio-stream-worker",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin",
+        "tts-stackchan-voice": "./stackchan-voice/tts-stackchan-voice"
       },
       "dependency": [
         {
           "idf": "esp_driver_i2s"
+        },
+        {
+          "name": "esp_audio_codec",
+          "version": "^2.6.0",
+          "includes": ["include/decoder", "include/decoder/impl"]
         }
       ],
       "defines": {

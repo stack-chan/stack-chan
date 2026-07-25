@@ -1,4 +1,6 @@
-import { Container, Content, Skin } from 'piu/MC'
+import { Container, Content, Label, Skin } from 'piu/MC'
+import { ActionButton } from 'ui-controls'
+import { uiStyles } from 'ui-theme'
 
 export const ChatStatusBarState = Object.freeze({
   FAILED: 0,
@@ -13,7 +15,8 @@ export const ChatStatusBarState = Object.freeze({
 
 export type ChatStatusBarState = (typeof ChatStatusBarState)[keyof typeof ChatStatusBarState]
 
-const barHeight = 18
+const barHeight = 44
+export const FACE_ACTIONS_VISIBLE_MS = 4000
 const levelHeight = 16
 const levelWidth = 4
 const iconSize = 16
@@ -21,13 +24,24 @@ const iconLeft = 8
 const iconTop = (barHeight - iconSize) / 2
 const levelLeft = iconLeft + iconSize + 4
 
+export type AppBarMode = Readonly<
+  { kind: 'face' } | { kind: 'launcher'; title: string } | { kind: 'app'; title: string }
+>
+
 type ChatStatusSkins = {
   bar: Skin
+  chrome: Skin
   levelTrack: Skin
   levelFill: Skin
   errorFill: Skin
   microphone: Skin
   indicator: Skin
+}
+
+function setControlVisible(control: Container | undefined, visible: boolean): void {
+  if (!control) return
+  control.visible = visible
+  control.active = visible
 }
 
 let cachedSkins: ChatStatusSkins | null = null
@@ -36,6 +50,7 @@ function getSkins(): ChatStatusSkins {
   if (!cachedSkins) {
     cachedSkins = {
       bar: new Skin({ fill: 'transparent' }),
+      chrome: new Skin({ fill: '#202428' }),
       levelTrack: new Skin({ fill: '#2c2c2c' }),
       levelFill: new Skin({ fill: '#4caf50' }),
       errorFill: new Skin({ fill: '#ff5252' }),
@@ -76,19 +91,68 @@ class IndicatorBehavior extends Behavior {
 }
 
 class ChatStatusBarBehavior extends Behavior {
+  #mode: AppBarMode = { kind: 'face' }
   #state: ChatStatusBarState = ChatStatusBarState.DISCONNECTED
+  #connectionPending = false
   #inputLevel = 0
   #levelTrack?: Container
   #levelFill?: Content
   #statusIcon?: Content
   #indicator?: Content
+  #menuButton?: Container
+  #appsButton?: Container
+  #backButton?: Container
+  #title?: Label
+  #faceActionsVisible = false
+  #miniAppsAvailable = false
 
   onCreate(container: Container) {
     this.#statusIcon = container.content('statusIcon') as Content
     this.#indicator = container.content('statusIndicator') as Content
     this.#levelTrack = container.content('levelTrack') as Container
     this.#levelFill = this.#levelTrack?.first as Content
+    this.#menuButton = container.content('menuButton') as Container
+    this.#appsButton = container.content('appsButton') as Container
+    this.#backButton = container.content('backButton') as Container
+    this.#title = container.content('title') as Label
+    this.setFaceActionsVisible(true)
     this.updateUI()
+  }
+
+  onDisplaying(container: Container) {
+    this.showFaceActions(container)
+  }
+
+  onAppBarReveal(container: Container) {
+    this.showFaceActions(container)
+  }
+
+  onFinished(container: Container) {
+    this.setFaceActionsVisible(false)
+    container.stop()
+  }
+
+  onAppBarMode(container: Container, mode: AppBarMode) {
+    this.#mode = mode
+    const faceMode = mode.kind === 'face'
+    const skins = getSkins()
+    container.skin = faceMode ? skins.bar : skins.chrome
+    if (this.#title) {
+      this.#title.string = faceMode ? '' : mode.title
+      this.#title.visible = !faceMode
+    }
+    setControlVisible(this.#backButton, !faceMode)
+    if (faceMode) this.showFaceActions(container)
+    else {
+      this.setFaceActionsVisible(false)
+      container.stop()
+    }
+    this.updateUI()
+  }
+
+  onMiniAppAvailability(_container: Container, available: boolean) {
+    this.#miniAppsAvailable = available
+    this.setFaceActionsVisible(this.#faceActionsVisible)
   }
 
   onChatState(_container: Container, state: ChatStatusBarState, _error?: string) {
@@ -101,14 +165,28 @@ class ChatStatusBarBehavior extends Behavior {
     this.updateLevel()
   }
 
+  onConnectionIndicator(_container: Container, visible: boolean) {
+    if (this.#connectionPending === visible) return
+    this.#connectionPending = visible
+    this.updateUI()
+  }
+
   updateUI() {
     if (!this.#levelTrack || !this.#levelFill || !this.#statusIcon || !this.#indicator) return
-    const isListening = this.#state === ChatStatusBarState.SPEAKING
-    const isSpeaking = this.#state === ChatStatusBarState.LISTENING
-    const isConnecting = this.#state === ChatStatusBarState.CONNECTING
-    this.#levelTrack.visible = isListening
-    this.#statusIcon.visible = isListening || isSpeaking
-    this.#statusIcon.state = isSpeaking ? 1 : 0
+    if (this.#mode.kind !== 'face') {
+      this.#levelTrack.visible = false
+      this.#statusIcon.visible = false
+      this.#indicator.visible = false
+      this.#indicator.stop()
+      return
+    }
+    // ChatAudioIO.SPEAKING means user input; LISTENING means assistant output.
+    const isUserSpeaking = this.#state === ChatStatusBarState.SPEAKING
+    const isUserListening = this.#state === ChatStatusBarState.LISTENING
+    const isConnecting = this.#state === ChatStatusBarState.CONNECTING || this.#connectionPending
+    this.#levelTrack.visible = !isConnecting && isUserSpeaking
+    this.#statusIcon.visible = !isConnecting && (isUserSpeaking || isUserListening)
+    this.#statusIcon.state = isUserListening ? 1 : 0
     this.#indicator.visible = isConnecting
     if (isConnecting) {
       this.#indicator.interval = 250
@@ -129,10 +207,30 @@ class ChatStatusBarBehavior extends Behavior {
     const height = Math.round(levelHeight * ratio)
     this.#levelFill.height = height
   }
+
+  showFaceActions(container: Container) {
+    if (this.#mode.kind !== 'face') return
+    this.setFaceActionsVisible(true)
+    container.stop()
+    container.duration = FACE_ACTIONS_VISIBLE_MS
+    container.time = 0
+    container.start()
+  }
+
+  setFaceActionsVisible(visible: boolean) {
+    const faceActionsVisible = visible && this.#mode.kind === 'face'
+    this.#faceActionsVisible = faceActionsVisible
+    setControlVisible(this.#menuButton, faceActionsVisible)
+    if (this.#appsButton) {
+      const appsVisible = faceActionsVisible && this.#miniAppsAvailable
+      setControlVisible(this.#appsButton, appsVisible)
+    }
+  }
 }
 
 export const ChatStatusBar = Container.template(() => {
   const skins = getSkins()
+  const styles = uiStyles()
   return {
     name: 'ChatStatusBar',
     anchor: 'APP_BAR',
@@ -142,6 +240,25 @@ export const ChatStatusBar = Container.template(() => {
     height: barHeight,
     skin: skins.bar,
     contents: [
+      new ActionButton(
+        {
+          name: 'backButton',
+          icon: 'back',
+          action: 'onMiniAppBack',
+          enabled: true,
+        },
+        { left: 0, top: 0, width: 44, height: 44, visible: false, active: false },
+      ),
+      new Label(null, {
+        name: 'title',
+        left: 48,
+        right: 12,
+        top: 0,
+        bottom: 0,
+        visible: false,
+        string: '',
+        style: styles.title,
+      }),
       new Content(null, {
         name: 'statusIcon',
         left: iconLeft,
@@ -160,7 +277,9 @@ export const ChatStatusBar = Container.template(() => {
         height: iconSize,
         skin: skins.indicator,
         variant: 0,
-        active: true,
+        // Piu Content hit testing follows `active` even while `visible` is false.
+        // The indicator is never interactive and must not cover the Back button.
+        active: false,
         visible: false,
         Behavior: IndicatorBehavior,
       }),
@@ -181,6 +300,23 @@ export const ChatStatusBar = Container.template(() => {
           }),
         ],
       }),
+      new ActionButton(
+        {
+          name: 'appsButton',
+          icon: 'apps',
+          action: 'onMiniAppLauncher',
+          enabled: true,
+        },
+        { right: 44, top: 0, width: 44, height: 44, visible: false, active: false },
+      ),
+      new ActionButton(
+        {
+          name: 'menuButton',
+          icon: 'menu',
+          action: 'onDrawerToggle',
+        },
+        { right: 0, top: 0, width: 44, height: 44 },
+      ),
     ],
     Behavior: ChatStatusBarBehavior,
   }

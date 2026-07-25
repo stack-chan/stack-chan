@@ -45,11 +45,12 @@ If your change depends on Moddable or ESP-IDF tooling, include the build or runt
 
 ## Branch and release flow
 
-The repository uses `main <- develop <- feat/* | fix/*`.
+The repository uses `main <- release/* <- develop <- feat/* | fix/*` for a frozen release.
 
 - `main` is the stable branch and should represent released or release-ready source.
 - `develop` is the default branch and integration branch for the next release.
-- Release work is reviewed through a `develop` to `main` pull request.
+- A release branch is cut from a fixed `develop` commit and reviewed through a `release/*` to `main` pull request.
+- After publication, `main` is merged back into `develop` so version and release metadata remain in the next development cycle.
 
 See `docs/operations/release-flow.md` for the detailed branch policy.
 

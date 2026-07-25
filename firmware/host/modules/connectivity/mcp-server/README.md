@@ -10,7 +10,7 @@ ModdableでMCPサーバーを実装するためのクラスです。Model Contex
 - JSON-RPC 2.0プロトコル対応
 - 動的ツール登録・削除
 - エラーハンドリング
-- 任意のBearer token認証
+- Bearer token認証
 - TypeScript型定義
 
 ## API
@@ -18,7 +18,7 @@ ModdableでMCPサーバーを実装するためのクラスです。Model Contex
 ### エンドポイント
 
 - `GET /health` - ヘルスチェック
-- `POST /mcp` - MCPプロトコルメッセージ。token設定時のみ `Authorization: Bearer <token>` を検証します。
+- `POST /mcp` - MCPプロトコルメッセージ。`Authorization: Bearer <token>` が必須です。
 
 ### サポートするMCPメソッド
 
@@ -52,7 +52,7 @@ const helloTool: Tool = {
 // サーバーの起動
 const server = new MCPServerService({
   port: 8080,
-  token: 'your-secret-token', // optional
+  token: 'your-secret-token',
   tools: [helloTool]
 })
 ```
@@ -65,13 +65,13 @@ const server = new MCPServerService({
 * `tools`: ツールのリスト（デフォルト: 空配列）
 * `token`: MCPエンドポイント用Bearer token。未指定時はPreferenceの `mcp.token` を使用します。
 
-`token` も `mcp.token` も未設定の場合、従来どおり `POST /mcp` は認証なしで受け付けます。tokenを設定した場合だけ、Bearer tokenが一致しないリクエストを `401` で拒否します。
+`token` も `mcp.token` も未設定の場合、またはBearer tokenが一致しない場合、`POST /mcp` は `401 Unauthorized` を返します。`GET /health` は認証なしで利用できます。
 
 ### トークンの設定
 
-認証を有効にしたい場合は、`setup-mode` のPreference同期で `mcp.token` に任意の長い文字列を設定してください。
+`setup-mode` のPreference同期で `mcp.token` に十分に長いランダムな文字列を設定してください。コンストラクタで `token` を指定した場合は、その値がPreferenceより優先されます。
 
-MCPクライアントには同じ値をBearer tokenとして指定します。認証を使わない場合、この設定は不要です。
+MCPクライアントには同じ値をBearer tokenとして指定します。
 
 ### ツール定義
 
@@ -123,11 +123,13 @@ curl http://localhost:8080/health
 # 初期化
 curl -X POST http://localhost:8080/mcp \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <mcp.token>" \
   -d '{"jsonrpc":"2.0","id":"1","method":"initialize","params":{}}'
 
 # ツール実行
 curl -X POST http://localhost:8080/mcp \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <mcp.token>" \
   -d '{"jsonrpc":"2.0","id":"2","method":"tools/call","params":{"name":"hello_world","arguments":{"name":"Stack-chan"}}}'
 ```
 

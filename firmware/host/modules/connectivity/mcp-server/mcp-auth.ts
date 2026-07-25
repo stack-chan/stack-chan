@@ -1,4 +1,4 @@
-export type MCPAuthFailureReason = 'missing-authorization' | 'invalid-authorization'
+export type MCPAuthFailureReason = 'missing-token-configuration' | 'missing-authorization' | 'invalid-authorization'
 
 export type MCPAuthResult =
   | {
@@ -30,7 +30,7 @@ function constantTimeEqual(left: string, right: string): boolean {
 export function authorizeMCPRequest(authorization: unknown, configuredToken: unknown): MCPAuthResult {
   const token = normalizeMCPToken(configuredToken)
   if (!token) {
-    return { authorized: true }
+    return { authorized: false, reason: 'missing-token-configuration' }
   }
 
   if (typeof authorization !== 'string' || authorization.trim().length === 0) {

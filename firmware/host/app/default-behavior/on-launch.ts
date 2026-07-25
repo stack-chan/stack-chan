@@ -5,13 +5,13 @@ import { showStartupSplash } from 'startup-splash'
 import Timer from 'timer'
 
 export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () => {
-  const startupChoice = await waitForStartupChoice<ReturnType<typeof showStartupSplash>>({
-    timer: Timer,
-    showStartupSplash,
-  })
-  if (startupChoice.choice === 'boot') {
-    return true
+  while (true) {
+    const startupChoice = await waitForStartupChoice<ReturnType<typeof showStartupSplash>>({
+      timer: Timer,
+      showStartupSplash,
+    })
+    if (startupChoice.choice === 'boot') return true
+    const setupChoice = await startSetupMode(startupChoice.application)
+    if (setupChoice === 'boot') return true
   }
-  startSetupMode(startupChoice.application)
-  return false
 }

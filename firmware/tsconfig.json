@@ -27,6 +27,12 @@
       "app-controller": [
         "./host/modules/ui/application/app-controller"
       ],
+      "mini-app": [
+        "./host/modules/ui/application/mini-app"
+      ],
+      "mini-app-launcher": [
+        "./host/modules/ui/views/mini-app/mini-app-launcher"
+      ],
       "capabilities": [
         "./host/app/capabilities"
       ],
@@ -51,8 +57,20 @@
       "face-view": [
         "./host/modules/ui/views/main/face-view"
       ],
+      "hand-sprites": [
+        "./host/modules/ui/components/hands/hand-sprites"
+      ],
+      "hands": [
+        "./host/modules/ui/components/hands/hands"
+      ],
       "settings-view": [
         "./host/modules/ui/views/settings/settings-view"
+      ],
+      "localization": [
+        "./host/modules/ui/localization"
+      ],
+      "localization-core": [
+        "./host/modules/ui/localization-core"
       ],
       "template": [
         "./host/modules/ui/components/face/template"

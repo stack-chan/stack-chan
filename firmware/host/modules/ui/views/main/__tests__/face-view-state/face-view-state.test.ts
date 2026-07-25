@@ -3,7 +3,14 @@ import { FaceBehavior } from 'behaviors/face'
 import type { StackchanContext } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
-import { Application, Container, Content, type Container as PiuContainer, type Content as PiuContent } from 'piu/MC'
+import {
+  Application,
+  Container,
+  Content,
+  type Container as PiuContainer,
+  type Content as PiuContent,
+  type Port as PiuPort,
+} from 'piu/MC'
 import { StackchanRuntimeUI } from 'runtime-ui'
 import { assert, equal } from 'testing/assert'
 
@@ -11,6 +18,9 @@ trace('=== face-view state test ===\n')
 
 type RecorderContent = Content & {
   contextPrimary?: number
+  eyeOpenLeft?: number
+  eyeOpenRight?: number
+  mouthOpen?: number
   skinPrimary?: number
   contextHits?: number
   skinHits?: number
@@ -48,10 +58,16 @@ type DrawerControllerCalls = {
 function createDrawerTestUI(calls: DrawerControllerCalls) {
   const actions = new Map<string, () => void>()
   return {
+    miniApps: {
+      register() {
+        return () => {}
+      },
+    },
     update(_interval: number, _face: FaceState) {},
     addEffect(_effect: unknown) {},
     removeEffect(_effect: unknown) {},
     setFace(_face: PiuContainer) {},
+    setHandAnimation() {},
     setMain(_content: PiuContainer) {},
     showFace() {},
     setDrawerButtons(buttons: unknown[]) {
@@ -104,6 +120,9 @@ const TestFace = Container.template(() => ({
 
         onFaceState(content: RecorderContent, face: FaceState) {
           content.contextPrimary = toPiuColorNumber(face.theme.primary)
+          content.eyeOpenLeft = face.eyes.left.open
+          content.eyeOpenRight = face.eyes.right.open
+          content.mouthOpen = face.mouth.open
           content.contextHits = (content.contextHits ?? 0) + 1
         }
 
@@ -157,6 +176,26 @@ type TreeNode = PiuContent & {
   next?: PiuContent | null
 }
 
+type HandRenderState = {
+  visible: boolean
+  shape: 'fist' | 'point' | 'peace' | 'open' | 'side-open'
+  direction: string
+  x: number
+  y: number
+}
+
+type HandsBehaviorState = {
+  leftState: HandRenderState
+  rightState: HandRenderState
+  primaryColor: number
+  secondaryColor: number
+  onDisplaying?: (port: PiuPort) => void
+  onUndisplaying?: (port: PiuPort) => void
+  onTimeChanged?: (port: PiuPort) => void
+  onFinished?: (port: PiuPort) => void
+  onHandAnimationChanged?: (port: PiuPort, animation: unknown) => boolean
+}
+
 function findNamedNode(root: PiuContent | null | undefined, name: string): TreeNode | null {
   if (!root) return null
   const stack: TreeNode[] = [root as TreeNode]
@@ -189,6 +228,67 @@ const application = new Application(appData, {
 
 const controller = application.behavior as AppController
 const initialDrawer = findDrawer(application as unknown as PiuContainer)
+const hands = findNamedNode(application as unknown as PiuContent, 'hands') as (PiuPort & TreeNode) | null
+assert(hands, 'FaceView should install the hand renderer in its effect layer')
+assert(!hands.first, 'both hands should be drawn by one fixed Port without movable child Ports')
+const handsBehavior = hands.behavior as HandsBehaviorState
+const leftHand = handsBehavior.leftState
+const rightHand = handsBehavior.rightState
+equal(leftHand.visible, false, 'left hand should initially be hidden')
+equal(rightHand.visible, false, 'right hand should initially be hidden')
+const initialHandPrimary = handsBehavior.primaryColor
+controller.setHandAnimation('rock-paper-scissors')
+equal(leftHand.visible, true, 'rock-paper-scissors should show the left hand')
+equal(rightHand.visible, true, 'rock-paper-scissors should show the right hand')
+equal(leftHand.shape, 'fist', 'rock-paper-scissors should begin with the fist sprite')
+equal(leftHand.direction, 'up-right', 'the left rock-paper-scissors hand should lean inward')
+equal(rightHand.direction, 'up-left', 'the right rock-paper-scissors hand should lean inward')
+controller.setHandAnimation('clap')
+equal(leftHand.visible, true, 'clapping should show the left hand')
+equal(rightHand.visible, true, 'clapping should show the right hand')
+equal(leftHand.shape, 'side-open', 'clapping should use the edge-on hand sprite')
+equal(rightHand.shape, 'side-open', 'both clapping hands should remain edge-on')
+equal(leftHand.direction, 'up-left', 'the left clapping hand should lean outward')
+equal(rightHand.direction, 'up-right', 'the right clapping hand should lean outward')
+controller.setHandAnimation('thinking')
+equal(leftHand.visible, false, 'thinking should hide the unused left hand')
+equal(rightHand.visible, true, 'thinking should keep the chin-side right hand visible')
+equal(rightHand.shape, 'point', 'thinking should use the point sprite')
+equal(rightHand.direction, 'up-left', 'thinking should point toward the chin')
+const thinkingState = rightHand.shape
+const thinkingDirection = rightHand.direction
+handsBehavior.onHandAnimationChanged?.(hands, 'not-an-animation')
+equal(leftHand.visible, false, 'unknown hand animations should preserve left-hand visibility')
+equal(rightHand.visible, true, 'unknown hand animations should preserve right-hand visibility')
+equal(rightHand.shape, thinkingState, 'unknown hand animations should preserve the current sprite state')
+equal(rightHand.direction, thinkingDirection, 'unknown hand animations should preserve the current direction')
+controller.setHandAnimation('none')
+equal(leftHand.visible, false, 'none should hide the left hand')
+equal(rightHand.visible, false, 'none should hide the right hand')
+let selectedChoice = ''
+assert(
+  controller.bindDrawerAction('choiceTest', (value) => {
+    selectedChoice = value ?? ''
+  }),
+  'choice callback should bind to the application controller',
+)
+controller.addDrawerButton({
+  key: 'choiceTest',
+  label: 'Choice',
+  kind: 'choice',
+  value: 'first',
+  options: [
+    { value: 'first', label: 'First' },
+    { value: 'second', label: 'Second' },
+  ],
+})
+const initialDrawerBehavior = initialDrawer.behavior as {
+  onDrawerChoiceSelected?: (container: PiuContainer, selection: { key: string; value: string }) => void
+}
+initialDrawerBehavior.onDrawerChoiceSelected?.(initialDrawer, { key: 'choiceTest', value: 'second' })
+equal(selectedChoice, 'second', 'drawer choice selection should bubble to its bound application callback')
+controller.unbindDrawerAction('choiceTest')
+controller.removeDrawerButton('choiceTest')
 controller.addDrawerButton({ key: 'dynamicA', label: 'Dynamic A' })
 equal(
   findDrawer(application as unknown as PiuContainer),
@@ -227,6 +327,11 @@ const desired = createFaceState()
 setColorRGB(desired.theme.primary, 0x22, 0x55, 0xaa)
 setColorRGB(desired.theme.secondary, 0xdd, 0xee, 0xff)
 controller.update(32, desired)
+const expectedPrimary = toPiuColorNumber(desired.theme.primary)
+const expectedSecondary = toPiuColorNumber(desired.theme.secondary)
+assert(handsBehavior.primaryColor !== initialHandPrimary, 'face theme updates should recolor the hand sprites')
+equal(handsBehavior.primaryColor, expectedPrimary, 'the outer hand mask should use the face primary color')
+equal(handsBehavior.secondaryColor, expectedSecondary, 'the inner hand mask should use the face secondary color')
 
 const nextFace = new TestFace({}) as PiuContainer
 controller.setFace(nextFace)
@@ -236,7 +341,6 @@ const initialVisualLeft = nodeCoordinate(faceRegion, 'left') + nodeCoordinate(ne
 const initialVisualTop = nodeCoordinate(faceRegion, 'top') + nodeCoordinate(nextFace, 'top')
 
 const recorder = nextFace.first as RecorderContent
-const expectedPrimary = toPiuColorNumber(desired.theme.primary)
 equal(recorder.skinPrimary, expectedPrimary, 'setFace should apply the active palette')
 equal(recorder.contextPrimary, expectedPrimary, 'setFace should apply the active context')
 
@@ -324,12 +428,33 @@ const runtimeUI = new StackchanRuntimeUI(controller, {
 })
 runtimeUI.setColor('primary', 0x12, 0x34, 0x56)
 runtimeUI.setColor('secondary', 0xab, 0xcd, 0xef)
+runtimeUI.setEyeOpen('left', 0.25)
+runtimeUI.setEyeOpen('right', 0.75)
+runtimeUI.setMouthOpen(0.5)
 runtimeUI.updateFace(32)
-runtimeUI.showBalloon('runtime balloon', { left: 8, top: 8, width: 120 })
+faceBehavior.onTimeChanged(nextFace)
+equal(recorder.eyeOpenLeft, 0.25, 'runtime face API should apply the left eyelid independently')
+equal(recorder.eyeOpenRight, 0.75, 'runtime face API should apply the right eyelid independently')
+equal(recorder.mouthOpen, 0.5, 'runtime face API should apply mouth opening')
+runtimeUI.showBalloon('runtime balloon')
 
 const runtimeBalloon = appData.EFFECTS?.last
 assert(runtimeBalloon != null, 'showBalloon should attach a speech balloon effect')
 const attachedBalloon = runtimeBalloon as BalloonContent
+type PositionedBalloon = BalloonContent & {
+  coordinates?: {
+    left?: number
+    right?: number
+    top?: number
+    bottom?: number
+    height?: number
+  }
+}
+const positionedBalloon = attachedBalloon as PositionedBalloon
+equal(positionedBalloon.coordinates?.left, 16, 'showBalloon should use the default left margin')
+equal(positionedBalloon.coordinates?.right, 16, 'showBalloon should use the default right margin')
+equal(positionedBalloon.coordinates?.bottom, 12, 'showBalloon should anchor the default balloon to the bottom')
+equal(positionedBalloon.coordinates?.top, undefined, 'showBalloon should not anchor the default balloon to the top')
 assert(
   attachedBalloon.first?.skin !== defaultSkin,
   'showBalloon should replay the active face state to newly attached balloons',
@@ -371,4 +496,43 @@ assert(!newDrawerUI.hasDrawerAction('swap'), 'removeDrawerButton should detach f
 equal(newDrawerCalls.removed[0], 'swap', 'removeDrawerButton should update the current drawer controller')
 equal(oldDrawerCalls.removed.length, 0, 'removeDrawerButton should not mutate the old drawer controller after useUI')
 
+const finishHandTransition = () => {
+  hands.stop()
+  handsBehavior.onFinished?.(hands)
+  hands.stop()
+}
+handsBehavior.onDisplaying?.(hands)
+controller.setHandAnimation('rock-paper-scissors')
+const initialRockPaperScissorsState = leftHand.shape
+finishHandTransition()
+assert(leftHand.shape !== initialRockPaperScissorsState, 'rock-paper-scissors should advance to another sprite')
+
+controller.setHandAnimation('clap')
+const outerClapLeft = leftHand.x
+const closingClapDuration = hands.duration
+finishHandTransition()
+const closedClapLeft = leftHand.x
+assert(closedClapLeft > outerClapLeft + 16, 'clapping should move both hands toward the face center')
+assert(closedClapLeft < outerClapLeft + 32, 'clapping should use a compact lateral motion')
+equal(leftHand.shape, 'side-open', 'clapping should remain edge-on while the hands meet')
+equal(rightHand.shape, 'side-open', 'both hands should remain edge-on while meeting')
+equal(leftHand.direction, 'up', 'the meeting left hand should be upright')
+equal(rightHand.direction, 'up', 'the meeting right hand should be upright')
+const openingClapDuration = hands.duration
+assert(closingClapDuration + openingClapDuration < 500, 'clapping should repeat more than twice per second')
+finishHandTransition()
+equal(leftHand.shape, 'side-open', 'clapping should stay edge-on while opening')
+equal(rightHand.shape, 'side-open', 'both hands should stay edge-on while opening')
+equal(leftHand.direction, 'up-left', 'the opening left hand should lean outward again')
+equal(rightHand.direction, 'up-right', 'the opening right hand should lean outward again')
+equal(leftHand.x, outerClapLeft, 'the left hand should return to its outer clapping position')
+
+controller.setHandAnimation('thinking')
+const initialThinkingTop = rightHand.y
+finishHandTransition()
+equal(leftHand.visible, false, 'thinking animation should keep the unused hand hidden')
+equal(rightHand.visible, true, 'thinking animation should keep the chin-side hand visible')
+assert(rightHand.y > initialThinkingTop, 'thinking should move the chin-side point sprite')
+controller.setHandAnimation('none')
+handsBehavior.onUndisplaying?.(hands)
 trace('ok\n')

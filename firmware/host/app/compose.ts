@@ -2,9 +2,9 @@ import type { PreferenceConfig } from 'loadPreference'
 import { createAppControllerApplication } from 'app-controller'
 import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
 import Camera from 'camera'
-import type { ConnectivityCapability, RobotLed, RobotUI, StackchanContext, TTS } from 'capabilities'
+import type { ConnectivityCapability, RobotLed, RobotUI, StackchanContext, TTS, WebRadioCapability } from 'capabilities'
 import { ChatStatusBar } from 'chat-status-bar'
-import type { DrawerButtonSpec } from 'drawer'
+import type { DrawerButtonViewSpec } from 'drawer'
 import { DynamixelDriver } from 'dynamixel-driver'
 import IMU from 'imu'
 import Led from 'led'
@@ -28,6 +28,7 @@ import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import { TTS as LocalTTS } from 'tts-local'
 import { TTS as OpenAITTS } from 'tts-openai'
 import { TTS as RemoteTTS } from 'tts-remote'
+import { TTS as StackchanVoiceTTS } from 'tts-stackchan-voice'
 import { TTS as VoiceVoxTTS } from 'tts-voicevox'
 import { TTS as VoiceVoxWebTTS } from 'tts-voicevox-web'
 
@@ -36,15 +37,9 @@ type DeviceButton = {
   onChanged: (this: DeviceButton) => void
 }
 
-type SimulatorButtonCtor = new (options: {
-  onPush?: () => void
-}) => {
-  read: () => number | undefined
-}
-
 type UIOptions = {
   avatar?: string
-  drawerButtons?: DrawerButtonSpec[]
+  drawerButtons?: DrawerButtonViewSpec[]
   displayListLength?: number
 }
 
@@ -60,27 +55,28 @@ type GlobalEnvironment = {
       TouchPanel?: ConstructorParameters<typeof TouchPanel>[0]
     }
   }
-  Host?: {
-    Button?: Partial<Record<'a' | 'b' | 'c', SimulatorButtonCtor>>
-  }
 }
 
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 
 export type HostDeviceEnvironment = GlobalEnvironment['device']
 
+type WebRadioPlayerConstructor = new () => WebRadioCapability
+
+const DEFAULT_UI_DISPLAY_LIST_LENGTH = 4096
+
 function asUIOptions(param: unknown): UIOptions {
   return (param ?? {}) as UIOptions
 }
 
-function createStackchanUI(face: PiuContainer, options: UIOptions = {}, displayListLength = 2048): RobotUI {
+function createStackchanUI(face: PiuContainer, options: UIOptions = {}): RobotUI {
   return createAppControllerApplication(
     {
       face,
       appBar: new ChatStatusBar(),
       drawerButtons: options.drawerButtons,
     },
-    { displayListLength },
+    { displayListLength: options.displayListLength ?? DEFAULT_UI_DISPLAY_LIST_LENGTH },
   )
 }
 
@@ -95,34 +91,6 @@ function createTouchOptions(): TouchOptions {
     idleIntervalMs: configNumber(config.touchIdleIntervalMs),
     activeIntervalMs: configNumber(config.touchActiveIntervalMs),
     releaseDebounceMs: configNumber(config.touchReleaseDebounceMs),
-  }
-}
-
-// wrapper button class for simulator
-class SimButton {
-  #button: { read: () => number | undefined }
-  onChanged = () => {}
-  constructor(button: SimulatorButtonCtor) {
-    const self = this
-    this.#button = new button({
-      onPush() {
-        self.onChanged()
-      },
-    })
-  }
-  read() {
-    return this.#button.read() ?? 1
-  }
-}
-
-export function installSimulatorButtons() {
-  if (!globalEnv.Host?.Button || globalEnv.button) return
-  trace('[main] installing simulator buttons\n')
-  const { a, b, c } = globalEnv.Host.Button
-  globalEnv.button = {
-    ...(a && { a: new SimButton(a) }),
-    ...(b && { b: new SimButton(b) }),
-    ...(c && { c: new SimButton(c) }),
   }
 }
 
@@ -152,6 +120,7 @@ export function createStackchanContext(
     ['voicevox-web', (param) => new VoiceVoxWebTTS(param as ConstructorParameters<typeof VoiceVoxWebTTS>[0])],
     ['elevenlabs', (param) => new ElevenLabsTTS(param as ConstructorParameters<typeof ElevenLabsTTS>[0])],
     ['openai', (param) => new OpenAITTS(param as ConstructorParameters<typeof OpenAITTS>[0])],
+    ['stackchan-voice', (param) => new StackchanVoiceTTS(param as ConstructorParameters<typeof StackchanVoiceTTS>[0])],
   ])
   const uiControllers = new Map<string, (param: unknown) => RobotUI>([
     ['dog', (param) => createStackchanUI(new DogFace(), asUIOptions(param))],
@@ -160,11 +129,7 @@ export function createStackchanContext(
       'image',
       (param) => {
         const options = asUIOptions(param)
-        return createStackchanUI(
-          new ImageAvatarFace({ pack: options.avatar }),
-          options,
-          options.displayListLength ?? 4096,
-        )
+        return createStackchanUI(new ImageAvatarFace({ pack: options.avatar }), options)
       },
     ],
     ['small-face', (param) => createStackchanUI(new SmallFace(), asUIOptions(param))],
@@ -200,6 +165,8 @@ export function createStackchanContext(
     throw new Error(errors.join('\n'))
   }
 
+  trace(`[main] TTS engine: ${ttsKey}\n`)
+
   const driver = Driver(driverPrefs)
   const ui = UI(uiPrefs)
   const tts = TTS(ttsPrefs)
@@ -218,6 +185,9 @@ export function createStackchanContext(
   const microphone = Modules.has('audio-in') ? new Microphone() : undefined
   const camera = new Camera()
   const speaker = new Speaker({ volume: ttsPrefs.volume })
+  const webRadio = Modules.has('web-radio-player')
+    ? new (Modules.importNow('web-radio-player') as WebRadioPlayerConstructor)()
+    : undefined
 
   const configLed = preferences.led
   const ledEntries: [string, RobotLed][] = Object.entries(configLed).flatMap(
@@ -270,6 +240,7 @@ export function createStackchanContext(
     imu,
     connectivity: options.connectivity,
     speaker,
+    webRadio,
     microphone,
     camera,
     led,

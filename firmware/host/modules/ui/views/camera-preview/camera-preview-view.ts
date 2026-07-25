@@ -6,7 +6,10 @@ import {
   toPiuColorString,
 } from 'camera-preview-utils'
 import type { MainContent } from 'common-view'
-import { Container, Label, type Port as PiuPort, Port, Skin, Style } from 'piu/MC'
+import { localize } from 'localization'
+import { Container, Label, type Port as PiuPort, Port, Skin } from 'piu/MC'
+import { ActionButton } from 'ui-controls'
+import { uiStyles } from 'ui-theme'
 
 export const CAMERA_PREVIEW_WIDTH = 200
 export const CAMERA_PREVIEW_HEIGHT = 120
@@ -32,8 +35,6 @@ const PREVIEW_TOP = 60
 const PREVIEW_BLOCK_SIZE = 48
 const PREVIEW_BACKGROUND = '#101010'
 const DIALOG_BACKGROUND = '#000000'
-const CAPTION_COLOR = '#ffffff'
-const DEFAULT_CAPTION = 'camera preview'
 
 export function prepareCameraPreviewFrame(frame: CameraFrame): CameraPreviewFrame {
   return {
@@ -112,8 +113,8 @@ export function createCameraPreviewDialog(
     right: 0,
     bottom: 8,
     height: 20,
-    style: new Style({ font: '16px Open Sans', color: CAPTION_COLOR, horizontal: 'center' }),
-    string: options.caption ?? DEFAULT_CAPTION,
+    style: uiStyles().compact,
+    string: options.caption ?? localize('camera.caption'),
   })
 
   return new Container(
@@ -126,7 +127,11 @@ export function createCameraPreviewDialog(
       active: true,
       backgroundTouch: true,
       skin: new Skin({ fill: DIALOG_BACKGROUND }),
-      contents: [previewPort, caption],
+      contents: [
+        previewPort,
+        caption,
+        new ActionButton({ icon: 'close', onTap: options.onDismiss }, { right: 0, top: 44 }),
+      ],
       Behavior: class extends Behavior {
         options: CameraPreviewOptions | null = null
 

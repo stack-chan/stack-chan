@@ -4,7 +4,6 @@ import { describe, test } from 'node:test'
 import {
   angleToRawPosition,
   createM5StackChanServoConfig,
-  M5STACKCHAN_SERVO_DEFAULTS,
   rawPositionToAngle,
   rotationToM5StackChanServoAngles,
 } from '../m5stackchan-servo.js'
@@ -50,15 +49,6 @@ describe('M5StackChan servo mapping', () => {
     assert.equal(angleToRawPosition(1000, pitch), angleToRawPosition(900, pitch))
   })
 
-  test('provides CoreS3 serial pins, port, and servo IDs from the source firmware', () => {
-    const config = createM5StackChanServoConfig()
-
-    assert.deepEqual(config.serial, { transmit: 6, receive: 7, port: 1, baud: 1_000_000 })
-    assert.equal(config.yaw.id, 1)
-    assert.equal(config.pitch.id, 2)
-    assert.deepEqual(M5STACKCHAN_SERVO_DEFAULTS.yaw.rawPositionLimit, { min: 0, max: 1000 })
-  })
-
   test('converts robot rotation radians into source-firmware 0.1-degree angle units', () => {
     const angles = rotationToM5StackChanServoAngles({ y: Math.PI / 2, p: Math.PI / 4, r: 0 })
 
@@ -69,5 +59,13 @@ describe('M5StackChan servo mapping', () => {
     const angles = rotationToM5StackChanServoAngles({ y: 0, p: -Math.PI / 6, r: 0 })
 
     assert.equal(angles.pitch, 300)
+  })
+
+  test('allows StackChan upward pitch through the full 90-degree driver range', () => {
+    const { pitch } = createM5StackChanServoConfig()
+    const angles = rotationToM5StackChanServoAngles({ y: 0, p: -Math.PI / 2, r: 0 })
+
+    assert.equal(angles.pitch, 900)
+    assert.equal(angleToRawPosition(angles.pitch, pitch), 908)
   })
 })

@@ -160,7 +160,7 @@ export class MCPServerService {
     }
 
     if (!this.#token) {
-      trace('MCP Server authentication token is not configured; POST /mcp allows unauthenticated requests\n')
+      trace('MCP Server authentication token is not configured; POST /mcp requests will be rejected\n')
     }
 
     this.#startServer()

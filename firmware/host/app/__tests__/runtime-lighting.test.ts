@@ -26,3 +26,20 @@ test('StackchanRuntimeLighting close turns off every LED', () => {
   assert.equal(face.offCount, 1)
   assert.equal(base.offCount, 1)
 })
+
+test('StackchanRuntimeLighting close keeps turning off LEDs when one fails', () => {
+  const failing = {
+    on: () => {},
+    off: () => {
+      throw new Error('led failure')
+    },
+    blink: () => {},
+    rainbow: () => {},
+  }
+  const base = fakeLed()
+  const runtime = new StackchanRuntimeLighting({ led: { failing, base } })
+
+  runtime.close()
+
+  assert.equal(base.offCount, 1)
+})

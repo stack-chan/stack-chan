@@ -29,7 +29,7 @@ The context exposes a small set of capabilities so UI, motion, speech, and input
 
 ![coordinate for Stack-chan](./images/coordinate.jpg)
 
-Stack-chan's coordinate system is a __right-handed__ system. When you bend your right hand's thumb, index finger, and middle finger so that they are perpendicular to each other, the thumb is the X-axis, the index finger is the Y-axis, and the middle finger is the Z-axis.
+Stack-chan's coordinate system is a **right-handed** system. When you bend your right hand's thumb, index finger, and middle finger so that they are perpendicular to each other, the thumb is the X-axis, the index finger is the Y-axis, and the middle finger is the Z-axis.
 
 When Stack-chan's face is facing forward, the positive direction of each axis is as follows:
 
@@ -43,7 +43,7 @@ Also, the direction of rotation is the direction in which the right-hand screw a
 - Pitch axis (rotation around Y-axis) positive direction... Stack-chan looking down
 - Yaw axis (rotation around Z-axis) positive direction... Stack-chan looking to the left
 
-In Stack-chan's API, __the unit of coordinates is meters and the unit of angles is radians__.
+In Stack-chan's API, **the unit of coordinates is meters and the unit of angles is radians**.
 Correspondence with the coordinate system can also be referenced in the actual source code (e.g. [`mods/examples/look_around`](../mods/examples/look_around/) etc.).
 
 ## Public Types
@@ -56,9 +56,10 @@ Correspondence with the coordinate system can also be referenced in the actual s
 - `context.audio.useTTS(...)` for replacing the speech engine when a MOD owns that choice
 - `context.motion.lookAt(...)`, `context.motion.setPose(...)`, `context.motion.setTorque(...)`
 - `context.face.setEmotion(...)`, `context.face.setColor(...)`
+- `context.i18n.locale`, `context.i18n.localize(...)`
 - `context.ui.showBalloon(...)`, `context.ui.drawer.addDrawerButton(...)`
 - `context.input.touch`, `context.input.touchPanel`, `context.input.imu`
-- `context.lighting.lightOn(...)`, `context.camera.capture(...)`, `context.connectivity.network?.ready`
+- `context.lighting.lightOn(...)`, `context.camera.capture(...)`, `context.connectivity.network?.ready`, `context.connectivity.localPeer`
 - `context.lifecycle.close()` for releasing runtime-owned timers, sensors, camera sessions, and motion timers
 
 Input devices are optional. `context.input.touch` is defined only when the platform exposes `config.Touch`,
@@ -67,6 +68,15 @@ MODs must check for `undefined` before attaching touch handlers.
 
 `context.connectivity.network?.ready` resolves to `connected`, `skipped`, or `failed`.
 Network-dependent MODs can await it and handle `skipped` or `failed` without importing host-internal network modules.
+Local peer sessions support ESP-NOW and BLE Serial through the same API; see [Local peer messaging](./local-peer-communication.md).
+
+`options.tail` in `context.ui.showBalloon(text, options)` accepts `top-left`, `top-right`, `bottom-left`, or
+`bottom-right`. When omitted, bottom placement uses `top-left`, while an explicit `top` position uses
+`bottom-left`.
+
+Use `context.i18n.localize(key, values?)` for text shown by a MOD Drawer Button or Piu `Label`.
+It resolves the MOD catalog first, then the host catalog, and finally the key itself.
+See [Firmware localization](./localization.md) for catalog setup.
 
 The legacy flat methods such as `context.say(...)`, `context.lookAt(...)`, `context.showBalloon(...)`, and `context.useTTS(...)` remain as compatibility shims for existing MODs.
 They are deprecated for new code and may be removed after the sample MODs and downstream MODs have moved to the namespaced API.
@@ -108,8 +118,12 @@ Low-level driver objects are internal to `host/modules/motion` and are not expos
 The public audio API exposes speech playback through the capability object passed to MODs.
 Provider objects for local, remote, Voicevox, ElevenLabs, and OpenAI speech are internal to `host/modules/audio`.
 
+`sing(koe, volume?)` plays stackchan-voice singing notation when the active TTS provider supports it.
+It returns a failed result for providers without singing support; it never sends the notation to ordinary speech synthesis as text.
+
 `playAudio(buffer)` returns `true` only when the target accepts the borrowed buffer and playback completes.
 It returns `false` when the target does not support buffer playback, the buffer is empty, or playback fails.
 Callers must keep ownership of the buffer and should treat `false` as an observable unsupported-or-not-played result.
 
 - [Using Text To Speech(TTS)](./text-to-speech.md)
+- [stackchan-voice speech and singing](./stackchan-voice.md)

@@ -12,7 +12,7 @@
     "../../modules/motion/manifest_wasm.json",
     "../../modules/camera/manifest_wasm.json",
     "../../modules/connectivity/manifest_wasm.json",
-    "../../modules/input/manifest.json",
+    "../../modules/input/manifest_wasm.json",
     "../../modules/util/manifest.json",
     "../../modules/preferences/manifest_wasm.json",
     "../../app/manifest_typings.json"
@@ -22,9 +22,13 @@
       "../../app/main",
       "../../app/app-behavior",
       "../../app/app-behavior-resolver",
+      "../../app/boot-network-recovery",
       "../../app/boot-services",
       "../../app/compose",
       "../../app/capabilities",
+      "../../app/experimental-mini-app-loader",
+      "../../app/experimental-mini-app-piu",
+      "../../app/experimental-mini-app-registration",
       "../../app/setup-mode",
       "../../app/settings-status",
       "../../app/runtime-audio",
@@ -42,6 +46,7 @@
     "app-default-behavior": "../../app/default-behavior/wasm/behavior",
     "app-default-behavior/wasm/behavior": "../../app/default-behavior/wasm/behavior",
     "app-default-behavior/wasm/on-launch": "../../app/default-behavior/wasm/on-launch",
+    "app-default-behavior/startup-choice": "../../app/default-behavior/startup-choice",
     "app-default-behavior/on-context-created": "../../app/default-behavior/on-context-created"
   },
   "preload": [
@@ -75,7 +80,10 @@
       "type": "none"
     },
     "tts": {
-      "type": "local"
+      "type": "stackchan-voice",
+      "voice": "normal",
+      "speed": 100,
+      "volume": 0.5
     },
     "ui": {
       "type": "simple"

@@ -4,11 +4,29 @@ import { assert, equal } from 'testing/assert'
 
 trace('=== default-mod face init test ===\n')
 
-const buttons: { key?: string }[] = []
+type RegisteredButton = {
+  key?: string
+  label?: string
+  kind?: string
+  initialState?: boolean
+  value?: string
+  options?: { value?: string; label?: string }[]
+  callback?: (target: unknown, value?: string) => Promise<void> | void
+}
+
+const buttons: RegisteredButton[] = []
 const drawerStates: [string, boolean][] = []
 const events: [string, unknown][] = []
 const emotions: unknown[] = []
 const effects: unknown[] = []
+const faces: unknown[] = []
+const selectedHandAnimations: string[] = []
+const colors: [string, number, number, number][] = []
+const speechRequests: string[] = []
+const balloonMessages: string[] = []
+const torqueRequests: boolean[] = []
+let servoFailure: Error | undefined
+let drawerCloseCount = 0
 const touchPanel: {
   onEvent?: (event: {
     gesture: 'forwardSwipe' | 'backwardSwipe'
@@ -19,8 +37,14 @@ const touchPanel: {
 } = {}
 
 const robot = {
+  audio: {
+    say: (text: string) => {
+      speechRequests.push(text)
+      return Promise.resolve({})
+    },
+  },
   drawer: {
-    addDrawerButton: (button: { key?: string }) => {
+    addDrawerButton: (button: RegisteredButton) => {
       buttons.push(button)
     },
     setDrawerButtonState: (key: string, active: boolean) => {
@@ -37,8 +61,15 @@ const robot = {
       effects.push(effect)
     },
     removeEffect: () => {},
-    setFace: () => {},
-    closeDrawer: () => {},
+    setFace: (face: unknown) => {
+      faces.push(face)
+    },
+    setHandAnimation: (animation: string) => {
+      selectedHandAnimations.push(animation)
+    },
+    closeDrawer: () => {
+      drawerCloseCount += 1
+    },
   },
   led: {},
   button: {
@@ -58,12 +89,20 @@ const robot = {
   },
   lookAway: () => {},
   lookAt: () => {},
-  setPose: () => Promise.resolve(),
-  setTorque: () => Promise.resolve(),
-  showBalloon: () => {},
+  setPose: () => (servoFailure ? Promise.reject(servoFailure) : Promise.resolve()),
+  setTorque: (enabled: boolean) => {
+    torqueRequests.push(enabled)
+    return servoFailure ? Promise.reject(servoFailure) : Promise.resolve()
+  },
+  showBalloon: (message: string) => {
+    balloonMessages.push(message)
+  },
   hideBalloon: () => {},
   setEmotion: (emotion: unknown) => {
     emotions.push(emotion)
+  },
+  setColor: (key: string, r: number, g: number, b: number) => {
+    colors.push([key, r, g, b])
   },
 }
 
@@ -88,18 +127,90 @@ try {
 }
 
 equal(buttons[0]?.key, 'toggleFace', 'toggleFace button should be registered')
-equal(drawerStates[0]?.[0], 'toggleFace', 'toggleFace state should be initialized')
-equal(drawerStates[0]?.[1], false, 'toggleFace should start inactive')
+equal(buttons[0]?.kind, 'choice', 'face selection should use an option menu')
+equal(buttons[0]?.value, 'simple', 'face selection should expose its current value')
+equal(buttons[0]?.options?.length, 3, 'face selection should expose every mode')
+equal(drawerStates.length, 0, 'choice controls should not masquerade as binary toggles')
 equal(events[0]?.[0], 'onFaceMode', 'initial face mode should be distributed')
 equal(events[0]?.[1], 'simple', 'initial face mode should be simple')
+const handsButton = buttons.find((button) => button.key === 'handAnimation')
+equal(handsButton?.kind, 'choice', 'hands should be exposed as a hierarchical option menu')
+equal(handsButton?.value, 'none', 'hands should start with no animation')
+equal(handsButton?.options?.length, 4, 'hands should expose every animation mode')
+equal(handsButton?.options?.[0]?.label, '無し', 'the first hand option should hide the hands')
+equal(handsButton?.options?.[1]?.label, 'グーチョキパー', 'the hand menu should expose rock-paper-scissors')
+equal(handsButton?.options?.[2]?.label, '拍手', 'the hand menu should expose clapping')
+equal(handsButton?.options?.[3]?.label, '考え中', 'the hand menu should expose thinking')
+equal(selectedHandAnimations[0], 'none', 'hands should initially be hidden through the typed UI API')
+const handAnimations = ['none', 'rock-paper-scissors', 'clap', 'thinking'] as const
+const drawerCloseCountBeforeHandSelections = drawerCloseCount
+for (const animation of handAnimations) {
+  const selectionCount = selectedHandAnimations.length
+  handsButton?.callback?.(robot, animation)
+  equal(selectedHandAnimations[selectionCount], animation, `${animation} should use the typed hand animation API`)
+}
+equal(
+  drawerCloseCount - drawerCloseCountBeforeHandSelections,
+  handAnimations.length,
+  'hand animation choices should close the drawer so the result is visible',
+)
+const selectionCountBeforeInvalidAnimation = selectedHandAnimations.length
+handsButton?.callback?.(robot, 'wave')
+equal(selectedHandAnimations.length, selectionCountBeforeInvalidAnimation, 'unknown hand animations should be ignored')
+equal(drawerStates.length, 0, 'hand choices should not masquerade as binary toggles')
+buttons.find((button) => button.key === 'toggleFace')?.callback?.(robot, 'dog')
+equal(faces.length, 1, 'face choice should replace the rendered face')
+equal(events[events.length - 1]?.[1], 'dog', 'face choice should distribute the selected face mode')
+buttons.find((button) => button.key === 'cycleEmotion')?.callback?.(robot, String(Emotion.ANGRY))
+equal(emotions[emotions.length - 1], Emotion.ANGRY, 'emotion choice should update the face context')
+buttons.find((button) => button.key === 'toggleColor')?.callback?.(robot, 'dark')
+equal(colors[colors.length - 2]?.[0], 'primary', 'color choice should update the primary face color')
+equal(colors[colors.length - 2]?.[1], 0x00, 'dark color choice should make the primary face color black')
+equal(colors[colors.length - 1]?.[0], 'secondary', 'color choice should update the secondary face color')
+equal(colors[colors.length - 1]?.[1], 0xff, 'dark color choice should make the secondary face color white')
 assert(
   buttons.every((button) => button.key !== 'cameraPreview'),
   'cameraPreview button should not be registered when camera is unavailable',
 )
+const speakButton = buttons.find((button) => button.key === 'speakStackchan')
+assert(speakButton, 'speakStackchan button should be registered')
 assert(touchPanel.onEvent, 'touchPanel handler should be registered')
 touchPanel.onEvent?.({ gesture: 'forwardSwipe', position: 0.25, intensity: 3, ticks: 100 })
 touchPanel.onEvent?.({ gesture: 'backwardSwipe', position: 0.75, intensity: 3, ticks: 500 })
 equal(emotions[emotions.length - 1], Emotion.HAPPY, 'petting swipe pair should set HAPPY emotion')
 assert(effects.length > 0, 'petting should add a visible emotion effect')
 
-trace('ok\n')
+async function testSpeakStackchan() {
+  const drawerCloseCountBeforeSpeech = drawerCloseCount
+  await speakButton?.callback?.(robot)
+  equal(speechRequests.length, 1, 'speakStackchan should request one utterance')
+  equal(speechRequests[0], 'こんにちわ。すたっくちゃんです。', 'speakStackchan should request its greeting')
+  equal(drawerCloseCount - drawerCloseCountBeforeSpeech, 1, 'speakStackchan should close the drawer before speaking')
+}
+
+async function testServoRecovery() {
+  const servoButton = buttons.find((button) => button.key === 'servoTest')
+  assert(servoButton, 'servoTest button should be registered')
+  try {
+    servoFailure = new Error('servo unavailable')
+    await servoButton.callback?.(robot)
+    assert(balloonMessages.includes('servo error'), 'servo failures should be visible instead of aborting the runtime')
+    const requestsAfterFirstFailure = torqueRequests.length
+
+    await servoButton.callback?.(robot)
+    assert(torqueRequests.length > requestsAfterFirstFailure, 'servo failure should release the moving guard for retry')
+  } finally {
+    servoFailure = undefined
+  }
+}
+
+async function runAsyncTests() {
+  await testSpeakStackchan()
+  await testServoRecovery()
+  trace('ok\n')
+}
+
+runAsyncTests().catch((error) => {
+  trace(`default behavior async test error: ${String(error)}\n`)
+  throw error
+})

@@ -27,13 +27,13 @@ runs:
       shell: bash
     - name: Setup Emscripten for WASM simulator
       if: inputs.install-emscripten == 'true'
-      uses: mymindstorm/setup-emsdk@v16
+      uses: emscripten-core/setup-emsdk@v16
       with:
         version: 5.0.1
     - name: Install Moddable Linux tool dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libasound2-dev libfreetype6-dev libglib2.0-dev libgtk-3-dev pkg-config xvfb
+        sudo apt-get install -y dbus libasound2-dev libfreetype6-dev libglib2.0-dev libgtk-3-dev pkg-config xvfb
       shell: bash
     - name: Resolve Moddable cache key
       env:

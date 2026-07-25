@@ -28,7 +28,7 @@ StackChan can change settings such as motor types and pin assignments from the m
 
 | Key               | Description                                                                | Available values                     |
 | ----------------- | -------------------------------------------------------------------------- | ------------------------------------ |
-| driver.type       | Type of motor driver                                                       | "scservo", "rs30x", "pwm", "none", "dynamixel"    |
+| driver.type       | Type of motor driver                                                       | "m5stackchan", "scservo", "rs30x", "pwm", "none", "dynamixel"    |
 | driver.panId      | ID of the serial servo used for pan axis (horizontal rotation of the neck) | 1~254                                |
 | driver.tiltId     | ID of the serial servo used for tilt axis (vertical rotation of the neck)  | 1~254                                |
 | driver.offsetPan  | Offset of the pan axis                                                     | -90~90                               |
@@ -111,7 +111,11 @@ $ npm run flash
 ```
 
 Use `npm run build` when you only want to verify the standard build.
-The program will be saved under the `$MODDABLE/build/` directory.
+The program and intermediate files are saved under `firmware/dist/bin/` and `firmware/dist/tmp/`.
+The host application name is `stack-chan-host`.
+Run `npm run clean` to remove all generated files under `firmware/dist/`.
+`npm run bundle` also keeps every target build under `firmware/dist/`, stages validated target artifacts under
+`firmware/dist/bundle-targets/`, and writes the assembled directory and ZIP under `firmware/host/app/`.
 
 ### Stack-chan subplatforms
 
@@ -123,6 +127,7 @@ Stack-chan hardware variants ship their own **subplatform**, which already defin
 | Build and flash         | `npm run flash` or `npm run flash:m5stackchan_cores3` | `npm run flash:stackchan_rt` | `npm run flash:takao_core2_sg90` |
 | Run deploy task         | `npm run deploy` or `npm run deploy:m5stackchan_cores3` | `npm run deploy:stackchan_rt` | `npm run deploy:takao_core2_sg90` |
 | Debug (xsbug)           | `npm run debug` or `npm run debug:m5stackchan_cores3` | `npm run debug:stackchan_rt` | `npm run debug:takao_core2_sg90` |
+| Debug (xsdb)            | `npm run debug:xsdb` or `npm run debug:xsdb:m5stackchan_cores3` | `npm run debug:xsdb:stackchan_rt` | `npm run debug:xsdb:takao_core2_sg90` |
 | Install a MOD           | `npm run mod -- [mod manifest]` or `npm run mod:m5stackchan_cores3 -- [mod manifest]` | `npm run mod:stackchan_rt -- [mod manifest]` | `npm run mod:takao_core2_sg90 -- [mod manifest]` |
 
 The board-specific driver type and servo bus pins live in each subplatform manifest:
@@ -130,6 +135,8 @@ The board-specific driver type and servo bus pins live in each subplatform manif
 - M5StackChan CoreS3: [`host/platforms/m5stackchan_cores3/manifest.json`](../host/platforms/m5stackchan_cores3/manifest.json) — `m5stackchan` driver, serial TX6 / RX7.
 - Stack-chan RT: [`host/platforms/stackchan_rt/manifest.json`](../host/platforms/stackchan_rt/manifest.json) — `dynamixel` driver, serial TX7 / RX6.
 - Takao Core2 + SG90: [`host/platforms/takao_core2_sg90/manifest.json`](../host/platforms/takao_core2_sg90/manifest.json) — `pwm` driver, pan PWM19 / tilt PWM27.
+
+The `m5stackchan` driver adds M5StackChan-specific zero positions, motion limits, and PY32 servo-power control on top of the SCServo protocol. For safety, M5StackChan CoreS3 firmware locks the driver type to `m5stackchan`, while Stack-chan RT firmware locks it to `dynamixel`. Both ignore a different stored `driver.type`.
 
 Put per-device settings such as Wi-Fi credentials and API keys in the board's app manifest under `"config"`. Keep secrets out of commits and add them locally only. On boot, the log line `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` shows the RT serial pins actually in use.
 
@@ -156,6 +163,18 @@ These commands will open Moddable's debugger `xsbug` and connect it to the M5Sta
 Using `xsbug`, you can check logs, set breakpoints (temporarily pause the program at specific lines), and perform step-by-step execution.
 For detailed instructions on how to use `xsbug`, please refer to the [official documentation](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md).
 
+Use the terminal-based `xsdb` debugger with:
+
+```console
+$ npm run debug:xsdb
+```
+
+When more than one serial device is connected, select one explicitly:
+
+```console
+$ npm run debug:xsdb -- --port /dev/ttyACM1
+```
+
 ## (Optional) Writing user application (mods)
 
 The following command is used to build and write a mod.
@@ -164,6 +183,18 @@ _No `sudo` required for the command._
 
 ```console
 $ npm run mod -- [mod manifest file path]
+```
+
+`npm run mod` first creates an XS archive with `mcrun -t build`. It then uses `esptool` to read the live
+partition table and writes the archive directly to the type `0x40`, subtype `1` `xs` partition. The command
+discovers the offset from the device and validates the archive format, partition capacity, selected chip,
+Moddable firmware descriptor, and written bytes. It does not use the xsbug install channel, so either a debug
+or release host can load the MOD.
+
+Use `--port` or `STACKCHAN_PORT` when more than one serial device is connected:
+
+```console
+$ npm run mod -- ./mods/examples/look_around/manifest.json --port /dev/ttyACM1
 ```
 
 The standard command accepts MOD manifests that resolve to JavaScript modules.
@@ -185,7 +216,8 @@ $ npm run mod -- ./mods/examples/look_around/manifest.json
 # xsc check.xsb
 # xsc mod/config.xsb
 # xsl look_around.xsa
-Installing mod...complete
+[stack-chan] MOD preflight: xs_esp32 8.3.1, XS 17.8.0, xs=0xfa0000/262144
+[stack-chan] MOD installed and verified: .../look_around.xsa
 ```
 
 ## (Optional)erase flash

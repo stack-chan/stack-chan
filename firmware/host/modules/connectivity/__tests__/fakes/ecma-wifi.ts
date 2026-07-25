@@ -16,6 +16,7 @@ export default class FakeWiFi {
   static readonly connected = 400
   static readonly gotIP = 500
   static scanResults: Array<{ ssid: string }> = []
+  static scanCallCount = 0
 
   #onChanged?: (this: FakeWiFi, property: string) => void
   #connection = FakeWiFi.disconnected
@@ -24,7 +25,10 @@ export default class FakeWiFi {
   connectOptions?: WiFiConnectOptions
   disconnectCount = 0
 
-  constructor(options: WiFiOptions = {}) {
+  constructor(options?: WiFiOptions) {
+    if (options === undefined) {
+      throw new Error('WiFi constructor options required')
+    }
     this.#onChanged = options.onChanged
     instances.push(this)
   }
@@ -47,6 +51,7 @@ export default class FakeWiFi {
   }
 
   scan(options: { onFound?: (item: { ssid: string }) => void; onComplete?: () => void } = {}): void {
+    FakeWiFi.scanCallCount += 1
     for (const item of FakeWiFi.scanResults) {
       options.onFound?.(item)
     }
@@ -86,6 +91,7 @@ export default class FakeWiFi {
 export function resetFakeWiFi(): void {
   instances.length = 0
   FakeWiFi.scanResults = []
+  FakeWiFi.scanCallCount = 0
 }
 
 export function getFakeWiFiInstances(): FakeWiFi[] {

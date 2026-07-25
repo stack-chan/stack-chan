@@ -29,7 +29,7 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 
 ![ｽﾀｯｸﾁｬﾝの座標系](./images/coordinate.jpg)
 
-ｽﾀｯｸﾁｬﾝの座標系は __右手系__ です。
+ｽﾀｯｸﾁｬﾝの座標系は **右手系** です。
 右手の親指、人差し指と中指がそれぞれ直行するように曲げたとき、
 親指がX軸、人差し指がY軸、中指がZ軸となります。
 
@@ -46,7 +46,7 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 - ピッチ軸（Y軸まわりの回転）の正方向…ｽﾀｯｸﾁｬﾝが下を向く動き
 - ヨー軸（Z軸まわりの回転）の正方向…ｽﾀｯｸﾁｬﾝが左を向く動き
 
-ｽﾀｯｸﾁｬﾝのAPIにおいては __座標の単位はメートル、角度の単位はラジアンになります__ 。
+ｽﾀｯｸﾁｬﾝのAPIにおいては **座標の単位はメートル、角度の単位はラジアンになります** 。
 座標系との対応は実際のソースコード（[`mods/examples/look_around`](../mods/examples/look_around/)など）も参考にしてください。
 
 ## 型
@@ -60,9 +60,10 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 - MOD が speech engine の選択を所有する場合の `context.audio.useTTS(...)`
 - `context.motion.lookAt(...)`、`context.motion.setPose(...)`、`context.motion.setTorque(...)`
 - `context.face.setEmotion(...)`、`context.face.setColor(...)`
+- `context.i18n.locale`、`context.i18n.localize(...)`
 - `context.ui.showBalloon(...)`、`context.ui.drawer.addDrawerButton(...)`
 - `context.input.touch`、`context.input.touchPanel`、`context.input.imu`
-- `context.lighting.lightOn(...)`、`context.camera.capture(...)`、`context.connectivity.network?.ready`
+- `context.lighting.lightOn(...)`、`context.camera.capture(...)`、`context.connectivity.network?.ready`、`context.connectivity.localPeer`
 - runtime が所有する Timer、sensor、camera session、motion timer を解放する `context.lifecycle.close()`
 
 input device は optional です。
@@ -72,6 +73,15 @@ MOD は touch handler を登録する前に `undefined` を確認してくださ
 
 `context.connectivity.network?.ready` は `connected`、`skipped`、`failed` のいずれかへ解決されます。
 network が必要な MOD は、host 内部の network module を import せずにこれを await し、`skipped` や `failed` を扱えます。
+local peer sessionではESP-NOWとBLE Serialを同じAPIで利用できます。詳しくは[ローカルP2Pメッセージ通信](./local-peer-communication_ja.md)を参照してください。
+
+`context.ui.showBalloon(text, options)` の `options.tail` では、吹き出しのトンガリを
+`top-left`、`top-right`、`bottom-left`、`bottom-right` から選べます。
+未指定時は、下配置なら `top-left`、`top` を指定した上配置なら `bottom-left` が選ばれます。
+
+MOD の Drawer Button や Piu `Label` に表示する文字列は `context.i18n.localize(key, values?)` で取得します。
+MOD 自身の辞書、host 辞書、キー文字列の順に解決されます。
+辞書の追加方法は [Firmware のローカライズ](./localization_ja.md)を参照してください。
 
 `context.say(...)`、`context.lookAt(...)`、`context.showBalloon(...)`、`context.useTTS(...)` などの flat API は、既存 MOD 互換の shim として残しています。
 新規コードでは非推奨です。
@@ -114,8 +124,12 @@ wasm audio bridge は、現在の public capability 実装で唯一、非同期 
 公開 audio API は、MOD に渡す capability object から音声再生機能を提供します。
 local、remote、Voicevox、ElevenLabs、OpenAI などの provider object は `host/modules/audio` の内部実装です。
 
+`sing(koe, volume?)` は、使用中の TTS provider が対応している場合に stackchan-voice の歌唱記法を再生します。
+歌唱非対応の provider では失敗結果を返し、歌唱記法を通常の文章として読み上げることはありません。
+
 `playAudio(buffer)` は、target が借用 buffer を受け取り、再生が完了した場合だけ `true` を返します。
 target が buffer 再生に未対応、buffer が空、または再生に失敗した場合は `false` を返します。
 呼び出し側は buffer の所有権を保持し、`false` を未対応または未再生として扱ってください。
 
 - [TTS（音声合成）の使用](./text-to-speech_ja.md)
+- [stackchan-voice の発話・歌唱](./stackchan-voice.md)

@@ -27,9 +27,15 @@ test('authorizeMCPRequest rejects invalid bearer tokens', () => {
   }
 })
 
-test('authorizeMCPRequest allows requests when no token is configured', () => {
-  assert.deepEqual(authorizeMCPRequest(undefined, undefined), { authorized: true })
-  assert.deepEqual(authorizeMCPRequest('Bearer secret-token', ''), { authorized: true })
+test('authorizeMCPRequest rejects requests when no token is configured', () => {
+  assert.deepEqual(authorizeMCPRequest(undefined, undefined), {
+    authorized: false,
+    reason: 'missing-token-configuration',
+  })
+  assert.deepEqual(authorizeMCPRequest('Bearer secret-token', ''), {
+    authorized: false,
+    reason: 'missing-token-configuration',
+  })
 })
 
 test('normalizeMCPToken treats blank strings as unconfigured', () => {

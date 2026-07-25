@@ -202,6 +202,19 @@ try {
   await editorToolMenu.getByRole('button', { name: '閉じる' }).click()
   await editorToolMenu.waitFor({ state: 'hidden' })
 
+  const eventCategory = page.getByRole('treeitem', { name: 'イベント', exact: true })
+  const toolboxFlyout = page.locator('.blocklyToolboxFlyout')
+  const toolboxFlyoutScrollbar = page.locator('.blocklyToolboxFlyout + .blocklyFlyoutScrollbar')
+  await eventCategory.click()
+  await toolboxFlyout.waitFor({ state: 'visible' })
+  await eventCategory.click()
+  await toolboxFlyout.waitFor({ state: 'hidden' })
+  assert.equal(
+    await toolboxFlyoutScrollbar.isVisible(),
+    false,
+    'closing a toolbox category must hide its flyout scrollbar'
+  )
+
   await page.getByRole('button', { name: 'プロジェクト操作' }).click()
   await page.getByRole('menuitem', { name: '新しいプロジェクト' }).waitFor()
   assert.deepEqual(

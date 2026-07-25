@@ -118,6 +118,11 @@ try {
   assert.equal(installUrl.searchParams.get('mod'), 'tech.stackchan.samples.mediapipe-ble')
   assert.equal(await page.locator('#camera-button').isVisible(), true)
   assert.equal(await page.locator('#ble-button').isVisible(), true)
+  assert.equal(
+    await page.getByRole('button', { name: 'ツールメニューを開く' }).count(),
+    1,
+    'the React MediaPipe page must use the shared application shell'
+  )
 
   await page.goto(`${baseUrl}/mod-gallery/?mod=tech.stackchan.samples.mediapipe-ble`, {
     waitUntil: 'networkidle',

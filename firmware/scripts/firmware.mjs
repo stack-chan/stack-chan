@@ -12,7 +12,8 @@ import {
 } from './lib/build-output.mjs'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
-import { prepareCoreS3VersionSdkconfig } from './lib/moddable-version.mjs'
+import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
+import { prepareCoreS3VersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -56,7 +57,10 @@ const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFE
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
 const { mode: buildMode, args: buildModeArgs } = readBuildConfiguration(rawArgs)
 const outputArgs = moddableOutputArguments()
-let subprocessEnvironment = process.env
+const uploadPort =
+  readOption(rawArgs, 'port') ?? process.env.STACKCHAN_PORT ?? process.env.UPLOAD_PORT ?? process.env.ESPPORT
+const uploadBaud = readOption(rawArgs, 'baud') ?? process.env.STACKCHAN_BAUD ?? process.env.ESPBAUD
+let subprocessEnvironment = uploadPort ? { ...process.env, UPLOAD_PORT: uploadPort } : process.env
 
 if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
   try {
@@ -72,7 +76,7 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
   }
   try {
     const versionSdkconfig = prepareCoreS3VersionSdkconfig()
-    subprocessEnvironment = { ...process.env, SDKCONFIGPATH: versionSdkconfig.directory }
+    subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {
     console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
     process.exit(1)
@@ -121,14 +125,38 @@ switch (command) {
       process.exit(1)
     }
     const packageDirectory = findPackageDirectory(modInput)
+    const projectDirectory = packageDirectory ?? path.dirname(path.resolve(modInput))
+    const projectName = path.basename(projectDirectory)
     if (packageDirectory) {
       run(
         'mcpack',
-        ['mcrun', ...buildModeArgs, '-m', '-p', platform, ...outputArgs, ...args.slice(1)],
+        ['mcrun', ...buildModeArgs, '-m', '-p', platform, '-t', 'build', ...outputArgs, ...args.slice(1)],
         packageDirectory,
       )
     } else {
-      run('mcrun', [...buildModeArgs, '-m', '-p', platform, ...outputArgs, modInput, ...args.slice(1)])
+      run('mcrun', [...buildModeArgs, '-m', '-p', platform, '-t', 'build', ...outputArgs, modInput, ...args.slice(1)])
+    }
+    const archivePath = resolveModArchivePath({
+      outputDirectory: buildOutputDirectory,
+      mode: buildMode,
+      projectName,
+    })
+    if (dryRun) {
+      console.log(`[stack-chan] MOD archive=${archivePath}`)
+      console.log('[stack-chan] esptool will discover the live xs partition, write the archive, and verify it')
+      break
+    }
+    try {
+      installModArchive({
+        archivePath,
+        chip: device.esptoolChip,
+        port: uploadPort,
+        baud: uploadBaud,
+        expectedFirmwareVersion: device.firmwareVersionSource === 'moddable' ? readModdableVersion() : undefined,
+      })
+    } catch (error) {
+      console.error(`[stack-chan] MODを書き込めませんでした: ${error.message}`)
+      process.exit(1)
     }
     break
   }
@@ -162,7 +190,7 @@ function run(bin, binArgs, cwd = process.cwd()) {
     console.error('[stack-chan] npm run setup と npm run doctor を確認してください。')
     process.exit(1)
   }
-  process.exit(result.status ?? 1)
+  if (result.status !== 0) process.exit(result.status ?? 1)
 }
 
 /**
@@ -288,5 +316,7 @@ Examples:
   npm run build:takao_core2_sg90
   npm run build:m5stackchan_cores3 -- --mode=release
   npm run build:m5stackchan_cores3 -- --mode=instrument
+  npm run debug:xsdb -- --port /dev/ttyACM1
+  npm run mod -- mods/examples/look_around/manifest.json --port /dev/ttyACM1
   STACKCHAN_DEVICE=takao_core2_sg90 npm run mod -- mods/examples/look_around/manifest.json`)
 }

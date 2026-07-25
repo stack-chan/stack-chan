@@ -231,43 +231,9 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
           KEEP_DEPLOYMENT_ID: ${{ steps.cloudflare.outputs.pages-deployment-id }}
-        run: |
-          set -euo pipefail
-          test -n "$KEEP_DEPLOYMENT_ID"
-          page=1
-          while true; do
-            response=$(curl -fsS \
-              --get \
-              --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              --header 'Content-Type: application/json' \
-              --data-urlencode 'env=preview' \
-              --data-urlencode 'per_page=100' \
-              --data-urlencode "page=${page}" \
-              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PAGES_PROJECT}/deployments")
-            echo "$response" | jq -e '.success == true' >/dev/null
-            echo "$response" | jq -r \
-              --arg branch "$BRANCH_NAME" \
-              --arg keep "$KEEP_DEPLOYMENT_ID" \
-              '.result[] | select(.deployment_trigger.metadata.branch == $branch and .id != $keep) | .id' \
-              >> deployments-to-delete.txt
-            total_pages=$(echo "$response" | jq -r '.result_info.total_pages // 1')
-            if [ "$page" -ge "$total_pages" ]; then
-              break
-            fi
-            page=$((page + 1))
-          done
-          sort -u deployments-to-delete.txt | while IFS= read -r deployment_id; do
-            if [ -z "$deployment_id" ]; then
-              continue
-            fi
-            curl -fsS \
-              --request DELETE \
-              --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PAGES_PROJECT}/deployments/${deployment_id}?force=true" \
-              >/dev/null
-          done
+        run: node ./trusted-source/.github/scripts/delete-cloudflare-preview-deployments.mjs
       - name: Mark preview as closed
-        if: steps.preview.outputs.exists == 'true'
+        if: always() && steps.preview.outputs.exists == 'true' && steps.cloudflare.outcome == 'success'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}

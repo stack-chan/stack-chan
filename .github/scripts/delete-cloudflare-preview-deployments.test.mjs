@@ -143,6 +143,37 @@ test('retries transient Cloudflare API failures', async () => {
   assert.deepEqual(delays, [250])
 })
 
+test('retries non-JSON responses with transient HTTP status codes', async () => {
+  const delays = []
+  let attempts = 0
+  const fetchImpl = async () => {
+    attempts += 1
+    if (attempts === 1) {
+      return new Response('<html>Service unavailable</html>', {
+        headers: { 'Content-Type': 'text/html' },
+        status: 503,
+      })
+    }
+    return jsonResponse({
+      errors: [],
+      result: [deployment({ aliases: [`https://${BRANCH_NAME}.${PROJECT_NAME}.pages.dev`], id: KEEP_ID })],
+      result_info: { total_pages: 1 },
+      success: true,
+    })
+  }
+
+  const deleted = await deleteSupersededPreviewDeployments(
+    cleanupOptions({
+      fetchImpl,
+      sleep: async (milliseconds) => delays.push(milliseconds),
+    })
+  )
+
+  assert.deepEqual(deleted, [])
+  assert.equal(attempts, 2)
+  assert.deepEqual(delays, [250])
+})
+
 test('treats a 404 after retrying a DELETE as already deleted', async () => {
   const delays = []
   let deleteAttempts = 0

@@ -61,7 +61,16 @@ async function cloudflareRequest({
       try {
         payload = JSON.parse(responseText)
       } catch {
-        throw new Error(`Cloudflare API ${method} returned a non-JSON response (HTTP ${response.status})`)
+        const responseError = new Error(
+          `Cloudflare API ${method} returned a non-JSON response (HTTP ${response.status})`
+        )
+        if (!RETRYABLE_STATUS_CODES.has(response.status) || attempt === MAX_ATTEMPTS) throw responseError
+
+        logger.warn(
+          `Cloudflare API ${method} returned a non-JSON HTTP ${response.status} response; retrying (${attempt}/${MAX_ATTEMPTS})`
+        )
+        await sleep(250 * 2 ** (attempt - 1))
+        continue
       }
     }
 

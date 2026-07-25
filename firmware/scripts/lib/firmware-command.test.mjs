@@ -26,3 +26,9 @@ test('MOD command honors the release build mode', () => {
   assert.match(output, /mcrun -m /)
   assert.doesNotMatch(output, /mcrun -d /)
 })
+
+test('MOD command installs the instrument archive from its own output directory', () => {
+  const output = dryRun('--mode=instrument', '-t', 'build')
+  assert.match(output, /mcrun -i -m /)
+  assert.match(output, /MOD archive=.*\/bin\/esp32\/instrument\/look_around\/look_around\.xsa/)
+})

@@ -3,16 +3,20 @@ export const devices = {
     platform: './host/platforms/m5stackchan_cores3',
     manifest: './host/app/manifest_m5stackchan_cores3.json',
     label: 'M5StackChan CoreS3',
+    esptoolChip: 'esp32s3',
+    firmwareVersionSource: 'moddable',
   },
   stackchan_rt: {
     platform: './host/platforms/stackchan_rt',
     manifest: './host/app/manifest_stackchan_rt.json',
     label: 'Stack-chan RT CoreS3',
+    esptoolChip: 'esp32s3',
   },
   takao_core2_sg90: {
     platform: './host/platforms/takao_core2_sg90',
     manifest: './host/app/manifest_takao_core2_sg90.json',
     label: 'Stack-chan Takao Core2 + SG90',
+    esptoolChip: 'esp32',
   },
 }
 

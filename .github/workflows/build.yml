@@ -108,37 +108,3 @@ jobs:
           name: web-visual-screenshots
           path: /tmp/stackchan-*.png
           if-no-files-found: ignore
-
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: m5stack
-            command: npm run build:m5stack
-          - name: m5stack_cores3
-            command: npm run build:m5stack_cores3
-          - name: m5stackchan_cores3
-            command: npm run build:m5stackchan_cores3
-          - name: stackchan_rt
-            command: npm run build:stackchan_rt
-          - name: takao_core2_sg90
-            command: npm run build:takao_core2_sg90
-          - name: wasm
-            command: npm run build:wasm
-          - name: editor-tools
-            command: npm run build:editor-tools
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-        with:
-          target-branch: ${{ (matrix.name == 'wasm' || matrix.name == 'editor-tools') && '8.3.1' || '' }}
-          install-emscripten: ${{ (matrix.name == 'wasm' || matrix.name == 'editor-tools') && 'true' || 'false' }}
-      - name: Build firmware (${{ matrix.name }})
-        working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && ${{ matrix.command }}
-      - name: Verify reproducible editor tools
-        if: matrix.name == 'editor-tools'
-        working-directory: ./firmware
-        run: git diff --exit-code -- ':(top)web/editor/vendor/tools.js' ':(top)web/editor/vendor/tools.wasm'

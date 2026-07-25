@@ -320,11 +320,12 @@ export function useMediaPipeTracking(
             }
             active.sender?.queue(value)
           } catch (error) {
-            setCameraStatus({
+            releaseCamera({
               state: 'error',
               message: '認識に失敗しました: {error}',
               params: { error: errorMessage(error) },
             })
+            return
           }
         }
         active.animationFrame = dependencies.requestFrame(detectFrame)
@@ -410,8 +411,7 @@ export function useMediaPipeTracking(
           .catch((error) => {
             if (!mounted.current || resources.current.sender !== sender) return
             if (session.closed) {
-              releaseBle()
-              setBleStatus({
+              releaseBle({
                 state: 'error',
                 message: '接続が切れました: {error}。再接続してください',
                 params: { error: errorMessage(error) },

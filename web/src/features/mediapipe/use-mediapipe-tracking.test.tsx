@@ -63,9 +63,9 @@ function createDependencies() {
     }),
     openBleSession: vi.fn(async () => session),
     createSender: vi.fn(() => sender),
-    requestFrame: vi.fn(() => 17),
+    requestFrame: vi.fn((_callback: FrameRequestCallback) => 17),
     cancelFrame: vi.fn(),
-    setTimer: vi.fn(() => 31),
+    setTimer: vi.fn((_callback: () => void, _delay: number) => 31),
     clearTimer: vi.fn(),
     now: () => 100,
     sendIntervalMs: 100,
@@ -104,6 +104,44 @@ describe('useMediaPipeTracking', () => {
     expect(handsClose).toHaveBeenCalledOnce()
   })
 
+  it('stops the camera loop after a persistent detection failure', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      clearRect: vi.fn(),
+    } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+    vi.spyOn(HTMLMediaElement.prototype, 'readyState', 'get').mockReturnValue(HTMLMediaElement.HAVE_CURRENT_DATA)
+    vi.spyOn(HTMLMediaElement.prototype, 'currentTime', 'get').mockReturnValue(1)
+    const { cameraTrack, dependencies } = createDependencies()
+    dependencies.loadRuntime.mockResolvedValue({
+      face: {
+        detectForVideo: () => {
+          throw new Error('WASM aborted')
+        },
+        close: vi.fn(),
+      },
+      hands: { detectForVideo: () => ({}), close: vi.fn() },
+      DrawingUtils: class {
+        drawConnectors() {}
+        drawLandmarks() {}
+      },
+      FaceLandmarker: { FACE_LANDMARKS_FACE_OVAL: [] },
+      HandLandmarker: { HAND_CONNECTIONS: [] },
+    })
+    render(<Harness dependencies={dependencies} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'start camera' }))
+    await waitFor(() => expect(screen.getByTestId('camera-active')).toHaveTextContent('true'))
+    const detectFrame = dependencies.requestFrame.mock.calls[0][0]
+
+    act(() => detectFrame(0))
+
+    expect(cameraTrack.stop).toHaveBeenCalledOnce()
+    expect(dependencies.cancelFrame).toHaveBeenCalledWith(17)
+    expect(dependencies.requestFrame).toHaveBeenCalledOnce()
+    expect(screen.getByTestId('camera-active')).toHaveTextContent('false')
+    expect(screen.getByTestId('camera-status')).toHaveTextContent('認識に失敗しました: {error}')
+  })
+
   it('owns BLE discovery, sender timer, and disconnect cleanup', async () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
       clearRect: vi.fn(),
@@ -130,5 +168,30 @@ describe('useMediaPipeTracking', () => {
     expect(session.close).toHaveBeenCalledOnce()
     expect(screen.getByTestId('ble-connected')).toHaveTextContent('false')
     expect(screen.getByTestId('ble-status')).toHaveTextContent('未接続')
+  })
+
+  it('allows reconnecting after the active BLE session drops', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      clearRect: vi.fn(),
+    } as unknown as CanvasRenderingContext2D)
+    const { dependencies, sender, session } = createDependencies()
+    render(<Harness dependencies={dependencies} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'connect ble' }))
+    await waitFor(() => expect(screen.getByTestId('ble-connected')).toHaveTextContent('true'))
+    const sendTick = dependencies.setTimer.mock.calls[0][0]
+    session.closed = true
+    sender.flush.mockRejectedValueOnce(new Error('link lost'))
+
+    await act(async () => {
+      sendTick()
+      await Promise.resolve()
+    })
+
+    expect(dependencies.clearTimer).toHaveBeenCalledWith(31)
+    expect(sender.clear).toHaveBeenCalledOnce()
+    expect(session.close).toHaveBeenCalledOnce()
+    expect(screen.getByTestId('ble-connected')).toHaveTextContent('false')
+    expect(screen.getByTestId('ble-status')).toHaveTextContent('接続が切れました: {error}。再接続してください')
   })
 })

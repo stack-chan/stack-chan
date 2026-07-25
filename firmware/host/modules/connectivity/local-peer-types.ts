@@ -48,6 +48,8 @@ export class LocalPeerError extends Error {
 LocalPeerError.prototype.name = 'LocalPeerError'
 
 export type LocalPeerOpenOptions = {
+  /** Radio transport. ESP-NOW remains the default where it is available. */
+  transport?: 'espnow' | 'ble'
   /** Logical application namespace. Only peers using the same service can communicate. */
   service: string
   /** Human-readable name announced during discovery. */

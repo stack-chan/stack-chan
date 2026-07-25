@@ -29,12 +29,12 @@ export function readModdableVersion(moddableDirectory = process.env.MODDABLE) {
 }
 
 /**
- * Produces the CoreS3 sdkconfig overlay with the actual Moddable SDK version.
+ * Produces an sdkconfig overlay with the actual Moddable SDK version.
  * @param {string} source - Base sdkconfig.defaults contents.
  * @param {string} version - Moddable SDK version for esp_app_desc.
  * @returns {string} Generated sdkconfig.defaults contents.
  */
-export function renderCoreS3VersionSdkconfig(source, version) {
+export function renderVersionSdkconfig(source, version) {
   assertDescriptorVersion(version)
   const base = source
     .replaceAll('\r\n', '\n')
@@ -52,7 +52,41 @@ CONFIG_APP_PROJECT_VER="${version}"
 }
 
 /**
- * Writes a generated CoreS3 sdkconfig directory for Moddable's SDKCONFIGPATH.
+ * Writes a generated sdkconfig directory for Moddable's SDKCONFIGPATH.
+ * @param {{platformName: string, moddableDirectory?: string, outputDirectory?: string, sourceDirectory: string, partitionSourcePath: string}} options - Generation inputs.
+ * @returns {{directory: string, filePath: string, partitionFilePath: string, version: string}} Generated configuration details.
+ */
+export function prepareVersionSdkconfig({
+  platformName,
+  moddableDirectory = process.env.MODDABLE,
+  outputDirectory = buildOutputDirectory,
+  sourceDirectory,
+  partitionSourcePath,
+}) {
+  if (!/^[0-9A-Za-z._-]+$/.test(platformName)) {
+    throw new Error(`Invalid sdkconfig platform name: ${platformName || 'missing'}`)
+  }
+  const version = readModdableVersion(moddableDirectory)
+  const sourcePath = path.join(sourceDirectory, 'sdkconfig.defaults')
+  const source = readFileSync(sourcePath, 'utf8')
+  const sdkconfig = renderVersionSdkconfig(source, version)
+  const directory = path.join(outputDirectory, 'generated', 'sdkconfig', platformName)
+  const filePath = path.join(directory, 'sdkconfig.defaults')
+  const partitionFilePath = path.join(directory, 'partitions.csv')
+  const partitions = readFileSync(partitionSourcePath)
+
+  mkdirSync(directory, { recursive: true })
+  const previous = existsSync(filePath) ? readFileSync(filePath, 'utf8') : null
+  if (previous !== sdkconfig) writeFileSync(filePath, sdkconfig)
+  const previousPartitions = existsSync(partitionFilePath) ? readFileSync(partitionFilePath) : null
+  if (!previousPartitions?.equals(partitions)) writeFileSync(partitionFilePath, partitions)
+
+  console.log(`[stack-chan] prepared firmware version ${version}: ${filePath}`)
+  return { directory, filePath, partitionFilePath, version }
+}
+
+/**
+ * Writes the M5StackChan CoreS3 sdkconfig overlay used by normal firmware builds.
  * @param {{moddableDirectory?: string, outputDirectory?: string, sourceDirectory?: string, partitionSourcePath?: string}} options - Generation inputs.
  * @returns {{directory: string, filePath: string, partitionFilePath: string, version: string}} Generated configuration details.
  */
@@ -71,24 +105,16 @@ export function prepareCoreS3VersionSdkconfig({
     'partitions.csv',
   ),
 } = {}) {
-  const version = readModdableVersion(moddableDirectory)
-  const sourcePath = path.join(sourceDirectory, 'sdkconfig.defaults')
-  const source = readFileSync(sourcePath, 'utf8')
-  const sdkconfig = renderCoreS3VersionSdkconfig(source, version)
-  const directory = path.join(outputDirectory, 'generated', 'sdkconfig', 'm5stackchan_cores3')
-  const filePath = path.join(directory, 'sdkconfig.defaults')
-  const partitionFilePath = path.join(directory, 'partitions.csv')
-  const partitions = readFileSync(partitionSourcePath)
-
-  mkdirSync(directory, { recursive: true })
-  const previous = existsSync(filePath) ? readFileSync(filePath, 'utf8') : null
-  if (previous !== sdkconfig) writeFileSync(filePath, sdkconfig)
-  const previousPartitions = existsSync(partitionFilePath) ? readFileSync(partitionFilePath) : null
-  if (!previousPartitions?.equals(partitions)) writeFileSync(partitionFilePath, partitions)
-
-  console.log(`[stack-chan] prepared CoreS3 firmware version ${version}: ${filePath}`)
-  return { directory, filePath, partitionFilePath, version }
+  return prepareVersionSdkconfig({
+    platformName: 'm5stackchan_cores3',
+    moddableDirectory,
+    outputDirectory,
+    sourceDirectory,
+    partitionSourcePath,
+  })
 }
+
+export const renderCoreS3VersionSdkconfig = renderVersionSdkconfig
 
 /**
  * Validates a version before embedding it in a quoted Kconfig value and the

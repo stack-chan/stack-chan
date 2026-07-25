@@ -25,10 +25,11 @@ const [
   tutorialHtml,
   faceEditorHtml,
   flashHtml,
+  packageText,
 ] = await Promise.all([
   readFile(new URL('./editor/index.html', import.meta.url), 'utf8'),
   readFile(new URL('./simulator/index.html', import.meta.url), 'utf8'),
-  readFile(new URL('./simulator/simulator.mjs', import.meta.url), 'utf8'),
+  readFile(new URL('./src/services/simulator/simulator-engine.mjs', import.meta.url), 'utf8'),
   readFile(new URL('./editor/mod-builder.mjs', import.meta.url), 'utf8'),
   readFile(new URL('./editor/esptool-installer.mjs', import.meta.url), 'utf8'),
   readFile(new URL('./editor/vendor/tools.wasm', import.meta.url)),
@@ -46,6 +47,7 @@ const [
   readFile(new URL('./editor/tutorial.html', import.meta.url), 'utf8'),
   readFile(new URL('./face-editor/index.html', import.meta.url), 'utf8'),
   readFile(new URL('./flash/index.html', import.meta.url), 'utf8'),
+  readFile(new URL('./package.json', import.meta.url), 'utf8'),
 ])
 
 assert.deepEqual([...toolsWasm.subarray(0, 4)], [0, 0x61, 0x73, 0x6d], 'tools.wasm must be a WebAssembly module')
@@ -63,8 +65,13 @@ assert.equal(
 )
 assert.match(esptoolLicense, /Apache License/)
 assert.match(builder, /DEFAULT_TOOLS_VERSION = '\d+\.\d+\.\d+'/)
-for (const dependency of ['blockly@11.2.2', 'esp-web-tools@9.4.3', 'esptool-js-0.5.7', 'lucide@1.24.0']) {
-  assert.ok([html, flashHtml, builder, installer].some((source) => source.includes(dependency)))
+const packageJson = JSON.parse(packageText)
+for (const dependency of ['@base-ui/react', 'blockly', 'lucide-react', 'react', 'three']) {
+  assert.match(
+    packageJson.dependencies?.[dependency] ?? '',
+    /^\^?\d+\.\d+\.\d+/,
+    `${dependency} must be pinned through package.json`
+  )
 }
 for (const [name, page] of [
   ['home', homeHtml],
@@ -75,24 +82,15 @@ for (const [name, page] of [
   ['simulator', simulatorHtml],
 ]) {
   const externalScripts = [...page.matchAll(/<script\b[^>]*\bsrc="https:\/\/[^>]+>/g)]
-  assert.ok(externalScripts.length > 0, `${name} page must expose its pinned external script to this check`)
-  for (const [script] of externalScripts) {
-    assert.match(script, /\bintegrity="sha384-[^"]+"/, `${name} external scripts must have SRI`)
-    assert.match(script, /\bcrossorigin="anonymous"/, `${name} external scripts must use anonymous CORS`)
-  }
+  assert.equal(externalScripts.length, 0, `${name} page must not depend on runtime CDN scripts`)
+  assert.doesNotMatch(page, /unpkg\.com|<style\b|<script>(?!\s*<\/script>)/)
 }
-const importMapText = /<script type="importmap">([\s\S]*?)<\/script>/.exec(simulatorHtml)?.[1]
-assert.ok(importMapText, 'simulator must declare an import map')
-const importMap = JSON.parse(importMapText)
-const threeModuleUrls = [
-  importMap.imports?.three,
-  ...[...simulatorSource.matchAll(/from '(https:\/\/unpkg\.com\/three@[^']+)'/g)].map((match) => match[1]),
-]
-assert.equal(threeModuleUrls.length, 4, 'simulator must account for every external Three.js module')
-for (const url of threeModuleUrls) {
-  assert.match(url, /^https:\/\/unpkg\.com\/three@0\.164\.1\//, 'Three.js modules must use the reviewed version')
-  assert.match(importMap.integrity?.[url] ?? '', /^sha384-/, `${url} must have import-map integrity metadata`)
-}
+assert.match(simulatorSource, /from 'three'/)
+assert.match(simulatorSource, /from 'three\/addons\/controls\/OrbitControls\.js'/)
+assert.match(simulatorSource, /from 'three\/addons\/geometries\/RoundedBoxGeometry\.js'/)
+assert.match(simulatorSource, /from 'three\/addons\/loaders\/STLLoader\.js'/)
+assert.doesNotMatch(simulatorSource, /https:\/\/|unpkg\.com/)
+assert.doesNotMatch(flashHtml, /esp-web-install-button|esp-web-tools/)
 assert.match(specification, /tech\.stackchan\.visual-project/)
 const faceSchema = JSON.parse(faceSchemaText)
 assert.equal(faceSchema.properties.format.const, FACE_ASSET_FORMAT)

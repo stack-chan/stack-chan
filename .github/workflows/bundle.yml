@@ -8,8 +8,10 @@ on:
     paths:
       - "firmware/**"
       - "web/**"
+      - ".github/scripts/**"
       - ".github/actions/setup/action.yml"
       - ".github/workflows/bundle.yml"
+      - ".github/workflows/cloudflare-preview.yml"
   pull_request:
     branches:
       - develop
@@ -17,8 +19,10 @@ on:
     paths:
       - "firmware/**"
       - "web/**"
+      - ".github/scripts/**"
       - ".github/actions/setup/action.yml"
       - ".github/workflows/bundle.yml"
+      - ".github/workflows/cloudflare-preview.yml"
 
 permissions:
   contents: read
@@ -28,16 +32,63 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  firmware:
+    name: Release build (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: m5stack
+            command: npm run build:release:m5stack
+            bundle: true
+          - target: m5stack_core2
+            command: npm run build:release:m5stack_core2
+            bundle: true
+          - target: m5stack_cores3
+            command: npm run build:release:m5stack_cores3
+            bundle: true
+          - target: m5stackchan_cores3
+            command: npm run build:release:m5stackchan_cores3
+            bundle: true
+          - target: stackchan_rt
+            command: npm run build:release:stackchan_rt
+            bundle: false
+          - target: takao_core2_sg90
+            command: npm run build:release:takao_core2_sg90
+            bundle: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          target-branch: "8.3.1"
+      - name: Build release firmware
+        working-directory: ./firmware
+        run: source "$HOME/.local/share/xs-dev-export.sh" && ${{ matrix.command }}
+      - name: Upload bundle target
+        if: matrix.bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: firmware-bundle-target-${{ matrix.target }}
+          path: ./firmware/dist/bundle-targets
+          if-no-files-found: error
+
+  web:
+    name: Bundle web artifacts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup
         uses: ./.github/actions/setup
         with:
           target-branch: "8.3.1"
           install-emscripten: "true"
-      - name: Install web test dependencies
+      - name: Install web dependencies
         working-directory: ./firmware
         run: npm --prefix ../web ci
       - name: Rebuild editor tools for release verification
@@ -48,29 +99,90 @@ jobs:
         run: |
           npm --prefix ../web run check:editor-artifacts
           git diff --exit-code -- ':(top)web/editor/vendor/tools.js' ':(top)web/editor/vendor/tools.wasm'
-      - name: Bundle firmware
-        working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle
-      - name: Verify M5StackChan CoreS3 bundle target
-        working-directory: ./firmware
-        run: |
-          target="host/app/tech.moddable.stackchan/m5stackchan_cores3"
-          for binary in bootloader.bin partition-table.bin xs_esp32.bin; do
-            test -s "$target/$binary"
-          done
       - name: Build WASM simulator firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
+      - name: Build web application
+        working-directory: ./firmware
+        run: npm --prefix ../web run build
+      - name: Upload web application
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: ./web/dist
+          if-no-files-found: error
+
+  build:
+    needs:
+      - firmware
+      - web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download bundle targets
+        uses: actions/download-artifact@v8
+        with:
+          pattern: firmware-bundle-target-*
+          path: ./firmware/dist/bundle-targets
+          merge-multiple: true
+      - name: Package firmware bundle
+        working-directory: ./firmware
+        run: npm run bundle:package
       - name: Upload firmware bundle
         uses: actions/upload-artifact@v7
         with:
           name: firmware-bundle
           path: ./firmware/host/app/tech.moddable.stackchan
-      - name: Upload WASM simulator
+          if-no-files-found: error
+      - name: Download web application
+        uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: ./web/dist
+      - name: Checkout Pages baseline
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+        with:
+          ref: gh-pages
+          path: pages-baseline
+          persist-credentials: false
+      - name: Assemble Cloudflare Pages preview
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          test -s ./pages-baseline/web/schematics/index.html
+          mkdir -p ./pages-preview
+          cp -R ./web/dist/. ./pages-preview/
+          rm -rf \
+            ./pages-preview/schematics \
+            ./pages-preview/flash/tech.moddable.stackchan
+          mkdir -p ./pages-preview/flash/tech.moddable.stackchan
+          cp -R ./pages-baseline/web/schematics ./pages-preview/schematics
+          cp -R \
+            ./firmware/host/app/tech.moddable.stackchan/. \
+            ./pages-preview/flash/tech.moddable.stackchan/
+          mkdir -p ./pages-preview/schemas
+          cp \
+            ./docs/specs/stackchan-mod.schema.json \
+            ./pages-preview/schemas/stackchan-mod.schema.json
+      - name: Validate Cloudflare Pages preview
+        if: github.event_name == 'pull_request'
+        run: |
+          node --test .github/scripts/*.test.mjs
+          node .github/scripts/validate-pages-preview.mjs ./pages-preview
+      - name: Upload Cloudflare Pages preview
+        if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v7
         with:
-          name: wasm-simulator
-          path: ./web/simulator
+          name: cloudflare-pages-preview
+          path: ./pages-preview
+          retention-days: 2
+          if-no-files-found: error
 
   deploy:
     needs: build
@@ -97,30 +209,30 @@ jobs:
         with:
           name: firmware-bundle
           path: ./firmware-bundle
-      - name: Download WASM simulator
+      - name: Download web application
         uses: actions/download-artifact@v8
         with:
-          name: wasm-simulator
-          path: ./wasm-simulator
+          name: web-dist
+          path: ./web-dist
       - name: Update bundle files
         run: |
           if [ -z "$(find ./firmware-bundle -mindepth 1 -print -quit)" ]; then
             echo "Firmware bundle artifact is empty"
             exit 1
           fi
-          if [ -z "$(find ./wasm-simulator -mindepth 1 -print -quit)" ]; then
-            echo "WASM simulator artifact is empty"
+          if [ -z "$(find ./web-dist -mindepth 1 -print -quit)" ]; then
+            echo "Web application artifact is empty"
             exit 1
           fi
+          test -s ./web-dist/simulator/mc.js
+          test -s ./web-dist/simulator/mc.wasm
           rsync -a --delete \
             --exclude '/schematics/' \
             --exclude '/flash/tech.moddable.stackchan/' \
-            --exclude '/simulator/' \
-            ./website-source/web/ ./web/
-          rm -rf ./web/flash/tech.moddable.stackchan ./web/simulator
-          mkdir -p ./web/flash/tech.moddable.stackchan ./web/simulator
+            ./web-dist/ ./web/
+          rm -rf ./web/flash/tech.moddable.stackchan
+          mkdir -p ./web/flash/tech.moddable.stackchan
           cp -R ./firmware-bundle/. ./web/flash/tech.moddable.stackchan/
-          cp -R ./wasm-simulator/. ./web/simulator/
           mkdir -p ./web/schemas
           cp ./website-source/docs/specs/stackchan-mod.schema.json ./web/schemas/stackchan-mod.schema.json
       - name: Commit bundle update

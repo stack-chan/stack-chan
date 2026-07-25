@@ -234,6 +234,7 @@ function intersects(x: number, y: number, width: number, height: number, hand: R
 class HandsBehavior extends Behavior {
   #animation: HandAnimationName = 'none'
   #compiledFrames: readonly CompiledFrame[] = []
+  #directPose = false
   #displaying = false
   #inner = toPiuColorString(DEFAULT_FACE_SECONDARY_COLOR)
   #intervalMs = DEFAULT_ANIMATION_INTERVAL_MS
@@ -301,6 +302,7 @@ class HandsBehavior extends Behavior {
   onHandAnimationChanged(port: PiuPort, animation: unknown): boolean {
     if (!isHandAnimationName(animation)) return true
     this.#animation = animation
+    this.#directPose = false
     port.stop()
     this.#phaseIndex = 0
     this.#phases = []
@@ -315,6 +317,41 @@ class HandsBehavior extends Behavior {
     this.#prepareAnimation(HAND_ANIMATION_SPECS[animation])
     if (this.#displaying) this.#restart(port)
     else this.#applyFrameInstantly(port, this.#compiledFrames[0])
+    return true
+  }
+
+  /** Apply a caller-owned hand pose without exposing it as a global RobotUI capability. */
+  onHandPoseChanged(port: PiuPort, hands: HandPairState): boolean {
+    if (!hands || typeof hands !== 'object') return true
+    port.stop()
+    this.#animation = 'none'
+    this.#directPose = true
+    this.#phaseIndex = 0
+    this.#phases = []
+    this.#loop = false
+    const target = compileFrame(
+      { hands, transitionMs: 1, holdMs: 0 },
+      {
+        left: {
+          visible: this.leftState.visible,
+          shape: this.leftState.shape,
+          x: this.leftState.x,
+          y: this.leftState.y,
+          rotationUnits: this.#motion.leftRotation,
+        },
+        right: {
+          visible: this.rightState.visible,
+          shape: this.rightState.shape,
+          x: this.rightState.x,
+          y: this.rightState.y,
+          rotationUnits: this.#motion.rightRotation,
+        },
+        transitionMs: 1,
+        holdMs: 0,
+      },
+    )
+    this.#compiledFrames = [target]
+    this.#applyFrameInstantly(port, target)
     return true
   }
 
@@ -412,7 +449,7 @@ class HandsBehavior extends Behavior {
 
   #restart(port: PiuPort): void {
     const first = this.#compiledFrames[0]
-    if (!first || this.#animation === 'none') {
+    if (!first || (this.#animation === 'none' && !this.#directPose)) {
       this.#hideHands(port)
       return
     }

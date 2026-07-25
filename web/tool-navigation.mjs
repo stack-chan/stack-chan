@@ -24,6 +24,13 @@ export const TOOL_NAVIGATION_ITEMS = Object.freeze([
     icon: 'store',
   },
   {
+    id: 'mediapipe',
+    href: 'mediapipe/',
+    label: 'MediaPipe BLE追従',
+    description: '顔と手の動きをBLEで送る',
+    icon: 'scan-face',
+  },
+  {
     id: 'simulator',
     href: 'simulator/',
     label: 'シミュレーター',
@@ -59,6 +66,7 @@ export const GUIDE_NAVIGATION_ITEMS = Object.freeze([
 export function navigationItemForPath(pathname) {
   const normalized = String(pathname || '/').replace(/\/index\.html$/, '/')
   if (/\/editor\/tutorial\.html$/.test(normalized)) return 'tutorial'
+  if (/\/mediapipe\/?$/.test(normalized)) return 'mediapipe'
   if (/\/face-editor\/?$/.test(normalized)) return 'face-editor'
   if (/\/editor\/?$/.test(normalized)) return 'editor'
   if (/\/mod-gallery\/?$/.test(normalized)) return 'mod-gallery'
@@ -135,7 +143,7 @@ function languageSection() {
 export function installToolNavigation({
   topbar = document.querySelector('.topbar'),
   pathname = location.pathname,
-  rootUrl = new URL('./', import.meta.url),
+  rootUrl = new URL(document.querySelector('.brand-link')?.getAttribute('href') ?? './', document.baseURI),
 } = {}) {
   if (!topbar || topbar.querySelector('.tool-menu-button')) return null
 

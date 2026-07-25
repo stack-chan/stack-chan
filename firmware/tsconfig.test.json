@@ -25,6 +25,9 @@
       "capabilities": [
         "host/modules/testing/fakes/capabilities.ts"
       ],
+      "crypt": [
+        "host/modules/connectivity/__tests__/fakes/crypt.ts"
+      ],
       "audio-buffer": [
         "host/modules/audio/audio-buffer.ts"
       ],
@@ -181,11 +184,17 @@
       "local-peer-codec": [
         "host/modules/connectivity/local-peer-codec.ts"
       ],
+      "local-peer-auth": [
+        "host/modules/connectivity/local-peer-auth.ts"
+      ],
       "local-peer-frame": [
         "host/modules/connectivity/local-peer-frame.ts"
       ],
       "local-peer-radio-types": [
         "host/modules/connectivity/local-peer-radio-types.ts"
+      ],
+      "ble-local-peer-record": [
+        "host/modules/connectivity/ble/local-peer-record.ts"
       ],
       "local-peer-service": [
         "host/modules/connectivity/local-peer-service.ts"

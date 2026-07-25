@@ -29,7 +29,7 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 
 ![ｽﾀｯｸﾁｬﾝの座標系](./images/coordinate.jpg)
 
-ｽﾀｯｸﾁｬﾝの座標系は __右手系__ です。
+ｽﾀｯｸﾁｬﾝの座標系は **右手系** です。
 右手の親指、人差し指と中指がそれぞれ直行するように曲げたとき、
 親指がX軸、人差し指がY軸、中指がZ軸となります。
 
@@ -46,7 +46,7 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 - ピッチ軸（Y軸まわりの回転）の正方向…ｽﾀｯｸﾁｬﾝが下を向く動き
 - ヨー軸（Z軸まわりの回転）の正方向…ｽﾀｯｸﾁｬﾝが左を向く動き
 
-ｽﾀｯｸﾁｬﾝのAPIにおいては __座標の単位はメートル、角度の単位はラジアンになります__ 。
+ｽﾀｯｸﾁｬﾝのAPIにおいては **座標の単位はメートル、角度の単位はラジアンになります** 。
 座標系との対応は実際のソースコード（[`mods/examples/look_around`](../mods/examples/look_around/)など）も参考にしてください。
 
 ## 型
@@ -63,7 +63,7 @@ MODは`onContextCreated`から`StackchanContext`を受け取ります。
 - `context.i18n.locale`、`context.i18n.localize(...)`
 - `context.ui.showBalloon(...)`、`context.ui.drawer.addDrawerButton(...)`
 - `context.input.touch`、`context.input.touchPanel`、`context.input.imu`
-- `context.lighting.lightOn(...)`、`context.camera.capture(...)`、`context.connectivity.network?.ready`
+- `context.lighting.lightOn(...)`、`context.camera.capture(...)`、`context.connectivity.network?.ready`、`context.connectivity.localPeer`
 - runtime が所有する Timer、sensor、camera session、motion timer を解放する `context.lifecycle.close()`
 
 input device は optional です。
@@ -73,6 +73,7 @@ MOD は touch handler を登録する前に `undefined` を確認してくださ
 
 `context.connectivity.network?.ready` は `connected`、`skipped`、`failed` のいずれかへ解決されます。
 network が必要な MOD は、host 内部の network module を import せずにこれを await し、`skipped` や `failed` を扱えます。
+local peer sessionではESP-NOWとBLE Serialを同じAPIで利用できます。詳しくは[ローカルP2Pメッセージ通信](./local-peer-communication_ja.md)を参照してください。
 
 `context.ui.showBalloon(text, options)` の `options.tail` では、吹き出しのトンガリを
 `top-left`、`top-right`、`bottom-left`、`bottom-right` から選べます。

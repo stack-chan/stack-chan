@@ -9,7 +9,10 @@ import { startXsbugServer } from './lib/xsbug-log-server.js'
 
 const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods/examples']
 const XSBUG_HOST = process.env.STACKCHAN_MODULE_TEST_XSBUG_HOST ?? '127.0.0.1'
-const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '15000', 10)
+// Piu/GTK tests can spend more than 15 seconds starting mcsim while another
+// manifest is compiling on a shared CI runner. Successful tests still return
+// as soon as they trace `ok`; this only gives a cold simulator more headroom.
+const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '30000', 10)
 const BUILD_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS ?? '360000', 10)
 const FILTER = process.env.STACKCHAN_MODULE_TEST_FILTER
 // Incremental builds are safe: mcconfig regenerates the makefile on every run and

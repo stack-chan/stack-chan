@@ -10,7 +10,10 @@ import { initializeLocalization } from 'localization'
 import config from 'mc/config'
 import Modules from 'modules'
 import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
+import { createUsbApprovalSession } from 'usb-approval-session'
 import { createUsbAudioPresentation, type UsbAudioPresentation } from 'usb-audio-presentation'
+import { createUsbRealtimeSession, type RealtimeToolProvider } from 'usb-realtime-session'
+import type { StackchanContext } from 'capabilities'
 
 type DeviceButton = {
   onChanged: (this: DeviceButton) => void
@@ -22,6 +25,8 @@ type GlobalEnvironment = {
 
 type UsbAudioBridgeControl = {
   setPresentation(presentation?: UsbAudioPresentation): void
+  setEventHandler(handler?: (event: string) => void): void
+  sendEvent(event: string): void
   close(): void
 }
 
@@ -112,6 +117,7 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string
 async function main() {
   trace('[main] start\n')
   const usbAudioBridge = startConfiguredUsbAudioBridge()
+  const usbRealtimeSession = usbAudioBridge ? createUsbRealtimeSession(usbAudioBridge) : undefined
   installPlatformInputBridge()
   initializeLocalization(loadPreferences(DOMAIN.ui).language)
   const miniAppArchivePresent = Modules.has('miniapp')
@@ -135,8 +141,21 @@ async function main() {
   trace(`[main] network ready: ${networkReady.status}\n`)
   const preferences = loadPreferenceConfig()
   const context = createStackchanContext(preferences, { connectivity: bootServices.connectivity })
+  if (usbRealtimeSession) {
+    const usbApprovalSession = createUsbApprovalSession(usbRealtimeSession, context)
+    usbRealtimeSession.setApplicationEventHandler(usbApprovalSession.handleEvent)
+  }
   if ((config as { usbAudio?: UsbAudioConfig }).usbAudio?.presentationEnabled !== false) {
     usbAudioBridge?.setPresentation(createUsbAudioPresentation(context))
+  }
+  if (Modules.has('stackchan-realtime-tools')) {
+    const createProvider = Modules.importNow('stackchan-realtime-tools') as
+      | ((context: StackchanContext) => RealtimeToolProvider)
+      | undefined
+    if (typeof createProvider === 'function') usbRealtimeSession?.setProvider(createProvider(context))
+  } else {
+    usbRealtimeSession?.setProvider({ tools: [] })
+    trace('[main] stackchan-realtime-tools is unavailable; USB session exposes Android tools only\n')
   }
   registerExperimentalMiniApps(experimentalMiniApps, context.ui.miniApps)
   trace('[main] app context created\n')

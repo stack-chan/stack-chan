@@ -11,7 +11,15 @@ export enum StackChanFrameType {
   EXPRESSION = 3,
   MOTION = 4,
   DIAGNOSTICS = 5,
+  EVENT = 6,
 }
+
+export const StackChanEventFlag = {
+  START: 1,
+  END: 1 << 1,
+} as const
+
+export const STACKCHAN_MAX_EVENT_BYTES = 64 * 1024
 
 export enum StackChanControl {
   HELLO = 1,
@@ -58,6 +66,7 @@ export const StackChanCapability = {
   DIAGNOSTICS: 1 << 7,
   STATUS_ICON: 1 << 8,
   STREAM_ID: 1 << 9,
+  EVENT: 1 << 10,
 } as const
 
 export const STACKCHAN_CAPABILITIES =
@@ -69,7 +78,8 @@ export const STACKCHAN_CAPABILITIES =
   StackChanCapability.SPEAKER_RATE_24000 |
   StackChanCapability.SPEAKER_TEXT |
   StackChanCapability.STATUS_ICON |
-  StackChanCapability.STREAM_ID
+  StackChanCapability.STREAM_ID |
+  StackChanCapability.EVENT
 
 export type StackChanFrame = {
   type: StackChanFrameType
@@ -129,7 +139,7 @@ export function decodeStackChanFrame(bytes: Uint8Array, checksum: StackChanCrc32
   if (view.getUint16(0, true) !== STACKCHAN_MAGIC) throw new Error('invalid magic')
   if (view.getUint8(2) !== STACKCHAN_PROTOCOL_VERSION) throw new Error('unsupported protocol version')
   const type = view.getUint8(3)
-  if (type > StackChanFrameType.DIAGNOSTICS) throw new Error('unknown frame type')
+  if (type > StackChanFrameType.EVENT) throw new Error('unknown frame type')
   const length = view.getUint32(16, true)
   if (length > STACKCHAN_MAX_PAYLOAD_BYTES) throw new RangeError('payload is too large')
   const expectedLength = STACKCHAN_HEADER_BYTES + length + STACKCHAN_CRC_BYTES
@@ -172,7 +182,7 @@ export class StackChanFrameParser {
       if (this.#pending.byteLength < STACKCHAN_HEADER_BYTES + STACKCHAN_CRC_BYTES) break
 
       const view = new DataView(this.#pending.buffer, this.#pending.byteOffset, this.#pending.byteLength)
-      if (view.getUint8(2) !== STACKCHAN_PROTOCOL_VERSION || view.getUint8(3) > StackChanFrameType.DIAGNOSTICS) {
+      if (view.getUint8(2) !== STACKCHAN_PROTOCOL_VERSION || view.getUint8(3) > StackChanFrameType.EVENT) {
         this.#pending = this.#pending.slice(1)
         continue
       }
@@ -203,6 +213,76 @@ export class StackChanFrameParser {
       if (this.#pending[index] === 0x43 && this.#pending[index + 1] === 0x53) return index
     }
     return -1
+  }
+}
+
+export class StackChanEventEncoder {
+  #messageId = 0
+
+  encode(payload: Uint8Array, maxPayload = STACKCHAN_MAX_PAYLOAD_BYTES): StackChanFrame[] {
+    if (maxPayload < 1 || maxPayload > STACKCHAN_MAX_PAYLOAD_BYTES) throw new RangeError('invalid event chunk size')
+    if (payload.byteLength > STACKCHAN_MAX_EVENT_BYTES) throw new RangeError('event is too large')
+    this.#messageId = this.#messageId >= 0xffff ? 1 : this.#messageId + 1
+    const frames: StackChanFrame[] = []
+    const chunks = Math.max(1, Math.ceil(payload.byteLength / maxPayload))
+    for (let sequence = 0; sequence < chunks; sequence += 1) {
+      const start = sequence * maxPayload
+      const end = Math.min(payload.byteLength, start + maxPayload)
+      frames.push({
+        type: StackChanFrameType.EVENT,
+        streamId: this.#messageId,
+        sequence,
+        flags: (sequence === 0 ? StackChanEventFlag.START : 0) | (sequence === chunks - 1 ? StackChanEventFlag.END : 0),
+        payload: payload.slice(start, end),
+      })
+    }
+    return frames
+  }
+}
+
+type PendingEvent = { nextSequence: number; chunks: Uint8Array[]; size: number }
+
+export class StackChanEventDecoder {
+  #pending = new Map<number, PendingEvent>()
+
+  push(frame: StackChanFrame): Uint8Array | undefined {
+    if (frame.type !== StackChanFrameType.EVENT) throw new TypeError('event frame is required')
+    const streamId = frame.streamId ?? 0
+    if (streamId === 0) throw new RangeError('event stream ID must not be zero')
+    const starts = ((frame.flags ?? 0) & StackChanEventFlag.START) !== 0
+    const ends = ((frame.flags ?? 0) & StackChanEventFlag.END) !== 0
+    let pending = this.#pending.get(streamId)
+    if (starts) {
+      if (frame.sequence !== 0) throw new RangeError('first event sequence must be zero')
+      pending = { nextSequence: 0, chunks: [], size: 0 }
+      this.#pending.set(streamId, pending)
+    }
+    if (!pending) throw new Error('event continuation has no start chunk')
+    if (frame.sequence !== pending.nextSequence) {
+      this.#pending.delete(streamId)
+      throw new RangeError('event sequence mismatch')
+    }
+    const payload = frame.payload ?? new Uint8Array(0)
+    if (pending.size + payload.byteLength > STACKCHAN_MAX_EVENT_BYTES) {
+      this.#pending.delete(streamId)
+      throw new RangeError('event is too large')
+    }
+    pending.chunks.push(payload)
+    pending.size += payload.byteLength
+    pending.nextSequence += 1
+    if (!ends) return
+    this.#pending.delete(streamId)
+    const result = new Uint8Array(pending.size)
+    let offset = 0
+    for (const chunk of pending.chunks) {
+      result.set(chunk, offset)
+      offset += chunk.byteLength
+    }
+    return result
+  }
+
+  reset(): void {
+    this.#pending.clear()
   }
 }
 

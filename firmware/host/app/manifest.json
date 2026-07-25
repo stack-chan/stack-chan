@@ -44,6 +44,9 @@
       "./runtime-input",
       "./runtime-lighting",
       "./runtime-ui",
+      "./usb-approval-model",
+      "./usb-approval-session",
+      "./usb-realtime-session",
       "$(MODULES)/network/http/*"
     ],
     "startup-splash": "../modules/ui/views/splash/splash-view",

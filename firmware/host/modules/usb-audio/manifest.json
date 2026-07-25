@@ -4,7 +4,8 @@
     "$(MODDABLE)/modules/base/worker/manifest.json",
     "$(MODDABLE)/modules/io/manifest.json",
     "$(MODDABLE)/modules/io/audioout/manifest.json",
-    "$(MODDABLE)/modules/data/text/decoder/manifest.json"
+    "$(MODDABLE)/modules/data/text/decoder/manifest.json",
+    "$(MODDABLE)/modules/data/text/encoder/manifest.json"
   ],
   "modules": {
     "stackchan-usb-audio": "./worker-bridge",

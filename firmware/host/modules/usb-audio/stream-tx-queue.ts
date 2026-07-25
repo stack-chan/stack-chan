@@ -58,6 +58,16 @@ export class StreamTxQueue {
     })
   }
 
+  dropMicrophoneFrames(streamId: number): void {
+    const firstIsPartial = this.#offset > 0
+    this.#items = this.#items.filter((item, index) => {
+      if (firstIsPartial && index === 0) return true
+      const drop = item.streamId === streamId && item.type === MICROPHONE_PCM_FRAME_TYPE
+      if (drop) this.#remainingBytes -= item.bytes.byteLength
+      return !drop
+    })
+  }
+
   clear(): void {
     this.#items = []
     this.#offset = 0
@@ -66,5 +76,6 @@ export class StreamTxQueue {
 }
 
 const CONTROL_FRAME_TYPE = 0
+const MICROPHONE_PCM_FRAME_TYPE = 1
 const DIAGNOSTICS_FRAME_TYPE = 5
 const SPEAKER_CREDIT_CONTROL = 33

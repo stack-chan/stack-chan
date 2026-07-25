@@ -1,3 +1,4 @@
+import AudioIn from 'embedded:io/audio/in'
 import AudioOut from 'embedded:io/audio/out'
 import {
   SPEAKER_STATS_AUDIO_ACTIVE,
@@ -25,6 +26,8 @@ export type UsbAudioPresentation = {
 
 export type UsbAudioBridgeControl = {
   setPresentation(presentation?: UsbAudioPresentation): void
+  setEventHandler(handler?: (event: string) => void): void
+  sendEvent(event: string): void
   close(): void
 }
 
@@ -39,14 +42,18 @@ type UsbAudioWorkerOptions = NonNullable<ConstructorParameters<typeof Worker>[1]
 }
 
 type AudioOutput = InstanceType<typeof AudioOut>
+type AudioInput = InstanceType<typeof AudioIn>
 type PendingCaption = { position: number; text: string }
 type UsbAudioWorkerMessage = {
+  bitsPerSample?: number
+  channels?: number
   id?: string
   position?: number
   power?: number
   reason?: string
   sampleRate?: number
   text?: string
+  event?: string
   status?: number
   streamId?: number
   volume?: number
@@ -80,6 +87,8 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
   #worker: Worker | undefined
   #outputRing = SharedByteRing.allocate(SHARED_PCM_RING_BYTES)
   #outputStats = new Int32Array(new SharedArrayBuffer(SPEAKER_STATS_WORDS * Int32Array.BYTES_PER_ELEMENT))
+  #microphone: AudioInput | undefined
+  #microphoneStreams = new CurrentStreamGate()
   #audio: AudioOutput | undefined
   #audioStreams = new CurrentStreamGate()
   #audioPumpTimer: ReturnType<typeof Timer.repeat> | undefined
@@ -97,6 +106,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
   #presentationText = ''
   #presentationStatus = StackChanStatus.IDLE
   #presentationStreamId = 0
+  #eventHandler: ((event: string) => void) | undefined
 
   constructor(options: UsbAudioBridgeOptions = {}) {
     const worker = new Worker('stackchan-usb-audio-worker', USB_AUDIO_WORKER_OPTIONS)
@@ -128,9 +138,18 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
     }
   }
 
+  setEventHandler(handler?: (event: string) => void): void {
+    this.#eventHandler = handler
+  }
+
+  sendEvent(event: string): void {
+    this.#worker?.postMessage({ id: 'send-event', event })
+  }
+
   close(): void {
     const worker = this.#worker
     this.#worker = undefined
+    this.#closeMicrophone()
     this.#closeAudio()
     this.#stopPresentation()
     this.#setPresentationStatus(StackChanStatus.IDLE)
@@ -144,6 +163,17 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
 
   #handleWorkerMessage(message: UsbAudioWorkerMessage): void {
     switch (message.id) {
+      case 'microphone-open':
+        this.#openMicrophone(
+          message.sampleRate ?? 0,
+          message.channels ?? 0,
+          message.bitsPerSample ?? 0,
+          message.streamId ?? 0,
+        )
+        break
+      case 'microphone-close':
+        this.#closeMicrophone(message.streamId ?? 0)
+        break
       case 'audio-open':
         this.#openAudio(message.sampleRate ?? 0, message.streamId ?? 0)
         break
@@ -198,14 +228,19 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
         if (message.status === undefined) break
         this.#setPresentationStatus(message.status as StackChanStatus)
         break
+      case 'event':
+        if (message.event !== undefined) this.#eventHandler?.(message.event)
+        break
       case 'error':
         trace(`[usb-audio-worker] ${message.reason ?? 'unknown error'}\n`)
+        this.#closeMicrophone()
         this.#closeAudio()
         this.#stopPresentation()
         this.#setPresentationStatus(StackChanStatus.IDLE)
         break
       case 'closed':
         this.#worker = undefined
+        this.#closeMicrophone()
         this.#closeAudio()
         this.#stopPresentation()
         this.#setPresentationStatus(StackChanStatus.IDLE)
@@ -213,11 +248,91 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
     }
   }
 
+  #openMicrophone(sampleRate: number, channels: number, bitsPerSample: number, streamId: number): void {
+    this.#closeMicrophone()
+    try {
+      this.#microphoneStreams.activate(streamId)
+    } catch (error) {
+      this.#failMicrophone(error, streamId)
+      return
+    }
+    if (sampleRate !== 16000 || channels !== 1 || bitsPerSample !== 16) {
+      this.#failMicrophone(
+        new RangeError(
+          `unsupported microphone format: ${sampleRate} Hz, ${channels} channel(s), ${bitsPerSample} bits`,
+        ),
+        streamId,
+      )
+      return
+    }
+    if (this.#audio) {
+      this.#failMicrophone(new Error('speaker output is active'), streamId)
+      return
+    }
+
+    const bridge = this
+    try {
+      const microphone = new AudioIn({
+        sampleRate,
+        channels,
+        bitsPerSample,
+        onReadable(size: number) {
+          bridge.#handleMicrophoneReadable(this, size)
+        },
+      })
+      this.#microphone = microphone
+      microphone.start()
+      this.#worker?.postMessage({ id: 'microphone-started', streamId })
+    } catch (error) {
+      this.#failMicrophone(error, streamId)
+    }
+  }
+
+  #handleMicrophoneReadable(input: AudioInput, size: number): void {
+    const streamId = this.#microphoneStreams.current
+    const worker = this.#worker
+    if (input !== this.#microphone || !streamId || !worker || size <= 0) return
+    try {
+      const bytes = new Uint8Array(size)
+      input.read(bytes)
+      worker.postMessage({ id: 'microphone-data', streamId, data: bytes })
+    } catch (error) {
+      this.#failMicrophone(error, streamId)
+    }
+  }
+
+  #failMicrophone(error: unknown, streamId = this.#microphoneStreams.current): void {
+    trace(`[usb-audio] AudioIn failed: ${error instanceof Error ? error.message : String(error)}\n`)
+    const worker = this.#worker
+    this.#closeMicrophone()
+    worker?.postMessage({
+      id: 'microphone-failed',
+      streamId,
+      reason: error instanceof Error ? error.message : String(error),
+    })
+  }
+
+  #closeMicrophone(expectedStreamId?: number): void {
+    if (expectedStreamId !== undefined && !this.#microphoneStreams.isCurrent(expectedStreamId)) return
+    const streamId = this.#microphoneStreams.current
+    const microphone = this.#microphone
+    this.#microphone = undefined
+    if (streamId) this.#microphoneStreams.clearIfCurrent(streamId)
+    if (!microphone) return
+    try {
+      microphone.close()
+    } catch {}
+  }
+
   #openAudio(sampleRate: number, streamId: number): void {
     this.#closeAudio()
     this.#audioStreams.activate(streamId)
     if (sampleRate !== 8000 && sampleRate !== 16000 && sampleRate !== 24000) {
       this.#failAudio(new RangeError(`unsupported speaker sample rate: ${sampleRate}`), streamId)
+      return
+    }
+    if (this.#microphone) {
+      this.#failAudio(new Error('microphone input is active'), streamId)
       return
     }
 

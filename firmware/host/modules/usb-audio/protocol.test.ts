@@ -8,6 +8,9 @@ import {
   StackChanCapability,
   StackChanControl,
   StackChanErrorCode,
+  StackChanEventDecoder,
+  StackChanEventEncoder,
+  StackChanEventFlag,
   StackChanFrameParser,
   StackChanFrameType,
   StackChanStatus,
@@ -29,6 +32,12 @@ test('StackChan advertises recognizing and speaking status icons', () => {
   assert.equal(StackChanStatus.RECOGNIZING, 1)
   assert.equal(StackChanStatus.SPEAKING, 2)
   assert.notEqual(STACKCHAN_CAPABILITIES & StackChanCapability.STATUS_ICON, 0)
+})
+
+test('StackChan advertises negotiated application EVENT support', () => {
+  assert.equal(StackChanFrameType.EVENT, 6)
+  assert.equal(StackChanCapability.EVENT, 1 << 10)
+  assert.notEqual(STACKCHAN_CAPABILITIES & StackChanCapability.EVENT, 0)
 })
 
 test('StackChan frame round trips with the Android wire layout', () => {
@@ -101,4 +110,23 @@ test('StackChan parser resynchronizes after corrupt data', () => {
   const frames = new StackChanFrameParser().push(joined)
   assert.equal(frames.length, 1)
   assert.equal(frames[0].flags, StackChanControl.MIC_STOPPED)
+})
+
+test('StackChan EVENT payload round trips across chunks', () => {
+  const source = new TextEncoder().encode(JSON.stringify({ type: 'session.update', instructions: 'こんにちは' }))
+  const frames = new StackChanEventEncoder().encode(source, 7)
+  const decoder = new StackChanEventDecoder()
+  for (const frame of frames.slice(0, -1)) assert.equal(decoder.push(frame), undefined)
+  const last = frames.at(-1)
+  assert.ok(last)
+  assert.deepEqual(decoder.push(last), source)
+  assert.equal(frames[0].flags, StackChanEventFlag.START)
+  assert.equal(last.flags, StackChanEventFlag.END)
+})
+
+test('StackChan EVENT decoder rejects a missing chunk', () => {
+  const frames = new StackChanEventEncoder().encode(new Uint8Array(30), 10)
+  const decoder = new StackChanEventDecoder()
+  decoder.push(frames[0])
+  assert.throws(() => decoder.push(frames[2]), /sequence mismatch/)
 })

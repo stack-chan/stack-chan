@@ -41,15 +41,18 @@ test('USB audio exposes the default entry point consumed by Modules.importNow', 
   assert.match(mainSource, /usbAudioBridge\?\.setPresentation\(createUsbAudioPresentation\(context\)\)/)
 })
 
-test('USB polling runs in a high-priority worker while AudioOut drains a shared ring on the main VM', () => {
+test('USB polling runs in a high-priority worker while physical audio I/O stays on the main VM', () => {
   assert.match(workerBridgeSource, /new Worker\('stackchan-usb-audio-worker'/)
   assert.match(workerBridgeSource, /core: 1/)
   assert.match(workerBridgeSource, /priority: 5/)
   assert.match(workerBridgeSource, /SharedByteRing\.allocate\(SHARED_PCM_RING_BYTES\)/)
+  assert.match(workerBridgeSource, /new AudioIn\(/)
   assert.match(workerBridgeSource, /new AudioOut\(/)
   assert.match(workerSource, /from 'stackchan-usb-audio-core'/)
   assert.match(workerSource, /new SharedSpeakerOutputService/)
+  assert.doesNotMatch(workerSource, /new AudioIn\(/)
   assert.doesNotMatch(workerSource, /new AudioOut\(/)
+  assert.doesNotMatch(bridgeSource, /new AudioIn\(/)
   assert.doesNotMatch(bridgeSource, /new AudioOut\(/)
   assert.doesNotMatch(sharedOutputSource, /id: 'audio-data'/)
   assert.match(workerBridgeSource, /Timer\.repeat\(\(\) => this\.#drainAudio\(\), SHARED_PCM_PUMP_MILLISECONDS\)/)

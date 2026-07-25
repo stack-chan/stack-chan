@@ -14,6 +14,18 @@ export function resolveChromium() {
   return executablePath
 }
 
+async function previewReady(baseUrl) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 1_000)
+  try {
+    return await fetch(baseUrl, { signal: controller.signal })
+      .then((response) => response.ok)
+      .catch(() => false)
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 export async function startPreview({ port, url }) {
   const baseUrl = url ?? `http://127.0.0.1:${port}`
   const server = url
@@ -45,12 +57,7 @@ export async function startPreview({ port, url }) {
 
   try {
     for (let attempt = 0; attempt < 80; attempt += 1) {
-      const ready = await Promise.race([
-        fetch(baseUrl)
-          .then((response) => response.ok)
-          .catch(() => false),
-        startupFailure,
-      ])
+      const ready = await Promise.race([previewReady(baseUrl), startupFailure])
       if (ready) {
         startupFinished = true
         return { baseUrl, server }

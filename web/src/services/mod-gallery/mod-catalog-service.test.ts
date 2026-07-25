@@ -21,17 +21,20 @@ describe('fetchModArchive', () => {
 
   it('aborts a stalled archive request after the timeout', async () => {
     vi.useFakeTimers()
-    const fetcher = vi.fn(
-      (_input: string | URL | Request, init?: RequestInit) =>
-        new Promise<Response>((_resolve, reject) => {
-          init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true })
-        })
-    )
+    try {
+      const fetcher = vi.fn(
+        (_input: string | URL | Request, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true })
+          })
+      )
 
-    const request = fetchModArchive(artifact, { fetcher, timeoutMs: 100 })
-    const rejection = expect(request).rejects.toMatchObject({ name: 'TimeoutError' })
-    await vi.advanceTimersByTimeAsync(100)
-    await rejection
-    vi.useRealTimers()
+      const request = fetchModArchive(artifact, { fetcher, timeoutMs: 100 })
+      const rejection = expect(request).rejects.toMatchObject({ name: 'TimeoutError' })
+      await vi.advanceTimersByTimeAsync(100)
+      await rejection
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

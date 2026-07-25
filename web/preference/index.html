@@ -3,160 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="../assets/stackchan-favicon-32.png" type="image/png" />
-    <link rel="apple-touch-icon" href="../assets/stackchan-apple-touch-icon.png" />
-    <link rel="stylesheet" href="../global.css" />
-    <link rel="stylesheet" href="preference.css" />
+    <link rel="icon" href="../assets/stackchan-favicon-32-Dxp0Ce_4.png" type="image/png" />
+    <link rel="apple-touch-icon" href="../assets/stackchan-apple-touch-icon-BUDlKTpb.png" />
+    <script  src="../theme-init.js"></script>
     <title>設定 | ｽﾀｯｸﾁｬﾝ</title>
-    <script
-      src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.min.js"
-      integrity="sha384-mooE85Luwgx+AyykX7e90VcN8/QCFTSIwPuHLmvcsLVoA0en7lKYb9XlOzn5G2co"
-      crossorigin="anonymous"
-      defer
-    ></script>
-    <script type="module" src="preference.mjs"></script>
+    <script type="module" crossorigin src="../assets/preference-BWw9HKtk.js"></script>
+    <link rel="modulepreload" crossorigin href="../assets/globals-C6UW6mxR.js">
+    <link rel="modulepreload" crossorigin href="../assets/bluetooth-BaxAlP_U.js">
+    <link rel="modulepreload" crossorigin href="../assets/alert-BhXRbaHR.js">
+    <link rel="modulepreload" crossorigin href="../assets/app-error-BqouvoGy.js">
+    <link rel="modulepreload" crossorigin href="../assets/trash-2-eOjsG-FM.js">
+    <link rel="modulepreload" crossorigin href="../assets/label-CFUXv7SZ.js">
+    <link rel="modulepreload" crossorigin href="../assets/input-BE9k3Cix.js">
+    <link rel="stylesheet" crossorigin href="../assets/globals-C5Ce1rFO.css">
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar">
-        <a class="brand-link" href="../"
-          ><img src="../assets/stackchan-symbol.png" alt="" /><span
-            >ｽﾀｯｸﾁｬﾝ<span class="surface-name"> 設定</span></span
-          ></a
-        >
-      </header>
-      <div class="preference-layout">
-        <aside class="connection-pane">
-          <div class="page-heading">
-            <h1>本体設定</h1>
-            <p>BLEでｽﾀｯｸﾁｬﾝに接続します。</p>
-          </div>
-          <div class="guidance-callout" role="note">
-            <i data-lucide="info" aria-hidden="true"></i>
-            <p>接続する前に、ｽﾀｯｸﾁｬﾝの起動画面で「設定」を押し、本体の設定画面を開いてください。</p>
-          </div>
-          <button id="ble-connect-button" class="primary-button" type="button">
-            <i data-lucide="bluetooth"></i><span>BLEで接続</span>
-          </button>
-          <button id="ble-disconnect-button" class="danger-button" type="button" hidden>
-            <i data-lucide="unplug"></i><span>切断</span>
-          </button>
-          <p id="connection-status" class="status-line" role="status">未接続</p>
-        </aside>
-        <section id="settings-form" class="settings-pane" aria-label="設定項目">
-          <form id="form-preference">
-            <section class="section-block">
-              <h2>Wi-Fi</h2>
-              <div class="form-grid">
-                <label class="form-field"
-                  ><span>SSID</span><input type="text" name="wifi.ssid" id="wifi.ssid" autocomplete="off" /></label
-                ><label class="form-field"
-                  ><span>パスワード</span
-                  ><input type="password" name="wifi.password" id="wifi.password" autocomplete="off"
-                /></label>
-              </div>
-              <button id="wifi-clear-button" class="danger-button wifi-clear-button" type="button">
-                <i data-lucide="trash-2"></i><span>Wi-Fi設定を消去</span>
-              </button>
-            </section>
-            <section class="section-block">
-              <h2>外観</h2>
-              <div class="form-grid">
-                <label class="form-field"
-                  ><span>顔の種類</span
-                  ><select name="ui.type" id="ui.type">
-                    <option value="simple">シンプル</option>
-                    <option value="dog">いぬ</option>
-                  </select></label
-                ><label class="form-field"
-                  ><span>本体の表示言語</span
-                  ><select name="ui.language" id="ui.language">
-                    <option value="ja" translate="no">日本語</option>
-                    <option value="en" translate="no">English</option>
-                    <option value="zh-CN" translate="no">简体中文</option>
-                  </select></label
-                >
-              </div>
-            </section>
-            <section class="section-block">
-              <h2>サーボ</h2>
-              <div class="form-grid">
-                <label class="form-field form-field-wide"
-                  ><span>ドライバー</span
-                  ><select name="driver.type" id="driver.type">
-                    <option value="m5stackchan">M5StackChan Servo（CoreS3専用・推奨）</option>
-                    <option value="scservo">SCServo（汎用・外部配線向け）</option>
-                    <option value="dynamixel">Dynamixel（Protocol 2）</option>
-                    <option value="rs30x">RS30X</option>
-                    <option value="pwm">PWM（SG-90）</option>
-                    <option value="none">なし</option>
-                  </select>
-                  <small class="form-hint"
-                    >M5StackChan
-                    Servoは専用UART、ゼロ位置、可動域、PY32サーボ電源を設定します。CoreS3専用ファームウェアではこの項目に固定されます。</small
-                  ></label
-                ><label class="form-field"
-                  ><span>パン オフセット</span
-                  ><input type="number" name="driver.offsetPan" id="driver.offsetPan" value="0" /></label
-                ><label class="form-field"
-                  ><span>チルト オフセット</span
-                  ><input type="number" name="driver.offsetTilt" id="driver.offsetTilt" value="0"
-                /></label>
-              </div>
-            </section>
-            <section class="section-block">
-              <h2>音声合成</h2>
-              <div class="form-grid">
-                <label class="form-field"
-                  ><span>サービス</span
-                  ><select name="tts.type" id="tts.type">
-                    <option value="voicevox">VOICEVOX</option>
-                    <option value="elevenlabs">ElevenLabs</option>
-                    <option value="google-tts">Google TTS</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="local">ローカル</option>
-                  </select></label
-                ><label class="form-field"
-                  ><span>ホスト</span
-                  ><input type="text" name="tts.host" id="tts.host" placeholder="my-tts-host.local" /></label
-                ><label class="form-field"
-                  ><span>ポート</span><input type="number" name="tts.port" id="tts.port" placeholder="50021" /></label
-                ><label class="form-field"
-                  ><span>音声</span><input type="text" name="tts.voice" id="tts.voice" placeholder="ally" /></label
-                ><label class="form-field"
-                  ><span>トークン</span><input type="password" name="tts.token" id="tts.token" /></label
-                ><label class="form-field"
-                  ><span>音量（0–1）</span
-                  ><input type="number" name="tts.volume" id="tts.volume" step="0.1" min="0" max="1"
-                /></label>
-              </div>
-            </section>
-            <section class="section-block">
-              <h2>AI</h2>
-              <div class="form-grid">
-                <label class="form-field"
-                  ><span>トークン</span><input type="password" name="ai.token" id="ai.token" /></label
-                ><label class="form-field form-field-full"
-                  ><span>システムロール</span
-                  ><textarea
-                    name="ai.context"
-                    id="ai.context"
-                    rows="5"
-                    placeholder="You are Stack-chan（スタックチャン）, the palm sized super kawaii companion robot."
-                  ></textarea>
-                </label>
-              </div>
-            </section>
-            <footer class="form-actions">
-              <p id="save-status" class="status-line" role="status"></p>
-              <button id="preference-submit-button" class="primary-button" type="submit">
-                <i data-lucide="save"></i><span>設定を保存</span>
-              </button>
-            </footer>
-          </form>
-        </section>
-      </div>
-    </main>
-    <script type="module" src="../tool-navigation.mjs"></script>
+    <div id="root"></div>
   </body>
 </html>

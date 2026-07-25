@@ -3,62 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="../assets/stackchan-favicon-32.png" type="image/png" />
-    <link rel="apple-touch-icon" href="../assets/stackchan-apple-touch-icon.png" />
-    <link rel="stylesheet" href="../global.css" />
-    <link rel="stylesheet" href="./mod-gallery.css" />
+    <link rel="icon" href="../assets/stackchan-favicon-32-Dxp0Ce_4.png" type="image/png" />
+    <link rel="apple-touch-icon" href="../assets/stackchan-apple-touch-icon-BUDlKTpb.png" />
+    <script  src="../theme-init.js"></script>
     <title>MOD Gallery | ｽﾀｯｸﾁｬﾝ</title>
-    <script
-      src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.min.js"
-      integrity="sha384-mooE85Luwgx+AyykX7e90VcN8/QCFTSIwPuHLmvcsLVoA0en7lKYb9XlOzn5G2co"
-      crossorigin="anonymous"
-    ></script>
+    <script type="module" crossorigin src="../assets/gallery-CndpYzRn.js"></script>
+    <link rel="modulepreload" crossorigin href="../assets/globals-C6UW6mxR.js">
+    <link rel="modulepreload" crossorigin href="../assets/alert-BhXRbaHR.js">
+    <link rel="modulepreload" crossorigin href="../assets/app-error-BqouvoGy.js">
+    <link rel="modulepreload" crossorigin href="../assets/preload-helper-HclGiUj8.js">
+    <link rel="modulepreload" crossorigin href="../assets/mod-builder-VZG2aKDq.js">
+    <link rel="modulepreload" crossorigin href="../assets/usb-CPuG2tr5.js">
+    <link rel="modulepreload" crossorigin href="../assets/label-CFUXv7SZ.js">
+    <link rel="modulepreload" crossorigin href="../assets/input-BE9k3Cix.js">
+    <link rel="modulepreload" crossorigin href="../assets/badge-DN9Z77Eq.js">
+    <link rel="modulepreload" crossorigin href="../assets/mod-storage-DHP-AF5r.js">
+    <link rel="stylesheet" crossorigin href="../assets/globals-C5Ce1rFO.css">
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar">
-        <a class="brand-link" href="../"
-          ><img src="../assets/stackchan-symbol.png" alt="" /><span
-            >ｽﾀｯｸﾁｬﾝ<span class="surface-name"> MOD Gallery</span></span
-          ></a
-        >
-      </header>
-      <section class="gallery" aria-labelledby="gallery-heading">
-        <header class="gallery-hero">
-          <span class="gallery-eyebrow">使う、まねる、作る</span>
-          <h1 id="gallery-heading">MOD Gallery</h1>
-          <p>公開されたMODを試したり、ブロックの作例から自分のMODを作ったりできます。</p>
-        </header>
-        <div class="gallery-controls" aria-label="MODを絞り込む">
-          <label class="search-control">
-            <span>検索</span>
-            <span class="search-input"
-              ><i data-lucide="search" aria-hidden="true"></i
-              ><input id="mod-search" type="search" placeholder="名前や機能で検索"
-            /></span>
-          </label>
-          <label>
-            <span>作り方</span>
-            <select id="type-filter">
-              <option value="all">すべて</option>
-              <option value="block">ブロック</option>
-              <option value="text">テキスト</option>
-            </select>
-          </label>
-        </div>
-        <div class="gallery-summary">
-          <p id="gallery-count" aria-live="polite">MODを読み込んでいます</p>
-          <p class="gallery-legend"><span class="type-dot block"></span>ブロックは編集可能なサンプルです</p>
-        </div>
-        <div id="mod-list" class="mod-list" aria-live="polite"></div>
-        <p id="gallery-empty" class="gallery-empty" hidden>条件に合うMODがありません。</p>
-        <p id="gallery-status" class="status-line" role="status"></p>
-      </section>
-    </main>
-    <script type="module" src="../tool-navigation.mjs"></script>
-    <script type="module" src="./mod-gallery.mjs"></script>
-    <script>
-      globalThis.lucide?.createIcons()
-    </script>
+    <div id="root"></div>
   </body>
 </html>

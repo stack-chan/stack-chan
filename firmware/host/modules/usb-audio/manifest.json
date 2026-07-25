@@ -13,6 +13,7 @@
     "stackchan-usb-audio-worker": "./worker",
     "stackchan-usb-shared-output": "./shared-speaker-output",
     "stackchan-usb-diagnostics": "./diagnostics",
+    "stackchan-usb-microphone-session": "./microphone-session",
     "stackchan-usb-protocol": "./protocol",
     "stackchan-usb-speaker-buffer": "./speaker-buffer",
     "stackchan-usb-speaker-session": "./speaker-session",

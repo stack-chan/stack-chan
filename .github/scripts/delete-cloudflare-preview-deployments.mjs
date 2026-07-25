@@ -53,6 +53,8 @@ async function cloudflareRequest({
       continue
     }
 
+    if (method === 'DELETE' && response.status === 404) return
+
     const responseText = await response.text()
     let payload
     if (responseText) {
@@ -151,36 +153,60 @@ export async function deleteSupersededPreviewDeployments({
     projectName,
     sleep,
   })
+  const branchDeployments = deployments.filter(
+    (deployment) =>
+      deployment?.environment === 'preview' &&
+      deployment?.deployment_trigger?.metadata?.branch === branchName
+  )
+  const keepDeployment = branchDeployments.find((deployment) => deployment?.id === keepDeploymentId)
+  if (!keepDeployment) {
+    throw new Error('KEEP_DEPLOYMENT_ID does not belong to the requested preview branch')
+  }
+  const branchAlias = `https://${branchName}.${projectName}.pages.dev`
+  if (!Array.isArray(keepDeployment.aliases) || !keepDeployment.aliases.includes(branchAlias)) {
+    throw new Error('KEEP_DEPLOYMENT_ID does not own the active preview branch alias')
+  }
   const deploymentIds = [
     ...new Set(
-      deployments
-        .filter(
-          (deployment) =>
-            deployment?.environment === 'preview' &&
-            deployment?.deployment_trigger?.metadata?.branch === branchName &&
-            deployment?.id !== keepDeploymentId &&
-            typeof deployment?.id === 'string'
-        )
+      branchDeployments
+        .filter((deployment) => deployment?.id !== keepDeploymentId && typeof deployment?.id === 'string')
         .map((deployment) => deployment.id)
     ),
   ]
 
+  const deletedIds = []
+  const failures = []
   for (const deploymentId of deploymentIds) {
     const url =
       `${CLOUDFLARE_API_ROOT}/accounts/${encodeURIComponent(accountId)}` +
       `/pages/projects/${encodeURIComponent(projectName)}` +
       `/deployments/${encodeURIComponent(deploymentId)}?force=true`
-    await cloudflareRequest({
-      apiToken,
-      fetchImpl,
-      logger,
-      method: 'DELETE',
-      sleep,
-      url,
-    })
+    try {
+      await cloudflareRequest({
+        apiToken,
+        fetchImpl,
+        logger,
+        method: 'DELETE',
+        sleep,
+        url,
+      })
+      deletedIds.push(deploymentId)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      failures.push({ error, message: `${deploymentId}: ${message}` })
+    }
   }
 
-  return deploymentIds
+  if (failures.length > 0) {
+    throw new AggregateError(
+      failures.map(({ error }) => error),
+      `Failed to delete ${failures.length} superseded deployment(s): ${failures
+        .map(({ message }) => message)
+        .join('; ')}`
+    )
+  }
+
+  return deletedIds
 }
 
 const isMain = process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url

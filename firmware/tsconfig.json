@@ -72,9 +72,6 @@
       "localization-core": [
         "./host/modules/ui/localization-core"
       ],
-      "template": [
-        "./host/modules/ui/components/face/template"
-      ],
       "effects/*": [
         "./host/modules/ui/components/effects/*"
       ],

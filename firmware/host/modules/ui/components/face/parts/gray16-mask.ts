@@ -9,14 +9,6 @@ import {
   strokeSegment as rasterStrokeSegment,
 } from 'parts/gray16-mask-raster'
 
-const TRANSPARENT = 15
-
-function clampCoverage(value: number): number {
-  if (value <= 0) return 0
-  if (value >= 1) return 1
-  return value
-}
-
 /**
  * Mutable antialiased alpha mask for face parts. Allocate it with the part,
  * update its bytes only when geometry changes, and draw it through
@@ -49,26 +41,6 @@ export class Gray16Mask {
 
   clear(): void {
     this.bytes.fill(0xff)
-  }
-
-  setCoverage(x: number, y: number, coverage: number): void {
-    if (x < 0 || x >= this.width || y < 0 || y >= this.height) return
-    const alpha = TRANSPARENT - Math.round(clampCoverage(coverage) * TRANSPARENT)
-    const offset = (y * this.strideWidth + x) >> 1
-    const current = this.bytes[offset]
-    if ((x & 1) === 0) {
-      this.bytes[offset] = (current & 0x0f) | (alpha << 4)
-    } else {
-      this.bytes[offset] = (current & 0xf0) | alpha
-    }
-  }
-
-  addCoverage(x: number, y: number, coverage: number): void {
-    if (x < 0 || x >= this.width || y < 0 || y >= this.height) return
-    const offset = (y * this.strideWidth + x) >> 1
-    const currentAlpha = (x & 1) === 0 ? this.bytes[offset] >> 4 : this.bytes[offset] & 0x0f
-    const currentCoverage = (TRANSPARENT - currentAlpha) / TRANSPARENT
-    this.setCoverage(x, y, Math.max(currentCoverage, coverage))
   }
 
   fillCircle(cx: number, cy: number, radius: number): void {

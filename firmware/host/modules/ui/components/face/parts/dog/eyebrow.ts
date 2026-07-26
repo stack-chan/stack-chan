@@ -1,14 +1,7 @@
-import type { FaceSkinPalette } from 'face-skin'
-import {
-  DEFAULT_FACE_PRIMARY_COLOR,
-  Emotion,
-  emotionWeight,
-  type FaceEyeKey,
-  type FaceState,
-  toPiuColorNumber,
-} from 'face-state'
+import { Emotion, emotionWeight, type FaceEyeKey, type FaceState } from 'face-state'
 import { Gray16Mask } from 'parts/gray16-mask'
-import Gray16MaskPort from 'parts/gray16-mask-port'
+import Gray16MaskPort, { type Gray16MaskPort as Gray16MaskPortInstance } from 'parts/gray16-mask-port'
+import { FacePrimaryColorBehavior } from 'parts/part-behavior'
 import type { Port as PiuPort } from 'piu/MC'
 
 export type EyebrowOptions = {
@@ -19,10 +12,6 @@ export type EyebrowOptions = {
   canvasWidth?: number
   /** Retained for Face Editor source compatibility; local bounds are always used. */
   canvasHeight?: number
-}
-
-type MaskPort = PiuPort & {
-  drawGray: (mask: Gray16Mask, color: number) => void
 }
 
 function quantize(value: number): number {
@@ -43,10 +32,8 @@ export const DogEyebrow = Gray16MaskPort.template((opts: EyebrowOptions) => {
     top,
     width,
     height,
-    Behavior: class extends Behavior {
+    Behavior: class extends FacePrimaryColorBehavior {
       #centerY = NaN
-      #palette: FaceSkinPalette | null = null
-      #primary = DEFAULT_FACE_PRIMARY_COLOR
       #rotation = NaN
       revision = 0
 
@@ -54,22 +41,8 @@ export const DogEyebrow = Gray16MaskPort.template((opts: EyebrowOptions) => {
         port.invalidate()
       }
 
-      onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
-        this.#palette = palette
-        if (this.#primary === palette.primaryColor) return
-        this.#primary = palette.primaryColor
-        port.invalidate()
-      }
-
-      onFaceState(port: PiuPort, face: FaceState) {
-        if (!this.#palette) {
-          const primary = toPiuColorNumber(face.theme.primary)
-          if (primary !== this.#primary) {
-            this.#primary = primary
-            port.invalidate()
-          }
-        }
-
+      override onFaceState(port: PiuPort, face: FaceState) {
+        super.onFaceState(port, face)
         const open = Math.max(0, Math.min(1, face.eyes[opts.side].open))
         const centerY = quantize(opts.cy - 20 - open * 2 - top)
         const expressionDirection =
@@ -85,8 +58,8 @@ export const DogEyebrow = Gray16MaskPort.template((opts: EyebrowOptions) => {
         port.invalidate()
       }
 
-      onDraw(port: MaskPort) {
-        port.drawGray(mask, this.#primary)
+      onDraw(port: Gray16MaskPortInstance) {
+        port.drawGray(mask, this.color)
       }
     },
   }

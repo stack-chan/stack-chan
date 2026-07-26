@@ -1,5 +1,5 @@
-import type { FaceSkinPalette } from 'face-skin'
-import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
+import type { FaceState } from 'face-state'
+import { FacePrimaryColorBehavior } from 'parts/part-behavior'
 import { type Port as PiuPort, Port } from 'piu/MC'
 
 export type MouthOptions = {
@@ -11,14 +11,12 @@ export type MouthOptions = {
   maxHeight?: number
 }
 
-class MouthBehavior extends Behavior {
+class MouthBehavior extends FacePrimaryColorBehavior {
   #minWidth = 50
   #maxWidth = 90
   #minHeight = 8
   #maxHeight = 58
   #height = 0
-  #primary = DEFAULT_FACE_PRIMARY_COLOR
-  #hasPalette = false
   #width = 0
   #x = 0
   #y = 0
@@ -31,22 +29,8 @@ class MouthBehavior extends Behavior {
     this.updateRect(port, 0, true)
   }
 
-  onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
-    this.#hasPalette = true
-    const nextPrimary = palette.primaryColor
-    if (nextPrimary === this.#primary) return
-    this.#primary = nextPrimary
-    port.invalidate(this.#x, this.#y, this.#width, this.#height)
-  }
-
-  onFaceState(port: PiuPort, face: FaceState) {
-    if (!this.#hasPalette) {
-      const nextPrimary = toPiuColorNumber(face.theme.primary)
-      if (nextPrimary !== this.#primary) {
-        this.#primary = nextPrimary
-        port.invalidate(this.#x, this.#y, this.#width, this.#height)
-      }
-    }
+  override onFaceState(port: PiuPort, face: FaceState) {
+    super.onFaceState(port, face)
     this.updateRect(port, face.mouth.open)
   }
 
@@ -56,8 +40,12 @@ class MouthBehavior extends Behavior {
     const right = Math.min(x + width, this.#x + this.#width)
     const bottom = Math.min(y + height, this.#y + this.#height)
     if (right > left && bottom > top) {
-      port.fillColor(((this.#primary << 8) | 0xff) >>> 0, left, top, right - left, bottom - top)
+      port.fillColor(((this.color << 8) | 0xff) >>> 0, left, top, right - left, bottom - top)
     }
+  }
+
+  protected override onColorChanged(port: PiuPort): void {
+    if (this.#width > 0 && this.#height > 0) port.invalidate(this.#x, this.#y, this.#width, this.#height)
   }
 
   private updateRect(port: PiuPort, openValue: number, force = false): void {

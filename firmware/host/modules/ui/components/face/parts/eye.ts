@@ -1,14 +1,8 @@
-import type { FaceSkinPalette } from 'face-skin'
-import {
-  DEFAULT_FACE_PRIMARY_COLOR,
-  DEFAULT_FACE_SECONDARY_COLOR,
-  type FaceEyeKey,
-  type FaceState,
-  toPiuColorNumber,
-} from 'face-state'
+import type { FaceEyeKey, FaceState } from 'face-state'
 import { createEyelidAperture, type EyelidAperture, writeEyelidAperture } from 'parts/eyelid-geometry'
 import { Gray16Mask } from 'parts/gray16-mask'
-import Gray16MaskPort from 'parts/gray16-mask-port'
+import Gray16MaskPort, { type Gray16MaskPort as Gray16MaskPortInstance } from 'parts/gray16-mask-port'
+import { FacePrimaryColorBehavior, FaceSecondaryColorBehavior } from 'parts/part-behavior'
 import type { Port as PiuPort } from 'piu/MC'
 
 export type EyeShape = 'circle' | 'roundRect'
@@ -24,10 +18,6 @@ export type EyeOptions = {
   side: FaceEyeKey
   eyelidWidth?: number
   eyelidHeight?: number
-}
-
-type MaskPort = PiuPort & {
-  drawGray: (mask: Gray16Mask, color: number) => void
 }
 
 type Rect = {
@@ -152,28 +142,13 @@ export const Eye = Container.template((opts: EyeOptions) => {
     top: 0,
     width,
     height,
-    Behavior: class extends Behavior {
+    Behavior: class extends FacePrimaryColorBehavior {
       #currentRect: Rect = { ...initialIrisRect }
       #nextRect: Rect = { ...initialIrisRect }
-      #palette: FaceSkinPalette | null = null
-      #primary = DEFAULT_FACE_PRIMARY_COLOR
       revision = 0
 
-      onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
-        this.#palette = palette
-        if (this.#primary === palette.primaryColor) return
-        this.#primary = palette.primaryColor
-        port.invalidate()
-      }
-
-      onFaceState(port: PiuPort, face: FaceState) {
-        if (!this.#palette) {
-          const primary = toPiuColorNumber(face.theme.primary)
-          if (primary !== this.#primary) {
-            this.#primary = primary
-            port.invalidate()
-          }
-        }
+      override onFaceState(port: PiuPort, face: FaceState) {
+        super.onFaceState(port, face)
         const eye = face.eyes[opts.side]
         const gazeX = quantizeEdge(clamp(eye.gazeX ?? 0, -1, 1) * 2)
         const gazeY = quantizeEdge(clamp(eye.gazeY ?? 0, -1, 1) * 2)
@@ -189,8 +164,8 @@ export const Eye = Container.template((opts: EyeOptions) => {
         this.revision++
       }
 
-      onDraw(port: MaskPort) {
-        port.drawGray(irisMask, this.#primary)
+      onDraw(port: Gray16MaskPortInstance) {
+        port.drawGray(irisMask, this.color)
       }
     },
   })
@@ -221,28 +196,13 @@ export const Eye = Container.template((opts: EyeOptions) => {
     top: 0,
     width: eyelidWidth,
     height,
-    Behavior: class extends Behavior {
+    Behavior: class extends FaceSecondaryColorBehavior {
       #current = { ...initialAperture }
       #next = createEyelidAperture()
-      #palette: FaceSkinPalette | null = null
-      #secondary = DEFAULT_FACE_SECONDARY_COLOR
       revision = 0
 
-      onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
-        this.#palette = palette
-        if (this.#secondary === palette.secondaryColor) return
-        this.#secondary = palette.secondaryColor
-        port.invalidate()
-      }
-
-      onFaceState(port: PiuPort, face: FaceState) {
-        if (!this.#palette) {
-          const secondary = toPiuColorNumber(face.theme.secondary)
-          if (secondary !== this.#secondary) {
-            this.#secondary = secondary
-            port.invalidate()
-          }
-        }
+      override onFaceState(port: PiuPort, face: FaceState) {
+        super.onFaceState(port, face)
         writeEyelidAperture(this.#next, face, opts.side, face.eyes[opts.side].open, eyelidHeight)
         this.#next.topLeft += eyelidTop
         this.#next.topRight += eyelidTop
@@ -257,8 +217,8 @@ export const Eye = Container.template((opts: EyeOptions) => {
         this.revision++
       }
 
-      onDraw(port: MaskPort) {
-        port.drawGray(eyelidMask, this.#secondary)
+      onDraw(port: Gray16MaskPortInstance) {
+        port.drawGray(eyelidMask, this.color)
       }
     },
   })

@@ -75,6 +75,15 @@ test('animated face parts use fixed Gray16 mask ports without Shape or layout mu
     assert.doesNotMatch(source, /commodetto\/outline/, `${file} should not rasterize Outline while drawing`)
     assert.doesNotMatch(source, /\bShape\b/, `${file} should not create Piu Shape display nodes`)
     assert.doesNotMatch(source, /coordinates\s*=/, `${file} should keep fixed content coordinates`)
+  }
+
+  const stateHandlerFiles = [
+    'host/modules/ui/components/face/parts/eye.ts',
+    'host/modules/ui/components/face/parts/dog/eyebrow.ts',
+    'host/modules/ui/components/face/parts/part-behavior.ts',
+  ]
+  for (const file of stateHandlerFiles) {
+    const source = readFileSync(file, 'utf8')
     const blocks = extractMethodBlocks(source, 'onFaceState')
     assert.ok(blocks.length > 0, `${file} should define an onFaceState handler`)
     for (const block of blocks) {

@@ -5,6 +5,7 @@ import {
   type StackchanOutboundApplicationEvent,
 } from 'stackchan-application-event'
 import type { RealtimeEventSendResult } from 'stackchan-realtime-session'
+
 const RETRY_MILLISECONDS = 2_000
 const REQUEST_TIMEOUT_MILLISECONDS = 10_000
 const BOOT_REQUEST_TOKEN = Math.trunc(Math.random() * 0x1_0000_0000)
@@ -104,6 +105,10 @@ export function createConversationSession(
       (sendResult) => {
         if (closed || pending !== request) return
         if (sendResult === 'queued') return
+        if (sendResult === 'overflow') {
+          failPending(request, `conversation.${request.operation} send queue is full`)
+          return
+        }
         updateTransportState(sendResult)
         if (sendResult === 'unsupported' && pending === request) failUnsupported(request)
       },
@@ -125,7 +130,7 @@ export function createConversationSession(
         return
       }
       if (transportState === 'ready') sendPending(request)
-      scheduleRetry(request)
+      if (pending === request) scheduleRetry(request)
     }, RETRY_MILLISECONDS)
   }
 
@@ -148,7 +153,7 @@ export function createConversationSession(
     pending = next
     updateState(operation === 'start' ? 'connecting' : 'standby')
     if (transportState === 'ready') sendPending(next)
-    scheduleRetry(next)
+    if (pending === next) scheduleRetry(next)
     return next.requestId
   }
 

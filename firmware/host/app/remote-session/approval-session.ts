@@ -1,19 +1,19 @@
 import type { StackchanContext } from 'capabilities'
 import type { Container as PiuContainer } from 'piu/MC'
 import { Container, Label, Text } from 'piu/MC'
-import Timer from 'timer'
-import { ActionButton, ScreenHeader } from 'ui-controls'
-import { UI, uiStyles } from 'ui-theme'
+import type { StackchanInboundApplicationEvent, StackchanOutboundApplicationEvent } from 'stackchan-application-event'
 import {
+  type ApprovalDecision,
+  type ApprovalRequest,
   approvalPresented,
   approvalResponse,
   fitApprovalTitle,
   paginateApprovalDetail,
-  type ApprovalDecision,
-  type ApprovalRequest,
 } from 'stackchan-approval-model'
-import type { StackchanInboundApplicationEvent, StackchanOutboundApplicationEvent } from 'stackchan-application-event'
 import type { RealtimeEventSendResult } from 'stackchan-realtime-session'
+import Timer from 'timer'
+import { ActionButton, ScreenHeader } from 'ui-controls'
+import { UI, uiStyles } from 'ui-theme'
 
 const RESPONSE_RETRY_MILLISECONDS = 2_000
 

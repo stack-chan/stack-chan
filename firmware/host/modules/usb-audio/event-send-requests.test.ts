@@ -20,6 +20,14 @@ test('worker EVENT send requests resolve only their correlated Promise', async (
   assert.equal(await second.result, 'queued')
 })
 
+test('worker EVENT send requests surface bounded queue overflow', async () => {
+  const requests = new UsbEventSendRequests()
+  const request = requests.begin()
+
+  assert.equal(requests.resolve(request.requestId, 'overflow'), true)
+  assert.equal(await request.result, 'overflow')
+})
+
 test('closing the bridge settles every pending EVENT send as disconnected', async () => {
   const requests = new UsbEventSendRequests()
   const first = requests.begin()

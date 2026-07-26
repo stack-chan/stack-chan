@@ -24,6 +24,7 @@ test('speaker controls validate stream, rate, payload, and ended state', () => {
   assert.equal(session.start(7, 24000, 0), SpeakerSessionResult.ACCEPTED)
   assert.equal(session.start(8, 24000, 0), SpeakerSessionResult.BUSY)
   assert.equal(session.streamId, 7)
+  assert.equal(session.validateData(7, 24000, 0), SpeakerSessionResult.INVALID)
   assert.equal(session.end(7, 16000, 0), SpeakerSessionResult.INVALID)
   assert.equal(session.end(7, 24000, 1), SpeakerSessionResult.INVALID)
   assert.equal(session.end(7, 24000, 0), SpeakerSessionResult.ACCEPTED)
@@ -31,9 +32,8 @@ test('speaker controls validate stream, rate, payload, and ended state', () => {
   assert.equal(session.validateText(7, 24000, 2), SpeakerSessionResult.INVALID)
 })
 
-test('finite event enumeration detects the broken stream-agnostic variant', () => {
+test('abort from a superseded stream is stale for every stream ID pair', () => {
   const streamIds = [1, 2, 0xffff]
-  let brokenCounterexamples = 0
   for (const oldId of streamIds) {
     for (const currentId of streamIds) {
       if (oldId === currentId) continue
@@ -42,12 +42,22 @@ test('finite event enumeration detects the broken stream-agnostic variant', () =
       correct.clear(oldId)
       correct.start(currentId, 24000, 0)
       assert.equal(correct.abort(oldId, 24000, 0), SpeakerSessionResult.STALE)
-      if (brokenAbortAlwaysClears(oldId, currentId)) brokenCounterexamples += 1
+      assert.equal(correct.streamId, currentId)
     }
   }
-  assert.ok(brokenCounterexamples > 0)
 })
 
-function brokenAbortAlwaysClears(_oldId: number, _currentId: number): boolean {
-  return true
-}
+test('completed speaker controls remain idempotent until the transport resets', () => {
+  const session = new SpeakerSessionGuard()
+
+  assert.equal(session.start(7, 24000, 0), SpeakerSessionResult.ACCEPTED)
+  assert.equal(session.end(7, 24000, 0), SpeakerSessionResult.ACCEPTED)
+  assert.equal(session.clear(7), true)
+  assert.equal(session.end(7, 24000, 0), SpeakerSessionResult.IDEMPOTENT)
+  assert.equal(session.abort(7, 24000, 0), SpeakerSessionResult.IDEMPOTENT)
+  assert.equal(session.end(7, 16000, 0), SpeakerSessionResult.INVALID)
+  assert.equal(session.end(8, 24000, 0), SpeakerSessionResult.STALE)
+
+  session.reset()
+  assert.equal(session.end(7, 24000, 0), SpeakerSessionResult.STALE)
+})

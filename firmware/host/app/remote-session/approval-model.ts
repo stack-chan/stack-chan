@@ -1,8 +1,4 @@
 export {
-  approvalPresented,
-  approvalResponse,
-  parseApprovalEvent,
-  STACKCHAN_EVENT_SCHEMA,
   type ApprovalDecision,
   type ApprovalInboundEvent,
   type ApprovalKind,
@@ -11,6 +7,10 @@ export {
   type ApprovalResolved,
   type ApprovalResponse,
   type ApprovalSuspended,
+  approvalPresented,
+  approvalResponse,
+  parseApprovalEvent,
+  STACKCHAN_EVENT_SCHEMA,
 } from 'stackchan-application-event'
 
 /**

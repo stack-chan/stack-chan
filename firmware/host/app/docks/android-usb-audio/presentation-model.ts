@@ -1,3 +1,5 @@
+import { StackChanStatus } from 'stackchan-usb-media-session'
+
 export const USB_AUDIO_BALLOON_CHARACTER_WIDTH = 8
 export const USB_AUDIO_BALLOON_PADDING_X = 18
 export const USB_AUDIO_BALLOON_LINES = 2
@@ -12,34 +14,34 @@ export type UsbAudioStatusVisual =
 
 export type UsbAudioConversationState = 'standby' | 'connecting' | 'listening' | 'recognizing' | 'speaking' | 'blocked'
 
-export function usbAudioStatusVisual(status: number): UsbAudioStatusVisual {
+export function usbAudioStatusVisual(status: StackChanStatus): UsbAudioStatusVisual {
   switch (status) {
-    case 1:
+    case StackChanStatus.RECOGNIZING:
       return { kind: 'spinner', color: 'white' }
-    case 2:
+    case StackChanStatus.SPEAKING:
       return { kind: 'microphone', muted: true }
-    case 3:
+    case StackChanStatus.LISTENING:
       return { kind: 'microphone', muted: false }
-    case 4:
+    case StackChanStatus.CONNECTING:
       return { kind: 'spinner', color: 'amber' }
-    case 5:
+    case StackChanStatus.ERROR:
       return { kind: 'error' }
     default:
       return { kind: 'hidden' }
   }
 }
 
-export function usbAudioConversationState(status: number): UsbAudioConversationState {
+export function usbAudioConversationState(status: StackChanStatus): UsbAudioConversationState {
   switch (status) {
-    case 1:
+    case StackChanStatus.RECOGNIZING:
       return 'recognizing'
-    case 2:
+    case StackChanStatus.SPEAKING:
       return 'speaking'
-    case 3:
+    case StackChanStatus.LISTENING:
       return 'listening'
-    case 4:
+    case StackChanStatus.CONNECTING:
       return 'connecting'
-    case 5:
+    case StackChanStatus.ERROR:
       return 'blocked'
     default:
       return 'standby'

@@ -154,7 +154,7 @@
           "streamId": 7,
           "sampleRate": 24000,
           "payloadBytes": 0,
-          "expected": "invalid"
+          "expected": "idempotent"
         }
       ]
     }

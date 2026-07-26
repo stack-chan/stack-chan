@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  formatUsbAudioCaption,
-  usbAudioConversationState,
-  usbAudioMouthStep,
-  usbAudioStatusVisual,
-} from './presentation-model.js'
+import { installUsbAudioTestAliases } from '../../../modules/usb-audio/__tests__/node-aliases.js'
 import { StackChanStatus } from '../../../modules/usb-audio/media-session.js'
+
+installUsbAudioTestAliases()
+
+const { formatUsbAudioCaption, usbAudioConversationState, usbAudioMouthStep, usbAudioStatusVisual } = await import(
+  './presentation-model.js'
+)
 
 test('USB audio captions retain at most the latest two display lines', () => {
   assert.equal(formatUsbAudioCaption('ABCDEF', 52), 'CD\nEF')

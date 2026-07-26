@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPT = Path(__file__).with_name("usb-audio-diagnostics.py")
@@ -23,6 +24,56 @@ SPEC.loader.exec_module(diagnostics)
 
 
 class ReplayTraceTest(unittest.TestCase):
+    def test_diagnostic_session_closes_open_resources_when_output_initialization_fails(self) -> None:
+        class FakeSerialPort:
+            instances: list["FakeSerialPort"] = []
+
+            def __init__(self, **_kwargs: object) -> None:
+                self.dtr = False
+                self.rts = False
+                self.port = ""
+                self.opened = False
+                self.closed = False
+                self.instances.append(self)
+
+            def open(self) -> None:
+                self.opened = True
+
+            def close(self) -> None:
+                self.closed = True
+
+        class FakeWireTrace:
+            instances: list["FakeWireTrace"] = []
+
+            def __init__(self, _output: Path) -> None:
+                self.closed = False
+                self.instances.append(self)
+
+            def close(self) -> None:
+                self.closed = True
+
+        class FakeSerialModule:
+            Serial = FakeSerialPort
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            blocked_parent = root / "not-a-directory"
+            blocked_parent.write_text("blocked", encoding="utf-8")
+            with (
+                mock.patch.object(diagnostics, "serial", FakeSerialModule),
+                mock.patch.object(diagnostics, "WireTrace", FakeWireTrace),
+                self.assertRaises(FileExistsError),
+            ):
+                diagnostics.DiagnosticSession(
+                    "/dev/fake",
+                    blocked_parent / "diagnostics.csv",
+                    root / "wire.jsonl",
+                )
+
+        self.assertTrue(FakeSerialPort.instances[-1].opened)
+        self.assertTrue(FakeSerialPort.instances[-1].closed)
+        self.assertTrue(FakeWireTrace.instances[-1].closed)
+
     def test_shared_wire_vectors_match_the_diagnostics_codec(self) -> None:
         fixture = json.loads(WIRE_VECTORS.read_text(encoding="utf-8"))
         self.assertEqual(diagnostics.PROTOCOL_VERSION, fixture["protocolVersion"])

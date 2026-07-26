@@ -6,9 +6,11 @@ USB Serial/JTAGのCDC経路を使うため、音声通信中はxsbugを同じポ
 
 ## ビルドと書き込み
 
+以降のコマンドは、リポジトリルートから`firmware/`へ移動して実行する。
 Moddable SDKとESP-IDFの環境を読み込む。
 
 ```bash
+cd firmware
 source "$HOME/.local/share/xs-dev-export.sh"
 npm ci
 npm run build:android-usb-audio

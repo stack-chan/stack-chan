@@ -3,14 +3,14 @@ import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavi
 import { resolveAppBehaviors } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
 import { type BootWiFiStatus, startHostBootServices } from 'boot-services'
+import type { StackchanContext } from 'capabilities'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
 import { DOMAIN } from 'consts'
-import { startStackchanDock, type StackchanDockRuntime } from 'dock'
+import { type StackchanDockRuntime, startStackchanDock } from 'dock'
 import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'experimental-mini-app-loader'
 import { initializeLocalization } from 'localization'
 import Modules from 'modules'
 import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
-import type { StackchanContext } from 'capabilities'
 
 type DeviceButton = {
   onChanged: (this: DeviceButton) => void

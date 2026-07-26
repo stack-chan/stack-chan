@@ -43,6 +43,14 @@ test('SpeakerPlaybackBuffer retains AudioOut space until USB PCM arrives', () =>
   assert.equal(writes.length, 1)
 })
 
+test('SpeakerPlaybackBuffer rejects empty and partial PCM samples', () => {
+  const buffer = new SpeakerPlaybackBuffer()
+
+  assert.throws(() => buffer.enqueuePcm(new Uint8Array(0)), /complete 16-bit samples/)
+  assert.throws(() => buffer.enqueuePcm(Uint8Array.of(1)), /complete 16-bit samples/)
+  assert.equal(buffer.pcmBytes, 0)
+})
+
 test('SpeakerPlaybackBuffer applies a caption only when its following PCM can be written', () => {
   const buffer = new SpeakerPlaybackBuffer()
   const events: string[] = []

@@ -10,6 +10,8 @@ export class SpeakerSessionGuard {
   #streamId = 0
   #sampleRate = 0
   #ended = false
+  #lastFinishedStreamId = 0
+  #lastFinishedSampleRate = 0
 
   get streamId(): number {
     return this.#streamId
@@ -73,25 +75,38 @@ export class SpeakerSessionGuard {
 
   clear(streamId: number): boolean {
     if (streamId !== this.#streamId || !this.active) return false
-    this.#reset()
+    this.#finish()
     return true
   }
 
   reset(): void {
-    this.#reset()
+    this.#streamId = 0
+    this.#sampleRate = 0
+    this.#ended = false
+    this.#lastFinishedStreamId = 0
+    this.#lastFinishedSampleRate = 0
   }
 
   forceStop(): { streamId: number; sampleRate: number } {
     const current = { streamId: this.#streamId, sampleRate: this.#sampleRate }
-    this.#reset()
+    this.#finish()
     return current
   }
 
   #validateCurrent(streamId: number, sampleRate: number, payloadBytes: number): MediaSessionResult {
+    if (!isValidSpeakerStartControl(streamId, sampleRate, payloadBytes)) return MediaSessionResult.INVALID
+    if (!this.active) {
+      if (streamId !== this.#lastFinishedStreamId) return MediaSessionResult.STALE
+      return sampleRate === this.#lastFinishedSampleRate ? MediaSessionResult.IDEMPOTENT : MediaSessionResult.INVALID
+    }
     return isValidCurrentSpeakerControl(streamId, sampleRate, payloadBytes, this.#streamId, this.#sampleRate)
   }
 
-  #reset(): void {
+  #finish(): void {
+    if (this.#streamId !== 0) {
+      this.#lastFinishedStreamId = this.#streamId
+      this.#lastFinishedSampleRate = this.#sampleRate
+    }
     this.#streamId = 0
     this.#sampleRate = 0
     this.#ended = false

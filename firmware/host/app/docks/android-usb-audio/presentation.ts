@@ -1,7 +1,6 @@
 import type { StackchanContext, UIEffect } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Container, Content, Label, Skin, Style } from 'piu/MC'
-import { StackChanStatus } from 'stackchan-usb-media-session'
 import {
   formatUsbAudioCaption,
   USB_AUDIO_MOUTH_STEP,
@@ -9,6 +8,7 @@ import {
   usbAudioMouthStep,
   usbAudioStatusVisual,
 } from 'stackchan-usb-dock-presentation-model'
+import { StackChanStatus } from 'stackchan-usb-media-session'
 import Timer from 'timer'
 
 const BALLOON_HEIGHT = 44
@@ -128,6 +128,7 @@ export type UsbAudioPresentation = {
   onPlaybackPower(power: number): void
   onPlaybackText(text: string): void
   onPlaybackStopped(): void
+  close(): void
 }
 
 export function createUsbAudioPresentation(
@@ -141,6 +142,7 @@ export function createUsbAudioPresentation(
   let mouthTimer: ReturnType<typeof Timer.repeat> | undefined
   let pendingMouthStep = 0
   let displayedMouthStep = 0
+  let closed = false
 
   const displayWidth = () => {
     const application = context.ui.application as { width?: number } | undefined
@@ -193,15 +195,29 @@ export function createUsbAudioPresentation(
     context.ui.addEffect(balloon, 'usb-audio-caption')
   }
 
+  const stopPlayback = (refreshStatus: boolean) => {
+    if (mouthTimer) Timer.clear(mouthTimer)
+    mouthTimer = undefined
+    pendingMouthStep = 0
+    displayedMouthStep = 0
+    context.face.setMouthOpen(0)
+    removeBalloon()
+    if (active) context.ui.setFaceMotionEnabled?.(true)
+    active = false
+    if (status === StackChanStatus.SPEAKING) status = StackChanStatus.IDLE
+    if (refreshStatus) updateStatusBadge()
+  }
+
   return {
     onStatusChanged(nextStatus) {
+      if (closed) return
       status = nextStatus
       onConversationStateChanged?.(usbAudioConversationState(nextStatus))
       updateStatusBadge()
     },
 
     onPlaybackStarted() {
-      if (active) return
+      if (closed || active) return
       active = true
       updateStatusBadge()
       pendingMouthStep = 0
@@ -212,27 +228,26 @@ export function createUsbAudioPresentation(
     },
 
     onPlaybackPower(power) {
-      if (!active) return
+      if (closed || !active) return
       pendingMouthStep = usbAudioMouthStep(power)
       if (pendingMouthStep === 0) flushMouth()
     },
 
     onPlaybackText(text) {
-      if (!active) return
+      if (closed || !active) return
       showCaption(text)
     },
 
     onPlaybackStopped() {
-      if (mouthTimer) Timer.clear(mouthTimer)
-      mouthTimer = undefined
-      pendingMouthStep = 0
-      displayedMouthStep = 0
-      context.face.setMouthOpen(0)
-      removeBalloon()
-      if (active) context.ui.setFaceMotionEnabled?.(true)
-      active = false
-      if (status === StackChanStatus.SPEAKING) status = StackChanStatus.IDLE
-      updateStatusBadge()
+      if (closed) return
+      stopPlayback(true)
+    },
+
+    close() {
+      if (closed) return
+      closed = true
+      stopPlayback(false)
+      removeStatusBadge()
     },
   }
 }

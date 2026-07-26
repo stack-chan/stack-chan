@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { RemoteConversationTransportState } from 'capabilities'
-import { parseStackchanApplicationEvent } from './application-event.js'
 import { installRemoteSessionTestAliases } from './__tests__/node-aliases.js'
+import { parseStackchanApplicationEvent } from './application-event.js'
 import type { ConversationRetryScheduler } from './conversation-session.js'
+import type { RealtimeEventSendResult } from './realtime-session.js'
 
 installRemoteSessionTestAliases()
 
@@ -24,6 +25,10 @@ class FakeScheduler implements ConversationRetryScheduler {
     this.#tasks.delete(handle as number)
   }
 
+  get pendingTasks(): number {
+    return this.#tasks.size
+  }
+
   advance(milliseconds: number): void {
     const target = this.now + milliseconds
     while (true) {
@@ -39,7 +44,10 @@ class FakeScheduler implements ConversationRetryScheduler {
   }
 }
 
-function createHarness(initialTransportState: RemoteConversationTransportState = 'ready') {
+function createHarness(
+  initialTransportState: RemoteConversationTransportState = 'ready',
+  sendResult: RealtimeEventSendResult = 'queued',
+) {
   const events: Array<Record<string, unknown>> = []
   const scheduler = new FakeScheduler()
   const transportListeners = new Set<(state: RemoteConversationTransportState) => void>()
@@ -52,7 +60,7 @@ function createHarness(initialTransportState: RemoteConversationTransportState =
       },
       sendApplicationEvent(event) {
         events.push(event)
-        return Promise.resolve('queued')
+        return Promise.resolve(sendResult)
       },
       subscribeTransport(listener) {
         transportListeners.add(listener)
@@ -207,6 +215,40 @@ test('losing negotiated EVENT support blocks a pending request and cancels retri
   assert.equal(session.remoteSession.transportState, 'unsupported')
   assert.equal(session.remoteSession.state, 'blocked')
   assert.match(session.remoteSession.lastError ?? '', /does not support EVENT/)
+})
+
+test('a full EVENT queue blocks the request without leaving a retry timer', async () => {
+  const { scheduler, session } = createHarness('ready', 'overflow')
+
+  session.remoteSession.requestStart()
+  await Promise.resolve()
+
+  assert.equal(session.remoteSession.state, 'blocked')
+  assert.match(session.remoteSession.lastError ?? '', /send queue is full/)
+  assert.equal(scheduler.pendingTasks, 0)
+})
+
+test('a synchronous send failure does not schedule an orphan retry', () => {
+  const scheduler = new FakeScheduler()
+  const session = createConversationSession(
+    {
+      transportState: 'ready',
+      sendApplicationEvent() {
+        throw new Error('postMessage failed')
+      },
+      subscribeTransport() {
+        return () => undefined
+      },
+    },
+    scheduler,
+    { createRequestId: () => 'sync-failure' },
+  )
+
+  session.remoteSession.requestStart()
+
+  assert.equal(session.remoteSession.state, 'blocked')
+  assert.match(session.remoteSession.lastError ?? '', /postMessage failed/)
+  assert.equal(scheduler.pendingTasks, 0)
 })
 
 test('conversation result parser rejects malformed or unrelated events', () => {

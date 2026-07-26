@@ -5,9 +5,9 @@ import startUsbAudioBridge, {
   type UsbAudioMicrophoneInputOptions,
   type UsbAudioPresentation,
 } from 'stackchan-usb-audio-core'
+import type { UsbEventTransportState } from 'stackchan-usb-event-transport'
 import { type SharedSpeakerOutputBuffers, SharedSpeakerOutputService } from 'stackchan-usb-shared-output'
 import type { Self } from 'worker'
-import type { UsbEventTransportState } from 'stackchan-usb-event-transport'
 
 declare const self: Self
 
@@ -148,6 +148,53 @@ function closeWorker(): void {
   }
 }
 
+function startWorker(message: {
+  speakerVolume?: number
+  diagnostics?: boolean
+  output?: SharedSpeakerOutputBuffers
+}): void {
+  if (bridge) return
+  if (!message.output) throw new TypeError('shared speaker output is required')
+  const nextInputService = new MainMicrophoneInputService((next) => self.postMessage(next))
+  const nextOutputService = new SharedSpeakerOutputService(message.output, (next) => self.postMessage(next))
+  let nextBridge: UsbAudioBridgeControl | undefined
+  try {
+    nextBridge = startUsbAudioBridge({
+      speakerVolume: message.speakerVolume,
+      diagnostics: message.diagnostics,
+      createMicrophoneInput: nextInputService.createInput,
+      createSpeakerOutput: nextOutputService.createOutput,
+    })
+    nextBridge.setPresentation(presentation)
+    nextBridge.setEventHandler(onEvent)
+    nextBridge.setTransportStateHandler(onTransportState)
+    self.postMessage({ id: 'ready' })
+    inputService = nextInputService
+    outputService = nextOutputService
+    bridge = nextBridge
+  } catch (error) {
+    try {
+      nextBridge?.setPresentation(undefined)
+    } catch {}
+    try {
+      nextBridge?.setEventHandler(undefined)
+    } catch {}
+    try {
+      nextBridge?.setTransportStateHandler(undefined)
+    } catch {}
+    try {
+      nextBridge?.close()
+    } catch {}
+    try {
+      nextInputService.close()
+    } catch {}
+    try {
+      nextOutputService.close()
+    } catch {}
+    throw error
+  }
+}
+
 self.onmessage = (message: {
   id?: string
   speakerVolume?: number
@@ -164,23 +211,13 @@ self.onmessage = (message: {
   try {
     switch (message.id) {
       case 'start':
-        if (bridge) return
-        if (!message.output) throw new TypeError('shared speaker output is required')
-        inputService = new MainMicrophoneInputService((next) => self.postMessage(next))
-        outputService = new SharedSpeakerOutputService(message.output, (next) => self.postMessage(next))
-        bridge = startUsbAudioBridge({
-          speakerVolume: message.speakerVolume,
-          diagnostics: message.diagnostics,
-          createMicrophoneInput: inputService.createInput,
-          createSpeakerOutput: outputService.createOutput,
-        })
-        bridge.setPresentation(presentation)
-        bridge.setEventHandler(onEvent)
-        bridge.setTransportStateHandler(onTransportState)
-        self.postMessage({ id: 'ready' })
+        startWorker(message)
         break
       case 'audio-drained':
         outputService?.handleDrained(message.streamId ?? 0)
+        break
+      case 'audio-opened':
+        outputService?.handleOpened(message.streamId ?? 0)
         break
       case 'audio-failed':
         outputService?.handleFailed(message.streamId ?? 0)

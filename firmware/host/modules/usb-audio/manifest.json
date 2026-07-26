@@ -13,6 +13,7 @@
     "stackchan-usb-audio-worker": "./worker",
     "stackchan-usb-shared-output": "./shared-speaker-output",
     "stackchan-usb-diagnostics": "./diagnostics",
+    "stackchan-usb-event-frame-queue": "./event-frame-queue",
     "stackchan-usb-event-send-requests": "./event-send-requests",
     "stackchan-usb-event-transport": "./event-transport",
     "stackchan-usb-microphone-session": "./microphone-session",

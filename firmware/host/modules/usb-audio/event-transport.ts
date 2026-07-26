@@ -1,7 +1,7 @@
 import { StackChanCapability } from 'stackchan-usb-media-session'
 
 export type UsbEventTransportState = 'disconnected' | 'unsupported' | 'ready'
-export type UsbEventSendResult = 'queued' | Exclude<UsbEventTransportState, 'ready'>
+export type UsbEventSendResult = 'queued' | 'overflow' | Exclude<UsbEventTransportState, 'ready'>
 
 export function usbEventTransportState(
   connected: boolean,

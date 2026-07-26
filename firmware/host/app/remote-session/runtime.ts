@@ -1,6 +1,6 @@
 import type { RemoteConversationSession, RemoteConversationState, StackchanContext } from 'capabilities'
-import { createApprovalSession, type ApprovalSession } from 'stackchan-approval-session'
-import { createConversationSession, type ConversationRetryScheduler } from 'stackchan-conversation-session'
+import { type ApprovalSession, createApprovalSession } from 'stackchan-approval-session'
+import { type ConversationRetryScheduler, createConversationSession } from 'stackchan-conversation-session'
 import {
   createRealtimeSession,
   type RealtimeEventBridge,

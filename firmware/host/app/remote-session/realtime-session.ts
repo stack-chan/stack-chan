@@ -28,7 +28,7 @@ export type RealtimeToolProvider = {
   tools: Array<RealtimeFunctionTool | RealtimeMcpTool>
 }
 
-export type RealtimeEventSendResult = 'queued' | Exclude<RemoteConversationTransportState, 'ready'>
+export type RealtimeEventSendResult = 'queued' | 'overflow' | Exclude<RemoteConversationTransportState, 'ready'>
 
 export type RealtimeEventBridge = {
   setEventHandler(handler?: (event: string) => void): void

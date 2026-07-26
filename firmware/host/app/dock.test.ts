@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   STACKCHAN_DOCK_MODULE,
-  startStackchanDock,
   type StackchanDock,
   type StackchanDockModules,
   type StackchanDockRuntime,
+  startStackchanDock,
 } from './dock.js'
 
 class FakeModules implements StackchanDockModules {

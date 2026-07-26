@@ -12,6 +12,7 @@ import struct
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -446,7 +447,7 @@ def load_replay_writes(trace: Path) -> list[ReplayWrite]:
             raise ValueError(f"{trace}: trace exceeds {MAX_REPLAY_WRITES} USB writes")
     if not writes:
         raise ValueError(f"{trace}: no schema-version 2 usb_write records")
-    for previous, current in zip(writes, writes[1:]):
+    for previous, current in pairwise(writes):
         if current.started_elapsed_us < previous.started_elapsed_us:
             raise ValueError(f"{trace}: usb_write startedElapsedUs is not monotonic")
     starts = [
@@ -508,22 +509,43 @@ class DiagnosticSession:
         self.port.rts = control_lines_active
         self.port.port = port
         self.port.open()
-        self.parser = FrameParser()
-        self.control_sequence = 0
-        self.speaker_sequence = 0
-        self.credit = 0
-        self.stream_id = 1
-        self.sent_bytes = 0
-        self.sent_frames = 0
-        self.done = False
-        self.error: ProtocolError | None = None
-        self.start_monotonic = time.monotonic()
-        self.wire_trace = WireTrace(wire_output)
-        self.latest_diagnostics: dict[str, int | str] | None = None
-        output.parent.mkdir(parents=True, exist_ok=True)
-        self.output_file = output.open("w", encoding="utf-8", newline="")
-        self.writer = csv.DictWriter(self.output_file, fieldnames=CSV_FIELDS)
-        self.writer.writeheader()
+        wire_trace: WireTrace | None = None
+        output_file: Any | None = None
+        try:
+            self.parser = FrameParser()
+            self.control_sequence = 0
+            self.speaker_sequence = 0
+            self.credit = 0
+            self.stream_id = 1
+            self.sent_bytes = 0
+            self.sent_frames = 0
+            self.done = False
+            self.error: ProtocolError | None = None
+            self.start_monotonic = time.monotonic()
+            wire_trace = WireTrace(wire_output)
+            self.latest_diagnostics: dict[str, int | str] | None = None
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output_file = output.open("w", encoding="utf-8", newline="")
+            self.writer = csv.DictWriter(output_file, fieldnames=CSV_FIELDS)
+            self.writer.writeheader()
+            self.wire_trace = wire_trace
+            self.output_file = output_file
+        except BaseException:
+            if output_file is not None:
+                try:
+                    output_file.close()
+                except Exception:
+                    pass
+            if wire_trace is not None:
+                try:
+                    wire_trace.close()
+                except Exception:
+                    pass
+            try:
+                self.port.close()
+            except Exception:
+                pass
+            raise
 
     def close(self) -> None:
         try:

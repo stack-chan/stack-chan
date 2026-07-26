@@ -28,6 +28,7 @@ class SharedSpeakerOutput implements UsbAudioSpeakerOutput {
   #closed = false
   #finished = false
   #failed = false
+  #opened = false
   #startPosted = false
   #started = false
   #volume = 1
@@ -43,9 +44,6 @@ class SharedSpeakerOutput implements UsbAudioSpeakerOutput {
     this.#stats = stats
     this.#postMessage = postMessage
     this.#options = options
-    Atomics.store(ring.state, 0, 0)
-    Atomics.store(ring.state, 1, 0)
-    for (let index = 0; index < stats.length; index += 1) Atomics.store(stats, index, 0)
     postMessage({ id: 'audio-open', sampleRate: options.sampleRate, streamId: options.streamId })
   }
 
@@ -100,7 +98,7 @@ class SharedSpeakerOutput implements UsbAudioSpeakerOutput {
   }
 
   poll(): void {
-    if (!this.#started || this.#closed || this.#finished) return
+    if (!this.#opened || !this.#started || this.#closed || this.#finished) return
     const writable = this.#ring.writableBytes & ~1
     if (writable > 0) this.#options.onWritable.call(this, writable)
     if (this.#ring.readableBytes === 0) return
@@ -112,6 +110,7 @@ class SharedSpeakerOutput implements UsbAudioSpeakerOutput {
 
   write(payload: Uint8Array): void {
     if (this.#closed || this.#finished) throw new Error('shared speaker output is closed')
+    if (!this.#opened) throw new Error('shared speaker output is not open')
     if (!this.#started) throw new Error('shared speaker output is not started')
     if (payload.byteLength > this.#ring.writableBytes) throw new Error('shared speaker output is full')
     let offset = 0
@@ -133,6 +132,11 @@ class SharedSpeakerOutput implements UsbAudioSpeakerOutput {
   handleDrained(): void {
     if (!this.#finished || this.#closed) return
     this.#options.onDrained.call(this)
+  }
+
+  handleOpened(): void {
+    if (this.#closed || this.#opened) return
+    this.#opened = true
   }
 
   handleFailed(): void {
@@ -185,6 +189,11 @@ export class SharedSpeakerOutputService {
     this.#current.handleDrained()
   }
 
+  handleOpened(streamId: number): void {
+    if (this.#current?.streamId !== streamId) return
+    this.#current.handleOpened()
+  }
+
   handleFailed(streamId: number): void {
     if (this.#current?.streamId !== streamId) return
     this.#current.handleFailed()
@@ -194,4 +203,10 @@ export class SharedSpeakerOutputService {
     this.#current?.close()
     this.#current = undefined
   }
+}
+
+export function resetSharedSpeakerOutputState(ring: SharedByteRing, stats: Int32Array): void {
+  Atomics.store(ring.state, 0, 0)
+  Atomics.store(ring.state, 1, 0)
+  for (let index = 0; index < stats.length; index += 1) Atomics.store(stats, index, 0)
 }

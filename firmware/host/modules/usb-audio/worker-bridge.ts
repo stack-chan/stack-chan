@@ -1,6 +1,10 @@
 import AudioIn from 'embedded:io/audio/in'
 import AudioOut from 'embedded:io/audio/out'
+import { UsbEventSendRequests } from 'stackchan-usb-event-send-requests'
+import type { UsbEventSendResult, UsbEventTransportState } from 'stackchan-usb-event-transport'
+import { StackChanStatus } from 'stackchan-usb-media-session'
 import {
+  resetSharedSpeakerOutputState,
   SPEAKER_STATS_AUDIO_ACTIVE,
   SPEAKER_STATS_AWAITING_DRAIN,
   SPEAKER_STATS_MAX_WRITABLE_GAP_MS,
@@ -9,14 +13,11 @@ import {
   SPEAKER_STATS_WRITABLE_CALLBACKS,
   SPEAKER_STATS_WRITTEN_BYTES,
 } from 'stackchan-usb-shared-output'
-import { StackChanStatus } from 'stackchan-usb-media-session'
-import type { UsbEventSendResult, UsbEventTransportState } from 'stackchan-usb-event-transport'
-import { UsbEventSendRequests } from 'stackchan-usb-event-send-requests'
+import { CurrentStreamGate } from 'stackchan-usb-stream-gate'
 import Time from 'time'
 import Timer from 'timer'
 import { SharedByteRing } from 'web-radio-byte-ring'
 import Worker from 'worker'
-import { CurrentStreamGate } from 'stackchan-usb-stream-gate'
 
 export type UsbAudioPresentation = {
   onStatusChanged(status: StackChanStatus): void
@@ -119,16 +120,24 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
 
   constructor(options: UsbAudioBridgeOptions = {}) {
     const worker = new Worker('stackchan-usb-audio-worker', USB_AUDIO_WORKER_OPTIONS)
-    this.#worker = worker
-    worker.onmessage = (message) => this.#handleWorkerMessage(message)
-    worker.postMessage({
-      id: 'start',
-      ...options,
-      output: {
-        ring: this.#outputRing.buffers,
-        stats: this.#outputStats.buffer as SharedArrayBuffer,
-      },
-    })
+    try {
+      this.#worker = worker
+      worker.onmessage = (message) => this.#handleWorkerMessage(message)
+      worker.postMessage({
+        id: 'start',
+        ...options,
+        output: {
+          ring: this.#outputRing.buffers,
+          stats: this.#outputStats.buffer as SharedArrayBuffer,
+        },
+      })
+    } catch (error) {
+      this.#worker = undefined
+      try {
+        worker.terminate()
+      } catch {}
+      throw error
+    }
   }
 
   setPresentation(presentation?: UsbAudioPresentation): void {
@@ -169,6 +178,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
   }
 
   close(): void {
+    if (bridge === this) bridge = undefined
     const worker = this.#worker
     this.#worker = undefined
     this.#setTransportState('disconnected')
@@ -270,6 +280,11 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
         break
       case 'error':
         trace(`[usb-audio-worker] ${message.reason ?? 'unknown error'}\n`)
+        try {
+          this.#worker?.terminate()
+        } catch {}
+        this.#worker = undefined
+        if (bridge === this) bridge = undefined
         this.#setTransportState('disconnected')
         this.#eventSends.rejectAll(new Error(message.reason ?? 'USB audio worker failed'))
         this.#closeMicrophone()
@@ -279,6 +294,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
         break
       case 'closed':
         this.#worker = undefined
+        if (bridge === this) bridge = undefined
         this.#setTransportState('disconnected')
         this.#eventSends.settleAll('disconnected')
         this.#closeMicrophone()
@@ -385,7 +401,12 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
 
   #openAudio(sampleRate: number, streamId: number): void {
     this.#closeAudio()
-    this.#audioStreams.activate(streamId)
+    try {
+      this.#audioStreams.activate(streamId)
+    } catch (error) {
+      this.#failAudio(error, streamId)
+      return
+    }
     if (sampleRate !== 8000 && sampleRate !== 16000 && sampleRate !== 24000) {
       this.#failAudio(new RangeError(`unsupported speaker sample rate: ${sampleRate}`), streamId)
       return
@@ -395,9 +416,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
       return
     }
 
-    for (let index = 0; index < this.#outputStats.length; index += 1) {
-      Atomics.store(this.#outputStats, index, 0)
-    }
+    resetSharedSpeakerOutputState(this.#outputRing, this.#outputStats)
     this.#audioStarted = false
     this.#audioEnded = false
     this.#audioAwaitingDrain = false
@@ -419,6 +438,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
       this.#audio = audio
       const amp = (globalThis as typeof globalThis & { amp?: { sampleRate: number } }).amp
       if (amp) amp.sampleRate = sampleRate
+      this.#worker?.postMessage({ id: 'audio-opened', streamId })
     } catch (error) {
       this.#failAudio(error, streamId)
     }
@@ -619,7 +639,7 @@ function isUsbEventTransportState(value: unknown): value is UsbEventTransportSta
 }
 
 function isUsbEventSendResult(value: unknown): value is UsbEventSendResult {
-  return value === 'queued' || value === 'disconnected' || value === 'unsupported'
+  return value === 'queued' || value === 'overflow' || value === 'disconnected' || value === 'unsupported'
 }
 
 function asError(error: unknown): Error {

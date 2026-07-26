@@ -40,3 +40,20 @@ test('owned resources continue closing after an error and reject with the first 
   await assert.rejects(resources.close(), firstError)
   assert.deepEqual(calls, ['dock', 'audio', 'lighting'])
 })
+
+test('concurrent close callers await the same failure', async () => {
+  let rejectClose: ((error: Error) => void) | undefined
+  const closeStarted = new Promise<void>((_, reject) => {
+    rejectClose = reject
+  })
+  const error = new Error('asynchronous close failed')
+  const resources = new OwnedResources([() => closeStarted])
+
+  const first = resources.close()
+  const second = resources.close()
+  rejectClose?.(error)
+
+  await assert.rejects(first, error)
+  await assert.rejects(second, error)
+  assert.equal(resources.close(), first)
+})

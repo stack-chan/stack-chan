@@ -1,15 +1,15 @@
 import type { StackchanContext } from 'capabilities'
 import type { StackchanDock, StackchanDockRuntime } from 'dock'
+import config from 'mc/config'
+import Modules from 'modules'
+import type { RealtimeToolProvider } from 'stackchan-realtime-session'
 import {
   createRemoteSessionRuntime,
   type RemoteSessionRuntime,
   type RemoteSessionTransport,
 } from 'stackchan-remote-session-runtime'
-import type { RealtimeToolProvider } from 'stackchan-realtime-session'
-import config from 'mc/config'
-import Modules from 'modules'
-import Timer from 'timer'
 import { createUsbAudioPresentation, type UsbAudioPresentation } from 'stackchan-usb-dock-presentation'
+import Timer from 'timer'
 
 type UsbAudioBridgeControl = RemoteSessionTransport & {
   setPresentation(presentation?: UsbAudioPresentation): void
@@ -50,19 +50,23 @@ const stackchanUsbDock: StackchanDock = {
         clear: (handle) => Timer.clear(handle as Timer),
       })
     } catch (error) {
-      bridge.close()
+      try {
+        bridge.close()
+      } catch (closeError) {
+        trace(`[dock] bridge close failed during startup cleanup: ${String(closeError)}\n`)
+      }
       throw error
     }
 
     let closed = false
+    let presentation: UsbAudioPresentation | undefined
     return {
       remoteConversationSession: remoteRuntime.remoteConversationSession,
       onContextCreated(context) {
         remoteRuntime.onContextCreated(context, createRealtimeToolProvider(context))
         if (usbAudio.presentationEnabled !== false) {
-          bridge.setPresentation(
-            createUsbAudioPresentation(context, (state) => remoteRuntime.updateConversationState(state)),
-          )
+          presentation = createUsbAudioPresentation(context, (state) => remoteRuntime.updateConversationState(state))
+          bridge.setPresentation(presentation)
         }
       },
       close() {
@@ -76,6 +80,15 @@ const stackchanUsbDock: StackchanDock = {
           firstError = error
           hasError = true
         }
+        try {
+          presentation?.close()
+        } catch (error) {
+          if (!hasError) {
+            firstError = error
+            hasError = true
+          }
+        }
+        presentation = undefined
         try {
           remoteRuntime.close()
         } catch (error) {

@@ -1,23 +1,31 @@
 import { encodeSpeakerDiagnostics, StackChanDiagnosticEvent, StackChanDiagnosticFlag } from 'stackchan-usb-diagnostics'
+import { BoundedEventFrameQueue, STACKCHAN_FRAME_OVERHEAD_BYTES } from 'stackchan-usb-event-frame-queue'
 import {
-  STACKCHAN_CAPABILITIES,
-  STACKCHAN_MICROPHONE_SAMPLE_RATE,
+  type UsbEventSendResult,
+  type UsbEventTransportState,
+  usbEventTransportState,
+} from 'stackchan-usb-event-transport'
+import {
   isValidHelloControl,
   isValidMicrophoneControl,
   isValidStatusControl,
   isWithinSpeakerCredit,
   MediaSessionResult,
+  STACKCHAN_CAPABILITIES,
+  STACKCHAN_MICROPHONE_SAMPLE_RATE,
   StackChanCapability,
   StackChanControl,
   StackChanErrorCode,
   StackChanStatus,
 } from 'stackchan-usb-media-session'
+import { MicrophoneSessionGuard } from 'stackchan-usb-microphone-session'
 import {
   encodeStackChanFrame,
+  STACKCHAN_MAX_EVENT_BYTES,
   STACKCHAN_MAX_PAYLOAD_BYTES,
-  type StackChanFrame,
   StackChanEventDecoder,
   StackChanEventEncoder,
+  type StackChanFrame,
   StackChanFrameParser,
   StackChanFrameType,
 } from 'stackchan-usb-protocol'
@@ -29,12 +37,6 @@ import {
   readUsbSerial,
   writeUsbSerial,
 } from 'stackchan-usb-serial'
-import {
-  type UsbEventSendResult,
-  type UsbEventTransportState,
-  usbEventTransportState,
-} from 'stackchan-usb-event-transport'
-import { MicrophoneSessionGuard } from 'stackchan-usb-microphone-session'
 import { SpeakerPlaybackBuffer } from 'stackchan-usb-speaker-buffer'
 import { SpeakerSessionGuard } from 'stackchan-usb-speaker-session'
 import { StreamTxQueue } from 'stackchan-usb-stream-tx-queue'
@@ -60,6 +62,8 @@ const MAX_CAPTION_BYTES = 1024
 const MAX_QUEUED_CAPTIONS = 16
 const POLL_MILLISECONDS = 2
 const MAX_TX_QUEUE_BYTES = 16 * 1024
+const MAX_PENDING_EVENT_FRAMES = 128
+const MAX_PENDING_EVENT_BYTES = STACKCHAN_MAX_EVENT_BYTES + MAX_PENDING_EVENT_FRAMES * STACKCHAN_FRAME_OVERHEAD_BYTES
 const DIAGNOSTIC_INTERVAL_MILLISECONDS = 100
 
 export type UsbAudioMicrophoneInputOptions = {
@@ -145,7 +149,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   #transportStateHandler: ((state: UsbEventTransportState) => void) | undefined
   #connected = false
   #transportState: UsbEventTransportState = 'disconnected'
-  #pendingEventFrames: StackChanFrame[] = []
+  #pendingEventFrames = new BoundedEventFrameQueue(MAX_PENDING_EVENT_FRAMES, MAX_PENDING_EVENT_BYTES)
   #peerMaxPayload = STACKCHAN_MAX_PAYLOAD_BYTES
   #peerCapabilities = 0
   #readBuffer = new Uint8Array(USB_RX_READ_BYTES)
@@ -228,12 +232,14 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
 
   sendEvent(event: string): UsbEventSendResult {
     if (this.#transportState !== 'ready') return this.#transportState
-    this.#pendingEventFrames.push(...this.#eventEncoder.encode(this.#textEncoder.encode(event), this.#peerMaxPayload))
+    const frames = this.#eventEncoder.encode(this.#textEncoder.encode(event), this.#peerMaxPayload)
+    if (!this.#pendingEventFrames.tryEnqueue(frames)) return 'overflow'
     this.#flushEventFrames()
     return 'queued'
   }
 
   close(): void {
+    if (bridge === this) bridge = undefined
     if (this.#timer) Timer.clear(this.#timer)
     this.#timer = undefined
     this.#resetConnectionSession()
@@ -284,7 +290,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     this.#parser.reset()
     this.#eventDecoder.reset()
     this.#eventEncoder.reset()
-    this.#pendingEventFrames = []
+    this.#pendingEventFrames.clear()
     this.#peerMaxPayload = STACKCHAN_MAX_PAYLOAD_BYTES
     this.#peerCapabilities = 0
     this.#controlSequence = 0
@@ -341,9 +347,10 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
 
   #flushEventFrames(): void {
     while (this.#pendingEventFrames.length > 0) {
-      const frame = this.#pendingEventFrames[0]
+      const frame = this.#pendingEventFrames.current()
+      if (!frame) return
       if (!this.#send(frame)) return
-      this.#pendingEventFrames.shift()
+      this.#pendingEventFrames.advance()
     }
   }
 
@@ -429,7 +436,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     this.#stopSpeaker(false)
     this.#setPresentationStatus(StackChanStatus.IDLE)
     this.#eventDecoder.reset()
-    this.#pendingEventFrames = []
+    this.#pendingEventFrames.clear()
     this.#peerMaxPayload = Math.min(peerMaxPayload, STACKCHAN_MAX_PAYLOAD_BYTES)
     this.#peerCapabilities = peerCapabilities
     const payload = new Uint8Array(8)
@@ -645,7 +652,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   #abortSpeaker(frame: StackChanFrame): void {
     const streamId = frame.streamId ?? 0
     const result = this.#speakerSession.abort(streamId, frame.sampleRate ?? 0, frame.payload?.byteLength ?? 0)
-    if (result === MediaSessionResult.STALE) return
+    if (result === MediaSessionResult.STALE || result === MediaSessionResult.IDEMPOTENT) return
     if (result !== MediaSessionResult.ACCEPTED) {
       this.#sendError(StackChanErrorCode.INVALID_STREAM_DATA, streamId)
       return
@@ -883,7 +890,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     const speaker = this.#speaker
     const queuedBytes = this.#speakerBuffer.pcmBytes + (speaker?.bufferedBytes ?? 0)
     let flags = 0
-    if (speaker?.physicalAudioActive || speaker) flags |= StackChanDiagnosticFlag.AUDIO_ACTIVE
+    if (speaker?.physicalAudioActive) flags |= StackChanDiagnosticFlag.AUDIO_ACTIVE
     if (this.#speakerEnded) flags |= StackChanDiagnosticFlag.SPEAKER_ENDED
     if (this.#speakerAwaitingDrain || speaker?.physicalAwaitingDrain) {
       flags |= StackChanDiagnosticFlag.AWAITING_DRAIN
@@ -970,8 +977,16 @@ let bridge: UsbAudioBridge | undefined
 
 export function startUsbAudioBridge(options: UsbAudioBridgeOptions = {}): UsbAudioBridgeControl {
   if (!bridge) {
-    bridge = new UsbAudioBridge(options)
-    bridge.start()
+    const next = new UsbAudioBridge(options)
+    try {
+      next.start()
+    } catch (error) {
+      try {
+        next.close()
+      } catch {}
+      throw error
+    }
+    bridge = next
   }
   return bridge
 }

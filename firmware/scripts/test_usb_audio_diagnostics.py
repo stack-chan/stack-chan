@@ -243,7 +243,7 @@ class ReplayTraceTest(unittest.TestCase):
                 self.write_record(
                     started_us=1_100,
                     frame_type=diagnostics.TYPE_CONTROL,
-                    flags=16,
+                    flags=diagnostics.CONTROL_MIC_START,
                     sequence=2,
                     payload_bytes=0,
                 ),

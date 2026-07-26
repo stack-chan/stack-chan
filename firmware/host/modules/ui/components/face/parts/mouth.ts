@@ -1,5 +1,5 @@
 import type { FaceSkinPalette } from 'face-skin'
-import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber, toPiuColorString } from 'face-state'
+import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
 import { type Port as PiuPort, Port } from 'piu/MC'
 
 export type MouthOptions = {
@@ -11,34 +11,24 @@ export type MouthOptions = {
   maxHeight?: number
 }
 
-const CLEAR_COLOR = 'transparent'
-let colorStringCache: Map<number, string> | null = null
-
-function colorString(color: number): string {
-  if (!colorStringCache) colorStringCache = new Map()
-  const cached = colorStringCache.get(color)
-  if (cached) return cached
-  const value = toPiuColorString(color)
-  colorStringCache.set(color, value)
-  return value
-}
-
 class MouthBehavior extends Behavior {
   #minWidth = 50
   #maxWidth = 90
   #minHeight = 8
   #maxHeight = 58
-  #open = 0
-  #lastOpen = -1
+  #height = 0
   #primary = DEFAULT_FACE_PRIMARY_COLOR
   #hasPalette = false
+  #width = 0
+  #x = 0
+  #y = 0
 
   onCreate(port: PiuPort, opts: Required<MouthOptions>) {
     this.#minWidth = opts.minWidth
     this.#maxWidth = opts.maxWidth
     this.#minHeight = opts.minHeight
     this.#maxHeight = opts.maxHeight
-    port.invalidate()
+    this.updateRect(port, 0, true)
   }
 
   onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
@@ -46,36 +36,43 @@ class MouthBehavior extends Behavior {
     const nextPrimary = palette.primaryColor
     if (nextPrimary === this.#primary) return
     this.#primary = nextPrimary
-    port.invalidate()
+    port.invalidate(this.#x, this.#y, this.#width, this.#height)
   }
 
   onFaceState(port: PiuPort, face: FaceState) {
-    const open = face.mouth.open
-    let needsDraw = false
     if (!this.#hasPalette) {
       const nextPrimary = toPiuColorNumber(face.theme.primary)
       if (nextPrimary !== this.#primary) {
         this.#primary = nextPrimary
-        needsDraw = true
+        port.invalidate(this.#x, this.#y, this.#width, this.#height)
       }
     }
-    if (open === this.#lastOpen && !needsDraw) return
-    this.#lastOpen = open
-    this.#open = open
-    port.invalidate()
+    this.updateRect(port, face.mouth.open)
   }
 
-  onDraw(port: PiuPort) {
-    port.fillColor(CLEAR_COLOR, 0, 0, this.#maxWidth, this.#maxHeight)
-    const h = this.#minHeight + (this.#maxHeight - this.#minHeight) * this.#open
-    const w = this.#minWidth + (this.#maxWidth - this.#minWidth) * (1 - this.#open)
-    port.fillColor(
-      colorString(this.#primary),
-      Math.round((this.#maxWidth - w) / 2),
-      Math.round((this.#maxHeight - h) / 2),
-      Math.round(w),
-      Math.round(h),
-    )
+  onDraw(port: PiuPort, x = 0, y = 0, width = this.#maxWidth, height = this.#maxHeight) {
+    const left = Math.max(x, this.#x)
+    const top = Math.max(y, this.#y)
+    const right = Math.min(x + width, this.#x + this.#width)
+    const bottom = Math.min(y + height, this.#y + this.#height)
+    if (right > left && bottom > top) {
+      port.fillColor(((this.#primary << 8) | 0xff) >>> 0, left, top, right - left, bottom - top)
+    }
+  }
+
+  private updateRect(port: PiuPort, openValue: number, force = false): void {
+    const open = Math.max(0, Math.min(1, openValue))
+    const height = Math.round(this.#minHeight + (this.#maxHeight - this.#minHeight) * open)
+    const width = Math.round(this.#minWidth + (this.#maxWidth - this.#minWidth) * (1 - open))
+    const x = Math.round((this.#maxWidth - width) / 2)
+    const y = Math.round((this.#maxHeight - height) / 2)
+    if (!force && x === this.#x && y === this.#y && width === this.#width && height === this.#height) return
+    if (this.#width > 0 && this.#height > 0) port.invalidate(this.#x, this.#y, this.#width, this.#height)
+    this.#x = x
+    this.#y = y
+    this.#width = width
+    this.#height = height
+    port.invalidate(x, y, width, height)
   }
 }
 

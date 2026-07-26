@@ -1,7 +1,7 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { RobotCamera } from 'camera'
 import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
-import type { Emotion, FaceEyeKey, FaceState, FaceThemeKey } from 'face-state'
+import type { Emotion, EmotionTransitionOptions, FaceEyeKey, FaceState, FaceThemeKey } from 'face-state'
 import type { HandAnimationName } from 'hands'
 import type IMU from 'imu'
 import type { ButtonInputEvent } from 'input-event'
@@ -98,7 +98,7 @@ export type DrawerCapability = {
 
 export type FaceCapability = {
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void
-  setEmotion(emotion: Emotion): void
+  setEmotion(emotion: Emotion, options?: EmotionTransitionOptions): void
   setEyeOpen(key: FaceEyeKey, value: number): void
   setMouthOpen(value: number): void
 }

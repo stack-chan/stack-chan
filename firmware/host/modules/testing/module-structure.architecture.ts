@@ -370,7 +370,8 @@ test('UI palette state stays numeric and converts colors at Piu render boundarie
   assert.match(emoticon, /function primaryColor\(face\?: FaceState\): number/)
   assert.match(emoticon, /function secondaryColor\(face\?: FaceState\): number/)
   assert.match(emoticon, /function drawSpriteCell\([^)]*color: number/)
-  assert.match(emoticon, /drawTexture\(\s*getEmoticonTexture\(\),\s*colorString\(color\)/)
+  assert.match(emoticon, /drawTexture\(\s*getEmoticonTexture\(\),\s*\(\(color << 8\) \| 0xff\) >>> 0/)
+  assert.doesNotMatch(emoticon, /colorString\(/)
 })
 
 test('shared fakes live in modules/testing and module-local fakes stay under module tests', () => {

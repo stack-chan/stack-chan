@@ -9,12 +9,18 @@ import type {
 } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import {
+  copyEffectiveEmotionWeights,
+  createEmotionWeights,
   createFaceState,
+  DEFAULT_EMOTION_TRANSITION_MS,
   type Emotion,
+  type EmotionTransitionOptions,
+  type EmotionWeights,
   type FaceEyeKey,
   type FaceState,
   type FaceThemeKey,
   setColorRGB,
+  writeEmotionTransition,
 } from 'face-state'
 import {
   type Pose,
@@ -48,6 +54,9 @@ export class StackchanRuntimeUI {
   #drawerButtonStates = new Map<string, boolean>()
   #drawerRegistry: DrawerCapability
   #emotion: Emotion
+  #emotionTransitionDuration = 0
+  #emotionTransitionElapsed = 0
+  #emotionTransitionStart: EmotionWeights = createEmotionWeights()
   #eyeOpen = { left: 1, right: 1 }
   #eyeGazePoint: Vector3 = [0, 0, 0]
   #eyeGazeRotation: Rotation = { y: 0, p: 0, r: 0 }
@@ -104,8 +113,24 @@ export class StackchanRuntimeUI {
     setColorRGB(this.#faceState.theme[key], r, g, b)
   }
 
-  setEmotion(emotion: Emotion) {
+  setEmotion(emotion: Emotion, options?: EmotionTransitionOptions) {
+    const requestedDuration = options?.durationMs ?? DEFAULT_EMOTION_TRANSITION_MS
+    const duration = Number.isFinite(requestedDuration) ? Math.max(0, requestedDuration) : DEFAULT_EMOTION_TRANSITION_MS
+    if (emotion === this.#emotion && this.#emotionTransitionDuration === 0) return
+    if (emotion === this.#emotion && duration > 0) return
+
+    copyEffectiveEmotionWeights(this.#faceState, this.#emotionTransitionStart)
     this.#emotion = emotion
+    this.#faceState.emotion = emotion
+    if (duration === 0) {
+      this.#emotionTransitionDuration = 0
+      this.#emotionTransitionElapsed = 0
+      writeEmotionTransition(this.#faceState, this.#emotionTransitionStart, emotion, 1)
+      return
+    }
+    this.#emotionTransitionDuration = duration
+    this.#emotionTransitionElapsed = 0
+    writeEmotionTransition(this.#faceState, this.#emotionTransitionStart, emotion, 0)
   }
 
   setEyeOpen(key: FaceEyeKey, value: number) {
@@ -133,6 +158,7 @@ export class StackchanRuntimeUI {
     this.#faceState.eyes.left.open = this.#eyeOpen.left
     this.#faceState.eyes.right.open = this.#eyeOpen.right
     this.#faceState.emotion = this.#emotion
+    this.updateEmotionTransition(interval)
 
     if (gazePoint != null) {
       writeBodyRelativeVector3(this.#relativeGazePoint, gazePoint, pose.body.rotation)
@@ -147,6 +173,20 @@ export class StackchanRuntimeUI {
     }
 
     this.#ui.update(interval, this.#faceState)
+  }
+
+  private updateEmotionTransition(interval: number): void {
+    const duration = this.#emotionTransitionDuration
+    if (duration <= 0) return
+    const elapsed = this.#emotionTransitionElapsed + Math.max(0, interval)
+    this.#emotionTransitionElapsed = Math.min(duration, elapsed)
+    const linear = this.#emotionTransitionElapsed / duration
+    const eased = linear * linear * (3 - 2 * linear)
+    writeEmotionTransition(this.#faceState, this.#emotionTransitionStart, this.#emotion, eased)
+    if (linear >= 1) {
+      this.#emotionTransitionDuration = 0
+      this.#emotionTransitionElapsed = 0
+    }
   }
 
   private addDrawerButton({ key, label, callback, kind, initialState, value, options, icon }: DrawerButtonSpec): void {

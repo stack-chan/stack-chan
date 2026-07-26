@@ -1,95 +1,87 @@
-import { Outline } from 'commodetto/outline'
 import type { FaceSkinPalette } from 'face-skin'
 import { DEFAULT_FACE_PRIMARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
-import { getFillStrokeSkin, quantizeUnit, rememberCachedValue, unitFromStep } from 'parts/shape-utils'
-import type { Skin as PiuSkin } from 'piu/MC'
-import type { Shape as PiuShape } from 'piu/shape'
-import { defineShapeTemplate } from 'template'
+import { Gray16Mask } from 'parts/gray16-mask'
+import Gray16MaskPort from 'parts/gray16-mask-port'
+import { quantizeUnit, unitFromStep } from 'parts/shape-utils'
+import type { Port as PiuPort } from 'piu/MC'
 
 export type DogNoseOptions = {
   cx: number
   cy: number
   minHeight?: number
   maxHeight?: number
+  /** Retained for Face Editor source compatibility; local bounds are always used. */
   canvasWidth?: number
+  /** Retained for Face Editor source compatibility; local bounds are always used. */
   canvasHeight?: number
 }
 
-type PositionedShape = Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
-  skin?: PiuSkin
-  state?: number
-  fillOutline?: Outline
-  strokeOutline?: Outline
+type MaskPort = PiuPort & {
+  drawGray: (mask: Gray16Mask, color: number) => void
 }
 
-let dogNoseOutlineCache: Map<string, Outline> | null = null
+export const DogNose = Gray16MaskPort.template((opts: DogNoseOptions) => {
+  const minHeight = opts.minHeight ?? 8
+  const maxHeight = opts.maxHeight ?? 24
+  const left = Math.floor(opts.cx - 10)
+  const top = Math.floor(opts.cy - maxHeight / 2 - 20)
+  const width = 20
+  const height = Math.ceil((maxHeight - minHeight) / 2 + 18)
+  const mask = new Gray16Mask(width, height)
 
-function getDogNoseFillOutline(
-  cx: number,
-  cy: number,
-  minHeight: number,
-  maxHeight: number,
-  openStep: number,
-): Outline {
-  if (!dogNoseOutlineCache) dogNoseOutlineCache = new Map()
-  const key = `${cx}:${cy}:${minHeight}:${maxHeight}:${openStep}`
-  const cached = dogNoseOutlineCache.get(key)
-  if (cached) return cached
-
-  const open = unitFromStep(openStep)
-  const h = minHeight + (maxHeight - minHeight) * open
-  const y = cy - h / 2
-  const path = new Outline.CanvasPath()
-  path.moveTo(cx - 8, y - 16)
-  path.quadraticCurveTo(cx, y - 18, cx + 8, y - 16)
-  path.bezierCurveTo(cx + 6, y - 4, cx - 6, y - 4, cx - 8, y - 16)
-  path.closePath()
-
-  const outline = Outline.fill(path)
-  return rememberCachedValue(dogNoseOutlineCache, key, outline)
-}
-
-export const DogNose = defineShapeTemplate((opts: DogNoseOptions) => {
-  const { cx, cy, minHeight = 8, maxHeight = 24, canvasWidth = 320, canvasHeight = 200 } = opts
+  function updateMask(openStep: number): void {
+    const open = unitFromStep(openStep)
+    const mouthHeight = minHeight + (maxHeight - minHeight) * open
+    const y = opts.cy - mouthHeight / 2 - top
+    const centerX = opts.cx - left
+    mask.clear()
+    mask.fillTriangle(centerX - 8, y - 16, centerX + 8, y - 16, centerX, y - 4)
+    mask.fillRotatedEllipse(centerX, y - 15.5, 8, 2.5, 0)
+  }
 
   return {
-    left: 0,
-    top: 0,
-    width: canvasWidth,
-    height: canvasHeight,
-    skin: getFillStrokeSkin(DEFAULT_FACE_PRIMARY_COLOR),
+    left,
+    top,
+    width,
+    height,
     Behavior: class extends Behavior {
       #lastOpenStep = -1
       #palette: FaceSkinPalette | null = null
       #primary = DEFAULT_FACE_PRIMARY_COLOR
+      revision = 0
 
-      onCreate(shape: PositionedShape) {
-        this.#updatePath(shape, quantizeUnit(0))
+      onCreate(port: PiuPort) {
+        this.update(port, quantizeUnit(0))
       }
 
-      onFaceSkin(shape: PositionedShape, palette: FaceSkinPalette) {
+      onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
         this.#palette = palette
-        shape.skin = palette.primary
+        if (this.#primary === palette.primaryColor) return
+        this.#primary = palette.primaryColor
+        port.invalidate()
       }
 
-      onFaceState(shape: PositionedShape, face: FaceState) {
+      onFaceState(port: PiuPort, face: FaceState) {
         if (!this.#palette) {
           const primary = toPiuColorNumber(face.theme.primary)
           if (primary !== this.#primary) {
             this.#primary = primary
-            shape.skin = getFillStrokeSkin(primary)
+            port.invalidate()
           }
         }
-
-        const openStep = quantizeUnit(face.mouth.open)
-        if (openStep === this.#lastOpenStep) return
-        this.#updatePath(shape, openStep)
+        this.update(port, quantizeUnit(face.mouth.open))
       }
 
-      #updatePath(shape: PositionedShape, openStep: number) {
+      update(port: PiuPort, openStep: number) {
+        if (openStep === this.#lastOpenStep) return
         this.#lastOpenStep = openStep
-        shape.fillOutline = getDogNoseFillOutline(cx, cy, minHeight, maxHeight, openStep)
-        shape.strokeOutline = undefined
+        updateMask(openStep)
+        this.revision++
+        port.invalidate()
+      }
+
+      onDraw(port: MaskPort) {
+        port.drawGray(mask, this.#primary)
       }
     },
   }

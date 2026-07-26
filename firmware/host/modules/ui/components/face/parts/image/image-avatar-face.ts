@@ -1,5 +1,5 @@
 import { FaceBase, type FaceBaseParams } from 'behaviors/face'
-import type { FaceState } from 'face-state'
+import { dominantEmotion, type FaceState } from 'face-state'
 import {
   getImageAvatarPack,
   type ImageAvatarEyeSprite,
@@ -83,7 +83,7 @@ const ExpressionSprite = Content.template((opts: ExpressionSpriteContentParams) 
     Behavior: class extends Behavior {
       lastExpression = opts.pack.defaultExpression
       onFaceState(content: PositionedContent, face: FaceState) {
-        const expression = resolveExpressionName(opts.pack, face.emotion)
+        const expression = resolveExpressionName(opts.pack, dominantEmotion(face))
         if (expression === this.lastExpression) return
         this.lastExpression = expression
         const sprite = opts.resolveSprite(opts.pack, expression)
@@ -118,7 +118,7 @@ const AnimatedSprite = Content.template((opts: AnimatedSpriteContentParams) => {
       lastY = initialSource.y
 
       onFaceState(content: PositionedContent, face: FaceState) {
-        const expression = resolveExpressionName(opts.pack, face.emotion)
+        const expression = resolveExpressionName(opts.pack, dominantEmotion(face))
         if (expression !== this.lastExpression) {
           this.lastExpression = expression
           const source = opts.resolveSource(opts.pack, expression)

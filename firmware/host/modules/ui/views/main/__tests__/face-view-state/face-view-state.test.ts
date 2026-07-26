@@ -2,7 +2,7 @@ import { AppController } from 'app-controller'
 import { FaceBehavior } from 'behaviors/face'
 import type { StackchanContext } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
-import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
+import { createFaceState, Emotion, emotionWeight, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
 import {
   Application,
   Container,
@@ -20,6 +20,9 @@ type RecorderContent = Content & {
   contextPrimary?: number
   eyeOpenLeft?: number
   eyeOpenRight?: number
+  emotion?: number
+  angryWeight?: number
+  sadWeight?: number
   mouthOpen?: number
   skinPrimary?: number
   contextHits?: number
@@ -122,6 +125,9 @@ const TestFace = Container.template(() => ({
           content.contextPrimary = toPiuColorNumber(face.theme.primary)
           content.eyeOpenLeft = face.eyes.left.open
           content.eyeOpenRight = face.eyes.right.open
+          content.emotion = face.emotion
+          content.angryWeight = emotionWeight(face, Emotion.ANGRY)
+          content.sadWeight = emotionWeight(face, Emotion.SAD)
           content.mouthOpen = face.mouth.open
           content.contextHits = (content.contextHits ?? 0) + 1
         }
@@ -436,6 +442,23 @@ faceBehavior.onTimeChanged(nextFace)
 equal(recorder.eyeOpenLeft, 0.25, 'runtime face API should apply the left eyelid independently')
 equal(recorder.eyeOpenRight, 0.75, 'runtime face API should apply the right eyelid independently')
 equal(recorder.mouthOpen, 0.5, 'runtime face API should apply mouth opening')
+runtimeUI.setEmotion(Emotion.ANGRY)
+runtimeUI.updateFace(125)
+faceBehavior.onTimeChanged(nextFace)
+equal(recorder.emotion, Emotion.ANGRY, 'runtime emotion should expose the target immediately for discrete effects')
+equal(recorder.angryWeight, 0.5, 'default emotion transition should reach its eased midpoint after 125 ms')
+runtimeUI.setEmotion(Emotion.SAD)
+runtimeUI.updateFace(125)
+faceBehavior.onTimeChanged(nextFace)
+equal(recorder.emotion, Emotion.SAD, 'an interrupted transition should expose its new target immediately')
+equal(recorder.angryWeight, 0.25, 'an interrupted transition should preserve and fade its current angry weight')
+equal(recorder.sadWeight, 0.5, 'an interrupted transition should blend toward its new target')
+runtimeUI.setEmotion(Emotion.SAD, { durationMs: 0 })
+runtimeUI.updateFace(0)
+faceBehavior.onTimeChanged(nextFace)
+equal(recorder.emotion, Emotion.SAD, 'durationMs 0 should switch the emotion immediately')
+equal(recorder.angryWeight, 0, 'an immediate transition should clear the previous expression weight')
+equal(recorder.sadWeight, 1, 'an immediate transition should set a one-hot target expression')
 runtimeUI.showBalloon('runtime balloon')
 
 const runtimeBalloon = appData.EFFECTS?.last

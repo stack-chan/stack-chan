@@ -1,6 +1,7 @@
 {
   "include": ["./manifest.json"],
   "config": {
-    "enablePowerButton": false
+    "enablePowerButton": false,
+    "startupSound": false
   }
 }

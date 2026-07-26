@@ -1,11 +1,5 @@
 import { SPRITE_PULSE_FRAME_COUNT, spritePulseVariantForFraction } from 'effects/emoticon-pulse'
-import {
-  DEFAULT_FACE_PRIMARY_COLOR,
-  DEFAULT_FACE_SECONDARY_COLOR,
-  type FaceState,
-  toPiuColorNumber,
-  toPiuColorString,
-} from 'face-state'
+import { DEFAULT_FACE_PRIMARY_COLOR, DEFAULT_FACE_SECONDARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
 import {
   Container,
   type Content as PiuContent,
@@ -79,7 +73,6 @@ type DropConfig = {
 
 const SPRITE_CELL_SIZE = 32
 const SPRITE_FRAME_COUNT = SPRITE_PULSE_FRAME_COUNT
-const CLEAR_COLOR = 'transparent'
 const HEART_ROW = 0
 const ANGRY_ROW = 1
 const DROP_ROW = 2
@@ -132,20 +125,10 @@ const TEAR_CONFIG: DropConfig = Object.freeze({
 })
 
 let emoticonTexture: PiuTexture | null = null
-let colorStringCache: Map<number, string> | null = null
 
 function getEmoticonTexture() {
   if (!emoticonTexture) emoticonTexture = new Texture('emoticon.png')
   return emoticonTexture
-}
-
-function colorString(color: number): string {
-  if (!colorStringCache) colorStringCache = new Map()
-  const cached = colorStringCache.get(color)
-  if (cached) return cached
-  const value = toPiuColorString(color)
-  colorStringCache.set(color, value)
-  return value
 }
 
 function primaryColor(face?: FaceState): number {
@@ -177,13 +160,29 @@ function drawSpriteCell(port: PiuPort, row: number, variant: number, color: numb
   const frame = clamp(variant, 0, SPRITE_FRAME_COUNT - 1)
   port.drawTexture(
     getEmoticonTexture(),
-    colorString(color),
+    ((color << 8) | 0xff) >>> 0,
     Math.round(x),
     Math.round(y),
     frame * SPRITE_CELL_SIZE,
     row * SPRITE_CELL_SIZE,
     SPRITE_CELL_SIZE,
     SPRITE_CELL_SIZE,
+  )
+}
+
+function intersectsCell(
+  dirtyX: number,
+  dirtyY: number,
+  dirtyWidth: number,
+  dirtyHeight: number,
+  cellX: number,
+  cellY: number,
+): boolean {
+  return (
+    dirtyX < cellX + SPRITE_CELL_SIZE &&
+    dirtyX + dirtyWidth > cellX &&
+    dirtyY < cellY + SPRITE_CELL_SIZE &&
+    dirtyY + dirtyHeight > cellY
   )
 }
 
@@ -205,7 +204,7 @@ class SpritePulseBehavior extends Behavior {
   }
 
   onDisplaying(port: PiuPort) {
-    port.invalidate()
+    this.#invalidateSprite(port)
     port.start()
   }
 
@@ -218,26 +217,25 @@ class SpritePulseBehavior extends Behavior {
     const nextVariant = spritePulseVariantForFraction(this.#fraction)
     if (nextVariant === this.#variant) return
     this.#variant = nextVariant
-    port.invalidate()
+    this.#invalidateSprite(port)
   }
 
   onFaceState(port: PiuPort, face: FaceState) {
     const nextPrimary = primaryColor(face)
     if (nextPrimary === this.#primary) return
     this.#primary = nextPrimary
-    port.invalidate()
+    this.#invalidateSprite(port)
   }
 
-  onDraw(port: PiuPort) {
-    port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
-    drawSpriteCell(
-      port,
-      this.#row,
-      this.#variant,
-      this.#primary,
-      centeredSpriteX(this.#width),
-      centeredSpriteY(this.#height),
-    )
+  onDraw(port: PiuPort, x = 0, y = 0, width = this.#width, height = this.#height) {
+    const spriteX = centeredSpriteX(this.#width)
+    const spriteY = centeredSpriteY(this.#height)
+    if (!intersectsCell(x, y, width, height, spriteX, spriteY)) return
+    drawSpriteCell(port, this.#row, this.#variant, this.#primary, spriteX, spriteY)
+  }
+
+  #invalidateSprite(port: PiuPort) {
+    port.invalidate(centeredSpriteX(this.#width), centeredSpriteY(this.#height), SPRITE_CELL_SIZE, SPRITE_CELL_SIZE)
   }
 }
 
@@ -275,7 +273,7 @@ class DropBehavior extends Behavior {
 
   onDisplaying(port: PiuPort) {
     this.#advance(0)
-    port.invalidate()
+    this.#invalidateDrops(port)
     port.start()
   }
 
@@ -284,28 +282,35 @@ class DropBehavior extends Behavior {
   }
 
   onTimeChanged(port: PiuPort) {
+    this.#invalidateDrops(port)
     this.#advance(port.interval ?? this.#interval)
-    port.invalidate()
+    this.#invalidateDrops(port)
   }
 
   onFaceState(port: PiuPort, face: FaceState) {
     const nextPrimary = primaryColor(face)
     if (nextPrimary === this.#primary) return
     this.#primary = nextPrimary
-    port.invalidate()
+    this.#invalidateDrops(port)
   }
 
-  onDraw(port: PiuPort) {
-    port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
+  onDraw(port: PiuPort, x = 0, y = 0, width = this.#width, height = this.#height) {
     for (const drop of this.#drops) {
+      const spriteX = Math.round(drop.x - SPRITE_CELL_SIZE / 2)
+      const spriteY = Math.round(drop.y - SPRITE_CELL_SIZE / 2)
+      if (!intersectsCell(x, y, width, height, spriteX, spriteY)) continue
       const variant = spriteVariantForScale(drop.scale, this.#minScale, this.#holdScale)
-      drawSpriteCell(
-        port,
-        DROP_ROW,
-        variant,
-        this.#primary,
-        drop.x - SPRITE_CELL_SIZE / 2,
-        drop.y - SPRITE_CELL_SIZE / 2,
+      drawSpriteCell(port, DROP_ROW, variant, this.#primary, spriteX, spriteY)
+    }
+  }
+
+  #invalidateDrops(port: PiuPort) {
+    for (const drop of this.#drops) {
+      port.invalidate(
+        Math.round(drop.x - SPRITE_CELL_SIZE / 2),
+        Math.round(drop.y - SPRITE_CELL_SIZE / 2),
+        SPRITE_CELL_SIZE,
+        SPRITE_CELL_SIZE,
       )
     }
   }
@@ -400,7 +405,7 @@ class SleepyBubbleBehavior extends Behavior {
 
   onDisplaying(port: PiuPort) {
     this.#advance()
-    port.invalidate()
+    this.#invalidateBubbles(port)
     port.start()
   }
 
@@ -409,8 +414,9 @@ class SleepyBubbleBehavior extends Behavior {
   }
 
   onTimeChanged(port: PiuPort) {
+    this.#invalidateBubbles(port)
     this.#advance()
-    port.invalidate()
+    this.#invalidateBubbles(port)
   }
 
   onFaceState(port: PiuPort, face: FaceState) {
@@ -419,21 +425,28 @@ class SleepyBubbleBehavior extends Behavior {
     if (nextPrimary === this.#primary && nextSecondary === this.#secondary) return
     this.#primary = nextPrimary
     this.#secondary = nextSecondary
-    port.invalidate()
+    this.#invalidateBubbles(port)
   }
 
-  onDraw(port: PiuPort) {
-    port.fillColor(CLEAR_COLOR, 0, 0, this.#width, this.#height)
+  onDraw(port: PiuPort, x = 0, y = 0, width = this.#width, height = this.#height) {
     for (const bubble of this.#bubbles) {
       const variant = clamp(Math.round((bubble.r - 3) / 3), 0, SPRITE_FRAME_COUNT - 1)
       const cy = this.#height - bubble.y
-      drawSpriteCell(
-        port,
-        BUBBLE_ROW,
-        variant,
-        this.#primary,
-        bubble.x - SPRITE_CELL_SIZE / 2,
-        cy - SPRITE_CELL_SIZE / 2,
+      const spriteX = Math.round(bubble.x - SPRITE_CELL_SIZE / 2)
+      const spriteY = Math.round(cy - SPRITE_CELL_SIZE / 2)
+      if (!intersectsCell(x, y, width, height, spriteX, spriteY)) continue
+      drawSpriteCell(port, BUBBLE_ROW, variant, this.#primary, spriteX, spriteY)
+    }
+  }
+
+  #invalidateBubbles(port: PiuPort) {
+    for (const bubble of this.#bubbles) {
+      const cy = this.#height - bubble.y
+      port.invalidate(
+        Math.round(bubble.x - SPRITE_CELL_SIZE / 2),
+        Math.round(cy - SPRITE_CELL_SIZE / 2),
+        SPRITE_CELL_SIZE,
+        SPRITE_CELL_SIZE,
       )
     }
   }

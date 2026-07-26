@@ -14,7 +14,7 @@ import type {
   ShowBalloonOptions,
   StackchanContext,
 } from 'capabilities'
-import type { Emotion, FaceEyeKey, FaceThemeKey } from 'face-state'
+import type { Emotion, EmotionTransitionOptions, FaceEyeKey, FaceThemeKey } from 'face-state'
 import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
@@ -322,9 +322,10 @@ export class StackchanRuntimeContext implements StackchanContext {
    * and its facial expressions.
    *
    * @param emotion - emotion
+   * @param options - transition duration; omit for a 250 ms ease-in-out blend
    */
-  setEmotion(emotion: Emotion) {
-    this.#uiRuntime.setEmotion(emotion)
+  setEmotion(emotion: Emotion, options?: EmotionTransitionOptions) {
+    this.#uiRuntime.setEmotion(emotion, options)
   }
 
   setEyeOpen(key: FaceEyeKey, value: number) {
@@ -403,7 +404,7 @@ export class StackchanRuntimeContext implements StackchanContext {
   private createFaceCapability(): FaceCapability {
     return {
       setColor: (key, r, g, b) => this.setColor(key, r, g, b),
-      setEmotion: (emotion) => this.setEmotion(emotion),
+      setEmotion: (emotion, options) => this.setEmotion(emotion, options),
       setEyeOpen: (key, value) => this.setEyeOpen(key, value),
       setMouthOpen: (value) => this.setMouthOpen(value),
     }

@@ -1,17 +1,15 @@
-import { Outline } from 'commodetto/outline'
 import type { FaceSkinPalette } from 'face-skin'
 import {
   DEFAULT_FACE_PRIMARY_COLOR,
   DEFAULT_FACE_SECONDARY_COLOR,
-  Emotion,
   type FaceEyeKey,
   type FaceState,
   toPiuColorNumber,
 } from 'face-state'
-import { FULL_TURN, getFillSkin, quantizeUnit, rememberCachedValue, unitFromStep } from 'parts/shape-utils'
-import type { Container as PiuContainer, Skin as PiuSkin } from 'piu/MC'
-import type { Shape as PiuShape } from 'piu/shape'
-import { defineShapeTemplate } from 'template'
+import { createEyelidAperture, type EyelidAperture, writeEyelidAperture } from 'parts/eyelid-geometry'
+import { Gray16Mask } from 'parts/gray16-mask'
+import Gray16MaskPort from 'parts/gray16-mask-port'
+import type { Port as PiuPort } from 'piu/MC'
 
 export type EyeShape = 'circle' | 'roundRect'
 
@@ -28,190 +26,101 @@ export type EyeOptions = {
   eyelidHeight?: number
 }
 
-type IrisOptions = {
-  shape: EyeShape
+type MaskPort = PiuPort & {
+  drawGray: (mask: Gray16Mask, color: number) => void
+}
+
+type Rect = {
+  x: number
+  y: number
   width: number
   height: number
-  r: number
-  left: number
-  top: number
 }
 
-type EyelidOptions = {
-  cx: number
-  cy: number
-  width: number
-  height: number
-  side: FaceEyeKey
+function clamp(value: number, min: number, max: number): number {
+  if (value < min) return min
+  if (value > max) return max
+  return value
 }
 
-type PositionedShape = Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
-  skin?: PiuSkin
-  state?: number
-  fillOutline?: Outline
-  strokeOutline?: Outline
+function quantizeEdge(value: number): number {
+  return Math.round(value * 16) / 16
 }
 
-type PositionedContent = PiuShape & {
-  coordinates?: { left?: number; top?: number; width?: number; height?: number }
+function apertureChanged(left: Readonly<EyelidAperture>, right: Readonly<EyelidAperture>): boolean {
+  return (
+    left.topLeft !== right.topLeft ||
+    left.topRight !== right.topRight ||
+    left.bottomLeft !== right.bottomLeft ||
+    left.bottomRight !== right.bottomRight
+  )
 }
 
-let irisOutlineCache: Map<string, Outline> | null = null
-let eyelidOutlineCache: Map<string, Outline> | null = null
-
-function getIrisFillOutline(shape: EyeShape, width: number, height: number, r: number): Outline {
-  if (!irisOutlineCache) irisOutlineCache = new Map()
-  const key = `${shape}:${width}:${height}:${r}`
-  const cached = irisOutlineCache.get(key)
-  if (cached) return cached
-
-  let outline: Outline
-  if (shape === 'roundRect') {
-    outline = Outline.fill(Outline.RoundRectPath(0, 0, width, height, r))
-  } else {
-    const circle = new Outline.CanvasPath()
-    circle.arc(r, r, r, 0, FULL_TURN)
-    circle.closePath()
-    outline = Outline.fill(circle)
-  }
-  return rememberCachedValue(irisOutlineCache, key, outline)
+function copyAperture(src: Readonly<EyelidAperture>, dst: EyelidAperture): void {
+  dst.topLeft = src.topLeft
+  dst.topRight = src.topRight
+  dst.bottomLeft = src.bottomLeft
+  dst.bottomRight = src.bottomRight
 }
 
-function getEyelidFillOutline(
+function quantizeAperture(aperture: EyelidAperture): void {
+  aperture.topLeft = quantizeEdge(aperture.topLeft)
+  aperture.topRight = quantizeEdge(aperture.topRight)
+  aperture.bottomLeft = quantizeEdge(aperture.bottomLeft)
+  aperture.bottomRight = quantizeEdge(aperture.bottomRight)
+}
+
+function invalidateRect(port: PiuPort, rect: Readonly<Rect>, limitWidth: number, limitHeight: number): void {
+  const x = Math.max(0, Math.floor(rect.x - 1))
+  const y = Math.max(0, Math.floor(rect.y - 1))
+  const right = Math.min(limitWidth, Math.ceil(rect.x + rect.width + 1))
+  const bottom = Math.min(limitHeight, Math.ceil(rect.y + rect.height + 1))
+  if (right > x && bottom > y) port.invalidate(x, y, right - x, bottom - y)
+}
+
+function writeIrisRect(
+  rect: Rect,
+  baseLeft: number,
+  baseTop: number,
   width: number,
   height: number,
-  side: FaceEyeKey,
-  openStep: number,
-  emotion: FaceState['emotion'],
-): Outline {
-  if (!eyelidOutlineCache) eyelidOutlineCache = new Map()
-  const key = `${width}:${height}:${side}:${openStep}:${emotion}`
-  const cached = eyelidOutlineCache.get(key)
-  if (cached) return cached
-
-  const w = width
-  const h = height
-  const x = 0
-  const y = 0
-  const open = unitFromStep(openStep)
-  const closedH = h * (1 - open)
-  const path = new Outline.CanvasPath()
-
-  switch (emotion) {
-    case Emotion.ANGRY:
-    case Emotion.SAD: {
-      let h1 = y + (h + closedH) / 2
-      let h2 = y + closedH
-      if (side === 'left') {
-        ;[h1, h2] = [h2, h1]
-      }
-      if (emotion === Emotion.SAD) {
-        ;[h1, h2] = [h2, h1]
-      }
-      path.moveTo(x, y)
-      path.lineTo(x, h1)
-      path.lineTo(x + w, h2)
-      path.lineTo(x + w, y)
-      path.closePath()
-      break
-    }
-    case Emotion.SLEEPY:
-      path.rect(x, y, w, h * 0.5 + closedH * 0.5)
-      break
-    case Emotion.HAPPY:
-      path.rect(x, y, w, closedH * 0.6)
-      path.rect(x, y + h * 0.6, w, h * 0.4)
-      break
-    default:
-      path.rect(x, y, w, closedH)
-      break
-  }
-
-  const outline = Outline.fill(path)
-  return rememberCachedValue(eyelidOutlineCache, key, outline)
+  gazeX: number,
+  gazeY: number,
+): void {
+  rect.x = baseLeft + gazeX
+  rect.y = baseTop + gazeY
+  rect.width = width
+  rect.height = height
 }
 
-export const Eyelid = defineShapeTemplate((opts: EyelidOptions) => {
-  const { width, height, side } = opts
-  return {
-    left: opts.cx - width / 2,
-    top: opts.cy - height / 2,
-    width,
-    height,
-    skin: getFillSkin(DEFAULT_FACE_SECONDARY_COLOR),
-    Behavior: class extends Behavior {
-      #lastOpenStep = -1
-      #lastEmotion: FaceState['emotion'] | null = null
-      #palette: FaceSkinPalette | null = null
-      #secondary = DEFAULT_FACE_SECONDARY_COLOR
-
-      onCreate(shape: PositionedShape) {
-        this.#updatePath(shape, quantizeUnit(1), Emotion.NEUTRAL)
-      }
-
-      onFaceSkin(shape: PositionedShape, palette: FaceSkinPalette) {
-        this.#palette = palette
-        shape.skin = palette.secondary
-      }
-
-      onFaceState(shape: PositionedShape, face: FaceState) {
-        if (!this.#palette) {
-          const secondary = toPiuColorNumber(face.theme.secondary)
-          if (secondary !== this.#secondary) {
-            this.#secondary = secondary
-            shape.skin = getFillSkin(secondary)
-          }
-        }
-
-        const eye = face.eyes[side]
-        const openStep = quantizeUnit(eye.open)
-        const emotion = face.emotion
-        if (openStep === this.#lastOpenStep && emotion === this.#lastEmotion) return
-
-        this.#updatePath(shape, openStep, emotion)
-      }
-
-      #updatePath(shape: PositionedShape, openStep: number, emotion: FaceState['emotion']) {
-        this.#lastOpenStep = openStep
-        this.#lastEmotion = emotion
-        shape.fillOutline = getEyelidFillOutline(width, height, side, openStep, emotion)
-        shape.strokeOutline = undefined
-      }
-    },
+function fillIrisMask(mask: Gray16Mask, shape: EyeShape, rect: Readonly<Rect>, radius: number): void {
+  mask.clear()
+  if (shape === 'roundRect') {
+    mask.fillRoundRect(rect.x, rect.y, rect.width, rect.height, radius)
+  } else {
+    mask.fillCircle(rect.x + rect.width / 2, rect.y + rect.height / 2, radius)
   }
-})
+}
 
-const Iris = defineShapeTemplate((opts: IrisOptions) => {
-  return {
-    left: opts.left,
-    top: opts.top,
-    width: opts.width,
-    height: opts.height,
-    skin: getFillSkin(DEFAULT_FACE_PRIMARY_COLOR),
-    Behavior: class extends Behavior {
-      #palette: FaceSkinPalette | null = null
-      #primary = DEFAULT_FACE_PRIMARY_COLOR
-
-      onCreate(shape: PositionedShape) {
-        shape.fillOutline = getIrisFillOutline(opts.shape, opts.width, opts.height, opts.r)
-        shape.strokeOutline = undefined
-      }
-
-      onFaceSkin(shape: PositionedShape, palette: FaceSkinPalette) {
-        this.#palette = palette
-        shape.skin = palette.primary
-      }
-
-      onFaceState(shape: PositionedShape, face: FaceState) {
-        if (this.#palette) return
-        const primary = toPiuColorNumber(face.theme.primary)
-        if (primary === this.#primary) return
-        this.#primary = primary
-        shape.skin = getFillSkin(primary)
-      }
-    },
+function invalidateApertureChange(
+  port: PiuPort,
+  previous: Readonly<EyelidAperture>,
+  next: Readonly<EyelidAperture>,
+  width: number,
+  height: number,
+): void {
+  const topMin = Math.min(previous.topLeft, previous.topRight, next.topLeft, next.topRight)
+  const topMax = Math.max(previous.topLeft, previous.topRight, next.topLeft, next.topRight)
+  const bottomMin = Math.min(previous.bottomLeft, previous.bottomRight, next.bottomLeft, next.bottomRight)
+  const bottomMax = Math.max(previous.bottomLeft, previous.bottomRight, next.bottomLeft, next.bottomRight)
+  const topY = Math.max(0, Math.floor(topMin) - 1)
+  const topBottom = Math.min(height, Math.ceil(topMax) + 1)
+  if (topBottom > topY) port.invalidate(0, topY, width, topBottom - topY)
+  if (bottomMin < height || bottomMax < height) {
+    const y = Math.max(0, Math.floor(bottomMin) - 1)
+    port.invalidate(0, y, width, Math.min(height - y, Math.ceil(bottomMax) - y + 1))
   }
-})
+}
 
 export const Eye = Container.template((opts: EyeOptions) => {
   const shape = opts.shape ?? 'circle'
@@ -222,19 +131,137 @@ export const Eye = Container.template((opts: EyeOptions) => {
   const irisRadius = shape === 'roundRect' ? Math.max(0, Math.min(opts.r ?? 4, irisWidth / 2, irisHeight / 2)) : radius
   const eyelidWidth = opts.eyelidWidth ?? (shape === 'circle' ? radius * 3 : irisWidth)
   const eyelidHeight = opts.eyelidHeight ?? (shape === 'circle' ? radius * 3 : irisHeight)
-  const width = Math.max(irisWidth, eyelidWidth)
-  const height = Math.max(irisHeight, eyelidHeight)
+  const width = Math.ceil(Math.max(irisWidth, eyelidWidth))
+  const height = Math.ceil(Math.max(irisHeight, eyelidHeight))
   const irisBaseLeft = (width - irisWidth) / 2
   const irisBaseTop = (height - irisHeight) / 2
-  const irisBaseCoordinates = { left: irisBaseLeft, top: irisBaseTop, width: irisWidth, height: irisHeight }
-  const iris = new Iris({
-    shape,
+  const eyelidLeft = (width - eyelidWidth) / 2
+  const eyelidTop = (height - eyelidHeight) / 2
+  const irisMask = new Gray16Mask(width, height)
+  const eyelidMask = new Gray16Mask(eyelidWidth, height)
+  const initialIrisRect: Rect = {
+    x: irisBaseLeft,
+    y: irisBaseTop,
     width: irisWidth,
     height: irisHeight,
-    r: irisRadius,
-    left: irisBaseLeft,
-    top: irisBaseTop,
-  }) as PositionedContent
+  }
+  fillIrisMask(irisMask, shape, initialIrisRect, irisRadius)
+
+  const irisPort = new Gray16MaskPort(null, {
+    left: 0,
+    top: 0,
+    width,
+    height,
+    Behavior: class extends Behavior {
+      #currentRect: Rect = { ...initialIrisRect }
+      #nextRect: Rect = { ...initialIrisRect }
+      #palette: FaceSkinPalette | null = null
+      #primary = DEFAULT_FACE_PRIMARY_COLOR
+      revision = 0
+
+      onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
+        this.#palette = palette
+        if (this.#primary === palette.primaryColor) return
+        this.#primary = palette.primaryColor
+        port.invalidate()
+      }
+
+      onFaceState(port: PiuPort, face: FaceState) {
+        if (!this.#palette) {
+          const primary = toPiuColorNumber(face.theme.primary)
+          if (primary !== this.#primary) {
+            this.#primary = primary
+            port.invalidate()
+          }
+        }
+        const eye = face.eyes[opts.side]
+        const gazeX = quantizeEdge(clamp(eye.gazeX ?? 0, -1, 1) * 2)
+        const gazeY = quantizeEdge(clamp(eye.gazeY ?? 0, -1, 1) * 2)
+        writeIrisRect(this.#nextRect, irisBaseLeft, irisBaseTop, irisWidth, irisHeight, gazeX, gazeY)
+        if (this.#nextRect.x === this.#currentRect.x && this.#nextRect.y === this.#currentRect.y) return
+
+        invalidateRect(port, this.#currentRect, width, height)
+        invalidateRect(port, this.#nextRect, width, height)
+        fillIrisMask(irisMask, shape, this.#nextRect, irisRadius)
+        const swap = this.#currentRect
+        this.#currentRect = this.#nextRect
+        this.#nextRect = swap
+        this.revision++
+      }
+
+      onDraw(port: MaskPort) {
+        port.drawGray(irisMask, this.#primary)
+      }
+    },
+  })
+
+  const initialFace: FaceState = {
+    mouth: { open: 0 },
+    eyes: {
+      left: { open: 1, gazeX: 0, gazeY: 0 },
+      right: { open: 1, gazeX: 0, gazeY: 0 },
+    },
+    breath: 1,
+    emotion: 0,
+    theme: {
+      primary: { r: 255, g: 255, b: 255 },
+      secondary: { r: 0, g: 0, b: 0 },
+    },
+  }
+  const initialAperture = createEyelidAperture()
+  writeEyelidAperture(initialAperture, initialFace, opts.side, 1, eyelidHeight)
+  initialAperture.topLeft += eyelidTop
+  initialAperture.topRight += eyelidTop
+  initialAperture.bottomLeft += eyelidTop
+  initialAperture.bottomRight += eyelidTop
+  eyelidMask.fillOutsideAperture(initialAperture)
+
+  const eyelidPort = new Gray16MaskPort(null, {
+    left: eyelidLeft,
+    top: 0,
+    width: eyelidWidth,
+    height,
+    Behavior: class extends Behavior {
+      #current = { ...initialAperture }
+      #next = createEyelidAperture()
+      #palette: FaceSkinPalette | null = null
+      #secondary = DEFAULT_FACE_SECONDARY_COLOR
+      revision = 0
+
+      onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
+        this.#palette = palette
+        if (this.#secondary === palette.secondaryColor) return
+        this.#secondary = palette.secondaryColor
+        port.invalidate()
+      }
+
+      onFaceState(port: PiuPort, face: FaceState) {
+        if (!this.#palette) {
+          const secondary = toPiuColorNumber(face.theme.secondary)
+          if (secondary !== this.#secondary) {
+            this.#secondary = secondary
+            port.invalidate()
+          }
+        }
+        writeEyelidAperture(this.#next, face, opts.side, face.eyes[opts.side].open, eyelidHeight)
+        this.#next.topLeft += eyelidTop
+        this.#next.topRight += eyelidTop
+        this.#next.bottomLeft += eyelidTop
+        this.#next.bottomRight += eyelidTop
+        quantizeAperture(this.#next)
+        if (!apertureChanged(this.#current, this.#next)) return
+
+        invalidateApertureChange(port, this.#current, this.#next, eyelidWidth, height)
+        eyelidMask.fillOutsideAperture(this.#next)
+        copyAperture(this.#next, this.#current)
+        this.revision++
+      }
+
+      onDraw(port: MaskPort) {
+        port.drawGray(eyelidMask, this.#secondary)
+      }
+    },
+  })
 
   return {
     clip: true,
@@ -242,34 +269,6 @@ export const Eye = Container.template((opts: EyeOptions) => {
     top: opts.cy - height / 2,
     width,
     height,
-    Behavior: class extends Behavior {
-      #lastGazeX = NaN
-      #lastGazeY = NaN
-
-      onFaceState(_container: PiuContainer, face: FaceState) {
-        const eye = face.eyes[opts.side]
-        const offsetX = (eye.gazeX ?? 0) * 2
-        const offsetY = (eye.gazeY ?? 0) * 2
-        if (offsetX === this.#lastGazeX && offsetY === this.#lastGazeY) return
-
-        this.#lastGazeX = offsetX
-        this.#lastGazeY = offsetY
-        iris.coordinates = {
-          ...irisBaseCoordinates,
-          left: irisBaseLeft + offsetX,
-          top: irisBaseTop + offsetY,
-        }
-      }
-    },
-    contents: [
-      iris,
-      new Eyelid({
-        cx: width / 2,
-        cy: height / 2,
-        width: eyelidWidth,
-        height: eyelidHeight,
-        side: opts.side,
-      }),
-    ],
+    contents: [irisPort, eyelidPort],
   }
 })

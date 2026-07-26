@@ -7,6 +7,7 @@ const firmwareRoot = process.cwd()
 
 const nativeBindingModules = [
   'host/modules/ui/views/camera-preview/runtime-bitmap-port.js',
+  'host/modules/ui/components/face/parts/gray16-mask-port.js',
   'host/modules/audio/wasm/audio-bridge.js',
   'host/modules/camera/wasm/camera-bridge.js',
 ]

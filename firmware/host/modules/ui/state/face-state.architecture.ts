@@ -59,26 +59,56 @@ test('Emoticon effects avoid Shape, Skin, and Style allocation', () => {
   assert.doesNotMatch(source, /\bnew Style\b/)
 })
 
-test('face parts bound their outline caches and avoid allocation in onFaceState', () => {
+test('animated face parts use fixed Gray16 mask ports without Shape or layout mutation', () => {
   const partFiles = [
     'host/modules/ui/components/face/parts/eye.ts',
     'host/modules/ui/components/face/parts/dog/eyebrow.ts',
     'host/modules/ui/components/face/parts/dog/mouth.ts',
     'host/modules/ui/components/face/parts/dog/nose.ts',
+    'host/modules/ui/components/face/parts/relaxed-eye.ts',
+    'host/modules/ui/components/face/parts/relaxed-mouth.ts',
   ]
 
   for (const file of partFiles) {
     const source = readFileSync(file, 'utf8')
-    assert.match(source, /\brememberCachedValue\(/, `${file} should bound generated outline caches`)
-    if (file.includes('/dog/')) {
-      assert.doesNotMatch(source, /coordinates\s*=/, `${file} should not update coordinates`)
-    }
+    assert.match(source, /Gray16Mask/, `${file} should use the common Gray16 mask backend`)
+    assert.doesNotMatch(source, /commodetto\/outline/, `${file} should not rasterize Outline while drawing`)
+    assert.doesNotMatch(source, /\bShape\b/, `${file} should not create Piu Shape display nodes`)
+    assert.doesNotMatch(source, /coordinates\s*=/, `${file} should keep fixed content coordinates`)
     const blocks = extractMethodBlocks(source, 'onFaceState')
     assert.ok(blocks.length > 0, `${file} should define an onFaceState handler`)
     for (const block of blocks) {
-      assert.doesNotMatch(block, /\bnew\s+(Skin|Outline\.CanvasPath)\b/, `${file} should not allocate in onFaceState`)
-      assert.doesNotMatch(block, /Outline\.(?:fill|stroke)\(/, `${file} should not fill/stroke outlines in onFaceState`)
+      assert.doesNotMatch(block, /\bnew\b/, `${file} should not allocate in onFaceState`)
+      assert.doesNotMatch(block, /\.\.\./, `${file} should not spread objects in onFaceState`)
     }
+  }
+})
+
+test('Gray16 mask drawing is a single native Poco command and keeps mask generation reusable', () => {
+  const bridge = readFileSync('host/modules/ui/components/face/parts/gray16-mask-port.c', 'utf8')
+  const mask = readFileSync('host/modules/ui/components/face/parts/gray16-mask.ts', 'utf8')
+
+  assert.match(bridge, /PocoGrayBitmapDraw\(/)
+  assert.equal((bridge.match(/PiuViewDrawContent\(/g) ?? []).length, 1)
+  assert.match(mask, /export class Gray16Mask/)
+  assert.match(mask, /fillOutsideAperture/)
+  assert.match(mask, /fillRoundRect/)
+})
+
+test('face Ports repaint only opaque geometry without transparent clearing fills', () => {
+  const files = [
+    'host/modules/ui/components/face/parts/mouth.ts',
+    'host/modules/ui/components/effects/emoticon.ts',
+    'host/modules/ui/components/effects/music-notes.ts',
+  ]
+
+  for (const file of files) {
+    const source = readFileSync(file, 'utf8')
+    assert.doesNotMatch(
+      source,
+      /fillColor\(['"]transparent['"]/,
+      `${file} should let dirty-region repaint clear pixels`,
+    )
   }
 })
 

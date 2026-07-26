@@ -14,6 +14,20 @@ export type Emotion = (typeof Emotion)[keyof typeof Emotion]
 const emotionNames = Object.freeze(['NEUTRAL', 'ANGRY', 'SAD', 'HAPPY', 'SLEEPY', 'DOUBTFUL', 'COLD', 'HOT'] as const)
 export type EmotionName = (typeof emotionNames)[number]
 export const EmotionNames: readonly EmotionName[] = emotionNames
+export const EMOTION_COUNT = emotionNames.length
+export const DEFAULT_EMOTION_TRANSITION_MS = 250
+
+export type EmotionWeights = [number, number, number, number, number, number, number, number]
+
+export type EmotionBlendState = {
+  active: boolean
+  weights: EmotionWeights
+}
+
+export type EmotionTransitionOptions = {
+  /** Defaults to 250 ms. Set to 0 to switch immediately. */
+  durationMs?: number
+}
 
 const EmotionByName: Record<string, Emotion> = Object.freeze({
   NEUTRAL: Emotion.NEUTRAL,
@@ -64,6 +78,11 @@ export type FaceState = {
   eyes: EyesState
   breath: number
   emotion: Emotion
+  /**
+   * Continuous visual expression weights. Older FaceState producers may omit
+   * this field; renderers then treat `emotion` as a one-hot expression.
+   */
+  emotionBlend?: EmotionBlendState
   theme: ThemeState
 }
 
@@ -113,6 +132,12 @@ function createColorRGB(r: number, g: number, b: number): ColorRGB {
   }
 }
 
+export function createEmotionWeights(emotion: Emotion = Emotion.NEUTRAL): EmotionWeights {
+  const weights: EmotionWeights = [0, 0, 0, 0, 0, 0, 0, 0]
+  weights[emotion] = 1
+  return weights
+}
+
 export function createFaceState(): FaceState {
   return {
     mouth: { open: DEFAULT_FACE_STATE.mouth.open },
@@ -122,6 +147,10 @@ export function createFaceState(): FaceState {
     },
     breath: DEFAULT_FACE_STATE.breath,
     emotion: DEFAULT_FACE_STATE.emotion,
+    emotionBlend: {
+      active: false,
+      weights: createEmotionWeights(DEFAULT_FACE_STATE.emotion),
+    },
     theme: {
       primary: { ...DEFAULT_FACE_STATE.theme.primary },
       secondary: { ...DEFAULT_FACE_STATE.theme.secondary },
@@ -146,6 +175,22 @@ export function copyFaceState(src: Readonly<FaceState>, dst: FaceState): void {
 
   dst.breath = src.breath
   dst.emotion = src.emotion
+  const srcBlend = src.emotionBlend
+  let dstBlend = dst.emotionBlend
+  if (!dstBlend) {
+    dstBlend = {
+      active: false,
+      weights: createEmotionWeights(src.emotion),
+    }
+    dst.emotionBlend = dstBlend
+  }
+  if (srcBlend?.active) {
+    dstBlend.active = true
+    copyEmotionWeights(srcBlend.weights, dstBlend.weights)
+  } else {
+    dstBlend.active = false
+    setEmotionWeightsOneHot(dstBlend.weights, src.emotion)
+  }
 
   copyColorRGB(src.theme.primary, dst.theme.primary)
   copyColorRGB(src.theme.secondary, dst.theme.secondary)
@@ -173,8 +218,113 @@ export function faceStatesEqual(left: Readonly<FaceState>, right: Readonly<FaceS
     left.eyes.right.gazeY === right.eyes.right.gazeY &&
     left.breath === right.breath &&
     left.emotion === right.emotion &&
+    emotionBlendStatesEqual(left, right) &&
     colorEquals(left.theme.primary, right.theme.primary) &&
     colorEquals(left.theme.secondary, right.theme.secondary)
+  )
+}
+
+export function copyEmotionWeights(src: Readonly<EmotionWeights>, dst: EmotionWeights): void {
+  dst[0] = src[0]
+  dst[1] = src[1]
+  dst[2] = src[2]
+  dst[3] = src[3]
+  dst[4] = src[4]
+  dst[5] = src[5]
+  dst[6] = src[6]
+  dst[7] = src[7]
+}
+
+export function setEmotionWeightsOneHot(weights: EmotionWeights, emotion: Emotion): void {
+  weights[0] = 0
+  weights[1] = 0
+  weights[2] = 0
+  weights[3] = 0
+  weights[4] = 0
+  weights[5] = 0
+  weights[6] = 0
+  weights[7] = 0
+  weights[emotion] = 1
+}
+
+export function copyEffectiveEmotionWeights(face: Readonly<FaceState>, dst: EmotionWeights): void {
+  const blend = face.emotionBlend
+  if (blend?.active) {
+    copyEmotionWeights(blend.weights, dst)
+    return
+  }
+  setEmotionWeightsOneHot(dst, face.emotion)
+}
+
+export function writeEmotionTransition(
+  face: FaceState,
+  start: Readonly<EmotionWeights>,
+  target: Emotion,
+  progress: number,
+): void {
+  let blend = face.emotionBlend
+  if (!blend) {
+    blend = {
+      active: false,
+      weights: createEmotionWeights(face.emotion),
+    }
+    face.emotionBlend = blend
+  }
+  if (progress >= 1) {
+    blend.active = false
+    setEmotionWeightsOneHot(blend.weights, target)
+    return
+  }
+  const t = progress <= 0 ? 0 : progress
+  const remaining = 1 - t
+  const weights = blend.weights
+  weights[0] = start[0] * remaining
+  weights[1] = start[1] * remaining
+  weights[2] = start[2] * remaining
+  weights[3] = start[3] * remaining
+  weights[4] = start[4] * remaining
+  weights[5] = start[5] * remaining
+  weights[6] = start[6] * remaining
+  weights[7] = start[7] * remaining
+  weights[target] += t
+  blend.active = true
+}
+
+export function emotionWeight(face: Readonly<FaceState>, emotion: Emotion): number {
+  const blend = face.emotionBlend
+  if (!blend?.active) return face.emotion === emotion ? 1 : 0
+  return blend.weights[emotion]
+}
+
+export function dominantEmotion(face: Readonly<FaceState>): Emotion {
+  let dominant = face.emotion
+  let weight = emotionWeight(face, dominant)
+  for (let emotion = 0; emotion < EMOTION_COUNT; emotion++) {
+    const candidate = emotionWeight(face, emotion as Emotion)
+    if (candidate > weight) {
+      dominant = emotion as Emotion
+      weight = candidate
+    }
+  }
+  return dominant
+}
+
+function emotionBlendStatesEqual(left: Readonly<FaceState>, right: Readonly<FaceState>): boolean {
+  const leftBlend = left.emotionBlend
+  const rightBlend = right.emotionBlend
+  const leftActive = leftBlend?.active ?? false
+  const rightActive = rightBlend?.active ?? false
+  if (leftActive !== rightActive) return false
+  if (!leftActive || !leftBlend || !rightBlend) return true
+  return (
+    leftBlend.weights[0] === rightBlend.weights[0] &&
+    leftBlend.weights[1] === rightBlend.weights[1] &&
+    leftBlend.weights[2] === rightBlend.weights[2] &&
+    leftBlend.weights[3] === rightBlend.weights[3] &&
+    leftBlend.weights[4] === rightBlend.weights[4] &&
+    leftBlend.weights[5] === rightBlend.weights[5] &&
+    leftBlend.weights[6] === rightBlend.weights[6] &&
+    leftBlend.weights[7] === rightBlend.weights[7]
   )
 }
 

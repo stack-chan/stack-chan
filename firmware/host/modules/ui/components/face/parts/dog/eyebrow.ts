@@ -1,100 +1,92 @@
-import { Outline } from 'commodetto/outline'
 import type { FaceSkinPalette } from 'face-skin'
-import { DEFAULT_FACE_PRIMARY_COLOR, Emotion, type FaceEyeKey, type FaceState, toPiuColorNumber } from 'face-state'
-import { FULL_TURN, getFillStrokeSkin, quantizeUnit, rememberCachedValue, unitFromStep } from 'parts/shape-utils'
-import type { Skin as PiuSkin } from 'piu/MC'
-import type { Shape as PiuShape } from 'piu/shape'
-import { defineShapeTemplate } from 'template'
+import {
+  DEFAULT_FACE_PRIMARY_COLOR,
+  Emotion,
+  emotionWeight,
+  type FaceEyeKey,
+  type FaceState,
+  toPiuColorNumber,
+} from 'face-state'
+import { Gray16Mask } from 'parts/gray16-mask'
+import Gray16MaskPort from 'parts/gray16-mask-port'
+import type { Port as PiuPort } from 'piu/MC'
 
 export type EyebrowOptions = {
   cx: number
   cy: number
   side: FaceEyeKey
+  /** Retained for Face Editor source compatibility; local bounds are always used. */
   canvasWidth?: number
+  /** Retained for Face Editor source compatibility; local bounds are always used. */
   canvasHeight?: number
 }
 
-type PositionedShape = Omit<PiuShape, 'fillOutline' | 'strokeOutline'> & {
-  skin?: PiuSkin
-  state?: number
-  fillOutline?: Outline
-  strokeOutline?: Outline
+type MaskPort = PiuPort & {
+  drawGray: (mask: Gray16Mask, color: number) => void
 }
 
-let dogEyebrowOutlineCache: Map<string, Outline> | null = null
-
-function getDogEyebrowFillOutline(
-  cx: number,
-  cy: number,
-  direction: number,
-  openStep: number,
-  emotion: FaceState['emotion'],
-): Outline {
-  if (!dogEyebrowOutlineCache) dogEyebrowOutlineCache = new Map()
-  const key = `${cx}:${cy}:${direction}:${openStep}:${emotion}`
-  const cached = dogEyebrowOutlineCache.get(key)
-  if (cached) return cached
-
-  const open = unitFromStep(openStep)
-  let d = direction
-  if (emotion === Emotion.ANGRY) d *= 1.2
-  else if (emotion === Emotion.SAD) d *= -1
-
-  const path = new Outline.CanvasPath()
-  const cxAdj = cx + 8 * direction
-  const cyAdj = cy - 20 - open * 2
-  path.ellipse(cxAdj, cyAdj, 12, 5, (Math.PI / 8) * d, 0, FULL_TURN)
-
-  const outline = Outline.fill(path)
-  return rememberCachedValue(dogEyebrowOutlineCache, key, outline)
+function quantize(value: number): number {
+  return Math.round(value * 64) / 64
 }
 
-export const DogEyebrow = defineShapeTemplate((opts: EyebrowOptions) => {
-  const { cx, cy, side, canvasWidth = 320, canvasHeight = 120 } = opts
-  const direction = side === 'left' ? 1 : -1
+export const DogEyebrow = Gray16MaskPort.template((opts: EyebrowOptions) => {
+  const direction = opts.side === 'left' ? 1 : -1
+  const centerX = opts.cx + 8 * direction
+  const left = Math.floor(centerX - 16)
+  const top = Math.floor(opts.cy - 33)
+  const width = 32
+  const height = 24
+  const mask = new Gray16Mask(width, height)
 
   return {
-    left: 0,
-    top: 0,
-    width: canvasWidth,
-    height: canvasHeight,
-    skin: getFillStrokeSkin(DEFAULT_FACE_PRIMARY_COLOR),
+    left,
+    top,
+    width,
+    height,
     Behavior: class extends Behavior {
-      #lastOpenStep = -1
-      #lastEmotion: FaceState['emotion'] | null = null
+      #centerY = NaN
       #palette: FaceSkinPalette | null = null
       #primary = DEFAULT_FACE_PRIMARY_COLOR
+      #rotation = NaN
+      revision = 0
 
-      onCreate(shape: PositionedShape) {
-        this.#updatePath(shape, quantizeUnit(1), Emotion.NEUTRAL)
+      onCreate(port: PiuPort) {
+        port.invalidate()
       }
 
-      onFaceSkin(shape: PositionedShape, palette: FaceSkinPalette) {
+      onFaceSkin(port: PiuPort, palette: FaceSkinPalette) {
         this.#palette = palette
-        shape.skin = palette.primary
+        if (this.#primary === palette.primaryColor) return
+        this.#primary = palette.primaryColor
+        port.invalidate()
       }
 
-      onFaceState(shape: PositionedShape, face: FaceState) {
+      onFaceState(port: PiuPort, face: FaceState) {
         if (!this.#palette) {
           const primary = toPiuColorNumber(face.theme.primary)
           if (primary !== this.#primary) {
             this.#primary = primary
-            shape.skin = getFillStrokeSkin(primary)
+            port.invalidate()
           }
         }
 
-        const eye = face.eyes[side]
-        const openStep = quantizeUnit(eye.open)
-        const emotion = face.emotion
-        if (openStep === this.#lastOpenStep && emotion === this.#lastEmotion) return
-        this.#updatePath(shape, openStep, emotion)
+        const open = Math.max(0, Math.min(1, face.eyes[opts.side].open))
+        const centerY = quantize(opts.cy - 20 - open * 2 - top)
+        const expressionDirection =
+          direction * (1 + emotionWeight(face, Emotion.ANGRY) * 0.2 - emotionWeight(face, Emotion.SAD) * 2)
+        const rotation = quantize((Math.PI / 8) * expressionDirection)
+        if (centerY === this.#centerY && rotation === this.#rotation) return
+
+        this.#centerY = centerY
+        this.#rotation = rotation
+        mask.clear()
+        mask.fillRotatedEllipse(centerX - left, centerY, 12, 5, rotation)
+        this.revision++
+        port.invalidate()
       }
 
-      #updatePath(shape: PositionedShape, openStep: number, emotion: FaceState['emotion']) {
-        this.#lastOpenStep = openStep
-        this.#lastEmotion = emotion
-        shape.fillOutline = getDogEyebrowFillOutline(cx, cy, direction, openStep, emotion)
-        shape.strokeOutline = undefined
+      onDraw(port: MaskPort) {
+        port.drawGray(mask, this.#primary)
       }
     },
   }

@@ -52,7 +52,7 @@ class FloatingMusicNoteBehavior extends Behavior {
   }
 
   onDisplaying(port: PiuPort) {
-    port.invalidate()
+    this.invalidateSprite(port)
     port.start()
   }
 
@@ -64,7 +64,7 @@ class FloatingMusicNoteBehavior extends Behavior {
     this.#hasPalette = true
     if (this.#color === palette.primaryColor) return
     this.#color = palette.primaryColor
-    port.invalidate()
+    this.invalidateSprite(port)
   }
 
   onFaceState(port: PiuPort, face: FaceState) {
@@ -72,32 +72,40 @@ class FloatingMusicNoteBehavior extends Behavior {
     const color = toPiuColorNumber(face.theme.primary)
     if (color === this.#color) return
     this.#color = color
-    port.invalidate()
+    this.invalidateSprite(port)
   }
 
   onTimeChanged(port: PiuPort) {
-    const wasVisible = this.#elapsed < FADE_DURATION_MS
+    this.invalidateSprite(port)
     this.#elapsed += ANIMATION_INTERVAL_MS
     if (this.#elapsed >= CYCLE_DURATION_MS) this.#elapsed -= CYCLE_DURATION_MS
-    if (wasVisible || this.#elapsed < FADE_DURATION_MS) port.invalidate()
+    this.invalidateSprite(port)
   }
 
-  onDraw(port: PiuPort) {
-    port.fillColor('transparent', 0, 0, SPRITE_SIZE, NOTE_HEIGHT)
+  onDraw(port: PiuPort, x = 0, y = 0, width = SPRITE_SIZE, height = NOTE_HEIGHT) {
     if (this.#elapsed >= FADE_DURATION_MS) return
     const progress = this.#elapsed / FADE_DURATION_MS
     const rise = Math.round(RISE_PIXELS * progress * (2 - progress))
+    const spriteY = RISE_PIXELS - rise
+    if (x >= SPRITE_SIZE || x + width <= 0 || y >= spriteY + SPRITE_SIZE || y + height <= spriteY) return
     const alpha = Math.round(255 * (1 - progress))
     port.drawTexture(
       getTexture(),
       (this.#color * 256 + alpha) >>> 0,
       0,
-      RISE_PIXELS - rise,
+      spriteY,
       this.#variant * SPRITE_SIZE,
       MUSIC_ROW_Y,
       SPRITE_SIZE,
       SPRITE_SIZE,
     )
+  }
+
+  private invalidateSprite(port: PiuPort): void {
+    if (this.#elapsed >= FADE_DURATION_MS) return
+    const progress = this.#elapsed / FADE_DURATION_MS
+    const rise = Math.round(RISE_PIXELS * progress * (2 - progress))
+    port.invalidate(0, RISE_PIXELS - rise, SPRITE_SIZE, SPRITE_SIZE)
   }
 }
 

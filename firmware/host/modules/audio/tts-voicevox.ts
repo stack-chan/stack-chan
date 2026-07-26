@@ -5,7 +5,8 @@ import { File } from 'file'
 import Headers from 'headers'
 import config from 'mc/config'
 import type AudioOut from 'pins/audioout'
-import { beginTTSPlayback } from 'tts-playback-lifecycle'
+import { getTelemetry, truncateReason } from 'telemetry'
+import { beginTTSPlayback, classifyTTSError } from 'tts-playback-lifecycle'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 import WavStreamer from 'wavstreamer'
 
@@ -33,6 +34,7 @@ export type TTSProperty = {
 }
 
 export class TTS {
+  readonly telemetryName = 'voicevox'
   audio?: AudioOut
   onPlayed?: TTSPlaybackListener
   onDone?: TTSDoneListener
@@ -108,12 +110,13 @@ export class TTS {
     const host = this.host
     const port = this.port
     const speakerId = this.speakerId
+    const querySpan = getTelemetry().begin('tts', 'query', { engine: this.telemetryName })
     this.getQuery(key, speakerId).then(
       () => {
         try {
           const file = new File(QUERY_PATH)
           lifecycle.addCleanup(() => file.close())
-          trace(`file opened. length: ${file.length}, position: ${file.position}`)
+          querySpan.end({ data: { bytes: file.length } })
           const audio = lifecycle.openAudio(
             { streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate },
             volume ?? this.volume,
@@ -153,6 +156,7 @@ export class TTS {
         }
       },
       (error) => {
+        querySpan.fail(classifyTTSError(error), { data: { reason: truncateReason(String(error)) } })
         lifecycle.fail(error)
       },
     )

@@ -1,5 +1,6 @@
 import { type OwnedAudioBuffer, ownAudioBuffer } from 'audio-buffer'
 import AudioIn from 'audio-in'
+import { getTelemetry, truncateReason } from 'telemetry'
 
 const CHANNELS = 1
 
@@ -41,9 +42,11 @@ export default class Microphone {
 
   async record(durationMilliSec = 3000): Promise<OwnedAudioBuffer> {
     if (this.recording) {
+      getTelemetry().emit('mic', 'record.rejected', { err: 'E_MIC_BUSY' })
       throw new Error('already recording')
     }
     this.recording = true
+    const span = getTelemetry().begin('mic', 'record', { durationMs: durationMilliSec })
     const HEADER_SIZE = 44
 
     return new Promise((resolve, reject) => {
@@ -58,6 +61,7 @@ export default class Microphone {
         this.#abortRecording = null
         audioin?.close()
         this.recording = false
+        span.end({ data: { bytes: writeOffset } })
         resolve(ownAudioBuffer(wavBuffer))
       }
       const fail = (error: unknown) => {
@@ -66,6 +70,9 @@ export default class Microphone {
         this.#abortRecording = null
         audioin?.close()
         this.recording = false
+        span.fail(String(error).includes('abort') ? 'E_MIC_ABORTED' : 'E_MIC_ERROR', {
+          data: { reason: truncateReason(String(error)) },
+        })
         reject(error)
       }
       // Lets stop() abort a finite recording so close() never leaves the microphone held.
@@ -94,6 +101,7 @@ export default class Microphone {
       } catch (error) {
         this.#abortRecording = null
         this.recording = false
+        span.fail('E_MIC_ERROR', { data: { reason: truncateReason(String(error)) } })
         reject(error)
         return
       }

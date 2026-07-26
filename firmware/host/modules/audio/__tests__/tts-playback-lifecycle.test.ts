@@ -16,6 +16,8 @@ function installBareSpecifierPackages(): void {
     hasDefaultExport: true,
   })
   writeAliasPackage(modulesRoot, 'tts-types', resolve(modulesRoot, 'audio/tts-types.js'))
+  writeAliasPackage(modulesRoot, 'telemetry', resolve(modulesRoot, 'util/telemetry.js'))
+  writeAliasPackage(modulesRoot, 'time', resolve(modulesRoot, 'testing/fakes/time.js'), { hasDefaultExport: true })
 }
 
 async function setup() {

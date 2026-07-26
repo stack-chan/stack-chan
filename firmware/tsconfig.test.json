@@ -207,6 +207,9 @@
       ],
       "stackchan-util": [
         "host/modules/util/stackchan-util.ts"
+      ],
+      "telemetry": [
+        "host/modules/util/telemetry.ts"
       ]
     },
     "types": [

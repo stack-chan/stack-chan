@@ -19,6 +19,7 @@ export type TTSProperty = {
 }
 
 export class TTS {
+  readonly telemetryName = 'openai'
   audio?: AudioOut
   onPlayed?: TTSPlaybackListener
   onDone?: TTSDoneListener

@@ -2,6 +2,7 @@
 
 import type { BorrowedAudioBuffer } from 'audio-buffer'
 import AudioOut from 'pins/audioout'
+import { getTelemetry, truncateReason } from 'telemetry'
 
 const WAV_HEADER_SIZE = 44
 
@@ -36,14 +37,21 @@ export default class Speaker {
   }
 
   async play(buffer: BorrowedAudioBuffer): Promise<boolean> {
-    if (buffer.byteLength <= WAV_HEADER_SIZE) return false
+    const telemetry = getTelemetry()
+    if (buffer.byteLength <= WAV_HEADER_SIZE) {
+      telemetry.emit('speaker', 'play.rejected', { err: 'E_SPK_FORMAT', data: { bytes: buffer.byteLength } })
+      return false
+    }
+    const span = telemetry.begin('speaker', 'play', { bytes: buffer.byteLength })
     try {
       const view = new DataView(buffer)
       const numChannels = view.getUint16(22, true)
       const sampleRate = view.getUint32(24, true)
       const bitsPerSample = view.getUint16(34, true)
-      if (bitsPerSample !== 16 || (numChannels !== 1 && numChannels !== 2)) return false
-      if (sampleRate < 8000 || sampleRate > 48000) return false
+      if (bitsPerSample !== 16 || (numChannels !== 1 && numChannels !== 2) || sampleRate < 8000 || sampleRate > 48000) {
+        span.fail('E_SPK_FORMAT', { data: { sampleRate, numChannels, bitsPerSample } })
+        return false
+      }
 
       // AudioOut.RawSamples requires a non-relocatable buffer; a plain ArrayBuffer is
       // relocatable and rejected, so copy the PCM payload into a SharedArrayBuffer.
@@ -62,11 +70,12 @@ export default class Speaker {
         audio.start()
         audio.callback = () => {
           audio.close()
+          span.end({ data: { sampleRate } })
           resolve(true)
         }
       })
     } catch (error) {
-      trace(`Speaker.play error ${error}\n`)
+      span.fail('E_SPK_ERROR', { data: { reason: truncateReason(String(error)) } })
       return false
     }
   }

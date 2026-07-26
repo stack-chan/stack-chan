@@ -177,6 +177,42 @@ class ReplayTraceTest(unittest.TestCase):
             self.assertEqual([24, 3_864], [write.requested_bytes for write in writes])
             self.assertEqual(bytes(3_840), writes[1].frame.payload)
 
+    def test_replay_ignores_usb_writes_from_other_schema_versions(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            trace = Path(temporary) / "playback.jsonl"
+            records = [
+                {"schemaVersion": 1, "event": "usb_write"},
+                self.write_record(
+                    started_us=1_000,
+                    frame_type=diagnostics.TYPE_CONTROL,
+                    flags=diagnostics.CONTROL_SPEAKER_START,
+                    sequence=4,
+                    payload_bytes=0,
+                ),
+            ]
+            trace.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+
+            writes = diagnostics.load_replay_writes(trace)
+
+            self.assertEqual(1, len(writes))
+            self.assertEqual(4, writes[0].frame.sequence)
+
+    def test_replay_rejects_a_trace_without_schema_version_2_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            trace = Path(temporary) / "playback.jsonl"
+            record = self.write_record(
+                started_us=1_000,
+                frame_type=diagnostics.TYPE_CONTROL,
+                flags=diagnostics.CONTROL_SPEAKER_START,
+                sequence=1,
+                payload_bytes=0,
+            )
+            record["schemaVersion"] = 1
+            trace.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "no schema-version 2 usb_write records"):
+                diagnostics.load_replay_writes(trace)
+
     def test_rejects_a_write_size_that_does_not_match_the_frame(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             trace = Path(temporary) / "playback.jsonl"
@@ -227,7 +263,7 @@ class ReplayTraceTest(unittest.TestCase):
         payload_bytes: int,
     ) -> dict[str, int | str]:
         return {
-            "schemaVersion": 2,
+            "schemaVersion": diagnostics.WIRE_TRACE_SCHEMA_VERSION,
             "event": "usb_write",
             "startedElapsedUs": started_us,
             "requestedBytes": diagnostics.HEADER_BYTES + payload_bytes + diagnostics.CRC_BYTES,

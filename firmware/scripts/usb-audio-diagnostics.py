@@ -33,6 +33,7 @@ MAX_REPLAY_TRACE_BYTES = 16 * 1024 * 1024
 MAX_REPLAY_WRITES = 10_000
 MAX_REPLAY_SPAN_US = 10 * 60 * 1_000_000
 MAX_WIRE_TRACE_RECORDS = 100_000
+WIRE_TRACE_SCHEMA_VERSION = 2
 
 TYPE_CONTROL = 0
 TYPE_SPEAKER_PCM = 2
@@ -221,7 +222,7 @@ class WireTrace:
         if self.dropped_records:
             self.records.append(
                 {
-                    "schemaVersion": 2,
+                    "schemaVersion": WIRE_TRACE_SCHEMA_VERSION,
                     "sessionStartedAtUtc": self.started_at_utc,
                     "elapsedUs": self.elapsed_us(time.monotonic_ns()),
                     "event": "trace_truncated",
@@ -237,7 +238,7 @@ class WireTrace:
             return {}
         elapsed_us = self.elapsed_us(monotonic_nanos if monotonic_nanos is not None else time.monotonic_ns())
         record: dict[str, Any] = {
-            "schemaVersion": 2,
+            "schemaVersion": WIRE_TRACE_SCHEMA_VERSION,
             "sessionStartedAtUtc": self.started_at_utc,
             "elapsedUs": elapsed_us,
             "elapsedMs": elapsed_us // 1_000,
@@ -395,7 +396,10 @@ def load_replay_writes(trace: Path) -> list[ReplayWrite]:
             record = json.loads(line)
         except json.JSONDecodeError as error:
             raise ValueError(f"{trace}:{line_number}: invalid JSON: {error}") from error
-        if record.get("event") != "usb_write":
+        if (
+            record.get("event") != "usb_write"
+            or record.get("schemaVersion") != WIRE_TRACE_SCHEMA_VERSION
+        ):
             continue
         try:
             frame_type = int(record["frameTypeValue"])

@@ -1,14 +1,14 @@
 import type { StackchanContext, UIEffect } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Container, Content, Label, Skin, Style } from 'piu/MC'
-import { StackChanStatus } from 'stackchan-usb-protocol'
+import { StackChanStatus } from 'stackchan-usb-media-session'
 import {
   formatUsbAudioCaption,
   USB_AUDIO_MOUTH_STEP,
   usbAudioConversationState,
   usbAudioMouthStep,
   usbAudioStatusVisual,
-} from 'usb-audio-presentation-model'
+} from 'stackchan-usb-dock-presentation-model'
 import Timer from 'timer'
 
 const BALLOON_HEIGHT = 44

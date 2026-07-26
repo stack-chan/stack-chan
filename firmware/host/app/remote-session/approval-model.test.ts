@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
+import { installRemoteSessionTestAliases } from './__tests__/node-aliases.js'
+
+installRemoteSessionTestAliases()
+
+const {
   approvalPresented,
   approvalResponse,
   fitApprovalTitle,
   paginateApprovalDetail,
-  parseUsbApprovalEvent,
+  parseApprovalEvent,
   STACKCHAN_EVENT_SCHEMA,
-} from './usb-approval-model.js'
+} = await import('./approval-model.js')
 
 test('parses supported approval requests and rejects malformed application events', () => {
   const request = {
@@ -21,15 +25,15 @@ test('parses supported approval requests and rejects malformed application event
     truncated: false,
   }
 
-  assert.deepEqual(parseUsbApprovalEvent(request), request)
-  assert.equal(parseUsbApprovalEvent({ ...request, kind: 'network' }), undefined)
-  assert.equal(parseUsbApprovalEvent({ ...request, requestId: '' }), undefined)
-  assert.equal(parseUsbApprovalEvent({ ...request, schema: 'other.v1' }), undefined)
+  assert.deepEqual(parseApprovalEvent(request), request)
+  assert.equal(parseApprovalEvent({ ...request, kind: 'network' }), undefined)
+  assert.equal(parseApprovalEvent({ ...request, requestId: '' }), undefined)
+  assert.equal(parseApprovalEvent({ ...request, schema: 'other.v1' }), undefined)
 })
 
 test('parses resolved and suspended events', () => {
   assert.deepEqual(
-    parseUsbApprovalEvent({
+    parseApprovalEvent({
       schema: STACKCHAN_EVENT_SCHEMA,
       type: 'approval.resolved',
       requestId: 'request-1',
@@ -43,7 +47,7 @@ test('parses resolved and suspended events', () => {
     },
   )
   assert.deepEqual(
-    parseUsbApprovalEvent({
+    parseApprovalEvent({
       schema: STACKCHAN_EVENT_SCHEMA,
       type: 'approval.suspended',
       requestId: 'request-1',

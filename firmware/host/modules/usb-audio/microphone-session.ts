@@ -1,12 +1,6 @@
-export enum MicrophoneSessionResult {
-  ACCEPTED = 'accepted',
-  IDEMPOTENT = 'idempotent',
-  STALE = 'stale',
-  INVALID = 'invalid',
-  BUSY = 'busy',
-}
+import { isValidMicrophoneControl, MediaSessionResult } from 'stackchan-usb-media-session'
 
-const MICROPHONE_SAMPLE_RATE = 16000
+export { MediaSessionResult as MicrophoneSessionResult } from 'stackchan-usb-media-session'
 
 export class MicrophoneSessionGuard {
   #streamId = 0
@@ -20,26 +14,26 @@ export class MicrophoneSessionGuard {
     return this.#streamId !== 0
   }
 
-  start(streamId: number, sampleRate: number, payloadBytes: number): MicrophoneSessionResult {
-    if (!validControl(streamId, sampleRate, payloadBytes)) return MicrophoneSessionResult.INVALID
+  start(streamId: number, sampleRate: number, payloadBytes: number): MediaSessionResult {
+    if (!isValidMicrophoneControl(streamId, sampleRate, payloadBytes)) return MediaSessionResult.INVALID
     if (this.active) {
-      if (streamId === this.#streamId) return MicrophoneSessionResult.IDEMPOTENT
-      return MicrophoneSessionResult.BUSY
+      if (streamId === this.#streamId) return MediaSessionResult.IDEMPOTENT
+      return MediaSessionResult.BUSY
     }
     this.#streamId = streamId
-    return MicrophoneSessionResult.ACCEPTED
+    return MediaSessionResult.ACCEPTED
   }
 
-  stop(streamId: number, sampleRate: number, payloadBytes: number): MicrophoneSessionResult {
-    if (!validControl(streamId, sampleRate, payloadBytes)) return MicrophoneSessionResult.INVALID
+  stop(streamId: number, sampleRate: number, payloadBytes: number): MediaSessionResult {
+    if (!isValidMicrophoneControl(streamId, sampleRate, payloadBytes)) return MediaSessionResult.INVALID
     if (this.active) {
-      if (streamId !== this.#streamId) return MicrophoneSessionResult.STALE
+      if (streamId !== this.#streamId) return MediaSessionResult.STALE
       this.#lastStoppedStreamId = this.#streamId
       this.#streamId = 0
-      return MicrophoneSessionResult.ACCEPTED
+      return MediaSessionResult.ACCEPTED
     }
-    if (streamId === this.#lastStoppedStreamId) return MicrophoneSessionResult.IDEMPOTENT
-    return MicrophoneSessionResult.STALE
+    if (streamId === this.#lastStoppedStreamId) return MediaSessionResult.IDEMPOTENT
+    return MediaSessionResult.STALE
   }
 
   forceStop(): number {
@@ -55,14 +49,4 @@ export class MicrophoneSessionGuard {
     this.#streamId = 0
     this.#lastStoppedStreamId = 0
   }
-}
-
-function validControl(streamId: number, sampleRate: number, payloadBytes: number): boolean {
-  return (
-    Number.isInteger(streamId) &&
-    streamId > 0 &&
-    streamId <= 0xffff &&
-    sampleRate === MICROPHONE_SAMPLE_RATE &&
-    payloadBytes === 0
-  )
 }

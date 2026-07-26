@@ -26,6 +26,7 @@
       "../../app/boot-services",
       "../../app/compose",
       "../../app/capabilities",
+      "../../app/dock",
       "../../app/experimental-mini-app-loader",
       "../../app/experimental-mini-app-piu",
       "../../app/experimental-mini-app-registration",
@@ -37,9 +38,7 @@
       "../../app/runtime-input",
       "../../app/runtime-lighting",
       "../../app/runtime-ui",
-      "../../app/usb-approval-model",
-      "../../app/usb-approval-session",
-      "../../app/usb-realtime-session"
+      "../../app/owned-resources"
     ],
     "startup-splash": "../../modules/ui/views/splash/splash-view",
     "camera-preview-utils": "../../modules/ui/views/camera-preview/camera-preview-utils",

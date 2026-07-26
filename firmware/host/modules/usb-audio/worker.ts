@@ -7,6 +7,7 @@ import startUsbAudioBridge, {
 } from 'stackchan-usb-audio-core'
 import { type SharedSpeakerOutputBuffers, SharedSpeakerOutputService } from 'stackchan-usb-shared-output'
 import type { Self } from 'worker'
+import type { UsbEventTransportState } from 'stackchan-usb-event-transport'
 
 declare const self: Self
 
@@ -129,8 +130,11 @@ const presentation: UsbAudioPresentation = {
 }
 
 const onEvent = (event: string) => self.postMessage({ id: 'event', event })
+const onTransportState = (transportState: UsbEventTransportState) =>
+  self.postMessage({ id: 'transport-state', transportState })
 
 function closeWorker(): void {
+  bridge?.setTransportStateHandler(undefined)
   bridge?.close()
   bridge = undefined
   inputService?.close()
@@ -155,6 +159,7 @@ self.onmessage = (message: {
   sampleRate?: number
   streamId?: number
   event?: string
+  requestId?: number
 }) => {
   try {
     switch (message.id) {
@@ -171,6 +176,7 @@ self.onmessage = (message: {
         })
         bridge.setPresentation(presentation)
         bridge.setEventHandler(onEvent)
+        bridge.setTransportStateHandler(onTransportState)
         self.postMessage({ id: 'ready' })
         break
       case 'audio-drained':
@@ -192,7 +198,21 @@ self.onmessage = (message: {
         inputService?.handleFailed(message.streamId ?? 0)
         break
       case 'send-event':
-        if (message.event !== undefined) bridge?.sendEvent(message.event)
+        try {
+          if (message.requestId === undefined) throw new TypeError('EVENT send request ID is required')
+          if (message.event === undefined) throw new TypeError('EVENT payload is required')
+          self.postMessage({
+            id: 'send-event-result',
+            requestId: message.requestId,
+            result: bridge?.sendEvent(message.event) ?? 'disconnected',
+          })
+        } catch (error) {
+          self.postMessage({
+            id: 'send-event-error',
+            requestId: message.requestId,
+            reason: error instanceof Error ? error.message : String(error),
+          })
+        }
         break
       case 'close':
         closeWorker()

@@ -36,6 +36,7 @@ MAX_WIRE_TRACE_RECORDS = 100_000
 TYPE_CONTROL = 0
 TYPE_SPEAKER_PCM = 2
 TYPE_DIAGNOSTICS = 5
+TYPE_EVENT = 6
 
 CONTROL_HELLO = 1
 CONTROL_HELLO_ACK = 2
@@ -262,7 +263,12 @@ def frame_fields(frame: Frame) -> dict[str, int | str | None]:
         CONTROL_SPEAKER_TEXT: "SPEAKER_TEXT",
         CONTROL_STATUS: "STATUS",
     }
-    frame_types = {TYPE_CONTROL: "CONTROL", TYPE_SPEAKER_PCM: "SPEAKER_PCM", TYPE_DIAGNOSTICS: "DIAGNOSTICS"}
+    frame_types = {
+        TYPE_CONTROL: "CONTROL",
+        TYPE_SPEAKER_PCM: "SPEAKER_PCM",
+        TYPE_DIAGNOSTICS: "DIAGNOSTICS",
+        TYPE_EVENT: "EVENT",
+    }
     return {
         "frameType": frame_types.get(frame.frame_type, f"TYPE_{frame.frame_type}"),
         "frameTypeValue": frame.frame_type,
@@ -297,7 +303,7 @@ class FrameParser:
             if (
                 magic != MAGIC
                 or version != PROTOCOL_VERSION
-                or frame_type > TYPE_DIAGNOSTICS
+                or frame_type > TYPE_EVENT
                 or length > MAX_PAYLOAD_BYTES
             ):
                 del self.pending[0]

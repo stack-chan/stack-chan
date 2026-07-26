@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { MicrophoneSessionGuard, MicrophoneSessionResult } from './microphone-session.js'
+import { installUsbAudioTestAliases } from './__tests__/node-aliases.js'
+
+installUsbAudioTestAliases()
+
+const { MicrophoneSessionGuard, MicrophoneSessionResult } = await import('./microphone-session.js')
 
 test('microphone stop is idempotent after its acknowledgement is lost', () => {
   const session = new MicrophoneSessionGuard()

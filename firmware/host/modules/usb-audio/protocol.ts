@@ -4,6 +4,18 @@ export const STACKCHAN_HEADER_BYTES = 20
 export const STACKCHAN_CRC_BYTES = 4
 export const STACKCHAN_MAX_PAYLOAD_BYTES = 4096
 
+export {
+  MediaSessionResult,
+  STACKCHAN_CAPABILITIES,
+  STACKCHAN_CONTROL_FRAME_INVARIANTS,
+  STACKCHAN_MICROPHONE_SAMPLE_RATE,
+  STACKCHAN_SPEAKER_SAMPLE_RATES,
+  StackChanCapability,
+  StackChanControl,
+  StackChanErrorCode,
+  StackChanStatus,
+} from 'stackchan-usb-media-session'
+
 export enum StackChanFrameType {
   CONTROL = 0,
   MICROPHONE_PCM = 1,
@@ -20,71 +32,6 @@ export const StackChanEventFlag = {
 } as const
 
 export const STACKCHAN_MAX_EVENT_BYTES = 64 * 1024
-
-export enum StackChanControl {
-  HELLO = 1,
-  HELLO_ACK = 2,
-  ERROR = 3,
-  MIC_START = 16,
-  MIC_STARTED = 17,
-  MIC_STOP = 18,
-  MIC_STOPPED = 19,
-  SPEAKER_START = 32,
-  SPEAKER_CREDIT = 33,
-  SPEAKER_END = 34,
-  SPEAKER_DONE = 35,
-  SPEAKER_ABORT = 36,
-  SPEAKER_TEXT = 37,
-  STATUS = 48,
-}
-
-export enum StackChanErrorCode {
-  INVALID_REQUEST = 1,
-  INVALID_STREAM_DATA = 2,
-  TRANSPORT_OVERFLOW = 3,
-  AUDIO_OUTPUT = 4,
-  BUSY = 5,
-  SPEAKER_SEQUENCE_MISMATCH = 6,
-  SPEAKER_BUFFER_OVERFLOW = 7,
-  CAPTION_QUEUE_OVERFLOW = 8,
-}
-
-export enum StackChanStatus {
-  IDLE = 0,
-  RECOGNIZING = 1,
-  SPEAKING = 2,
-  LISTENING = 3,
-  CONNECTING = 4,
-  ERROR = 5,
-}
-
-export const StackChanCapability = {
-  MICROPHONE_PCM: 1 << 0,
-  SPEAKER_PCM: 1 << 1,
-  SPEAKER_CREDIT: 1 << 2,
-  SPEAKER_RATE_8000: 1 << 3,
-  SPEAKER_RATE_16000: 1 << 4,
-  SPEAKER_RATE_24000: 1 << 5,
-  SPEAKER_TEXT: 1 << 6,
-  DIAGNOSTICS: 1 << 7,
-  STATUS_ICON: 1 << 8,
-  STREAM_ID: 1 << 9,
-  EVENT: 1 << 10,
-  STATUS_EXTENDED: 1 << 11,
-} as const
-
-export const STACKCHAN_CAPABILITIES =
-  StackChanCapability.MICROPHONE_PCM |
-  StackChanCapability.SPEAKER_PCM |
-  StackChanCapability.SPEAKER_CREDIT |
-  StackChanCapability.SPEAKER_RATE_8000 |
-  StackChanCapability.SPEAKER_RATE_16000 |
-  StackChanCapability.SPEAKER_RATE_24000 |
-  StackChanCapability.SPEAKER_TEXT |
-  StackChanCapability.STATUS_ICON |
-  StackChanCapability.STREAM_ID |
-  StackChanCapability.EVENT |
-  StackChanCapability.STATUS_EXTENDED
 
 export type StackChanFrame = {
   type: StackChanFrameType
@@ -242,6 +189,10 @@ export class StackChanEventEncoder {
       })
     }
     return frames
+  }
+
+  reset(): void {
+    this.#messageId = 0
   }
 }
 

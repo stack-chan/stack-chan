@@ -1,12 +1,10 @@
-export enum SpeakerSessionResult {
-  ACCEPTED = 'accepted',
-  IDEMPOTENT = 'idempotent',
-  STALE = 'stale',
-  INVALID = 'invalid',
-  BUSY = 'busy',
-}
+import {
+  isValidCurrentSpeakerControl,
+  isValidSpeakerStartControl,
+  MediaSessionResult,
+} from 'stackchan-usb-media-session'
 
-const SUPPORTED_SAMPLE_RATES = new Set([8000, 16000, 24000])
+export { MediaSessionResult as SpeakerSessionResult } from 'stackchan-usb-media-session'
 
 export class SpeakerSessionGuard {
   #streamId = 0
@@ -29,48 +27,48 @@ export class SpeakerSessionGuard {
     return this.#ended
   }
 
-  start(streamId: number, sampleRate: number, payloadBytes: number): SpeakerSessionResult {
-    if (!validStreamId(streamId) || !SUPPORTED_SAMPLE_RATES.has(sampleRate) || payloadBytes !== 0) {
-      return SpeakerSessionResult.INVALID
+  start(streamId: number, sampleRate: number, payloadBytes: number): MediaSessionResult {
+    if (!isValidSpeakerStartControl(streamId, sampleRate, payloadBytes)) {
+      return MediaSessionResult.INVALID
     }
     if (this.active) {
       if (streamId === this.#streamId && sampleRate === this.#sampleRate && !this.#ended) {
-        return SpeakerSessionResult.IDEMPOTENT
+        return MediaSessionResult.IDEMPOTENT
       }
-      return SpeakerSessionResult.BUSY
+      return MediaSessionResult.BUSY
     }
     this.#streamId = streamId
     this.#sampleRate = sampleRate
     this.#ended = false
-    return SpeakerSessionResult.ACCEPTED
+    return MediaSessionResult.ACCEPTED
   }
 
-  end(streamId: number, sampleRate: number, payloadBytes: number): SpeakerSessionResult {
+  end(streamId: number, sampleRate: number, payloadBytes: number): MediaSessionResult {
     const current = this.#validateCurrent(streamId, sampleRate, payloadBytes)
-    if (current !== SpeakerSessionResult.ACCEPTED) return current
-    if (this.#ended) return SpeakerSessionResult.IDEMPOTENT
+    if (current !== MediaSessionResult.ACCEPTED) return current
+    if (this.#ended) return MediaSessionResult.IDEMPOTENT
     this.#ended = true
-    return SpeakerSessionResult.ACCEPTED
+    return MediaSessionResult.ACCEPTED
   }
 
-  abort(streamId: number, sampleRate: number, payloadBytes: number): SpeakerSessionResult {
+  abort(streamId: number, sampleRate: number, payloadBytes: number): MediaSessionResult {
     const current = this.#validateCurrent(streamId, sampleRate, payloadBytes)
-    if (current !== SpeakerSessionResult.ACCEPTED) return current
-    return SpeakerSessionResult.ACCEPTED
+    if (current !== MediaSessionResult.ACCEPTED) return current
+    return MediaSessionResult.ACCEPTED
   }
 
-  validateData(streamId: number, sampleRate: number, payloadBytes: number): SpeakerSessionResult {
+  validateData(streamId: number, sampleRate: number, payloadBytes: number): MediaSessionResult {
     const current = this.#validateCurrent(streamId, sampleRate, 0)
-    if (current !== SpeakerSessionResult.ACCEPTED) return current
-    if (this.#ended || payloadBytes <= 0 || payloadBytes % 2 !== 0) return SpeakerSessionResult.INVALID
-    return SpeakerSessionResult.ACCEPTED
+    if (current !== MediaSessionResult.ACCEPTED) return current
+    if (this.#ended || payloadBytes <= 0 || payloadBytes % 2 !== 0) return MediaSessionResult.INVALID
+    return MediaSessionResult.ACCEPTED
   }
 
-  validateText(streamId: number, sampleRate: number, payloadBytes: number): SpeakerSessionResult {
+  validateText(streamId: number, sampleRate: number, payloadBytes: number): MediaSessionResult {
     const current = this.#validateCurrent(streamId, sampleRate, 0)
-    if (current !== SpeakerSessionResult.ACCEPTED) return current
-    if (this.#ended || payloadBytes <= 0) return SpeakerSessionResult.INVALID
-    return SpeakerSessionResult.ACCEPTED
+    if (current !== MediaSessionResult.ACCEPTED) return current
+    if (this.#ended || payloadBytes <= 0) return MediaSessionResult.INVALID
+    return MediaSessionResult.ACCEPTED
   }
 
   clear(streamId: number): boolean {
@@ -83,11 +81,14 @@ export class SpeakerSessionGuard {
     this.#reset()
   }
 
-  #validateCurrent(streamId: number, sampleRate: number, payloadBytes: number): SpeakerSessionResult {
-    if (!this.active) return SpeakerSessionResult.INVALID
-    if (streamId !== this.#streamId) return SpeakerSessionResult.STALE
-    if (sampleRate !== this.#sampleRate || payloadBytes !== 0) return SpeakerSessionResult.INVALID
-    return SpeakerSessionResult.ACCEPTED
+  forceStop(): { streamId: number; sampleRate: number } {
+    const current = { streamId: this.#streamId, sampleRate: this.#sampleRate }
+    this.#reset()
+    return current
+  }
+
+  #validateCurrent(streamId: number, sampleRate: number, payloadBytes: number): MediaSessionResult {
+    return isValidCurrentSpeakerControl(streamId, sampleRate, payloadBytes, this.#streamId, this.#sampleRate)
   }
 
   #reset(): void {
@@ -95,8 +96,4 @@ export class SpeakerSessionGuard {
     this.#sampleRate = 0
     this.#ended = false
   }
-}
-
-function validStreamId(streamId: number): boolean {
-  return Number.isInteger(streamId) && streamId > 0 && streamId <= 0xffff
 }

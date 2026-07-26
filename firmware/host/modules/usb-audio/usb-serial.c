@@ -42,6 +42,11 @@ void xs_stackchan_usb_serial_write(xsMachine *the)
 	xsmcSetInteger(xsResult, count > 0 ? count : 0);
 }
 
+void xs_stackchan_usb_serial_is_connected(xsMachine *the)
+{
+	xsmcSetBoolean(xsResult, gUsbSerialOpen && usb_serial_jtag_is_connected());
+}
+
 void xs_stackchan_usb_crc32(xsMachine *the)
 {
 	uint8_t *source;

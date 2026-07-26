@@ -10,6 +10,10 @@ export function writeUsbSerial(source: Uint8Array): number {
   return native('xs_stackchan_usb_serial_write').call(this, source)
 }
 
+export function isUsbSerialConnected(): boolean {
+  return native('xs_stackchan_usb_serial_is_connected').call(this)
+}
+
 export function crc32UsbSerial(source: Uint8Array, end = source.byteLength): number {
   return native('xs_stackchan_usb_crc32').call(this, source, end)
 }

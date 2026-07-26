@@ -7,6 +7,14 @@ from pathlib import Path
 
 
 SCRIPT = Path(__file__).with_name("usb-audio-diagnostics.py")
+WIRE_VECTORS = (
+    SCRIPT.parent.parent
+    / "vendor"
+    / "stack-chan-dock"
+    / "contracts"
+    / "usb-cdc-v2"
+    / "test-vectors.json"
+)
 SPEC = importlib.util.spec_from_file_location("stackchan_usb_audio_diagnostics", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 diagnostics = importlib.util.module_from_spec(SPEC)
@@ -15,6 +23,27 @@ SPEC.loader.exec_module(diagnostics)
 
 
 class ReplayTraceTest(unittest.TestCase):
+    def test_shared_wire_vectors_match_the_diagnostics_codec(self) -> None:
+        fixture = json.loads(WIRE_VECTORS.read_text(encoding="utf-8"))
+        self.assertEqual(diagnostics.PROTOCOL_VERSION, fixture["protocolVersion"])
+
+        for vector in fixture["validFrames"]:
+            source = vector["frame"]
+            frame = diagnostics.Frame(
+                frame_type=source["type"],
+                flags=source["flags"],
+                stream_id=source["streamId"],
+                sequence=source["sequence"],
+                sample_rate=source["sampleRate"],
+                payload=bytes.fromhex(source["payloadHex"]),
+            )
+            encoded = diagnostics.encode_frame(frame)
+            self.assertEqual(vector["encodedHex"], encoded.hex(), vector["name"])
+            self.assertEqual([frame], diagnostics.FrameParser().push(encoded), vector["name"])
+
+        for vector in fixture["invalidFrames"]:
+            self.assertEqual([], diagnostics.FrameParser().push(bytes.fromhex(vector["encodedHex"])), vector["name"])
+
     def test_wire_trace_decodes_received_error_code_without_storing_payload(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "wire.jsonl"

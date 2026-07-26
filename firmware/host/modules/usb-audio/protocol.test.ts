@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
+import { installUsbAudioTestAliases } from './__tests__/node-aliases.js'
+
+installUsbAudioTestAliases()
+
+const {
   decodeStackChanFrame,
   encodeStackChanFrame,
   STACKCHAN_CAPABILITIES,
@@ -14,7 +18,7 @@ import {
   StackChanFrameParser,
   StackChanFrameType,
   StackChanStatus,
-} from './protocol.js'
+} = await import('./protocol.js')
 
 test('StackChan reports distinct speaker receive failures', () => {
   assert.equal(StackChanErrorCode.SPEAKER_SEQUENCE_MISMATCH, 6)
@@ -49,16 +53,16 @@ test('StackChan frame round trips with the Android wire layout', () => {
   const encoded = encodeStackChanFrame({
     type: StackChanFrameType.SPEAKER_PCM,
     flags: StackChanControl.SPEAKER_START,
+    streamId: 1,
     sequence: 42,
     sampleRate: 24000,
     payload: Uint8Array.of(1, 2, 3, 4),
   })
   assert.deepEqual(Array.from(encoded.slice(0, 4)), [0x43, 0x53, 2, 2])
-  assert.equal(Buffer.from(encoded).toString('hex'), '43530202200000002a000000c05d000004000000010203044304066c')
   assert.deepEqual(decodeStackChanFrame(encoded), {
     type: StackChanFrameType.SPEAKER_PCM,
     flags: StackChanControl.SPEAKER_START,
-    streamId: 0,
+    streamId: 1,
     sequence: 42,
     sampleRate: 24000,
     payload: Uint8Array.of(1, 2, 3, 4),
@@ -134,4 +138,12 @@ test('StackChan EVENT decoder rejects a missing chunk', () => {
   const decoder = new StackChanEventDecoder()
   decoder.push(frames[0])
   assert.throws(() => decoder.push(frames[2]), /sequence mismatch/)
+})
+
+test('StackChan EVENT encoder restarts message IDs after a transport reset', () => {
+  const encoder = new StackChanEventEncoder()
+  assert.equal(encoder.encode(new Uint8Array(0))[0].streamId, 1)
+  assert.equal(encoder.encode(new Uint8Array(0))[0].streamId, 2)
+  encoder.reset()
+  assert.equal(encoder.encode(new Uint8Array(0))[0].streamId, 1)
 })

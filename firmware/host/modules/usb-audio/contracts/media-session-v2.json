@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "protocolVersion": 2,
+  "microphoneScenarios": [
+    {
+      "name": "duplicate-stop-and-stale-replacement",
+      "steps": [
+        {
+          "operation": "start",
+          "streamId": 1,
+          "sampleRate": 16000,
+          "payloadBytes": 0,
+          "expected": "accepted"
+        },
+        {
+          "operation": "start",
+          "streamId": 1,
+          "sampleRate": 16000,
+          "payloadBytes": 0,
+          "expected": "idempotent"
+        },
+        {
+          "operation": "stop",
+          "streamId": 1,
+          "sampleRate": 16000,
+          "payloadBytes": 0,
+          "expected": "accepted"
+        },
+        {
+          "operation": "stop",
+          "streamId": 1,
+          "sampleRate": 16000,
+          "payloadBytes": 0,
+          "expected": "idempotent"
+        },
+        {
+          "operation": "start",
+          "streamId": 2,
+          "sampleRate": 16000,
+          "payloadBytes": 0,
+          "expected": "accepted"
+        },
+        {
+          "operation": "stop",
+          "streamId": 1,
+          "sampleRate": 16000,
+          "payloadBytes": 0,
+          "expected": "stale"
+        }
+      ]
+    },
+    {
+      "name": "forced-stop-is-forgotten-by-hello-reset",
+      "steps": [
+        {
+          "operation": "start",
+          "streamId": 4,
+          "sampleRate": 16000,
+          "payloadBytes": 0,
+          "expected": "accepted"
+        },
+        { "operation": "forceStop", "expectedStreamId": 4 },
+        {
+          "operation": "stop",
+          "streamId": 4,
+          "sampleRate": 16000,
+          "payloadBytes": 0,
+          "expected": "idempotent"
+        },
+        { "operation": "reset" },
+        {
+          "operation": "stop",
+          "streamId": 4,
+          "sampleRate": 16000,
+          "payloadBytes": 0,
+          "expected": "stale"
+        }
+      ]
+    }
+  ],
+  "speakerScenarios": [
+    {
+      "name": "duplicate-end-and-stale-abort",
+      "steps": [
+        {
+          "operation": "start",
+          "streamId": 1,
+          "sampleRate": 24000,
+          "payloadBytes": 0,
+          "expected": "accepted"
+        },
+        {
+          "operation": "end",
+          "streamId": 1,
+          "sampleRate": 24000,
+          "payloadBytes": 0,
+          "expected": "accepted"
+        },
+        {
+          "operation": "end",
+          "streamId": 1,
+          "sampleRate": 24000,
+          "payloadBytes": 0,
+          "expected": "idempotent"
+        },
+        { "operation": "clear", "streamId": 1, "expected": true },
+        {
+          "operation": "start",
+          "streamId": 2,
+          "sampleRate": 24000,
+          "payloadBytes": 0,
+          "expected": "accepted"
+        },
+        {
+          "operation": "abort",
+          "streamId": 1,
+          "sampleRate": 24000,
+          "payloadBytes": 0,
+          "expected": "stale"
+        }
+      ]
+    },
+    {
+      "name": "invalid-controls-and-force-stop",
+      "steps": [
+        {
+          "operation": "start",
+          "streamId": 0,
+          "sampleRate": 24000,
+          "payloadBytes": 0,
+          "expected": "invalid"
+        },
+        {
+          "operation": "start",
+          "streamId": 7,
+          "sampleRate": 24000,
+          "payloadBytes": 0,
+          "expected": "accepted"
+        },
+        {
+          "operation": "validateData",
+          "streamId": 7,
+          "sampleRate": 24000,
+          "payloadBytes": 3,
+          "expected": "invalid"
+        },
+        {
+          "operation": "forceStop",
+          "expectedStreamId": 7,
+          "expectedSampleRate": 24000
+        },
+        {
+          "operation": "abort",
+          "streamId": 7,
+          "sampleRate": 24000,
+          "payloadBytes": 0,
+          "expected": "invalid"
+        }
+      ]
+    }
+  ],
+  "creditBoundaries": [
+    { "payloadBytes": 8192, "outstandingCreditBytes": 8192, "accepted": true },
+    { "payloadBytes": 8194, "outstandingCreditBytes": 8192, "accepted": false },
+    { "payloadBytes": 2, "outstandingCreditBytes": 0, "accepted": false }
+  ]
+}

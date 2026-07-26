@@ -9,36 +9,33 @@ import {
   approvalResponse,
   fitApprovalTitle,
   paginateApprovalDetail,
-  parseUsbApprovalEvent,
-  STACKCHAN_EVENT_SCHEMA,
-  type UsbApprovalDecision,
-  type UsbApprovalRequest,
-} from 'usb-approval-model'
+  type ApprovalDecision,
+  type ApprovalRequest,
+} from 'stackchan-approval-model'
+import type { StackchanInboundApplicationEvent, StackchanOutboundApplicationEvent } from 'stackchan-application-event'
+import type { RealtimeEventSendResult } from 'stackchan-realtime-session'
 
 const RESPONSE_RETRY_MILLISECONDS = 2_000
 
 type ApprovalEntry = {
-  request: UsbApprovalRequest
+  request: ApprovalRequest
   detailPages: string[]
   detailPage: number
   showingDetail: boolean
   suspended: boolean
-  decision?: UsbApprovalDecision
+  decision?: ApprovalDecision
 }
 
-export type UsbApprovalTransport = {
-  sendApplicationEvent(event: Record<string, unknown>): void
+export type ApprovalTransport = {
+  sendApplicationEvent(event: StackchanOutboundApplicationEvent): Promise<RealtimeEventSendResult>
 }
 
-export type UsbApprovalSession = {
-  handleEvent(event: Record<string, unknown>): boolean
+export type ApprovalSession = {
+  handleEvent(event: StackchanInboundApplicationEvent): boolean
   close(): void
 }
 
-export function createUsbApprovalSession(
-  transport: UsbApprovalTransport,
-  context: StackchanContext,
-): UsbApprovalSession {
+export function createApprovalSession(transport: ApprovalTransport, context: StackchanContext): ApprovalSession {
   const queue: ApprovalEntry[] = []
   let responseTimer: ReturnType<typeof Timer.repeat> | undefined
   let closed = false
@@ -50,12 +47,19 @@ export function createUsbApprovalSession(
     responseTimer = undefined
   }
 
-  const send = (event: Record<string, unknown>) => {
+  const send = (event: StackchanOutboundApplicationEvent) => {
     if (closed) return
     try {
-      transport.sendApplicationEvent(event)
+      void transport.sendApplicationEvent(event).then(
+        (result) => {
+          if (result !== 'queued') trace(`[remote-approval] send deferred: ${result}\n`)
+        },
+        (error) => {
+          trace(`[remote-approval] send failed: ${errorMessage(error)}\n`)
+        },
+      )
     } catch (error) {
-      trace(`[usb-approval] send failed: ${errorMessage(error)}\n`)
+      trace(`[remote-approval] send failed: ${errorMessage(error)}\n`)
     }
   }
 
@@ -105,7 +109,7 @@ export function createUsbApprovalSession(
     }, RESPONSE_RETRY_MILLISECONDS)
   }
 
-  const decide = (decision: UsbApprovalDecision) => {
+  const decide = (decision: ApprovalDecision) => {
     const entry = active()
     if (!entry || entry.decision || entry.suspended) return
     entry.decision = decision
@@ -125,7 +129,7 @@ export function createUsbApprovalSession(
     else sendPresented(entry)
   }
 
-  const receiveRequest = (request: UsbApprovalRequest) => {
+  const receiveRequest = (request: ApprovalRequest) => {
     const existing = queue.find((entry) => entry.request.requestId === request.requestId)
     if (existing) {
       existing.request = request
@@ -171,22 +175,18 @@ export function createUsbApprovalSession(
 
   return {
     handleEvent(value) {
-      if (value.schema !== STACKCHAN_EVENT_SCHEMA) return false
-      const event = parseUsbApprovalEvent(value)
-      if (!event) {
-        trace('[usb-approval] ignored malformed stackchan.event.v1 message\n')
-        return true
-      }
-      switch (event.type) {
+      switch (value.type) {
         case 'approval.request':
-          receiveRequest(event)
+          receiveRequest(value)
           break
         case 'approval.resolved':
-          resolveRequest(event.requestId)
+          resolveRequest(value.requestId)
           break
         case 'approval.suspended':
-          suspendRequest(event.requestId)
+          suspendRequest(value.requestId)
           break
+        default:
+          return false
       }
       return true
     },
@@ -200,7 +200,7 @@ export function createUsbApprovalSession(
   }
 }
 
-function detailPages(request: UsbApprovalRequest): string[] {
+function detailPages(request: ApprovalRequest): string[] {
   const suffix = request.truncated ? '\n\n（末尾は省略されています）' : ''
   return paginateApprovalDetail(`${request.detail}${suffix}`)
 }

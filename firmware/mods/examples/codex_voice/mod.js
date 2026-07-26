@@ -13,6 +13,9 @@ export function onContextCreated(robot) {
   remoteSession.subscribe((state, error) => {
     trace(`[codex-voice] state=${state}${error ? ` error=${error}` : ''}\n`)
   })
+  remoteSession.subscribeTransport((state) => {
+    trace(`[codex-voice] transport=${state}\n`)
+  })
   touchPanel.onEvent = (event) => {
     if (event.gesture === 'forwardSwipe') {
       const requestId = remoteSession.requestStart()
@@ -22,5 +25,5 @@ export function onContextCreated(robot) {
       trace(`[codex-voice] stop request=${requestId}\n`)
     }
   }
-  trace('[codex-voice] ready: forward swipe starts, backward swipe stops\n')
+  trace(`[codex-voice] ready: transport=${remoteSession.transportState}, forward swipe starts, backward swipe stops\n`)
 }

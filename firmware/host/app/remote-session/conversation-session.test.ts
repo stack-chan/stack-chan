@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createUsbConversationSession, type ConversationRetryScheduler } from './usb-conversation-session.js'
+import type { RemoteConversationTransportState } from 'capabilities'
+import { parseStackchanApplicationEvent } from './application-event.js'
+import { installRemoteSessionTestAliases } from './__tests__/node-aliases.js'
+import type { ConversationRetryScheduler } from './conversation-session.js'
+
+installRemoteSessionTestAliases()
+
+const { createConversationSession } = await import('./conversation-session.js')
 
 class FakeScheduler implements ConversationRetryScheduler {
   now = 0
@@ -32,14 +39,24 @@ class FakeScheduler implements ConversationRetryScheduler {
   }
 }
 
-function createHarness() {
+function createHarness(initialTransportState: RemoteConversationTransportState = 'ready') {
   const events: Array<Record<string, unknown>> = []
   const scheduler = new FakeScheduler()
+  const transportListeners = new Set<(state: RemoteConversationTransportState) => void>()
+  let transportState = initialTransportState
   let sequence = 0
-  const session = createUsbConversationSession(
+  const session = createConversationSession(
     {
+      get transportState() {
+        return transportState
+      },
       sendApplicationEvent(event) {
         events.push(event)
+        return Promise.resolve('queued')
+      },
+      subscribeTransport(listener) {
+        transportListeners.add(listener)
+        return () => transportListeners.delete(listener)
       },
     },
     scheduler,
@@ -47,7 +64,15 @@ function createHarness() {
       createRequestId: () => `touch-${++sequence}`,
     },
   )
-  return { events, scheduler, session }
+  return {
+    events,
+    scheduler,
+    session,
+    setTransportState(nextState: RemoteConversationTransportState) {
+      transportState = nextState
+      for (const listener of transportListeners) listener(nextState)
+    },
+  }
 }
 
 test('conversation start retries the same request ID and accepts its result', () => {
@@ -125,20 +150,79 @@ test('conversation request stops retrying after ten seconds and exposes an error
   assert.match(session.remoteSession.lastError ?? '', /timed out/)
 })
 
+test('an unsupported Dock blocks immediately without sending or scheduling retries', () => {
+  const { events, scheduler, session } = createHarness('unsupported')
+  const transportStates: RemoteConversationTransportState[] = []
+  session.remoteSession.subscribeTransport((state) => transportStates.push(state))
+
+  const requestId = session.remoteSession.requestStart()
+  scheduler.advance(20_000)
+
+  assert.equal(requestId, 'touch-1')
+  assert.equal(session.remoteSession.transportState, 'unsupported')
+  assert.equal(session.remoteSession.state, 'blocked')
+  assert.match(session.remoteSession.lastError ?? '', /does not support EVENT/)
+  assert.deepEqual(events, [])
+  assert.deepEqual(transportStates, [])
+})
+
+test('a disconnected request keeps its ID and sends immediately when EVENT becomes ready', () => {
+  const { events, scheduler, session, setTransportState } = createHarness('disconnected')
+  const transportStates: RemoteConversationTransportState[] = []
+  session.remoteSession.subscribeTransport((state) => transportStates.push(state))
+
+  const requestId = session.remoteSession.requestStart()
+  scheduler.advance(4_000)
+  assert.deepEqual(events, [])
+
+  setTransportState('ready')
+  assert.equal(events.length, 1)
+  assert.equal(events[0].requestId, requestId)
+  assert.equal(session.remoteSession.transportState, 'ready')
+
+  scheduler.advance(2_000)
+  assert.equal(events.length, 2)
+  assert.deepEqual(transportStates, ['ready'])
+})
+
+test('a pending disconnected request still times out ten seconds after the gesture', () => {
+  const { events, scheduler, session } = createHarness('disconnected')
+
+  session.remoteSession.requestStop()
+  scheduler.advance(10_000)
+
+  assert.deepEqual(events, [])
+  assert.equal(session.remoteSession.state, 'blocked')
+  assert.match(session.remoteSession.lastError ?? '', /timed out after 10000 ms/)
+})
+
+test('losing negotiated EVENT support blocks a pending request and cancels retries', () => {
+  const { events, scheduler, session, setTransportState } = createHarness()
+
+  session.remoteSession.requestStart()
+  setTransportState('unsupported')
+  scheduler.advance(20_000)
+
+  assert.equal(events.length, 1)
+  assert.equal(session.remoteSession.transportState, 'unsupported')
+  assert.equal(session.remoteSession.state, 'blocked')
+  assert.match(session.remoteSession.lastError ?? '', /does not support EVENT/)
+})
+
 test('conversation result parser rejects malformed or unrelated events', () => {
   const { session } = createHarness()
   const requestId = session.remoteSession.requestStart()
 
-  assert.equal(session.handleEvent({ type: 'conversation.result', requestId }), false)
+  assert.equal(parseStackchanApplicationEvent({ type: 'conversation.result', requestId }), undefined)
   assert.equal(
-    session.handleEvent({
+    parseStackchanApplicationEvent({
       schema: 'stackchan.event.v1',
       type: 'conversation.result',
       requestId,
       success: 'yes',
       state: 'listening',
     }),
-    false,
+    undefined,
   )
   assert.equal(session.remoteSession.state, 'connecting')
 })

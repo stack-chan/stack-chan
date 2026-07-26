@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { SpeakerSessionGuard, SpeakerSessionResult } from './speaker-session.js'
+import { installUsbAudioTestAliases } from './__tests__/node-aliases.js'
+
+installUsbAudioTestAliases()
+
+const { SpeakerSessionGuard, SpeakerSessionResult } = await import('./speaker-session.js')
 
 test('a stale abort cannot stop the current speaker stream', () => {
   const session = new SpeakerSessionGuard()

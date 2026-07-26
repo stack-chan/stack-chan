@@ -5,17 +5,12 @@ import defaultBehavior from 'app-default-behavior'
 import { type BootWiFiStatus, startHostBootServices } from 'boot-services'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
 import { DOMAIN } from 'consts'
+import { startStackchanDock, type StackchanDockRuntime } from 'dock'
 import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'experimental-mini-app-loader'
 import { initializeLocalization } from 'localization'
-import config from 'mc/config'
 import Modules from 'modules'
 import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
-import { createUsbApprovalSession } from 'usb-approval-session'
-import { createUsbAudioPresentation, type UsbAudioPresentation } from 'usb-audio-presentation'
-import { createUsbConversationSession } from 'usb-conversation-session'
-import { createUsbRealtimeSession, type RealtimeToolProvider } from 'usb-realtime-session'
 import type { StackchanContext } from 'capabilities'
-import Timer from 'timer'
 
 type DeviceButton = {
   onChanged: (this: DeviceButton) => void
@@ -23,23 +18,6 @@ type DeviceButton = {
 
 type GlobalEnvironment = {
   button?: Partial<Record<'a' | 'c', DeviceButton>>
-}
-
-type UsbAudioBridgeControl = {
-  setPresentation(presentation?: UsbAudioPresentation): void
-  setEventHandler(handler?: (event: string) => void): void
-  sendEvent(event: string): void
-  close(): void
-}
-
-type UsbAudioBridgeOptions = {
-  speakerVolume?: number
-  diagnostics?: boolean
-}
-
-type UsbAudioConfig = UsbAudioBridgeOptions & {
-  enabled?: boolean
-  presentationEnabled?: boolean
 }
 
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
@@ -50,26 +28,6 @@ function installPlatformInputBridge(): void {
   const bridge = Modules.importNow('wasm-button-bridge') as { installWasmButtons?: () => void }
   bridge.installWasmButtons?.()
   trace('[main] installed WASM button bridge\n')
-}
-
-function startConfiguredUsbAudioBridge(): UsbAudioBridgeControl | undefined {
-  const usbAudio = (config as { usbAudio?: UsbAudioConfig }).usbAudio
-  if (!usbAudio?.enabled) return
-  if (!Modules.has('stackchan-usb-audio')) {
-    throw new Error('USB audio is enabled, but the stackchan-usb-audio module is unavailable')
-  }
-  const startUsbAudioBridge = Modules.importNow('stackchan-usb-audio') as
-    | ((options?: UsbAudioBridgeOptions) => UsbAudioBridgeControl)
-    | undefined
-  if (typeof startUsbAudioBridge !== 'function') {
-    throw new Error('stackchan-usb-audio does not export a bridge starter')
-  }
-  const bridge = startUsbAudioBridge({
-    speakerVolume: usbAudio.speakerVolume,
-    diagnostics: usbAudio.diagnostics,
-  })
-  trace('[main] USB audio bridge started\n')
-  return bridge
 }
 
 function loadAppBehaviors(miniAppArchivePresent: boolean): StackchanAppBehavior[] {
@@ -118,68 +76,61 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string
 
 async function main() {
   trace('[main] start\n')
-  const usbAudioBridge = startConfiguredUsbAudioBridge()
-  const usbRealtimeSession = usbAudioBridge ? createUsbRealtimeSession(usbAudioBridge) : undefined
-  const usbConversationSession = usbRealtimeSession
-    ? createUsbConversationSession(usbRealtimeSession, {
-        set: (callback, milliseconds) => Timer.set(callback, milliseconds),
-        clear: (handle) => Timer.clear(handle as Timer),
-      })
-    : undefined
-  installPlatformInputBridge()
-  initializeLocalization(loadPreferences(DOMAIN.ui).language)
-  const miniAppArchivePresent = Modules.has('miniapp')
-  const experimentalMiniApps = prepareExperimentalMiniApps()
+  let dockRuntime: StackchanDockRuntime | undefined
+  let context: StackchanContext | undefined
+  try {
+    dockRuntime = startStackchanDock(Modules)
+    if (dockRuntime) trace('[main] Stackchan Dock started\n')
+    installPlatformInputBridge()
+    initializeLocalization(loadPreferences(DOMAIN.ui).language)
+    const miniAppArchivePresent = Modules.has('miniapp')
+    const experimentalMiniApps = prepareExperimentalMiniApps()
 
-  trace('[main] loading app behaviors\n')
-  const appBehaviors = loadAppBehaviors(miniAppArchivePresent)
-  // Launch behaviors run before startHostBootServices so the splash screen is
-  // visible while network setup blocks.
-  const shouldCreateContext = await runLaunchBehaviors(appBehaviors)
-  trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
-  if (!shouldCreateContext) return
-
-  const bootServices = startHostBootServices({
-    wifi: {
-      onStatusChanged: showWiFiConnectionStatus,
-      promptRecoveryChoice: waitForBootWiFiRecoveryChoice,
-    },
-  })
-  const networkReady = await bootServices.connectivity.network.ready
-  trace(`[main] network ready: ${networkReady.status}\n`)
-  const preferences = loadPreferenceConfig()
-  const context = createStackchanContext(preferences, {
-    connectivity: bootServices.connectivity,
-    remoteConversationSession: usbConversationSession?.remoteSession,
-  })
-  if (usbRealtimeSession) {
-    const usbApprovalSession = createUsbApprovalSession(usbRealtimeSession, context)
-    usbRealtimeSession.addApplicationEventHandler(usbApprovalSession.handleEvent)
-    if (usbConversationSession) {
-      usbRealtimeSession.addApplicationEventHandler(usbConversationSession.handleEvent)
+    trace('[main] loading app behaviors\n')
+    const appBehaviors = loadAppBehaviors(miniAppArchivePresent)
+    // Launch behaviors run before startHostBootServices so the splash screen is
+    // visible while network setup blocks.
+    const shouldCreateContext = await runLaunchBehaviors(appBehaviors)
+    trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
+    if (!shouldCreateContext) {
+      const unownedDock = dockRuntime
+      dockRuntime = undefined
+      unownedDock?.close()
+      return
     }
+
+    const bootServices = startHostBootServices({
+      wifi: {
+        onStatusChanged: showWiFiConnectionStatus,
+        promptRecoveryChoice: waitForBootWiFiRecoveryChoice,
+      },
+    })
+    const networkReady = await bootServices.connectivity.network.ready
+    trace(`[main] network ready: ${networkReady.status}\n`)
+    const preferences = loadPreferenceConfig()
+    const ownedDock = dockRuntime
+    context = createStackchanContext(preferences, {
+      connectivity: bootServices.connectivity,
+      remoteConversationSession: ownedDock?.remoteConversationSession,
+      closeHandlers: ownedDock ? [() => ownedDock.close()] : undefined,
+    })
+    ownedDock?.onContextCreated(context)
+    registerExperimentalMiniApps(experimentalMiniApps, context.ui.miniApps)
+    trace('[main] app context created\n')
+    await runContextCreatedBehaviors(appBehaviors, context, {
+      device: getHostDeviceEnvironment(),
+      config: preferences,
+    })
+    trace('[main] app behaviors ready\n')
+  } catch (error) {
+    try {
+      if (context) await context.lifecycle.close()
+      else dockRuntime?.close()
+    } catch (closeError) {
+      trace(`[main] cleanup error ${closeError instanceof Error ? closeError.message : String(closeError)}\n`)
+    }
+    throw error
   }
-  if ((config as { usbAudio?: UsbAudioConfig }).usbAudio?.presentationEnabled !== false) {
-    usbAudioBridge?.setPresentation(
-      createUsbAudioPresentation(context, (state) => usbConversationSession?.updateState(state)),
-    )
-  }
-  if (Modules.has('stackchan-realtime-tools')) {
-    const createProvider = Modules.importNow('stackchan-realtime-tools') as
-      | ((context: StackchanContext) => RealtimeToolProvider)
-      | undefined
-    if (typeof createProvider === 'function') usbRealtimeSession?.setProvider(createProvider(context))
-  } else {
-    usbRealtimeSession?.setProvider({ tools: [] })
-    trace('[main] stackchan-realtime-tools is unavailable; USB session exposes Android tools only\n')
-  }
-  registerExperimentalMiniApps(experimentalMiniApps, context.ui.miniApps)
-  trace('[main] app context created\n')
-  await runContextCreatedBehaviors(appBehaviors, context, {
-    device: getHostDeviceEnvironment(),
-    config: preferences,
-  })
-  trace('[main] app behaviors ready\n')
 }
 
 main().catch((error) => {

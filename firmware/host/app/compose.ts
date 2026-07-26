@@ -54,6 +54,7 @@ type UIOptions = {
 export type StackchanContextOptions = {
   connectivity?: ConnectivityCapability
   remoteConversationSession?: RemoteConversationSession
+  closeHandlers?: ReadonlyArray<() => void | Promise<void>>
 }
 
 type GlobalEnvironment = {
@@ -249,6 +250,7 @@ export function createStackchanContext(
     imu,
     connectivity: options.connectivity,
     remoteConversationSession: options.remoteConversationSession,
+    closeHandlers: options.closeHandlers,
     speaker,
     webRadio,
     microphone,

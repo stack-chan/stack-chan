@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { StackChanControl, StackChanFrameType } from './protocol.js'
+import { installUsbAudioTestAliases } from './__tests__/node-aliases.js'
 import { StreamTxQueue } from './stream-tx-queue.js'
+
+installUsbAudioTestAliases()
+
+const { StackChanControl, StackChanFrameType } = await import('./protocol.js')
 
 test('drops queued credit and diagnostics for a finished stream while retaining terminal controls', () => {
   const queue = new StreamTxQueue(1024)

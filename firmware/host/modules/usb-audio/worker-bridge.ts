@@ -9,11 +9,13 @@ import {
   SPEAKER_STATS_WRITABLE_CALLBACKS,
   SPEAKER_STATS_WRITTEN_BYTES,
 } from 'stackchan-usb-shared-output'
+import { StackChanStatus } from 'stackchan-usb-media-session'
+import type { UsbEventSendResult, UsbEventTransportState } from 'stackchan-usb-event-transport'
+import { UsbEventSendRequests } from 'stackchan-usb-event-send-requests'
 import Time from 'time'
 import Timer from 'timer'
 import { SharedByteRing } from 'web-radio-byte-ring'
 import Worker from 'worker'
-import { StackChanStatus } from 'stackchan-usb-protocol'
 import { CurrentStreamGate } from 'stackchan-usb-stream-gate'
 
 export type UsbAudioPresentation = {
@@ -27,7 +29,8 @@ export type UsbAudioPresentation = {
 export type UsbAudioBridgeControl = {
   setPresentation(presentation?: UsbAudioPresentation): void
   setEventHandler(handler?: (event: string) => void): void
-  sendEvent(event: string): void
+  setTransportStateHandler(handler?: (state: UsbEventTransportState) => void): void
+  sendEvent(event: string): Promise<UsbEventSendResult>
   close(): void
 }
 
@@ -51,11 +54,14 @@ type UsbAudioWorkerMessage = {
   position?: number
   power?: number
   reason?: string
+  requestId?: number
+  result?: UsbEventSendResult
   sampleRate?: number
   text?: string
   event?: string
   status?: number
   streamId?: number
+  transportState?: UsbEventTransportState
   volume?: number
 }
 
@@ -107,6 +113,9 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
   #presentationStatus = StackChanStatus.IDLE
   #presentationStreamId = 0
   #eventHandler: ((event: string) => void) | undefined
+  #transportStateHandler: ((state: UsbEventTransportState) => void) | undefined
+  #transportState: UsbEventTransportState = 'disconnected'
+  #eventSends = new UsbEventSendRequests()
 
   constructor(options: UsbAudioBridgeOptions = {}) {
     const worker = new Worker('stackchan-usb-audio-worker', USB_AUDIO_WORKER_OPTIONS)
@@ -142,13 +151,28 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
     this.#eventHandler = handler
   }
 
-  sendEvent(event: string): void {
-    this.#worker?.postMessage({ id: 'send-event', event })
+  setTransportStateHandler(handler?: (state: UsbEventTransportState) => void): void {
+    this.#transportStateHandler = handler
+    if (handler) this.#notifyTransportState(handler, this.#transportState)
+  }
+
+  sendEvent(event: string): Promise<UsbEventSendResult> {
+    const worker = this.#worker
+    if (!worker) return Promise.resolve('disconnected')
+    const request = this.#eventSends.begin()
+    try {
+      worker.postMessage({ id: 'send-event', requestId: request.requestId, event })
+    } catch (error) {
+      this.#eventSends.reject(request.requestId, asError(error))
+    }
+    return request.result
   }
 
   close(): void {
     const worker = this.#worker
     this.#worker = undefined
+    this.#setTransportState('disconnected')
+    this.#eventSends.settleAll('disconnected')
     this.#closeMicrophone()
     this.#closeAudio()
     this.#stopPresentation()
@@ -231,8 +255,23 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
       case 'event':
         if (message.event !== undefined) this.#eventHandler?.(message.event)
         break
+      case 'transport-state':
+        if (isUsbEventTransportState(message.transportState)) this.#setTransportState(message.transportState)
+        break
+      case 'send-event-result':
+        if (message.requestId !== undefined && isUsbEventSendResult(message.result)) {
+          this.#eventSends.resolve(message.requestId, message.result)
+        }
+        break
+      case 'send-event-error':
+        if (message.requestId !== undefined) {
+          this.#eventSends.reject(message.requestId, new Error(message.reason ?? 'USB EVENT send failed'))
+        }
+        break
       case 'error':
         trace(`[usb-audio-worker] ${message.reason ?? 'unknown error'}\n`)
+        this.#setTransportState('disconnected')
+        this.#eventSends.rejectAll(new Error(message.reason ?? 'USB audio worker failed'))
         this.#closeMicrophone()
         this.#closeAudio()
         this.#stopPresentation()
@@ -240,11 +279,31 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
         break
       case 'closed':
         this.#worker = undefined
+        this.#setTransportState('disconnected')
+        this.#eventSends.settleAll('disconnected')
         this.#closeMicrophone()
         this.#closeAudio()
         this.#stopPresentation()
         this.#setPresentationStatus(StackChanStatus.IDLE)
         break
+    }
+  }
+
+  #setTransportState(state: UsbEventTransportState): void {
+    if (state === this.#transportState) return
+    this.#transportState = state
+    this.#notifyTransportState(this.#transportStateHandler, state)
+  }
+
+  #notifyTransportState(
+    handler: ((state: UsbEventTransportState) => void) | undefined,
+    state: UsbEventTransportState,
+  ): void {
+    if (!handler) return
+    try {
+      handler(state)
+    } catch (error) {
+      trace(`[usb-audio] transport-state handler failed: ${error instanceof Error ? error.message : String(error)}\n`)
     }
   }
 
@@ -554,3 +613,15 @@ export function stopUsbAudioBridge(): void {
 }
 
 export default startUsbAudioBridge
+
+function isUsbEventTransportState(value: unknown): value is UsbEventTransportState {
+  return value === 'disconnected' || value === 'unsupported' || value === 'ready'
+}
+
+function isUsbEventSendResult(value: unknown): value is UsbEventSendResult {
+  return value === 'queued' || value === 'disconnected' || value === 'unsupported'
+}
+
+function asError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error))
+}

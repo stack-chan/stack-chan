@@ -5,8 +5,8 @@ import {
   usbAudioConversationState,
   usbAudioMouthStep,
   usbAudioStatusVisual,
-} from './usb-audio-presentation-model.js'
-import { StackChanStatus } from '../modules/usb-audio/protocol.js'
+} from './presentation-model.js'
+import { StackChanStatus } from '../../../modules/usb-audio/media-session.js'
 
 test('USB audio captions retain at most the latest two display lines', () => {
   assert.equal(formatUsbAudioCaption('ABCDEF', 52), 'CD\nEF')

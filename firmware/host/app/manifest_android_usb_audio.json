@@ -1,6 +1,7 @@
 {
   "include": [
     "./manifest_m5stackchan_cores3.json",
+    "./docks/android-usb-audio/manifest.json",
     "../modules/usb-audio/manifest.json"
   ],
   "config": {

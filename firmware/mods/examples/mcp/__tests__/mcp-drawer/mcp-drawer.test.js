@@ -1,5 +1,5 @@
-import { onContextCreated } from 'mod'
 import { setMCPServerResult } from 'mcp-server'
+import { onContextCreated } from 'mod'
 import { setIPAddress } from 'net'
 import { assert, equal } from 'testing/assert'
 
@@ -14,19 +14,21 @@ function createContext(ready = { status: 'connected' }) {
         ready: Promise.resolve(ready),
       },
     },
-    drawer: {
-      addDrawerButton(button) {
-        buttons.push(button)
+    ui: {
+      drawer: {
+        addDrawerButton(button) {
+          buttons.push(button)
+        },
+        setDrawerButtonState(key, active) {
+          states.push([key, active])
+        },
       },
-      setDrawerButtonState(key, active) {
-        states.push([key, active])
+      showBalloon(message) {
+        balloons.push(message)
       },
-    },
-    showBalloon(message) {
-      balloons.push(message)
-    },
-    hideBalloon() {
-      hidden += 1
+      hideBalloon() {
+        hidden += 1
+      },
     },
     face: {
       setEmotion() {},
@@ -79,6 +81,12 @@ async function runTest() {
     'MCP server unavailable:\nconnection failed',
     'offline server should show the network failure',
   )
+
+  const rejected = createContext()
+  rejected.context.connectivity.network.ready = Promise.reject(new Error('Wi-Fi initialization failed'))
+  onContextCreated(rejected.context)
+  await rejected.buttons[0].callback(rejected.context)
+  assert(rejected.balloons[0].includes('Wi-Fi initialization failed'), 'network readiness rejection should be visible')
 
   setMCPServerResult('failed', 'port already in use')
   const failed = createContext()

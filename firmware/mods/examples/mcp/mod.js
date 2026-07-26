@@ -11,17 +11,17 @@ async function endpointMessage(context, server) {
     return `MCP server error:\n${server.error ?? 'failed to start'}`
   }
 
-  const network = context.connectivity.network
-  if (!network) {
-    return 'MCP server unavailable:\nnetwork is not supported'
-  }
-
-  const ready = await network.ready
-  if (ready.status !== 'connected') {
-    return `MCP server unavailable:\n${ready.reason}`
-  }
-
   try {
+    const network = context.connectivity.network
+    if (!network) {
+      return 'MCP server unavailable:\nnetwork is not supported'
+    }
+
+    const ready = await network.ready
+    if (ready.status !== 'connected') {
+      return `MCP server unavailable:\n${ready.reason}`
+    }
+
     const address = Net.get('IP')
     if (!address) {
       return 'MCP server unavailable:\nIP address is not available'
@@ -105,21 +105,21 @@ export function onContextCreated(robot) {
   })
 
   let endpointVisible = false
-  robot.drawer.addDrawerButton({
+  robot.ui.drawer.addDrawerButton({
     key: DRAWER_KEY,
     label: 'MCP Server',
     kind: 'toggle',
     initialState: false,
     callback: async (context) => {
       endpointVisible = !endpointVisible
-      context.drawer.setDrawerButtonState(DRAWER_KEY, endpointVisible)
+      context.ui.drawer.setDrawerButtonState(DRAWER_KEY, endpointVisible)
       if (!endpointVisible) {
-        context.hideBalloon()
+        context.ui.hideBalloon()
         return
       }
 
       const message = await endpointMessage(context, mcpServer)
-      if (endpointVisible) context.showBalloon(message)
+      if (endpointVisible) context.ui.showBalloon(message)
     },
   })
 

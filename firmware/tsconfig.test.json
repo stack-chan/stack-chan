@@ -121,6 +121,9 @@
       "consts": [
         "host/modules/preferences/consts.ts"
       ],
+      "mcp-auth": [
+        "host/modules/connectivity/mcp-server/mcp-auth.ts"
+      ],
       "modules": [
         "host/modules/testing/fakes/modules.ts"
       ],

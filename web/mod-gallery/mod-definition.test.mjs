@@ -30,6 +30,7 @@ test('共通MOD定義からテキストとブロックのGalleryを構成する'
   for (const definition of definitions) {
     assert.equal(definition.sourceUrl.protocol, 'file:')
     assert.doesNotThrow(() => readFileSync(definition.sourceUrl))
+    assert.doesNotThrow(() => readFileSync(definition.sourceViewUrl))
     if (definition.type !== 'block') continue
     const project = parseVisualProject(readFileSync(definition.sourceUrl, 'utf8'))
     const analysis = analyzeWorkspace(project.workspace, { target: project.target })
@@ -140,9 +141,35 @@ test('MOD定義は形式別の正本と安全なパッケージパスを要求�
       /entrypoints/
     )
   }
+  assert.throws(
+    () =>
+      parseModDefinition({
+        ...base,
+        type: 'block',
+        source: { path: 'sample.stackchan-blocks.json', entrypoint: 'mod.js' },
+      }),
+    /source.entrypoint/
+  )
+  assert.throws(
+    () =>
+      parseModDefinition({
+        ...base,
+        type: 'text',
+        source: { path: 'manifest.json', entrypoint: 'README.md' },
+      }),
+    /JavaScriptまたはTypeScript/
+  )
   for (const path of ['/manifest.json', '../manifest.json', 'mod/../manifest.json', 'mod\\manifest.json']) {
     assert.throws(() => validatePackagePath(path), /安全な相対パス/)
   }
+})
+
+test('テキストMODはビルド用manifestとは別に閲覧用entrypointを公開できる', async () => {
+  const definitions = await loadModCatalog(catalogUrl, fileFetch)
+  const starter = definitions.find((definition) => definition.id === 'tech.stackchan.samples.starter')
+
+  assert.equal(starter.sourceUrl.pathname.endsWith('/sample-mod/manifest.json'), true)
+  assert.equal(starter.sourceViewUrl.pathname.endsWith('/sample-mod/mod.js'), true)
 })
 
 test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持つ', () => {

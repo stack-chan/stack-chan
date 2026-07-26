@@ -586,6 +586,39 @@ describe('Host.Camera bridge', () => {
     assert.deepEqual(calls, [['getUserMedia', { video: true }], 'play'])
   })
 
+  it('starts a fresh browser stream for a second firmware camera preview', async () => {
+    const calls = []
+    const streams = [0, 1].map((index) => ({
+      getTracks: () => [{ stop: () => calls.push(['stop', index]) }],
+    }))
+    const video = {
+      readyState: 2,
+      videoWidth: 16,
+      videoHeight: 16,
+      play: async () => calls.push('play'),
+    }
+    const bridge = createHostCameraBridge({
+      navigatorObj: {
+        mediaDevices: {
+          async getUserMedia() {
+            const stream = streams.shift()
+            calls.push('getUserMedia')
+            return stream
+          },
+        },
+      },
+      videoElement: video,
+    })
+
+    await bridge.start({ useBrowserCamera: true })
+    bridge.stop()
+    await bridge.start({ useBrowserCamera: true })
+
+    assert.equal(bridge.isBrowserCameraStarted(), true)
+    assert.equal(video.srcObject?.getTracks instanceof Function, true)
+    assert.deepEqual(calls, ['getUserMedia', 'play', ['stop', 0], 'getUserMedia', 'play'])
+  })
+
   it('allows an explicit non-browser camera start to stop an active browser stream', async () => {
     const calls = []
     const stream = { getTracks: () => [{ stop: () => calls.push('stop') }] }

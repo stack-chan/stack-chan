@@ -1,5 +1,6 @@
 ---
 "stack-chan": patch
+"stackchan-web": patch
 ---
 
-Require Bearer token authentication for the MCP server, reject requests when no token is configured, and remove unrestricted CORS response headers.
+Require Bearer token authentication for the MCP server, show its endpoint or startup error from a Drawer toggle, and add the MCP MOD to the Gallery.

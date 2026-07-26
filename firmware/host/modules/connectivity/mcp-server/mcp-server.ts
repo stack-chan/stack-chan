@@ -33,6 +33,8 @@ export interface MCPServerConfig {
   token?: string
 }
 
+export type MCPServerStatus = 'starting' | 'running' | 'failed'
+
 /**
  * HTTP Connection interface
  */
@@ -147,6 +149,8 @@ export class MCPServerService {
   #tools: Map<string, Tool> = new Map()
   #port: number
   #token?: string
+  #status: MCPServerStatus = 'starting'
+  #error?: string
 
   constructor(config: MCPServerConfig = {}) {
     this.#port = config.port ?? 8080
@@ -187,6 +191,14 @@ export class MCPServerService {
     return Array.from(this.#tools.values())
   }
 
+  get status(): MCPServerStatus {
+    return this.#status
+  }
+
+  get error(): string | undefined {
+    return this.#error
+  }
+
   /**
    * Start the HTTP server
    */
@@ -194,10 +206,13 @@ export class MCPServerService {
     trace(`MCP Server starting on port ${this.#port}\n`)
 
     try {
+      this.#status = 'running'
       for await (const connection of listen({ port: this.#port })) {
         this.#handleConnection(connection)
       }
     } catch (error) {
+      this.#status = 'failed'
+      this.#error = String(error)
       trace(`Failed to start MCP server: ${error}\n`)
     }
   }

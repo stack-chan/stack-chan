@@ -1,4 +1,5 @@
 import { MCPServerService, type Tool } from 'mcp-server'
+import { equal } from 'testing/assert'
 
 // Example tool: Hello World
 const helloWorldTool: Tool = {
@@ -69,6 +70,7 @@ const server = new MCPServerService({
   token: 'test-token',
   tools: [helloWorldTool, addNumbersTool, getCurrentTimeTool],
 })
+equal(server.status, 'running', 'server should expose its listener status')
 
 trace('MCP Server started with tools:\n')
 for (const tool of server.getTools()) {

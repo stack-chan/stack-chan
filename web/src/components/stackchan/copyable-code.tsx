@@ -1,4 +1,4 @@
-import { Check, Clipboard } from 'lucide-react'
+import { Check, Clipboard, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
@@ -7,13 +7,24 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 export function CopyableCode({ code, emptyMessage }: { code: string; emptyMessage: string }) {
   const { t } = useI18n()
-  const [copied, setCopied] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'copied' | 'error'>('idle')
 
   const copy = async () => {
-    await navigator.clipboard.writeText(code)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1200)
+    try {
+      await navigator.clipboard.writeText(code)
+      setStatus('copied')
+    } catch {
+      setStatus('error')
+    }
+    window.setTimeout(() => setStatus('idle'), 1200)
   }
+
+  const statusLabel =
+    status === 'copied'
+      ? 'コピーしました'
+      : status === 'error'
+        ? '生成コードをコピーできませんでした'
+        : '生成コードをコピー'
 
   return (
     <div className="relative">
@@ -26,14 +37,17 @@ export function CopyableCode({ code, emptyMessage }: { code: string; emptyMessag
               size="icon-sm"
               onClick={() => void copy()}
               disabled={!code}
-              aria-label={t('生成コードをコピー')}
+              aria-label={t(statusLabel)}
             />
           }
         >
-          {copied ? <Check /> : <Clipboard />}
+          {status === 'copied' ? <Check /> : status === 'error' ? <TriangleAlert /> : <Clipboard />}
         </TooltipTrigger>
-        <TooltipContent>{t(copied ? 'コピーしました' : '生成コードをコピー')}</TooltipContent>
+        <TooltipContent>{t(statusLabel)}</TooltipContent>
       </Tooltip>
+      <span className="sr-only" role="status" aria-live="polite">
+        {status === 'idle' ? '' : t(statusLabel)}
+      </span>
       <pre className="max-h-80 overflow-auto rounded-xl bg-console p-3 pr-12 text-xs text-console-foreground">
         <code>{code || emptyMessage}</code>
       </pre>

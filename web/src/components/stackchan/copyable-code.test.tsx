@@ -21,6 +21,25 @@ describe('CopyableCode', () => {
     await user.click(screen.getByRole('button', { name: '生成コードをコピー' }))
 
     expect(writeText).toHaveBeenCalledWith('export function onLaunch() {\n  return true\n}')
+    expect(await screen.findByRole('button', { name: 'コピーしました' })).toBeVisible()
+    expect(screen.getByRole('status')).toHaveTextContent('コピーしました')
+  })
+
+  it('shows a localized error when clipboard access fails', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValueOnce(new Error('clipboard unavailable'))
+    render(
+      <I18nProvider>
+        <TooltipProvider>
+          <CopyableCode code="trace('hello')" emptyMessage="empty" />
+        </TooltipProvider>
+      </I18nProvider>
+    )
+
+    await user.click(screen.getByRole('button', { name: '生成コードをコピー' }))
+
+    expect(await screen.findByRole('button', { name: '生成コードをコピーできませんでした' })).toBeVisible()
+    expect(screen.getByRole('status')).toHaveTextContent('生成コードをコピーできませんでした')
   })
 
   it('disables copy when generated code is empty', () => {

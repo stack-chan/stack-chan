@@ -155,6 +155,7 @@
   "アセットをMODへ埋め込む": "Embed assets in MOD",
   "生成コード": "Generated Code",
   "生成コードをコピー": "Copy generated code",
+  "生成コードをコピーできませんでした": "Could not copy generated code",
   "// コードはまだ生成されていません": "// No code has been generated yet",
   "診断": "Diagnostics",
   "サンプルを選ぶ": "Choose a sample",

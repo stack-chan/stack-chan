@@ -591,6 +591,7 @@ describe('Host.Camera bridge', () => {
     const streams = [0, 1].map((index) => ({
       getTracks: () => [{ stop: () => calls.push(['stop', index]) }],
     }))
+    const secondStream = streams[1]
     const video = {
       readyState: 2,
       videoWidth: 16,
@@ -615,7 +616,7 @@ describe('Host.Camera bridge', () => {
     await bridge.start({ useBrowserCamera: true })
 
     assert.equal(bridge.isBrowserCameraStarted(), true)
-    assert.equal(video.srcObject?.getTracks instanceof Function, true)
+    assert.equal(video.srcObject, secondStream)
     assert.deepEqual(calls, ['getUserMedia', 'play', ['stop', 0], 'getUserMedia', 'play'])
   })
 

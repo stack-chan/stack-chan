@@ -7,6 +7,7 @@
     "samples/buttons/stackchan-mod.json",
     "samples/look-around/stackchan-mod.json",
     "samples/sensors/stackchan-mod.json",
-    "samples/mediapipe-ble/stackchan-mod.json"
+    "samples/mediapipe-ble/stackchan-mod.json",
+    "samples/mcp/stackchan-mod.json"
   ]
 }

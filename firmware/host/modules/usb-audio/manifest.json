@@ -23,6 +23,7 @@
     "stackchan-usb-protocol": "./protocol",
     "stackchan-usb-speaker-buffer": "./speaker-buffer",
     "stackchan-usb-speaker-session": "./speaker-session",
+    "stackchan-usb-serial-types": "./usb-serial-types",
     "stackchan-usb-stream-gate": "./stream-gate",
     "stackchan-usb-stream-tx-queue": "./stream-tx-queue"
   },
@@ -34,6 +35,7 @@
       },
       "dependency": [{ "idf": "esp_driver_usb_serial_jtag" }],
       "modules": {
+        "stackchan-usb-crc32": "./usb-crc32",
         "stackchan-usb-serial": "./usb-serial"
       }
     }

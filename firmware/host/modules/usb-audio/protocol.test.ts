@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { installUsbAudioTestAliases } from './__tests__/node-aliases.js'
+import { USB_SERIAL_MAX_WRITE_BYTES } from './usb-serial-types.js'
 
 installUsbAudioTestAliases()
 
@@ -8,6 +9,9 @@ const {
   decodeStackChanFrame,
   encodeStackChanFrame,
   STACKCHAN_CAPABILITIES,
+  STACKCHAN_CRC_BYTES,
+  STACKCHAN_HEADER_BYTES,
+  STACKCHAN_MAX_PAYLOAD_BYTES,
   STACKCHAN_PROTOCOL_VERSION,
   StackChanCapability,
   StackChanControl,
@@ -19,6 +23,10 @@ const {
   StackChanFrameType,
   StackChanStatus,
 } = await import('./protocol.js')
+
+test('maximum wire frame fits one atomic USB serial write', () => {
+  assert.ok(STACKCHAN_HEADER_BYTES + STACKCHAN_MAX_PAYLOAD_BYTES + STACKCHAN_CRC_BYTES <= USB_SERIAL_MAX_WRITE_BYTES)
+})
 
 test('StackChan reports distinct speaker receive failures', () => {
   assert.equal(StackChanErrorCode.SPEAKER_SEQUENCE_MISMATCH, 6)

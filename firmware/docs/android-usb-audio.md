@@ -54,12 +54,16 @@ USB未接続時の会話要求は同じrequest IDを最大10秒間保持し、`r
 
 ## 動作
 
-FirmwareはCore 1の高優先度WorkerでUSB受信を2 ms間隔でpollし、HELLO後に音声制御を受け付ける。
+FirmwareはCore 1の高優先度WorkerでUSB Serial/JTAGのreadable callbackを処理し、HELLO後に音声制御を受け付ける。
+低層の`USBSerial`はECMA-419 IO Class Patternに沿い、`read`、`write`、`format`、`onReadable`、`onWritable`、`onError`、`close`を提供する。
 USB接続はESP-IDFの`usb_serial_jtag_is_connected()`が検出するSOFで判定する。
 単発のSOF欠落ではHELLOとstatusを破棄せず、100 ms連続して未接続を観測した時点で切断を確定する。
-この判定を有効にすると、FreeRTOSの各tickへ小さな追加負荷が発生する。
-native USB受信ringは32 KiBとし、1回16 KiBのreadを1回のpollで最大4回実行する。
-フレームのCRC32はnative実装で計算し、JavaScript VMがPCM転送を律速しないようにする。
+SOF判定、speaker処理、credit、diagnosticsには2 msの保守timerを残すが、USB RXとTXの再試行には使わない。
+native USB受信ringは32 KiBとし、1回16 KiBのreadを1回のreadable callbackで最大4回実行する。
+TXは既存の16 KiB native ringへ最大8 KiBを全量書き込みし、空き不足時はframeを`StreamTxQueue`に保持したまま引数なしの`onWritable()`で再試行する。
+最大wire frameは4,120 bytesであるため、空になったnative ringへ必ず1回で書き込める。
+追加のstaging bufferは設けず、native TX ringと最大16 KiBの既存frame queueを利用する。
+フレームのCRC32はUSB I/Oとは独立したnative moduleで計算し、JavaScript VMがPCM転送を律速しないようにする。
 マイクは16 kHz、16 bit little-endian、mono、20 ms frameで送信する。
 AudioInの通知値は最大2 KiBの偶数長へ制限し、native側で確保したbufferへ直ちに読み出す。
 通知後にringの可読量が変化した場合は、PCM16境界を保ったまま要求長を半減して再試行する。
@@ -202,6 +206,7 @@ npm run format
 npm run test:unit
 npm run check:architecture
 npm run check:manifest
+npm run test:moddable
 python -m unittest scripts/test_usb_audio_diagnostics.py
 npm run build:android-usb-audio
 ```

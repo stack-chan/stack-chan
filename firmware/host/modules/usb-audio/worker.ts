@@ -5,7 +5,9 @@ import startUsbAudioBridge, {
   type UsbAudioMicrophoneInputOptions,
   type UsbAudioPresentation,
 } from 'stackchan-usb-audio-core'
+import { crc32Usb } from 'stackchan-usb-crc32'
 import type { UsbEventTransportState } from 'stackchan-usb-event-transport'
+import USBSerial from 'stackchan-usb-serial'
 import { type SharedSpeakerOutputBuffers, SharedSpeakerOutputService } from 'stackchan-usb-shared-output'
 import type { Self } from 'worker'
 
@@ -164,6 +166,8 @@ function startWorker(message: {
       diagnostics: message.diagnostics,
       createMicrophoneInput: nextInputService.createInput,
       createSpeakerOutput: nextOutputService.createOutput,
+      createUSBSerial: (options) => new USBSerial(options),
+      checksum: crc32Usb,
     })
     nextBridge.setPresentation(presentation)
     nextBridge.setEventHandler(onEvent)

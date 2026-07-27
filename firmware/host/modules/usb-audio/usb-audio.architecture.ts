@@ -44,19 +44,30 @@ test('USB transport stays platform-specific while physical audio remains on the 
   const workerBridgeImports = importSpecifiers('host/modules/usb-audio/worker-bridge.ts')
 
   assert.ok(workerImports.includes('stackchan-usb-audio-core'))
+  assert.ok(workerImports.includes('stackchan-usb-crc32'))
+  assert.ok(workerImports.includes('stackchan-usb-serial'))
   assert.ok(workerBridgeImports.includes('worker'))
   assert.ok(workerBridgeImports.includes('embedded:io/audio/in'))
   assert.ok(workerBridgeImports.includes('embedded:io/audio/out'))
   assert.ok(!bridgeImports.some((specifier) => specifier.startsWith('embedded:io/audio/')))
   assert.ok(!workerImports.some((specifier) => specifier.startsWith('embedded:io/audio/')))
+  assert.ok(bridgeImports.includes('stackchan-usb-serial-types'))
+  assert.ok(!bridgeImports.includes('stackchan-usb-crc32'))
+  assert.ok(!bridgeImports.includes('stackchan-usb-serial'))
 
   assert.equal(usbModuleManifest.modules?.['stackchan-usb-audio'], './worker-bridge')
   assert.equal(usbModuleManifest.modules?.['stackchan-usb-audio-core'], './bridge')
   assert.equal(usbModuleManifest.modules?.['stackchan-usb-audio-worker'], './worker')
   assert.equal(usbModuleManifest.modules?.['stackchan-usb-media-session'], './media-session')
+  assert.equal(usbModuleManifest.modules?.['stackchan-usb-serial-types'], './usb-serial-types')
   assert.deepEqual(usbModuleManifest.preload, ['stackchan-usb-audio'])
   assert.deepEqual(Object.keys(usbModuleManifest.platforms ?? {}), ['esp32/m5stackchan_cores3'])
   assert.equal(usbModuleManifest.modules?.['stackchan-usb-serial'], undefined)
+  assert.equal(usbModuleManifest.modules?.['stackchan-usb-crc32'], undefined)
+  assert.equal(
+    usbModuleManifest.platforms?.['esp32/m5stackchan_cores3']?.modules?.['stackchan-usb-crc32'],
+    './usb-crc32',
+  )
   assert.equal(
     usbModuleManifest.platforms?.['esp32/m5stackchan_cores3']?.modules?.['stackchan-usb-serial'],
     './usb-serial',

@@ -86,7 +86,7 @@ const USB_AUDIO_WORKER_OPTIONS: UsbAudioWorkerOptions = {
   stack: 768,
   nativeStack: 8 * 1024,
   core: 1,
-  // The main XS task runs at priority 4. USB polling must preempt a long Piu
+  // The main XS task runs at priority 4. USB callbacks must preempt a long Piu
   // render, while physical AudioOut consumption remains on the main VM.
   priority: 5,
 }

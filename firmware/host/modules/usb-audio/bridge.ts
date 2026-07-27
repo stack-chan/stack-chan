@@ -24,20 +24,14 @@ import {
   encodeStackChanFrame,
   STACKCHAN_MAX_EVENT_BYTES,
   STACKCHAN_MAX_PAYLOAD_BYTES,
+  type StackChanCrc32,
   StackChanEventDecoder,
   StackChanEventEncoder,
   type StackChanFrame,
   StackChanFrameParser,
   StackChanFrameType,
 } from 'stackchan-usb-protocol'
-import {
-  closeUsbSerial,
-  crc32UsbSerial,
-  isUsbSerialConnected,
-  openUsbSerial,
-  readUsbSerial,
-  writeUsbSerial,
-} from 'stackchan-usb-serial'
+import { isUSBSerialOutputFullError, type USBSerialFactory, type USBSerialIO } from 'stackchan-usb-serial-types'
 import { SpeakerPlaybackBuffer } from 'stackchan-usb-speaker-buffer'
 import { SpeakerSessionGuard } from 'stackchan-usb-speaker-session'
 import { StreamTxQueue } from 'stackchan-usb-stream-tx-queue'
@@ -58,7 +52,7 @@ const SPEAKER_PREBUFFER_MILLISECONDS = 500
 // the device burst diagnostic is the cross-language invariant check.
 const USB_RX_READ_BYTES = 16 * 1024
 const SPEAKER_CREDIT_WINDOW_BYTES = 8 * 1024
-const MAX_USB_RX_READS_PER_POLL = 4
+const MAX_USB_RX_READS_PER_CALLBACK = 4
 const MAX_CAPTION_BYTES = 1024
 const MAX_QUEUED_CAPTIONS = 16
 const POLL_MILLISECONDS = 2
@@ -135,6 +129,8 @@ export type UsbAudioBridgeOptions = {
   diagnostics?: boolean
   createMicrophoneInput?: UsbAudioMicrophoneInputFactory
   createSpeakerOutput?: UsbAudioSpeakerOutputFactory
+  createUSBSerial?: USBSerialFactory
+  checksum?: StackChanCrc32
 }
 
 class UsbAudioBridge implements UsbAudioBridgeControl {
@@ -142,7 +138,9 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   readonly #diagnosticsEnabled: boolean
   readonly #createMicrophoneInput: UsbAudioMicrophoneInputFactory
   readonly #createSpeakerOutput: UsbAudioSpeakerOutputFactory
-  #parser = new StackChanFrameParser(crc32UsbSerial)
+  readonly #createUSBSerial: USBSerialFactory
+  readonly #checksum: StackChanCrc32
+  #parser: StackChanFrameParser
   #textDecoder = new TextDecoder('utf-8', { fatal: true })
   #textEncoder = new TextEncoder()
   #eventDecoder = new StackChanEventDecoder()
@@ -156,6 +154,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   #peerMaxPayload = STACKCHAN_MAX_PAYLOAD_BYTES
   #peerCapabilities = 0
   #readBuffer = new Uint8Array(USB_RX_READ_BYTES)
+  #serial: USBSerialIO | undefined
   #timer: ReturnType<typeof Timer.repeat> | undefined
   #txQueue = new StreamTxQueue(MAX_TX_QUEUE_BYTES)
   #controlSequence = 0
@@ -197,13 +196,31 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     this.#diagnosticsEnabled = options.diagnostics === true
     if (!options.createMicrophoneInput) throw new TypeError('microphone input factory is required')
     if (!options.createSpeakerOutput) throw new TypeError('speaker output factory is required')
+    if (!options.createUSBSerial) throw new TypeError('USB serial factory is required')
+    if (!options.checksum) throw new TypeError('USB checksum is required')
     this.#createMicrophoneInput = options.createMicrophoneInput
     this.#createSpeakerOutput = options.createSpeakerOutput
+    this.#createUSBSerial = options.createUSBSerial
+    this.#checksum = options.checksum
+    this.#parser = new StackChanFrameParser(this.#checksum)
   }
 
   start(): void {
-    if (this.#timer) return
-    openUsbSerial()
+    if (this.#serial) return
+    const bridge = this
+    const serial = this.#createUSBSerial({
+      format: 'buffer',
+      onReadable(bytes) {
+        bridge.#handleUSBReadable(this, bytes)
+      },
+      onWritable() {
+        bridge.#handleUSBWritable(this)
+      },
+      onError() {
+        bridge.#handleUSBError(this)
+      },
+    })
+    this.#serial = serial
     this.#refreshConnection()
     this.#timer = Timer.repeat(() => this.#poll(), POLL_MILLISECONDS)
   }
@@ -245,8 +262,11 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     if (bridge === this) bridge = undefined
     if (this.#timer) Timer.clear(this.#timer)
     this.#timer = undefined
+    const serial = this.#serial
+    this.#serial = undefined
     this.#resetConnectionSession()
-    closeUsbSerial()
+    serial?.close()
+    this.#connection = new UsbConnectionDebouncer(USB_DISCONNECT_DEBOUNCE_MILLISECONDS)
     this.#connected = false
     this.#setTransportState('disconnected')
   }
@@ -255,15 +275,6 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     try {
       this.#refreshConnection()
       if (!this.#connected) return
-      this.#pumpTx()
-      this.#flushEventFrames()
-      for (let reads = 0; reads < MAX_USB_RX_READS_PER_POLL; reads += 1) {
-        const count = readUsbSerial(this.#readBuffer)
-        if (count <= 0) break
-        for (const frame of this.#parser.push(this.#readBuffer.slice(0, count))) this.#handleFrame(frame)
-        this.#pumpTx()
-      }
-      this.#pumpTx()
       this.#maybeStartSpeaker()
       this.#speaker?.poll()
       this.#refreshSpeakerCredit()
@@ -276,8 +287,57 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     }
   }
 
+  #handleUSBReadable(serial: USBSerialIO, _available: number): void {
+    if (serial !== this.#serial) return
+    try {
+      this.#refreshConnection()
+      if (!this.#connected) return
+      for (let reads = 0; reads < MAX_USB_RX_READS_PER_CALLBACK; reads += 1) {
+        const count = serial.read(this.#readBuffer)
+        if (count === undefined || count <= 0) break
+        for (const frame of this.#parser.push(this.#readBuffer.slice(0, count))) this.#handleFrame(frame)
+      }
+      this.#pumpTx()
+      this.#flushEventFrames()
+      this.#pumpTx()
+    } catch (error) {
+      this.#handleUSBCallbackFailure('readable', error)
+    }
+  }
+
+  #handleUSBWritable(serial: USBSerialIO): void {
+    if (serial !== this.#serial) return
+    try {
+      this.#pumpTx()
+      this.#flushEventFrames()
+      this.#pumpTx()
+    } catch (error) {
+      this.#handleUSBCallbackFailure('writable', error)
+    }
+  }
+
+  #handleUSBError(serial: USBSerialIO): void {
+    if (serial !== this.#serial) return
+    trace('[usb-audio] USB serial reported a non-recoverable error\n')
+    this.#serial = undefined
+    try {
+      serial.close()
+    } catch {}
+    this.#connection = new UsbConnectionDebouncer(USB_DISCONNECT_DEBOUNCE_MILLISECONDS)
+    this.#connected = false
+    this.#resetConnectionSession()
+    this.#setTransportState('disconnected')
+  }
+
+  #handleUSBCallbackFailure(callback: string, error: unknown): void {
+    trace(`[usb-audio] USB ${callback} callback failed: ${error instanceof Error ? error.message : String(error)}\n`)
+    this.#stopMicrophone(false)
+    this.#stopSpeaker(false)
+    this.#parser.reset()
+  }
+
   #refreshConnection(): void {
-    const update = this.#connection.update(isUsbSerialConnected(), Time.ticks)
+    const update = this.#connection.update(this.#serial?.connected ?? false, Time.ticks)
     if (!update.changed) return
     this.#connected = update.connected
     this.#resetConnectionSession()
@@ -329,23 +389,31 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   }
 
   #pumpTx(): void {
+    const serial = this.#serial
+    if (!serial) return
     while (this.#txQueue.remainingBytes > 0) {
       const current = this.#txQueue.current()
       if (!current) return
-      const written = writeUsbSerial(current)
-      if (written <= 0) return
-      this.#txQueue.advance(written)
+      try {
+        serial.write(current)
+      } catch (error) {
+        if (isUSBSerialOutputFullError(error)) return
+        throw error
+      }
+      this.#txQueue.advance(current.byteLength)
     }
   }
 
   #send(frame: StackChanFrame): boolean {
-    const encoded = encodeStackChanFrame(frame, crc32UsbSerial)
-    return this.#txQueue.enqueue(
+    const encoded = encodeStackChanFrame(frame, this.#checksum)
+    const enqueued = this.#txQueue.enqueue(
       encoded,
       frame.type,
       frame.type === StackChanFrameType.CONTROL ? (frame.flags ?? 0) : 0,
       frame.streamId ?? 0,
     )
+    if (enqueued) this.#pumpTx()
+    return enqueued
   }
 
   #flushEventFrames(): void {

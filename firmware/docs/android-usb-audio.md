@@ -62,7 +62,7 @@ native USB受信ringは32 KiBとし、1回16 KiBのreadを1回のpollで最大4�
 フレームのCRC32はnative実装で計算し、JavaScript VMがPCM転送を律速しないようにする。
 マイクは16 kHz、16 bit little-endian、mono、20 ms frameで送信する。
 AudioInの通知値は最大2 KiBの偶数長へ制限し、native側で確保したbufferへ直ちに読み出す。
-通知後にringの可読量が変化した場合は、その時点の可読量で一度だけ再試行する。
+通知後にringの可読量が変化した場合は、PCM16境界を保ったまま要求長を半減して再試行する。
 スピーカーは8 kHz、16 kHz、24 kHzを受け付け、指定されたsample rateをそのまま`AudioOut`へ渡す。
 Workerは1秒分のスピーカーqueueへPCMを受け、500 msをprebufferしてから再生を始める。
 Workerとmain VMの間はWebRadioと同じ`SharedByteRing`を使い、64 KiBの共有ringへPCMを渡す。

@@ -9,14 +9,24 @@ export function readAudioInputChunk(input: AudioInputReader, availableBytes: num
   if (byteLength === 0) return
 
   let buffer: ArrayBuffer | undefined
+  let requestedByteLength = byteLength
   try {
     buffer = input.read(byteLength)
   } catch (initialError) {
-    try {
-      buffer = input.read()
-    } catch {
-      throw initialError
+    let recovered = false
+    while (requestedByteLength >= 2) {
+      requestedByteLength = Math.max(2, (requestedByteLength >> 1) & ~1)
+      try {
+        buffer = input.read(requestedByteLength)
+        recovered = true
+        break
+      } catch {
+        if (requestedByteLength === 2) break
+      }
     }
+    if (!recovered) throw initialError
   }
-  return buffer ? new Uint8Array(buffer) : undefined
+  if (!buffer) return
+  const boundedByteLength = Math.min(buffer.byteLength, requestedByteLength) & ~1
+  return boundedByteLength > 0 ? new Uint8Array(buffer, 0, boundedByteLength) : undefined
 }

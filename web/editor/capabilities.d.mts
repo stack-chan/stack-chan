@@ -20,6 +20,7 @@ export type DeviceProfile = {
   xsArchiveVersion: readonly number[] | null
   firmwareVersionPrefixes: readonly string[]
   chipPatterns: readonly string[]
+  entrypoints: readonly ('mod' | 'miniapp')[]
   capabilities: readonly Capability[]
 }
 
@@ -31,6 +32,7 @@ export type DeploymentCompatibilityOptions = {
   chip?: string
   xsVersion?: readonly number[] | null
   firmwareVersion?: string
+  entrypoints?: readonly ('mod' | 'miniapp')[]
   requireFirmware?: boolean
   requireArchive?: boolean
 }

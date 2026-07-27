@@ -62,7 +62,7 @@ const uploadPort =
 const uploadBaud = readOption(rawArgs, 'baud') ?? process.env.STACKCHAN_BAUD ?? process.env.ESPBAUD
 let subprocessEnvironment = uploadPort ? { ...process.env, UPLOAD_PORT: uploadPort } : process.env
 
-if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
+if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
@@ -116,7 +116,8 @@ switch (command) {
   case 'debug':
     run('mcconfig', [...buildModeArgs, '-m', '-p', platform, ...outputArgs, path.resolve(manifest), ...args])
     break
-  case 'mod': {
+  case 'mod':
+  case 'mod:build': {
     const modInput = args[0]
     if (!modInput) {
       console.error(
@@ -141,9 +142,11 @@ switch (command) {
       mode: buildMode,
       projectName,
     })
-    if (dryRun) {
+    if (command === 'mod:build' || dryRun) {
       console.log(`[stack-chan] MOD archive=${archivePath}`)
-      console.log('[stack-chan] esptool will discover the live xs partition, write the archive, and verify it')
+      if (command === 'mod') {
+        console.log('[stack-chan] esptool will discover the live xs partition, write the archive, and verify it')
+      }
       break
     }
     try {
@@ -304,6 +307,7 @@ function printHelp() {
   npm run build
   npm run flash
   npm run debug
+  npm run mod:build -- <mod-manifest>
   npm run mod -- <mod-manifest>
 
 Devices:
@@ -317,6 +321,7 @@ Examples:
   npm run build:m5stackchan_cores3 -- --mode=release
   npm run build:m5stackchan_cores3 -- --mode=instrument
   npm run debug:xsdb -- --port /dev/ttyACM1
+  npm run mod:build -- mods/examples/mini_app_sample/manifest.json --mode=release
   npm run mod -- mods/examples/look_around/manifest.json --port /dev/ttyACM1
   STACKCHAN_DEVICE=takao_core2_sg90 npm run mod -- mods/examples/look_around/manifest.json`)
 }

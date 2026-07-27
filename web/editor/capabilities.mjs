@@ -21,6 +21,7 @@ export const DEVICE_PROFILES = Object.freeze({
     xsArchiveVersion: [17, 8, 0],
     firmwareVersionPrefixes: ['8.3.'],
     chipPatterns: ['ESP32-S3'],
+    entrypoints: ['mod', 'miniapp'],
     capabilities: Object.values(CAPABILITIES),
   },
   simulator: {
@@ -30,6 +31,7 @@ export const DEVICE_PROFILES = Object.freeze({
     xsArchiveVersion: [17, 8, 0],
     firmwareVersionPrefixes: ['8.3.'],
     chipPatterns: [],
+    entrypoints: ['mod', 'miniapp'],
     capabilities: [
       CAPABILITIES.FACE,
       CAPABILITIES.SPEECH,
@@ -47,6 +49,7 @@ export const DEVICE_PROFILES = Object.freeze({
     xsArchiveVersion: null,
     firmwareVersionPrefixes: [],
     chipPatterns: [],
+    entrypoints: ['mod'],
     capabilities: [CAPABILITIES.FACE, CAPABILITIES.SPEECH, CAPABILITIES.TONE, CAPABILITIES.MOTION],
   },
 })
@@ -109,10 +112,20 @@ export function toolboxForTarget(toolbox, target) {
 
 export function inspectDeploymentCompatibility(
   target,
-  { chip, xsVersion, firmwareVersion, requireFirmware = false, requireArchive = false } = {}
+  { chip, xsVersion, firmwareVersion, entrypoints = ['mod'], requireFirmware = false, requireArchive = false } = {}
 ) {
   const profile = profileFor(target)
   const diagnostics = []
+  const unsupportedEntrypoints = entrypoints.filter((entrypoint) => !profile.entrypoints.includes(entrypoint))
+  if (unsupportedEntrypoints.length) {
+    diagnostics.push({
+      code: 'VP_ARCHIVE_ENTRYPOINT_UNSUPPORTED',
+      message: t('{profile}はarchiveの実行入口「{entrypoints}」に対応していません', {
+        profile: t(profile.label),
+        entrypoints: unsupportedEntrypoints.join(', '),
+      }),
+    })
+  }
   if (requireFirmware && !profile.deviceInstall) {
     diagnostics.push({
       code: 'VP_DEVICE_TARGET_UNSUPPORTED',

@@ -18,6 +18,7 @@ const mod: ModDefinition = {
   source: { path: './hello.json' },
   sourceUrl: new URL('https://example.test/hello.json'),
   definitionUrl: new URL('https://example.test/mod.json'),
+  entrypoints: ['mod'],
   targets: ['simulator'],
   capabilities: ['face'],
   artifacts: [],
@@ -81,5 +82,16 @@ describe('ModCard', () => {
     const pendingAction = screen.getByText('ブロックで開く').closest('a')
     expect(pendingAction).not.toHaveAttribute('href')
     expect(pendingAction).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows mini-app and privileged combined-package badges', () => {
+    render(
+      <I18nProvider>
+        <ModCard mod={{ ...mod, type: 'text', entrypoints: ['mod', 'miniapp'] }} badges={[]} />
+      </I18nProvider>
+    )
+    expect(screen.getByText('MOD')).toBeInTheDocument()
+    expect(screen.getByText('ミニアプリ')).toBeInTheDocument()
+    expect(screen.getByText('テキスト')).toBeInTheDocument()
   })
 })

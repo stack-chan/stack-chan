@@ -9,10 +9,13 @@ import {
   type RemoteSessionTransport,
 } from 'stackchan-remote-session-runtime'
 import { createUsbAudioPresentation, type UsbAudioPresentation } from 'stackchan-usb-dock-presentation'
+import { usbAudioConversationState } from 'stackchan-usb-dock-presentation-model'
+import type { StackChanStatus } from 'stackchan-usb-media-session'
 import Timer from 'timer'
 
 type UsbAudioBridgeControl = RemoteSessionTransport & {
   setPresentation(presentation?: UsbAudioPresentation): void
+  setStatusHandler(handler?: (status: StackChanStatus) => void): void
 }
 
 type UsbAudioBridgeOptions = {
@@ -64,8 +67,9 @@ const stackchanUsbDock: StackchanDock = {
       remoteConversationSession: remoteRuntime.remoteConversationSession,
       onContextCreated(context) {
         remoteRuntime.onContextCreated(context, createRealtimeToolProvider(context))
+        bridge.setStatusHandler((status) => remoteRuntime.updateConversationState(usbAudioConversationState(status)))
         if (usbAudio.presentationEnabled !== false) {
-          presentation = createUsbAudioPresentation(context, (state) => remoteRuntime.updateConversationState(state))
+          presentation = createUsbAudioPresentation(context)
           bridge.setPresentation(presentation)
         }
       },
@@ -73,31 +77,21 @@ const stackchanUsbDock: StackchanDock = {
         if (closed) return
         closed = true
         let firstError: unknown
-        let hasError = false
-        try {
-          bridge.setPresentation(undefined)
-        } catch (error) {
-          firstError = error
-          hasError = true
-        }
-        try {
-          presentation?.close()
-        } catch (error) {
-          if (!hasError) {
-            firstError = error
-            hasError = true
+        let failed = false
+        const attempt = (operation: () => void) => {
+          try {
+            operation()
+          } catch (error) {
+            if (!failed) firstError = error
+            failed = true
           }
         }
+        attempt(() => bridge.setStatusHandler(undefined))
+        attempt(() => bridge.setPresentation(undefined))
+        attempt(() => presentation?.close())
         presentation = undefined
-        try {
-          remoteRuntime.close()
-        } catch (error) {
-          if (!hasError) {
-            firstError = error
-            hasError = true
-          }
-        }
-        if (hasError) throw firstError
+        attempt(() => remoteRuntime.close())
+        if (failed) throw firstError
       },
     }
   },

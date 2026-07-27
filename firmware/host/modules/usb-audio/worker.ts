@@ -3,7 +3,7 @@ import startUsbAudioBridge, {
   type UsbAudioMicrophoneInput,
   type UsbAudioMicrophoneInputFactory,
   type UsbAudioMicrophoneInputOptions,
-  type UsbAudioPresentation,
+  type UsbAudioPlaybackObserver,
 } from 'stackchan-usb-audio-core'
 import { crc32Usb } from 'stackchan-usb-crc32'
 import type { UsbEventTransportState } from 'stackchan-usb-event-transport'
@@ -110,10 +110,7 @@ class MainMicrophoneInputService {
   }
 }
 
-const presentation: UsbAudioPresentation = {
-  onStatusChanged(status) {
-    self.postMessage({ id: 'status-changed', status })
-  },
+const playbackObserver: UsbAudioPlaybackObserver = {
   onPlaybackStarted() {
     self.postMessage({ id: 'playback-started', streamId: outputService?.streamId ?? 0 })
   },
@@ -132,10 +129,12 @@ const presentation: UsbAudioPresentation = {
 }
 
 const onEvent = (event: string) => self.postMessage({ id: 'event', event })
+const onStatus = (status: number) => self.postMessage({ id: 'status-changed', status })
 const onTransportState = (transportState: UsbEventTransportState) =>
   self.postMessage({ id: 'transport-state', transportState })
 
 function closeWorker(): void {
+  bridge?.setStatusHandler(undefined)
   bridge?.setTransportStateHandler(undefined)
   bridge?.close()
   bridge = undefined
@@ -169,8 +168,9 @@ function startWorker(message: {
       createUSBSerial: (options) => new USBSerial(options),
       checksum: crc32Usb,
     })
-    nextBridge.setPresentation(presentation)
+    nextBridge.setPlaybackObserver(playbackObserver)
     nextBridge.setEventHandler(onEvent)
+    nextBridge.setStatusHandler(onStatus)
     nextBridge.setTransportStateHandler(onTransportState)
     self.postMessage({ id: 'ready' })
     inputService = nextInputService
@@ -178,10 +178,13 @@ function startWorker(message: {
     bridge = nextBridge
   } catch (error) {
     try {
-      nextBridge?.setPresentation(undefined)
+      nextBridge?.setPlaybackObserver(undefined)
     } catch {}
     try {
       nextBridge?.setEventHandler(undefined)
+    } catch {}
+    try {
+      nextBridge?.setStatusHandler(undefined)
     } catch {}
     try {
       nextBridge?.setTransportStateHandler(undefined)

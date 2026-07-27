@@ -127,10 +127,12 @@ export function isValidStatusControl(
   sampleRate: number,
   payloadBytes: number,
   status: number,
-  peerCapabilities: number,
+  acceptedCapabilities: number,
 ): boolean {
   const maximumStatus =
-    (peerCapabilities & StackChanCapability.STATUS_EXTENDED) !== 0 ? StackChanStatus.ERROR : StackChanStatus.SPEAKING
+    (acceptedCapabilities & StackChanCapability.STATUS_EXTENDED) !== 0
+      ? StackChanStatus.ERROR
+      : StackChanStatus.SPEAKING
   return (
     streamId === 0 &&
     sampleRate === 0 &&

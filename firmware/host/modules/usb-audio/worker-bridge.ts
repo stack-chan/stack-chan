@@ -30,6 +30,7 @@ export type UsbAudioPresentation = {
 
 export type UsbAudioBridgeControl = {
   setPresentation(presentation?: UsbAudioPresentation): void
+  setStatusHandler(handler?: (status: StackChanStatus) => void): void
   setEventHandler(handler?: (event: string) => void): void
   setTransportStateHandler(handler?: (state: UsbEventTransportState) => void): void
   sendEvent(event: string): Promise<UsbEventSendResult>
@@ -114,6 +115,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
   #presentationText = ''
   #presentationStatus = StackChanStatus.IDLE
   #presentationStreamId = 0
+  #statusHandler: ((status: StackChanStatus) => void) | undefined
   #eventHandler: ((event: string) => void) | undefined
   #transportStateHandler: ((state: UsbEventTransportState) => void) | undefined
   #transportState: UsbEventTransportState = 'disconnected'
@@ -155,6 +157,11 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
       if (this.#presentationText) this.#notifyPresentation(presentation, 'onPlaybackText', this.#presentationText)
       this.#notifyPresentation(presentation, 'onPlaybackPower', this.#presentationPower)
     }
+  }
+
+  setStatusHandler(handler?: (status: StackChanStatus) => void): void {
+    this.#statusHandler = handler
+    if (handler) this.#notifyStatus(handler, this.#presentationStatus)
   }
 
   setEventHandler(handler?: (event: string) => void): void {
@@ -593,7 +600,17 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
   #setPresentationStatus(status: StackChanStatus): void {
     if (this.#presentationStatus === status) return
     this.#presentationStatus = status
+    this.#notifyStatus(this.#statusHandler, status)
     this.#notifyPresentation(this.#presentation, 'onStatusChanged', status)
+  }
+
+  #notifyStatus(handler: ((status: StackChanStatus) => void) | undefined, status: StackChanStatus): void {
+    if (!handler) return
+    try {
+      handler(status)
+    } catch (error) {
+      trace(`[usb-audio] status handler failed: ${error instanceof Error ? error.message : String(error)}\n`)
+    }
   }
 
   #stopPresentation(): void {

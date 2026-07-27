@@ -2,7 +2,13 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { installUsbAudioTestAliases } from './__tests__/node-aliases.js'
-import { isWithinSpeakerCredit, MediaSessionResult } from './media-session.js'
+import {
+  isValidStatusControl,
+  isWithinSpeakerCredit,
+  MediaSessionResult,
+  StackChanCapability,
+  StackChanStatus,
+} from './media-session.js'
 
 installUsbAudioTestAliases()
 
@@ -114,6 +120,25 @@ test('speaker credit accepts the exact boundary and rejects overflow', () => {
     )
   }
   assert.equal(MediaSessionResult.ACCEPTED, 'accepted')
+})
+
+test('status validation exhausts basic and extended capability boundaries', () => {
+  for (const supportsExtended of [false, true]) {
+    const capabilities = supportsExtended ? StackChanCapability.STATUS_EXTENDED : 0
+    const maximum = supportsExtended ? StackChanStatus.ERROR : StackChanStatus.SPEAKING
+    for (let status = StackChanStatus.IDLE - 1; status <= StackChanStatus.ERROR + 1; status += 1) {
+      const expected = status >= StackChanStatus.IDLE && status <= maximum
+      assert.equal(
+        isValidStatusControl(0, 0, 1, status, capabilities),
+        expected,
+        JSON.stringify({ supportsExtended, status }),
+      )
+    }
+  }
+
+  assert.equal(isValidStatusControl(1, 0, 1, StackChanStatus.IDLE, StackChanCapability.STATUS_EXTENDED), false)
+  assert.equal(isValidStatusControl(0, 1, 1, StackChanStatus.IDLE, StackChanCapability.STATUS_EXTENDED), false)
+  assert.equal(isValidStatusControl(0, 0, 0, StackChanStatus.IDLE, StackChanCapability.STATUS_EXTENDED), false)
 })
 
 function streamId(step: Step): number {

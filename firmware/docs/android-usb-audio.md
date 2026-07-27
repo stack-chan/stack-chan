@@ -83,6 +83,7 @@ Firmwareは実際にそのPCMを`AudioOut`へ渡す時点で、最大2行の吹�
 再生中はまばたき、呼吸、視線移動を停止し、PCMのRMSを0.1刻み、125 ms間隔で口の開きへ反映する。
 再生終了または中断時は吹き出しと口の開きを消去し、自律表情を再開する。
 Androidから認識中状態を受けた場合は回転インジケーターを表示し、発話中はスピーカーアイコンを表示する。
+画面表示を無効にした診断manifestでもstatus handlerは維持し、会話状態を`remoteSession`へ転送する。
 
 ## wire protocol version 2
 
@@ -152,7 +153,7 @@ wire version 2ではstream ID capabilityが必須である。
 EVENTは双方がbit 10を広告した場合だけ利用できる。
 
 STATUSは`IDLE=0`、`RECOGNIZING=1`、`SPEAKING=2`、`LISTENING=3`、`CONNECTING=4`、`ERROR=5`である。
-拡張status capabilityがないpeerからは0から2だけを受理する。
+受信側Firmwareが拡張status capabilityを広告しない場合は0から2だけを受理する。
 
 ## application event schema version 1
 

@@ -55,7 +55,7 @@ const SPEAKER_CREDIT_WINDOW_BYTES = 8 * 1024
 const MAX_USB_RX_READS_PER_CALLBACK = 4
 const MAX_CAPTION_BYTES = 1024
 const MAX_QUEUED_CAPTIONS = 16
-const POLL_MILLISECONDS = 2
+const MAINTENANCE_INTERVAL_MILLISECONDS = 2
 const USB_DISCONNECT_DEBOUNCE_MILLISECONDS = 100
 const MAX_TX_QUEUE_BYTES = 16 * 1024
 const MAX_PENDING_EVENT_FRAMES = 128
@@ -108,8 +108,7 @@ export type UsbAudioSpeakerOutput = {
 
 export type UsbAudioSpeakerOutputFactory = (options: UsbAudioSpeakerOutputOptions) => UsbAudioSpeakerOutput
 
-export type UsbAudioPresentation = {
-  onStatusChanged(status: StackChanStatus): void
+export type UsbAudioPlaybackObserver = {
   onPlaybackStarted(): void
   onPlaybackPower(power: number): void
   onPlaybackText(text: string): void
@@ -117,7 +116,8 @@ export type UsbAudioPresentation = {
 }
 
 export type UsbAudioBridgeControl = {
-  setPresentation(presentation?: UsbAudioPresentation): void
+  setPlaybackObserver(observer?: UsbAudioPlaybackObserver): void
+  setStatusHandler(handler?: (status: StackChanStatus) => void): void
   setEventHandler(handler?: (event: string) => void): void
   setTransportStateHandler(handler?: (state: UsbEventTransportState) => void): void
   sendEvent(event: string): UsbEventSendResult
@@ -127,10 +127,10 @@ export type UsbAudioBridgeControl = {
 export type UsbAudioBridgeOptions = {
   speakerVolume?: number
   diagnostics?: boolean
-  createMicrophoneInput?: UsbAudioMicrophoneInputFactory
-  createSpeakerOutput?: UsbAudioSpeakerOutputFactory
-  createUSBSerial?: USBSerialFactory
-  checksum?: StackChanCrc32
+  createMicrophoneInput: UsbAudioMicrophoneInputFactory
+  createSpeakerOutput: UsbAudioSpeakerOutputFactory
+  createUSBSerial: USBSerialFactory
+  checksum: StackChanCrc32
 }
 
 class UsbAudioBridge implements UsbAudioBridgeControl {
@@ -155,7 +155,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   #peerCapabilities = 0
   #readBuffer = new Uint8Array(USB_RX_READ_BYTES)
   #serial: USBSerialIO | undefined
-  #timer: ReturnType<typeof Timer.repeat> | undefined
+  #maintenanceTimer: ReturnType<typeof Timer.repeat> | undefined
   #txQueue = new StreamTxQueue(MAX_TX_QUEUE_BYTES)
   #controlSequence = 0
   #diagnosticSequence = 0
@@ -173,11 +173,12 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   #speakerBuffer = new SpeakerPlaybackBuffer()
   #speakerEnded = false
   #speakerAwaitingDrain = false
-  #presentation: UsbAudioPresentation | undefined
-  #presentationActive = false
-  #presentationPower = 0
-  #presentationText = ''
-  #presentationStatus = StackChanStatus.IDLE
+  #playbackObserver: UsbAudioPlaybackObserver | undefined
+  #playbackActive = false
+  #playbackPower = 0
+  #playbackText = ''
+  #status = StackChanStatus.IDLE
+  #statusHandler: ((status: StackChanStatus) => void) | undefined
   #speakerDiagnosticLastSnapshotTicks = 0
   #speakerDiagnosticLastReceiveTicks = 0
   #speakerReceivedBytes = 0
@@ -187,7 +188,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   #speakerMaxReceiveGapMilliseconds = 0
   #speakerStarving = false
 
-  constructor(options: UsbAudioBridgeOptions = {}) {
+  constructor(options: UsbAudioBridgeOptions) {
     const speakerVolume = options.speakerVolume ?? 1
     if (!Number.isFinite(speakerVolume) || speakerVolume < 0 || speakerVolume > 1) {
       throw new RangeError('speaker volume must be between 0 and 1')
@@ -222,23 +223,23 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     })
     this.#serial = serial
     this.#refreshConnection()
-    this.#timer = Timer.repeat(() => this.#poll(), POLL_MILLISECONDS)
+    this.#maintenanceTimer = Timer.repeat(() => this.#maintainSessions(), MAINTENANCE_INTERVAL_MILLISECONDS)
   }
 
-  setPresentation(presentation?: UsbAudioPresentation): void {
-    if (this.#presentation === presentation) return
-    if (this.#presentationActive) this.#notifyPresentation(this.#presentation, 'onPlaybackStopped')
-    if (this.#presentationStatus !== StackChanStatus.IDLE) {
-      this.#notifyPresentation(this.#presentation, 'onStatusChanged', StackChanStatus.IDLE)
+  setPlaybackObserver(observer?: UsbAudioPlaybackObserver): void {
+    if (this.#playbackObserver === observer) return
+    if (this.#playbackActive) this.#notifyPlaybackObserver(this.#playbackObserver, 'onPlaybackStopped')
+    this.#playbackObserver = observer
+    if (observer && this.#playbackActive) {
+      this.#notifyPlaybackObserver(observer, 'onPlaybackStarted')
+      if (this.#playbackText) this.#notifyPlaybackObserver(observer, 'onPlaybackText', this.#playbackText)
+      this.#notifyPlaybackObserver(observer, 'onPlaybackPower', this.#playbackPower)
     }
-    this.#presentation = presentation
-    if (!presentation) return
-    this.#notifyPresentation(presentation, 'onStatusChanged', this.#presentationStatus)
-    if (this.#presentationActive) {
-      this.#notifyPresentation(presentation, 'onPlaybackStarted')
-      if (this.#presentationText) this.#notifyPresentation(presentation, 'onPlaybackText', this.#presentationText)
-      this.#notifyPresentation(presentation, 'onPlaybackPower', this.#presentationPower)
-    }
+  }
+
+  setStatusHandler(handler?: (status: StackChanStatus) => void): void {
+    this.#statusHandler = handler
+    if (handler) this.#notifyStatus(handler, this.#status)
   }
 
   setEventHandler(handler?: (event: string) => void): void {
@@ -254,14 +255,14 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     if (this.#transportState !== 'ready') return this.#transportState
     const frames = this.#eventEncoder.encode(this.#textEncoder.encode(event), this.#peerMaxPayload)
     if (!this.#pendingEventFrames.tryEnqueue(frames)) return 'overflow'
-    this.#flushEventFrames()
+    this.#flushPendingOutput()
     return 'queued'
   }
 
   close(): void {
     if (bridge === this) bridge = undefined
-    if (this.#timer) Timer.clear(this.#timer)
-    this.#timer = undefined
+    if (this.#maintenanceTimer) Timer.clear(this.#maintenanceTimer)
+    this.#maintenanceTimer = undefined
     const serial = this.#serial
     this.#serial = undefined
     this.#resetConnectionSession()
@@ -271,7 +272,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     this.#setTransportState('disconnected')
   }
 
-  #poll(): void {
+  #maintainSessions(): void {
     try {
       this.#refreshConnection()
       if (!this.#connected) return
@@ -297,9 +298,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
         if (count === undefined || count <= 0) break
         for (const frame of this.#parser.push(this.#readBuffer.slice(0, count))) this.#handleFrame(frame)
       }
-      this.#pumpTx()
-      this.#flushEventFrames()
-      this.#pumpTx()
+      this.#flushPendingOutput()
     } catch (error) {
       this.#handleUSBCallbackFailure('readable', error)
     }
@@ -308,9 +307,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   #handleUSBWritable(serial: USBSerialIO): void {
     if (serial !== this.#serial) return
     try {
-      this.#pumpTx()
-      this.#flushEventFrames()
-      this.#pumpTx()
+      this.#flushPendingOutput()
     } catch (error) {
       this.#handleUSBCallbackFailure('writable', error)
     }
@@ -348,7 +345,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     this.#stopMicrophone(false)
     this.#microphoneSession.reset()
     this.#stopSpeaker(false)
-    this.#setPresentationStatus(StackChanStatus.IDLE)
+    this.#setStatus(StackChanStatus.IDLE)
     this.#txQueue.clear()
     this.#parser.reset()
     this.#eventDecoder.reset()
@@ -402,6 +399,11 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
       }
       this.#txQueue.advance(current.byteLength)
     }
+  }
+
+  #flushPendingOutput(): void {
+    this.#pumpTx()
+    this.#flushEventFrames()
   }
 
   #send(frame: StackChanFrame): boolean {
@@ -505,7 +507,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     this.#stopMicrophone(false)
     this.#microphoneSession.reset()
     this.#stopSpeaker(false)
-    this.#setPresentationStatus(StackChanStatus.IDLE)
+    this.#setStatus(StackChanStatus.IDLE)
     this.#eventDecoder.reset()
     this.#pendingEventFrames.clear()
     this.#peerMaxPayload = Math.min(peerMaxPayload, STACKCHAN_MAX_PAYLOAD_BYTES)
@@ -624,13 +626,13 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
         frame.sampleRate ?? 0,
         payload.byteLength,
         status,
-        this.#peerCapabilities,
+        this.#localCapabilities(),
       )
     ) {
       this.#sendError(StackChanErrorCode.INVALID_REQUEST, frame.streamId ?? 0)
       return
     }
-    this.#setPresentationStatus(status as StackChanStatus)
+    this.#setStatus(status as StackChanStatus)
   }
 
   #acceptMicrophoneBytes(bytes: Uint8Array): void {
@@ -812,7 +814,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
         },
       })
       this.#speaker.volume = this.#speakerVolume
-      this.#startPresentation()
+      this.#startPlaybackObservation()
       this.#speaker.start()
       this.#sendSpeakerDiagnostics(StackChanDiagnosticEvent.AUDIO_STARTED)
     } catch {
@@ -842,13 +844,13 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     if (!output || this.#speakerAwaitingDrain) return
     const result = this.#speakerBuffer.drain(
       (payload) => output.write(payload),
-      (text) => this.#showPresentationText(text),
+      (text) => this.#showPlaybackText(text),
     )
     if (result.consumedBytes > 0) {
       this.#speakerWrittenBytes += result.consumedBytes
-      this.#updatePresentationPower(result.power)
+      this.#updatePlaybackPower(result.power)
     } else if (this.#speakerBuffer.pcmBytes === 0) {
-      this.#updatePresentationPower(0)
+      this.#updatePlaybackPower(0)
     }
     if (this.#speakerEnded && this.#speakerBuffer.pcmBytes === 0) {
       this.#speakerAwaitingDrain = true
@@ -887,7 +889,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     this.#speakerBuffer.clear()
     this.#speakerEnded = false
     this.#speakerAwaitingDrain = false
-    this.#stopPresentation()
+    this.#stopPlaybackObservation()
     this.#txQueue.dropSpeakerFlowFrames(completedStreamId)
     this.#speakerSession.clear(completedStreamId)
     this.#sendControl(StackChanControl.SPEAKER_DONE, completedRate, undefined, completedStreamId)
@@ -907,7 +909,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     this.#speakerBuffer.clear()
     this.#speakerEnded = false
     this.#speakerAwaitingDrain = false
-    this.#stopPresentation()
+    this.#stopPlaybackObservation()
     this.#txQueue.dropSpeakerFlowFrames(previousStreamId)
     this.#speakerSession.forceStop()
     if (notify && previousStreamId) {
@@ -992,61 +994,70 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     })
   }
 
-  #setPresentationStatus(status: StackChanStatus): void {
-    if (this.#presentationStatus === status) return
-    this.#presentationStatus = status
-    this.#notifyPresentation(this.#presentation, 'onStatusChanged', status)
+  #setStatus(status: StackChanStatus): void {
+    if (this.#status === status) return
+    this.#status = status
+    this.#notifyStatus(this.#statusHandler, status)
   }
 
-  #startPresentation(): void {
-    if (this.#presentationActive) return
-    this.#presentationActive = true
-    this.#presentationPower = 0
-    this.#presentationText = ''
-    this.#notifyPresentation(this.#presentation, 'onPlaybackStarted')
+  #startPlaybackObservation(): void {
+    if (this.#playbackActive) return
+    this.#playbackActive = true
+    this.#playbackPower = 0
+    this.#playbackText = ''
+    this.#notifyPlaybackObserver(this.#playbackObserver, 'onPlaybackStarted')
   }
 
-  #showPresentationText(text: string): void {
-    this.#presentationText = text
-    this.#notifyPresentation(this.#presentation, 'onPlaybackText', text)
+  #showPlaybackText(text: string): void {
+    this.#playbackText = text
+    this.#notifyPlaybackObserver(this.#playbackObserver, 'onPlaybackText', text)
   }
 
-  #updatePresentationPower(power: number): void {
-    this.#presentationPower = power
-    this.#notifyPresentation(this.#presentation, 'onPlaybackPower', power)
+  #updatePlaybackPower(power: number): void {
+    this.#playbackPower = power
+    this.#notifyPlaybackObserver(this.#playbackObserver, 'onPlaybackPower', power)
   }
 
-  #stopPresentation(): void {
-    if (!this.#presentationActive) {
-      this.#presentationPower = 0
-      this.#presentationText = ''
+  #stopPlaybackObservation(): void {
+    if (!this.#playbackActive) {
+      this.#playbackPower = 0
+      this.#playbackText = ''
       return
     }
-    this.#presentationActive = false
-    this.#presentationPower = 0
-    this.#presentationText = ''
-    this.#notifyPresentation(this.#presentation, 'onPlaybackStopped')
+    this.#playbackActive = false
+    this.#playbackPower = 0
+    this.#playbackText = ''
+    this.#notifyPlaybackObserver(this.#playbackObserver, 'onPlaybackStopped')
   }
 
-  #notifyPresentation(
-    presentation: UsbAudioPresentation | undefined,
-    method: keyof UsbAudioPresentation,
+  #notifyStatus(handler: ((status: StackChanStatus) => void) | undefined, status: StackChanStatus): void {
+    if (!handler) return
+    try {
+      handler(status)
+    } catch (error) {
+      trace(`[usb-audio] status handler failed: ${error instanceof Error ? error.message : String(error)}\n`)
+    }
+  }
+
+  #notifyPlaybackObserver(
+    observer: UsbAudioPlaybackObserver | undefined,
+    method: keyof UsbAudioPlaybackObserver,
     value?: number | string,
   ): void {
-    if (!presentation) return
+    if (!observer) return
     try {
-      if (value === undefined) (presentation[method] as () => void)()
-      else if (typeof value === 'number') (presentation[method] as (next: number) => void)(value)
-      else (presentation[method] as (next: string) => void)(value)
+      if (value === undefined) (observer[method] as () => void)()
+      else if (typeof value === 'number') (observer[method] as (next: number) => void)(value)
+      else (observer[method] as (next: string) => void)(value)
     } catch (error) {
-      trace(`[usb-audio] presentation ${method} failed: ${error instanceof Error ? error.message : String(error)}\n`)
+      trace(`[usb-audio] playback ${method} failed: ${error instanceof Error ? error.message : String(error)}\n`)
     }
   }
 }
 
 let bridge: UsbAudioBridge | undefined
 
-export function startUsbAudioBridge(options: UsbAudioBridgeOptions = {}): UsbAudioBridgeControl {
+export function startUsbAudioBridge(options: UsbAudioBridgeOptions): UsbAudioBridgeControl {
   if (!bridge) {
     const next = new UsbAudioBridge(options)
     try {

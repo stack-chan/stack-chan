@@ -20,8 +20,19 @@ struct USBSerialRecord {
 	xsSlot *onReadable;
 	xsSlot *onWritable;
 	xsSlot *onError;
+
+	/*
+	 * txProgress closes the missed-wakeup window between a failed nonblocking
+	 * write and setting writeBlocked. A write notification in that window is
+	 * converted into a pending onWritable callback.
+	 */
 	uint32_t txProgress;
 	uint16_t maxWriteBytes;
+	/*
+	 * The owner and every posted callback hold one reference. This lets close()
+	 * uninstall the driver immediately while an already-posted callback exits
+	 * without touching freed storage.
+	 */
 	uint16_t useCount;
 	uint8_t callbackPending;
 	uint8_t closed;

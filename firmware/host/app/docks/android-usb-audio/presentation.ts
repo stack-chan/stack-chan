@@ -4,7 +4,6 @@ import { Container, Content, Label, Skin, Style } from 'piu/MC'
 import {
   formatUsbAudioCaption,
   USB_AUDIO_MOUTH_STEP,
-  usbAudioConversationState,
   usbAudioMouthStep,
   usbAudioStatusVisual,
 } from 'stackchan-usb-dock-presentation-model'
@@ -131,10 +130,7 @@ export type UsbAudioPresentation = {
   close(): void
 }
 
-export function createUsbAudioPresentation(
-  context: StackchanContext,
-  onConversationStateChanged?: (state: ReturnType<typeof usbAudioConversationState>) => void,
-): UsbAudioPresentation {
+export function createUsbAudioPresentation(context: StackchanContext): UsbAudioPresentation {
   let active = false
   let balloon: CaptionBalloon | undefined
   let statusBadge: UIEffect | undefined
@@ -212,7 +208,6 @@ export function createUsbAudioPresentation(
     onStatusChanged(nextStatus) {
       if (closed) return
       status = nextStatus
-      onConversationStateChanged?.(usbAudioConversationState(nextStatus))
       updateStatusBadge()
     },
 

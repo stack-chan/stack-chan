@@ -9,8 +9,10 @@ import {
   encodeStackChanFrame,
   STACKCHAN_CAPABILITIES,
   STACKCHAN_MAX_PAYLOAD_BYTES,
+  StackChanCapability,
   StackChanControl,
   StackChanFrameType,
+  StackChanStatus,
 } from 'stackchan-usb-protocol'
 import { type USBSerialIO, type USBSerialOptions, USBSerialOutputFullError } from 'stackchan-usb-serial-types'
 import { assert, equal } from 'testing/assert'
@@ -85,17 +87,36 @@ const unusedSpeakerFactory: UsbAudioSpeakerOutputFactory = () => {
   throw new Error('speaker should not be opened')
 }
 
-function hello(): Uint8Array {
+function hello(capabilities = STACKCHAN_CAPABILITIES): Uint8Array {
   const payload = new Uint8Array(8)
   const view = new DataView(payload.buffer)
   view.setUint32(0, STACKCHAN_MAX_PAYLOAD_BYTES, true)
-  view.setUint32(4, STACKCHAN_CAPABILITIES, true)
+  view.setUint32(4, capabilities, true)
   return encodeStackChanFrame({
     type: StackChanFrameType.CONTROL,
     flags: StackChanControl.HELLO,
     sequence: 0,
     payload,
   })
+}
+
+function status(value: StackChanStatus): Uint8Array {
+  return encodeStackChanFrame({
+    type: StackChanFrameType.CONTROL,
+    flags: StackChanControl.STATUS,
+    sequence: 1,
+    payload: Uint8Array.of(value),
+  })
+}
+
+function concatenate(...parts: Uint8Array[]): Uint8Array {
+  const combined = new Uint8Array(parts.reduce((total, part) => total + part.byteLength, 0))
+  let offset = 0
+  for (const part of parts) {
+    combined.set(part, offset)
+    offset += part.byteLength
+  }
+  return combined
 }
 
 function startWithFakeSerial(): {
@@ -158,7 +179,28 @@ function testFatalSerialError(): void {
   bridge.close()
 }
 
+function testExtendedStatusWithoutPresentation(): void {
+  const { bridge, serial } = startWithFakeSerial()
+  const statuses: StackChanStatus[] = []
+  bridge.setStatusHandler((next) => statuses.push(next))
+
+  const peerCapabilities = STACKCHAN_CAPABILITIES & ~StackChanCapability.STATUS_EXTENDED
+  serial.enqueue(concatenate(hello(peerCapabilities), status(StackChanStatus.LISTENING)))
+  serial.notifyReadable()
+
+  equal(statuses.length, 2, 'status handler should receive its initial value and the Dock update')
+  equal(statuses[0], StackChanStatus.IDLE, 'status handler should receive the current value when attached')
+  equal(
+    statuses[1],
+    StackChanStatus.LISTENING,
+    'extended status should depend on the receiving Firmware capability, not the sender capability',
+  )
+  equal(serial.writes.length, 1, 'valid extended status should not produce an error response')
+  bridge.close()
+}
+
 trace('=== USB audio bridge IO test ===\n')
 testOutputFullRetry()
 testFatalSerialError()
+testExtendedStatusWithoutPresentation()
 trace('ok\n')

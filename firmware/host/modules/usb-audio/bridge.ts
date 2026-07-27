@@ -1,5 +1,5 @@
-import { encodeSpeakerDiagnostics, StackChanDiagnosticEvent, StackChanDiagnosticFlag } from 'stackchan-usb-diagnostics'
 import { UsbConnectionDebouncer } from 'stackchan-usb-connection-state'
+import { encodeSpeakerDiagnostics, StackChanDiagnosticEvent, StackChanDiagnosticFlag } from 'stackchan-usb-diagnostics'
 import { BoundedEventFrameQueue, STACKCHAN_FRAME_OVERHEAD_BYTES } from 'stackchan-usb-event-frame-queue'
 import {
   type UsbEventSendResult,

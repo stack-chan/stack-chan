@@ -7,7 +7,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 import { buildOutputDirectory, ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
 import { startXsbugServer } from './lib/xsbug-log-server.js'
 
-const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods/examples']
+const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods']
 const XSBUG_HOST = process.env.STACKCHAN_MODULE_TEST_XSBUG_HOST ?? '127.0.0.1'
 const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '15000', 10)
 const BUILD_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS ?? '360000', 10)

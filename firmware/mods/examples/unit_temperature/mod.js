@@ -1,8 +1,7 @@
-import Humidity from 'embedded:sensor/Humidity-Temperature/SHT3x'
+import SHT3x from 'embedded:sensor/Humidity-Temperature/SHT3x'
 import Timer from 'timer'
 
-Timer.delay(200)
-const sensor = new Humidity({ sensor: device.I2C.default })
+const sensor = new SHT3x({ sensor: device.I2C.default })
 
 const param = {
   right: 20,
@@ -13,9 +12,13 @@ const param = {
 export function onContextCreated(robot) {
   const targetLoop = () => {
     const sample = sensor.sample()
+    if (sample === undefined) {
+      robot.ui.showBalloon('Sensor read failed.', param)
+      return
+    }
     robot.ui.showBalloon(
       `Temperature: ${sample.thermometer.temperature.toFixed(2)} C.
-      Humidity: ${sample.hygrometer.humidity.toFixed(2)} %`,
+      Humidity: ${(sample.hygrometer.humidity * 100).toFixed(2)} %`,
       param,
     )
     Timer.set((_id) => robot.ui.hideBalloon(), 10 * 1000)

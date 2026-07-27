@@ -1,0 +1,20 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json",
+    "../../../../../../host/modules/testing/manifest.json"
+  ],
+  "modules": {
+    "~": "$(MODULES)/base/timer/timer",
+    "timer": "./timer",
+    "main": "./sht3x-conformance.test"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

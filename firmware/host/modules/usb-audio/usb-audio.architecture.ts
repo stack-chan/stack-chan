@@ -89,7 +89,12 @@ test('vendored Dock wire vectors retain pinned provenance and byte hashes', () =
   }
   assert.equal(provenance.upstream, 'https://github.com/meganetaaan/stack-chan-dock')
   assert.match(provenance.revision ?? '', /^[0-9a-f]{40}$/)
-  assert.deepEqual(Object.keys(provenance.files ?? {}).sort(), ['LICENSE', 'contracts/usb-cdc-v2/test-vectors.json'])
+  assert.deepEqual(Object.keys(provenance.files ?? {}).sort(), [
+    'LICENSE',
+    'contracts/usb-cdc-v2/application-event-vectors.json',
+    'contracts/usb-cdc-v2/negotiation-vectors.json',
+    'contracts/usb-cdc-v2/test-vectors.json',
+  ])
   for (const [path, expected] of Object.entries(provenance.files ?? {})) {
     const actual = createHash('sha256')
       .update(readFileSync(`vendor/stack-chan-dock/${path}`))

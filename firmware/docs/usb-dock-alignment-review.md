@@ -4,16 +4,17 @@
 
 このレビューは、Firmwareの`feat/android-usb-audio`とDockの追跡済みHEADを比較し、両リポジトリの修正責務を整理した記録である。
 
-- **Firmware**：`stack-chan/stack-chan`の`feat/android-usb-audio`（基点HEAD `5066244c`と作業中のリファクタ）
-- **Dock**：`meganetaaan/stack-chan-dock`の`agent/restructure-stack-chan-dock`（HEAD `831cb8f31376df25076f604285c5b64a7bc7e259`）
+- **Firmware**：`stack-chan/stack-chan`の`feat/android-usb-audio`（同期前HEAD `403c36e7`と作業中の修正）
+- **Dock**：`meganetaaan/stack-chan-dock`の`agent/restructure-stack-chan-dock`（HEAD `e12542a0cf351b3944736b3a6416e6f680d36f21`）
 
 Dock側の未コミット変更は比較対象に含めていない。
 実機USB試験も、このレビューの比較時点では実行していない。
 
 ## 合意した判定
 
-Firmware側レビューの主要指摘は妥当であり、Dock HEAD `831cb8f`ではAndroidのEVENT能力交渉が成立していなかった。
+Firmware側レビューの主要指摘は妥当であり、比較時点のDock HEAD `831cb8f`ではAndroidのEVENT能力交渉が成立していなかった。
 レビュー記載から漏れていた冪等化、送信抑止、不正JSONの継続処理もDock側の修正対象とする。
+Dock HEAD `e12542a`ではこれらの修正と共有fixtureの追加が取り込まれている。
 
 | 項目 | 判定 | 担当 |
 | --- | --- | --- |
@@ -32,7 +33,7 @@ Firmware側レビューの主要指摘は妥当であり、Dock HEAD `831cb8f`�
 
 ## 確認した不整合
 
-Dock HEAD `831cb8f`のAndroid実装は、HELLOでEVENT bit 10を広告していなかった。
+比較時点のDock HEAD `831cb8f`のAndroid実装は、HELLOでEVENT bit 10を広告していなかった。
 一方、Realtime sessionは接続準備後に`session.created`をEVENTとして送信していた。
 
 FirmwareはpeerがEVENTを広告していない場合、受信EVENTを`INVALID_REQUEST`として拒否する。
@@ -104,19 +105,21 @@ transportが`ready`以外へ遷移した場合はAndroidの`session.created`受�
 FirmwareはDockの追跡済み正本を`vendor/stack-chan-dock`へ内容を変えずに取り込む。
 出典とSHA-256は`vendor/stack-chan-dock/VENDOR_SOURCE.json`に記録する。
 
-- **Dock revision**：`831cb8f31376df25076f604285c5b64a7bc7e259`
+- **Dock revision**：`e12542a0cf351b3944736b3a6416e6f680d36f21`
 - **LICENSE SHA-256**：`1d291f59c29098471171a78eaba979c38fa58b8bf60d5b330b862f289ecfd8c2`
 - **test-vectors.json SHA-256**：`1e2c31c5981e1a963a1c85b89241da1a11e8a6e1b8316ea644f237f8ca0506c0`
+- **negotiation-vectors.json SHA-256**：`63a70846df8a5d8651c9c3ee01e96064aef1749563c9abbf01d2767466eb7da7`
+- **application-event-vectors.json SHA-256**：`b12935b35e800b6b69197572c801900fc756c273393e96132bd2698d876d430d`
 
-同期スクリプトはDockリポジトリのHEADを取得し、`LICENSE`または`test-vectors.json`に未コミット変更があれば停止する。
+同期スクリプトはDockリポジトリのHEADを取得し、`LICENSE`または3つのfixtureに未コミット変更があれば停止する。
 対象外の未追跡ファイルは同期を妨げない。
 
 Dock正本のvalid frame 3件とCRC不正frame 1件は、TypeScript codecとPython diagnostics codecの双方へ直接入力する。
 Firmware固有のfragmentation、coalescing、再同期、EVENT sequence mismatchは`parser-scenarios-v2.json`へ分離する。
 これにより、byte単位のgolden値をFirmware側の別fixtureやunit testへ複製しない。
 
-Dockの作業ツリーに存在する`negotiation-vectors.json`と`application-event-vectors.json`は、HEAD `831cb8f`に含まれないため今回vendorしない。
-Dock側で正本としてcommitされた後に、同じ同期手順で取り込む。
+`negotiation-vectors.json`と`application-event-vectors.json`はDockで正本としてcommitされたため、Firmwareへ無改変でvendorする。
+Firmwareの能力交渉と会話EVENTのunit testは、この共有fixtureを直接入力する。
 
 ## 今回の対象外
 

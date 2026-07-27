@@ -15,6 +15,8 @@ const destination = join(firmware, 'vendor', 'stack-chan-dock')
 const files = [
   ['LICENSE', 'LICENSE'],
   ['contracts/usb-cdc-v2/test-vectors.json', 'contracts/usb-cdc-v2/test-vectors.json'],
+  ['contracts/usb-cdc-v2/negotiation-vectors.json', 'contracts/usb-cdc-v2/negotiation-vectors.json'],
+  ['contracts/usb-cdc-v2/application-event-vectors.json', 'contracts/usb-cdc-v2/application-event-vectors.json'],
 ]
 const sourcePaths = files.map(([from]) => from)
 

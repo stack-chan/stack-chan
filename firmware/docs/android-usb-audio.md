@@ -56,10 +56,13 @@ USB未接続時の会話要求は同じrequest IDを最大10秒間保持し、`r
 
 FirmwareはCore 1の高優先度WorkerでUSB受信を2 ms間隔でpollし、HELLO後に音声制御を受け付ける。
 USB接続はESP-IDFの`usb_serial_jtag_is_connected()`が検出するSOFで判定する。
+単発のSOF欠落ではHELLOとstatusを破棄せず、100 ms連続して未接続を観測した時点で切断を確定する。
 この判定を有効にすると、FreeRTOSの各tickへ小さな追加負荷が発生する。
 native USB受信ringは32 KiBとし、1回16 KiBのreadを1回のpollで最大4回実行する。
 フレームのCRC32はnative実装で計算し、JavaScript VMがPCM転送を律速しないようにする。
 マイクは16 kHz、16 bit little-endian、mono、20 ms frameで送信する。
+AudioInの通知値は最大2 KiBの偶数長へ制限し、native側で確保したbufferへ直ちに読み出す。
+通知後にringの可読量が変化した場合は、その時点の可読量で一度だけ再試行する。
 スピーカーは8 kHz、16 kHz、24 kHzを受け付け、指定されたsample rateをそのまま`AudioOut`へ渡す。
 Workerは1秒分のスピーカーqueueへPCMを受け、500 msをprebufferしてから再生を始める。
 Workerとmain VMの間はWebRadioと同じ`SharedByteRing`を使い、64 KiBの共有ringへPCMを渡す。
@@ -173,13 +176,15 @@ schemaが一致していてもtypeまたはfieldが不正なmessageは破棄し�
 wire、media session、application eventの契約は次のJSONで固定する。
 
 - `vendor/stack-chan-dock/contracts/usb-cdc-v2/test-vectors.json`
+- `vendor/stack-chan-dock/contracts/usb-cdc-v2/negotiation-vectors.json`
+- `vendor/stack-chan-dock/contracts/usb-cdc-v2/application-event-vectors.json`
 - `host/modules/usb-audio/contracts/parser-scenarios-v2.json`
 - `host/modules/usb-audio/contracts/media-session-v2.json`
 - `host/app/remote-session/application-event-v1.json`
 
-Dockの`test-vectors.json`がbyte単位のwire正本である。
+Dockの3つのfixtureがwire bytes、能力交渉、application eventの共有正本である。
 Firmware固有のparser scenarioは正本と分離する。
-TypeScript unit testとPython diagnostics testは、vendorした同じwire正本を検証する。
+TypeScript unit testは3つの正本を検証し、Python diagnostics testも同じwire正本を検証する。
 
 正本を同期する場合は、追跡済みのDock checkoutを指定する。
 

@@ -20,9 +20,21 @@ type ApplicationEventFixture = {
   }>
 }
 
+type SharedApplicationEventFixture = {
+  applicationSchema: string
+  vectors: Array<{
+    name: string
+    codexParserAccepted: boolean
+    value: Record<string, unknown>
+  }>
+}
+
 const fixture = JSON.parse(
   readFileSync('host/app/remote-session/application-event-v1.json', 'utf8'),
 ) as ApplicationEventFixture
+const sharedFixture = JSON.parse(
+  readFileSync('vendor/stack-chan-dock/contracts/usb-cdc-v2/application-event-vectors.json', 'utf8'),
+) as SharedApplicationEventFixture
 
 test('application-event v1 fixture accepts every supported inbound discriminant', () => {
   assert.equal(fixture.applicationSchema, STACKCHAN_EVENT_SCHEMA)
@@ -57,5 +69,24 @@ test('application-event builders preserve the Android JSON shapes', () => {
         assert.fail(`unsupported application-event builder: ${vector.builder}`)
     }
     assert.deepEqual(actual, vector.expected, vector.builder)
+  }
+})
+
+test('conversation requests and results conform to the shared Dock fixture', () => {
+  assert.equal(sharedFixture.applicationSchema, STACKCHAN_EVENT_SCHEMA)
+  for (const vector of sharedFixture.vectors) {
+    switch (vector.value.type) {
+      case 'conversation.start':
+        if (!vector.codexParserAccepted) break
+        assert.deepEqual(conversationRequest('start', String(vector.value.requestId)), vector.value, vector.name)
+        break
+      case 'conversation.stop':
+        if (!vector.codexParserAccepted) break
+        assert.deepEqual(conversationRequest('stop', String(vector.value.requestId)), vector.value, vector.name)
+        break
+      case 'conversation.result':
+        assert.deepEqual(parseStackchanApplicationEvent(vector.value), vector.value, vector.name)
+        break
+    }
   }
 })

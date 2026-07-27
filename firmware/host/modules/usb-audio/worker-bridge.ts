@@ -1,5 +1,6 @@
 import AudioIn from 'embedded:io/audio/in'
 import AudioOut from 'embedded:io/audio/out'
+import { readAudioInputChunk } from 'stackchan-usb-audio-input-read'
 import { UsbEventSendRequests } from 'stackchan-usb-event-send-requests'
 import type { UsbEventSendResult, UsbEventTransportState } from 'stackchan-usb-event-transport'
 import { StackChanStatus } from 'stackchan-usb-media-session'
@@ -368,8 +369,8 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
     const worker = this.#worker
     if (input !== this.#microphone || !streamId || !worker || size <= 0) return
     try {
-      const bytes = new Uint8Array(size)
-      input.read(bytes)
+      const bytes = readAudioInputChunk(input, size)
+      if (!bytes) return
       worker.postMessage({ id: 'microphone-data', streamId, data: bytes })
     } catch (error) {
       this.#failMicrophone(error, streamId)

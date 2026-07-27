@@ -9,8 +9,10 @@
   ],
   "modules": {
     "stackchan-usb-audio": "./worker-bridge",
+    "stackchan-usb-audio-input-read": "./audio-input-read",
     "stackchan-usb-audio-core": "./bridge",
     "stackchan-usb-audio-worker": "./worker",
+    "stackchan-usb-connection-state": "./connection-state",
     "stackchan-usb-shared-output": "./shared-speaker-output",
     "stackchan-usb-diagnostics": "./diagnostics",
     "stackchan-usb-event-frame-queue": "./event-frame-queue",

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { installUsbAudioTestAliases } from './__tests__/node-aliases.js'
 
@@ -9,19 +10,30 @@ const { StackChanCapability } = await import('./media-session.js')
 
 const EVENT = StackChanCapability.EVENT
 
-test('EVENT transport is ready only when both peers advertise EVENT', () => {
-  const cases = [
-    { local: false, peer: false, expected: 'unsupported' },
-    { local: false, peer: true, expected: 'unsupported' },
-    { local: true, peer: false, expected: 'unsupported' },
-    { local: true, peer: true, expected: 'ready' },
-  ] as const
+type NegotiationFixture = {
+  capabilityBits: {
+    event: number
+  }
+  eventNegotiation: Array<{
+    dockAdvertisesEvent: boolean
+    firmwareAdvertisesEvent: boolean
+    expected: {
+      conversationControlAvailable: boolean
+    }
+  }>
+}
 
-  for (const vector of cases) {
+const fixture = JSON.parse(
+  readFileSync('vendor/stack-chan-dock/contracts/usb-cdc-v2/negotiation-vectors.json', 'utf8'),
+) as NegotiationFixture
+
+test('EVENT transport is ready only when both peers advertise EVENT', () => {
+  assert.equal(EVENT, fixture.capabilityBits.event)
+  for (const vector of fixture.eventNegotiation) {
     assert.equal(
-      usbEventTransportState(true, vector.local ? EVENT : 0, vector.peer ? EVENT : 0),
-      vector.expected,
-      `local=${vector.local}, peer=${vector.peer}`,
+      usbEventTransportState(true, vector.firmwareAdvertisesEvent ? EVENT : 0, vector.dockAdvertisesEvent ? EVENT : 0),
+      vector.expected.conversationControlAvailable ? 'ready' : 'unsupported',
+      `firmware=${vector.firmwareAdvertisesEvent}, dock=${vector.dockAdvertisesEvent}`,
     )
   }
 })
@@ -36,14 +48,14 @@ test('physical disconnection dominates every capability combination', () => {
 
 test('the finite enumeration detects an OR-negotiation mutant', () => {
   const counterexamples: Array<{ local: boolean; peer: boolean }> = []
-  for (const local of [false, true]) {
-    for (const peer of [false, true]) {
-      const expectedReady = local && peer
-      const mutantReady = local || peer
-      if (expectedReady !== mutantReady) counterexamples.push({ local, peer })
-    }
+  for (const vector of fixture.eventNegotiation) {
+    const local = vector.firmwareAdvertisesEvent
+    const peer = vector.dockAdvertisesEvent
+    const mutantReady = local || peer
+    if (vector.expected.conversationControlAvailable !== mutantReady) counterexamples.push({ local, peer })
   }
 
+  counterexamples.sort((left, right) => Number(left.local) - Number(right.local))
   assert.deepEqual(counterexamples, [
     { local: false, peer: true },
     { local: true, peer: false },

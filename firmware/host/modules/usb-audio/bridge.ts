@@ -1,4 +1,5 @@
 import { encodeSpeakerDiagnostics, StackChanDiagnosticEvent, StackChanDiagnosticFlag } from 'stackchan-usb-diagnostics'
+import { UsbConnectionDebouncer } from 'stackchan-usb-connection-state'
 import { BoundedEventFrameQueue, STACKCHAN_FRAME_OVERHEAD_BYTES } from 'stackchan-usb-event-frame-queue'
 import {
   type UsbEventSendResult,
@@ -61,6 +62,7 @@ const MAX_USB_RX_READS_PER_POLL = 4
 const MAX_CAPTION_BYTES = 1024
 const MAX_QUEUED_CAPTIONS = 16
 const POLL_MILLISECONDS = 2
+const USB_DISCONNECT_DEBOUNCE_MILLISECONDS = 100
 const MAX_TX_QUEUE_BYTES = 16 * 1024
 const MAX_PENDING_EVENT_FRAMES = 128
 const MAX_PENDING_EVENT_BYTES = STACKCHAN_MAX_EVENT_BYTES + MAX_PENDING_EVENT_FRAMES * STACKCHAN_FRAME_OVERHEAD_BYTES
@@ -147,6 +149,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   #eventEncoder = new StackChanEventEncoder()
   #eventHandler: ((event: string) => void) | undefined
   #transportStateHandler: ((state: UsbEventTransportState) => void) | undefined
+  #connection = new UsbConnectionDebouncer(USB_DISCONNECT_DEBOUNCE_MILLISECONDS)
   #connected = false
   #transportState: UsbEventTransportState = 'disconnected'
   #pendingEventFrames = new BoundedEventFrameQueue(MAX_PENDING_EVENT_FRAMES, MAX_PENDING_EVENT_BYTES)
@@ -274,9 +277,9 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   }
 
   #refreshConnection(): void {
-    const connected = isUsbSerialConnected()
-    if (connected === this.#connected) return
-    this.#connected = connected
+    const update = this.#connection.update(isUsbSerialConnected(), Time.ticks)
+    if (!update.changed) return
+    this.#connected = update.connected
     this.#resetConnectionSession()
     this.#refreshTransportState()
   }

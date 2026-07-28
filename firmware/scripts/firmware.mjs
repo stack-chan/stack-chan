@@ -10,6 +10,12 @@ import {
   hostApplicationName,
   moddableOutputArguments,
 } from './lib/build-output.mjs'
+import {
+  buildVariantMarkerPath,
+  readBuildVariant,
+  resolveBuildVariant,
+  writeBuildVariant,
+} from './lib/build-variant.mjs'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
@@ -79,6 +85,23 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {
     console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
+    process.exit(1)
+  }
+}
+
+const buildVariantChanged =
+  !dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command) ? prepareBuildVariant() : false
+
+if (buildVariantChanged && deviceName === 'm5stackchan_cores3') {
+  try {
+    prepareCoreS3IdfDependencies({
+      outputDirectory: buildOutputDirectory,
+      platformName: deviceName,
+      applicationName: hostApplicationName,
+      mode: buildMode,
+    })
+  } catch (error) {
+    console.error(`[stack-chan] IDF dependencies could not be prepared after target clean: ${error.message}`)
     process.exit(1)
   }
 }
@@ -191,6 +214,37 @@ function run(bin, binArgs, cwd = process.cwd()) {
     process.exit(1)
   }
   if (result.status !== 0) process.exit(result.status ?? 1)
+}
+
+/**
+ * Cleans a shared Moddable target before switching its application manifest.
+ * mcconfig otherwise may reuse generated resources and configuration from the
+ * previous manifest because every host variant has the same application name.
+ */
+function prepareBuildVariant() {
+  const markerPath = buildVariantMarkerPath({
+    outputDirectory: buildOutputDirectory,
+    deviceName,
+    mode: buildMode,
+    applicationName: hostApplicationName,
+  })
+  const selectedVariant = resolveBuildVariant(manifest)
+  if (readBuildVariant(markerPath) === selectedVariant) return false
+
+  console.log(`[stack-chan] cleaning target before manifest switch: ${manifest}`)
+  ensureBuildOutputDirectory()
+  const result = spawnSync(
+    'mcconfig',
+    [...buildModeArgs, '-m', '-p', platform, '-t', 'clean', ...outputArgs, selectedVariant],
+    { env: subprocessEnvironment, stdio: 'inherit' },
+  )
+  if (result.error) {
+    console.error(`[stack-chan] mcconfigを実行できませんでした: ${result.error.message}`)
+    process.exit(1)
+  }
+  if (result.status !== 0) process.exit(result.status ?? 1)
+  writeBuildVariant(markerPath, selectedVariant)
+  return true
 }
 
 /**

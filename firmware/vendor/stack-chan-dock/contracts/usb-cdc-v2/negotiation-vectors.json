@@ -1,0 +1,98 @@
+{
+  "schema": "stackchan.usb-cdc.negotiation-vectors.v1",
+  "protocolVersion": 2,
+  "capabilityBits": {
+    "event": 1024,
+    "statusExtended": 2048
+  },
+  "helloPayloads": [
+    {
+      "name": "required-audio-only",
+      "maxPayload": 4096,
+      "capabilities": 551,
+      "payloadHex": "0010000027020000"
+    },
+    {
+      "name": "codex-dock-host",
+      "maxPayload": 4096,
+      "capabilities": 3879,
+      "payloadHex": "00100000270f0000"
+    },
+    {
+      "name": "android-dock-all",
+      "maxPayload": 4096,
+      "capabilities": 3967,
+      "payloadHex": "001000007f0f0000"
+    }
+  ],
+  "connectionPolicy": [
+    {
+      "dock": "android",
+      "firmwareAdvertisesEvent": false,
+      "connectionAllowed": true
+    },
+    {
+      "dock": "android",
+      "firmwareAdvertisesEvent": true,
+      "connectionAllowed": true
+    },
+    {
+      "dock": "codex",
+      "firmwareAdvertisesEvent": false,
+      "connectionAllowed": false
+    },
+    {
+      "dock": "codex",
+      "firmwareAdvertisesEvent": true,
+      "connectionAllowed": true
+    }
+  ],
+  "eventNegotiation": [
+    {
+      "dockAdvertisesEvent": false,
+      "firmwareAdvertisesEvent": false,
+      "expected": {
+        "dockMaySendEvent": false,
+        "firmwareMaySendEvent": false,
+        "conversationControlAvailable": false
+      }
+    },
+    {
+      "dockAdvertisesEvent": false,
+      "firmwareAdvertisesEvent": true,
+      "expected": {
+        "dockMaySendEvent": true,
+        "firmwareMaySendEvent": false,
+        "conversationControlAvailable": false
+      }
+    },
+    {
+      "dockAdvertisesEvent": true,
+      "firmwareAdvertisesEvent": false,
+      "expected": {
+        "dockMaySendEvent": false,
+        "firmwareMaySendEvent": true,
+        "conversationControlAvailable": false
+      }
+    },
+    {
+      "dockAdvertisesEvent": true,
+      "firmwareAdvertisesEvent": true,
+      "expected": {
+        "dockMaySendEvent": true,
+        "firmwareMaySendEvent": true,
+        "conversationControlAvailable": true
+      }
+    }
+  ],
+  "extendedStatusNegotiation": [
+    {
+      "firmwareAdvertisesStatusExtended": false,
+      "expectedDockMaySendExtendedStatus": false
+    },
+    {
+      "firmwareAdvertisesStatusExtended": true,
+      "expectedDockMaySendExtendedStatus": true
+    }
+  ]
+}

@@ -33,6 +33,7 @@
       "./boot-services",
       "./compose",
       "./capabilities",
+      "./dock",
       "./experimental-mini-app-loader",
       "./experimental-mini-app-piu",
       "./experimental-mini-app-registration",
@@ -44,6 +45,7 @@
       "./runtime-input",
       "./runtime-lighting",
       "./runtime-ui",
+      "./owned-resources",
       "$(MODULES)/network/http/*"
     ],
     "startup-splash": "../modules/ui/views/splash/splash-view",

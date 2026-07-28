@@ -7,6 +7,7 @@ import {
 } from 'chat-status-bar'
 import { Application } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
+import { uiStyles } from 'ui-theme'
 
 trace('=== chat-statusbar test ===\n')
 
@@ -43,6 +44,7 @@ type StatusBarBehavior = {
 type StatusBarContent = {
   content(name: string): unknown
   behavior?: StatusBarBehavior
+  visible?: boolean
 }
 
 type StatusIcon = {
@@ -77,16 +79,22 @@ type ClockLabel = {
     onTimeChanged?: (label: unknown) => void
   }
   running?: boolean
+  style?: {
+    measure: (string: string) => { height: number; width: number }
+  }
   string?: string
   visible?: boolean
+  width?: number
 }
 
 type BatteryPort = {
   active?: boolean
   behavior?: {
+    onDraw?: (port: unknown) => void
     onDisplaying?: (port: unknown) => void
     onTimeChanged?: (port: unknown) => void
   }
+  height?: number
   running?: boolean
   visible?: boolean
   width?: number
@@ -119,6 +127,23 @@ assert(battery.visible === true, 'a valid battery reading should show the batter
 assert(clock.running === true, 'face mode should run the clock timer')
 assert(battery.running === true, 'face mode should run the battery timer')
 assert(battery.active === false, 'battery status should never intercept touches')
+const baseTimeSize = uiStyles().button.measure('09:05')
+const appBarTimeSize = clock.style?.measure('09:05')
+assert((baseTimeSize.width ?? 0) > 0, 'base time width should be measurable')
+assert((baseTimeSize.height ?? 0) > 0, 'base time height should be measurable')
+equal(appBarTimeSize?.width, (baseTimeSize.width ?? 0) * 2, 'AppBar time should render at twice the base width')
+equal(appBarTimeSize?.height, (baseTimeSize.height ?? 0) * 2, 'AppBar time should render at twice the base height')
+equal(battery.width, 48, 'battery status should use a double-width drawing surface')
+equal(battery.height, 32, 'battery status should use a double-height drawing surface')
+const batteryDrawBounds = { width: 0, height: 0 }
+battery.behavior?.onDraw?.({
+  fillColor(_color: unknown, x: number, y: number, width: number, height: number) {
+    batteryDrawBounds.width = Math.max(batteryDrawBounds.width, x + width)
+    batteryDrawBounds.height = Math.max(batteryDrawBounds.height, y + height)
+  },
+})
+assert(batteryDrawBounds.width > (battery.width ?? 0) * 0.9, 'battery drawing should fill the double-width surface')
+assert(batteryDrawBounds.height > (battery.height ?? 0) * 0.8, 'battery drawing should fill the double-height surface')
 assert((statusIcon.x ?? 0) > (battery.x ?? 0) + (battery.width ?? 0), 'chat status should move right of battery')
 equal(formatAppBarTime(new Date(0)), '--:--', 'unset system time should use a placeholder')
 equal(batteryLevelToSegments(0), 0, 'empty battery should draw no cells')
@@ -136,6 +161,7 @@ assert(appsButton.visible === true, 'apps button should appear when a mini app i
 assert(appsButton.active === true, 'visible apps button should accept touches')
 
 behavior.onAppBarMode?.(bar, { kind: 'launcher', title: 'ミニアプリ' })
+assert(bar.visible === true, 'launcher mode should keep the AppBar visible')
 assert(backButton.visible === true, 'launcher mode should show the host-owned back button')
 assert(backButton.active === true, 'launcher back button should accept touches')
 assert(app.hit(16, 22) === backButton, 'non-interactive status content must not intercept the Back button')
@@ -149,6 +175,7 @@ assert(clock.running === false, 'launcher mode should stop the hidden clock time
 assert(battery.running === false, 'launcher mode should stop the hidden battery timer')
 
 behavior.onAppBarMode?.(bar, { kind: 'face' })
+assert(bar.visible === true, 'returning to face mode should reveal the AppBar')
 assert(backButton.visible === false, 'face mode should hide the back button')
 assert(appsButton.visible === true, 'face mode should restore the apps button')
 assert(clock.visible === true, 'returning to face mode should restore the clock')
@@ -164,20 +191,28 @@ battery.behavior?.onTimeChanged?.(battery)
 assert(battery.visible === true, 'battery status should recover after a later valid reading')
 
 behavior.onFinished?.(bar)
-assert(menuButton.visible === false, 'menu button should hide when its reveal timer finishes')
+assert(bar.visible === false, 'the reveal timer should hide the entire AppBar')
+assert(menuButton.visible === false, 'menu button should hide with the AppBar')
 assert(menuButton.active === false, 'hidden menu button should not intercept touches')
 assert(appsButton.visible === false, 'apps button should hide with the menu button')
 assert(appsButton.active === false, 'hidden apps button should not intercept touches')
-assert(clock.running === true, 'the face-action reveal timer should not stop the clock timer')
-assert(battery.running === true, 'the face-action reveal timer should not stop the battery timer')
+assert(clock.visible === false, 'clock should hide with the AppBar')
+assert(battery.visible === false, 'battery status should hide with the AppBar')
+assert(clock.running === false, 'hidden AppBar should stop the clock timer')
+assert(battery.running === false, 'hidden AppBar should stop the battery timer')
 behavior.onMiniAppAvailability?.(bar, false)
 behavior.onMiniAppAvailability?.(bar, true)
 assert(appsButton.visible === false, 'availability changes should not bypass the hidden AppBar state')
 behavior.onAppBarReveal?.(bar)
+assert(bar.visible === true, 'an explicit reveal should restore the entire AppBar')
 assert(menuButton.visible === true, 'menu button should be revealed again on request')
 assert(menuButton.active === true, 'revealed menu button should accept touches')
 assert(appsButton.visible === true, 'apps button should be revealed with the menu button')
 assert(appsButton.active === true, 'revealed apps button should accept touches')
+assert(clock.visible === true, 'revealing the AppBar should restore the clock')
+assert(battery.visible === true, 'revealing the AppBar should restore battery status')
+assert(clock.running === true, 'revealing the AppBar should restart the clock timer')
+assert(battery.running === true, 'revealing the AppBar should restart the battery timer')
 
 behavior.onChatState?.(bar, ChatStatusBarState.CONNECTING)
 assert(statusIndicator.visible === true, 'connecting indicator should be visible')

@@ -33,13 +33,13 @@ test('host manifests use a stable application name', () => {
   assert.equal(wasmManifest.build?.NAME, 'stack-chan-host')
 })
 
-test('the 24px splash font only bundles glyphs used by the product title', () => {
+test('the 24px font bundles glyphs used by the splash title and AppBar clock', () => {
   const font = manifest.resources?.['*-alpha']?.find(
     (resource) => resource.source === '../modules/ui/assets/fonts/k8x12' && resource.size === 24,
   )
 
   assert.ok(font, 'expected the k8x12 24px splash font resource')
-  assert.equal(font.characters, 'Stack-chan[・＿・]')
+  assert.equal(font.characters, 'Stack-chan[・＿・]0123456789:')
   assert.equal(font.characterFiles, undefined)
 
   const wasmFont = findFont(

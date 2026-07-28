@@ -210,6 +210,48 @@
       ],
       "stackchan-util": [
         "host/modules/util/stackchan-util.ts"
+      ],
+      "stackchan-application-event": [
+        "host/app/remote-session/application-event.ts"
+      ],
+      "stackchan-approval-model": [
+        "host/app/remote-session/approval-model.ts"
+      ],
+      "stackchan-approval-session": [
+        "host/app/remote-session/approval-session.ts"
+      ],
+      "stackchan-conversation-session": [
+        "host/app/remote-session/conversation-session.ts"
+      ],
+      "stackchan-realtime-session": [
+        "host/app/remote-session/realtime-session.ts"
+      ],
+      "stackchan-remote-session-runtime": [
+        "host/app/remote-session/runtime.ts"
+      ],
+      "stackchan-owned-resources": [
+        "host/app/owned-resources.ts"
+      ],
+      "stackchan-usb-media-session": [
+        "host/modules/usb-audio/media-session.ts"
+      ],
+      "stackchan-usb-protocol": [
+        "host/modules/usb-audio/protocol.ts"
+      ],
+      "stackchan-usb-event-frame-queue": [
+        "host/modules/usb-audio/event-frame-queue.ts"
+      ],
+      "stackchan-usb-event-send-requests": [
+        "host/modules/usb-audio/event-send-requests.ts"
+      ],
+      "stackchan-usb-event-transport": [
+        "host/modules/usb-audio/event-transport.ts"
+      ],
+      "stackchan-usb-audio-core": [
+        "host/modules/usb-audio/__tests__/audio-core-types.ts"
+      ],
+      "web-radio-byte-ring": [
+        "host/modules/audio/platforms/m5stackchan-cores3/shared-byte-ring.ts"
       ]
     },
     "types": [

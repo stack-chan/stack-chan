@@ -1,0 +1,1081 @@
+import { UsbConnectionDebouncer } from 'stackchan-usb-connection-state'
+import { encodeSpeakerDiagnostics, StackChanDiagnosticEvent, StackChanDiagnosticFlag } from 'stackchan-usb-diagnostics'
+import { BoundedEventFrameQueue, STACKCHAN_FRAME_OVERHEAD_BYTES } from 'stackchan-usb-event-frame-queue'
+import {
+  type UsbEventSendResult,
+  type UsbEventTransportState,
+  usbEventTransportState,
+} from 'stackchan-usb-event-transport'
+import {
+  isValidHelloControl,
+  isValidMicrophoneControl,
+  isValidStatusControl,
+  isWithinSpeakerCredit,
+  MediaSessionResult,
+  STACKCHAN_CAPABILITIES,
+  STACKCHAN_MICROPHONE_SAMPLE_RATE,
+  StackChanCapability,
+  StackChanControl,
+  StackChanErrorCode,
+  StackChanStatus,
+} from 'stackchan-usb-media-session'
+import { MicrophoneSessionGuard } from 'stackchan-usb-microphone-session'
+import {
+  encodeStackChanFrame,
+  STACKCHAN_MAX_EVENT_BYTES,
+  STACKCHAN_MAX_PAYLOAD_BYTES,
+  type StackChanCrc32,
+  StackChanEventDecoder,
+  StackChanEventEncoder,
+  type StackChanFrame,
+  StackChanFrameParser,
+  StackChanFrameType,
+} from 'stackchan-usb-protocol'
+import { isUSBSerialOutputFullError, type USBSerialFactory, type USBSerialIO } from 'stackchan-usb-serial-types'
+import { SpeakerPlaybackBuffer } from 'stackchan-usb-speaker-buffer'
+import { SpeakerSessionGuard } from 'stackchan-usb-speaker-session'
+import { StreamTxQueue } from 'stackchan-usb-stream-tx-queue'
+import TextDecoder from 'text/decoder'
+import TextEncoder from 'text/encoder'
+import Time from 'time'
+import Timer from 'timer'
+
+const BITS_PER_SAMPLE = 16
+const CHANNELS = 1
+const PCM_FRAME_MILLISECONDS = 20
+const MICROPHONE_FRAME_BYTES = (STACKCHAN_MICROPHONE_SAMPLE_RATE * 2 * PCM_FRAME_MILLISECONDS) / 1000
+const SPEAKER_BUFFER_MILLISECONDS = 1000
+const SPEAKER_PREBUFFER_MILLISECONDS = 500
+// Drain half of the native 32 KiB RX ring at once and retain enough room for
+// another complete credited PCM burst, including frame headers.
+// The RX ring is configured in usb-serial.c and cannot share this XS constant;
+// the device burst diagnostic is the cross-language invariant check.
+const USB_RX_READ_BYTES = 16 * 1024
+const SPEAKER_CREDIT_WINDOW_BYTES = 8 * 1024
+const MAX_USB_RX_READS_PER_CALLBACK = 4
+const MAX_CAPTION_BYTES = 1024
+const MAX_QUEUED_CAPTIONS = 16
+const MAINTENANCE_INTERVAL_MILLISECONDS = 2
+const USB_DISCONNECT_DEBOUNCE_MILLISECONDS = 100
+const MAX_TX_QUEUE_BYTES = 16 * 1024
+const MAX_PENDING_EVENT_FRAMES = 128
+const MAX_PENDING_EVENT_BYTES = STACKCHAN_MAX_EVENT_BYTES + MAX_PENDING_EVENT_FRAMES * STACKCHAN_FRAME_OVERHEAD_BYTES
+const DIAGNOSTIC_INTERVAL_MILLISECONDS = 100
+
+export type UsbAudioMicrophoneInputOptions = {
+  streamId: number
+  sampleRate: number
+  channels: number
+  bitsPerSample: number
+  onStarted(this: UsbAudioMicrophoneInput): void
+  onReadable(this: UsbAudioMicrophoneInput, bytes: Uint8Array): void
+  onError(this: UsbAudioMicrophoneInput): void
+}
+
+export type UsbAudioMicrophoneInput = {
+  start(): void
+  close(): void
+}
+
+export type UsbAudioMicrophoneInputFactory = (options: UsbAudioMicrophoneInputOptions) => UsbAudioMicrophoneInput
+
+export type UsbAudioSpeakerOutputOptions = {
+  streamId: number
+  sampleRate: number
+  channels: number
+  bitsPerSample: number
+  onWritable(this: UsbAudioSpeakerOutput, size: number): void
+  onDrained(this: UsbAudioSpeakerOutput): void
+  onError(this: UsbAudioSpeakerOutput): void
+}
+
+export type UsbAudioSpeakerOutput = {
+  volume: number
+  readonly bufferedBytes: number
+  readonly physicalWrittenBytes: number
+  readonly physicalWritableBytes: number
+  readonly physicalWritableCallbacks: number
+  readonly physicalMaxWritableGapMilliseconds: number
+  readonly physicalAudioActive: boolean
+  readonly physicalAwaitingDrain: boolean
+  start(): void
+  poll(): void
+  write(payload: Uint8Array): void
+  finish(): void
+  stop(): void
+  close(): void
+}
+
+export type UsbAudioSpeakerOutputFactory = (options: UsbAudioSpeakerOutputOptions) => UsbAudioSpeakerOutput
+
+export type UsbAudioPlaybackObserver = {
+  onPlaybackStarted(): void
+  onPlaybackPower(power: number): void
+  onPlaybackText(text: string): void
+  onPlaybackStopped(): void
+}
+
+export type UsbAudioBridgeControl = {
+  setPlaybackObserver(observer?: UsbAudioPlaybackObserver): void
+  setStatusHandler(handler?: (status: StackChanStatus) => void): void
+  setEventHandler(handler?: (event: string) => void): void
+  setTransportStateHandler(handler?: (state: UsbEventTransportState) => void): void
+  sendEvent(event: string): UsbEventSendResult
+  close(): void
+}
+
+export type UsbAudioBridgeOptions = {
+  speakerVolume?: number
+  diagnostics?: boolean
+  createMicrophoneInput: UsbAudioMicrophoneInputFactory
+  createSpeakerOutput: UsbAudioSpeakerOutputFactory
+  createUSBSerial: USBSerialFactory
+  checksum: StackChanCrc32
+}
+
+class UsbAudioBridge implements UsbAudioBridgeControl {
+  readonly #speakerVolume: number
+  readonly #diagnosticsEnabled: boolean
+  readonly #createMicrophoneInput: UsbAudioMicrophoneInputFactory
+  readonly #createSpeakerOutput: UsbAudioSpeakerOutputFactory
+  readonly #createUSBSerial: USBSerialFactory
+  readonly #checksum: StackChanCrc32
+  #parser: StackChanFrameParser
+  #textDecoder = new TextDecoder('utf-8', { fatal: true })
+  #textEncoder = new TextEncoder()
+  #eventDecoder = new StackChanEventDecoder()
+  #eventEncoder = new StackChanEventEncoder()
+  #eventHandler: ((event: string) => void) | undefined
+  #transportStateHandler: ((state: UsbEventTransportState) => void) | undefined
+  #connection = new UsbConnectionDebouncer(USB_DISCONNECT_DEBOUNCE_MILLISECONDS)
+  #connected = false
+  #transportState: UsbEventTransportState = 'disconnected'
+  #pendingEventFrames = new BoundedEventFrameQueue(MAX_PENDING_EVENT_FRAMES, MAX_PENDING_EVENT_BYTES)
+  #peerMaxPayload = STACKCHAN_MAX_PAYLOAD_BYTES
+  #peerCapabilities = 0
+  #readBuffer = new Uint8Array(USB_RX_READ_BYTES)
+  #serial: USBSerialIO | undefined
+  #maintenanceTimer: ReturnType<typeof Timer.repeat> | undefined
+  #txQueue = new StreamTxQueue(MAX_TX_QUEUE_BYTES)
+  #controlSequence = 0
+  #diagnosticSequence = 0
+  #microphoneSequence = 0
+  #microphoneSession = new MicrophoneSessionGuard()
+  #speakerExpectedSequence = 0
+  #speakerSession = new SpeakerSessionGuard()
+  #microphone: UsbAudioMicrophoneInput | undefined
+  #microphoneStarted = false
+  #microphonePending = new Uint8Array(0)
+  #speaker: UsbAudioSpeakerOutput | undefined
+  #speakerRate = 0
+  #speakerCapacity = 0
+  #speakerCreditOutstanding = 0
+  #speakerBuffer = new SpeakerPlaybackBuffer()
+  #speakerEnded = false
+  #speakerAwaitingDrain = false
+  #playbackObserver: UsbAudioPlaybackObserver | undefined
+  #playbackActive = false
+  #playbackPower = 0
+  #playbackText = ''
+  #status = StackChanStatus.IDLE
+  #statusHandler: ((status: StackChanStatus) => void) | undefined
+  #speakerDiagnosticLastSnapshotTicks = 0
+  #speakerDiagnosticLastReceiveTicks = 0
+  #speakerReceivedBytes = 0
+  #speakerWrittenBytes = 0
+  #speakerReceivedFrames = 0
+  #speakerStarvationEvents = 0
+  #speakerMaxReceiveGapMilliseconds = 0
+  #speakerStarving = false
+
+  constructor(options: UsbAudioBridgeOptions) {
+    const speakerVolume = options.speakerVolume ?? 1
+    if (!Number.isFinite(speakerVolume) || speakerVolume < 0 || speakerVolume > 1) {
+      throw new RangeError('speaker volume must be between 0 and 1')
+    }
+    this.#speakerVolume = speakerVolume
+    this.#diagnosticsEnabled = options.diagnostics === true
+    if (!options.createMicrophoneInput) throw new TypeError('microphone input factory is required')
+    if (!options.createSpeakerOutput) throw new TypeError('speaker output factory is required')
+    if (!options.createUSBSerial) throw new TypeError('USB serial factory is required')
+    if (!options.checksum) throw new TypeError('USB checksum is required')
+    this.#createMicrophoneInput = options.createMicrophoneInput
+    this.#createSpeakerOutput = options.createSpeakerOutput
+    this.#createUSBSerial = options.createUSBSerial
+    this.#checksum = options.checksum
+    this.#parser = new StackChanFrameParser(this.#checksum)
+  }
+
+  start(): void {
+    if (this.#serial) return
+    const bridge = this
+    const serial = this.#createUSBSerial({
+      format: 'buffer',
+      onReadable(bytes) {
+        bridge.#handleUSBReadable(this, bytes)
+      },
+      onWritable() {
+        bridge.#handleUSBWritable(this)
+      },
+      onError() {
+        bridge.#handleUSBError(this)
+      },
+    })
+    this.#serial = serial
+    this.#refreshConnection()
+    this.#maintenanceTimer = Timer.repeat(() => this.#maintainSessions(), MAINTENANCE_INTERVAL_MILLISECONDS)
+  }
+
+  setPlaybackObserver(observer?: UsbAudioPlaybackObserver): void {
+    if (this.#playbackObserver === observer) return
+    if (this.#playbackActive) this.#notifyPlaybackObserver(this.#playbackObserver, 'onPlaybackStopped')
+    this.#playbackObserver = observer
+    if (observer && this.#playbackActive) {
+      this.#notifyPlaybackObserver(observer, 'onPlaybackStarted')
+      if (this.#playbackText) this.#notifyPlaybackObserver(observer, 'onPlaybackText', this.#playbackText)
+      this.#notifyPlaybackObserver(observer, 'onPlaybackPower', this.#playbackPower)
+    }
+  }
+
+  setStatusHandler(handler?: (status: StackChanStatus) => void): void {
+    this.#statusHandler = handler
+    if (handler) this.#notifyStatus(handler, this.#status)
+  }
+
+  setEventHandler(handler?: (event: string) => void): void {
+    this.#eventHandler = handler
+  }
+
+  setTransportStateHandler(handler?: (state: UsbEventTransportState) => void): void {
+    this.#transportStateHandler = handler
+    if (handler) this.#notifyTransportState(handler, this.#transportState)
+  }
+
+  sendEvent(event: string): UsbEventSendResult {
+    if (this.#transportState !== 'ready') return this.#transportState
+    const frames = this.#eventEncoder.encode(this.#textEncoder.encode(event), this.#peerMaxPayload)
+    if (!this.#pendingEventFrames.tryEnqueue(frames)) return 'overflow'
+    this.#flushPendingOutput()
+    return 'queued'
+  }
+
+  close(): void {
+    if (bridge === this) bridge = undefined
+    if (this.#maintenanceTimer) Timer.clear(this.#maintenanceTimer)
+    this.#maintenanceTimer = undefined
+    const serial = this.#serial
+    this.#serial = undefined
+    this.#resetConnectionSession()
+    serial?.close()
+    this.#connection = new UsbConnectionDebouncer(USB_DISCONNECT_DEBOUNCE_MILLISECONDS)
+    this.#connected = false
+    this.#setTransportState('disconnected')
+  }
+
+  #maintainSessions(): void {
+    try {
+      this.#refreshConnection()
+      if (!this.#connected) return
+      this.#maybeStartSpeaker()
+      this.#speaker?.poll()
+      this.#refreshSpeakerCredit()
+      this.#maybeSendSpeakerDiagnosticSnapshot()
+    } catch (error) {
+      trace(`[usb-audio] ${error instanceof Error ? error.message : String(error)}\n`)
+      this.#stopMicrophone(false)
+      this.#stopSpeaker(false)
+      this.#parser.reset()
+    }
+  }
+
+  #handleUSBReadable(serial: USBSerialIO, _available: number): void {
+    if (serial !== this.#serial) return
+    try {
+      this.#refreshConnection()
+      if (!this.#connected) return
+      for (let reads = 0; reads < MAX_USB_RX_READS_PER_CALLBACK; reads += 1) {
+        const count = serial.read(this.#readBuffer)
+        if (count === undefined || count <= 0) break
+        for (const frame of this.#parser.push(this.#readBuffer.slice(0, count))) this.#handleFrame(frame)
+      }
+      this.#flushPendingOutput()
+    } catch (error) {
+      this.#handleUSBCallbackFailure('readable', error)
+    }
+  }
+
+  #handleUSBWritable(serial: USBSerialIO): void {
+    if (serial !== this.#serial) return
+    try {
+      this.#flushPendingOutput()
+    } catch (error) {
+      this.#handleUSBCallbackFailure('writable', error)
+    }
+  }
+
+  #handleUSBError(serial: USBSerialIO): void {
+    if (serial !== this.#serial) return
+    trace('[usb-audio] USB serial reported a non-recoverable error\n')
+    this.#serial = undefined
+    try {
+      serial.close()
+    } catch {}
+    this.#connection = new UsbConnectionDebouncer(USB_DISCONNECT_DEBOUNCE_MILLISECONDS)
+    this.#connected = false
+    this.#resetConnectionSession()
+    this.#setTransportState('disconnected')
+  }
+
+  #handleUSBCallbackFailure(callback: string, error: unknown): void {
+    trace(`[usb-audio] USB ${callback} callback failed: ${error instanceof Error ? error.message : String(error)}\n`)
+    this.#stopMicrophone(false)
+    this.#stopSpeaker(false)
+    this.#parser.reset()
+  }
+
+  #refreshConnection(): void {
+    const update = this.#connection.update(this.#serial?.connected ?? false, Time.ticks)
+    if (!update.changed) return
+    this.#connected = update.connected
+    this.#resetConnectionSession()
+    this.#refreshTransportState()
+  }
+
+  #resetConnectionSession(): void {
+    this.#stopMicrophone(false)
+    this.#microphoneSession.reset()
+    this.#stopSpeaker(false)
+    this.#setStatus(StackChanStatus.IDLE)
+    this.#txQueue.clear()
+    this.#parser.reset()
+    this.#eventDecoder.reset()
+    this.#eventEncoder.reset()
+    this.#pendingEventFrames.clear()
+    this.#peerMaxPayload = STACKCHAN_MAX_PAYLOAD_BYTES
+    this.#peerCapabilities = 0
+    this.#controlSequence = 0
+    this.#diagnosticSequence = 0
+    this.#microphoneSequence = 0
+    this.#speakerExpectedSequence = 0
+  }
+
+  #refreshTransportState(): void {
+    this.#setTransportState(usbEventTransportState(this.#connected, this.#localCapabilities(), this.#peerCapabilities))
+  }
+
+  #setTransportState(state: UsbEventTransportState): void {
+    if (state === this.#transportState) return
+    this.#transportState = state
+    this.#notifyTransportState(this.#transportStateHandler, state)
+  }
+
+  #notifyTransportState(
+    handler: ((state: UsbEventTransportState) => void) | undefined,
+    state: UsbEventTransportState,
+  ): void {
+    if (!handler) return
+    try {
+      handler(state)
+    } catch (error) {
+      trace(`[usb-audio] transport-state handler failed: ${error instanceof Error ? error.message : String(error)}\n`)
+    }
+  }
+
+  #localCapabilities(): number {
+    return STACKCHAN_CAPABILITIES | (this.#diagnosticsEnabled ? StackChanCapability.DIAGNOSTICS : 0)
+  }
+
+  #pumpTx(): void {
+    const serial = this.#serial
+    if (!serial) return
+    while (this.#txQueue.remainingBytes > 0) {
+      const current = this.#txQueue.current()
+      if (!current) return
+      try {
+        serial.write(current)
+      } catch (error) {
+        if (isUSBSerialOutputFullError(error)) return
+        throw error
+      }
+      this.#txQueue.advance(current.byteLength)
+    }
+  }
+
+  #flushPendingOutput(): void {
+    this.#pumpTx()
+    this.#flushEventFrames()
+  }
+
+  #send(frame: StackChanFrame): boolean {
+    const encoded = encodeStackChanFrame(frame, this.#checksum)
+    const enqueued = this.#txQueue.enqueue(
+      encoded,
+      frame.type,
+      frame.type === StackChanFrameType.CONTROL ? (frame.flags ?? 0) : 0,
+      frame.streamId ?? 0,
+    )
+    if (enqueued) this.#pumpTx()
+    return enqueued
+  }
+
+  #flushEventFrames(): void {
+    while (this.#pendingEventFrames.length > 0) {
+      const frame = this.#pendingEventFrames.current()
+      if (!frame) return
+      if (!this.#send(frame)) return
+      this.#pendingEventFrames.advance()
+    }
+  }
+
+  #sendControl(control: StackChanControl, sampleRate = 0, payload?: Uint8Array, streamId = 0): boolean {
+    return this.#send({
+      type: StackChanFrameType.CONTROL,
+      flags: control,
+      streamId,
+      sequence: this.#controlSequence++,
+      sampleRate,
+      payload,
+    })
+  }
+
+  #sendError(code: StackChanErrorCode, streamId = 0): void {
+    const payload = new Uint8Array(4)
+    new DataView(payload.buffer).setUint32(0, code, true)
+    this.#sendControl(StackChanControl.ERROR, 0, payload, streamId)
+  }
+
+  #handleFrame(frame: StackChanFrame): void {
+    if (frame.type === StackChanFrameType.CONTROL) {
+      this.#handleControl(frame)
+      return
+    }
+    if (frame.type === StackChanFrameType.EVENT) {
+      if (this.#transportState !== 'ready') {
+        this.#sendError(StackChanErrorCode.INVALID_REQUEST, frame.streamId ?? 0)
+        return
+      }
+      const payload = this.#eventDecoder.push(frame)
+      if (payload) this.#eventHandler?.(this.#textDecoder.decode(payload))
+      return
+    }
+    if (frame.type === StackChanFrameType.SPEAKER_PCM) this.#handleSpeakerPcm(frame)
+  }
+
+  #handleControl(frame: StackChanFrame): void {
+    switch (frame.flags) {
+      case StackChanControl.HELLO:
+        this.#handleHello(frame)
+        break
+      case StackChanControl.MIC_START:
+        this.#handleMicrophoneStart(frame)
+        break
+      case StackChanControl.MIC_STOP:
+        this.#handleMicrophoneStop(frame)
+        break
+      case StackChanControl.SPEAKER_START:
+        this.#startSpeaker(frame)
+        break
+      case StackChanControl.SPEAKER_END:
+        this.#endSpeaker(frame)
+        break
+      case StackChanControl.SPEAKER_ABORT:
+        this.#abortSpeaker(frame)
+        break
+      case StackChanControl.SPEAKER_TEXT:
+        this.#handleSpeakerText(frame)
+        break
+      case StackChanControl.STATUS:
+        this.#handleStatus(frame)
+        break
+      default:
+        this.#sendError(StackChanErrorCode.INVALID_REQUEST, frame.streamId ?? 0)
+    }
+  }
+
+  #handleHello(frame: StackChanFrame): void {
+    if (!isValidHelloControl(frame.streamId ?? 0, frame.payload?.byteLength ?? 0)) {
+      this.#sendError(StackChanErrorCode.INVALID_REQUEST)
+      return
+    }
+    const request = new DataView(frame.payload.buffer, frame.payload.byteOffset, frame.payload.byteLength)
+    const peerMaxPayload = request.getUint32(0, true)
+    const peerCapabilities = request.getUint32(4, true)
+    if (peerMaxPayload < MICROPHONE_FRAME_BYTES || (peerCapabilities & StackChanCapability.STREAM_ID) === 0) {
+      this.#sendError(StackChanErrorCode.INVALID_REQUEST)
+      return
+    }
+    this.#stopMicrophone(false)
+    this.#microphoneSession.reset()
+    this.#stopSpeaker(false)
+    this.#setStatus(StackChanStatus.IDLE)
+    this.#eventDecoder.reset()
+    this.#pendingEventFrames.clear()
+    this.#peerMaxPayload = Math.min(peerMaxPayload, STACKCHAN_MAX_PAYLOAD_BYTES)
+    this.#peerCapabilities = peerCapabilities
+    const payload = new Uint8Array(8)
+    const response = new DataView(payload.buffer)
+    response.setUint32(0, this.#peerMaxPayload, true)
+    const capabilities = this.#localCapabilities()
+    response.setUint32(4, capabilities, true)
+    this.#sendControl(StackChanControl.HELLO_ACK, 0, payload)
+    this.#refreshTransportState()
+  }
+
+  #handleMicrophoneStart(frame: StackChanFrame): void {
+    const streamId = frame.streamId ?? 0
+    const payloadBytes = frame.payload?.byteLength ?? 0
+    if (!isValidMicrophoneControl(streamId, frame.sampleRate ?? 0, payloadBytes)) {
+      this.#sendError(StackChanErrorCode.INVALID_STREAM_DATA, streamId)
+      return
+    }
+    if (this.#speakerSession.active) {
+      this.#sendError(StackChanErrorCode.BUSY, streamId)
+      return
+    }
+    const result = this.#microphoneSession.start(streamId, frame.sampleRate ?? 0, payloadBytes)
+    if (result === MediaSessionResult.IDEMPOTENT) {
+      if (this.#microphoneStarted) {
+        this.#sendControl(StackChanControl.MIC_STARTED, STACKCHAN_MICROPHONE_SAMPLE_RATE, undefined, streamId)
+      }
+      return
+    }
+    if (result === MediaSessionResult.BUSY) {
+      this.#sendError(StackChanErrorCode.BUSY, streamId)
+      return
+    }
+    if (result !== MediaSessionResult.ACCEPTED) {
+      this.#sendError(StackChanErrorCode.INVALID_STREAM_DATA, streamId)
+      return
+    }
+    this.#startMicrophone(streamId)
+  }
+
+  #handleMicrophoneStop(frame: StackChanFrame): void {
+    const streamId = frame.streamId ?? 0
+    const result = this.#microphoneSession.stop(streamId, frame.sampleRate ?? 0, frame.payload?.byteLength ?? 0)
+    if (result === MediaSessionResult.STALE) return
+    if (result === MediaSessionResult.IDEMPOTENT) {
+      this.#sendControl(StackChanControl.MIC_STOPPED, STACKCHAN_MICROPHONE_SAMPLE_RATE, undefined, streamId)
+      return
+    }
+    if (result !== MediaSessionResult.ACCEPTED) {
+      this.#sendError(StackChanErrorCode.INVALID_STREAM_DATA, streamId)
+      return
+    }
+    this.#finishMicrophoneStop(streamId, true)
+  }
+
+  #startMicrophone(streamId: number): void {
+    this.#microphoneSequence = 0
+    this.#microphonePending = new Uint8Array(0)
+    this.#microphoneStarted = false
+    const bridge = this
+    let microphone: UsbAudioMicrophoneInput | undefined
+    try {
+      microphone = this.#createMicrophoneInput({
+        streamId,
+        sampleRate: STACKCHAN_MICROPHONE_SAMPLE_RATE,
+        channels: CHANNELS,
+        bitsPerSample: BITS_PER_SAMPLE,
+        onStarted() {
+          bridge.#handleMicrophoneStarted(this)
+        },
+        onReadable(bytes) {
+          bridge.#handleMicrophoneReadable(this, bytes)
+        },
+        onError() {
+          bridge.#handleMicrophoneError(this)
+        },
+      })
+      this.#microphone = microphone
+      microphone.start()
+    } catch {
+      this.#sendError(StackChanErrorCode.AUDIO_OUTPUT, streamId)
+      this.#stopMicrophone(false)
+    }
+  }
+
+  #handleMicrophoneStarted(input: UsbAudioMicrophoneInput): void {
+    if (input !== this.#microphone || this.#microphoneStarted) return
+    this.#microphoneStarted = true
+    this.#sendControl(
+      StackChanControl.MIC_STARTED,
+      STACKCHAN_MICROPHONE_SAMPLE_RATE,
+      undefined,
+      this.#microphoneSession.streamId,
+    )
+  }
+
+  #handleMicrophoneReadable(input: UsbAudioMicrophoneInput, bytes: Uint8Array): void {
+    if (input !== this.#microphone || !this.#microphoneStarted || bytes.byteLength === 0) return
+    this.#acceptMicrophoneBytes(bytes)
+  }
+
+  #handleMicrophoneError(input: UsbAudioMicrophoneInput): void {
+    if (input !== this.#microphone) return
+    this.#sendError(StackChanErrorCode.AUDIO_OUTPUT, this.#microphoneSession.streamId)
+    this.#stopMicrophone(false)
+  }
+
+  #handleStatus(frame: StackChanFrame): void {
+    const payload = frame.payload ?? new Uint8Array(0)
+    const status = payload[0]
+    if (
+      !isValidStatusControl(
+        frame.streamId ?? 0,
+        frame.sampleRate ?? 0,
+        payload.byteLength,
+        status,
+        this.#localCapabilities(),
+      )
+    ) {
+      this.#sendError(StackChanErrorCode.INVALID_REQUEST, frame.streamId ?? 0)
+      return
+    }
+    this.#setStatus(status as StackChanStatus)
+  }
+
+  #acceptMicrophoneBytes(bytes: Uint8Array): void {
+    const streamId = this.#microphoneSession.streamId
+    const combined = new Uint8Array(this.#microphonePending.byteLength + bytes.byteLength)
+    combined.set(this.#microphonePending)
+    combined.set(bytes, this.#microphonePending.byteLength)
+    let offset = 0
+    while (combined.byteLength - offset >= MICROPHONE_FRAME_BYTES) {
+      const sent = this.#send({
+        type: StackChanFrameType.MICROPHONE_PCM,
+        streamId,
+        sequence: this.#microphoneSequence++,
+        sampleRate: STACKCHAN_MICROPHONE_SAMPLE_RATE,
+        payload: combined.slice(offset, offset + MICROPHONE_FRAME_BYTES),
+      })
+      if (!sent) {
+        this.#sendError(StackChanErrorCode.TRANSPORT_OVERFLOW, streamId)
+        this.#stopMicrophone(false)
+        return
+      }
+      offset += MICROPHONE_FRAME_BYTES
+    }
+    this.#microphonePending = combined.slice(offset)
+  }
+
+  #stopMicrophone(notify: boolean): void {
+    const streamId = this.#microphoneSession.forceStop()
+    this.#finishMicrophoneStop(streamId, notify)
+  }
+
+  #finishMicrophoneStop(streamId: number, notify: boolean): void {
+    const microphone = this.#microphone
+    this.#microphone = undefined
+    this.#microphoneStarted = false
+    try {
+      microphone?.close()
+    } catch {}
+    this.#microphonePending = new Uint8Array(0)
+    if (streamId) this.#txQueue.dropMicrophoneFrames(streamId)
+    if (notify && streamId) {
+      this.#sendControl(StackChanControl.MIC_STOPPED, STACKCHAN_MICROPHONE_SAMPLE_RATE, undefined, streamId)
+    }
+  }
+
+  #startSpeaker(frame: StackChanFrame): void {
+    const streamId = frame.streamId ?? 0
+    const sampleRate = frame.sampleRate ?? 0
+    if (this.#microphoneSession.active) {
+      this.#sendError(StackChanErrorCode.BUSY, streamId)
+      return
+    }
+    const result = this.#speakerSession.start(streamId, sampleRate, frame.payload?.byteLength ?? 0)
+    if (result === MediaSessionResult.IDEMPOTENT) return
+    if (result === MediaSessionResult.BUSY) {
+      this.#sendError(StackChanErrorCode.BUSY, streamId)
+      return
+    }
+    if (result !== MediaSessionResult.ACCEPTED) {
+      this.#sendError(StackChanErrorCode.INVALID_STREAM_DATA, streamId)
+      return
+    }
+    this.#speakerRate = sampleRate
+    this.#speakerCapacity = (sampleRate * 2 * SPEAKER_BUFFER_MILLISECONDS) / 1000
+    this.#speakerCreditOutstanding = 0
+    this.#speakerExpectedSequence = 0
+    this.#speakerEnded = false
+    this.#speakerAwaitingDrain = false
+    this.#resetSpeakerDiagnostics()
+    this.#refreshSpeakerCredit()
+    this.#sendSpeakerDiagnostics(StackChanDiagnosticEvent.SESSION_STARTED)
+  }
+
+  #endSpeaker(frame: StackChanFrame): void {
+    const streamId = frame.streamId ?? 0
+    const result = this.#speakerSession.end(streamId, frame.sampleRate ?? 0, frame.payload?.byteLength ?? 0)
+    if (result === MediaSessionResult.STALE || result === MediaSessionResult.IDEMPOTENT) return
+    if (result !== MediaSessionResult.ACCEPTED) {
+      this.#sendError(StackChanErrorCode.INVALID_STREAM_DATA, streamId)
+      return
+    }
+    this.#speakerEnded = true
+    if (!this.#speaker && this.#speakerBuffer.pcmBytes === 0) this.#completeSpeaker()
+    else {
+      this.#maybeStartSpeaker()
+      this.#speaker?.poll()
+    }
+  }
+
+  #abortSpeaker(frame: StackChanFrame): void {
+    const streamId = frame.streamId ?? 0
+    const result = this.#speakerSession.abort(streamId, frame.sampleRate ?? 0, frame.payload?.byteLength ?? 0)
+    if (result === MediaSessionResult.STALE || result === MediaSessionResult.IDEMPOTENT) return
+    if (result !== MediaSessionResult.ACCEPTED) {
+      this.#sendError(StackChanErrorCode.INVALID_STREAM_DATA, streamId)
+      return
+    }
+    this.#stopSpeaker(false)
+  }
+
+  #handleSpeakerPcm(frame: StackChanFrame): void {
+    const payload = frame.payload ?? new Uint8Array(0)
+    const streamId = frame.streamId ?? 0
+    const validation = this.#speakerSession.validateData(streamId, frame.sampleRate ?? 0, payload.byteLength)
+    if (validation === MediaSessionResult.STALE) return
+    if (
+      validation !== MediaSessionResult.ACCEPTED ||
+      !isWithinSpeakerCredit(payload.byteLength, this.#speakerCreditOutstanding)
+    ) {
+      this.#sendError(StackChanErrorCode.INVALID_STREAM_DATA, streamId)
+      this.#stopSpeaker(false)
+      return
+    }
+    if (frame.sequence !== this.#speakerExpectedSequence) {
+      this.#sendError(StackChanErrorCode.SPEAKER_SEQUENCE_MISMATCH, streamId)
+      this.#stopSpeaker(false)
+      return
+    }
+    if (this.#speakerBuffer.pcmBytes + payload.byteLength > this.#speakerCapacity) {
+      this.#sendError(StackChanErrorCode.SPEAKER_BUFFER_OVERFLOW, streamId)
+      this.#stopSpeaker(false)
+      return
+    }
+    this.#speakerExpectedSequence += 1
+    this.#speakerCreditOutstanding -= payload.byteLength
+    this.#recordSpeakerReceive(payload.byteLength)
+    this.#speakerBuffer.enqueuePcm(payload)
+    this.#maybeStartSpeaker()
+    this.#speaker?.poll()
+    this.#updateSpeakerStarvation()
+    this.#refreshSpeakerCredit()
+  }
+
+  #handleSpeakerText(frame: StackChanFrame): void {
+    const payload = frame.payload ?? new Uint8Array(0)
+    const streamId = frame.streamId ?? 0
+    const validation = this.#speakerSession.validateText(streamId, frame.sampleRate ?? 0, payload.byteLength)
+    if (validation === MediaSessionResult.STALE) return
+    if (validation !== MediaSessionResult.ACCEPTED || payload.byteLength > MAX_CAPTION_BYTES) {
+      this.#sendError(StackChanErrorCode.INVALID_REQUEST, streamId)
+      return
+    }
+    if (this.#speakerBuffer.captionCount >= MAX_QUEUED_CAPTIONS) {
+      this.#sendError(StackChanErrorCode.CAPTION_QUEUE_OVERFLOW, streamId)
+      return
+    }
+    try {
+      const text = this.#textDecoder.decode(payload).trim()
+      if (!text) {
+        this.#sendError(StackChanErrorCode.INVALID_REQUEST, streamId)
+        return
+      }
+      this.#speakerBuffer.enqueueCaption(text)
+      this.#speaker?.poll()
+    } catch {
+      this.#sendError(StackChanErrorCode.INVALID_REQUEST, streamId)
+    }
+  }
+
+  #maybeStartSpeaker(): void {
+    if (this.#speaker || !this.#speakerRate) return
+    const prebufferBytes = (this.#speakerRate * 2 * SPEAKER_PREBUFFER_MILLISECONDS) / 1000
+    if (this.#speakerBuffer.pcmBytes < prebufferBytes && !this.#speakerEnded) return
+    const bridge = this
+    try {
+      this.#speaker = this.#createSpeakerOutput({
+        streamId: this.#speakerSession.streamId,
+        sampleRate: this.#speakerRate,
+        channels: CHANNELS,
+        bitsPerSample: BITS_PER_SAMPLE,
+        onWritable(size: number) {
+          bridge.#handleSpeakerWritable(this, size)
+        },
+        onDrained() {
+          bridge.#handleSpeakerDrained(this)
+        },
+        onError() {
+          bridge.#handleSpeakerOutputError(this)
+        },
+      })
+      this.#speaker.volume = this.#speakerVolume
+      this.#startPlaybackObservation()
+      this.#speaker.start()
+      this.#sendSpeakerDiagnostics(StackChanDiagnosticEvent.AUDIO_STARTED)
+    } catch {
+      this.#sendError(StackChanErrorCode.AUDIO_OUTPUT, this.#speakerSession.streamId)
+      this.#stopSpeaker(false)
+    }
+  }
+
+  #handleSpeakerWritable(output: UsbAudioSpeakerOutput, writable: number): void {
+    if (output !== this.#speaker || this.#speakerAwaitingDrain) return
+    this.#speakerBuffer.setWritableBytes(writable)
+    this.#drainSpeaker(output)
+  }
+
+  #handleSpeakerDrained(output: UsbAudioSpeakerOutput): void {
+    if (output !== this.#speaker || !this.#speakerAwaitingDrain) return
+    this.#completeSpeaker()
+  }
+
+  #handleSpeakerOutputError(output: UsbAudioSpeakerOutput): void {
+    if (output !== this.#speaker) return
+    this.#sendError(StackChanErrorCode.AUDIO_OUTPUT, this.#speakerSession.streamId)
+    this.#stopSpeaker(false)
+  }
+
+  #drainSpeaker(output: UsbAudioSpeakerOutput): void {
+    if (!output || this.#speakerAwaitingDrain) return
+    const result = this.#speakerBuffer.drain(
+      (payload) => output.write(payload),
+      (text) => this.#showPlaybackText(text),
+    )
+    if (result.consumedBytes > 0) {
+      this.#speakerWrittenBytes += result.consumedBytes
+      this.#updatePlaybackPower(result.power)
+    } else if (this.#speakerBuffer.pcmBytes === 0) {
+      this.#updatePlaybackPower(0)
+    }
+    if (this.#speakerEnded && this.#speakerBuffer.pcmBytes === 0) {
+      this.#speakerAwaitingDrain = true
+      output.finish()
+    }
+    this.#updateSpeakerStarvation()
+    this.#refreshSpeakerCredit()
+  }
+
+  #refreshSpeakerCredit(): void {
+    if (!this.#speakerRate || this.#speakerEnded) return
+    const freeBytes = this.#speakerCapacity - this.#speakerBuffer.pcmBytes
+    const targetOutstanding = Math.min(SPEAKER_CREDIT_WINDOW_BYTES, freeBytes)
+    const credit = targetOutstanding - this.#speakerCreditOutstanding
+    if (credit <= 0 || !this.#sendSpeakerCredit(credit)) return
+    this.#speakerCreditOutstanding += credit
+  }
+
+  #sendSpeakerCredit(credit: number): boolean {
+    const payload = new Uint8Array(4)
+    new DataView(payload.buffer).setUint32(0, credit, true)
+    return this.#sendControl(StackChanControl.SPEAKER_CREDIT, this.#speakerRate, payload, this.#speakerSession.streamId)
+  }
+
+  #completeSpeaker(): void {
+    const completedStreamId = this.#speakerSession.streamId
+    const speaker = this.#speaker
+    speaker?.stop()
+    speaker?.close()
+    const completedRate = this.#speakerRate
+    this.#sendSpeakerDiagnostics(StackChanDiagnosticEvent.COMPLETED)
+    this.#speaker = undefined
+    this.#speakerRate = 0
+    this.#speakerCapacity = 0
+    this.#speakerCreditOutstanding = 0
+    this.#speakerBuffer.clear()
+    this.#speakerEnded = false
+    this.#speakerAwaitingDrain = false
+    this.#stopPlaybackObservation()
+    this.#txQueue.dropSpeakerFlowFrames(completedStreamId)
+    this.#speakerSession.clear(completedStreamId)
+    this.#sendControl(StackChanControl.SPEAKER_DONE, completedRate, undefined, completedStreamId)
+  }
+
+  #stopSpeaker(notify: boolean): void {
+    const previousStreamId = this.#speakerSession.streamId
+    const speaker = this.#speaker
+    speaker?.stop()
+    speaker?.close()
+    const previousRate = this.#speakerRate
+    if (previousRate) this.#sendSpeakerDiagnostics(StackChanDiagnosticEvent.ABORTED)
+    this.#speaker = undefined
+    this.#speakerRate = 0
+    this.#speakerCapacity = 0
+    this.#speakerCreditOutstanding = 0
+    this.#speakerBuffer.clear()
+    this.#speakerEnded = false
+    this.#speakerAwaitingDrain = false
+    this.#stopPlaybackObservation()
+    this.#txQueue.dropSpeakerFlowFrames(previousStreamId)
+    this.#speakerSession.forceStop()
+    if (notify && previousStreamId) {
+      this.#sendControl(StackChanControl.SPEAKER_DONE, previousRate, undefined, previousStreamId)
+    }
+  }
+
+  #resetSpeakerDiagnostics(): void {
+    const now = Time.ticks
+    this.#speakerDiagnosticLastSnapshotTicks = now
+    this.#speakerDiagnosticLastReceiveTicks = 0
+    this.#speakerReceivedBytes = 0
+    this.#speakerWrittenBytes = 0
+    this.#speakerReceivedFrames = 0
+    this.#speakerStarvationEvents = 0
+    this.#speakerMaxReceiveGapMilliseconds = 0
+    this.#speakerStarving = false
+  }
+
+  #recordSpeakerReceive(byteLength: number): void {
+    const now = Time.ticks
+    if (this.#speakerReceivedFrames > 0) {
+      this.#speakerMaxReceiveGapMilliseconds = Math.max(
+        this.#speakerMaxReceiveGapMilliseconds,
+        (now - this.#speakerDiagnosticLastReceiveTicks) >>> 0,
+      )
+    }
+    this.#speakerDiagnosticLastReceiveTicks = now
+    this.#speakerReceivedBytes += byteLength
+    this.#speakerReceivedFrames += 1
+  }
+
+  #updateSpeakerStarvation(): void {
+    const bufferedBytes = this.#speakerBuffer.pcmBytes + (this.#speaker?.bufferedBytes ?? 0)
+    const starving =
+      this.#speaker !== undefined && !this.#speakerEnded && !this.#speakerAwaitingDrain && bufferedBytes === 0
+    if (starving && !this.#speakerStarving) this.#speakerStarvationEvents += 1
+    this.#speakerStarving = starving
+  }
+
+  #maybeSendSpeakerDiagnosticSnapshot(): void {
+    if (!this.#diagnosticsEnabled || !this.#speakerRate) return
+    const now = Time.ticks
+    if ((now - this.#speakerDiagnosticLastSnapshotTicks) >>> 0 < DIAGNOSTIC_INTERVAL_MILLISECONDS) return
+    this.#speakerDiagnosticLastSnapshotTicks = now
+    this.#sendSpeakerDiagnostics(StackChanDiagnosticEvent.SNAPSHOT)
+  }
+
+  #sendSpeakerDiagnostics(event: StackChanDiagnosticEvent): void {
+    if (!this.#diagnosticsEnabled || !this.#speakerRate) return
+    const speaker = this.#speaker
+    const queuedBytes = this.#speakerBuffer.pcmBytes + (speaker?.bufferedBytes ?? 0)
+    let flags = 0
+    if (speaker?.physicalAudioActive) flags |= StackChanDiagnosticFlag.AUDIO_ACTIVE
+    if (this.#speakerEnded) flags |= StackChanDiagnosticFlag.SPEAKER_ENDED
+    if (this.#speakerAwaitingDrain || speaker?.physicalAwaitingDrain) {
+      flags |= StackChanDiagnosticFlag.AWAITING_DRAIN
+    }
+    if (queuedBytes === 0) flags |= StackChanDiagnosticFlag.BUFFER_EMPTY
+    if (this.#speakerStarving) flags |= StackChanDiagnosticFlag.STARVING
+    this.#send({
+      type: StackChanFrameType.DIAGNOSTICS,
+      streamId: this.#speakerSession.streamId,
+      sequence: this.#diagnosticSequence++,
+      sampleRate: this.#speakerRate,
+      payload: encodeSpeakerDiagnostics({
+        event,
+        flags,
+        ticks: Time.ticks,
+        sampleRate: this.#speakerRate,
+        queuedBytes,
+        writableBytes: speaker?.physicalWritableBytes ?? 0,
+        receivedBytes: this.#speakerReceivedBytes,
+        writtenBytes: speaker?.physicalWrittenBytes ?? this.#speakerWrittenBytes,
+        receivedFrames: this.#speakerReceivedFrames,
+        writableCallbacks: speaker?.physicalWritableCallbacks ?? 0,
+        starvationEvents: this.#speakerStarvationEvents,
+        maxReceiveGapMilliseconds: this.#speakerMaxReceiveGapMilliseconds,
+        maxWritableGapMilliseconds: speaker?.physicalMaxWritableGapMilliseconds ?? 0,
+        txQueueBytes: this.#txQueue.remainingBytes,
+      }),
+    })
+  }
+
+  #setStatus(status: StackChanStatus): void {
+    if (this.#status === status) return
+    this.#status = status
+    this.#notifyStatus(this.#statusHandler, status)
+  }
+
+  #startPlaybackObservation(): void {
+    if (this.#playbackActive) return
+    this.#playbackActive = true
+    this.#playbackPower = 0
+    this.#playbackText = ''
+    this.#notifyPlaybackObserver(this.#playbackObserver, 'onPlaybackStarted')
+  }
+
+  #showPlaybackText(text: string): void {
+    this.#playbackText = text
+    this.#notifyPlaybackObserver(this.#playbackObserver, 'onPlaybackText', text)
+  }
+
+  #updatePlaybackPower(power: number): void {
+    this.#playbackPower = power
+    this.#notifyPlaybackObserver(this.#playbackObserver, 'onPlaybackPower', power)
+  }
+
+  #stopPlaybackObservation(): void {
+    if (!this.#playbackActive) {
+      this.#playbackPower = 0
+      this.#playbackText = ''
+      return
+    }
+    this.#playbackActive = false
+    this.#playbackPower = 0
+    this.#playbackText = ''
+    this.#notifyPlaybackObserver(this.#playbackObserver, 'onPlaybackStopped')
+  }
+
+  #notifyStatus(handler: ((status: StackChanStatus) => void) | undefined, status: StackChanStatus): void {
+    if (!handler) return
+    try {
+      handler(status)
+    } catch (error) {
+      trace(`[usb-audio] status handler failed: ${error instanceof Error ? error.message : String(error)}\n`)
+    }
+  }
+
+  #notifyPlaybackObserver(
+    observer: UsbAudioPlaybackObserver | undefined,
+    method: keyof UsbAudioPlaybackObserver,
+    value?: number | string,
+  ): void {
+    if (!observer) return
+    try {
+      if (value === undefined) (observer[method] as () => void)()
+      else if (typeof value === 'number') (observer[method] as (next: number) => void)(value)
+      else (observer[method] as (next: string) => void)(value)
+    } catch (error) {
+      trace(`[usb-audio] playback ${method} failed: ${error instanceof Error ? error.message : String(error)}\n`)
+    }
+  }
+}
+
+let bridge: UsbAudioBridge | undefined
+
+export function startUsbAudioBridge(options: UsbAudioBridgeOptions): UsbAudioBridgeControl {
+  if (!bridge) {
+    const next = new UsbAudioBridge(options)
+    try {
+      next.start()
+    } catch (error) {
+      try {
+        next.close()
+      } catch {}
+      throw error
+    }
+    bridge = next
+  }
+  return bridge
+}
+
+export function stopUsbAudioBridge(): void {
+  bridge?.close()
+  bridge = undefined
+}
+
+export default startUsbAudioBridge

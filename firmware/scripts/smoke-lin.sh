@@ -19,6 +19,7 @@ xsbug_port="${STACKCHAN_LIN_XSBUG_PORT:-0}"
 manifest="${STACKCHAN_LIN_SMOKE_MANIFEST:-$firmware_dir/host/app/manifest_local.json}"
 archive_manifest="${STACKCHAN_LIN_SMOKE_ARCHIVE_MANIFEST:-}"
 expected_log="${STACKCHAN_LIN_SMOKE_EXPECT:-[main] app behaviors ready}"
+clean_build="${STACKCHAN_LIN_SMOKE_CLEAN:-1}"
 
 if [[ ! "$app_name" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]]; then
   echo "Invalid smoke app name: $app_name" >&2
@@ -26,6 +27,10 @@ if [[ ! "$app_name" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]]; then
 fi
 if [[ ! "$platform" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*(/[A-Za-z0-9_][A-Za-z0-9._-]*)*$ ]]; then
   echo "Invalid smoke platform: $platform" >&2
+  exit 1
+fi
+if [[ "$clean_build" != "0" && "$clean_build" != "1" ]]; then
+  echo "STACKCHAN_LIN_SMOKE_CLEAN must be 0 or 1" >&2
   exit 1
 fi
 
@@ -80,7 +85,11 @@ if [[ "$tmp_cleanup_target" != "$output_root/"* || "$bin_cleanup_target" != "$ou
   echo "Smoke cleanup target escapes output directory" >&2
   exit 1
 fi
-rm -rf -- "$tmp_cleanup_target" "$bin_cleanup_target"
+if [[ "$clean_build" == "1" ]]; then
+  rm -rf -- "$tmp_cleanup_target" "$bin_cleanup_target"
+else
+  echo "Reusing incremental Linux smoke build output"
+fi
 mcconfig -dl -x "$xsbug_host:$xsbug_port" -m -p "$platform" -t build -o "$output_dir" "$manifest"
 
 build_dir="$output_dir/tmp/$platform_path/debug/$app_name"

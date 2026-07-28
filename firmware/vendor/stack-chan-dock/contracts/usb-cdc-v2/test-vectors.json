@@ -1,0 +1,49 @@
+{
+  "schema": "stackchan.usb-cdc.test-vectors.v1",
+  "protocolVersion": 2,
+  "validFrames": [
+    {
+      "name": "firmware-golden-speaker-frame",
+      "frame": {
+        "type": 2,
+        "flags": 32,
+        "streamId": 1,
+        "sequence": 42,
+        "sampleRate": 24000,
+        "payloadHex": "01020304"
+      },
+      "encodedHex": "43530202200001002a000000c05d00000400000001020304a2b25483"
+    },
+    {
+      "name": "speaker-frame-with-stream-id",
+      "frame": {
+        "type": 2,
+        "flags": 0,
+        "streamId": 513,
+        "sequence": 7,
+        "sampleRate": 24000,
+        "payloadHex": "0102"
+      },
+      "encodedHex": "435302020000010207000000c05d0000020000000102c2412203"
+    },
+    {
+      "name": "single-frame-conversation-event",
+      "frame": {
+        "type": 6,
+        "flags": 3,
+        "streamId": 7,
+        "sequence": 0,
+        "sampleRate": 0,
+        "payloadHex": "7b22736368656d61223a22737461636b6368616e2e6576656e742e7631222c2274797065223a22636f6e766572736174696f6e2e73746f70222c22726571756573744964223a22666978747572652d31222c22736f75726365223a2268656164546f756368222c2267657374757265223a226261636b776172645377697065227d"
+      },
+      "encodedHex": "43530206030007000000000000000000810000007b22736368656d61223a22737461636b6368616e2e6576656e742e7631222c2274797065223a22636f6e766572736174696f6e2e73746f70222c22726571756573744964223a22666978747572652d31222c22736f75726365223a2268656164546f756368222c2267657374757265223a226261636b776172645377697065227d41134389"
+    }
+  ],
+  "invalidFrames": [
+    {
+      "name": "crc-mismatch",
+      "reason": "crc_mismatch",
+      "encodedHex": "435302020000010207000000c05d0000020000000102c24122fc"
+    }
+  ]
+}

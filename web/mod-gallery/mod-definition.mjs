@@ -75,7 +75,11 @@ export function parseModDefinition(value) {
 
   const artifacts = value.artifacts === undefined ? [] : value.artifacts
   if (!Array.isArray(artifacts)) throw new TypeError('artifactsが不正です')
-  const entrypoints = stringList(value.entrypoints ?? ['mod'], 'entrypoints', { required: true })
+  const entrypoints = stringList(
+    value.entrypoints === undefined ? ['mod'] : value.entrypoints,
+    'entrypoints',
+    { required: true }
+  )
   if (entrypoints.some((entrypoint) => !STACKCHAN_MOD_ENTRYPOINTS.includes(entrypoint))) {
     throw new TypeError('entrypointsに未対応の実行入口があります')
   }

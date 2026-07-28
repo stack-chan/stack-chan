@@ -134,7 +134,7 @@ test('MOD定義は形式別の正本と安全なパッケージパスを要求�
     }).entrypoints,
     ['mod', 'miniapp']
   )
-  for (const entrypoints of [[], ['miniapp', 'miniapp'], ['unknown']]) {
+  for (const entrypoints of [null, [], ['miniapp', 'miniapp'], ['unknown']]) {
     assert.throws(
       () => parseModDefinition({ ...base, type: 'text', source: { path: 'manifest.json' }, entrypoints }),
       /entrypoints/

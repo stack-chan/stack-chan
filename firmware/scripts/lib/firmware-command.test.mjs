@@ -10,7 +10,11 @@ const firmwareDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.ur
 const manifest = 'mods/examples/look_around/manifest.json'
 
 function dryRun(...args) {
-  const result = spawnSync(process.execPath, ['scripts/firmware.mjs', 'mod', manifest, ...args], {
+  return dryRunCommand('mod', ...args)
+}
+
+function dryRunCommand(command, ...args) {
+  const result = spawnSync(process.execPath, ['scripts/firmware.mjs', command, manifest, ...args], {
     cwd: firmwareDirectory,
     encoding: 'utf8',
     env: { ...process.env, STACKCHAN_BUILD_MODE: '', STACKCHAN_DRY_RUN: '1', npm_config_target: '' },
@@ -33,6 +37,13 @@ test('MOD command installs the instrument archive from its own output directory'
   const output = dryRun('--mode=instrument', '-t', 'build')
   assert.match(output, /mcrun -i -m /)
   assert.match(output, /MOD archive=.*\/bin\/esp32\/instrument\/look_around\/look_around\.xsa/)
+})
+
+test('MOD build command produces a release archive without planning a device write', () => {
+  const output = dryRunCommand('mod:build', '--mode=release', '-t', 'build')
+  assert.match(output, /mcrun -m /)
+  assert.match(output, /MOD archive=.*\/bin\/esp32\/release\/look_around\/look_around\.xsa/)
+  assert.doesNotMatch(output, /esptool will discover/)
 })
 
 test('firmware wrapper cleans manifest switches before every CoreS3 command and restores IDF dependencies', () => {

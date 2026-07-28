@@ -72,6 +72,7 @@
     "debug:xsdb:stackchan_rt": "node scripts/firmware.mjs debug stackchan_rt -dl",
     "debug:xsdb:takao_core2_sg90": "node scripts/firmware.mjs debug takao_core2_sg90 -dl",
     "mod": "node scripts/firmware.mjs mod",
+    "mod:build": "node scripts/firmware.mjs mod:build",
     "mod:m5stackchan_cores3": "node scripts/firmware.mjs mod m5stackchan_cores3",
     "mod:stackchan_rt": "node scripts/firmware.mjs mod stackchan_rt",
     "mod:takao_core2_sg90": "node scripts/firmware.mjs mod takao_core2_sg90",

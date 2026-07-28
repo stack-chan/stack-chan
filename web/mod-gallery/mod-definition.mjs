@@ -1,6 +1,7 @@
 export const STACKCHAN_MOD_FORMAT = 'tech.stackchan.mod'
 export const STACKCHAN_MOD_SCHEMA_VERSION = 1
 export const STACKCHAN_MOD_TYPES = Object.freeze(['block', 'text'])
+export const STACKCHAN_MOD_ENTRYPOINTS = Object.freeze(['mod', 'miniapp'])
 
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)+$/
 const VERSION_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/
@@ -74,6 +75,14 @@ export function parseModDefinition(value) {
 
   const artifacts = value.artifacts === undefined ? [] : value.artifacts
   if (!Array.isArray(artifacts)) throw new TypeError('artifactsが不正です')
+  const entrypoints = stringList(
+    value.entrypoints === undefined ? ['mod'] : value.entrypoints,
+    'entrypoints',
+    { required: true }
+  )
+  if (entrypoints.some((entrypoint) => !STACKCHAN_MOD_ENTRYPOINTS.includes(entrypoint))) {
+    throw new TypeError('entrypointsに未対応の実行入口があります')
+  }
 
   return {
     format: STACKCHAN_MOD_FORMAT,
@@ -86,6 +95,7 @@ export function parseModDefinition(value) {
     ...(value.author === undefined ? {} : { author: nonEmptyString(value.author, 'author', 120) }),
     ...(value.license === undefined ? {} : { license: nonEmptyString(value.license, 'license', 80) }),
     source: { path: sourcePath },
+    entrypoints,
     targets: stringList(value.targets, 'targets', { required: true }),
     capabilities: stringList(value.capabilities, 'capabilities'),
     artifacts: artifacts.map((artifact, index) => {

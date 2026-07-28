@@ -1,8 +1,19 @@
-import type { StackchanAppBehavior } from 'app-behavior'
-import type { AppController } from 'app-controller'
-import type { StackchanContext } from 'capabilities'
 import type { Container as PiuContainer, Content as PiuContent, Port as PiuPort } from 'piu/MC'
 import Timer from 'timer'
+
+type SmokeContext = {
+  ui: {
+    controller: {
+      application: {
+        first: PiuContainer | null
+      }
+    }
+  }
+}
+
+type SmokeBehavior = {
+  onContextCreated?: (context: SmokeContext) => Promise<void> | void
+}
 
 type TapBehavior = {
   onTouchBegan?: (content: PiuContent, id: number, x: number, y: number) => void
@@ -46,8 +57,8 @@ function topOf(content: PiuContainer): number {
   return positioned.coordinates?.top ?? positioned.top ?? 0
 }
 
-async function runMiniAppSmoke(context: StackchanContext): Promise<void> {
-  const controller = context.ui.controller as unknown as AppController
+export async function runMiniAppSmoke(context: SmokeContext): Promise<void> {
+  const controller = context.ui.controller
   const application = controller.application
   const view = application.first as PiuContainer
   const viewBehavior = view.behavior as ViewBehavior
@@ -99,7 +110,7 @@ async function runMiniAppSmoke(context: StackchanContext): Promise<void> {
   trace('[MiniApp Lin Smoke] ok\n')
 }
 
-const behavior: StackchanAppBehavior = {
+const behavior: SmokeBehavior = {
   async onContextCreated(context) {
     await runMiniAppSmoke(context)
   },

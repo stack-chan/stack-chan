@@ -48,6 +48,10 @@ function formatDiagnostics(diagnostics: readonly { message: string }[]) {
   return diagnostics.map((item) => item.message).join(' / ')
 }
 
+function hasEntrypoint(mod: ModDefinition, entrypoint: 'mod' | 'miniapp') {
+  return mod.entrypoints.includes(entrypoint)
+}
+
 export function ModGalleryPage() {
   const { t } = useI18n()
   const [definitions, setDefinitions] = useState<ModDefinition[]>([])
@@ -101,7 +105,7 @@ export function ModGalleryPage() {
     const normalizedQuery = query.trim().toLocaleLowerCase('ja')
     return definitions.filter((definition) => {
       if (type !== 'all' && definition.type !== type) return false
-      const haystack = [definition.name, definition.description, ...definition.capabilities]
+      const haystack = [definition.name, definition.description, ...definition.entrypoints, ...definition.capabilities]
         .join(' ')
         .toLocaleLowerCase('ja')
       return !normalizedQuery || haystack.includes(normalizedQuery)
@@ -149,7 +153,7 @@ export function ModGalleryPage() {
 
   const run = useCallback(
     async (mod: ModDefinition, action: () => Promise<string>) => {
-      setOperation(mod.id, { status: 'pending', message: t('MODを準備しています') })
+      setOperation(mod.id, { status: 'pending', message: t('アプリを準備しています') })
       try {
         const message = await action()
         setOperation(mod.id, { status: 'success', result: undefined, message })
@@ -170,6 +174,7 @@ export function ModGalleryPage() {
         const bytes = await fetchModArchive(artifact)
         const compatibility = inspectDeploymentCompatibility('simulator', {
           xsVersion: xsArchiveVersion(bytes),
+          entrypoints: mod.entrypoints,
           requireArchive: true,
         })
         if (!compatibility.compatible) {
@@ -196,6 +201,7 @@ export function ModGalleryPage() {
               chip,
               xsVersion: archiveVersion,
               firmwareVersion: firmware.version,
+              entrypoints: mod.entrypoints,
               requireArchive: true,
               requireFirmware: true,
             })
@@ -207,14 +213,14 @@ export function ModGalleryPage() {
           onProgress: (progress: number) =>
             setOperation(mod.id, {
               status: 'pending',
-              message: t('MODを実機へ書き込んでいます'),
+              message: t('アプリを実機へ書き込んでいます'),
               progress,
             }),
         })
         if (result.status === DEVICE_OPERATION_STATUS.CANCELLED) {
           throw new DOMException('cancelled', 'NotFoundError')
         }
-        return t('MODを実機へ書き込みました')
+        return t('アプリを実機へ書き込みました')
       }),
     [requestConfirmation, run, setOperation, t]
   )
@@ -225,7 +231,9 @@ export function ModGalleryPage() {
         <header className="mb-8 max-w-3xl">
           <p className="mb-2 text-xs font-semibold tracking-widest text-primary uppercase">{t('使う、まねる、作る')}</p>
           <h1 className="page-heading">MOD Gallery</h1>
-          <p className="page-lead">{t('公開されたMODを試したり、ブロックの作例から自分のMODを作ったりできます。')}</p>
+          <p className="page-lead">
+            {t('公開されたMODやミニアプリを試したり、ブロックの作例から自分のMODを作ったりできます。')}
+          </p>
         </header>
 
         <Card className="mb-5 grid gap-4 p-4 sm:grid-cols-[1fr_14rem]">
@@ -260,7 +268,7 @@ export function ModGalleryPage() {
 
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <p aria-live="polite">
-            {loading ? t('MODを読み込んでいます') : t('{count}件のMOD', { count: visible.length })}
+            {loading ? t('アプリを読み込んでいます') : t('{count}件のアプリ', { count: visible.length })}
           </p>
           <p>{t('ブロックは編集可能なサンプルです')}</p>
         </div>
@@ -274,7 +282,12 @@ export function ModGalleryPage() {
 
         <div className="grid gap-4 md:grid-cols-2" aria-live="polite">
           {visible.map((mod) => {
-            const badges = [...mod.capabilities, ...mod.targets.map((target) => profileFor(target).label)]
+            const isCombinedPackage = hasEntrypoint(mod, 'mod') && hasEntrypoint(mod, 'miniapp')
+            const badges = [
+              ...(isCombinedPackage ? [t('host権限を使用')] : []),
+              ...mod.capabilities,
+              ...mod.targets.map((target) => profileFor(target).label),
+            ]
             if (mod.type === 'block') {
               const editorUrl = new URL('../editor/', location.href)
               editorUrl.searchParams.set('project', mod.sourceUrl.href)
@@ -348,11 +361,21 @@ export function ModGalleryPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('このデバイスへMODを書き込みますか？')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('このデバイスへアプリを書き込みますか？')}</AlertDialogTitle>
             <AlertDialogDescription>
               {confirmation && t('「{name}」を接続中のｽﾀｯｸﾁｬﾝへ書き込みます。', { name: confirmation.mod.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {confirmation &&
+            hasEntrypoint(confirmation.mod, 'mod') &&
+            hasEntrypoint(confirmation.mod, 'miniapp') && (
+              <Alert variant="destructive">
+                <AlertTitle>{t('このpackageはhost権限を使用します')}</AlertTitle>
+                <AlertDescription>
+                  {t('MODとmini-appを含むため、package全体を信頼できる場合だけ書き込んでください。')}
+                </AlertDescription>
+              </Alert>
+            )}
           {confirmation && (
             <dl className="grid grid-cols-[auto_1fr] gap-2 rounded-lg bg-muted p-3 text-sm">
               <dt className="text-muted-foreground">{t('検出')}</dt>

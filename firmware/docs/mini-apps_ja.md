@@ -78,7 +78,14 @@ export default [app]
 
 外部 archive では `miniapp`、`piu/MC`、`piu/Timeline` だけを import できます。
 `piu/MC` からは `Application` を除いた描画用 API だけが公開されます。
-同じ archive に従来の `mod` module が含まれていても、ホスト realm には読み込みません。
+
+同じ archive に従来の `mod` moduleを含めることもできます。
+ホストは`mod`をホストrealmへ、`miniapp`をCompartmentへそれぞれ独立して読み込みます。
+`mod.onLaunch()`が`false`を返した場合はpackage全体の起動を中止し、contextを作らず、mini-appも登録しません。
+
+この複合形式は、mini-appへ機能を追加するための権限境界ではありません。
+`mod`はネットワーク、センサ、サーボを含むホストAPIへアクセスできるため、archive全体が信頼済みコードとして扱われます。
+将来runtime contextごとのpermissionを導入する場合は、要求する権限を宣言し、ユーザーの許可後に必要な参照だけをCompartmentへ渡す設計が必要です。
 
 ## containment の保証範囲
 
@@ -93,6 +100,8 @@ Piu の constructor と prototype もホストと共有するため、親子参�
 
 したがって、現段階の外部ミニアプリは信頼できるコードだけをインストールしてください。
 未信頼コードを扱うには、描画コマンドを検証する membrane を挟むか、別の XS machine で実行して表示リストだけを受け取る設計が必要です。
+
+なお、`mod`を含む複合archiveでは、`mod`がホストrealmで実行されるため、このcontainmentはpackage全体には適用されません。
 
 ## 多層 UI の性能確認
 

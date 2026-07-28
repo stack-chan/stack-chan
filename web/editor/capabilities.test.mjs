@@ -109,4 +109,12 @@ test('deployment compatibility checks chip family and exact XS archive version',
     missingDeviceEvidence.diagnostics.map((item) => item.code),
     ['VP_DEVICE_CHIP_MISSING', 'VP_XS_VERSION_MISSING']
   )
+
+  const unsupportedEntrypoint = inspectDeploymentCompatibility('portable', {
+    entrypoints: ['mod', 'miniapp'],
+  })
+  assert.deepEqual(
+    unsupportedEntrypoint.diagnostics.map((item) => item.code),
+    ['VP_ARCHIVE_ENTRYPOINT_UNSUPPORTED']
+  )
 })

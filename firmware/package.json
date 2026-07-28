@@ -118,6 +118,6 @@
     "typescript": "^6.0.3",
     "web-audio-engine": "^0.13.4",
     "xs-dev": "^1.12.1",
-    "yargs": "^18.0.0"
+    "yargs": "^18.1.0"
   }
 }

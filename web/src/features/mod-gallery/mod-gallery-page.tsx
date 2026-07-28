@@ -366,16 +366,6 @@ export function ModGalleryPage() {
               {confirmation && t('「{name}」を接続中のｽﾀｯｸﾁｬﾝへ書き込みます。', { name: confirmation.mod.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {confirmation && hasEntrypoint(confirmation.mod, 'miniapp') && (
-            <Alert>
-              <AlertTitle>{t('mini-app対応firmwareが必要です')}</AlertTitle>
-              <AlertDescription>
-                {t(
-                  '接続中のfirmwareがmini-app対応かは自動判定できません。PR #562以降のfirmwareを使用してください。'
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
           {confirmation &&
             hasEntrypoint(confirmation.mod, 'mod') &&
             hasEntrypoint(confirmation.mod, 'miniapp') && (

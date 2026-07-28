@@ -169,6 +169,9 @@
       "app-behavior-resolver": [
         "host/app/app-behavior-resolver.ts"
       ],
+      "app-launch": [
+        "host/app/app-launch.ts"
+      ],
       "app-default-behavior/startup-choice": [
         "host/app/default-behavior/startup-choice.ts"
       ],

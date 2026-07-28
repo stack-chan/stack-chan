@@ -1,6 +1,7 @@
 import loadPreferences, { loadPreferenceConfig } from 'loadPreference'
-import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavior } from 'app-behavior'
+import { runContextCreatedBehaviors, type StackchanAppBehavior } from 'app-behavior'
 import { resolveAppBehaviors } from 'app-behavior-resolver'
+import { prepareAppLaunch } from 'app-launch'
 import defaultBehavior from 'app-default-behavior'
 import { type BootWiFiStatus, startHostBootServices } from 'boot-services'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
@@ -73,15 +74,15 @@ async function main() {
   trace('[main] start\n')
   installPlatformInputBridge()
   initializeLocalization(loadPreferences(DOMAIN.ui).language)
-  const experimentalMiniApps = prepareExperimentalMiniApps()
 
   trace('[main] loading app behaviors\n')
   const appBehaviors = loadAppBehaviors()
   // Launch behaviors run before startHostBootServices so the splash screen is
   // visible while network setup blocks.
-  const shouldCreateContext = await runLaunchBehaviors(appBehaviors)
-  trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
-  if (!shouldCreateContext) return
+  const launch = await prepareAppLaunch(appBehaviors, prepareExperimentalMiniApps)
+  trace(`[main] onLaunch shouldCreateContext=${launch.shouldCreateContext}\n`)
+  if (!launch.shouldCreateContext) return
+  const experimentalMiniApps = launch.prepared
 
   const bootServices = startHostBootServices({
     wifi: {

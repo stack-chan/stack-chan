@@ -29,6 +29,7 @@
       "./main",
       "./app-behavior",
       "./app-behavior-resolver",
+      "./app-launch",
       "./boot-network-recovery",
       "./boot-services",
       "./compose",

@@ -6,7 +6,7 @@
   "version": "1.0.0",
   "type": "text",
   "name": "ｽﾀｯｸﾁｬﾝ JUMP",
-  "description": "画面をタップしてｽﾀｯｸﾁｬﾝをジャンプさせ、障害物を越えるoffline dino風のミニアプリです。PR #562以降のmini-app対応firmwareが必要です。",
+  "description": "画面をタップするとｽﾀｯｸﾁｬﾝがジャンプ！次々に迫る障害物を飛び越えて、どこまでスコアを伸ばせるか挑戦しよう。",
   "author": "Stack-chan Community",
   "license": "Apache-2.0 AND MIT",
   "source": {

@@ -64,6 +64,10 @@ type BatteryData = {
   faceMode: boolean
 }
 
+type ClockBehaviorContract = {
+  onFaceModeChanged(label: Label, faceMode: boolean): void
+}
+
 type BatteryBehaviorContract = {
   onFaceModeChanged(port: PiuPort, faceMode: boolean): void
 }
@@ -136,6 +140,8 @@ class IndicatorBehavior extends Behavior {
 
 class ClockBehavior extends Behavior {
   #data?: ClockData
+  #displaying = false
+  #faceMode = true
   #lastValue = ''
 
   onCreate(_label: Label, data: ClockData) {
@@ -143,13 +149,34 @@ class ClockBehavior extends Behavior {
   }
 
   onDisplaying(label: Label) {
-    this.update(label)
-    label.interval = clockRefreshIntervalMs
-    label.start()
+    this.#displaying = true
+    this.updateTimer(label)
+  }
+
+  onUndisplaying(label: Label) {
+    this.#displaying = false
+    label.stop()
   }
 
   onTimeChanged(label: Label) {
     this.update(label)
+  }
+
+  onFaceModeChanged(label: Label, faceMode: boolean) {
+    this.#faceMode = faceMode
+    label.visible = faceMode
+    this.updateTimer(label)
+  }
+
+  updateTimer(label: Label) {
+    if (!this.#displaying || !this.#faceMode) {
+      label.stop()
+      return
+    }
+    if (label.running) return
+    this.update(label)
+    label.interval = clockRefreshIntervalMs
+    label.start()
   }
 
   update(label: Label) {
@@ -163,6 +190,7 @@ class ClockBehavior extends Behavior {
 class BatteryBehavior extends Behavior implements BatteryBehaviorContract {
   #data?: BatteryData
   #available = false
+  #displaying = false
   #segments = 0
 
   onCreate(_port: PiuPort, data: BatteryData) {
@@ -170,10 +198,13 @@ class BatteryBehavior extends Behavior implements BatteryBehaviorContract {
   }
 
   onDisplaying(port: PiuPort) {
-    if (!this.#data?.reader) return
-    this.sample(port)
-    port.interval = batteryRefreshIntervalMs
-    port.start()
+    this.#displaying = true
+    this.updateTimer(port)
+  }
+
+  onUndisplaying(port: PiuPort) {
+    this.#displaying = false
+    port.stop()
   }
 
   onTimeChanged(port: PiuPort) {
@@ -183,6 +214,18 @@ class BatteryBehavior extends Behavior implements BatteryBehaviorContract {
   onFaceModeChanged(port: PiuPort, faceMode: boolean) {
     if (this.#data) this.#data.faceMode = faceMode
     port.visible = faceMode && this.#available
+    this.updateTimer(port)
+  }
+
+  updateTimer(port: PiuPort) {
+    if (!this.#displaying || !this.#data?.faceMode || !this.#data.reader) {
+      port.stop()
+      return
+    }
+    if (port.running) return
+    this.sample(port)
+    port.interval = batteryRefreshIntervalMs
+    port.start()
   }
 
   sample(port: PiuPort) {
@@ -260,6 +303,13 @@ class ChatStatusBarBehavior extends Behavior {
     container.stop()
   }
 
+  onUndisplaying(container: Container) {
+    this.#clock?.stop()
+    this.#battery?.stop()
+    this.#indicator?.stop()
+    container.stop()
+  }
+
   onAppBarMode(container: Container, mode: AppBarMode) {
     this.#mode = mode
     const faceMode = mode.kind === 'face'
@@ -302,7 +352,8 @@ class ChatStatusBarBehavior extends Behavior {
   updateUI() {
     if (!this.#levelTrack || !this.#levelFill || !this.#statusIcon || !this.#indicator) return
     const faceMode = this.#mode.kind === 'face'
-    if (this.#clock) this.#clock.visible = faceMode
+    const clockBehavior = this.#clock?.behavior as ClockBehaviorContract | undefined
+    if (this.#clock) clockBehavior?.onFaceModeChanged(this.#clock, faceMode)
     const batteryBehavior = this.#battery?.behavior as BatteryBehaviorContract | undefined
     if (this.#battery) batteryBehavior?.onFaceModeChanged(this.#battery, faceMode)
     if (!faceMode) {

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
 type PlatformDefinition = {
+  include?: string[]
   modules?: Record<string, string>
 }
 
@@ -25,6 +26,11 @@ test('battery status module covers every supported M5 PMIC target', () => {
     'esp32/m5stackchan_cores3': './platforms/axp2101-battery-status',
     'esp32/stackchan_rt': './platforms/axp2101-battery-status',
   })
+
+  assert.ok(
+    manifest.platforms['esp32/m5stack'].include?.includes('$(MODULES)/pins/smbus/manifest.json'),
+    'esp32/m5stack should include the SMBus dependency used by its IP5306 battery reader',
+  )
 
   for (const platform of ['esp32/m5stack_cores3', 'esp32/m5stackchan_cores3', 'esp32/stackchan_rt']) {
     assert.equal(

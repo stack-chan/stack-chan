@@ -53,7 +53,9 @@ test('time zone presets expose the agreed fixed UTC offsets', () => {
 test('invalid or missing time zones fall back to Tokyo', () => {
   assert.equal(normalizeTimezoneId(undefined), DEFAULT_TIMEZONE_ID)
   assert.equal(normalizeTimezoneId('invalid'), DEFAULT_TIMEZONE_ID)
-  assert.equal(getTimezonePreset(null).offsetMinutes, 540)
+  const fallback = getTimezonePreset(null)
+  assert.equal(fallback.id, DEFAULT_TIMEZONE_ID)
+  assert.equal(fallback.offsetMinutes, 540)
 })
 
 test('applying a preset configures local offset and disables automatic DST', () => {

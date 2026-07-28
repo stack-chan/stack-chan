@@ -34,6 +34,7 @@ type StatusBarBehavior = {
   onChatInputLevel?: (container: unknown, level: number) => void
   onConnectionIndicator?: (container: unknown, visible: boolean) => void
   onFinished?: (container: unknown) => void
+  onUndisplaying?: (container: unknown) => void
   onAppBarReveal?: (container: unknown) => void
   onAppBarMode?: (container: unknown, mode: AppBarMode) => void
   onMiniAppAvailability?: (container: unknown, available: boolean) => void
@@ -75,6 +76,7 @@ type ClockLabel = {
     onDisplaying?: (label: unknown) => void
     onTimeChanged?: (label: unknown) => void
   }
+  running?: boolean
   string?: string
   visible?: boolean
 }
@@ -85,6 +87,7 @@ type BatteryPort = {
     onDisplaying?: (port: unknown) => void
     onTimeChanged?: (port: unknown) => void
   }
+  running?: boolean
   visible?: boolean
   width?: number
   x?: number
@@ -113,6 +116,8 @@ battery.behavior?.onDisplaying?.(battery)
 equal(clock.string, '09:05', 'face mode should show local time in the center')
 assert(clock.visible === true, 'face mode should keep the clock visible')
 assert(battery.visible === true, 'a valid battery reading should show the battery icon')
+assert(clock.running === true, 'face mode should run the clock timer')
+assert(battery.running === true, 'face mode should run the battery timer')
 assert(battery.active === false, 'battery status should never intercept touches')
 assert((statusIcon.x ?? 0) > (battery.x ?? 0) + (battery.width ?? 0), 'chat status should move right of battery')
 equal(formatAppBarTime(new Date(0)), '--:--', 'unset system time should use a placeholder')
@@ -140,12 +145,16 @@ assert(title.visible === true, 'launcher mode should show a title')
 equal(title.string, 'ミニアプリ', 'launcher mode should display its title')
 assert(clock.visible === false, 'launcher mode should hide the face clock')
 assert(battery.visible === false, 'launcher mode should hide battery status')
+assert(clock.running === false, 'launcher mode should stop the hidden clock timer')
+assert(battery.running === false, 'launcher mode should stop the hidden battery timer')
 
 behavior.onAppBarMode?.(bar, { kind: 'face' })
 assert(backButton.visible === false, 'face mode should hide the back button')
 assert(appsButton.visible === true, 'face mode should restore the apps button')
 assert(clock.visible === true, 'returning to face mode should restore the clock')
 assert(battery.visible === true, 'returning to face mode should restore valid battery status')
+assert(clock.running === true, 'returning to face mode should restart the clock timer')
+assert(battery.running === true, 'returning to face mode should restart the battery timer')
 
 batteryLevel = undefined
 battery.behavior?.onTimeChanged?.(battery)
@@ -159,6 +168,8 @@ assert(menuButton.visible === false, 'menu button should hide when its reveal ti
 assert(menuButton.active === false, 'hidden menu button should not intercept touches')
 assert(appsButton.visible === false, 'apps button should hide with the menu button')
 assert(appsButton.active === false, 'hidden apps button should not intercept touches')
+assert(clock.running === true, 'the face-action reveal timer should not stop the clock timer')
+assert(battery.running === true, 'the face-action reveal timer should not stop the battery timer')
 behavior.onMiniAppAvailability?.(bar, false)
 behavior.onMiniAppAvailability?.(bar, true)
 assert(appsButton.visible === false, 'availability changes should not bypass the hidden AppBar state')
@@ -201,5 +212,9 @@ assert(levelTrack.visible === false, 'level track should be hidden after failure
 assert(statusIcon.visible === false, 'status icon should be hidden after failure')
 assert(statusIndicator.visible === false, 'connecting indicator should be hidden after failure')
 assert(levelFill.skin !== normalFillSkin, 'failed state should switch level fill to error skin')
+
+behavior.onUndisplaying?.(bar)
+assert(clock.running === false, 'teardown should stop the clock timer')
+assert(battery.running === false, 'teardown should stop the battery timer')
 
 trace('ok\n')

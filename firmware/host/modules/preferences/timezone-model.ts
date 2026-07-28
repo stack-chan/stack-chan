@@ -58,7 +58,10 @@ export function getTimezonePreset(value: unknown): TimezonePreset {
   for (const preset of TIMEZONE_PRESETS) {
     if (preset.id === id) return preset
   }
-  return TIMEZONE_PRESETS[0]
+  for (const preset of TIMEZONE_PRESETS) {
+    if (preset.id === DEFAULT_TIMEZONE_ID) return preset
+  }
+  throw new Error(`Missing default time zone preset: ${DEFAULT_TIMEZONE_ID}`)
 }
 
 export function formatUtcOffset(offsetMinutes: number): string {

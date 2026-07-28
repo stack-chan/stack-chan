@@ -45,7 +45,7 @@
     "@vitejs/plugin-react": "^6.0.4",
     "jsdom": "^27.4.0",
     "playwright-core": "^1.61.1",
-    "prettier": "^3.9.5",
+    "prettier": "^3.9.6",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.1.5",

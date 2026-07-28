@@ -43,7 +43,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.185.0",
     "@vitejs/plugin-react": "^6.0.4",
-    "jsdom": "^27.4.0",
+    "jsdom": "^30.0.0",
     "playwright-core": "^1.61.1",
     "prettier": "^3.9.6",
     "tailwindcss": "^4.3.3",

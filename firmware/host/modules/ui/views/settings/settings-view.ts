@@ -20,7 +20,7 @@ import {
   SettingsStatusValue as SettingsStatusValueConst,
   settingsStatusToLabel as settingsStatusToLabelImpl,
 } from 'settings-status-model'
-import { type TimezoneId, TIMEZONE_PRESETS, formatUtcOffset } from 'timezone-model'
+import { formatUtcOffset, TIMEZONE_PRESETS, type TimezoneId } from 'timezone-model'
 import {
   ActionButton,
   ScreenHeader,

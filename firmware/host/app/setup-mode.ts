@@ -15,8 +15,8 @@ import {
   settingsViews,
 } from 'settings-view'
 import { clearStoredWiFiCredentials, connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
-import { scanWiFiNetworks } from 'wifi-scan'
 import { applyTimezone as applySystemTimezone, normalizeTimezoneId, type TimezoneId } from 'timezone-settings'
+import { scanWiFiNetworks } from 'wifi-scan'
 import type { WiFiScanSession } from 'wifi-scan-types'
 
 export type SetupModeResult = 'back' | 'boot'

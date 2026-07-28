@@ -1,5 +1,5 @@
-import { readAxp2101BatteryLevel } from 'battery-level'
 import { getAxp2101Power } from 'embedded:peripheral/Power/axp2101'
+import { readAxp2101BatteryLevel } from 'battery-level'
 
 export default function readBatteryLevel(): number | undefined {
   const power = getAxp2101Power()

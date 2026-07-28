@@ -1,14 +1,14 @@
 import Time from 'time'
 import { getTimezonePreset, type TimezoneId } from 'timezone-model'
 
+export type { TimezoneId, TimezonePreset } from 'timezone-model'
 export {
   DEFAULT_TIMEZONE_ID,
-  TIMEZONE_PRESETS,
   formatUtcOffset,
   getTimezonePreset,
   normalizeTimezoneId,
+  TIMEZONE_PRESETS,
 } from 'timezone-model'
-export type { TimezoneId, TimezonePreset } from 'timezone-model'
 
 export function applyTimezone(value: unknown): TimezoneId {
   const preset = getTimezonePreset(value)

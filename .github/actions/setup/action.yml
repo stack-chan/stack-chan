@@ -91,9 +91,10 @@ runs:
         fi
         MODDABLE_REF=$(echo "$MODDABLE_SHA" | cut -c1-12)
         echo "Moddable ref: $REF ($MODDABLE_REF)"
+        MODDABLE_CACHE_KEY="$RUNNER_OS_NAME-moddable-$MODDABLE_REF"
         echo "MODDABLE_TARGET_REF=$REF" >> "$GITHUB_ENV"
-        echo "moddable_cache_key=$RUNNER_OS_NAME-moddable-$MODDABLE_REF" >> "$GITHUB_ENV"
-        echo "cache-key=$RUNNER_OS_NAME-moddable-$MODDABLE_REF" >> "$GITHUB_OUTPUT"
+        echo "moddable_cache_key=$MODDABLE_CACHE_KEY" >> "$GITHUB_ENV"
+        echo "cache-key=$MODDABLE_CACHE_KEY" >> "$GITHUB_OUTPUT"
       shell: bash
     - name: Restore cache of Moddable and ESP32
       id: restore-cache-moddable

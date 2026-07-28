@@ -44,6 +44,8 @@ jobs:
       firmware: ${{ steps.filter.outputs.firmware }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Detect firmware-related changes
         if: github.event_name != 'workflow_dispatch'
         id: filter
@@ -62,6 +64,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
         with:
           install-moddable: "false"
@@ -73,6 +77,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
         with:
           install-moddable: "false"
@@ -102,6 +108,8 @@ jobs:
         shard: [0, 1]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
         id: setup
       - name: Restore incremental Linux test builds
@@ -132,6 +140,8 @@ jobs:
       STACKCHAN_LIN_SMOKE_CLEAN: "0"
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
         id: setup
       - name: Restore incremental Linux smoke builds
@@ -181,6 +191,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
         with:
           target-branch: "8.3.1"

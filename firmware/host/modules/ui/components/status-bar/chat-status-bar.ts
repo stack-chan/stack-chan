@@ -138,7 +138,7 @@ class IndicatorBehavior extends Behavior {
   }
 }
 
-class ClockBehavior extends Behavior {
+class ClockBehavior extends Behavior implements ClockBehaviorContract {
   #data?: ClockData
   #displaying = false
   #faceMode = true

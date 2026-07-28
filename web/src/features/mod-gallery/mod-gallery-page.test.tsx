@@ -22,6 +22,7 @@ const textMod: ModDefinition = {
     path: 'mod/manifest.json',
     entrypoint: 'mod/mod.js',
   },
+  entrypoints: ['mod'],
   targets: ['simulator'],
   capabilities: [],
   artifacts: [],

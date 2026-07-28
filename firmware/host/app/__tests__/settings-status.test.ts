@@ -47,3 +47,14 @@ test('settings status normalizes missing Wi-Fi credentials to empty strings', as
   assert.equal(status['wifi.ssid'], '')
   assert.equal(status['wifi.password'], '')
 })
+
+test('settings status exposes the resolved time zone selection', async () => {
+  const { createInitialSettingsStatus } = await setup()
+
+  const status = createInitialSettingsStatus({
+    wifi: {},
+    time: { timezone: 'tokyo' },
+  })
+
+  assert.equal(status['time.timezone'], 'tokyo')
+})

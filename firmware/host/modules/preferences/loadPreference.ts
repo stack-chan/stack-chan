@@ -33,6 +33,7 @@ const PREFERENCE_DOMAINS: PreferenceDomain[] = [
   DOMAIN.ai,
   DOMAIN.led,
   DOMAIN.mcp,
+  DOMAIN.time,
 ]
 
 export default function loadPreferences(category: PreferenceDomain): ConfigRecord {

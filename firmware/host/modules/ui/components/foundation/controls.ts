@@ -6,7 +6,9 @@ export type IconName =
   | 'apps'
   | 'back'
   | 'camera'
+  | 'check'
   | 'close'
+  | 'clock'
   | 'language'
   | 'menu'
   | 'microphone'
@@ -149,6 +151,24 @@ function drawIcon(port: PiuPort, icon: IconName, color: string) {
       port.fillColor(UI.colors.background, cx - 7, cy - 3, 14, 8)
       port.fillColor(color, cx - 3, cy - 2, 7, 7)
       port.fillColor(color, cx - 5, cy - 9, 10, 4)
+      return
+    case 'check':
+      drawSteps(port, color, [
+        [cx - 8, cy],
+        [cx - 5, cy + 3],
+        [cx - 2, cy + 6],
+        [cx + 1, cy + 3],
+        [cx + 4, cy],
+        [cx + 7, cy - 3],
+        [cx + 10, cy - 6],
+      ])
+      return
+    case 'clock':
+      port.fillColor(color, cx - 9, cy - 7, 18, 14)
+      port.fillColor(color, cx - 7, cy - 9, 14, 18)
+      port.fillColor(UI.colors.background, cx - 6, cy - 6, 12, 12)
+      port.fillColor(color, cx - 1, cy - 5, 3, 7)
+      port.fillColor(color, cx, cy, 6, 3)
       return
     case 'microphone':
       port.fillColor(color, cx - 4, cy - 9, 8, 14)

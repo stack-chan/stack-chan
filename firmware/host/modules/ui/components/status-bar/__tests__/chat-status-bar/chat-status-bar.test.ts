@@ -1,11 +1,32 @@
-import { type AppBarMode, ChatStatusBar, ChatStatusBarState } from 'chat-status-bar'
+import {
+  type AppBarMode,
+  batteryLevelToSegments,
+  ChatStatusBar,
+  ChatStatusBarState,
+  formatAppBarTime,
+} from 'chat-status-bar'
 import { Application } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
 
 trace('=== chat-statusbar test ===\n')
 
+function dateAt(hours: number, minutes: number): Date {
+  return {
+    getTime: () => 1_704_099_900_000,
+    getHours: () => hours,
+    getMinutes: () => minutes,
+  } as Date
+}
+
+let currentDate = dateAt(9, 5)
+let batteryLevel: number | undefined = 75
 const app = new Application(null, {
-  contents: [new ChatStatusBar()],
+  contents: [
+    new ChatStatusBar({
+      now: () => currentDate,
+      readBatteryLevel: () => batteryLevel,
+    }),
+  ],
 })
 
 type StatusBarBehavior = {
@@ -24,6 +45,7 @@ type StatusBarContent = {
 }
 
 type StatusIcon = {
+  x?: number
   visible?: boolean
   state?: number
 }
@@ -48,6 +70,26 @@ type BarTitle = {
   visible?: boolean
 }
 
+type ClockLabel = {
+  behavior?: {
+    onDisplaying?: (label: unknown) => void
+    onTimeChanged?: (label: unknown) => void
+  }
+  string?: string
+  visible?: boolean
+}
+
+type BatteryPort = {
+  active?: boolean
+  behavior?: {
+    onDisplaying?: (port: unknown) => void
+    onTimeChanged?: (port: unknown) => void
+  }
+  visible?: boolean
+  width?: number
+  x?: number
+}
+
 type LevelFill = {
   height?: number
   skin?: unknown
@@ -62,7 +104,27 @@ const menuButton = bar.content('menuButton') as BarControl
 const appsButton = bar.content('appsButton') as BarControl
 const backButton = bar.content('backButton') as BarControl
 const title = bar.content('title') as BarTitle
+const clock = bar.content('clock') as ClockLabel
+const battery = bar.content('battery') as BatteryPort
 const behavior = bar.behavior as StatusBarBehavior
+
+clock.behavior?.onDisplaying?.(clock)
+battery.behavior?.onDisplaying?.(battery)
+equal(clock.string, '09:05', 'face mode should show local time in the center')
+assert(clock.visible === true, 'face mode should keep the clock visible')
+assert(battery.visible === true, 'a valid battery reading should show the battery icon')
+assert(battery.active === false, 'battery status should never intercept touches')
+assert((statusIcon.x ?? 0) > (battery.x ?? 0) + (battery.width ?? 0), 'chat status should move right of battery')
+equal(formatAppBarTime(new Date(0)), '--:--', 'unset system time should use a placeholder')
+equal(batteryLevelToSegments(0), 0, 'empty battery should draw no cells')
+equal(batteryLevelToSegments(25), 1, 'quarter battery should draw one cell')
+equal(batteryLevelToSegments(50), 2, 'half battery should draw two cells')
+equal(batteryLevelToSegments(75), 3, 'three-quarter battery should draw three cells')
+equal(batteryLevelToSegments(100), 4, 'full battery should draw four cells')
+
+currentDate = dateAt(10, 6)
+clock.behavior?.onTimeChanged?.(clock)
+equal(clock.string, '10:06', 'clock timer should update after the minute changes')
 
 behavior.onMiniAppAvailability?.(bar, true)
 assert(appsButton.visible === true, 'apps button should appear when a mini app is registered')
@@ -76,10 +138,21 @@ assert(appsButton.visible === false, 'launcher mode should hide the apps button'
 assert(menuButton.visible === false, 'launcher mode should hide the drawer button')
 assert(title.visible === true, 'launcher mode should show a title')
 equal(title.string, 'ミニアプリ', 'launcher mode should display its title')
+assert(clock.visible === false, 'launcher mode should hide the face clock')
+assert(battery.visible === false, 'launcher mode should hide battery status')
 
 behavior.onAppBarMode?.(bar, { kind: 'face' })
 assert(backButton.visible === false, 'face mode should hide the back button')
 assert(appsButton.visible === true, 'face mode should restore the apps button')
+assert(clock.visible === true, 'returning to face mode should restore the clock')
+assert(battery.visible === true, 'returning to face mode should restore valid battery status')
+
+batteryLevel = undefined
+battery.behavior?.onTimeChanged?.(battery)
+assert(battery.visible === false, 'unavailable battery readings should hide the icon')
+batteryLevel = 25
+battery.behavior?.onTimeChanged?.(battery)
+assert(battery.visible === true, 'battery status should recover after a later valid reading')
 
 behavior.onFinished?.(bar)
 assert(menuButton.visible === false, 'menu button should hide when its reveal timer finishes')

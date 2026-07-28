@@ -1,0 +1,57 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../app/manifest_typings.json"
+  ],
+  "modules": {
+    "battery-level": "./battery-level"
+  },
+  "platforms": {
+    "esp32/m5stack": {
+      "include": ["$(MODULES)/pins/smbus/manifest.json"],
+      "modules": {
+        "battery-status": "./platforms/ip5306-battery-status"
+      }
+    },
+    "esp32/m5stack_core2": {
+      "modules": {
+        "battery-status": "./platforms/core2-battery-status"
+      }
+    },
+    "esp32/takao_core2_sg90": {
+      "modules": {
+        "battery-status": "./platforms/core2-battery-status"
+      }
+    },
+    "esp32/m5stack_cores3": {
+      "modules": {
+        "embedded:peripheral/Power/axp2101-base": "$(MODULES)/drivers/peripherals/axp2101/axp2101",
+        "embedded:peripheral/Power/axp2101": "./platforms/axp2101-power-bridge",
+        "battery-status": "./platforms/axp2101-battery-status"
+      }
+    },
+    "esp32/m5stackchan_cores3": {
+      "modules": {
+        "embedded:peripheral/Power/axp2101-base": "$(MODULES)/drivers/peripherals/axp2101/axp2101",
+        "embedded:peripheral/Power/axp2101": "./platforms/axp2101-power-bridge",
+        "battery-status": "./platforms/axp2101-battery-status"
+      }
+    },
+    "esp32/stackchan_rt": {
+      "modules": {
+        "embedded:peripheral/Power/axp2101-base": "$(MODULES)/drivers/peripherals/axp2101/axp2101",
+        "embedded:peripheral/Power/axp2101": "./platforms/axp2101-power-bridge",
+        "battery-status": "./platforms/axp2101-battery-status"
+      }
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false
+      }
+    }
+  }
+}

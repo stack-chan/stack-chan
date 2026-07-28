@@ -25,6 +25,8 @@ type HostCameraTestBridge = {
 
 type WasmCameraTestBridge = {
   start?: (width: number, height: number, useBrowserCamera: boolean) => void
+  startStatus?: () => number
+  setTimer?: (callback: () => void, delay?: number) => unknown
   stop?: () => void
   capture?: (width: number, height: number) => unknown
 }
@@ -275,6 +277,66 @@ test('WASM camera uses the native browser camera bridge when it is preloaded', a
     assert.ok(frame)
     assert.notEqual(frame.buffer, buffer)
     assert.deepEqual(new Uint8Array(frame.buffer), new Uint8Array(buffer))
+  } finally {
+    setWasmCameraBridge(previousBridge)
+  }
+})
+
+test('WASM camera waits for a second native browser stream before capture', async () => {
+  const calls: unknown[] = []
+  const callbacks: (() => void)[] = []
+  let starts = 0
+  let startStatus = 1
+  const buffer = new Uint8Array([9, 8, 7, 6, 5, 4, 3, 2]).buffer
+  const previousBridge = setWasmCameraBridge({
+    start(width, height, useBrowserCamera) {
+      starts += 1
+      startStatus = starts === 1 ? 1 : 0
+      calls.push({ start: { width, height, useBrowserCamera } })
+    },
+    startStatus: () => startStatus,
+    setTimer(callback, delay) {
+      calls.push({ poll: delay })
+      callbacks.push(callback)
+    },
+    stop() {
+      calls.push({ stop: true })
+    },
+    capture(width, height) {
+      calls.push({ capture: { width, height } })
+      return { width, height, imageType: 'rgb565le', buffer }
+    },
+  })
+
+  try {
+    const camera = new Camera()
+    await camera.start({ width: 2, height: 2 })
+    await camera.stop()
+
+    let secondStartCompleted = false
+    const secondStart = camera.start({ width: 2, height: 2 }).then(() => {
+      secondStartCompleted = true
+    })
+    await Promise.resolve()
+
+    assert.equal(secondStartCompleted, false)
+    assert.equal(callbacks.length, 1)
+    assert.deepEqual(calls, [
+      { start: { width: 2, height: 2, useBrowserCamera: true } },
+      { stop: true },
+      { start: { width: 2, height: 2, useBrowserCamera: true } },
+      { poll: 50 },
+    ])
+
+    startStatus = 1
+    callbacks.shift()?.()
+    await secondStart
+    const frame = await camera.capture({ width: 2, height: 2, imageType: 'rgb565le' })
+
+    assert.equal(secondStartCompleted, true)
+    assert.ok(frame)
+    assert.deepEqual(new Uint8Array(frame.buffer), new Uint8Array(buffer))
+    assert.deepEqual(calls.at(-1), { capture: { width: 2, height: 2 } })
   } finally {
     setWasmCameraBridge(previousBridge)
   }

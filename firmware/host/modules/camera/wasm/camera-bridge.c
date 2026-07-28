@@ -9,18 +9,37 @@ void xs_stackchan_wasm_camera_start(xsMachine* the)
 	int height = (xsmcArgc > 1) ? xsmcToInteger(xsArg(1)) : 0;
 	int useBrowserCamera = (xsmcArgc > 2) ? xsmcToBoolean(xsArg(2)) : 0;
 	EM_ASM({
+		const state = {};
+		state.status = 0;
+		stackchanRuntime.state.cameraStart = state;
 		const camera = stackchanRuntime.host && stackchanRuntime.host.Camera;
-		if (!camera || !camera.start)
+		if (!camera || !camera.start) {
+			state.status = 1;
 			return;
+		}
 		const options = {};
 		options.width = $0;
 		options.height = $1;
 		options.imageType = "rgb565le";
 		options.useBrowserCamera = !!$2;
-		Promise.resolve(camera.start(options)).catch((error) => {
-			console.warn("[bridge] Host.Camera.start failed", error);
-		});
+		Promise.resolve(camera.start(options)).then(
+			() => {
+				state.status = 1;
+			},
+			(error) => {
+				state.status = -1;
+				console.warn("[bridge] Host.Camera.start failed", error);
+			}
+		);
 	}, width, height, useBrowserCamera);
+}
+
+void xs_stackchan_wasm_camera_start_status(xsMachine* the)
+{
+	xsmcSetInteger(xsResult, EM_ASM_INT({
+		const state = stackchanRuntime.state.cameraStart;
+		return state && typeof state.status === "number" ? state.status : 1;
+	}));
 }
 
 void xs_stackchan_wasm_camera_stop(xsMachine* the)

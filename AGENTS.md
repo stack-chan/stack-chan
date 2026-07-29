@@ -49,7 +49,9 @@ All commands should be run from the `firmware/` directory:
 - The host application name is always `stack-chan-host`.
 - Do not add a custom `-o`; repository commands reject it to keep worktree output isolated under `firmware/dist`.
 - `npm run clean` removes all generated files under `firmware/dist`.
-- `npm run bundle` is the exception: standard-device intermediate builds created internally by `mcbundle` remain under `$MODDABLE/build`. The Stack-chan-specific bundle target still uses `firmware/dist`.
+- `npm run bundle` builds every release target under `firmware/dist/`, stages validated target artifacts in `firmware/dist/bundle-targets/`, and writes the assembled directory and ZIP under `firmware/host/app/`.
+- The named `npm run build:release:<target>` scripts and `npm run bundle:package` are the CI building blocks for parallel target builds and final artifact assembly.
+- `npm run mod` uses `mcrun -t build` to create an archive, then discovers and writes the live device's `xs` partition with `esptool`.
 
 ### Code Quality
 - `npm run lint` - Run Biome linter

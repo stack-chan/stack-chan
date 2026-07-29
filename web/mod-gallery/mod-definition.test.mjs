@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 import { isXsArchive, xsArchiveVersion } from '../editor/mod-builder.mjs'
+import { profileFor } from '../editor/capabilities.mjs'
 import { parseVisualProject } from '../editor/project-format.mjs'
 import { analyzeWorkspace } from '../editor/project-validator.mjs'
 import { loadModCatalog, parseModDefinition, validatePackagePath } from './mod-definition.mjs'
@@ -20,9 +21,10 @@ async function fileFetch(url) {
 
 test('共通MOD定義からテキストとブロックのGalleryを構成する', async () => {
   const definitions = await loadModCatalog(catalogUrl, fileFetch)
-  assert.equal(definitions.length, 5)
-  assert.equal(definitions.filter((definition) => definition.type === 'text').length, 1)
+  assert.equal(definitions.length, 8)
+  assert.equal(definitions.filter((definition) => definition.type === 'text').length, 4)
   assert.equal(definitions.filter((definition) => definition.type === 'block').length, 4)
+  assert.equal(definitions.filter((definition) => definition.entrypoints.includes('miniapp')).length, 1)
   assert.equal(new Set(definitions.map((definition) => definition.id)).size, definitions.length)
 
   for (const definition of definitions) {
@@ -39,12 +41,70 @@ test('共通MOD定義からテキストとブロックのGalleryを構成する'
 
 test('テキストMODの成果物は既存の実行互換性を維持する', async () => {
   const definitions = await loadModCatalog(catalogUrl, fileFetch)
-  const starter = definitions.find((definition) => definition.type === 'text')
-  assert.ok(starter)
-  assert.equal(starter.artifacts.length, 1)
-  const archive = readFileSync(starter.artifacts[0].url)
-  assert.equal(isXsArchive(archive), true)
-  assert.deepEqual(xsArchiveVersion(archive), [17, 8, 0])
+  const textMods = definitions.filter((definition) => definition.type === 'text')
+  assert.equal(textMods.length, 4)
+  for (const definition of textMods) {
+    assert.equal(definition.artifacts.length, 1, `${definition.id}: installable text MOD should include one artifact`)
+    const archive = readFileSync(definition.artifacts[0].url)
+    assert.equal(isXsArchive(archive), true, `${definition.id}: artifact should be an XS archive`)
+    assert.deepEqual(
+      xsArchiveVersion(archive),
+      profileFor('m5stackchan-cores3').xsArchiveVersion,
+      `${definition.id}: artifact should match the host XS`
+    )
+    assert.equal(
+      archive.includes(Buffer.from('/tmp/')),
+      false,
+      `${definition.id}: artifact should not expose build paths`
+    )
+    assert.equal(
+      archive.includes(Buffer.from('/home/')),
+      false,
+      `${definition.id}: artifact should not expose build paths`
+    )
+  }
+})
+
+test('MediaPipe GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
+  const firmware = new URL('../../firmware/mods/examples/mediapipe_ble/', import.meta.url)
+  const gallery = new URL('./samples/mediapipe-ble/mod/', import.meta.url)
+  for (const filename of ['manifest.json', 'mod.js', 'tracking-message.js', 'tracking-receiver.js']) {
+    assert.equal(
+      readFileSync(new URL(filename, gallery), 'utf8'),
+      readFileSync(new URL(filename, firmware), 'utf8'),
+      `${filename} should not drift between the firmware example and gallery package`
+    )
+  }
+})
+
+test('MCP GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
+  const firmware = new URL('../../firmware/mods/examples/mcp/', import.meta.url)
+  const gallery = new URL('./samples/mcp/mod/', import.meta.url)
+  for (const filename of ['manifest.json', 'mod.js']) {
+    assert.equal(
+      readFileSync(new URL(filename, gallery), 'utf8'),
+      readFileSync(new URL(filename, firmware), 'utf8'),
+      `${filename} should not drift between the firmware example and gallery package`
+    )
+  }
+})
+
+test('Stack-chan JUMP GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
+  const firmware = new URL('../../firmware/mods/examples/mini_app_sample/', import.meta.url)
+  const gallery = new URL('./samples/stackchan-jump/miniapp/', import.meta.url)
+  for (const filename of [
+    'manifest.json',
+    'miniapp.ts',
+    'README_ja.md',
+    'LICENSE.mouse-follower',
+    'assets/stack-chan.png',
+  ]) {
+    assert.deepEqual(
+      readFileSync(new URL(filename, gallery)),
+      readFileSync(new URL(filename, firmware)),
+      `${filename} should not drift between the firmware example and gallery package`
+    )
+  }
 })
 
 test('MOD定義は形式別の正本と安全なパッケージパスを要求する', () => {
@@ -62,6 +122,24 @@ test('MOD定義は形式別の正本と安全なパッケージパスを要求�
     () => parseModDefinition({ ...base, type: 'text', source: { path: 'sample.stackchan-blocks.json' } }),
     /text MOD/
   )
+  assert.deepEqual(parseModDefinition({ ...base, type: 'text', source: { path: 'manifest.json' } }).entrypoints, [
+    'mod',
+  ])
+  assert.deepEqual(
+    parseModDefinition({
+      ...base,
+      type: 'text',
+      source: { path: 'manifest.json' },
+      entrypoints: ['mod', 'miniapp'],
+    }).entrypoints,
+    ['mod', 'miniapp']
+  )
+  for (const entrypoints of [null, [], ['miniapp', 'miniapp'], ['unknown']]) {
+    assert.throws(
+      () => parseModDefinition({ ...base, type: 'text', source: { path: 'manifest.json' }, entrypoints }),
+      /entrypoints/
+    )
+  }
   for (const path of ['/manifest.json', '../manifest.json', 'mod/../manifest.json', 'mod\\manifest.json']) {
     assert.throws(() => validatePackagePath(path), /安全な相対パス/)
   }

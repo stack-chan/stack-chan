@@ -33,6 +33,7 @@ $ npm run flash
 `npm run flash` は標準構成のホストをビルドして書き込みます。
 Stack-chan RT やタカオ版 Core2 + SG90 では `npm run flash:stackchan_rt` または `npm run flash:takao_core2_sg90` を使います。
 MOD の開発だけを繰り返す場合は `npm run mod -- mods/examples/look_around/manifest.json` のように MOD の manifest を指定します。
+このコマンドは xsbug の書き込み経路を使わずにアーカイブをビルドし、実機の `xs` パーティションを検出して `esptool` で書き込むため、ホストは debug build と release build のどちらでも構いません。
 
 ## ビルド出力
 
@@ -42,7 +43,8 @@ MOD の開発だけを繰り返す場合は `npm run mod -- mods/examples/look_a
 - ホストアプリケーション名は `stack-chan-host` です。
 - `npm run clean` は `firmware/dist/` 配下の生成物をすべて削除します。
 - リポジトリのビルド手順では、独自の `-o` を指定したり、`mcconfig`、`mcrun`、`mcpack` を直接実行したりしないでください。
-- `npm run bundle` は例外です。`mcbundle` が内部で生成する標準デバイス向け中間生成物は `$MODDABLE/build/` に残ります。Stack-chan 固有の bundle ターゲットには `firmware/dist/` が使われます。
+- `npm run bundle` は各 release ターゲットを `firmware/dist/` 配下でビルドし、検証済みのターゲット成果物を `firmware/dist/bundle-targets/` に集約します。最終的なディレクトリと ZIP は `firmware/host/app/` 配下に生成されます。
+- ターゲット単位の release build には名前付きの `build:release:<target>` script を使います。CI も同じ script でビルドし、`bundle:package` で成果物を組み立てます。
 
 ターゲット別のコマンドと詳しい出力先は、[プログラムのビルドと書き込み](docs/flashing-firmware_ja.md)を参照してください。
 

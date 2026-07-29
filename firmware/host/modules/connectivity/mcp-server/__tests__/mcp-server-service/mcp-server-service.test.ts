@@ -1,4 +1,5 @@
 import { MCPServerService, type Tool } from 'mcp-server'
+import { equal } from 'testing/assert'
 
 // Example tool: Hello World
 const helloWorldTool: Tool = {
@@ -63,28 +64,34 @@ const getCurrentTimeTool: Tool = {
 // Start MCP Server
 trace('Starting MCP Server Test...\n')
 
+const testPort = 18080
 const server = new MCPServerService({
-  port: 8080,
+  port: testPort,
+  token: 'test-token',
   tools: [helloWorldTool, addNumbersTool, getCurrentTimeTool],
 })
+equal(server.status, 'running', 'server should expose its listener status')
 
 trace('MCP Server started with tools:\n')
 for (const tool of server.getTools()) {
   trace(`  - ${tool.name}: ${tool.description}\n`)
 }
 
-trace('Server is running on http://localhost:8080\n')
-trace('Health check endpoint: GET http://localhost:8080/health\n')
-trace('MCP endpoint: POST http://localhost:8080/mcp\n')
+trace(`Server is running on http://localhost:${testPort}\n`)
+trace(`Health check endpoint: GET http://localhost:${testPort}/health\n`)
+trace(`MCP endpoint: POST http://localhost:${testPort}/mcp\n`)
 trace('\nExample requests:\n')
 trace('1. Initialize:\n')
 trace('   POST /mcp\n')
+trace('   Authorization: Bearer test-token\n')
 trace('   {"jsonrpc":"2.0","id":"1","method":"initialize","params":{}}\n\n')
 trace('2. List tools:\n')
 trace('   POST /mcp\n')
+trace('   Authorization: Bearer test-token\n')
 trace('   {"jsonrpc":"2.0","id":"2","method":"tools/list","params":{}}\n\n')
 trace('3. Call tool:\n')
 trace('   POST /mcp\n')
+trace('   Authorization: Bearer test-token\n')
 trace(
   '   {"jsonrpc":"2.0","id":"3","method":"tools/call","params":{"name":"hello_world","arguments":{"name":"Stack-chan"}}}\n\n',
 )

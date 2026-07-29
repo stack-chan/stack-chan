@@ -1036,13 +1036,18 @@ function eventHandler(body, errorTag, blockId, param = 'event') {
   )
 }
 
+/** Refresh the localized block definitions without re-registering generators. */
+export function defineStackchanBlocks(Blockly) {
+  Blockly.defineBlocksWithJsonArray(localizeBlocklyData(BLOCK_DEFINITIONS))
+}
+
 /**
  * Register Stack-chan blocks and their JavaScript generators.
  * `Blockly` is the UMD global; `generator` is javascript.javascriptGenerator.
  */
 export function registerStackchanBlocks(Blockly, generator, Order) {
   configureVisualGenerator(generator)
-  Blockly.defineBlocksWithJsonArray(localizeBlocklyData(BLOCK_DEFINITIONS))
+  defineStackchanBlocks(Blockly)
 
   const forBlock = generator.forBlock ?? generator
 

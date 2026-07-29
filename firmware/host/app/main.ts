@@ -1,10 +1,13 @@
 import loadPreferences, { loadPreferenceConfig } from 'loadPreference'
-import { runContextCreatedBehaviors, runLaunchBehaviors, type StackchanAppBehavior } from 'app-behavior'
+import { runContextCreatedBehaviors, type StackchanAppBehavior } from 'app-behavior'
 import { resolveAppBehaviors } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
+import { prepareAppLaunch } from 'app-launch'
 import { type BootWiFiStatus, startHostBootServices } from 'boot-services'
+import type { StackchanContext } from 'capabilities'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
 import { DOMAIN } from 'consts'
+import { type StackchanDockRuntime, startStackchanDock } from 'dock'
 import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'experimental-mini-app-loader'
 import { initializeLocalization } from 'localization'
 import Modules from 'modules'
@@ -28,12 +31,9 @@ function installPlatformInputBridge(): void {
   trace('[main] installed WASM button bridge\n')
 }
 
-function loadAppBehaviors(miniAppArchivePresent: boolean): StackchanAppBehavior[] {
+function loadAppBehaviors(): StackchanAppBehavior[] {
   trace('[main] checking mod override\n')
-  if (miniAppArchivePresent) {
-    trace('[main] miniapp archive present; host-realm mod override disabled\n')
-  }
-  return resolveAppBehaviors(Modules, defaultBehavior, { allowModOverride: !miniAppArchivePresent })
+  return resolveAppBehaviors(Modules, defaultBehavior)
 }
 
 function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string }): Promise<'retry' | 'offline'> {
@@ -74,36 +74,60 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string
 
 async function main() {
   trace('[main] start\n')
-  installPlatformInputBridge()
-  initializeLocalization(loadPreferences(DOMAIN.ui).language)
-  const miniAppArchivePresent = Modules.has('miniapp')
-  const experimentalMiniApps = prepareExperimentalMiniApps()
+  let dockRuntime: StackchanDockRuntime | undefined
+  let context: StackchanContext | undefined
+  try {
+    dockRuntime = startStackchanDock(Modules)
+    if (dockRuntime) trace('[main] Stackchan Dock started\n')
+    installPlatformInputBridge()
+    initializeLocalization(loadPreferences(DOMAIN.ui).language)
 
-  trace('[main] loading app behaviors\n')
-  const appBehaviors = loadAppBehaviors(miniAppArchivePresent)
-  // Launch behaviors run before startHostBootServices so the splash screen is
-  // visible while network setup blocks.
-  const shouldCreateContext = await runLaunchBehaviors(appBehaviors)
-  trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
-  if (!shouldCreateContext) return
+    trace('[main] loading app behaviors\n')
+    const appBehaviors = loadAppBehaviors()
+    // Launch behaviors run before startHostBootServices so the splash screen is
+    // visible while network setup blocks.
+    const launch = await prepareAppLaunch(appBehaviors, prepareExperimentalMiniApps)
+    trace(`[main] onLaunch shouldCreateContext=${launch.shouldCreateContext}\n`)
+    if (!launch.shouldCreateContext) {
+      const unownedDock = dockRuntime
+      dockRuntime = undefined
+      unownedDock?.close()
+      return
+    }
+    const experimentalMiniApps = launch.prepared
 
-  const bootServices = startHostBootServices({
-    wifi: {
-      onStatusChanged: showWiFiConnectionStatus,
-      promptRecoveryChoice: waitForBootWiFiRecoveryChoice,
-    },
-  })
-  const networkReady = await bootServices.connectivity.network.ready
-  trace(`[main] network ready: ${networkReady.status}\n`)
-  const preferences = loadPreferenceConfig()
-  const context = createStackchanContext(preferences, { connectivity: bootServices.connectivity })
-  registerExperimentalMiniApps(experimentalMiniApps, context.ui.miniApps)
-  trace('[main] app context created\n')
-  await runContextCreatedBehaviors(appBehaviors, context, {
-    device: getHostDeviceEnvironment(),
-    config: preferences,
-  })
-  trace('[main] app behaviors ready\n')
+    const bootServices = startHostBootServices({
+      wifi: {
+        onStatusChanged: showWiFiConnectionStatus,
+        promptRecoveryChoice: waitForBootWiFiRecoveryChoice,
+      },
+    })
+    const networkReady = await bootServices.connectivity.network.ready
+    trace(`[main] network ready: ${networkReady.status}\n`)
+    const preferences = loadPreferenceConfig()
+    const ownedDock = dockRuntime
+    context = createStackchanContext(preferences, {
+      connectivity: bootServices.connectivity,
+      remoteConversationSession: ownedDock?.remoteConversationSession,
+      closeHandlers: ownedDock ? [() => ownedDock.close()] : undefined,
+    })
+    ownedDock?.onContextCreated(context)
+    registerExperimentalMiniApps(experimentalMiniApps, context.ui.miniApps)
+    trace('[main] app context created\n')
+    await runContextCreatedBehaviors(appBehaviors, context, {
+      device: getHostDeviceEnvironment(),
+      config: preferences,
+    })
+    trace('[main] app behaviors ready\n')
+  } catch (error) {
+    try {
+      if (context) await context.lifecycle.close()
+      else dockRuntime?.close()
+    } catch (closeError) {
+      trace(`[main] cleanup error ${closeError instanceof Error ? closeError.message : String(closeError)}\n`)
+    }
+    throw error
+  }
 }
 
 main().catch((error) => {

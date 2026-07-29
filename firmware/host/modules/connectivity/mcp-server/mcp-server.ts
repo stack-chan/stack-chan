@@ -1,5 +1,8 @@
+import { DOMAIN } from 'consts'
 import Headers from 'headers'
 import listen, { Response } from 'listen'
+import { authorizeMCPRequest, normalizeMCPToken } from 'mcp-auth'
+import Preference from 'preference'
 
 /**
  * MCP Tool parameter definition
@@ -27,7 +30,10 @@ export interface Tool {
 export interface MCPServerConfig {
   port?: number
   tools?: Tool[]
+  token?: string
 }
+
+export type MCPServerStatus = 'starting' | 'running' | 'failed'
 
 /**
  * HTTP Connection interface
@@ -44,6 +50,9 @@ interface HTTPRequest {
   method?: string
   url?: {
     pathname?: string
+  }
+  headers?: {
+    get: (name: string) => string | null | undefined
   }
   text: () => Promise<string | undefined>
 }
@@ -139,15 +148,23 @@ interface MCPResponse extends MCPMessage {
 export class MCPServerService {
   #tools: Map<string, Tool> = new Map()
   #port: number
+  #token?: string
+  #status: MCPServerStatus = 'starting'
+  #error?: string
 
   constructor(config: MCPServerConfig = {}) {
     this.#port = config.port ?? 8080
+    this.#token = normalizeMCPToken(config.token) ?? normalizeMCPToken(Preference.get(DOMAIN.mcp, 'token'))
 
     // Register provided tools
     if (config.tools) {
       for (const tool of config.tools) {
         this.#tools.set(tool.name, tool)
       }
+    }
+
+    if (!this.#token) {
+      trace('MCP Server authentication token is not configured; POST /mcp requests will be rejected\n')
     }
 
     this.#startServer()
@@ -174,6 +191,14 @@ export class MCPServerService {
     return Array.from(this.#tools.values())
   }
 
+  get status(): MCPServerStatus {
+    return this.#status
+  }
+
+  get error(): string | undefined {
+    return this.#error
+  }
+
   /**
    * Start the HTTP server
    */
@@ -181,10 +206,13 @@ export class MCPServerService {
     trace(`MCP Server starting on port ${this.#port}\n`)
 
     try {
+      this.#status = 'running'
       for await (const connection of listen({ port: this.#port })) {
         this.#handleConnection(connection)
       }
     } catch (error) {
+      this.#status = 'failed'
+      this.#error = String(error)
       trace(`Failed to start MCP server: ${error}\n`)
     }
   }
@@ -201,7 +229,14 @@ export class MCPServerService {
       let response: Response
 
       if (method === 'POST' && pathname === '/mcp') {
-        response = await this.#handleMCPMessage(request)
+        const authResult = authorizeMCPRequest(this.#getAuthorizationHeader(request), this.#token)
+        if (authResult.authorized === false) {
+          response = this.#createResponse(401, {
+            error: 'Unauthorized',
+          })
+        } else {
+          response = await this.#handleMCPMessage(request)
+        }
       } else if (method === 'GET' && pathname === '/health') {
         response = this.#createResponse(200, { status: 'ok' })
       } else {
@@ -214,6 +249,10 @@ export class MCPServerService {
       const errorResponse = this.#createResponse(500, { error: 'Internal Server Error' })
       connection.respondWith(errorResponse)
     }
+  }
+
+  #getAuthorizationHeader(request: HTTPRequest): string | null | undefined {
+    return request.headers?.get('authorization') ?? request.headers?.get('Authorization')
   }
 
   /**
@@ -342,9 +381,6 @@ export class MCPServerService {
     const body = JSON.stringify(data)
     const headers = new Headers()
     headers.set('Content-Type', 'application/json')
-    headers.set('Access-Control-Allow-Origin', '*')
-    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    headers.set('Access-Control-Allow-Headers', 'Content-Type')
 
     return new Response(body, {
       status,

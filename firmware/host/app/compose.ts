@@ -2,7 +2,15 @@ import type { PreferenceConfig } from 'loadPreference'
 import { createAppControllerApplication } from 'app-controller'
 import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
 import Camera from 'camera'
-import type { ConnectivityCapability, RobotLed, RobotUI, StackchanContext, TTS, WebRadioCapability } from 'capabilities'
+import type {
+  ConnectivityCapability,
+  RemoteConversationSession,
+  RobotLed,
+  RobotUI,
+  StackchanContext,
+  TTS,
+  WebRadioCapability,
+} from 'capabilities'
 import { ChatStatusBar } from 'chat-status-bar'
 import type { DrawerButtonViewSpec } from 'drawer'
 import { DynamixelDriver } from 'dynamixel-driver'
@@ -45,6 +53,8 @@ type UIOptions = {
 
 export type StackchanContextOptions = {
   connectivity?: ConnectivityCapability
+  remoteConversationSession?: RemoteConversationSession
+  closeHandlers?: ReadonlyArray<() => void | Promise<void>>
 }
 
 type GlobalEnvironment = {
@@ -239,6 +249,8 @@ export function createStackchanContext(
     touchPanel,
     imu,
     connectivity: options.connectivity,
+    remoteConversationSession: options.remoteConversationSession,
+    closeHandlers: options.closeHandlers,
     speaker,
     webRadio,
     microphone,

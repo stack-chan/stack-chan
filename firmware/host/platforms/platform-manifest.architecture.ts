@@ -145,6 +145,20 @@ describe('Stack-chan platform manifest', () => {
     assert.match(defaultBehaviorSource, /^const CAMERA_PREVIEW_CAPTURE_HEIGHT = 120$/m)
   })
 
+  test('CoreS3 XS heap growth stays in PSRAM and preserves DMA-capable internal RAM', () => {
+    const alwaysInternalMatch = coreS3SdkconfigSource.match(/^CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=(\d+)$/m)
+    assert.ok(alwaysInternalMatch, 'CoreS3 sdkconfig should declare the internal allocation threshold')
+    const alwaysInternal = Number(alwaysInternalMatch[1])
+    const heap = esp32PlatformManifest.platforms['esp32/m5stack_cores3'].creation.heap
+    const esp32XsSlotBytes = 16
+
+    assert.ok(heap.initial * esp32XsSlotBytes > alwaysInternal)
+    assert.ok(
+      heap.incremental * esp32XsSlotBytes > alwaysInternal,
+      'incremental XS slot blocks must bypass ESP-IDF always-internal allocation so display SPI keeps DMA memory',
+    )
+  })
+
   test('the M5StackChan CoreS3 smoke MOD exercises hardware APIs and documents real npm scripts', () => {
     const smokeSource = readFileSync('mods/examples/m5stackchan_smoke/mod.js', 'utf8')
     const smokeDocs = readFileSync('docs/m5stackchan-cores3-smoke.md', 'utf8')

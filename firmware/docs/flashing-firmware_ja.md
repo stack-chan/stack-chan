@@ -122,7 +122,7 @@ $ npm run flash
 ビルドしたプログラムと中間生成物は `firmware/dist/bin/` と `firmware/dist/tmp/` 配下に保存されます。
 ホストアプリケーション名は `stack-chan-host` です。
 `npm run clean` を実行すると、`firmware/dist/` 配下の生成物をすべて削除できます。
-`npm run bundle` は例外で、`mcbundle` が生成する標準デバイス向け中間生成物は `$MODDABLE/build/` に保存されます。
+`npm run bundle` でも各ターゲットのビルド出力は `firmware/dist/` 配下に保存され、検証済みの成果物は `firmware/dist/bundle-targets/` に集約されます。最終的なディレクトリと ZIP は `firmware/host/app/` 配下に生成されます。
 
 ### Stack-chan サブプラットフォーム
 
@@ -134,6 +134,7 @@ Stack-chan の各ハードウェア構成は、サーボの driver 種別とバ�
 | ビルドから書き込みまで    | `npm run flash` または `npm run flash:m5stackchan_cores3` | `npm run flash:stackchan_rt` | `npm run flash:takao_core2_sg90` |
 | deploy task を実行        | `npm run deploy` または `npm run deploy:m5stackchan_cores3` | `npm run deploy:stackchan_rt` | `npm run deploy:takao_core2_sg90` |
 | デバッグ（xsbug）         | `npm run debug` または `npm run debug:m5stackchan_cores3` | `npm run debug:stackchan_rt` | `npm run debug:takao_core2_sg90` |
+| デバッグ（xsdb）          | `npm run debug:xsdb` または `npm run debug:xsdb:m5stackchan_cores3` | `npm run debug:xsdb:stackchan_rt` | `npm run debug:xsdb:takao_core2_sg90` |
 | MOD の書き込み            | `npm run mod -- [modのパス]` または `npm run mod:m5stackchan_cores3 -- [modのパス]` | `npm run mod:stackchan_rt -- [modのパス]` | `npm run mod:takao_core2_sg90 -- [modのパス]` |
 
 ボード固有の driver 種別とサーボバスのピンは、各サブプラットフォームの manifest にまとまっています。
@@ -169,6 +170,18 @@ Stack-chan RT やタカオ版 Core2 + SG90 では、上の表にあるボード�
 `xsbug`を使うとログの確認やブレークポイントの設定（プログラムの特定行で一時停止する）、ステップ実行（プログラムを1行ずつ実行する）などができます。
 `xsbug`の詳しい使い方は[公式ドキュメント（英語）](https://github.com/Moddable-OpenSource/moddable/blob/public/documentation/xs/xsbug.md)を参照してください。
 
+ターミナル上の`xsdb`を使う場合は次のコマンドを実行します。
+
+```console
+$ npm run debug:xsdb
+```
+
+複数のシリアルデバイスがある場合は、`--port`で対象を指定できます。
+
+```console
+$ npm run debug:xsdb -- --port /dev/ttyACM1
+```
+
 ## （オプション）ユーザアプリケーション（MOD）の書き込み
 
 次のコマンドでユーザアプリケーション（MOD）の書き込みを行います。
@@ -177,6 +190,16 @@ _コマンドに`sudo`をつける必要はありません。_
 
 ```console
 $ npm run mod -- [modのマニフェストファイルのパス]
+```
+
+`npm run mod`は`mcrun -t build`でXSアーカイブを生成した後、`esptool`で実機のpartition tableを読み、type `0x40` / subtype `1`の`xs`パーティションへ直接書き込みます。
+パーティションのoffsetは実機から取得され、アーカイブの形式、領域サイズ、選択したチップ、Moddable firmware descriptorを確認してから書き込みとverifyを行います。
+xsbugの書き込みチャネルを使わないため、ホストはdebug buildとrelease buildのどちらでも構いません。
+
+複数のシリアルデバイスがある場合は、`--port`または`STACKCHAN_PORT`で対象を指定してください。
+
+```console
+$ npm run mod -- ./mods/examples/look_around/manifest.json --port /dev/ttyACM1
 ```
 
 標準のコマンドは、JavaScript module を解決する MOD manifest を対象にします。
@@ -198,7 +221,8 @@ $ npm run mod -- ./mods/examples/look_around/manifest.json
 # xsc check.xsb
 # xsc mod/config.xsb
 # xsl look_around.xsa
-Installing mod...complete
+[stack-chan] MOD preflight: xs_esp32 8.3.1, XS 17.8.0, xs=0xfa0000/262144
+[stack-chan] MOD installed and verified: .../look_around.xsa
 ```
 
 ## (オプショナル)フラッシュ領域の消去

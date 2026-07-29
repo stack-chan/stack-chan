@@ -126,6 +126,45 @@ button:disabled,
   color: var(--danger);
 }
 
+.guidance-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.guidance-callout-warning {
+  border-color: color-mix(in srgb, var(--warning) 50%, var(--line));
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+}
+
+.guidance-callout > svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.guidance-callout-warning > svg {
+  color: var(--warning);
+}
+
+.guidance-callout strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.guidance-callout p {
+  margin: 0;
+}
+
 .icon-button {
   width: 42px;
   min-width: 42px;

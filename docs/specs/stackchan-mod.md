@@ -32,6 +32,19 @@ Moddableの`manifest.json`はビルド方法を定義します。
 
 `type: "block"`では、`source.path`が`.stackchan-blocks.json`を指します。
 
+## 実行入口
+
+任意の`entrypoints`は、XS archiveが公開する実行入口を列挙します。
+省略時は従来どおり`["mod"]`として扱います。
+
+- `mod`：ホストrealmで実行するapp behaviorです。
+- `miniapp`：制限されたCompartmentで定義を読み込み、ホスト所有のviewportへPiu UIを表示します。
+
+二つを同じarchiveへ含める場合は`["mod", "miniapp"]`を指定します。
+ホストは両者を独立して読み込みますが、`mod.onLaunch()`が`false`を返した場合はpackage全体の起動を中止し、mini-appも登録しません。
+
+`mod`を含むpackageはホストrealmで任意の処理を実行できるため、mini-app側のcontainmentにかかわらずpackage全体を信頼できる場合だけインストールしてください。
+
 ## 実行成果物
 
 ビルド済みXSアーカイブを配布するMODは、任意の`artifacts`へ成果物を列挙します。

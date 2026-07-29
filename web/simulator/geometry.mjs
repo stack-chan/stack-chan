@@ -39,6 +39,10 @@ export const STACKCHAN_SHELL_STL = Object.freeze({
   faceIncluded: false,
 })
 
+export function resolveSimulatorAssetUrl(relativeUrl, runtimeBaseUrl) {
+  return new URL(relativeUrl, runtimeBaseUrl).href
+}
+
 export const SCREEN_CANVAS = Object.freeze({
   width: 320,
   height: 240,
@@ -203,7 +207,11 @@ export function computeShellScaleForM5Stack({
 
 export function computeShellPlacementFromBounds(
   bounds,
-  { scale = computeShellScaleForM5Stack(), rotationOffset = STACKCHAN_SHELL_STL.rotationOffset, tuning = computeGeometryTuning() } = {}
+  {
+    scale = computeShellScaleForM5Stack(),
+    rotationOffset = STACKCHAN_SHELL_STL.rotationOffset,
+    tuning = computeGeometryTuning(),
+  } = {}
 ) {
   const size = {
     x: bounds.max.x - bounds.min.x,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { createModStorage, formatByteSize, validateModArchive } from './mod-storage.mjs'
+import { createMemoryModStorage, createModStorage, formatByteSize, validateModArchive } from './mod-storage.mjs'
 
 function makeArchive(payload = []) {
   const bytes = new Uint8Array(8 + payload.length)
@@ -119,6 +119,19 @@ describe('MOD storage', () => {
 
     assert.equal(installed.name, 'memory.xsa')
     assert.deepEqual(installed.bytes, bytes)
+    assert.equal(installed.storage, 'memory')
+  })
+
+  it('creates an explicitly session-scoped memory store', async () => {
+    const storage = createMemoryModStorage()
+    const bytes = makeArchive([4, 2])
+
+    await storage.saveInstalledMod({ name: 'session.xsa', bytes })
+
+    const installed = await storage.loadInstalledMod()
+    assert.equal(installed.name, 'session.xsa')
+    assert.deepEqual(installed.bytes, bytes)
+    assert.equal(installed.size, bytes.byteLength)
     assert.equal(installed.storage, 'memory')
   })
 

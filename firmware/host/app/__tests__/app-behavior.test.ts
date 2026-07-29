@@ -12,10 +12,12 @@ type AppBehavior = {
 }
 
 type AppBehaviorResolverModule = typeof import('app-behavior-resolver')
+type AppLaunchModule = typeof import('app-launch')
 
 function installBareSpecifierPackages(): void {
   const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
   writeAliasPackage(hostRoot, 'app-behavior-resolver', resolve(hostRoot, 'app/app-behavior-resolver.js'))
+  writeAliasPackage(hostRoot, 'app-launch', resolve(hostRoot, 'app/app-launch.js'))
 }
 
 test('resolveAppBehaviors runs only the product default behavior when no MOD is installed', async () => {
@@ -82,16 +84,75 @@ test('resolveAppBehaviors falls back to default launch when MOD only handles con
   assert.equal(behavior.onContextCreated, modContextCreated)
 })
 
-test('resolveAppBehaviors never imports a host-realm MOD when overrides are disabled', async () => {
+test('resolveAppBehaviors imports MOD independently from other archive entrypoints', async () => {
   installBareSpecifierPackages()
   const { resolveAppBehaviors } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
   const defaultBehavior: AppBehavior = { onLaunch: () => true }
+  const modBehavior: AppBehavior = { onContextCreated: () => {} }
+  const importedSpecifiers: string[] = []
   const modules: AppBehaviorModules = {
-    has: () => true,
-    importNow: () => {
-      throw new Error('disabled MOD overrides must not be imported')
+    has: (specifier) => specifier === 'mod' || specifier === 'miniapp',
+    importNow: (specifier) => {
+      importedSpecifiers.push(specifier)
+      return modBehavior
     },
   }
 
-  assert.deepEqual(resolveAppBehaviors(modules, defaultBehavior, { allowModOverride: false }), [defaultBehavior])
+  const [behavior] = resolveAppBehaviors(modules, defaultBehavior)
+  assert.equal(behavior.onContextCreated, modBehavior.onContextCreated)
+  assert.deepEqual(importedSpecifiers, ['mod'])
+})
+
+test('prepareAppLaunch skips post-approval preparation when a MOD rejects launch', async () => {
+  installBareSpecifierPackages()
+  const { prepareAppLaunch } = (await import('app-launch')) as AppLaunchModule
+  const events: string[] = []
+
+  const result = await prepareAppLaunch(
+    [
+      {
+        onLaunch() {
+          events.push('launch')
+          return false
+        },
+      },
+    ],
+    () => {
+      events.push('prepare')
+      return 'mini-apps'
+    },
+  )
+
+  assert.deepEqual(result, { shouldCreateContext: false })
+  assert.deepEqual(events, ['launch'])
+})
+
+test('prepareAppLaunch prepares mini-apps after every launch behavior approves', async () => {
+  installBareSpecifierPackages()
+  const { prepareAppLaunch } = (await import('app-launch')) as AppLaunchModule
+  const events: string[] = []
+
+  const result = await prepareAppLaunch(
+    [
+      {
+        onLaunch() {
+          events.push('launch:first')
+          return true
+        },
+      },
+      {
+        async onLaunch() {
+          events.push('launch:second')
+          return true
+        },
+      },
+    ],
+    () => {
+      events.push('prepare')
+      return 'mini-apps'
+    },
+  )
+
+  assert.deepEqual(result, { shouldCreateContext: true, prepared: 'mini-apps' })
+  assert.deepEqual(events, ['launch:first', 'launch:second', 'prepare'])
 })

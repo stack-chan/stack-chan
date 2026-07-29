@@ -1,7 +1,7 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { RobotCamera } from 'camera'
 import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
-import type { Emotion, FaceState, FaceThemeKey } from 'face-state'
+import type { Emotion, FaceEyeKey, FaceState, FaceThemeKey } from 'face-state'
 import type { HandAnimationName } from 'hands'
 import type IMU from 'imu'
 import type { ButtonInputEvent } from 'input-event'
@@ -99,6 +99,7 @@ export type DrawerCapability = {
 export type FaceCapability = {
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void
   setEmotion(emotion: Emotion): void
+  setEyeOpen(key: FaceEyeKey, value: number): void
   setMouthOpen(value: number): void
 }
 
@@ -174,8 +175,22 @@ export type CameraCapability = {
   camera: RobotCamera
 }
 
+export type RemoteConversationState = 'standby' | 'connecting' | 'listening' | 'recognizing' | 'speaking' | 'blocked'
+export type RemoteConversationTransportState = 'disconnected' | 'unsupported' | 'ready'
+
+export type RemoteConversationSession = {
+  readonly state: RemoteConversationState
+  readonly lastError?: string
+  readonly transportState: RemoteConversationTransportState
+  requestStart(): string
+  requestStop(): string
+  subscribe(listener: (state: RemoteConversationState, error?: string) => void): () => void
+  subscribeTransport(listener: (state: RemoteConversationTransportState) => void): () => void
+}
+
 export type ConversationCapability = {
   say(text: string, volume?: number): Promise<Maybe<string>>
+  remoteSession?: RemoteConversationSession
 }
 
 export type NetworkReadyResult =
@@ -201,7 +216,7 @@ export type NetworkCapability = {
 
 export type ConnectivityCapability = {
   network?: NetworkCapability
-  /** Connectionless local peer messaging. Present only on supported Wi-Fi targets. */
+  /** Nearby peer messaging over a platform-supported transport such as ESP-NOW or BLE Serial. */
   localPeer?: LocalPeerCapability
 }
 

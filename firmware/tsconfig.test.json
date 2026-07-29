@@ -25,6 +25,9 @@
       "capabilities": [
         "host/modules/testing/fakes/capabilities.ts"
       ],
+      "crypt": [
+        "host/modules/connectivity/__tests__/fakes/crypt.ts"
+      ],
       "audio-buffer": [
         "host/modules/audio/audio-buffer.ts"
       ],
@@ -118,6 +121,9 @@
       "consts": [
         "host/modules/preferences/consts.ts"
       ],
+      "mcp-auth": [
+        "host/modules/connectivity/mcp-server/mcp-auth.ts"
+      ],
       "modules": [
         "host/modules/testing/fakes/modules.ts"
       ],
@@ -163,6 +169,9 @@
       "app-behavior-resolver": [
         "host/app/app-behavior-resolver.ts"
       ],
+      "app-launch": [
+        "host/app/app-launch.ts"
+      ],
       "app-default-behavior/startup-choice": [
         "host/app/default-behavior/startup-choice.ts"
       ],
@@ -181,11 +190,17 @@
       "local-peer-codec": [
         "host/modules/connectivity/local-peer-codec.ts"
       ],
+      "local-peer-auth": [
+        "host/modules/connectivity/local-peer-auth.ts"
+      ],
       "local-peer-frame": [
         "host/modules/connectivity/local-peer-frame.ts"
       ],
       "local-peer-radio-types": [
         "host/modules/connectivity/local-peer-radio-types.ts"
+      ],
+      "ble-local-peer-record": [
+        "host/modules/connectivity/ble/local-peer-record.ts"
       ],
       "local-peer-service": [
         "host/modules/connectivity/local-peer-service.ts"
@@ -195,6 +210,48 @@
       ],
       "stackchan-util": [
         "host/modules/util/stackchan-util.ts"
+      ],
+      "stackchan-application-event": [
+        "host/app/remote-session/application-event.ts"
+      ],
+      "stackchan-approval-model": [
+        "host/app/remote-session/approval-model.ts"
+      ],
+      "stackchan-approval-session": [
+        "host/app/remote-session/approval-session.ts"
+      ],
+      "stackchan-conversation-session": [
+        "host/app/remote-session/conversation-session.ts"
+      ],
+      "stackchan-realtime-session": [
+        "host/app/remote-session/realtime-session.ts"
+      ],
+      "stackchan-remote-session-runtime": [
+        "host/app/remote-session/runtime.ts"
+      ],
+      "stackchan-owned-resources": [
+        "host/app/owned-resources.ts"
+      ],
+      "stackchan-usb-media-session": [
+        "host/modules/usb-audio/media-session.ts"
+      ],
+      "stackchan-usb-protocol": [
+        "host/modules/usb-audio/protocol.ts"
+      ],
+      "stackchan-usb-event-frame-queue": [
+        "host/modules/usb-audio/event-frame-queue.ts"
+      ],
+      "stackchan-usb-event-send-requests": [
+        "host/modules/usb-audio/event-send-requests.ts"
+      ],
+      "stackchan-usb-event-transport": [
+        "host/modules/usb-audio/event-transport.ts"
+      ],
+      "stackchan-usb-audio-core": [
+        "host/modules/usb-audio/__tests__/audio-core-types.ts"
+      ],
+      "web-radio-byte-ring": [
+        "host/modules/audio/platforms/m5stackchan-cores3/shared-byte-ring.ts"
       ]
     },
     "types": [

@@ -276,6 +276,21 @@ async function testFailedOpenCleanup(): Promise<void> {
   session.close()
 }
 
+async function testTransportSelection(): Promise<void> {
+  const network = new FakeRadioNetwork()
+  const service = new LocalPeerService('001122334455', {
+    defaultTransport: 'ble',
+    factories: { ble: network.factory('001122334455') },
+  })
+  const session = await service.open({ service: 'test.stackchan' })
+  session.close()
+  await expectCode(
+    service.open({ service: 'test.stackchan', transport: 'espnow' }),
+    'not-supported',
+    'an unavailable explicit transport should be rejected',
+  )
+}
+
 async function testCloseAndWildcard(): Promise<void> {
   const pair = await openPair()
   const wildcardMessages: LocalPeerMessage[] = []
@@ -321,6 +336,7 @@ async function runTest(): Promise<void> {
   await testSharedKey()
   await testPeerRegistrationFailure()
   await testFailedOpenCleanup()
+  await testTransportSelection()
   await testCloseAndWildcard()
   await testCloseFromSubscriber()
   trace('ok\n')

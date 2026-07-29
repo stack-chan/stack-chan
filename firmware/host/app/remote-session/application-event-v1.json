@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "applicationSchema": "stackchan.event.v1",
+  "acceptedInbound": [
+    {
+      "schema": "stackchan.event.v1",
+      "type": "conversation.result",
+      "requestId": "conversation-1",
+      "success": true,
+      "state": "listening"
+    },
+    {
+      "schema": "stackchan.event.v1",
+      "type": "approval.request",
+      "requestId": "approval-1",
+      "kind": "command",
+      "title": "Run tests",
+      "summary": "npm test",
+      "detail": "npm test",
+      "truncated": false
+    },
+    {
+      "schema": "stackchan.event.v1",
+      "type": "approval.resolved",
+      "requestId": "approval-1",
+      "message": "done"
+    },
+    {
+      "schema": "stackchan.event.v1",
+      "type": "approval.suspended",
+      "requestId": "approval-2"
+    }
+  ],
+  "rejectedInbound": [
+    {
+      "schema": "other.v1",
+      "type": "conversation.result",
+      "requestId": "conversation-1",
+      "success": true,
+      "state": "listening"
+    },
+    {
+      "schema": "stackchan.event.v1",
+      "type": "conversation.result",
+      "requestId": "",
+      "success": true,
+      "state": "listening"
+    },
+    {
+      "schema": "stackchan.event.v1",
+      "type": "conversation.result",
+      "requestId": "conversation-1",
+      "success": "yes",
+      "state": "listening"
+    },
+    {
+      "schema": "stackchan.event.v1",
+      "type": "unknown",
+      "requestId": "unknown-1"
+    }
+  ],
+  "outbound": [
+    {
+      "builder": "conversation.start",
+      "requestId": "conversation-start-1",
+      "expected": {
+        "schema": "stackchan.event.v1",
+        "type": "conversation.start",
+        "requestId": "conversation-start-1",
+        "source": "headTouch",
+        "gesture": "forwardSwipe"
+      }
+    },
+    {
+      "builder": "conversation.stop",
+      "requestId": "conversation-stop-1",
+      "expected": {
+        "schema": "stackchan.event.v1",
+        "type": "conversation.stop",
+        "requestId": "conversation-stop-1",
+        "source": "headTouch",
+        "gesture": "backwardSwipe"
+      }
+    },
+    {
+      "builder": "approval.presented",
+      "requestId": "approval-1",
+      "expected": {
+        "schema": "stackchan.event.v1",
+        "type": "approval.presented",
+        "requestId": "approval-1"
+      }
+    },
+    {
+      "builder": "approval.response.approve",
+      "requestId": "approval-1",
+      "expected": {
+        "schema": "stackchan.event.v1",
+        "type": "approval.response",
+        "requestId": "approval-1",
+        "decision": "approve"
+      }
+    }
+  ]
+}

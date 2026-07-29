@@ -55,8 +55,8 @@
           "incremental": 0
         },
         "heap": {
-          "initial": 4096,
-          "incremental": 256
+          "initial": 4608,
+          "incremental": 1280
         },
         "stack": 512,
         "keys": {
@@ -95,8 +95,8 @@
           "incremental": 0
         },
         "heap": {
-          "initial": 4096,
-          "incremental": 256
+          "initial": 4608,
+          "incremental": 1280
         },
         "stack": 512,
         "keys": {
@@ -113,8 +113,8 @@
           "incremental": 0
         },
         "heap": {
-          "initial": 4096,
-          "incremental": 256
+          "initial": 4608,
+          "incremental": 1280
         },
         "stack": 512,
         "keys": {

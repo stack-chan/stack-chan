@@ -26,24 +26,24 @@
     },
     "esp32/m5stack_cores3": {
       "modules": {
-        "embedded:peripheral/Power/axp2101-base": "$(MODULES)/drivers/peripherals/axp2101/axp2101",
-        "embedded:peripheral/Power/axp2101": "./platforms/axp2101-power-bridge",
+        "axp2101-power-capture": "./platforms/axp2101-power-capture",
         "battery-status": "./platforms/axp2101-battery-status"
-      }
+      },
+      "preload": ["axp2101-power-capture"]
     },
     "esp32/m5stackchan_cores3": {
       "modules": {
-        "embedded:peripheral/Power/axp2101-base": "$(MODULES)/drivers/peripherals/axp2101/axp2101",
-        "embedded:peripheral/Power/axp2101": "./platforms/axp2101-power-bridge",
+        "axp2101-power-capture": "./platforms/axp2101-power-capture",
         "battery-status": "./platforms/axp2101-battery-status"
-      }
+      },
+      "preload": ["axp2101-power-capture"]
     },
     "esp32/stackchan_rt": {
       "modules": {
-        "embedded:peripheral/Power/axp2101-base": "$(MODULES)/drivers/peripherals/axp2101/axp2101",
-        "embedded:peripheral/Power/axp2101": "./platforms/axp2101-power-bridge",
+        "axp2101-power-capture": "./platforms/axp2101-power-capture",
         "battery-status": "./platforms/axp2101-battery-status"
-      }
+      },
+      "preload": ["axp2101-power-capture"]
     }
   },
   "typescript": {

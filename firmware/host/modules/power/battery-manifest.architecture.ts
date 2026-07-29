@@ -5,6 +5,7 @@ import { test } from 'node:test'
 type PlatformDefinition = {
   include?: string[]
   modules?: Record<string, string>
+  preload?: string[]
 }
 
 const manifest = JSON.parse(readFileSync('host/modules/power/manifest.json', 'utf8')) as {
@@ -34,9 +35,18 @@ test('battery status module covers every supported M5 PMIC target', () => {
 
   for (const platform of ['esp32/m5stack_cores3', 'esp32/m5stackchan_cores3', 'esp32/stackchan_rt']) {
     assert.equal(
+      manifest.platforms[platform].modules?.['axp2101-power-capture'],
+      './platforms/axp2101-power-capture',
+      `${platform} should provide the shared PMIC capture module`,
+    )
+    assert.ok(
+      manifest.platforms[platform].preload?.includes('axp2101-power-capture'),
+      `${platform} should install PMIC capture before target setup constructs the AXP2101`,
+    )
+    assert.equal(
       manifest.platforms[platform].modules?.['embedded:peripheral/Power/axp2101'],
-      './platforms/axp2101-power-bridge',
-      `${platform} should capture the existing PMIC instance instead of opening a duplicate I2C address`,
+      undefined,
+      `${platform} should use the target's AXP2101 module instead of attempting a duplicate override`,
     )
   }
 })

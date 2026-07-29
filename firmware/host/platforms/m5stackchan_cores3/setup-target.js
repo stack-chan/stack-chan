@@ -1,5 +1,4 @@
-import { getAxp2101Power } from 'embedded:peripheral/Power/axp2101'
-import baseSetup from 'm5stack-cores3/setup-target'
+import { getAxp2101Power } from 'axp2101-power-capture'
 
 // Mirrors the CoreS3 power-rail setup used by M5Stack/StackChan firmware
 // (`firmware/main/hal/board/stackchan.cc` near the AXP2101 init path) and the
@@ -32,12 +31,12 @@ function patchStackChanPower() {
 }
 
 export default function (done) {
-  baseSetup(() => {
-    try {
-      patchStackChanPower()
-    } catch (error) {
-      trace(`[m5stackchan] AXP2101 power patch failed: ${error}\n`)
-    }
-    done?.()
-  })
+  // The inherited CoreS3 setup precedes this module and constructs the shared
+  // AXP2101 before this board-specific rail configuration runs.
+  try {
+    patchStackChanPower()
+  } catch (error) {
+    trace(`[m5stackchan] AXP2101 power patch failed: ${error}\n`)
+  }
+  done?.()
 }

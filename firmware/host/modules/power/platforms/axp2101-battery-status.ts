@@ -1,4 +1,4 @@
-import { getAxp2101Power } from 'embedded:peripheral/Power/axp2101'
+import { getAxp2101Power } from 'axp2101-power-capture'
 import { readAxp2101BatteryLevel } from 'battery-level'
 
 export default function readBatteryLevel(): number | undefined {

@@ -338,7 +338,7 @@ export function ModGalleryPage() {
                   {
                     label: t('ソースを見る'),
                     icon: FileCode2,
-                    href: mod.sourceUrl.href,
+                    href: mod.sourceViewUrl.href,
                     variant: 'outline',
                   },
                 ]}

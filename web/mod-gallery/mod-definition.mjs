@@ -66,11 +66,21 @@ export function parseModDefinition(value) {
   if (!isRecord(value.source)) throw new TypeError('sourceがありません')
 
   const sourcePath = validatePackagePath(value.source.path, 'source.path')
+  const sourceEntrypoint =
+    value.source.entrypoint === undefined
+      ? undefined
+      : validatePackagePath(value.source.entrypoint, 'source.entrypoint')
   if (value.type === 'block' && !sourcePath.endsWith('.stackchan-blocks.json')) {
     throw new TypeError('block MODのsource.pathは.stackchan-blocks.jsonを指す必要があります')
   }
+  if (value.type === 'block' && sourceEntrypoint !== undefined) {
+    throw new TypeError('block MODではsource.entrypointを指定できません')
+  }
   if (value.type === 'text' && !/(^|\/)manifest[^/]*\.json$/.test(sourcePath)) {
     throw new TypeError('text MODのsource.pathはModdable manifestを指す必要があります')
+  }
+  if (sourceEntrypoint !== undefined && !/\.[cm]?[jt]sx?$/.test(sourceEntrypoint)) {
+    throw new TypeError('text MODのsource.entrypointはJavaScriptまたはTypeScriptを指す必要があります')
   }
 
   const artifacts = value.artifacts === undefined ? [] : value.artifacts
@@ -94,7 +104,7 @@ export function parseModDefinition(value) {
     description: nonEmptyString(value.description, 'description', 400),
     ...(value.author === undefined ? {} : { author: nonEmptyString(value.author, 'author', 120) }),
     ...(value.license === undefined ? {} : { license: nonEmptyString(value.license, 'license', 80) }),
-    source: { path: sourcePath },
+    source: { path: sourcePath, ...(sourceEntrypoint === undefined ? {} : { entrypoint: sourceEntrypoint }) },
     entrypoints,
     targets: stringList(value.targets, 'targets', { required: true }),
     capabilities: stringList(value.capabilities, 'capabilities'),
@@ -133,6 +143,7 @@ export async function loadModCatalog(catalogUrl, fetcher = globalThis.fetch) {
         ...definition,
         definitionUrl,
         sourceUrl: new URL(definition.source.path, definitionUrl),
+        sourceViewUrl: new URL(definition.source.entrypoint ?? definition.source.path, definitionUrl),
         artifacts: definition.artifacts.map((artifact) => ({
           ...artifact,
           url: new URL(artifact.path, definitionUrl),

@@ -12,11 +12,18 @@ const { baseUrl, server } = await startPreview({
 })
 const locales = ['ja', 'en', 'zh-CN']
 const homeHeadingKey = 'ｽﾀｯｸﾁｬﾝ Webツール'
-const expectedHeadings = Object.fromEntries(
+const galleryDescriptionKey = '公開済みMODを試して編集する'
+const expectedText = Object.fromEntries(
   await Promise.all(
     locales.map(async (locale) => {
       const catalog = JSON.parse(await readFile(new URL(`./locales/${locale}.json`, import.meta.url), 'utf8'))
-      return [locale, catalog[homeHeadingKey]]
+      return [
+        locale,
+        {
+          heading: catalog[homeHeadingKey],
+          galleryDescription: catalog[galleryDescriptionKey],
+        },
+      ]
     })
   )
 )
@@ -30,7 +37,9 @@ try {
     await page.evaluate((value) => localStorage.setItem('stackchan.locale', value), locale)
     await page.reload({ waitUntil: 'networkidle' })
     assert.equal(await page.locator('html').getAttribute('lang'), locale)
-    assert.equal((await page.locator('h1').first().innerText()).trim(), expectedHeadings[locale])
+    assert.equal((await page.locator('h1').first().innerText()).trim(), expectedText[locale].heading)
+    const galleryCard = page.getByRole('link', { name: /MOD Gallery/ })
+    assert.equal((await galleryCard.locator('small').innerText()).trim(), expectedText[locale].galleryDescription)
     await page.screenshot({ path: `/tmp/stackchan-i18n-${locale}.png`, fullPage: true })
   }
 } finally {

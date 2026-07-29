@@ -30,6 +30,7 @@ test('共通MOD定義からテキストとブロックのGalleryを構成する'
   for (const definition of definitions) {
     assert.equal(definition.sourceUrl.protocol, 'file:')
     assert.doesNotThrow(() => readFileSync(definition.sourceUrl))
+    assert.doesNotThrow(() => readFileSync(definition.sourceViewUrl))
     if (definition.type !== 'block') continue
     const project = parseVisualProject(readFileSync(definition.sourceUrl, 'utf8'))
     const analysis = analyzeWorkspace(project.workspace, { target: project.target })
@@ -140,9 +141,50 @@ test('MOD定義は形式別の正本と安全なパッケージパスを要求�
       /entrypoints/
     )
   }
-  for (const path of ['/manifest.json', '../manifest.json', 'mod/../manifest.json', 'mod\\manifest.json']) {
+  assert.throws(
+    () =>
+      parseModDefinition({
+        ...base,
+        type: 'block',
+        source: { path: 'sample.stackchan-blocks.json', entrypoint: 'mod.js' },
+      }),
+    /source.entrypoint/
+  )
+  assert.throws(
+    () =>
+      parseModDefinition({
+        ...base,
+        type: 'text',
+        source: { path: 'manifest.json', entrypoint: 'README.md' },
+      }),
+    /JavaScriptまたはTypeScript/
+  )
+  for (const path of [
+    '/manifest.json',
+    './mod.js',
+    '../manifest.json',
+    'mod//mod.js',
+    'mod/../manifest.json',
+    'mod\\manifest.json',
+  ]) {
     assert.throws(() => validatePackagePath(path), /安全な相対パス/)
   }
+})
+
+test('テキストMODはビルド用manifestとは別に閲覧用entrypointを公開できる', async () => {
+  const definitions = await loadModCatalog(catalogUrl, fileFetch)
+  const starter = definitions.find((definition) => definition.id === 'tech.stackchan.samples.starter')
+
+  assert.equal(starter.sourceUrl.pathname.endsWith('/sample-mod/manifest.json'), true)
+  assert.equal(starter.sourceViewUrl.pathname.endsWith('/sample-mod/mod.js'), true)
+})
+
+test('entrypointを省略したMODはビルド用ソースを閲覧用にも使う', async () => {
+  const definitions = await loadModCatalog(catalogUrl, fileFetch)
+  const blockMod = definitions.find((definition) => definition.type === 'block')
+
+  assert.equal(blockMod.source.entrypoint, undefined)
+  assert.equal(blockMod.sourceViewUrl.href, blockMod.sourceUrl.href)
 })
 
 test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持つ', () => {
@@ -164,6 +206,14 @@ test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持
     'targets',
   ]) {
     assert.ok(schema.required.includes(field), `${field} must be required`)
+  }
+  const relativePath = new RegExp(schema.$defs.relativePath.pattern)
+  for (const validPath of ['mod.js', 'mod/mod.js']) {
+    assert.equal(relativePath.test(validPath), true, `${validPath} must be accepted by the schema`)
+  }
+  for (const invalidPath of ['./mod.js', 'mod//mod.js']) {
+    assert.equal(relativePath.test(invalidPath), false, `${invalidPath} must be rejected by the schema`)
+    assert.throws(() => validatePackagePath(invalidPath), /安全な相対パス/)
   }
   const workflow = readFileSync(new URL('../../.github/workflows/bundle.yml', import.meta.url), 'utf8')
   assert.match(workflow, /docs\/specs\/stackchan-mod\.schema\.json \.\/web\/schemas\/stackchan-mod\.schema\.json/)

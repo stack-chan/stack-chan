@@ -22,6 +22,7 @@ Moddableの`manifest.json`はビルド方法を定義します。
 - **name**：Galleryへ表示する名前です。
 - **description**：Galleryへ表示する説明です。
 - **source.path**：MOD定義からの相対パスです。
+- **source.entrypoint**：任意。テキストMODで、Galleryの「ソースを見る」から開く実装ファイルです。
 - **targets**：対応する実行対象のIDです。
 
 `type`は実行形式を表しません。
@@ -31,6 +32,10 @@ Moddableの`manifest.json`はビルド方法を定義します。
 `type: "text"`では、`source.path`がModdableのmanifestを指します。
 
 `type: "block"`では、`source.path`が`.stackchan-blocks.json`を指します。
+
+`type: "text"`で`source.entrypoint`を指定すると、ビルドの正本であるmanifestを維持したまま、利用者が最初に読むJavaScriptまたはTypeScript実装へ案内できます。
+
+`source.entrypoint`を省略した場合、「ソースを見る」は`source.path`を開きます。
 
 ## 実行入口
 

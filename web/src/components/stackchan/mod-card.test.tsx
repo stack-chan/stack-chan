@@ -17,6 +17,7 @@ const mod: ModDefinition = {
   author: 'Stack-chan',
   source: { path: './hello.json' },
   sourceUrl: new URL('https://example.test/hello.json'),
+  sourceViewUrl: new URL('https://example.test/hello.json'),
   definitionUrl: new URL('https://example.test/mod.json'),
   entrypoints: ['mod'],
   targets: ['simulator'],

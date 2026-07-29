@@ -38,7 +38,13 @@
       "additionalProperties": false,
       "required": ["path"],
       "properties": {
-        "path": { "$ref": "#/$defs/relativePath" }
+        "path": { "$ref": "#/$defs/relativePath" },
+        "entrypoint": {
+          "allOf": [
+            { "$ref": "#/$defs/relativePath" },
+            { "pattern": "\\.[cm]?[jt]sx?$" }
+          ]
+        }
       }
     },
     "entrypoints": {
@@ -75,11 +81,24 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "type": { "const": "block" } },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "source": { "not": { "required": ["entrypoint"] } }
+        }
+      }
+    }
+  ],
   "$defs": {
     "relativePath": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)(?!.*[\\u0000-\\u001f:]).+$"
+      "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.(?:/|$))(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\/$)(?!.*\\\\)(?!.*[\\u0000-\\u001f:]).+$"
     }
   }
 }

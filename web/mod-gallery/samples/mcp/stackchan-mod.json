@@ -10,7 +10,8 @@
   "author": "Stack-chan Community",
   "license": "Apache-2.0",
   "source": {
-    "path": "mod/manifest.json"
+    "path": "mod/manifest.json",
+    "entrypoint": "mod/mod.js"
   },
   "targets": ["m5stackchan-cores3"],
   "capabilities": ["face", "audio.speech", "connectivity.network", "ui.drawer"],

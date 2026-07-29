@@ -9,8 +9,7 @@
   ],
   "modules": {
     "embedded:sensor/Touch/FT6x06": "./host/ft6206_async_m5stackchan",
-    "m5stack-cores3/setup-target": "$(BUILD)/devices/esp32/targets/m5stack_cores3/setup-target",
-    "setup/target": "./setup-target",
+    "setup/m5stackchan-power": "./setup-target",
     "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
     "pins/audioout": "../core_s3_audioout"
   },

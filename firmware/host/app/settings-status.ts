@@ -1,7 +1,7 @@
 import type { PreferenceConfig } from 'loadPreference'
 import { type SettingsStatus, SettingsStatusValue } from 'settings-status-model'
 
-type SetupPreferenceConfig = Pick<PreferenceConfig, 'wifi'> & Partial<Pick<PreferenceConfig, 'ui'>>
+type SetupPreferenceConfig = Pick<PreferenceConfig, 'wifi'> & Partial<Pick<PreferenceConfig, 'time' | 'ui'>>
 
 export function createInitialSettingsStatus(preferences: SetupPreferenceConfig): SettingsStatus {
   return {
@@ -10,6 +10,7 @@ export function createInitialSettingsStatus(preferences: SetupPreferenceConfig):
     'wifi.ssid': stringPreference(preferences.wifi.ssid),
     'wifi.password': stringPreference(preferences.wifi.password),
     'ui.language': stringPreference(preferences.ui?.language),
+    'time.timezone': stringPreference(preferences.time?.timezone),
   }
 }
 

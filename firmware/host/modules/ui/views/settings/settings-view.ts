@@ -20,7 +20,14 @@ import {
   SettingsStatusValue as SettingsStatusValueConst,
   settingsStatusToLabel as settingsStatusToLabelImpl,
 } from 'settings-status-model'
-import { ActionButton, ScreenHeader, setActionButtonEnabled, setActionButtonLabel } from 'ui-controls'
+import { formatUtcOffset, TIMEZONE_PRESETS, type TimezoneId } from 'timezone-model'
+import {
+  ActionButton,
+  ScreenHeader,
+  setActionButtonEnabled,
+  setActionButtonLabel,
+  setActionButtonSelected,
+} from 'ui-controls'
 import { UI, uiFont, uiStyles } from 'ui-theme'
 
 export const SettingsStatusValue = SettingsStatusValueConst
@@ -34,6 +41,7 @@ export const SettingsViewId = Object.freeze({
   PASSWORD: 2,
   LANGUAGE: 3,
   OFFLINE: 4,
+  TIMEZONE: 5,
 } as const)
 
 export type SettingsViewId = (typeof SettingsViewId)[keyof typeof SettingsViewId]
@@ -44,6 +52,7 @@ export type SettingsViewState = Readonly<{
   networks: readonly SettingsNetworkEntry[]
   selectedSSID: string
   language: SupportedLocale
+  timezone: TimezoneId
 }>
 
 export type SettingsViewActions = Readonly<{
@@ -56,6 +65,7 @@ export type SettingsViewActions = Readonly<{
   selectWifiNetwork(network: SettingsNetworkEntry): void
   submitWifiPassword(password: string): void
   selectLanguage(locale: SupportedLocale): void
+  saveTimezone(timezone: TimezoneId): void
 }>
 
 export type SettingsViewContext = Readonly<{
@@ -97,6 +107,7 @@ const PASSWORD_FIELD_TOP = UI.headerHeight + PASSWORD_SSID_HEIGHT
 const PASSWORD_FIELD_HEIGHT = 20
 const PASSWORD_KEYBOARD_HEIGHT = 164
 const MAX_SSID_CHARS = 30
+const TIMEZONE_ACTION_HEIGHT = UI.touchTarget + 16
 
 let rowPressedSkin: PiuSkin | null = null
 let networkStyle: PiuStyle | null = null
@@ -225,6 +236,14 @@ const SettingsMenuView = {
                     icon: 'wifi',
                     label: localize('settings.wifiTitle'),
                     onTap: () => context.actions.navigate(SettingsViewId.WIFI),
+                  },
+                  { left: 8, right: 8 },
+                ),
+                new ActionButton(
+                  {
+                    icon: 'clock',
+                    label: localize('settings.timezoneTitle'),
+                    onTap: () => context.actions.navigate(SettingsViewId.TIMEZONE),
                   },
                   { left: 8, right: 8 },
                 ),
@@ -593,12 +612,87 @@ const SettingsLanguageView = {
   },
 } satisfies SettingsViewDefinition
 
+const SettingsTimezoneView = {
+  create(context: SettingsViewContext): SettingsViewInstance {
+    const styles = uiStyles()
+    let selectedTimezone = context.state.timezone
+    const choiceButtons: Array<{ id: TimezoneId; button: PiuContainer }> = []
+
+    function selectTimezone(id: TimezoneId) {
+      selectedTimezone = id
+      for (const choice of choiceButtons) {
+        setActionButtonSelected(choice.button, choice.id === selectedTimezone)
+      }
+    }
+
+    const choices = TIMEZONE_PRESETS.map((preset) => {
+      const button = new ActionButton(
+        {
+          name: `timezone-${preset.id}`,
+          icon: 'clock',
+          label: `${localize(preset.labelKey)}  ${formatUtcOffset(preset.offsetMinutes)}`,
+          selected: preset.id === selectedTimezone,
+          onTap: () => selectTimezone(preset.id),
+        },
+        { left: 8, right: 8 },
+      )
+      choiceButtons.push({ id: preset.id, button })
+      return button
+    })
+
+    const content = new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      skin: styles.screen,
+      contents: [
+        new ScreenHeader({
+          title: localize('settings.timezoneTitle'),
+          leading: 'back',
+          onLeading: () => context.actions.navigate(SettingsViewId.MENU),
+        }),
+        new Scroller(null, {
+          left: 0,
+          right: 0,
+          top: UI.headerHeight,
+          bottom: TIMEZONE_ACTION_HEIGHT,
+          active: true,
+          backgroundTouch: true,
+          clip: true,
+          Behavior: VerticalScrollerBehavior,
+          contents: [
+            new Column(null, {
+              left: 0,
+              right: 0,
+              top: 0,
+              contents: choices,
+            }),
+          ],
+        }),
+        new ActionButton(
+          {
+            name: 'timezoneSave',
+            icon: 'check',
+            label: localize('settings.confirm'),
+            tone: 'success',
+            onTap: () => context.actions.saveTimezone(selectedTimezone),
+          },
+          { left: 8, right: 8, bottom: 8 },
+        ),
+      ],
+    })
+    return { content }
+  },
+} satisfies SettingsViewDefinition
+
 export const settingsViews: readonly SettingsViewDefinition[] = [
   SettingsMenuView,
   SettingsWifiView,
   SettingsPasswordView,
   SettingsLanguageView,
   SettingsOfflineView,
+  SettingsTimezoneView,
 ]
 
 type SkinTemplate = PiuSkinConstructor & { new (): PiuSkin }

@@ -41,6 +41,7 @@ const state = {
   networks: [] as Array<{ ssid: string; signal: number; label: string }>,
   selectedSSID: 'stackchan-ap',
   language: 'ja' as const,
+  timezone: 'tokyo' as const,
 }
 let navigatedView = -1
 let exitCount = 0
@@ -51,6 +52,7 @@ let offlineBootCount = 0
 let selectedSSID = ''
 let password = ''
 let selectedLanguage = ''
+let selectedTimezone = ''
 
 const context: SettingsViewContext = {
   state,
@@ -82,6 +84,9 @@ const context: SettingsViewContext = {
     selectLanguage(locale) {
       selectedLanguage = locale
     },
+    saveTimezone(timezone) {
+      selectedTimezone = timezone
+    },
   },
 }
 
@@ -91,7 +96,11 @@ function mount(instance: SettingsViewInstance) {
   instance.update?.()
 }
 
-equal(settingsViews.length, 5, 'settings registry should contain menu, Wi-Fi, password, language, and offline views')
+equal(
+  settingsViews.length,
+  6,
+  'settings registry should contain menu, Wi-Fi, password, language, offline, and time zone views',
+)
 
 const menuView = settingsViews[SettingsViewId.MENU].create(context)
 equal(application.length, 0, 'creating a settings view should not mount it')
@@ -101,7 +110,10 @@ const menuItems = menuScroller.first as PiuContainer
 const wifiMenuItem = menuItems.first as Touchable
 press(wifiMenuItem)
 equal(navigatedView, SettingsViewId.WIFI, 'Wi-Fi menu item should navigate through the shared action')
-const languageMenuItem = wifiMenuItem.next as Touchable
+const timezoneMenuItem = wifiMenuItem.next as Touchable
+press(timezoneMenuItem)
+equal(navigatedView, SettingsViewId.TIMEZONE, 'time zone menu item should navigate through the shared action')
+const languageMenuItem = timezoneMenuItem.next as Touchable
 press(languageMenuItem)
 equal(navigatedView, SettingsViewId.LANGUAGE, 'language menu item should navigate through the shared action')
 
@@ -187,6 +199,37 @@ const englishButton = languageRoot.first.next.next
 englishButton.behavior.onTouchBegan(englishButton, 0, 0, 0)
 englishButton.behavior.onTouchEnded(englishButton)
 equal(selectedLanguage, 'en', 'language view should expose English as a touch action')
+
+const timezoneDraftView = settingsViews[SettingsViewId.TIMEZONE].create(context)
+mount(timezoneDraftView)
+const timezoneDraftHeader = timezoneDraftView.content.first as PiuContainer
+const timezoneDraftScroller = timezoneDraftHeader.next as PiuContainer
+const timezoneDraftChoices = timezoneDraftScroller.first as PiuContainer
+let londonButton = timezoneDraftChoices.first as Touchable
+for (let index = 0; index < 6; index += 1) londonButton = londonButton.next as Touchable
+press(londonButton)
+equal(selectedTimezone, '', 'choosing a city should remain a draft until Save is pressed')
+press(timezoneDraftHeader.first as Touchable)
+equal(navigatedView, SettingsViewId.MENU, 'time zone back button should discard the draft and return to settings')
+
+const resetTimezoneView = settingsViews[SettingsViewId.TIMEZONE].create(context)
+mount(resetTimezoneView)
+equal(selectedTimezone, '', 'recreating the time zone view should leave the discarded draft uncommitted')
+press(resetTimezoneView.content.last as Touchable)
+equal(selectedTimezone, 'tokyo', 'saving the recreated view should use the persisted time zone')
+
+const timezoneSaveView = settingsViews[SettingsViewId.TIMEZONE].create(context)
+mount(timezoneSaveView)
+const timezoneSaveHeader = timezoneSaveView.content.first as PiuContainer
+const timezoneSaveScroller = timezoneSaveHeader.next as PiuContainer
+const timezoneSaveChoices = timezoneSaveScroller.first as PiuContainer
+londonButton = timezoneSaveChoices.first as Touchable
+for (let index = 0; index < 6; index += 1) londonButton = londonButton.next as Touchable
+press(londonButton)
+equal(selectedTimezone, 'tokyo', 'a fresh time zone selection should remain a draft until Save is pressed')
+const timezoneSave = timezoneSaveView.content.last as Touchable
+press(timezoneSave)
+equal(selectedTimezone, 'london', 'time zone Save should commit the selected city')
 
 setLocalizationLanguage('en')
 status.wifi = SettingsStatusValue.NOT_CONNECTED

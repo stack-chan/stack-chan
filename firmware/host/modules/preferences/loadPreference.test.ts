@@ -140,3 +140,12 @@ test('loadPreferences reads the MCP authentication token from preferences', asyn
 
   assert.equal(loadPreferences(DOMAIN.mcp).token, 'secret-token')
 })
+
+test('loadPreferences reads the selected time zone from preferences', async () => {
+  const { loadPreferences, preference } = await setup()
+  preference.resetPreference({
+    'time.timezone': 'london',
+  })
+
+  assert.equal(loadPreferences(DOMAIN.time).timezone, 'london')
+})

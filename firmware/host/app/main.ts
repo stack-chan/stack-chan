@@ -12,6 +12,7 @@ import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'exper
 import { initializeLocalization } from 'localization'
 import Modules from 'modules'
 import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
+import { applyTimezone } from 'timezone-settings'
 
 type DeviceButton = {
   onChanged: (this: DeviceButton) => void
@@ -81,6 +82,7 @@ async function main() {
     if (dockRuntime) trace('[main] Stackchan Dock started\n')
     installPlatformInputBridge()
     initializeLocalization(loadPreferences(DOMAIN.ui).language)
+    applyTimezone(loadPreferences(DOMAIN.time).timezone)
 
     trace('[main] loading app behaviors\n')
     const appBehaviors = loadAppBehaviors()

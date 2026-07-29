@@ -112,6 +112,12 @@
       "loadPreference": [
         "host/modules/preferences/loadPreference.ts"
       ],
+      "timezone-settings": [
+        "host/modules/preferences/timezone-settings.ts"
+      ],
+      "timezone-model": [
+        "host/modules/preferences/timezone-model.ts"
+      ],
       "network-manager": [
         "host/modules/connectivity/__tests__/fakes/network-manager.ts"
       ],

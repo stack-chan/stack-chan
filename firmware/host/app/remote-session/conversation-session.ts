@@ -1,4 +1,8 @@
-import type { RemoteConversationSession, RemoteConversationState, RemoteConversationTransportState } from 'capabilities'
+import type {
+  RemoteConversationSessionDelegate,
+  RemoteConversationState,
+  RemoteConversationTransportState,
+} from 'capabilities'
 import {
   conversationRequest,
   type StackchanInboundApplicationEvent,
@@ -30,7 +34,7 @@ export type ConversationSessionOptions = {
 }
 
 export type ConversationSession = {
-  readonly remoteSession: RemoteConversationSession
+  readonly remoteSession: RemoteConversationSessionDelegate
   handleEvent(event: StackchanInboundApplicationEvent): boolean
   updateState(state: RemoteConversationState, error?: string): void
   close(): void
@@ -175,7 +179,7 @@ export function createConversationSession(
 
   const unsubscribeTransport = transport.subscribeTransport(updateTransportState)
 
-  const remoteSession: RemoteConversationSession = {
+  const remoteSession: RemoteConversationSessionDelegate = {
     get state() {
       return state
     },

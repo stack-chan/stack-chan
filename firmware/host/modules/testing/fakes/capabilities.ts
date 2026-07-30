@@ -26,15 +26,24 @@ export type WebRadioCapability = {
 
 export type RemoteConversationState = 'standby' | 'connecting' | 'listening' | 'recognizing' | 'speaking' | 'blocked'
 export type RemoteConversationTransportState = 'disconnected' | 'unsupported' | 'ready'
+export type RemoteConversationActivationState = 'inactive' | 'active'
+export type RemoteConversationListener = (state: RemoteConversationState, error?: string) => void
+export type RemoteConversationTransportListener = (state: RemoteConversationTransportState) => void
 
-export type RemoteConversationSession = {
+export type RemoteConversationSessionDelegate = {
   readonly state: RemoteConversationState
   readonly lastError?: string
   readonly transportState: RemoteConversationTransportState
   requestStart(): string
   requestStop(): string
-  subscribe(listener: (state: RemoteConversationState, error?: string) => void): () => void
-  subscribeTransport(listener: (state: RemoteConversationTransportState) => void): () => void
+  subscribe(listener: RemoteConversationListener): () => void
+  subscribeTransport(listener: RemoteConversationTransportListener): () => void
+}
+
+export type RemoteConversationSession = RemoteConversationSessionDelegate & {
+  readonly activationState: RemoteConversationActivationState
+  activate(): void
+  deactivate(): void
 }
 
 export type StackchanContext = unknown

@@ -1,12 +1,14 @@
 export function onContextCreated(robot) {
   const remoteSession = robot.conversation.remoteSession
-  const touchPanel = robot.input.touchPanel
   if (!remoteSession) {
     trace('[codex-voice] USB remote conversation capability is unavailable\n')
     return
   }
-  if (!touchPanel) {
-    trace('[codex-voice] top touch panel is unavailable\n')
+
+  try {
+    remoteSession.activate()
+  } catch (error) {
+    trace(`[codex-voice] activation failed: ${String(error)}\n`)
     return
   }
 
@@ -16,6 +18,12 @@ export function onContextCreated(robot) {
   remoteSession.subscribeTransport((state) => {
     trace(`[codex-voice] transport=${state}\n`)
   })
+
+  const touchPanel = robot.input.touchPanel
+  if (!touchPanel) {
+    trace('[codex-voice] top touch panel is unavailable; approval handling remains active\n')
+    return
+  }
   touchPanel.onEvent = (event) => {
     if (event.gesture === 'forwardSwipe') {
       const requestId = remoteSession.requestStart()

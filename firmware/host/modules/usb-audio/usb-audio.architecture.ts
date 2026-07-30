@@ -8,11 +8,20 @@ type Manifest = {
   modules?: Record<string, string | string[]>
   preload?: string[]
   platforms?: Record<string, { modules?: Record<string, string> }>
-  config?: { usbAudio?: { enabled?: boolean; diagnostics?: boolean; presentationEnabled?: boolean } }
+  config?: {
+    usbAudio?: {
+      enabled?: boolean
+      autoStart?: boolean
+      diagnostics?: boolean
+      presentationEnabled?: boolean
+      speakerVolume?: number
+    }
+  }
 }
 
 const appManifest = readManifest('host/app/manifest.json')
 const wasmManifest = readManifest('host/platforms/wasm/manifest.json')
+const coreS3Manifest = readManifest('host/app/manifest_m5stackchan_cores3.json')
 const usbAppManifest = readManifest('host/app/manifest_android_usb_audio.json')
 const diagnosticAppManifest = readManifest('host/app/manifest_android_usb_audio_diagnostics.json')
 const diagnosticNoUiAppManifest = readManifest('host/app/manifest_android_usb_audio_diagnostics_no_ui.json')
@@ -22,7 +31,7 @@ const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as {
   scripts?: Record<string, string>
 }
 
-test('Stackchan Dock keeps USB application integration out of the shared host graph', () => {
+test('CoreS3 composes the USB Dock without leaking it into shared or WASM graphs', () => {
   const sharedModules = asModuleList(appManifest)
   const wasmModules = asModuleList(wasmManifest)
 
@@ -31,11 +40,14 @@ test('Stackchan Dock keeps USB application integration out of the shared host gr
   for (const specifier of [...sharedModules, ...wasmModules]) {
     assert.doesNotMatch(specifier, /usb|remote-session|approval/)
   }
-  assert.ok(usbAppManifest.include?.includes('./docks/android-usb-audio/manifest.json'))
-  assert.ok(usbAppManifest.include?.includes('../modules/usb-audio/manifest.json'))
+  assert.ok(coreS3Manifest.include?.includes('./docks/android-usb-audio/manifest.json'))
+  assert.ok(coreS3Manifest.include?.includes('../modules/usb-audio/manifest.json'))
+  assert.deepEqual(usbAppManifest.include, ['./manifest_m5stackchan_cores3.json'])
   assert.equal(dockManifest.modules?.['stackchan-dock'], './dock')
+  assert.equal(dockManifest.modules?.['stackchan-remote-session-facade'], '../../remote-session/facade')
   assert.equal(dockManifest.modules?.['stackchan-remote-session-runtime'], '../../remote-session/runtime')
   assert.equal(dockManifest.modules?.['stackchan-usb-dock-presentation'], './presentation')
+  assert.equal(dockManifest.modules?.['stackchan-usb-dock-runtime'], './runtime')
 })
 
 test('USB transport stays platform-specific while physical audio remains on the main VM', () => {
@@ -60,7 +72,7 @@ test('USB transport stays platform-specific while physical audio remains on the 
   assert.equal(usbModuleManifest.modules?.['stackchan-usb-audio-worker'], './worker')
   assert.equal(usbModuleManifest.modules?.['stackchan-usb-media-session'], './media-session')
   assert.equal(usbModuleManifest.modules?.['stackchan-usb-serial-types'], './usb-serial-types')
-  assert.deepEqual(usbModuleManifest.preload, ['stackchan-usb-audio'])
+  assert.equal(usbModuleManifest.preload, undefined)
   assert.deepEqual(Object.keys(usbModuleManifest.platforms ?? {}), ['esp32/m5stackchan_cores3'])
   assert.equal(usbModuleManifest.modules?.['stackchan-usb-serial'], undefined)
   assert.equal(usbModuleManifest.modules?.['stackchan-usb-crc32'], undefined)
@@ -75,10 +87,16 @@ test('USB transport stays platform-specific while physical audio remains on the 
 })
 
 test('release and diagnostic manifests compose the same USB Dock in layers', () => {
+  assert.equal(coreS3Manifest.config?.usbAudio?.enabled, true)
+  assert.equal(coreS3Manifest.config?.usbAudio?.autoStart, false)
+  assert.equal(coreS3Manifest.config?.usbAudio?.speakerVolume, 0.25)
   assert.equal(usbAppManifest.config?.usbAudio?.enabled, true)
+  assert.equal(usbAppManifest.config?.usbAudio?.autoStart, true)
   assert.ok(diagnosticAppManifest.include?.includes('./manifest_android_usb_audio.json'))
+  assert.equal(diagnosticAppManifest.config?.usbAudio?.autoStart, true)
   assert.equal(diagnosticAppManifest.config?.usbAudio?.diagnostics, true)
   assert.ok(diagnosticNoUiAppManifest.include?.includes('./manifest_android_usb_audio_diagnostics.json'))
+  assert.equal(diagnosticNoUiAppManifest.config?.usbAudio?.autoStart, true)
   assert.equal(diagnosticNoUiAppManifest.config?.usbAudio?.presentationEnabled, false)
 
   for (const script of ['build:android-usb-audio', 'flash:android-usb-audio']) {

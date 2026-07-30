@@ -27,7 +27,6 @@
     "stackchan-usb-stream-gate": "./stream-gate",
     "stackchan-usb-stream-tx-queue": "./stream-tx-queue"
   },
-  "preload": ["stackchan-usb-audio"],
   "platforms": {
     "esp32/m5stackchan_cores3": {
       "build": {

@@ -3,6 +3,7 @@
   "config": {
     "usbAudio": {
       "enabled": true,
+      "autoStart": true,
       "diagnostics": true,
       "speakerVolume": 0,
       "presentationEnabled": false

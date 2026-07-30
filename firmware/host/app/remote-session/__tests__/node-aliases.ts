@@ -6,4 +6,5 @@ export function installRemoteSessionTestAliases(): void {
   const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
   const remoteSessionRoot = resolve(hostRoot, 'app/remote-session')
   writeAliasPackage(hostRoot, 'stackchan-application-event', resolve(remoteSessionRoot, 'application-event.js'))
+  writeAliasPackage(hostRoot, 'stackchan-remote-session-facade', resolve(remoteSessionRoot, 'facade.js'))
 }

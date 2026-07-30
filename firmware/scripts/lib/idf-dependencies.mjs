@@ -1,9 +1,13 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 const dependenciesByPlatform = {
-  m5stack_cores3: [['espressif/esp32-camera', '^2.0.10']],
+  m5stack_cores3: [
+    ['espressif/esp-sr', '2.4.6'],
+    ['espressif/esp32-camera', '^2.0.10'],
+  ],
   m5stackchan_cores3: [
+    ['espressif/esp-sr', '2.4.6'],
     ['espressif/esp_audio_codec', '^2.6.0'],
     ['espressif/esp32-camera', '^2.0.10'],
   ],
@@ -52,6 +56,19 @@ export function prepareCoreS3IdfDependencies({ outputDirectory, platformName, ap
   // POSIX, so clean builds can race while updating this file. Seed both entries
   // before mcconfig runs and its generated checks become no-ops.
   if (manifest !== originalManifest) writeFileSync(manifestPath, manifest)
+
+  const projectDirectory = path.dirname(mainDirectory)
+  const dependencyLockPath = path.join(projectDirectory, 'dependencies.lock')
+  const dependencyLock = existsSync(dependencyLockPath) ? readFileSync(dependencyLockPath, 'utf8') : ''
+  const lockIsStale = dependencies.some(([name]) => !dependencyLock.includes(`  ${name}:`))
+  if (lockIsStale) {
+    const sdkconfigHeaderPath = path.join(projectDirectory, 'build', 'config', 'sdkconfig.h')
+    if (existsSync(sdkconfigHeaderPath)) {
+      rmSync(sdkconfigHeaderPath)
+      console.log(`[stack-chan] invalidated stale IDF dependency configuration: ${sdkconfigHeaderPath}`)
+    }
+  }
+
   console.log(`[stack-chan] prepared IDF dependencies: ${manifestPath}`)
   return manifestPath
 }

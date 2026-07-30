@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
@@ -25,6 +25,7 @@ test('prepares both managed components without duplicating them', () => {
     const second = readFileSync(manifestPath, 'utf8')
 
     assert.equal(second, first)
+    assert.equal(count(second, 'espressif/esp-sr:'), 1)
     assert.equal(count(second, 'espressif/esp_audio_codec:'), 1)
     assert.equal(count(second, 'espressif/esp32-camera:'), 1)
   } finally {
@@ -44,6 +45,7 @@ test('prepares the built-in CoreS3 camera dependency', () => {
     })
     const manifest = readFileSync(manifestPath, 'utf8')
 
+    assert.equal(count(manifest, 'espressif/esp-sr:'), 1)
     assert.equal(count(manifest, 'espressif/esp32-camera:'), 1)
     assert.equal(count(manifest, 'espressif/esp_audio_codec:'), 0)
   } finally {
@@ -77,6 +79,29 @@ test('uses the generated directory for each ESP32 build mode', () => {
         ),
       )
     }
+  } finally {
+    rmSync(outputDirectory, { recursive: true, force: true })
+  }
+})
+
+test('invalidates a configured project when its dependency lock is stale', () => {
+  const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))
+  const projectDirectory = path.join(outputDirectory, 'tmp/esp32/m5stack_cores3/debug/stack-chan-host/xsProj-esp32s3')
+  const sdkconfigHeaderPath = path.join(projectDirectory, 'build/config/sdkconfig.h')
+
+  try {
+    mkdirSync(path.dirname(sdkconfigHeaderPath), { recursive: true })
+    writeFileSync(path.join(projectDirectory, 'dependencies.lock'), 'dependencies:\n  espressif/esp32-camera:\n')
+    writeFileSync(sdkconfigHeaderPath, '#define CONFIG_IDF_TARGET_ESP32S3 1\n')
+
+    prepareCoreS3IdfDependencies({
+      outputDirectory,
+      platformName: 'm5stack_cores3',
+      applicationName: 'stack-chan-host',
+      mode: 'debug',
+    })
+
+    assert.equal(existsSync(sdkconfigHeaderPath), false)
   } finally {
     rmSync(outputDirectory, { recursive: true, force: true })
   }

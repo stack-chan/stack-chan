@@ -110,6 +110,23 @@
       }
     },
     "esp32/m5stack_cores3": {
+      "build": {
+        "SDKCONFIGPATH ?=": "$(MODDABLE)/build/devices/esp32/targets/m5stack_cores3/sdkconfig"
+      },
+      "modules": {
+        "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+        "embedded:io/audio/aec": "./platforms/m5stackchan-cores3/audio-aec",
+        "embedded:io/audio/duplex": "./platforms/m5stackchan-cores3/audio-duplex",
+        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin",
+        "pcm-resampler": "./platforms/m5stackchan-cores3/pcm-resampler"
+      },
+      "dependency": [
+        {
+          "name": "esp-sr",
+          "version": "==2.4.6",
+          "includes": ["include/esp32s3"]
+        }
+      ],
       "defines": {
         "audioOut": {
           "bitsPerSample": 16,
@@ -129,6 +146,8 @@
       "modules": {
         "~": "./tts-stackchan-voice",
         "*": "$(MODDABLE)/modules/io/common/builtinCommon",
+        "embedded:io/audio/aec": "./platforms/m5stackchan-cores3/audio-aec",
+        "embedded:io/audio/duplex": "./platforms/m5stackchan-cores3/audio-duplex",
         "esp32-mp3-decoder": "./platforms/m5stackchan-cores3/esp32-mp3-decoder",
         "web-radio-player": "./platforms/m5stackchan-cores3/web-radio-player",
         "web-radio-audio-out": "./platforms/m5stackchan-cores3/web-radio-audio-out",
@@ -148,6 +167,11 @@
           "name": "esp_audio_codec",
           "version": "^2.6.0",
           "includes": ["include/decoder", "include/decoder/impl"]
+        },
+        {
+          "name": "esp-sr",
+          "version": "==2.4.6",
+          "includes": ["include/esp32s3"]
         }
       ],
       "defines": {

@@ -12,7 +12,8 @@
       "scripts/**",
       "!host/modules/camera/wasm/runtime-bitmap-port.js",
       "!host/modules/audio/wasm/audio-bridge.js",
-      "!host/modules/camera/wasm/camera-bridge.js"
+      "!host/modules/camera/wasm/camera-bridge.js",
+      "!host/app/manifest.openai-realtime*.local.json"
     ],
     "ignoreUnknown": false
   },

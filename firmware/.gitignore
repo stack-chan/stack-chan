@@ -5,6 +5,7 @@
 /dist/
 /dist-architecture/
 /dist-tests/
+/host/app/manifest.openai-realtime*.local.json
 
 # Bundle file
 /host/app/tech.moddable.stackchan*

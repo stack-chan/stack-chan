@@ -18,6 +18,10 @@ const MOUTH_UPDATE_INTERVAL_MS = 125
 const MOUTH_QUANTIZE_STEP = 0.1
 const MOUTH_MAX_STEP = Math.round(1 / MOUTH_QUANTIZE_STEP)
 const MOUTH_LEVEL_STEP_DIVISOR = Math.round(MOUTH_QUANTIZE_STEP / DEFAULT_MOUTH_SCALE)
+const DEFAULT_AUTO_START_DELAY_MS = 5000
+const DEFAULT_SMOKE_TIMEOUT_MS = 300000
+const AUTO_PROMPT_DELAY_MS = 500
+const AUTO_STOP_DELAY_MS = 500
 const DEFAULT_TONE_DURATION_MS = 220
 const MIN_TONE_DURATION_MS = 30
 const MAX_TONE_DURATION_MS = 3000
@@ -43,6 +47,8 @@ const clampNumber = (value, min, max) => {
   if (value > max) return max
   return value
 }
+
+const positiveIntegerOr = (value, fallback) => (Number.isInteger(value) && value > 0 ? value : fallback)
 
 // biome-ignore lint/correctness/noUnusedVariables: kept for the parked playTone implementation below.
 const wait = (durationMs) =>
@@ -177,6 +183,14 @@ export function onContextCreated(robot) {
     specifier: rawChatConfig.specifier ?? 'openAIRealtime',
     instructions: rawChatConfig.instructions ?? INSTRUCTION_B,
   }
+  const autoStart = chatConfig.autoStart === true
+  const autoStartDelayMs = positiveIntegerOr(chatConfig.autoStartDelayMs, DEFAULT_AUTO_START_DELAY_MS)
+  const autoPrompt = typeof chatConfig.autoPrompt === 'string' ? chatConfig.autoPrompt.trim() : ''
+  const autoStop = chatConfig.autoStop === true
+  const autoMicrophone = chatConfig.autoMicrophone !== false
+  const autoExpectedResponses = positiveIntegerOr(chatConfig.autoExpectedResponses, 1)
+  const smokeTimeoutMs = positiveIntegerOr(chatConfig.smokeTimeoutMs, DEFAULT_SMOKE_TIMEOUT_MS)
+  const faceAnimation = chatConfig.faceAnimation !== false
   if (!hasValidChatType(chatConfig)) {
     trace(
       '[chat_audioio] config.chat.type must be a non-empty string. Set config.chat.type (for example "openAIRealtime"). Chat disabled.\n',
@@ -264,6 +278,10 @@ export function onContextCreated(robot) {
   const app = robot.ui.application
   // robot.ui.setFace(new ImageFace({}))
   // app?.distribute?.('onFaceMode', 'image')
+  if (!faceAnimation) {
+    robot.ui.setFaceMotionEnabled(false)
+    trace('[chat_audioio] face animation disabled\n')
+  }
 
   /**
    * Look around (Drawer toggle)
@@ -302,6 +320,24 @@ export function onContextCreated(robot) {
   let mouthUpdateTimer
   let cachedAppWidth = 0
   let cachedBalloonCols = 0
+  let smokeActive = false
+  let smokePromptSent = false
+  let smokeResponseStarted = false
+  let smokeResponsesCompleted = 0
+  let smokeResultRecorded = false
+  let smokeTimeoutTimer
+  let smokeActionTimer
+
+  const clearSmokeTimers = () => {
+    if (smokeTimeoutTimer !== undefined) {
+      Timer.clear(smokeTimeoutTimer)
+      smokeTimeoutTimer = undefined
+    }
+    if (smokeActionTimer !== undefined) {
+      Timer.clear(smokeActionTimer)
+      smokeActionTimer = undefined
+    }
+  }
 
   const clampMouthStep = (step) => {
     if (step <= 0) return 0
@@ -316,6 +352,7 @@ export function onContextCreated(robot) {
   }
 
   const queueMouthStep = (step, immediate = false) => {
+    if (!faceAnimation) return
     const nextStep = clampMouthStep(step)
     if (nextStep === pendingMouthStep && !immediate) return
     pendingMouthStep = nextStep
@@ -340,7 +377,7 @@ export function onContextCreated(robot) {
         flushBalloonText()
       }, BALLOON_UPDATE_INTERVAL_MS)
     }
-    if (mouthUpdateTimer === undefined) {
+    if (faceAnimation && mouthUpdateTimer === undefined) {
       mouthUpdateTimer = Timer.repeat(() => {
         flushMouthOpen()
       }, MOUTH_UPDATE_INTERVAL_MS)
@@ -497,7 +534,51 @@ export function onContextCreated(robot) {
     tools,
     callbacks: {
       onStateChanged: (state, error) => {
-        trace(`onStateChanged: ${chatStateToName(state)}\n`)
+        trace(`onStateChanged: ${chatStateToName(state)}${error ? ` error=${error}` : ''}\n`)
+        if (smokeActive) {
+          if (state === ChatState.FAILED) {
+            smokeResultRecorded = true
+            clearSmokeTimers()
+            trace(`[ChatSmoke] FAIL reason=${error ?? 'chat failed'}\n`)
+          } else if (smokePromptSent && (state === ChatState.LISTENING || state === ChatState.WAITING)) {
+            smokeResponseStarted = true
+          } else if (state === ChatState.SPEAKING && !smokePromptSent) {
+            if (autoPrompt.length === 0) {
+              smokeResultRecorded = true
+              clearSmokeTimers()
+              trace('[ChatSmoke] PASS stage=connected\n')
+            } else {
+              smokePromptSent = true
+              trace('[ChatSmoke] prompt scheduled\n')
+              smokeActionTimer = Timer.set(() => {
+                smokeActionTimer = undefined
+                try {
+                  chat.sendText(autoPrompt)
+                  trace('[ChatSmoke] prompt sent\n')
+                } catch (sendError) {
+                  smokeResultRecorded = true
+                  clearSmokeTimers()
+                  trace(`[ChatSmoke] FAIL reason=${String(sendError?.message ?? sendError)}\n`)
+                }
+              }, AUTO_PROMPT_DELAY_MS)
+            }
+          } else if (state === ChatState.SPEAKING && smokePromptSent && smokeResponseStarted && !smokeResultRecorded) {
+            smokeResponseStarted = false
+            smokeResponsesCompleted += 1
+            trace(`[ChatSmoke] response cycle count=${smokeResponsesCompleted}/${autoExpectedResponses}\n`)
+            if (smokeResponsesCompleted >= autoExpectedResponses) {
+              smokeResultRecorded = true
+              clearSmokeTimers()
+              trace(`[ChatSmoke] PASS stage=response-complete responses=${smokeResponsesCompleted}\n`)
+              if (autoStop) {
+                smokeActionTimer = Timer.set(() => {
+                  smokeActionTimer = undefined
+                  stopChat()
+                }, AUTO_STOP_DELAY_MS)
+              }
+            }
+          }
+        }
         app?.distribute?.('onChatState', state, error)
         if (state !== ChatState.SPEAKING) {
           app?.distribute?.('onChatInputLevel', 0)
@@ -545,12 +626,30 @@ export function onContextCreated(robot) {
     },
   })
 
-  const startChat = () => {
+  const startChat = (asSmoke = false) => {
     if (active) return
     active = true
+    smokeActive = asSmoke
+    smokePromptSent = false
+    smokeResponseStarted = false
+    smokeResponsesCompleted = 0
+    smokeResultRecorded = false
+    clearSmokeTimers()
+    if (smokeActive) {
+      trace(`[ChatSmoke] START timeoutMs=${smokeTimeoutMs}\n`)
+      trace(`[ChatSmoke] microphone=${autoMicrophone ? 'enabled' : 'disabled'}\n`)
+      smokeTimeoutTimer = Timer.set(() => {
+        smokeTimeoutTimer = undefined
+        if (smokeResultRecorded) return
+        smokeResultRecorded = true
+        trace('[ChatSmoke] FAIL reason=timeout\n')
+        stopChat(true)
+      }, smokeTimeoutMs)
+    }
     startUiTimers()
     robot.ui.drawer.setDrawerButtonState('toggleChat', true)
     chat.setVolume(0.5)
+    chat.setMicrophoneEnabled(!smokeActive || autoMicrophone)
     queueMouthOpen(0, true)
     ensureBalloon()
     refreshBalloonCols(true)
@@ -558,13 +657,17 @@ export function onContextCreated(robot) {
     chat.start()
   }
 
-  const stopChat = () => {
+  const stopChat = (force = false) => {
     if (!active) return
     active = false
+    clearSmokeTimers()
     robot.ui.drawer.setDrawerButtonState('toggleChat', false)
-    chat.stop()
+    if (force) chat.close()
+    else chat.stop()
+    chat.setMicrophoneEnabled(true)
     queueMouthOpen(0, true)
     removeBalloon()
+    smokeActive = false
   }
 
   robot.ui.drawer.addDrawerButton({
@@ -574,7 +677,7 @@ export function onContextCreated(robot) {
     initialState: active,
     callback: () => {
       if (active) stopChat()
-      else startChat()
+      else startChat(false)
     },
   })
   robot.ui.drawer.addDrawerButton({
@@ -584,4 +687,8 @@ export function onContextCreated(robot) {
     initialState: isFollowing,
     callback: toggleLookAround,
   })
+  if (autoStart) {
+    trace(`[ChatSmoke] auto-start scheduled delayMs=${autoStartDelayMs}\n`)
+    Timer.set(() => startChat(true), autoStartDelayMs)
+  }
 }

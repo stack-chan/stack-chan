@@ -21,6 +21,20 @@ type GlobalEnvironment = {
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 const noopButtonHandler = () => undefined
 
+function traceResetReason(): void {
+  if (!Modules.has('resetReason')) return
+  try {
+    const getResetReason = Modules.importNow('resetReason') as () => {
+      reason?: number
+      string?: string
+    }
+    const result = getResetReason()
+    trace(`[main] reset reason=${result?.reason ?? 'unknown'} (${result?.string ?? 'unknown'})\n`)
+  } catch (error) {
+    trace(`[main] reset reason unavailable: ${error?.message ?? error}\n`)
+  }
+}
+
 function installPlatformInputBridge(): void {
   if (!Modules.has('wasm-button-bridge')) return
   const bridge = Modules.importNow('wasm-button-bridge') as { installWasmButtons?: () => void }
@@ -74,6 +88,7 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string
 
 async function main() {
   trace('[main] start\n')
+  traceResetReason()
   installPlatformInputBridge()
   initializeLocalization(loadPreferences(DOMAIN.ui).language)
   const miniAppArchivePresent = Modules.has('miniapp')

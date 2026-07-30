@@ -112,5 +112,18 @@ service.start()
 equal(service.transcript.input, '', 'start should clear input transcript for the next session')
 equal(service.transcript.output, '', 'start should clear output transcript for the next session')
 
+new ChatService({
+  config: {
+    type: 'openAIRealtime',
+    specifier: 'stackchanOpenAIRealtime',
+  },
+  chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
+})
+equal(
+  ChatAudioIOAny.lastOptions?.specifier,
+  'stackchanOpenAIRealtime',
+  'an explicit worker specifier should override the provider type',
+)
+
 trace('ok\n')
 Timer.set(() => {}, 1000)

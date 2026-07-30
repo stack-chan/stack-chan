@@ -1,0 +1,53 @@
+{
+  "include": [
+    "$(MODDABLE)/modules/base/worker/manifest.json",
+    "$(MODDABLE)/modules/io/manifest.json",
+    "$(MODDABLE)/examples/io/tcp/tlssocket/manifest.json",
+    "$(MODDABLE)/modules/crypt/tls_419.json",
+    "$(MODDABLE)/modules/data/headers/manifest.json",
+    "$(MODDABLE)/examples/io/tcp/httpsclient/manifest_httpsclient.json",
+    "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
+    "$(MODDABLE)/examples/io/tcp/websocketsclient/manifest_wssclient.json",
+    "$(MODDABLE)/modules/io/audioin/manifest.json",
+    "$(MODDABLE)/modules/io/audioout/manifest.json",
+    "$(MODDABLE)/modules/data/text/encoder/manifest.json"
+  ],
+  "data": {
+    "*": [
+      "$(MODULES)/crypt/data/ca35",
+      "$(MODULES)/crypt/data/ca109",
+      "$(MODULES)/crypt/data/ca222",
+      "$(MODULES)/crypt/data/ca233",
+      "$(MODULES)/crypt/data/ca236"
+    ]
+  },
+  "defines": {
+    "audioIn": {
+      "bitsPerSample": 16,
+      "numChannels": 1,
+      "sampleRate": 24000
+    },
+    "audioOut": {
+      "bitsPerSample": 16,
+      "numChannels": 1,
+      "sampleRate": 24000
+    },
+    "task": {
+      "queueLength": 64
+    }
+  },
+  "modules": {
+    "*": "$(MODULES)/network/services/chatAudioIO/workers/*",
+    "ChatAudioIO/Codecs": "$(MODULES)/network/services/chatAudioIO/codecs/audio-codecs",
+    "stackchanOpenAIRealtime": "./stackchan-openai-realtime",
+    "stackchanOpenAIRealtimeModel": "./openai-realtime-model"
+  },
+  "preload": [
+    "ChatAudioIO",
+    "ChatAudioIO/Codecs",
+    "ChatWorker",
+    "ChatWebSocketWorker",
+    "JSONBase64Parser",
+    "alaw-encode"
+  ]
+}

@@ -13,6 +13,7 @@ export type ChatType = 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' 
 
 export type ChatConfig = {
   type: ChatType
+  specifier?: string
   apiKey?: string
   instructions?: string
   voiceID?: string
@@ -158,7 +159,7 @@ export class ChatService {
       })
     const chatAudioIOConstants = ChatAudioIOCtor as unknown as ChatAudioIOStateConstants
     this.#chat = new ChatAudioIOCtor({
-      specifier: config.type as unknown as string,
+      specifier: config.specifier ?? (config.type as unknown as string),
       instructions: config.instructions,
       voiceID: config.voiceID,
       providerID: config.providerID,

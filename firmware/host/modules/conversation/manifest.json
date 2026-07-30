@@ -5,26 +5,28 @@
     "../connectivity/mcp-client/manifest.json"
   ],
   "modules": {
+    "ChatAudioIO": [],
+    "ChatAudioIOBase": [],
     "*": ["./*"],
-    "ChatAudioIO": "./chat-audioio-stub"
+    "duplex-chat-audio-buffer": "./chat-audioio/duplex-chat-audio-buffer"
   },
   "platforms": {
     "esp32/m5stack_cores3": {
-      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
+      "include": ["./chat-audioio/manifest.json"],
       "modules": {
-        "ChatAudioIO": "./chat-audioio/worker-stack",
+        "ChatAudioIO": "./chat-audioio/duplex-chat-audioio",
         "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
       }
     },
     "esp32/m5stackchan_cores3": {
-      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
+      "include": ["./chat-audioio/manifest.json"],
       "modules": {
-        "ChatAudioIO": "./chat-audioio/worker-stack",
+        "ChatAudioIO": "./chat-audioio/duplex-chat-audioio",
         "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
       }
     },
     "esp32/stackchan_rt": {
-      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
+      "include": ["./chat-audioio/manifest.json"],
       "modules": {
         "ChatAudioIO": "./chat-audioio/worker-stack",
         "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
@@ -34,6 +36,11 @@
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
         "ChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+      }
+    },
+    "...": {
+      "modules": {
+        "ChatAudioIO": "./chat-audioio-stub"
       }
     }
   },

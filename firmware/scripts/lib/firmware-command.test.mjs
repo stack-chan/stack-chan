@@ -17,6 +17,18 @@ function dryRun(...args) {
   return result.stdout
 }
 
+test('built-in CoreS3 command selects its matching platform and manifest', () => {
+  const result = spawnSync(process.execPath, ['scripts/firmware.mjs', 'build', 'm5stack_cores3'], {
+    cwd: firmwareDirectory,
+    encoding: 'utf8',
+    env: { ...process.env, STACKCHAN_DRY_RUN: '1', npm_config_target: '' },
+  })
+
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stdout, /platform=esp32\/m5stack_cores3/)
+  assert.match(result.stdout, /manifest=\.\/host\/app\/manifest_local\.json/)
+})
+
 test('MOD command keeps debug as the default build mode', () => {
   assert.match(dryRun('-t', 'build'), /mcrun -d -m /)
 })

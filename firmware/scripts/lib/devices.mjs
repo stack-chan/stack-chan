@@ -1,4 +1,11 @@
 export const devices = {
+  m5stack_cores3: {
+    platform: 'm5stack_cores3',
+    manifest: './host/app/manifest_local.json',
+    label: 'M5Stack CoreS3',
+    esptoolChip: 'esp32s3',
+    firmwareVersionSource: 'moddable',
+  },
   m5stackchan_cores3: {
     platform: './host/platforms/m5stackchan_cores3',
     manifest: './host/app/manifest_m5stackchan_cores3.json',
@@ -22,6 +29,7 @@ export const devices = {
 
 export const aliases = {
   default: 'm5stackchan_cores3',
+  cores3: 'm5stack_cores3',
   m5stackchan: 'm5stackchan_cores3',
   rt: 'stackchan_rt',
   takao: 'takao_core2_sg90',

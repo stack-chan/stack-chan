@@ -87,13 +87,14 @@ export function prepareVersionSdkconfig({
 
 /**
  * Writes the M5StackChan CoreS3 sdkconfig overlay used by normal firmware builds.
- * @param {{moddableDirectory?: string, outputDirectory?: string, sourceDirectory?: string, partitionSourcePath?: string}} options - Generation inputs.
+ * @param {{platformName?: "m5stack_cores3" | "m5stackchan_cores3", moddableDirectory?: string, outputDirectory?: string, sourceDirectory?: string, partitionSourcePath?: string}} options - Generation inputs.
  * @returns {{directory: string, filePath: string, partitionFilePath: string, version: string}} Generated configuration details.
  */
 export function prepareCoreS3VersionSdkconfig({
+  platformName = 'm5stackchan_cores3',
   moddableDirectory = process.env.MODDABLE,
   outputDirectory = buildOutputDirectory,
-  sourceDirectory = coreS3SdkconfigSourceDirectory,
+  sourceDirectory,
   partitionSourcePath = path.join(
     moddableDirectory ?? '',
     'build',
@@ -105,8 +106,15 @@ export function prepareCoreS3VersionSdkconfig({
     'partitions.csv',
   ),
 } = {}) {
+  if (!['m5stack_cores3', 'm5stackchan_cores3'].includes(platformName))
+    throw new Error(`Unsupported CoreS3 sdkconfig platform: ${platformName}`)
+  sourceDirectory ??=
+    platformName === 'm5stack_cores3'
+      ? path.join(moddableDirectory ?? '', 'build', 'devices', 'esp32', 'targets', 'm5stack_cores3', 'sdkconfig')
+      : coreS3SdkconfigSourceDirectory
+
   return prepareVersionSdkconfig({
-    platformName: 'm5stackchan_cores3',
+    platformName,
     moddableDirectory,
     outputDirectory,
     sourceDirectory,

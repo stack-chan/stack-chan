@@ -52,7 +52,7 @@ const deviceName = resolveDevice(
 )
 const device = devices[deviceName]
 const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg) && !isBuildModeFlag(arg))
-const platform = `esp32:${device.platform}`
+const platform = device.platform.startsWith('.') ? `esp32:${device.platform}` : `esp32/${device.platform}`
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
 const { mode: buildMode, args: buildModeArgs } = readBuildConfiguration(rawArgs)
@@ -62,7 +62,7 @@ const uploadPort =
 const uploadBaud = readOption(rawArgs, 'baud') ?? process.env.STACKCHAN_BAUD ?? process.env.ESPBAUD
 let subprocessEnvironment = uploadPort ? { ...process.env, UPLOAD_PORT: uploadPort } : process.env
 
-if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
+if (!dryRun && isCoreS3Device(deviceName) && command !== 'mod') {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
@@ -75,7 +75,7 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod') {
     process.exit(1)
   }
   try {
-    const versionSdkconfig = prepareCoreS3VersionSdkconfig()
+    const versionSdkconfig = prepareCoreS3VersionSdkconfig({ platformName: deviceName })
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {
     console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
@@ -288,6 +288,15 @@ function isBuildModeFlag(value) {
 }
 
 /**
+ * Tests whether a named target uses the CoreS3 host and managed audio dependencies.
+ * @param {string} value - Resolved device name.
+ * @returns {boolean} Whether the target is a supported CoreS3 variant.
+ */
+function isCoreS3Device(value) {
+  return value === 'm5stack_cores3' || value === 'm5stackchan_cores3'
+}
+
+/**
  * Tests whether an argument selects a debug build and debugger behavior.
  * @param {string} value - Command-line argument.
  * @returns {boolean} Whether the argument is a debug selector.
@@ -307,6 +316,7 @@ function printHelp() {
   npm run mod -- <mod-manifest>
 
 Devices:
+  m5stack_cores3      M5Stack CoreS3
   m5stackchan_cores3  M5StackChan CoreS3 (default)
   stackchan_rt        Stack-chan RT CoreS3
   takao_core2_sg90    Stack-chan Takao Core2 + SG90

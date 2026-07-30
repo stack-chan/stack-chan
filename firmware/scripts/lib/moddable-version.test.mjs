@@ -54,6 +54,32 @@ test('prepares an SDKCONFIGPATH directory from MODDABLE tools VERSION', () => {
   }
 })
 
+test('uses the built-in CoreS3 sdkconfig without custom-platform audio options', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-moddable-version-'))
+  const moddableDirectory = path.join(fixture, 'moddable')
+  const sourceDirectory = path.join(moddableDirectory, 'build/devices/esp32/targets/m5stack_cores3/sdkconfig')
+  const outputDirectory = path.join(fixture, 'output')
+
+  try {
+    mkdirSync(path.join(moddableDirectory, 'tools'), { recursive: true })
+    mkdirSync(sourceDirectory, { recursive: true })
+    writeFileSync(path.join(moddableDirectory, 'tools', 'VERSION'), '9.0.0\n')
+    writeFileSync(path.join(sourceDirectory, 'partitions.csv'), 'factory,app,factory,0x10000,0xFE0000\n')
+    writeFileSync(path.join(sourceDirectory, 'sdkconfig.defaults'), 'CONFIG_BUILTIN_CORES3=y\n')
+
+    const result = prepareCoreS3VersionSdkconfig({
+      platformName: 'm5stack_cores3',
+      moddableDirectory,
+      outputDirectory,
+    })
+
+    assert.equal(result.directory, path.join(outputDirectory, 'generated', 'sdkconfig', 'm5stack_cores3'))
+    assert.match(readFileSync(result.filePath, 'utf8'), /CONFIG_BUILTIN_CORES3=y/)
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})
+
 test('rejects missing and unsafe Moddable versions', () => {
   assert.throws(() => readModdableVersion(''), /MODDABLE environment variable is required/)
   assert.throws(() => renderCoreS3VersionSdkconfig('', '9.0.0"\nCONFIG_FOO=y'), /Invalid Moddable SDK version/)

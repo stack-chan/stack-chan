@@ -1,4 +1,4 @@
-import type { RemoteConversationSession, RemoteConversationState, StackchanContext } from 'capabilities'
+import type { RemoteConversationSessionDelegate, RemoteConversationState, StackchanContext } from 'capabilities'
 import { type ApprovalSession, createApprovalSession } from 'stackchan-approval-session'
 import { type ConversationRetryScheduler, createConversationSession } from 'stackchan-conversation-session'
 import {
@@ -8,12 +8,10 @@ import {
   type RealtimeToolProvider,
 } from 'stackchan-realtime-session'
 
-export type RemoteSessionTransport = RealtimeEventBridge & {
-  close(): void
-}
+export type RemoteSessionTransport = RealtimeEventBridge
 
 export type RemoteSessionRuntime = {
-  readonly remoteConversationSession: RemoteConversationSession
+  readonly remoteConversationSession: RemoteConversationSessionDelegate
   onContextCreated(context: StackchanContext, provider: RealtimeToolProvider): void
   updateConversationState(state: RemoteConversationState, error?: string): void
   close(): void
@@ -65,7 +63,6 @@ export function createRemoteSessionRuntime(
       close(() => approvalSession?.close())
       close(() => conversationSession.close())
       close(() => realtimeSession.close())
-      close(() => transport.close())
       removeApprovalHandler = undefined
       removeConversationHandler = undefined
       approvalSession = undefined

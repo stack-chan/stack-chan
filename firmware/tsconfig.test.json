@@ -235,6 +235,9 @@
       "stackchan-remote-session-runtime": [
         "host/app/remote-session/runtime.ts"
       ],
+      "stackchan-remote-session-facade": [
+        "host/app/remote-session/facade.ts"
+      ],
       "stackchan-owned-resources": [
         "host/app/owned-resources.ts"
       ],

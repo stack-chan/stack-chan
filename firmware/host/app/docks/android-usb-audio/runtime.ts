@@ -1,0 +1,177 @@
+import type {
+  RemoteConversationSession,
+  RemoteConversationSessionDelegate,
+  RemoteConversationState,
+  StackchanContext,
+} from 'capabilities'
+import type { RealtimeToolProvider } from 'stackchan-realtime-session'
+import {
+  createRemoteConversationSessionFacade,
+  type RemoteConversationSessionBinding,
+} from 'stackchan-remote-session-facade'
+
+export type UsbAudioPresentationControl = {
+  onStatusChanged(status: number): void
+  onPlaybackStarted(): void
+  onPlaybackPower(power: number): void
+  onPlaybackText(text: string): void
+  onPlaybackStopped(): void
+  close(): void
+}
+
+export type UsbAudioBridgeControl<Status> = {
+  setEventHandler(handler?: (event: string) => void): void
+  setTransportStateHandler(handler?: (state: 'disconnected' | 'unsupported' | 'ready') => void): void
+  sendEvent(event: string): Promise<'queued' | 'overflow' | 'disconnected' | 'unsupported'>
+  close(): void
+  setPresentation(presentation?: UsbAudioPresentationControl): void
+  setStatusHandler(handler?: (status: Status) => void): void
+}
+
+export type UsbAudioBridgeOptions = {
+  speakerVolume?: number
+  diagnostics?: boolean
+}
+
+export type UsbAudioConfig = UsbAudioBridgeOptions & {
+  enabled?: boolean
+  autoStart?: boolean
+  presentationEnabled?: boolean
+}
+
+type StartUsbAudioBridge<Status> = (options?: UsbAudioBridgeOptions) => UsbAudioBridgeControl<Status>
+
+export type UsbAudioRemoteRuntime = {
+  readonly remoteConversationSession: RemoteConversationSessionDelegate
+  onContextCreated(context: StackchanContext, provider: RealtimeToolProvider): void
+  updateConversationState(state: RemoteConversationState, error?: string): void
+  close(): void
+}
+
+export type UsbAudioDockRuntime = {
+  readonly remoteConversationSession?: RemoteConversationSession
+  onContextCreated(context: StackchanContext): void
+  close(): void
+}
+
+export type UsbAudioDockDependencies<Status> = {
+  hasUsbAudioModule(): boolean
+  importUsbAudioModule(): unknown
+  createRemoteRuntime(bridge: UsbAudioBridgeControl<Status>): UsbAudioRemoteRuntime
+  createRealtimeToolProvider(context: StackchanContext): RealtimeToolProvider
+  createPresentation(context: StackchanContext): UsbAudioPresentationControl
+  conversationState(status: Status): RemoteConversationState
+}
+
+export function createUsbAudioDockRuntime<Status>(
+  usbAudio: UsbAudioConfig,
+  dependencies: UsbAudioDockDependencies<Status>,
+): UsbAudioDockRuntime {
+  let context: StackchanContext | undefined
+  let contextAttached = false
+  let closed = false
+  const facade = createRemoteConversationSessionFacade(createActiveBinding)
+
+  function createActiveBinding(): RemoteConversationSessionBinding {
+    if (!contextAttached || !context) {
+      throw new Error('USB audio Dock cannot activate before the Stack-chan context is attached')
+    }
+    if (!dependencies.hasUsbAudioModule()) {
+      throw new Error('USB audio Dock is enabled, but the stackchan-usb-audio module is unavailable')
+    }
+    const startUsbAudioBridge = dependencies.importUsbAudioModule()
+    if (typeof startUsbAudioBridge !== 'function') {
+      throw new Error('stackchan-usb-audio does not export a bridge starter')
+    }
+
+    let bridge: UsbAudioBridgeControl<Status> | undefined
+    let remoteRuntime: UsbAudioRemoteRuntime | undefined
+    let presentation: UsbAudioPresentationControl | undefined
+    try {
+      bridge = (startUsbAudioBridge as StartUsbAudioBridge<Status>)({
+        speakerVolume: usbAudio.speakerVolume,
+        diagnostics: usbAudio.diagnostics,
+      })
+      remoteRuntime = dependencies.createRemoteRuntime(bridge)
+      remoteRuntime.onContextCreated(context, dependencies.createRealtimeToolProvider(context))
+      bridge.setStatusHandler((status) =>
+        remoteRuntime?.updateConversationState(dependencies.conversationState(status)),
+      )
+      if (usbAudio.presentationEnabled !== false) {
+        presentation = dependencies.createPresentation(context)
+        bridge.setPresentation(presentation)
+      }
+    } catch (error) {
+      try {
+        closeActiveResources(bridge, remoteRuntime, presentation)
+      } catch (closeError) {
+        log(`[dock] activation cleanup failed: ${errorMessage(closeError)}\n`)
+      }
+      throw error
+    }
+
+    const activeBridge = bridge
+    const activeRemoteRuntime = remoteRuntime
+    const activePresentation = presentation
+    let activeClosed = false
+    return {
+      remoteSession: activeRemoteRuntime.remoteConversationSession,
+      close() {
+        if (activeClosed) return
+        activeClosed = true
+        closeActiveResources(activeBridge, activeRemoteRuntime, activePresentation)
+      },
+    }
+  }
+
+  return {
+    remoteConversationSession: facade.remoteSession,
+    onContextCreated(nextContext) {
+      if (closed) throw new Error('USB audio Dock runtime is closed')
+      if (contextAttached) throw new Error('USB audio Dock context is already attached')
+      context = nextContext
+      contextAttached = true
+      if (usbAudio.autoStart) facade.remoteSession.activate()
+    },
+    close() {
+      if (closed) return
+      closed = true
+      context = undefined
+      facade.close()
+    },
+  }
+}
+
+function closeActiveResources<Status>(
+  bridge: UsbAudioBridgeControl<Status> | undefined,
+  remoteRuntime: UsbAudioRemoteRuntime | undefined,
+  presentation: UsbAudioPresentationControl | undefined,
+): void {
+  let firstError: unknown
+  let failed = false
+  const attempt = (operation: () => void) => {
+    try {
+      operation()
+    } catch (error) {
+      if (!failed) firstError = error
+      failed = true
+    }
+  }
+
+  if (bridge) {
+    attempt(() => bridge.setStatusHandler(undefined))
+    attempt(() => bridge.setPresentation(undefined))
+  }
+  if (presentation) attempt(() => presentation.close())
+  if (remoteRuntime) attempt(() => remoteRuntime.close())
+  if (bridge) attempt(() => bridge.close())
+  if (failed) throw firstError
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function log(message: string): void {
+  if (typeof trace === 'function') trace(message)
+}

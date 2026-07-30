@@ -1,0 +1,15 @@
+{
+  "include": ["./manifest.json"],
+  "config": {
+    "aecWaveform": {
+      "profile": "double-talk",
+      "hardwareAttenuationDb": 48,
+      "safeHardwareAttenuationDb": 96,
+      "probePeak": 12000,
+      "captureSamples": 131072,
+      "startDelayMs": 10000,
+      "warmupMs": 2000,
+      "captureMs": 8500
+    }
+  }
+}

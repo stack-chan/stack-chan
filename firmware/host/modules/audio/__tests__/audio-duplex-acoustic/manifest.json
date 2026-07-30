@@ -1,0 +1,17 @@
+{
+  "include": ["$(MODDABLE)/examples/manifest_base.json", "../../manifest.json"],
+  "modules": {
+    "*": ["./main"],
+    "audio-duplex-device-test": "../audio-duplex-device/amp-readback"
+  },
+  "config": {
+    "startupSound": false
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "lib": ["es2025", "esnext.disposable"]
+      }
+    }
+  }
+}

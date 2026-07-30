@@ -18,9 +18,9 @@ npm run flash:android-usb-audio
 ```
 
 専用manifestは`host/app/manifest_android_usb_audio.json`である。
-このmanifestはCoreS3構成を読み込み、`config.usbAudio.enabled`を有効にする。
+このmanifestは標準CoreS3構成を読み込み、`config.usbAudio.autoStart=true`でUSB dockを自動起動する。
 通常再生時の`AudioOut.volume`は`0.25`に固定する。
-通常manifestではUSB音声ブリッジを起動しない。
+標準CoreS3 manifestにもUSB dockは組み込まれるが、`autoStart=false`であるためMODが`activate()`するまでUSB音声ブリッジを起動しない。
 `flash:android-usb-audio`は書き込み後にserial monitorを起動せず、CDCポートをAndroid向けに解放する。
 ビルドコマンドは、通常版と診断版のmanifestを切り替えた場合に同じtargetの生成物を自動消去してから再構築する。
 これにより、直前に使ったmanifestの音量や診断capabilityが残らない。
@@ -30,8 +30,14 @@ npm run flash:android-usb-audio
 ## Dockの構成
 
 共通の`main.ts`は`stackchan-dock`が登録されている場合だけDockを開始する。
-Android USB Audio用manifestは、このモジュール名をUSB Dock実装へ割り当てる。
-通常版とWASM版はUSB transport、remote session、承認画面をbundleしない。
+M5StackChan CoreS3用manifestは、このモジュール名をUSB Dock実装へ割り当てる。
+共有host manifestとWASM版はUSB transport、remote session、承認画面をbundleしない。
+
+標準CoreS3 hostの`robot.conversation.remoteSession`は、USB bridgeをまだ起動していないinactive状態から始まる。
+USB機能を使うMODは、状態購読や会話要求より前に`remoteSession.activate()`を呼ぶ。
+`activate()`は冪等であり、成功後の`activationState`は`active`になる。
+`deactivate()`はWorker、音声入出力、remote session runtime、状態表示を解放し、同じfacadeを再びactivateできる状態へ戻す。
+inactive時の`requestStart()`と`requestStop()`は要求を保留せず例外を投げる。
 
 Dock内部は次の三つの契約に分かれる。
 
@@ -49,6 +55,7 @@ raw CDC、frame、application eventはMODとmini-appへ公開しない。
 - `ready`：双方がEVENT bit 10を広告し、application eventを送受信できる。
 
 `remoteSession.subscribeTransport()`は、この三値が変化した場合に通知する。
+`activationState='inactive'`の間、`transportState`は`disconnected`である。
 EVENT非対応時の会話要求はrequest IDを返したうえで即座に`blocked`となり、EVENT frameもretry timerも作らない。
 USB未接続時の会話要求は同じrequest IDを最大10秒間保持し、`ready`へ遷移した時点で送信する。
 
@@ -209,6 +216,7 @@ npm run check:architecture
 npm run check:manifest
 npm run test:moddable
 python -m unittest scripts/test_usb_audio_diagnostics.py
+npm run build:m5stackchan_cores3 -- --mode=release
 npm run build:android-usb-audio
 ```
 

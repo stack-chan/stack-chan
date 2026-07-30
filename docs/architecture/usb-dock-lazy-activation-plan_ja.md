@@ -1,6 +1,6 @@
 # USB dockのMOD駆動遅延起動計画
 
-作成日：2026-07-31
+作成日：2026-07-31（Asia/Tokyo）
 
 対象：M5StackChan CoreS3向けUSB audio dock、remote conversation capability、Codex Voice MOD。
 

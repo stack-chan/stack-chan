@@ -276,6 +276,31 @@ test('auto-start activates after context attachment and host close is idempotent
   assert.throws(() => remoteSession.activate(), /closed/)
 })
 
+test('auto-start failure is logged and leaves the attached context available for retry', () => {
+  const harness = createHarness({ autoStart: true })
+  const remoteSession = harness.runtime.remoteConversationSession
+  assert.ok(remoteSession)
+  harness.failPresentation = true
+  const messages: string[] = []
+  const testGlobal = globalThis as typeof globalThis & { trace?: (message: string) => void }
+  const previousTrace = testGlobal.trace
+  testGlobal.trace = (message) => messages.push(message)
+
+  try {
+    assert.doesNotThrow(() => harness.runtime.onContextCreated({} as StackchanContext))
+  } finally {
+    testGlobal.trace = previousTrace
+  }
+
+  assert.equal(remoteSession.activationState, 'inactive')
+  assert.match(messages.join(''), /\[dock\] auto-start activation failed: presentation failed/)
+
+  harness.failPresentation = false
+  remoteSession.activate()
+  assert.equal(remoteSession.activationState, 'active')
+  assert.equal(harness.imports, 2)
+})
+
 test('activation before context attachment fails without touching the USB module', () => {
   const harness = createHarness()
   const remoteSession = harness.runtime.remoteConversationSession

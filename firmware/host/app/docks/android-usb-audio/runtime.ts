@@ -131,7 +131,13 @@ export function createUsbAudioDockRuntime<Status>(
       if (contextAttached) throw new Error('USB audio Dock context is already attached')
       context = nextContext
       contextAttached = true
-      if (usbAudio.autoStart) facade.remoteSession.activate()
+      if (usbAudio.autoStart) {
+        try {
+          facade.remoteSession.activate()
+        } catch (error) {
+          log(`[dock] auto-start activation failed: ${errorMessage(error)}\n`)
+        }
+      }
     },
     close() {
       if (closed) return

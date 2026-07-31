@@ -16,7 +16,7 @@
 
 ## 始め方
 
-初めてｽﾀｯｸﾁｬﾝを使う場合は、組み立て済みのM5StackChanとWebツールを使う方法が最短です。
+初めてｽﾀｯｸﾁｬﾝを使う場合は、組み立て済みのM5StackChanを用意し、Webツールから始めるのが簡単です。
 
 ### 1. M5StackChanを用意する
 
@@ -39,18 +39,19 @@ Moddable SDKやESP-IDFのセットアップは不要です。
 
 ### 3. MODを試す
 
-[MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/)では、公開されているMODやミニアプリを検索し、シミュレーターで試すか実機へ書き込めます。
+公開MODやミニアプリは[MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/)から探せます。
+試したいMODを選び、シミュレーターで試すか実機へ書き込めます。
 ブロックで作られたサンプルは、そのままブロックエディタで開いて変更できます。
 
 ## Webツール
 
-[ｽﾀｯｸﾁｬﾝ Webツール](https://stack-chan.github.io/stack-chan/web/)は、セットアップ、設定、MOD制作をブラウザーから行うための入口です。
+[ｽﾀｯｸﾁｬﾝ Webツール](https://stack-chan.github.io/stack-chan/web/)を使うと、セットアップ、設定、MOD制作をブラウザーから進められます。
 
 | ツール | 用途 |
 | --- | --- |
 | [ファームウェア書き込み](https://stack-chan.github.io/stack-chan/web/flash/) | 対応するM5StackへUSB経由でファームウェアを書き込む |
 | [設定](https://stack-chan.github.io/stack-chan/web/preference/) | BLE経由でWi-Fiや本体設定を変更する |
-| [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/) | 公開済みのMODを試し、編集し、実機へ書き込む |
+| [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/) | 公開済みのMODを探し、試し、実機へ書き込む |
 | [ブロックエディタ](https://stack-chan.github.io/stack-chan/web/editor/) | BlocklyでMODを作り、シミュレーターや実機で動かす |
 | [Shape顔エディタ](https://stack-chan.github.io/stack-chan/web/face-editor/) | 目と口を配置してカスタムFaceを作る |
 | [シミュレーター](https://stack-chan.github.io/stack-chan/web/simulator/) | WebAssembly版ファームウェアと3DモデルでMODを試す |
@@ -64,7 +65,8 @@ Moddable SDKやESP-IDFのセットアップは不要です。
 Stack-chan RTとタカオ版Core2 + SG90向けのファームウェアは、ソースからビルドできます。
 機種ごとのコマンドと制約は[ファームウェアの説明](./firmware/README_ja.md)を参照してください。
 
-自作する場合は、[ケース](./case/README_ja.md)と[回路図](./schematics/README_ja.md)から必要な部品と組み立て方を確認できます。
+自作する場合は、[ケース](./case/README_ja.md)で必要な部品と組み立て方を確認してください。
+基板情報は[回路図](./schematics/README_ja.md)で確認できます。
 
 ## リポジトリの構成
 
@@ -92,7 +94,7 @@ Stack-chan RTとタカオ版Core2 + SG90向けのファームウェアは、ソ�
 
 ## ライセンス
 
-このリポジトリ配下のリソースはApache version 2.0ライセンスのもと配布されています。
+このリポジトリ配下のリソースはApache License 2.0のもとで配布されています。
 [LICENSE](./LICENSE)を確認してください。
 
 ## BibTeX

@@ -3,18 +3,20 @@
 [English](./README.md)
 
 **MOD**は、ｽﾀｯｸﾁｬﾝのホストファームウェア上で動くユーザーアプリケーションです。
-公開されているMODを使う場合と、ソースコードからMODを開発する場合では入口が異なります。
 
 ## MODを試す
 
-公開MODの一覧は[MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/)で管理しています。
-Galleryでは、名前や機能でMODを検索し、ブロックエディタで変更し、シミュレーターまたは実機で試せます。
+公開MODは[MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/)から探せます。
+名前や機能で検索し、シミュレーターまたは実機で試せます。
+ブロックで作られたMODは、ブロックエディタで変更できます。
 
-GalleryはMODの対象機種、XSバージョン、ファームウェア互換性を実機へ書き込む前に検査します。
-外部サービスやネットワークを使うMODもあるため、カードに表示される利用機能と対象機種を確認し、リンク先のソースコードも読んでから書き込んでください。
+MODを選ぶときは、カードに表示される使用機能と対応機種を確認してください。
+外部サービスやネットワークを使うMODは、リンク先のソースコードも確認してから書き込んでください。
+実機へ書き込むときは、Galleryが対象チップ、XSバージョン、ファームウェア互換性を自動で検査します。
 
-このディレクトリの[`examples`](./examples/)は、APIの使い方、テスト、ローカル開発の参考にするソースコードです。
-配布用のGalleryと開発用の`examples`は役割が異なるため、収録内容は一対一には対応しません。
+このディレクトリの[`examples`](./examples/)には、APIの学習、テスト、ローカル開発に使えるMODのソースコードがあります。
+その一部はGalleryにも掲載されています。
+現在、Galleryと`examples`の収録内容は一致していませんが、今後そろえていく予定です。
 
 ## MODを作る
 
@@ -27,7 +29,7 @@ GalleryはMODの対象機種、XSバージョン、ファームウェア互換�
 ### ソースコードから作る
 
 MODはJavaScriptまたはTypeScriptのモジュールとして実装できます。
-TypeScriptでは、公開されているStack-chan capability型とModdableのモジュール指定子を使用します。
+TypeScriptのMODでは、Stack-chanのcapability APIが公開する型とModdableのモジュール指定子を使用します。
 
 ローカル環境からMODを書き込む場合は、`firmware`ディレクトリで`manifest.json`を指定します。
 
@@ -39,11 +41,11 @@ npm run mod -- mods/examples/look_around/manifest.json
 
 ## MODの実行モデル
 
-MODをインストールすると、ホストの製品既定動作に代わってそのMODが実行されます。
+MODをインストールすると、ホストの通常動作に代わってそのMODが実行されます。
 ボタンや画面操作の意味は、インストールしたMODの実装で決まります。
 
 MODは、対象機種とホストが使用するXSバージョンに合わせてビルドする必要があります。
-WASMホストで使う場合も、`lin`などTypeScript対応済みのターゲットでビルドした`.xsb`またはアーカイブを読み込みます。
+WASMホストで使う場合も、`lin`などTypeScriptをサポートするターゲットでビルドした`.xsb`またはアーカイブを読み込みます。
 
 表示文字列は[`context.i18n`を使ったファームウェアのローカライズ](../docs/localization_ja.md)に従って追加します。
 顔画面とホストのAppBarを維持したままPiu UIを追加する場合は、実験的な[ミニアプリ](../docs/mini-apps_ja.md)を利用できます。

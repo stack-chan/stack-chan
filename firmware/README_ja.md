@@ -40,9 +40,9 @@ npm run flash
 
 `npm run flash`は標準構成のホストをビルドして書き込みます。
 Stack-chan RTまたはタカオ版Core2 + SG90では、`npm run flash:stackchan_rt`または`npm run flash:takao_core2_sg90`を使います。
-MODの開発だけを繰り返す場合は、`npm run mod -- mods/examples/look_around/manifest.json`のようにMODの`manifest.json`を指定します。
-このコマンドはxsbugの書き込み経路を使わずにアーカイブをビルドし、実機の`xs`パーティションを検出して`esptool`で書き込みます。
-そのため、ホストはデバッグビルドとリリースビルドのどちらでも構いません。
+MODだけを更新する場合は、`npm run mod -- mods/examples/look_around/manifest.json`のようにMODの`manifest.json`を指定します。
+このコマンドはMODアーカイブをビルドし、実機の`xs`パーティションを検出して`esptool`で直接書き込みます。
+xsbugの書き込み経路を使わないため、ホストはデバッグビルドとリリースビルドのどちらでも構いません。
 
 ## 特徴
 
@@ -57,14 +57,16 @@ MODの開発だけを繰り返す場合は、`npm run mod -- mods/examples/look_
 ## ビルド出力
 
 ファームウェア開発にはリポジトリのnpmスクリプトを使ってください。
-これらのコマンドはModdableの出力先を管理し、通常のホスト、MOD、テストの生成物を`firmware/dist/`配下に保存します。
+これらのコマンドはModdableの出力先を管理し、ホスト、MOD、テストの生成物を`firmware/dist/`配下に保存します。
 
-- プログラムは `firmware/dist/bin/`、中間生成物は `firmware/dist/tmp/` 配下に生成されます。
-- ホストアプリケーション名は `stack-chan-host` です。
-- `npm run clean` は `firmware/dist/` 配下の生成物をすべて削除します。
-- リポジトリのビルド手順では、独自の `-o` を指定したり、`mcconfig`、`mcrun`、`mcpack` を直接実行したりしないでください。
-- `npm run bundle` は各 release ターゲットを `firmware/dist/` 配下でビルドし、検証済みのターゲット成果物を `firmware/dist/bundle-targets/` に集約します。最終的なディレクトリと ZIP は `firmware/host/app/` 配下に生成されます。
-- ターゲット単位の release build には名前付きの `build:release:<target>` script を使います。CI も同じ script でビルドし、`bundle:package` で成果物を組み立てます。
+- プログラムは`firmware/dist/bin/`、中間生成物は`firmware/dist/tmp/`配下に生成されます。
+- ホストアプリケーション名は`stack-chan-host`です。
+- `npm run clean`は`firmware/dist/`配下の生成物をすべて削除します。
+- リポジトリのビルド手順では、独自の`-o`を指定したり、`mcconfig`、`mcrun`、`mcpack`を直接実行したりしないでください。
+- `npm run bundle`は各リリース対象を`firmware/dist/`配下でビルドし、検証済みの成果物を`firmware/dist/bundle-targets/`に集約します。
+  最終的なディレクトリとZIPは`firmware/host/app/`配下に生成されます。
+- 対象ごとのリリースビルドには、名前付きの`build:release:<target>`スクリプトを使います。
+  CIも同じスクリプトでビルドし、`bundle:package`で成果物を組み立てます。
 
 ターゲット別のコマンドと詳しい出力先は、[プログラムのビルドと書き込み](docs/flashing-firmware_ja.md)を参照してください。
 
@@ -72,10 +74,10 @@ MODの開発だけを繰り返す場合は、`npm run mod -- mods/examples/look_
 
 - [host](./host/): ホストアプリケーションとファームウェアモジュールのソースコードです。
 - [mods](./mods/): MODのソースコードです。
-- [scripts](./scripts/): ｽﾀｯｸﾁｬﾝの音声合成などに用いるスクリプトです。
-- [typings](./typings/): TypeScriptの型定義ファイル（d.ts）です。
-    - ※ｽﾀｯｸﾁｬﾝのファームウェアは一部を除きTypeScriptで実装されているので別途型定義ファイルは必要ありませんが、Moddable SDKの新しめのモジュールは型定義ファイルが提供されていないため、それを補う用途で置いてあります。
-- `dist/`: ファームウェアのプログラムと中間生成物です。ビルドスクリプトが管理し、Git の追跡対象にはなりません。
+- [scripts](./scripts/): ビルド、検証、テスト、音声生成に用いる開発スクリプトです。
+- [typings](./typings/): Moddable SDKの一部モジュールとｽﾀｯｸﾁｬﾝ固有APIを補うTypeScript型定義です。
+- `dist/`: ファームウェアのプログラムと中間生成物です。
+  ビルドスクリプトが管理し、Gitの追跡対象にはなりません。
 
 ## ドキュメント
 
@@ -93,5 +95,5 @@ MODの開発だけを繰り返す場合は、`npm run mod -- mods/examples/look_
 - [API](docs/api_ja.md)
 - [MOD](mods/README_ja.md)
 - [ローカライズ](docs/localization_ja.md)
-- [ミニアプリ（experimental）](docs/mini-apps_ja.md)
+- [ミニアプリ（実験的）](docs/mini-apps_ja.md)
 - [v1.0.0リリースノート](../docs/release-notes/v1.0.0.md)

@@ -3,18 +3,20 @@
 [日本語](./README_ja.md)
 
 A **MOD** is a user application that runs on the Stack-chan host firmware.
-Published MODs and source examples have different entry points.
 
 ## Try a MOD
 
-The [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/) is the catalog of published MODs.
-It lets you search by name or capability, change block-based projects in the editor, and run a MOD in the simulator or on a device.
+Find published MODs in the [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/).
+Search by name or capability, then run a MOD in the simulator or on a device.
+You can change block-based MODs in the block editor.
 
-Before writing to a device, the Gallery checks the MOD's target, XS version, and firmware compatibility.
-Some MODs use external services or network access, so review the capabilities and target shown on the card, then inspect the linked source code before installing one.
+When choosing a MOD, review the capabilities and supported targets shown on its card.
+If the MOD uses an external service or network access, inspect the linked source code before installing it.
+At installation time, the Gallery automatically checks the target chip, XS version, and firmware compatibility.
 
 The [`examples`](./examples/) directory contains source code for learning APIs, testing, and local development.
-The distribution-oriented Gallery and development-oriented `examples` directory serve different purposes and do not have a one-to-one catalog.
+Some examples are also published in the Gallery.
+The Gallery and `examples` do not yet contain the same set of MODs, but they will be aligned over time.
 
 ## Create a MOD
 
@@ -39,11 +41,11 @@ See [Build and flash programs](../docs/flashing-firmware.md) for setup, target-s
 
 ## MOD runtime model
 
-Installing a MOD runs it in place of the product default behavior supplied by the host.
+Installing a MOD makes the host run that MOD instead of its default behavior.
 Button and screen behavior therefore depends on the installed MOD.
 
 A MOD must be built for the target device and the XS version used by its host.
-For the WASM host, load an `.xsb` or archive built with a TypeScript-capable target such as `lin`.
+For the WASM host, load an `.xsb` or archive built with a target that supports TypeScript, such as `lin`.
 
 Add localized UI text as described in [Firmware localization](../docs/localization.md) through `context.i18n`.
 To add a Piu UI while retaining the face screen and host AppBar, use the experimental [mini-app framework (Japanese)](../docs/mini-apps_ja.md).

@@ -4,7 +4,7 @@
 
 ## About this firmware
 
-The M5Stack factory firmware preinstalled on M5StackChan and the Stack-chan firmware in this repository are separate software.
+The M5Stack factory firmware preinstalled on M5StackChan and the Stack-chan firmware in this repository are separate firmware implementations.
 Use the [latest release](https://github.com/stack-chan/stack-chan/releases/latest) when you need a stable environment.
 The default `develop` branch may change internal structures and APIs while preparing the next release.
 
@@ -40,30 +40,33 @@ npm run flash
 
 `npm run flash` builds and flashes the standard host.
 For Stack-chan RT or Takao Core2 + SG90, use `npm run flash:stackchan_rt` or `npm run flash:takao_core2_sg90`.
-When iterating on a MOD, pass the MOD manifest: `npm run mod -- mods/examples/look_around/manifest.json`.
-The command builds the archive without the xsbug install channel, then discovers and writes the device's `xs` partition with `esptool`.
-The installed host may therefore be either a debug or release build.
+When updating only a MOD, pass its manifest: `npm run mod -- mods/examples/look_around/manifest.json`.
+The command builds a MOD archive, discovers the device's `xs` partition, and writes it directly with `esptool`.
+Because it does not use the xsbug install channel, the installed host can be either a debug or release build.
 
 ## Features
 
 - Develop MODs in JavaScript or TypeScript.
 - Update a MOD quickly without rebuilding the host because the host program and MODs are separate.
 - Use capability-oriented context APIs for faces, motion, input, audio, camera, and connectivity.
-- Support multiple motor configurations, including Feetech, FUTABA, DYNAMIXEL, and PWM servos.
-- Use text-to-speech through Stack-chan Voice, VOICEVOX, ElevenLabs, or OpenAI.
+- Run Stack-chan with multiple motor configurations, including Feetech, FUTABA, DYNAMIXEL, and PWM servos.
+- Generate speech through Stack-chan Voice, VOICEVOX, ElevenLabs, or OpenAI.
 - Access firmware installation, BLE preferences, the MOD Gallery, the block editor, the face editor, and the WebAssembly simulator from a browser.
 - Use the firmware and Web UI in Japanese, English, or Simplified Chinese.
 
 ## Build output
 
-Use the repository npm scripts for firmware development. They manage the Moddable output directory and keep normal host, MOD, and test build artifacts under `firmware/dist/`:
+Use the repository npm scripts for firmware development.
+They manage the Moddable output directory and keep host, MOD, and test build artifacts under `firmware/dist/`:
 
 - Programs are written under `firmware/dist/bin/` and intermediate files under `firmware/dist/tmp/`.
 - The host application name is `stack-chan-host`.
 - `npm run clean` removes all generated files under `firmware/dist/`.
 - Do not pass a custom `-o` or invoke `mcconfig`, `mcrun`, or `mcpack` directly when using the repository workflow.
-- `npm run bundle` builds every release target under `firmware/dist/`, stages validated target artifacts in `firmware/dist/bundle-targets/`, and writes the assembled directory and ZIP under `firmware/host/app/`.
-- Use the named `build:release:<target>` scripts for individual release builds; CI uses the same scripts before `bundle:package` assembles their artifacts.
+- `npm run bundle` builds every release target under `firmware/dist/` and stages validated target artifacts in `firmware/dist/bundle-targets/`.
+  It writes the assembled directory and ZIP under `firmware/host/app/`.
+- Use the named `build:release:<target>` scripts for individual release builds.
+  CI uses the same scripts before `bundle:package` assembles their artifacts.
 
 See [Building and Writing Programs](docs/flashing-firmware.md) for target-specific commands and detailed output paths.
 
@@ -71,10 +74,10 @@ See [Building and Writing Programs](docs/flashing-firmware.md) for target-specif
 
 - [host](./host/): Host application and firmware modules.
 - [mods](./mods/): Source code of mods.
-- [scripts](./scripts/): Scripts for Stack-chan's voice synthesis, etc.
-- [typings](./typings/): TypeScript type definition files (d.ts).
-    - Stack-chan firmware is implemented in TypeScript, so no separate type definition files are needed.
-- `dist/`: Generated firmware programs and intermediate build files. This directory is managed by the build scripts and ignored by Git.
+- [scripts](./scripts/): Development scripts for builds, validation, tests, and speech generation.
+- [typings](./typings/): TypeScript definitions that supplement some Moddable SDK modules and Stack-chan-specific APIs.
+- `dist/`: Generated firmware programs and intermediate build files.
+  Build scripts manage this directory, and Git ignores it.
 
 ## Documents
 
@@ -92,5 +95,5 @@ See [Building and Writing Programs](docs/flashing-firmware.md) for target-specif
 - [API](docs/api.md)
 - [MODs](mods/README.md)
 - [Localization](docs/localization.md)
-- [Mini apps (Japanese)](docs/mini-apps_ja.md)
+- [Mini apps (experimental, Japanese)](docs/mini-apps_ja.md)
 - [v1.0.0 release notes](../docs/release-notes/v1.0.0.md)

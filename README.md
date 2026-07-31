@@ -16,7 +16,7 @@ This repository provides firmware with M5StackChan CoreS3 as its standard config
 
 ## Getting started
 
-For a first Stack-chan, the shortest path is to use a preassembled M5StackChan with the browser tools.
+If this is your first Stack-chan, start with a preassembled M5StackChan and the browser tools.
 
 ### 1. Get an M5StackChan
 
@@ -39,18 +39,19 @@ You do not need to install the Moddable SDK or ESP-IDF.
 
 ### 3. Try a MOD
 
-The [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/) lets you find published MODs and mini apps, run them in the simulator, or install them on a device.
+Find published MODs and mini apps in the [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/).
+Choose a MOD, then run it in the simulator or install it on a device.
 Block-based samples can be opened directly in the block editor and changed.
 
 ## Browser tools
 
-The [Stack-chan browser tools](https://stack-chan.github.io/stack-chan/web/) provide one entry point for setup, preferences, and MOD creation.
+Use the [Stack-chan browser tools](https://stack-chan.github.io/stack-chan/web/) to set up a device, change its preferences, and create MODs in a browser.
 
 | Tool | Purpose |
 | --- | --- |
 | [Firmware installer](https://stack-chan.github.io/stack-chan/web/flash/) | Flash firmware to a supported M5Stack over USB |
 | [Preferences](https://stack-chan.github.io/stack-chan/web/preference/) | Change Wi-Fi and device preferences over BLE |
-| [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/) | Try, edit, and install published MODs |
+| [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/) | Find, try, and install published MODs |
 | [Block editor](https://stack-chan.github.io/stack-chan/web/editor/) | Create MODs with Blockly and run them in the simulator or on a device |
 | [Shape face editor](https://stack-chan.github.io/stack-chan/web/face-editor/) | Arrange eyes and a mouth to create a custom Face |
 | [Simulator](https://stack-chan.github.io/stack-chan/web/simulator/) | Run MODs with the WebAssembly firmware and a 3D model |
@@ -64,7 +65,8 @@ M5StackChan CoreS3 is the standard configuration and the target used for physica
 Firmware for Stack-chan RT and Takao Core2 + SG90 can be built from source.
 See the [firmware guide](./firmware/README.md) for target-specific commands and constraints.
 
-To build the hardware yourself, see the [case](./case/README.md) and [schematics](./schematics/README.md) guides for parts and assembly information.
+To build the hardware yourself, see the [case guide](./case/README.md) for parts and assembly instructions.
+See the [schematics](./schematics/README.md) for board information.
 
 ## Repository contents
 
@@ -92,7 +94,7 @@ To support the project financially, visit the [GitHub Sponsors page](https://git
 
 ## License
 
-Resources of this repository are distributed under Apache version 2.0 license.
+The resources in this repository are distributed under the Apache License 2.0.
 See [LICENSE](./LICENSE).
 
 ## BibTeX

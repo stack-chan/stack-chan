@@ -63,6 +63,8 @@ Moddable SDKやESP-IDFのセットアップは不要です。
 | [シミュレーター](https://stack-chan.github.io/stack-chan/web/simulator/) | WebAssembly版ファームウェアと3DモデルでMODを試す |
 | [MediaPipe BLE追従](https://stack-chan.github.io/stack-chan/web/mediapipe/) | カメラで捉えた顔と手の動きをBLEで送る |
 
+[![ブロックエディタの画面](./docs/images/web-tools/block-editor-ja.png)](https://stack-chan.github.io/stack-chan/web/editor/)
+
 ## 対応ハードウェア
 
 配布ファームウェアは、M5Stack、M5Stack Core2、M5Stack CoreS3、M5StackChan CoreS3に対応します。

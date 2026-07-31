@@ -63,6 +63,8 @@ Use the [Stack-chan browser tools](https://stack-chan.github.io/stack-chan/web/)
 | [Simulator](https://stack-chan.github.io/stack-chan/web/simulator/) | Run MODs with the WebAssembly firmware and a 3D model |
 | [MediaPipe BLE tracking](https://stack-chan.github.io/stack-chan/web/mediapipe/) | Send tracked face and hand movement over BLE |
 
+[![Block editor](./docs/images/web-tools/block-editor-en.png)](https://stack-chan.github.io/stack-chan/web/editor/)
+
 ## Supported hardware
 
 The distributed firmware supports M5Stack, M5Stack Core2, M5Stack CoreS3, and M5StackChan CoreS3.

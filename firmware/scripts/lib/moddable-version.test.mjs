@@ -4,12 +4,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import {
+  firmwareDescriptorVersion,
   prepareCoreS3VersionSdkconfig,
   readModdableVersion,
   renderCoreS3VersionSdkconfig,
+  STACKCHAN_HOST_API_VERSION,
 } from './moddable-version.mjs'
 
-test('renders the actual Moddable version without retaining a pinned value', () => {
+test('renders the actual Moddable and Stack-chan host API versions without retaining a pinned value', () => {
   const source = `CONFIG_ESP_CONSOLE_UART=y
 CONFIG_APP_PROJECT_VER_FROM_CONFIG=y
 CONFIG_APP_PROJECT_VER="8.3.1"
@@ -20,8 +22,15 @@ CONFIG_SPIRAM=y
   assert.match(rendered, /CONFIG_ESP_CONSOLE_UART=y/)
   assert.match(rendered, /CONFIG_SPIRAM=y/)
   assert.equal(count(rendered, 'CONFIG_APP_PROJECT_VER_FROM_CONFIG=y'), 1)
-  assert.equal(count(rendered, 'CONFIG_APP_PROJECT_VER="9.0.0"'), 1)
+  assert.equal(count(rendered, 'CONFIG_APP_PROJECT_VER="9.0.0+stackchan.1"'), 1)
   assert.doesNotMatch(rendered, /CONFIG_APP_PROJECT_VER="8\.3\.1"/)
+})
+
+test('formats a readable host API suffix without discarding upstream build metadata', () => {
+  assert.equal(STACKCHAN_HOST_API_VERSION, 1)
+  assert.equal(firmwareDescriptorVersion('9.0.0'), '9.0.0+stackchan.1')
+  assert.equal(firmwareDescriptorVersion('9.0.0+preview', 2), '9.0.0+preview.stackchan.2')
+  assert.throws(() => firmwareDescriptorVersion('9.0.0', 0), /host API version/)
 })
 
 test('prepares an SDKCONFIGPATH directory from MODDABLE tools VERSION', () => {
@@ -45,9 +54,10 @@ test('prepares an SDKCONFIGPATH directory from MODDABLE tools VERSION', () => {
 
     const result = prepareCoreS3VersionSdkconfig({ moddableDirectory, outputDirectory, sourceDirectory })
 
-    assert.equal(result.version, '9.0.0')
+    assert.equal(result.moddableVersion, '9.0.0')
+    assert.equal(result.version, '9.0.0+stackchan.1')
     assert.equal(result.directory, path.join(outputDirectory, 'generated', 'sdkconfig', 'm5stackchan_cores3'))
-    assert.match(readFileSync(result.filePath, 'utf8'), /CONFIG_APP_PROJECT_VER="9\.0\.0"/)
+    assert.match(readFileSync(result.filePath, 'utf8'), /CONFIG_APP_PROJECT_VER="9\.0\.0\+stackchan\.1"/)
     assert.match(readFileSync(result.partitionFilePath, 'utf8'), /0xFE0000/)
   } finally {
     rmSync(fixture, { recursive: true, force: true })
@@ -58,6 +68,7 @@ test('rejects missing and unsafe Moddable versions', () => {
   assert.throws(() => readModdableVersion(''), /MODDABLE environment variable is required/)
   assert.throws(() => renderCoreS3VersionSdkconfig('', '9.0.0"\nCONFIG_FOO=y'), /Invalid Moddable SDK version/)
   assert.throws(() => renderCoreS3VersionSdkconfig('', 'v'.repeat(32)), /Invalid Moddable SDK version/)
+  assert.throws(() => renderCoreS3VersionSdkconfig('', 'v'.repeat(24)), /firmware descriptor version/)
 })
 
 function count(source, value) {

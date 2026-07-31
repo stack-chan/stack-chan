@@ -25,6 +25,7 @@ Moddableの`manifest.json`はビルド方法を定義します。
 - **source.entrypoint**：任意。テキストMODで、Galleryの「ソースを見る」から開く実装ファイルです。
 - **setup.url**：任意。Galleryの「セットアップ手順」から開く絶対HTTPS URLです。
 - **targets**：対応する実行対象のIDです。
+- **capabilities**：任意。MODが実行時に必要とする公開capabilityです。
 
 `type`は実行形式を表しません。
 
@@ -41,6 +42,18 @@ Moddableの`manifest.json`はビルド方法を定義します。
 `setup.url`は、外部サービスやアプリケーションなど、MOD以外の準備が必要な場合に指定します。
 
 Galleryはセットアップ手順を別タブで開きます。
+
+## Host互換性
+
+Galleryは実機へ書き込む前に、`capabilities`を対象機種の能力および接続中hostのAPI世代と照合します。
+
+hostのAPI世代は、ESP app descriptorのファームウェア版へ`+stackchan.N`として埋め込みます。
+
+このsuffixを持たない従来hostはAPI 0として扱います。
+
+API 1では、標準CoreS3 hostへ`audio.usb`、`conversation.remote`、`ui.approval`を追加します。
+
+これらを要求するMODはAPI 0のhostへ書き込めず、利用者へhost firmwareの更新を案内します。
 
 ## 実行入口
 

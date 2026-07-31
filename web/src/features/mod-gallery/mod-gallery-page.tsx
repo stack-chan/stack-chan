@@ -175,6 +175,7 @@ export function ModGalleryPage() {
         const compatibility = inspectDeploymentCompatibility('simulator', {
           xsVersion: xsArchiveVersion(bytes),
           entrypoints: mod.entrypoints,
+          requirements: mod.capabilities,
           requireArchive: true,
         })
         if (!compatibility.compatible) {
@@ -201,7 +202,9 @@ export function ModGalleryPage() {
               chip,
               xsVersion: archiveVersion,
               firmwareVersion: firmware.version,
+              hostApiVersion: firmware.hostApiVersion,
               entrypoints: mod.entrypoints,
+              requirements: mod.capabilities,
               requireArchive: true,
               requireFirmware: true,
             })

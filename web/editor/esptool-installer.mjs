@@ -90,8 +90,12 @@ export function parseEspAppDescriptor(bytes) {
   if (!(bytes instanceof Uint8Array) || bytes.length < 0x70) return null
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   if (view.getUint32(0x20, true) !== ESP_APP_DESC_MAGIC) return null
+  const version = readCString(bytes, 0x30, 32)
+  const hostVersion = /^(.*?)(?:\+stackchan|\.stackchan)\.([1-9][0-9]*)$/.exec(version)
   return {
-    version: readCString(bytes, 0x30, 32),
+    version,
+    moddableVersion: hostVersion?.[1] ?? version,
+    hostApiVersion: hostVersion ? Number(hostVersion[2]) : 0,
     projectName: readCString(bytes, 0x50, 32),
   }
 }

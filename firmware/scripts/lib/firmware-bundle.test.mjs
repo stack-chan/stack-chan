@@ -32,13 +32,14 @@ test('builds a release target through a final sdkconfig manifest override', () =
   const moddableDirectory = path.join(root, 'moddable')
   const outputDirectory = path.join(root, 'output')
   const sdkconfigDirectory = path.join(moddableDirectory, 'build/devices/esp32/xsProj-esp32')
-  const firmwareVersion = '8.3.1'
+  const moddableVersion = '8.3.1'
+  const firmwareVersion = '8.3.1+stackchan.1'
   let wrapperManifestPath
 
   try {
     mkdirSync(path.join(moddableDirectory, 'tools'), { recursive: true })
     mkdirSync(sdkconfigDirectory, { recursive: true })
-    writeFileSync(path.join(moddableDirectory, 'tools', 'VERSION'), `${firmwareVersion}\n`)
+    writeFileSync(path.join(moddableDirectory, 'tools', 'VERSION'), `${moddableVersion}\n`)
     writeFileSync(path.join(sdkconfigDirectory, 'sdkconfig.defaults'), 'CONFIG_SPIRAM=y\n')
     writeFileSync(path.join(sdkconfigDirectory, 'partitions.csv'), 'fixture partitions\n')
 

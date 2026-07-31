@@ -221,7 +221,7 @@ $ npm run mod -- ./mods/examples/look_around/manifest.json
 # xsc check.xsb
 # xsc mod/config.xsb
 # xsl look_around.xsa
-[stack-chan] MOD preflight: xs_esp32 8.3.1, XS 17.8.0, xs=0xfa0000/262144
+[stack-chan] MOD preflight: xs_esp32 8.3.1+stackchan.1, XS 17.8.0, xs=0xfa0000/262144
 [stack-chan] MOD installed and verified: .../look_around.xsa
 ```
 

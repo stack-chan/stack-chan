@@ -462,6 +462,7 @@
   "{profile}のXS {expected}に対して、MODはXS {actual}です": "{profile}のXS {expected}に対して、MODはXS {actual}です",
   "{profile}のファームウェアバージョンを確認できません": "{profile}のファームウェアバージョンを確認できません",
   "ファームウェア {firmwareVersion} は、{profile}の対応範囲（{prefixes}系）に含まれません": "ファームウェア {firmwareVersion} は、{profile}の対応範囲（{prefixes}系）に含まれません",
+  "ファームウェア {firmwareVersion} のhost API {actual}では「{capabilities}」を利用できません（API {required}以上が必要です）。host firmwareを更新してください": "ファームウェア {firmwareVersion} のhost API {actual}では「{capabilities}」を利用できません（API {required}以上が必要です）。host firmwareを更新してください",
   "使用中のFaceを編集": "使用中のFaceを編集",
   "「{name}」を顔エディタで編集": "「{name}」を顔エディタで編集",
   "標準Faceは編集できません": "標準Faceは編集できません",

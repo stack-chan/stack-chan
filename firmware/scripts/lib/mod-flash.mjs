@@ -52,7 +52,7 @@ export function resolveModArchivePath({ outputDirectory, mode, projectName }) {
  *   archiveSize: number,
  *   archiveVersion: number[],
  *   partition: {offset: number, size: number},
- *   firmware: {version: string, projectName: string},
+ *   firmware: {version: string, moddableVersion: string, hostApiVersion: number, projectName: string},
  * }} Installed archive and device details.
  */
 export function installModArchive({
@@ -115,8 +115,8 @@ export function installModArchive({
     if (firmware.projectName !== expectedProjectName) {
       throw new Error(`Unexpected firmware project: ${firmware.projectName} != ${expectedProjectName}`)
     }
-    if (expectedFirmwareVersion && firmware.version !== expectedFirmwareVersion) {
-      throw new Error(`Incompatible firmware version: ${firmware.version} != ${expectedFirmwareVersion}`)
+    if (expectedFirmwareVersion && firmware.moddableVersion !== expectedFirmwareVersion) {
+      throw new Error(`Incompatible Moddable version: ${firmware.moddableVersion} != ${expectedFirmwareVersion}`)
     }
 
     console.log(

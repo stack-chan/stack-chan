@@ -38,7 +38,7 @@ test('reads the live partition layout before writing and verifying a MOD', () =>
   const archivePath = path.join(fixture, 'look_around.xsa')
   const archive = makeArchive(192)
   const partitionTable = makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
-  const appHeader = makeAppHeader({ version: '8.3.1', projectName: 'xs_esp32' })
+  const appHeader = makeAppHeader({ version: '8.3.1+stackchan.1', projectName: 'xs_esp32' })
   const calls = []
   const scratchPaths = []
 
@@ -158,7 +158,7 @@ test('rejects an incompatible firmware version before writing', () => {
             }
           },
         }),
-      /Incompatible firmware version/,
+      /Incompatible Moddable version/,
     )
     assert.equal(calls, 2)
   } finally {

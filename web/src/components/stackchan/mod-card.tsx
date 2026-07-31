@@ -13,6 +13,7 @@ export type ModAction = {
   label: string
   icon: LucideIcon
   href?: string
+  external?: boolean
   onClick?: () => void
   variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive'
 }
@@ -46,6 +47,8 @@ export function ModCard({
       <a
         className={cn(buttonVariants({ variant }), className, busy && 'pointer-events-none opacity-50')}
         href={busy ? undefined : action.href}
+        target={action.external ? '_blank' : undefined}
+        rel={action.external ? 'noopener noreferrer' : undefined}
         aria-disabled={busy || undefined}
         tabIndex={busy ? -1 : undefined}
       >

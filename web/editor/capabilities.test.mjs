@@ -21,9 +21,7 @@ test('capability requirements are unique and target-aware', () => {
 })
 
 test('singing blocks are available only on stackchan-voice targets', () => {
-  assert.deepEqual(requirementsForBlockTypes(['stackchan_sing_score', 'stackchan_song_note_tuple']), [
-    'audio.singing',
-  ])
+  assert.deepEqual(requirementsForBlockTypes(['stackchan_sing_score', 'stackchan_song_note_tuple']), ['audio.singing'])
   assert.deepEqual(unsupportedRequirements('m5stackchan-cores3', ['audio.singing']), [])
   assert.deepEqual(unsupportedRequirements('simulator', ['audio.singing']), [])
   assert.deepEqual(unsupportedRequirements('portable', ['audio.singing']), ['audio.singing'])
@@ -117,4 +115,43 @@ test('deployment compatibility checks chip family and exact XS archive version',
     unsupportedEntrypoint.diagnostics.map((item) => item.code),
     ['VP_ARCHIVE_ENTRYPOINT_UNSUPPORTED']
   )
+})
+
+test('deployment compatibility gates versioned capabilities on the detected Stack-chan host API', () => {
+  const currentHost = inspectDeploymentCompatibility('m5stackchan-cores3', {
+    chip: 'ESP32-S3',
+    xsVersion: [17, 8, 0],
+    firmwareVersion: '8.3.1+stackchan.1',
+    hostApiVersion: 1,
+    requirements: ['conversation.remote', 'audio.usb', 'ui.approval'],
+    requireFirmware: true,
+    requireArchive: true,
+  })
+  assert.equal(currentHost.compatible, true)
+
+  const legacyHost = inspectDeploymentCompatibility('m5stackchan-cores3', {
+    chip: 'ESP32-S3',
+    xsVersion: [17, 8, 0],
+    firmwareVersion: '8.3.1',
+    hostApiVersion: 0,
+    requirements: ['conversation.remote', 'audio.usb', 'ui.approval'],
+    requireFirmware: true,
+    requireArchive: true,
+  })
+  assert.deepEqual(
+    legacyHost.diagnostics.map((item) => item.code),
+    ['VP_HOST_CAPABILITY_UNAVAILABLE']
+  )
+  assert.match(legacyHost.diagnostics[0].message, /host API 0/)
+
+  const legacyBasicMod = inspectDeploymentCompatibility('m5stackchan-cores3', {
+    chip: 'ESP32-S3',
+    xsVersion: [17, 8, 0],
+    firmwareVersion: '8.3.1',
+    hostApiVersion: 0,
+    requirements: ['face', 'input.headTouch'],
+    requireFirmware: true,
+    requireArchive: true,
+  })
+  assert.equal(legacyBasicMod.compatible, true)
 })

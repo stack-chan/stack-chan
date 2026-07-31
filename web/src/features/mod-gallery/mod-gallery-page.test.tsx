@@ -18,6 +18,9 @@ const textMod: ModDefinition = {
   type: 'text',
   name: 'Source link test',
   description: 'Source link test MOD',
+  setup: {
+    url: 'https://example.test/setup/',
+  },
   source: {
     path: 'mod/manifest.json',
     entrypoint: 'mod/mod.js',
@@ -29,6 +32,7 @@ const textMod: ModDefinition = {
   definitionUrl: new URL('https://example.test/gallery/stackchan-mod.json'),
   sourceUrl: new URL('https://example.test/gallery/mod/manifest.json'),
   sourceViewUrl: new URL('https://example.test/gallery/mod/mod.js'),
+  setupUrl: new URL('https://example.test/setup/'),
 }
 
 describe('ModGalleryPage', () => {
@@ -46,5 +50,18 @@ describe('ModGalleryPage', () => {
     const sourceLink = await screen.findByRole('link', { name: 'ソースを見る' })
     expect(sourceLink).toHaveAttribute('href', textMod.sourceViewUrl.href)
     expect(sourceLink).not.toHaveAttribute('href', textMod.sourceUrl.href)
+  })
+
+  it('opens the setup guide in a separate tab', async () => {
+    render(
+      <I18nProvider>
+        <ModGalleryPage />
+      </I18nProvider>
+    )
+
+    const setupLink = await screen.findByRole('link', { name: 'セットアップ手順' })
+    expect(setupLink).toHaveAttribute('href', textMod.setupUrl?.href)
+    expect(setupLink).toHaveAttribute('target', '_blank')
+    expect(setupLink).toHaveAttribute('rel', 'noopener noreferrer')
   })
 })

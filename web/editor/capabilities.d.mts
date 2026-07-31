@@ -9,9 +9,14 @@ export const CAPABILITIES: Readonly<{
   IMU: 'input.imu'
   HEAD_TOUCH: 'input.headTouch'
   DRAWER: 'ui.drawer'
+  APPROVAL: 'ui.approval'
+  NETWORK: 'connectivity.network'
+  USB_AUDIO: 'audio.usb'
+  REMOTE_CONVERSATION: 'conversation.remote'
 }>
 
 export type Capability = (typeof CAPABILITIES)[keyof typeof CAPABILITIES]
+export const CAPABILITY_HOST_API_VERSIONS: Readonly<Partial<Record<Capability, number>>>
 
 export type DeviceProfile = {
   label: string
@@ -32,7 +37,9 @@ export type DeploymentCompatibilityOptions = {
   chip?: string
   xsVersion?: readonly number[] | null
   firmwareVersion?: string
+  hostApiVersion?: number
   entrypoints?: readonly ('mod' | 'miniapp')[]
+  requirements?: readonly string[]
   requireFirmware?: boolean
   requireArchive?: boolean
 }

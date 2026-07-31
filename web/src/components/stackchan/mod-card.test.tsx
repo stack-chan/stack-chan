@@ -85,6 +85,26 @@ describe('ModCard', () => {
     expect(pendingAction).toHaveAttribute('aria-disabled', 'true')
   })
 
+  it('marks external actions as new-tab links', () => {
+    render(
+      <I18nProvider>
+        <ModCard
+          mod={mod}
+          badges={[]}
+          primaryAction={{
+            label: 'セットアップ手順',
+            icon: CirclePlay,
+            href: 'https://example.test/setup/',
+            external: true,
+          }}
+        />
+      </I18nProvider>
+    )
+    const link = screen.getByRole('link', { name: 'セットアップ手順' })
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
   it('shows mini-app and privileged combined-package badges', () => {
     render(
       <I18nProvider>

@@ -7,68 +7,88 @@
 
 ![stackchan](./docs/images/stackchan.gif)
 
-Stack-chan is a JavaScript-driven M5Stack-embedded super-kawaii robot.
+Stack-chan is an open-source, JavaScript-driven, super-kawaii robot built with M5Stack.
 
-* Video (with English subtitles): https://youtu.be/fZb_mF08xV0
-* Official hashtag: [`#stackchan` | `#ｽﾀｯｸﾁｬﾝ` (JP)](https://twitter.com/search?q=%23stackchan%20OR%20%23%EF%BD%BD%EF%BE%80%EF%BD%AF%EF%BD%B8%EF%BE%81%EF%BD%AC%EF%BE%9D).
+This repository provides firmware with M5StackChan CoreS3 as its standard configuration, user applications called MODs, browser development tools, cases, and schematics.
 
-## Features
+- Video (with English subtitles): https://youtu.be/fZb_mF08xV0
+- Official hashtag: [`#stackchan` | `#ｽﾀｯｸﾁｬﾝ` (JP)](https://twitter.com/search?q=%23stackchan%20OR%20%23%EF%BD%BD%EF%BE%80%EF%BD%AF%EF%BD%B8%EF%BE%81%EF%BD%AC%EF%BE%9D)
 
-* :neutral_face:     Show cute face
-* :smile:            Expression(Happy, Angry, Sad etc.)
-* :smiley_cat:       Customize face
-* :eyes:             Glance/stare/gaze
-* :speech_balloon:   Say things
-* :bulb:             Addon M5Units
-* :cyclone:          Drive Serial(TTL)/PWM servos
-* :game_die:         Make applications on your own
+## Getting started
 
-## Contents
+For a first Stack-chan, the shortest path is to use a preassembled M5StackChan with the browser tools.
 
-This repository includes all the component of the robot.
+### 1. Get an M5StackChan
 
-* __firmware__ : Source codes of the firmware.
-* __case__ : Stereolithography(STL) of the case.
-* __schematics__ : Schematics and board layout data.
+The standard M5StackChan AI Desktop Robot (K151) package is enough to get started.
+The joystick remote controller is optional.
 
-## Installation
+- Worldwide: [M5Stack Official Store](https://shop.m5stack.com/products/stackchan-kawaii-co-created-open-source-ai-desktop-robot)
+- Japan: [M5StackChan](https://ssci.to/11129)
+- Japan: [M5StackChan with joystick remote controller](https://ssci.to/11131)
 
-### Assemble board
+### 2. Flash the firmware
 
-* See [schematics/README.md](./schematics/README.md) and [case/README.md](./case/README.md)
-* OR You can get a pre-assembled module(COMING SOON)
+Connect M5StackChan to a computer with a data-capable USB cable, then open the [Web firmware installer](https://stack-chan.github.io/stack-chan/web/flash/) in Chrome or Edge.
+Select "M5StackChan CoreS3" as the device.
+You do not need to install the Moddable SDK or ESP-IDF.
 
-### Flash firmware to M5Stack
+> [!IMPORTANT]
+> Flashing this repository's firmware replaces the factory firmware supplied by M5Stack.
+> To restore it, follow the restore procedure in the [M5Stack product documentation](https://docs.m5stack.com/en/StackChan) and use M5Burner.
 
-* See [firmware/README.md](./firmware/README.md)
+### 3. Try a MOD
+
+The [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/) lets you find published MODs and mini apps, run them in the simulator, or install them on a device.
+Block-based samples can be opened directly in the block editor and changed.
+
+## Browser tools
+
+The [Stack-chan browser tools](https://stack-chan.github.io/stack-chan/web/) provide one entry point for setup, preferences, and MOD creation.
+
+| Tool | Purpose |
+| --- | --- |
+| [Firmware installer](https://stack-chan.github.io/stack-chan/web/flash/) | Flash firmware to a supported M5Stack over USB |
+| [Preferences](https://stack-chan.github.io/stack-chan/web/preference/) | Change Wi-Fi and device preferences over BLE |
+| [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/) | Try, edit, and install published MODs |
+| [Block editor](https://stack-chan.github.io/stack-chan/web/editor/) | Create MODs with Blockly and run them in the simulator or on a device |
+| [Shape face editor](https://stack-chan.github.io/stack-chan/web/face-editor/) | Arrange eyes and a mouth to create a custom Face |
+| [Simulator](https://stack-chan.github.io/stack-chan/web/simulator/) | Run MODs with the WebAssembly firmware and a 3D model |
+| [MediaPipe BLE tracking](https://stack-chan.github.io/stack-chan/web/mediapipe/) | Send tracked face and hand movement over BLE |
+
+## Supported hardware
+
+The distributed firmware supports M5Stack, M5Stack Core2, M5Stack CoreS3, and M5StackChan CoreS3.
+M5StackChan CoreS3 is the standard configuration and the target used for physical-device release validation.
+
+Firmware for Stack-chan RT and Takao Core2 + SG90 can be built from source.
+See the [firmware guide](./firmware/README.md) for target-specific commands and constraints.
+
+To build the hardware yourself, see the [case](./case/README.md) and [schematics](./schematics/README.md) guides for parts and assembly information.
+
+## Repository contents
+
+- [firmware](./firmware/): Host firmware, modules, MODs, and development scripts
+- [web](./web/): Firmware installer, preferences, editors, Gallery, and simulator
+- [case](./case/): Case models for 3D printing
+- [schematics](./schematics/): Schematics and board layouts
+- [docs](./docs/): Roadmap, specifications, operations guides, and release notes
 
 ## Development
 
-For contributor-oriented setup and pull request expectations, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+- [Firmware development](./firmware/README.md)
+- [MOD development](./firmware/mods/README.md)
+- [Firmware API](./firmware/docs/api.md)
+- [Contribution guide](./CONTRIBUTING.md)
+- [Latest release](https://github.com/stack-chan/stack-chan/releases/latest)
+- [Development roadmap](./docs/ROADMAP.md)
 
-Typical firmware workflow:
+## Contributing
 
-```bash
-cd firmware
-npm run setup
-npm run doctor
-npm run test
-npm run flash
-```
+Feature requests, bug reports, and pull requests are welcome.
+Read the [contribution guide](./CONTRIBUTING.md), or open an [issue](https://github.com/stack-chan/stack-chan/issues).
 
-Generated web assets under `web/flash` and `web/schematics` are published from the `gh-pages` branch by GitHub Actions. Treat them as deployment outputs, not hand-maintained source files.
-
-See [Configure Cloudflare Pages PR previews](./docs/operations/cloudflare-pr-preview.md) to enable browser previews for pull requests that change `firmware/**` or `web/**`.
-
-## Planning
-
-* Development roadmap: [docs/ROADMAP.md](./docs/ROADMAP.md)
-
-## Contribution
-
-__Feature requests/Bug reports__ are extremely welcome! See [issues](https://github.com/stack-chan/stack-chan/issues) page to post some.
-
-__Wanna be a sponsor__? It would be my great honor. please visit my [sponsor](https://github.com/sponsors/meganetaaan/) page.
+To support the project financially, visit the [GitHub Sponsors page](https://github.com/sponsors/meganetaaan/).
 
 ## License
 

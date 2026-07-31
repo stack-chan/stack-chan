@@ -7,72 +7,102 @@
 
 ![stackchan](./docs/images/stackchan.gif)
 
-ｽﾀｯｸﾁｬﾝはM5Stackで作られた、JavaScriptで動くｽｰﾊﾟｰｶﾜｲｲﾛﾎﾞｯﾄです。
+ｽﾀｯｸﾁｬﾝはM5Stackで作られた、JavaScriptで動くオープンソースのｽｰﾊﾟｰｶﾜｲｲﾛﾎﾞｯﾄです。
 
-* 動画: https://youtu.be/fZb_mF08xV0
-* 公式ハッシュタグ: [`#stackchan` | `#ｽﾀｯｸﾁｬﾝ` (JP)](https://twitter.com/search?q=%23stackchan%20OR%20%23%EF%BD%BD%EF%BE%80%EF%BD%AF%EF%BD%B8%EF%BE%81%EF%BD%AC%EF%BE%9D).
+このリポジトリは、M5StackChan CoreS3を標準構成とするファームウェア、ユーザーアプリケーション（MOD）、ブラウザー上の開発ツール、ケース、回路図を提供します。
 
-## 機能
+- 動画: https://youtu.be/fZb_mF08xV0
+- 公式ハッシュタグ: [`#stackchan` | `#ｽﾀｯｸﾁｬﾝ` (JP)](https://twitter.com/search?q=%23stackchan%20OR%20%23%EF%BD%BD%EF%BE%80%EF%BD%AF%EF%BD%B8%EF%BE%81%EF%BD%AC%EF%BE%9D)
 
-* :neutral_face:     かわいい顔
-* :smile:            感情(喜び, 怒り, 悲しみ etc.)
-* :smiley_cat:       顔のカスタマイズ
-* :eyes:             視線を向ける
-* :speech_balloon:   喋る
-* :bulb:             M5Unitを使う
-* :cyclone:          シリアル(TTL)/PWMサーボを駆動する
-* :game_die:         あなた自身のアプリケーションを作る
+## 始め方
 
-## コンテンツ
+初めてｽﾀｯｸﾁｬﾝを使う場合は、組み立て済みのM5StackChanを用意し、Webツールから始めるのが簡単です。
 
-本リポジトリはロボットのあらゆる構成要素を含みます。
+### 1. M5StackChanを用意する
 
-* __firmware__ : ファームウェアのソースコード
-* __case__ : ケースSTLファイル
-* __schematics__ : 回路図と基板レイアウト
+M5StackChan AIデスクトップロボット（K151）単体で始められます。
+ジョイスティックコントローラーは任意です。
 
-## 製作方法
+- 国内: [M5StackChan本体](https://ssci.to/11129)
+- 国内: [M5StackChan本体とジョイスティックコントローラー](https://ssci.to/11131)
+- 海外: [M5Stack公式ストア](https://shop.m5stack.com/products/stackchan-kawaii-co-created-open-source-ai-desktop-robot)
 
-### モジュールを組み立てる
+### 2. ファームウェアを書き込む
 
-* [schematics/README_ja.md](./schematics/README_ja.md)と[case/README_ja.md](./case/README_ja.md)を参照ください。
-* または組み立て済みのモジュールを入手してください(近日公開予定)。
+M5StackChanをデータ通信対応のUSBケーブルでPCへ接続し、ChromeまたはEdgeで[Webファームウェア書き込み](https://stack-chan.github.io/stack-chan/web/flash/)を開きます。
+機種には「M5StackChan CoreS3」を選択してください。
+Moddable SDKやESP-IDFのセットアップは不要です。
 
-### ファームウェアをM5Stackに書き込む
+> [!IMPORTANT]
+> このリポジトリのファームウェアを書き込むと、M5Stackの工場出荷ファームウェアは置き換えられます。
+> 元へ戻す場合は、[M5Stack公式ドキュメント](https://docs.m5stack.com/ja/StackChan)の復元手順に従ってM5Burnerを使用してください。
 
-* [firmware/README_ja.md](./firmware/README_ja.md)を参照ください。
+[![Webファームウェア書き込みの画面](./docs/images/web-tools/firmware-installer-ja.png)](https://stack-chan.github.io/stack-chan/web/flash/)
+
+### 3. MODを試す
+
+公開MODやミニアプリは[MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/)から探せます。
+試したいMODを選び、シミュレーターで試すか実機へ書き込めます。
+ブロックで作られたサンプルは、そのままブロックエディタで開いて変更できます。
+
+[![MOD Galleryの画面](./docs/images/web-tools/mod-gallery-ja.png)](https://stack-chan.github.io/stack-chan/web/mod-gallery/)
+
+## Webツール
+
+[ｽﾀｯｸﾁｬﾝ Webツール](https://stack-chan.github.io/stack-chan/web/)を使うと、セットアップ、設定、MOD制作をブラウザーから進められます。
+
+[![ｽﾀｯｸﾁｬﾝ Webツールのトップ画面](./docs/images/web-tools/web-tools-ja.png)](https://stack-chan.github.io/stack-chan/web/)
+
+| ツール | 用途 |
+| --- | --- |
+| [ファームウェア書き込み](https://stack-chan.github.io/stack-chan/web/flash/) | 対応するM5StackへUSB経由でファームウェアを書き込む |
+| [設定](https://stack-chan.github.io/stack-chan/web/preference/) | BLE経由でWi-Fiや本体設定を変更する |
+| [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/) | 公開済みのMODを探し、試し、実機へ書き込む |
+| [ブロックエディタ](https://stack-chan.github.io/stack-chan/web/editor/) | BlocklyでMODを作り、シミュレーターや実機で動かす |
+| [Shape顔エディタ](https://stack-chan.github.io/stack-chan/web/face-editor/) | 目と口を配置してカスタムFaceを作る |
+| [シミュレーター](https://stack-chan.github.io/stack-chan/web/simulator/) | WebAssembly版ファームウェアと3DモデルでMODを試す |
+| [MediaPipe BLE追従](https://stack-chan.github.io/stack-chan/web/mediapipe/) | カメラで捉えた顔と手の動きをBLEで送る |
+
+[![ブロックエディタの画面](./docs/images/web-tools/block-editor-ja.png)](https://stack-chan.github.io/stack-chan/web/editor/)
+
+## 対応ハードウェア
+
+配布ファームウェアは、M5Stack、M5Stack Core2、M5Stack CoreS3、M5StackChan CoreS3に対応します。
+標準構成と実機リリース検証の対象はM5StackChan CoreS3です。
+
+Stack-chan RTとタカオ版Core2 + SG90向けのファームウェアは、ソースからビルドできます。
+機種ごとのコマンドと制約は[ファームウェアの説明](./firmware/README_ja.md)を参照してください。
+
+自作する場合は、[ケース](./case/README_ja.md)で必要な部品と組み立て方を確認してください。
+基板情報は[回路図](./schematics/README_ja.md)で確認できます。
+
+## リポジトリの構成
+
+- [firmware](./firmware/): ホストファームウェア、モジュール、MOD、開発スクリプト
+- [web](./web/): ファームウェア書き込み、設定、エディタ、Gallery、シミュレーター
+- [case](./case/): 3Dプリント用のケースデータ
+- [schematics](./schematics/): 回路図と基板レイアウト
+- [docs](./docs/): ロードマップ、仕様、運用文書、リリースノート
 
 ## 開発
 
-開発手順やPull Requestの前提は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。
-
-典型的な firmware 開発フロー:
-
-```bash
-cd firmware
-npm run setup
-npm run doctor
-npm run test
-npm run flash
-```
-
-`web/flash` と `web/schematics` は GitHub Actions から `gh-pages` ブランチへ配布される生成物です。手作業で保守するソースではなく、デプロイ成果物として扱ってください。
-
-`firmware/**` または `web/**` を変更するPull RequestのWebプレビューを有効にする方法は [Cloudflare Pages PRプレビューの設定](./docs/operations/cloudflare-pr-preview_ja.md) を参照してください。
-
-## 開発計画
-
-* 開発ロードマップ: [docs/ROADMAP_ja.md](./docs/ROADMAP_ja.md)
+- [ファームウェア開発](./firmware/README_ja.md)
+- [MOD開発](./firmware/mods/README_ja.md)
+- [ファームウェアAPI](./firmware/docs/api_ja.md)
+- [コントリビューションガイド](./CONTRIBUTING.md)
+- [最新リリース](https://github.com/stack-chan/stack-chan/releases/latest)
+- [開発ロードマップ](./docs/ROADMAP_ja.md)
 
 ## コントリビューション
 
-__機能追加のリクエスト/バグ報告__ を歓迎します！[issues](https://github.com/stack-chan/stack-chan/issues)のページから投稿してください。
+機能追加の提案、バグ報告、Pull Requestを歓迎します。
+[コントリビューションガイド](./CONTRIBUTING.md)を確認するか、[Issue](https://github.com/stack-chan/stack-chan/issues)を作成してください。
 
-__スポンサーになりたいですか__？光栄です！[sponsor](https://github.com/sponsors/meganetaaan/)のページを参照ください。
+開発を資金面で支援する場合は、[GitHub Sponsors](https://github.com/sponsors/meganetaaan/)を利用できます。
 
 ## ライセンス
 
-このリポジトリ配下のリソースはApache version 2.0ライセンスのもと配布されています。
+このリポジトリ配下のリソースはApache License 2.0のもとで配布されています。
 [LICENSE](./LICENSE)を確認してください。
 
 ## BibTeX

@@ -1,4 +1,4 @@
-import { Blocks, FileCode2, Play, Search, Usb } from 'lucide-react'
+import { Blocks, ExternalLink, FileCode2, Play, Search, Usb } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
@@ -288,6 +288,15 @@ export function ModGalleryPage() {
               ...mod.capabilities,
               ...mod.targets.map((target) => profileFor(target).label),
             ]
+            const setupAction = mod.setupUrl
+              ? {
+                  label: t('セットアップ手順'),
+                  icon: ExternalLink,
+                  href: mod.setupUrl.href,
+                  external: true,
+                  variant: 'outline' as const,
+                }
+              : undefined
             if (mod.type === 'block') {
               const editorUrl = new URL('../editor/', location.href)
               editorUrl.searchParams.set('project', mod.sourceUrl.href)
@@ -303,6 +312,7 @@ export function ModGalleryPage() {
                     icon: Blocks,
                     href: editorUrl.href,
                   }}
+                  secondaryActions={setupAction ? [setupAction] : []}
                 />
               )
             }
@@ -335,6 +345,7 @@ export function ModGalleryPage() {
                         },
                       ]
                     : []),
+                  ...(setupAction ? [setupAction] : []),
                   {
                     label: t('ソースを見る'),
                     icon: FileCode2,
@@ -366,16 +377,14 @@ export function ModGalleryPage() {
               {confirmation && t('「{name}」を接続中のｽﾀｯｸﾁｬﾝへ書き込みます。', { name: confirmation.mod.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {confirmation &&
-            hasEntrypoint(confirmation.mod, 'mod') &&
-            hasEntrypoint(confirmation.mod, 'miniapp') && (
-              <Alert variant="destructive">
-                <AlertTitle>{t('このpackageはhost権限を使用します')}</AlertTitle>
-                <AlertDescription>
-                  {t('MODとmini-appを含むため、package全体を信頼できる場合だけ書き込んでください。')}
-                </AlertDescription>
-              </Alert>
-            )}
+          {confirmation && hasEntrypoint(confirmation.mod, 'mod') && hasEntrypoint(confirmation.mod, 'miniapp') && (
+            <Alert variant="destructive">
+              <AlertTitle>{t('このpackageはhost権限を使用します')}</AlertTitle>
+              <AlertDescription>
+                {t('MODとmini-appを含むため、package全体を信頼できる場合だけ書き込んでください。')}
+              </AlertDescription>
+            </Alert>
+          )}
           {confirmation && (
             <dl className="grid grid-cols-[auto_1fr] gap-2 rounded-lg bg-muted p-3 text-sm">
               <dt className="text-muted-foreground">{t('検出')}</dt>

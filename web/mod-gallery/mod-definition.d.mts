@@ -20,6 +20,7 @@ export type ModDefinitionSource = {
   description: string
   author?: string
   license?: string
+  setup?: { url: string }
   source: { path: string; entrypoint?: string }
   entrypoints: ModEntrypoint[]
   targets: string[]
@@ -31,6 +32,7 @@ export type ModDefinition = Omit<ModDefinitionSource, 'artifacts'> & {
   sourceUrl: URL
   sourceViewUrl: URL
   definitionUrl: URL
+  setupUrl?: URL
   artifacts: ModArtifact[]
 }
 

@@ -25,6 +25,8 @@ Arduino IDEになじみがあり、PWMサーボを使う場合は、@mongonta071
 > このファームウェアを書き込むと、M5Stackの工場出荷ファームウェアは置き換えられます。
 > 元へ戻す場合は、[M5Stack公式ドキュメント](https://docs.m5stack.com/ja/StackChan)の復元手順に従ってM5Burnerを使用してください。
 
+[![Webファームウェア書き込みの画面](../docs/images/web-tools/firmware-installer-ja.png)](https://stack-chan.github.io/stack-chan/web/flash/)
+
 ## ローカル開発を始める
 
 標準構成はM5StackChan CoreS3です。

@@ -37,15 +37,21 @@ Moddable SDKやESP-IDFのセットアップは不要です。
 > このリポジトリのファームウェアを書き込むと、M5Stackの工場出荷ファームウェアは置き換えられます。
 > 元へ戻す場合は、[M5Stack公式ドキュメント](https://docs.m5stack.com/ja/StackChan)の復元手順に従ってM5Burnerを使用してください。
 
+[![Webファームウェア書き込みの画面](./docs/images/web-tools/firmware-installer-ja.png)](https://stack-chan.github.io/stack-chan/web/flash/)
+
 ### 3. MODを試す
 
 公開MODやミニアプリは[MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/)から探せます。
 試したいMODを選び、シミュレーターで試すか実機へ書き込めます。
 ブロックで作られたサンプルは、そのままブロックエディタで開いて変更できます。
 
+[![MOD Galleryの画面](./docs/images/web-tools/mod-gallery-ja.png)](https://stack-chan.github.io/stack-chan/web/mod-gallery/)
+
 ## Webツール
 
 [ｽﾀｯｸﾁｬﾝ Webツール](https://stack-chan.github.io/stack-chan/web/)を使うと、セットアップ、設定、MOD制作をブラウザーから進められます。
+
+[![ｽﾀｯｸﾁｬﾝ Webツールのトップ画面](./docs/images/web-tools/web-tools-ja.png)](https://stack-chan.github.io/stack-chan/web/)
 
 | ツール | 用途 |
 | --- | --- |

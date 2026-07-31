@@ -25,6 +25,8 @@ For a first trial, the [Stack-chan browser tools](https://stack-chan.github.io/s
 > Flashing this firmware replaces the factory firmware supplied by M5Stack.
 > To restore it, follow the restore procedure in the [M5Stack product documentation](https://docs.m5stack.com/en/StackChan) and use M5Burner.
 
+[![Web firmware installer](../docs/images/web-tools/firmware-installer-en.png)](https://stack-chan.github.io/stack-chan/web/flash/)
+
 ## Start local development
 
 The standard firmware target is M5StackChan CoreS3.

@@ -37,15 +37,21 @@ You do not need to install the Moddable SDK or ESP-IDF.
 > Flashing this repository's firmware replaces the factory firmware supplied by M5Stack.
 > To restore it, follow the restore procedure in the [M5Stack product documentation](https://docs.m5stack.com/en/StackChan) and use M5Burner.
 
+[![Web firmware installer](./docs/images/web-tools/firmware-installer-en.png)](https://stack-chan.github.io/stack-chan/web/flash/)
+
 ### 3. Try a MOD
 
 Find published MODs and mini apps in the [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/).
 Choose a MOD, then run it in the simulator or install it on a device.
 Block-based samples can be opened directly in the block editor and changed.
 
+[![MOD Gallery](./docs/images/web-tools/mod-gallery-en.png)](https://stack-chan.github.io/stack-chan/web/mod-gallery/)
+
 ## Browser tools
 
 Use the [Stack-chan browser tools](https://stack-chan.github.io/stack-chan/web/) to set up a device, change its preferences, and create MODs in a browser.
+
+[![Stack-chan browser tools home screen](./docs/images/web-tools/web-tools-en.png)](https://stack-chan.github.io/stack-chan/web/)
 
 | Tool | Purpose |
 | --- | --- |

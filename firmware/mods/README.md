@@ -14,6 +14,8 @@ When choosing a MOD, review the capabilities and supported targets shown on its 
 If the MOD uses an external service or network access, inspect the linked source code before installing it.
 At installation time, the Gallery automatically checks the target chip, XS version, and firmware compatibility.
 
+[![MOD Gallery](../../docs/images/web-tools/mod-gallery-en.png)](https://stack-chan.github.io/stack-chan/web/mod-gallery/)
+
 The [`examples`](./examples/) directory contains source code for learning APIs, testing, and local development.
 Some examples are also published in the Gallery.
 The Gallery and `examples` do not yet contain the same set of MODs, but they will be aligned over time.
@@ -25,6 +27,8 @@ The Gallery and `examples` do not yet contain the same set of MODs, but they wil
 The [block editor](https://stack-chan.github.io/stack-chan/web/editor/) lets you assemble behavior with Blockly and build a MOD in the browser.
 You can test the result in the [simulator](https://stack-chan.github.io/stack-chan/web/simulator/) and install it on a compatible device.
 Follow the [block editor tutorial](https://stack-chan.github.io/stack-chan/web/editor/tutorial.html) to create a first project.
+
+[![Block editor](../../docs/images/web-tools/block-editor-en.png)](https://stack-chan.github.io/stack-chan/web/editor/)
 
 ### Create one from source
 

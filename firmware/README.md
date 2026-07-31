@@ -31,10 +31,11 @@ The standard firmware target is M5StackChan CoreS3.
 To change the source code, run these commands from the `firmware` directory:
 
 ```console
-$ npm i
-$ npm run setup
-$ npm run doctor
-$ npm run flash
+npm i
+npm run setup
+npm run setup -- --device=esp32
+npm run doctor
+npm run flash
 ```
 
 `npm run flash` builds and flashes the standard host.

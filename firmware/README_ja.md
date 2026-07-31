@@ -31,10 +31,11 @@ Arduino IDEになじみがあり、PWMサーボを使う場合は、@mongonta071
 ソースコードを変更する場合は、`firmware`ディレクトリで次の順に実行します。
 
 ```console
-$ npm i
-$ npm run setup
-$ npm run doctor
-$ npm run flash
+npm i
+npm run setup
+npm run setup -- --device=esp32
+npm run doctor
+npm run flash
 ```
 
 `npm run flash`は標準構成のホストをビルドして書き込みます。

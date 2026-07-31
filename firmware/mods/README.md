@@ -32,7 +32,7 @@ TypeScript MODs use the public Stack-chan capability types and Moddable module s
 To install a MOD from a local environment, specify its manifest from the `firmware` directory:
 
 ```console
-$ npm run mod -- mods/examples/look_around/manifest.json
+npm run mod -- mods/examples/look_around/manifest.json
 ```
 
 See [Build and flash programs](../docs/flashing-firmware.md) for setup, target-specific commands, and installation details.

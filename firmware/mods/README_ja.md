@@ -32,7 +32,7 @@ TypeScriptでは、公開されているStack-chan capability型とModdableの�
 ローカル環境からMODを書き込む場合は、`firmware`ディレクトリで`manifest.json`を指定します。
 
 ```console
-$ npm run mod -- mods/examples/look_around/manifest.json
+npm run mod -- mods/examples/look_around/manifest.json
 ```
 
 環境構築、ターゲット別のコマンド、書き込み方法は[プログラムのビルドと書き込み](../docs/flashing-firmware_ja.md)を参照してください。

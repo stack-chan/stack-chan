@@ -6,6 +6,7 @@ type AudioInOptions = {
 let chunks: Array<ArrayBuffer | null> = []
 let instances: AudioIn[] = []
 let shouldThrowOnStart = false
+let allocatingReadCount = 0
 
 export default class AudioIn {
   bitsPerSample = 8
@@ -32,8 +33,17 @@ export default class AudioIn {
     this.closed = true
   }
 
-  read(_size: number): ArrayBuffer | null {
-    return chunks.shift() ?? null
+  read(target: number | Uint8Array): ArrayBuffer | number | null {
+    const chunk = chunks.shift() ?? null
+    if (!chunk) return null
+    if (typeof target === 'number') {
+      allocatingReadCount += 1
+      return chunk
+    }
+    const source = new Uint8Array(chunk)
+    const byteLength = Math.min(source.byteLength, target.byteLength)
+    target.set(source.subarray(0, byteLength))
+    return byteLength
   }
 
   emitReadable(size: number): void {
@@ -45,6 +55,7 @@ export function resetAudioIn(nextChunks: Array<ArrayBuffer | null> = []): void {
   chunks = nextChunks
   instances = []
   shouldThrowOnStart = false
+  allocatingReadCount = 0
 }
 
 export function getAudioInInstances(): AudioIn[] {
@@ -53,4 +64,8 @@ export function getAudioInInstances(): AudioIn[] {
 
 export function setAudioInStartFailure(value: boolean): void {
   shouldThrowOnStart = value
+}
+
+export function getAllocatingReadCount(): number {
+  return allocatingReadCount
 }

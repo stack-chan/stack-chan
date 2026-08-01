@@ -76,15 +76,14 @@ export default class Microphone {
           channels: CHANNELS,
           onReadable(size) {
             const remaining = dataView.byteLength - writeOffset
-            trace(`${remaining}\n`)
             const chunkSize = Math.min(size, remaining)
-            const chunk = this.read(chunkSize)
+            const target = new Uint8Array(dataView.buffer, dataView.byteOffset + writeOffset, chunkSize)
+            const bytesRead = this.read(target) as number | undefined
 
-            if (!chunk) {
+            if (!bytesRead) {
               finish()
             } else {
-              dataView.set(new Uint8Array(chunk), writeOffset)
-              writeOffset += chunkSize
+              writeOffset += bytesRead
               if (writeOffset >= dataView.byteLength) {
                 finish()
               }

@@ -62,6 +62,16 @@ test('Microphone.record opens AudioIn as mono', async () => {
   assert.equal(instance.channels, 1)
 })
 
+test('Microphone.record writes into the final WAV buffer without allocating chunk buffers', async () => {
+  const { Microphone, audioIn } = await setup([oneByte(0x5a)])
+  const microphone = new Microphone()
+
+  const buffer = await recordOneByte(microphone, audioIn)
+
+  assert.equal(new Uint8Array(buffer)[44], 0x5a)
+  assert.equal(audioIn.getAllocatingReadCount(), 0)
+})
+
 test('Microphone.record rejects overlapping recordings while one is active', async () => {
   const { Microphone, audioIn } = await setup([oneByte(1)])
   const microphone = new Microphone()

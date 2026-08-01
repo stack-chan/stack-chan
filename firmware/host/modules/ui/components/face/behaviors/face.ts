@@ -108,8 +108,12 @@ export class FaceBehavior extends Behavior {
     this.distributeFaceState(container, true)
   }
 
-  onFaceUpdate(_container: PiuContainer, face: FaceState) {
+  onFaceUpdate(container: PiuContainer, face: FaceState) {
     copyFaceState(face, this.#desired)
+    if (!this.#motionsEnabled) {
+      copyFaceState(this.#desired, this.#current)
+      this.distributeFaceState(container)
+    }
   }
 
   onFaceSkin(_container: PiuContainer, palette: FaceSkinPalette) {

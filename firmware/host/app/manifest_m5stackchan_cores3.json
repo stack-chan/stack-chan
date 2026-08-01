@@ -1,7 +1,16 @@
 {
-  "include": ["./manifest.json"],
+  "include": [
+    "./manifest.json",
+    "./docks/android-usb-audio/manifest.json",
+    "../modules/usb-audio/manifest.json"
+  ],
   "config": {
     "enablePowerButton": false,
-    "startupSound": false
+    "startupSound": false,
+    "usbAudio": {
+      "enabled": true,
+      "autoStart": false,
+      "speakerVolume": 0.25
+    }
   }
 }

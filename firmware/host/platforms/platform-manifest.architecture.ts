@@ -18,6 +18,7 @@ type Subplatform = {
     include?: string[]
     build?: { SUBPLATFORM?: string }
     defines?: { camera?: { i2c_port?: number } }
+    modules?: Record<string, string>
     config?: {
       serial?: unknown
       driver?: { type?: string; typeLocked?: boolean; serial?: unknown }
@@ -111,6 +112,17 @@ describe('Stack-chan platform manifest', () => {
       assert.equal(manifest.config?.driver?.type, expectedType)
       assert.equal(manifest.config?.driver?.typeLocked, true)
     }
+  })
+
+  test('M5StackChan extends CoreS3 setup through a distinct setup module', () => {
+    const manifest = readJson('host/platforms/m5stackchan_cores3/manifest.json')
+
+    assert.equal(manifest.modules?.['setup/m5stackchan-power'], './setup-target')
+    assert.equal(
+      manifest.modules?.['setup/target'],
+      undefined,
+      'the inherited CoreS3 setup module must remain selected',
+    )
   })
 
   test('CoreS3 AudioOut applies the sample rate without overriding amplifier volume', () => {

@@ -16,6 +16,12 @@
         "size": 12,
         "characterFiles": "../../../../assets/fonts/k8x12-chars.txt",
         "monochrome": true
+      },
+      {
+        "source": "../../../../assets/fonts/k8x12",
+        "size": 24,
+        "characters": "0123456789:-",
+        "monochrome": true
       }
     ]
   }

@@ -12,6 +12,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
+import { CopyableCode } from '@/components/stackchan/copyable-code'
 import { LogConsole } from '@/components/stackchan/log-console'
 import { ModBuildControl } from '@/components/stackchan/mod-build-control'
 import {
@@ -246,9 +247,7 @@ export function ProjectEditorPage() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="code">
-                <pre className="max-h-80 overflow-auto rounded-xl bg-console p-3 text-xs text-console-foreground">
-                  <code>{editor.source || '// コードはまだ生成されていません'}</code>
-                </pre>
+                <CopyableCode code={editor.source} emptyMessage={t('// コードはまだ生成されていません')} />
               </TabsContent>
               <TabsContent value="logs">
                 <LogConsole entries={editor.logs} onClear={editor.clearLogs} title={t('ビルドとインストールのログ')} />

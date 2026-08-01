@@ -1,0 +1,25 @@
+{
+  "$schema": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 1,
+  "id": "sample.stackchan-jump",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "ｽﾀｯｸﾁｬﾝ JUMP",
+  "description": "画面をタップするとｽﾀｯｸﾁｬﾝがジャンプ！次々に迫る障害物を飛び越えて、どこまでスコアを伸ばせるか挑戦しよう。",
+  "author": "Stack-chan Community",
+  "license": "Apache-2.0 AND MIT",
+  "source": {
+    "path": "miniapp/manifest.json"
+  },
+  "entrypoints": ["miniapp"],
+  "targets": ["m5stackchan-cores3", "simulator"],
+  "capabilities": [],
+  "artifacts": [
+    {
+      "format": "xsa",
+      "path": "stackchan-jump.xsa",
+      "target": "m5stackchan-cores3"
+    }
+  ]
+}

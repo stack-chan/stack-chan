@@ -45,7 +45,7 @@ jobs:
 
       - name: Resolve current pull request
         id: pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const { pathToFileURL } = require('node:url')
@@ -75,7 +75,7 @@ jobs:
 
       - name: Report failed preview build
         if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion != 'success'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PR_NUMBER: ${{ steps.pull_request.outputs.number }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
@@ -138,7 +138,7 @@ jobs:
 
       - name: Publish preview link
         if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion == 'success'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PR_NUMBER: ${{ steps.pull_request.outputs.number }}
           HEAD_SHA: ${{ steps.pull_request.outputs.head_sha }}
@@ -180,7 +180,7 @@ jobs:
     steps:
       - name: Validate closed pull request
         id: pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PR_NUMBER: ${{ inputs.pull_request_number }}
         with:
@@ -222,7 +222,7 @@ jobs:
           KEEP_DEPLOYMENT_ID: ${{ inputs.keep_deployment_id }}
         run: node ./trusted-source/.github/scripts/delete-cloudflare-preview-deployments.mjs
       - name: Mark preview as closed
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PREVIEW_URL: https://pr-${{ steps.pull_request.outputs.number }}.${{ vars.CLOUDFLARE_PAGES_PROJECT }}.pages.dev
           PR_NUMBER: ${{ steps.pull_request.outputs.number }}
@@ -255,7 +255,7 @@ jobs:
     steps:
       - name: Find preview comment
         id: preview
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const marker = '<!-- stackchan-cloudflare-preview -->'
@@ -321,7 +321,7 @@ jobs:
         run: node ./trusted-source/.github/scripts/delete-cloudflare-preview-deployments.mjs
       - name: Mark preview as closed
         if: always() && steps.preview.outputs.exists == 'true' && steps.cloudflare.outcome == 'success'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PREVIEW_URL: ${{ steps.cloudflare.outputs.pages-deployment-alias-url }}

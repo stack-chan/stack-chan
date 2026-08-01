@@ -1,6 +1,7 @@
 export const STACKCHAN_MOD_FORMAT = 'tech.stackchan.mod'
 export const STACKCHAN_MOD_SCHEMA_VERSION = 1
 export const STACKCHAN_MOD_TYPES = Object.freeze(['block', 'text'])
+export const STACKCHAN_MOD_ENTRYPOINTS = Object.freeze(['mod', 'miniapp'])
 
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)+$/
 const VERSION_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/
@@ -13,6 +14,18 @@ function nonEmptyString(value, label, maxLength) {
   const normalized = String(value ?? '').trim()
   if (!normalized || normalized.length > maxLength) throw new TypeError(`${label}が不正です`)
   return normalized
+}
+
+function validateHttpsUrl(value, label) {
+  const normalized = nonEmptyString(value, label, 2048)
+  let url
+  try {
+    url = new URL(normalized)
+  } catch {
+    throw new TypeError(`${label}は絶対HTTPS URLで指定してください`)
+  }
+  if (url.protocol !== 'https:') throw new TypeError(`${label}は絶対HTTPS URLで指定してください`)
+  return url.href
 }
 
 export function validatePackagePath(value, label = 'path') {
@@ -65,15 +78,37 @@ export function parseModDefinition(value) {
   if (!isRecord(value.source)) throw new TypeError('sourceがありません')
 
   const sourcePath = validatePackagePath(value.source.path, 'source.path')
+  const sourceEntrypoint =
+    value.source.entrypoint === undefined
+      ? undefined
+      : validatePackagePath(value.source.entrypoint, 'source.entrypoint')
   if (value.type === 'block' && !sourcePath.endsWith('.stackchan-blocks.json')) {
     throw new TypeError('block MODのsource.pathは.stackchan-blocks.jsonを指す必要があります')
+  }
+  if (value.type === 'block' && sourceEntrypoint !== undefined) {
+    throw new TypeError('block MODではsource.entrypointを指定できません')
   }
   if (value.type === 'text' && !/(^|\/)manifest[^/]*\.json$/.test(sourcePath)) {
     throw new TypeError('text MODのsource.pathはModdable manifestを指す必要があります')
   }
+  if (sourceEntrypoint !== undefined && !/\.[cm]?[jt]sx?$/.test(sourceEntrypoint)) {
+    throw new TypeError('text MODのsource.entrypointはJavaScriptまたはTypeScriptを指す必要があります')
+  }
+
+  let setup
+  if (value.setup !== undefined) {
+    if (!isRecord(value.setup)) throw new TypeError('setupが不正です')
+    setup = { url: validateHttpsUrl(value.setup.url, 'setup.url') }
+  }
 
   const artifacts = value.artifacts === undefined ? [] : value.artifacts
   if (!Array.isArray(artifacts)) throw new TypeError('artifactsが不正です')
+  const entrypoints = stringList(value.entrypoints === undefined ? ['mod'] : value.entrypoints, 'entrypoints', {
+    required: true,
+  })
+  if (entrypoints.some((entrypoint) => !STACKCHAN_MOD_ENTRYPOINTS.includes(entrypoint))) {
+    throw new TypeError('entrypointsに未対応の実行入口があります')
+  }
 
   return {
     format: STACKCHAN_MOD_FORMAT,
@@ -85,7 +120,9 @@ export function parseModDefinition(value) {
     description: nonEmptyString(value.description, 'description', 400),
     ...(value.author === undefined ? {} : { author: nonEmptyString(value.author, 'author', 120) }),
     ...(value.license === undefined ? {} : { license: nonEmptyString(value.license, 'license', 80) }),
-    source: { path: sourcePath },
+    ...(setup === undefined ? {} : { setup }),
+    source: { path: sourcePath, ...(sourceEntrypoint === undefined ? {} : { entrypoint: sourceEntrypoint }) },
+    entrypoints,
     targets: stringList(value.targets, 'targets', { required: true }),
     capabilities: stringList(value.capabilities, 'capabilities'),
     artifacts: artifacts.map((artifact, index) => {
@@ -123,6 +160,8 @@ export async function loadModCatalog(catalogUrl, fetcher = globalThis.fetch) {
         ...definition,
         definitionUrl,
         sourceUrl: new URL(definition.source.path, definitionUrl),
+        sourceViewUrl: new URL(definition.source.entrypoint ?? definition.source.path, definitionUrl),
+        ...(definition.setup === undefined ? {} : { setupUrl: new URL(definition.setup.url) }),
         artifacts: definition.artifacts.map((artifact) => ({
           ...artifact,
           url: new URL(artifact.path, definitionUrl),

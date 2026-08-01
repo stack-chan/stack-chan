@@ -12,14 +12,19 @@ type FontResource = {
   localization?: boolean
 }
 
-const manifest = JSON.parse(readFileSync('host/app/manifest.json', 'utf8')) as {
+type FontManifest = {
   build?: { NAME?: string }
   resources?: { '*-alpha'?: FontResource[]; '*-mask'?: Array<string | FontResource> }
 }
-const wasmManifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8')) as {
-  build?: { NAME?: string }
-  resources?: { '*-alpha'?: FontResource[]; '*-mask'?: Array<string | FontResource> }
-}
+
+const manifest = JSON.parse(readFileSync('host/app/manifest.json', 'utf8')) as FontManifest
+const wasmManifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8')) as FontManifest
+const splashTestManifest = JSON.parse(
+  readFileSync('host/modules/ui/views/splash/__tests__/startup-splash/manifest.test.json', 'utf8'),
+) as FontManifest
+const appBarTestManifest = JSON.parse(
+  readFileSync('host/modules/ui/components/status-bar/__tests__/chat-status-bar/manifest.test.json', 'utf8'),
+) as FontManifest
 
 function findFont(
   resources: Array<string | FontResource> | undefined,
@@ -28,25 +33,40 @@ function findFont(
   return resources?.find((resource): resource is FontResource => typeof resource !== 'string' && predicate(resource))
 }
 
+function requireFontCharacters(manifest: FontManifest, label: string): string {
+  const font = findFont(manifest.resources?.['*-alpha'], (resource) => resource.size === 24)
+  assert.ok(font, `expected the ${label} 24px font resource`)
+  assert.equal(typeof font.characters, 'string', `expected the ${label} font to declare its rendered characters`)
+  return font.characters as string
+}
+
+function sortedGlyphs(characters: string): string[] {
+  return [...new Set(characters)].sort()
+}
+
 test('host manifests use a stable application name', () => {
   assert.equal(manifest.build?.NAME, 'stack-chan-host')
   assert.equal(wasmManifest.build?.NAME, 'stack-chan-host')
 })
 
-test('the 24px splash font only bundles glyphs used by the product title', () => {
-  const font = manifest.resources?.['*-alpha']?.find(
+test('the 24px font bundles glyphs used by the splash title and AppBar clock', () => {
+  const font = findFont(
+    manifest.resources?.['*-alpha'],
     (resource) => resource.source === '../modules/ui/assets/fonts/k8x12' && resource.size === 24,
   )
 
-  assert.ok(font, 'expected the k8x12 24px splash font resource')
-  assert.equal(font.characters, 'Stack-chan[・＿・]')
+  assert.ok(font, 'expected the k8x12 24px host font resource')
+  assert.equal(typeof font.characters, 'string')
   assert.equal(font.characterFiles, undefined)
+  const requiredCharacters = requireFontCharacters(splashTestManifest, 'startup splash')
+  const appBarCharacters = requireFontCharacters(appBarTestManifest, 'AppBar')
+  assert.deepEqual(sortedGlyphs(font.characters as string), sortedGlyphs(requiredCharacters + appBarCharacters))
 
   const wasmFont = findFont(
     wasmManifest.resources?.['*-alpha'],
     (resource) => resource.source === '../modules/ui/assets/fonts/k8x12' && resource.size === 24,
   )
-  assert.ok(wasmFont, 'expected the WASM k8x12 24px splash font resource')
+  assert.ok(wasmFont, 'expected the WASM k8x12 24px host font resource')
   assert.equal(wasmFont.characters, font.characters)
   assert.equal(wasmFont.characterFiles, undefined)
 })

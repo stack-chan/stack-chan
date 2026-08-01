@@ -2,8 +2,16 @@ import type { PreferenceConfig } from 'loadPreference'
 import { createAppControllerApplication } from 'app-controller'
 import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
 import Camera from 'camera'
-import type { ConnectivityCapability, RobotLed, RobotUI, StackchanContext, TTS, WebRadioCapability } from 'capabilities'
-import { ChatStatusBar } from 'chat-status-bar'
+import type {
+  ConnectivityCapability,
+  RemoteConversationSession,
+  RobotLed,
+  RobotUI,
+  StackchanContext,
+  TTS,
+  WebRadioCapability,
+} from 'capabilities'
+import { type BatteryLevelReader, ChatStatusBar } from 'chat-status-bar'
 import type { DrawerButtonViewSpec } from 'drawer'
 import { DynamixelDriver } from 'dynamixel-driver'
 import IMU from 'imu'
@@ -45,6 +53,8 @@ type UIOptions = {
 
 export type StackchanContextOptions = {
   connectivity?: ConnectivityCapability
+  remoteConversationSession?: RemoteConversationSession
+  closeHandlers?: ReadonlyArray<() => void | Promise<void>>
 }
 
 type GlobalEnvironment = {
@@ -69,11 +79,21 @@ function asUIOptions(param: unknown): UIOptions {
   return (param ?? {}) as UIOptions
 }
 
+function loadBatteryLevelReader(): BatteryLevelReader | undefined {
+  if (!Modules.has('battery-status')) return undefined
+  try {
+    return Modules.importNow('battery-status') as BatteryLevelReader
+  } catch (error) {
+    trace(`[ui] battery status unavailable: ${String(error)}\n`)
+    return undefined
+  }
+}
+
 function createStackchanUI(face: PiuContainer, options: UIOptions = {}): RobotUI {
   return createAppControllerApplication(
     {
       face,
-      appBar: new ChatStatusBar(),
+      appBar: new ChatStatusBar({ readBatteryLevel: loadBatteryLevelReader() }),
       drawerButtons: options.drawerButtons,
     },
     { displayListLength: options.displayListLength ?? DEFAULT_UI_DISPLAY_LIST_LENGTH },
@@ -239,6 +259,8 @@ export function createStackchanContext(
     touchPanel,
     imu,
     connectivity: options.connectivity,
+    remoteConversationSession: options.remoteConversationSession,
+    closeHandlers: options.closeHandlers,
     speaker,
     webRadio,
     microphone,

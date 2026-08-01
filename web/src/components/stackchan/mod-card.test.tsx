@@ -17,7 +17,9 @@ const mod: ModDefinition = {
   author: 'Stack-chan',
   source: { path: './hello.json' },
   sourceUrl: new URL('https://example.test/hello.json'),
+  sourceViewUrl: new URL('https://example.test/hello.json'),
   definitionUrl: new URL('https://example.test/mod.json'),
+  entrypoints: ['mod'],
   targets: ['simulator'],
   capabilities: ['face'],
   artifacts: [],
@@ -81,5 +83,36 @@ describe('ModCard', () => {
     const pendingAction = screen.getByText('ブロックで開く').closest('a')
     expect(pendingAction).not.toHaveAttribute('href')
     expect(pendingAction).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('marks external actions as new-tab links', () => {
+    render(
+      <I18nProvider>
+        <ModCard
+          mod={mod}
+          badges={[]}
+          primaryAction={{
+            label: 'セットアップ手順',
+            icon: CirclePlay,
+            href: 'https://example.test/setup/',
+            external: true,
+          }}
+        />
+      </I18nProvider>
+    )
+    const link = screen.getByRole('link', { name: 'セットアップ手順' })
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('shows mini-app and privileged combined-package badges', () => {
+    render(
+      <I18nProvider>
+        <ModCard mod={{ ...mod, type: 'text', entrypoints: ['mod', 'miniapp'] }} badges={[]} />
+      </I18nProvider>
+    )
+    expect(screen.getByText('MOD')).toBeInTheDocument()
+    expect(screen.getByText('ミニアプリ')).toBeInTheDocument()
+    expect(screen.getByText('テキスト')).toBeInTheDocument()
   })
 })

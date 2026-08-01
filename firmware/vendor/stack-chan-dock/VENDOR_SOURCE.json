@@ -1,0 +1,10 @@
+{
+  "upstream": "https://github.com/meganetaaan/stack-chan-dock",
+  "revision": "e12542a0cf351b3944736b3a6416e6f680d36f21",
+  "files": {
+    "LICENSE": "1d291f59c29098471171a78eaba979c38fa58b8bf60d5b330b862f289ecfd8c2",
+    "contracts/usb-cdc-v2/test-vectors.json": "1e2c31c5981e1a963a1c85b89241da1a11e8a6e1b8316ea644f237f8ca0506c0",
+    "contracts/usb-cdc-v2/negotiation-vectors.json": "63a70846df8a5d8651c9c3ee01e96064aef1749563c9abbf01d2767466eb7da7",
+    "contracts/usb-cdc-v2/application-event-vectors.json": "b12935b35e800b6b69197572c801900fc756c273393e96132bd2698d876d430d"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/lin/audioin",
+    "main": "./bridge-io.test",
+    "stackchan-usb-crc32": "./unused-crc32",
+    "stackchan-usb-serial": "./unused-usb-serial",
+    "web-radio-byte-ring": "../../../audio/platforms/m5stackchan-cores3/shared-byte-ring"
+  },
+  "creation": {
+    "static": 131072,
+    "chunk": {
+      "initial": 65536,
+      "incremental": 8192
+    },
+    "heap": {
+      "initial": 1024,
+      "incremental": 128
+    },
+    "stack": 512,
+    "keys": {
+      "available": 128
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "useUnknownInCatchVariables": false
+      }
+    }
+  }
+}

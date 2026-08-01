@@ -66,6 +66,18 @@
       "settings-view": [
         "./host/modules/ui/views/settings/settings-view"
       ],
+      "timezone-settings": [
+        "./host/modules/preferences/timezone-settings"
+      ],
+      "timezone-model": [
+        "./host/modules/preferences/timezone-model"
+      ],
+      "volume-model": [
+        "./host/modules/preferences/volume-model"
+      ],
+      "volume-preview": [
+        "./host/app/volume-preview"
+      ],
       "localization": [
         "./host/modules/ui/localization"
       ],
@@ -139,7 +151,9 @@
         "./host/modules/util/*",
         "./host/modules/util/esp32/*",
         "./host/modules/util/sim/*",
-        "./host/modules/preferences/*"
+        "./host/modules/preferences/*",
+        "./host/modules/power/*",
+        "./host/modules/power/platforms/*"
       ],
       "commodetto/*": [
         "./node_modules/@moddable/typings/commodetto/*"

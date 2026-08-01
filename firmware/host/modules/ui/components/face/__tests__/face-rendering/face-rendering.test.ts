@@ -44,6 +44,7 @@ type PiuNode = {
 
 type BreathRecorder = PiuNode & {
   lastBreath?: number
+  lastMouth?: number
   calls?: number
 }
 
@@ -418,6 +419,37 @@ controlledBehavior.onTimeChanged?.(controlledFace)
 assert(
   (controlledRecorder.calls ?? 0) > (callsAfterZero ?? 0),
   'FaceBehavior should distribute onFaceState after breath crosses a rendered pixel',
+)
+
+const disabledMotionRecorder = new Content(null, {
+  left: 0,
+  top: 0,
+  width: 1,
+  height: 1,
+  Behavior: class extends Behavior {
+    onFaceState(content: BreathRecorder, face: FaceState) {
+      content.lastMouth = face.mouth.open
+    }
+  },
+}) as BreathRecorder
+const disabledMotionFace = new FaceBase({
+  contents: [disabledMotionRecorder as unknown as PiuContent],
+  motions: [],
+}) as PiuNode
+const disabledMotionBehavior = disabledMotionFace.behavior as {
+  onCreate?: (node: PiuNode) => void
+  onFaceUpdate?: (node: PiuNode, face: FaceState) => void
+  setMotionsEnabled?: (node: PiuNode, enabled: boolean) => void
+}
+disabledMotionBehavior.onCreate?.(disabledMotionFace)
+disabledMotionBehavior.setMotionsEnabled?.(disabledMotionFace, false)
+const speakingFace = createFaceState()
+speakingFace.mouth.open = 0.7
+disabledMotionBehavior.onFaceUpdate?.(disabledMotionFace, speakingFace)
+equal(
+  disabledMotionRecorder.lastMouth,
+  0.7,
+  'FaceBehavior should render app-driven mouth updates while autonomous motions are disabled',
 )
 
 const movingFace = new SimpleFace({ intervalMs: 33 }) as PiuNode

@@ -15,6 +15,7 @@ function installBareSpecifierPackages(): void {
     resolve(modulesRoot, 'ui/views/settings/settings-status-model.js'),
   )
   writeAliasPackage(hostRoot, 'localization', resolve(modulesRoot, 'testing/fakes/localization.js'))
+  writeAliasPackage(hostRoot, 'volume-model', resolve(modulesRoot, 'preferences/volume-model.js'))
 }
 
 async function setup() {
@@ -46,4 +47,28 @@ test('settings status normalizes missing Wi-Fi credentials to empty strings', as
 
   assert.equal(status['wifi.ssid'], '')
   assert.equal(status['wifi.password'], '')
+})
+
+test('settings status exposes the resolved time zone selection', async () => {
+  const { createInitialSettingsStatus } = await setup()
+
+  const status = createInitialSettingsStatus({
+    wifi: {},
+    time: { timezone: 'tokyo' },
+  })
+
+  assert.equal(status['time.timezone'], 'tokyo')
+})
+
+test('settings status exposes a canonical volume for the on-device slider', async () => {
+  const { createInitialSettingsStatus } = await setup()
+
+  const configured = createInitialSettingsStatus({
+    wifi: {},
+    tts: { volume: 0.456 },
+  })
+  const fallback = createInitialSettingsStatus({ wifi: {} })
+
+  assert.equal(configured['tts.volume'], 0.46)
+  assert.equal(fallback['tts.volume'], 0.5)
 })

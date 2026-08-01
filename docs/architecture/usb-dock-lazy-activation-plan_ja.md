@@ -1,6 +1,6 @@
 # USB dockのMOD駆動遅延起動計画
 
-作成日：2026-07-31
+作成日：2026-07-31（Asia/Tokyo）
 
 対象：M5StackChan CoreS3向けUSB audio dock、remote conversation capability、Codex Voice MOD。
 
@@ -242,8 +242,8 @@ USB audio worker、event parser、remote session、presentationを通常hostへ�
 
 ### 段階1：基準とサイズの固定
 
-- [ ] USB dock実装を含む`develop`を作業ブランチへ統合する。
-- [ ] 既存の通常hostとAndroid USB audio hostをrelease buildする。
+- [x] USB dock実装を含む`develop`を作業ブランチへ統合する。
+- [x] 既存の通常hostとAndroid USB audio hostをrelease buildする。
 - [ ] Firmwareサイズと起動時heapを記録する。
 - [ ] Android接続、会話開始、承認表示の既存smoke結果を記録する。
 
@@ -251,44 +251,44 @@ USB audio worker、event parser、remote session、presentationを通常hostへ�
 
 ### 段階2：遅延起動facade
 
-- [ ] `RemoteConversationSession`へ`activationState`、`activate()`、`deactivate()`を追加する。
-- [ ] inactive時のstate、要求、購読規則を型とテストで固定する。
-- [ ] active runtimeを差し替え可能なfacadeをremote-session層へ追加する。
-- [ ] activate失敗時の逆順cleanupを実装する。
-- [ ] deactivateとhost closeの二重解放を防ぐ。
+- [x] `RemoteConversationSession`へ`activationState`、`activate()`、`deactivate()`を追加する。
+- [x] inactive時のstate、要求、購読規則を型とテストで固定する。
+- [x] active runtimeを差し替え可能なfacadeをremote-session層へ追加する。
+- [x] activate失敗時の逆順cleanupを実装する。
+- [x] deactivateとhost closeの二重解放を防ぐ。
 
 完了条件：fake transportだけでinactive、activate、deactivate、reactivateの状態遷移を検査できる。
 
 ### 段階3：dock runtimeの分割
 
-- [ ] `StackchanDock.start()`から`startUsbAudioBridge()`の即時呼び出しを除く。
-- [ ] `onContextCreated()`でcontextを保持し、activate可能な状態へ遷移させる。
-- [ ] `autoStart=true`の場合だけ`onContextCreated()`からactivateする。
-- [ ] presentationとtool providerの生成をactive期間へ限定する。
-- [ ] `close()`をfacadeの終了処理へ一本化する。
+- [x] `StackchanDock.start()`から`startUsbAudioBridge()`の即時呼び出しを除く。
+- [x] `onContextCreated()`でcontextを保持し、activate可能な状態へ遷移させる。
+- [x] `autoStart=true`の場合だけ`onContextCreated()`からactivateする。
+- [x] presentationとtool providerの生成をactive期間へ限定する。
+- [x] `close()`をfacadeの終了処理へ一本化する。
 
 完了条件：`autoStart=false`でbridge factoryが一度も呼ばれず、`autoStart=true`で従来どおり一度だけ呼ばれる。
 
 ### 段階4：manifestとCodex MOD
 
-- [ ] 通常のM5StackChan CoreS3 hostへUSB dock moduleをincludeする。
-- [ ] 通常hostへ`autoStart=false`を設定する。
-- [ ] Android用と診断用manifestへ`autoStart=true`を設定する。
-- [ ] 不要であればUSB bridge moduleの`preload`を外す。
-- [ ] Codex Voice MODから`activate()`を呼ぶ。
-- [ ] MODのactivation失敗をtraceへ残す。
+- [x] 通常のM5StackChan CoreS3 hostへUSB dock moduleをincludeする。
+- [x] 通常hostへ`autoStart=false`を設定する。
+- [x] Android用と診断用manifestへ`autoStart=true`を設定する。
+- [x] 不要であればUSB bridge moduleの`preload`を外す。
+- [x] Codex Voice MODから`activate()`を呼ぶ。
+- [x] MODのactivation失敗をtraceへ残す。
 
 完了条件：同じhost binary上で、通常MODはinactive、Codex Voice MODはactiveになる。
 
 ### 段階5：検証と文書更新
 
-- [ ] Node.js unit testで遅延起動とcleanupを検査する。
-- [ ] architecture checkでmanifestの`autoStart`方針を検査する。
+- [x] Node.js unit testで遅延起動とcleanupを検査する。
+- [x] architecture checkでmanifestの`autoStart`方針を検査する。
 - [ ] Moddable testでmodule importとworker起動を検査する。
-- [ ] 通常host、Android USB audio host、Codex Voice MODをbuildする。
+- [x] 通常host、Android USB audio host、診断host二種、Codex Voice MODをrelease buildする。
 - [ ] CoreS3実機でinactive、Codex接続、Android互換を確認する。
-- [ ] Firmware書き込み手順とmanifestの使い分けを更新する。
-- [ ] 利用者可視の変更としてrelease impactを判定し、必要ならchangesetまたはrelease noteを追加する。
+- [x] Firmware書き込み手順とmanifestの使い分けを更新する。
+- [x] 利用者可視の変更としてrelease impactを判定し、必要ならchangesetまたはrelease noteを追加する。
 
 完了条件：自動テストと実機受入条件をすべて満たし、利用者がhostとMODの組み合わせを選べる。
 
@@ -381,3 +381,52 @@ PR 1はhardwareへ依存しない状態機械としてレビューできる。
 PR 2は既存Android経路の互換性を固定する。
 
 PR 3はFirmwareサイズと実機結果を確認した後に、通常配布へ含めるかdock-capable targetへ分けるかを確定する。
+
+## 実装結果
+
+実装基点は`origin/develop`の`c25bba5273dbdb23cc0bcc29b7df9494365272c5`である。
+
+作業ブランチは`feat/usb-dock-lazy-activation`である。
+
+通常のM5StackChan CoreS3 hostはUSB dock moduleを含み、`autoStart=false`で起動する構成になった。
+
+Android USB audio hostと診断host二種は`autoStart=true`を明示し、従来の自動開始方針を維持した。
+
+Codex Voice MODはremote sessionの購読とgesture登録より先に`activate()`を呼び、activationに失敗した場合は後続処理を行わない。
+
+### 自動検証
+
+- `npm run format`は631ファイルを検査して成功した。
+- `npm run lint`は成功し、既存の`noUselessConstructor`情報メッセージが一件残った。
+- `npm run check:architecture`は73件すべて成功した。
+- `npm run check:manifest`は6ターゲットすべて成功した。
+- `python -m unittest scripts/test_usb_audio_diagnostics.py`は9件すべて成功した。
+- Moddable test suiteは37 manifestすべて成功した。
+- 通常host、Android USB audio host、診断host二種、Codex Voice MODのrelease buildはすべて成功した。
+
+`npm run test:unit`は77件中76件が成功した。
+
+失敗した`firmware/scripts/lib/firmware-command.test.mjs`の一件は、変更前から同じ実行環境で再現する子プロセスstdout取得の問題である。
+
+今回追加したfacadeとdock runtimeのunit testはすべて成功した。
+
+### Firmwareサイズ
+
+| 対象 | 変更前 | 変更後 | app partition空き |
+| --- | ---: | ---: | ---: |
+| 通常M5StackChan CoreS3 host | `0x5b6530` | `0x5d0830` | `0x9bf7d0`（63%） |
+| Android USB audio host | `0x5d5640` | `0x5d0830` | `0x9bf7d0`（63%） |
+| Android USB audio診断host | 未計測 | `0x5d0840` | `0x9bf7c0`（63%） |
+| Android USB audio診断no-UI host | 未計測 | `0x5d0850` | `0x9bf7b0`（63%） |
+
+通常hostは107,264バイト増加した。
+
+変更後の通常hostは変更前のAndroid USB audio hostより19,984バイト小さく、app partitionには63%の空きがあるため、dock-capable targetは分離しなかった。
+
+### 未実施の受入確認
+
+実機へのFirmware書き込みは実施していない。
+
+このため、起動時heap、inactive時のworkerとAudio入出力の非取得、HELLO_ACKの不応答、Codex承認UI、USB再接続、Android dock appとの実機互換性は未確認である。
+
+Node.jsのfakeを使ったtestではinactive時にUSB module importとbridge factory呼び出しが発生しないことを確認したが、実機workerの未起動は確認していない。

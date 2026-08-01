@@ -1,0 +1,15 @@
+{
+  "modules": {
+    "stackchan-dock": "./dock",
+    "stackchan-application-event": "../../remote-session/application-event",
+    "stackchan-approval-model": "../../remote-session/approval-model",
+    "stackchan-approval-session": "../../remote-session/approval-session",
+    "stackchan-conversation-session": "../../remote-session/conversation-session",
+    "stackchan-realtime-session": "../../remote-session/realtime-session",
+    "stackchan-remote-session-facade": "../../remote-session/facade",
+    "stackchan-remote-session-runtime": "../../remote-session/runtime",
+    "stackchan-usb-dock-presentation": "./presentation",
+    "stackchan-usb-dock-presentation-model": "./presentation-model",
+    "stackchan-usb-dock-runtime": "./runtime"
+  }
+}

@@ -20,6 +20,7 @@
     "../modules/input/manifest.json",
     "../modules/util/manifest.json",
     "../modules/preferences/manifest.json",
+    "../modules/power/manifest.json",
     "../platforms/esp32/manifest.json",
     "../platforms/lin/manifest.json",
     "./manifest_typings.json"
@@ -29,21 +30,25 @@
       "./main",
       "./app-behavior",
       "./app-behavior-resolver",
+      "./app-launch",
       "./boot-network-recovery",
       "./boot-services",
       "./compose",
       "./capabilities",
+      "./dock",
       "./experimental-mini-app-loader",
       "./experimental-mini-app-piu",
       "./experimental-mini-app-registration",
       "./setup-mode",
       "./settings-status",
+      "./volume-preview",
       "./runtime-audio",
       "./runtime-camera",
       "./runtime-context",
       "./runtime-input",
       "./runtime-lighting",
       "./runtime-ui",
+      "./owned-resources",
       "$(MODULES)/network/http/*"
     ],
     "startup-splash": "../modules/ui/views/splash/splash-view",
@@ -106,7 +111,7 @@
       {
         "source": "../modules/ui/assets/fonts/k8x12",
         "size": 24,
-        "characters": "Stack-chan[・＿・]",
+        "characters": "Stack-chan[・＿・]0123456789:",
         "monochrome": true
       }
     ]

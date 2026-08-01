@@ -1,0 +1,50 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/modules/base/worker/manifest.json",
+    "$(MODDABLE)/modules/io/manifest.json",
+    "$(MODDABLE)/modules/io/audioout/manifest.json",
+    "$(MODDABLE)/modules/data/text/decoder/manifest.json",
+    "$(MODDABLE)/modules/data/text/encoder/manifest.json"
+  ],
+  "modules": {
+    "stackchan-usb-audio": "./worker-bridge",
+    "stackchan-usb-audio-input-read": "./audio-input-read",
+    "stackchan-usb-audio-core": "./bridge",
+    "stackchan-usb-audio-worker": "./worker",
+    "stackchan-usb-connection-state": "./connection-state",
+    "stackchan-usb-shared-output": "./shared-speaker-output",
+    "stackchan-usb-diagnostics": "./diagnostics",
+    "stackchan-usb-event-frame-queue": "./event-frame-queue",
+    "stackchan-usb-event-send-requests": "./event-send-requests",
+    "stackchan-usb-event-transport": "./event-transport",
+    "stackchan-usb-microphone-session": "./microphone-session",
+    "stackchan-usb-media-session": "./media-session",
+    "stackchan-usb-protocol": "./protocol",
+    "stackchan-usb-speaker-buffer": "./speaker-buffer",
+    "stackchan-usb-speaker-session": "./speaker-session",
+    "stackchan-usb-serial-types": "./usb-serial-types",
+    "stackchan-usb-stream-gate": "./stream-gate",
+    "stackchan-usb-stream-tx-queue": "./stream-tx-queue"
+  },
+  "platforms": {
+    "esp32/m5stackchan_cores3": {
+      "build": {
+        "C_INCLUDES": "-I$(IDF_PATH)/components/esp_driver_usb_serial_jtag/include"
+      },
+      "dependency": [{ "idf": "esp_driver_usb_serial_jtag" }],
+      "modules": {
+        "stackchan-usb-crc32": "./usb-crc32",
+        "stackchan-usb-serial": "./usb-serial"
+      }
+    }
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "useUnknownInCatchVariables": false
+      }
+    }
+  }
+}

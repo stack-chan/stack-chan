@@ -9,6 +9,7 @@ import type {
   LifecycleCapability,
   LightingCapability,
   MotionCapability,
+  RemoteConversationSession,
   RobotUI,
   RuntimeUICapability,
   ShowBalloonOptions,
@@ -18,6 +19,7 @@ import type { Emotion, EmotionTransitionOptions, FaceEyeKey, FaceThemeKey } from
 import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
+import { OwnedResources } from 'owned-resources'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
@@ -34,6 +36,8 @@ type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
   RuntimeLightingConstructorParam &
   MotionControllerConstructorParam & {
     connectivity?: ConnectivityCapability
+    remoteConversationSession?: RemoteConversationSession
+    closeHandlers?: ReadonlyArray<() => void | Promise<void>>
     ui: RobotUI
   }
 
@@ -61,8 +65,10 @@ export class StackchanRuntimeContext implements StackchanContext {
   #uiRuntime: StackchanRuntimeUI
   #updateFaceHandler: Timer | undefined
   #closed = false
+  #ownedResources: OwnedResources
 
   constructor(params: RuntimeContextConstructorParam) {
+    this.#ownedResources = new OwnedResources(params.closeHandlers)
     this.#paused = false
     this.#motionController = new MotionController(params, {
       isPaused: () => this.#paused,
@@ -90,7 +96,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#inputCapability = this.createInputCapability()
     this.#lifecycleCapability = this.createLifecycleCapability()
     this.#lightingCapability = this.createLightingCapability()
-    this.#conversationCapability = this.createConversationCapability()
+    this.#conversationCapability = this.createConversationCapability(params.remoteConversationSession)
     this.#connectivityCapability = this.createConnectivityCapability(params.connectivity ?? {})
     this.#uiCapability = this.createUICapability()
   }
@@ -509,9 +515,10 @@ export class StackchanRuntimeContext implements StackchanContext {
     }
   }
 
-  private createConversationCapability(): ConversationCapability {
+  private createConversationCapability(remoteSession?: RemoteConversationSession): ConversationCapability {
     return {
       say: (text, volume) => this.say(text, volume),
+      ...(remoteSession ? { remoteSession } : {}),
     }
   }
 
@@ -640,13 +647,22 @@ export class StackchanRuntimeContext implements StackchanContext {
       Timer.clear(this.#updateFaceHandler)
       this.#updateFaceHandler = undefined
     }
-    this.#motionController.close()
     let closeError: unknown
     let hasCloseError = false
     const rememberCloseError = (error: unknown) => {
       if (hasCloseError) return
       closeError = error
       hasCloseError = true
+    }
+    try {
+      this.#motionController.close()
+    } catch (error) {
+      rememberCloseError(error)
+    }
+    try {
+      await this.#ownedResources.close()
+    } catch (error) {
+      rememberCloseError(error)
     }
     for (const session of this.#localPeerSessions) {
       try {

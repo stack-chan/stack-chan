@@ -18,6 +18,8 @@ export type PartitionEntry = {
 
 export type FirmwareDescriptor = {
   version: string
+  moddableVersion: string
+  hostApiVersion: number
   projectName: string
 }
 

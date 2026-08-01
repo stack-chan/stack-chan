@@ -1,6 +1,7 @@
-import { Container, Content, Label, Skin } from 'piu/MC'
+import type { Port as PiuPort } from 'piu/MC'
+import { Container, Content, Label, Port, Skin } from 'piu/MC'
 import { ActionButton } from 'ui-controls'
-import { uiStyles } from 'ui-theme'
+import { UI, uiStyles } from 'ui-theme'
 
 export const ChatStatusBarState = Object.freeze({
   FAILED: 0,
@@ -20,9 +21,26 @@ export const FACE_ACTIONS_VISIBLE_MS = 4000
 const levelHeight = 16
 const levelWidth = 4
 const iconSize = 16
-const iconLeft = 8
 const iconTop = (barHeight - iconSize) / 2
-const levelLeft = iconLeft + iconSize + 4
+const defaultIconLeft = 8
+const faceStatusScale = 2
+const batteryIconLeft = 8
+const batteryIconWidth = 24 * faceStatusScale
+const batteryIconHeight = 16 * faceStatusScale
+const batteryIconTop = (barHeight - batteryIconHeight) / 2
+const batteryStatusIconLeft = batteryIconLeft + batteryIconWidth + 4
+const clockWidth = 64 * faceStatusScale
+const clockLeft = (UI.screenWidth - clockWidth) / 2
+const minimumValidTimeMs = 1672722071_000
+const clockRefreshIntervalMs = 1000
+const batteryRefreshIntervalMs = 60_000
+
+export type BatteryLevelReader = () => number | undefined
+
+export type ChatStatusBarOptions = Readonly<{
+  now?: () => Date
+  readBatteryLevel?: BatteryLevelReader
+}>
 
 export type AppBarMode = Readonly<
   { kind: 'face' } | { kind: 'launcher'; title: string } | { kind: 'app'; title: string }
@@ -36,6 +54,37 @@ type ChatStatusSkins = {
   errorFill: Skin
   microphone: Skin
   indicator: Skin
+}
+
+type ClockData = {
+  now: () => Date
+}
+
+type BatteryData = {
+  reader?: BatteryLevelReader
+  visible: boolean
+}
+
+type ClockBehaviorContract = {
+  onVisibilityChanged(label: Label, visible: boolean): void
+}
+
+type BatteryBehaviorContract = {
+  onVisibilityChanged(port: PiuPort, visible: boolean): void
+}
+
+export function formatAppBarTime(date: Date): string {
+  const epoch = date.getTime()
+  if (!Number.isFinite(epoch) || epoch <= minimumValidTimeMs) return '--:--'
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+export function batteryLevelToSegments(level: number): number {
+  if (!Number.isFinite(level) || level <= 0) return 0
+  if (level <= 25) return 1
+  if (level <= 50) return 2
+  if (level <= 75) return 3
+  return 4
 }
 
 function setControlVisible(control: Container | undefined, visible: boolean): void {
@@ -90,6 +139,131 @@ class IndicatorBehavior extends Behavior {
   }
 }
 
+class ClockBehavior extends Behavior implements ClockBehaviorContract {
+  #data?: ClockData
+  #displaying = false
+  #visible = true
+  #lastValue = ''
+
+  onCreate(_label: Label, data: ClockData) {
+    this.#data = data
+  }
+
+  onDisplaying(label: Label) {
+    this.#displaying = true
+    this.updateTimer(label)
+  }
+
+  onUndisplaying(label: Label) {
+    this.#displaying = false
+    label.stop()
+  }
+
+  onTimeChanged(label: Label) {
+    this.update(label)
+  }
+
+  onVisibilityChanged(label: Label, visible: boolean) {
+    this.#visible = visible
+    label.visible = visible
+    this.updateTimer(label)
+  }
+
+  updateTimer(label: Label) {
+    if (!this.#displaying || !this.#visible) {
+      label.stop()
+      return
+    }
+    if (label.running) return
+    this.update(label)
+    label.interval = clockRefreshIntervalMs
+    label.start()
+  }
+
+  update(label: Label) {
+    const value = formatAppBarTime(this.#data?.now() ?? new Date())
+    if (value === this.#lastValue) return
+    this.#lastValue = value
+    label.string = value
+  }
+}
+
+class BatteryBehavior extends Behavior implements BatteryBehaviorContract {
+  #data?: BatteryData
+  #available = false
+  #displaying = false
+  #segments = 0
+
+  onCreate(_port: PiuPort, data: BatteryData) {
+    this.#data = data
+  }
+
+  onDisplaying(port: PiuPort) {
+    this.#displaying = true
+    this.updateTimer(port)
+  }
+
+  onUndisplaying(port: PiuPort) {
+    this.#displaying = false
+    port.stop()
+  }
+
+  onTimeChanged(port: PiuPort) {
+    this.sample(port)
+  }
+
+  onVisibilityChanged(port: PiuPort, visible: boolean) {
+    if (this.#data) this.#data.visible = visible
+    port.visible = visible && this.#available
+    this.updateTimer(port)
+  }
+
+  updateTimer(port: PiuPort) {
+    if (!this.#displaying || !this.#data?.visible || !this.#data.reader) {
+      port.stop()
+      return
+    }
+    if (port.running) return
+    this.sample(port)
+    port.interval = batteryRefreshIntervalMs
+    port.start()
+  }
+
+  sample(port: PiuPort) {
+    let level: number | undefined
+    try {
+      level = this.#data?.reader?.()
+    } catch {
+      level = undefined
+    }
+    const available = typeof level === 'number' && Number.isFinite(level) && level >= 0 && level <= 100
+    const segments = available ? batteryLevelToSegments(level as number) : 0
+    const changed = available !== this.#available || segments !== this.#segments
+    this.#available = available
+    this.#segments = segments
+    port.visible = (this.#data?.visible ?? true) && available
+    if (changed) port.invalidate()
+  }
+
+  onDraw(port: PiuPort) {
+    const color = UI.colors.text
+    port.fillColor(color, 0, 2 * faceStatusScale, 20 * faceStatusScale, 2 * faceStatusScale)
+    port.fillColor(color, 0, 12 * faceStatusScale, 20 * faceStatusScale, 2 * faceStatusScale)
+    port.fillColor(color, 0, 4 * faceStatusScale, 2 * faceStatusScale, 8 * faceStatusScale)
+    port.fillColor(color, 18 * faceStatusScale, 4 * faceStatusScale, 2 * faceStatusScale, 8 * faceStatusScale)
+    port.fillColor(color, 20 * faceStatusScale, 6 * faceStatusScale, 3 * faceStatusScale, 4 * faceStatusScale)
+    for (let index = 0; index < this.#segments; index += 1) {
+      port.fillColor(
+        color,
+        (3 + index * 4) * faceStatusScale,
+        5 * faceStatusScale,
+        3 * faceStatusScale,
+        6 * faceStatusScale,
+      )
+    }
+  }
+}
+
 class ChatStatusBarBehavior extends Behavior {
   #mode: AppBarMode = { kind: 'face' }
   #state: ChatStatusBarState = ChatStatusBarState.DISCONNECTED
@@ -103,7 +277,9 @@ class ChatStatusBarBehavior extends Behavior {
   #appsButton?: Container
   #backButton?: Container
   #title?: Label
-  #faceActionsVisible = false
+  #clock?: Label
+  #battery?: PiuPort
+  #faceBarVisible = false
   #miniAppsAvailable = false
 
   onCreate(container: Container) {
@@ -115,20 +291,29 @@ class ChatStatusBarBehavior extends Behavior {
     this.#appsButton = container.content('appsButton') as Container
     this.#backButton = container.content('backButton') as Container
     this.#title = container.content('title') as Label
-    this.setFaceActionsVisible(true)
-    this.updateUI()
+    this.#clock = container.content('clock') as Label
+    this.#battery = container.content('battery') as PiuPort
+    this.setFaceBarVisible(container, true)
   }
 
   onDisplaying(container: Container) {
-    this.showFaceActions(container)
+    this.showFaceBar(container)
   }
 
   onAppBarReveal(container: Container) {
-    this.showFaceActions(container)
+    this.showFaceBar(container)
   }
 
   onFinished(container: Container) {
-    this.setFaceActionsVisible(false)
+    if (this.#mode.kind !== 'face') return
+    this.setFaceBarVisible(container, false)
+    container.stop()
+  }
+
+  onUndisplaying(container: Container) {
+    this.#clock?.stop()
+    this.#battery?.stop()
+    this.#indicator?.stop()
     container.stop()
   }
 
@@ -142,17 +327,19 @@ class ChatStatusBarBehavior extends Behavior {
       this.#title.visible = !faceMode
     }
     setControlVisible(this.#backButton, !faceMode)
-    if (faceMode) this.showFaceActions(container)
+    if (faceMode) this.showFaceBar(container)
     else {
-      this.setFaceActionsVisible(false)
+      this.#faceBarVisible = false
+      container.visible = true
+      this.updateFaceActions()
       container.stop()
+      this.updateUI()
     }
-    this.updateUI()
   }
 
   onMiniAppAvailability(_container: Container, available: boolean) {
     this.#miniAppsAvailable = available
-    this.setFaceActionsVisible(this.#faceActionsVisible)
+    this.updateFaceActions()
   }
 
   onChatState(_container: Container, state: ChatStatusBarState, _error?: string) {
@@ -173,7 +360,13 @@ class ChatStatusBarBehavior extends Behavior {
 
   updateUI() {
     if (!this.#levelTrack || !this.#levelFill || !this.#statusIcon || !this.#indicator) return
-    if (this.#mode.kind !== 'face') {
+    const faceMode = this.#mode.kind === 'face'
+    const faceStatusVisible = faceMode && this.#faceBarVisible
+    const clockBehavior = this.#clock?.behavior as ClockBehaviorContract | undefined
+    if (this.#clock) clockBehavior?.onVisibilityChanged(this.#clock, faceStatusVisible)
+    const batteryBehavior = this.#battery?.behavior as BatteryBehaviorContract | undefined
+    if (this.#battery) batteryBehavior?.onVisibilityChanged(this.#battery, faceStatusVisible)
+    if (!faceStatusVisible) {
       this.#levelTrack.visible = false
       this.#statusIcon.visible = false
       this.#indicator.visible = false
@@ -208,18 +401,24 @@ class ChatStatusBarBehavior extends Behavior {
     this.#levelFill.height = height
   }
 
-  showFaceActions(container: Container) {
+  showFaceBar(container: Container) {
     if (this.#mode.kind !== 'face') return
-    this.setFaceActionsVisible(true)
+    this.setFaceBarVisible(container, true)
     container.stop()
     container.duration = FACE_ACTIONS_VISIBLE_MS
     container.time = 0
     container.start()
   }
 
-  setFaceActionsVisible(visible: boolean) {
-    const faceActionsVisible = visible && this.#mode.kind === 'face'
-    this.#faceActionsVisible = faceActionsVisible
+  setFaceBarVisible(container: Container, visible: boolean) {
+    this.#faceBarVisible = visible && this.#mode.kind === 'face'
+    container.visible = this.#faceBarVisible
+    this.updateFaceActions()
+    this.updateUI()
+  }
+
+  updateFaceActions() {
+    const faceActionsVisible = this.#faceBarVisible && this.#mode.kind === 'face'
     setControlVisible(this.#menuButton, faceActionsVisible)
     if (this.#appsButton) {
       const appsVisible = faceActionsVisible && this.#miniAppsAvailable
@@ -228,9 +427,11 @@ class ChatStatusBarBehavior extends Behavior {
   }
 }
 
-export const ChatStatusBar = Container.template(() => {
+export const ChatStatusBar = Container.template((options: ChatStatusBarOptions = {}) => {
   const skins = getSkins()
   const styles = uiStyles()
+  const statusIconLeft = options.readBatteryLevel ? batteryStatusIconLeft : defaultIconLeft
+  const levelLeft = statusIconLeft + iconSize + 4
   return {
     name: 'ChatStatusBar',
     anchor: 'APP_BAR',
@@ -259,9 +460,41 @@ export const ChatStatusBar = Container.template(() => {
         string: '',
         style: styles.title,
       }),
+      new Port(
+        {
+          reader: options.readBatteryLevel,
+          visible: true,
+        } satisfies BatteryData,
+        {
+          name: 'battery',
+          left: batteryIconLeft,
+          top: batteryIconTop,
+          width: batteryIconWidth,
+          height: batteryIconHeight,
+          active: false,
+          visible: false,
+          Behavior: BatteryBehavior,
+        },
+      ),
+      new Label(
+        {
+          now: options.now ?? (() => new Date()),
+        } satisfies ClockData,
+        {
+          name: 'clock',
+          left: clockLeft,
+          top: 0,
+          width: clockWidth,
+          bottom: 0,
+          active: false,
+          string: '--:--',
+          style: styles.brand,
+          Behavior: ClockBehavior,
+        },
+      ),
       new Content(null, {
         name: 'statusIcon',
-        left: iconLeft,
+        left: statusIconLeft,
         top: iconTop,
         width: iconSize,
         height: iconSize,
@@ -271,7 +504,7 @@ export const ChatStatusBar = Container.template(() => {
       }),
       new Content(null, {
         name: 'statusIndicator',
-        left: iconLeft,
+        left: statusIconLeft,
         top: iconTop,
         width: iconSize,
         height: iconSize,

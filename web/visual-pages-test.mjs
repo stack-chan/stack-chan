@@ -138,6 +138,23 @@ try {
   )
   assert.equal(await selectedMediaPipeMod.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
 
+  await page.goto(`${baseUrl}/mod-gallery/?mod=sample.stackchan-jump`, {
+    waitUntil: 'networkidle',
+  })
+  const selectedJumpMiniApp = page.locator(
+    '[data-mod-id="sample.stackchan-jump"][data-mod-entrypoints="miniapp"][data-selected="true"]'
+  )
+  await selectedJumpMiniApp.waitFor()
+  assert.equal(await selectedJumpMiniApp.getByText('ミニアプリ', { exact: true }).count(), 1)
+  assert.equal(await selectedJumpMiniApp.getByRole('button', { name: 'シミュレーターで試す' }).count(), 1)
+  assert.equal(await selectedJumpMiniApp.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
+  await selectedJumpMiniApp.getByRole('button', { name: 'シミュレーターで試す' }).click()
+  await page.waitForURL(/\/simulator\/\?gallery=sample\.stackchan-jump/)
+  await page
+    .getByRole('log')
+    .getByText('[MiniApp] loaded experimental archive definitions=1', { exact: false })
+    .waitFor({ timeout: 45_000 })
+
   await page.goto(`${baseUrl}/mod-gallery/`, { waitUntil: 'networkidle' })
   const blockProjectLink = page.getByRole('link', { name: 'ブロックで開く' }).first()
   const blockProjectUrl = new URL(await blockProjectLink.getAttribute('href'), page.url())

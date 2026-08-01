@@ -20,8 +20,9 @@
     "prepare:openai-realtime": "node scripts/prepare-openai-realtime.mjs",
     "smoke:chat": "node scripts/run-chat-smoke.mjs",
     "generate-apidoc": "typedoc --entryPointStrategy expand --plugin typedoc-plugin-markdown --out docs/api ./host",
+    "vendor:stackchan-dock": "node scripts/vendor-stackchan-dock.mjs",
     "test": "npm run test:unit",
-    "test:unit": "rm -rf dist-tests && tsc --project tsconfig.test.json && node --test \"dist-tests/host/**/*.test.js\" scripts/lib/build-output.test.mjs scripts/lib/chat-smoke-log.test.mjs scripts/lib/firmware-bundle.test.mjs scripts/lib/firmware-command.test.mjs scripts/lib/idf-dependencies.test.mjs scripts/lib/mod-flash.test.mjs scripts/lib/moddable-version.test.mjs scripts/lib/openai-realtime-manifest.test.mjs scripts/lib/release-validation.test.mjs",
+    "test:unit": "rm -rf dist-tests && tsc --project tsconfig.test.json && node --test \"dist-tests/host/**/*.test.js\" scripts/lib/build-output.test.mjs scripts/lib/chat-smoke-log.test.mjs scripts/lib/firmware-bundle.test.mjs scripts/lib/firmware-command.test.mjs scripts/lib/idf-dependencies.test.mjs scripts/lib/mod-flash.test.mjs scripts/lib/moddable-version.test.mjs scripts/lib/module-test-sharding.test.mjs scripts/lib/openai-realtime-manifest.test.mjs scripts/lib/release-validation.test.mjs",
     "test:moddable": "node scripts/run-module-tests.js",
     "test:audio-duplex-device:build": "node scripts/run-mcconfig.mjs -d -m -p esp32/m5stack_cores3 -t build \"$PWD/host/modules/audio/__tests__/audio-duplex-device/manifest.json\"",
     "test:audio-duplex-device:deploy": "node scripts/run-mcconfig.mjs -d -m -p esp32/m5stack_cores3 -t deploy \"$PWD/host/modules/audio/__tests__/audio-duplex-device/manifest.json\"",
@@ -50,6 +51,9 @@
     "test:device": "node scripts/run-device-smoke.js",
     "build": "node scripts/firmware.mjs build",
     "build:m5stackchan_cores3": "node scripts/firmware.mjs build m5stackchan_cores3",
+    "build:android-usb-audio": "node scripts/firmware.mjs build m5stackchan_cores3 --mode=release --manifest host/app/manifest_android_usb_audio.json",
+    "build:android-usb-audio-diagnostics": "node scripts/firmware.mjs build m5stackchan_cores3 --mode=release --manifest host/app/manifest_android_usb_audio_diagnostics.json",
+    "build:android-usb-audio-diagnostics-no-ui": "node scripts/firmware.mjs build m5stackchan_cores3 --mode=release --manifest host/app/manifest_android_usb_audio_diagnostics_no_ui.json",
     "build:stackchan_rt": "node scripts/firmware.mjs build stackchan_rt",
     "build:takao_core2_sg90": "node scripts/firmware.mjs build takao_core2_sg90",
     "build:m5stack": "node scripts/run-mcconfig.mjs -d -m -p esp32/m5stack -t build \"$PWD/host/app/manifest_local.json\"",
@@ -75,6 +79,9 @@
     "flash": "node scripts/firmware.mjs flash",
     "flash:m5stack_cores3": "node scripts/firmware.mjs flash m5stack_cores3",
     "flash:m5stackchan_cores3": "node scripts/firmware.mjs flash m5stackchan_cores3",
+    "flash:android-usb-audio": "node scripts/firmware.mjs deploy m5stackchan_cores3 --mode=release --manifest host/app/manifest_android_usb_audio.json",
+    "flash:android-usb-audio-diagnostics": "node scripts/firmware.mjs deploy m5stackchan_cores3 --mode=release --manifest host/app/manifest_android_usb_audio_diagnostics.json",
+    "flash:android-usb-audio-diagnostics-no-ui": "node scripts/firmware.mjs deploy m5stackchan_cores3 --mode=release --manifest host/app/manifest_android_usb_audio_diagnostics_no_ui.json",
     "flash:stackchan_rt": "node scripts/firmware.mjs flash stackchan_rt",
     "flash:takao_core2_sg90": "node scripts/firmware.mjs flash takao_core2_sg90",
     "debug": "node scripts/firmware.mjs debug",
@@ -89,6 +96,7 @@
     "debug:xsdb:takao_core2_sg90": "node scripts/firmware.mjs debug takao_core2_sg90 -dl",
     "mod": "node scripts/firmware.mjs mod",
     "mod:m5stack_cores3": "node scripts/firmware.mjs mod m5stack_cores3",
+    "mod:build": "node scripts/firmware.mjs mod:build",
     "mod:m5stackchan_cores3": "node scripts/firmware.mjs mod m5stackchan_cores3",
     "mod:stackchan_rt": "node scripts/firmware.mjs mod stackchan_rt",
     "mod:takao_core2_sg90": "node scripts/firmware.mjs mod takao_core2_sg90",
@@ -119,7 +127,7 @@
   "homepage": "https://github.com/meganetaaan/stack-chan#readme",
   "private": true,
   "devDependencies": {
-    "@biomejs/biome": "2.5.4",
+    "@biomejs/biome": "2.5.6",
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@google-cloud/text-to-speech": "^6.4.1",
@@ -134,6 +142,6 @@
     "typescript": "^6.0.3",
     "web-audio-engine": "^0.13.4",
     "xs-dev": "^1.12.1",
-    "yargs": "^18.0.0"
+    "yargs": "^18.1.0"
   }
 }

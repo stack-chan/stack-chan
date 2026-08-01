@@ -13,6 +13,7 @@ export type ModAction = {
   label: string
   icon: LucideIcon
   href?: string
+  external?: boolean
   onClick?: () => void
   variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'destructive'
 }
@@ -35,6 +36,8 @@ export function ModCard({
   const { t } = useI18n()
   const actions = primaryAction ? [primaryAction, ...secondaryActions] : secondaryActions
   const busy = operation.status === 'pending'
+  const hasMiniApp = mod.entrypoints.includes('miniapp')
+  const isCombinedPackage = hasMiniApp && mod.entrypoints.includes('mod')
 
   const renderAction = (action: ModAction, index: number) => {
     const Icon = action.icon
@@ -44,6 +47,8 @@ export function ModCard({
       <a
         className={cn(buttonVariants({ variant }), className, busy && 'pointer-events-none opacity-50')}
         href={busy ? undefined : action.href}
+        target={action.external ? '_blank' : undefined}
+        rel={action.external ? 'noopener noreferrer' : undefined}
         aria-disabled={busy || undefined}
         tabIndex={busy ? -1 : undefined}
       >
@@ -63,6 +68,7 @@ export function ModCard({
     <Card
       data-mod-id={mod.id}
       data-mod-type={mod.type}
+      data-mod-entrypoints={mod.entrypoints.join(' ')}
       data-selected={selected || undefined}
       tabIndex={selected ? -1 : undefined}
       className={cn(
@@ -77,9 +83,13 @@ export function ModCard({
             v{mod.version} · {mod.author ?? t('作者不明')}
           </p>
         </div>
-        <Badge variant={mod.type === 'block' ? 'default' : 'secondary'}>
-          {t(mod.type === 'block' ? 'ブロック' : 'テキスト')}
-        </Badge>
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {isCombinedPackage && <Badge variant="outline">MOD</Badge>}
+          {hasMiniApp && <Badge>{t('ミニアプリ')}</Badge>}
+          <Badge variant={mod.type === 'block' ? 'default' : 'secondary'}>
+            {t(mod.type === 'block' ? 'ブロック' : 'テキスト')}
+          </Badge>
+        </div>
         <CardDescription className="col-span-full mt-3 leading-6">{t(mod.description)}</CardDescription>
       </CardHeader>
       <CardContent className="flex min-h-14 flex-wrap content-start gap-1.5">

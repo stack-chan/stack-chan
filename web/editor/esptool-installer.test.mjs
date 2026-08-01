@@ -43,7 +43,7 @@ const CORES3_TABLE = makePartitionTable([
   { type: 0x01, subtype: 0x82, offset: 0xfe0000, size: 0x10000, label: 'storage' },
 ])
 
-function makeAppHeader(version = '8.3.1', projectName = 'xs_esp32') {
+function makeAppHeader(version = '8.3.1+stackchan.1', projectName = 'xs_esp32') {
   const bytes = new Uint8Array(256)
   const view = new DataView(bytes.buffer)
   view.setUint32(0x20, 0xabcd5432, true)
@@ -75,7 +75,15 @@ test('findXsPartition locates the mod partition by type/subtype', () => {
 test('reads the factory app descriptor used for firmware/XS compatibility checks', () => {
   assert.equal(findAppPartition(parsePartitionTable(CORES3_TABLE)).offset, 0x10000)
   assert.deepEqual(parseEspAppDescriptor(makeAppHeader()), {
+    version: '8.3.1+stackchan.1',
+    moddableVersion: '8.3.1',
+    hostApiVersion: 1,
+    projectName: 'xs_esp32',
+  })
+  assert.deepEqual(parseEspAppDescriptor(makeAppHeader('8.3.1')), {
     version: '8.3.1',
+    moddableVersion: '8.3.1',
+    hostApiVersion: 0,
     projectName: 'xs_esp32',
   })
   assert.equal(parseEspAppDescriptor(new Uint8Array(256)), null)
@@ -175,7 +183,12 @@ test('installModToDevice reads the table, targets the xs offset, and resets', as
   assert.equal(progress, 1)
   assert.equal(result.verified, true)
   assert.equal('backup' in result, false)
-  assert.deepEqual(preflight.firmware, { version: '8.3.1', projectName: 'xs_esp32' })
+  assert.deepEqual(preflight.firmware, {
+    version: '8.3.1+stackchan.1',
+    moddableVersion: '8.3.1',
+    hostApiVersion: 1,
+    projectName: 'xs_esp32',
+  })
 })
 
 test('installModToDevice does not reboot when readback verification fails', async () => {
@@ -281,7 +294,7 @@ test('removeModFromDevice clears the first xs sector and reboots', async () => {
   assert.equal(calls[0].address, 0xfa0000)
   assert.equal(calls[0].data.length, 4096)
   assert.equal(calls[1], 'reset')
-  assert.equal(preflight.firmware.version, '8.3.1')
+  assert.equal(preflight.firmware.version, '8.3.1+stackchan.1')
   assert.equal(result.verified, true)
   assert.equal('backup' in result, false)
 })

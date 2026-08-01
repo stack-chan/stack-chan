@@ -9,6 +9,7 @@ export const coreS3SdkconfigSourceDirectory = path.resolve(
   libraryDirectory,
   '../../host/modules/audio/platforms/m5stackchan-cores3/sdkconfig',
 )
+export const STACKCHAN_HOST_API_VERSION = 1
 
 /**
  * Reads the Moddable SDK version that must be exposed through esp_app_desc.
@@ -29,13 +30,31 @@ export function readModdableVersion(moddableDirectory = process.env.MODDABLE) {
 }
 
 /**
- * Produces an sdkconfig overlay with the actual Moddable SDK version.
+ * Adds the Stack-chan host API generation to the Moddable SDK version stored in
+ * esp_app_desc. Legacy firmware has no suffix and is therefore host API 0.
+ * @param {string} moddableVersion - Moddable SDK version.
+ * @param {number} hostApiVersion - Stack-chan host API generation.
+ * @returns {string} Firmware descriptor version.
+ */
+export function firmwareDescriptorVersion(moddableVersion, hostApiVersion = STACKCHAN_HOST_API_VERSION) {
+  assertDescriptorVersion(moddableVersion)
+  if (!Number.isSafeInteger(hostApiVersion) || hostApiVersion < 1) {
+    throw new Error(`Invalid Stack-chan host API version: ${hostApiVersion}`)
+  }
+  const separator = moddableVersion.includes('+') ? '.' : '+'
+  const version = `${moddableVersion}${separator}stackchan.${hostApiVersion}`
+  assertDescriptorVersion(version, 'firmware descriptor version')
+  return version
+}
+
+/**
+ * Produces an sdkconfig overlay with the Moddable SDK and Stack-chan host API versions.
  * @param {string} source - Base sdkconfig.defaults contents.
  * @param {string} version - Moddable SDK version for esp_app_desc.
  * @returns {string} Generated sdkconfig.defaults contents.
  */
 export function renderVersionSdkconfig(source, version) {
-  assertDescriptorVersion(version)
+  const descriptorVersion = firmwareDescriptorVersion(version)
   const base = source
     .replaceAll('\r\n', '\n')
     .split('\n')
@@ -45,16 +64,16 @@ export function renderVersionSdkconfig(source, version) {
 
   return `${base}
 
-# Generated from $MODDABLE/tools/VERSION by scripts/lib/moddable-version.mjs.
+# Generated from $MODDABLE/tools/VERSION and the Stack-chan host API generation.
 CONFIG_APP_PROJECT_VER_FROM_CONFIG=y
-CONFIG_APP_PROJECT_VER="${version}"
+CONFIG_APP_PROJECT_VER="${descriptorVersion}"
 `
 }
 
 /**
  * Writes a generated sdkconfig directory for Moddable's SDKCONFIGPATH.
  * @param {{platformName: string, moddableDirectory?: string, outputDirectory?: string, sourceDirectory: string, partitionSourcePath: string}} options - Generation inputs.
- * @returns {{directory: string, filePath: string, partitionFilePath: string, version: string}} Generated configuration details.
+ * @returns {{directory: string, filePath: string, partitionFilePath: string, version: string, moddableVersion: string}} Generated configuration details.
  */
 export function prepareVersionSdkconfig({
   platformName,
@@ -66,10 +85,11 @@ export function prepareVersionSdkconfig({
   if (!/^[0-9A-Za-z._-]+$/.test(platformName)) {
     throw new Error(`Invalid sdkconfig platform name: ${platformName || 'missing'}`)
   }
-  const version = readModdableVersion(moddableDirectory)
+  const moddableVersion = readModdableVersion(moddableDirectory)
+  const version = firmwareDescriptorVersion(moddableVersion)
   const sourcePath = path.join(sourceDirectory, 'sdkconfig.defaults')
   const source = readFileSync(sourcePath, 'utf8')
-  const sdkconfig = renderVersionSdkconfig(source, version)
+  const sdkconfig = renderVersionSdkconfig(source, moddableVersion)
   const directory = path.join(outputDirectory, 'generated', 'sdkconfig', platformName)
   const filePath = path.join(directory, 'sdkconfig.defaults')
   const partitionFilePath = path.join(directory, 'partitions.csv')
@@ -82,13 +102,13 @@ export function prepareVersionSdkconfig({
   if (!previousPartitions?.equals(partitions)) writeFileSync(partitionFilePath, partitions)
 
   console.log(`[stack-chan] prepared firmware version ${version}: ${filePath}`)
-  return { directory, filePath, partitionFilePath, version }
+  return { directory, filePath, partitionFilePath, version, moddableVersion }
 }
 
 /**
  * Writes the M5StackChan CoreS3 sdkconfig overlay used by normal firmware builds.
  * @param {{platformName?: "m5stack_cores3" | "m5stackchan_cores3", moddableDirectory?: string, outputDirectory?: string, sourceDirectory?: string, partitionSourcePath?: string}} options - Generation inputs.
- * @returns {{directory: string, filePath: string, partitionFilePath: string, version: string}} Generated configuration details.
+ * @returns {{directory: string, filePath: string, partitionFilePath: string, version: string, moddableVersion: string}} Generated configuration details.
  */
 export function prepareCoreS3VersionSdkconfig({
   platformName = 'm5stackchan_cores3',
@@ -129,8 +149,8 @@ export const renderCoreS3VersionSdkconfig = renderVersionSdkconfig
  * 32-byte esp_app_desc version field.
  * @param {string} version - Candidate version.
  */
-function assertDescriptorVersion(version) {
+function assertDescriptorVersion(version, label = 'Moddable SDK version') {
   if (!/^[0-9A-Za-z][0-9A-Za-z.+-]*$/.test(version) || Buffer.byteLength(version, 'utf8') > 31) {
-    throw new Error(`Invalid Moddable SDK version for esp_app_desc: ${version || 'missing'}`)
+    throw new Error(`Invalid ${label} for esp_app_desc: ${version || 'missing'}`)
   }
 }

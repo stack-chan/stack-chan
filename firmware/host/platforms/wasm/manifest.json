@@ -33,6 +33,7 @@
       "../../app/experimental-mini-app-registration",
       "../../app/setup-mode",
       "../../app/settings-status",
+      "../../app/volume-preview",
       "../../app/runtime-audio",
       "../../app/runtime-camera",
       "../../app/runtime-context",

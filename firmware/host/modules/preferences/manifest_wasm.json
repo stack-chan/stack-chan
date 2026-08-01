@@ -11,7 +11,8 @@
     "consts": "./consts",
     "loadPreference": "./loadPreference",
     "timezone-model": "./timezone-model",
-    "timezone-settings": "./timezone-settings"
+    "timezone-settings": "./timezone-settings",
+    "volume-model": "./volume-model"
   },
   "preload": ["consts"],
   "typescript": {

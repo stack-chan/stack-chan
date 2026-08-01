@@ -18,6 +18,7 @@ export type IconName =
   | 'retry'
   | 'scan'
   | 'settings'
+  | 'volume'
   | 'wifi'
 
 export type ActionButtonData = {
@@ -176,6 +177,12 @@ function drawIcon(port: PiuPort, icon: IconName, color: string) {
       port.fillColor(color, cx + 5, cy + 1, 3, 5)
       port.fillColor(color, cx - 5, cy + 6, 10, 3)
       port.fillColor(color, cx - 2, cy + 9, 4, 4)
+      return
+    case 'volume':
+      port.fillColor(color, cx - 10, cy - 4, 5, 9)
+      port.fillColor(color, cx - 5, cy - 7, 4, 15)
+      port.fillColor(color, cx + 2, cy - 4, 3, 9)
+      port.fillColor(color, cx + 7, cy - 7, 3, 15)
       return
     case 'palette':
       port.fillColor('#ef6262', cx - 8, cy - 7, 7, 7)

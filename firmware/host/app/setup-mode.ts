@@ -104,7 +104,10 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       currentView = undefined
       preferenceServer?.close?.()
       if (result === 'back') stopStoredWiFiConnection()
-      void volumePreviewQueue.close().then(() => resolve(result))
+      void volumePreviewQueue.close().then(
+        () => resolve(result),
+        () => resolve(result),
+      )
     }
 
     function clearWiFiAndBootOffline() {

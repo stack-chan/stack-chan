@@ -17,7 +17,7 @@ import {
 import Speaker from 'speaker'
 import { clearStoredWiFiCredentials, connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
 import { applyTimezone as applySystemTimezone, normalizeTimezoneId, type TimezoneId } from 'timezone-settings'
-import { canonicalizeVolume } from 'volume-model'
+import { canonicalizeVolume, encodeVolumePreference } from 'volume-model'
 import { VolumePreviewQueue } from 'volume-preview'
 import { scanWiFiNetworks } from 'wifi-scan'
 import type { WiFiScanSession } from 'wifi-scan-types'
@@ -169,7 +169,7 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       const volume = canonicalizeVolume(value, viewState.volume)
       status['tts.volume'] = volume
       viewState.volume = volume
-      if (persist || volume !== value) Preference.set(DOMAIN.tts, 'volume', volume)
+      if (persist || volume !== value) Preference.set(DOMAIN.tts, 'volume', encodeVolumePreference(volume))
       updateCurrentView()
       if (preview) volumePreviewQueue.request(volume)
       return volume

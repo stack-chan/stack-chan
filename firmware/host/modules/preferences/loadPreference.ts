@@ -3,6 +3,7 @@ import { DOMAIN, PREF_KEYS } from 'consts'
 import config from 'mc/config'
 import Modules from 'modules'
 import Preference from 'preference'
+import { decodeVolumePreference } from 'volume-model'
 
 // biome-ignore lint/suspicious/noExplicitAny: Match the type definition of mc/config
 type ConfigRecord = Record<string, any>
@@ -60,7 +61,8 @@ export default function loadPreferences(category: PreferenceDomain): ConfigRecor
         }
         continue
       }
-      preference[key] = ctor(value)
+      preference[key] =
+        domain === DOMAIN.tts && key === 'volume' ? decodeVolumePreference(value, preference[key]) : ctor(value)
     }
   }
 

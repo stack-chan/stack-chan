@@ -4,6 +4,8 @@ import { test } from 'node:test'
 import {
   canonicalizeVolume,
   DEFAULT_VOLUME,
+  decodeVolumePreference,
+  encodeVolumePreference,
   normalizeVolume,
   volumePercentToValue,
   volumeToPercent,
@@ -28,4 +30,12 @@ test('canonical volume values are stable at one-percent precision', () => {
   assert.equal(canonicalizeVolume(0.104), 0.1)
   assert.equal(canonicalizeVolume(0.105), 0.11)
   assert.equal(canonicalizeVolume('loud', 0.25), 0.25)
+})
+
+test('volume preferences use an NVS-compatible string and decode to the public ratio', () => {
+  assert.equal(encodeVolumePreference(0.104), 'percent:10')
+  assert.equal(decodeVolumePreference('percent:10'), 0.1)
+  assert.equal(decodeVolumePreference(0.35), 0.35)
+  assert.equal(decodeVolumePreference('percent:101', 0.25), 0.25)
+  assert.equal(decodeVolumePreference('invalid', 0.25), 0.25)
 })

@@ -14,6 +14,7 @@ export type ChatType = 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' 
 export type ChatConfig = {
   type: ChatType
   specifier?: string
+  endpoint?: string
   apiKey?: string
   instructions?: string
   voiceID?: string
@@ -162,7 +163,7 @@ export class ChatService {
       specifier: config.specifier ?? (config.type as unknown as string),
       instructions: config.instructions,
       voiceID: config.voiceID,
-      providerID: config.providerID,
+      providerID: config.endpoint ?? config.providerID,
       modelID: config.modelID,
       apiKey: config.apiKey,
       functions: functions.length > 0 ? functions : undefined,

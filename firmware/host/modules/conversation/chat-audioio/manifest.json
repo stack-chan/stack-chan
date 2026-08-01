@@ -40,7 +40,8 @@
     "*": "$(MODULES)/network/services/chatAudioIO/workers/*",
     "ChatAudioIO/Codecs": "$(MODULES)/network/services/chatAudioIO/codecs/audio-codecs",
     "stackchanOpenAIRealtime": "./stackchan-openai-realtime",
-    "stackchanOpenAIRealtimeModel": "./openai-realtime-model"
+    "stackchanOpenAIRealtimeModel": "./server-openai-realtime-model",
+    "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker"
   },
   "preload": [
     "ChatAudioIO",
@@ -48,6 +49,7 @@
     "ChatWorker",
     "ChatWebSocketWorker",
     "JSONBase64Parser",
-    "alaw-encode"
+    "alaw-encode",
+    "stackchanServerChatWebSocketWorker"
   ]
 }

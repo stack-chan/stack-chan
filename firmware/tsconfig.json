@@ -72,6 +72,12 @@
       "timezone-model": [
         "./host/modules/preferences/timezone-model"
       ],
+      "volume-model": [
+        "./host/modules/preferences/volume-model"
+      ],
+      "volume-preview": [
+        "./host/app/volume-preview"
+      ],
       "localization": [
         "./host/modules/ui/localization"
       ],

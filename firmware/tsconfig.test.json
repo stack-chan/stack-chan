@@ -118,6 +118,12 @@
       "timezone-model": [
         "host/modules/preferences/timezone-model.ts"
       ],
+      "volume-model": [
+        "host/modules/preferences/volume-model.ts"
+      ],
+      "volume-preview": [
+        "host/app/volume-preview.ts"
+      ],
       "network-manager": [
         "host/modules/connectivity/__tests__/fakes/network-manager.ts"
       ],

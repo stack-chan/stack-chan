@@ -39,4 +39,5 @@ export type SettingsStatus = {
   'wifi.password'?: string
   'ui.language'?: string
   'time.timezone'?: string
+  'tts.volume'?: number
 }

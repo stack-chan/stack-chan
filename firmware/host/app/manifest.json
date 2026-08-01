@@ -41,6 +41,7 @@
       "./experimental-mini-app-registration",
       "./setup-mode",
       "./settings-status",
+      "./volume-preview",
       "./runtime-audio",
       "./runtime-camera",
       "./runtime-context",

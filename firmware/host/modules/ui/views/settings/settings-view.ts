@@ -29,6 +29,7 @@ import {
   setActionButtonSelected,
 } from 'ui-controls'
 import { UI, uiFont, uiStyles } from 'ui-theme'
+import { volumePercentToValue, volumeToPercent } from 'volume-model'
 
 export const SettingsStatusValue = SettingsStatusValueConst
 export const settingsStatusToLabel = settingsStatusToLabelImpl
@@ -42,6 +43,7 @@ export const SettingsViewId = Object.freeze({
   LANGUAGE: 3,
   OFFLINE: 4,
   TIMEZONE: 5,
+  VOLUME: 6,
 } as const)
 
 export type SettingsViewId = (typeof SettingsViewId)[keyof typeof SettingsViewId]
@@ -53,6 +55,7 @@ export type SettingsViewState = Readonly<{
   selectedSSID: string
   language: SupportedLocale
   timezone: TimezoneId
+  volume: number
 }>
 
 export type SettingsViewActions = Readonly<{
@@ -66,6 +69,7 @@ export type SettingsViewActions = Readonly<{
   submitWifiPassword(password: string): void
   selectLanguage(locale: SupportedLocale): void
   saveTimezone(timezone: TimezoneId): void
+  saveVolume(volume: number): void
 }>
 
 export type SettingsViewContext = Readonly<{
@@ -108,6 +112,10 @@ const PASSWORD_FIELD_HEIGHT = 20
 const PASSWORD_KEYBOARD_HEIGHT = 164
 const MAX_SSID_CHARS = 30
 const TIMEZONE_ACTION_HEIGHT = UI.touchTarget + 16
+const VOLUME_SLIDER_TRACK_INSET = 12
+const VOLUME_SLIDER_TRACK_HEIGHT = 4
+const VOLUME_SLIDER_KNOB_WIDTH = 14
+const VOLUME_SLIDER_KNOB_HEIGHT = 22
 
 let rowPressedSkin: PiuSkin | null = null
 let networkStyle: PiuStyle | null = null
@@ -205,6 +213,86 @@ type NetworkRowData = {
   startY?: number
 }
 
+type VolumeSliderData = {
+  context: SettingsViewContext
+  valueLabel: PiuContent & { string?: string }
+}
+
+class VolumeSliderBehavior extends Behavior {
+  data: VolumeSliderData | null = null
+  committedPercent = 0
+  draftPercent = 0
+  dragging = false
+
+  onCreate(port: PiuPort, data: VolumeSliderData) {
+    this.data = data
+    this.sync(port, data.context.state.volume)
+  }
+
+  onTouchBegan(port: PiuPort, _id: number, x: number) {
+    this.dragging = true
+    this.setDraft(port, this.percentForX(port, x))
+  }
+
+  onTouchMoved(port: PiuPort, _id: number, x: number) {
+    if (!this.dragging) return
+    this.setDraft(port, this.percentForX(port, x))
+  }
+
+  onTouchCancelled(port: PiuPort) {
+    if (!this.dragging) return
+    this.dragging = false
+    this.setDraft(port, this.committedPercent)
+  }
+
+  onTouchEnded(port: PiuPort, _id: number, x: number) {
+    if (!this.dragging) return
+    this.setDraft(port, this.percentForX(port, x))
+    this.dragging = false
+    if (this.draftPercent === this.committedPercent) return
+    this.committedPercent = this.draftPercent
+    this.data?.context.actions.saveVolume(volumePercentToValue(this.committedPercent))
+  }
+
+  onDraw(port: PiuPort) {
+    const trackWidth = Math.max(1, port.width - VOLUME_SLIDER_TRACK_INSET * 2)
+    const trackY = Math.floor((port.height - VOLUME_SLIDER_TRACK_HEIGHT) / 2)
+    const fillWidth = Math.round((trackWidth * this.draftPercent) / 100)
+    const knobCenter = VOLUME_SLIDER_TRACK_INSET + fillWidth
+    port.fillColor(UI.colors.border, VOLUME_SLIDER_TRACK_INSET, trackY, trackWidth, VOLUME_SLIDER_TRACK_HEIGHT)
+    if (fillWidth > 0) {
+      port.fillColor(UI.colors.accent, VOLUME_SLIDER_TRACK_INSET, trackY, fillWidth, VOLUME_SLIDER_TRACK_HEIGHT)
+    }
+    port.fillColor(
+      UI.colors.text,
+      knobCenter - Math.floor(VOLUME_SLIDER_KNOB_WIDTH / 2),
+      Math.floor((port.height - VOLUME_SLIDER_KNOB_HEIGHT) / 2),
+      VOLUME_SLIDER_KNOB_WIDTH,
+      VOLUME_SLIDER_KNOB_HEIGHT,
+    )
+  }
+
+  sync(port: PiuPort, volume: number) {
+    this.committedPercent = volumeToPercent(volume)
+    if (this.dragging) return
+    this.setDraft(port, this.committedPercent)
+  }
+
+  setDraft(port: PiuPort, percent: number) {
+    this.draftPercent = percent
+    if (this.data) {
+      this.data.valueLabel.string = localize('settings.volumeValue', { percent: this.draftPercent })
+    }
+    port.invalidate()
+  }
+
+  percentForX(port: PiuPort, x: number): number {
+    const trackWidth = Math.max(1, port.width - VOLUME_SLIDER_TRACK_INSET * 2)
+    const trackX = x - port.x - VOLUME_SLIDER_TRACK_INSET
+    return Math.max(0, Math.min(100, Math.round((trackX * 100) / trackWidth)))
+  }
+}
+
 const SettingsMenuView = {
   create(context: SettingsViewContext): SettingsViewInstance {
     const styles = uiStyles()
@@ -241,6 +329,14 @@ const SettingsMenuView = {
                 ),
                 new ActionButton(
                   {
+                    icon: 'volume',
+                    label: localize('settings.volumeTitle'),
+                    onTap: () => context.actions.navigate(SettingsViewId.VOLUME),
+                  },
+                  { left: 8, right: 8 },
+                ),
+                new ActionButton(
+                  {
                     icon: 'clock',
                     label: localize('settings.timezoneTitle'),
                     onTap: () => context.actions.navigate(SettingsViewId.TIMEZONE),
@@ -262,6 +358,59 @@ const SettingsMenuView = {
       ],
     })
     return { content }
+  },
+} satisfies SettingsViewDefinition
+
+const SettingsVolumeView = {
+  create(context: SettingsViewContext): SettingsViewInstance {
+    const styles = uiStyles()
+    const valueLabel = new Label(null, {
+      left: 16,
+      right: 16,
+      top: UI.headerHeight + 18,
+      height: 28,
+      string: localize('settings.volumeValue', { percent: volumeToPercent(context.state.volume) }),
+      style: styles.body,
+    })
+    const sliderData: VolumeSliderData = { context, valueLabel }
+    const slider = new Port(sliderData, {
+      left: 12,
+      right: 12,
+      top: UI.headerHeight + 58,
+      height: 52,
+      active: true,
+      Behavior: VolumeSliderBehavior,
+    }) as PiuPort
+    const content = new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      skin: styles.screen,
+      contents: [
+        new ScreenHeader({
+          title: localize('settings.volumeTitle'),
+          leading: 'back',
+          onLeading: () => context.actions.navigate(SettingsViewId.MENU),
+        }),
+        valueLabel,
+        slider,
+        new Label(null, {
+          left: 16,
+          right: 16,
+          top: UI.headerHeight + 126,
+          height: 40,
+          string: localize('settings.volumeHint'),
+          style: styles.bodyMuted,
+        }),
+      ],
+    })
+    return {
+      content,
+      update() {
+        ;(slider.behavior as VolumeSliderBehavior).sync(slider, context.state.volume)
+      },
+    }
   },
 } satisfies SettingsViewDefinition
 
@@ -693,6 +842,7 @@ export const settingsViews: readonly SettingsViewDefinition[] = [
   SettingsLanguageView,
   SettingsOfflineView,
   SettingsTimezoneView,
+  SettingsVolumeView,
 ]
 
 type SkinTemplate = PiuSkinConstructor & { new (): PiuSkin }

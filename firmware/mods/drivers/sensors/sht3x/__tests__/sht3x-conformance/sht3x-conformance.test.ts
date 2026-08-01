@@ -126,17 +126,29 @@ function testSampleShapeScaleAndMeasurementSettling(): void {
     ...sampleOperations(SAMPLE_MAX_MIN),
   ])
 
-  let minimumSettleTimeElapsed = false
-  const timer = Timer.set(() => {
-    minimumSettleTimeElapsed = true
-  }, MEASUREMENT_DELAY_MILLISECONDS)
+  let measurementWriteCount = 0
+  let settledMeasurementCount = 0
+  const write = io.write.bind(io)
+  io.write = (buffer) => {
+    write(buffer)
+    if (buffer[0] === MEASURE[0] && buffer[1] === MEASURE[1]) {
+      measurementWriteCount += 1
+      const pendingMeasurementCount = measurementWriteCount
+      Timer.set(() => {
+        settledMeasurementCount = pendingMeasurementCount
+      }, MEASUREMENT_DELAY_MILLISECONDS)
+    }
+  }
   const read = io.read.bind(io)
   io.read = (buffer) => {
-    equal(minimumSettleTimeElapsed, true, 'sample should wait for the maximum conversion time before reading')
+    equal(
+      settledMeasurementCount,
+      measurementWriteCount,
+      'each sample should wait for the maximum conversion time before reading',
+    )
     read(buffer)
   }
   const first = sensor.sample()
-  Timer.clear(timer)
 
   assert(first !== undefined, 'a CRC-valid sample should be returned')
   approximately(first.thermometer.temperature, 25, 0.000_001, 'temperature should be converted to Celsius')
@@ -150,6 +162,7 @@ function testSampleShapeScaleAndMeasurementSettling(): void {
   assert(first !== second, 'sample should return a fresh outer object')
   assert(first.hygrometer !== second.hygrometer, 'sample should return a fresh hygrometer object')
   assert(first.thermometer !== second.thermometer, 'sample should return a fresh thermometer object')
+  equal(measurementWriteCount, 2, 'each sample should issue a measurement command')
   assertMockI2CConsumed(io)
   sensor.close()
 }

@@ -17,7 +17,8 @@ type TestTimer = typeof Timer & {
 const testTimer = Timer as TestTimer
 const BREAK = [0x30, 0x93] as const
 const SOFT_RESET = [0x30, 0xa2] as const
-const MEASURE = [0x2c, 0x06] as const
+const MEASURE = [0x24, 0x00] as const
+const MEASUREMENT_DELAY_MILLISECONDS = 16
 const SAMPLE_25C_50RH = [0x66, 0x66, 0x93, 0x80, 0x00, 0xa2] as const
 const SAMPLE_MAX_MIN = [0xff, 0xff, 0xac, 0x00, 0x00, 0x81] as const
 
@@ -116,7 +117,7 @@ function testConnectionOverridesAndIdleBreakFallback(): void {
   sensor.close()
 }
 
-function testSampleShapeScaleAndNonBlockingRead(): void {
+function testSampleShapeScaleAndMeasurementSettling(): void {
   resetMockI2C()
   testTimer.reset()
   const { io, sensor } = openSensor([
@@ -125,12 +126,16 @@ function testSampleShapeScaleAndNonBlockingRead(): void {
     ...sampleOperations(SAMPLE_MAX_MIN),
   ])
 
-  let timerRan = false
+  let minimumSettleTimeElapsed = false
   const timer = Timer.set(() => {
-    timerRan = true
-  }, 1)
+    minimumSettleTimeElapsed = true
+  }, MEASUREMENT_DELAY_MILLISECONDS)
+  const read = io.read.bind(io)
+  io.read = (buffer) => {
+    equal(minimumSettleTimeElapsed, true, 'sample should wait for the maximum conversion time before reading')
+    read(buffer)
+  }
   const first = sensor.sample()
-  equal(timerRan, false, 'sample should not advance a software delay')
   Timer.clear(timer)
 
   assert(first !== undefined, 'a CRC-valid sample should be returned')
@@ -251,7 +256,7 @@ function testConstructorValidationAndCleanup(): void {
 
 testConstructorAndLifecycle()
 testConnectionOverridesAndIdleBreakFallback()
-testSampleShapeScaleAndNonBlockingRead()
+testSampleShapeScaleAndMeasurementSettling()
 testCrcFailureIsRecoverable()
 testIoFailureQueuesOnErrorAndPoisonsInstance()
 testConstructorValidationAndCleanup()

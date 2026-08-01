@@ -11,7 +11,13 @@ const param = {
 
 export function onContextCreated(robot) {
   const targetLoop = () => {
-    const sample = sensor.sample()
+    let sample
+    try {
+      sample = sensor.sample()
+    } catch {
+      robot.ui.showBalloon('Sensor read failed.', param)
+      return
+    }
     if (sample === undefined) {
       robot.ui.showBalloon('Sensor read failed.', param)
       return

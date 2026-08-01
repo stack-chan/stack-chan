@@ -2,9 +2,11 @@ import Timer from 'timer'
 
 const Command = Object.freeze({
   break: 0x3093,
-  measureHighRepeatabilityWithClockStretching: 0x2c06,
+  measureHighRepeatability: 0x2400,
   softReset: 0x30a2,
 })
+
+const highRepeatabilityMeasurementMilliseconds = 16
 
 function crc8(buffer, offset) {
   let crc = 0xff
@@ -103,7 +105,11 @@ class SHT3x {
 
     const buffer = this.#valueBuffer
     try {
-      this.#writeCommand(Command.measureHighRepeatabilityWithClockStretching)
+      this.#writeCommand(Command.measureHighRepeatability)
+      // The maximum high-repeatability conversion time is 15.5 ms. Waiting
+      // for completion avoids depending on controller-specific clock
+      // stretching behavior when the read transaction begins.
+      Timer.delay(highRepeatabilityMeasurementMilliseconds)
       this.#io.read(buffer)
     } catch (error) {
       this.#fail()

@@ -1,13 +1,13 @@
 import SHT3x from 'embedded:sensor/Humidity-Temperature/SHT3x'
-import Timer from 'timer'
 import { assert, equal } from 'testing/assert'
 import MockI2C, {
   assertMockI2CConsumed,
   getMockI2CInstances,
+  type MockI2COperation,
   prepareMockI2C,
   resetMockI2C,
-  type MockI2COperation,
 } from 'testing/fakes/mock-i2c'
+import Timer from 'timer'
 
 type TestTimer = typeof Timer & {
   advance(milliseconds: number): void

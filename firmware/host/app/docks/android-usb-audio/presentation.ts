@@ -17,6 +17,7 @@ const MOUTH_UPDATE_MILLISECONDS = 125
 const STATUS_BADGE_SIZE = 28
 const STATUS_ICON_SIZE = 16
 const SPINNER_FRAME_COUNT = 4
+const SPINNER_VARIANT_STRIDE = STATUS_ICON_SIZE
 const STATUS_ICON_OFFSET = (STATUS_BADGE_SIZE - STATUS_ICON_SIZE) / 2
 
 const statusBadgeSkin = new Skin({ fill: '#202428' })
@@ -36,7 +37,7 @@ const statusRecognizingIndicatorSkin = new Skin({
   y: 0,
   width: STATUS_ICON_SIZE,
   height: STATUS_ICON_SIZE,
-  variants: SPINNER_FRAME_COUNT,
+  variants: SPINNER_VARIANT_STRIDE,
 })
 const statusConnectingIndicatorSkin = new Skin({
   texture: { path: 'indicator.png' },
@@ -45,7 +46,7 @@ const statusConnectingIndicatorSkin = new Skin({
   y: 0,
   width: STATUS_ICON_SIZE,
   height: STATUS_ICON_SIZE,
-  variants: SPINNER_FRAME_COUNT,
+  variants: SPINNER_VARIANT_STRIDE,
 })
 const taskRunningIndicatorSkin = new Skin({
   texture: { path: 'indicator.png' },
@@ -54,7 +55,7 @@ const taskRunningIndicatorSkin = new Skin({
   y: 0,
   width: STATUS_ICON_SIZE,
   height: STATUS_ICON_SIZE,
-  variants: SPINNER_FRAME_COUNT,
+  variants: SPINNER_VARIANT_STRIDE,
 })
 const statusErrorStyle = new Style({
   font: 'k8x12-12',

@@ -57,6 +57,39 @@
       }
     },
     {
+      "name": "task-status-running",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": true,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "task.status",
+        "requestId": "task-fixture-1",
+        "state": "running"
+      }
+    },
+    {
+      "name": "task-status-idle",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": true,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "task.status",
+        "requestId": "task-fixture-2",
+        "state": "idle"
+      }
+    },
+    {
+      "name": "task-status-invalid",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": false,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "task.status",
+        "requestId": "task-fixture-3",
+        "state": "speaking"
+      }
+    },
+    {
       "name": "raw-realtime-session-update",
       "androidRoute": "raw",
       "codexParserAccepted": false,

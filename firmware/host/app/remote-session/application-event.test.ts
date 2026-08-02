@@ -74,6 +74,15 @@ test('application-event builders preserve the Android JSON shapes', () => {
 
 test('conversation and task events conform to the shared Dock fixture', () => {
   assert.equal(sharedFixture.applicationSchema, STACKCHAN_EVENT_SCHEMA)
+  const taskStatusVectors = sharedFixture.vectors.filter((vector) => vector.value.type === 'task.status')
+  assert.ok(
+    taskStatusVectors.some((vector) => vector.codexParserAccepted),
+    'shared Dock fixture must cover an accepted task.status event',
+  )
+  assert.ok(
+    taskStatusVectors.some((vector) => !vector.codexParserAccepted),
+    'shared Dock fixture must cover a rejected task.status event',
+  )
   for (const vector of sharedFixture.vectors) {
     switch (vector.value.type) {
       case 'conversation.start':

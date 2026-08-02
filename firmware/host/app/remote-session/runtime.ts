@@ -27,8 +27,10 @@ export function createRemoteSessionRuntime(
   transport: RemoteSessionTransport,
   scheduler: ConversationRetryScheduler,
 ): RemoteSessionRuntime {
-  const realtimeSession: RealtimeSession = createRealtimeSession(transport)
+  const realtimeSession: RealtimeSession = createRealtimeSession(transport, scheduler)
   const taskSession = createTaskSession(realtimeSession)
+  const conversationSession = createConversationSession(realtimeSession, scheduler)
+  const removeConversationHandler = realtimeSession.addApplicationEventHandler(conversationSession.handleEvent)
   let active: RemoteSessionActivation | undefined
   let closed = false
 
@@ -36,21 +38,16 @@ export function createRemoteSessionRuntime(
     activate(context, provider) {
       if (closed) throw new Error('remote session runtime is closed')
       if (active) throw new Error('remote session runtime is already active')
-      const conversationSession = createConversationSession(realtimeSession, scheduler)
       let approvalSession: ApprovalSession | undefined
       let removeApprovalHandler: (() => void) | undefined
-      let removeConversationHandler: (() => void) | undefined
       try {
         approvalSession = createApprovalSession(realtimeSession, context)
         removeApprovalHandler = realtimeSession.addApplicationEventHandler(approvalSession.handleEvent)
-        removeConversationHandler = realtimeSession.addApplicationEventHandler(conversationSession.handleEvent)
         realtimeSession.setProvider(provider)
       } catch (error) {
         tryClose(() => realtimeSession.setProvider(undefined))
-        tryClose(removeConversationHandler)
         tryClose(removeApprovalHandler)
         tryClose(() => approvalSession?.close())
-        tryClose(() => conversationSession.close())
         throw error
       }
 
@@ -74,11 +71,8 @@ export function createRemoteSessionRuntime(
             }
           }
           close(() => realtimeSession.setProvider(undefined))
-          close(removeConversationHandler)
           close(removeApprovalHandler)
           close(() => approvalSession?.close())
-          close(() => conversationSession.close())
-          removeConversationHandler = undefined
           removeApprovalHandler = undefined
           approvalSession = undefined
           if (firstError !== undefined) throw firstError
@@ -107,6 +101,8 @@ export function createRemoteSessionRuntime(
       }
       close(() => active?.close())
       close(() => taskSession.close())
+      close(removeConversationHandler)
+      close(() => conversationSession.close())
       close(() => realtimeSession.close())
       active = undefined
       if (hasError) throw firstError

@@ -36,6 +36,11 @@ export type RealtimeEventBridge = {
   sendEvent(event: string): Promise<RealtimeEventSendResult>
 }
 
+export type RealtimeRetryScheduler = {
+  set(callback: () => void, milliseconds: number): unknown
+  clear(handle: unknown): void
+}
+
 export type RealtimeSession = {
   readonly transportState: RemoteConversationTransportState
   setProvider(provider?: RealtimeToolProvider): void
@@ -47,9 +52,13 @@ export type RealtimeSession = {
 
 type RealtimeProviderLease = {
   readonly provider: RealtimeToolProvider
+  readonly retryWaiters: Set<() => void>
 }
 
-export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSession {
+const CONTINUATION_RETRY_MILLISECONDS = 2_000
+const CONTINUATION_TIMEOUT_MILLISECONDS = 10_000
+
+export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: RealtimeRetryScheduler): RealtimeSession {
   let providerLease: RealtimeProviderLease | undefined
   let androidSessionCreated = false
   let transportState: RemoteConversationTransportState = 'disconnected'
@@ -70,44 +79,118 @@ export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSess
     const serialized = JSON.stringify(event)
     return enqueueSend(() => bridge.sendEvent(serialized))
   }
-  const sendBatch = (
-    events: ReadonlyArray<Record<string, unknown>>,
-    ownsBatch: () => boolean,
-  ): Promise<RealtimeEventSendResult[]> => {
-    const serialized = events.map((event) => JSON.stringify(event))
-    // Reserve one send-tail slot for the function output and its continuation,
-    // so a later activation's session.update cannot split the pair.
-    return enqueueSend(async () => {
-      const results: RealtimeEventSendResult[] = []
-      for (const event of serialized) {
-        if (!ownsBatch()) break
-        const result = await bridge.sendEvent(event)
-        results.push(result)
-        if (result !== 'queued') break
-      }
-      return results
+  const sendOwned = (
+    event: Record<string, unknown>,
+    ownsEvent: () => boolean,
+  ): Promise<RealtimeEventSendResult | undefined> => {
+    const serialized = JSON.stringify(event)
+    return enqueueSend(() => {
+      if (!ownsEvent()) return Promise.resolve(undefined)
+      return bridge.sendEvent(serialized)
     })
   }
-  const updateSession = (): Promise<RealtimeEventSendResult> | undefined => {
-    const activeProvider = providerLease?.provider
-    if (!androidSessionCreated || !activeProvider) return
-    return send({
-      type: 'session.update',
-      event_id: nextId('session'),
-      session: {
-        instructions: activeProvider.instructions ?? '',
-        tools: activeProvider.tools.map((tool) =>
-          tool.type === 'function'
-            ? {
-                type: tool.type,
-                name: tool.name,
-                description: tool.description,
-                parameters: tool.parameters,
-              }
-            : tool,
-        ),
-      },
+  const cancelProviderLease = (lease: RealtimeProviderLease) => {
+    for (const wake of [...lease.retryWaiters]) wake()
+  }
+  const waitForContinuationRetry = (lease: RealtimeProviderLease): Promise<void> =>
+    new Promise((resolve) => {
+      let handle: unknown
+      let settled = false
+      const finish = () => {
+        if (settled) return
+        settled = true
+        lease.retryWaiters.delete(finish)
+        if (handle !== undefined) scheduler.clear(handle)
+        resolve()
+      }
+      lease.retryWaiters.add(finish)
+      try {
+        const scheduledHandle = scheduler.set(() => {
+          handle = undefined
+          finish()
+        }, CONTINUATION_RETRY_MILLISECONDS)
+        handle = scheduledHandle
+        if (settled) scheduler.clear(scheduledHandle)
+      } catch (error) {
+        lease.retryWaiters.delete(finish)
+        throw error
+      }
     })
+  const sendFunctionResult = (
+    outputEvent: Record<string, unknown>,
+    continuationEvent: Record<string, unknown>,
+    lease: RealtimeProviderLease,
+  ): Promise<void> => {
+    const serializedOutput = JSON.stringify(outputEvent)
+    const serializedContinuation = JSON.stringify(continuationEvent)
+    // Reserve one send-tail slot for both phases. Once the output is queued,
+    // retries advance only response.create and can never duplicate the output.
+    return enqueueSend(async () => {
+      if (providerLease !== lease) return
+      let outputResult: RealtimeEventSendResult
+      try {
+        outputResult = await bridge.sendEvent(serializedOutput)
+      } catch (error) {
+        log(`[remote-session] function output send failed: ${errorMessage(error)}\n`)
+        return
+      }
+      if (outputResult !== 'queued') {
+        log(`[remote-session] function output was not queued: ${outputResult}\n`)
+        return
+      }
+
+      let elapsedMilliseconds = 0
+      let lastFailure = 'unknown failure'
+      while (!closed && providerLease === lease) {
+        try {
+          const result = await bridge.sendEvent(serializedContinuation)
+          if (result === 'queued') return
+          if (result === 'unsupported') {
+            log('[remote-session] response.create is unavailable because EVENT is unsupported\n')
+            return
+          }
+          lastFailure = result
+        } catch (error) {
+          lastFailure = errorMessage(error)
+        }
+        if (elapsedMilliseconds >= CONTINUATION_TIMEOUT_MILLISECONDS) {
+          log(`[remote-session] response.create delivery timed out after function output: ${lastFailure}\n`)
+          return
+        }
+        try {
+          await waitForContinuationRetry(lease)
+        } catch (error) {
+          log(`[remote-session] response.create retry scheduling failed: ${errorMessage(error)}\n`)
+          return
+        }
+        elapsedMilliseconds += CONTINUATION_RETRY_MILLISECONDS
+      }
+    })
+  }
+  const updateSession = (): Promise<RealtimeEventSendResult | undefined> | undefined => {
+    const lease = providerLease
+    if (!androidSessionCreated || !lease) return
+    const activeProvider = lease.provider
+    return sendOwned(
+      {
+        type: 'session.update',
+        event_id: nextId('session'),
+        session: {
+          instructions: activeProvider.instructions ?? '',
+          tools: activeProvider.tools.map((tool) =>
+            tool.type === 'function'
+              ? {
+                  type: tool.type,
+                  name: tool.name,
+                  description: tool.description,
+                  parameters: tool.parameters,
+                }
+              : tool,
+          ),
+        },
+      },
+      () => providerLease === lease,
+    )
   }
   const handle = async (serialized: string) => {
     let value: unknown
@@ -163,20 +246,18 @@ export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSess
       log('[remote-session] discarded function output after its activation ended\n')
       return
     }
-    await sendBatch(
-      [
-        {
-          type: 'conversation.item.create',
-          event_id: nextId('output'),
-          item: {
-            type: 'function_call_output',
-            call_id: callId,
-            output: typeof output === 'string' ? output : JSON.stringify(output),
-          },
+    await sendFunctionResult(
+      {
+        type: 'conversation.item.create',
+        event_id: nextId('output'),
+        item: {
+          type: 'function_call_output',
+          call_id: callId,
+          output: typeof output === 'string' ? output : JSON.stringify(output),
         },
-        { type: 'response.create', event_id: nextId('response') },
-      ],
-      () => providerLease === lease,
+      },
+      { type: 'response.create', event_id: nextId('response') },
+      lease,
     )
   }
 
@@ -202,7 +283,8 @@ export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSess
       return transportState
     },
     setProvider(next) {
-      providerLease = next ? { provider: next } : undefined
+      if (providerLease) cancelProviderLease(providerLease)
+      providerLease = next ? { provider: next, retryWaiters: new Set() } : undefined
       if (!providerLease) return
       const result = updateSession()
       if (result) {
@@ -229,6 +311,7 @@ export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSess
       bridge.setEventHandler(undefined)
       bridge.setTransportStateHandler(undefined)
       androidSessionCreated = false
+      if (providerLease) cancelProviderLease(providerLease)
       providerLease = undefined
       applicationEventHandlers.clear()
       transportListeners.clear()

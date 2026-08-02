@@ -230,7 +230,7 @@
         "host/app/remote-session/approval-model.ts"
       ],
       "stackchan-approval-session": [
-        "host/app/remote-session/approval-session.ts"
+        "host/app/remote-session/__tests__/approval-session-fake.ts"
       ],
       "stackchan-conversation-session": [
         "host/app/remote-session/conversation-session.ts"

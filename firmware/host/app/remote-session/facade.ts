@@ -10,6 +10,7 @@ import type {
 
 export type RemoteConversationSessionBinding = {
   readonly remoteSession: RemoteConversationSessionDelegate
+  /** Releases activation resources without cancelling requests owned by the delegate's persistent control session. */
   close(): void
 }
 
@@ -77,9 +78,9 @@ export function createRemoteConversationSessionFacade(
       }
     }
 
-    // Deactivation owns the remote media lifecycle as well as the local UI.
-    // Queue the data-channel stop while the activation's conversation session
-    // and provider still exist, then release every activation-scoped binding.
+    // Queue the data-channel stop into the persistent conversation control
+    // session before releasing the provider, approval UI, and presentation.
+    // Binding.close() intentionally cannot cancel that control-session request.
     attempt(() => current.binding.remoteSession.requestStop())
     attempt(current.removeStateListener)
     attempt(current.removeTransportListener)

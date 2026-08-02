@@ -2,11 +2,27 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { RemoteConversationTransportState } from 'capabilities'
 import { installRemoteSessionTestAliases } from './__tests__/node-aliases.js'
-import type { RealtimeEventBridge, RealtimeEventSendResult } from './realtime-session.js'
+import type { RealtimeEventBridge, RealtimeEventSendResult, RealtimeRetryScheduler } from './realtime-session.js'
 
 installRemoteSessionTestAliases()
 
-const { createRealtimeSession } = await import('./realtime-session.js')
+const { createRealtimeSession: createRealtimeSessionRuntime } = await import('./realtime-session.js')
+
+const realtimeRetryScheduler: RealtimeRetryScheduler = {
+  set(callback, milliseconds) {
+    return setTimeout(callback, milliseconds)
+  },
+  clear(handle) {
+    clearTimeout(handle as ReturnType<typeof setTimeout>)
+  },
+}
+
+function createRealtimeSession(
+  bridge: RealtimeEventBridge,
+  scheduler: RealtimeRetryScheduler = realtimeRetryScheduler,
+) {
+  return createRealtimeSessionRuntime(bridge, scheduler)
+}
 
 class FakeBridge implements RealtimeEventBridge {
   handler: ((event: string) => void) | undefined
@@ -55,6 +71,48 @@ class FirstSendBlockingBridge extends FakeBridge {
 
   releaseFirstSend(): void {
     this.#release()
+  }
+}
+
+class ResponseCreateRejectingBridge extends FakeBridge {
+  readonly attempted: Array<Record<string, unknown>> = []
+  #rejected = false
+
+  override sendEvent(serialized: string): Promise<RealtimeEventSendResult> {
+    const event = JSON.parse(serialized) as Record<string, unknown>
+    this.attempted.push(event)
+    if (event.type === 'response.create' && !this.#rejected) {
+      this.#rejected = true
+      return Promise.reject(new Error('worker send failed'))
+    }
+    this.sent.push(event)
+    return Promise.resolve(this.sendResult)
+  }
+}
+
+class ManualRetryScheduler implements RealtimeRetryScheduler {
+  #nextId = 0
+  #callbacks = new Map<number, () => void>()
+
+  set(callback: () => void): number {
+    const id = ++this.#nextId
+    this.#callbacks.set(id, callback)
+    return id
+  }
+
+  clear(handle: unknown): void {
+    this.#callbacks.delete(handle as number)
+  }
+
+  get pending(): number {
+    return this.#callbacks.size
+  }
+
+  runNext(): void {
+    const next = this.#callbacks.entries().next().value as [number, () => void] | undefined
+    if (!next) throw new Error('no retry is scheduled')
+    this.#callbacks.delete(next[0])
+    next[1]()
   }
 }
 
@@ -114,6 +172,89 @@ test('realtime session correlates function output and requests continuation', as
     output: '{"color":"red"}',
   })
   assert.equal(bridge.sent[1].type, 'response.create')
+})
+
+test('realtime session retries only response.create after a partial function-result send', async () => {
+  const bridge = new ResponseCreateRejectingBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  session.setProvider({
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  bridge.receive({
+    type: 'response.function_call_arguments.done',
+    call_id: 'call-with-retry',
+    name: 'set_led',
+    arguments: '{}',
+  })
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.attempted.map((event) => event.type),
+    ['conversation.item.create', 'response.create'],
+  )
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create'],
+  )
+  assert.equal(scheduler.pending, 1)
+
+  scheduler.runNext()
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.attempted.map((event) => event.type),
+    ['conversation.item.create', 'response.create', 'response.create'],
+  )
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create', 'response.create'],
+  )
+  assert.equal(scheduler.pending, 0)
+})
+
+test('realtime session cancels a pending continuation retry when its provider lease ends', async () => {
+  const bridge = new ResponseCreateRejectingBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  session.setProvider({
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  bridge.receive({
+    type: 'response.function_call_arguments.done',
+    call_id: 'call-cancelled-with-lease',
+    name: 'set_led',
+    arguments: '{}',
+  })
+  await flushTasks()
+  assert.equal(scheduler.pending, 1)
+
+  session.setProvider(undefined)
+  await flushTasks()
+
+  assert.equal(scheduler.pending, 0)
+  assert.deepEqual(
+    bridge.attempted.map((event) => event.type),
+    ['conversation.item.create', 'response.create'],
+  )
 })
 
 test('realtime session ignores function calls while no activation owns a provider', async () => {
@@ -232,6 +373,29 @@ test('realtime session rechecks the activation lease while function output waits
   })
   await flushTasks()
   assert.equal(executions, 1)
+  session.setProvider(undefined)
+  bridge.releaseFirstSend()
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['approval.presented'],
+  )
+})
+
+test('realtime session discards a queued session.update after its provider lease ends', async () => {
+  const bridge = new FirstSendBlockingBridge()
+  const session = createRealtimeSession(bridge)
+  void session.sendApplicationEvent({
+    schema: 'stackchan.event.v1',
+    type: 'approval.presented',
+    requestId: 'update-blocker',
+  })
+  await flushTasks()
+
+  session.setProvider({ instructions: 'retired activation', tools: [] })
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
   session.setProvider(undefined)
   bridge.releaseFirstSend()
   await flushTasks()

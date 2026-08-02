@@ -39,6 +39,25 @@ class FakeBridge implements RealtimeEventBridge {
   }
 }
 
+class FirstSendBlockingBridge extends FakeBridge {
+  #release!: () => void
+  #blockFirstSend = true
+  readonly firstSendReleased = new Promise<void>((resolve) => {
+    this.#release = resolve
+  })
+
+  override sendEvent(event: string): Promise<RealtimeEventSendResult> {
+    this.sent.push(JSON.parse(event) as Record<string, unknown>)
+    if (!this.#blockFirstSend) return Promise.resolve(this.sendResult)
+    this.#blockFirstSend = false
+    return this.firstSendReleased.then(() => this.sendResult)
+  }
+
+  releaseFirstSend(): void {
+    this.#release()
+  }
+}
+
 test('realtime session sends the current tool catalog after session.created', async () => {
   const bridge = new FakeBridge()
   const session = createRealtimeSession(bridge)
@@ -177,6 +196,117 @@ test('realtime session discards a tool result after its activation lease ends', 
   assert.equal(bridge.sent.length, 1)
   assert.equal(bridge.sent[0].type, 'session.update')
   assert.equal((bridge.sent[0].session as { instructions: string }).instructions, 'second activation')
+})
+
+test('realtime session rechecks the activation lease while function output waits in the send queue', async () => {
+  const bridge = new FirstSendBlockingBridge()
+  const session = createRealtimeSession(bridge)
+  let executions = 0
+  session.setProvider({
+    tools: [
+      {
+        type: 'function',
+        name: 'finish_immediately',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => {
+          executions += 1
+          return { ok: true }
+        },
+      },
+    ],
+  })
+  void session.sendApplicationEvent({
+    schema: 'stackchan.event.v1',
+    type: 'approval.presented',
+    requestId: 'queue-blocker',
+  })
+  await flushTasks()
+  assert.equal(bridge.sent.length, 1)
+
+  bridge.receive({
+    type: 'response.function_call_arguments.done',
+    call_id: 'queued-call',
+    name: 'finish_immediately',
+    arguments: '{}',
+  })
+  await flushTasks()
+  assert.equal(executions, 1)
+  session.setProvider(undefined)
+  bridge.releaseFirstSend()
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['approval.presented'],
+  )
+})
+
+test('realtime session does not continue a function response after its lease ends mid-batch', async () => {
+  const bridge = new FirstSendBlockingBridge()
+  const session = createRealtimeSession(bridge)
+  session.setProvider({
+    tools: [
+      {
+        type: 'function',
+        name: 'finish_immediately',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  bridge.receive({
+    type: 'response.function_call_arguments.done',
+    call_id: 'mid-batch-call',
+    name: 'finish_immediately',
+    arguments: '{}',
+  })
+  await flushTasks()
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create'],
+  )
+
+  session.setProvider(undefined)
+  bridge.releaseFirstSend()
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create'],
+  )
+})
+
+test('realtime session does not request a continuation when function output was not queued', async () => {
+  const bridge = new FakeBridge()
+  bridge.sendResult = 'overflow'
+  const session = createRealtimeSession(bridge)
+  session.setProvider({
+    tools: [
+      {
+        type: 'function',
+        name: 'finish_immediately',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  bridge.receive({
+    type: 'response.function_call_arguments.done',
+    call_id: 'overflow-call',
+    name: 'finish_immediately',
+    arguments: '{}',
+  })
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create'],
+  )
 })
 
 test('realtime session routes application events but defers session.update until activation', async () => {

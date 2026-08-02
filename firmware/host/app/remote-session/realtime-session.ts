@@ -70,13 +70,21 @@ export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSess
     const serialized = JSON.stringify(event)
     return enqueueSend(() => bridge.sendEvent(serialized))
   }
-  const sendBatch = (events: ReadonlyArray<Record<string, unknown>>): Promise<RealtimeEventSendResult[]> => {
+  const sendBatch = (
+    events: ReadonlyArray<Record<string, unknown>>,
+    ownsBatch: () => boolean,
+  ): Promise<RealtimeEventSendResult[]> => {
     const serialized = events.map((event) => JSON.stringify(event))
     // Reserve one send-tail slot for the function output and its continuation,
     // so a later activation's session.update cannot split the pair.
     return enqueueSend(async () => {
       const results: RealtimeEventSendResult[] = []
-      for (const event of serialized) results.push(await bridge.sendEvent(event))
+      for (const event of serialized) {
+        if (!ownsBatch()) break
+        const result = await bridge.sendEvent(event)
+        results.push(result)
+        if (result !== 'queued') break
+      }
       return results
     })
   }
@@ -155,18 +163,21 @@ export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSess
       log('[remote-session] discarded function output after its activation ended\n')
       return
     }
-    await sendBatch([
-      {
-        type: 'conversation.item.create',
-        event_id: nextId('output'),
-        item: {
-          type: 'function_call_output',
-          call_id: callId,
-          output: typeof output === 'string' ? output : JSON.stringify(output),
+    await sendBatch(
+      [
+        {
+          type: 'conversation.item.create',
+          event_id: nextId('output'),
+          item: {
+            type: 'function_call_output',
+            call_id: callId,
+            output: typeof output === 'string' ? output : JSON.stringify(output),
+          },
         },
-      },
-      { type: 'response.create', event_id: nextId('response') },
-    ])
+        { type: 'response.create', event_id: nextId('response') },
+      ],
+      () => providerLease === lease,
+    )
   }
 
   bridge.setEventHandler((event) => {

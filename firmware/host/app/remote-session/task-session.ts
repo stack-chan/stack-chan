@@ -46,7 +46,12 @@ export function createTaskSession(transport: TaskSessionTransport): TaskSession 
     subscribe(listener) {
       if (closed) return () => undefined
       listeners.add(listener)
-      listener(state)
+      try {
+        listener(state)
+      } catch (error) {
+        listeners.delete(listener)
+        throw error
+      }
       return () => listeners.delete(listener)
     },
     close() {

@@ -92,3 +92,28 @@ test('task session resets on every non-ready transport state and on close', () =
   assert.equal(transport.applicationHandler, undefined)
   assert.equal(transport.transportListener, undefined)
 })
+
+test('task session rolls back a subscriber whose initial snapshot throws', () => {
+  const transport = new FakeTransport()
+  const session = createTaskSession(transport)
+  let calls = 0
+
+  assert.throws(
+    () =>
+      session.subscribe(() => {
+        calls += 1
+        throw new Error('presentation failed')
+      }),
+    /presentation failed/,
+  )
+
+  transport.applicationHandler?.({
+    schema: 'stackchan.event.v1',
+    type: 'task.status',
+    requestId: 'task-after-failure',
+    state: 'running',
+  })
+
+  assert.equal(calls, 1)
+  assert.equal(session.state, 'running')
+})

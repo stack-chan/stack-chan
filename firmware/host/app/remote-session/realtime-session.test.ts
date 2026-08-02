@@ -222,6 +222,123 @@ test('realtime session retries only response.create after a partial function-res
   assert.equal(scheduler.pending, 0)
 })
 
+test('realtime session releases application sends while a continuation retry is waiting', async () => {
+  const bridge = new ResponseCreateRejectingBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  session.setProvider({
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  bridge.receive({
+    type: 'response.function_call_arguments.done',
+    call_id: 'call-with-unblocked-control',
+    name: 'set_led',
+    arguments: '{}',
+  })
+  await flushTasks()
+  assert.equal(scheduler.pending, 1)
+
+  const result = await session.sendApplicationEvent({
+    schema: 'stackchan.event.v1',
+    type: 'approval.presented',
+    requestId: 'control-while-retrying',
+  })
+
+  assert.equal(result, 'queued')
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create', 'approval.presented'],
+  )
+  session.setProvider(undefined)
+  await flushTasks()
+  assert.equal(scheduler.pending, 0)
+})
+
+test('realtime session serializes continuation loops without blocking later function outputs', async () => {
+  const bridge = new ResponseCreateRejectingBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  session.setProvider({
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  for (const callId of ['first-call', 'second-call']) {
+    bridge.receive({
+      type: 'response.function_call_arguments.done',
+      call_id: callId,
+      name: 'set_led',
+      arguments: '{}',
+    })
+  }
+  await flushTasks()
+
+  assert.equal(bridge.attempted.filter((event) => event.type === 'conversation.item.create').length, 2)
+  assert.equal(bridge.attempted.filter((event) => event.type === 'response.create').length, 1)
+  assert.equal(scheduler.pending, 1)
+
+  scheduler.runNext()
+  await flushTasks()
+
+  assert.equal(bridge.attempted.filter((event) => event.type === 'response.create').length, 3)
+  assert.equal(scheduler.pending, 0)
+})
+
+test('realtime session cancels continuation retries when the transport session changes', async () => {
+  const bridge = new ResponseCreateRejectingBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  session.setProvider({
+    instructions: 'active provider',
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  bridge.receive({
+    type: 'response.function_call_arguments.done',
+    call_id: 'call-from-old-transport',
+    name: 'set_led',
+    arguments: '{}',
+  })
+  await flushTasks()
+  assert.equal(scheduler.pending, 1)
+
+  bridge.setTransportState('disconnected')
+  bridge.setTransportState('ready')
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
+
+  assert.equal(scheduler.pending, 0)
+  assert.equal(bridge.attempted.filter((event) => event.type === 'response.create').length, 1)
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create', 'session.update'],
+  )
+})
+
 test('realtime session cancels a pending continuation retry when its provider lease ends', async () => {
   const bridge = new ResponseCreateRejectingBridge()
   const scheduler = new ManualRetryScheduler()
@@ -404,6 +521,32 @@ test('realtime session discards a queued session.update after its provider lease
     bridge.sent.map((event) => event.type),
     ['approval.presented'],
   )
+})
+
+test('realtime session discards a queued session.update after its transport session ends', async () => {
+  const bridge = new FirstSendBlockingBridge()
+  const session = createRealtimeSession(bridge)
+  session.setProvider({ instructions: 'persistent activation', tools: [] })
+  void session.sendApplicationEvent({
+    schema: 'stackchan.event.v1',
+    type: 'approval.presented',
+    requestId: 'transport-update-blocker',
+  })
+  await flushTasks()
+
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
+  bridge.setTransportState('disconnected')
+  bridge.setTransportState('ready')
+  bridge.receive({ type: 'session.created' })
+  bridge.releaseFirstSend()
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['approval.presented', 'session.update'],
+  )
+  assert.equal((bridge.sent[1].session as { instructions: string }).instructions, 'persistent activation')
 })
 
 test('realtime session does not continue a function response after its lease ends mid-batch', async () => {

@@ -53,6 +53,11 @@ export type RealtimeSession = {
 type RealtimeProviderLease = {
   readonly provider: RealtimeToolProvider
   readonly retryWaiters: Set<() => void>
+  continuationTail: Promise<void>
+}
+
+type RealtimeTransportSessionLease = {
+  readonly retryWaiters: Set<() => void>
 }
 
 const CONTINUATION_RETRY_MILLISECONDS = 2_000
@@ -60,6 +65,7 @@ const CONTINUATION_TIMEOUT_MILLISECONDS = 10_000
 
 export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: RealtimeRetryScheduler): RealtimeSession {
   let providerLease: RealtimeProviderLease | undefined
+  let transportSessionLease: RealtimeTransportSessionLease | undefined
   let androidSessionCreated = false
   let transportState: RemoteConversationTransportState = 'disconnected'
   let sendTail: Promise<void> = Promise.resolve()
@@ -89,21 +95,26 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
       return bridge.sendEvent(serialized)
     })
   }
-  const cancelProviderLease = (lease: RealtimeProviderLease) => {
+  const cancelRetryLease = (lease: { readonly retryWaiters: Set<() => void> }) => {
     for (const wake of [...lease.retryWaiters]) wake()
   }
-  const waitForContinuationRetry = (lease: RealtimeProviderLease): Promise<void> =>
+  const waitForContinuationRetry = (
+    activeProviderLease: RealtimeProviderLease,
+    activeTransportLease: RealtimeTransportSessionLease,
+  ): Promise<void> =>
     new Promise((resolve) => {
       let handle: unknown
       let settled = false
       const finish = () => {
         if (settled) return
         settled = true
-        lease.retryWaiters.delete(finish)
+        activeProviderLease.retryWaiters.delete(finish)
+        activeTransportLease.retryWaiters.delete(finish)
         if (handle !== undefined) scheduler.clear(handle)
         resolve()
       }
-      lease.retryWaiters.add(finish)
+      activeProviderLease.retryWaiters.add(finish)
+      activeTransportLease.retryWaiters.add(finish)
       try {
         const scheduledHandle = scheduler.set(() => {
           handle = undefined
@@ -112,65 +123,100 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
         handle = scheduledHandle
         if (settled) scheduler.clear(scheduledHandle)
       } catch (error) {
-        lease.retryWaiters.delete(finish)
+        activeProviderLease.retryWaiters.delete(finish)
+        activeTransportLease.retryWaiters.delete(finish)
         throw error
       }
     })
+  const enqueueContinuation = (lease: RealtimeProviderLease, operation: () => Promise<void>): Promise<void> => {
+    const result = lease.continuationTail.then(operation)
+    lease.continuationTail = result.then(
+      () => undefined,
+      () => undefined,
+    )
+    return result
+  }
+  const ownsFunctionResult = (
+    activeProviderLease: RealtimeProviderLease,
+    activeTransportLease: RealtimeTransportSessionLease,
+  ): boolean =>
+    !closed &&
+    transportState === 'ready' &&
+    providerLease === activeProviderLease &&
+    transportSessionLease === activeTransportLease
   const sendFunctionResult = (
     outputEvent: Record<string, unknown>,
     continuationEvent: Record<string, unknown>,
-    lease: RealtimeProviderLease,
+    activeProviderLease: RealtimeProviderLease,
+    activeTransportLease: RealtimeTransportSessionLease,
   ): Promise<void> => {
     const serializedOutput = JSON.stringify(outputEvent)
     const serializedContinuation = JSON.stringify(continuationEvent)
-    // Reserve one send-tail slot for both phases. Once the output is queued,
-    // retries advance only response.create and can never duplicate the output.
     return enqueueSend(async () => {
-      if (providerLease !== lease) return
+      if (!ownsFunctionResult(activeProviderLease, activeTransportLease)) return undefined
       let outputResult: RealtimeEventSendResult
       try {
         outputResult = await bridge.sendEvent(serializedOutput)
       } catch (error) {
         log(`[remote-session] function output send failed: ${errorMessage(error)}\n`)
-        return
+        return undefined
       }
+      return outputResult
+    }).then((outputResult) => {
+      if (outputResult === undefined) return
+      if (!ownsFunctionResult(activeProviderLease, activeTransportLease)) return
       if (outputResult !== 'queued') {
         log(`[remote-session] function output was not queued: ${outputResult}\n`)
         return
       }
 
-      let elapsedMilliseconds = 0
-      let lastFailure = 'unknown failure'
-      while (!closed && providerLease === lease) {
-        try {
-          const result = await bridge.sendEvent(serializedContinuation)
-          if (result === 'queued') return
-          if (result === 'unsupported') {
-            log('[remote-session] response.create is unavailable because EVENT is unsupported\n')
+      // Serialize continuation loops per activation, but reserve the shared
+      // send tail for one physical send at a time. Retry waits therefore do
+      // not block conversation control or later function outputs.
+      return enqueueContinuation(activeProviderLease, async () => {
+        let elapsedMilliseconds = 0
+        let lastFailure = 'unknown failure'
+        while (ownsFunctionResult(activeProviderLease, activeTransportLease)) {
+          let result: RealtimeEventSendResult | undefined
+          try {
+            result = await enqueueSend(() => {
+              if (!ownsFunctionResult(activeProviderLease, activeTransportLease)) {
+                return Promise.resolve(undefined)
+              }
+              return bridge.sendEvent(serializedContinuation)
+            })
+          } catch (error) {
+            lastFailure = errorMessage(error)
+          }
+          if (!ownsFunctionResult(activeProviderLease, activeTransportLease)) return
+          if (result !== undefined) {
+            if (result === 'queued') return
+            if (result === 'unsupported' || result === 'disconnected') {
+              log(`[remote-session] response.create is unavailable because EVENT is ${result}\n`)
+              return
+            }
+            lastFailure = result
+          }
+          if (elapsedMilliseconds >= CONTINUATION_TIMEOUT_MILLISECONDS) {
+            log(`[remote-session] response.create delivery timed out after function output: ${lastFailure}\n`)
             return
           }
-          lastFailure = result
-        } catch (error) {
-          lastFailure = errorMessage(error)
+          try {
+            await waitForContinuationRetry(activeProviderLease, activeTransportLease)
+          } catch (error) {
+            log(`[remote-session] response.create retry scheduling failed: ${errorMessage(error)}\n`)
+            return
+          }
+          elapsedMilliseconds += CONTINUATION_RETRY_MILLISECONDS
         }
-        if (elapsedMilliseconds >= CONTINUATION_TIMEOUT_MILLISECONDS) {
-          log(`[remote-session] response.create delivery timed out after function output: ${lastFailure}\n`)
-          return
-        }
-        try {
-          await waitForContinuationRetry(lease)
-        } catch (error) {
-          log(`[remote-session] response.create retry scheduling failed: ${errorMessage(error)}\n`)
-          return
-        }
-        elapsedMilliseconds += CONTINUATION_RETRY_MILLISECONDS
-      }
+      })
     })
   }
   const updateSession = (): Promise<RealtimeEventSendResult | undefined> | undefined => {
-    const lease = providerLease
-    if (!androidSessionCreated || !lease) return
-    const activeProvider = lease.provider
+    const activeProviderLease = providerLease
+    const activeTransportLease = transportSessionLease
+    if (!androidSessionCreated || !activeProviderLease || !activeTransportLease) return
+    const activeProvider = activeProviderLease.provider
     return sendOwned(
       {
         type: 'session.update',
@@ -189,7 +235,10 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
           ),
         },
       },
-      () => providerLease === lease,
+      () =>
+        providerLease === activeProviderLease &&
+        transportSessionLease === activeTransportLease &&
+        transportState === 'ready',
     )
   }
   const handle = async (serialized: string) => {
@@ -215,6 +264,9 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
     const event = value
     switch (event.type) {
       case 'session.created':
+        if (transportState !== 'ready') break
+        if (transportSessionLease) cancelRetryLease(transportSessionLease)
+        transportSessionLease = { retryWaiters: new Set() }
         androidSessionCreated = true
         await updateSession()
         break
@@ -224,14 +276,15 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
     }
   }
   const executeFunction = async (event: Record<string, unknown>) => {
-    const lease = providerLease
-    if (!lease) {
-      log('[remote-session] ignored function call while the control session is inactive\n')
+    const activeProviderLease = providerLease
+    const activeTransportLease = transportSessionLease
+    if (!activeProviderLease || !activeTransportLease || transportState !== 'ready') {
+      log('[remote-session] ignored function call outside an active transport session\n')
       return
     }
     const callId = typeof event.call_id === 'string' ? event.call_id : ''
     const name = typeof event.name === 'string' ? event.name : ''
-    const tool = lease.provider.tools.find(
+    const tool = activeProviderLease.provider.tools.find(
       (candidate): candidate is RealtimeFunctionTool => candidate.type === 'function' && candidate.name === name,
     )
     let output: unknown
@@ -242,8 +295,8 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
     } catch (error) {
       output = { error: error instanceof Error ? error.message : String(error) }
     }
-    if (providerLease !== lease) {
-      log('[remote-session] discarded function output after its activation ended\n')
+    if (!ownsFunctionResult(activeProviderLease, activeTransportLease)) {
+      log('[remote-session] discarded function output after its activation or transport session ended\n')
       return
     }
     await sendFunctionResult(
@@ -257,7 +310,8 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
         },
       },
       { type: 'response.create', event_id: nextId('response') },
-      lease,
+      activeProviderLease,
+      activeTransportLease,
     )
   }
 
@@ -268,7 +322,9 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
   })
   bridge.setTransportStateHandler((nextState) => {
     if (closed || nextState === transportState) return
-    if (transportState === 'ready' && nextState !== 'ready') androidSessionCreated = false
+    if (transportSessionLease) cancelRetryLease(transportSessionLease)
+    transportSessionLease = nextState === 'ready' ? { retryWaiters: new Set() } : undefined
+    if (nextState !== 'ready') androidSessionCreated = false
     transportState = nextState
     for (const listener of transportListeners) {
       try {
@@ -283,8 +339,10 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
       return transportState
     },
     setProvider(next) {
-      if (providerLease) cancelProviderLease(providerLease)
-      providerLease = next ? { provider: next, retryWaiters: new Set() } : undefined
+      if (providerLease) cancelRetryLease(providerLease)
+      providerLease = next
+        ? { provider: next, retryWaiters: new Set(), continuationTail: Promise.resolve() }
+        : undefined
       if (!providerLease) return
       const result = updateSession()
       if (result) {
@@ -311,8 +369,10 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
       bridge.setEventHandler(undefined)
       bridge.setTransportStateHandler(undefined)
       androidSessionCreated = false
-      if (providerLease) cancelProviderLease(providerLease)
+      if (providerLease) cancelRetryLease(providerLease)
+      if (transportSessionLease) cancelRetryLease(transportSessionLease)
       providerLease = undefined
+      transportSessionLease = undefined
       applicationEventHandlers.clear()
       transportListeners.clear()
     },

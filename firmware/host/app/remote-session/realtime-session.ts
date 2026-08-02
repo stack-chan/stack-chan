@@ -339,6 +339,12 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
       log('[remote-session] ignored function call before the current provider session was acknowledged\n')
       return
     }
+    const sessionUpdateId =
+      typeof event.stackchan_session_update_id === 'string' ? event.stackchan_session_update_id : ''
+    if (sessionUpdateId !== activeProviderLease.sessionUpdate?.eventId) {
+      log('[remote-session] ignored function call from a retired provider generation\n')
+      return
+    }
     const callId = typeof event.call_id === 'string' ? event.call_id : ''
     const name = typeof event.name === 'string' ? event.name : ''
     const tool = activeProviderLease.provider.tools.find(

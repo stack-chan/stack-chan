@@ -7,7 +7,7 @@
 
 - **Firmware**：`stack-chan/stack-chan`の`feat/android-usb-audio`（同期前HEAD `403c36e7`と作業中の修正）
 - **Dock（比較時点）**：`meganetaaan/stack-chan-dock`の`agent/restructure-stack-chan-dock`（HEAD `e12542a0cf351b3944736b3a6416e6f680d36f21`）
-- **Dock（現在のvendor元）**：revision `46b735a4599e07ed41c6f353cd0442949f132d7f`
+- **Dock（現在のvendor元）**：revision `ab30e10aec7ddc2531f9a860ce0accfd5cd0497a`
 
 Dock側の未コミット変更は比較対象に含めていない。
 実機USB試験も、このレビューの比較時点では実行していない。
@@ -101,6 +101,7 @@ USB未接続時は同じrequest IDを最大10秒間保持し、`ready`へ遷移�
 raw Realtime eventは送信Promiseを直列化し、function outputと`response.create`の順序を維持する。
 transportが`ready`以外へ遷移した場合はAndroidの`session.created`受信済み状態を破棄し、再接続後の新しい`session.created`を待つ。
 `session.update`の`event_id`をAndroidの`session.updated`と照合し、反映確認済みのprovider世代に対するfunction callだけを実行する。
+function callの`stackchan_session_update_id`も同じIDと照合し、provider更新前に開始したAndroid応答が更新後に生成した遅延callを破棄する。
 承認応答の送信失敗は明示的に処理し、未処理のPromise rejectionを発生させない。
 
 ## Dock正本vector
@@ -108,11 +109,11 @@ transportが`ready`以外へ遷移した場合はAndroidの`session.created`受�
 FirmwareはDockの追跡済み正本を`vendor/stack-chan-dock`へ内容を変えずに取り込む。
 出典とSHA-256は`vendor/stack-chan-dock/VENDOR_SOURCE.json`に記録する。
 
-- **Dock revision**：`46b735a4599e07ed41c6f353cd0442949f132d7f`
+- **Dock revision**：`ab30e10aec7ddc2531f9a860ce0accfd5cd0497a`
 - **LICENSE SHA-256**：`1d291f59c29098471171a78eaba979c38fa58b8bf60d5b330b862f289ecfd8c2`
 - **test-vectors.json SHA-256**：`1e2c31c5981e1a963a1c85b89241da1a11e8a6e1b8316ea644f237f8ca0506c0`
 - **negotiation-vectors.json SHA-256**：`63a70846df8a5d8651c9c3ee01e96064aef1749563c9abbf01d2767466eb7da7`
-- **application-event-vectors.json SHA-256**：`dde1f8b577e61a7b3f69d3d4a33d0fad110dabcf67c6059d9d5faec9deb89836`
+- **application-event-vectors.json SHA-256**：`1b4ff73439d6bab2288e5d2efda15196f889f894c4c4a7e55f83de4dbb3234d3`
 
 同期スクリプトはDockリポジトリのHEADを取得し、`LICENSE`または3つのfixtureに未コミット変更があれば停止する。
 対象外の未追跡ファイルは同期を妨げない。

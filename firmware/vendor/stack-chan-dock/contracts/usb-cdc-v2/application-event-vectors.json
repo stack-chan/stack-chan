@@ -103,6 +103,21 @@
       }
     },
     {
+      "name": "raw-realtime-generation-bound-function-call",
+      "androidRoute": "raw",
+      "codexParserAccepted": false,
+      "value": {
+        "type": "response.function_call_arguments.done",
+        "event_id": "raw-fixture-2",
+        "response_id": "response-fixture-1",
+        "item_id": "item-fixture-1",
+        "call_id": "call-fixture-1",
+        "name": "set_led",
+        "arguments": "{}",
+        "stackchan_session_update_id": "raw-fixture-1"
+      }
+    },
+    {
       "name": "wrong-start-gesture",
       "androidRoute": "unsupported",
       "codexParserAccepted": false,

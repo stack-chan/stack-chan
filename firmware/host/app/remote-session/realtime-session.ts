@@ -70,6 +70,7 @@ type RealtimeSessionUpdate = {
 
 const CONTINUATION_RETRY_MILLISECONDS = 2_000
 const CONTINUATION_TIMEOUT_MILLISECONDS = 10_000
+const SESSION_UPDATE_RETRY_MILLISECONDS = 2_000
 
 export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: RealtimeRetryScheduler): RealtimeSession {
   let providerLease: RealtimeProviderLease | undefined
@@ -107,9 +108,10 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
   const cancelRetryLease = (lease: { readonly retryWaiters: Set<() => void> }) => {
     for (const wake of [...lease.retryWaiters]) wake()
   }
-  const waitForContinuationRetry = (
+  const waitForLeaseRetry = (
     activeProviderLease: RealtimeProviderLease,
     activeTransportLease: RealtimeTransportSessionLease,
+    milliseconds: number,
   ): Promise<void> =>
     new Promise((resolve) => {
       let handle: unknown
@@ -128,7 +130,7 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
         const scheduledHandle = scheduler.set(() => {
           handle = undefined
           finish()
-        }, CONTINUATION_RETRY_MILLISECONDS)
+        }, milliseconds)
         handle = scheduledHandle
         if (settled) scheduler.clear(scheduledHandle)
       } catch (error) {
@@ -212,7 +214,7 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
             return
           }
           try {
-            await waitForContinuationRetry(activeProviderLease, activeTransportLease)
+            await waitForLeaseRetry(activeProviderLease, activeTransportLease, CONTINUATION_RETRY_MILLISECONDS)
           } catch (error) {
             log(`[remote-session] response.create retry scheduling failed: ${errorMessage(error)}\n`)
             return
@@ -245,43 +247,53 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
         acknowledgedProviderLease = activeProviderLease
       }
     }
-    return sendOwned(
-      {
-        type: 'session.update',
-        event_id: update.eventId,
-        session: {
-          instructions: activeProvider.instructions ?? '',
-          tools: activeProvider.tools.map((tool) =>
-            tool.type === 'function'
-              ? {
-                  type: tool.type,
-                  name: tool.name,
-                  description: tool.description,
-                  parameters: tool.parameters,
-                }
-              : tool,
-          ),
-        },
+    const sessionUpdateEvent = {
+      type: 'session.update',
+      event_id: update.eventId,
+      session: {
+        instructions: activeProvider.instructions ?? '',
+        tools: activeProvider.tools.map((tool) =>
+          tool.type === 'function'
+            ? {
+                type: tool.type,
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters,
+              }
+            : tool,
+        ),
       },
-      ownsUpdate,
-    ).then(
-      (result) => {
+    }
+    return (async () => {
+      while (ownsUpdate()) {
+        let result: RealtimeEventSendResult | undefined
+        try {
+          result = await sendOwned(sessionUpdateEvent, ownsUpdate)
+        } catch (error) {
+          if (!ownsUpdate()) return undefined
+          log(`[remote-session] session.update send failed; retrying: ${errorMessage(error)}\n`)
+        }
         if (!ownsUpdate()) return result
         if (result === 'queued') {
           update.delivered = true
           acknowledgeUpdate()
-        } else {
-          activeProviderLease.sessionUpdate = undefined
+          return result
         }
-        return result
-      },
-      (error) => {
-        if (activeProviderLease.sessionUpdate === update) {
-          activeProviderLease.sessionUpdate = undefined
+        if (result !== undefined) {
+          log(`[remote-session] session.update was not queued; retrying: ${result}\n`)
         }
-        throw error
-      },
-    )
+        try {
+          await waitForLeaseRetry(activeProviderLease, activeTransportLease, SESSION_UPDATE_RETRY_MILLISECONDS)
+        } catch (error) {
+          if (activeProviderLease.sessionUpdate === update) {
+            activeProviderLease.sessionUpdate = undefined
+          }
+          log(`[remote-session] session.update retry scheduling failed: ${errorMessage(error)}\n`)
+          return result
+        }
+      }
+      return undefined
+    })()
   }
   const handle = async (serialized: string) => {
     let value: unknown

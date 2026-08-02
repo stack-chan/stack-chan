@@ -28,6 +28,7 @@ application EVENT runtimeもhost起動時に作り、MOD有効化前に届いた
 この常駐runtimeはraw EVENT transport、タスク状態のsnapshot、会話要求の再送と結果照合を所有する。
 Androidから`session.created`が先に届いても、MODが`activate()`して実際のtool providerを渡すまでは`session.update`を送らない。
 送信した`session.update`と同じ`event_id`を持つ`session.updated`をAndroidから受信した時点で、そのprovider世代のtool callを受け付ける。
+`session.update`が一時的に送信queueへ入らない場合は、同じprovider・transport世代が有効な間、同じ`event_id`で再送する。
 AndroidはLLM応答開始時のtool catalogをsnapshotし、function callへその世代をStack-chan拡張field `stackchan_session_update_id`として付ける。
 確認前のcallに加え、確認後でも`stackchan_session_update_id`が現在の`session.updated.event_id`と一致しないcallは実行しない。
 このfieldを送らない旧Androidとはfunction tool非互換である。

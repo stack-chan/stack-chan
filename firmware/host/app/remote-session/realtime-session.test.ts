@@ -187,6 +187,73 @@ test('realtime session sends the current tool catalog after session.created', as
   assert.equal('execute' in (sessionUpdate.tools[0] as object), false)
 })
 
+test('realtime session retries an undelivered provider generation until it is acknowledged', async () => {
+  const bridge = new FakeBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  let executions = 0
+  bridge.sendResult = 'overflow'
+  session.setProvider({
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => {
+          executions += 1
+          return { ok: true }
+        },
+      },
+    ],
+  })
+
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
+
+  assert.equal(bridge.sent.length, 1)
+  assert.equal(bridge.sent[0].type, 'session.update')
+  assert.equal(scheduler.pending, 1)
+  const eventId = bridge.sent[0].event_id
+  assert.equal(typeof eventId, 'string')
+  if (typeof eventId !== 'string') throw new Error('session.update event_id is missing')
+
+  bridge.sendResult = 'queued'
+  scheduler.runNext()
+  await flushTasks()
+
+  assert.equal(bridge.sent.length, 2)
+  assert.equal(bridge.sent[1].event_id, eventId)
+  assert.equal(scheduler.pending, 0)
+  bridge.receive({ type: 'session.updated', event_id: eventId, session: bridge.sent[1].session })
+  bridge.receive(functionCall(eventId, 'call-after-retry', 'set_led'))
+  await flushTasks()
+
+  assert.equal(executions, 1)
+})
+
+test('realtime session cancels an undelivered session.update with its provider lease', async () => {
+  const bridge = new FakeBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  bridge.sendResult = 'overflow'
+  session.setProvider({ instructions: 'retired provider', tools: [] })
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
+  assert.equal(scheduler.pending, 1)
+
+  session.setProvider(undefined)
+  await flushTasks()
+  assert.equal(scheduler.pending, 0)
+
+  bridge.sendResult = 'queued'
+  session.setProvider({ instructions: 'current provider', tools: [] })
+  await flushTasks()
+
+  assert.equal(bridge.sent.length, 2)
+  assert.equal((bridge.sent[1].session as { instructions: string }).instructions, 'current provider')
+})
+
 test('realtime session correlates function output and requests continuation', async () => {
   const bridge = new FakeBridge()
   const session = createRealtimeSession(bridge)

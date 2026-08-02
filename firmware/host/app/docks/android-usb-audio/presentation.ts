@@ -6,7 +6,9 @@ import {
   USB_AUDIO_MOUTH_STEP,
   usbAudioMouthStep,
   usbAudioStatusVisual,
+  usbTaskStatusVisual,
 } from 'stackchan-usb-dock-presentation-model'
+import type { TaskExecutionState } from 'stackchan-application-event'
 import { StackChanStatus } from 'stackchan-usb-media-session'
 import Timer from 'timer'
 
@@ -38,6 +40,15 @@ const statusRecognizingIndicatorSkin = new Skin({
 const statusConnectingIndicatorSkin = new Skin({
   texture: { path: 'indicator.png' },
   color: ['#ffb000'],
+  x: 0,
+  y: 0,
+  width: STATUS_ICON_SIZE,
+  height: STATUS_ICON_SIZE,
+  variants: STATUS_ICON_SIZE,
+})
+const taskRunningIndicatorSkin = new Skin({
+  texture: { path: 'indicator.png' },
+  color: ['#42bde8'],
   x: 0,
   y: 0,
   width: STATUS_ICON_SIZE,
@@ -117,12 +128,41 @@ const UsbAudioStatusBadge = Container.template((status: StackChanStatus) => {
   }
 })
 
+const UsbTaskStatusBadge = Container.template((state: TaskExecutionState) => {
+  const visual = usbTaskStatusVisual(state)
+  return {
+    name: 'usb-task-status',
+    right: 40,
+    top: 8,
+    width: STATUS_BADGE_SIZE,
+    height: STATUS_BADGE_SIZE,
+    skin: statusBadgeSkin,
+    active: false,
+    contents:
+      visual.kind === 'spinner'
+        ? [
+            new Content(null, {
+              left: STATUS_ICON_OFFSET,
+              top: STATUS_ICON_OFFSET,
+              width: STATUS_ICON_SIZE,
+              height: STATUS_ICON_SIZE,
+              skin: taskRunningIndicatorSkin,
+              variant: 0,
+              active: false,
+              Behavior: SpinningIndicatorBehavior,
+            }),
+          ]
+        : [],
+  }
+})
+
 type CaptionBalloon = UIEffect & {
   delegate?: (message: string, value?: string) => unknown
 }
 
 export type UsbAudioPresentation = {
   onStatusChanged(status: StackChanStatus): void
+  onTaskStateChanged(state: TaskExecutionState): void
   onPlaybackStarted(): void
   onPlaybackPower(power: number): void
   onPlaybackText(text: string): void
@@ -134,7 +174,9 @@ export function createUsbAudioPresentation(context: StackchanContext): UsbAudioP
   let active = false
   let balloon: CaptionBalloon | undefined
   let statusBadge: UIEffect | undefined
+  let taskBadge: UIEffect | undefined
   let status = StackChanStatus.IDLE
+  let taskState: TaskExecutionState = 'idle'
   let mouthTimer: ReturnType<typeof Timer.repeat> | undefined
   let pendingMouthStep = 0
   let displayedMouthStep = 0
@@ -163,12 +205,25 @@ export function createUsbAudioPresentation(context: StackchanContext): UsbAudioP
     statusBadge = undefined
   }
 
+  const removeTaskBadge = () => {
+    if (!taskBadge) return
+    context.ui.removeEffect(taskBadge)
+    taskBadge = undefined
+  }
+
   const updateStatusBadge = () => {
     const displayedStatus = active ? StackChanStatus.SPEAKING : status
     removeStatusBadge()
     if (displayedStatus === StackChanStatus.IDLE) return
     statusBadge = new UsbAudioStatusBadge(displayedStatus) as UIEffect
     context.ui.addEffect(statusBadge, 'usb-audio-status')
+  }
+
+  const updateTaskBadge = () => {
+    removeTaskBadge()
+    if (taskState === 'idle') return
+    taskBadge = new UsbTaskStatusBadge(taskState) as UIEffect
+    context.ui.addEffect(taskBadge, 'usb-task-status')
   }
 
   const showCaption = (text: string) => {
@@ -211,6 +266,12 @@ export function createUsbAudioPresentation(context: StackchanContext): UsbAudioP
       updateStatusBadge()
     },
 
+    onTaskStateChanged(nextState) {
+      if (closed) return
+      taskState = nextState
+      updateTaskBadge()
+    },
+
     onPlaybackStarted() {
       if (closed || active) return
       active = true
@@ -243,6 +304,7 @@ export function createUsbAudioPresentation(context: StackchanContext): UsbAudioP
       closed = true
       stopPlayback(false)
       removeStatusBadge()
+      removeTaskBadge()
     },
   }
 }

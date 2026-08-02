@@ -72,7 +72,7 @@ test('application-event builders preserve the Android JSON shapes', () => {
   }
 })
 
-test('conversation requests and results conform to the shared Dock fixture', () => {
+test('conversation and task events conform to the shared Dock fixture', () => {
   assert.equal(sharedFixture.applicationSchema, STACKCHAN_EVENT_SCHEMA)
   for (const vector of sharedFixture.vectors) {
     switch (vector.value.type) {
@@ -86,6 +86,13 @@ test('conversation requests and results conform to the shared Dock fixture', () 
         break
       case 'conversation.result':
         assert.deepEqual(parseStackchanApplicationEvent(vector.value), vector.value, vector.name)
+        break
+      case 'task.status':
+        assert.equal(
+          parseStackchanApplicationEvent(vector.value) !== undefined,
+          vector.codexParserAccepted,
+          vector.name,
+        )
         break
     }
   }

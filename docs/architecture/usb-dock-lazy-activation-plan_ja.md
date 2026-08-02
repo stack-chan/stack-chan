@@ -4,6 +4,9 @@
 
 対象：M5StackChan CoreS3向けUSB audio dock、remote conversation capability、Codex Voice MOD。
 
+> 2026-08-02のCoreS3実機検証で、USB bridge全体の遅延起動は撤回した。
+> 本文は当初の設計判断を残しており、現行設計との差分は末尾の「実機検証後の設計改修」に記録する。
+
 ## 目的
 
 M5StackChan CoreS3の通常hostへUSB dock通信機能を組み込みながら、MODが明示的に要求するまでUSB bridgeを起動しない構成へ変更する。
@@ -430,3 +433,51 @@ Codex Voice MODはremote sessionの購読とgesture登録より先に`activate()
 このため、起動時heap、inactive時のworkerとAudio入出力の非取得、HELLO_ACKの不応答、Codex承認UI、USB再接続、Android dock appとの実機互換性は未確認である。
 
 Node.jsのfakeを使ったtestではinactive時にUSB module importとbridge factory呼び出しが発生しないことを確認したが、実機workerの未起動は確認していない。
+
+## 実機検証後の設計改修
+
+2026-08-02にCoreS3（USB serial `44:1B:F6:E2:99:A4`）でrelease buildを比較した。
+
+遅延起動を含む`505f8f81`では、Dock serviceが8秒間HELLOを再送してもHELLO_ACKを受信しなかった。
+
+同じ端末、ケーブル、Dock service、Codex Voice MODのまま、遅延起動導入前の`c25bba52`へ戻すと、service起動から4秒後にHELLO_ACK、Codex app-server接続、初期EVENT送信まで成功した。
+
+USBSerialのnative driverは、RX ringに32 KiB、TX ringに16 KiBの内部RAMを確保する。
+
+遅延起動版はWi-Fi、UI、runtime contextの構築後にこの48 KiBを要求するため、起動時より内部RAMが断片化した段階でdriver installに失敗する。
+
+xsdbもUSB Serial/JTAG driverを所有するため、xsdb接続中に観測したdriver install失敗だけではrelease動作の原因を確定できない。
+
+release build同士のA/B比較が、初期化順序だけでHELLO応答の成否が変わることを示した。
+
+現行設計では、物理USBブリッジを`StackchanDock.start()`で一度だけ作り、host終了まで所有する。
+
+application EVENT runtimeも同じ時点で作り、contextとMODの準備より先にEVENT handlerを登録する。
+
+物理ブリッジのHELLOはcontext作成より先に成立し得るため、EVENT runtimeまでactivation期間へ限定すると、最初の`task.status`を失う競合が生じる。
+
+EVENT runtime内のtask sessionは最新状態をsnapshotとして保持する。
+
+`activate()`はcontextとtool providerを初回だけ関連付け、status handler、presentation、task state listenerを設定する。
+
+`deactivate()`はstatus handler、presentation、task state listenerを外すが、EVENT runtimeと物理USBブリッジを閉じない。
+
+inactive中に更新されたタスク状態は、次のactivate時にpresentationへ即時再送する。
+
+再activateは同じEVENT runtime、bridge、USBSerial driverを再利用する。
+
+hostの`lifecycle.close()`はfacade、EVENT runtime、物理ブリッジの順に一度だけ閉じる。
+
+`autoStart`は物理USBブリッジやEVENT受信器の起動可否ではなく、context作成後に会話facadeとpresentationを自動activateするかを表す。
+
+この変更により、通常hostでもworkerとUSBSerialの固定コストは起動時に発生する。
+
+AudioInとAudioOutは実際のmedia controlに応じて開くため、inactive中には取得しない。
+
+標準hostのUSB再生音量は固定値を持たず、起動設定が保存する`tts.volume`を使用する。
+
+物理ブリッジは起動設定より先に作るため、保存済み音量を初期値として渡し、context作成時に設定を再読込してworkerへ更新する。
+
+これにより、同じbootの起動設定画面で変更した音量もCodex VoiceのUSB再生へ反映する。
+
+診断manifestの`usbAudio.speakerVolume=0`は明示overrideとして扱い、保存済み音量にかかわらず無音を維持する。

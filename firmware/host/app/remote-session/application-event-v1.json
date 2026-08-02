@@ -29,6 +29,18 @@
       "schema": "stackchan.event.v1",
       "type": "approval.suspended",
       "requestId": "approval-2"
+    },
+    {
+      "schema": "stackchan.event.v1",
+      "type": "task.status",
+      "requestId": "task-1",
+      "state": "running"
+    },
+    {
+      "schema": "stackchan.event.v1",
+      "type": "task.status",
+      "requestId": "task-2",
+      "state": "idle"
     }
   ],
   "rejectedInbound": [
@@ -52,6 +64,12 @@
       "requestId": "conversation-1",
       "success": "yes",
       "state": "listening"
+    },
+    {
+      "schema": "stackchan.event.v1",
+      "type": "task.status",
+      "requestId": "task-1",
+      "state": "active"
     },
     {
       "schema": "stackchan.event.v1",

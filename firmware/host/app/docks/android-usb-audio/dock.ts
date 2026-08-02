@@ -1,5 +1,7 @@
 import type { StackchanContext } from 'capabilities'
+import { DOMAIN } from 'consts'
 import type { StackchanDock } from 'dock'
+import loadPreferences from 'loadPreference'
 import config from 'mc/config'
 import Modules from 'modules'
 import type { RealtimeToolProvider } from 'stackchan-realtime-session'
@@ -9,28 +11,34 @@ import { usbAudioConversationState } from 'stackchan-usb-dock-presentation-model
 import { createUsbAudioDockRuntime, type UsbAudioBridgeControl, type UsbAudioConfig } from 'stackchan-usb-dock-runtime'
 import type { StackChanStatus } from 'stackchan-usb-media-session'
 import Timer from 'timer'
+import { canonicalizeVolume } from 'volume-model'
 
 const stackchanUsbDock: StackchanDock = {
   start() {
     const usbAudio = (config as { usbAudio?: UsbAudioConfig }).usbAudio
     if (!usbAudio?.enabled) return
-    return createUsbAudioDockRuntime(usbAudio, {
-      hasUsbAudioModule() {
-        return Modules.has('stackchan-usb-audio')
+    const resolveSpeakerVolume = () => usbAudio.speakerVolume ?? canonicalizeVolume(loadPreferences(DOMAIN.tts).volume)
+    return createUsbAudioDockRuntime(
+      { ...usbAudio, speakerVolume: resolveSpeakerVolume() },
+      {
+        hasUsbAudioModule() {
+          return Modules.has('stackchan-usb-audio')
+        },
+        importUsbAudioModule() {
+          return Modules.importNow('stackchan-usb-audio')
+        },
+        createRemoteRuntime(bridge: UsbAudioBridgeControl<StackChanStatus>) {
+          return createRemoteSessionRuntime(bridge, {
+            set: (callback, milliseconds) => Timer.set(callback, milliseconds),
+            clear: (handle) => Timer.clear(handle as Timer),
+          })
+        },
+        createRealtimeToolProvider,
+        createPresentation: createUsbAudioDockPresentation,
+        conversationState: usbAudioConversationState,
+        resolveSpeakerVolume,
       },
-      importUsbAudioModule() {
-        return Modules.importNow('stackchan-usb-audio')
-      },
-      createRemoteRuntime(bridge: UsbAudioBridgeControl<StackChanStatus>) {
-        return createRemoteSessionRuntime(bridge, {
-          set: (callback, milliseconds) => Timer.set(callback, milliseconds),
-          clear: (handle) => Timer.clear(handle as Timer),
-        })
-      },
-      createRealtimeToolProvider,
-      createPresentation: createUsbAudioDockPresentation,
-      conversationState: usbAudioConversationState,
-    })
+    )
   },
 }
 

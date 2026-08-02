@@ -241,6 +241,9 @@
       "stackchan-remote-session-runtime": [
         "host/app/remote-session/runtime.ts"
       ],
+      "stackchan-task-session": [
+        "host/app/remote-session/task-session.ts"
+      ],
       "stackchan-remote-session-facade": [
         "host/app/remote-session/facade.ts"
       ],

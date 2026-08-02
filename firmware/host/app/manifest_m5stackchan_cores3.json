@@ -8,8 +8,7 @@
     "enablePowerButton": false,
     "usbAudio": {
       "enabled": true,
-      "autoStart": false,
-      "speakerVolume": 0.25
+      "autoStart": false
     }
   }
 }

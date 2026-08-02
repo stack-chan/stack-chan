@@ -9,9 +9,11 @@ import type {
   StackchanContext,
 } from 'capabilities'
 import { installRemoteSessionTestAliases } from '../../remote-session/__tests__/node-aliases.js'
+import type { TaskExecutionState } from '../../remote-session/application-event.js'
 import type { RealtimeToolProvider } from '../../remote-session/realtime-session.js'
 import type {
   UsbAudioBridgeControl,
+  UsbAudioBridgeOptions,
   UsbAudioConfig,
   UsbAudioDockDependencies,
   UsbAudioPresentationControl,
@@ -57,11 +59,20 @@ class FakeRemoteSession implements RemoteConversationSessionDelegate {
 class FakeBridge implements UsbAudioBridgeControl<number> {
   statusHandler: ((status: number) => void) | undefined
   presentation: UsbAudioPresentationControl | undefined
+  speakerVolume: number
 
   constructor(
     readonly id: number,
     private readonly events: string[],
-  ) {}
+    speakerVolume: number,
+  ) {
+    this.speakerVolume = speakerVolume
+  }
+
+  setSpeakerVolume(volume: number): void {
+    this.speakerVolume = volume
+    this.events.push(`bridge-${this.id}:volume:${volume}`)
+  }
 
   setEventHandler(): void {}
 
@@ -86,13 +97,21 @@ class FakeBridge implements UsbAudioBridgeControl<number> {
   }
 }
 
-function createHarness(config: UsbAudioConfig = {}) {
-  const events: string[] = []
+type HarnessOptions = {
+  events?: string[]
+  failRemoteRuntime?: boolean
+  resolveSpeakerVolume?: () => number
+}
+
+function createHarness(config: UsbAudioConfig = {}, options: HarnessOptions = {}) {
+  const events = options.events ?? []
   const bridges: FakeBridge[] = []
   const sessions: FakeRemoteSession[] = []
+  const taskListeners: Array<Set<(state: TaskExecutionState) => void>> = []
+  const taskStates: TaskExecutionState[] = []
+  const presentationTaskStates: TaskExecutionState[] = []
   let imports = 0
   let moduleChecks = 0
-  let failRemoteRuntime = false
   let failPresentation = false
   const dependencies: UsbAudioDockDependencies<number> = {
     hasUsbAudioModule() {
@@ -101,8 +120,8 @@ function createHarness(config: UsbAudioConfig = {}) {
     },
     importUsbAudioModule() {
       imports += 1
-      return () => {
-        const bridge = new FakeBridge(bridges.length + 1, events)
+      return (bridgeOptions?: UsbAudioBridgeOptions) => {
+        const bridge = new FakeBridge(bridges.length + 1, events, bridgeOptions?.speakerVolume ?? 1)
         bridges.push(bridge)
         events.push(`bridge-${bridge.id}:create`)
         return bridge
@@ -110,10 +129,13 @@ function createHarness(config: UsbAudioConfig = {}) {
     },
     createRemoteRuntime(bridge) {
       events.push(`runtime-${(bridge as FakeBridge).id}:create`)
-      if (failRemoteRuntime) throw new Error('runtime failed')
+      if (options.failRemoteRuntime) throw new Error('runtime failed')
       const session = new FakeRemoteSession()
       sessions.push(session)
       const id = sessions.length
+      const listeners = new Set<(state: TaskExecutionState) => void>()
+      taskListeners.push(listeners)
+      taskStates.push('idle')
       return {
         remoteConversationSession: session,
         onContextCreated() {
@@ -121,6 +143,11 @@ function createHarness(config: UsbAudioConfig = {}) {
         },
         updateConversationState(state, error) {
           session.updateState(state, error)
+        },
+        subscribeTaskState(listener) {
+          listeners.add(listener)
+          listener(taskStates[id - 1] ?? 'idle')
+          return () => listeners.delete(listener)
         },
         close() {
           events.push(`runtime-${id}:close`)
@@ -137,6 +164,9 @@ function createHarness(config: UsbAudioConfig = {}) {
       const id = bridges.length
       return {
         onStatusChanged() {},
+        onTaskStateChanged(state) {
+          presentationTaskStates.push(state)
+        },
         onPlaybackStarted() {},
         onPlaybackPower() {},
         onPlaybackText() {},
@@ -149,6 +179,7 @@ function createHarness(config: UsbAudioConfig = {}) {
     conversationState() {
       return 'listening'
     },
+    ...(options.resolveSpeakerVolume ? { resolveSpeakerVolume: options.resolveSpeakerVolume } : {}),
   }
   const runtime = createUsbAudioDockRuntime(config, dependencies)
   return {
@@ -156,14 +187,17 @@ function createHarness(config: UsbAudioConfig = {}) {
     events,
     runtime,
     sessions,
+    presentationTaskStates,
+    taskListeners,
+    emitTaskState(index: number, state: TaskExecutionState) {
+      taskStates[index] = state
+      for (const listener of taskListeners[index] ?? []) listener(state)
+    },
     get imports() {
       return imports
     },
     get moduleChecks() {
       return moduleChecks
-    },
-    set failRemoteRuntime(value: boolean) {
-      failRemoteRuntime = value
     },
     set failPresentation(value: boolean) {
       failPresentation = value
@@ -171,18 +205,35 @@ function createHarness(config: UsbAudioConfig = {}) {
   }
 }
 
-test('manual mode attaches context without importing or starting the bridge', () => {
+test('manual mode reserves the physical bridge before context attachment without activating a session', () => {
   const harness = createHarness({ autoStart: false })
+
+  assert.equal(harness.moduleChecks, 1)
+  assert.equal(harness.imports, 1)
+  assert.deepEqual(harness.events, ['bridge-1:create', 'runtime-1:create'])
 
   harness.runtime.onContextCreated({} as StackchanContext)
 
   assert.equal(harness.runtime.remoteConversationSession?.activationState, 'inactive')
-  assert.equal(harness.moduleChecks, 0)
-  assert.equal(harness.imports, 0)
-  assert.deepEqual(harness.events, [])
+  assert.equal(harness.moduleChecks, 1)
+  assert.equal(harness.imports, 1)
+  assert.deepEqual(harness.events, ['bridge-1:create', 'runtime-1:create'])
 })
 
-test('activate is idempotent and deactivate releases resources in reverse ownership order', () => {
+test('context attachment reapplies the saved host volume without recreating the physical bridge', () => {
+  let savedVolume = 0.25
+  const harness = createHarness({ autoStart: false, speakerVolume: 0.1 }, { resolveSpeakerVolume: () => savedVolume })
+
+  assert.equal(harness.bridges[0].speakerVolume, 0.1)
+  savedVolume = 0.4
+  harness.runtime.onContextCreated({} as StackchanContext)
+
+  assert.equal(harness.bridges[0].speakerVolume, 0.4)
+  assert.equal(harness.bridges.length, 1)
+  assert.deepEqual(harness.events, ['bridge-1:create', 'runtime-1:create', 'bridge-1:volume:0.4'])
+})
+
+test('activate is idempotent and deactivate releases only activation-scoped resources', () => {
   const harness = createHarness({ speakerVolume: 0.25 })
   const remoteSession = harness.runtime.remoteConversationSession
   assert.ok(remoteSession)
@@ -204,17 +255,18 @@ test('activate is idempotent and deactivate releases resources in reverse owners
 
   assert.equal(remoteSession.activationState, 'inactive')
   assert.equal(remoteSession.state, 'standby')
-  assert.deepEqual(harness.events.slice(-5), [
+  assert.deepEqual(harness.events.slice(-3), [
     'bridge-1:status:detach',
     'bridge-1:presentation:detach',
     'presentation-1:close',
-    'runtime-1:close',
-    'bridge-1:close',
   ])
 
   remoteSession.activate()
-  assert.equal(harness.imports, 2)
-  assert.equal(harness.bridges.length, 2)
+  assert.equal(harness.imports, 1)
+  assert.equal(harness.bridges.length, 1)
+  assert.equal(harness.sessions.length, 1)
+  assert.equal(harness.events.filter((event) => event === 'runtime-1:close').length, 0)
+  assert.equal(harness.events.filter((event) => event === 'bridge-1:close').length, 0)
 })
 
 test('activation failure rolls back created resources and can be retried', () => {
@@ -226,35 +278,43 @@ test('activation failure rolls back created resources and can be retried', () =>
 
   assert.throws(() => remoteSession.activate(), /presentation failed/)
   assert.equal(remoteSession.activationState, 'inactive')
-  assert.deepEqual(harness.events.slice(-4), [
-    'bridge-1:status:detach',
-    'bridge-1:presentation:detach',
-    'runtime-1:close',
-    'bridge-1:close',
-  ])
+  assert.deepEqual(harness.events.slice(-2), ['bridge-1:status:detach', 'bridge-1:presentation:detach'])
 
   harness.failPresentation = false
   remoteSession.activate()
   assert.equal(remoteSession.activationState, 'active')
-  assert.equal(harness.imports, 2)
+  assert.equal(harness.imports, 1)
+  assert.equal(harness.bridges.length, 1)
 })
 
-test('runtime creation failure closes the bridge without leaving an active facade', () => {
+test('task state received before activation is retained and snapshots across reactivation', () => {
   const harness = createHarness()
   const remoteSession = harness.runtime.remoteConversationSession
   assert.ok(remoteSession)
+  harness.emitTaskState(0, 'running')
   harness.runtime.onContextCreated({} as StackchanContext)
-  harness.failRemoteRuntime = true
+  remoteSession.activate()
 
-  assert.throws(() => remoteSession.activate(), /runtime failed/)
-  assert.equal(remoteSession.activationState, 'inactive')
-  assert.deepEqual(harness.events, [
-    'bridge-1:create',
-    'runtime-1:create',
-    'bridge-1:status:detach',
-    'bridge-1:presentation:detach',
-    'bridge-1:close',
-  ])
+  harness.emitTaskState(0, 'idle')
+  harness.bridges[0].statusHandler?.(0)
+
+  assert.deepEqual(harness.presentationTaskStates, ['running', 'idle'])
+  assert.equal(harness.taskListeners[0].size, 1)
+  remoteSession.deactivate()
+  harness.emitTaskState(0, 'running')
+  assert.deepEqual(harness.presentationTaskStates, ['running', 'idle'])
+  assert.equal(harness.taskListeners[0].size, 0)
+
+  remoteSession.activate()
+  assert.deepEqual(harness.presentationTaskStates, ['running', 'idle', 'running'])
+  assert.equal(harness.taskListeners[0].size, 1)
+})
+
+test('runtime creation failure closes the reserved bridge during Dock startup', () => {
+  const events: string[] = []
+
+  assert.throws(() => createHarness({}, { events, failRemoteRuntime: true }), /runtime failed/)
+  assert.deepEqual(events, ['bridge-1:create', 'runtime-1:create', 'bridge-1:close'])
 })
 
 test('auto-start activates after context attachment and host close is idempotent', () => {
@@ -298,15 +358,27 @@ test('auto-start failure is logged and leaves the attached context available for
   harness.failPresentation = false
   remoteSession.activate()
   assert.equal(remoteSession.activationState, 'active')
-  assert.equal(harness.imports, 2)
+  assert.equal(harness.imports, 1)
+  assert.equal(harness.bridges.length, 1)
 })
 
-test('activation before context attachment fails without touching the USB module', () => {
+test('activation before context attachment fails after reserving but without recreating the USB bridge', () => {
   const harness = createHarness()
   const remoteSession = harness.runtime.remoteConversationSession
   assert.ok(remoteSession)
 
   assert.throws(() => remoteSession.activate(), /before the Stack-chan context/)
-  assert.equal(harness.moduleChecks, 0)
-  assert.equal(harness.imports, 0)
+  assert.equal(harness.moduleChecks, 1)
+  assert.equal(harness.imports, 1)
+  assert.equal(harness.bridges.length, 1)
+  assert.deepEqual(harness.events, ['bridge-1:create', 'runtime-1:create'])
+})
+
+test('host close releases an inactive reserved bridge exactly once', () => {
+  const harness = createHarness({ autoStart: false })
+
+  harness.runtime.close()
+  harness.runtime.close()
+
+  assert.deepEqual(harness.events, ['bridge-1:create', 'runtime-1:create', 'runtime-1:close', 'bridge-1:close'])
 })

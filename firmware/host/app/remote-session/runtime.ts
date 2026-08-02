@@ -7,6 +7,7 @@ import {
   type RealtimeSession,
   type RealtimeToolProvider,
 } from 'stackchan-realtime-session'
+import { createTaskSession, type TaskStateListener } from 'stackchan-task-session'
 
 export type RemoteSessionTransport = RealtimeEventBridge
 
@@ -14,6 +15,7 @@ export type RemoteSessionRuntime = {
   readonly remoteConversationSession: RemoteConversationSessionDelegate
   onContextCreated(context: StackchanContext, provider: RealtimeToolProvider): void
   updateConversationState(state: RemoteConversationState, error?: string): void
+  subscribeTaskState(listener: TaskStateListener): () => void
   close(): void
 }
 
@@ -23,6 +25,7 @@ export function createRemoteSessionRuntime(
 ): RemoteSessionRuntime {
   const realtimeSession: RealtimeSession = createRealtimeSession(transport)
   const conversationSession = createConversationSession(realtimeSession, scheduler)
+  const taskSession = createTaskSession(realtimeSession)
   let approvalSession: ApprovalSession | undefined
   let removeApprovalHandler: (() => void) | undefined
   let removeConversationHandler: (() => void) | undefined
@@ -43,6 +46,9 @@ export function createRemoteSessionRuntime(
     updateConversationState(state, error) {
       conversationSession.updateState(state, error)
     },
+    subscribeTaskState(listener) {
+      return taskSession.subscribe(listener)
+    },
     close() {
       if (closed) return
       closed = true
@@ -62,6 +68,7 @@ export function createRemoteSessionRuntime(
       close(() => removeConversationHandler?.())
       close(() => approvalSession?.close())
       close(() => conversationSession.close())
+      close(() => taskSession.close())
       close(() => realtimeSession.close())
       removeApprovalHandler = undefined
       removeConversationHandler = undefined

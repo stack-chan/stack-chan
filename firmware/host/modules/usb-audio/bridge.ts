@@ -116,6 +116,7 @@ export type UsbAudioPlaybackObserver = {
 }
 
 export type UsbAudioBridgeControl = {
+  setSpeakerVolume(volume: number): void
   setPlaybackObserver(observer?: UsbAudioPlaybackObserver): void
   setStatusHandler(handler?: (status: StackChanStatus) => void): void
   setEventHandler(handler?: (event: string) => void): void
@@ -134,7 +135,7 @@ export type UsbAudioBridgeOptions = {
 }
 
 class UsbAudioBridge implements UsbAudioBridgeControl {
-  readonly #speakerVolume: number
+  #speakerVolume: number
   readonly #diagnosticsEnabled: boolean
   readonly #createMicrophoneInput: UsbAudioMicrophoneInputFactory
   readonly #createSpeakerOutput: UsbAudioSpeakerOutputFactory
@@ -190,9 +191,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
 
   constructor(options: UsbAudioBridgeOptions) {
     const speakerVolume = options.speakerVolume ?? 1
-    if (!Number.isFinite(speakerVolume) || speakerVolume < 0 || speakerVolume > 1) {
-      throw new RangeError('speaker volume must be between 0 and 1')
-    }
+    validateSpeakerVolume(speakerVolume)
     this.#speakerVolume = speakerVolume
     this.#diagnosticsEnabled = options.diagnostics === true
     if (!options.createMicrophoneInput) throw new TypeError('microphone input factory is required')
@@ -224,6 +223,13 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     this.#serial = serial
     this.#refreshConnection()
     this.#maintenanceTimer = Timer.repeat(() => this.#maintainSessions(), MAINTENANCE_INTERVAL_MILLISECONDS)
+  }
+
+  setSpeakerVolume(volume: number): void {
+    validateSpeakerVolume(volume)
+    if (this.#speakerVolume === volume) return
+    this.#speakerVolume = volume
+    if (this.#speaker) this.#speaker.volume = volume
   }
 
   setPlaybackObserver(observer?: UsbAudioPlaybackObserver): void {
@@ -1079,3 +1085,9 @@ export function stopUsbAudioBridge(): void {
 }
 
 export default startUsbAudioBridge
+
+function validateSpeakerVolume(volume: number): void {
+  if (!Number.isFinite(volume) || volume < 0 || volume > 1) {
+    throw new RangeError('speaker volume must be between 0 and 1')
+  }
+}

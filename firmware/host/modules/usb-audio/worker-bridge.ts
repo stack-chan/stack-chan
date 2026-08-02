@@ -29,6 +29,7 @@ export type UsbAudioPresentation = {
 }
 
 export type UsbAudioBridgeControl = {
+  setSpeakerVolume(volume: number): void
   setPresentation(presentation?: UsbAudioPresentation): void
   setStatusHandler(handler?: (status: StackChanStatus) => void): void
   setEventHandler(handler?: (event: string) => void): void
@@ -141,6 +142,11 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
       } catch {}
       throw error
     }
+  }
+
+  setSpeakerVolume(volume: number): void {
+    validateSpeakerVolume(volume)
+    this.#worker?.postMessage({ id: 'speaker-volume', volume })
   }
 
   setPresentation(presentation?: UsbAudioPresentation): void {
@@ -662,4 +668,10 @@ function isUsbEventSendResult(value: unknown): value is UsbEventSendResult {
 
 function asError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
+}
+
+function validateSpeakerVolume(volume: number): void {
+  if (!Number.isFinite(volume) || volume < 0 || volume > 1) {
+    throw new RangeError('speaker volume must be between 0 and 1')
+  }
 }

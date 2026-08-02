@@ -4,6 +4,7 @@ export const STACKCHAN_EVENT_SCHEMA = 'stackchan.event.v1'
 
 export type ApprovalKind = 'command' | 'fileChange'
 export type ApprovalDecision = 'approve' | 'decline'
+export type TaskExecutionState = 'idle' | 'running'
 
 export type ConversationStart = {
   schema: typeof STACKCHAN_EVENT_SCHEMA
@@ -67,8 +68,15 @@ export type ApprovalResponse = {
   decision: ApprovalDecision
 }
 
+export type TaskStatus = {
+  schema: typeof STACKCHAN_EVENT_SCHEMA
+  type: 'task.status'
+  requestId: string
+  state: TaskExecutionState
+}
+
 export type ApprovalInboundEvent = ApprovalRequest | ApprovalResolved | ApprovalSuspended
-export type StackchanInboundApplicationEvent = ConversationResult | ApprovalInboundEvent
+export type StackchanInboundApplicationEvent = ConversationResult | ApprovalInboundEvent | TaskStatus
 export type StackchanOutboundApplicationEvent =
   | ConversationStart
   | ConversationStop
@@ -107,6 +115,9 @@ export function parseStackchanApplicationEvent(value: unknown): StackchanInbound
       return value as ApprovalResolved
     case 'approval.suspended':
       return value as ApprovalSuspended
+    case 'task.status':
+      if (value.state !== 'idle' && value.state !== 'running') return
+      return value as TaskStatus
     default:
       return
   }

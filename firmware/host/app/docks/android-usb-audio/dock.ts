@@ -17,9 +17,13 @@ const stackchanUsbDock: StackchanDock = {
   start() {
     const usbAudio = (config as { usbAudio?: UsbAudioConfig }).usbAudio
     if (!usbAudio?.enabled) return
-    const resolveSpeakerVolume = () => usbAudio.speakerVolume ?? canonicalizeVolume(loadPreferences(DOMAIN.tts).volume)
+    const configuredSpeakerVolume = usbAudio.speakerVolume
+    const resolveSavedSpeakerVolume = () => canonicalizeVolume(loadPreferences(DOMAIN.tts).volume)
     return createUsbAudioDockRuntime(
-      { ...usbAudio, speakerVolume: resolveSpeakerVolume() },
+      {
+        ...usbAudio,
+        speakerVolume: configuredSpeakerVolume ?? resolveSavedSpeakerVolume(),
+      },
       {
         hasUsbAudioModule() {
           return Modules.has('stackchan-usb-audio')
@@ -36,7 +40,7 @@ const stackchanUsbDock: StackchanDock = {
         createRealtimeToolProvider,
         createPresentation: createUsbAudioDockPresentation,
         conversationState: usbAudioConversationState,
-        resolveSpeakerVolume,
+        ...(configuredSpeakerVolume === undefined ? { resolveSpeakerVolume: resolveSavedSpeakerVolume } : {}),
       },
     )
   },

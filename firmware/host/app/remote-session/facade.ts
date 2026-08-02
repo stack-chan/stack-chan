@@ -77,6 +77,10 @@ export function createRemoteConversationSessionFacade(
       }
     }
 
+    // Deactivation owns the remote media lifecycle as well as the local UI.
+    // Queue the data-channel stop while the activation's conversation session
+    // and provider still exist, then release every activation-scoped binding.
+    attempt(() => current.binding.remoteSession.requestStop())
     attempt(current.removeStateListener)
     attempt(current.removeTransportListener)
     notifyState()

@@ -43,9 +43,10 @@ M5StackChan CoreS3用manifestは、このモジュール名をUSB Dock実装へ�
 標準CoreS3 hostの`robot.conversation.remoteSession`は、会話表示をまだ有効化していないinactive状態から始まる。
 USB機能を使うMODは、状態購読や会話要求より前に`remoteSession.activate()`を呼ぶ。
 `activate()`は冪等であり、成功後の`activationState`は`active`になる。
-`deactivate()`は会話状態ハンドラと状態表示の購読を外し、同じfacadeを再びactivateできる状態へ戻す。
+`deactivate()`はactivationが所有する`conversation.stop`をdata channelへ先にqueueし、会話状態ハンドラと状態表示の購読を外して、同じfacadeを再びactivateできる状態へ戻す。
 application EVENT runtimeと物理USBブリッジは再activateでも再利用し、host終了時に一度だけ閉じる。
 Realtimeのraw transport handlerとタスク状態のsnapshotも再利用するが、会話・承認のapplication event handlerとtool providerは再利用しない。
+非同期function toolの結果はprovider leaseへ所属させ、lease終了後に解決した結果を後続activationへ送らない。
 この寿命分離により、inactive中に届いた最新のタスク状態も次のactivate時に表示できる。
 inactive時の`requestStart()`と`requestStop()`は要求を保留せず例外を投げる。
 

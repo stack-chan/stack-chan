@@ -16,6 +16,7 @@ const BALLOON_HEIGHT = 44
 const MOUTH_UPDATE_MILLISECONDS = 125
 const STATUS_BADGE_SIZE = 28
 const STATUS_ICON_SIZE = 16
+const SPINNER_FRAME_COUNT = 4
 const STATUS_ICON_OFFSET = (STATUS_BADGE_SIZE - STATUS_ICON_SIZE) / 2
 
 const statusBadgeSkin = new Skin({ fill: '#202428' })
@@ -35,7 +36,7 @@ const statusRecognizingIndicatorSkin = new Skin({
   y: 0,
   width: STATUS_ICON_SIZE,
   height: STATUS_ICON_SIZE,
-  variants: STATUS_ICON_SIZE,
+  variants: SPINNER_FRAME_COUNT,
 })
 const statusConnectingIndicatorSkin = new Skin({
   texture: { path: 'indicator.png' },
@@ -44,7 +45,7 @@ const statusConnectingIndicatorSkin = new Skin({
   y: 0,
   width: STATUS_ICON_SIZE,
   height: STATUS_ICON_SIZE,
-  variants: STATUS_ICON_SIZE,
+  variants: SPINNER_FRAME_COUNT,
 })
 const taskRunningIndicatorSkin = new Skin({
   texture: { path: 'indicator.png' },
@@ -53,7 +54,7 @@ const taskRunningIndicatorSkin = new Skin({
   y: 0,
   width: STATUS_ICON_SIZE,
   height: STATUS_ICON_SIZE,
-  variants: STATUS_ICON_SIZE,
+  variants: SPINNER_FRAME_COUNT,
 })
 const statusErrorStyle = new Style({
   font: 'k8x12-12',
@@ -73,7 +74,7 @@ class SpinningIndicatorBehavior extends Behavior {
   }
 
   onTimeChanged(content: Content) {
-    this.#frame = (this.#frame + 1) % 4
+    this.#frame = (this.#frame + 1) % SPINNER_FRAME_COUNT
     content.variant = this.#frame
   }
 

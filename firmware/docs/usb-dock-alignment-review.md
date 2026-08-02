@@ -100,6 +100,7 @@ USB未接続時は同じrequest IDを最大10秒間保持し、`ready`へ遷移�
 
 raw Realtime eventは送信Promiseを直列化し、function outputと`response.create`の順序を維持する。
 transportが`ready`以外へ遷移した場合はAndroidの`session.created`受信済み状態を破棄し、再接続後の新しい`session.created`を待つ。
+`session.update`の`event_id`をAndroidの`session.updated`と照合し、反映確認済みのprovider世代に対するfunction callだけを実行する。
 承認応答の送信失敗は明示的に処理し、未処理のPromise rejectionを発生させない。
 
 ## Dock正本vector

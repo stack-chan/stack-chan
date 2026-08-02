@@ -54,10 +54,18 @@ type RealtimeProviderLease = {
   readonly provider: RealtimeToolProvider
   readonly retryWaiters: Set<() => void>
   continuationTail: Promise<void>
+  sessionUpdate?: RealtimeSessionUpdate
 }
 
 type RealtimeTransportSessionLease = {
   readonly retryWaiters: Set<() => void>
+}
+
+type RealtimeSessionUpdate = {
+  readonly eventId: string
+  readonly transportLease: RealtimeTransportSessionLease
+  delivered: boolean
+  acknowledged: boolean
 }
 
 const CONTINUATION_RETRY_MILLISECONDS = 2_000
@@ -65,6 +73,7 @@ const CONTINUATION_TIMEOUT_MILLISECONDS = 10_000
 
 export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: RealtimeRetryScheduler): RealtimeSession {
   let providerLease: RealtimeProviderLease | undefined
+  let acknowledgedProviderLease: RealtimeProviderLease | undefined
   let transportSessionLease: RealtimeTransportSessionLease | undefined
   let androidSessionCreated = false
   let transportState: RemoteConversationTransportState = 'disconnected'
@@ -143,6 +152,7 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
     !closed &&
     transportState === 'ready' &&
     providerLease === activeProviderLease &&
+    acknowledgedProviderLease === activeProviderLease &&
     transportSessionLease === activeTransportLease
   const sendFunctionResult = (
     outputEvent: Record<string, unknown>,
@@ -217,10 +227,28 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
     const activeTransportLease = transportSessionLease
     if (!androidSessionCreated || !activeProviderLease || !activeTransportLease) return
     const activeProvider = activeProviderLease.provider
+    const update: RealtimeSessionUpdate = {
+      eventId: nextId('session'),
+      transportLease: activeTransportLease,
+      delivered: false,
+      acknowledged: false,
+    }
+    activeProviderLease.sessionUpdate = update
+    acknowledgedProviderLease = undefined
+    const ownsUpdate = () =>
+      providerLease === activeProviderLease &&
+      activeProviderLease.sessionUpdate === update &&
+      transportSessionLease === activeTransportLease &&
+      transportState === 'ready'
+    const acknowledgeUpdate = () => {
+      if (ownsUpdate() && update.delivered && update.acknowledged) {
+        acknowledgedProviderLease = activeProviderLease
+      }
+    }
     return sendOwned(
       {
         type: 'session.update',
-        event_id: nextId('session'),
+        event_id: update.eventId,
         session: {
           instructions: activeProvider.instructions ?? '',
           tools: activeProvider.tools.map((tool) =>
@@ -235,10 +263,24 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
           ),
         },
       },
-      () =>
-        providerLease === activeProviderLease &&
-        transportSessionLease === activeTransportLease &&
-        transportState === 'ready',
+      ownsUpdate,
+    ).then(
+      (result) => {
+        if (!ownsUpdate()) return result
+        if (result === 'queued') {
+          update.delivered = true
+          acknowledgeUpdate()
+        } else {
+          activeProviderLease.sessionUpdate = undefined
+        }
+        return result
+      },
+      (error) => {
+        if (activeProviderLease.sessionUpdate === update) {
+          activeProviderLease.sessionUpdate = undefined
+        }
+        throw error
+      },
     )
   }
   const handle = async (serialized: string) => {
@@ -267,19 +309,34 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
         if (transportState !== 'ready') break
         if (transportSessionLease) cancelRetryLease(transportSessionLease)
         transportSessionLease = { retryWaiters: new Set() }
+        acknowledgedProviderLease = undefined
         androidSessionCreated = true
         await updateSession()
         break
+      case 'session.updated': {
+        const update = providerLease?.sessionUpdate
+        const eventId = typeof event.event_id === 'string' ? event.event_id : ''
+        if (
+          !update ||
+          eventId !== update.eventId ||
+          update.transportLease !== transportSessionLease ||
+          transportState !== 'ready'
+        )
+          break
+        update.acknowledged = true
+        if (update.delivered) acknowledgedProviderLease = providerLease
+        break
+      }
       case 'response.function_call_arguments.done':
         await executeFunction(event)
         break
     }
   }
   const executeFunction = async (event: Record<string, unknown>) => {
-    const activeProviderLease = providerLease
+    const activeProviderLease = acknowledgedProviderLease
     const activeTransportLease = transportSessionLease
     if (!activeProviderLease || !activeTransportLease || transportState !== 'ready') {
-      log('[remote-session] ignored function call outside an active transport session\n')
+      log('[remote-session] ignored function call before the current provider session was acknowledged\n')
       return
     }
     const callId = typeof event.call_id === 'string' ? event.call_id : ''
@@ -324,6 +381,7 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
     if (closed || nextState === transportState) return
     if (transportSessionLease) cancelRetryLease(transportSessionLease)
     transportSessionLease = nextState === 'ready' ? { retryWaiters: new Set() } : undefined
+    acknowledgedProviderLease = undefined
     if (nextState !== 'ready') androidSessionCreated = false
     transportState = nextState
     for (const listener of transportListeners) {
@@ -340,6 +398,7 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
     },
     setProvider(next) {
       if (providerLease) cancelRetryLease(providerLease)
+      acknowledgedProviderLease = undefined
       providerLease = next
         ? { provider: next, retryWaiters: new Set(), continuationTail: Promise.resolve() }
         : undefined
@@ -372,6 +431,7 @@ export function createRealtimeSession(bridge: RealtimeEventBridge, scheduler: Re
       if (providerLease) cancelRetryLease(providerLease)
       if (transportSessionLease) cancelRetryLease(transportSessionLease)
       providerLease = undefined
+      acknowledgedProviderLease = undefined
       transportSessionLease = undefined
       applicationEventHandlers.clear()
       transportListeners.clear()

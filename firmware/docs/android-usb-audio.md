@@ -27,6 +27,8 @@ DockはUSB物理ブリッジの起動時に保存値を読み、起動設定の�
 application EVENT runtimeもhost起動時に作り、MOD有効化前に届いたタスク状態を保持する。
 この常駐runtimeはraw EVENT transport、タスク状態のsnapshot、会話要求の再送と結果照合を所有する。
 Androidから`session.created`が先に届いても、MODが`activate()`して実際のtool providerを渡すまでは`session.update`を送らない。
+送信した`session.update`と同じ`event_id`を持つ`session.updated`をAndroidから受信した時点で、そのprovider世代のtool callを受け付ける。
+再activateからこの確認までに届いたfunction callは、旧providerの遅延eventと区別できないため実行しない。
 承認session、tool provider、会話状態ハンドラ、状態表示はactivationごとに作成し、`deactivate()`で破棄する。
 `flash:android-usb-audio`は書き込み後にserial monitorを起動せず、CDCポートをAndroid向けに解放する。
 ビルドコマンドは、通常版と診断版のmanifestを切り替えた場合に同じtargetの生成物を自動消去してから再構築する。
@@ -48,7 +50,8 @@ USB機能を使うMODは、状態購読や会話要求より前に`remoteSession
 application EVENT runtimeと物理USBブリッジは再activateでも再利用し、host終了時に一度だけ閉じる。
 Realtimeのraw transport handler、タスク状態のsnapshot、会話application event handlerを再利用し、承認のapplication event handlerとtool providerは再利用しない。
 非同期function toolの結果と`session.update`はprovider leaseへ所属させ、lease終了後に解決または送信待ちとなったeventを後続activationへ送らない。
-tool結果の`conversation.item.create`と`response.create`は同じ送信slotで順序を固定し、前者のqueue後に後者だけが失敗した場合は前者を重複させず後者だけを再送する。
+tool結果の`conversation.item.create`と`response.create`は個別の送信slotで順序を固定し、前者のqueue後に後者だけが失敗した場合は前者を重複させず後者だけを再送する。
+`response.create`の再送待ちは共有送信queueを保持せず、後続の会話制御eventとfunction outputを塞がない。
 この寿命分離により、inactive中に届いた最新のタスク状態も次のactivate時に表示できる。
 inactive時の`requestStart()`と`requestStop()`は要求を保留せず例外を投げる。
 

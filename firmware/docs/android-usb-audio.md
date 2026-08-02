@@ -25,7 +25,9 @@ DockはUSB物理ブリッジの起動時に保存値を読み、起動設定の�
 標準CoreS3 manifestにもUSB dockは組み込まれるが、`autoStart=false`であるためMODが`activate()`するまで論理セッションを起動しない。
 標準CoreS3 manifestでも、USBSerialとworkerを含む物理USBブリッジはhost起動時に一度だけ確保する。
 application EVENT runtimeもhost起動時に作り、MOD有効化前に届いたタスク状態を保持する。
-`autoStart=false`が遅延させる対象は、contextとtool providerの関連付け、会話状態ハンドラ、状態表示である。
+この常駐runtimeが所有するのはraw EVENT transportとタスク状態のsnapshotだけである。
+Androidから`session.created`が先に届いても、MODが`activate()`して実際のtool providerを渡すまでは`session.update`を送らない。
+会話session、承認session、tool provider、会話状態ハンドラ、状態表示はactivationごとに作成し、`deactivate()`で破棄する。
 `flash:android-usb-audio`は書き込み後にserial monitorを起動せず、CDCポートをAndroid向けに解放する。
 ビルドコマンドは、通常版と診断版のmanifestを切り替えた場合に同じtargetの生成物を自動消去してから再構築する。
 これにより、直前に使ったmanifestの音量や診断capabilityが残らない。
@@ -43,6 +45,7 @@ USB機能を使うMODは、状態購読や会話要求より前に`remoteSession
 `activate()`は冪等であり、成功後の`activationState`は`active`になる。
 `deactivate()`は会話状態ハンドラと状態表示の購読を外し、同じfacadeを再びactivateできる状態へ戻す。
 application EVENT runtimeと物理USBブリッジは再activateでも再利用し、host終了時に一度だけ閉じる。
+Realtimeのraw transport handlerとタスク状態のsnapshotも再利用するが、会話・承認のapplication event handlerとtool providerは再利用しない。
 この寿命分離により、inactive中に届いた最新のタスク状態も次のactivate時に表示できる。
 inactive時の`requestStart()`と`requestStop()`は要求を保留せず例外を投げる。
 

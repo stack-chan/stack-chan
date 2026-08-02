@@ -452,19 +452,23 @@ release build同士のA/B比較が、初期化順序だけでHELLO応答の成�
 
 現行設計では、物理USBブリッジを`StackchanDock.start()`で一度だけ作り、host終了まで所有する。
 
-application EVENT runtimeも同じ時点で作り、contextとMODの準備より先にEVENT handlerを登録する。
+application EVENT runtimeも同じ時点で作り、contextとMODの準備より先にraw EVENT handlerとtask sessionを登録する。
 
 物理ブリッジのHELLOはcontext作成より先に成立し得るため、EVENT runtimeまでactivation期間へ限定すると、最初の`task.status`を失う競合が生じる。
 
 EVENT runtime内のtask sessionは最新状態をsnapshotとして保持する。
 
-`activate()`はcontextとtool providerを初回だけ関連付け、status handler、presentation、task state listenerを設定する。
+raw Realtime eventで`session.created`を受信しても、activeなtool providerが存在しない間は`session.update`とfunction callを処理しない。
 
-`deactivate()`はstatus handler、presentation、task state listenerを外すが、EVENT runtimeと物理USBブリッジを閉じない。
+`activate()`はconversation session、approval session、対応するapplication event handlerを新しく作り、contextとtool providerをそのactivationだけに関連付ける。
+
+その後にstatus handler、presentation、task state listenerを設定する。
+
+`deactivate()`はstatus handler、presentation、task state listenerに加えて、conversation session、approval session、tool providerとそのhandlerを外すが、raw EVENT runtime、task session、物理USBブリッジは閉じない。
 
 inactive中に更新されたタスク状態は、次のactivate時にpresentationへ即時再送する。
 
-再activateは同じEVENT runtime、bridge、USBSerial driverを再利用する。
+再activateは同じraw EVENT runtime、task session、bridge、USBSerial driverを再利用し、会話・承認sessionとtool providerだけを作り直す。
 
 hostの`lifecycle.close()`はfacade、EVENT runtime、物理ブリッジの順に一度だけ閉じる。
 

@@ -38,7 +38,7 @@ export type RealtimeEventBridge = {
 
 export type RealtimeSession = {
   readonly transportState: RemoteConversationTransportState
-  setProvider(provider: RealtimeToolProvider): void
+  setProvider(provider?: RealtimeToolProvider): void
   addApplicationEventHandler(handler: (event: StackchanInboundApplicationEvent) => boolean): () => void
   sendApplicationEvent(event: StackchanOutboundApplicationEvent): Promise<RealtimeEventSendResult>
   subscribeTransport(listener: (state: RemoteConversationTransportState) => void): () => void
@@ -46,7 +46,7 @@ export type RealtimeSession = {
 }
 
 export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSession {
-  let provider: RealtimeToolProvider = { tools: [] }
+  let provider: RealtimeToolProvider | undefined
   let androidSessionCreated = false
   let transportState: RemoteConversationTransportState = 'disconnected'
   let sendTail: Promise<void> = Promise.resolve()
@@ -64,7 +64,7 @@ export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSess
     return result
   }
   const updateSession = (): Promise<RealtimeEventSendResult> | undefined => {
-    if (!androidSessionCreated) return
+    if (!androidSessionCreated || !provider) return
     return send({
       type: 'session.update',
       event_id: nextId('session'),
@@ -115,6 +115,10 @@ export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSess
     }
   }
   const executeFunction = async (event: Record<string, unknown>) => {
+    if (!provider) {
+      log('[remote-session] ignored function call while the control session is inactive\n')
+      return
+    }
     const callId = typeof event.call_id === 'string' ? event.call_id : ''
     const name = typeof event.name === 'string' ? event.name : ''
     const tool = provider.tools.find(
@@ -163,6 +167,7 @@ export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSess
     },
     setProvider(next) {
       provider = next
+      if (!provider) return
       const result = updateSession()
       if (result) {
         void result.catch((error) => {
@@ -188,6 +193,7 @@ export function createRealtimeSession(bridge: RealtimeEventBridge): RealtimeSess
       bridge.setEventHandler(undefined)
       bridge.setTransportStateHandler(undefined)
       androidSessionCreated = false
+      provider = undefined
       applicationEventHandlers.clear()
       transportListeners.clear()
     },

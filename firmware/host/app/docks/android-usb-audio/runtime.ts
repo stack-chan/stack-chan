@@ -44,10 +44,14 @@ export type UsbAudioConfig = UsbAudioBridgeOptions & {
 
 type StartUsbAudioBridge<Status> = (options?: UsbAudioBridgeOptions) => UsbAudioBridgeControl<Status>
 
-export type UsbAudioRemoteRuntime = {
+export type UsbAudioRemoteActivation = {
   readonly remoteConversationSession: RemoteConversationSessionDelegate
-  onContextCreated(context: StackchanContext, provider: RealtimeToolProvider): void
   updateConversationState(state: RemoteConversationState, error?: string): void
+  close(): void
+}
+
+export type UsbAudioRemoteRuntime = {
+  activate(context: StackchanContext, provider: RealtimeToolProvider): UsbAudioRemoteActivation
   subscribeTaskState(listener: (state: TaskExecutionState) => void): () => void
   close(): void
 }
@@ -102,7 +106,6 @@ export function createUsbAudioDockRuntime<Status>(
   }
   let context: StackchanContext | undefined
   let contextAttached = false
-  let remoteRuntimeContextAttached = false
   let closed = false
   const facade = createRemoteConversationSessionFacade(createActiveBinding)
 
@@ -111,14 +114,13 @@ export function createUsbAudioDockRuntime<Status>(
       throw new Error('USB audio Dock cannot activate before the Stack-chan context is attached')
     }
 
+    const remoteActivation = remoteRuntime.activate(context, dependencies.createRealtimeToolProvider(context))
     let presentation: UsbAudioPresentationControl | undefined
     let removeTaskStateListener: (() => void) | undefined
     try {
-      if (!remoteRuntimeContextAttached) {
-        remoteRuntime.onContextCreated(context, dependencies.createRealtimeToolProvider(context))
-        remoteRuntimeContextAttached = true
-      }
-      bridge.setStatusHandler((status) => remoteRuntime.updateConversationState(dependencies.conversationState(status)))
+      bridge.setStatusHandler((status) =>
+        remoteActivation.updateConversationState(dependencies.conversationState(status)),
+      )
       if (usbAudio.presentationEnabled !== false) {
         presentation = dependencies.createPresentation(context)
         bridge.setPresentation(presentation)
@@ -126,22 +128,22 @@ export function createUsbAudioDockRuntime<Status>(
       }
     } catch (error) {
       try {
-        closeActiveResources(bridge, presentation, removeTaskStateListener)
+        closeActiveResources(bridge, presentation, removeTaskStateListener, remoteActivation)
       } catch (closeError) {
         log(`[dock] activation cleanup failed: ${errorMessage(closeError)}\n`)
       }
       throw error
     }
-
     const activePresentation = presentation
     const removeActiveTaskStateListener = removeTaskStateListener
+    const activeRemoteActivation = remoteActivation
     let activeClosed = false
     return {
-      remoteSession: remoteRuntime.remoteConversationSession,
+      remoteSession: activeRemoteActivation.remoteConversationSession,
       close() {
         if (activeClosed) return
         activeClosed = true
-        closeActiveResources(bridge, activePresentation, removeActiveTaskStateListener)
+        closeActiveResources(bridge, activePresentation, removeActiveTaskStateListener, activeRemoteActivation)
       },
     }
   }
@@ -193,6 +195,7 @@ function closeActiveResources<Status>(
   bridge: UsbAudioBridgeControl<Status> | undefined,
   presentation: UsbAudioPresentationControl | undefined,
   removeTaskStateListener?: () => void,
+  remoteActivation?: UsbAudioRemoteActivation,
 ): void {
   let firstError: unknown
   let failed = false
@@ -211,6 +214,7 @@ function closeActiveResources<Status>(
   }
   if (removeTaskStateListener) attempt(removeTaskStateListener)
   if (presentation) attempt(() => presentation.close())
+  if (remoteActivation) attempt(() => remoteActivation.close())
   if (failed) throw firstError
 }
 

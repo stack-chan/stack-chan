@@ -97,7 +97,42 @@ test('realtime session correlates function output and requests continuation', as
   assert.equal(bridge.sent[1].type, 'response.create')
 })
 
-test('realtime session routes valid application events before raw Realtime handling', async () => {
+test('realtime session ignores function calls while no activation owns a provider', async () => {
+  const bridge = new FakeBridge()
+  const session = createRealtimeSession(bridge)
+  let executions = 0
+  const provider = {
+    tools: [
+      {
+        type: 'function' as const,
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => {
+          executions += 1
+          return { ok: true }
+        },
+      },
+    ],
+  }
+  const functionCall = {
+    type: 'response.function_call_arguments.done',
+    call_id: 'call-inactive',
+    name: 'set_led',
+    arguments: '{}',
+  }
+
+  bridge.receive(functionCall)
+  session.setProvider(provider)
+  session.setProvider(undefined)
+  bridge.receive(functionCall)
+  await flushTasks()
+
+  assert.equal(executions, 0)
+  assert.deepEqual(bridge.sent, [])
+})
+
+test('realtime session routes application events but defers session.update until activation', async () => {
   const bridge = new FakeBridge()
   const session = createRealtimeSession(bridge)
   const received: string[] = []
@@ -121,7 +156,14 @@ test('realtime session routes valid application events before raw Realtime handl
 
   assert.equal(received.length, 1)
   assert.equal(received[0], 'approval.request')
+  assert.equal(bridge.sent.length, 0)
+
+  session.setProvider({ instructions: 'activation instructions', tools: [] })
+  await flushTasks()
+
+  assert.equal(bridge.sent.length, 1)
   assert.equal(bridge.sent[0].type, 'session.update')
+  assert.equal((bridge.sent[0].session as { instructions: string }).instructions, 'activation instructions')
 })
 
 test('realtime session composes approval and conversation handlers without one swallowing the other', () => {

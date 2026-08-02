@@ -132,6 +132,53 @@ test('realtime session ignores function calls while no activation owns a provide
   assert.deepEqual(bridge.sent, [])
 })
 
+test('realtime session discards a tool result after its activation lease ends', async () => {
+  const bridge = new FakeBridge()
+  const session = createRealtimeSession(bridge)
+  let resolveTool!: (value: unknown) => void
+  let executionStarted = false
+  const toolResult = new Promise<unknown>((resolve) => {
+    resolveTool = resolve
+  })
+  session.setProvider({
+    instructions: 'first activation',
+    tools: [
+      {
+        type: 'function',
+        name: 'wait_for_result',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => {
+          executionStarted = true
+          return toolResult
+        },
+      },
+    ],
+  })
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
+  bridge.sent.length = 0
+
+  bridge.receive({
+    type: 'response.function_call_arguments.done',
+    call_id: 'call-from-first-activation',
+    name: 'wait_for_result',
+    arguments: '{}',
+  })
+  await flushTasks()
+  assert.equal(executionStarted, true)
+
+  session.setProvider(undefined)
+  session.setProvider({ instructions: 'second activation', tools: [] })
+  await flushTasks()
+  resolveTool({ stale: true })
+  await flushTasks()
+
+  assert.equal(bridge.sent.length, 1)
+  assert.equal(bridge.sent[0].type, 'session.update')
+  assert.equal((bridge.sent[0].session as { instructions: string }).instructions, 'second activation')
+})
+
 test('realtime session routes application events but defers session.update until activation', async () => {
   const bridge = new FakeBridge()
   const session = createRealtimeSession(bridge)

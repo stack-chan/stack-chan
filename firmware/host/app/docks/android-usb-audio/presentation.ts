@@ -1,6 +1,7 @@
 import type { StackchanContext, UIEffect } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Container, Content, Label, Skin, Style } from 'piu/MC'
+import type { TaskExecutionState } from 'stackchan-application-event'
 import {
   formatUsbAudioCaption,
   USB_AUDIO_MOUTH_STEP,
@@ -8,7 +9,6 @@ import {
   usbAudioStatusVisual,
   usbTaskStatusVisual,
 } from 'stackchan-usb-dock-presentation-model'
-import type { TaskExecutionState } from 'stackchan-application-event'
 import { StackChanStatus } from 'stackchan-usb-media-session'
 import Timer from 'timer'
 

@@ -4,8 +4,8 @@ import type {
   RemoteConversationState,
   StackchanContext,
 } from 'capabilities'
-import type { RealtimeToolProvider } from 'stackchan-realtime-session'
 import type { TaskExecutionState } from 'stackchan-application-event'
+import type { RealtimeToolProvider } from 'stackchan-realtime-session'
 import {
   createRemoteConversationSessionFacade,
   type RemoteConversationSessionBinding,

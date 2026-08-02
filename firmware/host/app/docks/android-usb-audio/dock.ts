@@ -1,7 +1,7 @@
+import loadPreferences from 'loadPreference'
 import type { StackchanContext } from 'capabilities'
 import { DOMAIN } from 'consts'
 import type { StackchanDock } from 'dock'
-import loadPreferences from 'loadPreference'
 import config from 'mc/config'
 import Modules from 'modules'
 import type { RealtimeToolProvider } from 'stackchan-realtime-session'

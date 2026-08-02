@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { RemoteConversationTransportState } from 'capabilities'
-import type { StackchanInboundApplicationEvent } from './application-event.js'
 import { installRemoteSessionTestAliases } from './__tests__/node-aliases.js'
+import type { StackchanInboundApplicationEvent } from './application-event.js'
 import type { TaskSessionTransport } from './task-session.js'
 
 installRemoteSessionTestAliases()

@@ -1,0 +1,10 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../manifest_wasm.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./wasm-preference-xs.test"
+  }
+}

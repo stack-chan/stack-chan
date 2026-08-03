@@ -6,11 +6,16 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value))
 }
 
+function finiteVolumeNumber(value: unknown): number | undefined {
+  const candidate = typeof value === 'string' && value.trim().length > 0 ? Number(value) : value
+  return typeof candidate === 'number' && Number.isFinite(candidate) ? candidate : undefined
+}
+
 export function normalizeVolume(value: unknown, fallback = DEFAULT_VOLUME): number {
   const normalizedFallback =
     typeof fallback === 'number' && Number.isFinite(fallback) ? clamp(fallback, 0, 1) : DEFAULT_VOLUME
-  if (typeof value !== 'number' || !Number.isFinite(value)) return normalizedFallback
-  return clamp(value, 0, 1)
+  const numericValue = finiteVolumeNumber(value)
+  return numericValue === undefined ? normalizedFallback : clamp(numericValue, 0, 1)
 }
 
 export function volumeToPercent(value: unknown, fallback = DEFAULT_VOLUME): number {
@@ -26,4 +31,20 @@ export function volumePercentToValue(percent: unknown, fallback = DEFAULT_VOLUME
 
 export function canonicalizeVolume(value: unknown, fallback = DEFAULT_VOLUME): number {
   return volumePercentToValue(volumeToPercent(value, fallback), fallback)
+}
+
+export type VolumePreferenceResolution = Readonly<{
+  volume: number
+  storageValue: string
+  needsWrite: boolean
+}>
+
+export function resolveVolumePreference(value: unknown, fallback = DEFAULT_VOLUME): VolumePreferenceResolution {
+  const volume = canonicalizeVolume(value, fallback)
+  const storageValue = String(volume)
+  return {
+    volume,
+    storageValue,
+    needsWrite: typeof value !== 'string' || storageValue !== value,
+  }
 }

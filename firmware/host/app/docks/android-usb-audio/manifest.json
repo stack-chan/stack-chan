@@ -8,6 +8,7 @@
     "stackchan-realtime-session": "../../remote-session/realtime-session",
     "stackchan-remote-session-facade": "../../remote-session/facade",
     "stackchan-remote-session-runtime": "../../remote-session/runtime",
+    "stackchan-task-session": "../../remote-session/task-session",
     "stackchan-usb-dock-presentation": "./presentation",
     "stackchan-usb-dock-presentation-model": "./presentation-model",
     "stackchan-usb-dock-runtime": "./runtime"

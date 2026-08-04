@@ -19,8 +19,20 @@ npm run flash:android-usb-audio
 
 専用manifestは`host/app/manifest_android_usb_audio.json`である。
 このmanifestは標準CoreS3構成を読み込み、`config.usbAudio.autoStart=true`でUSB dockを自動起動する。
-通常再生時の`AudioOut.volume`は`0.25`に固定する。
-標準CoreS3 manifestにもUSB dockは組み込まれるが、`autoStart=false`であるためMODが`activate()`するまでUSB音声ブリッジを起動しない。
+通常再生時の`AudioOut.volume`は、起動設定で保存した`tts.volume`を使う。
+DockはUSB物理ブリッジの起動時に保存値を読み、起動設定の終了後に再読込して同じboot中の変更も反映する。
+診断manifestは明示的な`config.usbAudio.speakerVolume=0`を優先し、無音を維持する。
+標準CoreS3 manifestにもUSB dockは組み込まれるが、`autoStart=false`であるためMODが`activate()`するまで論理セッションを起動しない。
+標準CoreS3 manifestでも、USBSerialとworkerを含む物理USBブリッジはhost起動時に一度だけ確保する。
+application EVENT runtimeもhost起動時に作り、MOD有効化前に届いたタスク状態を保持する。
+この常駐runtimeはraw EVENT transport、タスク状態のsnapshot、会話要求の再送と結果照合を所有する。
+Androidから`session.created`が先に届いても、MODが`activate()`して実際のtool providerを渡すまでは`session.update`を送らない。
+送信した`session.update`と同じ`event_id`を持つ`session.updated`をAndroidから受信した時点で、そのprovider世代のtool callを受け付ける。
+`session.update`が一時的に送信queueへ入らない場合は、同じprovider・transport世代が有効な間、同じ`event_id`で再送する。
+AndroidはLLM応答開始時のtool catalogをsnapshotし、function callへその世代をStack-chan拡張field `stackchan_session_update_id`として付ける。
+確認前のcallに加え、確認後でも`stackchan_session_update_id`が現在の`session.updated.event_id`と一致しないcallは実行しない。
+このfieldを送らない旧Androidとはfunction tool非互換である。
+承認session、tool provider、会話状態ハンドラ、状態表示はactivationごとに作成し、`deactivate()`で破棄する。
 `flash:android-usb-audio`は書き込み後にserial monitorを起動せず、CDCポートをAndroid向けに解放する。
 ビルドコマンドは、通常版と診断版のmanifestを切り替えた場合に同じtargetの生成物を自動消去してから再構築する。
 これにより、直前に使ったmanifestの音量や診断capabilityが残らない。
@@ -33,17 +45,24 @@ npm run flash:android-usb-audio
 M5StackChan CoreS3用manifestは、このモジュール名をUSB Dock実装へ割り当てる。
 共有host manifestとWASM版はUSB transport、remote session、承認画面をbundleしない。
 
-標準CoreS3 hostの`robot.conversation.remoteSession`は、USB bridgeをまだ起動していないinactive状態から始まる。
+標準CoreS3 hostの`robot.conversation.remoteSession`は、会話表示をまだ有効化していないinactive状態から始まる。
 USB機能を使うMODは、状態購読や会話要求より前に`remoteSession.activate()`を呼ぶ。
 `activate()`は冪等であり、成功後の`activationState`は`active`になる。
-`deactivate()`はWorker、音声入出力、remote session runtime、状態表示を解放し、同じfacadeを再びactivateできる状態へ戻す。
+`deactivate()`は`conversation.stop`を常駐会話制御sessionへ先にqueueし、会話状態ハンドラと状態表示の購読を外して、同じfacadeを再びactivateできる状態へ戻す。
+停止要求の再送と`conversation.result`の照合はactivation bindingを閉じた後も常駐会話制御sessionが継続する。
+application EVENT runtimeと物理USBブリッジは再activateでも再利用し、host終了時に一度だけ閉じる。
+Realtimeのraw transport handler、タスク状態のsnapshot、会話application event handlerを再利用し、承認のapplication event handlerとtool providerは再利用しない。
+非同期function toolの結果と`session.update`はprovider leaseへ所属させ、lease終了後に解決または送信待ちとなったeventを後続activationへ送らない。
+tool結果の`conversation.item.create`と`response.create`は個別の送信slotで順序を固定し、前者のqueue後に後者だけが失敗した場合は前者を重複させず後者だけを再送する。
+`response.create`の再送待ちは共有送信queueを保持せず、後続の会話制御eventとfunction outputを塞がない。
+この寿命分離により、inactive中に届いた最新のタスク状態も次のactivate時に表示できる。
 inactive時の`requestStart()`と`requestStop()`は要求を保留せず例外を投げる。
 
 Dock内部は次の三つの契約に分かれる。
 
 - **wire transport**：CDC上のframe、CRC32、分割EVENTを扱う。
 - **media session**：マイク、スピーカー、credit、stream IDの状態を扱う。
-- **application event**：音声会話と承認要求のJSONを扱う。
+- **application event**：音声会話、承認要求、バックグラウンドタスク状態のJSONを扱う。
 
 MODへ公開する境界は`robot.conversation.remoteSession`である。
 raw CDC、frame、application eventはMODとmini-appへ公開しない。
@@ -62,6 +81,8 @@ USB未接続時の会話要求は同じrequest IDを最大10秒間保持し、`r
 ## 動作
 
 FirmwareはCore 1の高優先度WorkerでUSB Serial/JTAGのreadable callbackを処理し、HELLO後に音声制御を受け付ける。
+USBSerialはnative RX ringに32 KiB、TX ringに16 KiBの内部RAMを必要とする。
+この連続領域をWi-Fi、UI、runtime contextの構築後に要求するとドライバのinstallに失敗するため、Dockは物理USBブリッジをhost起動時に確保する。
 低層の`USBSerial`はECMA-419 IO Class Patternに沿い、`read`、`write`、`format`、`onReadable`、`onWritable`、`onError`、`close`を提供する。
 USB接続はESP-IDFの`usb_serial_jtag_is_connected()`が検出するSOFで判定する。
 単発のSOF欠落ではHELLOとstatusを破棄せず、100 ms連続して未接続を観測した時点で切断を確定する。
@@ -90,6 +111,8 @@ Firmwareは実際にそのPCMを`AudioOut`へ渡す時点で、最大2行の吹�
 再生中はまばたき、呼吸、視線移動を停止し、PCMのRMSを0.1刻み、125 ms間隔で口の開きへ反映する。
 再生終了または中断時は吹き出しと口の開きを消去し、自律表情を再開する。
 Androidから認識中状態を受けた場合は回転インジケーターを表示し、発話中はスピーカーアイコンを表示する。
+Codexのバックグラウンドタスクが実行中の場合は、会話状態とは独立した青色の回転インジケーターを併記する。
+USB EVENT transportが切断された場合は、残留表示を防ぐためタスク状態をidleへ戻す。
 画面表示を無効にした診断manifestでもstatus handlerは維持し、会話状態を`remoteSession`へ転送する。
 
 ## wire protocol version 2
@@ -177,10 +200,12 @@ application eventは`schema: "stackchan.event.v1"`を持つJSON objectである�
 | `approval.suspended` | AndroidからDock | `requestId` |
 | `approval.presented` | DockからAndroid | `requestId` |
 | `approval.response` | DockからAndroid | `requestId`、`decision` |
+| `task.status` | AndroidからDock | `requestId`、`state`（`running`または`idle`） |
 
 `conversation.result.state`は`standby`、`connecting`、`listening`、`recognizing`、`speaking`、`blocked`のいずれかである。
 `approval.request.kind`は`command`または`fileChange`である。
 `approval.response.decision`は`approve`または`decline`である。
+`task.status`は音声ターンと独立したCodex threadの実行状態を表し、受信側は最新値をsnapshotとして保持する。
 schemaが一致していてもtypeまたはfieldが不正なmessageは破棄し、Realtime API eventとして処理しない。
 
 ## 契約テストベクター

@@ -4,6 +4,7 @@ import type {
   RemoteConversationState,
   StackchanContext,
 } from 'capabilities'
+import type { TaskExecutionState } from 'stackchan-application-event'
 import type { RealtimeToolProvider } from 'stackchan-realtime-session'
 import {
   createRemoteConversationSessionFacade,
@@ -12,6 +13,7 @@ import {
 
 export type UsbAudioPresentationControl = {
   onStatusChanged(status: number): void
+  onTaskStateChanged(state: TaskExecutionState): void
   onPlaybackStarted(): void
   onPlaybackPower(power: number): void
   onPlaybackText(text: string): void
@@ -20,6 +22,7 @@ export type UsbAudioPresentationControl = {
 }
 
 export type UsbAudioBridgeControl<Status> = {
+  setSpeakerVolume(volume: number): void
   setEventHandler(handler?: (event: string) => void): void
   setTransportStateHandler(handler?: (state: 'disconnected' | 'unsupported' | 'ready') => void): void
   sendEvent(event: string): Promise<'queued' | 'overflow' | 'disconnected' | 'unsupported'>
@@ -41,10 +44,15 @@ export type UsbAudioConfig = UsbAudioBridgeOptions & {
 
 type StartUsbAudioBridge<Status> = (options?: UsbAudioBridgeOptions) => UsbAudioBridgeControl<Status>
 
-export type UsbAudioRemoteRuntime = {
+export type UsbAudioRemoteActivation = {
   readonly remoteConversationSession: RemoteConversationSessionDelegate
-  onContextCreated(context: StackchanContext, provider: RealtimeToolProvider): void
   updateConversationState(state: RemoteConversationState, error?: string): void
+  close(): void
+}
+
+export type UsbAudioRemoteRuntime = {
+  activate(context: StackchanContext, provider: RealtimeToolProvider): UsbAudioRemoteActivation
+  subscribeTaskState(listener: (state: TaskExecutionState) => void): () => void
   close(): void
 }
 
@@ -61,12 +69,41 @@ export type UsbAudioDockDependencies<Status> = {
   createRealtimeToolProvider(context: StackchanContext): RealtimeToolProvider
   createPresentation(context: StackchanContext): UsbAudioPresentationControl
   conversationState(status: Status): RemoteConversationState
+  resolveSpeakerVolume?(): number
 }
 
 export function createUsbAudioDockRuntime<Status>(
   usbAudio: UsbAudioConfig,
   dependencies: UsbAudioDockDependencies<Status>,
 ): UsbAudioDockRuntime {
+  if (!dependencies.hasUsbAudioModule()) {
+    throw new Error('USB audio Dock is enabled, but the stackchan-usb-audio module is unavailable')
+  }
+  const startUsbAudioBridge = dependencies.importUsbAudioModule()
+  if (typeof startUsbAudioBridge !== 'function') {
+    throw new Error('stackchan-usb-audio does not export a bridge starter')
+  }
+  // USBSerial installs native RX/TX rings from internal RAM. Reserve that
+  // physical transport while boot memory is still contiguous. The EVENT
+  // runtime shares its lifetime so pre-activation task snapshots are retained;
+  // context binding and presentation remain activation-gated below.
+  const bridge = (startUsbAudioBridge as StartUsbAudioBridge<Status>)({
+    speakerVolume: usbAudio.speakerVolume,
+    diagnostics: usbAudio.diagnostics,
+  })
+  let remoteRuntime: UsbAudioRemoteRuntime
+  try {
+    // Keep application EVENT routing alive with the physical transport so a
+    // task snapshot received before MOD activation is not lost.
+    remoteRuntime = dependencies.createRemoteRuntime(bridge)
+  } catch (error) {
+    try {
+      bridge.close()
+    } catch (closeError) {
+      log(`[dock] bridge close failed during startup cleanup: ${errorMessage(closeError)}\n`)
+    }
+    throw error
+  }
   let context: StackchanContext | undefined
   let contextAttached = false
   let closed = false
@@ -76,50 +113,37 @@ export function createUsbAudioDockRuntime<Status>(
     if (!contextAttached || !context) {
       throw new Error('USB audio Dock cannot activate before the Stack-chan context is attached')
     }
-    if (!dependencies.hasUsbAudioModule()) {
-      throw new Error('USB audio Dock is enabled, but the stackchan-usb-audio module is unavailable')
-    }
-    const startUsbAudioBridge = dependencies.importUsbAudioModule()
-    if (typeof startUsbAudioBridge !== 'function') {
-      throw new Error('stackchan-usb-audio does not export a bridge starter')
-    }
 
-    let bridge: UsbAudioBridgeControl<Status> | undefined
-    let remoteRuntime: UsbAudioRemoteRuntime | undefined
+    const remoteActivation = remoteRuntime.activate(context, dependencies.createRealtimeToolProvider(context))
     let presentation: UsbAudioPresentationControl | undefined
+    let removeTaskStateListener: (() => void) | undefined
     try {
-      bridge = (startUsbAudioBridge as StartUsbAudioBridge<Status>)({
-        speakerVolume: usbAudio.speakerVolume,
-        diagnostics: usbAudio.diagnostics,
-      })
-      remoteRuntime = dependencies.createRemoteRuntime(bridge)
-      remoteRuntime.onContextCreated(context, dependencies.createRealtimeToolProvider(context))
       bridge.setStatusHandler((status) =>
-        remoteRuntime?.updateConversationState(dependencies.conversationState(status)),
+        remoteActivation.updateConversationState(dependencies.conversationState(status)),
       )
       if (usbAudio.presentationEnabled !== false) {
         presentation = dependencies.createPresentation(context)
         bridge.setPresentation(presentation)
+        removeTaskStateListener = remoteRuntime.subscribeTaskState((state) => presentation?.onTaskStateChanged(state))
       }
     } catch (error) {
       try {
-        closeActiveResources(bridge, remoteRuntime, presentation)
+        closeActiveResources(bridge, presentation, removeTaskStateListener, remoteActivation)
       } catch (closeError) {
         log(`[dock] activation cleanup failed: ${errorMessage(closeError)}\n`)
       }
       throw error
     }
-
-    const activeBridge = bridge
-    const activeRemoteRuntime = remoteRuntime
     const activePresentation = presentation
+    const removeActiveTaskStateListener = removeTaskStateListener
+    const activeRemoteActivation = remoteActivation
     let activeClosed = false
     return {
-      remoteSession: activeRemoteRuntime.remoteConversationSession,
+      remoteSession: activeRemoteActivation.remoteConversationSession,
       close() {
         if (activeClosed) return
         activeClosed = true
-        closeActiveResources(activeBridge, activeRemoteRuntime, activePresentation)
+        closeActiveResources(bridge, activePresentation, removeActiveTaskStateListener, activeRemoteActivation)
       },
     }
   }
@@ -129,6 +153,9 @@ export function createUsbAudioDockRuntime<Status>(
     onContextCreated(nextContext) {
       if (closed) throw new Error('USB audio Dock runtime is closed')
       if (contextAttached) throw new Error('USB audio Dock context is already attached')
+      if (dependencies.resolveSpeakerVolume) {
+        bridge.setSpeakerVolume(dependencies.resolveSpeakerVolume())
+      }
       context = nextContext
       contextAttached = true
       if (usbAudio.autoStart) {
@@ -143,15 +170,32 @@ export function createUsbAudioDockRuntime<Status>(
       if (closed) return
       closed = true
       context = undefined
-      facade.close()
+      let firstError: unknown
+      try {
+        facade.close()
+      } catch (error) {
+        firstError = error
+      }
+      try {
+        remoteRuntime.close()
+      } catch (error) {
+        firstError ??= error
+      }
+      try {
+        bridge.close()
+      } catch (error) {
+        firstError ??= error
+      }
+      if (firstError !== undefined) throw firstError
     },
   }
 }
 
 function closeActiveResources<Status>(
   bridge: UsbAudioBridgeControl<Status> | undefined,
-  remoteRuntime: UsbAudioRemoteRuntime | undefined,
   presentation: UsbAudioPresentationControl | undefined,
+  removeTaskStateListener?: () => void,
+  remoteActivation?: UsbAudioRemoteActivation,
 ): void {
   let firstError: unknown
   let failed = false
@@ -168,9 +212,9 @@ function closeActiveResources<Status>(
     attempt(() => bridge.setStatusHandler(undefined))
     attempt(() => bridge.setPresentation(undefined))
   }
+  if (removeTaskStateListener) attempt(removeTaskStateListener)
   if (presentation) attempt(() => presentation.close())
-  if (remoteRuntime) attempt(() => remoteRuntime.close())
-  if (bridge) attempt(() => bridge.close())
+  if (remoteActivation) attempt(() => remoteActivation.close())
   if (failed) throw firstError
 }
 

@@ -2,11 +2,33 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { RemoteConversationTransportState } from 'capabilities'
 import { installRemoteSessionTestAliases } from './__tests__/node-aliases.js'
-import type { RealtimeEventBridge, RealtimeEventSendResult } from './realtime-session.js'
+import type {
+  RealtimeEventBridge,
+  RealtimeEventSendResult,
+  RealtimeRetryScheduler,
+  RealtimeSession,
+  RealtimeToolProvider,
+} from './realtime-session.js'
 
 installRemoteSessionTestAliases()
 
-const { createRealtimeSession } = await import('./realtime-session.js')
+const { createRealtimeSession: createRealtimeSessionRuntime } = await import('./realtime-session.js')
+
+const realtimeRetryScheduler: RealtimeRetryScheduler = {
+  set(callback, milliseconds) {
+    return setTimeout(callback, milliseconds)
+  },
+  clear(handle) {
+    clearTimeout(handle as ReturnType<typeof setTimeout>)
+  },
+}
+
+function createRealtimeSession(
+  bridge: RealtimeEventBridge,
+  scheduler: RealtimeRetryScheduler = realtimeRetryScheduler,
+) {
+  return createRealtimeSessionRuntime(bridge, scheduler)
+}
 
 class FakeBridge implements RealtimeEventBridge {
   handler: ((event: string) => void) | undefined
@@ -39,6 +61,106 @@ class FakeBridge implements RealtimeEventBridge {
   }
 }
 
+class NextSendBlockingBridge extends FakeBridge {
+  #blocked: Promise<void> | undefined
+  #release: (() => void) | undefined
+
+  blockNextSend(): void {
+    if (this.#release) throw new Error('a send is already blocked')
+    this.#blocked = new Promise<void>((resolve) => {
+      this.#release = () => {
+        this.#release = undefined
+        resolve()
+      }
+    })
+  }
+
+  override sendEvent(event: string): Promise<RealtimeEventSendResult> {
+    this.sent.push(JSON.parse(event) as Record<string, unknown>)
+    const blocked = this.#blocked
+    if (!blocked) return Promise.resolve(this.sendResult)
+    this.#blocked = undefined
+    return blocked.then(() => this.sendResult)
+  }
+
+  releaseBlockedSend(): void {
+    if (!this.#release) throw new Error('no send is blocked')
+    this.#release()
+  }
+}
+
+class ResponseCreateRejectingBridge extends FakeBridge {
+  readonly attempted: Array<Record<string, unknown>> = []
+  #rejected = false
+
+  override sendEvent(serialized: string): Promise<RealtimeEventSendResult> {
+    const event = JSON.parse(serialized) as Record<string, unknown>
+    this.attempted.push(event)
+    if (event.type === 'response.create' && !this.#rejected) {
+      this.#rejected = true
+      return Promise.reject(new Error('worker send failed'))
+    }
+    this.sent.push(event)
+    return Promise.resolve(this.sendResult)
+  }
+}
+
+class ManualRetryScheduler implements RealtimeRetryScheduler {
+  #nextId = 0
+  #callbacks = new Map<number, () => void>()
+
+  set(callback: () => void): number {
+    const id = ++this.#nextId
+    this.#callbacks.set(id, callback)
+    return id
+  }
+
+  clear(handle: unknown): void {
+    this.#callbacks.delete(handle as number)
+  }
+
+  get pending(): number {
+    return this.#callbacks.size
+  }
+
+  runNext(): void {
+    const next = this.#callbacks.entries().next().value as [number, () => void] | undefined
+    if (!next) throw new Error('no retry is scheduled')
+    this.#callbacks.delete(next[0])
+    next[1]()
+  }
+}
+
+async function setAcknowledgedProvider(
+  session: RealtimeSession,
+  bridge: FakeBridge,
+  provider: RealtimeToolProvider,
+): Promise<string> {
+  session.setProvider(provider)
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
+  const update = [...bridge.sent].reverse().find((event) => event.type === 'session.update')
+  assert.ok(update)
+  const eventId = update.event_id
+  assert.equal(typeof eventId, 'string')
+  if (typeof eventId !== 'string') throw new Error('session.update event_id is missing')
+  bridge.receive({ type: 'session.updated', event_id: eventId, session: update.session })
+  await flushTasks()
+  bridge.sent.length = 0
+  if (bridge instanceof ResponseCreateRejectingBridge) bridge.attempted.length = 0
+  return eventId
+}
+
+function functionCall(sessionUpdateId: string, callId: string, name: string, arguments_ = '{}') {
+  return {
+    type: 'response.function_call_arguments.done',
+    stackchan_session_update_id: sessionUpdateId,
+    call_id: callId,
+    name,
+    arguments: arguments_,
+  }
+}
+
 test('realtime session sends the current tool catalog after session.created', async () => {
   const bridge = new FakeBridge()
   const session = createRealtimeSession(bridge)
@@ -65,10 +187,77 @@ test('realtime session sends the current tool catalog after session.created', as
   assert.equal('execute' in (sessionUpdate.tools[0] as object), false)
 })
 
+test('realtime session retries an undelivered provider generation until it is acknowledged', async () => {
+  const bridge = new FakeBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  let executions = 0
+  bridge.sendResult = 'overflow'
+  session.setProvider({
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => {
+          executions += 1
+          return { ok: true }
+        },
+      },
+    ],
+  })
+
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
+
+  assert.equal(bridge.sent.length, 1)
+  assert.equal(bridge.sent[0].type, 'session.update')
+  assert.equal(scheduler.pending, 1)
+  const eventId = bridge.sent[0].event_id
+  assert.equal(typeof eventId, 'string')
+  if (typeof eventId !== 'string') throw new Error('session.update event_id is missing')
+
+  bridge.sendResult = 'queued'
+  scheduler.runNext()
+  await flushTasks()
+
+  assert.equal(bridge.sent.length, 2)
+  assert.equal(bridge.sent[1].event_id, eventId)
+  assert.equal(scheduler.pending, 0)
+  bridge.receive({ type: 'session.updated', event_id: eventId, session: bridge.sent[1].session })
+  bridge.receive(functionCall(eventId, 'call-after-retry', 'set_led'))
+  await flushTasks()
+
+  assert.equal(executions, 1)
+})
+
+test('realtime session cancels an undelivered session.update with its provider lease', async () => {
+  const bridge = new FakeBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  bridge.sendResult = 'overflow'
+  session.setProvider({ instructions: 'retired provider', tools: [] })
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
+  assert.equal(scheduler.pending, 1)
+
+  session.setProvider(undefined)
+  await flushTasks()
+  assert.equal(scheduler.pending, 0)
+
+  bridge.sendResult = 'queued'
+  session.setProvider({ instructions: 'current provider', tools: [] })
+  await flushTasks()
+
+  assert.equal(bridge.sent.length, 2)
+  assert.equal((bridge.sent[1].session as { instructions: string }).instructions, 'current provider')
+})
+
 test('realtime session correlates function output and requests continuation', async () => {
   const bridge = new FakeBridge()
   const session = createRealtimeSession(bridge)
-  session.setProvider({
+  const sessionUpdateId = await setAcknowledgedProvider(session, bridge, {
     tools: [
       {
         type: 'function',
@@ -80,12 +269,7 @@ test('realtime session correlates function output and requests continuation', as
     ],
   })
 
-  bridge.receive({
-    type: 'response.function_call_arguments.done',
-    call_id: 'call-1',
-    name: 'set_led',
-    arguments: '{"color":"red"}',
-  })
+  bridge.receive(functionCall(sessionUpdateId, 'call-1', 'set_led', '{"color":"red"}'))
   await new Promise((resolve) => setTimeout(resolve, 0))
 
   assert.equal(bridge.sent[0].type, 'conversation.item.create')
@@ -97,7 +281,459 @@ test('realtime session correlates function output and requests continuation', as
   assert.equal(bridge.sent[1].type, 'response.create')
 })
 
-test('realtime session routes valid application events before raw Realtime handling', async () => {
+test('realtime session gates same-named tool calls on the acknowledged provider generation', async () => {
+  const bridge = new FakeBridge()
+  const session = createRealtimeSession(bridge)
+  let firstExecutions = 0
+  let secondExecutions = 0
+  const provider = (execute: () => unknown): RealtimeToolProvider => ({
+    tools: [
+      {
+        type: 'function',
+        name: 'shared_name',
+        description: '',
+        parameters: { type: 'object' },
+        execute,
+      },
+    ],
+  })
+  const firstUpdateId = await setAcknowledgedProvider(
+    session,
+    bridge,
+    provider(() => {
+      firstExecutions += 1
+      return { activation: 'first' }
+    }),
+  )
+  session.setProvider(undefined)
+  session.setProvider(
+    provider(() => {
+      secondExecutions += 1
+      return { activation: 'second' }
+    }),
+  )
+  await flushTasks()
+  const update = [...bridge.sent].reverse().find((event) => event.type === 'session.update')
+  assert.ok(update)
+  const secondUpdateId = update.event_id
+  assert.equal(typeof secondUpdateId, 'string')
+  if (typeof secondUpdateId !== 'string') throw new Error('second session.update event_id is missing')
+
+  bridge.receive(functionCall(firstUpdateId, 'delayed-old-call', 'shared_name'))
+  bridge.receive({ type: 'session.updated', event_id: 'stale-update' })
+  bridge.receive(functionCall(secondUpdateId, 'call-after-stale-ack', 'shared_name'))
+  await flushTasks()
+  assert.equal(firstExecutions, 0)
+  assert.equal(secondExecutions, 0)
+
+  bridge.receive({ type: 'session.updated', event_id: update.event_id, session: update.session })
+  await flushTasks()
+  bridge.receive(functionCall(firstUpdateId, 'old-response-after-current-ack', 'shared_name'))
+  bridge.receive(functionCall(secondUpdateId, 'call-after-current-ack', 'shared_name'))
+  await flushTasks()
+
+  assert.equal(firstExecutions, 0)
+  assert.equal(secondExecutions, 1)
+})
+
+test('realtime session retries only response.create after a partial function-result send', async () => {
+  const bridge = new ResponseCreateRejectingBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  const sessionUpdateId = await setAcknowledgedProvider(session, bridge, {
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  bridge.receive(functionCall(sessionUpdateId, 'call-with-retry', 'set_led'))
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.attempted.map((event) => event.type),
+    ['conversation.item.create', 'response.create'],
+  )
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create'],
+  )
+  assert.equal(scheduler.pending, 1)
+
+  scheduler.runNext()
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.attempted.map((event) => event.type),
+    ['conversation.item.create', 'response.create', 'response.create'],
+  )
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create', 'response.create'],
+  )
+  assert.equal(scheduler.pending, 0)
+})
+
+test('realtime session releases application sends while a continuation retry is waiting', async () => {
+  const bridge = new ResponseCreateRejectingBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  const sessionUpdateId = await setAcknowledgedProvider(session, bridge, {
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  bridge.receive(functionCall(sessionUpdateId, 'call-with-unblocked-control', 'set_led'))
+  await flushTasks()
+  assert.equal(scheduler.pending, 1)
+
+  const result = await session.sendApplicationEvent({
+    schema: 'stackchan.event.v1',
+    type: 'approval.presented',
+    requestId: 'control-while-retrying',
+  })
+
+  assert.equal(result, 'queued')
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create', 'approval.presented'],
+  )
+  session.setProvider(undefined)
+  await flushTasks()
+  assert.equal(scheduler.pending, 0)
+})
+
+test('realtime session serializes continuation loops without blocking later function outputs', async () => {
+  const bridge = new ResponseCreateRejectingBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  const sessionUpdateId = await setAcknowledgedProvider(session, bridge, {
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  for (const callId of ['first-call', 'second-call']) {
+    bridge.receive(functionCall(sessionUpdateId, callId, 'set_led'))
+  }
+  await flushTasks()
+
+  assert.equal(bridge.attempted.filter((event) => event.type === 'conversation.item.create').length, 2)
+  assert.equal(bridge.attempted.filter((event) => event.type === 'response.create').length, 1)
+  assert.equal(scheduler.pending, 1)
+
+  scheduler.runNext()
+  await flushTasks()
+
+  assert.equal(bridge.attempted.filter((event) => event.type === 'response.create').length, 3)
+  assert.equal(scheduler.pending, 0)
+})
+
+test('realtime session cancels continuation retries when the transport session changes', async () => {
+  const bridge = new ResponseCreateRejectingBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  const sessionUpdateId = await setAcknowledgedProvider(session, bridge, {
+    instructions: 'active provider',
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  bridge.receive(functionCall(sessionUpdateId, 'call-from-old-transport', 'set_led'))
+  await flushTasks()
+  assert.equal(scheduler.pending, 1)
+
+  bridge.setTransportState('disconnected')
+  bridge.setTransportState('ready')
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
+
+  assert.equal(scheduler.pending, 0)
+  assert.equal(bridge.attempted.filter((event) => event.type === 'response.create').length, 1)
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create', 'session.update'],
+  )
+})
+
+test('realtime session cancels a pending continuation retry when its provider lease ends', async () => {
+  const bridge = new ResponseCreateRejectingBridge()
+  const scheduler = new ManualRetryScheduler()
+  const session = createRealtimeSession(bridge, scheduler)
+  const sessionUpdateId = await setAcknowledgedProvider(session, bridge, {
+    tools: [
+      {
+        type: 'function',
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+
+  bridge.receive(functionCall(sessionUpdateId, 'call-cancelled-with-lease', 'set_led'))
+  await flushTasks()
+  assert.equal(scheduler.pending, 1)
+
+  session.setProvider(undefined)
+  await flushTasks()
+
+  assert.equal(scheduler.pending, 0)
+  assert.deepEqual(
+    bridge.attempted.map((event) => event.type),
+    ['conversation.item.create', 'response.create'],
+  )
+})
+
+test('realtime session ignores function calls while no activation owns a provider', async () => {
+  const bridge = new FakeBridge()
+  const session = createRealtimeSession(bridge)
+  let executions = 0
+  const provider = {
+    tools: [
+      {
+        type: 'function' as const,
+        name: 'set_led',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => {
+          executions += 1
+          return { ok: true }
+        },
+      },
+    ],
+  }
+  const functionCall = {
+    type: 'response.function_call_arguments.done',
+    call_id: 'call-inactive',
+    name: 'set_led',
+    arguments: '{}',
+  }
+
+  bridge.receive(functionCall)
+  session.setProvider(provider)
+  session.setProvider(undefined)
+  bridge.receive(functionCall)
+  await flushTasks()
+
+  assert.equal(executions, 0)
+  assert.deepEqual(bridge.sent, [])
+})
+
+test('realtime session discards a tool result after its activation lease ends', async () => {
+  const bridge = new FakeBridge()
+  const session = createRealtimeSession(bridge)
+  let resolveTool!: (value: unknown) => void
+  let executionStarted = false
+  const toolResult = new Promise<unknown>((resolve) => {
+    resolveTool = resolve
+  })
+  const sessionUpdateId = await setAcknowledgedProvider(session, bridge, {
+    instructions: 'first activation',
+    tools: [
+      {
+        type: 'function',
+        name: 'wait_for_result',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => {
+          executionStarted = true
+          return toolResult
+        },
+      },
+    ],
+  })
+  bridge.receive(functionCall(sessionUpdateId, 'call-from-first-activation', 'wait_for_result'))
+  await flushTasks()
+  assert.equal(executionStarted, true)
+
+  session.setProvider(undefined)
+  session.setProvider({ instructions: 'second activation', tools: [] })
+  await flushTasks()
+  resolveTool({ stale: true })
+  await flushTasks()
+
+  assert.equal(bridge.sent.length, 1)
+  assert.equal(bridge.sent[0].type, 'session.update')
+  assert.equal((bridge.sent[0].session as { instructions: string }).instructions, 'second activation')
+})
+
+test('realtime session rechecks the activation lease while function output waits in the send queue', async () => {
+  const bridge = new NextSendBlockingBridge()
+  const session = createRealtimeSession(bridge)
+  let executions = 0
+  const sessionUpdateId = await setAcknowledgedProvider(session, bridge, {
+    tools: [
+      {
+        type: 'function',
+        name: 'finish_immediately',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => {
+          executions += 1
+          return { ok: true }
+        },
+      },
+    ],
+  })
+  bridge.blockNextSend()
+  void session.sendApplicationEvent({
+    schema: 'stackchan.event.v1',
+    type: 'approval.presented',
+    requestId: 'queue-blocker',
+  })
+  await flushTasks()
+  assert.equal(bridge.sent.length, 1)
+
+  bridge.receive(functionCall(sessionUpdateId, 'queued-call', 'finish_immediately'))
+  await flushTasks()
+  assert.equal(executions, 1)
+  session.setProvider(undefined)
+  bridge.releaseBlockedSend()
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['approval.presented'],
+  )
+})
+
+test('realtime session discards a queued session.update after its provider lease ends', async () => {
+  const bridge = new NextSendBlockingBridge()
+  const session = createRealtimeSession(bridge)
+  bridge.blockNextSend()
+  void session.sendApplicationEvent({
+    schema: 'stackchan.event.v1',
+    type: 'approval.presented',
+    requestId: 'update-blocker',
+  })
+  await flushTasks()
+
+  session.setProvider({ instructions: 'retired activation', tools: [] })
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
+  session.setProvider(undefined)
+  bridge.releaseBlockedSend()
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['approval.presented'],
+  )
+})
+
+test('realtime session discards a queued session.update after its transport session ends', async () => {
+  const bridge = new NextSendBlockingBridge()
+  const session = createRealtimeSession(bridge)
+  session.setProvider({ instructions: 'persistent activation', tools: [] })
+  bridge.blockNextSend()
+  void session.sendApplicationEvent({
+    schema: 'stackchan.event.v1',
+    type: 'approval.presented',
+    requestId: 'transport-update-blocker',
+  })
+  await flushTasks()
+
+  bridge.receive({ type: 'session.created' })
+  await flushTasks()
+  bridge.setTransportState('disconnected')
+  bridge.setTransportState('ready')
+  bridge.receive({ type: 'session.created' })
+  bridge.releaseBlockedSend()
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['approval.presented', 'session.update'],
+  )
+  assert.equal((bridge.sent[1].session as { instructions: string }).instructions, 'persistent activation')
+})
+
+test('realtime session does not continue a function response after its lease ends mid-batch', async () => {
+  const bridge = new NextSendBlockingBridge()
+  const session = createRealtimeSession(bridge)
+  const sessionUpdateId = await setAcknowledgedProvider(session, bridge, {
+    tools: [
+      {
+        type: 'function',
+        name: 'finish_immediately',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+  bridge.blockNextSend()
+
+  bridge.receive(functionCall(sessionUpdateId, 'mid-batch-call', 'finish_immediately'))
+  await flushTasks()
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create'],
+  )
+
+  session.setProvider(undefined)
+  bridge.releaseBlockedSend()
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create'],
+  )
+})
+
+test('realtime session does not request a continuation when function output was not queued', async () => {
+  const bridge = new FakeBridge()
+  const session = createRealtimeSession(bridge)
+  const sessionUpdateId = await setAcknowledgedProvider(session, bridge, {
+    tools: [
+      {
+        type: 'function',
+        name: 'finish_immediately',
+        description: '',
+        parameters: { type: 'object' },
+        execute: () => ({ ok: true }),
+      },
+    ],
+  })
+  bridge.sendResult = 'overflow'
+
+  bridge.receive(functionCall(sessionUpdateId, 'overflow-call', 'finish_immediately'))
+  await flushTasks()
+
+  assert.deepEqual(
+    bridge.sent.map((event) => event.type),
+    ['conversation.item.create'],
+  )
+})
+
+test('realtime session routes application events but defers session.update until activation', async () => {
   const bridge = new FakeBridge()
   const session = createRealtimeSession(bridge)
   const received: string[] = []
@@ -121,7 +757,14 @@ test('realtime session routes valid application events before raw Realtime handl
 
   assert.equal(received.length, 1)
   assert.equal(received[0], 'approval.request')
+  assert.equal(bridge.sent.length, 0)
+
+  session.setProvider({ instructions: 'activation instructions', tools: [] })
+  await flushTasks()
+
+  assert.equal(bridge.sent.length, 1)
   assert.equal(bridge.sent[0].type, 'session.update')
+  assert.equal((bridge.sent[0].session as { instructions: string }).instructions, 'activation instructions')
 })
 
 test('realtime session composes approval and conversation handlers without one swallowing the other', () => {

@@ -214,6 +214,7 @@ self.onmessage = (message: {
   streamId?: number
   event?: string
   requestId?: number
+  volume?: number
 }) => {
   try {
     switch (message.id) {
@@ -257,6 +258,9 @@ self.onmessage = (message: {
             reason: error instanceof Error ? error.message : String(error),
           })
         }
+        break
+      case 'speaker-volume':
+        bridge?.setSpeakerVolume(message.volume ?? Number.NaN)
         break
       case 'close':
         closeWorker()

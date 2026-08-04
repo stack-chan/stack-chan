@@ -2,6 +2,7 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
+    "../../chat-audioio/entrypoints.manifest.json",
     "../../../testing/manifest.json"
   ],
   "modules": {

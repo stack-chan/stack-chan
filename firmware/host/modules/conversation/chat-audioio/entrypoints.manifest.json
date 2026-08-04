@@ -1,0 +1,8 @@
+{
+  "modules": {
+    "stackchanOpenAIRealtime": "./stackchan-openai-realtime",
+    "stackchanOpenAIRealtimeModel": "./openai-realtime-model",
+    "stackchanServerOpenAIRealtime": "./stackchan-server-openai-realtime",
+    "stackchanServerOpenAIRealtimeModel": "./server-openai-realtime-model"
+  }
+}

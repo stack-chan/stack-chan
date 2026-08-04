@@ -10,7 +10,8 @@
     "$(MODDABLE)/examples/io/tcp/websocketsclient/manifest_wssclient.json",
     "$(MODDABLE)/modules/io/audioin/manifest.json",
     "$(MODDABLE)/modules/io/audioout/manifest.json",
-    "$(MODDABLE)/modules/data/text/encoder/manifest.json"
+    "$(MODDABLE)/modules/data/text/encoder/manifest.json",
+    "./entrypoints.manifest.json"
   ],
   "data": {
     "*": [
@@ -40,10 +41,6 @@
     "*": "$(MODULES)/network/services/chatAudioIO/workers/*",
     "ChatAudioIO/Codecs": "$(MODULES)/network/services/chatAudioIO/codecs/audio-codecs",
     "openAIRealtimeModel": "$(MODULES)/network/services/chatAudioIO/workers/openAIRealtimeModel",
-    "stackchanOpenAIRealtime": "./stackchan-openai-realtime",
-    "stackchanOpenAIRealtimeModel": "./openai-realtime-model",
-    "stackchanServerOpenAIRealtime": "./stackchan-server-openai-realtime",
-    "stackchanServerOpenAIRealtimeModel": "./server-openai-realtime-model",
     "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker"
   },
   "preload": [

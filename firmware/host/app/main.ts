@@ -35,7 +35,7 @@ function traceResetReason(): void {
     const result = getResetReason()
     trace(`[main] reset reason=${result?.reason ?? 'unknown'} (${result?.string ?? 'unknown'})\n`)
   } catch (error) {
-    trace(`[main] reset reason unavailable: ${error?.message ?? error}\n`)
+    trace(`[main] reset reason unavailable: ${error instanceof Error ? error.message : String(error)}\n`)
   }
 }
 

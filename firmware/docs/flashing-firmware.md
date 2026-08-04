@@ -220,39 +220,34 @@ $ npm run mod -- ./mods/examples/look_around/manifest.json
 [stack-chan] MOD installed and verified: .../look_around.xsa
 ```
 
-## (Optional)erase flash
+## (Optional) Erasing a MOD or the complete flash
 
-After writing the MOD, if you want to revert to the behavior before the MOD was written, you can erase the written MOD with the following command.
+### Erase only the MOD partition
 
-> [!NOTE]  
-> When you execute the command, it erases not only the MOD area but the entire flash area.  
-> Please note that if you are using Preferences to write settings, those settings will also be erased.  
-> Additionally, after executing the command, you will need to write to the host again.  
+To remove an installed MOD and return to the product default behavior, run:
 
 ```console
-$ npm run erase-flash
-
-> stack-chan@0.2.1 erase-flash
-> esptool.py erase_flash
-
-esptool.py v4.8.dev4
-Found 2 serial ports
-Serial port /dev/cu.usbserial-01F05597
-Connecting....
-Detecting chip type... Unsupported detection protocol, switching and trying again...
-Connecting.........
-Detecting chip type... ESP32
-Chip is ESP32-D0WDQ6-V3 (revision v3.0)
-Features: WiFi, BT, Dual Core, 240MHz, VRef calibration in efuse, Coding Scheme None
-Crystal is 40MHz
-MAC: 8c:aa:b5:81:6c:1c
-Uploading stub...
-Running stub...
-Stub running...
-Erasing flash (this may take a while)...
-Chip erase completed successfully in 25.4s
-Hard reset
+$ npm run erase:mod -- --port /dev/ttyACM0
 ```
+
+`erase:mod` reads the live partition table with `esptool` and erases only the complete type `0x40`, subtype `1` `xs` partition.
+It reads the same region back, verifies that every byte is `0xff`, and then resets the device.
+The command discovers the chip, offset, and size from the connected device, so it has no subplatform-specific variants.
+
+> [!NOTE]
+> The host firmware and Preference values are preserved.
+> The command does not erase anything if the `xs` partition is missing or the Stack-chan host cannot be validated.
+
+### Erase the complete flash
+
+To erase the host, MOD, Preferences, and all other flash contents, run:
+
+```console
+$ npm run erase:flash
+```
+
+> [!WARNING]
+> After `erase:flash`, you must write the host firmware again before the device can boot.
 
 ## Next Step
 

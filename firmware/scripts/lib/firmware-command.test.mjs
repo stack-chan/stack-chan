@@ -10,11 +10,11 @@ const firmwareDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.ur
 const manifest = 'mods/examples/look_around/manifest.json'
 
 function dryRun(...args) {
-  return dryRunCommand('mod', ...args)
+  return dryRunCommand('mod', manifest, ...args)
 }
 
 function dryRunCommand(command, ...args) {
-  const result = spawnSync(process.execPath, ['scripts/firmware.mjs', command, manifest, ...args], {
+  const result = spawnSync(process.execPath, ['scripts/firmware.mjs', command, ...args], {
     cwd: firmwareDirectory,
     encoding: 'utf8',
     env: { ...process.env, STACKCHAN_BUILD_MODE: '', STACKCHAN_DRY_RUN: '1', npm_config_target: '' },
@@ -40,10 +40,18 @@ test('MOD command installs the instrument archive from its own output directory'
 })
 
 test('MOD build command produces a release archive without planning a device write', () => {
-  const output = dryRunCommand('mod:build', '--mode=release', '-t', 'build')
+  const output = dryRunCommand('mod:build', manifest, '--mode=release', '-t', 'build')
   assert.match(output, /mcrun -m /)
   assert.match(output, /MOD archive=.*\/bin\/esp32\/release\/look_around\/look_around\.xsa/)
   assert.doesNotMatch(output, /esptool will discover/)
+})
+
+test('MOD erase command plans a device-only partition operation', () => {
+  const output = dryRunCommand('erase:mod', '--port', '/dev/ttyACM1', '--baud', '460800')
+  assert.match(output, /discover, erase, and verify the live xs partition/)
+  assert.match(output, /port=\/dev\/ttyACM1/)
+  assert.match(output, /baud=460800/)
+  assert.doesNotMatch(output, /mcrun|mcconfig/)
 })
 
 test('firmware wrapper cleans manifest switches before every CoreS3 command and restores IDF dependencies', () => {

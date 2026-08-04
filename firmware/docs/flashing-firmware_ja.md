@@ -225,39 +225,34 @@ $ npm run mod -- ./mods/examples/look_around/manifest.json
 [stack-chan] MOD installed and verified: .../look_around.xsa
 ```
 
-## (オプショナル)フラッシュ領域の消去
+## （オプション）MODまたはフラッシュ領域の消去
 
-MODを書き込み後、MODを書き込む前の挙動に戻したい時は、次のコマンドで書き込んだMODを消去することができます。
+### MOD領域だけを消去する
 
-> [!NOTE]  
-> コマンドを実行するとMODの領域だけでなく、フラッシュ領域全体を消去します。  
-> Preferenceを使って設定値を書き込んでいる場合、その設定も消去されることに注意してください。  
-> また、コマンド実行後は再度ホストの書き込みが必要になります。  
+インストールしたMODを削除して製品既定動作へ戻す場合は、次のコマンドを実行します。
 
 ```console
-$ npm run erase-flash
-
-> stack-chan@0.2.1 erase-flash
-> esptool.py erase_flash
-
-esptool.py v4.8.dev4
-Found 2 serial ports
-Serial port /dev/cu.usbserial-01F05597
-Connecting....
-Detecting chip type... Unsupported detection protocol, switching and trying again...
-Connecting.........
-Detecting chip type... ESP32
-Chip is ESP32-D0WDQ6-V3 (revision v3.0)
-Features: WiFi, BT, Dual Core, 240MHz, VRef calibration in efuse, Coding Scheme None
-Crystal is 40MHz
-MAC: 8c:aa:b5:81:6c:1c
-Uploading stub...
-Running stub...
-Stub running...
-Erasing flash (this may take a while)...
-Chip erase completed successfully in 25.4s
-Hard resetting via RTS pin...
+$ npm run erase:mod -- --port /dev/ttyACM0
 ```
+
+`erase:mod`は`esptool`で実機のpartition tableを読み、type `0x40`、subtype `1`の`xs`パーティション全域だけを消去します。
+消去後は同じ領域を読み戻し、全バイトが`0xff`であることを検証してからデバイスを再起動します。
+チップとパーティションのoffsetおよびsizeは実機から取得するため、サブプラットフォーム別のコマンドはありません。
+
+> [!NOTE]
+> ホストのファームウェアとPreferenceの設定値は保持されます。
+> `xs`パーティションがない場合や、Stack-chanのホストを確認できない場合は消去しません。
+
+### フラッシュ領域全体を消去する
+
+ホスト、MOD、Preferenceを含むフラッシュ領域全体を消去する場合は、次のコマンドを実行します。
+
+```console
+$ npm run erase:flash
+```
+
+> [!WARNING]
+> `erase:flash`を実行すると、デバイスを起動するためにホストの再書き込みが必要になります。
 
 ## 次のステップ
 

@@ -61,7 +61,8 @@ All commands should be run from the `firmware/` directory:
 
 ### Device Management
 - `npm run scan` - Scan for connected devices
-- `npm run erase-flash` - Erase device flash memory
+- `npm run erase:mod` - Erase and verify only the live device's `xs` MOD partition
+- `npm run erase:flash` - Erase the entire device flash memory
 
 ### Documentation and Testing
 - `npm run generate-apidoc` - Generate API documentation with TypeDoc

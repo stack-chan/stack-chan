@@ -83,41 +83,23 @@ export function installModArchive({
   const connectionArgs = esptoolConnectionArguments({ chip, port, baud })
 
   try {
-    runCommand('esptool', [
-      ...connectionArgs,
-      '--after',
-      'hard-reset',
-      'read-flash',
-      hex(partitionTableOffset),
-      hex(partitionTableSize),
+    const { partition, appPartition } = readModPartitionLayout({
+      connectionArgs,
       partitionTablePath,
-    ])
-    const partitions = parsePartitionTable(readFileSync(partitionTablePath))
-    const partition = findXsPartition(partitions)
-    const appPartition = findAppPartition(partitions)
+      runCommand,
+    })
     if (archiveSize > partition.size) {
       throw new Error(`MOD archive exceeds xs partition: ${archiveSize} > ${partition.size}`)
     }
 
-    runCommand('esptool', [
-      ...connectionArgs,
-      '--after',
-      'hard-reset',
-      'read-flash',
-      hex(appPartition.offset),
-      hex(espAppHeaderSize),
+    const firmware = readAndValidateFirmware({
+      appPartition,
       appHeaderPath,
-    ])
-    const firmware = parseEspAppDescriptor(readFileSync(appHeaderPath))
-    if (!firmware?.version || !firmware.projectName) {
-      throw new Error('Firmware app descriptor could not be read from the device')
-    }
-    if (firmware.projectName !== expectedProjectName) {
-      throw new Error(`Unexpected firmware project: ${firmware.projectName} != ${expectedProjectName}`)
-    }
-    if (expectedFirmwareVersion && firmware.moddableVersion !== expectedFirmwareVersion) {
-      throw new Error(`Incompatible Moddable version: ${firmware.moddableVersion} != ${expectedFirmwareVersion}`)
-    }
+      connectionArgs,
+      expectedProjectName,
+      expectedFirmwareVersion,
+      runCommand,
+    })
 
     console.log(
       `[stack-chan] MOD preflight: ${firmware.projectName} ${firmware.version}, ` +
@@ -154,6 +136,147 @@ export function installModArchive({
 }
 
 /**
+ * Erases and verifies the live device's complete xs partition. The partition
+ * offset and size are discovered from the device rather than selected by a
+ * build target.
+ * @param {{
+ *   port?: string,
+ *   baud?: string|number,
+ *   chip?: string,
+ *   expectedProjectName?: string,
+ *   temporaryDirectory?: string,
+ *   runCommand?: typeof executeCommand,
+ * }} options - Device erase inputs.
+ * @returns {{
+ *   partition: {offset: number, size: number},
+ *   firmware: {version: string, moddableVersion: string, hostApiVersion: number, projectName: string},
+ *   verified: true,
+ * }} Erased partition and device details.
+ */
+export function eraseModPartition({
+  port,
+  baud,
+  chip,
+  expectedProjectName = moddableEspAppProjectName,
+  temporaryDirectory = path.join(buildOutputDirectory, 'tmp'),
+  runCommand = executeCommand,
+} = {}) {
+  mkdirSync(temporaryDirectory, { recursive: true })
+  const workDirectory = mkdtempSync(path.join(temporaryDirectory, 'stackchan-mod-erase-'))
+  const partitionTablePath = path.join(workDirectory, 'partition-table.bin')
+  const appHeaderPath = path.join(workDirectory, 'app-header.bin')
+  const erasedPartitionPath = path.join(workDirectory, 'erased-xs.bin')
+  const connectionArgs = esptoolConnectionArguments({ chip, port, baud })
+
+  try {
+    const { partition, appPartition } = readModPartitionLayout({
+      connectionArgs,
+      partitionTablePath,
+      runCommand,
+    })
+    const firmware = readAndValidateFirmware({
+      appPartition,
+      appHeaderPath,
+      connectionArgs,
+      expectedProjectName,
+      runCommand,
+    })
+
+    console.log(
+      `[stack-chan] MOD erase preflight: ${firmware.projectName} ${firmware.version}, ` +
+        `xs=${hex(partition.offset)}/${partition.size}`,
+    )
+    runCommand('esptool', [
+      ...connectionArgs,
+      '--after',
+      'hard-reset',
+      'erase-region',
+      hex(partition.offset),
+      hex(partition.size),
+    ])
+    runCommand('esptool', [
+      ...connectionArgs,
+      '--after',
+      'hard-reset',
+      'read-flash',
+      hex(partition.offset),
+      hex(partition.size),
+      erasedPartitionPath,
+    ])
+
+    const erasedPartition = readFileSync(erasedPartitionPath)
+    if (erasedPartition.length !== partition.size) {
+      throw new Error(`MOD erase verification size mismatch: ${erasedPartition.length} != ${partition.size}`)
+    }
+    const dirtyIndex = erasedPartition.findIndex((byte) => byte !== 0xff)
+    if (dirtyIndex >= 0) {
+      throw new Error(
+        `MOD erase verification failed at ${hex(partition.offset + dirtyIndex)}: ` +
+          `0x${erasedPartition[dirtyIndex].toString(16).padStart(2, '0')}`,
+      )
+    }
+    console.log(`[stack-chan] MOD partition erased and verified: xs=${hex(partition.offset)}/${partition.size}`)
+
+    return { partition, firmware, verified: true }
+  } finally {
+    rmSync(workDirectory, { recursive: true, force: true })
+  }
+}
+
+/**
+ * Reads the partition table and locates the xs and application partitions.
+ */
+function readModPartitionLayout({ connectionArgs, partitionTablePath, runCommand }) {
+  runCommand('esptool', [
+    ...connectionArgs,
+    '--after',
+    'hard-reset',
+    'read-flash',
+    hex(partitionTableOffset),
+    hex(partitionTableSize),
+    partitionTablePath,
+  ])
+  const partitions = parsePartitionTable(readFileSync(partitionTablePath))
+  return {
+    partition: findXsPartition(partitions),
+    appPartition: findAppPartition(partitions),
+  }
+}
+
+/**
+ * Reads and validates the firmware descriptor from the selected app partition.
+ */
+function readAndValidateFirmware({
+  appPartition,
+  appHeaderPath,
+  connectionArgs,
+  expectedProjectName,
+  expectedFirmwareVersion,
+  runCommand,
+}) {
+  runCommand('esptool', [
+    ...connectionArgs,
+    '--after',
+    'hard-reset',
+    'read-flash',
+    hex(appPartition.offset),
+    hex(espAppHeaderSize),
+    appHeaderPath,
+  ])
+  const firmware = parseEspAppDescriptor(readFileSync(appHeaderPath))
+  if (!firmware?.version || !firmware.projectName) {
+    throw new Error('Firmware app descriptor could not be read from the device')
+  }
+  if (firmware.projectName !== expectedProjectName) {
+    throw new Error(`Unexpected firmware project: ${firmware.projectName} != ${expectedProjectName}`)
+  }
+  if (expectedFirmwareVersion && firmware.moddableVersion !== expectedFirmwareVersion) {
+    throw new Error(`Incompatible Moddable version: ${firmware.moddableVersion} != ${expectedFirmwareVersion}`)
+  }
+  return firmware
+}
+
+/**
  * Builds global esptool connection arguments.
  * @param {{chip?: string, port?: string, baud?: string|number}} options - Optional connection selectors.
  * @returns {string[]} CLI arguments placed before the esptool command.
@@ -183,7 +306,7 @@ function hex(value) {
 }
 
 /**
- * Runs esptool and fails the installation on spawn or command errors.
+ * Runs esptool and fails the device operation on spawn or command errors.
  * @param {string} command - Executable name.
  * @param {string[]} args - Command arguments.
  */

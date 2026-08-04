@@ -4,7 +4,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { buildOutputDirectory } from './build-output.mjs'
-import { esptoolConnectionArguments, installModArchive, resolveModArchivePath } from './mod-flash.mjs'
+import {
+  eraseModPartition,
+  esptoolConnectionArguments,
+  installModArchive,
+  resolveModArchivePath,
+} from './mod-flash.mjs'
 
 test('resolves mcrun archives using the observable output contract', () => {
   assert.equal(
@@ -76,6 +81,129 @@ test('reads the live partition layout before writing and verifying a MOD', () =>
     assert.ok(calls[2][1].includes('0xfa0000'))
     assert.ok(calls[3][1].includes('0xfa0000'))
     assert.ok(scratchPaths.every((scratchPath) => !existsSync(path.dirname(scratchPath))))
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})
+
+test('erases and verifies the complete live xs partition', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-erase-test-'))
+  const partitionTable = makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
+  const appHeader = makeAppHeader({ version: '8.3.1+stackchan.1', projectName: 'xs_esp32' })
+  const calls = []
+  const scratchPaths = []
+
+  try {
+    const result = eraseModPartition({
+      port: '/dev/ttyACM0',
+      baud: 460800,
+      temporaryDirectory: fixture,
+      runCommand(command, args) {
+        calls.push([command, args])
+        if (!args.includes('read-flash')) return
+        scratchPaths.push(args.at(-1))
+        const address = Number(args.at(-3))
+        if (address === 0x8000) writeFileSync(args.at(-1), partitionTable)
+        else if (address === 0x10000) writeFileSync(args.at(-1), appHeader)
+        else writeFileSync(args.at(-1), Buffer.alloc(0x40000, 0xff))
+      },
+    })
+
+    assert.deepEqual(
+      calls.map(([, args]) => args.find((arg) => ['read-flash', 'erase-region'].includes(arg))),
+      ['read-flash', 'read-flash', 'erase-region', 'read-flash'],
+    )
+    assert.ok(calls.every(([, args]) => args.includes('/dev/ttyACM0')))
+    assert.ok(calls.every(([, args]) => args.includes('460800')))
+    assert.ok(calls.every(([, args]) => args.includes('hard-reset')))
+    assert.ok(calls.every(([, args]) => !args.includes('--chip')))
+    assert.deepEqual(calls[2][1].slice(-3), ['erase-region', '0xfa0000', '0x40000'])
+    assert.deepEqual(calls[3][1].slice(-4, -1), ['read-flash', '0xfa0000', '0x40000'])
+    assert.equal(result.partition.offset, 0xfa0000)
+    assert.equal(result.partition.size, 0x40000)
+    assert.equal(result.firmware.projectName, 'xs_esp32')
+    assert.equal(result.verified, true)
+    assert.ok(scratchPaths.every((scratchPath) => !existsSync(path.dirname(scratchPath))))
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})
+
+test('rejects a non-Stack-chan firmware before erasing the MOD partition', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-erase-host-'))
+  let calls = 0
+
+  try {
+    assert.throws(
+      () =>
+        eraseModPartition({
+          temporaryDirectory: fixture,
+          runCommand(_command, args) {
+            calls += 1
+            if (calls === 1) {
+              writeFileSync(args.at(-1), makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 }))
+            } else {
+              writeFileSync(args.at(-1), makeAppHeader({ version: '1.0.0', projectName: 'other-host' }))
+            }
+          },
+        }),
+      /Unexpected firmware project/,
+    )
+    assert.equal(calls, 2)
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})
+
+test('rejects a partition table without an xs partition before erasing', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-erase-partition-'))
+  let calls = 0
+
+  try {
+    assert.throws(
+      () =>
+        eraseModPartition({
+          temporaryDirectory: fixture,
+          runCommand(_command, args) {
+            calls += 1
+            writeFileSync(args.at(-1), makePartitionTable())
+          },
+        }),
+      /xs パーティションが見つかりません/,
+    )
+    assert.equal(calls, 1)
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})
+
+test('rejects a MOD partition that is not fully erased', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-erase-verify-'))
+  let calls = 0
+
+  try {
+    assert.throws(
+      () =>
+        eraseModPartition({
+          temporaryDirectory: fixture,
+          runCommand(_command, args) {
+            calls += 1
+            if (!args.includes('read-flash')) return
+            const address = Number(args.at(-3))
+            if (address === 0x8000) {
+              writeFileSync(args.at(-1), makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 }))
+            } else if (address === 0x10000) {
+              writeFileSync(args.at(-1), makeAppHeader({ version: '8.3.1+stackchan.1', projectName: 'xs_esp32' }))
+            } else {
+              const erasedPartition = Buffer.alloc(0x40000, 0xff)
+              erasedPartition[42] = 0
+              writeFileSync(args.at(-1), erasedPartition)
+            }
+          },
+        }),
+      /MOD erase verification failed at 0xfa002a/,
+    )
+    assert.equal(calls, 4)
   } finally {
     rmSync(fixture, { recursive: true, force: true })
   }
@@ -189,10 +317,12 @@ function makeArchive(size) {
   return archive
 }
 
-function makePartitionTable({ xsOffset, xsSize }) {
+function makePartitionTable({ xsOffset, xsSize } = {}) {
   const table = Buffer.alloc(0xc00, 0xff)
   writePartition(table, 0, { type: 0, subtype: 0, offset: 0x10000, size: 0xf90000, label: 'factory' })
-  writePartition(table, 32, { type: 0x40, subtype: 1, offset: xsOffset, size: xsSize, label: 'xs' })
+  if (xsOffset !== undefined && xsSize !== undefined) {
+    writePartition(table, 32, { type: 0x40, subtype: 1, offset: xsOffset, size: xsSize, label: 'xs' })
+  }
   return table
 }
 

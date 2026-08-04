@@ -18,7 +18,7 @@ import {
 } from './lib/build-variant.mjs'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
-import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
+import { eraseModPartition, installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
 import { prepareCoreS3VersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
 
 const command = process.argv[2]
@@ -68,7 +68,13 @@ const uploadPort =
 const uploadBaud = readOption(rawArgs, 'baud') ?? process.env.STACKCHAN_BAUD ?? process.env.ESPBAUD
 let subprocessEnvironment = uploadPort ? { ...process.env, UPLOAD_PORT: uploadPort } : process.env
 
-if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
+if (
+  !dryRun &&
+  deviceName === 'm5stackchan_cores3' &&
+  command !== 'mod' &&
+  command !== 'mod:build' &&
+  command !== 'erase:mod'
+) {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
@@ -186,6 +192,23 @@ switch (command) {
     }
     break
   }
+  case 'erase:mod':
+    if (dryRun) {
+      console.log('[stack-chan] esptool will discover, erase, and verify the live xs partition')
+      console.log(`[stack-chan] port=${uploadPort ?? 'auto'}`)
+      console.log(`[stack-chan] baud=${uploadBaud ?? 'default'}`)
+      break
+    }
+    try {
+      eraseModPartition({
+        port: uploadPort,
+        baud: uploadBaud,
+      })
+    } catch (error) {
+      console.error(`[stack-chan] MOD領域を消去できませんでした: ${error.message}`)
+      process.exit(1)
+    }
+    break
   default:
     console.error(`[stack-chan] Unknown command: ${command}`)
     printHelp()
@@ -363,6 +386,7 @@ function printHelp() {
   npm run debug
   npm run mod:build -- <mod-manifest>
   npm run mod -- <mod-manifest>
+  npm run erase:mod
 
 Devices:
   m5stackchan_cores3  M5StackChan CoreS3 (default)
@@ -377,5 +401,6 @@ Examples:
   npm run debug:xsdb -- --port /dev/ttyACM1
   npm run mod:build -- mods/examples/mini_app_sample/manifest.json --mode=release
   npm run mod -- mods/examples/look_around/manifest.json --port /dev/ttyACM1
+  npm run erase:mod -- --port /dev/ttyACM1
   STACKCHAN_DEVICE=takao_core2_sg90 npm run mod -- mods/examples/look_around/manifest.json`)
 }

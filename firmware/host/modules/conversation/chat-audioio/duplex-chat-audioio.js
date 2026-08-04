@@ -590,7 +590,7 @@ export default class DuplexChatAudioIO extends ChatAudioIOBase {
     }
 
     if (!this.inputGateEnabled || !this.inputGate || !this.inputPreRoll) {
-      this.resampleAndQueueInput(this.inputResampleSource, 0, sourceSamples)
+      this.resampleAndQueueInput(source, 0, sourceSamples)
       return
     }
 
@@ -600,12 +600,12 @@ export default class DuplexChatAudioIO extends ChatAudioIOBase {
       this.openInputGate(level)
       this.inputResamplerState.fill(0)
       this.drainInputPreRoll()
-      this.resampleAndQueueInput(this.inputResampleSource, 0, sourceSamples)
+      this.resampleAndQueueInput(source, 0, sourceSamples)
       return
     }
 
     if (gateState === INPUT_GATE_OPEN) {
-      this.resampleAndQueueInput(this.inputResampleSource, 0, sourceSamples)
+      this.resampleAndQueueInput(source, 0, sourceSamples)
       if (gateAction === INPUT_GATE_SHOULD_CLOSE) this.beginInputGateClose(level)
       return
     }

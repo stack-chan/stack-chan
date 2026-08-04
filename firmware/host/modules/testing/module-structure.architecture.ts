@@ -452,6 +452,31 @@ test('subplatforms that define camera pins are gated into the camera and convers
   }
 })
 
+test('CoreS3 conversation targets route ChatAudioIO through the duplex implementation', () => {
+  const conversationManifest = readJson(join(MODULE_ROOT, 'conversation', 'manifest.json'))
+
+  for (const target of ['esp32/m5stack_cores3', 'esp32/m5stackchan_cores3']) {
+    assert.equal(
+      conversationManifest.platforms?.[target]?.modules?.ChatAudioIO,
+      './chat-audioio/duplex-chat-audioio',
+      `${target} should use the AEC-capable duplex ChatAudioIO implementation`,
+    )
+  }
+})
+
+test('duplex ChatAudioIO resamples the source supplied by each input producer', () => {
+  const source = readFileSync(join(MODULE_ROOT, 'conversation', 'chat-audioio', 'duplex-chat-audioio.js'), 'utf8')
+  const processInputAudioBlocks = extractMethodBlocks(source, 'processInputAudio')
+
+  assert.equal(processInputAudioBlocks.length, 1)
+  assert.doesNotMatch(
+    processInputAudioBlocks[0],
+    /resampleAndQueueInput\(this\.inputResampleSource/,
+    'synthetic probes and physical microphone reads must resample their own source buffer',
+  )
+  assert.match(processInputAudioBlocks[0], /resampleAndQueueInput\(source, 0, sourceSamples\)/)
+})
+
 test('sample MOD sources import only public or sample-local modules', () => {
   const offenders = walkFiles(join('mods', 'examples'))
     .filter(isSourceFile)

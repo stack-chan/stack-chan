@@ -14,14 +14,14 @@
     "esp32/m5stack_cores3": {
       "include": ["./chat-audioio/manifest.json"],
       "modules": {
-        "ChatAudioIO": "./chat-audioio/worker-stack",
+        "ChatAudioIO": "./chat-audioio/duplex-chat-audioio",
         "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
       }
     },
     "esp32/m5stackchan_cores3": {
       "include": ["./chat-audioio/manifest.json"],
       "modules": {
-        "ChatAudioIO": "./chat-audioio/worker-stack",
+        "ChatAudioIO": "./chat-audioio/duplex-chat-audioio",
         "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
       }
     },

@@ -107,6 +107,64 @@ test('invalidates a configured project when its dependency lock is stale', () =>
   }
 })
 
+test('invalidates a configured project when an exact dependency version is obsolete', () => {
+  const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))
+  const projectDirectory = path.join(outputDirectory, 'tmp/esp32/m5stack_cores3/debug/stack-chan-host/xsProj-esp32s3')
+  const sdkconfigHeaderPath = path.join(projectDirectory, 'build/config/sdkconfig.h')
+
+  try {
+    mkdirSync(path.dirname(sdkconfigHeaderPath), { recursive: true })
+    writeFileSync(
+      path.join(projectDirectory, 'dependencies.lock'),
+      dependencyLock([
+        ['espressif/esp-sr', '2.4.5'],
+        ['espressif/esp32-camera', '2.1.7'],
+      ]),
+    )
+    writeFileSync(sdkconfigHeaderPath, '#define CONFIG_IDF_TARGET_ESP32S3 1\n')
+
+    prepareCoreS3IdfDependencies({
+      outputDirectory,
+      platformName: 'm5stack_cores3',
+      applicationName: 'stack-chan-host',
+      mode: 'debug',
+    })
+
+    assert.equal(existsSync(sdkconfigHeaderPath), false)
+  } finally {
+    rmSync(outputDirectory, { recursive: true, force: true })
+  }
+})
+
+test('keeps configured projects when exact and caret dependency versions remain compatible', () => {
+  const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))
+  const projectDirectory = path.join(outputDirectory, 'tmp/esp32/m5stack_cores3/debug/stack-chan-host/xsProj-esp32s3')
+  const sdkconfigHeaderPath = path.join(projectDirectory, 'build/config/sdkconfig.h')
+
+  try {
+    mkdirSync(path.dirname(sdkconfigHeaderPath), { recursive: true })
+    writeFileSync(
+      path.join(projectDirectory, 'dependencies.lock'),
+      dependencyLock([
+        ['espressif/esp-sr', '2.4.6'],
+        ['espressif/esp32-camera', '2.1.7'],
+      ]),
+    )
+    writeFileSync(sdkconfigHeaderPath, '#define CONFIG_IDF_TARGET_ESP32S3 1\n')
+
+    prepareCoreS3IdfDependencies({
+      outputDirectory,
+      platformName: 'm5stack_cores3',
+      applicationName: 'stack-chan-host',
+      mode: 'debug',
+    })
+
+    assert.equal(existsSync(sdkconfigHeaderPath), true)
+  } finally {
+    rmSync(outputDirectory, { recursive: true, force: true })
+  }
+})
+
 /**
  * Counts non-overlapping occurrences in a string.
  * @param {string} source - Text to search.
@@ -115,4 +173,8 @@ test('invalidates a configured project when its dependency lock is stale', () =>
  */
 function count(source, value) {
   return source.split(value).length - 1
+}
+
+function dependencyLock(entries) {
+  return `dependencies:\n${entries.map(([name, version]) => `  ${name}:\n    version: ${version}\n`).join('')}`
 }

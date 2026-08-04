@@ -60,7 +60,10 @@ export function prepareCoreS3IdfDependencies({ outputDirectory, platformName, ap
   const projectDirectory = path.dirname(mainDirectory)
   const dependencyLockPath = path.join(projectDirectory, 'dependencies.lock')
   const dependencyLock = existsSync(dependencyLockPath) ? readFileSync(dependencyLockPath, 'utf8') : ''
-  const lockIsStale = dependencies.some(([name]) => !dependencyLock.includes(`  ${name}:`))
+  const lockIsStale = dependencies.some(([name, constraint]) => {
+    const lockedVersion = readLockedDependencyVersion(dependencyLock, name)
+    return !lockedVersion || !lockedVersionSatisfies(lockedVersion, constraint)
+  })
   if (lockIsStale) {
     const sdkconfigHeaderPath = path.join(projectDirectory, 'build', 'config', 'sdkconfig.h')
     if (existsSync(sdkconfigHeaderPath)) {
@@ -71,4 +74,56 @@ export function prepareCoreS3IdfDependencies({ outputDirectory, platformName, ap
 
   console.log(`[stack-chan] prepared IDF dependencies: ${manifestPath}`)
   return manifestPath
+}
+
+/**
+ * Reads one top-level component version from an IDF Component Manager lock.
+ * Nested dependency constraints use the same package names, so the indentation
+ * is part of the maintained lock-file contract.
+ * @param {string} dependencyLock - Generated dependencies.lock contents.
+ * @param {string} name - Component registry name.
+ * @returns {string | undefined} Exact locked version.
+ */
+function readLockedDependencyVersion(dependencyLock, name) {
+  const lines = dependencyLock.split(/\r?\n/)
+  const entryStart = lines.indexOf(`  ${name}:`)
+  if (entryStart < 0) return undefined
+
+  for (let index = entryStart + 1; index < lines.length; index += 1) {
+    const line = lines[index]
+    if (/^ {2}\S/.test(line)) break
+    const match = /^ {4}version:\s+['"]?([^'"\s]+)['"]?\s*$/.exec(line)
+    if (match) return match[1]
+  }
+  return undefined
+}
+
+/**
+ * Checks the exact and caret constraints used by the generated CoreS3
+ * component manifests.
+ * @param {string} version - Exact version from dependencies.lock.
+ * @param {string} constraint - Manifest version requirement.
+ * @returns {boolean} Whether the lock remains compatible with the manifest.
+ */
+function lockedVersionSatisfies(version, constraint) {
+  if (!constraint.startsWith('^')) return version === constraint
+
+  const locked = parseComparableVersion(version)
+  const minimum = parseComparableVersion(constraint.slice(1))
+  if (!locked || !minimum || compareVersions(locked, minimum) < 0) return false
+  if (minimum[0] > 0) return locked[0] === minimum[0]
+  if (minimum[1] > 0) return locked[0] === 0 && locked[1] === minimum[1]
+  return locked[0] === 0 && locked[1] === 0 && locked[2] === minimum[2]
+}
+
+function parseComparableVersion(value) {
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:[~+-].*)?$/.exec(value)
+  return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : undefined
+}
+
+function compareVersions(left, right) {
+  for (let index = 0; index < 3; index += 1) {
+    if (left[index] !== right[index]) return left[index] - right[index]
+  }
+  return 0
 }

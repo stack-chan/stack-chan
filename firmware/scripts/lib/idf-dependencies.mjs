@@ -47,10 +47,9 @@ export function prepareCoreS3IdfDependencies({ outputDirectory, platformName, ap
   }
 
   for (const [name, version] of dependencies) {
-    if (manifest.includes(`  ${name}:`)) continue
-    if (!manifest.endsWith('\n')) manifest += '\n'
-    manifest += `  ${name}: ${version}\n`
+    manifest = upsertManagedDependency(manifest, name, version)
   }
+  if (!manifest.endsWith('\n')) manifest += manifest.includes('\r\n') ? '\r\n' : '\n'
 
   // Moddable 8.3.1 joins multiple `idf.py add-dependency` commands with `&` on
   // POSIX, so clean builds can race while updating this file. Seed both entries
@@ -74,6 +73,63 @@ export function prepareCoreS3IdfDependencies({ outputDirectory, platformName, ap
 
   console.log(`[stack-chan] prepared IDF dependencies: ${manifestPath}`)
   return manifestPath
+}
+
+/**
+ * Adds or refreshes one dependency in the top-level dependencies block.
+ * Existing IDF manifests may use either a scalar constraint or a nested
+ * `version` property, depending on which Component Manager command created it.
+ * @param {string} manifest - IDF component manifest contents.
+ * @param {string} name - Component registry name.
+ * @param {string} version - Required version constraint.
+ * @returns {string} Updated manifest contents.
+ */
+function upsertManagedDependency(manifest, name, version) {
+  const newline = manifest.includes('\r\n') ? '\r\n' : '\n'
+  const lines = manifest.split(/\r?\n/)
+  const dependenciesStart = lines.findIndex((line) => /^dependencies:\s*$/.test(line))
+  let dependenciesEnd = lines.length
+
+  for (let index = dependenciesStart + 1; index < lines.length; index += 1) {
+    if (/^\S/.test(lines[index])) {
+      dependenciesEnd = index
+      break
+    }
+  }
+
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const entryPattern = new RegExp(`^  ${escapedName}:(.*)$`)
+  for (let index = dependenciesStart + 1; index < dependenciesEnd; index += 1) {
+    const entry = entryPattern.exec(lines[index])
+    if (!entry) continue
+
+    const suffix = entry[1].trim()
+    if (suffix && !suffix.startsWith('#')) {
+      lines[index] = `  ${name}: ${version}`
+      return lines.join(newline)
+    }
+
+    for (let nestedIndex = index + 1; nestedIndex < dependenciesEnd; nestedIndex += 1) {
+      if (/^ {2}\S/.test(lines[nestedIndex])) {
+        break
+      }
+      const nestedVersion = /^( {4,})version:/.exec(lines[nestedIndex])
+      if (nestedVersion) {
+        lines[nestedIndex] = `${nestedVersion[1]}version: ${version}`
+        return lines.join(newline)
+      }
+    }
+
+    lines.splice(index + 1, 0, `    version: ${version}`)
+    return lines.join(newline)
+  }
+
+  let insertionIndex = dependenciesEnd
+  while (insertionIndex > dependenciesStart + 1 && lines[insertionIndex - 1].trim() === '') {
+    insertionIndex -= 1
+  }
+  lines.splice(insertionIndex, 0, `  ${name}: ${version}`)
+  return lines.join(newline)
 }
 
 /**

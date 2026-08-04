@@ -136,6 +136,50 @@ test('invalidates a configured project when an exact dependency version is obsol
   }
 })
 
+test('refreshes existing managed constraints before invalidating an obsolete lock', () => {
+  const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))
+  const projectDirectory = path.join(
+    outputDirectory,
+    'tmp/esp32/m5stackchan_cores3/debug/stack-chan-host/xsProj-esp32s3',
+  )
+  const manifestPath = path.join(projectDirectory, 'main/idf_component.yml')
+  const sdkconfigHeaderPath = path.join(projectDirectory, 'build/config/sdkconfig.h')
+
+  try {
+    mkdirSync(path.dirname(manifestPath), { recursive: true })
+    mkdirSync(path.dirname(sdkconfigHeaderPath), { recursive: true })
+    writeFileSync(
+      manifestPath,
+      "dependencies:\n  idf:\n    version: '>=4.1.0'\n  espressif/esp-sr: 2.4.5\n  espressif/esp_audio_codec:\n    version: ^2.5.0\n  espressif/esp32-camera: ^2.0.10\n",
+    )
+    writeFileSync(
+      path.join(projectDirectory, 'dependencies.lock'),
+      dependencyLock([
+        ['espressif/esp-sr', '2.4.5'],
+        ['espressif/esp_audio_codec', '2.6.1'],
+        ['espressif/esp32-camera', '2.1.7'],
+      ]),
+    )
+    writeFileSync(sdkconfigHeaderPath, '#define CONFIG_IDF_TARGET_ESP32S3 1\n')
+
+    prepareCoreS3IdfDependencies({
+      outputDirectory,
+      platformName: 'm5stackchan_cores3',
+      applicationName: 'stack-chan-host',
+      mode: 'debug',
+    })
+
+    const manifest = readFileSync(manifestPath, 'utf8')
+    assert.match(manifest, /^ {2}espressif\/esp-sr: 2\.4\.6$/m)
+    assert.doesNotMatch(manifest, /^ {2}espressif\/esp-sr: 2\.4\.5$/m)
+    assert.match(manifest, /^ {4}version: \^2\.6\.0$/m)
+    assert.doesNotMatch(manifest, /^ {4}version: \^2\.5\.0$/m)
+    assert.equal(existsSync(sdkconfigHeaderPath), false)
+  } finally {
+    rmSync(outputDirectory, { recursive: true, force: true })
+  }
+})
+
 test('keeps configured projects when exact and caret dependency versions remain compatible', () => {
   const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))
   const projectDirectory = path.join(outputDirectory, 'tmp/esp32/m5stack_cores3/debug/stack-chan-host/xsProj-esp32s3')

@@ -39,8 +39,9 @@
   "modules": {
     "*": "$(MODULES)/network/services/chatAudioIO/workers/*",
     "ChatAudioIO/Codecs": "$(MODULES)/network/services/chatAudioIO/codecs/audio-codecs",
+    "openAIRealtimeModel": "$(MODULES)/network/services/chatAudioIO/workers/openAIRealtimeModel",
     "stackchanOpenAIRealtime": "./stackchan-openai-realtime",
-    "stackchanOpenAIRealtimeModel": "./server-openai-realtime-model",
+    "stackchanServerOpenAIRealtimeModel": "./server-openai-realtime-model",
     "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker"
   },
   "preload": [

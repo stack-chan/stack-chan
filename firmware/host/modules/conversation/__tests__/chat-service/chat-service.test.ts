@@ -140,5 +140,28 @@ equal(
   'an explicit worker specifier should override the provider type',
 )
 
+new ChatService({
+  config: {
+    type: 'openAIRealtime',
+    endpoint: 'wss://chat.example.test/realtime',
+    providerID: 'legacy-provider',
+  },
+  chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
+})
+equal(
+  ChatAudioIOAny.lastOptions?.providerID,
+  'wss://chat.example.test/realtime',
+  'endpoint should take precedence over providerID',
+)
+
+new ChatService({
+  config: {
+    type: 'openAIRealtime',
+    providerID: 'legacy-provider',
+  },
+  chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
+})
+equal(ChatAudioIOAny.lastOptions?.providerID, 'legacy-provider', 'providerID should remain the endpoint fallback')
+
 trace('ok\n')
 Timer.set(() => {}, 1000)

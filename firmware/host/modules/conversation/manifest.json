@@ -35,12 +35,14 @@
     "mac": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
-        "ChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+        "ChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO",
+        "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
       }
     },
     "...": {
       "modules": {
-        "ChatAudioIO": "./chat-audioio-stub"
+        "ChatAudioIO": "./chat-audioio-stub",
+        "ChatAudioIOBase": "./chat-audioio-stub"
       }
     }
   },

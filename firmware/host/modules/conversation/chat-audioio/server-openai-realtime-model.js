@@ -41,11 +41,15 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
   configure(message) {
     try {
       const endpoint = parseWebSocketEndpoint(message.providerID)
+      const apiKey = String(message.apiKey ?? '')
+      if (!endpoint.secure && apiKey) {
+        throw new Error('ChatService Bearer authentication requires a wss:// endpoint')
+      }
       this.secure = endpoint.secure
       this.host = endpoint.host
       this.port = endpoint.port
       this.path = endpoint.path
-      this.headers = [['Authorization', `Bearer ${message.apiKey ?? ''}`]]
+      this.headers = apiKey ? [['Authorization', `Bearer ${apiKey}`]] : []
       this.session = {
         type: 'realtime',
         audio: {
@@ -180,7 +184,6 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
     this.silenceSamples = 0
     this.voicedSamples = 0
     this.resetPrefixAudio()
-    this.sendJSON({ type: 'input_audio_buffer.commit' })
   }
 
   sendFunctionResult(message) {

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  */
 
-import OpenAIRealtimeModel from 'stackchanOpenAIRealtimeModel'
+import OpenAIRealtimeModel from 'stackchanServerOpenAIRealtimeModel'
 
 new OpenAIRealtimeModel({
   inputSampleRate: 8000,

@@ -12,6 +12,7 @@ import {
   INPUT_GATE_SHOULD_OPEN,
   InputActivityGate,
   maximumSourceSamplesForOutput,
+  resamplePCM16View,
   ringReadableBytes,
   SyntheticInputProbe,
 } from '../chat-audioio/duplex-chat-audio-buffer.js'
@@ -27,6 +28,25 @@ test('maximumSourceSamplesForOutput bounds the two realtime resampling direction
   assert.equal(maximumSourceSamplesForOutput(512, 24_000, 16_000), 768)
   assert.equal(maximumSourceSamplesForOutput(512, 8_000, 16_000), 256)
   assert.equal(maximumSourceSamplesForOutput(512, 16_000, 16_000), 512)
+})
+
+test('PCM16 producer views retain their backing buffer and sample offset for resampling', () => {
+  const backing = Int16Array.from([30_000, -30_000, 1_200, -2_400, 6_000])
+  const producer = new Uint8Array(backing.buffer, 2 * Int16Array.BYTES_PER_ELEMENT, 3 * Int16Array.BYTES_PER_ELEMENT)
+  const output = new Int16Array(3)
+
+  const outputSamples = resamplePCM16View(
+    resamplePCM16Mono,
+    producer,
+    3,
+    output.buffer,
+    16_000,
+    16_000,
+    new Int32Array(3),
+  )
+
+  assert.equal(outputSamples, 2)
+  assert.deepEqual(Array.from(output.subarray(0, outputSamples)), [1_200, -2_400])
 })
 
 test('copyCircularBytes copies through wraparound and returns the new tail', () => {

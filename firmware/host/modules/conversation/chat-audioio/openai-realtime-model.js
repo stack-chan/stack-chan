@@ -23,6 +23,12 @@ const INPUT_PRE_ROLL_DURATION_MS = 300
 const PCM_BYTES_PER_SAMPLE = 2
 const INPUT_PROBE_DEFAULT_VAD_SILENCE_MS = 1500
 
+/*
+ * Barrier index 1 is the acknowledgement sequence for message transport, but
+ * the ring head for shared-ring transport. The shared-ring pump never sends a
+ * sequence, so the two layouts must not be mixed.
+ */
+
 function inputChunkBytes(sampleRate) {
   return Math.round((sampleRate * INPUT_CHUNK_DURATION_MS) / 1000) * PCM_BYTES_PER_SAMPLE
 }
@@ -76,6 +82,7 @@ export default class OpenAIRealtimeModel extends OpenAIRealtimeModelBase {
 
   configure(message) {
     const result = super.configure(message)
+    this.session.audio.input.transcription = { model: 'gpt-transcribe', languages: ['ja'] }
     const probe = config.chat?.inputProbe
     if (probe?.enabled === true) {
       const configured = probe.vadSilenceDurationMs

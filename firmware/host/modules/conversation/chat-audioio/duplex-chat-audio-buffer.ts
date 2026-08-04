@@ -23,6 +23,50 @@ export function maximumSourceSamplesForOutput(
   return Math.floor((outputSamples * sourceSampleRate) / targetSampleRate)
 }
 
+export function pcm16ViewRange(source: Uint8Array): {
+  buffer: ArrayBufferLike
+  offsetSamples: number
+} {
+  if (source.byteOffset % Int16Array.BYTES_PER_ELEMENT !== 0)
+    throw new RangeError('PCM16 source offset must be sample-aligned')
+  if (source.byteLength % Int16Array.BYTES_PER_ELEMENT !== 0)
+    throw new RangeError('PCM16 source length must be sample-aligned')
+
+  return {
+    buffer: source.buffer,
+    offsetSamples: source.byteOffset / Int16Array.BYTES_PER_ELEMENT,
+  }
+}
+
+export function resamplePCM16View(
+  resampler: (
+    inputBuffer: ArrayBufferLike,
+    inputOffsetSamples: number,
+    inputSamples: number,
+    outputBuffer: ArrayBufferLike,
+    sourceSampleRate: number,
+    targetSampleRate: number,
+    state: Int32Array,
+  ) => number,
+  source: Uint8Array,
+  sourceSamples: number,
+  outputBuffer: ArrayBufferLike,
+  sourceSampleRate: number,
+  targetSampleRate: number,
+  state: Int32Array,
+): number {
+  const range = pcm16ViewRange(source)
+  return resampler(
+    range.buffer,
+    range.offsetSamples,
+    sourceSamples,
+    outputBuffer,
+    sourceSampleRate,
+    targetSampleRate,
+    state,
+  )
+}
+
 export function copyCircularBytes(source: Uint8Array, sourceOffset: number, target: Uint8Array, count: number): number {
   if (!Number.isInteger(sourceOffset) || sourceOffset < 0 || sourceOffset >= source.byteLength)
     throw new RangeError('source offset is out of range')

@@ -19,6 +19,7 @@ import {
   INPUT_GATE_SHOULD_OPEN,
   InputActivityGate,
   maximumSourceSamplesForOutput,
+  resamplePCM16View,
   ringReadableBytes,
   SyntheticInputProbe,
 } from 'duplex-chat-audio-buffer'
@@ -285,9 +286,11 @@ export default class DuplexChatAudioIO extends ChatAudioIOBase {
       Math.round((HARDWARE_SAMPLE_RATE * INPUT_GATE_ATTACK_MS) / 1000),
       Math.round((HARDWARE_SAMPLE_RATE * INPUT_GATE_HANGOVER_MS) / 1000),
     )
-    const sourcePreRollBytes =
+    const sourcePreRollBytes = Math.max(
+      PCM_BYTES_PER_SAMPLE,
       Math.round((preRollBytes * HARDWARE_SAMPLE_RATE) / this.inputSampleRate / PCM_BYTES_PER_SAMPLE) *
-      PCM_BYTES_PER_SAMPLE
+        PCM_BYTES_PER_SAMPLE,
+    )
     this.inputPreRoll = new CircularByteHistory(sourcePreRollBytes)
     this.inputBufferOffset = 0
     Atomics.store(this.barrier, INPUT_RING_HEAD_BARRIER_INDEX, 0)
@@ -422,14 +425,14 @@ export default class DuplexChatAudioIO extends ChatAudioIOBase {
       this.outputResampleTarget = new SharedArrayBuffer(targetBytes)
   }
 
-  resampleAndQueueInput(inputBuffer, inputOffsetSamples, sourceSamples) {
+  resampleAndQueueInput(source, sourceSamples) {
     if (!sourceSamples) return
     const targetCapacitySamples = Math.ceil((sourceSamples * this.inputSampleRate) / HARDWARE_SAMPLE_RATE) + 1
     const targetCapacityBytes = targetCapacitySamples * PCM_BYTES_PER_SAMPLE
     this.ensureInputResampleTargetBuffer(targetCapacityBytes)
-    const targetSamples = resamplePCM16Mono(
-      inputBuffer,
-      inputOffsetSamples,
+    const targetSamples = resamplePCM16View(
+      resamplePCM16Mono,
+      source,
       sourceSamples,
       this.inputResampleTarget,
       HARDWARE_SAMPLE_RATE,
@@ -442,7 +445,7 @@ export default class DuplexChatAudioIO extends ChatAudioIOBase {
 
   drainInputPreRoll() {
     this.inputPreRoll?.drain((buffer, byteOffset, byteLength) => {
-      this.resampleAndQueueInput(buffer, byteOffset / PCM_BYTES_PER_SAMPLE, byteLength / PCM_BYTES_PER_SAMPLE)
+      this.resampleAndQueueInput(new Uint8Array(buffer, byteOffset, byteLength), byteLength / PCM_BYTES_PER_SAMPLE)
     })
   }
 
@@ -590,7 +593,7 @@ export default class DuplexChatAudioIO extends ChatAudioIOBase {
     }
 
     if (!this.inputGateEnabled || !this.inputGate || !this.inputPreRoll) {
-      this.resampleAndQueueInput(source, 0, sourceSamples)
+      this.resampleAndQueueInput(source, sourceSamples)
       return
     }
 
@@ -600,12 +603,12 @@ export default class DuplexChatAudioIO extends ChatAudioIOBase {
       this.openInputGate(level)
       this.inputResamplerState.fill(0)
       this.drainInputPreRoll()
-      this.resampleAndQueueInput(source, 0, sourceSamples)
+      this.resampleAndQueueInput(source, sourceSamples)
       return
     }
 
     if (gateState === INPUT_GATE_OPEN) {
-      this.resampleAndQueueInput(source, 0, sourceSamples)
+      this.resampleAndQueueInput(source, sourceSamples)
       if (gateAction === INPUT_GATE_SHOULD_CLOSE) this.beginInputGateClose(level)
       return
     }

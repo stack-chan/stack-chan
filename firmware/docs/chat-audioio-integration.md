@@ -127,6 +127,11 @@ Drawer の callback は `StackchanContext` を受け取る。
 API key は `ChatAudioIO` の標準設定に合わせる。
 ファイルへ固定値を書かない場合は、`mcconfig` の config 上書きで渡す。
 
+`endpoint` で Realtime 中継サーバーを指定する場合、Bearer API key を渡す接続は `wss://` を必須とする。
+認証情報のないローカル開発接続だけは `ws://` も利用できる。
+標準ビルドは Moddable ChatAudioIO と同じ Baltimore、ISRG Root X1、Starfield G2、GTS Root R1/R4 を組み込むため、任意の `wss://` サーバーはこれらのいずれかへ連なる証明書チェーンを提示する必要がある。
+別の private CA を使う場合は、利用側の manifest でそのルート証明書を追加する。
+
 ## テスト配置
 
 会話 module の pure logic は `host/modules/conversation` 配下に置く。

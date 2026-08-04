@@ -13,6 +13,7 @@ const audioPrefix = Object.freeze(
   true,
 )
 const audioSuffix = Object.freeze(new Uint8Array(ArrayBuffer.fromString('"}')), true)
+const INPUT_ACK_BARRIER_INDEX = 1
 const INPUT_SAMPLE_RATE = 8000
 const VAD_CALIBRATION_SAMPLES = INPUT_SAMPLE_RATE / 2
 const VAD_MIN_START_LEVEL = 400
@@ -42,6 +43,14 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
     try {
       const endpoint = parseWebSocketEndpoint(message.providerID)
       const apiKey = String(message.apiKey ?? '')
+      const tools = (message.functions ?? []).map((tool) => ({
+        ...tool,
+        type: 'function',
+        parameters: {
+          ...(tool.parameters ?? { type: 'object', properties: {} }),
+          additionalProperties: false,
+        },
+      }))
       if (!endpoint.secure && apiKey) {
         throw new Error('ChatService Bearer authentication requires a wss:// endpoint')
       }
@@ -70,6 +79,9 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
             voice: message.voiceID ?? 'marin',
           },
         },
+        instructions: message.instructions ?? '',
+        tools,
+        tool_choice: 'auto',
       }
     } catch (error) {
       this.configurationError = String(error?.message ?? error)
@@ -81,7 +93,13 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
       this.postMessage({ id: 'failed', string: this.configurationError })
       return
     }
+    this.inputBarrier = message.barrier
     super.connect(message)
+  }
+
+  close() {
+    this.inputBarrier = undefined
+    return super.close()
   }
 
   generateId(prefix, length = 21) {
@@ -140,50 +158,56 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
   }
 
   sendAudio(message) {
-    if (this.turnCommitted) return
-    const buffer = new Uint8Array(this.inputBuffer, message.offset, message.size)
-    const samples = new Int16Array(this.inputBuffer, message.offset, message.size >> 1)
-    let total = 0
-    for (let index = 0; index < samples.length; index += 1) {
-      total += Math.abs(samples[index])
-    }
-    const level = samples.length > 0 ? total / samples.length : 0
-    if (this.noiseLevel === 0) this.noiseLevel = level
-    if (this.calibrationSamples > 0) {
-      this.noiseLevel = this.noiseLevel * 0.9 + level * 0.1
-      this.calibrationSamples -= samples.length
-      return
-    }
-    const threshold = this.turnActive
-      ? Math.max(VAD_MIN_CONTINUE_LEVEL, this.noiseLevel * 1.6)
-      : Math.max(VAD_MIN_START_LEVEL, this.noiseLevel * 2.4)
-    const voiced = samples.length > 0 && level >= threshold
-    Encode.toAlaw(buffer, buffer)
-    message.size = samples.length
-    const encoded = new Uint8Array(this.inputBuffer, message.offset, message.size)
-    if (!this.turnActive) {
-      this.appendPrefixAudio(encoded)
-      if (!voiced) {
-        this.voicedSamples = 0
-        this.noiseLevel = this.noiseLevel * 0.98 + level * 0.02
+    try {
+      if (this.turnCommitted) return
+      const buffer = new Uint8Array(this.inputBuffer, message.offset, message.size)
+      const samples = new Int16Array(this.inputBuffer, message.offset, message.size >> 1)
+      let total = 0
+      for (let index = 0; index < samples.length; index += 1) {
+        total += Math.abs(samples[index])
+      }
+      const level = samples.length > 0 ? total / samples.length : 0
+      if (this.noiseLevel === 0) this.noiseLevel = level
+      if (this.calibrationSamples > 0) {
+        this.noiseLevel = this.noiseLevel * 0.9 + level * 0.1
+        this.calibrationSamples -= samples.length
         return
       }
-      this.voicedSamples += samples.length
-      if (this.voicedSamples < VAD_START_SAMPLES) return
-      this.turnActive = true
+      const threshold = this.turnActive
+        ? Math.max(VAD_MIN_CONTINUE_LEVEL, this.noiseLevel * 1.6)
+        : Math.max(VAD_MIN_START_LEVEL, this.noiseLevel * 2.4)
+      const voiced = samples.length > 0 && level >= threshold
+      Encode.toAlaw(buffer, buffer)
+      message.size = samples.length
+      const encoded = new Uint8Array(this.inputBuffer, message.offset, message.size)
+      if (!this.turnActive) {
+        this.appendPrefixAudio(encoded)
+        if (!voiced) {
+          this.voicedSamples = 0
+          this.noiseLevel = this.noiseLevel * 0.98 + level * 0.02
+          return
+        }
+        this.voicedSamples += samples.length
+        if (this.voicedSamples < VAD_START_SAMPLES) return
+        this.turnActive = true
+        this.voicedSamples = 0
+        super.sendAudioBuffer(this.takePrefixedAudio(new Uint8Array(0)))
+      } else {
+        super.sendAudio(message)
+      }
+      if (voiced) this.silenceSamples = 0
+      else this.silenceSamples += samples.length
+      if (this.silenceSamples < VAD_SILENCE_SAMPLES) return
+      this.turnActive = false
+      this.turnCommitted = true
+      this.silenceSamples = 0
       this.voicedSamples = 0
-      super.sendAudioBuffer(this.takePrefixedAudio(new Uint8Array(0)))
-    } else {
-      super.sendAudio(message)
+      this.resetPrefixAudio()
+    } finally {
+      if (message.sequence !== undefined && this.inputBarrier?.length > INPUT_ACK_BARRIER_INDEX) {
+        Atomics.store(this.inputBarrier, INPUT_ACK_BARRIER_INDEX, message.sequence)
+      }
     }
-    if (voiced) this.silenceSamples = 0
-    else this.silenceSamples += samples.length
-    if (this.silenceSamples < VAD_SILENCE_SAMPLES) return
-    this.turnActive = false
-    this.turnCommitted = true
-    this.silenceSamples = 0
-    this.voicedSamples = 0
-    this.resetPrefixAudio()
   }
 
   sendFunctionResult(message) {
@@ -196,6 +220,7 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
       },
       event_id: this.generateId('event_'),
     })
+    this.sendJSON({ type: 'response.create' })
   }
 
   sendText(message) {

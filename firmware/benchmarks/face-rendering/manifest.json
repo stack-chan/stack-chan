@@ -2,7 +2,14 @@
   "include": ["../../host/modules/ui/manifest.json"],
   "modules": {
     "main": "./main",
-    "*": ["./instrumentation-control"]
+    "*": [
+      "./instrumentation-control",
+      "$(MODULES)/pins/i2s/sbc_decoder",
+      "$(MODULES)/pins/i2s/dvi_adpcm_decode"
+    ]
+  },
+  "config": {
+    "startupSound": false
   },
   "creation": {
     "static": 131072,

@@ -19,6 +19,14 @@ npm run benchmark:face-rendering:build:core2
 npm run benchmark:face-rendering:flash:core2
 ```
 
+The manifest's `"*"` module entry intentionally links native sources that do
+not export JavaScript modules: `instrumentation-control.c` provides the
+benchmark hook, while the SBC and ADPCM sources satisfy the custom CoreS3
+platform's `pins/audioout-original` backend. The `instrumentation` import in
+`main.ts` continues to resolve to the Moddable JavaScript module supplied by the
+included UI/platform manifests; mapping that module name to the C file would
+replace the JavaScript API instead of only adding the benchmark hook.
+
 Capture the serial/debug output once on the baseline revision and once on the
 candidate revision. Analyze either one run or compare both:
 

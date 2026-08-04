@@ -19,7 +19,7 @@ const MOUTH_QUANTIZE_STEP = 0.1
 const MOUTH_MAX_STEP = Math.round(1 / MOUTH_QUANTIZE_STEP)
 const MOUTH_LEVEL_STEP_DIVISOR = Math.round(MOUTH_QUANTIZE_STEP / DEFAULT_MOUTH_SCALE)
 const DEFAULT_AUTO_START_DELAY_MS = 5000
-const DEFAULT_SMOKE_TIMEOUT_MS = 300000
+const DEFAULT_SMOKE_TIMEOUT_MS = 105000
 const AUTO_PROMPT_DELAY_MS = 500
 const AUTO_STOP_DELAY_MS = 500
 const DEFAULT_TONE_DURATION_MS = 220
@@ -186,7 +186,6 @@ export function onContextCreated(robot) {
   const autoStart = chatConfig.autoStart === true
   const autoStartDelayMs = positiveIntegerOr(chatConfig.autoStartDelayMs, DEFAULT_AUTO_START_DELAY_MS)
   const autoPrompt = typeof chatConfig.autoPrompt === 'string' ? chatConfig.autoPrompt.trim() : ''
-  const autoStop = chatConfig.autoStop === true
   const autoMicrophone = chatConfig.autoMicrophone !== false
   const autoExpectedResponses = positiveIntegerOr(chatConfig.autoExpectedResponses, 1)
   const smokeTimeoutMs = positiveIntegerOr(chatConfig.smokeTimeoutMs, DEFAULT_SMOKE_TIMEOUT_MS)
@@ -547,6 +546,10 @@ export function onContextCreated(robot) {
               smokeResultRecorded = true
               clearSmokeTimers()
               trace('[ChatSmoke] PASS stage=connected\n')
+              smokeActionTimer = Timer.set(() => {
+                smokeActionTimer = undefined
+                stopChat()
+              }, AUTO_STOP_DELAY_MS)
             } else {
               smokePromptSent = true
               trace('[ChatSmoke] prompt scheduled\n')
@@ -570,12 +573,10 @@ export function onContextCreated(robot) {
               smokeResultRecorded = true
               clearSmokeTimers()
               trace(`[ChatSmoke] PASS stage=response-complete responses=${smokeResponsesCompleted}\n`)
-              if (autoStop) {
-                smokeActionTimer = Timer.set(() => {
-                  smokeActionTimer = undefined
-                  stopChat()
-                }, AUTO_STOP_DELAY_MS)
-              }
+              smokeActionTimer = Timer.set(() => {
+                smokeActionTimer = undefined
+                stopChat()
+              }, AUTO_STOP_DELAY_MS)
             }
           }
         }

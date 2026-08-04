@@ -25,7 +25,7 @@ const requireInput = rawArguments.includes('--require-input')
 const outputRoot = path.resolve(
   readOption(rawArguments, 'output') ??
     process.env.STACKCHAN_CHAT_SMOKE_OUTPUT ??
-    path.join('dist/chat-smoke', timestamp()),
+    path.join(firmwareDirectory, 'dist/chat-smoke', timestamp()),
 )
 const moddableDirectory = process.env.MODDABLE
 const serialBridge = moddableDirectory
@@ -228,8 +228,22 @@ function stopBridge(bridge) {
 function readOption(values, name) {
   const prefix = `--${name}=`
   const index = values.indexOf(`--${name}`)
-  if (index >= 0) return values[index + 1]
-  return values.find((value) => value.startsWith(prefix))?.slice(prefix.length)
+  if (index >= 0) {
+    const value = values[index + 1]
+    if (!value || value.startsWith('--')) {
+      console.error(`[chat-smoke] --${name} requires a value`)
+      process.exit(1)
+    }
+    return value
+  }
+  const argument = values.find((value) => value.startsWith(prefix))
+  if (!argument) return undefined
+  const value = argument.slice(prefix.length)
+  if (!value) {
+    console.error(`[chat-smoke] --${name} requires a value`)
+    process.exit(1)
+  }
+  return value
 }
 
 function positiveInteger(value, name) {

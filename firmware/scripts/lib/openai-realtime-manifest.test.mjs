@@ -35,7 +35,7 @@ test('generates a private, silent CoreS3 Realtime test manifest', () => {
       autoPrompt: '接続確認です。「接続できました」とだけ短く答えてください。',
       autoStop: true,
       autoMicrophone: false,
-      smokeTimeoutMs: 300000,
+      smokeTimeoutMs: 105000,
     })
     if (process.platform !== 'win32') {
       assert.equal(statSync(result.manifestPath).mode & 0o777, 0o600)

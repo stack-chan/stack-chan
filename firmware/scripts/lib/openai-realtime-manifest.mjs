@@ -107,7 +107,7 @@ export function prepareOpenAIRealtimeManifest({
       autoPrompt: '接続確認です。「接続できました」とだけ短く答えてください。',
       autoStop: true,
       autoMicrophone: autoMicrophone || inputProbe,
-      smokeTimeoutMs: 300000,
+      smokeTimeoutMs: 105000,
     })
   }
 

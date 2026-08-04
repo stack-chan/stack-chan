@@ -3,14 +3,14 @@
 import { loadOpenAIApiKey, prepareOpenAIRealtimeManifest } from './lib/openai-realtime-manifest.mjs'
 
 const rawArguments = process.argv.slice(2)
-const keyFile = readOption(rawArguments, 'key-file')
-const manifestPath = readOption(rawArguments, 'output')
 const inputProbe = rawArguments.includes('--input-probe')
 const autoMicrophone = rawArguments.includes('--microphone') || inputProbe
 const automatedSmoke = !rawArguments.includes('--interactive')
 const faceAnimation = !rawArguments.includes('--disable-face-animation')
 
 try {
+  const keyFile = readOption(rawArguments, 'key-file')
+  const manifestPath = readOption(rawArguments, 'output')
   const { apiKey, source } = loadOpenAIApiKey({ keyFile })
   const result = prepareOpenAIRealtimeManifest({
     apiKey,
@@ -38,6 +38,15 @@ try {
 function readOption(values, name) {
   const prefix = `--${name}=`
   const index = values.indexOf(`--${name}`)
-  if (index >= 0) return values[index + 1]
-  return values.find((value) => value.startsWith(prefix))?.slice(prefix.length)
+  if (index >= 0) {
+    const value = values[index + 1]
+    if (!value || value.startsWith('--')) throw new Error(`--${name} requires a value`)
+    return value
+  }
+
+  const argument = values.find((value) => value.startsWith(prefix))
+  if (!argument) return undefined
+  const value = argument.slice(prefix.length)
+  if (!value) throw new Error(`--${name} requires a value`)
+  return value
 }

@@ -1,0 +1,21 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./realtime-worker-entrypoints.test",
+    "stackchanOpenAIRealtime": "../../chat-audioio/stackchan-openai-realtime",
+    "stackchanOpenAIRealtimeModel": "./direct-model",
+    "stackchanServerOpenAIRealtime": "../../chat-audioio/stackchan-server-openai-realtime",
+    "stackchanServerOpenAIRealtimeModel": "./server-model"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 // biome-ignore lint/correctness/noUnusedImports: kept with the parked image-face setup below.
 import { ImageFace } from 'behaviors/face'
 import { ChatService, ChatState, chatStateToName } from 'chat'
-import { hasValidChatType, normalizeChatConfig } from 'chat-audioio-config'
+import { hasValidChatType, normalizeChatConfig, withChatDefaults } from 'chat-audioio-config'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { EmotionNames, emotionFromName } from 'face-state'
 import config from 'mc/config'
@@ -176,13 +176,7 @@ You are a cute, energetic, and polite community-built robot who enjoys talking w
 `
 
 export function onContextCreated(robot) {
-  const rawChatConfig = normalizeChatConfig(config)
-  const chatConfig = {
-    ...rawChatConfig,
-    voiceID: rawChatConfig.voiceID ?? 'marin',
-    specifier: rawChatConfig.specifier ?? 'openAIRealtime',
-    instructions: rawChatConfig.instructions ?? INSTRUCTION_B,
-  }
+  const chatConfig = withChatDefaults(normalizeChatConfig(config), INSTRUCTION_B)
   const autoStart = chatConfig.autoStart === true
   const autoStartDelayMs = positiveIntegerOr(chatConfig.autoStartDelayMs, DEFAULT_AUTO_START_DELAY_MS)
   const autoPrompt = typeof chatConfig.autoPrompt === 'string' ? chatConfig.autoPrompt.trim() : ''

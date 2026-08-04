@@ -1,4 +1,4 @@
-import { hasValidChatType, normalizeChatConfig } from 'chat-audioio-config'
+import { hasValidChatType, normalizeChatConfig, withChatDefaults } from 'chat-audioio-config'
 import { equal } from 'testing/assert'
 
 trace('=== chat-audioio-config test ===\n')
@@ -28,5 +28,23 @@ const rootConfig = normalizeChatConfig({
 })
 equal(rootConfig.type, undefined, 'root chatType should not enable chat')
 equal(rootConfig.apiKey, undefined, 'root chatApiKey should not map to chat config apiKey')
+
+const providerDefaults = withChatDefaults({ type: 'deepgramAgent' }, 'default instructions')
+equal(providerDefaults.specifier, undefined, 'provider defaults should not override the configured chat type')
+equal(providerDefaults.voiceID, 'marin', 'provider defaults should supply the default voice')
+equal(providerDefaults.instructions, 'default instructions', 'provider defaults should supply default instructions')
+
+const explicitWorker = withChatDefaults(
+  {
+    type: 'openAIRealtime',
+    specifier: 'stackchanOpenAIRealtime',
+    voiceID: 'cedar',
+    instructions: 'custom instructions',
+  },
+  'default instructions',
+)
+equal(explicitWorker.specifier, 'stackchanOpenAIRealtime', 'an explicit worker override should be preserved')
+equal(explicitWorker.voiceID, 'cedar', 'an explicit voice should be preserved')
+equal(explicitWorker.instructions, 'custom instructions', 'explicit instructions should be preserved')
 
 trace('ok\n')

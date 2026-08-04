@@ -41,6 +41,8 @@
     "ChatAudioIO/Codecs": "$(MODULES)/network/services/chatAudioIO/codecs/audio-codecs",
     "openAIRealtimeModel": "$(MODULES)/network/services/chatAudioIO/workers/openAIRealtimeModel",
     "stackchanOpenAIRealtime": "./stackchan-openai-realtime",
+    "stackchanOpenAIRealtimeModel": "./openai-realtime-model",
+    "stackchanServerOpenAIRealtime": "./stackchan-server-openai-realtime",
     "stackchanServerOpenAIRealtimeModel": "./server-openai-realtime-model",
     "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker"
   },

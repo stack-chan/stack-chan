@@ -92,7 +92,7 @@ if (!dryRun && isCoreS3Device(deviceName) && command !== 'mod' && command !== 'm
 const buildVariantChanged =
   !dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command) ? prepareBuildVariant() : false
 
-if (buildVariantChanged && deviceName === 'm5stackchan_cores3') {
+if (buildVariantChanged && isCoreS3Device(deviceName)) {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,

@@ -59,32 +59,35 @@ test('MOD build command produces a release archive without planning a device wri
 })
 
 test('firmware wrapper cleans manifest switches before every CoreS3 command and restores IDF dependencies', () => {
-  for (const command of ['build', 'flash', 'deploy', 'debug']) {
-    const fixture = createFirmwareWrapperFixture()
-    try {
-      const first = runFixture(fixture, command, fixture.normalManifest)
-      assert.equal(count(first.stdout, 'prepared IDF dependencies:'), 2, `${command}: first build preparation`)
-      let invocations = readInvocations(fixture.commandLog)
-      assertCommandPair(invocations, command, fixture.normalManifest)
+  for (const deviceName of ['m5stack_cores3', 'm5stackchan_cores3']) {
+    for (const command of ['build', 'flash', 'deploy', 'debug']) {
+      const fixture = createFirmwareWrapperFixture(deviceName)
+      const label = `${deviceName}/${command}`
+      try {
+        const first = runFixture(fixture, command, fixture.normalManifest)
+        assert.equal(count(first.stdout, 'prepared IDF dependencies:'), 2, `${label}: first build preparation`)
+        let invocations = readInvocations(fixture.commandLog)
+        assertCommandPair(invocations, command, fixture.normalManifest, fixture.platform)
 
-      const same = runFixture(fixture, command, fixture.normalManifest)
-      assert.equal(count(same.stdout, 'prepared IDF dependencies:'), 1, `${command}: same variant preparation`)
-      invocations = readInvocations(fixture.commandLog)
-      assert.equal(invocations.length, 3, `${command}: same variant must not clean`)
-      assertMainCommand(invocations[2], command, fixture.normalManifest)
+        const same = runFixture(fixture, command, fixture.normalManifest)
+        assert.equal(count(same.stdout, 'prepared IDF dependencies:'), 1, `${label}: same variant preparation`)
+        invocations = readInvocations(fixture.commandLog)
+        assert.equal(invocations.length, 3, `${label}: same variant must not clean`)
+        assertMainCommand(invocations[2], command, fixture.normalManifest, fixture.platform)
 
-      const switched = runFixture(fixture, command, fixture.diagnosticManifest)
-      assert.equal(count(switched.stdout, 'prepared IDF dependencies:'), 2, `${command}: switched preparation`)
-      invocations = readInvocations(fixture.commandLog)
-      assert.equal(invocations.length, 5)
-      assertCommandPair(invocations.slice(3), command, fixture.diagnosticManifest)
-    } finally {
-      rmSync(fixture.root, { recursive: true, force: true })
+        const switched = runFixture(fixture, command, fixture.diagnosticManifest)
+        assert.equal(count(switched.stdout, 'prepared IDF dependencies:'), 2, `${label}: switched preparation`)
+        invocations = readInvocations(fixture.commandLog)
+        assert.equal(invocations.length, 5)
+        assertCommandPair(invocations.slice(3), command, fixture.diagnosticManifest, fixture.platform)
+      } finally {
+        rmSync(fixture.root, { recursive: true, force: true })
+      }
     }
   }
 })
 
-function createFirmwareWrapperFixture() {
+function createFirmwareWrapperFixture(deviceName) {
   const root = mkdtempSync(path.join(tmpdir(), 'stackchan-firmware-wrapper-'))
   const fixtureFirmware = path.join(root, 'firmware')
   const fixtureWebEditor = path.join(root, 'web', 'editor')
@@ -128,6 +131,7 @@ function createFirmwareWrapperFixture() {
   )
   mkdirSync(partitionDirectory, { recursive: true })
   writeFileSync(path.join(partitionDirectory, 'partitions.csv'), '# test partition table\n')
+  writeFileSync(path.join(partitionDirectory, 'sdkconfig.defaults'), '# test sdkconfig\n')
 
   const appDirectory = path.join(fixtureFirmware, 'host', 'app')
   mkdirSync(appDirectory, { recursive: true })
@@ -140,6 +144,8 @@ function createFirmwareWrapperFixture() {
   const commandLog = path.join(root, 'mcconfig.jsonl')
   mkdirSync(fakeBin, { recursive: true })
   const fakeMcconfig = path.join(fakeBin, 'mcconfig')
+  const dependencyMarker =
+    deviceName === 'm5stackchan_cores3' ? 'espressif/esp_audio_codec:' : 'espressif/esp32-camera:'
   writeFileSync(
     fakeMcconfig,
     `#!/usr/bin/env node
@@ -154,7 +160,7 @@ const idfManifest = path.join(
   outputDirectory,
   'tmp',
   'esp32',
-  'm5stackchan_cores3',
+  '${deviceName}',
   'instrument',
   'stack-chan-host',
   'xsProj-esp32s3',
@@ -166,7 +172,7 @@ if (targetIndex >= 0 && args[targetIndex + 1] === 'clean') {
   rmSync(idfManifest, { force: true })
 } else if (
   !existsSync(idfManifest) ||
-  !readFileSync(idfManifest, 'utf8').includes('espressif/esp_audio_codec:')
+  !readFileSync(idfManifest, 'utf8').includes('${dependencyMarker}')
 ) {
   process.exit(12)
 }
@@ -180,6 +186,8 @@ if (targetIndex >= 0 && args[targetIndex + 1] === 'clean') {
     fakeBin,
     fakeModdable,
     commandLog,
+    deviceName,
+    platform: deviceName === 'm5stack_cores3' ? 'esp32/m5stack_cores3' : 'esp32:./host/platforms/m5stackchan_cores3',
     normalManifest,
     diagnosticManifest,
   }
@@ -191,7 +199,7 @@ function runFixture(fixture, command, manifestPath) {
     [
       'scripts/firmware.mjs',
       command,
-      'm5stackchan_cores3',
+      fixture.deviceName,
       '--mode=instrument',
       '--manifest',
       path.relative(fixture.firmware, manifestPath),
@@ -222,17 +230,17 @@ function readInvocations(commandLog) {
     .map((line) => JSON.parse(line))
 }
 
-function assertCommandPair(invocations, command, manifestPath) {
+function assertCommandPair(invocations, command, manifestPath, platform) {
   assert.equal(invocations.length, 2)
   const [clean, main] = invocations
-  assert.equal(clean[clean.indexOf('-p') + 1], 'esp32:./host/platforms/m5stackchan_cores3')
+  assert.equal(clean[clean.indexOf('-p') + 1], platform)
   assert.equal(clean[clean.indexOf('-t') + 1], 'clean')
   assert.equal(clean.at(-1), manifestPath)
-  assertMainCommand(main, command, manifestPath)
+  assertMainCommand(main, command, manifestPath, platform)
 }
 
-function assertMainCommand(invocation, command, manifestPath) {
-  assert.equal(invocation[invocation.indexOf('-p') + 1], 'esp32:./host/platforms/m5stackchan_cores3')
+function assertMainCommand(invocation, command, manifestPath, platform) {
+  assert.equal(invocation[invocation.indexOf('-p') + 1], platform)
   assert.equal(invocation.at(-1), manifestPath)
   if (command === 'build' || command === 'deploy') {
     assert.equal(invocation[invocation.indexOf('-t') + 1], command)

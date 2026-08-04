@@ -1278,6 +1278,9 @@ static void audioDuplexInputTask(void *refcon)
 		xSemaphoreTake(audio->mutex, portMAX_DELAY);
 		if (audio->aecEnabled) {
 			audioDuplexAecQueueMicrophoneLocked(audio, logical, frames);
+			/* Keep the task handle alive until the non-blocking notify returns. */
+			if (audio->aecTask)
+				xTaskNotifyGive(audio->aecTask);
 		}
 		else {
 			if (audioDuplexRingFree(&audio->inputRing) < logicalBytes) {
@@ -1292,9 +1295,7 @@ static void audioDuplexInputTask(void *refcon)
 		audio->capturedFrames += frames;
 		xSemaphoreGive(audio->mutex);
 
-		if (audio->aecEnabled)
-			xTaskNotifyGive(audio->aecTask);
-		else
+		if (!audio->aecEnabled)
 			audioDuplexPostInput(audio);
 	}
 
@@ -1373,10 +1374,10 @@ static void audioDuplexOutputTask(void *refcon)
 			audioDuplexAecResetLocked(audio);
 			notifyAec = 1;
 		}
+		if (notifyAec && audio->aecTask)
+			xTaskNotifyGive(audio->aecTask);
 		xSemaphoreGive(audio->mutex);
 
-		if (notifyAec)
-			xTaskNotifyGive(audio->aecTask);
 		if ((ESP_OK == err) && started)
 			audioDuplexPostOutput(audio);
 	}

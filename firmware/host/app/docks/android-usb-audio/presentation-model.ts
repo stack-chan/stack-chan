@@ -1,3 +1,4 @@
+import type { TaskExecutionState } from 'stackchan-application-event'
 import { StackChanStatus } from 'stackchan-usb-media-session'
 
 export const USB_AUDIO_BALLOON_CHARACTER_WIDTH = 8
@@ -13,6 +14,8 @@ export type UsbAudioStatusVisual =
   | { kind: 'error' }
 
 export type UsbAudioConversationState = 'standby' | 'connecting' | 'listening' | 'recognizing' | 'speaking' | 'blocked'
+
+export type UsbTaskStatusVisual = { kind: 'hidden' } | { kind: 'spinner'; color: 'blue' }
 
 export function usbAudioStatusVisual(status: StackChanStatus): UsbAudioStatusVisual {
   switch (status) {
@@ -46,6 +49,10 @@ export function usbAudioConversationState(status: StackChanStatus): UsbAudioConv
     default:
       return 'standby'
   }
+}
+
+export function usbTaskStatusVisual(state: TaskExecutionState): UsbTaskStatusVisual {
+  return state === 'running' ? { kind: 'spinner', color: 'blue' } : { kind: 'hidden' }
 }
 
 export function formatUsbAudioCaption(text: string, displayWidth = 320): string {

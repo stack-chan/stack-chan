@@ -1,6 +1,7 @@
 import startUsbAudioBridge, {
   type UsbAudioBridgeControl,
   type UsbAudioMicrophoneInputFactory,
+  type UsbAudioSpeakerOutput,
   type UsbAudioSpeakerOutputFactory,
 } from 'stackchan-usb-audio-core'
 import {
@@ -87,6 +88,24 @@ const unusedSpeakerFactory: UsbAudioSpeakerOutputFactory = () => {
   throw new Error('speaker should not be opened')
 }
 
+class FakeSpeakerOutput implements UsbAudioSpeakerOutput {
+  volume = 1
+  readonly bufferedBytes = 0
+  readonly physicalWrittenBytes = 0
+  readonly physicalWritableBytes = 0
+  readonly physicalWritableCallbacks = 0
+  readonly physicalMaxWritableGapMilliseconds = 0
+  readonly physicalAudioActive = false
+  readonly physicalAwaitingDrain = false
+
+  start(): void {}
+  poll(): void {}
+  write(): void {}
+  finish(): void {}
+  stop(): void {}
+  close(): void {}
+}
+
 function hello(capabilities = STACKCHAN_CAPABILITIES): Uint8Array {
   const payload = new Uint8Array(8)
   const view = new DataView(payload.buffer)
@@ -109,6 +128,28 @@ function status(value: StackChanStatus): Uint8Array {
   })
 }
 
+function speakerControl(control: StackChanControl, sequence: number): Uint8Array {
+  return encodeStackChanFrame({
+    type: StackChanFrameType.CONTROL,
+    flags: control,
+    streamId: 1,
+    sequence,
+    sampleRate: 24_000,
+    payload: new Uint8Array(0),
+  })
+}
+
+function speakerPcm(): Uint8Array {
+  return encodeStackChanFrame({
+    type: StackChanFrameType.SPEAKER_PCM,
+    flags: 0,
+    streamId: 1,
+    sequence: 0,
+    sampleRate: 24_000,
+    payload: Uint8Array.of(0, 0),
+  })
+}
+
 function concatenate(...parts: Uint8Array[]): Uint8Array {
   const combined = new Uint8Array(parts.reduce((total, part) => total + part.byteLength, 0))
   let offset = 0
@@ -119,15 +160,18 @@ function concatenate(...parts: Uint8Array[]): Uint8Array {
   return combined
 }
 
-function startWithFakeSerial(): {
+function startWithFakeSerial(
+  options: { speakerVolume?: number; createSpeakerOutput?: UsbAudioSpeakerOutputFactory } = {},
+): {
   bridge: UsbAudioBridgeControl
   serial: FakeUSBSerial
   transportStates: string[]
 } {
   let serial: FakeUSBSerial | undefined
   const bridge = startUsbAudioBridge({
+    speakerVolume: options.speakerVolume,
     createMicrophoneInput: unusedMicrophoneFactory,
-    createSpeakerOutput: unusedSpeakerFactory,
+    createSpeakerOutput: options.createSpeakerOutput ?? unusedSpeakerFactory,
     createUSBSerial(options) {
       serial = new FakeUSBSerial(options)
       return serial
@@ -138,6 +182,34 @@ function startWithFakeSerial(): {
   const transportStates: string[] = []
   bridge.setTransportStateHandler((state) => transportStates.push(state))
   return { bridge, serial, transportStates }
+}
+
+function testDynamicSpeakerVolume(): void {
+  let output: FakeSpeakerOutput | undefined
+  const { bridge, serial } = startWithFakeSerial({
+    speakerVolume: 0.25,
+    createSpeakerOutput: () => {
+      output = new FakeSpeakerOutput()
+      return output
+    },
+  })
+
+  bridge.setSpeakerVolume(0.4)
+  serial.enqueue(
+    concatenate(
+      hello(),
+      speakerControl(StackChanControl.SPEAKER_START, 1),
+      speakerPcm(),
+      speakerControl(StackChanControl.SPEAKER_END, 2),
+    ),
+  )
+  serial.notifyReadable()
+
+  assert(output !== undefined, 'speaker end should start playback for buffered PCM')
+  equal(output.volume, 0.4, 'playback should use the latest volume set before opening AudioOut')
+  bridge.setSpeakerVolume(0.2)
+  equal(output.volume, 0.2, 'active playback should receive runtime volume changes')
+  bridge.close()
 }
 
 function testOutputFullRetry(): void {
@@ -203,4 +275,5 @@ trace('=== USB audio bridge IO test ===\n')
 testOutputFullRetry()
 testFatalSerialError()
 testExtendedStatusWithoutPresentation()
+testDynamicSpeakerVolume()
 trace('ok\n')

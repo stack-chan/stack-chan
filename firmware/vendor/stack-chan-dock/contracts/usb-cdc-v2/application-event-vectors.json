@@ -57,6 +57,39 @@
       }
     },
     {
+      "name": "task-status-running",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": true,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "task.status",
+        "requestId": "task-fixture-1",
+        "state": "running"
+      }
+    },
+    {
+      "name": "task-status-idle",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": true,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "task.status",
+        "requestId": "task-fixture-2",
+        "state": "idle"
+      }
+    },
+    {
+      "name": "task-status-invalid",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": false,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "task.status",
+        "requestId": "task-fixture-3",
+        "state": "speaking"
+      }
+    },
+    {
       "name": "raw-realtime-session-update",
       "androidRoute": "raw",
       "codexParserAccepted": false,
@@ -67,6 +100,21 @@
           "instructions": "",
           "tools": []
         }
+      }
+    },
+    {
+      "name": "raw-realtime-generation-bound-function-call",
+      "androidRoute": "raw",
+      "codexParserAccepted": false,
+      "value": {
+        "type": "response.function_call_arguments.done",
+        "event_id": "raw-fixture-2",
+        "response_id": "response-fixture-1",
+        "item_id": "item-fixture-1",
+        "call_id": "call-fixture-1",
+        "name": "set_led",
+        "arguments": "{}",
+        "stackchan_session_update_id": "raw-fixture-1"
       }
     },
     {

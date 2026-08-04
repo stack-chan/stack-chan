@@ -230,7 +230,7 @@
         "host/app/remote-session/approval-model.ts"
       ],
       "stackchan-approval-session": [
-        "host/app/remote-session/approval-session.ts"
+        "host/app/remote-session/__tests__/approval-session-fake.ts"
       ],
       "stackchan-conversation-session": [
         "host/app/remote-session/conversation-session.ts"
@@ -240,6 +240,9 @@
       ],
       "stackchan-remote-session-runtime": [
         "host/app/remote-session/runtime.ts"
+      ],
+      "stackchan-task-session": [
+        "host/app/remote-session/task-session.ts"
       ],
       "stackchan-remote-session-facade": [
         "host/app/remote-session/facade.ts"

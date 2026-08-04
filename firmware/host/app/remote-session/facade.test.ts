@@ -107,6 +107,7 @@ test('listeners survive deactivate and receive updates after reactivation', () =
 
   assert.equal(facade.remoteSession.activationState, 'inactive')
   assert.equal(closes, 1)
+  assert.equal(delegates[0].stopRequests, 1)
   assert.deepEqual(states, [
     ['listening', undefined],
     ['standby', undefined],
@@ -193,6 +194,7 @@ test('final close is idempotent and prevents reactivation', () => {
   facade.close()
 
   assert.equal(closes, 1)
+  assert.equal(delegate.stopRequests, 1)
   assert.equal(facade.remoteSession.activationState, 'inactive')
   assert.throws(() => facade.remoteSession.activate(), /closed/)
 })

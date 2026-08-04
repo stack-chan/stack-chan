@@ -4,6 +4,11 @@
     "*": ["./main"],
     "amp-readback": "./amp-readback"
   },
+  "platforms": {
+    "esp32": {
+      "dependency": [{ "idf": "esp_driver_i2c" }]
+    }
+  },
   "config": {
     "startupSound": false
   },

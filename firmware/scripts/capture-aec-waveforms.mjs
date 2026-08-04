@@ -6,15 +6,30 @@ import { dirname, join, resolve } from 'node:path'
 import { stdin, stdout } from 'node:process'
 import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
+import { decodeXsbugLog } from './lib/chat-smoke-log.mjs'
 import { startXsbugServer } from './lib/xsbug-log-server.js'
 
 const firmwareDirectory = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const rawArguments = process.argv.slice(2)
 const readOption = (name) => {
   const index = rawArguments.indexOf(`--${name}`)
-  if (index >= 0) return rawArguments[index + 1]
+  if (index >= 0) {
+    const value = rawArguments[index + 1]
+    if (!value || value.startsWith('--')) {
+      console.error(`--${name} に値を指定してください。`)
+      process.exit(1)
+    }
+    return value
+  }
   const prefix = `--${name}=`
-  return rawArguments.find((value) => value.startsWith(prefix))?.slice(prefix.length)
+  const argument = rawArguments.find((value) => value.startsWith(prefix))
+  if (!argument) return undefined
+  const value = argument.slice(prefix.length)
+  if (!value) {
+    console.error(`--${name} に値を指定してください。`)
+    process.exit(1)
+  }
+  return value
 }
 const replayRequested = rawArguments.some((value) => value === '--from-log' || value.startsWith('--from-log='))
 const replayLogPath = readOption('from-log')
@@ -30,7 +45,10 @@ const captureProfile = JSON.parse(readFileSync(captureManifest, 'utf8')).config?
 const uploadPort = process.env.UPLOAD_PORT
 const moddableDirectory = process.env.MODDABLE
 const serialSpeed = process.env.STACKCHAN_AEC_CAPTURE_BAUD ?? '460800'
-const timeoutMs = Number.parseInt(process.env.STACKCHAN_AEC_CAPTURE_TIMEOUT_MS ?? '120000', 10)
+const timeoutMs = positiveInteger(
+  process.env.STACKCHAN_AEC_CAPTURE_TIMEOUT_MS ?? '120000',
+  'STACKCHAN_AEC_CAPTURE_TIMEOUT_MS',
+)
 const confirmed = rawArguments.includes('--yes')
 const timestamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')
 const outputDirectory = resolve(
@@ -127,20 +145,6 @@ function stopBridge() {
   }
 }
 
-function decodeXsbugLog(log) {
-  return Array.from(log.matchAll(/<log(?:\s[^>]*)?>([\s\S]*?)<\/log>/g), ([, text]) => text)
-    .join('')
-    .replaceAll('&amp;', '&')
-    .replaceAll('&#10;', '\n')
-    .replaceAll('&#13;', '\r')
-    .replaceAll('&#34;', '"')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&quot;', '"')
-    .replaceAll('&apos;', "'")
-}
-
 async function collectCapture() {
   logServer = startXsbugServer(rawLogPath)
   const xsbugPort = await logServer.ready
@@ -210,6 +214,14 @@ async function collectCapture() {
     const timeout = setTimeout(() => finish(new Error(`${timeoutMs} ms以内に波形取得が終了しませんでした`)), timeoutMs)
     interruptCapture = () => finish(new Error('ユーザー操作で波形取得を中止しました'))
   })
+}
+
+function positiveInteger(value, name) {
+  if (!/^[1-9][0-9]*$/.test(String(value))) {
+    console.error(`${name} は正の整数で指定してください: ${value}`)
+    process.exit(1)
+  }
+  return Number.parseInt(String(value), 10)
 }
 
 function parseCapture(decoded) {

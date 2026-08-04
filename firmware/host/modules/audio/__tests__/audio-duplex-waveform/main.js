@@ -3,6 +3,7 @@
 import AudioDuplex from 'embedded:io/audio/duplex'
 import config from 'mc/config'
 import Timer from 'timer'
+import { amplifierVolumeByte, amplifierVolumeRegister, buildProbe } from 'audio-duplex-test-helpers'
 
 const readAmplifierVolumeRegister = native('xs_audio_duplex_test_read_amp_volume_register')
 
@@ -32,16 +33,6 @@ const CAPTURE_MS = integerSetting('captureMs', 1200, 1, 60000)
 if (CAPTURE_MS * SAMPLE_RATE < CAPTURE_SAMPLES * 1000)
   throw new RangeError('config.aecWaveform.captureMs is too short for captureSamples')
 
-function amplifierVolumeByte(attenuationDb) {
-  const coarseSteps = Math.min(15, Math.floor(attenuationDb / 6))
-  const fineSteps = Math.round((attenuationDb - coarseSteps * 6) * 2)
-  return (coarseSteps << 4) | fineSteps
-}
-
-function amplifierVolumeRegister(attenuationDb) {
-  return (amplifierVolumeByte(attenuationDb) << 8) | 0x64
-}
-
 function setHardwareAttenuation(attenuationDb) {
   if (!globalThis.amp) throw new Error('CoreS3 hardware amplifier is unavailable')
   globalThis.amp.volume = 256 - amplifierVolumeByte(attenuationDb)
@@ -57,32 +48,7 @@ function verifyHardwareAttenuation(attenuationDb) {
   return actual
 }
 
-function buildProbe() {
-  const probe = new Int16Array(PROBE_TABLE_SAMPLES)
-  let random = 0x6d2b79f5
-  let lowPass = 0
-  let baseline = 0
-  let peak = 1
-
-  for (let index = 0; index < probe.length; index += 1) {
-    random ^= random << 13
-    random ^= random >>> 17
-    random ^= random << 5
-    const white = random >> 16
-    lowPass += (white - lowPass) >> 1
-    baseline += (lowPass - baseline) >> 5
-    const shaped = lowPass - baseline
-    probe[index] = shaped
-    const magnitude = Math.abs(shaped)
-    if (peak < magnitude) peak = magnitude
-  }
-
-  const scale = PROBE_PEAK / peak
-  for (let index = 0; index < probe.length; index += 1) probe[index] = Math.round(probe[index] * scale)
-  return probe
-}
-
-const probe = buildProbe()
+const probe = buildProbe(PROBE_TABLE_SAMPLES, PROBE_PEAK)
 let probeOffset = 0
 let inputCallbacks = 0
 let running = false

@@ -2,7 +2,13 @@
   "include": ["$(MODDABLE)/examples/manifest_base.json", "../../manifest.json"],
   "modules": {
     "*": ["./main"],
-    "audio-duplex-device-test": "../audio-duplex-device/amp-readback"
+    "audio-duplex-device-test": "../audio-duplex-device/amp-readback",
+    "audio-duplex-test-helpers": "../fixtures/audio-duplex-test-helpers"
+  },
+  "platforms": {
+    "esp32": {
+      "dependency": [{ "idf": "esp_driver_i2c" }]
+    }
   },
   "config": {
     "startupSound": false,
@@ -11,7 +17,7 @@
       "hardwareAttenuationDb": 60,
       "safeHardwareAttenuationDb": 96,
       "probePeak": 12000,
-      "captureSamples": 16384,
+      "captureSamples": 19200,
       "startDelayMs": 3000,
       "warmupMs": 3500,
       "captureMs": 1200

@@ -2,12 +2,14 @@
 
 import AudioDuplex from 'embedded:io/audio/duplex'
 import Timer from 'timer'
+import { amplifierVolumeByte, amplifierVolumeRegister, buildProbe } from 'audio-duplex-test-helpers'
 
 const readAmplifierVolumeRegister = native('xs_audio_duplex_test_read_amp_volume_register')
 const analyzeDiagnostics = native('xs_audio_duplex_test_analyze_diagnostics')
 
 const SAMPLE_RATE = 16000
 const HARDWARE_ATTENUATION_DB = 60
+const SAFE_HARDWARE_ATTENUATION_DB = 96
 const OUTPUT_VOLUME = 1
 const PROBE_PEAK = 12000
 const PROBE_TABLE_SAMPLES = 16384
@@ -18,38 +20,12 @@ const START_DELAY_MS = 2000
 const WARMUP_MS = 3500
 const MEASUREMENT_MS = 4000
 
-function amplifierVolumeRegister(attenuationDb) {
-  const coarseSteps = Math.min(15, Math.floor(attenuationDb / 6))
-  const fineSteps = Math.round((attenuationDb - coarseSteps * 6) * 2)
-  return (((coarseSteps << 4) | fineSteps) << 8) | 0x64
+function setHardwareAttenuation(attenuationDb) {
+  if (!globalThis.amp) throw new Error('CoreS3 hardware amplifier is unavailable')
+  globalThis.amp.volume = 256 - amplifierVolumeByte(attenuationDb)
 }
 
-function buildProbe() {
-  const probe = new Int16Array(PROBE_TABLE_SAMPLES)
-  let random = 0x6d2b79f5
-  let lowPass = 0
-  let baseline = 0
-  let peak = 1
-
-  for (let index = 0; index < probe.length; index += 1) {
-    random ^= random << 13
-    random ^= random >>> 17
-    random ^= random << 5
-    const white = random >> 16
-    lowPass += (white - lowPass) >> 1
-    baseline += (lowPass - baseline) >> 5
-    const shaped = lowPass - baseline
-    probe[index] = shaped
-    const magnitude = Math.abs(shaped)
-    if (peak < magnitude) peak = magnitude
-  }
-
-  const scale = PROBE_PEAK / peak
-  for (let index = 0; index < probe.length; index += 1) probe[index] = Math.round(probe[index] * scale)
-  return probe
-}
-
-const probe = buildProbe()
+const probe = buildProbe(PROBE_TABLE_SAMPLES, PROBE_PEAK)
 let probeOffset = 0
 let inputCallbacks = 0
 
@@ -89,10 +65,13 @@ const duplex = new AudioDuplex({
 
 const expectedAmplifierRegister = amplifierVolumeRegister(HARDWARE_ATTENUATION_DB)
 const actualAmplifierRegister = readAmplifierVolumeRegister()
-if (actualAmplifierRegister !== expectedAmplifierRegister)
+if (actualAmplifierRegister !== expectedAmplifierRegister) {
+  setHardwareAttenuation(SAFE_HARDWARE_ATTENUATION_DB)
+  duplex.close()
   throw new Error(
     `AW88298 attenuation readback mismatch: expected 0x${expectedAmplifierRegister.toString(16)}, got 0x${actualAmplifierRegister.toString(16)}`,
   )
+}
 
 trace(
   `Acoustic probe armed: AW88298 -${HARDWARE_ATTENUATION_DB} dB verified at 0x${actualAmplifierRegister.toString(16)}, reference delay ${REFERENCE_DELAY_SAMPLES} samples, probe peak ${PROBE_PEAK}/32767, output remains stopped for ${START_DELAY_MS} ms\n`,
@@ -112,6 +91,7 @@ Timer.set(() => {
     duplex.output.volume = 0
     duplex.output.stop({ flush: true })
     duplex.input.stop({ flush: true })
+    setHardwareAttenuation(SAFE_HARDWARE_ATTENUATION_DB)
 
     const stats = duplex.stats
     const diagnostics = duplex.readAecDiagnostics()

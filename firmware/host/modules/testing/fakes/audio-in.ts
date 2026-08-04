@@ -43,6 +43,7 @@ export default class AudioIn {
     const source = new Uint8Array(chunk)
     const byteLength = Math.min(source.byteLength, target.byteLength)
     target.set(source.subarray(0, byteLength))
+    if (byteLength < source.byteLength) chunks.unshift(source.slice(byteLength).buffer)
     return byteLength
   }
 

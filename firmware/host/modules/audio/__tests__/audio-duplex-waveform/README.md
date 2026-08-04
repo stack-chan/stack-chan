@@ -17,7 +17,7 @@ starting the audible probe.
 From `firmware/`, run:
 
 ```sh
-source /home/sskw/.local/share/xs-dev-export.sh
+source "$HOME/.local/share/xs-dev-export.sh"
 UPLOAD_PORT=/dev/ttyACM0 npm run test:audio-duplex-waveform:capture
 ```
 
@@ -29,7 +29,7 @@ UPLOAD_PORT=/dev/ttyACM0 npm run test:audio-duplex-waveform:doubletalk
 
 This profile uses 48 dB attenuation, 12 dB louder than the quiet profile. It
 waits ten seconds, plays the probe for about 10.5 seconds, and records about
-8.2 seconds after a two-second AEC warmup. Start speaking at a normal volume
+8.5 seconds after a two-second AEC warmup. Start speaking at a normal volume
 after the first two seconds of probe audio and continue until the audio stops.
 The same 96 dB post-capture attenuation and silent-firmware restore apply.
 

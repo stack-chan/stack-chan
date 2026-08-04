@@ -72,6 +72,19 @@ test('Microphone.record writes into the final WAV buffer without allocating chun
   assert.equal(audioIn.getAllocatingReadCount(), 0)
 })
 
+test('Microphone.record retains unread input when a driver chunk exceeds the callback size', async () => {
+  const { Microphone, audioIn } = await setup([Uint8Array.of(0x11, 0x22).buffer])
+  const microphone = new Microphone()
+  const recording = microphone.record(2)
+  const [instance] = audioIn.getAudioInInstances()
+
+  instance.emitReadable(1)
+  instance.emitReadable(1)
+  const buffer = await recording
+
+  assert.deepEqual(Array.from(new Uint8Array(buffer, 44)), [0x11, 0x22])
+})
+
 test('Microphone.record rejects overlapping recordings while one is active', async () => {
   const { Microphone, audioIn } = await setup([oneByte(1)])
   const microphone = new Microphone()

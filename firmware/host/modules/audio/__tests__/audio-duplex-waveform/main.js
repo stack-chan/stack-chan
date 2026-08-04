@@ -1,9 +1,9 @@
 /* global SharedArrayBuffer, trace */
 
 import AudioDuplex from 'embedded:io/audio/duplex'
+import { amplifierVolumeByte, amplifierVolumeRegister, buildProbe } from 'audio-duplex-test-helpers'
 import config from 'mc/config'
 import Timer from 'timer'
-import { amplifierVolumeByte, amplifierVolumeRegister, buildProbe } from 'audio-duplex-test-helpers'
 
 const readAmplifierVolumeRegister = native('xs_audio_duplex_test_read_amp_volume_register')
 

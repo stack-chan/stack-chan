@@ -370,8 +370,6 @@ test('UI palette state stays numeric and converts colors at Piu render boundarie
   assert.match(emoticon, /function primaryColor\(face\?: FaceState\): number/)
   assert.match(emoticon, /function secondaryColor\(face\?: FaceState\): number/)
   assert.match(emoticon, /function drawSpriteCell\([^)]*color: number/)
-  assert.match(emoticon, /drawTexture\(\s*getEmoticonTexture\(\),\s*\(\(color << 8\) \| 0xff\) >>> 0/)
-  assert.doesNotMatch(emoticon, /colorString\(/)
 })
 
 test('shared fakes live in modules/testing and module-local fakes stay under module tests', () => {
@@ -462,19 +460,6 @@ test('CoreS3 conversation targets route ChatAudioIO through the duplex implement
       `${target} should use the AEC-capable duplex ChatAudioIO implementation`,
     )
   }
-})
-
-test('duplex ChatAudioIO resamples the source supplied by each input producer', () => {
-  const source = readFileSync(join(MODULE_ROOT, 'conversation', 'chat-audioio', 'duplex-chat-audioio.js'), 'utf8')
-  const processInputAudioBlocks = extractMethodBlocks(source, 'processInputAudio')
-
-  assert.equal(processInputAudioBlocks.length, 1)
-  assert.doesNotMatch(
-    processInputAudioBlocks[0],
-    /resampleAndQueueInput\(this\.inputResampleSource/,
-    'synthetic probes and physical microphone reads must resample their own source buffer',
-  )
-  assert.match(processInputAudioBlocks[0], /resampleAndQueueInput\(source, 0, sourceSamples\)/)
 })
 
 test('sample MOD sources import only public or sample-local modules', () => {

@@ -85,8 +85,7 @@ class FloatingMusicNoteBehavior extends Behavior {
   onDraw(port: PiuPort, x = 0, y = 0, width = SPRITE_SIZE, height = NOTE_HEIGHT) {
     if (this.#elapsed >= FADE_DURATION_MS) return
     const progress = this.#elapsed / FADE_DURATION_MS
-    const rise = Math.round(RISE_PIXELS * progress * (2 - progress))
-    const spriteY = RISE_PIXELS - rise
+    const spriteY = this.#spriteTop()
     if (x >= SPRITE_SIZE || x + width <= 0 || y >= spriteY + SPRITE_SIZE || y + height <= spriteY) return
     const alpha = Math.round(255 * (1 - progress))
     port.drawTexture(
@@ -103,9 +102,13 @@ class FloatingMusicNoteBehavior extends Behavior {
 
   private invalidateSprite(port: PiuPort): void {
     if (this.#elapsed >= FADE_DURATION_MS) return
+    port.invalidate(0, this.#spriteTop(), SPRITE_SIZE, SPRITE_SIZE)
+  }
+
+  #spriteTop(): number {
     const progress = this.#elapsed / FADE_DURATION_MS
     const rise = Math.round(RISE_PIXELS * progress * (2 - progress))
-    port.invalidate(0, RISE_PIXELS - rise, SPRITE_SIZE, SPRITE_SIZE)
+    return RISE_PIXELS - rise
   }
 }
 

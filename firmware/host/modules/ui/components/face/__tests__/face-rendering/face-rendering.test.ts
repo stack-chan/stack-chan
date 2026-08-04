@@ -144,6 +144,15 @@ equal(maskAlphaAt(primitiveMask, 4, 0), 0, 'the native eyelid rasterizer should 
 equal(maskAlphaAt(primitiveMask, 4, 4), 15, 'the native eyelid rasterizer should leave the aperture transparent')
 equal(maskAlphaAt(primitiveMask, 4, 7), 0, 'the native eyelid rasterizer should cover below the aperture')
 
+const closedApertureMask = new Gray16Mask(4, 4)
+closedApertureMask.fillOutsideAperture({
+  topLeft: 2.5,
+  topRight: 2.5,
+  bottomLeft: 2.5,
+  bottomRight: 2.5,
+})
+equal(maskAlphaAt(closedApertureMask, 2, 2), 0, 'a closed aperture should combine both edges into an opaque row')
+
 const simpleFace = new SimpleFace({ motions: [] }) as PiuNode
 const simpleLeftEye = childAt(simpleFace, 0)
 const simpleLeftIris = childAt(simpleLeftEye, 0)
@@ -476,7 +485,7 @@ for (let i = 0; i < 220; i++) {
   saccadeChanged ||= maskRevision(movingLeftIris) !== initialMovingIrisRevision
 }
 assert(breathingMoved, 'default FaceBehavior should move the face container for breathing')
-assert(blinkChanged, 'default FaceBehavior should change eyelid outlines for blinking')
+assert(blinkChanged, 'default FaceBehavior should change the eyelid mask for blinking')
 assert(saccadeChanged, 'default FaceBehavior should update the iris mask for saccade')
 equal(movingLeftIris.coordinates?.left, initialMovingIrisLeft, 'saccade should keep iris content coordinates fixed')
 equal(movingLeftIris.coordinates?.top, initialMovingIrisTop, 'saccade should keep iris content coordinates fixed')

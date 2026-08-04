@@ -1,4 +1,4 @@
-import { SPRITE_PULSE_FRAME_COUNT, spritePulseVariantForFraction } from 'effects/emoticon-pulse'
+import { packedSpriteColor, SPRITE_PULSE_FRAME_COUNT, spritePulseVariantForFraction } from 'effects/emoticon-pulse'
 import { DEFAULT_FACE_PRIMARY_COLOR, DEFAULT_FACE_SECONDARY_COLOR, type FaceState, toPiuColorNumber } from 'face-state'
 import {
   Container,
@@ -160,7 +160,7 @@ function drawSpriteCell(port: PiuPort, row: number, variant: number, color: numb
   const frame = clamp(variant, 0, SPRITE_FRAME_COUNT - 1)
   port.drawTexture(
     getEmoticonTexture(),
-    ((color << 8) | 0xff) >>> 0,
+    packedSpriteColor(color),
     Math.round(x),
     Math.round(y),
     frame * SPRITE_CELL_SIZE,

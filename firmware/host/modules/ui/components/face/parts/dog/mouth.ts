@@ -36,9 +36,10 @@ export const DogMouth = Gray16MaskPort.template((opts: DogMouthOptions) => {
     const x = opts.cx - mouthWidth / 2 - left
     const y = opts.cy - mouthHeight / 2 - top
     const centerX = opts.cx - left
+    const curveDepth = (mouthHeight * 5) / 6
     mask.clear()
-    mask.strokeCubic(x, y, x, y + 20, centerX, y + 20, centerX, y, STROKE)
-    mask.strokeCubic(centerX, y, centerX, y + 20, x + mouthWidth, y + 20, x + mouthWidth, y, STROKE)
+    mask.strokeCubic(x, y, x, y + curveDepth, centerX, y + curveDepth, centerX, y, STROKE)
+    mask.strokeCubic(centerX, y, centerX, y + curveDepth, x + mouthWidth, y + curveDepth, x + mouthWidth, y, STROKE)
     if (mouthHeight > 16) {
       mask.strokeCubic(
         x + mouthWidth / 4,

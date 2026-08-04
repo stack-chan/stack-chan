@@ -14,17 +14,20 @@ typedef struct {
 
 static void stackchanGray16GetMask(xsMachine* the, StackchanGray16Mask* mask)
 {
+	uint64_t requiredBytes;
+
 	xsmcGetBufferWritable(xsArg(0), (void**)&mask->bytes, &mask->byteLength);
 	mask->width = xsmcToInteger(xsArg(1));
 	mask->height = xsmcToInteger(xsArg(2));
 	mask->strideWidth = xsmcToInteger(xsArg(3));
 
+	requiredBytes = ((uint64_t)(uint32_t)mask->strideWidth * (uint64_t)(uint32_t)mask->height) >> 1;
 	if (
 		(mask->width <= 0) ||
 		(mask->height <= 0) ||
 		(mask->strideWidth < mask->width) ||
 		(mask->strideWidth & 1) ||
-		(((xsUnsignedValue)(mask->strideWidth * mask->height) >> 1) > mask->byteLength)
+		(requiredBytes > mask->byteLength)
 	)
 		xsRangeError("invalid Gray16 mask");
 }
@@ -53,7 +56,7 @@ static void stackchanGray16SetCoverage(
 		return;
 
 	alpha = stackchanGray16CoverageToAlpha(coverage);
-	offset = (xsUnsignedValue)((y * mask->strideWidth + x) >> 1);
+	offset = (xsUnsignedValue)((((uint64_t)(uint32_t)y * (uint32_t)mask->strideWidth) + (uint32_t)x) >> 1);
 	current = mask->bytes[offset];
 	if (x & 1)
 		mask->bytes[offset] = (uint8_t)((current & 0xF0) | alpha);
@@ -77,7 +80,7 @@ static void stackchanGray16AddCoverage(
 		return;
 
 	alpha = stackchanGray16CoverageToAlpha(coverage);
-	offset = (xsUnsignedValue)((y * mask->strideWidth + x) >> 1);
+	offset = (xsUnsignedValue)((((uint64_t)(uint32_t)y * (uint32_t)mask->strideWidth) + (uint32_t)x) >> 1);
 	current = mask->bytes[offset];
 	currentAlpha = (x & 1) ? (current & 0x0F) : (current >> 4);
 	if (alpha >= currentAlpha)
@@ -286,10 +289,21 @@ void xs_stackchan_gray16_mask_fill_outside_aperture(xsMachine* the)
 
 		for (y = 0; y < fmin(mask.height, topWhole); y++)
 			stackchanGray16SetCoverage(&mask, x, y, 1);
-		if ((topWhole >= 0) && (topWhole < mask.height))
-			stackchanGray16SetCoverage(&mask, x, topWhole, top - topWhole);
-		if ((bottomWhole >= 0) && (bottomWhole < mask.height))
-			stackchanGray16AddCoverage(&mask, x, bottomWhole, 1 - (bottom - bottomWhole));
+		if (topWhole == bottomWhole) {
+			if ((topWhole >= 0) && (topWhole < mask.height))
+				stackchanGray16SetCoverage(
+					&mask,
+					x,
+					topWhole,
+					(top - topWhole) + (1 - (bottom - bottomWhole))
+				);
+		}
+		else {
+			if ((topWhole >= 0) && (topWhole < mask.height))
+				stackchanGray16SetCoverage(&mask, x, topWhole, top - topWhole);
+			if ((bottomWhole >= 0) && (bottomWhole < mask.height))
+				stackchanGray16AddCoverage(&mask, x, bottomWhole, 1 - (bottom - bottomWhole));
+		}
 		for (y = (int)fmax(0, bottomWhole + 1); y < mask.height; y++)
 			stackchanGray16SetCoverage(&mask, x, y, 1);
 	}

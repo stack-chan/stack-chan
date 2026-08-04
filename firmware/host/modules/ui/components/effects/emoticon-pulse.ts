@@ -1,5 +1,9 @@
 export const SPRITE_PULSE_FRAME_COUNT = 4
 
+export function packedSpriteColor(color: number, alpha = 0xff): number {
+  return ((color << 8) | alpha) >>> 0
+}
+
 export function spritePulseVariantForFraction(fraction: number): number {
   const pulse = (Math.sin(fraction) + 1) / 2
   const variant = Math.round(pulse * (SPRITE_PULSE_FRAME_COUNT - 1))

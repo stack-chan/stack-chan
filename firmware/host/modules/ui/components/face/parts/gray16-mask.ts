@@ -35,7 +35,6 @@ export class Gray16Mask {
       Bitmap.Gray16,
       this.bytes.buffer as ArrayBuffer,
       this.bytes.byteOffset,
-      this.bytes.byteLength,
     )
   }
 
@@ -55,6 +54,7 @@ export class Gray16Mask {
     rasterFillRotatedEllipse(this.bytes, this.width, this.height, this.strideWidth, cx, cy, radiusX, radiusY, rotation)
   }
 
+  /** Resets the mask, then fills every pixel outside the supplied aperture. */
   fillOutsideAperture(aperture: Readonly<EyelidAperture>): void {
     rasterFillOutsideAperture(
       this.bytes,

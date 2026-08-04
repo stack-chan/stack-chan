@@ -1,11 +1,7 @@
 {
   "include": ["../../host/modules/ui/manifest.json"],
   "modules": {
-    "main": "./visual",
-    "*": [
-      "$(MODULES)/pins/i2s/sbc_decoder",
-      "$(MODULES)/pins/i2s/dvi_adpcm_decode"
-    ]
+    "main": "./visual"
   },
   "config": {
     "startupSound": false

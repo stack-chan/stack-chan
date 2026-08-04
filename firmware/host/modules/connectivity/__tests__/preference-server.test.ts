@@ -16,7 +16,7 @@ type FakePreference = {
 type TestPreferenceServer = {
   notifications: { value: ArrayBuffer }[]
   onCharacteristicNotifyEnabled(characteristic: { name: string }): void
-  receiveAndSetPreference(domain: string, key: string, value: string | number): void
+  receiveAndSetPreference(domain: string, key: string, value: string): void
 }
 
 function installBareSpecifierPackages(): void {
@@ -29,7 +29,6 @@ function installBareSpecifierPackages(): void {
     hasDefaultExport: true,
   })
   writeAliasPackage(modulesRoot, 'uartserver', resolve(modulesRoot, 'connectivity/__tests__/fakes/uartserver.js'))
-  writeAliasPackage(modulesRoot, 'volume-model', resolve(modulesRoot, 'preferences/volume-model.js'))
 }
 
 async function setup() {
@@ -89,20 +88,4 @@ test('unlocked driver type remains writable for other platforms', async () => {
 
   assert.equal(preference.default.get(DOMAIN.driver, 'type'), 'scservo')
   assert.deepEqual(notificationPayload(server, 1), { prop: 'driver.type', value: 'scservo' })
-})
-
-test('volume is exposed as a ratio while NVS stores an encoded string', async () => {
-  const { PreferenceServer, preference } = await setup()
-  preference.resetPreference({ 'tts.volume': 'percent:35' })
-  const server = new PreferenceServer({
-    keys: PREF_KEYS,
-    effectiveValues: { 'tts.volume': 0.5 },
-  }) as TestPreferenceServer
-
-  server.onCharacteristicNotifyEnabled({ name: 'tx' })
-  assert.deepEqual(notificationPayload(server), { prop: 'tts.volume', value: 0.35 })
-
-  server.receiveAndSetPreference(DOMAIN.tts, 'volume', 0.42)
-  assert.equal(preference.default.get(DOMAIN.tts, 'volume'), 'percent:42')
-  assert.deepEqual(notificationPayload(server, 1), { prop: 'tts.volume', value: 0.42 })
 })

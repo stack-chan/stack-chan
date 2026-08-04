@@ -33,7 +33,6 @@ function installBareSpecifierPackages(): void {
   writeAliasPackage(modulesRoot, 'structuredClone', resolve(modulesRoot, 'testing/fakes/structured-clone.js'), {
     hasDefaultExport: true,
   })
-  writeAliasPackage(modulesRoot, 'volume-model', resolve(modulesRoot, 'preferences/volume-model.js'))
   writeAliasPackageSubpath(modulesRoot, 'mc', 'config', resolve(modulesRoot, 'testing/fakes/mc-config.js'), {
     hasDefaultExport: true,
   })
@@ -149,16 +148,4 @@ test('loadPreferences reads the selected time zone from preferences', async () =
   })
 
   assert.equal(loadPreferences(DOMAIN.time).timezone, 'london')
-})
-
-test('loadPreferences decodes the NVS-safe volume representation', async () => {
-  const { loadPreferences, config, preference } = await setup()
-  config.resetConfig({
-    tts: { volume: 0.15 },
-  })
-  preference.resetPreference({
-    'tts.volume': 'percent:37',
-  })
-
-  assert.equal(loadPreferences(DOMAIN.tts).volume, 0.37)
 })

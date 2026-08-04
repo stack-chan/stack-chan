@@ -1,8 +1,7 @@
-import { DOMAIN, type PREF_KEYS } from 'consts'
+import type { PREF_KEYS } from 'consts'
 import Preference from 'preference'
 import Timer from 'timer'
 import { SERVICE_UUID, UARTServer } from 'uartserver'
-import { decodeVolumePreference, encodeVolumePreference } from 'volume-model'
 
 type PreferenceValue = string | boolean | number | ArrayBuffer
 
@@ -14,35 +13,6 @@ type PreferenceServerProps = {
   effectiveValues?: Readonly<Record<string, PreferenceValue>>
   readOnlyKeys?: readonly string[]
 }
-
-function isVolumePreference(domain: string, key: string): boolean {
-  return domain === DOMAIN.tts && key === 'volume'
-}
-
-function isPreferenceValue(value: unknown): value is PreferenceValue {
-  return (
-    typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number' || value instanceof ArrayBuffer
-  )
-}
-
-function readPreferenceValue(
-  domain: string,
-  key: string,
-  storedValue: ReturnType<(typeof Preference)['get']>,
-  effectiveValue: PreferenceValue | undefined,
-): PreferenceValue | undefined {
-  const value = storedValue ?? effectiveValue
-  if (value == null) return undefined
-  if (isVolumePreference(domain, key)) {
-    return decodeVolumePreference(value, typeof effectiveValue === 'number' ? effectiveValue : undefined)
-  }
-  return isPreferenceValue(value) ? value : effectiveValue
-}
-
-function encodePreferenceValue(domain: string, key: string, value: PreferenceValue): PreferenceValue {
-  return isVolumePreference(domain, key) ? encodeVolumePreference(value) : value
-}
-
 export class PreferenceServer extends UARTServer {
   #tx_characteristic
   #keys
@@ -88,7 +58,7 @@ export class PreferenceServer extends UARTServer {
         const readOnly = this.#readOnlyKeys.includes(prop)
         const currentValue = readOnly
           ? this.#effectiveValues[prop]
-          : readPreferenceValue(domain, key, Preference.get(domain, key), this.#effectiveValues[prop])
+          : (Preference.get(domain, key) ?? this.#effectiveValues[prop])
         if (currentValue != null) {
           this.notifyPreference(prop, currentValue, readOnly)
         }
@@ -167,15 +137,12 @@ export class PreferenceServer extends UARTServer {
       if (currentValue != null) this.notifyPreference(prop, currentValue, true)
       return
     }
-    const currentValue = readPreferenceValue(domain, key, Preference.get(domain, key), this.#effectiveValues[prop])
-    const nextValue = isVolumePreference(domain, key)
-      ? decodeVolumePreference(value, typeof currentValue === 'number' ? currentValue : undefined)
-      : value
-    if (currentValue !== nextValue) {
-      trace(`changing preference ... ${domain}.${key}: ${nextValue}\n`)
-      Preference.set(domain, key, encodePreferenceValue(domain, key, nextValue))
-      this.notifyPreference(prop, nextValue)
-      this.#handlePreferenceChanged?.(prop, nextValue)
+    const currentValue = Preference.get(domain, key) ?? this.#effectiveValues[prop]
+    if (currentValue !== value) {
+      trace(`changing preference ... ${domain}.${key}: ${value}\n`)
+      Preference.set(domain, key, value)
+      this.notifyPreference(prop, value)
+      this.#handlePreferenceChanged?.(prop, value)
     }
   }
 }

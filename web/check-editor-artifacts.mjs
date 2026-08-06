@@ -114,6 +114,11 @@ assert.deepEqual(faceSchema.properties.shape.required, ['eyes', 'mouth'])
 assert.deepEqual(faceSchema.properties.shape.properties.eyes.required, ['left', 'right'])
 
 const moddableVersion = DEFAULT_TOOLS_VERSION
+assert.match(
+  moddableVersion,
+  /^\d+\.\d+\.\d+$/,
+  'Moddable SDK version must be semantic-versioned'
+)
 for (const [name, source] of [
   ['simulator build script', simulatorBuildScript],
   ['editor tools build script', editorToolsBuildScript],

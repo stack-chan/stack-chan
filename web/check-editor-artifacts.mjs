@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
+import { parse as parseYaml } from 'yaml'
 
+import { DEFAULT_TOOLS_VERSION } from './editor/mod-builder.mjs'
 import { FACE_ASSET_EMOTIONS, FACE_ASSET_FORMAT, FACE_ASSET_VERSION } from './editor/face-assets.mjs'
 
 const [
   html,
   simulatorHtml,
   simulatorSource,
-  builder,
   installer,
   toolsWasm,
   esptoolBundle,
@@ -31,7 +32,6 @@ const [
   readFile(new URL('./editor/index.html', import.meta.url), 'utf8'),
   readFile(new URL('./simulator/index.html', import.meta.url), 'utf8'),
   readFile(new URL('./src/services/simulator/simulator-engine.mjs', import.meta.url), 'utf8'),
-  readFile(new URL('./editor/mod-builder.mjs', import.meta.url), 'utf8'),
   readFile(new URL('./editor/esptool-installer.mjs', import.meta.url), 'utf8'),
   readFile(new URL('./editor/vendor/tools.wasm', import.meta.url)),
   readFile(new URL('./editor/vendor/esptool-js-0.5.7.bundle.mjs', import.meta.url)),
@@ -66,7 +66,6 @@ assert.equal(
   'vendored esptool-js 0.5.7 bundle must match the reviewed npm artifact'
 )
 assert.match(esptoolLicense, /Apache License/)
-assert.match(builder, /DEFAULT_TOOLS_VERSION = '\d+\.\d+\.\d+'/)
 const packageJson = JSON.parse(packageText)
 for (const dependency of ['@base-ui/react', 'blockly', 'lucide-react', 'react', 'three']) {
   assert.match(
@@ -114,7 +113,7 @@ assert.deepEqual(faceSchema.properties.canvas.required, ['left', 'top', 'width',
 assert.deepEqual(faceSchema.properties.shape.required, ['eyes', 'mouth'])
 assert.deepEqual(faceSchema.properties.shape.properties.eyes.required, ['left', 'right'])
 
-const moddableVersion = '9.0.0'
+const moddableVersion = DEFAULT_TOOLS_VERSION
 for (const [name, source] of [
   ['simulator build script', simulatorBuildScript],
   ['editor tools build script', editorToolsBuildScript],
@@ -148,9 +147,16 @@ for (const [name, source] of [
   ['bundle workflow', bundleWorkflow],
   ['release workflow', releaseWorkflow],
 ]) {
-  assert.ok(
-    source.includes(`target-branch: "${moddableVersion}"`),
-    `${name} must install Moddable SDK ${moddableVersion} for WebAssembly builds`
+  const workflow = parseYaml(source)
+  const pinnedVersions = Object.values(workflow.jobs ?? {})
+    .flatMap((job) => job.steps ?? [])
+    .filter((step) => step.uses === './.github/actions/setup' && step.with?.['target-branch'] !== undefined)
+    .map((step) => String(step.with['target-branch']))
+  assert.ok(pinnedVersions.length > 0, `${name} must explicitly pin a Moddable SDK version`)
+  assert.deepEqual(
+    new Set(pinnedVersions),
+    new Set([moddableVersion]),
+    `${name} Moddable setup pins must match the editor tools version`
   )
 }
 console.log('Visual Programming artifacts and pinned dependencies are consistent')

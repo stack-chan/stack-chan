@@ -274,7 +274,7 @@
     },
     "types": [
       "node",
-      "./node_modules/@moddable/typings/xs"
+      "./typings/xs-runtime"
     ],
     "skipLibCheck": true
   },

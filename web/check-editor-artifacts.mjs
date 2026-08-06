@@ -17,6 +17,7 @@ const [
   faceSchemaText,
   buildWorkflow,
   bundleWorkflow,
+  releaseWorkflow,
   simulatorBuildScript,
   editorToolsBuildScript,
   editorToolsXscWrapper,
@@ -39,6 +40,7 @@ const [
   readFile(new URL('../docs/specs/face-asset.schema.json', import.meta.url), 'utf8'),
   readFile(new URL('../.github/workflows/build.yml', import.meta.url), 'utf8'),
   readFile(new URL('../.github/workflows/bundle.yml', import.meta.url), 'utf8'),
+  readFile(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8'),
   readFile(new URL('../firmware/scripts/build-wasm.sh', import.meta.url), 'utf8'),
   readFile(new URL('../firmware/scripts/build-editor-tools.sh', import.meta.url), 'utf8'),
   readFile(new URL('../firmware/scripts/xsc-without-debug-paths.sh', import.meta.url), 'utf8'),
@@ -112,7 +114,7 @@ assert.deepEqual(faceSchema.properties.canvas.required, ['left', 'top', 'width',
 assert.deepEqual(faceSchema.properties.shape.required, ['eyes', 'mouth'])
 assert.deepEqual(faceSchema.properties.shape.properties.eyes.required, ['left', 'right'])
 
-const moddableVersion = '8.3.1'
+const moddableVersion = '9.0.0'
 for (const [name, source] of [
   ['simulator build script', simulatorBuildScript],
   ['editor tools build script', editorToolsBuildScript],
@@ -144,6 +146,7 @@ assert.match(editorToolsXscWrapper, /\[\[ "\$arg" != "-d" \]\]/)
 for (const [name, source] of [
   ['build workflow', buildWorkflow],
   ['bundle workflow', bundleWorkflow],
+  ['release workflow', releaseWorkflow],
 ]) {
   assert.ok(
     source.includes(`target-branch: "${moddableVersion}"`),

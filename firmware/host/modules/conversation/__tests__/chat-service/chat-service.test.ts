@@ -24,7 +24,13 @@ const tools: Record<string, ChatTool> = {
 
 const states: ChatStateValue[] = []
 const service = new ChatService({
-  config: { type: 'openAIRealtime', modelID: 'gpt-realtime-mini', apiKey: 'test-api-key' },
+  config: {
+    type: 'openAIRealtime',
+    specifier: 'stackchanServerOpenAIRealtime',
+    endpoint: 'ws://192.168.7.140:8787/device/v1/realtime',
+    modelID: 'stackchan-ai',
+    apiKey: 'test-api-key',
+  },
   tools,
   chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
   callbacks: {
@@ -33,7 +39,12 @@ const service = new ChatService({
 })
 
 const ChatAudioIOAny = ChatAudioIO as unknown as {
-  lastOptions?: { specifier?: string; apiKey?: string; functions?: { name: string }[] }
+  lastOptions?: {
+    specifier?: string
+    providerID?: string
+    apiKey?: string
+    functions?: { name: string }[]
+  }
   instances?: {
     emitState: (state: number) => void
     emitInputTranscript: (text: string, more?: boolean) => void
@@ -51,7 +62,16 @@ if (!lastOptions) {
   throw new Error('ChatAudioIO options should be captured')
 }
 const functions = lastOptions.functions ?? []
-equal(lastOptions.specifier, 'openAIRealtime', 'chat type should map to ChatAudioIO specifier')
+equal(
+  lastOptions.specifier,
+  'stackchanServerOpenAIRealtime',
+  'an explicit worker specifier should override the chat type',
+)
+equal(
+  lastOptions.providerID,
+  'ws://192.168.7.140:8787/device/v1/realtime',
+  'endpoint should be forwarded through the provider configuration slot',
+)
 equal(lastOptions.apiKey, 'test-api-key', 'api key should be forwarded to ChatAudioIO')
 equal(functions.length, 1, 'functions length')
 equal(functions[0] ? functions[0].name : undefined, 'sample', 'function name')

@@ -1,0 +1,21 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../chat-audioio/server.manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "ChatAudioIO/Codecs": "./audio-codecs",
+    "main": "./server-realtime-model.test",
+    "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker",
+    "stackchanServerOpenAIRealtimeModel": "../../chat-audioio/server-openai-realtime-model"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

@@ -4,9 +4,11 @@ export const postedMessages = []
 export default class ServerChatWebSocketWorker {
   constructor(options) {
     this.options = options
+    this.connectCount = 0
   }
 
   connect(message) {
+    this.connectCount += 1
     this.inputBuffer = message.inputBuffer
     this.outputBuffer = message.outputBuffer
   }
@@ -24,7 +26,8 @@ export default class ServerChatWebSocketWorker {
   }
 
   sendAudio(message) {
-    this.lastAudio = message
+    this.lastAudio = { ...message }
+    this.sendAudioBuffer(new Uint8Array(this.inputBuffer, message.offset, message.size).slice())
   }
 
   sendAudioBuffer(buffer) {

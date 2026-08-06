@@ -15,6 +15,7 @@ const MAX_QUEUED_BYTES = 64 * 1024
 export default class ServerChatWebSocketWorker extends ChatWorker {
   #buffers = []
   #queuedBytes = 0
+  #socketIO = null
   #state = 0
   #writable = 0
   #encoder = new TextEncoder()
@@ -36,6 +37,7 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
     this.ws = null
     this.#buffers = []
     this.#queuedBytes = 0
+    this.#socketIO = null
     this.#state = 0
     this.#writable = 0
     try {
@@ -51,6 +53,7 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
     this.parser.barrier = message.barrier
     const network = this.secure ? device.network.wss : device.network.ws
     const WebSocketClient = network.io ?? device.network.ws.io
+    this.#socketIO = WebSocketClient
     this.ws = new WebSocketClient({
       ...network,
       host: this.host,
@@ -80,24 +83,21 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
       },
       onReadable: (count, options) => {
         const buffer = this.ws.read(count)
+        this.#open()
         if (this.#state === 1) this.read(buffer, options)
       },
       onWritable: (count) => {
         if (!count) return
         this.#writable = count
-        if (this.#state === 0) {
-          this.onOpen()
-          this.#state = 1
-          return
-        }
+        this.#open()
         this.flushWrites()
       },
     })
   }
 
   disconnect() {
-    if (!this.ws) return
-    const WebSocketClient = device.network.ws.io
+    const WebSocketClient = this.#socketIO
+    if (!this.ws || !WebSocketClient) return
     const code = 1000
     this.write(Uint8Array.of(code >> 8, code & 0xff), {
       opcode: WebSocketClient.close,
@@ -115,10 +115,19 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
 
   onJSON(json) {
     const type = json.type
-    if (type in this) this[type](json)
+    const handlers = this.eventHandlers
+    if (typeof type === 'string' && handlers?.[type] === true && typeof this[type] === 'function') {
+      this[type](json)
+    }
   }
 
   onOpen() {}
+
+  #open() {
+    if (this.#state !== 0) return
+    this.#state = 1
+    this.onOpen()
+  }
 
   read(data, options) {
     this.parser.read(data)

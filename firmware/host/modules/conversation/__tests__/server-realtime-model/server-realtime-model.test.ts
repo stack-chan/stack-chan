@@ -1,21 +1,63 @@
-import { sentJSON } from 'stackchanServerChatWebSocketWorker'
+import { postedMessages, sentJSON } from 'stackchanServerChatWebSocketWorker'
 import ServerOpenAIRealtimeModel, { parseWebSocketEndpoint } from 'stackchanServerOpenAIRealtimeModel'
 import { equal } from 'testing/assert'
 import Timer from 'timer'
 
 trace('=== server-realtime-model test ===\n')
 
-const localEndpoint = parseWebSocketEndpoint(
-  'ws://192.168.7.140:8787/device/v1/realtime?conversation_id=test&token=device-token',
-)
+const localEndpoint = parseWebSocketEndpoint('ws://192.168.7.140:8787/device/v1/realtime?conversation_id=test')
 equal(localEndpoint.secure, false, 'a LAN websocket endpoint should use the cleartext transport')
 equal(localEndpoint.host, '192.168.7.140', 'endpoint host should be parsed')
 equal(localEndpoint.port, 8787, 'endpoint port should be parsed')
 equal(
   localEndpoint.path,
-  '/device/v1/realtime?conversation_id=test&token=device-token',
-  'endpoint path should retain authentication and conversation query parameters',
+  '/device/v1/realtime?conversation_id=test',
+  'endpoint path should retain conversation query parameters',
 )
+
+const connection = {
+  barrier: new Int32Array(new SharedArrayBuffer(4 * Int32Array.BYTES_PER_ELEMENT)),
+  inputBuffer: new SharedArrayBuffer(2048),
+  outputBuffer: new SharedArrayBuffer(2048),
+}
+const reconfiguredModel = new ServerOpenAIRealtimeModel({ inputSampleRate: 8000 })
+reconfiguredModel.configure({ providerID: 'https://relay.example.test/device/v1/realtime' })
+reconfiguredModel.connect(connection)
+equal(postedMessages.length, 1, 'a non-WebSocket endpoint should fail before connecting')
+equal(
+  postedMessages[0]?.string,
+  'ChatService endpoint must use ws:// or wss://',
+  'the endpoint failure should be explicit',
+)
+postedMessages.length = 0
+reconfiguredModel.configure({
+  providerID: 'ws://relay.example.test/device/v1/realtime',
+  apiKey: 'test-token',
+})
+reconfiguredModel.connect(connection)
+equal(postedMessages.length, 1, 'Bearer authentication should be rejected on public ws endpoints')
+equal(
+  postedMessages[0]?.string,
+  'ChatService Bearer authentication over ws:// is restricted to trusted local networks',
+  'the public cleartext authentication failure should be explicit',
+)
+postedMessages.length = 0
+reconfiguredModel.configure({
+  providerID: 'ws://192.168.7.140:8787/device/v1/realtime?token=device-token',
+})
+reconfiguredModel.connect(connection)
+equal(postedMessages.length, 1, 'credentials should be rejected in a cleartext endpoint URL')
+equal(postedMessages[0]?.string, 'ChatService credentials must not be embedded in a ws:// endpoint')
+postedMessages.length = 0
+reconfiguredModel.configure({
+  providerID: 'ws://192.168.7.140:8787/device/v1/realtime?conversation_id=test',
+  apiKey: 'device-token',
+})
+reconfiguredModel.connect(connection)
+equal(reconfiguredModel.connectCount, 1, 'a valid trusted-LAN configuration should replace earlier failures')
+equal(postedMessages.length, 0, 'a valid reconfiguration should not retain an earlier failure')
+equal(reconfiguredModel.headers[0]?.[0], 'Authorization', 'trusted-LAN authentication should use a header')
+equal(reconfiguredModel.headers[0]?.[1], 'Bearer device-token', 'the device token should stay out of the endpoint URL')
 
 const model = new ServerOpenAIRealtimeModel({ inputSampleRate: 8000 })
 const tool = {
@@ -49,15 +91,14 @@ equal(
 )
 equal(sessionUpdate?.session?.tool_choice, 'auto', 'session update should enable automatic tool selection')
 
-const barrier = new Int32Array(new SharedArrayBuffer(4 * Int32Array.BYTES_PER_ELEMENT))
-const inputBuffer = new SharedArrayBuffer(2048)
-model.connect({
-  barrier,
-  inputBuffer,
-  outputBuffer: new SharedArrayBuffer(2048),
-})
-model.sendAudio({ offset: 0, size: 1024, sequence: 7 })
-equal(model.lastAudio?.size, 512, 'PCM16 input should be encoded to one byte per PCMA sample')
+model.connect(connection)
+const input = new Uint8Array(connection.inputBuffer)
+input.set([0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80])
+model.sendAudio({ offset: 0, size: 8, sequence: 7 })
+equal(model.lastAudio?.size, 4, 'PCM16 input should be encoded to one byte per PCMA sample')
+equal(model.lastAudioBuffer?.byteLength, 4, 'only encoded PCMA bytes should reach the transport')
+equal(model.lastAudioBuffer?.[0], 0x20 ^ 0x55, 'the first encoded sample should reach the transport')
+equal(model.lastAudioBuffer?.[3], 0x80 ^ 0x55, 'the final encoded sample should reach the transport')
 
 sentJSON.length = 0
 model.sendFunctionResult({ call: 'call-1', result: { ok: true } })

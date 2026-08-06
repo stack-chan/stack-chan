@@ -2,14 +2,15 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/modules/data/text/encoder/manifest.json",
     "../../manifest.json",
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "ChatAudioIO/Codecs": "./audio-codecs",
-    "main": "./server-realtime-model.test",
-    "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker",
-    "stackchanServerOpenAIRealtimeModel": "../../chat-audioio/server-openai-realtime-model"
+    "ChatWorker": "./chat-worker",
+    "JSONBase64Parser": "./json-base64-parser",
+    "main": "./server-websocket-worker.test",
+    "stackchanServerChatWebSocketWorker": "../../chat-audioio/server-chat-websocket-worker"
   },
   "typescript": {
     "tsconfig": {

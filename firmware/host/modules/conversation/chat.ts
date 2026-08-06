@@ -163,6 +163,8 @@ export class ChatService {
       specifier: config.specifier ?? (config.type as unknown as string),
       instructions: config.instructions,
       voiceID: config.voiceID,
+      // ChatAudioIO has no endpoint slot. Only an explicit server endpoint is
+      // routed through providerID; ordinary workers keep their provider ID.
       providerID: config.endpoint ?? config.providerID,
       modelID: config.modelID,
       apiKey: config.apiKey,

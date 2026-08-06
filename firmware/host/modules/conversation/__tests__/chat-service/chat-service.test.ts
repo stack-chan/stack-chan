@@ -132,5 +132,18 @@ service.start()
 equal(service.transcript.input, '', 'start should clear input transcript for the next session')
 equal(service.transcript.output, '', 'start should clear output transcript for the next session')
 
+const defaultService = new ChatService({
+  config: {
+    type: 'openAIRealtime',
+    providerID: 'openai',
+  },
+  chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
+})
+const defaultOptions = ChatAudioIOAny.lastOptions
+assert(defaultOptions, 'default ChatAudioIO options should be captured')
+equal(defaultOptions?.specifier, 'openAIRealtime', 'a chat type should remain the default worker specifier')
+equal(defaultOptions?.providerID, 'openai', 'a provider ID should remain unchanged without an endpoint override')
+defaultService.close()
+
 trace('ok\n')
 Timer.set(() => {}, 1000)

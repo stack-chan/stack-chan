@@ -13,6 +13,21 @@ const audioPrefix = Object.freeze(
   true,
 )
 const audioSuffix = Object.freeze(new Uint8Array(ArrayBuffer.fromString('"}')), true)
+const eventHandlers = Object.freeze({
+  'conversation.item.input_audio_transcription.completed': true,
+  error: true,
+  'input_audio_buffer.committed': true,
+  'input_audio_buffer.speech_started': true,
+  'input_audio_buffer.speech_stopped': true,
+  'response.created': true,
+  'response.done': true,
+  'response.output_audio.done': true,
+  'response.output_audio_transcript.delta': true,
+  'response.output_audio_transcript.done': true,
+  'response.output_item.done': true,
+  'session.created': true,
+  'session.updated': true,
+})
 
 export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker {
   constructor(options) {
@@ -20,9 +35,11 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
     this.audioPrefix = audioPrefix
     this.audioSuffix = audioSuffix
     this.configurationError = ''
+    this.eventHandlers = eventHandlers
   }
 
   configure(message) {
+    this.configurationError = ''
     try {
       const endpoint = parseWebSocketEndpoint(message.providerID)
       const apiKey = String(message.apiKey ?? '')
@@ -34,8 +51,11 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
           additionalProperties: false,
         },
       }))
-      if (!endpoint.secure && apiKey) {
-        throw new Error('ChatService Bearer authentication requires a wss:// endpoint')
+      if (!endpoint.secure && hasEmbeddedCredentials(endpoint.path)) {
+        throw new Error('ChatService credentials must not be embedded in a ws:// endpoint')
+      }
+      if (!endpoint.secure && apiKey && !isTrustedLocalHost(endpoint.host)) {
+        throw new Error('ChatService Bearer authentication over ws:// is restricted to trusted local networks')
       }
       this.secure = endpoint.secure
       this.host = endpoint.host
@@ -208,6 +228,30 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
   'input_audio_buffer.speech_started'() {}
   'input_audio_buffer.speech_stopped'() {}
   'response.output_audio.done'() {}
+}
+
+function hasEmbeddedCredentials(path) {
+  return /(?:[?&](?:access[_-]?token|api[_-]?key|authorization|credential|key|secret|token)=)|(?:\/(?:auth|credential|key|secret|token)(?:\/|$))/i.test(
+    path,
+  )
+}
+
+function isTrustedLocalHost(host) {
+  const normalized = host.toLowerCase()
+  if (normalized === 'localhost' || normalized.endsWith('.local')) return true
+  const parts = normalized.split('.')
+  if (parts.length !== 4 || parts.some((part) => !/^\d{1,3}$/.test(part))) return false
+  const octets = parts.map((part) => Number(part))
+  if (octets.some((octet) => octet > 255)) {
+    return false
+  }
+  return (
+    octets[0] === 10 ||
+    octets[0] === 127 ||
+    (octets[0] === 169 && octets[1] === 254) ||
+    (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+    (octets[0] === 192 && octets[1] === 168)
+  )
 }
 
 export function parseWebSocketEndpoint(value) {

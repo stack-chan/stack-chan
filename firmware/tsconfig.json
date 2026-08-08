@@ -247,7 +247,7 @@
       ]
     },
     "types": [
-      "./node_modules/@moddable/typings/xs",
+      "./typings/xs-runtime",
       "./node_modules/@moddable/typings/mcpack",
       "./node_modules/@moddable/typings/easing"
     ]

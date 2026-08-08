@@ -121,7 +121,7 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
   const currentHost = inspectDeploymentCompatibility('m5stackchan-cores3', {
     chip: 'ESP32-S3',
     xsVersion: [17, 8, 0],
-    firmwareVersion: '8.3.1+stackchan.1',
+    firmwareVersion: '9.0.0+stackchan.1',
     hostApiVersion: 1,
     requirements: ['conversation.remote', 'audio.usb', 'ui.approval'],
     requireFirmware: true,

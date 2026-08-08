@@ -108,7 +108,7 @@
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@google-cloud/text-to-speech": "^6.4.1",
     "@microsoft/tsdoc": "^0.16.0",
-    "@moddable/typings": "^8.3.1",
+    "@moddable/typings": "^9.0.0",
     "cross-env": "^10.1.0",
     "fontkit": "^2.0.2",
     "lefthook": "^2.1.10",

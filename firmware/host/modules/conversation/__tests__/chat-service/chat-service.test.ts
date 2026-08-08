@@ -41,6 +41,10 @@ const ChatAudioIOAny = ChatAudioIO as unknown as {
     emitFunctionCall: (call: string, name: string, parameters: Record<string, unknown>) => void
     lastText?: string
     lastFunctionResult?: { call: string }
+    microphone?: boolean
+    inputSuspended?: boolean
+    suspendInputCalls?: number
+    resumeInputCalls?: number
   }[]
   CONNECTED?: number
 }
@@ -112,5 +116,23 @@ service.start()
 equal(service.transcript.input, '', 'start should clear input transcript for the next session')
 equal(service.transcript.output, '', 'start should clear output transcript for the next session')
 
-trace('ok\n')
+void (async () => {
+  await service.runWithInputSuspended(async () => {
+    equal(instance.inputSuspended, true, 'input should be suspended while the operation runs')
+    await service.runWithInputSuspended(async () => {
+      equal(instance.suspendInputCalls, 1, 'nested suspension should reuse the active suspension')
+    })
+  })
+  equal(instance.inputSuspended, false, 'input should resume after the operation')
+  equal(instance.suspendInputCalls, 1, 'input should only be suspended once')
+  equal(instance.resumeInputCalls, 1, 'input should only be resumed once')
+
+  service.setMicrophoneEnabled(false)
+  await service.runWithInputSuspended(async () => {
+    equal(instance.inputSuspended, true, 'disabled microphone input should still suspend physically')
+  })
+  equal(instance.inputSuspended, false, 'input should resume after the second operation')
+  equal(instance.microphone, false, 'resume should preserve the requested microphone state')
+  trace('ok\n')
+})()
 Timer.set(() => {}, 1000)

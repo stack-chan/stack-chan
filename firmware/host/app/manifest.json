@@ -58,7 +58,8 @@
     "app-default-behavior": "./default-behavior/behavior",
     "app-default-behavior/on-context-created": "./default-behavior/on-context-created",
     "app-default-behavior/on-launch": "./default-behavior/on-launch",
-    "app-default-behavior/startup-choice": "./default-behavior/startup-choice"
+    "app-default-behavior/startup-choice": "./default-behavior/startup-choice",
+    "robot-chat-tools": "./robot-chat-tools"
   },
   "preload": [
     "runtime-context",

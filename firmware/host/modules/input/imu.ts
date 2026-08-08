@@ -23,7 +23,7 @@ type IMUConstructor = new (options: unknown) => IMUDriver
 
 export default class IMU {
   #driver: IMUDriver
-  #timer: Timer | undefined
+  #timer: ReturnType<typeof Timer.repeat> | undefined
   #recognizer: MotionRecognizer
   #interval: number
   #lastSample: IMUSample = {}
@@ -37,8 +37,13 @@ export default class IMU {
     this.#driver.configure?.({ order: 'zxy' })
   }
 
+  /** Latest successful sensor sample. The returned value can be mutated safely by callers. */
+  get lastSample(): IMUSample {
+    return copySample(this.#lastSample)
+  }
+
   #sample(): IMUSample {
-    this.#lastSample = this.#driver.sample()
+    this.#lastSample = copySample(this.#driver.sample())
     return copySample(this.#lastSample)
   }
 

@@ -1,6 +1,7 @@
 {
   "modules": {
     "*": ["../../typings/*"],
+    "embedded:io/audio/out-original": "../../typings/embedded/audio-out-original",
     "piu/*": ["../../typings/piu/*"]
   },
   "typescript": {

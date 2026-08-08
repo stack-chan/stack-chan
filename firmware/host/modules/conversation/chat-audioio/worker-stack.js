@@ -2,6 +2,25 @@ import ChatAudioIOBase from 'ChatAudioIOBase'
 import Worker from 'worker'
 
 export default class ChatAudioIO extends ChatAudioIOBase {
+  ensureInput() {
+    if (this.inputSuspended) return
+    super.ensureInput()
+  }
+
+  suspendInput() {
+    this.inputSuspended = true
+    this.microphone = 0
+    this.input?.close()
+    this.input = null
+    this.ready = false
+  }
+
+  resumeInput(microphoneEnabled = true) {
+    this.inputSuspended = false
+    this.microphone = microphoneEnabled ? 1 : 0
+    if (this.state <= ChatAudioIOBase.SPEAKING) super.ensureInput()
+  }
+
   createWorker(specifier, instructions, functions, voiceID, providerID, modelID, apiKey) {
     this.worker = new Worker(specifier, {
       static: 512 * 1024,

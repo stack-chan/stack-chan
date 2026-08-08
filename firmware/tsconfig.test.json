@@ -43,6 +43,9 @@
       "embedded:io/audio/out": [
         "host/modules/testing/fakes/audio-out.ts"
       ],
+      "modern-audio-out": [
+        "host/modules/testing/fakes/modern-audio-out.ts"
+      ],
       "mp3streamer": [
         "host/modules/testing/fakes/mp3streamer.ts"
       ],

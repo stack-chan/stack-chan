@@ -8,6 +8,9 @@ class ChatAudioIO {
     this.lastText = null
     this.lastFunctionResult = null
     this.microphone = true
+    this.inputSuspended = false
+    this.suspendInputCalls = 0
+    this.resumeInputCalls = 0
     this.volume = 1
   }
 
@@ -38,6 +41,18 @@ class ChatAudioIO {
 
   changeMicrophone(enabled) {
     this.microphone = enabled
+  }
+
+  suspendInput() {
+    this.suspendInputCalls += 1
+    this.inputSuspended = true
+    this.microphone = false
+  }
+
+  resumeInput(microphoneEnabled) {
+    this.resumeInputCalls += 1
+    this.inputSuspended = false
+    this.microphone = microphoneEnabled
   }
 
   changeVolume(volume) {

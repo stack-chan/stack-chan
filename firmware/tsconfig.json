@@ -188,6 +188,9 @@
       "embedded:io/audio/*": [
 				"./node_modules/@moddable/typings/embedded_io/audio/*"
 			],
+      "embedded:io/audio/out-original": [
+        "./typings/embedded/audio-out-original.d.ts"
+      ],
       "embedded:io/bluetooth/*": [
 				"./node_modules/@moddable/typings/embedded_io/bluetooth/*"
 			],

@@ -134,6 +134,17 @@ describe('Stack-chan platform manifest', () => {
     )
   })
 
+  test('conversation-capable CoreS3 targets route public and physical AudioOut separately', () => {
+    for (const target of ['m5stackchan_cores3', 'stackchan_rt']) {
+      const manifest = readJson(join('host/platforms', target, 'manifest.json'))
+      const publicAudioOut = manifest.modules?.['embedded:io/audio/out']
+      const physicalAudioOut = manifest.modules?.['embedded:io/audio/out-original']
+      assert.equal(publicAudioOut, '../shared_audioout')
+      assert.equal(physicalAudioOut, '../physical_audioout')
+      assert.notEqual(publicAudioOut, physicalAudioOut)
+    }
+  })
+
   test('camera-sharing subplatform providers pin the internal I2C bus to port 1', () => {
     // The camera SCCB reuses the internal I2C bus (defines.camera sda/scl=-1,
     // i2c_port=1). esp32-camera only finds the already-initialized bus handle

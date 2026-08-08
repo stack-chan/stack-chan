@@ -6,8 +6,15 @@ import {
   type ChatState as ChatStateValue,
   type ChatTranscriptSnapshot,
 } from 'chat-state'
+import type { ChatTool, ChatToolObjectSchema } from './chat-tool.js'
 
 export { ChatState, type ChatStateName, ChatStateNames, chatStateToName, MAX_TRANSCRIPT_CHARS } from 'chat-state'
+export type {
+  ChatTool,
+  ChatToolObjectSchema,
+  ChatToolParameterSchema,
+  ChatToolSchema,
+} from './chat-tool.js'
 
 export type ChatType = 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' | 'humeAIEVI' | 'openAIRealtime'
 
@@ -18,28 +25,6 @@ export type ChatConfig = {
   voiceID?: string
   providerID?: string
   modelID?: string
-}
-
-export type ChatToolSchema = {
-  name: string
-  description?: string
-  parameters?: {
-    type: 'object'
-    properties: Record<string, { type: string; description?: string }>
-    required?: string[]
-    additionalProperties?: boolean
-  }
-  // Dialogue互換 (inputSchema) を許容
-  inputSchema?: {
-    type: 'object'
-    properties: Record<string, { type: string; description?: string }>
-    required?: string[]
-    additionalProperties?: boolean
-  }
-}
-
-export type ChatTool = ChatToolSchema & {
-  execute?: (params: Record<string, unknown>) => Promise<unknown> | unknown
 }
 
 export type ChatCallbacks = {
@@ -62,12 +47,7 @@ type ChatServiceOptions = {
 type ChatFunctionSchema = {
   name: string
   description?: string
-  parameters: {
-    type: 'object'
-    properties: Record<string, { type: string; description?: string }>
-    required?: string[]
-    additionalProperties?: boolean
-  }
+  parameters: ChatToolObjectSchema
 }
 
 const noop = () => {}
@@ -133,6 +113,8 @@ export class ChatService {
   #error = ''
   #callbacks: Required<ChatCallbacks>
   #sessionState: ChatSessionState
+  #microphoneEnabled = true
+  #inputSuspendDepth = 0
 
   constructor(options: ChatServiceOptions) {
     this.#sessionState = options.sessionState ?? new ChatSessionState()
@@ -227,7 +209,37 @@ export class ChatService {
   }
 
   setMicrophoneEnabled(enabled: boolean): void {
-    this.#chat.changeMicrophone(enabled)
+    this.#microphoneEnabled = enabled
+    if (this.#inputSuspendDepth === 0) this.#chat.changeMicrophone(enabled)
+  }
+
+  async runWithInputSuspended<T>(operation: () => T | Promise<T>): Promise<T> {
+    const chat = this.#chat as ChatAudioIO & {
+      suspendInput?: () => void
+      resumeInput?: (microphoneEnabled: boolean) => void
+    }
+    const supportsInputSuspension = typeof chat.suspendInput === 'function' && typeof chat.resumeInput === 'function'
+
+    this.#inputSuspendDepth += 1
+    if (this.#inputSuspendDepth === 1) {
+      try {
+        if (supportsInputSuspension) chat.suspendInput?.()
+        else chat.changeMicrophone(false)
+      } catch (error) {
+        this.#inputSuspendDepth -= 1
+        throw error
+      }
+    }
+
+    try {
+      return await operation()
+    } finally {
+      this.#inputSuspendDepth -= 1
+      if (this.#inputSuspendDepth === 0) {
+        if (supportsInputSuspension) chat.resumeInput?.(this.#microphoneEnabled)
+        else chat.changeMicrophone(this.#microphoneEnabled)
+      }
+    }
   }
 
   setVolume(volume: number): void {

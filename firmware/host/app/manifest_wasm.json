@@ -2,10 +2,7 @@
   "build": {
     "NAME": "stack-chan-host"
   },
-  "include": [
-    "../platforms/wasm/manifest.json",
-    "$(MODDABLE)/modules/piu/MC/qrcode/manifest.json"
-  ],
+  "include": ["../platforms/wasm/manifest.json"],
   "resources": {
     "*": ["./strings/*"],
     "*-mask": [

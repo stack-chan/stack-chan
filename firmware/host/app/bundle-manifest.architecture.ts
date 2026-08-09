@@ -14,8 +14,11 @@ type FontResource = {
 
 type FontManifest = {
   build?: { NAME?: string }
+  include?: string[]
   resources?: { '*-alpha'?: FontResource[]; '*-mask'?: Array<string | FontResource> }
 }
+
+const qrCodeManifest = '$(MODDABLE)/modules/piu/MC/qrcode/manifest.json'
 
 const manifest = JSON.parse(readFileSync('host/app/manifest.json', 'utf8')) as FontManifest
 const wasmManifest = JSON.parse(readFileSync('host/app/manifest_wasm.json', 'utf8')) as FontManifest
@@ -47,6 +50,11 @@ function sortedGlyphs(characters: string): string[] {
 test('host manifests use a stable application name', () => {
   assert.equal(manifest.build?.NAME, 'stack-chan-host')
   assert.equal(wasmManifest.build?.NAME, 'stack-chan-host')
+})
+
+test('host manifests bundle the QR code renderer for MODs', () => {
+  assert.ok(manifest.include?.includes(qrCodeManifest))
+  assert.ok(wasmManifest.include?.includes(qrCodeManifest))
 })
 
 test('the 24px font bundles UI glyphs and uppercase Latin letters', () => {

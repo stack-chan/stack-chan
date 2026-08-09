@@ -20,9 +20,6 @@
       "camera": [
         "./host/modules/camera/wasm/camera.ts"
       ],
-      "camera-hub-command-adapter": [
-        "./host/modules/connectivity/camera-hub-command-adapter.ts"
-      ],
       "capabilities": [
         "./host/modules/testing/fakes/capabilities.ts"
       ],

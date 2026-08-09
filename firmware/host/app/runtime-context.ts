@@ -1,8 +1,6 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
-import { createCameraHubCommandCapability } from 'camera-hub-command-adapter'
 import type {
   AudioCapability,
-  CameraHubCommandCapability,
   ConnectivityCapability,
   ConversationCapability,
   FaceCapability,
@@ -49,7 +47,6 @@ export class StackchanRuntimeContext implements StackchanContext {
    */
   #audioCapability: AudioCapability
   #audioRuntime: StackchanRuntimeAudio
-  #cameraHubCommandCapability: CameraHubCommandCapability
   #connectivityCapability: ConnectivityCapability
   #conversationCapability: ConversationCapability
   #cameraRuntime: StackchanRuntimeCamera
@@ -93,10 +90,6 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#faceCapability = this.createFaceCapability()
     this.#motionCapability = this.createMotionCapability()
     this.#audioCapability = this.createAudioCapability()
-    this.#cameraHubCommandCapability = createCameraHubCommandCapability({
-      audio: this.#audioCapability,
-      motion: this.#motionCapability,
-    })
     // Capture the host-owned localization service after boot selected a locale;
     // MODs receive this stable boundary instead of importing host UI internals.
     this.#i18nCapability = createI18nCapability()
@@ -138,10 +131,6 @@ export class StackchanRuntimeContext implements StackchanContext {
 
   get connectivity(): ConnectivityCapability {
     return this.#connectivityCapability
-  }
-
-  get cameraHubCommands(): CameraHubCommandCapability {
-    return this.#cameraHubCommandCapability
   }
 
   get lifecycle(): LifecycleCapability {

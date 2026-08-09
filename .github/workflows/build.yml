@@ -49,7 +49,7 @@ jobs:
       - name: Detect firmware-related changes
         if: github.event_name != 'workflow_dispatch'
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             firmware:

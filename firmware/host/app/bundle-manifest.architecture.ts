@@ -49,7 +49,7 @@ test('host manifests use a stable application name', () => {
   assert.equal(wasmManifest.build?.NAME, 'stack-chan-host')
 })
 
-test('the 24px font bundles glyphs used by the splash title and AppBar clock', () => {
+test('the 24px font bundles UI glyphs and uppercase Latin letters', () => {
   const font = findFont(
     manifest.resources?.['*-alpha'],
     (resource) => resource.source === '../modules/ui/assets/fonts/k8x12' && resource.size === 24,
@@ -60,7 +60,11 @@ test('the 24px font bundles glyphs used by the splash title and AppBar clock', (
   assert.equal(font.characterFiles, undefined)
   const requiredCharacters = requireFontCharacters(splashTestManifest, 'startup splash')
   const appBarCharacters = requireFontCharacters(appBarTestManifest, 'AppBar')
-  assert.deepEqual(sortedGlyphs(font.characters as string), sortedGlyphs(requiredCharacters + appBarCharacters))
+  const uppercaseLatin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  assert.deepEqual(
+    sortedGlyphs(font.characters as string),
+    sortedGlyphs(requiredCharacters + appBarCharacters + uppercaseLatin),
+  )
 
   const wasmFont = findFont(
     wasmManifest.resources?.['*-alpha'],

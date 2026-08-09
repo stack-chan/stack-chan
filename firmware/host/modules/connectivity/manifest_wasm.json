@@ -4,6 +4,7 @@
     "../preferences/manifest_wasm.json"
   ],
   "modules": {
+    "camera-hub-command-adapter": "./camera-hub-command-adapter",
     "network-manager": "./wasm/network-manager",
     "network-state": "./network-state",
     "network-service": "./wasm/network-service",

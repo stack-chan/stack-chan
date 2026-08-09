@@ -18,6 +18,7 @@
     ]
   },
   "modules": {
+    "camera-hub-command-adapter": "../../../../../connectivity/camera-hub-command-adapter",
     "capabilities": "../../../../../../app/capabilities",
     "local-peer-types": "../../../../../connectivity/local-peer-types",
     "runtime-ui": "../../../../../../app/runtime-ui",

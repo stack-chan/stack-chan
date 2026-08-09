@@ -1,5 +1,6 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { RobotCamera } from 'camera'
+import type { CameraHubCommandCapability } from 'camera-hub-command-adapter'
 import type { DrawerButtonViewSpec, DrawerOption, IconName } from 'drawer'
 import type { Emotion, FaceEyeKey, FaceState, FaceThemeKey } from 'face-state'
 import type { HandAnimationName } from 'hands'
@@ -44,6 +45,7 @@ export type RobotLed = {
   rainbow(index?: number, count?: number): void
 }
 
+export type { CameraHubCommand, CameraHubCommandAck, CameraHubCommandCapability } from 'camera-hub-command-adapter'
 export type { I18nCapability } from 'localization'
 export type { MiniAppContext, MiniAppDefinition, MiniAppInstance, MiniAppRegistryCapability } from 'mini-app'
 export type { DrawerButtonViewSpec, DrawerOption }
@@ -277,6 +279,8 @@ export type StackchanCapabilityNamespaces = {
   camera: RobotCamera
   conversation: ConversationCapability
   connectivity: ConnectivityCapability
+  /** Executes command envelopes received from the private camera hub. */
+  cameraHubCommands: CameraHubCommandCapability
   lifecycle: LifecycleCapability
   ui: RuntimeUICapability
 }

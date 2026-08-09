@@ -124,7 +124,7 @@ jobs:
       - name: Deploy preview to Cloudflare Pages
         if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion == 'success'
         id: cloudflare
-        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -299,7 +299,7 @@ jobs:
       - name: Replace preview with closed page
         if: steps.preview.outputs.exists == 'true'
         id: cloudflare
-        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -61,7 +61,10 @@ test('the 24px font bundles UI glyphs and uppercase Latin letters', () => {
   const requiredCharacters = requireFontCharacters(splashTestManifest, 'startup splash')
   const appBarCharacters = requireFontCharacters(appBarTestManifest, 'AppBar')
   const uppercaseLatin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  assert.deepEqual(sortedGlyphs(font.characters as string), sortedGlyphs(requiredCharacters + appBarCharacters + uppercaseLatin))
+  assert.deepEqual(
+    sortedGlyphs(font.characters as string),
+    sortedGlyphs(requiredCharacters + appBarCharacters + uppercaseLatin),
+  )
 
   const wasmFont = findFont(
     wasmManifest.resources?.['*-alpha'],

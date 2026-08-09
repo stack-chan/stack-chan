@@ -113,7 +113,7 @@ jobs:
       - uses: ./.github/actions/setup
         id: setup
       - name: Restore incremental Linux test builds
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ./firmware/dist/tmp/lin
@@ -145,7 +145,7 @@ jobs:
       - uses: ./.github/actions/setup
         id: setup
       - name: Restore incremental Linux smoke builds
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ./firmware/dist/tmp/lin

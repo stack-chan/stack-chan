@@ -1,5 +1,8 @@
 {
-  "include": ["$(MODULES)/network/sntp/manifest.json"],
+  "include": [
+    "$(MODULES)/base/modules/manifest.json",
+    "$(MODULES)/network/sntp/manifest.json"
+  ],
   "modules": {
     "network-service": "../../network-service",
     "network-state": "../../network-state",

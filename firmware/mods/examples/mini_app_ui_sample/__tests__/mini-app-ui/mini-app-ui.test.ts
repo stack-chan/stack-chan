@@ -61,7 +61,9 @@ assert(noticeArea.y + noticeArea.height <= actions.y, 'notification area should 
 const help = named(root, 'help')
 tap(named(root, 'help:open'))
 assert(help.visible, 'help action should show the overlay')
-tap(named(root, 'help:close'))
+const helpClose = named(root, 'help:close')
+assert(helpClose.width === 108 && helpClose.height === 30, 'help close action should retain its 108x30 size')
+tap(helpClose)
 assert(!help.visible, 'close action should hide the overlay')
 
 tap(named(root, 'app:close'))

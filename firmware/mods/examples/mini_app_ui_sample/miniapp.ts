@@ -174,7 +174,7 @@ function createPlayground(context: MiniAppContext): PiuContainer {
     help.visible = false
   }
   const helpClose = createButton('help:close', 'Close', hideHelp, true)
-  helpClose.coordinates = { right: 14, bottom: 10 }
+  helpClose.coordinates = { ...helpClose.coordinates, right: 14, bottom: 10 }
   help.add(
     new Container(null, {
       left: 24,

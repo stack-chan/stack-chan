@@ -1,5 +1,6 @@
 import WiFi from 'ecma-wifi'
 import config from 'mc/config'
+import Modules from 'modules'
 import {
   NetworkConnectionState,
   NetworkConnectionStateMachine,
@@ -51,6 +52,7 @@ export class NetworkService {
         this.#handleWiFiChanged(property)
       },
     })
+    if (Modules.has('wifi-power-save')) (Modules.importNow('wifi-power-save') as () => void)()
   }
 
   get state(): NetworkState {

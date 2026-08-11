@@ -13,6 +13,7 @@ const audioPrefix = Object.freeze(
   true,
 )
 const audioSuffix = Object.freeze(new Uint8Array(ArrayBuffer.fromString('"}')), true)
+const OUTPUT_PREBUFFER_BYTES = 24000 * 2 // One second of PCM16 mono audio.
 const eventHandlers = Object.freeze({
   'conversation.item.input_audio_transcription.completed': true,
   error: true,
@@ -182,15 +183,38 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
   }
 
   'response.created'() {
+    this.outputPrebufferBytes = 0
+    this.outputPrebufferOffset = 0
+    this.outputPrebufferSize = 0
+    this.outputPrebuffering = true
     this.postPresentation({ id: 'receiveInputText', text: '', more: true })
     this.postPresentation({ id: 'receiveOutputText', text: '', more: true })
     this.post('listen')
   }
 
   'response.done'() {
+    if (this.outputPrebuffering) {
+      this.outputPrebuffering = false
+      if (this.outputPrebufferSize) {
+        super.onBase64(this.outputPrebufferOffset, this.outputPrebufferSize)
+      }
+    }
     this.parser.copy(this.silence)
     this.parser.done()
     this.post('speak')
+  }
+
+  onBase64(offset, size) {
+    if (!this.outputPrebuffering) {
+      super.onBase64(offset, size)
+      return
+    }
+    this.outputPrebufferBytes += size
+    this.outputPrebufferOffset = offset
+    this.outputPrebufferSize = size
+    if (this.outputPrebufferBytes < OUTPUT_PREBUFFER_BYTES) return
+    this.outputPrebuffering = false
+    super.onBase64(offset, size)
   }
 
   'response.output_item.done'(message) {

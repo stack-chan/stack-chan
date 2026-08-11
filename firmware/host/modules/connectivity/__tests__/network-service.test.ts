@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
+import { resetModules } from '../../testing/fakes/modules.js'
 import FakeWiFi, { getFakeWiFiInstances, resetFakeWiFi } from './fakes/ecma-wifi.js'
 import SNTP, { resetSNTP } from './fakes/sntp.js'
 
@@ -22,6 +23,9 @@ function installBareSpecifierPackages(): void {
   writeAliasPackage(modulesRoot, 'ecma-wifi', resolve(modulesRoot, 'connectivity/__tests__/fakes/ecma-wifi.js'), {
     hasDefaultExport: true,
   })
+  writeAliasPackage(modulesRoot, 'modules', resolve(modulesRoot, 'testing/fakes/modules.js'), {
+    hasDefaultExport: true,
+  })
   writeAliasPackageSubpath(modulesRoot, 'mc', 'config', resolve(modulesRoot, 'testing/fakes/mc-config.js'), {
     hasDefaultExport: true,
   })
@@ -38,6 +42,7 @@ async function setup(configValues: Record<string, unknown> = {}) {
     import('../../testing/fakes/time.js'),
   ])
   mcConfig.resetConfig(configValues)
+  resetModules()
   timer.default.reset()
   time.default.reset()
   const traces: string[] = []
@@ -50,6 +55,8 @@ async function setup(configValues: Record<string, unknown> = {}) {
 test('NetworkService connects through ECMA-419 Wi-Fi and resolves after IP address', async () => {
   const { NetworkService } = await setup()
   let connected = false
+  let powerSaveCallCount = 0
+  resetModules({ 'wifi-power-save': () => powerSaveCallCount++ })
   const service = new NetworkService({ ssid: 'stackchan-ap', password: 'secret' })
 
   service.connect(() => {
@@ -61,6 +68,7 @@ test('NetworkService connects through ECMA-419 Wi-Fi and resolves after IP addre
     password: 'secret',
     secure: true,
   })
+  assert.equal(powerSaveCallCount, 1)
   getFakeWiFiInstances()[0]?.emitGotIP('192.0.2.20')
   assert.equal(connected, true)
   service.close()

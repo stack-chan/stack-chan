@@ -25,6 +25,10 @@ export default class ServerChatWebSocketWorker {
     postedMessages.push(message)
   }
 
+  onBase64(offset, size) {
+    postedMessages.push({ id: 'receiveAudio', offset, size })
+  }
+
   sendAudio(message) {
     this.lastAudio = { ...message }
     this.sendAudioBuffer(new Uint8Array(this.inputBuffer, message.offset, message.size).slice())

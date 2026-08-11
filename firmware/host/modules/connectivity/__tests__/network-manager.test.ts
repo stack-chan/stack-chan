@@ -22,6 +22,9 @@ function installBareSpecifierPackages(): void {
   writeAliasPackage(modulesRoot, 'ecma-wifi', resolve(modulesRoot, 'connectivity/__tests__/fakes/ecma-wifi.js'), {
     hasDefaultExport: true,
   })
+  writeAliasPackage(modulesRoot, 'modules', resolve(modulesRoot, 'testing/fakes/modules.js'), {
+    hasDefaultExport: true,
+  })
   writeAliasPackageSubpath(modulesRoot, 'mc', 'config', resolve(modulesRoot, 'testing/fakes/mc-config.js'), {
     hasDefaultExport: true,
   })

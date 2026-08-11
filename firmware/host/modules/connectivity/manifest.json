@@ -58,6 +58,11 @@
     "esp32/m5stack": {
       "include": ["./manifest_local_peer_ble_only.json"]
     },
+    "esp32/m5stackchan_cores3": {
+      "modules": {
+        "wifi-power-save": "./esp32/wifi-power-save"
+      }
+    },
     "esp": {
       "include": ["$(MODULES)/io/wifi/manifest.json"],
       "modules": {

@@ -109,5 +109,22 @@ equal(sentJSON[0]?.item?.call_id, 'call-1', 'the function output should preserve
 equal(sentJSON[0]?.item?.output, '{"ok":true}', 'the function output should serialize the result')
 equal(sentJSON[1]?.type, 'response.create', 'the function output should resume the assistant response')
 
+postedMessages.length = 0
+const receivedAudioCount = () => postedMessages.filter((message) => message.id === 'receiveAudio').length
+model['response.created']()
+model.onBase64(0, 12000)
+model.onBase64(12000, 12000)
+model.onBase64(24000, 12000)
+equal(receivedAudioCount(), 0, 'output audio should stay hidden until one second is buffered')
+model.onBase64(36000, 12000)
+equal(receivedAudioCount(), 1, 'one second of output audio should start playback')
+
+postedMessages.length = 0
+model['response.created']()
+model.onBase64(48000, 12000)
+model.parser = { copy() {}, done() {} }
+model['response.done']()
+equal(receivedAudioCount(), 1, 'a short response should be released before playback is marked done')
+
 trace('ok\n')
 Timer.set(() => {}, 1000)

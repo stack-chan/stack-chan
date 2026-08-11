@@ -562,6 +562,8 @@
   "このデバイスへMODを書き込みますか？": "Write the MOD to this device?",
   "このデバイスへアプリを書き込みますか？": "Write the app to this device?",
   "ミニアプリ": "Mini-app",
+  "ミニアプリについて": "About mini-apps",
+  "ミニアプリは本体のAppBarから起動し、hostが管理する画面内で動作します。": "Mini-apps launch from the device AppBar and run inside a host-managed view.",
   "host権限を使用": "Uses host privileges",
   "このpackageはhost権限を使用します": "This package uses host privileges",
   "MODとmini-appを含むため、package全体を信頼できる場合だけ書き込んでください。": "This package contains both a MOD and mini-app. Write it only if you trust the entire package.",

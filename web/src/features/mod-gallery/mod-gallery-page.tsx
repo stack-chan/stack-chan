@@ -1,5 +1,6 @@
 import { Blocks, ExternalLink, FileCode2, Play, Search, Usb } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 
 import { useI18n } from '@/app/i18n-provider'
 import { ModCard } from '@/components/stackchan/mod-card'
@@ -17,7 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { type OperationState } from '@/features/operations/operation-state'
 import { toAppError } from '@/lib/errors/app-error'
 import {
@@ -157,12 +158,15 @@ export function ModGalleryPage() {
       try {
         const message = await action()
         setOperation(mod.id, { status: 'success', result: undefined, message })
+        toast.success(message)
       } catch (error) {
         if (error instanceof DOMException && error.name === 'NotFoundError') {
           setOperation(mod.id, { status: 'cancelled', message: t('デバイスの選択をキャンセルしました') })
           return
         }
-        setOperation(mod.id, { status: 'error', error: toAppError(error, 'mod-operation') })
+        const appError = toAppError(error, 'mod-operation')
+        setOperation(mod.id, { status: 'error', error: appError })
+        toast.error(appError.message)
       }
     },
     [setOperation, t]
@@ -254,19 +258,31 @@ export function ModGalleryPage() {
               />
             </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="type-filter">{t('作り方')}</Label>
-            <Select value={type} onValueChange={(value) => value && setType(value as Filter)}>
-              <SelectTrigger id="type-filter" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('すべて')}</SelectItem>
-                <SelectItem value="block">{t('ブロック')}</SelectItem>
-                <SelectItem value="text">{t('テキスト')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <fieldset className="grid gap-2">
+            <legend className="text-sm font-medium">{t('作り方')}</legend>
+            <RadioGroup
+              value={type}
+              onValueChange={(value) => setType(value as Filter)}
+              className="grid grid-cols-3 gap-2"
+            >
+              {(
+                [
+                  ['all', t('すべて')],
+                  ['block', t('ブロック')],
+                  ['text', t('テキスト')],
+                ] as const
+              ).map(([value, label]) => (
+                <Label
+                  key={value}
+                  htmlFor={`type-filter-${value}`}
+                  className="flex h-8 cursor-pointer items-center gap-2 rounded-lg border px-2"
+                >
+                  <RadioGroupItem id={`type-filter-${value}`} value={value} />
+                  {label}
+                </Label>
+              ))}
+            </RadioGroup>
+          </fieldset>
         </Card>
 
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">

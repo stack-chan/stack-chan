@@ -1,10 +1,19 @@
-import { type LucideIcon } from 'lucide-react'
+import { CircleHelp, type LucideIcon } from 'lucide-react'
 
 import { useI18n } from '@/app/i18n-provider'
 import { OperationStatus } from '@/components/stackchan/operation-status'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Separator } from '@/components/ui/separator'
 import { type OperationState } from '@/features/operations/operation-state'
 import { cn } from '@/lib/utils'
 import { type ModDefinition } from '@/services/mod-gallery/mod-catalog-service'
@@ -85,7 +94,26 @@ export function ModCard({
         </div>
         <div className="flex flex-wrap justify-end gap-1.5">
           {isCombinedPackage && <Badge variant="outline">MOD</Badge>}
-          {hasMiniApp && <Badge>{t('ミニアプリ')}</Badge>}
+          {hasMiniApp && (
+            <>
+              <Badge>{t('ミニアプリ')}</Badge>
+              <Popover>
+                <PopoverTrigger render={<Button variant="ghost" size="icon-xs" aria-label={t('ミニアプリについて')} />}>
+                  <CircleHelp />
+                </PopoverTrigger>
+                <PopoverContent align="end">
+                  <PopoverHeader>
+                    <PopoverTitle>{t('ミニアプリ')}</PopoverTitle>
+                    <PopoverDescription>
+                      {t('ミニアプリは本体のAppBarから起動し、hostが管理する画面内で動作します。')}
+                    </PopoverDescription>
+                  </PopoverHeader>
+                  <Separator />
+                  <p className="font-mono text-xs text-muted-foreground">entrypoint: miniapp</p>
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
           <Badge variant={mod.type === 'block' ? 'default' : 'secondary'}>
             {t(mod.type === 'block' ? 'ブロック' : 'テキスト')}
           </Badge>

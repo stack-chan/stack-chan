@@ -3,8 +3,8 @@ import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
 import { resetModules } from '../../testing/fakes/modules.js'
+import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
 import FakeWiFi, { getFakeWiFiInstances, resetFakeWiFi } from './fakes/ecma-wifi.js'
 import SNTP, { resetSNTP } from './fakes/sntp.js'
 

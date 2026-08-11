@@ -54,6 +54,9 @@ assert(!ocean.visible && forest.visible, 'tapping a choice should move the selec
 const notice = named(root, 'notice') as PiuLabel
 assert(notice.visible, 'selection should show a notification')
 equal(notice.string, 'Forest selected', 'notification should name the selected choice')
+const noticeArea = named(root, 'notice-area')
+const actions = named(root, 'actions')
+assert(noticeArea.y + noticeArea.height <= actions.y, 'notification area should not cover actions at 196px')
 
 const help = named(root, 'help')
 tap(named(root, 'help:open'))

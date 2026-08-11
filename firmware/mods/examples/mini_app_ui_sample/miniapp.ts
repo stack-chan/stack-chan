@@ -137,10 +137,10 @@ function createPlayground(context: MiniAppContext): PiuContainer {
   const choices: PiuContainer[] = []
   const notice = new Label(null, {
     name: 'notice',
-    left: 24,
-    right: 24,
-    bottom: 8,
-    height: 28,
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     visible: false,
     skin: noticeSkin,
     style: noticeStyle,
@@ -210,13 +210,30 @@ function createPlayground(context: MiniAppContext): PiuContainer {
         top: 6,
         contents: [
           new Label(null, { left: 0, right: 0, height: 24, string: 'UI Playground', style: titleStyle }),
-          new Label(null, { left: 0, right: 0, height: 20, string: 'Choose a theme color', style: bodyStyle }),
+          new Container(null, {
+            name: 'notice-area',
+            left: 0,
+            right: 0,
+            height: 28,
+            contents: [
+              new Label(null, {
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 0,
+                string: 'Choose a theme color',
+                style: bodyStyle,
+              }),
+              notice,
+            ],
+          }),
           new Content(null, { height: 4 }),
           new Content(null, { name: 'separator', left: 0, right: 0, height: 1, skin: separatorSkin }),
           new Content(null, { height: 5 }),
           ...choices,
           new Content(null, { height: 6 }),
           new Row(null, {
+            name: 'actions',
             left: 0,
             right: 0,
             height: 30,
@@ -230,7 +247,6 @@ function createPlayground(context: MiniAppContext): PiuContainer {
           }),
         ],
       }),
-      notice,
       help,
     ],
   })

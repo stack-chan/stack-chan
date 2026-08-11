@@ -1,5 +1,5 @@
-import definitions from 'miniapp'
 import type { MiniAppContext } from 'mini-app'
+import definitions from 'miniapp'
 import { Application, type Container as PiuContainer, type Content as PiuContent, type Label as PiuLabel } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
 

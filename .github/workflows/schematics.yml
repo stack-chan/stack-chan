@@ -46,8 +46,13 @@ jobs:
 
   deploy-schematics:
     needs: build-schematics
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    env:
+      PAGES_CHANNEL: ${{ github.ref == 'refs/heads/main' && 'release' || 'develop' }}
+      PAGES_DIRECTORY: ${{ github.ref == 'refs/heads/main' && 'web' || 'develop/web' }}
     concurrency:
       group: gh-pages-deploy
       cancel-in-progress: false
@@ -65,21 +70,24 @@ jobs:
           path: ./schematics-files
       - name: Update schematics files
         run: |
+          set -euo pipefail
           if [ -z "$(find ./schematics-files -mindepth 1 -print -quit)" ]; then
             echo "Schematics artifact is empty"
             exit 1
           fi
-          rm -rf ./web/schematics
-          mkdir -p ./web/schematics
-          cp -R ./schematics-files/. ./web/schematics/
+          target_directory="./$PAGES_DIRECTORY/schematics"
+          rm -rf "$target_directory"
+          mkdir -p "$target_directory"
+          cp -R ./schematics-files/. "$target_directory/"
       - name: Commit schematics update
         run: |
+          set -euo pipefail
           git config user.name 'GitHub Action'
           git config user.email 'action@github.com'
-          git add ./web/schematics
+          git add "./$PAGES_DIRECTORY/schematics"
           if git diff --cached --quiet; then
             echo "No schematics changes to deploy"
             exit 0
           fi
-          git commit -m "Deploy schematics files from ${{ github.sha }}"
+          git commit -m "Deploy $PAGES_CHANNEL schematics files from ${{ github.sha }}"
           git push origin HEAD:gh-pages

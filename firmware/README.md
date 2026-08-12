@@ -98,4 +98,5 @@ See [Building and Writing Programs](docs/flashing-firmware.md) for target-specif
 - [MODs](mods/README.md)
 - [Localization](docs/localization.md)
 - [Mini apps (experimental, Japanese)](docs/mini-apps_ja.md)
+- [v1.1.0 release notes](../docs/release-notes/v1.1.0.md)
 - [v1.0.0 release notes](../docs/release-notes/v1.0.0.md)

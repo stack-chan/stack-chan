@@ -1,6 +1,7 @@
 import { AppController } from 'app-controller'
 import { FaceBehavior } from 'behaviors/face'
 import type { StackchanContext } from 'capabilities'
+import { ChatStatusBarState } from 'chat-status-bar'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
 import {
@@ -349,6 +350,13 @@ const skinHitsBeforeDisplaying = recorder.skinHits ?? 0
 faceBehavior.onDisplaying(nextFace)
 equal(recorder.contextPrimary, expectedPrimary, 'onDisplaying should keep the rehydrated context')
 assert((recorder.skinHits ?? 0) > skinHitsBeforeDisplaying, 'onDisplaying should replay the cached palette')
+
+application.distribute('onChatState', ChatStatusBarState.LISTENING)
+assert(nextFace.running === false, 'assistant playback should stop autonomous face motion')
+application.distribute('onChatState', ChatStatusBarState.WAITING)
+assert(nextFace.running === false, 'buffered playback should keep autonomous face motion stopped')
+application.distribute('onChatState', ChatStatusBarState.SPEAKING)
+assert(nextFace.running === true, 'the user turn should restore autonomous face motion')
 
 const resizedFace = new ResizedFace({}) as PiuContainer
 controller.setFace(resizedFace)

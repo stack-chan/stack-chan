@@ -5,6 +5,7 @@ import {
   type CommonViewTemplateCtor,
   type TemplateFunction,
 } from 'common-view'
+import { ChatStatusBarState, type ChatStatusBarState as ChatState } from 'chat-status-bar'
 import { type FaceSkinPalette, updateFaceSkinPalette } from 'face-skin'
 import {
   copyFaceState,
@@ -326,6 +327,10 @@ class FaceViewBehavior extends CommonViewBehavior {
     this.faceMotionEnabled = enabled
     const face = this.face
     if (face) faceBehavior(face)?.setMotionsEnabled?.(face, enabled)
+  }
+
+  onChatState(_container: PiuContainer, state: ChatState): void {
+    this.setFaceMotionEnabled(state !== ChatStatusBarState.LISTENING && state !== ChatStatusBarState.WAITING)
   }
 
   /** Restore the face main component (e.g. after a dialog was shown via setMain) and resync its state. */

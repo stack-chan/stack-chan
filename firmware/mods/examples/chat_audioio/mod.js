@@ -498,7 +498,6 @@ export function onContextCreated(robot) {
     callbacks: {
       onStateChanged: (state, error) => {
         trace(`onStateChanged: ${chatStateToName(state)}\n`)
-        robot.ui.setFaceMotionEnabled?.(state !== ChatState.LISTENING)
         app?.distribute?.('onChatState', state, error)
         if (state !== ChatState.SPEAKING) {
           app?.distribute?.('onChatInputLevel', 0)

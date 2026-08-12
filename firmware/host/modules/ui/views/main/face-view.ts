@@ -1,3 +1,4 @@
+import { type ChatStatusBarState as ChatState, ChatStatusBarState } from 'chat-status-bar'
 import {
   CommonView,
   CommonViewBehavior,
@@ -5,7 +6,6 @@ import {
   type CommonViewTemplateCtor,
   type TemplateFunction,
 } from 'common-view'
-import { ChatStatusBarState, type ChatStatusBarState as ChatState } from 'chat-status-bar'
 import { type FaceSkinPalette, updateFaceSkinPalette } from 'face-skin'
 import {
   copyFaceState,

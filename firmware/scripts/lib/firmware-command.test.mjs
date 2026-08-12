@@ -14,14 +14,38 @@ function dryRun(...args) {
 }
 
 function dryRunCommand(command, ...args) {
-  const result = spawnSync(process.execPath, ['scripts/firmware.mjs', command, manifest, ...args], {
+  const commandArgs = command === 'mod' || command === 'mod:build' ? [manifest, ...args] : args
+  const result = spawnSync(process.execPath, ['scripts/firmware.mjs', command, ...commandArgs], {
     cwd: firmwareDirectory,
     encoding: 'utf8',
     env: { ...process.env, STACKCHAN_BUILD_MODE: '', STACKCHAN_DRY_RUN: '1', npm_config_target: '' },
   })
   assert.equal(result.status, 0, result.stderr)
-  return result.stdout
+  return result.stdout + result.stderr
 }
+
+test('host build, flash, and deploy commands default to release mode', () => {
+  for (const command of ['build', 'flash', 'deploy']) {
+    const output = dryRunCommand(command)
+    assert.match(output, /mcconfig -m /)
+    assert.doesNotMatch(output, /mcconfig -(?:d[nxl]?|i) /)
+  }
+})
+
+test('debug commands keep debug as the default build mode', () => {
+  assert.match(dryRunCommand('debug'), /mcconfig -d -m /)
+})
+
+test('host commands honor explicit non-release build modes', () => {
+  assert.match(dryRunCommand('build', '--mode=debug'), /mcconfig -d -m /)
+  assert.match(dryRunCommand('build', '--mode=instrument'), /mcconfig -i -m /)
+})
+
+test('CoreS3 non-release host builds warn that Codex Voice USB is unavailable', () => {
+  assert.match(dryRunCommand('build', '--mode=debug'), /Codex Voice USB is unavailable/)
+  assert.doesNotMatch(dryRunCommand('build'), /Codex Voice USB is unavailable/)
+  assert.doesNotMatch(dryRunCommand('build', 'stackchan_rt', '--mode=debug'), /Codex Voice USB is unavailable/)
+})
 
 test('MOD command keeps debug as the default build mode', () => {
   assert.match(dryRun('-t', 'build'), /mcrun -d -m /)

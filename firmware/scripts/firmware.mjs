@@ -61,12 +61,22 @@ const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg) && !isBu
 const platform = `esp32:${device.platform}`
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
-const { mode: buildMode, args: buildModeArgs } = readBuildConfiguration(rawArgs)
+const { mode: buildMode, args: buildModeArgs } = readBuildConfiguration(rawArgs, command)
 const outputArgs = moddableOutputArguments()
 const uploadPort =
   readOption(rawArgs, 'port') ?? process.env.STACKCHAN_PORT ?? process.env.UPLOAD_PORT ?? process.env.ESPPORT
 const uploadBaud = readOption(rawArgs, 'baud') ?? process.env.STACKCHAN_BAUD ?? process.env.ESPBAUD
 let subprocessEnvironment = uploadPort ? { ...process.env, UPLOAD_PORT: uploadPort } : process.env
+
+if (
+  deviceName === 'm5stackchan_cores3' &&
+  buildMode !== 'release' &&
+  ['build', 'flash', 'deploy', 'debug'].includes(command)
+) {
+  console.warn(
+    '[stack-chan] Moddable debug/instrument builds reserve USB Serial/JTAG for xsbug; Codex Voice USB is unavailable. Use release mode for USB communication.',
+  )
+}
 
 if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
   try {
@@ -281,9 +291,10 @@ function readOption(values, name) {
 /**
  * Resolves the Moddable output mode and selector arguments for this invocation.
  * @param {string[]} values - Command-line arguments.
+ * @param {string} selectedCommand - Wrapper command being executed.
  * @returns {{mode: string, args: string[]}} Build directory mode and mcconfig selector arguments.
  */
-function readBuildConfiguration(values) {
+function readBuildConfiguration(values, selectedCommand) {
   const mode = readOption(values, 'mode') ?? process.env.STACKCHAN_BUILD_MODE
   if (mode) {
     if (mode === 'debug') return { mode, args: [values.find(isDebugBuildFlag) ?? '-d'] }
@@ -296,6 +307,7 @@ function readBuildConfiguration(values) {
   const debugFlag = values.find(isDebugBuildFlag)
   if (debugFlag) return { mode: 'debug', args: [debugFlag] }
   if (values.includes('-i')) return { mode: 'instrument', args: ['-i'] }
+  if (['build', 'flash', 'deploy'].includes(selectedCommand)) return { mode: 'release', args: [] }
   return { mode: 'debug', args: ['-d'] }
 }
 
@@ -372,7 +384,7 @@ Devices:
 Examples:
   npm run flash:stackchan_rt
   npm run build:takao_core2_sg90
-  npm run build:m5stackchan_cores3 -- --mode=release
+  npm run build:m5stackchan_cores3 -- --mode=debug
   npm run build:m5stackchan_cores3 -- --mode=instrument
   npm run debug:xsdb -- --port /dev/ttyACM1
   npm run mod:build -- mods/examples/mini_app_sample/manifest.json --mode=release

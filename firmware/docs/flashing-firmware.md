@@ -111,6 +111,8 @@ $ npm run flash
 ```
 
 Use `npm run build` when you only want to verify the standard build.
+The `build`, `flash`, and `deploy` scripts use release mode by default on every supported subplatform.
+Pass `--mode=debug` or `--mode=instrument` explicitly when that mode is required.
 The program and intermediate files are saved under `firmware/dist/bin/` and `firmware/dist/tmp/`.
 The host application name is `stack-chan-host`.
 Run `npm run clean` to remove all generated files under `firmware/dist/`.
@@ -157,6 +159,11 @@ $ npm run debug
 
 Use the board-specific debug scripts from the table above for Stack-chan RT or Takao Core2 + SG90.
 These commands will open Moddable's debugger `xsbug` and connect it to the M5Stack.
+
+On M5StackChan CoreS3 with Moddable SDK 9.0.0 or later, debug and instrument builds reserve the built-in
+USB Serial/JTAG CDC driver for the Moddable debugger even when xsbug is not launched. Stackchan Dock and
+Codex Voice cannot use that CDC connection in the same build; use the normal release-mode `build`, `flash`,
+or `deploy` command when testing USB communication.
 
 ![xsbug](./images/xsbug.png)
 

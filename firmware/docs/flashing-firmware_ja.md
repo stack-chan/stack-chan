@@ -119,6 +119,8 @@ $ npm run flash
 ```
 
 ビルドだけ確認したい場合は `npm run build` を使います。
+`build`、`flash`、`deploy` の各スクリプトは、すべての対応サブプラットフォームでreleaseモードを既定とします。
+debugまたはinstrumentモードが必要な場合は、`--mode=debug` または `--mode=instrument` を明示してください。
 ビルドしたプログラムと中間生成物は `firmware/dist/bin/` と `firmware/dist/tmp/` 配下に保存されます。
 ホストアプリケーション名は `stack-chan-host` です。
 `npm run clean` を実行すると、`firmware/dist/` 配下の生成物をすべて削除できます。
@@ -164,6 +166,10 @@ $ npm run debug
 
 Stack-chan RT やタカオ版 Core2 + SG90 では、上の表にあるボード別の debug script を使います。
 このコマンドはModdableのデバッガ`xsbug`を開き、M5Stackと接続します。
+
+Moddable SDK 9.0.0以降のM5StackChan CoreS3では、debugおよびinstrument buildは、xsbugを起動しない場合も内蔵USB Serial/JTAGのCDCドライバをModdable debugger用に確保します。
+同じbuildでStackchan DockやCodex VoiceにCDC接続を使わせることはできません。
+USB通信の検証には、通常のreleaseモードの`build`、`flash`、`deploy`コマンドを使用してください。
 
 ![xsbug](./images/xsbug.png)
 

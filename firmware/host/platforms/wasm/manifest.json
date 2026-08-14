@@ -44,7 +44,6 @@
     ],
     "startup-splash": "../../modules/ui/views/splash/splash-view",
     "camera-preview-utils": "../../modules/ui/views/camera-preview/camera-preview-utils",
-    "host-startup": "../../app/default-behavior/wasm/on-launch",
     "led": "../../modules/lighting/wasm/led",
     "py32-led": "../../modules/lighting/wasm/py32-led",
     "app-behavior": "../../app/app-behavior",

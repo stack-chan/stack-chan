@@ -9,7 +9,6 @@ import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
 import { DOMAIN } from 'consts'
 import { type StackchanDockRuntime, startStackchanDock } from 'dock'
 import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'experimental-mini-app-loader'
-import { onLaunch as startHostStartup } from 'host-startup'
 import { initializeLocalization } from 'localization'
 import Modules from 'modules'
 import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
@@ -84,7 +83,6 @@ async function main() {
     installPlatformInputBridge()
     initializeLocalization(loadPreferences(DOMAIN.ui).language)
     applyTimezone(loadPreferences(DOMAIN.time).timezone)
-    await startHostStartup()
 
     trace('[main] loading app behaviors\n')
     const appBehaviors = loadAppBehaviors()

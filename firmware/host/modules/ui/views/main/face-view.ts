@@ -82,6 +82,26 @@ type FaceLayout = {
   breathPad: number
 }
 
+type PositionedStatus = PiuContent & {
+  coordinates?: { left?: number; top?: number }
+}
+
+function moveChatStatusToMain(appBar: PiuContent, main: PiuContainer): void {
+  const source = appBar as PiuContainer
+  if (typeof source.content !== 'function') return
+  for (const [name, left] of [
+    ['statusIcon', 8],
+    ['statusIndicator', 8],
+    ['levelTrack', 28],
+  ] as const) {
+    const status = source.content(name) as PositionedStatus | undefined
+    if (!status) continue
+    source.remove(status)
+    status.coordinates = { ...status.coordinates, left, top: 52 }
+    main.add(status)
+  }
+}
+
 function faceNumber(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
@@ -156,6 +176,7 @@ class FaceViewBehavior extends CommonViewBehavior {
       throw new Error('[FaceView] missing MAIN container')
     }
     this.faceMain = main
+    if (this.appBar) moveChatStatusToMain(this.appBar, main)
     if (!data.FACE || !data.EFFECTS || !data.FACE_REGION) {
       const missing: string[] = []
       if (!data.FACE) missing.push('FACE')

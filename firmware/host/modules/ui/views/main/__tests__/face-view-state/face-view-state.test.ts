@@ -1,7 +1,7 @@
 import { AppController } from 'app-controller'
 import { FaceBehavior } from 'behaviors/face'
 import type { StackchanContext } from 'capabilities'
-import { ChatStatusBarState } from 'chat-status-bar'
+import { ChatStatusBar, ChatStatusBarState } from 'chat-status-bar'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
 import {
@@ -46,6 +46,7 @@ type BalloonContent = PiuContainer & {
 
 type TestAppData = {
   face: PiuContainer
+  appBar?: PiuContainer
   FACE_REGION?: PiuContainer
   EFFECTS?: PiuContainer & { last?: BalloonContent | null }
 }
@@ -220,6 +221,7 @@ function findDrawer(root: PiuContainer): PiuContainer {
 
 const appData: TestAppData = {
   face: new TestFace({}),
+  appBar: new ChatStatusBar(),
 }
 const application = new Application(appData, {
   displayListLength: 2047,
@@ -228,6 +230,18 @@ const application = new Application(appData, {
 })
 
 const controller = application.behavior as AppController
+const statusIndicator = findNamedNode(application as unknown as PiuContent, 'statusIndicator') as
+  | (TreeNode & { visible?: boolean })
+  | null
+assert(statusIndicator, 'FaceView should retain the connection indicator in its main area')
+assert(
+  !findNamedNode(appData.appBar as unknown as PiuContent, 'statusIndicator'),
+  'FaceView should move chat status out of the AppBar',
+)
+application.distribute('onChatState', ChatStatusBarState.CONNECTING)
+const appBarBehavior = appData.appBar?.behavior as { onFinished?: (bar: PiuContainer) => void } | undefined
+appBarBehavior?.onFinished?.(appData.appBar)
+assert(statusIndicator.visible === true, 'hiding the AppBar should not hide the main-area connection indicator')
 const initialDrawer = findDrawer(application as unknown as PiuContainer)
 const hands = findNamedNode(application as unknown as PiuContent, 'hands') as (PiuPort & TreeNode) | null
 assert(hands, 'FaceView should install the hand renderer in its effect layer')

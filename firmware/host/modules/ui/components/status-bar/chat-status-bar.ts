@@ -366,7 +366,7 @@ class ChatStatusBarBehavior extends Behavior {
     if (this.#clock) clockBehavior?.onVisibilityChanged(this.#clock, faceStatusVisible)
     const batteryBehavior = this.#battery?.behavior as BatteryBehaviorContract | undefined
     if (this.#battery) batteryBehavior?.onVisibilityChanged(this.#battery, faceStatusVisible)
-    if (!faceStatusVisible) {
+    if (!faceMode) {
       this.#levelTrack.visible = false
       this.#statusIcon.visible = false
       this.#indicator.visible = false
@@ -376,7 +376,10 @@ class ChatStatusBarBehavior extends Behavior {
     // ChatAudioIO.SPEAKING means user input; LISTENING means assistant output.
     const isUserSpeaking = this.#state === ChatStatusBarState.SPEAKING
     const isUserListening = this.#state === ChatStatusBarState.LISTENING
-    const isConnecting = this.#state === ChatStatusBarState.CONNECTING || this.#connectionPending
+    const isConnecting =
+      this.#state === ChatStatusBarState.CONNECTING ||
+      this.#state === ChatStatusBarState.WAITING ||
+      this.#connectionPending
     this.#levelTrack.visible = !isConnecting && isUserSpeaking
     this.#statusIcon.visible = !isConnecting && (isUserSpeaking || isUserListening)
     this.#statusIcon.state = isUserListening ? 1 : 0

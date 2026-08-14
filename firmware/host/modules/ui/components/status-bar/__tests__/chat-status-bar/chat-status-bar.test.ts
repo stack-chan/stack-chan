@@ -55,6 +55,7 @@ type StatusIcon = {
 
 type StatusIndicator = {
   active?: boolean
+  running?: boolean
   visible?: boolean
 }
 
@@ -240,6 +241,12 @@ behavior.onChatState?.(bar, ChatStatusBarState.LISTENING)
 assert(levelTrack.visible === false, 'level track should be hidden while user is listening')
 assert(statusIcon.visible === true, 'status icon should be visible while user is listening')
 equal(statusIcon.state, 1, 'user listening should use output icon state')
+
+behavior.onChatState?.(bar, ChatStatusBarState.WAITING)
+assert(statusIndicator.visible === true, 'waiting for a response should show the indicator')
+assert(statusIndicator.running === true, 'the response indicator should animate')
+assert(levelTrack.visible === false, 'the input level should be hidden while waiting')
+assert(statusIcon.visible === false, 'the microphone icon should be hidden while waiting')
 
 const normalFillSkin = levelFill.skin
 behavior.onChatState?.(bar, ChatStatusBarState.FAILED, 'boom')

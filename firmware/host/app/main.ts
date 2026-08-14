@@ -101,6 +101,7 @@ async function main() {
     installPlatformInputBridge()
     initializeLocalization(loadPreferences(DOMAIN.ui).language)
     applyTimezone(loadPreferences(DOMAIN.time).timezone)
+    installModManagerShortcut()
 
     trace('[main] loading app behaviors\n')
     const appBehaviors = loadAppBehaviors()
@@ -109,7 +110,6 @@ async function main() {
     const launch = await prepareAppLaunch(appBehaviors, prepareExperimentalMiniApps)
     trace(`[main] onLaunch shouldCreateContext=${launch.shouldCreateContext}\n`)
     if (!launch.shouldCreateContext) {
-      installModManagerShortcut()
       const unownedDock = dockRuntime
       dockRuntime = undefined
       unownedDock?.close()
@@ -132,7 +132,6 @@ async function main() {
       remoteConversationSession: ownedDock?.remoteConversationSession,
       closeHandlers: ownedDock ? [() => ownedDock.close()] : undefined,
     })
-    installModManagerShortcut()
     ownedDock?.onContextCreated(context)
     registerExperimentalMiniApps(experimentalMiniApps, context.ui.miniApps)
     trace('[main] app context created\n')

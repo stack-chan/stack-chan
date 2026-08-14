@@ -64,4 +64,16 @@ offlineButton.behavior.onTouchEnded(offlineButton)
 equal(retryCount, 1, 'recovery view should expose retry as a touch action')
 equal(offlineCount, 1, 'recovery view should expose offline boot as a touch action')
 
+let modsCount = 0
+const selectionApplication = showStartupSplash({
+  onMods() {
+    modsCount += 1
+  },
+})
+const selectionColumn = selectionApplication.first as unknown as typeof column
+const modsButton = selectionColumn.next.first
+modsButton.behavior.onTouchBegan(modsButton, 0, 0, 0)
+modsButton.behavior.onTouchEnded(modsButton)
+equal(modsCount, 1, 'startup view should expose the MOD manager as a touch action')
+
 trace('ok\n')

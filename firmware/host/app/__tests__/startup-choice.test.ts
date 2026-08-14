@@ -159,13 +159,16 @@ test('startup choice enters the MOD manager when its action is enabled', async (
       return application as never
     },
   })
+  const [autoBoot] = timer.handles
 
   onMods?.()
-  timer.fire(timer.handles[1])
+  const mods = timer.handles.find((handle) => handle !== autoBoot)
+  assert.ok(mods)
+  timer.fire(mods)
 
   assert.deepEqual(await choice, { choice: 'mods', application })
-  assert.equal(timer.handles[0].active, false)
-  assert.equal(timer.handles[1].active, false)
+  assert.equal(autoBoot.active, false)
+  assert.equal(mods.active, false)
 })
 
 test('startup choice resolves only once and ignores later timer callbacks', async () => {

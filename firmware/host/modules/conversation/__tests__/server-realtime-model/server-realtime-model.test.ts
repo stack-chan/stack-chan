@@ -59,6 +59,24 @@ equal(postedMessages.length, 0, 'a valid reconfiguration should not retain an ea
 equal(reconfiguredModel.headers[0]?.[0], 'Authorization', 'trusted-LAN authentication should use a header')
 equal(reconfiguredModel.headers[0]?.[1], 'Bearer device-token', 'the device token should stay out of the endpoint URL')
 
+const tunedModel = new ServerOpenAIRealtimeModel({ inputSampleRate: 8000 })
+tunedModel.configure({
+  providerID: 'wss://relay.example.test/fixture/device/v1/realtime?sample_rate=16000&codec=pcm16&encoding=base64',
+})
+equal(tunedModel.session.audio.output.format.rate, 16000, 'sample_rate should select the PCM output rate')
+equal(tunedModel.session.audio.output.binary, false, 'encoding=base64 should keep JSON audio events')
+equal(tunedModel.outputMinimum, 8000, 'the parser minimum should follow the selected sample rate')
+equal(postedMessages[0]?.id, 'configureAudio', 'a rate change should reconfigure AudioOut')
+equal(postedMessages[0]?.outputSampleRate, 16000, 'AudioOut should use the selected sample rate')
+postedMessages.length = 0
+tunedModel.configure({
+  providerID: 'wss://relay.example.test/fixture/device/v1/realtime?codec=opus',
+})
+tunedModel.connect(connection)
+equal(postedMessages[0]?.id, 'failed', 'an unsupported codec should fail before connecting')
+equal(postedMessages[0]?.string, 'ChatService codec must be pcm16')
+postedMessages.length = 0
+
 const model = new ServerOpenAIRealtimeModel({ inputSampleRate: 8000 })
 const tool = {
   name: 'setEmotion',
@@ -76,6 +94,7 @@ model.configure({
   instructions: 'Be cheerful.',
   functions: [tool],
 })
+equal(model.binaryInput, true, 'the server model should send PCMA input as binary frames')
 model['session.created']()
 
 const sessionUpdate = sentJSON[0]
@@ -90,6 +109,7 @@ equal(
   'session tools should reject undeclared parameters',
 )
 equal(sessionUpdate?.session?.tool_choice, 'auto', 'session update should enable automatic tool selection')
+equal(sessionUpdate?.session?.audio?.output?.binary, true, 'session update should request binary output audio')
 
 model.connect(connection)
 const input = new Uint8Array(connection.inputBuffer)
@@ -112,12 +132,25 @@ equal(sentJSON[1]?.type, 'response.create', 'the function output should resume t
 postedMessages.length = 0
 const receivedAudioCount = () => postedMessages.filter((message) => message.id === 'receiveAudio').length
 model['response.created']()
+equal(
+  postedMessages.some((message) => message.id === 'wait'),
+  true,
+  'response generation should enter the waiting state',
+)
+equal(
+  postedMessages.some((message) => message.id === 'listen'),
+  false,
+  'playback should not start before buffered audio is published',
+)
 model.onBase64(0, 12000)
 model.onBase64(12000, 12000)
 model.onBase64(24000, 12000)
-equal(receivedAudioCount(), 0, 'output audio should stay hidden until one second is buffered')
 model.onBase64(36000, 12000)
-equal(receivedAudioCount(), 1, 'one second of output audio should start playback')
+equal(receivedAudioCount(), 0, 'output audio should stay hidden until 1.25 seconds are buffered')
+model.onBase64(48000, 12000)
+equal(receivedAudioCount(), 1, '1.25 seconds of output audio should start playback')
+equal(postedMessages.at(-2)?.id, 'receiveAudio', 'buffered audio should be published before playback starts')
+equal(postedMessages.at(-1)?.id, 'listen', 'playback should start after buffered audio is published')
 
 postedMessages.length = 0
 model['response.created']()
@@ -125,6 +158,19 @@ model.onBase64(48000, 12000)
 model.parser = { copy() {}, done() {} }
 model['response.done']()
 equal(receivedAudioCount(), 1, 'a short response should be released before playback is marked done')
+equal(postedMessages.at(-2)?.id, 'listen', 'a short response should start only after its audio is published')
+equal(postedMessages.at(-1)?.id, 'speak', 'a short response should drain after playback starts')
+
+postedMessages.length = 0
+model['response.created']()
+model.parser = { copy() {}, done() {} }
+model['response.done']()
+equal(
+  postedMessages.some((message) => message.id === 'listen' || message.id === 'speak'),
+  false,
+  'an empty response should keep microphone input active instead of playing silence',
+)
+equal(postedMessages.at(-1)?.id, 'resume', 'an empty response should resume microphone input')
 
 trace('ok\n')
 Timer.set(() => {}, 1000)

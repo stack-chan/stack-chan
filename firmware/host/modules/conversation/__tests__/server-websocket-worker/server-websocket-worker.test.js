@@ -1,6 +1,9 @@
+import { postedMessages } from 'ChatWorker'
+import ChatAudioIO from 'stackchanChatAudioIO'
 import ServerChatWebSocketWorker from 'stackchanServerChatWebSocketWorker'
 import { equal } from 'testing/assert'
 import Timer from 'timer'
+import { workers } from 'worker'
 
 trace('=== server-websocket-worker test ===\n')
 
@@ -25,13 +28,14 @@ class FakeWebSocket {
   }
 
   write(data, options) {
+    if (this.writeError) throw this.writeError
     this.writes.push({ data, options })
     return 0
   }
 
-  notifyReadable(data) {
+  notifyReadable(data, options = { more: false }) {
     this.readable = data
-    this.options.onReadable(data.byteLength, { more: false })
+    this.options.onReadable(data.byteLength, options)
   }
 
   notifyWritable(count) {
@@ -44,6 +48,8 @@ class SecureWebSocket extends FakeWebSocket {
 }
 
 class TestWorker extends ServerChatWebSocketWorker {
+  audioPrefix = new Uint8Array(0)
+  audioSuffix = new Uint8Array(0)
   eventHandlers = Object.freeze({ 'session.created': true })
   openCount = 0
   readCount = 0
@@ -75,7 +81,8 @@ const connection = {
   outputBuffer: new SharedArrayBuffer(2048),
 }
 
-const queuedWorker = new TestWorker({ outputSampleRate: 24000 })
+const queuedWorker = new TestWorker({ outputSampleRate: 24000, connectTimeoutMs: 1 })
+equal(postedMessages.at(-1)?.id, 'audioBackpressure', 'the worker should advertise audio backpressure')
 queuedWorker.connect(connection)
 queuedWorker.sendJSON({ type: 'queued.before.open' })
 const queuedSocket = sockets[0]
@@ -83,6 +90,11 @@ equal(queuedSocket?.writes.length, 0, 'a write should queue until the socket rep
 queuedSocket?.notifyWritable(256)
 equal(queuedWorker.openCount, 1, 'the first writable callback should open the worker once')
 equal(queuedSocket?.writes.length, 1, 'the first writable callback should flush queued data')
+queuedWorker.binaryInput = true
+queuedWorker.sendAudio({ offset: 0, size: 32 })
+equal(postedMessages.at(-1)?.id, 'audioSent', 'accepted audio should acknowledge the main machine')
+queuedSocket?.notifyWritable(256)
+equal(queuedSocket?.writes.at(-1)?.options.binary, true, 'PCMA input should use a binary WebSocket frame')
 
 const earlyReadWorker = new TestWorker({ outputSampleRate: 24000 })
 earlyReadWorker.connect(connection)
@@ -98,6 +110,13 @@ equal(earlyReadSocket?.writes.length, 0, 'an undeclared remote event must not in
 earlyReadWorker.onJSON({ type: 'session.created' })
 equal(earlyReadWorker.sessionCreatedCount, 1, 'an explicitly allowed event should invoke its handler')
 
+const binaryWorker = new ServerChatWebSocketWorker({ outputSampleRate: 24000 })
+binaryWorker.connect(connection)
+let binaryBytes = 0
+binaryWorker.parser = { copy: (data) => (binaryBytes += data.byteLength) }
+sockets[2]?.notifyReadable(new Uint8Array(32).buffer, { binary: true, more: false })
+equal(binaryBytes, 32, 'binary WebSocket payloads should be copied directly to the audio ring')
+
 earlyReadWorker.disconnect()
 equal(
   earlyReadSocket?.writes[0]?.options.opcode,
@@ -105,5 +124,54 @@ equal(
   'disconnect should use the close opcode from the selected secure socket class',
 )
 
-trace('ok\n')
+const failedWorker = new TestWorker({ outputSampleRate: 24000 })
+failedWorker.connect(connection)
+const failedSocket = sockets[3]
+failedSocket?.notifyWritable(256)
+failedSocket.writeError = new Error('not ready')
+failedWorker.sendJSON({ type: 'write.after.transport.close' })
+equal(postedMessages.at(-1)?.id, 'failed', 'write exceptions must notify the main machine')
+equal(postedMessages.at(-1)?.string, 'websocket write failed: not ready', 'write exceptions must retain their cause')
+equal(failedWorker.ws, null, 'a failed transport must be closed')
+
+const directAudio = new ChatAudioIO({ specifier: 'direct' })
+const directWorker = workers.at(-1)
+directAudio.worker.postMessage({ id: 'sendAudio', offset: 0, size: 1024 })
+directAudio.worker.postMessage({ id: 'sendAudio', offset: 1024, size: 1024 })
+equal(directWorker.audioMessages.length, 2, 'workers without ACK support should remain unchanged')
+
+const gatedAudio = new ChatAudioIO({ specifier: 'gated' })
+const gatedWorker = workers.at(-1)
+gatedWorker.onmessage({ id: 'audioBackpressure' })
+const stateChanges = []
+const stateAudio = new ChatAudioIO({ specifier: 'state', onStateChanged: (state) => stateChanges.push(state) })
+stateAudio.wait()
+stateAudio.resume()
+equal(stateChanges.join(','), '6,4', 'waiting and empty response should update the public state')
+
+gatedAudio.worker.postMessage({ id: 'sendAudio', offset: 0, size: 1024 })
+gatedAudio.worker.postMessage({ id: 'sendAudio', offset: 1024, size: 1024 })
+gatedAudio.worker.postMessage({ id: 'sendAudio', offset: 2048, size: 1024 })
+equal(gatedWorker.audioMessages.length, 1, 'only one audio message may enter the native worker queue')
+gatedWorker.onmessage({ id: 'audioSent' })
+equal(gatedWorker.audioMessages.length, 2, 'an ACK should release the next audio message')
+equal(gatedWorker.audioMessages.at(-1)?.size, 2048, 'contiguous queued audio should be coalesced')
+for (let index = 0; index < 65; index += 1) {
+  gatedAudio.worker.postMessage({ id: 'sendAudio', offset: (index + 3) * 1024, size: 1024 })
+}
+equal(gatedAudio.error, 'audio worker backpressure', 'a stalled worker should fail before its queue is unbounded')
+
+const timeoutWorker = new TestWorker({ outputSampleRate: 24000, connectTimeoutMs: 1 })
+timeoutWorker.connect(connection)
+Timer.set(() => {
+  equal(postedMessages.at(-1)?.id, 'failed', 'a stalled connection should notify the main machine')
+  equal(
+    postedMessages.at(-1)?.string,
+    'websocket connection timed out',
+    'a stalled connection should retain its timeout cause',
+  )
+  equal(timeoutWorker.ws, null, 'a timed out transport should be closed')
+  equal(queuedWorker.ws, queuedSocket, 'an opened transport should cancel its connection timeout')
+  trace('ok\n')
+}, 10)
 Timer.set(() => {}, 1000)

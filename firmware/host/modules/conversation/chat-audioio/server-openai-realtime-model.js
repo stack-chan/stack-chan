@@ -13,7 +13,6 @@ const audioPrefix = Object.freeze(
   true,
 )
 const audioSuffix = Object.freeze(new Uint8Array(ArrayBuffer.fromString('"}')), true)
-const OUTPUT_PREBUFFER_BYTES = 24000 * 2 // One second of PCM16 mono audio.
 const eventHandlers = Object.freeze({
   'conversation.item.input_audio_transcription.completed': true,
   error: true,
@@ -35,14 +34,18 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
     super(options)
     this.audioPrefix = audioPrefix
     this.audioSuffix = audioSuffix
+    this.binaryInput = true
     this.configurationError = ''
     this.eventHandlers = eventHandlers
+    this.outputSampleRate = 24000
+    this.outputPrebufferTargetBytes = 24000 * 2.5
   }
 
   configure(message) {
     this.configurationError = ''
     try {
       const endpoint = parseWebSocketEndpoint(message.providerID)
+      const audio = parseRealtimeAudioOptions(endpoint.path)
       const apiKey = String(message.apiKey ?? '')
       const tools = (message.functions ?? []).map((tool) => ({
         ...tool,
@@ -63,6 +66,17 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
       this.port = endpoint.port
       this.path = endpoint.path
       this.headers = apiKey ? [['Authorization', `Bearer ${apiKey}`]] : []
+      if (this.outputSampleRate !== audio.sampleRate) {
+        this.postMessage({
+          id: 'configureAudio',
+          inputSampleRate: 8000,
+          outputSampleRate: audio.sampleRate,
+        })
+      }
+      this.outputSampleRate = audio.sampleRate
+      this.outputMinimum = audio.sampleRate >> 1
+      this.silence = new ArrayBuffer(this.outputMinimum)
+      this.outputPrebufferTargetBytes = audio.sampleRate * 2.5
       this.session = {
         type: 'realtime',
         audio: {
@@ -79,7 +93,8 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
             },
           },
           output: {
-            format: { type: 'audio/pcm', rate: 24000 },
+            format: { type: 'audio/pcm', rate: audio.sampleRate },
+            binary: audio.binary,
             voice: message.voiceID ?? 'marin',
           },
         },
@@ -187,13 +202,19 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
     this.outputPrebufferOffset = 0
     this.outputPrebufferSize = 0
     this.outputPrebuffering = true
+    this.post('wait')
     this.postPresentation({ id: 'receiveInputText', text: '', more: true })
     this.postPresentation({ id: 'receiveOutputText', text: '', more: true })
-    this.post('listen')
   }
 
   'response.done'() {
-    if (this.outputPrebuffering) {
+    const startsPlayback = this.outputPrebuffering
+    if (startsPlayback && !this.outputPrebufferSize) {
+      this.outputPrebuffering = false
+      this.post('resume')
+      return
+    }
+    if (startsPlayback) {
       this.outputPrebuffering = false
       if (this.outputPrebufferSize) {
         super.onBase64(this.outputPrebufferOffset, this.outputPrebufferSize)
@@ -201,6 +222,7 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
     }
     this.parser.copy(this.silence)
     this.parser.done()
+    if (startsPlayback) this.post('listen')
     this.post('speak')
   }
 
@@ -212,9 +234,10 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
     this.outputPrebufferBytes += size
     this.outputPrebufferOffset = offset
     this.outputPrebufferSize = size
-    if (this.outputPrebufferBytes < OUTPUT_PREBUFFER_BYTES) return
+    if (this.outputPrebufferBytes < this.outputPrebufferTargetBytes) return
     this.outputPrebuffering = false
     super.onBase64(offset, size)
+    this.post('listen')
   }
 
   'response.output_item.done'(message) {
@@ -276,6 +299,25 @@ function isTrustedLocalHost(host) {
     (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
     (octets[0] === 192 && octets[1] === 168)
   )
+}
+
+function parseRealtimeAudioOptions(path) {
+  const sampleRate = Number(queryParameter(path, 'sample_rate') ?? 24000)
+  if (sampleRate !== 8000 && sampleRate !== 16000 && sampleRate !== 24000) {
+    throw new Error('ChatService sample_rate must be 8000, 16000, or 24000')
+  }
+  const codec = queryParameter(path, 'codec') ?? 'pcm16'
+  if (codec !== 'pcm16') throw new Error('ChatService codec must be pcm16')
+  const encoding = queryParameter(path, 'encoding') ?? 'binary'
+  if (encoding !== 'binary' && encoding !== 'base64') {
+    throw new Error('ChatService encoding must be binary or base64')
+  }
+  return { sampleRate, binary: encoding === 'binary' }
+}
+
+function queryParameter(path, name) {
+  const match = new RegExp(`[?&]${name}=([^&#]*)`).exec(path)
+  return match ? decodeURIComponent(match[1]) : undefined
 }
 
 export function parseWebSocketEndpoint(value) {

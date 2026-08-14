@@ -7,9 +7,13 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
+    "~": "../../chat-audioio/platform-stub",
+    "ChatAudioIO": "./chat-audioio-base",
     "ChatWorker": "./chat-worker",
     "JSONBase64Parser": "./json-base64-parser",
     "main": "./server-websocket-worker.test",
+    "stackchanChatAudioIO": "../../chat-audioio/worker-stack",
+    "worker": "./worker",
     "stackchanServerChatWebSocketWorker": "../../chat-audioio/server-chat-websocket-worker"
   },
   "typescript": {

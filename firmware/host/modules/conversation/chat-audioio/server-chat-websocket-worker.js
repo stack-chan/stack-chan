@@ -8,9 +8,12 @@
 import ChatWorker from 'ChatWorker'
 import JSONBase64Parser from 'JSONBase64Parser'
 import TextEncoder from 'text/encoder'
+import Timer from 'timer'
 
 const text = Object.freeze({ binary: false })
+const binary = Object.freeze({ binary: true })
 const MAX_QUEUED_BYTES = 64 * 1024
+const CONNECT_TIMEOUT_MS = 30_000
 
 export default class ServerChatWebSocketWorker extends ChatWorker {
   #buffers = []
@@ -18,10 +21,13 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
   #socketIO = null
   #state = 0
   #writable = 0
+  #connectTimer
   #encoder = new TextEncoder()
 
   constructor(options) {
     super(options)
+    this.connectTimeoutMs = options.connectTimeoutMs ?? CONNECT_TIMEOUT_MS
+    this.binaryInput = false
     this.ws = null
     this.secure = true
     this.host = ''
@@ -30,9 +36,12 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
     this.headers = []
     this.outputMinimum = (options.outputSampleRate ?? 24000) >> 1
     this.silence = new ArrayBuffer(this.outputMinimum)
+    this.postMessage({ id: 'audioBackpressure' })
   }
 
   close() {
+    Timer.clear(this.#connectTimer)
+    this.#connectTimer = undefined
     const ws = this.ws
     this.ws = null
     this.#buffers = []
@@ -54,6 +63,11 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
     const network = this.secure ? device.network.wss : device.network.ws
     const WebSocketClient = network.io ?? device.network.ws.io
     this.#socketIO = WebSocketClient
+    this.#connectTimer = Timer.set(() => {
+      this.#connectTimer = undefined
+      this.postMessage({ id: 'failed', string: 'websocket connection timed out' })
+      this.close()
+    }, this.connectTimeoutMs)
     this.ws = new WebSocketClient({
       ...network,
       host: this.host,
@@ -125,11 +139,17 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
 
   #open() {
     if (this.#state !== 0) return
+    Timer.clear(this.#connectTimer)
+    this.#connectTimer = undefined
     this.#state = 1
     this.onOpen()
   }
 
   read(data, options) {
+    if (options.binary) {
+      this.parser.copy(data)
+      return
+    }
     this.parser.read(data)
     if (options.more) return
     this.onJSON(this.parser.result)
@@ -139,9 +159,14 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
   sendAudio(message) {
     const samples = new Uint8Array(this.inputBuffer, message.offset, message.size)
     this.sendAudioBuffer(samples)
+    if (this.ws) this.postMessage({ id: 'audioSent' })
   }
 
   sendAudioBuffer(samples) {
+    if (this.binaryInput) {
+      this.write(samples, binary)
+      return
+    }
     const string = samples.toBase64()
     const data = new Uint8Array(this.audioPrefix.length + string.length + this.audioSuffix.length)
     data.set(this.audioPrefix)
@@ -155,6 +180,14 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
   }
 
   write(data, options) {
+    try {
+      this.writeNow(data, options)
+    } catch (error) {
+      this.failWrite(error)
+    }
+  }
+
+  writeNow(data, options) {
     if (!this.ws) return
     if (this.#buffers.length) {
       this.enqueue(data, options)
@@ -187,6 +220,14 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
   }
 
   flushWrites() {
+    try {
+      this.flushWritesNow()
+    } catch (error) {
+      this.failWrite(error)
+    }
+  }
+
+  flushWritesNow() {
     while (this.#buffers.length && this.ws) {
       const buffer = this.#buffers[0]
       const data = buffer.data
@@ -207,5 +248,13 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
       }
       break
     }
+  }
+
+  failWrite(error) {
+    this.postMessage({
+      id: 'failed',
+      string: `websocket write failed: ${error?.message ?? error}`,
+    })
+    this.close()
   }
 }

@@ -37,11 +37,13 @@
     "local-peer-transports": "./sim/local-peer-transports",
     "local-peer-service": "./local-peer-service",
     "local-peer-types": "./local-peer-types",
+    "safe-dns-config": "./safe-dns-config",
+    "safe-readable-socket": "./safe-readable-socket",
     "wifi-scan": "./wifi-scan",
     "wifi-scan-types": "./wifi-scan-types",
     "stored-wifi": "./stored-wifi"
   },
-  "preload": ["stk-server", "beacon-packet"],
+  "preload": ["stk-server", "beacon-packet", "safe-dns-config"],
   "ble": {
     "*": ["./ble/bleservices/*"]
   },

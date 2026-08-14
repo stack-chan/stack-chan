@@ -4,6 +4,10 @@
     "./docks/android-usb-audio/manifest.json",
     "../modules/usb-audio/manifest.json"
   ],
+  "modules": {
+    "mod-installer": "./mod-installer",
+    "mod-manager": "./mod-manager"
+  },
   "config": {
     "enablePowerButton": true,
     "usbAudio": {

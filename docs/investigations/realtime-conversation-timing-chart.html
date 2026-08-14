@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Realtime音声会話タイミングチャート</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, sans-serif;
+        color: #172033;
+        background: #f4f7fb;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      main { width: min(1180px, calc(100% - 32px)); margin: 40px auto 64px; }
+      h1 { margin: 4px 0 12px; font-size: clamp(1.8rem, 4vw, 3rem); }
+      h2 { margin: 0 0 16px; font-size: 1.15rem; }
+      p { line-height: 1.65; }
+      code { font-family: ui-monospace, monospace; }
+      .eyebrow { margin: 0; color: #52627c; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.12em; }
+      .lead { max-width: 800px; margin: 0 0 22px; color: #44516a; }
+      .notice, section { border: 1px solid #dce3ee; border-radius: 14px; background: white; box-shadow: 0 8px 24px #23395d0d; }
+      .notice { padding: 14px 18px; border-left: 5px solid #5b67d6; }
+      section { margin-top: 20px; padding: 20px; }
+      .controls { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 12px; }
+      label { display: grid; gap: 6px; color: #4c5970; font-size: 0.82rem; font-weight: 700; }
+      input { width: 100%; border: 1px solid #c7d0df; border-radius: 8px; padding: 9px 10px; color: inherit; background: #fbfcfe; font: inherit; }
+      .hint { margin: 12px 0 0; color: #65718a; font-size: 0.84rem; }
+      .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 18px; }
+      .metric { padding: 12px; border-radius: 10px; background: #f4f7fb; }
+      .metric span { display: block; color: #647089; font-size: 0.75rem; }
+      .metric strong { display: block; margin-top: 3px; font-size: 1.18rem; }
+      .chart-scroll { overflow-x: auto; padding: 4px 0 10px; }
+      .chart { min-width: 1080px; }
+      .track { display: grid; gap: 3px; margin-top: 8px; }
+      .track-title { display: flex; align-items: center; padding-right: 12px; color: #536079; font-size: 0.78rem; font-weight: 800; }
+      .segment { min-height: 92px; display: grid; place-content: center; gap: 5px; padding: 8px; border-radius: 8px; text-align: center; overflow: hidden; }
+      .segment strong { font-size: 0.84rem; }
+      .segment small { font-variant-numeric: tabular-nums; white-space: nowrap; opacity: 0.78; }
+      .segment[data-phase="connection"], .segment[data-phase="vad"], .segment[data-phase="rearm"] { padding: 3px; overflow-wrap: anywhere; line-height: 1.05; }
+      .segment[data-phase="connection"] small, .segment[data-phase="vad"] small, .segment[data-phase="rearm"] small { display: none; }
+      .connection { background: #dce5f0; }
+      .speech { background: #cae2ff; }
+      .vad { background: #fff0ad; }
+      .prepare { background: #ffd8b2; }
+      .playback { background: #ccebdc; }
+      .rearm { background: #e7ddfa; }
+      .state-connecting { color: white; background: #58677d; }
+      .state-speaking { color: white; background: #367bc4; }
+      .state-listening { color: white; background: #26825d; }
+      .state-transition { color: white; background: #7a5db0; }
+      .events { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 0.9rem; }
+      th, td { padding: 9px 10px; border-bottom: 1px solid #e1e6ef; text-align: left; vertical-align: top; }
+      th { color: #59657c; font-size: 0.78rem; }
+      td:nth-child(2) { width: 92px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      .notes { margin: 0; padding-left: 1.3rem; color: #4d5a70; }
+      .notes li + li { margin-top: 8px; }
+      .tag { display: inline-block; margin-right: 5px; padding: 2px 7px; border-radius: 999px; background: #e9edf5; font-size: 0.72rem; font-weight: 800; }
+      @media (max-width: 760px) {
+        main { margin-top: 24px; }
+        .controls { grid-template-columns: repeat(2, 1fr); }
+        .metrics { grid-template-columns: repeat(2, 1fr); }
+      }
+      @media print {
+        body { background: white; }
+        main { width: 100%; margin: 0; }
+        .notice, section { box-shadow: none; }
+        .chart-scroll { overflow: visible; }
+        .chart { min-width: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">STACK-CHAN REALTIME AUDIO</p>
+      <h1>会話1ターンのタイミングチャート</h1>
+      <p class="lead">16 kHz PCM binaryと1.25秒プリバッファを使う現在の構成を、ユーザーが5秒話す例で示す。</p>
+
+      <div class="notice">
+        <strong>用語に注意：</strong>
+        ChatAudioIOの<code>SPEAKING</code>は「ユーザーが話し、端末がマイク音声を送る状態」、<code>LISTENING</code>は「ユーザーがロボットの応答を聞く状態」である。
+      </div>
+
+      <section aria-labelledby="scenario-title">
+        <h2 id="scenario-title">表示するシナリオ</h2>
+        <div class="controls">
+          <label>接続時間・仮置き（秒）<input id="connection" type="number" min="0.1" step="0.1" value="1.0" /></label>
+          <label>ユーザー発話（秒）<input id="speech" type="number" min="0.1" step="0.1" value="5.0" /></label>
+          <label>VAD後の応答準備・仮置き（秒）<input id="prepare" type="number" min="0.1" step="0.1" value="1.3" /></label>
+          <label>ロボット音声（秒）<input id="playback" type="number" min="0.1" step="0.001" value="5.244" /></label>
+        </div>
+        <p class="hint">VAD終話判定0.700秒とAudioIn再初期化約0.500秒は実装値として固定表示する。前方スワイプ直後の開始音80 msは接続開始前なので時間軸に含めない。</p>
+      </section>
+
+      <section aria-labelledby="chart-title">
+        <h2 id="chart-title">時間軸</h2>
+        <div class="metrics">
+          <div class="metric"><span>接続</span><strong id="m-connection"></strong></div>
+          <div class="metric"><span>音声入力</span><strong id="m-speech"></strong></div>
+          <div class="metric"><span>発話終了→再生開始</span><strong id="m-latency"></strong></div>
+          <div class="metric"><span>応答再生</span><strong id="m-playback"></strong></div>
+          <div class="metric"><span>全体</span><strong id="m-total"></strong></div>
+        </div>
+
+        <div class="chart-scroll">
+          <div class="chart" id="chart" role="img" aria-label="Realtime音声会話の時間軸">
+            <div class="track" data-track>
+              <div class="track-title">利用者視点</div>
+              <div class="segment connection" data-phase="connection"><strong>接続</strong><small></small></div>
+              <div class="segment speech" data-phase="speech"><strong>5秒話す</strong><small></small></div>
+              <div class="segment vad" data-phase="vad"><strong>無音判定</strong><small></small></div>
+              <div class="segment prepare" data-phase="prepare"><strong>認識・推論・TTS・先読み</strong><small></small></div>
+              <div class="segment playback" data-phase="playback"><strong>ロボットが話す</strong><small></small></div>
+              <div class="segment rearm" data-phase="rearm"><strong>マイク復帰</strong><small></small></div>
+            </div>
+            <div class="track" data-track>
+              <div class="track-title">ChatAudioIO通知</div>
+              <div class="segment state-connecting" data-phase="connection"><strong>CONNECTING</strong><small></small></div>
+              <div class="segment state-speaking" data-phase="speech"><strong>SPEAKING</strong><small></small></div>
+              <div class="segment state-speaking" data-phase="vad"><strong>SPEAKING</strong><small></small></div>
+              <div class="segment state-speaking" data-phase="prepare"><strong>SPEAKING</strong><small></small></div>
+              <div class="segment state-listening" data-phase="playback"><strong>LISTENING</strong><small></small></div>
+              <div class="segment state-transition" data-phase="rearm" title="LISTENINGからSPEAKINGへ"><strong>→</strong><small></small></div>
+            </div>
+          </div>
+        </div>
+
+        <table class="events">
+          <thead><tr><th>境界</th><th>例示時刻</th><th>処理</th></tr></thead>
+          <tbody>
+            <tr><td>接続成立</td><td id="t-connected"></td><td><code>CONNECTED</code>の直後にマイク入力の<code>SPEAKING</code>へ入る。</td></tr>
+            <tr><td>ユーザー発話終了</td><td id="t-speech-end"></td><td>ここから700 msの連続無音を待つ。</td></tr>
+            <tr><td>VAD終話判定</td><td id="t-vad-end"></td><td><code>speech_stopped</code>、transcription commit、<code>response.created</code>。</td></tr>
+            <tr><td>応答再生開始</td><td id="t-playback-start"></td><td>PCMをmainへ公開してから<code>listen</code>を送り、<code>LISTENING</code>へ入る。</td></tr>
+            <tr><td>音声バッファ排出</td><td id="t-playback-end"></td><td>AudioOutを閉じ、AudioInを再作成する。</td></tr>
+            <tr><td>マイク表示復帰</td><td id="t-ready"></td><td>AudioIn準備後に<code>SPEAKING</code>をUIへ通知する。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="notes-title">
+        <h2 id="notes-title">数値の読み方</h2>
+        <ul class="notes">
+          <li><span class="tag">固定設定</span>終話判定は700 msの無音、プリバッファは16 kHz PCMで40,000 byte、音声時間では1.25秒分である。</li>
+          <li><span class="tag">仮置き</span>接続時間とVAD後の応答準備時間は最終の通常会話で未計測なので、図の1.0秒と1.3秒は説明用である。</li>
+          <li><span class="tag">実測例</span>ロボット音声5.244秒は修正後の認証済み通常応答1件の再生時間である。</li>
+          <li>プリバッファ1.25秒は音声データ量であり、無ペーシング転送では1.25秒より短い壁時計時間で蓄積できる。</li>
+          <li><code>response.done</code>後は内部的に<code>WAITING</code>となるが、残ったPCMの再生が終わるまで画面は応答再生状態のままである。</li>
+          <li>咳払いが<code>audio_unintelligible</code>になった場合は音声なしの<code>response.done</code>で入力待ちへ戻り、この正常応答の時間軸には入らない。</li>
+          <li>接続処理が進まない場合は30秒で<code>FAILED</code>にして再試行する。この値は異常系の上限であり、図の通常接続時間ではない。</li>
+          <li>マイクPCMAと応答PCMだけをbinary frameで送り、接続・ターン交代・認証などの制御は従来どおりJSON text frameまたはHTTP headerを使う。</li>
+          <li>上りbinary修正後は連続入力を200.583秒維持し、PCMとWebSocketの待機列は上限64 KiBへ達しなかった。</li>
+        </ul>
+      </section>
+    </main>
+
+    <script>
+      const fixed = { vad: 0.7, rearm: 0.5 }
+      const order = ['connection', 'speech', 'vad', 'prepare', 'playback', 'rearm']
+      const field = (id) => document.getElementById(id)
+      const seconds = (value) => `${value.toFixed(3)} s`
+      function render() {
+        const values = {
+          connection: Number(field('connection').value),
+          speech: Number(field('speech').value),
+          prepare: Number(field('prepare').value),
+          playback: Number(field('playback').value),
+          ...fixed,
+        }
+        if (Object.values(values).some((value) => !Number.isFinite(value) || value <= 0)) return
+        const columns = `140px ${order.map((key) => `${values[key]}fr`).join(' ')}`
+        document.querySelectorAll('[data-track]').forEach((track) => { track.style.gridTemplateColumns = columns })
+        let elapsed = 0
+        for (const key of order) {
+          const start = elapsed
+          elapsed += values[key]
+          document.querySelectorAll(`[data-phase="${key}"] small`).forEach((node) => { node.textContent = `${start.toFixed(3)}–${elapsed.toFixed(3)} s` })
+        }
+        field('m-connection').textContent = seconds(values.connection)
+        field('m-speech').textContent = seconds(values.speech)
+        field('m-latency').textContent = seconds(values.vad + values.prepare)
+        field('m-playback').textContent = seconds(values.playback)
+        field('m-total').textContent = seconds(elapsed)
+        const connected = values.connection
+        const speechEnd = connected + values.speech
+        const vadEnd = speechEnd + values.vad
+        const playbackStart = vadEnd + values.prepare
+        const playbackEnd = playbackStart + values.playback
+        field('t-connected').textContent = seconds(connected)
+        field('t-speech-end').textContent = seconds(speechEnd)
+        field('t-vad-end').textContent = seconds(vadEnd)
+        field('t-playback-start').textContent = seconds(playbackStart)
+        field('t-playback-end').textContent = seconds(playbackEnd)
+        field('t-ready').textContent = seconds(playbackEnd + values.rearm)
+        field('chart').setAttribute('aria-label', `接続${seconds(values.connection)}、音声入力${seconds(values.speech)}、発話終了から再生開始${seconds(values.vad + values.prepare)}、応答再生${seconds(values.playback)}`)
+      }
+      document.querySelectorAll('input').forEach((input) => input.addEventListener('input', render))
+      render()
+    </script>
+  </body>
+</html>

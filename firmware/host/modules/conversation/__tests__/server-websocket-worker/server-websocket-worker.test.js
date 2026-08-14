@@ -144,9 +144,9 @@ const gatedAudio = new ChatAudioIO({ specifier: 'gated' })
 const gatedWorker = workers.at(-1)
 gatedWorker.onmessage({ id: 'audioBackpressure' })
 const stateChanges = []
-const stateAudio = new ChatAudioIO({ specifier: 'state', onStateChanged: (state) => stateChanges.push(state) })
-stateAudio.wait()
-stateAudio.resume()
+const stateAudioIO = new ChatAudioIO({ specifier: 'state', onStateChanged: (state) => stateChanges.push(state) })
+stateAudioIO.wait()
+stateAudioIO.resume()
 equal(stateChanges.join(','), '6,4', 'waiting and empty response should update the public state')
 
 gatedAudio.worker.postMessage({ id: 'sendAudio', offset: 0, size: 1024 })

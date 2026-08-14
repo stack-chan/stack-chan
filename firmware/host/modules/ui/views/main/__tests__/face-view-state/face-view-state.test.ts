@@ -231,7 +231,7 @@ const application = new Application(appData, {
 
 const controller = application.behavior as AppController
 const statusIndicator = findNamedNode(application as unknown as PiuContent, 'statusIndicator') as
-  | (TreeNode & { visible?: boolean })
+  | (TreeNode & { visible?: boolean; running?: boolean })
   | null
 assert(statusIndicator, 'FaceView should retain the connection indicator in its main area')
 assert(
@@ -242,6 +242,7 @@ application.distribute('onChatState', ChatStatusBarState.CONNECTING)
 const appBarBehavior = appData.appBar?.behavior as { onFinished?: (bar: PiuContainer) => void } | undefined
 appBarBehavior?.onFinished?.(appData.appBar)
 assert(statusIndicator.visible === true, 'hiding the AppBar should not hide the main-area connection indicator')
+assert(statusIndicator.running === true, 'hiding the AppBar should not stop the main-area connection indicator')
 const initialDrawer = findDrawer(application as unknown as PiuContainer)
 const hands = findNamedNode(application as unknown as PiuContent, 'hands') as (PiuPort & TreeNode) | null
 assert(hands, 'FaceView should install the hand renderer in its effect layer')

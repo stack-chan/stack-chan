@@ -199,8 +199,7 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
 
   'response.created'() {
     this.outputPrebufferBytes = 0
-    this.outputPrebufferOffset = 0
-    this.outputPrebufferSize = 0
+    this.outputPrebufferRanges = []
     this.outputPrebuffering = true
     this.post('wait')
     this.postPresentation({ id: 'receiveInputText', text: '', more: true })
@@ -209,16 +208,15 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
 
   'response.done'() {
     const startsPlayback = this.outputPrebuffering
-    if (startsPlayback && !this.outputPrebufferSize) {
+    if (startsPlayback && !this.outputPrebufferRanges.length) {
       this.outputPrebuffering = false
       this.post('resume')
       return
     }
     if (startsPlayback) {
       this.outputPrebuffering = false
-      if (this.outputPrebufferSize) {
-        super.onBase64(this.outputPrebufferOffset, this.outputPrebufferSize)
-      }
+      for (const range of this.outputPrebufferRanges) super.onBase64(range.offset, range.size)
+      this.outputPrebufferRanges.length = 0
     }
     this.parser.copy(this.silence)
     this.parser.done()
@@ -232,11 +230,11 @@ export default class ServerOpenAIRealtimeModel extends ServerChatWebSocketWorker
       return
     }
     this.outputPrebufferBytes += size
-    this.outputPrebufferOffset = offset
-    this.outputPrebufferSize = size
+    this.outputPrebufferRanges.push({ offset, size })
     if (this.outputPrebufferBytes < this.outputPrebufferTargetBytes) return
     this.outputPrebuffering = false
-    super.onBase64(offset, size)
+    for (const range of this.outputPrebufferRanges) super.onBase64(range.offset, range.size)
+    this.outputPrebufferRanges.length = 0
     this.post('listen')
   }
 

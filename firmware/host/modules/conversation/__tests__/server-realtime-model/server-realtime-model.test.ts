@@ -133,6 +133,7 @@ equal(sentJSON[0]?.item?.output, '{"ok":true}', 'the function output should seri
 equal(sentJSON[1]?.type, 'response.create', 'the function output should resume the assistant response')
 
 postedMessages.length = 0
+const receivedAudio = () => postedMessages.filter((message) => message.id === 'receiveAudio')
 const receivedAudioCount = () => postedMessages.filter((message) => message.id === 'receiveAudio').length
 model['response.created']()
 equal(
@@ -151,7 +152,12 @@ model.onBase64(16000, 8000)
 model.onBase64(24000, 8000)
 equal(receivedAudioCount(), 0, 'output audio should stay hidden until 1.25 seconds are buffered')
 model.onBase64(32000, 8000)
-equal(receivedAudioCount(), 1, '1.25 seconds of output audio should start playback')
+const prebufferedAudio = receivedAudio()
+equal(
+  prebufferedAudio.map((message) => `${message.offset}:${message.size}`).join(','),
+  '0:8000,8000:8000,16000:8000,24000:8000,32000:8000',
+  'prebuffered audio should publish every received range in order',
+)
 equal(postedMessages.at(-2)?.id, 'receiveAudio', 'buffered audio should be published before playback starts')
 equal(postedMessages.at(-1)?.id, 'listen', 'playback should start after buffered audio is published')
 

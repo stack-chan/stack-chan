@@ -313,7 +313,7 @@ class ChatStatusBarBehavior extends Behavior {
   onUndisplaying(container: Container) {
     this.#clock?.stop()
     this.#battery?.stop()
-    this.#indicator?.stop()
+    if (this.#indicator?.container === container) this.#indicator.stop()
     container.stop()
   }
 

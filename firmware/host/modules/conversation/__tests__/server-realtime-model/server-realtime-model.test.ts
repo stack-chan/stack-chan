@@ -55,9 +55,10 @@ reconfiguredModel.configure({
 })
 reconfiguredModel.connect(connection)
 equal(reconfiguredModel.connectCount, 1, 'a valid trusted-LAN configuration should replace earlier failures')
-equal(postedMessages.length, 0, 'a valid reconfiguration should not retain an earlier failure')
+equal(postedMessages.length, 1, 'a valid reconfiguration should only update the audio rate')
 equal(reconfiguredModel.headers[0]?.[0], 'Authorization', 'trusted-LAN authentication should use a header')
 equal(reconfiguredModel.headers[0]?.[1], 'Bearer device-token', 'the device token should stay out of the endpoint URL')
+postedMessages.length = 0
 
 const tunedModel = new ServerOpenAIRealtimeModel({ inputSampleRate: 8000 })
 tunedModel.configure({
@@ -94,6 +95,8 @@ model.configure({
   instructions: 'Be cheerful.',
   functions: [tool],
 })
+equal(model.session.audio.output.format.rate, 16000, 'queryless endpoints should default to 16 kHz')
+equal(postedMessages[0]?.outputSampleRate, 16000, 'queryless endpoints should reconfigure AudioOut')
 equal(model.binaryInput, true, 'the server model should send PCMA input as binary frames')
 model['session.created']()
 
@@ -142,12 +145,12 @@ equal(
   false,
   'playback should not start before buffered audio is published',
 )
-model.onBase64(0, 12000)
-model.onBase64(12000, 12000)
-model.onBase64(24000, 12000)
-model.onBase64(36000, 12000)
+model.onBase64(0, 8000)
+model.onBase64(8000, 8000)
+model.onBase64(16000, 8000)
+model.onBase64(24000, 8000)
 equal(receivedAudioCount(), 0, 'output audio should stay hidden until 1.25 seconds are buffered')
-model.onBase64(48000, 12000)
+model.onBase64(32000, 8000)
 equal(receivedAudioCount(), 1, '1.25 seconds of output audio should start playback')
 equal(postedMessages.at(-2)?.id, 'receiveAudio', 'buffered audio should be published before playback starts')
 equal(postedMessages.at(-1)?.id, 'listen', 'playback should start after buffered audio is published')

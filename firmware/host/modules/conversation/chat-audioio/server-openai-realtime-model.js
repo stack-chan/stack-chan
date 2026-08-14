@@ -302,7 +302,7 @@ function isTrustedLocalHost(host) {
 }
 
 function parseRealtimeAudioOptions(path) {
-  const sampleRate = Number(queryParameter(path, 'sample_rate') ?? 24000)
+  const sampleRate = Number(queryParameter(path, 'sample_rate') ?? 16000)
   if (sampleRate !== 8000 && sampleRate !== 16000 && sampleRate !== 24000) {
     throw new Error('ChatService sample_rate must be 8000, 16000, or 24000')
   }

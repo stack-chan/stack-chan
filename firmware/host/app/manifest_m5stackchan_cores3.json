@@ -5,7 +5,7 @@
     "../modules/usb-audio/manifest.json"
   ],
   "config": {
-    "enablePowerButton": false,
+    "enablePowerButton": true,
     "usbAudio": {
       "enabled": true,
       "autoStart": false

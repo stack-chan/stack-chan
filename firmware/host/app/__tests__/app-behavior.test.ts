@@ -156,3 +156,27 @@ test('prepareAppLaunch prepares mini-apps after every launch behavior approves',
   assert.deepEqual(result, { shouldCreateContext: true, prepared: 'mini-apps' })
   assert.deepEqual(events, ['launch:first', 'launch:second', 'prepare'])
 })
+
+test('installLaunchShortcut opens on release without replacing the existing button handler', async () => {
+  installBareSpecifierPackages()
+  const { installLaunchShortcut } = (await import('app-launch')) as AppLaunchModule
+  const events: string[] = []
+  const button = {
+    value: 0,
+    read() {
+      return this.value
+    },
+    onChanged() {
+      events.push('button')
+    },
+  }
+  installLaunchShortcut(button, () => events.push('open'))
+
+  button.value = 1
+  button.onChanged()
+  button.value = 0
+  button.onChanged()
+  button.onChanged()
+  await Promise.resolve()
+  assert.deepEqual(events, ['button', 'button', 'button', 'open'])
+})

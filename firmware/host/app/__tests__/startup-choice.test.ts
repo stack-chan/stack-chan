@@ -30,6 +30,7 @@ type FakeTimer = {
 type StartupSplashStub = {
   resetStartupSplashCalls(): void
   startupSplashCallCount(): number
+  pressStartupMods(): void
   pressStartupSettings(): void
 }
 
@@ -141,6 +142,33 @@ test('startup choice enters settings when the visible settings action is pressed
   assert.deepEqual(await choice, { choice: 'settings', application })
   assert.equal(timer.handles[0].active, false)
   assert.equal(timer.handles[1].active, false)
+})
+
+test('startup choice enters the MOD manager when its action is enabled', async () => {
+  installBareSpecifierPackages()
+  const { waitForStartupChoice } = (await import('app-default-behavior/startup-choice')) as StartupChoiceModule
+  const timer = createManualTimer()
+  const application = { id: 'startup-application' }
+  let onMods: (() => void) | undefined
+
+  const choice = waitForStartupChoice({
+    timer,
+    enableMods: true,
+    showStartupSplash: (options) => {
+      onMods = options.onMods
+      return application as never
+    },
+  })
+  const [autoBoot] = timer.handles
+
+  onMods?.()
+  const mods = timer.handles.find((handle) => handle !== autoBoot)
+  assert.ok(mods)
+  timer.fire(mods)
+
+  assert.deepEqual(await choice, { choice: 'mods', application })
+  assert.equal(autoBoot.active, false)
+  assert.equal(mods.active, false)
 })
 
 test('startup choice resolves only once and ignores later timer callbacks', async () => {

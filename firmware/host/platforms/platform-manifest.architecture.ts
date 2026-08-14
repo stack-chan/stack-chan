@@ -125,6 +125,16 @@ describe('Stack-chan platform manifest', () => {
     )
   })
 
+  test('M5StackChan keeps MOD selector modules in the host application', () => {
+    const platformManifest = readJson('host/platforms/m5stackchan_cores3/manifest.json')
+    const appManifest = readJson('host/app/manifest_m5stackchan_cores3.json')
+
+    for (const module of ['mod-installer', 'mod-manager']) {
+      assert.equal(platformManifest.modules?.[module], undefined, `${module} must not leak into device programs`)
+      assert.equal(appManifest.modules?.[module], `./${module}`)
+    }
+  })
+
   test('CoreS3 AudioOut applies the sample rate without overriding amplifier volume', () => {
     assert.match(coreS3AudioOutSource, /globalThis\.amp\.sampleRate = this\.sampleRate/)
     assert.doesNotMatch(

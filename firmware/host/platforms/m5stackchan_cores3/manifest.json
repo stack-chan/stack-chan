@@ -1,17 +1,25 @@
 {
   "build": {
     "SUBPLATFORM": "m5stackchan_cores3",
-    "C_FLAGS_SUBPLATFORM": "-DI2S_DMA_BUFFER_MAX_SIZE=2048"
+    "C_FLAGS_SUBPLATFORM": "-DI2S_DMA_BUFFER_MAX_SIZE=2048",
+    "C_INCLUDES": "-I$(SUBPLATFORMDIRECTORY)"
   },
   "include": [
     "$(BUILD)/devices/esp32/targets/m5stack_cores3/manifest.json",
-    "$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json"
+    "$(MODDABLE)/modules/drivers/sensors/si12t/manifest.json",
+    "$(MODDABLE)/modules/files/flash/manifest.json"
   ],
   "modules": {
     "embedded:sensor/Touch/FT6x06": "./host/ft6206_async_m5stackchan",
     "setup/m5stackchan-power": "./setup-target",
+    "stackchan-sdcard": "./sd-card",
     "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
     "pins/audioout": "../core_s3_audioout"
+  },
+  "platforms": {
+    "esp32/m5stackchan_cores3": {
+      "dependency": [{ "idf": "fatfs" }, { "idf": "esp_driver_sdspi" }]
+    }
   },
   "config": {
     "driver": {

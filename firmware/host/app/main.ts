@@ -2,7 +2,7 @@ import loadPreferences, { loadPreferenceConfig } from 'loadPreference'
 import { runContextCreatedBehaviors, type StackchanAppBehavior } from 'app-behavior'
 import { resolveAppBehaviors } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
-import { prepareAppLaunch } from 'app-launch'
+import { installLaunchShortcut, type LaunchShortcutButton, prepareAppLaunch } from 'app-launch'
 import { type BootWiFiStatus, startHostBootServices } from 'boot-services'
 import type { StackchanContext } from 'capabilities'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
@@ -11,7 +11,7 @@ import { type StackchanDockRuntime, startStackchanDock } from 'dock'
 import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'experimental-mini-app-loader'
 import { initializeLocalization } from 'localization'
 import Modules from 'modules'
-import { showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
+import { showStartupSplash, showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
 import { applyTimezone } from 'timezone-settings'
 
 type DeviceButton = {
@@ -19,7 +19,9 @@ type DeviceButton = {
 }
 
 type GlobalEnvironment = {
-  button?: Partial<Record<'a' | 'c', DeviceButton>>
+  application?: ReturnType<typeof showStartupSplash>
+  button?: Partial<Record<'a' | 'c', DeviceButton>> & { power?: LaunchShortcutButton }
+  System: { restart(): void }
 }
 
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
@@ -34,7 +36,25 @@ function installPlatformInputBridge(): void {
 
 function loadAppBehaviors(): StackchanAppBehavior[] {
   trace('[main] checking mod override\n')
-  return resolveAppBehaviors(Modules, defaultBehavior)
+  return resolveAppBehaviors(Modules, defaultBehavior, (error) => {
+    trace(`[main] MOD override unavailable: ${error instanceof Error ? error.message : String(error)}\n`)
+  })
+}
+
+function installModManagerShortcut(): void {
+  const powerButton = globalEnv.button?.power
+  if (!powerButton || !Modules.has('mod-manager')) return
+  installLaunchShortcut(powerButton, async () => {
+    try {
+      const startModManager = Modules.importNow('mod-manager') as (
+        application: ReturnType<typeof showStartupSplash>,
+      ) => Promise<'back'>
+      await startModManager(globalEnv.application ?? showStartupSplash())
+      globalEnv.System.restart()
+    } catch (error) {
+      trace(`[mods] shortcut failed: ${error instanceof Error ? error.message : String(error)}\n`)
+    }
+  })
 }
 
 function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string }): Promise<'retry' | 'offline'> {
@@ -91,6 +111,7 @@ async function main() {
     const launch = await prepareAppLaunch(appBehaviors, prepareExperimentalMiniApps)
     trace(`[main] onLaunch shouldCreateContext=${launch.shouldCreateContext}\n`)
     if (!launch.shouldCreateContext) {
+      installModManagerShortcut()
       const unownedDock = dockRuntime
       dockRuntime = undefined
       unownedDock?.close()
@@ -121,6 +142,7 @@ async function main() {
       config: preferences,
     })
     trace('[main] app behaviors ready\n')
+    installModManagerShortcut()
   } catch (error) {
     try {
       if (context) await context.lifecycle.close()
@@ -128,6 +150,7 @@ async function main() {
     } catch (closeError) {
       trace(`[main] cleanup error ${closeError instanceof Error ? closeError.message : String(closeError)}\n`)
     }
+    installModManagerShortcut()
     throw error
   }
 }

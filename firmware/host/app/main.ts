@@ -36,7 +36,9 @@ function installPlatformInputBridge(): void {
 
 function loadAppBehaviors(): StackchanAppBehavior[] {
   trace('[main] checking mod override\n')
-  return resolveAppBehaviors(Modules, defaultBehavior)
+  return resolveAppBehaviors(Modules, defaultBehavior, (error) => {
+    trace(`[main] MOD override unavailable: ${error instanceof Error ? error.message : String(error)}\n`)
+  })
 }
 
 function installModManagerShortcut(): void {
@@ -101,7 +103,6 @@ async function main() {
     installPlatformInputBridge()
     initializeLocalization(loadPreferences(DOMAIN.ui).language)
     applyTimezone(loadPreferences(DOMAIN.time).timezone)
-    installModManagerShortcut()
 
     trace('[main] loading app behaviors\n')
     const appBehaviors = loadAppBehaviors()
@@ -110,6 +111,7 @@ async function main() {
     const launch = await prepareAppLaunch(appBehaviors, prepareExperimentalMiniApps)
     trace(`[main] onLaunch shouldCreateContext=${launch.shouldCreateContext}\n`)
     if (!launch.shouldCreateContext) {
+      installModManagerShortcut()
       const unownedDock = dockRuntime
       dockRuntime = undefined
       unownedDock?.close()
@@ -140,6 +142,7 @@ async function main() {
       config: preferences,
     })
     trace('[main] app behaviors ready\n')
+    installModManagerShortcut()
   } catch (error) {
     try {
       if (context) await context.lifecycle.close()
@@ -147,6 +150,7 @@ async function main() {
     } catch (closeError) {
       trace(`[main] cleanup error ${closeError instanceof Error ? closeError.message : String(closeError)}\n`)
     }
+    installModManagerShortcut()
     throw error
   }
 }

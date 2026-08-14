@@ -25,7 +25,6 @@ const splashTestManifest = JSON.parse(
 const appBarTestManifest = JSON.parse(
   readFileSync('host/modules/ui/components/status-bar/__tests__/chat-status-bar/manifest.test.json', 'utf8'),
 ) as FontManifest
-const mainSource = readFileSync('host/app/main.ts', 'utf8')
 
 function findFont(
   resources: Array<string | FontResource> | undefined,
@@ -48,13 +47,6 @@ function sortedGlyphs(characters: string): string[] {
 test('host manifests use a stable application name', () => {
   assert.equal(manifest.build?.NAME, 'stack-chan-host')
   assert.equal(wasmManifest.build?.NAME, 'stack-chan-host')
-})
-
-test('MOD recovery shortcut is installed before loading an installed MOD', () => {
-  const mainBody = mainSource.slice(mainSource.indexOf('async function main()'))
-  const shortcut = mainBody.indexOf('installModManagerShortcut()')
-  const behaviors = mainBody.indexOf('loadAppBehaviors()')
-  assert.ok(shortcut >= 0 && behaviors >= 0 && shortcut < behaviors, 'recovery must survive a MOD import failure')
 })
 
 test('the 24px font bundles UI glyphs and uppercase Latin letters', () => {

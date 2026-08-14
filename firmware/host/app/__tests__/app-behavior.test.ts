@@ -103,6 +103,26 @@ test('resolveAppBehaviors imports MOD independently from other archive entrypoin
   assert.deepEqual(importedSpecifiers, ['mod'])
 })
 
+test('resolveAppBehaviors falls back to the product default when the installed MOD fails to import', async () => {
+  installBareSpecifierPackages()
+  const { resolveAppBehaviors } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
+  const failure = new Error('invalid MOD')
+  const defaultBehavior: AppBehavior = { onLaunch: () => true }
+  const importErrors: unknown[] = []
+  const modules: AppBehaviorModules = {
+    has: () => true,
+    importNow: () => {
+      throw failure
+    },
+  }
+
+  assert.deepEqual(
+    resolveAppBehaviors(modules, defaultBehavior, (error) => importErrors.push(error)),
+    [defaultBehavior],
+  )
+  assert.deepEqual(importErrors, [failure])
+})
+
 test('prepareAppLaunch skips post-approval preparation when a MOD rejects launch', async () => {
   installBareSpecifierPackages()
   const { prepareAppLaunch } = (await import('app-launch')) as AppLaunchModule

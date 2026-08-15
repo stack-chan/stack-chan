@@ -77,6 +77,10 @@ const device = {
         // biome-ignore lint/correctness/noConstructorReturn: Moddable device providers return native peripheral instances.
         return new Core2Power({
           ...options,
+          sensor: {
+            ...device.I2C.internal,
+            io: device.io.SMBus,
+          },
           peripheral: {
             ...device.I2C.internal,
             io: device.io.SMBus,

@@ -1,4 +1,4 @@
-import ChatAudioIOBase from 'ChatAudioIOBase'
+import ChatAudioIOBase from 'ChatAudioIO'
 import Worker from 'worker'
 
 export default class ChatAudioIO extends ChatAudioIOBase {
@@ -14,7 +14,8 @@ export default class ChatAudioIO extends ChatAudioIOBase {
         incremental: 256,
       },
       stack: 1024,
-      nativeStack: 8192,
+      // Measured XiaoZhi + Espressif Opus use is ~20 KiB; retain margin for TLS and SDK changes.
+      nativeStack: 64 * 1024,
     })
     this.worker.onmessage = (message) => {
       this[message.id](message)

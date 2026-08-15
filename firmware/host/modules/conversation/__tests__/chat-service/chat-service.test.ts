@@ -1,5 +1,6 @@
 import type ChatAudioIOBase from 'ChatAudioIO'
 import ChatAudioIO from 'ChatAudioIO'
+import StackchanChatAudioIO from 'stackchanChatAudioIO'
 import { ChatService, ChatState, type ChatState as ChatStateValue, type ChatTool, MAX_TRANSCRIPT_CHARS } from 'chat'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
@@ -25,8 +26,8 @@ const tools: Record<string, ChatTool> = {
 const states: ChatStateValue[] = []
 const service = new ChatService({
   config: {
-    type: 'openAIRealtime',
-    specifier: 'stackchanServerOpenAIRealtime',
+    type: 'xiaozhi',
+    specifier: 'stackchanXiaozhi',
     endpoint: 'ws://192.168.7.140:8787/device/v1/realtime',
     modelID: 'stackchan-ai',
     apiKey: 'test-api-key',
@@ -62,11 +63,7 @@ if (!lastOptions) {
   throw new Error('ChatAudioIO options should be captured')
 }
 const functions = lastOptions.functions ?? []
-equal(
-  lastOptions.specifier,
-  'stackchanServerOpenAIRealtime',
-  'an explicit worker specifier should override the chat type',
-)
+equal(lastOptions.specifier, 'stackchanXiaozhi', 'an explicit worker specifier should override the chat type')
 equal(
   lastOptions.providerID,
   'ws://192.168.7.140:8787/device/v1/realtime',
@@ -144,6 +141,15 @@ assert(defaultOptions, 'default ChatAudioIO options should be captured')
 equal(defaultOptions?.specifier, 'openAIRealtime', 'a chat type should remain the default worker specifier')
 equal(defaultOptions?.providerID, 'openai', 'a provider ID should remain unchanged without an endpoint override')
 defaultService.close()
+
+const xiaozhiService = new ChatService({ config: { type: 'xiaozhi' } })
+const StackchanChatAudioIOAny = StackchanChatAudioIO as unknown as { lastOptions?: { specifier?: string } }
+equal(
+  StackchanChatAudioIOAny.lastOptions?.specifier,
+  'xiaozhi',
+  'XiaoZhi should select the dedicated ChatAudioIO worker',
+)
+xiaozhiService.close()
 
 trace('ok\n')
 Timer.set(() => {}, 1000)

@@ -5,8 +5,9 @@
  * you may not use this file except in compliance with the License.
  */
 
-import ServerOpenAIRealtimeModel from 'stackchanServerOpenAIRealtimeModel'
+import XiaozhiModel from 'stackchanXiaozhiModel'
 
-new ServerOpenAIRealtimeModel({
-  inputSampleRate: 8000,
+new XiaozhiModel({
+  inputSampleRate: 16000,
+  outputSampleRate: 24000,
 })

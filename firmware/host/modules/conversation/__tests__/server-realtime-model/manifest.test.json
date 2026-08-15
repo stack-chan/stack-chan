@@ -6,10 +6,11 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "ChatAudioIO/Codecs": "./audio-codecs",
-    "main": "./server-realtime-model.test",
+    "main": "./xiaozhi-model.test",
     "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker",
-    "stackchanServerOpenAIRealtimeModel": "../../chat-audioio/server-openai-realtime-model"
+    "stackchanXiaozhiModel": "../../chat-audioio/xiaozhi-model",
+    "stackchanOpusDecoder": "./opus-decoder",
+    "stackchanOpusEncoder": "./opus-encoder"
   },
   "typescript": {
     "tsconfig": {

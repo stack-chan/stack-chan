@@ -1,4 +1,5 @@
 import ChatAudioIO from 'ChatAudioIO'
+import StackchanChatAudioIO from 'stackchanChatAudioIO'
 import {
   type ChatFunctionCallSnapshot,
   ChatSessionState,
@@ -9,7 +10,13 @@ import {
 
 export { ChatState, type ChatStateName, ChatStateNames, chatStateToName, MAX_TRANSCRIPT_CHARS } from 'chat-state'
 
-export type ChatType = 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' | 'humeAIEVI' | 'openAIRealtime'
+export type ChatType =
+  | 'deepgramAgent'
+  | 'elevenLabsAgent'
+  | 'googleGeminiLive'
+  | 'humeAIEVI'
+  | 'openAIRealtime'
+  | 'xiaozhi'
 
 export type ChatConfig = {
   type: ChatType
@@ -155,7 +162,7 @@ export class ChatService {
     const { config } = options
     const ChatAudioIOCtor =
       options.chatAudioIOCtor ??
-      (ChatAudioIO as unknown as {
+      ((config.type === 'xiaozhi' ? StackchanChatAudioIO : ChatAudioIO) as unknown as {
         new (chatOptions: Record<string, unknown>): ChatAudioIO
       })
     const chatAudioIOConstants = ChatAudioIOCtor as unknown as ChatAudioIOStateConstants

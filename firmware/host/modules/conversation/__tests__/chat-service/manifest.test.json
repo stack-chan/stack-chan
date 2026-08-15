@@ -1,7 +1,9 @@
 {
   "include": ["../../manifest.json", "../../../testing/manifest.json"],
   "modules": {
+    "~": "../../chat-audioio/worker-stack",
     "ChatAudioIO": "../../../testing/fakes/ChatAudioIO",
+    "stackchanChatAudioIO": "./StackchanChatAudioIO",
     "main": "./chat-service.test"
   }
 }

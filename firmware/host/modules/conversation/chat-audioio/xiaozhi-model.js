@@ -22,6 +22,8 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.decoder = undefined
     this.decoderPCM = undefined
     this.decoderPacket = undefined
+    this.silence = undefined
+    this.outputSampleRate = 0
     this.encoder = undefined
     this.encoderPCM = undefined
     this.encoderPacket = undefined
@@ -290,6 +292,10 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
         }
         break
       case 'stop':
+        if (!this.decoder) {
+          this.fail('received XiaoZhi tts stop before hello')
+          break
+        }
         if (this.decodePackets) {
           const average = Math.round(this.decodeUs / this.decodePackets)
           const durationUs = (this.decoder.outputBytes * 1000000) / (2 * this.outputSampleRate)

@@ -1,6 +1,10 @@
 import OpusDecoder from 'stackchanOpusDecoder'
 import OpusEncoder from 'stackchanOpusEncoder'
 
+const INPUT_SAMPLE_RATE = 16000
+const INPUT_FRAME_DURATION = 60
+const EXPECTED_INPUT_BYTES = (INPUT_SAMPLE_RATE * INPUT_FRAME_DURATION * 2) / 1000
+
 self.onmessage = (message) => {
   try {
     const packet = Uint8Array.fromBase64(
@@ -14,18 +18,19 @@ self.onmessage = (message) => {
     decoder.close()
 
     const encoder = new OpusEncoder()
-    if (encoder.inputBytes !== 1920) throw new Error(`unexpected Opus input bytes: ${encoder.inputBytes}`)
+    if (encoder.inputBytes !== EXPECTED_INPUT_BYTES) throw new Error(`unexpected Opus input bytes: ${encoder.inputBytes}`)
     if (encoder.outputBytes > 1275) throw new Error(`unexpected Opus output capacity: ${encoder.outputBytes}`)
+    // Keep a decoder allocated while encoding to exercise concurrent codec memory pressure.
     const simultaneousDecoder = new OpusDecoder(24000, 60)
     const input = new SharedArrayBuffer(encoder.inputBytes)
     new Uint8Array(input).set(new Uint8Array(message.pcm))
     const encoded = new SharedArrayBuffer(encoder.outputBytes)
     const encodedBytes = encoder.encode(input, encoded)
     simultaneousDecoder.close()
-    const roundTripDecoder = new OpusDecoder(16000, 60)
+    const roundTripDecoder = new OpusDecoder(INPUT_SAMPLE_RATE, INPUT_FRAME_DURATION)
     const roundTripPCM = new ArrayBuffer(roundTripDecoder.outputBytes)
     const roundTripBytes = roundTripDecoder.decode(new Uint8Array(encoded, 0, encodedBytes), roundTripPCM)
-    if (roundTripBytes !== 1920) throw new Error(`unexpected round-trip PCM bytes: ${roundTripBytes}`)
+    if (roundTripBytes !== EXPECTED_INPUT_BYTES) throw new Error(`unexpected round-trip PCM bytes: ${roundTripBytes}`)
     self.postMessage({
       decodedBytes,
       decodeUs,

@@ -127,6 +127,10 @@ model.hello({
 equal(OpusEncoder.instances.length, 2, 'reconnecting should create a fresh encoder')
 model.sendAudio({ offset: 0, size: 12 })
 equal(OpusEncoder.instances[1]?.inputs.length, 1, 'reconnected audio should be encoded')
+postedMessages.length = 0
+model.read(new Uint8Array(1000).buffer, { binary: true, more: true })
+model.read(new Uint8Array(276).buffer, { binary: true, more: false })
+equal(postedMessages[0]?.string, 'Opus packet exceeds 1275 bytes', 'oversized fragmented Opus should fail')
 
 const invalid = new XiaozhiModel({ inputSampleRate: 16000, outputSampleRate: 24000 })
 invalid.configure({
@@ -141,6 +145,14 @@ invalid.hello({
   audio_params: { format: 'pcm', sample_rate: 24000, channels: 1, frame_duration: 20 },
 })
 equal(invalid.closed, true, 'invalid server negotiation should close the connection')
+
+const beforeHello = new XiaozhiModel({ inputSampleRate: 16000, outputSampleRate: 24000 })
+postedMessages.length = 0
+beforeHello.read(Uint8Array.of(1).buffer, { binary: true, more: false })
+equal(postedMessages[0]?.string, 'received Opus audio before XiaoZhi hello', 'pre-hello Opus should fail')
+postedMessages.length = 0
+beforeHello.tts({ type: 'tts', state: 'stop' })
+equal(postedMessages[0]?.string, 'received XiaoZhi tts stop before hello', 'pre-hello TTS stop should fail')
 
 trace('ok\n')
 Timer.set(() => {}, 1000)

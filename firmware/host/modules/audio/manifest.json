@@ -137,6 +137,8 @@
         "buffered-mp3streamer-core": "./platforms/m5stackchan-cores3/buffered-mp3streamer",
         "web-radio-byte-ring": "./platforms/m5stackchan-cores3/shared-byte-ring",
         "web-radio-stream-worker": "./platforms/m5stackchan-cores3/web-radio-stream-worker",
+        "stackchanOpusDecoder": "./platforms/m5stackchan-cores3/esp32-opus-decoder",
+        "stackchanOpusEncoder": "./platforms/m5stackchan-cores3/esp32-opus-encoder",
         "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin",
         "tts-stackchan-voice": "./stackchan-voice/tts-stackchan-voice"
       },

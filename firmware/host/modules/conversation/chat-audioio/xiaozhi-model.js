@@ -352,7 +352,7 @@ function hasEmbeddedCredentials(path) {
 
 function isTrustedLocalHost(host) {
   const normalized = host.toLowerCase()
-  if (normalized === 'localhost' || normalized.endsWith('.local')) return true
+  if (normalized === 'localhost') return true
   const parts = normalized.split('.')
   if (parts.length !== 4 || parts.some((part) => !/^\d{1,3}$/.test(part))) return false
   const octets = parts.map((part) => Number(part))

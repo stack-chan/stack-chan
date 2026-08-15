@@ -17,11 +17,7 @@
       "include": [
         "$(MODULES)/network/services/chatAudioIO/manifest.json",
         "./chat-audioio/server.manifest.json"
-      ],
-      "modules": {
-        "stackchanOpusDecoder": "../audio/platforms/m5stackchan-cores3/esp32-opus-decoder",
-        "stackchanOpusEncoder": "../audio/platforms/m5stackchan-cores3/esp32-opus-encoder"
-      }
+      ]
     },
     "esp32/stackchan_rt": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"]

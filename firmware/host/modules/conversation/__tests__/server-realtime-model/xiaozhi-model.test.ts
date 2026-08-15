@@ -31,6 +31,13 @@ rejected.configure({
 rejected.connect(connection)
 equal(postedMessages[0]?.string, 'ChatService Bearer authentication over ws:// is restricted to trusted local networks')
 postedMessages.length = 0
+rejected.configure({
+  providerID: 'ws://stackchan.local/device/v1/realtime?device_id=core-s3&client_id=client-1',
+  apiKey: 'test-token',
+})
+rejected.connect(connection)
+equal(postedMessages[0]?.string, 'ChatService Bearer authentication over ws:// is restricted to trusted local networks')
+postedMessages.length = 0
 
 const model = new XiaozhiModel({ inputSampleRate: 16000, outputSampleRate: 24000 })
 model.configure({

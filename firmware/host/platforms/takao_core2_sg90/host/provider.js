@@ -18,6 +18,7 @@
  *
  */
 
+import Core2Power from 'Core2Power'
 import Analog from 'embedded:io/analog'
 import Digital from 'embedded:io/digital'
 import DigitalBank from 'embedded:io/digitalbank'
@@ -69,6 +70,20 @@ const device = {
   pin: {
     displayDC: 15,
     displaySelect: 5,
+  },
+  peripheral: {
+    Power: class {
+      constructor(options) {
+        // biome-ignore lint/correctness/noConstructorReturn: Moddable device providers return native peripheral instances.
+        return new Core2Power({
+          ...options,
+          peripheral: {
+            ...device.I2C.internal,
+            io: device.io.SMBus,
+          },
+        })
+      }
+    },
   },
 }
 

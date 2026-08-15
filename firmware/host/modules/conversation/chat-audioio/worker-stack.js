@@ -1,4 +1,4 @@
-import ChatAudioIOBase from 'ChatAudioIO'
+import ChatAudioIOBase from 'ChatAudioIOBase'
 import Worker from 'worker'
 
 export default class ChatAudioIO extends ChatAudioIOBase {

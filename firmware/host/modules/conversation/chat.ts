@@ -1,5 +1,4 @@
 import ChatAudioIO from 'ChatAudioIO'
-import StackchanChatAudioIO from 'stackchanChatAudioIO'
 import {
   type ChatFunctionCallSnapshot,
   ChatSessionState,
@@ -162,7 +161,7 @@ export class ChatService {
     const { config } = options
     const ChatAudioIOCtor =
       options.chatAudioIOCtor ??
-      ((config.type === 'xiaozhi' ? StackchanChatAudioIO : ChatAudioIO) as unknown as {
+      (ChatAudioIO as unknown as {
         new (chatOptions: Record<string, unknown>): ChatAudioIO
       })
     const chatAudioIOConstants = ChatAudioIOCtor as unknown as ChatAudioIOStateConstants

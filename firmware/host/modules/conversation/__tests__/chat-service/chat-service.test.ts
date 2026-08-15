@@ -1,6 +1,5 @@
 import type ChatAudioIOBase from 'ChatAudioIO'
 import ChatAudioIO from 'ChatAudioIO'
-import StackchanChatAudioIO from 'stackchanChatAudioIO'
 import { ChatService, ChatState, type ChatState as ChatStateValue, type ChatTool, MAX_TRANSCRIPT_CHARS } from 'chat'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
@@ -143,12 +142,7 @@ equal(defaultOptions?.providerID, 'openai', 'a provider ID should remain unchang
 defaultService.close()
 
 const xiaozhiService = new ChatService({ config: { type: 'xiaozhi' } })
-const StackchanChatAudioIOAny = StackchanChatAudioIO as unknown as { lastOptions?: { specifier?: string } }
-equal(
-  StackchanChatAudioIOAny.lastOptions?.specifier,
-  'stackchanXiaozhi',
-  'XiaoZhi should select the dedicated ChatAudioIO worker',
-)
+equal(ChatAudioIOAny.lastOptions?.specifier, 'stackchanXiaozhi', 'XiaoZhi should select its worker specifier')
 xiaozhiService.close()
 
 trace('ok\n')

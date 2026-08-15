@@ -6,21 +6,32 @@
   ],
   "modules": {
     "*": ["./*"],
-    "ChatAudioIO": "./chat-audioio-stub",
-    "stackchanChatAudioIO": "./chat-audioio/worker-stack"
+    "ChatAudioIO": "./chat-audioio-stub"
   },
   "platforms": {
     "esp32/m5stack_cores3": {
-      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"]
+      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
+      "modules": {
+        "ChatAudioIO": "./chat-audioio/worker-stack",
+        "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+      }
     },
     "esp32/m5stackchan_cores3": {
       "include": [
         "$(MODULES)/network/services/chatAudioIO/manifest.json",
         "./chat-audioio/server.manifest.json"
-      ]
+      ],
+      "modules": {
+        "ChatAudioIO": "./chat-audioio/worker-stack",
+        "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+      }
     },
     "esp32/stackchan_rt": {
-      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"]
+      "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
+      "modules": {
+        "ChatAudioIO": "./chat-audioio/worker-stack",
+        "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+      }
     },
     "mac": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],

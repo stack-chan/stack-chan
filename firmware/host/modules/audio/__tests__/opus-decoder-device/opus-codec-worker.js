@@ -18,8 +18,11 @@ self.onmessage = (message) => {
     decoder.close()
 
     const encoder = new OpusEncoder()
-    if (encoder.inputBytes !== EXPECTED_INPUT_BYTES) throw new Error(`unexpected Opus input bytes: ${encoder.inputBytes}`)
+    if (encoder.inputBytes !== EXPECTED_INPUT_BYTES)
+      throw new Error(`unexpected Opus input bytes: ${encoder.inputBytes}`)
     if (encoder.outputBytes > 1275) throw new Error(`unexpected Opus output capacity: ${encoder.outputBytes}`)
+    if (message.pcm.byteLength !== encoder.inputBytes)
+      throw new Error(`unexpected PCM input bytes: ${message.pcm.byteLength}`)
     // Keep a decoder allocated while encoding to exercise concurrent codec memory pressure.
     const simultaneousDecoder = new OpusDecoder(24000, 60)
     const input = new SharedArrayBuffer(encoder.inputBytes)

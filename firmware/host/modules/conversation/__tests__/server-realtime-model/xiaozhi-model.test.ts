@@ -125,8 +125,10 @@ model.hello({
   audio_params: { format: 'opus', sample_rate: 24000, channels: 1, frame_duration: 20 },
 })
 equal(OpusEncoder.instances.length, 2, 'reconnecting should create a fresh encoder')
+const reconnectedBinaryCount = sentBinary.length
 model.sendAudio({ offset: 0, size: 12 })
 equal(OpusEncoder.instances[1]?.inputs.length, 1, 'reconnected audio should be encoded')
+equal(sentBinary.length, reconnectedBinaryCount + 1, 'reconnected audio should reach the WebSocket')
 postedMessages.length = 0
 model.read(new Uint8Array(1000).buffer, { binary: true, more: true })
 model.read(new Uint8Array(276).buffer, { binary: true, more: false })

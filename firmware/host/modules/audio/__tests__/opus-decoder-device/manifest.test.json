@@ -4,10 +4,11 @@
     "$(MODDABLE)/modules/base/worker/manifest.json",
     "$(MODDABLE)/modules/io/audioin/manifest.json",
     "$(MODDABLE)/modules/pins/i2s/manifest.json",
-    "../../../power/manifest.json"
+    "../../../power/manifest.json",
+    "../../../testing/manifest.json"
   ],
   "modules": {
-    "*": ["./main"],
+    "main": "./opus-decoder-device.test",
     "opusCodecWorker": "./opus-codec-worker",
     "stackchanOpusDecoder": "../../platforms/m5stackchan-cores3/esp32-opus-decoder",
     "stackchanOpusEncoder": "../../platforms/m5stackchan-cores3/esp32-opus-encoder"

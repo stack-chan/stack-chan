@@ -8,13 +8,15 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "main": "./opus-decoder-device.test",
     "opusCodecWorker": "./opus-codec-worker",
     "stackchanOpusDecoder": "../../platforms/m5stackchan-cores3/esp32-opus-decoder",
     "stackchanOpusEncoder": "../../platforms/m5stackchan-cores3/esp32-opus-encoder"
   },
   "platforms": {
     "esp32/m5stackchan_cores3": {
+      "modules": {
+        "main": "./opus-decoder-device.test"
+      },
       "build": {
         "SDKCONFIGPATH ?=": "../../platforms/m5stackchan-cores3/sdkconfig"
       },

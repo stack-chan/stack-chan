@@ -174,7 +174,6 @@ export function onContextCreated(robot) {
   const chatConfig = {
     ...rawChatConfig,
     voiceID: rawChatConfig.voiceID ?? 'marin',
-    specifier: rawChatConfig.specifier ?? 'openAIRealtime',
     instructions: rawChatConfig.instructions ?? INSTRUCTION_B,
   }
   if (!hasValidChatType(chatConfig)) {

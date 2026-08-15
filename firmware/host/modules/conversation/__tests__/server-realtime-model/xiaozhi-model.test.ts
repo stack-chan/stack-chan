@@ -38,7 +38,6 @@ model.configure({
   apiKey: 'test-token',
   modelID: 'agent-1',
 })
-equal(OpusEncoder.instances.length, 1, 'configuration should create the XiaoZhi encoder')
 equal(model.headers[0]?.[0], 'Authorization', 'authentication should use a header')
 equal(model.headers[1]?.[0], 'Protocol-Version', 'XiaoZhi protocol v1 should be declared')
 equal(model.headers[2]?.[1], 'core-s3', 'Device-Id should come from the endpoint identity')
@@ -59,6 +58,7 @@ model.hello({
   session_id: 'session-1',
   audio_params: { format: 'opus', sample_rate: 24000, channels: 1, frame_duration: 20 },
 })
+equal(OpusEncoder.instances.length, 1, 'server hello should create one encoder')
 equal(OpusDecoder.instances.length, 1, 'server hello should create one decoder')
 equal(OpusDecoder.instances[0]?.sampleRate, 24000, 'decoder should use the negotiated sample rate')
 equal(OpusDecoder.instances[0]?.frameDuration, 20, 'decoder should use the negotiated frame duration')
@@ -114,6 +114,19 @@ const listenCount = sentJSON.length
 model.listened()
 equal(sentJSON.length, listenCount + 1, 'playback drain should start the next microphone turn')
 equal(sentJSON[sentJSON.length - 1]?.session_id, 'session-1', 'events should retain the negotiated session')
+
+model.close()
+model.connect(connection)
+model.hello({
+  type: 'hello',
+  version: 1,
+  transport: 'websocket',
+  session_id: 'session-2',
+  audio_params: { format: 'opus', sample_rate: 24000, channels: 1, frame_duration: 20 },
+})
+equal(OpusEncoder.instances.length, 2, 'reconnecting should create a fresh encoder')
+model.sendAudio({ offset: 0, size: 12 })
+equal(OpusEncoder.instances[1]?.inputs.length, 1, 'reconnected audio should be encoded')
 
 const invalid = new XiaozhiModel({ inputSampleRate: 16000, outputSampleRate: 24000 })
 invalid.configure({

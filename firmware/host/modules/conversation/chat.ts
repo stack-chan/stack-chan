@@ -167,7 +167,7 @@ export class ChatService {
       })
     const chatAudioIOConstants = ChatAudioIOCtor as unknown as ChatAudioIOStateConstants
     this.#chat = new ChatAudioIOCtor({
-      specifier: config.specifier ?? (config.type as unknown as string),
+      specifier: config.specifier ?? (config.type === 'xiaozhi' ? 'stackchanXiaozhi' : config.type),
       instructions: config.instructions,
       voiceID: config.voiceID,
       // ChatAudioIO has no endpoint slot. Only an explicit server endpoint is

@@ -60,12 +60,6 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       ]
       if (apiKey) this.headers.unshift(['Authorization', `Bearer ${apiKey}`])
       this.agentID = String(message.modelID ?? '')
-      this.encoder = new OpusEncoder()
-      this.encoderPCM = new SharedArrayBuffer(this.encoder.inputBytes)
-      this.encoderPacket = new SharedArrayBuffer(this.encoder.outputBytes)
-      trace(
-        `[opus] encoder heap internal=${this.encoder.internalHeapBytes ?? 0}B psram=${this.encoder.psramHeapBytes ?? 0}B\n`,
-      )
     } catch (error) {
       this.closeCodecs()
       this.configurationError = String(error?.message ?? error)
@@ -141,6 +135,10 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       this.decoder?.close()
       this.decoder = new OpusDecoder(sampleRate, frameDuration)
       this.decoderPCM = new SharedArrayBuffer(this.decoder.outputBytes)
+      this.encoder?.close()
+      this.encoder = new OpusEncoder()
+      this.encoderPCM = new SharedArrayBuffer(this.encoder.inputBytes)
+      this.encoderPacket = new SharedArrayBuffer(this.encoder.outputBytes)
       this.silence = new ArrayBuffer(this.decoder.outputBytes)
       this.outputSampleRate = sampleRate
       this.sessionID = message.session_id ?? ''
@@ -154,6 +152,9 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       })
       trace(
         `[opus] decoder heap internal=${this.decoder.internalHeapBytes ?? 0}B psram=${this.decoder.psramHeapBytes ?? 0}B\n`,
+      )
+      trace(
+        `[opus] encoder heap internal=${this.encoder.internalHeapBytes ?? 0}B psram=${this.encoder.psramHeapBytes ?? 0}B\n`,
       )
       this.post('connected')
       this.startListening()

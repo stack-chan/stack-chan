@@ -146,7 +146,7 @@ const xiaozhiService = new ChatService({ config: { type: 'xiaozhi' } })
 const StackchanChatAudioIOAny = StackchanChatAudioIO as unknown as { lastOptions?: { specifier?: string } }
 equal(
   StackchanChatAudioIOAny.lastOptions?.specifier,
-  'xiaozhi',
+  'stackchanXiaozhi',
   'XiaoZhi should select the dedicated ChatAudioIO worker',
 )
 xiaozhiService.close()

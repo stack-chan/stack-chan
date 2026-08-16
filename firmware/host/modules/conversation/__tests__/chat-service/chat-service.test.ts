@@ -1,5 +1,5 @@
-import type ChatAudioIOBase from 'ChatAudioIO'
-import ChatAudioIO from 'ChatAudioIO'
+import ChatAudioIO from 'testing/fakes/ChatAudioIO'
+type ChatAudioIOBase = InstanceType<typeof ChatAudioIO>
 import {
   type ChatConfig,
   ChatService,
@@ -156,7 +156,10 @@ try {
 }
 equal(legacyError.includes('migrate ChatConfig.type to xiaozhi'), true, 'legacy chat config should require migration')
 
-const xiaozhiService = new ChatService({ config: { type: 'xiaozhi' } })
+const xiaozhiService = new ChatService({
+  config: { type: 'xiaozhi' },
+  chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
+})
 equal(ChatAudioIOAny.lastOptions?.specifier, 'stackchanXiaozhi', 'XiaoZhi should select its worker specifier')
 xiaozhiService.close()
 

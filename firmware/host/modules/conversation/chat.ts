@@ -1,4 +1,4 @@
-import ChatAudioIO from 'ChatAudioIO'
+import ChatAudioIO from 'StackChanChatAudioIO'
 import {
   type ChatFunctionCallSnapshot,
   ChatSessionState,

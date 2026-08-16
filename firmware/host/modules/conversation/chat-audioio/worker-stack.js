@@ -1,7 +1,15 @@
-import ChatAudioIOBase from 'ChatAudioIOBase'
+import ChatAudioIOBase from 'ChatAudioIO'
 import Worker from 'worker'
 
 export default class ChatAudioIO extends ChatAudioIOBase {
+  ensureInput() {
+    const notify = !this.ready && this.state !== ChatAudioIO.DISCONNECTED
+    super.ensureInput()
+    if (!this.input || this.ready) return
+    this.ready = true
+    if (notify) this.onStateChanged(this.state)
+  }
+
   createWorker(specifier, instructions, functions, voiceID, providerID, modelID, apiKey) {
     const worker = new Worker(specifier, {
       static: 512 * 1024,

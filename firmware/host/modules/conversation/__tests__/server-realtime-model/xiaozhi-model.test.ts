@@ -95,11 +95,7 @@ equal(sentBinary.length, 0, 'partial PCM should wait for a complete 60 ms frame'
 equal(postedMessages[postedMessages.length - 1]?.id, 'audioConsumed', 'PCM consumption should be acknowledged')
 model.sendAudio({ offset: 40, size: 4 })
 equal(OpusEncoder.instances[0]?.inputs.length, 1, 'one complete PCM frame should be queued once')
-equal(
-  new Int16Array(OpusEncoder.instances[0].inputs[0].buffer)[5],
-  6,
-  'CoreS3 mono input should retain every sample',
-)
+equal(new Int16Array(OpusEncoder.instances[0].inputs[0].buffer)[5], 6, 'CoreS3 mono input should retain every sample')
 equal(sentBinary.length, 0, 'queued PCM should not block on Opus encoding')
 model.flushEncodedAudio()
 equal(sentBinary.length, 1, 'one Opus packet should be one binary WebSocket message')

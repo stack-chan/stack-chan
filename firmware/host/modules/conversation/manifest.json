@@ -12,6 +12,7 @@
     "esp32/m5stack_cores3": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
+        "~": "./StackChanChatAudioIO",
         "StackChanChatAudioIO": "./chat-audioio/worker-stack"
       }
     },
@@ -21,18 +22,21 @@
         "./chat-audioio/server.manifest.json"
       ],
       "modules": {
+        "~": "./StackChanChatAudioIO",
         "StackChanChatAudioIO": "./chat-audioio/worker-stack"
       }
     },
     "esp32/stackchan_rt": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
+        "~": "./StackChanChatAudioIO",
         "StackChanChatAudioIO": "./chat-audioio/worker-stack"
       }
     },
     "mac": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
+        "~": "./StackChanChatAudioIO",
         "StackChanChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
       }
     }

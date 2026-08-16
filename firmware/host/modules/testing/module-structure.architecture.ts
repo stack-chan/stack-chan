@@ -454,7 +454,8 @@ test('subplatforms that define camera pins are gated into the camera and convers
 test('XiaoZhi is enabled only for targets with its complete module graph', () => {
   const conversationManifest = readJson(join(MODULE_ROOT, 'conversation', 'manifest.json'))
   const audioManifest = readJson(join(MODULE_ROOT, 'audio', 'manifest.json'))
-  for (const [target, entry] of Object.entries(conversationManifest.platforms ?? {})) {
+  for (const target of Object.keys(conversationManifest.platforms ?? {})) {
+    const entry = conversationManifest.platforms[target]
     const serverIncluded = entry.include?.includes('./chat-audioio/server.manifest.json') ?? false
     const enabled = entry.config?.xiaozhiAvailable === true
     assert.equal(enabled, serverIncluded, `${target} XiaoZhi capability and server modules should agree`)

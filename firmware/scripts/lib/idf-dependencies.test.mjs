@@ -26,6 +26,7 @@ test('prepares both managed components without duplicating them', () => {
 
     assert.equal(second, first)
     assert.equal(count(second, 'espressif/esp_audio_codec:'), 1)
+    assert.match(second, /espressif\/esp_audio_codec: ~2\.5\.0/)
     assert.equal(count(second, 'espressif/esp32-camera:'), 1)
   } finally {
     rmSync(outputDirectory, { recursive: true, force: true })

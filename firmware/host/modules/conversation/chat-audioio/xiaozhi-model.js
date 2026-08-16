@@ -8,10 +8,12 @@
 import OpusDecoder from 'stackchanOpusDecoder'
 import OpusEncoder from 'stackchanOpusEncoder'
 import ServerChatWebSocketWorker from 'stackchanServerChatWebSocketWorker'
+import Timer from 'timer'
 
 const INPUT_SAMPLE_RATE = 16000
 const INPUT_FRAME_DURATION = 60
 const OPUS_MAX_PACKET_BYTES = 1275
+const headerIdentity = /^[\x21-\x7e]{1,200}$/
 const binary = Object.freeze({ binary: true })
 const eventHandlers = Object.freeze({ alert: true, hello: true, stt: true, tts: true })
 
@@ -27,6 +29,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.encoder = undefined
     this.encoderPCM = undefined
     this.encoderPacket = undefined
+    this.encoderTimer = undefined
     this.encoderFill = 0
     this.eventHandlers = eventHandlers
     this.sessionID = ''
@@ -44,7 +47,9 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       const deviceID = queryParameter(endpoint.path, 'device_id')
       const clientID = queryParameter(endpoint.path, 'client_id')
       if (!deviceID || !clientID) throw new Error('XiaoZhi endpoint requires device_id and client_id')
-      if (deviceID.length > 200 || clientID.length > 200) throw new Error('XiaoZhi device identity is too long')
+      if (!headerIdentity.test(deviceID) || !headerIdentity.test(clientID)) {
+        throw new Error('XiaoZhi device identity contains invalid header characters')
+      }
       if (!endpoint.secure && hasEmbeddedCredentials(endpoint.path)) {
         throw new Error('ChatService credentials must not be embedded in a ws:// endpoint')
       }
@@ -82,6 +87,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   }
 
   closeCodecs() {
+    if (this.encoderTimer !== undefined) Timer.clear(this.encoderTimer)
     this.decoder?.close()
     this.encoder?.close()
     this.decoder = undefined
@@ -90,7 +96,10 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.encoder = undefined
     this.encoderPCM = undefined
     this.encoderPacket = undefined
+    this.encoderTimer = undefined
     this.encoderFill = 0
+    this.silence = undefined
+    this.outputSampleRate = 0
     this.sessionID = ''
     this.uploading = false
   }
@@ -141,6 +150,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       this.encoder = new OpusEncoder()
       this.encoderPCM = new SharedArrayBuffer(this.encoder.inputBytes)
       this.encoderPacket = new SharedArrayBuffer(this.encoder.outputBytes)
+      this.encoderTimer = Timer.repeat(() => this.flushEncodedAudio(), 10)
       this.silence = new ArrayBuffer(this.decoder.outputBytes)
       this.outputSampleRate = sampleRate
       this.sessionID = message.session_id ?? ''
@@ -175,6 +185,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   }
 
   listened() {
+    this.encoder?.clear()
     this.encoderFill = 0
     this.uploading = true
     this.startListening()
@@ -182,28 +193,36 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
 
   sendAudio(message) {
     if (!this.uploading || !this.encoder) return
-    const source = new Uint8Array(this.inputBuffer, message.offset, message.size)
-    const frame = new Uint8Array(this.encoderPCM)
+    const source = new Int16Array(this.inputBuffer, message.offset, message.size >> 1)
+    const frame = new Int16Array(this.encoderPCM)
     let offset = 0
     try {
-      while (offset < source.byteLength) {
-        const size = Math.min(frame.byteLength - this.encoderFill, source.byteLength - offset)
-        frame.set(source.subarray(offset, offset + size), this.encoderFill)
-        this.encoderFill += size
-        offset += size
-        if (this.encoderFill !== frame.byteLength) continue
+      while (offset < source.length) {
+        frame[this.encoderFill++] = source[offset]
+        offset += 2
+        if (this.encoderFill !== frame.length) continue
 
-        const packetBytes = this.encoder.encode(this.encoderPCM, this.encoderPacket)
-        const packet = new Uint8Array(packetBytes)
-        packet.set(new Uint8Array(this.encoderPacket, 0, packetBytes))
-        this.write(packet, binary)
-        this.encodePackets += 1
-        this.encodePCMBytes += frame.byteLength
-        this.encodeCompressedBytes += packetBytes
-        this.encodeUs += this.encoder.encodeUs
-        if (this.encodeMaxUs < this.encoder.encodeUs) this.encodeMaxUs = this.encoder.encodeUs
+        this.encoder.enqueue(this.encoderPCM)
         this.encoderFill = 0
       }
+    } catch (error) {
+      this.fail(String(error?.message ?? error))
+    }
+  }
+
+  flushEncodedAudio() {
+    if (!this.encoder) return
+    try {
+      const packetBytes = this.encoder.read(this.encoderPacket)
+      if (!packetBytes || !this.uploading) return
+      const packet = new Uint8Array(packetBytes)
+      packet.set(new Uint8Array(this.encoderPacket, 0, packetBytes))
+      this.write(packet, binary)
+      this.encodePackets += 1
+      this.encodePCMBytes += this.encoder.inputBytes
+      this.encodeCompressedBytes += packetBytes
+      this.encodeUs += this.encoder.encodeUs
+      if (this.encodeMaxUs < this.encoder.encodeUs) this.encodeMaxUs = this.encoder.encodeUs
     } catch (error) {
       this.fail(String(error?.message ?? error))
     }
@@ -279,6 +298,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
           )
         }
         this.uploading = false
+        this.encoder?.clear()
         this.encoderFill = 0
         this.resetEncodeStats()
         this.decoderPacket = undefined
@@ -368,7 +388,7 @@ function isTrustedLocalHost(host) {
 
 export function parseWebSocketEndpoint(value) {
   const endpoint = String(value ?? '').trim()
-  const match = /^(wss?):\/\/([^/:?#]+)(?::(\d+))?(\/[^#]*)?$/.exec(endpoint)
+  const match = /^(wss?):\/\/([^@/:?#]+)(?::(\d+))?(\/[^#]*)?$/.exec(endpoint)
   if (!match) throw new Error('ChatService endpoint must use ws:// or wss://')
   const secure = match[1] === 'wss'
   const port = match[3] ? Number.parseInt(match[3], 10) : secure ? 443 : 80

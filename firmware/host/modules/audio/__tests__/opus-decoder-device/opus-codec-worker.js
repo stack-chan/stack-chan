@@ -1,5 +1,6 @@
 import OpusDecoder from 'stackchanOpusDecoder'
 import OpusEncoder from 'stackchanOpusEncoder'
+import Timer from 'timer'
 
 const INPUT_SAMPLE_RATE = 16000
 const INPUT_FRAME_DURATION = 60
@@ -24,7 +25,7 @@ self.onmessage = (message) => {
     codecs.push(encoder)
     if (encoder.inputBytes !== EXPECTED_INPUT_BYTES)
       throw new Error(`unexpected Opus input bytes: ${encoder.inputBytes}`)
-    if (encoder.outputBytes > 1275) throw new Error(`unexpected Opus output capacity: ${encoder.outputBytes}`)
+    if (encoder.outputBytes !== 1275) throw new Error(`unexpected Opus output capacity: ${encoder.outputBytes}`)
     if (message.pcm.byteLength !== encoder.inputBytes)
       throw new Error(`unexpected PCM input bytes: ${message.pcm.byteLength}`)
     // Keep a decoder allocated while encoding to exercise concurrent codec memory pressure.
@@ -33,25 +34,50 @@ self.onmessage = (message) => {
     const input = new SharedArrayBuffer(encoder.inputBytes)
     new Uint8Array(input).set(new Uint8Array(message.pcm))
     const encoded = new SharedArrayBuffer(encoder.outputBytes)
-    const encodedBytes = encoder.encode(input, encoded)
-    simultaneousDecoder.close()
-    codecs.pop()
-    const roundTripDecoder = new OpusDecoder(INPUT_SAMPLE_RATE, INPUT_FRAME_DURATION)
-    codecs.push(roundTripDecoder)
-    const roundTripPCM = new ArrayBuffer(roundTripDecoder.outputBytes)
-    const roundTripBytes = roundTripDecoder.decode(new Uint8Array(encoded, 0, encodedBytes), roundTripPCM)
-    if (roundTripBytes !== EXPECTED_INPUT_BYTES) throw new Error(`unexpected round-trip PCM bytes: ${roundTripBytes}`)
-    self.postMessage({
-      decodedBytes,
-      decodeUs,
-      encodedBytes,
-      encodeUs: encoder.encodeUs,
-      internalHeapBytes: encoder.internalHeapBytes,
-      psramHeapBytes: encoder.psramHeapBytes,
-    })
+    encoder.enqueue(input)
+    let attempts = 0
+    const timer = Timer.repeat(() => {
+      let finished = false
+      try {
+        const encodedBytes = encoder.read(encoded)
+        if (!encodedBytes) {
+          if (++attempts < 200) return
+          throw new Error('Opus encoder timed out')
+        }
+        Timer.clear(timer)
+        finished = true
+        simultaneousDecoder.close()
+        codecs.pop()
+        const roundTripDecoder = new OpusDecoder(INPUT_SAMPLE_RATE, INPUT_FRAME_DURATION)
+        codecs.push(roundTripDecoder)
+        const roundTripPCM = new ArrayBuffer(roundTripDecoder.outputBytes)
+        const roundTripBytes = roundTripDecoder.decode(new Uint8Array(encoded, 0, encodedBytes), roundTripPCM)
+        if (roundTripBytes !== EXPECTED_INPUT_BYTES)
+          throw new Error(`unexpected round-trip PCM bytes: ${roundTripBytes}`)
+        self.postMessage({
+          decodedBytes,
+          decodeUs,
+          encodedBytes,
+          encodeUs: encoder.encodeUs,
+          internalHeapBytes: encoder.internalHeapBytes,
+          psramHeapBytes: encoder.psramHeapBytes,
+        })
+      } catch (error) {
+        Timer.clear(timer)
+        finished = true
+        self.postMessage({ error: String(error) })
+      } finally {
+        if (finished) {
+          for (const codec of codecs) {
+            try {
+              codec.close()
+            } catch {}
+          }
+        }
+      }
+    }, 10)
   } catch (error) {
     self.postMessage({ error: String(error) })
-  } finally {
     for (const codec of codecs) {
       try {
         codec.close()

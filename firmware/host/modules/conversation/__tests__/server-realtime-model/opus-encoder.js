@@ -8,6 +8,7 @@ export default class OpusEncoder {
     this.internalHeapBytes = 2048
     this.psramHeapBytes = 4096
     this.inputs = []
+    this.packets = []
     OpusEncoder.instances.push(this)
   }
 
@@ -15,9 +16,19 @@ export default class OpusEncoder {
     this.closed = true
   }
 
-  encode(input, output) {
+  enqueue(input) {
     this.inputs.push(new Uint8Array(input).slice())
-    new Uint8Array(output).set([0xf8, 0xff, 0xfe])
-    return 3
+    this.packets.push(Uint8Array.of(0xf8, 0xff, 0xfe))
+  }
+
+  read(output) {
+    const packet = this.packets.shift()
+    if (!packet) return 0
+    new Uint8Array(output).set(packet)
+    return packet.byteLength
+  }
+
+  clear() {
+    this.packets.length = 0
   }
 }

@@ -9,13 +9,7 @@ import {
 
 export { ChatState, type ChatStateName, ChatStateNames, chatStateToName, MAX_TRANSCRIPT_CHARS } from 'chat-state'
 
-export type ChatType =
-  | 'deepgramAgent'
-  | 'elevenLabsAgent'
-  | 'googleGeminiLive'
-  | 'humeAIEVI'
-  | 'openAIRealtime'
-  | 'xiaozhi'
+export type ChatType = 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' | 'humeAIEVI' | 'xiaozhi'
 
 export type ChatConfig = {
   type: ChatType
@@ -159,6 +153,10 @@ export class ChatService {
       .filter((schema): schema is ChatFunctionSchema => schema != null)
 
     const { config } = options
+    const type = String(config.type)
+    if (type === 'openAIRealtime') {
+      throw new Error('openAIRealtime is no longer supported; migrate ChatConfig.type to xiaozhi')
+    }
     const ChatAudioIOCtor =
       options.chatAudioIOCtor ??
       (ChatAudioIO as unknown as {
@@ -166,7 +164,7 @@ export class ChatService {
       })
     const chatAudioIOConstants = ChatAudioIOCtor as unknown as ChatAudioIOStateConstants
     this.#chat = new ChatAudioIOCtor({
-      specifier: config.specifier ?? (config.type === 'xiaozhi' ? 'stackchanXiaozhi' : config.type),
+      specifier: config.specifier ?? (type === 'xiaozhi' ? 'stackchanXiaozhi' : type),
       instructions: config.instructions,
       voiceID: config.voiceID,
       // ChatAudioIO has no endpoint slot. Only an explicit server endpoint is

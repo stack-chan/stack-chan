@@ -1,6 +1,13 @@
 import type ChatAudioIOBase from 'ChatAudioIO'
 import ChatAudioIO from 'ChatAudioIO'
-import { ChatService, ChatState, type ChatState as ChatStateValue, type ChatTool, MAX_TRANSCRIPT_CHARS } from 'chat'
+import {
+  type ChatConfig,
+  ChatService,
+  ChatState,
+  type ChatState as ChatStateValue,
+  type ChatTool,
+  MAX_TRANSCRIPT_CHARS,
+} from 'chat'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
 
@@ -130,16 +137,24 @@ equal(service.transcript.output, '', 'start should clear output transcript for t
 
 const defaultService = new ChatService({
   config: {
-    type: 'openAIRealtime',
-    providerID: 'openai',
+    type: 'deepgramAgent',
+    providerID: 'deepgram',
   },
   chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
 })
 const defaultOptions = ChatAudioIOAny.lastOptions
 assert(defaultOptions, 'default ChatAudioIO options should be captured')
-equal(defaultOptions?.specifier, 'openAIRealtime', 'a chat type should remain the default worker specifier')
-equal(defaultOptions?.providerID, 'openai', 'a provider ID should remain unchanged without an endpoint override')
+equal(defaultOptions?.specifier, 'deepgramAgent', 'a chat type should remain the default worker specifier')
+equal(defaultOptions?.providerID, 'deepgram', 'a provider ID should remain unchanged without an endpoint override')
 defaultService.close()
+
+let legacyError = ''
+try {
+  new ChatService({ config: { type: 'openAIRealtime' } as unknown as ChatConfig })
+} catch (error) {
+  legacyError = String(error)
+}
+equal(legacyError.includes('migrate ChatConfig.type to xiaozhi'), true, 'legacy chat config should require migration')
 
 const xiaozhiService = new ChatService({ config: { type: 'xiaozhi' } })
 equal(ChatAudioIOAny.lastOptions?.specifier, 'stackchanXiaozhi', 'XiaoZhi should select its worker specifier')

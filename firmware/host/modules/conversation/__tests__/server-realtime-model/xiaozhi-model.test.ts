@@ -13,6 +13,13 @@ const localEndpoint = parseWebSocketEndpoint(
 equal(localEndpoint.secure, false, 'a LAN websocket endpoint should use cleartext')
 equal(localEndpoint.host, '192.168.7.140', 'endpoint host should be parsed')
 equal(localEndpoint.port, 8787, 'endpoint port should be parsed')
+let userInfoError = ''
+try {
+  parseWebSocketEndpoint('wss://user@relay.example.test/device/v1/realtime')
+} catch (error) {
+  userInfoError = String(error)
+}
+equal(userInfoError.includes('must use ws:// or wss://'), true, 'endpoint authority should reject userinfo')
 
 const connection = {
   barrier: new Int32Array(new SharedArrayBuffer(4 * Int32Array.BYTES_PER_ELEMENT)),
@@ -23,6 +30,12 @@ const rejected = new XiaozhiModel({ inputSampleRate: 16000, outputSampleRate: 24
 rejected.configure({ providerID: 'https://relay.example.test/device/v1/realtime' })
 rejected.connect(connection)
 equal(postedMessages[0]?.string, 'ChatService endpoint must use ws:// or wss://')
+postedMessages.length = 0
+rejected.configure({
+  providerID: 'wss://relay.example.test/device/v1/realtime?device_id=core-s3%0d%0aX-Test%3Ayes&client_id=client-1',
+})
+rejected.connect(connection)
+equal(postedMessages[0]?.string, 'XiaoZhi device identity contains invalid header characters')
 postedMessages.length = 0
 rejected.configure({
   providerID: 'ws://relay.example.test/device/v1/realtime?device_id=core-s3&client_id=client-1',
@@ -65,24 +78,35 @@ model.hello({
   session_id: 'session-1',
   audio_params: { format: 'opus', sample_rate: 24000, channels: 1, frame_duration: 20 },
 })
-equal(OpusEncoder.instances.length, 1, 'server hello should create one encoder')
 equal(OpusDecoder.instances.length, 1, 'server hello should create one decoder')
 equal(OpusDecoder.instances[0]?.sampleRate, 24000, 'decoder should use the negotiated sample rate')
 equal(OpusDecoder.instances[0]?.frameDuration, 20, 'decoder should use the negotiated frame duration')
+equal(OpusEncoder.instances.length, 1, 'server hello should create one encoder')
 equal(postedMessages[0]?.id, 'configureAudio', 'AudioOut should receive the negotiated sample rate')
 equal(postedMessages[1]?.id, 'connected', 'a valid server hello should connect the chat')
 equal(sentJSON[1]?.type, 'listen', 'a valid server hello should start listening')
 equal(sentJSON[1]?.mode, 'auto', 'server VAD should use XiaoZhi auto listening mode')
 
-const input = new Uint8Array(connection.inputBuffer)
-input.set([1, 2, 3, 4, 5], 0)
-input.set([6, 7, 8, 9, 10, 11, 12], 20)
-model.sendAudio({ offset: 0, size: 5 })
+const stereo = new Int16Array(connection.inputBuffer)
+stereo.set([1, 101, 2, 102, 3, 103, 4, 104], 0)
+stereo.set([5, 105, 6, 106], 20)
+model.sendAudio({ offset: 0, size: 16 })
 equal(sentBinary.length, 0, 'partial PCM should wait for a complete 60 ms frame')
-model.sendAudio({ offset: 20, size: 7 })
-equal(OpusEncoder.instances[0]?.inputs.length, 1, 'one complete PCM frame should be encoded once')
+model.sendAudio({ offset: 40, size: 8 })
+equal(OpusEncoder.instances[0]?.inputs.length, 1, 'one complete PCM frame should be queued once')
+equal(
+  new Int16Array(OpusEncoder.instances[0].inputs[0].buffer)[5],
+  6,
+  'CoreS3 stereo input should use its left channel',
+)
+equal(sentBinary.length, 0, 'queued PCM should not block on Opus encoding')
+model.flushEncodedAudio()
 equal(sentBinary.length, 1, 'one Opus packet should be one binary WebSocket message')
 equal(sentBinary[0]?.data.byteLength, 3, 'only the encoded packet bytes should be sent')
+OpusEncoder.instances[0].packets.push(Uint8Array.of(1), Uint8Array.of(2))
+model.flushEncodedAudio()
+equal(sentBinary.length, 2, 'one timer tick should send at most one queued packet')
+equal(OpusEncoder.instances[0].packets.length, 1, 'remaining Opus packets should wait for another tick')
 
 const opusPacket = Uint8Array.of(0x6b, 0x43, 0x06, 0x9b)
 model.read(opusPacket.slice(0, 2).buffer, { binary: true, more: true })
@@ -123,6 +147,8 @@ equal(sentJSON.length, listenCount + 1, 'playback drain should start the next mi
 equal(sentJSON[sentJSON.length - 1]?.session_id, 'session-1', 'events should retain the negotiated session')
 
 model.close()
+equal(model.silence, undefined, 'closing should release the silence buffer')
+equal(model.outputSampleRate, 0, 'closing should clear the negotiated output sample rate')
 model.connect(connection)
 model.hello({
   type: 'hello',
@@ -131,10 +157,10 @@ model.hello({
   session_id: 'session-2',
   audio_params: { format: 'opus', sample_rate: 24000, channels: 1, frame_duration: 20 },
 })
-equal(OpusEncoder.instances.length, 2, 'reconnecting should create a fresh encoder')
 const reconnectedBinaryCount = sentBinary.length
-model.sendAudio({ offset: 0, size: 12 })
-equal(OpusEncoder.instances[1]?.inputs.length, 1, 'reconnected audio should be encoded')
+model.sendAudio({ offset: 0, size: 24 })
+equal(OpusEncoder.instances[1]?.inputs.length, 1, 'reconnected audio should be queued')
+model.flushEncodedAudio()
 equal(sentBinary.length, reconnectedBinaryCount + 1, 'reconnected audio should reach the WebSocket')
 postedMessages.length = 0
 model.read(new Uint8Array(1000).buffer, { binary: true, more: true })

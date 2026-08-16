@@ -15,7 +15,15 @@ export default class extends Native('xs_esp32_opus_encoder_destructor') {
     native('xs_esp32_opus_encoder_close').call(this)
   }
 
-  encode(input, output) {
-    return native('xs_esp32_opus_encode').call(this, input, output)
+  enqueue(input) {
+    return native('xs_esp32_opus_encoder_enqueue').call(this, input)
+  }
+
+  read(output) {
+    return native('xs_esp32_opus_encoder_read').call(this, output)
+  }
+
+  clear() {
+    native('xs_esp32_opus_encoder_clear').call(this)
   }
 }

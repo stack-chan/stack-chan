@@ -148,7 +148,7 @@
         },
         {
           "name": "esp_audio_codec",
-          "version": "^2.6.0",
+          "version": "~2.5.0",
           "includes": [
             "include/decoder",
             "include/decoder/impl",

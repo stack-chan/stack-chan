@@ -6,6 +6,7 @@ import {
   type ChatState as ChatStateValue,
   type ChatTranscriptSnapshot,
 } from 'chat-state'
+import config from 'mc/config'
 
 export { ChatState, type ChatStateName, ChatStateNames, chatStateToName, MAX_TRANSCRIPT_CHARS } from 'chat-state'
 
@@ -152,10 +153,13 @@ export class ChatService {
       .map((tool) => toFunctionSchema(tool))
       .filter((schema): schema is ChatFunctionSchema => schema != null)
 
-    const { config } = options
-    const type = String(config.type)
+    const chatConfig = options.config
+    const type = String(chatConfig.type)
     if (type === 'openAIRealtime') {
       throw new Error('openAIRealtime is no longer supported; migrate ChatConfig.type to xiaozhi')
+    }
+    if (type === 'xiaozhi' && config.xiaozhiAvailable !== true) {
+      throw new Error('xiaozhi is unavailable on this target')
     }
     const ChatAudioIOCtor =
       options.chatAudioIOCtor ??
@@ -164,14 +168,14 @@ export class ChatService {
       })
     const chatAudioIOConstants = ChatAudioIOCtor as unknown as ChatAudioIOStateConstants
     this.#chat = new ChatAudioIOCtor({
-      specifier: config.specifier ?? (type === 'xiaozhi' ? 'stackchanXiaozhi' : type),
-      instructions: config.instructions,
-      voiceID: config.voiceID,
+      specifier: chatConfig.specifier ?? (type === 'xiaozhi' ? 'stackchanXiaozhi' : type),
+      instructions: chatConfig.instructions,
+      voiceID: chatConfig.voiceID,
       // ChatAudioIO has no endpoint slot. Only an explicit server endpoint is
       // routed through providerID; ordinary workers keep their provider ID.
-      providerID: config.endpoint ?? config.providerID,
-      modelID: config.modelID,
-      apiKey: config.apiKey,
+      providerID: chatConfig.endpoint ?? chatConfig.providerID,
+      modelID: chatConfig.modelID,
+      apiKey: chatConfig.apiKey,
       functions: functions.length > 0 ? functions : undefined,
       onStateChanged: (state: number) => {
         this.#state = mapState(state, chatAudioIOConstants)

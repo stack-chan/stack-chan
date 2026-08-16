@@ -4,6 +4,7 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "../../util/manifest.json",
     "../../audio/manifest.json",
+    "../../conversation/manifest.json",
     "../../connectivity/__tests__/network-service/manifest.json",
     "../../../app/manifest_typings.json",
     "../../testing/manifest.json"

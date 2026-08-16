@@ -2,5 +2,8 @@
   "include": ["../../manifest.json", "../../../testing/manifest.json"],
   "modules": {
     "main": "./chat-service.test"
+  },
+  "config": {
+    "xiaozhiAvailable": true
   }
 }

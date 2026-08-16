@@ -1,6 +1,7 @@
 // Consolidated constructor smokes: each module only needs to prove it loads
 // and constructs in XS, so they share one manifest instead of paying a full
 // mcconfig build per module.
+import { type ChatConfig, ChatService } from 'chat'
 import config from 'mc/config'
 import { NetworkService } from 'network-service'
 import STT from 'stt-whisper'
@@ -16,6 +17,13 @@ trace('=== module smoke test ===\n')
 
 const token = (config.token as string) ?? 'test-token'
 const host = (config.host as string) ?? '127.0.0.1'
+let xiaozhiError = ''
+try {
+  new ChatService({ config: { type: 'xiaozhi' } as ChatConfig })
+} catch (error) {
+  xiaozhiError = String(error)
+}
+equal(xiaozhiError.includes('unavailable on this target'), true, 'unsupported targets should reject XiaoZhi')
 const onPlayed = (num: number) => {
   trace(`played ${num}\n`)
 }

@@ -451,6 +451,21 @@ test('subplatforms that define camera pins are gated into the camera and convers
   }
 })
 
+test('XiaoZhi is enabled only for targets with its complete module graph', () => {
+  const conversationManifest = readJson(join(MODULE_ROOT, 'conversation', 'manifest.json'))
+  const audioManifest = readJson(join(MODULE_ROOT, 'audio', 'manifest.json'))
+  for (const [target, entry] of Object.entries(conversationManifest.platforms ?? {})) {
+    const serverIncluded = entry.include?.includes('./chat-audioio/server.manifest.json') ?? false
+    const enabled = entry.config?.xiaozhiAvailable === true
+    assert.equal(enabled, serverIncluded, `${target} XiaoZhi capability and server modules should agree`)
+    if (!enabled) continue
+
+    const audioModules = audioManifest.platforms?.[target]?.modules
+    assert.ok(audioModules?.stackchanOpusDecoder, `${target} XiaoZhi requires an Opus decoder`)
+    assert.ok(audioModules?.stackchanOpusEncoder, `${target} XiaoZhi requires an Opus encoder`)
+  }
+})
+
 test('sample MOD sources import only public or sample-local modules', () => {
   const offenders = walkFiles(join('mods', 'examples'))
     .filter(isSourceFile)

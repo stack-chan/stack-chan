@@ -77,8 +77,9 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
             break
         }
       },
-      onError: () => {
-        this.postMessage({ id: 'failed', string: 'network error' })
+      onError: (error) => {
+        const detail = error?.message ?? error
+        this.postMessage({ id: 'failed', string: detail ? `network error: ${detail}` : 'network error' })
         this.close()
       },
       onReadable: (count, options) => {

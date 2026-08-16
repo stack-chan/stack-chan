@@ -23,6 +23,7 @@ export default class ChatAudioIO extends ChatAudioIOBase {
       },
       stack: 1024,
       nativeStack: 40 * 1024,
+      priority: 4,
     })
     let audioInFlight = false
     this.worker = {

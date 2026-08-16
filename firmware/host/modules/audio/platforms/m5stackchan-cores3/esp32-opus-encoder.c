@@ -17,7 +17,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
-#define OPUS_ENCODER_STACK_BYTES (32 * 1024)
+#define OPUS_ENCODER_STACK_BYTES (24 * 1024)
 #define OPUS_MAX_INPUT_BYTES 1920
 #define OPUS_MAX_PACKET_BYTES 1275
 #define OPUS_QUEUE_DEPTH 2
@@ -153,7 +153,7 @@ void xs_esp32_opus_encoder_constructor(xsMachine *the)
 	if (!encoder->inputQueue || !encoder->outputQueue || !encoder->stopped)
 		goto failed;
 	if (pdPASS != xTaskCreate(opusEncoderTask, "opus-encoder", OPUS_ENCODER_STACK_BYTES, encoder,
-		tskIDLE_PRIORITY + 2, &encoder->task))
+		tskIDLE_PRIORITY + 5, &encoder->task))
 		goto failed;
 	internalAfter = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 	psramAfter = heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);

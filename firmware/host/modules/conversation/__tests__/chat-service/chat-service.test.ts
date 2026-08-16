@@ -1,5 +1,7 @@
 import ChatAudioIO from 'testing/fakes/ChatAudioIO'
+
 type ChatAudioIOBase = InstanceType<typeof ChatAudioIO>
+
 import {
   type ChatConfig,
   ChatService,

@@ -24,12 +24,14 @@
 
 typedef struct {
 	uint32_t bytes;
+	uint32_t generation;
 	uint8_t data[OPUS_MAX_INPUT_BYTES];
 } xsESP32OpusPCMFrame;
 
 typedef struct {
 	esp_audio_err_t result;
 	uint32_t bytes;
+	uint32_t generation;
 	int64_t elapsed;
 	uint8_t data[OPUS_MAX_PACKET_BYTES];
 } xsESP32OpusPacket;
@@ -38,6 +40,7 @@ typedef struct {
 	void *handle;
 	uint32_t inputBytes;
 	uint32_t outputBytes;
+	uint32_t generation;
 	QueueHandle_t inputQueue;
 	QueueHandle_t outputQueue;
 	SemaphoreHandle_t stopped;
@@ -75,7 +78,9 @@ static void opusEncoderTask(void *parameter)
 		output.result = esp_opus_enc_process(encoder->handle, &inFrame, &outFrame);
 		output.elapsed = esp_timer_get_time() - startedAt;
 		output.bytes = outFrame.encoded_bytes;
-		queueLatest(encoder->outputQueue, &output, &discard);
+		output.generation = input.generation;
+		if (output.generation == __atomic_load_n(&encoder->generation, __ATOMIC_SEQ_CST))
+			queueLatest(encoder->outputQueue, &output, &discard);
 	}
 	xSemaphoreGive(encoder->stopped);
 	vTaskDelete(NULL);
@@ -191,6 +196,7 @@ void xs_esp32_opus_encoder_enqueue(xsMachine *the)
 	if (inputBytes != encoder->inputBytes)
 		xsRangeError("invalid Opus PCM frame size");
 	frame.bytes = inputBytes;
+	frame.generation = __atomic_load_n(&encoder->generation, __ATOMIC_SEQ_CST);
 	c_memcpy(frame.data, input, inputBytes);
 	queued = xQueueSend(encoder->inputQueue, &frame, 0);
 	if (pdTRUE != queued) {
@@ -212,10 +218,12 @@ void xs_esp32_opus_encoder_read(xsMachine *the)
 	xsmcGetBufferWritable(xsArg(0), (void **)&output, &outputBytes);
 	if (outputBytes < encoder->outputBytes)
 		xsRangeError("Opus output buffer too small");
-	if (pdTRUE != xQueueReceive(encoder->outputQueue, &packet, 0)) {
-		xsmcSetInteger(xsResult, 0);
-		return;
-	}
+	do {
+		if (pdTRUE != xQueueReceive(encoder->outputQueue, &packet, 0)) {
+			xsmcSetInteger(xsResult, 0);
+			return;
+		}
+	} while (packet.generation != __atomic_load_n(&encoder->generation, __ATOMIC_SEQ_CST));
 	if (ESP_AUDIO_ERR_OK != packet.result)
 		xsUnknownError("ESP Opus encode failed");
 	if (!packet.bytes || (packet.bytes > outputBytes) || (packet.bytes > OPUS_MAX_PACKET_BYTES))
@@ -231,6 +239,7 @@ void xs_esp32_opus_encoder_clear(xsMachine *the)
 	xsESP32OpusEncoderRecord *encoder = xsmcGetHostData(xsThis);
 	if (!encoder)
 		return;
+	__atomic_add_fetch(&encoder->generation, 1, __ATOMIC_SEQ_CST);
 	xQueueReset(encoder->inputQueue);
 	xQueueReset(encoder->outputQueue);
 }

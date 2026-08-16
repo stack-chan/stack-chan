@@ -35,11 +35,17 @@ self.onmessage = (message) => {
     new Uint8Array(input).set(new Uint8Array(message.pcm))
     const encoded = new SharedArrayBuffer(encoder.outputBytes)
     encoder.enqueue(input)
-    let attempts = 0
+    encoder.clear()
+    let attempts = -20
     const timer = Timer.repeat(() => {
       let finished = false
       try {
         const encodedBytes = encoder.read(encoded)
+        if (attempts < 0) {
+          if (encodedBytes) throw new Error('Opus encoder returned a packet after clear')
+          if (++attempts === 0) encoder.enqueue(input)
+          return
+        }
         if (!encodedBytes) {
           if (++attempts < 200) return
           throw new Error('Opus encoder timed out')

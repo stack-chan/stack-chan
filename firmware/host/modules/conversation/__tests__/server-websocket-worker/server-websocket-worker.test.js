@@ -1,5 +1,5 @@
-import ServerChatWebSocketWorker from 'stackchanServerChatWebSocketWorker'
 import { postedMessages } from 'ChatWorker'
+import ServerChatWebSocketWorker from 'stackchanServerChatWebSocketWorker'
 import { equal } from 'testing/assert'
 import Timer from 'timer'
 

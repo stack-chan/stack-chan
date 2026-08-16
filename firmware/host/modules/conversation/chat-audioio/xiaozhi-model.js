@@ -192,14 +192,14 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   }
 
   sendAudio(message) {
-    if (!this.uploading || !this.encoder) return
-    const source = new Int16Array(this.inputBuffer, message.offset, message.size >> 1)
-    const frame = new Int16Array(this.encoderPCM)
-    let offset = 0
     try {
+      if (!this.uploading || !this.encoder) return
+      const source = new Int16Array(this.inputBuffer, message.offset, message.size >> 1)
+      const frame = new Int16Array(this.encoderPCM)
+      let offset = 0
       while (offset < source.length) {
         frame[this.encoderFill++] = source[offset]
-        offset += 2
+        offset += 1
         if (this.encoderFill !== frame.length) continue
 
         this.encoder.enqueue(this.encoderPCM)
@@ -207,6 +207,8 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       }
     } catch (error) {
       this.fail(String(error?.message ?? error))
+    } finally {
+      this.postMessage({ id: 'audioConsumed' })
     }
   }
 

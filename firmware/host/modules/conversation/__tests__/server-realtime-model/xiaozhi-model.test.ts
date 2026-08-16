@@ -87,17 +87,18 @@ equal(postedMessages[1]?.id, 'connected', 'a valid server hello should connect t
 equal(sentJSON[1]?.type, 'listen', 'a valid server hello should start listening')
 equal(sentJSON[1]?.mode, 'auto', 'server VAD should use XiaoZhi auto listening mode')
 
-const stereo = new Int16Array(connection.inputBuffer)
-stereo.set([1, 101, 2, 102, 3, 103, 4, 104], 0)
-stereo.set([5, 105, 6, 106], 20)
-model.sendAudio({ offset: 0, size: 16 })
+const mono = new Int16Array(connection.inputBuffer)
+mono.set([1, 2, 3, 4], 0)
+mono.set([5, 6], 20)
+model.sendAudio({ offset: 0, size: 8 })
 equal(sentBinary.length, 0, 'partial PCM should wait for a complete 60 ms frame')
-model.sendAudio({ offset: 40, size: 8 })
+equal(postedMessages[postedMessages.length - 1]?.id, 'audioConsumed', 'PCM consumption should be acknowledged')
+model.sendAudio({ offset: 40, size: 4 })
 equal(OpusEncoder.instances[0]?.inputs.length, 1, 'one complete PCM frame should be queued once')
 equal(
   new Int16Array(OpusEncoder.instances[0].inputs[0].buffer)[5],
   6,
-  'CoreS3 stereo input should use its left channel',
+  'CoreS3 mono input should retain every sample',
 )
 equal(sentBinary.length, 0, 'queued PCM should not block on Opus encoding')
 model.flushEncodedAudio()
@@ -158,7 +159,7 @@ model.hello({
   audio_params: { format: 'opus', sample_rate: 24000, channels: 1, frame_duration: 20 },
 })
 const reconnectedBinaryCount = sentBinary.length
-model.sendAudio({ offset: 0, size: 24 })
+model.sendAudio({ offset: 0, size: 12 })
 equal(OpusEncoder.instances[1]?.inputs.length, 1, 'reconnected audio should be queued')
 model.flushEncodedAudio()
 equal(sentBinary.length, reconnectedBinaryCount + 1, 'reconnected audio should reach the WebSocket')

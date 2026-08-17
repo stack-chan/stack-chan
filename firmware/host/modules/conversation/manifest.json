@@ -18,7 +18,7 @@
     },
     "esp32/m5stackchan_cores3": {
       "config": {
-        "xiaozhiAvailable": true
+        "xiaozhiV1Available": true
       },
       "include": [
         "$(MODULES)/network/services/chatAudioIO/manifest.json",

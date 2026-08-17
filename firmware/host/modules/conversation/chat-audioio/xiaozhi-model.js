@@ -8,14 +8,21 @@
 import OpusDecoder from 'stackchanOpusDecoder'
 import OpusEncoder from 'stackchanOpusEncoder'
 import ServerChatWebSocketWorker from 'stackchanServerChatWebSocketWorker'
+import {
+  parseJsonRpcMessage,
+  parseXiaozhiV1ClientEvent,
+  parseXiaozhiV1ServerEvent,
+  sanitizeXiaozhiV1HelloExtension,
+} from 'xiaozhiV1Contract'
 import Timer from 'timer'
 
 const INPUT_SAMPLE_RATE = 16000
 const INPUT_FRAME_DURATION = 60
 const OPUS_MAX_PACKET_BYTES = 1275
+const MCP_PROTOCOL_VERSION = '2024-11-05'
 const headerIdentity = /^[\x21-\x7e]{1,200}$/
+const bearerTokenValue = /^[\x21-\x7e]{1,4096}$/
 const binary = Object.freeze({ binary: true })
-const eventHandlers = Object.freeze({ alert: true, hello: true, stt: true, tts: true })
 
 export default class XiaozhiModel extends ServerChatWebSocketWorker {
   constructor(options) {
@@ -31,9 +38,15 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.encoderPacket = undefined
     this.encoderTimer = undefined
     this.encoderFill = 0
-    this.eventHandlers = eventHandlers
     this.sessionID = ''
     this.uploading = false
+    this.listeningMode = 'auto'
+    this.features = {}
+    this.helloExtension = {}
+    this.functions = []
+    this.functionByName = Object.create(null)
+    this.pendingMcpCalls = Object.create(null)
+    this.mcpServerInfo = { name: 'stack-chan', version: 'unknown' }
     this.resetDecodeStats()
     this.resetEncodeStats()
   }
@@ -42,13 +55,17 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.closeCodecs()
     this.configurationError = ''
     try {
-      const endpoint = parseWebSocketEndpoint(message.providerID)
-      const apiKey = String(message.apiKey ?? '')
-      const deviceID = queryParameter(endpoint.path, 'device_id')
-      const clientID = queryParameter(endpoint.path, 'client_id')
-      if (!deviceID || !clientID) throw new Error('XiaoZhi endpoint requires device_id and client_id')
+      const configuration = normalizeConfiguration(message)
+      const endpoint = parseWebSocketEndpoint(configuration.endpoint)
+      const apiKey = String(configuration.authentication?.bearerToken ?? '')
+      const deviceID = String(configuration.identity?.deviceId ?? '')
+      const clientID = String(configuration.identity?.clientId ?? '')
+      if (!deviceID || !clientID) throw new Error('XiaoZhi connection requires deviceId and clientId')
       if (!headerIdentity.test(deviceID) || !headerIdentity.test(clientID)) {
         throw new Error('XiaoZhi device identity contains invalid header characters')
+      }
+      if (apiKey && !bearerTokenValue.test(apiKey)) {
+        throw new Error('XiaoZhi Bearer token contains invalid header characters')
       }
       if (!endpoint.secure && hasEmbeddedCredentials(endpoint.path)) {
         throw new Error('ChatService credentials must not be embedded in a ws:// endpoint')
@@ -56,6 +73,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       if (!endpoint.secure && apiKey && !isTrustedLocalHost(endpoint.host)) {
         throw new Error('ChatService Bearer authentication over ws:// is restricted to trusted local networks')
       }
+
       this.secure = endpoint.secure
       this.host = endpoint.host
       this.port = endpoint.port
@@ -66,7 +84,23 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
         ['Client-Id', clientID],
       ]
       if (apiKey) this.headers.unshift(['Authorization', `Bearer ${apiKey}`])
-      this.agentID = String(message.modelID ?? '')
+
+      this.helloExtension = sanitizeXiaozhiV1HelloExtension(configuration.helloExtension)
+      this.listeningMode = normalizeListeningMode(configuration.listeningMode)
+      this.functions = Array.isArray(message.functions) ? message.functions : []
+      this.functionByName = Object.create(null)
+      for (const tool of this.functions) {
+        if (tool && typeof tool.name === 'string' && tool.name) this.functionByName[tool.name] = tool
+      }
+      this.features = {
+        mcp: configuration.features?.mcp === true || this.functions.length > 0,
+        aec: configuration.features?.aec === true,
+      }
+      // Dynamic glyph rendering is not yet connected to the UI. Never advertise it.
+      this.mcpServerInfo = {
+        name: String(configuration.mcp?.serverInfo?.name ?? 'stack-chan'),
+        version: String(configuration.mcp?.serverInfo?.version ?? 'unknown'),
+      }
     } catch (error) {
       this.closeCodecs()
       this.configurationError = String(error?.message ?? error)
@@ -81,9 +115,20 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     super.connect(message)
   }
 
+  disconnect() {
+    this.uploading = false
+    this.encoder?.clear()
+    this.encoderFill = 0
+    super.disconnect()
+  }
+
   close() {
-    this.closeCodecs()
-    super.close()
+    try {
+      super.close()
+    } finally {
+      // Native codec resources must be released even if transport cleanup fails.
+      this.closeCodecs()
+    }
   }
 
   closeCodecs() {
@@ -102,14 +147,19 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.outputSampleRate = 0
     this.sessionID = ''
     this.uploading = false
+    this.pendingMcpCalls = Object.create(null)
   }
 
   onOpen() {
-    this.sendJSON({
+    const features = {}
+    if (this.features.mcp) features.mcp = true
+    if (this.features.aec) features.aec = true
+    this.sendProtocolEvent({
       type: 'hello',
       version: 1,
       transport: 'websocket',
-      ...(this.agentID ? { agent_id: this.agentID } : {}),
+      ...this.helloExtension,
+      ...(Object.keys(features).length ? { features } : {}),
       audio_params: {
         format: 'opus',
         sample_rate: INPUT_SAMPLE_RATE,
@@ -119,6 +169,39 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     })
   }
 
+  onJSON(json) {
+    try {
+      const parsed = parseXiaozhiV1ServerEvent(json)
+      if (!parsed.known) {
+        this.postPresentation({ id: 'receiveUnknownEvent', event: parsed.event })
+        return
+      }
+      const event = parsed.event
+      if (
+        event.type !== 'hello' &&
+        this.sessionID &&
+        event.session_id !== undefined &&
+        event.session_id !== this.sessionID
+      ) {
+        this.postProtocolWarning('ignored XiaoZhi event with a mismatched session_id', event)
+        return
+      }
+      const handler = this[event.type]
+      if (typeof handler !== 'function') {
+        this.postProtocolWarning(`unimplemented XiaoZhi event: ${event.type}`, event)
+        return
+      }
+      handler.call(this, event)
+    } catch (error) {
+      const message = String(error?.message ?? error)
+      if (json?.type === 'hello') {
+        this.fail(`invalid XiaoZhi server hello: ${message}`)
+        return
+      }
+      this.postProtocolWarning(message, isRecord(json) ? json : undefined)
+    }
+  }
+
   hello(message) {
     const params = message.audio_params ?? {
       format: 'opus',
@@ -126,23 +209,14 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       channels: 1,
       frame_duration: 60,
     }
-    const sampleRate = params?.sample_rate
-    const frameDuration = params?.frame_duration
-    if (
-      (message.version !== undefined && message.version !== 1) ||
-      message.transport !== 'websocket' ||
-      (message.session_id !== undefined &&
-        (typeof message.session_id !== 'string' || message.session_id.length > 200)) ||
-      params?.format !== 'opus' ||
-      params?.channels !== 1 ||
-      ![8000, 12000, 16000, 24000, 48000].includes(sampleRate) ||
-      ![10, 20, 40, 60].includes(frameDuration)
-    ) {
-      this.fail('invalid XiaoZhi server hello')
-      return
-    }
+    const sampleRate = params.sample_rate
+    const frameDuration = params.frame_duration
 
     try {
+      if (this.encoderTimer !== undefined) {
+        Timer.clear(this.encoderTimer)
+        this.encoderTimer = undefined
+      }
       this.decoder?.close()
       this.decoder = new OpusDecoder(sampleRate, frameDuration)
       this.decoderPCM = new SharedArrayBuffer(this.decoder.outputBytes)
@@ -154,8 +228,11 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       this.silence = new ArrayBuffer(this.decoder.outputBytes)
       this.outputSampleRate = sampleRate
       this.sessionID = message.session_id ?? ''
+      this.decoderPacket = undefined
+      this.pendingMcpCalls = Object.create(null)
       this.encoderFill = 0
       this.resetEncodeStats()
+      this.resetDecodeStats()
       this.uploading = true
       this.postMessage({
         id: 'configureAudio',
@@ -169,26 +246,57 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
         `[opus] encoder heap internal=${this.encoder.internalHeapBytes ?? 0}B psram=${this.encoder.psramHeapBytes ?? 0}B\n`,
       )
       this.post('connected')
-      this.startListening()
+      this.startListening({ mode: this.listeningMode })
     } catch (error) {
       this.fail(String(error?.message ?? error))
     }
   }
 
-  startListening() {
-    this.sendJSON({
-      ...(this.sessionID ? { session_id: this.sessionID } : {}),
-      type: 'listen',
-      state: 'start',
-      mode: 'auto',
-    })
+  startListening(message = {}) {
+    if (!this.encoder) {
+      this.postProtocolWarning('cannot start listening before XiaoZhi hello')
+      return
+    }
+    const mode = normalizeListeningMode(message.mode ?? this.listeningMode)
+    this.listeningMode = mode
+    this.encoder.clear()
+    this.encoderFill = 0
+    this.uploading = true
+    this.sendProtocolEvent(this.withSession({ type: 'listen', state: 'start', mode }))
+  }
+
+  stopListening() {
+    this.uploading = false
+    this.encoder?.clear()
+    this.encoderFill = 0
+    this.sendProtocolEvent(this.withSession({ type: 'listen', state: 'stop' }))
+  }
+
+  detectWakeWord(message = {}) {
+    this.sendProtocolEvent(
+      this.withSession({
+        type: 'listen',
+        state: 'detect',
+        ...(typeof message.text === 'string' && message.text ? { text: message.text } : {}),
+      }),
+    )
+  }
+
+  abort(message = {}) {
+    this.uploading = false
+    this.encoder?.clear()
+    this.encoderFill = 0
+    this.decoderPacket = undefined
+    this.sendProtocolEvent(
+      this.withSession({
+        type: 'abort',
+        ...(typeof message.reason === 'string' && message.reason ? { reason: message.reason } : {}),
+      }),
+    )
   }
 
   listened() {
-    this.encoder?.clear()
-    this.encoderFill = 0
-    this.uploading = true
-    this.startListening()
+    this.startListening({ mode: this.listeningMode })
   }
 
   sendAudio(message) {
@@ -201,7 +309,6 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
         frame[this.encoderFill++] = source[offset]
         offset += 1
         if (this.encoderFill !== frame.length) continue
-
         this.encoder.enqueue(this.encoderPCM)
         this.encoderFill = 0
       }
@@ -236,6 +343,8 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       this.fail('received Opus audio before XiaoZhi hello')
       return
     }
+    // Protocol v1 devices do not play downlink audio while their microphone turn is active.
+    if (this.uploading) return
 
     let packet = new Uint8Array(data)
     if (this.decoderPacket || options.more) {
@@ -286,7 +395,25 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   }
 
   stt(message) {
-    if (typeof message.text === 'string') this.postPresentation({ id: 'receiveInputText', text: message.text })
+    if (message.glyph_push) {
+      this.postPresentation({
+        id: 'receiveGlyphPush',
+        source: 'stt',
+        text: message.text,
+        payload: message.glyph_push,
+      })
+    }
+    this.postPresentation({ id: 'receiveInputText', text: message.text })
+  }
+
+  llm(message) {
+    if (message.emotion || message.text) {
+      this.postPresentation({
+        id: 'receiveEmotion',
+        emotion: message.emotion ?? '',
+        text: message.text,
+      })
+    }
   }
 
   tts(message) {
@@ -309,9 +436,15 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
         this.post('listen')
         break
       case 'sentence_start':
-        if (typeof message.text === 'string') {
-          this.postPresentation({ id: 'receiveOutputText', text: message.text, more: true })
+        if (message.glyph_push) {
+          this.postPresentation({
+            id: 'receiveGlyphPush',
+            source: 'tts',
+            text: message.text,
+            payload: message.glyph_push,
+          })
         }
+        this.postPresentation({ id: 'receiveOutputText', text: message.text, more: true })
         break
       case 'stop':
         if (!this.decoder) {
@@ -334,19 +467,171 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     }
   }
 
+  mcp(message) {
+    let payload
+    try {
+      payload = parseJsonRpcMessage(message.payload)
+    } catch (error) {
+      this.postProtocolWarning(String(error?.message ?? error), message)
+      return
+    }
+
+    if (typeof payload.method !== 'string') {
+      this.postPresentation({ id: 'receiveMcpResponse', payload })
+      return
+    }
+
+    if (payload.id === undefined) {
+      this.postPresentation({ id: 'receiveMcpNotification', payload })
+      return
+    }
+
+    switch (payload.method) {
+      case 'initialize':
+        this.sendMcpResult(payload.id, {
+          protocolVersion: MCP_PROTOCOL_VERSION,
+          capabilities: { tools: {} },
+          serverInfo: this.mcpServerInfo,
+        })
+        break
+      case 'tools/list':
+        this.sendMcpResult(payload.id, {
+          tools: this.functions.map((tool) => ({
+            name: tool.name,
+            ...(tool.description ? { description: tool.description } : {}),
+            inputSchema: tool.parameters ?? { type: 'object', properties: {} },
+          })),
+          nextCursor: '',
+        })
+        break
+      case 'tools/call':
+        this.handleMcpToolCall(payload)
+        break
+      default:
+        this.sendMcpError(payload.id, -32601, `Unknown MCP method: ${payload.method}`)
+        break
+    }
+  }
+
+  handleMcpToolCall(payload) {
+    const params = payload.params
+    if (!isRecord(params) || typeof params.name !== 'string') {
+      this.sendMcpError(payload.id, -32602, 'tools/call requires params.name')
+      return
+    }
+    const tool = this.functionByName[params.name]
+    if (!tool) {
+      this.sendMcpError(payload.id, -32601, `Unknown tool: ${params.name}`)
+      return
+    }
+    const args = params.arguments ?? {}
+    if (!isRecord(args)) {
+      this.sendMcpError(payload.id, -32602, 'tools/call params.arguments must be an object')
+      return
+    }
+    const call = `mcp:${typeof payload.id}:${String(payload.id)}`
+    this.pendingMcpCalls[call] = { id: payload.id, name: params.name }
+    this.postMessage({
+      id: 'receiveFunctionCall',
+      call,
+      name: params.name,
+      parameters: args,
+    })
+  }
+
+  sendFunctionResult(message) {
+    const pending = this.pendingMcpCalls[message.call]
+    if (!pending) {
+      this.postProtocolWarning(`unknown MCP tool call result: ${String(message.call)}`)
+      return
+    }
+    delete this.pendingMcpCalls[message.call]
+    this.sendMcpResult(pending.id, normalizeToolResult(message.result))
+  }
+
+  sendMcpMessage(message) {
+    try {
+      const payload = parseJsonRpcMessage(message.payload)
+      this.sendProtocolEvent(this.withSession({ type: 'mcp', payload }))
+    } catch (error) {
+      this.postProtocolWarning(String(error?.message ?? error))
+    }
+  }
+
+  sendMcpResult(id, result) {
+    this.sendProtocolEvent(
+      this.withSession({
+        type: 'mcp',
+        payload: { jsonrpc: '2.0', id, result },
+      }),
+    )
+  }
+
+  sendMcpError(id, code, message, data) {
+    this.sendProtocolEvent(
+      this.withSession({
+        type: 'mcp',
+        payload: {
+          jsonrpc: '2.0',
+          id,
+          error: { code, message, ...(data === undefined ? {} : { data }) },
+        },
+      }),
+    )
+  }
+
+  system(message) {
+    this.postPresentation({
+      id: 'receiveSystemCommand',
+      command: message.command,
+      event: message,
+    })
+  }
+
   alert(message) {
-    this.fail(message.message ?? message.text ?? 'XiaoZhi server error')
+    // Alert is a normal UI event. WebSocket close/error remains the fatal signal.
+    this.postPresentation({
+      id: 'receiveAlert',
+      status: message.status,
+      message: message.message,
+      emotion: message.emotion,
+    })
+  }
+
+  custom(message) {
+    this.postPresentation({
+      id: 'receiveCustomEvent',
+      payload: message.payload,
+      event: message,
+    })
   }
 
   sendText() {
-    this.fail('XiaoZhi v1 does not support text input')
+    this.postProtocolWarning('XiaoZhi v1 does not define text input')
+  }
+
+  withSession(event) {
+    return this.sessionID ? { session_id: this.sessionID, ...event } : event
+  }
+
+  sendProtocolEvent(event) {
+    try {
+      parseXiaozhiV1ClientEvent(event)
+      this.sendJSON(event)
+    } catch (error) {
+      this.postProtocolWarning(String(error?.message ?? error), event)
+    }
+  }
+
+  postProtocolWarning(string, event) {
+    this.postPresentation({ id: 'protocolWarning', string, event })
   }
 
   postPresentation(message) {
     try {
       this.postMessage(message)
     } catch (error) {
-      trace(`[stackchan-ai] presentation update dropped: ${error}\n`)
+      trace(`[xiaozhi-v1] presentation update dropped: ${error}\n`)
     }
   }
 
@@ -356,13 +641,33 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   }
 }
 
-function queryParameter(path, name) {
-  const match = new RegExp(`[?&]${name}=([^&#]*)`).exec(path)
-  if (!match) return ''
-  try {
-    return decodeURIComponent(match[1].replace(/\+/g, ' '))
-  } catch {
-    throw new Error(`XiaoZhi ${name} is not valid URL encoding`)
+function normalizeConfiguration(message) {
+  const configuration = message.configuration
+  if (configuration?.protocol !== 'xiaozhi-v1') {
+    throw new Error('XiaoZhi v1 requires structured connection configuration')
+  }
+  return configuration
+}
+
+function normalizeListeningMode(value) {
+  return value === 'manual' || value === 'realtime' ? value : 'auto'
+}
+
+function normalizeToolResult(result) {
+  if (isRecord(result) && Array.isArray(result.content)) return result
+  let text
+  if (typeof result === 'string') text = result
+  else {
+    try {
+      text = JSON.stringify(result)
+    } catch {
+      text = String(result)
+    }
+  }
+  if (text === undefined) text = 'null'
+  return {
+    content: [{ type: 'text', text }],
+    isError: false,
   }
 }
 
@@ -386,6 +691,10 @@ function isTrustedLocalHost(host) {
     (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
     (octets[0] === 192 && octets[1] === 168)
   )
+}
+
+function isRecord(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
 export function parseWebSocketEndpoint(value) {

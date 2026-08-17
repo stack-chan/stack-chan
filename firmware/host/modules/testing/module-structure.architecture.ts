@@ -457,8 +457,8 @@ test('XiaoZhi is enabled only for targets with its complete module graph', () =>
   for (const target of Object.keys(conversationManifest.platforms ?? {})) {
     const entry = conversationManifest.platforms[target]
     const serverIncluded = entry.include?.includes('./chat-audioio/server.manifest.json') ?? false
-    const enabled = entry.config?.xiaozhiAvailable === true
-    assert.equal(enabled, serverIncluded, `${target} XiaoZhi capability and server modules should agree`)
+    const enabled = entry.config?.xiaozhiV1Available === true
+    assert.equal(enabled, serverIncluded, `${target} XiaoZhi v1 capability and server modules should agree`)
     if (!enabled) continue
 
     const audioModules = audioManifest.platforms?.[target]?.modules

@@ -138,8 +138,13 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
   }
 
   sendAudio(message) {
-    const samples = new Uint8Array(this.inputBuffer, message.offset, message.size)
-    this.sendAudioBuffer(samples)
+    try {
+      const samples = new Uint8Array(this.inputBuffer, message.offset, message.size)
+      this.sendAudioBuffer(samples)
+    } finally {
+      // A worker-side failure must not leave the CoreS3 audio producer permanently in flight.
+      this.postMessage({ id: 'audioConsumed' })
+    }
   }
 
   sendAudioBuffer(samples) {

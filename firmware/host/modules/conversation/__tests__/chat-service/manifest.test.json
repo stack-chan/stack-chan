@@ -4,6 +4,6 @@
     "main": "./chat-service.test"
   },
   "config": {
-    "xiaozhiAvailable": true
+    "xiaozhiV1Available": true
   }
 }

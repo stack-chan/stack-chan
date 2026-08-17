@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  */
 
-import XiaozhiModel from 'stackchanXiaozhiModel'
+import XiaozhiModel from 'xiaozhiV1Model'
 
 new XiaozhiModel({
   inputSampleRate: 16000,

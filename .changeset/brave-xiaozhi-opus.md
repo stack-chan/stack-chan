@@ -2,6 +2,5 @@
 "stack-chan": major
 ---
 
-Replace the server-backed OpenAI Realtime adapter with XiaoZhi WebSocket v1 and raw Opus on M5StackChan CoreS3.
-Configurations must migrate to `chat.type: "xiaozhi"`; the previous server adapter is no longer supported.
-The transport was validated on CoreS3 hardware with uninterrupted playback and sustained bidirectional audio.
+Add a service-independent XiaoZhi WebSocket v1 connection, raw Opus transport, complete event contracts, runtime validation, MCP dispatch, alerts, system/custom events, explicit listen controls, and unknown-event forwarding on M5StackChan CoreS3.
+Keep Stack-chan AI authentication, endpoint selection, agent extensions, and service factories outside the host repository in the Stack-chan AI MOD. Preserve the existing direct OpenAI Realtime ChatConfig route.

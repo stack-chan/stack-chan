@@ -6,9 +6,10 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "main": "./xiaozhi-model.test",
+    "main": "./server-realtime-model.test",
     "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker",
-    "stackchanXiaozhiModel": "../../chat-audioio/xiaozhi-model",
+    "xiaozhiV1Contract": "../../xiaozhi-contract",
+    "xiaozhiV1Model": "../../chat-audioio/xiaozhi-model",
     "stackchanOpusDecoder": "./opus-decoder",
     "stackchanOpusEncoder": "./opus-encoder"
   },

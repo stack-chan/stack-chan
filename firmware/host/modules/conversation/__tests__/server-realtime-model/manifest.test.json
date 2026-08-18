@@ -9,7 +9,6 @@
     "main": "./server-realtime-model.test",
     "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker",
     "xiaozhi-contract": "../../chat-audioio/xiaozhi-contract",
-    "xiaozhiV1Contract": "../../chat-audioio/xiaozhi-contract",
     "xiaozhiV1Model": "../../chat-audioio/xiaozhi-model",
     "stackchanOpusDecoder": "./opus-decoder",
     "stackchanOpusEncoder": "./opus-encoder"

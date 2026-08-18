@@ -219,7 +219,7 @@ const RESERVED_HELLO_EXTENSION_KEYS: Record<string, true> = Object.freeze({
 })
 
 function own(object: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(object, key)
+  return Object.hasOwn(object, key)
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {

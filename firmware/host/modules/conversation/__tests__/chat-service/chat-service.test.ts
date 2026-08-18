@@ -61,7 +61,20 @@ const ChatAudioIOAny = ChatAudioIO as unknown as {
     providerID?: unknown
     apiKey?: string
     functions?: { name: string }[]
-    configuration?: Record<string, unknown>
+    configuration?: {
+      protocol?: string
+      endpoint?: string
+      identity?: {
+        deviceId?: string
+        clientId?: string
+      }
+      helloExtension?: Record<string, unknown>
+      features?: {
+        mcp?: boolean
+        aec?: boolean
+        glyph_push?: boolean
+      }
+    }
   }
   instances?: (ChatAudioIOBase & {
     lastListeningMode?: string

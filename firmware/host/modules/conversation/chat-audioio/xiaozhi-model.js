@@ -8,13 +8,13 @@
 import OpusDecoder from 'stackchanOpusDecoder'
 import OpusEncoder from 'stackchanOpusEncoder'
 import ServerChatWebSocketWorker from 'stackchanServerChatWebSocketWorker'
+import Timer from 'timer'
 import {
   parseJsonRpcMessage,
   parseXiaozhiV1ClientEvent,
   parseXiaozhiV1ServerEvent,
   sanitizeXiaozhiV1HelloExtension,
 } from 'xiaozhi-contract'
-import Timer from 'timer'
 
 const INPUT_SAMPLE_RATE = 16000
 const INPUT_FRAME_DURATION = 60

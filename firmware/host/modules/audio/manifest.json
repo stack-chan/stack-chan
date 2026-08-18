@@ -137,7 +137,12 @@
         "buffered-mp3streamer-core": "./platforms/m5stackchan-cores3/buffered-mp3streamer",
         "web-radio-byte-ring": "./platforms/m5stackchan-cores3/shared-byte-ring",
         "web-radio-stream-worker": "./platforms/m5stackchan-cores3/web-radio-stream-worker",
-        "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin",
+        "stackchanCores3AudioOutNative": "./platforms/m5stackchan-cores3/io-audioout/audioout-esp32",
+        "stackchanCores3AudioInNative": "./platforms/m5stackchan-cores3/io-audioin/audioin",
+        "cores3I2SBus": "./platforms/m5stackchan-cores3/cores3-i2s-bus",
+        "embedded:io/audio/out-original": "./platforms/m5stackchan-cores3/io-audioout/audioout-esp32",
+        "embedded:io/audio/out": "./platforms/m5stackchan-cores3/cores3-audio-out",
+        "embedded:io/audio/in": "./platforms/m5stackchan-cores3/cores3-audio-in",
         "tts-stackchan-voice": "./stackchan-voice/tts-stackchan-voice"
       },
       "dependency": [
@@ -154,7 +159,17 @@
         "audioOut": {
           "bitsPerSample": 16,
           "numChannels": 1,
-          "sampleRate": 24000
+          "sampleRate": 24000,
+          "i2s": {
+            "num": 1,
+            "slot": "I2S_STD_SLOT_LEFT",
+            "format_i2s": 1,
+            "bitsPerSample": 16,
+            "bck_pin": 34,
+            "lr_pin": 33,
+            "mck_pin": -1,
+            "dataout_pin": 13
+          }
         }
       }
     },

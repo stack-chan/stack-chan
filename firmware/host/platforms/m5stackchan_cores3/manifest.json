@@ -14,7 +14,13 @@
     "setup/m5stackchan-power": "./setup-target",
     "stackchan-sdcard": "./sd-card",
     "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
-    "pins/audioout": "../core_s3_audioout"
+    "pins/audioout": "../core_s3_audioout",
+    "stackchanCores3AudioOutNative": "../../modules/audio/platforms/m5stackchan-cores3/io-audioout/audioout-esp32",
+    "stackchanCores3AudioInNative": "../../modules/audio/platforms/m5stackchan-cores3/io-audioin/audioin",
+    "cores3I2SBus": "../../modules/audio/platforms/m5stackchan-cores3/cores3-i2s-bus",
+    "embedded:io/audio/out-original": "../../modules/audio/platforms/m5stackchan-cores3/io-audioout/audioout-esp32",
+    "embedded:io/audio/out": "../../modules/audio/platforms/m5stackchan-cores3/cores3-audio-out",
+    "embedded:io/audio/in": "../../modules/audio/platforms/m5stackchan-cores3/cores3-audio-in"
   },
   "platforms": {
     "esp32/m5stackchan_cores3": {

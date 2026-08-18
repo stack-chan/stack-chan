@@ -60,6 +60,9 @@ test('M5StackChan CoreS3 excludes the fallback stackchan-voice module before sel
 
   assert.equal(modules['~'], './tts-stackchan-voice')
   assert.equal(modules['tts-stackchan-voice'], './stackchan-voice/tts-stackchan-voice')
+  assert.equal(modules['embedded:io/audio/out-original'], './platforms/m5stackchan-cores3/io-audioout/audioout-esp32')
+  assert.equal(modules['embedded:io/audio/out'], './platforms/m5stackchan-cores3/cores3-audio-out')
+  assert.equal(modules['embedded:io/audio/in'], './platforms/m5stackchan-cores3/cores3-audio-in')
 })
 
 test('conversation modules stay independent of app layer contracts', () => {

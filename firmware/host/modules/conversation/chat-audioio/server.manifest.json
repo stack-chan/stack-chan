@@ -2,7 +2,7 @@
   "modules": {
     "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker",
     "xiaozhiV1": "./xiaozhi",
-    "xiaozhiV1Contract": "../xiaozhi-contract",
+    "xiaozhi-contract": "./xiaozhi-contract",
     "xiaozhiV1Model": "./xiaozhi-model"
   },
   "preload": ["stackchanServerChatWebSocketWorker"]

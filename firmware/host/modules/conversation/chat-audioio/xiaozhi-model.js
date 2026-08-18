@@ -13,7 +13,7 @@ import {
   parseXiaozhiV1ClientEvent,
   parseXiaozhiV1ServerEvent,
   sanitizeXiaozhiV1HelloExtension,
-} from 'xiaozhiV1Contract'
+} from 'xiaozhi-contract'
 import Timer from 'timer'
 
 const INPUT_SAMPLE_RATE = 16000

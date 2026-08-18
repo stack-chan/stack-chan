@@ -465,6 +465,19 @@ test('XiaoZhi is enabled only for targets with its complete module graph', () =>
     assert.ok(audioModules?.stackchanOpusDecoder, `${target} XiaoZhi requires an Opus decoder`)
     assert.ok(audioModules?.stackchanOpusEncoder, `${target} XiaoZhi requires an Opus encoder`)
   }
+
+  const modelSource = readFileSync(join(MODULE_ROOT, 'conversation', 'chat-audioio', 'xiaozhi-model.js'), 'utf8')
+  assert.match(
+    modelSource,
+    /from 'xiaozhi-contract'/,
+    'the XiaoZhi worker must import the host module name produced by conversation/manifest.json',
+  )
+  const serverManifest = readJson(join(MODULE_ROOT, 'conversation', 'chat-audioio', 'server.manifest.json'))
+  assert.equal(
+    serverManifest.modules?.['xiaozhi-contract'],
+    './xiaozhi-contract',
+    'the worker manifest must compile xiaozhi-contract from the worker module directory',
+  )
 })
 
 test('sample MOD sources import only public or sample-local modules', () => {

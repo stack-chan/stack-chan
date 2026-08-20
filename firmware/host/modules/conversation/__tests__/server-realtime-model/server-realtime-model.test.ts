@@ -1,5 +1,5 @@
-import './xiaozhi-contract.test'
-import './xiaozhi-model.test'
+import 'stackchanXiaozhiContractTest'
+import 'stackchanXiaozhiModelTest'
 import Timer from 'timer'
 
 trace('ok\n')

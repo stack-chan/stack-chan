@@ -22,6 +22,8 @@ const connection = {
   inputBuffer: new SharedArrayBuffer(2048),
   outputBuffer: new SharedArrayBuffer(2048),
 }
+const pcmRing = new SharedArrayBuffer(1920 * 32 + 2)
+const pcmRingState = new SharedArrayBuffer(4 * Int32Array.BYTES_PER_ELEMENT)
 
 resetTransport()
 const rejected = new XiaozhiModel({ inputSampleRate: 16000, outputSampleRate: 24000 })
@@ -126,6 +128,8 @@ model.configure({
     mcp: { serverInfo: { name: 'stack-chan', version: 'test' } },
   },
   functions: [tool],
+  pcmRing,
+  pcmRingState,
 })
 equal(model.headers[0]?.[0], 'Authorization', 'authentication should use a header')
 equal(model.headers[1]?.[0], 'Protocol-Version', 'protocol version should be declared')
@@ -149,6 +153,8 @@ model.onJSON({
 equal(OpusDecoder.instances.length > 0, true, 'server hello should create a decoder')
 const decoder = OpusDecoder.instances[OpusDecoder.instances.length - 1]
 const encoder = OpusEncoder.instances[OpusEncoder.instances.length - 1]
+equal(encoder.attachedRing?.data, pcmRing, 'hello should attach the shared PCM ring')
+equal(encoder.attachedRing?.state, pcmRingState, 'hello should attach the PCM ring state')
 equal(decoder.sampleRate, 24000, 'decoder should use negotiated sample rate')
 equal(decoder.frameDuration, 20, 'decoder should use negotiated frame duration')
 equal(
@@ -171,14 +177,13 @@ equal(sentJSON[eventStart + 2]?.text, 'Hi Stack-chan', 'wake-word text should be
 equal(sentJSON[eventStart + 3]?.type, 'abort', 'abort should be implemented')
 model.startListening({ mode: 'manual' })
 
-const mono = new Int16Array(connection.inputBuffer)
-mono.set([1, 2, 3, 4], 0)
-mono.set([5, 6], 20)
-model.sendAudio({ offset: 0, size: 8 })
-model.sendAudio({ offset: 40, size: 4 })
-equal(encoder.inputs.length, 1, 'one complete PCM frame should be queued')
+encoder.packets.push(Uint8Array.of(0xf8, 0xff, 0xfe))
 model.flushEncodedAudio()
 equal(sentBinary.length, 1, 'one Opus packet should be one binary message')
+
+encoder.packets.push(Uint8Array.of(0x01), Uint8Array.of(0x02))
+model.flushEncodedAudio()
+equal(sentBinary.length, 3, 'flush should drain every queued Opus packet')
 
 model.onJSON({ type: 'tts', state: 'start' })
 const opusPacket = Uint8Array.of(0x6b, 0x43, 0x06, 0x9b)
@@ -329,6 +334,8 @@ repeatedHello.configure({
     endpoint: 'wss://relay.example.test/xiaozhi-v1',
     identity: { deviceId: 'core-s3', clientId: 'client-repeated' },
   },
+  pcmRing,
+  pcmRingState,
 })
 repeatedHello.connect(connection)
 const repeatedHelloEvent = {

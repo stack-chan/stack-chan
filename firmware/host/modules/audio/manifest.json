@@ -162,6 +162,20 @@
           "bitsPerSample": 16,
           "numChannels": 1,
           "sampleRate": 24000
+        },
+        "audioIn": {
+          "sampleRate": 16000,
+          "bitsPerSample": 16,
+          "numChannels": 2,
+          "i2s": {
+            "num": 1,
+            "slot": "I2S_STD_SLOT_BOTH",
+            "format_i2s": 1,
+            "bck_pin": 34,
+            "lr_pin": 33,
+            "mck_pin": 0,
+            "datain": 14
+          }
         }
       }
     },

@@ -7,8 +7,10 @@ export default class OpusEncoder {
     this.outputBytes = 8
     this.internalHeapBytes = 2048
     this.psramHeapBytes = 4096
-    this.inputs = []
     this.packets = []
+    this.capturedPcmBytes = 0
+    this.droppedPcmBytes = 0
+    this.attachedRing = undefined
     OpusEncoder.instances.push(this)
   }
 
@@ -16,9 +18,8 @@ export default class OpusEncoder {
     this.closed = true
   }
 
-  enqueue(input) {
-    this.inputs.push(new Uint8Array(input).slice())
-    this.packets.push(Uint8Array.of(0xf8, 0xff, 0xfe))
+  attachPcmRing(data, state) {
+    this.attachedRing = { data, state }
   }
 
   read(output) {

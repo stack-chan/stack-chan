@@ -5,9 +5,18 @@ import {
   parseXiaozhiV1ClientEvent,
   parseXiaozhiV1ServerEvent,
   sanitizeXiaozhiV1HelloExtension,
+  type JsonRpcMessage,
 } from 'xiaozhi-contract'
 
 trace('=== xiaozhi-contract test ===\n')
+
+function methodOf(message: JsonRpcMessage) {
+  return 'method' in message ? message.method : undefined
+}
+
+function idOf(message: JsonRpcMessage) {
+  return 'id' in message ? message.id : undefined
+}
 
 const audio = { format: 'opus', sample_rate: 24000, channels: 1, frame_duration: 20 }
 const serverEvents = [
@@ -69,10 +78,10 @@ try {
 }
 equal(featureError.includes('must be a boolean'), true, 'non-boolean hello features should be rejected')
 
-equal(parseJsonRpcMessage({ jsonrpc: '2.0', id: 1, method: 'tools/list' }).method, 'tools/list')
-equal(parseJsonRpcMessage({ jsonrpc: '2.0', method: 'notifications/test' }).method, 'notifications/test')
-equal(parseJsonRpcMessage({ jsonrpc: '2.0', id: 1, result: true }).id, 1)
-equal(parseJsonRpcMessage({ jsonrpc: '2.0', id: 1, error: { code: -32601, message: 'missing' } }).id, 1)
+equal(methodOf(parseJsonRpcMessage({ jsonrpc: '2.0', id: 1, method: 'tools/list' })), 'tools/list')
+equal(methodOf(parseJsonRpcMessage({ jsonrpc: '2.0', method: 'notifications/test' })), 'notifications/test')
+equal(idOf(parseJsonRpcMessage({ jsonrpc: '2.0', id: 1, result: true })), 1)
+equal(idOf(parseJsonRpcMessage({ jsonrpc: '2.0', id: 1, error: { code: -32601, message: 'missing' } })), 1)
 
 const glyphPush = {
   v: 1,

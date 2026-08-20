@@ -34,10 +34,8 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.silence = undefined
     this.outputSampleRate = 0
     this.encoder = undefined
-    this.encoderPCM = undefined
     this.encoderPacket = undefined
     this.encoderTimer = undefined
-    this.encoderFill = 0
     this.sessionID = ''
     this.uploading = false
     this.listeningMode = 'auto'
@@ -47,6 +45,8 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.functionByName = Object.create(null)
     this.pendingMcpCalls = Object.create(null)
     this.mcpServerInfo = { name: 'stack-chan', version: 'unknown' }
+    this.pcmRing = undefined
+    this.pcmRingState = undefined
     this.resetDecodeStats()
     this.resetEncodeStats()
   }
@@ -54,6 +54,8 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   configure(message) {
     this.closeCodecs()
     this.configurationError = ''
+    this.pcmRing = message.pcmRing
+    this.pcmRingState = message.pcmRingState
     try {
       const configuration = normalizeConfiguration(message)
       const endpoint = parseWebSocketEndpoint(configuration.endpoint)
@@ -118,7 +120,6 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   disconnect() {
     this.uploading = false
     this.encoder?.clear()
-    this.encoderFill = 0
     super.disconnect()
   }
 
@@ -139,10 +140,8 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.decoderPCM = undefined
     this.decoderPacket = undefined
     this.encoder = undefined
-    this.encoderPCM = undefined
     this.encoderPacket = undefined
     this.encoderTimer = undefined
-    this.encoderFill = 0
     this.silence = undefined
     this.outputSampleRate = 0
     this.sessionID = ''
@@ -222,15 +221,15 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       this.decoderPCM = new SharedArrayBuffer(this.decoder.outputBytes)
       this.encoder?.close()
       this.encoder = new OpusEncoder()
-      this.encoderPCM = new SharedArrayBuffer(this.encoder.inputBytes)
+      if (!this.pcmRing || !this.pcmRingState) throw new Error('XiaoZhi PCM ring is not configured')
+      this.encoder.attachPcmRing(this.pcmRing, this.pcmRingState)
       this.encoderPacket = new SharedArrayBuffer(this.encoder.outputBytes)
-      this.encoderTimer = Timer.repeat(() => this.flushEncodedAudio(), 10)
+      this.encoderTimer = Timer.repeat(() => this.flushEncodedAudio(), 20)
       this.silence = new ArrayBuffer(this.decoder.outputBytes)
       this.outputSampleRate = sampleRate
       this.sessionID = message.session_id ?? ''
       this.decoderPacket = undefined
       this.pendingMcpCalls = Object.create(null)
-      this.encoderFill = 0
       this.resetEncodeStats()
       this.resetDecodeStats()
       this.uploading = true
@@ -260,7 +259,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     const mode = normalizeListeningMode(message.mode ?? this.listeningMode)
     this.listeningMode = mode
     this.encoder.clear()
-    this.encoderFill = 0
+    this.resetEncodeStats()
     this.uploading = true
     this.sendProtocolEvent(this.withSession({ type: 'listen', state: 'start', mode }))
   }
@@ -268,7 +267,6 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   stopListening() {
     this.uploading = false
     this.encoder?.clear()
-    this.encoderFill = 0
     this.sendProtocolEvent(this.withSession({ type: 'listen', state: 'stop' }))
   }
 
@@ -285,7 +283,6 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   abort(message = {}) {
     this.uploading = false
     this.encoder?.clear()
-    this.encoderFill = 0
     this.decoderPacket = undefined
     this.sendProtocolEvent(
       this.withSession({
@@ -299,39 +296,21 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.startListening({ mode: this.listeningMode })
   }
 
-  sendAudio(message) {
-    try {
-      if (!this.uploading || !this.encoder) return
-      const source = new Int16Array(this.inputBuffer, message.offset, message.size >> 1)
-      const frame = new Int16Array(this.encoderPCM)
-      let offset = 0
-      while (offset < source.length) {
-        frame[this.encoderFill++] = source[offset]
-        offset += 1
-        if (this.encoderFill !== frame.length) continue
-        this.encoder.enqueue(this.encoderPCM)
-        this.encoderFill = 0
-      }
-    } catch (error) {
-      this.fail(String(error?.message ?? error))
-    } finally {
-      this.postMessage({ id: 'audioConsumed' })
-    }
-  }
-
   flushEncodedAudio() {
-    if (!this.encoder) return
+    if (!this.encoder || !this.uploading) return
     try {
-      const packetBytes = this.encoder.read(this.encoderPacket)
-      if (!packetBytes || !this.uploading) return
-      const packet = new Uint8Array(packetBytes)
-      packet.set(new Uint8Array(this.encoderPacket, 0, packetBytes))
-      this.write(packet, binary)
-      this.encodePackets += 1
-      this.encodePCMBytes += this.encoder.inputBytes
-      this.encodeCompressedBytes += packetBytes
-      this.encodeUs += this.encoder.encodeUs
-      if (this.encodeMaxUs < this.encoder.encodeUs) this.encodeMaxUs = this.encoder.encodeUs
+      for (;;) {
+        const packetBytes = this.encoder.read(this.encoderPacket)
+        if (!packetBytes) return
+        const packet = new Uint8Array(packetBytes)
+        packet.set(new Uint8Array(this.encoderPacket, 0, packetBytes))
+        this.write(packet, binary)
+        this.encodePackets += 1
+        this.encodePCMBytes += this.encoder.inputBytes
+        this.encodeCompressedBytes += packetBytes
+        this.encodeUs += this.encoder.encodeUs
+        if (this.encodeMaxUs < this.encoder.encodeUs) this.encodeMaxUs = this.encoder.encodeUs
+      }
     } catch (error) {
       this.fail(String(error?.message ?? error))
     }
@@ -392,6 +371,8 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.encodeCompressedBytes = 0
     this.encodeUs = 0
     this.encodeMaxUs = 0
+    this.encodeCapturedStart = this.encoder?.capturedPcmBytes ?? 0
+    this.encodeDroppedStart = this.encoder?.droppedPcmBytes ?? 0
   }
 
   stt(message) {
@@ -419,16 +400,15 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   tts(message) {
     switch (message.state) {
       case 'start':
-        if (this.encodePackets) {
-          const average = Math.round(this.encodeUs / this.encodePackets)
-          const load = (100 * this.encodeUs) / (this.encodePackets * INPUT_FRAME_DURATION * 1000)
-          trace(
-            `[opus] packets=${this.encodePackets} pcm=${this.encodePCMBytes}B compressed=${this.encodeCompressedBytes}B encode_avg=${average}us encode_max=${this.encodeMaxUs}us load=${load.toFixed(2)}%\n`,
-          )
-        }
+        const average = this.encodePackets ? Math.round(this.encodeUs / this.encodePackets) : 0
+        const load = this.encodePackets ? (100 * this.encodeUs) / (this.encodePackets * INPUT_FRAME_DURATION * 1000) : 0
+        const captured = (this.encoder?.capturedPcmBytes ?? 0) - this.encodeCapturedStart
+        const droppedPcm = (this.encoder?.droppedPcmBytes ?? 0) - this.encodeDroppedStart
+        trace(
+          `[opus] packets=${this.encodePackets} pcm=${this.encodePCMBytes}B captured=${captured}B dropped_pcm=${droppedPcm}B compressed=${this.encodeCompressedBytes}B encode_avg=${average}us encode_max=${this.encodeMaxUs}us load=${load.toFixed(2)}%\n`,
+        )
         this.uploading = false
         this.encoder?.clear()
-        this.encoderFill = 0
         this.resetEncodeStats()
         this.decoderPacket = undefined
         this.resetDecodeStats()

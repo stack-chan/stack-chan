@@ -44,8 +44,9 @@ export default class ChatAudioIO extends ChatAudioIOBase {
       providerID = undefined
     }
 
-    const requiresAudioAcknowledgement = specifier === 'xiaozhiV1'
-    this.immediateInputReady = requiresAudioAcknowledgement
+    const usesNativePcmRing = specifier === 'xiaozhiV1'
+    this.immediateInputReady = usesNativePcmRing
+    if (usesNativePcmRing) this.inputSampleRate = 16000
 
     const worker = new Worker(specifier, {
       static: 512 * 1024,
@@ -61,29 +62,40 @@ export default class ChatAudioIO extends ChatAudioIOBase {
       nativeStack: 40 * 1024,
       priority: 4,
     })
-    let audioInFlight = false
+    // Shared PCM ring (~1.92 s of 16 kHz mono). Main writes via native
+    // downmix; the Opus task reads it. Do not copy samples in JS or wait
+    // for a Worker ACK — both previously dropped mic frames.
+    const PCM_FRAME_BYTES = 1920
+    const PCM_RING_BYTES = PCM_FRAME_BYTES * 32 + 2
+    const PCM_RING_STATE_BYTES = 4 * 4
+    const pcmRing = usesNativePcmRing ? new SharedArrayBuffer(PCM_RING_BYTES) : undefined
+    const pcmRingState = usesNativePcmRing ? new SharedArrayBuffer(PCM_RING_STATE_BYTES) : undefined
+
     this.worker = {
       terminate: () => worker.terminate(),
       postMessage: (message) => {
-        if (message.id !== 'sendAudio' || !requiresAudioAcknowledgement) {
+        if (message.id !== 'sendAudio' || !usesNativePcmRing) {
           worker.postMessage(message)
           return
         }
-        if (audioInFlight) return
-        audioInFlight = true
+        if (!this.inputBuffer || !pcmRing || !pcmRingState) return
         try {
-          worker.postMessage(message)
+          native('xs_pcm_ring_write_downmix').call(
+            this,
+            pcmRing,
+            pcmRingState,
+            this.inputBuffer,
+            message.offset,
+            message.size,
+            message.channels ?? 2,
+          )
         } catch (error) {
-          audioInFlight = false
-          throw error
+          this.failed({ string: `PCM ring write failed: ${String(error?.message ?? error)}` })
         }
       },
     }
     worker.onmessage = (message) => {
-      if (message.id === 'audioConsumed') {
-        audioInFlight = false
-        return
-      }
+      if (message.id === 'audioConsumed') return
       const handler = this[message.id]
       if (typeof handler === 'function') {
         handler.call(this, message)
@@ -94,6 +106,8 @@ export default class ChatAudioIO extends ChatAudioIOBase {
     this.worker.postMessage({
       id: 'configure',
       configuration,
+      pcmRing,
+      pcmRingState,
       // Legacy fields remain available to existing ChatAudioIO workers.
       instructions,
       functions,

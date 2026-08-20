@@ -7,6 +7,8 @@
   ],
   "modules": {
     "main": "./server-realtime-model.test",
+    "stackchanXiaozhiContractTest": "./xiaozhi-contract.test",
+    "stackchanXiaozhiModelTest": "./xiaozhi-model.test",
     "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker",
     "xiaozhi-contract": "../../chat-audioio/xiaozhi-contract",
     "xiaozhiV1Model": "../../chat-audioio/xiaozhi-model",

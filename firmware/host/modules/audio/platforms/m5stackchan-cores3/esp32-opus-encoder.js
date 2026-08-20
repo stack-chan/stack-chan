@@ -5,6 +5,10 @@
  * you may not use this file except in compliance with the License.
  */
 
+export function writePcmRing(data, state, src, offset, size, channels) {
+  return native('xs_pcm_ring_write_downmix').call(this, data, state, src, offset, size, channels)
+}
+
 export default class extends Native('xs_esp32_opus_encoder_destructor') {
   constructor() {
     super()
@@ -15,8 +19,8 @@ export default class extends Native('xs_esp32_opus_encoder_destructor') {
     native('xs_esp32_opus_encoder_close').call(this)
   }
 
-  enqueue(input) {
-    return native('xs_esp32_opus_encoder_enqueue').call(this, input)
+  attachPcmRing(data, state) {
+    native('xs_esp32_opus_encoder_attach_pcm_ring').call(this, data, state)
   }
 
   read(output) {
@@ -25,5 +29,13 @@ export default class extends Native('xs_esp32_opus_encoder_destructor') {
 
   clear() {
     native('xs_esp32_opus_encoder_clear').call(this)
+  }
+
+  get capturedPcmBytes() {
+    return native('xs_esp32_opus_encoder_captured_pcm_bytes').call(this)
+  }
+
+  get droppedPcmBytes() {
+    return native('xs_esp32_opus_encoder_dropped_pcm_bytes').call(this)
   }
 }

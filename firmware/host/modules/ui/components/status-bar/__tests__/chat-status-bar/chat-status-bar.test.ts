@@ -44,6 +44,7 @@ type StatusBarBehavior = {
 type StatusBarContent = {
   content(name: string): unknown
   behavior?: StatusBarBehavior
+  skin?: unknown
   visible?: boolean
 }
 
@@ -56,6 +57,7 @@ type StatusIcon = {
 type StatusIndicator = {
   active?: boolean
   visible?: boolean
+  x?: number
 }
 
 type LevelTrack = {
@@ -118,6 +120,7 @@ const title = bar.content('title') as BarTitle
 const clock = bar.content('clock') as ClockLabel
 const battery = bar.content('battery') as BatteryPort
 const behavior = bar.behavior as StatusBarBehavior
+const faceChromeSkin = bar.skin
 
 clock.behavior?.onDisplaying?.(clock)
 battery.behavior?.onDisplaying?.(battery)
@@ -144,7 +147,11 @@ battery.behavior?.onDraw?.({
 })
 assert(batteryDrawBounds.width > (battery.width ?? 0) * 0.9, 'battery drawing should fill the double-width surface')
 assert(batteryDrawBounds.height > (battery.height ?? 0) * 0.8, 'battery drawing should fill the double-height surface')
-assert((statusIcon.x ?? 0) > (battery.x ?? 0) + (battery.width ?? 0), 'chat status should move right of battery')
+equal(statusIcon.x, 8, 'persistent microphone status should use the natural top-left position')
+assert(
+  (statusIndicator.x ?? 0) > (battery.x ?? 0) + (battery.width ?? 0),
+  'transient connection status should remain beside the AppBar battery',
+)
 equal(formatAppBarTime(new Date(0)), '--:--', 'unset system time should use a placeholder')
 equal(batteryLevelToSegments(0), 0, 'empty battery should draw no cells')
 equal(batteryLevelToSegments(25), 1, 'quarter battery should draw one cell')
@@ -192,6 +199,7 @@ assert(battery.visible === true, 'battery status should recover after a later va
 
 behavior.onFinished?.(bar)
 assert(bar.visible === false, 'the reveal timer should hide the entire AppBar')
+assert(bar.skin !== faceChromeSkin, 'hidden face chrome should restore the transparent status layer')
 assert(menuButton.visible === false, 'menu button should hide with the AppBar')
 assert(menuButton.active === false, 'hidden menu button should not intercept touches')
 assert(appsButton.visible === false, 'apps button should hide with the menu button')
@@ -205,6 +213,7 @@ behavior.onMiniAppAvailability?.(bar, true)
 assert(appsButton.visible === false, 'availability changes should not bypass the hidden AppBar state')
 behavior.onAppBarReveal?.(bar)
 assert(bar.visible === true, 'an explicit reveal should restore the entire AppBar')
+assert(bar.skin === faceChromeSkin, 'the visible face AppBar should use an opaque background')
 assert(menuButton.visible === true, 'menu button should be revealed again on request')
 assert(menuButton.active === true, 'revealed menu button should accept touches')
 assert(appsButton.visible === true, 'apps button should be revealed with the menu button')
@@ -220,12 +229,12 @@ assert(statusIndicator.active === false, 'connecting indicator should never inte
 assert(statusIcon.visible === false, 'status icon should be hidden while connecting')
 
 behavior.onChatState?.(bar, ChatStatusBarState.SPEAKING)
-assert(levelTrack.visible === true, 'level track should be visible while user is speaking')
-assert(statusIcon.visible === true, 'status icon should be visible while user is speaking')
-equal(statusIcon.state, 0, 'user speaking should use microphone input icon state')
+assert(levelTrack.visible === false, 'visible AppBar should hide the input level beside its battery')
+assert(statusIcon.visible === false, 'visible AppBar should hide the microphone beside its battery')
 
 behavior.onFinished?.(bar)
 assert(bar.visible === true, 'user input should keep the microphone area visible after the AppBar timeout')
+assert(bar.skin !== faceChromeSkin, 'persistent microphone status should not retain the AppBar background')
 assert(menuButton.visible === false, 'persistent microphone status should not keep face actions visible')
 assert(clock.visible === false, 'persistent microphone status should not keep the clock visible')
 assert(battery.visible === false, 'persistent microphone status should not keep battery status visible')
@@ -242,16 +251,15 @@ assert(levelTrack.visible === false, 'external connection indicator should take 
 assert(statusIcon.visible === false, 'external connection indicator should take priority over the status icon')
 behavior.onConnectionIndicator?.(bar, false)
 assert(statusIndicator.visible === false, 'external connection indicator should hide when connection is ready')
-assert(levelTrack.visible === true, 'level track should return after the external connection is ready')
-assert(statusIcon.visible === true, 'status icon should return after the external connection is ready')
+assert(levelTrack.visible === false, 'visible AppBar should keep the level track hidden after connection')
+assert(statusIcon.visible === false, 'visible AppBar should keep the microphone hidden after connection')
 
 behavior.onChatInputLevel?.(bar, 1000)
 equal(levelFill.height, 8, 'half input level should fill half the track')
 
 behavior.onChatState?.(bar, ChatStatusBarState.LISTENING)
 assert(levelTrack.visible === false, 'level track should be hidden while user is listening')
-assert(statusIcon.visible === true, 'status icon should be visible while user is listening')
-equal(statusIcon.state, 1, 'user listening should use output icon state')
+assert(statusIcon.visible === false, 'visible AppBar should not add chat status beside its battery')
 
 const normalFillSkin = levelFill.skin
 behavior.onChatState?.(bar, ChatStatusBarState.FAILED, 'boom')

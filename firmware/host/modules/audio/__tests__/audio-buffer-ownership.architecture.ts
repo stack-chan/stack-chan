@@ -64,6 +64,20 @@ test('M5StackChan CoreS3 excludes the fallback stackchan-voice module before sel
   assert.equal(modules.stackchanOpusEncoder, './platforms/m5stackchan-cores3/esp32-opus-encoder')
 })
 
+test('M5StackChan CoreS3 excludes the generic PCM writer before selecting its target adapter', () => {
+  const manifest = JSON.parse(readFileSync('host/modules/conversation/manifest.json', 'utf8')) as {
+    modules: Record<string, string>
+    platforms: Record<string, { modules: Record<string, string | string[]> }>
+  }
+  const fallback = manifest.modules.stackchanPcmRingWriter
+  const modules = manifest.platforms['esp32/m5stackchan_cores3'].modules
+
+  assert.ok(Array.isArray(modules['~']))
+  assert.ok(modules['~'].includes(fallback))
+  assert.equal(modules.stackchanPcmRingWriter, './chat-audioio/pcm-ring-writer-native')
+  assert.notEqual(modules.stackchanPcmRingWriter, fallback)
+})
+
 test('XiaoZhi uplink has one native SPSC path without spin locks', () => {
   const workerStack = readFileSync('host/modules/conversation/chat-audioio/worker-stack.js', 'utf8')
   const encoder = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/esp32-opus-encoder.c', 'utf8')

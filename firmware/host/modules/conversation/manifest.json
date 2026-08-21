@@ -26,9 +26,9 @@
         "./chat-audioio/server.manifest.json"
       ],
       "modules": {
-        "~": "./StackChanChatAudioIO",
+        "~": ["./StackChanChatAudioIO", "./chat-audioio/pcm-ring-writer"],
         "StackChanChatAudioIO": "./chat-audioio/worker-stack",
-        "stackchanPcmRingWriter": "../audio/platforms/m5stackchan-cores3/esp32-opus-encoder"
+        "stackchanPcmRingWriter": "./chat-audioio/pcm-ring-writer-native"
       },
       "defines": {
         "audioIn": {

@@ -18,12 +18,15 @@ npm run flash:android-usb-audio
 ```
 
 専用manifestは`host/app/manifest_android_usb_audio.json`である。
-このmanifestは標準CoreS3構成を読み込み、`config.usbAudio.autoStart=true`でUSB dockを自動起動する。
+このmanifestは標準CoreS3構成を読み込み、`config.usbAudio.enabled=true`と`autoStart=true`でUSB dockを自動起動する。
 通常再生時の`AudioOut.volume`は、起動設定で保存した`tts.volume`を使う。
 DockはUSB物理ブリッジの起動時に保存値を読み、起動設定の終了後に再読込して同じboot中の変更も反映する。
 診断manifestは明示的な`config.usbAudio.speakerVolume=0`を優先し、無音を維持する。
-標準CoreS3 manifestにもUSB dockは組み込まれるが、`autoStart=false`であるためMODが`activate()`するまで論理セッションを起動しない。
-標準CoreS3 manifestでも、USBSerialとworkerを含む物理USBブリッジはhost起動時に一度だけ確保する。
+標準CoreS3 manifestは`config.usbAudio.enabled=false`であり、USB物理ブリッジと`remoteSession`を作成しない。
+USB機能を必要とするMODは、自身のmanifestへ`"usbAudio": { "enabled": true }`をconfigとして宣言する。
+hostはこの`mod/config`を`onLaunch()`より前に読み、USBSerialとworkerを含む物理USBブリッジを起動時に一度だけ確保する。
+MODの`onLaunch()`から動的に有効化する方式ではないため、連続したnative ringをWi-Fiやruntime contextより先に確保できる。
+MOD宣言で有効化した場合は標準manifestの`autoStart=false`を維持し、`onContextCreated()`で`remoteSession.activate()`を呼ぶまで論理セッションを起動しない。
 application EVENT runtimeもhost起動時に作り、MOD有効化前に届いたタスク状態を保持する。
 この常駐runtimeはraw EVENT transport、タスク状態のsnapshot、会話要求の再送と結果照合を所有する。
 Androidから`session.created`が先に届いても、MODが`activate()`して実際のtool providerを渡すまでは`session.update`を送らない。
@@ -45,7 +48,7 @@ AndroidはLLM応答開始時のtool catalogをsnapshotし、function callへそ�
 M5StackChan CoreS3用manifestは、このモジュール名をUSB Dock実装へ割り当てる。
 共有host manifestとWASM版はUSB transport、remote session、承認画面をbundleしない。
 
-標準CoreS3 hostの`robot.conversation.remoteSession`は、会話表示をまだ有効化していないinactive状態から始まる。
+USB Audioを有効にしたhostの`robot.conversation.remoteSession`は、会話表示をまだ有効化していないinactive状態から始まる。
 USB機能を使うMODは、状態購読や会話要求より前に`remoteSession.activate()`を呼ぶ。
 `activate()`は冪等であり、成功後の`activationState`は`active`になる。
 `deactivate()`は`conversation.stop`を常駐会話制御sessionへ先にqueueし、会話状態ハンドラと状態表示の購読を外して、同じfacadeを再びactivateできる状態へ戻す。

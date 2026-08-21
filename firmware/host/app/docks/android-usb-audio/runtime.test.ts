@@ -22,7 +22,22 @@ import type {
 
 installRemoteSessionTestAliases()
 
-const { createUsbAudioDockRuntime } = await import('./runtime.js')
+const { createUsbAudioDockRuntime, resolveUsbAudioConfig } = await import('./runtime.js')
+
+test('MOD config may opt into USB audio without overriding host startup policy', () => {
+  const defaultConfig: UsbAudioConfig = { enabled: false, autoStart: false }
+  const dedicatedConfig: UsbAudioConfig = { enabled: true, autoStart: true }
+
+  assert.deepEqual(resolveUsbAudioConfig(defaultConfig, undefined), defaultConfig)
+  assert.deepEqual(resolveUsbAudioConfig(defaultConfig, { usbAudio: { enabled: true } }), {
+    enabled: true,
+    autoStart: false,
+  })
+  assert.deepEqual(resolveUsbAudioConfig(dedicatedConfig, { usbAudio: { enabled: false } }), dedicatedConfig)
+  assert.equal(resolveUsbAudioConfig(undefined, { usbAudio: 'invalid' }), undefined)
+  assert.deepEqual(resolveUsbAudioConfig(defaultConfig, { usbAudio: { enabled: 1 } }), defaultConfig)
+  assert.deepEqual(resolveUsbAudioConfig(defaultConfig, { usbAudio: { enabled: 'true' } }), defaultConfig)
+})
 
 class FakeRemoteSession implements RemoteConversationSessionDelegate {
   state: RemoteConversationState = 'standby'

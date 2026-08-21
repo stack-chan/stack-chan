@@ -12,7 +12,7 @@ export type PreferenceConfig = Record<PreferenceDomain, ConfigRecord>
 const LEGACY_RENDERER_DOMAIN = 'renderer'
 let modConfig: ConfigRecord | undefined
 
-function loadModConfig(): ConfigRecord {
+export function loadModConfig(): ConfigRecord {
   if (modConfig) return modConfig
   try {
     modConfig = Modules.has('mod/config') ? (Modules.importNow('mod/config') as ConfigRecord) : {}

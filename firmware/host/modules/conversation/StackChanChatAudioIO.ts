@@ -5,6 +5,15 @@ type ChatAudioIOOptions = {
   onInputTranscript?: (text: string, more: boolean) => void
   onOutputTranscript?: (text: string, more: boolean) => void
   onFunctionCall?: (call: string, name: string, params: Record<string, unknown>) => void
+  onEmotionChanged?: (emotion: string, text?: string) => void
+  onAlert?: (alert: Record<string, unknown>) => void
+  onSystemCommand?: (command: Record<string, unknown>) => void
+  onCustomEvent?: (event: Record<string, unknown>) => void
+  onUnknownEvent?: (event: Record<string, unknown>) => void
+  onProtocolWarning?: (message: string, event?: Record<string, unknown>) => void
+  onMcpNotification?: (payload: Record<string, unknown>) => void
+  onMcpResponse?: (payload: Record<string, unknown>) => void
+  onGlyphPush?: (glyphPush: Record<string, unknown>) => void
 }
 
 export default class ChatAudioIO {
@@ -41,4 +50,14 @@ export default class ChatAudioIO {
   changeMicrophone(_enabled: boolean): void {}
 
   changeVolume(_volume: number): void {}
+
+  startListening(_mode: 'auto' | 'manual' | 'realtime' = 'auto'): void {}
+
+  stopListening(): void {}
+
+  notifyWakeWordDetected(_text?: string): void {}
+
+  abort(_reason?: string): void {}
+
+  sendMcpMessage(_payload: Record<string, unknown>): void {}
 }

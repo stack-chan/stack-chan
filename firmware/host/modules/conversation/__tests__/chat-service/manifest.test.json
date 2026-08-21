@@ -1,7 +1,9 @@
 {
   "include": ["../../manifest.json", "../../../testing/manifest.json"],
   "modules": {
-    "ChatAudioIO": "../../../testing/fakes/ChatAudioIO",
     "main": "./chat-service.test"
+  },
+  "config": {
+    "xiaozhiV1Available": true
   }
 }

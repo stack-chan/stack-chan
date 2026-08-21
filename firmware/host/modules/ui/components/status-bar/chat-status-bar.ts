@@ -265,6 +265,7 @@ class BatteryBehavior extends Behavior implements BatteryBehaviorContract {
 }
 
 class ChatStatusBarBehavior extends Behavior {
+  #container?: Container
   #mode: AppBarMode = { kind: 'face' }
   #state: ChatStatusBarState = ChatStatusBarState.DISCONNECTED
   #connectionPending = false
@@ -283,6 +284,7 @@ class ChatStatusBarBehavior extends Behavior {
   #miniAppsAvailable = false
 
   onCreate(container: Container) {
+    this.#container = container
     this.#statusIcon = container.content('statusIcon') as Content
     this.#indicator = container.content('statusIndicator') as Content
     this.#levelTrack = container.content('levelTrack') as Container
@@ -293,7 +295,7 @@ class ChatStatusBarBehavior extends Behavior {
     this.#title = container.content('title') as Label
     this.#clock = container.content('clock') as Label
     this.#battery = container.content('battery') as PiuPort
-    this.setFaceBarVisible(container, true)
+    this.setFaceBarVisible(true)
   }
 
   onDisplaying(container: Container) {
@@ -306,7 +308,7 @@ class ChatStatusBarBehavior extends Behavior {
 
   onFinished(container: Container) {
     if (this.#mode.kind !== 'face') return
-    this.setFaceBarVisible(container, false)
+    this.setFaceBarVisible(false)
     container.stop()
   }
 
@@ -361,11 +363,21 @@ class ChatStatusBarBehavior extends Behavior {
   updateUI() {
     if (!this.#levelTrack || !this.#levelFill || !this.#statusIcon || !this.#indicator) return
     const faceMode = this.#mode.kind === 'face'
-    const faceStatusVisible = faceMode && this.#faceBarVisible
+    const faceChromeVisible = faceMode && this.#faceBarVisible
+    // ChatAudioIO.SPEAKING means user input.
+    const isUserSpeaking = this.#state === ChatStatusBarState.SPEAKING
+    const isConnecting = this.#state === ChatStatusBarState.CONNECTING || this.#connectionPending
+    const persistentInputVisible = faceMode && !faceChromeVisible && isUserSpeaking && !isConnecting
+    const faceStatusVisible = faceChromeVisible || persistentInputVisible
+    const skins = getSkins()
+    if (this.#container) {
+      this.#container.visible = !faceMode || faceStatusVisible
+      this.#container.skin = !faceMode || faceChromeVisible ? skins.chrome : skins.bar
+    }
     const clockBehavior = this.#clock?.behavior as ClockBehaviorContract | undefined
-    if (this.#clock) clockBehavior?.onVisibilityChanged(this.#clock, faceStatusVisible)
+    if (this.#clock) clockBehavior?.onVisibilityChanged(this.#clock, faceChromeVisible)
     const batteryBehavior = this.#battery?.behavior as BatteryBehaviorContract | undefined
-    if (this.#battery) batteryBehavior?.onVisibilityChanged(this.#battery, faceStatusVisible)
+    if (this.#battery) batteryBehavior?.onVisibilityChanged(this.#battery, faceChromeVisible)
     if (!faceStatusVisible) {
       this.#levelTrack.visible = false
       this.#statusIcon.visible = false
@@ -373,15 +385,14 @@ class ChatStatusBarBehavior extends Behavior {
       this.#indicator.stop()
       return
     }
-    // ChatAudioIO.SPEAKING means user input; LISTENING means assistant output.
-    const isUserSpeaking = this.#state === ChatStatusBarState.SPEAKING
-    const isUserListening = this.#state === ChatStatusBarState.LISTENING
-    const isConnecting = this.#state === ChatStatusBarState.CONNECTING || this.#connectionPending
-    this.#levelTrack.visible = !isConnecting && isUserSpeaking
-    this.#statusIcon.visible = !isConnecting && (isUserSpeaking || isUserListening)
-    this.#statusIcon.state = isUserListening ? 1 : 0
-    this.#indicator.visible = isConnecting
-    if (isConnecting) {
+    // The face AppBar owns the top-left system area while it is visible. Once
+    // its four-second reveal ends, input status replaces it at the natural
+    // left edge instead of remaining shifted beside an absent battery icon.
+    this.#levelTrack.visible = persistentInputVisible
+    this.#statusIcon.visible = persistentInputVisible
+    this.#statusIcon.state = 0
+    this.#indicator.visible = faceChromeVisible && isConnecting
+    if (this.#indicator.visible) {
       this.#indicator.interval = 250
       this.#indicator.time = 0
       this.#indicator.start()
@@ -389,7 +400,6 @@ class ChatStatusBarBehavior extends Behavior {
       this.#indicator.stop()
       this.#indicator.variant = 0
     }
-    const skins = getSkins()
     this.#levelFill.skin = this.#state === ChatStatusBarState.FAILED ? skins.errorFill : skins.levelFill
     this.updateLevel()
   }
@@ -403,16 +413,15 @@ class ChatStatusBarBehavior extends Behavior {
 
   showFaceBar(container: Container) {
     if (this.#mode.kind !== 'face') return
-    this.setFaceBarVisible(container, true)
+    this.setFaceBarVisible(true)
     container.stop()
     container.duration = FACE_ACTIONS_VISIBLE_MS
     container.time = 0
     container.start()
   }
 
-  setFaceBarVisible(container: Container, visible: boolean) {
+  setFaceBarVisible(visible: boolean) {
     this.#faceBarVisible = visible && this.#mode.kind === 'face'
-    container.visible = this.#faceBarVisible
     this.updateFaceActions()
     this.updateUI()
   }
@@ -430,7 +439,8 @@ class ChatStatusBarBehavior extends Behavior {
 export const ChatStatusBar = Container.template((options: ChatStatusBarOptions = {}) => {
   const skins = getSkins()
   const styles = uiStyles()
-  const statusIconLeft = options.readBatteryLevel ? batteryStatusIconLeft : defaultIconLeft
+  const statusIconLeft = defaultIconLeft
+  const indicatorLeft = options.readBatteryLevel ? batteryStatusIconLeft : defaultIconLeft
   const levelLeft = statusIconLeft + iconSize + 4
   return {
     name: 'ChatStatusBar',
@@ -504,7 +514,7 @@ export const ChatStatusBar = Container.template((options: ChatStatusBarOptions =
       }),
       new Content(null, {
         name: 'statusIndicator',
-        left: statusIconLeft,
+        left: indicatorLeft,
         top: iconTop,
         width: iconSize,
         height: iconSize,

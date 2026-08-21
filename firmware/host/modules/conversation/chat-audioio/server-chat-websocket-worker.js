@@ -77,8 +77,9 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
             break
         }
       },
-      onError: () => {
-        this.postMessage({ id: 'failed', string: 'network error' })
+      onError: (error) => {
+        const detail = error?.message ?? error
+        this.postMessage({ id: 'failed', string: detail ? `network error: ${detail}` : 'network error' })
         this.close()
       },
       onReadable: (count, options) => {
@@ -137,8 +138,13 @@ export default class ServerChatWebSocketWorker extends ChatWorker {
   }
 
   sendAudio(message) {
-    const samples = new Uint8Array(this.inputBuffer, message.offset, message.size)
-    this.sendAudioBuffer(samples)
+    try {
+      const samples = new Uint8Array(this.inputBuffer, message.offset, message.size)
+      this.sendAudioBuffer(samples)
+    } finally {
+      // A worker-side failure must not leave the CoreS3 audio producer permanently in flight.
+      this.postMessage({ id: 'audioConsumed' })
+    }
   }
 
   sendAudioBuffer(samples) {

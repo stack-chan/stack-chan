@@ -156,8 +156,6 @@ test('CoreS3 WebRadio receives into a shared ring and decodes MP3 on a Core 1 wo
   assert.match(manifest, /"buffered-mp3streamer-core": "\.\/platforms\/m5stackchan-cores3\/buffered-mp3streamer"/)
   assert.match(manifest, /"esp32-mp3-decoder": "\.\/platforms\/m5stackchan-cores3\/esp32-mp3-decoder"/)
   assert.match(manifest, /"SDKCONFIGPATH \?=": "\.\/platforms\/m5stackchan-cores3\/sdkconfig"/)
-  assert.match(manifest, /"name": "esp_audio_codec"/)
-  assert.match(manifest, /"version": "\^2\.6\.0"/)
   assert.doesNotMatch(manifest, /libmad-optimized|mp3-half-sample-rate/)
   assert.match(manifest, /"web-radio-byte-ring": "\.\/platforms\/m5stackchan-cores3\/shared-byte-ring"/)
   assert.match(decoder, /esp_mp3_dec_open\(NULL, 0, &decoder->handle\)/)

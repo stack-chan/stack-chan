@@ -42,8 +42,20 @@ type RuntimeUIOptions = {
   isPaused: () => boolean
 }
 
+const BALLOON_OPTION_KEYS = ['left', 'right', 'top', 'bottom', 'width', 'height', 'tail'] as const
+
+type SpeechBalloonBehavior = {
+  setText?: (content: UIEffect, text: string) => void
+}
+
+function sameBalloonOptions(current: ShowBalloonOptions | null, next: ShowBalloonOptions): boolean {
+  if (!current) return false
+  return BALLOON_OPTION_KEYS.every((key) => current[key] === next[key])
+}
+
 export class StackchanRuntimeUI {
   #balloon: UIEffect | null = null
+  #balloonOptions: ShowBalloonOptions | null = null
   #drawerButtonSpecs = new Map<string, DrawerButtonSpec>()
   #drawerButtonStates = new Map<string, boolean>()
   #drawerRegistry: DrawerCapability
@@ -86,10 +98,16 @@ export class StackchanRuntimeUI {
   }
 
   showBalloon(text: string, option: ShowBalloonOptions = {}) {
-    if (this.#balloon != null) {
-      this.hideBalloon()
+    if (this.#balloon != null && sameBalloonOptions(this.#balloonOptions, option)) {
+      const behavior = this.#balloon.behavior as SpeechBalloonBehavior | undefined
+      if (behavior?.setText) {
+        behavior.setText(this.#balloon, text)
+        return
+      }
     }
+    this.hideBalloon()
     this.#balloon = new SpeechBalloon({ ...option, text })
+    this.#balloonOptions = { ...option }
     this.#ui.addEffect(this.#balloon)
   }
 
@@ -97,6 +115,7 @@ export class StackchanRuntimeUI {
     if (this.#balloon != null) {
       this.#ui.removeEffect(this.#balloon)
       this.#balloon = null
+      this.#balloonOptions = null
     }
   }
 

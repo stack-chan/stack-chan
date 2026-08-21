@@ -42,6 +42,14 @@ export type UsbAudioConfig = UsbAudioBridgeOptions & {
   presentationEnabled?: boolean
 }
 
+export function resolveUsbAudioConfig(
+  hostConfig: UsbAudioConfig | undefined,
+  modConfig: unknown,
+): UsbAudioConfig | undefined {
+  const enabledByMod = (modConfig as { usbAudio?: { enabled?: unknown } } | null)?.usbAudio?.enabled === true
+  return enabledByMod ? { ...(hostConfig ?? {}), enabled: true } : hostConfig
+}
+
 type StartUsbAudioBridge<Status> = (options?: UsbAudioBridgeOptions) => UsbAudioBridgeControl<Status>
 
 export type UsbAudioRemoteActivation = {

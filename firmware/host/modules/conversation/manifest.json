@@ -6,37 +6,59 @@
   ],
   "modules": {
     "*": ["./*"],
-    "ChatAudioIO": "./chat-audioio-stub"
+    "StackChanChatAudioIO": "./StackChanChatAudioIO",
+    "stackchanPcmRingWriter": "./chat-audioio/pcm-ring-writer"
   },
   "platforms": {
     "esp32/m5stack_cores3": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
-        "ChatAudioIO": "./chat-audioio/worker-stack",
-        "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+        "~": "./StackChanChatAudioIO",
+        "StackChanChatAudioIO": "./chat-audioio/worker-stack"
       }
     },
     "esp32/m5stackchan_cores3": {
+      "config": {
+        "xiaozhiV1Available": true
+      },
       "include": [
         "$(MODULES)/network/services/chatAudioIO/manifest.json",
         "./chat-audioio/server.manifest.json"
       ],
       "modules": {
-        "ChatAudioIO": "./chat-audioio/worker-stack",
-        "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+        "~": ["./StackChanChatAudioIO", "./chat-audioio/pcm-ring-writer"],
+        "StackChanChatAudioIO": "./chat-audioio/worker-stack",
+        "stackchanPcmRingWriter": "./chat-audioio/pcm-ring-writer-native"
+      },
+      "defines": {
+        "audioIn": {
+          "sampleRate": 16000,
+          "bitsPerSample": 16,
+          "numChannels": 2,
+          "i2s": {
+            "num": 1,
+            "slot": "I2S_STD_SLOT_BOTH",
+            "format_i2s": 1,
+            "bck_pin": 34,
+            "lr_pin": 33,
+            "mck_pin": 0,
+            "datain": 14
+          }
+        }
       }
     },
     "esp32/stackchan_rt": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
-        "ChatAudioIO": "./chat-audioio/worker-stack",
-        "ChatAudioIOBase": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+        "~": "./StackChanChatAudioIO",
+        "StackChanChatAudioIO": "./chat-audioio/worker-stack"
       }
     },
     "mac": {
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
-        "ChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
+        "~": "./StackChanChatAudioIO",
+        "StackChanChatAudioIO": "$(MODULES)/network/services/chatAudioIO/ChatAudioIO"
       }
     }
   },

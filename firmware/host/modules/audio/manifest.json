@@ -137,6 +137,8 @@
         "buffered-mp3streamer-core": "./platforms/m5stackchan-cores3/buffered-mp3streamer",
         "web-radio-byte-ring": "./platforms/m5stackchan-cores3/shared-byte-ring",
         "web-radio-stream-worker": "./platforms/m5stackchan-cores3/web-radio-stream-worker",
+        "stackchanOpusDecoder": "./platforms/m5stackchan-cores3/esp32-opus-decoder",
+        "stackchanOpusEncoder": "./platforms/m5stackchan-cores3/esp32-opus-encoder",
         "embedded:io/audio/in": "$(MODDABLE)/modules/io/audioin/esp32/audioin",
         "tts-stackchan-voice": "./stackchan-voice/tts-stackchan-voice"
       },
@@ -146,8 +148,13 @@
         },
         {
           "name": "esp_audio_codec",
-          "version": "^2.6.0",
-          "includes": ["include/decoder", "include/decoder/impl"]
+          "version": "~2.5.0",
+          "includes": [
+            "include/decoder",
+            "include/decoder/impl",
+            "include/encoder",
+            "include/encoder/impl"
+          ]
         }
       ],
       "defines": {
@@ -155,6 +162,20 @@
           "bitsPerSample": 16,
           "numChannels": 1,
           "sampleRate": 24000
+        },
+        "audioIn": {
+          "sampleRate": 16000,
+          "bitsPerSample": 16,
+          "numChannels": 2,
+          "i2s": {
+            "num": 1,
+            "slot": "I2S_STD_SLOT_BOTH",
+            "format_i2s": 1,
+            "bck_pin": 34,
+            "lr_pin": 33,
+            "mck_pin": 0,
+            "datain": 14
+          }
         }
       }
     },

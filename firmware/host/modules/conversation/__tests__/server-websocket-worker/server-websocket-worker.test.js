@@ -1,3 +1,4 @@
+import { postedMessages } from 'ChatWorker'
 import ServerChatWebSocketWorker from 'stackchanServerChatWebSocketWorker'
 import { equal } from 'testing/assert'
 import Timer from 'timer'
@@ -104,6 +105,8 @@ equal(
   SecureWebSocket.close,
   'disconnect should use the close opcode from the selected secure socket class',
 )
+earlyReadSocket?.options.onError(new Error('TLS failed'))
+equal(postedMessages[postedMessages.length - 1]?.string, 'network error: TLS failed', 'network errors include details')
 
 trace('ok\n')
 Timer.set(() => {}, 1000)

@@ -9,7 +9,7 @@ export type StackchanDockRuntime = {
 }
 
 export type StackchanDock = {
-  start(): StackchanDockRuntime | undefined
+  start(modConfig?: unknown): StackchanDockRuntime | undefined
 }
 
 export type StackchanDockModules = {
@@ -17,13 +17,16 @@ export type StackchanDockModules = {
   importNow(specifier: string): unknown
 }
 
-export function startStackchanDock(modules: StackchanDockModules): StackchanDockRuntime | undefined {
+export function startStackchanDock(
+  modules: StackchanDockModules,
+  modConfig?: unknown,
+): StackchanDockRuntime | undefined {
   if (!modules.has(STACKCHAN_DOCK_MODULE)) return
   const dock = modules.importNow(STACKCHAN_DOCK_MODULE)
   if (!isStackchanDock(dock)) {
     throw new TypeError(`${STACKCHAN_DOCK_MODULE} does not export a StackchanDock`)
   }
-  const runtime = dock.start()
+  const runtime = dock.start(modConfig)
   if (runtime === undefined) return
   if (!isStackchanDockRuntime(runtime)) {
     throw new TypeError(`${STACKCHAN_DOCK_MODULE} returned an invalid runtime`)

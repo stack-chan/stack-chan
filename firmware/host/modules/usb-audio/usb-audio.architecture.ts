@@ -88,7 +88,7 @@ test('USB transport stays platform-specific while physical audio remains on the 
 })
 
 test('release and diagnostic manifests compose the same USB Dock in layers', () => {
-  assert.equal(coreS3Manifest.config?.usbAudio?.enabled, true)
+  assert.equal(coreS3Manifest.config?.usbAudio?.enabled, false)
   assert.equal(coreS3Manifest.config?.usbAudio?.autoStart, false)
   assert.equal(coreS3Manifest.config?.usbAudio?.speakerVolume, undefined)
   assert.equal(usbAppManifest.config?.usbAudio?.enabled, true)

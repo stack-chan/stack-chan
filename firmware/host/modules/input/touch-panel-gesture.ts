@@ -42,7 +42,7 @@ export class GestureRecognizer {
 
   constructor(options: TouchPanelGestureRecognizerOptions = {}) {
     this.#touchThreshold = options.touchThreshold ?? 1
-    this.#swipeThreshold = options.swipeThreshold ?? 40
+    this.#swipeThreshold = options.swipeThreshold ?? 60
     this.#tapMaxDuration = options.tapMaxDuration ?? 300
     this.#tapMaxMovement = options.tapMaxMovement ?? 15
   }

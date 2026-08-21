@@ -72,6 +72,28 @@ test('recognizes backward swipe when weighted position moves past negative thres
   )
 })
 
+test('does not treat a 50-point position wobble as a swipe', () => {
+  assert.deepEqual(
+    run([
+      [0, 1, 0],
+      [0, 1, 1],
+      [0, 0, 0],
+    ]),
+    ['press', 'release'],
+  )
+})
+
+test('recognizes a deliberate swipe beyond the 60-point threshold', () => {
+  assert.deepEqual(
+    run([
+      [0, 1, 0],
+      [0, 1, 2],
+      [0, 0, 0],
+    ]),
+    ['press', 'forwardSwipe', 'release'],
+  )
+})
+
 test('does not emit repeated swipe gestures while still touching', () => {
   assert.deepEqual(
     run([

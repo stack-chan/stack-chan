@@ -1,4 +1,5 @@
 import ChatAudioIOBase from 'ChatAudioIO'
+import { writePcmRing } from 'stackchanPcmRingWriter'
 import Worker from 'worker'
 
 const CONNECTION_ENVELOPE = '__stackchanConnectionConfiguration'
@@ -80,15 +81,7 @@ export default class ChatAudioIO extends ChatAudioIOBase {
         }
         if (!this.inputBuffer || !pcmRing || !pcmRingState) return
         try {
-          native('xs_pcm_ring_write_downmix').call(
-            this,
-            pcmRing,
-            pcmRingState,
-            this.inputBuffer,
-            message.offset,
-            message.size,
-            message.channels ?? 2,
-          )
+          writePcmRing(pcmRing, pcmRingState, this.inputBuffer, message.offset, message.size, message.channels ?? 2)
         } catch (error) {
           this.failed({ string: `PCM ring write failed: ${String(error?.message ?? error)}` })
         }

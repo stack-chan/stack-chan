@@ -6,7 +6,8 @@
   ],
   "modules": {
     "*": ["./*"],
-    "StackChanChatAudioIO": "./StackChanChatAudioIO"
+    "StackChanChatAudioIO": "./StackChanChatAudioIO",
+    "stackchanPcmRingWriter": "./chat-audioio/pcm-ring-writer"
   },
   "platforms": {
     "esp32/m5stack_cores3": {
@@ -26,7 +27,8 @@
       ],
       "modules": {
         "~": "./StackChanChatAudioIO",
-        "StackChanChatAudioIO": "./chat-audioio/worker-stack"
+        "StackChanChatAudioIO": "./chat-audioio/worker-stack",
+        "stackchanPcmRingWriter": "../audio/platforms/m5stackchan-cores3/esp32-opus-encoder"
       },
       "defines": {
         "audioIn": {

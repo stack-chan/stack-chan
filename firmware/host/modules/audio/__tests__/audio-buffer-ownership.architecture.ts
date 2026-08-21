@@ -69,7 +69,9 @@ test('XiaoZhi uplink has one native SPSC path without spin locks', () => {
   const encoder = readFileSync('host/modules/audio/platforms/m5stackchan-cores3/esp32-opus-encoder.c', 'utf8')
   const model = readFileSync('host/modules/conversation/chat-audioio/xiaozhi-model.js', 'utf8')
 
-  assert.match(workerStack, /xs_pcm_ring_write_downmix/)
+  assert.match(workerStack, /from 'stackchanPcmRingWriter'/)
+  assert.doesNotMatch(workerStack, /xs_pcm_ring_write_downmix/)
+  assert.match(encoder, /xs_pcm_ring_write_downmix/)
   assert.doesNotMatch(workerStack, /audioInFlight/)
   assert.doesNotMatch(encoder, /__sync_lock|pcmRingMakeSpace|queueLatest|xs_esp32_opus_encoder_enqueue/)
   assert.doesNotMatch(model, /sendAudio\(message\)/)

@@ -11,7 +11,7 @@
   "config": {
     "enablePowerButton": true,
     "usbAudio": {
-      "enabled": true,
+      "enabled": false,
       "autoStart": false
     }
   }

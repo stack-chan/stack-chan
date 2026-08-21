@@ -27,9 +27,17 @@ test('an unconfigured Stackchan Dock is optional', () => {
 
 test('the configured Stackchan Dock starts and returns its runtime', () => {
   const runtime = fakeRuntime()
-  const dock: StackchanDock = { start: () => runtime }
+  const modConfig = { usbAudio: { enabled: true } }
+  let receivedConfig: unknown
+  const dock: StackchanDock = {
+    start: (received) => {
+      receivedConfig = received
+      return runtime
+    },
+  }
 
-  assert.equal(startStackchanDock(new FakeModules(dock)), runtime)
+  assert.equal(startStackchanDock(new FakeModules(dock), modConfig), runtime)
+  assert.equal(receivedConfig, modConfig)
 })
 
 test('a Dock may be present but disabled by its own configuration', () => {

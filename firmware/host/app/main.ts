@@ -1,4 +1,4 @@
-import loadPreferences, { loadPreferenceConfig } from 'loadPreference'
+import loadPreferences, { loadModConfig, loadPreferenceConfig } from 'loadPreference'
 import { runContextCreatedBehaviors, type StackchanAppBehavior } from 'app-behavior'
 import { resolveAppBehaviors } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
@@ -98,7 +98,7 @@ async function main() {
   let dockRuntime: StackchanDockRuntime | undefined
   let context: StackchanContext | undefined
   try {
-    dockRuntime = startStackchanDock(Modules)
+    dockRuntime = startStackchanDock(Modules, loadModConfig())
     if (dockRuntime) trace('[main] Stackchan Dock started\n')
     installPlatformInputBridge()
     initializeLocalization(loadPreferences(DOMAIN.ui).language)

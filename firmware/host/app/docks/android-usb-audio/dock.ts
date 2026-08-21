@@ -8,14 +8,19 @@ import type { RealtimeToolProvider } from 'stackchan-realtime-session'
 import { createRemoteSessionRuntime } from 'stackchan-remote-session-runtime'
 import type { UsbAudioPresentation } from 'stackchan-usb-dock-presentation'
 import { usbAudioConversationState } from 'stackchan-usb-dock-presentation-model'
-import { createUsbAudioDockRuntime, type UsbAudioBridgeControl, type UsbAudioConfig } from 'stackchan-usb-dock-runtime'
+import {
+  createUsbAudioDockRuntime,
+  resolveUsbAudioConfig,
+  type UsbAudioBridgeControl,
+  type UsbAudioConfig,
+} from 'stackchan-usb-dock-runtime'
 import type { StackChanStatus } from 'stackchan-usb-media-session'
 import Timer from 'timer'
 import { canonicalizeVolume } from 'volume-model'
 
 const stackchanUsbDock: StackchanDock = {
-  start() {
-    const usbAudio = (config as { usbAudio?: UsbAudioConfig }).usbAudio
+  start(modConfig) {
+    const usbAudio = resolveUsbAudioConfig((config as { usbAudio?: UsbAudioConfig }).usbAudio, modConfig)
     if (!usbAudio?.enabled) return
     const configuredSpeakerVolume = usbAudio.speakerVolume
     const resolveSavedSpeakerVolume = () => canonicalizeVolume(loadPreferences(DOMAIN.tts).volume)

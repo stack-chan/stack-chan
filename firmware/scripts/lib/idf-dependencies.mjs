@@ -4,7 +4,7 @@ import path from 'node:path'
 const dependenciesByPlatform = {
   m5stack_cores3: [['espressif/esp32-camera', '^2.0.10']],
   m5stackchan_cores3: [
-    ['espressif/esp_audio_codec', '^2.6.0'],
+    ['espressif/esp_audio_codec', '~2.5.0'],
     ['espressif/esp32-camera', '^2.0.10'],
   ],
 }

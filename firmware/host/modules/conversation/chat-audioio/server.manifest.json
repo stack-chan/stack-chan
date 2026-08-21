@@ -1,8 +1,9 @@
 {
   "modules": {
     "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker",
-    "stackchanServerOpenAIRealtime": "./stackchan-server-openai-realtime",
-    "stackchanServerOpenAIRealtimeModel": "./server-openai-realtime-model"
+    "xiaozhiV1": "./xiaozhi",
+    "xiaozhi-contract": "./xiaozhi-contract",
+    "xiaozhiV1Model": "./xiaozhi-model"
   },
   "preload": ["stackchanServerChatWebSocketWorker"]
 }

@@ -7,6 +7,11 @@ class ChatAudioIO {
     this.error = ''
     this.lastText = null
     this.lastFunctionResult = null
+    this.lastListeningMode = null
+    this.stopListeningCount = 0
+    this.lastWakeWord = null
+    this.lastAbortReason = null
+    this.lastMcpPayload = null
     this.microphone = true
     this.volume = 1
   }
@@ -26,9 +31,7 @@ class ChatAudioIO {
   close() {}
 
   sendText(text) {
-    if (this.state < ChatAudioIO.CONNECTED) {
-      throw new Error('not connected')
-    }
+    if (this.state < ChatAudioIO.CONNECTED) throw new Error('not connected')
     this.lastText = text
   }
 
@@ -42,6 +45,26 @@ class ChatAudioIO {
 
   changeVolume(volume) {
     this.volume = volume
+  }
+
+  startListening(mode) {
+    this.lastListeningMode = mode
+  }
+
+  stopListening() {
+    this.stopListeningCount += 1
+  }
+
+  notifyWakeWordDetected(text) {
+    this.lastWakeWord = text
+  }
+
+  abort(reason) {
+    this.lastAbortReason = reason
+  }
+
+  sendMcpMessage(payload) {
+    this.lastMcpPayload = payload
   }
 
   emitState(state, error) {
@@ -68,6 +91,14 @@ class ChatAudioIO {
 
   emitFunctionCall(call, name, parameters) {
     this.options.onFunctionCall?.(call, name, parameters)
+  }
+
+  emitEmotion(emotion, text) {
+    this.options.onEmotionChanged?.(emotion, text)
+  }
+
+  emitAlert(alert) {
+    this.options.onAlert?.(alert)
   }
 }
 

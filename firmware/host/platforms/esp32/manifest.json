@@ -1,5 +1,17 @@
 {
   "platforms": {
+    "esp32/m5stack": {
+      "config": {
+        "driver": {
+          "pwmPan": 5,
+          "pwmTilt": 2
+        },
+        "serial": {
+          "transmit": 17,
+          "receive": 16
+        }
+      }
+    },
     "esp32/m5stack_core2": {
       "creation": {
         "static": 442368,
@@ -44,6 +56,18 @@
         "stack": 512,
         "keys": {
           "available": 512
+        }
+      },
+      "config": {
+        "driver": {
+          "type": "pwm",
+          "typeLocked": true,
+          "pwmPan": 19,
+          "pwmTilt": 27
+        },
+        "serial": {
+          "transmit": 14,
+          "receive": 13
         }
       }
     },

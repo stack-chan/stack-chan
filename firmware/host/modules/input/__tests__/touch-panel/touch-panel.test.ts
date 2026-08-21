@@ -1,8 +1,8 @@
 import type { TouchPanelInputEvent } from 'input-event'
+import { assert, equal } from 'testing/assert'
 import Time from 'time'
 import Timer from 'timer'
 import TouchPanel from 'touch-panel'
-import { assert, equal } from 'testing/assert'
 
 class FakeTouchPanelDriver {
   static current: FakeTouchPanelDriver | undefined

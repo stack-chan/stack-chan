@@ -1,11 +1,11 @@
 import { equal } from 'testing/assert'
 import {
+  type JsonRpcMessage,
   parseJsonRpcMessage,
   parseXiaozhiGlyphPushV1,
   parseXiaozhiV1ClientEvent,
   parseXiaozhiV1ServerEvent,
   sanitizeXiaozhiV1HelloExtension,
-  type JsonRpcMessage,
 } from 'xiaozhi-contract'
 
 trace('=== xiaozhi-contract test ===\n')

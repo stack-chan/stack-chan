@@ -224,6 +224,18 @@ assert(levelTrack.visible === true, 'level track should be visible while user is
 assert(statusIcon.visible === true, 'status icon should be visible while user is speaking')
 equal(statusIcon.state, 0, 'user speaking should use microphone input icon state')
 
+behavior.onFinished?.(bar)
+assert(bar.visible === true, 'user input should keep the microphone area visible after the AppBar timeout')
+assert(menuButton.visible === false, 'persistent microphone status should not keep face actions visible')
+assert(clock.visible === false, 'persistent microphone status should not keep the clock visible')
+assert(battery.visible === false, 'persistent microphone status should not keep battery status visible')
+assert(levelTrack.visible === true, 'input level should remain visible after the AppBar timeout')
+assert(statusIcon.visible === true, 'microphone icon should remain visible after the AppBar timeout')
+behavior.onChatState?.(bar, ChatStatusBarState.WAITING)
+assert(bar.visible === false, 'leaving user input should hide a previously timed-out AppBar')
+behavior.onAppBarReveal?.(bar)
+behavior.onChatState?.(bar, ChatStatusBarState.SPEAKING)
+
 behavior.onConnectionIndicator?.(bar, true)
 assert(statusIndicator.visible === true, 'external connection indicator should be visible')
 assert(levelTrack.visible === false, 'external connection indicator should take priority over the level track')

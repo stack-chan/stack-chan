@@ -32,7 +32,9 @@ type RecorderBehavior = {
 }
 
 type BalloonNode = Content & {
+  next?: BalloonNode | null
   skin?: unknown
+  string?: string
 }
 
 type BalloonContent = PiuContainer & {
@@ -40,6 +42,7 @@ type BalloonContent = PiuContainer & {
   behavior?: {
     onDisplaying?: (content: PiuContainer) => void
     onFaceState?: (content: PiuContainer, face: FaceState) => void
+    setText?: (content: PiuContainer, text: string) => void
   }
 }
 
@@ -459,6 +462,20 @@ assert(
   attachedBalloon.first?.skin !== defaultSkin,
   'showBalloon should replay the active face state to newly attached balloons',
 )
+const initialBalloonHeight = positionedBalloon.coordinates?.height
+runtimeUI.showBalloon('runtime balloon\nsecond line\nthird line')
+equal(appData.EFFECTS?.last, runtimeBalloon, 'showBalloon should reuse a balloon when layout options are unchanged')
+equal(
+  attachedBalloon.first?.next?.string,
+  'runtime balloon\nsecond line\nthird line',
+  'showBalloon should update reused balloon text in place',
+)
+assert(
+  (positionedBalloon.coordinates?.height ?? 0) > (initialBalloonHeight ?? 0),
+  'showBalloon should recalculate a reused balloon height',
+)
+runtimeUI.showBalloon('top balloon', { top: 8 })
+assert(appData.EFFECTS?.last !== runtimeBalloon, 'showBalloon should replace a balloon when layout options change')
 runtimeUI.hideBalloon()
 
 const oldDrawerCalls: DrawerControllerCalls = { buttons: [], states: [], removed: [] }

@@ -408,6 +408,7 @@ class ChatStatusBarBehavior extends Behavior {
     if (!this.#levelTrack || !this.#levelFill) return
     const ratio = Math.min(Math.max(this.#inputLevel / 2000, 0), 1)
     const height = Math.round(levelHeight * ratio)
+    if (this.#levelFill.height === height) return
     this.#levelFill.height = height
   }
 

@@ -52,6 +52,7 @@ async function runTest(): Promise<void> {
   const touchPanel = new TouchPanel(FakeTouchPanelDriver, { interval: 10 })
   const driver = FakeTouchPanelDriver.current
   assert(driver, 'TouchPanel should instantiate its driver')
+  equal(touchPanel.sample.length, 0, 'sample should be empty before the first poll')
 
   const legacyEvents: TouchPanelInputEvent[] = []
   const subscriberEvents: TouchPanelInputEvent[] = []
@@ -66,6 +67,7 @@ async function runTest(): Promise<void> {
   driver.queue([0, 1, 0], [0, 0, 0])
   touchPanel.start()
   await waitForSampleCount(driver, 2)
+  equal(touchPanel.sample.join(','), '0,0,0', 'sample should expose the latest raw channel values')
 
   assertPressAndRelease(legacyEvents, 'legacy onEvent')
   assertPressAndRelease(subscriberEvents, 'subscriber')

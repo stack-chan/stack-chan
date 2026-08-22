@@ -63,6 +63,10 @@ export default class TouchPanel {
     this.#driver.configure?.(options)
   }
 
+  get sample(): readonly number[] {
+    return this.#lastSample
+  }
+
   subscribe(listener: (event: TouchPanelInputEvent) => void): () => void {
     this.#listeners.add(listener)
     return () => this.#listeners.delete(listener)

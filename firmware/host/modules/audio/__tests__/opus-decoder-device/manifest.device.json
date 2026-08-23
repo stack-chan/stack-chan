@@ -1,0 +1,35 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/modules/base/worker/manifest.json",
+    "$(MODDABLE)/modules/io/audioin/manifest.json",
+    "$(MODDABLE)/modules/pins/i2s/manifest.json",
+    "../../../power/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "opusCodecWorker": "./opus-codec-worker",
+    "stackchanOpusDecoder": "../../platforms/m5stackchan-cores3/esp32-opus-decoder",
+    "stackchanOpusEncoder": "../../platforms/m5stackchan-cores3/esp32-opus-encoder",
+    "main": "./opus-decoder-device.test"
+  },
+  "platforms": {
+    "esp32/m5stackchan_cores3": {
+      "build": {
+        "SDKCONFIGPATH ?=": "../../platforms/m5stackchan-cores3/sdkconfig"
+      },
+      "dependency": [
+        {
+          "name": "esp_audio_codec",
+          "version": "~2.5.0",
+          "includes": [
+            "include/decoder",
+            "include/decoder/impl",
+            "include/encoder",
+            "include/encoder/impl"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -29,9 +29,6 @@
   },
   "platforms": {
     "esp32/m5stackchan_cores3": {
-      "build": {
-        "C_INCLUDES": "-I$(IDF_PATH)/components/esp_driver_usb_serial_jtag/include"
-      },
       "dependency": [{ "idf": "esp_driver_usb_serial_jtag" }],
       "modules": {
         "stackchan-usb-crc32": "./usb-crc32",

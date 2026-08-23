@@ -7,6 +7,10 @@ import { prepareCoreS3IdfDependencies } from './idf-dependencies.mjs'
 
 test('prepares both managed components without duplicating them', () => {
   const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-idf-dependencies-'))
+  const audioManifest = JSON.parse(readFileSync(new URL('../../host/modules/audio/manifest.json', import.meta.url)))
+  const audioCodec = audioManifest.platforms['esp32/m5stackchan_cores3'].dependency.find(
+    ({ name }) => name === 'esp_audio_codec',
+  )
 
   try {
     const manifestPath = prepareCoreS3IdfDependencies({
@@ -26,6 +30,7 @@ test('prepares both managed components without duplicating them', () => {
 
     assert.equal(second, first)
     assert.equal(count(second, 'espressif/esp_audio_codec:'), 1)
+    assert.ok(second.includes(`espressif/esp_audio_codec: ${audioCodec.version}`))
     assert.equal(count(second, 'espressif/esp32-camera:'), 1)
   } finally {
     rmSync(outputDirectory, { recursive: true, force: true })

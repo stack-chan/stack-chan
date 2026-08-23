@@ -1,5 +1,5 @@
 import type { MotionType } from 'imu-motion'
-import type { TouchPanelGestureType } from 'touch-panel-gesture'
+import type { TouchPanelGestureType, TouchPanelTap } from 'touch-panel-gesture'
 
 export type ButtonInputEvent = {
   kind: 'button'
@@ -23,6 +23,7 @@ export type TouchPanelInputEvent = {
   position: number
   intensity: number
   ticks: number
+  tap?: TouchPanelTap
 }
 
 export type IMUInputEvent = {
@@ -56,8 +57,9 @@ export function createTouchPanelInputEvent(
   position: number,
   intensity: number,
   ticks: number,
+  tap?: TouchPanelTap,
 ): TouchPanelInputEvent {
-  return { kind: 'touch-panel', gesture, position, intensity, ticks }
+  return { kind: 'touch-panel', gesture, position, intensity, ticks, ...(tap ? { tap } : {}) }
 }
 
 export function createIMUInputEvent(motion: MotionType, ticks: number): IMUInputEvent {

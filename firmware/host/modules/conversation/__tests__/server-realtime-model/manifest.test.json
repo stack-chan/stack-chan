@@ -6,10 +6,14 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "ChatAudioIO/Codecs": "./audio-codecs",
     "main": "./server-realtime-model.test",
+    "stackchanXiaozhiContractTest": "./xiaozhi-contract.test",
+    "stackchanXiaozhiModelTest": "./xiaozhi-model.test",
     "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker",
-    "stackchanServerOpenAIRealtimeModel": "../../chat-audioio/server-openai-realtime-model"
+    "xiaozhi-contract": "../../chat-audioio/xiaozhi-contract",
+    "xiaozhiV1Model": "../../chat-audioio/xiaozhi-model",
+    "stackchanOpusDecoder": "./opus-decoder",
+    "stackchanOpusEncoder": "./opus-encoder"
   },
   "typescript": {
     "tsconfig": {

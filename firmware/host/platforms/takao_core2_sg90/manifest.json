@@ -4,17 +4,8 @@
   },
   "include": ["$(BUILD)/devices/esp32/targets/m5stack_core2/manifest.json"],
   "config": {
-    "driver": {
-      "type": "pwm",
-      "pwmPan": 19,
-      "pwmTilt": 27
-    },
     "tts": {
       "sampleRate": 24000
-    },
-    "serial": {
-      "transmit": 14,
-      "receive": 13
     }
   }
 }

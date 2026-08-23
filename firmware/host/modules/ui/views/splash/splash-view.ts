@@ -6,6 +6,7 @@ import { UI, uiStyles } from 'ui-theme'
 
 export type StartupSplashOptions = {
   message?: string
+  onMods?: () => void
   onSettings?: () => void
 }
 
@@ -77,13 +78,27 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
   })
 
   showActions([
+    ...(options.onMods
+      ? [
+          new ActionButton(
+            {
+              name: 'startup:mods',
+              icon: 'apps',
+              label: localize('mods.title'),
+              onTap: options.onMods,
+            },
+            { left: 8, width: 148 },
+          ),
+        ]
+      : []),
     new ActionButton(
       {
+        name: 'startup:settings',
         icon: 'settings',
         label: localize('settings.title'),
         onTap: options.onSettings,
       },
-      { left: 104, width: 112 },
+      options.onMods ? { right: 8, width: 148 } : { left: 104, width: 112 },
     ),
   ])
   return application

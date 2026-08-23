@@ -14,14 +14,50 @@ function dryRun(...args) {
 }
 
 function dryRunCommand(command, ...args) {
-  const result = spawnSync(process.execPath, ['scripts/firmware.mjs', command, manifest, ...args], {
+  const commandArgs = command === 'mod' || command === 'mod:build' ? [manifest, ...args] : args
+  const env = { ...process.env, STACKCHAN_BUILD_MODE: '', STACKCHAN_DRY_RUN: '1', npm_config_target: '' }
+  delete env.STACKCHAN_DEVICE
+  const result = spawnSync(process.execPath, ['scripts/firmware.mjs', command, ...commandArgs], {
     cwd: firmwareDirectory,
     encoding: 'utf8',
-    env: { ...process.env, STACKCHAN_BUILD_MODE: '', STACKCHAN_DRY_RUN: '1', npm_config_target: '' },
+    env,
   })
   assert.equal(result.status, 0, result.stderr)
-  return result.stdout
+  return result.stdout + result.stderr
 }
+
+test('host build, flash, and deploy commands default to release mode', () => {
+  for (const command of ['build', 'flash', 'deploy']) {
+    const output = dryRunCommand(command)
+    assert.match(output, /mcconfig -m /)
+    assert.doesNotMatch(output, /mcconfig -(?:d[nxl]?|i) /)
+  }
+})
+
+test('debug commands keep debug as the default build mode', () => {
+  assert.match(dryRunCommand('debug'), /mcconfig -d -m /)
+})
+
+test('host commands honor explicit non-release build modes', () => {
+  for (const command of ['build', 'flash', 'deploy']) {
+    for (const selector of ['--mode=debug', '-d']) {
+      assert.match(dryRunCommand(command, selector), /mcconfig -d -m /)
+    }
+    for (const selector of ['--mode=instrument', '-i']) {
+      assert.match(dryRunCommand(command, selector), /mcconfig -i -m /)
+    }
+  }
+})
+
+test('CoreS3 non-release host builds warn that Codex Voice USB is unavailable', () => {
+  for (const command of ['build', 'flash', 'deploy', 'debug']) {
+    for (const selector of ['--mode=debug', '--mode=instrument', '-d', '-i']) {
+      assert.match(dryRunCommand(command, 'm5stackchan_cores3', selector), /Codex Voice USB is unavailable/)
+    }
+  }
+  assert.doesNotMatch(dryRunCommand('build', 'm5stackchan_cores3'), /Codex Voice USB is unavailable/)
+  assert.doesNotMatch(dryRunCommand('build', 'stackchan_rt', '--mode=debug'), /Codex Voice USB is unavailable/)
+})
 
 test('MOD command keeps debug as the default build mode', () => {
   assert.match(dryRun('-t', 'build'), /mcrun -d -m /)

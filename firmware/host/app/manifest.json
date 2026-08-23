@@ -75,14 +75,8 @@
     "driver": {
       "panId": 1,
       "tiltId": 2,
-      "pwmPan": 5,
-      "pwmTilt": 2,
       "offsetTilt": 0,
       "offsetPan": 0
-    },
-    "serial": {
-      "transmit": 17,
-      "receive": 16
     },
     "enablePowerButton": true
   },

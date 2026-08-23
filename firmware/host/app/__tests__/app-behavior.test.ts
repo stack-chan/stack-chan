@@ -103,6 +103,26 @@ test('resolveAppBehaviors imports MOD independently from other archive entrypoin
   assert.deepEqual(importedSpecifiers, ['mod'])
 })
 
+test('resolveAppBehaviors falls back to the product default when the installed MOD fails to import', async () => {
+  installBareSpecifierPackages()
+  const { resolveAppBehaviors } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
+  const failure = new Error('invalid MOD')
+  const defaultBehavior: AppBehavior = { onLaunch: () => true }
+  const importErrors: unknown[] = []
+  const modules: AppBehaviorModules = {
+    has: () => true,
+    importNow: () => {
+      throw failure
+    },
+  }
+
+  assert.deepEqual(
+    resolveAppBehaviors(modules, defaultBehavior, (error) => importErrors.push(error)),
+    [defaultBehavior],
+  )
+  assert.deepEqual(importErrors, [failure])
+})
+
 test('prepareAppLaunch skips post-approval preparation when a MOD rejects launch', async () => {
   installBareSpecifierPackages()
   const { prepareAppLaunch } = (await import('app-launch')) as AppLaunchModule
@@ -155,4 +175,28 @@ test('prepareAppLaunch prepares mini-apps after every launch behavior approves',
 
   assert.deepEqual(result, { shouldCreateContext: true, prepared: 'mini-apps' })
   assert.deepEqual(events, ['launch:first', 'launch:second', 'prepare'])
+})
+
+test('installLaunchShortcut opens on release without replacing the existing button handler', async () => {
+  installBareSpecifierPackages()
+  const { installLaunchShortcut } = (await import('app-launch')) as AppLaunchModule
+  const events: string[] = []
+  const button = {
+    value: 0,
+    read() {
+      return this.value
+    },
+    onChanged() {
+      events.push('button')
+    },
+  }
+  installLaunchShortcut(button, () => events.push('open'))
+
+  button.value = 1
+  button.onChanged()
+  button.value = 0
+  button.onChanged()
+  button.onChanged()
+  await Promise.resolve()
+  assert.deepEqual(events, ['button', 'button', 'button', 'open'])
 })

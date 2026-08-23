@@ -6,9 +6,14 @@ export type AppBehaviorModules = {
 export function resolveAppBehaviors<TBehavior extends object>(
   modules: AppBehaviorModules,
   defaultBehavior: TBehavior,
+  onImportError?: (error: unknown) => void,
 ): TBehavior[] {
   if (modules.has('mod')) {
-    return [mergeDefinedBehavior(defaultBehavior, modules.importNow('mod') as Partial<TBehavior>)]
+    try {
+      return [mergeDefinedBehavior(defaultBehavior, modules.importNow('mod') as Partial<TBehavior>)]
+    } catch (error) {
+      onImportError?.(error)
+    }
   }
   return [defaultBehavior]
 }

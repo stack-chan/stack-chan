@@ -1,5 +1,6 @@
 export const sentJSON = []
 export const postedMessages = []
+export const sentBinary = []
 
 export default class ServerChatWebSocketWorker {
   constructor(options) {
@@ -11,6 +12,16 @@ export default class ServerChatWebSocketWorker {
     this.connectCount += 1
     this.inputBuffer = message.inputBuffer
     this.outputBuffer = message.outputBuffer
+    this.parser = {
+      copied: [],
+      copy: (data) => this.parser.copied.push(new Uint8Array(data).slice()),
+      doneCount: 0,
+      done: () => (this.parser.doneCount += 1),
+    }
+  }
+
+  read(data, options) {
+    this.lastRead = { data, options }
   }
 
   close() {
@@ -36,5 +47,9 @@ export default class ServerChatWebSocketWorker {
 
   sendJSON(message) {
     sentJSON.push(message)
+  }
+
+  write(data, options) {
+    sentBinary.push({ data: new Uint8Array(data).slice(), options })
   }
 }

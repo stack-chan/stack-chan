@@ -27,14 +27,23 @@ const balloonMessages: string[] = []
 const torqueRequests: boolean[] = []
 let servoFailure: Error | undefined
 let drawerCloseCount = 0
+type TouchPanelTestEvent = {
+  gesture: 'forwardSwipe' | 'backwardSwipe'
+  position: number
+  intensity: number
+  ticks: number
+}
 const touchPanel: {
-  onEvent?: (event: {
-    gesture: 'forwardSwipe' | 'backwardSwipe'
-    position: number
-    intensity: number
-    ticks: number
-  }) => void
-} = {}
+  listener?: (event: TouchPanelTestEvent) => void
+  subscribe: (listener: (event: TouchPanelTestEvent) => void) => () => void
+} = {
+  subscribe(listener) {
+    touchPanel.listener = listener
+    return () => {
+      if (touchPanel.listener === listener) touchPanel.listener = undefined
+    }
+  },
+}
 
 const robot = {
   audio: {
@@ -174,9 +183,9 @@ assert(
 )
 const speakButton = buttons.find((button) => button.key === 'speakStackchan')
 assert(speakButton, 'speakStackchan button should be registered')
-assert(touchPanel.onEvent, 'touchPanel handler should be registered')
-touchPanel.onEvent?.({ gesture: 'forwardSwipe', position: 0.25, intensity: 3, ticks: 100 })
-touchPanel.onEvent?.({ gesture: 'backwardSwipe', position: 0.75, intensity: 3, ticks: 500 })
+assert(touchPanel.listener, 'touchPanel subscriber should be registered')
+touchPanel.listener?.({ gesture: 'forwardSwipe', position: 0.25, intensity: 3, ticks: 100 })
+touchPanel.listener?.({ gesture: 'backwardSwipe', position: 0.75, intensity: 3, ticks: 500 })
 equal(emotions[emotions.length - 1], Emotion.HAPPY, 'petting swipe pair should set HAPPY emotion')
 assert(effects.length > 0, 'petting should add a visible emotion effect')
 

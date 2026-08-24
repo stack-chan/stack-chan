@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 import test from 'node:test'
 
 type Manifest = {
@@ -49,6 +50,15 @@ test('CoreS3 composes the USB Dock without leaking it into shared or WASM graphs
   assert.equal(dockManifest.modules?.['stackchan-task-session'], '../../remote-session/task-session')
   assert.equal(dockManifest.modules?.['stackchan-usb-dock-presentation'], './presentation')
   assert.equal(dockManifest.modules?.['stackchan-usb-dock-runtime'], './runtime')
+})
+
+test('the dynamically imported USB Dock presentation exposes a default factory', () => {
+  const manifestPath = 'host/app/docks/android-usb-audio/manifest.json'
+  const modulePath = dockManifest.modules?.['stackchan-usb-dock-presentation']
+  assert.equal(typeof modulePath, 'string')
+
+  const sourcePath = resolve(dirname(manifestPath), `${modulePath}.ts`)
+  assert.match(readFileSync(sourcePath, 'utf8'), /^\s*export\s+default\s+/m)
 })
 
 test('USB transport stays platform-specific while physical audio remains on the main VM', () => {

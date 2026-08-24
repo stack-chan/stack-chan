@@ -292,6 +292,26 @@ initialDrawerBehavior.onDrawerChoiceSelected?.(initialDrawer, { key: 'choiceTest
 equal(selectedChoice, 'second', 'drawer choice selection should bubble to its bound application callback')
 controller.unbindDrawerAction('choiceTest')
 controller.removeDrawerButton('choiceTest')
+
+let punctuatedActionCalls = 0
+const punctuatedActionKey = 'codex-voice:session'
+assert(
+  controller.bindDrawerAction(punctuatedActionKey, () => {
+    punctuatedActionCalls += 1
+  }),
+  'drawer callback should accept a punctuated runtime key',
+)
+controller.addDrawerButton({ key: punctuatedActionKey, label: 'Codex', kind: 'toggle' })
+const punctuatedButton = findNamedNode(initialDrawer as unknown as PiuContent, punctuatedActionKey)
+assert(punctuatedButton, 'drawer should render a button with a punctuated runtime key')
+const punctuatedButtonBehavior = punctuatedButton.behavior as {
+  onTouchEnded?: (content: PiuContainer) => void
+}
+punctuatedButtonBehavior.onTouchEnded?.(punctuatedButton as unknown as PiuContainer)
+equal(punctuatedActionCalls, 1, 'punctuated drawer action should bubble to its runtime callback')
+controller.unbindDrawerAction(punctuatedActionKey)
+controller.removeDrawerButton(punctuatedActionKey)
+
 controller.addDrawerButton({ key: 'dynamicA', label: 'Dynamic A' })
 equal(
   findDrawer(application as unknown as PiuContainer),

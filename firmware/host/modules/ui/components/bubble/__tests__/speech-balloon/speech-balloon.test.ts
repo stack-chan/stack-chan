@@ -1,10 +1,16 @@
 import { SpeechBalloon, type SpeechBalloonTail } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB } from 'face-state'
 import { Application, type Content, Skin, Style } from 'piu/MC'
+import usbAudioPresentationFactory, { createUsbAudioPresentation } from 'stackchan-usb-dock-presentation'
 import { assert } from 'testing/assert'
 import Timer from 'timer'
 
 trace('=== chat-balloon test ===\n')
+
+assert(
+  usbAudioPresentationFactory === createUsbAudioPresentation,
+  'the lazily imported USB Dock presentation should expose its factory as the module default',
+)
 
 const app = new Application(null, {
   displayListLength: 8192,

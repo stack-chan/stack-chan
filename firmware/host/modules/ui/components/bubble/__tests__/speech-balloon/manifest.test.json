@@ -4,6 +4,10 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/manifest_piu.json",
     "../../../../manifest.json",
+    "../../../../../audio/manifest.json",
+    "../../../../../camera/manifest.json",
+    "../../../../../input/manifest.json",
+    "../../../../../motion/manifest.json",
     "../../../../../testing/manifest.json"
   ],
   "resources": {
@@ -17,6 +21,12 @@
     ]
   },
   "modules": {
-    "main": "./speech-balloon.test"
+    "capabilities": "../../../../../../app/capabilities",
+    "local-peer-types": "../../../../../connectivity/local-peer-types",
+    "main": "./speech-balloon.test",
+    "stackchan-application-event": "../../../../../../app/remote-session/application-event",
+    "stackchan-usb-dock-presentation": "../../../../../../app/docks/android-usb-audio/presentation",
+    "stackchan-usb-dock-presentation-model": "../../../../../../app/docks/android-usb-audio/presentation-model",
+    "stackchan-usb-media-session": "../../../../../usb-audio/media-session"
   }
 }

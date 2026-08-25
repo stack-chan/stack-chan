@@ -239,6 +239,10 @@ export function PreferencesPage() {
               </div>
             </>
           )}
+          {section(
+            'MCP Server',
+            <>{inputField({ name: 'mcp.token', label: 'Bearerトークン', type: 'password', wide: true })}</>
+          )}
           <footer className="sticky bottom-0 z-10 flex justify-end border-t bg-background/95 py-3 backdrop-blur">
             <Button type="submit" disabled={!preferences.connected || preferences.busy}>
               <Save data-icon="inline-start" />

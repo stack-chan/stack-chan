@@ -29,6 +29,21 @@ export function validateRelease(rootDirectory, tag) {
     }
   }
 
+  const flashManifestDirectory = path.join(rootDirectory, 'web', 'flash')
+  const flashManifestNames = readdirSync(flashManifestDirectory).filter((name) =>
+    /^manifest_esp32_.*\.json$/.test(name),
+  )
+  if (flashManifestNames.length === 0) {
+    throw new Error('web flash manifests are missing')
+  }
+  for (const name of flashManifestNames) {
+    const relativePath = path.join('web', 'flash', name)
+    const document = JSON.parse(readFileSync(path.join(rootDirectory, relativePath), 'utf8'))
+    if (document.version !== version) {
+      throw new Error(`${relativePath} version is ${document.version ?? 'missing'}; expected ${version}`)
+    }
+  }
+
   const releaseNotePath = path.join(rootDirectory, 'docs', 'release-notes', `v${version}.md`)
   if (!existsSync(releaseNotePath) || readFileSync(releaseNotePath, 'utf8').trim().length === 0) {
     throw new Error(`release note is missing or empty: docs/release-notes/v${version}.md`)

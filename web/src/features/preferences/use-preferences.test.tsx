@@ -56,6 +56,31 @@ describe('usePreferences', () => {
     expect(result.current.values['driver.type']).toBe('fixed')
   })
 
+  it('loads and saves the MCP server token', async () => {
+    let notify: (value: PreferenceValue) => void = () => {}
+    const send = vi.fn(async () => {})
+    const client: PreferenceClient = {
+      connect: async () => {},
+      disconnect: async () => {},
+      isConnected: () => true,
+      send,
+    }
+    const { result } = renderHook(() =>
+      usePreferences((onValue) => {
+        notify = onValue
+        return client
+      })
+    )
+
+    act(() => notify({ prop: 'mcp.token', value: 'old-token' }))
+    expect(result.current.values['mcp.token']).toBe('old-token')
+
+    act(() => result.current.update('mcp.token', 'new-token'))
+    await act(() => result.current.save())
+
+    expect(send).toHaveBeenCalledWith({ _batch: { 'mcp.token': 'new-token' } })
+  })
+
   it('does not save a field reverted to its current device value', async () => {
     let notify: (value: PreferenceValue) => void = () => {}
     const send = vi.fn(async () => {})

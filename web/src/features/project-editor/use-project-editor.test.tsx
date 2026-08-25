@@ -52,6 +52,10 @@ const invalidationScenarios: Array<{
     invalidate: (editor) => editor.setTarget('simulator'),
   },
   {
+    name: 'the project name changes',
+    invalidate: (editor) => editor.setName('Renamed project'),
+  },
+  {
     name: 'the embedded assets change',
     invalidate: (editor) =>
       editor.addAssets([

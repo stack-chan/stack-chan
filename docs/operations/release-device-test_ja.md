@@ -126,6 +126,8 @@
   Bearer tokenがURLへ露出せず、接続、マイク入力、文字起こし、音声応答、tool callと結果返却が一往復することを確認する。
 - [ ] `C-09` Codex Voiceなどで英大文字を含む認証コードとactivation linkを表示する。
   文字が欠けず、QRコードが標準ホストとWASMホストの両方で描画され、読み取ったURLが表示内容と一致することを確認する。
+- [ ] `C-10` XiaoZhi v1互換サーバーへ`ChatService`で接続する。
+  CoreS3のOpusマイク入力と音声応答を確認し、text eventとMCPの初期化、tool call、結果返却を一往復させた後、切断から再接続できることを確認する。
 
 ## 追加機種の確認
 

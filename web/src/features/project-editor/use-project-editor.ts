@@ -326,7 +326,7 @@ export function useProjectEditor() {
       }) as VisualProject
       persistProject(next)
       const shouldInvalidateBuild = changedEntries.some(
-        ([key]) => key === 'target' || key === 'assets' || key === 'settings'
+        ([key]) => key === 'name' || key === 'target' || key === 'assets' || key === 'settings'
       )
       if (shouldInvalidateBuild) {
         const currentSnapshot = workspaceRef.current?.snapshot() ?? snapshot

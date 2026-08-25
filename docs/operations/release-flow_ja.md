@@ -55,3 +55,4 @@ GitHub Pagesは`gh-pages`ブランチ内で安定版と開発版を別のディ�
 `main`へのpushは正本だけを更新し、`develop`へのpushは開発版だけを更新します。
 各ディレクトリには、その元ブランチからビルドしたWebアプリ、firmware bundle、schema、schematicsを配置します。
 `release/*`はGitHub Pagesへ直接デプロイせず、pull requestごとのCloudflareプレビューで確認します。
+プレビューにはpull requestの候補から生成したWebアプリ、firmware bundle、schematicsと、その候補に含まれるschemaを使用し、`gh-pages`上の生成済み成果物は流用しません。

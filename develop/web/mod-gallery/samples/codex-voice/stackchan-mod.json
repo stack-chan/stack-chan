@@ -1,0 +1,28 @@
+{
+  "$schema": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 1,
+  "id": "tech.stackchan.samples.codex-voice",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "Codex Voice",
+  "description": "PCのCodexとUSB接続し、頭上の前後スワイプで音声対話を開始、停止し、承認要求を画面で操作できます。標準CoreS3ファームウェアとPC側のstack-chan-dockが必要です。",
+  "author": "Stack-chan Community",
+  "license": "Apache-2.0",
+  "setup": {
+    "url": "https://github.com/meganetaaan/stack-chan-dock/tree/develop/apps/codex-voice"
+  },
+  "source": {
+    "path": "mod/manifest.json",
+    "entrypoint": "mod/mod.js"
+  },
+  "targets": ["m5stackchan-cores3"],
+  "capabilities": ["audio.usb", "conversation.remote", "input.headTouch", "ui.approval"],
+  "artifacts": [
+    {
+      "format": "xsa",
+      "path": "codex-voice.xsa",
+      "target": "m5stackchan-cores3"
+    }
+  ]
+}

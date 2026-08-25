@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
+  "title": "Stack-chan MOD definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schemaVersion",
+    "id",
+    "version",
+    "type",
+    "name",
+    "description",
+    "source",
+    "targets"
+  ],
+  "properties": {
+    "$schema": { "type": "string", "format": "uri-reference" },
+    "format": { "const": "tech.stackchan.mod" },
+    "schemaVersion": { "const": 1 },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)+$",
+      "maxLength": 128
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "type": { "enum": ["block", "text"] },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "author": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "license": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relativePath" },
+        "entrypoint": {
+          "allOf": [
+            { "$ref": "#/$defs/relativePath" },
+            { "pattern": "\\.[cm]?[jt]sx?$" }
+          ]
+        }
+      }
+    },
+    "setup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^[Hh][Tt][Tt][Pp][Ss]://",
+          "maxLength": 2048
+        }
+      }
+    },
+    "entrypoints": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["mod", "miniapp"] }
+    },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*$"
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["format", "path", "target"],
+        "properties": {
+          "format": { "const": "xsa" },
+          "path": { "$ref": "#/$defs/relativePath" },
+          "target": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "type": { "const": "block" } },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "source": { "not": { "required": ["entrypoint"] } }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.(?:/|$))(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\/$)(?!.*\\\\)(?!.*[\\u0000-\\u001f:]).+$"
+    }
+  }
+}

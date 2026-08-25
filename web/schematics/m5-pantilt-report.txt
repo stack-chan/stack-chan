@@ -127,3 +127,25 @@ Note: this is just an approximation to the theoretical value. Margins of the sol
 
 
 
+# Schematic
+
+\ ![Schematic in PDF format](Schematic/m5-pantilt-schematic.pdf){ width=16.5cm height=11.7cm }
+
+
+
+
+
+# PCB Layers
+
+\ ![PCB page 1](PCB/PDF/m5-pantilt-assembly-1.pdf){ width=16.5cm height=11.7cm }
+
+\ ![PCB page 2](PCB/PDF/m5-pantilt-assembly-2.pdf){ width=16.5cm height=11.7cm }
+
+\ ![PCB page 3](PCB/PDF/m5-pantilt-assembly-3.pdf){ width=16.5cm height=11.7cm }
+
+\ ![PCB page 4](PCB/PDF/m5-pantilt-assembly-4.pdf){ width=16.5cm height=11.7cm }
+
+\ ![PCB page 5](PCB/PDF/m5-pantilt-assembly-5.pdf){ width=16.5cm height=11.7cm }
+
+\ ![PCB page 6](PCB/PDF/m5-pantilt-assembly-6.pdf){ width=16.5cm height=11.7cm }
+

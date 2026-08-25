@@ -131,3 +131,21 @@ test('loadPreferences does not let MOD config relax a platform driver lock', asy
   assert.equal(driver.type, 'm5stackchan')
   assert.equal(driver.typeLocked, true)
 })
+
+test('loadPreferences reads the MCP authentication token from preferences', async () => {
+  const { loadPreferences, preference } = await setup()
+  preference.resetPreference({
+    'mcp.token': 'secret-token',
+  })
+
+  assert.equal(loadPreferences(DOMAIN.mcp).token, 'secret-token')
+})
+
+test('loadPreferences reads the selected time zone from preferences', async () => {
+  const { loadPreferences, preference } = await setup()
+  preference.resetPreference({
+    'time.timezone': 'london',
+  })
+
+  assert.equal(loadPreferences(DOMAIN.time).timezone, 'london')
+})

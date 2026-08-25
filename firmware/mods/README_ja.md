@@ -1,62 +1,74 @@
-# サンプルMOD
+# MODとサンプル
 
-ｽﾀｯｸﾁｬﾝのユーザアプリケーション（MOD）のサンプル集です。
-MODの書き込み方法は[プログラムのビルドと書き込み](../docs/flashing-firmware_ja.md)を参照ください。
+[English](./README.md)
 
-一部のMODは動かすためにネットワーク接続や外部のサーバを準備する必要があります（執筆中）。
+**MOD**は、ｽﾀｯｸﾁｬﾝのホストファームウェア上で動くユーザーアプリケーションです。
 
-## WebRadio
+## MODを試す
 
-- [web_radio](./examples/web_radio/): M5StackChan CoreS3でSomaFMのMP3ストリームを再生します。
+公開MODは[MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/)から探せます。
+名前や機能で検索し、シミュレーターまたは実機で試せます。
+ブロックで作られたMODは、ブロックエディタで変更できます。
 
-MOD をインストールすると、ホストの製品既定動作は実行されません。
-ボタンや画面操作の意味は、インストールした MOD の実装で決まります。
+MODを選ぶときは、カードに表示される使用機能と対応機種を確認してください。
+外部サービスやネットワークを使うMODは、リンク先のソースコードも確認してから書き込んでください。
+実機へ書き込むときは、Galleryが対象チップ、XSバージョン、ファームウェア互換性を自動で検査します。
 
-MOD は JavaScript または TypeScript module として書けます。
-TypeScript で MOD を書く場合は、公開された Stack-chan capability 型と Moddable の module specifier だけを使います。
-WASM host で使う MOD も、`lin` など TypeScript 対応済み target で build した `.xsb` または archive を読み込ませます。
+[![MOD Galleryの画面](../../docs/images/web-tools/mod-gallery-ja.png)](https://stack-chan.github.io/stack-chan/web/mod-gallery/)
 
-表示文字列は [`context.i18n` を使った firmware のローカライズ](../docs/localization_ja.md)を参照してください。
-最小サンプルは [`localized_drawer`](./examples/localized_drawer/) です。
+このディレクトリの[`examples`](./examples/)には、APIの学習、テスト、ローカル開発に使えるMODのソースコードがあります。
+その一部はGalleryにも掲載されています。
+現在、Galleryと`examples`の収録内容は一致していませんが、今後そろえていく予定です。
 
-顔画面とホストの AppBar を維持したまま Piu UI を追加する場合は、experimental の[ミニアプリ](../docs/mini-apps_ja.md)を利用できます。
-実装例は [mini_app_sample](./examples/mini_app_sample/) にあります。
+## MODを作る
 
-## M5StackChan CoreS3 Smoke
+### ブラウザーで作る
 
-- [m5stackchan_smoke](./examples/m5stackchan_smoke/): M5StackChan CoreS3 のサーボ電源とヘッドLEDの smoke 確認です。手順は [M5StackChan CoreS3 smoke check](../docs/m5stackchan-cores3-smoke.md) を参照してください。
+[ブロックエディタ](https://stack-chan.github.io/stack-chan/web/editor/)では、Blocklyで処理を組み立て、ブラウザー内でMODをビルドできます。
+作成したMODは[シミュレーター](https://stack-chan.github.io/stack-chan/web/simulator/)で確認し、対応する実機へ書き込めます。
+最初のプロジェクトは[ブロックエディタのチュートリアル](https://stack-chan.github.io/stack-chan/web/editor/tutorial.html)に沿って作成できます。
 
-## Local Peer Hello
+[![ブロックエディタの画面](../../docs/images/web-tools/block-editor-ja.png)](https://stack-chan.github.io/stack-chan/web/editor/)
 
-- [local_peer_hello](./examples/local_peer_hello/): インターネットを経由せず、近くのｽﾀｯｸﾁｬﾝを発見して型付きメッセージを送受信します。
+### ソースコードから作る
 
-## Look Around: きょろきょろｽﾀｯｸﾁｬﾝ
+MODはJavaScriptまたはTypeScriptのモジュールとして実装できます。
+TypeScriptのMODでは、Stack-chanのcapability APIが公開する型とModdableのモジュール指定子を使用します。
 
-![きょろきょろｽﾀｯｸﾁｬﾝ](../docs/images/stackchan.gif)
+ローカル環境からMODを書き込む場合は、`firmware`ディレクトリで`manifest.json`を指定します。
 
-- [look_around](./examples/look_around/)
+```console
+npm run mod -- mods/examples/look_around/manifest.json
+```
 
-## Monologue: ぽしょぽしょ独り言ｽﾀｯｸﾁｬﾝ
+環境構築、ターゲット別のコマンド、書き込み方法は[プログラムのビルドと書き込み](../docs/flashing-firmware_ja.md)を参照してください。
 
-- [monologue](./examples/monologue/)
+## MODの実行モデル
 
-## Cheerup: ｽﾀｯｸﾁｬﾝ応援団
+MODをインストールすると、ホストの通常動作に代わってそのMODが実行されます。
+ボタンや画面操作の意味は、インストールしたMODの実装で決まります。
 
-![顔の同期](../docs/images/face-sync.gif)
-![ｽﾀｯｸﾁｬﾝ応援団](../docs/images/cheerup.gif)
+MODは、対象機種とホストが使用するXSバージョンに合わせてビルドする必要があります。
+WASMホストで使う場合も、`lin`などTypeScriptをサポートするターゲットでビルドした`.xsb`またはアーカイブを読み込みます。
 
-- [cheerup_ble_lite](./examples/cheerup_ble_lite/): BLE版
-- [cheerup_ws](./examples/cheerup_ws/): WebSocket版
+表示文字列は[`context.i18n`を使ったファームウェアのローカライズ](../docs/localization_ja.md)に従って追加します。
+顔画面とホストのAppBarを維持したままPiu UIを追加する場合は、実験的な[ミニアプリ](../docs/mini-apps_ja.md)を利用できます。
 
-## Mimic: まねっこｽﾀｯｸﾁｬﾝ
+## 代表的なソース例
 
-![まねっこｽﾀｯｸﾁｬﾝ](../docs/images/mimic.gif)
+| サンプル | 確認できる機能 |
+| --- | --- |
+| [`look_around`](./examples/look_around/) | モーションAPIを使った最小限の首振り |
+| [`localized_drawer`](./examples/localized_drawer/) | `context.i18n`を使ったローカライズ済みUI |
+| [`mini_app_sample`](./examples/mini_app_sample/) | 顔画面とAppBarを維持するミニアプリ |
+| [`local_peer_hello`](./examples/local_peer_hello/) | インターネットを経由しない端末間の型付きメッセージ |
+| [`web_radio`](./examples/web_radio/) | M5StackChan CoreS3でのネットワーク音声再生 |
+| [`m5stackchan_smoke`](./examples/m5stackchan_smoke/) | [M5StackChan CoreS3のサーボ電源とヘッドLEDの確認](../docs/m5stackchan-cores3-smoke.md) |
 
-- [mimic_main](./examples/mimic_main/): ユーザが動かすほう
-- [mimic_follow](./examples/mimic_follow/): まねして動くほう
+## 参考資料
 
-## Face Tracker: 顔を追いかけるｽﾀｯｸﾁｬﾝ
-
-![顔を追いかけるｽﾀｯｸﾁｬﾝ](../docs/images/face-tracker.gif)
-
-- [face_tracker](./examples/face_tracker/)
+- [プログラムのビルドと書き込み](../docs/flashing-firmware_ja.md)
+- [ファームウェアAPI](../docs/api_ja.md)
+- [MODパッケージ仕様](../../docs/specs/stackchan-mod.md)
+- [ローカライズ](../docs/localization_ja.md)
+- [ミニアプリ（実験的）](../docs/mini-apps_ja.md)

@@ -11,6 +11,16 @@ export const CAPABILITIES = Object.freeze({
   IMU: 'input.imu',
   HEAD_TOUCH: 'input.headTouch',
   DRAWER: 'ui.drawer',
+  APPROVAL: 'ui.approval',
+  NETWORK: 'connectivity.network',
+  USB_AUDIO: 'audio.usb',
+  REMOTE_CONVERSATION: 'conversation.remote',
+})
+
+export const CAPABILITY_HOST_API_VERSIONS = Object.freeze({
+  [CAPABILITIES.APPROVAL]: 1,
+  [CAPABILITIES.USB_AUDIO]: 1,
+  [CAPABILITIES.REMOTE_CONVERSATION]: 1,
 })
 
 export const DEVICE_PROFILES = Object.freeze({
@@ -19,8 +29,9 @@ export const DEVICE_PROFILES = Object.freeze({
     status: 'supported',
     deviceInstall: true,
     xsArchiveVersion: [17, 8, 0],
-    firmwareVersionPrefixes: ['8.3.'],
+    firmwareVersionPrefixes: ['8.3.', '9.0.'],
     chipPatterns: ['ESP32-S3'],
+    entrypoints: ['mod', 'miniapp'],
     capabilities: Object.values(CAPABILITIES),
   },
   simulator: {
@@ -28,8 +39,9 @@ export const DEVICE_PROFILES = Object.freeze({
     status: 'supported',
     deviceInstall: false,
     xsArchiveVersion: [17, 8, 0],
-    firmwareVersionPrefixes: ['8.3.'],
+    firmwareVersionPrefixes: ['8.3.', '9.0.'],
     chipPatterns: [],
+    entrypoints: ['mod', 'miniapp'],
     capabilities: [
       CAPABILITIES.FACE,
       CAPABILITIES.SPEECH,
@@ -47,6 +59,7 @@ export const DEVICE_PROFILES = Object.freeze({
     xsArchiveVersion: null,
     firmwareVersionPrefixes: [],
     chipPatterns: [],
+    entrypoints: ['mod'],
     capabilities: [CAPABILITIES.FACE, CAPABILITIES.SPEECH, CAPABILITIES.TONE, CAPABILITIES.MOTION],
   },
 })
@@ -109,10 +122,41 @@ export function toolboxForTarget(toolbox, target) {
 
 export function inspectDeploymentCompatibility(
   target,
-  { chip, xsVersion, firmwareVersion, requireFirmware = false, requireArchive = false } = {}
+  {
+    chip,
+    xsVersion,
+    firmwareVersion,
+    hostApiVersion = 0,
+    entrypoints = ['mod'],
+    requirements = [],
+    requireFirmware = false,
+    requireArchive = false,
+  } = {}
 ) {
   const profile = profileFor(target)
   const diagnostics = []
+  const unsupportedEntrypoints = entrypoints.filter((entrypoint) => !profile.entrypoints.includes(entrypoint))
+  if (unsupportedEntrypoints.length) {
+    diagnostics.push({
+      code: 'VP_ARCHIVE_ENTRYPOINT_UNSUPPORTED',
+      message: t('{profile}はarchiveの実行入口「{entrypoints}」に対応していません', {
+        profile: t(profile.label),
+        entrypoints: unsupportedEntrypoints.join(', '),
+      }),
+    })
+  }
+  const unsupportedCapabilities = [...new Set(requirements)].filter(
+    (capability) => !profile.capabilities.includes(capability)
+  )
+  if (unsupportedCapabilities.length) {
+    diagnostics.push({
+      code: 'VP_UNSUPPORTED_CAPABILITY',
+      message: t('{profile}は「{capability}」に対応していません', {
+        profile: t(profile.label),
+        capability: unsupportedCapabilities.join(', '),
+      }),
+    })
+  }
   if (requireFirmware && !profile.deviceInstall) {
     diagnostics.push({
       code: 'VP_DEVICE_TARGET_UNSUPPORTED',
@@ -171,6 +215,31 @@ export function inspectDeploymentCompatibility(
           profile: t(profile.label),
           prefixes: profile.firmwareVersionPrefixes.join(', '),
         }),
+      })
+    }
+  }
+  if (requireFirmware) {
+    const detectedHostApiVersion = Number.isSafeInteger(hostApiVersion) && hostApiVersion >= 0 ? hostApiVersion : 0
+    const unavailableCapabilities = [...new Set(requirements)].filter(
+      (capability) =>
+        profile.capabilities.includes(capability) &&
+        (CAPABILITY_HOST_API_VERSIONS[capability] ?? 0) > detectedHostApiVersion
+    )
+    if (unavailableCapabilities.length) {
+      const requiredHostApiVersion = Math.max(
+        ...unavailableCapabilities.map((capability) => CAPABILITY_HOST_API_VERSIONS[capability])
+      )
+      diagnostics.push({
+        code: 'VP_HOST_CAPABILITY_UNAVAILABLE',
+        message: t(
+          'ファームウェア {firmwareVersion} のhost API {actual}では「{capabilities}」を利用できません（API {required}以上が必要です）。host firmwareを更新してください',
+          {
+            firmwareVersion: firmwareVersion ?? t('不明'),
+            actual: detectedHostApiVersion,
+            capabilities: unavailableCapabilities.join(', '),
+            required: requiredHostApiVersion,
+          }
+        ),
       })
     }
   }

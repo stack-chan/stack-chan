@@ -18,6 +18,9 @@ trace('=== face-view state test ===\n')
 
 type RecorderContent = Content & {
   contextPrimary?: number
+  eyeOpenLeft?: number
+  eyeOpenRight?: number
+  mouthOpen?: number
   skinPrimary?: number
   contextHits?: number
   skinHits?: number
@@ -29,7 +32,9 @@ type RecorderBehavior = {
 }
 
 type BalloonNode = Content & {
+  next?: BalloonNode | null
   skin?: unknown
+  string?: string
 }
 
 type BalloonContent = PiuContainer & {
@@ -37,6 +42,7 @@ type BalloonContent = PiuContainer & {
   behavior?: {
     onDisplaying?: (content: PiuContainer) => void
     onFaceState?: (content: PiuContainer, face: FaceState) => void
+    setText?: (content: PiuContainer, text: string) => void
   }
 }
 
@@ -117,6 +123,9 @@ const TestFace = Container.template(() => ({
 
         onFaceState(content: RecorderContent, face: FaceState) {
           content.contextPrimary = toPiuColorNumber(face.theme.primary)
+          content.eyeOpenLeft = face.eyes.left.open
+          content.eyeOpenRight = face.eyes.right.open
+          content.mouthOpen = face.mouth.open
           content.contextHits = (content.contextHits ?? 0) + 1
         }
 
@@ -283,6 +292,26 @@ initialDrawerBehavior.onDrawerChoiceSelected?.(initialDrawer, { key: 'choiceTest
 equal(selectedChoice, 'second', 'drawer choice selection should bubble to its bound application callback')
 controller.unbindDrawerAction('choiceTest')
 controller.removeDrawerButton('choiceTest')
+
+let punctuatedActionCalls = 0
+const punctuatedActionKey = 'codex-voice:session'
+assert(
+  controller.bindDrawerAction(punctuatedActionKey, () => {
+    punctuatedActionCalls += 1
+  }),
+  'drawer callback should accept a punctuated runtime key',
+)
+controller.addDrawerButton({ key: punctuatedActionKey, label: 'Codex', kind: 'toggle' })
+const punctuatedButton = findNamedNode(initialDrawer as unknown as PiuContent, punctuatedActionKey)
+assert(punctuatedButton, 'drawer should render a button with a punctuated runtime key')
+const punctuatedButtonBehavior = punctuatedButton.behavior as {
+  onTouchEnded?: (content: PiuContainer) => void
+}
+punctuatedButtonBehavior.onTouchEnded?.(punctuatedButton as unknown as PiuContainer)
+equal(punctuatedActionCalls, 1, 'punctuated drawer action should bubble to its runtime callback')
+controller.unbindDrawerAction(punctuatedActionKey)
+controller.removeDrawerButton(punctuatedActionKey)
+
 controller.addDrawerButton({ key: 'dynamicA', label: 'Dynamic A' })
 equal(
   findDrawer(application as unknown as PiuContainer),
@@ -422,7 +451,14 @@ const runtimeUI = new StackchanRuntimeUI(controller, {
 })
 runtimeUI.setColor('primary', 0x12, 0x34, 0x56)
 runtimeUI.setColor('secondary', 0xab, 0xcd, 0xef)
+runtimeUI.setEyeOpen('left', 0.25)
+runtimeUI.setEyeOpen('right', 0.75)
+runtimeUI.setMouthOpen(0.5)
 runtimeUI.updateFace(32)
+faceBehavior.onTimeChanged(nextFace)
+equal(recorder.eyeOpenLeft, 0.25, 'runtime face API should apply the left eyelid independently')
+equal(recorder.eyeOpenRight, 0.75, 'runtime face API should apply the right eyelid independently')
+equal(recorder.mouthOpen, 0.5, 'runtime face API should apply mouth opening')
 runtimeUI.showBalloon('runtime balloon')
 
 const runtimeBalloon = appData.EFFECTS?.last
@@ -446,6 +482,20 @@ assert(
   attachedBalloon.first?.skin !== defaultSkin,
   'showBalloon should replay the active face state to newly attached balloons',
 )
+const initialBalloonHeight = positionedBalloon.coordinates?.height
+runtimeUI.showBalloon('runtime balloon\nsecond line\nthird line')
+equal(appData.EFFECTS?.last, runtimeBalloon, 'showBalloon should reuse a balloon when layout options are unchanged')
+equal(
+  attachedBalloon.first?.next?.string,
+  'runtime balloon\nsecond line\nthird line',
+  'showBalloon should update reused balloon text in place',
+)
+assert(
+  (positionedBalloon.coordinates?.height ?? 0) > (initialBalloonHeight ?? 0),
+  'showBalloon should recalculate a reused balloon height',
+)
+runtimeUI.showBalloon('top balloon', { top: 8 })
+assert(appData.EFFECTS?.last !== runtimeBalloon, 'showBalloon should replace a balloon when layout options change')
 runtimeUI.hideBalloon()
 
 const oldDrawerCalls: DrawerControllerCalls = { buttons: [], states: [], removed: [] }

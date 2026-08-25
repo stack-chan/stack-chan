@@ -21,6 +21,17 @@ type Touchable = PiuContent & {
   }
 }
 
+type VolumeSlider = PiuContent & {
+  x: number
+  width: number
+  behavior: {
+    onTouchBegan: (content: unknown, id: number, x: number, y: number) => void
+    onTouchMoved: (content: unknown, id: number, x: number, y: number) => void
+    onTouchCancelled: (content: unknown) => void
+    onTouchEnded: (content: unknown, id: number, x: number, y: number) => void
+  }
+}
+
 function press(content: Touchable) {
   content.behavior.onTouchBegan(content, 0, 0, 0)
   content.behavior.onTouchEnded(content)
@@ -35,12 +46,15 @@ const status: SettingsStatus = {
   wifi: SettingsStatusValue.NOT_CONNECTED,
   'wifi.ssid': 'stackchan-ap',
   'wifi.password': 'secret',
+  'tts.volume': 0.35,
 }
 const state = {
   status,
   networks: [] as Array<{ ssid: string; signal: number; label: string }>,
   selectedSSID: 'stackchan-ap',
   language: 'ja' as const,
+  timezone: 'tokyo' as const,
+  volume: 0.35,
 }
 let navigatedView = -1
 let exitCount = 0
@@ -51,6 +65,9 @@ let offlineBootCount = 0
 let selectedSSID = ''
 let password = ''
 let selectedLanguage = ''
+let selectedTimezone = ''
+let selectedVolume = -1
+let volumeSaveCount = 0
 
 const context: SettingsViewContext = {
   state,
@@ -82,6 +99,13 @@ const context: SettingsViewContext = {
     selectLanguage(locale) {
       selectedLanguage = locale
     },
+    saveTimezone(timezone) {
+      selectedTimezone = timezone
+    },
+    saveVolume(volume) {
+      selectedVolume = volume
+      volumeSaveCount += 1
+    },
   },
 }
 
@@ -91,7 +115,11 @@ function mount(instance: SettingsViewInstance) {
   instance.update?.()
 }
 
-equal(settingsViews.length, 5, 'settings registry should contain menu, Wi-Fi, password, language, and offline views')
+equal(
+  settingsViews.length,
+  7,
+  'settings registry should contain menu, Wi-Fi, password, language, offline, time zone, and volume views',
+)
 
 const menuView = settingsViews[SettingsViewId.MENU].create(context)
 equal(application.length, 0, 'creating a settings view should not mount it')
@@ -101,13 +129,53 @@ const menuItems = menuScroller.first as PiuContainer
 const wifiMenuItem = menuItems.first as Touchable
 press(wifiMenuItem)
 equal(navigatedView, SettingsViewId.WIFI, 'Wi-Fi menu item should navigate through the shared action')
-const languageMenuItem = wifiMenuItem.next as Touchable
+const volumeMenuItem = wifiMenuItem.next as Touchable
+press(volumeMenuItem)
+equal(navigatedView, SettingsViewId.VOLUME, 'volume menu item should navigate through the shared action')
+const timezoneMenuItem = volumeMenuItem.next as Touchable
+press(timezoneMenuItem)
+equal(navigatedView, SettingsViewId.TIMEZONE, 'time zone menu item should navigate through the shared action')
+const languageMenuItem = timezoneMenuItem.next as Touchable
 press(languageMenuItem)
 equal(navigatedView, SettingsViewId.LANGUAGE, 'language menu item should navigate through the shared action')
 
 const menuHeader = menuView.content.first as PiuContainer
 press(menuHeader.first as Touchable)
 equal(exitCount, 1, 'settings menu back button should exit setup mode')
+
+const volumeView = settingsViews[SettingsViewId.VOLUME].create(context)
+mount(volumeView)
+const volumeHeader = volumeView.content.first as PiuContainer
+const volumeLabel = volumeHeader.next as PiuContent & { string?: string }
+const volumeSlider = volumeLabel.next as VolumeSlider
+equal(volumeLabel.string, '音量: 35%', 'volume view should show the persisted value as a percentage')
+
+const leftOfSlider = volumeSlider.x - 100
+const rightOfSlider = volumeSlider.x + volumeSlider.width + 100
+volumeSlider.behavior.onTouchBegan(volumeSlider, 0, leftOfSlider, 0)
+volumeSlider.behavior.onTouchMoved(volumeSlider, 0, rightOfSlider, 0)
+equal(volumeLabel.string, '音量: 100%', 'dragging should update the visible volume before committing')
+equal(volumeSaveCount, 0, 'dragging should not persist intermediate values')
+volumeSlider.behavior.onTouchEnded(volumeSlider, 0, rightOfSlider, 0)
+equal(selectedVolume, 1, 'releasing the slider should persist the selected volume')
+equal(volumeSaveCount, 1, 'releasing the slider should persist exactly once')
+
+volumeSlider.behavior.onTouchBegan(volumeSlider, 0, leftOfSlider, 0)
+equal(volumeLabel.string, '音量: 0%', 'a new drag should update the draft value immediately')
+volumeSlider.behavior.onTouchCancelled(volumeSlider)
+equal(volumeLabel.string, '音量: 100%', 'cancelling a drag should restore the committed value')
+equal(volumeSaveCount, 1, 'cancelling a drag should not persist or preview the draft')
+
+volumeSlider.behavior.onTouchBegan(volumeSlider, 0, rightOfSlider, 0)
+volumeSlider.behavior.onTouchEnded(volumeSlider, 0, rightOfSlider, 0)
+equal(volumeSaveCount, 1, 'releasing at the current value should not persist again')
+
+state.volume = 0.25
+volumeView.update?.()
+equal(volumeLabel.string, '音量: 25%', 'external volume changes should refresh the slider without a local save')
+equal(volumeSaveCount, 1, 'external volume changes should not invoke the local save action')
+press(volumeHeader.first as Touchable)
+equal(navigatedView, SettingsViewId.MENU, 'volume back button should return to settings')
 
 const wifiView = settingsViews[SettingsViewId.WIFI].create(context)
 mount(wifiView)
@@ -187,6 +255,37 @@ const englishButton = languageRoot.first.next.next
 englishButton.behavior.onTouchBegan(englishButton, 0, 0, 0)
 englishButton.behavior.onTouchEnded(englishButton)
 equal(selectedLanguage, 'en', 'language view should expose English as a touch action')
+
+const timezoneDraftView = settingsViews[SettingsViewId.TIMEZONE].create(context)
+mount(timezoneDraftView)
+const timezoneDraftHeader = timezoneDraftView.content.first as PiuContainer
+const timezoneDraftScroller = timezoneDraftHeader.next as PiuContainer
+const timezoneDraftChoices = timezoneDraftScroller.first as PiuContainer
+let londonButton = timezoneDraftChoices.first as Touchable
+for (let index = 0; index < 6; index += 1) londonButton = londonButton.next as Touchable
+press(londonButton)
+equal(selectedTimezone, '', 'choosing a city should remain a draft until Save is pressed')
+press(timezoneDraftHeader.first as Touchable)
+equal(navigatedView, SettingsViewId.MENU, 'time zone back button should discard the draft and return to settings')
+
+const resetTimezoneView = settingsViews[SettingsViewId.TIMEZONE].create(context)
+mount(resetTimezoneView)
+equal(selectedTimezone, '', 'recreating the time zone view should leave the discarded draft uncommitted')
+press(resetTimezoneView.content.last as Touchable)
+equal(selectedTimezone, 'tokyo', 'saving the recreated view should use the persisted time zone')
+
+const timezoneSaveView = settingsViews[SettingsViewId.TIMEZONE].create(context)
+mount(timezoneSaveView)
+const timezoneSaveHeader = timezoneSaveView.content.first as PiuContainer
+const timezoneSaveScroller = timezoneSaveHeader.next as PiuContainer
+const timezoneSaveChoices = timezoneSaveScroller.first as PiuContainer
+londonButton = timezoneSaveChoices.first as Touchable
+for (let index = 0; index < 6; index += 1) londonButton = londonButton.next as Touchable
+press(londonButton)
+equal(selectedTimezone, 'tokyo', 'a fresh time zone selection should remain a draft until Save is pressed')
+const timezoneSave = timezoneSaveView.content.last as Touchable
+press(timezoneSave)
+equal(selectedTimezone, 'london', 'time zone Save should commit the selected city')
 
 setLocalizationLanguage('en')
 status.wifi = SettingsStatusValue.NOT_CONNECTED

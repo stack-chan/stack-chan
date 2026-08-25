@@ -1,6 +1,18 @@
 {
-  "include": ["./manifest.json"],
+  "include": [
+    "./manifest.json",
+    "./docks/android-usb-audio/manifest.json",
+    "../modules/usb-audio/manifest.json"
+  ],
+  "modules": {
+    "mod-installer": "./mod-installer",
+    "mod-manager": "./mod-manager"
+  },
   "config": {
-    "enablePowerButton": false
+    "enablePowerButton": true,
+    "usbAudio": {
+      "enabled": false,
+      "autoStart": false
+    }
   }
 }

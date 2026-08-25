@@ -81,10 +81,12 @@ assert(appsButton.visible === true, 'registering the first app should reveal the
 assert(appsButton.active === true, 'registered-app button should accept touches')
 
 appBarBehavior.onFinished?.(appBar)
+assert(appBar.visible === false, 'AppBar timer should hide the entire AppBar')
 assert(menuButton.visible === false, 'AppBar timer should hide the drawer button')
 assert(appsButton.visible === false, 'AppBar timer should hide the apps button at the same time')
 controller.onFaceTouch()
 assert(viewBehavior.drawerOpen === false, 'face touch should reveal AppBar actions without opening the drawer')
+assert(appBar.visible === true, 'face touch should reveal the entire AppBar')
 assert(menuButton.visible === true, 'face touch should reveal the drawer button')
 assert(appsButton.visible === true, 'face touch should reveal the apps button')
 controller.onDrawerToggle()

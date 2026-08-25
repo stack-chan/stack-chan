@@ -7,6 +7,7 @@ import {
   type TouchPanelGestureRecognizerOptions,
   type TouchPanelGestureType,
   type TouchPanelSample,
+  type TouchPanelTap,
 } from 'touch-panel-gesture'
 
 type TouchPanelDriver = {
@@ -26,12 +27,13 @@ type TouchPanelOptions = TouchPanelGestureRecognizerOptions & {
 
 export default class TouchPanel {
   #driver: TouchPanelDriver
-  #timer: Timer | undefined
+  #timer: ReturnType<typeof Timer.repeat> | undefined
   #recognizer: GestureRecognizer
   #interval: number
+  #listeners = new Set<(event: TouchPanelInputEvent) => void>()
   #sampleErrorReported = false
   #lastSample: TouchPanelSample = []
-  onEvent: (event: TouchPanelInputEvent) => void
+  onEvent?: (event: TouchPanelInputEvent) => void
 
   constructor(TouchPanelConstructor: TouchPanelConstructor, options: TouchPanelOptions = {}) {
     trace('[TouchPanel] constructor: instantiating\n')
@@ -61,6 +63,15 @@ export default class TouchPanel {
     this.#driver.configure?.(options)
   }
 
+  get sample(): readonly number[] {
+    return this.#lastSample
+  }
+
+  subscribe(listener: (event: TouchPanelInputEvent) => void): () => void {
+    this.#listeners.add(listener)
+    return () => this.#listeners.delete(listener)
+  }
+
   start(): void {
     if (this.#timer) return
     trace(`[TouchPanel] start interval=${this.#interval}ms\n`)
@@ -81,7 +92,9 @@ export default class TouchPanel {
       const gesture = this.#recognizer.update(sample, ticks)
       if (gesture) {
         const intensity = Math.max(sample[0] ?? 0, sample[1] ?? 0, sample[2] ?? 0)
-        this.onEvent?.(createTouchPanelInputEvent(gesture.type, this.#recognizer.getPosition(sample), intensity, ticks))
+        this.#emit(
+          createTouchPanelInputEvent(gesture.type, this.#recognizer.getPosition(sample), intensity, ticks, gesture.tap),
+        )
       }
     }, this.#interval)
   }
@@ -96,11 +109,29 @@ export default class TouchPanel {
 
   close(): void {
     this.stop()
+    this.#listeners.clear()
     this.#driver.close?.()
+  }
+
+  #emit(event: TouchPanelInputEvent): void {
+    const listeners = this.onEvent ? [this.onEvent, ...this.#listeners] : [...this.#listeners]
+    for (const listener of listeners) {
+      try {
+        listener(event)
+      } catch (error) {
+        trace(`[TouchPanel] listener error ${errorMessage(error)}\n`)
+      }
+    }
   }
 }
 
-export { GestureRecognizer, type TouchPanelGesture, type TouchPanelGestureType, type TouchPanelSample }
+export {
+  GestureRecognizer,
+  type TouchPanelGesture,
+  type TouchPanelGestureType,
+  type TouchPanelSample,
+  type TouchPanelTap,
+}
 
 function errorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {

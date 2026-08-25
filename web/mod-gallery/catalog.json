@@ -6,6 +6,11 @@
     "samples/hello/stackchan-mod.json",
     "samples/buttons/stackchan-mod.json",
     "samples/look-around/stackchan-mod.json",
-    "samples/sensors/stackchan-mod.json"
+    "samples/sensors/stackchan-mod.json",
+    "samples/mediapipe-ble/stackchan-mod.json",
+    "samples/codex-voice/stackchan-mod.json",
+    "samples/mcp/stackchan-mod.json",
+    "samples/stackchan-jump/stackchan-mod.json",
+    "samples/ui-playground/stackchan-mod.json"
   ]
 }

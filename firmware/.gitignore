@@ -1,4 +1,4 @@
-/node_modules/
+node_modules/
 /tmp/
 /scripts/key.json
 /docs/api

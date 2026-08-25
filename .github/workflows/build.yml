@@ -31,26 +31,60 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      firmware: ${{ steps.filter.outputs.firmware }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Detect firmware-related changes
+        if: github.event_name != 'workflow_dispatch'
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            firmware:
+              - "firmware/**"
+              - ".github/actions/setup/action.yml"
+              - ".github/workflows/build.yml"
+              - "lefthook.yml"
+
   biome:
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
+        with:
+          install-moddable: "false"
       - name: Run Biome
         working-directory: ./firmware
         run: npx biome ci . --error-on-warnings
 
-  test:
+  test-fast:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
+        with:
+          install-moddable: "false"
+      - name: Install web dependencies
+        working-directory: ./firmware
+        run: npm --prefix ../web ci
       - name: Run firmware tests
         working-directory: ./firmware
         run: npm run test
@@ -60,29 +94,108 @@ jobs:
       - name: Run architecture checks
         working-directory: ./firmware
         run: npm run check:architecture
+      - name: Run web tool tests
+        working-directory: ./firmware
+        run: npm --prefix ../web test && npm --prefix ../web run check:editor-artifacts
+
+  test-moddable:
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        id: setup
+      - name: Restore incremental Linux test builds
+        uses: actions/cache@v6
+        with:
+          path: |
+            ./firmware/dist/tmp/lin
+            ./firmware/dist/bin/lin
+          key: ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v1-shard-${{ matrix.shard }}-${{ github.sha }}
+          restore-keys: |
+            ${{ steps.setup.outputs.moddable-cache-key }}-lin-tests-v1-shard-${{ matrix.shard }}-
       - name: Run manifest preflight
+        if: matrix.shard == 0
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run check:manifest
       - name: Run Moddable module tests
         working-directory: ./firmware
+        env:
+          STACKCHAN_MODULE_TEST_SHARD_INDEX: ${{ matrix.shard }}
+          STACKCHAN_MODULE_TEST_SHARD_TOTAL: 2
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run test:moddable
+
+  test-smoke:
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      STACKCHAN_LIN_SMOKE_CLEAN: "0"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        id: setup
+      - name: Restore incremental Linux smoke builds
+        uses: actions/cache@v6
+        with:
+          path: |
+            ./firmware/dist/tmp/lin
+            ./firmware/dist/bin/lin
+          key: ${{ steps.setup.outputs.moddable-cache-key }}-lin-smoke-v1-${{ github.sha }}
+          restore-keys: |
+            ${{ steps.setup.outputs.moddable-cache-key }}-lin-smoke-v1-
       - name: Smoke test Linux simulator startup
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run smoke:lin
       - name: Smoke test mini app on Linux simulator
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run smoke:mini-app:lin
-      - name: Run web tool tests
-        working-directory: ./firmware
-        run: npm --prefix ../web test && npm --prefix ../web run check:editor-artifacts
+
+  test:
+    if: always()
+    needs:
+      - changes
+      - test-fast
+      - test-moddable
+      - test-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify test job results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FAST_RESULT: ${{ needs.test-fast.result }}
+          MODDABLE_RESULT: ${{ needs.test-moddable.result }}
+          SMOKE_RESULT: ${{ needs.test-smoke.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" || "$FAST_RESULT" != "success" ]]; then
+            echo "Required test job failed: changes=$CHANGES_RESULT fast=$FAST_RESULT"
+            exit 1
+          fi
+          for result in "$MODDABLE_RESULT" "$SMOKE_RESULT"; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "Firmware test job failed: moddable=$MODDABLE_RESULT smoke=$SMOKE_RESULT"
+              exit 1
+            fi
+          done
 
   web-visual:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
         with:
-          target-branch: "8.3.1"
+          target-branch: "9.0.0"
           install-emscripten: "true"
       - name: Install web test dependencies
         working-directory: ./firmware
@@ -95,7 +208,9 @@ jobs:
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
       - name: Run responsive and editor browser tests
         working-directory: ./firmware
-        run: npm --prefix ../web run test:visual
+        run: |
+          npm --prefix ../web run test:visual
+          npm --prefix ../web run test:i18n-visual
       - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v7
@@ -103,37 +218,3 @@ jobs:
           name: web-visual-screenshots
           path: /tmp/stackchan-*.png
           if-no-files-found: ignore
-
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: m5stack
-            command: npm run build:m5stack
-          - name: m5stack_cores3
-            command: npm run build:m5stack_cores3
-          - name: m5stackchan_cores3
-            command: npm run build:m5stackchan_cores3
-          - name: stackchan_rt
-            command: npm run build:stackchan_rt
-          - name: takao_core2_sg90
-            command: npm run build:takao_core2_sg90
-          - name: wasm
-            command: npm run build:wasm
-          - name: editor-tools
-            command: npm run build:editor-tools
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-        with:
-          target-branch: ${{ (matrix.name == 'wasm' || matrix.name == 'editor-tools') && '8.3.1' || '' }}
-          install-emscripten: ${{ (matrix.name == 'wasm' || matrix.name == 'editor-tools') && 'true' || 'false' }}
-      - name: Build firmware (${{ matrix.name }})
-        working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && ${{ matrix.command }}
-      - name: Verify reproducible editor tools
-        if: matrix.name == 'editor-tools'
-        working-directory: ./firmware
-        run: git diff --exit-code -- ':(top)web/editor/vendor/tools.js' ':(top)web/editor/vendor/tools.wasm'

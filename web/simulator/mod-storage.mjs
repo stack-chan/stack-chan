@@ -46,7 +46,7 @@ export function validateModArchive(bytes) {
   return normalized
 }
 
-function createMemoryStorage() {
+export function createMemoryModStorage() {
   let record = null
 
   return {
@@ -75,7 +75,7 @@ export function createModStorage({
   databaseName = DEFAULT_DATABASE_NAME,
   storeName = DEFAULT_STORE_NAME,
 } = {}) {
-  if (!indexedDB?.open) return createMemoryStorage()
+  if (!indexedDB?.open) return createMemoryModStorage()
 
   async function withStore(mode, action) {
     const database = await openDatabase({ indexedDB, databaseName, storeName })

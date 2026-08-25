@@ -18,6 +18,7 @@ type Subplatform = {
     include?: string[]
     build?: { SUBPLATFORM?: string }
     defines?: { camera?: { i2c_port?: number } }
+    modules?: Record<string, string>
     config?: {
       serial?: unknown
       driver?: { type?: string; typeLocked?: boolean; serial?: unknown }
@@ -113,6 +114,27 @@ describe('Stack-chan platform manifest', () => {
     }
   })
 
+  test('M5StackChan extends CoreS3 setup through a distinct setup module', () => {
+    const manifest = readJson('host/platforms/m5stackchan_cores3/manifest.json')
+
+    assert.equal(manifest.modules?.['setup/m5stackchan-power'], './setup-target')
+    assert.equal(
+      manifest.modules?.['setup/target'],
+      undefined,
+      'the inherited CoreS3 setup module must remain selected',
+    )
+  })
+
+  test('M5StackChan keeps MOD selector modules in the host application', () => {
+    const platformManifest = readJson('host/platforms/m5stackchan_cores3/manifest.json')
+    const appManifest = readJson('host/app/manifest_m5stackchan_cores3.json')
+
+    for (const module of ['mod-installer', 'mod-manager']) {
+      assert.equal(platformManifest.modules?.[module], undefined, `${module} must not leak into device programs`)
+      assert.equal(appManifest.modules?.[module], `./${module}`)
+    }
+  })
+
   test('CoreS3 AudioOut applies the sample rate without overriding amplifier volume', () => {
     assert.match(coreS3AudioOutSource, /globalThis\.amp\.sampleRate = this\.sampleRate/)
     assert.doesNotMatch(
@@ -143,6 +165,20 @@ describe('Stack-chan platform manifest', () => {
     assert.doesNotMatch(coreS3SdkconfigSource, /^CONFIG_CAMERA_PSRAM_DMA=y$/m)
     assert.match(defaultBehaviorSource, /^const CAMERA_PREVIEW_CAPTURE_WIDTH = 160$/m)
     assert.match(defaultBehaviorSource, /^const CAMERA_PREVIEW_CAPTURE_HEIGHT = 120$/m)
+  })
+
+  test('CoreS3 XS heap growth stays in PSRAM and preserves DMA-capable internal RAM', () => {
+    const alwaysInternalMatch = coreS3SdkconfigSource.match(/^CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=(\d+)$/m)
+    assert.ok(alwaysInternalMatch, 'CoreS3 sdkconfig should declare the internal allocation threshold')
+    const alwaysInternal = Number(alwaysInternalMatch[1])
+    const heap = esp32PlatformManifest.platforms['esp32/m5stack_cores3'].creation.heap
+    const esp32XsSlotBytes = 16
+
+    assert.ok(heap.initial * esp32XsSlotBytes > alwaysInternal)
+    assert.ok(
+      heap.incremental * esp32XsSlotBytes > alwaysInternal,
+      'incremental XS slot blocks must bypass ESP-IDF always-internal allocation so display SPI keeps DMA memory',
+    )
   })
 
   test('the M5StackChan CoreS3 smoke MOD exercises hardware APIs and documents real npm scripts', () => {

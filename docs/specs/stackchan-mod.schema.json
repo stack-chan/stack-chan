@@ -38,8 +38,33 @@
       "additionalProperties": false,
       "required": ["path"],
       "properties": {
-        "path": { "$ref": "#/$defs/relativePath" }
+        "path": { "$ref": "#/$defs/relativePath" },
+        "entrypoint": {
+          "allOf": [
+            { "$ref": "#/$defs/relativePath" },
+            { "pattern": "\\.[cm]?[jt]sx?$" }
+          ]
+        }
       }
+    },
+    "setup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^[Hh][Tt][Tt][Pp][Ss]://",
+          "maxLength": 2048
+        }
+      }
+    },
+    "entrypoints": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["mod", "miniapp"] }
     },
     "targets": {
       "type": "array",
@@ -69,11 +94,24 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "type": { "const": "block" } },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "source": { "not": { "required": ["entrypoint"] } }
+        }
+      }
+    }
+  ],
   "$defs": {
     "relativePath": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)(?!.*[\\u0000-\\u001f:]).+$"
+      "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.(?:/|$))(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\/$)(?!.*\\\\)(?!.*[\\u0000-\\u001f:]).+$"
     }
   }
 }

@@ -49,6 +49,7 @@ interface MCPResponse extends MCPMessage {
  */
 export interface MCPClientConfig {
   url: string
+  token?: string
 }
 
 /**
@@ -102,12 +103,14 @@ interface ToolsCallResult {
  */
 export class MCPClientService {
   #url: string
+  #token?: string
   #requestId = 0
   #initialized = false
   #sessionId?: string
 
   constructor(config: MCPClientConfig) {
     this.#url = config.url.endsWith('/') ? config.url.slice(0, -1) : config.url
+    this.#token = config.token
   }
 
   /**
@@ -206,6 +209,10 @@ export class MCPClientService {
       'Content-Type': 'application/json',
       // Client MUST accept both application/json and text/event-stream
       Accept: 'application/json, text/event-stream',
+    }
+
+    if (this.#token) {
+      headers.Authorization = `Bearer ${this.#token}`
     }
 
     // Include session ID for all requests after initialization

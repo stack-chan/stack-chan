@@ -1,0 +1,344 @@
+name: Deploy Cloudflare PR Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_request_number:
+        description: Closed pull request number to clean up
+        required: true
+        type: number
+      keep_deployment_id:
+        description: Closed-page Cloudflare deployment ID to retain
+        required: true
+        type: string
+  workflow_run:
+    workflows:
+      - Bundle Stack-chan Firmware
+    types:
+      - completed
+  pull_request_target:
+    types:
+      - closed
+
+permissions: {}
+
+concurrency:
+  group: cloudflare-preview-${{ github.event.workflow_run.head_repository.id || github.event.pull_request.head.repo.id || github.repository_id }}-${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref || github.event.inputs.pull_request_number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout trusted preview scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted-source
+          persist-credentials: false
+
+      - name: Resolve current pull request
+        id: pull_request
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { pathToFileURL } = require('node:url')
+            const helperUrl = pathToFileURL(
+              `${process.env.GITHUB_WORKSPACE}/trusted-source/.github/scripts/resolve-preview-pull-request.mjs`,
+            ).href
+            const { resolvePreviewPullRequest } = await import(helperUrl)
+            const run = context.payload.workflow_run
+            const resolution = await resolvePreviewPullRequest({
+              github,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run,
+            })
+            if (!resolution.number) {
+              core.notice('No pull request is associated with this workflow run')
+              core.setOutput('eligible', 'false')
+              return
+            }
+
+            core.setOutput('number', String(resolution.number))
+            core.setOutput('head_sha', resolution.headSha)
+            core.setOutput('eligible', String(resolution.eligible))
+            if (!resolution.eligible) {
+              core.notice(`Skipping stale or ineligible preview run for PR #${resolution.number}`)
+            }
+
+      - name: Report failed preview build
+        if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion != 'success'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ steps.pull_request.outputs.number }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        with:
+          script: |
+            const { pathToFileURL } = require('node:url')
+            const helperUrl = pathToFileURL(
+              `${process.env.GITHUB_WORKSPACE}/trusted-source/.github/scripts/upsert-preview-comment.mjs`,
+            ).href
+            const { upsertPreviewComment } = await import(helperUrl)
+            const content = `## Cloudflare PR preview
+
+            The preview build **${process.env.RUN_CONCLUSION}**. No new deployment was published.
+
+            [Open the failed workflow run](${process.env.RUN_URL}). Any URL from an earlier comment is stale.`
+            await upsertPreviewComment({
+              github,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issueNumber: Number(process.env.PR_NUMBER),
+              content,
+            })
+
+      - name: Download preview artifact
+        if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cloudflare-pages-preview
+          path: preview-upload/site
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Validate preview artifact
+        if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion == 'success'
+        run: node ./trusted-source/.github/scripts/validate-pages-preview.mjs ./preview-upload/site
+
+      - name: Validate Cloudflare configuration
+        if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion == 'success'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+        run: node ./trusted-source/.github/scripts/validate-cloudflare-config.mjs
+
+      - name: Deploy preview to Cloudflare Pages
+        if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion == 'success'
+        id: cloudflare
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: preview-upload
+          packageManager: npm
+          command: >-
+            pages deploy site
+            --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+            --branch=pr-${{ steps.pull_request.outputs.number }}
+            --commit-hash=${{ steps.pull_request.outputs.head_sha }}
+
+      - name: Publish preview link
+        if: steps.pull_request.outputs.eligible == 'true' && github.event.workflow_run.conclusion == 'success'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ steps.pull_request.outputs.number }}
+          HEAD_SHA: ${{ steps.pull_request.outputs.head_sha }}
+          PREVIEW_URL: ${{ steps.cloudflare.outputs.pages-deployment-alias-url }}
+          IMMUTABLE_URL: ${{ steps.cloudflare.outputs.deployment-url }}
+        with:
+          script: |
+            const { pathToFileURL } = require('node:url')
+            const helperUrl = pathToFileURL(
+              `${process.env.GITHUB_WORKSPACE}/trusted-source/.github/scripts/upsert-preview-comment.mjs`,
+            ).href
+            const { upsertPreviewComment } = await import(helperUrl)
+            const previewUrl = process.env.PREVIEW_URL || process.env.IMMUTABLE_URL
+            if (!previewUrl) throw new Error('Cloudflare did not return a preview URL')
+            const content = `## Cloudflare PR preview
+
+            [Open the latest preview](${previewUrl}) for commit \`${process.env.HEAD_SHA.slice(0, 12)}\`.
+
+            Immutable deployment: ${process.env.IMMUTABLE_URL || previewUrl}
+
+            > [!WARNING]
+            > Pull request previews contain untrusted web and firmware code. Review the changes before granting WebSerial/Bluetooth permissions or flashing a device.`
+            await upsertPreviewComment({
+              github,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issueNumber: Number(process.env.PR_NUMBER),
+              content,
+            })
+
+  recover:
+    name: Retry closed preview cleanup
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Validate closed pull request
+        id: pull_request
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ inputs.pull_request_number }}
+        with:
+          script: |
+            if (!/^[1-9]\d*$/.test(process.env.PR_NUMBER)) {
+              throw new Error('pull_request_number must be a positive integer')
+            }
+            const number = Number(process.env.PR_NUMBER)
+            if (!Number.isSafeInteger(number)) {
+              throw new Error('pull_request_number exceeds the supported integer range')
+            }
+            const { data: pull } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: number,
+            })
+            if (pull.state !== 'closed') {
+              throw new Error(`Pull request #${number} must be closed before its preview can be cleaned up`)
+            }
+            core.setOutput('number', String(number))
+      - name: Checkout trusted preview scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted-source
+          persist-credentials: false
+      - name: Validate Cloudflare configuration
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+        run: node ./trusted-source/.github/scripts/validate-cloudflare-config.mjs
+      - name: Delete superseded preview deployments
+        env:
+          BRANCH_NAME: pr-${{ steps.pull_request.outputs.number }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+          KEEP_DEPLOYMENT_ID: ${{ inputs.keep_deployment_id }}
+        run: node ./trusted-source/.github/scripts/delete-cloudflare-preview-deployments.mjs
+      - name: Mark preview as closed
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PREVIEW_URL: https://pr-${{ steps.pull_request.outputs.number }}.${{ vars.CLOUDFLARE_PAGES_PROJECT }}.pages.dev
+          PR_NUMBER: ${{ steps.pull_request.outputs.number }}
+        with:
+          script: |
+            const { pathToFileURL } = require('node:url')
+            const helperUrl = pathToFileURL(
+              `${process.env.GITHUB_WORKSPACE}/trusted-source/.github/scripts/upsert-preview-comment.mjs`,
+            ).href
+            const { upsertPreviewComment } = await import(helperUrl)
+            const content = `## Cloudflare PR preview
+
+            This pull request is closed. Its preview has been replaced with a closed page at ${process.env.PREVIEW_URL}.
+
+            Superseded immutable preview deployments have been removed.`
+            await upsertPreviewComment({
+              github,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issueNumber: Number(process.env.PR_NUMBER),
+              content,
+            })
+
+  close:
+    if: github.event_name == 'pull_request_target' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Find preview comment
+        id: preview
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const marker = '<!-- stackchan-cloudflare-preview -->'
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            })
+            const exists = comments.some(
+              (comment) => comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker),
+            )
+            core.setOutput('exists', String(exists))
+      - name: Checkout trusted preview scripts
+        if: steps.preview.outputs.exists == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted-source
+          persist-credentials: false
+      - name: Validate Cloudflare configuration
+        if: steps.preview.outputs.exists == 'true'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+        run: node ./trusted-source/.github/scripts/validate-cloudflare-config.mjs
+      - name: Create closed preview page
+        if: steps.preview.outputs.exists == 'true'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p closed-upload/site
+          printf '%s\n' \
+            '<!doctype html>' \
+            '<html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex">' \
+            '<meta name="viewport" content="width=device-width,initial-scale=1">' \
+            "<title>PR #${PR_NUMBER} preview closed</title></head>" \
+            "<body><main><h1>PR #${PR_NUMBER} preview closed</h1>" \
+            '<p>This pull request is closed, so its preview is no longer available.</p></main></body></html>' \
+            > closed-upload/site/index.html
+      - name: Replace preview with closed page
+        if: steps.preview.outputs.exists == 'true'
+        id: cloudflare
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: closed-upload
+          packageManager: npm
+          command: >-
+            pages deploy site
+            --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+            --branch=pr-${{ github.event.pull_request.number }}
+            --commit-hash=${{ github.event.pull_request.head.sha }}
+      - name: Delete superseded preview deployments
+        if: steps.preview.outputs.exists == 'true'
+        env:
+          BRANCH_NAME: pr-${{ github.event.pull_request.number }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+          KEEP_DEPLOYMENT_ID: ${{ steps.cloudflare.outputs.pages-deployment-id }}
+        run: node ./trusted-source/.github/scripts/delete-cloudflare-preview-deployments.mjs
+      - name: Mark preview as closed
+        if: always() && steps.preview.outputs.exists == 'true' && steps.cloudflare.outcome == 'success'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PREVIEW_URL: ${{ steps.cloudflare.outputs.pages-deployment-alias-url }}
+        with:
+          script: |
+            const { pathToFileURL } = require('node:url')
+            const helperUrl = pathToFileURL(
+              `${process.env.GITHUB_WORKSPACE}/trusted-source/.github/scripts/upsert-preview-comment.mjs`,
+            ).href
+            const { upsertPreviewComment } = await import(helperUrl)
+            const content = `## Cloudflare PR preview
+
+            This pull request is closed. Its preview has been replaced with a closed page${process.env.PREVIEW_URL ? ` at ${process.env.PREVIEW_URL}` : ''}.`
+            await upsertPreviewComment({
+              github,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issueNumber: Number(process.env.PR_NUMBER),
+              content,
+            })

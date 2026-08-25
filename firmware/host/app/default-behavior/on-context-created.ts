@@ -641,7 +641,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   if (robot.touchPanel != null) {
     let lastForwardSwipeTicks: number | undefined
     let lastBackwardSwipeTicks: number | undefined
-    robot.touchPanel.onEvent = (event) => {
+    robot.touchPanel.subscribe((event) => {
       const type = event.gesture
       trace(`[TouchPanel] gesture: ${type}\n`)
       if (type !== 'forwardSwipe' && type !== 'backwardSwipe') return
@@ -702,6 +702,6 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         lastForwardSwipeTicks = undefined
         lastBackwardSwipeTicks = undefined
       }
-    }
+    })
   }
 }

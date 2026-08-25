@@ -1,0 +1,175 @@
+{
+  "schema": "stackchan.application-event.vectors.v1",
+  "applicationSchema": "stackchan.event.v1",
+  "conversationRequestRetry": {
+    "intervalMilliseconds": 2000,
+    "timeoutMilliseconds": 10000,
+    "minimumResultRetentionMilliseconds": 10000
+  },
+  "vectors": [
+    {
+      "name": "conversation-start",
+      "androidRoute": "conversation",
+      "codexParserAccepted": true,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "conversation.start",
+        "requestId": "start-fixture-1",
+        "source": "headTouch",
+        "gesture": "forwardSwipe"
+      }
+    },
+    {
+      "name": "conversation-stop",
+      "androidRoute": "conversation",
+      "codexParserAccepted": true,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "conversation.stop",
+        "requestId": "stop-fixture-1",
+        "source": "headTouch",
+        "gesture": "backwardSwipe"
+      }
+    },
+    {
+      "name": "conversation-result-success",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": true,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "conversation.result",
+        "requestId": "start-fixture-1",
+        "success": true,
+        "state": "connecting"
+      }
+    },
+    {
+      "name": "conversation-result-failure",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": true,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "conversation.result",
+        "requestId": "stop-fixture-1",
+        "success": false,
+        "state": "blocked",
+        "error": "not ready"
+      }
+    },
+    {
+      "name": "task-status-running",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": true,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "task.status",
+        "requestId": "task-fixture-1",
+        "state": "running"
+      }
+    },
+    {
+      "name": "task-status-idle",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": true,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "task.status",
+        "requestId": "task-fixture-2",
+        "state": "idle"
+      }
+    },
+    {
+      "name": "task-status-invalid",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": false,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "task.status",
+        "requestId": "task-fixture-3",
+        "state": "speaking"
+      }
+    },
+    {
+      "name": "raw-realtime-session-update",
+      "androidRoute": "raw",
+      "codexParserAccepted": false,
+      "value": {
+        "type": "session.update",
+        "event_id": "raw-fixture-1",
+        "session": {
+          "instructions": "",
+          "tools": []
+        }
+      }
+    },
+    {
+      "name": "raw-realtime-generation-bound-function-call",
+      "androidRoute": "raw",
+      "codexParserAccepted": false,
+      "value": {
+        "type": "response.function_call_arguments.done",
+        "event_id": "raw-fixture-2",
+        "response_id": "response-fixture-1",
+        "item_id": "item-fixture-1",
+        "call_id": "call-fixture-1",
+        "name": "set_led",
+        "arguments": "{}",
+        "stackchan_session_update_id": "raw-fixture-1"
+      }
+    },
+    {
+      "name": "wrong-start-gesture",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": false,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "conversation.start",
+        "requestId": "invalid-fixture-1",
+        "source": "headTouch",
+        "gesture": "backwardSwipe"
+      }
+    },
+    {
+      "name": "missing-request-id",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": false,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "conversation.stop",
+        "source": "headTouch",
+        "gesture": "backwardSwipe"
+      }
+    },
+    {
+      "name": "non-string-request-id",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": false,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "conversation.start",
+        "requestId": 42,
+        "source": "headTouch",
+        "gesture": "forwardSwipe"
+      }
+    },
+    {
+      "name": "unknown-application-type",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": false,
+      "value": {
+        "schema": "stackchan.event.v1",
+        "type": "conversation.toggle",
+        "requestId": "invalid-fixture-2"
+      }
+    },
+    {
+      "name": "unknown-schema",
+      "androidRoute": "unsupported",
+      "codexParserAccepted": false,
+      "value": {
+        "schema": "stackchan.event.v2",
+        "type": "session.update"
+      }
+    }
+  ]
+}

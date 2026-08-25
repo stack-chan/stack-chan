@@ -14,11 +14,18 @@ import {
   type SettingsViewInstance,
   settingsViews,
 } from 'settings-view'
+import Speaker from 'speaker'
 import { clearStoredWiFiCredentials, connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
+import { applyTimezone as applySystemTimezone, normalizeTimezoneId, type TimezoneId } from 'timezone-settings'
+import { canonicalizeVolume, resolveVolumePreference } from 'volume-model'
+import { VolumePreviewQueue } from 'volume-preview'
 import { scanWiFiNetworks } from 'wifi-scan'
 import type { WiFiScanSession } from 'wifi-scan-types'
 
 export type SetupModeResult = 'back' | 'boot'
+
+const VOLUME_PREVIEW_FREQUENCY_HZ = 1000
+const VOLUME_PREVIEW_DURATION_MS = 120
 
 function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatusValue {
   switch (state) {
@@ -44,6 +51,8 @@ function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatus
 export function startSetupMode(application: SettingsApplication): Promise<SetupModeResult> {
   return new Promise((resolve) => {
     const preferences = loadPreferenceConfig()
+    preferences.time.timezone = applySystemTimezone(preferences.time.timezone)
+    preferences.tts.volume = canonicalizeVolume(preferences.tts.volume)
     const status = createInitialSettingsStatus(preferences)
     const effectiveValues = Object.fromEntries(
       PREF_KEYS.flatMap(([domain, key]) => {
@@ -56,7 +65,14 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       networks: [] as SettingsNetworkEntry[],
       selectedSSID: '',
       language: getLocalizationLanguage(),
+      timezone: preferences.time.timezone as TimezoneId,
+      volume: preferences.tts.volume as number,
     }
+    const volumeSpeaker = new Speaker({ volume: viewState.volume })
+    const volumePreviewQueue = new VolumePreviewQueue({
+      play: (volume) => volumeSpeaker.tone(VOLUME_PREVIEW_FREQUENCY_HZ, VOLUME_PREVIEW_DURATION_MS, volume),
+      onError: (error) => trace(`[settings] volume preview failed: ${String(error)}\n`),
+    })
     let currentView: SettingsViewInstance | undefined
     let currentViewId: SettingsViewId = SettingsViewId.MENU
     let scanSession: WiFiScanSession | undefined
@@ -76,6 +92,8 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
         selectWifiNetwork: selectNetwork,
         submitWifiPassword,
         selectLanguage: (locale: SupportedLocale) => applyLanguage(locale, true),
+        saveTimezone,
+        saveVolume,
       },
     }
 
@@ -86,7 +104,10 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       currentView = undefined
       preferenceServer?.close?.()
       if (result === 'back') stopStoredWiFiConnection()
-      resolve(result)
+      void volumePreviewQueue.close().then(
+        () => resolve(result),
+        () => resolve(result),
+      )
     }
 
     function clearWiFiAndBootOffline() {
@@ -129,6 +150,33 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       viewState.language = locale
       if (persist || normalizeLocale(value) !== locale) Preference.set(DOMAIN.ui, 'language', locale)
       showView(currentViewId)
+    }
+
+    function applyTimezone(value: unknown, persist: boolean) {
+      const timezone = applySystemTimezone(value)
+      status['time.timezone'] = timezone
+      viewState.timezone = timezone
+      if (persist || normalizeTimezoneId(value) !== value) Preference.set(DOMAIN.time, 'timezone', timezone)
+      return timezone
+    }
+
+    function saveTimezone(value: TimezoneId) {
+      applyTimezone(value, true)
+      showView(SettingsViewId.MENU)
+    }
+
+    function applyVolume(value: unknown, persist: boolean, preview: boolean) {
+      const { volume, storageValue, needsWrite } = resolveVolumePreference(value, viewState.volume)
+      status['tts.volume'] = volume
+      viewState.volume = volume
+      if (persist || needsWrite) Preference.set(DOMAIN.tts, 'volume', storageValue)
+      updateCurrentView()
+      if (preview) volumePreviewQueue.request(volume)
+      return volume
+    }
+
+    function saveVolume(value: number) {
+      applyVolume(value, true, true)
     }
 
     function scanNetworks() {
@@ -204,6 +252,15 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
         trace(`preference changed! ${key}\n`)
         if (key === `${DOMAIN.ui}.language`) {
           applyLanguage(value, false)
+          return
+        }
+        if (key === `${DOMAIN.time}.timezone`) {
+          applyTimezone(value, false)
+          showView(currentViewId)
+          return
+        }
+        if (key === `${DOMAIN.tts}.volume`) {
+          applyVolume(value, false, false)
           return
         }
         status[key] = value

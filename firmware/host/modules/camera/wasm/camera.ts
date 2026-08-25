@@ -1,3 +1,5 @@
+declare const setTimeout: (callback: () => void, delay?: number) => unknown
+
 import type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } from '../camera.js'
 
 export type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } from '../camera.js'
@@ -6,6 +8,7 @@ const DEFAULT_WIDTH = 96
 const DEFAULT_HEIGHT = 96
 const DEFAULT_IMAGE_TYPE: CameraImageType = 'rgb565le'
 const DEFAULT_USE_BROWSER_CAMERA = true
+const WASM_CAMERA_BRIDGE_POLL_INTERVAL_MS = 50
 
 export type WasmCameraConstructorOptions = {
   useBrowserCamera?: boolean
@@ -23,6 +26,8 @@ type HostCameraBridge = {
 
 type WasmCameraBridge = {
   start: (width: number, height: number, useBrowserCamera: boolean) => Promise<void> | void
+  startStatus?: () => number
+  setTimer?: (callback: () => void, delay?: number) => unknown
   stop: () => void
   capture: (width: number, height: number) => CameraFrame | undefined
 }
@@ -32,6 +37,29 @@ const hostCamera = (): HostCameraBridge | undefined =>
 
 const wasmCameraBridge = (): WasmCameraBridge | undefined =>
   (globalThis as typeof globalThis & { __stackchanWasmCameraBridge?: WasmCameraBridge }).__stackchanWasmCameraBridge
+
+const schedule = (bridge: WasmCameraBridge, callback: () => void, delay: number): void => {
+  if (bridge.setTimer) bridge.setTimer(callback, delay)
+  else setTimeout(callback, delay)
+}
+
+const waitForWasmCameraStart = (bridge: WasmCameraBridge): Promise<void> => {
+  if (!bridge.startStatus) return Promise.resolve()
+
+  return new Promise((resolve, reject) => {
+    const poll = () => {
+      const status = bridge.startStatus?.() ?? 1
+      if (status === 0) {
+        schedule(bridge, poll, WASM_CAMERA_BRIDGE_POLL_INTERVAL_MS)
+      } else if (status > 0) {
+        resolve()
+      } else {
+        reject(new Error('browser camera failed to start'))
+      }
+    }
+    poll()
+  })
+}
 
 function normalizeDimension(value: number | undefined, fallback: number): number {
   if (value === undefined) {
@@ -102,11 +130,16 @@ export default class Camera implements RobotCamera {
   async start(options?: WasmCameraStartOptions): Promise<void> {
     const wasmBridge = wasmCameraBridge()
     if (wasmBridge) {
-      await wasmBridge.start(
+      const startResult = wasmBridge.start(
         normalizeDimension(options?.width, DEFAULT_WIDTH),
         normalizeDimension(options?.height, DEFAULT_HEIGHT),
         resolveUseBrowserCamera(options, this.#useBrowserCamera),
       )
+      if (wasmBridge.startStatus) {
+        await waitForWasmCameraStart(wasmBridge)
+      } else {
+        await startResult
+      }
       this.#started = true
       return
     }

@@ -8,7 +8,14 @@ import type {
   UIEffect,
 } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
-import { createFaceState, type Emotion, type FaceState, type FaceThemeKey, setColorRGB } from 'face-state'
+import {
+  createFaceState,
+  type Emotion,
+  type FaceEyeKey,
+  type FaceState,
+  type FaceThemeKey,
+  setColorRGB,
+} from 'face-state'
 import {
   type Pose,
   type Rotation,
@@ -35,12 +42,25 @@ type RuntimeUIOptions = {
   isPaused: () => boolean
 }
 
+const BALLOON_OPTION_KEYS = ['left', 'right', 'top', 'bottom', 'width', 'height', 'tail'] as const
+
+type SpeechBalloonBehavior = {
+  setText?: (content: UIEffect, text: string) => void
+}
+
+function sameBalloonOptions(current: ShowBalloonOptions | null, next: ShowBalloonOptions): boolean {
+  if (!current) return false
+  return BALLOON_OPTION_KEYS.every((key) => current[key] === next[key])
+}
+
 export class StackchanRuntimeUI {
   #balloon: UIEffect | null = null
+  #balloonOptions: ShowBalloonOptions | null = null
   #drawerButtonSpecs = new Map<string, DrawerButtonSpec>()
   #drawerButtonStates = new Map<string, boolean>()
   #drawerRegistry: DrawerCapability
   #emotion: Emotion
+  #eyeOpen = { left: 1, right: 1 }
   #eyeGazePoint: Vector3 = [0, 0, 0]
   #eyeGazeRotation: Rotation = { y: 0, p: 0, r: 0 }
   #faceState: FaceState
@@ -78,10 +98,16 @@ export class StackchanRuntimeUI {
   }
 
   showBalloon(text: string, option: ShowBalloonOptions = {}) {
-    if (this.#balloon != null) {
-      this.hideBalloon()
+    if (this.#balloon != null && sameBalloonOptions(this.#balloonOptions, option)) {
+      const behavior = this.#balloon.behavior as SpeechBalloonBehavior | undefined
+      if (behavior?.setText) {
+        behavior.setText(this.#balloon, text)
+        return
+      }
     }
+    this.hideBalloon()
     this.#balloon = new SpeechBalloon({ ...option, text })
+    this.#balloonOptions = { ...option }
     this.#ui.addEffect(this.#balloon)
   }
 
@@ -89,6 +115,7 @@ export class StackchanRuntimeUI {
     if (this.#balloon != null) {
       this.#ui.removeEffect(this.#balloon)
       this.#balloon = null
+      this.#balloonOptions = null
     }
   }
 
@@ -98,6 +125,13 @@ export class StackchanRuntimeUI {
 
   setEmotion(emotion: Emotion) {
     this.#emotion = emotion
+  }
+
+  setEyeOpen(key: FaceEyeKey, value: number) {
+    if (value < 0 || value > 1) {
+      throw new Error('value must be between 0 and 1')
+    }
+    this.#eyeOpen[key] = value
   }
 
   setMouthOpen(value: number) {
@@ -115,6 +149,8 @@ export class StackchanRuntimeUI {
     const pose = this.#options.getPose()
     const gazePoint = this.#options.getGazePoint()
     this.#faceState.mouth.open = this.#mouthOpen
+    this.#faceState.eyes.left.open = this.#eyeOpen.left
+    this.#faceState.eyes.right.open = this.#eyeOpen.right
     this.#faceState.emotion = this.#emotion
 
     if (gazePoint != null) {

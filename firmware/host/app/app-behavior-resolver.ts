@@ -3,17 +3,17 @@ export type AppBehaviorModules = {
   importNow(specifier: string): unknown
 }
 
-export type AppBehaviorResolutionOptions = Readonly<{
-  allowModOverride?: boolean
-}>
-
 export function resolveAppBehaviors<TBehavior extends object>(
   modules: AppBehaviorModules,
   defaultBehavior: TBehavior,
-  options: AppBehaviorResolutionOptions = {},
+  onImportError?: (error: unknown) => void,
 ): TBehavior[] {
-  if (options.allowModOverride !== false && modules.has('mod')) {
-    return [mergeDefinedBehavior(defaultBehavior, modules.importNow('mod') as Partial<TBehavior>)]
+  if (modules.has('mod')) {
+    try {
+      return [mergeDefinedBehavior(defaultBehavior, modules.importNow('mod') as Partial<TBehavior>)]
+    } catch (error) {
+      onImportError?.(error)
+    }
   }
   return [defaultBehavior]
 }

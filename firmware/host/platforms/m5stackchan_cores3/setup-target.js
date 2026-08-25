@@ -1,14 +1,11 @@
-import AXP2101 from 'embedded:peripheral/Power/axp2101'
-import baseSetup from 'm5stack-cores3/setup-target'
+import { getAxp2101Power } from 'axp2101-power-capture'
 
 // Mirrors the CoreS3 power-rail setup used by M5Stack/StackChan firmware
 // (`firmware/main/hal/board/stackchan.cc` near the AXP2101 init path) and the
 // X-Powers AXP2101 register map for DCDC/ALDO/BLDO/LDO and charge-control fields.
 function patchStackChanPower() {
-  const axp2101 = new AXP2101({
-    address: 0x34,
-    sensor: { ...device.I2C.internal, io: device.io.SMBus },
-  })
+  const axp2101 = getAxp2101Power()
+  if (!axp2101) throw new Error('AXP2101 power instance is unavailable')
 
   const data = axp2101.readByte(0x90)
   // Enable the LDO rails needed by the CoreS3 StackChan base.
@@ -34,12 +31,12 @@ function patchStackChanPower() {
 }
 
 export default function (done) {
-  baseSetup(() => {
-    try {
-      patchStackChanPower()
-    } catch (error) {
-      trace(`[m5stackchan] AXP2101 power patch failed: ${error}\n`)
-    }
-    done?.()
-  })
+  // The inherited CoreS3 setup precedes this module and constructs the shared
+  // AXP2101 before this board-specific rail configuration runs.
+  try {
+    patchStackChanPower()
+  } catch (error) {
+    trace(`[m5stackchan] AXP2101 power patch failed: ${error}\n`)
+  }
+  done?.()
 }

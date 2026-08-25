@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
+import { parse as parseYaml } from 'yaml'
 
+import { DEFAULT_TOOLS_VERSION } from './editor/mod-builder.mjs'
 import { FACE_ASSET_EMOTIONS, FACE_ASSET_FORMAT, FACE_ASSET_VERSION } from './editor/face-assets.mjs'
 
 const [
   html,
   simulatorHtml,
   simulatorSource,
-  builder,
   installer,
   toolsWasm,
   esptoolBundle,
@@ -17,6 +18,7 @@ const [
   faceSchemaText,
   buildWorkflow,
   bundleWorkflow,
+  releaseWorkflow,
   simulatorBuildScript,
   editorToolsBuildScript,
   editorToolsXscWrapper,
@@ -25,11 +27,11 @@ const [
   tutorialHtml,
   faceEditorHtml,
   flashHtml,
+  packageText,
 ] = await Promise.all([
   readFile(new URL('./editor/index.html', import.meta.url), 'utf8'),
   readFile(new URL('./simulator/index.html', import.meta.url), 'utf8'),
-  readFile(new URL('./simulator/simulator.mjs', import.meta.url), 'utf8'),
-  readFile(new URL('./editor/mod-builder.mjs', import.meta.url), 'utf8'),
+  readFile(new URL('./src/services/simulator/simulator-engine.mjs', import.meta.url), 'utf8'),
   readFile(new URL('./editor/esptool-installer.mjs', import.meta.url), 'utf8'),
   readFile(new URL('./editor/vendor/tools.wasm', import.meta.url)),
   readFile(new URL('./editor/vendor/esptool-js-0.5.7.bundle.mjs', import.meta.url)),
@@ -38,6 +40,7 @@ const [
   readFile(new URL('../docs/specs/face-asset.schema.json', import.meta.url), 'utf8'),
   readFile(new URL('../.github/workflows/build.yml', import.meta.url), 'utf8'),
   readFile(new URL('../.github/workflows/bundle.yml', import.meta.url), 'utf8'),
+  readFile(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8'),
   readFile(new URL('../firmware/scripts/build-wasm.sh', import.meta.url), 'utf8'),
   readFile(new URL('../firmware/scripts/build-editor-tools.sh', import.meta.url), 'utf8'),
   readFile(new URL('../firmware/scripts/xsc-without-debug-paths.sh', import.meta.url), 'utf8'),
@@ -46,6 +49,7 @@ const [
   readFile(new URL('./editor/tutorial.html', import.meta.url), 'utf8'),
   readFile(new URL('./face-editor/index.html', import.meta.url), 'utf8'),
   readFile(new URL('./flash/index.html', import.meta.url), 'utf8'),
+  readFile(new URL('./package.json', import.meta.url), 'utf8'),
 ])
 
 assert.deepEqual([...toolsWasm.subarray(0, 4)], [0, 0x61, 0x73, 0x6d], 'tools.wasm must be a WebAssembly module')
@@ -62,9 +66,13 @@ assert.equal(
   'vendored esptool-js 0.5.7 bundle must match the reviewed npm artifact'
 )
 assert.match(esptoolLicense, /Apache License/)
-assert.match(builder, /DEFAULT_TOOLS_VERSION = '\d+\.\d+\.\d+'/)
-for (const dependency of ['blockly@11.2.2', 'esp-web-tools@9.4.3', 'esptool-js-0.5.7', 'lucide@1.24.0']) {
-  assert.ok([html, flashHtml, builder, installer].some((source) => source.includes(dependency)))
+const packageJson = JSON.parse(packageText)
+for (const dependency of ['@base-ui/react', 'blockly', 'lucide-react', 'react', 'three']) {
+  assert.match(
+    packageJson.dependencies?.[dependency] ?? '',
+    /^\^?\d+\.\d+\.\d+/,
+    `${dependency} must be pinned through package.json`
+  )
 }
 for (const [name, page] of [
   ['home', homeHtml],
@@ -75,24 +83,15 @@ for (const [name, page] of [
   ['simulator', simulatorHtml],
 ]) {
   const externalScripts = [...page.matchAll(/<script\b[^>]*\bsrc="https:\/\/[^>]+>/g)]
-  assert.ok(externalScripts.length > 0, `${name} page must expose its pinned external script to this check`)
-  for (const [script] of externalScripts) {
-    assert.match(script, /\bintegrity="sha384-[^"]+"/, `${name} external scripts must have SRI`)
-    assert.match(script, /\bcrossorigin="anonymous"/, `${name} external scripts must use anonymous CORS`)
-  }
+  assert.equal(externalScripts.length, 0, `${name} page must not depend on runtime CDN scripts`)
+  assert.doesNotMatch(page, /unpkg\.com|<style\b|<script>(?!\s*<\/script>)/)
 }
-const importMapText = /<script type="importmap">([\s\S]*?)<\/script>/.exec(simulatorHtml)?.[1]
-assert.ok(importMapText, 'simulator must declare an import map')
-const importMap = JSON.parse(importMapText)
-const threeModuleUrls = [
-  importMap.imports?.three,
-  ...[...simulatorSource.matchAll(/from '(https:\/\/unpkg\.com\/three@[^']+)'/g)].map((match) => match[1]),
-]
-assert.equal(threeModuleUrls.length, 4, 'simulator must account for every external Three.js module')
-for (const url of threeModuleUrls) {
-  assert.match(url, /^https:\/\/unpkg\.com\/three@0\.164\.1\//, 'Three.js modules must use the reviewed version')
-  assert.match(importMap.integrity?.[url] ?? '', /^sha384-/, `${url} must have import-map integrity metadata`)
-}
+assert.match(simulatorSource, /from 'three'/)
+assert.match(simulatorSource, /from 'three\/addons\/controls\/OrbitControls\.js'/)
+assert.match(simulatorSource, /from 'three\/addons\/geometries\/RoundedBoxGeometry\.js'/)
+assert.match(simulatorSource, /from 'three\/addons\/loaders\/STLLoader\.js'/)
+assert.doesNotMatch(simulatorSource, /https:\/\/|unpkg\.com/)
+assert.doesNotMatch(flashHtml, /esp-web-install-button|esp-web-tools/)
 assert.match(specification, /tech\.stackchan\.visual-project/)
 const faceSchema = JSON.parse(faceSchemaText)
 assert.equal(faceSchema.properties.format.const, FACE_ASSET_FORMAT)
@@ -114,7 +113,12 @@ assert.deepEqual(faceSchema.properties.canvas.required, ['left', 'top', 'width',
 assert.deepEqual(faceSchema.properties.shape.required, ['eyes', 'mouth'])
 assert.deepEqual(faceSchema.properties.shape.properties.eyes.required, ['left', 'right'])
 
-const moddableVersion = '8.3.1'
+const moddableVersion = DEFAULT_TOOLS_VERSION
+assert.match(
+  moddableVersion,
+  /^\d+\.\d+\.\d+$/,
+  'Moddable SDK version must be semantic-versioned'
+)
 for (const [name, source] of [
   ['simulator build script', simulatorBuildScript],
   ['editor tools build script', editorToolsBuildScript],
@@ -146,10 +150,18 @@ assert.match(editorToolsXscWrapper, /\[\[ "\$arg" != "-d" \]\]/)
 for (const [name, source] of [
   ['build workflow', buildWorkflow],
   ['bundle workflow', bundleWorkflow],
+  ['release workflow', releaseWorkflow],
 ]) {
-  assert.ok(
-    source.includes(`target-branch: "${moddableVersion}"`),
-    `${name} must install Moddable SDK ${moddableVersion} for WebAssembly builds`
+  const workflow = parseYaml(source)
+  const pinnedVersions = Object.values(workflow.jobs ?? {})
+    .flatMap((job) => job.steps ?? [])
+    .filter((step) => step.uses === './.github/actions/setup' && step.with?.['target-branch'] !== undefined)
+    .map((step) => String(step.with['target-branch']))
+  assert.ok(pinnedVersions.length > 0, `${name} must explicitly pin a Moddable SDK version`)
+  assert.deepEqual(
+    new Set(pinnedVersions),
+    new Set([moddableVersion]),
+    `${name} Moddable setup pins must match the editor tools version`
   )
 }
 console.log('Visual Programming artifacts and pinned dependencies are consistent')

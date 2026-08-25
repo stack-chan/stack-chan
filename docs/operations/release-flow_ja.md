@@ -39,5 +39,19 @@ main <- release/* <- develop <- feat/* | fix/*
 
 Changesets のリリース基準ブランチは `develop` です。
 version とリリースノートはリリースブランチ上で更新します。
-安定版の `vX.Y.Z` タグをpushすると、versionを検証してfirmware bundleを再構築し、GitHub Releaseの成果物を公開します。
+実機検証では[リリース前実機テスト](./release-device-test_ja.md)を使用し、候補コミットと結果をリリース pull request に記録します。
+安定版の `vX.Y.Z` タグをpushすると、バージョンを検証してfirmware bundleを再構築し、GitHub Releaseの成果物を公開します。
 リリース pull request の自動作成と、ファームウェアへの製品version埋め込みは今後の作業です。
+
+## GitHub Pages
+
+GitHub Pagesは`gh-pages`ブランチ内で安定版と開発版を別のディレクトリへ配置します。
+
+| 元ブランチ | URL | 役割 |
+| --- | --- | --- |
+| `main` | `https://stack-chan.github.io/stack-chan/web/` | 利用者向けの正本 |
+| `develop` | `https://stack-chan.github.io/stack-chan/develop/web/` | 次回リリースの開発版 |
+
+`main`へのpushは正本だけを更新し、`develop`へのpushは開発版だけを更新します。
+各ディレクトリには、その元ブランチからビルドしたWebアプリ、firmware bundle、schema、schematicsを配置します。
+`release/*`はGitHub Pagesへ直接デプロイせず、pull requestごとのCloudflareプレビューで確認します。

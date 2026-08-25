@@ -1,0 +1,25 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./server-realtime-model.test",
+    "stackchanXiaozhiContractTest": "./xiaozhi-contract.test",
+    "stackchanXiaozhiModelTest": "./xiaozhi-model.test",
+    "stackchanServerChatWebSocketWorker": "./server-chat-websocket-worker",
+    "xiaozhi-contract": "../../chat-audioio/xiaozhi-contract",
+    "xiaozhiV1Model": "../../chat-audioio/xiaozhi-model",
+    "stackchanOpusDecoder": "./opus-decoder",
+    "stackchanOpusEncoder": "./opus-encoder"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

@@ -23,6 +23,8 @@ function placeholders(value: string): string[] {
 // Firmware resources use stable semantic keys, so placeholder names are an
 // explicit contract rather than being embedded in the key text.
 const placeholderContracts: Record<string, string[]> = {
+  'mods.confirm': ['name'],
+  'settings.volumeValue': ['percent'],
   'settings.wifiStatus': ['status'],
   'splash.connecting': ['attempt', 'maxAttempts'],
 }

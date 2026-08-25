@@ -22,6 +22,7 @@ CONFIG_SPIRAM_SPEED_40M=y
 CONFIG_SPIRAM_TYPE_AUTO=y
 CONFIG_SPIRAM_IGNORE_NOTFOUND=y
 CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384
 
 # Keep the camera DMA bounce buffer below the contiguous internal-RAM block
 # available after the Stack-chan host has started. Direct PSRAM DMA corrupts

@@ -1,0 +1,9 @@
+{
+  "include": ["./manifest_m5stackchan_cores3.json"],
+  "config": {
+    "usbAudio": {
+      "enabled": true,
+      "autoStart": true
+    }
+  }
+}

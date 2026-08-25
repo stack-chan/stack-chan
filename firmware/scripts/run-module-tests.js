@@ -4,12 +4,17 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } fr
 import { readdir } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import { basename, dirname, join, relative, resolve } from 'node:path'
+import { performance } from 'node:perf_hooks'
 import { buildOutputDirectory, ensureBuildOutputDirectory, moddableOutputArguments } from './lib/build-output.mjs'
+import { parseModuleTestShard, selectModuleTestShard } from './lib/module-test-sharding.mjs'
 import { startXsbugServer } from './lib/xsbug-log-server.js'
 
 const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods/examples']
 const XSBUG_HOST = process.env.STACKCHAN_MODULE_TEST_XSBUG_HOST ?? '127.0.0.1'
-const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '15000', 10)
+// Piu/GTK tests can spend more than 15 seconds starting mcsim while another
+// manifest is compiling on a shared CI runner. Successful tests still return
+// as soon as they trace `ok`; this only gives a cold simulator more headroom.
+const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '30000', 10)
 const BUILD_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS ?? '360000', 10)
 const FILTER = process.env.STACKCHAN_MODULE_TEST_FILTER
 // Incremental builds are safe: mcconfig regenerates the makefile on every run and
@@ -50,6 +55,10 @@ const okPattern = /<log>ok(?:&#10;|\n)<\/log>/
 
 function relativePath(path) {
   return relative(firmwareRoot, path)
+}
+
+function formatDuration(milliseconds) {
+  return `${(milliseconds / 1000).toFixed(1)}s`
 }
 
 async function walk(root) {
@@ -344,13 +353,17 @@ async function runOne(manifestPath, index) {
   }
 }
 
-const manifestPaths = await collectManifestPaths(process.argv.slice(2))
-if (manifestPaths.length === 0) {
+const allManifestPaths = await collectManifestPaths(process.argv.slice(2))
+if (allManifestPaths.length === 0) {
   console.log('No runnable Moddable test manifests found.')
   process.exit(0)
 }
 
-assertUniqueNames(manifestPaths)
+assertUniqueNames(allManifestPaths)
+const shard = parseModuleTestShard()
+const manifestPaths = selectModuleTestShard(allManifestPaths, shard)
+const shardLabel = `${shard.index + 1}/${shard.total}`
+const suiteStartedAt = performance.now()
 
 let jobs = Math.min(JOBS, manifestPaths.length)
 if (jobs > 1 && !HAS_DBUS_RUN_SESSION) {
@@ -358,7 +371,7 @@ if (jobs > 1 && !HAS_DBUS_RUN_SESSION) {
   jobs = 1
 }
 console.log(
-  `Running ${manifestPaths.length} Moddable test manifest(s) with ${jobs} job(s)${CLEAN ? ', clean build' : ''}`,
+  `Running ${manifestPaths.length}/${allManifestPaths.length} Moddable test manifest(s) in shard ${shardLabel} with ${jobs} job(s)${CLEAN ? ', clean build' : ''}`,
 )
 
 // The XS core objects live in a lib directory shared by every app of the same
@@ -371,6 +384,7 @@ if (jobs > 1) {
     if (!warmups.has(segment)) warmups.set(segment, manifestPath)
   }
   for (const [segment, manifestPath] of warmups) {
+    const startedAt = performance.now()
     process.stdout.write(`- warm-up build [${segment}] ${relativePath(manifestPath)} ... `)
     const output = []
     const ok = await buildManifest({
@@ -380,7 +394,7 @@ if (jobs > 1) {
       name: basename(dirname(manifestPath)),
       output,
     })
-    console.log(ok ? 'ok' : 'failed')
+    console.log(`${ok ? 'ok' : 'failed'} (${formatDuration(performance.now() - startedAt)})`)
     if (!ok && output.length > 0) console.error(output.join('\n'))
   }
 }
@@ -393,6 +407,7 @@ async function worker() {
     const index = cursor++
     if (index >= manifestPaths.length) return
     const manifestPath = manifestPaths[index]
+    const startedAt = performance.now()
     let result
     try {
       result = await runOne(manifestPath, index)
@@ -403,11 +418,12 @@ async function worker() {
         output: [error.stack ?? String(error)],
       }
     }
+    const duration = formatDuration(performance.now() - startedAt)
     if (result.ok) {
-      console.log(`- ${result.label} ... ok`)
+      console.log(`- ${result.label} ... ok (${duration})`)
     } else {
       failures += 1
-      console.log(`- ${result.label} ... failed`)
+      console.log(`- ${result.label} ... failed (${duration})`)
       if (result.output.length > 0) console.error(result.output.join('\n'))
     }
   }
@@ -420,4 +436,6 @@ if (failures > 0) {
   process.exit(1)
 }
 
-console.log('All Moddable test manifests passed')
+console.log(
+  `All Moddable test manifests passed in shard ${shardLabel} (${formatDuration(performance.now() - suiteStartedAt)})`,
+)

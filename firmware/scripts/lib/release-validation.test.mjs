@@ -16,7 +16,7 @@ function createReleaseFixture(version = '1.0.0') {
   const rootDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-release-'))
   temporaryDirectories.push(rootDirectory)
 
-  for (const directory of ['firmware', 'web', 'docs/release-notes', '.changeset']) {
+  for (const directory of ['firmware', 'web/flash', 'docs/release-notes', '.changeset']) {
     mkdirSync(path.join(rootDirectory, directory), { recursive: true })
   }
   for (const packageDirectory of ['firmware', 'web']) {
@@ -26,6 +26,7 @@ function createReleaseFixture(version = '1.0.0') {
       JSON.stringify({ version, packages: { '': { version } } }),
     )
   }
+  writeFileSync(path.join(rootDirectory, 'web', 'flash', 'manifest_esp32_fixture.json'), JSON.stringify({ version }))
   writeFileSync(path.join(rootDirectory, 'docs/release-notes', `v${version}.md`), '# Release notes\n')
   writeFileSync(path.join(rootDirectory, '.changeset', 'README.md'), '# Changesets\n')
 
@@ -48,6 +49,18 @@ test('validateRelease rejects mismatched versions', () => {
   const rootDirectory = createReleaseFixture()
   writeFileSync(path.join(rootDirectory, 'web', 'package.json'), JSON.stringify({ version: '0.1.0' }))
   assert.throws(() => validateRelease(rootDirectory, 'v1.0.0'), /web\/package\.json version is 0\.1\.0/)
+})
+
+test('validateRelease rejects a mismatched web flash manifest version', () => {
+  const rootDirectory = createReleaseFixture()
+  writeFileSync(
+    path.join(rootDirectory, 'web', 'flash', 'manifest_esp32_fixture.json'),
+    JSON.stringify({ version: '0.1.0' }),
+  )
+  assert.throws(
+    () => validateRelease(rootDirectory, 'v1.0.0'),
+    /web[/\\]flash[/\\]manifest_esp32_fixture\.json version is 0\.1\.0/,
+  )
 })
 
 test('validateRelease rejects unconsumed Changesets', () => {

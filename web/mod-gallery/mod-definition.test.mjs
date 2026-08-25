@@ -273,5 +273,8 @@ test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持
   assert.equal(new RegExp(schema.properties.setup.properties.url.pattern).test('https://example.test/setup'), true)
   assert.equal(new RegExp(schema.properties.setup.properties.url.pattern).test('http://example.test/setup'), false)
   const workflow = readFileSync(new URL('../../.github/workflows/bundle.yml', import.meta.url), 'utf8')
-  assert.match(workflow, /docs\/specs\/stackchan-mod\.schema\.json \.\/web\/schemas\/stackchan-mod\.schema\.json/)
+  assert.match(
+    workflow,
+    /website-source\/docs\/specs\/stackchan-mod\.schema\.json "\$target_directory\/schemas\/stackchan-mod\.schema\.json"/
+  )
 })

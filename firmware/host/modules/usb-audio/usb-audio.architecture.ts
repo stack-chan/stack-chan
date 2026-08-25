@@ -26,6 +26,7 @@ const usbAppManifest = readManifest('host/app/manifest_android_usb_audio.json')
 const diagnosticAppManifest = readManifest('host/app/manifest_android_usb_audio_diagnostics.json')
 const diagnosticNoUiAppManifest = readManifest('host/app/manifest_android_usb_audio_diagnostics_no_ui.json')
 const dockManifest = readManifest('host/app/docks/android-usb-audio/manifest.json')
+const dockPresentationManifest = readManifest('host/app/docks/android-usb-audio/manifest_presentation.json')
 const usbModuleManifest = readManifest('host/modules/usb-audio/manifest.json')
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as {
   scripts?: Record<string, string>
@@ -47,7 +48,9 @@ test('CoreS3 composes the USB Dock without leaking it into shared or WASM graphs
   assert.equal(dockManifest.modules?.['stackchan-remote-session-facade'], '../../remote-session/facade')
   assert.equal(dockManifest.modules?.['stackchan-remote-session-runtime'], '../../remote-session/runtime')
   assert.equal(dockManifest.modules?.['stackchan-task-session'], '../../remote-session/task-session')
-  assert.equal(dockManifest.modules?.['stackchan-usb-dock-presentation'], './presentation')
+  assert.ok(dockManifest.include?.includes('./manifest_presentation.json'))
+  assert.equal(dockPresentationManifest.modules?.['stackchan-usb-dock-presentation'], './presentation')
+  assert.equal(dockPresentationManifest.modules?.['stackchan-usb-dock-presentation-model'], './presentation-model')
   assert.equal(dockManifest.modules?.['stackchan-usb-dock-runtime'], './runtime')
 })
 

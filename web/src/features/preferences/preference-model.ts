@@ -14,6 +14,7 @@ export const PREFERENCE_KEYS = [
   'tts.volume',
   'ai.token',
   'ai.context',
+  'mcp.token',
 ] as const
 
 export type PreferenceKey = (typeof PREFERENCE_KEYS)[number]
@@ -35,6 +36,7 @@ export const DEFAULT_PREFERENCES: PreferenceValues = {
   'tts.volume': '1',
   'ai.token': '',
   'ai.context': '',
+  'mcp.token': '',
 }
 
 export const isPreferenceKey = (value: string): value is PreferenceKey =>

@@ -99,6 +99,7 @@ export function useProjectEditor() {
   const projectsRef = useRef<VisualProject[]>([])
   const workspaceRef = useRef<BlocklyWorkspaceController | null>(null)
   const confirmationRef = useRef<Confirmation | null>(null)
+  const buildGenerationRef = useRef(0)
   const [project, setProject] = useState<VisualProject | null>(null)
   const [projects, setProjects] = useState<VisualProject[]>([])
   const [snapshot, setSnapshot] = useState<BlocklyWorkspaceSnapshot | null>(null)
@@ -119,6 +120,12 @@ export function useProjectEditor() {
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [simulatorOpen, setSimulatorOpen] = useState(false)
   const { entries: logs, append: appendLog, clear: clearLogs } = useLogBuffer()
+
+  const invalidateBuild = useCallback(() => {
+    buildGenerationRef.current += 1
+    setArchive(null)
+    setBuildOperation({ status: 'idle' })
+  }, [])
 
   const persistProject = useCallback(
     (next: VisualProject) => {
@@ -146,7 +153,7 @@ export function useProjectEditor() {
     (
       nextProject: VisualProject,
       nextSnapshot: BlocklyWorkspaceSnapshot,
-      { invalidateBuild = true }: { invalidateBuild?: boolean } = {}
+      { invalidateBuild: shouldInvalidateBuild = true }: { invalidateBuild?: boolean } = {}
     ) => {
       setSnapshot(nextSnapshot)
       let nextSource = nextSnapshot.source
@@ -173,12 +180,9 @@ export function useProjectEditor() {
         ]
       }
       setAnalysis(workspaceAnalysis)
-      if (invalidateBuild) {
-        setArchive(null)
-        setBuildOperation({ status: 'idle' })
-      }
+      if (shouldInvalidateBuild) invalidateBuild()
     },
-    []
+    [invalidateBuild]
   )
 
   useEffect(() => {
@@ -255,6 +259,7 @@ export function useProjectEditor() {
 
   useEffect(
     () => () => {
+      buildGenerationRef.current += 1
       confirmationRef.current?.resolve(false)
     },
     []
@@ -320,27 +325,27 @@ export function useProjectEditor() {
         updatedAt: new Date().toISOString(),
       }) as VisualProject
       persistProject(next)
-      const invalidateBuild = changedEntries.some(([key]) => key === 'target' || key === 'assets' || key === 'settings')
-      if (invalidateBuild) {
+      const shouldInvalidateBuild = changedEntries.some(
+        ([key]) => key === 'target' || key === 'assets' || key === 'settings'
+      )
+      if (shouldInvalidateBuild) {
         const currentSnapshot = workspaceRef.current?.snapshot() ?? snapshot
-        if (currentSnapshot) recalculate(next, currentSnapshot, { invalidateBuild })
-        else {
-          setArchive(null)
-          setBuildOperation({ status: 'idle' })
-        }
+        if (currentSnapshot) recalculate(next, currentSnapshot, { invalidateBuild: true })
+        else invalidateBuild()
       }
       return next
     },
-    [persistProject, recalculate, snapshot]
+    [invalidateBuild, persistProject, recalculate, snapshot]
   )
 
   const loadProject = useCallback(
     (next: VisualProject) => {
+      invalidateBuild()
       projectRef.current = next
       persistProject(next)
       workspaceRef.current?.load(next.workspace)
     },
-    [persistProject]
+    [invalidateBuild, persistProject]
   )
 
   const newProject = useCallback(() => {
@@ -458,14 +463,18 @@ export function useProjectEditor() {
       })
       return
     }
+    const buildGeneration = ++buildGenerationRef.current
     setBuildOperation({ status: 'pending', message: 'MODをビルドしています' })
     setArchive(null)
     try {
       const result = await buildVisualProjectMod({
         project: current,
         source,
-        onLog: (message) => appendLog(message, 'info', 'build'),
+        onLog: (message) => {
+          if (buildGeneration === buildGenerationRef.current) appendLog(message, 'info', 'build')
+        },
       })
+      if (buildGeneration !== buildGenerationRef.current) return
       const compatibility = inspectDeploymentCompatibility(current.target, {
         xsVersion: result.xsVersion,
       })
@@ -481,6 +490,7 @@ export function useProjectEditor() {
         ).toFixed(1)}秒)`,
       })
     } catch (error) {
+      if (buildGeneration !== buildGenerationRef.current) return
       appendLog(String(error instanceof Error ? error.message : error), 'error', 'build')
       setBuildOperation({ status: 'error', error: toAppError(error, 'mod.build') })
     }

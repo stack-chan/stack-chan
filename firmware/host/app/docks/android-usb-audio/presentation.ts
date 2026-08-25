@@ -310,3 +310,5 @@ export function createUsbAudioPresentation(context: StackchanContext): UsbAudioP
     },
   }
 }
+
+export default createUsbAudioPresentation

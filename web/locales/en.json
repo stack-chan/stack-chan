@@ -67,6 +67,8 @@
   "ポート": "Port",
   "音声": "Voice",
   "トークン": "Token",
+  "MCP Server": "MCP Server",
+  "Bearerトークン": "Bearer token",
   "音量（0–1）": "Volume (0–1)",
   "システムロール": "System prompt",
   "設定を保存": "Save settings",

@@ -1,0 +1,127 @@
+
+.cat-table { margin-left: auto; margin-right: auto; }
+.cat-table td { padding: 20px 24px; }
+.nav-table { margin-left: auto; margin-right: auto; }
+.nav-table td { padding: 20px 24px; }
+.output-table {
+  width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  border-collapse:
+  collapse;
+  margin-top: 5px;
+  margin-bottom: 4em;
+  font-size: 0.9em;
+  font-family: sans-serif;
+  min-width: 400px;
+  border-radius: 5px 5px 0 0;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+.output-table thead tr { background-color: #0e4e8e; color: #ffffff; text-align: left; }
+.output-table th { padding: 10px 12px; }
+.output-table td { padding: 5px 7px; }
+.out-cell { width: 128px; text-align: center }
+.out-cell-md { width: 128px;}
+.out-img { text-align: center; margin-left: auto; margin-right: auto; }
+.cat-img { text-align: center; margin-left: auto; margin-right: auto; }
+.td-small { text-align: center; font-size: 0.6em; }
+.td-normal { text-align: center; }
+.generator { text-align: right; font-size: 0.6em; }
+a:link, a:visited { text-decoration: none;}
+a:hover, a:active { text-decoration: underline;}
+/* The side navigation menu */
+.sidenav {
+  height: 100%; /* 100% Full-height */
+  width: 0; /* 0 width - change this with JavaScript */
+  position: fixed; /* Stay in place */
+  z-index: 1; /* Stay on top */
+  top: 0; /* Stay at the top */
+  left: 0;
+  background-color: #0e4e8e; /* Black*/
+  overflow-x: hidden; /* Disable horizontal scroll */
+  padding-top: 60px; /* Place content 60px from the top */
+  transition: 0.5s; /* 0.5 second transition effect to slide in the sidenav */
+}
+/* The navigation menu links */
+.sidenav a {
+  padding: 8px 8px 8px 8px;
+  text-decoration: none;
+  font-size: 16px;
+  color: #f1f1f1;
+  display: block;
+  transition: 0.3s;
+}
+/* When you mouse over the navigation links, change their color */
+.sidenav a:hover {
+  color: #ff0000;
+}
+/* Position and style the close button (top right corner) */
+.sidenav .closebtn {
+  position: absolute;
+  top: 0;
+  right: 8px;
+  font-size: 36px;
+  margin-left: 50px;
+}
+/* Style page content - use this if you want to push the page content to the right when you open the side navigation */
+#main {
+  transition: margin-left .5s;
+  padding: 20px;
+  margin-top: 200px;
+}
+/* On smaller screens, where height is less than 450px, change the style of the sidenav (less padding and a smaller font
+   size) */
+@media screen and (max-height: 450px) {
+  .sidenav {padding-top: 15px;}
+  .sidenav a {font-size: 18px;}
+}
+ul {
+  display: block;
+  list-style-type: none;
+  margin-block: -1em 0px;
+  margin-inline: 0px 0px;
+  padding-inline-start: 10px;
+}
+ul li {
+  margin-block: 0px -1em;
+}
+.topmenu {
+  overflow: hidden;
+  position: fixed; /* Set the navbar to fixed position */
+  top: 0; /* Position the navbar at the top of the page */
+  width: 100%; /* Full width */
+  background-color: white; /* Otherwise is transparent and overlaps */
+}
+.markdown-content {
+    font-family: Roboto, sans-serif;
+    line-height: 1.6;
+    padding: 15px;
+    border-radius: 5px;
+    max-width: 100%;
+    text-align: left;
+    white-space: pre-wrap; /* Handle preformatted text */
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+}
+.markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+}
+.markdown-content pre {
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+.markdown-content code {
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-family: 'Courier New', Courier, monospace;
+}
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 10px auto;
+}

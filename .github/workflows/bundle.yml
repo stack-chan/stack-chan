@@ -8,6 +8,9 @@ on:
     paths:
       - "firmware/**"
       - "web/**"
+      - "**/*.kicad_sch"
+      - "**/*.kicad_pcb"
+      - "schematics/**/*.kibot.yaml"
       - ".github/scripts/**"
       - ".github/actions/setup/action.yml"
       - ".github/workflows/bundle.yml"
@@ -19,6 +22,9 @@ on:
     paths:
       - "firmware/**"
       - "web/**"
+      - "**/*.kicad_sch"
+      - "**/*.kicad_pcb"
+      - "schematics/**/*.kibot.yaml"
       - ".github/scripts/**"
       - ".github/actions/setup/action.yml"
       - ".github/workflows/bundle.yml"
@@ -124,6 +130,14 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - name: Build candidate schematics
+        if: github.event_name == 'pull_request'
+        uses: INTI-CMNB/KiBot@v2_k7
+        with:
+          config: schematics/m5-pantilt/m5-pantilt.kibot.yaml
+          schema: schematics/m5-pantilt/m5-pantilt.kicad_sch
+          board: schematics/m5-pantilt/m5-pantilt.kicad_pcb
+          dir: pages-schematics
       - name: Download bundle targets
         uses: actions/download-artifact@v8
         with:
@@ -144,32 +158,16 @@ jobs:
         with:
           name: web-dist
           path: ./web/dist
-      - name: Checkout Pages baseline
-        if: github.event_name == 'pull_request'
-        uses: actions/checkout@v7
-        with:
-          ref: gh-pages
-          path: pages-baseline
-          persist-credentials: false
       - name: Assemble Cloudflare Pages preview
         if: github.event_name == 'pull_request'
-        run: |
-          set -euo pipefail
-          test -s ./pages-baseline/web/schematics/index.html
-          mkdir -p ./pages-preview
-          cp -R ./web/dist/. ./pages-preview/
-          rm -rf \
-            ./pages-preview/schematics \
-            ./pages-preview/flash/tech.moddable.stackchan
-          mkdir -p ./pages-preview/flash/tech.moddable.stackchan
-          cp -R ./pages-baseline/web/schematics ./pages-preview/schematics
-          cp -R \
-            ./firmware/host/app/tech.moddable.stackchan/. \
-            ./pages-preview/flash/tech.moddable.stackchan/
-          mkdir -p ./pages-preview/schemas
-          cp \
-            ./docs/specs/stackchan-mod.schema.json \
-            ./pages-preview/schemas/stackchan-mod.schema.json
+        run: >-
+          node .github/scripts/update-pages-bundle.mjs
+          ./web/dist
+          ./firmware/host/app/tech.moddable.stackchan
+          ./docs/specs/stackchan-mod.schema.json
+          .
+          pages-preview
+          ./pages-schematics
       - name: Validate Cloudflare Pages preview
         if: github.event_name == 'pull_request'
         run: |
@@ -220,29 +218,13 @@ jobs:
           name: web-dist
           path: ./web-dist
       - name: Update bundle files
-        run: |
-          set -euo pipefail
-          if [ -z "$(find ./firmware-bundle -mindepth 1 -print -quit)" ]; then
-            echo "Firmware bundle artifact is empty"
-            exit 1
-          fi
-          if [ -z "$(find ./web-dist -mindepth 1 -print -quit)" ]; then
-            echo "Web application artifact is empty"
-            exit 1
-          fi
-          test -s ./web-dist/simulator/mc.js
-          test -s ./web-dist/simulator/mc.wasm
-          target_directory="./$PAGES_DIRECTORY"
-          mkdir -p "$target_directory"
-          rsync -a --delete \
-            --exclude '/schematics/' \
-            --exclude '/flash/tech.moddable.stackchan/' \
-            ./web-dist/ "$target_directory/"
-          rm -rf "$target_directory/flash/tech.moddable.stackchan"
-          mkdir -p "$target_directory/flash/tech.moddable.stackchan"
-          cp -R ./firmware-bundle/. "$target_directory/flash/tech.moddable.stackchan/"
-          mkdir -p "$target_directory/schemas"
-          cp ./website-source/docs/specs/stackchan-mod.schema.json "$target_directory/schemas/stackchan-mod.schema.json"
+        run: >-
+          node ./website-source/.github/scripts/update-pages-bundle.mjs
+          ./web-dist
+          ./firmware-bundle
+          ./website-source/docs/specs/stackchan-mod.schema.json
+          .
+          "$PAGES_DIRECTORY"
       - name: Commit bundle update
         run: |
           set -euo pipefail

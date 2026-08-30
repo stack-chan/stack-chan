@@ -32,6 +32,8 @@ equal(definitions[0].id, 'sample.stackchan-catch', 'CATCH should have a stable i
   equal(behavior.state.player, 1, 'the right touch zone should move the player')
   behavior.onUndisplaying(port)
   equal(events.at(-1), 'stop', 'undisplaying should always stop the timer')
+  behavior.onDisplaying(port)
+  equal(events.slice(-2).join(','), 'start,invalidate', 'redisplaying a running game should restart its timer')
 }
 
 {

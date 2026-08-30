@@ -113,7 +113,11 @@ function fallDuration(speed: DropSpeed): number {
 function canSpawnDrop(state: GameState, spec: DropSpec): boolean {
   const landingTick = state.ticks + fallDuration(spec.speed)
   if (landingTick - state.lastLandingTick < MIN_LANDING_GAP_TICKS) return false
-  return state.drops.every((drop) => !drop.active || Math.abs(drop.landingTick - landingTick) >= MIN_LANDING_GAP_TICKS)
+  for (const drop of state.drops) {
+    if (!drop.active) continue
+    if (Math.abs(drop.landingTick - landingTick) < MIN_LANDING_GAP_TICKS) return false
+  }
+  return true
 }
 
 function spawnNextDrop(state: GameState, force = false): boolean {
@@ -249,6 +253,7 @@ export class StackchanCatchBehavior extends Behavior {
 
   onDisplaying(port: PiuPort): void {
     port.interval = this.#state.tickInterval
+    if (this.#state.phase === 'playing') port.start()
     port.invalidate()
   }
 

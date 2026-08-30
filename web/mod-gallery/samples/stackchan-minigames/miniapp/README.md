@@ -5,7 +5,7 @@ This sample registers two games in the mini-app launcher from one archive:
 - `Stack-chan JUMP`: tap to jump over incoming obstacles.
 - `Stack-chan CATCH`: move across three lanes, collect regular items, and avoid bombs.
 
-The existing [`mini_app_sample`](../mini_app_sample/) and [`stackchan_catch`](../stackchan_catch/) implementations remain the source of truth. `compose.mjs` combines them into one import-allowlist-compatible `miniapp.ts`. See each source sample's README for gameplay and rendering details.
+The existing [`mini_app_sample`](https://github.com/stack-chan/stack-chan/tree/develop/firmware/mods/examples/mini_app_sample) and [`stackchan_catch`](https://github.com/stack-chan/stack-chan/tree/develop/firmware/mods/examples/stackchan_catch) implementations remain the source of truth. `compose.mjs` combines them into one import-allowlist-compatible `miniapp.ts`. See each source sample's README for gameplay and rendering details.
 
 After changing either source, compose and build from `firmware/`:
 

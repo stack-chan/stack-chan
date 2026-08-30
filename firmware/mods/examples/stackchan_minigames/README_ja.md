@@ -5,7 +5,7 @@
 - `ｽﾀｯｸﾁｬﾝ JUMP`: タップで障害物を飛び越えるアクションゲーム
 - `ｽﾀｯｸﾁｬﾝ CATCH`: 左右3レーンで通常アイテムを受け取り、爆弾を避けるゲーム&ウォッチ風ゲーム
 
-実行コードは既存の[`mini_app_sample`](../mini_app_sample/)と[`stackchan_catch`](../stackchan_catch/)を正本とし、`compose.mjs`でimport制限に適合する単一の`miniapp.ts`へ合成しています。各ゲームのルールや描画方式は、それぞれのREADMEを参照してください。
+実行コードは既存の[`mini_app_sample`](https://github.com/stack-chan/stack-chan/tree/develop/firmware/mods/examples/mini_app_sample)と[`stackchan_catch`](https://github.com/stack-chan/stack-chan/tree/develop/firmware/mods/examples/stackchan_catch)を正本とし、`compose.mjs`でimport制限に適合する単一の`miniapp.ts`へ合成しています。各ゲームのルールや描画方式は、それぞれのREADMEを参照してください。
 
 ソースを変更した場合は`firmware/`から合成とarchive buildを実行します。
 

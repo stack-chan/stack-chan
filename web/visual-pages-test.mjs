@@ -155,18 +155,38 @@ try {
     .getByText('[MiniApp] loaded experimental archive definitions=2', { exact: false })
     .waitFor({ timeout: 45_000 })
   const miniGameScreen = page.locator('canvas[aria-hidden="true"]')
+  // The LCD canvas is hidden after Three.js maps it onto the model. Give the touch bridge stable test bounds.
+  await miniGameScreen.evaluate((canvas) => {
+    Object.assign(canvas.style, {
+      display: 'block',
+      position: 'fixed',
+      left: '0',
+      top: '0',
+      width: '320px',
+      height: '240px',
+      opacity: '0',
+      pointerEvents: 'none',
+    })
+  })
+  const screenBox = await miniGameScreen.boundingBox()
+  assert.ok(screenBox, 'the simulator canvas should have a visible bounding box')
   const tapMiniGameScreen = async (x, y) => {
-    await miniGameScreen.dispatchEvent('mousedown', { clientX: x, clientY: y })
-    await miniGameScreen.dispatchEvent('mouseup', { clientX: x, clientY: y })
+    const clientX = screenBox.x + (x * screenBox.width) / 320
+    const clientY = screenBox.y + (y * screenBox.height) / 240
+    await miniGameScreen.dispatchEvent('mousedown', { clientX, clientY })
+    await miniGameScreen.dispatchEvent('mouseup', { clientX, clientY })
   }
   await tapMiniGameScreen(160, 120)
   await page.waitForTimeout(100)
   await tapMiniGameScreen(254, 22)
   await page.waitForTimeout(200)
-  await tapMiniGameScreen(160, 118)
+  await tapMiniGameScreen(160, 74)
   await page.waitForTimeout(300)
+  const catchTitleFrame = await miniGameScreen.evaluate((canvas) => canvas.toDataURL('image/png'))
   await tapMiniGameScreen(160, 142)
   await page.waitForTimeout(1_000)
+  const catchRunningFrame = await miniGameScreen.evaluate((canvas) => canvas.toDataURL('image/png'))
+  assert.notEqual(catchRunningFrame, catchTitleFrame, 'the center tap should start Stack-chan CATCH')
   assert.equal(await page.getByRole('log').getByText('XS abort', { exact: false }).count(), 0)
 
   await page.goto(`${baseUrl}/mod-gallery/`, { waitUntil: 'networkidle' })

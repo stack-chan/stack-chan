@@ -2,11 +2,11 @@
   "$schema": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
   "format": "tech.stackchan.mod",
   "schemaVersion": 1,
-  "id": "sample.stackchan-jump",
+  "id": "sample.stackchan-minigames",
   "version": "1.0.0",
   "type": "text",
-  "name": "ｽﾀｯｸﾁｬﾝ JUMP",
-  "description": "画面をタップするとｽﾀｯｸﾁｬﾝがジャンプ！次々に迫る障害物を飛び越えて、どこまでスコアを伸ばせるか挑戦しよう。",
+  "name": "ｽﾀｯｸﾁｬﾝ ミニゲーム集",
+  "description": "1つのMODでJUMPとCATCHを収録。障害物を飛び越えるアクションと、アイテムを集めて爆弾を避けるゲーム&ウォッチ風ゲームを遊べます。",
   "author": "Stack-chan Community",
   "license": "Apache-2.0 AND MIT",
   "source": {
@@ -18,7 +18,7 @@
   "artifacts": [
     {
       "format": "xsa",
-      "path": "stackchan-jump.xsa",
+      "path": "stackchan-minigames.xsa",
       "target": "m5stackchan-cores3"
     }
   ]

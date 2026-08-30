@@ -138,22 +138,36 @@ try {
   )
   assert.equal(await selectedMediaPipeMod.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
 
-  await page.goto(`${baseUrl}/mod-gallery/?mod=sample.stackchan-jump`, {
+  await page.goto(`${baseUrl}/mod-gallery/?mod=sample.stackchan-minigames`, {
     waitUntil: 'networkidle',
   })
-  const selectedJumpMiniApp = page.locator(
-    '[data-mod-id="sample.stackchan-jump"][data-mod-entrypoints="miniapp"][data-selected="true"]'
+  const selectedMiniGames = page.locator(
+    '[data-mod-id="sample.stackchan-minigames"][data-mod-entrypoints="miniapp"][data-selected="true"]'
   )
-  await selectedJumpMiniApp.waitFor()
-  assert.equal(await selectedJumpMiniApp.getByText('ミニアプリ', { exact: true }).count(), 1)
-  assert.equal(await selectedJumpMiniApp.getByRole('button', { name: 'シミュレーターで試す' }).count(), 1)
-  assert.equal(await selectedJumpMiniApp.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
-  await selectedJumpMiniApp.getByRole('button', { name: 'シミュレーターで試す' }).click()
-  await page.waitForURL(/\/simulator\/\?gallery=sample\.stackchan-jump/)
+  await selectedMiniGames.waitFor()
+  assert.equal(await selectedMiniGames.getByText('ミニアプリ', { exact: true }).count(), 1)
+  assert.equal(await selectedMiniGames.getByRole('button', { name: 'シミュレーターで試す' }).count(), 1)
+  assert.equal(await selectedMiniGames.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
+  await selectedMiniGames.getByRole('button', { name: 'シミュレーターで試す' }).click()
+  await page.waitForURL(/\/simulator\/\?gallery=sample\.stackchan-minigames/)
   await page
     .getByRole('log')
-    .getByText('[MiniApp] loaded experimental archive definitions=1', { exact: false })
+    .getByText('[MiniApp] loaded experimental archive definitions=2', { exact: false })
     .waitFor({ timeout: 45_000 })
+  const miniGameScreen = page.locator('canvas[aria-hidden="true"]')
+  const tapMiniGameScreen = async (x, y) => {
+    await miniGameScreen.dispatchEvent('mousedown', { clientX: x, clientY: y })
+    await miniGameScreen.dispatchEvent('mouseup', { clientX: x, clientY: y })
+  }
+  await tapMiniGameScreen(160, 120)
+  await page.waitForTimeout(100)
+  await tapMiniGameScreen(254, 22)
+  await page.waitForTimeout(200)
+  await tapMiniGameScreen(160, 118)
+  await page.waitForTimeout(300)
+  await tapMiniGameScreen(160, 142)
+  await page.waitForTimeout(1_000)
+  assert.equal(await page.getByRole('log').getByText('XS abort', { exact: false }).count(), 0)
 
   await page.goto(`${baseUrl}/mod-gallery/`, { waitUntil: 'networkidle' })
   const blockProjectLink = page.getByRole('link', { name: 'ブロックで開く' }).first()

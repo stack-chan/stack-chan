@@ -102,15 +102,24 @@ test('Codex Voice GalleryパッケージはFirmwareサンプルと同じ実行�
   }
 })
 
-test('Stack-chan JUMP GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/mini_app_sample/', import.meta.url)
-  const gallery = new URL('./samples/stackchan-jump/miniapp/', import.meta.url)
+test('Stack-chanミニゲーム集GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
+  const firmware = new URL('../../firmware/mods/examples/stackchan_minigames/', import.meta.url)
+  const gallery = new URL('./samples/stackchan-minigames/miniapp/', import.meta.url)
   for (const filename of [
     'manifest.json',
     'miniapp.ts',
+    'README.md',
     'README_ja.md',
     'LICENSE.mouse-follower',
     'assets/stack-chan.png',
+    'assets/player-left.png',
+    'assets/player-center.png',
+    'assets/player-right.png',
+    'assets/screw.png',
+    'assets/m5stack.png',
+    'assets/bubble.png',
+    'assets/bomb.png',
+    'assets/miss.png',
   ]) {
     assert.deepEqual(
       readFileSync(new URL(filename, gallery)),

@@ -105,7 +105,7 @@
   "private": true,
   "workspaces": ["tools/typedoc"],
   "devDependencies": {
-    "@biomejs/biome": "2.5.9",
+    "@biomejs/biome": "2.5.10",
     "@google-cloud/text-to-speech": "^6.4.1",
     "@moddable/typings": "^9.0.1",
     "cross-env": "^10.1.0",

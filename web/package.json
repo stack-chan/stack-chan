@@ -42,7 +42,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/three": "^0.185.4",
-    "@vitejs/plugin-react": "^6.0.4",
+    "@vitejs/plugin-react": "^6.1.0",
     "jsdom": "^27.4.0",
     "playwright-core": "^1.62.1",
     "prettier": "^3.9.6",

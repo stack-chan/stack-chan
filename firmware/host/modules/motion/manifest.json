@@ -25,7 +25,9 @@
     "scservo-driver",
     "protocols/dynamixel-codec",
     "payload-buffer",
-    "internal/single-wait-slot",
+    "servo-bus",
+    "servo-bus-runtime",
+    "servo-driver-resources",
     "internal/servo-command-error"
   ],
   "typescript": {

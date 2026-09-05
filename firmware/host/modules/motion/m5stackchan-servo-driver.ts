@@ -14,6 +14,8 @@ import {
 } from 'motion-controller'
 import SCServo from 'protocols/scservo'
 import { type PY32IOExpander, tryGetSharedPY32IOExpander } from 'py32-io-expander'
+import { ServoBusError } from 'servo-bus'
+import { ServoDriverResources } from 'servo-driver-resources'
 import type { Maybe, Rotation } from 'stackchan-util'
 
 type M5StackChanServoDriverProps = Partial<{
@@ -35,6 +37,7 @@ type M5StackChanServoDriverProps = Partial<{
 }>
 
 export class M5StackChanServoDriver {
+  #resources = new ServoDriverResources()
   #pan: SCServo
   #tilt: SCServo
   #config: M5StackChanServoConfig
@@ -62,14 +65,28 @@ export class M5StackChanServoDriver {
         ...(param.pitchZeroPosition !== undefined ? { zeroPosition: param.pitchZeroPosition } : {}),
       },
     })
-    this.#pan = new SCServo({ id: this.#config.yaw.id, serial: this.#config.serial, awaitWriteResponse: true })
-    this.#tilt = new SCServo({ id: this.#config.pitch.id, serial: this.#config.serial, awaitWriteResponse: true })
-    if (param.servoPower?.type !== 'none') {
-      this.#servoPower = new PY32ServoPower(param.servoPower?.pin ?? 0, param.servoPower?.address)
+    try {
+      this.#pan = this.#resources.own(
+        new SCServo({ id: this.#config.yaw.id, serial: this.#config.serial, awaitWriteResponse: true }),
+      )
+      this.#tilt = this.#resources.own(
+        new SCServo({ id: this.#config.pitch.id, serial: this.#config.serial, awaitWriteResponse: true }),
+      )
+      if (param.servoPower?.type !== 'none') {
+        this.#servoPower = new PY32ServoPower(param.servoPower?.pin ?? 0, param.servoPower?.address)
+        this.#resources.own({ close: () => this.#servoPower?.setEnabled(false) })
+      }
+    } catch (error) {
+      this.#resources.rollback(error)
     }
   }
 
+  close(): void {
+    this.#resources.close()
+  }
+
   onAttached() {
+    if (this.#resources.closed) throw new ServoBusError('CLOSED', 'servo driver is closed')
     this.#servoPower?.setEnabled(true)
   }
 

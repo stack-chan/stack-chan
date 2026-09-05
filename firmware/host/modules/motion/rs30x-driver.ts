@@ -6,8 +6,8 @@ import {
 } from 'motion-controller'
 import { reasonFromError } from 'motion-driver-callback'
 import RS30X from 'protocols/rs30x'
+import { ServoDriverResources } from 'servo-driver-resources'
 import type { Maybe, Rotation } from 'stackchan-util'
-import type Timer from 'timer'
 
 type RS30XDriverProps = {
   panId: number
@@ -15,16 +15,24 @@ type RS30XDriverProps = {
 }
 
 export class RS30XDriver {
+  #resources = new ServoDriverResources()
   _pan: RS30X
   _tilt: RS30X
-  _handler: ReturnType<typeof Timer.repeat>
   #rotation: Rotation = { y: 0, p: 0, r: 0 }
   #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
   #rotationErrorResult: { success: false; reason?: string } = { success: false }
 
   constructor(param: RS30XDriverProps) {
-    this._pan = new RS30X({ id: param.panId })
-    this._tilt = new RS30X({ id: param.tiltId })
+    try {
+      this._pan = this.#resources.own(new RS30X({ id: param.panId }))
+      this._tilt = this.#resources.own(new RS30X({ id: param.tiltId }))
+    } catch (error) {
+      this.#resources.rollback(error)
+    }
+  }
+
+  close(): void {
+    this.#resources.close()
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {

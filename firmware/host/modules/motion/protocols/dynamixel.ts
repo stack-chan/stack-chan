@@ -1,6 +1,5 @@
 import Serial from 'embedded:io/serial'
 import config from 'mc/config'
-import { PayloadBuffer } from 'payload-buffer'
 import {
   angleToDynamixelPosition,
   dynamixelCrc16,
@@ -9,11 +8,12 @@ import {
   int16FromDynamixelPayload,
   int32FromDynamixelPayload,
   int32ToDynamixelBytes,
+  stuffDynamixelPacket,
+  unstuffDynamixelPayload,
   verifyDynamixelPacketCrc,
 } from 'protocols/dynamixel-codec'
-import { CommandTimeoutError } from 'servo-command-error'
-import SingleWaitSlot from 'single-wait-slot'
-import Timer from 'timer'
+import { ServoBusError, type ServoCommand, type ServoEndpoint, type ServoIdChange } from 'servo-bus'
+import { getServoBuses } from 'servo-bus-runtime'
 
 type Maybe<T> =
   | {
@@ -28,8 +28,6 @@ type Maybe<T> =
 function el(h: number, l: number) {
   return ((h << 8) & 0xff00) + (l & 0xff)
 }
-
-let packetHandler: PacketHandler = null
 
 const INSTRUCTION = {
   PING: 0x01,
@@ -100,14 +98,15 @@ function assertNeverRxState(state: never): never {
 }
 
 class PacketHandler extends Serial {
-  #callbacks: Map<number, (buffer: Uint8Array, length: number) => void>
+  #receive: (id: number, payload: Uint8Array) => void
+  #closed = false
   #rxBuffer: Uint8Array
-  #payloadBuffer: PayloadBuffer
   #idx: number
   #state: RxState
   #count: number
-  constructor(option) {
+  constructor(option, receive: (id: number, payload: Uint8Array) => void) {
     const onReadable = function (this: PacketHandler, bytesReadable: number) {
+      if (this.#closed) return
       const rxBuf = this.#rxBuffer
       let bytes = bytesReadable
       while (bytes > 0) {
@@ -116,25 +115,21 @@ class PacketHandler extends Serial {
         bytes -= 1
         switch (this.#state) {
           case RX_STATE.SEEK:
-            if (this.#idx === 1 && rxBuf[0] !== 0xff) {
-              this.#idx = 0
-            }
-            if (this.#idx === 2 && rxBuf[1] !== 0xff) {
-              this.#idx = 0
-            }
-            if (this.#idx >= 3) {
-              if (rxBuf[2] === 0xfd) {
-                this.#state = RX_STATE.HEAD
-              } else {
-                // reset seek
-                // trace('seeking failed. reset\n')
-                this.#idx = 0
-              }
+            if (this.#idx === 1 && rxBuf[0] !== 0xff) this.#idx = 0
+            if (this.#idx === 2 && rxBuf[1] !== 0xff) this.#idx = 0
+            if (this.#idx === 3) {
+              if (rxBuf[2] === 0xfd) this.#state = RX_STATE.HEAD
+              else this.#idx = rxBuf[2] === 0xff ? 2 : 0
             }
             break
           case RX_STATE.HEAD:
             if (this.#idx >= 7) {
               this.#count = (rxBuf[6] << 8) | rxBuf[5]
+              if (rxBuf[3] !== 0 || this.#count < 4 || this.#idx + this.#count > rxBuf.length) {
+                this.#idx = 0
+                this.#state = RX_STATE.SEEK
+                break
+              }
               this.#state = RX_STATE.BODY
               // trace(`length: ${this.#count}\n`)
             }
@@ -147,24 +142,12 @@ class PacketHandler extends Serial {
               if (command === INSTRUCTION.WRITE || command === INSTRUCTION.READ) {
                 // trace(`got echo.  ... ${rxBuf.subarray(0, this.#idx)} ignoring\n`)
               } else if (!verifyDynamixelPacketCrc(rxBuf, this.#idx)) {
-                // Discard corrupted packets. The pending command times out and
-                // surfaces a CommandTimeoutError, which the command queue already
-                // handles with a recovery delay (same policy as the SCServo driver).
+                // A corrupted packet cannot complete the pending transaction.
                 trace(`[dynamixel] crc mismatch for id=${id}. discarding ${rxBuf.subarray(0, this.#idx)}\n`)
               } else if (command === INSTRUCTION.STATUS) {
                 // trace(`got response for ${id}. triggering callback ... ${rxBuf.subarray(0, this.#idx)} \n`)
-                const payloadLength = this.#idx - 8
-                const payloadView = this.#payloadBuffer.copyFrom(rxBuf, payloadLength, 7)
-                const payload = new Uint8Array(payloadLength)
-                payload.set(payloadView.subarray(0, payloadLength))
-                this.#callbacks.get(id)?.(payload, payloadLength)
-              } else {
-                // trace(`something wrong for ${id}. ${rxBuf.subarray(0, this.#idx)} \n`)
-                const payloadLength = this.#idx - 8
-                const payloadView = this.#payloadBuffer.copyFrom(rxBuf, payloadLength, 7)
-                const payload = new Uint8Array(payloadLength)
-                payload.set(payloadView.subarray(0, payloadLength))
-                this.#callbacks.get(id)?.(payload, payloadLength)
+                const payloadEnd = unstuffDynamixelPayload(rxBuf, this.#idx)
+                this.#receive(id, rxBuf.slice(7, payloadEnd))
               }
               this.#idx = 0
               this.#state = RX_STATE.SEEK
@@ -176,25 +159,23 @@ class PacketHandler extends Serial {
         // noop
       }
     }
+    const rxBuffer = new Uint8Array(64)
     super({
       ...option,
       format: 'number',
       onReadable,
     })
-    this.#callbacks = new Map<number, (buffer: Uint8Array, length: number) => void>()
-    this.#rxBuffer = new Uint8Array(64)
-    this.#payloadBuffer = new PayloadBuffer(32)
+    this.#receive = receive
+    this.#rxBuffer = rxBuffer
     this.#idx = 0
     this.#state = RX_STATE.SEEK
   }
-  hasCallbackOf(id: number): boolean {
-    return this.#callbacks.has(id)
-  }
-  registerCallback(id: number, callback: (buffer: Uint8Array, length: number) => void) {
-    this.#callbacks.set(id, callback)
-  }
-  removeCallback(id: number) {
-    this.#callbacks.delete(id)
+  close(): void {
+    if (this.#closed) return
+    this.#closed = true
+    this.#receive = undefined
+    this.#idx = 0
+    super.close()
   }
 }
 
@@ -214,18 +195,7 @@ type CommandCallback = (values: Uint8Array | undefined) => void
 type ErrorCallback = (error: unknown) => void
 type CompletionCallback = (error?: unknown) => void
 type ValueCallback<T> = (value: T | undefined, error?: unknown) => void
-type PendingCommand = {
-  instruction: Instruction
-  address: Address | undefined
-  onResult: CommandCallback
-  onError: ErrorCallback
-  parameters: number[]
-}
-const COMMAND_BUSY_ERROR = 'command is already waiting for response'
 const DEFAULT_COMMAND_TIMEOUT_MS = 200
-// Give the half-duplex bus a short breather after a timeout before the next command
-// so a late/echoed response cannot be misread as the reply to the following command.
-const COMMAND_RECOVERY_DELAY_MS = 20
 
 function reasonFromError(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -241,148 +211,97 @@ function maybeFailure<T>(error?: unknown): Maybe<T> {
   }
 }
 
+let defaultBaud = 1_000_000
+
 class Dynamixel {
-  static packetHandler: PacketHandler
   static setBaud(baud: number): void {
-    // Dynamixel.packetHandler?.close()
-    // Dynamixel.packetHandler = new PacketHandler({
-    packetHandler?.close()
-    packetHandler = new PacketHandler({
-      receive: config.serial?.receive ?? 6,
-      transmit: config.serial?.transmit ?? 7,
-      baud: baud,
-      port: 1,
-    })
+    if (!Number.isInteger(baud) || baud <= 0)
+      throw new ServoBusError('INVALID_ARGUMENT', 'baud must be a positive integer')
+    getServoBuses().assertUnused(1)
+    defaultBaud = baud
   }
-  #id: number
-  #onCommandRead: (buffer: Uint8Array, length: number) => void
-  #txBuf: Uint8Array
-  #waitSlot: SingleWaitSlot<Uint8Array>
-  #commandQueue: PendingCommand[] = []
-  #isWriting = false
+  #endpoint: ServoEndpoint
+  #txBuf = new Uint8Array(64)
   #commandTimeoutMs: number
   constructor({
     id,
-    baudrate = 1_000_000,
+    baudrate = defaultBaud,
     commandTimeoutMs = DEFAULT_COMMAND_TIMEOUT_MS,
     serial,
   }: DynamixelConstructorParam) {
-    this.#id = id
+    if (!Number.isInteger(commandTimeoutMs) || commandTimeoutMs <= 0 || commandTimeoutMs > 60_000) {
+      throw new ServoBusError('INVALID_ARGUMENT', 'commandTimeoutMs must be an integer in 1..60000')
+    }
     this.#commandTimeoutMs = commandTimeoutMs
-    this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
-    this.#onCommandRead = (values, _length) => {
-      this.#waitSlot.resolve(values)
+    const settings = {
+      receive: serial?.receive ?? config.serial?.receive ?? 6,
+      transmit: serial?.transmit ?? config.serial?.transmit ?? 7,
+      port: serial?.port ?? 1,
+      baud: serial?.baud ?? baudrate,
+      protocol: 'dynamixel',
     }
-    this.#txBuf = new Uint8Array(64)
-    if (packetHandler == null) {
-      // Prefer the driver-specific serial config (e.g. the stackchan_rt subplatform's
-      // driver.serial) so the Dynamixel bus pins are not silently inherited from the
-      // top-level config.serial that targets the default SCServo bus.
-      const receive = serial?.receive ?? config.serial?.receive ?? 6
-      const transmit = serial?.transmit ?? config.serial?.transmit ?? 7
-      const port = serial?.port ?? 1
-      const baud = serial?.baud ?? baudrate
-      trace(`[dynamixel] serial port=${port} tx=${transmit} rx=${receive} baud=${baud}\n`)
-      packetHandler = new PacketHandler({
-        receive,
-        transmit,
-        baud,
-        port,
-      })
-    }
-    if (packetHandler.hasCallbackOf(id)) {
-      throw new Error('This id is already instantiated')
-    }
-    packetHandler.registerCallback(this.#id, this.#onCommandRead)
+    this.#endpoint = getServoBuses().acquire(settings, id, 252, (receive) => new PacketHandler(settings, receive))
+  }
+  close(): void {
+    this.#endpoint.close()
   }
   teardown(): void {
-    packetHandler.removeCallback(this.#id)
+    this.close()
   }
   get id(): number {
-    return this.#id
+    return this.#endpoint.id
   }
 
-  #dispatchCommand(
+  #command(
     instruction: Instruction,
-    address?: Address,
-    onResult: CommandCallback = () => {},
-    onError: ErrorCallback = () => {},
+    address: Address | undefined,
+    onResult: CommandCallback,
+    onError: ErrorCallback,
     ...parameters: number[]
-  ): boolean {
-    if (this.#isWriting || this.#waitSlot.isWaiting) {
-      onError(new Error(COMMAND_BUSY_ERROR))
-      return false
+  ): ServoCommand {
+    return {
+      timeoutMs: this.#commandTimeoutMs,
+      onResult: (payload) => {
+        if (!payload || payload.length < 2 || payload[1] !== 0) {
+          onError(new ServoBusError('IO', `Dynamixel returned status error ${payload?.[1]}`))
+          return
+        }
+        onResult(payload)
+      },
+      onError,
+      encode: (id) => {
+        if (parameters.length + 14 > this.#txBuf.length)
+          throw new ServoBusError('INVALID_ARGUMENT', 'Dynamixel packet is too long')
+        this.#txBuf[0] = 0xff
+        this.#txBuf[1] = 0xff
+        this.#txBuf[2] = 0xfd
+        this.#txBuf[3] = 0x00
+        this.#txBuf[4] = id
+        this.#txBuf[7] = instruction
+        let idx = 8
+        if (address != null) {
+          this.#txBuf[idx++] = address & 0xff
+          this.#txBuf[idx++] = (address >> 8) & 0xff
+        }
+        if (instruction === INSTRUCTION.READ) {
+          const count = parameters[0] ?? 1
+          this.#txBuf[idx++] = count & 0xff
+          this.#txBuf[idx++] = (count >> 8) & 0xff
+        } else {
+          for (const value of parameters) this.#txBuf[idx++] = value
+        }
+        idx = stuffDynamixelPacket(this.#txBuf, idx)
+        const length = idx - 5
+        this.#txBuf[5] = length & 0xff
+        this.#txBuf[6] = (length >> 8) & 0xff
+        const crc = dynamixelCrc16(this.#txBuf, 0, idx)
+        this.#txBuf[idx++] = crc & 0xff
+        this.#txBuf[idx++] = (crc >> 8) & 0xff
+        return this.#txBuf.subarray(0, idx)
+      },
     }
-    this.#isWriting = true
-    this.#txBuf[0] = 0xff
-    this.#txBuf[1] = 0xff
-    this.#txBuf[2] = 0xfd
-    this.#txBuf[3] = 0x00
-    this.#txBuf[4] = this.#id
-
-    this.#txBuf[7] = instruction // write or read
-    let idx = 8
-    if (address !== undefined && address !== null) {
-      this.#txBuf[idx++] = address & 0xff
-      this.#txBuf[idx++] = (address >> 8) & 0xff
-    }
-
-    if (instruction === INSTRUCTION.READ) {
-      const numRead = parameters[0] ?? 1
-      this.#txBuf[idx++] = numRead & 0xff
-      this.#txBuf[idx++] = (numRead >> 8) & 0xff
-    } else {
-      for (const v of parameters) {
-        this.#txBuf[idx++] = v
-      }
-    }
-
-    const len = idx - 5 // instruction(1) + params(0~) + crc(2)
-    this.#txBuf[5] = len & 0xff
-    this.#txBuf[6] = (len >> 8) & 0xff
-
-    const crc = dynamixelCrc16(this.#txBuf, 0, idx)
-    this.#txBuf[idx++] = crc & 0xff
-    this.#txBuf[idx++] = (crc >> 8) & 0xff
-    /*
-    trace('writing: ')
-    for (const n of this.#txBuf.subarray(0, idx)) {
-      trace(Number(n).toString(16).padStart(2, '0'))
-      trace(' ')
-    }
-    trace('\n')
-    */
-    const originalFormat = packetHandler.format
-    packetHandler.format = 'buffer'
-    try {
-      packetHandler.write(this.#txBuf.subarray(0, idx))
-    } catch (error) {
-      this.#isWriting = false
-      onError(error)
-      return false
-    } finally {
-      packetHandler.format = originalFormat
-    }
-    this.#isWriting = false
-    const waiting = this.#waitSlot.wait(this.#commandTimeoutMs, onResult, () => {
-      trace(
-        `[dynamixel] timeout id=${this.#id} instruction=${instruction} address=${address} after ${this.#commandTimeoutMs}ms\n`,
-      )
-      onError(new CommandTimeoutError('dynamixel', this.#commandTimeoutMs))
-    })
-    if (!waiting) {
-      onError(new Error(COMMAND_BUSY_ERROR))
-      return false
-    }
-    return true
   }
 
-  /**
-   * Serializes commands per servo instance. Overlapping commands (e.g. the periodic
-   * control loop racing an external setTorque) would otherwise collide on the shared
-   * half-duplex bus and surface as busy/timeout errors, so every command is queued and
-   * dispatched one at a time. Mirrors the SCServo driver's command queue.
-   */
   #sendCommand(
     instruction: Instruction,
     address: Address | undefined,
@@ -390,39 +309,7 @@ class Dynamixel {
     onError: ErrorCallback,
     ...parameters: number[]
   ): boolean {
-    this.#commandQueue.push({ instruction, address, onResult, onError, parameters })
-    this.#drainCommandQueue()
-    return true
-  }
-
-  #drainCommandQueue = (): void => {
-    if (this.#isWriting || this.#waitSlot.isWaiting) {
-      return
-    }
-    const pending = this.#commandQueue.shift()
-    if (pending == null) {
-      return
-    }
-    this.#dispatchCommand(
-      pending.instruction,
-      pending.address,
-      (values) => {
-        try {
-          pending.onResult(values)
-        } finally {
-          Timer.set(this.#drainCommandQueue, 0)
-        }
-      },
-      (error) => {
-        try {
-          pending.onError(error)
-        } finally {
-          // Timeouts get a short recovery delay so a late reply cannot bleed into the next command.
-          Timer.set(this.#drainCommandQueue, error instanceof CommandTimeoutError ? COMMAND_RECOVERY_DELAY_MS : 0)
-        }
-      },
-      ...pending.parameters,
-    )
+    return this.#endpoint.send(this.#command(instruction, address, onResult, onError, ...parameters))
   }
 
   /**
@@ -434,7 +321,7 @@ class Dynamixel {
       null,
       () => callback?.(),
       callback ?? (() => {}),
-      0x01 /* reset values except id and baudrate*/,
+      0x02 /* reset values except id and baudrate */,
     )
   }
 
@@ -555,42 +442,47 @@ class Dynamixel {
     )
   }
 
+  /** Rebind the host endpoint to an already configured device, while idle. */
   setId(id: number): void {
-    this.#id = id
+    const change = this.#endpoint.beginIdChange(id)
+    change.commit()
+    change.close()
   }
 
-  /**
-   * changes id
-   * @param enable - enable
-   */
   flashId(id: number, callback?: CompletionCallback): void {
-    if (packetHandler.hasCallbackOf(id)) {
-      callback?.(new Error(`id(${id}) is already used\n`))
+    let change: ServoIdChange
+    try {
+      change = this.#endpoint.beginIdChange(id)
+    } catch (error) {
+      callback?.(error)
       return
     }
-    this.setTorque(false, (torqueError) => {
-      if (torqueError != null) {
-        callback?.(torqueError)
-        return
-      }
-      const oldId = this.#id
-      if (
-        !this.#sendCommand(
-          INSTRUCTION.WRITE,
-          ADDRESS.ID,
-          () => {
-            packetHandler.removeCallback(oldId)
-            callback?.()
-          },
-          callback ?? (() => {}),
-          id,
-        )
-      ) {
-        return
-      }
-      this.#id = id
-      packetHandler.registerCallback(this.#id, this.#onCommandRead)
-    })
+    const finish = (error?: unknown) => {
+      change.close()
+      callback?.(error)
+    }
+    change.send(
+      this.#command(
+        INSTRUCTION.WRITE,
+        ADDRESS.TORQUE_ENABLE,
+        () => {
+          change.send(
+            this.#command(
+              INSTRUCTION.WRITE,
+              ADDRESS.ID,
+              () => {
+                change.commit()
+                finish()
+              },
+              finish,
+              id,
+            ),
+          )
+        },
+        finish,
+        0,
+      ),
+    )
   }
 
   /**

@@ -1,10 +1,8 @@
 import Serial from 'embedded:io/serial'
 import config from 'mc/config'
-import { PayloadBuffer } from 'payload-buffer'
 
-import { CommandTimeoutError } from 'servo-command-error'
-import SingleWaitSlot from 'single-wait-slot'
-import Timer from 'timer'
+import { ServoBusError, type ServoCommand, type ServoEndpoint, type ServoIdChange } from 'servo-bus'
+import { getServoBuses } from 'servo-bus-runtime'
 
 type Maybe<T> =
   | {
@@ -69,35 +67,35 @@ function assertNeverRxState(state: never): never {
 }
 
 class PacketHandler extends Serial {
-  #callbacks: Map<number, (buffer: Uint8Array, length: number) => void>
+  #receive: (id: number, payload: Uint8Array) => void
+  #closed = false
   #rxBuffer: Uint8Array
-  #payloadBuffer: PayloadBuffer
   #idx: number
   #state: RxState
   #count: number
-  constructor(option) {
+  constructor(option, receive: (id: number, payload: Uint8Array) => void) {
     const onReadable = function (this: PacketHandler, byte: number) {
+      if (this.#closed) return
       const rxBuf = this.#rxBuffer
       for (let b = 0; b < byte; b++) {
         // NOTE: We can safely read a number
         rxBuf[this.#idx++] = this.read() as number
         switch (this.#state) {
           case RX_STATE.SEEK:
-            if (this.#idx >= 2) {
-              // see header
-              if (rxBuf[0] === 0xff && rxBuf[1] === 0xff) {
-                // packet found
-                this.#state = RX_STATE.HEAD
-              } else {
-                // reset seek
-                // trace('seeking failed. reset\n')
-                this.#idx = 0
-              }
+            if (this.#idx === 1 && rxBuf[0] !== 0xff) this.#idx = 0
+            if (this.#idx === 2) {
+              if (rxBuf[1] === 0xff) this.#state = RX_STATE.HEAD
+              else this.#idx = 0
             }
             break
           case RX_STATE.HEAD:
             if (this.#idx >= 4) {
               this.#count = rxBuf[3]
+              if (this.#count < 2 || this.#idx + this.#count > rxBuf.length) {
+                this.#idx = 0
+                this.#state = RX_STATE.SEEK
+                break
+              }
               this.#state = RX_STATE.BODY
             }
             break
@@ -110,13 +108,10 @@ class PacketHandler extends Serial {
               const command = rxBuf[4] as Command
               if (command === COMMAND.READ || command === COMMAND.WRITE) {
                 // trace(`got echo.  ... ${rxBuf.subarray(0, this.#idx)} ignoring\n`)
-              } else if (cs === rxBuf[this.#idx - 1] && this.#callbacks.has(id)) {
+              } else if (cs === rxBuf[this.#idx - 1]) {
                 // trace(`got response for ${id}. triggering callback \n`)
                 const payloadLength = this.#idx - 6
-                const payloadView = this.#payloadBuffer.copyFrom(rxBuf, payloadLength, 5)
-                const payload = new Uint8Array(payloadLength)
-                payload.set(payloadView.subarray(0, payloadLength))
-                this.#callbacks.get(id)(payload, payloadLength)
+                this.#receive(id, rxBuf.slice(5, 5 + payloadLength))
               } else {
                 trace(`unknown packet for ${id} ... ${rxBuf.subarray(0, this.#idx)}. ignoring\n`)
               }
@@ -131,25 +126,23 @@ class PacketHandler extends Serial {
         // noop
       }
     }
+    const rxBuffer = new Uint8Array(64)
     super({
       ...option,
       format: 'number',
       onReadable,
     })
-    this.#callbacks = new Map<number, (buffer: Uint8Array, length: number) => void>()
-    this.#rxBuffer = new Uint8Array(64)
-    this.#payloadBuffer = new PayloadBuffer(32)
+    this.#receive = receive
+    this.#rxBuffer = rxBuffer
     this.#idx = 0
     this.#state = RX_STATE.SEEK
   }
-  hasCallbackOf(id: number): boolean {
-    return this.#callbacks.has(id)
-  }
-  registerCallback(id: number, callback: (buffer: Uint8Array, length: number) => void) {
-    this.#callbacks.set(id, callback)
-  }
-  removeCallback(id: number) {
-    this.#callbacks.delete(id)
+  close(): void {
+    if (this.#closed) return
+    this.#closed = true
+    this.#receive = undefined
+    this.#idx = 0
+    super.close()
   }
 }
 
@@ -182,16 +175,7 @@ type CommandCallback = (values: Uint8Array | undefined) => void
 type ErrorCallback = (error: unknown) => void
 type CompletionCallback = (error?: unknown) => void
 type ResultCallback<T> = (result: Maybe<T>) => void
-type PendingCommand = {
-  command: Command
-  address: Address
-  onResult: CommandCallback
-  onError: ErrorCallback
-  values: number[]
-}
-const COMMAND_BUSY_ERROR = 'command is already waiting for response'
 const COMMAND_TIMEOUT_MS = 120
-const COMMAND_RECOVERY_DELAY_MS = 20
 
 function reasonFromError(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -207,147 +191,59 @@ function failureFromError<T>(error: unknown): Maybe<T> {
   }
 }
 
-function deferNoResponseResult(onResult: CommandCallback, onError: ErrorCallback): void {
-  // The M5StackChan driver chains pan/tilt writes. Keep no-response writes off the
-  // current Serial.onReadable stack so nested callbacks cannot exhaust the XS stack.
-  Timer.set(() => {
-    try {
-      onResult(undefined)
-    } catch (error) {
-      onError(error)
-    }
-  }, 0)
-}
-
-let packetHandler: PacketHandler = null
-let packetHandlerSerialKey: string | null = null
 class SCServo {
-  #id: number
-  #onCommandRead: (buffer: Uint8Array, length: number) => void
-  #txBuf: Uint8Array
-  #waitSlot: SingleWaitSlot<Uint8Array>
-  #commandQueue: PendingCommand[] = []
-  #offset: number
+  #endpoint: ServoEndpoint
+  #txBuf = new Uint8Array(64)
+  #offset = 0
   #awaitWriteResponse: boolean
-  #isWriting = false
   constructor({ id, awaitWriteResponse = true, serial: serialOverride }: SCServoConstructorParam) {
-    this.#id = id
-    this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
-    this.#offset = 0
     this.#awaitWriteResponse = awaitWriteResponse
-    this.#onCommandRead = (values, _length) => {
-      this.#waitSlot.resolve(values)
-    }
-    this.#txBuf = new Uint8Array(64)
     const serial = serialOverride ?? config.serial ?? {}
-    const port = serial.port ?? 2
-    const receive = serial.receive ?? 16
-    const transmit = serial.transmit ?? 17
-    const baud = serial.baud ?? 1_000_000
-    const serialKey = `${port}:${transmit}:${receive}:${baud}`
-    if (packetHandler == null) {
-      trace(`[scservo] serial port=${port} tx=${transmit} rx=${receive} baud=${baud}\n`)
-      packetHandler = new PacketHandler({
-        receive,
-        transmit,
-        baud,
-        port,
-      })
-      packetHandlerSerialKey = serialKey
-    } else if (packetHandlerSerialKey !== serialKey) {
-      throw new Error(
-        `SCServo PacketHandler serial config mismatch: existing=${packetHandlerSerialKey}, requested=${serialKey}`,
-      )
+    const settings = {
+      port: serial.port ?? 2,
+      receive: serial.receive ?? 16,
+      transmit: serial.transmit ?? 17,
+      baud: serial.baud ?? 1_000_000,
+      protocol: 'scservo',
     }
-    if (packetHandler.hasCallbackOf(id)) {
-      throw new Error('This id is already instantiated')
-    }
-    packetHandler.registerCallback(this.#id, this.#onCommandRead)
+    this.#endpoint = getServoBuses().acquire(settings, id, 252, (receive) => new PacketHandler(settings, receive))
+  }
+  close(): void {
+    this.#endpoint.close()
   }
   teardown(): void {
-    packetHandler.removeCallback(this.#id)
+    this.close()
   }
   get id(): number {
-    return this.#id
+    return this.#endpoint.id
   }
 
-  #dispatchCommand(
+  #command(
     command: Command,
     address: Address,
     onResult: CommandCallback,
     onError: ErrorCallback,
     ...values: number[]
-  ): boolean {
-    const waitsForResponse = command === COMMAND.READ || this.#awaitWriteResponse
-    if (this.#isWriting || (waitsForResponse && this.#waitSlot.isWaiting)) {
-      onError(new Error(COMMAND_BUSY_ERROR))
-      return false
-    }
-    this.#isWriting = true
-    this.#txBuf[0] = 0xff
-    this.#txBuf[1] = 0xff
-    this.#txBuf[2] = this.#id
-    this.#txBuf[3] = values.length + 3
-    this.#txBuf[4] = command // write or read
-    this.#txBuf[5] = address
-    let idx = 6
-    for (const v of values) {
-      this.#txBuf[idx] = v
-      idx++
-    }
-    this.#txBuf[idx] = checksum(this.#txBuf, idx)
-    idx++
-    // trace(`writing: ${this.#txBuf.subarray(0, idx)}\n`)
-    this.#writePacket(
-      idx,
-      () => {
-        this.#isWriting = false
-        if (!waitsForResponse) {
-          deferNoResponseResult(onResult, onError)
-          return
-        }
-        const waiting = this.#waitSlot.wait(COMMAND_TIMEOUT_MS, onResult, () => {
-          trace(`[scservo] timeout id=${this.#id} command=${command} address=${address}\n`)
-          onError(new CommandTimeoutError('scservo', COMMAND_TIMEOUT_MS))
-        })
-        if (!waiting) {
-          onError(new Error(COMMAND_BUSY_ERROR))
-        } else {
-          Timer.set(this.#drainCommandQueue, 0)
-        }
+  ): ServoCommand {
+    return {
+      timeoutMs: COMMAND_TIMEOUT_MS,
+      waitForResponse: command === COMMAND.READ || this.#awaitWriteResponse,
+      onResult,
+      onError,
+      encode: (id) => {
+        if (values.length + 7 > this.#txBuf.length)
+          throw new ServoBusError('INVALID_ARGUMENT', 'SCServo packet is too long')
+        this.#txBuf[0] = 0xff
+        this.#txBuf[1] = 0xff
+        this.#txBuf[2] = id
+        this.#txBuf[3] = values.length + 3
+        this.#txBuf[4] = command
+        this.#txBuf[5] = address
+        let idx = 6
+        for (const value of values) this.#txBuf[idx++] = value
+        this.#txBuf[idx] = checksum(this.#txBuf, idx)
+        return this.#txBuf.subarray(0, idx + 1)
       },
-      (error) => {
-        this.#isWriting = false
-        onError(error)
-        Timer.set(this.#drainCommandQueue, 0)
-      },
-    )
-    return true
-  }
-
-  #writePacket(length: number, onWritten: () => void, onError: ErrorCallback, attempt = 0): void {
-    const originalFormat = packetHandler.format
-    let written = false
-    packetHandler.format = 'buffer'
-    try {
-      packetHandler.write(this.#txBuf.subarray(0, length))
-      written = true
-    } catch (error) {
-      if (attempt >= 1) {
-        onError(error)
-      } else {
-        Timer.set(() => this.#writePacket(length, onWritten, onError, attempt + 1), 1)
-      }
-    } finally {
-      packetHandler.format = originalFormat
-    }
-    if (!written) {
-      return
-    }
-    try {
-      onWritten()
-    } catch (error) {
-      onError(error)
     }
   }
 
@@ -358,34 +254,7 @@ class SCServo {
     onError: ErrorCallback,
     ...values: number[]
   ): boolean {
-    this.#commandQueue.push({ command, address, onResult, onError, values })
-    this.#drainCommandQueue()
-    return true
-  }
-
-  #drainCommandQueue = (): void => {
-    if (this.#isWriting || this.#waitSlot.isWaiting) return
-    const pending = this.#commandQueue.shift()
-    if (pending == null) return
-    this.#dispatchCommand(
-      pending.command,
-      pending.address,
-      (values) => {
-        try {
-          pending.onResult(values)
-        } finally {
-          Timer.set(this.#drainCommandQueue, 0)
-        }
-      },
-      (error) => {
-        try {
-          pending.onError(error)
-        } finally {
-          Timer.set(this.#drainCommandQueue, error instanceof CommandTimeoutError ? COMMAND_RECOVERY_DELAY_MS : 0)
-        }
-      },
-      ...pending.values,
-    )
+    return this.#endpoint.send(this.#command(command, address, onResult, onError, ...values))
   }
 
   #lock(callback?: CompletionCallback): void {
@@ -479,42 +348,39 @@ class SCServo {
   }
 
   flashId(id: number, callback?: CompletionCallback): void {
-    if (packetHandler.hasCallbackOf(id)) {
-      callback?.(new Error(`id(${id}) is already used\n`))
+    let change: ServoIdChange
+    try {
+      change = this.#endpoint.beginIdChange(id)
+    } catch (error) {
+      callback?.(error)
       return
     }
-    // trace('unlocking\n')
-    this.#unlock((unlockError) => {
-      if (unlockError != null) {
-        callback?.(unlockError)
-        return
-      }
-      // trace('setting new id\n')
-      const oldId = this.#id
-      if (
-        !this.#sendCommand(
-          COMMAND.WRITE,
-          ADDRESS.ID,
-          () => {
-            this.#lock((lockError) => {
-              if (lockError != null) {
-                callback?.(lockError)
-                return
-              }
-              packetHandler.removeCallback(oldId)
-              callback?.()
-            })
-          },
-          callback ?? (() => {}),
-          id,
-        )
-      ) {
-        return
-      }
-      this.#id = id
-      packetHandler.registerCallback(this.#id, this.#onCommandRead)
-      // trace(`now we use new id(${id}\n`)
-    })
+    const finish = (error?: unknown) => {
+      change.close()
+      callback?.(error)
+    }
+    change.send(
+      this.#command(
+        COMMAND.WRITE,
+        ADDRESS.LOCK,
+        () => {
+          change.send(
+            this.#command(
+              COMMAND.WRITE,
+              ADDRESS.ID,
+              () => {
+                change.commit()
+                change.send(this.#command(COMMAND.WRITE, ADDRESS.LOCK, () => finish(), finish, 1))
+              },
+              finish,
+              id,
+            ),
+          )
+        },
+        finish,
+        0,
+      ),
+    )
   }
 
   /**

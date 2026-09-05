@@ -1,6 +1,7 @@
 import type { MotionCompletion, MotionDurationSeconds, MotionResultCallback } from 'motion-controller'
 import Dynamixel, { OPERATING_MODE } from 'protocols/dynamixel'
-import { isCommandTimeoutReason } from 'servo-command-error'
+import { ServoBusError } from 'servo-bus'
+import { ServoDriverResources } from 'servo-driver-resources'
 import type { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -15,14 +16,6 @@ type DynamixelDriverProps = {
     port: number
     baud: number
   }>
-}
-
-function isTimeoutError(error: unknown): boolean {
-  if (error == null) {
-    return false
-  }
-  const message = error instanceof Error ? error.message : String(error)
-  return isCommandTimeoutReason(message)
 }
 
 class PControl {
@@ -49,17 +42,12 @@ class PControl {
 
   init(torqueEnabled: boolean, callback: MotionCompletion): void {
     this.servo.readPresentPosition((result) => {
-      if (result.success && result.value > 4096) {
-        this._offset = 4096
-      } else if (result.success === false) {
-        // During initialization a timeout is treated as an error so control() re-runs the
-        // whole init sequence next cycle instead of leaving the servo half-configured.
-        if (isCommandTimeoutReason(result.reason)) {
-          callback(new Error(result.reason))
-          return
-        }
-        trace(`${this.name} ... failed to read initial position for offset detection\n`)
+      if (result.success === false) {
+        callback(new Error(result.reason ?? 'failed to read initial servo position'))
+        return
       }
+      this._offset = result.value > 4096 ? 4096 : 0
+      this.presentPosition = result.value - this._offset
       this.goalPosition = 2048
       // Use CURRENT_BASED_POSITION mode for dynamic torque control
       this.servo.setOperatingMode(OPERATING_MODE.CURRENT_BASED_POSITION, (modeError) => {
@@ -76,13 +64,6 @@ class PControl {
     if (this._lastGoalPosition !== this.goalPosition) {
       this.servo.setGoalPosition(this.goalPosition + this._offset, (goalError) => {
         if (goalError != null) {
-          // A transient bus timeout must not stop the control loop. Skip this cycle and
-          // retry next tick; keep _lastGoalPosition unchanged so the write is re-attempted.
-          if (isTimeoutError(goalError)) {
-            trace(`[DynamixelDriver] ${this.name} goal position timeout; skip this cycle\n`)
-            callback()
-            return
-          }
           callback(goalError)
           return
         }
@@ -98,10 +79,7 @@ class PControl {
   #updateCurrent(callback: MotionCompletion): void {
     this.servo.readPresentPosition((result) => {
       if (result.success === false) {
-        if (isCommandTimeoutReason(result.reason)) {
-          trace(`[DynamixelDriver] ${this.name} present position timeout; skip this cycle\n`)
-        }
-        callback()
+        callback(new Error(result.reason ?? 'failed to read servo position'))
         return
       }
       this.presentPosition = result.value - this._offset
@@ -110,11 +88,6 @@ class PControl {
       const current = Math.min(Math.max(positionError * this.gain, this.minCurrent), this.saturation)
       this.servo.setGoalCurrent(current, (currentError) => {
         if (currentError != null) {
-          if (isTimeoutError(currentError)) {
-            trace(`[DynamixelDriver] ${this.name} goal current timeout; skip this cycle\n`)
-            callback()
-            return
-          }
           callback(currentError)
           return
         }
@@ -125,6 +98,7 @@ class PControl {
 }
 
 export class DynamixelDriver {
+  #resources = new ServoDriverResources()
   _pan: Dynamixel
   _tilt: Dynamixel
   _nextTimer?: ReturnType<typeof Timer.set>
@@ -136,26 +110,42 @@ export class DynamixelDriver {
   _interval: number
   #rotation: Rotation = { y: 0, p: 0, r: 0 }
   #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
+  #controlError: unknown
+  #unavailableResult: Maybe<Rotation> = { success: false, reason: 'servo has no current position sample' }
+  #closedResult: Maybe<Rotation> = { success: false, reason: 'servo driver is closed' }
 
   constructor(param: DynamixelDriverProps) {
-    this._pan = new Dynamixel({
-      id: param.panId,
-      baudrate: param.baud,
-      commandTimeoutMs: param.commandTimeoutMs,
-      serial: param.serial,
-    })
-    this._tilt = new Dynamixel({
-      id: param.tiltId,
-      baudrate: param.baud,
-      commandTimeoutMs: param.commandTimeoutMs,
-      serial: param.serial,
-    })
-    this._controls = [new PControl(this._pan, 1.0, 80, 40, 'pan'), new PControl(this._tilt, 4, 800, 0, 'tilt')]
-    this._torque = true
-    this._initialized = false
-    this._running = false
-    this._attached = false
-    this._interval = 125
+    try {
+      this._pan = this.#resources.own(
+        new Dynamixel({
+          id: param.panId,
+          baudrate: param.baud,
+          commandTimeoutMs: param.commandTimeoutMs,
+          serial: param.serial,
+        }),
+      )
+      this._tilt = this.#resources.own(
+        new Dynamixel({
+          id: param.tiltId,
+          baudrate: param.baud,
+          commandTimeoutMs: param.commandTimeoutMs,
+          serial: param.serial,
+        }),
+      )
+      this._controls = [new PControl(this._pan, 1.0, 80, 40, 'pan'), new PControl(this._tilt, 4, 800, 0, 'tilt')]
+      this._torque = true
+      this._initialized = false
+      this._running = false
+      this._attached = false
+      this._interval = 125
+      this.#resources.own({ close: () => this.onDetached() })
+    } catch (error) {
+      this.#resources.rollback(error)
+    }
+  }
+
+  close(): void {
+    this.#resources.close()
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
@@ -178,6 +168,8 @@ export class DynamixelDriver {
   }
 
   onAttached(): void {
+    if (this.#controlError) throw this.#controlError
+    if (this.#resources.closed) throw new ServoBusError('CLOSED', 'servo driver is closed')
     if (this._attached) {
       return
     }
@@ -194,19 +186,23 @@ export class DynamixelDriver {
   }
 
   control(callback?: MotionCompletion): void {
+    if (this.#resources.closed) {
+      callback?.(new ServoBusError('CLOSED', 'servo driver is closed'))
+      return
+    }
+    if (this.#controlError) {
+      callback?.(this.#controlError)
+      return
+    }
     if (this._running) {
-      callback?.()
+      callback?.(new ServoBusError('BUSY', 'servo control is already running'))
       return
     }
     this._running = true
     if (!this._initialized) {
       this.#initialize((error) => {
         if (error != null) {
-          // Init failed (typically a startup bus timeout). Leave _initialized false so the
-          // next control cycle retries the full init sequence instead of running update()
-          // against a servo that was never configured.
-          trace(`[DynamixelDriver] initialization failed: ${String(error)}; will retry\n`)
-          this.#finishControl(undefined, callback)
+          this.#finishControl(error, callback)
           return
         }
         this._initialized = true
@@ -277,6 +273,8 @@ export class DynamixelDriver {
 
   #finishControl(error?: unknown, callback?: MotionCompletion): void {
     if (error != null) {
+      this.#controlError = error
+      this.onDetached()
       trace(`[DynamixelDriver] control failed: ${String(error)}\n`)
     }
     this._running = false
@@ -297,6 +295,14 @@ export class DynamixelDriver {
   }
 
   applyRotation(ori: Rotation, _time: MotionDurationSeconds = 0.5, callback?: MotionCompletion): void {
+    if (this.#resources.closed) {
+      callback?.(new ServoBusError('CLOSED', 'servo driver is closed'))
+      return
+    }
+    if (this.#controlError) {
+      callback?.(this.#controlError)
+      return
+    }
     const panAngle = (ori.y * 180) / Math.PI
     const tiltAngle = (ori.p * 180) / Math.PI
     this._controls[0].goalPosition = Math.floor(((panAngle + 180) * 4096) / 360)
@@ -305,6 +311,14 @@ export class DynamixelDriver {
   }
 
   getRotation(callback: MotionResultCallback<Maybe<Rotation>>): void {
+    if (this.#resources.closed) {
+      callback(this.#closedResult)
+      return
+    }
+    if (!this._initialized || this.#controlError) {
+      callback(this.#unavailableResult)
+      return
+    }
     const p1 = (this._controls[0].presentPosition * 360) / 4096 - 180
     const p2 = (this._controls[1].presentPosition * 360) / 4096 - 180
     this.#rotation.y = (p1 * Math.PI) / 180

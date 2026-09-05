@@ -3,6 +3,36 @@ const DEGREES_PER_REVOLUTION = 360
 const STATUS_HEADER_LENGTH = 2
 const CRC_LENGTH = 2
 
+/** Insert protocol 2.0 stuffing in place, reserving room for the trailing CRC. */
+export function stuffDynamixelPacket(packet: Uint8Array, length: number): number {
+  for (let index = 9; index < length; index++) {
+    if (packet[index - 2] !== 0xff || packet[index - 1] !== 0xff || packet[index] !== 0xfd) continue
+    if (length + 3 > packet.length) throw new RangeError('Dynamixel packet exceeds its transmit buffer')
+    packet.copyWithin(index + 2, index + 1, length)
+    packet[++index] = 0xfd
+    length++
+  }
+  return length
+}
+
+/** Call only after CRC validation. Return the unstuffed payload's end offset. */
+export function unstuffDynamixelPayload(packet: Uint8Array, length: number): number {
+  let target = 7
+  for (let source = 7; source < length - CRC_LENGTH; source++) {
+    const value = packet[source]
+    if (
+      target >= 9 &&
+      packet[target - 2] === 0xff &&
+      packet[target - 1] === 0xff &&
+      value === 0xfd &&
+      packet[source + 1] === 0xfd
+    )
+      source++
+    packet[target++] = value
+  }
+  return target
+}
+
 /**
  * calculates the Dynamixel protocol 2.0 CRC-16 (polynomial 0x8005, init 0)
  * @param values - packet bytes

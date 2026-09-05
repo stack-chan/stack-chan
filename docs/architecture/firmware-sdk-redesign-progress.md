@@ -8,9 +8,9 @@
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
 | F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDKとdefineAppを追加しhostへ接続。motion・録音・会話・高度な拡張は未完了 |
-| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラの終了を接続。サーボ通信の物理close、共有I/O expander、boot services、WASMカメラの下位資源管理などは継続 |
+| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、3種類のサーボUARTの終了を接続。共有I/O expander、boot services、WASMカメラの下位資源管理などは継続 |
 | F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clipと音声のError契約を接続。motionと他の機能は未完了 |
-| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声に上限・期限付き OperationQueue を接続。会話・USB・motion・UART は未完了 |
+| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声にOperationQueue、サーボUARTに共通の上限・期限付きFIFOを接続。会話・USB・motion全体の調停は未完了 |
 | F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの4教材とSDK型検査を追加。既存MOD／miniapp移行は未完了 |
 | F6 アプリ構成 | 既定動作、診断、UI 拡張の責務と寿命を分ける。既定動作にも SDK と AppSession を使用 | 未着手 |
 | F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 共通 host runtime manifest と TTS 契約を一本化。ボード・残りの公開型・型検査は未完了 |
@@ -51,7 +51,7 @@
 ## 次に接続するもの
 
 1. V2の基本SDK・AppSessionは接続済み。motion・録音・カメラ・会話・設定の公開サービスと拡張を実装し、既存MOD／miniappへ移行する。
-2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UART・I/O expander、boot services、native音声エンジン、WASMカメラの下位資源を終了経路へ接続する。V1の直接参照と機器置換の寿命も継続して扱う。
+2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTの終了は接続済み。共有I/O expander、boot services、native音声エンジン、WASMカメラの下位資源を終了経路へ接続する。V1の直接参照と機器置換の寿命も継続して扱う。
 3. 音声出力の個別取消しはAppSessionへ接続済み。音声入力と出力、WASM bridgeのclose、会話とUSBの資源を調停する。
 4. driver callback の世代管理を置換時と native TTS の出力にも適用する。資源解放失敗後に待機中の操作を開始しない契約をさらに検証する。
 5. 最小教材から残りの F1〜F10、配布・移行・実機受入まで続ける。現時点では全課題を解消した状態ではない。
@@ -104,3 +104,17 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - この変更後もCoreS3 / PWM / WASMのビルドと対象XS試験を再実行した。実機での電源・入力・音声・サーボ動作の受入は未実施。
 
 この段階でもF1〜F10の解消は未完了。特にSCServo / DYNAMIXEL / RS30XのUART・ID登録の解放、共有expanderの寿命、boot servicesの取消し、WASMカメラのpoll/ブラウザー開始要求の取消し、native TTSエンジンの明示解放、各種置換とV1の直接参照を扱う作業が残る。登録スコープのテスト成功を、これら未接続の物理資源の回収成功とは見なさない。
+
+
+## サーボUARTの共通化（2026-09-06）
+
+- SCServo / DYNAMIXEL / RS30X の応答待ちをUART単位の `ServoBus` へ集約した。待機8件・待機期限5秒・実行期限を持ち、panとtiltを含む利用者が同じ通信を同時に開始しない。使用中UARTのpin / baud / protocol違いとID重複は取得前に拒否する。
+- Endpointのcloseは待機・実行中の操作を一度だけ完了させ、ID変更の予約も解放する。最後の所有者がSerialを閉じる。4種類の2軸ドライバーが構築失敗時にも取得済みサーボを解放する。
+- 応答待ち中のclose、送信失敗、送信後のタイムアウトではUARTを停止状態にする。20msの待機を遅延応答の識別保証として扱わず、共有する全Endpointの終了と再生成を復旧の境界とした。DYNAMIXELの制御ループも通信失敗を成功に置き換えず停止する。復旧を案内するV2サービス・診断の接続は未完了。
+- 受信長の上限とフレームの復帰処理、DYNAMIXELのbyte stuffing・CRCの除去範囲・WRITE statusエラー、RS30Xの負角度を修正した。DYNAMIXELの初期位置サンプルを保持し、トルクを切って初期化した場合にも測定位置を返す。通信失敗後の位置サンプルは有効として返さない。
+- XSのpreloadがMapを読み取り専用にする点を実試験で検出したため、共通registryは実行時に遅延生成する。Node試験の成功だけで初期化可能と判断しない。
+- 検証済み: Node457件、構成検査79件、SDK strict検査、6機種のmanifest、Biomeが成功。旧SingleWaitSlotのテスト3件とソース文字列の構成検査1件を、共通busの動作試験と実プロトコルのXS試験へ置き換えた。
+- 全51 XS manifestが成功（63.1秒）。新しいXS試験は3プロトコルそれぞれ100回の2軸生成・送受信・終了、ID変更とその途中のclose、実ドライバーのrollbackを検証する。最終レビューで追加した初期位置保持の修正も、対象manifestの再実行で成功した。
+- 最終ソースからCoreS3のreleaseビルド（6,448,752 bytes）とPWM機種takao_core2_sg90のreleaseビルド（3,751,312 bytes）が成功した。WASMビルドとブラウザー上の全4教材の受入も成功。最後のDYNAMIXEL初期位置修正はnative実装のみで、WASMは別の既存ドライバーを使用する。
+
+設計上の契約・復旧条件・実機受入の残りは [サーボUARTの所有と操作契約](servo-bus-lifecycle.md) に記録した。実機の通信・電源投入時の応答時間・可動域は未検証。共有PY32 expander、motion全体の到達・取消し・注視の調停、V2公開APIとその他F1〜F10は引き続き未完了である。

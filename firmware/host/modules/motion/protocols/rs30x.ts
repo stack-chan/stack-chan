@@ -1,10 +1,8 @@
 import Serial from 'embedded:io/serial'
 import config from 'mc/config'
-import { PayloadBuffer } from 'payload-buffer'
 
-import { CommandTimeoutError } from 'servo-command-error'
-import SingleWaitSlot from 'single-wait-slot'
-import Timer from 'timer'
+import { ServoBusError, type ServoCommand, type ServoEndpoint, type ServoIdChange } from 'servo-bus'
+import { getServoBuses } from 'servo-bus-runtime'
 
 // type aliases
 type TORQUE_OFF = 0
@@ -93,36 +91,39 @@ function assertNeverRxState(state: never): never {
 }
 
 class PacketHandler extends Serial {
-  #callbacks: Map<number, (buffer: Uint8Array, length: number) => void>
+  #receive: (id: number, payload: Uint8Array) => void
+  #closed = false
   #rxBuffer: Uint8Array
-  #payloadBuffer: PayloadBuffer
   #idx: number
   #state: RxState
   #count = 0
-  constructor(option) {
+  constructor(option, receive: (id: number, payload: Uint8Array) => void) {
     const onReadable = function (this: PacketHandler, bytes: number) {
+      if (this.#closed) return
       const rxBuf = this.#rxBuffer
       for (let b = 0; b < bytes; b++) {
         // NOTE: We can safely read a number
         rxBuf[this.#idx++] = this.read() as number
         switch (this.#state) {
           case RX_STATE.SEEK:
-            if (this.#idx >= 2) {
-              // see header
+            if (this.#idx === 1 && rxBuf[0] !== 0xfa && rxBuf[0] !== 0xfd) this.#idx = 0
+            if (this.#idx === 2) {
               const header = el(rxBuf[0], rxBuf[1])
-              if (header === PACKET_TYPE.COMMAND || header === PACKET_TYPE.RESPONSE) {
-                // packet found
-                this.#state = RX_STATE.HEAD
-              } else {
-                // reset seek
-                // trace('seeking failed. reset\n')
-                this.#idx = 0
-              }
+              if (header === PACKET_TYPE.COMMAND || header === PACKET_TYPE.RESPONSE) this.#state = RX_STATE.HEAD
+              else if (rxBuf[1] === 0xfa || rxBuf[1] === 0xfd) {
+                rxBuf[0] = rxBuf[1]
+                this.#idx = 1
+              } else this.#idx = 0
             }
             break
           case RX_STATE.HEAD:
             if (this.#idx >= 6) {
               this.#count = rxBuf[5] + 2
+              if (this.#count < 2 || this.#idx + this.#count > rxBuf.length) {
+                this.#idx = 0
+                this.#state = RX_STATE.SEEK
+                break
+              }
               this.#state = RX_STATE.BODY
             }
             break
@@ -135,13 +136,10 @@ class PacketHandler extends Serial {
               const header = el(rxBuf[0], rxBuf[1])
               if (header === PACKET_TYPE.COMMAND) {
                 // trace(`got echo.  ... ${rxBuf.subarray(0, this.#idx)} ignoring\n`)
-              } else if (cs === rxBuf[this.#idx - 1] && this.#callbacks.has(id)) {
+              } else if (cs === rxBuf[this.#idx - 1]) {
                 // trace(`got response for ${id}. triggering callback \n`)
                 const payloadLength = this.#idx - 8
-                const payloadView = this.#payloadBuffer.copyFrom(rxBuf, payloadLength, 7)
-                const payload = new Uint8Array(payloadLength)
-                payload.set(payloadView.subarray(0, payloadLength))
-                this.#callbacks.get(id)?.(payload, payloadLength)
+                this.#receive(id, rxBuf.slice(7, 7 + payloadLength))
               } else {
                 trace(`unknown packet for ${id} ... ${rxBuf.subarray(0, this.#idx)}. ignoring\n`)
               }
@@ -156,25 +154,23 @@ class PacketHandler extends Serial {
         // noop
       }
     }
+    const rxBuffer = new Uint8Array(64)
     super({
       ...option,
       format: 'number',
       onReadable,
     })
-    this.#callbacks = new Map<number, (buffer: Uint8Array, length: number) => void>()
-    this.#rxBuffer = new Uint8Array(64)
-    this.#payloadBuffer = new PayloadBuffer(32)
+    this.#receive = receive
+    this.#rxBuffer = rxBuffer
     this.#idx = 0
     this.#state = RX_STATE.SEEK
   }
-  hasCallbackOf(id: number): boolean {
-    return this.#callbacks.has(id)
-  }
-  registerCallback(id: number, callback: (buffer: Uint8Array, length: number) => void) {
-    this.#callbacks.set(id, callback)
-  }
-  removeCallback(id: number) {
-    this.#callbacks.delete(id)
+  close(): void {
+    if (this.#closed) return
+    this.#closed = true
+    this.#receive = undefined
+    this.#idx = 0
+    super.close()
   }
 }
 
@@ -185,90 +181,55 @@ type CommandCallback = (values: Uint8Array | undefined) => void
 type ErrorCallback = (error: unknown) => void
 type CompletionCallback = (error?: unknown) => void
 type ValueCallback<T> = (value: T | undefined, error?: unknown) => void
-const COMMAND_BUSY_ERROR = 'command is already waiting for response'
 const COMMAND_TIMEOUT_MS = 100
 
-let packetHandler: PacketHandler = null
 class RS30X {
-  #id: number
-  #onCommandRead: (buffer: Uint8Array, length: number) => void
-  #txBuf: Uint8Array
-  #waitSlot: SingleWaitSlot<Uint8Array>
+  #endpoint: ServoEndpoint
+  #txBuf = new Uint8Array(64)
   constructor({ id }: RS30XConstructorParam) {
-    this.#id = id
-    this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
-    this.#onCommandRead = (values, _length) => {
-      this.#waitSlot.resolve(values)
+    const settings = {
+      receive: config.serial?.receive ?? 16,
+      transmit: config.serial?.transmit ?? 17,
+      baud: 115_200,
+      port: 2,
+      protocol: 'rs30x',
     }
-    this.#txBuf = new Uint8Array(64)
-    if (packetHandler == null) {
-      packetHandler = new PacketHandler({
-        receive: config.serial?.receive ?? 16,
-        transmit: config.serial?.transmit ?? 17,
-        baud: 115_200,
-        port: 2,
-      })
-    }
-    if (packetHandler.hasCallbackOf(id)) {
-      throw new Error('This id is already instantiated')
-    }
-    packetHandler.registerCallback(this.#id, this.#onCommandRead)
+    this.#endpoint = getServoBuses().acquire(settings, id, 127, (receive) => new PacketHandler(settings, receive))
+  }
+  close(): void {
+    this.#endpoint.close()
   }
   teardown(): void {
-    packetHandler.removeCallback(this.#id)
+    this.close()
   }
-
   set id(_: number) {
     throw new Error('cannot set id of single servo. Use "flashId" function')
   }
   get id(): number {
-    return this.#id
+    return this.#endpoint.id
   }
 
-  #dispatchCommand(onResult: CommandCallback, onError: ErrorCallback, ...values: number[]): boolean {
-    if (this.#waitSlot.isWaiting) {
-      onError(new Error(COMMAND_BUSY_ERROR))
-      return false
+  #command(onResult: CommandCallback, onError: ErrorCallback, ...values: number[]): ServoCommand {
+    return {
+      timeoutMs: COMMAND_TIMEOUT_MS,
+      onResult,
+      onError,
+      encode: (id) => {
+        if (values.length + 4 > this.#txBuf.length)
+          throw new ServoBusError('INVALID_ARGUMENT', 'RS30X packet is too long')
+        this.#txBuf[0] = 0xfa
+        this.#txBuf[1] = 0xaf
+        this.#txBuf[2] = id
+        let idx = 3
+        for (const value of values) this.#txBuf[idx++] = value
+        this.#txBuf[idx] = checksum(this.#txBuf, 2, idx)
+        return this.#txBuf.subarray(0, idx + 1)
+      },
     }
-    this.#txBuf[0] = 0xfa
-    this.#txBuf[1] = 0xaf
-    this.#txBuf[2] = this.#id
-    let idx = 3
-    for (const v of values) {
-      this.#txBuf[idx] = v
-      idx++
-    }
-    this.#txBuf[idx] = checksum(this.#txBuf, 2, idx)
-    idx++
-    // trace(`writing: ${this.#txBuf.subarray(0, idx)}\n`)
-    // trace('sending: [')
-    // for (let i = 0; i < idx; i++) {
-    //   trace('0x' + this.#txBuf[i].toString(16).padStart(2, '0') + ', ')
-    // }
-    // trace(']\n')
-    const originalFormat = packetHandler.format
-    packetHandler.format = 'buffer'
-    try {
-      packetHandler.write(this.#txBuf.subarray(0, idx))
-    } catch (error) {
-      onError(error)
-      return false
-    } finally {
-      packetHandler.format = originalFormat
-    }
-    const waiting = this.#waitSlot.wait(COMMAND_TIMEOUT_MS, onResult, () => {
-      trace('timeout.\n')
-      onError(new CommandTimeoutError('rs30x', COMMAND_TIMEOUT_MS))
-    })
-    if (!waiting) {
-      onError(new Error(COMMAND_BUSY_ERROR))
-      return false
-    }
-    return true
   }
 
   #sendCommand(onResult: CommandCallback, onError: ErrorCallback, ...values: number[]): boolean {
-    return this.#dispatchCommand(onResult, onError, ...values)
+    return this.#endpoint.send(this.#command(onResult, onError, ...values))
   }
 
   setMaxTorque(maxTorque: number, callback?: CompletionCallback): void {
@@ -283,27 +244,27 @@ class RS30X {
   }
 
   flashId(id: number, callback?: CompletionCallback): void {
-    if (packetHandler.hasCallbackOf(id)) {
-      callback?.(new Error(`id(${id}) is already used\n`))
+    let change: ServoIdChange
+    try {
+      change = this.#endpoint.beginIdChange(id)
+    } catch (error) {
+      callback?.(error)
       return
     }
-    this.#sendCommand(
-      () => {
-        const oldId = this.#id
-        this.#id = id
-        packetHandler.registerCallback(this.#id, this.#onCommandRead)
-        this.#sendCommand(
-          () => {
-            packetHandler.removeCallback(oldId)
-            callback?.()
-          },
-          (error) => callback?.(error),
-          ...COMMANDS.FLASH,
-        )
-      },
-      callback ?? (() => {}),
-      ...COMMANDS.SET_SERVO_ID,
-      id,
+    const finish = (error?: unknown) => {
+      change.close()
+      callback?.(error)
+    }
+    change.send(
+      this.#command(
+        () => {
+          change.commit()
+          change.send(this.#command(() => finish(), finish, ...COMMANDS.FLASH))
+        },
+        finish,
+        ...COMMANDS.SET_SERVO_ID,
+        id,
+      ),
     )
   }
 
@@ -366,7 +327,7 @@ class RS30X {
         }
         const angle = eb(values[0], values[1])
         if (angle >= 65535 / 2) {
-          callback((angle - 65535) / 10)
+          callback((angle - 65536) / 10)
           return
         }
         callback(angle / 10)

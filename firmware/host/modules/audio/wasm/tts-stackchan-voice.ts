@@ -1,10 +1,9 @@
-declare const setTimeout: (callback: () => void, delay?: number) => unknown
-
 import Resource from 'Resource'
 import { renderStackchanVoiceKoeWav, renderStackchanVoiceWav } from 'stackchan-voice-wav'
 import StackchanVoice from 'stackchanvoice'
+import { beginPlaybackSession } from 'tts-playback-session'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
-import type { WasmAudioOutputBridge } from './audio-bridge-contract.js'
+import { scheduleWasmAudioTimer, type WasmAudioOutputBridge } from 'wasm-audio-bridge-contract'
 
 const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50
 
@@ -49,15 +48,11 @@ function getAudioBridge(): WasmAudioOutputBridge {
   )
 }
 
-function schedule(audioBridge: WasmAudioOutputBridge, callback: () => void, delay: number): void {
-  if (audioBridge.setTimer) audioBridge.setTimer(callback, delay)
-  else setTimeout(callback, delay)
-}
-
 export class TTS {
   onPlayed?: TTSPlaybackListener
   onDone?: TTSDoneListener
   streaming = false
+  cancelPlayback?: (reason?: unknown) => void
   readonly volume: number
   readonly speed: number
   readonly voice: StackchanVoice
@@ -80,45 +75,59 @@ export class TTS {
   }
 
   #stream(source: string, isKoe: boolean, volume?: number, callback?: TTSCompletion): void {
-    if (this.streaming) {
-      callback?.(new Error('already playing'))
-      return
-    }
-    this.streaming = true
-
-    const finish = (error?: unknown): void => {
-      if (!this.streaming) return
-      this.streaming = false
-      try {
-        this.onDone?.()
-      } finally {
-        callback?.(error)
-      }
-    }
-
+    const session = beginPlaybackSession(this, callback)
+    if (!session) return
     const audioBridge = getAudioBridge()
+    let playing = false
+    session.addCleanup(() => {
+      if (playing) audioBridge.close()
+    })
+    let renderTick: (() => void) | undefined
+    let cancelRenderTimer: (() => void) | undefined
+    let cancelPollTimer: (() => void) | undefined
+    session.addCleanup(() => {
+      cancelPollTimer?.()
+      cancelRenderTimer?.()
+      // Settle the renderer too, without reading or resetting the shared voice.
+      const cancelledTick = renderTick
+      renderTick = undefined
+      cancelledTick?.()
+    })
+    const finish = (error?: unknown) => (error === undefined ? session.onDone() : session.fail(error))
     const render = isKoe ? renderStackchanVoiceKoeWav : renderStackchanVoiceWav
     void render(this.voice, source, {
-      schedule: (callback) => schedule(audioBridge, callback, 0),
+      schedule: (callback) => {
+        renderTick = callback
+        cancelRenderTimer = scheduleWasmAudioTimer(
+          audioBridge,
+          () => {
+            renderTick = undefined
+            callback()
+          },
+          0,
+        )
+      },
+      isCancelled: () => session.closed,
       speed: this.speed,
       volume: volume ?? this.volume,
     }).then(
       (rendered) => {
-        if (!this.streaming) return
+        if (session.closed) return
         if (rendered.samples === 0) {
           finish()
           return
         }
 
         try {
+          playing = true
           audioBridge.startPlayBuffer(rendered.buffer)
           this.onPlayed?.(rendered.power)
 
           const poll = () => {
-            if (!this.streaming) return
+            if (session.closed) return
             const status = audioBridge.playStatus()
             if (status === 0) {
-              schedule(audioBridge, poll, WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS)
+              cancelPollTimer = scheduleWasmAudioTimer(audioBridge, poll, WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS)
             } else if (status > 0) {
               finish()
             } else {

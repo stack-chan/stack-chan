@@ -4,12 +4,14 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import type { BorrowedAudioBuffer } from '../../modules/audio/audio-buffer.js'
-import { writeAliasPackage } from '../../modules/testing/node-alias-package.js'
+import { writeAliasPackage, writeAliasPackageSubpath } from '../../modules/testing/node-alias-package.js'
 
 type RuntimeAudioModule = typeof import('../runtime-audio.js')
 
 function installBareSpecifierPackages(): void {
   const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+  writeAliasPackage(hostRoot, 'operation-queue', resolve(hostRoot, 'app/operation-queue.js'))
+  writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackage(hostRoot, 'stackchan-util', resolve(hostRoot, 'modules/util/stackchan-util.js'))
   writeAliasPackage(hostRoot, 'timer', resolve(hostRoot, 'modules/testing/fakes/timer.js'), { hasDefaultExport: true })
   writeAliasPackage(hostRoot, 'mac-address', resolve(hostRoot, 'modules/util/sim/mac-address.js'), {
@@ -201,7 +203,7 @@ test('StackchanRuntimeAudio rejects WebRadio start while TTS is busy', async () 
   assert.equal(radioStarts, 1)
 })
 
-test('StackchanRuntimeAudio stays busy until all overlapping playback completes', async () => {
+test('StackchanRuntimeAudio serializes playback and stays busy while operations are queued', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   let finishTone: (() => void) | undefined
@@ -225,6 +227,7 @@ test('StackchanRuntimeAudio stays busy until all overlapping playback completes'
 
   const tone = runtime.tone(440, 20)
   const playback = runtime.playAudio(new ArrayBuffer(2) as BorrowedAudioBuffer)
+  assert.equal(finishPlayback, undefined, 'queued playback must not open a second output')
   await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/radio.mp3' }), /audio busy/)
 
   finishTone?.()
@@ -254,4 +257,40 @@ test('StackchanRuntimeAudio close stops WebRadio', async () => {
   })
   runtime.close()
   assert.equal(stopped, true)
+})
+
+test('close cancels in-flight speech, rejects queued tone, and suppresses late completion', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  ;(globalThis as typeof globalThis & { trace: () => void }).trace = () => {}
+  let late: ((error?: unknown) => void) | undefined
+  let cancelled = 0
+  let tones = 0
+  const runtime = new StackchanRuntimeAudio({
+    tts: {
+      stream(_text, _volume, callback) {
+        late = callback
+      },
+      cancelPlayback() {
+        cancelled += 1
+      },
+    },
+    speaker: {
+      async tone() {
+        tones += 1
+      },
+      async play() {
+        return true
+      },
+    },
+  })
+  const speech = runtime.say('hello')
+  const tone = runtime.tone(440, 100)
+  runtime.close()
+  await assert.rejects(tone, { code: 'CLOSED' })
+  assert.equal((await speech).success, false)
+  late?.()
+  assert.equal(cancelled, 1)
+  assert.equal(tones, 0)
+  await assert.rejects(runtime.tone(440, 100), { code: 'CLOSED' })
 })

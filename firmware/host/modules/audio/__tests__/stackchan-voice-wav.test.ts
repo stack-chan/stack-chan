@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-
 import {
   renderStackchanVoiceKoeWav,
   renderStackchanVoiceWav,
   STACKCHAN_VOICE_OUTPUT_SAMPLE_RATE,
   type StackchanVoiceRenderer,
 } from '../wasm/stackchan-voice-wav.js'
+import { TTS as UnavailableTTS } from '../wasm/tts-stub.js'
 
 class FakeStackchanVoice implements StackchanVoiceRenderer {
   readonly koeCalls: Array<{ koe: string; speed?: number }> = []
@@ -34,6 +34,37 @@ class FakeStackchanVoice implements StackchanVoiceRenderer {
     return count
   }
 }
+
+test('a cancelled renderer never advances the voice used by its successor', async () => {
+  const voice = new FakeStackchanVoice(Int16Array.of(11, 22, 33))
+  const tasks: Array<() => void> = []
+  let cancelled = false
+  const old = renderStackchanVoiceWav(voice, 'old', {
+    chunkSamples: 1,
+    schedule: (callback) => tasks.push(callback),
+    isCancelled: () => cancelled,
+  })
+  tasks.shift()?.()
+  cancelled = true
+  const next = renderStackchanVoiceWav(voice, 'next', {
+    chunkSamples: 1,
+    schedule: (callback) => tasks.push(callback),
+  })
+  // The new utterance starts before the old renderer's delayed callback arrives.
+  tasks.pop()?.()
+  while (tasks.length) tasks.shift()?.()
+  await assert.rejects(old, /cancelled/)
+  assert.deepEqual([...new Int16Array((await next).buffer, 44)], [11, 22, 33])
+})
+
+test('an unavailable simulator provider reports failure', () => {
+  let completion: unknown = 'not called'
+  new UnavailableTTS().stream('hello', undefined, (error) => {
+    completion = error
+  })
+  assert.ok(completion instanceof Error)
+  assert.match(completion.message, /unavailable/)
+})
 
 function ascii(buffer: ArrayBuffer, offset: number, length: number): string {
   return String.fromCharCode(...new Uint8Array(buffer, offset, length))

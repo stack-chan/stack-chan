@@ -107,6 +107,8 @@ export class MotionController {
   #releaseTorqueHandler: ReturnType<typeof Timer.set> | undefined
   #updatePoseHandler: ReturnType<typeof Timer.repeat> | undefined
   #updatePose = () => this.updatePose()
+  #closed = false
+  #commands = new Set<MotionCompletion>()
   updating = false
 
   constructor(params: MotionControllerConstructorParam, options: MotionControllerOptions) {
@@ -128,11 +130,33 @@ export class MotionController {
   }
 
   close(): void {
+    if (this.#closed) return
+    this.#closed = true
+    this.#gazePoint = null
+    this.#isMoving = false
+    this.updating = false
     this.#stopPosePolling()
     this.#clearReleaseTorqueTimer()
+    let firstError: unknown
+    let failed = false
+    const attempt = (close: () => void) => {
+      try {
+        close()
+      } catch (error) {
+        if (!failed) {
+          firstError = error
+          failed = true
+        }
+      }
+    }
+    attempt(() => this.#driver.onDetached?.())
+    for (const complete of this.#commands) attempt(() => complete(new Error('Motion controller is closed')))
+    this.#commands.clear()
+    if (failed) throw firstError
   }
 
   useDriver(driver: MotionDriver) {
+    this.#assertOpen()
     if (this.#driver != null) {
       this.#driver.onDetached?.()
     }
@@ -141,6 +165,7 @@ export class MotionController {
   }
 
   lookAt(position?: Vector3 | null) {
+    this.#assertOpen()
     if (position == null) {
       this.lookAway()
       return
@@ -151,20 +176,21 @@ export class MotionController {
   }
 
   lookAway() {
+    this.#assertOpen()
     this.#gazePoint = null
     this.#stopPosePollingIfIdle()
   }
 
   setPose(pose: Pose, time?: number, callback?: MotionCompletion): void {
-    this.#driver.applyRotation(pose.rotation, time, callback)
+    this.#command((complete) => this.#driver.applyRotation(pose.rotation, time, complete), callback)
   }
 
   setTorque(torque: boolean, callback?: MotionCompletion): void {
-    this.#driver.setTorque(torque, callback)
+    this.#command((complete) => this.#driver.setTorque(torque, complete), callback)
   }
 
   updatePose(_id?: unknown): void {
-    if (this.updating || this.#options.isPaused()) {
+    if (this.#closed || this.updating || this.#options.isPaused()) {
       return
     }
     this.updating = true
@@ -177,6 +203,7 @@ export class MotionController {
   }
 
   #handleRotation: MotionResultCallback<Maybe<RotationType>> = (result) => {
+    if (this.#closed) return
     let waitingForMotion = false
     try {
       if (result.success) {
@@ -215,6 +242,7 @@ export class MotionController {
   }
 
   #handleTorqueEnabled: MotionCompletion = (torqueError) => {
+    if (this.#closed) return
     if (torqueError) {
       trace(`[MotionController] set torque failed: ${String(torqueError)}\n`)
       this.#isMoving = false
@@ -233,6 +261,7 @@ export class MotionController {
   }
 
   #handleMotionApplied: MotionCompletion = (moveError) => {
+    if (this.#closed) return
     if (moveError) {
       trace(`[MotionController] apply rotation failed: ${String(moveError)}\n`)
       this.#isMoving = false
@@ -251,6 +280,7 @@ export class MotionController {
   }
 
   #releaseTorque = () => {
+    if (this.#closed) return
     this.#releaseTorqueHandler = undefined
     try {
       this.#driver.setTorque(false, this.#handleTorqueReleased)
@@ -262,6 +292,7 @@ export class MotionController {
   }
 
   #handleTorqueReleased: MotionCompletion = (releaseError) => {
+    if (this.#closed) return
     if (releaseError) {
       trace(`[MotionController] release torque failed: ${String(releaseError)}\n`)
     }
@@ -270,7 +301,7 @@ export class MotionController {
   }
 
   #startPosePolling(): void {
-    if (this.#updatePoseHandler) return
+    if (this.#closed || this.#updatePoseHandler) return
     this.#updatePoseHandler = Timer.repeat(this.#updatePose, INTERVAL_POSE)
   }
 
@@ -289,5 +320,29 @@ export class MotionController {
     if (!this.#releaseTorqueHandler) return
     Timer.clear(this.#releaseTorqueHandler)
     this.#releaseTorqueHandler = undefined
+  }
+
+  #assertOpen(): void {
+    if (this.#closed) throw new Error('Motion controller is closed')
+  }
+
+  #command(start: (complete: MotionCompletion) => void, callback?: MotionCompletion): void {
+    if (this.#closed) {
+      const error = new Error('Motion controller is closed')
+      if (callback) callback(error)
+      else throw error
+      return
+    }
+    const complete: MotionCompletion = (error) => {
+      if (!this.#commands.delete(complete)) return
+      callback?.(error)
+    }
+    this.#commands.add(complete)
+    try {
+      start(complete)
+    } catch (error) {
+      complete(error)
+      if (!callback) throw error
+    }
   }
 }

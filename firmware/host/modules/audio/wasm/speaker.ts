@@ -1,7 +1,6 @@
-declare const setTimeout: (callback: () => void, delay?: number) => unknown
-
 import type { BorrowedAudioBuffer } from 'audio-buffer'
-import type { WasmAudioOutputBridge } from './audio-bridge-contract.js'
+import { beginPlaybackSession, type PlaybackSession } from 'tts-playback-session'
+import { scheduleWasmAudioTimer, type WasmAudioOutputBridge } from 'wasm-audio-bridge-contract'
 
 const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50
 
@@ -40,42 +39,64 @@ const getAudioBridge = (): WasmAudioOutputBridge => {
   )
 }
 
-const schedule = (audioBridge: WasmAudioOutputBridge, callback: () => void, delay: number) => {
-  if (audioBridge.setTimer) audioBridge.setTimer(callback, delay)
-  else setTimeout(callback, delay)
-}
-
 export default class Speaker {
+  streaming = false
+  cancelPlayback?: (reason?: unknown) => void
+  #closed = false
   constructor(_options?: unknown) {
     void _options
   }
 
   async tone(hz: number, duration: number, volume?: number): Promise<void> {
     const audioBridge = getAudioBridge()
-    audioBridge.tone(hz, duration, volume)
-    return new Promise((resolve) => {
-      schedule(audioBridge, resolve, duration + 250)
+    return this.#play(audioBridge, (session) => {
+      audioBridge.tone(hz, duration, volume)
+      session.addCleanup(scheduleWasmAudioTimer(audioBridge, session.onDone, duration + 250))
     })
   }
 
   async play(buffer: BorrowedAudioBuffer): Promise<boolean> {
     if (buffer.byteLength === 0) return false
     const audioBridge = getAudioBridge()
-    audioBridge.startPlayBuffer(buffer)
-    return new Promise((resolve) => {
+    await this.#play(audioBridge, (session) => {
+      audioBridge.startPlayBuffer(buffer)
+      let cancelTimer: (() => void) | undefined
+      session.addCleanup(() => cancelTimer?.())
       const poll = () => {
+        if (session.closed) return
         const status = audioBridge.playStatus()
         if (status === 0) {
-          schedule(audioBridge, poll, WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS)
+          cancelTimer = scheduleWasmAudioTimer(audioBridge, poll, WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS)
           return
         }
-        resolve(status > 0)
+        if (status > 0) session.onDone()
+        else session.fail(new Error('Browser audio playback failed'))
       }
       poll()
     })
+    return true
   }
 
   close() {
-    getAudioBridge().close()
+    if (this.#closed) return
+    this.#closed = true
+    this.cancelPlayback?.(new Error('Speaker is closed'))
+  }
+
+  #play(bridge: WasmAudioOutputBridge, start: (session: PlaybackSession) => void): Promise<void> {
+    if (this.#closed) return Promise.reject(new Error('Speaker is closed'))
+    return new Promise((resolve, reject) => {
+      const session = beginPlaybackSession(this, (error) => {
+        if (error !== undefined) reject(error)
+        else resolve()
+      })
+      if (!session) return
+      session.addCleanup(() => bridge.close())
+      try {
+        start(session)
+      } catch (error) {
+        session.fail(error)
+      }
+    })
   }
 }

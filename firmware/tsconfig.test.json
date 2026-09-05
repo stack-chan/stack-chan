@@ -268,6 +268,18 @@
       ],
       "web-radio-byte-ring": [
         "./host/modules/audio/platforms/m5stackchan-cores3/shared-byte-ring.ts"
+      ],
+      "stackchan/*": [
+        "./sdk/*.ts"
+      ],
+      "operation-queue": [
+        "./host/app/operation-queue.ts"
+      ],
+      "tts-playback-session": [
+        "./host/modules/audio/tts-playback-session.ts"
+      ],
+      "wasm-audio-bridge-contract": [
+        "./host/modules/audio/wasm/audio-bridge-contract.ts"
       ]
     },
     "types": [

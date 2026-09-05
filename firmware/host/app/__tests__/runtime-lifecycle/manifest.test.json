@@ -1,0 +1,14 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../../sdk/manifest.json",
+    "../../../modules/testing/manifest.json"
+  ],
+  "modules": {
+    "owned-resources": "../../owned-resources",
+    "operation-queue": "../../operation-queue",
+    "main": "./runtime-lifecycle.test"
+  },
+  "defines": { "main": { "async": 1 } }
+}

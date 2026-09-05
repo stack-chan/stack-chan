@@ -13,7 +13,7 @@ import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
 import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
-import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
+import type { TTS } from 'tts-types'
 
 export type {
   JsonValue,
@@ -28,13 +28,7 @@ export type {
 } from 'local-peer-types'
 export { LocalPeerError } from 'local-peer-types'
 
-export type TTS = {
-  stream: (text: string, volume?: number, callback?: TTSCompletion) => void
-  /** Streams raw stackchan-voice koe notation when the provider supports singing. */
-  streamKoe?: (koe: string, volume?: number, callback?: TTSCompletion) => void
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
-}
+export type { TTS } from 'tts-types'
 
 export type UIEffect = PiuContent
 export type RobotLed = {

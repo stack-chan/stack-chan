@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import type AudioOut from '../../testing/fakes/audio-out.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
+import type { TTSPlaybackOwner } from '../tts-playback-lifecycle.js'
 
 type FakeAudioOutModule = typeof import('../../testing/fakes/audio-out.js')
 
@@ -15,6 +16,7 @@ function installBareSpecifierPackages(): void {
   writeAliasPackageSubpath(modulesRoot, 'pins', 'audioout', resolve(modulesRoot, 'testing/fakes/audio-out.js'), {
     hasDefaultExport: true,
   })
+  writeAliasPackage(modulesRoot, 'tts-playback-session', resolve(modulesRoot, 'audio/tts-playback-session.js'))
   writeAliasPackage(modulesRoot, 'tts-types', resolve(modulesRoot, 'audio/tts-types.js'))
 }
 
@@ -122,4 +124,68 @@ test('TTS playback lifecycle forwards an already calculated streaming power valu
   lifecycle.onPower(5678)
 
   assert.deepEqual(powers, [1234])
+})
+
+test('cancellation closes resources and settles exactly once even after a late provider callback', async () => {
+  const { beginTTSPlayback } = await setup()
+  const owner: TTSPlaybackOwner = { streaming: false }
+  const reasons: unknown[] = []
+  let streamerCloses = 0
+  const lifecycle = beginTTSPlayback(owner, (error) => {
+    reasons.push(error)
+  })
+  assert.ok(lifecycle)
+  const audio = lifecycle.openAudio({ streams: 1 }, 0.5) as AudioOut
+  lifecycle.attach({
+    close() {
+      streamerCloses += 1
+      lifecycle.onDone()
+    },
+  })
+  const reason = new Error('app closed')
+  owner.cancelPlayback?.(reason)
+  lifecycle.onDone()
+  lifecycle.onError(new Error('late failure'))
+  assert.deepEqual(reasons, [reason])
+  assert.equal(streamerCloses, 1)
+  assert.equal(audio.closed, true)
+  assert.equal(owner.streaming, false)
+  assert.equal(owner.cancelPlayback, undefined)
+})
+
+test('resources returned after synchronous completion are immediately released', async () => {
+  const { beginTTSPlayback } = await setup()
+  const lifecycle = beginTTSPlayback({ streaming: false })
+  assert.ok(lifecycle)
+  lifecycle.onDone()
+  let releases = 0
+  lifecycle.attach({
+    close() {
+      releases += 1
+    },
+  })
+  lifecycle.addCleanup(() => {
+    releases += 1
+  })
+  assert.equal(releases, 2)
+  assert.throws(() => lifecycle.openAudio({ streams: 1 }, 0.5), /closed/)
+})
+
+test('a failing presentation listener does not prevent playback completion', async () => {
+  const { beginTTSPlayback } = await setup()
+  let settled = 0
+  const lifecycle = beginTTSPlayback(
+    {
+      streaming: false,
+      onDone() {
+        throw new Error('view gone')
+      },
+    },
+    () => {
+      settled += 1
+    },
+  )
+  assert.ok(lifecycle)
+  assert.throws(() => lifecycle.onDone(), /view gone/)
+  assert.equal(settled, 1)
 })

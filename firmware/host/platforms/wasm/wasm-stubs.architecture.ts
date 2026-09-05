@@ -91,15 +91,19 @@ test('WASM PY32 LED facade re-exports the shared LED stub through a manifest mod
   assert.doesNotMatch(source, /\.\//)
 })
 
-test('WASM manifest keeps the shared app runtime module list in sync with the host app manifest', () => {
+test('WASM and native hosts include one shared runtime module list', () => {
   const appManifest = readManifest('host/app/manifest.json')
   const wasmManifest = readManifest('host/platforms/wasm/manifest.json')
-  const hostAppModules = appManifest.modules['*']
-    .filter((specifier: string) => specifier.startsWith('./'))
-    .map((specifier: string) => `../../app/${specifier.slice(2)}`)
+  const runtimeManifest = readManifest('host/app/manifest_runtime.json')
+  assert.ok(appManifest.include.includes('./manifest_runtime.json'))
+  assert.ok(wasmManifest.include.includes('../../app/manifest_runtime.json'))
+  assert.ok(runtimeManifest.modules['*'].includes('./main'))
+  assert.ok(runtimeManifest.modules['*'].includes('./runtime-context'))
+  const hostAppModules = appManifest.modules['*'].filter((specifier: string) => specifier.startsWith('./'))
   const wasmAppModules = wasmManifest.modules['*'].filter((specifier: string) => specifier.startsWith('../../app/'))
 
-  assert.deepEqual(wasmAppModules, hostAppModules)
+  assert.deepEqual(hostAppModules, [])
+  assert.deepEqual(wasmAppModules, [])
 })
 
 test('camera preview aliases keep WASM-only bindings out of the shared import graph', () => {

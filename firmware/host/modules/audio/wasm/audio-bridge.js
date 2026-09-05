@@ -16,5 +16,6 @@ globalThis.__stackchanWasmAudioBridge = {
   startPlayBuffer,
   startRecord,
   setTimer: Timer.set,
+  clearTimer: Timer.clear,
   tone,
 }

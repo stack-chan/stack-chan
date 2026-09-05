@@ -1,13 +1,16 @@
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { TTS, WebRadioCapability, WebRadioStartOptions } from 'capabilities'
 import type Microphone from 'microphone'
+import { OperationQueue } from 'operation-queue'
 import type Speaker from 'speaker'
+import { finiteNumber, StackchanError } from 'stackchan/errors'
 import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
+import Timer from 'timer'
 
 export type RuntimeAudioConstructorParam = {
   tts: TTS
-  microphone?: Microphone
-  speaker?: Speaker
+  microphone?: Pick<Microphone, 'record' | 'stop'>
+  speaker?: Pick<Speaker, 'tone' | 'play'> & { cancelPlayback?: (reason?: unknown) => void; close?: () => void }
   webRadio?: WebRadioCapability
 }
 
@@ -16,12 +19,28 @@ type RuntimeAudioOptions = {
 }
 
 export class StackchanRuntimeAudio {
-  #microphone: Microphone | undefined
+  #microphone: RuntimeAudioConstructorParam['microphone']
   #options: RuntimeAudioOptions
-  #speaker: Speaker | undefined
+  #speaker: RuntimeAudioConstructorParam['speaker']
   #tts: TTS
   #webRadio: WebRadioCapability | undefined
-  #activeOperations = 0
+  #closed = false
+  #output = new OperationQueue({
+    clock: {
+      after(milliseconds, callback) {
+        const timer = Timer.set(callback, milliseconds)
+        return () => Timer.clear(timer)
+      },
+    },
+  })
+  #input = new OperationQueue({
+    clock: {
+      after(milliseconds, callback) {
+        const timer = Timer.set(callback, milliseconds)
+        return () => Timer.clear(timer)
+      },
+    },
+  })
 
   constructor(params: RuntimeAudioConstructorParam, options: RuntimeAudioOptions = {}) {
     this.#options = options
@@ -47,7 +66,8 @@ export class StackchanRuntimeAudio {
         return runtime.#webRadio?.state ?? 'idle'
       },
       start(options: WebRadioStartOptions) {
-        if (runtime.#activeOperations > 0) return Promise.reject(new Error('audio busy'))
+        if (runtime.#closed) return Promise.reject(new StackchanError('CLOSED', 'Audio is closed'))
+        if (runtime.#output.busy) return Promise.reject(new StackchanError('BUSY', 'audio busy'))
         const webRadio = runtime.#webRadio
         if (!webRadio) return Promise.reject(new Error('WebRadio is not supported'))
         return webRadio.start(options)
@@ -62,6 +82,8 @@ export class StackchanRuntimeAudio {
   }
 
   useTTS(tts: TTS) {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
+    if (this.#output.busy) throw new StackchanError('BUSY', 'Cannot replace TTS during playback')
     if (this.#tts != null) {
       this.#tts.onDone = noop
       this.#tts.onPlayed = noop
@@ -76,10 +98,15 @@ export class StackchanRuntimeAudio {
   }
 
   async say(text: string, volume?: number): Promise<Maybe<string>> {
-    this.#webRadio?.stop()
-    this.#activeOperations += 1
     try {
-      await waitForCompletion((callback) => this.#tts.stream(text, volume, callback))
+      if (volume !== undefined) finiteNumber(volume, 'volume', 0, 1)
+      await this.#output.run(
+        () => {
+          this.#webRadio?.stop()
+          return waitForCompletion((callback) => this.#tts.stream(text, volume, callback))
+        },
+        (reason) => this.#tts.cancelPlayback?.(reason),
+      )
       return {
         success: true,
         value: text,
@@ -90,18 +117,21 @@ export class StackchanRuntimeAudio {
         success: false,
         reason: String(reason),
       }
-    } finally {
-      this.#activeOperations -= 1
     }
   }
 
   async sing(koe: string, volume?: number): Promise<Maybe<string>> {
-    this.#webRadio?.stop()
-    this.#activeOperations += 1
     try {
-      const tts = this.#tts
-      if (!tts.streamKoe) throw new Error('The active TTS does not support singing.')
-      await waitForCompletion((callback) => tts.streamKoe(koe, volume, callback))
+      if (volume !== undefined) finiteNumber(volume, 'volume', 0, 1)
+      await this.#output.run(
+        () => {
+          this.#webRadio?.stop()
+          const tts = this.#tts
+          if (!tts.streamKoe) throw new StackchanError('UNSUPPORTED', 'The active TTS does not support singing.')
+          return waitForCompletion((callback) => tts.streamKoe(koe, volume, callback))
+        },
+        (reason) => this.#tts.cancelPlayback?.(reason),
+      )
       return {
         success: true,
         value: koe,
@@ -112,52 +142,68 @@ export class StackchanRuntimeAudio {
         success: false,
         reason: String(reason),
       }
-    } finally {
-      this.#activeOperations -= 1
     }
   }
 
   async record(durationMilliSec?: number): Promise<OwnedAudioBuffer> {
     if (!this.#microphone) {
-      throw Error('This device does not support a microphone.')
+      throw new StackchanError('UNSUPPORTED', 'This device does not support a microphone.')
     }
-    return this.#microphone.record(durationMilliSec)
+    if (durationMilliSec !== undefined) finiteNumber(durationMilliSec, 'durationMs', 1, 60_000)
+    return this.#input.run(
+      () => this.#microphone.record(durationMilliSec),
+      () => this.#microphone?.stop(),
+    )
   }
 
   async tone(hz: number, duration: number, volume?: number): Promise<void> {
-    if (volume !== undefined && (volume < 0 || volume > 1)) {
-      throw new Error('Volume must be between 0 and 1')
-    }
-    this.#webRadio?.stop()
-    this.#activeOperations += 1
-    try {
-      await this.#speaker?.tone(hz, duration, volume)
-    } finally {
-      this.#activeOperations -= 1
-    }
+    finiteNumber(hz, 'hz', 1, 24_000)
+    finiteNumber(duration, 'durationMs', 0, 60_000)
+    if (volume !== undefined) finiteNumber(volume, 'volume', 0, 1)
+    if (!this.#speaker) throw new StackchanError('UNSUPPORTED', 'This device does not support tone playback')
+    await this.#output.run(
+      () => {
+        this.#webRadio?.stop()
+        return this.#speaker.tone(hz, duration, volume)
+      },
+      (reason) => this.#speaker?.cancelPlayback?.(reason),
+    )
   }
 
   async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
     if (!this.#speaker) return false
-    this.#webRadio?.stop()
-    this.#activeOperations += 1
-    try {
-      return await this.#speaker.play(buffer)
-    } finally {
-      this.#activeOperations -= 1
-    }
+    return this.#output.run(
+      () => {
+        this.#webRadio?.stop()
+        return this.#speaker.play(buffer)
+      },
+      (reason) => this.#speaker?.cancelPlayback?.(reason),
+    )
   }
 
   close(): void {
-    try {
-      this.#webRadio?.stop()
-    } finally {
+    if (this.#closed) return
+    this.#closed = true
+    this.#tts.onPlayed = noop
+    this.#tts.onDone = noop
+    this.#output.close()
+    this.#input.close()
+    let firstError: unknown
+    let failed = false
+    for (const cleanup of [
+      () => this.#webRadio?.stop(),
+      () => this.#microphone?.stop(),
+      () => this.#speaker?.close?.(),
+    ]) {
       try {
-        this.#microphone?.stop()
-      } finally {
-        this.#tts.onPlayed = noop
-        this.#tts.onDone = noop
+        cleanup()
+      } catch (error) {
+        if (!failed) {
+          firstError = error
+          failed = true
+        }
       }
     }
+    if (failed) throw firstError
   }
 }

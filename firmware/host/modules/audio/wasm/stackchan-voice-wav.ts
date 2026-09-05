@@ -19,6 +19,7 @@ export type StackchanVoiceRenderOptions = {
   chunkSamples?: number
   maxSamples?: number
   schedule?: (callback: () => void) => unknown
+  isCancelled?: () => boolean
   speed?: number
   volume?: number
 }
@@ -151,6 +152,7 @@ function renderStackchanVoiceInputWav(
 
     const probeCompletion = (): void => {
       try {
+        if (options.isCancelled?.()) throw new Error('Speech rendering cancelled')
         const samples = voice.read24(completionProbe)
         validateSampleCount(samples, 1)
         if (samples === 0) resolve(collector.finish())
@@ -162,6 +164,7 @@ function renderStackchanVoiceInputWav(
 
     const renderNext = (): void => {
       try {
+        if (options.isCancelled?.()) throw new Error('Speech rendering cancelled')
         if (!started) {
           if (isKoe) voice.koe(source, speed)
           else voice.say(source, speed)

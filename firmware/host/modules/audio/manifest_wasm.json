@@ -12,6 +12,7 @@
     "microphone": "./wasm/microphone",
     "audio-in": "./wasm/audio-in",
     "tts-types": "./tts-types",
+    "tts-playback-session": "./tts-playback-session",
     "tts-local": "./wasm/tts-local",
     "tts-remote": "./wasm/tts-remote",
     "tts-voicevox": "./wasm/tts-voicevox",

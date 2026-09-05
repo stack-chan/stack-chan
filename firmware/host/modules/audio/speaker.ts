@@ -2,6 +2,7 @@
 
 import type { BorrowedAudioBuffer } from 'audio-buffer'
 import AudioOut from 'pins/audioout'
+import { beginTTSPlayback, type TTSPlaybackLifecycle } from 'tts-playback-lifecycle'
 
 const WAV_HEADER_SIZE = 44
 
@@ -11,28 +12,23 @@ export type ToneProperty = {
 
 export default class Speaker {
   volume: number
+  streaming = false
+  cancelPlayback?: (reason?: unknown) => void
+  #closed = false
 
   constructor(props: ToneProperty) {
     this.volume = props.volume ?? 0.5
   }
   async tone(hz: number, duration: number, volume?: number): Promise<void> {
-    const audio = new AudioOut({
-      streams: 1,
-      sampleRate: 24000,
-      bitsPerSample: 16,
-    })
-    return new Promise((resolve) => {
+    return this.#play<void>((lifecycle) => {
+      const audio = lifecycle.openAudio({ streams: 1, sampleRate: 24000, bitsPerSample: 16 }, volume ?? this.volume)
+      audio.callback = () => lifecycle.onDone()
       audio.enqueue(0, AudioOut.Flush)
       audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
       audio.enqueue(0, AudioOut.Tone, hz, (audio.sampleRate * duration) / 1000)
       audio.enqueue(0, AudioOut.Callback, 1)
       audio.start()
-
-      audio.callback = (_id) => {
-        audio.close()
-        resolve()
-      }
-    })
+    }, undefined)
   }
 
   async play(buffer: BorrowedAudioBuffer): Promise<boolean> {
@@ -51,8 +47,9 @@ export default class Speaker {
       const shared = new SharedArrayBuffer(pcmLength)
       new Uint8Array(shared).set(new Uint8Array(buffer, WAV_HEADER_SIZE))
 
-      const audio = new AudioOut({ streams: 1, sampleRate, numChannels, bitsPerSample })
-      return await new Promise<boolean>((resolve) => {
+      return await this.#play<boolean>((lifecycle) => {
+        const audio = lifecycle.openAudio({ streams: 1, sampleRate, numChannels, bitsPerSample }, this.volume)
+        audio.callback = () => lifecycle.onDone()
         audio.enqueue(0, AudioOut.Flush)
         audio.enqueue(0, AudioOut.Volume, Math.round(this.volume * 256))
         // `shared` is retained by this closure until the callback fires, so it is not collected.
@@ -60,14 +57,32 @@ export default class Speaker {
         audio.enqueue(0, AudioOut.RawSamples, shared as unknown as HostBuffer)
         audio.enqueue(0, AudioOut.Callback, 1)
         audio.start()
-        audio.callback = () => {
-          audio.close()
-          resolve(true)
-        }
-      })
+      }, true)
     } catch (error) {
       trace(`Speaker.play error ${error}\n`)
       return false
     }
+  }
+
+  close(): void {
+    if (this.#closed) return
+    this.#closed = true
+    this.cancelPlayback?.(new Error('Speaker is closed'))
+  }
+
+  #play<T>(start: (lifecycle: TTSPlaybackLifecycle) => void, value: T): Promise<T> {
+    if (this.#closed) return Promise.reject(new Error('Speaker is closed'))
+    return new Promise<T>((resolve, reject) => {
+      const lifecycle = beginTTSPlayback(this, (error) => {
+        if (error !== undefined) reject(error)
+        else resolve(value)
+      })
+      if (!lifecycle) return
+      try {
+        start(lifecycle)
+      } catch (error) {
+        lifecycle.fail(error)
+      }
+    })
   }
 }

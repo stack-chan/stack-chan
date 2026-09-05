@@ -21,6 +21,7 @@ type Manifest = {
 
 const appManifest = readManifest('host/app/manifest.json')
 const wasmManifest = readManifest('host/platforms/wasm/manifest.json')
+const runtimeManifest = readManifest('host/app/manifest_runtime.json')
 const coreS3Manifest = readManifest('host/app/manifest_m5stackchan_cores3.json')
 const usbAppManifest = readManifest('host/app/manifest_android_usb_audio.json')
 const diagnosticAppManifest = readManifest('host/app/manifest_android_usb_audio_diagnostics.json')
@@ -33,11 +34,12 @@ const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as {
 }
 
 test('CoreS3 composes the USB Dock without leaking it into shared or WASM graphs', () => {
-  const sharedModules = asModuleList(appManifest)
+  const sharedModules = [...asModuleList(appManifest), ...asModuleList(runtimeManifest)]
   const wasmModules = asModuleList(wasmManifest)
 
   assert.ok(sharedModules.includes('./dock'))
-  assert.ok(wasmModules.includes('../../app/dock'))
+  assert.ok(appManifest.include?.includes('./manifest_runtime.json'))
+  assert.ok(wasmManifest.include?.includes('../../app/manifest_runtime.json'))
   for (const specifier of [...sharedModules, ...wasmModules]) {
     assert.doesNotMatch(specifier, /usb|remote-session|approval/)
   }

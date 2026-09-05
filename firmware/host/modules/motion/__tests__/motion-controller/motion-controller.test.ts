@@ -52,7 +52,6 @@ async function runTest() {
 
   const driver = new FakeMotionDriver()
   const controller = new MotionController({ driver }, { isPaused: () => false })
-  controller.close()
 
   equal(driver.attached, 1, 'initial driver should be attached')
 
@@ -108,6 +107,8 @@ async function runTest() {
   closingController.lookAt([1, 2, 2])
   equal(closingDriver.torqueStates[0], true, 'lookAt should enable torque before close')
   closingController.close()
+  closingController.close()
+  equal(closingDriver.detached, 1, 'close should detach the driver exactly once')
   const callsAfterClose = closingDriver.getRotationCalls
   await wait(1200)
   equal(closingDriver.torqueStates.length, 1, 'close should cancel the pending torque release timer')
@@ -136,6 +137,42 @@ async function runTest() {
   equal(nextDriver.appliedRotation?.y, 0.2, 'setPose should delegate yaw to the active driver')
   equal(nextDriver.appliedRotation?.p, -0.1, 'setPose should delegate pitch to the active driver')
   equal(nextDriver.appliedTime, 0.25, 'setPose should pass motion time to the active driver')
+
+  controller.close()
+  equal(nextDriver.detached, 1, 'close should detach the replacement driver')
+  let closedError: unknown
+  controller.setPose(pose, 0.25, (error) => {
+    closedError = error
+  })
+  assert(closedError instanceof Error, 'closed commands should fail')
+
+  const delayedDriver = new FakeMotionDriver()
+  let lateTorque: MotionCompletion | undefined
+  delayedDriver.setTorque = (_torque, callback) => {
+    lateTorque = callback
+  }
+  const delayedController = new MotionController({ driver: delayedDriver }, { isPaused: () => false })
+  delayedController.lookAt([1, 2, 2])
+  delayedController.close()
+  lateTorque?.()
+  equal(delayedDriver.appliedRotation, null, 'late torque callbacks must not start motion after close')
+
+  const pendingDriver = new FakeMotionDriver()
+  let lateCommand: MotionCompletion | undefined
+  pendingDriver.applyRotation = (_rotation, _time, callback) => {
+    lateCommand = callback
+  }
+  const pendingController = new MotionController({ driver: pendingDriver }, { isPaused: () => false })
+  let completions = 0
+  let cancelled: unknown
+  pendingController.setPose(pose, 0.25, (error) => {
+    completions += 1
+    cancelled = error
+  })
+  pendingController.close()
+  lateCommand?.()
+  equal(completions, 1, 'close must complete pending commands once and suppress late success')
+  assert(cancelled instanceof Error, 'close must fail unfinished commands')
 
   trace('ok\n')
 }

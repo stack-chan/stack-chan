@@ -7,7 +7,8 @@
     "$(MODDABLE)/modules/piu/MC/outline/manifest.json",
     "$(MODDABLE)/modules/piu/MC/qrcode/manifest.json",
     "$(MODULES)/commodetto/outline/manifest.json",
-    "../util/manifest.json"
+    "../util/manifest.json",
+    "./components/face/jitome/manifest.json"
   ],
   "modules": {
     "app-controller": "./application/app-controller",

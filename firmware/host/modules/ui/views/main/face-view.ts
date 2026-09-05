@@ -36,6 +36,8 @@ type DieRegion = PiuContainer & { set: (x: number, y: number, w: number, h: numb
 export type FaceViewBaseCoordinates = { left: number; top: number }
 export type FaceViewCustomFaceBehavior = {
   readonly breathPixels?: number
+  /** False uses the incoming face coordinates instead of inheriting the outgoing origin. */
+  readonly preservePositionOnSwap?: boolean
   onFaceUpdate?: (container: PiuContainer, face: FaceState) => void
   rehydrate?: (container: PiuContainer, face: FaceState, palette?: FaceSkinPalette | null) => void
   getBaseCoordinates?: (container: PiuContainer) => FaceViewBaseCoordinates
@@ -293,7 +295,12 @@ class FaceViewBehavior extends CommonViewBehavior {
       ? (((currentFace as PiuContent & { container?: PiuContainer }).container ??
           this.faceRegion) as PiuContainer | null)
       : null
-    const currentCoordinates = currentFace ? this.getFaceVisualCoordinates(currentFace) : null
+    const currentCoordinates =
+      faceBehavior(face)?.preservePositionOnSwap === false
+        ? readFaceBaseCoordinates(face)
+        : currentFace
+          ? this.getFaceVisualCoordinates(currentFace)
+          : null
     this.face = face
     this.prepareFaceForRegion(face, currentCoordinates)
     faceBehavior(face)?.setMotionsEnabled?.(face, this.faceMotionEnabled)

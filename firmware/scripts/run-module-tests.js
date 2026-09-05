@@ -9,7 +9,7 @@ import { buildOutputDirectory, ensureBuildOutputDirectory, moddableOutputArgumen
 import { parseModuleTestShard, selectModuleTestShard } from './lib/module-test-sharding.mjs'
 import { startXsbugServer } from './lib/xsbug-log-server.js'
 
-const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods/examples']
+const DEFAULT_ROOTS = ['host/app', 'host/modules', 'mods']
 const XSBUG_HOST = process.env.STACKCHAN_MODULE_TEST_XSBUG_HOST ?? '127.0.0.1'
 // Piu/GTK tests can spend more than 15 seconds starting mcsim while another
 // manifest is compiling on a shared CI runner. Successful tests still return

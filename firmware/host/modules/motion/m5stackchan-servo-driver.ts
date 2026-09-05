@@ -13,7 +13,7 @@ import {
   motionDurationSecondsToMilliseconds,
 } from 'motion-controller'
 import SCServo from 'protocols/scservo'
-import { type PY32IOExpander, tryGetSharedPY32IOExpander } from 'py32-io-expander'
+import { type PY32IOExpanderLease, tryAcquireSharedPY32IOExpander } from 'py32-io-expander'
 import { ServoBusError } from 'servo-bus'
 import { ServoDriverResources } from 'servo-driver-resources'
 import type { Maybe, Rotation } from 'stackchan-util'
@@ -46,6 +46,7 @@ export class M5StackChanServoDriver {
   #rotationErrorResult: { success: false; reason?: string } = { success: false }
   #servoPower?: {
     setEnabled: (enabled: boolean) => void
+    close: () => void
   }
 
   constructor(param: M5StackChanServoDriverProps = {}) {
@@ -74,7 +75,7 @@ export class M5StackChanServoDriver {
       )
       if (param.servoPower?.type !== 'none') {
         this.#servoPower = new PY32ServoPower(param.servoPower?.pin ?? 0, param.servoPower?.address)
-        this.#resources.own({ close: () => this.#servoPower?.setEnabled(false) })
+        this.#resources.own(this.#servoPower)
       }
     } catch (error) {
       this.#resources.rollback(error)
@@ -91,6 +92,7 @@ export class M5StackChanServoDriver {
   }
 
   onDetached() {
+    if (this.#resources.closed) return
     this.#servoPower?.setEnabled(false)
   }
 
@@ -157,21 +159,57 @@ export class M5StackChanServoDriver {
 
 class PY32ServoPower {
   #pin: number
-  #expander?: PY32IOExpander
+  #expander?: PY32IOExpanderLease
+  #closed = false
 
   constructor(pin: number, address?: number) {
     this.#pin = pin
-    const expander = tryGetSharedPY32IOExpander(address === undefined ? undefined : { address }, (error) => {
+    const expander = tryAcquireSharedPY32IOExpander(address === undefined ? undefined : { address }, (error) => {
       trace(`[m5stackchan-servo] PY32 servo power init failed: ${error}\n`)
     })
     if (!expander) return
     this.#expander = expander
-    expander.setDirection(this.#pin, true)
-    expander.setPullMode(this.#pin, true)
-    trace(`[m5stackchan-servo] configured PY32 servo power pin ${this.#pin}\n`)
+    try {
+      expander.setDirection(this.#pin, true)
+      expander.setPullMode(this.#pin, true)
+      trace(`[m5stackchan-servo] configured PY32 servo power pin ${this.#pin}\n`)
+    } catch (error) {
+      try {
+        this.close()
+      } catch {
+        /* Preserve initialization failure. */
+      }
+      throw error
+    }
+  }
+
+  close(): void {
+    if (this.#closed) return
+    this.#closed = true
+    const lease = this.#expander
+    this.#expander = undefined
+    if (!lease) return
+    let failed = false
+    let failure: unknown
+    try {
+      lease.digitalWrite(this.#pin, false)
+    } catch (error) {
+      failed = true
+      failure = error
+    }
+    try {
+      lease.close()
+    } catch (error) {
+      if (!failed) {
+        failed = true
+        failure = error
+      }
+    }
+    if (failed) throw failure
   }
 
   setEnabled(enabled: boolean) {
+    if (this.#closed) throw new Error('servo power is closed')
     const expander = this.#expander
     if (!expander) return
     expander.digitalWrite(this.#pin, enabled)

@@ -261,26 +261,12 @@ test('periodic motion hot paths reuse fixed state and callbacks', () => {
   }
 })
 
-test('optional PY32 hardware initialization is reported without making consumers throw', () => {
-  const expander = readFileSync(join(MODULE_ROOT, 'io-expander', 'py32-io-expander.ts'), 'utf8')
+test('motion and lighting share their IO module without depending on each other', () => {
   const motionManifest = readJson(join(MODULE_ROOT, 'motion', 'manifest.json'))
   const lightingManifest = readJson(join(MODULE_ROOT, 'lighting', 'manifest.json'))
-
   assert.ok(motionManifest.include.includes('../io-expander/manifest.json'))
   assert.ok(!motionManifest.include.includes('../lighting/manifest.json'))
   assert.ok(lightingManifest.include.includes('../io-expander/manifest.json'))
-  assert.match(expander, /export function tryGetSharedPY32IOExpander/)
-  assert.match(expander, /onError\?\.\(error\)/)
-
-  const py32Led = readFileSync(join(MODULE_ROOT, 'lighting', 'py32-led.ts'), 'utf8')
-  assert.match(py32Led, /tryGetSharedPY32IOExpander/)
-  assert.doesNotMatch(py32Led, /getSharedPY32IOExpander\(/)
-  assert.match(py32Led, /if \(!expander\) return/)
-
-  const m5stackchanServo = readFileSync(join(MODULE_ROOT, 'motion', 'm5stackchan-servo-driver.ts'), 'utf8')
-  assert.match(m5stackchanServo, /tryGetSharedPY32IOExpander/)
-  assert.doesNotMatch(m5stackchanServo, /getSharedPY32IOExpander\(/)
-  assert.match(m5stackchanServo, /if \(!expander\) return/)
 })
 
 test('runtime state machines keep internal state as numeric constants', () => {

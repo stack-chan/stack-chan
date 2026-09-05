@@ -8,7 +8,7 @@
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
 | F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDKとdefineAppを追加しhostへ接続。motion・録音・会話・高度な拡張は未完了 |
-| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、3種類のサーボUARTの終了を接続。共有I/O expander、boot services、WASMカメラの下位資源管理などは継続 |
+| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、3種類のサーボUART、共有PY32の終了を接続。boot services、WASMカメラの下位資源管理などは継続 |
 | F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clipと音声のError契約を接続。motionと他の機能は未完了 |
 | F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声にOperationQueue、サーボUARTに共通の上限・期限付きFIFOを接続。会話・USB・motion全体の調停は未完了 |
 | F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの4教材とSDK型検査を追加。既存MOD／miniapp移行は未完了 |
@@ -51,7 +51,7 @@
 ## 次に接続するもの
 
 1. V2の基本SDK・AppSessionは接続済み。motion・録音・カメラ・会話・設定の公開サービスと拡張を実装し、既存MOD／miniappへ移行する。
-2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTの終了は接続済み。共有I/O expander、boot services、native音声エンジン、WASMカメラの下位資源を終了経路へ接続する。V1の直接参照と機器置換の寿命も継続して扱う。
+2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTとPY32 expanderの終了は接続済み。boot services、native音声エンジン、WASMカメラの下位資源を終了経路へ接続する。V1の直接参照と機器置換の寿命も継続して扱う。
 3. 音声出力の個別取消しはAppSessionへ接続済み。音声入力と出力、WASM bridgeのclose、会話とUSBの資源を調停する。
 4. driver callback の世代管理を置換時と native TTS の出力にも適用する。資源解放失敗後に待機中の操作を開始しない契約をさらに検証する。
 5. 最小教材から残りの F1〜F10、配布・移行・実機受入まで続ける。現時点では全課題を解消した状態ではない。
@@ -118,3 +118,15 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - 最終ソースからCoreS3のreleaseビルド（6,448,752 bytes）とPWM機種takao_core2_sg90のreleaseビルド（3,751,312 bytes）が成功した。WASMビルドとブラウザー上の全4教材の受入も成功。最後のDYNAMIXEL初期位置修正はnative実装のみで、WASMは別の既存ドライバーを使用する。
 
 設計上の契約・復旧条件・実機受入の残りは [サーボUARTの所有と操作契約](servo-bus-lifecycle.md) に記録した。実機の通信・電源投入時の応答時間・可動域は未検証。共有PY32 expander、motion全体の到達・取消し・注視の調停、V2公開APIとその他F1〜F10は引き続き未完了である。
+
+
+## 共有PY32の寿命（2026-09-06）
+
+- LEDとサーボ電源がそれぞれleaseを持ち、最後の利用者だけが物理I²Cを解放する構成へ変更した。異なるI²C設定の共有を拒否し、物理closeが失敗した場合は再取得を禁止する。閉じたleaseからのI/Oと重複closeも抑止する。
+- レジスター操作を一つの基底実装へ集約した。LEDの消灯とサーボ電源の停止、構築途中の設定失敗でのrollbackをleaseの解放へ接続した。出力停止と解放が両方失敗する場合も最初のエラーを保持し、後続の解放を試みる。
+- 旧getShared入口はlegacy用のleaseを共有する。新しいLED・電源のleaseとは分け、旧入口からのcloseで新しい利用者のI²Cを切断しない。物理クラスへの型注釈・instanceofを使う旧コードの移行は必要。
+- XSで、preload時に捕捉したglobalThisから起動後のI²C providerを参照できない問題を検出した。providerと再試行用Timerを取得時に解決するよう変更した。
+- Node465件、構成検査79件、SDK strict、6機種manifest、Biome、全52 XS manifest（67.9秒）が成功。新しいXS試験では100回の共有開始・終了、終了順の入れ替え、LEDの遅延処理、複数の設定段階での失敗、ハードウェア未検出、物理closeの失敗を確認した。
+- CoreS3 release（6,452,848 bytes）、PWM機種takao_core2_sg90 release（3,755,408 bytes）、WASMビルドが成功。ブラウザー上の全4教材の受入も成功した。
+
+詳細は [PY32 I/O expanderの共有寿命](io-expander-lifecycle.md)。この段階でもF1〜F10全体は未完了。PY32の未検出を能力情報へ反映する作業、起動時の同期再試行の取消し、同じGPIOやLED出力を操作する利用者間の調停、V1の任意の直接参照、実機受入は残る。

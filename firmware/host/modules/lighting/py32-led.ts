@@ -1,8 +1,8 @@
 import {
   normalizeLedRange,
   PY32_LED_MAX_COUNT,
-  type PY32IOExpander,
-  tryGetSharedPY32IOExpander,
+  type PY32IOExpanderLease,
+  tryAcquireSharedPY32IOExpander,
 } from 'py32-io-expander'
 import Timer from 'timer'
 
@@ -11,23 +11,32 @@ export default class PY32Led {
   #offTimer?: Timer
   #blinkTimer?: Timer
   #rainbowTimer?: Timer
-  #expander?: PY32IOExpander
+  #expander?: PY32IOExpanderLease
   #closed = false
 
   constructor(parameters: { length?: number; ledPin?: number; address?: number }) {
     this.length = Math.max(1, Math.min(PY32_LED_MAX_COUNT, parameters.length ?? 12))
-    const expander = tryGetSharedPY32IOExpander(
+    const expander = tryAcquireSharedPY32IOExpander(
       parameters.address === undefined ? undefined : { address: parameters.address },
       (error) => trace(`[py32-led] init failed: ${error}\n`),
     )
     if (!expander) return
     this.#expander = expander
-    const ledPin = parameters.ledPin ?? 13
-    expander.setDirection(ledPin, true)
-    expander.setPullMode(ledPin, true)
-    expander.setDriveMode(ledPin, false)
-    expander.setLedCount(this.length)
-    this.off()
+    try {
+      const ledPin = parameters.ledPin ?? 13
+      expander.setDirection(ledPin, true)
+      expander.setPullMode(ledPin, true)
+      expander.setDriveMode(ledPin, false)
+      expander.setLedCount(this.length)
+      this.off()
+    } catch (error) {
+      try {
+        this.close()
+      } catch {
+        /* Preserve initialization failure. */
+      }
+      throw error
+    }
   }
 
   #stopEffect() {
@@ -113,12 +122,25 @@ export default class PY32Led {
   close(): void {
     if (this.#closed) return
     this.#closed = true
+    let failed = false
+    let failure: unknown
     try {
       this.#stopEffect()
       this.#fill(0, 0, 0)
-    } finally {
-      // The board owns the shared expander (servo power and LEDs use it).
-      this.#expander = undefined
+    } catch (error) {
+      failed = true
+      failure = error
     }
+    const lease = this.#expander
+    this.#expander = undefined
+    try {
+      lease?.close()
+    } catch (error) {
+      if (!failed) {
+        failed = true
+        failure = error
+      }
+    }
+    if (failed) throw failure
   }
 }

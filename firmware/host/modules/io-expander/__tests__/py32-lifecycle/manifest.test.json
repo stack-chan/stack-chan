@@ -1,0 +1,12 @@
+{
+  "include": [
+    "../../../motion/manifest.json",
+    "../../../lighting/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "embedded:io/serial": "../../../motion/__tests__/servo-protocol-lifecycle/serial",
+    "main": "./py32-lifecycle.test"
+  },
+  "defines": { "main": { "async": 1 } }
+}

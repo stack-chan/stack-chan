@@ -1,0 +1,10 @@
+{
+  "include": [
+    "$(MODDABLE)/modules/commodetto/outline/manifest.json",
+    "$(MODDABLE)/modules/piu/MC/outline/manifest.json"
+  ],
+  "modules": {
+    "jitome-face": "./jitome-face",
+    "jitome-face/geometry": "./geometry"
+  }
+}

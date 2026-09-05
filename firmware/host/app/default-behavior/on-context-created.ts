@@ -6,6 +6,7 @@ import { Emoticon, type EmoticonKey } from 'effects/emoticon'
 import { Emotion } from 'face-state'
 import { type HandAnimationName, isHandAnimationName } from 'hands'
 import type { MotionType } from 'imu'
+import { createJitomeFace, isJitomeFaceSupported } from 'jitome-face'
 import { localize } from 'localization'
 import config from 'mc/config'
 import type { Content as PiuContent } from 'piu/MC'
@@ -57,7 +58,7 @@ function errorMessage(error: unknown): string {
   return String(error)
 }
 
-export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreated']> = (robot) => {
+export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreated']> = (robot, options) => {
   const emotions: Emotion[] = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.HOT, Emotion.SLEEPY, Emotion.NEUTRAL]
   const emotionOptions = [
     { value: String(Emotion.NEUTRAL), label: localize('drawer.emotion.neutral') },
@@ -161,7 +162,12 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     }
   }
 
-  let faceMode: 'simple' | 'dog' | 'image' = 'simple'
+  type FaceMode = 'simple' | 'dog' | 'image' | 'jitome'
+  const faceModes: FaceMode[] = isJitomeFaceSupported()
+    ? ['simple', 'dog', 'image', 'jitome']
+    : ['simple', 'dog', 'image']
+  const configuredFace = options.config.ui.type
+  let faceMode: FaceMode = faceModes.includes(configuredFace as FaceMode) ? (configuredFace as FaceMode) : 'simple'
   let handAnimation: HandAnimationName = 'none'
   let cameraPreviewTimer: ReturnType<typeof Timer.set> | undefined
   const syncFaceMode = (
@@ -171,8 +177,12 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   }
   const syncHandAnimation = () => robot.ui.setHandAnimation(handAnimation)
   const closeDrawer = () => robot.ui.closeDrawer()
-  const createCurrentFace = () =>
-    faceMode === 'dog' ? new DogFace({}) : faceMode === 'image' ? new ImageFace({}) : new SimpleFace({})
+  const createCurrentFace = () => {
+    if (faceMode === 'dog') return new DogFace({})
+    if (faceMode === 'image') return new ImageFace({})
+    if (faceMode === 'jitome') return createJitomeFace().content
+    return new SimpleFace({})
+  }
   const restoreCameraPreview = () => {
     if (cameraPreviewTimer) {
       Timer.clear(cameraPreviewTimer)
@@ -187,14 +197,10 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     label: localize('drawer.face'),
     kind: 'choice',
     value: faceMode,
-    options: [
-      { value: 'simple', label: localize('drawer.face.simple') },
-      { value: 'dog', label: localize('drawer.face.dog') },
-      { value: 'image', label: localize('drawer.face.image') },
-    ],
+    options: faceModes.map((value) => ({ value, label: localize(`drawer.face.${value}`) })),
     callback: (target, value) => {
-      if (value !== 'simple' && value !== 'dog' && value !== 'image') return
-      faceMode = value
+      if (!faceModes.includes(value as FaceMode)) return
+      faceMode = value as FaceMode
       target.ui.setFace(createCurrentFace())
       const app = target.ui.application as { distribute?: (event: string, payload: unknown) => void } | undefined
       syncFaceMode(app)

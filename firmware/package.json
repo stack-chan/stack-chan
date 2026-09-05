@@ -4,6 +4,11 @@
   "description": "A firmware of M5Stack Stack-chan module",
   "main": "host/app/main.ts",
   "scripts": {
+    "test:jitome-face-render": "node scripts/test-jitome-face-render.mjs",
+    "test:jitome-face-render:build": "node scripts/run-mcconfig.mjs -dn -m -p lin/m5stack -t build host/modules/ui/components/face/jitome/__tests__/jitome-face-render/manifest.json",
+    "benchmark:jitome-face:build:cores3": "node scripts/run-mcconfig.mjs -i -m -p esp32/m5stack_cores3 -t build benchmarks/jitome-face/manifest.json",
+    "benchmark:jitome-face:capture:cores3": "node scripts/capture-jitome-face-benchmark.mjs",
+    "benchmark:jitome-face:flash:cores3": "node scripts/run-mcconfig.mjs -i -m -p esp32/m5stack_cores3 -t deploy benchmarks/jitome-face/manifest.json",
     "format": "biome format host mods scripts",
     "format:fix": "npm run format -- --write",
     "lint": "biome lint host mods scripts",
@@ -54,6 +59,7 @@
     "bundle": "node scripts/bundle.mjs",
     "bundle:package": "node scripts/package-bundle.mjs",
     "deploy": "node scripts/firmware.mjs deploy",
+    "deploy:m5stack_cores3": "node scripts/run-mcconfig.mjs -m -p esp32/m5stack_cores3 -t deploy \"$PWD/host/app/manifest_local.json\"",
     "deploy:m5stackchan_cores3": "node scripts/firmware.mjs deploy m5stackchan_cores3",
     "deploy:stackchan_rt": "node scripts/firmware.mjs deploy stackchan_rt",
     "deploy:takao_core2_sg90": "node scripts/firmware.mjs deploy takao_core2_sg90",
@@ -107,7 +113,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.10",
     "@google-cloud/text-to-speech": "^6.4.1",
-    "@moddable/typings": "^9.0.1",
+    "@moddable/typings": "^9.5.0",
     "cross-env": "^10.1.0",
     "fontkit": "^2.0.2",
     "lefthook": "^2.1.10",

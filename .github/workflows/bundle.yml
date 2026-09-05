@@ -70,7 +70,7 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
         with:
-          target-branch: "9.0.0"
+          target-branch: "9.5.0"
       - name: Build release firmware
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && ${{ matrix.command }}

@@ -1,5 +1,6 @@
 import { onContextCreated } from 'app-default-behavior/on-context-created'
 import { Emotion } from 'face-state'
+import { isJitomeFaceSupported } from 'jitome-face'
 import { assert, equal } from 'testing/assert'
 
 trace('=== default-mod face init test ===\n')
@@ -123,7 +124,7 @@ try {
     config: {
       wifi: {},
       driver: {},
-      ui: {},
+      ui: { type: isJitomeFaceSupported() ? 'jitome' : 'simple' },
       tts: {},
       ai: {},
       led: {},
@@ -137,11 +138,25 @@ try {
 
 equal(buttons[0]?.key, 'toggleFace', 'toggleFace button should be registered')
 equal(buttons[0]?.kind, 'choice', 'face selection should use an option menu')
-equal(buttons[0]?.value, 'simple', 'face selection should expose its current value')
-equal(buttons[0]?.options?.length, 3, 'face selection should expose every mode')
+equal(
+  buttons[0]?.value,
+  isJitomeFaceSupported() ? 'jitome' : 'simple',
+  'face selection should expose the configured mode',
+)
+const expectedFaceModes = isJitomeFaceSupported() ? ['simple', 'dog', 'image', 'jitome'] : ['simple', 'dog', 'image']
+equal(buttons[0]?.options?.length, expectedFaceModes.length, 'face selection should expose supported modes')
+equal(
+  buttons[0]?.options?.map((option) => option.value).join(','),
+  expectedFaceModes.join(','),
+  'face selection should preserve the mode order',
+)
 equal(drawerStates.length, 0, 'choice controls should not masquerade as binary toggles')
 equal(events[0]?.[0], 'onFaceMode', 'initial face mode should be distributed')
-equal(events[0]?.[1], 'simple', 'initial face mode should be simple')
+equal(
+  events[0]?.[1],
+  isJitomeFaceSupported() ? 'jitome' : 'simple',
+  'initial face mode should match the supported preference',
+)
 const handsButton = buttons.find((button) => button.key === 'handAnimation')
 equal(handsButton?.kind, 'choice', 'hands should be exposed as a hierarchical option menu')
 equal(handsButton?.value, 'none', 'hands should start with no animation')

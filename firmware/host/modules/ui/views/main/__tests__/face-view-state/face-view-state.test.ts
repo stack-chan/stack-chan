@@ -3,6 +3,7 @@ import { FaceBehavior } from 'behaviors/face'
 import type { StackchanContext } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
+import { createJitomeFace, isJitomeFaceSupported } from 'jitome-face'
 import {
   Application,
   Container,
@@ -572,4 +573,18 @@ equal(rightHand.visible, true, 'thinking animation should keep the chin-side han
 assert(rightHand.y > initialThinkingTop, 'thinking should move the chin-side point sprite')
 controller.setHandAnimation('none')
 handsBehavior.onUndisplaying?.(hands)
+// Full-screen faces must not inherit the legacy 60px origin on an actual UI swap.
+if (isJitomeFaceSupported()) {
+  const jitome = createJitomeFace().content
+  controller.setFace(jitome)
+  equal(nodeCoordinate(faceRegion, 'left') + nodeCoordinate(jitome, 'left'), 0, 'Jitome screen origin x')
+  equal(nodeCoordinate(faceRegion, 'top') + nodeCoordinate(jitome, 'top'), 0, 'Jitome screen origin y')
+  equal(nodeCoordinate(faceRegion, 'width'), 320, 'Jitome full screen clip width')
+  equal(nodeCoordinate(faceRegion, 'height'), 240, 'Jitome full screen clip height')
+  controller.setFace(nextFace)
+  controller.setFace(jitome)
+  equal(nodeCoordinate(faceRegion, 'left') + nodeCoordinate(jitome, 'left'), 0, 'Repeated swap origin x')
+  equal(nodeCoordinate(faceRegion, 'top') + nodeCoordinate(jitome, 'top'), 0, 'Repeated swap origin y')
+  controller.setFaceMotionEnabled(false)
+}
 trace('ok\n')

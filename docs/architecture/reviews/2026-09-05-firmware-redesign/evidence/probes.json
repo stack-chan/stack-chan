@@ -1,0 +1,56 @@
+{
+  "commit": "9b01df46fbf7b8126ca0e2ed5648064fa300f1be",
+  "environment": "v24.19.0",
+  "method": "Production modules loaded by Node vm.SourceTextModule after Node TypeScript syntax erasure; dependencies replaced by deterministic IO/Timer fakes. These probes do not verify XS scheduling, native driver behavior, or actual hardware.",
+  "observations": [
+    {
+      "id": "P1",
+      "observation": "WASM fallback TTS reports speech success without performing playback",
+      "result": {
+        "success": true,
+        "value": "hello"
+      }
+    },
+    {
+      "id": "P2",
+      "observation": "tone enters output while say remains pending; close does not cancel speech; late completion still succeeds",
+      "speakerStartedDuringSpeech": true,
+      "ttsClosed": 0,
+      "afterClose": {
+        "success": true,
+        "value": "pending"
+      }
+    },
+    {
+      "id": "P3",
+      "observation": "MotionController.close does not detach its attached driver",
+      "attached": 1,
+      "detached": 0,
+      "driverTimerStillPresent": true
+    },
+    {
+      "id": "P4",
+      "observation": "PWM applyRotation completion callback runs before the first PWM write",
+      "callbackAlreadyCalled": true,
+      "writesAtCallback": 0
+    },
+    {
+      "id": "P5",
+      "observation": "PWM time=0 passes NaN to the injected PWM writer on the first tick",
+      "nonFiniteWrites": 2
+    },
+    {
+      "id": "P6",
+      "observation": "lip_sync uses a streaming method absent from the WASM Microphone and the public record-only microphone type",
+      "error": "microphone.start is not a function"
+    },
+    {
+      "id": "P7",
+      "observation": "MOD defining only onContextCreated inherits the default onLaunch hook",
+      "calls": [
+        "default-launch",
+        "mod-context"
+      ]
+    }
+  ]
+}

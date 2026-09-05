@@ -1,0 +1,221 @@
+{
+  "commit": "9b01df46fbf7b8126ca0e2ed5648064fa300f1be",
+  "scope": "git-tracked firmware files; lines include comments and blank lines; not logical LOC",
+  "tracked_files": 967,
+  "top_level_files": {
+    ".devcontainer": 1,
+    ".gitignore": 1,
+    ".nvmrc": 1,
+    "README.md": 1,
+    "README_ja.md": 1,
+    "benchmarks": 2,
+    "biome.json": 1,
+    "docker": 3,
+    "docs": 48,
+    "host": 615,
+    "mods": 202,
+    "package-lock.json": 1,
+    "package.json": 1,
+    "scripts": 48,
+    "tools": 2,
+    "tsconfig.architecture.json": 1,
+    "tsconfig.json": 1,
+    "tsconfig.test.json": 1,
+    "typings": 17,
+    "vendor": 19
+  },
+  "source_files_excluding_vendor": 585,
+  "source_lines_excluding_vendor": 67004,
+  "roles": {
+    "development_tools": {
+      "files": 30,
+      "physical_lines": 3636
+    },
+    "tests_and_support": {
+      "files": 206,
+      "physical_lines": 19696
+    },
+    "host_implementation": {
+      "files": 287,
+      "physical_lines": 36807
+    },
+    "examples": {
+      "files": 44,
+      "physical_lines": 6496
+    },
+    "type_declarations": {
+      "files": 18,
+      "physical_lines": 369
+    }
+  },
+  "module_source": {
+    "audio": {
+      "all_source_files": 66,
+      "all_source_lines": 5908,
+      "implementation_lines": 4318
+    },
+    "camera": {
+      "all_source_files": 11,
+      "all_source_lines": 1126,
+      "implementation_lines": 1043
+    },
+    "connectivity": {
+      "all_source_files": 58,
+      "all_source_lines": 5840,
+      "implementation_lines": 4020
+    },
+    "conversation": {
+      "all_source_files": 22,
+      "all_source_lines": 3239,
+      "implementation_lines": 2285
+    },
+    "input": {
+      "all_source_files": 12,
+      "all_source_lines": 1413,
+      "implementation_lines": 816
+    },
+    "io-expander": {
+      "all_source_files": 2,
+      "all_source_lines": 282,
+      "implementation_lines": 224
+    },
+    "lighting": {
+      "all_source_files": 6,
+      "all_source_lines": 298,
+      "implementation_lines": 286
+    },
+    "motion": {
+      "all_source_files": 31,
+      "all_source_lines": 3723,
+      "implementation_lines": 3275
+    },
+    "power": {
+      "all_source_files": 7,
+      "all_source_lines": 252,
+      "implementation_lines": 120
+    },
+    "preferences": {
+      "all_source_files": 11,
+      "all_source_lines": 670,
+      "implementation_lines": 306
+    },
+    "testing": {
+      "all_source_files": 19,
+      "all_source_lines": 1361,
+      "implementation_lines": 0
+    },
+    "ui": {
+      "all_source_files": 75,
+      "all_source_lines": 11323,
+      "implementation_lines": 8515
+    },
+    "usb-audio": {
+      "all_source_files": 43,
+      "all_source_lines": 5553,
+      "implementation_lines": 3858
+    },
+    "util": {
+      "all_source_files": 6,
+      "all_source_lines": 434,
+      "implementation_lines": 377
+    }
+  },
+  "mod_or_miniapp_entrypoints": 32,
+  "entrypoint_extensions": {
+    ".js": 27,
+    ".ts": 5
+  },
+  "largest_implementation_files": [
+    {
+      "path": "firmware/host/modules/usb-audio/bridge.ts",
+      "physical_lines": 1093
+    },
+    {
+      "path": "firmware/host/modules/ui/views/settings/settings-view.ts",
+      "physical_lines": 849
+    },
+    {
+      "path": "firmware/host/modules/motion/protocols/dynamixel.ts",
+      "physical_lines": 791
+    },
+    {
+      "path": "firmware/host/app/default-behavior/on-context-created.ts",
+      "physical_lines": 707
+    },
+    {
+      "path": "firmware/host/modules/connectivity/local-peer-service.ts",
+      "physical_lines": 697
+    },
+    {
+      "path": "firmware/host/app/runtime-context.ts",
+      "physical_lines": 694
+    },
+    {
+      "path": "firmware/host/modules/conversation/chat-audioio/xiaozhi-model.js",
+      "physical_lines": 690
+    },
+    {
+      "path": "firmware/host/modules/usb-audio/worker-bridge.ts",
+      "physical_lines": 677
+    },
+    {
+      "path": "firmware/host/modules/motion/protocols/scservo.ts",
+      "physical_lines": 620
+    },
+    {
+      "path": "firmware/host/modules/ui/components/hands/hands.ts",
+      "physical_lines": 596
+    },
+    {
+      "path": "firmware/host/modules/ui/components/status-bar/chat-status-bar.ts",
+      "physical_lines": 567
+    },
+    {
+      "path": "firmware/host/modules/ui/components/effects/emoticon.ts",
+      "physical_lines": 563
+    },
+    {
+      "path": "firmware/host/modules/connectivity/esp32/local-peer-radio.c",
+      "physical_lines": 530
+    },
+    {
+      "path": "firmware/host/modules/ui/components/drawer/drawer.ts",
+      "physical_lines": 488
+    },
+    {
+      "path": "firmware/host/modules/conversation/chat-audioio/xiaozhi-contract.ts",
+      "physical_lines": 483
+    },
+    {
+      "path": "firmware/host/app/remote-session/realtime-session.ts",
+      "physical_lines": 476
+    },
+    {
+      "path": "firmware/host/modules/audio/platforms/m5stackchan-cores3/esp32-opus-encoder.c",
+      "physical_lines": 470
+    },
+    {
+      "path": "firmware/host/modules/conversation/chat.ts",
+      "physical_lines": 453
+    },
+    {
+      "path": "firmware/host/modules/ui/views/main/face-view.ts",
+      "physical_lines": 448
+    },
+    {
+      "path": "firmware/host/modules/connectivity/mcp-server/mcp-server.ts",
+      "physical_lines": 420
+    }
+  ],
+  "exact_duplicate_source_groups": [
+    [
+      "firmware/host/modules/audio/wasm/tts-elevenlabs.ts",
+      "firmware/host/modules/audio/wasm/tts-local.ts",
+      "firmware/host/modules/audio/wasm/tts-openai.ts",
+      "firmware/host/modules/audio/wasm/tts-remote.ts",
+      "firmware/host/modules/audio/wasm/tts-voicevox-web.ts",
+      "firmware/host/modules/audio/wasm/tts-voicevox.ts"
+    ]
+  ],
+  "manifest_named_files": 134
+}

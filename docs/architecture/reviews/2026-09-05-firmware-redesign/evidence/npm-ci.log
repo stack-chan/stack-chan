@@ -1,0 +1,5 @@
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated scijs-window-functions@2.0.2: This package has been renamed 'window-function'. The API is otherwise the same. Please switch.
+
+added 331 packages in 5s

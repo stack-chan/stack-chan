@@ -1,0 +1,861 @@
+host/app/__tests__/app-behavior.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/app-behavior.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/app-behavior.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/app-behavior.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/app-behavior.test.ts(18,62): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/app/__tests__/boot-network-recovery.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/boot-network-recovery.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/boot-network-recovery.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/boot-network-recovery.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/boot-network-recovery.test.ts(8,60): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/app/__tests__/experimental-mini-app-registration.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/experimental-mini-app-registration.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/mini-app-lin-smoke/archive/mod.ts(1,33): error TS2307: Cannot find module 'mini-app-smoke-behavior' or its corresponding type declarations.
+host/app/__tests__/mod-manager/mod-manager.test.ts(1,10): error TS2614: Module '"flash"' has no exported member 'writeCount'. Did you mean to use 'import writeCount from "flash"' instead?
+host/app/__tests__/runtime-audio.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/runtime-audio.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/runtime-audio.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/runtime-audio.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/runtime-audio.test.ts(12,62): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/app/__tests__/runtime-audio.test.ts(59,46): error TS2339: Property 'reason' does not exist on type 'Maybe<string>'.
+  Property 'reason' does not exist on type '{ success: true; value: string; }'.
+host/app/__tests__/runtime-audio.test.ts(78,63): error TS2741: Property 'volume' is missing in type '{ tone: () => Promise<void>; play: (next: BorrowedAudioBuffer) => Promise<boolean>; }' but required in type 'Speaker'.
+host/app/__tests__/runtime-audio.test.ts(91,5): error TS2741: Property 'volume' is missing in type '{ tone: () => Promise<void>; play: () => Promise<false>; }' but required in type 'Speaker'.
+host/app/__tests__/runtime-audio.test.ts(118,52): error TS2739: Type '{ recording: boolean; start: () => void; stop: () => void; record: () => Promise<never>; }' is missing the following properties from type 'Microphone': #audioIn, #abortRecording
+host/app/__tests__/runtime-audio.test.ts(144,52): error TS2739: Type '{ recording: boolean; start: () => void; stop: () => never; record: () => Promise<never>; }' is missing the following properties from type 'Microphone': #audioIn, #abortRecording
+host/app/__tests__/runtime-audio.test.ts(168,5): error TS2741: Property 'volume' is missing in type '{ tone: () => Promise<void>; play: () => Promise<true>; }' but required in type 'Speaker'.
+host/app/__tests__/runtime-audio.test.ts(220,5): error TS2741: Property 'volume' is missing in type '{ tone: () => Promise<void>; play: () => Promise<boolean>; }' but required in type 'Speaker'.
+host/app/__tests__/runtime-camera.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/runtime-camera.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/runtime-lighting.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/runtime-lighting.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/settings-status.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/settings-status.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/settings-status.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/settings-status.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/settings-status.test.ts(9,62): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/app/__tests__/startup-choice.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/startup-choice.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/startup-choice.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/startup-choice.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/startup-choice.test.ts(8,42): error TS2307: Cannot find module 'app-default-behavior/startup-choice' or its corresponding type declarations.
+host/app/__tests__/startup-choice.test.ts(69,62): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/app/__tests__/startup-choice.test.ts(100,5): error TS2307: Cannot find module 'app-default-behavior/startup-choice' or its corresponding type declarations.
+host/app/__tests__/startup-choice.test.ts(122,50): error TS2307: Cannot find module 'app-default-behavior/startup-choice' or its corresponding type declarations.
+host/app/__tests__/startup-choice.test.ts(149,50): error TS2307: Cannot find module 'app-default-behavior/startup-choice' or its corresponding type declarations.
+host/app/__tests__/startup-choice.test.ts(176,50): error TS2307: Cannot find module 'app-default-behavior/startup-choice' or its corresponding type declarations.
+host/app/__tests__/startup-choice.test.ts(205,5): error TS2352: Conversion of type 'Promise<typeof import("timer")>' to type 'Promise<{ default: FakeTimer; }>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'typeof import("timer")' is not comparable to type '{ default: FakeTimer; }'.
+    Types of property 'default' are incompatible.
+      Type 'typeof Timer' is missing the following properties from type 'FakeTimer': advance, reset
+host/app/__tests__/startup-choice.test.ts(206,12): error TS2307: Cannot find module 'startup-splash' or its corresponding type declarations.
+host/app/__tests__/startup-choice.test.ts(207,5): error TS2352: Conversion of type 'Promise<typeof import("<repository>/firmware/host/app/setup-mode")>' to type 'Promise<SetupModeStub>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'typeof import("<repository>/firmware/host/app/setup-mode")' is missing the following properties from type 'SetupModeStub': resetSetupModeCalls, startedSetupModeApplications, finishSetupMode
+host/app/__tests__/startup-choice.test.ts(235,5): error TS2352: Conversion of type 'Promise<typeof import("timer")>' to type 'Promise<{ default: FakeTimer; }>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'typeof import("timer")' is not comparable to type '{ default: FakeTimer; }'.
+    Types of property 'default' are incompatible.
+      Type 'typeof Timer' is missing the following properties from type 'FakeTimer': advance, reset
+host/app/__tests__/startup-choice.test.ts(236,12): error TS2307: Cannot find module 'startup-splash' or its corresponding type declarations.
+host/app/__tests__/startup-choice.test.ts(237,5): error TS2352: Conversion of type 'Promise<typeof import("<repository>/firmware/host/app/setup-mode")>' to type 'Promise<SetupModeStub>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'typeof import("<repository>/firmware/host/app/setup-mode")' is missing the following properties from type 'SetupModeStub': resetSetupModeCalls, startedSetupModeApplications, finishSetupMode
+host/app/__tests__/startup-choice.test.ts(257,5): error TS2352: Conversion of type 'Promise<typeof import("timer")>' to type 'Promise<{ default: FakeTimer; }>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'typeof import("timer")' is not comparable to type '{ default: FakeTimer; }'.
+    Types of property 'default' are incompatible.
+      Type 'typeof Timer' is missing the following properties from type 'FakeTimer': advance, reset
+host/app/__tests__/startup-choice.test.ts(258,12): error TS2307: Cannot find module 'startup-splash' or its corresponding type declarations.
+host/app/__tests__/startup-choice.test.ts(259,5): error TS2352: Conversion of type 'Promise<typeof import("<repository>/firmware/host/app/setup-mode")>' to type 'Promise<SetupModeStub>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'typeof import("<repository>/firmware/host/app/setup-mode")' is missing the following properties from type 'SetupModeStub': resetSetupModeCalls, startedSetupModeApplications, finishSetupMode
+host/app/__tests__/volume-preview.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/__tests__/volume-preview.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/boot-services.ts(7,15): error TS2305: Module '"capabilities"' has no exported member 'NetworkReadyResult'.
+host/app/boot-services.ts(15,15): error TS2305: Module '"capabilities"' has no exported member 'NetworkReadyResult'.
+host/app/bundle-manifest.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/bundle-manifest.architecture.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/bundle-manifest.architecture.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/compose.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/compose.architecture.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/compose.architecture.ts(3,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/compose.ts(4,8): error TS1192: Module '"<repository>/firmware/host/modules/camera/camera"' has no default export.
+host/app/compose.ts(6,3): error TS2305: Module '"capabilities"' has no exported member 'ConnectivityCapability'.
+host/app/compose.ts(7,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationSession'.
+host/app/compose.ts(8,3): error TS2305: Module '"capabilities"' has no exported member 'RobotLed'.
+host/app/compose.ts(9,3): error TS2305: Module '"capabilities"' has no exported member 'RobotUI'.
+host/app/compose.ts(11,3): error TS2305: Module '"capabilities"' has no exported member 'TTS'.
+host/app/default-behavior/__tests__/face-init/face-init.test.ts(123,5): error TS2739: Type '{ wifi: {}; driver: {}; ui: {}; tts: {}; ai: {}; led: {}; }' is missing the following properties from type 'PreferenceConfig': mcp, time
+host/app/default-behavior/on-context-created.ts(4,95): error TS2307: Cannot find module 'camera-preview' or its corresponding type declarations.
+host/app/default-behavior/on-context-created.ts(75,45): error TS2339: Property 'pose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(92,12): error TS2339: Property 'setEmotion' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(103,51): error TS2339: Property 'pose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(104,26): error TS2339: Property 'pose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(107,64): error TS2339: Property 'pose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(109,19): error TS2339: Property 'setPose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(113,21): error TS2339: Property 'setTorque' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(120,30): error TS2339: Property 'pose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(121,52): error TS2339: Property 'pose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(125,19): error TS2339: Property 'setTorque' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(127,19): error TS2339: Property 'setPose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(129,19): error TS2339: Property 'setPose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(131,19): error TS2339: Property 'setPose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(134,19): error TS2339: Property 'setPose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(142,21): error TS2339: Property 'setTorque' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(150,65): error TS2339: Property 'pose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(152,19): error TS2339: Property 'setPose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(157,21): error TS2339: Property 'setTorque' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(172,44): error TS2339: Property 'setHandAnimation' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/default-behavior/on-context-created.ts(173,38): error TS2339: Property 'closeDrawer' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/default-behavior/on-context-created.ts(182,14): error TS2339: Property 'showFace' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/default-behavior/on-context-created.ts(198,17): error TS2339: Property 'setFace' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/default-behavior/on-context-created.ts(227,12): error TS2339: Property 'setTorque' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(236,5): error TS2322: Type '"toggle"' is not assignable to type '"choice"'.
+host/app/default-behavior/on-context-created.ts(245,20): error TS2339: Property 'setDrawerButtonState' does not exist on type '{ addDrawerButton(button: { key: string; label: string; kind: "choice"; value: string; options: { value: string; label: string; }[]; callback: (context: StackchanContext, value?: string) => unknown; }): void; }'.
+host/app/default-behavior/on-context-created.ts(248,32): error TS2739: Type '{ key: string; label: string; callback: (target: StackchanContext) => Promise<void>; }' is missing the following properties from type '{ key: string; label: string; kind: "choice"; value: string; options: { value: string; label: string; }[]; callback: (context: StackchanContext, value?: string) => unknown; }': kind, value, options
+host/app/default-behavior/on-context-created.ts(254,43): error TS2339: Property 'say' does not exist on type '{ webRadio?: WebRadioCapability; }'.
+host/app/default-behavior/on-context-created.ts(275,17): error TS2339: Property 'setHandAnimation' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/default-behavior/on-context-created.ts(276,17): error TS2339: Property 'closeDrawer' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/default-behavior/on-context-created.ts(282,49): error TS2339: Property 'camera' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(289,35): error TS2339: Property 'camera' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(313,20): error TS2339: Property 'camera' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(318,28): error TS2339: Property 'camera' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(331,17): error TS2339: Property 'setMain' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/default-behavior/on-context-created.ts(362,13): error TS2339: Property 'camera' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(366,7): error TS2353: Object literal may only specify known properties, and 'icon' does not exist in type '{ key: string; label: string; kind: "choice"; value: string; options: { value: string; label: string; }[]; callback: (context: StackchanContext, value?: string) => unknown; }'.
+host/app/default-behavior/on-context-created.ts(378,19): error TS2339: Property 'setTorque' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(380,20): error TS2339: Property 'setDrawerButtonState' does not exist on type '{ addDrawerButton(button: { key: string; label: string; kind: "choice"; value: string; options: { value: string; label: string; }[]; callback: (context: StackchanContext, value?: string) => unknown; }): void; }'.
+host/app/default-behavior/on-context-created.ts(387,20): error TS2339: Property 'setDrawerButtonState' does not exist on type '{ addDrawerButton(button: { key: string; label: string; kind: "choice"; value: string; options: { value: string; label: string; }[]; callback: (context: StackchanContext, value?: string) => unknown; }): void; }'.
+host/app/default-behavior/on-context-created.ts(392,13): error TS2339: Property 'lookAway' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(399,11): error TS2339: Property 'lookAt' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(405,5): error TS2322: Type '"toggle"' is not assignable to type '"choice"'.
+host/app/default-behavior/on-context-created.ts(421,13): error TS2339: Property 'lookAway' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(422,20): error TS2339: Property 'setDrawerButtonState' does not exist on type '{ addDrawerButton(button: { key: string; label: string; kind: "choice"; value: string; options: { value: string; label: string; }[]; callback: (context: StackchanContext, value?: string) => unknown; }): void; }'.
+host/app/default-behavior/on-context-created.ts(424,19): error TS2339: Property 'setTorque' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(426,21): error TS2339: Property 'setPose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(435,21): error TS2339: Property 'setTorque' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(457,5): error TS2353: Object literal may only specify known properties, and 'icon' does not exist in type '{ key: string; label: string; kind: "choice"; value: string; options: { value: string; label: string; }[]; callback: (context: StackchanContext, value?: string) => unknown; }'.
+host/app/default-behavior/on-context-created.ts(464,25): error TS2339: Property 'led' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(465,39): error TS2339: Property 'led' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(470,15): error TS2339: Property 'lightRainbow' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(472,15): error TS2339: Property 'lightOff' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(474,20): error TS2339: Property 'setDrawerButtonState' does not exist on type '{ addDrawerButton(button: { key: string; label: string; kind: "choice"; value: string; options: { value: string; label: string; }[]; callback: (context: StackchanContext, value?: string) => unknown; }): void; }'.
+host/app/default-behavior/on-context-created.ts(479,7): error TS2322: Type '"toggle"' is not assignable to type '"choice"'.
+host/app/default-behavior/on-context-created.ts(500,19): error TS2339: Property 'tone' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(517,34): error TS2339: Property 'record' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(526,34): error TS2339: Property 'playAudio' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(540,5): error TS2353: Object literal may only specify known properties, and 'icon' does not exist in type '{ key: string; label: string; kind: "choice"; value: string; options: { value: string; label: string; }[]; callback: (context: StackchanContext, value?: string) => unknown; }'.
+host/app/default-behavior/on-context-created.ts(546,5): error TS2353: Object literal may only specify known properties, and 'icon' does not exist in type '{ key: string; label: string; kind: "choice"; value: string; options: { value: string; label: string; }[]; callback: (context: StackchanContext, value?: string) => unknown; }'.
+host/app/default-behavior/on-context-created.ts(565,7): error TS2322: Type '"swatch"' is not assignable to type '"choice"'.
+host/app/default-behavior/on-context-created.ts(574,13): error TS2339: Property 'setColor' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(575,13): error TS2339: Property 'setColor' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(577,13): error TS2339: Property 'setColor' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(578,13): error TS2339: Property 'setColor' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(584,13): error TS2339: Property 'imu' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(593,11): error TS2339: Property 'imu' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(594,11): error TS2339: Property 'imu' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(614,13): error TS2339: Property 'button' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(615,15): error TS2339: Property 'button' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(616,13): error TS2339: Property 'button' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(623,15): error TS2339: Property 'button' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(624,13): error TS2339: Property 'button' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(631,15): error TS2339: Property 'button' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(632,13): error TS2339: Property 'button' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(641,13): error TS2339: Property 'touchPanel' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(644,11): error TS2339: Property 'touchPanel' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-context-created.ts(659,89): error TS2339: Property 'pose' does not exist on type 'StackchanContext'.
+host/app/default-behavior/on-launch.ts(2,38): error TS2307: Cannot find module 'app-default-behavior/startup-choice' or its corresponding type declarations.
+host/app/default-behavior/on-launch.ts(5,35): error TS2307: Cannot find module 'startup-splash' or its corresponding type declarations.
+host/app/default-behavior/wasm/on-launch.ts(1,38): error TS2307: Cannot find module 'app-default-behavior/startup-choice' or its corresponding type declarations.
+host/app/default-behavior/wasm/on-launch.ts(3,35): error TS2307: Cannot find module 'startup-splash' or its corresponding type declarations.
+host/app/dock.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/dock.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/dock.ts(1,15): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationSession'.
+host/app/docks/android-usb-audio/dock.ts(7,43): error TS2307: Cannot find module 'stackchan-realtime-session' or its corresponding type declarations.
+host/app/docks/android-usb-audio/dock.ts(8,44): error TS2307: Cannot find module 'stackchan-remote-session-runtime' or its corresponding type declarations.
+host/app/docks/android-usb-audio/dock.ts(9,43): error TS2307: Cannot find module 'stackchan-usb-dock-presentation' or its corresponding type declarations.
+host/app/docks/android-usb-audio/dock.ts(10,43): error TS2307: Cannot find module 'stackchan-usb-dock-presentation-model' or its corresponding type declarations.
+host/app/docks/android-usb-audio/dock.ts(16,8): error TS2307: Cannot find module 'stackchan-usb-dock-runtime' or its corresponding type declarations.
+host/app/docks/android-usb-audio/dock.ts(17,38): error TS2307: Cannot find module 'stackchan-usb-media-session' or its corresponding type declarations.
+host/app/docks/android-usb-audio/presentation-model.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/docks/android-usb-audio/presentation-model.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/docks/android-usb-audio/presentation-model.ts(1,41): error TS2307: Cannot find module 'stackchan-application-event' or its corresponding type declarations.
+host/app/docks/android-usb-audio/presentation-model.ts(2,33): error TS2307: Cannot find module 'stackchan-usb-media-session' or its corresponding type declarations.
+host/app/docks/android-usb-audio/presentation.ts(1,33): error TS2305: Module '"capabilities"' has no exported member 'UIEffect'.
+host/app/docks/android-usb-audio/presentation.ts(4,41): error TS2307: Cannot find module 'stackchan-application-event' or its corresponding type declarations.
+host/app/docks/android-usb-audio/presentation.ts(11,8): error TS2307: Cannot find module 'stackchan-usb-dock-presentation-model' or its corresponding type declarations.
+host/app/docks/android-usb-audio/presentation.ts(12,33): error TS2307: Cannot find module 'stackchan-usb-media-session' or its corresponding type declarations.
+host/app/docks/android-usb-audio/presentation.ts(195,13): error TS2339: Property 'face' does not exist on type 'StackchanContext'.
+host/app/docks/android-usb-audio/presentation.ts(256,13): error TS2339: Property 'face' does not exist on type 'StackchanContext'.
+host/app/docks/android-usb-audio/presentation.ts(284,15): error TS2339: Property 'face' does not exist on type 'StackchanContext'.
+host/app/docks/android-usb-audio/runtime.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/docks/android-usb-audio/runtime.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/docks/android-usb-audio/runtime.test.ts(4,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationListener'.
+host/app/docks/android-usb-audio/runtime.test.ts(5,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationSessionDelegate'.
+host/app/docks/android-usb-audio/runtime.test.ts(6,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationState'.
+host/app/docks/android-usb-audio/runtime.test.ts(7,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportListener'.
+host/app/docks/android-usb-audio/runtime.test.ts(8,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportState'.
+host/app/docks/android-usb-audio/runtime.ts(2,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationSession'.
+host/app/docks/android-usb-audio/runtime.ts(3,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationSessionDelegate'.
+host/app/docks/android-usb-audio/runtime.ts(4,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationState'.
+host/app/docks/android-usb-audio/runtime.ts(7,41): error TS2307: Cannot find module 'stackchan-application-event' or its corresponding type declarations.
+host/app/docks/android-usb-audio/runtime.ts(8,43): error TS2307: Cannot find module 'stackchan-realtime-session' or its corresponding type declarations.
+host/app/docks/android-usb-audio/runtime.ts(12,8): error TS2307: Cannot find module 'stackchan-remote-session-facade' or its corresponding type declarations.
+host/app/localization-resources.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/localization-resources.architecture.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/localization-resources.architecture.ts(3,22): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/localization-resources.architecture.ts(4,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/localization-resources.architecture.ts(8,22): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/main.ts(14,85): error TS2307: Cannot find module 'startup-splash' or its corresponding type declarations.
+host/app/main.ts(138,67): error TS2339: Property 'miniApps' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/main.ts(148,34): error TS2339: Property 'lifecycle' does not exist on type 'StackchanContext'.
+host/app/mod-installer.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/mod-installer.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/mod-manager.ts(6,20): error TS2307: Cannot find module 'stackchan-sdcard' or its corresponding type declarations.
+host/app/mod-manager.ts(8,44): error TS2307: Cannot find module 'ui-controls' or its corresponding type declarations.
+host/app/mod-manager.ts(9,30): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/app/owned-resources.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/owned-resources.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/__tests__/node-aliases.ts(1,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/__tests__/node-aliases.ts(2,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/__tests__/node-aliases.ts(6,62): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/app/remote-session/application-event.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/application-event.test.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/application-event.test.ts(3,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/application-event.ts(1,15): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationState'.
+host/app/remote-session/approval-model.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/approval-model.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/approval-model.ts(14,8): error TS2307: Cannot find module 'stackchan-application-event' or its corresponding type declarations.
+host/app/remote-session/approval-session.ts(4,90): error TS2307: Cannot find module 'stackchan-application-event' or its corresponding type declarations.
+host/app/remote-session/approval-session.ts(12,8): error TS2307: Cannot find module 'stackchan-approval-model' or its corresponding type declarations.
+host/app/remote-session/approval-session.ts(13,46): error TS2307: Cannot find module 'stackchan-realtime-session' or its corresponding type declarations.
+host/app/remote-session/approval-session.ts(15,44): error TS2307: Cannot find module 'ui-controls' or its corresponding type declarations.
+host/app/remote-session/approval-session.ts(16,30): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/app/remote-session/approval-session.ts(78,18): error TS2339: Property 'showFace' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/remote-session/approval-session.ts(81,16): error TS2339: Property 'closeDrawer' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/remote-session/approval-session.ts(82,16): error TS2339: Property 'setMain' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/remote-session/approval-session.ts(124,18): error TS2339: Property 'showFace' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/remote-session/approval-session.ts(198,18): error TS2339: Property 'showFace' does not exist on type '{ application?: { distribute?(event: "onConnectionIndicator", visible: boolean): void; }; addEffect(effect: Content, key?: string): void; removeEffect(effect: Content): void; setFaceMotionEnabled?(enabled: boolean): void; }'.
+host/app/remote-session/conversation-session.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/conversation-session.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/conversation-session.test.ts(3,15): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportState'.
+host/app/remote-session/conversation-session.ts(2,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationSessionDelegate'.
+host/app/remote-session/conversation-session.ts(3,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationState'.
+host/app/remote-session/conversation-session.ts(4,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportState'.
+host/app/remote-session/conversation-session.ts(10,8): error TS2307: Cannot find module 'stackchan-application-event' or its corresponding type declarations.
+host/app/remote-session/conversation-session.ts(11,46): error TS2307: Cannot find module 'stackchan-realtime-session' or its corresponding type declarations.
+host/app/remote-session/facade.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/facade.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/facade.test.ts(4,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationListener'.
+host/app/remote-session/facade.test.ts(5,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationSessionDelegate'.
+host/app/remote-session/facade.test.ts(6,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationState'.
+host/app/remote-session/facade.test.ts(7,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportListener'.
+host/app/remote-session/facade.test.ts(8,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportState'.
+host/app/remote-session/facade.ts(2,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationActivationState'.
+host/app/remote-session/facade.ts(3,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationListener'.
+host/app/remote-session/facade.ts(4,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationSession'.
+host/app/remote-session/facade.ts(5,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationSessionDelegate'.
+host/app/remote-session/facade.ts(6,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationState'.
+host/app/remote-session/facade.ts(7,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportListener'.
+host/app/remote-session/facade.ts(8,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportState'.
+host/app/remote-session/realtime-session.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/realtime-session.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/realtime-session.test.ts(3,15): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportState'.
+host/app/remote-session/realtime-session.ts(1,15): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportState'.
+host/app/remote-session/realtime-session.ts(7,8): error TS2307: Cannot find module 'stackchan-application-event' or its corresponding type declarations.
+host/app/remote-session/runtime.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/runtime.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/runtime.test.ts(3,15): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportState'.
+host/app/remote-session/runtime.ts(1,15): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationSessionDelegate'.
+host/app/remote-session/runtime.ts(1,50): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationState'.
+host/app/remote-session/runtime.ts(2,61): error TS2307: Cannot find module 'stackchan-approval-session' or its corresponding type declarations.
+host/app/remote-session/runtime.ts(3,76): error TS2307: Cannot find module 'stackchan-conversation-session' or its corresponding type declarations.
+host/app/remote-session/runtime.ts(9,8): error TS2307: Cannot find module 'stackchan-realtime-session' or its corresponding type declarations.
+host/app/remote-session/runtime.ts(10,59): error TS2307: Cannot find module 'stackchan-task-session' or its corresponding type declarations.
+host/app/remote-session/task-session.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/task-session.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/app/remote-session/task-session.test.ts(3,15): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationTransportState'.
+host/app/remote-session/task-session.ts(1,75): error TS2307: Cannot find module 'stackchan-application-event' or its corresponding type declarations.
+host/app/remote-session/task-session.ts(2,38): error TS2307: Cannot find module 'stackchan-realtime-session' or its corresponding type declarations.
+host/app/runtime-audio.ts(2,15): error TS2305: Module '"capabilities"' has no exported member 'TTS'.
+host/app/runtime-audio.ts(2,40): error TS2305: Module '"capabilities"' has no exported member 'WebRadioStartOptions'.
+host/app/runtime-context.ts(3,3): error TS2724: '"capabilities"' has no exported member named 'AudioCapability'. Did you mean 'WebRadioCapability'?
+host/app/runtime-context.ts(4,3): error TS2305: Module '"capabilities"' has no exported member 'ConnectivityCapability'.
+host/app/runtime-context.ts(5,3): error TS2305: Module '"capabilities"' has no exported member 'ConversationCapability'.
+host/app/runtime-context.ts(6,3): error TS2305: Module '"capabilities"' has no exported member 'FaceCapability'.
+host/app/runtime-context.ts(7,3): error TS2305: Module '"capabilities"' has no exported member 'I18nCapability'.
+host/app/runtime-context.ts(8,3): error TS2305: Module '"capabilities"' has no exported member 'InputCapability'.
+host/app/runtime-context.ts(9,3): error TS2305: Module '"capabilities"' has no exported member 'LifecycleCapability'.
+host/app/runtime-context.ts(10,3): error TS2305: Module '"capabilities"' has no exported member 'LightingCapability'.
+host/app/runtime-context.ts(11,3): error TS2305: Module '"capabilities"' has no exported member 'MotionCapability'.
+host/app/runtime-context.ts(12,3): error TS2305: Module '"capabilities"' has no exported member 'RemoteConversationSession'.
+host/app/runtime-context.ts(13,3): error TS2305: Module '"capabilities"' has no exported member 'RobotUI'.
+host/app/runtime-context.ts(14,3): error TS2305: Module '"capabilities"' has no exported member 'RuntimeUICapability'.
+host/app/runtime-context.ts(15,3): error TS2305: Module '"capabilities"' has no exported member 'ShowBalloonOptions'.
+host/app/runtime-input.ts(1,15): error TS2305: Module '"capabilities"' has no exported member 'Button'.
+host/app/runtime-lighting.ts(1,15): error TS2305: Module '"capabilities"' has no exported member 'RobotLed'.
+host/app/runtime-ui.ts(2,3): error TS2305: Module '"capabilities"' has no exported member 'DrawerButtonSpec'.
+host/app/runtime-ui.ts(3,3): error TS2305: Module '"capabilities"' has no exported member 'DrawerButtonViewSpec'.
+host/app/runtime-ui.ts(4,3): error TS2305: Module '"capabilities"' has no exported member 'DrawerCapability'.
+host/app/runtime-ui.ts(5,3): error TS2305: Module '"capabilities"' has no exported member 'RobotUI'.
+host/app/runtime-ui.ts(6,3): error TS2305: Module '"capabilities"' has no exported member 'ShowBalloonOptions'.
+host/app/runtime-ui.ts(8,3): error TS2305: Module '"capabilities"' has no exported member 'UIEffect'.
+host/modules/audio/__tests__/audio-buffer-ownership.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/audio-buffer-ownership.architecture.ts(2,53): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/audio-buffer-ownership.architecture.ts(3,22): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/audio-buffer-ownership.architecture.ts(4,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/http-throughput-device/main.js(46,42): error TS2304: Cannot find name 'device'.
+host/modules/audio/__tests__/http-throughput-device/main.js(46,65): error TS2304: Cannot find name 'device'.
+host/modules/audio/__tests__/http-throughput-device/main.js(91,42): error TS2339: Property 'connection' does not exist on type 'WiFiConstructorOptions'.
+host/modules/audio/__tests__/http-throughput-device/main.js(92,14): error TS2339: Property 'connection' does not exist on type 'WiFiConstructorOptions'.
+host/modules/audio/__tests__/http-throughput-device/main.js(93,40): error TS2339: Property 'address' does not exist on type 'WiFiConstructorOptions'.
+host/modules/audio/__tests__/http-throughput-device/main.js(94,10): error TS2339: Property 'close' does not exist on type 'WiFiConstructorOptions'.
+host/modules/audio/__tests__/http-throughput-device/server.mjs(1,30): error TS2591: Cannot find name 'node:http'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/http-throughput-device/server.mjs(3,21): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/http-throughput-device/server.mjs(5,15): error TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/microphone.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/microphone.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/microphone.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/microphone.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/microphone.test.ts(11,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/audio/__tests__/opus-decoder-device/opus-codec-worker.js(1,25): error TS2307: Cannot find module 'stackchanOpusDecoder' or its corresponding type declarations.
+host/modules/audio/__tests__/opus-decoder-device/opus-codec-worker.js(2,43): error TS2307: Cannot find module 'stackchanOpusEncoder' or its corresponding type declarations.
+host/modules/audio/__tests__/opus-decoder-device/opus-codec-worker.js(14,31): error TS2550: Property 'fromBase64' does not exist on type 'Uint8ArrayConstructor'. Do you need to change your target library? Try changing the 'lib' compiler option to 'esnext' or later.
+host/modules/audio/__tests__/pcm-resampler.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/pcm-resampler.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/shared-byte-ring.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/shared-byte-ring.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/stackchan-voice-device/audio-out-stub.ts(1,23): error TS2307: Cannot find module 'stackchan-voice-test-state' or its corresponding type declarations.
+host/modules/audio/__tests__/stackchan-voice-device/stackchan-voice-device.test.ts(1,35): error TS2307: Cannot find module 'stackchan-voice-test-state' or its corresponding type declarations.
+host/modules/audio/__tests__/stackchan-voice-device/stackchanvoice-stub.ts(1,23): error TS2307: Cannot find module 'stackchan-voice-test-state' or its corresponding type declarations.
+host/modules/audio/__tests__/stackchan-voice-vendor.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/stackchan-voice-vendor.architecture.ts(2,28): error TS2591: Cannot find name 'node:crypto'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/stackchan-voice-vendor.architecture.ts(3,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/stackchan-voice-vendor.architecture.ts(4,22): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/stackchan-voice-vendor.architecture.ts(5,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/stackchan-voice-wav.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/stackchan-voice-wav.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/stackchan-voice-wav.test.ts(47,15): error TS2304: Cannot find name 'queueMicrotask'.
+host/modules/audio/__tests__/stackchan-voice-wav.test.ts(75,15): error TS2304: Cannot find name 'queueMicrotask'.
+host/modules/audio/__tests__/stackchan-voice-wav.test.ts(89,15): error TS2304: Cannot find name 'queueMicrotask'.
+host/modules/audio/__tests__/stackchan-voice-wav.test.ts(100,15): error TS2304: Cannot find name 'queueMicrotask'.
+host/modules/audio/__tests__/stackchan-voice-wav.test.ts(141,17): error TS2304: Cannot find name 'queueMicrotask'.
+host/modules/audio/__tests__/tts-playback-lifecycle.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/tts-playback-lifecycle.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/tts-playback-lifecycle.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/tts-playback-lifecycle.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/tts-playback-lifecycle.test.ts(11,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/audio/__tests__/tts-playback-lifecycle.test.ts(45,17): error TS2352: Conversion of type 'AudioOut' to type 'import("<repository>/firmware/host/modules/testing/fakes/audio-out").default' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'AudioOut' is missing the following properties from type 'import("<repository>/firmware/host/modules/testing/fakes/audio-out").default': closed, enqueued, enqueueFailure, stopFailure, and 3 more.
+host/modules/audio/__tests__/web-radio-device/main.js(6,22): error TS2307: Cannot find module 'web-radio-audio-out' or its corresponding type declarations.
+host/modules/audio/__tests__/web-radio-device/main.js(25,11): error TS2304: Cannot find name 'device'.
+host/modules/audio/__tests__/web-radio-device/main.js(76,41): error TS2339: Property 'connection' does not exist on type 'WiFiConstructorOptions'.
+host/modules/audio/__tests__/web-radio-device/main.js(77,14): error TS2339: Property 'connection' does not exist on type 'WiFiConstructorOptions'.
+host/modules/audio/__tests__/web-radio-device/main.js(78,39): error TS2339: Property 'address' does not exist on type 'WiFiConstructorOptions'.
+host/modules/audio/__tests__/web-radio-device/main.js(79,10): error TS2339: Property 'close' does not exist on type 'WiFiConstructorOptions'.
+host/modules/audio/__tests__/web-radio-player.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/web-radio-player.test.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/web-radio-player.test.ts(3,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/web-radio-player.test.ts(4,34): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/web-radio-player.test.ts(5,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/audio/__tests__/web-radio-player.test.ts(19,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/audio/platforms/m5stackchan-cores3/buffered-mp3streamer.js(7,17): error TS2307: Cannot find module 'esp32-mp3-decoder' or its corresponding type declarations.
+host/modules/audio/platforms/m5stackchan-cores3/buffered-mp3streamer.js(8,32): error TS2307: Cannot find module 'web-radio-byte-ring' or its corresponding type declarations.
+host/modules/audio/platforms/m5stackchan-cores3/web-radio-player.ts(2,35): error TS2305: Module '"capabilities"' has no exported member 'WebRadioStartOptions'.
+host/modules/audio/platforms/m5stackchan-cores3/web-radio-player.ts(5,30): error TS2307: Cannot find module 'web-radio-audio-out' or its corresponding type declarations.
+host/modules/audio/platforms/m5stackchan-cores3/web-radio-stream-worker.js(1,25): error TS2307: Cannot find module 'buffered-mp3streamer-core' or its corresponding type declarations.
+host/modules/audio/platforms/m5stackchan-cores3/web-radio-stream-worker.js(2,31): error TS2307: Cannot find module 'pcm-resampler' or its corresponding type declarations.
+host/modules/audio/platforms/m5stackchan-cores3/web-radio-stream-worker.js(4,32): error TS2307: Cannot find module 'web-radio-byte-ring' or its corresponding type declarations.
+host/modules/audio/platforms/m5stackchan-cores3/web-radio-stream-worker.js(72,23): error TS2365: Operator '>>>' cannot be applied to types 'bigint' and 'number'.
+host/modules/audio/platforms/m5stackchan-cores3/worker-mp3streamer.js(2,32): error TS2307: Cannot find module 'web-radio-byte-ring' or its corresponding type declarations.
+host/modules/audio/platforms/m5stackchan-cores3/worker-mp3streamer.js(55,7): error TS2353: Object literal may only specify known properties, and 'core' does not exist in type 'WorkerOptions'.
+host/modules/audio/stt-whisper.ts(142,52): error TS2339: Property 'concat' does not exist on type 'ArrayBuffer'.
+host/modules/camera/camera.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/camera/camera.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/camera/camera.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/camera/camera.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/camera/camera.test.ts(15,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/camera/device/camera-preview.ts(14,30): error TS2307: Cannot find module 'ui-controls' or its corresponding type declarations.
+host/modules/camera/device/camera-preview.ts(15,26): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/modules/camera/device/camera.ts(1,26): error TS2307: Cannot find module 'embedded:io/image/in/camera' or its corresponding type declarations.
+host/modules/camera/device/camera.ts(6,8): error TS2307: Cannot find module 'camera-capture-options' or its corresponding type declarations.
+host/modules/camera/wasm/camera-preview.ts(6,30): error TS2307: Cannot find module 'ui-controls' or its corresponding type declarations.
+host/modules/camera/wasm/camera-preview.ts(7,26): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/modules/connectivity/__tests__/ble-local-peer-radio.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/ble-local-peer-radio.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/ble-local-peer-radio.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/ble-local-peer-radio.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/ble-local-peer-radio.test.ts(8,63): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/connectivity/__tests__/ble-local-peer-record.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/ble-local-peer-record.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/ble-local-peer-record.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/ble-local-peer-record.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/ble-local-peer-record.test.ts(8,63): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/connectivity/__tests__/local-peer-frame.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/local-peer-frame.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/local-peer-frame.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/local-peer-frame.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/local-peer-frame.test.ts(9,63): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/connectivity/__tests__/local-peer-manifest.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/local-peer-manifest.architecture.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/local-peer-manifest.architecture.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/network-manager.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/network-manager.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/network-manager.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/network-manager.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/network-manager.test.ts(10,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/connectivity/__tests__/network-service.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/network-service.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/network-service.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/network-service.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/network-service.test.ts(11,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/connectivity/__tests__/network-state.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/network-state.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/preference-server.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/preference-server.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/preference-server.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/preference-server.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/preference-server.test.ts(23,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/connectivity/__tests__/preference-server.test.ts(57,18): error TS2352: Conversion of type 'PreferenceServer' to type 'TestPreferenceServer' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'notifications' is missing in type 'PreferenceServer' but required in type 'TestPreferenceServer'.
+host/modules/connectivity/__tests__/preference-server.test.ts(81,18): error TS2352: Conversion of type 'PreferenceServer' to type 'TestPreferenceServer' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'notifications' is missing in type 'PreferenceServer' but required in type 'TestPreferenceServer'.
+host/modules/connectivity/__tests__/stored-wifi.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/stored-wifi.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/stored-wifi.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/stored-wifi.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/stored-wifi.test.ts(31,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/connectivity/__tests__/wifi-scan.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/wifi-scan.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/wifi-scan.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/wifi-scan.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/__tests__/wifi-scan.test.ts(10,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/connectivity/ble/local-peer-radio.ts(8,8): error TS2307: Cannot find module 'ble-local-peer-record' or its corresponding type declarations.
+host/modules/connectivity/ble/stk-server.js(13,11): error TS2554: Expected 0 arguments, but got 1.
+host/modules/connectivity/ble/stk-server.js(32,36): error TS2741: Property 'raw' is missing in type 'string[]' but required in type 'TemplateStringsArray'.
+host/modules/connectivity/esp32/local-peer-radio.js(100,27): error TS2555: Expected at least 1 arguments, but got 0.
+host/modules/connectivity/esp32/local-peer-transports-ble-only.ts(1,37): error TS2307: Cannot find module 'ble-local-peer-radio' or its corresponding type declarations.
+host/modules/connectivity/esp32/local-peer-transports.ts(1,37): error TS2307: Cannot find module 'ble-local-peer-radio' or its corresponding type declarations.
+host/modules/connectivity/local-peer-capability.ts(2,36): error TS2307: Cannot find module 'local-peer-transports' or its corresponding type declarations.
+host/modules/connectivity/mcp-server/mcp-auth.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/connectivity/mcp-server/mcp-auth.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/conversation/__tests__/server-realtime-model/server-realtime-model.test.ts(1,8): error TS2882: Cannot find module or type declarations for side-effect import of 'stackchanXiaozhiContractTest'.
+host/modules/conversation/__tests__/server-realtime-model/server-realtime-model.test.ts(2,8): error TS2882: Cannot find module or type declarations for side-effect import of 'stackchanXiaozhiModelTest'.
+host/modules/conversation/__tests__/server-realtime-model/xiaozhi-model.test.ts(1,25): error TS2307: Cannot find module 'stackchanOpusDecoder' or its corresponding type declarations.
+host/modules/conversation/__tests__/server-realtime-model/xiaozhi-model.test.ts(2,25): error TS2307: Cannot find module 'stackchanOpusEncoder' or its corresponding type declarations.
+host/modules/conversation/__tests__/server-realtime-model/xiaozhi-model.test.ts(3,54): error TS2307: Cannot find module 'stackchanServerChatWebSocketWorker' or its corresponding type declarations.
+host/modules/conversation/__tests__/server-realtime-model/xiaozhi-model.test.ts(4,54): error TS2307: Cannot find module 'xiaozhiV1Model' or its corresponding type declarations.
+host/modules/conversation/__tests__/server-websocket-worker/server-websocket-worker.test.js(1,32): error TS2307: Cannot find module 'ChatWorker' or its corresponding type declarations.
+host/modules/conversation/__tests__/server-websocket-worker/server-websocket-worker.test.js(2,39): error TS2307: Cannot find module 'stackchanServerChatWebSocketWorker' or its corresponding type declarations.
+host/modules/conversation/__tests__/server-websocket-worker/server-websocket-worker.test.js(79,37): error TS2554: Expected 0 arguments, but got 1.
+host/modules/conversation/__tests__/server-websocket-worker/server-websocket-worker.test.js(80,14): error TS2339: Property 'connect' does not exist on type 'TestWorker'.
+host/modules/conversation/__tests__/server-websocket-worker/server-websocket-worker.test.js(81,14): error TS2339: Property 'sendJSON' does not exist on type 'TestWorker'.
+host/modules/conversation/__tests__/server-websocket-worker/server-websocket-worker.test.js(88,40): error TS2554: Expected 0 arguments, but got 1.
+host/modules/conversation/__tests__/server-websocket-worker/server-websocket-worker.test.js(89,17): error TS2339: Property 'connect' does not exist on type 'TestWorker'.
+host/modules/conversation/__tests__/server-websocket-worker/server-websocket-worker.test.js(97,17): error TS2339: Property 'onJSON' does not exist on type 'TestWorker'.
+host/modules/conversation/__tests__/server-websocket-worker/server-websocket-worker.test.js(99,17): error TS2339: Property 'onJSON' does not exist on type 'TestWorker'.
+host/modules/conversation/__tests__/server-websocket-worker/server-websocket-worker.test.js(102,17): error TS2339: Property 'disconnect' does not exist on type 'TestWorker'.
+host/modules/conversation/chat-audioio/pcm-ring-writer-native.js(1,30): error TS2307: Cannot find module 'stackchanOpusEncoder' or its corresponding type declarations.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(8,24): error TS2307: Cannot find module 'ChatWorker' or its corresponding type declarations.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(9,30): error TS2307: Cannot find module 'JSONBase64Parser' or its corresponding type declarations.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(52,51): error TS2339: Property 'outputBuffer' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(54,35): error TS2304: Cannot find name 'device'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(54,56): error TS2304: Cannot find name 'device'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(55,43): error TS2304: Cannot find name 'device'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(70,37): error TS2339: Property 'postMessage' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(71,23): error TS2339: Property 'postMessage' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(82,14): error TS2339: Property 'postMessage' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(114,10): error TS2339: Property 'postMessage' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(119,27): error TS2339: Property 'eventHandlers' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(142,43): error TS2339: Property 'inputBuffer' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(146,12): error TS2339: Property 'postMessage' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(152,38): error TS2339: Property 'audioPrefix' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(152,80): error TS2339: Property 'audioSuffix' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(153,19): error TS2339: Property 'audioPrefix' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(154,57): error TS2339: Property 'audioPrefix' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(155,19): error TS2339: Property 'audioSuffix' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(155,37): error TS2339: Property 'audioPrefix' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/server-chat-websocket-worker.js(187,12): error TS2339: Property 'postMessage' does not exist on type 'ServerChatWebSocketWorker'.
+host/modules/conversation/chat-audioio/worker-stack.js(2,30): error TS2307: Cannot find module 'stackchanPcmRingWriter' or its corresponding type declarations.
+host/modules/conversation/chat-audioio/worker-stack.js(16,25): error TS2353: Object literal may only specify known properties, and 'providerID' does not exist in type 'ChatAudioIOOptions'.
+host/modules/conversation/chat-audioio/worker-stack.js(31,13): error TS2339: Property 'ensureInput' does not exist on type 'ChatAudioIO'.
+host/modules/conversation/chat-audioio/worker-stack.js(35,11): error TS2339: Property 'ensureInput' does not exist on type 'ChatAudioIO'.
+host/modules/conversation/chat-audioio/worker-stack.js(36,15): error TS2339: Property 'input' does not exist on type 'ChatAudioIO'.
+host/modules/conversation/chat-audioio/worker-stack.js(38,22): error TS2339: Property 'onStateChanged' does not exist on type 'ChatAudioIO'.
+host/modules/conversation/chat-audioio/worker-stack.js(64,7): error TS2353: Object literal may only specify known properties, and 'priority' does not exist in type 'WorkerOptions'.
+host/modules/conversation/chat-audioio/worker-stack.js(82,19): error TS2339: Property 'inputBuffer' does not exist on type 'ChatAudioIO'.
+host/modules/conversation/chat-audioio/worker-stack.js(84,52): error TS2339: Property 'inputBuffer' does not exist on type 'ChatAudioIO'.
+host/modules/conversation/chat-audioio/worker-stack.js(86,73): error TS2339: Property 'message' does not exist on type 'unknown'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(8,25): error TS2307: Cannot find module 'stackchanOpusDecoder' or its corresponding type declarations.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(9,25): error TS2307: Cannot find module 'stackchanOpusEncoder' or its corresponding type declarations.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(10,39): error TS2307: Cannot find module 'stackchanServerChatWebSocketWorker' or its corresponding type declarations.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(108,47): error TS2339: Property 'message' does not exist on type 'unknown'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(114,12): error TS2339: Property 'postMessage' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(195,37): error TS2339: Property 'message' does not exist on type 'unknown'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(236,12): error TS2339: Property 'postMessage' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(247,12): error TS2339: Property 'post' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(250,31): error TS2339: Property 'message' does not exist on type 'unknown'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(307,14): error TS2339: Property 'write' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(315,31): error TS2339: Property 'message' does not exist on type 'unknown'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(349,12): error TS2339: Property 'parser' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(356,31): error TS2339: Property 'message' does not exist on type 'unknown'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(416,14): error TS2339: Property 'post' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(442,14): error TS2339: Property 'parser' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(443,14): error TS2339: Property 'parser' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(445,14): error TS2339: Property 'post' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(455,46): error TS2339: Property 'message' does not exist on type 'unknown'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(514,10): error TS2339: Property 'postMessage' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(537,46): error TS2339: Property 'message' does not exist on type 'unknown'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(600,12): error TS2339: Property 'sendJSON' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(602,46): error TS2339: Property 'message' does not exist on type 'unknown'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(612,12): error TS2339: Property 'postMessage' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi-model.js(619,10): error TS2339: Property 'postMessage' does not exist on type 'XiaozhiModel'.
+host/modules/conversation/chat-audioio/xiaozhi.js(8,26): error TS2307: Cannot find module 'xiaozhiV1Model' or its corresponding type declarations.
+host/modules/input/__tests__/touch.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/input/__tests__/touch.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/input/__tests__/touch.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/input/__tests__/touch.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/input/__tests__/touch.test.ts(54,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/input/__tests__/touch.test.ts(64,5): error TS2352: Conversion of type 'Promise<typeof import("timer")>' to type 'Promise<{ default: FakeTimer; }>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'typeof import("timer")' is not comparable to type '{ default: FakeTimer; }'.
+    Types of property 'default' are incompatible.
+      Type 'typeof Timer' is missing the following properties from type 'FakeTimer': advance, reset
+host/modules/input/imu-motion.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/input/imu-motion.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/input/touch-panel-gesture.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/input/touch-panel-gesture.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/io-expander/py32-io-expander.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/io-expander/py32-io-expander.test.ts(2,30): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/lighting/py32-led.ts(6,8): error TS2307: Cannot find module 'py32-io-expander' or its corresponding type declarations.
+host/modules/motion/__tests__/dynamixel-codec.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/motion/__tests__/dynamixel-codec.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/motion/__tests__/m5stackchan-servo.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/motion/__tests__/m5stackchan-servo.test.ts(2,32): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/motion/__tests__/payload-buffer.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/motion/__tests__/payload-buffer.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/motion/__tests__/single-wait-slot.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/motion/__tests__/single-wait-slot.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/motion/m5stackchan-servo-driver.ts(16,65): error TS2307: Cannot find module 'py32-io-expander' or its corresponding type declarations.
+host/modules/motion/protocols/dynamixel.ts(272,64): error TS2345: Argument of type '(timer: Timer) => void' is not assignable to parameter of type 'ClearTimer'.
+  Types of parameters 'timer' and 'handle' are incompatible.
+    Type 'unknown' is not assignable to type 'Timer'.
+      Property 'brand' is missing in type '{}' but required in type 'Timer'.
+host/modules/motion/protocols/rs30x.ts(199,64): error TS2345: Argument of type '(timer: Timer) => void' is not assignable to parameter of type 'ClearTimer'.
+  Types of parameters 'timer' and 'handle' are incompatible.
+    Type 'unknown' is not assignable to type 'Timer'.
+      Property 'brand' is missing in type '{}' but required in type 'Timer'.
+host/modules/motion/protocols/scservo.ts(235,64): error TS2345: Argument of type '(timer: Timer) => void' is not assignable to parameter of type 'ClearTimer'.
+  Types of parameters 'timer' and 'handle' are incompatible.
+    Type 'unknown' is not assignable to type 'Timer'.
+      Property 'brand' is missing in type '{}' but required in type 'Timer'.
+host/modules/motion/wasm/dynamixel-driver.ts(1,33): error TS2307: Cannot find module 'wasm-driver' or its corresponding type declarations.
+host/modules/motion/wasm/m5stackchan-servo-driver.ts(1,40): error TS2307: Cannot find module 'wasm-driver' or its corresponding type declarations.
+host/modules/motion/wasm/none-driver.ts(1,28): error TS2307: Cannot find module 'wasm-driver' or its corresponding type declarations.
+host/modules/motion/wasm/rs30x-driver.ts(1,29): error TS2307: Cannot find module 'wasm-driver' or its corresponding type declarations.
+host/modules/motion/wasm/scservo-driver.ts(1,31): error TS2307: Cannot find module 'wasm-driver' or its corresponding type declarations.
+host/modules/motion/wasm/sg90-driver.ts(1,32): error TS2307: Cannot find module 'wasm-driver' or its corresponding type declarations.
+host/modules/power/battery-level.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/power/battery-level.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/power/battery-manifest.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/power/battery-manifest.architecture.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/power/battery-manifest.architecture.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/power/platforms/axp2101-power-capture.js(1,21): error TS2307: Cannot find module 'embedded:peripheral/Power/axp2101' or its corresponding type declarations.
+host/modules/preferences/__tests__/wasm-preference-xs/wasm-preference-xs.test.ts(44,52): error TS2345: Argument of type '{}' is not assignable to parameter of type 'string | number | boolean | ArrayBuffer'.
+host/modules/preferences/consts.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/consts.architecture.ts(2,53): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/consts.architecture.ts(3,32): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/consts.architecture.ts(4,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/loadPreference.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/loadPreference.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/loadPreference.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/loadPreference.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/loadPreference.test.ts(25,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/preferences/loadPreference.test.ts(127,93): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/preferences/timezone-settings.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/timezone-settings.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/timezone-settings.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/timezone-settings.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/timezone-settings.test.ts(9,63): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/preferences/volume-model.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/preferences/volume-model.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/testing/fakes/structured-clone.ts(2,21): error TS2339: Property 'structuredClone' does not exist on type 'typeof globalThis'.
+host/modules/testing/module-structure.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/testing/module-structure.architecture.ts(2,65): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/testing/module-structure.architecture.ts(3,31): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/testing/module-structure.architecture.ts(4,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/testing/node-alias-package.ts(1,80): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/testing/node-alias-package.ts(2,44): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/testing/node-alias-package.ts(11,31): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/application/app-controller.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/application/app-controller.architecture.ts(2,42): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/application/app-controller.architecture.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/application/mini-app.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/application/mini-app.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/bubble/__tests__/speech-balloon/speech-balloon.test.ts(4,40): error TS2307: Cannot find module 'stackchan-usb-dock-presentation' or its corresponding type declarations.
+host/modules/ui/components/drawer/drawer.ts(15,41): error TS2307: Cannot find module 'ui-controls' or its corresponding type declarations.
+host/modules/ui/components/drawer/drawer.ts(16,28): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/modules/ui/components/drawer/drawer.ts(18,31): error TS2307: Cannot find module 'ui-controls' or its corresponding type declarations.
+host/modules/ui/components/effects/__tests__/emoticon-pulse.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/effects/__tests__/emoticon-pulse.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/effects/__tests__/web-radio-ui.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/effects/__tests__/web-radio-ui.architecture.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/effects/__tests__/web-radio-ui.architecture.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/face/parts/__tests__/shape-cache.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/face/parts/__tests__/shape-cache.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/face/parts/image/__tests__/image-avatar-pack.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/face/parts/image/__tests__/image-avatar-pack.architecture.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/face/parts/image/__tests__/image-avatar-pack.architecture.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/face/parts/image/__tests__/image-avatar-pack.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/face/parts/image/__tests__/image-avatar-pack.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/components/foundation/controls.ts(3,30): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/modules/ui/components/status-bar/__tests__/chat-status-bar/chat-status-bar.test.ts(10,26): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/modules/ui/components/status-bar/chat-status-bar.ts(3,30): error TS2307: Cannot find module 'ui-controls' or its corresponding type declarations.
+host/modules/ui/components/status-bar/chat-status-bar.ts(4,30): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/modules/ui/localization-core.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/localization-core.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/state/face-state.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/state/face-state.architecture.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/state/face-state.architecture.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/state/face-state.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/state/face-state.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/views/camera-preview/camera-preview-view.ts(11,30): error TS2307: Cannot find module 'ui-controls' or its corresponding type declarations.
+host/modules/ui/views/camera-preview/camera-preview-view.ts(12,26): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/modules/ui/views/camera-preview/runtime-bitmap-port.js(1,10): error TS18042: 'Port' is a type and cannot be imported in JavaScript files. Use 'import("piu/MC").Port' in a JSDoc type annotation.
+host/modules/ui/views/mini-app/mini-app-launcher.ts(4,30): error TS2307: Cannot find module 'ui-controls' or its corresponding type declarations.
+host/modules/ui/views/mini-app/mini-app-launcher.ts(5,26): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/modules/ui/views/settings/settings-network-list.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/views/settings/settings-network-list.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/views/settings/settings-view.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/views/settings/settings-view.architecture.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/views/settings/settings-view.architecture.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/ui/views/settings/settings-view.ts(1,31): error TS2307: Cannot find module 'common/keyboard' or its corresponding type declarations.
+host/modules/ui/views/settings/settings-view.ts(2,45): error TS2307: Cannot find module 'keyboard' or its corresponding type declarations.
+host/modules/ui/views/settings/settings-view.ts(30,8): error TS2307: Cannot find module 'ui-controls' or its corresponding type declarations.
+host/modules/ui/views/settings/settings-view.ts(31,38): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/modules/ui/views/splash/__tests__/startup-splash/startup-splash.test.ts(1,59): error TS2307: Cannot find module 'startup-splash' or its corresponding type declarations.
+host/modules/ui/views/splash/splash-view.ts(4,30): error TS2307: Cannot find module 'ui-controls' or its corresponding type declarations.
+host/modules/ui/views/splash/splash-view.ts(5,30): error TS2307: Cannot find module 'ui-theme' or its corresponding type declarations.
+host/modules/usb-audio/__tests__/bridge-io/bridge-io.test.ts(6,8): error TS2307: Cannot find module 'stackchan-usb-audio-core' or its corresponding type declarations.
+host/modules/usb-audio/__tests__/bridge-io/bridge-io.test.ts(17,8): error TS2307: Cannot find module 'stackchan-usb-protocol' or its corresponding type declarations.
+host/modules/usb-audio/__tests__/bridge-io/bridge-io.test.ts(18,83): error TS2307: Cannot find module 'stackchan-usb-serial-types' or its corresponding type declarations.
+host/modules/usb-audio/__tests__/bridge-io/unused-crc32.ts(1,23): error TS2307: Cannot find module 'stackchan-usb-protocol' or its corresponding type declarations.
+host/modules/usb-audio/__tests__/bridge-io/unused-usb-serial.ts(1,52): error TS2307: Cannot find module 'stackchan-usb-serial-types' or its corresponding type declarations.
+host/modules/usb-audio/__tests__/node-aliases.ts(1,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/__tests__/node-aliases.ts(2,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/__tests__/node-aliases.ts(6,62): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/modules/usb-audio/audio-input-read.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/audio-input-read.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/bridge.ts(1,40): error TS2307: Cannot find module 'stackchan-usb-connection-state' or its corresponding type declarations.
+host/modules/usb-audio/bridge.ts(2,93): error TS2307: Cannot find module 'stackchan-usb-diagnostics' or its corresponding type declarations.
+host/modules/usb-audio/bridge.ts(3,72): error TS2307: Cannot find module 'stackchan-usb-event-frame-queue' or its corresponding type declarations.
+host/modules/usb-audio/bridge.ts(8,8): error TS2307: Cannot find module 'stackchan-usb-event-transport' or its corresponding type declarations.
+host/modules/usb-audio/bridge.ts(21,8): error TS2307: Cannot find module 'stackchan-usb-media-session' or its corresponding type declarations.
+host/modules/usb-audio/bridge.ts(22,40): error TS2307: Cannot find module 'stackchan-usb-microphone-session' or its corresponding type declarations.
+host/modules/usb-audio/bridge.ts(33,8): error TS2307: Cannot find module 'stackchan-usb-protocol' or its corresponding type declarations.
+host/modules/usb-audio/bridge.ts(34,85): error TS2307: Cannot find module 'stackchan-usb-serial-types' or its corresponding type declarations.
+host/modules/usb-audio/bridge.ts(35,39): error TS2307: Cannot find module 'stackchan-usb-speaker-buffer' or its corresponding type declarations.
+host/modules/usb-audio/bridge.ts(36,37): error TS2307: Cannot find module 'stackchan-usb-speaker-session' or its corresponding type declarations.
+host/modules/usb-audio/bridge.ts(37,31): error TS2307: Cannot find module 'stackchan-usb-stream-tx-queue' or its corresponding type declarations.
+host/modules/usb-audio/connection-state.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/connection-state.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/diagnostics.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/diagnostics.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/event-frame-queue.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/event-frame-queue.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/event-frame-queue.ts(1,82): error TS2307: Cannot find module 'stackchan-usb-protocol' or its corresponding type declarations.
+host/modules/usb-audio/event-send-requests.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/event-send-requests.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/event-send-requests.ts(1,41): error TS2307: Cannot find module 'stackchan-usb-event-transport' or its corresponding type declarations.
+host/modules/usb-audio/event-transport.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/event-transport.test.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/event-transport.test.ts(3,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/event-transport.ts(1,37): error TS2307: Cannot find module 'stackchan-usb-media-session' or its corresponding type declarations.
+host/modules/usb-audio/media-session-contract.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/media-session-contract.test.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/media-session-contract.test.ts(3,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/microphone-session.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/microphone-session.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/microphone-session.ts(1,62): error TS2307: Cannot find module 'stackchan-usb-media-session' or its corresponding type declarations.
+host/modules/usb-audio/microphone-session.ts(3,63): error TS2307: Cannot find module 'stackchan-usb-media-session' or its corresponding type declarations.
+host/modules/usb-audio/protocol.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/protocol.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/protocol.ts(17,8): error TS2307: Cannot find module 'stackchan-usb-media-session' or its corresponding type declarations.
+host/modules/usb-audio/shared-speaker-output.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/shared-speaker-output.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/shared-speaker-output.ts(5,8): error TS2307: Cannot find module 'stackchan-usb-audio-core' or its corresponding type declarations.
+host/modules/usb-audio/shared-speaker-output.ts(6,60): error TS2307: Cannot find module 'web-radio-byte-ring' or its corresponding type declarations.
+host/modules/usb-audio/speaker-buffer.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/speaker-buffer.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/speaker-session.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/speaker-session.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/speaker-session.ts(5,8): error TS2307: Cannot find module 'stackchan-usb-media-session' or its corresponding type declarations.
+host/modules/usb-audio/speaker-session.ts(7,60): error TS2307: Cannot find module 'stackchan-usb-media-session' or its corresponding type declarations.
+host/modules/usb-audio/stream-gate.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/stream-gate.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/stream-tx-queue.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/stream-tx-queue.test.ts(2,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/usb-audio.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/usb-audio.architecture.ts(2,28): error TS2591: Cannot find name 'node:crypto'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/usb-audio.architecture.ts(3,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/usb-audio.architecture.ts(4,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/usb-audio.architecture.ts(148,3): error TS2322: Type 'string | string[]' is not assignable to type 'string[]'.
+  Type 'string' is not assignable to type 'string[]'.
+host/modules/usb-audio/usb-serial.ts(6,8): error TS2307: Cannot find module 'stackchan-usb-serial-types' or its corresponding type declarations.
+host/modules/usb-audio/wire-contract.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/wire-contract.test.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/wire-contract.test.ts(3,18): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/wire-contract.test.ts(67,18): error TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/wire-contract.test.ts(146,26): error TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/usb-audio/worker-bridge.ts(3,37): error TS2307: Cannot find module 'stackchan-usb-audio-input-read' or its corresponding type declarations.
+host/modules/usb-audio/worker-bridge.ts(4,38): error TS2307: Cannot find module 'stackchan-usb-event-send-requests' or its corresponding type declarations.
+host/modules/usb-audio/worker-bridge.ts(5,65): error TS2307: Cannot find module 'stackchan-usb-event-transport' or its corresponding type declarations.
+host/modules/usb-audio/worker-bridge.ts(6,33): error TS2307: Cannot find module 'stackchan-usb-media-session' or its corresponding type declarations.
+host/modules/usb-audio/worker-bridge.ts(16,8): error TS2307: Cannot find module 'stackchan-usb-shared-output' or its corresponding type declarations.
+host/modules/usb-audio/worker-bridge.ts(17,35): error TS2307: Cannot find module 'stackchan-usb-stream-gate' or its corresponding type declarations.
+host/modules/usb-audio/worker-bridge.ts(20,32): error TS2307: Cannot find module 'web-radio-byte-ring' or its corresponding type declarations.
+host/modules/usb-audio/worker.ts(7,8): error TS2307: Cannot find module 'stackchan-usb-audio-core' or its corresponding type declarations.
+host/modules/usb-audio/worker.ts(8,26): error TS2307: Cannot find module 'stackchan-usb-crc32' or its corresponding type declarations.
+host/modules/usb-audio/worker.ts(9,45): error TS2307: Cannot find module 'stackchan-usb-event-transport' or its corresponding type declarations.
+host/modules/usb-audio/worker.ts(10,23): error TS2307: Cannot find module 'stackchan-usb-serial' or its corresponding type declarations.
+host/modules/usb-audio/worker.ts(11,77): error TS2307: Cannot find module 'stackchan-usb-shared-output' or its corresponding type declarations.
+host/modules/util/stackchan-util.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/util/stackchan-util.test.ts(2,34): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/util/stackchan-util.test.ts(3,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/util/stackchan-util.test.ts(4,31): error TS2591: Cannot find name 'node:url'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/modules/util/stackchan-util.test.ts(9,65): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+host/platforms/core_s3_audioout.js(1,41): error TS2307: Cannot find module 'pins/audioout-original' or its corresponding type declarations.
+host/platforms/core_s3_audioout.js(9,40): error TS2339: Property 'sampleRate' does not exist on type 'CoreS3AudioOut'.
+host/platforms/m5stackchan_cores3/host/provider.js(21,17): error TS2307: Cannot find module 'embedded:RTC/BM8563' or its corresponding type declarations.
+host/platforms/m5stackchan_cores3/host/provider.js(22,19): error TS2307: Cannot find module 'M5StackCoreS3Touch' or its corresponding type declarations.
+host/platforms/m5stackchan_cores3/host/provider.js(28,24): error TS2307: Cannot find module 'embedded:io/pulsewidth' or its corresponding type declarations.
+host/platforms/m5stackchan_cores3/host/provider.js(33,17): error TS2307: Cannot find module 'embedded:sensor/Accelerometer-Gyroscope-Magnetometer/BMI270' or its corresponding type declarations.
+host/platforms/m5stackchan_cores3/host/provider.js(34,24): error TS2307: Cannot find module 'embedded:sensor/Touch/Si12T' or its corresponding type declarations.
+host/platforms/platform-manifest.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/platform-manifest.architecture.ts(2,55): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/platform-manifest.architecture.ts(3,22): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/platform-manifest.architecture.ts(4,32): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/stackchan_rt/host/provider.js(25,17): error TS2307: Cannot find module 'embedded:RTC/BM8563' or its corresponding type declarations.
+host/platforms/stackchan_rt/host/provider.js(26,19): error TS2307: Cannot find module 'M5StackCoreS3Touch' or its corresponding type declarations.
+host/platforms/stackchan_rt/host/provider.js(32,24): error TS2307: Cannot find module 'embedded:io/pulsewidth' or its corresponding type declarations.
+host/platforms/stackchan_rt/host/provider.js(37,17): error TS2307: Cannot find module 'embedded:sensor/Accelerometer-Gyroscope-Magnetometer/BMI270' or its corresponding type declarations.
+host/platforms/takao_core2_sg90/host/provider.js(21,24): error TS2307: Cannot find module 'Core2Power' or its corresponding type declarations.
+host/platforms/takao_core2_sg90/host/provider.js(27,24): error TS2307: Cannot find module 'embedded:io/pulsewidth' or its corresponding type declarations.
+host/platforms/wasm/browser-runtime.pre.js(2,26): error TS2304: Cannot find name 'Module'.
+host/platforms/wasm/native-api-bindings.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/wasm/native-api-bindings.architecture.ts(2,30): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/wasm/native-api-bindings.architecture.ts(3,25): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/wasm/native-api-bindings.architecture.ts(4,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/wasm/native-api-bindings.architecture.ts(6,22): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/wasm/wasm-stubs.architecture.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/wasm/wasm-stubs.architecture.ts(2,53): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/wasm/wasm-stubs.architecture.ts(3,32): error TS2591: Cannot find name 'node:path'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/wasm/wasm-stubs.architecture.ts(4,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/wasm/wasm-stubs.test.ts(1,20): error TS2591: Cannot find name 'node:assert/strict'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+host/platforms/wasm/wasm-stubs.test.ts(2,22): error TS2591: Cannot find name 'node:test'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+mods/examples/ai_stackchan/mod.js(52,13): error TS2322: Type '{ name: string; description: string; inputSchema: { type: string; properties: { emotion: { type: string; description: string; }; }; required: string[]; }; execute: (args: any) => Promise<string>; }' is not assignable to type 'Tool'.
+  Type '{ name: string; description: string; inputSchema: { type: string; properties: { emotion: { type: string; description: string; }; }; required: string[]; }; execute: (args: any) => Promise<string>; }' is not assignable to type 'ToolSchema'.
+    The types of 'inputSchema.type' are incompatible between these types.
+      Type 'string' is not assignable to type '"object"'.
+mods/examples/ai_stackchan/mod.js(85,40): error TS2339: Property 'message' does not exist on type 'unknown'.
+mods/examples/ai_stackchan_api/mod.js(88,5): error TS2322: Type '{ role: string; content: string; }[]' is not assignable to type 'ChatContent[]'.
+  Type '{ role: string; content: string; }' is not assignable to type 'ChatContent'.
+    Types of property 'role' are incompatible.
+      Type 'string' is not assignable to type '"assistant" | "system" | "user"'.
+mods/examples/beacon_advertiser/mod.js(4,26): error TS2307: Cannot find module 'speeches_greeting' or its corresponding type declarations.
+mods/examples/beacon_advertiser/mod.js(41,11): error TS2740: Type 'Uint8Array<ArrayBufferLike>' is missing the following properties from type 'number[]': pop, push, concat, shift, and 6 more.
+mods/examples/beacon_scanner/mod.js(4,26): error TS2307: Cannot find module 'speeches_greeting' or its corresponding type declarations.
+mods/examples/beacon_scanner/mod.js(21,24): error TS2739: Type '{ duplicates: true; }' is missing the following properties from type '{ active: boolean; duplicates: boolean; filterPolicy: gapScanFilterPolicies; interval: number; window: number; }': active, filterPolicy, interval, window
+mods/examples/beacon_scanner/mod.js(28,22): error TS2339: Property 'reason' does not exist on type 'Maybe<BeaconDataPacket>'.
+mods/examples/beacon_scanner/mod.js(28,30): error TS2339: Property 'value' does not exist on type 'Maybe<BeaconDataPacket>'.
+mods/examples/beacon_scanner/mod.js(40,12): error TS2339: Property 'handleData' does not exist on type 'Scanner'.
+mods/examples/beacon_scanner/mod.js(52,11): error TS2339: Property 'handleData' does not exist on type 'Scanner'.
+mods/examples/chat_audioio/mod.js(496,5): error TS2322: Type '{ set_emotion: { name: string; description: string; parameters: { type: string; properties: { emotion: { type: string; description: string; }; }; required: string[]; }; execute: ({ emotion }: { emotion: any; }) => Promise<...>; }; playTone: { ...; }; }' is not assignable to type 'Record<string, ChatTool>'.
+  Property 'set_emotion' is incompatible with index signature.
+    Type '{ name: string; description: string; parameters: { type: string; properties: { emotion: { type: string; description: string; }; }; required: string[]; }; execute: ({ emotion }: { emotion: any; }) => Promise<string>; }' is not assignable to type 'ChatTool'.
+      Type '{ name: string; description: string; parameters: { type: string; properties: { emotion: { type: string; description: string; }; }; required: string[]; }; execute: ({ emotion }: { emotion: any; }) => Promise<string>; }' is not assignable to type 'ChatToolSchema'.
+        The types of 'parameters.type' are incompatible between these types.
+          Type 'string' is not assignable to type '"object"'.
+mods/examples/chat_audioio/mod.js(541,59): error TS2339: Property 'message' does not exist on type 'unknown'.
+mods/examples/chatgpt/mod.js(1,23): error TS2307: Cannot find module 'WebSocket' or its corresponding type declarations.
+mods/examples/chatgpt/mod.js(27,5): error TS2322: Type '{ role: string; content: string; }[]' is not assignable to type 'ChatContent[]'.
+  Type '{ role: string; content: string; }' is not assignable to type 'ChatContent'.
+    Types of property 'role' are incompatible.
+      Type 'string' is not assignable to type '"assistant" | "system" | "user"'.
+mods/examples/chatgpt/mod.js(37,31): error TS2339: Property 'reason' does not exist on type 'Maybe<string>'.
+  Property 'reason' does not exist on type '{ success: true; value: string; }'.
+mods/examples/cheerup_ble_lite/mod.js(2,26): error TS2307: Cannot find module 'speeches_cheerup' or its corresponding type declarations.
+mods/examples/cheerup_ws/mod.js(1,23): error TS2307: Cannot find module 'WebSocket' or its corresponding type declarations.
+mods/examples/cheerup_ws/mod.js(3,26): error TS2307: Cannot find module 'speeches_cheerup' or its corresponding type declarations.
+mods/examples/codex_voice/__tests__/codex-voice/codex-voice.test.js(1,34): error TS2306: File '<repository>/firmware/node_modules/@moddable/typings/mod/index.d.ts' is not a module.
+mods/examples/dynamixel/mod.js(35,14): error TS2554: Expected 0 arguments, but got 1.
+mods/examples/dynamixel/mod.js(156,5): error TS2345: Argument of type '(error: any) => void' is not assignable to parameter of type '() => void'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+mods/examples/image_avatar_lite/mod.js(6,28): error TS2345: Argument of type '{ 'image-avatar-lite-slime': { id: string; displayName: string; width: number; height: number; defaultExpression: string; emotionMap: { NEUTRAL: string; SAD: string; ANGRY: string; HAPPY: string; SLEEPY: string; COLD: string; HOT: string; }; expressions: { normal: { head: { texture: string; x: number; y: number; wid...' is not assignable to parameter of type 'Record<string, ImageAvatarPack>'.
+  Property ''image-avatar-lite-slime'' is incompatible with index signature.
+    Type '{ id: string; displayName: string; width: number; height: number; defaultExpression: string; emotionMap: { NEUTRAL: string; SAD: string; ANGRY: string; HAPPY: string; SLEEPY: string; COLD: string; HOT: string; }; expressions: { normal: { head: { texture: string; x: number; y: number; width: number; height: number; }...' is not assignable to type 'ImageAvatarPack'.
+      Types of property 'emotionMap' are incompatible.
+        Type '{ NEUTRAL: string; SAD: string; ANGRY: string; HAPPY: string; SLEEPY: string; COLD: string; HOT: string; }' has no properties in common with type 'Partial<Record<Emotion, string>>'.
+mods/examples/local_peer_hello/__tests__/local-peer-hello-receiver/local-peer-hello-receiver.test.js(1,34): error TS2306: File '<repository>/firmware/node_modules/@moddable/typings/mod/index.d.ts' is not a module.
+mods/examples/local_peer_hello/__tests__/local-peer-hello-sender/local-peer-hello-sender.test.js(1,34): error TS2306: File '<repository>/firmware/node_modules/@moddable/typings/mod/index.d.ts' is not a module.
+mods/examples/local_peer_hello/__tests__/local-peer-hello-text/local-peer-hello-text.test.js(1,84): error TS2307: Cannot find module 'local-peer-hello-text' or its corresponding type declarations.
+mods/examples/local_peer_hello/mod.js(1,59): error TS2307: Cannot find module 'local-peer-hello-text' or its corresponding type declarations.
+mods/examples/local_peer_hello/mod.js(87,37): error TS2339: Property 'message' does not exist on type 'unknown'.
+mods/examples/mcp/__tests__/mcp-drawer/mcp-drawer.test.js(1,10): error TS2614: Module '"mcp-server"' has no exported member 'setMCPServerResult'. Did you mean to use 'import setMCPServerResult from "mcp-server"' instead?
+mods/examples/mcp/__tests__/mcp-drawer/mcp-drawer.test.js(2,34): error TS2306: File '<repository>/firmware/node_modules/@moddable/typings/mod/index.d.ts' is not a module.
+mods/examples/mcp/__tests__/mcp-drawer/mcp-drawer.test.js(3,10): error TS2614: Module '"net"' has no exported member 'setIPAddress'. Did you mean to use 'import setIPAddress from "net"' instead?
+mods/examples/mcp/mod.js(104,5): error TS2322: Type '({ name: string; description: string; parameters: { name: string; type: string; description: string; required: boolean; }[]; handler: (args: any) => string; } | { name: string; description: string; parameters: { ...; }[]; handler: (args: any) => Promise<...>; })[]' is not assignable to type 'Tool[]'.
+  Type '{ name: string; description: string; parameters: { name: string; type: string; description: string; required: boolean; }[]; handler: (args: any) => string; } | { name: string; description: string; parameters: { ...; }[]; handler: (args: any) => Promise<...>; }' is not assignable to type 'Tool'.
+    Type '{ name: string; description: string; parameters: { name: string; type: string; description: string; required: boolean; }[]; handler: (args: any) => string; }' is not assignable to type 'Tool'.
+      Types of property 'parameters' are incompatible.
+        Type '{ name: string; type: string; description: string; required: boolean; }[]' is not assignable to type 'ToolParameter[]'.
+          Type '{ name: string; type: string; description: string; required: boolean; }' is not assignable to type 'ToolParameter'.
+            Types of property 'type' are incompatible.
+              Type 'string' is not assignable to type '"boolean" | "number" | "object" | "string"'.
+mods/examples/mediapipe_ble/__tests__/mediapipe-ble/mediapipe-ble.test.js(2,86): error TS2307: Cannot find module 'mediapipe-tracking-message' or its corresponding type declarations.
+mods/examples/mediapipe_ble/__tests__/mediapipe-ble/mediapipe-ble.test.js(3,34): error TS2307: Cannot find module 'mediapipe-tracking-receiver' or its corresponding type declarations.
+mods/examples/mediapipe_ble/mod.js(2,67): error TS2307: Cannot find module 'mediapipe-tracking-message' or its corresponding type declarations.
+mods/examples/mediapipe_ble/mod.js(3,52): error TS2307: Cannot find module 'mediapipe-tracking-receiver' or its corresponding type declarations.
+mods/examples/mediapipe_ble/tracking-receiver.js(2,60): error TS2307: Cannot find module 'mediapipe-tracking-message' or its corresponding type declarations.
+mods/examples/mimic_follow/mod.js(4,25): error TS2741: Property 'hostName' is missing in type '{}' but required in type '{ hostName: string; }'.
+mods/examples/mimic_follow/mod.js(13,23): error TS2488: Type 'Record<string, string>' must have a '[Symbol.iterator]()' method that returns an iterator.
+mods/examples/mimic_main/mod.js(39,29): error TS2339: Property 'services' does not exist on type 'MDNS'.
+mods/examples/mimic_main/mod.js(40,28): error TS2339: Property 'services' does not exist on type 'MDNS'.
+mods/examples/mini_app_sample/miniapp.ts(1,15): error TS2305: Module '"capabilities"' has no exported member 'MiniAppDefinition'.
+mods/examples/mini_app_ui_sample/__tests__/mini-app-ui/mini-app-ui.test.ts(2,25): error TS2307: Cannot find module 'miniapp' or its corresponding type declarations.
+mods/examples/mini_app_ui_sample/miniapp.ts(1,15): error TS2305: Module '"capabilities"' has no exported member 'MiniAppContext'.
+mods/examples/mini_app_ui_sample/miniapp.ts(1,31): error TS2305: Module '"capabilities"' has no exported member 'MiniAppDefinition'.
+mods/examples/monologue/mod.js(2,26): error TS2307: Cannot find module 'speeches_monologue' or its corresponding type declarations.
+mods/examples/provider-dialogues/dialogue-claude.ts(111,46): error TS2339: Property 'message' does not exist on type 'unknown'.
+mods/examples/provider-dialogues/dialogue-gemini.ts(120,46): error TS2339: Property 'message' does not exist on type 'unknown'.
+mods/examples/provider-dialogues/dialogue-gemini.ts(145,33): error TS2345: Argument of type 'string[]' is not assignable to parameter of type '(this: any, key: string, value: any) => any'.
+  Type 'string[]' provides no match for the signature '(this: any, key: string, value: any): any'.
+mods/examples/stackchan_catch/__tests__/game/stackchan-catch.test.js(1,105): error TS2307: Cannot find module 'miniapp' or its corresponding type declarations.
+mods/examples/stackchan_catch/miniapp.ts(1,15): error TS2305: Module '"capabilities"' has no exported member 'MiniAppDefinition'.
+mods/examples/stackchan_minigames/__tests__/definitions/stackchan-minigames.test.js(1,25): error TS2307: Cannot find module 'miniapp' or its corresponding type declarations.
+mods/examples/stackchan_minigames/compose.mjs(1,28): error TS2591: Cannot find name 'node:crypto'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+mods/examples/stackchan_minigames/compose.mjs(2,45): error TS2591: Cannot find name 'node:fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+mods/examples/stackchan_minigames/compose.mjs(5,77): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+mods/examples/stackchan_minigames/compose.mjs(6,78): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+mods/examples/stackchan_minigames/compose.mjs(8,55): error TS2339: Property 'url' does not exist on type 'ImportMeta'.
+mods/examples/stackchan_minigames/compose.mjs(35,5): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+mods/examples/stackchan_minigames/miniapp.ts(5,15): error TS2305: Module '"capabilities"' has no exported member 'MiniAppDefinition'.
+mods/examples/unit_temperature/mod.js(1,22): error TS2307: Cannot find module 'embedded:sensor/Humidity-Temperature/SHT3x' or its corresponding type declarations.
+mods/examples/unit_temperature/mod.js(5,39): error TS2304: Cannot find name 'device'.
+node_modules/@moddable/typings/commodetto/Bitmap.d.ts(25,77): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/commodetto/Poco.d.ts(106,33): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/audio/in.d.ts(37,18): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/audio/out.d.ts(36,19): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/i2c.d.ts(36,18): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/i2c.d.ts(38,18): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/i2c.d.ts(39,28): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/i2c.d.ts(40,28): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/i2c.d.ts(40,52): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/serial.d.ts(47,18): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/serial.d.ts(48,27): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/smbus.d.ts(33,42): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/smbus.d.ts(34,43): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/spi.d.ts(37,18): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/spi.d.ts(38,19): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_io/spi.d.ts(39,22): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_network/http/client.d.ts(43,18): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/embedded_network/http/client.d.ts(44,18): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/flash.d.ts(27,55): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/pins/audioout.d.ts(59,24): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/web/fetch.d.ts(41,21): error TS2304: Cannot find name 'ByteBuffer'.
+node_modules/@moddable/typings/web/fetch.d.ts(46,12): error TS2484: Export declaration conflicts with exported declaration of 'fetch'.

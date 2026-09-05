@@ -1,0 +1,341 @@
+{
+  "commit": "9b01df46fbf7b8126ca0e2ed5648064fa300f1be",
+  "entries": [
+    {
+      "id": "ai-example",
+      "path": "firmware/mods/examples/ai_stackchan/mod.js",
+      "start": 45,
+      "end": 136
+    },
+    {
+      "id": "ambient-capabilities",
+      "path": "firmware/typings/capabilities.d.ts",
+      "start": 1,
+      "end": 25
+    },
+    {
+      "id": "api-doc",
+      "path": "firmware/docs/api_ja.md"
+    },
+    {
+      "id": "app-behavior",
+      "path": "firmware/host/app/app-behavior.ts",
+      "start": 1,
+      "end": 24
+    },
+    {
+      "id": "app-manifest",
+      "path": "firmware/host/app/manifest.json"
+    },
+    {
+      "id": "audio-buffer",
+      "path": "firmware/host/modules/audio/audio-buffer.ts"
+    },
+    {
+      "id": "audio-close",
+      "path": "firmware/host/app/runtime-audio.ts",
+      "start": 151,
+      "end": 163
+    },
+    {
+      "id": "audio-manifest",
+      "path": "firmware/host/modules/audio/manifest.json"
+    },
+    {
+      "id": "audio-runtime",
+      "path": "firmware/host/app/runtime-audio.ts",
+      "start": 64,
+      "end": 163
+    },
+    {
+      "id": "beacon-example",
+      "path": "firmware/mods/examples/beacon_advertiser/mod.js",
+      "start": 23,
+      "end": 29
+    },
+    {
+      "id": "behavior-resolver",
+      "path": "firmware/host/app/app-behavior-resolver.ts"
+    },
+    {
+      "id": "boot-wifi",
+      "path": "firmware/host/app/boot-services.ts",
+      "start": 126,
+      "end": 170
+    },
+    {
+      "id": "camera-contract",
+      "path": "firmware/host/modules/camera/camera.ts",
+      "start": 1,
+      "end": 23
+    },
+    {
+      "id": "capabilities-core",
+      "path": "firmware/host/app/capabilities.ts",
+      "start": 31,
+      "end": 174
+    },
+    {
+      "id": "capabilities-ui",
+      "path": "firmware/host/app/capabilities.ts",
+      "start": 252,
+      "end": 294
+    },
+    {
+      "id": "chat-example",
+      "path": "firmware/mods/examples/chat_audioio/mod.js",
+      "start": 172,
+      "end": 370
+    },
+    {
+      "id": "chatgpt-example",
+      "path": "firmware/mods/examples/chatgpt/mod.js",
+      "start": 20,
+      "end": 119
+    },
+    {
+      "id": "ci",
+      "path": ".github/workflows/build.yml",
+      "start": 88,
+      "end": 210
+    },
+    {
+      "id": "compose-resources",
+      "path": "firmware/host/app/compose.ts",
+      "start": 189,
+      "end": 272
+    },
+    {
+      "id": "conversation-manifest",
+      "path": "firmware/host/modules/conversation/manifest.json"
+    },
+    {
+      "id": "default-behavior",
+      "path": "firmware/host/app/default-behavior/on-context-created.ts"
+    },
+    {
+      "id": "default-look",
+      "path": "firmware/host/app/default-behavior/on-context-created.ts",
+      "start": 371,
+      "end": 408
+    },
+    {
+      "id": "default-touch",
+      "path": "firmware/host/app/default-behavior/on-context-created.ts",
+      "start": 641,
+      "end": 707
+    },
+    {
+      "id": "device-mic",
+      "path": "firmware/host/modules/audio/microphone.ts",
+      "start": 6,
+      "end": 42
+    },
+    {
+      "id": "dock-runtime",
+      "path": "firmware/host/app/docks/android-usb-audio/runtime.ts"
+    },
+    {
+      "id": "dynamixel-lifecycle",
+      "path": "firmware/host/modules/motion/dynamixel-driver.ts",
+      "start": 180,
+      "end": 194
+    },
+    {
+      "id": "dynamixel-queue",
+      "path": "firmware/host/modules/motion/protocols/dynamixel.ts",
+      "start": 378,
+      "end": 426
+    },
+    {
+      "id": "fake-capabilities",
+      "path": "firmware/host/modules/testing/fakes/capabilities.ts"
+    },
+    {
+      "id": "firmware-guide",
+      "path": "firmware/README_ja.md"
+    },
+    {
+      "id": "followups",
+      "path": "docs/architecture/firmware-rearchitecture-followups_ja.md"
+    },
+    {
+      "id": "lighting-runtime",
+      "path": "firmware/host/app/runtime-lighting.ts",
+      "start": 18,
+      "end": 54
+    },
+    {
+      "id": "lip-sync",
+      "path": "firmware/mods/examples/lip_sync/mod.js",
+      "start": 1,
+      "end": 20
+    },
+    {
+      "id": "look-example",
+      "path": "firmware/mods/examples/look_around/mod.js",
+      "start": 1,
+      "end": 34
+    },
+    {
+      "id": "m5-lifecycle",
+      "path": "firmware/host/modules/motion/m5stackchan-servo-driver.ts",
+      "start": 72,
+      "end": 78
+    },
+    {
+      "id": "main-cleanup",
+      "path": "firmware/host/app/main.ts",
+      "start": 146,
+      "end": 160
+    },
+    {
+      "id": "main-network",
+      "path": "firmware/host/app/main.ts",
+      "start": 122,
+      "end": 145
+    },
+    {
+      "id": "mini-app",
+      "path": "firmware/host/modules/ui/application/mini-app.ts",
+      "start": 1,
+      "end": 34
+    },
+    {
+      "id": "mini-loader",
+      "path": "firmware/host/app/experimental-mini-app-loader.ts"
+    },
+    {
+      "id": "mod-guide",
+      "path": "firmware/mods/README_ja.md"
+    },
+    {
+      "id": "mod-installer",
+      "path": "firmware/host/app/mod-installer.ts",
+      "start": 11,
+      "end": 31
+    },
+    {
+      "id": "mod-spec",
+      "path": "docs/specs/stackchan-mod.md"
+    },
+    {
+      "id": "monologue",
+      "path": "firmware/mods/examples/monologue/mod.js",
+      "start": 1,
+      "end": 13
+    },
+    {
+      "id": "motion-close",
+      "path": "firmware/host/modules/motion/motion-controller.ts",
+      "start": 130,
+      "end": 164
+    },
+    {
+      "id": "old-plan",
+      "path": "docs/architecture/firmware-rearchitecture_ja.md",
+      "start": 1,
+      "end": 35
+    },
+    {
+      "id": "piu-policy",
+      "path": "firmware/docs/piu-performance-policy.md"
+    },
+    {
+      "id": "preference-server",
+      "path": "firmware/host/modules/connectivity/preference-server.ts",
+      "start": 71,
+      "end": 148
+    },
+    {
+      "id": "preferences",
+      "path": "firmware/host/modules/preferences/loadPreference.ts",
+      "start": 7,
+      "end": 81
+    },
+    {
+      "id": "pwm-driver",
+      "path": "firmware/host/modules/motion/sg90-driver.ts",
+      "start": 83,
+      "end": 127
+    },
+    {
+      "id": "runtime-ui-drawer",
+      "path": "firmware/host/app/runtime-ui.ts",
+      "start": 171,
+      "end": 197
+    },
+    {
+      "id": "runtime-ui-facade",
+      "path": "firmware/host/app/runtime-context.ts",
+      "start": 594,
+      "end": 629
+    },
+    {
+      "id": "sample-check",
+      "path": "firmware/host/modules/testing/module-structure.architecture.ts",
+      "start": 423,
+      "end": 496
+    },
+    {
+      "id": "scservo-queue",
+      "path": "firmware/host/modules/motion/protocols/scservo.ts",
+      "start": 354,
+      "end": 389
+    },
+    {
+      "id": "speaker",
+      "path": "firmware/host/modules/audio/speaker.ts",
+      "start": 18,
+      "end": 72
+    },
+    {
+      "id": "stored-wifi",
+      "path": "firmware/host/modules/connectivity/stored-wifi.ts",
+      "start": 1,
+      "end": 42
+    },
+    {
+      "id": "structure-check",
+      "path": "firmware/host/modules/testing/module-structure.architecture.ts"
+    },
+    {
+      "id": "tsconfig",
+      "path": "firmware/tsconfig.json"
+    },
+    {
+      "id": "tsconfig-test",
+      "path": "firmware/tsconfig.test.json"
+    },
+    {
+      "id": "tts-lifecycle",
+      "path": "firmware/host/modules/audio/tts-playback-lifecycle.ts"
+    },
+    {
+      "id": "tts-local",
+      "path": "firmware/host/modules/audio/tts-local.ts",
+      "start": 31,
+      "end": 49
+    },
+    {
+      "id": "wasm-audio-manifest",
+      "path": "firmware/host/modules/audio/manifest_wasm.json"
+    },
+    {
+      "id": "wasm-manifest",
+      "path": "firmware/host/platforms/wasm/manifest.json"
+    },
+    {
+      "id": "wasm-mic",
+      "path": "firmware/host/modules/audio/wasm/microphone.ts",
+      "start": 53,
+      "end": 86
+    },
+    {
+      "id": "wasm-tts",
+      "path": "firmware/host/modules/audio/wasm/tts-stub.ts",
+      "start": 1,
+      "end": 7
+    }
+  ]
+}

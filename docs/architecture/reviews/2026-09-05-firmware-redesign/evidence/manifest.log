@@ -1,0 +1,11 @@
+
+> stack-chan@1.1.0 check:manifest
+> node scripts/check-manifest.js
+
+Checking esp32/m5stack with host/app/manifest_local.json
+Checking esp32/m5stack_cores3 with host/app/manifest_local.json
+Checking esp32:./host/platforms/m5stackchan_cores3 with host/app/manifest_m5stackchan_cores3.json
+Checking esp32:./host/platforms/stackchan_rt with host/app/manifest_stackchan_rt.json
+Checking esp32:./host/platforms/takao_core2_sg90 with host/app/manifest_takao_core2_sg90.json
+Checking wasm with host/app/manifest_wasm.json
+Manifest preflight passed for 6 target(s).

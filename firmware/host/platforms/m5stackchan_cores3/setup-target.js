@@ -31,6 +31,7 @@ function patchStackChanPower() {
   trace('[m5stackchan] patched CoreS3 AXP2101 power rails\n')
 }
 
+/** Apply board power settings after SDK setup and then release the startup continuation. */
 export default function (done) {
   // The inherited CoreS3 setup precedes this module and constructs the shared
   // AXP2101 before this board-specific rail configuration runs.

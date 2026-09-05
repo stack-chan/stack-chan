@@ -5,6 +5,7 @@ import {
   RAD_TO_01_DEGREE,
   rawPositionToAngle,
   rotationToM5StackChanServoAngles,
+  SCS_STEPS_PER_01_DEGREE,
 } from 'm5stackchan-servo'
 import {
   type MotionCompletion,
@@ -12,6 +13,7 @@ import {
   type MotionResultCallback,
   motionDurationSecondsToMilliseconds,
 } from 'motion-controller'
+import { directMotionPort, type MotionPort, motionInfo } from 'motion-port'
 import SCServo from 'protocols/scservo'
 import { type PY32IOExpanderLease, tryAcquireSharedPY32IOExpander } from 'py32-io-expander'
 import { ServoBusError } from 'servo-bus'
@@ -37,6 +39,7 @@ type M5StackChanServoDriverProps = Partial<{
 }>
 
 export class M5StackChanServoDriver {
+  readonly motion: MotionPort
   #resources = new ServoDriverResources()
   #pan: SCServo
   #tilt: SCServo
@@ -45,6 +48,7 @@ export class M5StackChanServoDriver {
   #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
   #rotationErrorResult: { success: false; reason?: string } = { success: false }
   #servoPower?: {
+    readonly available: boolean
     setEnabled: (enabled: boolean) => void
     close: () => void
   }
@@ -77,6 +81,24 @@ export class M5StackChanServoDriver {
         this.#servoPower = new PY32ServoPower(param.servoPower?.pin ?? 0, param.servoPower?.address)
         this.#resources.own(this.#servoPower)
       }
+      const yaw = this.#config.yaw
+      const pitch = this.#config.pitch
+      this.motion = directMotionPort(
+        this,
+        this.#servoPower && !this.#servoPower.available
+          ? { availability: 'unavailable', reason: 'Servo power controller is unavailable' }
+          : motionInfo(
+              'measured',
+              [
+                rawPositionToAngle(yaw.rawPositionLimit.min, yaw) / 10,
+                rawPositionToAngle(yaw.rawPositionLimit.max, yaw) / 10,
+              ],
+              [
+                -rawPositionToAngle(pitch.rawPositionLimit.max, pitch) / 10,
+                -rawPositionToAngle(pitch.rawPositionLimit.min, pitch) / 10,
+              ],
+            ),
+      )
     } catch (error) {
       this.#resources.rollback(error)
     }
@@ -141,10 +163,11 @@ export class M5StackChanServoDriver {
           this.#returnRotationError(callback, tiltStatus.reason)
           return
         }
-        const yawAngle = rawPositionToAngle(panStatus.value.position, this.#config.yaw)
-        const pitchAngle = rawPositionToAngle(tiltStatus.value.position, this.#config.pitch)
-        this.#rotation.y = yawAngle / RAD_TO_01_DEGREE
-        this.#rotation.p = -(pitchAngle / RAD_TO_01_DEGREE)
+        // Measurement must not clamp a physical position into the requested range.
+        this.#rotation.y =
+          (panStatus.value.position - this.#config.yaw.zeroPosition) / SCS_STEPS_PER_01_DEGREE / RAD_TO_01_DEGREE
+        this.#rotation.p =
+          -(tiltStatus.value.position - this.#config.pitch.zeroPosition) / SCS_STEPS_PER_01_DEGREE / RAD_TO_01_DEGREE
         this.#rotation.r = 0.0
         callback(this.#rotationResult)
       })
@@ -161,6 +184,10 @@ class PY32ServoPower {
   #pin: number
   #expander?: PY32IOExpanderLease
   #closed = false
+
+  get available(): boolean {
+    return !this.#closed && this.#expander !== undefined
+  }
 
   constructor(pin: number, address?: number) {
     this.#pin = pin

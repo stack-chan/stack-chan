@@ -169,12 +169,11 @@ export class OperationQueue {
     })
   }
 
-  close(): Promise<void> {
+  close(reason = new StackchanError('CLOSED', 'Resource owner closed')): Promise<void> {
     if (this.#closePromise) return this.#closePromise
     this.#closed = true
     const entries = [...this.#pending]
     if (this.#active) entries.push(this.#active)
-    const reason = new StackchanError('CLOSED', 'Resource owner closed')
     // Publish before invoking a stop that may reenter close().
     this.#closePromise = Promise.all(entries.map((entry) => entry.done)).then(() => {
       if (this.#failure) throw this.#failure

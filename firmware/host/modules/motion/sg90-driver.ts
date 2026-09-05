@@ -5,6 +5,7 @@ import {
   type MotionResultCallback,
   motionDurationSecondsToMilliseconds,
 } from 'motion-controller'
+import { directMotionPort, type MotionPort, motionInfo } from 'motion-port'
 import type { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -51,6 +52,7 @@ type PWMServoDriverProps = {
   offsetTilt?: number
 }
 export class PWMServoDriver {
+  readonly motion: MotionPort
   _pan
   _tilt
   _panRef
@@ -85,6 +87,16 @@ export class PWMServoDriver {
     }
     this._offsetPan = param.offsetPan ?? 0
     this._offsetTilt = param.offsetTilt ?? 0
+    this.motion = directMotionPort(
+      this,
+      motionInfo(
+        'estimated',
+        [Math.max(-80, -90 - this._offsetPan), Math.min(80, 90 - this._offsetPan)],
+        [Math.max(-25, -90 - this._offsetTilt), Math.min(10, 90 - this._offsetTilt)],
+        false,
+      ),
+      INTERVAL,
+    )
   }
 
   setTorque(_torque: boolean, callback?: MotionCompletion): void {

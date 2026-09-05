@@ -1,4 +1,5 @@
 import type { MotionCompletion, MotionDurationSeconds, MotionResultCallback } from 'motion-controller'
+import { type MotionPort, motionInfo } from 'motion-port'
 import Dynamixel, { OPERATING_MODE } from 'protocols/dynamixel'
 import { ServoBusError } from 'servo-bus'
 import { ServoDriverResources } from 'servo-driver-resources'
@@ -40,7 +41,7 @@ class PControl {
     this._lastGoalPosition = undefined
   }
 
-  init(torqueEnabled: boolean, callback: MotionCompletion): void {
+  init(torqueEnabled: () => boolean, callback: MotionCompletion): void {
     this.servo.readPresentPosition((result) => {
       if (result.success === false) {
         callback(new Error(result.reason ?? 'failed to read initial servo position'))
@@ -54,7 +55,7 @@ class PControl {
           callback(modeError)
           return
         }
-        this.servo.setTorque(torqueEnabled, callback)
+        this.servo.setTorque(torqueEnabled(), callback)
       })
     })
   }
@@ -100,6 +101,10 @@ class PControl {
 }
 
 export class DynamixelDriver {
+  readonly motion: MotionPort
+  #managed = false
+  #managedGeneration = 0
+  #afterControl: MotionCompletion | undefined
   #resources = new ServoDriverResources()
   _pan: Dynamixel
   _tilt: Dynamixel
@@ -140,6 +145,33 @@ export class DynamixelDriver {
       this._running = false
       this._attached = false
       this._interval = 125
+      this.motion = {
+        info: motionInfo('measured', [-180, (4095 * 360) / 4096 - 180], [-30, 10]),
+        intervalMs: 50,
+        prepare: (done) => this.#prepareManaged(done),
+        read: (done) => this.#readManaged(done),
+        write: (rotation, done) => {
+          if (!this.#managed) {
+            done(new ServoBusError('CLOSED', 'Motion control is not active'))
+            return
+          }
+          this.applyRotation(rotation, 0, (error) => {
+            if (error != null) {
+              done(error)
+              return
+            }
+            this.control(done)
+          })
+        },
+        release: (failure) => {
+          this.#managed = false
+          this.#managedGeneration += 1
+          if (failure != null) {
+            this.#controlError = failure
+            this.onDetached()
+          } else this._scheduleNext()
+        },
+      }
       this.#resources.own({ close: () => this.onDetached() })
     } catch (error) {
       this.#resources.rollback(error)
@@ -245,20 +277,31 @@ export class DynamixelDriver {
   }
 
   #initializeControlAt(index: number, callback: MotionCompletion): void {
+    if (this.#controlError || this.#resources.closed) {
+      callback(this.#controlError ?? new ServoBusError('CLOSED', 'Servo driver is closed'))
+      return
+    }
     if (index >= this._controls.length) {
       callback()
       return
     }
-    this._controls[index].init(this._torque, (error) => {
-      if (error != null) {
-        callback(error)
-        return
-      }
-      this.#initializeControlAt(index + 1, callback)
-    })
+    this._controls[index].init(
+      () => this._torque && !this.#resources.closed && !this.#controlError,
+      (error) => {
+        if (error != null) {
+          callback(error)
+          return
+        }
+        this.#initializeControlAt(index + 1, callback)
+      },
+    )
   }
 
   #updateControlAt(index: number, callback?: MotionCompletion): void {
+    if (this.#controlError || this.#resources.closed) {
+      this.#finishControl(this.#controlError ?? new ServoBusError('CLOSED', 'Servo driver is closed'), callback)
+      return
+    }
     if (index >= this._controls.length) {
       this.#finishControl(undefined, callback)
       return
@@ -283,11 +326,17 @@ export class DynamixelDriver {
     if (this._attached) {
       this._scheduleNext()
     }
-    callback?.(error)
+    const after = this.#afterControl
+    this.#afterControl = undefined
+    try {
+      callback?.(error)
+    } finally {
+      after?.(error)
+    }
   }
 
   _scheduleNext(): void {
-    if (this._nextTimer || !this._attached) {
+    if (this._nextTimer || !this._attached || this.#managed) {
       return
     }
     this._nextTimer = Timer.set(() => {
@@ -327,5 +376,109 @@ export class DynamixelDriver {
     this.#rotation.p = (p2 * Math.PI) / 180
     this.#rotation.r = 0.0
     callback(this.#rotationResult)
+  }
+
+  #prepareManaged(done: MotionCompletion): void {
+    if (this.#managed) {
+      done(new ServoBusError('BUSY', 'Motion control is already acquired'))
+      return
+    }
+    this.#managed = true
+    const generation = ++this.#managedGeneration
+    if (this._nextTimer) {
+      Timer.clear(this._nextTimer)
+      this._nextTimer = undefined
+    }
+    const begin = (error?: unknown) => {
+      if (!this.#managedCurrent(generation)) {
+        done(new ServoBusError('CLOSED', 'Motion control was released'))
+        return
+      }
+      if (error != null) {
+        done(error)
+        return
+      }
+      if (!this._initialized) {
+        // Initialize with torque off. Sampling must not cause a move to the
+        // legacy default goal before the motion service has selected a target.
+        this._torque = false
+        this.control((error) => {
+          if (error != null) {
+            done(error)
+            return
+          }
+          this.#holdManaged(done, generation)
+        })
+      } else this.#holdManaged(done, generation)
+    }
+    if (this._running) this.#afterControl = begin
+    else begin()
+  }
+
+  #holdManaged(done: MotionCompletion, generation: number): void {
+    if (!this.#managedCurrent(generation)) {
+      done(new ServoBusError('CLOSED', 'Motion control was released'))
+      return
+    }
+    this.#readManaged((sample) => {
+      if (sample.success === false) {
+        done(new Error(sample.reason ?? 'Cannot sample servo position'))
+        return
+      }
+      // Preserve actual positions, including a starting pose outside the
+      // configured motion range; do not clamp the hold command into a jump.
+      for (const control of this._controls) control.goalPosition = control.presentPosition
+      this._running = true
+      this.#updateControlAt(0, (error) => {
+        if (!this.#managedCurrent(generation)) {
+          done(new ServoBusError('CLOSED', 'Motion control was released'))
+          return
+        }
+        if (error != null) {
+          done(error)
+          return
+        }
+        this.setTorque(true, done)
+      })
+    })
+  }
+
+  #readManaged(done: MotionResultCallback<Maybe<Rotation>>): void {
+    const generation = this.#managedGeneration
+    if (!this.#managedCurrent(generation)) {
+      done(this.#unavailableResult)
+      return
+    }
+    if (this.#resources.closed || this.#controlError || !this._initialized) {
+      this.getRotation(done)
+      return
+    }
+    this._pan.readPresentPosition((pan) => {
+      if (!this.#managedCurrent(generation)) {
+        done(this.#unavailableResult)
+        return
+      }
+      if (pan.success === false) {
+        done(pan)
+        return
+      }
+      this._tilt.readPresentPosition((tilt) => {
+        if (!this.#managedCurrent(generation)) {
+          done(this.#unavailableResult)
+          return
+        }
+        if (tilt.success === false) {
+          done(tilt)
+          return
+        }
+        this._controls[0].presentPosition = pan.value - this._controls[0]._offset
+        this._controls[1].presentPosition = tilt.value - this._controls[1]._offset
+        this.getRotation(done)
+      })
+    })
+  }
+
+  #managedCurrent(generation: number): boolean {
+    return this.#managed && generation === this.#managedGeneration && !this.#resources.closed && !this.#controlError
   }
 }

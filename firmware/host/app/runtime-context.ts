@@ -16,6 +16,7 @@ import type {
   ShowBalloonOptions,
   StackchanContext,
 } from 'capabilities'
+import clockTicks from 'clock-ticks'
 import { Emotion, type FaceEyeKey, type FaceThemeKey } from 'face-state'
 import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
@@ -25,6 +26,7 @@ import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtim
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
 import { type RuntimeLightingConstructorParam, StackchanRuntimeLighting } from 'runtime-lighting'
+import { StackchanRuntimeMotion } from 'runtime-motion'
 import {
   ownCamera,
   ownLed,
@@ -73,6 +75,7 @@ export class StackchanRuntimeContext implements StackchanContext {
   #localPeerSessions = new Set<LocalPeerSession>()
   #motionCapability: MotionCapability
   #motionController: MotionController
+  #appMotion: StackchanRuntimeMotion | undefined
   #paused: boolean
   #uiCapability: RuntimeUICapability
   #uiRuntime: StackchanRuntimeUI
@@ -134,7 +137,7 @@ export class StackchanRuntimeContext implements StackchanContext {
       {
         getContext: () => this,
         getPose: () => this.#motionController.pose,
-        getGazePoint: () => this.#motionController.gazePoint,
+        getGazePoint: () => (this.#appMotion ? this.#appMotion.gazePoint : this.#motionController.gazePoint),
         isPaused: () => this.#paused,
       },
       this.#devices.ui,
@@ -169,6 +172,37 @@ export class StackchanRuntimeContext implements StackchanContext {
     if (this.#closed) throw new StackchanError('CLOSED', 'Host context is closed')
     if (this.#appSession && this.#appSession.state !== 'closed')
       throw new StackchanError('BUSY', 'An app is already running')
+    // API generations do not share a live gaze/torque controller. V2 takes
+    // sole ownership of motion scheduling; the host keeps the raw driver.
+    const driver = this.#motionController.driver
+    this.#motionController.close()
+    const motion = new StackchanRuntimeMotion(driver, {
+      clock: {
+        now: clockTicks,
+        after(ms, callback) {
+          let active = true
+          const timer = Timer.set(() => {
+            if (!active) return
+            active = false
+            callback()
+          }, ms)
+          return () => {
+            if (active) {
+              active = false
+              Timer.clear(timer)
+            }
+          }
+        },
+      },
+      onPosition: (rotation) => {
+        const body = this.#motionController.pose.body.rotation
+        body.y = rotation.y
+        body.p = rotation.p
+        body.r = rotation.r
+      },
+      onError: (error) => trace(`[app] ${error.code}: ${error.message}\n`),
+    })
+    this.#appMotion = motion
     const emotions = {
       neutral: Emotion.NEUTRAL,
       happy: Emotion.HAPPY,
@@ -183,6 +217,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     const primaryKey = 'sdkPrimaryAction'
     const session = new AppSession(
       {
+        motion,
         face: {
           setEmotion: (emotion) => {
             if (!Object.hasOwn(emotions, emotion)) throw new StackchanError('INVALID_ARGUMENT', 'Unknown emotion')
@@ -233,6 +268,8 @@ export class StackchanRuntimeContext implements StackchanContext {
         capabilities: {
           get: (id) => {
             switch (id) {
+              case 'motion':
+                return motion.info
               case 'input.primary':
                 return { availability: 'native' }
               case 'audio.speech':
@@ -808,6 +845,7 @@ export class StackchanRuntimeContext implements StackchanContext {
           this.#updateFaceHandler = undefined
         },
         () => this.#appSession?.close(),
+        () => this.#appMotion?.close(),
         () => this.#motionController?.close(),
         () => this.#devices.motion.close(),
         () => this.#ownedResources.close(),

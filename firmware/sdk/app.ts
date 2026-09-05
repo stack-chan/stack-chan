@@ -1,8 +1,9 @@
 import { StackchanError } from 'stackchan/errors'
+import type { AppMotion } from 'stackchan/motion'
 import type { OperationOptions, TaskHandler, Unsubscribe } from 'stackchan/task'
 
 export type Emotion = 'neutral' | 'happy' | 'angry' | 'sad' | 'sleepy' | 'doubt' | 'cold' | 'hot'
-export type CapabilityId = 'audio.speech' | 'audio.clips' | 'audio.tone' | 'input.primary'
+export type CapabilityId = 'audio.speech' | 'audio.clips' | 'audio.tone' | 'input.primary' | 'motion'
 export type CapabilityStatus =
   | { readonly availability: 'native' | 'simulated' }
   | { readonly availability: 'unavailable'; readonly reason: string }
@@ -24,6 +25,7 @@ export interface AppAudio {
 export interface AppContext {
   readonly face: AppFace
   readonly audio: AppAudio
+  readonly motion: AppMotion
   readonly input: {
     /** Repeated presses while this handler runs are ignored. */
     onPress(name: 'primary', handler: TaskHandler): Unsubscribe

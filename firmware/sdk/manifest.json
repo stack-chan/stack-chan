@@ -3,6 +3,7 @@
     "stackchan/errors": "./errors",
     "stackchan": "./index",
     "stackchan/app": "./app",
-    "stackchan/task": "./task"
+    "stackchan/task": "./task",
+    "stackchan/motion": "./motion"
   }
 }

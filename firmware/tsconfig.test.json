@@ -298,6 +298,15 @@
       ],
       "runtime-resources": [
         "./host/app/runtime-resources.ts"
+      ],
+      "motion-port": [
+        "./host/modules/motion/motion-port.ts"
+      ],
+      "motion-execution": [
+        "./host/app/motion-execution.ts"
+      ],
+      "runtime-motion": [
+        "./host/app/runtime-motion.ts"
       ]
     },
     "types": [

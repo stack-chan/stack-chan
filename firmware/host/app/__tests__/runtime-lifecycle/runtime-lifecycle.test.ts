@@ -64,6 +64,16 @@ async function run(): Promise<void> {
     const sessionErrors: unknown[] = []
     const session = new AppSession(
       {
+        motion: {
+          info: { availability: 'unavailable', reason: 'No test motion device' },
+          async move() {
+            throw new Error('No test motion device')
+          },
+          lookAt() {},
+          lookAway() {},
+          async stop() {},
+          async close() {},
+        },
         face: { setEmotion() {}, setColor() {}, setMouthOpen() {} },
         audio: { async say() {}, async playClip() {}, async tone() {} },
         input: {

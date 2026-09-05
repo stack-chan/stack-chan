@@ -17,6 +17,8 @@
       "./settings-status",
       "./volume-preview",
       "./runtime-audio",
+      "./runtime-motion",
+      "./motion-execution",
       "./runtime-camera",
       "./runtime-context",
       "./runtime-input",

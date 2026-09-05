@@ -1,4 +1,5 @@
 export * from 'stackchan/app'
 export type { StackchanErrorCode } from 'stackchan/errors'
 export { StackchanError } from 'stackchan/errors'
+export type * from 'stackchan/motion'
 export type { CancellationSignal, OperationOptions, TaskContext, TaskHandler, Unsubscribe } from 'stackchan/task'

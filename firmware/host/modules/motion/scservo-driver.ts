@@ -4,6 +4,7 @@ import {
   type MotionResultCallback,
   motionDurationSecondsToMilliseconds,
 } from 'motion-controller'
+import { directMotionPort, motionInfo } from 'motion-port'
 import SCServo from 'protocols/scservo'
 import { ServoDriverResources } from 'servo-driver-resources'
 import type { Maybe, Rotation } from 'stackchan-util'
@@ -14,6 +15,7 @@ type SCServoDriverProps = {
 }
 
 export class SCServoDriver {
+  readonly motion = directMotionPort(this, motionInfo('measured', [-100, 100], [-25, 10]))
   #resources = new ServoDriverResources()
   _pan: SCServo
   _tilt: SCServo
@@ -78,8 +80,8 @@ export class SCServoDriver {
           this.#returnRotationError(callback, tiltStatus.reason)
           return
         }
-        this.#rotation.y = (-Math.PI * (panStatus.value.angle - 90)) / 180
-        this.#rotation.p = (-Math.PI * (tiltStatus.value.angle - 90)) / 180
+        this.#rotation.y = (-Math.PI * (panStatus.value.angle - 100)) / 180
+        this.#rotation.p = (-Math.PI * (tiltStatus.value.angle - 100)) / 180
         this.#rotation.r = 0.0
         callback(this.#rotationResult)
       })

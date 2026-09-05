@@ -5,6 +5,8 @@
   ],
   "modules": {
     "motion-controller": "./motion-controller",
+    "motion-port": "./motion-port",
+    "motion-bridge": ["./wasm/motion-bridge", "./wasm/motion-bridge.c"],
     "wasm-driver": "./wasm/wasm-driver",
     "dynamixel-driver": "./wasm/dynamixel-driver",
     "m5stackchan-servo-driver": "./wasm/m5stackchan-servo-driver",
@@ -12,5 +14,6 @@
     "sg90-driver": "./wasm/sg90-driver",
     "rs30x-driver": "./wasm/rs30x-driver",
     "scservo-driver": "./wasm/scservo-driver"
-  }
+  },
+  "preload": ["motion-bridge"]
 }

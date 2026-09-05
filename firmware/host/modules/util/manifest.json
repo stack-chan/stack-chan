@@ -5,11 +5,18 @@
     "../../app/manifest_typings.json"
   ],
   "modules": {
+    "clock-ticks": "./clock-ticks",
     "stackchan-util": "./stackchan-util",
     "mac-address": "./sim/mac-address"
   },
   "preload": ["stackchan-util", "mac-address"],
   "platforms": {
+    "wasm": {
+      "modules": {
+        "~": "./clock-ticks",
+        "clock-ticks": "./wasm/clock-ticks"
+      }
+    },
     "esp32": {
       "modules": {
         "mac-address": "./esp32/mac-address"

@@ -7,15 +7,15 @@
 
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
-| F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDKとdefineAppを追加しhostへ接続。motion・録音・会話・高度な拡張は未完了 |
+| F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDKとmotionをAppSessionへ接続。録音・カメラ・会話・設定・高度な拡張は未完了 |
 | F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。boot services、WASMカメラの下位資源管理などは継続 |
-| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clipと音声のError契約を接続。DYNAMIXELの目標取りこぼしを修正。V2 motionの完了契約と他の機能は未完了 |
-| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声に非同期停止待ち付きOperationQueue、サーボUARTに共通の上限・期限付きFIFOを接続。会話・USB・motion全体の調停は未完了 |
-| F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの4教材とSDK型検査を追加。既存MOD／miniapp移行は未完了 |
+| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消しを接続。他機能と実機での到達確認は未完了 |
+| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声とV2 motionに停止待ち付きOperationQueue、サーボUARTに共通FIFOを接続。注視と単発移動を調停。会話・USB・V1移行は未完了 |
+| F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの5教材とSDK型検査を追加。既存MOD／miniapp移行は未完了 |
 | F6 アプリ構成 | 既定動作、診断、UI 拡張の責務と寿命を分ける。既定動作にも SDK と AppSession を使用 | 未着手 |
 | F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 共通 host runtime manifest と TTS 契約を一本化。ボード・残りの公開型・型検査は未完了 |
 | F8 設定・起動 | 型・検証・優先順位・secret・適用時点を共通設定サービスへ集約。オフライン教材を Wi-Fi 待機から独立 | V2起動をWi-Fi待機から独立。SettingsServiceとV1起動移行は未完了 |
-| F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTS stub の失敗通知、再生取消しと timer 回収を実装。能力 metadata と教材適合は未完了 |
+| F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTSの失敗・取消し、motionの構造化bridgeと推定完了、WASMの経過時計を接続。その他の能力metadataと教材適合は未完了 |
 | F10 検査・配布 | 公開依存・JS / TS 教材・型・ライフサイクルを実効的に検査。V2 metadata を Web / CLI / SD / WASM で起動前検証 | SDKのAST依存検査と全新教材のstrict検査を追加。V2 metadata配布は未完了 |
 
 ## 固定する設計判断
@@ -50,7 +50,7 @@
 
 ## 次に接続するもの
 
-1. V2の基本SDK・AppSessionは接続済み。motion・録音・カメラ・会話・設定の公開サービスと拡張を実装し、既存MOD／miniappへ移行する。
+1. V2の基本SDK・motion・AppSessionは接続済み。録音・カメラ・会話・設定の公開サービスと拡張を実装し、既存MOD／miniappへ移行する。
 2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTとPY32 expanderの終了は接続済み。boot services、native音声エンジン、WASMカメラの下位資源を終了経路へ接続する。V1の直接参照と機器置換の寿命も継続して扱う。
 3. 音声出力の個別取消しはAppSessionへ接続済み。音声入力と出力、WASM bridgeのclose、会話とUSBの資源を調停する。
 4. motion controllerのドライバー交換にcallbackの世代管理を接続した。native TTSの出力、AppSessionの使用権、V1の直接参照へも接続を進める。共通キューは非同期停止の確認を待ち、解放失敗後に後続操作を開始しない。
@@ -85,6 +85,7 @@ npm run mod:build -- lessons/01-face/manifest.json
 npm run mod:build -- lessons/02-tone/manifest.json
 npm run mod:build -- lessons/03-input/manifest.json
 npm run mod:build -- lessons/04-speech/manifest.json
+npm run mod:build -- lessons/05-motion/manifest.json
 ```
 
 Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが既定の場所にない環境では `CHROMIUM_PATH` に実行ファイルを指定する。実機の電源・音質・可動域の受入は未検証のままである。
@@ -141,3 +142,15 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - CoreS3 release（6,456,944 bytes）、PWM機種takao_core2_sg90 release（3,759,504 bytes）、WASMのビルドが成功。新しいWASMホストで、ブラウザー上の4教材すべての受入も成功した。
 
 契約と限界は [操作の停止待ちとmotionのドライバー世代](motion-operation-lifecycle.md)。低レベルcallbackと再利用バッファは維持している。この段階ではV2のmotion API、到達と推定の区別、注視と単発移動の調停、実機受入は未完了。今回のキュー変更だけで、各機種の物理停止やAppSessionの全使用権を接続したことにはしない。F1〜F10の実装を継続する。
+
+## V2 motionと教材の接続（2026-09-06）
+
+- 公開SDKへ `motion.move` / `lookAt` / `lookAway` / `stop` と能力・可動域の型を追加した。角度を度、時間をmsで検証し、初期位置からの軌道、最終送信、実測可能な機種の2回の到達確認を共通エンジンで扱う。PWMとWASMは推定完了を返す。
+- AppSessionがmotionサービスを所有し、アプリ終了時に停止・保持・対応機種のトルク解除を待つ。raw機器はHostに保持する。注視先は一つに集約し、単発移動の停止・実行・最新の注視先への復帰を同じキューで扱う。
+- サーボごとのportを追加し、DYNAMIXELの自動制御から操作権を受け渡す。準備中に権利を解除した後の遅延ACKからトルクを再投入しない。必要なPY32電源の未検出はmotionのunavailableとして公開する。SCServoの読み取り中心とM5StackChanのclampされた測定も修正した。
+- WASMはprivateなbrowser driverへC bridgeから値を送り、利用先不在や送信失敗を成功に置き換えない。実ブラウザーで、Moddable 9.5の未実装 `Time.ticks` により軌道が進まない問題を検出した。共通 `clock-ticks` にWASMの経過時計を接続し、manifestで既定実装を明示的に除外する。JS/TSの混在した別名解決をビルド成功だけで判断しない。
+- 新しいJavaScriptの首振り教材とSDK文書・motionの設計記録・minor changesetを追加した。
+- 最終検証: Node479件、構成検査79件、SDK strict検査、6機種のmanifest、Biomeが成功。全53 XS manifestが成功（78.0秒）。新しい試験は実TimerとPWMを通した100回のAppSession寿命、実プロトコル上のDYNAMIXELの制御権、停止中のBUSYとCANCELLED、停止失敗後の利用不可状態を含む。
+- 最終ソースからCoreS3 release（6,489,712 bytes）、PWM機種takao_core2_sg90 release（3,792,272 bytes）、WASMのビルドが成功した。5教材すべてをChromium上の生成済みWASMホストへ順に読み込み、音声の再生開始、入力、首の3軌道の順序・最終指令・経過時間の受入が成功した。Host descriptorは引き続き `9.5.0+stackchan.1` で、V2配布metadataは未完了。
+
+現段階でもF1〜F10全体は未完了。全V1 MODの移行、既定動作、音声入出力・会話・USBの調停、設定とボードの正本、V2配布metadata、実機および初学者による受入を継続する。desktop版Timeの壁時計依存と、既存入力を含む各platformの時刻入口の統一も残る。

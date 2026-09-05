@@ -337,6 +337,76 @@ async function initialDynamixelGoal(): Promise<void> {
   driver.close()
 }
 
+async function managedDynamixel(): Promise<void> {
+  const driver = new DynamixelDriver({ panId: 1, tiltId: 2, baud: 1_000_000 })
+  const serial = serials[serials.length - 1]
+  const positions = [0, 2304, 2000]
+  const goals: number[] = []
+  const torque: boolean[] = []
+  let pauseCurrent = false
+  let heldId: number | undefined
+  serial.onWrite = (packet) => {
+    const id = packet[4]
+    const address = packet[8] | (packet[9] << 8)
+    if (packet[7] === 3 && address === 116) {
+      positions[id] = packet[10] | (packet[11] << 8) | (packet[12] << 16) | (packet[13] << 24)
+      if (id === 1) goals.push(positions[id])
+    }
+    if (packet[7] === 3 && address === 64) torque.push(packet[10] !== 0)
+    if (pauseCurrent && packet[7] === 3 && address === 102) {
+      pauseCurrent = false
+      heldId = id
+      return
+    }
+    const value = positions[id]
+    serial.emit(dxResponse(id, packet[7] === 2 ? [value & 255, (value >> 8) & 255, 0, 0] : []))
+  }
+  driver.onAttached()
+  await waitForCompletion((done) => driver.motion.prepare(done))
+  equal(goals[0], 2304, 'managed initialization holds the sampled pose before enabling torque')
+  const idleWrites = serial.writes.length
+  await wait(150)
+  equal(serial.writes.length, idleWrites, 'autonomous control cannot run while the motion service owns it')
+  positions[1] = 2560
+  await waitForCompletion((done) =>
+    driver.motion.read((sample) => {
+      assert(sample.success, 'managed read provides a fresh position')
+      if (sample.success) assert(Math.abs(sample.value.y - Math.PI / 4) < 0.000001)
+      done()
+    }),
+  )
+  await waitForCompletion((done) => driver.motion.write({ y: 0.25, p: 0, r: 0 }, done))
+  equal(
+    goals[goals.length - 1],
+    Math.floor((((0.25 * 180) / Math.PI + 180) * 4096) / 360),
+    'managed write completes after sending its actual target',
+  )
+  driver.motion.release()
+  const releasedWrites = serial.writes.length
+  await wait(145)
+  assert(serial.writes.length > releasedWrites, 'background holding resumes after release')
+
+  const torqueStart = torque.length
+  pauseCurrent = true
+  let prepareError: unknown
+  driver.motion.prepare((error) => {
+    prepareError = error
+  })
+  for (let i = 0; i < 30 && heldId === undefined; i++) await wait(1)
+  assert(heldId !== undefined, 'the test pauses an in-flight preparation command')
+  driver.motion.release(new Error('stop deadline expired'))
+  const relax = waitForCompletion((done) => driver.setTorque(false, done))
+  serial.emit(dxResponse(heldId))
+  await relax
+  await wait(5)
+  assert(prepareError instanceof Error, 'late preparation observes the revoked control generation')
+  assert(
+    torque.slice(torqueStart).every((enabled) => !enabled),
+    'revoked preparation cannot re-enable torque after owner shutdown',
+  )
+  driver.close()
+}
+
 async function run(): Promise<void> {
   resetSerials()
   await lifetimes()
@@ -345,6 +415,7 @@ async function run(): Promise<void> {
   await driverOwnership()
   await changedDynamixelGoal()
   await initialDynamixelGoal()
+  await managedDynamixel()
   equal(openPorts.size, 0)
   assert(
     serials.every((serial) => serial.closes === 1),

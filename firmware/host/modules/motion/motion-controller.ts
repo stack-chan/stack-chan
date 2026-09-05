@@ -1,3 +1,4 @@
+import type { MotionPort } from 'motion-port'
 import {
   type Maybe,
   type Pose,
@@ -19,6 +20,7 @@ export type MotionCompletion = (error?: unknown) => void
 export type MotionResultCallback<T> = (result: T) => void
 
 export type MotionDriver = {
+  readonly motion?: MotionPort
   applyRotation: (ori: RotationType, time?: MotionDurationSeconds, callback?: MotionCompletion) => void
   getRotation: (callback: MotionResultCallback<Maybe<RotationType>>) => void
   setTorque: (torque: boolean, callback?: MotionCompletion) => void

@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict'
+import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import Microphone from '../../modules/audio/wasm/microphone.js'
 import Speaker from '../../modules/audio/wasm/speaker.js'
 import FallbackCamera from '../../modules/camera/lin/camera.js'
 import Camera from '../../modules/camera/wasm/camera.js'
-import { WasmDriver } from '../../modules/motion/wasm/wasm-driver.js'
+import { writeAliasPackage } from '../../modules/testing/node-alias-package.js'
+
+const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+writeAliasPackage(hostRoot, 'motion-port', resolve(hostRoot, 'modules/motion/motion-port.js'))
+const { WasmDriver } = await import('../../modules/motion/wasm/wasm-driver.js')
 
 type Rotation = { y: number; p: number; r: number }
 type MotionCompletion = (error?: unknown) => void

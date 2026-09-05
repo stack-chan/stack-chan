@@ -1,0 +1,19 @@
+{
+  "include": [
+    "../../../modules/motion/manifest.json",
+    "../../../modules/testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./runtime-motion.test",
+    "runtime-motion": "../../runtime-motion",
+    "motion-execution": "../../motion-execution",
+    "operation-queue": "../../operation-queue",
+    "owned-resources": "../../owned-resources",
+    "cancellation": "../../cancellation",
+    "app-session": "../../app-session",
+    "task-scope": "../../task-scope",
+    "embedded:io/pwm": "../../../modules/motion/__tests__/fakes/pwm",
+    "py32-io-expander": "../../../modules/motion/__tests__/fakes/py32-io-expander-stub"
+  },
+  "defines": { "main": { "async": 1 } }
+}

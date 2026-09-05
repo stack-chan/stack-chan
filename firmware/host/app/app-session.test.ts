@@ -41,6 +41,16 @@ function fixture() {
   const presses = new Set<() => void>()
   const errors: unknown[] = []
   const ports: AppPorts = {
+    motion: {
+      info: { availability: 'unavailable', reason: 'No test motion device' },
+      async move() {
+        throw new Error('No test motion device')
+      },
+      lookAt() {},
+      lookAway() {},
+      async stop() {},
+      async close() {},
+    },
     face: { setEmotion() {}, setMouthOpen() {}, setColor() {} },
     audio: { async say() {}, async tone() {}, async playClip() {} },
     input: {

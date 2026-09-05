@@ -5,6 +5,7 @@ import {
   motionDurationSecondsToCentiseconds,
 } from 'motion-controller'
 import { reasonFromError } from 'motion-driver-callback'
+import { directMotionPort, motionInfo } from 'motion-port'
 import RS30X from 'protocols/rs30x'
 import { ServoDriverResources } from 'servo-driver-resources'
 import type { Maybe, Rotation } from 'stackchan-util'
@@ -15,6 +16,7 @@ type RS30XDriverProps = {
 }
 
 export class RS30XDriver {
+  readonly motion = directMotionPort(this, motionInfo('measured', [-150, 150], [-10, 25]))
   #resources = new ServoDriverResources()
   _pan: RS30X
   _tilt: RS30X

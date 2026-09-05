@@ -7,6 +7,7 @@ import type { CancellationSignal, TaskContext, TaskHandler } from 'stackchan/tas
 import { TaskScope } from 'task-scope'
 
 export type AppPorts = Pick<AppContext, 'face' | 'audio' | 'ui' | 'capabilities'> & {
+  motion: AppContext['motion'] & { close(): Promise<void> }
   input: { subscribePress(handler: () => void): () => void }
 }
 export type AppSessionState = 'created' | 'starting' | 'running' | 'closing' | 'closed'
@@ -49,6 +50,22 @@ export class AppSession {
         playClip: (name, options) =>
           this.#run(({ signal }) => ports.audio.playClip(name, { ...options, signal }), options?.signal),
         tone: (hz, options) => this.#run(({ signal }) => ports.audio.tone(hz, { ...options, signal }), options?.signal),
+      }),
+      motion: Object.freeze({
+        get info() {
+          return ports.motion.info
+        },
+        move: (target, options) =>
+          this.#run(({ signal }) => ports.motion.move(target, { ...options, signal }), options?.signal),
+        lookAt: (target) => {
+          this.#assertOpen()
+          ports.motion.lookAt(target)
+        },
+        lookAway: () => {
+          this.#assertOpen()
+          ports.motion.lookAway()
+        },
+        stop: () => this.#run(() => ports.motion.stop()),
       }),
       input: Object.freeze({
         onPress: (name, handler) => {
@@ -130,6 +147,7 @@ export class AppSession {
       this.#state = 'closing'
       const cleanup = new ResourceScope([
         () => this.#ports.ui.hideBalloon(),
+        () => this.#ports.motion.close(),
         () => this.#resources.close(),
         () => this.#tasks.close(),
       ])

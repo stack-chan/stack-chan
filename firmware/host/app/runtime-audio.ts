@@ -2,11 +2,13 @@ import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { TTS, WebRadioCapability, WebRadioStartOptions } from 'capabilities'
 import type Microphone from 'microphone'
 import { OperationQueue } from 'operation-queue'
+import { OwnedResources, ResourceScope } from 'owned-resources'
+import { ownMicrophone, ownTTS, ownWebRadio } from 'runtime-resources'
 import type Speaker from 'speaker'
 import type { CapabilityStatus, PlaybackOptions } from 'stackchan/app'
 import { finiteNumber, StackchanError } from 'stackchan/errors'
 import type { CancellationSignal } from 'stackchan/task'
-import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
+import { type Maybe, waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
 
 export type RuntimeAudioConstructorParam = {
@@ -14,7 +16,7 @@ export type RuntimeAudioConstructorParam = {
   clipPlayer?: TTS
   ttsKind?: 'speech' | 'clips' | 'unavailable'
   simulated?: boolean
-  microphone?: Pick<Microphone, 'record' | 'stop'>
+  microphone?: Pick<Microphone, 'record' | 'stop'> & { close?: () => void }
   speaker?: Pick<Speaker, 'tone' | 'play'> & { cancelPlayback?: (reason?: unknown) => void; close?: () => void }
   webRadio?: WebRadioCapability
 }
@@ -31,6 +33,10 @@ export class StackchanRuntimeAudio {
   #clips: TTS | undefined
   #webRadio: WebRadioCapability | undefined
   #closed = false
+  #devices: ResourceScope
+  #shutdown: OwnedResources | undefined
+  #releaseTTS: (() => void) | undefined
+  #providers = new Set<TTS>()
   #ttsKind: NonNullable<RuntimeAudioConstructorParam['ttsKind']>
   #simulated: boolean
   #output = new OperationQueue({
@@ -50,7 +56,7 @@ export class StackchanRuntimeAudio {
     },
   })
 
-  constructor(params: RuntimeAudioConstructorParam, options: RuntimeAudioOptions = {}) {
+  constructor(params: RuntimeAudioConstructorParam, options: RuntimeAudioOptions = {}, devices?: ResourceScope) {
     this.#options = options
     this.#ttsKind = params.ttsKind ?? 'speech'
     this.#clips = params.clipPlayer ?? (this.#ttsKind === 'clips' ? params.tts : undefined)
@@ -58,7 +64,21 @@ export class StackchanRuntimeAudio {
     this.#microphone = params.microphone
     this.#speaker = params.speaker
     this.#webRadio = params.webRadio
-    this.useTTS(params.tts)
+    this.#devices = devices ?? new ResourceScope()
+    this.#providers.add(params.tts)
+    if (params.clipPlayer) this.#providers.add(params.clipPlayer)
+    if (!devices) {
+      for (const provider of this.#providers) ownTTS(this.#devices, provider)
+      if (params.microphone) ownMicrophone(this.#devices, params.microphone)
+      if (params.speaker) this.#devices.defer(() => params.speaker.close?.())
+      if (params.webRadio) ownWebRadio(this.#devices, params.webRadio)
+    }
+    try {
+      this.useTTS(params.tts)
+    } catch (error) {
+      void this.close().catch((cleanupError) => trace(`[audio] cleanup failed: ${String(cleanupError)}\n`))
+      throw error
+    }
   }
 
   get microphone() {
@@ -95,17 +115,35 @@ export class StackchanRuntimeAudio {
   useTTS(tts: TTS) {
     if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
     if (this.#output.busy) throw new StackchanError('BUSY', 'Cannot replace TTS during playback')
-    if (this.#tts != null) {
-      this.#tts.onDone = noop
-      this.#tts.onPlayed = noop
+    if (this.#tts === tts) return
+    this.#releaseTTS?.()
+    if (!this.#providers.has(tts)) {
+      ownTTS(this.#devices, tts)
+      this.#providers.add(tts)
     }
     this.#tts = tts
-    this.#tts.onPlayed = (volume: number) => {
+    const previousPlayed = tts.onPlayed
+    const previousDone = tts.onDone
+    let active = true
+    const played = (volume: number) => {
+      if (!active || this.#closed) return
       this.#options.onMouthOpenChanged?.(volume === 0 ? 0 : Math.min(volume / 2000, 1.0))
     }
-    this.#tts.onDone = () => {
+    const done = () => {
+      if (!active || this.#closed) return
       this.#options.onMouthOpenChanged?.(0)
     }
+    this.#releaseTTS = () => {
+      if (!active) return
+      active = false
+      try {
+        if (tts.onPlayed === played) tts.onPlayed = previousPlayed
+      } finally {
+        if (tts.onDone === done) tts.onDone = previousDone
+      }
+    }
+    tts.onPlayed = played
+    tts.onDone = done
   }
 
   async say(text: string, volume?: number): Promise<Maybe<string>> {
@@ -223,29 +261,16 @@ export class StackchanRuntimeAudio {
     )
   }
 
-  close(): void {
-    if (this.#closed) return
-    this.#closed = true
-    this.#tts.onPlayed = noop
-    this.#tts.onDone = noop
-    this.#output.close()
-    this.#input.close()
-    let firstError: unknown
-    let failed = false
-    for (const cleanup of [
-      () => this.#webRadio?.stop(),
-      () => this.#microphone?.stop(),
-      () => this.#speaker?.close?.(),
-    ]) {
-      try {
-        cleanup()
-      } catch (error) {
-        if (!failed) {
-          firstError = error
-          failed = true
-        }
-      }
+  close(): Promise<void> {
+    if (!this.#shutdown) {
+      this.#closed = true
+      this.#shutdown = new OwnedResources([
+        () => this.#releaseTTS?.(),
+        () => this.#output.close(),
+        () => this.#input.close(),
+        () => this.#devices.close(),
+      ])
     }
-    if (failed) throw firstError
+    return this.#shutdown.close()
   }
 }

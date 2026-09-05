@@ -24,6 +24,7 @@ export type MotionDriver = {
   setTorque: (torque: boolean, callback?: MotionCompletion) => void
   onAttached?: () => void
   onDetached?: () => void
+  close?: () => void
 }
 
 export type MotionControllerPose = {
@@ -114,7 +115,18 @@ export class MotionController {
   constructor(params: MotionControllerConstructorParam, options: MotionControllerOptions) {
     this.#options = options
     this.#pose = params.pose ?? createDefaultPose()
-    this.useDriver(params.driver)
+    try {
+      this.useDriver(params.driver)
+    } catch (error) {
+      // The host still owns the driver when attaching it fails.
+      // Undo controller callbacks/timers before the host releases the device.
+      try {
+        this.close()
+      } catch (cleanupError) {
+        trace(`[MotionController] attach cleanup failed: ${String(cleanupError)}\n`)
+      }
+      throw error
+    }
   }
 
   get driver(): MotionDriver {

@@ -8,7 +8,7 @@
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
 | F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDKとdefineAppを追加しhostへ接続。motion・録音・会話・高度な拡張は未完了 |
-| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | 共通 ResourceScope、音声取消し、motion の終了を実装。AppSessionをhostへ接続し、取消しと個別キュー操作を接続。composeのrollbackは未完了 |
+| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラの終了を接続。サーボ通信の物理close、共有I/O expander、boot services、WASMカメラの下位資源管理などは継続 |
 | F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clipと音声のError契約を接続。motionと他の機能は未完了 |
 | F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声に上限・期限付き OperationQueue を接続。会話・USB・motion・UART は未完了 |
 | F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの4教材とSDK型検査を追加。既存MOD／miniapp移行は未完了 |
@@ -51,7 +51,7 @@
 ## 次に接続するもの
 
 1. V2の基本SDK・AppSessionは接続済み。motion・録音・カメラ・会話・設定の公開サービスと拡張を実装し、既存MOD／miniappへ移行する。
-2. compose の取得直後の資源登録、開始失敗 rollback、runtime context の同一 close Promise、入力の解除と UI の終了を実装する。
+2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UART・I/O expander、boot services、native音声エンジン、WASMカメラの下位資源を終了経路へ接続する。V1の直接参照と機器置換の寿命も継続して扱う。
 3. 音声出力の個別取消しはAppSessionへ接続済み。音声入力と出力、WASM bridgeのclose、会話とUSBの資源を調停する。
 4. driver callback の世代管理を置換時と native TTS の出力にも適用する。資源解放失敗後に待機中の操作を開始しない契約をさらに検証する。
 5. 最小教材から残りの F1〜F10、配布・移行・実機受入まで続ける。現時点では全課題を解消した状態ではない。
@@ -60,7 +60,7 @@
 
 - `firmware/sdk` に基本AppContext、defineApp、CancellationSignalを追加。host内のTaskScopeとAppSessionがアプリ終了時に入力・周期処理・音声操作を閉じる。V1との混合を型検査で禁止した。
 - Node 439件、構成検査80件、6ターゲットのmanifest検査が成功。XSの100回AppSession試験と、Piuを含む実ホストcontextでの取消し・raw入力復元試験が成功した。
-- Linuxホストのビルドが成功。4つの新規JavaScript教材はstrict型検査が成功。教材の実機・ブラウザーでの動作確認は未実施。
+- Linuxホストのビルドが成功。4つの新規JavaScript教材はstrict型検査が成功。この段階では実機・ブラウザー受入は未実施（後述のWASM受入でブラウザーは確認済み）。
 - 共通manifestからmainを切り離した。起動入口はnative / WASM rootが選び、試験から共通ランタイムを再利用できる。native依存もmanifest_nativeにまとめた。
 - ESP-IDF 6.1と必要ツールを別ディレクトリーへ導入。CoreS3リリースビルド（6,415,984 bytes）と全48 XS試験が成功。Host descriptorのAPI世代は既存値1のままで、V2配布metadataとともに更新する作業が未完了。
 
@@ -79,6 +79,7 @@ npm run check:architecture
 npm run check:manifest
 npm run test:moddable
 npm run build:release:m5stackchan_cores3
+npm run build:release:takao_core2_sg90
 npm run build:wasm
 npm run mod:build -- lessons/01-face/manifest.json
 npm run mod:build -- lessons/02-tone/manifest.json
@@ -87,3 +88,19 @@ npm run mod:build -- lessons/04-speech/manifest.json
 ```
 
 Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが既定の場所にない環境では `CHROMIUM_PATH` に実行ファイルを指定する。実機の電源・音質・可動域の受入は未検証のままである。
+
+
+## 起動失敗の回収とUI・入力の終了（2026-09-06）
+
+- `RuntimeResources` を導入し、composeが返り値を受け取った機器を直ちにサービス別の子スコープへ登録する。`StackchanRuntimeContext.create()` は初期化と失敗時の回収を一つの非同期処理にまとめた。runtimeからのcloseとcomposeのrollbackは同じ子スコープを閉じ、登録済み機器を二重に解放しない。
+- 入力のrawボタンの復元、音声の購読解除、UIの吹き出し・drawer・miniapp・Piu viewの終了を接続した。入力・音声・UI・照明・カメラのruntime closeは同じ完了Promiseを返す。Dockはmainのスコープが所有し、context生成失敗後のcatchでも重ねてcloseしない。
+- カメラの進行中のcapture/startはcloseで失敗として完了し、後から返る画像は破棄する。停止失敗時にもnative入力と画像を解放し、タッチ入力を再開しない。非同期操作は15秒、終了時のstopは2秒で打ち切り、後続の解放を試みる。下位ドライバーの任意のclose自体を強制終了する契約ではない。
+- Touch / TouchPanel / IMUの終了を一度に限定し、終了後のイベントと再起動を抑止した。Touch・IMUでドライバー取得後に初期化が失敗した場合も、その入力を解放する。NeoPixelの出力closeとPY32 LEDのeffect timer停止も接続した。PY32の共有expanderをLED単独で閉じることはしない。
+- XSで、サーボattach・TTSのイベント登録・入力start・能力情報の構築の4段階に失敗を注入した。元のエラーを保持し、非同期の解放が終わってからrejectし、rawボタンの復元・Piu viewの除去・顔更新停止を確認した。カメラと入力の下位ライフサイクル試験も追加した。
+- 顔UIの単体試験でXSのスタック上限に達したため、エラー時だけ必要なローカル変数を構築の成功経路から切り離した。同じstack設定で再実行が成功した。単体UIテストからも資源管理を読み込めるよう、`manifest_resources.json`を共通化した。
+- 検証済み: Node 446件、構成検査80件、SDK strict検査、6機種のmanifest検査、全50 XS manifestが成功。最後に追加したUIのeffect除去失敗の試験も、対象のcontext-lifecycle manifestで成功した。
+- CoreS3のreleaseビルドは6,432,368 bytes、PWM機種 `takao_core2_sg90` は3,734,928 bytesで成功し、各app partitionに収まる。WASMビルドも成功した。Host descriptorのAPI世代は依然 `9.5.0+stackchan.1` であり、V2 metadata配布は未完了。
+- WASMでホスト起動からUI構築までの呼び出しが重なる場合にもスタック不足を検出した。非同期のcompose入口で呼び出し元が戻るのを待ってから機器を生成するよう変更し、全4教材のブラウザー受入が成功した。これはSDKの操作開始をmicrotaskへ移した前段の変更とは別の、ホスト構築の修正である。
+- この変更後もCoreS3 / PWM / WASMのビルドと対象XS試験を再実行した。実機での電源・入力・音声・サーボ動作の受入は未実施。
+
+この段階でもF1〜F10の解消は未完了。特にSCServo / DYNAMIXEL / RS30XのUART・ID登録の解放、共有expanderの寿命、boot servicesの取消し、WASMカメラのpoll/ブラウザー開始要求の取消し、native TTSエンジンの明示解放、各種置換とV1の直接参照を扱う作業が残る。登録スコープのテスト成功を、これら未接続の物理資源の回収成功とは見なさない。

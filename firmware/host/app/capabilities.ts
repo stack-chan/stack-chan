@@ -36,6 +36,7 @@ export type RobotLed = {
   off(index?: number, count?: number): void
   blink(r: number, g: number, b: number, duration: number, index?: number, count?: number): void
   rainbow(index?: number, count?: number): void
+  close?(): void | Promise<void>
 }
 
 export type { I18nCapability } from 'localization'
@@ -43,6 +44,7 @@ export type { MiniAppContext, MiniAppDefinition, MiniAppInstance, MiniAppRegistr
 export type { DrawerButtonViewSpec, DrawerOption }
 
 export type RobotUI = {
+  close?(): void | Promise<void>
   readonly miniApps: MiniAppRegistryCapability
   update: (interval: number, faceState: FaceState) => void
   addEffect(effect: UIEffect, key?: string): void

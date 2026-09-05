@@ -10,6 +10,7 @@ import { type StackchanDockRuntime, startStackchanDock } from 'dock'
 import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'experimental-mini-app-loader'
 import { initializeLocalization } from 'localization'
 import Modules from 'modules'
+import { ResourceScope } from 'owned-resources'
 import type { StackchanRuntimeContext } from 'runtime-context'
 import { showStartupSplash, showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
 import { applyTimezone } from 'timezone-settings'
@@ -88,11 +89,15 @@ function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string
 
 async function main() {
   trace('[main] start\n')
+  const bootResources = new ResourceScope()
   let dockRuntime: StackchanDockRuntime | undefined
   let context: StackchanRuntimeContext | undefined
   try {
     dockRuntime = startStackchanDock(Modules, loadModConfig())
-    if (dockRuntime) trace('[main] Stackchan Dock started\n')
+    if (dockRuntime) {
+      bootResources.own(dockRuntime)
+      trace('[main] Stackchan Dock started\n')
+    }
     installPlatformInputBridge()
     initializeLocalization(loadPreferences(DOMAIN.ui).language)
     applyTimezone(loadPreferences(DOMAIN.time).timezone)
@@ -107,9 +112,7 @@ async function main() {
     trace(`[main] onLaunch shouldCreateContext=${launch.shouldCreateContext}\n`)
     if (!launch.shouldCreateContext) {
       installModManagerShortcut()
-      const unownedDock = dockRuntime
-      dockRuntime = undefined
-      unownedDock?.close()
+      await bootResources.close()
       return
     }
     const experimentalMiniApps = launch.prepared
@@ -131,10 +134,10 @@ async function main() {
     }
     const preferences = loadPreferenceConfig()
     const ownedDock = dockRuntime
-    context = createStackchanContext(preferences, {
+    context = await createStackchanContext(preferences, {
       connectivity: bootServices.connectivity,
       remoteConversationSession: ownedDock?.remoteConversationSession,
-      closeHandlers: ownedDock ? [() => ownedDock.close()] : undefined,
+      closeHandlers: [() => bootResources.close()],
     })
     ownedDock?.onContextCreated(context)
     registerExperimentalMiniApps(experimentalMiniApps, context.ui.miniApps)
@@ -150,7 +153,7 @@ async function main() {
   } catch (error) {
     try {
       if (context) await context.lifecycle.close()
-      else dockRuntime?.close()
+      else await bootResources.close()
     } catch (closeError) {
       trace(`[main] cleanup error ${closeError instanceof Error ? closeError.message : String(closeError)}\n`)
     }

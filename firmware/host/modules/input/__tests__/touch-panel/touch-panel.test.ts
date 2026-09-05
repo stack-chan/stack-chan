@@ -8,6 +8,7 @@ class FakeTouchPanelDriver {
   static current: FakeTouchPanelDriver | undefined
 
   closed = false
+  closeCount = 0
   sampleCount = 0
   #samples: number[][] = []
 
@@ -26,6 +27,7 @@ class FakeTouchPanelDriver {
 
   close(): void {
     this.closed = true
+    this.closeCount += 1
   }
 }
 
@@ -87,6 +89,15 @@ async function runTest(): Promise<void> {
   equal(survivingEvents.length, 4, 'another subscriber should continue receiving events')
 
   touchPanel.close()
+  touchPanel.close()
+  equal(driver.closeCount, 1, 'physical input closes once')
+  let restartFailed = false
+  try {
+    touchPanel.start()
+  } catch {
+    restartFailed = true
+  }
+  assert(restartFailed, 'closed input cannot restart polling')
   const samplesAfterClose = driver.sampleCount
   driver.queue([0, 1, 0])
   await wait(30)

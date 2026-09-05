@@ -16,6 +16,9 @@ import {
   type FaceThemeKey,
   setColorRGB,
 } from 'face-state'
+import { OwnedResources, ResourceScope } from 'owned-resources'
+import { ownUI } from 'runtime-resources'
+import { StackchanError } from 'stackchan/errors'
 import {
   type Pose,
   type Rotation,
@@ -68,12 +71,16 @@ export class StackchanRuntimeUI {
   #options: RuntimeUIOptions
   #relativeGazePoint: Vector3 = [0, 0, 0]
   #ui: RobotUI
+  #devices: ResourceScope
+  #shutdown: OwnedResources | undefined
 
-  constructor(ui: RobotUI, options: RuntimeUIOptions) {
+  constructor(ui: RobotUI, options: RuntimeUIOptions, devices?: ResourceScope) {
     this.#ui = ui
     this.#options = options
     this.#faceState = createFaceState()
     this.#emotion = this.#faceState.emotion
+    this.#devices = devices ?? new ResourceScope()
+    if (!devices) ownUI(this.#devices, ui)
     this.#drawerRegistry = {
       addDrawerButton: (button) => this.addDrawerButton(button),
       removeDrawerButton: (key) => this.removeDrawerButton(key),
@@ -91,13 +98,16 @@ export class StackchanRuntimeUI {
   }
 
   useUI(ui: RobotUI) {
+    this.#assertOpen()
     if (ui === this.#ui) return
+    ownUI(this.#devices, ui)
     this.detachDrawerBindings()
     this.#ui = ui
     this.rebuildDrawerBindings()
   }
 
   showBalloon(text: string, option: ShowBalloonOptions = {}) {
+    this.#assertOpen()
     if (this.#balloon != null && sameBalloonOptions(this.#balloonOptions, option)) {
       const behavior = this.#balloon.behavior as SpeechBalloonBehavior | undefined
       if (behavior?.setText) {
@@ -112,11 +122,10 @@ export class StackchanRuntimeUI {
   }
 
   hideBalloon() {
-    if (this.#balloon != null) {
-      this.#ui.removeEffect(this.#balloon)
-      this.#balloon = null
-      this.#balloonOptions = null
-    }
+    const balloon = this.#balloon
+    this.#balloon = null
+    this.#balloonOptions = null
+    if (balloon != null) this.#ui.removeEffect(balloon)
   }
 
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void {
@@ -142,7 +151,7 @@ export class StackchanRuntimeUI {
   }
 
   updateFace(interval: number) {
-    if (this.#options.isPaused()) {
+    if (this.#shutdown || this.#options.isPaused()) {
       return
     }
 
@@ -169,6 +178,7 @@ export class StackchanRuntimeUI {
   }
 
   private addDrawerButton({ key, label, callback, kind, initialState, value, options, icon }: DrawerButtonSpec): void {
+    this.#assertOpen()
     const spec = { key, label, callback, kind, initialState, value, options, icon }
     this.#drawerButtonSpecs.set(key, spec)
     this.bindDrawerButton(spec)
@@ -180,6 +190,7 @@ export class StackchanRuntimeUI {
 
   private bindDrawerButton({ key, callback }: DrawerButtonSpec): void {
     const runCallback = (value?: string) => {
+      if (this.#shutdown) return
       try {
         const result = callback(this.#options.getContext(), value)
         if (result && typeof (result as { catch?: (handler: (err: unknown) => void) => void }).catch === 'function') {
@@ -219,6 +230,21 @@ export class StackchanRuntimeUI {
     for (const key of this.#drawerButtonSpecs.keys()) {
       this.#ui.unbindDrawerAction(key)
     }
+  }
+
+  close(): Promise<void> {
+    if (!this.#shutdown) {
+      this.#shutdown = new OwnedResources([
+        () => this.hideBalloon(),
+        () => this.clearDrawerButtons(),
+        () => this.#devices.close(),
+      ])
+    }
+    return this.#shutdown.close()
+  }
+
+  #assertOpen(): void {
+    if (this.#shutdown) throw new StackchanError('CLOSED', 'UI is closed')
   }
 
   private rebuildDrawerBindings(): void {

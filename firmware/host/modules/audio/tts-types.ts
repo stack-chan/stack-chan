@@ -10,4 +10,5 @@ export type TTS = {
   onDone?: TTSDoneListener
   /** Cancels the current playback, releases its resources, and completes with an error. */
   cancelPlayback?: (reason?: unknown) => void
+  close?: () => void | Promise<void>
 }

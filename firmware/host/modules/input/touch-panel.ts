@@ -32,6 +32,7 @@ export default class TouchPanel {
   #interval: number
   #listeners = new Set<(event: TouchPanelInputEvent) => void>()
   #sampleErrorReported = false
+  #closed = false
   #lastSample: TouchPanelSample = []
   onEvent?: (event: TouchPanelInputEvent) => void
 
@@ -53,6 +54,7 @@ export default class TouchPanel {
   }
 
   configure(options: TouchPanelOptions): void {
+    if (this.#closed) throw new Error('Touch panel is closed')
     if (options.interval !== undefined) {
       this.#interval = options.interval
       if (this.#timer) {
@@ -68,14 +70,17 @@ export default class TouchPanel {
   }
 
   subscribe(listener: (event: TouchPanelInputEvent) => void): () => void {
+    if (this.#closed) throw new Error('Touch panel is closed')
     this.#listeners.add(listener)
     return () => this.#listeners.delete(listener)
   }
 
   start(): void {
+    if (this.#closed) throw new Error('Touch panel is closed')
     if (this.#timer) return
     trace(`[TouchPanel] start interval=${this.#interval}ms\n`)
     this.#timer = Timer.repeat(() => {
+      if (this.#closed) return
       const ticks = Time.ticks
       let sample: TouchPanelSample
       try {
@@ -108,14 +113,21 @@ export default class TouchPanel {
   }
 
   close(): void {
-    this.stop()
+    if (this.#closed) return
+    this.#closed = true
+    this.onEvent = undefined
     this.#listeners.clear()
-    this.#driver.close?.()
+    try {
+      this.stop()
+    } finally {
+      this.#driver.close?.()
+    }
   }
 
   #emit(event: TouchPanelInputEvent): void {
     const listeners = this.onEvent ? [this.onEvent, ...this.#listeners] : [...this.#listeners]
     for (const listener of listeners) {
+      if (this.#closed) break
       try {
         listener(event)
       } catch (error) {

@@ -12,6 +12,7 @@ export default class PY32Led {
   #blinkTimer?: Timer
   #rainbowTimer?: Timer
   #expander?: PY32IOExpander
+  #closed = false
 
   constructor(parameters: { length?: number; ledPin?: number; address?: number }) {
     this.length = Math.max(1, Math.min(PY32_LED_MAX_COUNT, parameters.length ?? 12))
@@ -55,30 +56,37 @@ export default class PY32Led {
   }
 
   on(r: number, g: number, b: number, duration?: number, index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     this.#stopEffect()
     this.#fill(r, g, b, index, count)
     if (duration) {
-      this.#offTimer = Timer.set(() => this.off(index, count), duration)
+      this.#offTimer = Timer.set(() => {
+        if (!this.#closed) this.off(index, count)
+      }, duration)
     }
   }
 
   off(index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     this.#stopEffect()
     this.#fill(0, 0, 0, index, count)
   }
 
   blink(r: number, g: number, b: number, duration: number, index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     this.#stopEffect()
     if (!this.#expander) return
     let enabled = false
     const period = Math.max(50, Math.trunc(duration / 2))
     this.#blinkTimer = Timer.repeat(() => {
+      if (this.#closed) return
       enabled = !enabled
       this.#fill(enabled ? r : 0, enabled ? g : 0, enabled ? b : 0, index, count)
     }, period)
   }
 
   rainbow(index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     this.#stopEffect()
     const expander = this.#expander
     if (!expander) return
@@ -92,6 +100,7 @@ export default class PY32Led {
     ] as const
     let offset = 0
     this.#rainbowTimer = Timer.repeat(() => {
+      if (this.#closed) return
       const { start, end } = normalizeLedRange(this.length, index, count)
       for (let i = start; i < end; i++) {
         const [r, g, b] = colors[(i + offset) % colors.length]
@@ -100,5 +109,16 @@ export default class PY32Led {
       expander.refreshLeds()
       offset = (offset + 1) % colors.length
     }, 100)
+  }
+  close(): void {
+    if (this.#closed) return
+    this.#closed = true
+    try {
+      this.#stopEffect()
+      this.#fill(0, 0, 0)
+    } finally {
+      // The board owns the shared expander (servo power and LEDs use it).
+      this.#expander = undefined
+    }
   }
 }

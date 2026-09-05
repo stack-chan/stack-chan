@@ -28,13 +28,23 @@ export default class IMU {
   #interval: number
   #lastSample: IMUSample = {}
   #sampleErrorReported = false
-  onEvent: (event: IMUInputEvent) => void
+  #closed = false
+  onEvent?: (event: IMUInputEvent) => void
 
   constructor(IMUConstructor: IMUConstructor, options: IMUOptions = {}) {
     this.#recognizer = new MotionRecognizer(options)
     this.#driver = new IMUConstructor({})
     this.#interval = options.interval ?? 100
-    this.#driver.configure?.({ order: 'zxy' })
+    try {
+      this.#driver.configure?.({ order: 'zxy' })
+    } catch (error) {
+      try {
+        this.close()
+      } catch (cleanupError) {
+        trace(`[IMU] cleanup failed: ${String(cleanupError)}\n`)
+      }
+      throw error
+    }
   }
 
   #sample(): IMUSample {
@@ -43,8 +53,10 @@ export default class IMU {
   }
 
   start(): void {
+    if (this.#closed) throw new Error('IMU is closed')
     if (this.#timer) return
     this.#timer = Timer.repeat(() => {
+      if (this.#closed) return
       const ticks = Time.ticks
       let sample: IMUSample
       try {
@@ -72,8 +84,14 @@ export default class IMU {
   }
 
   close(): void {
-    this.stop()
-    this.#driver.close?.()
+    if (this.#closed) return
+    this.#closed = true
+    this.onEvent = undefined
+    try {
+      this.stop()
+    } finally {
+      this.#driver.close?.()
+    }
   }
 }
 

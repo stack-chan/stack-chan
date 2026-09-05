@@ -1,0 +1,11 @@
+{
+  "include": ["../../manifest.json", "../../../testing/manifest.json"],
+  "modules": {
+    "main": "./input-lifecycle.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  }
+}

@@ -6,9 +6,12 @@ import { fileURLToPath } from 'node:url'
 import type { BorrowedAudioBuffer } from '../../modules/audio/audio-buffer.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../../modules/testing/node-alias-package.js'
 
+import { installRuntimeTestAliases } from './runtime-test-aliases.js'
+
 type RuntimeAudioModule = typeof import('../runtime-audio.js')
 
 function installBareSpecifierPackages(): void {
+  installRuntimeTestAliases()
   const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
   writeAliasPackage(hostRoot, 'operation-queue', resolve(hostRoot, 'app/operation-queue.js'))
   writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
@@ -54,8 +57,8 @@ test('V2 audio keeps text and resource playback separate while sharing one outpu
   const local = new StackchanRuntimeAudio({ tts: fakeTTS(), ttsKind: 'clips' })
   await assert.rejects(local.speak('こんにちは'), { code: 'UNSUPPORTED' })
   await local.playClip('hello')
-  runtime.close()
-  local.close()
+  await runtime.close()
+  await local.close()
 })
 
 test('StackchanRuntimeAudio forwards singing koe to providers that support it', async () => {
@@ -150,7 +153,7 @@ test('StackchanRuntimeAudio close stops the microphone and detaches TTS callback
   let mouthOpen = -1
 
   const runtime = new StackchanRuntimeAudio({ tts, microphone }, { onMouthOpenChanged: (value) => (mouthOpen = value) })
-  runtime.close()
+  await runtime.close()
 
   assert.equal(stopped, true)
   const playbackTTS = runtime.tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
@@ -177,7 +180,7 @@ test('StackchanRuntimeAudio close detaches TTS callbacks even when the microphon
 
   const runtime = new StackchanRuntimeAudio({ tts, microphone }, { onMouthOpenChanged: (value) => (mouthOpen = value) })
 
-  assert.throws(() => runtime.close(), /stop failure/)
+  await assert.rejects(runtime.close(), /stop failure/)
   const ttsCallbacks = runtime.tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
   ttsCallbacks.onPlayed?.(2000)
   ttsCallbacks.onDone?.()
@@ -287,7 +290,7 @@ test('StackchanRuntimeAudio close stops WebRadio', async () => {
       setVolume: () => {},
     },
   })
-  runtime.close()
+  await runtime.close()
   assert.equal(stopped, true)
 })
 
@@ -305,6 +308,7 @@ test('close cancels in-flight speech, rejects queued tone, and suppresses late c
       },
       cancelPlayback() {
         cancelled += 1
+        this.cancelPlayback = undefined
       },
     },
     speaker: {
@@ -318,7 +322,7 @@ test('close cancels in-flight speech, rejects queued tone, and suppresses late c
   })
   const speech = runtime.say('hello')
   const tone = runtime.tone(440, 100)
-  runtime.close()
+  await runtime.close()
   await assert.rejects(tone, { code: 'CLOSED' })
   assert.equal((await speech).success, false)
   late?.()

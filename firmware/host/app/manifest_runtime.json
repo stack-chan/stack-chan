@@ -1,5 +1,5 @@
 {
-  "include": ["../../sdk/manifest.json"],
+  "include": ["./manifest_resources.json"],
   "modules": {
     "*": [
       "./app-behavior",
@@ -22,7 +22,6 @@
       "./runtime-input",
       "./runtime-lighting",
       "./runtime-ui",
-      "./owned-resources",
       "./operation-queue",
       "./cancellation",
       "./task-scope",

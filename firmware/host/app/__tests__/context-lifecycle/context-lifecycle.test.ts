@@ -1,9 +1,152 @@
 import { createAppControllerApplication } from 'app-controller'
 import { SimpleFace } from 'behaviors/face'
 import { NoneDriver } from 'none-driver'
+import { Container } from 'piu/MC'
 import { StackchanRuntimeContext } from 'runtime-context'
 import { defineApp } from 'stackchan'
 import { assert, equal } from 'testing/assert'
+import Timer from 'timer'
+import TouchPanel from 'touch-panel'
+
+async function rejectsSame(promise: Promise<unknown>, expected: unknown): Promise<void> {
+  let rejected = false
+  try {
+    await promise
+  } catch (error) {
+    rejected = true
+    equal(error, expected, 'initialization error is preserved')
+  }
+  assert(rejected, 'initialization must reject')
+}
+
+async function verifyRollback(stage: 'motion' | 'audio' | 'input' | 'capability'): Promise<void> {
+  const failure = new Error(`failed ${stage}`)
+  const counts = {
+    ui: 0,
+    driver: 0,
+    detached: 0,
+    tts: 0,
+    speaker: 0,
+    camera: 0,
+    input: 0,
+    led: 0,
+    external: 0,
+    frames: 0,
+  }
+  const ui = createAppControllerApplication({ face: new SimpleFace() })
+  const application = ui.application
+  const closeUI = ui.close.bind(ui)
+  ui.close = () => {
+    counts.ui += 1
+    closeUI()
+    if (stage === 'input') throw new Error('cleanup also failed')
+  }
+  const update = ui.update.bind(ui)
+  ui.update = (interval, face) => {
+    counts.frames += 1
+    update(interval, face)
+  }
+  class Driver extends NoneDriver {
+    onAttached() {
+      if (stage === 'motion') throw failure
+    }
+    onDetached() {
+      counts.detached += 1
+    }
+    close() {
+      counts.driver += 1
+    }
+  }
+  class TouchDriver {
+    sample() {
+      return []
+    }
+    close() {
+      counts.input += 1
+    }
+  }
+  const touchPanel = new TouchPanel(TouchDriver)
+  if (stage === 'input')
+    touchPanel.start = () => {
+      throw failure
+    }
+  const previous = () => {}
+  const rawButton = { read: () => 1, onChanged: previous }
+  let onDone: (() => void) | undefined
+  const tts = {
+    stream() {},
+    close() {
+      counts.tts += 1
+    },
+    get onDone() {
+      return onDone
+    },
+    set onDone(value: (() => void) | undefined) {
+      if (stage === 'audio' && value) throw failure
+      onDone = value
+    },
+  }
+  await rejectsSame(
+    StackchanRuntimeContext.create({
+      driver: new Driver(),
+      ui,
+      tts,
+      touchPanel,
+      button: { a: rawButton },
+      speaker: {
+        async tone() {},
+        async play() {
+          return true
+        },
+        async close() {
+          await new Promise<void>((resolve) => Timer.set(() => resolve(), 1))
+          counts.speaker += 1
+        },
+      },
+      camera: {
+        start() {},
+        stop() {},
+        async capture() {
+          return undefined
+        },
+        close() {
+          counts.camera += 1
+        },
+      },
+      led: {
+        face: {
+          on() {},
+          off() {},
+          blink() {},
+          rainbow() {},
+          close() {
+            counts.led += 1
+          },
+        },
+      },
+      connectivity: {
+        get localPeer() {
+          if (stage === 'capability') throw failure
+          return undefined
+        },
+      },
+      closeHandlers: [
+        () => {
+          counts.external += 1
+        },
+      ],
+    }),
+    failure,
+  )
+  for (const [name, count] of Object.entries(counts)) {
+    if (name !== 'frames') equal(count, 1, `${stage}: ${name} is released exactly once before rejection`)
+  }
+  equal(rawButton.onChanged, previous, `${stage}: borrowed button is restored`)
+  assert(application.first === null || application.first === undefined, `${stage}: Piu view is removed`)
+  const frames = counts.frames
+  await new Promise<void>((resolve) => Timer.set(() => resolve(), 60))
+  equal(counts.frames, frames, `${stage}: no face timer survives initialization failure`)
+}
 
 async function run() {
   let previousCalls = 0
@@ -15,7 +158,7 @@ async function run() {
     previousCalls += 1
   }
   const rawButton = { read: () => 1, onChanged: previous }
-  const context = new StackchanRuntimeContext({
+  const context = await StackchanRuntimeContext.create({
     driver: new NoneDriver(),
     ui: createAppControllerApplication({ face: new SimpleFace() }),
     tts: {
@@ -72,6 +215,38 @@ async function run() {
   } catch (error) {
     equal((error as { code?: string }).code, 'CLOSED', 'closed host has a stable failure code')
   }
+  for (const stage of ['motion', 'audio', 'input', 'capability'] as const) await verifyRollback(stage)
+  let uiFailed = false
+  try {
+    createAppControllerApplication({ main: new Container() })
+  } catch {
+    uiFailed = true
+  }
+  assert(uiFailed, 'invalid Piu main fails during construction')
+  const replacement = createAppControllerApplication({ face: new SimpleFace() })
+  assert(replacement.application.first, 'a new controller can take ownership after UI construction fails')
+  replacement.close()
+  const effectUI = createAppControllerApplication({ face: new SimpleFace() })
+  const effectApplication = effectUI.application
+  const effectContext = await StackchanRuntimeContext.create({
+    driver: new NoneDriver(),
+    ui: effectUI,
+    tts: { stream() {} },
+  })
+  effectContext.showBalloon('cleanup')
+  let removals = 0
+  const removeFailure = new Error('effect removal failed')
+  effectUI.removeEffect = () => {
+    removals += 1
+    throw removeFailure
+  }
+  await rejectsSame(effectContext.lifecycle.close(), removeFailure)
+  effectContext.hideBalloon()
+  equal(removals, 1, 'failed effect removal does not leave a retained balloon registration')
+  assert(
+    effectApplication.first === null || effectApplication.first === undefined,
+    'effect removal failure still closes the Piu view',
+  )
   trace('ok\n')
 }
 

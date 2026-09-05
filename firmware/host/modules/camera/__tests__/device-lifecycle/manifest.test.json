@@ -1,0 +1,19 @@
+{
+  "include": [
+    "../../manifest.json",
+    "../../../testing/manifest.json",
+    "$(MODDABLE)/examples/manifest_commodetto.json"
+  ],
+  "modules": {
+    "device-camera": "../../device/camera",
+    "camera-capture-options": "../../device/capture-options",
+    "camera-initial-frame": "../../device/initial-frame",
+    "embedded:io/image/in/camera": "./native-camera-fake",
+    "main": "./device-lifecycle.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  }
+}

@@ -26,6 +26,16 @@ import type { Container as PiuContainer } from 'piu/MC'
 import PY32Led from 'py32-led'
 import { RS30XDriver } from 'rs30x-driver'
 import { StackchanRuntimeContext } from 'runtime-context'
+import {
+  ownCamera,
+  ownLed,
+  ownMicrophone,
+  ownMotionDriver,
+  ownTTS,
+  ownUI,
+  ownWebRadio,
+  RuntimeResources,
+} from 'runtime-resources'
 import { SCServoDriver } from 'scservo-driver'
 import { PWMServoDriver } from 'sg90-driver'
 import Speaker from 'speaker'
@@ -117,10 +127,13 @@ export function getHostDeviceEnvironment(): HostDeviceEnvironment {
   return globalEnv.device
 }
 
-export function createStackchanContext(
+export async function createStackchanContext(
   preferences: PreferenceConfig,
   options: StackchanContextOptions = {},
-): StackchanRuntimeContext {
+): Promise<StackchanRuntimeContext> {
+  // Unwind the boot caller before entering Piu's deep synchronous construction.
+  // Keep the same bounded XS stack on devices and in the browser simulator.
+  await Promise.resolve()
   const drivers = new Map<string, (param: unknown) => MotionDriver>([
     ['scservo', (param) => new SCServoDriver(param as ConstructorParameters<typeof SCServoDriver>[0])],
     [
@@ -186,94 +199,113 @@ export function createStackchanContext(
 
   trace(`[main] TTS engine: ${ttsKey}\n`)
 
-  const driver = Driver(driverPrefs)
-  const ui = UI(uiPrefs)
-  const tts = TTS(ttsPrefs)
+  const resources = new RuntimeResources()
+  try {
+    const driver = ownMotionDriver(resources.motion, Driver(driverPrefs))
+    const ui = ownUI(resources.ui, UI(uiPrefs))
+    const tts = ownTTS(resources.audio, TTS(ttsPrefs))
 
-  const touch = config.Touch ? new Touch(config.Touch, createTouchOptions()) : undefined
-  const touchPanelConstructor = (config.TouchPanel ?? globalEnv.device?.sensor?.TouchPanel) as
-    | ConstructorParameters<typeof TouchPanel>[0]
-    | undefined
-  if (touchPanelConstructor && !config.TouchPanel) {
-    trace('[main] using device.sensor.TouchPanel fallback\n')
-  }
-  const touchPanel = touchPanelConstructor ? new TouchPanel(touchPanelConstructor) : undefined
-  const imu = globalEnv.device?.sensor?.IMU
-    ? new IMU(globalEnv.device.sensor.IMU as ConstructorParameters<typeof IMU>[0])
-    : undefined
-  const microphone = Modules.has('audio-in') ? new Microphone() : undefined
-  const camera = new Camera()
-  const speaker = new Speaker({ volume: ttsPrefs.volume })
-  const webRadio = Modules.has('web-radio-player')
-    ? new (Modules.importNow('web-radio-player') as WebRadioPlayerConstructor)()
-    : undefined
+    const touch = config.Touch ? resources.input.own(new Touch(config.Touch, createTouchOptions())) : undefined
+    const touchPanelConstructor = (config.TouchPanel ?? globalEnv.device?.sensor?.TouchPanel) as
+      | ConstructorParameters<typeof TouchPanel>[0]
+      | undefined
+    if (touchPanelConstructor && !config.TouchPanel) {
+      trace('[main] using device.sensor.TouchPanel fallback\n')
+    }
+    const touchPanel = touchPanelConstructor ? resources.input.own(new TouchPanel(touchPanelConstructor)) : undefined
+    const imu = globalEnv.device?.sensor?.IMU
+      ? resources.input.own(new IMU(globalEnv.device.sensor.IMU as ConstructorParameters<typeof IMU>[0]))
+      : undefined
+    const microphone = Modules.has('audio-in') ? ownMicrophone(resources.audio, new Microphone()) : undefined
+    const camera = ownCamera(resources.camera, new Camera())
+    const speaker = resources.audio.own(new Speaker({ volume: ttsPrefs.volume }))
+    const webRadio = Modules.has('web-radio-player')
+      ? ownWebRadio(resources.audio, new (Modules.importNow('web-radio-player') as WebRadioPlayerConstructor)())
+      : undefined
 
-  const configLed = preferences.led
-  const ledEntries: [string, RobotLed][] = Object.entries(configLed).flatMap(
-    ([key, ledConfig]): [string, RobotLed][] => {
-      const candidate = ledConfig as {
-        type?: unknown
-        pin?: unknown
-        length?: unknown
-        order?: unknown
-        ledPin?: unknown
-        address?: unknown
-      }
-      if (
-        typeof ledConfig !== 'object' ||
-        ledConfig == null ||
-        (candidate.length !== undefined && typeof candidate.length !== 'number') ||
-        (candidate.order !== undefined && typeof candidate.order !== 'string') ||
-        (candidate.ledPin !== undefined && typeof candidate.ledPin !== 'number') ||
-        (candidate.address !== undefined && typeof candidate.address !== 'number')
-      ) {
-        trace(`[main] skip led config (invalid shape): ${key}\n`)
-        return []
-      }
-      if (candidate.type === 'py32') {
-        if (typeof candidate.ledPin !== 'number') {
-          trace(`[main] skip py32 led config (missing/invalid ledPin): ${key}\n`)
+    const configLed = preferences.led
+    const ledEntries: [string, RobotLed][] = Object.entries(configLed).flatMap(
+      ([key, ledConfig]): [string, RobotLed][] => {
+        const candidate = ledConfig as {
+          type?: unknown
+          pin?: unknown
+          length?: unknown
+          order?: unknown
+          ledPin?: unknown
+          address?: unknown
+        }
+        if (
+          typeof ledConfig !== 'object' ||
+          ledConfig == null ||
+          (candidate.length !== undefined && typeof candidate.length !== 'number') ||
+          (candidate.order !== undefined && typeof candidate.order !== 'string') ||
+          (candidate.ledPin !== undefined && typeof candidate.ledPin !== 'number') ||
+          (candidate.address !== undefined && typeof candidate.address !== 'number')
+        ) {
+          trace(`[main] skip led config (invalid shape): ${key}\n`)
           return []
         }
-        return [[key, new PY32Led(candidate as { length?: number; ledPin?: number; address?: number })]]
-      }
-      if (typeof candidate.pin !== 'number') {
-        trace(`[main] skip led config (missing/invalid pin): ${key}\n`)
-        return []
-      }
-      return [[key, new Led(candidate as { pin: number; length?: number; order?: string })]]
-    },
-  )
-  const led: Record<string, RobotLed> = {}
-  for (const [key, value] of ledEntries) {
-    led[key] = value
-  }
+        if (candidate.type === 'py32') {
+          if (typeof candidate.ledPin !== 'number') {
+            trace(`[main] skip py32 led config (missing/invalid ledPin): ${key}\n`)
+            return []
+          }
+          return [
+            [
+              key,
+              ownLed(
+                resources.lighting,
+                new PY32Led(candidate as { length?: number; ledPin?: number; address?: number }),
+              ),
+            ],
+          ]
+        }
+        if (typeof candidate.pin !== 'number') {
+          trace(`[main] skip led config (missing/invalid pin): ${key}\n`)
+          return []
+        }
+        return [
+          [key, ownLed(resources.lighting, new Led(candidate as { pin: number; length?: number; order?: string }))],
+        ]
+      },
+    )
+    const led: Record<string, RobotLed> = {}
+    for (const [key, value] of ledEntries) {
+      led[key] = value
+    }
 
-  const contextParams = {
-    driver,
-    ui,
-    tts,
-    ttsKind:
-      config.wasm && ttsKey !== 'stackchan-voice'
-        ? ('unavailable' as const)
-        : ttsKey === 'local'
-          ? ('clips' as const)
-          : ('speech' as const),
-    clipPlayer: config.wasm ? undefined : ttsKey === 'local' ? tts : new LocalTTS(ttsPrefs),
-    simulated: !!config.wasm,
-    button: globalEnv.button,
-    touch,
-    touchPanel,
-    imu,
-    connectivity: options.connectivity,
-    remoteConversationSession: options.remoteConversationSession,
-    closeHandlers: options.closeHandlers,
-    speaker,
-    webRadio,
-    microphone,
-    camera,
-    led,
-  } satisfies ConstructorParameters<typeof StackchanRuntimeContext>[0]
-  const context = new StackchanRuntimeContext(contextParams)
-  return context
+    const contextParams = {
+      driver,
+      ui,
+      tts,
+      ttsKind:
+        config.wasm && ttsKey !== 'stackchan-voice'
+          ? ('unavailable' as const)
+          : ttsKey === 'local'
+            ? ('clips' as const)
+            : ('speech' as const),
+      clipPlayer: config.wasm ? undefined : ttsKey === 'local' ? tts : ownTTS(resources.audio, new LocalTTS(ttsPrefs)),
+      simulated: !!config.wasm,
+      button: globalEnv.button,
+      touch,
+      touchPanel,
+      imu,
+      connectivity: options.connectivity,
+      remoteConversationSession: options.remoteConversationSession,
+      closeHandlers: options.closeHandlers,
+      speaker,
+      webRadio,
+      microphone,
+      camera,
+      led,
+    } satisfies Parameters<typeof StackchanRuntimeContext.create>[0]
+    return await StackchanRuntimeContext.create(contextParams, resources)
+  } catch (error) {
+    try {
+      await resources.close()
+    } catch (cleanupError) {
+      trace(`[compose] initialization cleanup failed: ${String(cleanupError)}\n`)
+    }
+    throw error
+  }
 }

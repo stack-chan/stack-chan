@@ -25,6 +25,16 @@ import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtim
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
 import { type RuntimeLightingConstructorParam, StackchanRuntimeLighting } from 'runtime-lighting'
+import {
+  ownCamera,
+  ownLed,
+  ownMicrophone,
+  ownMotionDriver,
+  ownTTS,
+  ownUI,
+  ownWebRadio,
+  RuntimeResources,
+} from 'runtime-resources'
 import { StackchanRuntimeUI } from 'runtime-ui'
 import type { AppDefinition } from 'stackchan/app'
 import { StackchanError } from 'stackchan/errors'
@@ -68,28 +78,77 @@ export class StackchanRuntimeContext implements StackchanContext {
   #uiRuntime: StackchanRuntimeUI
   #updateFaceHandler: Timer | undefined
   #closed = false
+  #devices: RuntimeResources
   #ownedResources: OwnedResources
   #shutdown: OwnedResources | undefined
   #appSession: AppSession | undefined
 
-  constructor(params: RuntimeContextConstructorParam) {
+  private constructor(params: RuntimeContextConstructorParam, devices: RuntimeResources) {
     this.#ownedResources = new OwnedResources(params.closeHandlers)
+    this.#devices = devices
     this.#paused = false
+  }
+
+  /** Construction has one asynchronous completion, including rollback on error. */
+  static async create(
+    params: RuntimeContextConstructorParam,
+    devices?: RuntimeResources,
+  ): Promise<StackchanRuntimeContext> {
+    const context = new StackchanRuntimeContext(params, devices ?? new RuntimeResources())
+    try {
+      if (!devices) context.#ownDevices(params)
+      context.#initialize(params)
+      return context
+    } catch (error) {
+      try {
+        await context.#close()
+      } catch (cleanupError) {
+        trace(`[context] initialization cleanup failed: ${String(cleanupError)}\n`)
+      }
+      throw error
+    }
+  }
+
+  #ownDevices(params: RuntimeContextConstructorParam): void {
+    const devices = this.#devices
+    ownUI(devices.ui, params.ui)
+    ownMotionDriver(devices.motion, params.driver)
+    ownTTS(devices.audio, params.tts)
+    if (params.clipPlayer && params.clipPlayer !== params.tts) ownTTS(devices.audio, params.clipPlayer)
+    if (params.microphone) ownMicrophone(devices.audio, params.microphone)
+    if (params.speaker) devices.audio.defer(() => params.speaker.close?.())
+    if (params.webRadio) ownWebRadio(devices.audio, params.webRadio)
+    for (const sensor of [params.touch, params.touchPanel, params.imu]) {
+      if (sensor) devices.input.own(sensor)
+    }
+    if (params.camera) ownCamera(devices.camera, params.camera)
+    for (const led of Object.values(params.led ?? {})) ownLed(devices.lighting, led)
+  }
+
+  #initialize(params: RuntimeContextConstructorParam): void {
     this.#motionController = new MotionController(params, {
       isPaused: () => this.#paused,
     })
-    this.#uiRuntime = new StackchanRuntimeUI(params.ui, {
-      getContext: () => this,
-      getPose: () => this.#motionController.pose,
-      getGazePoint: () => this.#motionController.gazePoint,
-      isPaused: () => this.#paused,
-    })
-    this.#audioRuntime = new StackchanRuntimeAudio(params, {
-      onMouthOpenChanged: (value) => this.#uiRuntime.setMouthOpen(value),
-    })
-    this.#inputRuntime = new StackchanRuntimeInput(params)
-    this.#cameraRuntime = new StackchanRuntimeCamera(params)
-    this.#lightingRuntime = new StackchanRuntimeLighting(params)
+    this.#uiRuntime = new StackchanRuntimeUI(
+      params.ui,
+      {
+        getContext: () => this,
+        getPose: () => this.#motionController.pose,
+        getGazePoint: () => this.#motionController.gazePoint,
+        isPaused: () => this.#paused,
+      },
+      this.#devices.ui,
+    )
+    this.#audioRuntime = new StackchanRuntimeAudio(
+      params,
+      {
+        onMouthOpenChanged: (value) => this.#uiRuntime.setMouthOpen(value),
+      },
+      this.#devices.audio,
+    )
+    this.#inputRuntime = new StackchanRuntimeInput(params, this.#devices.input)
+    this.#cameraRuntime = new StackchanRuntimeCamera(params, this.#devices.camera)
+    this.#lightingRuntime = new StackchanRuntimeLighting(params, this.#devices.lighting)
     this.#updateFaceHandler = Timer.repeat(this.#updateFace, INTERVAL_FACE)
     void this.#updateFaceHandler
     this.#faceCapability = this.createFaceCapability()
@@ -749,16 +808,19 @@ export class StackchanRuntimeContext implements StackchanContext {
           this.#updateFaceHandler = undefined
         },
         () => this.#appSession?.close(),
-        () => this.#motionController.close(),
+        () => this.#motionController?.close(),
+        () => this.#devices.motion.close(),
         () => this.#ownedResources.close(),
         () =>
           new OwnedResources([...this.#localPeerSessions].map((session) => () => session.close()))
             .close()
             .finally(() => this.#localPeerSessions.clear()),
-        () => this.#cameraRuntime.close(),
-        () => this.#inputRuntime.close(),
-        () => this.#audioRuntime.close(),
-        () => this.#lightingRuntime.close(),
+        () => this.#cameraRuntime?.close(),
+        () => this.#inputRuntime?.close(),
+        () => this.#audioRuntime?.close(),
+        () => this.#lightingRuntime?.close(),
+        () => this.#uiRuntime?.close(),
+        () => this.#devices.close(),
       ])
     }
     return this.#shutdown.close()

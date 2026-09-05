@@ -1,6 +1,7 @@
 import type { Button } from 'capabilities'
 import type IMU from 'imu'
 import { createButtonInputEvent } from 'input-event'
+import { ResourceScope } from 'owned-resources'
 import { StackchanError } from 'stackchan/errors'
 import Time from 'time'
 import type Touch from 'touch'
@@ -26,25 +27,37 @@ export class StackchanRuntimeInput {
   #touch: Touch | undefined
   #touchPanel: TouchPanel | undefined
   #closed = false
-  #restoreButtons: Array<() => void> = []
   #pressListeners = new Set<() => void>()
+  #devices: ResourceScope
 
-  constructor(params: RuntimeInputConstructorParam) {
-    this.#button = createButtonInputs(params.button, this.#restoreButtons, (name, pressed) => {
-      if (this.#closed || !pressed || name !== this.primaryButton) return
-      for (const listener of [...this.#pressListeners]) listener()
-    })
+  constructor(params: RuntimeInputConstructorParam, devices?: ResourceScope) {
+    this.#devices = devices ?? new ResourceScope()
     this.#touch = params.touch
     this.#touchPanel = params.touchPanel
     this.#imu = params.imu
+    if (!devices) {
+      for (const sensor of [params.touch, params.touchPanel, params.imu]) {
+        if (sensor) this.#devices.own(sensor)
+      }
+    }
     try {
+      this.#button = createButtonInputs(
+        params.button,
+        this.#devices,
+        () => !this.#closed,
+        (name, pressed) => {
+          if (this.#closed || !pressed || name !== this.primaryButton) return
+          for (const listener of [...this.#pressListeners]) {
+            if (this.#closed) break
+            listener()
+          }
+        },
+      )
       this.#touchPanel?.start()
     } catch (error) {
-      try {
-        this.close()
-      } catch {
-        /* Preserve the initialization error. */
-      }
+      // Restore borrowed buttons immediately. The host awaits this same scope
+      // during rollback, including a failure from one of the physical closers.
+      void this.close().catch((cleanupError) => trace(`[input] cleanup failed: ${String(cleanupError)}\n`))
       throw error
     }
   }
@@ -78,36 +91,17 @@ export class StackchanRuntimeInput {
     return this.#imu
   }
 
-  close(): void {
-    if (this.#closed) return
+  close(): Promise<void> {
     this.#closed = true
     this.#pressListeners.clear()
-    const closers = [
-      ...this.#restoreButtons.reverse(),
-      () => this.#imu?.close(),
-      () => this.#touchPanel?.close(),
-      () => this.#touch?.close(),
-    ]
-    this.#restoreButtons = []
-    let failed = false
-    let failure: unknown
-    for (const close of closers) {
-      try {
-        close()
-      } catch (error) {
-        if (!failed) {
-          failed = true
-          failure = error
-        }
-      }
-    }
-    if (failed) throw failure
+    return this.#devices.close()
   }
 }
 
 function createButtonInputs(
   buttons: RuntimeInputConstructorParam['button'],
-  restore: Array<() => void>,
+  resources: ResourceScope,
+  isOpen: () => boolean,
   onPress: (name: ButtonName, pressed: boolean) => void,
 ): Partial<Record<ButtonName, Button>> | undefined {
   if (buttons == null) return undefined
@@ -119,17 +113,17 @@ function createButtonInputs(
     const previous = rawButton.onChanged
     let active = true
     const handler = function (this: RawButton) {
-      if (!active) return
+      if (!active || !isOpen()) return
       const pressed = Boolean(this.read())
       button.onEvent?.(createButtonInputEvent(name, pressed, Time.ticks))
       onPress(name, pressed)
     }
-    rawButton.onChanged = handler
-    restore.push(() => {
+    resources.defer(() => {
       active = false
       button.onEvent = undefined
       if (rawButton.onChanged === handler) rawButton.onChanged = previous
     })
+    rawButton.onChanged = handler
     result[name] = button
   }
   return result

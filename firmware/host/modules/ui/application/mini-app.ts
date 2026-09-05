@@ -58,8 +58,10 @@ function validateDefinition(definition: MiniAppDefinition): MiniAppDefinition {
 export class MiniAppRegistry implements MiniAppRegistryCapability {
   #definitions = new Map<string, MiniAppDefinition>()
   #listeners = new Set<RegistryListener>()
+  #closed = false
 
   register(definition: MiniAppDefinition): () => void {
+    if (this.#closed) throw new Error('Mini app registry is closed')
     const validated = validateDefinition(definition)
     if (this.#definitions.has(validated.id)) throw new Error(`mini app id is already registered: ${validated.id}`)
     this.#definitions.set(validated.id, validated)
@@ -85,11 +87,21 @@ export class MiniAppRegistry implements MiniAppRegistryCapability {
   }
 
   subscribe(listener: RegistryListener): () => void {
+    if (this.#closed) throw new Error('Mini app registry is closed')
     this.#listeners.add(listener)
     return () => this.#listeners.delete(listener)
   }
 
   #notify(): void {
-    for (const listener of this.#listeners) listener()
+    for (const listener of this.#listeners) {
+      if (this.#closed) break
+      listener()
+    }
+  }
+
+  close(): void {
+    this.#closed = true
+    this.#listeners.clear()
+    this.#definitions.clear()
   }
 }

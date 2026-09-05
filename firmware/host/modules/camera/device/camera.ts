@@ -69,12 +69,14 @@ export default class Camera implements RobotCamera {
   #imageType: CameraImageType = DEFAULT_IMAGE_TYPE
   #request: CameraCaptureRequest = DEFAULT_CAPTURE_REQUEST
   #running = false
+  #closed = false
 
   constructor(_options?: DeviceCameraConstructorOptions) {
     void _options
   }
 
   start(options: CameraCaptureOptions = {}): void {
+    if (this.#closed) throw new Error('Camera is closed')
     const request = normalizeCameraCaptureRequest(options, DEFAULT_CAPTURE_REQUEST)
     trace(`[camera] start request width=${request.width} height=${request.height} imageType=${request.imageType}\n`)
     const nativeImageType = toNativeImageType(request.imageType)
@@ -101,11 +103,20 @@ export default class Camera implements RobotCamera {
     trace(`[camera] native constructor ready width=${camera.width} height=${camera.height}\n`)
 
     this.#camera = camera
-    this.#width = camera.width
-    this.#height = camera.height
-    this.#imageType = request.imageType
-    this.#request = request
-    this.#startCamera()
+    try {
+      this.#width = camera.width
+      this.#height = camera.height
+      this.#imageType = request.imageType
+      this.#request = request
+      this.#startCamera()
+    } catch (error) {
+      try {
+        this.#closeCamera()
+      } catch (cleanupError) {
+        trace(`[camera] initialization cleanup failed: ${String(cleanupError)}\n`)
+      }
+      throw error
+    }
   }
 
   stop(): void {
@@ -113,10 +124,13 @@ export default class Camera implements RobotCamera {
   }
 
   close(): void {
+    if (this.#closed) return
+    this.#closed = true
     this.#closeCamera()
   }
 
   async capture(options: CameraCaptureOptions = {}): Promise<CameraFrame | undefined> {
+    if (this.#closed) throw new Error('Camera is closed')
     const shouldRestart = this.#shouldRestart(options) || !this.#running
     trace(`[camera] capture begin restart=${shouldRestart}\n`)
     if (shouldRestart) {
@@ -130,6 +144,10 @@ export default class Camera implements RobotCamera {
     if (!frame) {
       trace('[camera] capture waiting for frame\n')
       frame = await this.#waitForFrame(camera)
+    }
+    if (camera !== this.#camera) {
+      closeFrame(frame)
+      return undefined
     }
     if (!frame) {
       trace('[camera] capture no frame\n')
@@ -152,13 +170,29 @@ export default class Camera implements RobotCamera {
   }
 
   #closeCamera(): void {
-    if (this.#camera) trace('[camera] close\n')
-    this.#stopCamera()
-    if (this.#camera) trace('[camera] native close begin\n')
-    this.#camera?.close()
-    if (this.#camera) trace('[camera] native close done\n')
+    const camera = this.#camera
+    const frame = this.#frame
+    const running = this.#running
     this.#camera = undefined
+    this.#frame = undefined
     this.#running = false
+    let failed = false
+    let failure: unknown
+    for (const cleanup of [
+      () => {
+        if (running) camera?.stop()
+      },
+      () => closeFrame(frame),
+      () => camera?.close(),
+    ]) {
+      try {
+        cleanup()
+      } catch (error) {
+        if (!failed) failure = error
+        failed = true
+      }
+    }
+    if (failed) throw failure
   }
 
   #startCamera(): void {
@@ -172,14 +206,15 @@ export default class Camera implements RobotCamera {
   }
 
   #stopCamera(): void {
-    if (this.#camera && this.#running) {
-      trace('[camera] native stop begin\n')
-      this.#camera.stop()
-      trace('[camera] native stop done\n')
-    }
-    closeFrame(this.#frame)
+    const frame = this.#frame
+    const running = this.#running
     this.#frame = undefined
     this.#running = false
+    try {
+      if (running) this.#camera?.stop()
+    } finally {
+      closeFrame(frame)
+    }
   }
 
   #readLatestFrame(): void {

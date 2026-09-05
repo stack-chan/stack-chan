@@ -52,3 +52,20 @@ test('registry snapshots metadata without exposing the create callback', () => {
   assert.equal(Object.isFrozen(listed), true)
   assert.equal('create' in listed, false)
 })
+
+test('closing a registry releases factories and listeners and makes retained removers harmless', () => {
+  const registry = new MiniAppRegistry()
+  let notifications = 0
+  registry.subscribe(() => {
+    notifications += 1
+  })
+  const remove = registry.register({ id: 'sample', title: 'Sample', create: () => content })
+  registry.close()
+  registry.close()
+  remove()
+  assert.deepEqual(registry.list(), [])
+  assert.equal(registry.get('sample'), undefined)
+  assert.equal(notifications, 1)
+  assert.throws(() => registry.register({ id: 'new', title: 'New', create: () => content }), /closed/)
+  assert.throws(() => registry.subscribe(() => {}), /closed/)
+})

@@ -8,9 +8,9 @@
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
 | F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDKとdefineAppを追加しhostへ接続。motion・録音・会話・高度な拡張は未完了 |
-| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、3種類のサーボUART、共有PY32の終了を接続。boot services、WASMカメラの下位資源管理などは継続 |
-| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clipと音声のError契約を接続。motionと他の機能は未完了 |
-| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声にOperationQueue、サーボUARTに共通の上限・期限付きFIFOを接続。会話・USB・motion全体の調停は未完了 |
+| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。boot services、WASMカメラの下位資源管理などは継続 |
+| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clipと音声のError契約を接続。DYNAMIXELの目標取りこぼしを修正。V2 motionの完了契約と他の機能は未完了 |
+| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声に非同期停止待ち付きOperationQueue、サーボUARTに共通の上限・期限付きFIFOを接続。会話・USB・motion全体の調停は未完了 |
 | F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの4教材とSDK型検査を追加。既存MOD／miniapp移行は未完了 |
 | F6 アプリ構成 | 既定動作、診断、UI 拡張の責務と寿命を分ける。既定動作にも SDK と AppSession を使用 | 未着手 |
 | F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 共通 host runtime manifest と TTS 契約を一本化。ボード・残りの公開型・型検査は未完了 |
@@ -53,7 +53,7 @@
 1. V2の基本SDK・AppSessionは接続済み。motion・録音・カメラ・会話・設定の公開サービスと拡張を実装し、既存MOD／miniappへ移行する。
 2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTとPY32 expanderの終了は接続済み。boot services、native音声エンジン、WASMカメラの下位資源を終了経路へ接続する。V1の直接参照と機器置換の寿命も継続して扱う。
 3. 音声出力の個別取消しはAppSessionへ接続済み。音声入力と出力、WASM bridgeのclose、会話とUSBの資源を調停する。
-4. driver callback の世代管理を置換時と native TTS の出力にも適用する。資源解放失敗後に待機中の操作を開始しない契約をさらに検証する。
+4. motion controllerのドライバー交換にcallbackの世代管理を接続した。native TTSの出力、AppSessionの使用権、V1の直接参照へも接続を進める。共通キューは非同期停止の確認を待ち、解放失敗後に後続操作を開始しない。
 5. 最小教材から残りの F1〜F10、配布・移行・実機受入まで続ける。現時点では全課題を解消した状態ではない。
 
 ## V2 基本SDKの接続（2026-09-06）
@@ -130,3 +130,14 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - CoreS3 release（6,452,848 bytes）、PWM機種takao_core2_sg90 release（3,755,408 bytes）、WASMビルドが成功。ブラウザー上の全4教材の受入も成功した。
 
 詳細は [PY32 I/O expanderの共有寿命](io-expander-lifecycle.md)。この段階でもF1〜F10全体は未完了。PY32の未検出を能力情報へ反映する作業、起動時の同期再試行の取消し、同じGPIOやLED出力を操作する利用者間の調停、V1の任意の直接参照、実機受入は残る。
+
+
+## 操作の停止待ちとmotionの世代管理（2026-09-06）
+
+- 共通キューが非同期の停止確認を待ってから次の操作を開始するようにした。停止中の実行枠を保持し、初期値5秒の停止期限を追加した。停止失敗・停止期限では後続操作を失敗させ、再利用を禁止する。`close()` も同じ停止完了を待ち、停止自体の失敗を伝える。
+- motion controllerはドライバー交換前にcallbackとTimerの世代を無効化する。古い位置取得、トルク投入、動作受付から新しい機器へ処理が連鎖しない。古い明示コマンドは一度だけ失敗させ、attach失敗時は途中の接続を回収してcontrollerを閉じる。
+- DYNAMIXELは実際に送ったGoal PositionだけをACK後に記録する。応答待ち中に新しい目標が入っても次の制御周期に送信する。初期位置取得で、既に受け付けた目標を上書きする経路も修正した。
+- Node471件、構成検査79件、SDK strict、6機種manifest、Biomeが成功。全52 XS manifestも成功（55.7秒）。実Timerを使う100回の停止・資源引き渡し、100回のドライバー交換、実DYNAMIXELプロトコル上の目標変更を検証した。
+- CoreS3 release（6,456,944 bytes）、PWM機種takao_core2_sg90 release（3,759,504 bytes）、WASMのビルドが成功。新しいWASMホストで、ブラウザー上の4教材すべての受入も成功した。
+
+契約と限界は [操作の停止待ちとmotionのドライバー世代](motion-operation-lifecycle.md)。低レベルcallbackと再利用バッファは維持している。この段階ではV2のmotion API、到達と推定の区別、注視と単発移動の調停、実機受入は未完了。今回のキュー変更だけで、各機種の物理停止やAppSessionの全使用権を接続したことにはしない。F1〜F10の実装を継続する。

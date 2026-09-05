@@ -9,6 +9,7 @@ export type OperationClock = {
 type Entry = {
   start(): void
   cancel(reason: StackchanError): void
+  readonly done: Promise<void>
 }
 
 export type OperationQueueOptions = {
@@ -16,13 +17,17 @@ export type OperationQueueOptions = {
   capacity?: number
   waitTimeoutMs?: number
   operationTimeoutMs?: number
+  /** Maximum time to wait for an asynchronous physical stop before faulting. */
+  cancellationTimeoutMs?: number
 }
 
-/** Bounded FIFO for one physical resource. Cancellation settles even a stalled provider. */
+/** Bounded FIFO. Resource handoff waits for cancellation cleanup, including asynchronous stops. */
 export class OperationQueue {
   #active: Entry | undefined
   #pending: Entry[] = []
   #closed = false
+  #failure: StackchanError | undefined
+  #closePromise: Promise<void> | undefined
   readonly #options: Required<OperationQueueOptions>
 
   constructor(options: OperationQueueOptions) {
@@ -30,6 +35,7 @@ export class OperationQueue {
       capacity: 8,
       waitTimeoutMs: 30_000,
       operationTimeoutMs: 120_000,
+      cancellationTimeoutMs: 5_000,
       ...options,
     }
     finiteNumber(this.#options.capacity, 'capacity', 0, 64)
@@ -37,6 +43,7 @@ export class OperationQueue {
       throw new StackchanError('INVALID_ARGUMENT', 'capacity must be an integer')
     finiteNumber(this.#options.waitTimeoutMs, 'waitTimeoutMs', 1)
     finiteNumber(this.#options.operationTimeoutMs, 'operationTimeoutMs', 1)
+    finiteNumber(this.#options.cancellationTimeoutMs, 'cancellationTimeoutMs', 1, 60_000)
   }
 
   get size(): number {
@@ -51,7 +58,7 @@ export class OperationQueue {
 
   run<T>(
     start: () => T | Promise<T>,
-    cancel?: (reason: StackchanError) => void,
+    cancel?: (reason: StackchanError) => void | Promise<void>,
     signal?: CancellationSignal,
   ): Promise<T> {
     if (this.#closed) return Promise.reject(new StackchanError('CLOSED', 'Operation queue is closed'))
@@ -62,48 +69,83 @@ export class OperationQueue {
     return new Promise<T>((resolve, reject) => {
       let settled = false
       let active = false
+      let cancelling = false
       let clearTimer: (() => void) | undefined
       let unsubscribe: (() => void) | undefined
+      let completeEntry: () => void
+      const done = new Promise<void>((resolveDone) => {
+        completeEntry = resolveDone
+      })
+      const clearDeadline = () => {
+        const clear = clearTimer
+        clearTimer = undefined
+        clear?.()
+      }
       const finish = (result: { value: T } | { error: StackchanError }) => {
         if (settled) return
         settled = true
-        clearTimer?.()
+        clearDeadline()
         unsubscribe?.()
         if (this.#active === entry) this.#active = undefined
         const index = this.#pending.indexOf(entry)
         if (index >= 0) this.#pending.splice(index, 1)
         if ('error' in result) reject(result.error)
         else resolve(result.value)
+        completeEntry()
         this.#pump()
       }
       const entry: Entry = {
+        done,
         start: () => {
           if (settled) return
           active = true
           try {
-            clearTimer?.()
+            clearDeadline()
             clearTimer = this.#options.clock.after(this.#options.operationTimeoutMs, () => {
               entry.cancel(new StackchanError('TIMEOUT', 'Operation did not finish before its deadline'))
             })
             Promise.resolve(start()).then(
-              (value) => finish({ value }),
-              (error) => finish({ error: asStackchanError(error) }),
+              (value) => {
+                if (!cancelling) finish({ value })
+              },
+              (error) => {
+                if (!cancelling) finish({ error: asStackchanError(error) })
+              },
             )
           } catch (error) {
-            finish({ error: asStackchanError(error) })
+            if (!cancelling) finish({ error: asStackchanError(error) })
           }
         },
         cancel: (reason) => {
-          if (settled) return
+          if (settled || cancelling) return
+          cancelling = true
+          clearDeadline()
+          unsubscribe?.()
+          unsubscribe = undefined
           try {
-            if (active) cancel?.(reason)
+            const cleanup = active ? cancel?.(reason) : undefined
+            if (cleanup) {
+              // Observe both outcomes before scheduling: a clock failure must
+              // neither leak a rejection nor make the resource reusable.
+              Promise.resolve(cleanup).then(
+                () => finish({ error: reason }),
+                (error) => {
+                  if (settled) return
+                  this.#fault(asStackchanError(error))
+                  finish({ error: reason })
+                },
+              )
+              clearTimer = this.#options.clock.after(this.#options.cancellationTimeoutMs, () => {
+                if (settled) return
+                this.#fault(new StackchanError('TIMEOUT', 'Resource stop did not finish before its deadline'))
+                finish({ error: reason })
+              })
+              return
+            }
           } catch (error) {
-            // A device that failed to release cannot safely serve the next job.
-            this.#closed = true
-            for (const waiting of [...this.#pending]) waiting.cancel(asStackchanError(error))
-          } finally {
-            finish({ error: reason })
+            this.#fault(asStackchanError(error))
           }
+          finish({ error: reason })
         },
       }
       unsubscribe = signal?.subscribe((reason) => entry.cancel(reason))
@@ -127,12 +169,24 @@ export class OperationQueue {
     })
   }
 
-  close(): void {
-    if (this.#closed) return
+  close(): Promise<void> {
+    if (this.#closePromise) return this.#closePromise
     this.#closed = true
+    const entries = [...this.#pending]
+    if (this.#active) entries.push(this.#active)
     const reason = new StackchanError('CLOSED', 'Resource owner closed')
-    for (const entry of [...this.#pending]) entry.cancel(reason)
-    this.#active?.cancel(reason)
+    // Publish before invoking a stop that may reenter close().
+    this.#closePromise = Promise.all(entries.map((entry) => entry.done)).then(() => {
+      if (this.#failure) throw this.#failure
+    })
+    for (const entry of entries) entry.cancel(reason)
+    return this.#closePromise
+  }
+
+  #fault(error: StackchanError): void {
+    this.#failure ??= error
+    this.#closed = true
+    for (const waiting of [...this.#pending]) waiting.cancel(this.#failure)
   }
 
   #pump(): void {

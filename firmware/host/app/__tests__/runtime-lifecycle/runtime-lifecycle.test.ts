@@ -1,4 +1,5 @@
 import { AppSession } from 'app-session'
+import { CancellationSource } from 'cancellation'
 import { OperationQueue } from 'operation-queue'
 import { ResourceScope } from 'owned-resources'
 import { defineApp } from 'stackchan'
@@ -115,6 +116,47 @@ async function run(): Promise<void> {
   }
   equal(cancelled, 1, 'timeout cancels the provider once')
   equal(timers, 0, 'timeout releases its timer')
+  await queue.close()
+  for (let cycle = 0; cycle < 100; cycle += 1) {
+    const source = new CancellationSource()
+    const serial = new OperationQueue({ clock })
+    let stopped = false
+    let late: (() => void) | undefined
+    const operation = serial.run(
+      () =>
+        new Promise<void>((resolve) => {
+          late = resolve
+        }),
+      () =>
+        new Promise<void>((resolve) => {
+          clock.after(1, () => {
+            stopped = true
+            resolve()
+          })
+        }),
+      source.signal,
+    )
+    const caught = operation.catch((error) => {
+      equal(error.code, 'CANCELLED', 'the cancelled operation retains its reason')
+    })
+    let starts = 0
+    const following = serial.run(() => {
+      assert(stopped, 'the next operation starts after physical stop acknowledgement')
+      starts += 1
+    })
+    source.cancel()
+    late?.()
+    await Promise.resolve()
+    equal(starts, 0, 'late completion cannot release the resource while stopping')
+    await caught
+    await following
+    const closing = serial.close()
+    equal(closing, serial.close(), 'queue close shares its completion')
+    await closing
+    equal(starts, 1)
+    equal(source.size, 0, 'cancel subscriptions return to baseline')
+    equal(timers, 0, 'asynchronous stop timers return to baseline')
+  }
   trace('ok\n')
 }
 

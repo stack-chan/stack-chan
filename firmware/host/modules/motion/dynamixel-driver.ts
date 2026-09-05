@@ -26,7 +26,7 @@ class PControl {
   minCurrent: number
   goalPosition: number
   _offset: number
-  _lastGoalPosition: number
+  _lastGoalPosition: number | undefined
   presentPosition: number
   constructor(servo: Dynamixel, gain: number, saturation: number, minCurrent: number, name = 'servo') {
     this.servo = servo
@@ -34,10 +34,10 @@ class PControl {
     this.saturation = saturation
     this.minCurrent = minCurrent
     this.name = name
-    this.goalPosition = 0
+    this.goalPosition = 2048
     this.presentPosition = 0
     this._offset = 0
-    this._lastGoalPosition = 0
+    this._lastGoalPosition = undefined
   }
 
   init(torqueEnabled: boolean, callback: MotionCompletion): void {
@@ -48,7 +48,6 @@ class PControl {
       }
       this._offset = result.value > 4096 ? 4096 : 0
       this.presentPosition = result.value - this._offset
-      this.goalPosition = 2048
       // Use CURRENT_BASED_POSITION mode for dynamic torque control
       this.servo.setOperatingMode(OPERATING_MODE.CURRENT_BASED_POSITION, (modeError) => {
         if (modeError != null) {
@@ -62,12 +61,15 @@ class PControl {
 
   update(callback: MotionCompletion): void {
     if (this._lastGoalPosition !== this.goalPosition) {
-      this.servo.setGoalPosition(this.goalPosition + this._offset, (goalError) => {
+      const commandedPosition = this.goalPosition
+      this.servo.setGoalPosition(commandedPosition + this._offset, (goalError) => {
         if (goalError != null) {
           callback(goalError)
           return
         }
-        this._lastGoalPosition = this.goalPosition
+        // A new target may arrive while this UART write is awaiting its ACK.
+        // Only the value actually sent has been accepted by the servo.
+        this._lastGoalPosition = commandedPosition
         this.#updateCurrent(callback)
       })
       return

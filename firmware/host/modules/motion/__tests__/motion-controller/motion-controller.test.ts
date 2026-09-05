@@ -47,6 +47,115 @@ class FakeMotionDriver implements MotionDriver {
   }
 }
 
+async function testReplacement(pose: Pose): Promise<void> {
+  // Every callback retained by a replaced driver belongs to its old binding.
+  // Repeating replacements also exercises cancellation of per-binding timers.
+  for (let cycle = 0; cycle < 100; cycle += 1) {
+    const old = new FakeMotionDriver()
+    const next = new FakeMotionDriver()
+    let oldRotation: MotionResultCallback<Maybe<Rotation>> | undefined
+    let nextRotation: MotionResultCallback<Maybe<Rotation>> | undefined
+    old.getRotation = (callback) => {
+      oldRotation = callback
+    }
+    next.getRotation = (callback) => {
+      nextRotation = callback
+    }
+    const replacing = new MotionController({ driver: old }, { isPaused: () => false })
+    replacing.lookAt([1, 2, 2])
+    replacing.useDriver(next)
+    replacing.updatePose()
+    oldRotation?.({ success: true, value: { y: 3, p: 2, r: 1 } })
+    equal(replacing.pose.body.rotation.y, 0, 'old samples cannot overwrite the new binding pose')
+    equal(replacing.updating, true, 'old samples cannot end a new binding read')
+    equal(next.torqueStates.length, 0, 'old samples cannot start a new driver command')
+    nextRotation?.({ success: true, value: { y: 0.1, p: 0, r: 0 } })
+    equal(replacing.pose.body.rotation.y, 0.1, 'the new binding can publish its sample')
+    replacing.close()
+    replacing.close()
+    equal(old.detached, 1, 'replacement detaches the old binding once')
+    equal(next.detached, 1, 'close detaches the new binding once')
+  }
+
+  const torqueOld = new FakeMotionDriver()
+  let oldEnabled: MotionCompletion | undefined
+  torqueOld.setTorque = (_enabled, callback) => {
+    oldEnabled = callback
+  }
+  const torqueNext = new FakeMotionDriver()
+  const torqueReplacement = new MotionController({ driver: torqueOld }, { isPaused: () => false })
+  torqueReplacement.lookAt([1, 2, 2])
+  torqueReplacement.useDriver(torqueNext)
+  torqueReplacement.lookAway()
+  oldEnabled?.()
+  equal(torqueNext.appliedRotation, null, 'old torque ACK cannot move the new driver')
+  torqueReplacement.close()
+
+  const moveOld = new FakeMotionDriver()
+  let oldApplied: MotionCompletion | undefined
+  moveOld.applyRotation = (_rotation, _time, callback) => {
+    oldApplied = callback
+  }
+  const moveNext = new FakeMotionDriver()
+  const moveReplacement = new MotionController({ driver: moveOld }, { isPaused: () => false })
+  moveReplacement.lookAt([1, 2, 2])
+  moveReplacement.useDriver(moveNext)
+  moveReplacement.lookAway()
+  oldApplied?.()
+  await wait(1100)
+  equal(moveNext.torqueStates.length, 0, 'old motion ACK cannot schedule torque release on the new driver')
+  equal(moveNext.getRotationCalls, 0, 'idle replacement retains no polling timer')
+  moveReplacement.close()
+
+  const ackOld = new FakeMotionDriver()
+  const ackNext = new FakeMotionDriver()
+  let oldAck: MotionCompletion | undefined
+  ackOld.applyRotation = (_rotation, _time, callback) => {
+    oldAck = callback
+  }
+  ackOld.onDetached = () => {
+    oldAck?.()
+  }
+  const ackReplacement = new MotionController({ driver: ackOld }, { isPaused: () => false })
+  let ackCount = 0
+  let replacementError: unknown
+  ackReplacement.setPose(pose, 0.25, (error) => {
+    ackCount += 1
+    replacementError = error
+  })
+  ackReplacement.useDriver(ackNext)
+  oldAck?.()
+  equal(ackCount, 1, 'replacement settles pending commands exactly once')
+  assert(replacementError instanceof Error, 'an ACK inside detach cannot report success after invalidation')
+  ackReplacement.useDriver(ackNext)
+  equal(ackNext.attached, 1, 'selecting the current driver does not create another attachment')
+  ackReplacement.close()
+
+  const healthy = new FakeMotionDriver()
+  const broken = new FakeMotionDriver()
+  const attachError = new Error('attach failed')
+  broken.onAttached = () => {
+    throw attachError
+  }
+  const failedReplacement = new MotionController({ driver: healthy }, { isPaused: () => false })
+  let observed: unknown
+  try {
+    failedReplacement.useDriver(broken)
+  } catch (error) {
+    observed = error
+  }
+  equal(observed, attachError, 'replacement preserves the attach failure')
+  equal(healthy.detached, 1, 'failed replacement has already detached the old driver')
+  equal(broken.detached, 1, 'failed attachment is rolled back once')
+  failedReplacement.close()
+  equal(broken.detached, 1, 'close does not repeat the rollback')
+  let rejectedAfterFailure: unknown
+  failedReplacement.setTorque(true, (error) => {
+    rejectedAfterFailure = error
+  })
+  assert(rejectedAfterFailure instanceof Error, 'failed replacement leaves the controller closed')
+}
+
 async function runTest() {
   trace('=== motion controller test ===\n')
 
@@ -173,6 +282,8 @@ async function runTest() {
   lateCommand?.()
   equal(completions, 1, 'close must complete pending commands once and suppress late success')
   assert(cancelled instanceof Error, 'close must fail unfinished commands')
+
+  await testReplacement(pose)
 
   trace('ok\n')
 }

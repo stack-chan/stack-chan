@@ -288,12 +288,63 @@ async function driverOwnership(): Promise<void> {
   detached.close()
 }
 
+async function changedDynamixelGoal(): Promise<void> {
+  const driver = new DynamixelDriver({ panId: 1, tiltId: 2, baud: 1_000_000 })
+  const serial = serials[serials.length - 1]
+  const respond = (packet: Uint8Array) => {
+    serial.emit(dxResponse(packet[4], packet[7] === 2 ? [0, 8, 0, 0] : []))
+  }
+  serial.onWrite = respond
+  await waitForCompletion((done) => driver.control(done))
+  const goals: number[] = []
+  serial.onWrite = (packet) => {
+    // Decode Goal Position writes on the actual protocol transport.
+    if (packet[4] === 1 && packet[7] === 3 && packet[8] === 116 && packet[9] === 0) {
+      goals.push(packet[10] | (packet[11] << 8) | (packet[12] << 16) | (packet[13] << 24))
+      if (goals.length === 1) driver.applyRotation({ y: Math.PI / 2, p: 0, r: 0 })
+    }
+    respond(packet)
+  }
+  driver.applyRotation({ y: Math.PI / 4, p: 0, r: 0 })
+  await waitForCompletion((done) => driver.control(done))
+  await waitForCompletion((done) => driver.control(done))
+  await waitForCompletion((done) => driver.control(done))
+  equal(goals.length, 2, 'a target changed during ACK is sent on the following control cycle exactly once')
+  equal(goals[0], 2560, 'the first transmitted goal represents the first requested yaw')
+  equal(goals[1], 3072, 'the new yaw is not mistaken for an acknowledged goal')
+  driver.close()
+}
+
+async function initialDynamixelGoal(): Promise<void> {
+  const driver = new DynamixelDriver({ panId: 1, tiltId: 2, baud: 1_000_000 })
+  const serial = serials[serials.length - 1]
+  const goals: number[] = []
+  let firstSample = true
+  serial.onWrite = (packet) => {
+    if (packet[4] === 1 && packet[7] === 2 && firstSample) {
+      firstSample = false
+      driver.applyRotation({ y: Math.PI / 2, p: 0, r: 0 })
+    }
+    if (packet[4] === 1 && packet[7] === 3 && packet[8] === 116 && packet[9] === 0) {
+      goals.push(packet[10] | (packet[11] << 8) | (packet[12] << 16) | (packet[13] << 24))
+    }
+    serial.emit(dxResponse(packet[4], packet[7] === 2 ? [0, 8, 0, 0] : []))
+  }
+  driver.applyRotation({ y: Math.PI / 4, p: 0, r: 0 })
+  await waitForCompletion((done) => driver.control(done))
+  equal(goals.length, 1, 'initialization sends the pending target once')
+  equal(goals[0], 3072, 'initial position sampling cannot overwrite a requested target')
+  driver.close()
+}
+
 async function run(): Promise<void> {
   resetSerials()
   await lifetimes()
   await arbitrationAndId()
   await packetParsing()
   await driverOwnership()
+  await changedDynamixelGoal()
+  await initialDynamixelGoal()
   equal(openPorts.size, 0)
   assert(
     serials.every((serial) => serial.closes === 1),

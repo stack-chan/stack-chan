@@ -2,7 +2,6 @@
   "include": ["../../sdk/manifest.json"],
   "modules": {
     "*": [
-      "./main",
       "./app-behavior",
       "./app-behavior-resolver",
       "./app-launch",
@@ -24,7 +23,10 @@
       "./runtime-lighting",
       "./runtime-ui",
       "./owned-resources",
-      "./operation-queue"
+      "./operation-queue",
+      "./cancellation",
+      "./task-scope",
+      "./app-session"
     ]
   }
 }

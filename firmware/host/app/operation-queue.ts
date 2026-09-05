@@ -1,4 +1,5 @@
 import { asStackchanError, finiteNumber, StackchanError } from 'stackchan/errors'
+import type { CancellationSignal } from 'stackchan/task'
 
 export type OperationClock = {
   /** Schedule once and return an idempotent cancellation function. */
@@ -48,8 +49,13 @@ export class OperationQueue {
     return this.#closed
   }
 
-  run<T>(start: () => T | Promise<T>, cancel?: (reason: StackchanError) => void): Promise<T> {
+  run<T>(
+    start: () => T | Promise<T>,
+    cancel?: (reason: StackchanError) => void,
+    signal?: CancellationSignal,
+  ): Promise<T> {
     if (this.#closed) return Promise.reject(new StackchanError('CLOSED', 'Operation queue is closed'))
+    if (signal?.reason) return Promise.reject(signal.reason)
     if (this.#active && this.#pending.length >= this.#options.capacity) {
       return Promise.reject(new StackchanError('BUSY', 'Operation queue is full'))
     }
@@ -57,10 +63,12 @@ export class OperationQueue {
       let settled = false
       let active = false
       let clearTimer: (() => void) | undefined
+      let unsubscribe: (() => void) | undefined
       const finish = (result: { value: T } | { error: StackchanError }) => {
         if (settled) return
         settled = true
         clearTimer?.()
+        unsubscribe?.()
         if (this.#active === entry) this.#active = undefined
         const index = this.#pending.indexOf(entry)
         if (index >= 0) this.#pending.splice(index, 1)
@@ -97,6 +105,11 @@ export class OperationQueue {
             finish({ error: reason })
           }
         },
+      }
+      unsubscribe = signal?.subscribe((reason) => entry.cancel(reason))
+      if (settled) {
+        unsubscribe?.()
+        return
       }
       if (!this.#active) {
         this.#active = entry

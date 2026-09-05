@@ -14,6 +14,37 @@ type AppBehavior = {
 type AppBehaviorResolverModule = typeof import('app-behavior-resolver')
 type AppLaunchModule = typeof import('app-launch')
 
+test('resolveAppProgram preserves V2 setup without inheriting legacy hooks', async () => {
+  installBareSpecifierPackages()
+  const { resolveAppProgram } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
+  const app = { apiVersion: 2 as const, setup() {} }
+  const program = resolveAppProgram({ has: () => true, importNow: () => app }, { onContextCreated() {} })
+  assert.deepEqual(program, { generation: 2, app })
+  assert.equal('behaviors' in program, false)
+})
+
+test('resolveAppProgram refuses unsupported generations and broken imports before running defaults', async () => {
+  installBareSpecifierPackages()
+  const { resolveAppProgram } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
+  assert.throws(
+    () => resolveAppProgram({ has: () => true, importNow: () => ({ apiVersion: 3, setup() {} }) }, {}),
+    /Unsupported/,
+  )
+  assert.throws(
+    () =>
+      resolveAppProgram(
+        {
+          has: () => true,
+          importNow: () => {
+            throw new Error('import failed')
+          },
+        },
+        {},
+      ),
+    /import failed/,
+  )
+})
+
 function installBareSpecifierPackages(): void {
   const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
   writeAliasPackage(hostRoot, 'app-behavior-resolver', resolve(hostRoot, 'app/app-behavior-resolver.js'))

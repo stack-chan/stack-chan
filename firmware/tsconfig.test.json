@@ -280,6 +280,21 @@
       ],
       "wasm-audio-bridge-contract": [
         "./host/modules/audio/wasm/audio-bridge-contract.ts"
+      ],
+      "stackchan": [
+        "./sdk/index.ts"
+      ],
+      "owned-resources": [
+        "./host/app/owned-resources.ts"
+      ],
+      "cancellation": [
+        "./host/app/cancellation.ts"
+      ],
+      "task-scope": [
+        "./host/app/task-scope.ts"
+      ],
+      "app-session": [
+        "./host/app/app-session.ts"
       ]
     },
     "types": [

@@ -3,12 +3,17 @@ import type { TTS, WebRadioCapability, WebRadioStartOptions } from 'capabilities
 import type Microphone from 'microphone'
 import { OperationQueue } from 'operation-queue'
 import type Speaker from 'speaker'
+import type { CapabilityStatus, PlaybackOptions } from 'stackchan/app'
 import { finiteNumber, StackchanError } from 'stackchan/errors'
+import type { CancellationSignal } from 'stackchan/task'
 import { type Maybe, noop, waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
 
 export type RuntimeAudioConstructorParam = {
   tts: TTS
+  clipPlayer?: TTS
+  ttsKind?: 'speech' | 'clips' | 'unavailable'
+  simulated?: boolean
   microphone?: Pick<Microphone, 'record' | 'stop'>
   speaker?: Pick<Speaker, 'tone' | 'play'> & { cancelPlayback?: (reason?: unknown) => void; close?: () => void }
   webRadio?: WebRadioCapability
@@ -23,8 +28,11 @@ export class StackchanRuntimeAudio {
   #options: RuntimeAudioOptions
   #speaker: RuntimeAudioConstructorParam['speaker']
   #tts: TTS
+  #clips: TTS | undefined
   #webRadio: WebRadioCapability | undefined
   #closed = false
+  #ttsKind: NonNullable<RuntimeAudioConstructorParam['ttsKind']>
+  #simulated: boolean
   #output = new OperationQueue({
     clock: {
       after(milliseconds, callback) {
@@ -44,6 +52,9 @@ export class StackchanRuntimeAudio {
 
   constructor(params: RuntimeAudioConstructorParam, options: RuntimeAudioOptions = {}) {
     this.#options = options
+    this.#ttsKind = params.ttsKind ?? 'speech'
+    this.#clips = params.clipPlayer ?? (this.#ttsKind === 'clips' ? params.tts : undefined)
+    this.#simulated = params.simulated ?? false
     this.#microphone = params.microphone
     this.#speaker = params.speaker
     this.#webRadio = params.webRadio
@@ -99,14 +110,7 @@ export class StackchanRuntimeAudio {
 
   async say(text: string, volume?: number): Promise<Maybe<string>> {
     try {
-      if (volume !== undefined) finiteNumber(volume, 'volume', 0, 1)
-      await this.#output.run(
-        () => {
-          this.#webRadio?.stop()
-          return waitForCompletion((callback) => this.#tts.stream(text, volume, callback))
-        },
-        (reason) => this.#tts.cancelPlayback?.(reason),
-      )
+      await this.speak(text, { volume }, false)
       return {
         success: true,
         value: text,
@@ -118,6 +122,42 @@ export class StackchanRuntimeAudio {
         reason: String(reason),
       }
     }
+  }
+
+  audioStatus(kind: 'speech' | 'clips' | 'tone'): CapabilityStatus {
+    const available = kind === 'tone' ? !!this.#speaker : kind === 'clips' ? !!this.#clips : this.#ttsKind === kind
+    return available
+      ? { availability: this.#simulated ? 'simulated' : 'native' }
+      : { availability: 'unavailable', reason: `Audio ${kind} is unavailable with the selected provider` }
+  }
+
+  async speak(text: string, options: PlaybackOptions = {}, validateKind = true): Promise<void> {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
+    if (validateKind && this.#ttsKind !== 'speech')
+      throw new StackchanError('UNSUPPORTED', 'Select a speech provider to speak text')
+    await this.#stream(text, options)
+  }
+
+  async playClip(name: string, options: PlaybackOptions = {}): Promise<void> {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
+    if (!this.#clips) throw new StackchanError('UNSUPPORTED', 'The selected provider does not play resource clips')
+    if (typeof name !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(name))
+      throw new StackchanError('INVALID_ARGUMENT', 'Use a clip resource name without an extension')
+    await this.#stream(name, options, this.#clips)
+  }
+
+  async #stream(text: string, options: PlaybackOptions, provider: TTS = this.#tts): Promise<void> {
+    if (typeof text !== 'string' || text.length === 0 || text.length > 4096)
+      throw new StackchanError('INVALID_ARGUMENT', 'Speech must be 1–4096 characters')
+    if (options.volume !== undefined) finiteNumber(options.volume, 'volume', 0, 1)
+    await this.#output.run(
+      () => {
+        this.#webRadio?.stop()
+        return waitForCompletion((callback) => provider.stream(text, options.volume, callback))
+      },
+      (reason) => provider.cancelPlayback?.(reason),
+      options.signal,
+    )
   }
 
   async sing(koe: string, volume?: number): Promise<Maybe<string>> {
@@ -156,7 +196,8 @@ export class StackchanRuntimeAudio {
     )
   }
 
-  async tone(hz: number, duration: number, volume?: number): Promise<void> {
+  async tone(hz: number, duration: number, volume?: number, signal?: CancellationSignal): Promise<void> {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
     finiteNumber(hz, 'hz', 1, 24_000)
     finiteNumber(duration, 'durationMs', 0, 60_000)
     if (volume !== undefined) finiteNumber(volume, 'volume', 0, 1)
@@ -167,6 +208,7 @@ export class StackchanRuntimeAudio {
         return this.#speaker.tone(hz, duration, volume)
       },
       (reason) => this.#speaker?.cancelPlayback?.(reason),
+      signal,
     )
   }
 

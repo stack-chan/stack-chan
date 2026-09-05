@@ -20,9 +20,10 @@ export class ResourceScope {
   /** Register immediately after acquisition. The return value relinquishes ownership. */
   defer(handler: CloseHandler): () => void {
     if (this.closed) throw new Error('Resource scope is closed')
-    this.#handlers.push(handler)
+    const registration = () => handler()
+    this.#handlers.push(registration)
     return () => {
-      const index = this.#handlers.indexOf(handler)
+      const index = this.#handlers.indexOf(registration)
       if (index >= 0) this.#handlers.splice(index, 1)
     }
   }

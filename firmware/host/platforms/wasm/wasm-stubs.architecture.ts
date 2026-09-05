@@ -97,9 +97,10 @@ test('WASM and native hosts include one shared runtime module list', () => {
   const runtimeManifest = readManifest('host/app/manifest_runtime.json')
   assert.ok(appManifest.include.includes('./manifest_runtime.json'))
   assert.ok(wasmManifest.include.includes('../../app/manifest_runtime.json'))
-  assert.ok(runtimeManifest.modules['*'].includes('./main'))
+  assert.equal(appManifest.modules.main, './main')
+  assert.equal(wasmManifest.modules.main, '../../app/main')
   assert.ok(runtimeManifest.modules['*'].includes('./runtime-context'))
-  const hostAppModules = appManifest.modules['*'].filter((specifier: string) => specifier.startsWith('./'))
+  const hostAppModules = (appManifest.modules['*'] ?? []).filter((specifier: string) => specifier.startsWith('./'))
   const wasmAppModules = wasmManifest.modules['*'].filter((specifier: string) => specifier.startsWith('../../app/'))
 
   assert.deepEqual(hostAppModules, [])
@@ -107,7 +108,7 @@ test('WASM and native hosts include one shared runtime module list', () => {
 })
 
 test('camera preview aliases keep WASM-only bindings out of the shared import graph', () => {
-  const manifest = readManifest('host/app/manifest.json')
+  const manifest = readManifest('host/app/manifest_native.json')
 
   // The generic/default alias (used by the Linux simulator) stays on the mosaic-only view so no
   // WASM-only native binding leaks into the Linux import graph.

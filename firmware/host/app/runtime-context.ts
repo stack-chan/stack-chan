@@ -1,3 +1,4 @@
+import { AppSession } from 'app-session'
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type {
   AudioCapability,
@@ -15,7 +16,7 @@ import type {
   ShowBalloonOptions,
   StackchanContext,
 } from 'capabilities'
-import type { Emotion, FaceEyeKey, FaceThemeKey } from 'face-state'
+import { Emotion, type FaceEyeKey, type FaceThemeKey } from 'face-state'
 import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
@@ -25,6 +26,8 @@ import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runt
 import { type RuntimeInputConstructorParam, StackchanRuntimeInput } from 'runtime-input'
 import { type RuntimeLightingConstructorParam, StackchanRuntimeLighting } from 'runtime-lighting'
 import { StackchanRuntimeUI } from 'runtime-ui'
+import type { AppDefinition } from 'stackchan/app'
+import { StackchanError } from 'stackchan/errors'
 import { type Maybe, type Pose, type Vector3, waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -66,6 +69,8 @@ export class StackchanRuntimeContext implements StackchanContext {
   #updateFaceHandler: Timer | undefined
   #closed = false
   #ownedResources: OwnedResources
+  #shutdown: OwnedResources | undefined
+  #appSession: AppSession | undefined
 
   constructor(params: RuntimeContextConstructorParam) {
     this.#ownedResources = new OwnedResources(params.closeHandlers)
@@ -99,6 +104,101 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#conversationCapability = this.createConversationCapability(params.remoteConversationSession)
     this.#connectivityCapability = this.createConnectivityCapability(params.connectivity ?? {})
     this.#uiCapability = this.createUICapability()
+  }
+
+  async startApp(definition: AppDefinition): Promise<AppSession> {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Host context is closed')
+    if (this.#appSession && this.#appSession.state !== 'closed')
+      throw new StackchanError('BUSY', 'An app is already running')
+    const emotions = {
+      neutral: Emotion.NEUTRAL,
+      happy: Emotion.HAPPY,
+      angry: Emotion.ANGRY,
+      sad: Emotion.SAD,
+      sleepy: Emotion.SLEEPY,
+      doubt: Emotion.DOUBTFUL,
+      cold: Emotion.COLD,
+      hot: Emotion.HOT,
+    }
+    const primaryListeners = new Set<() => void>()
+    const primaryKey = 'sdkPrimaryAction'
+    const session = new AppSession(
+      {
+        face: {
+          setEmotion: (emotion) => {
+            if (!Object.hasOwn(emotions, emotion)) throw new StackchanError('INVALID_ARGUMENT', 'Unknown emotion')
+            this.setEmotion(emotions[emotion])
+          },
+          setMouthOpen: (value) => this.setMouthOpen(value),
+          setColor: (part, { r, g, b }) => {
+            if (part !== 'primary' && part !== 'secondary')
+              throw new StackchanError('INVALID_ARGUMENT', 'Unknown face color')
+            this.setColor(part, r, g, b)
+          },
+        },
+        audio: {
+          say: (text, options) => this.#audioRuntime.speak(text, options),
+          playClip: (name, options) => this.#audioRuntime.playClip(name, options),
+          tone: (hz, options) => this.#audioRuntime.tone(hz, options.durationMs, options.volume, options.signal),
+        },
+        input: {
+          subscribePress: (handler) => {
+            if (this.#inputRuntime.primaryButton) return this.#inputRuntime.subscribePress(handler)
+            const ui = this.#uiRuntime.ui
+            if (primaryListeners.size === 0) {
+              if (
+                !ui.bindDrawerAction(primaryKey, () => {
+                  for (const listener of [...primaryListeners]) listener()
+                })
+              ) {
+                throw new StackchanError('UNSUPPORTED', 'Primary action is unavailable')
+              }
+              try {
+                ui.addDrawerButton({ key: primaryKey, label: '実行', kind: 'action', icon: 'play' })
+              } catch (error) {
+                ui.unbindDrawerAction(primaryKey)
+                throw error
+              }
+            }
+            primaryListeners.add(handler)
+            return () => {
+              primaryListeners.delete(handler)
+              if (primaryListeners.size === 0) {
+                ui.unbindDrawerAction(primaryKey)
+                ui.removeDrawerButton(primaryKey)
+              }
+            }
+          },
+        },
+        ui: { showBalloon: (text) => this.showBalloon(text), hideBalloon: () => this.hideBalloon() },
+        capabilities: {
+          get: (id) => {
+            switch (id) {
+              case 'input.primary':
+                return { availability: 'native' }
+              case 'audio.speech':
+                return this.#audioRuntime.audioStatus('speech')
+              case 'audio.clips':
+                return this.#audioRuntime.audioStatus('clips')
+              case 'audio.tone':
+                return this.#audioRuntime.audioStatus('tone')
+              default:
+                throw new StackchanError('INVALID_ARGUMENT', 'Unknown capability')
+            }
+          },
+        },
+      },
+      {
+        after(ms, callback) {
+          const timer = Timer.set(callback, ms)
+          return () => Timer.clear(timer)
+        },
+      },
+      (error) => trace(`[app] ${error instanceof Error ? error.message : String(error)}\n`),
+    )
+    this.#appSession = session
+    await session.start(definition)
+    return session
   }
 
   get face(): FaceCapability {
@@ -636,59 +736,31 @@ export class StackchanRuntimeContext implements StackchanContext {
    * to modify the face state and pass it to RobotUI#update.
    */
   #updateFace = () => {
+    if (this.#closed) return
     this.#uiRuntime.updateFace(INTERVAL_FACE)
   }
 
-  async #close(): Promise<void> {
-    if (this.#closed) return
-    this.#closed = true
-    if (this.#updateFaceHandler) {
-      Timer.clear(this.#updateFaceHandler)
-      this.#updateFaceHandler = undefined
-    }
-    let closeError: unknown
-    let hasCloseError = false
-    const rememberCloseError = (error: unknown) => {
-      if (hasCloseError) return
-      closeError = error
-      hasCloseError = true
-    }
-    try {
-      this.#motionController.close()
-    } catch (error) {
-      rememberCloseError(error)
-    }
-    try {
-      await this.#ownedResources.close()
-    } catch (error) {
-      rememberCloseError(error)
-    }
-    for (const session of this.#localPeerSessions) {
-      try {
-        session.close()
-      } catch (error) {
-        rememberCloseError(error)
-      }
-    }
-    this.#localPeerSessions.clear()
-    try {
-      await this.#cameraRuntime.close()
-    } catch (error) {
-      rememberCloseError(error)
-    } finally {
-      for (const closeRuntime of [
+  #close(): Promise<void> {
+    if (!this.#shutdown) {
+      this.#closed = true
+      this.#shutdown = new OwnedResources([
+        () => {
+          if (this.#updateFaceHandler) Timer.clear(this.#updateFaceHandler)
+          this.#updateFaceHandler = undefined
+        },
+        () => this.#appSession?.close(),
+        () => this.#motionController.close(),
+        () => this.#ownedResources.close(),
+        () =>
+          new OwnedResources([...this.#localPeerSessions].map((session) => () => session.close()))
+            .close()
+            .finally(() => this.#localPeerSessions.clear()),
+        () => this.#cameraRuntime.close(),
         () => this.#inputRuntime.close(),
         () => this.#audioRuntime.close(),
         () => this.#lightingRuntime.close(),
-      ]) {
-        try {
-          closeRuntime()
-        } catch (error) {
-          rememberCloseError(error)
-        }
-      }
+      ])
     }
-    if (hasCloseError) throw closeError
-    // connectivity is owned by boot-services, not this context, so it stays open.
+    return this.#shutdown.close()
   }
 }

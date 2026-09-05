@@ -7,7 +7,6 @@ import type {
   RemoteConversationSession,
   RobotLed,
   RobotUI,
-  StackchanContext,
   TTS,
   WebRadioCapability,
 } from 'capabilities'
@@ -121,7 +120,7 @@ export function getHostDeviceEnvironment(): HostDeviceEnvironment {
 export function createStackchanContext(
   preferences: PreferenceConfig,
   options: StackchanContextOptions = {},
-): StackchanContext {
+): StackchanRuntimeContext {
   const drivers = new Map<string, (param: unknown) => MotionDriver>([
     ['scservo', (param) => new SCServoDriver(param as ConstructorParameters<typeof SCServoDriver>[0])],
     [
@@ -254,6 +253,14 @@ export function createStackchanContext(
     driver,
     ui,
     tts,
+    ttsKind:
+      config.wasm && ttsKey !== 'stackchan-voice'
+        ? ('unavailable' as const)
+        : ttsKey === 'local'
+          ? ('clips' as const)
+          : ('speech' as const),
+    clipPlayer: config.wasm ? undefined : ttsKey === 'local' ? tts : new LocalTTS(ttsPrefs),
+    simulated: !!config.wasm,
     button: globalEnv.button,
     touch,
     touchPanel,
@@ -267,6 +274,6 @@ export function createStackchanContext(
     camera,
     led,
   } satisfies ConstructorParameters<typeof StackchanRuntimeContext>[0]
-  const context: StackchanContext = new StackchanRuntimeContext(contextParams)
+  const context = new StackchanRuntimeContext(contextParams)
   return context
 }

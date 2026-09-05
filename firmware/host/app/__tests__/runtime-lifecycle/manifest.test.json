@@ -8,7 +8,14 @@
   "modules": {
     "owned-resources": "../../owned-resources",
     "operation-queue": "../../operation-queue",
-    "main": "./runtime-lifecycle.test"
+    "main": "./runtime-lifecycle.test",
+    "app-session": "../../app-session",
+    "task-scope": "../../task-scope",
+    "cancellation": "../../cancellation"
   },
-  "defines": { "main": { "async": 1 } }
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  }
 }

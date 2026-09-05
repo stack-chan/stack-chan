@@ -26,6 +26,38 @@ function fakeTTS() {
   }
 }
 
+test('V2 audio keeps text and resource playback separate while sharing one output queue', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
+  const calls: string[] = []
+  const runtime = new StackchanRuntimeAudio({
+    tts: {
+      stream(text, _volume, callback) {
+        calls.push(`speech:${text}`)
+        callback?.()
+      },
+    },
+    clipPlayer: {
+      stream(name, _volume, callback) {
+        calls.push(`clip:${name}`)
+        callback?.()
+      },
+    },
+    ttsKind: 'speech',
+  })
+  await Promise.all([runtime.speak('こんにちは'), runtime.playClip('hello')])
+  assert.deepEqual(calls, ['speech:こんにちは', 'clip:hello'])
+  assert.equal(runtime.audioStatus('speech').availability, 'native')
+  assert.equal(runtime.audioStatus('clips').availability, 'native')
+  await assert.rejects(runtime.playClip('../hello'), { code: 'INVALID_ARGUMENT' })
+  await assert.rejects(runtime.speak('hello', { volume: Number.NaN }), { code: 'INVALID_ARGUMENT' })
+  const local = new StackchanRuntimeAudio({ tts: fakeTTS(), ttsKind: 'clips' })
+  await assert.rejects(local.speak('こんにちは'), { code: 'UNSUPPORTED' })
+  await local.playClip('hello')
+  runtime.close()
+  local.close()
+})
+
 test('StackchanRuntimeAudio forwards singing koe to providers that support it', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule

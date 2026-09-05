@@ -247,6 +247,9 @@
       ],
       "stackchan/*": [
         "./sdk/*.ts"
+      ],
+      "stackchan": [
+        "./sdk/index.ts"
       ]
     },
     "types": [

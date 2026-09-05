@@ -91,6 +91,9 @@ jobs:
       - name: Run legacy name checks
         working-directory: ./firmware
         run: npm run check:legacy-names
+      - name: Check public SDK and JavaScript lessons
+        working-directory: ./firmware
+        run: npm run check:sdk
       - name: Run architecture checks
         working-directory: ./firmware
         run: npm run check:architecture

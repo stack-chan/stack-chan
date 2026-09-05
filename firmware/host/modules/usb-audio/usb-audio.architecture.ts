@@ -22,6 +22,7 @@ type Manifest = {
 const appManifest = readManifest('host/app/manifest.json')
 const wasmManifest = readManifest('host/platforms/wasm/manifest.json')
 const runtimeManifest = readManifest('host/app/manifest_runtime.json')
+const nativeManifest = readManifest('host/app/manifest_native.json')
 const coreS3Manifest = readManifest('host/app/manifest_m5stackchan_cores3.json')
 const usbAppManifest = readManifest('host/app/manifest_android_usb_audio.json')
 const diagnosticAppManifest = readManifest('host/app/manifest_android_usb_audio_diagnostics.json')
@@ -34,7 +35,11 @@ const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as {
 }
 
 test('CoreS3 composes the USB Dock without leaking it into shared or WASM graphs', () => {
-  const sharedModules = [...asModuleList(appManifest), ...asModuleList(runtimeManifest)]
+  const sharedModules = [
+    ...asModuleList(appManifest),
+    ...asModuleList(nativeManifest),
+    ...asModuleList(runtimeManifest),
+  ]
   const wasmModules = asModuleList(wasmManifest)
 
   assert.ok(sharedModules.includes('./dock'))
@@ -145,9 +150,7 @@ function readManifest(path: string): Manifest {
 }
 
 function asModuleList(manifest: Manifest): string[] {
-  const modules = manifest.modules?.['*']
-  assert.ok(Array.isArray(modules))
-  return modules
+  return Object.values(manifest.modules ?? {}).flatMap((value) => (typeof value === 'string' ? [value] : value))
 }
 
 function importSpecifiers(path: string): string[] {

@@ -4,9 +4,9 @@
   "description": "A firmware of M5Stack Stack-chan module",
   "main": "host/app/main.ts",
   "scripts": {
-    "format": "biome format host mods scripts",
+    "format": "biome format host mods scripts sdk lessons contracts",
     "format:fix": "npm run format -- --write",
-    "lint": "biome lint host mods scripts",
+    "lint": "biome lint host mods scripts sdk lessons contracts",
     "lint:fix": "npm run lint -- --write",
     "clean": "node scripts/clean.mjs",
     "check:legacy-names": "node scripts/check-legacy-names.js",
@@ -83,7 +83,8 @@
     "scan": "xs-dev scan",
     "erase-flash": "esptool erase-flash",
     "install-hook": "lefthook install",
-    "uninstall-hook": "lefthook uninstall"
+    "uninstall-hook": "lefthook uninstall",
+    "check:sdk": "tsc --project tsconfig.sdk.json"
   },
   "type": "module",
   "repository": {
@@ -103,7 +104,9 @@
   },
   "homepage": "https://github.com/meganetaaan/stack-chan#readme",
   "private": true,
-  "workspaces": ["tools/typedoc"],
+  "workspaces": [
+    "tools/typedoc"
+  ],
   "devDependencies": {
     "@biomejs/biome": "2.5.10",
     "@google-cloud/text-to-speech": "^6.4.1",
@@ -112,7 +115,7 @@
     "fontkit": "^2.0.2",
     "lefthook": "^2.1.10",
     "node-fetch": "^3.3.0",
-    "typescript": "^7.0.2",
+    "typescript": "7.0.2",
     "web-audio-engine": "^0.13.4",
     "xs-dev": "^1.12.1",
     "yargs": "^18.1.0"

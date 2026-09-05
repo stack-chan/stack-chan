@@ -1,5 +1,8 @@
 {
   "modules": {
-    "stackchan/errors": "./errors"
+    "stackchan/errors": "./errors",
+    "stackchan": "./index",
+    "stackchan/app": "./app",
+    "stackchan/task": "./task"
   }
 }

@@ -45,7 +45,7 @@ export class LocalPeerError extends Error {
   }
 }
 
-LocalPeerError.prototype.name = 'LocalPeerError'
+Object.defineProperty(LocalPeerError.prototype, 'name', { value: 'LocalPeerError', configurable: true, writable: true })
 
 export type LocalPeerOpenOptions = {
   /** Radio transport. ESP-NOW remains the default where it is available. */

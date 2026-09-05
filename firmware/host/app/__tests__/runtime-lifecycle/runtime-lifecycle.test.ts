@@ -1,5 +1,7 @@
+import { AppSession } from 'app-session'
 import { OperationQueue } from 'operation-queue'
 import { ResourceScope } from 'owned-resources'
+import { defineApp } from 'stackchan'
 import { StackchanError } from 'stackchan/errors'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
@@ -57,6 +59,45 @@ async function run(): Promise<void> {
     equal(errorCode, 'CLOSED', 'closing fails a pending operation')
     equal(resources, 0, 'resources return to baseline')
     equal(timers, 0, 'deadline timers return to baseline')
+    const listeners = new Set<() => void>()
+    const sessionErrors: unknown[] = []
+    const session = new AppSession(
+      {
+        face: { setEmotion() {}, setColor() {}, setMouthOpen() {} },
+        audio: { async say() {}, async playClip() {}, async tone() {} },
+        input: {
+          subscribePress(handler) {
+            listeners.add(handler)
+            return () => {
+              listeners.delete(handler)
+            }
+          },
+        },
+        ui: { showBalloon() {}, hideBalloon() {} },
+        capabilities: { get: () => ({ availability: 'simulated' }) },
+      },
+      clock,
+      (error) => sessionErrors.push(error),
+    )
+    await session.start(
+      defineApp({
+        setup(app) {
+          app.time.every(10_000, () => {})
+          app.input.onPress('primary', async (task) => {
+            await task.sleep(10_000)
+          })
+        },
+      }),
+    )
+    for (const listener of listeners) listener()
+    const end = session.close()
+    equal(end, session.close(), 'app close returns the same promise')
+    await end
+    equal(listeners.size, 0, 'app input listeners return to baseline')
+    equal(timers, 0, 'app timers return to baseline')
+    equal(session.resourceCount, 0, 'app resources return to baseline')
+    equal(session.taskCount, 0, 'app tasks return to baseline')
+    equal(sessionErrors.length, 0, 'cancellation is not reported as a handler failure')
   }
   const queue = new OperationQueue({ clock, operationTimeoutMs: 10 })
   trace('runtime lifecycle: deadline\n')

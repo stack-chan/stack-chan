@@ -3,6 +3,25 @@ export type AppBehaviorModules = {
   importNow(specifier: string): unknown
 }
 
+export type AppProgram<TBehavior> = { generation: 1; behaviors: TBehavior[] } | { generation: 2; app: AppDefinition }
+
+/** V2 apps have their own lifecycle and never inherit V1 default hooks. */
+export function resolveAppProgram<TBehavior extends object>(
+  modules: AppBehaviorModules,
+  defaultBehavior: TBehavior,
+): AppProgram<TBehavior> {
+  if (!modules.has('mod')) return { generation: 1, behaviors: [defaultBehavior] }
+  const candidate = modules.importNow('mod')
+  if (!candidate || typeof candidate !== 'object') throw new Error('MOD must export an app definition')
+  if ('apiVersion' in candidate) {
+    if (candidate.apiVersion !== 2 || !('setup' in candidate) || typeof candidate.setup !== 'function') {
+      throw new Error('Unsupported MOD app API version or missing setup')
+    }
+    return { generation: 2, app: candidate as AppDefinition }
+  }
+  return { generation: 1, behaviors: [mergeDefinedBehavior(defaultBehavior, candidate)] }
+}
+
 export function resolveAppBehaviors<TBehavior extends object>(
   modules: AppBehaviorModules,
   defaultBehavior: TBehavior,
@@ -31,3 +50,5 @@ function mergeDefinedBehavior<TBehavior extends object>(
   }
   return behavior
 }
+
+import type { AppDefinition } from 'stackchan/app'

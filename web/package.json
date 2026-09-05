@@ -14,7 +14,8 @@
     "test:i18n-visual": "npm run build && node i18n-visual-test.mjs",
     "check:editor-artifacts": "node check-editor-artifacts.mjs",
     "test:visual": "npm run build && node visual-pages-test.mjs && node simulator/visual-test.mjs",
-    "metrics:aggregate": "node editor/aggregate-metrics-cli.mjs"
+    "metrics:aggregate": "node editor/aggregate-metrics-cli.mjs",
+    "test:sdk-lessons": "npm run build && node simulator/sdk-lessons-visual.mjs"
   },
   "keywords": [],
   "author": "Shinya Ishikawa",

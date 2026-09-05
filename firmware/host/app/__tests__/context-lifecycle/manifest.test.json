@@ -1,0 +1,31 @@
+{
+  "include": [
+    "../../manifest_native.json",
+    "../../manifest_runtime.json",
+    "../../../modules/testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./context-lifecycle.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../modules/ui/assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../modules/ui/assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      },
+      {
+        "source": "../../../modules/ui/assets/fonts/k8x12",
+        "size": 24,
+        "characters": "0123456789:-",
+        "monochrome": true
+      }
+    ]
+  }
+}

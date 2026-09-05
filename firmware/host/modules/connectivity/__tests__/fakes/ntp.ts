@@ -17,6 +17,7 @@ export default class NTP {
     this.callback?.(error, value)
   }
 }
+/** Discard clients recorded by the previous test without changing the fake clock. */
 export function resetNTP() {
   NTP.instances = []
 }

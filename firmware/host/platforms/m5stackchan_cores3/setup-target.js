@@ -3,6 +3,7 @@ import { getAxp2101Power } from 'axp2101-power-capture'
 // Mirrors the CoreS3 power-rail setup used by M5Stack/StackChan firmware
 // (`firmware/main/hal/board/stackchan.cc` near the AXP2101 init path) and the
 // X-Powers AXP2101 register map for DCDC/ALDO/BLDO/LDO and charge-control fields.
+/** Apply Stack-chan rail and expander settings to the SDK-created power devices. */
 function patchStackChanPower() {
   const axp2101 = getAxp2101Power()
   if (!axp2101) throw new Error('AXP2101 power instance is unavailable')

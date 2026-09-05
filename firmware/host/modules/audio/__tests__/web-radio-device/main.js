@@ -15,6 +15,7 @@ let playedBuffers = 0
 let hostIndex = 0
 let reconnectTimer
 
+/** Open the next radio endpoint and count decoded playback buffers. */
 function startRadio() {
   const host = STREAM_HOSTS[hostIndex]
   hostIndex = (hostIndex + 1) % STREAM_HOSTS.length

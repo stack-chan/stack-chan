@@ -38,6 +38,7 @@ function stopTest(reason) {
   )
 }
 
+/** Start the configured HTTP transfer and collect device throughput measurements. */
 function startTest() {
   startTime = Date.now()
   trace(

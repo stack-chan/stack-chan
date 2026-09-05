@@ -80,6 +80,7 @@ function writeMultipartChunk(
   writer.write()
 }
 
+/** Post multipart audio using the HTTPS provider and collect the transcription response. */
 function postMultipart(url: string, headers: Headers, parts: MultipartPart[]): Promise<MultipartResponse> {
   return new Promise((resolve, reject) => {
     const endpoint = new URL(url)

@@ -124,6 +124,7 @@ export function toolboxForTarget(toolbox, target) {
   return clone
 }
 
+/** Collect deployment blockers from the target, firmware, archive, and requested capabilities. */
 export function inspectDeploymentCompatibility(
   target,
   {

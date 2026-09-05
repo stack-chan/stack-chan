@@ -1,10 +1,12 @@
 import Timer from 'timer'
 
+/** Advertise the current pose after claiming the local DNS-SD host name. */
 function onContextCreated(robot) {
   const dnssd = new device.network.dnssd.io(device.network.dnssd)
   let advertisement
   dnssd.claim({
     host: 'stackchan',
+    /** Start advertising only after the host name has been claimed. */
     onReady() {
       advertisement = dnssd.advertise({
         host: 'stackchan',
@@ -17,6 +19,7 @@ function onContextCreated(robot) {
         ]),
       })
     },
+    /** Report a name conflict without advertising an unclaimed host. */
     onError() {
       trace('DNS-SD: stackchan.local is unavailable\n')
     },

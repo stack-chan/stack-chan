@@ -1,5 +1,7 @@
+/** Follow pose TXT records published by the stackchan DNS-SD service. */
 function onContextCreated(robot) {
   const dnssd = new device.network.dnssd.io(device.network.dnssd)
+  /** Apply only finite pose values from the selected peer. */
   function follow(service) {
     if (service.name !== 'stackchan') return
     const y = Number(service.txt?.get('yaw'))

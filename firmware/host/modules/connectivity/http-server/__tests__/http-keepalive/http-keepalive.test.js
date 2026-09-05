@@ -2,7 +2,6 @@ import TCP from 'embedded:io/socket/tcp'
 import { HttpServerService } from 'http-server-service'
 import { MCPServerService } from 'mcp-server'
 import { equal } from 'testing/assert'
-import Timer from 'timer'
 
 const app = new HttpServerService({ port: 18082 })
 app.post('/echo', async (c) => c.json({ query: c.req.query('q'), body: await c.req.text() }))
@@ -19,6 +18,7 @@ limited.post('/echo', async (c) => {
 })
 const mcp = new MCPServerService({ port: 18083, token: 'test-token' })
 
+/** Assert a sequence of HTTP responses over one persistent TCP connection. */
 async function exchange(port, cases) {
   return new Promise((resolve, reject) => {
     let index = 0
@@ -26,12 +26,14 @@ async function exchange(port, cases) {
     let pending
     let writable = 0
     let socket
+    /** Wait until the pending request fits the reported write capacity. */
     function send() {
       if (!pending || writable < pending.byteLength) return
       const packet = pending
       pending = undefined
       writable = socket.write(packet)
     }
+    /** Encode the next request after the previous response has been checked. */
     function prepare() {
       const { path, body = '', token } = cases[index]
       const method = body ? 'POST' : 'GET'
@@ -79,36 +81,75 @@ async function exchange(port, cases) {
     prepare()
   })
 }
-// Send separately timed chunks so no individual read exceeds the limit.
+/** Verify cumulative accounting independently of TCP packet coalescing. */
+function checkCumulativeBodyLimit() {
+  const originalDevice = globalThis.device
+  let callbacks
+  let reads = 0
+  let closed = false
+  class TestServer {
+    constructor(options) {
+      options.onConnect({
+        accept(value) {
+          callbacks = value
+        },
+      })
+    }
+    close() {}
+  }
+  let server
+  try {
+    globalThis.device = { network: { http: { server: { io: TestServer } } } }
+    server = new HttpServerService({ maxRequestBodyBytes: 8 })
+    const connection = {
+      read(count) {
+        reads++
+        return new ArrayBuffer(count)
+      },
+      close() {
+        closed = true
+      },
+    }
+    callbacks.onRequest({ method: 'POST', path: '/echo' })
+    callbacks.onReadable.call(connection, 4)
+    equal(closed, false, 'first chunk is within the limit')
+    callbacks.onReadable.call(connection, 4)
+    equal(closed, false, 'exact cumulative limit is accepted')
+    callbacks.onReadable.call(connection, 4)
+    equal(closed, true, 'reject a cumulative overflow even when each chunk fits')
+    equal(reads, 2, 'do not allocate a buffer for the excess chunk')
+  } finally {
+    server?.close()
+    globalThis.device = originalDevice
+  }
+}
+
+/** Verify rejection over real TCP while respecting available write capacity. */
 async function rejectOversizedBody() {
   return new Promise((resolve, reject) => {
-    let timer
-    let started = false
-    let chunks = 0
+    const packet = ArrayBuffer.fromString(
+      'POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Length: 12\r\n\r\nabcdabcdabcd',
+    )
+    let offset = 0
     new TCP({
       address: '127.0.0.1',
       port: 18084,
-      onWritable() {
-        if (started) return
-        started = true
-        this.write(ArrayBuffer.fromString('POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Length: 12\r\n\r\n'))
-        timer = Timer.repeat(() => {
-          if (chunks === 3) return
-          chunks++
-          this.write(ArrayBuffer.fromString('abcd'))
-        }, 25)
+      onWritable(count) {
+        const size = Math.min(count, packet.byteLength - offset)
+        if (!size) return
+        const chunk = new DataView(packet, offset, size)
+        offset += size
+        this.write(chunk)
       },
       onReadable(count) {
         this.read(count)
-        Timer.clear(timer)
         this.close()
         reject(new Error('Oversized body must be rejected before routing'))
       },
       onError() {
-        Timer.clear(timer)
         this.close()
-        equal(chunks, 3, 'connection closes only after the cumulative limit is exceeded')
-        resolve()
+        if (offset !== packet.byteLength) reject(new Error('Connection failed before the request was sent'))
+        else resolve()
       },
     })
   })
@@ -207,6 +248,7 @@ try {
       },
     },
   ])
+  checkCumulativeBodyLimit()
   await rejectOversizedBody()
   equal(routedLimitedRequests, 1, 'oversized requests never reach the handler')
   await exchange(18084, [{ path: '/echo', body: 'ok', status: 200 }])

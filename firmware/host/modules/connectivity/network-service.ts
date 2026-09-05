@@ -169,6 +169,7 @@ export class NetworkService {
     }
   }
 
+  /** Complete connection setup after optional time synchronization. */
   #handleGotIP(): void {
     if (this.#closed || this.state === NetworkConnectionState.CONNECTED || this.#ntp) return
     this.#clearConnectionTimeout()
@@ -204,6 +205,7 @@ export class NetworkService {
     }
   }
 
+  /** Invalidate the pending attempt before closing its NTP resources. */
   #closeNtp() {
     const ntp = this.#ntp
     this.#ntp = undefined

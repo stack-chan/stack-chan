@@ -9,12 +9,14 @@ function capture(power) {
 }
 
 const readUint8 = AXP2101.prototype.readUint8
+/** Retain the first peripheral instance while forwarding register reads. */
 AXP2101.prototype.readUint8 = function (...args) {
   capture(this)
   return readUint8.apply(this, args)
 }
 
 const writeUint8 = AXP2101.prototype.writeUint8
+/** Retain the first peripheral instance while forwarding register writes. */
 AXP2101.prototype.writeUint8 = function (...args) {
   capture(this)
   return writeUint8.apply(this, args)

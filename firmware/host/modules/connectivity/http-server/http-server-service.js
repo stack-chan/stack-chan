@@ -38,6 +38,7 @@ class Response {
   #body
   #headers
   #status = 200
+  /** Encode the response body and supply Content-Length unless explicitly provided. */
   constructor(body, options = {}) {
     this.#body = body instanceof ArrayBuffer ? body : ArrayBuffer.fromString(body.toString())
     const headers = new Headers()
@@ -156,12 +157,15 @@ class HttpServerService {
     this.#server = new device.network.http.server.io({
       ...device.network.http.server,
       port: options.port ?? 8080,
+      /** Each connection owns one current request until its response finishes. */
       onConnect(connection) {
         let current
         connection.accept({
+          /** Replace all body and response state when a keep-alive request begins. */
           onRequest(request) {
             current = { request, chunks: [], length: 0, body: undefined, offset: 0 }
           },
+          /** Buffer incoming bytes only while the cumulative request limit permits. */
           onReadable(count) {
             // Reject before allocating another chunk, including chunked requests.
             if (!current || count > maxRequestBodyBytes - current.length) {
@@ -173,10 +177,12 @@ class HttpServerService {
             current.chunks.push(chunk)
             current.length += chunk.byteLength
           },
+          /** Route a complete request while guarding against connection closure. */
           onResponse(response) {
             const state = current
             service.#respond(this, state, response, () => !service.#closed && current === state)
           },
+          /** Send only the response bytes that fit the current socket capacity. */
           onWritable(count) {
             const state = current
             if (!state?.body) return
@@ -186,9 +192,11 @@ class HttpServerService {
             state.offset += length
             this.write(chunk)
           },
+          /** Release the completed response before another request is accepted. */
           onDone() {
             current = undefined
           },
+          /** Invalidate pending asynchronous replies when the connection fails. */
           onError() {
             current = undefined
           },
@@ -197,15 +205,18 @@ class HttpServerService {
     })
   }
 
+  /** Return the bound listener port for endpoint construction. */
   get port() {
     return this.#server.port
   }
 
+  /** Close the listener and prevent pending handlers from sending replies. */
   close() {
     this.#closed = true
     this.#server.close()
   }
 
+  /** Dispatch one complete request; route failures become 500 responses. */
   async #respond(connection, state, rawResponse, isCurrent) {
     try {
       const bytes = new Uint8Array(state.length)
@@ -222,11 +233,13 @@ class HttpServerService {
         method: request.method,
         headers: request.headers,
         url: new URL(`${request.path}${query}`, `http://localhost:${this.#server.port}`),
+        /** Consume the buffered request body once as UTF-8 text. */
         async text() {
           const value = body
           body = undefined
           return value === undefined ? undefined : String.fromArrayBuffer(value)
         },
+        /** Consume and decode the request body as JSON. */
         async json() {
           return JSON.parse(await this.text())
         },

@@ -195,7 +195,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
         with:
-          target-branch: "9.0.0"
+          target-branch: "9.5.0"
           install-emscripten: "true"
       - name: Install web test dependencies
         working-directory: ./firmware

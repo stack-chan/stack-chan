@@ -15,7 +15,7 @@
 // Fallback when the version cannot be detected from the tools binary output.
 // The TOOL base class verifies $(MODDABLE)/tools/VERSION against the version
 // baked into the binary, so this must match vendor/tools.wasm.
-export const DEFAULT_TOOLS_VERSION = '9.0.0'
+export const DEFAULT_TOOLS_VERSION = '9.5.0'
 
 export const DEFAULT_MOD_MANIFEST = {
   modules: {

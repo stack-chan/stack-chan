@@ -9,10 +9,12 @@ import WavStreamer from 'wavstreamer'
 /* global trace, SharedArrayBuffer */
 declare const device: {
   network: {
-    http: typeof HTTPClient.constructor & {
-      io: typeof HTTPClient
-      socket: unknown
-      dns: unknown
+    http: {
+      client: typeof HTTPClient.constructor & {
+        io: typeof HTTPClient
+        socket: unknown
+        dns: unknown
+      }
     }
   }
 }
@@ -49,7 +51,7 @@ export class TTS {
       const audio = lifecycle.openAudio({ streams: 1, sampleRate: this.sampleRate }, volume ?? this.volume)
       lifecycle.attach(
         new WavStreamer({
-          http: device.network.http,
+          http: device.network.http.client,
           host: this.host,
           path: key,
           port: this.port,

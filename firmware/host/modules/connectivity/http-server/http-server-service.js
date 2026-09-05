@@ -1,6 +1,5 @@
 import Headers from 'headers'
-import listen from 'listen'
-import { URLSearchParams } from 'url'
+import { URL, URLSearchParams } from 'url'
 
 class Request {
   raw
@@ -39,11 +38,14 @@ class Response {
   #body
   #headers
   #status = 200
-  constructor(body, options) {
+  /** Encode the response body and supply Content-Length unless explicitly provided. */
+  constructor(body, options = {}) {
     this.#body = body instanceof ArrayBuffer ? body : ArrayBuffer.fromString(body.toString())
     const headers = new Headers()
     if (options.headers) {
-      for (const [key, value] of Object.entries(options.headers)) {
+      for (const [key, value] of options.headers.entries
+        ? options.headers.entries()
+        : Object.entries(options.headers)) {
         headers.set(key, value)
       }
     }
@@ -53,7 +55,7 @@ class Response {
     }
     this.#headers = headers
 
-    this.#status = options?.status· ? options.status : 200
+    this.#status = options.status ?? 200
   }
   get body() {
     return this.#body
@@ -140,29 +142,127 @@ class HttpServerService {
   patch = (path, handler) => this.#routes.patch.set(path, handler)
   delete = (path, handler) => this.#routes.delete.set(path, handler)
 
+  #server
+  #closed = false
+  #notFound
+
+  /** Create a server with a bounded request body (16 KiB by default). */
   constructor(options = {}) {
-    const port = options?.port ?? 8080
-    this.#listen(port)
+    const maxRequestBodyBytes = options.maxRequestBodyBytes ?? 16 * 1024
+    if (!Number.isSafeInteger(maxRequestBodyBytes) || maxRequestBodyBytes < 0) {
+      throw new RangeError('maxRequestBodyBytes must be a non-negative safe integer')
+    }
+    this.#notFound = options.onNotFound
+    const service = this
+    this.#server = new device.network.http.server.io({
+      ...device.network.http.server,
+      port: options.port ?? 8080,
+      /** Each connection owns one current request until its response finishes. */
+      onConnect(connection) {
+        let current
+        connection.accept({
+          /** Replace all body and response state when a keep-alive request begins. */
+          onRequest(request) {
+            current = { request, chunks: [], length: 0, body: undefined, offset: 0 }
+          },
+          /** Buffer incoming bytes only while the cumulative request limit permits. */
+          onReadable(count) {
+            // Reject before allocating another chunk, including chunked requests.
+            if (!current || count > maxRequestBodyBytes - current.length) {
+              current = undefined
+              this.close()
+              return
+            }
+            const chunk = this.read(count)
+            current.chunks.push(chunk)
+            current.length += chunk.byteLength
+          },
+          /** Route a complete request while guarding against connection closure. */
+          onResponse(response) {
+            const state = current
+            service.#respond(this, state, response, () => !service.#closed && current === state)
+          },
+          /** Send only the response bytes that fit the current socket capacity. */
+          onWritable(count) {
+            const state = current
+            if (!state?.body) return
+            const length = Math.min(count, state.body.byteLength - state.offset)
+            if (length <= 0) return
+            const chunk = new DataView(state.body, state.offset, length)
+            state.offset += length
+            this.write(chunk)
+          },
+          /** Release the completed response before another request is accepted. */
+          onDone() {
+            current = undefined
+          },
+          /** Invalidate pending asynchronous replies when the connection fails. */
+          onError() {
+            current = undefined
+          },
+        })
+      },
+    })
   }
 
-  async #listen(port) {
-    for await (const connection of listen({ port })) {
-      const context = new Context(connection.request)
-      const req = context.req
-      let response
+  /** Return the bound listener port for endpoint construction. */
+  get port() {
+    return this.#server.port
+  }
 
-      try {
-        const handler = this.#routes[req.method].get(req.path)
-        if (!handler) {
-          response = context.text('Resource Not Found', 404)
-        } else {
-          response = await handler(context)
-        }
-      } catch (_e) {
-        response = context.text('Internal Server Error', 500)
-      } finally {
-        connection.respondWith(response)
+  /** Close the listener and prevent pending handlers from sending replies. */
+  close() {
+    this.#closed = true
+    this.#server.close()
+  }
+
+  /** Dispatch one complete request; route failures become 500 responses. */
+  async #respond(connection, state, rawResponse, isCurrent) {
+    try {
+      const bytes = new Uint8Array(state.length)
+      let offset = 0
+      for (const chunk of state.chunks) {
+        bytes.set(new Uint8Array(chunk), offset)
+        offset += chunk.byteLength
       }
+      state.chunks = undefined
+      let body = bytes.buffer
+      const request = state.request
+      const query = request.query ? `?${request.query}` : ''
+      const rawRequest = {
+        method: request.method,
+        headers: request.headers,
+        url: new URL(`${request.path}${query}`, `http://localhost:${this.#server.port}`),
+        /** Consume the buffered request body once as UTF-8 text. */
+        async text() {
+          const value = body
+          body = undefined
+          return value === undefined ? undefined : String.fromArrayBuffer(value)
+        },
+        /** Consume and decode the request body as JSON. */
+        async json() {
+          return JSON.parse(await this.text())
+        },
+      }
+      const context = new Context(rawRequest)
+      let response
+      try {
+        const handler = this.#routes[context.req.method]?.get(context.req.path)
+        response = handler
+          ? await handler(context)
+          : this.#notFound
+            ? await this.#notFound(context)
+            : context.text('Resource Not Found', 404)
+      } catch {
+        response = context.text('Internal Server Error', 500)
+      }
+      state.body = await response.arrayBuffer()
+      if (!isCurrent()) return
+      rawResponse.status = response.status
+      rawResponse.headers = response.headers
+      connection.respond(rawResponse)
+    } catch {
+      if (isCurrent()) connection.close()
     }
   }
 }

@@ -56,6 +56,7 @@ export class TTS {
     this.sampleRate = props.sampleRate ?? 11025
     this.volume = props.volume ?? 0.5
   }
+  /** Request synthesis parameters and store them for the subsequent audio request. */
   async getQuery(text: string, speakerId = 1): Promise<void> {
     return new Promise((resolve, reject) => {
       File.delete(QUERY_PATH)
@@ -103,6 +104,7 @@ export class TTS {
       })
     })
   }
+  /** Fetch synthesis parameters and play the resulting VoiceVox audio stream. */
   stream(key: string, volume?: number, callback?: TTSCompletion): void {
     const lifecycle = beginTTSPlayback(this, callback)
     if (!lifecycle) return

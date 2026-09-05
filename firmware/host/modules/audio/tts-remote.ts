@@ -46,6 +46,7 @@ export class TTS {
     this.sampleRate = props.sampleRate ?? 24000
     this.volume = props.volume ?? 0.5
   }
+  /** Stream remote speech and report playback completion through the optional callback. */
   stream(key: string, volume?: number, callback?: TTSCompletion): void {
     runTTSPlayback(this, callback, (lifecycle) => {
       const audio = lifecycle.openAudio({ streams: 1, sampleRate: this.sampleRate }, volume ?? this.volume)

@@ -65,6 +65,7 @@ export class TTS {
       })
   }
 
+  /** Resolve a VoiceVox Web audio URL and stream it through the shared playback lifecycle. */
   stream(key: string, volume?: number, callback?: TTSCompletion): void {
     const lifecycle = beginTTSPlayback(this, callback)
     if (!lifecycle) return

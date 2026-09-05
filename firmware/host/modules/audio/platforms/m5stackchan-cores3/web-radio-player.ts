@@ -83,6 +83,7 @@ export default class WebRadioPlayer implements WebRadioCapability {
     if (options.volume !== undefined) checkedVolume(options.volume)
   }
 
+  /** Start a new radio playback generation using the URL-appropriate HTTP provider. */
   #openSession(): void {
     const options = this.#options
     if (this.#stopped || !options) return

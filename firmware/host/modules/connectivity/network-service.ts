@@ -83,6 +83,7 @@ export class NetworkService {
     }
   }
 
+  /** Stop connection attempts, release NTP resources, and disconnect Wi-Fi. */
   close() {
     this.#closed = true
     this.#closeNtp()
@@ -105,6 +106,7 @@ export class NetworkService {
     this.#startConnectionAttempt()
   }
 
+  /** Cancel stale time synchronization and arm the timeout for a fresh Wi-Fi attempt. */
   #startConnectionAttempt() {
     this.#closeNtp()
     this.#clearConnectionTimeout()
@@ -144,6 +146,7 @@ export class NetworkService {
     })
   }
 
+  /** Translate Wi-Fi link changes into connection state and reconnect scheduling. */
   #handleWiFiChanged(_property: string): void {
     const connection = this.#wifi.connection
     trace(`WiFi ${connection}\n`)
@@ -241,6 +244,7 @@ export class NetworkService {
     this.#reconnectTimer = undefined
   }
 
+  /** Release attempt resources and notify the caller of a connection or time-sync failure. */
   #fail(reason: string) {
     this.#closeNtp()
     this.#clearConnectionTimeout()

@@ -184,6 +184,7 @@ export class MCPServerService {
     return Array.from(this.#tools.values())
   }
 
+  /** Close the HTTP service and invalidate outstanding responses. */
   close(): void {
     this.#server?.close()
   }

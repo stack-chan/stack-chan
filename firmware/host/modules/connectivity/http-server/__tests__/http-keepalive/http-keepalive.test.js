@@ -2,6 +2,7 @@ import TCP from 'embedded:io/socket/tcp'
 import { HttpServerService } from 'http-server-service'
 import { MCPServerService } from 'mcp-server'
 import { equal } from 'testing/assert'
+import Timer from 'timer'
 
 const app = new HttpServerService({ port: 18082 })
 app.post('/echo', async (c) => c.json({ query: c.req.query('q'), body: await c.req.text() }))
@@ -10,6 +11,12 @@ app.get('/fail', () => {
 })
 app.get('/empty', (c) => c.text(''))
 app.get('/large', (c) => c.text('response-'.repeat(8192)))
+let routedLimitedRequests = 0
+const limited = new HttpServerService({ port: 18084, maxRequestBodyBytes: 8 })
+limited.post('/echo', async (c) => {
+  routedLimitedRequests++
+  return c.text(await c.req.text())
+})
 const mcp = new MCPServerService({ port: 18083, token: 'test-token' })
 
 async function exchange(port, cases) {
@@ -70,6 +77,40 @@ async function exchange(port, cases) {
       },
     })
     prepare()
+  })
+}
+// Send separately timed chunks so no individual read exceeds the limit.
+async function rejectOversizedBody() {
+  return new Promise((resolve, reject) => {
+    let timer
+    let started = false
+    let chunks = 0
+    new TCP({
+      address: '127.0.0.1',
+      port: 18084,
+      onWritable() {
+        if (started) return
+        started = true
+        this.write(ArrayBuffer.fromString('POST /echo HTTP/1.1\r\nHost: localhost\r\nContent-Length: 12\r\n\r\n'))
+        timer = Timer.repeat(() => {
+          if (chunks === 3) return
+          chunks++
+          this.write(ArrayBuffer.fromString('abcd'))
+        }, 25)
+      },
+      onReadable(count) {
+        this.read(count)
+        Timer.clear(timer)
+        this.close()
+        reject(new Error('Oversized body must be rejected before routing'))
+      },
+      onError() {
+        Timer.clear(timer)
+        this.close()
+        equal(chunks, 3, 'connection closes only after the cumulative limit is exceeded')
+        resolve()
+      },
+    })
   })
 }
 try {
@@ -156,8 +197,22 @@ try {
       },
     ])
   }
+  await exchange(18084, [
+    {
+      path: '/echo',
+      body: '12345678',
+      status: 200,
+      check(body) {
+        equal(body, '12345678')
+      },
+    },
+  ])
+  await rejectOversizedBody()
+  equal(routedLimitedRequests, 1, 'oversized requests never reach the handler')
+  await exchange(18084, [{ path: '/echo', body: 'ok', status: 200 }])
   trace('ok\n')
 } finally {
+  limited.close()
   app.close()
   mcp.close()
 }

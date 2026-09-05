@@ -46,6 +46,8 @@ The HTTP service uses the ECMA-419 server directly and creates body, response, a
 This prevents a subsequent request on the same connection from reusing the previous response body.
 Request URLs combine the separate `path` and `query` supplied by SDK 9.5.
 MCP uses the same service while retaining its authentication and JSON-RPC handling.
+Request bodies are limited to 16 KiB by default; `HttpServerService({ maxRequestBodyBytes })` can override this limit.
+Requests exceeding the cumulative limit are disconnected before routing, including streamed bodies without an upfront length.
 
 A real TCP regression test covers successive POST bodies, queries, empty responses, 404, recovery after 500, MCP authentication, and consecutive RPC requests on one connection.
 

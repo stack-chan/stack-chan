@@ -24,11 +24,16 @@ function installBareSpecifierPackages(): void {
   })
 }
 
+const ntpSocket = { io: class FakeUDP {} }
+const ntpDNS = { io: class FakeDNS {} }
+
 async function setup(configValues: Record<string, unknown> = {}) {
   installBareSpecifierPackages()
   resetFakeWiFi()
   resetNTP()
-  ;(globalThis as typeof globalThis & { device: unknown }).device = { network: { ntp: { client: { io: NTP } } } }
+  ;(globalThis as typeof globalThis & { device: unknown }).device = {
+    network: { ntp: { client: { io: NTP, servers: ['default.invalid'], socket: ntpSocket, dns: ntpDNS } } },
+  }
   const [networkService, mcConfig, timer, time] = await Promise.all([
     import('../network-service.js'),
     import('../../testing/fakes/mc-config.js'),
@@ -74,7 +79,7 @@ test('NetworkService synchronizes time after IP when sntp is configured', async 
     service.connect()
     getFakeWiFiInstances()[0]?.emitGotIP()
 
-    assert.deepEqual(NTP.instances[0].options, { io: NTP, servers: ['pool.ntp.org'] })
+    assert.deepEqual(NTP.instances[0].options, { io: NTP, servers: ['pool.ntp.org'], socket: ntpSocket, dns: ntpDNS })
     NTP.instances[0].respond()
     assert.equal(time.ticks, NTP.nextTime / 1000)
     assert.equal(NTP.instances[0].closed, true)

@@ -93,8 +93,8 @@ xsbug handshake on native USB-serial-JTAG parts (CoreS3).
 Requirements:
 
 - A browser with WebSerial (Chrome / Edge).
-- The flashed Stack-chan firmware must be **8.3.x or 9.0.x**, and its XS version must be
-  **≥ the archive's** (XS 17.8 here) — see [XS version compatibility](#xs-version-compatibility). No debug build needed.
+- The flashed Stack-chan firmware must be **9.5.x**, and the archive's XS major/minor version must be
+  **17.7–17.8** (patch revisions are accepted) — see [XS version compatibility](#xs-version-compatibility). No debug build needed.
 - The `-p wasm` archive runs on the ESP32 device because `fxMapArchive` gates only on the
   XS version, skips the signature, and remaps symbols by name at install time — so the
   build platform need not match the device. Verified end-to-end on an M5Stack CoreS3

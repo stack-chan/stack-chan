@@ -6,7 +6,7 @@ import TextDecoder from 'text/decoder'
  */
 function onContextCreated(robot, option) {
   const device = option.device
-  if (!device?.network?.http?.io) {
+  if (!device?.network?.http?.client?.io) {
     throw new Error('This device does not support a network HTTP client.')
   }
 

@@ -1,5 +1,7 @@
 import AXP2101 from 'embedded:peripheral/Power/axp2101'
 
+// SDK 9.5's embedded peripheral uses readUint8/writeUint8. The separate
+// legacy drivers/axp2101 module uses readByte/writeByte and is not imported here.
 let capturedPower
 
 function capture(power) {

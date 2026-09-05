@@ -4,7 +4,7 @@ export default class NTP {
   static instances: NTP[] = []
   callback?: Callback
   closed = false
-  constructor(readonly options: { servers: string[] }) {
+  constructor(readonly options: { servers: string[]; socket: object; dns: object }) {
     NTP.instances.push(this)
   }
   getTime(callback: Callback) {

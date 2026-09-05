@@ -145,7 +145,12 @@ class HttpServerService {
   #closed = false
   #notFound
 
+  /** Create a server with a bounded request body (16 KiB by default). */
   constructor(options = {}) {
+    const maxRequestBodyBytes = options.maxRequestBodyBytes ?? 16 * 1024
+    if (!Number.isSafeInteger(maxRequestBodyBytes) || maxRequestBodyBytes < 0) {
+      throw new RangeError('maxRequestBodyBytes must be a non-negative safe integer')
+    }
     this.#notFound = options.onNotFound
     const service = this
     this.#server = new device.network.http.server.io({
@@ -158,6 +163,12 @@ class HttpServerService {
             current = { request, chunks: [], length: 0, body: undefined, offset: 0 }
           },
           onReadable(count) {
+            // Reject before allocating another chunk, including chunked requests.
+            if (!current || count > maxRequestBodyBytes - current.length) {
+              current = undefined
+              this.close()
+              return
+            }
             const chunk = this.read(count)
             current.chunks.push(chunk)
             current.length += chunk.byteLength

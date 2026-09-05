@@ -11,6 +11,9 @@ const Preference = {
   set(domain: string, name: string, value: unknown): void {
     values.set(preferenceKey(domain, name), value)
   },
+  delete(domain: string, name: string): void {
+    values.delete(preferenceKey(domain, name))
+  },
 }
 
 export function resetPreference(nextValues: Record<string, unknown> = {}): void {

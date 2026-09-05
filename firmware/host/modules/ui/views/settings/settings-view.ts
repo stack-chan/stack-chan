@@ -44,6 +44,7 @@ export const SettingsViewId = Object.freeze({
   OFFLINE: 4,
   TIMEZONE: 5,
   VOLUME: 6,
+  ERROR: 7,
 } as const)
 
 export type SettingsViewId = (typeof SettingsViewId)[keyof typeof SettingsViewId]
@@ -835,6 +836,43 @@ const SettingsTimezoneView = {
   },
 } satisfies SettingsViewDefinition
 
+const SettingsErrorView = {
+  create(context: SettingsViewContext): SettingsViewInstance {
+    const styles = uiStyles()
+    const content = new Container(null, {
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      skin: styles.screen,
+      contents: [
+        new ScreenHeader({
+          title: localize('settings.title'),
+          leading: 'back',
+          onLeading: () => context.actions.navigate(SettingsViewId.MENU),
+        }),
+        new Label(null, {
+          left: 8,
+          right: 8,
+          top: UI.headerHeight + 24,
+          height: 28,
+          style: styles.body,
+          string: localize('settings.saveFailed'),
+        }),
+        new ActionButton(
+          {
+            icon: 'back',
+            label: localize('settings.title'),
+            onTap: () => context.actions.navigate(SettingsViewId.MENU),
+          },
+          { left: 8, right: 8, bottom: 16 },
+        ),
+      ],
+    })
+    return { content }
+  },
+} satisfies SettingsViewDefinition
+
 export const settingsViews: readonly SettingsViewDefinition[] = [
   SettingsMenuView,
   SettingsWifiView,
@@ -843,6 +881,7 @@ export const settingsViews: readonly SettingsViewDefinition[] = [
   SettingsOfflineView,
   SettingsTimezoneView,
   SettingsVolumeView,
+  SettingsErrorView,
 ]
 
 type SkinTemplate = PiuSkinConstructor & { new (): PiuSkin }

@@ -31,6 +31,9 @@ function installBareSpecifierPackages(): void {
   const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
   const hostRoot = resolve(modulesRoot, '..')
   writeAliasPackage(modulesRoot, 'consts', resolve(modulesRoot, 'preferences/consts.js'))
+  writeAliasPackage(modulesRoot, 'settings-schema', resolve(modulesRoot, 'preferences/settings-schema.js'))
+  writeAliasPackage(modulesRoot, 'settings-service', resolve(modulesRoot, 'preferences/settings-service.js'))
+  writeAliasPackageSubpath(modulesRoot, 'stackchan', 'errors', resolve(modulesRoot, '../../sdk/errors.js'))
   writeAliasPackage(
     modulesRoot,
     'local-peer-capability',
@@ -85,7 +88,21 @@ async function setup(values: Record<string, unknown> = {}, configValues: Record<
   networkManager.resetNetworkManager()
   preference.resetPreference(values)
   mcConfig.resetConfig(configValues)
-  return { clearStoredWiFiCredentials, connectStoredWiFi, stopStoredWiFiConnection, networkManager, preference, traces }
+  const { SettingsService } = await import('../../preferences/settings-service.js')
+  const { default: storage } = await import('../../testing/fakes/preference.js')
+  const settings = new SettingsService({ profile: () => configValues, app: () => ({}), storage })
+  const bootOptions = {
+    credentials: { ssid: settings.get('wifi.ssid') ?? '', password: settings.get('wifi.password') ?? '' },
+  }
+  return {
+    clearStoredWiFiCredentials,
+    connectStoredWiFi,
+    stopStoredWiFiConnection,
+    networkManager,
+    preference,
+    traces,
+    bootOptions,
+  }
 }
 
 test('connectStoredWiFi starts a network connection from stored preferences', async () => {
@@ -119,7 +136,7 @@ test('connectStoredWiFi accepts settings-screen credential overrides', async () 
 })
 
 test('startHostBootServices starts stored Wi-Fi with scan before connect when host boot services are explicitly started', async () => {
-  const { networkManager, preference } = await setup({
+  const { networkManager, preference, bootOptions } = await setup({
     'wifi.ssid': 'boot-ap',
     'wifi.password': 'boot-secret',
   })
@@ -130,7 +147,7 @@ test('startHostBootServices starts stored Wi-Fi with scan before connect when ho
     'wifi.password': 'boot-secret',
   })
   networkManager.resetNetworkManager()
-  const services = startHostBootServices()
+  const services = startHostBootServices(bootOptions)
 
   assert.deepEqual(credentials(networkManager.getStartedConnections()), [{ ssid: 'boot-ap', password: 'boot-secret' }])
   assert.equal(networkManager.getStartedConnections()[0]?.scanBeforeConnect, true)
@@ -139,10 +156,10 @@ test('startHostBootServices starts stored Wi-Fi with scan before connect when ho
 })
 
 test('startHostBootServices ignores root mc config Wi-Fi credentials reserved for Moddable setup', async () => {
-  const { networkManager } = await setup({}, { ssid: 'config-ap', password: 'config-secret' })
+  const { networkManager, bootOptions } = await setup({}, { ssid: 'config-ap', password: 'config-secret' })
   const { startHostBootServices } = await import('../../../app/boot-services.js')
 
-  const services = startHostBootServices()
+  const services = startHostBootServices(bootOptions)
 
   assert.deepEqual(credentials(networkManager.getStartedConnections()), [])
   assert.deepEqual(await services.connectivity.network?.ready, {
@@ -152,10 +169,10 @@ test('startHostBootServices ignores root mc config Wi-Fi credentials reserved fo
 })
 
 test('startHostBootServices accepts nested mc config Wi-Fi credentials for compatibility', async () => {
-  const { networkManager } = await setup({}, { wifi: { ssid: 'nested-ap', password: 'nested-secret' } })
+  const { networkManager, bootOptions } = await setup({}, { wifi: { ssid: 'nested-ap', password: 'nested-secret' } })
   const { startHostBootServices } = await import('../../../app/boot-services.js')
 
-  const services = startHostBootServices()
+  const services = startHostBootServices(bootOptions)
 
   assert.deepEqual(credentials(networkManager.getStartedConnections()), [
     { ssid: 'nested-ap', password: 'nested-secret' },
@@ -165,7 +182,7 @@ test('startHostBootServices accepts nested mc config Wi-Fi credentials for compa
 })
 
 test('startHostBootServices starts Wi-Fi with ChatAudioIO config present', async () => {
-  const { networkManager } = await setup(
+  const { networkManager, bootOptions } = await setup(
     {},
     {
       wifi: { ssid: 'config-ap', password: 'config-secret' },
@@ -174,7 +191,7 @@ test('startHostBootServices starts Wi-Fi with ChatAudioIO config present', async
   )
   const { startHostBootServices } = await import('../../../app/boot-services.js')
 
-  const services = startHostBootServices()
+  const services = startHostBootServices(bootOptions)
 
   assert.deepEqual(credentials(networkManager.getStartedConnections()), [
     { ssid: 'config-ap', password: 'config-secret' },
@@ -184,10 +201,10 @@ test('startHostBootServices starts Wi-Fi with ChatAudioIO config present', async
 })
 
 test('startHostBootServices exposes skipped network readiness when Wi-Fi credentials are unavailable', async () => {
-  const { networkManager, traces } = await setup()
+  const { networkManager, traces, bootOptions } = await setup()
   const { startHostBootServices } = await import('../../../app/boot-services.js')
 
-  const services = startHostBootServices()
+  const services = startHostBootServices(bootOptions)
 
   assert.deepEqual(networkManager.getStartedConnections(), [])
   assert.deepEqual(await services.connectivity.network?.ready, {
@@ -198,13 +215,13 @@ test('startHostBootServices exposes skipped network readiness when Wi-Fi credent
 })
 
 test('startHostBootServices exposes failed network readiness with a traceable reason', async () => {
-  const { networkManager, traces } = await setup({
+  const { networkManager, traces, bootOptions } = await setup({
     'wifi.ssid': 'boot-ap',
     'wifi.password': 'bad-secret',
   })
   const { startHostBootServices } = await import('../../../app/boot-services.js')
 
-  const services = startHostBootServices({ wifi: { maxAttempts: 1 } })
+  const services = startHostBootServices({ ...bootOptions, wifi: { maxAttempts: 1 } })
   networkManager.failLastConnection('authentication failed')
 
   assert.deepEqual(await services.connectivity.network?.ready, {
@@ -212,4 +229,18 @@ test('startHostBootServices exposes failed network readiness with a traceable re
     reason: 'authentication failed',
   })
   assert.ok(traces.includes('[network] connection failed: authentication failed\n'))
+})
+
+test('host boot uses saved credentials even when the profile contains Wi-Fi defaults', async () => {
+  const { networkManager, bootOptions } = await setup(
+    { 'wifi.ssid': 'saved-ap', 'wifi.password': 'saved-secret' },
+    { wifi: { ssid: 'profile-ap', password: 'profile-secret' } },
+  )
+  const { startHostBootServices } = await import('../../../app/boot-services.js')
+  const services = startHostBootServices(bootOptions)
+  assert.deepEqual(credentials(networkManager.getStartedConnections()), [
+    { ssid: 'saved-ap', password: 'saved-secret' },
+  ])
+  networkManager.completeLastConnection()
+  assert.deepEqual(await services.connectivity.network.ready, { status: 'connected' })
 })

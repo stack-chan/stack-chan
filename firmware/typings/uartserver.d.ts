@@ -2,7 +2,7 @@ declare module 'uartserver' {
   class UARTServer {
     close(): void
     deviceName: string
-    notifyValue(characteristic: string, data: ArrayBuffer): void
+    notifyValue(characteristic: { name: string }, data: ArrayBuffer): void
     onConnected(): void
     onDisconnected(): void
     onRX(data: ArrayBuffer): void

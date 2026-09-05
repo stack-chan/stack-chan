@@ -19,10 +19,6 @@ export function connectStoredWiFi(options: StoredWiFiConnectionOptions = {}): bo
     trace('No Wi-Fi SSID\n')
     return false
   }
-  if (password.length === 0) {
-    trace('No Wi-Fi password\n')
-    return false
-  }
   startNetworkConnection({
     ...options,
     ssid,

@@ -20,7 +20,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { type PreferenceKey } from '@/features/preferences/preference-model'
+import {
+  preferenceChoices,
+  SETTINGS_SCHEMA,
+  TIMEZONE_PRESETS,
+  type PreferenceKey,
+} from '@/features/preferences/preference-model'
 import { usePreferences } from '@/features/preferences/use-preferences'
 
 type FieldProps = Omit<ComponentProps<'input'>, 'id' | 'name' | 'value' | 'disabled' | 'onChange'> & {
@@ -42,10 +47,29 @@ export function PreferencesPage() {
         name={name}
         type={type}
         value={preferences.values[name]}
-        disabled={!preferences.connected || preferences.readOnly.has(name)}
+        disabled={!preferences.connected || preferences.busy || preferences.readOnly.has(name)}
+        min={SETTINGS_SCHEMA[name].minimum}
+        max={SETTINGS_SCHEMA[name].maximum}
+        placeholder={
+          preferences.secretsToClear.has(name)
+            ? t('保存すると消去されます')
+            : SETTINGS_SCHEMA[name].secret && preferences.configuredSecrets.has(name)
+              ? t('設定済み（変更時のみ入力）')
+              : undefined
+        }
         onChange={(event) => preferences.update(name, event.target.value)}
         {...props}
       />
+      {SETTINGS_SCHEMA[name].secret && preferences.configuredSecrets.has(name) && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!preferences.connected || preferences.busy}
+          onClick={() => preferences.clearSecret(name)}
+        >
+          {t(preferences.secretsToClear.has(name) ? '消去を取り消す' : 'この秘密情報を消去する（保存で確定）')}
+        </Button>
+      )}
     </div>
   )
 
@@ -60,7 +84,7 @@ export function PreferencesPage() {
       <Label htmlFor={name}>{t(label)}</Label>
       <Select
         value={preferences.values[name]}
-        disabled={!preferences.connected || preferences.readOnly.has(name)}
+        disabled={!preferences.connected || preferences.busy || preferences.readOnly.has(name)}
         onValueChange={(value) => value && preferences.update(name, value)}
       >
         <SelectTrigger id={name} className="w-full">
@@ -166,15 +190,30 @@ export function PreferencesPage() {
           {section(
             '外観',
             <>
-              {selectField('ui.type', '顔の種類', [
-                { value: 'simple', label: 'シンプル' },
-                { value: 'dog', label: 'いぬ' },
-              ])}
-              {selectField('ui.language', '本体の表示言語', [
-                { value: 'ja', label: '日本語', translate: false },
-                { value: 'en', label: 'English', translate: false },
-                { value: 'zh-CN', label: '简体中文', translate: false },
-              ])}
+              {selectField(
+                'ui.type',
+                '顔の種類',
+                preferenceChoices('ui.type', {
+                  simple: t('シンプル'),
+                  dog: t('いぬ'),
+                  image: t('画像'),
+                  'small-face': t('小さい顔'),
+                })
+              )}
+              {selectField(
+                'ui.language',
+                '本体の表示言語',
+                preferenceChoices('ui.language', { ja: '日本語', en: 'English', 'zh-CN': '简体中文' })
+              )}
+              {selectField(
+                'time.timezone',
+                'タイムゾーン（夏時間なし）',
+                TIMEZONE_PRESETS.map(({ id, offsetMinutes }) => ({
+                  value: id,
+                  label: `${id.replaceAll('-', ' ')} (UTC${offsetMinutes >= 0 ? '+' : '-'}${String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(2, '0')}:${String(Math.abs(offsetMinutes) % 60).padStart(2, '0')})`,
+                  translate: false,
+                }))
+              )}
             </>
           )}
           {section(
@@ -183,35 +222,54 @@ export function PreferencesPage() {
               {selectField(
                 'driver.type',
                 'ドライバー',
-                [
-                  { value: 'm5stackchan', label: 'M5StackChan Servo（CoreS3専用・推奨）' },
-                  { value: 'scservo', label: 'SCServo（汎用・外部配線向け）' },
-                  { value: 'dynamixel', label: 'Dynamixel（Protocol 2）' },
-                  { value: 'rs30x', label: 'RS30X' },
-                  { value: 'pwm', label: 'PWM（SG-90）' },
-                  { value: 'none', label: 'なし' },
-                ],
+                preferenceChoices('driver.type', {
+                  m5stackchan: t('M5StackChan Servo（CoreS3専用・推奨）'),
+                  scservo: t('SCServo（汎用・外部配線向け）'),
+                  dynamixel: 'Dynamixel（Protocol 2）',
+                  rs30x: 'RS30X',
+                  pwm: 'PWM（SG-90）',
+                  none: t('なし'),
+                }),
                 'M5StackChan Servoは専用UART、ゼロ位置、可動域、PY32サーボ電源を設定します。CoreS3専用ファームウェアではこの項目に固定されます。',
                 true
               )}
               {inputField({ name: 'driver.offsetPan', label: 'パン オフセット', type: 'number' })}
               {inputField({ name: 'driver.offsetTilt', label: 'チルト オフセット', type: 'number' })}
+              {inputField({
+                name: 'driver.baudrate',
+                label: 'サーボ通信速度（baud）',
+                type: 'number',
+                placeholder: t('本体の既定値'),
+              })}
             </>
           )}
           {section(
             '音声合成',
             <>
-              {selectField('tts.type', 'サービス', [
-                { value: 'voicevox', label: 'VOICEVOX', translate: false },
-                { value: 'elevenlabs', label: 'ElevenLabs', translate: false },
-                { value: 'google-tts', label: 'Google TTS', translate: false },
-                { value: 'openai', label: 'OpenAI', translate: false },
-                { value: 'local', label: 'ローカル' },
-              ])}
+              {selectField(
+                'tts.type',
+                'サービス',
+                preferenceChoices('tts.type', {
+                  voicevox: 'VOICEVOX',
+                  'voicevox-web': 'VOICEVOX Web',
+                  elevenlabs: 'ElevenLabs',
+                  openai: 'OpenAI',
+                  local: t('ローカル'),
+                  remote: 'Remote WAV',
+                  'stackchan-voice': 'Stackchan Voice',
+                })
+              )}
               {inputField({ name: 'tts.host', label: 'ホスト', placeholder: 'my-tts-host.local' })}
               {inputField({ name: 'tts.port', label: 'ポート', type: 'number', placeholder: '50021' })}
               {inputField({ name: 'tts.voice', label: '音声', placeholder: 'ally' })}
               {inputField({ name: 'tts.token', label: 'トークン', type: 'password' })}
+              {inputField({
+                name: 'tts.speed',
+                label: '話速（サービス依存）',
+                type: 'number',
+                step: 'any',
+                placeholder: t('サービスの既定値'),
+              })}
               {inputField({
                 name: 'tts.volume',
                 label: '音量（0–1）',
@@ -232,7 +290,7 @@ export function PreferencesPage() {
                   id="ai.context"
                   rows={5}
                   value={preferences.values['ai.context']}
-                  disabled={!preferences.connected || preferences.readOnly.has('ai.context')}
+                  disabled={!preferences.connected || preferences.busy || preferences.readOnly.has('ai.context')}
                   placeholder="You are Stack-chan（スタックチャン）, the palm sized super kawaii companion robot."
                   onChange={(event) => preferences.update('ai.context', event.target.value)}
                 />

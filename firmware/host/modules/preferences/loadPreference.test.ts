@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { writeAliasPackage, writeAliasPackageSubpath } from '../testing/node-alias-package.js'
-import { DOMAIN } from './consts.js'
+import { DOMAIN } from './settings-schema.js'
 
 type FakeConfig = {
   resetConfig(values?: Record<string, unknown>): void
@@ -24,6 +24,9 @@ type FakePreference = {
 function installBareSpecifierPackages(): void {
   const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   writeAliasPackage(modulesRoot, 'consts', resolve(modulesRoot, 'preferences/consts.js'))
+  writeAliasPackage(modulesRoot, 'settings-schema', resolve(modulesRoot, 'preferences/settings-schema.js'))
+  writeAliasPackage(modulesRoot, 'settings-service', resolve(modulesRoot, 'preferences/settings-service.js'))
+  writeAliasPackageSubpath(modulesRoot, 'stackchan', 'errors', resolve(modulesRoot, '../../sdk/errors.js'))
   writeAliasPackage(modulesRoot, 'modules', resolve(modulesRoot, 'testing/fakes/modules.js'), {
     hasDefaultExport: true,
   })
@@ -101,7 +104,7 @@ test('loadPreferences ignores a stored driver type when the platform locks its d
 
   assert.equal(driver.type, 'm5stackchan')
   assert.equal(driver.typeLocked, true)
-  assert.deepEqual(traces, ['[preferences] ignored stored driver.type=scservo; platform locks it to m5stackchan\n'])
+  assert.deepEqual(traces, ['[settings] READ_ONLY driver.type (stored)\n'])
 })
 
 test('loadPreferences keeps stored driver selection on an unlocked platform', async () => {

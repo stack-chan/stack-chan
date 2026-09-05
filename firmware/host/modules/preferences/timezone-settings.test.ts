@@ -11,6 +11,7 @@ writeAliasPackage(modulesRoot, 'time', resolve(modulesRoot, 'testing/fakes/time.
   hasDefaultExport: true,
 })
 writeAliasPackage(modulesRoot, 'timezone-model', resolve(modulesRoot, 'preferences/timezone-model.js'))
+writeAliasPackage(modulesRoot, 'settings-schema', resolve(modulesRoot, 'preferences/settings-schema.js'))
 
 const {
   DEFAULT_TIMEZONE_ID,

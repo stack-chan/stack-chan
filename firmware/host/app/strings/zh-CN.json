@@ -26,6 +26,7 @@
   "boot.wifiNotFound": "未找到已保存的Wi-Fi",
   "boot.wifiFailed": "Wi-Fi连接失败",
   "settings.title": "设置",
+  "settings.saveFailed": "设置保存失败",
   "settings.scan": "扫描",
   "settings.scanning": "正在扫描",
   "settings.boot": "启动",

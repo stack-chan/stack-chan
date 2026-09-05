@@ -1,0 +1,23 @@
+{
+  "include": [
+    "./manifest_model.json",
+    "$(MODULES)/base/modules/manifest.json",
+    "$(MODULES)/base/structuredClone/manifest.json",
+    "$(MODULES)/base/deepEqual/manifest.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../app/manifest_typings.json",
+    "../../../sdk/manifest.json"
+  ],
+  "modules": {
+    "consts": "./consts",
+    "settings-service": "./settings-service",
+    "loadPreference": "./loadPreference",
+    "timezone-settings": "./timezone-settings"
+  },
+  "preload": ["consts"],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": { "noImplicitAny": false, "noImplicitThis": false }
+    }
+  }
+}

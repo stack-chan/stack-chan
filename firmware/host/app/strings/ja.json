@@ -26,6 +26,7 @@
   "boot.wifiNotFound": "保存済みWi-Fiが見つかりません",
   "boot.wifiFailed": "Wi-Fi接続に失敗しました",
   "settings.title": "設定",
+  "settings.saveFailed": "設定を保存できませんでした",
   "settings.scan": "スキャン",
   "settings.scanning": "スキャン中",
   "settings.boot": "起動",

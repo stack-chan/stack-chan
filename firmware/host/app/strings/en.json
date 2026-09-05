@@ -26,6 +26,7 @@
   "boot.wifiNotFound": "Saved Wi-Fi not found",
   "boot.wifiFailed": "Wi-Fi connection failed",
   "settings.title": "Settings",
+  "settings.saveFailed": "Settings could not be saved",
   "settings.scan": "Scan",
   "settings.scanning": "Scanning",
   "settings.boot": "Start",

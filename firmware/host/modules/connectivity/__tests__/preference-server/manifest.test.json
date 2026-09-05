@@ -1,0 +1,15 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../../../../sdk/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "settings-schema": "../../../preferences/settings-schema",
+    "settings-service": "../../../preferences/settings-service",
+    "preference-server": "../../preference-server",
+    "uartserver": "../fakes/uartserver",
+    "main": "./preference-server.test"
+  },
+  "defines": { "main": { "async": 1 } }
+}

@@ -1,148 +1,194 @@
-import type { PREF_KEYS } from 'consts'
-import Preference from 'preference'
+import { SETTING_KEYS, SETTINGS_MESSAGE_MAX_BYTES, SETTINGS_PROTOCOL_VERSION, type SettingKey } from 'settings-schema'
+import type { SettingsService } from 'settings-service'
+import { StackchanError } from 'stackchan/errors'
 import Timer from 'timer'
 import { SERVICE_UUID, UARTServer } from 'uartserver'
 
-type PreferenceValue = string | boolean | number | ArrayBuffer
-
 type PreferenceServerProps = {
-  onPreferenceChanged?: (key: string, value: ReturnType<(typeof Preference)['get']>) => void
+  settings: Pick<SettingsService, 'get' | 'describe' | 'write'>
+  onPreferenceChanged?: (key: SettingKey, value: string | number | undefined) => void
   onConnected?: () => void
   onDisconnected?: () => void
-  keys?: typeof PREF_KEYS
-  effectiveValues?: Readonly<Record<string, PreferenceValue>>
-  readOnlyKeys?: readonly string[]
 }
+type Characteristic = { name: string }
+
+/** Setup-only transport. Validation, precedence and secret redaction belong to SettingsService. */
 export class PreferenceServer extends UARTServer {
-  #tx_characteristic
-  #keys
-  #effectiveValues
-  #readOnlyKeys
-  #rxBuffer = ''
-  #timeout
-  #handlePreferenceChanged?: (key: string, value: PreferenceValue) => void
-  #handleConnected?: () => void
-  #handleDisconnected?: () => void
-  constructor(option: PreferenceServerProps) {
+  readonly #options: PreferenceServerProps
+  #closed = false
+  #tx?: Characteristic
+  #txQueue: ArrayBuffer[] = []
+  #txBytes = 0
+  #txOffset = 0
+  #txTimer?: ReturnType<typeof Timer.set>
+  #chunkSize = 20 // The default ATT MTU is 23, including three protocol bytes.
+  #rx?: Uint8Array
+  #rxLength = 0
+  #rxTimer?: ReturnType<typeof Timer.set>
+
+  constructor(options: PreferenceServerProps) {
     super()
     this.deviceName = 'STK'
-    if (option != null) {
-      this.#handlePreferenceChanged = option.onPreferenceChanged
-      this.#handleConnected = option.onConnected
-      this.#handleDisconnected = option.onDisconnected
-    }
-    this.#keys = Array.isArray(option?.keys) ? option.keys.slice() : []
-    this.#effectiveValues = option?.effectiveValues ?? {}
-    this.#readOnlyKeys = option?.readOnlyKeys ?? []
+    this.#options = options
   }
+
   onConnected() {
+    if (this.#closed) return
     super.onConnected()
-    this.#handleConnected?.()
+    this.#options.onConnected?.()
   }
+
   onDisconnected() {
+    if (this.#closed) return
+    this.#clearIO()
+    this.#chunkSize = 20
     this.startAdvertising({
-      advertisingData: {
-        flags: 6,
-        completeName: this.deviceName,
-        completeUUID128List: [SERVICE_UUID],
-      },
+      advertisingData: { flags: 6, completeName: this.deviceName, completeUUID128List: [SERVICE_UUID] },
     })
-    this.#handleDisconnected?.()
+    this.#options?.onDisconnected?.()
   }
-  onCharacteristicNotifyEnabled(characteristic) {
-    if ('tx' === characteristic.name) {
-      this.#tx_characteristic = characteristic
-      for (const item of this.#keys) {
-        const [domain, key] = item
-        const prop = `${domain}.${key}`
-        const readOnly = this.#readOnlyKeys.includes(prop)
-        const currentValue = readOnly
-          ? this.#effectiveValues[prop]
-          : (Preference.get(domain, key) ?? this.#effectiveValues[prop])
-        if (currentValue != null) {
-          this.notifyPreference(prop, currentValue, readOnly)
-        }
-      }
-    }
+
+  onMTUExchanged(mtu: number) {
+    if (Number.isInteger(mtu) && mtu >= 23) this.#chunkSize = Math.min(128, mtu - 3)
   }
-  onCharacteristicNotifyDisabled(characteristic) {
-    if ('tx' === characteristic.name) {
-      this.#tx_characteristic = null
-    }
-  }
-  onCharacteristicWritten(characteristic, value) {
-    if ('rx' === characteristic.name) this.onRX(value)
-  }
-  onRX(data) {
-    this.#rxBuffer += String.fromArrayBuffer(data)
-    trace(`${this.#rxBuffer}\n`)
-    let _batch: object
-    let prop: string
-    let value: PreferenceValue
+
+  onCharacteristicNotifyEnabled(characteristic: Characteristic) {
+    if (this.#closed || characteristic.name !== 'tx') return
+    this.#clearIO()
+    this.#tx = characteristic
+    this.#notify({ kind: 'hello', protocol: SETTINGS_PROTOCOL_VERSION })
     try {
-      const obj = JSON.parse(this.#rxBuffer)
-      _batch = obj._batch
-      prop = obj.prop
-      value = obj.value
-    } catch (_e) {
-      trace('not completed\n')
-      if (this.#timeout == null) {
-        this.#timeout = Timer.set(() => {
-          trace('timeout\n')
-          this.#timeout = undefined
-          this.#rxBuffer = ''
-        }, 3000)
-      }
-      return
-    }
-    this.#rxBuffer = ''
-    if (this.#timeout != null) {
-      Timer.clear(this.#timeout)
-      this.#timeout = undefined
-    }
-    if (_batch != null) {
-      for (const [prop, value] of Object.entries(_batch)) {
-        const [domain, key] = prop.split('.')
-        this.receiveAndSetPreference(domain, key, value)
-      }
-    } else if (prop != null && value != null) {
-      const [domain, key] = prop.split('.')
-      this.receiveAndSetPreference(domain, key, value)
-    } else {
-      trace('key/value pair not found\n')
+      for (const key of SETTING_KEYS) this.#notify(this.#options.settings.describe(key))
+    } catch {
+      this.#notify({ kind: 'error', code: 'IO', message: 'Settings could not be read' })
     }
   }
 
-  notifyPreference(prop, value, readOnly = false) {
-    if (this.#tx_characteristic == null) {
-      return
-    }
-    this.notifyValue(
-      this.#tx_characteristic,
-      ArrayBuffer.fromString(
-        JSON.stringify({
-          prop,
-          value,
-          ...(readOnly ? { readOnly: true } : {}),
-        }),
-      ),
-    )
+  onCharacteristicNotifyDisabled(characteristic: Characteristic) {
+    if (characteristic.name === 'tx') this.#clearIO()
   }
 
-  receiveAndSetPreference(domain: string, key: string, value: PreferenceValue) {
-    const prop = `${domain}.${key}`
-    if (this.#readOnlyKeys.includes(prop)) {
-      trace(`ignoring read-only preference ... ${prop}: ${value}\n`)
-      const currentValue = this.#effectiveValues[prop]
-      if (currentValue != null) this.notifyPreference(prop, currentValue, true)
+  onCharacteristicWritten(characteristic: Characteristic, value: ArrayBuffer) {
+    if (characteristic.name === 'rx') this.onRX(value)
+  }
+
+  onRX(data: ArrayBuffer) {
+    if (this.#closed || !this.#tx) return
+    if (data.byteLength > SETTINGS_MESSAGE_MAX_BYTES - this.#rxLength) {
+      this.#resetRX()
+      this.#notify({ kind: 'error', code: 'INVALID_ARGUMENT', message: 'Settings message is too large' })
       return
     }
-    const currentValue = Preference.get(domain, key) ?? this.#effectiveValues[prop]
-    if (currentValue !== value) {
-      trace(`changing preference ... ${domain}.${key}: ${value}\n`)
-      Preference.set(domain, key, value)
-      this.notifyPreference(prop, value)
-      this.#handlePreferenceChanged?.(prop, value)
+    this.#rx ??= new Uint8Array(SETTINGS_MESSAGE_MAX_BYTES)
+    this.#rx.set(new Uint8Array(data), this.#rxLength)
+    this.#rxLength += data.byteLength
+    if (this.#rxTimer === undefined)
+      this.#rxTimer = Timer.set(() => {
+        this.#rxTimer = undefined
+        this.#resetRX()
+        this.#notify({ kind: 'error', code: 'TIMEOUT', message: 'Settings message was incomplete' })
+      }, 3000)
+    let message: unknown
+    let end = this.#rxLength - 1
+    while (end >= 0 && this.#rx[end] <= 32) end--
+    if (this.#rx[end] !== 125 && this.#rx[end] !== 93) return
+    try {
+      // Decode the whole byte sequence: an incoming chunk may split a UTF-8 character.
+      message = JSON.parse(String.fromArrayBuffer((this.#rx.buffer as ArrayBuffer).slice(0, this.#rxLength)))
+    } catch {
+      return
     }
+    this.#resetRX()
+    let requestId: number | undefined
+    try {
+      if (!message || typeof message !== 'object' || Array.isArray(message))
+        throw new StackchanError('INVALID_ARGUMENT', 'Invalid settings request')
+      const request = message as Record<string, unknown>
+      if (typeof request.requestId === 'number' && Number.isSafeInteger(request.requestId) && request.requestId > 0)
+        requestId = request.requestId
+      const batch = request._batch ?? (typeof request.prop === 'string' ? { [request.prop]: request.value } : undefined)
+      const changes = this.#options.settings.write(batch as Record<string, unknown>)
+      let applyFailed = false
+      for (const change of changes) {
+        try {
+          this.#options.onPreferenceChanged?.(change.prop, this.#options.settings.get(change.prop))
+        } catch {
+          applyFailed = true
+        }
+        this.#notify(change)
+      }
+      this.#notify({
+        kind: 'saved',
+        requestId,
+        applications: [...new Set(changes.map((change) => change.application))],
+        applyFailed,
+      })
+    } catch (error) {
+      this.#notify({
+        kind: 'error',
+        requestId,
+        code: error instanceof StackchanError ? error.code : 'IO',
+        message: error instanceof StackchanError ? error.message : 'Settings could not be saved',
+      })
+    }
+  }
+
+  close() {
+    if (this.#closed) return
+    this.#closed = true
+    this.#clearIO()
+    super.close()
+  }
+
+  #notify(message: object) {
+    if (this.#closed || !this.#tx) return
+    const bytes = ArrayBuffer.fromString(`${JSON.stringify(message)}\n`)
+    if (bytes.byteLength > SETTINGS_MESSAGE_MAX_BYTES - this.#txBytes) {
+      // Stop this transport instead of reporting a save whose response cannot be delivered.
+      this.#clearIO()
+      return
+    }
+    this.#txQueue.push(bytes)
+    this.#txBytes += bytes.byteLength
+    if (this.#txTimer === undefined) this.#txTimer = Timer.repeat(() => this.#flushTX(), 5)
+  }
+
+  #flushTX() {
+    const bytes = this.#txQueue[0]
+    if (this.#closed || !this.#tx || !bytes) return
+    const end = Math.min(bytes.byteLength, this.#txOffset + this.#chunkSize)
+    try {
+      this.notifyValue(this.#tx, bytes.slice(this.#txOffset, end))
+    } catch {
+      this.#clearIO()
+      return
+    }
+    this.#txOffset = end
+    if (end === bytes.byteLength) {
+      this.#txBytes -= bytes.byteLength
+      this.#txQueue.shift()
+      this.#txOffset = 0
+    }
+    if (!this.#txQueue.length && this.#txTimer !== undefined) {
+      Timer.clear(this.#txTimer)
+      this.#txTimer = undefined
+    }
+  }
+
+  #resetRX() {
+    if (this.#rxTimer !== undefined) Timer.clear(this.#rxTimer)
+    this.#rxTimer = undefined
+    this.#rx = undefined
+    this.#rxLength = 0
+  }
+
+  #clearIO() {
+    this.#resetRX()
+    if (this.#txTimer !== undefined) Timer.clear(this.#txTimer)
+    this.#txTimer = undefined
+    this.#txQueue = []
+    this.#txBytes = 0
+    this.#txOffset = 0
+    this.#tx = undefined
   }
 }

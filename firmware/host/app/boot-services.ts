@@ -8,7 +8,6 @@ import type { NetworkReadyResult } from 'capabilities'
 import { createLocalPeerCapability } from 'local-peer-capability'
 import type { LocalPeerCapability } from 'local-peer-types'
 import { localize } from 'localization'
-import config from 'mc/config'
 import { wait } from 'stackchan-util'
 import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
 
@@ -30,21 +29,13 @@ export type BootWiFiStatus = {
 }
 
 export type HostBootServicesOptions = {
+  credentials: { ssid: string; password: string }
   wifi?: {
     maxAttempts?: number
     retryDelayMs?: number
     onStatusChanged?: (status: BootWiFiStatus) => void
     promptRecoveryChoice?: (status: BootWiFiStatus & { reason: string }) => Promise<BootWiFiRecoveryChoice>
   }
-}
-
-type BootWiFiConfig = {
-  ssid?: unknown
-  password?: unknown
-}
-
-type BootConfig = {
-  wifi?: BootWiFiConfig
 }
 
 const NOT_STARTED: NetworkReadyResult = {
@@ -62,8 +53,8 @@ let bootServices: HostBootServices = {
   },
 }
 
-export function startHostBootServices(options: HostBootServicesOptions = {}): HostBootServices {
-  const networkReady = startStoredWiFi(options.wifi)
+export function startHostBootServices(options: HostBootServicesOptions): HostBootServices {
+  const networkReady = startStoredWiFi(options.credentials, options.wifi)
   const localPeer = createLocalPeerCapability()
   bootServices = {
     connectivity: {
@@ -81,6 +72,7 @@ export function getHostBootServices(): HostBootServices {
 }
 
 async function startStoredWiFi(
+  credentials: HostBootServicesOptions['credentials'],
   options: NonNullable<HostBootServicesOptions['wifi']> = {},
 ): Promise<NetworkReadyResult> {
   const maxAttempts = options.maxAttempts ?? DEFAULT_BOOT_WIFI_MAX_ATTEMPTS
@@ -93,7 +85,7 @@ async function startStoredWiFi(
         maxAttempts,
         message: localize('splash.connecting', { attempt, maxAttempts }),
       })
-      const result = await connectStoredWiFiOnce()
+      const result = await connectStoredWiFiOnce(credentials)
       if (result.status !== 'failed') {
         return result
       }
@@ -123,7 +115,7 @@ async function startStoredWiFi(
   }
 }
 
-function connectStoredWiFiOnce(): Promise<NetworkReadyResult> {
+function connectStoredWiFiOnce(credentials: HostBootServicesOptions['credentials']): Promise<NetworkReadyResult> {
   return new Promise((resolve) => {
     let settled = false
     const finish = (result: NetworkReadyResult) => {
@@ -138,7 +130,7 @@ function connectStoredWiFiOnce(): Promise<NetworkReadyResult> {
     try {
       stopStoredWiFiConnection()
       const started = connectStoredWiFi({
-        ...getBootWiFiCredentials(),
+        ...credentials,
         scanBeforeConnect: true,
         onConnected: () => finish({ status: 'connected' }),
         onError: (reason) => {
@@ -156,15 +148,4 @@ function connectStoredWiFiOnce(): Promise<NetworkReadyResult> {
       finish({ status: 'failed', reason: message })
     }
   })
-}
-
-function getBootWiFiCredentials(): { ssid?: string; password?: string } {
-  const bootConfig = config as BootConfig
-  const wifi = bootConfig.wifi ?? {}
-  const ssid = wifi.ssid
-  const password = wifi.password
-  return {
-    ssid: typeof ssid === 'string' ? ssid : undefined,
-    password: typeof password === 'string' ? password : undefined,
-  }
 }

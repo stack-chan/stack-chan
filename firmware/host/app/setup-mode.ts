@@ -1,8 +1,7 @@
-import { loadPreferenceConfig } from 'loadPreference'
-import { DOMAIN, PREF_KEYS } from 'consts'
-import { getLocalizationLanguage, normalizeLocale, type SupportedLocale, setLocalizationLanguage } from 'localization'
+import { getSettingsService, loadPreferenceConfig } from 'loadPreference'
+import { DOMAIN } from 'consts'
+import { getLocalizationLanguage, type SupportedLocale, setLocalizationLanguage } from 'localization'
 import { NetworkConnectionState, type NetworkConnectionState as NetworkState } from 'network-state'
-import Preference from 'preference'
 import { PreferenceServer } from 'preference-server'
 import { createSettingsNetworkEntries, type RawWiFiScanResult, type SettingsNetworkEntry } from 'settings-network-list'
 import { createInitialSettingsStatus } from 'settings-status'
@@ -15,9 +14,9 @@ import {
   settingsViews,
 } from 'settings-view'
 import Speaker from 'speaker'
-import { clearStoredWiFiCredentials, connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
-import { applyTimezone as applySystemTimezone, normalizeTimezoneId, type TimezoneId } from 'timezone-settings'
-import { canonicalizeVolume, resolveVolumePreference } from 'volume-model'
+import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
+import { applyTimezone as applySystemTimezone, type TimezoneId } from 'timezone-settings'
+import { canonicalizeVolume } from 'volume-model'
 import { VolumePreviewQueue } from 'volume-preview'
 import { scanWiFiNetworks } from 'wifi-scan'
 import type { WiFiScanSession } from 'wifi-scan-types'
@@ -50,16 +49,11 @@ function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatus
 
 export function startSetupMode(application: SettingsApplication): Promise<SetupModeResult> {
   return new Promise((resolve) => {
+    const settings = getSettingsService()
     const preferences = loadPreferenceConfig()
     preferences.time.timezone = applySystemTimezone(preferences.time.timezone)
     preferences.tts.volume = canonicalizeVolume(preferences.tts.volume)
     const status = createInitialSettingsStatus(preferences)
-    const effectiveValues = Object.fromEntries(
-      PREF_KEYS.flatMap(([domain, key]) => {
-        const value = preferences[domain]?.[key]
-        return value == null ? [] : [[`${domain}.${key}`, value]]
-      }),
-    )
     const viewState = {
       status,
       networks: [] as SettingsNetworkEntry[],
@@ -91,7 +85,9 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
         cancelWifiScan,
         selectWifiNetwork: selectNetwork,
         submitWifiPassword,
-        selectLanguage: (locale: SupportedLocale) => applyLanguage(locale, true),
+        selectLanguage: (locale: SupportedLocale) => {
+          if (saveSettings({ 'ui.language': locale })) applyLanguage(locale)
+        },
         saveTimezone,
         saveVolume,
       },
@@ -100,18 +96,36 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
     function finish(result: SetupModeResult) {
       if (finished) return
       finished = true
+      cancelWifiScan()
       currentView?.dispose?.()
       currentView = undefined
       preferenceServer?.close?.()
       if (result === 'back') stopStoredWiFiConnection()
-      void volumePreviewQueue.close().then(
-        () => resolve(result),
-        () => resolve(result),
-      )
+      const releaseVolume = () => {
+        try {
+          volumeSpeaker.close()
+        } catch {
+          trace('[settings] volume output close failed\n')
+        }
+        resolve(result)
+      }
+      void volumePreviewQueue.close().then(releaseVolume, releaseVolume)
+    }
+
+    function saveSettings(values: Record<string, unknown>): boolean {
+      try {
+        settings.write(values)
+        return true
+      } catch {
+        trace('[settings] save failed\n')
+        showView(SettingsViewId.ERROR)
+        return false
+      }
     }
 
     function clearWiFiAndBootOffline() {
-      clearStoredWiFiCredentials()
+      if (!saveSettings({ 'wifi.ssid': '', 'wifi.password': '' })) return
+      stopStoredWiFiConnection()
       status['wifi.ssid'] = ''
       status['wifi.password'] = ''
       status.wifi = SettingsStatusValue.NOT_CONNECTED
@@ -130,6 +144,7 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
     }
 
     function updateCurrentView() {
+      if (finished) return
       currentView?.update?.()
     }
 
@@ -144,39 +159,37 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       if (status.wifi === SettingsStatusValue.SCANNING) status.wifi = SettingsStatusValue.NOT_CONNECTED
     }
 
-    function applyLanguage(value: unknown, persist: boolean) {
+    function applyLanguage(value: unknown) {
       const locale = setLocalizationLanguage(value)
       status['ui.language'] = locale
       viewState.language = locale
-      if (persist || normalizeLocale(value) !== locale) Preference.set(DOMAIN.ui, 'language', locale)
       showView(currentViewId)
     }
 
-    function applyTimezone(value: unknown, persist: boolean) {
+    function applyTimezone(value: unknown) {
       const timezone = applySystemTimezone(value)
       status['time.timezone'] = timezone
       viewState.timezone = timezone
-      if (persist || normalizeTimezoneId(value) !== value) Preference.set(DOMAIN.time, 'timezone', timezone)
       return timezone
     }
 
     function saveTimezone(value: TimezoneId) {
-      applyTimezone(value, true)
+      if (!saveSettings({ 'time.timezone': value })) return
+      applyTimezone(value)
       showView(SettingsViewId.MENU)
     }
 
-    function applyVolume(value: unknown, persist: boolean, preview: boolean) {
-      const { volume, storageValue, needsWrite } = resolveVolumePreference(value, viewState.volume)
+    function applyVolume(value: unknown, preview: boolean) {
+      const volume = canonicalizeVolume(value)
       status['tts.volume'] = volume
       viewState.volume = volume
-      if (persist || needsWrite) Preference.set(DOMAIN.tts, 'volume', storageValue)
       updateCurrentView()
       if (preview) volumePreviewQueue.request(volume)
       return volume
     }
 
     function saveVolume(value: number) {
-      applyVolume(value, true, true)
+      if (saveSettings({ 'tts.volume': value })) applyVolume(value, true)
     }
 
     function scanNetworks() {
@@ -210,21 +223,20 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
     }
 
     function selectNetwork(network: SettingsNetworkEntry) {
-      status['wifi.ssid'] = network.ssid
       viewState.selectedSSID = network.ssid
-      Preference.set(DOMAIN.wifi, 'ssid', network.ssid)
       showView(SettingsViewId.PASSWORD)
     }
 
     function submitWifiPassword(password: string) {
+      if (!saveSettings({ 'wifi.ssid': viewState.selectedSSID, 'wifi.password': password })) return
+      status['wifi.ssid'] = viewState.selectedSSID
       status['wifi.password'] = password
-      Preference.set(DOMAIN.wifi, 'password', password)
       showView(SettingsViewId.WIFI)
       testConnection()
     }
 
     function testConnection() {
-      if (status['wifi.ssid'].length === 0 || status['wifi.password'].length === 0) return
+      if (!status['wifi.ssid']) return
       stopStoredWiFiConnection()
       connectStoredWiFi({
         ssid: status['wifi.ssid'],
@@ -248,19 +260,20 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
     showView(SettingsViewId.MENU)
 
     preferenceServer = new PreferenceServer({
+      settings,
       onPreferenceChanged: (key, value) => {
         trace(`preference changed! ${key}\n`)
         if (key === `${DOMAIN.ui}.language`) {
-          applyLanguage(value, false)
+          applyLanguage(value)
           return
         }
         if (key === `${DOMAIN.time}.timezone`) {
-          applyTimezone(value, false)
+          applyTimezone(value)
           showView(currentViewId)
           return
         }
         if (key === `${DOMAIN.tts}.volume`) {
-          applyVolume(value, false, false)
+          applyVolume(value, false)
           return
         }
         status[key] = value
@@ -274,9 +287,6 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
         status.ble = SettingsStatusValue.NOT_CONNECTED
         updateCurrentView()
       },
-      keys: PREF_KEYS,
-      effectiveValues,
-      readOnlyKeys: preferences.driver.typeLocked === true ? ['driver.type'] : [],
     })
   })
 }

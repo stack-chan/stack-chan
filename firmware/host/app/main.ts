@@ -117,7 +117,9 @@ async function main() {
     }
     const experimentalMiniApps = launch.prepared
 
+    const preferences = loadPreferenceConfig()
     const bootServices = startHostBootServices({
+      credentials: { ssid: preferences.wifi.ssid ?? '', password: preferences.wifi.password ?? '' },
       wifi:
         program.generation === 1
           ? {
@@ -132,7 +134,6 @@ async function main() {
     } else {
       void bootServices.connectivity.network.ready.then((result) => trace(`[network] ${result.status}\n`))
     }
-    const preferences = loadPreferenceConfig()
     const ownedDock = dockRuntime
     context = await createStackchanContext(preferences, {
       connectivity: bootServices.connectivity,

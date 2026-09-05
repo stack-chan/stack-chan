@@ -1,0 +1,7 @@
+{
+  "modules": {
+    "settings-schema": "./settings-schema",
+    "timezone-model": "./timezone-model",
+    "volume-model": "./volume-model"
+  }
+}

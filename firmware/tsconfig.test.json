@@ -110,6 +110,8 @@
       "loadPreference": [
         "./host/modules/preferences/loadPreference.ts"
       ],
+      "settings-schema": ["./host/modules/preferences/settings-schema.ts"],
+      "settings-service": ["./host/modules/preferences/settings-service.ts"],
       "timezone-settings": [
         "./host/modules/preferences/timezone-settings.ts"
       ],

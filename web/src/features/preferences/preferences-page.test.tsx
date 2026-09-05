@@ -18,12 +18,15 @@ describe('PreferencesPage', () => {
       busy: false,
       values: DEFAULT_PREFERENCES,
       readOnly: new Set(),
+      configuredSecrets: new Set(['mcp.token']),
+      secretsToClear: new Set(),
       operation: { status: 'idle' },
       connect: vi.fn(async () => {}),
       disconnect: vi.fn(async () => {}),
       update: vi.fn(),
       save: vi.fn(async () => {}),
       clearWifi: vi.fn(async () => {}),
+      clearSecret: vi.fn(),
     })
 
     render(
@@ -35,5 +38,6 @@ describe('PreferencesPage', () => {
     const token = screen.getByLabelText('Bearerトークン')
     expect(token).toHaveAttribute('name', 'mcp.token')
     expect(token).toHaveAttribute('type', 'password')
+    expect(token).toHaveAttribute('placeholder', '設定済み（変更時のみ入力）')
   })
 })

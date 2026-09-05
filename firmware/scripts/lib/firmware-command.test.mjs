@@ -138,6 +138,11 @@ function createFirmwareWrapperFixture() {
     path.join(fixtureWebEditor, 'mod-builder.mjs'),
   )
 
+  cpSync(
+    path.resolve(firmwareDirectory, '../web/editor/xs-compatibility.mjs'),
+    path.join(fixtureWebEditor, 'xs-compatibility.mjs'),
+  )
+
   const fakeModdable = path.join(root, 'moddable')
   mkdirSync(path.join(fakeModdable, 'tools'), { recursive: true })
   writeFileSync(path.join(fakeModdable, 'tools', 'VERSION'), '8.3.1\n')

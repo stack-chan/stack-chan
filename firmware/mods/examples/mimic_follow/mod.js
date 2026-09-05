@@ -1,26 +1,11 @@
-import MDNS from 'mdns'
-
 function onContextCreated(robot) {
-  const mdns = new MDNS({})
-  const txt = {}
-  const rotation = {
-    y: 0.0,
-    p: 0.0,
-    r: 0.0,
+  const dnssd = new device.network.dnssd.io(device.network.dnssd)
+  function follow(service) {
+    if (service.name !== 'stackchan') return
+    const y = Number(service.txt?.get('yaw'))
+    const p = Number(service.txt?.get('pitch'))
+    if (Number.isFinite(y) && Number.isFinite(p)) robot.motion.setPose({ rotation: { y, p, r: 0 } }, 0.1)
   }
-  mdns.monitor('_http._tcp', (_service, instance) => {
-    if (instance.name === 'stackchan') {
-      for (const s of instance.txt) {
-        const entry = s.split('=')
-        txt[entry[0]] = entry[1]
-      }
-      rotation.y = txt.yaw
-      rotation.p = txt.pitch
-      trace(`____got! yaw: ${txt.yaw} pitch: ${txt.pitch}\n`)
-      robot.motion.setPose({ rotation }, 0.1)
-    }
-  })
+  dnssd.discover({ serviceType: '_http._tcp', onFound: follow, onUpdate: follow })
 }
-export default {
-  onContextCreated,
-}
+export default { onContextCreated }

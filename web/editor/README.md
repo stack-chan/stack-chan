@@ -1,5 +1,7 @@
 # Stack-chan Block Editor
 
+Device installation requires a Moddable 9.5.x host. Update older firmware before installing MODs; see the [SDK 9.5 migration guide](../../docs/migrations/moddable-9.5.md).
+
 Blockly-based MOD editor for Stack-chan. Everything runs client-side:
 
 1. **Compose** — assemble Stack-chan behaviors (face, speech, motion, LED, buttons, timers) from blocks. The workspace generates a `mod.js` that exports `onContextCreated(robot)`.
@@ -34,7 +36,7 @@ engine.
 
 ## Rebuilding `vendor/tools.wasm`
 
-The tools binary embeds a Moddable SDK version (currently **9.0.0**, XS 17.8) and is generated with **Emscripten 5.0.1**. Rebuild it whenever either toolchain is updated:
+The tools binary embeds a Moddable SDK version (currently **9.5.0**, XS 17.8) and is generated with **Emscripten 5.0.1**. Rebuild it whenever either toolchain is updated:
 
 ```sh
 cd firmware
@@ -58,7 +60,7 @@ An XS archive only loads when its XS version is compatible with the engine that 
 - **Simulator** — `web/simulator/mc.wasm` must be built from the same (or newer) SDK as `vendor/tools.wasm`. Rebuild with `npm run build:wasm` in `firmware/`.
 - **Device** — the flashed Stack-chan firmware must be built from the same (or newer) SDK. A version mismatch is rejected when the firmware maps the archive.
 
-The build status line in the editor shows the XS version of the produced archive (e.g. `XS 17.8.0`).
+The build status line in the editor shows the XS version of the produced archive (e.g. `XS 17.8.2`).
 
 ## Simulator install requirements
 

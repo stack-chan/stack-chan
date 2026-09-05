@@ -42,7 +42,7 @@ beforeEach(() => {
   resetMP3Streamers()
   Timer.reset()
   ;(globalThis as typeof globalThis & { device: unknown }).device = {
-    network: { http: { name: 'http' }, https: { name: 'https' } },
+    network: { http: { client: { name: 'http' } }, https: { client: { name: 'https' } } },
   }
   ;(globalThis as typeof globalThis & { trace: (...args: unknown[]) => void }).trace = () => {}
 })

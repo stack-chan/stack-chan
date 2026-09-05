@@ -16,8 +16,8 @@ function onContextCreated(robot, option) {
     y: 0,
     z: 0,
   }
-  const client = new device.network.http.io({
-    ...device.network.http,
+  const client = new device.network.http.client.io({
+    ...device.network.http.client,
     host: 'unitv2.local',
     port: 80,
   })

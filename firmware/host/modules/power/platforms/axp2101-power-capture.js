@@ -6,16 +6,16 @@ function capture(power) {
   if (!capturedPower) capturedPower = power
 }
 
-const readByte = AXP2101.prototype.readByte
-AXP2101.prototype.readByte = function (...args) {
+const readUint8 = AXP2101.prototype.readUint8
+AXP2101.prototype.readUint8 = function (...args) {
   capture(this)
-  return readByte.apply(this, args)
+  return readUint8.apply(this, args)
 }
 
-const writeByte = AXP2101.prototype.writeByte
-AXP2101.prototype.writeByte = function (...args) {
+const writeUint8 = AXP2101.prototype.writeUint8
+AXP2101.prototype.writeUint8 = function (...args) {
   capture(this)
-  return writeByte.apply(this, args)
+  return writeUint8.apply(this, args)
 }
 
 export function getAxp2101Power() {

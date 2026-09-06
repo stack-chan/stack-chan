@@ -470,3 +470,16 @@ Chromiumの実ホストでは、設定画面を自動起動の期限より長く
 CoreS3 6,621,136 bytes、Takao Core2 SG90 3,923,680 bytes、Stackchan RT 4,044,336 bytesのreleaseとWASMを生成し、3つのnativeバイナリーで `9.5.0+stackchan.5` を確認した。新MODのarchive、Webビルド、Chromiumの11教材・例とcameraの解放が成功。最後のmotion修正後はnative/WASM/Webを再生成し、既定アプリ・見回し・診断とMOD復旧を再確認した。USB機器・物理的なトルクやLED・初学者の受入は未実施。
 
 計測: 直前の `77bc4f2` に対し製品ソースは69物理行減り、471ファイル・59,700行。サンプルは44行増、試験・補助は158行増、開発ツールは9行増。起点に対してまだ52ファイル・6,998行の製品純増で、全体の純減条件は未達。残る22例・Blockly・V1/raw context・会話/設定/通信・全入口・実機と初学者受入を引き続き扱う。
+
+
+## flat context の撤去（2026-09-06）
+
+対象ソースは `d1f3ca64b1413ad2d99e381454283c97ff734372`。audio / motion / face / input / drawer のflatメソッド16個とgetter8個を撤去した。名前空間とSDKのportが実際のruntimeを直接呼ぶため、同じ処理をもう一度contextへ戻す中継を持たない。別名・自動変換・新しい実行器は追加していない。
+
+`StackchanContext` は名前空間の直接定義へ揃え、flatの交差型と重複した補助の公開型4個を削除した。API文書は公開SDKと教材を入口にし、残る旧名前空間の資料と区別した。JS/TS製品内の利用者は中継だけになっており、試験に残った2つの呼び出しも名前空間へ移した。
+
+このclassのTypeScript公開インスタンス宣言数は36から12へ減少した。残る12は `startApp` と11の名前空間・機能getter。これはclass一つの宣言数であり、SDK・拡張・raw型を含む全公開面の集計ではない。XSでは今回24個と前回LEDの5個、計29個のflat入口が実際に存在しないことを検査する。
+
+検証: firmware単体530件、構成78件、SDK strict、6対象のmanifest検査、全60 XS manifest（53.6秒）が成功。CoreS3 6,617,040 bytes、Takao Core2 SG90 3,919,584 bytes、Stackchan RT 4,040,240 bytesのreleaseとWASMを生成した。3つのnativeバイナリーは `9.5.0+stackchan.5` で、それぞれ直前より4,096 bytes小さい。WebビルドとChromiumの11教材・例、既定アプリ、cameraの解放、MOD復旧・設定と評価の順序が成功した。
+
+製品ソースは223物理行減って471ファイル・59,477行。コメントを含む公開入口そのものの撤去であり、教材・生成物への移動やコメントだけの削除ではない。起点からは52ファイル・6,775行増で、全体の純減条件は未達。22例・Blockly・V1の起動・旧名前空間とraw型・設定別名・会話と資源調停・実機と初学者受入は未完了。

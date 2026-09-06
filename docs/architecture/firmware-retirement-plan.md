@@ -104,12 +104,26 @@ python3 docs/architecture/evidence/firmware-retirement/measure.py f525e97 --file
 
 起点からは **52ファイル・6,998行の製品純増** で、純減条件は未達。未移行の利用者・旧名前空間・全公開入口と中継の計測・設定と会話の重複を引き続き整理する。
 
+### flat context の撤去後の計測（2026-09-06）
+
+対象ソースは `d1f3ca64b1413ad2d99e381454283c97ff734372`。直前 `3e69e70` に対し、firmware実装は42,351行から42,128行へ223行減少した。SDK・Web・型宣言は同じで、製品計は471ファイル・59,477行。試験・補助は33行増えた。
+
+| このclassのTypeScript公開インスタンス宣言 | 直前 | 今回 |
+| --- | ---: | ---: |
+| 起動と名前空間・機能getter | 12 | 12 |
+| audio / motion / face / input / drawer のflat別名 | 24 | 0 |
+| **計** | **36** | **12** |
+
+flatの24個は16メソッド・8getterである。SDKの顔・吹き出しportや旧名前空間の呼出しは、contextの別名を経由せず既存runtimeへ渡す。前回のLEDと合わせた29個について、実XSのcontextにそのプロパティが存在しないことを検査した。補助の公開型4個も撤去した。上表はruntime-context一つのTypeScript宣言の計測で、SDKや拡張を含む全公開面の数ではない。
+
+型・コメントを伴う公開入口の撤去であり、教材や生成物への付け替え、コメントだけの削除を削減として扱っていない。3つのnative releaseバイナリーも直前よりそれぞれ4,096 bytes小さくなった。起点からはなお **52ファイル・6,775行増** で、全体の純減は未達。旧名前空間・raw型・設定・会話の利用者を引き続き移行する。
+
 ## 利用者と一緒に撤去する経路
 
 | 現存経路 | 主な利用者 | 残す先・撤去条件 |
 | --- | --- | --- |
 | `app-behavior-resolver` の世代1、`app-main` の世代別起動 | 未移行 MOD | 既定動作は SDK / AppSession へ移行し、フック継承を撤去済み。残す MOD と Blockly が `defineApp` になった時点で世代分岐を削除 |
-| `runtime-context` の flat メソッドと namespaced facade、`capabilities` の raw 公開型 | 旧 MOD、Dock などのホスト統合 | ユーザーアプリは SDK、ホスト統合は非公開 port へ移す。両方の利用者がなくなった項目からメソッド・型・exports を削除 |
+| `runtime-context` の旧 namespaced facade、`capabilities` の raw 公開型 | 旧 MOD、Dock などのホスト統合 | flat の29入口は撤去済み。ユーザーアプリは SDK、ホスト統合は非公開 port へ移し、残る旧名前空間・型・exports を利用者と一緒に削除 |
 | `RuntimeAudio.say` の `Maybe`、`playAudio` の `boolean`、raw `record`、`useTTS` | AI・応援・ビーコン・Blockly | `say` / `playClip` / `record` / `play` と provider の選択へ移す。呼出側が残る間に変換 shim を増設しない |
 | raw button / IMU / headTouch と Timer の直接登録 | Blockly、センサー・通信サンプル | 既定動作は AppSession 所有の購読・周期処理へ移行済み。残る利用者を入力・センサー拡張へ移し、raw 公開面を削除 |
 | miniapp 専用起動・公開型 | **撤去済み**。旧4例をSDKの2パッケージへ整理 | 通常の AppSession に画面登録を接続。専用 Compartment・登録関数・attenuated Piu module・型の複製を削除。内部 viewport / registry はホストの画面管理として残す |

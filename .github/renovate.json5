@@ -12,6 +12,11 @@
   "prConcurrentLimit": 6,
   "prHourlyLimit": 2,
 
+  // Keep weekly lock refreshes explicit instead of relying on preset internals.
+  "lockFileMaintenance": {
+    "enabled": true,
+  },
+
   // Dependency updates always require human review. Package install scripts
   // are not needed for lock-file updates and must not run in Renovate.
   "automerge": false,

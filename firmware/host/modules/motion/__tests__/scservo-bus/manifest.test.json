@@ -1,0 +1,34 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./scservo-bus.test",
+    "embedded:io/serial": "./fake-serial",
+    "timer": "$(MODDABLE)/modules/base/timer/*",
+    "protocols/scservo": "../../protocols/scservo",
+    "single-wait-slot": "../../internal/single-wait-slot",
+    "servo-command-error": "../../internal/servo-command-error",
+    "payload-buffer": "../../payload-buffer",
+    "m5stackchan-servo": "../../m5stackchan-servo",
+    "m5stackchan-servo-driver": "../../m5stackchan-servo-driver",
+    "scservo-driver": "../../scservo-driver",
+    "motion-controller": "../../motion-controller",
+    "stackchan-util": "../../../util/stackchan-util",
+    "mac-address": "../../../util/sim/mac-address",
+    "py32-io-expander": "./fake-power"
+  },
+  "strip": [],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "strictPropertyInitialization": false,
+        "strictFunctionTypes": false
+      }
+    }
+  }
+}

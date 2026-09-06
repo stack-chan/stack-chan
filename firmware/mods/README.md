@@ -68,7 +68,7 @@ To add a Piu UI while retaining the face screen and host AppBar, use the [SDK Pi
 | [`stackchan_minigames`](./examples/stackchan_minigames/) | One SDK app containing Stack-chan JUMP and CATCH |
 | [`local_peer_hello`](./examples/local_peer_hello/) | Typed device-to-device messages without the internet |
 | [`web_radio`](./examples/web_radio/) | Network audio playback on M5StackChan CoreS3 |
-| [`m5stackchan_smoke`](./examples/m5stackchan_smoke/) | [M5StackChan CoreS3 servo-power and head LED checks](../docs/m5stackchan-cores3-smoke.md) |
+| [`board_diagnostics`](./examples/board_diagnostics/) | [M5StackChan CoreS3 servo-power and head LED checks](../docs/m5stackchan-cores3-smoke.md) |
 
 ## References
 

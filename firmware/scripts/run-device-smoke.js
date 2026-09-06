@@ -29,9 +29,9 @@ const TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS
 const RETRIES = Number.parseInt(process.env.STACKCHAN_DEVICE_SMOKE_RETRIES ?? '2', 10)
 const SERIAL_BAUD = process.env.STACKCHAN_DEVICE_SMOKE_BAUD ?? '115200'
 
-const okPattern = new RegExp(process.env.STACKCHAN_DEVICE_SMOKE_OK ?? 'M5StackChan CoreS3 smoke\\] complete')
+const okPattern = new RegExp(process.env.STACKCHAN_DEVICE_SMOKE_OK ?? 'board diagnostics\\] complete')
 const failurePattern =
-  /XS abort|# Exception|# exception|stack overflow|module not found|Cannot find module|unhandled exception|throw!|smoke\] .*error/i
+  /XS abort|# Exception|# exception|stack overflow|module not found|Cannot find module|unhandled exception|throw!|board diagnostics\] .*error/i
 const crashPattern = /Guru Meditation|abort\(\)|Brownout detector|panic'?ed/i
 
 const rawArgs = process.argv.slice(2)
@@ -53,7 +53,7 @@ const deviceName = resolveDevice(
 )
 const device = devices[deviceName]
 const platform = `esp32:${device.platform}`
-const modManifest = resolve(readOption(rawArgs, 'mod') ?? 'mods/examples/m5stackchan_smoke/manifest.json')
+const modManifest = resolve(readOption(rawArgs, 'mod') ?? 'mods/examples/board_diagnostics/manifest.json')
 const channel = readOption(rawArgs, 'channel') ?? 'xsbug'
 const workRoot = mkdtempSync(join(tmpdir(), 'stackchan-device-smoke-'))
 ensureBuildOutputDirectory()
@@ -81,15 +81,24 @@ function decodeXsbugLog(log) {
 
 function flashHostFirmware() {
   console.log(`[device-smoke] building and deploying host firmware for ${device.label}`)
-  const result = spawnSync(
-    'mcconfig',
-    ['-d', '-m', '-p', platform, '-t', 'deploy', ...outputArgs, resolve(device.manifest)],
-    { stdio: 'inherit' },
-  )
+  const result = spawnSync(process.execPath, [resolve('scripts/firmware.mjs'), 'deploy', deviceName, '--mode=debug'], {
+    stdio: 'inherit',
+  })
   if (result.status !== 0) {
     console.error('[device-smoke] host firmware deploy failed')
     process.exit(result.status ?? 1)
   }
+}
+
+if (channel === 'xsbug') {
+  // Validate the actual archive through the same build path as normal MODs
+  // before mcrun installs it and starts the serial debugger bridge.
+  const result = spawnSync(
+    process.execPath,
+    [resolve('scripts/firmware.mjs'), 'mod:build', deviceName, modManifest, '--mode=debug'],
+    { stdio: 'inherit' },
+  )
+  if (result.status !== 0) process.exit(result.status ?? 1)
 }
 
 async function runXsbugAttempt(attempt) {
@@ -137,13 +146,13 @@ async function runXsbugAttempt(attempt) {
       const fresh = decoded.slice(echoedLength)
       echoedLength = decoded.length
       for (const line of fresh.split('\n')) {
-        if (line.includes('smoke]')) console.log(`[device] ${line}`)
+        if (line.includes('board diagnostics]')) console.log(`[device] ${line}`)
       }
-      if (okPattern.test(decoded)) {
-        finish('ok')
-      } else if (failurePattern.test(decoded)) {
+      if (failurePattern.test(decoded)) {
         console.error(`[device-smoke] failure marker in device log; full log: ${logPath}`)
         finish('failure')
+      } else if (okPattern.test(decoded)) {
+        finish('ok')
       }
     }, 200)
 

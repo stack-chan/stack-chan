@@ -272,7 +272,6 @@ export type StackchanLegacyFlatCapability = FaceCapability &
   MotionCapability &
   AudioCapability &
   InputCapability &
-  LightingCapability &
   CameraCapability &
   ConversationCapability &
   ConnectivityCapability &

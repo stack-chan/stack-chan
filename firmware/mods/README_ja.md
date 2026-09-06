@@ -68,7 +68,7 @@ WASM ホストでも標準の `npm run mod:build` で生成した、MOD 宣言�
 | [`stackchan_minigames`](./examples/stackchan_minigames/) | JUMPとCATCHを1つのarchiveへまとめるミニゲーム集 |
 | [`local_peer_hello`](./examples/local_peer_hello/) | インターネットを経由しない端末間の型付きメッセージ |
 | [`web_radio`](./examples/web_radio/) | M5StackChan CoreS3でのネットワーク音声再生 |
-| [`m5stackchan_smoke`](./examples/m5stackchan_smoke/) | [M5StackChan CoreS3のサーボ電源とヘッドLEDの確認](../docs/m5stackchan-cores3-smoke.md) |
+| [`board_diagnostics`](./examples/board_diagnostics/) | [M5StackChan CoreS3のサーボ電源とヘッドLEDの確認](../docs/m5stackchan-cores3-smoke.md) |
 
 ## 参考資料
 

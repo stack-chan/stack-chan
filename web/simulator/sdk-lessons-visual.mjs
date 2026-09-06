@@ -15,6 +15,7 @@ const allLessons = [
   'look_around',
   'monologue',
   'face',
+  'board_diagnostics',
 ]
 const requested = process.argv.slice(2)
 assert.ok(
@@ -191,6 +192,7 @@ try {
   await page.waitForFunction((before) => Math.abs(window.sdkLessonScreenBrightness - before) > 20, brightness)
   assert.deepEqual(errors, [], 'the default SDK app responds to the WASM buttons')
   for (let index = 0; index < lessons.length; index += 1) {
+    const messageStart = messages.length
     await Promise.all([ready(), page.getByLabel('MODを追加', { exact: true }).setInputFiles(archives[index])])
     if (lessons[index] === '02-tone') {
       assert.ok(
@@ -202,6 +204,19 @@ try {
       await page.waitForFunction(() => window.sdkLessonScreenColors > 200)
       const first = await page.evaluate(() => window.sdkLessonScreenColors)
       await page.waitForFunction((before) => Math.abs(window.sdkLessonScreenColors - before) > 100, first)
+    }
+    if (lessons[index] === 'board_diagnostics') {
+      await page.waitForEvent('console', {
+        predicate: (message) => message.text().includes('[board diagnostics] error: LED:'),
+        timeout: 20_000,
+      })
+      const diagnostics = messages.slice(messageStart)
+      assert.ok(diagnostics.some((line) => line.includes('[board diagnostics] servo: simulated')))
+      assert.ok(
+        !diagnostics.some((line) => line.includes('[board diagnostics] complete')),
+        'WASM with no LED bridge never reports a hardware pass'
+      )
+      await page.getByRole('button', { name: 'A', exact: true }).click()
     }
     if (lessons[index] === '03-input') {
       await page.getByRole('button', { name: 'A', exact: true }).click()

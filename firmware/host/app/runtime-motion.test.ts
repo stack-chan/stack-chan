@@ -144,6 +144,24 @@ test('relax retains ownership until torque release acknowledges, then permits an
   assert.equal(f.clock.jobs.size, 0)
 })
 
+test('relax can release a faulted driver without making its motion capability available again', async () => {
+  const { StackchanRuntimeMotion } = await setup()
+  const f = fixture()
+  const info = f.driver.motion.info
+  let faulted = false
+  Object.defineProperty(f.driver.motion, 'info', {
+    get: () => (faulted ? { availability: 'unavailable', reason: 'servo fault' } : info),
+  })
+  const motion = new StackchanRuntimeMotion(f.driver, f.options)
+  faulted = true
+  await motion.relax()
+  assert.deepEqual(f.events, ['attach', 'torque:false'])
+  assert.equal(motion.info.availability, 'unavailable')
+  await assert.rejects(motion.move({ yawDeg: 0, pitchDeg: 0 }, { durationMs: 0 }), { code: 'UNSUPPORTED' })
+  await motion.close()
+  assert.equal(f.clock.jobs.size, 0)
+})
+
 test('motion waits for the actual final trajectory write and reports estimated completion', async () => {
   const { StackchanRuntimeMotion } = await setup()
   const f = fixture()
@@ -268,6 +286,13 @@ test('timeout stops the trajectory; failed hold faults the resource and rejects 
   await f.clock.advance(10)
   await Promise.all([failed, rejected])
   assert.equal(motion.info.availability, 'unavailable')
+  f.driver.setTorque = (enabled, done) => {
+    f.events.push(`torque:${enabled}`)
+    done?.(new Error('release also failed'))
+  }
+  await assert.rejects(motion.relax(), /hold failed/)
+  assert.equal(f.events.at(-1), 'torque:false', 'torque release is attempted even after holding position fails')
+  await assert.rejects(motion.move({ yawDeg: 0, pitchDeg: 0 }, { durationMs: 0 }), { code: 'IO' })
   await assert.rejects(motion.close(), { code: 'IO' })
   assert.equal(f.clock.jobs.size, 0)
   assert.equal(f.events.at(-1), 'detach')

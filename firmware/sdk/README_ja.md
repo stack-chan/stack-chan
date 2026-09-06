@@ -33,7 +33,7 @@ export default defineApp({
 | `ui.showImage(image)` / `hideImage()` | RGB565画像を表示。置換・非表示・アプリ終了で表示を外す |
 | `motion.info` | 使用可否、位置フィードバック、トルク解除の可否、設定済みの角度範囲を取得 |
 | `motion.lookAt(target)` / `lookAway()` | 注視先を設定・解除。単発移動を優先し、終了後に最新の注視先へ戻る |
-| `motion.relax()` | host API 4以上。停止を待ち、対応するドライバーのトルク解除完了を待つ。`canRelax: false` は `UNSUPPORTED` |
+| `motion.relax()` | host API 4以上。停止を待ち、対応するドライバーのトルク解除完了を待つ。故障後も解放を試すが、故障した動作の利用不可は解除しない。停止と解放がともに失敗した場合は最初の失敗を返す。`canRelax: false` は `UNSUPPORTED` |
 | `motion.stop()` | 注視と待機中の移動を取り消し、進行中の動作の停止処理を待つ |
 | `input.onPress('primary', handler)` | 購読を登録し解除関数を返す。同じhandlerの実行中は連打を追加実行しない |
 | `time.sleep(durationMs)` | アプリに所属する待機。終了時にタイマーを解除してreject |
@@ -182,4 +182,4 @@ IDはPiu画面と同じ1〜64文字の小文字ASCII英数字と区切り `. _ -
 
 `input(app)` を `stackchan/extensions/input` から取得すると、`onPress('primary' | 'secondary' | 'tertiary', handler)`、`onHeadTouch(handler)`、`onMotion(handler)` を使えます。ボタン名は利用できるA/B/Cの順番で、primaryだけはボタンのない機種でメニューの「実行」を使えます。head touchは `gesture` と任意の `tapDurationMs`、motionは `motion` を持つ読み取り専用イベントです。時間はmsで、raw device・ticks・ドライバーは渡しません。実行前に `capabilities.get('input.headTouch')` などで対応を調べます。購読解除とアプリ終了で処理を取り消し、最後のmotion購読解除でIMUのポーリングを止めます。
 
-`lighting(app)` を `stackchan/extensions/lighting` から取得すると、`names` に実際に使えるLED名が並びます。`color(name, { r, g, b })`、`rainbow(name)`、`off(name)` を使い、アプリが使用したLEDは終了時に消灯します。WASMは出力bridgeを持たないため `lighting` は `unavailable` です。未検出のPY32も成功として扱いません。未対応は `UNSUPPORTED`、未知の名前は `INVALID_ARGUMENT`、機器例外は `IO` です。個々のLED範囲・点滅などの高度な操作は、残る旧サンプルの移行時に接続します。
+`lighting(app)` を `stackchan/extensions/lighting` から取得すると、`names` に実際に使えるLED名が並びます。`color(name, { r, g, b })`、`rainbow(name)`、`off(name)` を使い、アプリが使用したLEDは終了時に消灯します。WASMは出力bridgeを持たないため `lighting` は `unavailable` です。未検出のPY32も成功として扱いません。未対応は `UNSUPPORTED`、未知の名前は `INVALID_ARGUMENT`、機器例外は `IO` です。host API 5以上では `blink(name, { r, g, b }, { periodMs })` も使えます。`periodMs` は点灯と消灯を合わせた1周期で、100〜86,400,000 msです。別の効果へ切り替えると前の効果を止め、アプリ終了時も消灯して機器のタイマーを止めます。実行例は [ボード診断](../mods/examples/board_diagnostics/mod.js) です。個々のLED範囲の指定は旧APIに残り、公開SDKにはまだ含みません。

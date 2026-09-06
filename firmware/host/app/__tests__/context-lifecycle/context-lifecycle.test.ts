@@ -215,9 +215,11 @@ async function verifyPiuApp(mode: 'normal' | 'setup' | 'dispose' | 'undisplay' |
   equal(screenContext.app, app.context, 'screen uses the same AppSession as setup')
   equal(screenContext.height, 196, 'host reserves the AppBar above the viewport')
   equal(app.context.capabilities.get('ui.piu').availability, 'native', 'host advertises its screen capability')
-  for (let attempt = 0; frames === 0 && attempt < 100; attempt++)
+  // Parallel native builds can delay GTK's first display beyond two seconds.
+  // Wait for the actual frame, within the runner's 30-second runtime deadline.
+  for (let attempt = 0; frames === 0 && attempt < 500; attempt++)
     await new Promise<void>((resolve) => Timer.set(() => resolve(), 20))
-  assert(frames > 0, 'actual Piu Port timer runs while screen is displayed')
+  assert(frames > 0, `actual Piu Port timer runs while screen is displayed (${mode})`)
   if (mode === 'normal') {
     screenContext.close()
     equal(disposals, 1, 'screen Back releases its instance')

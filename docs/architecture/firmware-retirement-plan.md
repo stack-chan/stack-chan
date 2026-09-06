@@ -125,12 +125,12 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 | `face` | **移行済み** → UI 拡張例 | 表情・色・balloon・emoticon と翻訳メニュー | SDK の UI 拡張と所有された周期処理へ移行。手動 Timer・Piu effect の直接生成を削除。配置・フォントはホストの共通表示を使用 |
 | `face_tracker` | 移行 → UnitV2 追従例 | HTTP 入力拡張・注視、UnitV2 の結果形式 | raw HTTP request と座標変換を入力 adapter へ整理。未着手 |
 | `image_avatar_lite` | 移行 → 画像顔の拡張例 | 画像 pack 選択・描画・表情 | 内部 `parts/*` と face controller への依存。未着手 |
-| `light` | 統合 → ボード診断の LED 操作 | lighting 拡張・主入力、対応 LED の全モード | raw LED、A/B/C 前提。未着手 |
+| `light` | **統合済み** → `board_diagnostics` | LED の色・点滅・虹・消灯、利用できる主入力とメニュー | raw LED とボタン代入を削除。複数のLED名を選び、アプリ終了で全使用LEDを消灯。実機は未受入 |
 | `lip_sync` | 移行 → 音量観測の例 | 音声入力のレベル観測・口の開閉 | microphone の `onReadable` 上書き・read/start。録音後の再生教材へ単純統合するとリアルタイム観測が失われるので別機能として残す |
 | `local_peer_hello` | 移行 → 端末間通信の例 | ローカル通信・設定・UI、文字数制限と入力検証 | raw Timer と drawer、アプリ外の通信寿命。未着手 |
 | `localized_drawer` | **統合済み** → `face` | 翻訳メニュー・三言語の辞書 | 辞書を face へ集約し、SDK の localize / addAction へ移行。旧プログラムと単独 archive の manifest を削除 |
 | `look_around` | **移行済み** | SDK 主入力・周期処理・角度による注視 | 旧フック、A/B/C 上書き、Timer、内部 util import を削除。サーボなしの案内と停止を確認。実機は未検証 |
-| `m5stackchan_smoke` | 統合 → ボード診断 | サーボ電源とヘッド LED、CoreS3 の診断手順 | 通常アプリの Timer・raw torque 操作。機種固有の確認は保持。未着手 |
+| `m5stackchan_smoke` | **統合済み** → `board_diagnostics` | サーボの小さい往復・トルク解放・CoreS3 head LED・自動診断 | raw Timer / torque / 秒単位の姿勢をSDKへ移行。旧入口を削除しUSB診断runnerを更新。実機は未受入 |
 | `mcp` | 移行 → MCP 拡張例 | ネットワーク・MCP server・表情・音声・設定 UI | 生の Wi-Fi 状態取得、別所有の server / drawer。未着手 |
 | `mediapipe_ble` | 移行 → MediaPipe 追従例 | localPeer、姿勢追従、手の表示。UnitV2 例とは入力・表示が異なる | raw Hands / effect、独自更新 Timer。未着手 |
 | `mimic_follow` | 統合 → 姿勢共有例の受信モード | DNS-SD 拡張・motion、既存 TXT 形式 | raw discover と姿勢 I/F。未着手 |
@@ -144,7 +144,7 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 | `unit_temperature` | 移行 → センサー拡張例 | SHT3x・周期読取・UI | raw sensor の生成・Timer・drawer。未着手 |
 | `web_radio` | 移行 → ラジオアプリ | 音声ストリームの操作・局の選択・設定 | 会話・通常再生と別に物理出力を使う経路、MOD 内の UI と所有。未着手 |
 
-元の32例のうち8例を SDK の5パッケージへ移行・統合した。残る24例は未移行。実機・初学者の受入は別途必要であり、自動試験だけをもって全移行の完了とはしない。統合先を新設する際も、アプリごとに同じ接続・停止・状態管理をコピーしない。必要な公開拡張の契約と資源所有を決め、最初の利用者と一緒に実装・検証する。
+元の32例のうち10例を SDK の6パッケージへ移行・統合した。残る22例は未移行。実機・初学者の受入は別途必要であり、自動試験だけをもって全移行の完了とはしない。統合先を新設する際も、アプリごとに同じ接続・停止・状態管理をコピーしない。必要な公開拡張の契約と資源所有を決め、最初の利用者と一緒に実装・検証する。
 
 ## 操作の中継と所有の整理
 
@@ -159,4 +159,4 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 
 上表は整理対象の特定であり、統合が済んだという意味ではない。これまでに削除したものは、呼出側が存在しなかった `resolveAppBehaviors` と、旧 miniapp 用の loader / registration / attenuated Piu module、準備 callback を渡すだけになった `prepareAppLaunch`。稼働中の世代分岐を代替名で残したり、新しい互換層を追加したりしていない。
 
-次の実装単位は、残る24例と Blockly の利用者を SDK へ移し、対応する旧フック・raw context・会話と設定の重複を撤去すること。別系統の資源所有を増やす前に、既存の所有者を使う。初学者受入と実機確認は [F12](firmware-sdk-redesign-progress.md) に従って別に記録する。
+次の実装単位は、残る22例と Blockly の利用者を SDK へ移し、対応する旧フック・raw context・会話と設定の重複を撤去すること。別系統の資源所有を増やす前に、既存の所有者を使う。初学者受入と実機確認は [F12](firmware-sdk-redesign-progress.md) に従って別に記録する。

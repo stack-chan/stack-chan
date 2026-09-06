@@ -15,13 +15,14 @@ async function setup() {
   writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackageSubpath(resolve(hostRoot, '..'), 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackage(resolve(hostRoot, '..'), 'stackchan', resolve(hostRoot, '../sdk/app.js'))
-  for (const name of ['input', 'ui'])
-    writeAliasPackageSubpath(
-      hostRoot,
-      'stackchan',
-      `extensions/${name}`,
-      resolve(hostRoot, `../sdk/extensions/${name}.js`),
-    )
+  for (const name of ['input', 'ui', 'lighting'])
+    for (const directory of [hostRoot, resolve(hostRoot, '..')])
+      writeAliasPackageSubpath(
+        directory,
+        'stackchan',
+        `extensions/${name}`,
+        resolve(hostRoot, `../sdk/extensions/${name}.js`),
+      )
   for (const name of ['owned-resources', 'cancellation', 'task-scope']) {
     writeAliasPackage(hostRoot, name, resolve(hostRoot, `app/${name}.js`))
   }
@@ -354,6 +355,9 @@ test('appearance and used lights return to the host even when another app resour
     color() {
       throw new Error('output failed')
     },
+    blink: (name, _color, { periodMs }) => {
+      events.push(`blink:${name}:${periodMs}`)
+    },
     rainbow: (name) => {
       events.push(`rainbow:${name}`)
     },
@@ -367,16 +371,144 @@ test('appearance and used lights return to the host even when another app resour
   view.setFaceStyle('dog')
   view.setEmoticon('heart')
   lights.rainbow('eyes')
+  lights.blink('eyes', { r: 0, g: 24, b: 0 }, { periodMs: 250 })
+  for (const periodMs of [0, -1, 99, Number.NaN, Number.POSITIVE_INFINITY, 86_400_001])
+    assert.throws(() => lights.blink('eyes', { r: 0, g: 24, b: 0 }, { periodMs }), { code: 'INVALID_ARGUMENT' })
   assert.throws(() => lights.rainbow('missing'), { code: 'INVALID_ARGUMENT' })
   assert.throws(() => lights.color('eyes', { r: 0, g: 0, b: 0 }), { code: 'IO' })
   f.ports.audio.close = async () => {
     throw new Error('audio close failed')
   }
   await assert.rejects(session.close(), /audio close failed/)
-  assert.deepEqual(events, ['rainbow:eyes', 'off:eyes'])
+  assert.deepEqual(events, ['rainbow:eyes', 'blink:eyes:250', 'off:eyes'])
   assert.equal(f.resets(), 1)
   assert.throws(() => view.setEmoticon('heart'), { code: 'CLOSED' })
   assert.throws(() => lights.off('eyes'), { code: 'CLOSED' })
+})
+
+test('board diagnostics share SDK ownership, retain LED modes, report missing hardware and cancel on close', async () => {
+  const { AppSession } = await setup()
+  const { default: diagnostics } = await import('../../mods/examples/board_diagnostics/mod.js')
+  const originalTrace = globalThis.trace
+  const logs: string[] = []
+  globalThis.trace = (...values: unknown[]) => {
+    logs.push(values.join(''))
+  }
+  try {
+    for (const mode of ['success', 'failedServo', 'missing', 'cancel'] as const) {
+      logs.length = 0
+      const f = controlsFixture()
+      const buttons = new Map<string, () => void>()
+      const events: string[] = []
+      f.ports.input.subscribePress = (handler, name = 'primary') => {
+        buttons.set(name, handler)
+        return () => {
+          buttons.delete(name)
+        }
+      }
+      f.ports.lighting = {
+        names: mode === 'missing' ? [] : ['head', 'a'],
+        color: (name, { r, g, b }) => {
+          events.push(`color:${name}:${r},${g},${b}`)
+        },
+        blink: (name, _color, { periodMs }) => {
+          events.push(`blink:${name}:${periodMs}`)
+        },
+        rainbow: (name) => {
+          events.push(`rainbow:${name}`)
+        },
+        off: (name) => {
+          events.push(`off:${name}`)
+        },
+      }
+      const poses: unknown[] = []
+      f.ports.motion = {
+        ...f.ports.motion,
+        info:
+          mode === 'missing'
+            ? { availability: 'unavailable', reason: 'no servo' }
+            : {
+                availability: 'native',
+                feedback: 'measured',
+                canRelax: true,
+                yawDeg: [-3, 3],
+                pitchDeg: [-2, 2],
+              },
+        async move(target, options) {
+          assert.ok(options.signal)
+          poses.push(target)
+          if (mode === 'failedServo') throw new StackchanError('IO', 'servo disconnected')
+          return { completion: 'measured' }
+        },
+        async relax() {
+          events.push('relax')
+        },
+        async close() {
+          events.push('motion:close')
+        },
+      }
+      const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+      await session.start(diagnostics)
+      assert.equal(poses.length, 0, 'setup only schedules the automated check')
+      await f.clock.advance(1000)
+      const lateCheck = f.items.get('check')?.select
+      assert.ok(lateCheck)
+      if (mode === 'cancel') {
+        await session.close()
+        const closedEvents = events.length
+        await f.clock.advance(20_000)
+        lateCheck()
+        await flush()
+        assert.equal(events.length, closedEvents, 'closed diagnostics never resume their sequence')
+        assert.equal(poses.length, 1)
+        assert.ok(!logs.some((line) => line.includes('] complete')))
+      } else {
+        if (mode !== 'missing') {
+          lateCheck()
+          buttons.get('primary')?.()
+          await flush()
+        }
+        await f.clock.advance(20_000)
+        assert.equal(logs.filter((line) => line.includes('] start')).length, 1, 'a running check is not reentered')
+        if (mode === 'missing') {
+          assert.deepEqual(events, [])
+          assert.equal(poses.length, 0)
+          assert.ok(logs.some((line) => line.includes('] error: servo:') && line.includes('LED:')))
+        } else {
+          assert.deepEqual(events, ['relax', 'color:head:24,0,0', 'blink:head:250', 'rainbow:head', 'off:head'])
+          if (mode === 'failedServo') {
+            assert.equal(poses.length, 1)
+            assert.ok(logs.some((line) => line.includes('] error: servo:')))
+          } else {
+            assert.deepEqual(poses, [
+              { yawDeg: 0, pitchDeg: 0 },
+              { yawDeg: 3, pitchDeg: -2 },
+              { yawDeg: 0, pitchDeg: 0 },
+            ])
+            assert.ok(logs.some((line) => line.includes('] complete')))
+            for (const button of ['primary', 'secondary', 'tertiary']) {
+              buttons.get(button)?.()
+              await flush()
+            }
+            f.items.get('blink')?.select()
+            await flush()
+            assert.deepEqual(events.slice(-4), ['color:head:255,0,0', 'off:head', 'rainbow:head', 'blink:head:250'])
+          }
+        }
+        if (mode !== 'success')
+          assert.ok(!logs.some((line) => line.includes('] complete')), 'failure is never a hardware pass')
+        await session.close()
+      }
+      assert.equal(f.clock.jobs.size, 0)
+      assert.equal(f.items.size, 0)
+      assert.equal(buttons.size, 0)
+      assert.equal(session.resourceCount, 0)
+      assert.equal(session.taskCount, 0)
+      assert.deepEqual(f.errors, [])
+    }
+  } finally {
+    globalThis.trace = originalTrace
+  }
 })
 
 test('screen registration shares the app lifetime and provides only the owning SDK context to factories', async () => {

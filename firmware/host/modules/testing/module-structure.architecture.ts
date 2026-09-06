@@ -362,7 +362,7 @@ test('sample MOD manifests live under mods/examples', () => {
     .filter(existsSync)
 
   assert.ok(exampleManifests.includes(join('mods', 'examples', 'look_around', 'manifest.json')))
-  assert.ok(exampleManifests.includes(join('mods', 'examples', 'm5stackchan_smoke', 'manifest.json')))
+  assert.ok(exampleManifests.includes(join('mods', 'examples', 'board_diagnostics', 'manifest.json')))
 })
 
 test('sample MOD relative manifest includes resolve from examples directories', () => {

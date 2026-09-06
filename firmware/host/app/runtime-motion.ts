@@ -139,7 +139,8 @@ export class StackchanRuntimeMotion implements AppMotion {
 
   relax(): Promise<void> {
     try {
-      this.#assertReady()
+      if (this.#closed) throw new StackchanError('CLOSED', 'App motion is closed')
+      if (this.#stopping) throw new StackchanError('BUSY', 'Motion is stopping')
       if (!this.#canRelax) throw new StackchanError('UNSUPPORTED', 'This driver cannot release torque')
       return this.#haltQueue(true)
     } catch (error) {
@@ -229,8 +230,14 @@ export class StackchanRuntimeMotion implements AppMotion {
     this.#clearGazeTarget()
     if (this.#stopping) return this.#stopping
     this.#stopping = Promise.resolve()
-      .then(() => this.#queue.close(new StackchanError(this.#closed ? 'CLOSED' : 'CANCELLED', 'Motion owner stopped')))
-      .then(() => (relax ? this.#relax() : undefined))
+      .then(() =>
+        new OwnedResources([
+          () => this.#queue.close(new StackchanError(this.#closed ? 'CLOSED' : 'CANCELLED', 'Motion owner stopped')),
+          // A fault can prevent holding position. Still attempt torque release,
+          // preserving the first failure and leaving the queue unavailable.
+          () => (relax ? this.#relax() : undefined),
+        ]).close(),
+      )
       .then(
         () => {
           if (!this.#closed) this.#queue = new OperationQueue({ clock: this.#options.clock })

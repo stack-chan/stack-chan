@@ -24,6 +24,7 @@
     "mods/examples/stackchan_minigames/*.ts",
     "mods/examples/mini_app_ui_sample/*.ts",
     "host/app/default-app/*.ts",
-    "mods/examples/face/*.js"
+    "mods/examples/face/*.js",
+    "mods/examples/board_diagnostics/*.js"
   ]
 }

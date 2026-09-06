@@ -145,6 +145,13 @@ export class AppSession {
             this.#light(name).color(name, color)
           })
         },
+        blink: (name, color, options) => {
+          this.#call(() => {
+            for (const key of ['r', 'g', 'b'] as const) finiteNumber(color?.[key], key, 0, 255)
+            finiteNumber(options?.periodMs, 'periodMs', 100, 86_400_000)
+            this.#light(name).blink(name, color, options)
+          })
+        },
         rainbow: (name) => this.#call(() => this.#light(name).rainbow(name)),
         off: (name) => this.#call(() => this.#light(name).off(name)),
       } satisfies AppLighting),

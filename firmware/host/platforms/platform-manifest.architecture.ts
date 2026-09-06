@@ -179,24 +179,8 @@ describe('Stack-chan platform manifest', () => {
     )
   })
 
-  test('the M5StackChan CoreS3 smoke MOD exercises hardware APIs and documents real npm scripts', () => {
-    const smokeSource = readFileSync('mods/examples/m5stackchan_smoke/mod.js', 'utf8')
+  test('the M5StackChan CoreS3 diagnostic guide documents real npm scripts', () => {
     const smokeDocs = readFileSync('docs/m5stackchan-cores3-smoke.md', 'utf8')
-
-    for (const api of ['lightOn', 'lightBlink', 'lightRainbow', 'lightOff']) {
-      assert.match(
-        smokeSource,
-        new RegExp(`robot\\.lighting\\.${api}\\b`),
-        `smoke MOD should exercise robot.lighting.${api}`,
-      )
-    }
-    for (const api of ['setTorque', 'setPose']) {
-      assert.match(
-        smokeSource,
-        new RegExp(`robot\\.motion\\.${api}\\b`),
-        `smoke MOD should exercise robot.motion.${api}`,
-      )
-    }
 
     const documentedScripts = npmRunScripts(smokeDocs)
     assert.ok(documentedScripts.includes('build:m5stackchan_cores3'))

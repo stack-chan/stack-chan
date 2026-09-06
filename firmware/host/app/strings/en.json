@@ -85,5 +85,7 @@
   "drawer.recordAndPlay": "Record and Play",
   "drawer.color.light": "White",
   "drawer.color.dark": "Black",
-  "drawer.colorScheme": "Color Scheme"
+  "drawer.colorScheme": "Color Scheme",
+  "boot.appFailed": "MOD could not start",
+  "boot.replaceMod": "Rebuild or replace the MOD."
 }

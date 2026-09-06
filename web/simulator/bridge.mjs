@@ -1,3 +1,5 @@
+import { validateModArchive } from './mod-storage.mjs'
+
 const BUTTON_NAMES = ['a', 'b', 'c']
 const MOD_INSTALL_HOOKS = ['_fxMainSetModArchive', '_wasmModInstallArchive']
 const DEFAULT_CAMERA_WIDTH = 96
@@ -105,8 +107,8 @@ export function createHostButtonBridge({
 export function installModArchiveIntoWasm(wasmModule, installedMod) {
   if (!installedMod) return { status: 'empty' }
 
-  const bytes = installedMod.bytes instanceof Uint8Array ? installedMod.bytes : new Uint8Array(installedMod.bytes ?? [])
-  const size = installedMod.size ?? bytes.byteLength
+  const bytes = validateModArchive(installedMod.bytes)
+  const size = bytes.byteLength
   const hookName = MOD_INSTALL_HOOKS.find((name) => typeof wasmModule?.[name] === 'function')
 
   if (typeof wasmModule?._malloc !== 'function' || !wasmModule.HEAPU8) {
@@ -114,7 +116,13 @@ export function installModArchiveIntoWasm(wasmModule, installedMod) {
   }
 
   const pointer = wasmModule._malloc(bytes.byteLength)
-  wasmModule.HEAPU8.set(bytes, pointer)
+  if (!Number.isSafeInteger(pointer) || pointer <= 0) throw new Error('Could not allocate WASM MOD archive memory')
+  try {
+    wasmModule.HEAPU8.set(bytes, pointer)
+  } catch (error) {
+    wasmModule._free?.(pointer)
+    throw error
+  }
 
   if (!hookName) return { status: 'prepared', pointer, name: installedMod.name, size }
 

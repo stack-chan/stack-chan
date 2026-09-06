@@ -4,6 +4,11 @@
 
 **MOD**は、ｽﾀｯｸﾁｬﾝのホストファームウェア上で動くユーザーアプリケーションです。
 
+
+このブランチで初めてコードを書く場合は、[6つのSDK教材](../lessons/README_ja.md)から始めてください。`examples`は旧API 1の移行対象です。[移行台帳](../../docs/architecture/legacy-mod-migration.md)で依存と未完了項目を確認できます。
+
+MODには`stackchan-mod.json`の同梱が必要です。教材の`mod.js`・`manifest.json`・宣言を一緒にコピーし、最初は`mod.js`だけを編集します。情報のない古いXSAは再ビルドしてください。[互換性と復旧手順](../../docs/architecture/mod-package-compatibility.md)に各導入経路の条件をまとめています。
+
 ## MODを試す
 
 公開MODは[MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/)から探せます。

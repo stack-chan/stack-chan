@@ -1,9 +1,11 @@
 import Flash from 'flash'
 import { localize } from 'localization'
 import { type ModFlash, validateXsaArchive, writeAndVerifyXsaArchive } from 'mod-installer'
+import { isModMaintenanceActive } from 'mod-maintenance'
 import type { Application as PiuApplication, Content as PiuContent } from 'piu/MC'
 import { Column, Container, Label, Scroller } from 'piu/MC'
 import SDCard from 'stackchan-sdcard'
+import TextDecoder from 'text/decoder'
 import Timer from 'timer'
 import { ActionButton, ScreenHeader } from 'ui-controls'
 import { UI, uiStyles } from 'ui-theme'
@@ -14,6 +16,7 @@ export function startModManager(
   application: PiuApplication,
   restart: () => void = () => runtime.System.restart(),
 ): Promise<'back'> {
+  if (!isModMaintenanceActive()) throw new Error('Restart into MOD maintenance before writing the xs partition')
   return new Promise((resolve) => {
     const styles = uiStyles()
     let partitionIntact = true
@@ -127,11 +130,17 @@ export function startModManager(
     const install = (name: string) => {
       mount([new ScreenHeader({ title: localize('mods.title') }), messageLabel(localize('mods.installing'))])
       Timer.set(() => {
-        const flash = new Flash('xs') as unknown as ModFlash
+        let flash: ModFlash
         let bytes: Uint8Array
         try {
+          flash = new Flash('xs') as unknown as ModFlash
           // ponytail: buffer one partition-sized XSA for this PoC; stream it when near-limit MODs exhaust heap.
-          bytes = validateXsaArchive(SDCard.read(name, flash.byteLength), flash.byteLength, SDCard.xsVersionRange())
+          bytes = validateXsaArchive(
+            SDCard.read(name, flash.byteLength),
+            flash.byteLength,
+            SDCard.xsVersionRange(),
+            (value) => new TextDecoder('utf-8', { fatal: true }).decode(value),
+          )
         } catch (error) {
           trace(`[mods] ${name} rejected: ${String(error)}\n`)
           showError(localize('mods.rejected'), showList, () => showConfirmation(name))

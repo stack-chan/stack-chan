@@ -81,3 +81,15 @@ export function inspectModArchive(bytes, decodeUtf8, { allowLegacy = false } = {
   if (metadata) assertModCompatibility(metadata, { hostApiVersion: metadata.hostApiVersion, entrypoints })
   return { metadata, version, entrypoints }
 }
+
+/** Check the downloaded artifact against its separately published declaration.
+ * @param {Uint8Array} bytes @param {unknown} declaration
+ * @param {(bytes: Uint8Array) => string} decodeUtf8
+ */
+export function inspectDeclaredModArchive(bytes, declaration, decodeUtf8) {
+  const result = inspectModArchive(bytes, decodeUtf8)
+  const expected = parseModRuntimeContract(declaration)
+  if (JSON.stringify(result.metadata) !== JSON.stringify(expected))
+    throw new ModCompatibilityError('MOD_METADATA_MISMATCH', 'Archive metadata differs from its published declaration')
+  return result
+}

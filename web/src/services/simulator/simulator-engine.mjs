@@ -353,6 +353,14 @@ class StackchanScene {
 }
 
 class WasmView {
+  firmwareRunning = false
+
+  #quitFirmware() {
+    if (!this.firmwareRunning) return
+    this.firmwareRunning = false
+    this.fxMainQuit?.()
+  }
+
   constructor({
     scene,
     screen,
@@ -421,7 +429,7 @@ class WasmView {
       closeResources([
         () => this.#clearPendingReady(),
         () => stopRuntimeCamera(this.runtime),
-        () => this.fxMainQuit?.(),
+        () => this.#quitFirmware(),
         ...Object.entries(this.touchHandlers ?? {}).map(
           ([eventName, handler]) =>
             () =>
@@ -460,7 +468,6 @@ class WasmView {
         printErr: (text) => this.#handleFirmwareError(text),
       })
       if (this.disposed) {
-        mc._fxMainQuit?.()
         return
       }
       this.mc = mc
@@ -474,6 +481,7 @@ class WasmView {
       this.launch(installation.pointer)
     } catch (error) {
       this.#clearPendingReady()
+      if (this.disposed) return
       console.error('[bridge] WASM load failed', error)
       this.onStatus({ status: 'error', code: 'wasm-load-failed' })
       this.#drawFallbackFace()
@@ -484,6 +492,7 @@ class WasmView {
   async installSavedModArchive() {
     try {
       const installedMod = await this.modStorage.loadInstalledMod()
+      if (this.disposed) throw new Error('Simulator was closed before MOD installation')
       const result = installModArchiveIntoWasm(this.mc, installedMod)
       console.log('[bridge] MOD archive install', result)
       this.onModInstallStatus(result, installedMod)
@@ -527,6 +536,11 @@ class WasmView {
     this.#applyFirmwareDriverTrace(text)
     this.#appendTrace(text)
     console.log(`[firmware] ${text}`)
+    if (String(text).includes('[main] error')) {
+      this.#clearPendingReady()
+      this.onStatus({ status: 'error', code: 'firmware-start-failed' })
+      this.onError(new Error(String(text)))
+    }
     if (String(text).includes('[main] app behaviors ready') && this.pendingReadyInstallation) {
       this.#reportReady(this.pendingReadyInstallation)
     }
@@ -583,6 +597,7 @@ class WasmView {
       height: this.screen.height,
       hasArchive: Boolean(archive),
     })
+    this.firmwareRunning = true
     const pointer = this.fxMainLaunch(this.screen.width, this.screen.height, archive)
     console.log('[bridge] fxMainLaunch returned', { pointer })
     const array = new Uint8ClampedArray(this.mc.HEAP8.buffer, pointer, this.screen.width * this.screen.height * 4)
@@ -595,7 +610,7 @@ class WasmView {
     }
     console.log('[bridge] restart simulator')
     stopRuntimeCamera(this.runtime)
-    this.fxMainQuit?.()
+    this.#quitFirmware()
     this.interval = 0
     this.when = 0
     this.image = null

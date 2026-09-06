@@ -1,0 +1,18 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.setup-rs30x",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "setup rs30x",
+  "description": "Legacy API 1 example; see docs/architecture/legacy-mod-migration.md for migration and hardware prerequisites.",
+  "appApiVersion": 1,
+  "hostApiVersion": 1,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.js"
+  },
+  "targets": ["legacy-servo-diagnostics"],
+  "capabilities": ["input.buttons", "extension.servo.rs30x"],
+  "entrypoints": ["mod"]
+}

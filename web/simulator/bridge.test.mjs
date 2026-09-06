@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { makeXsArchive, modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
 import { describe, it } from 'node:test'
 
 import {
@@ -792,12 +793,32 @@ describe('touch coordinate bridge', () => {
 })
 
 describe('MOD archive bridge', () => {
+  it('rejects incompatible metadata before calling any WASM allocator or install hook', () => {
+    let allocated = false
+    for (const metadata of [null, { ...modDefinition, hostApiVersion: 999 }]) {
+      assert.throws(() =>
+        installModArchiveIntoWasm(
+          {
+            _malloc() {
+              allocated = true
+              return 8
+            },
+            HEAPU8: new Uint8Array(4096),
+          },
+          { name: 'bad.xsa', bytes: makeXsArchive({ metadata }) }
+        )
+      )
+      assert.equal(allocated, false)
+    }
+  })
+
   it('reports empty when no archive is installed', () => {
     assert.deepEqual(installModArchiveIntoWasm({}, null), { status: 'empty' })
   })
 
   it('copies archive bytes into wasm memory, calls the install hook, and frees memory', () => {
-    const heap = new Uint8Array(32)
+    const bytes = makeXsArchive()
+    const heap = new Uint8Array(bytes.length + 32)
     const calls = []
     const wasmModule = {
       HEAPU8: heap,
@@ -816,7 +837,7 @@ describe('MOD archive bridge', () => {
 
     const result = installModArchiveIntoWasm(wasmModule, {
       name: 'mod.xsa',
-      bytes: new Uint8Array([10, 20, 30]),
+      bytes,
       size: 3,
     })
 
@@ -824,18 +845,19 @@ describe('MOD archive bridge', () => {
       status: 'installed',
       hook: '_wasmModInstallArchive',
       name: 'mod.xsa',
-      size: 3,
+      size: bytes.length,
       result: 0,
     })
     assert.deepEqual(calls, [
-      ['malloc', 3],
-      ['hook', 8, 3, [10, 20, 30]],
+      ['malloc', bytes.length],
+      ['hook', 8, bytes.length, Array.from(bytes)],
       ['free', 8],
     ])
   })
 
   it('prepares archive bytes as a launch archive when no explicit install hook exists', () => {
-    const heap = new Uint8Array(16)
+    const bytes = makeXsArchive()
+    const heap = new Uint8Array(bytes.length + 16)
     const calls = []
     const result = installModArchiveIntoWasm(
       {
@@ -848,11 +870,11 @@ describe('MOD archive bridge', () => {
           calls.push(['free', pointer])
         },
       },
-      { name: 'mod.xsa', bytes: new Uint8Array([1, 2]) }
+      { name: 'mod.xsa', bytes }
     )
 
-    assert.deepEqual(result, { status: 'prepared', pointer: 4, name: 'mod.xsa', size: 2 })
-    assert.deepEqual(Array.from(heap.slice(4, 6)), [1, 2])
-    assert.deepEqual(calls, [['malloc', 2]])
+    assert.deepEqual(result, { status: 'prepared', pointer: 4, name: 'mod.xsa', size: bytes.length })
+    assert.deepEqual(heap.slice(4, 4 + bytes.length), bytes)
+    assert.deepEqual(calls, [['malloc', bytes.length]])
   })
 })

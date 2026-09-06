@@ -5,12 +5,18 @@
     "rootDir": ".",
     "noEmit": false,
     "rewriteRelativeImportExtensions": true,
-    "allowJs": false,
+    "allowJs": true,
     "allowImportingTsExtensions": false,
     "checkJs": false,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
+      "stackchan-result": ["./host/modules/util/result.ts"],
+      "Resource": ["./host/modules/testing/fakes/resource.ts"],
+      "text/decoder": ["./host/modules/testing/fakes/text-decoder.ts"],
+      "stackchan-contracts/*": ["./contracts/*.js"],
+      "installed-mod": ["./host/modules/mod-package/installed-mod.ts"],
+      "mod-maintenance": ["./host/modules/mod-package/mod-maintenance.ts"],
       "piu/MC": [
         "./node_modules/@moddable/typings/piu/MC.d.ts"
       ],

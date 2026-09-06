@@ -1,0 +1,12 @@
+{
+  "include": [
+    "../../../contracts/manifest.json",
+    "$(MODDABLE)/modules/base/modules/manifest.json",
+    "$(MODDABLE)/modules/files/resource/manifest.json",
+    "$(MODDABLE)/modules/data/text/decoder/manifest.json"
+  ],
+  "modules": {
+    "mod-archive-control": "./archive-control",
+    "installed-mod": "./installed-mod"
+  }
+}

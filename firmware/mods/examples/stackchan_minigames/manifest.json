@@ -19,5 +19,8 @@
       "./assets/bomb",
       "./assets/miss"
     ]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

@@ -4,6 +4,11 @@
 
 A **MOD** is a user application that runs on the Stack-chan host firmware.
 
+
+For a first program on this branch, start with the [six SDK lessons](../lessons/README_ja.md). The examples remain legacy API 1 migration work; their dependencies and open issues are recorded in the [migration ledger](../../docs/architecture/legacy-mod-migration.md).
+
+Every MOD must embed `stackchan-mod.json`. Copy the lesson’s `mod.js`, `manifest.json`, and declaration together, and start by editing only `mod.js`. Rebuild older archives that lack metadata; see [compatibility and recovery](../../docs/architecture/mod-package-compatibility.md).
+
 ## Try a MOD
 
 Find published MODs in the [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/).

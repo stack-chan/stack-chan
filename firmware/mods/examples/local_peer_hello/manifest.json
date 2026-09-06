@@ -3,5 +3,8 @@
   "modules": {
     "*": "./mod",
     "local-peer-hello-text": "./message-text"
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

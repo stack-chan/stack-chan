@@ -1,9 +1,12 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_mod.json",
-    "../provider-dialogues/manifest.json"
+    "../provider-dialogues/manifest_library.json"
   ],
   "modules": {
     "*": ["./mod"]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

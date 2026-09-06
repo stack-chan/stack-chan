@@ -185,6 +185,17 @@ switch (command) {
     const packageDirectory = findPackageDirectory(modInput)
     const projectDirectory = packageDirectory ?? path.dirname(path.resolve(modInput))
     const projectName = path.basename(projectDirectory)
+    const archivePath = resolveModArchivePath({
+      outputDirectory: buildOutputDirectory,
+      mode: buildMode,
+      projectName,
+    })
+    // mcrun keys output by the leaf directory. Two Gallery packages named
+    // "mod" can otherwise reuse each other's newer CODE and DATA intermediates.
+    if (!dryRun) {
+      rmSync(path.dirname(archivePath), { recursive: true, force: true })
+      rmSync(path.join(buildOutputDirectory, 'tmp/esp32', buildMode, projectName), { recursive: true, force: true })
+    }
     if (packageDirectory) {
       run(
         'mcpack',
@@ -194,14 +205,13 @@ switch (command) {
     } else {
       run('mcrun', [...buildModeArgs, '-m', '-p', platform, '-t', 'build', ...outputArgs, modInput, ...args.slice(1)])
     }
-    const archivePath = resolveModArchivePath({
-      outputDirectory: buildOutputDirectory,
-      mode: buildMode,
-      projectName,
-    })
     if (!dryRun) {
       try {
-        verifyBuiltModArchive(archivePath, path.join(projectDirectory, 'stackchan-mod.json'))
+        verifyBuiltModArchive(
+          archivePath,
+          path.join(projectDirectory, 'stackchan-mod.json'),
+          packageDirectory ? undefined : path.resolve(modInput),
+        )
       } catch (error) {
         console.error(`[stack-chan] MODの生成物を検証できませんでした: ${error.message}`)
         process.exit(1)

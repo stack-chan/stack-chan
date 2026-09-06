@@ -1,7 +1,12 @@
-const archive = new Uint8Array([0, 0, 0, 20, 88, 83, 95, 65, 0, 0, 0, 12, 86, 69, 82, 83, 1, 0, 0, 0]).buffer
+import TextEncoder from 'text/encoder'
+import { makeXsArchive, modDefinition } from 'xsa-fixture'
+
+globalThis.TextEncoder = TextEncoder
+export const state = { future: false }
 
 export default Object.freeze({
   list: () => ['demo.xsa'],
-  read: (_name: string, _maximumBytes: number) => archive.slice(0),
-  xsVersionRange: () => [1, 0, 1, 0] as const,
+  read: (_name: string, _maximumBytes: number) =>
+    makeXsArchive({ metadata: state.future ? { ...modDefinition, hostApiVersion: 999 } : modDefinition }).buffer,
+  xsVersionRange: () => [17, 8, 17, 8] as const,
 })

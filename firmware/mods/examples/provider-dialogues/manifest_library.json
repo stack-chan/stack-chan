@@ -1,0 +1,29 @@
+{
+  "modules": {
+    "dialogue-chatgpt": "./dialogue-chatgpt",
+    "dialogue-claude": "./dialogue-claude",
+    "dialogue-gemini": "./dialogue-gemini"
+  },
+  "data": {
+    "*": [
+      "$(MODULES)/crypt/data/ca109",
+      "$(MODULES)/crypt/data/ca233",
+      "$(MODULES)/crypt/data/ca236",
+      "$(MODDABLE)/modules/crypt/data/ca35"
+    ]
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "useUnknownInCatchVariables": false
+      }
+    }
+  },
+  "include": [
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../host/app/manifest_typings.json",
+    "../../../host/modules/util/manifest_types.json",
+    "../../../host/modules/connectivity/mcp-client/manifest_model.json"
+  ]
+}

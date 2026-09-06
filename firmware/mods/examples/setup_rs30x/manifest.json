@@ -1,5 +1,9 @@
 {
   "modules": {
     "*": "./mod"
-  }
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
+  },
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"]
 }

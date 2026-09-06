@@ -85,5 +85,7 @@
   "drawer.recordAndPlay": "録音と再生",
   "drawer.color.light": "白",
   "drawer.color.dark": "黒",
-  "drawer.colorScheme": "配色"
+  "drawer.colorScheme": "配色",
+  "boot.appFailed": "MODを起動できません",
+  "boot.replaceMod": "MODをインストール"
 }

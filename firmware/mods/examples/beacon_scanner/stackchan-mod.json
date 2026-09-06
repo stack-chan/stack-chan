@@ -1,0 +1,18 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.beacon-scanner",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "beacon scanner",
+  "description": "Legacy API 1 example; see docs/architecture/legacy-mod-migration.md for migration and hardware prerequisites.",
+  "appApiVersion": 1,
+  "hostApiVersion": 1,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.js"
+  },
+  "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
+  "capabilities": ["audio.speech", "connectivity.ble"],
+  "entrypoints": ["mod"]
+}

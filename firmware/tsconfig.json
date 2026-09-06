@@ -18,6 +18,10 @@
     "sourceMap": true,
     "target": "es2024",
     "paths": {
+      "stackchan-result": ["./host/modules/util/result.ts"],
+      "stackchan-contracts/*": ["./contracts/*.js"],
+      "installed-mod": ["./host/modules/mod-package/installed-mod.ts"],
+      "mod-maintenance": ["./host/modules/mod-package/mod-maintenance.ts"],
       "face-state": [
         "./host/modules/ui/state/face-state"
       ],

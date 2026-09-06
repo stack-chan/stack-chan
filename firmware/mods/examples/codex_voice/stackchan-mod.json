@@ -1,0 +1,23 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.codex-voice",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "codex voice",
+  "description": "Legacy API 1 example; see docs/architecture/legacy-mod-migration.md for migration and hardware prerequisites.",
+  "appApiVersion": 1,
+  "hostApiVersion": 1,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.js"
+  },
+  "targets": ["m5stackchan-cores3"],
+  "capabilities": [
+    "conversation.remote",
+    "audio.usb",
+    "input.headTouch",
+    "ui.drawer"
+  ],
+  "entrypoints": ["mod"]
+}

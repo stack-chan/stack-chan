@@ -1,6 +1,9 @@
 let moduleValues: Record<string, unknown> = {}
 
 const Modules = {
+  get archive(): string[] {
+    return []
+  },
   has(specifier: string): boolean {
     return Object.hasOwn(moduleValues, specifier)
   },

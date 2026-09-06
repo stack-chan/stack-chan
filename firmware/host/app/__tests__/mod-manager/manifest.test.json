@@ -1,14 +1,20 @@
 {
   "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../../modules/mod-package/manifest.json",
+    "../../../modules/preferences/manifest.json",
     "../../../modules/ui/manifest.json",
-    "../../../modules/testing/manifest.json"
+    "../../../modules/testing/manifest.json",
+    "$(MODDABLE)/modules/data/text/encoder/manifest.json"
   ],
   "modules": {
     "main": "./mod-manager.test",
     "mod-manager": "../../mod-manager",
     "mod-installer": "../../mod-installer",
     "flash": "./flash-stub",
-    "stackchan-sdcard": "./sd-card-stub"
+    "preference": "../../../modules/testing/fakes/preference",
+    "stackchan-sdcard": "./sd-card-stub",
+    "xsa-fixture": "../../../../contracts/testing/xsa-fixture"
   },
   "resources": {
     "*": ["../../strings/*"],

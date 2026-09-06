@@ -1,6 +1,6 @@
 import { localize } from 'localization'
 import type { Application as PiuApplication, Container as PiuContainer, Label as PiuLabel } from 'piu/MC'
-import { Application, Column, Container, Label } from 'piu/MC'
+import { Application, Column, Container, Label, Text } from 'piu/MC'
 import { ActionButton } from 'ui-controls'
 import { UI, uiStyles } from 'ui-theme'
 
@@ -8,6 +8,8 @@ export type StartupSplashOptions = {
   message?: string
   onMods?: () => void
   onSettings?: () => void
+  detail?: string
+  onRestart?: () => void
 }
 
 export type WiFiConnectionStatusOptions = {
@@ -36,7 +38,7 @@ function setMessage(message: string) {
   if (currentMessageLabel) currentMessageLabel.string = message
 }
 
-export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplication {
+function createStartupSplash(options: StartupSplashOptions, includeSettings: boolean): PiuApplication {
   const styles = uiStyles()
   const messageLabel = new Label(null, {
     left: 12,
@@ -73,6 +75,9 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
             style: styles.brand,
           }),
           messageLabel,
+          ...(options.detail
+            ? [new Text(null, { left: 12, right: 12, height: 40, string: options.detail, style: styles.bodyMuted })]
+            : []),
         ],
       }),
       actionArea,
@@ -93,17 +98,29 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
           ),
         ]
       : []),
-    new ActionButton(
-      {
-        name: 'startup:settings',
-        icon: 'settings',
-        label: localize('settings.title'),
-        onTap: options.onSettings,
-      },
-      options.onMods ? { right: 8, width: 148 } : { left: 104, width: 112 },
-    ),
+    ...(options.onRestart || includeSettings
+      ? [
+          new ActionButton(
+            {
+              name: options.onRestart ? 'startup:restart' : 'startup:settings',
+              icon: options.onRestart ? 'play' : 'settings',
+              label: localize(options.onRestart ? 'mods.restart' : 'settings.title'),
+              onTap: options.onRestart ?? options.onSettings,
+            },
+            options.onMods ? { right: 8, width: 148 } : { left: 104, width: 112 },
+          ),
+        ]
+      : []),
   ])
   return application
+}
+
+export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplication {
+  return createStartupSplash(options, true)
+}
+
+export function showStartupFailure(options: StartupSplashOptions): PiuApplication {
+  return createStartupSplash(options, false)
 }
 
 export function showWiFiConnectionStatus(options: WiFiConnectionStatusOptions): void {

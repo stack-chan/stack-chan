@@ -26,6 +26,21 @@ function installBareSpecifierPackages(): void {
   writeAliasPackage(modulesRoot, 'consts', resolve(modulesRoot, 'preferences/consts.js'))
   writeAliasPackage(modulesRoot, 'settings-schema', resolve(modulesRoot, 'preferences/settings-schema.js'))
   writeAliasPackage(modulesRoot, 'settings-service', resolve(modulesRoot, 'preferences/settings-service.js'))
+  writeAliasPackageSubpath(
+    modulesRoot,
+    'stackchan-contracts',
+    'mod-package',
+    resolve(modulesRoot, '../../contracts/mod-package.js'),
+  )
+  writeAliasPackage(modulesRoot, 'installed-mod', resolve(modulesRoot, 'mod-package/installed-mod.js'), {
+    hasDefaultExport: true,
+  })
+  writeAliasPackage(modulesRoot, 'Resource', resolve(modulesRoot, 'testing/fakes/resource.js'), {
+    hasDefaultExport: true,
+  })
+  writeAliasPackageSubpath(modulesRoot, 'text', 'decoder', resolve(modulesRoot, 'testing/fakes/text-decoder.js'), {
+    hasDefaultExport: true,
+  })
   writeAliasPackageSubpath(modulesRoot, 'stackchan', 'errors', resolve(modulesRoot, '../../sdk/errors.js'))
   writeAliasPackage(modulesRoot, 'modules', resolve(modulesRoot, 'testing/fakes/modules.js'), {
     hasDefaultExport: true,
@@ -48,6 +63,8 @@ async function setup() {
     import('../testing/fakes/mc-config.js') as Promise<FakeConfig>,
     import('../testing/fakes/preference.js') as Promise<FakePreference>,
     import('./loadPreference.js'),
+    import('../testing/fakes/resource.js'),
+    import('../testing/fakes/text-decoder.js'),
   ])
   const traces: string[] = []
   ;(globalThis as typeof globalThis & { trace: (...messages: unknown[]) => void }).trace = (...messages) => {

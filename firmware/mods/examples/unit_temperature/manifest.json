@@ -3,5 +3,8 @@
   "modules": {
     "*": "./mod",
     "embedded:sensor/Humidity-Temperature/SHT3x": "$(MODDABLE)/modules/drivers/sensors/sht3x/sht3x"
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

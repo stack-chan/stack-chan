@@ -1,4 +1,5 @@
 import structuredClone from 'structuredClone'
+import verifyInstalledMod from 'installed-mod'
 import config from 'mc/config'
 import Modules from 'modules'
 import Preference from 'preference'
@@ -10,11 +11,15 @@ export type PreferenceDomain = SettingDomain
 export type PreferenceConfig = { [D in SettingDomain]: SettingsForDomain<D> & ConfigRecord }
 let modConfig: ConfigRecord | undefined
 let settings: SettingsService | undefined
+let hostSettings: SettingsService | undefined
 
 export function loadModConfig(): ConfigRecord {
   if (modConfig) return modConfig
+  verifyInstalledMod()
+  // An absent module during preload must not hide the archive installed at launch.
+  if (!Modules.has('mod/config')) return {}
   try {
-    modConfig = Modules.has('mod/config') ? (Modules.importNow('mod/config') as ConfigRecord) : {}
+    modConfig = Modules.importNow('mod/config') as ConfigRecord
   } catch {
     trace('[settings] MOD configuration could not be loaded\n')
     modConfig = {}
@@ -22,19 +27,27 @@ export function loadModConfig(): ConfigRecord {
   return modConfig
 }
 
+function createSettingsService(app: () => SettingsLayer): SettingsService {
+  return new SettingsService({
+    profile: () => config as SettingsLayer,
+    app,
+    storage: {
+      get: (domain, key) => Preference.get(domain, key),
+      set: (domain, key, value) => Preference.set(domain, key, value as string),
+      delete: (domain, key) => Preference.delete(domain, key),
+    },
+    onIssue: (issue) => trace(`[settings] ${issue.code} ${issue.key} (${issue.source})\n`),
+  })
+}
+
+/** Recovery must be able to read host settings without evaluating a rejected MOD. */
+export function getHostSettingsService(): SettingsService {
+  hostSettings ??= createSettingsService(() => ({}))
+  return hostSettings
+}
+
 export function getSettingsService(): SettingsService {
-  if (!settings) {
-    settings = new SettingsService({
-      profile: () => config as SettingsLayer,
-      app: () => loadModConfig() as SettingsLayer,
-      storage: {
-        get: (domain, key) => Preference.get(domain, key),
-        set: (domain, key, value) => Preference.set(domain, key, value as string),
-        delete: (domain, key) => Preference.delete(domain, key),
-      },
-      onIssue: (issue) => trace(`[settings] ${issue.code} ${issue.key} (${issue.source})\n`),
-    })
-  }
+  settings ??= createSettingsService(() => loadModConfig() as SettingsLayer)
   if (Preference.get(DOMAIN.ui, 'type') == null) {
     const legacy = Preference.get('renderer', 'type')
     if (legacy != null && validateSetting('ui.type', legacy).valid) {

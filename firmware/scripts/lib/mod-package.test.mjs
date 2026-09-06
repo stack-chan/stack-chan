@@ -12,7 +12,10 @@ test('native builds detect forgotten data resources and stale archive declaratio
     metadata = path.join(root, 'stackchan-mod.json')
   try {
     writeFileSync(archive, makeXsArchive({ metadata: null }))
-    assert.equal(verifyBuiltModArchive(archive, metadata).metadata, undefined, 'legacy source has no declaration')
+    assert.throws(
+      () => verifyBuiltModArchive(archive, metadata),
+      (error) => error.code === 'MOD_METADATA_MISSING',
+    )
     writeFileSync(metadata, JSON.stringify(modDefinition))
     assert.throws(
       () => verifyBuiltModArchive(archive, metadata),

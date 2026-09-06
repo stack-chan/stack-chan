@@ -1,0 +1,18 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.mini-app-ui-sample",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "mini app ui sample",
+  "description": "Legacy API 1 example; see docs/architecture/legacy-mod-migration.md for migration and hardware prerequisites.",
+  "appApiVersion": 1,
+  "hostApiVersion": 1,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "miniapp.ts"
+  },
+  "targets": ["portable"],
+  "capabilities": ["ui.miniApps"],
+  "entrypoints": ["miniapp"]
+}

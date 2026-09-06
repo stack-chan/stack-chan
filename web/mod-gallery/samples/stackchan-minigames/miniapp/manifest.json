@@ -2,7 +2,7 @@
   "include": [
     "$(MODDABLE)/examples/manifest_mod.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../../../host/app/manifest_typings.json"
+    "../../../../../firmware/host/app/manifest_typings.json"
   ],
   "modules": {
     "miniapp": "./miniapp"
@@ -19,5 +19,8 @@
       "./assets/bomb",
       "./assets/miss"
     ]
+  },
+  "data": {
+    "stackchan-mod": ["../stackchan-mod.json"]
   }
 }

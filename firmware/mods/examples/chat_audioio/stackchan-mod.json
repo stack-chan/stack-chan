@@ -1,0 +1,26 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.chat-audioio",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "chat audioio",
+  "description": "Legacy API 1 example; see docs/architecture/legacy-mod-migration.md for migration and hardware prerequisites.",
+  "appApiVersion": 1,
+  "hostApiVersion": 1,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.js"
+  },
+  "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
+  "capabilities": [
+    "face",
+    "audio.conversation",
+    "audio.tone",
+    "motion",
+    "connectivity.network",
+    "ui.drawer",
+    "ui.effects"
+  ],
+  "entrypoints": ["mod"]
+}

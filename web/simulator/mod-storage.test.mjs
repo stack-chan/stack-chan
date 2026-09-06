@@ -1,36 +1,40 @@
 import assert from 'node:assert/strict'
+import { makeXsArchive, modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
 import { describe, it } from 'node:test'
 
 import { createMemoryModStorage, createModStorage, formatByteSize, validateModArchive } from './mod-storage.mjs'
 
 function makeArchive(payload = []) {
-  const bytes = new Uint8Array(8 + payload.length)
-  new DataView(bytes.buffer).setUint32(0, bytes.length, false)
-  bytes.set([0x58, 0x53, 0x5f, 0x41], 4)
-  bytes.set(payload, 8)
-  return bytes
+  return makeXsArchive({ padding: payload.length })
 }
 
 function createFakeIndexedDB() {
   const databases = new Map()
 
   class FakeObjectStore {
-    constructor(records) {
+    constructor(records, transaction) {
       this.records = records
+      this.transaction = transaction
+    }
+
+    complete(result) {
+      const request = createRequest(result)
+      queueMicrotask(() => this.transaction.oncomplete?.())
+      return request
     }
 
     put(value, key) {
       this.records.set(key, value)
-      return createRequest(undefined)
+      return this.complete(undefined)
     }
 
     get(key) {
-      return createRequest(this.records.get(key))
+      return this.complete(this.records.get(key))
     }
 
     delete(key) {
       this.records.delete(key)
-      return createRequest(undefined)
+      return this.complete(undefined)
     }
   }
 
@@ -40,7 +44,7 @@ function createFakeIndexedDB() {
     }
 
     objectStore() {
-      return new FakeObjectStore(this.records)
+      return new FakeObjectStore(this.records, this)
     }
   }
 
@@ -56,6 +60,8 @@ function createFakeIndexedDB() {
     createObjectStore(storeName) {
       this.stores.set(storeName, new Map())
     }
+
+    close() {}
 
     transaction(storeName) {
       return new FakeTransaction(this.stores.get(storeName))
@@ -85,6 +91,69 @@ function createFakeIndexedDB() {
 }
 
 describe('MOD storage', () => {
+  it('preserves the installed MOD when an incompatible replacement is rejected', async () => {
+    const storage = createMemoryModStorage()
+    const original = makeXsArchive()
+    await storage.saveInstalledMod({ name: 'original.xsa', bytes: original })
+    for (const bytes of [
+      makeXsArchive({ metadata: null }),
+      makeXsArchive({ metadata: { ...modDefinition, hostApiVersion: 999 } }),
+      makeXsArchive({ metadata: { ...modDefinition, targets: ['m5stackchan-cores3'] } }),
+      makeXsArchive({ entrypoints: ['miniapp'] }),
+      makeXsArchive({ version: [99, 1, 0] }),
+    ]) {
+      await assert.rejects(storage.saveInstalledMod({ name: 'rejected.xsa', bytes }))
+      assert.equal((await storage.loadInstalledMod()).name, 'original.xsa')
+    }
+    const source = makeXsArchive().buffer
+    await storage.saveInstalledMod({ name: 'copied.xsa', bytes: source })
+    new Uint8Array(source).fill(0)
+    assert.deepEqual((await storage.loadInstalledMod()).bytes, original)
+  })
+
+  it('waits for a transaction commit and rejects an abort even after the put request succeeds', async () => {
+    let transaction,
+      request,
+      closed = 0
+    const database = {
+      transaction() {
+        transaction = {
+          objectStore: () => ({
+            put() {
+              request = {}
+              return request
+            },
+          }),
+        }
+        return transaction
+      },
+      close() {
+        closed++
+      },
+    }
+    const storage = createModStorage({
+      indexedDB: {
+        open() {
+          const open = { result: database }
+          queueMicrotask(() => open.onsuccess())
+          return open
+        },
+      },
+    })
+    let saved = false
+    const saving = storage.saveInstalledMod({ name: 'abort.xsa', bytes: makeXsArchive() }).then(() => {
+      saved = true
+    })
+    const failed = assert.rejects(saving, /aborted/)
+    while (!request) await Promise.resolve()
+    request.onsuccess()
+    await Promise.resolve()
+    assert.equal(saved, false)
+    transaction.onabort()
+    await failed
+    assert.equal(closed, 1)
+  })
+
   it('persists an installed .xsa archive through IndexedDB', async () => {
     const indexedDB = createFakeIndexedDB()
     const first = createModStorage({ indexedDB, databaseName: 'mods-test' })
@@ -97,7 +166,7 @@ describe('MOD storage', () => {
 
     assert.equal(installed.name, 'hello.xsa')
     assert.deepEqual(installed.bytes, bytes)
-    assert.equal(installed.size, 12)
+    assert.equal(installed.size, bytes.length)
     assert.equal(installed.storage, 'indexedDB')
   })
 

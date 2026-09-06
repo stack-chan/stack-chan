@@ -1,7 +1,7 @@
 import { fetch } from 'fetch'
 import Headers from 'headers'
 import type { MCPClientService } from 'mcp-client'
-import type { Maybe } from 'stackchan-util'
+import type { Maybe } from 'stackchan-result'
 
 type ToolSchema = {
   name: string

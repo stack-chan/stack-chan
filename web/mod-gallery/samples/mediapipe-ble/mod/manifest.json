@@ -4,5 +4,8 @@
     "*": "./mod",
     "mediapipe-tracking-message": "./tracking-message",
     "mediapipe-tracking-receiver": "./tracking-receiver"
+  },
+  "data": {
+    "stackchan-mod": ["../stackchan-mod.json"]
   }
 }

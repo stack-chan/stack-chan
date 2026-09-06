@@ -85,5 +85,7 @@
   "drawer.recordAndPlay": "录音并播放",
   "drawer.color.light": "白色",
   "drawer.color.dark": "黑色",
-  "drawer.colorScheme": "配色"
+  "drawer.colorScheme": "配色",
+  "boot.appFailed": "MOD启动失败",
+  "boot.replaceMod": "保存MOD"
 }

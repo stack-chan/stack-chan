@@ -5,5 +5,8 @@
   },
   "modules": {
     "*": ["../beacon_scanner/speeches_greeting", "./mod"]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

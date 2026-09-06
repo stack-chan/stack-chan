@@ -1,7 +1,7 @@
 {
-  "include": ["$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json"],
-  "modules": {
-    "mcp-client": "./mcp-client"
-  },
+  "include": [
+    "$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json",
+    "./manifest_model.json"
+  ],
   "preload": ["mcp-client"]
 }

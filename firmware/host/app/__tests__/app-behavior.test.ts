@@ -18,9 +18,23 @@ test('resolveAppProgram preserves V2 setup without inheriting legacy hooks', asy
   installBareSpecifierPackages()
   const { resolveAppProgram } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
   const app = { apiVersion: 2 as const, setup() {} }
-  const program = resolveAppProgram({ has: () => true, importNow: () => app }, { onContextCreated() {} })
+  const program = resolveAppProgram({ has: () => true, importNow: () => app }, { onContextCreated() {} }, 2)
   assert.deepEqual(program, { generation: 2, app })
   assert.equal('behaviors' in program, false)
+})
+
+test('resolveAppProgram rejects exports from a different generation than the validated declaration', async () => {
+  installBareSpecifierPackages()
+  const { resolveAppProgram } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
+  for (const [app, declared] of [
+    [{ onLaunch() {} }, 2],
+    [{ apiVersion: 2, setup() {} }, 1],
+  ] as const) {
+    assert.throws(
+      () => resolveAppProgram({ has: () => true, importNow: () => app }, {}, declared),
+      /does not match its declared app API generation/,
+    )
+  }
 })
 
 test('resolveAppProgram refuses unsupported generations and broken imports before running defaults', async () => {

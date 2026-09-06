@@ -1,3 +1,4 @@
+import { inspectDeclaredModArchive } from '../../firmware/contracts/xsa-metadata.js'
 import { modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -49,6 +50,7 @@ test('テキストMODの成果物は既存の実行互換性を維持する', as
     assert.equal(definition.artifacts.length, 1, `${definition.id}: installable text MOD should include one artifact`)
     const archive = readFileSync(definition.artifacts[0].url)
     assert.equal(isXsArchive(archive), true, `${definition.id}: artifact should be an XS archive`)
+    inspectDeclaredModArchive(archive, definition, (value) => new TextDecoder('utf-8', { fatal: true }).decode(value))
     assert.deepEqual(
       xsArchiveVersion(archive),
       profileFor('m5stackchan-cores3').xsArchiveVersion,
@@ -71,6 +73,18 @@ test('MediaPipe GalleryパッケージはFirmwareサンプルと同じ実行ソ�
   const firmware = new URL('../../firmware/mods/examples/mediapipe_ble/', import.meta.url)
   const gallery = new URL('./samples/mediapipe-ble/mod/', import.meta.url)
   for (const filename of ['manifest.json', 'mod.js', 'tracking-message.js', 'tracking-receiver.js']) {
+    if (filename === 'manifest.json') {
+      const readManifest = (base) => {
+        const manifest = JSON.parse(readFileSync(new URL(filename, base), 'utf8'))
+        delete manifest.data?.['stackchan-mod']
+        manifest.include = manifest.include?.map((value) =>
+          value.endsWith('/host/app/manifest_typings.json') ? '<host-types>' : value
+        )
+        return manifest
+      }
+      assert.deepEqual(readManifest(gallery), readManifest(firmware))
+      continue
+    }
     assert.equal(
       readFileSync(new URL(filename, gallery), 'utf8'),
       readFileSync(new URL(filename, firmware), 'utf8'),
@@ -83,6 +97,18 @@ test('MCP GalleryパッケージはFirmwareサンプルと同じ実行ソース�
   const firmware = new URL('../../firmware/mods/examples/mcp/', import.meta.url)
   const gallery = new URL('./samples/mcp/mod/', import.meta.url)
   for (const filename of ['manifest.json', 'mod.js']) {
+    if (filename === 'manifest.json') {
+      const readManifest = (base) => {
+        const manifest = JSON.parse(readFileSync(new URL(filename, base), 'utf8'))
+        delete manifest.data?.['stackchan-mod']
+        manifest.include = manifest.include?.map((value) =>
+          value.endsWith('/host/app/manifest_typings.json') ? '<host-types>' : value
+        )
+        return manifest
+      }
+      assert.deepEqual(readManifest(gallery), readManifest(firmware))
+      continue
+    }
     assert.equal(
       readFileSync(new URL(filename, gallery), 'utf8'),
       readFileSync(new URL(filename, firmware), 'utf8'),
@@ -95,6 +121,18 @@ test('Codex Voice GalleryパッケージはFirmwareサンプルと同じ実行�
   const firmware = new URL('../../firmware/mods/examples/codex_voice/', import.meta.url)
   const gallery = new URL('./samples/codex-voice/mod/', import.meta.url)
   for (const filename of ['manifest.json', 'mod.js']) {
+    if (filename === 'manifest.json') {
+      const readManifest = (base) => {
+        const manifest = JSON.parse(readFileSync(new URL(filename, base), 'utf8'))
+        delete manifest.data?.['stackchan-mod']
+        manifest.include = manifest.include?.map((value) =>
+          value.endsWith('/host/app/manifest_typings.json') ? '<host-types>' : value
+        )
+        return manifest
+      }
+      assert.deepEqual(readManifest(gallery), readManifest(firmware))
+      continue
+    }
     assert.equal(
       readFileSync(new URL(filename, gallery), 'utf8'),
       readFileSync(new URL(filename, firmware), 'utf8'),
@@ -122,6 +160,18 @@ test('Stack-chanミニゲーム集GalleryパッケージはFirmwareサンプル�
     'assets/bomb.png',
     'assets/miss.png',
   ]) {
+    if (filename === 'manifest.json') {
+      const readManifest = (base) => {
+        const manifest = JSON.parse(readFileSync(new URL(filename, base), 'utf8'))
+        delete manifest.data?.['stackchan-mod']
+        manifest.include = manifest.include?.map((value) =>
+          value.endsWith('/host/app/manifest_typings.json') ? '<host-types>' : value
+        )
+        return manifest
+      }
+      assert.deepEqual(readManifest(gallery), readManifest(firmware))
+      continue
+    }
     assert.deepEqual(
       readFileSync(new URL(filename, gallery)),
       readFileSync(new URL(filename, firmware)),
@@ -134,6 +184,18 @@ test('UI Playground GalleryパッケージはFirmwareサンプルと同じ実行
   const firmware = new URL('../../firmware/mods/examples/mini_app_ui_sample/', import.meta.url)
   const gallery = new URL('./samples/ui-playground/miniapp/', import.meta.url)
   for (const filename of ['manifest.json', 'miniapp.ts']) {
+    if (filename === 'manifest.json') {
+      const readManifest = (base) => {
+        const manifest = JSON.parse(readFileSync(new URL(filename, base), 'utf8'))
+        delete manifest.data?.['stackchan-mod']
+        manifest.include = manifest.include?.map((value) =>
+          value.endsWith('/host/app/manifest_typings.json') ? '<host-types>' : value
+        )
+        return manifest
+      }
+      assert.deepEqual(readManifest(gallery), readManifest(firmware))
+      continue
+    }
     assert.equal(
       readFileSync(new URL(filename, gallery), 'utf8'),
       readFileSync(new URL(filename, firmware), 'utf8'),

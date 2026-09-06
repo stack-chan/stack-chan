@@ -5,5 +5,8 @@
   },
   "modules": {
     "*": ["./*"]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

@@ -9,5 +9,8 @@
   },
   "resources": {
     "*": ["./assets/stack-chan"]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

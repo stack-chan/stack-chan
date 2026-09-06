@@ -1,6 +1,7 @@
 {
   "include": [
     "./manifest_model.json",
+    "../mod-package/manifest.json",
     "$(MODULES)/base/modules/manifest.json",
     "$(MODULES)/base/structuredClone/manifest.json",
     "$(MODULES)/base/deepEqual/manifest.json",
@@ -9,6 +10,7 @@
     "../../../sdk/manifest.json"
   ],
   "modules": {
+    "mod-maintenance": "../mod-package/mod-maintenance",
     "consts": "./consts",
     "settings-service": "./settings-service",
     "loadPreference": "./loadPreference",

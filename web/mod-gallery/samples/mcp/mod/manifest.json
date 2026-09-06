@@ -4,6 +4,7 @@
     "*": ["./mod"]
   },
   "data": {
-    "*": ["$(MODDABLE)/modules/crypt/data/ca35"]
+    "*": ["$(MODDABLE)/modules/crypt/data/ca35"],
+    "stackchan-mod": ["../stackchan-mod.json"]
   }
 }

@@ -75,14 +75,8 @@ export function installModArchive({
       `Invalid XS archive header or size: ${archivePath} (${declaredSize ?? 'missing'} != ${archiveSize})`,
     )
   }
-  // Metadata-free V1 MODs remain installable during migration. A present but
-  // invalid declaration never falls back to that compatibility path.
-  const { metadata, version: archiveVersion } = inspectModArchive(
-    archive,
-    (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes),
-    {
-      allowLegacy: true,
-    },
+  const { metadata, version: archiveVersion } = inspectModArchive(archive, (bytes) =>
+    new TextDecoder('utf-8', { fatal: true }).decode(bytes),
   )
 
   mkdirSync(temporaryDirectory, { recursive: true })
@@ -127,8 +121,7 @@ export function installModArchive({
     if (expectedFirmwareVersion && firmware.moddableVersion !== expectedFirmwareVersion) {
       throw new Error(`Incompatible Moddable version: ${firmware.moddableVersion} != ${expectedFirmwareVersion}`)
     }
-    if (metadata) assertModCompatibility(metadata, { hostApiVersion: firmware.hostApiVersion })
-    else console.log('[stack-chan] Legacy MOD without metadata: app API and capability requirements cannot be checked')
+    assertModCompatibility(metadata, { hostApiVersion: firmware.hostApiVersion })
 
     if (
       firmware.moddableVersion.startsWith('9.5.') &&

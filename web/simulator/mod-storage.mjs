@@ -1,3 +1,7 @@
+import { assertModCompatibility, STACKCHAN_HOST_API_VERSION } from '../../firmware/contracts/mod-package.js'
+import { inspectModArchive } from '../../firmware/contracts/xsa-metadata.js'
+import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE } from '../editor/xs-compatibility.mjs'
+
 const DEFAULT_DATABASE_NAME = 'stackchan-wasm-mods'
 const DEFAULT_STORE_NAME = 'installed-mods'
 const INSTALLED_MOD_KEY = 'installed'
@@ -23,8 +27,8 @@ function openDatabase({ indexedDB, databaseName, storeName }) {
 
 function normalizeBytes(bytes) {
   if (bytes instanceof Uint8Array) return new Uint8Array(bytes)
-  if (bytes instanceof ArrayBuffer) return new Uint8Array(bytes)
-  if (ArrayBuffer.isView(bytes)) return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  if (bytes instanceof ArrayBuffer) return new Uint8Array(bytes.slice(0))
+  if (ArrayBuffer.isView(bytes)) return new Uint8Array(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength))
   return new Uint8Array(bytes ?? [])
 }
 
@@ -43,6 +47,11 @@ export function validateModArchive(bytes) {
   if (declaredSize !== normalized.byteLength) {
     throw new TypeError(`XSアーカイブのサイズが不正です (${declaredSize} != ${normalized.byteLength})`)
   }
+  const { metadata, version } = inspectModArchive(normalized, (value) =>
+    new TextDecoder('utf-8', { fatal: true }).decode(value)
+  )
+  if (!isXsVersionCompatible(version, XS_ARCHIVE_VERSION_RANGE)) throw new Error('Incompatible XS archive version')
+  assertModCompatibility(metadata, { hostApiVersion: STACKCHAN_HOST_API_VERSION, target: 'simulator' })
   return normalized
 }
 
@@ -58,7 +67,7 @@ export function createMemoryModStorage() {
         size: normalizedBytes.byteLength,
         installedAt: Date.now(),
       }
-      return { ...record, bytes: new Uint8Array(record.bytes), storage: 'memory' }
+      return { ...record, bytes: validateModArchive(record.bytes), storage: 'memory' }
     },
     async loadInstalledMod() {
       if (!record) return null
@@ -79,9 +88,19 @@ export function createModStorage({
 
   async function withStore(mode, action) {
     const database = await openDatabase({ indexedDB, databaseName, storeName })
-    const transaction = database.transaction(storeName, mode)
-    const store = transaction.objectStore(storeName)
-    return action(store)
+    try {
+      const transaction = database.transaction(storeName, mode)
+      const committed = new Promise((resolve, reject) => {
+        transaction.oncomplete = resolve
+        transaction.onabort = () => reject(transaction.error ?? new Error('MOD storage transaction aborted'))
+        transaction.onerror = () => reject(transaction.error ?? new Error('MOD storage transaction failed'))
+      })
+      const result = Promise.resolve().then(() => action(transaction.objectStore(storeName)))
+      const [value] = await Promise.all([result, committed])
+      return value
+    } finally {
+      database.close()
+    }
   }
 
   return {

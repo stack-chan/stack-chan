@@ -1,5 +1,6 @@
 import type { StackchanAppBehavior } from 'app-behavior'
 import { waitForStartupChoice } from 'app-default-behavior/startup-choice'
+import { restartInModMaintenance } from 'mod-maintenance'
 import Modules from 'modules'
 import { startSetupMode } from 'setup-mode'
 import { showStartupSplash } from 'startup-splash'
@@ -14,11 +15,8 @@ export const onLaunch: NonNullable<StackchanAppBehavior['onLaunch']> = async () 
     })
     if (startupChoice.choice === 'boot') return true
     if (startupChoice.choice === 'mods') {
-      const startModManager = Modules.importNow('mod-manager') as (
-        application: ReturnType<typeof showStartupSplash>,
-      ) => Promise<'back'>
-      await startModManager(startupChoice.application)
-      continue
+      restartInModMaintenance()
+      return false
     }
     const setupChoice = await startSetupMode(startupChoice.application)
     if (setupChoice === 'boot') return true

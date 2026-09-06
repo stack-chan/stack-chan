@@ -217,7 +217,7 @@ test('validates optional esptool connection settings', () => {
 })
 
 function makeArchive(size) {
-  return makeXsArchive({ metadata: null, padding: size })
+  return makeXsArchive({ metadata: { ...modDefinition, appApiVersion: 1, hostApiVersion: 1 }, padding: size })
 }
 
 function makePartitionTable({ xsOffset, xsSize }) {

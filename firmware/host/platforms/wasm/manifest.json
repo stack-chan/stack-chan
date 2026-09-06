@@ -16,7 +16,8 @@
     "../../modules/util/manifest.json",
     "../../modules/preferences/manifest_wasm.json",
     "../../app/manifest_typings.json",
-    "../../app/manifest_runtime.json"
+    "../../app/manifest_runtime.json",
+    "../../app/manifest_entry.json"
   ],
   "modules": {
     "*": [],
@@ -29,8 +30,7 @@
     "app-default-behavior/wasm/behavior": "../../app/default-behavior/wasm/behavior",
     "app-default-behavior/wasm/on-launch": "../../app/default-behavior/wasm/on-launch",
     "app-default-behavior/startup-choice": "../../app/default-behavior/startup-choice",
-    "app-default-behavior/on-context-created": "../../app/default-behavior/on-context-created",
-    "main": "../../app/main"
+    "app-default-behavior/on-context-created": "../../app/default-behavior/on-context-created"
   },
   "preload": [
     "wasm-audio-bridge",

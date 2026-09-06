@@ -9,5 +9,8 @@
   },
   "resources": {
     "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

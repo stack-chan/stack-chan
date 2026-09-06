@@ -5,7 +5,11 @@
   "defines": {
     "XS_MODS": 1
   },
-  "include": ["./manifest_native.json", "./manifest_runtime.json"],
+  "include": [
+    "./manifest_native.json",
+    "./manifest_runtime.json",
+    "./manifest_entry.json"
+  ],
   "preload": [
     "runtime-context",
     "touch",
@@ -51,7 +55,7 @@
       {
         "source": "../modules/ui/assets/fonts/k8x12",
         "size": 24,
-        "characters": "Stack-chan[\u30fb\uff3f\u30fb]0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "characters": "Stack-chan[・＿・]0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
         "monochrome": true
       }
     ]
@@ -67,8 +71,5 @@
         "lib": ["es2025", "esnext.disposable"]
       }
     }
-  },
-  "modules": {
-    "main": "./main"
   }
 }

@@ -1,7 +1,7 @@
 import structuredClone from 'structuredClone'
 import { fetch } from 'fetch'
 import Headers from 'headers'
-import type { Maybe } from 'stackchan-util'
+import type { Maybe } from 'stackchan-result'
 
 const API_URL_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/'
 const DEFAULT_MODEL = 'gemini-1.5-flash-latest'

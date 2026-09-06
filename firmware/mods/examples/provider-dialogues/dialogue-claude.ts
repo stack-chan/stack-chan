@@ -1,7 +1,7 @@
 import structuredClone from 'structuredClone'
 import { fetch } from 'fetch'
 import Headers from 'headers'
-import type { Maybe } from 'stackchan-util'
+import type { Maybe } from 'stackchan-result'
 
 const API_URL = 'https://api.anthropic.com/v1/messages'
 const DEFAULT_MODEL = 'claude-3-haiku-20240307'

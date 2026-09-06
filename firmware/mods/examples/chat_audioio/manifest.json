@@ -3,5 +3,8 @@
   "modules": {
     "*": ["./mod"],
     "chat-audioio-config": "./config"
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

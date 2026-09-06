@@ -12,12 +12,8 @@
  * simulator or transferred to a device over WebSerial.
  */
 
-import {
-  MOD_METADATA_LIMIT,
-  MOD_METADATA_RESOURCE,
-  parseModRuntimeContract,
-} from '../../firmware/contracts/mod-package.js'
-import { inspectModArchive } from '../../firmware/contracts/xsa-metadata.js'
+import { MOD_METADATA_LIMIT, MOD_METADATA_RESOURCE } from '../../firmware/contracts/mod-package.js'
+import { inspectDeclaredModArchive } from '../../firmware/contracts/xsa-metadata.js'
 import { parseModDefinition } from '../mod-gallery/mod-definition.mjs'
 
 // Fallback when the version cannot be detected from the tools binary output.
@@ -213,9 +209,7 @@ export async function buildModArchive(
     if (!archivePath) throw new Error(`no archive produced:\n${logs.join('\n')}`)
     log(`archive: ${archivePath}`)
     const archive = FS.readFile(archivePath)
-    const inspected = inspectModArchive(archive, (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes))
-    if (JSON.stringify(inspected.metadata) !== JSON.stringify(parseModRuntimeContract(definition)))
-      throw new Error('Built MOD metadata differs from its definition')
+    inspectDeclaredModArchive(archive, definition, (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes))
     return archive
   }
   throw new Error(`tools version mismatch could not be resolved:\n${logs.join('\n')}`)

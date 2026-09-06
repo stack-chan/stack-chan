@@ -2,7 +2,8 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../../app/manifest_typings.json"
+    "../../app/manifest_typings.json",
+    "./manifest_types.json"
   ],
   "modules": {
     "clock-ticks": "./clock-ticks",

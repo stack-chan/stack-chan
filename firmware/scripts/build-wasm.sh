@@ -68,7 +68,9 @@ node "$FIRMWARE_DIR/scripts/run-mcconfig.mjs" -d -p wasm -t build "$MANIFEST"
 # force a relink so a LINK_OPTIONS change always takes effect
 rm -f "$BIN_DIR/mc.js"
 
-make -C "$TMP_DIR" -f makefile LINK_OPTIONS="$LINK_OPTIONS" FONTBM="$FONTBM"
+# SDK 9.5's TextDecoder uses C bool without including stdbool.h on WASM.
+# Supply the standard header without modifying the SDK or replacing its C flags.
+make -C "$TMP_DIR" -f makefile CC="emcc -include stdbool.h" LINK_OPTIONS="$LINK_OPTIONS" FONTBM="$FONTBM"
 
 mkdir -p "$FIRMWARE_DIR/../web/simulator"
 cp "$BIN_DIR/mc.js" "$BIN_DIR/mc.wasm" "$FIRMWARE_DIR/../web/simulator/"

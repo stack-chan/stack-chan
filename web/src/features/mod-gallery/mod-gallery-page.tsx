@@ -175,7 +175,7 @@ export function ModGalleryPage() {
   const installToSimulator = useCallback(
     (mod: ModDefinition, artifact: ModArtifact) =>
       run(mod, async () => {
-        const bytes = await fetchModArchive(artifact)
+        const bytes = await fetchModArchive(artifact, mod)
         const compatibility = inspectDeploymentCompatibility('simulator', {
           xsVersion: xsArchiveVersion(bytes),
           entrypoints: mod.entrypoints,
@@ -197,7 +197,7 @@ export function ModGalleryPage() {
       run(mod, async () => {
         const serial = (navigator as SerialNavigator).serial
         if (!serial) throw new Error(t('実機への書き込みにはChromeまたはEdgeを使ってください'))
-        const bytes = await fetchModArchive(artifact)
+        const bytes = await fetchModArchive(artifact, mod)
         const archiveVersion = xsArchiveVersion(bytes)
         const port = await serial.requestPort()
         const result = await installModToDevice(createEsptoolLoader, port, bytes, {

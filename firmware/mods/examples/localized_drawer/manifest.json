@@ -5,5 +5,8 @@
   },
   "resources": {
     "*": ["./strings/*"]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

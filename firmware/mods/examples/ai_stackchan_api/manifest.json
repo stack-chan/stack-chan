@@ -1,7 +1,7 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_mod.json",
-    "../provider-dialogues/manifest.json"
+    "../provider-dialogues/manifest_library.json"
   ],
   "resources": {
     "*": "./assets/*"
@@ -10,6 +10,7 @@
     "*": ["./mod"]
   },
   "data": {
-    "*": ["$(MODDABLE)/modules/crypt/data/ca35"]
+    "*": ["$(MODDABLE)/modules/crypt/data/ca35"],
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

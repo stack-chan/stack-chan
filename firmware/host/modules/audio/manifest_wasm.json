@@ -6,6 +6,7 @@
   ],
   "modules": {
     "audio-buffer": "./audio-buffer",
+    "recording-wave": "./recording-wave",
     "wasm-audio-bridge": "./wasm/audio-bridge",
     "wasm-audio-bridge-contract": "./wasm/audio-bridge-contract",
     "speaker": "./wasm/speaker",

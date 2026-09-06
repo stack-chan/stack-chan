@@ -3,6 +3,7 @@ import type { TTS, WebRadioCapability, WebRadioStartOptions } from 'capabilities
 import type Microphone from 'microphone'
 import { OperationQueue } from 'operation-queue'
 import { OwnedResources, ResourceScope } from 'owned-resources'
+import { DEFAULT_RECORDING_DURATION_MS, validateRecordingDuration } from 'recording-wave'
 import { ownMicrophone, ownTTS, ownWebRadio } from 'runtime-resources'
 import type Speaker from 'speaker'
 import type { CapabilityStatus, PlaybackOptions } from 'stackchan/app'
@@ -16,7 +17,7 @@ export type RuntimeAudioConstructorParam = {
   clipPlayer?: TTS
   ttsKind?: 'speech' | 'clips' | 'unavailable'
   simulated?: boolean
-  microphone?: Pick<Microphone, 'record' | 'stop'> & { close?: () => void }
+  microphone?: Pick<Microphone, 'record' | 'stop'> & { close?: () => void | Promise<void> }
   speaker?: Pick<Speaker, 'tone' | 'play'> & { cancelPlayback?: (reason?: unknown) => void; close?: () => void }
   webRadio?: WebRadioCapability
 }
@@ -223,14 +224,19 @@ export class StackchanRuntimeAudio {
     }
   }
 
-  async record(durationMilliSec?: number): Promise<OwnedAudioBuffer> {
+  async record(
+    durationMilliSec = DEFAULT_RECORDING_DURATION_MS,
+    signal?: CancellationSignal,
+  ): Promise<OwnedAudioBuffer> {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
     if (!this.#microphone) {
       throw new StackchanError('UNSUPPORTED', 'This device does not support a microphone.')
     }
-    if (durationMilliSec !== undefined) finiteNumber(durationMilliSec, 'durationMs', 1, 60_000)
+    validateRecordingDuration(durationMilliSec)
     return this.#input.run(
       () => this.#microphone.record(durationMilliSec),
       () => this.#microphone?.stop(),
+      signal,
     )
   }
 

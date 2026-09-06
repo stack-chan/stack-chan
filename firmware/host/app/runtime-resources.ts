@@ -33,10 +33,13 @@ export function ownTTS<T extends TTS>(scope: ResourceScope, tts: T): T {
   return tts
 }
 
-export function ownMicrophone<T extends { stop(): void; close?(): void }>(scope: ResourceScope, microphone: T): T {
+export function ownMicrophone<T extends { stop(): void | Promise<void>; close?(): void | Promise<void> }>(
+  scope: ResourceScope,
+  microphone: T,
+): T {
   scope.defer(() => {
-    if (microphone.close) microphone.close()
-    else microphone.stop()
+    if (microphone.close) return microphone.close()
+    return microphone.stop()
   })
   return microphone
 }

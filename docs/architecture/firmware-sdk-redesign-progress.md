@@ -8,8 +8,8 @@
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
 | F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDK・motion・一枚撮影と画像表示をAppSessionへ接続。録音・会話・設定・高度な拡張は未完了 |
-| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。WASMカメラの所有・取消しとnativeのフレーム待ちも接続。native音声エンジンなどは継続 |
-| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消しを接続。他機能と実機での到達確認は未完了 |
+| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。WASMカメラとnativeのフレーム待ち、native録音のrollback・取消し・期限・解放待ちも接続。WASM録音とnative TTSなどは継続 |
+| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消し、native録音の完了・時間とバッファ上限を接続。他機能と実機での確認は未完了 |
 | F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声とV2 motionに停止待ち付きOperationQueue、サーボUARTに共通FIFOを接続。注視と単発移動を調停。Wi-Fi接続に所有者別の使用権、一枚撮影に待機2件の停止待ちキューを接続。会話・USB・全無線経路の調停・V1移行は未完了 |
 | F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの6教材とSDK型検査を追加。全32旧MOD／miniappの入口と依存を宣言。SDK世代2への移行は未完了 |
 | F6 アプリ構成 | 既定動作、診断、UI 拡張の責務と寿命を分ける。既定動作にも SDK と AppSession を使用 | 最小起動入口と保守起動を分離。既定動作のSDK化・診断とUI拡張の分離は未完了 |
@@ -51,7 +51,7 @@
 ## 次に接続するもの
 
 1. V2の基本SDK・motion・AppSessionは接続済み。録音・会話・設定の公開サービスと拡張を実装し、既存MOD／miniappへ移行する。
-2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTとPY32 expanderの終了は接続済み。BootSessionとWi-Fi使用権・ローカル通信を終了経路へ接続済み。WASMカメラの下位資源は接続済み。native音声エンジンへ接続を進める。V1の直接参照と機器置換の寿命も継続して扱う。
+2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTとPY32 expanderの終了は接続済み。BootSessionとWi-Fi使用権・ローカル通信を終了経路へ接続済み。WASMカメラの下位資源は接続済み。native録音の寿命も接続済み。WASM録音とnative TTSへ接続を進める。V1の直接参照と機器置換の寿命も継続して扱う。
 3. 音声出力の個別取消しはAppSessionへ接続済み。音声入力と出力、WASM bridgeのclose、会話とUSBの資源を調停する。
 4. motion controllerのドライバー交換にcallbackの世代管理を接続した。native TTSの出力、AppSessionの使用権、V1の直接参照へも接続を進める。共通キューは非同期停止の確認を待ち、解放失敗後に後続操作を開始しない。
 5. 最小教材から残りの F1〜F10、配布・移行・実機受入まで続ける。現時点では全課題を解消した状態ではない。
@@ -260,3 +260,24 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - 最終ソースからCoreS3 6,547,408 bytes、Takao Core2 3,845,856 bytes、Stack-chan RT 3,966,512 bytesのreleaseとWASMを生成した。3つの実バイナリーから9.5.0+stackchan.2を確認した。
 
 残る範囲: 実際のボード・設定・利用可能な能力と配布metadataの照合、全ビルド入口と型・module exportsの統合、旧MOD／BlocklyのSDK移行、録音・会話・設定と拡張の公開API、native音声等の寿命、既定動作の分離、SD書き込み中の電源断を含む実機・初学者の受入。F1〜F10の全範囲を継続する。
+
+
+## native録音の完了・期限・解放（2026-09-06）
+
+詳細は [マイクの寿命](microphone-lifecycle.md)。native Microphoneと共通RuntimeAudioの接続であり、WASM録音とV2公開APIは継続する。
+
+- 入力取得後の形式確認、確保、取消し登録、Timer設定、開始が失敗した場合も入力を解放する。成功・失敗・取消しで同じ終了処理を使い、close失敗を成功扱いせず、そのMicrophoneの再取得を禁止する。
+- WAVは実際に受信したバイト数で埋める。空・不完全なPCM・過大な読み取りはIO、受信停止は期限切れとし、残りをゼロで埋めて成功にする処理を廃止した。時間1〜15,000 msと512 KiBのWAV上限を共通の純粋なヘルパーへ集約した。
+- 開始の世代と入力の同一性で、旧入力の遅い通知を抑える。再入した終了の途中で次の入力を取得しない。
+- SDK 9.5のCコードから、onReadable実行中のcloseで入力レコードが通知待ちのまま残り得ることを確認した。通知から戻った次のPromise jobへcloseを移し、録音の完了は実際の解放を待たせる。低レベルのstop / closeも必要な場合に解放完了のPromiseを返す。
+- RuntimeAudioの録音に操作ごとのsignalを接続した。待機中の取消しでは実行中の別操作を止めない。共通ownMicrophoneは非同期のclose／stopの戻り値をResourceScopeへ返し、ホストの終了も解放を待つ。
+- nativeのNode試験4件をXSへ移した。既存WASM Node試験が他の試験の別名ファイル作成に依存していたため、その試験自身が別名を用意してから実装を読み込むようにした。
+
+検証:
+
+- Node 506件、構成79件、SDK strict検査、6機種のmanifest検査が成功。純粋なWAV構造2件とRuntimeAudioの取消し・解放待ち2件を追加したので、native試験の移行後もNodeの総数は506件。
+- 全58 XS manifestが成功（4並列、73.3秒）。nativeマイクの100回の録音・取消しで入力、Timer、取消し登録が残らず、全入力に一度だけcloseが呼ばれ、通知の実行中にはcloseされないことを確認した。短い読み取り、開始途中の失敗、予算超過、期限、再入、遅い通知、二重close、解放失敗を含む。
+- CoreS3 release 6,551,504 bytes、Takao Core2 release 3,854,048 bytes、Stack-chan RT release 3,974,704 bytesとWASMを生成した。全nativeバイナリーから9.5.0+stackchan.2を確認した。
+- Webの型検査・ビルドと、Chromium上で6教材の起動・操作・撮影画像の表示・track解放が成功。Webアプリ本体のコードはこの段階では変更していない。
+
+残る範囲: WASMの録音bridgeとブラウザー資源の所有、V2録音・会話・設定・拡張API、入力と出力・会話・USBの共通調停、native TTSと機器交換、既定動作と旧MODの移行、実際の能力表、実機の音質・メモリー・I2S・遅延の受入。F1〜F10の全範囲を継続する。

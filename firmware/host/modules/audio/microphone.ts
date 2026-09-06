@@ -1,142 +1,233 @@
 import { type OwnedAudioBuffer, ownAudioBuffer } from 'audio-buffer'
 import AudioIn from 'audio-in'
+import {
+  createRecordingWave,
+  DEFAULT_RECORDING_DURATION_MS,
+  RECORDING_GRACE_MS,
+  validateRecordingDuration,
+} from 'recording-wave'
+import { asStackchanError, StackchanError } from 'stackchan/errors'
+import type { OperationOptions } from 'stackchan/task'
+import Timer from 'timer'
 
-const CHANNELS = 1
+type RecordingClock = { after(durationMs: number, callback: () => void): () => void }
+type CleanupResult = StackchanError | undefined | Promise<StackchanError | undefined>
+const clock: RecordingClock = {
+  after(durationMs, callback) {
+    const timer = Timer.set(callback, durationMs)
+    return () => Timer.clear(timer)
+  },
+}
 
 export default class Microphone {
-  recording: boolean
-  #audioIn: AudioIn | null
-  #abortRecording: (() => void) | null
+  readonly #clock: RecordingClock
+  #audioIn: AudioIn | undefined
+  #recording = false
+  #releasing = false
+  #releasePromise: Promise<void> | undefined
+  #inReadable = 0
+  #epoch = 0
+  #closed = false
+  #failure: StackchanError | undefined
+  #abortRecording: ((reason: StackchanError) => CleanupResult) | undefined
   onReadable?: (this: AudioIn, byteLength: number, sampleCount?: number) => void
 
-  constructor() {
-    this.recording = false
-    this.#audioIn = null
-    this.#abortRecording = null
+  constructor(options: { clock?: RecordingClock } = {}) {
+    this.#clock = options.clock ?? clock
   }
 
-  start() {
-    if (this.recording) {
-      throw new Error('already recording')
-    }
-    const self = this
-    this.#audioIn = new AudioIn({
-      channels: CHANNELS,
-      onReadable(size, sampleCount) {
-        if (self.onReadable) {
-          self.onReadable.call(this, size, sampleCount)
-        }
-      },
-    })
-    this.#audioIn.start()
-    this.recording = true
+  get recording(): boolean {
+    return this.#recording
   }
 
-  stop() {
-    this.#audioIn?.close()
-    this.#audioIn = null
-    this.#abortRecording?.()
-    this.recording = false
+  #assertAvailable(): void {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Microphone is closed')
+    if (this.#failure) throw this.#failure
+    if (this.#recording || this.#releasing) throw new StackchanError('BUSY', 'Microphone is already recording')
   }
 
-  async record(durationMilliSec = 3000): Promise<OwnedAudioBuffer> {
-    if (this.recording) {
-      throw new Error('already recording')
-    }
-    this.recording = true
-    const HEADER_SIZE = 44
-
-    return new Promise((resolve, reject) => {
-      let writeOffset = 0
-      let audioin: AudioIn | undefined
-      let wavBuffer: ArrayBuffer
-      let dataView: Uint8Array
-      let finished = false
-      const finish = () => {
-        if (finished) return
-        finished = true
-        this.#abortRecording = null
-        audioin?.close()
-        this.recording = false
-        resolve(ownAudioBuffer(wavBuffer))
-      }
-      const fail = (error: unknown) => {
-        if (finished) return
-        finished = true
-        this.#abortRecording = null
-        audioin?.close()
-        this.recording = false
-        reject(error)
-      }
-      // Lets stop() abort a finite recording so close() never leaves the microphone held.
-      this.#abortRecording = () => fail(new Error('recording aborted'))
-
+  #releaseInput(epoch = this.#epoch): void | Promise<void> {
+    if (epoch !== this.#epoch) return
+    if (this.#releasing) return this.#releasePromise
+    const input = this.#audioIn
+    this.#audioIn = undefined
+    this.#releasing = true
+    const close = () => {
       try {
-        audioin = new AudioIn({
-          channels: CHANNELS,
-          onReadable(size) {
-            const remaining = dataView.byteLength - writeOffset
-            trace(`${remaining}\n`)
-            const chunkSize = Math.min(size, remaining)
-            const chunk = this.read(chunkSize)
+        input?.close()
+      } catch (error) {
+        this.#failure = asStackchanError(error)
+        throw this.#failure
+      } finally {
+        this.#recording = false
+        this.#releasing = false
+        this.#releasePromise = undefined
+      }
+    }
+    // SDK 9.5 AudioIn keeps pendingCallback set while delivering onReadable.
+    // Close after returning to C so the input record is freed, not left pending.
+    if (this.#inReadable) {
+      this.#releasePromise = Promise.resolve().then(close)
+      return this.#releasePromise
+    }
+    close()
+  }
 
-            if (!chunk) {
-              finish()
-            } else {
-              dataView.set(new Uint8Array(chunk), writeOffset)
-              writeOffset += chunkSize
-              if (writeOffset >= dataView.byteLength) {
-                finish()
-              }
+  /** Attempt all releases. A failed physical close prevents this microphone from reopening. */
+  #cleanup(actions: Array<(() => void | Promise<void>) | undefined>): CleanupResult {
+    const errors: unknown[] = []
+    const pending: Promise<void>[] = []
+    for (const action of actions) {
+      try {
+        const result = action?.()
+        if (result)
+          pending.push(
+            result.catch((error) => {
+              errors.push(error)
+            }),
+          )
+      } catch (error) {
+        errors.push(error)
+      }
+    }
+    const finish = () => {
+      if (errors.length) {
+        this.#failure = asStackchanError(
+          errors.length === 1 ? errors[0] : new AggregateError(errors, 'Microphone cleanup failed'),
+        )
+        return this.#failure
+      }
+    }
+    return pending.length ? Promise.all(pending).then(finish) : finish()
+  }
+
+  start(): void {
+    this.#assertAvailable()
+    this.#recording = true
+    const epoch = ++this.#epoch
+    const owner = this
+    let input: AudioIn | undefined
+    try {
+      input = new AudioIn({
+        channels: 1,
+        onReadable(size, sampleCount) {
+          if (!input || owner.#audioIn !== input || !owner.#recording) return
+          owner.#inReadable++
+          try {
+            owner.onReadable?.call(this, size, sampleCount)
+          } catch (error) {
+            const cleanupError = owner.#cleanup([() => owner.#releaseInput(epoch)])
+            throw cleanupError instanceof Promise ? asStackchanError(error) : (cleanupError ?? asStackchanError(error))
+          } finally {
+            owner.#inReadable--
+          }
+        },
+      })
+      this.#audioIn = input
+      input.start()
+    } catch (error) {
+      const cleanupError = this.#cleanup([() => this.#releaseInput(epoch)])
+      throw cleanupError instanceof Promise ? asStackchanError(error) : (cleanupError ?? asStackchanError(error))
+    }
+  }
+
+  stop(reason = new StackchanError('CANCELLED', 'Recording cancelled')): void | Promise<void> {
+    const error = this.#abortRecording ? this.#abortRecording(reason) : this.#cleanup([() => this.#releaseInput()])
+    const finish = (failure: StackchanError | undefined) => {
+      if (failure) throw failure
+      if (this.#failure) throw this.#failure
+    }
+    if (error instanceof Promise) return error.then(finish)
+    finish(error)
+  }
+
+  close(): void | Promise<void> {
+    this.#closed = true
+    this.onReadable = undefined
+    return this.stop(new StackchanError('CLOSED', 'Microphone is closed'))
+  }
+
+  async record(durationMs = DEFAULT_RECORDING_DURATION_MS, options: OperationOptions = {}): Promise<OwnedAudioBuffer> {
+    this.#assertAvailable()
+    validateRecordingDuration(durationMs)
+    options.signal?.throwIfCancelled()
+    this.#recording = true
+    const epoch = ++this.#epoch
+    return new Promise<OwnedAudioBuffer>((resolve, reject) => {
+      let finished = false
+      let clearDeadline: (() => void) | undefined
+      let unsubscribe: (() => void) | undefined
+      let input: AudioIn | undefined
+      let wave: ReturnType<typeof createRecordingWave>
+      let offset = 0
+      const finish = (error?: unknown): CleanupResult => {
+        if (finished) return
+        finished = true
+        this.#abortRecording = undefined
+        const cleanupError = this.#cleanup([clearDeadline, unsubscribe, () => this.#releaseInput(epoch)])
+        clearDeadline = undefined
+        unsubscribe = undefined
+        const settle = (failure: StackchanError | undefined) => {
+          if (failure) reject(failure)
+          else if (error !== undefined) reject(asStackchanError(error))
+          else resolve(ownAudioBuffer(wave.buffer))
+          return failure
+        }
+        if (cleanupError instanceof Promise) return cleanupError.then(settle)
+        settle(cleanupError)
+        return cleanupError
+      }
+      this.#abortRecording = finish
+      const owner = this
+      try {
+        input = new AudioIn({
+          channels: 1,
+          onReadable(size) {
+            if (finished || !input || owner.#audioIn !== input) return
+            owner.#inReadable++
+            try {
+              if (!Number.isInteger(size) || size < wave.bytesPerFrame)
+                throw new StackchanError('IO', 'Microphone reported an incomplete PCM frame')
+              const requested = Math.min(size - (size % wave.bytesPerFrame), wave.samples.byteLength - offset)
+              const chunk = this.read(requested)
+              if (
+                !chunk ||
+                chunk.byteLength === 0 ||
+                chunk.byteLength > requested ||
+                chunk.byteLength % wave.bytesPerFrame
+              )
+                throw new StackchanError('IO', 'Microphone did not return complete PCM frames')
+              wave.samples.set(new Uint8Array(chunk), offset)
+              offset += chunk.byteLength
+              if (offset === wave.samples.byteLength) finish()
+            } catch (error) {
+              finish(error)
+            } finally {
+              owner.#inReadable--
             }
           },
         })
+        this.#audioIn = input
+        wave = createRecordingWave(input, durationMs)
+        unsubscribe = options.signal?.subscribe((reason) => {
+          finish(reason)
+        })
+        if (finished) {
+          this.#cleanup([unsubscribe])
+          return
+        }
+        clearDeadline = this.#clock.after(Math.ceil(durationMs) + RECORDING_GRACE_MS, () => {
+          finish(
+            new StackchanError('TIMEOUT', 'Microphone did not deliver the requested recording before its deadline'),
+          )
+        })
+        if (finished) {
+          this.#cleanup([clearDeadline])
+          return
+        }
+        input.start()
       } catch (error) {
-        this.#abortRecording = null
-        this.recording = false
-        reject(error)
-        return
-      }
-
-      // generate header
-      const { sampleRate, channels, bitsPerSample } = audioin
-      const byteRate = sampleRate * channels * (bitsPerSample >> 3)
-      const contentLength = (durationMilliSec / 1000) * byteRate
-      wavBuffer = new ArrayBuffer(HEADER_SIZE + contentLength)
-      const headerView = new DataView(wavBuffer)
-      dataView = new Uint8Array(wavBuffer, HEADER_SIZE)
-
-      headerView.setUint8(0, 'R'.charCodeAt(0))
-      headerView.setUint8(1, 'I'.charCodeAt(0))
-      headerView.setUint8(2, 'F'.charCodeAt(0))
-      headerView.setUint8(3, 'F'.charCodeAt(0))
-      headerView.setUint32(4, 36 + contentLength, true)
-      headerView.setUint8(8, 'W'.charCodeAt(0))
-      headerView.setUint8(9, 'A'.charCodeAt(0))
-      headerView.setUint8(10, 'V'.charCodeAt(0))
-      headerView.setUint8(11, 'E'.charCodeAt(0))
-      headerView.setUint8(12, 'f'.charCodeAt(0))
-      headerView.setUint8(13, 'm'.charCodeAt(0))
-      headerView.setUint8(14, 't'.charCodeAt(0))
-      headerView.setUint8(15, ' '.charCodeAt(0))
-      headerView.setUint32(16, 16, true)
-      headerView.setUint16(20, 1, true) // AudioFormat = 1 (PCM)
-      headerView.setUint16(22, channels, true)
-      headerView.setUint32(24, sampleRate, true)
-      headerView.setUint32(28, byteRate, true)
-      headerView.setUint16(32, (channels * bitsPerSample) >> 3, true)
-      headerView.setUint16(34, bitsPerSample, true)
-      headerView.setUint8(36, 'd'.charCodeAt(0))
-      headerView.setUint8(37, 'a'.charCodeAt(0))
-      headerView.setUint8(38, 't'.charCodeAt(0))
-      headerView.setUint8(39, 'a'.charCodeAt(0))
-      headerView.setUint32(40, contentLength, true)
-
-      // start recording
-      try {
-        audioin.start()
-      } catch (error) {
-        fail(error)
+        finish(error)
       }
     })
   }

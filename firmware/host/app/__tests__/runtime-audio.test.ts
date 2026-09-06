@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import type { BorrowedAudioBuffer } from '../../modules/audio/audio-buffer.js'
+import type { BorrowedAudioBuffer, OwnedAudioBuffer } from '../../modules/audio/audio-buffer.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../../modules/testing/node-alias-package.js'
 
 import { installRuntimeTestAliases } from './runtime-test-aliases.js'
@@ -15,6 +15,7 @@ function installBareSpecifierPackages(): void {
   const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
   writeAliasPackage(hostRoot, 'operation-queue', resolve(hostRoot, 'app/operation-queue.js'))
   writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
+  writeAliasPackage(hostRoot, 'recording-wave', resolve(hostRoot, 'modules/audio/recording-wave.js'))
   writeAliasPackage(hostRoot, 'stackchan-util', resolve(hostRoot, 'modules/util/stackchan-util.js'))
   writeAliasPackage(hostRoot, 'timer', resolve(hostRoot, 'modules/testing/fakes/timer.js'), { hasDefaultExport: true })
   writeAliasPackage(hostRoot, 'mac-address', resolve(hostRoot, 'modules/util/sim/mac-address.js'), {
@@ -329,4 +330,86 @@ test('close cancels in-flight speech, rejects queued tone, and suppresses late c
   assert.equal(cancelled, 1)
   assert.equal(tones, 0)
   await assert.rejects(runtime.tone(440, 100), { code: 'CLOSED' })
+})
+
+test('recording cancellation stays within its operation and queued cancellation does not stop active input', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  const { CancellationSource } = await import('../cancellation.js')
+  let starts = 0
+  let stops = 0
+  let complete: (buffer: OwnedAudioBuffer) => void
+  const runtime = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    microphone: {
+      record: () => {
+        starts++
+        return new Promise<OwnedAudioBuffer>((resolve) => {
+          complete = resolve
+        })
+      },
+      stop: () => {
+        stops++
+      },
+    },
+  })
+  const active = new CancellationSource()
+  const pending = new CancellationSource()
+  const first = runtime.record(10, active.signal)
+  const second = runtime.record(10, pending.signal)
+  pending.cancel()
+  await assert.rejects(second, { code: 'CANCELLED' })
+  assert.equal(starts, 1)
+  assert.equal(stops, 0)
+  active.cancel()
+  await assert.rejects(first, { code: 'CANCELLED' })
+  assert.equal(stops, 1)
+  complete(new ArrayBuffer(0) as OwnedAudioBuffer)
+  await assert.rejects(runtime.record(15_001), { code: 'INVALID_ARGUMENT' })
+  assert.equal(starts, 1, 'invalid duration never reaches the microphone')
+  await runtime.close()
+  await assert.rejects(runtime.record(10), { code: 'CLOSED' })
+})
+
+test('audio close awaits microphone release and preserves a failed release', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  for (const method of ['close', 'stop'] as const) {
+    let release: () => void
+    let started: () => void
+    const releasing = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    const microphone = {
+      record: async () => new ArrayBuffer(0) as OwnedAudioBuffer,
+      stop() {},
+      [method]: () => {
+        started()
+        return new Promise<void>((resolve) => {
+          release = resolve
+        })
+      },
+    }
+    const runtime = new StackchanRuntimeAudio({ tts: fakeTTS(), microphone })
+    let closed = false
+    const closing = runtime.close().then(() => {
+      closed = true
+    })
+    await releasing
+    assert.equal(closed, false, `${method} completion is part of host shutdown`)
+    release()
+    await closing
+    assert.equal(closed, true)
+  }
+  const failure = new Error('physical microphone close failed')
+  const broken = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    microphone: {
+      record: async () => new ArrayBuffer(0) as OwnedAudioBuffer,
+      stop() {},
+      close: () => Promise.reject(failure),
+    },
+  })
+  await assert.rejects(broken.close(), (error) => error === failure)
+  await assert.rejects(broken.record(10), { code: 'CLOSED' })
 })

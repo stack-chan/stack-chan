@@ -1,0 +1,15 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../../../../sdk/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "audio-buffer": "../../audio-buffer",
+    "recording-wave": "../../recording-wave",
+    "microphone": "../../microphone",
+    "audio-in": "./audio-in-fake",
+    "cancellation": "../../../../app/cancellation",
+    "main": "./microphone-lifecycle.test"
+  }
+}

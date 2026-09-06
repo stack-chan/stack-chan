@@ -1,5 +1,6 @@
 {
   "include": [
+    "../../../sdk/manifest.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/pins/audioout/resource-stream/manifest_streamer.json",
     "$(MODDABLE)/examples/pins/audioout/http-stream/manifest_wavstreamer.json",

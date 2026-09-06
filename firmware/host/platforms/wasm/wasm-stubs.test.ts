@@ -2,13 +2,20 @@ import assert from 'node:assert/strict'
 import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import Microphone from '../../modules/audio/wasm/microphone.js'
-import Speaker from '../../modules/audio/wasm/speaker.js'
 import FallbackCamera from '../../modules/camera/lin/camera.js'
 import { writeAliasPackage } from '../../modules/testing/node-alias-package.js'
 
 const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 writeAliasPackage(hostRoot, 'motion-port', resolve(hostRoot, 'modules/motion/motion-port.js'))
+writeAliasPackage(hostRoot, 'audio-buffer', resolve(hostRoot, 'modules/audio/audio-buffer.js'))
+writeAliasPackage(hostRoot, 'tts-playback-session', resolve(hostRoot, 'modules/audio/tts-playback-session.js'))
+writeAliasPackage(
+  hostRoot,
+  'wasm-audio-bridge-contract',
+  resolve(hostRoot, 'modules/audio/wasm/audio-bridge-contract.js'),
+)
+const { default: Speaker } = await import('../../modules/audio/wasm/speaker.js')
+const { default: Microphone } = await import('../../modules/audio/wasm/microphone.js')
 const { WasmDriver } = await import('../../modules/motion/wasm/wasm-driver.js')
 
 type Rotation = { y: number; p: number; r: number }

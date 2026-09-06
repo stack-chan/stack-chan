@@ -11,6 +11,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
+      "recording-wave": ["./host/modules/audio/recording-wave.ts"],
       "stackchan-result": ["./host/modules/util/result.ts"],
       "Resource": ["./host/modules/testing/fakes/resource.ts"],
       "text/decoder": ["./host/modules/testing/fakes/text-decoder.ts"],

@@ -113,40 +113,9 @@ test('conversation modules stay independent of app layer contracts', () => {
   }
 })
 
-test('device TTS engines delegate playback state and AudioOut lifecycle to the shared helper', () => {
-  const engineFiles = [
-    'host/modules/audio/tts-local.ts',
-    'host/modules/audio/tts-remote.ts',
-    'host/modules/audio/tts-voicevox.ts',
-    'host/modules/audio/tts-voicevox-web.ts',
-    'host/modules/audio/tts-elevenlabs.ts',
-    'host/modules/audio/tts-openai.ts',
-  ]
-
-  for (const file of engineFiles) {
-    const source = readFileSync(file, 'utf8')
-    assert.match(source, /from 'tts-playback-lifecycle'/, `${file} should use the shared TTS playback lifecycle`)
-    assert.doesNotMatch(source, /new AudioOut\(/, `${file} should not construct AudioOut directly`)
-    assert.doesNotMatch(source, /this\.streaming\s*=\s*true/, `${file} should not own streaming activation`)
-  }
-
-  const streamingSource = readFileSync('host/modules/audio/stackchan-voice/tts-stackchan-voice.ts', 'utf8')
-  assert.match(streamingSource, /from 'tts-playback-lifecycle'/)
-  assert.match(streamingSource, /beginTTSPlayback\(this, callback/)
-  assert.match(streamingSource, /lifecycle\.addCleanup\(/)
-  assert.match(streamingSource, /new AudioOut\(/)
-  assert.match(streamingSource, /onWritable: \(size\) => this\.#onWritable\(size\)/)
-  assert.match(streamingSource, /writable - this\.#freeBytes/)
-  assert.match(streamingSource, /const DMA_CHUNK_SAMPLES = 2046/)
-  assert.match(streamingSource, /output\.write\(chunk\.bytes\)/)
-  assert.doesNotMatch(streamingSource, /output\.write\(chunk\.buffer\)/)
-  assert.doesNotMatch(streamingSource, /DRAIN_SAMPLES|drainTimer/)
-  assert.match(streamingSource, /new Resource\('stackchan-ja\.aqd'\)/)
-  assert.match(streamingSource, /props\.volume \?\? 0\.1/)
-  assert.match(streamingSource, /props\.speed \?\? 100/)
-  assert.match(streamingSource, /lifecycle\.onPower\(/)
-  assert.doesNotMatch(streamingSource, /this\.streaming\s*=\s*true/)
-})
+// TTS completion, PCM drain, ownership, rollback, and stale callbacks are
+// exercised in the XS playback-lifecycle, http-playback, and stackchan-voice-device tests.
+// Do not pin their implementation syntax or DMA chunk size here.
 
 test('Whisper multipart upload does not concatenate the whole recording buffer', () => {
   const sttWhisper = readFileSync('host/modules/audio/stt-whisper.ts', 'utf8')

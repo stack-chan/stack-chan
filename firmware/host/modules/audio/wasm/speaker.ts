@@ -1,5 +1,5 @@
 import type { BorrowedAudioBuffer } from 'audio-buffer'
-import { beginPlaybackSession, type PlaybackSession } from 'tts-playback-session'
+import { beginPlaybackSession, PlaybackProvider, type PlaybackSession } from 'tts-playback-session'
 import { scheduleWasmAudioTimer, type WasmAudioOutputBridge } from 'wasm-audio-bridge-contract'
 
 const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50
@@ -39,11 +39,9 @@ const getAudioBridge = (): WasmAudioOutputBridge => {
   )
 }
 
-export default class Speaker {
-  streaming = false
-  cancelPlayback?: (reason?: unknown) => void
-  #closed = false
+export default class Speaker extends PlaybackProvider {
   constructor(_options?: unknown) {
+    super()
     void _options
   }
 
@@ -77,14 +75,7 @@ export default class Speaker {
     return true
   }
 
-  close() {
-    if (this.#closed) return
-    this.#closed = true
-    this.cancelPlayback?.(new Error('Speaker is closed'))
-  }
-
   #play(bridge: WasmAudioOutputBridge, start: (session: PlaybackSession) => void): Promise<void> {
-    if (this.#closed) return Promise.reject(new Error('Speaker is closed'))
     return new Promise((resolve, reject) => {
       const session = beginPlaybackSession(this, (error) => {
         if (error !== undefined) reject(error)

@@ -3,6 +3,7 @@
 import type AudioOut from 'pins/audioout'
 import ResourceStreamer from 'resourcestreamer'
 import { runTTSPlayback } from 'tts-playback-lifecycle'
+import { PlaybackProvider } from 'tts-playback-session'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 
 /* global trace, SharedArrayBuffer */
@@ -14,17 +15,12 @@ export type TTSProperty = {
   volume?: number
 }
 
-export class TTS {
+export class TTS extends PlaybackProvider {
   audio?: AudioOut
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
-  streaming: boolean
   sampleRate: number
   volume: number
   constructor(props: TTSProperty) {
-    this.onPlayed = props.onPlayed
-    this.onDone = props.onDone
-    this.streaming = false
+    super(props)
     this.sampleRate = props.sampleRate ?? 11025
     this.volume = props.volume ?? 0.5
   }

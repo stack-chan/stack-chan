@@ -1,25 +1,14 @@
-/* eslint-disable prefer-const */
-
-import type HTTPClient from 'embedded:network/http/client'
-import { fetch } from 'fetch'
 import MP3Streamer from 'mp3streamer'
 import type AudioOut from 'pins/audioout'
-import { beginTTSPlayback } from 'tts-playback-lifecycle'
+import { StackchanError } from 'stackchan/errors'
+import { type PlaybackHttpOptions, playbackHttp } from 'tts-http-client'
+import { requestTTSQuery } from 'tts-http-query'
+import { runTTSPlayback } from 'tts-playback-lifecycle'
+import { PlaybackProvider } from 'tts-playback-session'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 import { URL } from 'url'
 
-/* global trace, SharedArrayBuffer */
-declare const device: {
-  network: {
-    https: {
-      client: typeof HTTPClient.constructor & {
-        io: typeof HTTPClient
-        socket: unknown
-        dns: unknown
-      }
-    }
-  }
-}
+declare const device: { network: { https: { client: PlaybackHttpOptions } } }
 
 export type TTSProperty = {
   onPlayed?: TTSPlaybackListener
@@ -30,64 +19,53 @@ export type TTSProperty = {
   volume?: number
 }
 
-export class TTS {
+export class TTS extends PlaybackProvider {
   audio?: AudioOut
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
   token: string
-  streaming: boolean
   speakerId: number
   sampleRate?: number
   volume: number
+
   constructor(props: TTSProperty) {
-    this.onPlayed = props.onPlayed
-    this.onDone = props.onDone
-    this.streaming = false
+    super(props)
     this.speakerId = props.speakerId ?? 1
     this.token = props.token
+    this.sampleRate = props.sampleRate
     this.volume = props.volume ?? 0.5
   }
 
-  async getQuery(text: string, speakerId = 1): Promise<string> {
-    return fetch(
-      encodeURI(`https://api.tts.quest/v3/voicevox/synthesis?key=${this.token}&text=${text}&speaker=${speakerId}`),
-    )
-      .then((response) => {
-        if (response.status !== 200) {
-          throw new Error(`response error:${response.status}`)
-        }
-        return response.json()
-      })
-      .then((data) => {
-        trace(`isApiKeyValid: ${data.isApiKeyValid}\n`)
-        trace(`mp3StreamingUrl: ${data.mp3StreamingUrl}\n`)
-        return data.mp3StreamingUrl
-      })
-  }
-
-  stream(key: string, volume?: number, callback?: TTSCompletion): void {
-    const lifecycle = beginTTSPlayback(this, callback)
-    if (!lifecycle) return
-
-    const speakerId = this.speakerId
-    this.getQuery(key, speakerId).then(
-      (streamUrl) => {
+  stream(text: string, volume?: number, callback?: TTSCompletion): void {
+    runTTSPlayback(this, callback, (lifecycle) => {
+      const http = device.network.https.client
+      void requestTTSQuery(lifecycle, {
+        http,
+        host: 'api.tts.quest',
+        port: 443,
+        path: `/v3/voicevox/synthesis?key=${encodeURIComponent(this.token)}&text=${encodeURIComponent(text)}&speaker=${encodeURIComponent(this.speakerId)}`,
+      }).then((query) => {
+        if (lifecycle.closed) return
         try {
-          const url = new URL(streamUrl)
+          if (
+            !query ||
+            typeof query !== 'object' ||
+            !('mp3StreamingUrl' in query) ||
+            typeof query.mp3StreamingUrl !== 'string'
+          )
+            throw new StackchanError('IO', 'VOICEVOX returned no playback URL')
+          const url = new URL(query.mp3StreamingUrl)
+          if (url.protocol !== 'https:' || url.username || url.password)
+            throw new StackchanError('IO', 'VOICEVOX returned an invalid playback URL')
           const audio = lifecycle.openAudio(
             { streams: 1, bitsPerSample: 16, sampleRate: this.sampleRate ?? 22050 },
             volume ?? this.volume,
           )
           lifecycle.attach(
             new MP3Streamer({
-              http: device.network.https.client,
-              host: url.host,
-              path: url.pathname,
-              port: 443,
-              audio: {
-                out: audio,
-                stream: 0,
-              },
+              http: playbackHttp(lifecycle, http),
+              host: url.hostname,
+              path: `${url.pathname}${url.search}`,
+              port: url.port ? Number(url.port) : 443,
+              audio: { out: audio, stream: 0 },
               onPlayed: lifecycle.onPlayed,
               onReady: lifecycle.onReady,
               onError: lifecycle.onError,
@@ -97,10 +75,7 @@ export class TTS {
         } catch (error) {
           lifecycle.fail(error)
         }
-      },
-      (error) => {
-        lifecycle.fail(new Error(`getQuery failed: ${error}`))
-      },
-    )
+      }, lifecycle.fail)
+    })
   }
 }

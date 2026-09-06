@@ -3,6 +3,7 @@
 import type { BorrowedAudioBuffer } from 'audio-buffer'
 import AudioOut from 'pins/audioout'
 import { beginTTSPlayback, type TTSPlaybackLifecycle } from 'tts-playback-lifecycle'
+import { PlaybackProvider } from 'tts-playback-session'
 
 const WAV_HEADER_SIZE = 44
 
@@ -10,13 +11,11 @@ export type ToneProperty = {
   volume?: number
 }
 
-export default class Speaker {
+export default class Speaker extends PlaybackProvider {
   volume: number
-  streaming = false
-  cancelPlayback?: (reason?: unknown) => void
-  #closed = false
 
-  constructor(props: ToneProperty) {
+  constructor(props: ToneProperty = {}) {
+    super()
     this.volume = props.volume ?? 0.5
   }
   async tone(hz: number, duration: number, volume?: number): Promise<void> {
@@ -64,14 +63,7 @@ export default class Speaker {
     }
   }
 
-  close(): void {
-    if (this.#closed) return
-    this.#closed = true
-    this.cancelPlayback?.(new Error('Speaker is closed'))
-  }
-
   #play<T>(start: (lifecycle: TTSPlaybackLifecycle) => void, value: T): Promise<T> {
-    if (this.#closed) return Promise.reject(new Error('Speaker is closed'))
     return new Promise<T>((resolve, reject) => {
       const lifecycle = beginTTSPlayback(this, (error) => {
         if (error !== undefined) reject(error)

@@ -1,9 +1,13 @@
 /* eslint-disable prefer-const */
 
-import OpenAIStreamer from 'openaistreamer'
 import type AudioOut from 'pins/audioout'
+import { type PlaybackHttpOptions, playbackHttp, ttsJSONRequest } from 'tts-http-client'
 import { runTTSPlayback } from 'tts-playback-lifecycle'
+import { PlaybackProvider } from 'tts-playback-session'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
+import WavStreamer from 'wavstreamer'
+
+declare const device: { network: { https: { client: PlaybackHttpOptions } } }
 
 /* global trace, SharedArrayBuffer */
 
@@ -18,21 +22,16 @@ export type TTSProperty = {
   volume?: number
 }
 
-export class TTS {
+export class TTS extends PlaybackProvider {
   audio?: AudioOut
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
   token: string
   model: string
   voice: string
   speed: number
   instructions: string
   volume: number
-  streaming: boolean
   constructor(props: TTSProperty) {
-    this.onPlayed = props.onPlayed
-    this.onDone = props.onDone
-    this.streaming = false
+    super(props)
     this.token = props.token
     this.model = props.model ?? 'tts-1'
     this.voice = props.voice ?? 'alloy'
@@ -44,14 +43,23 @@ export class TTS {
     runTTSPlayback(this, callback, (lifecycle) => {
       const audio = lifecycle.openAudio({ streams: 1, bitsPerSample: 16, sampleRate: 24000 }, volume ?? this.volume)
       lifecycle.attach(
-        new OpenAIStreamer({
-          input: text,
-          key: this.token,
-          model: this.model,
-          voice: this.voice,
-          speed: this.speed,
-          instructions: this.instructions,
-          response_format: 'wav',
+        new WavStreamer({
+          http: playbackHttp(lifecycle, device.network.https.client),
+          host: 'api.openai.com',
+          port: 443,
+          path: '/v1/audio/speech',
+          request: ttsJSONRequest(
+            lifecycle,
+            {
+              input: text,
+              model: this.model,
+              voice: this.voice,
+              speed: this.speed,
+              instructions: this.instructions,
+              response_format: 'wav',
+            },
+            [['Authorization', `Bearer ${this.token}`]],
+          ),
           audio: {
             out: audio,
             stream: 0,

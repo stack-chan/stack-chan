@@ -8,6 +8,7 @@ export function installRuntimeTestAliases(): void {
     writeAliasPackage(root, name, resolve(root, `app/${name}.js`))
   }
   writeAliasPackageSubpath(root, 'stackchan', 'errors', resolve(root, '../sdk/errors.js'))
+  writeAliasPackage(root, 'tts-playback-session', resolve(root, 'modules/audio/tts-playback-session.js'))
   writeAliasPackage(root, 'timer', resolve(root, 'modules/testing/fakes/timer.js'), { hasDefaultExport: true })
   ;(globalThis as typeof globalThis & { trace: (message: string) => void }).trace = () => {}
 }

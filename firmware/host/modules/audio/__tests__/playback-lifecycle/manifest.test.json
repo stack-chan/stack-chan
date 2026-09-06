@@ -1,0 +1,18 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../../../../sdk/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "preload": ["tts-playback-session"],
+  "modules": {
+    "pins/audioout": "./audio-out-fake",
+    "audio-buffer": "../../audio-buffer",
+    "speaker": "../../speaker",
+    "calculate-power": "../../../testing/fakes/calculate-power",
+    "tts-playback-session": "../../tts-playback-session",
+    "tts-playback-lifecycle": "../../tts-playback-lifecycle",
+    "tts-types": "../../tts-types",
+    "main": "./playback-lifecycle.test"
+  }
+}

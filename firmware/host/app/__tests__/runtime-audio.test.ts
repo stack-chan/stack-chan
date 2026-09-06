@@ -17,7 +17,7 @@ function installBareSpecifierPackages(): void {
   writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackage(hostRoot, 'recording-wave', resolve(hostRoot, 'modules/audio/recording-wave.js'))
   writeAliasPackageSubpath(
-    hostRoot,
+    resolve(hostRoot, 'modules'),
     'stackchan-contracts',
     'audio-recording',
     resolve(hostRoot, '../contracts/audio-recording.js'),
@@ -418,4 +418,75 @@ test('audio close awaits microphone release and preserves a failed release', asy
   })
   await assert.rejects(broken.close(), (error) => error === failure)
   await assert.rejects(broken.record(10), { code: 'CLOSED' })
+})
+
+test('a completed provider with failed cleanup cannot hand output to another provider or speaker', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  const { beginPlaybackSession, PlaybackProvider } = await import('../../modules/audio/tts-playback-session.js')
+  let finish!: () => void
+  class Speech extends PlaybackProvider {
+    stream(_text: string, _volume?: number, callback?: (error?: unknown) => void) {
+      const session = beginPlaybackSession(this, callback)
+      if (!session) return
+      session.addCleanup(() => {
+        throw new Error('output did not release')
+      })
+      finish = session.onDone
+    }
+  }
+  let tones = 0,
+    clips = 0
+  const runtime = new StackchanRuntimeAudio({
+    tts: new Speech(),
+    clipPlayer: {
+      stream(_text, _volume, callback) {
+        clips++
+        callback?.()
+      },
+    },
+    speaker: {
+      async tone() {
+        tones++
+      },
+      async play() {
+        return true
+      },
+    },
+  })
+  const speech = assert.rejects(runtime.speak('hello'), { code: 'IO', message: 'output did not release' })
+  const tone = assert.rejects(runtime.tone(440, 100), { code: 'IO' })
+  const clip = assert.rejects(runtime.playClip('hello'), { code: 'IO' })
+  finish()
+  await Promise.all([speech, tone, clip])
+  assert.equal(tones, 0)
+  assert.equal(clips, 0)
+  assert.equal(runtime.audioStatus('tone').availability, 'unavailable')
+  await assert.rejects(runtime.close(), { code: 'IO', message: 'output did not release' })
+})
+
+test('closing audio waits for a provider whose cancellation returns asynchronous release', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  const { beginPlaybackSession, PlaybackProvider } = await import('../../modules/audio/tts-playback-session.js')
+  let release!: () => void
+  const released = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  class Speech extends PlaybackProvider {
+    stream(_text: string, _volume?: number, callback?: (error?: unknown) => void) {
+      beginPlaybackSession(this, callback)?.addCleanup(() => released)
+    }
+  }
+  const runtime = new StackchanRuntimeAudio({ tts: new Speech() })
+  const speaking = assert.rejects(runtime.speak('hello'), { code: 'CLOSED' })
+  let closed = false
+  const closing = runtime.close().then(() => {
+    closed = true
+  })
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  assert.equal(closed, false)
+  release()
+  await closing
+  await speaking
 })

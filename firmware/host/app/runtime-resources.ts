@@ -28,7 +28,7 @@ export function ownMotionDriver<T extends MotionDriver>(scope: ResourceScope, dr
 export function ownTTS<T extends TTS>(scope: ResourceScope, tts: T): T {
   scope.defer(() => {
     if (tts.close) return tts.close()
-    tts.cancelPlayback?.(new StackchanError('CLOSED', 'Audio is closed'))
+    return tts.cancelPlayback?.(new StackchanError('CLOSED', 'Audio is closed'))
   })
   return tts
 }

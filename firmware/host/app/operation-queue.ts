@@ -55,6 +55,16 @@ export class OperationQueue {
   get closed(): boolean {
     return this.#closed
   }
+  get failure(): StackchanError | undefined {
+    return this.#failure
+  }
+
+  /** A provider confirmed a release failure even though its operation ended. */
+  fail(error: unknown): Promise<void> {
+    const failure = asStackchanError(error)
+    this.#fault(failure)
+    return this.close(failure)
+  }
 
   run<T>(
     start: () => T | Promise<T>,

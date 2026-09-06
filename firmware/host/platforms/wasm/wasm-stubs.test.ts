@@ -3,9 +3,10 @@ import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import FallbackCamera from '../../modules/camera/lin/camera.js'
-import { writeAliasPackage } from '../../modules/testing/node-alias-package.js'
+import { writeAliasPackage, writeAliasPackageSubpath } from '../../modules/testing/node-alias-package.js'
 
 const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
 writeAliasPackage(hostRoot, 'motion-port', resolve(hostRoot, 'modules/motion/motion-port.js'))
 writeAliasPackage(hostRoot, 'audio-buffer', resolve(hostRoot, 'modules/audio/audio-buffer.js'))
 writeAliasPackage(hostRoot, 'tts-playback-session', resolve(hostRoot, 'modules/audio/tts-playback-session.js'))

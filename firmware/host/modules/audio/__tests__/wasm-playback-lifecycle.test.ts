@@ -2,12 +2,13 @@ import assert from 'node:assert/strict'
 import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { writeAliasPackage } from '../../testing/node-alias-package.js'
+import { writeAliasPackage, writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
 import type { BorrowedAudioBuffer } from '../audio-buffer.js'
 import type { WasmAudioOutputBridge } from '../wasm/audio-bridge-contract.js'
 
 async function setup() {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+  writeAliasPackageSubpath(root, 'stackchan', 'errors', resolve(root, '../../sdk/errors.js'))
   writeAliasPackage(root, 'tts-playback-session', resolve(root, 'audio/tts-playback-session.js'))
   writeAliasPackage(root, 'wasm-audio-bridge-contract', resolve(root, 'audio/wasm/audio-bridge-contract.js'))
   const timers = new Set<() => void>()

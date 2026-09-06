@@ -1,7 +1,7 @@
 import Resource from 'Resource'
 import { renderStackchanVoiceKoeWav, renderStackchanVoiceWav } from 'stackchan-voice-wav'
 import StackchanVoice from 'stackchanvoice'
-import { beginPlaybackSession } from 'tts-playback-session'
+import { beginPlaybackSession, PlaybackProvider } from 'tts-playback-session'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 import { scheduleWasmAudioTimer, type WasmAudioOutputBridge } from 'wasm-audio-bridge-contract'
 
@@ -48,18 +48,13 @@ function getAudioBridge(): WasmAudioOutputBridge {
   )
 }
 
-export class TTS {
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
-  streaming = false
-  cancelPlayback?: (reason?: unknown) => void
+export class TTS extends PlaybackProvider {
   readonly volume: number
   readonly speed: number
   readonly voice: StackchanVoice
 
   constructor(props: TTSProperty = {}) {
-    this.onPlayed = props.onPlayed
-    this.onDone = props.onDone
+    super(props)
     this.volume = props.volume ?? 0.5
     this.speed = props.speed ?? 100
     const preset = props.voice === 'cute' ? StackchanVoice.Cute : StackchanVoice.Normal
@@ -95,51 +90,55 @@ export class TTS {
     })
     const finish = (error?: unknown) => (error === undefined ? session.onDone() : session.fail(error))
     const render = isKoe ? renderStackchanVoiceKoeWav : renderStackchanVoiceWav
-    void render(this.voice, source, {
-      schedule: (callback) => {
-        renderTick = callback
-        cancelRenderTimer = scheduleWasmAudioTimer(
-          audioBridge,
-          () => {
-            renderTick = undefined
-            callback()
+    void session
+      .waitFor(
+        render(this.voice, source, {
+          schedule: (callback) => {
+            renderTick = callback
+            cancelRenderTimer = scheduleWasmAudioTimer(
+              audioBridge,
+              () => {
+                renderTick = undefined
+                callback()
+              },
+              0,
+            )
           },
-          0,
-        )
-      },
-      isCancelled: () => session.closed,
-      speed: this.speed,
-      volume: volume ?? this.volume,
-    }).then(
-      (rendered) => {
-        if (session.closed) return
-        if (rendered.samples === 0) {
-          finish()
-          return
-        }
-
-        try {
-          playing = true
-          audioBridge.startPlayBuffer(rendered.buffer)
-          this.onPlayed?.(rendered.power)
-
-          const poll = () => {
-            if (session.closed) return
-            const status = audioBridge.playStatus()
-            if (status === 0) {
-              cancelPollTimer = scheduleWasmAudioTimer(audioBridge, poll, WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS)
-            } else if (status > 0) {
-              finish()
-            } else {
-              finish(new Error('stackchan-voice browser playback failed'))
-            }
+          isCancelled: () => session.closed,
+          speed: this.speed,
+          volume: volume ?? this.volume,
+        }),
+      )
+      .then(
+        (rendered) => {
+          if (session.closed) return
+          if (rendered.samples === 0) {
+            finish()
+            return
           }
-          poll()
-        } catch (error) {
-          finish(error)
-        }
-      },
-      (error) => finish(error),
-    )
+
+          try {
+            playing = true
+            audioBridge.startPlayBuffer(rendered.buffer)
+            session.onPower(rendered.power)
+
+            const poll = () => {
+              if (session.closed) return
+              const status = audioBridge.playStatus()
+              if (status === 0) {
+                cancelPollTimer = scheduleWasmAudioTimer(audioBridge, poll, WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS)
+              } else if (status > 0) {
+                finish()
+              } else {
+                finish(new Error('stackchan-voice browser playback failed'))
+              }
+            }
+            poll()
+          } catch (error) {
+            finish(error)
+          }
+        },
+        (error) => finish(error),
+      )
   }
 }

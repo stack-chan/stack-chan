@@ -11,6 +11,7 @@ import { finiteNumber, StackchanError } from 'stackchan/errors'
 import type { CancellationSignal } from 'stackchan/task'
 import { type Maybe, waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
+import { playbackReleaseFailure } from 'tts-playback-session'
 
 export type RuntimeAudioConstructorParam = {
   tts: TTS
@@ -18,7 +19,10 @@ export type RuntimeAudioConstructorParam = {
   ttsKind?: 'speech' | 'clips' | 'unavailable'
   simulated?: boolean
   microphone?: Pick<Microphone, 'record' | 'stop'> & { close?: () => void | Promise<void> }
-  speaker?: Pick<Speaker, 'tone' | 'play'> & { cancelPlayback?: (reason?: unknown) => void; close?: () => void }
+  speaker?: Pick<Speaker, 'tone' | 'play'> & {
+    cancelPlayback?: (reason?: unknown) => void | Promise<void>
+    close?: () => void | Promise<void>
+  }
   webRadio?: WebRadioCapability
 }
 
@@ -164,6 +168,11 @@ export class StackchanRuntimeAudio {
   }
 
   audioStatus(kind: 'speech' | 'clips' | 'tone'): CapabilityStatus {
+    if (this.#closed || this.#output.closed)
+      return {
+        availability: 'unavailable',
+        reason: this.#output.failure ? 'Audio output could not be released' : 'Audio is closed',
+      }
     const available = kind === 'tone' ? !!this.#speaker : kind === 'clips' ? !!this.#clips : this.#ttsKind === kind
     return available
       ? { availability: this.#simulated ? 'simulated' : 'native' }
@@ -189,12 +198,9 @@ export class StackchanRuntimeAudio {
     if (typeof text !== 'string' || text.length === 0 || text.length > 4096)
       throw new StackchanError('INVALID_ARGUMENT', 'Speech must be 1–4096 characters')
     if (options.volume !== undefined) finiteNumber(options.volume, 'volume', 0, 1)
-    await this.#output.run(
-      () => {
-        this.#webRadio?.stop()
-        return waitForCompletion((callback) => provider.stream(text, options.volume, callback))
-      },
-      (reason) => provider.cancelPlayback?.(reason),
+    await this.#runOutput(
+      provider,
+      () => waitForCompletion((callback) => provider.stream(text, options.volume, callback)),
       options.signal,
     )
   }
@@ -202,15 +208,11 @@ export class StackchanRuntimeAudio {
   async sing(koe: string, volume?: number): Promise<Maybe<string>> {
     try {
       if (volume !== undefined) finiteNumber(volume, 'volume', 0, 1)
-      await this.#output.run(
-        () => {
-          this.#webRadio?.stop()
-          const tts = this.#tts
-          if (!tts.streamKoe) throw new StackchanError('UNSUPPORTED', 'The active TTS does not support singing.')
-          return waitForCompletion((callback) => tts.streamKoe(koe, volume, callback))
-        },
-        (reason) => this.#tts.cancelPlayback?.(reason),
-      )
+      const tts = this.#tts
+      await this.#runOutput(tts, () => {
+        if (!tts.streamKoe) throw new StackchanError('UNSUPPORTED', 'The active TTS does not support singing.')
+        return waitForCompletion((callback) => tts.streamKoe(koe, volume, callback))
+      })
       return {
         success: true,
         value: koe,
@@ -246,24 +248,59 @@ export class StackchanRuntimeAudio {
     finiteNumber(duration, 'durationMs', 0, 60_000)
     if (volume !== undefined) finiteNumber(volume, 'volume', 0, 1)
     if (!this.#speaker) throw new StackchanError('UNSUPPORTED', 'This device does not support tone playback')
-    await this.#output.run(
-      () => {
-        this.#webRadio?.stop()
-        return this.#speaker.tone(hz, duration, volume)
-      },
-      (reason) => this.#speaker?.cancelPlayback?.(reason),
-      signal,
-    )
+    const speaker = this.#speaker
+    await this.#runOutput(speaker, () => speaker.tone(hz, duration, volume), signal)
   }
 
   async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
     if (!this.#speaker) return false
+    const speaker = this.#speaker
+    return this.#runOutput(speaker, () => speaker.play(buffer))
+  }
+
+  #runOutput<T>(
+    provider: { cancelPlayback?: (reason?: unknown) => void | Promise<void> },
+    start: () => T | Promise<T>,
+    signal?: CancellationSignal,
+  ): Promise<T> {
+    let settled: Promise<void> | undefined
+    const verifyRelease = () => {
+      const failure = playbackReleaseFailure(provider)
+      if (!failure) return
+      // Fault before handing the shared device to another provider. Waiting
+      // here would make this queue entry wait for its own cancellation.
+      void this.#output.fail(failure).catch(() => {})
+      throw failure
+    }
     return this.#output.run(
       () => {
         this.#webRadio?.stop()
-        return this.#speaker.play(buffer)
+        const playback = (async () => {
+          let result: T
+          try {
+            result = await start()
+          } catch (error) {
+            verifyRelease()
+            throw error
+          }
+          verifyRelease()
+          return result
+        })()
+        settled = playback.then(
+          () => {},
+          () => {},
+        )
+        return playback
       },
-      (reason) => this.#speaker?.cancelPlayback?.(reason),
+      (reason) => {
+        const failure = playbackReleaseFailure(provider)
+        if (failure) throw failure
+        if (provider.cancelPlayback) return provider.cancelPlayback(reason)
+        // A provider without cancellation must finish before its device can
+        // transfer. OperationQueue bounds that wait and faults on timeout.
+        return settled
+      },
+      signal,
     )
   }
 

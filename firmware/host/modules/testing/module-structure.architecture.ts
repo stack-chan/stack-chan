@@ -153,8 +153,11 @@ test('runtime modules own implementation manifests and tests under host/modules'
   }
 })
 
-test('production runtime imports use manifest module specifiers instead of relative paths', () => {
-  const offenders = PRODUCTION_MANIFEST_ROOTS.flatMap((root) => walkFiles(root))
+test('host runtime imports use manifest module specifiers instead of relative paths', () => {
+  // App-local dependencies are checked against the resolved graph by sdk-boundary.architecture.ts.
+  // Host imports retain manifest indirection so platform replacements select the implementation.
+  const offenders = ['host/app', 'host/modules', 'host/platforms']
+    .flatMap((root) => walkFiles(root))
     .filter(isSourceFile)
     .filter((path) => !isTestOrArchitectureTarget(path))
     .flatMap((sourcePath) =>

@@ -1,34 +1,25 @@
-import { randomBetween } from 'stackchan-util'
-import Timer from 'timer'
+import { defineApp } from 'stackchan'
 
-export function onContextCreated(robot) {
-  let isFollowing = false
-  robot.input.button.a.onEvent = (event) => {
-    if (event.pressed) {
-      trace('pressed A\n')
-      isFollowing = !isFollowing
-    }
-  }
-  robot.input.button.b.onEvent = (event) => {
-    if (event.pressed) {
-      trace('pressed B\n')
-    }
-  }
-  robot.input.button.c.onEvent = (event) => {
-    if (event.pressed) {
-      trace('pressed C\n')
-    }
-  }
-  const targetLoop = () => {
-    if (!isFollowing) {
-      robot.motion.lookAway()
+export default defineApp({
+  setup(app) {
+    const motion = app.motion.info
+    if (motion.availability === 'unavailable') {
+      app.ui.showBalloon('サーボの設定を確認してください')
       return
     }
-    const x = randomBetween(0.4, 1.0)
-    const y = randomBetween(-0.4, 0.4)
-    const z = randomBetween(-0.02, 0.2)
-    trace(`looking at: [${x}, ${y}, ${z}]\n`)
-    robot.motion.lookAt([x, y, z])
-  }
-  Timer.repeat(targetLoop, 5000)
-}
+    let running = false
+    app.ui.showBalloon('ボタンで見回しを開始・停止します')
+    app.input.onPress('primary', () => {
+      running = !running
+      if (!running) app.motion.lookAway()
+      app.ui.showBalloon(running ? '見回しています。ボタンで停止します' : '見回しを停止しました')
+    })
+    app.time.every(5000, () => {
+      if (!running) return
+      app.motion.lookAt({
+        yawDeg: Math.max(motion.yawDeg[0], Math.min(motion.yawDeg[1], Math.random() * 60 - 30)),
+        pitchDeg: Math.max(motion.pitchDeg[0], Math.min(motion.pitchDeg[1], Math.random() * 25 - 20)),
+      })
+    })
+  },
+})

@@ -2,17 +2,18 @@
   "format": "tech.stackchan.mod",
   "schemaVersion": 2,
   "id": "tech.stackchan.examples.monologue",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "text",
   "name": "monologue",
-  "description": "Legacy API 1 example; see docs/architecture/legacy-mod-migration.md for migration and hardware prerequisites.",
-  "appApiVersion": 1,
-  "hostApiVersion": 1,
+  "description": "主ボタンで独り言を話すSDKアプリ。自由文の合成と事前生成した素材の再生を使い分けます。",
+  "appApiVersion": 2,
+  "hostApiVersion": 2,
   "source": {
     "path": "manifest.json",
     "entrypoint": "mod.js"
   },
   "targets": ["portable"],
-  "capabilities": ["audio.speech", "input.buttons"],
+  "capabilities": ["audio.speech", "audio.clips", "input.primary"],
+  "optionalCapabilities": ["audio.speech", "audio.clips"],
   "entrypoints": ["mod"]
 }

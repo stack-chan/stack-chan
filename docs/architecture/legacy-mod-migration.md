@@ -40,3 +40,9 @@
 | `stackchan_minigames` | `miniapp.ts` | ui.miniApps | portable |
 | `unit_temperature` | `mod.js` | extension.sensor.sht3x, ui.drawer | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `web_radio` | `mod.ts` | audio.webRadio, connectivity.network, ui.drawer, ui.effects | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+
+## 現在の整理方針と移行済みの例（2026-09-06）
+
+上表は旧 API の依存を記録したもの。全32例の「移行」「統合」の分類、保持する機能、必要な SDK、対応する撤去経路は [旧経路の撤去台帳](firmware-retirement-plan.md) に記録した。`look_around` と `monologue` は SDK 世代2へ移行し、主入力・所有された周期処理／音声を使う。残る30例の移行・統合は未実装。機種サポートや独立した機能を、分類だけで削除済みとはしない。
+
+移行済みの例は公開 SDK の strict 検査と解決済み import graph の検査へ含める。自由文と素材再生の区別・再生中の連打・見回し停止・終了後の入力とタイマー解除・未対応時の案内を単体試験で確認し、2例の archive を WASM 上で実行した。実機・初学者による受入は未実施。

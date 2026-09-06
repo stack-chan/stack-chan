@@ -4,7 +4,17 @@ import { resolve } from 'node:path'
 import { chromium, errors as playwrightErrors } from 'playwright-core'
 import { resolveChromium, startPreview } from '../test-preview-server.mjs'
 
-const allLessons = ['01-face', '02-tone', '03-input', '04-speech', '05-motion', '06-camera', '07-recording']
+const allLessons = [
+  '01-face',
+  '02-tone',
+  '03-input',
+  '04-speech',
+  '05-motion',
+  '06-camera',
+  '07-recording',
+  'look_around',
+  'monologue',
+]
 const requested = process.argv.slice(2)
 assert.ok(
   requested.every((name) => allLessons.includes(name)),
@@ -181,9 +191,19 @@ try {
       await page.getByRole('button', { name: 'A', exact: true }).click()
       await page.waitForFunction(() => window.sdkLessonAudio.tones.includes(660))
     }
-    if (lessons[index] === '04-speech') {
+    if (lessons[index] === '04-speech' || lessons[index] === 'monologue') {
       await page.getByRole('button', { name: 'A', exact: true }).click()
       await page.waitForFunction(() => window.sdkLessonAudio.buffers.some((frames) => frames > 0))
+    }
+    if (lessons[index] === 'look_around') {
+      await page.evaluate(() => {
+        window.sdkLessonMotion = []
+      })
+      await page.getByRole('button', { name: 'A', exact: true }).click()
+      await page.waitForFunction(() =>
+        window.sdkLessonMotion.some((move) => Math.abs(move.y) + Math.abs(move.p) > 0.001)
+      )
+      await page.getByRole('button', { name: 'A', exact: true }).click()
     }
     if (lessons[index] === '05-motion') {
       await page.evaluate(() => {

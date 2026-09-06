@@ -1,3 +1,5 @@
+import type { AppDefinition } from 'stackchan/app'
+
 export type AppBehaviorModules = {
   has(specifier: string): boolean
   importNow(specifier: string): unknown
@@ -26,21 +28,6 @@ export function resolveAppProgram<TBehavior extends object>(
   return { generation: 1, behaviors: [mergeDefinedBehavior(defaultBehavior, candidate)] }
 }
 
-export function resolveAppBehaviors<TBehavior extends object>(
-  modules: AppBehaviorModules,
-  defaultBehavior: TBehavior,
-  onImportError?: (error: unknown) => void,
-): TBehavior[] {
-  if (modules.has('mod')) {
-    try {
-      return [mergeDefinedBehavior(defaultBehavior, modules.importNow('mod') as Partial<TBehavior>)]
-    } catch (error) {
-      onImportError?.(error)
-    }
-  }
-  return [defaultBehavior]
-}
-
 function mergeDefinedBehavior<TBehavior extends object>(
   defaultBehavior: TBehavior,
   modBehavior: Partial<TBehavior>,
@@ -54,5 +41,3 @@ function mergeDefinedBehavior<TBehavior extends object>(
   }
   return behavior
 }
-
-import type { AppDefinition } from 'stackchan/app'

@@ -10,6 +10,7 @@ async function setup() {
   const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackageSubpath(resolve(hostRoot, '..'), 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
+  writeAliasPackage(resolve(hostRoot, '..'), 'stackchan', resolve(hostRoot, '../sdk/app.js'))
   for (const name of ['owned-resources', 'cancellation', 'task-scope']) {
     writeAliasPackage(hostRoot, name, resolve(hostRoot, `app/${name}.js`))
   }
@@ -82,6 +83,127 @@ function fixture() {
   }
   return { clock, presses, errors, ports }
 }
+
+test('look-around uses bounded angles, stops on the next press, and leaves no timer after closing', async () => {
+  const { AppSession } = await setup()
+  const { default: app } = await import('../../mods/examples/look_around/mod.js')
+  const f = fixture()
+  const targets: Array<{ yawDeg: number; pitchDeg: number }> = []
+  let stopped = 0
+  f.ports.motion = {
+    ...f.ports.motion,
+    info: {
+      availability: 'simulated',
+      feedback: 'estimated',
+      canRelax: false,
+      yawDeg: [8, 12],
+      pitchDeg: [-5, 5],
+    },
+  }
+  f.ports.motion.lookAt = (target) => targets.push(target)
+  f.ports.motion.lookAway = () => {
+    stopped++
+  }
+  const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  await session.start(app)
+  f.clock.tick()
+  await flush()
+  assert.equal(targets.length, 0, 'the app waits for the user to start')
+  const press = [...f.presses][0]
+  press()
+  await flush()
+  for (let i = 0; i < 20; i++) {
+    f.clock.tick()
+    await flush()
+  }
+  assert.ok(targets.length > 0)
+  for (const target of targets) {
+    assert.ok(target.yawDeg >= 8 && target.yawDeg <= 12)
+    assert.ok(target.pitchDeg >= -5 && target.pitchDeg <= 5)
+  }
+  press()
+  await flush()
+  assert.equal(stopped, 1, 'pressing stop removes gaze immediately')
+  const count = targets.length
+  f.clock.tick()
+  await flush()
+  assert.equal(targets.length, count)
+  await session.close()
+  press()
+  f.clock.tick()
+  await flush()
+  assert.equal(targets.length, count)
+  assert.equal(f.presses.size, 0)
+  assert.equal(f.clock.jobs.size, 0)
+  assert.deepEqual(f.errors, [])
+})
+
+test('monologue sends natural language to speech and resource names to clips without overlapping presses', async () => {
+  const { AppSession } = await setup()
+  const { default: app } = await import('../../mods/examples/monologue/mod.js')
+  const { speeches } = await import('../../mods/examples/monologue/speeches_monologue.js')
+  for (const speech of [true, false]) {
+    const f = fixture()
+    const calls: Array<[string, string]> = []
+    let finish!: () => void
+    f.ports.capabilities.get = (id) =>
+      id === 'audio.speech' && !speech
+        ? { availability: 'unavailable', reason: 'clips only' }
+        : { availability: 'native' }
+    const play = (kind: string, text: string) => {
+      calls.push([kind, text])
+      return new Promise<void>((resolve) => {
+        finish = resolve
+      })
+    }
+    f.ports.audio.say = (text) => play('speech', text)
+    f.ports.audio.playClip = (name) => play('clip', name)
+    const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+    await session.start(app)
+    const press = [...f.presses][0]
+    press()
+    press()
+    await flush()
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0][0], speech ? 'speech' : 'clip')
+    assert.ok((speech ? Object.values(speeches) : Object.keys(speeches)).includes(calls[0][1]))
+    finish()
+    await flush()
+    press()
+    await flush()
+    assert.equal(calls.length, 2, 'another press works after playback finishes')
+    finish()
+    await flush()
+    await session.close()
+    press()
+    await flush()
+    assert.equal(calls.length, 2)
+    assert.equal(f.presses.size, 0)
+    assert.deepEqual(f.errors, [])
+  }
+})
+
+test('SDK examples show a setup hint without installing unusable controls when their devices are unavailable', async () => {
+  const { AppSession } = await setup()
+  const apps = [
+    (await import('../../mods/examples/look_around/mod.js')).default,
+    (await import('../../mods/examples/monologue/mod.js')).default,
+  ]
+  for (const app of apps) {
+    const f = fixture()
+    const hints: string[] = []
+    f.ports.capabilities.get = () => ({ availability: 'unavailable', reason: 'no device' })
+    f.ports.ui.showBalloon = (text) => hints.push(text)
+    const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+    await session.start(app)
+    assert.equal(hints.length, 1)
+    assert.ok(hints[0].length > 0)
+    assert.equal(f.presses.size, 0)
+    assert.equal(f.clock.jobs.size, 0)
+    await session.close()
+    assert.deepEqual(f.errors, [])
+  }
+})
 
 test('setup completes while registrations stay alive; presses do not overlap', async () => {
   const { AppSession, defineApp } = await setup()

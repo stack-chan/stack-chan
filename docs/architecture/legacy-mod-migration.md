@@ -22,12 +22,12 @@
 | `face` | `mod.js` | SDK face, ui.controls | portable / simulator |
 | `face_tracker` | `mod.js` | motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `image_avatar_lite` | `mod.js` | face, ui.imageAvatar | portable |
-| `light` | `mod.js` | lighting, input.buttons | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `light` | 統合 → `board_diagnostics/mod.js` | SDK lighting・入力・UI | portable / simulator（機器の不在を表示） |
 | `lip_sync` | `mod.js` | face, audio.record | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `local_peer_hello` | `mod.js` | connectivity.localPeer, ui.drawer | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `localized_drawer` | 統合 → `face/mod.js` | SDK ui.controls・三言語の辞書 | 単独 archive を撤去 |
 | `look_around` | `mod.js` | motion, input.buttons | portable |
-| `m5stackchan_smoke` | `mod.js` | motion, lighting | m5stackchan-cores3 |
+| `m5stackchan_smoke` | 統合 → `board_diagnostics/mod.js` | SDK motion・lighting・UI | CoreS3のhead LEDと自動診断を保持 |
 | `mcp` | `mod.js` | face, audio.speech, connectivity.network, ui.drawer | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `mediapipe_ble` | `mod.js` | connectivity.localPeer, motion, ui.effects | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `mimic_follow` | `mod.js` | motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
@@ -59,3 +59,10 @@
 `face` を SDK のUI拡張へ移し、周期的な表情・色・吹き出し・眠気の装飾を保持した。`localized_drawer` のメニューと三言語の辞書はこの例へ統合し、旧プログラムと単独archiveのmanifestを削除した。レイアウトとフォントはホストの共通表示を使う。最小host APIは4。
 
 元の32例のうち8例がSDKの5パッケージへ移行・統合済みで、残る24例は未移行。既定動作もSDKへ移り、旧通常MODはその動作を継承しない。残る旧MODの起動とraw context自体の撤去は未完了。検証結果と未受入の項目は [実装記録](firmware-sdk-redesign-progress.md) に記載する。
+
+
+## LED とCoreS3診断の統合（2026-09-06）
+
+`light` と `m5stackchan_smoke` は [board_diagnostics](../../firmware/mods/examples/board_diagnostics/README_ja.md) へ統合し、旧プログラムと単独manifestを撤去した。自動診断、CoreS3のhead LED、全LEDモード、A/B/Cの操作を保持し、機器なし・故障時の案内と終了時の取消しをSDKへ揃えた。最小host APIは5。USB診断runnerと手順も統合先を使う。
+
+元の32例のうち10例がSDKの6パッケージへ移行・統合済み、22例は未移行。実機による動作・トルク・LEDの受入と初学者の受入は未完了。自動試験・ビルド・ブラウザーの結果は [実装記録](firmware-sdk-redesign-progress.md) を参照する。

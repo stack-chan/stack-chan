@@ -454,3 +454,19 @@ Chromiumの実ホストでは、設定画面を自動起動の期限より長く
 計測: 直前 `a9d6653` に対し製品ソースは5ファイル・154物理行増え、471ファイル・59,769行になった。既定動作の削除を含めても、共通SDKと所有処理の新設が上回っている。起点 `6eb4623` から52ファイル・7,067行増で、純減条件は未達。サンプルは41行減。詳細は [撤去台帳](firmware-retirement-plan.md) に記録した。
 
 残る範囲は24例・Blockly、会話・設定・通信等の公開拡張と既存資源の調停、V1・raw context・設定別名・旧archiveの撤去、能力metadataと全入口、製品コード量純減、実機・初学者の受入。今回の単位をもってF1〜F12全体の完了とはしない。
+
+
+## LED とボード診断の統合・故障後のトルク解放（2026-09-06）
+
+対象ソースは `3e69e709bffedb5da70ccfc61e363d314532a5f5`。[board_diagnostics](../../firmware/mods/examples/board_diagnostics/README_ja.md) へ `light` と `m5stackchan_smoke` を統合した。元の32例のうち10例をSDKの6パッケージへ移行・統合済み、22例は未移行。
+
+- 起動1秒後の自動診断、サーボの小さい往復と解放、CoreS3のhead LEDの赤・緑点滅・虹・消灯、A/B/Cの手動操作を保持した。メニューからの再実行とLED名の選択を追加。サーボ失敗後もLEDを確認し、機器なし・失敗・シミュレーションを実機合格としない。待機と操作、使用したLEDはAppSessionが終了時に解放する。
+- host API 5に `lighting.blink(name, color, { periodMs })` を追加した。periodMsは点灯・消灯を合わせた1周期で、100〜86,400,000 ms。実体のある機器の効果へ接続し、アプリ側の点滅タイマーは作らない。
+- 故障でmotionが利用不可になった後も、`relax()` は解放を試す。位置保持と解放の両方が失敗した場合は最初の失敗を保持し、故障したキューやドライバーを動作可能に戻さない。通常の停止・解放完了待ち・機種のcanRelaxは保持する。
+- 旧2例のプログラムと単独manifest、未使用のflat lighting 4メソッド・led getter・二重のcapability adapterを撤去した。旧namespaced lightingはBlocklyの利用者として残る。USB診断runnerを統合先へ更新し、通常wrapperでの生成物検証とhost書込、失敗を成功より優先する結果判定へ接続した。実機に接続するrunner自体の受入と、mcrunによる書込前の実機metadata検査は未完了。
+
+検証: firmware単体530件、構成78件、SDK strict、6対象のmanifest検査、全60 XS manifest（77.3秒）が成功。故障後の解放、両方の解放失敗、診断中の再操作、機器なし、途中終了を含む。Piuの初回表示は実フレームを待ち、並列時の起動遅延にも余裕を持つ期限へ修正した。
+
+CoreS3 6,621,136 bytes、Takao Core2 SG90 3,923,680 bytes、Stackchan RT 4,044,336 bytesのreleaseとWASMを生成し、3つのnativeバイナリーで `9.5.0+stackchan.5` を確認した。新MODのarchive、Webビルド、Chromiumの11教材・例とcameraの解放が成功。最後のmotion修正後はnative/WASM/Webを再生成し、既定アプリ・見回し・診断とMOD復旧を再確認した。USB機器・物理的なトルクやLED・初学者の受入は未実施。
+
+計測: 直前の `77bc4f2` に対し製品ソースは69物理行減り、471ファイル・59,700行。サンプルは44行増、試験・補助は158行増、開発ツールは9行増。起点に対してまだ52ファイル・6,998行の製品純増で、全体の純減条件は未達。残る22例・Blockly・V1/raw context・会話/設定/通信・全入口・実機と初学者受入を引き続き扱う。

@@ -1,0 +1,126 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  // Includes digest pinning for Docker and GitHub Actions, a seven-day npm
+  // release cooldown, exact direct npm versions, abandonment warnings,
+  // and weekly lock-file maintenance.
+  "extends": ["config:best-practices", ":enableVulnerabilityAlerts"],
+
+  "enabledManagers": ["dockerfile", "github-actions", "npm", "nvm"],
+  "timezone": "Asia/Tokyo",
+  "schedule": ["* 0-5 * * 1"],
+  "prConcurrentLimit": 6,
+  "prHourlyLimit": 2,
+
+  // Dependency updates always require human review. Package install scripts
+  // are not needed for lock-file updates and must not run in Renovate.
+  "automerge": false,
+  "ignoreScripts": true,
+
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+
+  // GitHub vulnerability alerts bypass the regular schedule, cooldown, and
+  // dashboard approval. Keep each remediation isolated for urgent review.
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "prConcurrentLimit": 5,
+  },
+
+  // OSV also blocks updates to versions reported as malicious. This provides
+  // direct-dependency coverage even when GitHub vulnerability alerts are off.
+  "osvVulnerabilityAlerts": true,
+  "dependencyDashboardOSVVulnerabilitySummary": "unresolved",
+
+  "packageRules": [
+    {
+      "description": "Wait seven days before proposing normal npm version updates",
+      "matchDatasources": ["npm"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "minimumReleaseAge": "7 days",
+      "internalChecksFilter": "strict",
+    },
+    {
+      "description": "Pin direct npm dependencies for reproducible application builds",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["dependencies", "devDependencies"],
+      "rangeStrategy": "pin",
+    },
+    {
+      "description": "Group compatible firmware dependency updates",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["firmware/**"],
+      "matchUpdateTypes": ["minor", "patch", "pin"],
+      "groupName": "firmware non-major dependencies",
+      "groupSlug": "firmware-non-major",
+    },
+    {
+      "description": "Group compatible web runtime dependency updates",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["web/**"],
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["minor", "patch", "pin"],
+      "groupName": "web runtime non-major dependencies",
+      "groupSlug": "web-runtime-non-major",
+    },
+    {
+      "description": "Group compatible web development dependency updates",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["web/**"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch", "pin"],
+      "groupName": "web development non-major dependencies",
+      "groupSlug": "web-development-non-major",
+    },
+    {
+      "description": "Group compatible GitHub Actions updates and digest pins",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["digest", "minor", "patch", "pin", "pinDigest"],
+      "groupName": "GitHub Actions non-major dependencies",
+      "groupSlug": "github-actions-non-major",
+    },
+    {
+      "description": "Keep the Node.js major version aligned across development and CI",
+      "matchManagers": ["dockerfile", "github-actions", "nvm"],
+      "matchDepNames": ["node"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "groupName": "Node.js",
+      "groupSlug": "node",
+    },
+    {
+      "description": "Keep firmware lock-file maintenance separate from web",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["firmware/**"],
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "groupName": "firmware lock-file maintenance",
+      "groupSlug": "firmware-lock-file-maintenance",
+    },
+    {
+      "description": "Keep web lock-file maintenance separate from firmware",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["web/**"],
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "groupName": "web lock-file maintenance",
+      "groupSlug": "web-lock-file-maintenance",
+    },
+    {
+      "description": "Keep potentially breaking minor updates for 0.x packages isolated",
+      "matchManagers": ["npm"],
+      "matchCurrentVersion": "<1.0.0",
+      "matchUpdateTypes": ["minor"],
+      "groupName": null,
+    },
+    {
+      "description": "Create major-update PRs only after approval in the Dependency Dashboard",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+    },
+    {
+      "description": "Update @moddable/typings manually together with the Moddable SDK",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@moddable/typings"],
+      "enabled": false,
+    },
+  ],
+}

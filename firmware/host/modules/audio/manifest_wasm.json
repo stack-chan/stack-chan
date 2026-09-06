@@ -2,6 +2,7 @@
   "include": [
     "../../../sdk/manifest.json",
     "../../../contracts/manifest_recording.json",
+    "../../../contracts/manifest_playback.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "../../app/manifest_typings.json",
     "../../../vendor/stackchan-voice/manifest.json"
@@ -11,6 +12,7 @@
     "recording-wave": "./recording-wave",
     "wasm-audio-bridge": "./wasm/audio-bridge",
     "wasm-audio-bridge-contract": "./wasm/audio-bridge-contract",
+    "wasm-audio-playback": "./wasm/audio-playback",
     "speaker": "./wasm/speaker",
     "microphone": "./wasm/microphone",
     "audio-in": "./wasm/audio-in",

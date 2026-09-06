@@ -36,6 +36,26 @@ function fakeTTS() {
   }
 }
 
+test('audio capabilities track backend availability without starting a playback', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  let available = false
+  const probe = () => available
+  const runtime = new StackchanRuntimeAudio({
+    tts: { ...fakeTTS(), available: probe },
+    clipPlayer: { ...fakeTTS(), available: probe },
+    speaker: { available: probe, tone: async () => {}, play: async () => true },
+    simulated: true,
+  })
+  for (const kind of ['speech', 'clips', 'tone'] as const)
+    assert.equal(runtime.audioStatus(kind).availability, 'unavailable')
+  available = true
+  for (const kind of ['speech', 'clips', 'tone'] as const)
+    assert.equal(runtime.audioStatus(kind).availability, 'simulated')
+  await runtime.close()
+  assert.equal(runtime.audioStatus('tone').availability, 'unavailable')
+})
+
 test('V2 audio keeps text and resource playback separate while sharing one output queue', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule

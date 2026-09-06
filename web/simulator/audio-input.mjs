@@ -257,7 +257,8 @@ export function createHostAudioInBridge({
     if (!op.stopping && !op.settled) after(op, op.durationMs, () => requestStop(op))
   }
   function startRecord(durationMs = DEFAULT_RECORDING_DURATION_MS) {
-    if (operations.size >= 4) return 0
+    // A retiring VM must not retain new handles after suspend's snapshot.
+    if (suspended || operations.size >= 4) return 0
     do {
       nextId = (nextId % 0x7fffffff) + 1
     } while (operations.has(nextId))
@@ -375,7 +376,11 @@ export function createHostAudioInBridge({
     releaseRecord,
     async record(durationMs = DEFAULT_RECORDING_DURATION_MS) {
       const id = startRecord(durationMs)
-      if (!id) throw failure('BUSY', 'Too many retained recording handles')
+      if (!id)
+        throw failure(
+          closed ? 'CLOSED' : 'BUSY',
+          closed ? 'Microphone bridge is closed' : 'Microphone cannot accept a recording'
+        )
       try {
         return await operations.get(id).result.promise
       } finally {

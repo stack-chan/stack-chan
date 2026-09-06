@@ -32,7 +32,7 @@ import {
   screenPointFromUv,
   stepRotationToward,
 } from '../../../simulator/geometry.mjs'
-import { closeResources, stopRuntimeCamera } from '../../../simulator/lifecycle.mjs'
+import { closeResources, stopRuntimeCamera, transitionRuntimeAudio } from '../../../simulator/lifecycle.mjs'
 import { createModStorage } from '../../../simulator/mod-storage.mjs'
 
 const DRIVER_MAX_ANGULAR_SPEED = 2.4
@@ -423,15 +423,15 @@ class WasmView {
   }
 
   dispose() {
-    if (this.disposed) return this.audioInputClosed
+    if (this.disposed) return this.audioClosed
     this.disposed = true
     try {
       closeResources([
         () => {
-          this.audioInputClosed = this.runtime.host?.AudioIn?.close()
+          this.audioClosed = transitionRuntimeAudio(this.runtime.host, 'close')
           // React cleanup cannot await this. The bridge still owns late media
           // requests and its release failure must always be observed.
-          this.audioInputClosed?.catch((error) => console.error('[bridge] microphone release failed', error))
+          this.audioClosed.catch((error) => console.error('[bridge] audio release failed', error))
         },
         () => this.#clearPendingReady(),
         () => stopRuntimeCamera(this.runtime),
@@ -453,7 +453,7 @@ class WasmView {
       this.fxMainQuit = undefined
       this.fxMainTouch = undefined
     }
-    return this.audioInputClosed
+    return this.audioClosed
   }
 
   async #loadWasm() {
@@ -627,8 +627,8 @@ class WasmView {
       throw new Error('WASM is not ready')
     }
     console.log('[bridge] restart simulator')
-    await this.runtime.host?.AudioIn?.suspend()
-    if (this.disposed) throw new Error('Simulator was closed while stopping its microphone')
+    await transitionRuntimeAudio(this.runtime.host, 'suspend')
+    if (this.disposed) throw new Error('Simulator was closed while stopping its audio')
     stopRuntimeCamera(this.runtime)
     this.#quitFirmware()
     this.interval = 0
@@ -641,7 +641,8 @@ class WasmView {
     if (this.disposed) throw new Error('Simulator was closed before firmware launch')
     this.#awaitFirmwareReady(installation.result)
     try {
-      this.runtime.host?.AudioIn?.resume()
+      await transitionRuntimeAudio(this.runtime.host, 'resume')
+      if (this.disposed) throw new Error('Simulator was closed before firmware launch')
       this.launch(installation.pointer)
     } catch (error) {
       this.#clearPendingReady()
@@ -918,7 +919,7 @@ export class SimulatorEngine {
   }
 
   dispose() {
-    if (this.disposed) return this.audioInputClosed
+    if (this.disposed) return this.audioClosed
     this.disposed = true
     closeResources([
       () => {
@@ -926,11 +927,10 @@ export class SimulatorEngine {
       },
       () => this.unbindViewport?.(),
       () => {
-        this.audioInputClosed = this.wasmView.dispose()
+        this.audioClosed = this.wasmView.dispose()
       },
       () => this.scene.dispose(),
-      () => this.audioOutBridge.close(),
     ])
-    return this.audioInputClosed
+    return this.audioClosed
   }
 }

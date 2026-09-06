@@ -9,7 +9,7 @@ F2 / F3 / F9の録音経路を扱う。公開SDKの録音・再生API、AppSessi
 | WASM Microphone | 一つの録音識別子、ポーリングと期限のTimer、取消し購読 | 自分の録音を停止し、ブラウザーの解放確認後に完了する |
 | C bridge | XSへコピーする録音バッファ | 識別子をブラウザーへ渡す。音声入力のPromiseや状態を重ねて保持しない |
 | Browser AudioIn | getUserMediaの継続処理、MediaStream、MediaRecorder、データ変換、停止期限 | 停止通知とデータ変換の終了を待ち、すべての入力trackを止める |
-| WasmView | ホストに接続したBrowser AudioInの寿命 | 再起動ではsuspendを待ち、次のVM起動直前にresumeする。破棄ではcloseを開始し、その失敗も観測する |
+| WasmView | ホストに接続したBrowser AudioIn / AudioOutの寿命 | 再起動では両者のsuspendを待ち、次のVM起動直前にresumeする。破棄では両者のcloseを開始し、その失敗も観測する |
 
 識別子は同じブラウザーサービスで再利用中のものと重ならない。古いMicrophoneのstop / closeが次の録音や音声出力を閉じることはない。録音結果をコピーした後、Microphoneがブラウザー側の識別子を返す。WASM側の音声出力closeは出力だけを対象とする。
 

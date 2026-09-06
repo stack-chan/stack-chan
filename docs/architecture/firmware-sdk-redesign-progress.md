@@ -322,3 +322,24 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - Webの型検査・ビルドとChromiumの6教材の再実行が成功。発話は非空のPCMとWeb Audioの開始まで、カメラは画像表示と撮影・再起動時のtrack解放までを確認した。実機音声と課金APIは未受入。
 
 残る範囲: AppSessionの音声所有、WASM出力bridgeの停止確認とtoneの実行確認、録音・再生・会話・設定・拡張の公開SDK、音声合成器とプロバイダー交換の寿命、会話・USB・Web Radioの調停、旧MOD移行、既定動作、ボード・能力metadata、全ビルド入口、実機・初学者受入。F1〜F10全体は継続して未完了。
+
+## WASM音声出力とVM終了の同期（2026-09-06）
+
+詳細は [WASM音声出力の所有と終了確認](wasm-playback-lifecycle.md)。F2 / F3 / F9の出力bridgeと、F10の実行環境の検証を進めた。
+
+- Browser AudioOutが再生識別子ごとにAudioContext・source・gain・resume / decodeの継続処理を所有する。Cにあった出力状態の重複、WASM Speaker / TTSごとのポーリング、Host.AudioOutへの直接フォールバックを取り除いた。
+- toneとバッファ再生は実際のonendedと解放確認の後に完了する。終了通知なしを時間経過だけで成功にせず、停止・切断・closeの失敗は保持して出力の再利用を止める。停止後の古い識別子が次の再生を閉じない。
+- 音声の3 MiB / 60秒上限と準備・再生・解放の期限を共通契約へ集約した。decodeAudioDataは入力をdetachするため、ブラウザー内の借用バイトをコピーして保持する。デコード後のピークメモリーの保証とはしない。
+- WasmViewは入力と出力の停止を両方待ってから再起動する。破棄も両者のcloseを所有し、失敗を観測する。停止対象の列挙後に旧VMから来る要求は識別子を確保させず、次のVMの保持枠を消費しない。
+- WASMのSpeakerとstackchan-voiceが出力の利用可否を返し、RuntimeAudioの能力表示へ接続した。ブラウザー固有の数値エラーコードはIOへ正規化する。内部bridgeの互換性が変わるため、firmware / Webともmajorのchangesetを付けた。
+
+検証:
+
+- firmwareのNode 507件、構成検査78件、SDK strict、6機種のmanifest検査が成功。Speakerの旧Node試験4件をXSへ移し、能力表示の動作試験を1件加えたため、直前の510件から総数は減っている。
+- 全62 XS manifestが成功（4並列、83.9秒）。新しいWASM再生試験はpreloadと実Timerを使い、100回の成功と100回の取消し、停止確認待ち、期限、解放失敗、レンダラーの取消しと実WAV生成を検証した。
+- CoreS3 release 6,559,696 bytes、Takao Core2 3,862,240 bytes、Stack-chan RT 3,982,896 bytesとWASMを生成した。nativeの全バイナリーで9.5.0+stackchan.2を確認した。
+- 最終WebソースでNode 252件、React 67件、型検査とビルドが成功。DOMExceptionと停止中の識別子発行の修正を含む。100回のsuspend / resumeでも次のVMの保持枠がすべて回収される。
+- 最終ビルドでChromiumの音声結合試験が成功。実MediaRecorderの録音バイトのXS / C往復、Web Audio再生・tone・取消し、再生中・デコード待ち中の再起動、入力とデコードが進行中の画面破棄を確認した。実AudioContextの同時所有は最大1件で、遅いデコードから旧VMのsourceを開始しない。
+- 同じ最終ビルドで6教材の起動・操作、カメラの画像表示と撮影・再起動時のtrack解放が成功。物理音声や他ブラウザーの受入は未実施。
+
+残る範囲: AppSessionの音声所有、録音・再生・会話・設定・拡張の公開SDK、音声合成器とプロバイダー交換、会話・USB・Web Radioの調停、旧MODと既定動作の移行、ボード・能力metadata、全ビルド入口、実機・初学者受入。F1〜F10全体は引き続き未完了。

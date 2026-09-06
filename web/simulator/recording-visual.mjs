@@ -32,7 +32,40 @@ try {
       grants: [],
       events: [],
       buffers: {},
+      played: [],
+      activeContexts: 0,
+      maxContexts: 0,
+      holdDecode: false,
+      decodes: [],
+      sourceStarts: 0,
     })
+    const NativeAudioContext = window.AudioContext
+    window.AudioContext = class extends NativeAudioContext {
+      constructor(...args) {
+        super(...args)
+        state.activeContexts++
+        state.maxContexts = Math.max(state.maxContexts, state.activeContexts)
+      }
+      async close() {
+        await super.close()
+        state.activeContexts--
+      }
+      async decodeAudioData(buffer) {
+        const hold = state.holdDecode
+        const decoded = await super.decodeAudioData(buffer)
+        if (hold) return new Promise((resolve) => state.decodes.push(() => resolve(decoded)))
+        return decoded
+      }
+      createBufferSource() {
+        const source = super.createBufferSource(),
+          start = source.start.bind(source)
+        source.start = (...args) => {
+          state.sourceStarts++
+          return start(...args)
+        }
+        return source
+      }
+    }
     const media = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
     navigator.mediaDevices.getUserMedia = async function (options) {
       const hold = state.hold
@@ -68,7 +101,7 @@ try {
         const state = window.recordingTest;
         const input = options.stackchanRuntime.host.AudioIn;
         const output = options.stackchanRuntime.host.AudioOut;
-        const buffer = input.recordBuffer, close = output.close, print = options.print;
+        const buffer = input.recordBuffer, close = output.close, play = output.startPlayBuffer, print = options.print;
         input.recordBuffer = function(id) {
           const result = buffer.call(this, id);
           if (result) {
@@ -78,6 +111,12 @@ try {
             state.buffers[id] = { bytes: result.byteLength, sum, mimeType: details.mimeType, filename: details.filename };
           }
           return result;
+        };
+        output.startPlayBuffer = function(buffer, volume) {
+          let sum = 0;
+          for (const byte of new Uint8Array(buffer)) sum = (sum + byte) >>> 0;
+          state.played.push({ bytes: buffer.byteLength, sum });
+          return play.call(this, buffer, volume);
         };
         output.close = function() { state.events.push({ kind: 'output-close' }); return close.call(this); };
         options.print = text => {
@@ -127,8 +166,47 @@ try {
     }
     assert.equal(state.tracks, 0, 'completed and cancelled recordings release every media track')
     assert.equal(state.maxTracks, 1, 'old and new firmware never own microphone streams simultaneously')
+    assert.equal(state.activeContexts, 0, 'firmware completion waits for AudioContext close')
+    assert.equal(state.maxContexts, 1, 'successive playbacks never overlap browser contexts')
+    for (const buffer of recorded) {
+      assert.ok(
+        state.played.some((played) => played.bytes === buffer.bytes && played.sum === buffer.sum),
+        'XS returns every recorded byte to the browser playback boundary'
+      )
+    }
+    assert.ok(state.events.some((event) => event.text?.includes('tone completed')))
+    assert.ok(state.events.some((event) => event.text?.includes('tone cancelled')))
     assert.deepEqual(errors, [], messages.slice(-30).join('\n'))
   }
+  assertResults(await page.evaluate(() => window.recordingTest))
+
+  // A running oscillator must be closed before the next firmware VM starts.
+  await page.getByRole('button', { name: 'C', exact: true }).click()
+  await page.waitForFunction(() => window.recordingTest.activeContexts === 1)
+  await Promise.all([ready(), page.getByRole('button', { name: '再起動', exact: true }).click()])
+  assertResults(await page.evaluate(() => window.recordingTest))
+
+  // Hold an actual decode result across restart; it must not create a late source.
+  await page.evaluate(() => {
+    window.recordingTest.holdDecode = true
+  })
+  await page.getByRole('button', { name: 'B', exact: true }).click()
+  await page.waitForFunction(() => window.recordingTest.decodes.length === 1)
+  const startsBefore = await page.evaluate(() => window.recordingTest.sourceStarts)
+  const outputRestarting = ready()
+  await page.getByRole('button', { name: '再起動', exact: true }).click()
+  await page.waitForFunction(() => window.recordingTest.activeContexts === 0)
+  assert.equal(await page.evaluate(() => window.recordingTest.sourceStarts), startsBefore)
+  await page.evaluate(() => {
+    window.recordingTest.holdDecode = false
+    window.recordingTest.decodes.shift()()
+  })
+  await outputRestarting
+  assert.equal(
+    await page.evaluate(() => window.recordingTest.sourceStarts),
+    startsBefore + 3,
+    'only the next VM creates its three recording sources'
+  )
   assertResults(await page.evaluate(() => window.recordingTest))
 
   await page.getByRole('button', { name: 'A', exact: true }).click()
@@ -154,7 +232,27 @@ try {
 
   await page.getByRole('button', { name: 'A', exact: true }).click()
   await page.waitForFunction(() => window.recordingTest.tracks === 1)
-  await page.evaluate(() => window.disposeRecordingView())
+  await page.evaluate(() => {
+    window.recordingTest.holdDecode = true
+  })
+  await page.getByRole('button', { name: 'B', exact: true }).click()
+  await page.waitForFunction(() => window.recordingTest.decodes.length === 1)
+  await page.evaluate(() => {
+    window.recordingDisposeDone = false
+    window.recordingDispose = window.disposeRecordingView().then(() => {
+      window.recordingDisposeDone = true
+    })
+  })
+  await page.waitForFunction(() => window.recordingTest.activeContexts === 0 && window.recordingTest.tracks === 0)
+  assert.equal(
+    await page.evaluate(() => window.recordingDisposeDone),
+    false,
+    'disposal still owns the decoder continuation'
+  )
+  await page.evaluate(async () => {
+    window.recordingTest.decodes.shift()()
+    await window.recordingDispose
+  })
   assert.equal(
     await page.evaluate(() => window.recordingTest.tracks),
     0,
@@ -162,7 +260,7 @@ try {
   )
   assert.deepEqual(errors, [], messages.slice(-30).join('\n'))
   console.log(
-    'WASM recording: encoded round trip, playback, cancellation, restart, late permission and disposal passed'
+    'WASM audio: encoded round trip, tone, playback, cancellation, restart, late permission/decode and disposal passed'
   )
 } catch (error) {
   console.error(messages.slice(-50).join('\n'))

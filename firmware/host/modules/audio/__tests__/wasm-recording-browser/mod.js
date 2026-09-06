@@ -10,8 +10,10 @@ export function onLaunch() {
 export async function onContextCreated(robot) {
   const microphone = new Microphone()
   const speaker = new Speaker()
+  let recorded
   for (let cycle = 0; cycle < 3; cycle++) {
     const buffer = await microphone.record(300)
+    recorded = buffer
     let sum = 0
     for (const byte of new Uint8Array(buffer)) sum = (sum + byte) >>> 0
     report(
@@ -19,6 +21,21 @@ export async function onContextCreated(robot) {
     )
     if (!(await speaker.play(buffer))) throw new Error('Recorded audio did not play')
   }
+  await speaker.tone(440, 30)
+  report('tone completed')
+  const cancelledTone = speaker.tone(440, 15_000).then(
+    () => {
+      throw new Error('Cancelled tone succeeded')
+    },
+    (error) => {
+      if (error.code !== 'CANCELLED') throw error
+    },
+  )
+  Timer.set(() => {
+    Promise.resolve(speaker.cancelPlayback()).catch((error) => report(`FAIL ${error}`))
+  }, 100)
+  await cancelledTone
+  report('tone cancelled')
   const cancelled = microphone.record(15_000).then(
     () => {
       throw new Error('Cancelled recording succeeded')
@@ -44,6 +61,20 @@ export async function onContextCreated(robot) {
       (error) => report(`long recording ${error.code}`),
     )
     report('long recording started')
+  }
+  robot.input.button.b.onEvent = (event) => {
+    if (!event.pressed) return
+    speaker.play(recorded).then(
+      () => report('buffer completed'),
+      (error) => report(`buffer ${error.code}`),
+    )
+  }
+  robot.input.button.c.onEvent = (event) => {
+    if (!event.pressed) return
+    speaker.tone(440, 15_000).then(
+      () => report('long tone completed'),
+      (error) => report(`long tone ${error.code}`),
+    )
   }
   report('ready')
 }

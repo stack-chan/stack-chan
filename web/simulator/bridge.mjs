@@ -134,88 +134,7 @@ export function installModArchiveIntoWasm(wasmModule, installedMod) {
   }
 }
 
-export function createHostAudioOutBridge({
-  createAudioContext = defaultAudioContextFactory,
-  setTimeoutFn = globalThis.setTimeout,
-  clearTimeoutFn = globalThis.clearTimeout,
-} = {}) {
-  let context
-
-  return {
-    async tone({ hz, duration, volume } = {}) {
-      // Guard against non-finite values: the wasm audio bridge always passes a
-      // volume argument, so an omitted volume arrives as NaN (not undefined) and
-      // a destructuring default would not apply. Setting an AudioParam to a
-      // non-finite value throws.
-      const frequency = Number.isFinite(hz) ? hz : 440
-      const durationMs = Number.isFinite(duration) ? Math.max(0, duration) : 100
-      const level = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 1
-      context ??= createAudioContext()
-      if (context.state === 'suspended' && typeof context.resume === 'function') {
-        await context.resume()
-      }
-      const oscillator = context.createOscillator()
-      const gain = context.createGain()
-      oscillator.frequency.value = frequency
-      gain.gain.value = level
-      oscillator.connect(gain)
-      gain.connect(context.destination)
-      const startTime = context.currentTime
-      await new Promise((resolve, reject) => {
-        let fallback
-        const finish = () => {
-          if (fallback !== undefined) clearTimeoutFn?.(fallback)
-          resolve()
-        }
-        oscillator.onended = finish
-        try {
-          oscillator.start(startTime)
-          oscillator.stop(startTime + durationMs / 1000)
-          fallback = setTimeoutFn?.(finish, durationMs + 250)
-        } catch (error) {
-          if (fallback !== undefined) clearTimeoutFn?.(fallback)
-          reject(error)
-        }
-      })
-    },
-    async play(buffer) {
-      if (!(buffer instanceof ArrayBuffer) || buffer.byteLength === 0) return false
-      context ??= createAudioContext()
-      if (context.state === 'suspended' && typeof context.resume === 'function') {
-        await context.resume()
-      }
-      if (typeof context.decodeAudioData !== 'function') return false
-
-      const audioBuffer = await decodeAudioData(context, buffer)
-      const source = context.createBufferSource()
-      source.buffer = audioBuffer
-      source.connect(context.destination)
-      await new Promise((resolve, reject) => {
-        let fallback
-        const durationMilliSec = Number.isFinite(audioBuffer.duration) ? audioBuffer.duration * 1000 : 0
-        const finish = () => {
-          if (fallback !== undefined) clearTimeoutFn?.(fallback)
-          resolve()
-        }
-        source.onended = finish
-        try {
-          source.start(0)
-          if (durationMilliSec > 0) {
-            fallback = setTimeoutFn?.(finish, durationMilliSec + 250)
-          }
-        } catch (error) {
-          if (fallback !== undefined) clearTimeoutFn?.(fallback)
-          reject(error)
-        }
-      })
-      return true
-    },
-    close() {
-      context?.close?.()
-      context = undefined
-    },
-  }
-}
+export { createHostAudioOutBridge } from './audio-output.mjs'
 
 function writeImageDataRgb565Le(view, imageData) {
   let offset = 0
@@ -380,22 +299,7 @@ export function createHostCameraBridge({
   return bridge
 }
 
-function decodeAudioData(context, buffer) {
-  return new Promise((resolve, reject) => {
-    const result = context.decodeAudioData(buffer.slice(0), resolve, reject)
-    if (result && typeof result.then === 'function') {
-      result.then(resolve, reject)
-    }
-  })
-}
-
 export { createHostAudioInBridge } from './audio-input.mjs'
-
-function defaultAudioContextFactory() {
-  const AudioContextConstructor = globalThis.AudioContext ?? globalThis.webkitAudioContext
-  if (!AudioContextConstructor) throw new Error('WebAudio AudioContext is not available')
-  return new AudioContextConstructor()
-}
 
 export function clientPointFromTouch(touch) {
   return { x: touch.clientX, y: touch.clientY }

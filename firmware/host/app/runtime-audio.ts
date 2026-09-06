@@ -20,6 +20,7 @@ export type RuntimeAudioConstructorParam = {
   simulated?: boolean
   microphone?: Pick<Microphone, 'record' | 'stop'> & { close?: () => void | Promise<void> }
   speaker?: Pick<Speaker, 'tone' | 'play'> & {
+    available?: () => boolean
     cancelPlayback?: (reason?: unknown) => void | Promise<void>
     close?: () => void | Promise<void>
   }
@@ -173,7 +174,14 @@ export class StackchanRuntimeAudio {
         availability: 'unavailable',
         reason: this.#output.failure ? 'Audio output could not be released' : 'Audio is closed',
       }
-    const available = kind === 'tone' ? !!this.#speaker : kind === 'clips' ? !!this.#clips : this.#ttsKind === kind
+    const provider =
+      kind === 'tone' ? this.#speaker : kind === 'clips' ? this.#clips : this.#ttsKind === kind ? this.#tts : undefined
+    let available = !!provider
+    try {
+      if (provider?.available) available = provider.available()
+    } catch {
+      available = false
+    }
     return available
       ? { availability: this.#simulated ? 'simulated' : 'native' }
       : { availability: 'unavailable', reason: `Audio ${kind} is unavailable with the selected provider` }

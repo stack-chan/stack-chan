@@ -1,0 +1,8 @@
+{
+  "modules": { "stackchan-contracts/audio-playback": "./audio-playback" },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": { "allowJs": true }
+    }
+  }
+}

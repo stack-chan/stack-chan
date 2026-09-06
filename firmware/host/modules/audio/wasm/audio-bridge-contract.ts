@@ -5,8 +5,15 @@ declare const setTimeout: (callback: () => void, delay: number) => unknown
 declare const clearTimeout: (handle: unknown) => void
 
 export type WasmAudioBridge = {
-  close: () => void
-  playStatus: () => number
+  playAvailable: () => boolean
+  playStatus: (id: number) => number
+  playDetails: (id: number) => {
+    quiet: boolean
+    error?: { code: StackchanErrorCode; message: string }
+    releaseError?: { code: StackchanErrorCode; message: string }
+  }
+  stopPlay: (id: number) => void
+  releasePlay: (id: number) => void
   recordAvailable: () => boolean
   recordBuffer: (id: number) => ArrayBuffer
   recordDetails: (id: number) => {
@@ -18,11 +25,11 @@ export type WasmAudioBridge = {
   recordStatus: (id: number) => number
   setTimer?: (callback: () => void, delay?: number) => unknown
   clearTimer?: (handle: unknown) => void
-  startPlayBuffer: (buffer: ArrayBuffer) => void
+  startPlayBuffer: (buffer: ArrayBuffer, volume?: number) => number
   startRecord: (duration: number) => number
   stopRecord: (id: number) => void
   releaseRecord: (id: number) => void
-  tone: (hz: number, duration: number, volume?: number) => void
+  startTone: (hz: number, duration: number, volume?: number) => number
 }
 
 export type WasmAudioInputBridge = Pick<
@@ -40,7 +47,15 @@ export type WasmAudioInputBridge = Pick<
 
 export type WasmAudioOutputBridge = Pick<
   WasmAudioBridge,
-  'close' | 'playStatus' | 'setTimer' | 'clearTimer' | 'startPlayBuffer' | 'tone'
+  | 'playAvailable'
+  | 'playStatus'
+  | 'playDetails'
+  | 'stopPlay'
+  | 'releasePlay'
+  | 'setTimer'
+  | 'clearTimer'
+  | 'startPlayBuffer'
+  | 'startTone'
 >
 
 export type WasmAudioBridgeGlobal = typeof globalThis & {

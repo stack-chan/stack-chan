@@ -3,6 +3,8 @@ export type TTSPlaybackListener = (power: number) => void
 export type TTSDoneListener = () => void
 
 export type TTS = {
+  /** Reports current backend availability without acquiring the output. */
+  available?: () => boolean
   stream: (text: string, volume?: number, callback?: TTSCompletion) => void
   /** Streams raw stackchan-voice koe notation when the provider supports singing. */
   streamKoe?: (koe: string, volume?: number, callback?: TTSCompletion) => void

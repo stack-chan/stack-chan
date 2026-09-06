@@ -8,14 +8,6 @@ import { writeAliasPackage, writeAliasPackageSubpath } from '../../modules/testi
 const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
 writeAliasPackage(hostRoot, 'motion-port', resolve(hostRoot, 'modules/motion/motion-port.js'))
-writeAliasPackage(hostRoot, 'audio-buffer', resolve(hostRoot, 'modules/audio/audio-buffer.js'))
-writeAliasPackage(hostRoot, 'tts-playback-session', resolve(hostRoot, 'modules/audio/tts-playback-session.js'))
-writeAliasPackage(
-  hostRoot,
-  'wasm-audio-bridge-contract',
-  resolve(hostRoot, 'modules/audio/wasm/audio-bridge-contract.js'),
-)
-const { default: Speaker } = await import('../../modules/audio/wasm/speaker.js')
 const { WasmDriver } = await import('../../modules/motion/wasm/wasm-driver.js')
 
 type Rotation = { y: number; p: number; r: number }
@@ -137,53 +129,4 @@ test('lin camera backend is safe when no device camera exists', async () => {
   await camera.start()
   assert.equal(await camera.capture({ width: 1, height: 1, imageType: 'rgb565le' }), undefined)
   await camera.stop()
-})
-
-test('WASM speaker forwards tone requests and close to the browser Host.AudioOut bridge', async () => {
-  const previousHost = globalThis.Host
-  const calls: unknown[] = []
-  globalThis.Host = {
-    AudioOut: {
-      async tone(message: unknown) {
-        calls.push(message)
-      },
-      close() {
-        calls.push('close')
-      },
-    },
-  }
-
-  try {
-    const speaker = new Speaker()
-
-    await speaker.tone(440, 250, 0.5)
-    speaker.close()
-
-    assert.deepEqual(calls, [{ hz: 440, duration: 250, volume: 0.5 }, 'close'])
-  } finally {
-    globalThis.Host = previousHost
-  }
-})
-
-test('WASM speaker plays buffers through the browser Host.AudioOut bridge', async () => {
-  const previousHost = globalThis.Host
-  const buffers: ArrayBuffer[] = []
-  globalThis.Host = {
-    AudioOut: {
-      async play(buffer: ArrayBuffer) {
-        buffers.push(buffer)
-        return true
-      },
-    },
-  }
-
-  try {
-    const buffer = new Uint8Array([1, 2, 3]).buffer
-    const result = await new Speaker().play(buffer)
-
-    assert.equal(result, true)
-    assert.deepEqual(buffers, [buffer])
-  } finally {
-    globalThis.Host = previousHost
-  }
 })

@@ -12,6 +12,14 @@
  * simulator or transferred to a device over WebSerial.
  */
 
+import {
+  MOD_METADATA_LIMIT,
+  MOD_METADATA_RESOURCE,
+  parseModRuntimeContract,
+} from '../../firmware/contracts/mod-package.js'
+import { inspectModArchive } from '../../firmware/contracts/xsa-metadata.js'
+import { parseModDefinition } from '../mod-gallery/mod-definition.mjs'
+
 // Fallback when the version cannot be detected from the tools binary output.
 // The TOOL base class verifies $(MODDABLE)/tools/VERSION against the version
 // baked into the binary, so this must match vendor/tools.wasm.
@@ -135,13 +143,29 @@ function runTool(tools, argv, log) {
  * @param options.manifest MOD manifest object (default: modules: * -> ./mod)
  * @param options.name    project directory name; becomes part of the signature
  * @param options.files   additional project files such as embedded assets
+ * @param options.metadata canonical stackchan-mod.json definition, including app and host API requirements
  * @param options.onLog   receives each build log line
  * @returns Uint8Array of the mc.xsa archive
  */
 export async function buildModArchive(
   createTools,
-  { modJs, manifest = DEFAULT_MOD_MANIFEST, name = 'mod', files = [], onLog } = {}
+  { modJs, manifest = DEFAULT_MOD_MANIFEST, name = 'mod', files = [], metadata, onLog } = {}
 ) {
+  const definition = parseModDefinition(metadata)
+  const metadataJson = JSON.stringify(definition, null, 2)
+  if (new TextEncoder().encode(metadataJson).byteLength > MOD_METADATA_LIMIT)
+    throw new Error('MOD metadata is too large')
+  if (files.some((file) => file.path === MOD_METADATA_RESOURCE))
+    throw new Error('stackchan-mod.json is supplied through metadata')
+  // JSON must use the standard manifest's data rule; the resources rule skips
+  // JSON outside localization directories. mcrun puts data into XSA RSRC too.
+  const packageManifest = {
+    ...manifest,
+    data: {
+      ...manifest.data,
+      'stackchan-mod': ['./' + MOD_METADATA_RESOURCE],
+    },
+  }
   const logs = []
   const log = (text) => {
     logs.push(String(text))
@@ -156,7 +180,8 @@ export async function buildModArchive(
     const projectDirectory = `/mod/${buildDirectoryName(name)}`
     FS.mkdirTree(projectDirectory)
     for (const file of files) writeProjectFile(FS, projectDirectory, file)
-    FS.writeFile(`${projectDirectory}/manifest.json`, JSON.stringify(manifest, null, 2))
+    FS.writeFile(`${projectDirectory}/${MOD_METADATA_RESOURCE}`, metadataJson)
+    FS.writeFile(`${projectDirectory}/manifest.json`, JSON.stringify(packageManifest, null, 2))
     FS.writeFile(`${projectDirectory}/mod.js`, modJs)
     FS.chdir(projectDirectory)
 
@@ -187,7 +212,11 @@ export async function buildModArchive(
     const archivePath = findFileWithSuffix(listFilesRecursively(FS, '/build/bin'), '.xsa')
     if (!archivePath) throw new Error(`no archive produced:\n${logs.join('\n')}`)
     log(`archive: ${archivePath}`)
-    return FS.readFile(archivePath)
+    const archive = FS.readFile(archivePath)
+    const inspected = inspectModArchive(archive, (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+    if (JSON.stringify(inspected.metadata) !== JSON.stringify(parseModRuntimeContract(definition)))
+      throw new Error('Built MOD metadata differs from its definition')
+    return archive
   }
   throw new Error(`tools version mismatch could not be resolved:\n${logs.join('\n')}`)
 }

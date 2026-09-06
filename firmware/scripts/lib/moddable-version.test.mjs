@@ -23,13 +23,12 @@ CONFIG_SPIRAM=y
   assert.match(rendered, /CONFIG_ESP_CONSOLE_UART=y/)
   assert.match(rendered, /CONFIG_SPIRAM=y/)
   assert.equal(count(rendered, 'CONFIG_APP_PROJECT_VER_FROM_CONFIG=y'), 1)
-  assert.equal(count(rendered, 'CONFIG_APP_PROJECT_VER="9.0.0+stackchan.1"'), 1)
+  assert.equal(count(rendered, `CONFIG_APP_PROJECT_VER="${firmwareDescriptorVersion('9.0.0')}"`), 1)
   assert.doesNotMatch(rendered, /CONFIG_APP_PROJECT_VER="8\.3\.1"/)
 })
 
 test('formats a readable host API suffix without discarding upstream build metadata', () => {
-  assert.equal(STACKCHAN_HOST_API_VERSION, 1)
-  assert.equal(firmwareDescriptorVersion('9.0.0'), '9.0.0+stackchan.1')
+  assert.equal(firmwareDescriptorVersion('9.0.0'), `9.0.0+stackchan.${STACKCHAN_HOST_API_VERSION}`)
   assert.equal(firmwareDescriptorVersion('9.0.0+preview', 2), '9.0.0+preview.stackchan.2')
   assert.throws(() => firmwareDescriptorVersion('9.0.0', 0), /host API version/)
 })
@@ -56,9 +55,9 @@ test('prepares an SDKCONFIGPATH directory from MODDABLE tools VERSION', () => {
     const result = prepareCoreS3VersionSdkconfig({ moddableDirectory, outputDirectory, sourceDirectory })
 
     assert.equal(result.moddableVersion, '9.0.0')
-    assert.equal(result.version, '9.0.0+stackchan.1')
+    assert.equal(result.version, `9.0.0+stackchan.${STACKCHAN_HOST_API_VERSION}`)
     assert.equal(result.directory, path.join(outputDirectory, 'generated', 'sdkconfig', 'm5stackchan_cores3'))
-    assert.match(readFileSync(result.filePath, 'utf8'), /CONFIG_APP_PROJECT_VER="9\.0\.0\+stackchan\.1"/)
+    assert.ok(readFileSync(result.filePath, 'utf8').includes(`CONFIG_APP_PROJECT_VER="${result.version}"`))
     assert.match(readFileSync(result.partitionFilePath, 'utf8'), /0xFE0000/)
   } finally {
     rmSync(fixture, { recursive: true, force: true })
@@ -106,7 +105,7 @@ test('base SDK settings are not replayed after feature manifests', () => {
     }
     assert.equal(featureConfig.get('CONFIG_BT_ENABLED'), 'y')
     assert.equal(featureConfig.get('CONFIG_BT_NIMBLE_ENABLED'), 'y')
-    assert.equal(featureConfig.get('CONFIG_APP_PROJECT_VER'), '"9.5.0+stackchan.1"')
+    assert.equal(featureConfig.get('CONFIG_APP_PROJECT_VER'), `"${firmwareDescriptorVersion('9.5.0')}"`)
   } finally {
     rmSync(fixture, { recursive: true, force: true })
   }

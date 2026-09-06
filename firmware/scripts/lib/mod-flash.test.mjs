@@ -3,8 +3,44 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
+import { makeXsArchive, modDefinition } from '../../contracts/testing/xsa-fixture.js'
 import { buildOutputDirectory } from './build-output.mjs'
 import { esptoolConnectionArguments, installModArchive, resolveModArchivePath } from './mod-flash.mjs'
+
+test('CLI refuses newer app requirements before write-flash or verify-flash', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-api-'))
+  const archivePath = path.join(fixture, 'app.xsa')
+  try {
+    writeFileSync(archivePath, makeXsArchive())
+    for (const hostApiVersion of [1, 2]) {
+      const calls = []
+      const install = () =>
+        installModArchive({
+          archivePath,
+          temporaryDirectory: fixture,
+          runCommand(_command, args) {
+            calls.push(args)
+            if (args.includes('read-flash'))
+              writeFileSync(
+                args.at(-1),
+                Number(args.at(-3)) === 0x8000
+                  ? makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
+                  : makeAppHeader({ version: `9.5.0+stackchan.${hostApiVersion}`, projectName: 'xs_esp32' }),
+              )
+          },
+        })
+      if (hostApiVersion < modDefinition.hostApiVersion) {
+        assert.throws(install, (error) => error.code === 'MOD_HOST_API_UNSUPPORTED')
+        assert.equal(calls.length, 2)
+      } else {
+        assert.equal(install().firmware.hostApiVersion, hostApiVersion)
+        assert.equal(calls.length, 4)
+      }
+    }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})
 
 test('resolves mcrun archives using the observable output contract', () => {
   assert.equal(
@@ -181,12 +217,7 @@ test('validates optional esptool connection settings', () => {
 })
 
 function makeArchive(size) {
-  const archive = Buffer.alloc(size)
-  archive.writeUInt32BE(size, 0)
-  archive.write('XS_A', 4, 'ascii')
-  archive.write('VERS', 12, 'ascii')
-  archive.set([17, 8, 0], 16)
-  return archive
+  return makeXsArchive({ metadata: null, padding: size })
 }
 
 function makePartitionTable({ xsOffset, xsSize }) {

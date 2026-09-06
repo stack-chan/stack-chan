@@ -8,7 +8,7 @@ import {
   moddableOutputArguments,
 } from './build-output.mjs'
 import { prepareCoreS3IdfDependencies } from './idf-dependencies.mjs'
-import { coreS3SdkconfigSourceDirectory, prepareVersionSdkconfig } from './moddable-version.mjs'
+import { coreS3SdkconfigSourceDirectory, prepareVersionManifest, prepareVersionSdkconfig } from './moddable-version.mjs'
 
 const appDirectory = path.join(firmwareDirectory, 'host', 'app')
 const standardManifestPath = path.join(appDirectory, 'manifest.json')
@@ -129,7 +129,12 @@ export function buildFirmwareBundleTarget(
   }
 
   mkdirSync(outputDirectory, { recursive: true })
-  const bundleManifestPath = prepareBundleManifest(target, versionSdkconfig.directory, outputDirectory)
+  const bundleManifestPath = prepareVersionManifest(
+    target.manifestPath,
+    target.name,
+    versionSdkconfig.directory,
+    outputDirectory,
+  )
   try {
     runCommand(
       'mcconfig',
@@ -384,39 +389,6 @@ function assertNonEmpty(filePath) {
  */
 function moddableOutputArgumentsFor(outputDirectory) {
   return outputDirectory === buildOutputDirectory ? moddableOutputArguments() : ['-o', outputDirectory]
-}
-
-/**
- * Appends a generated sdkconfig override after the application manifest.
- *
- * Standard Moddable target manifests assign SDKCONFIGPATH unconditionally, so
- * a process environment value is overwritten while manifests are merged. A
- * final included manifest keeps the target configuration intact and supplies
- * the version overlay with normal manifest precedence.
- *
- * mcconfig resolves relative paths inside included manifests from the top-level
- * manifest directory. Keep the wrapper beside the application manifest so
- * resources such as characterFile continue to resolve; the caller removes it
- * in a finally block.
- * @param {(typeof firmwareBundleTargets)[number]} target - Bundle target configuration.
- * @param {string} sdkconfigDirectory - Generated sdkconfig overlay directory.
- * @param {string} outputDirectory - Repository-local build output root.
- * @returns {string} Generated wrapper manifest path.
- */
-function prepareBundleManifest(target, sdkconfigDirectory, outputDirectory) {
-  const directory = path.join(outputDirectory, 'generated', 'bundle-manifests', target.name)
-  const overrideManifestPath = path.join(directory, 'sdkconfig.json')
-  const bundleManifestPath = path.join(
-    path.dirname(target.manifestPath),
-    `${firmwareBundleName}.${target.name}.${process.pid}.manifest.json`,
-  )
-  mkdirSync(directory, { recursive: true })
-  writeFileSync(overrideManifestPath, `${JSON.stringify({ build: { SDKCONFIGPATH: sdkconfigDirectory } }, null, 2)}\n`)
-  writeFileSync(
-    bundleManifestPath,
-    `${JSON.stringify({ include: [target.manifestPath, overrideManifestPath] }, null, 2)}\n`,
-  )
-  return bundleManifestPath
 }
 
 /**

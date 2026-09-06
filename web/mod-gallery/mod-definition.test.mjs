@@ -1,3 +1,4 @@
+import { modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
@@ -256,7 +257,14 @@ test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持
     readFileSync(new URL('../../docs/specs/stackchan-mod.schema.json', import.meta.url), 'utf8')
   )
   assert.equal(schema.properties.format.const, 'tech.stackchan.mod')
-  assert.equal(schema.properties.schemaVersion.const, 1)
+  for (const version of schema.properties.schemaVersion.enum) {
+    const input = { ...modDefinition, schemaVersion: version }
+    if (version === 1) {
+      delete input.appApiVersion
+      delete input.hostApiVersion
+    }
+    assert.equal(parseModDefinition(input).schemaVersion, version)
+  }
   assert.equal(schema.$id, 'https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json')
   for (const field of [
     'format',

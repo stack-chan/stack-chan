@@ -3,7 +3,7 @@ import { test } from 'node:test'
 
 import { assembleModSource } from './blocks.mjs'
 import {
-  buildModArchive,
+  buildModArchive as buildPackageArchive,
   buildDirectoryName,
   DEFAULT_MOD_MANIFEST,
   detectToolsVersionMismatch,
@@ -13,6 +13,10 @@ import {
   xsArchiveVersion,
 } from './mod-builder.mjs'
 import createTools from './vendor/tools.js'
+import { modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
+import { inspectModArchive } from '../../firmware/contracts/xsa-metadata.js'
+const buildModArchive = (tools, options) =>
+  buildPackageArchive(tools, { metadata: { ...modDefinition, appApiVersion: 1, hostApiVersion: 1 }, ...options })
 import { profileFor } from './capabilities.mjs'
 import { applyFaceAssetToSource, createFaceAsset } from './face-assets.mjs'
 
@@ -66,11 +70,38 @@ test('buildModArchive compiles a mod to a valid XS archive via wasm mcrun', asyn
   assert.ok(archive instanceof Uint8Array)
   assert.ok(archive.length > 100, `archive too small: ${archive.length}`)
   assert.ok(isXsArchive(archive), 'archive must start with XS_A atom')
+  const { metadata } = inspectModArchive(archive, (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+  assert.equal(metadata.id, modDefinition.id)
+  assert.equal(metadata.appApiVersion, 1)
   const version = xsArchiveVersion(archive)
   assert.deepEqual(version, profileFor('m5stackchan-cores3').xsArchiveVersion)
   const text = logs.join('\n')
   assert.match(text, /mcrun/, 'log should include the mcrun invocation')
   assert.match(text, /xsa/, 'log should include the xsa archive step')
+})
+
+test('new builds require an explicit API declaration and reject mismatched entrypoints', async () => {
+  await assert.rejects(buildPackageArchive(createTools, { modJs: 'export default {}' }), /MOD定義/)
+  await assert.rejects(
+    buildModArchive(createTools, {
+      modJs: 'export default {}',
+      metadata: { ...modDefinition, appApiVersion: 1, entrypoints: ['miniapp'] },
+    }),
+    (error) => error.code === 'MOD_ENTRYPOINT_MISMATCH'
+  )
+  await assert.rejects(
+    buildModArchive(createTools, {
+      modJs: 'export default {}',
+      files: [{ path: 'stackchan-mod.json', bytes: new Uint8Array() }],
+    }),
+    /supplied through metadata/
+  )
+  const archive = await buildPackageArchive(createTools, {
+    modJs:
+      'import { defineApp } from "stackchan/app"; export default defineApp({ setup(app) { app.face.setEmotion("happy") } })',
+    metadata: modDefinition,
+  })
+  assert.equal(inspectModArchive(archive, (bytes) => new TextDecoder().decode(bytes)).metadata.appApiVersion, 2)
 })
 
 test('buildModArchive compiles generator-style output with host-module imports', async () => {
@@ -108,9 +139,7 @@ export async function onContextCreated(robot) {
 })
 
 test('buildModArchive compiles the generated list-based singing helper', async () => {
-  const source = assembleModSource(
-    "await singScore(robot, 120, [['C4', 1, 'き'], ['C4', 1, 'ら'], ['R', 0.5, '']])\n"
-  )
+  const source = assembleModSource("await singScore(robot, 120, [['C4', 1, 'き'], ['C4', 1, 'ら'], ['R', 0.5, '']])\n")
   assert.match(source, /function singingScoreToKoe/)
   assert.match(source, /await singScore\(robot, 120/)
 

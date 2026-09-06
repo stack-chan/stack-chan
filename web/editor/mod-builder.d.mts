@@ -12,6 +12,7 @@ export type ProjectAsset = {
 export type ModManifest = {
   modules: Record<string, readonly string[]>
   resources?: Record<string, readonly string[]>
+  data?: Record<string, readonly string[]>
 }
 
 export const DEFAULT_MOD_MANIFEST: ModManifest
@@ -36,6 +37,7 @@ export type ModToolsFactory = (...args: never[]) => unknown
 
 export type BuildModArchiveOptions = {
   modJs: string
+  metadata: unknown
   manifest?: ModManifest
   name?: string
   files?: readonly ProjectFile[]

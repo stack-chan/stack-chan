@@ -8,8 +8,9 @@ import {
   parsePartitionTable,
   xsArchiveByteLength,
 } from '../../../web/editor/esptool-installer.mjs'
-import { xsArchiveVersion } from '../../../web/editor/mod-builder.mjs'
 import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE } from '../../../web/editor/xs-compatibility.mjs'
+import { assertModCompatibility } from '../../contracts/mod-package.js'
+import { inspectModArchive } from '../../contracts/xsa-metadata.js'
 import { buildOutputDirectory } from './build-output.mjs'
 
 export const partitionTableOffset = 0x8000
@@ -74,8 +75,15 @@ export function installModArchive({
       `Invalid XS archive header or size: ${archivePath} (${declaredSize ?? 'missing'} != ${archiveSize})`,
     )
   }
-  const archiveVersion = xsArchiveVersion(archive)
-  if (!archiveVersion) throw new Error(`XS archive version is missing: ${archivePath}`)
+  // Metadata-free V1 MODs remain installable during migration. A present but
+  // invalid declaration never falls back to that compatibility path.
+  const { metadata, version: archiveVersion } = inspectModArchive(
+    archive,
+    (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes),
+    {
+      allowLegacy: true,
+    },
+  )
 
   mkdirSync(temporaryDirectory, { recursive: true })
   const workDirectory = mkdtempSync(path.join(temporaryDirectory, 'stackchan-mod-flash-'))
@@ -119,6 +127,8 @@ export function installModArchive({
     if (expectedFirmwareVersion && firmware.moddableVersion !== expectedFirmwareVersion) {
       throw new Error(`Incompatible Moddable version: ${firmware.moddableVersion} != ${expectedFirmwareVersion}`)
     }
+    if (metadata) assertModCompatibility(metadata, { hostApiVersion: firmware.hostApiVersion })
+    else console.log('[stack-chan] Legacy MOD without metadata: app API and capability requirements cannot be checked')
 
     if (
       firmware.moddableVersion.startsWith('9.5.') &&

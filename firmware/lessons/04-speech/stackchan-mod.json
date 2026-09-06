@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.lessons.04-speech",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "言葉を話す",
+  "description": "Stack-chan SDK 世代2の入門教材。言葉を話す操作を学びます。",
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.js"
+  },
+  "appApiVersion": 2,
+  "hostApiVersion": 2,
+  "targets": ["portable"],
+  "capabilities": ["audio.speech", "input.primary"],
+  "optionalCapabilities": ["audio.speech"],
+  "entrypoints": ["mod"]
+}

@@ -3,6 +3,7 @@ import { type ModManifest } from '../../../editor/mod-builder.mjs'
 export type ModBuildWorkerRequest = {
   type: 'build'
   modJs: string
+  metadata: unknown
   name: string
   manifest: ModManifest
   files: Array<{

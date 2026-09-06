@@ -1,5 +1,6 @@
 import { isXsArchive, manifestForProjectAssets, xsArchiveVersion } from '../../../editor/mod-builder.mjs'
 import { assetBytes } from '../../../editor/project-format.mjs'
+import { createVisualModDefinition } from '../../../editor/project-mod-definition.mjs'
 
 import { type ProjectAsset, type VisualProject } from '@/features/project-editor/project-types'
 import { type ModBuildWorkerRequest, type ModBuildWorkerResponse } from '@/services/mod-builder/mod-build-protocol'
@@ -66,6 +67,7 @@ export async function buildVisualProjectMod({
       modJs: source,
       name: project.name,
       manifest: manifestForProjectAssets(embeddedAssets),
+      metadata: createVisualModDefinition(project),
       files,
     },
     onLog

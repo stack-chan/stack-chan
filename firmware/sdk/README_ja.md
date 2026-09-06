@@ -17,6 +17,8 @@ export default defineApp({
 
 `defineApp` は `apiVersion: 2` とsetupを持つ定義を作ります。V2定義にはV1の既定動作をマージしません。setupは登録後に返り、アプリはホストが閉じるまで動作します。setupの失敗時は登録を解除し、同じ失敗を開始元へ返します。setupは任意で同期disposerを返せます。終了後に遅れて返ったdisposerも実行します。
 
+配布用の `stackchan-mod.json` には schema 2 / app API 2 と必要な host API 世代を記録します。教材では世代2を要求し、標準 manifest の `data` で同梱しています。XS のコンパイル版とは別の検査です。CLI・WebSerial の接続状況と、旧 MOD・SD・WASM・起動時の移行上の制約は [MOD の互換性検査](../../docs/architecture/mod-package-compatibility.md) を参照してください。
+
 | API | 完了と所有 |
 | --- | --- |
 | `face.setEmotion` / `setMouthOpen` / `setColor` | 同期更新。色0〜255、開度0〜1。未知の名前や不正値はエラー |

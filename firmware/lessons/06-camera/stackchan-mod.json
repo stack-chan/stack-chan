@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.lessons.06-camera",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "写真を撮る",
+  "description": "Stack-chan SDK 世代2の入門教材。写真を撮る操作を学びます。",
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.js"
+  },
+  "appApiVersion": 2,
+  "hostApiVersion": 2,
+  "targets": ["portable"],
+  "capabilities": ["camera", "input.primary"],
+  "optionalCapabilities": ["camera"],
+  "entrypoints": ["mod"]
+}

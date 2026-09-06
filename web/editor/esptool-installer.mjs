@@ -14,6 +14,9 @@
  * it from the device and locate the `xs` partition dynamically.
  */
 
+import { assertModCompatibility } from '../../firmware/contracts/mod-package.js'
+import { inspectModArchive } from '../../firmware/contracts/xsa-metadata.js'
+
 // Standard ESP-IDF partition table location (CONFIG_PARTITION_TABLE_OFFSET).
 export const PARTITION_TABLE_OFFSET = 0x8000
 export const PARTITION_TABLE_SIZE = 0xc00 // 3 KB (max 95 entries + md5)
@@ -147,6 +150,9 @@ export async function installModToDevice(
 ) {
   if (!(archive instanceof Uint8Array) || archive.length === 0) throw new Error('MODアーカイブが空です')
   if (xsArchiveByteLength(archive) !== archive.length) throw new Error('XSアーカイブのヘッダーまたはサイズが不正です')
+  const { metadata } = inspectModArchive(archive, (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes), {
+    allowLegacy: true,
+  })
 
   const esploader = await loaderFactory({ port, onLog })
 
@@ -170,6 +176,8 @@ export async function installModToDevice(
     const firmware = parseEspAppDescriptor(appHeader)
     if (!firmware?.version) throw new Error('ファームウェアのバージョン情報を読み取れません')
     onLog(`[flash] ファームウェア: ${firmware.projectName || '名称不明'} ${firmware.version}`)
+    if (metadata) assertModCompatibility(metadata, { hostApiVersion: firmware.hostApiVersion })
+    else onLog('[flash] 旧MODには互換性情報がありません。アプリAPIと必要機能を検査できません')
 
     const approved = await onPreflight({
       chip,

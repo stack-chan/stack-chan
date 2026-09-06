@@ -13,6 +13,7 @@ import {
   packageFirmwareBundle,
   resolveFirmwareBundleTarget,
 } from './firmware-bundle.mjs'
+import { firmwareDescriptorVersion } from './moddable-version.mjs'
 
 test('bundle targets cover every manifest device and add the custom Stack-chan target', () => {
   const manifest = JSON.parse(readFileSync(path.join(firmwareDirectory, 'host/app/manifest.json'), 'utf8'))
@@ -33,7 +34,7 @@ test('builds a release target through a final sdkconfig manifest override', () =
   const outputDirectory = path.join(root, 'output')
   const sdkconfigDirectory = path.join(moddableDirectory, 'build/devices/esp32/xsProj-esp32')
   const moddableVersion = '8.3.1'
-  const firmwareVersion = '8.3.1+stackchan.1'
+  const firmwareVersion = firmwareDescriptorVersion(moddableVersion)
   let wrapperManifestPath
 
   try {

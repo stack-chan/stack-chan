@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { makeXsArchive, modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
 
 import {
   bytesToBinaryString,
@@ -53,11 +54,60 @@ function makeAppHeader(version = '8.3.1+stackchan.1', projectName = 'xs_esp32') 
 }
 
 function makeArchive(size = 32) {
-  const archive = new Uint8Array(size)
-  new DataView(archive.buffer).setUint32(0, size, false)
-  archive.set([0x58, 0x53, 0x5f, 0x41], 4)
-  return archive
+  return makeXsArchive({ metadata: null, padding: size })
 }
+
+test('embedded API requirements are checked before user preflight or writing and cannot be overridden', async () => {
+  const archive = makeXsArchive()
+  for (const hostApi of [0, 1, 2]) {
+    const calls = []
+    const loader = {
+      async main() {
+        return 'ESP32-S3'
+      },
+      async readFlash(offset) {
+        return offset === PARTITION_TABLE_OFFSET
+          ? CORES3_TABLE
+          : offset === 0x10000
+            ? makeAppHeader('9.5.0' + (hostApi ? '+stackchan.' + hostApi : ''))
+            : archive
+      },
+      async writeFlash() {
+        calls.push('write')
+      },
+      async resetToRunApp() {},
+      async disconnect() {},
+    }
+    const operation = installModToDevice(async () => loader, {}, archive, {
+      onPreflight() {
+        calls.push('preflight')
+        return true
+      },
+    })
+    if (hostApi < modDefinition.hostApiVersion) {
+      await assert.rejects(operation, (error) => error.code === 'MOD_HOST_API_UNSUPPORTED')
+      assert.deepEqual(calls, [])
+    } else {
+      assert.equal((await operation).status, DEVICE_OPERATION_STATUS.INSTALLED)
+      assert.deepEqual(calls, ['preflight', 'write'])
+    }
+  }
+})
+
+test('a corrupt declaration is rejected before connecting instead of treated as legacy', async () => {
+  let connected = false
+  await assert.rejects(
+    installModToDevice(
+      async () => {
+        connected = true
+      },
+      {},
+      makeXsArchive({ metadata: { ...modDefinition, schemaVersion: 99 } })
+    ),
+    (error) => error.code === 'MOD_METADATA_INVALID'
+  )
+  assert.equal(connected, false)
+})
 
 test('parsePartitionTable reads all entries and stops at the terminator', () => {
   const parts = parsePartitionTable(CORES3_TABLE)
@@ -152,7 +202,7 @@ test('installModToDevice reads the table, targets the xs offset, and resets', as
       calls.push(['readFlash', addr, size])
       if (addr === PARTITION_TABLE_OFFSET) return CORES3_TABLE
       if (addr === 0x10000) return makeAppHeader()
-      if (addr === 0xfa0000 && size === 32 && calls.some(([name]) => name === 'writeFlash')) return archive
+      if (addr === 0xfa0000 && size === archive.length && calls.some(([name]) => name === 'writeFlash')) return archive
       return new Uint8Array(size).fill(0xff)
     },
     async writeFlash(opts) {
@@ -252,7 +302,7 @@ test('installModToDevice rejects a MOD larger than the partition', async () => {
 
 test('archive helpers validate the header size and compare verification bytes', () => {
   const archive = makeArchive(64)
-  assert.equal(xsArchiveByteLength(archive), 64)
+  assert.equal(xsArchiveByteLength(archive), archive.length)
   assert.equal(xsArchiveByteLength(new Uint8Array(8)), null)
   assert.equal(equalBytes(archive, archive.slice()), true)
   archive[10] = 1

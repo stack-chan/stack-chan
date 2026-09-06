@@ -2,6 +2,7 @@ import { Buffer } from 'node:buffer'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { STACKCHAN_HOST_API_VERSION } from '../../contracts/mod-package.js'
 import { buildOutputDirectory } from './build-output.mjs'
 
 const libraryDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -9,7 +10,7 @@ export const coreS3SdkconfigSourceDirectory = path.resolve(
   libraryDirectory,
   '../../host/modules/audio/platforms/m5stackchan-cores3/sdkconfig',
 )
-export const STACKCHAN_HOST_API_VERSION = 1
+export { STACKCHAN_HOST_API_VERSION }
 
 /**
  * Reads the Moddable SDK version that must be exposed through esp_app_desc.
@@ -139,6 +140,31 @@ export function prepareCoreS3VersionSdkconfig({
 }
 
 export const renderCoreS3VersionSdkconfig = renderVersionSdkconfig
+
+/**
+ * Keep the generated version override after platform/app includes. The SDK's
+ * platform manifests can overwrite SDKCONFIGPATH passed through the environment.
+ * The wrapper stays beside the app for its relative resource paths; callers
+ * remove it in finally after mcconfig exits.
+ */
+export function prepareVersionManifest(
+  manifestPath,
+  platformName,
+  sdkconfigDirectory,
+  outputDirectory = buildOutputDirectory,
+) {
+  if (!/^[0-9A-Za-z._-]+$/.test(platformName)) throw new Error('Invalid version manifest platform')
+  const directory = path.join(outputDirectory, 'generated', 'version-manifests', platformName)
+  const overridePath = path.join(directory, 'sdkconfig.json')
+  const wrapperPath = path.join(
+    path.dirname(path.resolve(manifestPath)),
+    `stackchan-version.${platformName}.${process.pid}.manifest.json`,
+  )
+  mkdirSync(directory, { recursive: true })
+  writeFileSync(overridePath, `${JSON.stringify({ build: { SDKCONFIGPATH: sdkconfigDirectory } }, null, 2)}\n`)
+  writeFileSync(wrapperPath, `${JSON.stringify({ include: [path.resolve(manifestPath), overridePath] }, null, 2)}\n`)
+  return wrapperPath
+}
 
 /**
  * Validates a version before embedding it in a quoted Kconfig value and the

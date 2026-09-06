@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, rmSync, statSync } from 'node:fs'
 import path from 'node:path'
 import {
   assertNoCustomBuildOutput,
@@ -19,7 +19,13 @@ import {
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
-import { prepareCoreS3VersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
+import { verifyBuiltModArchive } from './lib/mod-package.mjs'
+import {
+  prepareCoreS3VersionSdkconfig,
+  prepareVersionManifest,
+  prepareVersionSdkconfig,
+  readModdableVersion,
+} from './lib/moddable-version.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -67,6 +73,7 @@ const uploadPort =
   readOption(rawArgs, 'port') ?? process.env.STACKCHAN_PORT ?? process.env.UPLOAD_PORT ?? process.env.ESPPORT
 const uploadBaud = readOption(rawArgs, 'baud') ?? process.env.STACKCHAN_BAUD ?? process.env.ESPBAUD
 let subprocessEnvironment = uploadPort ? { ...process.env, UPLOAD_PORT: uploadPort } : process.env
+let versionSdkconfigDirectory
 
 if (
   deviceName === 'm5stackchan_cores3' &&
@@ -90,11 +97,28 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
     console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
     process.exit(1)
   }
+}
+
+if (!dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
   try {
-    const versionSdkconfig = prepareCoreS3VersionSdkconfig()
+    const sourceDirectory = path.join(
+      process.env.MODDABLE ?? '',
+      'build/devices/esp32/targets',
+      device.sdkconfigTarget,
+      'sdkconfig',
+    )
+    const versionSdkconfig =
+      deviceName === 'm5stackchan_cores3'
+        ? prepareCoreS3VersionSdkconfig()
+        : prepareVersionSdkconfig({
+            platformName: deviceName,
+            sourceDirectory,
+            partitionSourcePath: path.join(sourceDirectory, 'partitions.csv'),
+          })
+    versionSdkconfigDirectory = versionSdkconfig.directory
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {
-    console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
+    console.error(`[stack-chan] Firmware version could not be prepared: ${error.message}`)
     process.exit(1)
   }
 }
@@ -175,6 +199,14 @@ switch (command) {
       mode: buildMode,
       projectName,
     })
+    if (!dryRun) {
+      try {
+        verifyBuiltModArchive(archivePath, path.join(projectDirectory, 'stackchan-mod.json'))
+      } catch (error) {
+        console.error(`[stack-chan] MODの生成物を検証できませんでした: ${error.message}`)
+        process.exit(1)
+      }
+    }
     if (command === 'mod:build' || dryRun) {
       console.log(`[stack-chan] MOD archive=${archivePath}`)
       if (command === 'mod') {
@@ -220,7 +252,20 @@ function run(bin, binArgs, cwd = process.cwd()) {
   }
 
   ensureBuildOutputDirectory()
-  const result = spawnSync(bin, binArgs, { cwd, env: subprocessEnvironment, stdio: 'inherit' })
+  let versionManifestPath
+  let result
+  try {
+    if (bin === 'mcconfig' && versionSdkconfigDirectory) {
+      const manifestIndex = binArgs.indexOf(path.resolve(manifest))
+      if (manifestIndex < 0) throw new Error('Host manifest is missing from mcconfig arguments')
+      versionManifestPath = prepareVersionManifest(path.resolve(manifest), deviceName, versionSdkconfigDirectory)
+      binArgs = [...binArgs]
+      binArgs[manifestIndex] = versionManifestPath
+    }
+    result = spawnSync(bin, binArgs, { cwd, env: subprocessEnvironment, stdio: 'inherit' })
+  } finally {
+    if (versionManifestPath) rmSync(versionManifestPath, { force: true })
+  }
   if (result.error) {
     console.error(`[stack-chan] ${bin}を実行できませんでした: ${result.error.message}`)
     console.error('[stack-chan] npm run setup と npm run doctor を確認してください。')

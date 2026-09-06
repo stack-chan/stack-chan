@@ -16,7 +16,7 @@
 | F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 共通 host runtime、TTS契約、設定定義とモデル用manifestを一本化。Webも同じ設定定義を参照。ESP32のMAC取得ソース選択も修正。ボード・残りの公開型・型検査は未完了 |
 | F8 設定・起動 | 型・検証・優先順位・secret・適用時点を共通設定サービスへ集約。オフライン教材を Wi-Fi 待機から独立 | V2起動をWi-Fi待機から独立。SettingsServiceを設定画面・BLE・設定読み込みへ接続し、Wi-Fi起動の優先順位を統一。BootSessionの準備状態・期限・取消し・置換時の終了を接続。アプリ公開API・V1起動全体の整理・電源断時の保証は未完了 |
 | F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTSの失敗・取消し、motionの構造化bridgeと推定完了、WASMの経過時計を接続。Wi-Fi管理器を共通化し、WASMのWi-Fiをunavailableと明示。カメラの所有・取消しを接続し、明示されていない合成画像への代替を廃止。その他の能力metadataと教材適合は未完了 |
-| F10 検査・配布 | 公開依存・JS / TS 教材・型・ライフサイクルを実効的に検査。V2 metadata を Web / CLI / SD / WASM で起動前検証 | SDKのAST依存検査と全新教材のstrict検査を追加。V2 metadata配布は未完了 |
+| F10 検査・配布 | 公開依存・JS / TS 教材・型・ライフサイクルを実効的に検査。V2 metadata を Web / CLI / SD / WASM で起動前検証 | SDKのAST依存検査と全新教材のstrict検査を追加。schema 2をWebビルドと6教材へ同梱し、ネイティブ生成後・CLI・WebSerialの検査を接続。SD・WASM・起動前・全既存MODの移行は未完了 |
 
 ## 固定する設計判断
 
@@ -214,3 +214,25 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - 描画の確認は撮影停止からの固定時間待ちにせず、実際の画素が描画されるまで期限付きで待つ。ブラウザーの映像源はChromiumのテスト用メディア入力で、物理カメラの受入ではない。
 
 実機カメラの画質、共有I2C、DMA・メモリー、機種ごとの遅延は未検証。録音・会話・設定のV2公開サービス、native音声、既定動作、全MODの移行、配布metadata、実機と初学者の受入を含む残りの範囲を継続する。
+
+
+## MOD の宣言・ビルド・書き込みの接続（2026-09-06）
+
+詳細と経路別の未完了項目は [MOD の互換性検査](mod-package-compatibility.md)。この変更は F10 の一部で、F1〜F10 全体の完了ではない。
+
+- `stackchan-mod.json` の schema 2へ、アプリ API、必要な host API、任意の使用機能を追加した。schema 1 は旧 API 1として維持し、新しい要求を紛れ込ませた schema 1は拒否する。共通 parser と XSA readerはJavaScriptのJSDocでstrict型検査し、DOM・Node依存を持たせない。
+- XSAのatomとresourceをモジュールの実行なしで読み、境界・版・UTF-8 JSON・16KiB上限・実行入口と宣言の一致を検査する。実行入口は実際のspecifierと比較する。最初のブラウザービルド試験でJSONが同梱されていないことを検出し、標準manifestの`resources`ではなく`data`を使用した。
+- Webビルドは宣言を必須にし、生成後にも入力との一致を検査する。Blocklyの宣言は現行のコード生成と同じ app API 1で、使用機能はworkspaceの解析結果から得る。全Blockly生成コードをSDK世代2へ移行したことにはしない。
+- ネイティブの`mod:build` / `mod`も生成後を検査する。隣接する宣言がある場合は同梱を必須にし、入れ忘れや古い宣言との不一致を拒否する。6教材はAPI世代2の宣言を同梱し、発話・首振り・撮影の未対応時の案内を任意機能として表す。
+- CLIとWebSerialは、archiveの宣言を本体のhost API世代と比較し、利用者の確認callbackや書き込みより前に拒否する。情報のない旧MODは移行期間中の例外として検査不能を明示する。壊れた宣言をこの例外へ戻さない。例外の終了、SD・WASM・起動時のimport前の検査は未完了。
+- host APIの値を共通契約へ移し、descriptorを世代2へ更新した。生成バイナリーを読んで、Takao Core2は従来Git名だけを版としていたことを検出した。Stack-chan RT / Takao Core2にも版情報の生成とCLIのSDK版確認を接続し、通常ビルドとbundleの最終manifest適用を共通化した。旧本体の更新が必要になるため、firmwareのchangesetはmajorとした。
+
+検証:
+
+- Node 504件が成功。共通JavaScript契約のstrict検査を`test:unit`へ含めた。構成検査79件、SDK strict検査、6機種のmanifest検査も成功した。JSON Schema Draft 2020-12による15件の教材・Gallery定義の検証も成功した。
+- WebのNode 218件、React 66件と型検査・ビルドが成功。実際のWASM版mcrunで旧API 1と新API 2のarchiveを生成し、同梱・実行入口・宣言の検査を行った。CLI / WebSerialはhost API 1への世代2 MODの書き込みを拒否し、API 2では進める試験が成功した。
+- ネイティブmcrunで6教材を再生成し、各archiveから世代2の宣言とXS 17.8.2を読めた。ChromiumのWASMホストで6教材の起動・操作、カメラ画像の描画とtrack解放が成功。WASMのホストソースは変更していないので、前段で生成したホストを使用した。
+- CoreS3 release 6,535,040 bytes、Takao Core2 release 3,837,584 bytes、Stack-chan RT release 3,954,160 bytesを生成し、3つの実バイナリーから`9.5.0+stackchan.2`を確認した。実機への書き込みは行っていない。
+- この段階では本体のアプリ実行コードを変更していない。全XS実行試験は前段の56 manifestの成功記録を維持し、今回の変更の検証にはNode・生成物・ブラウザーとネイティブのビルドを使った。
+
+残るF10: 全既存MOD / miniappとGallery artifactの宣言・移行、外部宣言とartifactの同一性、SD・WASM・起動時の必須検査と復旧UI、機種および設定から得る実際の能力表、全ビルド入口の統合、実機・初学者の受入。F1〜F9の残りも引き続き同じ範囲で扱う。

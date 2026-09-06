@@ -133,10 +133,7 @@ function createFirmwareWrapperFixture() {
     path.resolve(firmwareDirectory, '../web/editor/esptool-installer.mjs'),
     path.join(fixtureWebEditor, 'esptool-installer.mjs'),
   )
-  cpSync(
-    path.resolve(firmwareDirectory, '../web/editor/mod-builder.mjs'),
-    path.join(fixtureWebEditor, 'mod-builder.mjs'),
-  )
+  cpSync(path.join(firmwareDirectory, 'contracts'), path.join(fixtureFirmware, 'contracts'), { recursive: true })
 
   cpSync(
     path.resolve(firmwareDirectory, '../web/editor/xs-compatibility.mjs'),
@@ -176,7 +173,16 @@ const { appendFileSync, existsSync, readFileSync, rmSync } = require('node:fs')
 const path = require('node:path')
 
 const args = process.argv.slice(2)
-appendFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG, JSON.stringify(args) + '\\n')
+let loggedArgs = args
+const isClean = args[args.indexOf('-t') + 1] === 'clean'
+if (!isClean) {
+  const wrapper = JSON.parse(readFileSync(args.at(-1), 'utf8'))
+  if (!Array.isArray(wrapper.include) || wrapper.include.length !== 2) process.exit(13)
+  const override = JSON.parse(readFileSync(wrapper.include[1], 'utf8'))
+  if (!existsSync(path.join(override.build.SDKCONFIGPATH, 'sdkconfig.defaults'))) process.exit(14)
+  loggedArgs = [...args.slice(0, -1), wrapper.include[0]]
+}
+appendFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG, JSON.stringify(loggedArgs) + '\\n')
 const outputIndex = args.indexOf('-o')
 const outputDirectory = args[outputIndex + 1]
 const idfManifest = path.join(

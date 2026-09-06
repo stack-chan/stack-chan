@@ -30,7 +30,8 @@
       "./operation-queue",
       "./cancellation",
       "./task-scope",
-      "./app-session"
+      "./app-session",
+      "./app-audio-session"
     ]
   }
 }

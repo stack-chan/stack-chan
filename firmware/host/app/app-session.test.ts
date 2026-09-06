@@ -52,7 +52,7 @@ function fixture() {
       async close() {},
     },
     face: { setEmotion() {}, setMouthOpen() {}, setColor() {} },
-    audio: { async say() {}, async tone() {}, async playClip() {} },
+    audio: { async say() {}, async tone() {}, async playClip() {}, async close() {} },
     input: {
       subscribePress: (handler) => {
         presses.add(handler)
@@ -177,6 +177,35 @@ test('app close cancels only its own queued and active device operations', async
   assert.equal(queue.closed, false)
   assert.equal(await queue.run(() => 'another app'), 'another app')
   assert.equal(f.clock.jobs.size, 0)
+})
+
+test('app close waits for audio release after cooperative tasks have already cancelled', async () => {
+  const { AppSession, defineApp } = await setup()
+  const f = fixture()
+  let release!: () => void
+  const released = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  f.ports.audio.close = () => released
+  f.ports.audio.say = (_text, options) =>
+    new Promise((_, reject) => {
+      options?.signal?.subscribe((reason) => reject(reason))
+    })
+  const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  await session.start(defineApp({ setup() {} }))
+  const speaking = assert.rejects(session.context.audio.say('hello'), { code: 'CLOSED' })
+  await flush()
+  let closed = false
+  const closing = session.close().then(() => {
+    closed = true
+  })
+  await speaking
+  await flush()
+  assert.equal(closed, false)
+  assert.equal(session.state, 'closing')
+  release()
+  await closing
+  assert.equal(session.state, 'closed')
 })
 
 test('late setup completion disposes resources without reopening a closed app', async () => {

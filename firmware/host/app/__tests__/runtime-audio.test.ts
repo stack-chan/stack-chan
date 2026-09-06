@@ -485,6 +485,81 @@ test('a completed provider with failed cleanup cannot hand output to another pro
   await assert.rejects(runtime.close(), { code: 'IO', message: 'output did not release' })
 })
 
+test('app audio close waits for its active provider and leaves other sessions and host providers usable', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  const { beginPlaybackSession, PlaybackProvider } = await import('../../modules/audio/tts-playback-session.js')
+  const releases: Array<() => void> = []
+  let providerCloses = 0
+  class Speech extends PlaybackProvider {
+    stream(_text: string, _volume?: number, callback?: (error?: unknown) => void) {
+      const session = beginPlaybackSession(this, callback)
+      session?.addCleanup(
+        () =>
+          new Promise<void>((resolve) => {
+            releases.push(resolve)
+          }),
+      )
+    }
+    close() {
+      providerCloses++
+      return super.close()
+    }
+  }
+  const runtime = new StackchanRuntimeAudio({ tts: new Speech() })
+  const first = runtime.createAppSession()
+  const waiting = runtime.createAppSession()
+  const speaking = assert.rejects(first.say('active'), { code: 'CLOSED' })
+  const queued = assert.rejects(waiting.say('waiting'), { code: 'CLOSED' })
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  await waiting.close()
+  await queued
+  assert.equal(releases.length, 0, 'closing a queued app does not cancel another app')
+  let closed = false
+  const closing = first.close().then(() => {
+    closed = true
+  })
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  assert.equal(closed, false)
+  assert.equal(releases.length, 1)
+  releases.shift()?.()
+  await Promise.all([closing, speaking])
+  assert.equal(providerCloses, 0, 'app close leaves the host provider alive')
+  assert.equal(runtime.audioStatus('speech').availability, 'native')
+  const next = runtime.createAppSession()
+  const successor = assert.rejects(next.say('successor'), { code: 'CLOSED' })
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  const ending = next.close()
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  releases.shift()?.()
+  await Promise.all([ending, successor])
+  await runtime.close()
+  assert.equal(providerCloses, 1)
+})
+
+test('app close preserves a physical release failure beyond the cancelled command result', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  const { beginPlaybackSession, PlaybackProvider } = await import('../../modules/audio/tts-playback-session.js')
+  class Speech extends PlaybackProvider {
+    stream(_text: string, _volume?: number, callback?: (error?: unknown) => void) {
+      beginPlaybackSession(this, callback)?.addCleanup(() => {
+        throw new Error('audio release failed')
+      })
+    }
+  }
+  const runtime = new StackchanRuntimeAudio({ tts: new Speech() })
+  const app = runtime.createAppSession()
+  const speaking = assert.rejects(app.say('hello'), { code: 'CLOSED' })
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  await assert.rejects(app.close(), { code: 'IO', message: 'audio release failed' })
+  await speaking
+  assert.equal(app.pendingCount, 0)
+  assert.equal(runtime.audioStatus('speech').availability, 'unavailable')
+  await assert.rejects(runtime.createAppSession().say('successor'), { code: 'IO', message: 'audio release failed' })
+  await assert.rejects(runtime.close(), { code: 'IO', message: 'audio release failed' })
+})
+
 test('closing audio waits for a provider whose cancellation returns asynchronous release', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = await import('../runtime-audio.js')

@@ -1,6 +1,6 @@
 # 音声再生の所有と終了
 
-F2 / F3 / F4の音声出力の共通処理。AppSessionの音声使用権、会話・USB・Web Radioとの調停、WASMの出力bridgeの停止確認は別途接続する。
+F2 / F3 / F4の音声出力の共通処理。[AppSessionの再生操作](app-audio-lifecycle.md)と[WASM出力bridgeの停止確認](wasm-playback-lifecycle.md)もこの処理へ接続している。会話・USB・Web Radioとの調停は引き続き残る。
 
 ## 完了の意味
 
@@ -45,4 +45,4 @@ VOICEVOXの準備は`tts-http-query`が担当する。
 - XSの`http-playback`は実Moddable HTTPクライアントとTimer、注入したDNS / TCPを使う。100回の準備成功・取消し、期限、過大な固定長・chunked応答、遅延DNS、コンストラクター失敗、解放失敗、プロバイダーごとの要求を確認する。
 - 実サービスへの課金API呼び出し、実機のI2S・DMA・音質・メモリーは未受入。テスト・ビルドの成功をその代用とはしない。
 
-WASMのSpeaker / TTSも共通所有者とレンダラーの終了待ちを使用するが、ブラウザー出力の停止確認、toneの実行確認と未対応状態の統合は未完了。ネイティブの音声合成器そのものの明示的解放、プロバイダー交換、AppSession終了との接続も継続する。
+WASMのSpeaker / TTSも共通所有者とレンダラーの終了待ちを使用し、ブラウザー出力の停止確認、toneの実行確認と出力の利用可否を接続している。AppSessionの公開再生操作も解放を待つ。ネイティブの音声合成器そのものの明示的解放、プロバイダー交換、録音・バッファ再生SDKへの接続は継続する。

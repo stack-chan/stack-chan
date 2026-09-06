@@ -42,7 +42,7 @@ async function run(): Promise<void> {
       {
         motion,
         face: { setEmotion() {}, setColor() {}, setMouthOpen() {} },
-        audio: { async say() {}, async playClip() {}, async tone() {} },
+        audio: { async say() {}, async playClip() {}, async tone() {}, async close() {} },
         input: { subscribePress: () => () => {} },
         ui: { showBalloon() {}, hideBalloon() {}, showImage() {}, hideImage() {} },
         camera: {

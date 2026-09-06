@@ -6,7 +6,8 @@ import { finiteNumber, StackchanError } from 'stackchan/errors'
 import type { CancellationSignal, TaskContext, TaskHandler } from 'stackchan/task'
 import { TaskScope } from 'task-scope'
 
-export type AppPorts = Pick<AppContext, 'face' | 'audio' | 'ui' | 'capabilities'> & {
+export type AppPorts = Pick<AppContext, 'face' | 'ui' | 'capabilities'> & {
+  audio: AppContext['audio'] & { close(): Promise<void> }
   motion: AppContext['motion'] & { close(): Promise<void> }
   camera: AppContext['camera'] & { close(): Promise<void> }
   input: { subscribePress(handler: () => void): () => void }
@@ -165,6 +166,7 @@ export class AppSession {
         () => this.#ports.ui.hideImage(),
         () => this.#ports.camera.close(),
         () => this.#ports.motion.close(),
+        () => this.#ports.audio.close(),
         () => this.#resources.close(),
         () => this.#tasks.close(),
       ])

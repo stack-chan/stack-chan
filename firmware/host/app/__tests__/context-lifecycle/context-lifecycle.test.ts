@@ -154,6 +154,7 @@ async function run() {
   let tones = 0
   let cancellations = 0
   let finishTone: (() => void) | undefined
+  let finishCancellation: (() => void) | undefined
   const previous = () => {
     previousCalls += 1
   }
@@ -178,6 +179,12 @@ async function run() {
       },
       cancelPlayback() {
         cancellations += 1
+        return new Promise<void>((resolve) => {
+          finishCancellation = () => {
+            finishTone?.()
+            resolve()
+          }
+        })
       },
     },
     button: { a: rawButton },
@@ -200,6 +207,14 @@ async function run() {
   equal(tones, 1, 'public tone reaches the host audio runtime')
   const close = context.lifecycle.close()
   equal(close, context.lifecycle.close(), 'host close shares its completion')
+  let closed = false
+  void close.then(() => {
+    closed = true
+  })
+  await new Promise<void>((resolve) => Timer.set(() => resolve(), 1))
+  equal(closed, false, 'host waits for app audio release after task cancellation')
+  equal(cancellations, 1, 'app close reaches active speaker before host device cleanup')
+  finishCancellation?.()
   await close
   equal(cancellations, 1, 'app close reaches active speaker operation')
   equal(rawButton.onChanged, previous, 'host restores the raw button handler')

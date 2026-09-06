@@ -1,3 +1,4 @@
+import { AppAudioSession } from 'app-audio-session'
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type { TTS, WebRadioCapability, WebRadioStartOptions } from 'capabilities'
 import type Microphone from 'microphone'
@@ -89,6 +90,19 @@ export class StackchanRuntimeAudio {
 
   get microphone() {
     return this.#microphone
+  }
+
+  createAppSession(): AppAudioSession {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
+    const runtime = this
+    return new AppAudioSession({
+      say: (text, options) => this.speak(text, options),
+      playClip: (name, options) => this.playClip(name, options),
+      tone: (hz, options) => this.tone(hz, options.durationMs, options.volume, options.signal),
+      get releaseFailure() {
+        return runtime.#output.failure
+      },
+    })
   }
 
   get tts(): TTS {

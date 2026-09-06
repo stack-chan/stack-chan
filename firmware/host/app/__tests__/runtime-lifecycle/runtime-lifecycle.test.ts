@@ -75,7 +75,7 @@ async function run(): Promise<void> {
           async close() {},
         },
         face: { setEmotion() {}, setColor() {}, setMouthOpen() {} },
-        audio: { async say() {}, async playClip() {}, async tone() {} },
+        audio: { async say() {}, async playClip() {}, async tone() {}, async close() {} },
         input: {
           subscribePress(handler) {
             listeners.add(handler)

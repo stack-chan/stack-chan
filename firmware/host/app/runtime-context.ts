@@ -236,11 +236,7 @@ export class StackchanRuntimeContext implements StackchanContext {
             this.setColor(part, r, g, b)
           },
         },
-        audio: {
-          say: (text, options) => this.#audioRuntime.speak(text, options),
-          playClip: (name, options) => this.#audioRuntime.playClip(name, options),
-          tone: (hz, options) => this.#audioRuntime.tone(hz, options.durationMs, options.volume, options.signal),
-        },
+        audio: this.#audioRuntime.createAppSession(),
         input: {
           subscribePress: (handler) => {
             if (this.#inputRuntime.primaryButton) return this.#inputRuntime.subscribePress(handler)

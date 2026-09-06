@@ -7,15 +7,15 @@
 
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
-| F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDK・motion・一枚撮影と画像表示をAppSessionへ接続。録音・会話・設定・高度な拡張は未完了 |
-| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。WASMカメラとnativeのフレーム待ち、native / WASM録音のrollback・取消し・期限・解放待ちも接続。音声出力の共通終了とnative TTSのHTTP・DNS・準備要求を接続。AppSessionの音声所有、WASM出力bridgeと機器置換は継続 |
-| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消し、native / WASM録音の完了・時間とバッファ上限・形式の保持を接続。他機能と実機での確認は未完了 |
+| F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDK・motion・一枚撮影と画像表示をAppSessionへ接続。録音・バッファ再生・会話・設定・高度な拡張は未完了 |
+| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。WASMカメラとnativeのフレーム待ち、native / WASM録音のrollback・取消し・期限・解放待ちも接続。音声出力の共通終了とnative TTSのHTTP・DNS・準備要求を接続。WASM出力の再生・停止確認、AppSessionの公開再生操作の所有と解放待ちも接続。音声合成器・機器置換とV1の直接参照は継続 |
+| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消し、native / WASM録音の完了・時間とバッファ上限・形式の保持を接続。WASM出力の上限・終了通知・解放確認とブラウザー例外の正規化も接続。他機能と実機での確認は未完了 |
 | F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声とV2 motionに停止待ち付きOperationQueue、サーボUARTに共通FIFOを接続。注視と単発移動を調停。Wi-Fi接続に所有者別の使用権、一枚撮影に待機2件の停止待ちキューを接続。会話・USB・全無線経路の調停・V1移行は未完了 |
 | F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの6教材とSDK型検査を追加。全32旧MOD／miniappの入口と依存を宣言。SDK世代2への移行は未完了 |
 | F6 アプリ構成 | 既定動作、診断、UI 拡張の責務と寿命を分ける。既定動作にも SDK と AppSession を使用 | 最小起動入口と保守起動を分離。既定動作のSDK化・診断とUI拡張の分離は未完了 |
 | F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 共通 host runtime、TTS契約、設定定義とモデル用manifestを一本化。Webも同じ設定定義を参照。ESP32のMAC取得ソース選択も修正。ボード・残りの公開型・型検査は未完了 |
 | F8 設定・起動 | 型・検証・優先順位・secret・適用時点を共通設定サービスへ集約。オフライン教材を Wi-Fi 待機から独立 | V2起動をWi-Fi待機から独立。SettingsServiceを設定画面・BLE・設定読み込みへ接続し、Wi-Fi起動の優先順位を統一。BootSessionの準備状態・期限・取消し・置換時の終了を接続。アプリ公開API・V1起動全体の整理・電源断時の保証は未完了 |
-| F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTSの失敗・取消し、motionの構造化bridgeと推定完了、WASMの経過時計を接続。Wi-Fi管理器を共通化し、WASMのWi-Fiをunavailableと明示。カメラの所有・取消しを接続し、明示されていない合成画像への代替を廃止。その他の能力metadataと教材適合は未完了 |
+| F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTSの失敗・取消し、motionの構造化bridgeと推定完了、WASMの経過時計を接続。Wi-Fi管理器を共通化し、WASMのWi-Fiをunavailableと明示。カメラの所有・取消しを接続し、明示されていない合成画像への代替を廃止。録音・出力の所有を接続し、toneの時間経過だけの成功を廃止。出力の利用可否も能力表示へ接続。その他の能力metadataと教材適合は未完了 |
 | F10 検査・配布 | 公開依存・JS / TS 教材・型・ライフサイクルを実効的に検査。V2 metadata を Web / CLI / SD / WASM で起動前検証 | SDKのAST依存検査と全新教材のstrict検査を追加。全32例と6教材に宣言を同梱。Web・CLI・SD・WASM・起動時に必須検査と拒否時の復旧を接続。Gallery配布物と外部宣言も照合。実際の能力表・SDK移行・全ビルド入口・実機受入は未完了 |
 
 ## 固定する設計判断
@@ -343,3 +343,21 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - 同じ最終ビルドで6教材の起動・操作、カメラの画像表示と撮影・再起動時のtrack解放が成功。物理音声や他ブラウザーの受入は未実施。
 
 残る範囲: AppSessionの音声所有、録音・再生・会話・設定・拡張の公開SDK、音声合成器とプロバイダー交換、会話・USB・Web Radioの調停、旧MODと既定動作の移行、ボード・能力metadata、全ビルド入口、実機・初学者受入。F1〜F10全体は引き続き未完了。
+
+## AppSessionの音声操作と解放待ち（2026-09-06）
+
+詳細は [アプリ単位の音声操作の所有](app-audio-lifecycle.md)。F2のアプリとホストの間を、現在公開済みの発話・素材再生・toneへ接続した。
+
+- RuntimeAudioからAppAudioSessionを作り、AppSessionの内部audio portにcloseを必須とした。TaskScopeがアプリのタスクへ取消しを返した後も、音声操作の実際の完了を所有する。
+- アプリを閉じると所有する全操作へ先に取消しを通知し、全結果を待つ。待機中のアプリを閉じても別アプリの再生を止めず、正常終了後はホストのTTSを次のアプリで再利用できる。
+- ホストの有限キューと停止期限は共通のRuntimeAudioを使う。別の再生キューは増やさない。購読と操作登録を終了時に回収し、開始前の取消しやcloseではプロバイダーを呼ばない。
+- RuntimeAudioの物理的な解放失敗をAppAudioSession.closeにも返す。通常のCLOSED / CANCELLEDと区別し、アプリ状態がclosingの間に音声資源を次へ持ち越さない。
+
+検証:
+
+- Node 515件、構成検査78件、SDK strict、6機種のmanifest検査が成功。AppAudioSessionの100回の成功・取消し、全操作への取消し、遅い解放、購読解除の失敗、異なるアプリの待機／再生、TTSの再利用と解放失敗の伝播を含む。
+- 全62 XS manifestが成功（4並列、62.7秒）。context-lifecycleでは実Piuと実Timerを使い、SDKから開始したtoneを取り消してから、Speakerの停止確認までホストcloseが完了しないことを確認した。
+- CoreS3 release 6,563,792 bytes、Takao Core2 3,866,336 bytes、Stack-chan RT 3,986,992 bytesとWASMを生成。nativeの全バイナリーで9.5.0+stackchan.2を確認した。
+- Webの型検査・ビルドとChromiumの6教材の起動・操作、カメラの画像表示と撮影・再起動時のtrack解放が成功。Web本体はこの段階では変更しておらず、前段のNode 252件・React 67件と音声結合試験の成功記録を維持する。
+
+残る範囲: 公開SDKの録音・バッファ再生・会話・設定・拡張と教材、音声合成器とプロバイダー交換、会話・USB・Web Radioの調停、旧MODと既定動作の移行、ボード・能力metadata、全ビルド入口、実機・初学者受入。F1〜F10全体は引き続き未完了。

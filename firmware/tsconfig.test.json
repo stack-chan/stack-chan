@@ -309,6 +309,7 @@
       "app-session": [
         "./host/app/app-session.ts"
       ],
+      "app-audio-session": ["./host/app/app-audio-session.ts"],
       "runtime-resources": [
         "./host/app/runtime-resources.ts"
       ],

@@ -11,6 +11,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { cn } from '@/lib/utils'
 import { type Locale } from '@/lib/i18n/catalogs'
 import { type Theme } from '@/lib/theme/theme'
+import { useAppTools } from '@/services/webmcp/app-tools'
+import { WebMcpOperationStatus } from '@/services/webmcp/react'
 
 const symbolUrl = new URL('../../assets/stackchan-symbol.png', import.meta.url).href
 
@@ -30,6 +32,7 @@ const localeNames: Record<Locale, string> = {
 }
 
 export function AppShell({ current, surfaceName, rootHref, children, headerActions, contentClassName }: AppShellProps) {
+  useAppTools(current, rootHref)
   const { locale, setLocale, t } = useI18n()
   const { theme, setTheme } = useTheme()
   const rootUrl = new URL(rootHref, window.location.href)
@@ -139,6 +142,7 @@ export function AppShell({ current, surfaceName, rootHref, children, headerActio
         </a>
         {headerActions && <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">{headerActions}</div>}
       </header>
+      <WebMcpOperationStatus />
       <main className={contentClassName}>{children}</main>
     </div>
   )

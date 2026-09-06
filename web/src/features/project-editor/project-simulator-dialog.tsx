@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
 import { SimulatorSurface } from '@/components/stackchan/simulator-surface'
@@ -22,6 +22,7 @@ type ProjectSimulatorDialogProps = {
   onTrace?: (message: string) => void
   onReady?: (ready: SimulatorReady) => void
   onError?: (error: unknown) => void
+  onController?: (controller: { pushButton: (name: 'a' | 'b' | 'c') => void } | null) => void
 }
 
 function ProjectSimulatorRuntime({
@@ -30,6 +31,7 @@ function ProjectSimulatorRuntime({
   onTrace,
   onReady,
   onError,
+  onController,
 }: Omit<ProjectSimulatorDialogProps, 'open' | 'onOpenChange'> & { archive: Uint8Array }) {
   const initialMod = useMemo(() => ({ name: archiveName, bytes: archive }), [archive, archiveName])
   const simulator = useSimulatorEngine({
@@ -40,6 +42,10 @@ function ProjectSimulatorRuntime({
     onReady,
     onError,
   })
+  useEffect(() => {
+    onController?.(simulator)
+    return () => onController?.(null)
+  }, [onController, simulator.pushButton])
 
   return (
     <div className="min-h-0" data-testid="project-simulator">
@@ -56,6 +62,7 @@ export function ProjectSimulatorDialog({
   onTrace,
   onReady,
   onError,
+  onController,
 }: ProjectSimulatorDialogProps) {
   const { t } = useI18n()
 
@@ -77,6 +84,7 @@ export function ProjectSimulatorDialog({
             onTrace={onTrace}
             onReady={onReady}
             onError={onError}
+            onController={onController}
           />
         ) : (
           <p className="text-sm text-muted-foreground" role="status">

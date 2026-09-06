@@ -211,6 +211,7 @@ jobs:
         run: |
           npm --prefix ../web run test:visual
           npm --prefix ../web run test:i18n-visual
+          (cd ../web && npm run test:webmcp)
       - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v7

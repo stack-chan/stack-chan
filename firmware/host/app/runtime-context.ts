@@ -1,5 +1,4 @@
 import { AppSession } from 'app-session'
-import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
 import type {
   AudioCapability,
   ConnectivityCapability,
@@ -13,11 +12,10 @@ import type {
   RemoteConversationSession,
   RobotUI,
   RuntimeUICapability,
-  ShowBalloonOptions,
   StackchanContext,
 } from 'capabilities'
 import clockTicks from 'clock-ticks'
-import { Emotion, type FaceEyeKey, type FaceThemeKey } from 'face-state'
+import { Emotion } from 'face-state'
 import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
@@ -40,7 +38,7 @@ import {
 import { StackchanRuntimeUI } from 'runtime-ui'
 import type { AppDefinition } from 'stackchan/app'
 import { StackchanError } from 'stackchan/errors'
-import { type Maybe, type Pose, type Vector3, waitForCompletion } from 'stackchan-util'
+import { waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
 
 const INTERVAL_FACE = 1000 / 30
@@ -279,13 +277,13 @@ export class StackchanRuntimeContext implements StackchanContext {
         face: {
           setEmotion: (emotion) => {
             if (!Object.hasOwn(emotions, emotion)) throw new StackchanError('INVALID_ARGUMENT', 'Unknown emotion')
-            this.setEmotion(emotions[emotion])
+            this.#uiRuntime.setEmotion(emotions[emotion])
           },
-          setMouthOpen: (value) => this.setMouthOpen(value),
+          setMouthOpen: (value) => this.#uiRuntime.setMouthOpen(value),
           setColor: (part, { r, g, b }) => {
             if (part !== 'primary' && part !== 'secondary')
               throw new StackchanError('INVALID_ARGUMENT', 'Unknown face color')
-            this.setColor(part, r, g, b)
+            this.#uiRuntime.setColor(part, r, g, b)
           },
         },
         audio: this.#audioRuntime.createAppSession(),
@@ -329,8 +327,8 @@ export class StackchanRuntimeContext implements StackchanContext {
           },
         },
         ui: {
-          showBalloon: (text) => this.showBalloon(text),
-          hideBalloon: () => this.hideBalloon(),
+          showBalloon: (text) => this.#uiRuntime.showBalloon(text),
+          hideBalloon: () => this.#uiRuntime.hideBalloon(),
           showImage: (image) => this.#uiRuntime.showImage(image),
           hideImage: () => this.#uiRuntime.hideImage(),
         },
@@ -424,219 +422,20 @@ export class StackchanRuntimeContext implements StackchanContext {
     return this.#lifecycleCapability
   }
 
-  /**
-   * Set a TTS instance and register callbacks.
-   *
-   * @param tts - TTS class instance
-   */
-  useTTS(tts: RuntimeAudioConstructorParam['tts']) {
-    this.#audioRuntime.useTTS(tts)
-  }
-
-  /**
-   * get Buttons
-   *
-   * @returns Button instances
-   */
-  get button() {
-    return this.#inputRuntime.button
-  }
-
-  /**
-   * get Touch
-   *
-   * @returns Touch instances
-   */
-  get touch() {
-    return this.#inputRuntime.touch
-  }
-
-  /**
-   * get top touch panel
-   *
-   * @returns TouchPanel instance
-   */
-  get touchPanel() {
-    return this.#inputRuntime.touchPanel
-  }
-
-  /**
-   * get IMU sensor
-   *
-   * @returns IMU instance
-   */
-  get imu() {
-    return this.#inputRuntime.imu
-  }
-
-  /**
-   * get Pose
-   *
-   * @returns pose instances
-   */
-  get pose() {
-    return this.#motionController.pose
-  }
-
-  /**
-   * get Microphone
-   *
-   * @returns Microphone instance
-   */
-  get microphone() {
-    return this.#audioRuntime.microphone
-  }
-
-  /**
-   * get Camera
-   *
-   * @returns Camera instance
-   */
   get camera() {
     return this.#cameraRuntime.camera
-  }
-
-  /**
-   * let the robot say things
-   *
-   * @param text - the key or speech text itself to say
-   * @returns the text when speech finishes, otherwise the reason why it fails.
-   */
-  async say(text: string, volume?: number): Promise<Maybe<string>> {
-    return this.#audioRuntime.say(text, volume)
-  }
-
-  /**
-   * Sing raw stackchan-voice koe notation when the active TTS supports it.
-   *
-   * @param koe - romanized koe notation with `#` note annotations
-   * @returns the koe notation when singing finishes, otherwise the reason why it fails.
-   */
-  async sing(koe: string, volume?: number): Promise<Maybe<string>> {
-    return this.#audioRuntime.sing(koe, volume)
-  }
-
-  async record(durationMilliSec?: number): Promise<OwnedAudioBuffer> {
-    return this.#audioRuntime.record(durationMilliSec)
-  }
-
-  /**
-   * let the robot sound a tone
-   * @param hz frequency of tone
-   * @param duration duration (unit: millisecond)
-   * @returns return when the playback of the tone is completed.
-   */
-  async tone(hz: number, duration: number, volume?: number): Promise<void> {
-    return this.#audioRuntime.tone(hz, duration, volume)
-  }
-
-  async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
-    return this.#audioRuntime.playAudio(buffer)
-  }
-
-  /**
-   * Move the focus point of the robot.
-   * When the robot looks somewhere, it moves its gaze or face direction
-   * toward that point.
-   * The function lookAt completes synchronously,
-   * and the function does not know when to start or finish moving the gaze.
-   *
-   * @param position - the position of the point to look at
-   */
-  lookAt(position: Vector3) {
-    this.#motionController.lookAt(position)
-  }
-
-  /**
-   * Show balloon decorator
-   *
-   * @param text - the text on the balloon
-   */
-  showBalloon(text: string, option: ShowBalloonOptions = {}) {
-    this.#uiRuntime.showBalloon(text, option)
-  }
-
-  /**
-   * Hide balloon decorator
-   */
-  hideBalloon() {
-    this.#uiRuntime.hideBalloon()
-  }
-
-  /**
-   * Unregister the focus point.
-   */
-  lookAway() {
-    this.#motionController.lookAway()
-  }
-
-  /**
-   * Set the pose.
-   *
-   * @returns void when the robot start moving
-   * @experimental
-   */
-  async setPose(pose: Pose, time?: number): Promise<void> {
-    return waitForCompletion((callback) => this.#motionController.setPose(pose, time, callback))
-  }
-
-  /**
-   * Set the actuator torque.
-   *
-   * @returns void when the robot completes setting the torque
-   */
-  async setTorque(torque: boolean): Promise<void> {
-    return waitForCompletion((callback) => this.#motionController.setTorque(torque, callback))
-  }
-
-  /**
-   * Set the color
-   * @param{key} - 'primary' or 'secondary'
-   * @param{r} - red value [0-255]
-   * @param{g} - green value [0-255]
-   * @param{b} - blue value [0-255]
-   */
-  setColor(key: FaceThemeKey, r: number, g: number, b: number): void {
-    this.#uiRuntime.setColor(key, r, g, b)
-  }
-
-  /**
-   * Set the emotion of the robot.
-   * The emotion may (or may not) affect the way the robot moves
-   * and its facial expressions.
-   *
-   * @param emotion - emotion
-   */
-  setEmotion(emotion: Emotion) {
-    this.#uiRuntime.setEmotion(emotion)
-  }
-
-  setEyeOpen(key: FaceEyeKey, value: number) {
-    this.#uiRuntime.setEyeOpen(key, value)
-  }
-
-  setMouthOpen(value: number) {
-    this.#uiRuntime.setMouthOpen(value)
-  }
-
-  get tts() {
-    return this.#audioRuntime.tts
   }
 
   get ui(): RuntimeUICapability {
     return this.#uiCapability
   }
 
-  get drawer() {
-    return this.#uiRuntime.drawer
-  }
-
   private createFaceCapability(): FaceCapability {
     return {
-      setColor: (key, r, g, b) => this.setColor(key, r, g, b),
-      setEmotion: (emotion) => this.setEmotion(emotion),
-      setEyeOpen: (key, value) => this.setEyeOpen(key, value),
-      setMouthOpen: (value) => this.setMouthOpen(value),
+      setColor: (key, r, g, b) => this.#uiRuntime.setColor(key, r, g, b),
+      setEmotion: (emotion) => this.#uiRuntime.setEmotion(emotion),
+      setEyeOpen: (key, value) => this.#uiRuntime.setEyeOpen(key, value),
+      setMouthOpen: (value) => this.#uiRuntime.setMouthOpen(value),
     }
   }
 
@@ -644,19 +443,19 @@ export class StackchanRuntimeContext implements StackchanContext {
     const context = this
     return {
       get pose() {
-        return context.pose
+        return context.#motionController.pose
       },
       lookAt(position) {
-        context.lookAt(position)
+        context.#motionController.lookAt(position)
       },
       lookAway() {
-        context.lookAway()
+        context.#motionController.lookAway()
       },
       setPose(pose, time) {
-        return context.setPose(pose, time)
+        return waitForCompletion((callback) => context.#motionController.setPose(pose, time, callback))
       },
       setTorque(torque) {
-        return context.setTorque(torque)
+        return waitForCompletion((callback) => context.#motionController.setTorque(torque, callback))
       },
     }
   }
@@ -665,28 +464,28 @@ export class StackchanRuntimeContext implements StackchanContext {
     const context = this
     return {
       get tts() {
-        return context.tts
+        return context.#audioRuntime.tts
       },
       get microphone() {
-        return context.microphone
+        return context.#audioRuntime.microphone
       },
       useTTS(tts) {
-        context.useTTS(tts)
+        context.#audioRuntime.useTTS(tts)
       },
       say(text, volume) {
-        return context.say(text, volume)
+        return context.#audioRuntime.say(text, volume)
       },
       sing(koe, volume) {
-        return context.sing(koe, volume)
+        return context.#audioRuntime.sing(koe, volume)
       },
       record(durationMilliSec) {
-        return context.record(durationMilliSec)
+        return context.#audioRuntime.record(durationMilliSec)
       },
       tone(hz, duration, volume) {
-        return context.tone(hz, duration, volume)
+        return context.#audioRuntime.tone(hz, duration, volume)
       },
       playAudio(buffer) {
-        return context.playAudio(buffer)
+        return context.#audioRuntime.playAudio(buffer)
       },
       get webRadio() {
         return context.#audioRuntime.webRadio
@@ -698,16 +497,16 @@ export class StackchanRuntimeContext implements StackchanContext {
     const context = this
     return {
       get button() {
-        return context.button
+        return context.#inputRuntime.button
       },
       get touch() {
-        return context.touch
+        return context.#inputRuntime.touch
       },
       get touchPanel() {
-        return context.touchPanel
+        return context.#inputRuntime.touchPanel
       },
       get imu() {
-        return context.imu
+        return context.#inputRuntime.imu
       },
     }
   }
@@ -720,7 +519,7 @@ export class StackchanRuntimeContext implements StackchanContext {
 
   private createConversationCapability(remoteSession?: RemoteConversationSession): ConversationCapability {
     return {
-      say: (text, volume) => this.say(text, volume),
+      say: (text, volume) => this.#audioRuntime.say(text, volume),
       ...(remoteSession ? { remoteSession } : {}),
     }
   }
@@ -823,13 +622,13 @@ export class StackchanRuntimeContext implements StackchanContext {
         context.#uiRuntime.ui.toggleDrawer()
       },
       get drawer() {
-        return context.drawer
+        return context.#uiRuntime.drawer
       },
       showBalloon(text, option) {
-        context.showBalloon(text, option)
+        context.#uiRuntime.showBalloon(text, option)
       },
       hideBalloon() {
-        context.hideBalloon()
+        context.#uiRuntime.hideBalloon()
       },
     }
   }

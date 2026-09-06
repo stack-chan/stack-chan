@@ -114,7 +114,7 @@ export type AudioCapability = {
   }
   /**
    * Replaces the TTS engine and rebinds playback lifecycle callbacks.
-   * Prefer this namespaced API over the legacy flat `context.useTTS(...)` shim.
+   * Legacy MODs select providers here until they migrate to the public SDK.
    */
   useTTS(tts: TTS): void
   say(text: string, volume?: number): Promise<Maybe<string>>
@@ -165,10 +165,6 @@ export type LightingCapability = {
   lightOff(ledName: string, index?: number, count?: number): void
   lightBlink(ledName: string, r: number, g: number, b: number, duration: number, index?: number, count?: number): void
   lightRainbow(ledName: string, index?: number, count?: number): void
-}
-
-export type CameraCapability = {
-  camera: RobotCamera
 }
 
 export type RemoteConversationState = 'standby' | 'connecting' | 'listening' | 'recognizing' | 'speaking' | 'blocked'
@@ -243,14 +239,7 @@ export type RuntimeUICapability = RobotUI & {
   hideBalloon(): void
 }
 
-export type UICapability = {
-  ui: RuntimeUICapability
-  drawer: DrawerCapability
-  showBalloon(text: string, option?: ShowBalloonOptions): void
-  hideBalloon(): void
-}
-
-export type StackchanCapabilityNamespaces = {
+export type StackchanContext = {
   face: FaceCapability
   motion: MotionCapability
   audio: AudioCapability
@@ -267,14 +256,3 @@ export type StackchanCapabilityNamespaces = {
   lifecycle: LifecycleCapability
   ui: RuntimeUICapability
 }
-
-export type StackchanLegacyFlatCapability = FaceCapability &
-  MotionCapability &
-  AudioCapability &
-  InputCapability &
-  CameraCapability &
-  ConversationCapability &
-  ConnectivityCapability &
-  UICapability
-
-export type StackchanContext = StackchanCapabilityNamespaces & StackchanLegacyFlatCapability

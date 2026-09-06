@@ -2,7 +2,7 @@
 
 [English](./api.md)
 
-APIの詳しいドキュメントは現在作成中です。
+新規アプリは `defineApp` と公開SDKを使います。[SDKガイド](../sdk/README_ja.md) と [入門教材](../lessons/README_ja.md) から始めてください。以下は撤去を進めているAPI 1 runtimeの資料です。
 
 ｽﾀｯｸﾁｬﾝのソースコードには `TSDoc` 形式のコメントがついています。
 このリポジトリでは、Node.js 側の検査と API ドキュメント生成のために `firmware/tsconfig.json` を保持しています。
@@ -15,7 +15,7 @@ $ npm run generate-apidoc
 
 ## 構成
 
-MODは`onContextCreated`から`StackchanContext`を受け取ります。
+旧API 1のMODは`onContextCreated`から`StackchanContext`を受け取ります。
 `StackchanContext`は、UI、motion、speech、inputの実装を独立して差し替えられるように、少数のcapabilityを公開します。
 
 - [StackchanContext](#stackchancontext): MODに渡されるruntime capabilityの集合
@@ -83,9 +83,7 @@ MOD の Drawer Button や Piu `Label` に表示する文字列は `context.i18n.
 MOD 自身の辞書、host 辞書、キー文字列の順に解決されます。
 辞書の追加方法は [Firmware のローカライズ](./localization_ja.md)を参照してください。
 
-`context.say(...)`、`context.lookAt(...)`、`context.showBalloon(...)`、`context.useTTS(...)` などの flat API は、既存 MOD 互換の shim として残しています。
-新規コードでは非推奨です。
-sample MOD と downstream MOD の移行後に削除対象になります。
+flat context のメソッドとgetterは撤去しました。`context.say(...)`、`context.lookAt(...)`、`context.showBalloon(...)`、`context.useTTS(...)`、raw入力やLEDのflat呼び出しに別名は残していません。SDKのportと残る旧名前空間は既存のruntimeを直接呼びます。新規アプリはSDKを使い、旧名前空間自体も利用者の移行と一緒に撤去します。
 
 ### ライフサイクルとエラー
 

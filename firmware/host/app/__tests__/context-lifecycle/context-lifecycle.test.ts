@@ -290,6 +290,39 @@ async function run() {
     },
     button: { a: rawButton },
   })
+  // These entrypoints were retired, including their emitted XS properties.
+  for (const name of [
+    'useTTS',
+    'button',
+    'touch',
+    'touchPanel',
+    'imu',
+    'pose',
+    'microphone',
+    'say',
+    'sing',
+    'record',
+    'tone',
+    'playAudio',
+    'lookAt',
+    'showBalloon',
+    'hideBalloon',
+    'lookAway',
+    'setPose',
+    'setTorque',
+    'setColor',
+    'setEmotion',
+    'setEyeOpen',
+    'setMouthOpen',
+    'tts',
+    'drawer',
+    'led',
+    'lightOn',
+    'lightOff',
+    'lightBlink',
+    'lightRainbow',
+  ])
+    assert(!(name in context), `flat context entrypoint remains: ${name}`)
   await context.startApp(
     defineApp({
       setup(app) {
@@ -349,7 +382,7 @@ async function run() {
     ui: effectUI,
     tts: { stream() {} },
   })
-  effectContext.showBalloon('cleanup')
+  effectContext.ui.showBalloon('cleanup')
   let removals = 0
   const removeFailure = new Error('effect removal failed')
   effectUI.removeEffect = () => {
@@ -357,7 +390,7 @@ async function run() {
     throw removeFailure
   }
   await rejectsSame(effectContext.lifecycle.close(), removeFailure)
-  effectContext.hideBalloon()
+  effectContext.ui.hideBalloon()
   equal(removals, 1, 'failed effect removal does not leave a retained balloon registration')
   assert(
     effectApplication.first === null || effectApplication.first === undefined,

@@ -2,7 +2,7 @@
 
 [日本語](./api_ja.md)
 
-The detailed API document is under construction.
+New apps use `defineApp` and the public SDK. Start with the [SDK guide](../sdk/README_ja.md) and [lessons](../lessons/README_ja.md). The context reference below describes the remaining API 1 runtime, which is being retired.
 
 Stack-chan firmware sources include `TSDoc` style comments.
 The repository keeps `firmware/tsconfig.json` for Node-side checks and API document generation.
@@ -15,7 +15,7 @@ $ npm run generate-apidoc
 
 ## Architecture
 
-Mods receive a `StackchanContext` capability object from `onContextCreated`.
+Legacy API 1 MODs receive a `StackchanContext` capability object from `onContextCreated`.
 The context exposes a small set of capabilities so UI, motion, speech, and input implementations can be replaced independently.
 
 - [StackchanContext](#stackchancontext): Runtime capabilities passed to mods
@@ -78,8 +78,7 @@ Use `context.i18n.localize(key, values?)` for text shown by a MOD Drawer Button 
 It resolves the MOD catalog first, then the host catalog, and finally the key itself.
 See [Firmware localization](./localization.md) for catalog setup.
 
-The legacy flat methods such as `context.say(...)`, `context.lookAt(...)`, `context.showBalloon(...)`, and `context.useTTS(...)` remain as compatibility shims for existing MODs.
-They are deprecated for new code and may be removed after the sample MODs and downstream MODs have moved to the namespaced API.
+The flat context methods and getters have been removed. There are no aliases for `context.say(...)`, `context.lookAt(...)`, `context.showBalloon(...)`, `context.useTTS(...)`, raw input, or flat lighting calls. SDK ports and the remaining legacy namespaces call their existing runtime implementation directly. New apps use the SDK; the legacy namespaces themselves remain a migration target.
 
 ### Lifecycle and errors
 

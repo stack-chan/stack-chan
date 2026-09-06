@@ -1,21 +1,23 @@
-import loadPreferences, { getHostSettingsService, loadModConfig, loadPreferenceConfig } from 'loadPreference'
-import { runContextCreatedBehaviors, type StackchanAppBehavior } from 'app-behavior'
+import { getHostSettingsService, loadModConfig, loadPreferenceConfig } from 'loadPreference'
 import { resolveAppProgram } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
-import { installLaunchShortcut, type LaunchShortcutButton, runLaunchBehaviors } from 'app-launch'
+import { installLaunchShortcut, type LaunchShortcutButton } from 'app-launch'
 import { requestBootRecoveryChoice } from 'boot-recovery-choice'
 import { startHostBootServices } from 'boot-services'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
-import { DOMAIN } from 'consts'
 import { type StackchanDockRuntime, startStackchanDock } from 'dock'
+import { runHostStartup } from 'host-startup'
 import verifyInstalledMod from 'installed-mod'
 import { initializeLocalization, localize } from 'localization'
+import config from 'mc/config'
 import { isModMaintenanceActive, restartInModMaintenance } from 'mod-maintenance'
 import Modules from 'modules'
 import { ResourceScope } from 'owned-resources'
 import type { StackchanRuntimeContext } from 'runtime-context'
+import { startSetupMode } from 'setup-mode'
 import { showStartupFailure, showStartupSplash, showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
 import { applyTimezone } from 'timezone-settings'
+import Timer from 'timer'
 
 type DeviceButton = {
   onChanged: (this: DeviceButton) => void
@@ -83,31 +85,37 @@ async function main() {
       globalEnv.System.restart()
       return
     }
-    const modContract = verifyInstalledMod()
-    dockRuntime = startStackchanDock(Modules, loadModConfig())
-    if (dockRuntime) {
-      bootResources.own(dockRuntime)
-      trace('[main] Stackchan Dock started\n')
-    }
     installPlatformInputBridge()
-    initializeLocalization(loadPreferences(DOMAIN.ui).language)
-    applyTimezone(loadPreferences(DOMAIN.time).timezone)
-
-    trace('[main] loading app behaviors\n')
-    const program = resolveAppProgram(Modules, defaultBehavior, modContract?.appApiVersion)
-    const appBehaviors: StackchanAppBehavior[] =
-      program.generation === 1 ? program.behaviors : [{ onLaunch: defaultBehavior.onLaunch }]
-    // Launch behaviors run before startHostBootServices so the splash screen is
-    // visible while network setup blocks.
-    const shouldCreateContext = await runLaunchBehaviors(appBehaviors)
-    trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
-    if (!shouldCreateContext) {
+    const hostSettings = getHostSettingsService()
+    initializeLocalization(hostSettings.get('ui.language'))
+    applyTimezone(hostSettings.get('time.timezone'))
+    if (
+      !(await runHostStartup({
+        timer: Timer,
+        showSplash: showStartupSplash,
+        openSettings: startSetupMode,
+        openMods: Modules.has('mod-manager') ? restartInModMaintenance : undefined,
+        autoBootDelayMs: config.wasm ? 8000 : undefined,
+      }))
+    ) {
       installModManagerShortcut()
       await bootResources.close()
       return
     }
 
+    const modContract = verifyInstalledMod()
+    // Reserve Dock buffers before MOD evaluation, Wi-Fi, and the runtime context.
+    dockRuntime = startStackchanDock(Modules, loadModConfig())
+    if (dockRuntime) bootResources.own(dockRuntime)
+    const program = resolveAppProgram(Modules, defaultBehavior, modContract?.appApiVersion)
+    if (program.generation === 1 && (await program.behavior.onLaunch?.()) === false) {
+      installModManagerShortcut()
+      await bootResources.close()
+      return
+    }
     const preferences = loadPreferenceConfig()
+    initializeLocalization(preferences.ui.language)
+    applyTimezone(preferences.time.timezone)
     const bootServices = startHostBootServices({
       credentials: { ssid: preferences.wifi.ssid ?? '', password: preferences.wifi.password ?? '' },
       wifi:
@@ -139,7 +147,7 @@ async function main() {
     trace('[main] app context created\n')
     if (program.generation === 2) await context.startApp(program.app)
     else
-      await runContextCreatedBehaviors(appBehaviors, context, {
+      await program.behavior.onContextCreated?.(context, {
         device: getHostDeviceEnvironment(),
         config: preferences,
       })

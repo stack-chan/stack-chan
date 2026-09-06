@@ -26,10 +26,7 @@
     "led": "../../modules/lighting/wasm/led",
     "py32-led": "../../modules/lighting/wasm/py32-led",
     "app-behavior": "../../app/app-behavior",
-    "app-default-behavior": "../../app/default-behavior/wasm/behavior",
-    "app-default-behavior/wasm/behavior": "../../app/default-behavior/wasm/behavior",
-    "app-default-behavior/wasm/on-launch": "../../app/default-behavior/wasm/on-launch",
-    "app-default-behavior/startup-choice": "../../app/default-behavior/startup-choice",
+    "app-default-behavior": "../../app/default-behavior/behavior",
     "app-default-behavior/on-context-created": "../../app/default-behavior/on-context-created"
   },
   "preload": [

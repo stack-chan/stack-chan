@@ -50,11 +50,28 @@ python3 docs/architecture/evidence/firmware-retirement/measure.py f525e97 --file
 
 起点 `6eb4623` に対して製品ソースは、まだ **50ファイル・7,000行増** である。再設計全体の純減条件は未達。新しい配布補助 `canonical-sources.mjs` も、既存の計測規則に従って Web 製品ソースに含めた。
 
+### ホスト起動の整理後の計測（2026-09-06）
+
+直前の `1ac94a8` と今回のソースを、同じ `measure.py` で比較した。
+
+| 分類 | 直前 | 今回 | 差分 |
+| --- | ---: | ---: | ---: |
+| firmware 実装 | 42,462 | 42,375 | -87 |
+| SDK・共通契約 | 493 | 493 | 0 |
+| Web 実装 | 16,014 | 16,014 | 0 |
+| 型宣言 | 733 | 733 | 0 |
+| **製品ソース計** | **59,702** | **59,615** | **-87** |
+| 試験・補助（別計上） | 36,554 | 36,405 | -149 |
+
+製品は469ファイルから466ファイルへ3ファイル減った。native/WASMの二重の起動ループとWASM専用の既定動作を共通のホスト起動へまとめ、単一アプリを配列で実行する2つの中継と未使用のWi-Fi復旧ヘルパーを削除した。機能やソースを教材・生成物へ移した削減ではない。試験では古い起動専用stubを削除し、100回の設定・戻る操作と、実WASM上のMOD評価順序を検査する。
+
+起点 `6eb4623` に対しては **47ファイル・6,913行増** であり、全体の純減は未達。既定動作のSDK化、V1のフック継承・世代分岐・raw公開面の撤去は残っている。
+
 ## 利用者と一緒に撤去する経路
 
 | 現存経路 | 主な利用者 | 残す先・撤去条件 |
 | --- | --- | --- |
-| `app-behavior-resolver` の世代1・フック継承、`app-main` の世代別起動 | 既定動作、未移行 MOD | 既定動作と残す MOD が `defineApp` になった時点で分岐・継承を削除。ホストの設定・復旧は起動サービスとして残す |
+| `app-behavior-resolver` の世代1・フック継承、`app-main` の世代別起動 | 既定動作、未移行 MOD | ホストの起動・設定はMOD評価前へ分離済み。native/WASMの二重ループとフック配列の実行を撤去。既定動作と残す MOD が `defineApp` になった時点で世代分岐・継承を削除 |
 | `runtime-context` の flat メソッドと namespaced facade、`capabilities` の raw 公開型 | 既定動作、旧 MOD、Dock などのホスト統合 | ユーザーアプリは SDK、ホスト統合は非公開 port へ移す。両方の利用者がなくなった項目からメソッド・型・exports を削除 |
 | `RuntimeAudio.say` の `Maybe`、`playAudio` の `boolean`、raw `record`、`useTTS` | 既定動作の録音デモ、AI・応援・ビーコン・Blockly | `say` / `playClip` / `record` / `play` と provider の選択へ移す。呼出側が残る間に変換 shim を増設しない |
 | raw button / IMU / headTouch と Timer の直接登録 | 既定動作、Blockly、センサー・通信サンプル | `AppSession` が所有する入力購読・周期処理と、必要なセンサー拡張へ移す。イベント上書き・独自 disposers・petting 判定の重複を削除 |

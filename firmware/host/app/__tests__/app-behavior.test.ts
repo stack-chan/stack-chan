@@ -20,7 +20,7 @@ test('resolveAppProgram preserves V2 setup without inheriting legacy hooks', asy
   const app = { apiVersion: 2 as const, setup() {} }
   const program = resolveAppProgram({ has: () => true, importNow: () => app }, { onContextCreated() {} }, 2)
   assert.deepEqual(program, { generation: 2, app })
-  assert.equal('behaviors' in program, false)
+  assert.equal('behavior' in program, false)
 })
 
 test('resolveAppProgram rejects exports from a different generation than the validated declaration', async () => {
@@ -79,31 +79,7 @@ test('resolveAppProgram runs only the product default behavior when no MOD is in
     },
   }
 
-  assert.deepEqual(resolveAppProgram(modules, defaultBehavior), { generation: 1, behaviors: [defaultBehavior] })
-})
-
-test('launch hooks stop at the first rejection and otherwise run in order', async () => {
-  installBareSpecifierPackages()
-  const { runLaunchBehaviors } = (await import('app-launch')) as AppLaunchModule
-  for (const approved of [false, true]) {
-    const events: string[] = []
-    const result = await runLaunchBehaviors([
-      {
-        onLaunch() {
-          events.push('first')
-          return approved
-        },
-      },
-      {
-        async onLaunch() {
-          events.push('second')
-          return true
-        },
-      },
-    ])
-    assert.equal(result, approved)
-    assert.deepEqual(events, approved ? ['first', 'second'] : ['first'])
-  }
+  assert.deepEqual(resolveAppProgram(modules, defaultBehavior), { generation: 1, behavior: defaultBehavior })
 })
 
 test('installLaunchShortcut opens on release without replacing the existing button handler', async () => {

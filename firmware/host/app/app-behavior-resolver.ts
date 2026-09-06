@@ -5,7 +5,7 @@ export type AppBehaviorModules = {
   importNow(specifier: string): unknown
 }
 
-export type AppProgram<TBehavior> = { generation: 1; behaviors: TBehavior[] } | { generation: 2; app: AppDefinition }
+export type AppProgram<TBehavior> = { generation: 1; behavior: TBehavior } | { generation: 2; app: AppDefinition }
 
 /** V2 apps have their own lifecycle and never inherit V1 default hooks. */
 export function resolveAppProgram<TBehavior extends object>(
@@ -13,7 +13,7 @@ export function resolveAppProgram<TBehavior extends object>(
   defaultBehavior: TBehavior,
   expectedAppApiVersion?: 1 | 2,
 ): AppProgram<TBehavior> {
-  if (!modules.has('mod')) return { generation: 1, behaviors: [defaultBehavior] }
+  if (!modules.has('mod')) return { generation: 1, behavior: defaultBehavior }
   const candidate = modules.importNow('mod')
   if (!candidate || typeof candidate !== 'object') throw new Error('MOD must export an app definition')
   const generation = 'apiVersion' in candidate ? candidate.apiVersion : 1
@@ -25,7 +25,7 @@ export function resolveAppProgram<TBehavior extends object>(
     }
     return { generation: 2, app: candidate as AppDefinition }
   }
-  return { generation: 1, behaviors: [mergeDefinedBehavior(defaultBehavior, candidate)] }
+  return { generation: 1, behavior: mergeDefinedBehavior(defaultBehavior, candidate) }
 }
 
 function mergeDefinedBehavior<TBehavior extends object>(

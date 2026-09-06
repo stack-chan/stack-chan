@@ -169,3 +169,24 @@ test('loadPreferences reads the selected time zone from preferences', async () =
 
   assert.equal(loadPreferences(DOMAIN.time).timezone, 'london')
 })
+
+test('host startup settings can be read and written without evaluating MOD configuration', async () => {
+  const { modules, config, preference } = await setup()
+  let evaluations = 0
+  modules.resetModules({
+    get 'mod/config'() {
+      evaluations++
+      throw new Error('broken app configuration')
+    },
+  })
+  config.resetConfig({ ui: { language: 'en' }, time: { timezone: 'tokyo' } })
+  preference.resetPreference({ 'ui.language': 'ja', 'wifi.ssid': 'saved-network' })
+  const { getHostSettingsService } = await import('./loadPreference.js')
+  const settings = getHostSettingsService()
+  assert.equal(settings.get('ui.language'), 'ja')
+  assert.equal(settings.domain('wifi').ssid, 'saved-network')
+  assert.equal(settings.domain('time').timezone, 'tokyo')
+  settings.write({ 'ui.language': 'en' })
+  assert.equal(preference.default.get('ui', 'language'), 'en')
+  assert.equal(evaluations, 0)
+})

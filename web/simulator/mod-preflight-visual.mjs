@@ -4,9 +4,11 @@ import { resolve } from 'node:path'
 import { chromium } from 'playwright-core'
 import { resolveChromium, startPreview } from '../test-preview-server.mjs'
 
-// Build with: npm run mod:build -- host/app/__tests__/mod-preflight/app-fixture/manifest.json --mode=release
+// From firmware/, build host/app/__tests__/mod-preflight/{app-fixture,startup-fixture}/manifest.json
+// with npm run mod:build -- <manifest> --mode=release.
 const fixture = resolve('../firmware/dist/bin/esp32/release/app-fixture/app-fixture.xsa')
-const bytes = Array.from(readFileSync(fixture))
+let bytes = Array.from(readFileSync(fixture))
+const startupBytes = Array.from(readFileSync('../firmware/dist/bin/esp32/release/startup-fixture/startup-fixture.xsa'))
 const { baseUrl, server } = await startPreview({ port: Number(process.env.STACKCHAN_MOD_TEST_PORT ?? 8102) })
 let browser
 try {
@@ -90,10 +92,71 @@ try {
     bootEvents.some((value) => /XS abort|PAGE_ERROR/.test(value)),
     false
   )
-  await bootContext.close()
-  console.log(
-    'MOD storage and compiled host reject future APIs before config or app evaluation; recovery ignores MOD resources'
+
+  // The same module bodies are now valid. They still must wait for host setup.
+  bytes = startupBytes
+  bootEvents.length = 0
+  await Promise.all([
+    boot.waitForEvent('console', {
+      predicate: (message) => message.text().includes('[main] start'),
+      timeout: 45_000,
+    }),
+    boot.reload({ waitUntil: 'networkidle' }),
+  ])
+  const screen = boot.locator('canvas[aria-hidden="true"]')
+  await screen.evaluate((canvas) => {
+    Object.assign(canvas.style, {
+      display: 'block',
+      position: 'fixed',
+      left: '0',
+      top: '0',
+      width: '320px',
+      height: '240px',
+      opacity: '0',
+      pointerEvents: 'none',
+    })
+  })
+  const box = await screen.boundingBox()
+  assert.ok(box)
+  const tap = async (x, y) => {
+    const coordinates = { clientX: box.x + x, clientY: box.y + y }
+    await screen.dispatchEvent('mousedown', coordinates)
+    await screen.dispatchEvent('mouseup', coordinates)
+    await boot.waitForTimeout(150)
+  }
+  await tap(160, 210)
+  await boot.waitForTimeout(8100)
+  assert.equal(
+    bootEvents.some((value) => value.includes('UNTRUSTED_') || value.includes('[main] app context created')),
+    false,
+    'settings pauses boot before evaluating either MOD entry, even past the auto-boot deadline'
   )
+  // Back creates a fresh splash. Re-entering settings must still defer the MOD.
+  await tap(22, 22)
+  await tap(160, 210)
+  assert.equal(
+    bootEvents.some((value) => value.includes('UNTRUSTED_')),
+    false
+  )
+  await Promise.all([
+    boot.waitForEvent('console', {
+      predicate: (message) => message.text().includes('[main] app behaviors ready'),
+      timeout: 20_000,
+    }),
+    tap(22, 22),
+  ])
+  for (const marker of ['UNTRUSTED_MOD_EVALUATED', 'UNTRUSTED_CONFIG_EVALUATED', 'UNTRUSTED_APP_STARTED']) {
+    assert.equal(bootEvents.filter((value) => value.includes(marker)).length, 1, `${marker} runs once after setup`)
+  }
+  const eventIndex = (marker) => bootEvents.findIndex((value) => value.includes(marker))
+  assert.ok(eventIndex('UNTRUSTED_CONFIG_EVALUATED') < eventIndex('UNTRUSTED_MOD_EVALUATED'))
+  assert.ok(eventIndex('UNTRUSTED_MOD_EVALUATED') < eventIndex('UNTRUSTED_APP_STARTED'))
+  assert.equal(
+    bootEvents.some((value) => /XS abort|PAGE_ERROR|\[main\] error/.test(value)),
+    false
+  )
+  await bootContext.close()
+  console.log('MOD preflight rejects future APIs; host settings defer valid MOD and config evaluation until boot')
 } finally {
   await browser?.close()
   server.kill('SIGTERM')

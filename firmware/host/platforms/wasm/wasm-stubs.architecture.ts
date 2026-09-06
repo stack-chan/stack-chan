@@ -24,11 +24,7 @@ function isWasmImport(specifier: string): boolean {
 }
 
 function isWasmSource(path: string): boolean {
-  return (
-    path.startsWith('host/platforms/wasm/') ||
-    path.startsWith('host/app/default-behavior/wasm/') ||
-    path.includes('/wasm/')
-  )
+  return path.startsWith('host/platforms/wasm/') || path.includes('/wasm/')
 }
 
 function isTestSource(path: string): boolean {

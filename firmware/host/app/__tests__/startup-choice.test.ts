@@ -1,276 +1,155 @@
 import assert from 'node:assert/strict'
-import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { type HostStartupOptions, runHostStartup } from '../host-startup.js'
 
-import { writeAliasPackage, writeAliasPackageSubpath } from '../../modules/testing/node-alias-package.js'
-
-type StartupChoiceModule = typeof import('app-default-behavior/startup-choice')
-type WasmOnLaunchModule = typeof import('app-default-behavior/wasm/on-launch')
-
-type TimerHandle = {
-  active: boolean
-  callback: () => void
-  interval: number
-}
-
-type ManualTimer = {
-  handles: TimerHandle[]
-  clearCalls: unknown[]
-  set(callback: () => void, interval?: number): TimerHandle
-  clear(handle: unknown): void
-  fire(handle: TimerHandle): void
-}
-
-type FakeTimer = {
-  advance(milliseconds: number): void
-  reset(): void
-}
-
-type StartupSplashStub = {
-  resetStartupSplashCalls(): void
-  startupSplashCallCount(): number
-  pressStartupMods(): void
-  pressStartupSettings(): void
-}
-
-type SetupModeStub = {
-  resetSetupModeCalls(): void
-  startedSetupModeApplications(): unknown[]
-  finishSetupMode(choice: 'back' | 'boot'): void
-}
-
-function createManualTimer(): ManualTimer {
-  const timer: ManualTimer = {
-    handles: [],
-    clearCalls: [],
-    set(callback, interval = 0) {
-      const handle = { active: true, callback, interval }
-      timer.handles.push(handle)
-      return handle
+function fixture() {
+  let now = 0
+  let nextId = 0
+  const timers = new Map<number, { at: number; callback(): void }>()
+  const screens: { actions: Parameters<HostStartupOptions<number>['showSplash']>[0]; application: number }[] = []
+  const settings: { application: number; finish(choice: 'back' | 'boot'): void }[] = []
+  const options: HostStartupOptions<number> = {
+    timer: {
+      set(callback, delay = 0) {
+        timers.set(++nextId, { at: now + delay, callback })
+        return nextId
+      },
+      clear(handle) {
+        timers.delete(handle as number)
+      },
     },
-    clear(handle) {
-      assert.notEqual(handle, undefined)
-      timer.clearCalls.push(handle)
-      if (typeof handle === 'object' && handle != null && 'active' in handle) {
-        ;(handle as TimerHandle).active = false
-      }
+    showSplash(actions) {
+      const application = screens.length + 1
+      screens.push({ actions, application })
+      return application
     },
-    fire(handle) {
-      if (!handle.active) return
-      handle.active = false
-      handle.callback()
+    openSettings(application) {
+      return new Promise((finish) => settings.push({ application, finish }))
     },
   }
-  return timer
+  return {
+    options,
+    timers,
+    screens,
+    settings,
+    async advance(ms: number) {
+      now += ms
+      for (const [id, timer] of [...timers]) {
+        if (timer.at > now || !timers.delete(id)) continue
+        timer.callback()
+      }
+      await Promise.resolve()
+    },
+  }
 }
 
-function installBareSpecifierPackages(): void {
-  const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
-  const appRoot = resolve(hostRoot, 'app')
-
-  writeAliasPackageSubpath(
-    hostRoot,
-    'app-default-behavior',
-    'startup-choice',
-    resolve(appRoot, 'default-behavior/startup-choice.js'),
-  )
-  writeAliasPackageSubpath(
-    hostRoot,
-    'app-default-behavior',
-    'wasm/on-launch',
-    resolve(appRoot, 'default-behavior/wasm/on-launch.js'),
-  )
-  writeAliasPackage(hostRoot, 'timer', resolve(hostRoot, 'modules/testing/fakes/timer.js'), { hasDefaultExport: true })
-  writeAliasPackage(
-    hostRoot,
-    'startup-splash',
-    resolve(appRoot, 'default-behavior/__tests__/startup-choice/startup-splash-stub.js'),
-  )
-  writeAliasPackage(
-    hostRoot,
-    'setup-mode',
-    resolve(appRoot, 'default-behavior/__tests__/startup-choice/setup-mode-stub.js'),
-  )
-}
-
-test('startup choice automatically boots after the configured delay', async () => {
-  installBareSpecifierPackages()
-  const { STARTUP_AUTO_BOOT_DELAY_MS, waitForStartupChoice } = (await import(
-    'app-default-behavior/startup-choice'
-  )) as StartupChoiceModule
-  const timer = createManualTimer()
-  const application = { id: 'startup-application' }
-
-  const choice = waitForStartupChoice({
-    timer,
-    showStartupSplash: () => application as never,
-  })
-
-  assert.equal(timer.handles.length, 1)
-  assert.equal(timer.handles[0].interval, STARTUP_AUTO_BOOT_DELAY_MS)
-
-  timer.fire(timer.handles[0])
-
-  assert.deepEqual(await choice, { choice: 'boot', application })
-  assert.equal(timer.handles[0].active, false)
-  assert.deepEqual(timer.clearCalls, [timer.handles[0]])
+test('host startup keeps the native and configured simulator splash delays', async () => {
+  for (const delay of [undefined, 8000]) {
+    const f = fixture()
+    f.options.autoBootDelayMs = delay
+    const result = runHostStartup(f.options)
+    let finished = false
+    void result.then(() => (finished = true))
+    assert.equal(f.screens.length, 1)
+    assert.equal(f.screens[0].actions.onMods, undefined)
+    await f.advance((delay ?? 3000) - 1)
+    assert.equal(finished, false)
+    await f.advance(1)
+    assert.equal(await result, true)
+    assert.equal(f.settings.length, 0)
+    assert.equal(f.timers.size, 0)
+    f.screens[0].actions.onSettings()
+    assert.equal(f.timers.size, 0, 'a retired splash cannot schedule work')
+  }
 })
 
-test('startup choice enters settings when the visible settings action is pressed', async () => {
-  installBareSpecifierPackages()
-  const { waitForStartupChoice } = (await import('app-default-behavior/startup-choice')) as StartupChoiceModule
-  const timer = createManualTimer()
-  const application = { id: 'startup-application' }
-  let onSettings: (() => void) | undefined
-
-  const choice = waitForStartupChoice({
-    timer,
-    showStartupSplash: (options) => {
-      onSettings = options.onSettings
-      return application as never
-    },
-  })
-
-  onSettings?.()
-
-  assert.equal(timer.handles.length, 2)
-  assert.equal(timer.handles[1].interval, 0)
-
-  timer.fire(timer.handles[1])
-
-  assert.deepEqual(await choice, { choice: 'settings', application })
-  assert.equal(timer.handles[0].active, false)
-  assert.equal(timer.handles[1].active, false)
-})
-
-test('startup choice enters the MOD manager when its action is enabled', async () => {
-  installBareSpecifierPackages()
-  const { waitForStartupChoice } = (await import('app-default-behavior/startup-choice')) as StartupChoiceModule
-  const timer = createManualTimer()
-  const application = { id: 'startup-application' }
-  let onMods: (() => void) | undefined
-
-  const choice = waitForStartupChoice({
-    timer,
-    enableMods: true,
-    showStartupSplash: (options) => {
-      onMods = options.onMods
-      return application as never
-    },
-  })
-  const [autoBoot] = timer.handles
-
-  onMods?.()
-  const mods = timer.handles.find((handle) => handle !== autoBoot)
-  assert.ok(mods)
-  timer.fire(mods)
-
-  assert.deepEqual(await choice, { choice: 'mods', application })
-  assert.equal(autoBoot.active, false)
-  assert.equal(mods.active, false)
-})
-
-test('startup choice resolves only once and ignores later timer callbacks', async () => {
-  installBareSpecifierPackages()
-  const { waitForStartupChoice } = (await import('app-default-behavior/startup-choice')) as StartupChoiceModule
-  const timer = createManualTimer()
-  const application = { id: 'startup-application' }
-  let onSettings: (() => void) | undefined
-  const observed: unknown[] = []
-
-  const choice = waitForStartupChoice({
-    timer,
-    showStartupSplash: (options) => {
-      onSettings = options.onSettings
-      return application as never
-    },
-  })
-  choice.then((result) => observed.push(result))
-
-  onSettings?.()
-  timer.fire(timer.handles[1])
-  timer.fire(timer.handles[0])
-  timer.fire(timer.handles[1])
-  await choice
-  await Promise.resolve()
-
-  assert.deepEqual(observed, [{ choice: 'settings', application }])
-})
-
-test('wasm onLaunch shows the startup splash and resolves after the visible delay', async () => {
-  installBareSpecifierPackages()
-  const [{ onLaunch }, { default: timer }, startupSplash, setupMode] = await Promise.all([
-    import('app-default-behavior/wasm/on-launch') as Promise<WasmOnLaunchModule>,
-    import('timer') as Promise<{ default: FakeTimer }>,
-    import('startup-splash') as Promise<StartupSplashStub>,
-    import('setup-mode') as Promise<SetupModeStub>,
-  ])
-  timer.reset()
-  startupSplash.resetStartupSplashCalls()
-  setupMode.resetSetupModeCalls()
-
-  let resolved = false
-  const result = onLaunch()
-  result.then(() => {
-    resolved = true
-  })
-
-  assert.equal(startupSplash.startupSplashCallCount(), 1)
-
-  timer.advance(7999)
-  await Promise.resolve()
-  assert.equal(resolved, false)
-
-  timer.advance(1)
-
-  assert.equal(await result, true)
-  assert.deepEqual(setupMode.startedSetupModeApplications(), [])
-})
-
-test('wasm onLaunch boots after setup is explicitly finished', async () => {
-  installBareSpecifierPackages()
-  const [{ onLaunch }, { default: timer }, startupSplash, setupMode] = await Promise.all([
-    import('app-default-behavior/wasm/on-launch') as Promise<WasmOnLaunchModule>,
-    import('timer') as Promise<{ default: FakeTimer }>,
-    import('startup-splash') as Promise<StartupSplashStub>,
-    import('setup-mode') as Promise<SetupModeStub>,
-  ])
-  timer.reset()
-  startupSplash.resetStartupSplashCalls()
-  setupMode.resetSetupModeCalls()
-
-  const result = onLaunch()
-  startupSplash.pressStartupSettings()
-  timer.advance(0)
-  await Promise.resolve()
-
-  assert.deepEqual(setupMode.startedSetupModeApplications(), [{ type: 'startup-splash' }])
-  setupMode.finishSetupMode('boot')
+test('settings suspends auto boot, coalesces taps, and boots only after explicit completion', async () => {
+  const f = fixture()
+  const result = runHostStartup(f.options)
+  const { actions, application } = f.screens[0]
+  actions.onSettings()
+  actions.onSettings()
+  assert.equal(f.timers.size, 1)
+  assert.equal(f.settings.length, 0, 'switch views outside the touch callback')
+  await f.advance(0)
+  assert.equal(f.settings.length, 1)
+  assert.equal(f.settings[0].application, application)
+  assert.equal(f.timers.size, 0)
+  await f.advance(8000)
+  f.settings[0].finish('boot')
   assert.equal(await result, true)
 })
 
-test('wasm onLaunch returns to a fresh splash when setup goes back', async () => {
-  installBareSpecifierPackages()
-  const [{ onLaunch }, { default: timer }, startupSplash, setupMode] = await Promise.all([
-    import('app-default-behavior/wasm/on-launch') as Promise<WasmOnLaunchModule>,
-    import('timer') as Promise<{ default: FakeTimer }>,
-    import('startup-splash') as Promise<StartupSplashStub>,
-    import('setup-mode') as Promise<SetupModeStub>,
-  ])
-  timer.reset()
-  startupSplash.resetStartupSplashCalls()
-  setupMode.resetSetupModeCalls()
-
-  const result = onLaunch()
-  startupSplash.pressStartupSettings()
-  timer.advance(0)
-  await Promise.resolve()
-  setupMode.finishSetupMode('back')
-  await Promise.resolve()
-  await Promise.resolve()
-
-  assert.equal(startupSplash.startupSplashCallCount(), 2)
-  timer.advance(8000)
+test('100 settings/back cycles release timers and ignore callbacks from earlier screens', async () => {
+  const f = fixture()
+  const result = runHostStartup(f.options)
+  for (let i = 0; i < 100; i++) {
+    const previous = f.screens[i]
+    previous.actions.onSettings()
+    await f.advance(0)
+    assert.equal(f.timers.size, 0)
+    f.settings[i].finish('back')
+    await Promise.resolve()
+    assert.equal(f.screens.length, i + 2)
+    assert.equal(f.timers.size, 1)
+    previous.actions.onSettings()
+    assert.equal(f.timers.size, 1)
+  }
+  await f.advance(3000)
   assert.equal(await result, true)
+  assert.equal(f.timers.size, 0)
+})
+
+test('maintenance wins once and stops normal boot without opening settings', async () => {
+  const f = fixture()
+  let restarts = 0
+  f.options.openMods = () => restarts++
+  const result = runHostStartup(f.options)
+  const actions = f.screens[0].actions
+  actions.onMods?.()
+  actions.onSettings()
+  actions.onMods?.()
+  assert.equal(restarts, 0)
+  await f.advance(0)
+  assert.equal(await result, false)
+  assert.equal(restarts, 1)
+  assert.equal(f.settings.length, 0)
+  assert.equal(f.timers.size, 0)
+  actions.onMods?.()
+  assert.equal(f.timers.size, 0)
+})
+
+test('setup and maintenance failures propagate after their splash timers are released', async () => {
+  for (const mode of ['settings', 'mods'] as const) {
+    const f = fixture()
+    const failure = new Error(mode)
+    f.options.openMods = () => {
+      throw failure
+    }
+    f.options.openSettings = async () => {
+      throw failure
+    }
+    const result = runHostStartup(f.options)
+    const rejected = assert.rejects(result, (error) => error === failure)
+    if (mode === 'mods') f.screens[0].actions.onMods?.()
+    else f.screens[0].actions.onSettings()
+    await f.advance(0)
+    await rejected
+    assert.equal(f.timers.size, 0)
+  }
+})
+
+test('failure to schedule a transition rejects startup and disables stale actions', async () => {
+  const f = fixture()
+  const result = runHostStartup(f.options)
+  const failure = new Error('timer unavailable')
+  f.options.timer.set = () => {
+    throw failure
+  }
+  const rejected = assert.rejects(result, (error) => error === failure)
+  f.screens[0].actions.onSettings()
+  await rejected
+  assert.equal(f.timers.size, 0)
+  f.screens[0].actions.onSettings()
+  assert.equal(f.settings.length, 0)
 })

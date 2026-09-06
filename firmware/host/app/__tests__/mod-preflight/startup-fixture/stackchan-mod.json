@@ -1,0 +1,10 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.test.host-startup",
+  "version": "1.0.0",
+  "appApiVersion": 2,
+  "hostApiVersion": 3,
+  "targets": ["portable"],
+  "entrypoints": ["mod"]
+}

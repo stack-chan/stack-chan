@@ -1,7 +1,3 @@
-export type AppLaunchBehavior = {
-  onLaunch?: () => Promise<boolean> | boolean
-}
-
 export type LaunchShortcutButton = {
   read(): number
   onChanged?: (this: LaunchShortcutButton) => void
@@ -17,11 +13,4 @@ export function installLaunchShortcut(button: LaunchShortcutButton, open: () => 
     opening = true
     void Promise.resolve().then(open).then(reset, reset)
   }
-}
-
-export async function runLaunchBehaviors(behaviors: AppLaunchBehavior[]): Promise<boolean> {
-  for (const behavior of behaviors) {
-    if ((await (behavior.onLaunch?.() ?? true)) === false) return false
-  }
-  return true
 }

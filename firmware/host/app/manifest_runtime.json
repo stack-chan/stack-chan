@@ -28,7 +28,8 @@
       "./cancellation",
       "./task-scope",
       "./app-session",
-      "./app-audio-session"
+      "./app-audio-session",
+      "./host-startup"
     ]
   }
 }

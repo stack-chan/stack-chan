@@ -1,4 +1,4 @@
-import { getSettingsService, loadPreferenceConfig } from 'loadPreference'
+import { getHostSettingsService } from 'loadPreference'
 import { DOMAIN } from 'consts'
 import { getLocalizationLanguage, type SupportedLocale, setLocalizationLanguage } from 'localization'
 import { type NetworkConnection, openNetworkConnection } from 'network-manager'
@@ -51,8 +51,13 @@ function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatus
 
 export function startSetupMode(application: SettingsApplication): Promise<SetupModeResult> {
   return new Promise((resolve, reject) => {
-    const settings = getSettingsService()
-    const preferences = loadPreferenceConfig()
+    const settings = getHostSettingsService()
+    const preferences = {
+      wifi: settings.domain('wifi'),
+      ui: settings.domain('ui'),
+      time: settings.domain('time'),
+      tts: settings.domain('tts'),
+    }
     preferences.time.timezone = applySystemTimezone(preferences.time.timezone)
     preferences.tts.volume = canonicalizeVolume(preferences.tts.volume)
     const status = createInitialSettingsStatus(preferences)

@@ -125,7 +125,6 @@
         "./typings/*",
         "./host/app/*",
         "./host/app/default-behavior/*",
-        "./host/app/default-behavior/wasm/*",
         "./host/modules/camera/*",
         "./host/modules/audio/*",
         "./host/modules/audio/wasm/*",
@@ -223,17 +222,8 @@
       "app-default-behavior": [
         "./host/app/default-behavior/behavior"
       ],
-      "app-default-behavior/on-launch": [
-        "./host/app/default-behavior/on-launch"
-      ],
       "app-default-behavior/on-context-created": [
         "./host/app/default-behavior/on-context-created"
-      ],
-      "app-default-behavior/wasm/behavior": [
-        "./host/app/default-behavior/wasm/behavior"
-      ],
-      "app-default-behavior/wasm/on-launch": [
-        "./host/app/default-behavior/wasm/on-launch"
       ],
       "testing/assert": [
         "./host/modules/testing/assert"

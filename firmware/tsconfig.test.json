@@ -177,12 +177,6 @@
       "input-event": [
         "./host/modules/input/input-event.ts"
       ],
-      "startup-splash": [
-        "./host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts"
-      ],
-      "setup-mode": [
-        "./host/app/default-behavior/__tests__/startup-choice/setup-mode-stub.ts"
-      ],
       "settings-status-model": [
         "./host/modules/ui/views/settings/settings-status-model.ts"
       ],
@@ -196,12 +190,6 @@
       ],
       "app-launch": [
         "./host/app/app-launch.ts"
-      ],
-      "app-default-behavior/startup-choice": [
-        "./host/app/default-behavior/startup-choice.ts"
-      ],
-      "app-default-behavior/wasm/on-launch": [
-        "./host/app/default-behavior/wasm/on-launch.ts"
       ],
       "mac-address": [
         "./host/modules/util/sim/mac-address.ts"

@@ -4,7 +4,7 @@ import { writeAliasPackage, writeAliasPackageSubpath } from '../../modules/testi
 
 export function installRuntimeTestAliases(): void {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-  for (const name of ['owned-resources', 'runtime-resources']) {
+  for (const name of ['owned-resources', 'runtime-resources', 'camera-capture-session', 'operation-queue']) {
     writeAliasPackage(root, name, resolve(root, `app/${name}.js`))
   }
   writeAliasPackageSubpath(root, 'stackchan', 'errors', resolve(root, '../sdk/errors.js'))

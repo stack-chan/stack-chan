@@ -247,6 +247,67 @@ async function run() {
     effectApplication.first === null || effectApplication.first === undefined,
     'effect removal failure still closes the Piu view',
   )
+  const photoUI = createAppControllerApplication({ face: new SimpleFace() })
+  const effects = new Set<unknown>()
+  const addEffect = photoUI.addEffect.bind(photoUI)
+  const removeEffect = photoUI.removeEffect.bind(photoUI)
+  photoUI.addEffect = (effect) => {
+    effects.add(effect)
+    addEffect(effect)
+  }
+  photoUI.removeEffect = (effect) => {
+    effects.delete(effect)
+    removeEffect(effect)
+  }
+  let captures = 0,
+    stops = 0,
+    framesReleased = 0
+  const photoContext = await StackchanRuntimeContext.create({
+    driver: new NoneDriver(),
+    ui: photoUI,
+    tts: { stream() {} },
+    camera: {
+      available: true,
+      availability: 'native',
+      formats: ['rgb565le'],
+      start() {},
+      stop() {
+        stops++
+      },
+      close() {},
+      async capture() {
+        captures++
+        return {
+          width: 2,
+          height: 1,
+          imageType: 'rgb565le',
+          buffer: new Uint8Array([0, 248, 224, 7]).buffer,
+          close() {
+            framesReleased++
+          },
+        }
+      },
+    },
+  })
+  await photoContext.startApp(
+    defineApp({
+      async setup(app) {
+        const image = await app.camera.capture()
+        equal(captures, 1, 'public camera reaches the physical port')
+        equal(framesReleased, 1, 'image is detached from native ownership')
+        equal(stops, 1, 'capture finishes after stop')
+        app.ui.showImage(image)
+        equal(effects.size, 1, 'image is mounted on the actual Piu controller')
+        app.ui.showImage(image)
+        equal(effects.size, 1, 'replacing an image removes the previous one')
+        app.ui.hideImage()
+        equal(effects.size, 0, 'hide removes the image')
+        app.ui.showImage(image)
+      },
+    }),
+  )
+  await photoContext.lifecycle.close()
+  equal(effects.size, 0, 'app close removes its image before host close')
   trace('ok\n')
 }
 

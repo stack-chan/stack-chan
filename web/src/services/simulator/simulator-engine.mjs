@@ -32,6 +32,7 @@ import {
   screenPointFromUv,
   stepRotationToward,
 } from '../../../simulator/geometry.mjs'
+import { closeResources, stopRuntimeCamera } from '../../../simulator/lifecycle.mjs'
 import { createModStorage } from '../../../simulator/mod-storage.mjs'
 
 const DRIVER_MAX_ANGULAR_SPEED = 2.4
@@ -414,23 +415,30 @@ class WasmView {
   }
 
   dispose() {
+    if (this.disposed) return
     this.disposed = true
-    this.#clearPendingReady()
-    this.fxMainQuit?.()
-    for (const [eventName, handler] of Object.entries(this.touchHandlers ?? {})) {
-      this.screen.removeEventListener(eventName, handler)
+    try {
+      closeResources([
+        () => this.#clearPendingReady(),
+        () => stopRuntimeCamera(this.runtime),
+        () => this.fxMainQuit?.(),
+        ...Object.entries(this.touchHandlers ?? {}).map(
+          ([eventName, handler]) =>
+            () =>
+              this.screen.removeEventListener(eventName, handler)
+        ),
+      ])
+    } finally {
+      // No browser resource or stale VM callback may retain the retired host.
+      this.runtime.host = undefined
+      this.runtime.view = undefined
+      this.runtime.state = {}
+      this.mc = undefined
+      this.fxMainIdle = undefined
+      this.fxMainLaunch = undefined
+      this.fxMainQuit = undefined
+      this.fxMainTouch = undefined
     }
-    // The Emscripten module retains this private runtime object. Clear its host
-    // graph explicitly; browser lifecycle tests verify that mounting and
-    // disposing the real generated module never publishes equivalent globals.
-    this.runtime.host = undefined
-    this.runtime.view = undefined
-    this.runtime.state = {}
-    this.mc = undefined
-    this.fxMainIdle = undefined
-    this.fxMainLaunch = undefined
-    this.fxMainQuit = undefined
-    this.fxMainTouch = undefined
   }
 
   async #loadWasm() {
@@ -586,6 +594,7 @@ class WasmView {
       throw new Error('WASM is not ready')
     }
     console.log('[bridge] restart simulator')
+    stopRuntimeCamera(this.runtime)
     this.fxMainQuit?.()
     this.interval = 0
     this.when = 0
@@ -767,6 +776,13 @@ export class SimulatorEngine {
     this.audioOutBridge = createHostAudioOutBridge()
     this.audioInBridge = createHostAudioInBridge()
     this.cameraBridge = createHostCameraBridge()
+    this.cameraEpoch = 0
+    const stopCamera = this.cameraBridge.stop
+    this.cameraBridge.stop = () => {
+      this.cameraEpoch++
+      stopCamera()
+      if (!this.disposed) this.onCameraStatus({ status: 'idle' })
+    }
     this.scene = new StackchanScene({ viewport, screen, runtimeBaseUrl })
     this.driverBridge = createHostDriverBridge({
       onRotation: (rotation) => this.scene.applyDriverRotation(rotation),
@@ -848,14 +864,14 @@ export class SimulatorEngine {
   }
 
   async connectCamera() {
+    const epoch = this.cameraEpoch
     this.onCameraStatus({ status: 'pending' })
     try {
       await this.cameraBridge.start({ useBrowserCamera: true })
-      this.onCameraStatus({
-        status: this.cameraBridge.isBrowserCameraStarted() ? 'connected' : 'fallback',
-      })
+      if (!this.disposed && epoch === this.cameraEpoch) this.onCameraStatus({ status: 'connected' })
     } catch (error) {
-      this.onCameraStatus({ status: 'error', error: String(error.message ?? error) })
+      if (!this.disposed && epoch === this.cameraEpoch)
+        this.onCameraStatus({ status: 'error', error: String(error.message ?? error) })
       throw error
     }
   }
@@ -867,11 +883,14 @@ export class SimulatorEngine {
   dispose() {
     if (this.disposed) return
     this.disposed = true
-    if (this.animationFrame) window.cancelAnimationFrame(this.animationFrame)
-    this.unbindViewport?.()
-    this.wasmView.dispose()
-    this.scene.dispose()
-    this.cameraBridge.stop()
-    this.audioOutBridge.close()
+    closeResources([
+      () => {
+        if (this.animationFrame) window.cancelAnimationFrame(this.animationFrame)
+      },
+      () => this.unbindViewport?.(),
+      () => this.wasmView.dispose(),
+      () => this.scene.dispose(),
+      () => this.audioOutBridge.close(),
+    ])
   }
 }

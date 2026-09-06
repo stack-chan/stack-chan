@@ -44,7 +44,14 @@ async function run(): Promise<void> {
         face: { setEmotion() {}, setColor() {}, setMouthOpen() {} },
         audio: { async say() {}, async playClip() {}, async tone() {} },
         input: { subscribePress: () => () => {} },
-        ui: { showBalloon() {}, hideBalloon() {} },
+        ui: { showBalloon() {}, hideBalloon() {}, showImage() {}, hideImage() {} },
+        camera: {
+          info: { availability: 'unavailable', formats: [], reason: 'Motion test has no camera' },
+          async capture() {
+            throw new Error('No camera')
+          },
+          async close() {},
+        },
         capabilities: { get: () => motion.info },
       },
       clock,

@@ -239,138 +239,100 @@ function createSyntheticCameraFrame(options = {}) {
 
 export function createHostCameraBridge({
   documentObj = globalThis.document,
-  logger = console,
   navigatorObj = globalThis.navigator,
   videoElement,
   canvasElement,
 } = {}) {
   let started = false
-  let browserCameraRequested = false
+  let useBrowserCamera = true
   let browserCameraStarted = false
-  let mediaStream
-  let mediaVideo = videoElement
-  let mediaCanvas = canvasElement
-  let browserStartGeneration = 0
-
-  const logWarning = (message, error) => {
-    if (error) {
-      logger?.warn?.(message, error)
-    } else {
-      logger?.warn?.(message)
+  let stream
+  let video = videoElement
+  let canvas = canvasElement
+  let generation = 0
+  let pendingStart
+  let cleanupFailure
+  const failure = (code, message) => Object.assign(new Error(message), { code })
+  const stopTracks = (owned) => {
+    let firstError
+    for (const track of owned?.getTracks?.() ?? []) {
+      try {
+        track.stop?.()
+      } catch (error) {
+        firstError ??= error
+      }
+    }
+    if (firstError) {
+      cleanupFailure ??= firstError
+      throw cleanupFailure
     }
   }
-
-  const ensureVideoElement = () => {
-    if (mediaVideo) return mediaVideo
-    if (!documentObj?.createElement) return undefined
-
-    mediaVideo = documentObj.createElement('video')
-    mediaVideo.muted = true
-    mediaVideo.playsInline = true
-    return mediaVideo
-  }
-
-  const ensureCanvasElement = () => {
-    if (mediaCanvas) return mediaCanvas
-    if (!documentObj?.createElement) return undefined
-
-    mediaCanvas = documentObj.createElement('canvas')
-    return mediaCanvas
-  }
-
-  const stopBrowserCamera = () => {
-    browserStartGeneration += 1
-    for (const track of mediaStream?.getTracks?.() ?? []) track.stop?.()
-    mediaStream = undefined
+  const stop = () => {
+    generation++
+    started = false
     browserCameraStarted = false
-    if (mediaVideo) mediaVideo.srcObject = null
-  }
-
-  const startBrowserCamera = async (options = {}) => {
-    if (browserCameraStarted && mediaStream && mediaVideo?.srcObject === mediaStream) return true
-
-    stopBrowserCamera()
-
-    const getUserMedia = navigatorObj?.mediaDevices?.getUserMedia?.bind(navigatorObj.mediaDevices)
-    if (!getUserMedia) {
-      browserCameraStarted = false
-      return false
-    }
-
-    const video = ensureVideoElement()
-    if (!video) {
-      browserCameraStarted = false
-      return false
-    }
-
+    pendingStart = undefined
+    const owned = stream
+    stream = undefined
     try {
-      const startGeneration = browserStartGeneration
-      const stream = await getUserMedia({ video: options.video ?? true })
-      if (startGeneration !== browserStartGeneration || !started || !browserCameraRequested) {
-        for (const track of stream?.getTracks?.() ?? []) track.stop?.()
-        return false
-      }
-
-      mediaStream = stream
-      video.srcObject = mediaStream
-      if (typeof video.play === 'function') await video.play()
-      browserCameraStarted = true
-      return true
+      if (video) video.srcObject = null
     } catch (error) {
-      stopBrowserCamera()
-      logWarning('[bridge] browser camera unavailable; using synthetic Host.Camera fallback', error)
-      return false
+      cleanupFailure ??= error
     }
+    stopTracks(owned)
+    if (cleanupFailure) throw cleanupFailure
   }
-
-  const captureBrowserCamera = (options = {}) => {
-    if (!started || !browserCameraRequested || !browserCameraStarted) return undefined
-    if (!mediaVideo || mediaVideo.readyState < HAVE_CURRENT_DATA || !mediaVideo.videoWidth || !mediaVideo.videoHeight) {
-      return undefined
-    }
-
-    const canvas = ensureCanvasElement()
-    const context = canvas?.getContext?.('2d', { willReadFrequently: true })
-    if (!canvas || !context?.drawImage || !context?.getImageData) return undefined
-
-    const width = normalizeDimension(options.width, DEFAULT_CAMERA_WIDTH)
-    const height = normalizeDimension(options.height, DEFAULT_CAMERA_HEIGHT)
-
-    try {
-      canvas.width = width
-      canvas.height = height
-      context.drawImage(mediaVideo, 0, 0, width, height)
-
-      const imageData = context.getImageData(0, 0, width, height)
-      if (!imageData?.data || imageData.data.length < width * height * 4) return undefined
-
-      const buffer = new ArrayBuffer(width * height * 2)
-      writeImageDataRgb565Le(new Uint8Array(buffer), imageData)
-
-      return { width, height, imageType: 'rgb565le', buffer }
-    } catch (error) {
-      logWarning('[bridge] browser camera capture failed; using synthetic Host.Camera fallback', error)
-      return undefined
-    }
+  const dimension = (value, fallback, maximum) => {
+    const result = value ?? fallback
+    if (!Number.isInteger(result) || result < 1 || result > maximum)
+      throw failure('INVALID_ARGUMENT', 'Invalid camera dimensions')
+    return result
   }
-
-  return {
-    async start(options = {}) {
+  const bridge = {
+    availability() {
+      return !useBrowserCamera ? 'simulated' : navigatorObj?.mediaDevices?.getUserMedia ? 'native' : 'unavailable'
+    },
+    start(options = {}) {
+      if (cleanupFailure) return Promise.reject(cleanupFailure)
+      const browser = options.useBrowserCamera ?? useBrowserCamera
+      if (started && browser === useBrowserCamera && (browserCameraStarted || !browser)) return Promise.resolve()
+      if (pendingStart && browser === useBrowserCamera) return pendingStart
+      stop()
+      useBrowserCamera = browser
       started = true
-      if (Object.hasOwn(options, 'useBrowserCamera')) {
-        browserCameraRequested = Boolean(options.useBrowserCamera)
-        if (browserCameraRequested) {
-          await startBrowserCamera(options)
-        } else {
-          stopBrowserCamera()
-        }
-      }
+      if (!browser) return Promise.resolve()
+      const epoch = generation
+      const getUserMedia = navigatorObj?.mediaDevices?.getUserMedia?.bind(navigatorObj.mediaDevices)
+      const starting = Promise.resolve()
+        .then(async () => {
+          if (epoch !== generation) throw failure('CANCELLED', 'Camera start cancelled')
+          if (!getUserMedia) throw failure('UNSUPPORTED', 'Browser camera is unavailable')
+          video ??= documentObj?.createElement?.('video')
+          if (!video) throw failure('UNSUPPORTED', 'Browser video is unavailable')
+          video.muted = true
+          video.playsInline = true
+          const owned = await getUserMedia({ video: options.video ?? true })
+          if (epoch !== generation) {
+            stopTracks(owned)
+            throw failure('CANCELLED', 'Camera start cancelled')
+          }
+          stream = owned
+          video.srcObject = owned
+          await video.play?.()
+          if (epoch !== generation) throw failure('CANCELLED', 'Camera start cancelled')
+          browserCameraStarted = true
+        })
+        .catch((error) => {
+          if (epoch === generation) stop()
+          throw error
+        })
+        .finally(() => {
+          if (pendingStart === starting) pendingStart = undefined
+        })
+      pendingStart = starting
+      return starting
     },
-    stop() {
-      started = false
-      browserCameraRequested = false
-      stopBrowserCamera()
-    },
+    stop,
     isStarted() {
       return started
     },
@@ -378,12 +340,36 @@ export function createHostCameraBridge({
       return browserCameraStarted
     },
     capture(options = {}) {
+      if (!started) throw failure('CLOSED', 'Camera is stopped')
       const imageType = options.imageType ?? DEFAULT_CAMERA_IMAGE_TYPE
-      if (imageType !== 'rgb565le') return undefined
-
-      return captureBrowserCamera(options) ?? createSyntheticCameraFrame(options)
+      if (imageType !== 'rgb565le') throw failure('UNSUPPORTED', 'Browser camera supports RGB565LE')
+      const width = dimension(options.width, DEFAULT_CAMERA_WIDTH, 320)
+      const height = dimension(options.height, DEFAULT_CAMERA_HEIGHT, 240)
+      if (!useBrowserCamera) return { ...createSyntheticCameraFrame({ width, height, imageType }), source: 'simulated' }
+      if (
+        !browserCameraStarted ||
+        !video ||
+        video.readyState < HAVE_CURRENT_DATA ||
+        !video.videoWidth ||
+        !video.videoHeight
+      )
+        return undefined
+      canvas ??= documentObj?.createElement?.('canvas')
+      const context = canvas?.getContext?.('2d', { willReadFrequently: true })
+      if (!context?.drawImage || !context?.getImageData)
+        throw failure('UNSUPPORTED', 'Browser image capture is unavailable')
+      canvas.width = width
+      canvas.height = height
+      context.drawImage(video, 0, 0, width, height)
+      const imageData = context.getImageData(0, 0, width, height)
+      if (!imageData?.data || imageData.data.length !== width * height * 4)
+        throw failure('IO', 'Browser returned an invalid image')
+      const buffer = new ArrayBuffer(width * height * 2)
+      writeImageDataRgb565Le(new Uint8Array(buffer), imageData)
+      return { width, height, imageType, buffer, source: 'native' }
     },
   }
+  return bridge
 }
 
 function decodeAudioData(context, buffer) {

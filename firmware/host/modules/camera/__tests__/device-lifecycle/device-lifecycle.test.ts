@@ -58,6 +58,28 @@ async function run() {
   waiting.close()
   equal(await capture, undefined, 'closing while waiting for a frame settles capture')
   equal(waitingNative.closes, 1, 'pending capture does not retain the input')
+  const reusable = new Camera()
+  for (let cycle = 0; cycle < 100; cycle++) {
+    reusable.start()
+    const oldCapture = reusable.capture()
+    reusable.stop()
+    reusable.start()
+    const currentNative = NativeCamera.current
+    const fresh = new ArrayBuffer(2)
+    currentNative.frame = fresh
+    const newCapture = reusable.capture()
+    equal(await oldCapture, undefined, 'stopped capture cannot consume a newer frame')
+    equal((await newCapture)?.buffer, fresh, 'new capture receives its own frame')
+    reusable.stop()
+  }
+  const obsoleteNative = NativeCamera.current
+  reusable.start({ width: 100 })
+  const currentNative = NativeCamera.current
+  const fresh = new ArrayBuffer(2)
+  currentNative.frame = fresh
+  obsoleteNative.readable()
+  equal(currentNative.frame, fresh, 'callback from an old input cannot read the current input')
+  reusable.close()
   trace('ok\n')
 }
 run().catch((error) => {

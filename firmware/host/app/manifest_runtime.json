@@ -22,6 +22,7 @@
       "./runtime-motion",
       "./motion-execution",
       "./runtime-camera",
+      "./camera-capture-session",
       "./runtime-context",
       "./runtime-input",
       "./runtime-lighting",

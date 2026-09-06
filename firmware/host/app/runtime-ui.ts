@@ -1,3 +1,4 @@
+import { createCameraPreviewDialog, prepareCameraPreviewFrame } from 'camera-preview'
 import type {
   DrawerButtonSpec,
   DrawerButtonViewSpec,
@@ -18,6 +19,7 @@ import {
 } from 'face-state'
 import { OwnedResources, ResourceScope } from 'owned-resources'
 import { ownUI } from 'runtime-resources'
+import type { CameraImage } from 'stackchan/camera'
 import { StackchanError } from 'stackchan/errors'
 import {
   type Pose,
@@ -57,6 +59,7 @@ function sameBalloonOptions(current: ShowBalloonOptions | null, next: ShowBalloo
 }
 
 export class StackchanRuntimeUI {
+  #image: UIEffect | undefined
   #balloon: UIEffect | null = null
   #balloonOptions: ShowBalloonOptions | null = null
   #drawerButtonSpecs = new Map<string, DrawerButtonSpec>()
@@ -126,6 +129,48 @@ export class StackchanRuntimeUI {
     this.#balloon = null
     this.#balloonOptions = null
     if (balloon != null) this.#ui.removeEffect(balloon)
+  }
+
+  showImage(image: CameraImage): void {
+    this.#assertOpen()
+    if (image.format !== 'rgb565le' && image.format !== 'rgb565be')
+      throw new StackchanError('UNSUPPORTED', 'Image display requires RGB565')
+    if (
+      !Number.isInteger(image.width) ||
+      image.width < 1 ||
+      image.width > 320 ||
+      !Number.isInteger(image.height) ||
+      image.height < 1 ||
+      image.height > 240 ||
+      !(image.data instanceof ArrayBuffer) ||
+      image.data.byteLength !== image.width * image.height * 2
+    )
+      throw new StackchanError('INVALID_ARGUMENT', 'Invalid image')
+    this.hideImage()
+    const frame = prepareCameraPreviewFrame({
+      width: image.width,
+      height: image.height,
+      imageType: image.format,
+      buffer: image.data,
+    })
+    const effect = createCameraPreviewDialog(frame, {
+      onDismiss: () => {
+        if (this.#image === effect) this.hideImage()
+      },
+    })
+    this.#image = effect
+    try {
+      this.#ui.addEffect(effect)
+    } catch (error) {
+      this.hideImage()
+      throw error
+    }
+  }
+
+  hideImage(): void {
+    const image = this.#image
+    this.#image = undefined
+    if (image) this.#ui.removeEffect(image)
   }
 
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void {
@@ -235,6 +280,7 @@ export class StackchanRuntimeUI {
   close(): Promise<void> {
     if (!this.#shutdown) {
       this.#shutdown = new OwnedResources([
+        () => this.hideImage(),
         () => this.hideBalloon(),
         () => this.clearDrawerButtons(),
         () => this.#devices.close(),

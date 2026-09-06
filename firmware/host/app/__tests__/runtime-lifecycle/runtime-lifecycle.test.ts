@@ -84,7 +84,14 @@ async function run(): Promise<void> {
             }
           },
         },
-        ui: { showBalloon() {}, hideBalloon() {} },
+        ui: { showBalloon() {}, hideBalloon() {}, showImage() {}, hideImage() {} },
+        camera: {
+          info: { availability: 'unavailable', reason: 'test', formats: [] },
+          async capture() {
+            throw new Error('unavailable')
+          },
+          async close() {},
+        },
         capabilities: { get: () => ({ availability: 'simulated' }) },
       },
       clock,

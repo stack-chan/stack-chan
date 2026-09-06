@@ -1,9 +1,10 @@
+import type { AppCamera, CameraImage } from 'stackchan/camera'
 import { StackchanError } from 'stackchan/errors'
 import type { AppMotion } from 'stackchan/motion'
 import type { OperationOptions, TaskHandler, Unsubscribe } from 'stackchan/task'
 
 export type Emotion = 'neutral' | 'happy' | 'angry' | 'sad' | 'sleepy' | 'doubt' | 'cold' | 'hot'
-export type CapabilityId = 'audio.speech' | 'audio.clips' | 'audio.tone' | 'input.primary' | 'motion'
+export type CapabilityId = 'audio.speech' | 'audio.clips' | 'audio.tone' | 'input.primary' | 'motion' | 'camera'
 export type CapabilityStatus =
   | { readonly availability: 'native' | 'simulated' }
   | { readonly availability: 'unavailable'; readonly reason: string }
@@ -26,6 +27,7 @@ export interface AppContext {
   readonly face: AppFace
   readonly audio: AppAudio
   readonly motion: AppMotion
+  readonly camera: AppCamera
   readonly input: {
     /** Repeated presses while this handler runs are ignored. */
     onPress(name: 'primary', handler: TaskHandler): Unsubscribe
@@ -38,6 +40,8 @@ export interface AppContext {
   readonly ui: {
     showBalloon(text: string): void
     hideBalloon(): void
+    showImage(image: CameraImage): void
+    hideImage(): void
   }
   readonly capabilities: { get(id: CapabilityId): CapabilityStatus }
 }

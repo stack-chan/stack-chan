@@ -8,6 +8,7 @@ import { TaskScope } from 'task-scope'
 
 export type AppPorts = Pick<AppContext, 'face' | 'audio' | 'ui' | 'capabilities'> & {
   motion: AppContext['motion'] & { close(): Promise<void> }
+  camera: AppContext['camera'] & { close(): Promise<void> }
   input: { subscribePress(handler: () => void): () => void }
 }
 export type AppSessionState = 'created' | 'starting' | 'running' | 'closing' | 'closed'
@@ -67,6 +68,12 @@ export class AppSession {
         },
         stop: () => this.#run(() => ports.motion.stop()),
       }),
+      camera: Object.freeze({
+        get info() {
+          return ports.camera.info
+        },
+        capture: (options) => this.#run(({ signal }) => ports.camera.capture({ ...options, signal }), options?.signal),
+      }),
       input: Object.freeze({
         onPress: (name, handler) => {
           this.#assertOpen()
@@ -86,6 +93,14 @@ export class AppSession {
         hideBalloon: () => {
           this.#assertOpen()
           ports.ui.hideBalloon()
+        },
+        showImage: (image) => {
+          this.#assertOpen()
+          ports.ui.showImage(image)
+        },
+        hideImage: () => {
+          this.#assertOpen()
+          ports.ui.hideImage()
         },
       }),
       capabilities: Object.freeze({ get: (id) => ports.capabilities.get(id) }),
@@ -147,6 +162,8 @@ export class AppSession {
       this.#state = 'closing'
       const cleanup = new ResourceScope([
         () => this.#ports.ui.hideBalloon(),
+        () => this.#ports.ui.hideImage(),
+        () => this.#ports.camera.close(),
         () => this.#ports.motion.close(),
         () => this.#resources.close(),
         () => this.#tasks.close(),

@@ -7,15 +7,15 @@
 
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
-| F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDKとmotionをAppSessionへ接続。録音・カメラ・会話・設定・高度な拡張は未完了 |
-| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。native音声エンジン、WASMカメラの下位資源管理などは継続 |
+| F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDK・motion・一枚撮影と画像表示をAppSessionへ接続。録音・会話・設定・高度な拡張は未完了 |
+| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。WASMカメラの所有・取消しとnativeのフレーム待ちも接続。native音声エンジンなどは継続 |
 | F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消しを接続。他機能と実機での到達確認は未完了 |
-| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声とV2 motionに停止待ち付きOperationQueue、サーボUARTに共通FIFOを接続。注視と単発移動を調停。Wi-Fi接続に所有者別の使用権を接続。会話・USB・全無線経路の調停・V1移行は未完了 |
-| F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの5教材とSDK型検査を追加。既存MOD／miniapp移行は未完了 |
+| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声とV2 motionに停止待ち付きOperationQueue、サーボUARTに共通FIFOを接続。注視と単発移動を調停。Wi-Fi接続に所有者別の使用権、一枚撮影に待機2件の停止待ちキューを接続。会話・USB・全無線経路の調停・V1移行は未完了 |
+| F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの6教材とSDK型検査を追加。既存MOD／miniapp移行は未完了 |
 | F6 アプリ構成 | 既定動作、診断、UI 拡張の責務と寿命を分ける。既定動作にも SDK と AppSession を使用 | 未着手 |
 | F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 共通 host runtime、TTS契約、設定定義とモデル用manifestを一本化。Webも同じ設定定義を参照。ESP32のMAC取得ソース選択も修正。ボード・残りの公開型・型検査は未完了 |
 | F8 設定・起動 | 型・検証・優先順位・secret・適用時点を共通設定サービスへ集約。オフライン教材を Wi-Fi 待機から独立 | V2起動をWi-Fi待機から独立。SettingsServiceを設定画面・BLE・設定読み込みへ接続し、Wi-Fi起動の優先順位を統一。BootSessionの準備状態・期限・取消し・置換時の終了を接続。アプリ公開API・V1起動全体の整理・電源断時の保証は未完了 |
-| F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTSの失敗・取消し、motionの構造化bridgeと推定完了、WASMの経過時計を接続。Wi-Fi管理器を共通化し、WASMのWi-Fiをunavailableと明示。その他の能力metadataと教材適合は未完了 |
+| F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTSの失敗・取消し、motionの構造化bridgeと推定完了、WASMの経過時計を接続。Wi-Fi管理器を共通化し、WASMのWi-Fiをunavailableと明示。カメラの所有・取消しを接続し、明示されていない合成画像への代替を廃止。その他の能力metadataと教材適合は未完了 |
 | F10 検査・配布 | 公開依存・JS / TS 教材・型・ライフサイクルを実効的に検査。V2 metadata を Web / CLI / SD / WASM で起動前検証 | SDKのAST依存検査と全新教材のstrict検査を追加。V2 metadata配布は未完了 |
 
 ## 固定する設計判断
@@ -50,8 +50,8 @@
 
 ## 次に接続するもの
 
-1. V2の基本SDK・motion・AppSessionは接続済み。録音・カメラ・会話・設定の公開サービスと拡張を実装し、既存MOD／miniappへ移行する。
-2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTとPY32 expanderの終了は接続済み。BootSessionとWi-Fi使用権・ローカル通信を終了経路へ接続済み。native音声エンジン、WASMカメラの下位資源へ接続を進める。V1の直接参照と機器置換の寿命も継続して扱う。
+1. V2の基本SDK・motion・AppSessionは接続済み。録音・会話・設定の公開サービスと拡張を実装し、既存MOD／miniappへ移行する。
+2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTとPY32 expanderの終了は接続済み。BootSessionとWi-Fi使用権・ローカル通信を終了経路へ接続済み。WASMカメラの下位資源は接続済み。native音声エンジンへ接続を進める。V1の直接参照と機器置換の寿命も継続して扱う。
 3. 音声出力の個別取消しはAppSessionへ接続済み。音声入力と出力、WASM bridgeのclose、会話とUSBの資源を調停する。
 4. motion controllerのドライバー交換にcallbackの世代管理を接続した。native TTSの出力、AppSessionの使用権、V1の直接参照へも接続を進める。共通キューは非同期停止の確認を待ち、解放失敗後に後続操作を開始しない。
 5. 最小教材から残りの F1〜F10、配布・移行・実機受入まで続ける。現時点では全課題を解消した状態ではない。
@@ -191,3 +191,26 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - 最終ソースでCoreS3（6,518,656 bytes）、PWM / takao_core2_sg90（3,821,200 bytes）、WASMのビルドが成功。Chromiumで5教材の起動・顔・tone・入力・発話・motionが成功した。実機の電波・モーター・音声出力は未検証。
 
 残る範囲: V1の直接参照・起動待ち全体、Wi-Fiスキャン/BLE/ESP-NOWの全利用者間の物理的な調停、ローカル通信の全操作の期限、native音声とWASMカメラの下位資源、V2の残りの能力・配布metadata・既存MOD移行・実機と初学者の受入。これらを含め、全課題の解消を継続する。
+
+
+## 一枚撮影・画像表示とカメラの終了（2026-09-06）
+
+詳細は [撮影と画像表示](camera-capture-lifecycle.md)。F1〜F10全体の完了ではなく、カメラに関する公開契約と寿命を接続した段階である。
+
+- `app.camera.capture` / `camera.info` と `app.ui.showImage` / `hideImage` を追加した。AppSessionが撮影キューを所有し、画像はnativeフレームからコピーする。元フレームの解放とカメラ停止が済んでから撮影を完了する。V1の一枚撮影もカメラ停止後に共有入力を戻す。
+- 寸法・形式・バイト数の上限、実行・待機・停止の期限、取消し、競合、解放失敗をSDK契約へ接続した。RGB565表示とJPEG取得を区別し、未対応形式を成功にしない。画像型を独立させ、低レベルカメラの型からアプリ全体の型定義を要求しない。
+- nativeの最初のフレーム待ちに機器と開始世代の検査を加え、stop / close時に待機・Timer・取消し登録を除く。100回の停止・再開で、古い撮影が新しいフレームを消費せず、古いonReadableが新しい機器を読まないことを確認した。
+- WASMのbridgeを固定し、同じbridgeの所有をCamera間で管理する。開始・フレーム待ち・停止を閉じ、古いcloseが新しい撮影を停止しない。ブラウザーの許可拒否・未取得・canvas失敗を合成画像で成功にする動作を廃止し、合成画像は明示的に選択した場合に限った。
+- ブラウザー受入で、preload済みの読み取り専用オブジェクトをWeakMapのキーにできないXS固有の制約を検出した。通常のMapと参照数で所有を管理し、最後のCameraが正常終了すると表から除く。停止失敗は復旧境界まで保持する。
+- ブラウザーでのMOD再起動・ページ終了でも、古いC bridgeの開始予約とメディア入力を閉じる。XSを終了するだけでは、ブラウザーへ渡したPromiseは消えない。終了途中で失敗しても後続の解放を試みる。
+- `06-camera` 教材とstrict契約試験を追加した。実Piuの表示・置換・非表示・アプリ終了を確認した。UI試験の一つがモジュール評価中の画面構築でXSのスタック上限に達したため、ホストと同様に評価後のmicrotaskで実行する試験へ変更し、スタックサイズは増やしていない。
+
+検証結果:
+
+- Node 496件、構成検査79件、SDK strict検査、6ターゲットのmanifest検査が成功。旧WASMカメラのNode試験11件をXSへ移し、新たな公開操作と終了のNode試験8件を追加したため、Nodeの総数は前段の499件から496件になった。
+- 全56 XS manifestが成功（4並列、61.8秒）。native / WASMのカメラ、アプリ、Piuを含む。Biomeは既存Digest偽物のconstructorに関するinfo 1件のみ。
+- CoreS3 releaseは6,535,040 bytes、PWM / takao_core2_sg90 releaseは3,837,584 bytesで成功。WASMビルドと6番目の教材archive生成も成功した。
+- WebのNode 214件、React 66件、strict型検査とビルドが成功。Chromiumで6教材を起動・操作し、撮影教材ではC bridgeからSDKへ実バイト列が渡ること、Piu描画後のカラー画素、撮影後の全track停止を確認した。動作中のブラウザーカメラもファームウェア再起動でtrack数が0へ戻ることを確認した。
+- 描画の確認は撮影停止からの固定時間待ちにせず、実際の画素が描画されるまで期限付きで待つ。ブラウザーの映像源はChromiumのテスト用メディア入力で、物理カメラの受入ではない。
+
+実機カメラの画質、共有I2C、DMA・メモリー、機種ごとの遅延は未検証。録音・会話・設定のV2公開サービス、native音声、既定動作、全MODの移行、配布metadata、実機と初学者の受入を含む残りの範囲を継続する。

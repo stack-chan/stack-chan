@@ -8,6 +8,15 @@ defineApp({
     void app.motion.move({ yaw: 15, pitch: -5 }, { duration: 0.3 })
     // @ts-expect-error Driver instances do not belong in the SDK.
     app.motion.driver
+    void app.camera.capture({ width: 176, height: 144, format: 'rgb565le' }).then((image) => {
+      app.ui.showImage(image)
+      // @ts-expect-error Native frame handles never escape through the public image.
+      image.close()
+    })
+    // @ts-expect-error Native lifecycle belongs to the host.
+    app.camera.start()
+    // @ts-expect-error YUV is not a portable SDK image format.
+    app.camera.capture({ format: 'yuv422' })
     app.input.onPress('primary', async (task) => {
       await task.sleep(100)
       await app.audio.tone(440, { durationMs: 100, signal: task.signal })

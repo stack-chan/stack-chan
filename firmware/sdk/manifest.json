@@ -4,6 +4,8 @@
     "stackchan": "./index",
     "stackchan/app": "./app",
     "stackchan/task": "./task",
-    "stackchan/motion": "./motion"
+    "stackchan/motion": "./motion",
+    "stackchan/camera": "./camera",
+    "stackchan/image": "./image"
   }
 }

@@ -13,6 +13,7 @@
     }
   },
   "resources": {
+    "*": ["../../strings/*"],
     "*-alpha": [
       {
         "source": "../../../modules/ui/assets/fonts/k8x12",

@@ -189,7 +189,7 @@ test('StackchanRuntimeCamera brackets direct capture calls with touchPanel pause
   const runtime = new StackchanRuntimeCamera({ camera, touchPanel })
   await runtime.camera.capture()
 
-  assert.deepEqual(events, ['touch.stop', 'camera.capture', 'touch.start'])
+  assert.deepEqual(events, ['touch.stop', 'camera.capture', 'camera.stop', 'touch.start'])
 })
 
 test('StackchanRuntimeCamera resumes touchPanel when camera start fails', async () => {

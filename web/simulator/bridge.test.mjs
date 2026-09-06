@@ -423,14 +423,19 @@ describe('Host.Audio bridge', () => {
 })
 
 describe('Host.Camera bridge', () => {
-  it('returns deterministic RGB565LE frames sized to capture options', () => {
+  it('returns deterministic RGB565LE frames only after explicitly selecting simulation', async () => {
     const bridge = createHostCameraBridge()
+    assert.equal(bridge.availability(), 'unavailable')
+    assert.throws(() => bridge.capture(), { code: 'CLOSED' })
+    await bridge.start({ useBrowserCamera: false })
+    assert.equal(bridge.availability(), 'simulated')
 
     const first = bridge.capture({ width: 4, height: 3, imageType: 'rgb565le' })
     const second = bridge.capture({ width: 4, height: 3, imageType: 'rgb565le' })
 
     assert.ok(first)
     assert.ok(second)
+    assert.equal(first.source, 'simulated')
     assert.equal(first.width, 4)
     assert.equal(first.height, 3)
     assert.equal(first.imageType, 'rgb565le')
@@ -441,7 +446,7 @@ describe('Host.Camera bridge', () => {
   it('tracks start and stop without requiring browser media devices', async () => {
     const bridge = createHostCameraBridge()
 
-    await bridge.start({ width: 2, height: 2 })
+    await bridge.start({ width: 2, height: 2, useBrowserCamera: false })
     assert.equal(bridge.isStarted(), true)
 
     bridge.stop()
@@ -499,44 +504,40 @@ describe('Host.Camera bridge', () => {
     assert.equal(calls.at(-1), 'stop')
   })
 
-  it('falls back to synthetic RGB565LE when browser media APIs are absent', async () => {
+  it('reports unavailable media APIs without generating a successful image', async () => {
     const bridge = createHostCameraBridge({ navigatorObj: {}, documentObj: undefined })
-
-    await bridge.start({ useBrowserCamera: true })
-    const first = bridge.capture({ width: 2, height: 2, imageType: 'rgb565le' })
-    const second = createHostCameraBridge().capture({ width: 2, height: 2, imageType: 'rgb565le' })
-
-    assert.equal(bridge.isBrowserCameraStarted(), false)
-    assert.deepEqual(new Uint8Array(first.buffer), new Uint8Array(second.buffer))
+    await assert.rejects(bridge.start(), { code: 'UNSUPPORTED' })
+    assert.equal(bridge.isStarted(), false)
+    assert.throws(() => bridge.capture(), { code: 'CLOSED' })
   })
 
-  it('falls back to synthetic RGB565LE when browser permission is denied', async () => {
-    const warnings = []
+  it('returns permission failure and permits a later explicit retry', async () => {
+    let denied = true
     const bridge = createHostCameraBridge({
-      logger: { warn: (...args) => warnings.push(args) },
       navigatorObj: {
         mediaDevices: {
           async getUserMedia() {
-            throw new Error('denied')
+            if (denied) throw new Error('denied')
+            return { getTracks: () => [] }
           },
         },
       },
-      videoElement: { srcObject: undefined },
+      videoElement: { play: async () => {} },
     })
-
-    await assert.doesNotReject(() => bridge.start({ useBrowserCamera: true }))
-    const frame = bridge.capture({ width: 2, height: 2, imageType: 'rgb565le' })
-
-    assert.equal(bridge.isBrowserCameraStarted(), false)
-    assert.equal(frame.buffer.byteLength, 2 * 2 * 2)
-    assert.match(warnings[0][0], /browser camera unavailable/)
+    await assert.rejects(bridge.start(), /denied/)
+    assert.equal(bridge.isStarted(), false)
+    denied = false
+    await bridge.start()
+    assert.equal(bridge.isBrowserCameraStarted(), true)
+    bridge.stop()
   })
 
-  it('falls back to synthetic RGB565LE when browser video is not ready', async () => {
+  it('returns no frame while video is warming up and surfaces canvas failures', async () => {
+    const video = { readyState: 1, videoWidth: 0, videoHeight: 0 }
     const bridge = createHostCameraBridge({
       canvasElement: {
         getContext: () => {
-          throw new Error('canvas should not be read before video is ready')
+          throw new Error('canvas failed')
         },
       },
       navigatorObj: {
@@ -546,15 +547,13 @@ describe('Host.Camera bridge', () => {
           },
         },
       },
-      videoElement: { readyState: 1, videoWidth: 0, videoHeight: 0 },
+      videoElement: video,
     })
-
-    await bridge.start({ useBrowserCamera: true })
-    const first = bridge.capture({ width: 2, height: 2, imageType: 'rgb565le' })
-    const second = createHostCameraBridge().capture({ width: 2, height: 2, imageType: 'rgb565le' })
-
-    assert.equal(bridge.isBrowserCameraStarted(), true)
-    assert.deepEqual(new Uint8Array(first.buffer), new Uint8Array(second.buffer))
+    await bridge.start()
+    assert.equal(bridge.capture(), undefined)
+    Object.assign(video, { readyState: 2, videoWidth: 16, videoHeight: 16 })
+    assert.throws(() => bridge.capture(), /canvas failed/)
+    bridge.stop()
   })
 
   it('keeps an already-started browser camera stream when firmware starts camera preview', async () => {
@@ -662,9 +661,11 @@ describe('Host.Camera bridge', () => {
     })
 
     const startPromise = bridge.start({ useBrowserCamera: true })
+    const rejected = assert.rejects(startPromise, { code: 'CANCELLED' })
+    await Promise.resolve()
     bridge.stop()
     resolveStream(stream)
-    await startPromise
+    await rejected
 
     assert.equal(bridge.isStarted(), false)
     assert.equal(bridge.isBrowserCameraStarted(), false)
@@ -672,11 +673,113 @@ describe('Host.Camera bridge', () => {
     assert.deepEqual(stopped, ['stop'])
   })
 
-  it('keeps unsupported camera formats out of the simulator bridge', () => {
+  it('rejects unsupported formats and invalid dimensions before allocation', async () => {
     const bridge = createHostCameraBridge()
-
-    assert.equal(bridge.capture({ imageType: 'jpeg' }), undefined)
+    await bridge.start({ useBrowserCamera: false })
+    assert.throws(() => bridge.capture({ imageType: 'jpeg' }), { code: 'UNSUPPORTED' })
+    for (const width of [0, -1, 1.5, NaN, Infinity, 321])
+      assert.throws(() => bridge.capture({ width }), { code: 'INVALID_ARGUMENT' })
     assert.equal('captureJpeg' in bridge, false)
+  })
+  it('stops every track even when detaching video or a track fails, and rejects reuse', async () => {
+    const stops = []
+    let rejectDetach = false
+    const video = {
+      play: async () => {},
+      set srcObject(value) {
+        if (rejectDetach && value === null) throw new Error('detach failed')
+      },
+    }
+    const bridge = createHostCameraBridge({
+      videoElement: video,
+      navigatorObj: {
+        mediaDevices: {
+          async getUserMedia() {
+            return {
+              getTracks: () => [
+                {
+                  stop() {
+                    stops.push(1)
+                    throw new Error('track failed')
+                  },
+                },
+                {
+                  stop() {
+                    stops.push(2)
+                  },
+                },
+              ],
+            }
+          },
+        },
+      },
+    })
+    await bridge.start()
+    rejectDetach = true
+    assert.throws(() => bridge.stop(), /detach failed/)
+    assert.deepEqual(stops, [1, 2])
+    await assert.rejects(bridge.start(), /detach failed/)
+  })
+
+  it('a late video.play completion cannot revive or stop a newer stream', async () => {
+    let finishPlay
+    const stopped = []
+    let count = 0
+    const video = {
+      play: () =>
+        count === 1
+          ? new Promise((resolve) => {
+              finishPlay = resolve
+            })
+          : Promise.resolve(),
+    }
+    const bridge = createHostCameraBridge({
+      videoElement: video,
+      navigatorObj: {
+        mediaDevices: {
+          async getUserMedia() {
+            const id = ++count
+            return { id, getTracks: () => [{ stop: () => stopped.push(id) }] }
+          },
+        },
+      },
+    })
+    const old = bridge.start()
+    const rejected = assert.rejects(old, { code: 'CANCELLED' })
+    await new Promise((resolve) => setImmediate(resolve))
+    bridge.stop()
+    await bridge.start()
+    finishPlay()
+    await rejected
+    assert.equal(video.srcObject.id, 2)
+    assert.deepEqual(stopped, [1])
+    bridge.stop()
+    assert.deepEqual(stopped, [1, 2])
+  })
+
+  it('100 starts and stops return all acquired media tracks', async () => {
+    let acquired = 0,
+      released = 0
+    const video = { play: async () => {} }
+    const bridge = createHostCameraBridge({
+      videoElement: video,
+      navigatorObj: {
+        mediaDevices: {
+          async getUserMedia() {
+            acquired++
+            return { getTracks: () => [{ stop: () => released++ }] }
+          },
+        },
+      },
+    })
+    for (let index = 0; index < 100; index++) {
+      await bridge.start()
+      bridge.stop()
+      bridge.stop()
+      assert.equal(acquired, released)
+      assert.equal(video.srcObject, null)
+      assert.equal(bridge.isStarted(), false)
+    }
   })
 })
 

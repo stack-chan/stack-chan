@@ -218,6 +218,12 @@ export class StackchanRuntimeContext implements StackchanContext {
     const session = new AppSession(
       {
         motion,
+        camera: this.#cameraRuntime.createCaptureSession({
+          after(ms, callback) {
+            const timer = Timer.set(callback, ms)
+            return () => Timer.clear(timer)
+          },
+        }),
         face: {
           setEmotion: (emotion) => {
             if (!Object.hasOwn(emotions, emotion)) throw new StackchanError('INVALID_ARGUMENT', 'Unknown emotion')
@@ -264,12 +270,19 @@ export class StackchanRuntimeContext implements StackchanContext {
             }
           },
         },
-        ui: { showBalloon: (text) => this.showBalloon(text), hideBalloon: () => this.hideBalloon() },
+        ui: {
+          showBalloon: (text) => this.showBalloon(text),
+          hideBalloon: () => this.hideBalloon(),
+          showImage: (image) => this.#uiRuntime.showImage(image),
+          hideImage: () => this.#uiRuntime.hideImage(),
+        },
         capabilities: {
           get: (id) => {
             switch (id) {
               case 'motion':
                 return motion.info
+              case 'camera':
+                return this.#cameraRuntime.info
               case 'input.primary':
                 return { availability: 'native' }
               case 'audio.speech':

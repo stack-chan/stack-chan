@@ -1,0 +1,12 @@
+{
+  "include": [
+    "../../manifest.json",
+    "../../../../../sdk/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "wasm-camera": "../../wasm/camera",
+    "main": "./wasm-lifecycle.test"
+  },
+  "defines": { "main": { "async": 1 } }
+}

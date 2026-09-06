@@ -1,6 +1,9 @@
 import type { CameraFrame, RobotCamera } from 'camera'
+import { CameraCaptureSession } from 'camera-capture-session'
+import type { OperationClock } from 'operation-queue'
 import { OwnedResources, ResourceScope } from 'owned-resources'
 import { ownCamera } from 'runtime-resources'
+import type { CameraInfo } from 'stackchan/camera'
 import { StackchanError } from 'stackchan/errors'
 import Timer from 'timer'
 
@@ -55,6 +58,62 @@ export class StackchanRuntimeCamera implements RobotCamera {
 
   get camera(): RobotCamera {
     return this
+  }
+
+  get info(): CameraInfo {
+    const availability = this.#camera.availability ?? (this.#camera.available ? 'native' : 'unavailable')
+    return availability === 'unavailable'
+      ? { availability, formats: [], reason: 'Camera is unavailable on this target' }
+      : { availability, formats: this.#camera.formats ?? ['rgb565le'] }
+  }
+
+  createCaptureSession(clock: OperationClock): CameraCaptureSession {
+    const runtime = this
+    let held = false
+    return new CameraCaptureSession(
+      {
+        get info() {
+          return runtime.info
+        },
+        async start(request) {
+          if (runtime.#cameraActive) throw new StackchanError('BUSY', 'Camera is in use by a live preview')
+          runtime.#begin()
+          held = true
+          runtime.#pauseTouchPanel()
+          await runtime.#camera.start({ width: request.width, height: request.height, imageType: request.format })
+        },
+        async capture(request) {
+          const frame = await runtime.#camera.capture({
+            width: request.width,
+            height: request.height,
+            imageType: request.format,
+          })
+          return (
+            frame && {
+              width: frame.width,
+              height: frame.height,
+              format: frame.imageType,
+              source: frame.source,
+              data: frame.buffer,
+              close: () => frame.close?.(),
+            }
+          )
+        },
+        async stop() {
+          if (!held) return
+          held = false
+          try {
+            await runtime.#camera.stop()
+          } catch (error) {
+            runtime.#stopFailed(error)
+          } finally {
+            runtime.#busy = false
+            if (!runtime.#closed) runtime.#resumeTouchPanel()
+          }
+        },
+      },
+      clock,
+    )
   }
 
   start(options?: Parameters<RobotCamera['start']>[0]): Promise<void> | void {
@@ -126,9 +185,28 @@ export class StackchanRuntimeCamera implements RobotCamera {
   async capture(options?: Parameters<RobotCamera['capture']>[0]): Promise<CameraFrame | undefined> {
     this.#begin()
     const wasActive = this.#cameraActive
+    let frame: CameraFrame | undefined
     try {
       if (!wasActive) this.#pauseTouchPanel()
-      return await this.#observe(this.#camera.capture(options), (frame) => frame?.close?.())
+      frame = await this.#observe(this.#camera.capture(options), (frame) => frame?.close?.())
+      return frame
+    } finally {
+      await this.#finishCapture(wasActive, frame)
+    }
+  }
+
+  async #finishCapture(wasActive: boolean, frame: CameraFrame | undefined): Promise<void> {
+    try {
+      if (!this.#closed && !wasActive) {
+        const stopped = this.#camera.stop()
+        if (isThenable(stopped)) await this.#observe(stopped, undefined, STOP_TIMEOUT_MS)
+      }
+    } catch (error) {
+      try {
+        frame?.close?.()
+      } finally {
+        this.#stopFailed(error)
+      }
     } finally {
       this.#busy = false
       if (!this.#closed && !wasActive) this.#resumeTouchPanel()

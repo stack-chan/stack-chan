@@ -1,4 +1,4 @@
-import { sampleRgb565LeMosaic, toPiuColorString } from 'camera-preview-utils'
+import { copyRgb565Frame, sampleRgb565LeMosaic, toPiuColorString } from 'camera-preview-utils'
 import Bitmap from 'commodetto/Bitmap'
 import type { MainContent } from 'common-view'
 import { Container, Label, type Port as PiuPort, Skin } from 'piu/MC'
@@ -27,6 +27,7 @@ const DIALOG_BACKGROUND = '#000000'
 const DEFAULT_CAPTION = 'カメラ'
 
 type BitmapPort = PiuPort & {
+  clearBitmap?: () => void
   drawBitmap?: (bitmap: Bitmap, x: number, y: number, sx?: number, sy?: number, sw?: number, sh?: number) => void
 }
 
@@ -51,7 +52,13 @@ function drawRgb565Bitmap(port: BitmapPort, frame: CameraFrame): boolean {
 }
 
 export function prepareCameraPreviewFrame(frame: CameraFrame): CameraPreviewFrame {
-  return frame
+  return {
+    width: CAMERA_PREVIEW_WIDTH,
+    height: CAMERA_PREVIEW_HEIGHT,
+    imageType: 'rgb565le',
+    source: frame.source,
+    buffer: copyRgb565Frame(frame, { width: CAMERA_PREVIEW_WIDTH, height: CAMERA_PREVIEW_HEIGHT, byteOrder: 'le' }),
+  }
 }
 
 export function createCameraPreviewDialog(frame: CameraPreviewFrame, options: CameraPreviewOptions = {}): MainContent {
@@ -75,6 +82,12 @@ export function createCameraPreviewDialog(frame: CameraPreviewFrame, options: Ca
 
         onDisplaying(port: PiuPort) {
           port.invalidate()
+        }
+
+        onUndisplaying(port: PiuPort) {
+          ;(port as BitmapPort).clearBitmap?.()
+          this.frame = null
+          this.options = null
         }
 
         onTouchEnded(_port: PiuPort) {

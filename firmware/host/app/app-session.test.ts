@@ -61,7 +61,14 @@ function fixture() {
         }
       },
     },
-    ui: { showBalloon() {}, hideBalloon() {} },
+    ui: { showBalloon() {}, hideBalloon() {}, showImage() {}, hideImage() {} },
+    camera: {
+      info: { availability: 'unavailable', reason: 'test', formats: [] },
+      async capture() {
+        throw new Error('unavailable')
+      },
+      async close() {},
+    },
     capabilities: { get: () => ({ availability: 'simulated' }) },
   }
   return { clock, presses, errors, ports }
@@ -287,4 +294,51 @@ test('closing before task dispatch prevents handlers and devices from starting',
   await failed
   assert.equal(starts, 0)
   assert.deepEqual(f.errors, [])
+})
+
+test('app camera combines cancellation and owns image UI and capture service on close', async () => {
+  const { AppSession, defineApp } = await setup()
+  const f = fixture()
+  const events: string[] = []
+  let context: AppContext
+  f.ports.camera = {
+    info: { availability: 'native', formats: ['rgb565le'] },
+    capture(options) {
+      return new Promise((_resolve, reject) => {
+        options.signal.subscribe((reason) => {
+          events.push('cancel')
+          reject(reason)
+        })
+      })
+    },
+    async close() {
+      events.push('camera close')
+    },
+  }
+  f.ports.ui.showImage = () => {
+    events.push('image')
+  }
+  f.ports.ui.hideImage = () => {
+    events.push('hide image')
+  }
+  const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  await session.start(
+    defineApp({
+      setup(app) {
+        context = app
+      },
+    }),
+  )
+  context.ui.showImage({ width: 1, height: 1, format: 'rgb565le', source: 'native', data: new ArrayBuffer(2) })
+  const pending = context.camera.capture()
+  const failed = assert.rejects(pending, { code: 'CLOSED' })
+  await flush()
+  await session.close()
+  await failed
+  assert.deepEqual(events, ['image', 'cancel', 'camera close', 'hide image'])
+  assert.throws(
+    () => context.ui.showImage({ width: 1, height: 1, format: 'rgb565le', source: 'native', data: new ArrayBuffer(2) }),
+    { code: 'CLOSED' },
+  )
+  assert.equal(f.clock.jobs.size, 0)
 })

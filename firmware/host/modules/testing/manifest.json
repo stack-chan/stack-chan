@@ -2,6 +2,7 @@
   "modules": {
     "testing/assert": "./assert",
     "testing/fakes/ChatAudioIO": "./fakes/ChatAudioIO",
+    "testing/fakes/mock-i2c": "./fakes/mock-i2c",
     "testing/fakes/timer": "./fakes/timer"
   },
   "typescript": {

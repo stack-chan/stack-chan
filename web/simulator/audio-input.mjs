@@ -30,6 +30,7 @@ function deferred() {
 export function createHostAudioInBridge({
   mediaDevices = globalThis.navigator?.mediaDevices,
   MediaRecorder = globalThis.MediaRecorder,
+  readChunks = (chunks) => new Blob(chunks).arrayBuffer(),
   setTimeoutFn = globalThis.setTimeout,
   clearTimeoutFn = globalThis.clearTimeout,
 } = {}) {
@@ -165,22 +166,13 @@ export function createHostAudioInBridge({
     }
   }
   async function collect(op) {
-    let offset = 0
-    const bytes = new Uint8Array(op.bytes)
-    for (const chunk of op.chunks) {
-      const buffer =
-        chunk instanceof ArrayBuffer
-          ? chunk
-          : ArrayBuffer.isView(chunk)
-            ? chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength)
-            : await chunk.arrayBuffer()
-      if (op.error || op.settled) return undefined
-      if (!(buffer instanceof ArrayBuffer) || buffer.byteLength > bytes.length - offset)
-        throw failure('IO', 'Microphone returned inconsistent encoded data')
-      bytes.set(new Uint8Array(buffer), offset)
-      offset += buffer.byteLength
-    }
-    if (!offset || offset !== bytes.length) throw failure('IO', 'Microphone returned no complete recording')
+    // MediaRecorder emits many Blob slices. Convert one aggregate rather than
+    // serializing a browser task for every slice inside the stop deadline.
+    const buffer = await readChunks(op.chunks)
+    if (op.error || op.settled) return undefined
+    if (!(buffer instanceof ArrayBuffer) || !buffer.byteLength || buffer.byteLength !== op.bytes)
+      throw failure('IO', 'Microphone returned no complete recording')
+    const bytes = new Uint8Array(buffer)
     if (
       op.format.extension === 'wav' &&
       (bytes.length < 12 ||
@@ -205,7 +197,7 @@ export function createHostAudioInBridge({
         if (
           !Number.isSafeInteger(length) ||
           length < 0 ||
-          !(chunk instanceof ArrayBuffer || ArrayBuffer.isView(chunk) || typeof chunk?.arrayBuffer === 'function')
+          !(chunk instanceof ArrayBuffer || ArrayBuffer.isView(chunk) || chunk instanceof Blob)
         )
           throw failure('IO', 'Microphone returned an invalid data chunk')
         if (!length) return

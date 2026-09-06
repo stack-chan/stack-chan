@@ -24,7 +24,9 @@ export default defineApp({
 | `face.setEmotion` / `setMouthOpen` / `setColor` | 同期更新。色0〜255、開度0〜1。未知の名前や不正値はエラー |
 | `audio.say(text, options?)` | 自由文の発話完了を待つ。素材名として解釈しない |
 | `audio.playClip(name, options?)` | ローカル音声素材の再生完了を待つ。名前には拡張子やパスを含めない |
-| `audio.tone(hz, { durationMs, volume?, signal? })` | 音の再生操作を待つ。音量0〜1。音声操作は同じ出力キューで直列化 |
+| `audio.tone(hz, { durationMs, volume?, signal? })` | 10〜20,000 Hz、0〜60,000 ms、音量0〜1。再生と出力解放を待つ |
+| `audio.record({ durationMs?, signal? })` | 入力を解放してから録音データを返す。省略時3秒 |
+| `audio.play(audio, { volume?, signal? })` | 録音などの音声データを再生する。発話・素材・toneと同じ出力キューで直列化 |
 | `motion.move({ yawDeg, pitchDeg }, { durationMs, timeoutMs?, completion?, signal? })` | 指定時間の軌道を送り終えるまで待つ。位置を読める機種では到達も確認。結果は `measured` または `estimated` |
 | `camera.capture({ width?, height?, format?, signal? })` | 一枚をコピーし、元フレーム解放・カメラ停止後に返す |
 | `camera.info` | 使用可否と対応画像形式を取得 |
@@ -50,6 +52,21 @@ app.input.onPress('primary', async (task) => {
 ```
 
 公開SDKと教材を `npm run check:sdk` でstrict検査します。構成検査はTypeScriptの構文木でSDKからホスト内部への依存がないことを確認し、コンパイラーが解決したファイル一覧で全教材の検査対象への包含を確認します。使用するTypeScript 7 APIは版に依存するため、開発依存は検証した版へ固定しています。
+
+## 声を録音して再生する
+
+```js
+app.input.onPress('primary', async (task) => {
+  const audio = await app.audio.record({ durationMs: 3000, signal: task.signal })
+  await app.audio.play(audio, { volume: 0.5, signal: task.signal })
+})
+```
+
+`app.capabilities.get('audio.recording')` と `audio.playback` で機能の有無を確認できます。ブラウザーではマイクの使用許可が必要です。録音は1〜15,000ms、最大512 KiBで、戻り値は `data: ArrayBuffer`、実際の `mimeType` と `filename` を持ちます。機種側はPCM WAV、ブラウザー側はWebMやMP4などを返すため、形式をWAVと決めつけないでください。許可拒否を無音の録音に置き換えることはありません。
+
+録音と再生は完了時に入力・出力を解放し、アプリ終了時にも停止します。再生中は渡したバイト列を変更しないでください。nativeのバッファ再生は16-bit PCM WAV、8〜48 kHz、モノラルまたはステレオに対応し、上限は3 MiB・60秒です。ブラウザーの再生形式はそのdecoderに依存します。
+
+機能がない場合はUNSUPPORTED、不正な引数はINVALID_ARGUMENT、録音・再生の失敗はIO等でrejectします。未対応時とエラー時の案内も含む例は [07-recording](../lessons/07-recording/mod.js)、詳しい形式・所有の契約は [録音とバッファ再生](../../docs/architecture/sdk-recording-playback.md) にあります。
 
 ## 首の動作を待つ
 

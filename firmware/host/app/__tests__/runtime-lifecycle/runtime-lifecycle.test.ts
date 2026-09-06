@@ -75,7 +75,16 @@ async function run(): Promise<void> {
           async close() {},
         },
         face: { setEmotion() {}, setColor() {}, setMouthOpen() {} },
-        audio: { async say() {}, async playClip() {}, async tone() {}, async close() {} },
+        audio: {
+          async say() {},
+          async playClip() {},
+          async tone() {},
+          async close() {},
+          async play() {},
+          async record() {
+            throw new Error('recording is not configured in this test')
+          },
+        },
         input: {
           subscribePress(handler) {
             listeners.add(handler)

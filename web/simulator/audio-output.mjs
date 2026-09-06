@@ -6,6 +6,9 @@ import {
   PLAYBACK_PREPARE_TIMEOUT_MS,
   PLAYBACK_GRACE_MS,
   PLAYBACK_RELEASE_TIMEOUT_MS,
+  MIN_TONE_HZ,
+  MAX_TONE_HZ,
+  TONE_SAMPLE_RATE,
 } from '../../firmware/contracts/audio-playback.js'
 
 class AudioOutputError extends Error {
@@ -26,10 +29,10 @@ function deferred() {
   promise.catch(() => {})
   return { promise, resolve, reject }
 }
-function defaultAudioContextFactory() {
+function defaultAudioContextFactory(options) {
   const AudioContext = globalThis.AudioContext ?? globalThis.webkitAudioContext
   if (!AudioContext) throw failure('UNSUPPORTED', 'Browser audio output is unavailable')
-  return new AudioContext()
+  return new AudioContext(options)
 }
 function finite(value, name, min, max) {
   if (!Number.isFinite(value) || value < min || value > max)
@@ -173,7 +176,7 @@ export function createHostAudioOutBridge({
   async function prepare(op, kind, data, volume) {
     try {
       if (op.stopping) return
-      const context = (op.context = createAudioContext())
+      const context = (op.context = createAudioContext(kind === 'tone' ? { sampleRate: TONE_SAMPLE_RATE } : undefined))
       if (op.stopping) return
       if (context.state === 'suspended') await context.resume()
       if (op.stopping) return
@@ -200,6 +203,8 @@ export function createHostAudioOutBridge({
         op.source = context.createBufferSource()
         op.source.buffer = audioBuffer
       } else {
+        if (!Number.isFinite(context.sampleRate) || data.hz >= context.sampleRate / 2)
+          throw failure('UNSUPPORTED', 'AudioContext sample rate cannot represent this tone')
         op.source = context.createOscillator()
         op.source.frequency.value = data.hz
       }
@@ -243,7 +248,7 @@ export function createHostAudioOutBridge({
       if (suspended || active) throw failure('BUSY', 'Audio output is already in use')
       finite(volume, 'volume', 0, 1)
       if (kind === 'tone') {
-        finite(data.hz, 'frequency', 1, 24000)
+        finite(data.hz, 'frequency', MIN_TONE_HZ, MAX_TONE_HZ)
         finite(data.duration, 'durationMs', 0, MAX_TONE_DURATION_MS)
       } else if (!(data instanceof ArrayBuffer) || data.byteLength === 0 || data.byteLength > MAX_PLAYBACK_BYTES)
         throw failure('INVALID_ARGUMENT', 'Audio buffer is empty or exceeds playback limits')

@@ -287,6 +287,10 @@ export class StackchanRuntimeContext implements StackchanContext {
                 return this.#audioRuntime.audioStatus('clips')
               case 'audio.tone':
                 return this.#audioRuntime.audioStatus('tone')
+              case 'audio.recording':
+                return this.#audioRuntime.audioStatus('recording')
+              case 'audio.playback':
+                return this.#audioRuntime.audioStatus('playback')
               default:
                 throw new StackchanError('INVALID_ARGUMENT', 'Unknown capability')
             }

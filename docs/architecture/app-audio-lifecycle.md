@@ -1,6 +1,6 @@
 # アプリ単位の音声操作の所有
 
-AppSessionの終了は、そのアプリが開始した音声操作の停止・解放を待つ。対象は現在公開しているSDKの`audio.say`、`audio.playClip`、`audio.tone`であり、録音・バッファ再生・会話を公開SDKへ追加する作業は引き続き残る。
+AppSessionの終了は、そのアプリが開始した音声操作の停止・解放を待つ。対象は現在公開しているSDKの`audio.say`、`audio.playClip`、`audio.tone`、`audio.record`、`audio.play`。録音とバッファ再生の形式・上限は[専用の契約](sdk-recording-playback.md)にまとめる。会話を公開SDKへ追加する作業は引き続き残る。
 
 ## 解消する問題
 
@@ -15,7 +15,7 @@ TaskScopeは初学者のアプリが返す任意のPromiseを扱う。取消し�
 | TaskScope | アプリの処理・購読・任意のPromiseに協調的な取消しを通知する |
 | AppAudioSession | アプリの音声コマンドと取消し元を保持し、RuntimeAudioが返す実際の完了まで所有する |
 | RuntimeAudio | ホスト共通の有限キュー、操作期限と停止期限、プロバイダーをまたぐ資源の受け渡しを管理する |
-| Speaker / TTS / Browser AudioOut | それぞれが取得した物理資源・通信・継続処理の解放を確認する |
+| Microphone / Speaker / TTS / ブラウザー音声 | それぞれが取得した物理資源・通信・継続処理の解放を確認する |
 
 AppAudioSessionは別の再生キューを追加しない。同じホストのRuntimeAudioへ、操作ごとのsignalを付けて渡す。アプリから来るsignalは一つの操作だけに接続し、処理が終わったらその購読を回収する。
 
@@ -27,7 +27,7 @@ AppAudioSessionは別の再生キューを追加しない。同じホストのRu
 - 所有している全コマンドへCLOSEDを通知してから、全結果を待つ。一つの解放待ちが、他のコマンドへの取消し通知を妨げない。
 - 待機中のコマンドを取り消しても、別アプリの実行中コマンドは止めない。識別は操作のsignalとキュー内のentryで行う。
 - アプリ向けの取消し通知は先に完了しても、AppSessionの状態は音声解放を待つ間closingに保つ。closeの多重呼出しは同じPromiseを返す。
-- 通常のCANCELLED / CLOSEDや、資源を解放済みの再生エラーだけでホストを故障扱いにしない。RuntimeAudioの出力キューが保持する解放失敗はAppAudioSession.closeにも返す。取消された操作のCLOSEDに物理的な失敗を埋もれさせない。
+- 通常のCANCELLED / CLOSEDや、資源を解放済みの操作エラーだけでホストを故障扱いにしない。RuntimeAudioの入力・出力キューとMicrophoneが保持する解放失敗はAppAudioSession.closeにも返す。取消された操作のCLOSEDに物理的な失敗を埋もれさせない。
 - プロバイダーが停止を完了しなければ、RuntimeAudioの既存の停止期限で出力を故障扱いにする。AppAudioSessionは、任意のアプリPromiseの終了を物理的な解放の代わりに使わない。
 
 ## 検証

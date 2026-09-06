@@ -1,4 +1,5 @@
 import { type OwnedAudioBuffer, ownAudioBuffer } from 'audio-buffer'
+import type { AudioInputPort } from 'audio-ports'
 import { asStackchanError, finiteNumber, StackchanError } from 'stackchan/errors'
 import type { OperationOptions } from 'stackchan/task'
 import {
@@ -22,7 +23,7 @@ type PendingRecording = {
 type AudioBridgeGlobal = typeof globalThis & { __stackchanWasmAudioBridge?: WasmAudioInputBridge }
 
 /** Own one handle, its polling, cancellation and confirmed browser release. */
-export default class Microphone {
+export default class Microphone implements AudioInputPort {
   readonly #bridge: WasmAudioInputBridge | undefined
   #pending: PendingRecording | undefined
   #closed = false
@@ -37,6 +38,10 @@ export default class Microphone {
   }
   get available(): boolean {
     return !this.#closed && !this.#failure && !!this.#bridge?.recordAvailable()
+  }
+
+  get releaseFailure(): StackchanError | undefined {
+    return this.#failure
   }
 
   stop(reason = new StackchanError('CANCELLED', 'Recording cancelled')): void | Promise<void> {

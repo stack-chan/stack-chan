@@ -1,4 +1,6 @@
+import Debug from 'debug'
 import AudioOut from 'pins/audioout'
+import { createRecordingWave } from 'recording-wave'
 import Speaker from 'speaker'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
@@ -151,6 +153,48 @@ async function run() {
   await speaker.close()
   equal((await active)?.code, 'CLOSED', 'Speaker close waits and rejects the operation')
   equal((await observe(speaker.tone(440, 10)))?.code, 'CLOSED', 'closed Speaker cannot reacquire')
+
+  const pcmSpeaker = new Speaker()
+  for (let cycle = 0; cycle < 100; cycle++) {
+    const wave = createRecordingWave({ sampleRate: 16000, channels: 1, bitsPerSample: 16 }, 10)
+    wave.samples[0] = 23
+    const playing = pcmSpeaker.play(wave.buffer, 0.25)
+    const audio = current()
+    await new Promise<void>((resolve) => Timer.set(() => resolve(), 1))
+    Debug.gc()
+    equal(audio.raw?.deref()?.byteLength, wave.samples.byteLength, 'PCM survives GC while C would own its pointer')
+    equal(new Uint8Array(audio.raw?.deref() ?? new ArrayBuffer(0))[0], 23, 'only PCM reaches RawSamples')
+    equal(audio.options.sampleRate, 16000)
+    equal(audio.volumes.length, 1, 'initial volume is sent once')
+    equal(audio.volumes[0], 64, 'per-operation volume is honored')
+    audio.deliver()
+    equal(await playing, true)
+    equal(audio.closesInCallback, 0)
+    equal(audio.closes, 1)
+    const cancelled = observe(pcmSpeaker.play(wave.buffer))
+    await pcmSpeaker.cancelPlayback?.()
+    equal((await cancelled)?.code, 'CANCELLED', 'PCM cancellation rejects instead of returning false')
+  }
+  const count = AudioOut.instances.length
+  equal((await observe(pcmSpeaker.play(new ArrayBuffer(44))))?.code, 'INVALID_ARGUMENT')
+  equal((await observe(pcmSpeaker.tone(NaN, 10)))?.code, 'INVALID_ARGUMENT')
+  equal((await observe(pcmSpeaker.tone(440, 10, NaN)))?.code, 'INVALID_ARGUMENT')
+  equal(AudioOut.instances.length, count, 'invalid requests never acquire output')
+  await pcmSpeaker.close()
+
+  const faultedSpeaker = new Speaker()
+  const wave = createRecordingWave({ sampleRate: 16000, channels: 1, bitsPerSample: 16 }, 10)
+  const faultedPlay = observe(faultedSpeaker.play(wave.buffer))
+  const faultedAudio = current()
+  faultedAudio.closeFailure = true
+  faultedAudio.deliver()
+  equal((await faultedPlay)?.code, 'IO')
+  await new Promise<void>((resolve) => Timer.set(() => resolve(), 1))
+  Debug.gc()
+  equal(faultedAudio.raw?.deref()?.byteLength, wave.samples.byteLength, 'unconfirmed native close keeps PCM pinned')
+  const beforeRetry = AudioOut.instances.length
+  equal((await observe(faultedSpeaker.play(wave.buffer)))?.code, 'IO')
+  equal(AudioOut.instances.length, beforeRetry, 'a release failure prevents reacquisition')
 
   await owner.close()
   trace('ok\n')

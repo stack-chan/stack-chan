@@ -52,7 +52,16 @@ function fixture() {
       async close() {},
     },
     face: { setEmotion() {}, setMouthOpen() {}, setColor() {} },
-    audio: { async say() {}, async tone() {}, async playClip() {}, async close() {} },
+    audio: {
+      async say() {},
+      async tone() {},
+      async playClip() {},
+      async close() {},
+      async play() {},
+      async record() {
+        throw new Error('recording is not configured in this test')
+      },
+    },
     input: {
       subscribePress: (handler) => {
         presses.add(handler)

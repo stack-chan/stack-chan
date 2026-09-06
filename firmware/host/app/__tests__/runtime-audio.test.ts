@@ -36,6 +36,142 @@ function fakeTTS() {
   }
 }
 
+test('SDK recording replays native WAV or actual browser encoding with its volume on the shared output queue', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  const { createRecordingWave } = await import('../../modules/audio/recording-wave.js')
+  for (const simulated of [false, true]) {
+    const native = createRecordingWave({ sampleRate: 16000, channels: 1, bitsPerSample: 16 }, 10).buffer
+    const buffer = simulated
+      ? Object.assign(Uint8Array.of(1, 2, 3).buffer, { mimeType: 'audio/webm;codecs=opus', filename: 'recording.webm' })
+      : native
+    const order: string[] = []
+    let requestedDuration: number | undefined
+    let finishSpeech: (() => void) | undefined
+    const runtime = new StackchanRuntimeAudio({
+      simulated,
+      tts: {
+        stream(_text, _volume, done) {
+          order.push('speech')
+          finishSpeech = () => done?.()
+        },
+      },
+      microphone: {
+        async record(duration) {
+          requestedDuration = duration
+          return buffer as OwnedAudioBuffer
+        },
+        stop() {},
+      },
+      speaker: {
+        async tone() {},
+        async play(data, volume) {
+          assert.equal(data, buffer)
+          assert.equal(volume, 0.25)
+          order.push('play')
+          return true
+        },
+      },
+    })
+    const app = runtime.createAppSession()
+    const recorded = await app.record({ durationMs: 10 })
+    assert.equal(requestedDuration, 10)
+    assert.equal(recorded.mimeType, simulated ? 'audio/webm;codecs=opus' : 'audio/wav')
+    const speech = app.say('hello')
+    const playback = app.play(recorded, { volume: 0.25 })
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    assert.deepEqual(order, ['speech'], 'buffer playback waits for speech to release output')
+    finishSpeech?.()
+    await Promise.all([speech, playback])
+    assert.deepEqual(order, ['speech', 'play'])
+    await app.close()
+    await runtime.close()
+  }
+})
+
+test('SDK input availability and invalid arguments never invent successful recording or playback', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  let available = false
+  let starts = 0
+  const runtime = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    microphone: {
+      get available() {
+        return available
+      },
+      async record() {
+        starts++
+        return new ArrayBuffer(44) as OwnedAudioBuffer
+      },
+      stop() {},
+    },
+    speaker: {
+      async tone() {},
+      async play() {
+        starts++
+        return false
+      },
+    },
+  })
+  const app = runtime.createAppSession()
+  assert.equal(runtime.audioStatus('recording').availability, 'unavailable')
+  await assert.rejects(app.record(), { code: 'UNSUPPORTED' })
+  available = true
+  assert.equal(runtime.audioStatus('recording').availability, 'native')
+  await assert.rejects(app.record({ durationMs: NaN }), { code: 'INVALID_ARGUMENT' })
+  await assert.rejects(app.play({ data: new ArrayBuffer(4), mimeType: 'audio/webm' }), { code: 'UNSUPPORTED' })
+  await assert.rejects(app.play({ data: new ArrayBuffer(0), mimeType: 'audio/wav' }), { code: 'INVALID_ARGUMENT' })
+  assert.equal(starts, 0)
+  await assert.rejects(app.record(), { code: 'IO' })
+  await assert.rejects(app.play({ data: new ArrayBuffer(4), mimeType: 'audio/wav' }), { code: 'IO' })
+  await app.close()
+  await runtime.close()
+  const missing = new StackchanRuntimeAudio({ tts: fakeTTS() })
+  await assert.rejects(missing.createAppSession().play({ data: new ArrayBuffer(4), mimeType: 'audio/wav' }), {
+    code: 'UNSUPPORTED',
+  })
+  await missing.close()
+})
+
+test('normal recording completion with failed physical release faults input and reaches app close', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  const { StackchanError } = await import('../../../sdk/errors.js')
+  const failure = new StackchanError('IO', 'Input was not released')
+  let releaseFailure: typeof failure | undefined
+  let starts = 0
+  const runtime = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    microphone: {
+      get releaseFailure() {
+        return releaseFailure
+      },
+      async record() {
+        starts++
+        releaseFailure = failure
+        throw failure
+      },
+      stop() {
+        if (releaseFailure) throw releaseFailure
+      },
+    },
+  })
+  const app = runtime.createAppSession()
+  const first = assert.rejects(app.record(), (error) => error === failure)
+  const second = assert.rejects(app.record(), { code: 'IO' })
+  await Promise.all([first, second])
+  assert.equal(starts, 1)
+  assert.equal(runtime.audioStatus('recording').availability, 'unavailable')
+  assert.equal(
+    runtime.audioStatus('speech').availability,
+    'unavailable',
+    'availability agrees with app audio fault policy',
+  )
+  await assert.rejects(app.close(), (error) => error === failure)
+  await assert.rejects(runtime.close())
+})
+
 test('audio capabilities track backend availability without starting a playback', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = await import('../runtime-audio.js')

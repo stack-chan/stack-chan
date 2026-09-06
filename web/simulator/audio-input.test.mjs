@@ -76,6 +76,7 @@ function rig(options = {}) {
       },
     },
     MediaRecorder: Recorder,
+    readChunks: options.readChunks,
     setTimeoutFn(fn, delay) {
       options.setTimer?.()
       const id = ++nextTimer
@@ -104,6 +105,41 @@ function rig(options = {}) {
 }
 
 describe('browser recording ownership', () => {
+  it('preserves the order and exact lengths of many Blob and typed-array slices', async () => {
+    const r = rig({ holdStop: true })
+    const id = r.bridge.startRecord(10)
+    await drain()
+    const expected = []
+    for (let index = 0; index < 30; index++) {
+      const backing = Uint8Array.of(99, index, index + 1, 99)
+      const part = backing.subarray(1, 3)
+      r.recorders[0].data(index % 2 ? new Blob([part]) : part)
+      expected.push(index, index + 1)
+    }
+    await r.advance(10)
+    r.recorders[0].end()
+    await drain()
+    assert.equal(r.bridge.recordStatus(id), 1)
+    assert.deepEqual([...new Uint8Array(r.bridge.recordBuffer(id))], expected)
+    assert.equal(r.bridge.recordDetails(id).quiet, true)
+    assert.equal(r.timers.size, 0)
+    r.bridge.releaseRecord(id)
+    await r.bridge.close()
+  })
+
+  it('rejects an aggregate conversion with inconsistent byte count and releases its input', async () => {
+    const r = rig({ readChunks: async () => new ArrayBuffer(4) })
+    const id = r.bridge.startRecord(10)
+    await drain()
+    await r.advance(10)
+    assert.equal(r.bridge.recordDetails(id).error.code, 'IO')
+    assert.equal(r.bridge.recordDetails(id).quiet, true)
+    assert.equal(r.bridge.recordBuffer(id), undefined)
+    assert.equal(r.tracks[0].stopped, 1)
+    r.bridge.releaseRecord(id)
+    await r.bridge.close()
+  })
+
   it('completes and cancels 100 recordings without leaving tracks or timers', async () => {
     const r = rig()
     for (let index = 0; index < 100; index++) {
@@ -274,12 +310,12 @@ describe('browser recording ownership', () => {
     await assert.rejects(r.bridge.close(), { code: 'IO' })
   })
 
-  it('waits for an in-flight chunk conversion before returning cancellation', async () => {
+  it('waits for an in-flight aggregate conversion before returning cancellation', async () => {
     const converted = deferred()
-    const r = rig({ holdStop: true })
+    const r = rig({ holdStop: true, readChunks: () => converted.promise })
     const id = r.bridge.startRecord(10)
     await drain()
-    r.recorders[0].data({ size: 3, arrayBuffer: () => converted.promise })
+    r.recorders[0].data(Uint8Array.of(1, 2, 3))
     await r.advance(10)
     r.recorders[0].end()
     await drain()

@@ -53,7 +53,7 @@ Browser AudioOutは画面を破棄するまで一つだけ存在する。再生�
 | 同時再生 | 1件。保持する識別子は4件まで |
 | 音声入力バイト | 非空のArrayBuffer、最大3 MiB |
 | デコード後 | 60秒以下、非空、1〜2チャンネル |
-| tone | 1〜24,000 Hz、0〜60,000 ms、volume 0〜1 |
+| tone | 10〜20,000 Hz、0〜60,000 ms、volume 0〜1。48 kHzのAudioContextを要求し、実際のsampleRateでも表現可能な周波数か確認 |
 | Speaker既定音量 | 0.5。明示指定したNaNを既定値へ置換しない |
 | 準備 | 30秒。resumeとdecodeを含む |
 | 再生終了 | 再生期間に1秒を加えた期限。通知がなければTIMEOUT |

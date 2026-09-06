@@ -1,15 +1,17 @@
 import { AppAudioSession } from 'app-audio-session'
 import type { BorrowedAudioBuffer, OwnedAudioBuffer } from 'audio-buffer'
+import type { AudioInputPort, AudioOutputPort } from 'audio-ports'
 import type { TTS, WebRadioCapability, WebRadioStartOptions } from 'capabilities'
-import type Microphone from 'microphone'
 import { OperationQueue } from 'operation-queue'
 import { OwnedResources, ResourceScope } from 'owned-resources'
+import { isWaveMimeType, recordedAudio, validateAudioData } from 'recorded-audio'
 import { DEFAULT_RECORDING_DURATION_MS, validateRecordingDuration } from 'recording-wave'
 import { ownMicrophone, ownTTS, ownWebRadio } from 'runtime-resources'
-import type Speaker from 'speaker'
 import type { CapabilityStatus, PlaybackOptions } from 'stackchan/app'
+import type { AudioData, RecordedAudio, RecordingOptions } from 'stackchan/audio'
 import { finiteNumber, StackchanError } from 'stackchan/errors'
 import type { CancellationSignal } from 'stackchan/task'
+import { MAX_TONE_DURATION_MS, MAX_TONE_HZ, MIN_TONE_HZ } from 'stackchan-contracts/audio-playback'
 import { type Maybe, waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
 import { playbackReleaseFailure } from 'tts-playback-session'
@@ -19,12 +21,8 @@ export type RuntimeAudioConstructorParam = {
   clipPlayer?: TTS
   ttsKind?: 'speech' | 'clips' | 'unavailable'
   simulated?: boolean
-  microphone?: Pick<Microphone, 'record' | 'stop'> & { close?: () => void | Promise<void> }
-  speaker?: Pick<Speaker, 'tone' | 'play'> & {
-    available?: () => boolean
-    cancelPlayback?: (reason?: unknown) => void | Promise<void>
-    close?: () => void | Promise<void>
-  }
+  microphone?: AudioInputPort
+  speaker?: AudioOutputPort
   webRadio?: WebRadioCapability
 }
 
@@ -92,6 +90,10 @@ export class StackchanRuntimeAudio {
     return this.#microphone
   }
 
+  get #releaseFailure(): StackchanError | undefined {
+    return this.#output.failure ?? this.#input.failure ?? this.#microphone?.releaseFailure
+  }
+
   createAppSession(): AppAudioSession {
     if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
     const runtime = this
@@ -99,8 +101,10 @@ export class StackchanRuntimeAudio {
       say: (text, options) => this.speak(text, options),
       playClip: (name, options) => this.playClip(name, options),
       tone: (hz, options) => this.tone(hz, options.durationMs, options.volume, options.signal),
+      record: (options) => this.recordAudio(options),
+      play: (audio, options) => this.play(audio, options),
       get releaseFailure() {
-        return runtime.#output.failure
+        return runtime.#releaseFailure
       },
     })
   }
@@ -182,14 +186,32 @@ export class StackchanRuntimeAudio {
     }
   }
 
-  audioStatus(kind: 'speech' | 'clips' | 'tone'): CapabilityStatus {
+  audioStatus(kind: 'speech' | 'clips' | 'tone' | 'recording' | 'playback'): CapabilityStatus {
+    if (this.#releaseFailure) return { availability: 'unavailable', reason: 'Audio resources could not be released' }
+    if (kind === 'recording') {
+      let available = !this.#closed && !this.#input.closed && !!this.#microphone
+      try {
+        available &&= this.#microphone.available !== false && !this.#microphone.releaseFailure
+      } catch {
+        available = false
+      }
+      return available
+        ? { availability: this.#simulated ? 'simulated' : 'native' }
+        : { availability: 'unavailable', reason: 'Audio recording is unavailable with the selected input' }
+    }
     if (this.#closed || this.#output.closed)
       return {
         availability: 'unavailable',
         reason: this.#output.failure ? 'Audio output could not be released' : 'Audio is closed',
       }
     const provider =
-      kind === 'tone' ? this.#speaker : kind === 'clips' ? this.#clips : this.#ttsKind === kind ? this.#tts : undefined
+      kind === 'tone' || kind === 'playback'
+        ? this.#speaker
+        : kind === 'clips'
+          ? this.#clips
+          : this.#ttsKind === kind
+            ? this.#tts
+            : undefined
     let available = !!provider
     try {
       if (provider?.available) available = provider.available()
@@ -253,21 +275,64 @@ export class StackchanRuntimeAudio {
     signal?: CancellationSignal,
   ): Promise<OwnedAudioBuffer> {
     if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
-    if (!this.#microphone) {
+    const microphone = this.#microphone
+    if (!microphone) {
       throw new StackchanError('UNSUPPORTED', 'This device does not support a microphone.')
     }
     validateRecordingDuration(durationMilliSec)
+    if (microphone.releaseFailure) throw microphone.releaseFailure
+    if (microphone.available === false) throw new StackchanError('UNSUPPORTED', 'Microphone recording is unavailable')
+    const verifyRelease = () => {
+      const failure = microphone.releaseFailure
+      if (!failure) return
+      // Do not transfer the shared input after an unconfirmed normal completion.
+      void this.#input.fail(failure).catch(() => {})
+      throw failure
+    }
     return this.#input.run(
-      () => this.#microphone.record(durationMilliSec),
-      () => this.#microphone?.stop(),
+      async () => {
+        let buffer: OwnedAudioBuffer
+        try {
+          buffer = await microphone.record(durationMilliSec)
+        } catch (error) {
+          verifyRelease()
+          throw error
+        }
+        verifyRelease()
+        return buffer
+      },
+      (reason) => microphone.stop(reason),
       signal,
+    )
+  }
+
+  async recordAudio(options: RecordingOptions = {}): Promise<RecordedAudio> {
+    const buffer = await this.record(options.durationMs, options.signal)
+    return recordedAudio(buffer, this.#simulated)
+  }
+
+  async play(audio: AudioData, options: PlaybackOptions = {}): Promise<void> {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
+    validateAudioData(audio)
+    if (options.volume !== undefined) finiteNumber(options.volume, 'volume', 0, 1)
+    if (!this.#simulated && !isWaveMimeType(audio.mimeType))
+      throw new StackchanError('UNSUPPORTED', 'This device plays PCM WAV buffers')
+    const speaker = this.#speaker
+    if (!speaker) throw new StackchanError('UNSUPPORTED', 'This device does not support buffer playback')
+    await this.#runOutput(
+      speaker,
+      async () => {
+        if ((await speaker.play(audio.data, options.volume)) !== true)
+          throw new StackchanError('IO', 'Audio output did not confirm playback')
+      },
+      options.signal,
     )
   }
 
   async tone(hz: number, duration: number, volume?: number, signal?: CancellationSignal): Promise<void> {
     if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
-    finiteNumber(hz, 'hz', 1, 24_000)
-    finiteNumber(duration, 'durationMs', 0, 60_000)
+    finiteNumber(hz, 'hz', MIN_TONE_HZ, MAX_TONE_HZ)
+    finiteNumber(duration, 'durationMs', 0, MAX_TONE_DURATION_MS)
     if (volume !== undefined) finiteNumber(volume, 'volume', 0, 1)
     if (!this.#speaker) throw new StackchanError('UNSUPPORTED', 'This device does not support tone playback')
     const speaker = this.#speaker
@@ -275,6 +340,7 @@ export class StackchanRuntimeAudio {
   }
 
   async playAudio(buffer: BorrowedAudioBuffer): Promise<boolean> {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
     if (!this.#speaker) return false
     const speaker = this.#speaker
     return this.#runOutput(speaker, () => speaker.play(buffer))

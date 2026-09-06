@@ -7,16 +7,16 @@
 
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
-| F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDK・motion・一枚撮影と画像表示をAppSessionへ接続。録音・バッファ再生・会話・設定・高度な拡張は未完了 |
-| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。WASMカメラとnativeのフレーム待ち、native / WASM録音のrollback・取消し・期限・解放待ちも接続。音声出力の共通終了とnative TTSのHTTP・DNS・準備要求を接続。WASM出力の再生・停止確認、AppSessionの公開再生操作の所有と解放待ちも接続。音声合成器・機器置換とV1の直接参照は継続 |
-| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消し、native / WASM録音の完了・時間とバッファ上限・形式の保持を接続。WASM出力の上限・終了通知・解放確認とブラウザー例外の正規化も接続。他機能と実機での確認は未完了 |
+| F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDK・motion・一枚撮影と画像表示・録音とバッファ再生をAppSessionへ接続。会話・設定・高度な拡張は未完了 |
+| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。WASMカメラとnativeのフレーム待ち、native / WASM録音のrollback・取消し・期限・解放待ちも接続。音声出力の共通終了とnative TTSのHTTP・DNS・準備要求を接続。WASM出力の再生・停止確認、AppSessionの公開録音・再生操作の所有と解放待ち、native PCMのGCをまたぐ保持も接続。音声合成器・機器置換とV1の直接参照は継続 |
+| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消し、native / WASM録音の完了・時間とバッファ上限・形式の保持を接続。WASM出力の上限・終了通知・解放確認とブラウザー例外の正規化、公開録音の形式保持、native WAVチャンクの検証とtoneの共通範囲も接続。他機能と実機での確認は未完了 |
 | F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声とV2 motionに停止待ち付きOperationQueue、サーボUARTに共通FIFOを接続。注視と単発移動を調停。Wi-Fi接続に所有者別の使用権、一枚撮影に待機2件の停止待ちキューを接続。会話・USB・全無線経路の調停・V1移行は未完了 |
-| F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの6教材とSDK型検査を追加。全32旧MOD／miniappの入口と依存を宣言。SDK世代2への移行は未完了 |
+| F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの7教材とSDK型検査を追加。全32旧MOD／miniappの入口と依存を宣言。SDK世代2への移行は未完了 |
 | F6 アプリ構成 | 既定動作、診断、UI 拡張の責務と寿命を分ける。既定動作にも SDK と AppSession を使用 | 最小起動入口と保守起動を分離。既定動作のSDK化・診断とUI拡張の分離は未完了 |
-| F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 共通 host runtime、TTS契約、設定定義とモデル用manifestを一本化。Webも同じ設定定義を参照。ESP32のMAC取得ソース選択も修正。ボード・残りの公開型・型検査は未完了 |
+| F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 共通 host runtime、TTS契約、設定定義とモデル用manifestを一本化。Webも同じ設定定義を参照。ESP32のMAC取得ソース選択も修正。音声入出力portをnative・WASM・RuntimeAudioで共有。ボード・残りの公開型・型検査は未完了 |
 | F8 設定・起動 | 型・検証・優先順位・secret・適用時点を共通設定サービスへ集約。オフライン教材を Wi-Fi 待機から独立 | V2起動をWi-Fi待機から独立。SettingsServiceを設定画面・BLE・設定読み込みへ接続し、Wi-Fi起動の優先順位を統一。BootSessionの準備状態・期限・取消し・置換時の終了を接続。アプリ公開API・V1起動全体の整理・電源断時の保証は未完了 |
-| F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTSの失敗・取消し、motionの構造化bridgeと推定完了、WASMの経過時計を接続。Wi-Fi管理器を共通化し、WASMのWi-Fiをunavailableと明示。カメラの所有・取消しを接続し、明示されていない合成画像への代替を廃止。録音・出力の所有を接続し、toneの時間経過だけの成功を廃止。出力の利用可否も能力表示へ接続。その他の能力metadataと教材適合は未完了 |
-| F10 検査・配布 | 公開依存・JS / TS 教材・型・ライフサイクルを実効的に検査。V2 metadata を Web / CLI / SD / WASM で起動前検証 | SDKのAST依存検査と全新教材のstrict検査を追加。全32例と6教材に宣言を同梱。Web・CLI・SD・WASM・起動時に必須検査と拒否時の復旧を接続。Gallery配布物と外部宣言も照合。実際の能力表・SDK移行・全ビルド入口・実機受入は未完了 |
+| F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTSの失敗・取消し、motionの構造化bridgeと推定完了、WASMの経過時計を接続。Wi-Fi管理器を共通化し、WASMのWi-Fiをunavailableと明示。カメラの所有・取消しを接続し、明示されていない合成画像への代替を廃止。録音・出力の所有を接続し、toneの時間経過だけの成功を廃止。入力・出力の利用可否と音声全体の解放失敗も能力表示へ接続。3秒録音でチャンクの逐次変換が停止期限に達する問題を集約変換で修正。その他の能力metadataと教材適合は未完了 |
+| F10 検査・配布 | 公開依存・JS / TS 教材・型・ライフサイクルを実効的に検査。V2 metadata を Web / CLI / SD / WASM で起動前検証 | SDKのAST依存検査と全新教材のstrict検査を追加。全32例と7教材に宣言を同梱。Web・CLI・SD・WASM・起動時に必須検査と拒否時の復旧を接続。Gallery配布物と外部宣言も照合。実際の能力表・SDK移行・全ビルド入口・実機受入は未完了 |
 
 ## 固定する設計判断
 
@@ -361,3 +361,27 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - Webの型検査・ビルドとChromiumの6教材の起動・操作、カメラの画像表示と撮影・再起動時のtrack解放が成功。Web本体はこの段階では変更しておらず、前段のNode 252件・React 67件と音声結合試験の成功記録を維持する。
 
 残る範囲: 公開SDKの録音・バッファ再生・会話・設定・拡張と教材、音声合成器とプロバイダー交換、会話・USB・Web Radioの調停、旧MODと既定動作の移行、ボード・能力metadata、全ビルド入口、実機・初学者受入。F1〜F10全体は引き続き未完了。
+
+
+## 公開SDKの録音・バッファ再生と7番目の教材（2026-09-06）
+
+詳細は [録音とバッファ再生](sdk-recording-playback.md)。今回の公開機能を接続した段階であり、旧経路の撤去や再設計全体の完了ではない。
+
+- SDKに `audio.record({ durationMs?, signal? })` と `audio.play(audio, { volume?, signal? })` を追加した。録音はアプリ所有のArrayBufferと実際のMIME形式・ファイル名を返す。ブラウザーのWebM / MP4等をWAVとして扱わない。
+- AppAudioSessionは録音とバッファ再生も所有する。録音の通常完了時に解放失敗を検査し、入力キューを故障状態にする。入力・出力いずれかの解放失敗はアプリ終了と能力表示にも反映する。
+- 音声入出力の内部portをnative・WASM・RuntimeAudioで共有し、テスト用の別クラスからホストの契約を取り出す依存を解消した。
+- native SpeakerはRIFFとチャンク境界・パディング・PCM整合性を検査する。PCMをC側が保持するAudioOutラッパーに結び付け、close確認後に参照を外す。close失敗時は参照を保持して再取得を拒否する。再生エラーをfalseに変換する処理を廃止し、操作ごとの音量を接続した。
+- toneを10〜20,000 Hzへ揃え、48 kHzの出力を要求する。ブラウザーでは実際のsampleRateでも表現可能か確認する。native Speakerの失敗契約とtoneの範囲が変わるため、firmware・Webのchangesetはmajorとした。
+- `07-recording` は主ボタンで3秒録音し、その結果を再生する。機能不在と失敗時に案内を表示する。録音途中の連打を追加実行せず、再録音と録音中の再起動も確認する。
+- 教材のブラウザー受入で、100msごとのBlobを一つずつ非同期変換して停止期限に達する問題を検出した。一つのBlobへまとめて一度だけ変換するよう修正し、変換中の取消し、正確なバイト数と順序の検証を維持した。再生後の再操作試験も、ブラウザーのcloseだけをアプリhandlerの終了とせず、次の録音が実際に開始するまで期限付きで操作を確認する。
+- Node用の別名packageは全workerで同じexport mapを公開し、並列生成とNodeのpackageキャッシュでsubpathが欠落する問題を修正した。必要な別名を各試験自身が準備し、他試験の順序に依存しない。
+
+検証結果:
+
+- firmwareのNode 525件、構成検査78件、公開SDKと7教材のstrict型検査、6ターゲットのmanifest検査が成功。
+- 全62 XS manifestが成功（4並列、112.8秒）。その後のRuntimeAudioの整理・能力表示の変更はNodeと実Piuのcontext-lifecycle、全対象のビルドで再確認した。native PCMは実GCを挟む100回の成功・取消し、解放失敗時のバッファ保持と再取得拒否を含む。
+- CoreS3 release 6,576,080 bytes、Takao Core2 / PWM release 3,874,528 bytes、Stack-chan RT release 3,999,280 bytesとWASMを生成した。3つのバイナリーから9.5.0+stackchan.2を確認した。新しい教材のarchiveも標準mcrunで生成・検査した。
+- WebのNode 255件、React 67件、型検査・ビルドが成功。最終構成のChromiumで7教材、撮影画像の描画、撮影・録音・再起動時のtrack解放を確認した。別の音声結合試験でも、録音のXS往復と再生、tone、取消し、遅い許可・デコードと再起動・破棄が成功した。
+- ブラウザーの入力はChromiumの試験用メディアデバイスである。実機の録音・音量・周波数精度・メモリー・I2S、および初学者の受入は未検証。
+
+残る範囲: 会話・設定・拡張の公開SDK、音声合成器と機器置換、会話・USB・Web Radioの調停、既存MOD／miniapp・既定動作・Blocklyの整理、V1と重複経路の撤去・製品コード量の削減、実際の能力metadata、全ビルド入口、実機・初学者受入。旧APIの残存を互換性の完成として扱わず、利用側の整理と対で削除を進める。

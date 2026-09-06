@@ -20,6 +20,14 @@ defineApp({
     app.input.onPress('primary', async (task) => {
       await task.sleep(100)
       await app.audio.tone(440, { durationMs: 100, signal: task.signal })
+      const audio = await app.audio.record({ durationMs: 3000, signal: task.signal })
+      await app.audio.play(audio, { volume: 0.5, signal: task.signal })
+      const mimeType: string = audio.mimeType
+      const filename: string = audio.filename
+      void mimeType
+      void filename
+      // @ts-expect-error Recording bytes do not expose native input handles.
+      audio.close()
     })
     // @ts-expect-error V1 flat methods must not leak into the V2 app context.
     app.setEmotion('happy')
@@ -29,6 +37,10 @@ defineApp({
     app.ui.application
     // @ts-expect-error A duration needs an explicit unit at the public boundary.
     app.audio.tone(440, 100)
+    // @ts-expect-error Recording time also names its unit.
+    app.audio.record(3000)
+    // @ts-expect-error Encoded audio needs format metadata.
+    app.audio.play(new ArrayBuffer(44))
     // @ts-expect-error Physical button names are not portable primary inputs.
     app.input.onPress('a', () => {})
   },

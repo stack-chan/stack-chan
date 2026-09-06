@@ -1,5 +1,8 @@
 {
   "include": [
+    "../../../../../contracts/manifest_playback.json",
+    "../../../../../contracts/manifest_recording.json",
+    "$(MODDABLE)/modules/base/debug/manifest.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "../../../../../sdk/manifest.json",
     "../../../testing/manifest.json"
@@ -8,7 +11,10 @@
   "modules": {
     "pins/audioout": "./audio-out-fake",
     "audio-buffer": "../../audio-buffer",
+    "audio-ports": "../../audio-ports",
     "speaker": "../../speaker",
+    "pcm-wave": "../../pcm-wave",
+    "recording-wave": "../../recording-wave",
     "calculate-power": "../../../testing/fakes/calculate-power",
     "tts-playback-session": "../../tts-playback-session",
     "tts-playback-lifecycle": "../../tts-playback-lifecycle",

@@ -1,5 +1,8 @@
-/** Shared limits for buffered browser playback and tone operations. */
+/** Shared limits for buffered playback and tone operations. */
 export const DEFAULT_PLAYBACK_VOLUME = 0.5
+export const MIN_TONE_HZ = 10
+export const MAX_TONE_HZ = 20_000
+export const TONE_SAMPLE_RATE = 48_000
 // Includes a complete 60-second, 24 kHz mono WAV from stackchan-voice.
 export const MAX_PLAYBACK_BYTES = 3 * 1024 * 1024
 export const MAX_PLAYBACK_DURATION_MS = 60_000

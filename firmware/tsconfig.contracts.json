@@ -10,5 +10,5 @@
     "lib": ["ES2022"],
     "types": []
   },
-  "include": ["contracts/mod-package.js", "contracts/xsa-metadata.js", "contracts/audio-recording.js"]
+  "include": ["contracts/mod-package.js", "contracts/xsa-metadata.js", "contracts/audio-recording.js", "contracts/audio-playback.js"]
 }

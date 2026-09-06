@@ -12,6 +12,9 @@
     "moduleResolution": "NodeNext",
     "paths": {
       "recording-wave": ["./host/modules/audio/recording-wave.ts"],
+      "audio-ports": ["./host/modules/audio/audio-ports.ts"],
+      "recorded-audio": ["./host/modules/audio/recorded-audio.ts"],
+      "pcm-wave": ["./host/modules/audio/pcm-wave.ts"],
       "stackchan-result": ["./host/modules/util/result.ts"],
       "Resource": ["./host/modules/testing/fakes/resource.ts"],
       "text/decoder": ["./host/modules/testing/fakes/text-decoder.ts"],

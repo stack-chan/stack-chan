@@ -15,7 +15,56 @@ async function setup() {
   return { AppAudioSession, CancellationSource, StackchanError }
 }
 const drain = () => new Promise<void>((resolve) => setImmediate(resolve))
-const port = (): AppAudioPort => ({ async say() {}, async playClip() {}, async tone() {}, releaseFailure: undefined })
+const port = (): AppAudioPort => ({
+  async say() {},
+  async playClip() {},
+  async tone() {},
+  async play() {},
+  async record() {
+    throw new Error('recording is not configured in this test')
+  },
+  releaseFailure: undefined,
+})
+
+test('recording returns its data and closing owns both input and output until their releases finish', async () => {
+  const { AppAudioSession } = await setup()
+  const backend = port()
+  const audio = new AppAudioSession(backend)
+  const recorded = {
+    data: new ArrayBuffer(4),
+    mimeType: 'audio/webm',
+    filename: 'recording.webm',
+  }
+  backend.record = async () => recorded
+  assert.equal(await audio.record({ durationMs: 10 }), recorded)
+  const releases: Array<() => void> = []
+  backend.record = (options) =>
+    new Promise((_, reject) => {
+      options?.signal?.subscribe((reason) => releases.push(() => reject(reason)))
+    })
+  backend.play = (_data, options) =>
+    new Promise((_, reject) => {
+      options?.signal?.subscribe((reason) => releases.push(() => reject(reason)))
+    })
+  const input = assert.rejects(audio.record(), { code: 'CLOSED' })
+  const output = assert.rejects(audio.play(recorded), { code: 'CLOSED' })
+  await drain()
+  let closed = false
+  const closing = audio.close().then(() => {
+    closed = true
+  })
+  await drain()
+  assert.equal(releases.length, 2, 'both operations are cancelled before either is awaited')
+  assert.equal(closed, false)
+  releases[0]()
+  await input
+  assert.equal(closed, false)
+  releases[1]()
+  await output
+  await closing
+  assert.equal(audio.pendingCount, 0)
+  await assert.rejects(audio.record(), { code: 'CLOSED' })
+})
 
 test('100 successful and cancelled commands return app audio registrations to baseline', async () => {
   const { AppAudioSession, CancellationSource } = await setup()

@@ -1,4 +1,5 @@
 export * from 'stackchan/app'
+export type * from 'stackchan/audio'
 export type * from 'stackchan/camera'
 export type { StackchanErrorCode } from 'stackchan/errors'
 export { StackchanError } from 'stackchan/errors'

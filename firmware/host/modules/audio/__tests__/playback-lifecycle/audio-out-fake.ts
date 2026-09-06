@@ -9,6 +9,9 @@ export default class AudioOut {
   static constructorFailure = false
   static volumeFailure = false
   readonly sampleRate: number
+  readonly options: Options
+  readonly volumes: number[] = []
+  raw?: WeakRef<SharedArrayBuffer>
   callback?: () => void
   started = 0
   stopped = 0
@@ -22,10 +25,13 @@ export default class AudioOut {
   constructor(options: Options) {
     if (AudioOut.constructorFailure) throw new Error('audio constructor failed')
     this.sampleRate = options.sampleRate ?? 24000
+    this.options = options
     AudioOut.instances.push(this)
   }
-  enqueue(_stream: number, kind: number, ..._values: unknown[]) {
+  enqueue(_stream: number, kind: number, ...values: unknown[]) {
     if (kind === AudioOut.Volume && AudioOut.volumeFailure) throw new Error('volume setup failed')
+    if (kind === AudioOut.Volume) this.volumes.push(values[0] as number)
+    if (kind === AudioOut.RawSamples) this.raw = new WeakRef(values[0] as SharedArrayBuffer)
   }
   start() {
     if (this.startFailure) throw new Error('audio start failed')

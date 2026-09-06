@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { chromium } from 'playwright-core'
+import { chromium, errors as playwrightErrors } from 'playwright-core'
 import { resolveChromium, startPreview } from '../test-preview-server.mjs'
 
-const allLessons = ['01-face', '02-tone', '03-input', '04-speech', '05-motion', '06-camera']
+const allLessons = ['01-face', '02-tone', '03-input', '04-speech', '05-motion', '06-camera', '07-recording']
 const requested = process.argv.slice(2)
 assert.ok(
   requested.every((name) => allLessons.includes(name)),
@@ -30,26 +30,46 @@ try {
       '--use-fake-device-for-media-stream',
     ],
   })
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, permissions: ['camera'] })
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+    permissions: ['camera', 'microphone'],
+  })
   await context.addInitScript(() => {
     localStorage.setItem('stackchan.locale', 'ja')
     window.sdkLessonAudio = { tones: [], buffers: [] }
     window.sdkLessonMotion = []
     window.sdkLessonCamera = []
+    window.sdkLessonRecording = []
     window.sdkLessonScreenColors = 0
     window.sdkCameraTracks = 0
+    window.sdkMicrophoneTracks = 0
+    window.sdkMicrophoneRequests = 0
+    window.sdkAudioContexts = 0
+    const NativeAudioContext = window.AudioContext
+    window.AudioContext = class extends NativeAudioContext {
+      constructor(...args) {
+        super(...args)
+        window.sdkAudioContexts++
+      }
+      async close() {
+        await super.close()
+        window.sdkAudioContexts--
+      }
+    }
     const media = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
     navigator.mediaDevices.getUserMedia = async function (options) {
       const stream = await media(options)
+      if (options.audio) window.sdkMicrophoneRequests++
       for (const track of stream.getTracks()) {
-        window.sdkCameraTracks++
+        const count = track.kind === 'audio' ? 'sdkMicrophoneTracks' : 'sdkCameraTracks'
+        window[count]++
         const stop = track.stop.bind(track)
         let stopped = false
         track.stop = () => {
           stop()
           if (!stopped) {
             stopped = true
-            window.sdkCameraTracks--
+            window[count]--
           }
         }
       }
@@ -77,6 +97,7 @@ try {
     const startBuffer = AudioBufferSourceNode.prototype.start
     AudioBufferSourceNode.prototype.start = function (...args) {
       window.sdkLessonAudio.buffers.push(this.buffer?.length ?? 0)
+      window.sdkLessonAudio.inputTracksAtPlayback = window.sdkMicrophoneTracks
       return startBuffer.apply(this, args)
     }
   })
@@ -113,6 +134,18 @@ try {
             if (frame) window.sdkLessonCamera.push({ action: 'capture', width: frame.width, height: frame.height, bytes: frame.buffer.byteLength, colors: new Set(new Uint16Array(frame.buffer)).size, source: frame.source });
             return frame;
           };
+          const input = options.stackchanRuntime.host.AudioIn;
+          for (const name of ['startRecord', 'stopRecord', 'releaseRecord']) {
+            const method = input[name];
+            input[name] = function(...args) {
+              window.sdkLessonRecording.push({
+                action: name,
+                argument: args[0],
+                details: name === 'releaseRecord' ? JSON.stringify(input.recordDetails(args[0])) : undefined,
+              });
+              return method.apply(this, args);
+            };
+          }
           return factory(options);
         }`,
     })
@@ -188,6 +221,53 @@ try {
       assert.ok(captured.colors > 4, 'Chromium video reaches firmware as a real, varied RGB565 frame')
       await page.waitForFunction(() => window.sdkLessonScreenColors > 1000, undefined, { timeout: 10_000 })
     }
+    if (lessons[index] === '07-recording') {
+      const before = await page.evaluate(() => ({
+        requests: window.sdkMicrophoneRequests,
+        buffers: window.sdkLessonAudio.buffers.length,
+      }))
+      await page.getByRole('button', { name: 'A', exact: true }).click()
+      await page.waitForFunction(() => window.sdkMicrophoneTracks === 1)
+      await page.getByRole('button', { name: 'A', exact: true }).click()
+      await page.waitForFunction(
+        (before) => window.sdkLessonAudio.buffers.length > before.buffers && window.sdkAudioContexts === 0,
+        before,
+        { timeout: 20_000 }
+      )
+      const result = await page.evaluate(() => ({
+        requests: window.sdkMicrophoneRequests,
+        inputTracks: window.sdkMicrophoneTracks,
+        inputTracksAtPlayback: window.sdkLessonAudio.inputTracksAtPlayback,
+        frames: window.sdkLessonAudio.buffers.at(-1),
+      }))
+      assert.equal(
+        result.requests - before.requests,
+        1,
+        'repeated press during recording does not acquire a second input'
+      )
+      assert.ok(result.frames > 0, 'SDK recording reaches the actual browser decoder and output')
+      assert.equal(result.inputTracksAtPlayback, 0, 'SDK recording returns after input release')
+      assert.equal(result.inputTracks, 0)
+      // Browser close precedes the XS acknowledgement and handler completion.
+      // Retry the user action until a new input is observed, with a bounded wait.
+      const restartRecordingBy = Date.now() + 5000
+      while (true) {
+        await page.getByRole('button', { name: 'A', exact: true }).click()
+        try {
+          await page.waitForFunction(() => window.sdkMicrophoneTracks === 1, undefined, { timeout: 250 })
+          break
+        } catch (error) {
+          if (!(error instanceof playwrightErrors.TimeoutError) || Date.now() >= restartRecordingBy) throw error
+        }
+      }
+      await Promise.all([ready(), page.getByRole('button', { name: '再起動', exact: true }).click()])
+      assert.equal(await page.evaluate(() => window.sdkMicrophoneTracks), 0, 'app / VM shutdown releases recording')
+      assert.equal(
+        await page.evaluate(() => window.sdkLessonAudio.buffers.length),
+        before.buffers + 1,
+        'cancelled recording never starts late playback'
+      )
+    }
     assert.deepEqual(errors, [], messages.slice(-20).join('\n'))
     console.log(`${lessons[index]}: loaded and exercised in WASM`)
   }
@@ -209,12 +289,16 @@ try {
   console.error(messages.slice(-60).join('\n'))
   if (page) {
     console.error(
-      'Observed motion:',
+      'Observed SDK state:',
       await page
         .evaluate(() => ({
           count: window.sdkLessonMotion.length,
           first: window.sdkLessonMotion.slice(0, 3),
           last: window.sdkLessonMotion.slice(-5),
+          recording: window.sdkLessonRecording,
+          audio: window.sdkLessonAudio,
+          activeMicrophone: window.sdkMicrophoneTracks,
+          activeAudioContexts: window.sdkAudioContexts,
         }))
         .catch(() => 'page unavailable')
     )

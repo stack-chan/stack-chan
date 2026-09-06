@@ -52,6 +52,7 @@ function rig(options = {}) {
     }
   }
   class Context {
+    sampleRate = options.sampleRate ?? 48000
     state = options.resume ? 'suspended' : 'running'
     currentTime = 1
     nodes = []
@@ -91,8 +92,8 @@ function rig(options = {}) {
     }
   }
   const bridge = createHostAudioOutBridge({
-    createAudioContext() {
-      options.construct?.()
+    createAudioContext(settings) {
+      options.construct?.(settings)
       const context = new Context()
       contexts.push(context)
       return context
@@ -178,6 +179,19 @@ test('completion and handoff wait for AudioContext.close, and retired handles ca
   r.bridge.stopPlay(next)
   await drain()
   r.bridge.releasePlay(next)
+  await r.bridge.close()
+})
+
+test('tone requests a sample rate that can represent its frequency and verifies the actual context', async () => {
+  const settings = []
+  const r = rig({ sampleRate: 24000, construct: (value) => settings.push(value) })
+  await assert.rejects(r.bridge.tone({ hz: 20000, duration: 10 }), { code: 'UNSUPPORTED' })
+  assert.deepEqual(settings, [{ sampleRate: 48000 }])
+  assert.equal(r.contexts[0].nodes.length, 0, 'unrepresentable tone never starts an oscillator')
+  assert.equal(r.contexts[0].closes, 1)
+  await assert.rejects(r.bridge.tone({ hz: 9, duration: 10 }), { code: 'INVALID_ARGUMENT' })
+  await assert.rejects(r.bridge.tone({ hz: 20001, duration: 10 }), { code: 'INVALID_ARGUMENT' })
+  assert.equal(r.contexts.length, 1, 'out-of-contract frequencies fail before acquisition')
   await r.bridge.close()
 })
 

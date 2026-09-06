@@ -9,7 +9,10 @@
   ],
   "modules": {
     "audio-buffer": "./audio-buffer",
+    "audio-ports": "./audio-ports",
     "recording-wave": "./recording-wave",
+    "recorded-audio": "./recorded-audio",
+    "pcm-wave": "./pcm-wave",
     "wasm-audio-bridge": "./wasm/audio-bridge",
     "wasm-audio-bridge-contract": "./wasm/audio-bridge-contract",
     "wasm-audio-playback": "./wasm/audio-playback",

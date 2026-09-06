@@ -1,5 +1,6 @@
 import { type OwnedAudioBuffer, ownAudioBuffer } from 'audio-buffer'
 import AudioIn from 'audio-in'
+import type { AudioInputPort } from 'audio-ports'
 import {
   createRecordingWave,
   DEFAULT_RECORDING_DURATION_MS,
@@ -19,7 +20,7 @@ const clock: RecordingClock = {
   },
 }
 
-export default class Microphone {
+export default class Microphone implements AudioInputPort {
   readonly #clock: RecordingClock
   #audioIn: AudioIn | undefined
   #recording = false
@@ -38,6 +39,14 @@ export default class Microphone {
 
   get recording(): boolean {
     return this.#recording
+  }
+
+  get available(): boolean {
+    return !this.#closed && !this.#failure
+  }
+
+  get releaseFailure(): StackchanError | undefined {
+    return this.#failure
   }
 
   #assertAvailable(): void {

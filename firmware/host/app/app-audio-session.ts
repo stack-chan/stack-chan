@@ -1,5 +1,6 @@
 import { CancellationSource } from 'cancellation'
 import type { AppAudio, PlaybackOptions } from 'stackchan/app'
+import type { AudioData, RecordedAudio, RecordingOptions } from 'stackchan/audio'
 import { asStackchanError, StackchanError } from 'stackchan/errors'
 import type { CancellationSignal } from 'stackchan/task'
 
@@ -34,6 +35,17 @@ export class AppAudioSession implements AppAudio {
   tone(hz: number, options: PlaybackOptions & { durationMs: number }): Promise<void> {
     const request = { ...options }
     return this.#run((signal) => this.#port.tone(hz, { ...request, signal }), request.signal)
+  }
+
+  record(options: RecordingOptions = {}): Promise<RecordedAudio> {
+    const request = { ...options }
+    return this.#run((signal) => this.#port.record({ ...request, signal }), request.signal)
+  }
+
+  play(audio: AudioData, options: PlaybackOptions = {}): Promise<void> {
+    const request = { ...options }
+    const data = { ...audio }
+    return this.#run((signal) => this.#port.play(data, { ...request, signal }), request.signal)
   }
 
   close(): Promise<void> {

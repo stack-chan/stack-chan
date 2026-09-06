@@ -52,6 +52,9 @@ export class AppSession {
         playClip: (name, options) =>
           this.#run(({ signal }) => ports.audio.playClip(name, { ...options, signal }), options?.signal),
         tone: (hz, options) => this.#run(({ signal }) => ports.audio.tone(hz, { ...options, signal }), options?.signal),
+        record: (options) => this.#run(({ signal }) => ports.audio.record({ ...options, signal }), options?.signal),
+        play: (audio, options) =>
+          this.#run(({ signal }) => ports.audio.play(audio, { ...options, signal }), options?.signal),
       }),
       motion: Object.freeze({
         get info() {

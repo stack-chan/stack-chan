@@ -8,6 +8,7 @@
   "preload": ["tts-playback-session"],
   "modules": {
     "audio-buffer": "../../audio-buffer",
+    "audio-ports": "../../audio-ports",
     "speaker": "../../wasm/speaker",
     "tts-stackchan-voice": "../../wasm/tts-stackchan-voice",
     "stackchan-voice-wav": "../../wasm/stackchan-voice-wav",

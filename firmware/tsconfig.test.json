@@ -104,6 +104,7 @@
       "network-service": [
         "./host/modules/connectivity/network-service.ts"
       ],
+      "network-types": ["./host/modules/connectivity/network-types.ts"],
       "network-state": [
         "./host/modules/connectivity/network-state.ts"
       ],
@@ -125,7 +126,7 @@
         "./host/app/volume-preview.ts"
       ],
       "network-manager": [
-        "./host/modules/connectivity/__tests__/fakes/network-manager.ts"
+        "./host/modules/connectivity/network-manager.ts"
       ],
       "preference": [
         "./host/modules/testing/fakes/preference.ts"
@@ -178,6 +179,8 @@
       "boot-network-recovery": [
         "./host/app/boot-network-recovery.ts"
       ],
+      "boot-session": ["./host/app/boot-session.ts"],
+      "boot-recovery-choice": ["./host/app/boot-recovery-choice.ts"],
       "app-behavior-resolver": [
         "./host/app/app-behavior-resolver.ts"
       ],

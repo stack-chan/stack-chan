@@ -8,6 +8,8 @@ type WiFiOptions = {
 
 type WiFiConnectOptions = {
   SSID?: string
+  password?: string
+  secure?: boolean
 }
 
 type WiFiScanOptions = {
@@ -16,6 +18,7 @@ type WiFiScanOptions = {
 }
 
 export default class SimWiFi {
+  static readonly availability = 'simulated' as const
   static readonly disconnected = 200
   static readonly connecting = 300
   static readonly connected = 400

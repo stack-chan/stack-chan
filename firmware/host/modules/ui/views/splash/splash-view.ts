@@ -23,8 +23,10 @@ export type WiFiRecoveryChoiceOptions = {
 
 let currentMessageLabel: PiuLabel | null = null
 let currentActionArea: PiuContainer | null = null
+let actionVersion = 0
 
 function showActions(contents: PiuContainer[]) {
+  actionVersion++
   if (!currentActionArea) return
   currentActionArea.empty()
   for (const content of contents) currentActionArea.add(content)
@@ -109,7 +111,7 @@ export function showWiFiConnectionStatus(options: WiFiConnectionStatusOptions): 
   showActions([])
 }
 
-export function showWiFiRecoveryChoice(options: WiFiRecoveryChoiceOptions): void {
+export function showWiFiRecoveryChoice(options: WiFiRecoveryChoiceOptions): () => void {
   setMessage(options.message)
   showActions([
     new ActionButton(
@@ -129,4 +131,9 @@ export function showWiFiRecoveryChoice(options: WiFiRecoveryChoiceOptions): void
       { left: 164, width: 148 },
     ),
   ])
+  const owner = currentActionArea
+  const version = actionVersion
+  return () => {
+    if (currentActionArea === owner && actionVersion === version) showActions([])
+  }
 }

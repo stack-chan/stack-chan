@@ -196,6 +196,8 @@ export class LocalPeerService implements LocalPeerCapability {
   #defaultTransport: LocalPeerTransport
   #offlineChannel: number
   #session?: LocalPeerSessionImpl
+  #closed = false
+  #closeError?: LocalPeerError
 
   constructor(
     id: string,
@@ -219,6 +221,8 @@ export class LocalPeerService implements LocalPeerCapability {
   }
 
   async open(options: LocalPeerOpenOptions): Promise<LocalPeerSession> {
+    if (this.#closeError) throw this.#closeError
+    if (this.#closed) throw new LocalPeerError('closed', 'local peer service is closed')
     validateOpenOptions(options)
     if (this.#session && !this.#session.closed) {
       throw new LocalPeerError('invalid-argument', 'a local peer session is already open')
@@ -228,7 +232,8 @@ export class LocalPeerService implements LocalPeerCapability {
     if (!radioFactory) throw new LocalPeerError('not-supported', `${transport} local peer transport is not supported`)
     let session: LocalPeerSessionImpl
     try {
-      session = new LocalPeerSessionImpl(this.id, radioFactory, options, this.#offlineChannel, () => {
+      session = new LocalPeerSessionImpl(this.id, radioFactory, options, this.#offlineChannel, (error) => {
+        if (error) this.#closeError = error
         if (this.#session === session) this.#session = undefined
       })
     } catch (error) {
@@ -238,11 +243,24 @@ export class LocalPeerService implements LocalPeerCapability {
     this.#session = session
     try {
       await session.announce()
+      if (this.#closed || session.closed) throw new LocalPeerError('closed', 'local peer service is closed')
     } catch (error) {
       session.close()
       throw error
     }
     return session
+  }
+
+  close(): void {
+    if (this.#closed) {
+      if (this.#closeError) throw this.#closeError
+      return
+    }
+    this.#closed = true
+    const session = this.#session
+    this.#session = undefined
+    session?.close()
+    if (this.#closeError) throw this.#closeError
   }
 }
 
@@ -254,7 +272,9 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
   readonly displayName?: string
   closed = false
   #radio: LocalPeerRadio
-  #onClose: () => void
+  #onClose: (error?: LocalPeerError) => void
+  #closeError?: LocalPeerError
+  #radioWaits = new Set<(error: LocalPeerError) => void>()
   #peers = new Map<string, PeerRecord>()
   #subscribers = new Map<string, Set<(message: LocalPeerMessage) => void>>()
   #pending = new Map<number, PendingSend>()
@@ -267,7 +287,7 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     radioFactory: LocalPeerRadioFactory,
     options: LocalPeerOpenOptions,
     offlineChannel = DEFAULT_OFFLINE_CHANNEL,
-    onClose: () => void = () => {},
+    onClose: (error?: LocalPeerError) => void = () => {},
   ) {
     this.id = id
     this.service = options.service
@@ -394,8 +414,12 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
   }
 
   close(): void {
-    if (this.closed) return
+    if (this.closed) {
+      if (this.#closeError) throw this.#closeError
+      return
+    }
     this.closed = true
+    for (const fail of [...this.#radioWaits]) fail(new LocalPeerError('closed', 'local peer session is closed'))
     for (const [messageId, pending] of this.#pending) {
       if (pending.timer) Timer.clear(pending.timer)
       pending.reject(new LocalPeerError('closed', `message ${formatMessageId(messageId)} was cancelled`))
@@ -414,10 +438,11 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     try {
       this.#radio.close()
     } catch (error) {
-      trace(`[local-peer] close failed: ${String(error)}\n`)
+      this.#closeError = new LocalPeerError('transport', error instanceof Error ? error.message : String(error))
     } finally {
-      this.#onClose()
+      this.#onClose(this.#closeError)
     }
+    if (this.#closeError) throw this.#closeError
   }
 
   async #transmit(messageId: number, pending: PendingSend): Promise<void> {
@@ -449,7 +474,33 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
   async #sendRadio(peerId: string | undefined, frame: ArrayBuffer): Promise<void> {
     this.#assertOpen()
     try {
-      await this.#radio.send(peerId, frame)
+      if (this.#radioWaits.size >= 16) throw new LocalPeerError('transport', 'local peer radio send queue is full')
+      await new Promise<void>((resolve, reject) => {
+        let settled = false
+        const finish = (error?: unknown) => {
+          if (settled) return
+          settled = true
+          this.#radioWaits.delete(fail)
+          if (error !== undefined) reject(error)
+          else resolve()
+        }
+        const fail = (error: LocalPeerError) => finish(error)
+        this.#radioWaits.add(fail)
+        try {
+          void Promise.resolve()
+            .then(() => {
+              this.#assertOpen()
+              return this.#radio.send(peerId, frame)
+            })
+            .then(
+              () => finish(),
+              (error) => finish(error),
+            )
+        } catch (error) {
+          finish(error)
+        }
+      })
+      this.#assertOpen()
     } catch (error) {
       if (this.closed) throw new LocalPeerError('closed', 'local peer session is closed')
       throw new LocalPeerError('transport', error instanceof Error ? error.message : String(error))

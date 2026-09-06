@@ -8,6 +8,7 @@ import type {
 import { LocalPeerService } from 'local-peer-service'
 import type { LocalPeerMessage, LocalPeerSession } from 'local-peer-types'
 import { assert, equal } from 'testing/assert'
+import Timer from 'timer'
 
 type DropFrame = (from: string, to: string | undefined, data: ArrayBuffer) => boolean
 
@@ -16,6 +17,8 @@ class FakeRadioNetwork {
   dropFrame?: DropFrame
   failAdd = false
   failSend = false
+  failClose = false
+  holdSend?: () => Promise<void>
 
   factory(id: string): LocalPeerRadioFactory {
     return (options) => {
@@ -74,6 +77,7 @@ class FakeRadio implements LocalPeerRadio {
     // Hardware receive callbacks run on a later event-loop turn. Preserve that
     // boundary so the fake does not create impossible recursive radio stacks.
     await Promise.resolve()
+    if (this.#network.holdSend) await this.#network.holdSend()
     this.#network.deliver(this, peerId, data)
   }
 
@@ -85,6 +89,7 @@ class FakeRadio implements LocalPeerRadio {
     if (this.closed) return
     this.closed = true
     this.#network.remove(this.id)
+    if (this.#network.failClose) throw new Error('injected close failure')
   }
 }
 
@@ -134,8 +139,16 @@ async function expectCode(promise: Promise<unknown>, code: string, message: stri
 }
 
 async function settle(): Promise<void> {
-  await Promise.resolve()
-  await Promise.resolve()
+  // Drain the radio's microtasks without depending on their internal chain length.
+  await new Promise<void>((resolve) => Timer.set(() => resolve(), 0))
+}
+
+async function waitFor(condition: () => boolean, message: string): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (condition()) return
+    await new Promise<void>((resolve) => Timer.set(() => resolve(), 5))
+  }
+  assert(condition(), message)
 }
 
 async function testDiscovery(): Promise<void> {
@@ -161,7 +174,7 @@ async function testReliableDelivery(): Promise<void> {
   const payload = { text: 'あ'.repeat(400), pose: { pan: 0.25, tilt: -0.1 } }
 
   const receipt = await pair.firstSession.send('AABBCCDDEEFF', 'pose.changed', payload)
-  await settle()
+  await waitFor(() => received.length > 0, 'accepted message must reach its subscriber')
   equal(receipt.peerId, 'AABBCCDDEEFF', 'delivery receipt should identify the peer')
   equal(receipt.attempts, 1, 'delivery should be acknowledged on the first attempt')
   equal(received.length, 1, 'reassembled message should be delivered once')
@@ -193,7 +206,7 @@ async function testAcknowledgementOrder(): Promise<void> {
   })
 
   await pair.firstSession.send('AABBCCDDEEFF', 'request', { value: 1 })
-  await settle()
+  await waitFor(() => reply !== undefined, 'accepted request must reach its reply handler')
   assert(reply !== undefined, 'request subscriber should send a reply')
   if (reply) await reply
   deepEqual(
@@ -209,7 +222,7 @@ async function testBroadcast(): Promise<void> {
   const received: LocalPeerMessage[] = []
   pair.secondSession.subscribe('*', (message) => received.push(message))
   const receipt = await pair.firstSession.broadcast('presence', { online: true })
-  await settle()
+  await waitFor(() => received.length > 0, 'broadcast must reach its subscriber')
   assert(/^[0-9a-f]{8}$/.test(receipt.messageId), 'broadcast should return a hexadecimal message id')
   deepEqual(
     received.map((message) => message.payload),
@@ -247,7 +260,7 @@ async function testSharedKey(): Promise<void> {
     message = received
   })
   await pair.firstSession.send('AABBCCDDEEFF', 'secure', { protected: true })
-  await settle()
+  await waitFor(() => message !== undefined, 'secure message must reach its subscriber')
   equal(message?.peer.secure, true, 'shared-key point-to-point traffic should be secure')
   closePair(pair)
 }
@@ -320,10 +333,62 @@ async function testCloseFromSubscriber(): Promise<void> {
   })
 
   const receipt = await pair.firstSession.send('AABBCCDDEEFF', 'close', { accepted: true })
-  await settle()
+  await waitFor(() => handlerRan, 'close handler must run after acknowledgement')
   equal(receipt.attempts, 1, 'subscriber close should not cancel an accepted message acknowledgement')
   equal(handlerRan, true, 'subscriber should run after acknowledgement completes')
   pair.firstSession.close()
+}
+
+async function testServiceClose(): Promise<void> {
+  for (let i = 0; i < 100; i++) {
+    const network = new FakeRadioNetwork()
+    const service = new LocalPeerService('001122334455', network.factory('001122334455'))
+    const session = await service.open({ service: 'test.stackchan' })
+    service.close()
+    service.close()
+    equal(network.endpoints.size, 0, 'host close releases the session radio')
+    await expectCode(session.broadcast('closed', {}), 'closed', 'borrowed session cannot outlive host')
+    await expectCode(service.open({ service: 'test.stackchan' }), 'closed', 'closed service cannot open another radio')
+  }
+}
+
+async function testClosePendingOpen(): Promise<void> {
+  const network = new FakeRadioNetwork()
+  let finish: () => void
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve
+  })
+  network.holdSend = () => pending
+  const service = new LocalPeerService('001122334455', network.factory('001122334455'))
+  const opening = service.open({ service: 'test.stackchan' })
+  await settle()
+  service.close()
+  await expectCode(opening, 'closed', 'close settles open even when native send never completes')
+  finish()
+  await settle()
+  equal(network.endpoints.size, 0, 'late native completion cannot restore a closed radio')
+}
+
+async function testCloseFailure(): Promise<void> {
+  const network = new FakeRadioNetwork()
+  const service = new LocalPeerService('001122334455', network.factory('001122334455'))
+  const session = await service.open({ service: 'test.stackchan' })
+  network.failClose = true
+  let failure: unknown
+  try {
+    session.close()
+  } catch (error) {
+    failure = error
+  }
+  equal((failure as { code?: string })?.code, 'transport', 'session close reports radio failure')
+  await expectCode(service.open({ service: 'test.stackchan' }), 'transport', 'failed cleanup prevents service reuse')
+  failure = undefined
+  try {
+    service.close()
+  } catch (error) {
+    failure = error
+  }
+  equal((failure as { code?: string })?.code, 'transport', 'host close preserves prior session close failure')
 }
 
 async function runTest(): Promise<void> {
@@ -339,10 +404,13 @@ async function runTest(): Promise<void> {
   await testTransportSelection()
   await testCloseAndWildcard()
   await testCloseFromSubscriber()
+  await testServiceClose()
+  await testClosePendingOpen()
+  await testCloseFailure()
   trace('ok\n')
 }
 
 runTest().catch((error) => {
-  trace(`local-peer-service XS test failed: ${String(error)}\n`)
+  trace(`unhandled exception: local-peer-service XS test failed: ${String(error)}\n`)
   throw error
 })

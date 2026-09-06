@@ -1,0 +1,35 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../../../sdk/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./network-lifecycle.test",
+    "network-service": "../../network-service",
+    "wasm-network-service": "../../wasm/network-service",
+    "network-manager": "../../network-manager",
+    "network-types": "../../network-types",
+    "wifi-scan": "../../wifi-scan",
+    "wifi-scan-types": "../../wifi-scan-types",
+    "network-state": "../../network-state",
+    "settings-schema": "../../../preferences/settings-schema",
+    "ecma-wifi": "./fake-wifi",
+    "boot-services": "../../../../app/boot-services",
+    "boot-session": "../../../../app/boot-session",
+    "boot-network-recovery": "../../../../app/boot-network-recovery",
+    "cancellation": "../../../../app/cancellation",
+    "task-scope": "../../../../app/task-scope",
+    "operation-queue": "../../../../app/operation-queue",
+    "owned-resources": "../../../../app/owned-resources",
+    "local-peer-types": "../../local-peer-types",
+    "local-peer-capability": "../../sim/local-peer-capability",
+    "localization": "../../../testing/fakes/localization"
+  },
+  "config": { "sntp": "test.invalid" },
+  "defines": { "main": { "async": 1 } },
+  "typescript": {
+    "tsconfig": { "compilerOptions": { "strictNullChecks": false } }
+  }
+}

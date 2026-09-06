@@ -3,7 +3,8 @@ import { runContextCreatedBehaviors, type StackchanAppBehavior } from 'app-behav
 import { resolveAppProgram } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
 import { installLaunchShortcut, type LaunchShortcutButton, prepareAppLaunch } from 'app-launch'
-import { type BootWiFiStatus, startHostBootServices } from 'boot-services'
+import { requestBootRecoveryChoice } from 'boot-recovery-choice'
+import { startHostBootServices } from 'boot-services'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
 import { DOMAIN } from 'consts'
 import { type StackchanDockRuntime, startStackchanDock } from 'dock'
@@ -26,7 +27,6 @@ type GlobalEnvironment = {
 }
 
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
-const noopButtonHandler = () => undefined
 
 function installPlatformInputBridge(): void {
   if (!Modules.has('wasm-button-bridge')) return
@@ -47,42 +47,6 @@ function installModManagerShortcut(): void {
       globalEnv.System.restart()
     } catch (error) {
       trace(`[mods] shortcut failed: ${error instanceof Error ? error.message : String(error)}\n`)
-    }
-  })
-}
-
-function waitForBootWiFiRecoveryChoice(status: BootWiFiStatus & { reason: string }): Promise<'retry' | 'offline'> {
-  return new Promise((resolve) => {
-    let resolved = false
-    const previousAHandler = globalEnv.button?.a?.onChanged
-    const previousCHandler = globalEnv.button?.c?.onChanged
-
-    const restoreButtons = () => {
-      if (globalEnv.button?.a) {
-        globalEnv.button.a.onChanged = previousAHandler ?? noopButtonHandler
-      }
-      if (globalEnv.button?.c) {
-        globalEnv.button.c.onChanged = previousCHandler ?? noopButtonHandler
-      }
-    }
-    const choose = (choice: 'retry' | 'offline') => {
-      if (resolved) return
-      resolved = true
-      restoreButtons()
-      resolve(choice)
-    }
-
-    trace(`[network] ${status.message}: ${status.reason}\n`)
-    showWiFiRecoveryChoice({
-      message: status.message,
-      onRetry: () => choose('retry'),
-      onOffline: () => choose('offline'),
-    })
-    if (globalEnv.button?.a) {
-      globalEnv.button.a.onChanged = () => choose('retry')
-    }
-    if (globalEnv.button?.c) {
-      globalEnv.button.c.onChanged = () => choose('offline')
     }
   })
 }
@@ -124,15 +88,20 @@ async function main() {
         program.generation === 1
           ? {
               onStatusChanged: showWiFiConnectionStatus,
-              promptRecoveryChoice: waitForBootWiFiRecoveryChoice,
+              promptRecoveryChoice: (status, signal) =>
+                requestBootRecoveryChoice(status.message, signal, showWiFiRecoveryChoice, globalEnv.button ?? {}),
             }
           : undefined,
     })
+    bootResources.own(bootServices)
     if (program.generation === 1) {
       const networkReady = await bootServices.connectivity.network.ready
+      bootServices.signal.throwIfCancelled()
       trace(`[main] network ready: ${networkReady.status}\n`)
     } else {
-      void bootServices.connectivity.network.ready.then((result) => trace(`[network] ${result.status}\n`))
+      void bootServices.connectivity.network.ready.then((result) => {
+        if (!bootServices.closed) trace(`[network] ${result.status}\n`)
+      })
     }
     const ownedDock = dockRuntime
     context = await createStackchanContext(preferences, {

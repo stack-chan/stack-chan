@@ -45,7 +45,7 @@ equal(touchCount, 1, 'visible settings action should call the provided callback'
 
 let retryCount = 0
 let offlineCount = 0
-showWiFiRecoveryChoice({
+const releaseRecovery = showWiFiRecoveryChoice({
   message: '接続失敗',
   onRetry() {
     retryCount += 1
@@ -72,8 +72,15 @@ const selectionApplication = showStartupSplash({
 })
 const selectionColumn = selectionApplication.first as unknown as typeof column
 const modsButton = selectionColumn.next.first
+releaseRecovery()
+equal(selectionColumn.next.first, modsButton, 'old recovery disposer preserves a replacement splash')
 modsButton.behavior.onTouchBegan(modsButton, 0, 0, 0)
 modsButton.behavior.onTouchEnded(modsButton)
 equal(modsCount, 1, 'startup view should expose the MOD manager as a touch action')
+
+const releaseCurrent = showWiFiRecoveryChoice({ message: 'offline' })
+releaseCurrent()
+releaseCurrent()
+equal(selectionColumn.next.first, undefined, 'current recovery disposer removes its actions once')
 
 trace('ok\n')

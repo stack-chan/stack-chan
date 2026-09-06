@@ -19,6 +19,7 @@
     },
     "esp32": {
       "modules": {
+        "~": "./sim/mac-address",
         "mac-address": "./esp32/mac-address"
       }
     },

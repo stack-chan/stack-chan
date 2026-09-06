@@ -48,15 +48,4 @@ export type RobotLed = {
   rainbow(index?: number, count?: number): void
 }
 
-export type NetworkReadyResult =
-  | {
-      status: 'connected'
-    }
-  | {
-      status: 'skipped'
-      reason: string
-    }
-  | {
-      status: 'failed'
-      reason: string
-    }
+export type { NetworkReadyResult } from '../../connectivity/network-types.js'

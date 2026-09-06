@@ -1,26 +1,33 @@
-import { NetworkConnectionState, type NetworkConnectionState as NetworkConnectionStateValue } from 'network-state'
+import { NetworkConnectionState } from 'network-state'
+import type { NetworkAvailability, NetworkServiceOptions, NetworkState } from 'network-types'
+import { StackchanError } from 'stackchan/errors'
 
-export type NetworkState = NetworkConnectionStateValue
-export type NetworkStateChanged = (state: NetworkState, reason?: string) => void
+export type { NetworkServiceOptions, NetworkState, NetworkStateChanged } from 'network-types'
 
-export type NetworkServiceOptions = {
-  onStateChanged?: NetworkStateChanged
-}
-
+/** Browser networking does not mean the simulator joined the configured Wi-Fi SSID. */
 export class NetworkService {
-  #onStateChanged?: NetworkStateChanged
+  static readonly availability: NetworkAvailability = 'unavailable'
+  readonly #options: NetworkServiceOptions
+  #closed = false
   constructor(options: NetworkServiceOptions = {}) {
-    this.#onStateChanged = options.onStateChanged
+    this.#options = { ...options }
   }
-  close() {
-    this.#onStateChanged?.(NetworkConnectionState.CLOSED)
+  get closed(): boolean {
+    return this.#closed
   }
-  connect(onConnected?: () => void, _onError?: (message: string) => void) {
-    this.#onStateChanged?.(NetworkConnectionState.CONNECTED)
-    onConnected?.()
+  get state(): NetworkState {
+    return this.#closed ? NetworkConnectionState.CLOSED : NetworkConnectionState.IDLE
   }
-  scanAndConnect(onConnected?: () => void, _onError?: (message: string) => void) {
-    this.#onStateChanged?.(NetworkConnectionState.CONNECTED)
-    onConnected?.()
+  matchesCredentials(options: { ssid?: string; password?: string }): boolean {
+    return this.#options.ssid === options.ssid && (this.#options.password ?? '') === (options.password ?? '')
+  }
+  close(): void {
+    this.#closed = true
+  }
+  connect(_onConnected?: () => void, _onError?: (reason?: string) => void): never {
+    throw new StackchanError(this.#closed ? 'CLOSED' : 'UNSUPPORTED', 'Wi-Fi is unavailable in the browser simulator')
+  }
+  scanAndConnect(onConnected?: () => void, onError?: (reason?: string) => void): never {
+    return this.connect(onConnected, onError)
   }
 }

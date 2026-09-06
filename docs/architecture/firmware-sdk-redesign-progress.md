@@ -8,14 +8,14 @@
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
 | F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDKとmotionをAppSessionへ接続。録音・カメラ・会話・設定・高度な拡張は未完了 |
-| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。boot services、WASMカメラの下位資源管理などは継続 |
+| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。native音声エンジン、WASMカメラの下位資源管理などは継続 |
 | F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消しを接続。他機能と実機での到達確認は未完了 |
-| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声とV2 motionに停止待ち付きOperationQueue、サーボUARTに共通FIFOを接続。注視と単発移動を調停。会話・USB・V1移行は未完了 |
+| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声とV2 motionに停止待ち付きOperationQueue、サーボUARTに共通FIFOを接続。注視と単発移動を調停。Wi-Fi接続に所有者別の使用権を接続。会話・USB・全無線経路の調停・V1移行は未完了 |
 | F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの5教材とSDK型検査を追加。既存MOD／miniapp移行は未完了 |
 | F6 アプリ構成 | 既定動作、診断、UI 拡張の責務と寿命を分ける。既定動作にも SDK と AppSession を使用 | 未着手 |
-| F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 共通 host runtime、TTS契約、設定定義とモデル用manifestを一本化。Webも同じ設定定義を参照。ボード・残りの公開型・型検査は未完了 |
-| F8 設定・起動 | 型・検証・優先順位・secret・適用時点を共通設定サービスへ集約。オフライン教材を Wi-Fi 待機から独立 | V2起動をWi-Fi待機から独立。SettingsServiceを設定画面・BLE・設定読み込みへ接続し、Wi-Fi起動の優先順位を統一。アプリ公開API・準備状態・V1起動と終了・電源断時の保証は未完了 |
-| F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTSの失敗・取消し、motionの構造化bridgeと推定完了、WASMの経過時計を接続。その他の能力metadataと教材適合は未完了 |
+| F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 共通 host runtime、TTS契約、設定定義とモデル用manifestを一本化。Webも同じ設定定義を参照。ESP32のMAC取得ソース選択も修正。ボード・残りの公開型・型検査は未完了 |
+| F8 設定・起動 | 型・検証・優先順位・secret・適用時点を共通設定サービスへ集約。オフライン教材を Wi-Fi 待機から独立 | V2起動をWi-Fi待機から独立。SettingsServiceを設定画面・BLE・設定読み込みへ接続し、Wi-Fi起動の優先順位を統一。BootSessionの準備状態・期限・取消し・置換時の終了を接続。アプリ公開API・V1起動全体の整理・電源断時の保証は未完了 |
+| F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTSの失敗・取消し、motionの構造化bridgeと推定完了、WASMの経過時計を接続。Wi-Fi管理器を共通化し、WASMのWi-Fiをunavailableと明示。その他の能力metadataと教材適合は未完了 |
 | F10 検査・配布 | 公開依存・JS / TS 教材・型・ライフサイクルを実効的に検査。V2 metadata を Web / CLI / SD / WASM で起動前検証 | SDKのAST依存検査と全新教材のstrict検査を追加。V2 metadata配布は未完了 |
 
 ## 固定する設計判断
@@ -51,7 +51,7 @@
 ## 次に接続するもの
 
 1. V2の基本SDK・motion・AppSessionは接続済み。録音・カメラ・会話・設定の公開サービスと拡張を実装し、既存MOD／miniappへ移行する。
-2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTとPY32 expanderの終了は接続済み。boot services、native音声エンジン、WASMカメラの下位資源を終了経路へ接続する。V1の直接参照と機器置換の寿命も継続して扱う。
+2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTとPY32 expanderの終了は接続済み。BootSessionとWi-Fi使用権・ローカル通信を終了経路へ接続済み。native音声エンジン、WASMカメラの下位資源へ接続を進める。V1の直接参照と機器置換の寿命も継続して扱う。
 3. 音声出力の個別取消しはAppSessionへ接続済み。音声入力と出力、WASM bridgeのclose、会話とUSBの資源を調停する。
 4. motion controllerのドライバー交換にcallbackの世代管理を接続した。native TTSの出力、AppSessionの使用権、V1の直接参照へも接続を進める。共通キューは非同期停止の確認を待ち、解放失敗後に後続操作を開始しない。
 5. 最小教材から残りの F1〜F10、配布・移行・実機受入まで続ける。現時点では全課題を解消した状態ではない。
@@ -168,3 +168,26 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - プロトコル2本体は同じ版のWebツールと組み合わせる。未知の設定キーのBLE保存とMODのWi-Fi既定値に対する互換性変更を含むため、この段階のchangesetはmajorとした。公開・配布・実機BLE受入は未実施。
 
 設計と移行上の制約は [設定サービス](settings-service.md)。F7 / F8 は引き続き未完了で、ボードのpin・校正制約、プロバイダー話速の単位、限定的なアプリ設定API、設定スナップショットの準備状態、起動サービスの取消し・終了、電源断をまたぐ永続化、既存MODの直接Preference利用を残す。F1〜F10全体の完了条件は変更しない。
+
+
+## 起動・Wi-Fi・ローカル通信の所有（2026-09-06）
+
+契約の詳細は [起動と接続の所有・終了契約](boot-connectivity-lifecycle.md)。この節は F2 / F4 / F8 / F9 の進捗であり、F1〜F10 全体の完了ではない。
+
+- ホストが `BootSession` を所有し、接続待ち・再試行の待ち・復旧選択待ち・Wi-Fi 使用権・ローカル通信を閉じる。開始直後の取消しでも前の起動を閉じ、前の終了完了まで新しい通信を開始しない。前の起動を保持するクロージャーも終了開始時に解放する。
+- `NetworkManager` を共通化し、同じ接続先を最大16利用者で共有する。異なる接続先は `BUSY`。最後の利用者がアダプターを閉じ、V1のグローバル停止は自分の使用権だけを返す。利用者を管理器で保持し、物理アダプターに最初の利用者の不要なコールバックを残さない。
+- スキャンから NTP まで一つの接続期限を設けた。終了・期限切れ・前の試行の結果を無視し、閉じたアダプターの復活を禁止した。NTPやdisconnectの解放失敗でもアダプターのcloseを試み、失敗を保持して再利用を拒否する。
+- 設定画面の接続テストは「戻る」「起動」の両方で閉じる。画面・BLE・Wi-Fi・音声の解放は途中の失敗で中断しない。復旧画面の物理ボタンとPiu表示は、自分が取り付けたものだけを戻す。終了済みのスキャンから画面を更新しない。
+- LocalPeerServiceの終了を追加し、接続開始途中と下位送信の完了待ちを取消し可能にした。物理closeの失敗を隠さず、そのサービスでの再接続を拒否する。
+- XSで追加のPromise処理が同期スタック上限に達する問題を検出し、送信開始をmicrotaskに移した。既存の配送試験は、送信ACK後に受信側の購読処理が進むことを、固定回数のmicrotask待ちで仮定していた。受信イベントそのものを期限付きで待つ試験へ変更し、ACKを購読処理より先に送る契約を維持した。
+- NetworkReadyResultを一箇所へ集約し、availabilityと実際の状態を公開した。WASMはWi-Fi接続成功を偽装せず、直接接続は `UNSUPPORTED`、起動は `skipped` を返す。
+- 生成makefileでESP32のMAC取得がsim版TSを選んでいたことを確認し、manifestに明示的な除外を追加した。CoreS3の再ビルドでは `util/esp32/mac-address.ts` とC実装が選ばれることを確認した。実機のMAC値の確認は未実施。
+
+検証記録:
+
+- Node 499件、構成検査79件、SDK strict検査、6ターゲットのmanifest検査が成功。
+- 全55 XS manifestが成功（4並列、62.0秒）。最後に追加した参照解放の修正も、ネットワーク寿命XS試験（2.3秒）とNode全499件で再確認済み。
+- XSには接続の共有・所有者別の終了100回、遅延したスキャンとNTP、再接続タイマー取消し、解放失敗、起動置換、LocalPeerService終了100回・開始途中の終了・Piu復旧画面の解除を含む。
+- 最終ソースでCoreS3（6,518,656 bytes）、PWM / takao_core2_sg90（3,821,200 bytes）、WASMのビルドが成功。Chromiumで5教材の起動・顔・tone・入力・発話・motionが成功した。実機の電波・モーター・音声出力は未検証。
+
+残る範囲: V1の直接参照・起動待ち全体、Wi-Fiスキャン/BLE/ESP-NOWの全利用者間の物理的な調停、ローカル通信の全操作の期限、native音声とWASMカメラの下位資源、V2の残りの能力・配布metadata・既存MOD移行・実機と初学者の受入。これらを含め、全課題の解消を継続する。

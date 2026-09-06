@@ -15,9 +15,10 @@ export function scanWiFiNetworks(options: ScanWiFiNetworksOptions): WiFiScanSess
     wifi = new WiFi({})
     wifi.scan({
       onFound: (item: RawWiFiScanResult) => {
-        options.onFound?.(item)
+        if (!closed) options.onFound?.(item)
       },
       onComplete: () => {
+        if (closed) return
         close()
         options.onComplete?.()
       },

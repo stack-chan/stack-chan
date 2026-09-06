@@ -6,6 +6,8 @@
       "./app-behavior-resolver",
       "./app-launch",
       "./boot-network-recovery",
+      "./boot-session",
+      "./boot-recovery-choice",
       "./boot-services",
       "./compose",
       "./capabilities",

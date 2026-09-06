@@ -14,6 +14,7 @@ import type { Maybe, Pose, Vector3 } from 'stackchan-util'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
 import type { TTS } from 'tts-types'
+import type { NetworkAvailability, NetworkReadyResult, NetworkState } from '../modules/connectivity/network-types.js'
 
 export type {
   JsonValue,
@@ -198,20 +199,11 @@ export type ConversationCapability = {
   remoteSession?: RemoteConversationSession
 }
 
-export type NetworkReadyResult =
-  | {
-      status: 'connected'
-    }
-  | {
-      status: 'skipped'
-      reason: string
-    }
-  | {
-      status: 'failed'
-      reason: string
-    }
+export type { NetworkReadyResult } from '../modules/connectivity/network-types.js'
 
 export type NetworkCapability = {
+  readonly availability?: NetworkAvailability
+  readonly state?: NetworkState
   /**
    * Resolves when the host boot Wi-Fi attempt connects, is skipped because credentials are unavailable,
    * or fails with an observable reason.

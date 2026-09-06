@@ -1,7 +1,9 @@
 import { getSettingsService, loadPreferenceConfig } from 'loadPreference'
 import { DOMAIN } from 'consts'
 import { getLocalizationLanguage, type SupportedLocale, setLocalizationLanguage } from 'localization'
+import { type NetworkConnection, openNetworkConnection } from 'network-manager'
 import { NetworkConnectionState, type NetworkConnectionState as NetworkState } from 'network-state'
+import { OwnedResources } from 'owned-resources'
 import { PreferenceServer } from 'preference-server'
 import { createSettingsNetworkEntries, type RawWiFiScanResult, type SettingsNetworkEntry } from 'settings-network-list'
 import { createInitialSettingsStatus } from 'settings-status'
@@ -14,7 +16,7 @@ import {
   settingsViews,
 } from 'settings-view'
 import Speaker from 'speaker'
-import { connectStoredWiFi, stopStoredWiFiConnection } from 'stored-wifi'
+import { asStackchanError } from 'stackchan/errors'
 import { applyTimezone as applySystemTimezone, type TimezoneId } from 'timezone-settings'
 import { canonicalizeVolume } from 'volume-model'
 import { VolumePreviewQueue } from 'volume-preview'
@@ -48,7 +50,7 @@ function settingsWifiStatusFromNetworkState(state: NetworkState): SettingsStatus
 }
 
 export function startSetupMode(application: SettingsApplication): Promise<SetupModeResult> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const settings = getSettingsService()
     const preferences = loadPreferenceConfig()
     preferences.time.timezone = applySystemTimezone(preferences.time.timezone)
@@ -72,7 +74,28 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
     let scanSession: WiFiScanSession | undefined
     let scanResults: RawWiFiScanResult[] = []
     let preferenceServer: PreferenceServer | undefined
+    let networkConnection: NetworkConnection | undefined
     let finished = false
+    const resources = new OwnedResources([
+      () => cancelWifiScan(),
+      () => {
+        const view = currentView
+        currentView = undefined
+        view?.dispose?.()
+      },
+      () => {
+        const server = preferenceServer
+        preferenceServer = undefined
+        server?.close()
+      },
+      () => {
+        const connection = networkConnection
+        networkConnection = undefined
+        connection?.close()
+      },
+      () => volumePreviewQueue.close(),
+      () => volumeSpeaker.close(),
+    ])
 
     const viewContext: SettingsViewContext = {
       state: viewState,
@@ -93,26 +116,20 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       },
     }
 
-    function finish(result: SetupModeResult) {
+    function finish(result: SetupModeResult, failure?: unknown) {
       if (finished) return
       finished = true
-      cancelWifiScan()
-      currentView?.dispose?.()
-      currentView = undefined
-      preferenceServer?.close?.()
-      if (result === 'back') stopStoredWiFiConnection()
-      const releaseVolume = () => {
-        try {
-          volumeSpeaker.close()
-        } catch {
-          trace('[settings] volume output close failed\n')
-        }
-        resolve(result)
-      }
-      void volumePreviewQueue.close().then(releaseVolume, releaseVolume)
+      void resources.close().then(
+        () => {
+          if (failure !== undefined) reject(asStackchanError(failure))
+          else resolve(result)
+        },
+        (error) => reject(asStackchanError(error)),
+      )
     }
 
     function saveSettings(values: Record<string, unknown>): boolean {
+      if (finished) return false
       try {
         settings.write(values)
         return true
@@ -125,7 +142,6 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
 
     function clearWiFiAndBootOffline() {
       if (!saveSettings({ 'wifi.ssid': '', 'wifi.password': '' })) return
-      stopStoredWiFiConnection()
       status['wifi.ssid'] = ''
       status['wifi.password'] = ''
       status.wifi = SettingsStatusValue.NOT_CONNECTED
@@ -134,11 +150,14 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
     }
 
     function showView(id: SettingsViewId) {
-      currentView?.dispose?.()
+      if (finished) return
+      const previous = currentView
+      currentView = undefined
+      previous?.dispose?.()
       const nextView = settingsViews[id].create(viewContext)
+      currentView = nextView
       application.empty()
       application.add(nextView.content)
-      currentView = nextView
       currentViewId = id
       currentView.update?.()
     }
@@ -154,8 +173,9 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
     }
 
     function cancelWifiScan() {
-      scanSession?.close()
+      const session = scanSession
       scanSession = undefined
+      session?.close()
       if (status.wifi === SettingsStatusValue.SCANNING) status.wifi = SettingsStatusValue.NOT_CONNECTED
     }
 
@@ -193,6 +213,7 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
     }
 
     function scanNetworks() {
+      if (finished) return
       cancelWifiScan()
       scanResults = []
       status.wifi = SettingsStatusValue.SCANNING
@@ -236,57 +257,71 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
     }
 
     function testConnection() {
-      if (!status['wifi.ssid']) return
-      stopStoredWiFiConnection()
-      connectStoredWiFi({
-        ssid: status['wifi.ssid'],
-        password: status['wifi.password'],
-        onStateChanged: (state: NetworkState) => {
-          status.wifi = settingsWifiStatusFromNetworkState(state)
+      if (finished || !status['wifi.ssid']) return
+      try {
+        const previous = networkConnection
+        networkConnection = undefined
+        previous?.close()
+        const connection = openNetworkConnection({
+          ssid: status['wifi.ssid'],
+          password: status['wifi.password'],
+          onStateChanged: (state: NetworkState) => {
+            status.wifi = settingsWifiStatusFromNetworkState(state)
+            updateCurrentView()
+          },
+          onConnected: () => {
+            trace('connection complete\n')
+            status.wifi = SettingsStatusValue.CONNECTED
+            updateCurrentView()
+          },
+          onError: () => {
+            trace('connection failed\n')
+            status.wifi = SettingsStatusValue.FAILED
+            updateCurrentView()
+          },
+        })
+        if (finished) connection.close()
+        else networkConnection = connection
+      } catch {
+        status.wifi = SettingsStatusValue.FAILED
+        updateCurrentView()
+      }
+    }
+    try {
+      showView(SettingsViewId.MENU)
+
+      preferenceServer = new PreferenceServer({
+        settings,
+        onPreferenceChanged: (key, value) => {
+          if (finished) return
+          trace(`preference changed! ${key}\n`)
+          if (key === `${DOMAIN.ui}.language`) {
+            applyLanguage(value)
+            return
+          }
+          if (key === `${DOMAIN.time}.timezone`) {
+            applyTimezone(value)
+            showView(currentViewId)
+            return
+          }
+          if (key === `${DOMAIN.tts}.volume`) {
+            applyVolume(value, false)
+            return
+          }
+          status[key] = value
           updateCurrentView()
         },
         onConnected: () => {
-          trace('connection complete\n')
-          status.wifi = SettingsStatusValue.CONNECTED
+          status.ble = SettingsStatusValue.CONNECTED
           updateCurrentView()
         },
-        onError: () => {
-          trace('connection failed\n')
-          status.wifi = SettingsStatusValue.FAILED
+        onDisconnected: () => {
+          status.ble = SettingsStatusValue.NOT_CONNECTED
           updateCurrentView()
         },
       })
+    } catch (error) {
+      finish('back', error)
     }
-    showView(SettingsViewId.MENU)
-
-    preferenceServer = new PreferenceServer({
-      settings,
-      onPreferenceChanged: (key, value) => {
-        trace(`preference changed! ${key}\n`)
-        if (key === `${DOMAIN.ui}.language`) {
-          applyLanguage(value)
-          return
-        }
-        if (key === `${DOMAIN.time}.timezone`) {
-          applyTimezone(value)
-          showView(currentViewId)
-          return
-        }
-        if (key === `${DOMAIN.tts}.volume`) {
-          applyVolume(value, false)
-          return
-        }
-        status[key] = value
-        updateCurrentView()
-      },
-      onConnected: () => {
-        status.ble = SettingsStatusValue.CONNECTED
-        updateCurrentView()
-      },
-      onDisconnected: () => {
-        status.ble = SettingsStatusValue.NOT_CONNECTED
-        updateCurrentView()
-      },
-    })
   })
 }

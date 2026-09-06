@@ -1,5 +1,5 @@
 import { localize } from 'localization'
-import type { NetworkReadyResult } from './boot-services.js'
+import type { NetworkReadyResult } from '../modules/connectivity/network-types.js'
 
 export type BootWiFiRecoveryChoice = 'retry' | 'offline'
 

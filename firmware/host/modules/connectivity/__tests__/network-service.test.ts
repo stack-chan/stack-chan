@@ -10,6 +10,8 @@ import NTP, { resetNTP } from './fakes/ntp.js'
 function installBareSpecifierPackages(): void {
   const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
   writeAliasPackage(modulesRoot, 'network-state', resolve(modulesRoot, 'connectivity/network-state.js'))
+  writeAliasPackage(modulesRoot, 'network-types', resolve(modulesRoot, 'connectivity/network-types.js'))
+  writeAliasPackageSubpath(modulesRoot, 'stackchan', 'errors', resolve(modulesRoot, '../../sdk/errors.js'))
   writeAliasPackage(modulesRoot, 'time', resolve(modulesRoot, 'testing/fakes/time.js'), {
     hasDefaultExport: true,
   })
@@ -106,7 +108,7 @@ test('NetworkService scanAndConnect connects when the target access point is fou
 })
 
 test('NetworkService scanAndConnect reports scan exhaustion when the target access point is not found', async () => {
-  const { NetworkService } = await setup()
+  const { NetworkService, timer } = await setup()
   FakeWiFi.scanResults = [{ ssid: 'other-ap' }]
   let failureReason = ''
   const service = new NetworkService({ ssid: 'stackchan-ap', password: 'secret' })
@@ -114,6 +116,7 @@ test('NetworkService scanAndConnect reports scan exhaustion when the target acce
   service.scanAndConnect(undefined, (reason) => {
     failureReason = reason ?? ''
   })
+  timer.advance(0)
 
   assert.equal(failureReason, 'Access point "stackchan-ap" not found')
   assert.equal(getFakeWiFiInstances()[0]?.connectOptions, undefined)

@@ -1,0 +1,28 @@
+import type { StackchanErrorCode } from '../../../sdk/errors.js'
+import type { NetworkConnectionState } from './network-state.js'
+
+export type NetworkState = NetworkConnectionState
+export type NetworkAvailability = 'native' | 'simulated' | 'unavailable'
+export type NetworkReadyResult =
+  | { status: 'connected' }
+  | { status: 'skipped'; reason: string }
+  | { status: 'failed'; reason: string; code?: StackchanErrorCode }
+export type NetworkStateChanged = (state: NetworkState, reason?: string) => void
+export type NetworkServiceOptions = {
+  ssid?: string
+  password?: string
+  connectionTimeoutMs?: number
+  reconnectDelayMs?: number
+  onStateChanged?: NetworkStateChanged
+}
+export type StartNetworkConnectionOptions = NetworkServiceOptions & {
+  onConnected?: () => void
+  onError?: (reason?: string) => void
+  scanBeforeConnect?: boolean
+}
+/** A consumer owns this handle, never the shared physical Wi-Fi adapter. */
+export type NetworkConnection = {
+  readonly state: NetworkState
+  readonly closed: boolean
+  close(): void
+}

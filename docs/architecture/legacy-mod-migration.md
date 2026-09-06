@@ -19,13 +19,13 @@
 | `cheerup_ws` | `mod.js` | face, audio.speech, motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `codex_voice` | `mod.js` | conversation.remote, audio.usb, input.headTouch, ui.drawer | m5stackchan-cores3 |
 | `dynamixel` | `mod.js` | extension.servo.dynamixel | legacy-servo-diagnostics |
-| `face` | `mod.js` | face, ui.effects | portable |
+| `face` | `mod.js` | SDK face, ui.controls | portable / simulator |
 | `face_tracker` | `mod.js` | motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `image_avatar_lite` | `mod.js` | face, ui.imageAvatar | portable |
 | `light` | `mod.js` | lighting, input.buttons | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `lip_sync` | `mod.js` | face, audio.record | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `local_peer_hello` | `mod.js` | connectivity.localPeer, ui.drawer | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `localized_drawer` | `mod.js` | ui.drawer | portable |
+| `localized_drawer` | 統合 → `face/mod.js` | SDK ui.controls・三言語の辞書 | 単独 archive を撤去 |
 | `look_around` | `mod.js` | motion, input.buttons | portable |
 | `m5stackchan_smoke` | `mod.js` | motion, lighting | m5stackchan-cores3 |
 | `mcp` | `mod.js` | face, audio.speech, connectivity.network, ui.drawer | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
@@ -52,3 +52,10 @@
 `mini_app_sample` と `stackchan_catch` の実装は `stackchan_minigames/jump.ts` / `catch.ts` に集約し、単独 archive を撤去した。ミニゲーム集と `mini_app_ui_sample` は `definePiuApp` を使う通常の SDK アプリへ移行済み。画面登録は AppSession の寿命に属し、専用 Compartment・loader・合成器・旧 miniapp 配布形式を削除した。ゲームと UI の機能、素材・ライセンスは保持した。
 
 元の32例のうち6例が SDK の4パッケージへ移行・統合済みで、残る26例は未移行。Piu 拡張は host API 3 を要求し、旧 miniapp archive は再生成が必要。自動試験と実機・初学者受入を区別し、詳しい撤去対象と結果は [撤去台帳](firmware-retirement-plan.md) と [実装記録](firmware-sdk-redesign-progress.md) に記載する。
+
+
+## 顔と翻訳メニューの統合（2026-09-06）
+
+`face` を SDK のUI拡張へ移し、周期的な表情・色・吹き出し・眠気の装飾を保持した。`localized_drawer` のメニューと三言語の辞書はこの例へ統合し、旧プログラムと単独archiveのmanifestを削除した。レイアウトとフォントはホストの共通表示を使う。最小host APIは4。
+
+元の32例のうち8例がSDKの5パッケージへ移行・統合済みで、残る24例は未移行。既定動作もSDKへ移り、旧通常MODはその動作を継承しない。残る旧MODの起動とraw context自体の撤去は未完了。検証結果と未受入の項目は [実装記録](firmware-sdk-redesign-progress.md) に記載する。

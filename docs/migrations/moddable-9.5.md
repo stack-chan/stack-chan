@@ -92,11 +92,17 @@ All 208 Web Node tests, 51 React tests, visual tests, and multilingual visual te
 Two independent browser compiler builds produce matching SHA-256 hashes.
 The HTTP regression test also covers a large response spanning multiple writes and 100 connection/close cycles on Linux.
 
+Additional M5StackChan CoreS3 hardware checks pass for HTTP/MCP, 100 connection/close cycles, a 73,728-byte HTTP response, oversized request rejection, WebSocket Upgrade with a 12 KB additional header, and closing with unread data.
+NTP time retrieval, automatic Wi-Fi reconnection using stored settings, and an HTTPS response after reconnection also pass.
+ChatAudioIO runs for 30 minutes and handles 173 audio exchanges, although communication delays require further investigation.
+The standalone Web Radio app also plays for 30 minutes without playback errors, reconnections, or crashes.
+See the [hardware verification record (Japanese)](../investigations/moddable-9.5-hardware-2026-09-06.md) for conditions and limitations.
+
 Compared with unmodified SDK 9.0.0 and ESP-IDF 6.0, the M5StackChan CoreS3 release image decreases from 6,425,072 to 6,379,120 bytes (45,952 bytes, about 0.7%).
 Both builds start from the same repository base; the comparison includes this migration's code changes and both toolchain updates.
 It does not establish runtime heap or audio performance improvements.
 
-Sustained audio playback, repeated connection teardown, audible output, screen behavior, servo movement, and USB audio still need hardware validation.
+Audible output, screen behavior, physical servo movement, and USB audio still need manual hardware validation.
 Successful builds alone do not establish these runtime results.
 
 ## References

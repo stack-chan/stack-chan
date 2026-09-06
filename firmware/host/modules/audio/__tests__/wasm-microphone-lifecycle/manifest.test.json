@@ -7,10 +7,9 @@
   ],
   "modules": {
     "audio-buffer": "../../audio-buffer",
-    "recording-wave": "../../recording-wave",
-    "microphone": "../../microphone",
-    "audio-in": "./audio-in-fake",
+    "microphone": "../../wasm/microphone",
+    "wasm-audio-bridge-contract": "../../wasm/audio-bridge-contract",
     "cancellation": "../../../../app/cancellation",
-    "main": "./microphone-lifecycle.test"
+    "main": "./wasm-microphone-lifecycle.test"
   }
 }

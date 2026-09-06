@@ -7,6 +7,12 @@ import { writeAliasPackageSubpath } from '../../testing/node-alias-package.js'
 async function setup() {
   const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
   writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
+  writeAliasPackageSubpath(
+    hostRoot,
+    'stackchan-contracts',
+    'audio-recording',
+    resolve(hostRoot, '../contracts/audio-recording.js'),
+  )
   return import('../recording-wave.js')
 }
 

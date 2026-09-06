@@ -70,7 +70,15 @@ rm -f "$BIN_DIR/mc.js"
 
 # SDK 9.5's TextDecoder uses C bool without including stdbool.h on WASM.
 # Supply the standard header without modifying the SDK or replacing its C flags.
-make -C "$TMP_DIR" -f makefile CC="emcc -include stdbool.h" LINK_OPTIONS="$LINK_OPTIONS" FONTBM="$FONTBM"
+if make -C "$TMP_DIR" -f makefile CC="emcc -include stdbool.h" LINK_OPTIONS="$LINK_OPTIONS" FONTBM="$FONTBM"; then
+  :
+else
+  BUILD_STATUS=$?
+  # tsc can emit JavaScript even when type checking fails. Do not allow the
+  # next build to treat those partial files as successfully checked outputs.
+  rm -rf "$TMP_DIR" "$BIN_DIR"
+  exit "$BUILD_STATUS"
+fi
 
 mkdir -p "$FIRMWARE_DIR/../web/simulator"
 cp "$BIN_DIR/mc.js" "$BIN_DIR/mc.wasm" "$FIRMWARE_DIR/../web/simulator/"

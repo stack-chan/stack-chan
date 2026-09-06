@@ -1,9 +1,12 @@
 import { finiteNumber, StackchanError } from 'stackchan/errors'
+import { MAX_RECORDING_BYTES, MAX_RECORDING_DURATION_MS } from 'stackchan-contracts/audio-recording'
 
-export const DEFAULT_RECORDING_DURATION_MS = 3_000
-export const MAX_RECORDING_DURATION_MS = 15_000
-export const MAX_RECORDING_BYTES = 512 * 1024
-export const RECORDING_GRACE_MS = 1_000
+export {
+  DEFAULT_RECORDING_DURATION_MS,
+  MAX_RECORDING_BYTES,
+  MAX_RECORDING_DURATION_MS,
+  RECORDING_GRACE_MS,
+} from 'stackchan-contracts/audio-recording'
 
 export function validateRecordingDuration(durationMs: number): void {
   finiteNumber(durationMs, 'durationMs', 1, MAX_RECORDING_DURATION_MS)

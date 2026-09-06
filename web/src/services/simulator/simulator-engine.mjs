@@ -423,10 +423,16 @@ class WasmView {
   }
 
   dispose() {
-    if (this.disposed) return
+    if (this.disposed) return this.audioInputClosed
     this.disposed = true
     try {
       closeResources([
+        () => {
+          this.audioInputClosed = this.runtime.host?.AudioIn?.close()
+          // React cleanup cannot await this. The bridge still owns late media
+          // requests and its release failure must always be observed.
+          this.audioInputClosed?.catch((error) => console.error('[bridge] microphone release failed', error))
+        },
         () => this.#clearPendingReady(),
         () => stopRuntimeCamera(this.runtime),
         () => this.#quitFirmware(),
@@ -447,6 +453,7 @@ class WasmView {
       this.fxMainQuit = undefined
       this.fxMainTouch = undefined
     }
+    return this.audioInputClosed
   }
 
   async #loadWasm() {
@@ -605,10 +612,23 @@ class WasmView {
   }
 
   async restart() {
+    if (this.restarting) return this.restarting
+    this.restarting = this.#restart()
+    try {
+      await this.restarting
+    } finally {
+      this.restarting = undefined
+    }
+  }
+
+  async #restart() {
+    if (this.disposed) throw new Error('Simulator is closed')
     if (!this.mc || !this.fxMainLaunch) {
       throw new Error('WASM is not ready')
     }
     console.log('[bridge] restart simulator')
+    await this.runtime.host?.AudioIn?.suspend()
+    if (this.disposed) throw new Error('Simulator was closed while stopping its microphone')
     stopRuntimeCamera(this.runtime)
     this.#quitFirmware()
     this.interval = 0
@@ -618,8 +638,10 @@ class WasmView {
     this.screen.getContext('2d').clearRect(0, 0, this.screen.width, this.screen.height)
     this.scene.markScreenDirty()
     const installation = await this.installSavedModArchive()
+    if (this.disposed) throw new Error('Simulator was closed before firmware launch')
     this.#awaitFirmwareReady(installation.result)
     try {
+      this.runtime.host?.AudioIn?.resume()
       this.launch(installation.pointer)
     } catch (error) {
       this.#clearPendingReady()
@@ -896,16 +918,19 @@ export class SimulatorEngine {
   }
 
   dispose() {
-    if (this.disposed) return
+    if (this.disposed) return this.audioInputClosed
     this.disposed = true
     closeResources([
       () => {
         if (this.animationFrame) window.cancelAnimationFrame(this.animationFrame)
       },
       () => this.unbindViewport?.(),
-      () => this.wasmView.dispose(),
+      () => {
+        this.audioInputClosed = this.wasmView.dispose()
+      },
       () => this.scene.dispose(),
       () => this.audioOutBridge.close(),
     ])
+    return this.audioInputClosed
   }
 }

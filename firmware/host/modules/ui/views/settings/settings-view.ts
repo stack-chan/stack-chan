@@ -633,6 +633,19 @@ const SettingsPasswordView = {
       FIELD?: { visible?: boolean }
       KEYBOARD?: { add: (content: unknown) => void; length: number; first?: unknown }
     } = { context }
+    // The SDK template accepts the Piu dictionary and reads these additional
+    // keyboard fields from it. Keep the complete dictionary before passing it.
+    const fieldOptions = {
+      anchor: 'FIELD',
+      password: true,
+      left: 12,
+      right: 12,
+      top: PASSWORD_FIELD_TOP,
+      height: PASSWORD_FIELD_HEIGHT,
+      Skin: getKeyboardFieldSkinTemplate(),
+      Style: getKeyboardFieldStyleTemplate(),
+      visible: false,
+    }
 
     const content = new Container(data, {
       left: 0,
@@ -663,17 +676,7 @@ const SettingsPasswordView = {
             }),
           ],
         }),
-        KeyboardField(data, {
-          anchor: 'FIELD',
-          password: true,
-          left: 12,
-          right: 12,
-          top: PASSWORD_FIELD_TOP,
-          height: PASSWORD_FIELD_HEIGHT,
-          Skin: getKeyboardFieldSkinTemplate(),
-          Style: getKeyboardFieldStyleTemplate(),
-          visible: false,
-        }),
+        KeyboardField(data, fieldOptions),
         new Container(data, {
           anchor: 'KEYBOARD',
           left: 0,
@@ -697,13 +700,12 @@ const SettingsPasswordView = {
 
         addKeyboard() {
           if (!this.data?.KEYBOARD) return
-          this.data.KEYBOARD.add(
-            HorizontalExpandingKeyboard(this.data, {
-              style: new (getKeyboardFieldStyleTemplate())(),
-              target: this.data.FIELD,
-              doTransition: true,
-            }),
-          )
+          const keyboardOptions = {
+            style: new (getKeyboardFieldStyleTemplate())(),
+            target: this.data.FIELD,
+            doTransition: true,
+          }
+          this.data.KEYBOARD.add(HorizontalExpandingKeyboard(this.data, keyboardOptions))
         }
 
         onKeyboardOK(_container: PiuContainer, password: string) {

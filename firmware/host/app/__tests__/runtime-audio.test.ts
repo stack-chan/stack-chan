@@ -16,6 +16,12 @@ function installBareSpecifierPackages(): void {
   writeAliasPackage(hostRoot, 'operation-queue', resolve(hostRoot, 'app/operation-queue.js'))
   writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackage(hostRoot, 'recording-wave', resolve(hostRoot, 'modules/audio/recording-wave.js'))
+  writeAliasPackageSubpath(
+    hostRoot,
+    'stackchan-contracts',
+    'audio-recording',
+    resolve(hostRoot, '../contracts/audio-recording.js'),
+  )
   writeAliasPackage(hostRoot, 'stackchan-util', resolve(hostRoot, 'modules/util/stackchan-util.js'))
   writeAliasPackage(hostRoot, 'timer', resolve(hostRoot, 'modules/testing/fakes/timer.js'), { hasDefaultExport: true })
   writeAliasPackage(hostRoot, 'mac-address', resolve(hostRoot, 'modules/util/sim/mac-address.js'), {

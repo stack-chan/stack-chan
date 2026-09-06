@@ -15,7 +15,6 @@ writeAliasPackage(
   resolve(hostRoot, 'modules/audio/wasm/audio-bridge-contract.js'),
 )
 const { default: Speaker } = await import('../../modules/audio/wasm/speaker.js')
-const { default: Microphone } = await import('../../modules/audio/wasm/microphone.js')
 const { WasmDriver } = await import('../../modules/motion/wasm/wasm-driver.js')
 
 type Rotation = { y: number; p: number; r: number }
@@ -126,55 +125,6 @@ test('WasmDriver setTorque forwards torque state to the browser Host.Driver brid
 
     assert.equal(error, undefined)
     assert.deepEqual(calls, [true])
-  } finally {
-    globalThis.Host = previousHost
-  }
-})
-
-test('WASM microphone records through the browser Host.AudioIn bridge when present', async () => {
-  const previousHost = globalThis.Host
-  const recordedDurations: number[] = []
-  const expected = new Uint8Array([1, 2, 3, 4]).buffer
-  globalThis.Host = {
-    AudioIn: {
-      async record(durationMilliSec: number) {
-        recordedDurations.push(durationMilliSec)
-        return expected
-      },
-    },
-  }
-
-  try {
-    const result = await new Microphone().record(1000)
-
-    assert.equal(result, expected)
-    assert.deepEqual(recordedDurations, [1000])
-  } finally {
-    globalThis.Host = previousHost
-  }
-})
-
-test('WASM microphone falls back to an empty buffer when Host.AudioIn is unavailable', async () => {
-  const microphone = new Microphone()
-
-  const result = await microphone.record(1000)
-
-  assert.ok(result instanceof ArrayBuffer)
-  assert.equal(result.byteLength, 0)
-})
-
-test('WASM microphone rejects browser Host.AudioIn bridge errors', async () => {
-  const previousHost = globalThis.Host
-  globalThis.Host = {
-    AudioIn: {
-      async record() {
-        throw new Error('permission denied')
-      },
-    },
-  }
-
-  try {
-    await assert.rejects(() => new Microphone().record(1000), /permission denied/)
   } finally {
     globalThis.Host = previousHost
   }

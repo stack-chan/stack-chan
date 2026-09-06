@@ -1,3 +1,5 @@
+import type { StackchanErrorCode } from 'stackchan/errors'
+
 export const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50
 declare const setTimeout: (callback: () => void, delay: number) => unknown
 declare const clearTimeout: (handle: unknown) => void
@@ -5,19 +7,35 @@ declare const clearTimeout: (handle: unknown) => void
 export type WasmAudioBridge = {
   close: () => void
   playStatus: () => number
-  recordBuffer: () => ArrayBuffer
-  recordError?: () => string | undefined
-  recordStatus: () => number
+  recordAvailable: () => boolean
+  recordBuffer: (id: number) => ArrayBuffer
+  recordDetails: (id: number) => {
+    quiet: boolean
+    mimeType: string
+    filename: string
+    error?: { code: StackchanErrorCode; message: string }
+  }
+  recordStatus: (id: number) => number
   setTimer?: (callback: () => void, delay?: number) => unknown
   clearTimer?: (handle: unknown) => void
   startPlayBuffer: (buffer: ArrayBuffer) => void
-  startRecord: (duration: number) => void
+  startRecord: (duration: number) => number
+  stopRecord: (id: number) => void
+  releaseRecord: (id: number) => void
   tone: (hz: number, duration: number, volume?: number) => void
 }
 
 export type WasmAudioInputBridge = Pick<
   WasmAudioBridge,
-  'close' | 'recordBuffer' | 'recordError' | 'recordStatus' | 'setTimer' | 'clearTimer' | 'startRecord'
+  | 'recordAvailable'
+  | 'recordBuffer'
+  | 'recordDetails'
+  | 'recordStatus'
+  | 'setTimer'
+  | 'clearTimer'
+  | 'startRecord'
+  | 'stopRecord'
+  | 'releaseRecord'
 >
 
 export type WasmAudioOutputBridge = Pick<

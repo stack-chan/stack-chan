@@ -342,12 +342,9 @@ describe('Host.Audio bridge', () => {
         },
       },
       MediaRecorder: FakeMediaRecorder,
-      setTimeoutFn(fn) {
-        fn()
-      },
     })
 
-    const buffer = await bridge.record(100)
+    const buffer = await bridge.record(1)
 
     assert.deepEqual(Array.from(new Uint8Array(buffer)), Array.from(webmHeader))
     assert.equal(buffer.mimeType, 'audio/webm;codecs=opus')
@@ -384,12 +381,9 @@ describe('Host.Audio bridge', () => {
         },
       },
       MediaRecorder: FakeMediaRecorder,
-      setTimeoutFn(fn) {
-        fn()
-      },
     })
 
-    const buffer = await bridge.record(100)
+    const buffer = await bridge.record(1)
 
     assert.equal(new TextDecoder().decode(buffer.slice(0, 4)), 'RIFF')
     assert.equal(new TextDecoder().decode(buffer.slice(8, 12)), 'WAVE')
@@ -399,7 +393,7 @@ describe('Host.Audio bridge', () => {
     assert.deepEqual(stopped, ['track'])
   })
 
-  it('returns an empty microphone buffer when no supported recording format is available', async () => {
+  it('rejects microphone recording before requesting permission when no format is supported', async () => {
     let requested = false
     class FakeMediaRecorder {
       static isTypeSupported() {
@@ -416,9 +410,7 @@ describe('Host.Audio bridge', () => {
       MediaRecorder: FakeMediaRecorder,
     })
 
-    const buffer = await bridge.record(100)
-
-    assert.equal(buffer.byteLength, 0)
+    await assert.rejects(bridge.record(100), { code: 'UNSUPPORTED' })
     assert.equal(requested, false)
   })
 })

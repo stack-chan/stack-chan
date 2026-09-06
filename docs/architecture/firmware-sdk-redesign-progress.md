@@ -8,8 +8,8 @@
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
 | F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDK・motion・一枚撮影と画像表示をAppSessionへ接続。録音・会話・設定・高度な拡張は未完了 |
-| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。WASMカメラとnativeのフレーム待ち、native録音のrollback・取消し・期限・解放待ちも接続。WASM録音とnative TTSなどは継続 |
-| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消し、native録音の完了・時間とバッファ上限を接続。他機能と実機での確認は未完了 |
+| F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。WASMカメラとnativeのフレーム待ち、native / WASM録音のrollback・取消し・期限・解放待ちも接続。AppSessionの音声所有とnative TTSなどは継続 |
+| F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消し、native / WASM録音の完了・時間とバッファ上限・形式の保持を接続。他機能と実機での確認は未完了 |
 | F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声とV2 motionに停止待ち付きOperationQueue、サーボUARTに共通FIFOを接続。注視と単発移動を調停。Wi-Fi接続に所有者別の使用権、一枚撮影に待機2件の停止待ちキューを接続。会話・USB・全無線経路の調停・V1移行は未完了 |
 | F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの6教材とSDK型検査を追加。全32旧MOD／miniappの入口と依存を宣言。SDK世代2への移行は未完了 |
 | F6 アプリ構成 | 既定動作、診断、UI 拡張の責務と寿命を分ける。既定動作にも SDK と AppSession を使用 | 最小起動入口と保守起動を分離。既定動作のSDK化・診断とUI拡張の分離は未完了 |
@@ -51,7 +51,7 @@
 ## 次に接続するもの
 
 1. V2の基本SDK・motion・AppSessionは接続済み。録音・会話・設定の公開サービスと拡張を実装し、既存MOD／miniappへ移行する。
-2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTとPY32 expanderの終了は接続済み。BootSessionとWi-Fi使用権・ローカル通信を終了経路へ接続済み。WASMカメラの下位資源は接続済み。native録音の寿命も接続済み。WASM録音とnative TTSへ接続を進める。V1の直接参照と機器置換の寿命も継続して扱う。
+2. composeの取得直後の登録とcontextのrollbackは接続済み。サーボの共有UARTとPY32 expanderの終了は接続済み。BootSessionとWi-Fi使用権・ローカル通信を終了経路へ接続済み。WASMカメラの下位資源とnative / WASM録音の寿命も接続済み。AppSessionの音声所有とnative TTSへ接続を進める。V1の直接参照と機器置換の寿命も継続して扱う。
 3. 音声出力の個別取消しはAppSessionへ接続済み。音声入力と出力、WASM bridgeのclose、会話とUSBの資源を調停する。
 4. motion controllerのドライバー交換にcallbackの世代管理を接続した。native TTSの出力、AppSessionの使用権、V1の直接参照へも接続を進める。共通キューは非同期停止の確認を待ち、解放失敗後に後続操作を開始しない。
 5. 最小教材から残りの F1〜F10、配布・移行・実機受入まで続ける。現時点では全課題を解消した状態ではない。
@@ -281,3 +281,23 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - Webの型検査・ビルドと、Chromium上で6教材の起動・操作・撮影画像の表示・track解放が成功。Webアプリ本体のコードはこの段階では変更していない。
 
 残る範囲: WASMの録音bridgeとブラウザー資源の所有、V2録音・会話・設定・拡張API、入力と出力・会話・USBの共通調停、native TTSと機器交換、既定動作と旧MODの移行、実際の能力表、実機の音質・メモリー・I2S・遅延の受入。F1〜F10の全範囲を継続する。
+
+## WASM録音とブラウザー入力の終了（2026-09-06）
+
+詳細は [WASM録音の所有と停止確認](wasm-recording-lifecycle.md)。F2 / F3 / F9の録音経路と、F10の失敗したビルドの扱いを接続した。
+
+- Browser AudioInが録音識別子ごとに許可要求・MediaRecorder・track・データ変換を所有する。CとWASM Microphoneに重複していた入力状態を取り除き、停止と結果の回収を同じ識別子で扱う。
+- WASM Microphoneの取消し、期限、stop / closeの解放待ちを接続した。未対応を空バッファの成功にせず、録音のMIME typeと拡張子をC境界の前後で保つ。入力のcloseで出力を閉じる経路も取り除いた。
+- 再起動ではBrowser AudioInのsuspendを待ち、次のVM起動まで入力を再開しない。許可待ち中や停止中に画面を破棄しても、ブラウザー側の継続処理が遅れて得たtrackを閉じる。停止を確認できなければ後続録音・再起動を止める。
+- 期間・バッファ・準備と停止期限の定義を共通JavaScriptへ集約した。ModdableのTSからも同じ定義を読むためallowJsを有効にし、それにより判明した設定画面のキーボード引数の型問題を修正した。
+- XS試験で、型エラーでもTypeScriptが生成した途中ファイルを次のmakeが再利用する問題を再現した。失敗出力を破棄し、準備ビルド失敗後は試験を開始しない。WASMのmake失敗時も途中出力を破棄する。失敗するコンパイラーを注入したCLI試験で、この経路を検証した。
+
+検証記録:
+
+- Node 504件、構成検査79件、SDK strict、6ターゲットのmanifest検査が成功。NodeからWASM Microphoneの旧3試験をXSへ移し、CLIのビルド失敗試験を1件追加したため、直前の506件から総数は減っている。
+- 新しいXS録音試験とnative録音試験をclean buildで実行し成功。その後、リポジトリのcleanコマンドで生成物を破棄し、全59 XS manifestが成功（4並列、276.1秒）。WASM Microphoneは実Timerで100回の成功と100回の取消し、停止確認待ち、解放失敗、識別子と購読の回収を確認した。
+- 同じソースからCoreS3 release（6,551,504 bytes）、PWM / takao_core2_sg90 release（3,849,952 bytes）、Stack-chan RT release（3,974,704 bytes）、WASMがビルド成功。
+- WebはNode 241件、React 67件、strict型検査とビルドが成功。Chromiumの実MediaRecorderを使った結合試験で、録音のバイト・形式の往復、再生、取消し、進行中の再起動、遅れた許可、WasmView破棄時のtrack解放が成功した。既存6教材とカメラの終了の受入も成功。
+- 物理マイクの音量・音質・消費メモリー、Safariなど他ブラウザー、実機の取消しと可動部は未受入。ビルド成功をその代用とはしない。
+
+次はAppSessionの音声所有、録音・再生の公開SDKと教材、native TTSなどの音声出力、会話・USBの調停へ進む。既存MOD移行、設定の公開API、ボード正本、能力metadataと全ビルド入口、実機・初学者受入を含むF1〜F10全体は引き続き未完了。

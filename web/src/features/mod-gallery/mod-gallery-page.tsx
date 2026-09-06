@@ -49,10 +49,6 @@ function formatDiagnostics(diagnostics: readonly { message: string }[]) {
   return diagnostics.map((item) => item.message).join(' / ')
 }
 
-function hasEntrypoint(mod: ModDefinition, entrypoint: 'mod' | 'miniapp') {
-  return mod.entrypoints.includes(entrypoint)
-}
-
 export function ModGalleryPage() {
   const { t } = useI18n()
   const [definitions, setDefinitions] = useState<ModDefinition[]>([])
@@ -301,12 +297,7 @@ export function ModGalleryPage() {
 
         <div className="grid gap-4 md:grid-cols-2" aria-live="polite">
           {visible.map((mod) => {
-            const isCombinedPackage = hasEntrypoint(mod, 'mod') && hasEntrypoint(mod, 'miniapp')
-            const badges = [
-              ...(isCombinedPackage ? [t('host権限を使用')] : []),
-              ...mod.capabilities,
-              ...mod.targets.map((target) => profileFor(target).label),
-            ]
+            const badges = [...mod.capabilities, ...mod.targets.map((target) => profileFor(target).label)]
             const setupAction = mod.setupUrl
               ? {
                   label: t('セットアップ手順'),
@@ -396,14 +387,6 @@ export function ModGalleryPage() {
               {confirmation && t('「{name}」を接続中のｽﾀｯｸﾁｬﾝへ書き込みます。', { name: confirmation.mod.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {confirmation && hasEntrypoint(confirmation.mod, 'mod') && hasEntrypoint(confirmation.mod, 'miniapp') && (
-            <Alert variant="destructive">
-              <AlertTitle>{t('このpackageはhost権限を使用します')}</AlertTitle>
-              <AlertDescription>
-                {t('MODとmini-appを含むため、package全体を信頼できる場合だけ書き込んでください。')}
-              </AlertDescription>
-            </Alert>
-          )}
           {confirmation && (
             <dl className="grid grid-cols-[auto_1fr] gap-2 rounded-lg bg-muted p-3 text-sm">
               <dt className="text-muted-foreground">{t('検出')}</dt>

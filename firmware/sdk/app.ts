@@ -16,6 +16,7 @@ export type CapabilityId =
   | 'input.primary'
   | 'motion'
   | 'camera'
+  | 'ui.piu'
 export type CapabilityStatus =
   | { readonly availability: 'native' | 'simulated' }
   | { readonly availability: 'unavailable'; readonly reason: string }

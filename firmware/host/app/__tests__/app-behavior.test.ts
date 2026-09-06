@@ -82,58 +82,28 @@ test('resolveAppProgram runs only the product default behavior when no MOD is in
   assert.deepEqual(resolveAppProgram(modules, defaultBehavior), { generation: 1, behaviors: [defaultBehavior] })
 })
 
-test('prepareAppLaunch skips post-approval preparation when a MOD rejects launch', async () => {
+test('launch hooks stop at the first rejection and otherwise run in order', async () => {
   installBareSpecifierPackages()
-  const { prepareAppLaunch } = (await import('app-launch')) as AppLaunchModule
-  const events: string[] = []
-
-  const result = await prepareAppLaunch(
-    [
+  const { runLaunchBehaviors } = (await import('app-launch')) as AppLaunchModule
+  for (const approved of [false, true]) {
+    const events: string[] = []
+    const result = await runLaunchBehaviors([
       {
         onLaunch() {
-          events.push('launch')
-          return false
-        },
-      },
-    ],
-    () => {
-      events.push('prepare')
-      return 'mini-apps'
-    },
-  )
-
-  assert.deepEqual(result, { shouldCreateContext: false })
-  assert.deepEqual(events, ['launch'])
-})
-
-test('prepareAppLaunch prepares mini-apps after every launch behavior approves', async () => {
-  installBareSpecifierPackages()
-  const { prepareAppLaunch } = (await import('app-launch')) as AppLaunchModule
-  const events: string[] = []
-
-  const result = await prepareAppLaunch(
-    [
-      {
-        onLaunch() {
-          events.push('launch:first')
-          return true
+          events.push('first')
+          return approved
         },
       },
       {
         async onLaunch() {
-          events.push('launch:second')
+          events.push('second')
           return true
         },
       },
-    ],
-    () => {
-      events.push('prepare')
-      return 'mini-apps'
-    },
-  )
-
-  assert.deepEqual(result, { shouldCreateContext: true, prepared: 'mini-apps' })
-  assert.deepEqual(events, ['launch:first', 'launch:second', 'prepare'])
+    ])
+    assert.equal(result, approved)
+    assert.deepEqual(events, approved ? ['first', 'second'] : ['first'])
+  }
 })
 
 test('installLaunchShortcut opens on release without replacing the existing button handler', async () => {

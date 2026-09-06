@@ -5,7 +5,7 @@ const behavior: StackchanAppBehavior = {
     return true
   },
   onContextCreated() {
-    throw new Error('[MiniApp Lin Smoke] combined archive MOD was not loaded')
+    throw new Error('[MiniApp Lin Smoke] SDK archive MOD was not loaded')
   },
 }
 

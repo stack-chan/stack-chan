@@ -1,6 +1,6 @@
-import type { MiniAppContext } from 'mini-app'
-import definitions from 'miniapp'
 import { Application, type Container as PiuContainer, type Content as PiuContent, type Label as PiuLabel } from 'piu/MC'
+import definitions from 'screen'
+import type { ScreenContext } from 'stackchan/extensions/piu'
 import { assert, equal } from 'testing/assert'
 
 trace('=== mini-app UI sample test ===\n')
@@ -35,7 +35,8 @@ equal(definitions.length, 1, 'sample archive should expose one mini app')
 equal(definitions[0].id, 'sample.ui-playground', 'sample should expose a stable id')
 
 let closeCount = 0
-const context: MiniAppContext = Object.freeze({
+const context: ScreenContext = Object.freeze({
+  app: {} as ScreenContext['app'],
   width: 320,
   height: 196,
   close() {

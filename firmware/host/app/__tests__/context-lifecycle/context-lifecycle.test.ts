@@ -1,9 +1,11 @@
 import { createAppControllerApplication } from 'app-controller'
 import { SimpleFace } from 'behaviors/face'
+import type { MiniAppRegistry } from 'mini-app'
 import { NoneDriver } from 'none-driver'
 import { Container } from 'piu/MC'
 import { StackchanRuntimeContext } from 'runtime-context'
-import { defineApp } from 'stackchan'
+import { defineApp, StackchanError } from 'stackchan'
+import { definePiuApp, Port, type ScreenContext, type ViewPort } from 'stackchan/extensions/piu'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
 import TouchPanel from 'touch-panel'
@@ -146,6 +148,101 @@ async function verifyRollback(stage: 'motion' | 'audio' | 'input' | 'capability'
   const frames = counts.frames
   await new Promise<void>((resolve) => Timer.set(() => resolve(), 60))
   equal(counts.frames, frames, `${stage}: no face timer survives initialization failure`)
+}
+
+async function verifyPiuApp(mode: 'normal' | 'setup' | 'dispose' | 'undisplay' | 'view'): Promise<void> {
+  const ui = createAppControllerApplication({ face: new SimpleFace() })
+  const application = ui.application
+  const registry = ui.miniApps as MiniAppRegistry
+  const host = await StackchanRuntimeContext.create({ driver: new NoneDriver(), ui, tts: { stream() {} } })
+  const failure = new StackchanError('IO', `screen ${mode} failed`)
+  let screenContext: ScreenContext | undefined
+  let frames = 0
+  let disposals = 0
+  const starting = host.startApp(
+    definePiuApp({
+      screens: [
+        {
+          id: 'owned-screen',
+          title: 'Owned screen',
+          create(context) {
+            screenContext = context
+            const ownedPort = new Port(null, {
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              Behavior: class extends Behavior {
+                onDisplaying(content: ViewPort) {
+                  content.interval = 10
+                  content.start()
+                }
+                onTimeChanged() {
+                  frames += 1
+                }
+                onUndisplaying(content: ViewPort) {
+                  if (mode === 'undisplay') throw failure
+                  content.stop()
+                }
+              },
+            })
+            return {
+              content: new Container(null, { left: 0, right: 0, top: 0, bottom: 0, contents: [ownedPort] }),
+              dispose() {
+                disposals += 1
+                ownedPort.stop()
+                if (mode === 'dispose') throw failure
+              },
+            }
+          },
+        },
+      ],
+      setup() {
+        if (mode === 'setup') throw failure
+      },
+    }),
+  )
+  if (mode === 'setup') {
+    await rejectsSame(starting, failure)
+    equal(registry.list().length, 0, 'failed setup rolls back screen registration')
+    await host.lifecycle.close()
+    return
+  }
+  const app = await starting
+  assert(ui.launchMiniApp('owned-screen'), 'SDK screen launches in the host Piu viewport')
+  assert(screenContext, 'screen receives its SDK context')
+  equal(screenContext.app, app.context, 'screen uses the same AppSession as setup')
+  equal(screenContext.height, 196, 'host reserves the AppBar above the viewport')
+  equal(app.context.capabilities.get('ui.piu').availability, 'native', 'host advertises its screen capability')
+  await new Promise<void>((resolve) => Timer.set(() => resolve(), 60))
+  assert(frames > 0, 'actual Piu Port timer runs while screen is displayed')
+  if (mode === 'normal') {
+    screenContext.close()
+    equal(disposals, 1, 'screen Back releases its instance')
+    assert(ui.launchMiniApp('owned-screen'), 'closed screen can be recreated within the app')
+  }
+  if (mode === 'view') {
+    const view = application.first as Container
+    const behavior = view.behavior as { showFace(): void }
+    const showFace = behavior.showFace.bind(behavior)
+    behavior.showFace = () => {
+      showFace()
+      throw failure
+    }
+  }
+  const fails = mode === 'dispose' || mode === 'view'
+  const closing = app.close()
+  if (fails) await rejectsSame(closing, failure)
+  else await closing
+  equal(registry.list().length, 0, 'app close unregisters its screens')
+  equal(disposals, mode === 'normal' ? 2 : 1, 'app close releases each created screen exactly once')
+  const stoppedFrames = frames
+  await new Promise<void>((resolve) => Timer.set(() => resolve(), 60))
+  equal(frames, stoppedFrames, 'Piu frames stop even when undisplaying or disposal throws')
+  assert(!ui.launchMiniApp('owned-screen'), 'closed app cannot be launched again')
+  if (fails) await rejectsSame(host.lifecycle.close(), failure)
+  else await host.lifecycle.close()
+  assert(!application.first, 'host cleanup removes its Piu tree after screen failure')
 }
 
 async function run() {
@@ -323,6 +420,7 @@ async function run() {
   )
   await photoContext.lifecycle.close()
   equal(effects.size, 0, 'app close removes its image before host close')
+  for (const mode of ['normal', 'setup', 'dispose', 'undisplay', 'view'] as const) await verifyPiuApp(mode)
   trace('ok\n')
 }
 

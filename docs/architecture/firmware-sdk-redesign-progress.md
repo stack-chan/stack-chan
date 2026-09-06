@@ -396,3 +396,22 @@ Web側は `web` から `npm test` と `npm run test:sdk-lessons`。Chromiumが�
 - SDKアプリの全ローカルソースを宣言から発見し、strict 型検査への包含と実際の import 解決先を検査する。アプリの補助ファイルは通常の相対 import を使え、ホストの機種別実装の選択には manifest の指定子を保持する。
 
 検証: firmware単体524件、構造検査78件、公開SDKの型検査（7教材と移行済み2例）、manifest 6対象、2例のMOD archive、WASMホストとWebビルド、2例のChromium / XSでの動作確認。サーボ・音声の実機、初学者受入、残る30例・既定動作・Blocklyの移行、旧公開面の撤去は未完了。
+
+## Piu 拡張への移行と旧 miniapp の撤去（2026-09-06）
+
+- 旧4例を SDK の2パッケージへ整理した。JUMP / CATCH はミニゲーム集内の `jump.ts` / `catch.ts`、UI Playground は `screen.ts` を正本とし、通常の `mod.ts` から相対 import する。元の32例のうち6例を4パッケージへ移行・統合済み、26例は未移行である。
+- `stackchan/extensions/piu` の `definePiuApp` で画面を宣言する。登録・setup・入力・音声・motion を一つの AppSession が所有する。viewport と「戻る」はホストが管理し、登録・setup の失敗と終了時に画面を解放する。基本 SDK には Piu の型や global を持ち込まない。型検査と import 構成検査も基本と拡張で分けた。
+- SDK はローカル npm workspace としても公開し、実際の TypeScript MOD ビルドが SDK ソースから型を解決する。型宣言や SDK の実装をアプリ側に複製しない。UI を持たないホストの試験でも AppSession が UI 内部型を要求しないことを確認した。
+- 専用 loader / registration / attenuated Piu module、旧 miniapp の公開型複製、準備用 callback の中継、JUMP / CATCH の単独 archive と重複素材、761行の合成ソースと40行の合成器を削除した。内部 viewport / registry はホストの画面管理として残す。
+- 旧 `miniapp` 入口は単独・併用とも起動前に拒否し、再生成を案内する。新しい Piu アプリは app API 2 / 最小 host API 3 / `ui.piu` を要求する。旧 host API 2 が画面宣言を無視して起動することを防ぐ。通常 MOD と同じ realm を使うため、旧 Compartment の import/global 制限は維持しない。公開面の制限は sandbox ではないと文書に明記した。
+- Gallery の2つの配布 archive を Moddable 9.5.0 で再生成した。配布用のソースコピーは Vite が正本から生成し、アプリのコードを変換しない。生成出力に移した Gallery ソース1025行を機能や製品ソースの削減実績に数えない。JUMP / CATCH のゲーム内容、素材・ライセンス、UI Playground の選択・説明・通知・終了を保持した。
+
+検証:
+
+- firmware の Node 526件、構成78件、基本 / Piu 拡張の strict 型検査（7教材と4移行パッケージ）、manifest 6対象が成功。
+- XS の61 manifestを確認した。全体実行の59本成功後、UI 内部型への依存で失敗した2本を修正して再試験した。実 Piu で再表示・Back・setup 巻き戻し・停止・画面切替と disposer の例外後の解放を確認。Linux の外部 SDK archive でも JUMP 起動・タップ・Back を検査し、30秒間起動を維持した。
+- CoreS3、Takao Core2 SG90、Stackchan RT の release と WASM をビルド。CoreS3 の bundle 検査は `9.5.0+stackchan.3` を確認した。正本2例と Gallery 2パッケージの archive を通常のビルド経路から生成した。
+- Web の Node 258件、React 67件、型検査・ビルドが成功。Chromium で Gallery からのゲーム起動、CATCH / JUMP のタップ操作と画面切替、UI Playground の起動・選択・Back、配布ソース URL の取得を確認した。UI Playground の Gallery 宣言にも simulator を追加した。
+- 実機操作、長時間の描画性能・メモリー、初学者受入は未検証。公開 SDK の会話・設定・その他拡張、既定動作・Blockly・残る26例、旧通常 MOD と raw context、重複する資源管理、全体のコード量純減は未完了。
+
+計測結果: この単位で製品ソースは1ファイル・102物理行減り、469ファイル・59,702行となった。サンプルは追跡ソースで1751行減だが、Gallery コピーを生成出力へ移した1025行を除く726行だけを実装整理として扱う。合成器は40行削除。起点からはまだ50ファイル・7,000行の製品純増で、全体の純減条件は未達。内訳は [撤去台帳](firmware-retirement-plan.md#piu-整理後の計測2026-09-06) に記録した。

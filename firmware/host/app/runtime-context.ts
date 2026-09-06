@@ -217,6 +217,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     const primaryKey = 'sdkPrimaryAction'
     const session = new AppSession(
       {
+        registerScreen: (definition) => this.#uiRuntime.ui.miniApps.register(definition),
         motion,
         camera: this.#cameraRuntime.createCaptureSession({
           after(ms, callback) {
@@ -280,6 +281,7 @@ export class StackchanRuntimeContext implements StackchanContext {
               case 'camera':
                 return this.#cameraRuntime.info
               case 'input.primary':
+              case 'ui.piu':
                 return { availability: 'native' }
               case 'audio.speech':
                 return this.#audioRuntime.audioStatus('speech')

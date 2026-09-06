@@ -1,8 +1,9 @@
 import { CancellationSource } from 'cancellation'
 import type { OperationClock } from 'operation-queue'
 import { ResourceScope } from 'owned-resources'
-import type { AppContext, AppDefinition, AppSetup } from 'stackchan/app'
+import type { AppContext, AppDefinition } from 'stackchan/app'
 import { finiteNumber, StackchanError } from 'stackchan/errors'
+import type { PiuAppDefinition, ScreenContext, ScreenDefinition } from 'stackchan/extensions/piu'
 import type { CancellationSignal, TaskContext, TaskHandler } from 'stackchan/task'
 import { TaskScope } from 'task-scope'
 
@@ -11,6 +12,11 @@ export type AppPorts = Pick<AppContext, 'face' | 'ui' | 'capabilities'> & {
   motion: AppContext['motion'] & { close(): Promise<void> }
   camera: AppContext['camera'] & { close(): Promise<void> }
   input: { subscribePress(handler: () => void): () => void }
+  registerScreen?(
+    definition: Omit<ScreenDefinition, 'create'> & {
+      create(viewport: Omit<ScreenContext, 'app'>): ReturnType<ScreenDefinition['create']>
+    },
+  ): () => void
 }
 export type AppSessionState = 'created' | 'starting' | 'running' | 'closing' | 'closed'
 
@@ -130,15 +136,38 @@ export class AppSession {
       return Promise.reject(new StackchanError('UNSUPPORTED', 'Unsupported app API version'))
     this.#state = 'starting'
     // Defer setup until startPromise is visible to reentrant callers.
-    this.#startPromise = Promise.resolve().then(() => this.#start(definition.setup))
+    this.#startPromise = Promise.resolve().then(() => this.#start(definition))
     return this.#startPromise
   }
 
-  async #start(setup: AppSetup): Promise<void> {
+  async #start(definition: AppDefinition): Promise<void> {
     try {
       this.#assertOpen()
       await this.#run(async () => {
-        const dispose = await setup(this.context)
+        const screens = (definition as Partial<PiuAppDefinition>).screens
+        if (screens !== undefined) {
+          if (!Array.isArray(screens) || screens.length > 16)
+            throw new StackchanError('INVALID_ARGUMENT', 'An app can register up to 16 screens')
+          const register = this.#ports.registerScreen
+          if (!register) throw new StackchanError('UNSUPPORTED', 'Piu screens are unavailable')
+          for (const screen of screens) {
+            this.#assertOpen()
+            if (!screen || typeof screen.create !== 'function')
+              throw new StackchanError('INVALID_ARGUMENT', 'A screen needs a create function')
+            const create = screen.create
+            const remove = register({
+              ...screen,
+              create: (viewport) => {
+                this.#assertOpen()
+                return create(Object.freeze({ ...viewport, app: this.context }))
+              },
+            })
+            if (this.#resources.closed) remove()
+            else this.#resources.defer(remove)
+          }
+        }
+        this.#assertOpen()
+        const dispose = await definition.setup(this.context)
         if (typeof dispose === 'function') {
           if (this.#resources.closed) {
             try {

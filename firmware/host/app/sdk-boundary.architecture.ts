@@ -16,9 +16,14 @@ function sourceFiles(directory: string): string[] {
 test('public SDK resolves only its own modules and never imports a host implementation', (t) => {
   const api = new API({ cwd: process.cwd() })
   t.after(() => api.close())
-  const snapshot = api.updateSnapshot({ openProjects: [resolve('tsconfig.sdk.json')] })
-  const project = snapshot.getProject(resolve('tsconfig.sdk.json'))
-  assert.ok(project)
+  const snapshot = api.updateSnapshot({
+    openProjects: [resolve('tsconfig.sdk.json'), resolve('tsconfig.extensions.json')],
+  })
+  const core = snapshot.getProject(resolve('tsconfig.sdk.json'))
+  const extension = snapshot.getProject(resolve('tsconfig.extensions.json'))
+  assert.ok(core && extension)
+  const piu = resolve('sdk/extensions/piu.ts')
+  assert.equal(core.program.getSourceFile(piu), undefined, 'basic apps must not inherit Piu globals or types')
   const sdkRoot = resolve('sdk')
   const manifest = JSON.parse(readFileSync(join(sdkRoot, 'manifest.json'), 'utf8')) as {
     modules: Record<string, string>
@@ -34,16 +39,23 @@ test('public SDK resolves only its own modules and never imports a host implemen
   )
   for (const [name, path] of targets) assert.ok(files.has(path), `${name} must resolve to an SDK source`)
   for (const file of files) {
+    const project = file === piu ? extension : core
     const source = project.program.getSourceFile(file)
     assert.ok(source)
     const inspect = (node: ts.Node) => {
       const specifier = ts.isImportDeclaration(node) || ts.isExportDeclaration(node) ? node.moduleSpecifier : undefined
       if (specifier && ts.isStringLiteral(specifier)) {
-        const target = targets.get(specifier.text) ?? resolve(dirname(file), `${specifier.text}.ts`)
-        assert.ok(files.has(target), `${file} imports non-SDK module ${specifier.text}`)
         const resolved = project.checker.getSymbolAtLocation(specifier)?.declarations
         assert.ok(resolved?.length, `${file}: unresolved module ${specifier.text}`)
-        for (const declaration of resolved) assert.equal(resolve(declaration.path), target)
+        if (file === piu && specifier.text === 'piu/MC') {
+          for (const declaration of resolved)
+            assert.ok(resolve(declaration.path).startsWith(`${resolve('node_modules/@moddable/typings/piu')}/`))
+        } else {
+          const target = targets.get(specifier.text) ?? resolve(dirname(file), `${specifier.text}.ts`)
+          assert.ok(files.has(target), `${file} imports non-SDK module ${specifier.text}`)
+          if (file !== piu) assert.notEqual(target, piu, 'basic SDK must not depend on the Piu extension')
+          for (const declaration of resolved) assert.equal(resolve(declaration.path), target)
+        }
       }
       if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
         assert.fail(`${file} must keep dependencies statically inspectable`)
@@ -57,14 +69,9 @@ test('public SDK resolves only its own modules and never imports a host implemen
 test('every SDK app and its local helpers resolve only public SDK or app-local dependencies under strict checks', (t) => {
   const api = new API({ cwd: process.cwd() })
   t.after(() => api.close())
-  const config = api.parseConfigFile(resolve('tsconfig.sdk.json'))
-  assert.equal(config.options.checkJs, true, 'included JavaScript must actually be checked')
-  assert.equal(config.options.strict, true)
-  const included = new Set(config.fileNames.map((path) => resolve(path)))
-  const project = api
-    .updateSnapshot({ openProjects: [resolve('tsconfig.sdk.json')] })
-    .getProject(resolve('tsconfig.sdk.json'))
-  assert.ok(project)
+  const snapshot = api.updateSnapshot({
+    openProjects: [resolve('tsconfig.sdk.json'), resolve('tsconfig.extensions.json')],
+  })
   const sdk = new Set(sourceFiles('sdk'))
   const apps = ['lessons', 'mods/examples']
     .flatMap((root) =>
@@ -78,6 +85,15 @@ test('every SDK app and its local helpers resolve only public SDK or app-local d
     })
   assert.ok(apps.length > 0)
   for (const directory of apps) {
+    const metadata = JSON.parse(readFileSync(join(directory, 'stackchan-mod.json'), 'utf8'))
+    const usesPiu = metadata.capabilities.includes('ui.piu')
+    const configPath = resolve(usesPiu ? 'tsconfig.extensions.json' : 'tsconfig.sdk.json')
+    const config = api.parseConfigFile(configPath)
+    assert.equal(config.options.checkJs, true)
+    assert.equal(config.options.strict, true)
+    const included = new Set(config.fileNames.map((path) => resolve(path)))
+    const project = snapshot.getProject(configPath)
+    assert.ok(project)
     const local = new Set(sourceFiles(directory))
     for (const file of local) {
       assert.ok(included.has(file), `SDK app source is missing from public type checks: ${file}`)
@@ -92,6 +108,7 @@ test('every SDK app and its local helpers resolve only public SDK or app-local d
           for (const declaration of resolved) {
             const path = resolve(declaration.path)
             assert.ok(sdk.has(path) || local.has(path), `${file} imports non-public module ${specifier.text}: ${path}`)
+            if (!usesPiu) assert.notEqual(path, resolve('sdk/extensions/piu.ts'), `${file} must declare ui.piu`)
           }
         }
         if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword)

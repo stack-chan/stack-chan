@@ -1,6 +1,14 @@
-import type { MiniAppDefinition } from 'capabilities'
-import 'piu/MC'
-import type { Port as PiuPort, Texture as PiuTexture } from 'piu/MC'
+import {
+  Behavior,
+  Container,
+  type ViewPort as PiuPort,
+  type ViewTexture as PiuTexture,
+  Port,
+  type ScreenDefinition,
+  Skin,
+  Style,
+  Texture,
+} from 'stackchan/extensions/piu'
 
 export type PlayerPosition = 0 | 1 | 2
 export type DropLane = 0 | 1 | 2
@@ -390,7 +398,7 @@ function drawControl(port: PiuPort, x: number, width: number, label: string, ena
   port.drawString(label, controlStyle, color, x + 1, CONTROL_Y, width - 2, 15)
 }
 
-const definition: MiniAppDefinition = Object.freeze({
+const definition: ScreenDefinition = Object.freeze({
   id: 'sample.stackchan-catch',
   title: 'ｽﾀｯｸﾁｬﾝ CATCH',
   icon: 'play',

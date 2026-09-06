@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.sdk.json",
+  "compilerOptions": {
+    "paths": {
+      "stackchan": [
+        "./sdk/index.ts"
+      ],
+      "stackchan/*": [
+        "./sdk/*.ts"
+      ],
+      "piu/MC": [
+        "./node_modules/@moddable/typings/piu/MC.d.ts"
+      ],
+      "*": [
+        "./node_modules/@moddable/typings/*"
+      ]
+    },
+    "types": [
+      "./node_modules/@moddable/typings/xs"
+    ]
+  },
+  "include": [
+    "sdk/extensions/**/*.ts",
+    "mods/examples/stackchan_minigames/*.ts",
+    "mods/examples/mini_app_ui_sample/*.ts"
+  ]
+}

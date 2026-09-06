@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import type { AppContext } from '../../sdk/app.js'
+import type { PiuAppDefinition, ScreenContext } from '../../sdk/extensions/piu.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../modules/testing/node-alias-package.js'
 import type { AppPorts } from './app-session.js'
 
@@ -83,6 +84,100 @@ function fixture() {
   }
   return { clock, presses, errors, ports }
 }
+
+test('screen registration shares the app lifetime and provides only the owning SDK context to factories', async () => {
+  const { AppSession } = await setup()
+  const f = fixture()
+  const registered: Parameters<NonNullable<AppPorts['registerScreen']>>[0][] = []
+  const removed: string[] = []
+  let received: ScreenContext | undefined
+  f.ports.registerScreen = (definition) => {
+    registered.push(definition)
+    return () => {
+      removed.push(definition.id)
+    }
+  }
+  const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  const app: PiuAppDefinition = {
+    apiVersion: 2,
+    screens: [
+      {
+        id: 'sample',
+        title: 'Sample',
+        create(context) {
+          received = context
+          return {} as never
+        },
+      },
+    ],
+    setup(context) {
+      assert.equal(context, session.context)
+    },
+  }
+  await session.start(app)
+  assert.equal(registered.length, 1)
+  const close = () => {}
+  registered[0].create({ width: 320, height: 196, close })
+  assert.equal(received?.app, session.context)
+  assert.equal(received?.close, close)
+  assert.equal(Object.isFrozen(received), true)
+  await session.close()
+  await session.close()
+  assert.deepEqual(removed, ['sample'])
+  assert.throws(() => registered[0].create({ width: 320, height: 196, close }), { code: 'CLOSED' })
+})
+
+test('screen registration failure rolls back prior registrations before rejecting startup', async () => {
+  const { AppSession } = await setup()
+  const f = fixture()
+  const removed: string[] = []
+  const failure = new Error('registration failed')
+  f.ports.registerScreen = (definition) => {
+    if (definition.id === 'second') throw failure
+    return () => {
+      removed.push(definition.id)
+    }
+  }
+  let started = false
+  const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  const app: PiuAppDefinition = {
+    apiVersion: 2,
+    screens: ['first', 'second'].map((id) => ({ id, title: id, create: () => ({}) as never })),
+    setup() {
+      started = true
+    },
+  }
+  await assert.rejects(session.start(app), /registration failed/)
+  assert.equal(started, false)
+  assert.deepEqual(removed, ['first'])
+  assert.equal(session.state, 'closed')
+})
+
+test('screen startup rejects unsupported, malformed and over-capacity requests without invoking setup', async () => {
+  const { AppSession } = await setup()
+  for (const [screens, code] of [
+    [[], 'UNSUPPORTED'],
+    [[{ id: 'bad', title: 'Bad' }], 'INVALID_ARGUMENT'],
+    [Array.from({ length: 17 }), 'INVALID_ARGUMENT'],
+  ] as const) {
+    const f = fixture()
+    if (screens.length) f.ports.registerScreen = () => () => {}
+    let started = false
+    const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+    await assert.rejects(
+      session.start({
+        apiVersion: 2,
+        screens,
+        setup() {
+          started = true
+        },
+      } as PiuAppDefinition),
+      { code },
+    )
+    assert.equal(started, false)
+    assert.equal(session.state, 'closed')
+  }
+})
 
 test('look-around uses bounded angles, stops on the next press, and leaves no timer after closing', async () => {
   const { AppSession } = await setup()

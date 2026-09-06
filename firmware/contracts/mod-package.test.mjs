@@ -14,8 +14,9 @@ test('application and host generations are distinct from the XS archive version'
   assert.deepEqual(entrypoints, ['mod'])
   assert.throws(() => assertModCompatibility(metadata, { hostApiVersion: 1 }), code('MOD_HOST_API_UNSUPPORTED'))
   assert.doesNotThrow(() => assertModCompatibility(metadata, { hostApiVersion: 2 }))
-  const future = parseModRuntimeContract({ ...modDefinition, hostApiVersion: 3 })
+  const future = parseModRuntimeContract({ ...modDefinition, hostApiVersion: 3, capabilities: ['ui.piu'] })
   assert.throws(() => assertModCompatibility(future, { hostApiVersion: 2 }), code('MOD_HOST_API_UNSUPPORTED'))
+  assert.doesNotThrow(() => assertModCompatibility(future, { hostApiVersion: 3, capabilities: ['ui.piu'] }))
 })
 
 test('schema 1 describes legacy API only and cannot hide explicit new requirements', () => {
@@ -69,11 +70,13 @@ test('declared entrypoints must match the actual archive before importing any co
       ),
     code('MOD_APP_API_UNSUPPORTED'),
   )
-  const legacy = { ...modDefinition, appApiVersion: 1, entrypoints: ['mod', 'miniapp'] }
-  assert.deepEqual(
-    inspectModArchive(makeXsArchive({ metadata: legacy, entrypoints: ['mod', 'miniapp'] }), decode).entrypoints,
-    legacy.entrypoints,
-  )
+  for (const entrypoints of [['miniapp'], ['mod', 'miniapp']]) {
+    const legacy = { ...modDefinition, appApiVersion: 1, entrypoints }
+    assert.throws(
+      () => inspectModArchive(makeXsArchive({ metadata: legacy, entrypoints }), decode),
+      code('MOD_APP_API_UNSUPPORTED'),
+    )
+  }
 })
 
 test('metadata-free legacy archives need an explicit transitional reader', () => {

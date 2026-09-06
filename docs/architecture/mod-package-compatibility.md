@@ -19,7 +19,7 @@
 
 検証中、Takao Core2 の通常ビルドには SDK 版ではなく Git のコミット名が記録されていた。CoreS3 だけに適用していた生成を Stack-chan RT / Takao Core2 にも接続し、通常ビルドと bundle が同じ最終 manifest の優先順位を使うようにした。両機種の CLI も SDK 版を確認する。古い Git 名だけの本体は先に更新する。従来の汎用 `run-mcconfig` 経路や全ビルド入口を統合する作業は F7 / F10 に残る。
 
-`schemaVersion: 1` は旧アプリ API 1、最小 host API 1 として解釈する。世代2の要求を schema 1 に追加して隠すことはできない。schema 2 は両方の API 世代を明示する。旧 miniapp の定義は app API 1 として扱い、app API 2 と miniapp の組み合わせは公開契約ができるまで拒否する。
+`schemaVersion: 1` は旧アプリ API 1、最小 host API 1 として解釈する。世代2の要求を schema 1 に追加して隠すことはできない。schema 2 は両方の API 世代を明示する。旧 `miniapp` 入口は世代を問わず拒否し、SDK の Piu 拡張へ移して再生成するよう案内する。画面拡張は通常の `mod`、app API 2、最小 host API 3、`ui.piu` を使う。
 
 ## 標準のビルドで同梱する
 

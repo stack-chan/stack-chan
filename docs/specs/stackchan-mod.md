@@ -51,6 +51,8 @@ hostのAPI世代は、ESP app descriptorのファームウェア版へ`+stackcha
 
 このsuffixを持たない従来hostはAPI 0として扱います。
 
+API 3 では SDK の Piu 画面拡張 `ui.piu` に対応します。
+
 API 1では、標準CoreS3 hostへ`audio.usb`、`conversation.remote`、`ui.approval`を追加します。
 
 これらを要求するMODはAPI 0のhostへ書き込めず、利用者へhost firmwareの更新を案内します。
@@ -60,13 +62,11 @@ API 1では、標準CoreS3 hostへ`audio.usb`、`conversation.remote`、`ui.appr
 任意の`entrypoints`は、XS archiveが公開する実行入口を列挙します。
 省略時は従来どおり`["mod"]`として扱います。
 
-- `mod`：ホストrealmで実行するapp behaviorです。
-- `miniapp`：制限されたCompartmentで定義を読み込み、ホスト所有のviewportへPiu UIを表示します。
+実行入口は `mod` です。SDK アプリは `defineApp`、Piu 画面を含むアプリは `stackchan/extensions/piu` の `definePiuApp` を default export します。Piu 拡張は app API 2 / host API 3 と `ui.piu` を要求し、画面登録も通常の AppSession に所属します。
 
-二つを同じarchiveへ含める場合は`["mod", "miniapp"]`を指定します。
-ホストは両者を独立して読み込みますが、`mod.onLaunch()`が`false`を返した場合はpackage全体の起動を中止し、mini-appも登録しません。
+旧 `miniapp` 入口は単独・併用ともサポートを終了しました。新しい SDK の通常モジュールへ移し、archive を再生成してください。旧世代1の通常 `mod` hook は未移行の利用者が残る暫定経路です。これらを含めた撤去状況は [台帳](../architecture/firmware-retirement-plan.md) に記録します。
 
-`mod`を含むpackageはホストrealmで任意の処理を実行できるため、mini-app側のcontainmentにかかわらずpackage全体を信頼できる場合だけインストールしてください。
+MOD はホスト realm で実行されます。Piu 拡張の公開面の制限は、未信頼コードを隔離する sandbox ではありません。
 
 ## 実行成果物
 

@@ -3,7 +3,7 @@ import { MOD_FORMAT, MOD_SCHEMA_VERSION, parseModRuntimeContract } from '../../f
 export const STACKCHAN_MOD_FORMAT = MOD_FORMAT
 export const STACKCHAN_MOD_SCHEMA_VERSION = MOD_SCHEMA_VERSION
 export const STACKCHAN_MOD_TYPES = Object.freeze(['block', 'text'])
-export const STACKCHAN_MOD_ENTRYPOINTS = Object.freeze(['mod', 'miniapp'])
+export const STACKCHAN_MOD_ENTRYPOINTS = Object.freeze(['mod'])
 
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)

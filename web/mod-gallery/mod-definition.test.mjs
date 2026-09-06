@@ -1,7 +1,7 @@
 import { inspectDeclaredModArchive } from '../../firmware/contracts/xsa-metadata.js'
 import { modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import test from 'node:test'
 
 import { isXsArchive, xsArchiveVersion } from '../editor/mod-builder.mjs'
@@ -9,6 +9,10 @@ import { profileFor } from '../editor/capabilities.mjs'
 import { parseVisualProject } from '../editor/project-format.mjs'
 import { analyzeWorkspace } from '../editor/project-validator.mjs'
 import { loadModCatalog, parseModDefinition, validatePackagePath } from './mod-definition.mjs'
+
+import { preparePiuSources } from './canonical-sources.mjs'
+
+preparePiuSources()
 
 const catalogUrl = new URL('./catalog.json', import.meta.url)
 
@@ -26,7 +30,7 @@ test('共通MOD定義からテキストとブロックのGalleryを構成する'
   assert.equal(definitions.length, 10)
   assert.equal(definitions.filter((definition) => definition.type === 'text').length, 6)
   assert.equal(definitions.filter((definition) => definition.type === 'block').length, 4)
-  assert.equal(definitions.filter((definition) => definition.entrypoints.includes('miniapp')).length, 2)
+  assert.equal(definitions.filter((definition) => definition.capabilities.includes('ui.piu')).length, 2)
   assert.equal(new Set(definitions.map((definition) => definition.id)).size, definitions.length)
 
   for (const definition of definitions) {
@@ -143,10 +147,12 @@ test('Codex Voice GalleryパッケージはFirmwareサンプルと同じ実行�
 
 test('Stack-chanミニゲーム集GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
   const firmware = new URL('../../firmware/mods/examples/stackchan_minigames/', import.meta.url)
-  const gallery = new URL('./samples/stackchan-minigames/miniapp/', import.meta.url)
+  const gallery = new URL('./samples/stackchan-minigames/source/', import.meta.url)
   for (const filename of [
     'manifest.json',
-    'miniapp.ts',
+    'mod.ts',
+    'jump.ts',
+    'catch.ts',
     'README.md',
     'README_ja.md',
     'LICENSE.mouse-follower',
@@ -182,8 +188,8 @@ test('Stack-chanミニゲーム集GalleryパッケージはFirmwareサンプル�
 
 test('UI Playground GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
   const firmware = new URL('../../firmware/mods/examples/mini_app_ui_sample/', import.meta.url)
-  const gallery = new URL('./samples/ui-playground/miniapp/', import.meta.url)
-  for (const filename of ['manifest.json', 'miniapp.ts']) {
+  const gallery = new URL('./samples/ui-playground/source/', import.meta.url)
+  for (const filename of ['manifest.json', 'mod.ts', 'screen.ts']) {
     if (filename === 'manifest.json') {
       const readManifest = (base) => {
         const manifest = JSON.parse(readFileSync(new URL(filename, base), 'utf8'))
@@ -222,16 +228,19 @@ test('MOD定義は形式別の正本と安全なパッケージパスを要求�
   assert.deepEqual(parseModDefinition({ ...base, type: 'text', source: { path: 'manifest.json' } }).entrypoints, [
     'mod',
   ])
-  assert.deepEqual(
-    parseModDefinition({
-      ...base,
-      type: 'text',
-      source: { path: 'manifest.json' },
-      entrypoints: ['mod', 'miniapp'],
-    }).entrypoints,
-    ['mod', 'miniapp']
-  )
-  for (const entrypoints of [null, [], ['miniapp', 'miniapp'], ['unknown']]) {
+  for (const entrypoints of [['miniapp'], ['mod', 'miniapp']]) {
+    assert.throws(
+      () =>
+        parseModDefinition({
+          ...base,
+          type: 'text',
+          source: { path: 'manifest.json' },
+          entrypoints,
+        }),
+      /Legacy miniapp/
+    )
+  }
+  for (const entrypoints of [null, [], ['mod', 'mod'], ['unknown']]) {
     assert.throws(
       () => parseModDefinition({ ...base, type: 'text', source: { path: 'manifest.json' }, entrypoints }),
       /entrypoints/
@@ -351,4 +360,13 @@ test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持
   }
   assert.equal(new RegExp(schema.properties.setup.properties.url.pattern).test('https://example.test/setup'), true)
   assert.equal(new RegExp(schema.properties.setup.properties.url.pattern).test('http://example.test/setup'), false)
+})
+
+test('canonical source packaging removes stale generated files before publication', () => {
+  const stale = new URL('./samples/ui-playground/source/obsolete.js', import.meta.url)
+  writeFileSync(stale, 'obsolete')
+  preparePiuSources()
+  assert.equal(existsSync(stale), false)
+  const manifest = JSON.parse(readFileSync(new URL('./samples/ui-playground/source/manifest.json', import.meta.url)))
+  assert.deepEqual(manifest.data['stackchan-mod'], ['../stackchan-mod.json'])
 })

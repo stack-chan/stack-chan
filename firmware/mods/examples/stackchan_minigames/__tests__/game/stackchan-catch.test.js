@@ -1,4 +1,4 @@
-import definitions, { createGameState, movePlayer, StackchanCatchBehavior, startGame, updateGame } from 'miniapp'
+import definitions, { createGameState, movePlayer, StackchanCatchBehavior, startGame, updateGame } from 'catch'
 import { assert, equal } from 'testing/assert'
 
 equal(definitions.length, 1, 'the archive should register one CATCH game')

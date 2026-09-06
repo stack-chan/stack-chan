@@ -1,11 +1,11 @@
 /** Shared by the host, browser tools and CLI. This is the host ABI generation, not an XS version. */
-export const STACKCHAN_HOST_API_VERSION = 2
+export const STACKCHAN_HOST_API_VERSION = 3
 export const MOD_METADATA_RESOURCE = 'stackchan-mod.json'
 export const MOD_METADATA_LIMIT = 16_384
 export const MOD_FORMAT = 'tech.stackchan.mod'
 export const MOD_SCHEMA_VERSION = 2
 
-/** @typedef {'mod' | 'miniapp'} ModEntrypoint */
+/** @typedef {'mod'} ModEntrypoint */
 /** @typedef {{
  * schemaVersion: 1 | 2, id: string, version: string, appApiVersion: 1 | 2,
  * hostApiVersion: number, targets: readonly string[], capabilities: readonly string[],
@@ -79,10 +79,13 @@ export function parseModRuntimeContract(value) {
   if (optionalCapabilities.some((name) => !capabilities.includes(name)))
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Optional capabilities must be declared in capabilities')
   const entries = stringList(value.entrypoints === undefined ? ['mod'] : value.entrypoints, 'entrypoints', true)
-  if (entries.some((name) => name !== 'mod' && name !== 'miniapp'))
+  if (entries.includes('miniapp'))
+    throw new ModCompatibilityError(
+      'MOD_APP_API_UNSUPPORTED',
+      'Legacy miniapp archives are no longer supported. Rebuild using the SDK Piu extension and a mod entrypoint.',
+    )
+  if (entries.some((name) => name !== 'mod'))
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Unsupported MOD entrypoints')
-  if (appApiVersion === 2 && entries.includes('miniapp'))
-    throw new ModCompatibilityError('MOD_APP_API_UNSUPPORTED', 'Legacy miniapp definitions require app API 1')
   return Object.freeze({
     schemaVersion: value.schemaVersion,
     id: value.id,

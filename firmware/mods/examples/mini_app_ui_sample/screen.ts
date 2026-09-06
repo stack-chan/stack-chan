@@ -1,6 +1,17 @@
-import type { MiniAppContext, MiniAppDefinition } from 'capabilities'
-import 'piu/MC'
-import type { Container as PiuContainer, Label as PiuLabel } from 'piu/MC'
+import {
+  Behavior,
+  Column,
+  Container,
+  Content,
+  Label,
+  type ViewContainer as PiuContainer,
+  type ViewLabel as PiuLabel,
+  Row,
+  type ScreenContext,
+  type ScreenDefinition,
+  Skin,
+  Style,
+} from 'stackchan/extensions/piu'
 
 const screenSkin = new Skin({ fill: '#f8fafc' })
 const choiceSkin = new Skin({ fill: '#ffffff', borders: { left: 1, right: 1, top: 1, bottom: 1 }, stroke: '#cbd5e1' })
@@ -133,7 +144,7 @@ function createButton(name: string, label: string, onTap: () => void, secondary 
   )
 }
 
-function createPlayground(context: MiniAppContext): PiuContainer {
+function createPlayground(context: ScreenContext): PiuContainer {
   const choices: PiuContainer[] = []
   const notice = new Label(null, {
     name: 'notice',
@@ -254,7 +265,7 @@ function createPlayground(context: MiniAppContext): PiuContainer {
   return root
 }
 
-const sample: MiniAppDefinition = Object.freeze({
+const sample: ScreenDefinition = Object.freeze({
   id: 'sample.ui-playground',
   title: 'UI Playground',
   icon: 'play',

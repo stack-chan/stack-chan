@@ -1,6 +1,13 @@
-import type { MiniAppDefinition } from 'capabilities'
-import 'piu/MC'
-import type { Port as PiuPort, Texture as PiuTexture } from 'piu/MC'
+import {
+  Behavior,
+  Container,
+  type ViewPort as PiuPort,
+  type ViewTexture as PiuTexture,
+  Port,
+  type ScreenDefinition,
+  Skin,
+  Texture,
+} from 'stackchan/extensions/piu'
 
 const FRAME_INTERVAL_MS = 40
 const SPRITE_SIZE = 32
@@ -306,7 +313,7 @@ class StackchanJumpBehavior extends Behavior {
   }
 }
 
-const sample: MiniAppDefinition = Object.freeze({
+const sample: ScreenDefinition = Object.freeze({
   id: 'sample.stackchan-jump',
   title: 'ｽﾀｯｸﾁｬﾝ JUMP',
   icon: 'play',

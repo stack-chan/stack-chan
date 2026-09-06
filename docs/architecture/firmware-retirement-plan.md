@@ -31,6 +31,25 @@ python3 docs/architecture/evidence/firmware-retirement/measure.py f525e97 --file
 
 後者で対象ファイル一覧・分類・行数・内容のハッシュを再現できる。公開入口と操作の中継数については次節で現存経路を列挙したが、全公開面の数値比較は未完了である。
 
+### Piu 整理後の計測（2026-09-06）
+
+同じ規則で、直前の `30d4864` と今回のコミットに記録したソースを比較した。以下は物理行数で、文書・JSON・画像・archive の容量ではない。
+
+| 分類 | 直前 | 今回 | 差分 |
+| --- | ---: | ---: | ---: |
+| firmware 実装 | 42,612 | 42,462 | -150 |
+| SDK・共通契約 | 428 | 493 | +65 |
+| Web 実装 | 16,007 | 16,014 | +7 |
+| 型宣言 | 757 | 733 | -24 |
+| サンプル・教材（別計上） | 8,305 | 6,554 | -1,751 |
+| 開発ツール（別計上） | 4,057 | 4,021 | -36 |
+| 試験・補助（別計上） | 36,383 | 36,554 | +171 |
+| **製品ソース計** | **59,804** | **59,702** | **−102** |
+
+製品は470ファイルから469ファイルへ1ファイル減った。サンプル・教材の減少1751行のうち1025行は Gallery のコピーを生成出力へ移した分であり、整理の実績から除く。サンプルの整理は残る726行の純減、開発ツールは36行の純減（合成器40行の削除と他の書式調整による4行増）、製品は102行の純減である。これは定義した計測規則でのプログラムソース比較であり、行数だけで設計品質や性能を評価しない。
+
+起点 `6eb4623` に対して製品ソースは、まだ **50ファイル・7,000行増** である。再設計全体の純減条件は未達。新しい配布補助 `canonical-sources.mjs` も、既存の計測規則に従って Web 製品ソースに含めた。
+
 ## 利用者と一緒に撤去する経路
 
 | 現存経路 | 主な利用者 | 残す先・撤去条件 |
@@ -39,13 +58,17 @@ python3 docs/architecture/evidence/firmware-retirement/measure.py f525e97 --file
 | `runtime-context` の flat メソッドと namespaced facade、`capabilities` の raw 公開型 | 既定動作、旧 MOD、Dock などのホスト統合 | ユーザーアプリは SDK、ホスト統合は非公開 port へ移す。両方の利用者がなくなった項目からメソッド・型・exports を削除 |
 | `RuntimeAudio.say` の `Maybe`、`playAudio` の `boolean`、raw `record`、`useTTS` | 既定動作の録音デモ、AI・応援・ビーコン・Blockly | `say` / `playClip` / `record` / `play` と provider の選択へ移す。呼出側が残る間に変換 shim を増設しない |
 | raw button / IMU / headTouch と Timer の直接登録 | 既定動作、Blockly、センサー・通信サンプル | `AppSession` が所有する入力購読・周期処理と、必要なセンサー拡張へ移す。イベント上書き・独自 disposers・petting 判定の重複を削除 |
-| miniapp 専用 Compartment と公開 `MiniAppDefinition` | 4つの miniapp、ホストの登録・起動処理 | SDK の UI 拡張で4例を組み直し、専用起動・import 制限・生成による回避・旧 metadata を一緒に撤去 |
+| miniapp 専用起動・公開型 | **撤去済み**。旧4例をSDKの2パッケージへ整理 | 通常の AppSession に画面登録を接続。専用 Compartment・登録関数・attenuated Piu module・型の複製を削除。内部 viewport / registry はホストの画面管理として残す |
 | 旧設定名の読み替えと `mod/config` の優先順位 | 旧 MOD、起動処理・設定 UI | SettingsService と SDK 設定・アプリ宣言へ揃える。設定画面からの復旧と適用時点を保持した上で fallback を削除 |
 | API 1 / schema 1 の archive 読込・配布 | CLI、SD、WebSerial、Gallery、WASM、Blockly | 残す全生成・配布経路を SDK 世代2へ揃えて旧 archive を起動前に拒否。再生成手順を案内。XS・チップ・能力の検査は保持 |
 
-関連実装: [起動](../../firmware/host/app/app-main.ts)、[context](../../firmware/host/app/runtime-context.ts)、[音声](../../firmware/host/app/runtime-audio.ts)、[miniapp 読込](../../firmware/host/app/experimental-mini-app-loader.ts)、[Blockly](../../web/editor/blocks.mjs)。
+関連実装: [起動](../../firmware/host/app/app-main.ts)、[context](../../firmware/host/app/runtime-context.ts)、[音声](../../firmware/host/app/runtime-audio.ts)、[Piu 拡張](../../firmware/sdk/extensions/piu.ts)、[Blockly](../../web/editor/blocks.mjs)。
 
-ミニゲーム集は [compose.mjs](../../firmware/mods/examples/stackchan_minigames/compose.mjs) が JUMP / CATCH の実装を761行の別ソースへ合成し、Gallery にも写している。理由は miniapp 専用読込の import 制限である。旧読込を拡張して維持する前に、UI 拡張への移行と通常のモジュール参照で、この合成器・合成ソース・配布用コピーを撤去する。ゲームのルール・描画・素材ライセンスは保持する。
+ミニゲーム集は `jump.ts` / `catch.ts` を正本とし、`mod.ts` から通常の相対 import で読み込む。旧単独 archive 2つ、761行の合成ソースと40行の合成器を削除した。ゲームのルール・描画・素材・ライセンスは保持する。Gallery では維持していたソースコピーを撤去し、Vite がこの正本を変更せず公開用 `source/` へコピーする。配布先の metadata 参照だけを manifest で差し替える。
+
+Gallery の1025行の追跡ソースを生成出力へ移した分は、実装の機能削減や製品コード量削減の成果に数えない。実体として撤去したものは、独立した旧起動経路、同じゲームをもう一度合成・維持していたソースと合成器、型宣言の複製である。
+
+Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は `firmware/sdk` の npm workspace で、MOD の TypeScript ビルドでも同じソースを解決する。通常の MOD と同じ realm を使うため、旧 Compartment の import/global 制限は維持しない。公開コンストラクターを表示部品に絞る設計と、未信頼コードの隔離は別の問題として明記する。描画・停止・viewport という機能は保持する。
 
 ## 32例の分類
 
@@ -77,16 +100,16 @@ python3 docs/architecture/evidence/firmware-retirement/measure.py f525e97 --file
 | `mediapipe_ble` | 移行 → MediaPipe 追従例 | localPeer、姿勢追従、手の表示。UnitV2 例とは入力・表示が異なる | raw Hands / effect、独自更新 Timer。未着手 |
 | `mimic_follow` | 統合 → 姿勢共有例の受信モード | DNS-SD 拡張・motion、既存 TXT 形式 | raw discover と姿勢 I/F。未着手 |
 | `mimic_main` | 統合 → 姿勢共有例の送信モード | DNS-SD 拡張・姿勢読取、名前競合の扱い | raw advertise と Timer。送信と受信をどちらも保持。未着手 |
-| `mini_app_sample` | 統合 → ミニゲーム集の JUMP | UI 拡張・タップ・フレーム更新・素材 | 単独の旧 miniapp 入口と合成用コピー。ゲーム本体は一箇所に保持。未着手 |
-| `mini_app_ui_sample` | 移行 → UI 拡張例 | タッチ UI・画面終了・AppBar との共存 | 専用 MiniAppContext と別起動経路。未着手 |
+| `mini_app_sample` | **統合済み** → ミニゲーム集の JUMP | UI 拡張・タップ・フレーム更新・素材 | 単独の旧入口・重複素材を削除。`jump.ts` / `catch.ts` に正本を集約。ルールとライセンスは保持 |
+| `mini_app_ui_sample` | **移行済み** → UI 拡張例 | タッチ UI・画面終了・AppBar との共存 | `mod.ts` / `screen.ts` を SDK の Piu 拡張へ移行。選択・通知・説明・終了を保持 |
 | `monologue` | **移行済み** | 主入力、自由文は `say`、素材は `playClip` | 旧フック、config による引数の読み替え、A ボタン上書き、内部 util import を削除。音声種別・連打・未対応と WASM 再生を確認。実機は未検証 |
 | `setup_rs30x` | 統合 → サーボ診断・設定 | RS30X の ID 設定・角度確認 | 二重の入力代入と `_driver` 依存。ID 書込手順と対応機種を実機確認して移行する |
-| `stackchan_catch` | 統合 → ミニゲーム集の CATCH | UI 拡張・タップ・ゲーム状態・描画・素材 | 単独の旧 miniapp 入口と合成用コピー。ゲーム本体は一箇所に保持。未着手 |
-| `stackchan_minigames` | 移行 → SDK ミニゲーム集 | JUMP / CATCH の選択と停止 | 合成器、合成済み761行、Gallery コピー、旧 archive 入口を一緒に撤去。未着手 |
+| `stackchan_catch` | **統合済み** → ミニゲーム集の CATCH | UI 拡張・タップ・ゲーム状態・描画・素材 | 単独の旧入口・重複素材を削除。`jump.ts` / `catch.ts` に正本を集約。ルールとライセンスは保持 |
+| `stackchan_minigames` | **移行済み** → SDK ミニゲーム集 | JUMP / CATCH の選択と停止 | 合成器・761行の合成ソース・追跡していた Gallery コピー・旧入口を撤去。配布ソースと archive を再生成 |
 | `unit_temperature` | 移行 → センサー拡張例 | SHT3x・周期読取・UI | raw sensor の生成・Timer・drawer。未着手 |
 | `web_radio` | 移行 → ラジオアプリ | 音声ストリームの操作・局の選択・設定 | 会話・通常再生と別に物理出力を使う経路、MOD 内の UI と所有。未着手 |
 
-32例のうち SDK への移行実装・自動確認を終えたのは2例。残る30例については分類だけを行った。統合先を新設する際も、アプリごとに同じ接続・停止・状態管理をコピーしない。必要な公開拡張の契約と資源所有を決め、最初の利用者と一緒に実装・検証する。
+元の32例のうち6例を SDK の4パッケージへ移行・統合した。残る26例は未移行。実機・初学者の受入は別途必要であり、自動試験だけをもって全移行の完了とはしない。統合先を新設する際も、アプリごとに同じ接続・停止・状態管理をコピーしない。必要な公開拡張の契約と資源所有を決め、最初の利用者と一緒に実装・検証する。
 
 ## 操作の中継と所有の整理
 
@@ -99,6 +122,6 @@ python3 docs/architecture/evidence/firmware-retirement/measure.py f525e97 --file
 | `OperationQueue` | 物理入力／出力の順序、上限、停止期限、解放失敗時の再利用禁止 | 会話・Web Radio・USB が同じ物理資源を別の queue で所有していないか |
 | provider の再生 Session | HTTP / DNS / decoder / AudioOut / PCM の保持と解放 | 上位の順序制御を再実装せず、開始・停止・解放結果だけを返せるか |
 
-上表は整理対象の特定であり、統合が済んだという意味ではない。今回削除したのは呼出側が存在しない `resolveAppBehaviors`。稼働中の世代分岐を代替名で残したり、新しい互換層を追加したりしていない。
+上表は整理対象の特定であり、統合が済んだという意味ではない。これまでに削除したものは、呼出側が存在しなかった `resolveAppBehaviors` と、旧 miniapp 用の loader / registration / attenuated Piu module、準備 callback を渡すだけになった `prepareAppLaunch`。稼働中の世代分岐を代替名で残したり、新しい互換層を追加したりしていない。
 
-次の実装単位は、既定アプリと UI 拡張を SDK に接続し、上記 miniapp の通常モジュール化と旧入口の撤去を進めること。別系統の資源所有を増やす前に、既存の所有者を使う。初学者受入と実機確認は [F12](firmware-sdk-redesign-progress.md) に従って別に記録する。
+次の実装単位は、既定アプリと残る26例の利用者を SDK へ移し、対応する旧フック・raw context・会話と設定の重複を撤去すること。別系統の資源所有を増やす前に、既存の所有者を使う。初学者受入と実機確認は [F12](firmware-sdk-redesign-progress.md) に従って別に記録する。

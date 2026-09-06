@@ -1,7 +1,8 @@
 {
-  "include": ["../../../../../mods/examples/mini_app_sample/manifest.json"],
+  "include": ["../../../../../mods/examples/stackchan_minigames/manifest.json"],
   "modules": {
     "mod": "./mod",
-    "mini-app-smoke-behavior": "../behavior"
+    "mini-app-smoke-behavior": "../behavior",
+    "~": ["../../../../../mods/examples/stackchan_minigames/mod"]
   }
 }

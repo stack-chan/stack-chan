@@ -84,7 +84,7 @@
     "erase-flash": "esptool erase-flash",
     "install-hook": "lefthook install",
     "uninstall-hook": "lefthook uninstall",
-    "check:sdk": "tsc --project tsconfig.sdk.json",
+    "check:sdk": "tsc --project tsconfig.sdk.json && tsc --project tsconfig.extensions.json",
     "check:contracts": "tsc --project tsconfig.contracts.json"
   },
   "type": "module",
@@ -106,7 +106,8 @@
   "homepage": "https://github.com/meganetaaan/stack-chan#readme",
   "private": true,
   "workspaces": [
-    "tools/typedoc"
+    "tools/typedoc",
+    "sdk"
   ],
   "devDependencies": {
     "@biomejs/biome": "2.5.10",

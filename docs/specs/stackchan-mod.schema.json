@@ -97,7 +97,7 @@
       "minItems": 1,
       "uniqueItems": true,
       "items": {
-        "enum": ["mod", "miniapp"]
+        "enum": ["mod"]
       }
     },
     "targets": {

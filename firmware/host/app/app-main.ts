@@ -2,13 +2,12 @@ import loadPreferences, { getHostSettingsService, loadModConfig, loadPreferenceC
 import { runContextCreatedBehaviors, type StackchanAppBehavior } from 'app-behavior'
 import { resolveAppProgram } from 'app-behavior-resolver'
 import defaultBehavior from 'app-default-behavior'
-import { installLaunchShortcut, type LaunchShortcutButton, prepareAppLaunch } from 'app-launch'
+import { installLaunchShortcut, type LaunchShortcutButton, runLaunchBehaviors } from 'app-launch'
 import { requestBootRecoveryChoice } from 'boot-recovery-choice'
 import { startHostBootServices } from 'boot-services'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
 import { DOMAIN } from 'consts'
 import { type StackchanDockRuntime, startStackchanDock } from 'dock'
-import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'experimental-mini-app-loader'
 import verifyInstalledMod from 'installed-mod'
 import { initializeLocalization, localize } from 'localization'
 import { isModMaintenanceActive, restartInModMaintenance } from 'mod-maintenance'
@@ -100,14 +99,13 @@ async function main() {
       program.generation === 1 ? program.behaviors : [{ onLaunch: defaultBehavior.onLaunch }]
     // Launch behaviors run before startHostBootServices so the splash screen is
     // visible while network setup blocks.
-    const launch = await prepareAppLaunch(appBehaviors, prepareExperimentalMiniApps)
-    trace(`[main] onLaunch shouldCreateContext=${launch.shouldCreateContext}\n`)
-    if (!launch.shouldCreateContext) {
+    const shouldCreateContext = await runLaunchBehaviors(appBehaviors)
+    trace(`[main] onLaunch shouldCreateContext=${shouldCreateContext}\n`)
+    if (!shouldCreateContext) {
       installModManagerShortcut()
       await bootResources.close()
       return
     }
-    const experimentalMiniApps = launch.prepared
 
     const preferences = loadPreferenceConfig()
     const bootServices = startHostBootServices({
@@ -138,7 +136,6 @@ async function main() {
       closeHandlers: [() => bootResources.close()],
     })
     ownedDock?.onContextCreated(context)
-    registerExperimentalMiniApps(experimentalMiniApps, context.ui.miniApps)
     trace('[main] app context created\n')
     if (program.generation === 2) await context.startApp(program.app)
     else

@@ -2,17 +2,17 @@
   "format": "tech.stackchan.mod",
   "schemaVersion": 2,
   "id": "tech.stackchan.examples.stackchan-minigames",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "text",
   "name": "stackchan minigames",
-  "description": "Legacy API 1 example; see docs/architecture/legacy-mod-migration.md for migration and hardware prerequisites.",
-  "appApiVersion": 1,
-  "hostApiVersion": 1,
+  "description": "SDKアプリの画面拡張。AppBarから画面を開き、戻る操作で終了します。",
+  "appApiVersion": 2,
+  "hostApiVersion": 3,
   "source": {
     "path": "manifest.json",
-    "entrypoint": "miniapp.ts"
+    "entrypoint": "mod.ts"
   },
   "targets": ["portable"],
-  "capabilities": ["ui.miniApps"],
-  "entrypoints": ["miniapp"]
+  "capabilities": ["ui.piu"],
+  "entrypoints": ["mod"]
 }

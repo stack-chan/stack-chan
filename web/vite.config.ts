@@ -5,6 +5,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:f
 import { dirname, join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
+import { preparePiuSources } from './mod-gallery/canonical-sources.mjs'
 
 const page = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 
@@ -18,6 +19,9 @@ const wasmBuildId = () => {
 
 const copyRuntimeAssets = () => ({
   name: 'copy-stackchan-runtime-assets',
+  buildStart() {
+    preparePiuSources()
+  },
   closeBundle() {
     const copy = (source: string, target: string) => {
       if (!existsSync(source)) return

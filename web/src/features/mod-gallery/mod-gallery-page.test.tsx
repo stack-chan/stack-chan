@@ -100,8 +100,8 @@ describe('ModGalleryPage', () => {
     expect(screen.getByText('Block test')).toBeInTheDocument()
   })
 
-  it('explains the mini-app entrypoint in a popover', async () => {
-    vi.mocked(loadGalleryCatalog).mockResolvedValue([{ ...textMod, entrypoints: ['miniapp'] }])
+  it('explains how to open a screen app in a popover', async () => {
+    vi.mocked(loadGalleryCatalog).mockResolvedValue([{ ...textMod, entrypoints: ['mod'], capabilities: ['ui.piu'] }])
     const user = userEvent.setup()
 
     render(
@@ -114,7 +114,6 @@ describe('ModGalleryPage', () => {
     expect(
       screen.getByText('ミニアプリは本体のAppBarから起動し、hostが管理する画面内で動作します。')
     ).toBeInTheDocument()
-    expect(screen.getByText('entrypoint: miniapp')).toBeInTheDocument()
   })
 
   it('reports device write errors through the mounted toaster', async () => {

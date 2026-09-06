@@ -69,3 +69,21 @@ test('closing a registry releases factories and listeners and makes retained rem
   assert.throws(() => registry.register({ id: 'new', title: 'New', create: () => content }), /closed/)
   assert.throws(() => registry.subscribe(() => {}), /closed/)
 })
+
+test('a screen publication failure rolls back its factory before returning the error', () => {
+  const registry = new MiniAppRegistry()
+  const failure = new Error('view publication failed')
+  const seen: number[] = []
+  const unsubscribe = registry.subscribe(() => {
+    seen.push(registry.list().length)
+    throw failure
+  })
+  assert.throws(
+    () => registry.register({ id: 'failed', title: 'Failed', create: () => content }),
+    (error) => error === failure,
+  )
+  assert.equal(registry.get('failed'), undefined)
+  assert.deepEqual(seen, [1, 0])
+  unsubscribe()
+  assert.doesNotThrow(() => registry.register({ id: 'failed', title: 'Retry', create: () => content }))
+})

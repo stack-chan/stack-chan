@@ -32,12 +32,12 @@
 | `mediapipe_ble` | `mod.js` | connectivity.localPeer, motion, ui.effects | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `mimic_follow` | `mod.js` | motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `mimic_main` | `mod.js` | motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `mini_app_sample` | `miniapp.ts` | ui.miniApps | portable |
-| `mini_app_ui_sample` | `miniapp.ts` | ui.miniApps | portable |
+| `mini_app_sample` | 統合 → `stackchan_minigames/jump.ts` | SDK ui.piu | 単独 archive を撤去 |
+| `mini_app_ui_sample` | `mod.ts` / `screen.ts` | SDK ui.piu | portable / simulator |
 | `monologue` | `mod.js` | audio.speech, input.buttons | portable |
 | `setup_rs30x` | `mod.js` | input.buttons, extension.servo.rs30x | legacy-servo-diagnostics |
-| `stackchan_catch` | `miniapp.ts` | ui.miniApps | portable |
-| `stackchan_minigames` | `miniapp.ts` | ui.miniApps | portable |
+| `stackchan_catch` | 統合 → `stackchan_minigames/catch.ts` | SDK ui.piu | 単独 archive を撤去 |
+| `stackchan_minigames` | `mod.ts` / `jump.ts` / `catch.ts` | SDK ui.piu | portable |
 | `unit_temperature` | `mod.js` | extension.sensor.sht3x, ui.drawer | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `web_radio` | `mod.ts` | audio.webRadio, connectivity.network, ui.drawer, ui.effects | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 
@@ -46,3 +46,9 @@
 上表は旧 API の依存を記録したもの。全32例の「移行」「統合」の分類、保持する機能、必要な SDK、対応する撤去経路は [旧経路の撤去台帳](firmware-retirement-plan.md) に記録した。`look_around` と `monologue` は SDK 世代2へ移行し、主入力・所有された周期処理／音声を使う。残る30例の移行・統合は未実装。機種サポートや独立した機能を、分類だけで削除済みとはしない。
 
 移行済みの例は公開 SDK の strict 検査と解決済み import graph の検査へ含める。自由文と素材再生の区別・再生中の連打・見回し停止・終了後の入力とタイマー解除・未対応時の案内を単体試験で確認し、2例の archive を WASM 上で実行した。実機・初学者による受入は未実施。
+
+## Piu アプリの移行・統合（2026-09-06）
+
+`mini_app_sample` と `stackchan_catch` の実装は `stackchan_minigames/jump.ts` / `catch.ts` に集約し、単独 archive を撤去した。ミニゲーム集と `mini_app_ui_sample` は `definePiuApp` を使う通常の SDK アプリへ移行済み。画面登録は AppSession の寿命に属し、専用 Compartment・loader・合成器・旧 miniapp 配布形式を削除した。ゲームと UI の機能、素材・ライセンスは保持した。
+
+元の32例のうち6例が SDK の4パッケージへ移行・統合済みで、残る26例は未移行。Piu 拡張は host API 3 を要求し、旧 miniapp archive は再生成が必要。自動試験と実機・初学者受入を区別し、詳しい撤去対象と結果は [撤去台帳](firmware-retirement-plan.md) と [実装記録](firmware-sdk-redesign-progress.md) に記載する。

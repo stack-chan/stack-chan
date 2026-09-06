@@ -442,7 +442,7 @@ Examples:
   npm run build:m5stackchan_cores3 -- --mode=debug
   npm run build:m5stackchan_cores3 -- --mode=instrument
   npm run debug:xsdb -- --port /dev/ttyACM1
-  npm run mod:build -- mods/examples/mini_app_sample/manifest.json --mode=release
+  npm run mod:build -- mods/examples/stackchan_minigames/manifest.json --mode=release
   npm run mod -- mods/examples/look_around/manifest.json --port /dev/ttyACM1
   STACKCHAN_DEVICE=takao_core2_sg90 npm run mod -- mods/examples/look_around/manifest.json`)
 }

@@ -87,7 +87,7 @@ test('new builds require an explicit API declaration and reject mismatched entry
       modJs: 'export default {}',
       metadata: { ...modDefinition, appApiVersion: 1, entrypoints: ['miniapp'] },
     }),
-    (error) => error.code === 'MOD_ENTRYPOINT_MISMATCH'
+    (error) => error.code === 'MOD_APP_API_UNSUPPORTED'
   )
   await assert.rejects(
     buildModArchive(createTools, {

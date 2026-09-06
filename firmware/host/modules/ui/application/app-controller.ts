@@ -209,14 +209,27 @@ export class AppController extends Behavior {
     }
   }
 
-  exitMiniApp(): void {
+  exitMiniApp(propagate = false): void {
     if (!this.#activeMiniApp) return
     const active = this.#activeMiniApp
     this.#activeMiniApp = null
     this.#miniAppScreen = 'face'
-    this.#viewBehavior?.showFace?.()
-    this.#setAppBarMode({ kind: 'face' })
-    this.#disposeMiniAppContent(active.content, active.dispose)
+    let failure: unknown
+    let failed = false
+    const attempt = (cleanup: () => void) => {
+      try {
+        cleanup()
+      } catch (error) {
+        if (!failed) failure = error
+        failed = true
+        trace(`[MiniApp] exit failed error=${String(error)}\n`)
+      }
+    }
+    attempt(() => this.#viewBehavior?.showFace?.())
+    attempt(() => this.#setAppBarMode({ kind: 'face' }))
+    attempt(() => this.#disposeMiniAppContent(active.content, active.dispose, true))
+    attempt(() => this.#syncMiniAppAvailability())
+    if (propagate && failed) throw failure
   }
 
   setDrawerButtons(buttons: DrawerButtonViewSpec[]): void {
@@ -308,11 +321,11 @@ export class AppController extends Behavior {
   }
 
   #onMiniAppRegistryChanged(): void {
-    this.#syncMiniAppAvailability()
     if (this.#activeMiniApp && !this.#miniAppRegistry.get(this.#activeMiniApp.definition.id)) {
-      this.exitMiniApp()
+      this.exitMiniApp(true)
       return
     }
+    this.#syncMiniAppAvailability()
     if (this.#miniAppScreen === 'launcher') {
       if (this.#miniAppRegistry.list().length === 0) this.showFace()
       else this.#renderMiniAppLauncher()

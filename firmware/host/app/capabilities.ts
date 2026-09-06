@@ -41,7 +41,6 @@ export type RobotLed = {
 }
 
 export type { I18nCapability } from 'localization'
-export type { MiniAppContext, MiniAppDefinition, MiniAppInstance, MiniAppRegistryCapability } from 'mini-app'
 export type { DrawerButtonViewSpec, DrawerOption }
 
 export type RobotUI = {

@@ -109,3 +109,42 @@ app.input.onPress('primary', async (task) => {
 `width` は1〜320、`height` は1〜240の整数です。省略値は176×144、形式は `rgb565le` です。対応形式は `app.camera.info.formats` で取得します。画像は実際の寸法、`format`、`source`、`data: ArrayBuffer` を持ち、nativeの手動解放は不要です。返却データは最大153,600 bytes。JPEGを取得できる機種でも、`ui.showImage` の対応形式はRGB565です。
 
 撮影は一つずつ進め、待機2件、待機期限30秒、実行期限15秒、取消し時の停止確認2秒です。撮影中にアプリが終了すると取消します。画像を配列などに蓄積した場合のメモリーはアプリ自身が管理します。使用例は [06-camera](../lessons/06-camera/mod.js)、詳しい契約と移行事項は [撮影と画像表示](../../docs/architecture/camera-capture-lifecycle.md) にあります。
+
+## Piu の画面拡張
+
+Piu を使う画面は `stackchan/extensions/piu` の `definePiuApp` で宣言します。基本 SDK の入口には Piu 型・コンストラクターを追加しません。初めてのプログラムは `defineApp` と7つの教材から始め、独自画面が必要になったときにこの拡張へ進んでください。
+
+```ts
+import { Behavior, Container, Skin, definePiuApp } from 'stackchan/extensions/piu'
+
+export default definePiuApp({
+  screens: [{
+    id: 'hello',
+    title: 'Hello',
+    create({ app, close }) {
+      return new Container(null, {
+        left: 0, right: 0, top: 0, bottom: 0,
+        active: true,
+        skin: new Skin({ fill: '#93c5fd' }),
+        Behavior: class extends Behavior {
+          onTouchEnded() { app.face.setEmotion('happy'); close() }
+        },
+      })
+    },
+  }],
+})
+```
+
+この例は青い画面を表示し、タップすると表情を変えて顔画面へ戻ります。
+
+画面の登録、任意の `setup(app)`、入力・音声・motion は同じ `AppSession` に所属します。`create` に渡る `ScreenContext` は `{ width, height, app, close }` です。高さは AppBar の44pxを除きます。ホストの Application / controller は公開しません。画面は最大16個で、IDは小文字ASCII英数字と `. _ -` の区切りで1〜64文字、タイトルは空白を除いて1〜32文字です。
+
+`create` は Piu `Container`、または `{ content: Container, dispose() }` を返します。開くたびに作り直し、「戻る」・`close()`・アプリ停止で破棄します。Piu `Port` のフレーム更新は画面の `onUndisplaying` で止めてください。画面固有の外部資源は `dispose` で解放します。`context.app.time.every` などの SDK 登録を画面だけの寿命にする場合は、返された解除関数をこの `dispose` で実行してください。アプリ全体の停止でも SDK 登録は解除されます。`dispose` は、画面を作成したが表示に失敗した場合にも呼ばれるため、非表示処理に依存せず解放できるようにします。
+
+画面登録や setup が失敗した場合は、登録済み画面を巻き戻します。ホストの画面切替や `dispose` の例外でも後続の後片付けを実行し、アプリ停止時には失敗を呼出元へ返します。Piu 自体が処理するイベント callback の例外は、この停止 Promise に伝わるとは限りません。Piu の生の表示オブジェクトを使う拡張であり、通常の MOD と同じ実行 realm です。任意コードを隔離する sandbox ではありません。
+
+配布には schema 2 / app API 2 / **host API 3**、`entrypoints: ["mod"]` と `capabilities: ["ui.piu"]` を宣言します。旧 `miniapp` archive は起動前に拒否されるので、旧ソースをこの契約に移して再ビルドしてください。`manifest.json` は通常の MOD と同じで、アプリ内の相対 import に使うファイルを `modules` に列挙します。[ミニゲーム集](../mods/examples/stackchan_minigames/mod.ts) と [UI Playground](../mods/examples/mini_app_ui_sample/mod.ts) が実行可能な例です。
+
+`npm run check:sdk` は基本 SDK / 教材の `tsconfig.sdk.json` と、Piu 拡張 / 利用例の `tsconfig.extensions.json` を分けて strict 検査します。構成検査は全 API 2 パッケージを列挙し、`ui.piu` を宣言したものだけに Piu 拡張の import を許します。
+
+SDK の TypeScript ソースは `stackchan` というローカル npm workspace としても解決します。`firmware/` で `npm ci` すると型の正本へリンクされ、通常の `mod:build` でも同じ型を使います。ホスト SDK の実装を MOD archive へ複製する必要はありません。Gallery のソースをリポジトリー内でビルドする場合は、`web/` でも `npm ci` を実行してください。別のプロジェクトから使う場合は SDK ディレクトリーを `stackchan` のローカル依存として設定します。このパッケージはまだ npm へ公開していません。

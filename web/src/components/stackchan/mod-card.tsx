@@ -13,7 +13,6 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Separator } from '@/components/ui/separator'
 import { type OperationState } from '@/features/operations/operation-state'
 import { cn } from '@/lib/utils'
 import { type ModDefinition } from '@/services/mod-gallery/mod-catalog-service'
@@ -45,8 +44,7 @@ export function ModCard({
   const { t } = useI18n()
   const actions = primaryAction ? [primaryAction, ...secondaryActions] : secondaryActions
   const busy = operation.status === 'pending'
-  const hasMiniApp = mod.entrypoints.includes('miniapp')
-  const isCombinedPackage = hasMiniApp && mod.entrypoints.includes('mod')
+  const hasMiniApp = mod.capabilities.includes('ui.piu')
 
   const renderAction = (action: ModAction, index: number) => {
     const Icon = action.icon
@@ -93,7 +91,6 @@ export function ModCard({
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-1.5">
-          {isCombinedPackage && <Badge variant="outline">MOD</Badge>}
           {hasMiniApp && (
             <>
               <Badge>{t('ミニアプリ')}</Badge>
@@ -108,8 +105,6 @@ export function ModCard({
                       {t('ミニアプリは本体のAppBarから起動し、hostが管理する画面内で動作します。')}
                     </PopoverDescription>
                   </PopoverHeader>
-                  <Separator />
-                  <p className="font-mono text-xs text-muted-foreground">entrypoint: miniapp</p>
                 </PopoverContent>
               </Popover>
             </>

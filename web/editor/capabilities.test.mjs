@@ -155,3 +155,27 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
   })
   assert.equal(legacyBasicMod.compatible, true)
 })
+
+test('Piu screen apps require host API 3 and simulator support, with only the mod entrypoint', () => {
+  for (const target of ['m5stackchan-cores3', 'simulator']) {
+    const options = { requirements: ['ui.piu'], entrypoints: ['mod'], hostApiVersion: 3 }
+    assert.equal(inspectDeploymentCompatibility(target, options).compatible, true)
+    assert.equal(inspectDeploymentCompatibility(target, { ...options, entrypoints: ['miniapp'] }).compatible, false)
+  }
+})
+
+test('device install rejects Piu screens on host API 2 and accepts them on host API 3', () => {
+  const options = {
+    requirements: ['ui.piu'],
+    entrypoints: ['mod'],
+    chip: 'ESP32-S3',
+    xsVersion: [17, 8, 2],
+    firmwareVersion: '9.5.0+stackchan.3',
+    requireFirmware: true,
+  }
+  assert.equal(inspectDeploymentCompatibility('m5stackchan-cores3', { ...options, hostApiVersion: 3 }).compatible, true)
+  assert.equal(
+    inspectDeploymentCompatibility('m5stackchan-cores3', { ...options, hostApiVersion: 2 }).compatible,
+    false
+  )
+})

@@ -54,10 +54,10 @@ Installing a MOD makes the host run that MOD instead of its default behavior.
 Button and screen behavior therefore depends on the installed MOD.
 
 A MOD must be built for the target device and the XS version used by its host.
-For the WASM host, load an `.xsb` or archive built with a target that supports TypeScript, such as `lin`.
+For the WASM host, use the `.xsa` archive produced by the standard `npm run mod:build` command, including its MOD metadata.
 
 Add localized UI text as described in [Firmware localization](../docs/localization.md) through `context.i18n`.
-To add a Piu UI while retaining the face screen and host AppBar, use the experimental [mini-app framework (Japanese)](../docs/mini-apps_ja.md).
+To add a Piu UI while retaining the face screen and host AppBar, use the [SDK Piu extension (Japanese)](../docs/mini-apps_ja.md).
 
 ## Representative source examples
 
@@ -65,9 +65,7 @@ To add a Piu UI while retaining the face screen and host AppBar, use the experim
 | --- | --- |
 | [`look_around`](./examples/look_around/) | Minimal head movement through the motion API |
 | [`localized_drawer`](./examples/localized_drawer/) | Localized UI through `context.i18n` |
-| [`mini_app_sample`](./examples/mini_app_sample/) | A mini app that retains the face screen and AppBar |
-| [`stackchan_catch`](./examples/stackchan_catch/) | A Game & Watch-style mini-app with discrete falling-item states |
-| [`stackchan_minigames`](./examples/stackchan_minigames/) | One mini-app archive that packages Stack-chan JUMP and CATCH together |
+| [`stackchan_minigames`](./examples/stackchan_minigames/) | One SDK app containing Stack-chan JUMP and CATCH |
 | [`local_peer_hello`](./examples/local_peer_hello/) | Typed device-to-device messages without the internet |
 | [`web_radio`](./examples/web_radio/) | Network audio playback on M5StackChan CoreS3 |
 | [`m5stackchan_smoke`](./examples/m5stackchan_smoke/) | [M5StackChan CoreS3 servo-power and head LED checks](../docs/m5stackchan-cores3-smoke.md) |

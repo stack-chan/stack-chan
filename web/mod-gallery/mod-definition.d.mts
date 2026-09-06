@@ -8,7 +8,7 @@ export type ModArtifact = ModArtifactSource & {
   url: URL
 }
 
-export type ModEntrypoint = 'mod' | 'miniapp'
+export type ModEntrypoint = 'mod'
 
 export type ModDefinitionSource = {
   format: 'tech.stackchan.mod'
@@ -50,7 +50,7 @@ export type CatalogFetcher = (url: URL) => Promise<CatalogResponse>
 export const STACKCHAN_MOD_FORMAT: 'tech.stackchan.mod'
 export const STACKCHAN_MOD_SCHEMA_VERSION: 2
 export const STACKCHAN_MOD_TYPES: readonly ['block', 'text']
-export const STACKCHAN_MOD_ENTRYPOINTS: readonly ['mod', 'miniapp']
+export const STACKCHAN_MOD_ENTRYPOINTS: readonly ['mod']
 
 export function validatePackagePath(value: unknown, label?: string): string
 export function parseModDefinition(value: unknown): ModDefinitionSource

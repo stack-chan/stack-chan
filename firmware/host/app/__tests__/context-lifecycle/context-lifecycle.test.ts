@@ -7,6 +7,7 @@ import { StackchanRuntimeContext } from 'runtime-context'
 import { defineApp, StackchanError } from 'stackchan'
 import { definePiuApp, Port, type ScreenContext, type ViewPort } from 'stackchan/extensions/piu'
 import { assert, equal } from 'testing/assert'
+import { verifyDefaultApp } from 'tests/default-app'
 import Timer from 'timer'
 import TouchPanel from 'touch-panel'
 
@@ -214,7 +215,8 @@ async function verifyPiuApp(mode: 'normal' | 'setup' | 'dispose' | 'undisplay' |
   equal(screenContext.app, app.context, 'screen uses the same AppSession as setup')
   equal(screenContext.height, 196, 'host reserves the AppBar above the viewport')
   equal(app.context.capabilities.get('ui.piu').availability, 'native', 'host advertises its screen capability')
-  await new Promise<void>((resolve) => Timer.set(() => resolve(), 60))
+  for (let attempt = 0; frames === 0 && attempt < 100; attempt++)
+    await new Promise<void>((resolve) => Timer.set(() => resolve(), 20))
   assert(frames > 0, 'actual Piu Port timer runs while screen is displayed')
   if (mode === 'normal') {
     screenContext.close()
@@ -421,6 +423,7 @@ async function run() {
   await photoContext.lifecycle.close()
   equal(effects.size, 0, 'app close removes its image before host close')
   for (const mode of ['normal', 'setup', 'dispose', 'undisplay', 'view'] as const) await verifyPiuApp(mode)
+  await verifyDefaultApp()
   trace('ok\n')
 }
 

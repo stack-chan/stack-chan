@@ -3,6 +3,7 @@ import type IMU from 'imu'
 import { createButtonInputEvent } from 'input-event'
 import { ResourceScope } from 'owned-resources'
 import { StackchanError } from 'stackchan/errors'
+import type { ButtonName as ButtonRole, HeadTouchEvent, MotionEvent } from 'stackchan/extensions/input'
 import Time from 'time'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
@@ -27,7 +28,8 @@ export class StackchanRuntimeInput {
   #touch: Touch | undefined
   #touchPanel: TouchPanel | undefined
   #closed = false
-  #pressListeners = new Set<() => void>()
+  #pressListeners = new Map<ButtonRole, Set<() => void>>()
+  #motionListeners = new Set<(event: MotionEvent) => void>()
   #devices: ResourceScope
 
   constructor(params: RuntimeInputConstructorParam, devices?: ResourceScope) {
@@ -46,10 +48,13 @@ export class StackchanRuntimeInput {
         this.#devices,
         () => !this.#closed,
         (name, pressed) => {
-          if (this.#closed || !pressed || name !== this.primaryButton) return
-          for (const listener of [...this.#pressListeners]) {
-            if (this.#closed) break
-            listener()
+          if (this.#closed || !pressed) return
+          for (const [role, listeners] of this.#pressListeners) {
+            if (name !== this.buttonFor(role)) continue
+            for (const listener of [...listeners]) {
+              if (this.#closed) return
+              if (listeners.has(listener)) listener()
+            }
           }
         },
       )
@@ -63,16 +68,80 @@ export class StackchanRuntimeInput {
   }
 
   get primaryButton(): 'a' | 'b' | 'c' | undefined {
-    return (['a', 'b', 'c'] as const).find((name) => this.#button?.[name] !== undefined)
+    return this.buttonFor('primary')
   }
 
-  subscribePress(listener: () => void): () => void {
-    if (this.#closed) throw new StackchanError('CLOSED', 'Input is closed')
-    if (!this.primaryButton) throw new StackchanError('UNSUPPORTED', 'No primary button is available')
-    this.#pressListeners.add(listener)
-    return () => {
-      this.#pressListeners.delete(listener)
+  buttonFor(role: ButtonRole): 'a' | 'b' | 'c' | undefined {
+    return (['a', 'b', 'c'] as const).filter((name) => this.#button?.[name] !== undefined)[
+      ['primary', 'secondary', 'tertiary'].indexOf(role)
+    ]
+  }
+
+  subscribePress(listener: () => void, role: ButtonRole = 'primary'): () => void {
+    this.#assertOpen()
+    if (!this.buttonFor(role)) throw new StackchanError('UNSUPPORTED', `No ${role} button is available`)
+    let listeners = this.#pressListeners.get(role)
+    if (!listeners) {
+      listeners = new Set()
+      this.#pressListeners.set(role, listeners)
     }
+    listeners.add(listener)
+    return () => {
+      listeners.delete(listener)
+      if (!listeners.size) this.#pressListeners.delete(role)
+    }
+  }
+
+  subscribeHeadTouch(listener: (event: HeadTouchEvent) => void): () => void {
+    this.#assertOpen()
+    if (!this.#touchPanel) throw new StackchanError('UNSUPPORTED', 'Head touch is unavailable')
+    let active = true
+    const remove = this.#touchPanel.subscribe((event) => {
+      if (active && !this.#closed)
+        listener(Object.freeze({ gesture: event.gesture, tapDurationMs: event.tap?.durationMs }))
+    })
+    return () => {
+      if (!active) return
+      active = false
+      remove()
+    }
+  }
+
+  subscribeMotion(listener: (event: MotionEvent) => void): () => void {
+    this.#assertOpen()
+    const imu = this.#imu
+    if (!imu) throw new StackchanError('UNSUPPORTED', 'Motion input is unavailable')
+    if (!this.#motionListeners.size) {
+      if (imu.onEvent) throw new StackchanError('BUSY', 'Motion input is already in use')
+      imu.onEvent = this.#onMotion
+      try {
+        imu.start()
+      } catch (error) {
+        imu.onEvent = undefined
+        imu.stop()
+        throw error
+      }
+    }
+    this.#motionListeners.add(listener)
+    return () => {
+      if (!this.#motionListeners.delete(listener)) return
+      if (!this.#motionListeners.size && imu.onEvent === this.#onMotion) {
+        imu.onEvent = undefined
+        imu.stop()
+      }
+    }
+  }
+
+  #onMotion = (event: MotionEvent): void => {
+    const input = Object.freeze({ motion: event.motion })
+    for (const listener of [...this.#motionListeners]) {
+      if (this.#closed) return
+      if (this.#motionListeners.has(listener)) listener(input)
+    }
+  }
+
+  #assertOpen(): void {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Input is closed')
   }
 
   get button() {
@@ -94,6 +163,7 @@ export class StackchanRuntimeInput {
   close(): Promise<void> {
     this.#closed = true
     this.#pressListeners.clear()
+    this.#motionListeners.clear()
     return this.#devices.close()
   }
 }

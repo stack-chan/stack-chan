@@ -14,6 +14,7 @@ const allLessons = [
   '07-recording',
   'look_around',
   'monologue',
+  'face',
 ]
 const requested = process.argv.slice(2)
 assert.ok(
@@ -89,13 +90,16 @@ try {
     CanvasRenderingContext2D.prototype.putImageData = function (image, ...args) {
       if (image.width === 320 && image.height === 240) {
         let colored = 0
+        let brightness = 0
         for (let index = 0; index < image.data.length; index += 4) {
           const r = image.data[index],
             g = image.data[index + 1],
             b = image.data[index + 2]
           if (Math.max(r, g, b) - Math.min(r, g, b) > 50) colored++
+          brightness += r + g + b
         }
         window.sdkLessonScreenColors = colored
+        window.sdkLessonScreenBrightness = brightness / (image.width * image.height * 3)
       }
       return putImage.call(this, image, ...args)
     }
@@ -179,6 +183,13 @@ try {
       timeout: 45_000,
     })
   await Promise.all([ready(), page.goto(`${baseUrl}/simulator/`, { waitUntil: 'networkidle' })])
+  await page.getByRole('button', { name: 'A', exact: true }).click()
+  await page.waitForFunction(() => window.sdkLessonMotion.some((move) => Math.abs(move.y) + Math.abs(move.p) > 0.001))
+  await page.getByRole('button', { name: 'A', exact: true }).click()
+  const brightness = await page.evaluate(() => window.sdkLessonScreenBrightness)
+  await page.getByRole('button', { name: 'C', exact: true }).click()
+  await page.waitForFunction((before) => Math.abs(window.sdkLessonScreenBrightness - before) > 20, brightness)
+  assert.deepEqual(errors, [], 'the default SDK app responds to the WASM buttons')
   for (let index = 0; index < lessons.length; index += 1) {
     await Promise.all([ready(), page.getByLabel('MODを追加', { exact: true }).setInputFiles(archives[index])])
     if (lessons[index] === '02-tone') {
@@ -186,6 +197,11 @@ try {
         await page.evaluate(() => window.sdkLessonAudio.tones.includes(440)),
         'tone lesson must reach Web Audio'
       )
+    }
+    if (lessons[index] === 'face') {
+      await page.waitForFunction(() => window.sdkLessonScreenColors > 200)
+      const first = await page.evaluate(() => window.sdkLessonScreenColors)
+      await page.waitForFunction((before) => Math.abs(window.sdkLessonScreenColors - before) > 100, first)
     }
     if (lessons[index] === '03-input') {
       await page.getByRole('button', { name: 'A', exact: true }).click()

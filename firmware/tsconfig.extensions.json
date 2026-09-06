@@ -22,6 +22,8 @@
   "include": [
     "sdk/extensions/**/*.ts",
     "mods/examples/stackchan_minigames/*.ts",
-    "mods/examples/mini_app_ui_sample/*.ts"
+    "mods/examples/mini_app_ui_sample/*.ts",
+    "host/app/default-app/*.ts",
+    "mods/examples/face/*.js"
   ]
 }

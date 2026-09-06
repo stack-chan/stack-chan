@@ -14,9 +14,15 @@ export type CapabilityId =
   | 'audio.recording'
   | 'audio.playback'
   | 'input.primary'
+  | 'input.secondary'
+  | 'input.tertiary'
+  | 'input.headTouch'
+  | 'input.motion'
+  | 'lighting'
   | 'motion'
   | 'camera'
   | 'ui.piu'
+  | 'ui.controls'
 export type CapabilityStatus =
   | { readonly availability: 'native' | 'simulated' }
   | { readonly availability: 'unavailable'; readonly reason: string }
@@ -38,6 +44,8 @@ export interface AppContext {
   }
   readonly time: {
     sleep(durationMs: number): Promise<void>
+    /** Run once after durationMs; disposing the registration also cancels its handler. */
+    after(durationMs: number, handler: TaskHandler): Unsubscribe
     /** One invocation at a time; wait intervalMs after each completion. */
     every(intervalMs: number, handler: TaskHandler): Unsubscribe
   }

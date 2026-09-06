@@ -25,9 +25,7 @@
     "camera-preview-utils": "../../modules/ui/views/camera-preview/camera-preview-utils",
     "led": "../../modules/lighting/wasm/led",
     "py32-led": "../../modules/lighting/wasm/py32-led",
-    "app-behavior": "../../app/app-behavior",
-    "app-default-behavior": "../../app/default-behavior/behavior",
-    "app-default-behavior/on-context-created": "../../app/default-behavior/on-context-created"
+    "app-behavior": "../../app/app-behavior"
   },
   "preload": [
     "wasm-audio-bridge",
@@ -35,8 +33,7 @@
     "runtime-context",
     "touch-panel",
     "touch-panel-gesture",
-    "imu-motion",
-    "app-default-behavior"
+    "imu-motion"
   ],
   "strip": [],
   "creation": {

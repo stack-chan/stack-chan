@@ -1,9 +1,7 @@
-import type { StackchanAppBehavior } from 'app-behavior'
+import { defineApp } from 'stackchan'
 
-const behavior: StackchanAppBehavior = {
-  onContextCreated() {
+export default defineApp({
+  setup() {
     throw new Error('[MiniApp Lin Smoke] SDK archive MOD was not loaded')
   },
-}
-
-export default behavior
+})

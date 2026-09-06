@@ -154,17 +154,11 @@ export async function createStackchanContext(
     ['openai', (param) => new OpenAITTS(param as ConstructorParameters<typeof OpenAITTS>[0])],
     ['stackchan-voice', (param) => new StackchanVoiceTTS(param as ConstructorParameters<typeof StackchanVoiceTTS>[0])],
   ])
-  const uiControllers = new Map<string, (param: unknown) => RobotUI>([
-    ['dog', (param) => createStackchanUI(new DogFace(), asUIOptions(param))],
-    ['simple', (param) => createStackchanUI(new SimpleFace(), asUIOptions(param))],
-    [
-      'image',
-      (param) => {
-        const options = asUIOptions(param)
-        return createStackchanUI(new ImageAvatarFace({ pack: options.avatar }), options)
-      },
-    ],
-    ['small-face', (param) => createStackchanUI(new SmallFace(), asUIOptions(param))],
+  const faces = new Map<string, (param: UIOptions) => PiuContainer>([
+    ['dog', () => new DogFace()],
+    ['simple', () => new SimpleFace()],
+    ['image', (options) => new ImageAvatarFace({ pack: options.avatar })],
+    ['small-face', () => new SmallFace()],
   ])
 
   const errors: string[] = []
@@ -182,13 +176,13 @@ export async function createStackchanContext(
   // UI
   const uiPrefs = preferences.ui
   const uiKey = uiPrefs.type ?? 'simple'
-  const UI = uiControllers.get(uiKey)
+  const Face = faces.get(uiKey)
 
-  if (!Driver || !TTS || !UI) {
+  if (!Driver || !TTS || !Face) {
     for (const [key, klass] of [
       [driverKey, Driver],
       [ttsKey, TTS],
-      [uiKey, UI],
+      [uiKey, Face],
     ]) {
       if (klass == null) {
         errors.push(`type "${key}" does not exist`)
@@ -202,7 +196,8 @@ export async function createStackchanContext(
   const resources = new RuntimeResources()
   try {
     const driver = ownMotionDriver(resources.motion, Driver(driverPrefs))
-    const ui = ownUI(resources.ui, UI(uiPrefs))
+    const uiOptions = asUIOptions(uiPrefs)
+    const ui = ownUI(resources.ui, createStackchanUI(Face(uiOptions), uiOptions))
     const tts = ownTTS(resources.audio, TTS(ttsPrefs))
 
     const touch = config.Touch ? resources.input.own(new Touch(config.Touch, createTouchOptions())) : undefined
@@ -250,15 +245,12 @@ export async function createStackchanContext(
             trace(`[main] skip py32 led config (missing/invalid ledPin): ${key}\n`)
             return []
           }
-          return [
-            [
-              key,
-              ownLed(
-                resources.lighting,
-                new PY32Led(candidate as { length?: number; ledPin?: number; address?: number }),
-              ),
-            ],
-          ]
+          const light = new PY32Led(candidate as { length?: number; ledPin?: number; address?: number })
+          if (!light.available) {
+            light.close()
+            return []
+          }
+          return [[key, ownLed(resources.lighting, light)]]
         }
         if (typeof candidate.pin !== 'number') {
           trace(`[main] skip led config (missing/invalid pin): ${key}\n`)
@@ -277,6 +269,7 @@ export async function createStackchanContext(
     const contextParams = {
       driver,
       ui,
+      restoreFace: () => ui.setFace(Face(uiOptions)),
       tts,
       ttsKind:
         config.wasm && ttsKey !== 'stackchan-voice'

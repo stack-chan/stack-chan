@@ -3,7 +3,10 @@ import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import type { AppContext } from '../../sdk/app.js'
+import { StackchanError } from '../../sdk/errors.js'
+import type { AppLighting } from '../../sdk/extensions/lighting.js'
 import type { PiuAppDefinition, ScreenContext } from '../../sdk/extensions/piu.js'
+import type { AppUI } from '../../sdk/extensions/ui.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../modules/testing/node-alias-package.js'
 import type { AppPorts } from './app-session.js'
 
@@ -12,6 +15,13 @@ async function setup() {
   writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackageSubpath(resolve(hostRoot, '..'), 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackage(resolve(hostRoot, '..'), 'stackchan', resolve(hostRoot, '../sdk/app.js'))
+  for (const name of ['input', 'ui'])
+    writeAliasPackageSubpath(
+      hostRoot,
+      'stackchan',
+      `extensions/${name}`,
+      resolve(hostRoot, `../sdk/extensions/${name}.js`),
+    )
   for (const name of ['owned-resources', 'cancellation', 'task-scope']) {
     writeAliasPackage(hostRoot, name, resolve(hostRoot, `app/${name}.js`))
   }
@@ -22,15 +32,38 @@ async function setup() {
 }
 
 class Clock {
+  now = 0
   jobs = new Set<() => void>()
-  after(_ms: number, callback: () => void): () => void {
+  due = new Map<() => void, number>()
+  after(ms: number, callback: () => void): () => void {
     this.jobs.add(callback)
+    this.due.set(callback, this.now + ms)
     return () => {
       this.jobs.delete(callback)
+      this.due.delete(callback)
     }
   }
   tick(): void {
-    for (const job of [...this.jobs]) if (this.jobs.delete(job)) job()
+    for (const job of [...this.jobs])
+      if (this.jobs.delete(job)) {
+        this.due.delete(job)
+        job()
+      }
+  }
+  async advance(ms: number): Promise<void> {
+    const end = this.now + ms
+    await flush()
+    for (;;) {
+      const next = [...this.due].sort((a, b) => a[1] - b[1])[0]
+      if (!next || next[1] > end) break
+      this.now = next[1]
+      this.due.delete(next[0])
+      this.jobs.delete(next[0])
+      next[0]()
+      await flush()
+    }
+    this.now = end
+    await flush()
   }
 }
 
@@ -51,6 +84,7 @@ function fixture() {
       lookAt() {},
       lookAway() {},
       async stop() {},
+      async relax() {},
       async close() {},
     },
     face: { setEmotion() {}, setMouthOpen() {}, setColor() {} },
@@ -84,6 +118,266 @@ function fixture() {
   }
   return { clock, presses, errors, ports }
 }
+
+function controlsFixture() {
+  const f = fixture()
+  const items = new Map<string, { value?: string | boolean; select(value?: string): void }>()
+  let resets = 0
+  f.ports.controls = {
+    faceStyle: 'default',
+    closeMenu() {},
+    setFaceStyle() {},
+    setHandAnimation() {},
+    setEmoticon() {},
+    localize: (key) => key,
+    resetAppearance() {
+      resets++
+    },
+    registerMenu(view, select) {
+      const item = { value: view.value, select }
+      items.set(view.id, item)
+      return {
+        setValue(value) {
+          item.value = value
+        },
+        close() {
+          items.delete(view.id)
+        },
+      }
+    },
+  }
+  return { ...f, items, resets: () => resets }
+}
+
+test('the petting deadline cancels a slow motion and manual stop cancels its later restoration', async () => {
+  const { AppSession } = await setup()
+  const { installCompanion } = await import('./default-app/companion.js')
+  const f = controlsFixture()
+  let touch: Parameters<NonNullable<AppPorts['input']['subscribeHeadTouch']>>[0] | undefined
+  f.ports.input.subscribeHeadTouch = (handler) => {
+    touch = handler
+    return () => {
+      touch = undefined
+    }
+  }
+  f.ports.capabilities.get = (id) =>
+    id === 'input.headTouch' ? { availability: 'simulated' } : { availability: 'unavailable', reason: 'unused' }
+  const events: { action: string; at: number }[] = []
+  let slow = true
+  f.ports.motion = {
+    ...f.ports.motion,
+    info: { availability: 'simulated', canRelax: false, feedback: 'estimated', yawDeg: [-60, 60], pitchDeg: [-45, 30] },
+    async move(_target, options) {
+      events.push({ action: 'move', at: f.clock.now })
+      if (slow)
+        await new Promise<void>((_resolve, reject) =>
+          options.signal?.subscribe((error) => {
+            events.push({ action: 'cancel', at: f.clock.now })
+            reject(error)
+          }),
+        )
+      return { completion: 'estimated' }
+    },
+    async stop() {
+      events.push({ action: 'stop', at: f.clock.now })
+    },
+  }
+  const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  let companion: ReturnType<typeof installCompanion> | undefined
+  await session.start({
+    apiVersion: 2,
+    setup(app) {
+      companion = installCompanion(app, { react() {} })
+    },
+  })
+  const pet = async () => {
+    assert.ok(touch)
+    touch({ gesture: 'forwardSwipe' })
+    await flush()
+    touch({ gesture: 'backwardSwipe' })
+    await flush()
+    await f.clock.advance(0)
+  }
+  await pet()
+  await f.clock.advance(4999)
+  assert.deepEqual(events, [{ action: 'move', at: 0 }])
+  slow = false
+  await f.clock.advance(1)
+  assert.deepEqual(events, [
+    { action: 'move', at: 0 },
+    { action: 'cancel', at: 5000 },
+    { action: 'move', at: 5000 },
+    { action: 'stop', at: 5000 },
+  ])
+  slow = true
+  await pet()
+  assert.ok(companion)
+  await companion.stop()
+  const stopped = events.length
+  await f.clock.advance(6000)
+  assert.equal(events.length, stopped, 'a stopped reaction never restores an old pose later')
+  f.ports.motion.move = async () => {
+    events.push({ action: 'failed', at: f.clock.now })
+    throw new Error('motion failed')
+  }
+  await pet()
+  const failed = events.length
+  await f.clock.advance(6000)
+  assert.equal(events.length, failed, 'a failed reaction never retries motion at the old deadline')
+  assert.equal(f.errors.length, 1)
+  assert.ok(f.errors[0] instanceof StackchanError)
+  assert.equal(f.errors[0].code, 'IO')
+  await session.close()
+  assert.equal(f.clock.jobs.size, 0)
+})
+
+test('menu subscriptions and delayed tasks cancel together without reentry or retained registrations over 100 lifetimes', async () => {
+  const { AppSession, defineApp } = await setup()
+  for (let cycle = 0; cycle < 100; cycle++) {
+    const f = controlsFixture()
+    const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+    await session.start(defineApp({ setup() {} }))
+    const view = session.context.ui as AppUI
+    let calls = 0
+    const remove = view.addAction({ id: 'work', label: 'Work' }, async (task) => {
+      calls++
+      await task.sleep(100)
+      calls++
+    })
+    const item = f.items.get('work')
+    assert.ok(item)
+    const select = item.select
+    select()
+    select()
+    await flush()
+    assert.equal(calls, 1)
+    remove()
+    select()
+    session.context.time.after(50, () => {
+      calls++
+    })
+    await session.close()
+    f.clock.tick()
+    await flush()
+    assert.equal(calls, 1)
+    assert.equal(f.items.size, 0)
+    assert.equal(f.clock.jobs.size, 0)
+    assert.equal(session.resourceCount, 0)
+    assert.equal(session.taskCount, 0)
+    assert.deepEqual(f.errors, [])
+  }
+})
+
+test('a one-shot timer relinquishes its registration after completion and its disposer cancels an active handler', async () => {
+  const { AppSession } = await setup()
+  const f = fixture()
+  const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  let calls = 0
+  session.context.time.after(10, () => {
+    calls++
+  })
+  await flush()
+  f.clock.tick()
+  await flush()
+  f.clock.tick()
+  await flush()
+  assert.equal(calls, 1)
+  assert.equal(session.resourceCount, 0)
+  const remove = session.context.time.after(0, async (task) => {
+    calls++
+    await task.sleep(100)
+    calls++
+  })
+  await flush()
+  f.clock.tick()
+  await flush()
+  assert.equal(calls, 2)
+  remove()
+  await flush()
+  f.clock.tick()
+  await flush()
+  assert.equal(calls, 2)
+  assert.equal(f.clock.jobs.size, 0)
+  await session.close()
+})
+
+test('menu choices preserve external edits, roll back rejected selections and snapshot their allowed values', async () => {
+  const { AppSession } = await setup()
+  const f = controlsFixture()
+  const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  const view = session.context.ui as AppUI
+  const choices = [
+    { value: 'one', label: 'One' },
+    { value: 'two', label: 'Two' },
+  ]
+  let failure = false
+  const control = view.addChoice(
+    { id: 'choice', label: 'Choice', value: 'one', options: choices },
+    async (_value, task) => {
+      await task.sleep(10)
+      if (failure) throw new Error('update failed')
+    },
+  )
+  const item = f.items.get('choice')
+  assert.ok(item)
+  choices[0].value = 'mutated'
+  assert.throws(() => control.setValue('mutated'), { code: 'INVALID_ARGUMENT' })
+  item.select('two')
+  await flush()
+  control.setValue('one')
+  f.clock.tick()
+  await flush()
+  assert.equal(item.value, 'one', 'later app changes win over stale handler completion')
+  failure = true
+  item.select('two')
+  await flush()
+  f.clock.tick()
+  await flush()
+  assert.equal(item.value, 'one')
+  assert.equal(f.errors.length, 1)
+  assert.throws(() => view.addAction({ id: 'choice', label: 'Duplicate' }, () => {}), { code: 'INVALID_ARGUMENT' })
+  for (const options of [[], [null], [{ value: 'bad', label: '' }]] as unknown as { value: string; label: string }[][])
+    assert.throws(() => view.addChoice({ id: 'invalid', label: 'Invalid', value: 'bad', options }, () => {}), {
+      code: 'INVALID_ARGUMENT',
+    })
+  control.close()
+  assert.throws(() => control.setValue('one'), { code: 'CLOSED' })
+  await session.close()
+})
+
+test('appearance and used lights return to the host even when another app resource fails to close', async () => {
+  const { AppSession } = await setup()
+  const f = controlsFixture()
+  const events: string[] = []
+  f.ports.lighting = {
+    names: ['eyes'],
+    color() {
+      throw new Error('output failed')
+    },
+    rainbow: (name) => {
+      events.push(`rainbow:${name}`)
+    },
+    off: (name) => {
+      events.push(`off:${name}`)
+    },
+  }
+  const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  const lights = (session.context as AppContext & { lighting: AppLighting }).lighting
+  const view = session.context.ui as AppUI
+  view.setFaceStyle('dog')
+  view.setEmoticon('heart')
+  lights.rainbow('eyes')
+  assert.throws(() => lights.rainbow('missing'), { code: 'INVALID_ARGUMENT' })
+  assert.throws(() => lights.color('eyes', { r: 0, g: 0, b: 0 }), { code: 'IO' })
+  f.ports.audio.close = async () => {
+    throw new Error('audio close failed')
+  }
+  await assert.rejects(session.close(), /audio close failed/)
+  assert.deepEqual(events, ['rainbow:eyes', 'off:eyes'])
+  assert.equal(f.resets(), 1)
+  assert.throws(() => view.setEmoticon('heart'), { code: 'CLOSED' })
+  assert.throws(() => lights.off('eyes'), { code: 'CLOSED' })
+})
 
 test('screen registration shares the app lifetime and provides only the owning SDK context to factories', async () => {
   const { AppSession } = await setup()

@@ -54,6 +54,7 @@ type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
     remoteConversationSession?: RemoteConversationSession
     closeHandlers?: ReadonlyArray<() => void | Promise<void>>
     ui: RobotUI
+    restoreFace?: () => void
   }
 
 export class StackchanRuntimeContext implements StackchanContext {
@@ -81,6 +82,7 @@ export class StackchanRuntimeContext implements StackchanContext {
   #uiRuntime: StackchanRuntimeUI
   #updateFaceHandler: Timer | undefined
   #closed = false
+  #simulated: boolean
   #devices: RuntimeResources
   #ownedResources: OwnedResources
   #shutdown: OwnedResources | undefined
@@ -90,6 +92,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#ownedResources = new OwnedResources(params.closeHandlers)
     this.#devices = devices
     this.#paused = false
+    this.#simulated = !!params.simulated
   }
 
   /** Construction has one asynchronous completion, including rollback on error. */
@@ -135,6 +138,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#uiRuntime = new StackchanRuntimeUI(
       params.ui,
       {
+        restoreFace: params.restoreFace,
         getContext: () => this,
         getPose: () => this.#motionController.pose,
         getGazePoint: () => (this.#appMotion ? this.#appMotion.gazePoint : this.#motionController.gazePoint),
@@ -215,8 +219,57 @@ export class StackchanRuntimeContext implements StackchanContext {
     }
     const primaryListeners = new Set<() => void>()
     const primaryKey = 'sdkPrimaryAction'
+    const uiRuntime = this.#uiRuntime
+    // WASM has no light output bridge; its legacy stub is not a simulated device.
+    const lightNames = Object.freeze(this.#simulated ? [] : Object.keys(this.#lightingRuntime.led))
     const session = new AppSession(
       {
+        controls: {
+          get faceStyle() {
+            return uiRuntime.faceStyle
+          },
+          setFaceStyle: (style) => this.#uiRuntime.setFaceStyle(style),
+          setHandAnimation: (animation) => this.#uiRuntime.setHandAnimation(animation),
+          setEmoticon: (emoticon) => this.#uiRuntime.setEmoticon(emoticon),
+          localize: (key, parameters) => this.#i18nCapability.localize(key, parameters),
+          closeMenu: () => this.#uiRuntime.ui.closeDrawer(),
+          resetAppearance: () => this.#uiRuntime.resetAppearance(),
+          registerMenu: (view, onSelect) => {
+            const ui = this.#uiRuntime.ui
+            const key = `sdk:menu:${view.id}`
+            const update = (value?: string | boolean) => {
+              ui.addDrawerButton({
+                key,
+                label: view.label,
+                kind: view.kind,
+                value: typeof value === 'string' ? value : undefined,
+                options: view.options ? [...view.options] : undefined,
+              })
+              if (typeof value === 'boolean') ui.setDrawerButtonState(key, value)
+            }
+            try {
+              if (!ui.bindDrawerAction(key, onSelect)) throw new StackchanError('UNSUPPORTED', 'Menus are unavailable')
+              update(view.value)
+            } catch (error) {
+              try {
+                ui.unbindDrawerAction(key)
+              } finally {
+                ui.removeDrawerButton(key)
+              }
+              throw error
+            }
+            return {
+              setValue: update,
+              close: () => {
+                try {
+                  ui.unbindDrawerAction(key)
+                } finally {
+                  ui.removeDrawerButton(key)
+                }
+              },
+            }
+          },
+        },
         registerScreen: (definition) => this.#uiRuntime.ui.miniApps.register(definition),
         motion,
         camera: this.#cameraRuntime.createCaptureSession({
@@ -238,9 +291,18 @@ export class StackchanRuntimeContext implements StackchanContext {
           },
         },
         audio: this.#audioRuntime.createAppSession(),
+        lighting: {
+          names: lightNames,
+          color: (name, { r, g, b }) => this.#lightingRuntime.lightOn(name, r, g, b),
+          rainbow: (name) => this.#lightingRuntime.lightRainbow(name),
+          off: (name) => this.#lightingRuntime.lightOff(name),
+        },
         input: {
-          subscribePress: (handler) => {
-            if (this.#inputRuntime.primaryButton) return this.#inputRuntime.subscribePress(handler)
+          subscribeHeadTouch: (handler) => this.#inputRuntime.subscribeHeadTouch(handler),
+          subscribeMotion: (handler) => this.#inputRuntime.subscribeMotion(handler),
+          subscribePress: (handler, name = 'primary') => {
+            if (name !== 'primary' || this.#inputRuntime.primaryButton)
+              return this.#inputRuntime.subscribePress(handler, name)
             const ui = this.#uiRuntime.ui
             if (primaryListeners.size === 0) {
               if (
@@ -275,6 +337,10 @@ export class StackchanRuntimeContext implements StackchanContext {
         },
         capabilities: {
           get: (id) => {
+            const present = (available: boolean) =>
+              available
+                ? { availability: this.#simulated ? ('simulated' as const) : ('native' as const) }
+                : { availability: 'unavailable' as const, reason: `${id} is unavailable on this device` }
             switch (id) {
               case 'motion':
                 return motion.info
@@ -282,7 +348,18 @@ export class StackchanRuntimeContext implements StackchanContext {
                 return this.#cameraRuntime.info
               case 'input.primary':
               case 'ui.piu':
-                return { availability: 'native' }
+              case 'ui.controls':
+                return present(true)
+              case 'input.secondary':
+                return present(!!this.#inputRuntime.buttonFor('secondary'))
+              case 'input.tertiary':
+                return present(!!this.#inputRuntime.buttonFor('tertiary'))
+              case 'input.headTouch':
+                return present(!!this.#inputRuntime.touchPanel)
+              case 'input.motion':
+                return present(!!this.#inputRuntime.imu)
+              case 'lighting':
+                return present(lightNames.length > 0)
               case 'audio.speech':
                 return this.#audioRuntime.audioStatus('speech')
               case 'audio.clips':

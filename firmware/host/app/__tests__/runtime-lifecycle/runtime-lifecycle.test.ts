@@ -72,6 +72,7 @@ async function run(): Promise<void> {
           lookAt() {},
           lookAway() {},
           async stop() {},
+          async relax() {},
           async close() {},
         },
         face: { setEmotion() {}, setColor() {}, setMouthOpen() {} },

@@ -71,10 +71,10 @@ python3 docs/architecture/evidence/firmware-retirement/measure.py f525e97 --file
 
 | 現存経路 | 主な利用者 | 残す先・撤去条件 |
 | --- | --- | --- |
-| `app-behavior-resolver` の世代1・フック継承、`app-main` の世代別起動 | 既定動作、未移行 MOD | ホストの起動・設定はMOD評価前へ分離済み。native/WASMの二重ループとフック配列の実行を撤去。既定動作と残す MOD が `defineApp` になった時点で世代分岐・継承を削除 |
-| `runtime-context` の flat メソッドと namespaced facade、`capabilities` の raw 公開型 | 既定動作、旧 MOD、Dock などのホスト統合 | ユーザーアプリは SDK、ホスト統合は非公開 port へ移す。両方の利用者がなくなった項目からメソッド・型・exports を削除 |
-| `RuntimeAudio.say` の `Maybe`、`playAudio` の `boolean`、raw `record`、`useTTS` | 既定動作の録音デモ、AI・応援・ビーコン・Blockly | `say` / `playClip` / `record` / `play` と provider の選択へ移す。呼出側が残る間に変換 shim を増設しない |
-| raw button / IMU / headTouch と Timer の直接登録 | 既定動作、Blockly、センサー・通信サンプル | `AppSession` が所有する入力購読・周期処理と、必要なセンサー拡張へ移す。イベント上書き・独自 disposers・petting 判定の重複を削除 |
+| `app-behavior-resolver` の世代1、`app-main` の世代別起動 | 未移行 MOD | 既定動作は SDK / AppSession へ移行し、フック継承を撤去済み。残す MOD と Blockly が `defineApp` になった時点で世代分岐を削除 |
+| `runtime-context` の flat メソッドと namespaced facade、`capabilities` の raw 公開型 | 旧 MOD、Dock などのホスト統合 | ユーザーアプリは SDK、ホスト統合は非公開 port へ移す。両方の利用者がなくなった項目からメソッド・型・exports を削除 |
+| `RuntimeAudio.say` の `Maybe`、`playAudio` の `boolean`、raw `record`、`useTTS` | AI・応援・ビーコン・Blockly | `say` / `playClip` / `record` / `play` と provider の選択へ移す。呼出側が残る間に変換 shim を増設しない |
+| raw button / IMU / headTouch と Timer の直接登録 | Blockly、センサー・通信サンプル | 既定動作は AppSession 所有の購読・周期処理へ移行済み。残る利用者を入力・センサー拡張へ移し、raw 公開面を削除 |
 | miniapp 専用起動・公開型 | **撤去済み**。旧4例をSDKの2パッケージへ整理 | 通常の AppSession に画面登録を接続。専用 Compartment・登録関数・attenuated Piu module・型の複製を削除。内部 viewport / registry はホストの画面管理として残す |
 | 旧設定名の読み替えと `mod/config` の優先順位 | 旧 MOD、起動処理・設定 UI | SettingsService と SDK 設定・アプリ宣言へ揃える。設定画面からの復旧と適用時点を保持した上で fallback を削除 |
 | API 1 / schema 1 の archive 読込・配布 | CLI、SD、WebSerial、Gallery、WASM、Blockly | 残す全生成・配布経路を SDK 世代2へ揃えて旧 archive を起動前に拒否。再生成手順を案内。XS・チップ・能力の検査は保持 |
@@ -104,13 +104,13 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 | `cheerup_ws` | 統合 → 応援アプリの WS 入力 | WebSocket 入力と上記動作。既存ペイロードを保持 | 同上と固定接続先の直書き。未着手 |
 | `codex_voice` | 移行 → 遠隔会話アプリ | 会話・USB 音声・headTouch・UI。既存の承認／停止操作を保持 | raw touchPanel・drawer と会話の直接参照。未着手 |
 | `dynamixel` | 統合 → サーボ診断・設定 | DYNAMIXEL の ID / モード / 状態確認 | 通常教材からの直接 protocol・UART 所有。機種サポートは残す。未着手 |
-| `face` | 移行 → 顔の拡張例 | 表情・色・balloon・emoticon の組合せ | 手動 Timer・Piu effect の直接生成。基本の表情は教材01へ案内。拡張部分は未着手 |
+| `face` | **移行済み** → UI 拡張例 | 表情・色・balloon・emoticon と翻訳メニュー | SDK の UI 拡張と所有された周期処理へ移行。手動 Timer・Piu effect の直接生成を削除。配置・フォントはホストの共通表示を使用 |
 | `face_tracker` | 移行 → UnitV2 追従例 | HTTP 入力拡張・注視、UnitV2 の結果形式 | raw HTTP request と座標変換を入力 adapter へ整理。未着手 |
 | `image_avatar_lite` | 移行 → 画像顔の拡張例 | 画像 pack 選択・描画・表情 | 内部 `parts/*` と face controller への依存。未着手 |
 | `light` | 統合 → ボード診断の LED 操作 | lighting 拡張・主入力、対応 LED の全モード | raw LED、A/B/C 前提。未着手 |
 | `lip_sync` | 移行 → 音量観測の例 | 音声入力のレベル観測・口の開閉 | microphone の `onReadable` 上書き・read/start。録音後の再生教材へ単純統合するとリアルタイム観測が失われるので別機能として残す |
 | `local_peer_hello` | 移行 → 端末間通信の例 | ローカル通信・設定・UI、文字数制限と入力検証 | raw Timer と drawer、アプリ外の通信寿命。未着手 |
-| `localized_drawer` | 統合 → UI 拡張例 | 言語設定・翻訳・選択 UI | context.i18n / drawer の直接公開。未着手 |
+| `localized_drawer` | **統合済み** → `face` | 翻訳メニュー・三言語の辞書 | 辞書を face へ集約し、SDK の localize / addAction へ移行。旧プログラムと単独 archive の manifest を削除 |
 | `look_around` | **移行済み** | SDK 主入力・周期処理・角度による注視 | 旧フック、A/B/C 上書き、Timer、内部 util import を削除。サーボなしの案内と停止を確認。実機は未検証 |
 | `m5stackchan_smoke` | 統合 → ボード診断 | サーボ電源とヘッド LED、CoreS3 の診断手順 | 通常アプリの Timer・raw torque 操作。機種固有の確認は保持。未着手 |
 | `mcp` | 移行 → MCP 拡張例 | ネットワーク・MCP server・表情・音声・設定 UI | 生の Wi-Fi 状態取得、別所有の server / drawer。未着手 |
@@ -126,7 +126,7 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 | `unit_temperature` | 移行 → センサー拡張例 | SHT3x・周期読取・UI | raw sensor の生成・Timer・drawer。未着手 |
 | `web_radio` | 移行 → ラジオアプリ | 音声ストリームの操作・局の選択・設定 | 会話・通常再生と別に物理出力を使う経路、MOD 内の UI と所有。未着手 |
 
-元の32例のうち6例を SDK の4パッケージへ移行・統合した。残る26例は未移行。実機・初学者の受入は別途必要であり、自動試験だけをもって全移行の完了とはしない。統合先を新設する際も、アプリごとに同じ接続・停止・状態管理をコピーしない。必要な公開拡張の契約と資源所有を決め、最初の利用者と一緒に実装・検証する。
+元の32例のうち8例を SDK の5パッケージへ移行・統合した。残る24例は未移行。実機・初学者の受入は別途必要であり、自動試験だけをもって全移行の完了とはしない。統合先を新設する際も、アプリごとに同じ接続・停止・状態管理をコピーしない。必要な公開拡張の契約と資源所有を決め、最初の利用者と一緒に実装・検証する。
 
 ## 操作の中継と所有の整理
 
@@ -141,4 +141,4 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 
 上表は整理対象の特定であり、統合が済んだという意味ではない。これまでに削除したものは、呼出側が存在しなかった `resolveAppBehaviors` と、旧 miniapp 用の loader / registration / attenuated Piu module、準備 callback を渡すだけになった `prepareAppLaunch`。稼働中の世代分岐を代替名で残したり、新しい互換層を追加したりしていない。
 
-次の実装単位は、既定アプリと残る26例の利用者を SDK へ移し、対応する旧フック・raw context・会話と設定の重複を撤去すること。別系統の資源所有を増やす前に、既存の所有者を使う。初学者受入と実機確認は [F12](firmware-sdk-redesign-progress.md) に従って別に記録する。
+次の実装単位は、残る24例と Blockly の利用者を SDK へ移し、対応する旧フック・raw context・会話と設定の重複を撤去すること。別系統の資源所有を増やす前に、既存の所有者を使う。初学者受入と実機確認は [F12](firmware-sdk-redesign-progress.md) に従って別に記録する。

@@ -10,7 +10,7 @@ function imports(path: string): Set<string> {
 test('host startup owns setup, and Piu construction stays in the settings view layer', () => {
   const host = imports('host/app/app-main.ts')
   const setup = imports('host/app/setup-mode.ts')
-  const app = imports('host/app/default-behavior/behavior.ts')
+  const app = imports('host/app/default-app/main.ts')
   assert.ok(host.has('host-startup'))
   assert.ok(host.has('setup-mode'))
   assert.ok(setup.has('settings-view'))

@@ -1,19 +1,20 @@
 import type { AppDefinition } from 'stackchan/app'
+import type { StackchanAppBehavior } from './app-behavior.js'
 
 export type AppBehaviorModules = {
   has(specifier: string): boolean
   importNow(specifier: string): unknown
 }
 
-export type AppProgram<TBehavior> = { generation: 1; behavior: TBehavior } | { generation: 2; app: AppDefinition }
+export type AppProgram = { generation: 1; behavior: StackchanAppBehavior } | { generation: 2; app: AppDefinition }
 
-/** V2 apps have their own lifecycle and never inherit V1 default hooks. */
-export function resolveAppProgram<TBehavior extends object>(
+/** The product default and installed SDK apps share one lifecycle. Legacy MODs inherit no hooks. */
+export function resolveAppProgram(
   modules: AppBehaviorModules,
-  defaultBehavior: TBehavior,
+  defaultApp: AppDefinition,
   expectedAppApiVersion?: 1 | 2,
-): AppProgram<TBehavior> {
-  if (!modules.has('mod')) return { generation: 1, behavior: defaultBehavior }
+): AppProgram {
+  if (!modules.has('mod')) return { generation: 2, app: defaultApp }
   const candidate = modules.importNow('mod')
   if (!candidate || typeof candidate !== 'object') throw new Error('MOD must export an app definition')
   const generation = 'apiVersion' in candidate ? candidate.apiVersion : 1
@@ -25,19 +26,5 @@ export function resolveAppProgram<TBehavior extends object>(
     }
     return { generation: 2, app: candidate as AppDefinition }
   }
-  return { generation: 1, behavior: mergeDefinedBehavior(defaultBehavior, candidate) }
-}
-
-function mergeDefinedBehavior<TBehavior extends object>(
-  defaultBehavior: TBehavior,
-  modBehavior: Partial<TBehavior>,
-): TBehavior {
-  const behavior = { ...defaultBehavior }
-  for (const key of Object.keys(modBehavior) as Array<keyof TBehavior>) {
-    const value = modBehavior[key]
-    if (value !== undefined) {
-      behavior[key] = value
-    }
-  }
-  return behavior
+  return { generation: 1, behavior: candidate as StackchanAppBehavior }
 }

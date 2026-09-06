@@ -1,10 +1,10 @@
 import { getHostSettingsService, loadModConfig, loadPreferenceConfig } from 'loadPreference'
 import { resolveAppProgram } from 'app-behavior-resolver'
-import defaultBehavior from 'app-default-behavior'
 import { installLaunchShortcut, type LaunchShortcutButton } from 'app-launch'
 import { requestBootRecoveryChoice } from 'boot-recovery-choice'
 import { startHostBootServices } from 'boot-services'
 import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
+import defaultApp from 'default-app/main'
 import { type StackchanDockRuntime, startStackchanDock } from 'dock'
 import { runHostStartup } from 'host-startup'
 import verifyInstalledMod from 'installed-mod'
@@ -16,8 +16,8 @@ import { ResourceScope } from 'owned-resources'
 import type { StackchanRuntimeContext } from 'runtime-context'
 import { startSetupMode } from 'setup-mode'
 import { showStartupFailure, showStartupSplash, showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
-import { applyTimezone } from 'timezone-settings'
 import Timer from 'timer'
+import { applyTimezone } from 'timezone-settings'
 
 type DeviceButton = {
   onChanged: (this: DeviceButton) => void
@@ -107,7 +107,7 @@ async function main() {
     // Reserve Dock buffers before MOD evaluation, Wi-Fi, and the runtime context.
     dockRuntime = startStackchanDock(Modules, loadModConfig())
     if (dockRuntime) bootResources.own(dockRuntime)
-    const program = resolveAppProgram(Modules, defaultBehavior, modContract?.appApiVersion)
+    const program = resolveAppProgram(Modules, defaultApp, modContract?.appApiVersion)
     if (program.generation === 1 && (await program.behavior.onLaunch?.()) === false) {
       installModManagerShortcut()
       await bootResources.close()

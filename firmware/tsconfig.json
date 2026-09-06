@@ -124,7 +124,6 @@
         "./node_modules/@moddable/typings/ble/*",
         "./typings/*",
         "./host/app/*",
-        "./host/app/default-behavior/*",
         "./host/modules/camera/*",
         "./host/modules/audio/*",
         "./host/modules/audio/wasm/*",
@@ -219,12 +218,7 @@
       "app-behavior": [
         "./host/app/app-behavior"
       ],
-      "app-default-behavior": [
-        "./host/app/default-behavior/behavior"
-      ],
-      "app-default-behavior/on-context-created": [
-        "./host/app/default-behavior/on-context-created"
-      ],
+      "default-app/*": ["./host/app/default-app/*"],
       "testing/assert": [
         "./host/modules/testing/assert"
       ],

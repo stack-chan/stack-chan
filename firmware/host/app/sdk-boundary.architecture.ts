@@ -39,7 +39,7 @@ test('public SDK resolves only its own modules and never imports a host implemen
   )
   for (const [name, path] of targets) assert.ok(files.has(path), `${name} must resolve to an SDK source`)
   for (const file of files) {
-    const project = file === piu ? extension : core
+    const project = file.startsWith(`${resolve('sdk/extensions')}/`) ? extension : core
     const source = project.program.getSourceFile(file)
     assert.ok(source)
     const inspect = (node: ts.Node) => {
@@ -83,11 +83,16 @@ test('every SDK app and its local helpers resolve only public SDK or app-local d
       const metadata = join(directory, 'stackchan-mod.json')
       return existsSync(metadata) && JSON.parse(readFileSync(metadata, 'utf8')).appApiVersion === 2
     })
-  assert.ok(apps.length > 0)
+  apps.push('host/app/default-app')
+  assert.ok(apps.length > 1)
   for (const directory of apps) {
-    const metadata = JSON.parse(readFileSync(join(directory, 'stackchan-mod.json'), 'utf8'))
+    const builtin = directory === 'host/app/default-app'
+    const metadata = builtin
+      ? { capabilities: ['ui.controls'] }
+      : JSON.parse(readFileSync(join(directory, 'stackchan-mod.json'), 'utf8'))
     const usesPiu = metadata.capabilities.includes('ui.piu')
-    const configPath = resolve(usesPiu ? 'tsconfig.extensions.json' : 'tsconfig.sdk.json')
+    const usesExtensions = usesPiu || metadata.capabilities.includes('ui.controls')
+    const configPath = resolve(usesExtensions ? 'tsconfig.extensions.json' : 'tsconfig.sdk.json')
     const config = api.parseConfigFile(configPath)
     assert.equal(config.options.checkJs, true)
     assert.equal(config.options.strict, true)

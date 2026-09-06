@@ -14,6 +14,10 @@ export default class PY32Led {
   #expander?: PY32IOExpanderLease
   #closed = false
 
+  get available(): boolean {
+    return !this.#closed && this.#expander !== undefined
+  }
+
   constructor(parameters: { length?: number; ledPin?: number; address?: number }) {
     this.length = Math.max(1, Math.min(PY32_LED_MAX_COUNT, parameters.length ?? 12))
     const expander = tryAcquireSharedPY32IOExpander(

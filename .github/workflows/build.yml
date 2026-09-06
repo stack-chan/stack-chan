@@ -213,6 +213,9 @@ jobs:
           npm run build:wasm
           npm run mod:build -- host/app/__tests__/mod-preflight/app-fixture/manifest.json --mode=release
           npm run mod:build -- host/app/__tests__/mod-preflight/startup-fixture/manifest.json --mode=release
+          for manifest in lessons/*/manifest.json mods/examples/{look_around,monologue,face}/manifest.json; do
+            npm run mod:build -- "$manifest"
+          done
       - name: Run responsive and editor browser tests
         working-directory: ./firmware
         run: |
@@ -220,7 +223,9 @@ jobs:
           npm --prefix ../web run test:i18n-visual
       - name: Check MOD recovery and host startup in the browser
         working-directory: ./web
-        run: node simulator/mod-preflight-visual.mjs
+        run: |
+          node simulator/mod-preflight-visual.mjs
+          node simulator/sdk-lessons-visual.mjs
       - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v7

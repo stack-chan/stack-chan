@@ -15,7 +15,7 @@ export default defineApp({
 })
 ```
 
-`defineApp` は `apiVersion: 2` とsetupを持つ定義を作ります。V2定義にはV1の既定動作をマージしません。setupは登録後に返り、アプリはホストが閉じるまで動作します。setupの失敗時は登録を解除し、同じ失敗を開始元へ返します。setupは任意で同期disposerを返せます。終了後に遅れて返ったdisposerも実行します。
+`defineApp` は `apiVersion: 2` とsetupを持つ定義を作ります。既定動作も同じ定義で起動します。インストールされたMODへの既定フックの継承はありません。setupは登録後に返り、アプリはホストが閉じるまで動作します。setupの失敗時は登録を解除し、同じ失敗を開始元へ返します。setupは任意で同期disposerを返せます。終了後に遅れて返ったdisposerも実行します。
 
 配布用の `stackchan-mod.json` には schema 2 / app API 2 と必要な host API 世代を記録します。教材では世代2を要求し、標準 manifest の `data` で同梱しています。XS のコンパイル版とは別の検査です。CLI・WebSerial の接続状況と、旧 MOD・SD・WASM・起動時の移行上の制約は [MOD の互換性検査](../../docs/architecture/mod-package-compatibility.md) を参照してください。
 
@@ -33,9 +33,11 @@ export default defineApp({
 | `ui.showImage(image)` / `hideImage()` | RGB565画像を表示。置換・非表示・アプリ終了で表示を外す |
 | `motion.info` | 使用可否、位置フィードバック、トルク解除の可否、設定済みの角度範囲を取得 |
 | `motion.lookAt(target)` / `lookAway()` | 注視先を設定・解除。単発移動を優先し、終了後に最新の注視先へ戻る |
+| `motion.relax()` | host API 4以上。停止を待ち、対応するドライバーのトルク解除完了を待つ。`canRelax: false` は `UNSUPPORTED` |
 | `motion.stop()` | 注視と待機中の移動を取り消し、進行中の動作の停止処理を待つ |
 | `input.onPress('primary', handler)` | 購読を登録し解除関数を返す。同じhandlerの実行中は連打を追加実行しない |
 | `time.sleep(durationMs)` | アプリに所属する待機。終了時にタイマーを解除してreject |
+| `time.after(durationMs, handler)` | host API 4以上。一度だけ実行。解除関数は待機と実行中handlerの両方を取り消す |
 | `time.every(intervalMs, handler)` | handlerの終了からintervalMs後に次回実行。例外は報告して周期処理を終了 |
 | `ui.showBalloon(text)` / `hideBalloon()` | アプリの吹き出し。終了時に消去 |
 | `capabilities.get(id)` | `native` / `simulated` / `unavailable` を取得。未対応時は理由を持つ |
@@ -92,7 +94,7 @@ app.input.onPress('primary', async (task) => {
 
 アプリ終了も停止処理を待ち、対応機種のトルクを解除してdetachします。PWMはトルク解除を持たず `canRelax: false` です。物理PWMやUARTの解放はホスト終了時に行います。WASMは `availability: 'simulated'`、nativeのnone設定や必要なサーボ電源の未検出は `unavailable` です。
 
-詳細な所有・停止契約と実機受入の残りは [motionの設計記録](../../docs/architecture/motion-operation-lifecycle.md) を参照してください。録音・会話・設定・Piu拡張のV2公開契約、全配布経路のV2互換性検査、既存MODの移行は引き続き未完了です。
+詳細な所有・停止契約と実機受入の残りは [motionの設計記録](../../docs/architecture/motion-operation-lifecycle.md) を参照してください。会話・設定の公開契約、残るMODとBlocklyの移行、実機および初学者による受入は引き続き未完了です。
 
 
 ## 一枚を撮って表示する
@@ -148,3 +150,36 @@ export default definePiuApp({
 `npm run check:sdk` は基本 SDK / 教材の `tsconfig.sdk.json` と、Piu 拡張 / 利用例の `tsconfig.extensions.json` を分けて strict 検査します。構成検査は全 API 2 パッケージを列挙し、`ui.piu` を宣言したものだけに Piu 拡張の import を許します。
 
 SDK の TypeScript ソースは `stackchan` というローカル npm workspace としても解決します。`firmware/` で `npm ci` すると型の正本へリンクされ、通常の `mod:build` でも同じ型を使います。ホスト SDK の実装を MOD archive へ複製する必要はありません。Gallery のソースをリポジトリー内でビルドする場合は、`web/` でも `npm ci` を実行してください。別のプロジェクトから使う場合は SDK ディレクトリーを `stackchan` のローカル依存として設定します。このパッケージはまだ npm へ公開していません。
+
+## メニュー・入力・LEDの拡張
+
+host API 4以上では、Piuの生成を伴わない操作を専用の入口から取得できます。いずれも `setup(app)` と同じアプリに所属し、別のセッションやコントローラーを作りません。
+
+```js
+import { defineApp } from 'stackchan'
+import { ui } from 'stackchan/extensions/ui'
+
+export default defineApp({
+  setup(app) {
+    const view = ui(app)
+    view.addAction({ id: 'hello', label: 'Hello' }, async (task) => {
+      view.closeMenu()
+      await app.audio.say('こんにちは', { signal: task.signal })
+    })
+    view.addToggle({ id: 'happy', label: 'Happy', value: false }, (enabled) => {
+      app.face.setEmotion(enabled ? 'happy' : 'neutral')
+      view.setEmoticon(enabled ? 'heart' : null)
+    })
+  },
+})
+```
+
+`addAction` は解除関数、`addChoice` / `addToggle` は `{ setValue, close }` を返します。選択項目には `options: [{ value, label, color? }]` を渡します。`color` は `#RRGGBB` の色見本です。`handler(value, task)` が成功した後に値を確定し、失敗時は前の表示へ戻します。実行中に `setValue` で変更した値を、古いhandlerの完了で上書きしません。同じ登録は実行中に再入せず、`close` とアプリ終了はhandlerのsignalも取り消します。
+
+IDはPiu画面と同じ1〜64文字の小文字ASCII英数字と区切り `. _ -`、labelは空白だけを除く1〜160文字です。選択肢は最大32個、valueは1〜80文字で一意にします。アプリの登録上限64件を他の入力・タイマーと共有します。
+
+`setFaceStyle` は `default / simple / dog / image`、`setHandAnimation` は `none / rock-paper-scissors / clap / thinking`、`setEmoticon` は `heart / angry / sweat / tear / sleepy / null` を受け取ります。`default` は本体設定の顔へ戻します。アプリ終了時は顔・色・表情・手・装飾を本体の初期状態へ戻します。`localize(key, parameters?)` は本体と同じ言語でアプリの辞書を解決します。[顔と翻訳メニューの実行例](../mods/examples/face/mod.js) と [ローカライズ](../docs/localization_ja.md) を参照してください。配布宣言は app API 2 / host API 4 / `capabilities: ["ui.controls"]` です。
+
+`input(app)` を `stackchan/extensions/input` から取得すると、`onPress('primary' | 'secondary' | 'tertiary', handler)`、`onHeadTouch(handler)`、`onMotion(handler)` を使えます。ボタン名は利用できるA/B/Cの順番で、primaryだけはボタンのない機種でメニューの「実行」を使えます。head touchは `gesture` と任意の `tapDurationMs`、motionは `motion` を持つ読み取り専用イベントです。時間はmsで、raw device・ticks・ドライバーは渡しません。実行前に `capabilities.get('input.headTouch')` などで対応を調べます。購読解除とアプリ終了で処理を取り消し、最後のmotion購読解除でIMUのポーリングを止めます。
+
+`lighting(app)` を `stackchan/extensions/lighting` から取得すると、`names` に実際に使えるLED名が並びます。`color(name, { r, g, b })`、`rainbow(name)`、`off(name)` を使い、アプリが使用したLEDは終了時に消灯します。WASMは出力bridgeを持たないため `lighting` は `unavailable` です。未検出のPY32も成功として扱いません。未対応は `UNSUPPORTED`、未知の名前は `INVALID_ARGUMENT`、機器例外は `IO` です。個々のLED範囲・点滅などの高度な操作は、残る旧サンプルの移行時に接続します。

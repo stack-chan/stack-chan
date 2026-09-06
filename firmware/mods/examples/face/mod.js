@@ -1,62 +1,35 @@
-import { Emoticon } from 'effects/emoticon'
-import { SpeechBalloon } from 'effects/speech-balloon'
-import { Emotion } from 'face-state'
-import { hslToRgb } from 'stackchan-util'
-import Timer from 'timer'
+import { defineApp } from 'stackchan'
+import { ui } from 'stackchan/extensions/ui'
 
-const param = {
-  right: 20,
-  top: 10,
-  width: 120,
-  font: 'k8x12-12',
-}
-
-const BALLOONS = [
-  new SpeechBalloon({
-    ...param,
-    text: 'happyyyyyyyy',
-  }),
-  new SpeechBalloon({
-    ...param,
-    text: 'ANGRY!!',
-  }),
-  new SpeechBalloon({
-    ...param,
-    text: 'SAD...',
-  }),
-  new SpeechBalloon({
-    ...param,
-    text: 'sleepy.',
-  }),
+/** @type {{ emotion: import('stackchan/app').Emotion, text: string }[]} */
+const states = [
+  { emotion: 'happy', text: 'happyyyyyyyy' },
+  { emotion: 'angry', text: 'ANGRY!!' },
+  { emotion: 'sad', text: 'SAD...' },
+  { emotion: 'sleepy', text: 'sleepy.' },
 ]
 
-const sleepy = new Emoticon({ key: 'sleepy', left: 10, top: 20, width: 50, height: 60 })
-
-const EMOTIONS = [Emotion.HAPPY, Emotion.ANGRY, Emotion.SAD, Emotion.SLEEPY]
-
-export function onContextCreated(robot) {
-  robot.face.setColor('primary', 0x22, 0x22, 0x22)
-  robot.face.setColor('primary', 0xfa, 0xfa, 0xfa)
-  let idx = 0
-  let d = null
-  Timer.repeat(() => {
-    if (d != null) {
-      robot.ui.removeEffect(d)
-    }
-    d = BALLOONS[idx]
-    robot.ui.addEffect(d)
-    robot.face.setEmotion(EMOTIONS[idx])
-    if (EMOTIONS[idx] === Emotion.SLEEPY) {
-      robot.ui.addEffect(sleepy)
-    } else {
-      robot.ui.removeEffect(sleepy)
-    }
-    idx = (idx + 1) % EMOTIONS.length
-  }, 3000)
-
-  let count = 0
-  Timer.repeat(() => {
-    robot.face.setColor('secondary', ...hslToRgb(count, 1, 0.3))
-    count = (count + 20) % 360
-  }, 1000)
-}
+export default defineApp({
+  setup(app) {
+    const view = ui(app)
+    app.face.setColor('primary', { r: 250, g: 250, b: 250 })
+    view.addAction({ id: 'language', label: view.localize('localizedDrawer.label') }, () => view.closeMenu())
+    let index = 0
+    app.time.every(3000, () => {
+      const { emotion, text } = states[index]
+      app.face.setEmotion(emotion)
+      view.showBalloon(text)
+      view.setEmoticon(emotion === 'sleepy' ? 'sleepy' : null)
+      index = (index + 1) % states.length
+    })
+    let hue = 0
+    app.time.every(1000, () => {
+      // Saturated HSL wheel at lightness 0.3, expressed as the SDK's RGB values.
+      /** @param {number} offset */
+      const channel = (offset) =>
+        Math.round(153 * Math.max(0, Math.min(1, Math.abs((((hue + offset) / 60) % 6) - 3) - 1)))
+      app.face.setColor('secondary', { r: channel(0), g: channel(240), b: channel(120) })
+      hue = (hue + 20) % 360
+    })
+  },
+})

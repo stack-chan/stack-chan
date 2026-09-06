@@ -30,6 +30,7 @@
       "./app-session",
       "./app-audio-session",
       "./host-startup"
-    ]
+    ],
+    "default-app/*": "./default-app/*"
   }
 }

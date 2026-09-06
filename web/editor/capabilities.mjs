@@ -13,6 +13,11 @@ export const CAPABILITIES = Object.freeze({
   HEAD_TOUCH: 'input.headTouch',
   DRAWER: 'ui.drawer',
   PIU: 'ui.piu',
+  CONTROLS: 'ui.controls',
+  MOTION_INPUT: 'input.motion',
+  PRIMARY: 'input.primary',
+  SECONDARY: 'input.secondary',
+  TERTIARY: 'input.tertiary',
   APPROVAL: 'ui.approval',
   NETWORK: 'connectivity.network',
   USB_AUDIO: 'audio.usb',
@@ -21,6 +26,10 @@ export const CAPABILITIES = Object.freeze({
 
 export const CAPABILITY_HOST_API_VERSIONS = Object.freeze({
   [CAPABILITIES.PIU]: 3,
+  [CAPABILITIES.CONTROLS]: 4,
+  [CAPABILITIES.MOTION_INPUT]: 4,
+  [CAPABILITIES.SECONDARY]: 4,
+  [CAPABILITIES.TERTIARY]: 4,
   [CAPABILITIES.APPROVAL]: 1,
   [CAPABILITIES.USB_AUDIO]: 1,
   [CAPABILITIES.REMOTE_CONVERSATION]: 1,
@@ -56,6 +65,10 @@ export const DEVICE_PROFILES = Object.freeze({
       CAPABILITIES.BUTTONS,
       CAPABILITIES.DRAWER,
       CAPABILITIES.PIU,
+      CAPABILITIES.CONTROLS,
+      CAPABILITIES.PRIMARY,
+      CAPABILITIES.SECONDARY,
+      CAPABILITIES.TERTIARY,
     ],
   },
   portable: {
@@ -67,7 +80,14 @@ export const DEVICE_PROFILES = Object.freeze({
     firmwareVersionPrefixes: [],
     chipPatterns: [],
     entrypoints: ['mod'],
-    capabilities: [CAPABILITIES.FACE, CAPABILITIES.SPEECH, CAPABILITIES.TONE, CAPABILITIES.MOTION],
+    capabilities: [
+      CAPABILITIES.FACE,
+      CAPABILITIES.SPEECH,
+      CAPABILITIES.TONE,
+      CAPABILITIES.MOTION,
+      CAPABILITIES.CONTROLS,
+      CAPABILITIES.PRIMARY,
+    ],
   },
 })
 

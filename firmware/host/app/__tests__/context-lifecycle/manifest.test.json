@@ -5,6 +5,7 @@
     "../../../modules/testing/manifest.json"
   ],
   "modules": {
+    "tests/default-app": "./default-app",
     "main": "./context-lifecycle.test"
   },
   "defines": {

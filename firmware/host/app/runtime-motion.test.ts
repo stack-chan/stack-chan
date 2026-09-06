@@ -111,6 +111,39 @@ function fixture(feedback: 'measured' | 'estimated' = 'estimated') {
   return { clock, driver, options, events, commands, position, config, errors }
 }
 
+test('relax retains ownership until torque release acknowledges, then permits another move', async () => {
+  const { StackchanRuntimeMotion } = await setup()
+  const f = fixture()
+  let release: ((error?: unknown) => void) | undefined
+  f.driver.setTorque = (enabled, done) => {
+    assert.equal(enabled, false)
+    release = done
+  }
+  const motion = new StackchanRuntimeMotion(f.driver, f.options)
+  const moving = motion.move({ yawDeg: 20, pitchDeg: 0 }, { durationMs: 500 })
+  const cancelled = assert.rejects(moving, { code: 'CANCELLED' })
+  await f.clock.advance(20)
+  let complete = false
+  const relaxing = motion.relax().then(() => {
+    complete = true
+  })
+  await f.clock.advance(0)
+  assert.ok(release)
+  assert.equal(complete, false)
+  await assert.rejects(motion.move({ yawDeg: 0, pitchDeg: 0 }, { durationMs: 0 }), { code: 'BUSY' })
+  release()
+  await relaxing
+  await cancelled
+  const next = motion.move({ yawDeg: 0, pitchDeg: 0 }, { durationMs: 0 })
+  await f.clock.advance(0)
+  await next
+  const closing = motion.close()
+  await f.clock.advance(0)
+  release()
+  await closing
+  assert.equal(f.clock.jobs.size, 0)
+})
+
 test('motion waits for the actual final trajectory write and reports estimated completion', async () => {
   const { StackchanRuntimeMotion } = await setup()
   const f = fixture()

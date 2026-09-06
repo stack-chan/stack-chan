@@ -160,6 +160,7 @@ test('host runtime imports use manifest module specifiers instead of relative pa
     .flatMap((root) => walkFiles(root))
     .filter(isSourceFile)
     .filter((path) => !isTestOrArchitectureTarget(path))
+    .filter((path) => !path.startsWith('host/app/default-app/'))
     .flatMap((sourcePath) =>
       extractRuntimeModuleSpecifierUses(readFileSync(sourcePath, 'utf8'))
         .filter(({ typeOnly }) => !typeOnly)

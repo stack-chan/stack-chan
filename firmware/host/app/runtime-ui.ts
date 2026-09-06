@@ -1,3 +1,4 @@
+import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
 import { createCameraPreviewDialog, prepareCameraPreviewFrame } from 'camera-preview'
 import type {
   DrawerButtonSpec,
@@ -8,6 +9,7 @@ import type {
   StackchanContext,
   UIEffect,
 } from 'capabilities'
+import { Emoticon } from 'effects/emoticon'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import {
   createFaceState,
@@ -21,6 +23,7 @@ import { OwnedResources, ResourceScope } from 'owned-resources'
 import { ownUI } from 'runtime-resources'
 import type { CameraImage } from 'stackchan/camera'
 import { StackchanError } from 'stackchan/errors'
+import type { Emoticon as EmoticonName, FaceStyle, HandAnimation } from 'stackchan/extensions/ui'
 import {
   type Pose,
   type Rotation,
@@ -41,6 +44,7 @@ type RuntimeUIPose = {
 }
 
 type RuntimeUIOptions = {
+  restoreFace?: () => void
   getContext: () => StackchanContext
   getPose: () => RuntimeUIPose
   getGazePoint: () => Vector3 | null | undefined
@@ -59,6 +63,8 @@ function sameBalloonOptions(current: ShowBalloonOptions | null, next: ShowBalloo
 }
 
 export class StackchanRuntimeUI {
+  #emoticon: UIEffect | undefined
+  #faceStyle: FaceStyle
   #image: UIEffect | undefined
   #balloon: UIEffect | null = null
   #balloonOptions: ShowBalloonOptions | null = null
@@ -80,6 +86,7 @@ export class StackchanRuntimeUI {
   constructor(ui: RobotUI, options: RuntimeUIOptions, devices?: ResourceScope) {
     this.#ui = ui
     this.#options = options
+    this.#faceStyle = 'default'
     this.#faceState = createFaceState()
     this.#emotion = this.#faceState.emotion
     this.#devices = devices ?? new ResourceScope()
@@ -94,6 +101,60 @@ export class StackchanRuntimeUI {
 
   get drawer(): DrawerCapability {
     return this.#drawerRegistry
+  }
+
+  get faceStyle(): FaceStyle {
+    return this.#faceStyle
+  }
+
+  setFaceStyle(style: FaceStyle): void {
+    this.#assertOpen()
+    if (style !== 'default' && style !== 'simple' && style !== 'dog' && style !== 'image')
+      throw new StackchanError('INVALID_ARGUMENT', 'Unknown face style')
+    if (style === 'default' && this.#options.restoreFace) this.#options.restoreFace()
+    else
+      this.#ui.setFace(style === 'dog' ? new DogFace({}) : style === 'image' ? new ImageFace({}) : new SimpleFace({}))
+    this.#faceStyle = style
+  }
+
+  setHandAnimation(animation: HandAnimation): void {
+    this.#assertOpen()
+    if (!['none', 'rock-paper-scissors', 'clap', 'thinking'].includes(animation))
+      throw new StackchanError('INVALID_ARGUMENT', 'Unknown hand animation')
+    this.#ui.setHandAnimation(animation)
+  }
+
+  setEmoticon(name: EmoticonName | null): void {
+    this.#assertOpen()
+    if (name !== null && !['heart', 'angry', 'sweat', 'tear', 'sleepy'].includes(name))
+      throw new StackchanError('INVALID_ARGUMENT', 'Unknown emoticon')
+    const previous = this.#emoticon
+    this.#emoticon = undefined
+    if (previous) this.#ui.removeEffect(previous)
+    if (name !== null) {
+      const effect = new Emoticon({ key: name, name: 'emotion' })
+      this.#emoticon = effect
+      try {
+        this.#ui.addEffect(effect)
+      } catch (error) {
+        this.#emoticon = undefined
+        this.#ui.removeEffect(effect)
+        throw error
+      }
+    }
+  }
+
+  resetAppearance(): Promise<void> {
+    return new ResourceScope([
+      () => {
+        this.#faceState = createFaceState()
+        this.#emotion = this.#faceState.emotion
+        this.#mouthOpen = 0
+      },
+      () => this.setFaceStyle('default'),
+      () => this.setHandAnimation('none'),
+      () => this.setEmoticon(null),
+    ]).close()
   }
 
   get ui(): RobotUI {

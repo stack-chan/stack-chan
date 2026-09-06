@@ -137,6 +137,16 @@ export class StackchanRuntimeMotion implements AppMotion {
     return this.#shutdown.close()
   }
 
+  relax(): Promise<void> {
+    try {
+      this.#assertReady()
+      if (!this.#canRelax) throw new StackchanError('UNSUPPORTED', 'This driver cannot release torque')
+      return this.#haltQueue(true)
+    } catch (error) {
+      return Promise.reject(asStackchanError(error))
+    }
+  }
+
   #run(target: MotionTarget, options: MotionOptions, source = new CancellationSource()): Promise<MotionResult> {
     let execution: MotionExecution | undefined
     let unsubscribe: (() => void) | undefined
@@ -215,11 +225,12 @@ export class StackchanRuntimeMotion implements AppMotion {
     }
   }
 
-  #haltQueue(): Promise<void> {
+  #haltQueue(relax = false): Promise<void> {
     this.#clearGazeTarget()
     if (this.#stopping) return this.#stopping
     this.#stopping = Promise.resolve()
       .then(() => this.#queue.close(new StackchanError(this.#closed ? 'CLOSED' : 'CANCELLED', 'Motion owner stopped')))
+      .then(() => (relax ? this.#relax() : undefined))
       .then(
         () => {
           if (!this.#closed) this.#queue = new OperationQueue({ clock: this.#options.clock })

@@ -3,30 +3,24 @@
 [English](./localization.md)
 
 Firmware は日本語（`ja`）、英語（`en`）、簡体字中国語（`zh-CN`）に対応します。
-host と MOD は同じ `context.i18n` API を使えますが、辞書リソースは分離されています。
+host と MOD は同じ `ui(app).localize()` API を使えますが、辞書リソースは分離されています。
 
 ## 公開 API
 
-MOD は `onContextCreated` で渡される `StackchanContext` から現在の locale と翻訳済み文字列を取得します。
-
-```ts
-context.i18n.locale
-context.i18n.localize(key, values?)
-```
-
-`localize` は `this` に依存しないため、次のように取り出して使えます。
+MOD は `setup(app)` で `ui(app).localize(key, values?)` を使います。app API 2 / host API 4 / `ui.controls` を宣言してください。翻訳は本体で選んだ言語を使います。
 
 ```js
-export function onContextCreated(context) {
-  const { localize } = context.i18n
-  context.ui.drawer.addDrawerButton({
-    key: 'weather:forecast',
-    label: localize('weather.drawer.forecast'),
-    callback(nextContext) {
-      nextContext.ui.closeDrawer()
-    },
-  })
-}
+import { defineApp } from 'stackchan'
+import { ui } from 'stackchan/extensions/ui'
+
+export default defineApp({
+  setup(app) {
+    const view = ui(app)
+    view.addAction({ id: 'weather.forecast', label: view.localize('weather.drawer.forecast') }, () => {
+      view.closeMenu()
+    })
+  },
+})
 ```
 
 文字列の解決順は次のとおりです。
@@ -46,11 +40,14 @@ MOD のディレクトリへ、3つの JSON ファイルを追加します。
 my_mod/
 ├── manifest.json
 ├── mod.js
+├── stackchan-mod.json
 └── strings/
     ├── en.json
     ├── ja.json
     └── zh-CN.json
 ```
+
+face例の宣言をコピーしてMOD固有のidへ変え、必要なhost APIとcapabilitiesを保持してください。
 
 すべての辞書に同じキーと同じ placeholder 名を定義します。
 `en.json` は `Locals` の初期化にも使うため必須です。
@@ -72,6 +69,7 @@ manifest の `resources` に `strings` を追加します。
   "modules": {
     "*": ["./mod"]
   },
+  "data": { "stackchan-mod": ["./stackchan-mod.json"] },
   "resources": {
     "*": ["./strings/*"]
   }
@@ -79,27 +77,32 @@ manifest の `resources` に `strings` を追加します。
 ```
 
 `mcrun` はこれらを MOD 専用の `modLocals.mhi` と `modLocals.<locale>.mhr` に変換します。
-MOD から `Locals` や host 内部の `localization` module を直接 import せず、`context.i18n.localize()` を使ってください。
-最小の実装例は [`mods/examples/localized_drawer`](../mods/examples/localized_drawer/) にあります。
+MOD から `Locals` や host 内部の `localization` module を直接 import せず、`ui(app).localize()` を使ってください。
+最小の実装例は [`mods/examples/face`](../mods/examples/face/) にあります。
 
 ## 任意の Piu Label で使う
 
 `localize()` の戻り値は通常の `string` なので、Drawer Button 以外の `Label` にも渡せます。
 
 ```js
-import { Label, Style } from 'piu/MC'
+import { Container, Label, Style, definePiuApp } from 'stackchan/extensions/piu'
+import { ui } from 'stackchan/extensions/ui'
 
-export function onContextCreated(context) {
-  const status = new Label(null, {
-    left: 8,
-    right: 8,
-    top: 40,
-    height: 24,
-    string: context.i18n.localize('weather.status.ready'),
-    style: new Style({ font: 'OpenSans-Regular-16', color: 'black' }),
-  })
-  context.ui.addEffect(status, 'weather:status')
-}
+export default definePiuApp({
+  screens: [{
+    id: 'weather', title: 'Weather',
+    create({ app }) {
+      return new Container(null, {
+        left: 0, right: 0, top: 0, bottom: 0,
+        contents: [new Label(null, {
+          left: 8, right: 8, top: 40, height: 24,
+          string: ui(app).localize('weather.status.ready'),
+          style: new Style({ font: 'k8x12-12', color: 'black' }),
+        })],
+      })
+    },
+  }],
+})
 ```
 
 Piu の `Label.string` は生成時点の文字列であり、locale の変更を自動購読しません。
@@ -108,7 +111,7 @@ Piu の `Label.string` は生成時点の文字列であり、locale の変更�
 ## フォント
 
 翻訳と glyph の収録は別の問題です。
-`context.i18n.localize()` は Unicode 文字列を返しますが、表示に使うフォントへ文字が含まれている必要があります。
+`ui(app).localize()` は Unicode 文字列を返しますが、表示に使うフォントへ文字が含まれている必要があります。
 
 host の画面と Drawer は host 辞書に必要な glyph を収録した UI font を使います。
 MOD 固有の CJK 文字を任意の `Label` に表示する場合は、ライセンスを確認したフォントを MOD に同梱し、manifest の font resource で `"localization": true` を指定してください。

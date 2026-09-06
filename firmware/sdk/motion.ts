@@ -27,4 +27,6 @@ export interface AppMotion {
   lookAway(): void
   /** Cancel moves and gaze, then hold the measured or last commanded position. */
   stop(): Promise<void>
+  /** Cancel motion, wait for the stop, then release torque when the driver supports it. */
+  relax(): Promise<void>
 }

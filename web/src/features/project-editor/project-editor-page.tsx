@@ -49,6 +49,7 @@ import { BlocklyWorkspace } from '@/features/project-editor/blockly-workspace'
 import { ProjectAssetsPanel } from '@/features/project-editor/project-assets-panel'
 import { ProjectSimulatorDialog } from '@/features/project-editor/project-simulator-dialog'
 import { useProjectEditor } from '@/features/project-editor/use-project-editor'
+import { useEditorTools } from '@/features/project-editor/editor-tools'
 import { DEVICE_PROFILES } from '@/editor/capabilities.mjs'
 
 function ProjectNameField({ value, onCommit }: { value: string; onCommit: (value: string) => void }) {
@@ -78,6 +79,7 @@ function ProjectNameField({ value, onCommit }: { value: string; onCommit: (value
 
 export function ProjectEditorPage() {
   const editor = useProjectEditor()
+  useEditorTools(editor)
   const { t } = useI18n()
   const importRef = useRef<HTMLInputElement>(null)
   const assetRef = useRef<HTMLInputElement>(null)
@@ -358,6 +360,7 @@ export function ProjectEditorPage() {
       </AlertDialog>
 
       <ProjectSimulatorDialog
+        onController={editor.setSimulatorController}
         open={editor.simulatorOpen}
         archive={editor.archive}
         archiveName={`${project.name}.xsa`}

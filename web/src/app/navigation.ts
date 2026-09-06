@@ -12,7 +12,16 @@ import {
 } from 'lucide-react'
 
 export type NavigationId =
-  'home' | 'flash' | 'preference' | 'mod-gallery' | 'mediapipe' | 'simulator' | 'editor' | 'face-editor' | 'tutorial'
+  | 'home'
+  | 'flash'
+  | 'preference'
+  | 'mod-gallery'
+  | 'mediapipe'
+  | 'simulator'
+  | 'editor'
+  | 'face-editor'
+  | 'tutorial'
+  | 'guide'
 
 export type NavigationItem = {
   id: NavigationId
@@ -76,6 +85,13 @@ export const TOOL_NAVIGATION_ITEMS: readonly NavigationItem[] = [
 ]
 
 export const GUIDE_NAVIGATION_ITEMS: readonly NavigationItem[] = [
+  {
+    id: 'guide',
+    href: 'guide/',
+    label: '使い方・AI連携',
+    description: '目的別の手順と AI への依頼例',
+    icon: CircleHelp,
+  },
   {
     id: 'tutorial',
     href: 'editor/tutorial.html',

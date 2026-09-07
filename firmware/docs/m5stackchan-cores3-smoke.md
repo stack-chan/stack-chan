@@ -44,18 +44,25 @@ The servo motion is intentionally small. Keep the device clear of obstructions b
 
 ## Automated runner
 
-`scripts/run-device-smoke.js` automates the install-and-verify loop: it first builds and validates the archive with the normal firmware command wrapper, then installs the MOD via `mcrun -dn` (no xsbug GUI), collects device traces through a local xsbug log server, and passes when `[board diagnostics] complete` appears without a failure marker. Failure takes priority if both appear in the collected log.
+`scripts/run-device-smoke.js` automates the install-and-verify loop: it builds and installs the archive through the normal `firmware mod` command, including live host API / XS / partition checks and read-back verification. It then attaches `serial2xsbug` to the same port and collects device traces through a local xsbug log server, and passes when `[board diagnostics] complete` appears without a failure marker. Failure takes priority if both appear in the collected log.
 
 ```console
 $ UPLOAD_PORT=/dev/ttyACM0 npm run test:device
 ```
 
+The xsbug channel requires a debug host build. Add `--flash` to build and install it before the MOD.
+
 Options and environment:
 
 - `--device <name>` / `STACKCHAN_DEVICE` — target device (default `m5stackchan_cores3`)
+- `--port <path>` / `STACKCHAN_PORT` / `UPLOAD_PORT` / `ESPPORT` — required; the same port is used for preflight, installation and tracing
 - `--flash` — build and deploy the host firmware before installing the MOD
 - `--mod <manifest>` — smoke MOD manifest (default `mods/examples/board_diagnostics/manifest.json`)
 - `STACKCHAN_DEVICE_SMOKE_TIMEOUT_MS` — per-attempt timeout (default 120000)
-- `STACKCHAN_DEVICE_SMOKE_RETRIES` — retries on channel drop (default 2)
+- `STACKCHAN_DEVICE_SMOKE_RETRIES` — retries on channel drop (default 2); retries restart the debugger bridge, without rebuilding or rewriting the archive
+- `DEBUGGER_SPEED` — debugger serial baud rate (default 460800)
+- `STACKCHAN_DRY_RUN=1` — show the firmware commands without writing or testing a device
 
 The xsbug serial bridge is known to be unstable on CoreS3, so timed-out attempts retry automatically. `--channel serial` falls back to watching the raw serial console for crash markers only — `trace()` output is not visible on raw serial (it only flows over the xsbug protocol in debug builds), so serial mode verifies boot stability, not smoke completion.
+
+If installation or live-device preflight fails, the runner stops before starting diagnostics. Each bridge is terminated before a retry begins. CLI process tests cover ordering, rejected installation, retry, device failure and termination, but physical USB reset, servo and LED behavior still require the hardware check above.

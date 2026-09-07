@@ -51,6 +51,7 @@ XSA reader はモジュールを実行せずに、atom の境界、版、resourc
 | --- | --- | --- |
 | Web / ネイティブビルド | 宣言必須、標準同梱、実行入口・外部宣言との一致。全32例と6教材を宣言 | 既存例とBlocklyの SDK 世代2への移行 |
 | CLI | 必須宣言・構造・XS版・実機 host API・partition・read-back | 機種と設定に基づく実際の能力 |
+| 診断スクリプト | 同じCLIのmodコマンドで検査・書き込み・read-back後、同じportへserial2xsbugを接続。再試行はbridgeだけを再起動 | USBの再起動・実機ログと機器の受入 |
 | WebSerial | 必須宣言・構造・XS版・Moddable 9.5・実機 host API。確認callback前に検査 | 機種と設定に基づく実際の能力 |
 | Gallery | 全6テキストartifactを標準mcrunで再生成。取得時にid・版・API・対象・機能・実行入口を正本と比較 | SDK世代2への移行、実機受入 |
 | SD | 必須宣言・構造・XS版・host API・partition・read-back。保守起動以外からの書き込みを拒否 | 実機の電源断・容量・SDカード受入 |

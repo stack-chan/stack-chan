@@ -494,3 +494,14 @@ CoreS3 6,621,136 bytes、Takao Core2 SG90 3,923,680 bytes、Stackchan RT 4,044,3
 検証: firmware Node 529件、構成78件、SDK strict、旧名検査、XS全60 manifest（90.1秒）、Web全77件と型検査が成功。XSで旧形式・ID欠落時の書き込み禁止、一覧のready順序、一覧読み込み失敗の秘匿、終了後のBLE通知・timer停止を検証した。Webで部分一覧の非公開・切断と再接続・不正応答・保存と適用の区別を検証した。CoreS3 6,612,944 bytes、Takao Core2 SG90 3,915,488 bytes、Stackchan RT 4,036,144 bytesのreleaseとWASM、Webを生成し、ChromiumでMOD検査・復旧と設定を閉じてからのMOD評価を確認した。各nativeバイナリーは直前より4,096 bytes小さい。
 
 固定したソース測定では製品471ファイル・59,483物理行（直前より6行増、起点より6,781行増）。旧形式を削除した一方で一覧準備・確認応答の契約が加わっており、製品ソースの純減はまだ未達。アプリ向け設定API、mod/configとV1利用者の撤去、電源断時の保証、実機BLEと初学者受入は未完了。以前の作業記録にある旧設定・旧BLEとの互換維持は今回の撤去で置き換える。
+
+
+## 診断MODの実機事前検査への統一（2026-09-07）
+
+対象ソースは `a07e5f9720302e7e5727974d31318d9f718e84b1`。device smokeがmcrunで直接インストールする経路を削除し、通常の `firmware mod` コマンドでarchive検証・実機host API / XS / partition検査・書き込み・read-backを行ってからserial2xsbugで診断ログを取得する。オプションのhost書き込みも先に同じportで完了させる。portは明示指定し、事前検査とログ取得の対象を一致させる。
+
+再試行はdebugger bridgeだけを再起動し、archiveを再ビルド・再書き込みしない。前のプロセスの終了を待ち、SIGTERMに反応しない場合はSIGKILLで終了させる。属性付きのlog要素も読み取り、成功と失敗が同時に記録されていた場合は失敗を優先する。無効なchannel・時間指定はhost書き込みより前に拒否し、dry-runでは書き込み・接続・PASS判定を行わない。
+
+検証: 実際のCLIとTCPログサーバーを起動し、機器を操作する子プロセスを置換した7試験で、処理順序・検査失敗での中断・再試行・機器失敗・強制終了を確認した。既存のMOD書き込み検査も含めNode全536件、構成78件、6対象のmanifest検査が成功。実際のfirmware wrapperでdry-runを行い、managed outputと同一portを確認した。製品runtimeの変更はなく、直前のXS全60件・Web77件・3機種とWASMのビルド結果を維持する。今回は開発ツール・試験・文書の変更なのでrelease impactはnone。
+
+製品測定は471ファイル・59,483行のまま。開発ツールは14行増、試験は1ファイル・171行増。実際のUSB reset・再列挙・debug hostとの接続、サーボとLEDの受入、および機種と設定に基づく全能力の事前検査は未完了。F10全体とF11の製品純減を完了とはしない。

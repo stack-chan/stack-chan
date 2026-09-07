@@ -376,22 +376,61 @@ function run(): void {
   assert((recorder.skinHits ?? 0) > skinHitsBeforeDisplaying, 'onDisplaying should replay the cached palette')
 
   const resizedFace = new ResizedFace({}) as PiuContainer
+  const initialCenterX = initialVisualLeft + nodeCoordinate(nextFace, 'width') / 2
+  const initialCenterY = initialVisualTop + nodeCoordinate(nextFace, 'height') / 2
   controller.setFace(resizedFace)
   equal(nodeCoordinate(resizedFace, 'left'), 12, 'setFace should offset a custom face by its breath padding')
   equal(nodeCoordinate(resizedFace, 'top'), 12, 'setFace should offset a custom face vertically by its breath padding')
   equal(nodeCoordinate(faceRegion, 'width'), 120, 'setFace should resize the clip region width for a custom face')
   equal(nodeCoordinate(faceRegion, 'height'), 96, 'setFace should resize the clip region height for a custom face')
   equal(
-    nodeCoordinate(faceRegion, 'left') + nodeCoordinate(resizedFace, 'left'),
-    initialVisualLeft,
-    'setFace should preserve the visual face left when clip padding changes',
+    nodeCoordinate(faceRegion, 'left') + nodeCoordinate(resizedFace, 'left') + nodeCoordinate(resizedFace, 'width') / 2,
+    initialCenterX,
+    'setFace should preserve the visual center when width and clip padding change',
   )
   equal(
-    nodeCoordinate(faceRegion, 'top') + nodeCoordinate(resizedFace, 'top'),
-    initialVisualTop,
-    'setFace should preserve the visual face top when clip padding changes',
+    nodeCoordinate(faceRegion, 'top') + nodeCoordinate(resizedFace, 'top') + nodeCoordinate(resizedFace, 'height') / 2,
+    initialCenterY,
+    'setFace should preserve the visual center when height and clip padding change',
   )
+  const fullScreen = new Container(null, { left: 0, top: 0, width: application.width, height: application.height })
+  controller.setFace(fullScreen)
+  equal(
+    nodeCoordinate(faceRegion, 'left') + nodeCoordinate(fullScreen, 'left'),
+    0,
+    'full-screen avatars reach the left edge',
+  )
+  equal(
+    nodeCoordinate(faceRegion, 'top') + nodeCoordinate(fullScreen, 'top'),
+    0,
+    'full-screen avatars reach the top edge',
+  )
+  const oddFace = new Container(null, { left: 0, top: 0, width: 97, height: 73 })
+  for (let i = 0; i < 8; i++) {
+    controller.setFace(oddFace)
+    controller.setFace(fullScreen)
+    equal(
+      nodeCoordinate(faceRegion, 'left') + nodeCoordinate(fullScreen, 'left'),
+      0,
+      'odd/even size changes never drift horizontally',
+    )
+    equal(
+      nodeCoordinate(faceRegion, 'top') + nodeCoordinate(fullScreen, 'top'),
+      0,
+      'odd/even size changes never drift vertically',
+    )
+  }
   controller.setFace(nextFace)
+  equal(
+    nodeCoordinate(faceRegion, 'left') + nodeCoordinate(nextFace, 'left'),
+    initialVisualLeft,
+    'restoring a smaller face restores its origin',
+  )
+  equal(
+    nodeCoordinate(faceRegion, 'top') + nodeCoordinate(nextFace, 'top'),
+    initialVisualTop,
+    'restoring a smaller face restores its vertical origin',
+  )
 
   const skinHitsBeforeResume = recorder.skinHits ?? 0
   faceBehavior.pause(nextFace)

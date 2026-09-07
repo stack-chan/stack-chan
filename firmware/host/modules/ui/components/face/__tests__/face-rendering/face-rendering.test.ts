@@ -4,6 +4,8 @@ import { createFaceSkinPalette } from 'face-skin'
 import { createFaceState, Emotion, type FaceState, setColorRGB } from 'face-state'
 import { Eye } from 'parts/eye'
 import { eyeOpenToVariant, IRIS_SPRITE } from 'parts/image/atlas'
+import { ImageAvatarFace } from 'parts/image/image-avatar-face'
+import { STACKCHAN_DEMO_IMAGE_AVATAR_PACK as demo } from 'parts/image/image-avatar-pack'
 import { Content, type Content as PiuContent } from 'piu/MC'
 import { assert, equal } from 'testing/assert'
 
@@ -53,6 +55,39 @@ function assertChanged(before: unknown, after: unknown, message: string) {
 function topOf(node: PiuNode): number | undefined {
   return node.coordinates?.top ?? node.top
 }
+
+const pack = {
+  ...demo,
+  emotionMap: { happy: 'sad', angry: 'angry' },
+  expressions: {
+    ...demo.expressions,
+    sad: { ...demo.expressions.sad, head: { ...demo.expressions.sad.head, y: 12 } },
+  },
+}
+const avatar = new ImageAvatarFace({ pack, motions: [] }) as PiuNode
+const head = childAt(avatar, 0)
+const eye = childAt(avatar, 3)
+const mouth = childAt(avatar, 5)
+const normalSkin = head.skin
+const avatarState = createFaceState()
+avatarState.emotion = Emotion.HAPPY
+avatarState.eyes.left.open = 0
+avatarState.mouth.open = 1
+// Once constructed, the renderer must no longer consult the app's mutable pack.
+pack.emotionMap.happy = 'angry'
+pack.expressions.sad.head.y = 99
+applyFaceState(avatar, avatarState)
+assertChanged(normalSkin, head.skin, 'SDK happy selects the supplied sad expression')
+equal(topOf(head), 12, 'expression geometry comes from the selected immutable snapshot')
+equal(eye.variant, 0, 'closed eye selects the first frame')
+equal(mouth.variant, demo.expressions.sad.mouth.frameCount - 1, 'open mouth selects the last frame')
+const sadSkin = head.skin
+avatarState.emotion = Emotion.NEUTRAL
+applyFaceState(avatar, avatarState)
+equal(head.skin, normalSkin, 'unmapped emotion returns to the default expression with its existing skin')
+avatarState.emotion = Emotion.HAPPY
+applyFaceState(avatar, avatarState)
+equal(head.skin, sadSkin, 'returning to an expression reuses its skin')
 
 const simpleFace = new SimpleFace({ motions: [] }) as PiuNode
 const simpleLeftEye = childAt(simpleFace, 0)

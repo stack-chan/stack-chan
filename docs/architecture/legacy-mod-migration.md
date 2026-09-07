@@ -21,7 +21,7 @@
 | `dynamixel` | `mod.js` | extension.servo.dynamixel | legacy-servo-diagnostics |
 | `face` | `mod.js` | SDK face, ui.controls | portable / simulator |
 | `face_tracker` | `mod.js` | motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `image_avatar_lite` | `mod.js` | face, ui.imageAvatar | portable |
+| `image_avatar_lite` | `mod.js` | SDK face, ui.controls, input.primary | portable / simulator |
 | `light` | 統合 → `board_diagnostics/mod.js` | SDK lighting・入力・UI | portable / simulator（機器の不在を表示） |
 | `lip_sync` | `mod.js` | face, audio.record | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 | `local_peer_hello` | `mod.js` | connectivity.localPeer, ui.drawer | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
@@ -66,3 +66,10 @@
 `light` と `m5stackchan_smoke` は [board_diagnostics](../../firmware/mods/examples/board_diagnostics/README_ja.md) へ統合し、旧プログラムと単独manifestを撤去した。自動診断、CoreS3のhead LED、全LEDモード、A/B/Cの操作を保持し、機器なし・故障時の案内と終了時の取消しをSDKへ揃えた。最小host APIは5。USB診断runnerと手順も統合先を使う。
 
 元の32例のうち10例がSDKの6パッケージへ移行・統合済み、22例は未移行。実機による動作・トルク・LEDの受入と初学者の受入は未完了。自動試験・ビルド・ブラウザーの結果は [実装記録](firmware-sdk-redesign-progress.md) を参照する。
+
+
+## 画像アバターの SDK 化（2026-09-07）
+
+`image_avatar_lite` を `defineApp` と SDK の `ui(app).setImageAvatar(pack)` へ移した。6キャラクター・12表情・43画像と配置・ライセンスを保持し、主入力とメニューから同じ選択を操作する。表情名をSDKへ統一し、画像名・サイズの二重指定を廃止した。グローバル登録・ID検索と暗黙のfallback・`ui.avatar`・内部描画moduleへの直接依存を撤去した。大きさの異なる顔への切り替えは表示の中心を保つ。最小host APIは6で、パック形式とarchiveの再生成が必要。
+
+元の32例のうち11例がSDKの7パッケージへ移行・統合済み、21例は未移行。[改造・復帰手順](../../firmware/mods/examples/image_avatar_lite/README_ja.md) を追加した。実機の表示・メモリーと初学者の受入は未完了。自動試験と計測は [実装記録](firmware-sdk-redesign-progress.md) を参照する。

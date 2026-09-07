@@ -157,7 +157,7 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 | `dynamixel` | 統合 → サーボ診断・設定 | DYNAMIXEL の ID / モード / 状態確認 | 通常教材からの直接 protocol・UART 所有。機種サポートは残す。未着手 |
 | `face` | **移行済み** → UI 拡張例 | 表情・色・balloon・emoticon と翻訳メニュー | SDK の UI 拡張と所有された周期処理へ移行。手動 Timer・Piu effect の直接生成を削除。配置・フォントはホストの共通表示を使用 |
 | `face_tracker` | 移行 → UnitV2 追従例 | HTTP 入力拡張・注視、UnitV2 の結果形式 | raw HTTP request と座標変換を入力 adapter へ整理。未着手 |
-| `image_avatar_lite` | 移行 → 画像顔の拡張例 | 画像 pack 選択・描画・表情 | 内部 `parts/*` と face controller への依存。未着手 |
+| `image_avatar_lite` | **移行済み** → 画像顔の拡張例 | 6キャラクター・12表情・43画像と配置 | SDK UIへ移行。グローバル登録・ID検索の暗黙fallback・`ui.avatar` とサンプルの内部 `parts/*` 依存を撤去。目と口の画像名・サイズの二重指定も削除。実機・初学者は未受入 |
 | `light` | **統合済み** → `board_diagnostics` | LED の色・点滅・虹・消灯、利用できる主入力とメニュー | raw LED とボタン代入を削除。複数のLED名を選び、アプリ終了で全使用LEDを消灯。実機は未受入 |
 | `lip_sync` | 移行 → 音量観測の例 | 音声入力のレベル観測・口の開閉 | microphone の `onReadable` 上書き・read/start。録音後の再生教材へ単純統合するとリアルタイム観測が失われるので別機能として残す |
 | `local_peer_hello` | 移行 → 端末間通信の例 | ローカル通信・設定・UI、文字数制限と入力検証 | raw Timer と drawer、アプリ外の通信寿命。未着手 |

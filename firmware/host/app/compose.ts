@@ -55,7 +55,6 @@ type DeviceButton = {
 }
 
 type UIOptions = {
-  avatar?: string
   drawerButtons?: DrawerButtonViewSpec[]
   displayListLength?: number
 }
@@ -157,7 +156,7 @@ export async function createStackchanContext(
   const faces = new Map<string, (param: UIOptions) => PiuContainer>([
     ['dog', () => new DogFace()],
     ['simple', () => new SimpleFace()],
-    ['image', (options) => new ImageAvatarFace({ pack: options.avatar })],
+    ['image', () => new ImageAvatarFace({})],
     ['small-face', () => new SmallFace()],
   ])
 

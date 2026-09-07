@@ -1,8 +1,10 @@
 import type { AppContext } from 'stackchan/app'
 import { StackchanError } from 'stackchan/errors'
+import type { ImageAvatarPack } from 'stackchan/image-avatar'
 import type { TaskContext, TaskHandler, Unsubscribe } from 'stackchan/task'
 
-export type FaceStyle = 'default' | 'simple' | 'dog' | 'image'
+export type { ImageAvatarPack } from 'stackchan/image-avatar'
+export type FaceStyle = 'default' | 'simple' | 'dog' | 'image' | 'avatar'
 export type HandAnimation = 'none' | 'rock-paper-scissors' | 'clap' | 'thinking'
 export type Emoticon = 'heart' | 'angry' | 'sweat' | 'tear' | 'sleepy'
 export type MenuLabel = Readonly<{ id: string; label: string }>
@@ -24,6 +26,8 @@ export interface AppUI extends BasicUI {
   addToggle(options: ToggleOptions, handler: ChangeHandler<boolean>): MenuControl<boolean>
   closeMenu(): void
   setFaceStyle(style: FaceStyle): void
+  /** Validate and copy the pack; replacement or app close releases the previous appearance. */
+  setImageAvatar(pack: ImageAvatarPack): void
   setHandAnimation(animation: HandAnimation): void
   setEmoticon(emoticon: Emoticon | null): void
   localize(key: string, parameters?: Readonly<Record<string, string | number>>): string

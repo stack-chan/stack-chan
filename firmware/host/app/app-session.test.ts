@@ -128,6 +128,7 @@ function controlsFixture() {
     faceStyle: 'default',
     closeMenu() {},
     setFaceStyle() {},
+    setImageAvatar() {},
     setHandAnimation() {},
     setEmoticon() {},
     localize: (key) => key,
@@ -149,6 +150,72 @@ function controlsFixture() {
   }
   return { ...f, items, resets: () => resets }
 }
+
+test('the avatar example shares selection, owns appearance and cannot react after closing', async () => {
+  const { AppSession } = await setup()
+  const { default: definition } = await import('../../mods/examples/image_avatar_lite/mod.js')
+  const { IMAGE_AVATAR_LITE_PACKS } = await import('../../mods/examples/image_avatar_lite/image-avatar-lite-packs.js')
+  const { EMOTIONS } = await import('../../sdk/app.js')
+  const f = controlsFixture()
+  const selected: string[] = []
+  const emotions: string[] = []
+  const controls = f.ports.controls
+  assert.ok(controls)
+  controls.setImageAvatar = (pack) => {
+    selected.push(pack.id)
+  }
+  f.ports.face.setEmotion = (emotion) => {
+    emotions.push(emotion)
+  }
+  const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  await session.start(definition)
+  const choice = f.items.get('avatar')
+  const emotionAction = f.items.get('avatar-emotion')
+  assert.ok(choice)
+  assert.ok(emotionAction)
+  const changeEmotion = emotionAction.select
+  const press = [...f.presses][0]
+  const ids = Object.keys(IMAGE_AVATAR_LITE_PACKS)
+  assert.equal(selected[0], ids[0])
+  for (let i = 1; i <= ids.length; i++) {
+    press()
+    await flush()
+    assert.equal(selected.at(-1), ids[i % ids.length])
+    assert.equal(choice.value, selected.at(-1))
+  }
+  choice.select(ids[3])
+  await flush()
+  assert.equal(selected.at(-1), ids[3])
+  press()
+  await flush()
+  assert.equal(selected.at(-1), ids[4], 'button continues from the menu selection')
+  for (let i = 0; i < EMOTIONS.length; i++) {
+    changeEmotion()
+    await flush()
+  }
+  assert.deepEqual(emotions, [...EMOTIONS.slice(1), EMOTIONS[0]])
+  const beforeFailure = choice.value
+  controls.setImageAvatar = () => {
+    throw new Error('missing PNG')
+  }
+  press()
+  await flush()
+  assert.equal(choice.value, beforeFailure, 'failed selection leaves the menu at the last displayed pack')
+  assert.equal(f.errors.length, 1)
+  await session.close()
+  const calls = selected.length
+  press()
+  choice.select(ids[0])
+  changeEmotion()
+  await flush()
+  assert.equal(selected.length, calls)
+  assert.equal(emotions.length, EMOTIONS.length)
+  assert.equal(f.presses.size, 0)
+  assert.equal(f.items.size, 0)
+  assert.equal(f.resets(), 1)
+  assert.equal(session.resourceCount, 0)
+  assert.equal(session.taskCount, 0)
+})
 
 test('the petting deadline cancels a slow motion and manual stop cancels its later restoration', async () => {
   const { AppSession } = await setup()

@@ -15,7 +15,7 @@ import type {
   StackchanContext,
 } from 'capabilities'
 import clockTicks from 'clock-ticks'
-import { Emotion } from 'face-state'
+import type { Emotion } from 'face-state'
 import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
@@ -36,7 +36,7 @@ import {
   RuntimeResources,
 } from 'runtime-resources'
 import { StackchanRuntimeUI } from 'runtime-ui'
-import type { AppDefinition } from 'stackchan/app'
+import { type AppDefinition, EMOTIONS } from 'stackchan/app'
 import { StackchanError } from 'stackchan/errors'
 import { waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
@@ -203,16 +203,6 @@ export class StackchanRuntimeContext implements StackchanContext {
       onError: (error) => trace(`[app] ${error.code}: ${error.message}\n`),
     })
     this.#appMotion = motion
-    const emotions = {
-      neutral: Emotion.NEUTRAL,
-      happy: Emotion.HAPPY,
-      angry: Emotion.ANGRY,
-      sad: Emotion.SAD,
-      sleepy: Emotion.SLEEPY,
-      doubt: Emotion.DOUBTFUL,
-      cold: Emotion.COLD,
-      hot: Emotion.HOT,
-    }
     const primaryListeners = new Set<() => void>()
     const primaryKey = 'sdkPrimaryAction'
     const uiRuntime = this.#uiRuntime
@@ -225,6 +215,7 @@ export class StackchanRuntimeContext implements StackchanContext {
             return uiRuntime.faceStyle
           },
           setFaceStyle: (style) => this.#uiRuntime.setFaceStyle(style),
+          setImageAvatar: (pack) => this.#uiRuntime.setImageAvatar(pack),
           setHandAnimation: (animation) => this.#uiRuntime.setHandAnimation(animation),
           setEmoticon: (emoticon) => this.#uiRuntime.setEmoticon(emoticon),
           localize: (key, parameters) => this.#i18nCapability.localize(key, parameters),
@@ -276,8 +267,9 @@ export class StackchanRuntimeContext implements StackchanContext {
         }),
         face: {
           setEmotion: (emotion) => {
-            if (!Object.hasOwn(emotions, emotion)) throw new StackchanError('INVALID_ARGUMENT', 'Unknown emotion')
-            this.#uiRuntime.setEmotion(emotions[emotion])
+            const value = EMOTIONS.indexOf(emotion)
+            if (value < 0) throw new StackchanError('INVALID_ARGUMENT', 'Unknown emotion')
+            this.#uiRuntime.setEmotion(value as Emotion)
           },
           setMouthOpen: (value) => this.#uiRuntime.setMouthOpen(value),
           setColor: (part, { r, g, b }) => {

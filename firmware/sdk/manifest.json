@@ -8,6 +8,7 @@
     "stackchan/motion": "./motion",
     "stackchan/camera": "./camera",
     "stackchan/image": "./image",
+    "stackchan/image-avatar": "./image-avatar",
     "stackchan/extensions/piu": "./extensions/piu",
     "stackchan/extensions/ui": "./extensions/ui",
     "stackchan/extensions/input": "./extensions/input",

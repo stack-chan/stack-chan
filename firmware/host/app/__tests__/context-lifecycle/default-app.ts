@@ -3,8 +3,11 @@ import { DogFace, SimpleFace } from 'behaviors/face'
 import defaultApp from 'default-app/main'
 import IMU from 'imu'
 import { NoneDriver } from 'none-driver'
+import { STACKCHAN_DEMO_IMAGE_AVATAR_PACK as demo } from 'parts/image/image-avatar-pack'
 import { StackchanRuntimeContext } from 'runtime-context'
+import { defineApp } from 'stackchan'
 import { ui as appUI } from 'stackchan/extensions/ui'
+import type { ImageAvatarPack } from 'stackchan/image-avatar'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
 import TouchPanel from 'touch-panel'
@@ -160,4 +163,64 @@ export async function verifyDefaultApp(): Promise<void> {
   for (const id of ['input.secondary', 'input.headTouch', 'input.motion', 'lighting'] as const)
     equal(plainApp.context.capabilities.get(id).availability, 'unavailable')
   await plain.lifecycle.close()
+}
+
+export async function verifyImageAvatar(): Promise<void> {
+  const ui = createAppControllerApplication({ face: new DogFace({}) })
+  const setFace = ui.setFace.bind(ui)
+  let displayed: Parameters<typeof setFace>[0]
+  let restorations = 0
+  ui.setFace = (face) => {
+    displayed = face
+    setFace(face)
+  }
+  const host = await StackchanRuntimeContext.create({
+    ui,
+    driver: new NoneDriver(),
+    tts: { stream() {} },
+    restoreFace() {
+      restorations++
+      ui.setFace(new DogFace({}))
+    },
+  })
+  const session = await host.startApp(defineApp({ setup() {} }))
+  const view = appUI(session.context)
+  view.setImageAvatar(demo)
+  equal(view.faceStyle, 'avatar')
+  const selected = displayed
+  const missing = {
+    ...demo,
+    expressions: {
+      ...demo.expressions,
+      happy: { ...demo.expressions.happy, head: { ...demo.expressions.happy.head, texture: 'missing-avatar.png' } },
+    },
+  }
+  for (const [pack, code] of [
+    [undefined, 'INVALID_ARGUMENT'],
+    [null, 'INVALID_ARGUMENT'],
+    [missing, 'IO'],
+  ] as const) {
+    let failure: unknown
+    try {
+      view.setImageAvatar(pack as unknown as ImageAvatarPack)
+    } catch (error) {
+      failure = error
+    }
+    equal((failure as { code?: string })?.code, code, 'invalid data and missing future assets fail at selection')
+    equal(displayed, selected, 'failed selection leaves the active Piu face intact')
+    equal(view.faceStyle, 'avatar')
+  }
+  view.setFaceStyle('avatar')
+  assert(displayed !== selected, 'built-in avatar also uses the renderer')
+  await session.close()
+  equal(restorations, 1, 'the app relinquishes custom appearance to the configured host face')
+  assert(displayed !== selected, 'the configured host face replaces the app avatar')
+  let failure: unknown
+  try {
+    view.setImageAvatar(demo)
+  } catch (error) {
+    failure = error
+  }
+  equal((failure as { code?: string })?.code, 'CLOSED', 'retained UI handles cannot reinstall a face')
+  await host.lifecycle.close()
 }

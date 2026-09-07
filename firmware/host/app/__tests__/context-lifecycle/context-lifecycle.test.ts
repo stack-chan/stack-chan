@@ -7,7 +7,7 @@ import { StackchanRuntimeContext } from 'runtime-context'
 import { defineApp, StackchanError } from 'stackchan'
 import { definePiuApp, Port, type ScreenContext, type ViewPort } from 'stackchan/extensions/piu'
 import { assert, equal } from 'testing/assert'
-import { verifyDefaultApp } from 'tests/default-app'
+import { verifyDefaultApp, verifyImageAvatar } from 'tests/default-app'
 import Timer from 'timer'
 import TouchPanel from 'touch-panel'
 
@@ -459,6 +459,7 @@ async function run() {
   equal(effects.size, 0, 'app close removes its image before host close')
   for (const mode of ['normal', 'setup', 'dispose', 'undisplay', 'view'] as const) await verifyPiuApp(mode)
   await verifyDefaultApp()
+  await verifyImageAvatar()
   trace('ok\n')
 }
 

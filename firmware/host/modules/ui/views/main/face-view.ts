@@ -294,6 +294,14 @@ class FaceViewBehavior extends CommonViewBehavior {
           this.faceRegion) as PiuContainer | null)
       : null
     const currentCoordinates = currentFace ? this.getFaceVisualCoordinates(currentFace) : null
+    if (currentFace && currentCoordinates) {
+      // Faces have different canvas sizes. Keep their visual center stable so
+      // replacing a small face with a full-screen avatar does not crop it.
+      const previous = measureFaceLayout(currentFace)
+      const next = measureFaceLayout(face)
+      currentCoordinates.left += Math.floor(previous.width / 2) - Math.floor(next.width / 2)
+      currentCoordinates.top += Math.floor(previous.height / 2) - Math.floor(next.height / 2)
+    }
     this.face = face
     this.prepareFaceForRegion(face, currentCoordinates)
     faceBehavior(face)?.setMotionsEnabled?.(face, this.faceMotionEnabled)

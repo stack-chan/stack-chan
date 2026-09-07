@@ -20,10 +20,12 @@ import {
   setColorRGB,
 } from 'face-state'
 import { OwnedResources, ResourceScope } from 'owned-resources'
+import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import { ownUI } from 'runtime-resources'
 import type { CameraImage } from 'stackchan/camera'
 import { StackchanError } from 'stackchan/errors'
 import type { Emoticon as EmoticonName, FaceStyle, HandAnimation } from 'stackchan/extensions/ui'
+import type { ImageAvatarPack } from 'stackchan/image-avatar'
 import {
   type Pose,
   type Rotation,
@@ -109,12 +111,19 @@ export class StackchanRuntimeUI {
 
   setFaceStyle(style: FaceStyle): void {
     this.#assertOpen()
-    if (style !== 'default' && style !== 'simple' && style !== 'dog' && style !== 'image')
+    if (!['default', 'simple', 'dog', 'image', 'avatar'].includes(style))
       throw new StackchanError('INVALID_ARGUMENT', 'Unknown face style')
     if (style === 'default' && this.#options.restoreFace) this.#options.restoreFace()
+    else if (style === 'avatar') this.#ui.setFace(new ImageAvatarFace({}))
     else
       this.#ui.setFace(style === 'dog' ? new DogFace({}) : style === 'image' ? new ImageFace({}) : new SimpleFace({}))
     this.#faceStyle = style
+  }
+
+  setImageAvatar(pack: ImageAvatarPack): void {
+    this.#assertOpen()
+    this.#ui.setFace(new ImageAvatarFace({ pack }))
+    this.#faceStyle = 'avatar'
   }
 
   setHandAnimation(animation: HandAnimation): void {

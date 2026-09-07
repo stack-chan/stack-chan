@@ -5,14 +5,14 @@
   "version": "1.0.0",
   "type": "text",
   "name": "image avatar lite",
-  "description": "Legacy API 1 example; see docs/architecture/legacy-mod-migration.md for migration and hardware prerequisites.",
-  "appApiVersion": 1,
-  "hostApiVersion": 1,
+  "description": "SDK image avatar packs with six selectable characters, shared expression names and owned appearance.",
+  "appApiVersion": 2,
+  "hostApiVersion": 6,
   "source": {
     "path": "manifest.json",
     "entrypoint": "mod.js"
   },
-  "targets": ["portable"],
-  "capabilities": ["face", "ui.imageAvatar"],
+  "targets": ["portable", "simulator"],
+  "capabilities": ["ui.controls", "input.primary"],
   "entrypoints": ["mod"]
 }

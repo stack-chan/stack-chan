@@ -178,7 +178,11 @@ export default defineApp({
 
 IDはPiu画面と同じ1〜64文字の小文字ASCII英数字と区切り `. _ -`、labelは空白だけを除く1〜160文字です。選択肢は最大32個、valueは1〜80文字で一意にします。アプリの登録上限64件を他の入力・タイマーと共有します。
 
-`setFaceStyle` は `default / simple / dog / image`、`setHandAnimation` は `none / rock-paper-scissors / clap / thinking`、`setEmoticon` は `heart / angry / sweat / tear / sleepy / null` を受け取ります。`default` は本体設定の顔へ戻します。アプリ終了時は顔・色・表情・手・装飾を本体の初期状態へ戻します。`localize(key, parameters?)` は本体と同じ言語でアプリの辞書を解決します。[顔と翻訳メニューの実行例](../mods/examples/face/mod.js) と [ローカライズ](../docs/localization_ja.md) を参照してください。配布宣言は app API 2 / host API 4 / `capabilities: ["ui.controls"]` です。
+`setFaceStyle` は `default / simple / dog / image / avatar`、`setHandAnimation` は `none / rock-paper-scissors / clap / thinking`、`setEmoticon` は `heart / angry / sweat / tear / sleepy / null` を受け取ります。`default` は本体設定の顔へ戻します。アプリ終了時は顔・色・表情・手・装飾を本体の初期状態へ戻します。`localize(key, parameters?)` は本体と同じ言語でアプリの辞書を解決します。[顔と翻訳メニューの実行例](../mods/examples/face/mod.js) と [ローカライズ](../docs/localization_ja.md) を参照してください。配布宣言は app API 2 / host API 4 / `capabilities: ["ui.controls"]` です。
+
+host API 6以上では `view.setImageAvatar(pack)` で画像パックを選びます。型は `stackchan/image-avatar` の `ImageAvatarPack`（UI拡張からも型をexport）で、目と口は静止パーツと同じ `texture / x / y / width / height` に横並びの `frameCount` を加えます。画像名とフレームサイズの二重指定はありません。`EMOTIONS` は `stackchan` がexportする `neutral / angry / sad / happy / sleepy / doubt / cold / hot` の配列で、`emotionMap` と `face.setEmotion` は同じ名前を使います。未割り当ての表情は `defaultExpression` に戻ります。
+
+選択時にパックを検証・コピーし、全表情の画像を準備してから表示を置換します。大きさの違う顔への切り替えでは表示の中心を保ち、以前の小さな顔の左上位置によって画像が画面外へはみ出すのを防ぎます。パックの後からの変更は表示へ影響せず、変更を反映するには再度選びます。不正なパックは `INVALID_ARGUMENT`、画像の読み込み失敗は `IO` です。失敗時は選択済みの顔を保持します。`faceStyle` は `avatar` となり、`setFaceStyle('avatar')` は本体付属のデモ画像を選びます。終了時の復元は他の顔と同じ所有処理です。PNGはMODが同梱し、グローバル登録・名前だけの選択・`ui.avatar` は廃止しました。[6キャラクターの実行例・データ制限・改造と復帰の手順](../mods/examples/image_avatar_lite/README_ja.md)を参照してください。配布宣言は app API 2 / host API 6 / `capabilities: ["ui.controls"]` です。
 
 `input(app)` を `stackchan/extensions/input` から取得すると、`onPress('primary' | 'secondary' | 'tertiary', handler)`、`onHeadTouch(handler)`、`onMotion(handler)` を使えます。ボタン名は利用できるA/B/Cの順番で、primaryだけはボタンのない機種でメニューの「実行」を使えます。head touchは `gesture` と任意の `tapDurationMs`、motionは `motion` を持つ読み取り専用イベントです。時間はmsで、raw device・ticks・ドライバーは渡しません。実行前に `capabilities.get('input.headTouch')` などで対応を調べます。購読解除とアプリ終了で処理を取り消し、最後のmotion購読解除でIMUのポーリングを止めます。
 

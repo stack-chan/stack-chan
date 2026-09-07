@@ -1,64 +1,14 @@
-import type { Emotion as EmotionValue } from 'face-state'
-
-export type ImageAvatarSpriteSheet = {
-  texture: string
-  frameWidth: number
-  frameHeight: number
-  frameCount: number
-}
-
-export type ImageAvatarStaticSprite = {
-  texture: string
-  color?: string
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
-export type ImageAvatarEyeSprite = ImageAvatarStaticSprite & {
-  blinkFrames: ImageAvatarSpriteSheet
-}
-
-export type ImageAvatarMouthSprite = ImageAvatarStaticSprite & {
-  frames: ImageAvatarSpriteSheet
-}
-
-export type ImageAvatarExpression = {
-  head: ImageAvatarStaticSprite
-  eyes: {
-    left: ImageAvatarEyeSprite
-    right: ImageAvatarEyeSprite
-  }
-  mouth: ImageAvatarMouthSprite
-  hands: {
-    left: ImageAvatarStaticSprite
-    right: ImageAvatarStaticSprite
-  }
-}
-
-export type ImageAvatarPack = {
-  id: string
-  displayName: string
-  width: number
-  height: number
-  defaultExpression: string
-  emotionMap: Partial<Record<EmotionValue, string>>
-  expressions: Record<string, ImageAvatarExpression>
-}
+import { EMOTIONS, type Emotion } from 'stackchan/app'
+import { StackchanError } from 'stackchan/errors'
+import type {
+  ImageAvatarAnimatedSprite,
+  ImageAvatarExpression,
+  ImageAvatarPack,
+  ImageAvatarStaticSprite,
+} from 'stackchan/image-avatar'
 
 const EXPRESSIONS = ['normal', 'happy', 'sad', 'angry'] as const
 type DemoExpressionName = (typeof EXPRESSIONS)[number]
-const ImageAvatarEmotion = Object.freeze({
-  NEUTRAL: 0 as EmotionValue,
-  ANGRY: 1 as EmotionValue,
-  SAD: 2 as EmotionValue,
-  HAPPY: 3 as EmotionValue,
-  SLEEPY: 4 as EmotionValue,
-  COLD: 6 as EmotionValue,
-  HOT: 7 as EmotionValue,
-})
-
 const DEMO_COLORS: Record<DemoExpressionName, { head: string; eye: string; mouth: string; hand: string }> = {
   normal: { head: '#ffe18e', eye: '#2a3757', mouth: '#96444e', hand: '#ff9a3d' },
   happy: { head: '#ffd97e', eye: '#24384c', mouth: '#dc506e', hand: '#ff8a2a' },
@@ -89,12 +39,7 @@ function demoExpression(expression: DemoExpressionName): ImageAvatarExpression {
         y: 36,
         width: 28,
         height: 28,
-        blinkFrames: {
-          texture: demoTexture('eye-left', expression),
-          frameWidth: 28,
-          frameHeight: 28,
-          frameCount: 4,
-        },
+        frameCount: 4,
       },
       right: {
         texture: demoTexture('eye-right', expression),
@@ -103,12 +48,7 @@ function demoExpression(expression: DemoExpressionName): ImageAvatarExpression {
         y: 36,
         width: 28,
         height: 28,
-        blinkFrames: {
-          texture: demoTexture('eye-right', expression),
-          frameWidth: 28,
-          frameHeight: 28,
-          frameCount: 4,
-        },
+        frameCount: 4,
       },
     },
     mouth: {
@@ -118,12 +58,7 @@ function demoExpression(expression: DemoExpressionName): ImageAvatarExpression {
       y: 70,
       width: 80,
       height: 32,
-      frames: {
-        texture: demoTexture('mouth', expression),
-        frameWidth: 80,
-        frameHeight: 32,
-        frameCount: 4,
-      },
+      frameCount: 4,
     },
     hands: {
       left: {
@@ -153,13 +88,13 @@ export const STACKCHAN_DEMO_IMAGE_AVATAR_PACK: ImageAvatarPack = {
   height: 120,
   defaultExpression: 'normal',
   emotionMap: {
-    [ImageAvatarEmotion.NEUTRAL]: 'normal',
-    [ImageAvatarEmotion.HAPPY]: 'happy',
-    [ImageAvatarEmotion.SAD]: 'sad',
-    [ImageAvatarEmotion.ANGRY]: 'angry',
-    [ImageAvatarEmotion.SLEEPY]: 'sad',
-    [ImageAvatarEmotion.HOT]: 'happy',
-    [ImageAvatarEmotion.COLD]: 'sad',
+    neutral: 'normal',
+    happy: 'happy',
+    sad: 'sad',
+    angry: 'angry',
+    sleepy: 'sad',
+    hot: 'happy',
+    cold: 'sad',
   },
   expressions: {
     normal: demoExpression('normal'),
@@ -169,24 +104,99 @@ export const STACKCHAN_DEMO_IMAGE_AVATAR_PACK: ImageAvatarPack = {
   },
 }
 
-export const IMAGE_AVATAR_PACKS: Record<string, ImageAvatarPack> = {
-  [STACKCHAN_DEMO_IMAGE_AVATAR_PACK.id]: STACKCHAN_DEMO_IMAGE_AVATAR_PACK,
+function invalid(): never {
+  throw new StackchanError(
+    'INVALID_ARGUMENT',
+    'Invalid image avatar pack; check expressions, PNG resources and dimensions',
+  )
 }
 
-export function registerImageAvatarPack(pack: ImageAvatarPack): ImageAvatarPack {
-  if (!pack.id) {
-    throw new Error('ImageAvatarPack.id is required')
+function record(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) invalid()
+  return value as Record<string, unknown>
+}
+
+function integer(value: unknown, minimum: number, maximum: number): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < minimum || value > maximum) invalid()
+  return value
+}
+
+function name(value: unknown): string {
+  if (typeof value !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(value)) invalid()
+  return value
+}
+
+function texture(value: unknown): string {
+  if (typeof value !== 'string' || value.length > 128 || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*\.png$/.test(value)) invalid()
+  return value
+}
+
+function sprite(value: unknown): ImageAvatarStaticSprite {
+  const source = record(value)
+  const color = source.color
+  if (color !== undefined && (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))) invalid()
+  return Object.freeze({
+    texture: texture(source.texture),
+    ...(typeof color === 'string' ? { color } : {}),
+    x: integer(source.x, -1024, 1024),
+    y: integer(source.y, -1024, 1024),
+    width: integer(source.width, 1, 1024),
+    height: integer(source.height, 1, 1024),
+  })
+}
+
+function animated(value: unknown): ImageAvatarAnimatedSprite {
+  const source = record(value)
+  const part = sprite(source)
+  const frameCount = integer(source.frameCount, 1, 32)
+  if (part.width * frameCount > 4096) invalid()
+  return Object.freeze({ ...part, frameCount })
+}
+
+/** Copy validated data so later app mutations cannot change an active Piu face. */
+export function snapshotImageAvatarPack(value: unknown): ImageAvatarPack {
+  const source = record(value)
+  const entries = Object.entries(record(source.expressions))
+  if (entries.length < 1 || entries.length > 16) invalid()
+  const expressions: Record<string, ImageAvatarExpression> = {}
+  for (const [key, value] of entries) {
+    const expression = record(value)
+    const eyes = record(expression.eyes)
+    const left = record(eyes.left)
+    const right = record(eyes.right)
+    const mouth = record(expression.mouth)
+    const hands = record(expression.hands)
+    expressions[name(key)] = Object.freeze({
+      head: sprite(expression.head),
+      eyes: Object.freeze({
+        left: animated(left),
+        right: animated(right),
+      }),
+      mouth: animated(mouth),
+      hands: Object.freeze({ left: sprite(hands.left), right: sprite(hands.right) }),
+    })
   }
-  IMAGE_AVATAR_PACKS[pack.id] = pack
-  return pack
-}
-
-export function registerImageAvatarPacks(packs: Record<string, ImageAvatarPack>): void {
-  for (const id in packs) {
-    registerImageAvatarPack(packs[id])
+  const defaultExpression = name(source.defaultExpression)
+  if (!Object.hasOwn(expressions, defaultExpression)) invalid()
+  const emotionMap: Partial<Record<Emotion, string>> = {}
+  for (const [emotion, expression] of Object.entries(record(source.emotionMap))) {
+    if (
+      !(EMOTIONS as readonly string[]).includes(emotion) ||
+      typeof expression !== 'string' ||
+      !Object.hasOwn(expressions, expression)
+    )
+      invalid()
+    emotionMap[emotion as Emotion] = expression
   }
-}
-
-export function getImageAvatarPack(id: string | undefined): ImageAvatarPack {
-  return IMAGE_AVATAR_PACKS[id ?? STACKCHAN_DEMO_IMAGE_AVATAR_PACK.id] ?? STACKCHAN_DEMO_IMAGE_AVATAR_PACK
+  const displayName = source.displayName
+  if (typeof displayName !== 'string' || !displayName.trim() || displayName.length > 64) invalid()
+  return Object.freeze({
+    id: name(source.id),
+    displayName,
+    width: integer(source.width, 1, 320),
+    height: integer(source.height, 1, 240),
+    defaultExpression,
+    emotionMap: Object.freeze(emotionMap),
+    expressions: Object.freeze(expressions),
+  })
 }

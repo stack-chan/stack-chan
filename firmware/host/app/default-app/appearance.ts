@@ -44,6 +44,7 @@ export function installAppearance(app: AppContext, onManualEmotion: () => void |
       value: view.faceStyle,
       options: [
         { value: 'default', label: 'Default' },
+        { value: 'avatar', label: 'Avatar' },
         ...(['simple', 'dog', 'image'] as const).map((value) => ({ value, label: label(`face.${value}`) })),
       ],
     },

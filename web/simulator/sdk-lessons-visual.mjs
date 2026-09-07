@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium, errors as playwrightErrors } from 'playwright-core'
+import { IMAGE_AVATAR_LITE_PACKS } from '../../firmware/mods/examples/image_avatar_lite/image-avatar-lite-packs.js'
 import { resolveChromium, startPreview } from '../test-preview-server.mjs'
 
 const allLessons = [
@@ -16,6 +17,7 @@ const allLessons = [
   'monologue',
   'face',
   'board_diagnostics',
+  'image_avatar_lite',
 ]
 const requested = process.argv.slice(2)
 assert.ok(
@@ -98,6 +100,15 @@ try {
             b = image.data[index + 2]
           if (Math.max(r, g, b) - Math.min(r, g, b) > 50) colored++
           brightness += r + g + b
+        }
+        if (window.sdkObserveAvatar) {
+          const pixels = []
+          for (let y = 5; y < 240; y += 10)
+            for (let x = 5; x < 320; x += 10) {
+              const offset = (y * 320 + x) * 4
+              pixels.push(image.data[offset], image.data[offset + 1], image.data[offset + 2])
+            }
+          window.sdkAvatarPixels = pixels
         }
         window.sdkLessonScreenColors = colored
         window.sdkLessonScreenBrightness = brightness / (image.width * image.height * 3)
@@ -193,6 +204,9 @@ try {
   assert.deepEqual(errors, [], 'the default SDK app responds to the WASM buttons')
   for (let index = 0; index < lessons.length; index += 1) {
     const messageStart = messages.length
+    await page.evaluate((observe) => {
+      window.sdkObserveAvatar = observe
+    }, lessons[index] === 'image_avatar_lite')
     await Promise.all([ready(), page.getByLabel('MODを追加', { exact: true }).setInputFiles(archives[index])])
     if (lessons[index] === '02-tone') {
       assert.ok(
@@ -204,6 +218,18 @@ try {
       await page.waitForFunction(() => window.sdkLessonScreenColors > 200)
       const first = await page.evaluate(() => window.sdkLessonScreenColors)
       await page.waitForFunction((before) => Math.abs(window.sdkLessonScreenColors - before) > 100, first)
+    }
+    if (lessons[index] === 'image_avatar_lite') {
+      await page.waitForFunction(() => window.sdkLessonScreenColors > 1000)
+      for (const pack of Object.values(IMAGE_AVATAR_LITE_PACKS)) {
+        const before = await page.evaluate(() => window.sdkAvatarPixels)
+        await page.getByRole('button', { name: 'A', exact: true }).click()
+        await page.waitForFunction((previous) => {
+          const pixels = window.sdkAvatarPixels
+          return pixels.reduce((sum, value, i) => sum + Math.abs(value - previous[i]), 0) / pixels.length > 8
+        }, before)
+        console.log(`avatar: switched from ${pack.id} and rendered the next character`)
+      }
     }
     if (lessons[index] === 'board_diagnostics') {
       await page.waitForEvent('console', {

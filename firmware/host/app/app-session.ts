@@ -13,7 +13,7 @@ import { TaskScope } from 'task-scope'
 export type AppPorts = Pick<AppContext, 'face' | 'ui' | 'capabilities'> & {
   controls?: Pick<
     AppUI,
-    'faceStyle' | 'closeMenu' | 'setFaceStyle' | 'setHandAnimation' | 'setEmoticon' | 'localize'
+    'faceStyle' | 'closeMenu' | 'setFaceStyle' | 'setImageAvatar' | 'setHandAnimation' | 'setEmoticon' | 'localize'
   > & {
     registerMenu(view: AppMenuView, onSelect: (value?: string) => void): MenuControl<string | boolean>
     resetAppearance(): void | Promise<void>
@@ -169,6 +169,7 @@ export class AppSession {
         addToggle: (options, handler) => this.#addControl(options, handler),
         closeMenu: () => this.#call(() => this.#controls().closeMenu()),
         setFaceStyle: (style) => this.#call(() => this.#appearance().setFaceStyle(style)),
+        setImageAvatar: (pack) => this.#call(() => this.#appearance().setImageAvatar(pack)),
         setHandAnimation: (animation) => this.#call(() => this.#appearance().setHandAnimation(animation)),
         setEmoticon: (emoticon) => this.#call(() => this.#appearance().setEmoticon(emoticon)),
         localize: (key, parameters) => this.#call(() => this.#controls().localize(key, parameters)),

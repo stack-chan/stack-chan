@@ -1,6 +1,6 @@
 import ChatAudioIOBase from 'ChatAudioIO'
-import XiaozhiAudioIOBase from 'stackchanXiaozhiAudioIOBase'
 import { writePcmRing } from 'stackchanPcmRingWriter'
+import XiaozhiAudioIOBase from 'stackchanXiaozhiAudioIOBase'
 import Worker from 'worker'
 
 const CONNECTION_ENVELOPE = '__stackchanConnectionConfiguration'

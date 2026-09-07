@@ -1,10 +1,10 @@
-import AudioIO from 'stackchanXiaozhiAudioIOBase'
 import StackAudioIO from 'StackChanChatAudioIO'
+import AudioIO from 'stackchanXiaozhiAudioIOBase'
 import AudioIn from 'embedded:io/audio/in'
 import AudioOut from 'embedded:io/audio/out'
-import Worker from 'worker'
 import { equal } from 'testing/assert'
 import Timer from 'timer'
+import Worker from 'worker'
 
 async function run() {
   for (const turnControl of ['fullDuplex', 'invalid']) {

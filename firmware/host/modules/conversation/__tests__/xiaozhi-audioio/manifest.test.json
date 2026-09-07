@@ -1,9 +1,7 @@
 {
-  "include": [
-    "$(MODDABLE)/examples/manifest_base.json",
-    "../../../testing/manifest.json"
-  ],
+  "include": ["../../manifest.json", "../../../testing/manifest.json"],
   "modules": {
+    "~": ["../../StackChanChatAudioIO", "../../chat-audioio/pcm-ring-writer"],
     "main": "./xiaozhi-audioio.test",
     "ChatAudioIO": "$(MODDABLE)/modules/network/services/chatAudioIO/ChatAudioIO",
     "StackChanChatAudioIO": "../../chat-audioio/worker-stack",

@@ -109,7 +109,11 @@ const beforeRejected = ChatAudioIOAny.instances?.length
 for (const turnControl of ['fullDuplex', 'invalid']) {
   let rejected = false
   try {
-    new ChatService({ connection, turnControl: turnControl as 'fullDuplex', chatAudioIOCtor: ChatAudioIO as any })
+    new ChatService({
+      connection,
+      turnControl: turnControl as 'fullDuplex',
+      chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
+    })
   } catch {
     rejected = true
   }

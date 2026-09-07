@@ -76,25 +76,17 @@ async function setup() {
   return { loadPreferences: loadPreference.default, modules, config, preference, traces }
 }
 
-test('loadPreferences migrates legacy renderer.type to ui.type when ui.type is absent', async () => {
-  const { loadPreferences, preference } = await setup()
-  preference.resetPreference({
-    'renderer.type': 'dog',
-  })
-
-  assert.equal(loadPreferences(DOMAIN.ui).type, 'dog')
-  assert.equal(preference.default.get(DOMAIN.ui, 'type'), 'dog')
-})
-
-test('loadPreferences traces legacy renderer migration only once after canonical write-back', async () => {
+test('loadPreferences ignores a retired renderer.type without copying it to ui.type', async () => {
   const { loadPreferences, preference, traces } = await setup()
   preference.resetPreference({
     'renderer.type': 'dog',
   })
 
-  assert.equal(loadPreferences(DOMAIN.ui).type, 'dog')
-  assert.equal(loadPreferences(DOMAIN.ui).type, 'dog')
-  assert.deepEqual(traces, ['[preferences] migrated renderer.type to ui.type\n'])
+  assert.equal(loadPreferences(DOMAIN.ui).type, 'simple')
+  assert.equal(loadPreferences(DOMAIN.ui).type, 'simple')
+  assert.equal(preference.default.get(DOMAIN.ui, 'type'), undefined)
+  assert.equal(preference.default.get('renderer', 'type'), 'dog')
+  assert.deepEqual(traces, [])
 })
 
 test('loadPreferences keeps explicit ui.type when legacy renderer.type also exists', async () => {

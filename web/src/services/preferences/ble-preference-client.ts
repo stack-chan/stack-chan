@@ -1,7 +1,10 @@
 import {
+  isSettingKey,
+  SETTING_KEYS,
   SETTINGS_MESSAGE_MAX_BYTES,
   SETTINGS_PROTOCOL_VERSION,
   type SettingApplication,
+  type SettingKey,
   type SettingsSaveReceipt,
 } from '../../../../firmware/host/modules/preferences/settings-schema'
 import { AppError } from '@/lib/errors/app-error'
@@ -44,7 +47,7 @@ export interface PreferenceClient {
   connect(): Promise<void>
   disconnect(): Promise<void>
   isConnected(): boolean
-  send(payload: { _batch: Record<string, string> }): Promise<SettingsSaveReceipt | void>
+  send(payload: { _batch: Record<string, string> }): Promise<SettingsSaveReceipt>
 }
 
 export class BlePreferenceClient implements PreferenceClient {
@@ -55,8 +58,14 @@ export class BlePreferenceClient implements PreferenceClient {
   private decoder = new TextDecoder()
   private buffer = ''
   private bufferedBytes = 0
-  private protocol = 1
-  private hello?: () => void
+  private ready = false
+  private initial?: {
+    protocol: boolean
+    values: Map<SettingKey, PreferenceValue>
+    resolve(): void
+    reject(error: AppError): void
+    timer: ReturnType<typeof setTimeout>
+  }
   private device?: BluetoothDevice
   private tx?: BluetoothCharacteristic
   private rx?: BluetoothCharacteristic
@@ -79,7 +88,7 @@ export class BlePreferenceClient implements PreferenceClient {
       this.buffer = ''
       this.bufferedBytes = 0
       this.decoder = new TextDecoder()
-      this.failPending(new AppError('invalid-notification', '本体からの設定応答を読み取れませんでした'))
+      this.fail(new AppError('invalid-notification', '本体からの設定応答を読み取れませんでした'))
       return
     }
     this.buffer += this.decoder.decode(event.target.value, { stream: true })
@@ -89,17 +98,6 @@ export class BlePreferenceClient implements PreferenceClient {
       this.buffer = this.buffer.slice(end + 1)
       if (frame.trim()) this.receive(frame)
       end = this.buffer.indexOf('\n')
-    }
-    // Older firmware sent one unframed JSON document per notification.
-    if (this.buffer.trim()) {
-      try {
-        JSON.parse(this.buffer)
-      } catch {
-        return
-      }
-      const frame = this.buffer
-      this.buffer = ''
-      this.receive(frame)
     }
     this.bufferedBytes = this.encoder.encode(this.buffer).byteLength
   }
@@ -133,9 +131,27 @@ export class BlePreferenceClient implements PreferenceClient {
       this.checkEpoch(epoch)
       this.rx = rx
       this.tx = tx
+      const ready = new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(
+          () =>
+            this.fail(
+              new AppError(
+                'settings-not-ready',
+                '本体の設定を取得できませんでした。対応するファームウェアで再接続してください'
+              )
+            ),
+          5000
+        )
+        this.initial = { protocol: false, values: new Map(), resolve, reject, timer }
+      })
+      // Notifications can fail or disconnect while startNotifications is still pending.
+      void ready.catch(() => {})
       tx.addEventListener('characteristicvaluechanged', this.handleValueChanged)
       await tx.startNotifications()
       this.checkEpoch(epoch)
+      await ready
+      this.checkEpoch(epoch)
+      this.ready = true
     } catch (error) {
       if (this.epoch === epoch) {
         this.reset()
@@ -146,7 +162,7 @@ export class BlePreferenceClient implements PreferenceClient {
   }
 
   isConnected() {
-    return this.device?.gatt?.connected ?? false
+    return this.ready && (this.device?.gatt?.connected ?? false)
   }
 
   async disconnect() {
@@ -162,46 +178,30 @@ export class BlePreferenceClient implements PreferenceClient {
     const epoch = this.epoch
     const rx = this.rx
     try {
-      if (this.protocol !== SETTINGS_PROTOCOL_VERSION)
-        await new Promise<void>((resolve) => {
-          const timer = setTimeout(() => {
-            this.hello = undefined
-            resolve()
-          }, 1500)
-          this.hello = () => {
-            clearTimeout(timer)
-            this.hello = undefined
-            resolve()
-          }
-        })
-      this.checkEpoch(epoch)
       const id = ++this.requestId
-      const confirmed = this.protocol === SETTINGS_PROTOCOL_VERSION
       const bytes = this.encoder.encode(JSON.stringify({ ...payload, requestId: id }))
       if (bytes.byteLength > SETTINGS_MESSAGE_MAX_BYTES)
         throw new AppError('settings-too-large', '設定が長すぎます。内容を短くして再試行してください')
-      const ack = confirmed
-        ? new Promise<SettingsSaveReceipt>((resolve, reject) => {
-            const timer = setTimeout(
-              () =>
-                this.failPending(
-                  new AppError('save-timeout', '本体の保存結果を確認できませんでした。接続して設定を確認してください')
-                ),
-              10000
-            )
-            this.pending = { id, resolve, reject, timer }
-          })
-        : undefined
+      const ack = new Promise<SettingsSaveReceipt>((resolve, reject) => {
+        const timer = setTimeout(
+          () =>
+            this.fail(
+              new AppError('save-timeout', '本体の保存結果を確認できませんでした。接続して設定を確認してください')
+            ),
+          10000
+        )
+        this.pending = { id, resolve, reject, timer }
+      })
       // A disconnect can reject while a Bluetooth write is still pending.
-      void ack?.catch(() => {})
+      void ack.catch(() => {})
       for (let index = 0; index < bytes.length; index += 128) {
         this.checkEpoch(epoch)
         await rx.writeValue(bytes.slice(index, index + 128))
       }
       this.checkEpoch(epoch)
-      return ack ? await ack : { confirmed: false }
+      return await ack
     } catch (error) {
-      if (this.epoch === epoch) this.failPending(new AppError('save-interrupted', '設定の保存を完了できませんでした'))
+      if (this.epoch === epoch) this.fail(new AppError('save-interrupted', '設定の保存を完了できませんでした'))
       throw error
     } finally {
       if (this.epoch === epoch) this.sending = false
@@ -213,15 +213,40 @@ export class BlePreferenceClient implements PreferenceClient {
     try {
       message = JSON.parse(frame)
     } catch {
-      this.failPending(new AppError('invalid-notification', '本体からの設定応答を読み取れませんでした'))
+      this.fail(new AppError('invalid-notification', '本体からの設定応答を読み取れませんでした'))
       return
     }
     if (!message || typeof message !== 'object') return
-    if (message.kind === 'hello' && message.protocol === SETTINGS_PROTOCOL_VERSION) {
-      this.protocol = SETTINGS_PROTOCOL_VERSION
-      this.hello?.()
+    const initial = this.initial
+    if (initial) {
+      if (message.kind === 'hello' && message.protocol === SETTINGS_PROTOCOL_VERSION && !initial.protocol) {
+        initial.protocol = true
+      } else if (initial.protocol && typeof message.prop === 'string' && isSettingKey(message.prop)) {
+        initial.values.set(message.prop, message as PreferenceValue)
+      } else if (message.kind === 'ready' && initial.protocol && initial.values.size === SETTING_KEYS.length) {
+        try {
+          for (const value of initial.values.values()) {
+            this.onValue(value)
+            if (this.initial !== initial) return
+          }
+        } catch {
+          this.fail(new AppError('invalid-notification', '本体からの設定応答を読み取れませんでした'))
+          return
+        }
+        clearTimeout(initial.timer)
+        this.initial = undefined
+        initial.resolve()
+      } else {
+        this.fail(
+          new AppError(
+            'settings-not-ready',
+            '本体の設定を取得できませんでした。対応するファームウェアで再接続してください'
+          )
+        )
+      }
       return
     }
+    if (!this.ready) return
     if (typeof message.prop === 'string') {
       this.onValue(message as PreferenceValue)
       return
@@ -229,17 +254,20 @@ export class BlePreferenceClient implements PreferenceClient {
     const pending = this.pending
     if (!pending || message.requestId !== pending.id) return
     if (message.kind === 'saved') {
+      if (
+        !Array.isArray(message.applications) ||
+        !message.applications.every((value) => ['live', 'reconnect', 'restart'].includes(value)) ||
+        typeof message.applyFailed !== 'boolean'
+      ) {
+        this.fail(new AppError('invalid-notification', '本体からの設定応答を読み取れませんでした'))
+        return
+      }
       clearTimeout(pending.timer)
       this.pending = undefined
-      const applications = Array.isArray(message.applications)
-        ? message.applications.filter((value): value is SettingApplication =>
-            ['live', 'reconnect', 'restart'].includes(value)
-          )
-        : []
-      pending.resolve({ confirmed: true, applications, applyFailed: message.applyFailed === true })
+      pending.resolve({ applications: message.applications as SettingApplication[], applyFailed: message.applyFailed })
     } else if (message.kind === 'error') {
       const code = typeof message.code === 'string' ? message.code : 'IO'
-      this.failPending(
+      this.fail(
         new AppError(
           code,
           code === 'INVALID_ARGUMENT'
@@ -256,7 +284,13 @@ export class BlePreferenceClient implements PreferenceClient {
     if (epoch !== this.epoch) throw new AppError('disconnected', '設定の接続が切り替わりました')
   }
 
-  private failPending(error: AppError) {
+  private fail(error: AppError) {
+    const initial = this.initial
+    if (initial) {
+      clearTimeout(initial.timer)
+      this.initial = undefined
+      initial.reject(error)
+    }
     const pending = this.pending
     if (!pending) return
     clearTimeout(pending.timer)
@@ -268,15 +302,14 @@ export class BlePreferenceClient implements PreferenceClient {
     this.device?.removeEventListener('gattserverdisconnected', this.handleDisconnected)
     this.tx?.removeEventListener('characteristicvaluechanged', this.handleValueChanged)
     this.epoch += 1
-    this.hello?.()
-    this.failPending(new AppError('disconnected', '保存結果を確認する前に接続が切れました'))
+    this.fail(new AppError('disconnected', '保存結果を確認する前に接続が切れました'))
     this.device = undefined
     this.tx = undefined
     this.rx = undefined
     this.buffer = ''
     this.bufferedBytes = 0
     this.decoder = new TextDecoder()
-    this.protocol = 1
+    this.ready = false
     this.sending = false
   }
 }

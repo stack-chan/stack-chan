@@ -59,6 +59,7 @@ export class PreferenceServer extends UARTServer {
     this.#notify({ kind: 'hello', protocol: SETTINGS_PROTOCOL_VERSION })
     try {
       for (const key of SETTING_KEYS) this.#notify(this.#options.settings.describe(key))
+      this.#notify({ kind: 'ready' })
     } catch {
       this.#notify({ kind: 'error', code: 'IO', message: 'Settings could not be read' })
     }
@@ -106,8 +107,9 @@ export class PreferenceServer extends UARTServer {
       const request = message as Record<string, unknown>
       if (typeof request.requestId === 'number' && Number.isSafeInteger(request.requestId) && request.requestId > 0)
         requestId = request.requestId
-      const batch = request._batch ?? (typeof request.prop === 'string' ? { [request.prop]: request.value } : undefined)
-      const changes = this.#options.settings.write(batch as Record<string, unknown>)
+      if (requestId === undefined || Object.keys(request).some((key) => key !== 'requestId' && key !== '_batch'))
+        throw new StackchanError('INVALID_ARGUMENT', 'Invalid settings request')
+      const changes = this.#options.settings.write(request._batch as Record<string, unknown>)
       let applyFailed = false
       for (const change of changes) {
         try {

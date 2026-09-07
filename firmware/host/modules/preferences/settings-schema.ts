@@ -13,9 +13,8 @@ export type SettingApplication = 'live' | 'reconnect' | 'restart'
 export const SETTINGS_PROTOCOL_VERSION = 2
 export const SETTINGS_MESSAGE_MAX_BYTES = 32_768
 export type SettingsSaveReceipt = {
-  confirmed: boolean
-  applications?: readonly SettingApplication[]
-  applyFailed?: boolean
+  applications: readonly SettingApplication[]
+  applyFailed: boolean
 }
 type Definition<T extends string | number> = Readonly<{
   kind: 'string' | 'number'
@@ -146,18 +145,6 @@ export type SettingsForDomain<D extends SettingDomain> = {
   [K in SettingKey as K extends `${D}.${infer Name}` ? Name : never]?: SettingValue<K>
 }
 export const SETTING_KEYS = Object.freeze(Object.keys(SETTINGS_SCHEMA) as SettingKey[])
-/** Legacy tuple view is derived from the same definitions used for validation. */
-export const PREF_KEYS: readonly (readonly [SettingDomain, string, StringConstructor | NumberConstructor])[] =
-  Object.freeze(
-    SETTING_KEYS.map((key) => {
-      const [domain, name] = key.split('.')
-      return Object.freeze([
-        domain as SettingDomain,
-        name,
-        SETTINGS_SCHEMA[key].kind === 'number' ? Number : String,
-      ] as const)
-    }),
-  )
 
 export function isSettingKey(value: string): value is SettingKey {
   return Object.hasOwn(SETTINGS_SCHEMA, value)

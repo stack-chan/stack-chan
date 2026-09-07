@@ -2,13 +2,17 @@ import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { usePreferences } from '@/features/preferences/use-preferences'
-import { type PreferenceClient, type PreferenceValue } from '@/services/preferences/ble-preference-client'
+import {
+  type PreferenceClient,
+  type PreferenceValue,
+  type SettingsSaveReceipt,
+} from '@/services/preferences/ble-preference-client'
 
 describe('usePreferences', () => {
   it('keeps remote values, dirty fields, and batched save in application state', async () => {
     let connected = false
     let notify: (value: PreferenceValue) => void = () => {}
-    const send = vi.fn(async () => {})
+    const send = vi.fn(async () => ({ applications: [], applyFailed: false }))
     const client: PreferenceClient = {
       connect: async () => {
         connected = true
@@ -43,7 +47,7 @@ describe('usePreferences', () => {
       connect: async () => {},
       disconnect: async () => {},
       isConnected: () => true,
-      send: async () => {},
+      send: async () => ({ applications: [], applyFailed: false }),
     }
     const { result } = renderHook(() =>
       usePreferences((onValue) => {
@@ -58,7 +62,7 @@ describe('usePreferences', () => {
 
   it('loads and saves the MCP server token', async () => {
     let notify: (value: PreferenceValue) => void = () => {}
-    const send = vi.fn(async () => {})
+    const send = vi.fn(async () => ({ applications: [], applyFailed: false }))
     const client: PreferenceClient = {
       connect: async () => {},
       disconnect: async () => {},
@@ -72,7 +76,7 @@ describe('usePreferences', () => {
       })
     )
 
-    act(() => notify({ prop: 'mcp.token', value: 'old-token' }))
+    act(() => notify({ prop: 'mcp.token', value: '', configured: true }))
     expect(result.current.values['mcp.token']).toBe('')
     expect(result.current.configuredSecrets.has('mcp.token')).toBe(true)
 
@@ -84,7 +88,7 @@ describe('usePreferences', () => {
 
   it('does not save a field reverted to its current device value', async () => {
     let notify: (value: PreferenceValue) => void = () => {}
-    const send = vi.fn(async () => {})
+    const send = vi.fn(async () => ({ applications: [], applyFailed: false }))
     const client: PreferenceClient = {
       connect: async () => {},
       disconnect: async () => {},
@@ -109,7 +113,10 @@ describe('usePreferences', () => {
 
   it('keeps cleared Wi-Fi fields retryable when the immediate save fails', async () => {
     let notify: (value: PreferenceValue) => void = () => {}
-    const send = vi.fn().mockRejectedValueOnce(new Error('connection lost')).mockResolvedValueOnce({ confirmed: true })
+    const send = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('connection lost'))
+      .mockResolvedValueOnce({ applications: [], applyFailed: false })
     const client: PreferenceClient = {
       connect: async () => {},
       disconnect: async () => {},
@@ -124,7 +131,7 @@ describe('usePreferences', () => {
     )
     act(() => {
       notify({ prop: 'wifi.ssid', value: 'stackchan' })
-      notify({ prop: 'wifi.password', value: 'secret' })
+      notify({ prop: 'wifi.password', value: '', configured: true })
     })
 
     await act(() => result.current.clearWifi())
@@ -144,7 +151,7 @@ describe('usePreferences', () => {
       connect: async () => {},
       disconnect,
       isConnected: () => true,
-      send: async () => {},
+      send: async () => ({ applications: [], applyFailed: false }),
     }
     const { unmount } = renderHook(() => usePreferences(() => client))
 
@@ -155,7 +162,7 @@ describe('usePreferences', () => {
   })
 })
 
-function hookFixture(send = vi.fn(async () => ({ confirmed: true }))) {
+function hookFixture(send = vi.fn<PreferenceClient['send']>(async () => ({ applications: [], applyFailed: false }))) {
   let notify: (value: PreferenceValue) => void = () => {}
   const client: PreferenceClient = {
     connect: async () => {},
@@ -206,13 +213,25 @@ it('clears a typed secret after confirmed persistence', async () => {
   expect(result.current.operation.status).toBe('success')
 })
 
-it('preserves edits when a legacy server cannot confirm persistence', async () => {
-  const { result, send } = hookFixture(vi.fn(async () => ({ confirmed: false })))
+it('preserves edits when persistence fails', async () => {
+  const { result, send } = hookFixture(vi.fn<PreferenceClient['send']>().mockRejectedValue(new Error('save timeout')))
   act(() => result.current.update('tts.volume', '0.25'))
   await act(() => result.current.save())
-  expect(result.current.operation.status).toBe('cancelled')
+  expect(result.current.operation.status).toBe('error')
   await act(() => result.current.save())
   expect(send).toHaveBeenCalledTimes(2)
+})
+
+it('keeps successful persistence distinct from failed live application', async () => {
+  const { result, send } = hookFixture(
+    vi.fn<PreferenceClient['send']>().mockResolvedValue({ applications: ['live'], applyFailed: true })
+  )
+  act(() => result.current.update('tts.volume', '0.25'))
+  await act(() => result.current.save())
+  expect(result.current.operation).toMatchObject({ status: 'success' })
+  expect(result.current.operation).toHaveProperty('message', expect.stringContaining('再起動して確認'))
+  await act(() => result.current.save())
+  expect(send).toHaveBeenCalledOnce()
 })
 
 it('displays the effective device value after an optional setting reset', async () => {
@@ -220,7 +239,7 @@ it('displays the effective device value after an optional setting reset', async 
   act(() => notify({ prop: 'tts.port', value: 8080 }))
   send.mockImplementationOnce(async () => {
     notify({ prop: 'tts.port', value: 50021 })
-    return { confirmed: true }
+    return { applications: [], applyFailed: false }
   })
   act(() => result.current.update('tts.port', ''))
   await act(() => result.current.save())
@@ -240,7 +259,7 @@ it('can undo a pending secret deletion without writing it', async () => {
 
 it('preserves a newer draft when the previous save finishes', async () => {
   const { result, send } = hookFixture()
-  let finish!: (receipt: { confirmed: boolean }) => void
+  let finish!: (receipt: SettingsSaveReceipt) => void
   send.mockImplementationOnce(
     () =>
       new Promise((resolve) => {
@@ -254,7 +273,7 @@ it('preserves a newer draft when the previous save finishes', async () => {
   })
   act(() => result.current.update('tts.volume', '0.75'))
   await act(async () => {
-    finish({ confirmed: true })
+    finish({ applications: [], applyFailed: false })
     await saving
   })
   expect(result.current.values['tts.volume']).toBe('0.75')

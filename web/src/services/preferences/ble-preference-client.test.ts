@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { SETTING_KEYS, SETTINGS_SCHEMA } from '../../../../firmware/host/modules/preferences/settings-schema'
+
 import { BlePreferenceClient } from '@/services/preferences/ble-preference-client'
 
 type Listener = (event: never) => void
@@ -29,45 +31,18 @@ afterEach(() => {
 
 describe('BlePreferenceClient', () => {
   it('reuses devices and characteristics without accumulating event listeners', async () => {
-    const tx = Object.assign(new FakeEventTarget(), {
-      startNotifications: vi.fn(async () => {}),
-      writeValue: vi.fn(async () => {}),
-    })
-    const rx = Object.assign(new FakeEventTarget(), {
-      startNotifications: vi.fn(async () => {}),
-      writeValue: vi.fn(async () => {}),
-    })
-    const device = Object.assign(new FakeEventTarget(), {
-      gatt: {
-        connected: false,
-        connect: vi.fn(async () => {
-          device.gatt.connected = true
-          return {
-            getPrimaryService: async () => ({
-              getCharacteristic: async (uuid: string) => (uuid.endsWith('0002-b5a3-f393-e0a9-e50e24dcca9e') ? rx : tx),
-            }),
-          }
-        }),
-        disconnect: vi.fn(() => {
-          device.gatt.connected = false
-        }),
-      },
-    })
-    const requestDevice = vi.fn(async () => device)
-    vi.stubGlobal('navigator', { bluetooth: { requestDevice } })
-    const onValue = vi.fn()
-    const client = new BlePreferenceClient({ deviceName: 'STK', onValue })
+    const { client, device, tx, onValue, notify } = connectionFixture()
 
     await client.connect()
     await client.connect()
 
-    expect(requestDevice).toHaveBeenCalledTimes(2)
+    expect(device.gatt.connect).toHaveBeenCalledTimes(2)
     expect(device.listeners.get('gattserverdisconnected')?.size).toBe(1)
     expect(tx.listeners.get('characteristicvaluechanged')?.size).toBe(1)
 
-    tx.dispatch('characteristicvaluechanged', {
-      target: { value: new TextEncoder().encode(JSON.stringify({ prop: 'wifi.ssid', value: 'stackchan' })) },
-    })
+    expect(onValue).toHaveBeenCalledTimes(SETTING_KEYS.length * 2)
+    onValue.mockClear()
+    notify({ prop: 'wifi.ssid', value: 'stackchan' })
     expect(onValue).toHaveBeenCalledOnce()
 
     await client.disconnect()
@@ -109,8 +84,14 @@ function connectionFixture() {
     for (let index = 0; index < bytes.length; index += chunkSize)
       tx.dispatch('characteristicvaluechanged', { target: { value: bytes.slice(index, index + chunkSize) } })
   }
-  tx.startNotifications.mockImplementation(async () => notify({ kind: 'hello', protocol: 2 }))
-  return { client, device, rx, tx, notify, onValue }
+  const snapshot = () => {
+    notify({ kind: 'hello', protocol: 2 })
+    for (const prop of SETTING_KEYS)
+      notify({ prop, value: SETTINGS_SCHEMA[prop].secret ? '' : (SETTINGS_SCHEMA[prop].defaultValue ?? '') })
+    notify({ kind: 'ready' })
+  }
+  tx.startNotifications.mockImplementation(async () => snapshot())
+  return { client, device, rx, tx, notify, onValue, snapshot }
 }
 
 it('waits for a matching device save acknowledgement and returns its application timing', async () => {
@@ -124,17 +105,18 @@ it('waits for a matching device save acknowledgement and returns its application
   await Promise.resolve()
   expect(rx.writeValue).toHaveBeenCalledOnce()
   expect(settled).toBe(false)
-  notify({ kind: 'saved', requestId: 99, applications: ['restart'] })
+  notify({ kind: 'saved', requestId: 99, applications: ['restart'], applyFailed: false })
   await Promise.resolve()
   expect(settled).toBe(false)
-  notify({ kind: 'saved', requestId: 1, applications: ['live'] })
-  expect(await saving).toEqual({ confirmed: true, applications: ['live'], applyFailed: false })
+  notify({ kind: 'saved', requestId: 1, applications: ['live'], applyFailed: false })
+  expect(await saving).toEqual({ applications: ['live'], applyFailed: false })
   await client.disconnect()
 })
 
 it('decodes UTF-8 characters split at every byte without exposing fragmented values', async () => {
   const { client, notify, onValue } = connectionFixture()
   await client.connect()
+  onValue.mockClear()
   notify({ prop: 'wifi.ssid', value: 'ｽﾀｯｸﾁｬﾝ🤖' }, 1)
   expect(onValue).toHaveBeenCalledExactlyOnceWith({ prop: 'wifi.ssid', value: 'ｽﾀｯｸﾁｬﾝ🤖' })
   await client.disconnect()
@@ -146,6 +128,19 @@ it('rejects storage errors without copying arbitrary device error text', async (
   const saving = client.send({ _batch: { 'tts.token': 'new-token' } })
   notify({ kind: 'error', requestId: 1, code: 'IO', message: 'secret storage exception' })
   await expect(saving).rejects.toMatchObject({ code: 'IO', message: '本体が設定を保存できませんでした' })
+  await client.disconnect()
+})
+
+it.each([
+  { applications: ['live'] },
+  { applications: ['unknown'], applyFailed: false },
+  { applications: [], applyFailed: 'false' },
+])('rejects an incomplete or invalid save receipt: %j', async (receipt) => {
+  const { client, notify } = connectionFixture()
+  await client.connect()
+  const saving = client.send({ _batch: { 'tts.volume': '0.2' } })
+  notify({ kind: 'saved', requestId: 1, ...receipt })
+  await expect(saving).rejects.toMatchObject({ code: 'invalid-notification' })
   await client.disconnect()
 })
 
@@ -171,14 +166,84 @@ it('times out a missing storage acknowledgement instead of claiming success', as
   expect(vi.getTimerCount()).toBe(0)
 })
 
-it('reports old firmware sends as unconfirmed', async () => {
+it('rejects firmware without a complete settings snapshot before any write', async () => {
   vi.useFakeTimers()
-  const { client, tx } = connectionFixture()
+  const { client, tx, rx, onValue } = connectionFixture()
   tx.startNotifications.mockImplementation(async () => {})
+  const rejected = expect(client.connect()).rejects.toMatchObject({ code: 'settings-not-ready' })
+  await vi.advanceTimersByTimeAsync(5000)
+  await rejected
+  expect(client.isConnected()).toBe(false)
+  await expect(client.send({ _batch: { 'tts.volume': '0.2' } })).rejects.toMatchObject({ code: 'not-connected' })
+  expect(rx.writeValue).not.toHaveBeenCalled()
+  expect(onValue).not.toHaveBeenCalled()
+  expect(vi.getTimerCount()).toBe(0)
+})
+
+it('holds initial values until every managed key and the ready marker arrive', async () => {
+  const { client, tx, notify, onValue, rx } = connectionFixture()
+  tx.startNotifications.mockImplementation(async () => {})
+  const connecting = client.connect()
+  await vi.waitFor(() => expect(tx.startNotifications).toHaveBeenCalledOnce())
+  notify({ kind: 'hello', protocol: 2 })
+  for (const prop of SETTING_KEYS) notify({ prop, value: '' })
+  expect(client.isConnected()).toBe(false)
+  expect(onValue).not.toHaveBeenCalled()
+  await expect(client.send({ _batch: { 'tts.volume': '0.2' } })).rejects.toMatchObject({ code: 'not-connected' })
+  expect(rx.writeValue).not.toHaveBeenCalled()
+  notify({ kind: 'ready' })
+  await connecting
+  expect(client.isConnected()).toBe(true)
+  expect(onValue).toHaveBeenCalledTimes(SETTING_KEYS.length)
+  await client.disconnect()
+})
+
+it.each([
+  [{ kind: 'hello', protocol: 1 }],
+  [{ kind: 'hello', protocol: 2 }, { prop: 'tts.volume', value: 0.5 }, { kind: 'ready' }],
+  [
+    { kind: 'hello', protocol: 2 },
+    { kind: 'error', code: 'IO', message: 'private storage error' },
+  ],
+])('rejects an incompatible or incomplete snapshot without exposing partial settings: %j', async (...frames) => {
+  const { client, tx, notify, onValue } = connectionFixture()
+  tx.startNotifications.mockImplementation(async () => {
+    for (const frame of frames) notify(frame)
+  })
+  await expect(client.connect()).rejects.toMatchObject({ code: 'settings-not-ready' })
+  expect(client.isConnected()).toBe(false)
+  expect(onValue).not.toHaveBeenCalled()
+})
+
+it('cancels a pending snapshot on disconnect and ignores its late frames', async () => {
+  vi.useFakeTimers()
+  const { client, tx, notify, onValue, snapshot } = connectionFixture()
+  tx.startNotifications.mockImplementation(async () => {})
+  const rejected = expect(client.connect()).rejects.toMatchObject({ code: 'disconnected' })
+  await vi.advanceTimersByTimeAsync(1)
+  notify({ kind: 'hello', protocol: 2 })
+  notify({ prop: 'wifi.ssid', value: 'stale' })
+  await client.disconnect()
+  await rejected
+  snapshot()
+  expect(onValue).not.toHaveBeenCalled()
+  expect(vi.getTimerCount()).toBe(0)
+  tx.startNotifications.mockImplementation(async () => snapshot())
   await client.connect()
-  const saving = client.send({ _batch: { 'tts.volume': '0.2' } })
-  await vi.advanceTimersByTimeAsync(1500)
-  expect(await saving).toEqual({ confirmed: false })
+  expect(client.isConnected()).toBe(true)
+  await client.disconnect()
+  expect(vi.getTimerCount()).toBe(0)
+})
+
+it('waits for a newline even when a notification contains a complete JSON object', async () => {
+  const { client, tx, onValue } = connectionFixture()
+  await client.connect()
+  onValue.mockClear()
+  const bytes = new TextEncoder().encode(JSON.stringify({ prop: 'wifi.ssid', value: 'framed' }))
+  tx.dispatch('characteristicvaluechanged', { target: { value: bytes } })
+  expect(onValue).not.toHaveBeenCalled()
+  tx.dispatch('characteristicvaluechanged', { target: { value: new Uint8Array([10]) } })
+  expect(onValue).toHaveBeenCalledExactlyOnceWith({ prop: 'wifi.ssid', value: 'framed' })
   await client.disconnect()
 })
 
@@ -190,8 +255,8 @@ it('bounds messages before any BLE write and can recover for the next request', 
   })
   expect(rx.writeValue).not.toHaveBeenCalled()
   const saving = client.send({ _batch: { 'tts.volume': '0.2' } })
-  notify({ kind: 'saved', requestId: 2, applications: ['live'] })
-  expect((await saving).confirmed).toBe(true)
+  notify({ kind: 'saved', requestId: 2, applications: ['live'], applyFailed: false })
+  expect((await saving).applications).toEqual(['live'])
   await client.disconnect()
 })
 
@@ -212,7 +277,7 @@ it('does not let a late write from an old connection reject a new save', async (
   const newSave = client.send({ _batch: { 'tts.volume': '0.3' } })
   completeOldWrite()
   await rejected
-  notify({ kind: 'saved', requestId: 2, applications: ['live'] })
-  expect((await newSave).confirmed).toBe(true)
+  notify({ kind: 'saved', requestId: 2, applications: ['live'], applyFailed: false })
+  expect((await newSave).applications).toEqual(['live'])
   await client.disconnect()
 })

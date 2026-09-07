@@ -53,9 +53,11 @@ async function run() {
   })
   const server = new PreferenceServer({ settings, onPreferenceChanged: (key) => applied.push(key) })
   server.onCharacteristicNotifyEnabled({ name: 'tx' })
-  await until(() => messages(server).filter((message) => message.prop).length === SETTING_KEYS.length)
+  await until(() => messages(server).some((message) => message.kind === 'ready'))
   const initial = messages(server)
   equal(initial[0].protocol, 2)
+  equal(initial.filter((message) => message.prop).length, SETTING_KEYS.length)
+  equal(initial[initial.length - 1].kind, 'ready', 'the snapshot is ready only after every setting')
   const driver = initial.find((message) => message.prop === 'driver.type')
   equal(driver?.value, 'm5stackchan')
   equal(driver?.readOnly, true)
@@ -92,6 +94,18 @@ async function run() {
   equal(messages(server).find((message) => message.requestId === 3)?.code, 'CONFIG')
   equal(settings.get('driver.type'), 'm5stackchan')
 
+  for (const request of [
+    { requestId: 5, prop: 'tts.volume', value: 0.9 },
+    { requestId: 6, _batch: { 'tts.volume': 0.9 }, prop: 'wifi.ssid', value: 'ignored' },
+    { _batch: { 'tts.volume': 0.9 } },
+    { requestId: 0, _batch: { 'tts.volume': 0.9 } },
+  ]) {
+    const errors = messages(server).filter((message) => message.kind === 'error').length
+    server.onRX(ArrayBuffer.fromString(JSON.stringify(request)))
+    await until(() => messages(server).filter((message) => message.kind === 'error').length > errors)
+    equal(writes, before, 'retired or uncorrelated requests must not change storage')
+  }
+
   server.onRX(new ArrayBuffer(SETTINGS_MESSAGE_MAX_BYTES + 1))
   await until(() => messages(server).some((message) => message.message === 'Settings message is too large'))
   equal(writes, before)
@@ -113,6 +127,22 @@ async function run() {
   await wait(3100)
   equal(server.notifications.length, afterClose, 'close cancels timers and rejects late BLE callbacks')
   assert(server.closed, 'the UART transport is closed')
+
+  const failedSnapshot = new PreferenceServer({
+    settings: {
+      get: settings.get.bind(settings),
+      write: settings.write.bind(settings),
+      describe(key) {
+        if (key === 'ui.language') throw new Error('private storage failure')
+        return settings.describe(key)
+      },
+    },
+  })
+  failedSnapshot.onCharacteristicNotifyEnabled({ name: 'tx' })
+  await until(() => messages(failedSnapshot).some((message) => message.kind === 'error'))
+  assert(!messages(failedSnapshot).some((message) => message.kind === 'ready'), 'a partial snapshot is not ready')
+  assert(!JSON.stringify(messages(failedSnapshot)).includes('private'), 'snapshot errors omit storage details')
+  failedSnapshot.close()
   trace('ok\n')
 }
 run().catch((error) => {

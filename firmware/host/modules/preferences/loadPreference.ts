@@ -3,7 +3,7 @@ import verifyInstalledMod from 'installed-mod'
 import config from 'mc/config'
 import Modules from 'modules'
 import Preference from 'preference'
-import { DOMAIN, SETTING_KEYS, type SettingDomain, type SettingsForDomain, validateSetting } from 'settings-schema'
+import { DOMAIN, SETTING_KEYS, type SettingDomain, type SettingsForDomain } from 'settings-schema'
 import { type SettingsLayer, SettingsService } from 'settings-service'
 
 type ConfigRecord = Record<string, unknown>
@@ -48,13 +48,6 @@ export function getHostSettingsService(): SettingsService {
 
 export function getSettingsService(): SettingsService {
   settings ??= createSettingsService(() => loadModConfig() as SettingsLayer)
-  if (Preference.get(DOMAIN.ui, 'type') == null) {
-    const legacy = Preference.get('renderer', 'type')
-    if (legacy != null && validateSetting('ui.type', legacy).valid) {
-      settings.write({ 'ui.type': legacy })
-      trace('[preferences] migrated renderer.type to ui.type\n')
-    }
-  }
   return settings
 }
 

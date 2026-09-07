@@ -46,7 +46,7 @@ export function usePreferences(
     if (secret)
       setConfiguredSecrets((current) => {
         const next = new Set(current)
-        if (configured ?? (typeof value === 'string' && value.length > 0)) next.add(prop)
+        if (configured) next.add(prop)
         else next.delete(prop)
         return next
       })
@@ -155,14 +155,6 @@ export function usePreferences(
       }
       const receipt = await activeClient.send({ _batch: batch })
       if (activeGeneration !== generation.current) return
-      if (!receipt?.confirmed) {
-        setOperation({
-          status: 'cancelled',
-          message:
-            '設定を送信しましたが、本体の保存結果は確認できません。確認応答に対応したファームウェアをご利用ください。',
-        })
-        return
-      }
       for (const [key, value] of entries) {
         const preferenceKey = key as PreferenceKey
         const secret = SETTINGS_SCHEMA[preferenceKey].secret
@@ -189,9 +181,9 @@ export function usePreferences(
       }
       const timing = receipt.applyFailed
         ? ' 一部の設定を反映できませんでした。再起動して確認してください。'
-        : receipt.applications?.includes('restart')
+        : receipt.applications.includes('restart')
           ? ' 再起動すると反映されます。'
-          : receipt.applications?.includes('reconnect')
+          : receipt.applications.includes('reconnect')
             ? ' Wi-Fi設定は次の接続または再起動で反映されます。'
             : ''
       setOperation({ status: 'success', result: undefined, message: successMessage + timing })

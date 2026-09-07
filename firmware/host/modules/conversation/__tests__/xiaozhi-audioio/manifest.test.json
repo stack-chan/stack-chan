@@ -1,0 +1,16 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./xiaozhi-audioio.test",
+    "ChatAudioIO": "$(MODDABLE)/modules/network/services/chatAudioIO/ChatAudioIO",
+    "StackChanChatAudioIO": "../../chat-audioio/worker-stack",
+    "stackchanPcmRingWriter": "./pcm-ring-writer",
+    "stackchanXiaozhiAudioIOBase": "../../chat-audioio/xiaozhi-audioio-base",
+    "embedded:io/audio/in": "./audio-in",
+    "embedded:io/audio/out": "./audio-out",
+    "worker": "./worker"
+  }
+}

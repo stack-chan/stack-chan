@@ -16,9 +16,10 @@ import Timer from 'timer'
 
 trace('=== chat-service test ===\n')
 
-equal(ChatService.protocolContractVersion('xiaozhi-v1'), 1, 'host exposes the XiaoZhi contract version')
+equal(ChatService.protocolContractVersion('xiaozhi-v1'), 2, 'host exposes the turn-control contract version')
 equal(ChatService.supportsProtocol('xiaozhi-v1'), true, 'host reports XiaoZhi v1 support')
-equal(ChatService.supportsProtocol('xiaozhi-v1', 2), false, 'host rejects a newer required contract')
+equal(ChatService.supportsProtocol('xiaozhi-v1', 2), true, 'host supports downlink turn control')
+equal(ChatService.supportsProtocol('xiaozhi-v1', 3), false, 'host rejects a newer required contract')
 equal(ChatService.supportsProtocol('unknown'), false, 'host rejects unknown connection protocols')
 
 const tools: Record<string, ChatTool> = {
@@ -103,6 +104,18 @@ equal(lastOptions.configuration?.features?.mcp, true, 'registered tools advertis
 equal(lastOptions.configuration?.features?.aec, true, 'AEC is explicitly advertised')
 equal(lastOptions.configuration?.features?.glyph_push, undefined, 'glyph push remains unadvertised')
 equal(lastOptions.functions?.length, 1, 'tool schemas should reach the worker')
+
+const beforeRejected = ChatAudioIOAny.instances?.length
+for (const turnControl of ['fullDuplex', 'invalid']) {
+  let rejected = false
+  try {
+    new ChatService({ connection, turnControl: turnControl as 'fullDuplex', chatAudioIOCtor: ChatAudioIO as any })
+  } catch {
+    rejected = true
+  }
+  equal(rejected, true, 'unsupported modes must fail before creating audio resources')
+}
+equal(ChatAudioIOAny.instances?.length, beforeRejected, 'rejected modes allocate no AudioIO')
 
 service.start()
 equal(states[0], ChatState.CONNECTING, 'state should map to CONNECTING')

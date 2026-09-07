@@ -39,6 +39,9 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.sessionID = ''
     this.uploading = false
     this.listeningMode = 'auto'
+    this.turnControl = 'halfDuplex'
+    this.outputTurnId = 0
+    this.outputWrittenBytes = 0
     this.features = {}
     this.helloExtension = {}
     this.functions = []
@@ -57,6 +60,10 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.pcmRing = message.pcmRing
     this.pcmRingState = message.pcmRingState
     try {
+      this.turnControl = message.turnControl ?? 'halfDuplex'
+      if (!['halfDuplex', 'downlink'].includes(this.turnControl)) {
+        throw new Error(this.turnControl === 'fullDuplex' ? 'fullDuplex is not implemented' : 'Invalid turnControl')
+      }
       const configuration = normalizeConfiguration(message)
       const endpoint = parseWebSocketEndpoint(configuration.endpoint)
       const apiKey = String(configuration.authentication?.bearerToken ?? '')
@@ -220,11 +227,14 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       this.decoder = new OpusDecoder(sampleRate, frameDuration)
       this.decoderPCM = new SharedArrayBuffer(this.decoder.outputBytes)
       this.encoder?.close()
-      this.encoder = new OpusEncoder()
-      if (!this.pcmRing || !this.pcmRingState) throw new Error('XiaoZhi PCM ring is not configured')
-      this.encoder.attachPcmRing(this.pcmRing, this.pcmRingState)
-      this.encoderPacket = new SharedArrayBuffer(this.encoder.outputBytes)
-      this.encoderTimer = Timer.repeat(() => this.flushEncodedAudio(), 20)
+      this.encoder = undefined
+      if (this.turnControl === 'halfDuplex') {
+        this.encoder = new OpusEncoder()
+        if (!this.pcmRing || !this.pcmRingState) throw new Error('XiaoZhi PCM ring is not configured')
+        this.encoder.attachPcmRing(this.pcmRing, this.pcmRingState)
+        this.encoderPacket = new SharedArrayBuffer(this.encoder.outputBytes)
+        this.encoderTimer = Timer.repeat(() => this.flushEncodedAudio(), 20)
+      }
       this.silence = new ArrayBuffer(this.decoder.outputBytes)
       this.outputSampleRate = sampleRate
       this.sessionID = message.session_id ?? ''
@@ -232,7 +242,9 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
       this.pendingMcpCalls = Object.create(null)
       this.resetEncodeStats()
       this.resetDecodeStats()
-      this.uploading = true
+      this.uploading = this.turnControl === 'halfDuplex'
+      this.outputTurnId = 0
+      this.outputWrittenBytes = 0
       this.postMessage({
         id: 'configureAudio',
         inputSampleRate: INPUT_SAMPLE_RATE,
@@ -242,7 +254,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
         `[opus] decoder heap internal=${this.decoder.internalHeapBytes ?? 0}B psram=${this.decoder.psramHeapBytes ?? 0}B\n`,
       )
       trace(
-        `[opus] encoder heap internal=${this.encoder.internalHeapBytes ?? 0}B psram=${this.encoder.psramHeapBytes ?? 0}B\n`,
+        `[opus] encoder heap internal=${this.encoder?.internalHeapBytes ?? 0}B psram=${this.encoder?.psramHeapBytes ?? 0}B\n`,
       )
       this.post('connected')
       this.startListening({ mode: this.listeningMode })
@@ -252,6 +264,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   }
 
   startListening(message = {}) {
+    if (this.turnControl === 'downlink') return
     if (!this.encoder) {
       this.postProtocolWarning('cannot start listening before XiaoZhi hello')
       return
@@ -265,12 +278,14 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
   }
 
   stopListening() {
+    if (this.turnControl === 'downlink') return
     this.uploading = false
     this.encoder?.clear()
     this.sendProtocolEvent(this.withSession({ type: 'listen', state: 'stop' }))
   }
 
   detectWakeWord(message = {}) {
+    if (this.turnControl === 'downlink') return
     this.sendProtocolEvent(
       this.withSession({
         type: 'listen',
@@ -347,6 +362,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     try {
       const pcmBytes = this.decoder.decode(packet, this.decoderPCM)
       this.parser.copy(new Uint8Array(this.decoderPCM, 0, pcmBytes))
+      this.outputWrittenBytes += pcmBytes
       this.decodePackets += 1
       this.decodeCompressedBytes += packet.byteLength
       this.decodePCMBytes += pcmBytes
@@ -413,7 +429,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
         this.decoderPacket = undefined
         this.resetDecodeStats()
         this.postPresentation({ id: 'receiveOutputText', text: '', more: true })
-        this.post('listen')
+        this.postMessage({ id: 'listen', turnId: ++this.outputTurnId })
         break
       case 'sentence_start':
         if (message.glyph_push) {
@@ -440,9 +456,10 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
           )
         }
         this.parser.copy(this.silence)
+        this.outputWrittenBytes += this.silence.byteLength
         this.parser.done()
         this.postPresentation({ id: 'receiveOutputText', text: '' })
-        this.post('speak')
+        this.postMessage({ id: 'speak', turnId: this.outputTurnId, endByte: this.outputWrittenBytes })
         break
     }
   }
@@ -513,6 +530,7 @@ export default class XiaozhiModel extends ServerChatWebSocketWorker {
     this.pendingMcpCalls[call] = { id: payload.id, name: params.name }
     this.postMessage({
       id: 'receiveFunctionCall',
+      turnId: this.outputTurnId,
       call,
       name: params.name,
       parameters: args,

@@ -1,3 +1,4 @@
+import { assembleModSource } from './blocks.mjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
@@ -89,27 +90,23 @@ test('round rect irises and hidden mouths round-trip into generated Face source'
   assert.equal(restored.shape.mouth.visible, false)
 
   const definition = shapeFaceDefinition(restored)
-  assert.match(definition, /shape: 'roundRect', width: 30, height: 18, r: 5/)
+  const data = new Function(definition + '; return _StackchanVisualShapeFace')()
+  assert.deepEqual(data.shape.eyes.left, restored.shape.eyes.left)
   assert.doesNotMatch(definition, /new Mouth/)
 
-  const source = 'export async function onContextCreated(robot) {\n  const runtime = createVisualRuntime(robot)\n}\n'
+  const source = assembleModSource('')
   const result = applyFaceAssetToSource(source, restored)
   assert.doesNotMatch(result, /import \{ Mouth \}/)
-  assert.doesNotMatch(result, /setMouthOpen/)
+  assert.equal(data.shape.mouth.visible, false)
 })
 
-test('legacy circle eyes and mouths without visibility migrate to current defaults', () => {
-  const legacy = createFaceAsset({ name: '旧Shapeフェイス' })
-  delete legacy.shape.eyes.left.shape
-  delete legacy.shape.eyes.right.shape
-  delete legacy.shape.mouth.visible
-  const restored = parseFaceAsset(JSON.stringify(legacy))
-  assert.equal(restored.shape.eyes.left.shape, 'circle')
-  assert.equal(restored.shape.eyes.right.shape, 'circle')
-  assert.equal(restored.shape.mouth.visible, true)
+test('incomplete shape geometry is rejected with a recovery error', () => {
+  const value = createFaceAsset()
+  delete value.shape.eyes.left.shape
+  assert.throws(() => parseFaceAsset(JSON.stringify(value)), /形式または値が不正/)
 })
 
-test('Shape face source creates a real FaceBase implementation', () => {
+test('Shape face source preserves SDK geometry data', () => {
   const definition = shapeFaceDefinition(
     createFaceAsset({
       canvas: { left: 48, top: 52, width: 220, height: 132 },
@@ -119,14 +116,15 @@ test('Shape face source creates a real FaceBase implementation', () => {
       },
     })
   )
-  assert.match(definition, /FaceBase\.template/)
-  assert.match(definition, /new Eye\(\{ cx: 42/)
-  assert.match(definition, /new Eye\(\{ cx: 178/)
-  assert.match(definition, /new Mouth\(\{ cx: 110, cy: 96/)
+  const data = new Function(definition + '; return _StackchanVisualShapeFace')()
+  assert.equal(data.shape.eyes.left.x, 42)
+  assert.equal(data.shape.eyes.right.x, 178)
+  assert.equal(data.shape.mouth.x, 110)
+  assert.equal(data.shape.mouth.y, 96)
 })
 
 test('face asset replaces the active Face through the public UI capability', () => {
-  const source = 'export async function onContextCreated(robot) {\n  const runtime = createVisualRuntime(robot)\n}\n'
+  const source = assembleModSource('')
   const result = applyFaceAssetToSource(
     source,
     createFaceAsset({
@@ -135,14 +133,28 @@ test('face asset replaces the active Face through the public UI capability', () 
       shape: { eyes: { left: { x: 45 }, right: { x: 155 } } },
     })
   )
-  assert.match(result, /import \{ FaceBase \} from 'behaviors\/face'/)
-  assert.match(result, /import \{ Eye \} from 'parts\/eye'/)
-  assert.match(result, /import \{ Mouth \} from 'parts\/mouth'/)
-  assert.match(result, /const _StackchanVisualShapeFace = FaceBase\.template/)
-  assert.match(result, /robot\.ui\.setFace\(new _StackchanVisualShapeFace\(\{\}\)\)/)
-  assert.match(result, /Emotion\.SAD/)
-  assert.match(result, /setColor\('secondary', 1, 2, 3\)/)
-  assert.match(result, /setMouthOpen\(0\)/)
+  const calls = []
+  const executable = result.replace(/^import .*$/gm, '').replace('export default ', 'return ')
+  const app = new Function('defineApp', 'ui', executable)(
+    (definition) => definition,
+    (context) => context.ui
+  )
+  app.setup({
+    time: { after() {} },
+    face: {
+      setEmotion: (...args) => calls.push(['emotion', ...args]),
+      setColor: (...args) => calls.push(['color', ...args]),
+      setMouthOpen: (...args) => calls.push(['mouth', ...args]),
+    },
+    ui: { setShapeFace: (shape) => calls.push(['shape', shape]) },
+  })
+  assert.equal(calls[0][1].shape.eyes.left.x, 45)
+  assert.deepEqual(calls.slice(1), [
+    ['emotion', 'sad'],
+    ['color', 'primary', { r: 255, g: 255, b: 255 }],
+    ['color', 'secondary', { r: 1, g: 2, b: 3 }],
+    ['mouth', 0],
+  ])
 })
 
 test('external Shape assets reject unknown fields and invalid geometry', () => {

@@ -3,9 +3,12 @@ import { profileFor } from './capabilities.mjs'
 import { projectFileName } from './project-format.mjs'
 import { analyzeWorkspace } from './project-validator.mjs'
 
-/** Blockly currently emits legacy hooks. Changing this generation requires changing its generator too. */
+/** Blockly and hand-written apps share the SDK lifecycle and archive contract. */
 export function createVisualModDefinition(project) {
-  const { requirements } = analyzeWorkspace(project.workspace, { target: project.target })
+  const analysis = analyzeWorkspace(project.workspace, { target: project.target })
+  const requirements = [
+    ...new Set([...analysis.requirements, ...(project.settings?.faceAsset ? ['face', 'ui.controls'] : [])]),
+  ].sort()
   const targets = [project.target]
   if (
     !targets.includes('simulator') &&
@@ -28,8 +31,8 @@ export function createVisualModDefinition(project) {
     name: project.name,
     description: 'Stack-chan visual editor project',
     source: { path: projectFileName(project) },
-    appApiVersion: 1,
-    hostApiVersion: 1,
+    appApiVersion: 2,
+    hostApiVersion: 8,
     targets,
     capabilities: requirements,
     optionalCapabilities: [],

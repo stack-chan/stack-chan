@@ -23,7 +23,8 @@ test('editor metadata comes from the same workspace capability analysis as deplo
       definition.targets.includes('simulator'),
       requirements.every((name) => profileFor('simulator').capabilities.includes(name))
     )
-    assert.equal(definition.appApiVersion, 1, 'The current Blockly generator emits V1 hooks')
+    assert.equal(definition.appApiVersion, 2)
+    assert.equal(definition.hostApiVersion, 8)
     assert.equal(createVisualModDefinition(project).id, definition.id)
   }
 })

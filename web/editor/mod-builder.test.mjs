@@ -16,7 +16,7 @@ import createTools from './vendor/tools.js'
 import { modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
 import { inspectModArchive } from '../../firmware/contracts/xsa-metadata.js'
 const buildModArchive = (tools, options) =>
-  buildPackageArchive(tools, { metadata: { ...modDefinition, appApiVersion: 1, hostApiVersion: 1 }, ...options })
+  buildPackageArchive(tools, { metadata: { ...modDefinition, appApiVersion: 2, hostApiVersion: 8 }, ...options })
 import { profileFor } from './capabilities.mjs'
 import { applyFaceAssetToSource, createFaceAsset } from './face-assets.mjs'
 
@@ -63,7 +63,7 @@ test('xsArchiveVersion requires the VERS atom', () => {
 test('buildModArchive compiles a mod to a valid XS archive via wasm mcrun', async () => {
   const logs = []
   const archive = await buildModArchive(createTools, {
-    modJs: `export async function onContextCreated(robot) {\n  trace('hello from test\\n')\n}\n`,
+    modJs: assembleModSource("trace('hello from test\\n')"),
     name: 'testmod',
     onLog: (line) => logs.push(line),
   })
@@ -72,7 +72,7 @@ test('buildModArchive compiles a mod to a valid XS archive via wasm mcrun', asyn
   assert.ok(isXsArchive(archive), 'archive must start with XS_A atom')
   const { metadata } = inspectModArchive(archive, (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes))
   assert.equal(metadata.id, modDefinition.id)
-  assert.equal(metadata.appApiVersion, 1)
+  assert.equal(metadata.appApiVersion, 2)
   const version = xsArchiveVersion(archive)
   assert.deepEqual(version, profileFor('m5stackchan-cores3').xsArchiveVersion)
   const text = logs.join('\n')
@@ -104,61 +104,17 @@ test('new builds require an explicit API declaration and reject mismatched entry
   assert.equal(inspectModArchive(archive, (bytes) => new TextDecoder().decode(bytes)).metadata.appApiVersion, 2)
 })
 
-test('buildModArchive compiles generator-style output with host-module imports', async () => {
-  const source = `import Timer from 'timer'
-import { randomBetween, wait } from 'stackchan-util'
-import { Emotion } from 'face-state'
-
-function hexToRgb(hex) {
-  const n = parseInt(hex.slice(1), 16)
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
-}
-
-export async function onContextCreated(robot) {
-  ;(async () => {
-    robot.face.setEmotion(Emotion.HAPPY)
-    robot.face.setColor('primary', ...hexToRgb('#30e0ff'))
-    robot.ui.showBalloon(String('こんにちは'))
-  })().catch((error) => trace('start handler failed: ' + error + '\\n'))
-  if (robot.input.button?.a) {
-    robot.input.button.a.onEvent = (event) => {
-      if (!event.pressed) return
-      void (async () => {
-        await robot.audio.say(String('やあ'))
-        await wait(randomBetween(100, 200))
-      })().catch((error) => trace('button a handler failed: ' + error + '\\n'))
-    }
-  }
-  Timer.repeat(() => {
-    robot.motion.lookAt([1, 0.5, 0])
-  }, 10000)
-}
-`
-  const archive = await buildModArchive(createTools, { modJs: source, name: 'generated' })
-  assert.ok(isXsArchive(archive))
-})
-
-test('buildModArchive compiles the generated list-based singing helper', async () => {
-  const source = assembleModSource("await singScore(robot, 120, [['C4', 1, 'き'], ['C4', 1, 'ら'], ['R', 0.5, '']])\n")
-  assert.match(source, /function singingScoreToKoe/)
-  assert.match(source, /await singScore\(robot, 120/)
-
-  const archive = await buildModArchive(createTools, { modJs: source, name: 'sing-score' })
-  assert.ok(isXsArchive(archive))
-})
-
-test('buildModArchive compiles a MOD using the new event/motion/ui blocks', async () => {
-  // assembleModSource injects the event dispatch helpers + imports; this checks
-  // the generated source for the new blocks actually compiles on the device.
-  const body =
-    "onButton(robot, 'a', 'release', (event) => {\n  void (async () => {\n    robot.face.setEmotion(Emotion.HAPPY)\n  })().catch((error) => trace('button a handler failed: ' + error + '\\n'))\n})\n" +
-    "onImu(robot, 'shake', (event) => {\n  void (async () => {\n    await robot.audio.say(String('わっ'))\n  })().catch((error) => trace('imu handler failed: ' + error + '\\n'))\n})\n" +
-    "onHeadTouch(robot, 'petting', (event) => {\n  void (async () => {\n    robot.ui.toggleDrawer()\n  })().catch((error) => trace('head touch handler failed: ' + error + '\\n'))\n})\n" +
-    "robot.ui.drawer?.addDrawerButton({ key: 'k', label: 'ボタン', callback: () => {\n  void (async () => {\n    robot.ui.showFace()\n  })().catch((error) => trace('drawer handler failed: ' + error + '\\n'))\n} })\n" +
-    'await robot.motion.setPose({ rotation: { p: (30 * Math.PI) / 180, y: (-45 * Math.PI) / 180, r: (0 * Math.PI) / 180 } }, 0.5)\n' +
-    "robot.lighting.lightBlink('a', ...hexToRgb('#ff4040'), 250)\n"
-  const source = assembleModSource(body)
-  const archive = await buildModArchive(createTools, { modJs: source, name: 'newblocks' })
+test('buildModArchive compiles generated SDK operations and score data', async () => {
+  const source = assembleModSource(`
+input(app).onRelease('primary', async (task) => { await task.sleep(50) })
+input(app).onMotion(async (event, task) => { await app.audio.say(event.motion, { signal: task.signal }) })
+input(app).onHeadTouch(async () => { ui(app).toggleMenu() }, { gesture: 'petting' })
+ui(app).addAction({ id: 'face', label: 'Face' }, async () => { ui(app).showFace() })
+await app.motion.move({ pitchDeg: 30, yawDeg: -45 }, { durationMs: 500, signal: task.signal })
+lighting(app).blink('head', hexToRgb('#ff4040'), { periodMs: 250 })
+await singing(app).sing(120, [['C4', 1, 'き'], ['R', 0.5, '']], { signal: task.signal })
+`)
+  const archive = await buildModArchive(createTools, { modJs: source, name: 'sdk-blocks' })
   assert.ok(isXsArchive(archive))
 })
 
@@ -175,7 +131,7 @@ test('buildModArchive surfaces syntax errors from xsc', async () => {
 test('buildModArchive embeds project assets through the standard MOD resources manifest', async () => {
   const assets = [{ path: 'assets/faces/greeting.txt' }]
   const archive = await buildModArchive(createTools, {
-    modJs: 'export function onContextCreated() {}',
+    modJs: assembleModSource(''),
     name: 'assets',
     manifest: manifestForProjectAssets(assets),
     files: [{ path: assets[0].path, bytes: new TextEncoder().encode('hello') }],
@@ -185,7 +141,7 @@ test('buildModArchive embeds project assets through the standard MOD resources m
 
 test('buildModArchive compiles a generated Shape Face implementation', async () => {
   const source = applyFaceAssetToSource(
-    assembleModSource("robot.ui.showBalloon(String('Shape face ready'))\n"),
+    assembleModSource("app.ui.showBalloon(String('Shape face ready'))\n"),
     createFaceAsset({
       name: '左右非対称フェイス',
       emotion: 'HAPPY',
@@ -210,8 +166,8 @@ test('buildModArchive compiles a generated Shape Face implementation', async () 
       },
     })
   )
-  assert.match(source, /robot\.ui\.setFace/)
-  assert.match(source, /shape: 'roundRect'/)
+  assert.match(source, /ui\(app\)\.setShapeFace/)
+  assert.match(source, /"shape": "roundRect"/)
   assert.doesNotMatch(source, /new Mouth/)
   const archive = await buildModArchive(createTools, { modJs: source, name: 'shape-face' })
   assert.equal(isXsArchive(archive), true)
@@ -224,7 +180,7 @@ test('manifestForProjectAssets omits resources when project embedding is disable
 test('buildModArchive rejects project files that escape the project directory', async () => {
   await assert.rejects(
     buildModArchive(createTools, {
-      modJs: 'export function onContextCreated() {}',
+      modJs: assembleModSource(''),
       files: [{ path: '../secret', bytes: new Uint8Array([1]) }],
     }),
     /invalid project file path/
@@ -233,7 +189,7 @@ test('buildModArchive rejects project files that escape the project directory', 
 
 test('buildModArchive accepts dots within a safe asset filename', async () => {
   const archive = await buildModArchive(createTools, {
-    modJs: 'export function onContextCreated() {}',
+    modJs: assembleModSource(''),
     files: [{ path: 'assets/face..draft.txt', bytes: new TextEncoder().encode('safe') }],
   })
   assert.equal(isXsArchive(archive), true)
@@ -241,7 +197,7 @@ test('buildModArchive accepts dots within a safe asset filename', async () => {
 
 test('generated manifest and source take precedence over colliding embedded files', async () => {
   const archive = await buildModArchive(createTools, {
-    modJs: 'export function onContextCreated() {}',
+    modJs: assembleModSource(''),
     files: [
       { path: 'manifest.json', bytes: new TextEncoder().encode('{ invalid json') },
       { path: 'mod.js', bytes: new TextEncoder().encode('export function {{{ broken') },

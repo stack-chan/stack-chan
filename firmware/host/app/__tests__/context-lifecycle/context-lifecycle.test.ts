@@ -7,7 +7,7 @@ import { StackchanRuntimeContext } from 'runtime-context'
 import { defineApp, StackchanError } from 'stackchan'
 import { definePiuApp, Port, type ScreenContext, type ViewPort } from 'stackchan/extensions/piu'
 import { assert, equal } from 'testing/assert'
-import { verifyDefaultApp, verifyImageAvatar } from 'tests/default-app'
+import { verifyDefaultApp, verifyGeneratedAppPorts, verifyImageAvatar } from 'tests/default-app'
 import Timer from 'timer'
 import TouchPanel from 'touch-panel'
 
@@ -460,6 +460,7 @@ async function run() {
   for (const mode of ['normal', 'setup', 'dispose', 'undisplay', 'view'] as const) await verifyPiuApp(mode)
   await verifyDefaultApp()
   await verifyImageAvatar()
+  await verifyGeneratedAppPorts()
   trace('ok\n')
 }
 

@@ -28,7 +28,7 @@ export class StackchanRuntimeInput {
   #touch: Touch | undefined
   #touchPanel: TouchPanel | undefined
   #closed = false
-  #pressListeners = new Map<ButtonRole, Set<() => void>>()
+  #buttonListeners = new Map<string, Set<() => void>>()
   #motionListeners = new Set<(event: MotionEvent) => void>()
   #devices: ResourceScope
 
@@ -48,9 +48,10 @@ export class StackchanRuntimeInput {
         this.#devices,
         () => !this.#closed,
         (name, pressed) => {
-          if (this.#closed || !pressed) return
-          for (const [role, listeners] of this.#pressListeners) {
-            if (name !== this.buttonFor(role)) continue
+          if (this.#closed) return
+          for (const [key, listeners] of this.#buttonListeners) {
+            const [role, edge] = key.split(':')
+            if (name !== this.buttonFor(role as ButtonRole) || pressed !== (edge === 'press')) continue
             for (const listener of [...listeners]) {
               if (this.#closed) return
               if (listeners.has(listener)) listener()
@@ -78,17 +79,26 @@ export class StackchanRuntimeInput {
   }
 
   subscribePress(listener: () => void, role: ButtonRole = 'primary'): () => void {
+    return this.#subscribeButton(listener, role, 'press')
+  }
+
+  subscribeRelease(listener: () => void, role: ButtonRole = 'primary'): () => void {
+    return this.#subscribeButton(listener, role, 'release')
+  }
+
+  #subscribeButton(listener: () => void, role: ButtonRole, edge: 'press' | 'release'): () => void {
+    const key = `${role}:${edge}`
     this.#assertOpen()
     if (!this.buttonFor(role)) throw new StackchanError('UNSUPPORTED', `No ${role} button is available`)
-    let listeners = this.#pressListeners.get(role)
+    let listeners = this.#buttonListeners.get(key)
     if (!listeners) {
       listeners = new Set()
-      this.#pressListeners.set(role, listeners)
+      this.#buttonListeners.set(key, listeners)
     }
     listeners.add(listener)
     return () => {
       listeners.delete(listener)
-      if (!listeners.size) this.#pressListeners.delete(role)
+      if (!listeners.size) this.#buttonListeners.delete(key)
     }
   }
 
@@ -96,9 +106,21 @@ export class StackchanRuntimeInput {
     this.#assertOpen()
     if (!this.#touchPanel) throw new StackchanError('UNSUPPORTED', 'Head touch is unavailable')
     let active = true
+    let forward: number | undefined, backward: number | undefined
     const remove = this.#touchPanel.subscribe((event) => {
-      if (active && !this.#closed)
-        listener(Object.freeze({ gesture: event.gesture, tapDurationMs: event.tap?.durationMs }))
+      if (!active || this.#closed) return
+      listener(Object.freeze({ gesture: event.gesture, tapDurationMs: event.tap?.durationMs }))
+      if (event.gesture === 'forwardSwipe') forward = event.ticks
+      if (event.gesture === 'backwardSwipe') backward = event.ticks
+      if (
+        (event.gesture === 'forwardSwipe' || event.gesture === 'backwardSwipe') &&
+        forward !== undefined &&
+        backward !== undefined &&
+        Math.abs(forward - backward) <= 1500
+      ) {
+        forward = backward = undefined
+        if (active && !this.#closed) listener(Object.freeze({ gesture: 'petting' }))
+      }
     })
     return () => {
       if (!active) return
@@ -162,7 +184,7 @@ export class StackchanRuntimeInput {
 
   close(): Promise<void> {
     this.#closed = true
-    this.#pressListeners.clear()
+    this.#buttonListeners.clear()
     this.#motionListeners.clear()
     return this.#devices.close()
   }

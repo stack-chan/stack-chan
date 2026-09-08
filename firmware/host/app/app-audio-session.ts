@@ -2,9 +2,10 @@ import { CancellationSource } from 'cancellation'
 import type { AppAudio, PlaybackOptions } from 'stackchan/app'
 import type { AudioData, RecordedAudio, RecordingOptions } from 'stackchan/audio'
 import { asStackchanError, StackchanError } from 'stackchan/errors'
+import type { AppSinging, SongNote } from 'stackchan/extensions/audio'
 import type { CancellationSignal } from 'stackchan/task'
 
-export type AppAudioPort = AppAudio & { readonly releaseFailure: StackchanError | undefined }
+export type AppAudioPort = AppAudio & Partial<AppSinging> & { readonly releaseFailure: StackchanError | undefined }
 type PendingAudio = { source: CancellationSource; done: Promise<void> }
 
 /** Owns an app's audio commands; the host retains providers and the device queue. */
@@ -25,6 +26,14 @@ export class AppAudioSession implements AppAudio {
   say(text: string, options: PlaybackOptions = {}): Promise<void> {
     const request = { ...options }
     return this.#run((signal) => this.#port.say(text, { ...request, signal }), request.signal)
+  }
+
+  sing(bpm: number, score: readonly SongNote[], options: PlaybackOptions = {}): Promise<void> {
+    const request = { ...options }
+    return this.#run((signal) => {
+      if (!this.#port.sing) throw new StackchanError('UNSUPPORTED', 'Singing is unavailable')
+      return this.#port.sing(bpm, score, { ...request, signal })
+    }, request.signal)
   }
 
   playClip(name: string, options: PlaybackOptions = {}): Promise<void> {

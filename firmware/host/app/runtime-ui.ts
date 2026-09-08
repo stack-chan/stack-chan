@@ -1,4 +1,4 @@
-import { DogFace, ImageFace, SimpleFace } from 'behaviors/face'
+import { DogFace, FaceBase, ImageFace, SimpleFace } from 'behaviors/face'
 import { createCameraPreviewDialog, prepareCameraPreviewFrame } from 'camera-preview'
 import type {
   DrawerButtonSpec,
@@ -22,12 +22,15 @@ import {
 } from 'face-state'
 import { Hands } from 'hands'
 import { OwnedResources, ResourceScope } from 'owned-resources'
+import { Eye } from 'parts/eye'
 import { ImageAvatarFace } from 'parts/image/image-avatar-face'
+import { Mouth } from 'parts/mouth'
 import { ownUI } from 'runtime-resources'
 import type { CameraImage } from 'stackchan/camera'
 import { finiteNumber, StackchanError } from 'stackchan/errors'
 import type { Emoticon as EmoticonName, FaceStyle, FaceTracking, HandAnimation } from 'stackchan/extensions/ui'
 import type { ImageAvatarPack } from 'stackchan/image-avatar'
+import { type ShapeFace, validateShapeFace } from 'stackchan/shape-face'
 import {
   type Pose,
   type Rotation,
@@ -68,7 +71,7 @@ function sameBalloonOptions(current: ShowBalloonOptions | null, next: ShowBalloo
 
 export class StackchanRuntimeUI {
   #emoticon: UIEffect | undefined
-  #faceStyle: FaceStyle
+  #faceStyle: FaceStyle | 'shape'
   #image: UIEffect | undefined
   #balloon: UIEffect | null = null
   #balloonOptions: ShowBalloonOptions | null = null
@@ -107,7 +110,7 @@ export class StackchanRuntimeUI {
     return this.#drawerRegistry
   }
 
-  get faceStyle(): FaceStyle {
+  get faceStyle(): FaceStyle | 'shape' {
     return this.#faceStyle
   }
 
@@ -126,6 +129,24 @@ export class StackchanRuntimeUI {
     this.#assertOpen()
     this.#ui.setFace(new ImageAvatarFace({ pack }))
     this.#faceStyle = 'avatar'
+  }
+
+  setShapeFace(value: ShapeFace): void {
+    this.#assertOpen()
+    validateShapeFace(value)
+    const { canvas, shape } = JSON.parse(JSON.stringify(value)) as ShapeFace
+    const eyes = (['left', 'right'] as const).map((side) => {
+      const { x, y, ...eye } = shape.eyes[side]
+      return new Eye({ ...eye, cx: x, cy: y, side })
+    })
+    const { x, y, visible, ...mouth } = shape.mouth
+    this.#ui.setFace(
+      new FaceBase({
+        ...canvas,
+        contents: [...eyes, ...(visible ? [new Mouth({ ...mouth, cx: x, cy: y })] : [])],
+      }),
+    )
+    this.#faceStyle = 'shape'
   }
 
   setHandAnimation(animation: HandAnimation): void {

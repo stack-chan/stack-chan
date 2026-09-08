@@ -225,6 +225,10 @@ export class StackchanRuntimeContext implements StackchanContext {
             return uiRuntime.faceStyle
           },
           setFaceStyle: (style) => this.#uiRuntime.setFaceStyle(style),
+          setShapeFace: (face) => this.#uiRuntime.setShapeFace(face),
+          openMenu: () => this.#uiRuntime.ui.openDrawer(),
+          toggleMenu: () => this.#uiRuntime.ui.toggleDrawer(),
+          showFace: () => this.#uiRuntime.ui.showFace(),
           setImageAvatar: (pack) => this.#uiRuntime.setImageAvatar(pack),
           setHandAnimation: (animation) => this.#uiRuntime.setHandAnimation(animation),
           setEmoticon: (emoticon) => this.#uiRuntime.setEmoticon(emoticon),
@@ -301,6 +305,7 @@ export class StackchanRuntimeContext implements StackchanContext {
         },
         input: {
           subscribeHeadTouch: (handler) => this.#inputRuntime.subscribeHeadTouch(handler),
+          subscribeRelease: (handler, name) => this.#inputRuntime.subscribeRelease(handler, name),
           subscribeMotion: (handler) => this.#inputRuntime.subscribeMotion(handler),
           subscribePress: (handler, name = 'primary') => {
             if (name !== 'primary' || this.#inputRuntime.primaryButton)
@@ -344,6 +349,7 @@ export class StackchanRuntimeContext implements StackchanContext {
                 ? { availability: this.#simulated ? ('simulated' as const) : ('native' as const) }
                 : { availability: 'unavailable' as const, reason: `${id} is unavailable on this device` }
             switch (id) {
+              case 'face':
               case 'settings':
                 return present(true)
               case 'network.peer':
@@ -382,8 +388,12 @@ export class StackchanRuntimeContext implements StackchanContext {
               case 'ui.piu':
               case 'ui.controls':
                 return present(true)
+              case 'input.primary.release':
+                return present(!!this.#inputRuntime.primaryButton)
+              case 'input.secondary.release':
               case 'input.secondary':
                 return present(!!this.#inputRuntime.buttonFor('secondary'))
+              case 'input.tertiary.release':
               case 'input.tertiary':
                 return present(!!this.#inputRuntime.buttonFor('tertiary'))
               case 'input.headTouch':
@@ -392,6 +402,8 @@ export class StackchanRuntimeContext implements StackchanContext {
                 return present(!!this.#inputRuntime.imu)
               case 'lighting':
                 return present(lightNames.length > 0)
+              case 'audio.singing':
+                return this.#audioRuntime.audioStatus('singing')
               case 'audio.speech':
                 return this.#audioRuntime.audioStatus('speech')
               case 'audio.clips':

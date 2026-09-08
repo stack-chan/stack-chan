@@ -1,38 +1,48 @@
 # Stack-chan Block Editor
 
-Device installation requires a Moddable 9.5.x host. Update older firmware before installing MODs; see the [SDK 9.5 migration guide](../../docs/migrations/moddable-9.5.md).
+Device installation requires host API **8 or later** (firmware **9.5.0+stackchan.8** or later). Update older firmware before installing MODs; see the [SDK 9.5 migration guide](../../docs/migrations/moddable-9.5.md).
 
 Blockly-based MOD editor for Stack-chan. Everything runs client-side:
 
-1. **Compose** — assemble Stack-chan behaviors (face, speech, motion, LED, buttons, timers) from blocks. The workspace generates a `mod.js` that exports `onContextCreated(robot)`.
+1. **Compose** — assemble Stack-chan behaviors (face, speech, motion, LED, buttons, timers) from blocks. The workspace generates a `mod.js` that exports `defineApp({ setup(app) { … } })`.
 2. **Build** — compile the MOD in the browser with the Moddable tools (`mcrun` → `xsc` → `xsa`) built to WebAssembly (`vendor/tools.js` + `vendor/tools.wasm`). The output is an XS archive (`mc.xsa`) containing xsb bytecode.
 3. **Install** — into the [WASM simulator](../simulator/) (saved to IndexedDB, loaded at simulator launch), or onto a real device over WebSerial by flashing the archive into the device's `xs` flash partition with esptool-js. See [Installing to a real device](#installing-to-a-real-device).
 
-The 「おしゃべり」 block calls `robot.audio.say(...)`. M5StackChan CoreS3
+The 「おしゃべり」 block calls `app.audio.say(...)`. M5StackChan CoreS3
 firmware and the WASM simulator both select the bundled offline
 `stackchan-voice` engine, so the generated MOD uses the same synthesizer in the
 browser and on the device.
 
 The 「テンポ … で…を歌う」 block takes one score list. Each list item is a
 `[pitch, beats, lyric]` triple; a rest is `['R', beats, '']`. The generated
-helper validates the triples, converts the global BPM and beat counts to exact
-milliseconds, romanizes each one-kana-mora lyric, and calls
-`robot.audio.sing(...)` with raw `koe` notation. Singing is offered for the
-M5StackChan CoreS3 and WASM simulator profiles, which both run the same bundled
-engine.
+SDK call is `singing(app).sing(bpm, score, { signal: task.signal })` from
+`stackchan/extensions/audio`. The host validates the score and compiles it for
+the selected singing provider. A missing provider reports `UNSUPPORTED`; select
+`stackchan-voice` in settings to use singing.
+
+Events and timers register with the same AppSession as hand-written SDK apps.
+Each handler has one active invocation; a slow timer callback does not overlap
+itself. Stopping or replacing the app cancels waits and operations and removes
+its subscriptions and controls. Procedures inherit their caller's cancellation
+signal and loop budget. Generated code imports only `stackchan` and its public
+extensions. Shape faces are bounded geometry data passed to `ui(app).setShapeFace`.
+
+Save `.stackchan-blocks.json` to keep editing. Rebuild it to replace old API 1
+archives. Retired statement-score blocks must be rewritten as a list of note
+triples; no legacy runtime is generated.
 
 ## Files
 
-| File                                       | Role                                                                 |
-| ------------------------------------------ | -------------------------------------------------------------------- |
-| `index.html` / `editor.mjs` / `editor.css` | Editor page, wiring, and styles                                      |
-| `blocks.mjs`                               | Block definitions, JavaScript generators, toolbox, `mod.js` assembly |
-| `mod-builder.mjs`                          | Client-side build pipeline driving the WASM Moddable tools           |
-| `project-storage.mjs`                      | IndexedDB persistence and legacy localStorage migration              |
-| `esptool-installer.mjs`                    | WebSerial device install via esptool-js (flashes the `xs` partition) |
-| `vendor/tools.js`, `vendor/tools.wasm`     | Moddable SDK tools compiled with Emscripten                          |
-| `vendor/esptool-js-0.5.7.bundle.mjs`       | Pinned local WebSerial flasher bundle (Apache-2.0)                   |
-| `*.test.mjs`                               | Node unit tests (`npm test` in `web/`)                               |
+| File                                          | Role                                                                 |
+| --------------------------------------------- | -------------------------------------------------------------------- |
+| `index.html` / `src/features/project-editor/` | Editor page, wiring, and styles                                      |
+| `blocks.mjs`                                  | Block definitions, JavaScript generators, toolbox, `mod.js` assembly |
+| `mod-builder.mjs`                             | Client-side build pipeline driving the WASM Moddable tools           |
+| `project-storage.mjs`                         | IndexedDB persistence and legacy localStorage migration              |
+| `esptool-installer.mjs`                       | WebSerial device install via esptool-js (flashes the `xs` partition) |
+| `vendor/tools.js`, `vendor/tools.wasm`        | Moddable SDK tools compiled with Emscripten                          |
+| `vendor/esptool-js-0.5.7.bundle.mjs`          | Pinned local WebSerial flasher bundle (Apache-2.0)                   |
+| `*.test.mjs`                                  | Node unit tests (`npm test` in `web/`)                               |
 
 ## Rebuilding `vendor/tools.wasm`
 
@@ -93,12 +103,12 @@ xsbug handshake on native USB-serial-JTAG parts (CoreS3).
 Requirements:
 
 - A browser with WebSerial (Chrome / Edge).
-- The flashed Stack-chan firmware must be **9.5.x**, and the archive's XS major/minor version must be
+- The flashed Stack-chan firmware must provide **host API 8 or later**, and the archive's XS major/minor version must be
   **17.7–17.8** (patch revisions are accepted) — see [XS version compatibility](#xs-version-compatibility). No debug build needed.
 - The `-p wasm` archive runs on the ESP32 device because `fxMapArchive` gates only on the
   XS version, skips the signature, and remaps symbols by name at install time — so the
-  build platform need not match the device. Verified end-to-end on an M5Stack CoreS3
-  (face + balloon appear after the auto-reboot).
+  build platform need not match the device. The current SDK generation still requires physical device acceptance; a successful
+  archive build does not establish device behavior.
 
 esptool-js 0.5.7 is checked into `vendor/` with its Apache-2.0 license and loaded locally.
 Its self-contained browser bundle inlines pako and the per-chip flasher stubs.

@@ -6,8 +6,10 @@ import { NoneDriver } from 'none-driver'
 import { STACKCHAN_DEMO_IMAGE_AVATAR_PACK as demo } from 'parts/image/image-avatar-pack'
 import { StackchanRuntimeContext } from 'runtime-context'
 import { defineApp } from 'stackchan'
+import { input as appInput } from 'stackchan/extensions/input'
 import { ui as appUI } from 'stackchan/extensions/ui'
 import type { ImageAvatarPack } from 'stackchan/image-avatar'
+import type { ShapeFace } from 'stackchan/shape-face'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
 import TouchPanel from 'touch-panel'
@@ -225,4 +227,108 @@ export async function verifyImageAvatar(): Promise<void> {
   }
   equal((failure as { code?: string })?.code, 'CLOSED', 'retained UI handles cannot reinstall a face')
   await host.lifecycle.close()
+}
+
+export async function verifyGeneratedAppPorts(): Promise<void> {
+  const ui = createAppControllerApplication({ face: new SimpleFace({}) })
+  const setFace = ui.setFace.bind(ui)
+  let displayed: Parameters<typeof setFace>[0]
+  ui.setFace = (face) => {
+    displayed = face
+    setFace(face)
+  }
+  let pressed = 0,
+    restores = 0,
+    closed = 0
+  const original = () => {}
+  const button = { read: () => pressed, onChanged: original }
+  const listeners = new Set<Parameters<TouchPanel['subscribe']>[0]>()
+  const panel = {
+    start() {},
+    subscribe(handler: Parameters<TouchPanel['subscribe']>[0]) {
+      listeners.add(handler)
+      return () => listeners.delete(handler)
+    },
+    close() {
+      closed++
+      listeners.clear()
+    },
+  } as unknown as TouchPanel
+  const host = await StackchanRuntimeContext.create({
+    ui,
+    driver: new NoneDriver(),
+    tts: { stream() {} },
+    button: { a: button },
+    touchPanel: panel,
+    restoreFace() {
+      restores++
+      ui.setFace(new SimpleFace({}))
+    },
+  })
+  const geometry: ShapeFace = {
+    canvas: { left: 60, top: 60, width: 200, height: 120 },
+    shape: {
+      eyes: {
+        left: { x: 40, y: 40, shape: 'roundRect', width: 30, height: 20, r: 4, eyelidWidth: 32, eyelidHeight: 22 },
+        right: { x: 160, y: 40, shape: 'circle', radius: 6, eyelidWidth: 16, eyelidHeight: 16 },
+      },
+      mouth: { visible: false, x: 100, y: 90, minWidth: 40, maxWidth: 80, minHeight: 8, maxHeight: 50 },
+    },
+  }
+  for (let cycle = 0; cycle < 100; cycle++) {
+    let releases = 0,
+      pets = 0
+    const session = await host.startApp(
+      defineApp({
+        setup(app) {
+          appUI(app).setShapeFace(geometry)
+          appInput(app).onRelease('primary', () => {
+            releases++
+          })
+          appInput(app).onHeadTouch(
+            () => {
+              pets++
+            },
+            { gesture: 'petting' },
+          )
+        },
+      }),
+    )
+    const view = appUI(session.context)
+    const selected = displayed
+    let failure: unknown
+    try {
+      view.setShapeFace({ ...geometry, canvas: { ...geometry.canvas, width: Infinity } })
+    } catch (error) {
+      failure = error
+    }
+    equal((failure as { code?: string })?.code, 'INVALID_ARGUMENT')
+    equal(displayed, selected, 'invalid geometry does not replace the displayed face')
+    pressed = 1
+    button.onChanged()
+    pressed = 0
+    button.onChanged()
+    // The matching swipe is delivered in the same dispatch as its petting event.
+    // Filtering must happen before AppSession's in-flight suppression.
+    for (const [gesture, ticks] of [
+      ['forwardSwipe', 100],
+      ['backwardSwipe', 1600],
+    ] as const)
+      for (const listener of [...listeners])
+        listener({ kind: 'touch-panel', gesture, ticks, position: 0.5, intensity: 1 })
+    await wait(1)
+    equal(releases, 1)
+    equal(pets, 1)
+    equal(view.faceStyle, 'shape')
+    await session.close()
+    equal(listeners.size, 0)
+    equal(session.resourceCount, 0)
+    equal(session.taskCount, 0)
+    equal(restores, cycle + 1)
+    button.onChanged()
+    equal(releases, 1, 'closed app cannot receive button release')
+  }
+  await host.lifecycle.close()
+  equal(button.onChanged, original)
+  equal(closed, 1)
 }

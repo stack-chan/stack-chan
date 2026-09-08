@@ -159,6 +159,15 @@ export class StackchanRuntimeMotion implements AppMotion {
     return this.#haltQueue()
   }
 
+  hold(): Promise<void> {
+    try {
+      this.#assertReady()
+      return this.#haltQueue(false, true)
+    } catch (error) {
+      return Promise.reject(asStackchanError(error))
+    }
+  }
+
   close(): Promise<void> {
     if (!this.#shutdown) {
       this.#closed = true
@@ -170,7 +179,7 @@ export class StackchanRuntimeMotion implements AppMotion {
             () => {},
           ),
         () => this.#haltQueue(),
-        () => this.#relax(),
+        () => this.#setTorque(false),
         () => {
           if (!this.#attached) return
           this.#attached = false
@@ -271,7 +280,7 @@ export class StackchanRuntimeMotion implements AppMotion {
     }
   }
 
-  #haltQueue(relax = false): Promise<void> {
+  #haltQueue(relax = false, hold = false): Promise<void> {
     this.#clearGazeTarget()
     if (this.#stopping) return this.#stopping
     this.#stopping = Promise.resolve()
@@ -280,7 +289,7 @@ export class StackchanRuntimeMotion implements AppMotion {
           () => this.#queue.close(new StackchanError(this.#closed ? 'CLOSED' : 'CANCELLED', 'Motion owner stopped')),
           // A fault can prevent holding position. Still attempt torque release,
           // preserving the first failure and leaving the queue unavailable.
-          () => (relax ? this.#relax() : undefined),
+          () => (relax ? this.#setTorque(false) : hold ? this.#setTorque(true) : undefined),
         ]).close(),
       )
       .then(
@@ -310,8 +319,9 @@ export class StackchanRuntimeMotion implements AppMotion {
     this.#clearGaze = undefined
   }
 
-  #relax(): Promise<void> | undefined {
-    if (!this.#attached || !this.#canRelax) return
+  #setTorque(enabled: boolean): Promise<void> | undefined {
+    if (enabled && this.#closed) throw new StackchanError('CLOSED', 'Motion is closed')
+    if (!this.#attached || (!enabled && !this.#canRelax)) return
     return new Promise<void>((resolve, reject) => {
       let settled = false
       let clear: (() => void) | undefined
@@ -324,9 +334,9 @@ export class StackchanRuntimeMotion implements AppMotion {
       }
       try {
         clear = this.#options.clock.after(2_000, () =>
-          finish(new StackchanError('TIMEOUT', 'Motion power release timed out')),
+          finish(new StackchanError('TIMEOUT', 'Motion torque change timed out')),
         )
-        this.#driver.setTorque(false, finish)
+        this.#driver.setTorque(enabled, finish)
       } catch (error) {
         finish(asStackchanError(error))
       }

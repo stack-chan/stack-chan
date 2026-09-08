@@ -1,7 +1,7 @@
 {
   "$schema": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
   "format": "tech.stackchan.mod",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "tech.stackchan.samples.block-look-around",
   "version": "1.0.0",
   "type": "block",
@@ -13,5 +13,9 @@
     "path": "look-around.stackchan-blocks.json"
   },
   "targets": ["m5stackchan-cores3"],
-  "capabilities": ["motion"]
+  "capabilities": ["motion"],
+  "appApiVersion": 2,
+  "hostApiVersion": 8,
+  "optionalCapabilities": [],
+  "entrypoints": ["mod"]
 }

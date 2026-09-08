@@ -9,6 +9,11 @@ export type { AppAudio, PlaybackOptions } from 'stackchan/audio'
 export const EMOTIONS = Object.freeze(['neutral', 'angry', 'sad', 'happy', 'sleepy', 'doubt', 'cold', 'hot'] as const)
 export type Emotion = (typeof EMOTIONS)[number]
 export type CapabilityId =
+  | 'face'
+  | 'audio.singing'
+  | 'input.primary.release'
+  | 'input.secondary.release'
+  | 'input.tertiary.release'
   | 'audio.speech'
   | 'audio.clips'
   | 'audio.tone'

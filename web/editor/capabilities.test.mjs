@@ -11,9 +11,9 @@ import {
 test('capability requirements are unique and target-aware', () => {
   assert.deepEqual(requirementsForBlockTypes(['stackchan_on_imu', 'stackchan_on_imu', 'stackchan_say']), [
     'audio.speech',
-    'input.imu',
+    'input.motion',
   ])
-  assert.deepEqual(unsupportedRequirements('simulator', ['input.imu', 'face']), ['input.imu'])
+  assert.deepEqual(unsupportedRequirements('simulator', ['input.motion', 'face']), ['input.motion'])
   assert.deepEqual(requirementsForBlockTypes(['stackchan_on_head_touch']), ['input.headTouch'])
   assert.deepEqual(unsupportedRequirements('m5stackchan-cores3', ['input.headTouch']), [])
   assert.deepEqual(unsupportedRequirements('simulator', ['input.headTouch']), ['input.headTouch'])

@@ -10,8 +10,10 @@ import { ownMicrophone, ownTTS, ownWebRadio } from 'runtime-resources'
 import type { CapabilityStatus, PlaybackOptions } from 'stackchan/app'
 import type { AudioData, RecordedAudio, RecordingOptions } from 'stackchan/audio'
 import { asStackchanError, finiteNumber, StackchanError } from 'stackchan/errors'
+import type { SongNote } from 'stackchan/extensions/audio'
 import type { CancellationSignal } from 'stackchan/task'
 import { MAX_TONE_DURATION_MS, MAX_TONE_HZ, MIN_TONE_HZ } from 'stackchan-contracts/audio-playback'
+import { singingScoreToKoe } from 'stackchan-contracts/singing'
 import { type Maybe, waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
 import { playbackReleaseFailure } from 'tts-playback-session'
@@ -126,6 +128,7 @@ export class StackchanRuntimeAudio {
     if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
     const runtime = this
     return new AppAudioSession({
+      sing: (bpm, score, options) => this.singScore(bpm, score, options),
       say: (text, options) => this.speak(text, options),
       playClip: (name, options) => this.playClip(name, options),
       tone: (hz, options) => this.tone(hz, options.durationMs, options.volume, options.signal),
@@ -214,7 +217,7 @@ export class StackchanRuntimeAudio {
     }
   }
 
-  audioStatus(kind: 'speech' | 'clips' | 'tone' | 'recording' | 'playback'): CapabilityStatus {
+  audioStatus(kind: 'singing' | 'speech' | 'clips' | 'tone' | 'recording' | 'playback'): CapabilityStatus {
     if (this.#releaseFailure) return { availability: 'unavailable', reason: 'Audio resources could not be released' }
     if (kind === 'recording') {
       let available = !this.#closed && !this.#input.closed && !!this.#microphone
@@ -237,9 +240,13 @@ export class StackchanRuntimeAudio {
         ? this.#speaker
         : kind === 'clips'
           ? this.#clips
-          : this.#ttsKind === kind
-            ? this.#tts
-            : undefined
+          : kind === 'singing'
+            ? this.#tts.streamKoe
+              ? this.#tts
+              : undefined
+            : this.#ttsKind === kind
+              ? this.#tts
+              : undefined
     let available = !!provider
     try {
       if (provider?.available) available = provider.available()
@@ -273,6 +280,26 @@ export class StackchanRuntimeAudio {
     await this.#runOutput(
       provider,
       () => waitForCompletion((callback) => provider.stream(text, options.volume, callback)),
+      options.signal,
+    )
+  }
+
+  async singScore(bpm: number, score: readonly SongNote[], options: PlaybackOptions = {}): Promise<void> {
+    let koe: string
+    try {
+      koe = singingScoreToKoe(bpm, score)
+    } catch (error) {
+      throw asStackchanError(error, 'INVALID_ARGUMENT')
+    }
+    if (options.volume !== undefined) finiteNumber(options.volume, 'volume', 0, 1)
+    const tts = this.#tts
+    await this.#runOutput(
+      tts,
+      () => {
+        const streamKoe = tts.streamKoe
+        if (!streamKoe) throw new StackchanError('UNSUPPORTED', 'Select stackchan-voice to sing')
+        return waitForCompletion((callback) => streamKoe.call(tts, koe, options.volume, callback))
+      },
       options.signal,
     )
   }

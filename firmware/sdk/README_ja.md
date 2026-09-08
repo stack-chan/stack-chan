@@ -94,7 +94,7 @@ app.input.onPress('primary', async (task) => {
 
 アプリ終了も停止処理を待ち、対応機種のトルクを解除してdetachします。PWMはトルク解除を持たず `canRelax: false` です。物理PWMやUARTの解放はホスト終了時に行います。WASMは `availability: 'simulated'`、nativeのnone設定や必要なサーボ電源の未検出は `unavailable` です。
 
-詳細な所有・停止契約と実機受入の残りは [motionの設計記録](../../docs/architecture/motion-operation-lifecycle.md) を参照してください。会話・設定を含む実行例のSDK移行は完了しました。BlocklyとV1ホストの撤去、実機および初学者による受入は引き続き未完了です。
+詳細な所有・停止契約と実機受入の残りは [motionの設計記録](../../docs/architecture/motion-operation-lifecycle.md) を参照してください。会話・設定を含む実行例のSDK移行は完了しました。Blocklyも同じSDKへ移行しました。V1ホストの撤去、実機および初学者による受入は引き続き未完了です。
 
 
 ## 一枚を撮って表示する
@@ -238,4 +238,15 @@ UI拡張には `setTracking`、`setMusicNotes`、`setFaceMotionEnabled` を追�
 
 リアルタイム会話には `chat.type`、`chat.apiKey`、`chat.endpoint`、`chat.modelID`、`chat.voiceID`、`chat.instructions` を使用します。旧 `chat_audioio/config.js` の読み替えは撤去したため、共通設定へ転記してください。`ai.token` / `ai.context` は文字での対話に使います。新しい設定名の追加はschemaから行い、Webや例に独立した既定値を重ねません。
 
-WASMで未実装の通信・機器は `UNSUPPORTED` です。能力表の `native / simulated / unavailable` と実行時の設定エラーを区別してください。ソース移行と自動検査が終わっても、物理無線・サービス接続・サーボ保存・電源断・初学者による受入は別途必要です。V1ホスト・Blockly・参考providerライブラリーの整理と製品コード純減は、引き続き再設計全体の残件です。
+WASMで未実装の通信・機器は `UNSUPPORTED` です。能力表の `native / simulated / unavailable` と実行時の設定エラーを区別してください。ソース移行と自動検査が終わっても、物理無線・サービス接続・サーボ保存・電源断・初学者による受入は別途必要です。V1ホスト・参考providerライブラリーの整理と製品コード純減は、引き続き再設計全体の残件です。
+
+
+## Blocklyと顔エディター（host API 8）
+
+Webの生成コードも `defineApp` とこのSDKを使います。`input(app).onRelease(name, handler)` でボタンを離した操作を受け取り、`input(app).onHeadTouch(handler, { gesture: 'petting' })` で1.5秒以内の往復スワイプを受け取れます。フィルターは処理の重複を抑止する前に適用されます。
+
+`singing(app)`（`stackchan/extensions/audio`）の `sing(bpm, score, options)` は、`[音階, 拍, かな1モーラ]` のリストを歌わせます。休符は `['R', 拍, '']` です。20〜300 BPM、1〜256要素、1音20〜8000 msと変換結果の上限をホストで検証します。音声合成器が非対応なら `UNSUPPORTED`、出力を会話・ラジオが占有していれば `BUSY`、不正な楽譜は `INVALID_ARGUMENT` です。`options.signal` で取り消せます。
+
+`ui(app).setShapeFace(data)` には `stackchan/shape-face` の `ShapeFace` 型に従う領域・目・口のデータを渡します。データは検証して複製され、アプリ終了時に既定の顔へ戻ります。`openMenu()` / `closeMenu()` / `toggleMenu()` / `showFace()` も同じUI拡張です。
+
+`app.motion.hold()` は移動と視線追従を止めて、ドライバーが最後に指示された位置でトルクを有効にします。力を抜いた後に手で位置を変えた場合、最後の指示位置へ戻ることがあります。力を抜く操作は `relax()`、新しい姿勢へ動かす操作は `move()` を使います。

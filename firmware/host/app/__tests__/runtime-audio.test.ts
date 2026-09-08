@@ -238,10 +238,19 @@ test('StackchanRuntimeAudio forwards singing koe to providers that support it', 
     },
   })
 
-  const result = await runtime.sing('#C4,500ki', 0.25)
+  const app = runtime.createAppSession()
+  const result = await app.sing(120, [['C4', 1, 'き']], { volume: 0.25 })
 
   assert.deepEqual(received, { koe: '#C4,500ki', volume: 0.25 })
-  assert.deepEqual(result, { success: true, value: '#C4,500ki' })
+  assert.equal(result, undefined)
+  assert.equal(runtime.audioStatus('singing').availability, 'native')
+  await assert.rejects(app.sing(120, [['R', 1, 'あ']]), { code: 'INVALID_ARGUMENT' })
+  const release = runtime.reserveStream(false, true)
+  await assert.rejects(app.sing(120, [['C4', 1, 'き']]), { code: 'BUSY' })
+  release()
+  await app.close()
+  await assert.rejects(app.sing(120, [['C4', 1, 'き']]), { code: 'CLOSED' })
+  await runtime.close()
 })
 
 test('StackchanRuntimeAudio reports singing as unsupported for other TTS providers', async () => {
@@ -254,9 +263,9 @@ test('StackchanRuntimeAudio reports singing as unsupported for other TTS provide
   })
 
   try {
-    const result = await runtime.sing('#C4,500ki')
-    assert.equal(result.success, false)
-    if (!result.success) assert.match(result.reason, /does not support singing/)
+    assert.equal(runtime.audioStatus('singing').availability, 'unavailable')
+    await assert.rejects(runtime.createAppSession().sing(120, [['C4', 1, 'き']]), { code: 'UNSUPPORTED' })
+    await runtime.close()
   } finally {
     delete testGlobal.trace
   }

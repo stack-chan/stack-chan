@@ -18,7 +18,7 @@ export function installRuntimeTestAliases(): void {
   // Other tests install packages at these nearer roots too. Populate every
   // contract used by this runtime rather than relying on their import order.
   for (const base of [root, resolve(root, 'app'), resolve(root, 'modules')])
-    for (const name of ['audio-recording', 'audio-playback'])
+    for (const name of ['audio-recording', 'audio-playback', 'singing'])
       writeAliasPackageSubpath(base, 'stackchan-contracts', name, resolve(root, `../contracts/${name}.js`))
   writeAliasPackage(root, 'tts-playback-session', resolve(root, 'modules/audio/tts-playback-session.js'))
   writeAliasPackage(root, 'recorded-audio', resolve(root, 'modules/audio/recorded-audio.js'))

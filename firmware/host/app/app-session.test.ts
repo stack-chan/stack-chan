@@ -91,6 +91,7 @@ function fixture() {
       lookAt() {},
       lookAway() {},
       async stop() {},
+      async hold() {},
       async relax() {},
       async close() {},
     },
@@ -1420,4 +1421,70 @@ test('USB request acceptance does not commit the menu toggle before observed con
   assert.equal(toggle.value, false)
   await session.close()
   assert.deepEqual(f.errors, [])
+})
+
+test('release and filtered petting handlers share AppSession cancellation and disposal over 100 lifetimes', async () => {
+  const { AppSession } = await setup()
+  const { input } = await import('../../sdk/extensions/input.js')
+  for (let cycle = 0; cycle < 100; cycle++) {
+    const f = fixture()
+    let release: (() => void) | undefined
+    let head: ((event: import('../../sdk/extensions/input.js').HeadTouchEvent) => void) | undefined
+    f.ports.input.subscribeRelease = (handler) => {
+      release = handler
+      return () => {
+        release = undefined
+      }
+    }
+    f.ports.input.subscribeHeadTouch = (handler) => {
+      head = handler
+      return () => {
+        head = undefined
+      }
+    }
+    const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+    let starts = 0,
+      finishes = 0
+    await session.start({
+      apiVersion: 2,
+      setup(app) {
+        const inputs = input(app)
+        inputs.onRelease('primary', async (task) => {
+          starts++
+          await task.sleep(1000)
+          finishes++
+        })
+        inputs.onHeadTouch(
+          async (_event, task) => {
+            starts++
+            await task.sleep(1000)
+            finishes++
+          },
+          { gesture: 'petting' },
+        )
+      },
+    })
+    assert.ok(release)
+    assert.ok(head)
+    const lateRelease = release,
+      lateHead = head
+    release()
+    release()
+    head({ gesture: 'backwardSwipe' })
+    head({ gesture: 'petting' })
+    await flush()
+    assert.equal(starts, 2, 'filtering precedes the one-in-flight handler check')
+    await session.close()
+    lateRelease()
+    lateHead({ gesture: 'petting' })
+    await f.clock.advance(2000)
+    assert.equal(finishes, 0)
+    assert.equal(starts, 2)
+    assert.equal(release, undefined)
+    assert.equal(head, undefined)
+    assert.equal(session.resourceCount, 0)
+    assert.equal(session.taskCount, 0)
+    assert.equal(f.clock.jobs.size, 0)
+    assert.deepEqual(f.errors, [])
+  }
 })

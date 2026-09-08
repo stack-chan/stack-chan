@@ -1,6 +1,7 @@
 {
   "modules": {
     "stackchan-contracts/mod-package": "./mod-package",
-    "stackchan-contracts/xsa-metadata": "./xsa-metadata"
+    "stackchan-contracts/xsa-metadata": "./xsa-metadata",
+    "stackchan-contracts/singing": "./singing"
   }
 }

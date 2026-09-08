@@ -4,7 +4,14 @@ import type { OperationClock } from 'operation-queue'
 import { ResourceScope } from 'owned-resources'
 import type { AppContext, AppDefinition } from 'stackchan/app'
 import { asStackchanError, finiteNumber, StackchanError } from 'stackchan/errors'
-import type { AppInput, ButtonName, HeadTouchEvent, MotionEvent } from 'stackchan/extensions/input'
+import type { AppSinging } from 'stackchan/extensions/audio'
+import {
+  type AppInput,
+  type ButtonName,
+  HEAD_TOUCH_GESTURES,
+  type HeadTouchEvent,
+  type MotionEvent,
+} from 'stackchan/extensions/input'
 import type { AppLighting } from 'stackchan/extensions/lighting'
 import type { PiuAppDefinition, ScreenContext, ScreenDefinition } from 'stackchan/extensions/piu'
 import type { AppUI, ChangeHandler, MenuControl, MenuLabel, MenuOption } from 'stackchan/extensions/ui'
@@ -17,15 +24,27 @@ export type AppPorts = Pick<AppContext, 'face' | 'ui' | 'capabilities'> & {
     AppUI,
     'faceStyle' | 'closeMenu' | 'setFaceStyle' | 'setImageAvatar' | 'setHandAnimation' | 'setEmoticon' | 'localize'
   > &
-    Partial<Pick<AppUI, 'setTracking' | 'setMusicNotes' | 'setFaceMotionEnabled'>> & {
+    Partial<
+      Pick<
+        AppUI,
+        | 'setTracking'
+        | 'setMusicNotes'
+        | 'setFaceMotionEnabled'
+        | 'openMenu'
+        | 'toggleMenu'
+        | 'showFace'
+        | 'setShapeFace'
+      >
+    > & {
       registerMenu(view: AppMenuView, onSelect: (value?: string) => void): MenuControl<string | boolean>
       resetAppearance(): void | Promise<void>
     }
-  audio: AppContext['audio'] & { close(): Promise<void> }
+  audio: AppContext['audio'] & Partial<AppSinging> & { close(): Promise<void> }
   motion: AppContext['motion'] & { close(): Promise<void> }
   camera: AppContext['camera'] & { close(): Promise<void> }
   input: {
     subscribePress(handler: () => void, name?: ButtonName): () => void
+    subscribeRelease?(handler: () => void, name?: ButtonName): () => void
     subscribeHeadTouch?(handler: (event: HeadTouchEvent) => void): () => void
     subscribeMotion?(handler: (event: MotionEvent) => void): () => void
   }
@@ -89,6 +108,11 @@ export class AppSession {
         },
       }),
       audio: Object.freeze({
+        sing: (bpm: number, score: Parameters<AppSinging['sing']>[1], options?: Parameters<AppSinging['sing']>[2]) =>
+          this.#run(({ signal }) => {
+            if (!ports.audio.sing) throw new StackchanError('UNSUPPORTED', 'Singing is unavailable')
+            return ports.audio.sing(bpm, score, { ...options, signal })
+          }, options?.signal),
         say: (text, options) =>
           this.#run(({ signal }) => ports.audio.say(text, { ...options, signal }), options?.signal),
         playClip: (name, options) =>
@@ -116,6 +140,7 @@ export class AppSession {
           ports.motion.lookAway()
         },
         stop: () => this.#run(() => ports.motion.stop()),
+        hold: () => this.#run(() => ports.motion.hold()),
         relax: () => this.#run(() => ports.motion.relax()),
       }),
       camera: Object.freeze({
@@ -132,12 +157,27 @@ export class AppSession {
           this.#checkHandler(handler)
           return this.#listen((run) => ports.input.subscribePress(() => run(handler), name))
         },
-        onHeadTouch: (handler) => {
+        onRelease: (name, handler) => {
           this.#assertOpen()
+          if (!['primary', 'secondary', 'tertiary'].includes(name))
+            throw new StackchanError('INVALID_ARGUMENT', 'Unknown input name')
+          this.#checkHandler(handler)
+          const subscribe = ports.input.subscribeRelease
+          if (!subscribe) throw new StackchanError('UNSUPPORTED', 'Button release is unavailable')
+          return this.#listen((run) => subscribe(() => run(handler), name))
+        },
+        onHeadTouch: (handler, options) => {
+          this.#assertOpen()
+          if (options !== undefined && !HEAD_TOUCH_GESTURES.includes(options?.gesture))
+            throw new StackchanError('INVALID_ARGUMENT', 'Unknown head touch gesture')
           const subscribe = ports.input.subscribeHeadTouch
           this.#checkHandler(handler)
           if (!subscribe) throw new StackchanError('UNSUPPORTED', 'Head touch is unavailable')
-          return this.#listen((run) => subscribe((event) => run((task) => handler(event, task))))
+          return this.#listen((run) =>
+            subscribe((event) => {
+              if (!options || event.gesture === options.gesture) run((task) => handler(event, task))
+            }),
+          )
         },
         onMotion: (handler) => {
           this.#assertOpen()
@@ -181,6 +221,16 @@ export class AppSession {
         addToggle: (options, handler) => this.#addControl(options, handler),
         closeMenu: () => this.#call(() => this.#controls().closeMenu()),
         setFaceStyle: (style) => this.#call(() => this.#appearance().setFaceStyle(style)),
+        openMenu: () => this.#call(() => this.#uiOperation('openMenu')()),
+        toggleMenu: () => this.#call(() => this.#uiOperation('toggleMenu')()),
+        showFace: () => this.#call(() => this.#uiOperation('showFace')()),
+        setShapeFace: (face) =>
+          this.#call(() => {
+            this.#appearance()
+            const controls = this.#controls()
+            if (!controls.setShapeFace) throw new StackchanError('UNSUPPORTED', 'Shape faces are unavailable')
+            controls.setShapeFace(face)
+          }),
         setImageAvatar: (pack) => this.#call(() => this.#appearance().setImageAvatar(pack)),
         setHandAnimation: (animation) => this.#call(() => this.#appearance().setHandAnimation(animation)),
         setEmoticon: (emoticon) => this.#call(() => this.#appearance().setEmoticon(emoticon)),
@@ -223,6 +273,13 @@ export class AppSession {
       } satisfies AppUI),
       capabilities: Object.freeze({ get: (id) => ports.capabilities.get(id) }),
     } satisfies AppContext & { lighting: AppLighting })
+  }
+
+  #uiOperation(name: 'openMenu' | 'toggleMenu' | 'showFace'): () => void {
+    const controls = this.#controls()
+    const operation = controls[name]
+    if (!operation) throw new StackchanError('UNSUPPORTED', 'UI navigation is unavailable')
+    return () => operation.call(controls)
   }
 
   #ownService(dispose: () => void | Promise<void>): () => Promise<void> {

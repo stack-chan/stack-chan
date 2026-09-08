@@ -1,3 +1,5 @@
+import { validateShapeFace } from 'stackchan/shape-face'
+
 export const FACE_ASSET_FORMAT = 'tech.stackchan.face'
 export const FACE_ASSET_VERSION = 1
 export const FACE_ASSET_MEDIA_TYPE = 'application/vnd.stackchan.face+json'
@@ -162,39 +164,6 @@ export function createFaceAsset({
   }
 }
 
-function validateEye(eye, canvas) {
-  if (!isRecord(eye)) return false
-  const shape = eye.shape ?? 'circle'
-  if (!EYE_SHAPES.has(shape)) return false
-  let irisWidth
-  let irisHeight
-  if (shape === 'roundRect') {
-    const maximumWidth = Math.min(120, canvas.width)
-    const maximumHeight = Math.min(120, canvas.height)
-    if (
-      !exactFields(eye, ROUND_RECT_EYE_FIELDS) ||
-      !validNumber(eye.width, 4, maximumWidth) ||
-      !validNumber(eye.height, 4, maximumHeight) ||
-      !validNumber(eye.r, 0, Math.min(eye.width, eye.height) / 2)
-    ) {
-      return false
-    }
-    irisWidth = eye.width
-    irisHeight = eye.height
-  } else {
-    const maximumRadius = Math.min(40, canvas.width / 2, canvas.height / 2)
-    if (!exactFields(eye, CIRCLE_EYE_FIELDS) || !validNumber(eye.radius, 2, maximumRadius)) return false
-    irisWidth = eye.radius * 2
-    irisHeight = eye.radius * 2
-  }
-  return (
-    validNumber(eye.eyelidWidth, irisWidth, Math.min(120, canvas.width)) &&
-    validNumber(eye.eyelidHeight, irisHeight, Math.min(120, canvas.height)) &&
-    validNumber(eye.x, eye.eyelidWidth / 2, canvas.width - eye.eyelidWidth / 2) &&
-    validNumber(eye.y, eye.eyelidHeight / 2, canvas.height - eye.eyelidHeight / 2)
-  )
-}
-
 function validateShapeFaceAsset(value) {
   if (!exactFields(value, ROOT_FIELDS)) return false
   if (
@@ -211,32 +180,21 @@ function validateShapeFaceAsset(value) {
   ) {
     return false
   }
-  const canvas = value.canvas
   if (
-    !validNumber(canvas.left, 0, 280) ||
-    !validNumber(canvas.top, 0, 200) ||
-    !validNumber(canvas.width, 40, 320) ||
-    !validNumber(canvas.height, 40, 240) ||
-    canvas.left + canvas.width > 320 ||
-    canvas.top + canvas.height > 240 ||
     !exactFields(value.shape, SHAPE_FIELDS) ||
     !exactFields(value.shape.eyes, EYES_FIELDS) ||
-    !validateEye(value.shape.eyes.left, canvas) ||
-    !validateEye(value.shape.eyes.right, canvas)
-  ) {
+    !exactFields(value.shape.mouth, MOUTH_FIELDS)
+  )
+    return false
+  for (const eye of Object.values(value.shape.eyes)) {
+    if (!exactFields(eye, eye?.shape === 'roundRect' ? ROUND_RECT_EYE_FIELDS : CIRCLE_EYE_FIELDS)) return false
+  }
+  try {
+    validateShapeFace(value)
+    return true
+  } catch {
     return false
   }
-  const mouth = value.shape.mouth
-  return (
-    exactFields(mouth, MOUTH_FIELDS) &&
-    (mouth.visible === undefined || typeof mouth.visible === 'boolean') &&
-    validNumber(mouth.x, 0, canvas.width) &&
-    validNumber(mouth.y, 0, canvas.height) &&
-    validNumber(mouth.minWidth, 1, canvas.width) &&
-    validNumber(mouth.maxWidth, mouth.minWidth, canvas.width) &&
-    validNumber(mouth.minHeight, 1, canvas.height) &&
-    validNumber(mouth.maxHeight, mouth.minHeight, canvas.height)
-  )
 }
 
 export function parseFaceAsset(text) {
@@ -278,72 +236,43 @@ export function addFaceAssetToProject(project, asset, { replacePath = null } = {
 
 function rgb(hex) {
   const value = Number.parseInt(hex.slice(1), 16)
-  return [(value >> 16) & 255, (value >> 8) & 255, value & 255]
+  return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 }
 }
 
-function number(value) {
-  return Number(value.toFixed(3)).toString()
-}
-
+/** Export editable data; constructing and owning Piu parts belongs to the host. */
 export function shapeFaceDefinition(asset) {
-  const normalized = createFaceAsset(asset)
-  const { canvas, shape } = normalized
-  const eye = (value, side) =>
-    value.shape === 'roundRect'
-      ? `new Eye({ cx: ${number(value.x)}, cy: ${number(value.y)}, shape: 'roundRect', width: ${number(value.width)}, height: ${number(value.height)}, r: ${number(value.r)}, side: '${side}', eyelidWidth: ${number(value.eyelidWidth)}, eyelidHeight: ${number(value.eyelidHeight)} })`
-      : `new Eye({ cx: ${number(value.x)}, cy: ${number(value.y)}, radius: ${number(value.radius)}, side: '${side}', eyelidWidth: ${number(value.eyelidWidth)}, eyelidHeight: ${number(value.eyelidHeight)} })`
-  const contents = [eye(shape.eyes.left, 'left'), eye(shape.eyes.right, 'right')]
-  if (shape.mouth.visible) {
-    contents.push(
-      `new Mouth({ cx: ${number(shape.mouth.x)}, cy: ${number(shape.mouth.y)}, minWidth: ${number(shape.mouth.minWidth)}, maxWidth: ${number(shape.mouth.maxWidth)}, minHeight: ${number(shape.mouth.minHeight)}, maxHeight: ${number(shape.mouth.maxHeight)} })`
-    )
-  }
-  return `const _StackchanVisualShapeFace = FaceBase.template(($ = {}) => ({
-  left: $.left ?? ${number(canvas.left)},
-  top: $.top ?? ${number(canvas.top)},
-  width: $.width ?? ${number(canvas.width)},
-  height: $.height ?? ${number(canvas.height)},
-  contents: [
-    ${contents.join(',\n    ')},
-  ],
-}))`
+  const { canvas, shape } = createFaceAsset(asset)
+  return `/** @type {import('stackchan/shape-face').ShapeFace} */
+const _StackchanVisualShapeFace = ${JSON.stringify({ canvas, shape }, null, 2)}`
 }
 
 export function faceAssetStatements(asset) {
   const normalized = createFaceAsset(asset)
-  const statements = [
-    'robot.ui.setFace(new _StackchanVisualShapeFace({}))',
-    `robot.face.setEmotion(Emotion.${normalized.emotion})`,
-    `robot.face.setColor('primary', ${rgb(normalized.colors.primary).join(', ')})`,
-    `robot.face.setColor('secondary', ${rgb(normalized.colors.secondary).join(', ')})`,
-  ]
-  if (normalized.shape.mouth.visible) statements.push(`robot.face.setMouthOpen(${number(normalized.mouth)})`)
-  return statements.join('\n')
-}
-
-function prependImport(source, statement, moduleName) {
-  return source.includes(`from '${moduleName}'`) ? source : `${statement}\n${source}`
+  const emotion = normalized.emotion === 'DOUBTFUL' ? 'doubt' : normalized.emotion.toLowerCase()
+  return [
+    'ui(app).setShapeFace(_StackchanVisualShapeFace)',
+    `app.face.setEmotion('${emotion}')`,
+    `app.face.setColor('primary', ${JSON.stringify(rgb(normalized.colors.primary))})`,
+    `app.face.setColor('secondary', ${JSON.stringify(rgb(normalized.colors.secondary))})`,
+    `app.face.setMouthOpen(${normalized.mouth})`,
+  ].join('\n')
 }
 
 export function applyFaceAssetToSource(source, asset) {
-  const normalized = createFaceAsset(asset)
-  const marker = '  const runtime = createVisualRuntime(robot)'
-  const entrypoint = 'export async function onContextCreated(robot)'
-  if (!source.includes(marker) || !source.includes(entrypoint)) {
-    throw new TypeError('生成コードにVisual Programmingのエントリポイントがありません')
-  }
-
-  let result = source.replace(entrypoint, `${shapeFaceDefinition(normalized)}\n\n${entrypoint}`)
-  const statements = faceAssetStatements(normalized)
-    .split('\n')
-    .map((line) => `  ${line}`)
-    .join('\n')
-  result = result.replace(marker, `${marker}\n${statements}`)
-  if (normalized.shape.mouth.visible) {
-    result = prependImport(result, "import { Mouth } from 'parts/mouth'", 'parts/mouth')
-  }
-  result = prependImport(result, "import { Eye } from 'parts/eye'", 'parts/eye')
-  result = prependImport(result, "import { FaceBase } from 'behaviors/face'", 'behaviors/face')
-  result = prependImport(result, "import { Emotion } from 'face-state'", 'face-state')
+  const marker = '  setup(app) {'
+  if (!source.includes(marker) || !source.includes('export default defineApp('))
+    throw new TypeError('生成コードにSDKアプリのエントリポイントがありません')
+  let result = source.replace('export default defineApp(', `${shapeFaceDefinition(asset)}\n\nexport default defineApp(`)
+  result = result.replace(
+    marker,
+    marker +
+      '\n' +
+      faceAssetStatements(asset)
+        .split('\n')
+        .map((line) => '    ' + line)
+        .join('\n')
+  )
+  if (!result.includes("from 'stackchan/extensions/ui'"))
+    result = "import { ui } from 'stackchan/extensions/ui'\n" + result
   return result
 }

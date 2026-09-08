@@ -96,6 +96,11 @@
       "modules": {
         "~": "./local-peer-capability"
       }
+    },
+    "esp32/m5stackchan_cores3": {
+      "modules": {
+        "wifi-power-save": "./esp32/wifi-power-save"
+      }
     }
   },
   "typescript": {

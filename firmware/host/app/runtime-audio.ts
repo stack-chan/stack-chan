@@ -92,6 +92,7 @@ export class StackchanRuntimeAudio {
 
   constructor(params: RuntimeAudioConstructorParam, options: RuntimeAudioOptions = {}, devices?: ResourceScope) {
     this.#options = options
+    this.#tts = params.tts
     this.#ttsKind = params.ttsKind ?? 'speech'
     this.#clips = params.clipPlayer ?? (this.#ttsKind === 'clips' ? params.tts : undefined)
     this.#simulated = params.simulated ?? false
@@ -104,7 +105,8 @@ export class StackchanRuntimeAudio {
     if (!devices) {
       for (const provider of providers) ownTTS(this.#devices, provider)
       if (params.microphone) ownMicrophone(this.#devices, params.microphone)
-      if (params.speaker) this.#devices.defer(() => params.speaker.close?.())
+      const speaker = params.speaker
+      if (speaker) this.#devices.defer(() => speaker.close?.())
       if (params.webRadio) ownWebRadio(this.#devices, params.webRadio)
     }
     try {
@@ -140,7 +142,6 @@ export class StackchanRuntimeAudio {
   }
 
   #bindTTS(tts: TTS): void {
-    this.#tts = tts
     const previousPlayed = tts.onPlayed
     const previousDone = tts.onDone
     let active = true
@@ -168,9 +169,10 @@ export class StackchanRuntimeAudio {
   audioStatus(kind: 'singing' | 'speech' | 'clips' | 'tone' | 'recording' | 'playback'): CapabilityStatus {
     if (this.#releaseFailure) return { availability: 'unavailable', reason: 'Audio resources could not be released' }
     if (kind === 'recording') {
-      let available = !this.#closed && !this.#input.closed && !!this.#microphone
+      const microphone = this.#microphone
+      let available = !this.#closed && !this.#input.closed
       try {
-        available &&= this.#microphone.available !== false && !this.#microphone.releaseFailure
+        available &&= !!microphone && microphone.available !== false && !microphone.releaseFailure
       } catch {
         available = false
       }

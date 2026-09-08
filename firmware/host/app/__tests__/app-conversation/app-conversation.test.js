@@ -1,6 +1,8 @@
 import { createAppConversation } from 'app-conversation'
 import { CancellationSource } from 'cancellation'
 import { ResourceScope } from 'owned-resources'
+import { createRecordingWave } from 'recording-wave'
+import { StackchanRuntimeAudio } from 'runtime-audio'
 import { StackchanError } from 'stackchan/errors'
 import { TaskScope } from 'task-scope'
 import { assert, equal } from 'testing/assert'
@@ -73,7 +75,95 @@ function reply(provider, text) {
     }
   return { candidates: [{ content: { role: 'model', parts: [{ thought: true, text: 'private' }, { text }] } }] }
 }
+async function verifyRealtimeTermination() {
+  for (const [state, name] of [
+    [ChatAudioIO.FAILED, 'failed'],
+    [ChatAudioIO.DISCONNECTED, 'disconnected'],
+  ]) {
+    for (const mode of ['throw', 'reject', 'pending']) {
+      const owner = scope(),
+        errors = []
+      owner.report = (error) => errors.push(error)
+      let releases = 0,
+        notifications = 0,
+        tones = 0,
+        recordings = 0,
+        rejectObserver
+      const runtime = new StackchanRuntimeAudio({
+        tts: { stream() {} },
+        microphone: {
+          async record() {
+            recordings++
+            return createRecordingWave({ sampleRate: 16000, channels: 1, bitsPerSample: 16 }, 10).buffer
+          },
+          stop() {},
+        },
+        speaker: {
+          async tone() {
+            tones++
+          },
+          async play() {
+            return true
+          },
+        },
+      })
+      const chat = createAppConversation(owner, settings, {
+        reserveStream(input, output) {
+          const release = runtime.reserveStream(input, output)
+          return () => {
+            releases++
+            release()
+          }
+        },
+        failStream(error) {
+          runtime.failStream(error)
+        },
+      })
+      const session = await chat.realtime({
+        provider: 'openAIRealtime',
+        onState(observed, error) {
+          if (observed !== name) return
+          notifications++
+          equal(error, 'provider ended')
+          const failure = new Error(`terminal ${mode}`)
+          if (mode === 'throw') throw failure
+          if (mode === 'reject') return Promise.reject(failure)
+          return new Promise((_resolve, reject) => {
+            rejectObserver = () => reject(failure)
+          })
+        },
+      })
+      const io = ChatAudioIO.instances[ChatAudioIO.instances.length - 1]
+      await rejects(runtime.tone(440, { durationMs: 10 }), 'BUSY')
+      await rejects(runtime.record({ durationMs: 10 }), 'BUSY')
+      io.emitState(state, 'provider ended')
+      await new Promise((resolve) => Timer.set(() => resolve(), 1))
+      equal(releases, 1, 'terminal notification releases audio without an explicit close or an observer result')
+      equal(io.closeCount, 1, 'terminal notification closes the worker once')
+      equal(errors.length, mode === 'pending' ? 0 : 1)
+      await runtime.tone(440, { durationMs: 10 })
+      await runtime.record({ durationMs: 10 })
+      equal(tones, 1, 'the next output operation can use the physical audio owner')
+      equal(recordings, 1, 'the next recording can use the physical audio owner')
+      rejectObserver?.()
+      await new Promise((resolve) => Timer.set(() => resolve(), 1))
+      equal(errors.length, 1, 'synchronous and asynchronous observer errors are reported once')
+      assert(String(errors[0]).includes(`terminal ${mode}`))
+      io.emitState(state, 'provider ended')
+      await session.close()
+      await session.close()
+      await owner.close()
+      equal(notifications, 1, 'closed connection ignores duplicate terminal notifications')
+      equal(releases, 1)
+      equal(io.closeCount, 1)
+      equal(owner.size, 0)
+      await runtime.close()
+    }
+  }
+}
+
 async function run() {
+  await verifyRealtimeTermination()
   for (let cycle = 0; cycle < 100; cycle++) {
     const owner = scope()
     let reservations = 0

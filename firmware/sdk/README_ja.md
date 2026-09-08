@@ -234,6 +234,8 @@ HTTP・MCP サーバーと DNS-SD のポートは1〜65535の整数です。DNS-
 
 `monitor` は0〜1のRMS音量、`realtime` の出力レベルも0〜1です。monitorは入力、radioは出力、realtime / remoteは両方を既存のRuntimeAudioで確保します。占有中の別の録音・再生は `BUSY`、解放に失敗した機器は再利用しません。radio / realtimeの開始は接続準備の開始を返し、その後の接続・再生状態はコールバックで観測します。USBの `requestStart` / `requestStop` は要求の受理IDであり、完了は `onState` で確認します。
 
+`realtime` が `failed` または `disconnected` を通知すると、SDKが接続と音声の使用権を自動で閉じます。`onState` が例外を投げても後始末は実行され、Promiseを返した場合もその完了を待たずに解放を開始します。同期例外とPromiseの拒否はアプリのエラー処理へ報告されます。
+
 `motion.position` は最後に観測した `yawDeg` / `pitchDeg` のコピーで、初回観測前は `undefined` です。追加のUART読み取りは行いません。保守操作は設定済みの同じドライバーへ接続し、通常motionを停止して実行します。速度変更は両軸に適用し、再起動まで通常動作を再開しません。保守中の終了は進行中のバス操作を待ちます。SHT3x の標本は `temperatureC` / `relativeHumidityPercent` です。
 
 UI拡張には `setTracking`、`setMusicNotes`、`setFaceMotionEnabled` を追加しました。`setTracking` は左右の目・口の開度0〜1と、手の座標・`rotationDeg`・形を受け取ります。`null` で追跡表示を解除します。機器・Piuの実装オブジェクトは渡さず、終了時の復元も共通の所有処理で行います。
@@ -253,7 +255,7 @@ WASMで未実装の通信・機器は `UNSUPPORTED` です。能力表の `nativ
 
 ## Blocklyと顔エディター（host API 8）
 
-Webの生成コードも `defineApp` とこのSDKを使います。`input(app).onRelease(name, handler)` でボタンを離した操作を受け取り、`input(app).onHeadTouch(handler, { gesture: 'petting' })` で1.5秒以内の往復スワイプを受け取れます。フィルターは処理の重複を抑止する前に適用されます。
+Webの生成コードも `defineApp` とこのSDKを使います。`input(app).onRelease(name, handler)` でボタンを離した操作を受け取り、`input(app).onHeadTouch(handler, { gesture: 'petting' })` で1.5秒以内の往復スワイプを受け取れます。フィルターなしの購読には、各スワイプに続いて `petting` が届きます。head touchはフィルター適用後のイベントを購読ごとに順番に処理し、同じハンドラーを同時に実行しません。待機は最大8件で、上限を超えると最も古い待機イベントを破棄して新しい操作を残します。購読解除・アプリ終了で実行中の処理を取り消し、待機イベントも破棄します。
 
 `singing(app)`（`stackchan/extensions/audio`）の `sing(bpm, score, options)` は、`[音階, 拍, かな1モーラ]` のリストを歌わせます。休符は `['R', 拍, '']` です。20〜300 BPM、1〜256要素、1音20〜8000 msと変換結果の上限をホストで検証します。音声合成器が非対応なら `UNSUPPORTED`、出力を会話・ラジオが占有していれば `BUSY`、不正な楽譜は `INVALID_ARGUMENT` です。`options.signal` で取り消せます。
 

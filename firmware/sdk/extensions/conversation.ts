@@ -23,7 +23,8 @@ export type RealtimeOptions = {
   instructions?: string
   volume?: number
   tools?: readonly Tool[]
-  onState?(state: ChatState, error?: string): void
+  /** Terminal states release audio even if this observer throws or rejects. */
+  onState?(state: ChatState, error?: string): void | Promise<void>
   onTranscript?(text: string, more: boolean): void
   /** Normalized output level (0–1). */
   onOutputLevel?(level: number): void

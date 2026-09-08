@@ -1577,6 +1577,134 @@ test('USB request acceptance does not commit the menu toggle before observed con
   assert.deepEqual(f.errors, [])
 })
 
+test('physical swipes and synthesized petting reach unfiltered handlers in order without overlap', async () => {
+  const { AppSession, defineApp } = await setup()
+  const { StackchanRuntimeInput } = await import('./runtime-input.js')
+  const { input } = await import('../../sdk/extensions/input.js')
+  type TouchPanel = import('../modules/input/touch-panel.js').default
+  for (const mode of ['sync', 'async', 'throw']) {
+    for (const first of ['forwardSwipe', 'backwardSwipe'] as const) {
+      const f = fixture()
+      const listeners = new Set<Parameters<TouchPanel['subscribe']>[0]>()
+      const runtime = new StackchanRuntimeInput({
+        touchPanel: {
+          start() {},
+          subscribe(handler: Parameters<TouchPanel['subscribe']>[0]) {
+            listeners.add(handler)
+            return () => listeners.delete(handler)
+          },
+          close() {
+            listeners.clear()
+          },
+        } as unknown as TouchPanel,
+      })
+      f.ports.input.subscribeHeadTouch = (handler) => runtime.subscribeHeadTouch(handler)
+      const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+      const delivered: string[] = [],
+        filtered: string[] = []
+      let active = 0,
+        maximum = 0
+      await session.start(
+        defineApp({
+          setup(app) {
+            input(app).onHeadTouch((event, task) => {
+              delivered.push(event.gesture)
+              maximum = Math.max(maximum, ++active)
+              if (mode === 'async')
+                return task.sleep(5).finally(() => {
+                  active--
+                })
+              active--
+              if (mode === 'throw' && delivered.length === 1) throw new Error('touch observer failed')
+            })
+            input(app).onHeadTouch(
+              (event) => {
+                filtered.push(event.gesture)
+              },
+              { gesture: 'petting' },
+            )
+          },
+        }),
+      )
+      const second = first === 'forwardSwipe' ? 'backwardSwipe' : 'forwardSwipe'
+      for (const [gesture, ticks] of [
+        [first, 100],
+        [second, 500],
+      ] as const)
+        for (const receive of [...listeners])
+          receive({ kind: 'touch-panel', gesture, ticks, position: 0.5, intensity: 1 })
+      await f.clock.advance(100)
+      assert.deepEqual(delivered, [first, second, 'petting'])
+      assert.deepEqual(filtered, ['petting'])
+      assert.equal(maximum, 1, 'one subscription never overlaps its own handler')
+      assert.equal(f.errors.length, mode === 'throw' ? 1 : 0)
+      if (mode === 'throw') assert.match(String(f.errors[0]), /touch observer failed/)
+      await session.close()
+      assert.equal(listeners.size, 0)
+      assert.equal(session.taskCount, 0)
+      await runtime.close()
+    }
+  }
+})
+
+test('head touch queues are bounded and discard pending callbacks on unsubscribe or app close', async () => {
+  const { AppSession, defineApp } = await setup()
+  const { input } = await import('../../sdk/extensions/input.js')
+  for (const end of ['drain', 'unsubscribe', 'close']) {
+    const f = fixture()
+    let receive!: (event: import('../../sdk/extensions/input.js').HeadTouchEvent) => void
+    let removed = 0
+    f.ports.input.subscribeHeadTouch = (handler) => {
+      receive = handler
+      return () => {
+        removed++
+      }
+    }
+    const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+    const delivered: number[] = []
+    let finished = 0,
+      off!: () => void
+    await session.start(
+      defineApp({
+        setup(app) {
+          off = input(app).onHeadTouch(async (event, task) => {
+            assert.ok(event.tapDurationMs !== undefined)
+            delivered.push(event.tapDurationMs)
+            await task.sleep(10)
+            finished++
+          })
+        },
+      }),
+    )
+    for (let i = 0; i <= 12; i++) receive({ gesture: 'release', tapDurationMs: i })
+    await flush()
+    assert.deepEqual(delivered, [0])
+    if (end === 'unsubscribe') off()
+    if (end === 'close') await session.close()
+    await f.clock.advance(200)
+    if (end === 'drain') {
+      assert.deepEqual(
+        delivered,
+        [0, 5, 6, 7, 8, 9, 10, 11, 12],
+        'overflow retains the eight most recent pending gestures',
+      )
+      assert.equal(finished, delivered.length)
+      off()
+    } else {
+      assert.deepEqual(delivered, [0], 'queued callbacks never start after cancellation')
+      assert.equal(finished, 0)
+    }
+    receive({ gesture: 'petting' })
+    await f.clock.advance(200)
+    assert.equal(delivered.length, end === 'drain' ? 9 : 1)
+    await session.close()
+    assert.equal(removed, 1)
+    assert.equal(session.resourceCount, 0)
+    assert.equal(session.taskCount, 0)
+    assert.deepEqual(f.errors, [])
+  }
+})
+
 test('release and filtered petting handlers share AppSession cancellation and disposal over 100 lifetimes', async () => {
   const { AppSession } = await setup()
   const { input } = await import('../../sdk/extensions/input.js')

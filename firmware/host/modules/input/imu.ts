@@ -23,7 +23,7 @@ type IMUConstructor = new (options: unknown) => IMUDriver
 
 export default class IMU {
   #driver: IMUDriver
-  #timer: Timer | undefined
+  #timer: ReturnType<typeof Timer.repeat> | undefined
   #recognizer: MotionRecognizer
   #interval: number
   #lastSample: IMUSample = {}

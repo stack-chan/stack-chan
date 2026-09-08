@@ -18,7 +18,7 @@ xsbug_host="${STACKCHAN_LIN_XSBUG_HOST:-127.0.0.1}"
 xsbug_port="${STACKCHAN_LIN_XSBUG_PORT:-0}"
 manifest="${STACKCHAN_LIN_SMOKE_MANIFEST:-$firmware_dir/host/app/manifest_local.json}"
 archive_manifest="${STACKCHAN_LIN_SMOKE_ARCHIVE_MANIFEST:-}"
-expected_log="${STACKCHAN_LIN_SMOKE_EXPECT:-[main] app behaviors ready}"
+expected_log="${STACKCHAN_LIN_SMOKE_EXPECT:-[main] app ready}"
 clean_build="${STACKCHAN_LIN_SMOKE_CLEAN:-1}"
 
 if [[ ! "$app_name" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]]; then

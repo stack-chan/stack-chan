@@ -173,10 +173,12 @@ export class AppSession {
           const subscribe = ports.input.subscribeHeadTouch
           this.#checkHandler(handler)
           if (!subscribe) throw new StackchanError('UNSUPPORTED', 'Head touch is unavailable')
-          return this.#listen((run) =>
-            subscribe((event) => {
-              if (!options || event.gesture === options.gesture) run((task) => handler(event, task))
-            }),
+          return this.#listen(
+            (run) =>
+              subscribe((event) => {
+                if (!options || event.gesture === options.gesture) run((task) => handler(event, task))
+              }),
+            8,
           )
         },
         onMotion: (handler) => {
@@ -425,24 +427,36 @@ export class AppSession {
     if (typeof handler !== 'function') throw new StackchanError('INVALID_ARGUMENT', 'A function is required')
   }
 
-  #listen(subscribe: (run: (handler: TaskHandler) => void) => () => void): () => void {
+  #listen(subscribe: (run: (handler: TaskHandler) => void) => () => void, pendingLimit = 0): () => void {
     this.#assertRegistrationAvailable()
     const source = new CancellationSource()
     let busy = false
     let disposed = false
-    const unsubscribe = this.#call(() =>
-      subscribe((handler) => {
-        if (busy || disposed || this.#state === 'closing' || this.#state === 'closed') return
-        busy = true
-        void this.#run(handler, source.signal)
-          .catch((error) => this.#report(error))
-          .finally(() => {
-            busy = false
-          })
-      }),
-    )
+    const pending: TaskHandler[] = []
+    const run = (handler: TaskHandler) => {
+      if (disposed || this.#state === 'closing' || this.#state === 'closed') return
+      if (busy) {
+        if (pendingLimit) {
+          // A swipe and its synthesized petting event share one device dispatch.
+          // Keep their order without overlapping app tasks or growing without bound.
+          if (pending.length === pendingLimit) pending.shift()
+          pending.push(handler)
+        }
+        return
+      }
+      busy = true
+      void this.#run(handler, source.signal)
+        .catch((error) => this.#report(error))
+        .finally(() => {
+          busy = false
+          const next = pending.shift()
+          if (next) run(next)
+        })
+    }
+    const unsubscribe = this.#call(() => subscribe(run))
     const relinquish = this.#resources.defer(() => {
       disposed = true
+      pending.length = 0
       try {
         unsubscribe()
       } finally {
@@ -452,6 +466,7 @@ export class AppSession {
     return () => {
       if (disposed) return
       disposed = true
+      pending.length = 0
       relinquish()
       try {
         unsubscribe()

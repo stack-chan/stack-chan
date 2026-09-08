@@ -22,6 +22,8 @@ export interface AppInput {
   /** Names follow the available buttons in order; unavailable buttons are never silently ignored. */
   onPress(name: ButtonName, handler: TaskHandler): Unsubscribe
   onRelease(name: ButtonName, handler: TaskHandler): Unsubscribe
+  /** Runs matching gestures in order, with up to eight pending events. On overflow,
+   * drops the oldest pending event; unsubscribe or app close discards the queue. */
   onHeadTouch(handler: InputHandler<HeadTouchEvent>, options?: { gesture: HeadTouchEvent['gesture'] }): Unsubscribe
   onMotion(handler: InputHandler<MotionEvent>): Unsubscribe
 }

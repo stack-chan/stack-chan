@@ -139,8 +139,11 @@ export function createAppConversation(
             callbacks: {
               onStateChanged: owner.event((state: number, error?: string) => {
                 const name = chatStateToName(state).toLowerCase() as ChatState
-                options.onState?.(name, error)
-                if (name === 'failed' || name === 'disconnected') void owner.close().catch(scope.report)
+                try {
+                  return options.onState?.(name, error)
+                } finally {
+                  if (name === 'failed' || name === 'disconnected') void owner.close().catch(scope.report)
+                }
               }),
               onOutputTranscript: owner.event(options.onTranscript),
               onOutputLevelChanged: owner.event((level: number) =>

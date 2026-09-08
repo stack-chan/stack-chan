@@ -45,8 +45,9 @@ export interface AppContext {
   readonly capabilities: { get(id: CapabilityId): CapabilityStatus }
 }
 
+export type AppDisposer = (() => void) | (() => Promise<void>)
 // biome-ignore lint/suspicious/noConfusingVoidType: Async setup can return a disposer or no value.
-export type AppSetup = (app: AppContext) => void | Unsubscribe | Promise<void | Unsubscribe>
+export type AppSetup = (app: AppContext) => void | AppDisposer | Promise<void | AppDisposer>
 export type AppDefinition = Readonly<{ apiVersion: 2; setup: AppSetup }>
 
 /** JavaScript apps receive contextual types without repeating host implementation types. */

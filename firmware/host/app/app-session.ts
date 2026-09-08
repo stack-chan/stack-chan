@@ -354,7 +354,7 @@ export class AppSession {
         if (typeof dispose === 'function') {
           if (this.#resources.closed) {
             try {
-              dispose()
+              await dispose()
             } catch (error) {
               this.#report(error)
             }

@@ -960,6 +960,48 @@ test('late setup completion disposes resources without reopening a closed app', 
   assert.equal(session.state, 'closed')
 })
 
+test('late asynchronous setup disposers finish once and report failures over 100 replacements', async () => {
+  const { AppSession, defineApp } = await setup()
+  for (let cycle = 0; cycle < 100; cycle++) {
+    const f = fixture()
+    const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+    let finish!: (dispose: () => Promise<void>) => void
+    let complete!: () => void
+    let disposed = 0
+    const failure = new Error('late cleanup failed')
+    const started = session.start(
+      defineApp({
+        setup: () =>
+          new Promise((resolve) => {
+            finish = resolve
+          }),
+      }),
+    )
+    const stopped = assert.rejects(started, { code: 'CLOSED' })
+    await flush()
+    await session.close()
+    await stopped
+    finish(async () => {
+      disposed++
+      await new Promise<void>((resolve) => {
+        complete = resolve
+      })
+      if (cycle % 2) throw failure
+    })
+    await flush()
+    assert.equal(disposed, 1)
+    assert.deepEqual(f.errors, [])
+    complete()
+    await flush()
+    assert.deepEqual(f.errors, cycle % 2 ? [failure] : [])
+    await session.close()
+    assert.equal(session.state, 'closed')
+    assert.equal(session.taskCount, 0)
+    assert.equal(session.resourceCount, 0)
+    assert.equal(disposed, 1)
+  }
+})
+
 test('100 app replacements return tasks, subscriptions and timers to baseline', async () => {
   const { AppSession, defineApp } = await setup()
   const f = fixture()
@@ -1189,6 +1231,53 @@ test('connection failures retain cleanup and do not deliver events after explici
   await app.close()
 })
 
+test('asynchronous connection observers report errors after close without keeping subscriptions alive', async () => {
+  const { AppSession, AppConnection, defineApp } = await setup()
+  for (const subscription of [false, true]) {
+    const f = fixture()
+    let scope!: AppServiceScope
+    f.ports.extensions = (owner) => {
+      scope = owner
+      return {}
+    }
+    const app = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+    await app.start(defineApp({ setup() {} }))
+    const connection = new AppConnection(scope)
+    let resume!: () => void,
+      emit!: () => void,
+      delivered = 0,
+      removed = 0
+    const handler = async () => {
+      delivered++
+      await new Promise<void>((resolve) => {
+        resume = resolve
+      })
+      throw new Error('observer failed asynchronously')
+    }
+    if (subscription)
+      connection.listen((callback) => {
+        emit = callback
+        return () => {
+          removed++
+        }
+      }, handler)
+    else emit = connection.event(handler)
+    emit()
+    assert.equal(delivered, 1, 'event delivery stays synchronous until the first await')
+    await connection.close()
+    emit()
+    resume()
+    await flush()
+    assert.equal(delivered, 1)
+    assert.equal(removed, subscription ? 1 : 0)
+    assert.equal(f.errors.length, 1)
+    assert.equal((f.errors[0] as StackchanError).code, 'IO')
+    assert.equal((f.errors[0] as Error).message, 'observer failed asynchronously')
+    assert.equal(app.resourceCount, 0)
+    await app.close()
+  }
+})
+
 test('periodic app work reports a transient error and resumes on the next interval', async () => {
   const { AppSession, defineApp } = await setup()
   const f = fixture()
@@ -1267,6 +1356,67 @@ test('SDK dialogue retains its response ID and awaits a tool before the follow-u
   assert.equal(bodies[1].previous_response_id, 'response-1')
   assert.deepEqual(bodies[1].input, [{ type: 'function_call_output', call_id: 'call-1', output: 'done' }])
   await app.close()
+})
+
+test('failed or cancelled dialogue turns keep the last successful history checkpoint', async () => {
+  const { AppSession, defineApp } = await setup()
+  const { createAppConversation } = await import('./app-conversation.js')
+  const { CancellationSource } = await import('./cancellation.js')
+  for (const failure of ['http', 'limit', 'answer', 'cancel']) {
+    const f = fixture()
+    let scope!: AppServiceScope
+    f.ports.extensions = (owner) => {
+      scope = owner
+      return {}
+    }
+    const app = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+    await app.start(defineApp({ setup() {} }))
+    const source = new CancellationSource()
+    const bodies: Array<{ previous_response_id?: string }> = []
+    let mode = 'success',
+      round = 0
+    const service = createAppConversation(scope, cloudSettings, cloudAudio, undefined, async (request) => {
+      bodies.push(JSON.parse(request.body as string))
+      if (mode === 'http' && round++ > 0) return { status: 503, body: '{}' }
+      const text = mode === 'answer' ? 'a'.repeat(4097) : 'hello'
+      return {
+        status: 200,
+        body: JSON.stringify({
+          id: mode === 'success' ? 'committed' : 'tentative',
+          output:
+            mode === 'success' || mode === 'answer'
+              ? [{ type: 'message', content: [{ type: 'output_text', text }] }]
+              : [{ type: 'function_call', call_id: 'call', name: 'greet', arguments: '{}' }],
+        }),
+      }
+    })
+    const dialogue = service.dialogue({
+      tools: [
+        {
+          name: 'greet',
+          description: '',
+          inputSchema: { type: 'object', properties: {}, required: [] },
+          async execute() {
+            if (mode === 'cancel') source.cancel()
+            return 'done'
+          },
+        },
+      ],
+    })
+    assert.equal(await dialogue.ask('first'), 'hello')
+    mode = failure
+    await assert.rejects(dialogue.ask('fails midway', { signal: source.signal }), {
+      code: failure === 'cancel' ? 'CANCELLED' : 'IO',
+    })
+    await flush()
+    mode = 'success'
+    assert.equal(await dialogue.ask('retry'), 'hello')
+    assert.equal(bodies.at(-1)?.previous_response_id, 'committed', failure)
+    await app.close()
+    assert.equal(app.taskCount, 0)
+    assert.equal(app.resourceCount, 0)
+    assert.deepEqual(f.errors, [])
+  }
 })
 
 test('closing during a cloud request cancels the task and ignores a late tool call', async () => {

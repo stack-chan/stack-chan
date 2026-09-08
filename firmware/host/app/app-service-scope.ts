@@ -79,14 +79,14 @@ export class AppConnection implements Connection {
   /** A subscription is released once, by its caller or by connection shutdown. */
   listen<Args extends unknown[]>(
     subscribe: (handler: (...args: Args) => void) => () => void,
-    handler: (...args: Args) => void,
+    handler: (...args: Args) => unknown,
   ): () => void {
     return this.call(() => {
       if (typeof handler !== 'function') throw new StackchanError('INVALID_ARGUMENT', 'A subscription needs a function')
       let disposed = false
       const off = subscribe(
         this.event((...args: Args) => {
-          if (!disposed) handler(...args)
+          if (!disposed) return handler(...args)
         }),
       )
       const dispose = () => {
@@ -101,11 +101,13 @@ export class AppConnection implements Connection {
       }
     })
   }
-  event<Args extends unknown[]>(handler: ((...args: Args) => void) | undefined): (...args: Args) => void {
+  event<Args extends unknown[]>(handler: ((...args: Args) => unknown) | undefined): (...args: Args) => void {
     return (...args) => {
       if (this.#closed || !handler) return
       try {
-        this.call(() => handler(...args))
+        const result = this.call(() => handler(...args))
+        if (result !== undefined)
+          void Promise.resolve(result).catch((error) => this.#scope.report(asStackchanError(error)))
       } catch (error) {
         this.#scope.report(asStackchanError(error))
       }

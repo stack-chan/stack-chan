@@ -15,7 +15,7 @@ export default defineApp({
 })
 ```
 
-`defineApp` は `apiVersion: 2` とsetupを持つ定義を作ります。既定動作も同じ定義で起動します。インストールされたMODへの既定フックの継承はありません。setupは登録後に返り、アプリはホストが閉じるまで動作します。setupの失敗時は登録を解除し、同じ失敗を開始元へ返します。setupは任意で同期disposerを返せます。終了後に遅れて返ったdisposerも実行します。
+`defineApp` は `apiVersion: 2` とsetupを持つ定義を作ります。既定動作も同じ定義で起動します。インストールされたMODへの既定フックの継承はありません。setupは登録後に返り、アプリはホストが閉じるまで動作します。setupの失敗時は登録を解除し、同じ失敗を開始元へ返します。setupは任意で同期・非同期の `AppDisposer` を返せます。終了後に遅れて返ったdisposerも1回だけ実行し、非同期の失敗もエラー通知へ渡します。任意のPromiseが終わるまでアプリ終了を待たせることはありません。
 
 配布用の `stackchan-mod.json` には schema 2 / app API 2 と必要な host API 世代を記録します。教材では世代2を要求し、標準 manifest の `data` で同梱しています。XS のコンパイル版とは別の検査です。CLI・WebSerial の接続状況と、旧 MOD・SD・WASM・起動時の移行上の制約は [MOD の互換性検査](../../docs/architecture/mod-package-compatibility.md) を参照してください。
 
@@ -40,7 +40,7 @@ export default defineApp({
 | `input.onPress('primary', handler)` | 購読を登録し解除関数を返す。同じhandlerの実行中は連打を追加実行しない |
 | `time.sleep(durationMs)` | アプリに所属する待機。終了時にタイマーを解除してreject |
 | `time.after(durationMs, handler)` | host API 4以上。一度だけ実行。解除関数は待機と実行中handlerの両方を取り消す |
-| `time.every(intervalMs, handler)` | handlerの終了からintervalMs後に次回実行。例外は報告して周期処理を終了 |
+| `time.every(intervalMs, handler)` | handlerの終了からintervalMs後に次回実行。例外は報告して次の周期で再試行 |
 | `ui.showBalloon(text)` / `hideBalloon()` | アプリの吹き出し。終了時に消去 |
 | `capabilities.get(id)` | `native` / `simulated` / `unavailable` を取得。未対応時は理由を持つ |
 
@@ -224,7 +224,7 @@ export default defineApp({
 
 HTTP `request` は既定30秒・応答65,536 bytes、最大120秒・1,048,576 bytesです。取消し・期限・読取失敗で物理接続を閉じます。`stream` は一文字のASCII区切りでUTF-8を復元し、`maxResponseBytes` は1メッセージの上限（既定16,384、最大65,536 bytes）、`timeoutMs` は無受信の期限です。UnitV2のように応答が終わらない通信に使い、全応答を蓄積しません。HTTPサーバーのhandlerとMCPの道具には `TaskContext` を渡します。
 
-`dialogue.ask(text, { signal })` は会話の返事の取得まで待ち、読み上げは `audio.say` で明示します。同時の対話要求は `BUSY`。履歴はResponses APIの応答IDで保持し、`clear()` で破棄します。入力は4096文字、道具の往復は10回までです。文字起こしは `RecordedAudio` のファイル名と元バッファを使い、大きなmultipartバッファへ録音全体を複製しません。
+`dialogue.ask(text, { signal })` は会話の返事の取得まで待ち、読み上げは `audio.say` で明示します。同時の対話要求は `BUSY`。履歴はResponses APIの応答IDで保持し、1回の `ask` が正常に終わったときだけ更新します。途中の通信失敗・取消・出力や往復回数の上限超過では直前に成功した履歴を維持し、`clear()` で破棄します。入力は4096文字、道具の往復は10回までです。文字起こしは `RecordedAudio` のファイル名と元バッファを使い、大きなmultipartバッファへ録音全体を複製しません。
 
 `monitor` は0〜1のRMS音量、`realtime` の出力レベルも0〜1です。monitorは入力、radioは出力、realtime / remoteは両方を既存のRuntimeAudioで確保します。占有中の別の録音・再生は `BUSY`、解放に失敗した機器は再利用しません。radio / realtimeの開始は接続準備の開始を返し、その後の接続・再生状態はコールバックで観測します。USBの `requestStart` / `requestStop` は要求の受理IDであり、完了は `onState` で確認します。
 

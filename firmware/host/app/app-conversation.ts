@@ -78,6 +78,7 @@ export function createAppConversation(
               try {
                 let input: Record<string, unknown>[] = [{ role: 'user', content: text }]
                 let answer = ''
+                let current = previous
                 for (let iteration = 0; iteration < 10; iteration++) {
                   task.signal.throwIfCancelled()
                   const response = await post(
@@ -88,7 +89,7 @@ export function createAppConversation(
                         options.instructions ??
                         settings.get('ai.context') ??
                         'You are Stack-chan, a friendly palm-sized robot. Reply briefly in the language of the user.',
-                      previous_response_id: previous,
+                      previous_response_id: current,
                       input,
                       tools: options.tools?.map((tool) => ({
                         type: 'function',
@@ -102,7 +103,7 @@ export function createAppConversation(
                   )
                   if (!Array.isArray(response.output) || typeof response.id !== 'string')
                     throw new StackchanError('IO', 'Conversation response has no output')
-                  previous = response.id
+                  current = response.id
                   input = []
                   for (const output of response.output) {
                     if (output.type === 'message' && Array.isArray(output.content)) {
@@ -132,7 +133,11 @@ export function createAppConversation(
                       input.push({ type: 'function_call_output', call_id: output.call_id, output: result })
                     }
                   }
-                  if (!input.length) return answer
+                  if (!input.length) {
+                    task.signal.throwIfCancelled()
+                    previous = current
+                    return answer
+                  }
                 }
                 throw new StackchanError('IO', 'Conversation exceeded 10 tool iterations')
               } finally {

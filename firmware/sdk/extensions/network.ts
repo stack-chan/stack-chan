@@ -83,7 +83,7 @@ export interface AppNetwork {
   openPeer(options: PeerOptions): Promise<PeerConnection>
   serve(options: { port: number; routes: readonly HttpRoute[] }): Connection
   serveTools(options: { port: number; tools: readonly Tool[] }): Connection
-  /** Stack-chan STK GATT service; retains its published UUID and JSON payload. */
+  /** Stack-chan STK GATT service; JSON payloads up to 2048 bytes. Invalid packets are reported and skipped. */
   listenStk(options: { onMessage(message: JsonValue): void; onConnection?(connected: boolean): void }): Connection
   /** Apple iBeacon framing; caller supplies the application UUID. */
   beacon(options: { role: 'advertiser' | 'scanner'; uuid: string; onBeacon?(beacon: Beacon): void }): BeaconConnection

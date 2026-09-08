@@ -346,6 +346,39 @@
       ],
       "runtime-audio": [
         "./host/app/runtime-audio.ts"
+      ],
+      "WebSocket": [
+        "./host/app/__tests__/fakes/native-network.ts"
+      ],
+      "bleclient": [
+        "./node_modules/@moddable/typings/ble/bleclient.d.ts"
+      ],
+      "bleserver": [
+        "./node_modules/@moddable/typings/ble/bleserver.d.ts"
+      ],
+      "btutils": [
+        "./node_modules/@moddable/typings/ble/btutils.d.ts"
+      ],
+      "beacon-packet": [
+        "./host/modules/connectivity/ble/beacon-packet.ts"
+      ],
+      "app-http": [
+        "./host/app/app-http.ts"
+      ],
+      "http-delimited-stream": [
+        "./host/app/http-delimited-stream.ts"
+      ],
+      "http-server-service": [
+        "./host/app/__tests__/fakes/native-network.ts"
+      ],
+      "mcp-server": [
+        "./host/app/__tests__/fakes/native-network.ts"
+      ],
+      "stk-server": [
+        "./host/modules/connectivity/ble/stk-server.js"
+      ],
+      "headers": [
+        "./node_modules/@moddable/typings/web/headers.d.ts"
       ]
     },
     "types": [

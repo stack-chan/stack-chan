@@ -224,6 +224,8 @@ export default defineApp({
 
 HTTP `request` は既定30秒・応答65,536 bytes、最大120秒・1,048,576 bytesです。取消し・期限・読取失敗で物理接続を閉じます。`stream` は一文字のASCII区切りでUTF-8を復元し、`maxResponseBytes` は1メッセージの上限（既定16,384、最大65,536 bytes）、`timeoutMs` は無受信の期限です。UnitV2のように応答が終わらない通信に使い、全応答を蓄積しません。HTTPサーバーのhandlerとMCPの道具には `TaskContext` を渡します。
 
+HTTP・MCP サーバーと DNS-SD のポートは1〜65535の整数です。DNS-SD の `update(txt)` は名前の確保中も最新の値を保持し、確保後に公開します。STK は2048 bytes以内のJSONを受信し、不正なパケットをエラーとして報告した後も次の受信を続けます。閉じた接続に届く遅延通知はアプリへ渡しません。
+
 `dialogue.ask(text, { signal })` は会話の返事の取得まで待ち、読み上げは `audio.say` で明示します。同時の対話要求は `BUSY`。履歴はResponses APIの応答IDで保持し、1回の `ask` が正常に終わったときだけ更新します。途中の通信失敗・取消・出力や往復回数の上限超過では直前に成功した履歴を維持し、`clear()` で破棄します。入力は4096文字、道具の往復は10回までです。文字起こしは `RecordedAudio` のファイル名と元バッファを使い、大きなmultipartバッファへ録音全体を複製しません。
 
 `monitor` は0〜1のRMS音量、`realtime` の出力レベルも0〜1です。monitorは入力、radioは出力、realtime / remoteは両方を既存のRuntimeAudioで確保します。占有中の別の録音・再生は `BUSY`、解放に失敗した機器は再利用しません。radio / realtimeの開始は接続準備の開始を返し、その後の接続・再生状態はコールバックで観測します。USBの `requestStart` / `requestStop` は要求の受理IDであり、完了は `onState` で確認します。

@@ -42,7 +42,7 @@ export default function requestHttp(
   const headers = new Headers(Object.entries(request.headers ?? {}))
   if (parts.length) headers.set('content-length', String(parts.reduce((length, part) => length + part.byteLength, 0)))
   return new Promise((resolve, reject) => {
-    let client: Client | undefined, timer: Timer | undefined, remove: (() => void) | undefined
+    let client: Client | undefined, timer: ReturnType<typeof Timer.set> | undefined, remove: (() => void) | undefined
     let finished = false,
       bodyWritten = false,
       status = 0,

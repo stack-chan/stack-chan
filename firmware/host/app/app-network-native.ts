@@ -38,6 +38,11 @@ const dnsEnvironment = () =>
   (globalThis as { device?: { network?: { dnssd?: DnsEnvironment } } }).device?.network?.dnssd
 
 type NativeNetwork = Omit<AppNetwork, 'ready' | 'openPeer'>
+function validatePort(port: number): void {
+  finiteNumber(port, 'port', 1, 65_535)
+  if (!Number.isInteger(port)) throw new StackchanError('INVALID_ARGUMENT', 'Port must be an integer')
+}
+
 export default function createNativeNetwork(scope: AppServiceScope): NativeNetwork {
   const open = <T>(create: (owner: AppConnection) => T): T => {
     const owner = new AppConnection(scope)
@@ -132,7 +137,7 @@ export default function createNativeNetwork(scope: AppServiceScope): NativeNetwo
       }),
     serve: (options) =>
       open((owner) => {
-        finiteNumber(options.port, 'port', 1, 65_535)
+        validatePort(options.port)
         const server = new HttpServerService({ port: options.port })
         owner.own(() => server.close())
         for (const route of options.routes) {
@@ -160,6 +165,7 @@ export default function createNativeNetwork(scope: AppServiceScope): NativeNetwo
       }),
     serveTools: (options) =>
       open((owner) => {
+        validatePort(options.port)
         const server = new MCPServerService({
           port: options.port,
           token: getSettingsService().get('mcp.token'),
@@ -183,6 +189,7 @@ export default function createNativeNetwork(scope: AppServiceScope): NativeNetwo
       open((owner) => {
         const server = new StkServer({
           onReceive: owner.event(options.onMessage),
+          onError: owner.event(scope.report),
           onConnected: owner.event(() => options.onConnection?.(true)),
           onDisconnected: owner.event(() => options.onConnection?.(false)),
         })
@@ -191,7 +198,9 @@ export default function createNativeNetwork(scope: AppServiceScope): NativeNetwo
       }),
     beacon: (options) =>
       open((owner) => {
-        if (!/^[\da-fA-F-]{36}$/.test(options.uuid))
+        if (options?.role !== 'advertiser' && options?.role !== 'scanner')
+          throw new StackchanError('INVALID_ARGUMENT', 'Beacon role must be advertiser or scanner')
+        if (!/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(options.uuid))
           throw new StackchanError('INVALID_ARGUMENT', 'Beacon UUID required')
         const uuid = new Bytes(options.uuid.replaceAll('-', ''), false)
         let ready = false,
@@ -249,20 +258,23 @@ export default function createNativeNetwork(scope: AppServiceScope): NativeNetwo
       }),
     advertiseService: (options) =>
       open((owner) => {
+        validatePort(options.port)
         const environment = dnsEnvironment()
         if (!environment?.io) throw new StackchanError('UNSUPPORTED', 'DNS-SD is unavailable')
         let record: Advertisement | undefined
+        let txt = new Map(Object.entries(options.txt))
         const dns = new environment.io(environment)
         owner.own(() => dns.close())
         const claim = dns.claim({
           host: options.host,
           onReady: owner.event(() => {
+            if (record) return
             const advertisement = dns.advertise({
               host: options.host,
               name: options.name,
               serviceType: options.serviceType,
               port: options.port,
-              txt: new Map(Object.entries(options.txt)),
+              txt,
             })
             owner.own(() => advertisement.close())
             record = advertisement
@@ -272,7 +284,12 @@ export default function createNativeNetwork(scope: AppServiceScope): NativeNetwo
         owner.own(() => claim.close())
         return {
           close: owner.close,
-          update: (txt) => owner.call(() => record?.updateTXT(new Map(Object.entries(txt)))),
+          update: (value) =>
+            owner.call(() => {
+              const next = new Map(Object.entries(value))
+              record?.updateTXT(next)
+              txt = next
+            }),
         }
       }),
     discoverServices: (options) =>

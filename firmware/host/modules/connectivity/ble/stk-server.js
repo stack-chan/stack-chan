@@ -1,30 +1,36 @@
 import BLEServer from 'bleserver'
 import { uuid } from 'btutils'
+import { StackchanError } from 'stackchan/errors'
 
 const DEVICE_NAME = 'stk'
 const SERVICE_UUID = '450f932b-bb09-4fe3-9856-6f66ddcc43ec'
-// const CHARACTERISTIC_UUID = 'a2abc192-26aa-45d9-aa17-42db27585c57'
 
 class StkServer extends BLEServer {
   #handleReceive
   #handleConnected
   #handleDisconnected
+  #handleError
+  #closed = false
   constructor(options) {
     super(options)
     this.#handleReceive = options.onReceive
     this.#handleConnected = options.onConnected
     this.#handleDisconnected = options.onDisconnected
+    this.#handleError = options.onError
   }
   onReady() {
+    if (this.#closed) return
     this.qr = ''
     this.deviceName = DEVICE_NAME
     this.onDisconnected()
   }
   onConnected(_connection) {
+    if (this.#closed) return
     this.stopAdvertising()
     this.#handleConnected?.()
   }
   onDisconnected(_connection) {
+    if (this.#closed) return
     this.startAdvertising({
       advertisingData: {
         flags: 6,
@@ -35,10 +41,21 @@ class StkServer extends BLEServer {
     this.#handleDisconnected?.()
   }
   onCharacteristicWritten(params, value) {
-    if (params.name === 'stk') {
-      const pose = JSON.parse(String.fromArrayBuffer(value))
-      this.#handleReceive?.(pose)
+    if (this.#closed || params.name !== 'stk') return
+    let message
+    try {
+      if (!(value instanceof ArrayBuffer) || value.byteLength > 2048) throw new Error('Invalid packet size')
+      message = JSON.parse(String.fromArrayBuffer(value))
+    } catch {
+      this.#handleError?.(new StackchanError('INVALID_ARGUMENT', 'Invalid STK message'))
+      return
     }
+    this.#handleReceive?.(message)
+  }
+  close() {
+    if (this.#closed) return
+    this.#closed = true
+    super.close()
   }
 }
 

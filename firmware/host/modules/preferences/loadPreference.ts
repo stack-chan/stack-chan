@@ -3,16 +3,7 @@ import verifyInstalledMod from 'installed-mod'
 import config from 'mc/config'
 import Preference from 'preference'
 import { SETTINGS_JOURNAL, type SettingsLayer, SettingsService } from 'settings-service'
-import { StackchanError } from 'stackchan/errors'
-import {
-  DOMAIN,
-  isSettingKey,
-  SETTING_KEYS,
-  SETTINGS_SCHEMA,
-  type SettingDomain,
-  type SettingsForDomain,
-  validateSetting,
-} from 'stackchan/settings-schema'
+import { DOMAIN, SETTING_KEYS, type SettingDomain, type SettingsForDomain } from 'stackchan/settings-schema'
 
 type ConfigRecord = Record<string, unknown>
 export type PreferenceDomain = SettingDomain
@@ -26,13 +17,9 @@ function loadAppSettings(): SettingsLayer {
   const contract = verifyInstalledMod()
   if (!contract) return {}
   const result: SettingsLayer = {}
-  for (const [key, input] of Object.entries(contract.settings)) {
-    if (!isSettingKey(key) || !SETTINGS_SCHEMA[key].appDefault)
-      throw new StackchanError('CONFIG', `MOD setting ${key} is unavailable for app defaults`)
-    const validated = validateSetting(key, input)
-    if (validated.valid === false) throw new StackchanError('CONFIG', `MOD setting ${key} is invalid`)
+  for (const [key, value] of Object.entries(contract.settings)) {
     const [domain, name] = key.split('.') as [SettingDomain, string]
-    result[domain] = { ...result[domain], [name]: validated.value }
+    result[domain] = { ...result[domain], [name]: value }
   }
   appSettings = result
   return result

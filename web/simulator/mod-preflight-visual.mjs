@@ -161,6 +161,23 @@ try {
     false
   )
 
+  // Invalid setting values are also rejected before any app module evaluates.
+  const invalidSettings = legacySource.replace('0.25', '2.25')
+  assert.notEqual(invalidSettings, legacySource, 'startup fixture declares an app volume')
+  bytes = Array.from(Buffer.from(invalidSettings, 'latin1'))
+  bootEvents.length = 0
+  await Promise.all([
+    boot.waitForEvent('console', {
+      predicate: (message) => message.text().includes('tts.volume must be a number in its supported range'),
+      timeout: 45_000,
+    }),
+    boot.reload({ waitUntil: 'networkidle' }),
+  ])
+  assert.equal(
+    bootEvents.some((value) => /UNTRUSTED_|XS abort|PAGE_ERROR/.test(value)),
+    false
+  )
+
   // The same module bodies are now valid. They still must wait for host setup.
   bytes = startupBytes
   bootEvents.length = 0

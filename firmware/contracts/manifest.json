@@ -4,6 +4,7 @@
     "stackchan-contracts/mod-package": "./mod-package",
     "stackchan-contracts/xsa-metadata": "./xsa-metadata",
     "stackchan-contracts/singing": "./singing",
-    "stackchan-contracts/targets": "./targets"
+    "stackchan-contracts/targets": "./targets",
+    "stackchan-contracts/settings-schema": "./settings-schema"
   }
 }

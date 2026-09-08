@@ -2,11 +2,33 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { CAPABILITY_HOST_API_VERSIONS } from './capabilities.js'
 import { assertModCompatibility, parseModRuntimeContract } from './mod-package.js'
-import { makeXsArchive, modDefinition, xsAtom, xsPath } from './testing/xsa-fixture.js'
+import { SETTINGS_SCHEMA, validateSetting } from './settings-schema.js'
+import { invalidModSettings, makeXsArchive, modDefinition, xsAtom, xsPath } from './testing/xsa-fixture.js'
 import { inspectModArchive } from './xsa-metadata.js'
 
 const decode = (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes)
 const code = (expected) => (error) => error.code === expected
+
+test('MOD defaults use the same allowed keys, bounds and normalization as settings', () => {
+  for (const [key, definition] of Object.entries(SETTINGS_SCHEMA)) {
+    const value = definition.defaultValue ?? (definition.kind === 'number' ? definition.minimum : 'example')
+    const parse = () => parseModRuntimeContract({ ...modDefinition, hostApiVersion: 9, settings: { [key]: value } })
+    if (definition.appDefault) {
+      assert.deepEqual(parse().settings, { [key]: validateSetting(key, value).value })
+    } else assert.throws(parse, code('MOD_METADATA_INVALID'))
+  }
+  const normalized = parseModRuntimeContract({
+    ...modDefinition,
+    hostApiVersion: 9,
+    settings: { 'tts.volume': '0.25', 'tts.voice': 3, 'tts.host': '' },
+  })
+  assert.deepEqual(normalized.settings, { 'tts.volume': 0.25, 'tts.voice': '3', 'tts.host': undefined })
+  for (const settings of invalidModSettings)
+    assert.throws(
+      () => parseModRuntimeContract({ ...modDefinition, hostApiVersion: 9, settings }),
+      code('MOD_METADATA_INVALID'),
+    )
+})
 
 test('application and host generations are distinct from the XS archive version', () => {
   const { metadata, version, entrypoints } = inspectModArchive(makeXsArchive(), decode)

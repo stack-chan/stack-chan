@@ -24,7 +24,10 @@
   },
   "typescript": {
     "tsconfig": {
-      "compilerOptions": { "allowJs": true }
+      "compilerOptions": {
+        "allowJs": true
+      }
     }
-  }
+  },
+  "include": ["../contracts/manifest.json"]
 }

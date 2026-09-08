@@ -38,6 +38,12 @@ test('public SDK and its shared portable contracts never import a host implement
     'each SDK specifier needs a distinct source for Moddable type resolution',
   )
   for (const [name, path] of targets) assert.ok(files.has(path), `${name} must resolve to an SDK source`)
+  const contractManifest = JSON.parse(readFileSync('contracts/manifest.json', 'utf8')) as {
+    modules: Record<string, string>
+  }
+  const contracts = new Map(
+    Object.entries(contractManifest.modules).map(([name, path]) => [name, resolve('contracts', `${path}.js`)]),
+  )
   for (const file of files) {
     const project = file.startsWith(`${resolve('sdk/extensions')}/`) ? extension : core
     const source = project.program.getSourceFile(file)
@@ -53,10 +59,11 @@ test('public SDK and its shared portable contracts never import a host implement
         } else {
           const target =
             targets.get(specifier.text) ??
+            contracts.get(specifier.text) ??
             resolve(dirname(file), /\.[jt]s$/.test(specifier.text) ? specifier.text : `${specifier.text}.ts`)
           // Portable data contracts can be shared with installers. Traverse their imports too;
           // placing an implementation behind a contract must not bypass the SDK boundary.
-          if (specifier.text.startsWith('.') && target.startsWith(`${resolve('contracts')}/`)) {
+          if (target.startsWith(`${resolve('contracts')}/`)) {
             assert.ok(existsSync(target), `${file}: missing contract ${target}`)
             files.add(target)
           }

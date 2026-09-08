@@ -15,6 +15,22 @@ export const modDefinition = Object.freeze({
   entrypoints: ['mod'],
 })
 
+// Exercise the same malformed metadata at every archive entry point.
+export const invalidModSettings = [
+  { 'wifi.ssid': 'app-network' },
+  { 'renderer.type': 'dog' },
+  { 'tts.unknown': 1 },
+  { 'tts.volume': 1.2 },
+  { 'tts.port': 80.5 },
+  { 'driver.baudrate': 9_599 },
+  { 'ui.type': 'missing' },
+  { 'tts.token': '\ud800' },
+  { 'ai.context': '🤖'.repeat(513) },
+  { 'tts.voice': 'name\0tail' },
+  { 'ai.context': null },
+  { 'tts.type': 'obsolete' },
+]
+
 export function xsAtom(tag, ...payloads) {
   const bytes = new Uint8Array(8 + payloads.reduce((sum, payload) => sum + payload.length, 0))
   new DataView(bytes.buffer).setUint32(0, bytes.length, false)
@@ -31,6 +47,7 @@ export function xsPath(name) {
   return xsAtom('PATH', new TextEncoder().encode(`${name}\0`))
 }
 
+/** @param {{metadata?: unknown, version?: number[], entrypoints?: string[], padding?: number}} [options] */
 export function makeXsArchive({
   metadata = modDefinition,
   version = [17, 8, 0],

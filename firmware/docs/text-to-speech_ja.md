@@ -24,7 +24,7 @@ export default defineApp({
 })
 ```
 
-設定画面で音声providerを選択します。`stackchan-voice` は同梱のオフライン日本語エンジンです。リモートproviderには `remote`（Coqui互換）、`voicevox`、`voicevox-web`、`elevenlabs`、`openai` があります。接続先やAPIキーはホスト設定で管理し、配布するソースやmetadataへ秘密を入れないでください。設定は [設定スキーマ](../sdk/settings-schema.ts)、オフライン合成と歌は [stackchan-voice](./stackchan-voice.md) を参照してください。
+設定画面で音声providerを選択します。`stackchan-voice` は同梱のオフライン日本語エンジンです。リモートproviderには `remote`（Coqui互換）、`voicevox`、`voicevox-web`、`elevenlabs`、`openai` があります。接続先やAPIキーはホスト設定で管理し、配布するソースやmetadataへ秘密を入れないでください。設定は [設定スキーマ](../contracts/settings-schema.js)、オフライン合成と歌は [stackchan-voice](./stackchan-voice.md) を参照してください。
 
 `audio.speech` が利用不可なら、`app.capabilities.get('audio.speech')` の理由を表示できます。プロバイダー設定・通信・再生の失敗はPromiseの拒否になります。入力handler内の非同期処理は `await` または `return` し、ホストに完了と失敗を渡します。
 

@@ -9,7 +9,7 @@ import { inspectModArchive } from 'stackchan-contracts/xsa-metadata'
 import { equal } from 'testing/assert'
 import TextDecoder from 'text/decoder'
 import TextEncoder from 'text/encoder'
-import { makeXsArchive, modDefinition } from 'xsa-fixture'
+import { invalidModSettings, makeXsArchive, modDefinition } from 'xsa-fixture'
 
 function run() {
   globalThis.TextEncoder = TextEncoder
@@ -58,6 +58,18 @@ function run() {
     'matching board is accepted',
   )
   getHostSettingsService().get('ui.language')
+  for (const settings of invalidModSettings)
+    rejects(
+      () => inspectInstalledMod(['mod'], () => encoded({ ...modDefinition, hostApiVersion: 9, settings })),
+      'MOD_METADATA_INVALID',
+    )
+  equal(
+    inspectInstalledMod(['mod'], () =>
+      encoded({ ...modDefinition, hostApiVersion: 9, settings: { 'tts.volume': '0.25' } }),
+    ).settings['tts.volume'],
+    0.25,
+    'settings are normalized before boot',
+  )
   equal(inspectInstalledMod(['mod'], () => encoded(modDefinition)).appApiVersion, 2, 'supported app declared')
   rejects(() => inspectInstalledMod(['mod'], () => undefined), 'MOD_METADATA_MISSING')
   rejects(() => inspectInstalledMod(['mod'], () => new Uint8Array([0xff]).buffer), 'MOD_METADATA_INVALID')

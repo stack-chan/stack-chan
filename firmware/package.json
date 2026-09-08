@@ -108,7 +108,8 @@
   "private": true,
   "workspaces": [
     "tools/typedoc",
-    "sdk"
+    "sdk",
+    "contracts"
   ],
   "devDependencies": {
     "@biomejs/biome": "2.5.10",

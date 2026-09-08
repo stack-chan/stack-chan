@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
-import { makeXsArchive, modDefinition } from '../../contracts/testing/xsa-fixture.js'
+import { invalidModSettings, makeXsArchive, modDefinition } from '../../contracts/testing/xsa-fixture.js'
 import { buildOutputDirectory } from './build-output.mjs'
 import { esptoolConnectionArguments, installModArchive, resolveModArchivePath } from './mod-flash.mjs'
 
@@ -317,5 +317,29 @@ test('CLI checks firmware board identity and build capabilities before any write
     }
   } finally {
     rmSync(fixture, { recursive: true, force: true })
+  }
+})
+
+test('CLI rejects invalid app defaults before opening a device', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-settings-'))
+  const archivePath = path.join(directory, 'app.xsa')
+  try {
+    for (const settings of invalidModSettings) {
+      writeFileSync(archivePath, makeXsArchive({ metadata: { ...modDefinition, hostApiVersion: 9, settings } }))
+      let operations = 0
+      assert.throws(
+        () =>
+          installModArchive({
+            archivePath,
+            runCommand() {
+              operations++
+            },
+          }),
+        { code: 'MOD_METADATA_INVALID' },
+      )
+      assert.equal(operations, 0)
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
   }
 })

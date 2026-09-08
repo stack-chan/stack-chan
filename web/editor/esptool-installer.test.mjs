@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { makeXsArchive, modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
+import { invalidModSettings, makeXsArchive, modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
 
 import {
   bytesToBinaryString,
@@ -522,5 +522,24 @@ test('WebSerial rejects another board, unknown identity and unavailable camera b
       assert.equal((await operation).status, DEVICE_OPERATION_STATUS.INSTALLED)
       assert.deepEqual(calls, ['preflight', 'write', 'disconnect'])
     }
+  }
+})
+
+test('WebSerial rejects invalid app defaults before opening a device', async () => {
+  for (const settings of invalidModSettings) {
+    const archive = makeXsArchive({ metadata: { ...modDefinition, hostApiVersion: 9, settings } })
+    let connections = 0
+    await assert.rejects(
+      installModToDevice(
+        async () => {
+          connections++
+          throw new Error('must not connect')
+        },
+        {},
+        archive
+      ),
+      { code: 'MOD_METADATA_INVALID' }
+    )
+    assert.equal(connections, 0)
   }
 })

@@ -234,13 +234,13 @@ UI拡張には `setTracking`、`setMusicNotes`、`setFaceMotionEnabled` を追�
 
 ### 設定の正本
 
-設定キーと型は `stackchan/settings-schema` が正本です。本体・Web設定・SDKは同じ定義と SettingsService の検証を使い、別のMOD用設定モデルを作りません。`get(key)` は型付きの実値、`describe(key)` は値の由来・readOnly・secret・configured・適用時点を返します。describeのsecret値は伏せます。`set(key, value)` は検証後に保存し、適用時点は戻り値で確認します。
+設定キーと型は [可搬なschema](../contracts/settings-schema.js) を `stackchan/settings-schema` から再公開します。本体・Web設定・SDKは同じ定義と SettingsService の検証を使い、別のMOD用設定モデルを作りません。`get(key)` は型付きの実値、`describe(key)` は値の由来・readOnly・secret・configured・適用時点を返します。describeのsecret値は伏せます。`set(key, value)` は検証後に保存し、適用時点は戻り値で確認します。
 
 `get` では、そのアプリが必要とするキーを取得できます。通常MODと同じrealmで実行するため、秘密を隔離するsandboxではありません。トークンを吹き出しやログへ出さないでください。設定の優先順位は保存値 → アプリ設定 → プロファイル → 既定値、ボードが固定した値は変更できません。
 
 リアルタイム会話には `chat.type`、`chat.apiKey`、`chat.endpoint`、`chat.modelID`、`chat.voiceID`、`chat.instructions` を使用します。旧 `chat_audioio/config.js` の読み替えは撤去したため、共通設定へ転記してください。`ai.token` / `ai.context` は文字での対話に使います。新しい設定名の追加はschemaから行い、Webや例に独立した既定値を重ねません。
 
-WASMで未実装の通信・機器は `UNSUPPORTED` です。能力表の `native / simulated / unavailable` と実行時の設定エラーを区別してください。ソース移行と自動検査が終わっても、物理無線・サービス接続・サーボ保存・電源断・初学者による受入は別途必要です。参考providerライブラリーの整理、能力の正本と製品コード純減は、引き続き再設計全体の残件です。
+WASMで未実装の通信・機器は `UNSUPPORTED` です。能力表の `native / simulated / unavailable` と実行時の設定エラーを区別してください。ソース移行と自動検査が終わっても、物理無線・サービス接続・サーボ保存・電源断・初学者による受入は別途必要です。参考providerライブラリーの整理、無線・音声の競合処理と製品コード純減は、引き続き再設計全体の残件です。
 
 
 ## Blocklyと顔エディター（host API 8）
@@ -255,6 +255,6 @@ Webの生成コードも `defineApp` とこのSDKを使います。`input(app).o
 
 ## アプリの設定既定値
 
-host API 9以降では、`stackchan-mod.json` の `settings` に共通設定の既定値を宣言できます。例は `"settings": { "tts.volume": 0.3 }` です。型と値は [共通schema](settings-schema.ts) で検証し、旧名・未知のキー・不正値・アプリ変更不可のWi-Fi設定は起動前に拒否します。保存済み設定と機種固定のdriverが優先されます。秘密情報は配布するmetadataへ入れず、本体の設定画面で入力してください。
+host API 9以降では、`stackchan-mod.json` の `settings` に共通設定の既定値を宣言できます。例は `"settings": { "tts.volume": 0.3 }` です。型と値は [共通schema](../contracts/settings-schema.js) で検証し、旧名・未知のキー・不正値・アプリ変更不可のWi-Fi設定は、CLI・Web・SD・WASMのインストール時と本体起動時に拒否します。保存済み設定と機種固定のdriverが優先されます。秘密情報は配布するmetadataへ入れず、本体の設定画面で入力してください。
 
 実行可能な `mod/config` は廃止しました。素材の再生レートはMAUDヘッダーから読み取り、アプリの設定で調整する必要はありません。USB会話は `capabilities: ["conversation.remote"]` の宣言でホストが準備し、`conversation(app).remote()` でアプリの寿命へ接続します。

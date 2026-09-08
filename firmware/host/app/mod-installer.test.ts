@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { makeXsArchive, modDefinition } from '../../contracts/testing/xsa-fixture.js'
+import { invalidModSettings, makeXsArchive, modDefinition } from '../../contracts/testing/xsa-fixture.js'
 import { writeAliasPackageSubpath } from '../modules/testing/node-alias-package.js'
 
 import type { ModFlash, XsVersionRange } from './mod-installer.js'
@@ -105,6 +105,9 @@ test('rejects missing metadata, future host APIs, and mismatched entrypoints wit
     makeXsArchive({ metadata: null }),
     makeXsArchive({ metadata: { ...modDefinition, hostApiVersion: 999 } }),
     makeXsArchive({ entrypoints: ['miniapp'] }),
+    ...invalidModSettings.map((settings) =>
+      makeXsArchive({ metadata: { ...modDefinition, hostApiVersion: 9, settings } }),
+    ),
   ]) {
     const flash = new FakeFlash(8192, 4096)
     assert.throws(() =>

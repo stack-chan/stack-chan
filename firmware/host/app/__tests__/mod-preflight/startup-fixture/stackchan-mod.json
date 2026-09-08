@@ -4,8 +4,11 @@
   "id": "tech.stackchan.test.host-startup",
   "version": "1.0.0",
   "appApiVersion": 2,
-  "hostApiVersion": 7,
+  "hostApiVersion": 9,
   "targets": ["portable"],
   "entrypoints": ["mod"],
-  "capabilities": ["ui.controls"]
+  "capabilities": ["ui.controls"],
+  "settings": {
+    "tts.volume": 0.25
+  }
 }

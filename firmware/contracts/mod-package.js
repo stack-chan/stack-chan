@@ -1,4 +1,5 @@
 import { CAPABILITY_HOST_API_VERSIONS, isCapabilityId } from './capabilities.js'
+import { isSettingKey, SETTINGS_SCHEMA, validateSetting } from './settings-schema.js'
 import { targetProfile } from './targets.js'
 
 /** Shared by the host, browser tools and CLI. This is the host ABI generation, not an XS version. */
@@ -12,7 +13,7 @@ export const MOD_SCHEMA_VERSION = 2
 /** @typedef {{
  * schemaVersion: 2, id: string, version: string, appApiVersion: 2,
  * hostApiVersion: number, targets: readonly string[], capabilities: readonly string[],
- * settings: Readonly<Record<string, string | number>>,
+ * settings: Readonly<Record<string, string | number | undefined>>,
  * optionalCapabilities: readonly string[], entrypoints: readonly ModEntrypoint[]
  * }} ModRuntimeContract */
 
@@ -79,20 +80,20 @@ export function parseModRuntimeContract(value) {
   const hostApiVersion = value.hostApiVersion
   if (!Number.isSafeInteger(hostApiVersion) || Number(hostApiVersion) < appApiVersion)
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Invalid minimum host API generation')
-  const settings = value.settings === undefined ? {} : value.settings
-  if (
-    !record(settings) ||
-    Object.keys(settings).length > 32 ||
-    Object.entries(settings).some(
-      ([key, setting]) =>
-        !/^[a-z][a-zA-Z0-9]*\.[a-z][a-zA-Z0-9]*$/.test(key) ||
-        (typeof setting !== 'string' && typeof setting !== 'number') ||
-        (typeof setting === 'string' ? setting.length > 2048 : !Number.isFinite(setting)),
-    )
-  )
+  const defaults = value.settings === undefined ? {} : value.settings
+  if (!record(defaults) || Object.keys(defaults).length > 32)
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'settings must contain bounded setting defaults')
-  if (Object.keys(settings).length && Number(hostApiVersion) < 9)
+  if (Object.keys(defaults).length && Number(hostApiVersion) < 9)
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Declarative setting defaults require host API 9')
+  /** @type {Record<string, string | number | undefined>} */
+  const settings = {}
+  for (const [key, input] of Object.entries(defaults)) {
+    if (!isSettingKey(key) || !SETTINGS_SCHEMA[key].appDefault)
+      throw new ModCompatibilityError('MOD_METADATA_INVALID', `Setting ${key} is unavailable for app defaults`)
+    const validated = validateSetting(key, input)
+    if (validated.valid === false) throw new ModCompatibilityError('MOD_METADATA_INVALID', validated.message)
+    settings[key] = validated.value
+  }
   const targets = stringList(value.targets, 'targets', true)
   if (targets.some((target) => !targetProfile(target)))
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Unknown target; use a canonical target ID or portable')
@@ -124,7 +125,7 @@ export function parseModRuntimeContract(value) {
     appApiVersion,
     hostApiVersion: Number(hostApiVersion),
     targets: Object.freeze(targets),
-    settings: Object.freeze({ .../** @type {Record<string, string | number>} */ (settings) }),
+    settings: Object.freeze(settings),
     capabilities: Object.freeze(capabilities),
     optionalCapabilities: Object.freeze(optionalCapabilities),
     entrypoints: Object.freeze(/** @type {ModEntrypoint[]} */ (entries)),

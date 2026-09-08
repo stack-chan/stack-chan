@@ -1,6 +1,6 @@
 # MOD の宣言と配布時の互換性検査
 
-この記録は F10 の実装途中の状態を示す。正本は `stackchan-mod.json`、互換性を読む実装は `firmware/contracts/mod-package.js` と `xsa-metadata.js`。宣言の必須化と SD・WASM・起動時の検査は接続済み。残す全例・Blockly・顔エディターのSDK移行とV1実行経路の撤去は済んだ。実行時の能力判定を起動前検査へ接続した。機種識別と各配布経路のビルド能力照合も接続した。設定schemaの配布側照合と実機受入は継続する。
+この記録は F10 の実装途中の状態を示す。正本は `stackchan-mod.json`、互換性を読む実装は `firmware/contracts/mod-package.js` と `xsa-metadata.js`。宣言の必須化と SD・WASM・起動時の検査は接続済み。残す全例・Blockly・顔エディターのSDK移行とV1実行経路の撤去は済んだ。実行時の能力判定を起動前検査へ接続した。機種識別と各配布経路のビルド能力照合も接続した。設定schemaも全配布経路で照合する。実機受入は継続する。
 
 ## 世代を分ける
 
@@ -21,7 +21,7 @@
 
 host API 9はschema 2 / app API 2だけを受け付ける。schema 1、app API 1、metadataのないarchive、旧 `miniapp` と実行可能な `mod/config` は、コード評価前に拒否する。SDKソースと宣言を更新して再生成するよう案内し、旧フックを読み替えるadapterは残さない。Piu拡張も通常の `mod` と同じAppSessionで起動する。
 
-アプリ既定値は同じmetadataの `settings` に `{"tts.volume": 0.2}` のように宣言する。空でない既定値にはhost API 9が必要。共通archive readerが項目数・型・サイズを検査し、ホストのSettingsServiceが許可された設定キーと値を検証する。保存済み値と機種固定値が優先される。接続資格情報はアプリ既定値へ含めない。設定キーの詳細検証をCLI・Webへ接続する作業は能力表の統一と一緒に残る。
+アプリ既定値は同じmetadataの `settings` に `{"tts.volume": 0.2}` のように宣言する。空でない既定値にはhost API 9が必要。共通archive readerとSettingsServiceが `contracts/settings-schema.js` の同じ許可キー・型・範囲・選択肢・UTF-8長を検証する。archive readerはアプリ既定値の許可規則も確認し、値を正規化する。保存済み値と機種固定値が優先される。接続資格情報はアプリ既定値へ含めない。CLI・WebSerialは機器への接続前、SD・WASMは書き換え前、本体はアプリ評価前に不正な既定値を拒否する。
 
 ## 能力の共通定義
 
@@ -31,7 +31,7 @@ RuntimeContextの `getCapability` を本体起動とAppSessionが共有する。
 
 本体はホスト構成を作った後、必須能力を照合してから `mod` 本体を評価する。欠けた能力があれば取得済みホスト資源を閉じ、利用できない機能の名前を表示する。任意能力は起動を妨げず、アプリが同じ `app.capabilities.get()` で代替動作を選ぶ。能力の有無は、外部サービスの認証成功や外付けセンサーの正常動作まで保証するものではない。
 
-Webシミュレーターのプロファイルにはcamera・録音・再生・clips・settingsを加え、実装のない無線やLEDを含めない。未知のプロファイルをportableへ黙って読み替える経路は撤去した。ビルドが備える機能と、接続時・起動時の実状態は分ける。設定schemaの配布側検査は引き続き統合する。
+Webシミュレーターのプロファイルにはcamera・録音・再生・clips・settingsを加え、実装のない無線やLEDを含めない。未知のプロファイルをportableへ黙って読み替える経路は撤去した。ビルドが備える機能と、接続時・起動時の実状態は分ける。設定schemaの検査にも同じ可搬な契約を使う。
 
 ## 機種IDを一つの定義から使う
 
@@ -115,4 +115,4 @@ provider-dialoguesはホスト・XS試験用のnative依存と、MODへ同梱す
 
 SDK 9.5のTextDecoder C実装には、WASMで`bool`を宣言するheaderが不足していた。既存WASM wrapperのCコンパイラー指定に`-include stdbool.h`を加え、SDKを直接改変せずに標準デコーダーを使う。
 
-実行時の機能確認は静的な宣言とは別に必要になる。たとえば撮影を要求できる機種でも、ブラウザーの許可拒否や機器の開始失敗を成功へ置き換えない。設定schemaの配布側照合と実機受入は F7 / F9 / F10 に残る。機種と能力の今回の検証記録は [機種互換性の記録](target-compatibility-2026-09-08.md) を参照する。
+実行時の機能確認は静的な宣言とは別に必要になる。たとえば撮影を要求できる機種でも、ブラウザーの許可拒否や機器の開始失敗を成功へ置き換えない。設定の自動検証は [設定契約の記録](settings-contract-2026-09-08.md) を参照する。実機受入は F7 / F9 / F10 に残る。機種と能力の今回の検証記録は [機種互換性の記録](target-compatibility-2026-09-08.md) を参照する。

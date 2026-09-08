@@ -24,7 +24,7 @@ export default defineApp({
 })
 ```
 
-Choose the provider in host settings. `stackchan-voice` synthesizes Japanese offline. Remote providers are `remote` (Coqui-compatible), `voicevox`, `voicevox-web`, `elevenlabs` and `openai`. Keep credentials in host settings. The [settings schema](../sdk/settings-schema.ts) defines the supported fields; [stackchan-voice](./stackchan-voice.md) describes the offline engine and singing.
+Choose the provider in host settings. `stackchan-voice` synthesizes Japanese offline. Remote providers are `remote` (Coqui-compatible), `voicevox`, `voicevox-web`, `elevenlabs` and `openai`. Keep credentials in host settings. The [settings schema](../contracts/settings-schema.js) defines the supported fields; [stackchan-voice](./stackchan-voice.md) describes the offline engine and singing.
 
 Check `app.capabilities.get('audio.speech')` for availability and a reason when unavailable. Configuration, network and playback failures reject the operation. Await or return asynchronous work inside input handlers so the host can track its completion and failure.
 

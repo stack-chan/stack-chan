@@ -45,3 +45,18 @@ defineApp({
     app.input.onPress('a', () => {})
   },
 })
+
+// Schema extraction must preserve literal choices and per-key value types.
+import type { SettingsForDomain, SettingValue, TimezoneId } from 'stackchan/settings-schema'
+
+const preferences: SettingsForDomain<'tts'> = { volume: 0.5, type: 'local' }
+const zone: TimezoneId = 'tokyo'
+const voice: SettingValue<'tts.voice'> = '3'
+void [preferences, zone, voice]
+// @ts-expect-error Settings retain key-specific number types.
+const badVolume: SettingValue<'tts.volume'> = '0.5'
+// @ts-expect-error Removed renderer choices must not become arbitrary strings.
+const badFace: SettingValue<'ui.type'> = 'unsupported'
+// @ts-expect-error Time zones remain the supported literal set.
+const badZone: TimezoneId = 'unknown'
+void [badVolume, badFace, badZone]

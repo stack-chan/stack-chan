@@ -4,7 +4,7 @@
 
 ## 正本と責務
 
-`firmware/sdk/settings-schema.ts`（公開module `stackchan/settings-schema`）を本体・Web・SDKの共通定義とする。設定キー、型、既定値、選択肢、入力制約、秘密情報、反映時点、MOD が既定値を供給できるかを定義する。Web はこの可搬な TypeScript を直接参照する。設定キーの列挙には `SETTING_KEYS` を使う。未使用の旧 `PREF_KEYS` tuple は削除した。
+`firmware/contracts/settings-schema.js` を本体・Web・SDK・インストーラーの共通定義とする。25の設定キー、型、既定値、選択肢、入力制約、秘密情報、反映時点、MOD が既定値を供給できるかを定義する。SDKの公開module `stackchan/settings-schema` は同じ定義を再公開し、WebとCLIは可搬なJavaScriptを直接参照する。JSDocを厳密に型検査し、キー別の型と選択肢のliteral型も維持する。設定キーの列挙には `SETTING_KEYS` を使う。未使用の旧 `PREF_KEYS` tuple は削除した。
 
 `SettingsService` は読み込みの優先順位、値の検証、保存、保存結果の公開用記述を担当する。本体の設定画面と BLE サーバーは、このサービスへ保存を委譲する。BLE の受信処理は設定の型や既定値を独自に決めない。
 
@@ -98,3 +98,5 @@ NodeとXSの共通動作ケースは185通りの保存・復元中断状態と10
 実WASMで旧・未来APIの拒否と、設定画面から戻って正常なMODだけを起動する経路を確認。releaseビルドはCoreS3 6,690,768 bytes、Core2 SG90 3,993,312 bytes、RT 4,113,968 bytes（9.5.0+stackchan.9）。3機種とも直前から4,096 bytes増。実機flashへの書き込みと実電源断試験は行っていない。
 
 固定したソース計測では `7f79d17` は製品483ファイル・59,807物理行。直前より1ファイル減・39行増、起点より64ファイル・7,105行増。中断復旧の追加を削減として扱わない。
+
+アプリ既定値は共通archive readerで許可キーと値を検証・正規化する。CLI・WebSerialは機器への接続前、SD・WASMは旧MODの変更前、本体はMODコードの評価前に拒否する。loadPreferenceは検証済みの宣言を設定層へ渡す。数値文字列・数値のvoice ID・省略可能欄の空文字は通常設定と同じ規則で正規化し、保存値や機種固定値の優先順位は変えない。検証記録は [設定契約の統合](settings-contract-2026-09-08.md) を参照。

@@ -7,5 +7,8 @@
   "exports": {
     ".": "./index.ts",
     "./*": "./*.ts"
+  },
+  "dependencies": {
+    "stackchan-contracts": "*"
   }
 }

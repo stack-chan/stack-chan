@@ -6,7 +6,7 @@ import {
   type SettingApplication,
   type SettingKey,
   type SettingsSaveReceipt,
-} from '../../../../firmware/sdk/settings-schema'
+} from '../../../../firmware/contracts/settings-schema.js'
 import { AppError } from '@/lib/errors/app-error'
 
 const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'

@@ -184,7 +184,7 @@ test('invalid and retired app defaults fail before app evaluation and host recov
   ].entries()) {
     resources.resetResources({ 'stackchan-mod.json': declaration(settings) })
     const fresh = await import(new URL(`./loadPreference.js?invalid-defaults=${index}`, import.meta.url).href)
-    assert.throws(() => fresh.default(DOMAIN.ui), { code: 'CONFIG' })
+    assert.throws(() => fresh.default(DOMAIN.ui), { code: 'MOD_METADATA_INVALID' })
     assert.equal(fresh.getHostSettingsService().get('ui.type'), 'simple')
   }
 })

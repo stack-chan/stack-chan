@@ -9,3 +9,5 @@ This is a build-time subset of Noto Sans CJK SC 2.004 Regular. It contains print
 - License: SIL Open Font License 1.1; see `StackchanCJK-Regular.LICENSE.txt`
 
 The manifest publishes the bitmap resource as `StackchanCJK-12`; the source font's internal family metadata remains `Noto Sans SC`.
+
+After changing a firmware catalog, download the pinned source above and run `python3 scripts/update-ui-font.py /path/to/NotoSansSC-VF.ttf` from `firmware/` with Python `fonttools==4.60.1` available. The script verifies the source hash, instantiates weight 400 and derives the subset from all three catalogs. `npm run check:architecture` verifies glyph coverage.

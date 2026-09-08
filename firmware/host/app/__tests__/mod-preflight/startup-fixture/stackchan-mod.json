@@ -4,7 +4,8 @@
   "id": "tech.stackchan.test.host-startup",
   "version": "1.0.0",
   "appApiVersion": 2,
-  "hostApiVersion": 3,
+  "hostApiVersion": 7,
   "targets": ["portable"],
-  "entrypoints": ["mod"]
+  "entrypoints": ["mod"],
+  "capabilities": ["ui.controls"]
 }

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function resolveChromium() {
@@ -27,6 +27,14 @@ async function previewReady(baseUrl) {
 }
 
 export async function startPreview({ port, url }) {
+  if (!url) {
+    for (const name of ['mc.js', 'mc.wasm']) {
+      const generated = resolve('simulator', name)
+      const published = resolve('dist/simulator', name)
+      if (existsSync(generated) && (!existsSync(published) || !readFileSync(generated).equals(readFileSync(published))))
+        throw new Error('The preview contains stale WASM. Run npm run build in web after the firmware WASM build.')
+    }
+  }
   const baseUrl = url ?? `http://127.0.0.1:${port}`
   const server = url
     ? undefined

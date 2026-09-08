@@ -86,6 +86,7 @@
   "drawer.color.light": "White",
   "drawer.color.dark": "Black",
   "drawer.colorScheme": "Color Scheme",
+  "boot.capabilityUnavailable": "Unavailable features",
   "boot.appFailed": "MOD could not start",
   "boot.replaceMod": "Rebuild or replace the MOD."
 }

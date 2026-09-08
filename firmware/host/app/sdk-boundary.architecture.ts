@@ -13,7 +13,7 @@ function sourceFiles(directory: string): string[] {
   })
 }
 
-test('public SDK resolves only its own modules and never imports a host implementation', (t) => {
+test('public SDK and its shared portable contracts never import a host implementation', (t) => {
   const api = new API({ cwd: process.cwd() })
   t.after(() => api.close())
   const snapshot = api.updateSnapshot({
@@ -51,8 +51,16 @@ test('public SDK resolves only its own modules and never imports a host implemen
           for (const declaration of resolved)
             assert.ok(resolve(declaration.path).startsWith(`${resolve('node_modules/@moddable/typings/piu')}/`))
         } else {
-          const target = targets.get(specifier.text) ?? resolve(dirname(file), `${specifier.text}.ts`)
-          assert.ok(files.has(target), `${file} imports non-SDK module ${specifier.text}`)
+          const target =
+            targets.get(specifier.text) ??
+            resolve(dirname(file), /\.[jt]s$/.test(specifier.text) ? specifier.text : `${specifier.text}.ts`)
+          // Portable data contracts can be shared with installers. Traverse their imports too;
+          // placing an implementation behind a contract must not bypass the SDK boundary.
+          if (specifier.text.startsWith('.') && target.startsWith(`${resolve('contracts')}/`)) {
+            assert.ok(existsSync(target), `${file}: missing contract ${target}`)
+            files.add(target)
+          }
+          assert.ok(files.has(target), `${file} imports non-portable module ${specifier.text}`)
           if (file !== piu) assert.notEqual(target, piu, 'basic SDK must not depend on the Piu extension')
           for (const declaration of resolved) assert.equal(resolve(declaration.path), target)
         }

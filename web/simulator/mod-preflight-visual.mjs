@@ -116,6 +116,33 @@ try {
     false
   )
 
+  // An installed archive with a known but unavailable capability must be rejected before module evaluation.
+  const unsupported = legacySource.replace('"ui.controls"', '"audio.radio"')
+  assert.notEqual(unsupported, legacySource, 'the startup fixture requires a screen capability')
+  assert.equal(unsupported.length, legacySource.length, 'changing the test capability preserves XSA atom sizes')
+  bytes = Array.from(Buffer.from(unsupported, 'latin1'))
+  bootEvents.length = 0
+  await Promise.all([
+    boot.waitForEvent('console', {
+      predicate: (message) => message.text().includes('MOD requires unavailable capabilities: audio.radio'),
+      timeout: 45_000,
+    }),
+    boot.reload({ waitUntil: 'networkidle' }),
+  ]).catch((error) => {
+    console.error(bootEvents.join('\n'))
+    throw error
+  })
+  assert.equal(
+    bootEvents.some((value) => value.includes('UNTRUSTED_')),
+    false,
+    'capability preflight precedes app module evaluation'
+  )
+  assert.equal(
+    bootEvents.some((value) => /XS abort|PAGE_ERROR/.test(value)),
+    false,
+    'rejected capabilities clean up host resources'
+  )
+
   // The same module bodies are now valid. They still must wait for host setup.
   bytes = startupBytes
   bootEvents.length = 0
@@ -178,7 +205,9 @@ try {
     false
   )
   await bootContext.close()
-  console.log('MOD preflight rejects retired and future APIs; host settings defer valid MOD evaluation until boot')
+  console.log(
+    'MOD preflight rejects retired/future APIs and unavailable capabilities; host settings defer valid MOD evaluation until boot'
+  )
 } finally {
   await browser?.close()
   server.kill('SIGTERM')

@@ -1,6 +1,6 @@
 # MOD の宣言と配布時の互換性検査
 
-この記録は F10 の実装途中の状態を示す。正本は `stackchan-mod.json`、互換性を読む実装は `firmware/contracts/mod-package.js` と `xsa-metadata.js`。宣言の必須化と SD・WASM・起動時の検査は接続済み。残す全例・Blockly・顔エディターのSDK移行とV1実行経路の撤去は済んだ。実際の機種・設定から得る能力表、実機受入は継続する。
+この記録は F10 の実装途中の状態を示す。正本は `stackchan-mod.json`、互換性を読む実装は `firmware/contracts/mod-package.js` と `xsa-metadata.js`。宣言の必須化と SD・WASM・起動時の検査は接続済み。残す全例・Blockly・顔エディターのSDK移行とV1実行経路の撤去は済んだ。実行時の能力判定を起動前検査へ接続した。機種識別と全配布経路の能力照合、実機受入は継続する。
 
 ## 世代を分ける
 
@@ -22,6 +22,16 @@
 host API 9はschema 2 / app API 2だけを受け付ける。schema 1、app API 1、metadataのないarchive、旧 `miniapp` と実行可能な `mod/config` は、コード評価前に拒否する。SDKソースと宣言を更新して再生成するよう案内し、旧フックを読み替えるadapterは残さない。Piu拡張も通常の `mod` と同じAppSessionで起動する。
 
 アプリ既定値は同じmetadataの `settings` に `{"tts.volume": 0.2}` のように宣言する。空でない既定値にはhost API 9が必要。共通archive readerが項目数・型・サイズを検査し、ホストのSettingsServiceが許可された設定キーと値を検証する。保存済み値と機種固定値が優先される。接続資格情報はアプリ既定値へ含めない。設定キーの詳細検証をCLI・Webへ接続する作業は能力表の統一と一緒に残る。
+
+## 能力の共通定義
+
+`firmware/contracts/capabilities.js` が公開能力名と、そのSDK入口に必要な最小host API世代を定義する。SDKの `CapabilityId`、metadata reader、Webの世代検査はこの定義を参照する。旧 `audio.usb / ui.approval / connectivity.network / input.buttons / input.imu / ui.drawer` や未知の名前は拒否する。必要世代より小さい `hostApiVersion` も拒否し、任意能力についても同じ規則を使う。
+
+RuntimeContextの `getCapability` を本体起動とAppSessionが共有する。実際のUI・driver・audio・camera・入力・接続portから判定し、能力の問い合わせ自体はアプリのmotionを開始しない。HTTPはmoduleの同梱だけで利用可能とせず、実際のHTTP/HTTPS client portも確認する。SDK能力名を追加して分岐を実装し忘れると型検査が失敗する。
+
+本体はホスト構成を作った後、必須能力を照合してから `mod` 本体を評価する。欠けた能力があれば取得済みホスト資源を閉じ、利用できない機能の名前を表示する。任意能力は起動を妨げず、アプリが同じ `app.capabilities.get()` で代替動作を選ぶ。能力の有無は、外部サービスの認証成功や外付けセンサーの正常動作まで保証するものではない。
+
+Webシミュレーターのプロファイルにはcamera・録音・再生・clips・settingsを加え、実装のない無線やLEDを含めない。未知のプロファイルをportableへ黙って読み替える経路は撤去した。ビルドが備える機能と、接続時・起動時の実状態の区別を保ち、ボード識別・設定schemaの配布側検査は引き続き統合する。
 
 ## 標準のビルドで同梱する
 
@@ -58,7 +68,7 @@ XSA reader はモジュールを実行せずに、atom の境界、版、resourc
 | Gallery | 全6テキストartifactを標準mcrunで再生成。取得時にid・版・API・対象・機能・実行入口を正本と比較 | 実機受入 |
 | SD | 必須宣言・構造・XS版・host API・partition・read-back。保守起動以外からの書き込みを拒否 | 実機の電源断・容量・SDカード受入 |
 | WASM保存・読み込み | 必須宣言・構造・XS版・host API・simulator対象。IndexedDBのcommitを待ち、abortを成功扱いしない | 実際のブラウザー能力との照合 |
-| 本体起動 | 旧入口・旧archiveを拒否し、`mod`の評価前に必須宣言・host API・実行入口と設定を検査。exportはSDK定義に限定 | 実際の機種・設定から得る能力表 |
+| 本体起動 | 旧入口・旧archiveを拒否し、`mod`の評価前に必須宣言・host API・実行入口・設定・実構成の必須能力を検査。exportはSDK定義に限定 | ボード識別と実機受入 |
 
 `assertModCompatibility` は、渡されたホスト情報だけを検査する。CLI と WebSerial が新たに渡すのは本体の host API 世代。チップ名だけでボードや利用可能な機能を判定したことにはしない。Web の既存プロファイル検査と XS 版・サイズ・書き込み後照合も維持する。
 

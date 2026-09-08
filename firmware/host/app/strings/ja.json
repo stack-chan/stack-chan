@@ -86,6 +86,7 @@
   "drawer.color.light": "白",
   "drawer.color.dark": "黒",
   "drawer.colorScheme": "配色",
+  "boot.capabilityUnavailable": "利用できない機能",
   "boot.appFailed": "MODを起動できません",
   "boot.replaceMod": "MODをインストール"
 }

@@ -23,7 +23,7 @@ import {
   RuntimeResources,
 } from 'runtime-resources'
 import { type RuntimeUIPose, StackchanRuntimeUI } from 'runtime-ui'
-import { type AppDefinition, EMOTIONS } from 'stackchan/app'
+import { type AppDefinition, type CapabilityId, type CapabilityStatus, EMOTIONS } from 'stackchan/app'
 import { StackchanError } from 'stackchan/errors'
 import Timer from 'timer'
 
@@ -309,83 +309,7 @@ export class StackchanRuntimeContext {
           showImage: (image) => this.#uiRuntime.showImage(image),
           hideImage: () => this.#uiRuntime.hideImage(),
         },
-        capabilities: {
-          get: (id) => {
-            const present = (available: boolean) =>
-              available
-                ? { availability: this.#simulated ? ('simulated' as const) : ('native' as const) }
-                : { availability: 'unavailable' as const, reason: `${id} is unavailable on this device` }
-            switch (id) {
-              case 'face':
-              case 'settings':
-                return present(true)
-              case 'network.peer':
-                return present(!!this.#connectivityCapability.localPeer)
-              case 'network.http':
-              case 'conversation.dialogue':
-                return present(Modules.has('app-http'))
-              case 'network.ble':
-                return present(!this.#simulated && Modules.has('bleserver'))
-              case 'network.dnssd':
-                return present(
-                  !!(globalThis as { device?: { network?: { dnssd?: { io?: unknown } } } }).device?.network?.dnssd?.io,
-                )
-              case 'conversation.realtime':
-                return present(!this.#simulated && Modules.has('chat'))
-              case 'conversation.remote':
-                return present(!!this.#remoteSession)
-              case 'audio.monitor':
-                return present(
-                  !!this.#audioRuntime.microphone?.monitor && this.#audioRuntime.microphone.available !== false,
-                )
-              case 'audio.radio':
-                return present(!!this.#audioRuntime.streamingRadio)
-              case 'sensors.temperature':
-                return present(
-                  !!(globalThis as { device?: { I2C?: { default?: object } } }).device?.I2C?.default &&
-                    Modules.has('embedded:sensor/Humidity-Temperature/SHT3x'),
-                )
-              case 'motion.maintenance':
-                return present(!!driver.maintenance)
-              case 'motion':
-                return motion.info
-              case 'camera':
-                return this.#cameraRuntime.info
-              case 'input.primary':
-              case 'ui.piu':
-              case 'ui.controls':
-                return present(true)
-              case 'input.primary.release':
-                return present(!!this.#inputRuntime.primaryButton)
-              case 'input.secondary.release':
-              case 'input.secondary':
-                return present(!!this.#inputRuntime.buttonFor('secondary'))
-              case 'input.tertiary.release':
-              case 'input.tertiary':
-                return present(!!this.#inputRuntime.buttonFor('tertiary'))
-              case 'input.headTouch':
-                return present(!!this.#inputRuntime.touchPanel)
-              case 'input.motion':
-                return present(!!this.#inputRuntime.imu)
-              case 'lighting':
-                return present(lightNames.length > 0)
-              case 'audio.singing':
-                return this.#audioRuntime.audioStatus('singing')
-              case 'audio.speech':
-                return this.#audioRuntime.audioStatus('speech')
-              case 'audio.clips':
-                return this.#audioRuntime.audioStatus('clips')
-              case 'audio.tone':
-                return this.#audioRuntime.audioStatus('tone')
-              case 'audio.recording':
-                return this.#audioRuntime.audioStatus('recording')
-              case 'audio.playback':
-                return this.#audioRuntime.audioStatus('playback')
-              default:
-                throw new StackchanError('INVALID_ARGUMENT', 'Unknown capability')
-            }
-          },
-        },
+        capabilities: { get: (id) => this.getCapability(id) },
       },
       {
         after(ms, callback) {
@@ -398,6 +322,95 @@ export class StackchanRuntimeContext {
     this.#appSession = session
     await session.start(definition)
     return session
+  }
+
+  /** The same live status is used by boot preflight and by the running SDK app. */
+  getCapability(id: CapabilityId): CapabilityStatus {
+    if (this.#closed) return { availability: 'unavailable', reason: 'Host context is closed' }
+    const present = (available: boolean): CapabilityStatus =>
+      available
+        ? { availability: this.#simulated ? 'simulated' : 'native' }
+        : { availability: 'unavailable', reason: `${id} is unavailable on this device` }
+    const network = (
+      globalThis as {
+        device?: {
+          network?: {
+            http?: { client?: { io?: unknown } }
+            https?: { client?: { io?: unknown } }
+          }
+        }
+      }
+    ).device?.network
+    switch (id) {
+      case 'face':
+      case 'settings':
+        return present(true)
+      case 'network.peer':
+        return present(!!this.#connectivityCapability.localPeer)
+      case 'network.http':
+        return present(Modules.has('app-http') && !!(network?.http?.client?.io || network?.https?.client?.io))
+      case 'conversation.dialogue':
+        return present(Modules.has('app-http') && !!network?.https?.client?.io)
+      case 'network.ble':
+        return present(!this.#simulated && Modules.has('bleserver'))
+      case 'network.dnssd':
+        return present(
+          !!(globalThis as { device?: { network?: { dnssd?: { io?: unknown } } } }).device?.network?.dnssd?.io,
+        )
+      case 'conversation.realtime':
+        return present(!this.#simulated && Modules.has('chat'))
+      case 'conversation.remote':
+        return present(!!this.#remoteSession)
+      case 'audio.monitor':
+        return present(!!this.#audioRuntime.microphone?.monitor && this.#audioRuntime.microphone.available !== false)
+      case 'audio.radio':
+        return present(!!this.#audioRuntime.streamingRadio)
+      case 'sensors.temperature':
+        return present(
+          !!(globalThis as { device?: { I2C?: { default?: object } } }).device?.I2C?.default &&
+            Modules.has('embedded:sensor/Humidity-Temperature/SHT3x'),
+        )
+      case 'motion.maintenance':
+        return present(!!this.#driver.maintenance)
+      case 'motion':
+        return this.#appMotion?.info ?? this.#driver.motion?.info ?? present(false)
+      case 'camera':
+        return this.#cameraRuntime.info
+      case 'input.primary':
+      case 'ui.piu':
+      case 'ui.controls':
+        return present(true)
+      case 'input.primary.release':
+        return present(!!this.#inputRuntime.primaryButton)
+      case 'input.secondary.release':
+      case 'input.secondary':
+        return present(!!this.#inputRuntime.buttonFor('secondary'))
+      case 'input.tertiary.release':
+      case 'input.tertiary':
+        return present(!!this.#inputRuntime.buttonFor('tertiary'))
+      case 'input.headTouch':
+        return present(!!this.#inputRuntime.touchPanel)
+      case 'input.motion':
+        return present(!!this.#inputRuntime.imu)
+      case 'lighting':
+        return present(!this.#simulated && Object.keys(this.#lightingRuntime.led).length > 0)
+      case 'audio.singing':
+        return this.#audioRuntime.audioStatus('singing')
+      case 'audio.speech':
+        return this.#audioRuntime.audioStatus('speech')
+      case 'audio.clips':
+        return this.#audioRuntime.audioStatus('clips')
+      case 'audio.tone':
+        return this.#audioRuntime.audioStatus('tone')
+      case 'audio.recording':
+        return this.#audioRuntime.audioStatus('recording')
+      case 'audio.playback':
+        return this.#audioRuntime.audioStatus('playback')
+      default: {
+        const unknown: never = id
+        throw new StackchanError('INVALID_ARGUMENT', `Unknown capability: ${unknown}`)
+      }
+    }
   }
 
   /** The Dock borrows these host operations; SDK apps receive only AppSession.context. */

@@ -1,3 +1,5 @@
+import { CAPABILITY_HOST_API_VERSIONS, isCapabilityId } from './capabilities.js'
+
 /** Shared by the host, browser tools and CLI. This is the host ABI generation, not an XS version. */
 export const STACKCHAN_HOST_API_VERSION = 9
 export const MOD_METADATA_RESOURCE = 'stackchan-mod.json'
@@ -14,10 +16,11 @@ export const MOD_SCHEMA_VERSION = 2
  * }} ModRuntimeContract */
 
 export class ModCompatibilityError extends Error {
-  /** @param {string} code @param {string} message */
-  constructor(code, message) {
+  /** @param {string} code @param {string} message @param {readonly string[]} [capabilities] */
+  constructor(code, message, capabilities = []) {
     super(message)
     this.code = code
+    this.capabilities = Object.freeze([...capabilities])
   }
 }
 
@@ -92,6 +95,15 @@ export function parseModRuntimeContract(value) {
   const targets = stringList(value.targets, 'targets', true)
   const capabilities = stringList(value.capabilities, 'capabilities')
   const optionalCapabilities = stringList(value.optionalCapabilities, 'optionalCapabilities')
+  for (const capability of capabilities) {
+    if (!isCapabilityId(capability))
+      throw new ModCompatibilityError('MOD_METADATA_INVALID', `Unknown capability: ${capability}`)
+    if (Number(hostApiVersion) < CAPABILITY_HOST_API_VERSIONS[capability])
+      throw new ModCompatibilityError(
+        'MOD_METADATA_INVALID',
+        `Capability ${capability} requires host API ${CAPABILITY_HOST_API_VERSIONS[capability]}`,
+      )
+  }
   if (optionalCapabilities.some((name) => !capabilities.includes(name)))
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Optional capabilities must be declared in capabilities')
   const entries = stringList(value.entrypoints === undefined ? ['mod'] : value.entrypoints, 'entrypoints', true)
@@ -142,6 +154,7 @@ export function assertModCompatibility(contract, host) {
       throw new ModCompatibilityError(
         'MOD_CAPABILITY_UNAVAILABLE',
         `MOD requires unavailable capabilities: ${missing.join(', ')}`,
+        missing,
       )
   }
 }

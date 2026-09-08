@@ -1,12 +1,14 @@
 import { createAppControllerApplication } from 'app-controller'
 import { SimpleFace } from 'behaviors/face'
 import type { MiniAppRegistry } from 'mini-app'
+import Modules from 'modules'
 import { directMotionPort, motionInfo } from 'motion-port'
 import { NoneDriver } from 'none-driver'
 import { Container } from 'piu/MC'
 import { StackchanRuntimeContext } from 'runtime-context'
 import { defineApp, StackchanError } from 'stackchan'
 import { definePiuApp, Port, type ScreenContext, type ViewPort } from 'stackchan/extensions/piu'
+import { CAPABILITY_IDS } from 'stackchan-contracts/capabilities'
 import { assert, equal } from 'testing/assert'
 import { verifyDefaultApp, verifyGeneratedAppPorts, verifyImageAvatar } from 'tests/default-app'
 import Timer from 'timer'
@@ -171,7 +173,34 @@ async function verifyPiuApp(mode: 'normal' | 'setup' | 'dispose' | 'undisplay' |
   const ui = createAppControllerApplication({ face: new SimpleFace() })
   const application = ui.application
   const registry = ui.miniApps as MiniAppRegistry
-  const host = await StackchanRuntimeContext.create({ driver: new NoneDriver(), ui, tts: { stream() {} } })
+  let attachments = 0
+  const driver = new (class extends NoneDriver {
+    onAttached() {
+      attachments++
+    }
+  })()
+  const host = await StackchanRuntimeContext.create({ driver, ui, tts: { stream() {} } })
+  equal(host.getCapability('motion').availability, 'unavailable', 'preflight observes a driver without a motion port')
+  equal(host.getCapability('ui.piu').availability, 'native', 'preflight observes the real Piu host')
+  for (const id of CAPABILITY_IDS)
+    assert(host.getCapability(id).availability, 'every public capability has a runtime decision')
+  equal(attachments, 0, 'capability discovery does not attach or start app motion')
+  if (mode === 'normal') {
+    assert(Modules.has('app-http'), 'fixture includes the HTTP client module')
+    const platform = globalThis as unknown as { device: Record<string, unknown> }
+    const device = platform.device
+    try {
+      platform.device = { ...device, network: {} }
+      equal(
+        host.getCapability('network.http').availability,
+        'unavailable',
+        'a bundled HTTP module needs a live client port',
+      )
+      equal(host.getCapability('conversation.dialogue').availability, 'unavailable', 'cloud dialogue needs HTTPS')
+    } finally {
+      platform.device = device
+    }
+  }
   const failure = new StackchanError('IO', `screen ${mode} failed`)
   let screenContext: ScreenContext | undefined
   let frames = 0
@@ -226,6 +255,8 @@ async function verifyPiuApp(mode: 'normal' | 'setup' | 'dispose' | 'undisplay' |
     return
   }
   const app = await starting
+  equal(attachments, 0, 'a driver without motion stays unattached after setup')
+  equal(app.context.capabilities.get('motion').availability, 'unavailable', 'SDK and boot agree on missing motion')
   assert(ui.launchMiniApp('owned-screen'), 'SDK screen launches in the host Piu viewport')
   assert(screenContext, 'screen receives its SDK context')
   equal(screenContext.app, app.context, 'screen uses the same AppSession as setup')

@@ -86,6 +86,7 @@
   "drawer.color.light": "白色",
   "drawer.color.dark": "黑色",
   "drawer.colorScheme": "配色",
+  "boot.capabilityUnavailable": "不可用的功能",
   "boot.appFailed": "MOD启动失败",
   "boot.replaceMod": "保存MOD"
 }

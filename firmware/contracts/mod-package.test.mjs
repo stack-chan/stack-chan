@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { CAPABILITY_HOST_API_VERSIONS } from './capabilities.js'
 import { assertModCompatibility, parseModRuntimeContract } from './mod-package.js'
 import { makeXsArchive, modDefinition, xsAtom, xsPath } from './testing/xsa-fixture.js'
 import { inspectModArchive } from './xsa-metadata.js'
@@ -128,4 +129,36 @@ test('archive settings are bounded data and executable config is rejected', () =
     () => inspectModArchive(makeXsArchive({ entrypoints: ['mod', 'mod/config'] }), decode),
     code('MOD_APP_API_UNSUPPORTED'),
   )
+})
+
+test('capability declarations use SDK names and cannot claim an earlier host generation', () => {
+  for (const unknown of [
+    'audio.usb',
+    'ui.approval',
+    'connectivity.network',
+    'input.buttons',
+    'input.imu',
+    'ui.drawer',
+    'audio.speach',
+  ]) {
+    assert.throws(
+      () => parseModRuntimeContract({ ...modDefinition, hostApiVersion: 9, capabilities: [unknown] }),
+      code('MOD_METADATA_INVALID'),
+    )
+  }
+  for (const [capability, generation] of Object.entries(CAPABILITY_HOST_API_VERSIONS)) {
+    for (const optionalCapabilities of [[], [capability]]) {
+      const metadata = {
+        ...modDefinition,
+        capabilities: [capability],
+        optionalCapabilities,
+        hostApiVersion: generation,
+      }
+      assert.doesNotThrow(() => parseModRuntimeContract(metadata))
+      assert.throws(
+        () => parseModRuntimeContract({ ...metadata, hostApiVersion: generation - 1 }),
+        code('MOD_METADATA_INVALID'),
+      )
+    }
+  }
 })

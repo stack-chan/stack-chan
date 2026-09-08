@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   inspectDeploymentCompatibility,
+  profileFor,
   requirementsForBlockTypes,
   toolboxForTarget,
   unsupportedRequirements,
@@ -121,9 +122,9 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
   const currentHost = inspectDeploymentCompatibility('m5stackchan-cores3', {
     chip: 'ESP32-S3',
     xsVersion: [17, 8, 0],
-    firmwareVersion: '9.5.0+stackchan.1',
-    hostApiVersion: 1,
-    requirements: ['conversation.remote', 'audio.usb', 'ui.approval'],
+    firmwareVersion: '9.5.0+stackchan.7',
+    hostApiVersion: 7,
+    requirements: ['conversation.remote', 'network.http', 'settings'],
     requireFirmware: true,
     requireArchive: true,
   })
@@ -134,7 +135,7 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
     xsVersion: [17, 8, 0],
     firmwareVersion: '9.5.0',
     hostApiVersion: 0,
-    requirements: ['conversation.remote', 'audio.usb', 'ui.approval'],
+    requirements: ['conversation.remote', 'network.http', 'settings'],
     requireFirmware: true,
     requireArchive: true,
   })
@@ -153,7 +154,8 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
     requireFirmware: true,
     requireArchive: true,
   })
-  assert.equal(legacyBasicMod.compatible, true)
+  assert.equal(legacyBasicMod.compatible, false)
+  assert.equal(legacyBasicMod.diagnostics[0].code, 'VP_HOST_CAPABILITY_UNAVAILABLE')
 })
 
 test('Piu screen apps require host API 3 and simulator support, with only the mod entrypoint', () => {
@@ -178,4 +180,20 @@ test('device install rejects Piu screens on host API 2 and accepts them on host 
     inspectDeploymentCompatibility('m5stackchan-cores3', { ...options, hostApiVersion: 2 }).compatible,
     false
   )
+})
+
+test('retired names and unknown targets cannot silently become supported portable projects', () => {
+  assert.throws(() => profileFor('unknown'), /Unknown device target/)
+  for (const name of ['audio.usb', 'ui.approval', 'connectivity.network', 'input.buttons', 'input.imu', 'ui.drawer']) {
+    assert.deepEqual(unsupportedRequirements('m5stackchan-cores3', [name]), [name])
+  }
+  assert.deepEqual(
+    unsupportedRequirements('simulator', ['camera', 'audio.clips', 'audio.recording', 'audio.playback', 'settings']),
+    []
+  )
+  assert.deepEqual(unsupportedRequirements('simulator', ['network.peer', 'network.ble', 'lighting']), [
+    'network.peer',
+    'network.ble',
+    'lighting',
+  ])
 })

@@ -1,46 +1,8 @@
 import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE } from './xs-compatibility.mjs'
 import { t } from '../i18n.mjs'
 
-export const CAPABILITIES = Object.freeze({
-  FACE: 'face',
-  SPEECH: 'audio.speech',
-  SINGING: 'audio.singing',
-  TONE: 'audio.tone',
-  MOTION: 'motion',
-  LIGHTING: 'lighting',
-  BUTTONS: 'input.primary',
-  IMU: 'input.motion',
-  HEAD_TOUCH: 'input.headTouch',
-  DRAWER: 'ui.controls',
-  PIU: 'ui.piu',
-  CONTROLS: 'ui.controls',
-  MOTION_INPUT: 'input.motion',
-  PRIMARY: 'input.primary',
-  PRIMARY_RELEASE: 'input.primary.release',
-  SECONDARY_RELEASE: 'input.secondary.release',
-  TERTIARY_RELEASE: 'input.tertiary.release',
-  SECONDARY: 'input.secondary',
-  TERTIARY: 'input.tertiary',
-  APPROVAL: 'ui.approval',
-  NETWORK: 'connectivity.network',
-  USB_AUDIO: 'audio.usb',
-  REMOTE_CONVERSATION: 'conversation.remote',
-})
-
-export const CAPABILITY_HOST_API_VERSIONS = Object.freeze({
-  [CAPABILITIES.SINGING]: 8,
-  [CAPABILITIES.PRIMARY_RELEASE]: 8,
-  [CAPABILITIES.SECONDARY_RELEASE]: 8,
-  [CAPABILITIES.TERTIARY_RELEASE]: 8,
-  [CAPABILITIES.PIU]: 3,
-  [CAPABILITIES.CONTROLS]: 4,
-  [CAPABILITIES.MOTION_INPUT]: 4,
-  [CAPABILITIES.SECONDARY]: 4,
-  [CAPABILITIES.TERTIARY]: 4,
-  [CAPABILITIES.APPROVAL]: 1,
-  [CAPABILITIES.USB_AUDIO]: 1,
-  [CAPABILITIES.REMOTE_CONVERSATION]: 1,
-})
+import { CAPABILITY_IDS, CAPABILITY_HOST_API_VERSIONS } from '../../firmware/contracts/capabilities.js'
+export { CAPABILITY_HOST_API_VERSIONS }
 
 export const DEVICE_PROFILES = Object.freeze({
   'm5stackchan-cores3': {
@@ -52,7 +14,7 @@ export const DEVICE_PROFILES = Object.freeze({
     firmwareVersionPrefixes: ['9.5.'],
     chipPatterns: ['ESP32-S3'],
     entrypoints: ['mod'],
-    capabilities: Object.values(CAPABILITIES),
+    capabilities: CAPABILITY_IDS,
   },
   simulator: {
     label: 'Webシミュレーター',
@@ -64,21 +26,24 @@ export const DEVICE_PROFILES = Object.freeze({
     chipPatterns: [],
     entrypoints: ['mod'],
     capabilities: [
-      CAPABILITIES.FACE,
-      CAPABILITIES.SPEECH,
-      CAPABILITIES.SINGING,
-      CAPABILITIES.TONE,
-      CAPABILITIES.MOTION,
-      CAPABILITIES.BUTTONS,
-      CAPABILITIES.DRAWER,
-      CAPABILITIES.PIU,
-      CAPABILITIES.CONTROLS,
-      CAPABILITIES.PRIMARY,
-      CAPABILITIES.SECONDARY,
-      CAPABILITIES.TERTIARY,
-      CAPABILITIES.PRIMARY_RELEASE,
-      CAPABILITIES.SECONDARY_RELEASE,
-      CAPABILITIES.TERTIARY_RELEASE,
+      'face',
+      'audio.speech',
+      'audio.singing',
+      'audio.tone',
+      'motion',
+      'input.primary',
+      'camera',
+      'audio.clips',
+      'audio.recording',
+      'audio.playback',
+      'settings',
+      'ui.piu',
+      'ui.controls',
+      'input.secondary',
+      'input.tertiary',
+      'input.primary.release',
+      'input.secondary.release',
+      'input.tertiary.release',
     ],
   },
   portable: {
@@ -90,46 +55,41 @@ export const DEVICE_PROFILES = Object.freeze({
     firmwareVersionPrefixes: [],
     chipPatterns: [],
     entrypoints: ['mod'],
-    capabilities: [
-      CAPABILITIES.FACE,
-      CAPABILITIES.SPEECH,
-      CAPABILITIES.TONE,
-      CAPABILITIES.MOTION,
-      CAPABILITIES.CONTROLS,
-      CAPABILITIES.PRIMARY,
-    ],
+    capabilities: ['face', 'audio.speech', 'audio.tone', 'motion', 'ui.controls', 'input.primary'],
   },
 })
 
 export const BLOCK_CAPABILITIES = Object.freeze({
-  stackchan_on_button: [CAPABILITIES.BUTTONS],
-  stackchan_on_imu: [CAPABILITIES.IMU],
-  stackchan_on_head_touch: [CAPABILITIES.HEAD_TOUCH],
-  stackchan_on_drawer_button: [CAPABILITIES.DRAWER],
-  stackchan_set_emotion: [CAPABILITIES.FACE],
-  stackchan_set_color: [CAPABILITIES.FACE],
-  stackchan_set_mouth: [CAPABILITIES.FACE],
-  stackchan_say: [CAPABILITIES.SPEECH],
-  stackchan_sing_score: [CAPABILITIES.SINGING],
-  stackchan_song_note_tuple: [CAPABILITIES.SINGING],
-  stackchan_song_rest_tuple: [CAPABILITIES.SINGING],
-  stackchan_show_balloon: [CAPABILITIES.DRAWER],
-  stackchan_hide_balloon: [CAPABILITIES.DRAWER],
-  stackchan_tone: [CAPABILITIES.TONE],
-  stackchan_look_at: [CAPABILITIES.MOTION],
-  stackchan_look_away: [CAPABILITIES.MOTION],
-  stackchan_set_torque: [CAPABILITIES.MOTION],
-  stackchan_set_pose: [CAPABILITIES.MOTION],
-  stackchan_light_on: [CAPABILITIES.LIGHTING],
-  stackchan_light_off: [CAPABILITIES.LIGHTING],
-  stackchan_light_rainbow: [CAPABILITIES.LIGHTING],
-  stackchan_light_blink: [CAPABILITIES.LIGHTING],
-  stackchan_drawer_control: [CAPABILITIES.DRAWER],
-  stackchan_show_face: [CAPABILITIES.FACE],
+  stackchan_on_button: ['input.primary'],
+  stackchan_on_imu: ['input.motion'],
+  stackchan_on_head_touch: ['input.headTouch'],
+  stackchan_on_drawer_button: ['ui.controls'],
+  stackchan_set_emotion: ['face'],
+  stackchan_set_color: ['face'],
+  stackchan_set_mouth: ['face'],
+  stackchan_say: ['audio.speech'],
+  stackchan_sing_score: ['audio.singing'],
+  stackchan_song_note_tuple: ['audio.singing'],
+  stackchan_song_rest_tuple: ['audio.singing'],
+  stackchan_show_balloon: ['ui.controls'],
+  stackchan_hide_balloon: ['ui.controls'],
+  stackchan_tone: ['audio.tone'],
+  stackchan_look_at: ['motion'],
+  stackchan_look_away: ['motion'],
+  stackchan_set_torque: ['motion'],
+  stackchan_set_pose: ['motion'],
+  stackchan_light_on: ['lighting'],
+  stackchan_light_off: ['lighting'],
+  stackchan_light_rainbow: ['lighting'],
+  stackchan_light_blink: ['lighting'],
+  stackchan_drawer_control: ['ui.controls'],
+  stackchan_show_face: ['face'],
 })
 
 export function profileFor(target) {
-  return DEVICE_PROFILES[target] ?? DEVICE_PROFILES.portable
+  const profile = DEVICE_PROFILES[target]
+  if (!profile) throw new Error(`Unknown device target: ${target}`)
+  return profile
 }
 
 export function requirementsForBlockTypes(blockTypes) {

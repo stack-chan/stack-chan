@@ -14,6 +14,12 @@ import Modules from 'modules'
 import { ResourceScope } from 'owned-resources'
 import type { StackchanRuntimeContext } from 'runtime-context'
 import { startSetupMode } from 'setup-mode'
+import { CAPABILITY_IDS } from 'stackchan-contracts/capabilities'
+import {
+  assertModCompatibility,
+  ModCompatibilityError,
+  STACKCHAN_HOST_API_VERSION,
+} from 'stackchan-contracts/mod-package'
 import { showStartupFailure, showStartupSplash } from 'startup-splash'
 import Timer from 'timer'
 import { applyTimezone } from 'timezone-settings'
@@ -53,9 +59,12 @@ function reportStartupFailure(error: unknown): void {
     initializeLocalization('en')
   }
   const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : 'STARTUP_FAILED'
+  const missing = error instanceof ModCompatibilityError ? error.capabilities : []
   showStartupFailure({
     message: localize('boot.appFailed'),
-    detail: `${code}\n${localize('boot.replaceMod')}`,
+    detail: missing.length
+      ? `${localize('boot.capabilityUnavailable')}\n${missing.slice(0, 2).join(', ')}${missing.length > 2 ? ` +${missing.length - 2}` : ''}`
+      : `${code}\n${localize('boot.replaceMod')}`,
     onMods: Modules.has('mod-manager') ? restartForModMaintenance : undefined,
     onRestart: globalEnv.System?.restart ? () => globalEnv.System.restart() : undefined,
   })
@@ -107,7 +116,6 @@ async function main() {
     dockRuntime = startStackchanDock(Modules, contract?.capabilities)
     if (dockRuntime) bootResources.own(dockRuntime)
     const preferences = loadPreferenceConfig()
-    const app = resolveAppDefinition(Modules, defaultApp)
     initializeLocalization(preferences.ui.language)
     applyTimezone(preferences.time.timezone)
     const bootServices = startHostBootServices({
@@ -123,6 +131,13 @@ async function main() {
       remoteConversationSession: ownedDock?.remoteConversationSession,
       closeHandlers: [() => bootResources.close()],
     })
+    const readyContext = context
+    if (contract)
+      assertModCompatibility(contract, {
+        hostApiVersion: STACKCHAN_HOST_API_VERSION,
+        capabilities: CAPABILITY_IDS.filter((id) => readyContext.getCapability(id).availability !== 'unavailable'),
+      })
+    const app = resolveAppDefinition(Modules, defaultApp)
     ownedDock?.attach(context.presentation)
     trace('[main] app context created\n')
     await context.startApp(app)

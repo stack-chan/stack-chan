@@ -13,7 +13,8 @@
     "./http-server/manifest.json",
     "./mcp-server/manifest.json",
     "./mcp-client/manifest.json",
-    "../../app/manifest_typings.json"
+    "../../app/manifest_typings.json",
+    "$(MODULES)/base/modules/manifest.json"
   ],
   "modules": {
     "*": [

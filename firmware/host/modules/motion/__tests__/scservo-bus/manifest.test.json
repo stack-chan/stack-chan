@@ -1,5 +1,6 @@
 {
   "include": [
+    "../../scservo-manifest.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "../../../testing/manifest.json"
@@ -8,10 +9,6 @@
     "main": "./scservo-bus.test",
     "embedded:io/serial": "./fake-serial",
     "timer": "$(MODDABLE)/modules/base/timer/*",
-    "protocols/scservo": "../../protocols/scservo",
-    "single-wait-slot": "../../internal/single-wait-slot",
-    "servo-command-error": "../../internal/servo-command-error",
-    "payload-buffer": "../../payload-buffer",
     "m5stackchan-servo": "../../m5stackchan-servo",
     "m5stackchan-servo-driver": "../../m5stackchan-servo-driver",
     "scservo-driver": "../../scservo-driver",

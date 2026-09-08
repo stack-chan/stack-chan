@@ -1,10 +1,8 @@
-import Serial from 'embedded:io/serial'
-import * as SerialNamespace from 'embedded:io/serial'
-import * as TimerNamespace from 'testing/fakes/timer'
+import Serial, * as SerialNamespace from 'embedded:io/serial'
 import * as ConfigNamespace from 'mc/config'
-import Timer from 'testing/fakes/timer'
-import NativeTimer from 'timer'
 import { assert, equal } from 'testing/assert'
+import Timer, * as TimerNamespace from 'testing/fakes/timer'
+import NativeTimer from 'timer'
 
 const modules = {
   timer: { namespace: TimerNamespace },

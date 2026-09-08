@@ -19,13 +19,16 @@ test('application and host generations are distinct from the XS archive version'
   assert.doesNotThrow(() => assertModCompatibility(future, { hostApiVersion: 3, capabilities: ['ui.piu'] }))
 })
 
-test('schema 1 describes legacy API only and cannot hide explicit new requirements', () => {
-  const legacy = { ...modDefinition, schemaVersion: 1 }
-  delete legacy.appApiVersion
-  delete legacy.hostApiVersion
-  assert.equal(parseModRuntimeContract(legacy).appApiVersion, 1)
-  assert.throws(() => parseModRuntimeContract({ ...legacy, appApiVersion: 2 }), code('MOD_METADATA_INVALID'))
-  assert.throws(() => parseModRuntimeContract({ ...modDefinition, appApiVersion: 3 }), code('MOD_APP_API_UNSUPPORTED'))
+test('all retired app and metadata generations are rejected with migration guidance', () => {
+  for (const legacy of [
+    { ...modDefinition, schemaVersion: 1 },
+    { ...modDefinition, appApiVersion: 1 },
+    { ...modDefinition, appApiVersion: 3 },
+  ])
+    assert.throws(
+      () => parseModRuntimeContract(legacy),
+      (error) => error.code === 'MOD_APP_API_UNSUPPORTED' && /defineApp.*rebuild/i.test(error.message),
+    )
   assert.throws(() => parseModRuntimeContract({ ...modDefinition, hostApiVersion: 1 }), code('MOD_METADATA_INVALID'))
 })
 
@@ -79,12 +82,11 @@ test('declared entrypoints must match the actual archive before importing any co
   }
 })
 
-test('metadata-free legacy archives need an explicit transitional reader', () => {
+test('metadata-free and corrupt archives are always rejected', () => {
   const bytes = makeXsArchive({ metadata: null })
   assert.throws(() => inspectModArchive(bytes, decode), code('MOD_METADATA_MISSING'))
-  assert.equal(inspectModArchive(bytes, decode, { allowLegacy: true }).metadata, undefined)
   const corrupt = makeXsArchive({ metadata: { ...modDefinition, schemaVersion: 99 } })
-  assert.throws(() => inspectModArchive(corrupt, decode, { allowLegacy: true }), code('MOD_METADATA_INVALID'))
+  assert.throws(() => inspectModArchive(corrupt, decode), code('MOD_METADATA_INVALID'))
 })
 
 test('atom lengths, resource decoding and duplicates are bounded', () => {
@@ -112,4 +114,18 @@ test('atom lengths, resource decoding and duplicates are bounded', () => {
   }
   const duplicates = xsAtom('XS_A', xsAtom('VERS', new Uint8Array(4)), xsAtom('VERS', new Uint8Array(4)))
   assert.throws(() => inspectModArchive(duplicates, decode), code('MOD_ARCHIVE_INVALID'))
+})
+
+test('archive settings are bounded data and executable config is rejected', () => {
+  const metadata = { ...modDefinition, hostApiVersion: 9, settings: { 'tts.volume': 0.3 } }
+  const parsed = parseModRuntimeContract(metadata)
+  metadata.settings['tts.volume'] = 0.6
+  assert.equal(parsed.settings['tts.volume'], 0.3)
+  assert.throws(() => parseModRuntimeContract({ ...metadata, hostApiVersion: 8 }), code('MOD_METADATA_INVALID'))
+  for (const settings of [null, [], { 'tts.volume': {} }, { 'tts.volume': Infinity }, { '__proto__.value': 'x' }])
+    assert.throws(() => parseModRuntimeContract({ ...metadata, settings }), code('MOD_METADATA_INVALID'))
+  assert.throws(
+    () => inspectModArchive(makeXsArchive({ entrypoints: ['mod', 'mod/config'] }), decode),
+    code('MOD_APP_API_UNSUPPORTED'),
+  )
 })

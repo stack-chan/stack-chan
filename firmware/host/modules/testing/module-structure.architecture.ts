@@ -209,32 +209,6 @@ test('Timer and input handlers do not inline async functions', () => {
 })
 
 test('periodic motion hot paths reuse fixed state and callbacks', () => {
-  const controller = readFileSync(join(MODULE_ROOT, 'motion', 'motion-controller.ts'), 'utf8')
-  const updatePoseBlocks = extractMethodBlocks(controller, 'updatePose')
-
-  assert.equal(updatePoseBlocks.length, 1, 'MotionController should have one updatePose hot path')
-  assert.doesNotMatch(controller, /Vector3\.rotate/, 'MotionController should avoid allocating Vector3.rotate')
-  assert.doesNotMatch(
-    controller,
-    /Rotation\.fromVector3/,
-    'MotionController should avoid allocating Rotation.fromVector3',
-  )
-  assert.doesNotMatch(controller, /getRotation\(\s*\(/, 'MotionController should reuse getRotation callback')
-  assert.doesNotMatch(controller, /setTorque\(true,\s*\(/, 'MotionController should reuse setTorque callback')
-  assert.doesNotMatch(
-    controller,
-    /applyRotation\([^,\n]+,\s*[^,\n]+,\s*\(/,
-    'MotionController should reuse applyRotation callback',
-  )
-  assert.doesNotMatch(controller, /Timer\.set\(\s*\(/, 'MotionController should reuse Timer callback')
-
-  for (const block of updatePoseBlocks) {
-    assert.doesNotMatch(block, /\bnew\b/, 'updatePose should not allocate objects')
-    assert.doesNotMatch(block, /(?:=|return|,\s*)\s*\{/, 'updatePose should not create object literals')
-    assert.doesNotMatch(block, /(?:=|return|,\s*)\s*\[/, 'updatePose should not create array literals')
-    assert.doesNotMatch(block, /\.\s*(?:map|filter|reduce)\s*\(/, 'updatePose should not allocate arrays')
-  }
-
   const driverFiles = [
     'dynamixel-driver.ts',
     'm5stackchan-servo-driver.ts',
@@ -389,7 +363,7 @@ test('sample MODs use namespaced context capabilities', () => {
     .filter((path) => path.endsWith('.js'))
     .filter((path) => flatApiPattern.test(readFileSync(path, 'utf8')))
 
-  assert.deepEqual(offenders, [], 'sample MODs should use namespaced StackchanContext capabilities')
+  assert.deepEqual(offenders, [], 'sample MODs should use the public SDK')
 })
 
 test('subplatforms that define camera pins are gated into the camera and conversation manifests', () => {

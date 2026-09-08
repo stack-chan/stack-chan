@@ -1,6 +1,6 @@
 import type { RobotCamera } from 'camera'
 import type { TTS, WebRadioCapability } from 'capabilities'
-import type { MotionDriver } from 'motion-controller'
+import type { MotionDriver } from 'motion-driver'
 import { ResourceScope } from 'owned-resources'
 import { StackchanError } from 'stackchan/errors'
 

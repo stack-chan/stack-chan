@@ -1,6 +1,9 @@
 const resources = new Map<string, ArrayBuffer>()
 
 export default class Resource extends ArrayBuffer {
+  static get [Symbol.species]() {
+    return ArrayBuffer
+  }
   static exists(path: string): boolean {
     return resources.has(path)
   }

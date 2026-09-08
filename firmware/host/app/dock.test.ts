@@ -27,7 +27,7 @@ test('an unconfigured Stackchan Dock is optional', () => {
 
 test('the configured Stackchan Dock starts and returns its runtime', () => {
   const runtime = fakeRuntime()
-  const modConfig = { usbAudio: { enabled: true } }
+  const capabilities = ['conversation.remote']
   let receivedConfig: unknown
   const dock: StackchanDock = {
     start: (received) => {
@@ -36,8 +36,8 @@ test('the configured Stackchan Dock starts and returns its runtime', () => {
     },
   }
 
-  assert.equal(startStackchanDock(new FakeModules(dock), modConfig), runtime)
-  assert.equal(receivedConfig, modConfig)
+  assert.equal(startStackchanDock(new FakeModules(dock), capabilities), runtime)
+  assert.equal(receivedConfig, capabilities)
 })
 
 test('a Dock may be present but disabled by its own configuration', () => {
@@ -56,7 +56,7 @@ test('invalid Dock exports and runtimes fail during startup', () => {
 
 function fakeRuntime(): StackchanDockRuntime {
   return {
-    onContextCreated() {},
+    attach() {},
     close() {},
   }
 }

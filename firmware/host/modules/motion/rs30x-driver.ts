@@ -3,7 +3,7 @@ import {
   type MotionDurationSeconds,
   type MotionResultCallback,
   motionDurationSecondsToCentiseconds,
-} from 'motion-controller'
+} from 'motion-driver'
 import { reasonFromError } from 'motion-driver-callback'
 import { directMotionPort, motionInfo } from 'motion-port'
 import RS30X from 'protocols/rs30x'

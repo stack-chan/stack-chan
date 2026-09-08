@@ -10,7 +10,7 @@ type FakeConfig = {
 }
 
 type FakeModules = {
-  resetModules(values?: Record<string, unknown>): void
+  resetModules(values?: Record<string, unknown>, archive?: string[]): void
 }
 
 type FakePreference = {
@@ -62,7 +62,7 @@ function installBareSpecifierPackages(): void {
 
 async function setup() {
   installBareSpecifierPackages()
-  const [modules, config, preference, loadPreference] = await Promise.all([
+  const [modules, config, preference, loadPreference, resources] = await Promise.all([
     import('../testing/fakes/modules.js') as Promise<FakeModules>,
     import('../testing/fakes/mc-config.js') as Promise<FakeConfig>,
     import('../testing/fakes/preference.js') as Promise<FakePreference>,
@@ -75,9 +75,10 @@ async function setup() {
     traces.push(messages.map(String).join(''))
   }
   modules.resetModules()
+  resources.resetResources()
   config.resetConfig({ ui: { type: 'simple' } })
   preference.resetPreference()
-  return { loadPreferences: loadPreference.default, modules, config, preference, traces }
+  return { loadPreferences: loadPreference.default, modules, config, preference, traces, resources }
 }
 
 test('loadPreferences ignores a retired renderer.type without copying it to ui.type', async () => {
@@ -132,20 +133,58 @@ test('loadPreferences keeps stored driver selection on an unlocked platform', as
   assert.equal(loadPreferences(DOMAIN.driver).type, 'scservo')
 })
 
-test('loadPreferences does not let MOD config relax a platform driver lock', async () => {
-  const { modules, config } = await setup()
-  modules.resetModules({
-    'mod/config': { driver: { type: 'scservo', typeLocked: false } },
-  })
-  config.resetConfig({
-    driver: { type: 'm5stackchan', typeLocked: true },
-  })
-  const freshModule = await import(new URL('./loadPreference.js?platform-lock', import.meta.url).href)
+test('declared app defaults keep saved preferences and the hardware lock authoritative', async () => {
+  const { modules, config, preference, resources } = await setup()
+  let imports = 0
+  modules.resetModules(
+    {
+      get mod() {
+        imports++
+        throw new Error('must not evaluate')
+      },
+    },
+    ['mod'],
+  )
+  resources.resetResources({ 'stackchan-mod.json': declaration({ 'driver.type': 'scservo', 'tts.volume': 0.2 }) })
+  config.resetConfig({ driver: { type: 'm5stackchan', typeLocked: true }, tts: { volume: 0.6 } })
+  const fresh = await import(new URL('./loadPreference.js?declarative-defaults', import.meta.url).href)
+  assert.equal(fresh.default(DOMAIN.driver).type, 'm5stackchan')
+  assert.equal(fresh.default(DOMAIN.driver).typeLocked, true)
+  assert.equal(fresh.default(DOMAIN.tts).volume, 0.2)
+  preference.resetPreference({ 'tts.volume': '0.8' })
+  assert.equal(fresh.default(DOMAIN.tts).volume, 0.8)
+  assert.equal(imports, 0)
+})
 
-  const driver = freshModule.default(DOMAIN.driver)
+function declaration(settings: Record<string, unknown>): ArrayBuffer {
+  return new TextEncoder().encode(
+    JSON.stringify({
+      format: 'tech.stackchan.mod',
+      schemaVersion: 2,
+      appApiVersion: 2,
+      hostApiVersion: 9,
+      id: 'tech.stackchan.settings-test',
+      version: '1.0.0',
+      targets: ['portable'],
+      entrypoints: ['mod'],
+      settings,
+    }),
+  ).buffer
+}
 
-  assert.equal(driver.type, 'm5stackchan')
-  assert.equal(driver.typeLocked, true)
+test('invalid and retired app defaults fail before app evaluation and host recovery remains accessible', async () => {
+  const { modules, resources } = await setup()
+  modules.resetModules({}, ['mod'])
+  for (const [index, settings] of [
+    { 'renderer.type': 'dog' },
+    { 'wifi.ssid': 'app-network' },
+    { 'tts.volume': 'invalid' },
+  ].entries()) {
+    resources.resetResources({ 'stackchan-mod.json': declaration(settings) })
+    const fresh = await import(new URL(`./loadPreference.js?invalid-defaults=${index}`, import.meta.url).href)
+    assert.throws(() => fresh.default(DOMAIN.ui), { code: 'CONFIG' })
+    assert.equal(fresh.getHostSettingsService().get('ui.type'), 'simple')
+  }
 })
 
 test('loadPreferences reads the MCP authentication token from preferences', async () => {

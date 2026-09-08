@@ -1,4 +1,4 @@
-import { showStartupSplash, showWiFiRecoveryChoice } from 'startup-splash'
+import { showStartupFailure, showStartupSplash } from 'startup-splash'
 import { equal } from 'testing/assert'
 
 trace('=== startup-splash test ===\n')
@@ -43,27 +43,6 @@ settingsButton.behavior.onTouchBegan(settingsButton, 0, 0, 0)
 settingsButton.behavior.onTouchEnded(settingsButton)
 equal(touchCount, 1, 'visible settings action should call the provided callback')
 
-let retryCount = 0
-let offlineCount = 0
-const releaseRecovery = showWiFiRecoveryChoice({
-  message: '接続失敗',
-  onRetry() {
-    retryCount += 1
-  },
-  onOffline() {
-    offlineCount += 1
-  },
-})
-
-const retryButton = column.next.first
-const offlineButton = retryButton.next as typeof retryButton
-retryButton.behavior.onTouchBegan(retryButton, 0, 0, 0)
-retryButton.behavior.onTouchEnded(retryButton)
-offlineButton.behavior.onTouchBegan(offlineButton, 0, 0, 0)
-offlineButton.behavior.onTouchEnded(offlineButton)
-equal(retryCount, 1, 'recovery view should expose retry as a touch action')
-equal(offlineCount, 1, 'recovery view should expose offline boot as a touch action')
-
 let modsCount = 0
 const selectionApplication = showStartupSplash({
   onMods() {
@@ -72,15 +51,23 @@ const selectionApplication = showStartupSplash({
 })
 const selectionColumn = selectionApplication.first as unknown as typeof column
 const modsButton = selectionColumn.next.first
-releaseRecovery()
-equal(selectionColumn.next.first, modsButton, 'old recovery disposer preserves a replacement splash')
 modsButton.behavior.onTouchBegan(modsButton, 0, 0, 0)
 modsButton.behavior.onTouchEnded(modsButton)
 equal(modsCount, 1, 'startup view should expose the MOD manager as a touch action')
 
-const releaseCurrent = showWiFiRecoveryChoice({ message: 'offline' })
-releaseCurrent()
-releaseCurrent()
-equal(selectionColumn.next.first, undefined, 'current recovery disposer removes its actions once')
+let restarts = 0
+const failure = showStartupFailure({
+  message: 'Failed',
+  detail: 'Rebuild this MOD',
+  onRestart: () => {
+    restarts++
+  },
+})
+const failureColumn = failure.first as unknown as typeof column
+const restart = failureColumn.next.first
+restart.behavior.onTouchBegan(restart, 0, 0, 0)
+restart.behavior.onTouchEnded(restart)
+equal(restarts, 1, 'failure view retains its restart action')
+equal(failureColumn.first.next.string, 'Failed', 'failure view describes startup failure')
 
 trace('ok\n')

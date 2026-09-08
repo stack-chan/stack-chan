@@ -3,11 +3,6 @@ export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number]
 export const DEFAULT_LOCALE: SupportedLocale = 'ja'
 export type LocalizationValue = string | number
 export type LocalizationValues = Readonly<Record<string, LocalizationValue>>
-export type I18nCapability = Readonly<{
-  readonly locale: SupportedLocale
-  localize: (key: string, values?: LocalizationValues) => string
-}>
-
 const japanese: Readonly<Record<string, string>> = Object.freeze({
   'boot.wifiNotFound': '保存済みWi-Fiが見つかりません',
   'boot.wifiFailed': 'Wi-Fi接続に失敗しました',
@@ -53,11 +48,4 @@ export function localize(key: string, values: LocalizationValues = {}): string {
   )
 }
 
-export function createI18nCapability(): I18nCapability {
-  return Object.freeze({
-    get locale() {
-      return currentLocale
-    },
-    localize,
-  })
-}
+export const localizeApp = localize

@@ -12,9 +12,10 @@ export type ModEntrypoint = 'mod'
 
 export type ModDefinitionSource = {
   format: 'tech.stackchan.mod'
-  schemaVersion: 1 | 2
-  appApiVersion?: 1 | 2
-  hostApiVersion?: number
+  schemaVersion: 2
+  appApiVersion: 2
+  hostApiVersion: number
+  settings?: Record<string, string | number>
   optionalCapabilities?: string[]
   id: string
   version: string

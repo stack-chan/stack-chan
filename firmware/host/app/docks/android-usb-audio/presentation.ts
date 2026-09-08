@@ -1,4 +1,4 @@
-import type { StackchanContext, UIEffect } from 'capabilities'
+import type { HostPresentation, UIEffect } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { Container, Content, Label, Skin, Style } from 'piu/MC'
 import type { TaskExecutionState } from 'stackchan-application-event'
@@ -172,7 +172,7 @@ export type UsbAudioPresentation = {
   close(): void
 }
 
-export function createUsbAudioPresentation(context: StackchanContext): UsbAudioPresentation {
+export function createUsbAudioPresentation(context: HostPresentation): UsbAudioPresentation {
   let active = false
   let balloon: CaptionBalloon | undefined
   let statusBadge: UIEffect | undefined
@@ -192,7 +192,7 @@ export function createUsbAudioPresentation(context: StackchanContext): UsbAudioP
   const flushMouth = () => {
     if (pendingMouthStep === displayedMouthStep) return
     displayedMouthStep = pendingMouthStep
-    context.face.setMouthOpen(displayedMouthStep * USB_AUDIO_MOUTH_STEP)
+    context.setMouthOpen(displayedMouthStep * USB_AUDIO_MOUTH_STEP)
   }
 
   const removeBalloon = () => {
@@ -253,7 +253,7 @@ export function createUsbAudioPresentation(context: StackchanContext): UsbAudioP
     mouthTimer = undefined
     pendingMouthStep = 0
     displayedMouthStep = 0
-    context.face.setMouthOpen(0)
+    context.setMouthOpen(0)
     removeBalloon()
     if (active) context.ui.setFaceMotionEnabled?.(true)
     active = false
@@ -281,7 +281,7 @@ export function createUsbAudioPresentation(context: StackchanContext): UsbAudioP
       pendingMouthStep = 0
       displayedMouthStep = 0
       context.ui.setFaceMotionEnabled?.(false)
-      context.face.setMouthOpen(0)
+      context.setMouthOpen(0)
       mouthTimer = Timer.repeat(flushMouth, MOUTH_UPDATE_MILLISECONDS)
     },
 

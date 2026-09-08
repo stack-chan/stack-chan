@@ -44,8 +44,8 @@
       "capabilities": [
         "./host/app/capabilities"
       ],
-      "motion-controller": [
-        "./host/modules/motion/motion-controller"
+      "motion-driver": [
+        "./host/modules/motion/motion-driver"
       ],
       "runtime-context": [
         "./host/app/runtime-context"
@@ -214,9 +214,6 @@
       ],
       "embedded:network/dns/resolver/*": [
         "./node_modules/@moddable/typings/embedded_network/dns/resolver/*"
-      ],
-      "app-behavior": [
-        "./host/app/app-behavior"
       ],
       "default-app/*": ["./host/app/default-app/*"],
       "testing/assert": [

@@ -1,4 +1,4 @@
-import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
+import type { MotionCompletion, MotionResultCallback } from 'motion-driver'
 import type { MotionInfo } from 'stackchan/motion'
 import type { Maybe, Rotation } from 'stackchan-util'
 

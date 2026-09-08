@@ -150,7 +150,7 @@ try {
   assert.equal(await selectedMiniGames.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
   await selectedMiniGames.getByRole('button', { name: 'シミュレーターで試す' }).click()
   await page.waitForURL(/\/simulator\/\?gallery=sample\.stackchan-minigames/)
-  await page.getByRole('log').getByText('[main] app behaviors ready', { exact: false }).waitFor({ timeout: 45_000 })
+  await page.getByRole('log').getByText('[main] app ready', { exact: false }).waitFor({ timeout: 45_000 })
   const miniGameScreen = page.locator('canvas[aria-hidden="true"]')
   // The LCD canvas is hidden after Three.js maps it onto the model. Give the touch bridge stable test bounds.
   const prepareScreen = async () => {
@@ -214,7 +214,7 @@ try {
     }
   }
   const uiReady = page.waitForEvent('console', {
-    predicate: (message) => message.text().includes('[main] app behaviors ready'),
+    predicate: (message) => message.text().includes('[main] app ready'),
     timeout: 45_000,
   })
   await page

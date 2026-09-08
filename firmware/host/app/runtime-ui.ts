@@ -1,14 +1,6 @@
 import { DogFace, FaceBase, ImageFace, SimpleFace } from 'behaviors/face'
 import { createCameraPreviewDialog, prepareCameraPreviewFrame } from 'camera-preview'
-import type {
-  DrawerButtonSpec,
-  DrawerButtonViewSpec,
-  DrawerCapability,
-  RobotUI,
-  ShowBalloonOptions,
-  StackchanContext,
-  UIEffect,
-} from 'capabilities'
+import type { RobotUI, ShowBalloonOptions, UIEffect } from 'capabilities'
 import { Emoticon } from 'effects/emoticon'
 import { MusicNotes } from 'effects/music-notes'
 import { SpeechBalloon } from 'effects/speech-balloon'
@@ -42,7 +34,7 @@ import {
 
 const LEFT_RIGHT = Object.freeze(['left', 'right'] as const)
 
-type RuntimeUIPose = {
+export type RuntimeUIPose = {
   body: Pose
   eyes: {
     left: Pose
@@ -52,10 +44,8 @@ type RuntimeUIPose = {
 
 type RuntimeUIOptions = {
   restoreFace?: () => void
-  getContext: () => StackchanContext
   getPose: () => RuntimeUIPose
   getGazePoint: () => Vector3 | null | undefined
-  isPaused: () => boolean
 }
 
 const BALLOON_OPTION_KEYS = ['left', 'right', 'top', 'bottom', 'width', 'height', 'tail'] as const
@@ -75,9 +65,6 @@ export class StackchanRuntimeUI {
   #image: UIEffect | undefined
   #balloon: UIEffect | null = null
   #balloonOptions: ShowBalloonOptions | null = null
-  #drawerButtonSpecs = new Map<string, DrawerButtonSpec>()
-  #drawerButtonStates = new Map<string, boolean>()
-  #drawerRegistry: DrawerCapability
   #emotion: Emotion
   #eyeOpen = { left: 1, right: 1 }
   #eyeGazePoint: Vector3 = [0, 0, 0]
@@ -98,16 +85,6 @@ export class StackchanRuntimeUI {
     this.#emotion = this.#faceState.emotion
     this.#devices = devices ?? new ResourceScope()
     if (!devices) ownUI(this.#devices, ui)
-    this.#drawerRegistry = {
-      addDrawerButton: (button) => this.addDrawerButton(button),
-      removeDrawerButton: (key) => this.removeDrawerButton(key),
-      clearDrawerButtons: () => this.clearDrawerButtons(),
-      setDrawerButtonState: (key, active) => this.setDrawerButtonState(key, active),
-    }
-  }
-
-  get drawer(): DrawerCapability {
-    return this.#drawerRegistry
   }
 
   get faceStyle(): FaceStyle | 'shape' {
@@ -255,15 +232,6 @@ export class StackchanRuntimeUI {
     return this.#ui
   }
 
-  useUI(ui: RobotUI) {
-    this.#assertOpen()
-    if (ui === this.#ui) return
-    ownUI(this.#devices, ui)
-    this.detachDrawerBindings()
-    this.#ui = ui
-    this.rebuildDrawerBindings()
-  }
-
   showBalloon(text: string, option: ShowBalloonOptions = {}) {
     this.#assertOpen()
     if (this.#balloon != null && sameBalloonOptions(this.#balloonOptions, option)) {
@@ -351,7 +319,7 @@ export class StackchanRuntimeUI {
   }
 
   updateFace(interval: number) {
-    if (this.#shutdown || this.#options.isPaused()) {
+    if (this.#shutdown) {
       return
     }
 
@@ -377,67 +345,11 @@ export class StackchanRuntimeUI {
     this.#ui.update(interval, this.#faceState)
   }
 
-  private addDrawerButton({ key, label, callback, kind, initialState, value, options, icon }: DrawerButtonSpec): void {
-    this.#assertOpen()
-    const spec = { key, label, callback, kind, initialState, value, options, icon }
-    this.#drawerButtonSpecs.set(key, spec)
-    this.bindDrawerButton(spec)
-    this.#ui.addDrawerButton({ key, label, kind, value, options, icon })
-    if (initialState !== undefined) {
-      this.setDrawerButtonState(key, initialState)
-    }
-  }
-
-  private bindDrawerButton({ key, callback }: DrawerButtonSpec): void {
-    const runCallback = (value?: string) => {
-      if (this.#shutdown) return
-      try {
-        const result = callback(this.#options.getContext(), value)
-        if (result && typeof (result as { catch?: (handler: (err: unknown) => void) => void }).catch === 'function') {
-          ;(result as { catch: (handler: (err: unknown) => void) => void }).catch((err: unknown) => {
-            trace(`[DrawerButton] callback rejected key=${key} err=${String(err)}\n`)
-          })
-        }
-      } catch (err) {
-        trace(`[DrawerButton] callback error key=${key} err=${String(err)}\n`)
-      }
-    }
-    if (!this.#ui.bindDrawerAction(key, runCallback)) {
-      trace(`[DrawerButton] skip binding key=${key}\n`)
-    }
-  }
-
-  private removeDrawerButton(key: string): void {
-    this.#drawerButtonSpecs.delete(key)
-    this.#drawerButtonStates.delete(key)
-    this.#ui.unbindDrawerAction(key)
-    this.#ui.removeDrawerButton(key)
-  }
-
-  private clearDrawerButtons(): void {
-    this.detachDrawerBindings()
-    this.#drawerButtonSpecs.clear()
-    this.#drawerButtonStates.clear()
-    this.#ui.setDrawerButtons([])
-  }
-
-  private setDrawerButtonState(key: string, active: boolean): void {
-    this.#drawerButtonStates.set(key, active)
-    this.#ui.setDrawerButtonState(key, active)
-  }
-
-  private detachDrawerBindings(): void {
-    for (const key of this.#drawerButtonSpecs.keys()) {
-      this.#ui.unbindDrawerAction(key)
-    }
-  }
-
   close(): Promise<void> {
     if (!this.#shutdown) {
       this.#shutdown = new OwnedResources([
         () => this.hideImage(),
         () => this.hideBalloon(),
-        () => this.clearDrawerButtons(),
         () => this.#devices.close(),
       ])
     }
@@ -446,25 +358,5 @@ export class StackchanRuntimeUI {
 
   #assertOpen(): void {
     if (this.#shutdown) throw new StackchanError('CLOSED', 'UI is closed')
-  }
-
-  private rebuildDrawerBindings(): void {
-    const buttons: DrawerButtonViewSpec[] = []
-    for (const spec of this.#drawerButtonSpecs.values()) {
-      this.bindDrawerButton(spec)
-      buttons.push({
-        key: spec.key,
-        label: spec.label,
-        kind: spec.kind,
-        value: spec.value,
-        options: spec.options,
-        icon: spec.icon,
-      })
-    }
-
-    this.#ui.setDrawerButtons(buttons)
-    for (const [key, active] of this.#drawerButtonStates) {
-      this.#ui.setDrawerButtonState(key, active)
-    }
   }
 }

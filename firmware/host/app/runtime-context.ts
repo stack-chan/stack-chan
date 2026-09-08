@@ -1,26 +1,11 @@
 import { createAppExtensions } from 'app-extensions'
 import { AppSession } from 'app-session'
-import type {
-  AudioCapability,
-  ConnectivityCapability,
-  ConversationCapability,
-  FaceCapability,
-  I18nCapability,
-  InputCapability,
-  LifecycleCapability,
-  LightingCapability,
-  MotionCapability,
-  RemoteConversationSession,
-  RobotUI,
-  RuntimeUICapability,
-  StackchanContext,
-} from 'capabilities'
+import type { ConnectivityCapability, HostPresentation, RemoteConversationSession, RobotUI } from 'capabilities'
 import clockTicks from 'clock-ticks'
 import type { Emotion } from 'face-state'
-import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
-import { createI18nCapability } from 'localization'
+import { localizeApp } from 'localization'
 import Modules from 'modules'
-import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
+import type { MotionDriver } from 'motion-driver'
 import { OwnedResources } from 'owned-resources'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
 import { type RuntimeCameraConstructorParam, StackchanRuntimeCamera } from 'runtime-camera'
@@ -37,10 +22,9 @@ import {
   ownWebRadio,
   RuntimeResources,
 } from 'runtime-resources'
-import { StackchanRuntimeUI } from 'runtime-ui'
+import { type RuntimeUIPose, StackchanRuntimeUI } from 'runtime-ui'
 import { type AppDefinition, EMOTIONS } from 'stackchan/app'
 import { StackchanError } from 'stackchan/errors'
-import { waitForCompletion } from 'stackchan-util'
 import Timer from 'timer'
 
 const INTERVAL_FACE = 1000 / 30
@@ -48,8 +32,9 @@ const INTERVAL_FACE = 1000 / 30
 type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
   RuntimeCameraConstructorParam &
   RuntimeInputConstructorParam &
-  RuntimeLightingConstructorParam &
-  MotionControllerConstructorParam & {
+  RuntimeLightingConstructorParam & {
+    driver: MotionDriver
+    pose?: RuntimeUIPose
     connectivity?: ConnectivityCapability
     remoteConversationSession?: RemoteConversationSession
     closeHandlers?: ReadonlyArray<() => void | Promise<void>>
@@ -57,27 +42,19 @@ type RuntimeContextConstructorParam = RuntimeAudioConstructorParam &
     restoreFace?: () => void
   }
 
-export class StackchanRuntimeContext implements StackchanContext {
+export class StackchanRuntimeContext {
   /**
-   * App-owned runtime context that delegates each capability to a focused runtime.
+   * Host-owned runtime context that delegates each capability to a focused runtime.
    */
-  #audioCapability: AudioCapability
+  #driver: MotionDriver
+  #pose: RuntimeUIPose
+  #remoteSession: RemoteConversationSession | undefined
   #audioRuntime: StackchanRuntimeAudio
   #connectivityCapability: ConnectivityCapability
-  #conversationCapability: ConversationCapability
   #cameraRuntime: StackchanRuntimeCamera
-  #faceCapability: FaceCapability
-  #i18nCapability: I18nCapability
-  #inputCapability: InputCapability
   #inputRuntime: StackchanRuntimeInput
-  #lifecycleCapability: LifecycleCapability
   #lightingRuntime: StackchanRuntimeLighting
-  #localPeerSessions = new Set<LocalPeerSession>()
-  #motionCapability: MotionCapability
-  #motionController: MotionController
   #appMotion: StackchanRuntimeMotion | undefined
-  #paused: boolean
-  #uiCapability: RuntimeUICapability
   #uiRuntime: StackchanRuntimeUI
   #updateFaceHandler: Timer | undefined
   #closed = false
@@ -90,7 +67,6 @@ export class StackchanRuntimeContext implements StackchanContext {
   private constructor(params: RuntimeContextConstructorParam, devices: RuntimeResources) {
     this.#ownedResources = new OwnedResources(params.closeHandlers)
     this.#devices = devices
-    this.#paused = false
     this.#simulated = !!params.simulated
   }
 
@@ -106,7 +82,7 @@ export class StackchanRuntimeContext implements StackchanContext {
       return context
     } catch (error) {
       try {
-        await context.#close()
+        await context.close()
       } catch (cleanupError) {
         trace(`[context] initialization cleanup failed: ${String(cleanupError)}\n`)
       }
@@ -131,17 +107,20 @@ export class StackchanRuntimeContext implements StackchanContext {
   }
 
   #initialize(params: RuntimeContextConstructorParam): void {
-    this.#motionController = new MotionController(params, {
-      isPaused: () => this.#paused,
-    })
+    this.#driver = params.driver
+    this.#pose = params.pose ?? {
+      body: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0, p: 0, r: 0 } },
+      eyes: {
+        left: { position: { x: 0.03, y: 0.009, z: 0 }, rotation: { y: 0, p: 0, r: 0 } },
+        right: { position: { x: 0.03, y: -0.009, z: 0 }, rotation: { y: 0, p: 0, r: 0 } },
+      },
+    }
     this.#uiRuntime = new StackchanRuntimeUI(
       params.ui,
       {
         restoreFace: params.restoreFace,
-        getContext: () => this,
-        getPose: () => this.#motionController.pose,
-        getGazePoint: () => (this.#appMotion ? this.#appMotion.gazePoint : this.#motionController.gazePoint),
-        isPaused: () => this.#paused,
+        getPose: () => this.#pose,
+        getGazePoint: () => this.#appMotion?.gazePoint,
       },
       this.#devices.ui,
     )
@@ -157,27 +136,15 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#lightingRuntime = new StackchanRuntimeLighting(params, this.#devices.lighting)
     this.#updateFaceHandler = Timer.repeat(this.#updateFace, INTERVAL_FACE)
     void this.#updateFaceHandler
-    this.#faceCapability = this.createFaceCapability()
-    this.#motionCapability = this.createMotionCapability()
-    this.#audioCapability = this.createAudioCapability()
-    // Capture the host-owned localization service after boot selected a locale;
-    // MODs receive this stable boundary instead of importing host UI internals.
-    this.#i18nCapability = createI18nCapability()
-    this.#inputCapability = this.createInputCapability()
-    this.#lifecycleCapability = this.createLifecycleCapability()
-    this.#conversationCapability = this.createConversationCapability(params.remoteConversationSession)
-    this.#connectivityCapability = this.createConnectivityCapability(params.connectivity ?? {})
-    this.#uiCapability = this.createUICapability()
+    this.#remoteSession = params.remoteConversationSession
+    this.#connectivityCapability = params.connectivity ?? {}
   }
 
   async startApp(definition: AppDefinition): Promise<AppSession> {
     if (this.#closed) throw new StackchanError('CLOSED', 'Host context is closed')
     if (this.#appSession && this.#appSession.state !== 'closed')
       throw new StackchanError('BUSY', 'An app is already running')
-    // API generations do not share a live gaze/torque controller. V2 takes
-    // sole ownership of motion scheduling; the host keeps the raw driver.
-    const driver = this.#motionController.driver
-    this.#motionController.close()
+    const driver = this.#driver
     const motion = new StackchanRuntimeMotion(driver, {
       clock: {
         now: clockTicks,
@@ -197,7 +164,7 @@ export class StackchanRuntimeContext implements StackchanContext {
         },
       },
       onPosition: (rotation) => {
-        const body = this.#motionController.pose.body.rotation
+        const body = this.#pose.body.rotation
         body.y = rotation.y
         body.p = rotation.p
         body.r = rotation.r
@@ -216,7 +183,7 @@ export class StackchanRuntimeContext implements StackchanContext {
           createAppExtensions(scope, {
             audio: this.#audioRuntime,
             connectivity: this.#connectivityCapability,
-            remote: this.#conversationCapability.remoteSession,
+            remote: this.#remoteSession,
             maintenance: driver.maintenance,
             maintain: (operation, resume) => motion.maintain(operation, resume),
           }),
@@ -232,7 +199,7 @@ export class StackchanRuntimeContext implements StackchanContext {
           setImageAvatar: (pack) => this.#uiRuntime.setImageAvatar(pack),
           setHandAnimation: (animation) => this.#uiRuntime.setHandAnimation(animation),
           setEmoticon: (emoticon) => this.#uiRuntime.setEmoticon(emoticon),
-          localize: (key, parameters) => this.#i18nCapability.localize(key, parameters),
+          localize: (key, parameters) => localizeApp(key, parameters),
           closeMenu: () => this.#uiRuntime.ui.closeDrawer(),
           resetAppearance: () => this.#uiRuntime.resetAppearance(),
           setTracking: (value) => this.#uiRuntime.setTracking(value),
@@ -366,7 +333,7 @@ export class StackchanRuntimeContext implements StackchanContext {
               case 'conversation.realtime':
                 return present(!this.#simulated && Modules.has('chat'))
               case 'conversation.remote':
-                return present(!!this.#conversationCapability.remoteSession)
+                return present(!!this.#remoteSession)
               case 'audio.monitor':
                 return present(
                   !!this.#audioRuntime.microphone?.monitor && this.#audioRuntime.microphone.available !== false,
@@ -433,251 +400,9 @@ export class StackchanRuntimeContext implements StackchanContext {
     return session
   }
 
-  get face(): FaceCapability {
-    return this.#faceCapability
-  }
-
-  get motion(): MotionCapability {
-    return this.#motionCapability
-  }
-
-  get audio(): AudioCapability {
-    return this.#audioCapability
-  }
-
-  get i18n(): I18nCapability {
-    return this.#i18nCapability
-  }
-
-  get input(): InputCapability {
-    return this.#inputCapability
-  }
-
-  get lighting(): LightingCapability {
-    return this.#lightingRuntime
-  }
-
-  get conversation(): ConversationCapability {
-    return this.#conversationCapability
-  }
-
-  get connectivity(): ConnectivityCapability {
-    return this.#connectivityCapability
-  }
-
-  get lifecycle(): LifecycleCapability {
-    return this.#lifecycleCapability
-  }
-
-  get camera() {
-    return this.#cameraRuntime.camera
-  }
-
-  get ui(): RuntimeUICapability {
-    return this.#uiCapability
-  }
-
-  private createFaceCapability(): FaceCapability {
-    return {
-      setColor: (key, r, g, b) => this.#uiRuntime.setColor(key, r, g, b),
-      setEmotion: (emotion) => this.#uiRuntime.setEmotion(emotion),
-      setEyeOpen: (key, value) => this.#uiRuntime.setEyeOpen(key, value),
-      setMouthOpen: (value) => this.#uiRuntime.setMouthOpen(value),
-    }
-  }
-
-  private createMotionCapability(): MotionCapability {
-    const context = this
-    return {
-      get pose() {
-        return context.#motionController.pose
-      },
-      lookAt(position) {
-        context.#motionController.lookAt(position)
-      },
-      lookAway() {
-        context.#motionController.lookAway()
-      },
-      setPose(pose, time) {
-        return waitForCompletion((callback) => context.#motionController.setPose(pose, time, callback))
-      },
-      setTorque(torque) {
-        return waitForCompletion((callback) => context.#motionController.setTorque(torque, callback))
-      },
-    }
-  }
-
-  private createAudioCapability(): AudioCapability {
-    const context = this
-    return {
-      get tts() {
-        return context.#audioRuntime.tts
-      },
-      get microphone() {
-        return context.#audioRuntime.microphone
-      },
-      useTTS(tts) {
-        context.#audioRuntime.useTTS(tts)
-      },
-      say(text, volume) {
-        return context.#audioRuntime.say(text, volume)
-      },
-      sing(koe, volume) {
-        return context.#audioRuntime.sing(koe, volume)
-      },
-      record(durationMilliSec) {
-        return context.#audioRuntime.record(durationMilliSec)
-      },
-      tone(hz, duration, volume) {
-        return context.#audioRuntime.tone(hz, duration, volume)
-      },
-      playAudio(buffer) {
-        return context.#audioRuntime.playAudio(buffer)
-      },
-      get webRadio() {
-        return context.#audioRuntime.webRadio
-      },
-    }
-  }
-
-  private createInputCapability(): InputCapability {
-    const context = this
-    return {
-      get button() {
-        return context.#inputRuntime.button
-      },
-      get touch() {
-        return context.#inputRuntime.touch
-      },
-      get touchPanel() {
-        return context.#inputRuntime.touchPanel
-      },
-      get imu() {
-        return context.#inputRuntime.imu
-      },
-    }
-  }
-
-  private createLifecycleCapability(): LifecycleCapability {
-    return {
-      close: () => this.#close(),
-    }
-  }
-
-  private createConversationCapability(remoteSession?: RemoteConversationSession): ConversationCapability {
-    return {
-      say: (text, volume) => this.#audioRuntime.say(text, volume),
-      ...(remoteSession ? { remoteSession } : {}),
-    }
-  }
-
-  private createConnectivityCapability(connectivity: ConnectivityCapability): ConnectivityCapability {
-    const localPeer = connectivity.localPeer
-    if (!localPeer) return connectivity
-    const context = this
-    return {
-      ...connectivity,
-      localPeer: {
-        get id() {
-          return localPeer.id
-        },
-        async open(options) {
-          if (context.#closed) throw new LocalPeerError('closed', 'Stack-chan context is closed')
-          const session = await localPeer.open(options)
-          if (context.#closed) {
-            session.close()
-            throw new LocalPeerError('closed', 'Stack-chan context is closed')
-          }
-          const trackedSession: LocalPeerSession = {
-            discover: (discoverOptions) => session.discover(discoverOptions),
-            send: (peerId, type, payload) => session.send(peerId, type, payload),
-            broadcast: (type, payload) => session.broadcast(type, payload),
-            subscribe: (type, handler) => session.subscribe(type, handler),
-            close() {
-              if (!context.#localPeerSessions.delete(trackedSession)) return
-              session.close()
-            },
-          }
-          context.#localPeerSessions.add(trackedSession)
-          return trackedSession
-        },
-      },
-    }
-  }
-
-  private createUICapability(): RuntimeUICapability {
-    const context = this
-    return {
-      get controller() {
-        return context.#uiRuntime.ui
-      },
-      get miniApps() {
-        return context.#uiRuntime.ui.miniApps
-      },
-      update(interval, faceState) {
-        context.#uiRuntime.ui.update(interval, faceState)
-      },
-      addEffect(effect, key) {
-        context.#uiRuntime.ui.addEffect(effect, key)
-      },
-      removeEffect(effect) {
-        context.#uiRuntime.ui.removeEffect(effect)
-      },
-      get application() {
-        return context.#uiRuntime.ui.application
-      },
-      setFace(face) {
-        context.#uiRuntime.ui.setFace(face)
-      },
-      setHandAnimation(animation) {
-        context.#uiRuntime.ui.setHandAnimation(animation)
-      },
-      setFaceMotionEnabled(enabled) {
-        context.#uiRuntime.ui.setFaceMotionEnabled?.(enabled)
-      },
-      setMain(content) {
-        context.#uiRuntime.ui.setMain(content)
-      },
-      showFace() {
-        context.#uiRuntime.ui.showFace()
-      },
-      setDrawerButtons(buttons) {
-        context.#uiRuntime.ui.setDrawerButtons(buttons)
-      },
-      addDrawerButton(button) {
-        context.#uiRuntime.ui.addDrawerButton(button)
-      },
-      removeDrawerButton(key) {
-        context.#uiRuntime.ui.removeDrawerButton(key)
-      },
-      setDrawerButtonState(key, active) {
-        context.#uiRuntime.ui.setDrawerButtonState(key, active)
-      },
-      bindDrawerAction(key, callback) {
-        return context.#uiRuntime.ui.bindDrawerAction(key, callback)
-      },
-      unbindDrawerAction(key) {
-        context.#uiRuntime.ui.unbindDrawerAction(key)
-      },
-      openDrawer() {
-        context.#uiRuntime.ui.openDrawer()
-      },
-      closeDrawer() {
-        context.#uiRuntime.ui.closeDrawer()
-      },
-      toggleDrawer() {
-        context.#uiRuntime.ui.toggleDrawer()
-      },
-      get drawer() {
-        return context.#uiRuntime.drawer
-      },
-      showBalloon(text, option) {
-        context.#uiRuntime.showBalloon(text, option)
-      },
-      hideBalloon() {
-        context.#uiRuntime.hideBalloon()
-      },
-    }
+  /** The Dock borrows these host operations; SDK apps receive only AppSession.context. */
+  get presentation(): HostPresentation {
+    return { ui: this.#uiRuntime.ui, setMouthOpen: (value) => this.#uiRuntime.setMouthOpen(value) }
   }
 
   /**
@@ -690,7 +415,7 @@ export class StackchanRuntimeContext implements StackchanContext {
     this.#uiRuntime.updateFace(INTERVAL_FACE)
   }
 
-  #close(): Promise<void> {
+  close(): Promise<void> {
     if (!this.#shutdown) {
       this.#closed = true
       this.#shutdown = new OwnedResources([
@@ -700,13 +425,8 @@ export class StackchanRuntimeContext implements StackchanContext {
         },
         () => this.#appSession?.close(),
         () => this.#appMotion?.close(),
-        () => this.#motionController?.close(),
         () => this.#devices.motion.close(),
         () => this.#ownedResources.close(),
-        () =>
-          new OwnedResources([...this.#localPeerSessions].map((session) => () => session.close()))
-            .close()
-            .finally(() => this.#localPeerSessions.clear()),
         () => this.#cameraRuntime?.close(),
         () => this.#inputRuntime?.close(),
         () => this.#audioRuntime?.close(),

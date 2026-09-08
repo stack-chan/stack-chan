@@ -21,7 +21,9 @@ vi.mock('sonner', () => ({
 
 const textMod: ModDefinition = {
   format: 'tech.stackchan.mod',
-  schemaVersion: 1,
+  schemaVersion: 2,
+  appApiVersion: 2,
+  hostApiVersion: 2,
   id: 'tech.stackchan.test.source-link',
   version: '1.0.0',
   type: 'text',

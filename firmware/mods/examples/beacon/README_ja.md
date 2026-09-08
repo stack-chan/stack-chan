@@ -18,11 +18,11 @@ npm run generate-speech-voicevox -- --input mods/examples/beacon/speeches_greeti
 
 UUID `CFFD85BB-67E0-9CD4-B2D0-BE5A7ECAC915`、manufacturer ID `0x004c`、major は連番、minor は1=挨拶 / 2=別れ、という既存形式を維持します。受信側は連番の重複を省き、次の処理で最新の挨拶を使います。
 
-挨拶の文は `speeches_greeting.js`、音声形式の設定は `config.js` を編集します。受信しない場合は双方の役割・UUIDを確認し、「停止」から選び直してください。WASM で BLE の成功を擬似表示する機能はありません。
+挨拶の文は `speeches_greeting.js` を編集します。再生レートは素材のヘッダーから読み取るため、`config.js` は不要です。受信しない場合は双方の役割・UUIDを確認し、「停止」から選び直してください。WASM で BLE の成功を擬似表示する機能はありません。
 
 ## ビルドと導入
 
-このブランチの app API 2 / host API 7 が必要です。古い host / XSA は更新・再ビルドします。`firmware/` で依存関係とツールチェーンを準備して実行してください。
+このブランチの app API 2 / host API 9 が必要です。古い host / XSA は更新・再ビルドします。`firmware/` で依存関係とツールチェーンを準備して実行してください。
 
 ```sh
 npm run mod:build -- mods/examples/beacon/manifest.json

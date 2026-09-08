@@ -1,5 +1,5 @@
 import { CancellationSource } from 'cancellation'
-import type { MotionDriver } from 'motion-controller'
+import type { MotionDriver } from 'motion-driver'
 import { type MotionClock, MotionExecution } from 'motion-execution'
 import { OperationQueue } from 'operation-queue'
 import { OwnedResources } from 'owned-resources'

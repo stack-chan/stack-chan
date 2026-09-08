@@ -548,7 +548,7 @@ class WasmView {
       this.onStatus({ status: 'error', code: 'firmware-start-failed' })
       this.onError(new Error(String(text)))
     }
-    if (String(text).includes('[main] app behaviors ready') && this.pendingReadyInstallation) {
+    if (String(text).includes('[main] app ready') && this.pendingReadyInstallation) {
       this.#reportReady(this.pendingReadyInstallation)
     }
   }

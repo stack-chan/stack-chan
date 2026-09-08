@@ -1,133 +1,41 @@
-# API
+# アプリAPI
 
 [English](./api.md)
 
-新規アプリは `defineApp` と公開SDKを使います。[SDKガイド](../sdk/README_ja.md) と [入門教材](../lessons/README_ja.md) から始めてください。以下は撤去を進めているAPI 1 runtimeの資料です。
+アプリ、Blockly生成コード、既定動作は、公開SDKの `defineApp({ setup(app) {} })` を使います。[7段階の教材](../lessons/README_ja.md)から始め、[SDKガイド](../sdk/README_ja.md)で機能を増やしてください。公開型の正本は [sdk](../sdk) です。
 
-ｽﾀｯｸﾁｬﾝのソースコードには `TSDoc` 形式のコメントがついています。
-このリポジトリでは、Node.js 側の検査と API ドキュメント生成のために `firmware/tsconfig.json` を保持しています。
+```js
+import { defineApp } from 'stackchan'
 
-次のコマンドを実行すると、`docs/api` ディレクトリ配下にドキュメントを生成できます。
-
-```console
-$ npm run generate-apidoc
+export default defineApp({
+  setup(app) {
+    app.input.onPress('primary', async (task) => {
+      app.face.setEmotion('happy')
+      await app.audio.tone(440, { durationMs: 300, signal: task.signal })
+      app.ui.showBalloon('できた！')
+    })
+  },
+})
 ```
 
-## 構成
+| 操作 | 公開入口 |
+| --- | --- |
+| 表情・色・口 | `app.face` |
+| 発話・素材・録音・再生 | `app.audio` |
+| 首の移動・注視・脱力 | `app.motion` |
+| 入力・周期処理・待機 | `app.input` / `app.time` |
+| カメラ・画像・吹き出し | `app.camera` / `app.ui` |
+| メニュー・図形の顔・翻訳 | `ui(app)` from `stackchan/extensions/ui` |
+| 歌・音量監視・ラジオ | `singing(app)` / `streamingAudio(app)` from `stackchan/extensions/audio` |
+| 通信・会話・設定・LED・センサー | `stackchan/extensions/*` |
+| Piu画面 | `definePiuApp` from `stackchan/extensions/piu` |
 
-旧API 1のMODは`onContextCreated`から`StackchanContext`を受け取ります。
-`StackchanContext`は、UI、motion、speech、inputの実装を独立して差し替えられるように、少数のcapabilityを公開します。
+時間は **ms**、首の角度は **度**、音量・口の開きは **0〜1** です。正のyawは左向き、正のpitchは下向きです。`motion.move` の結果で実測到達と推定完了を区別します。低レベルドライバーのラジアンをアプリへ渡しません。
 
-- [StackchanContext](#stackchancontext): MODに渡されるruntime capabilityの集合
-- [RobotUI](#robotui): Piu Application、顔、エフェクト、ドロワーUIの制御
-- [Motion capability](#motion-capability): 公開 motion API による首姿勢と視線移動の制御
-- [Audio capability](#audio-capability): 公開 audio API による音声再生
+非同期操作はPromiseで完了し、失敗は `StackchanError.code` で扱います。未対応は `UNSUPPORTED`、競合は `BUSY`、不正値は `INVALID_ARGUMENT`、取消しは `CANCELLED`、終了済みは `CLOSED` です。能力情報は `native / simulated / unavailable` を明示します。[操作と復帰の例](../sdk/README_ja.md)を参照してください。
 
-// TODO: capability図と説明
+AppSessionがタイマー・購読・操作・表示を所有します。イベント内では `task.sleep()` と `task.signal` を使い、非同期処理をreturnまたはawaitしてください。アプリ終了時に登録を外し、進行中の機器操作の停止を待ちます。機器を直接closeしたり、生のTimerをアプリへ追加したりする必要はありません。
 
-## 座標系
+host API 9から、V1 hook、旧Context、raw機器参照、`mod/config`の実行、metadataなし・schema 1・app API 1のarchiveは利用できません。[MOD定義](../../docs/specs/stackchan-mod.md)を付け、SDKのソースから再生成してください。`stackchan-mod.json.settings` には共通schemaの既定値をデータで宣言できます。保存済み設定と機種固定値が優先されます。
 
-![ｽﾀｯｸﾁｬﾝの座標系](./images/coordinate.jpg)
-
-ｽﾀｯｸﾁｬﾝの座標系は **右手系** です。
-右手の親指、人差し指と中指がそれぞれ直行するように曲げたとき、
-親指がX軸、人差し指がY軸、中指がZ軸となります。
-
-ｽﾀｯｸﾁｬﾝの顔が正面を向いているとき、各軸の正の方向は次のとおりです。
-
-- X軸の正方向…顔の前側
-- Y軸の正方向…顔の左側
-- Z軸の正方向…頭側
-
-また、回転の向きは軸の正の方向に対して右ねじが進む向きとなります。
-ｽﾀｯｸﾁｬﾝの顔でいうと、各軸の周りを正の方向へ回転する場合次のようになります。
-
-- ロール軸（X軸まわりの回転）の正方向…ｽﾀｯｸﾁｬﾝから見て時計回りに首をかしげる動き
-- ピッチ軸（Y軸まわりの回転）の正方向…ｽﾀｯｸﾁｬﾝが下を向く動き
-- ヨー軸（Z軸まわりの回転）の正方向…ｽﾀｯｸﾁｬﾝが左を向く動き
-
-ｽﾀｯｸﾁｬﾝのAPIにおいては **座標の単位はメートル、角度の単位はラジアンになります** 。
-座標系との対応は実際のソースコード（[`mods/examples/look_around`](../mods/examples/look_around/)など）も参考にしてください。
-
-## 型
-
-### StackchanContext
-
-`StackchanContext` は namespaced capability を公開します。
-新しい MOD では次の形式を推奨します。
-
-- `context.audio.say(...)`、`context.audio.record(...)`、`context.audio.playAudio(...)`
-- MOD が speech engine の選択を所有する場合の `context.audio.useTTS(...)`
-- `context.motion.lookAt(...)`、`context.motion.setPose(...)`、`context.motion.setTorque(...)`
-- `context.face.setEmotion(...)`、`context.face.setColor(...)`
-- `context.i18n.locale`、`context.i18n.localize(...)`
-- `context.ui.showBalloon(...)`、`context.ui.drawer.addDrawerButton(...)`
-- `context.input.touch`、`context.input.touchPanel`、`context.input.imu`
-- `context.lighting.lightOn(...)`、`context.camera.capture(...)`、`context.connectivity.network?.ready`、`context.connectivity.localPeer`
-- runtime が所有する Timer、sensor、camera session、motion timer を解放する `context.lifecycle.close()`
-
-input device は optional です。
-`context.input.touch` は platform が `config.Touch` を公開している場合だけ定義されます。
-`context.input.touchPanel` は platform が `config.TouchPanel` を公開している場合だけ定義されます。
-MOD は touch handler を登録する前に `undefined` を確認してください。
-
-`context.connectivity.network?.ready` は `connected`、`skipped`、`failed` のいずれかへ解決されます。
-network が必要な MOD は、host 内部の network module を import せずにこれを await し、`skipped` や `failed` を扱えます。
-local peer sessionではESP-NOWとBLE Serialを同じAPIで利用できます。詳しくは[ローカルP2Pメッセージ通信](./local-peer-communication_ja.md)を参照してください。
-
-`context.ui.showBalloon(text, options)` の `options.tail` では、吹き出しのトンガリを
-`top-left`、`top-right`、`bottom-left`、`bottom-right` から選べます。
-未指定時は、下配置なら `top-left`、`top` を指定した上配置なら `bottom-left` が選ばれます。
-
-MOD の Drawer Button や Piu `Label` に表示する文字列は `context.i18n.localize(key, values?)` で取得します。
-MOD 自身の辞書、host 辞書、キー文字列の順に解決されます。
-辞書の追加方法は [Firmware のローカライズ](./localization_ja.md)を参照してください。
-
-flat context のメソッドとgetterは撤去しました。`context.say(...)`、`context.lookAt(...)`、`context.showBalloon(...)`、`context.useTTS(...)`、raw入力やLEDのflat呼び出しに別名は残していません。SDKのportと残る旧名前空間は既存のruntimeを直接呼びます。新規アプリはSDKを使い、旧名前空間自体も利用者の移行と一緒に撤去します。
-
-### ライフサイクルとエラー
-
-runtime resource の解放には `close()` を使います。
-`close()` は冪等であり、app runtime は所有する Timer、sensor、camera session、motion timer の順で解放します。
-firmware runtime resource には `dispose()` を使いません。
-`pause()` と `resume()` は個別操作の一時停止と再開を表す名前であり、所有権の解放には使いません。
-
-platform が device を提供しない optional hardware capability は `undefined` で表します。
-たとえば `context.input.touch`、`context.input.touchPanel`、`context.input.imu`、`context.connectivity.network` は optional です。
-現在の target で実行できない必須操作は throw または reject します。
-たとえば microphone がない場合、`context.audio.record()` は reject します。
-未対応が通常の結果になり得る操作は、throw ではなく型付きの値を返します。
-たとえば `context.audio.playAudio(buffer)` は、借用 buffer 再生が未対応または失敗した場合に `false` を返します。
-
-`Maybe<T>` は、UI や MOD code に復旧可能な理由を返す user-facing 操作だけで使います。
-呼び出し側が制御フローとして扱う非同期 command の失敗は Promise rejection で伝えます。
-同期的な引数エラーは throw します。
-`trace(...)` は診断を追加する目的で使えますが、public capability operation の唯一の失敗通知にしてはいけません。
-
-wasm audio bridge は、現在の public capability 実装で唯一、非同期 host 操作を polling します。
-50ms の間隔は bridge contract の `WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS` として宣言し、browser audio の record/play status 確認に限定します。
-
-### RobotUI
-
-`RobotUI` は `context.ui` として公開される UI capability namespace です。
-顔、エフェクト、ドロワー登録、ドロワーの open/close を扱い、MOD が `ui.application` の内部へ到達しなくてよい API を提供します。
-
-### Motion capability
-
-公開 motion API は、`pose`、`lookAt`、`lookAway`、`setPose`、`setTorque` を提供します。
-低レイヤの driver object は `host/modules/motion` の内部実装であり、MOD には公開しません。
-
-### Audio capability
-
-公開 audio API は、MOD に渡す capability object から音声再生機能を提供します。
-local、remote、Voicevox、ElevenLabs、OpenAI などの provider object は `host/modules/audio` の内部実装です。
-
-`sing(koe, volume?)` は、使用中の TTS provider が対応している場合に stackchan-voice の歌唱記法を再生します。
-歌唱非対応の provider では失敗結果を返し、歌唱記法を通常の文章として読み上げることはありません。
-
-`playAudio(buffer)` は、target が借用 buffer を受け取り、再生が完了した場合だけ `true` を返します。
-target が buffer 再生に未対応、buffer が空、または再生に失敗した場合は `false` を返します。
-呼び出し側は buffer の所有権を保持し、`false` を未対応または未再生として扱ってください。
-
-- [TTS（音声合成）の使用](./text-to-speech_ja.md)
-- [stackchan-voice の発話・歌唱](./stackchan-voice.md)
+`npm run generate-apidoc` は現在ホスト実装を対象とする開発者向け資料です。アプリ向けAPIの入口はSDKガイドと公開型です。

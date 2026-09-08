@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { RemoteConversationTransportState, StackchanContext } from 'capabilities'
+import type { HostPresentation, RemoteConversationTransportState } from 'capabilities'
 import { installRemoteSessionTestAliases } from './__tests__/node-aliases.js'
 import type { ConversationRetryScheduler } from './conversation-session.js'
 import type { RealtimeEventBridge, RealtimeEventSendResult, RealtimeToolProvider } from './realtime-session.js'
@@ -66,7 +66,7 @@ test('remote runtime retains stop delivery after its activation binding closes',
   const bridge = new FakeBridge()
   const scheduler = new FakeScheduler()
   const runtime = createRemoteSessionRuntime(bridge, scheduler)
-  const activation = runtime.activate({} as StackchanContext, { tools: [] } satisfies RealtimeToolProvider)
+  const activation = runtime.activate({} as HostPresentation, { tools: [] } satisfies RealtimeToolProvider)
 
   const requestId = activation.remoteConversationSession.requestStop()
   activation.close()

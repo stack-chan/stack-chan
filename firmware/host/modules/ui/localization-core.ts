@@ -9,11 +9,6 @@ export type LocalizationCatalog = {
   get(key: string): string | undefined
 }
 
-export type I18nCapability = Readonly<{
-  readonly locale: SupportedLocale
-  localize: (key: string, values?: LocalizationValues) => string
-}>
-
 export function normalizeLocale(value: unknown): SupportedLocale | undefined {
   if (typeof value !== 'string') return undefined
   const language = value.trim().toLowerCase().split(/[-_]/, 1)[0]

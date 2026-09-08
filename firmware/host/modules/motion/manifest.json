@@ -12,7 +12,7 @@
     "protocols/*": "./protocols/*"
   },
   "preload": [
-    "motion-controller",
+    "motion-driver",
     "motion-driver-callback",
     "protocols/dynamixel",
     "dynamixel-driver",

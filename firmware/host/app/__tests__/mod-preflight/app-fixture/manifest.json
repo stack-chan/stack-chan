@@ -1,8 +1,16 @@
 {
-  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
-  "modules": { "mod": "./mod", "mod/config": "./config" },
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json"
+  ],
+  "modules": {
+    "mod": "./mod"
+  },
   "data": {
-    "stackchan-mod": ["../stackchan-mod.json"],
-    "locals": ["./locals.mhi"]
+    "stackchan-mod": [
+      "../stackchan-mod.json"
+    ],
+    "locals": [
+      "./locals.mhi"
+    ]
   }
 }

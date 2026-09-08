@@ -1,8 +1,8 @@
 import type {
+  HostPresentation,
   RemoteConversationSession,
   RemoteConversationSessionDelegate,
   RemoteConversationState,
-  StackchanContext,
 } from 'capabilities'
 import type { TaskExecutionState } from 'stackchan-application-event'
 import type { RealtimeToolProvider } from 'stackchan-realtime-session'
@@ -44,9 +44,9 @@ export type UsbAudioConfig = UsbAudioBridgeOptions & {
 
 export function resolveUsbAudioConfig(
   hostConfig: UsbAudioConfig | undefined,
-  modConfig: unknown,
+  capabilities: readonly string[] = [],
 ): UsbAudioConfig | undefined {
-  const enabledByMod = (modConfig as { usbAudio?: { enabled?: unknown } } | null)?.usbAudio?.enabled === true
+  const enabledByMod = capabilities.includes('conversation.remote')
   return enabledByMod ? { ...(hostConfig ?? {}), enabled: true } : hostConfig
 }
 
@@ -59,14 +59,14 @@ export type UsbAudioRemoteActivation = {
 }
 
 export type UsbAudioRemoteRuntime = {
-  activate(context: StackchanContext, provider: RealtimeToolProvider): UsbAudioRemoteActivation
+  activate(context: HostPresentation, provider: RealtimeToolProvider): UsbAudioRemoteActivation
   subscribeTaskState(listener: (state: TaskExecutionState) => void): () => void
   close(): void
 }
 
 export type UsbAudioDockRuntime = {
   readonly remoteConversationSession?: RemoteConversationSession
-  onContextCreated(context: StackchanContext): void
+  attach(context: HostPresentation): void
   close(): void
 }
 
@@ -74,8 +74,8 @@ export type UsbAudioDockDependencies<Status> = {
   hasUsbAudioModule(): boolean
   importUsbAudioModule(): unknown
   createRemoteRuntime(bridge: UsbAudioBridgeControl<Status>): UsbAudioRemoteRuntime
-  createRealtimeToolProvider(context: StackchanContext): RealtimeToolProvider
-  createPresentation(context: StackchanContext): UsbAudioPresentationControl
+  createRealtimeToolProvider(): RealtimeToolProvider
+  createPresentation(context: HostPresentation): UsbAudioPresentationControl
   conversationState(status: Status): RemoteConversationState
   resolveSpeakerVolume?(): number
 }
@@ -112,7 +112,7 @@ export function createUsbAudioDockRuntime<Status>(
     }
     throw error
   }
-  let context: StackchanContext | undefined
+  let context: HostPresentation | undefined
   let contextAttached = false
   let closed = false
   const facade = createRemoteConversationSessionFacade(createActiveBinding)
@@ -122,7 +122,7 @@ export function createUsbAudioDockRuntime<Status>(
       throw new Error('USB audio Dock cannot activate before the Stack-chan context is attached')
     }
 
-    const remoteActivation = remoteRuntime.activate(context, dependencies.createRealtimeToolProvider(context))
+    const remoteActivation = remoteRuntime.activate(context, dependencies.createRealtimeToolProvider())
     let presentation: UsbAudioPresentationControl | undefined
     let removeTaskStateListener: (() => void) | undefined
     try {
@@ -158,7 +158,7 @@ export function createUsbAudioDockRuntime<Status>(
 
   return {
     remoteConversationSession: facade.remoteSession,
-    onContextCreated(nextContext) {
+    attach(nextContext) {
       if (closed) throw new Error('USB audio Dock runtime is closed')
       if (contextAttached) throw new Error('USB audio Dock context is already attached')
       if (dependencies.resolveSpeakerVolume) {

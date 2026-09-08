@@ -13,14 +13,14 @@ describe('CopyableCode', () => {
     render(
       <I18nProvider>
         <TooltipProvider>
-          <CopyableCode code={'export function onLaunch() {\n  return true\n}'} emptyMessage="empty" />
+          <CopyableCode code={'export default defineApp({\n  setup(app) {}\n})'} emptyMessage="empty" />
         </TooltipProvider>
       </I18nProvider>
     )
 
     await user.click(screen.getByRole('button', { name: '生成コードをコピー' }))
 
-    expect(writeText).toHaveBeenCalledWith('export function onLaunch() {\n  return true\n}')
+    expect(writeText).toHaveBeenCalledWith('export default defineApp({\n  setup(app) {}\n})')
     expect(await screen.findByRole('button', { name: 'コピーしました' })).toBeVisible()
     expect(screen.getByRole('status')).toHaveTextContent('コピーしました')
   })

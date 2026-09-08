@@ -52,7 +52,6 @@ function installBareSpecifierPackages(): void {
     hasDefaultExport: true,
   })
   writeAliasPackage(hostRoot, 'stackchan-util', resolve(modulesRoot, 'util/stackchan-util.js'))
-  writeAliasPackage(hostRoot, 'boot-network-recovery', resolve(hostRoot, 'app/boot-network-recovery.js'))
   writeAliasPackage(
     hostRoot,
     'local-peer-capability',

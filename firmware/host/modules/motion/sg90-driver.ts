@@ -4,7 +4,7 @@ import {
   type MotionDurationSeconds,
   type MotionResultCallback,
   motionDurationSecondsToMilliseconds,
-} from 'motion-controller'
+} from 'motion-driver'
 import { directMotionPort, type MotionPort, motionInfo } from 'motion-port'
 import type { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'

@@ -1,8 +1,13 @@
 {
-  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json"
+  ],
   "modules": {
-    "mod": "../app-fixture/mod",
-    "mod/config": "../app-fixture/config"
+    "mod": "../app-fixture/mod"
   },
-  "data": { "stackchan-mod": ["./stackchan-mod.json"] }
+  "data": {
+    "stackchan-mod": [
+      "./stackchan-mod.json"
+    ]
+  }
 }

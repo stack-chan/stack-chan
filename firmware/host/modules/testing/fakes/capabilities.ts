@@ -39,7 +39,7 @@ export type RemoteConversationSession = RemoteConversationSessionDelegate & {
   deactivate(): void
 }
 
-export type StackchanContext = unknown
+export type HostPresentation = unknown
 
 export type RobotLed = {
   on(r: number, g: number, b: number, duration?: number, index?: number, count?: number): void

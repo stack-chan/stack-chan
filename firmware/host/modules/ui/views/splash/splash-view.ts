@@ -1,5 +1,5 @@
 import { localize } from 'localization'
-import type { Application as PiuApplication, Container as PiuContainer, Label as PiuLabel } from 'piu/MC'
+import type { Application as PiuApplication } from 'piu/MC'
 import { Application, Column, Container, Label, Text } from 'piu/MC'
 import { ActionButton } from 'ui-controls'
 import { UI, uiStyles } from 'ui-theme'
@@ -10,32 +10,6 @@ export type StartupSplashOptions = {
   onSettings?: () => void
   detail?: string
   onRestart?: () => void
-}
-
-export type WiFiConnectionStatusOptions = {
-  attempt: number
-  maxAttempts: number
-}
-
-export type WiFiRecoveryChoiceOptions = {
-  message: string
-  onRetry?: () => void
-  onOffline?: () => void
-}
-
-let currentMessageLabel: PiuLabel | null = null
-let currentActionArea: PiuContainer | null = null
-let actionVersion = 0
-
-function showActions(contents: PiuContainer[]) {
-  actionVersion++
-  if (!currentActionArea) return
-  currentActionArea.empty()
-  for (const content of contents) currentActionArea.add(content)
-}
-
-function setMessage(message: string) {
-  if (currentMessageLabel) currentMessageLabel.string = message
 }
 
 function createStartupSplash(options: StartupSplashOptions, includeSettings: boolean): PiuApplication {
@@ -53,8 +27,6 @@ function createStartupSplash(options: StartupSplashOptions, includeSettings: boo
     bottom: 12,
     height: UI.touchTarget,
   })
-  currentMessageLabel = messageLabel
-  currentActionArea = actionArea
 
   const application = new Application(options, {
     commandListLength: 4096,
@@ -84,7 +56,7 @@ function createStartupSplash(options: StartupSplashOptions, includeSettings: boo
     ],
   })
 
-  showActions([
+  const actions = [
     ...(options.onMods
       ? [
           new ActionButton(
@@ -111,7 +83,8 @@ function createStartupSplash(options: StartupSplashOptions, includeSettings: boo
           ),
         ]
       : []),
-  ])
+  ]
+  for (const action of actions) actionArea.add(action)
   return application
 }
 
@@ -121,36 +94,4 @@ export function showStartupSplash(options: StartupSplashOptions = {}): PiuApplic
 
 export function showStartupFailure(options: StartupSplashOptions): PiuApplication {
   return createStartupSplash(options, false)
-}
-
-export function showWiFiConnectionStatus(options: WiFiConnectionStatusOptions): void {
-  setMessage(localize('splash.connecting', options))
-  showActions([])
-}
-
-export function showWiFiRecoveryChoice(options: WiFiRecoveryChoiceOptions): () => void {
-  setMessage(options.message)
-  showActions([
-    new ActionButton(
-      {
-        icon: 'retry',
-        label: localize('splash.retry'),
-        onTap: options.onRetry,
-      },
-      { left: 8, width: 148 },
-    ),
-    new ActionButton(
-      {
-        icon: 'offline',
-        label: localize('splash.offline'),
-        onTap: options.onOffline,
-      },
-      { left: 164, width: 148 },
-    ),
-  ])
-  const owner = currentActionArea
-  const version = actionVersion
-  return () => {
-    if (currentActionArea === owner && actionVersion === version) showActions([])
-  }
 }

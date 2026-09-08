@@ -1,10 +1,7 @@
-import type { Button } from 'capabilities'
 import type IMU from 'imu'
-import { createButtonInputEvent } from 'input-event'
 import { ResourceScope } from 'owned-resources'
 import { StackchanError } from 'stackchan/errors'
 import type { ButtonName as ButtonRole, HeadTouchEvent, MotionEvent } from 'stackchan/extensions/input'
-import Time from 'time'
 import type Touch from 'touch'
 import type TouchPanel from 'touch-panel'
 
@@ -23,9 +20,8 @@ export type RuntimeInputConstructorParam = {
 }
 
 export class StackchanRuntimeInput {
-  #button: Partial<Record<ButtonName, Button>> | undefined
+  #buttons: readonly ButtonName[] = []
   #imu: IMU | undefined
-  #touch: Touch | undefined
   #touchPanel: TouchPanel | undefined
   #closed = false
   #buttonListeners = new Map<string, Set<() => void>>()
@@ -34,7 +30,6 @@ export class StackchanRuntimeInput {
 
   constructor(params: RuntimeInputConstructorParam, devices?: ResourceScope) {
     this.#devices = devices ?? new ResourceScope()
-    this.#touch = params.touch
     this.#touchPanel = params.touchPanel
     this.#imu = params.imu
     if (!devices) {
@@ -43,7 +38,7 @@ export class StackchanRuntimeInput {
       }
     }
     try {
-      this.#button = createButtonInputs(
+      this.#buttons = createButtonInputs(
         params.button,
         this.#devices,
         () => !this.#closed,
@@ -73,7 +68,7 @@ export class StackchanRuntimeInput {
   }
 
   buttonFor(role: ButtonRole): 'a' | 'b' | 'c' | undefined {
-    return (['a', 'b', 'c'] as const).filter((name) => this.#button?.[name] !== undefined)[
+    return (['a', 'b', 'c'] as const).filter((name) => this.#buttons.includes(name))[
       ['primary', 'secondary', 'tertiary'].indexOf(role)
     ]
   }
@@ -166,14 +161,6 @@ export class StackchanRuntimeInput {
     if (this.#closed) throw new StackchanError('CLOSED', 'Input is closed')
   }
 
-  get button() {
-    return this.#button
-  }
-
-  get touch() {
-    return this.#touch
-  }
-
   get touchPanel(): TouchPanel | undefined {
     return this.#touchPanel
   }
@@ -195,28 +182,25 @@ function createButtonInputs(
   resources: ResourceScope,
   isOpen: () => boolean,
   onPress: (name: ButtonName, pressed: boolean) => void,
-): Partial<Record<ButtonName, Button>> | undefined {
-  if (buttons == null) return undefined
-  const result: Partial<Record<ButtonName, Button>> = {}
-  for (const name of ['a', 'b', 'c', 'power'] as const) {
+): readonly ButtonName[] {
+  if (buttons == null) return []
+  const result: ButtonName[] = []
+  for (const name of ['a', 'b', 'c'] as const) {
     const rawButton = buttons[name]
     if (rawButton == null) continue
-    const button: Button = {}
     const previous = rawButton.onChanged
     let active = true
     const handler = function (this: RawButton) {
       if (!active || !isOpen()) return
       const pressed = Boolean(this.read())
-      button.onEvent?.(createButtonInputEvent(name, pressed, Time.ticks))
       onPress(name, pressed)
     }
     resources.defer(() => {
       active = false
-      button.onEvent = undefined
       if (rawButton.onChanged === handler) rawButton.onChanged = previous
     })
     rawButton.onChanged = handler
-    result[name] = button
+    result.push(name)
   }
   return result
 }

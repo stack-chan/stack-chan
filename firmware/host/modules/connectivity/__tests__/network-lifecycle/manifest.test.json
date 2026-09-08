@@ -18,7 +18,6 @@
     "ecma-wifi": "./fake-wifi",
     "boot-services": "../../../../app/boot-services",
     "boot-session": "../../../../app/boot-session",
-    "boot-network-recovery": "../../../../app/boot-network-recovery",
     "cancellation": "../../../../app/cancellation",
     "task-scope": "../../../../app/task-scope",
     "operation-queue": "../../../../app/operation-queue",
@@ -27,9 +26,19 @@
     "local-peer-capability": "../../sim/local-peer-capability",
     "localization": "../../../testing/fakes/localization"
   },
-  "config": { "sntp": "test.invalid" },
-  "defines": { "main": { "async": 1 } },
+  "config": {
+    "sntp": "test.invalid"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
   "typescript": {
-    "tsconfig": { "compilerOptions": { "strictNullChecks": false } }
+    "tsconfig": {
+      "compilerOptions": {
+        "strictNullChecks": false
+      }
+    }
   }
 }

@@ -17,6 +17,11 @@ export function inspectInstalledMod(
   readMetadata: () => ArrayBuffer | undefined,
 ): Readonly<ModRuntimeContract> | undefined {
   if (archive.length === 0) return undefined
+  if (archive.includes('mod/config'))
+    throw new ModCompatibilityError(
+      'MOD_APP_API_UNSUPPORTED',
+      'Executable mod/config has been retired. Move defaults to stackchan-mod.json settings and rebuild.',
+    )
   const buffer = readMetadata()
   if (!buffer) throw new ModCompatibilityError('MOD_METADATA_MISSING', 'Rebuild the MOD with stackchan-mod.json')
   if (buffer.byteLength > MOD_METADATA_LIMIT)

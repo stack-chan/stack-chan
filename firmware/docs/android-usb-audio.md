@@ -23,10 +23,26 @@ npm run flash:android-usb-audio
 Dockはホストの起動設定が完了してからUSB物理ブリッジを起動し、保存した音量を読む。context接続時にも再読込する。
 診断manifestは明示的な`config.usbAudio.speakerVolume=0`を優先し、無音を維持する。
 標準CoreS3 manifestは`config.usbAudio.enabled=false`であり、USB物理ブリッジと`remoteSession`を作成しない。
-USB機能を必要とするMODは、自身のmanifestへ`"usbAudio": { "enabled": true }`をconfigとして宣言する。
-hostは起動設定の完了後にこの`mod/config`を読み、MOD本体の評価と旧`onLaunch()`の呼出しより前に、USBSerialとworkerを含む物理USBブリッジを一度だけ確保する。
+USB機能を必要とするSDKアプリは、`stackchan-mod.json` の `capabilities` に `conversation.remote` を宣言する。
+hostは起動設定の完了後、検証済みの宣言を使ってUSBSerialとworkerを含む物理USBブリッジを一度だけ確保する。
 連続したnative ringを、MOD本体・Wi-Fi・runtime contextの初期化より先に確保する順序を保つ。設定画面を開いている間はMODのコードを実行しない。
-MOD宣言で有効化した場合は標準manifestの`autoStart=false`を維持し、`onContextCreated()`で`remoteSession.activate()`を呼ぶまで論理セッションを起動しない。
+MOD宣言で有効化した場合は標準manifestの `autoStart=false` を維持し、SDKの `conversation(app).remote()` を呼ぶまで論理セッションを起動しない。
+
+```js
+import { defineApp } from 'stackchan'
+import { conversation } from 'stackchan/extensions/conversation'
+
+export default defineApp({
+  setup(app) {
+    const remote = conversation(app).remote()
+    app.input.onPress('primary', () => { remote.requestStart() })
+    // 接続・購読・承認UIはアプリ終了で解放される。
+    // 早く閉じる場合は await remote.close()。
+  },
+})
+```
+
+次のactivationとEVENTの説明はホスト内部の責務であり、アプリへraw sessionを渡す契約ではない。
 application EVENT runtimeもhost起動時に作り、MOD有効化前に届いたタスク状態を保持する。
 この常駐runtimeはraw EVENT transport、タスク状態のsnapshot、会話要求の再送と結果照合を所有する。
 Androidから`session.created`が先に届いても、MODが`activate()`して実際のtool providerを渡すまでは`session.update`を送らない。
@@ -48,8 +64,8 @@ AndroidはLLM応答開始時のtool catalogをsnapshotし、function callへそ�
 M5StackChan CoreS3用manifestは、このモジュール名をUSB Dock実装へ割り当てる。
 共有host manifestとWASM版はUSB transport、remote session、承認画面をbundleしない。
 
-USB Audioを有効にしたhostの`robot.conversation.remoteSession`は、会話表示をまだ有効化していないinactive状態から始まる。
-USB機能を使うMODは、状態購読や会話要求より前に`remoteSession.activate()`を呼ぶ。
+USB Audioを有効にしたホスト内部の会話sessionは、会話表示をまだ有効化していないinactive状態から始まる。
+SDK接続の作成が、状態購読や会話要求より前に内部sessionの `activate()` を呼ぶ。
 `activate()`は冪等であり、成功後の`activationState`は`active`になる。
 `deactivate()`は`conversation.stop`を常駐会話制御sessionへ先にqueueし、会話状態ハンドラと状態表示の購読を外して、同じfacadeを再びactivateできる状態へ戻す。
 停止要求の再送と`conversation.result`の照合はactivation bindingを閉じた後も常駐会話制御sessionが継続する。
@@ -67,16 +83,17 @@ Dock内部は次の三つの契約に分かれる。
 - **media session**：マイク、スピーカー、credit、stream IDの状態を扱う。
 - **application event**：音声会話、承認要求、バックグラウンドタスク状態のJSONを扱う。
 
-MODへ公開する境界は`robot.conversation.remoteSession`である。
-raw CDC、frame、application eventはMODとmini-appへ公開しない。
+アプリへ公開する境界は `conversation(app).remote()` の `RemoteConversation` である。
+`state` / `transport`、`onState()` / `onTransport()`、`requestStart()` / `requestStop()`、`close()` を使う。
+DockのホストUI統合には表示専用portを渡す。raw Contextや外部tool moduleの暗黙importは使わない。
 
-`remoteSession.transportState`は、EVENT transportの状態を次の三値で返す。
+内部の `remoteSession.transportState`（SDKの `remote.transport`）は、EVENT transportの状態を次の三値で返す。
 
 - `disconnected`：USB SOFを検出していない。
 - `unsupported`：USBは接続されているが、HELLO前またはpeerがEVENTを広告していない。
 - `ready`：双方がEVENT bit 10を広告し、application eventを送受信できる。
 
-`remoteSession.subscribeTransport()`は、この三値が変化した場合に通知する。
+内部の `remoteSession.subscribeTransport()`（SDKの `remote.onTransport()`）は、この三値が変化した場合に通知する。
 `activationState='inactive'`の間、`transportState`は`disconnected`である。
 EVENT非対応時の会話要求はrequest IDを返したうえで即座に`blocked`となり、EVENT frameもretry timerも作らない。
 USB未接続時の会話要求は同じrequest IDを最大10秒間保持し、`ready`へ遷移した時点で送信する。

@@ -12,7 +12,7 @@
 一度ホストを書き込んでしまえば、ユーザアプリケーションのインストールは短時間で終わるため高速な開発が可能です。
 最初にホストを書き込み、必要に応じて MOD の書き込みを行います。
 MOD がインストールされていない場合、ホストは製品既定動作を実行します。
-MOD がインストールされている場合、製品既定動作は実行されず、MOD が `onContextCreated` で runtime context を受け取ります。
+MODがある場合は、そのSDKアプリを `defineApp / setup(app)` から開始します。製品既定動作も同じSDKを使います。
 
 ### マニフェストファイル
 
@@ -225,7 +225,6 @@ $ npm run mod -- ./mods/examples/look_around/manifest.json
 
 # xsc mod.xsb
 # xsc check.xsb
-# xsc mod/config.xsb
 # xsl look_around.xsa
 [stack-chan] MOD preflight: xs_esp32 9.0.0+stackchan.1, XS 17.8.0, xs=0xfa0000/262144
 [stack-chan] MOD installed and verified: .../look_around.xsa

@@ -1,4 +1,4 @@
-import { getHostSettingsService, loadModConfig } from 'loadPreference'
+import { getHostSettingsService } from 'loadPreference'
 import Resource from 'Resource'
 import verifyInstalledMod, { inspectInstalledMod } from 'installed-mod'
 import detachModArchive from 'mod-archive-control'
@@ -37,10 +37,14 @@ function run() {
 
   equal(verifyInstalledMod(), undefined, 'no archive during preload')
   rejects(
-    () => inspectInstalledMod(['mod', 'mod/config'], () => new Resource('stackchan-mod.json').slice(0)),
+    () => inspectInstalledMod(['mod'], () => new Resource('stackchan-mod.json').slice(0)),
     'MOD_HOST_API_UNSUPPORTED',
   )
-  loadModConfig()
+  rejects(() => inspectInstalledMod(['mod', 'mod/config'], () => encoded(modDefinition)), 'MOD_APP_API_UNSUPPORTED')
+  rejects(
+    () => inspectInstalledMod(['mod'], () => encoded({ ...modDefinition, appApiVersion: 1 })),
+    'MOD_APP_API_UNSUPPORTED',
+  )
   getHostSettingsService().get('ui.language')
   equal(inspectInstalledMod(['mod'], () => encoded(modDefinition)).appApiVersion, 2, 'supported app declared')
   rejects(() => inspectInstalledMod(['mod'], () => undefined), 'MOD_METADATA_MISSING')

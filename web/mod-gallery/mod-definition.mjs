@@ -57,10 +57,6 @@ function catalogDefinitionUrl(value, catalogUrl) {
 export function parseModDefinition(value) {
   if (!isRecord(value)) throw new TypeError('MOD定義がJSONオブジェクトではありません')
   if (value.format !== STACKCHAN_MOD_FORMAT) throw new TypeError('未対応のMOD定義形式です')
-  if (value.schemaVersion !== 1 && value.schemaVersion !== STACKCHAN_MOD_SCHEMA_VERSION) {
-    throw new TypeError(`未対応のMOD定義バージョンです: ${value.schemaVersion ?? 'なし'}`)
-  }
-
   const runtime = parseModRuntimeContract(value)
   if (!STACKCHAN_MOD_TYPES.includes(value.type)) throw new TypeError('typeはblockまたはtextで指定してください')
   if (!isRecord(value.source)) throw new TypeError('sourceがありません')
@@ -96,13 +92,10 @@ export function parseModDefinition(value) {
     schemaVersion: runtime.schemaVersion,
     id: runtime.id,
     version: runtime.version,
-    ...(runtime.schemaVersion === 2
-      ? {
-          appApiVersion: runtime.appApiVersion,
-          hostApiVersion: runtime.hostApiVersion,
-          optionalCapabilities: [...runtime.optionalCapabilities],
-        }
-      : {}),
+    appApiVersion: runtime.appApiVersion,
+    settings: { ...runtime.settings },
+    hostApiVersion: runtime.hostApiVersion,
+    optionalCapabilities: [...runtime.optionalCapabilities],
     type: value.type,
     name: nonEmptyString(value.name, 'name', 80),
     description: nonEmptyString(value.description, 'description', 400),

@@ -73,7 +73,11 @@ test('テキストMODの成果物は既存の実行互換性を維持する', as
   }
 })
 
-for (const [galleryName, example] of [['mediapipe-ble', 'mediapipe_ble'], ['mcp', 'mcp'], ['codex-voice', 'codex_voice']]) {
+for (const [galleryName, example] of [
+  ['mediapipe-ble', 'mediapipe_ble'],
+  ['mcp', 'mcp'],
+  ['codex-voice', 'codex_voice'],
+]) {
   test(`${galleryName} Gallery publishes every application module from its canonical SDK example`, () => {
     const firmware = new URL(`../../firmware/mods/examples/${example}/`, import.meta.url)
     const gallery = new URL(`./samples/${galleryName}/source/`, import.meta.url)
@@ -157,7 +161,9 @@ test('UI Playground GalleryパッケージはFirmwareサンプルと同じ実行
 test('MOD定義は形式別の正本と安全なパッケージパスを要求する', () => {
   const base = {
     format: 'tech.stackchan.mod',
-    schemaVersion: 1,
+    schemaVersion: 2,
+    appApiVersion: 2,
+    hostApiVersion: 2,
     id: 'tech.stackchan.test.sample',
     version: '1.0.0',
     name: 'test',
@@ -274,10 +280,6 @@ test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持
   assert.equal(schema.properties.format.const, 'tech.stackchan.mod')
   for (const version of schema.properties.schemaVersion.enum) {
     const input = { ...modDefinition, schemaVersion: version }
-    if (version === 1) {
-      delete input.appApiVersion
-      delete input.hostApiVersion
-    }
     assert.equal(parseModDefinition(input).schemaVersion, version)
   }
   assert.equal(schema.$id, 'https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json')

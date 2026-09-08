@@ -3,7 +3,7 @@ import {
   type MotionDurationSeconds,
   type MotionResultCallback,
   motionDurationSecondsToMilliseconds,
-} from 'motion-controller'
+} from 'motion-driver'
 import { directMotionPort, motionInfo } from 'motion-port'
 import SCServo from 'protocols/scservo'
 import { ServoDriverResources } from 'servo-driver-resources'

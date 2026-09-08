@@ -1,9 +1,8 @@
-import { getHostSettingsService, loadModConfig, loadPreferenceConfig } from 'loadPreference'
-import { resolveAppProgram } from 'app-behavior-resolver'
+import { getHostSettingsService, loadPreferenceConfig } from 'loadPreference'
+import { resolveAppDefinition } from 'app-definition'
 import { installLaunchShortcut, type LaunchShortcutButton } from 'app-launch'
-import { requestBootRecoveryChoice } from 'boot-recovery-choice'
 import { startHostBootServices } from 'boot-services'
-import { createStackchanContext, getHostDeviceEnvironment } from 'compose'
+import { createStackchanContext } from 'compose'
 import defaultApp from 'default-app/main'
 import { type StackchanDockRuntime, startStackchanDock } from 'dock'
 import { runHostStartup } from 'host-startup'
@@ -15,7 +14,7 @@ import Modules from 'modules'
 import { ResourceScope } from 'owned-resources'
 import type { StackchanRuntimeContext } from 'runtime-context'
 import { startSetupMode } from 'setup-mode'
-import { showStartupFailure, showStartupSplash, showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
+import { showStartupFailure, showStartupSplash } from 'startup-splash'
 import Timer from 'timer'
 import { applyTimezone } from 'timezone-settings'
 
@@ -75,7 +74,7 @@ async function main() {
   let context: StackchanRuntimeContext | undefined
   try {
     // SD writing runs only in a fresh VM which has never evaluated MOD code.
-    // V1 MODs can own raw timers; closing the V2 context alone cannot stop them.
+    // Rewriting the archive must not invalidate code executing in this VM.
     if (Modules.has('mod-manager') && isModMaintenanceActive()) {
       initializeLocalization(getHostSettingsService().get('ui.language'))
       const startModManager = Modules.importNow('mod-manager') as (
@@ -103,59 +102,35 @@ async function main() {
       return
     }
 
-    const modContract = verifyInstalledMod()
+    const contract = verifyInstalledMod()
     // Reserve Dock buffers before MOD evaluation, Wi-Fi, and the runtime context.
-    dockRuntime = startStackchanDock(Modules, loadModConfig())
+    dockRuntime = startStackchanDock(Modules, contract?.capabilities)
     if (dockRuntime) bootResources.own(dockRuntime)
-    const program = resolveAppProgram(Modules, defaultApp, modContract?.appApiVersion)
-    if (program.generation === 1 && (await program.behavior.onLaunch?.()) === false) {
-      installModManagerShortcut()
-      await bootResources.close()
-      return
-    }
     const preferences = loadPreferenceConfig()
+    const app = resolveAppDefinition(Modules, defaultApp)
     initializeLocalization(preferences.ui.language)
     applyTimezone(preferences.time.timezone)
     const bootServices = startHostBootServices({
       credentials: { ssid: preferences.wifi.ssid ?? '', password: preferences.wifi.password ?? '' },
-      wifi:
-        program.generation === 1
-          ? {
-              onStatusChanged: showWiFiConnectionStatus,
-              promptRecoveryChoice: (status, signal) =>
-                requestBootRecoveryChoice(status.message, signal, showWiFiRecoveryChoice, globalEnv.button ?? {}),
-            }
-          : undefined,
     })
     bootResources.own(bootServices)
-    if (program.generation === 1) {
-      const networkReady = await bootServices.connectivity.network.ready
-      bootServices.signal.throwIfCancelled()
-      trace(`[main] network ready: ${networkReady.status}\n`)
-    } else {
-      void bootServices.connectivity.network.ready.then((result) => {
-        if (!bootServices.closed) trace(`[network] ${result.status}\n`)
-      })
-    }
+    void bootServices.connectivity.network.ready.then((result) => {
+      if (!bootServices.closed) trace(`[network] ${result.status}\n`)
+    })
     const ownedDock = dockRuntime
     context = await createStackchanContext(preferences, {
       connectivity: bootServices.connectivity,
       remoteConversationSession: ownedDock?.remoteConversationSession,
       closeHandlers: [() => bootResources.close()],
     })
-    ownedDock?.onContextCreated(context)
+    ownedDock?.attach(context.presentation)
     trace('[main] app context created\n')
-    if (program.generation === 2) await context.startApp(program.app)
-    else
-      await program.behavior.onContextCreated?.(context, {
-        device: getHostDeviceEnvironment(),
-        config: preferences,
-      })
-    trace('[main] app behaviors ready\n')
+    await context.startApp(app)
+    trace('[main] app ready\n')
     installModManagerShortcut()
   } catch (error) {
     try {
-      if (context) await context.lifecycle.close()
+      if (context) await context.close()
       else await bootResources.close()
     } catch (closeError) {
       trace(`[main] cleanup error ${closeError instanceof Error ? closeError.message : String(closeError)}\n`)

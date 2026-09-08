@@ -1,24 +1,21 @@
 import Resource from 'Resource'
 import {
   DEFAULT_LOCALE,
-  type I18nCapability,
   type LocalizationValues,
   normalizeLocale,
   resolveLocalizedMessage,
+  type SupportedLocale,
 } from 'localization-core'
 import { Locals } from 'piu/MC'
 
 export {
   DEFAULT_LOCALE,
-  type I18nCapability,
   type LocalizationValue,
   type LocalizationValues,
   normalizeLocale,
   SUPPORTED_LOCALES,
   type SupportedLocale,
 } from 'localization-core'
-
-type SupportedLocale = I18nCapability['locale']
 
 let currentLocale: SupportedLocale = DEFAULT_LOCALE
 let hostLocals: Locals | undefined
@@ -65,17 +62,8 @@ export function localize(key: string, values: LocalizationValues = {}): string {
   return resolveLocalizedMessage(key, values, undefined, getHostLocals())
 }
 
-function localizeForContext(key: string, values: LocalizationValues = {}): string {
+export function localizeApp(key: string, values: LocalizationValues = {}): string {
   // MOD-owned messages take precedence, while the host catalog remains a
   // fallback for shared UI keys. Unknown keys stay visible for diagnosis.
   return resolveLocalizedMessage(key, values, getModLocals(), getHostLocals())
-}
-
-export function createI18nCapability(): I18nCapability {
-  return Object.freeze({
-    get locale() {
-      return currentLocale
-    },
-    localize: localizeForContext,
-  })
 }

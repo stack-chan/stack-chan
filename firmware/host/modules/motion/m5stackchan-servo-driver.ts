@@ -12,7 +12,7 @@ import {
   type MotionDurationSeconds,
   type MotionResultCallback,
   motionDurationSecondsToMilliseconds,
-} from 'motion-controller'
+} from 'motion-driver'
 import { directMotionPort, type MotionPort, motionInfo } from 'motion-port'
 import SCServo from 'protocols/scservo'
 import { type PY32IOExpanderLease, tryAcquireSharedPY32IOExpander } from 'py32-io-expander'

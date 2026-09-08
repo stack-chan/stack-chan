@@ -155,7 +155,7 @@ export async function verifyDefaultApp(): Promise<void> {
   await wait(60)
   equal(imuSamples, samples, 'app close leaves no sensor polling timer')
   equal(menus.size, 0, 'late callbacks cannot recreate closed app controls')
-  await host.lifecycle.close()
+  await host.close()
   assert(!application.first, 'host still owns and closes the Piu root')
   // A host without sensors still supports the default UI and reports the omissions.
   const plain = await StackchanRuntimeContext.create({
@@ -166,7 +166,7 @@ export async function verifyDefaultApp(): Promise<void> {
   const plainApp = await plain.startApp(defaultApp)
   for (const id of ['input.secondary', 'input.headTouch', 'input.motion', 'lighting'] as const)
     equal(plainApp.context.capabilities.get(id).availability, 'unavailable')
-  await plain.lifecycle.close()
+  await plain.close()
 }
 
 export async function verifyImageAvatar(): Promise<void> {
@@ -226,7 +226,7 @@ export async function verifyImageAvatar(): Promise<void> {
     failure = error
   }
   equal((failure as { code?: string })?.code, 'CLOSED', 'retained UI handles cannot reinstall a face')
-  await host.lifecycle.close()
+  await host.close()
 }
 
 export async function verifyGeneratedAppPorts(): Promise<void> {
@@ -328,7 +328,7 @@ export async function verifyGeneratedAppPorts(): Promise<void> {
     button.onChanged()
     equal(releases, 1, 'closed app cannot receive button release')
   }
-  await host.lifecycle.close()
+  await host.close()
   equal(button.onChanged, original)
   equal(closed, 1)
 }

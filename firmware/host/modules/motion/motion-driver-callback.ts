@@ -1,4 +1,4 @@
-import type { MotionCompletion, MotionResultCallback } from 'motion-controller'
+import type { MotionCompletion, MotionResultCallback } from 'motion-driver'
 import type { Maybe } from 'stackchan-util'
 
 export function reasonFromError(error: unknown): string {

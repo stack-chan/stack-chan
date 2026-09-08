@@ -1,4 +1,4 @@
-import type { MotionCompletion, MotionDurationSeconds, MotionResultCallback } from 'motion-controller'
+import type { MotionCompletion, MotionDurationSeconds, MotionResultCallback } from 'motion-driver'
 import { type MotionPort, motionInfo } from 'motion-port'
 import Dynamixel, { OPERATING_MODE } from 'protocols/dynamixel'
 import { ServoBusError } from 'servo-bus'

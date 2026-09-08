@@ -30,7 +30,7 @@
 
 後半14例は host API 7 が必要です。先行7例はそれぞれの `stackchan-mod.json` に最小 host API を記録しています。WASM で使えない BLE・DNS-SD・クラウド接続・外部センサー・保守操作は `UNSUPPORTED` になります。機種宣言は実機での接続・性能の受入結果ではありません。
 
-`provider-dialogues` は Claude / Gemini / ChatGPT・MCP連携の低レベル参考ライブラリーと試験で、実行入口・MOD宣言を持つアプリではありません。今回の「全例」は `stackchan-mod.json` を持つ実行例を指します。この参考実装とV1ホスト・Blocklyの整理は [残る旧経路](../../../docs/architecture/firmware-retirement-plan.md) に記録します。
+`provider-dialogues` は Claude / Gemini / ChatGPT・MCP連携の低レベル参考ライブラリーと試験で、実行入口・MOD宣言を持つアプリではありません。今回の「全例」は `stackchan-mod.json` を持つ実行例を指します。この参考実装の整理と他の再設計残件は [残る旧経路](../../../docs/architecture/firmware-retirement-plan.md) に記録します。
 
 ## ビルド、改造、復帰
 

@@ -4,11 +4,15 @@
     "$(MODDABLE)/examples/manifest_typings.json"
   ],
   "modules": {
-    "*": ["./mod", "./speeches_greeting"],
-    "mod/config": "./config"
+    "*": [
+      "./mod",
+      "./speeches_greeting"
+    ]
   },
   "data": {
-    "stackchan-mod": ["./stackchan-mod.json"]
+    "stackchan-mod": [
+      "./stackchan-mod.json"
+    ]
   },
   "resources": {
     "*": "./assets/*"

@@ -1,4 +1,4 @@
-import type { RemoteConversationSessionDelegate, RemoteConversationState, StackchanContext } from 'capabilities'
+import type { HostPresentation, RemoteConversationSessionDelegate, RemoteConversationState } from 'capabilities'
 import { type ApprovalSession, createApprovalSession } from 'stackchan-approval-session'
 import { type ConversationRetryScheduler, createConversationSession } from 'stackchan-conversation-session'
 import {
@@ -18,7 +18,7 @@ export type RemoteSessionActivation = {
 }
 
 export type RemoteSessionRuntime = {
-  activate(context: StackchanContext, provider: RealtimeToolProvider): RemoteSessionActivation
+  activate(context: HostPresentation, provider: RealtimeToolProvider): RemoteSessionActivation
   subscribeTaskState(listener: TaskStateListener): () => void
   close(): void
 }

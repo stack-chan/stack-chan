@@ -4,6 +4,7 @@ import { createRecordingWave } from 'recording-wave'
 import Speaker from 'speaker'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
+import { TTS as ClipPlayer } from 'tts-local'
 import { beginTTSPlayback, runTTSPlayback } from 'tts-playback-lifecycle'
 import { PlaybackProvider, playbackReleaseFailure } from 'tts-playback-session'
 
@@ -195,6 +196,30 @@ async function run() {
   const beforeRetry = AudioOut.instances.length
   equal((await observe(faultedSpeaker.play(wave.buffer)))?.code, 'IO')
   equal(AudioOut.instances.length, beforeRetry, 'a release failure prevents reacquisition')
+
+  for (const rate of [11025, 44100]) {
+    const player = new ClipPlayer({})
+    const completed = new Promise<void>((resolve, reject) =>
+      player.stream(`clip-${rate}`, undefined, (error) => (error ? reject(error) : resolve())),
+    )
+    const output = current()
+    equal(output.sampleRate, rate, 'clip playback follows the resource header without app configuration')
+    equal(output.started, 1, 'resource streamer started')
+    output.deliver(() => output.callbacks[0]?.(0))
+    await completed
+    equal(output.closes, 1, 'clip completion releases the output')
+    await player.close()
+  }
+  const invalidClip = new ClipPlayer({})
+  const outputs = AudioOut.instances.length
+  const invalid = await observe(
+    new Promise<void>((resolve, reject) =>
+      invalidClip.stream('clip-invalid', undefined, (error) => (error ? reject(error) : resolve())),
+    ),
+  )
+  equal(invalid?.code, 'IO', 'malformed resources have an observable failure')
+  equal(AudioOut.instances.length, outputs, 'malformed resources do not acquire the output')
+  await invalidClip.close()
 
   await owner.close()
   trace('ok\n')

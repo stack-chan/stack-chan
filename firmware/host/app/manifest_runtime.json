@@ -1,13 +1,12 @@
 {
-  "include": ["./manifest_resources.json"],
+  "include": [
+    "./manifest_resources.json"
+  ],
   "modules": {
     "*": [
-      "./app-behavior",
-      "./app-behavior-resolver",
+      "./app-definition",
       "./app-launch",
-      "./boot-network-recovery",
       "./boot-session",
-      "./boot-recovery-choice",
       "./boot-services",
       "./compose",
       "./capabilities",

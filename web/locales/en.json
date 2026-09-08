@@ -222,7 +222,7 @@
   "保存ボタンから編集用の`.stackchan-blocks.json`を保存します。": "Use the save button to keep an editable `.stackchan-blocks.json` file.",
   "必要に応じて実行用の`.xsa`も保存し、二つの成果物を分けて管理します。": "Save the runnable `.xsa` when needed, and manage it separately from the project file.",
   "コードによるMOD開発へ移る": "Move on to code-based MOD development",
-  "生成コードタブの`mod.js`は、通常のMODと同じ`onContextCreated(robot)`を公開します。": "The `mod.js` in the Generated Code tab exports the same `onContextCreated(robot)` as a regular MOD.",
+  "生成コードタブの`mod.js`は、通常のMODと同じ`defineApp / setup(app)`を公開します。": "The `mod.js` in the Generated Code tab exports the same `defineApp / setup(app)` as a regular MOD.",
   "生成コードを直接変更してもBlocklyへは逆変換されないため、元のプロジェクトファイルも保持してください。": "Direct changes to generated code cannot be converted back into Blockly, so keep the original project file.",
   "失敗から戻す": "Recover from a problem",
   "破損したプロジェクトはヘッダーの警告ボタンから退避データを保存できます。": "Use the warning button in the header to export recovery data for a damaged project.",

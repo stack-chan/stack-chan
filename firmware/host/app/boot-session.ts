@@ -19,18 +19,12 @@ import { asStackchanError, finiteNumber, StackchanError } from 'stackchan/errors
 import type { CancellationSignal, TaskContext } from 'stackchan/task'
 import { TaskScope } from 'task-scope'
 
-export type BootWiFiStatus = { attempt: number; maxAttempts: number; message: string }
 export type HostBootServicesOptions = {
   credentials: { ssid: string; password: string }
   wifi?: {
     maxAttempts?: number
     retryDelayMs?: number
     attemptTimeoutMs?: number
-    onStatusChanged?(status: BootWiFiStatus): void
-    promptRecoveryChoice?(
-      status: BootWiFiStatus & { reason: string },
-      signal: CancellationSignal,
-    ): Promise<'retry' | 'offline'>
   }
 }
 export type OwnedLocalPeer = LocalPeerCapability & { close(): void }
@@ -40,8 +34,6 @@ export type BootSessionDependencies = {
   openNetwork(options: StartNetworkConnectionOptions): NetworkConnection
   createLocalPeer(): OwnedLocalPeer | undefined
   beforeStart?(): Promise<void>
-  connectingMessage(attempt: number, maxAttempts: number): string
-  failureMessage(reason: string): string
   report?(message: string): void
 }
 
@@ -121,45 +113,28 @@ export class BootSession {
     if (!this.#options.credentials.ssid) return { status: 'skipped', reason: 'missing Wi-Fi credentials' }
     const options = this.#options.wifi ?? {}
     const maxAttempts = options.maxAttempts ?? 3
-    for (;;) {
-      let failure: NetworkReadyResult & { status: 'failed' } = {
-        status: 'failed',
-        reason: 'connection failed',
-        code: 'IO',
-      }
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        task.signal.throwIfCancelled()
-        const message = this.#dependencies.connectingMessage(attempt, maxAttempts)
-        options.onStatusChanged?.({ attempt, maxAttempts, message })
-        task.signal.throwIfCancelled()
-        const result = await this.#attempt(task.signal)
-        task.signal.throwIfCancelled()
-        if (result.status !== 'failed') return result
-        failure = result
-        this.#report(`[network] boot Wi-Fi attempt ${attempt}/${maxAttempts} failed: ${result.reason}`)
-        if (
-          result.code === 'BUSY' ||
-          result.code === 'CONFIG' ||
-          result.code === 'INVALID_ARGUMENT' ||
-          result.code === 'UNSUPPORTED'
-        )
-          return result
-        if (attempt < maxAttempts) await task.sleep(options.retryDelayMs ?? 500)
-      }
-      if (!options.promptRecoveryChoice) return failure
-      const choice = await options.promptRecoveryChoice(
-        {
-          attempt: maxAttempts,
-          maxAttempts,
-          message: this.#dependencies.failureMessage(failure.reason),
-          reason: failure.reason,
-        },
-        task.signal,
-      )
-      task.signal.throwIfCancelled()
-      if (choice === 'offline') return { status: 'skipped', reason: `offline start selected: ${failure.reason}` }
-      if (choice !== 'retry') throw new StackchanError('INVALID_ARGUMENT', 'Invalid Wi-Fi recovery choice')
+    let failure: NetworkReadyResult & { status: 'failed' } = {
+      status: 'failed',
+      reason: 'connection failed',
+      code: 'IO',
     }
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      task.signal.throwIfCancelled()
+      const result = await this.#attempt(task.signal)
+      task.signal.throwIfCancelled()
+      if (result.status !== 'failed') return result
+      failure = result
+      this.#report(`[network] boot Wi-Fi attempt ${attempt}/${maxAttempts} failed: ${result.reason}`)
+      if (
+        result.code === 'BUSY' ||
+        result.code === 'CONFIG' ||
+        result.code === 'INVALID_ARGUMENT' ||
+        result.code === 'UNSUPPORTED'
+      )
+        return result
+      if (attempt < maxAttempts) await task.sleep(options.retryDelayMs ?? 500)
+    }
+    return failure
   }
 
   async #attempt(signal: CancellationSignal): Promise<NetworkReadyResult> {

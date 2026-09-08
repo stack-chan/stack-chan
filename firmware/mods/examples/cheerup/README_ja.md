@@ -14,7 +14,7 @@
 
 ## ビルドと導入
 
-このブランチの app API 2 / host API 7 が必要です。古い host / XSA は更新・再ビルドします。`firmware/` で依存関係とツールチェーンを準備して実行してください。
+このブランチの app API 2 / host API 9 が必要です。古い host / XSA は更新・再ビルドします。`firmware/` で依存関係とツールチェーンを準備して実行してください。
 
 ```sh
 npm run mod:build -- mods/examples/cheerup/manifest.json

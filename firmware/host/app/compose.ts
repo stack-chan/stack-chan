@@ -19,7 +19,7 @@ import { M5StackChanServoDriver } from 'm5stackchan-servo-driver'
 import config from 'mc/config'
 import Microphone from 'microphone'
 import Modules from 'modules'
-import type { MotionDriver } from 'motion-controller'
+import type { MotionDriver } from 'motion-driver'
 import { NoneDriver } from 'none-driver'
 import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import type { Container as PiuContainer } from 'piu/MC'
@@ -77,8 +77,6 @@ type GlobalEnvironment = {
 
 const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 
-export type HostDeviceEnvironment = GlobalEnvironment['device']
-
 type WebRadioPlayerConstructor = new () => WebRadioCapability
 
 const DEFAULT_UI_DISPLAY_LIST_LENGTH = 4096
@@ -120,10 +118,6 @@ function createTouchOptions(): TouchOptions {
     activeIntervalMs: configNumber(config.touchActiveIntervalMs),
     releaseDebounceMs: configNumber(config.touchReleaseDebounceMs),
   }
-}
-
-export function getHostDeviceEnvironment(): HostDeviceEnvironment {
-  return globalEnv.device
 }
 
 export async function createStackchanContext(

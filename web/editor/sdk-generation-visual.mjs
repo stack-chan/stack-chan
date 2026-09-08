@@ -137,10 +137,7 @@ try {
         .getByLabel('MODを追加', { exact: true })
         .setInputFiles({ name: 'sdk-generated.xsa', mimeType: 'application/octet-stream', buffer: Buffer.from(bytes) }),
     ])
-  await Promise.all([
-    wait('[main] app behaviors ready'),
-    page.goto(`${baseUrl}/simulator/`, { waitUntil: 'networkidle' }),
-  ])
+  await Promise.all([wait('[main] app ready'), page.goto(`${baseUrl}/simulator/`, { waitUntil: 'networkidle' })])
   await install(generated.bytes, 'VP_BOOT')
   await wait('VP_TICK')
   await page.screenshot({ path: `${output}/shape.png` })

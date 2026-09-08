@@ -10,9 +10,8 @@ import {
  * The layout is emitted by xs/tools/xslBase.c (fxWriteArchive) in the Moddable SDK.
  * @param {Uint8Array} bytes
  * @param {(bytes: Uint8Array) => string} decodeUtf8
- * @param {{allowLegacy?: boolean}} [options] Transitional readers may accept metadata-free V1 archives.
  */
-export function inspectModArchive(bytes, decodeUtf8, { allowLegacy = false } = {}) {
+export function inspectModArchive(bytes, decodeUtf8) {
   /** @param {string} message @returns {never} */
   const invalid = (message) => {
     throw new ModCompatibilityError('MOD_ARCHIVE_INVALID', message)
@@ -56,6 +55,11 @@ export function inspectModArchive(bytes, decodeUtf8, { allowLegacy = false } = {
         const payload = atom(path.end, section.end)
         if (payload.tag !== (section.tag === 'MODS' ? 'CODE' : 'DATA')) invalid('Invalid archive payload')
         if (section.tag === 'MODS') {
+          if (name === 'mod/config')
+            throw new ModCompatibilityError(
+              'MOD_APP_API_UNSUPPORTED',
+              'Executable mod/config has been retired. Move defaults to stackchan-mod.json settings and rebuild.',
+            )
           if (name === 'mod') entrypoints.push('mod')
           if (name === 'miniapp') entrypoints.push('miniapp')
         } else if (name === MOD_METADATA_RESOURCE) {
@@ -73,12 +77,12 @@ export function inspectModArchive(bytes, decodeUtf8, { allowLegacy = false } = {
     offset = section.end
   }
   if (!version || !seen.has('MODS') || !seen.has('RSRC')) invalid('Missing archive sections')
-  if (!metadata && !allowLegacy)
+  if (!metadata)
     throw new ModCompatibilityError(
       'MOD_METADATA_MISSING',
       'Rebuild this MOD with stackchan-mod.json included as a resource',
     )
-  if (metadata) assertModCompatibility(metadata, { hostApiVersion: metadata.hostApiVersion, entrypoints })
+  assertModCompatibility(metadata, { hostApiVersion: metadata.hostApiVersion, entrypoints })
   return { metadata, version, entrypoints }
 }
 

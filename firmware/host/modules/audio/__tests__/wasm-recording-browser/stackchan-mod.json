@@ -3,8 +3,12 @@
   "schemaVersion": 2,
   "id": "tech.stackchan.test.wasm-recording",
   "version": "1.0.0",
-  "appApiVersion": 1,
-  "hostApiVersion": 2,
-  "targets": ["portable"],
-  "entrypoints": ["mod"]
+  "appApiVersion": 2,
+  "hostApiVersion": 4,
+  "targets": [
+    "portable"
+  ],
+  "entrypoints": [
+    "mod"
+  ]
 }

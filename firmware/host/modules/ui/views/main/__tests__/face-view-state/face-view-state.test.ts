@@ -1,6 +1,5 @@
 import { AppController } from 'app-controller'
 import { FaceBehavior } from 'behaviors/face'
-import type { StackchanContext } from 'capabilities'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import { createFaceState, type FaceState, setColorRGB, toPiuColorNumber } from 'face-state'
 import {
@@ -52,55 +51,6 @@ function run(): void {
     face: PiuContainer
     FACE_REGION?: PiuContainer
     EFFECTS?: PiuContainer & { last?: BalloonContent | null }
-  }
-
-  type DrawerControllerCalls = {
-    buttons: unknown[]
-    states: [string, boolean][]
-    removed: string[]
-  }
-
-  function createDrawerTestUI(calls: DrawerControllerCalls) {
-    const actions = new Map<string, () => void>()
-    return {
-      miniApps: {
-        register() {
-          return () => {}
-        },
-      },
-      update(_interval: number, _face: FaceState) {},
-      addEffect(_effect: unknown) {},
-      removeEffect(_effect: unknown) {},
-      setFace(_face: PiuContainer) {},
-      setHandAnimation() {},
-      setMain(_content: PiuContainer) {},
-      showFace() {},
-      setDrawerButtons(buttons: unknown[]) {
-        calls.buttons = buttons
-      },
-      addDrawerButton(button: unknown) {
-        calls.buttons.push(button)
-      },
-      removeDrawerButton(key: string) {
-        calls.removed.push(key)
-      },
-      setDrawerButtonState(key: string, active: boolean) {
-        calls.states.push([key, active])
-      },
-      bindDrawerAction(key: string, callback: () => void) {
-        actions.set(key, callback)
-        return true
-      },
-      unbindDrawerAction(key: string) {
-        actions.delete(key)
-      },
-      openDrawer() {},
-      closeDrawer() {},
-      toggleDrawer() {},
-      hasDrawerAction(key: string) {
-        return actions.has(key)
-      },
-    }
   }
 
   const TestFace = Container.template(() => ({
@@ -479,7 +429,6 @@ function run(): void {
     rotation: { r: 0, p: 0, y: 0 },
   })
   const runtimeUI = new StackchanRuntimeUI(controller, {
-    getContext: () => ({}) as StackchanContext,
     getPose: () => ({
       body: zeroPose,
       eyes: {
@@ -488,7 +437,6 @@ function run(): void {
       },
     }),
     getGazePoint: () => null,
-    isPaused: () => false,
   })
   runtimeUI.setColor('primary', 0x12, 0x34, 0x56)
   runtimeUI.setColor('secondary', 0xab, 0xcd, 0xef)
@@ -538,41 +486,6 @@ function run(): void {
   runtimeUI.showBalloon('top balloon', { top: 8 })
   assert(appData.EFFECTS?.last !== runtimeBalloon, 'showBalloon should replace a balloon when layout options change')
   runtimeUI.hideBalloon()
-
-  const oldDrawerCalls: DrawerControllerCalls = { buttons: [], states: [], removed: [] }
-  const newDrawerCalls: DrawerControllerCalls = { buttons: [], states: [], removed: [] }
-  const oldDrawerUI = createDrawerTestUI(oldDrawerCalls)
-  const newDrawerUI = createDrawerTestUI(newDrawerCalls)
-  const drawerRuntime = new StackchanRuntimeUI(oldDrawerUI, {
-    getContext: () => ({}) as StackchanContext,
-    getPose: () => ({
-      body: zeroPose,
-      eyes: {
-        left: zeroPose,
-        right: zeroPose,
-      },
-    }),
-    getGazePoint: () => null,
-    isPaused: () => false,
-  })
-  drawerRuntime.drawer.addDrawerButton({
-    key: 'swap',
-    label: 'Swap',
-    kind: 'toggle',
-    initialState: true,
-    callback() {},
-  })
-  assert(oldDrawerUI.hasDrawerAction('swap'), 'drawer callback should bind to the initial UI')
-  drawerRuntime.useUI(newDrawerUI)
-  assert(!oldDrawerUI.hasDrawerAction('swap'), 'useUI should detach drawer callbacks from the old UI')
-  assert(newDrawerUI.hasDrawerAction('swap'), 'useUI should bind drawer callbacks to the new UI')
-  equal(newDrawerCalls.buttons.length, 1, 'useUI should rebuild drawer buttons on the new application')
-  equal(newDrawerCalls.states[0]?.[0], 'swap', 'useUI should replay drawer button state')
-  equal(newDrawerCalls.states[0]?.[1], true, 'useUI should replay active drawer state')
-  drawerRuntime.drawer.removeDrawerButton('swap')
-  assert(!newDrawerUI.hasDrawerAction('swap'), 'removeDrawerButton should detach from the current UI')
-  equal(newDrawerCalls.removed[0], 'swap', 'removeDrawerButton should update the current drawer controller')
-  equal(oldDrawerCalls.removed.length, 0, 'removeDrawerButton should not mutate the old drawer controller after useUI')
 
   const finishHandTransition = () => {
     hands.stop()

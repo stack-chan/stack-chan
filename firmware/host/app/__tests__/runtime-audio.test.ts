@@ -211,14 +211,14 @@ test('V2 audio keeps text and resource playback separate while sharing one outpu
     },
     ttsKind: 'speech',
   })
-  await Promise.all([runtime.speak('こんにちは'), runtime.playClip('hello')])
+  await Promise.all([runtime.say('こんにちは'), runtime.playClip('hello')])
   assert.deepEqual(calls, ['speech:こんにちは', 'clip:hello'])
   assert.equal(runtime.audioStatus('speech').availability, 'native')
   assert.equal(runtime.audioStatus('clips').availability, 'native')
   await assert.rejects(runtime.playClip('../hello'), { code: 'INVALID_ARGUMENT' })
-  await assert.rejects(runtime.speak('hello', { volume: Number.NaN }), { code: 'INVALID_ARGUMENT' })
+  await assert.rejects(runtime.say('hello', { volume: Number.NaN }), { code: 'INVALID_ARGUMENT' })
   const local = new StackchanRuntimeAudio({ tts: fakeTTS(), ttsKind: 'clips' })
-  await assert.rejects(local.speak('こんにちは'), { code: 'UNSUPPORTED' })
+  await assert.rejects(local.say('こんにちは'), { code: 'UNSUPPORTED' })
   await local.playClip('hello')
   await runtime.close()
   await local.close()
@@ -286,11 +286,11 @@ test('StackchanRuntimeAudio forwards borrowed buffers to the target player', asy
 
   const runtime = new StackchanRuntimeAudio({ tts: fakeTTS(), speaker })
 
-  assert.equal(await runtime.playAudio(buffer), true)
+  assert.equal(await runtime.play({ data: buffer, mimeType: 'audio/wav' }), undefined)
   assert.equal(forwarded, buffer)
 })
 
-test('StackchanRuntimeAudio reports unsupported playback as false', async () => {
+test('SDK playback rejects missing output and failed confirmation', async () => {
   installBareSpecifierPackages()
   const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
   const buffer = new ArrayBuffer(4) as BorrowedAudioBuffer
@@ -303,8 +303,8 @@ test('StackchanRuntimeAudio reports unsupported playback as false', async () => 
     },
   })
 
-  assert.equal(await runtimeWithoutSpeaker.playAudio(buffer), false)
-  assert.equal(await runtimeUnsupported.playAudio(buffer), false)
+  await assert.rejects(runtimeWithoutSpeaker.play({ data: buffer, mimeType: 'audio/wav' }), { code: 'UNSUPPORTED' })
+  await assert.rejects(runtimeUnsupported.play({ data: buffer, mimeType: 'audio/wav' }), { code: 'IO' })
 })
 
 test('StackchanRuntimeAudio close stops the microphone and detaches TTS callbacks', async () => {
@@ -328,7 +328,7 @@ test('StackchanRuntimeAudio close stops the microphone and detaches TTS callback
   await runtime.close()
 
   assert.equal(stopped, true)
-  const playbackTTS = runtime.tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
+  const playbackTTS = tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
   playbackTTS.onPlayed?.(2000)
   playbackTTS.onDone?.()
   assert.equal(mouthOpen, -1)
@@ -353,35 +353,10 @@ test('StackchanRuntimeAudio close detaches TTS callbacks even when the microphon
   const runtime = new StackchanRuntimeAudio({ tts, microphone }, { onMouthOpenChanged: (value) => (mouthOpen = value) })
 
   await assert.rejects(runtime.close(), /stop failure/)
-  const ttsCallbacks = runtime.tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
+  const ttsCallbacks = tts as { onPlayed?: (volume: number) => void; onDone?: () => void }
   ttsCallbacks.onPlayed?.(2000)
   ttsCallbacks.onDone?.()
   assert.equal(mouthOpen, -1)
-})
-
-test('StackchanRuntimeAudio stops WebRadio before starting other playback', async () => {
-  installBareSpecifierPackages()
-  const { StackchanRuntimeAudio } = (await import('../runtime-audio.js')) as RuntimeAudioModule
-  let stops = 0
-  const webRadio = {
-    state: 'playing' as const,
-    start: async () => {},
-    stop: () => {
-      stops += 1
-    },
-    setVolume: () => {},
-  }
-  const runtime = new StackchanRuntimeAudio({
-    tts: fakeTTS(),
-    webRadio,
-    speaker: { tone: async () => {}, play: async () => true },
-  })
-
-  await runtime.say('hello')
-  await runtime.sing('#A4,20a')
-  await runtime.tone(440, 20)
-  await runtime.playAudio(new ArrayBuffer(2) as BorrowedAudioBuffer)
-  assert.equal(stops, 4)
 })
 
 test('StackchanRuntimeAudio rejects WebRadio start while TTS is busy', async () => {
@@ -402,11 +377,13 @@ test('StackchanRuntimeAudio rejects WebRadio start while TTS is busy', async () 
   })
 
   const speech = runtime.say('hello')
-  await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/radio.mp3' }), /audio busy/)
+  assert.throws(() => runtime.reserveStream(false, true), { code: 'BUSY' })
   assert.equal(radioStarts, 0)
   complete?.()
   await speech
-  await runtime.webRadio?.start({ url: 'https://example.test/radio.mp3' })
+  const release = runtime.reserveStream(false, true)
+  await runtime.streamingRadio?.start({ url: 'https://example.test/radio.mp3' })
+  release()
   assert.equal(radioStarts, 1)
 })
 
@@ -432,18 +409,20 @@ test('StackchanRuntimeAudio serializes playback and stays busy while operations 
     },
   })
 
-  const tone = runtime.tone(440, 20)
-  const playback = runtime.playAudio(new ArrayBuffer(2) as BorrowedAudioBuffer)
+  const tone = runtime.tone(440, { durationMs: 20 })
+  const playback = runtime.play({ data: new ArrayBuffer(2) as BorrowedAudioBuffer, mimeType: 'audio/wav' })
   assert.equal(finishPlayback, undefined, 'queued playback must not open a second output')
-  await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/radio.mp3' }), /audio busy/)
+  assert.throws(() => runtime.reserveStream(false, true), { code: 'BUSY' })
 
   finishTone?.()
   await tone
-  await assert.rejects(runtime.webRadio?.start({ url: 'https://example.test/radio.mp3' }), /audio busy/)
+  assert.throws(() => runtime.reserveStream(false, true), { code: 'BUSY' })
 
   finishPlayback?.()
   await playback
-  await runtime.webRadio?.start({ url: 'https://example.test/radio.mp3' })
+  const release = runtime.reserveStream(false, true)
+  await runtime.streamingRadio?.start({ url: 'https://example.test/radio.mp3' })
+  release()
   assert.equal(radioStarts, 1)
 })
 
@@ -492,15 +471,15 @@ test('close cancels in-flight speech, rejects queued tone, and suppresses late c
       },
     },
   })
-  const speech = runtime.say('hello')
-  const tone = runtime.tone(440, 100)
+  const speech = assert.rejects(runtime.say('hello'), { code: 'CLOSED' })
+  const tone = runtime.tone(440, { durationMs: 100 })
   await runtime.close()
   await assert.rejects(tone, { code: 'CLOSED' })
-  assert.equal((await speech).success, false)
+  await speech
   late?.()
   assert.equal(cancelled, 1)
   assert.equal(tones, 0)
-  await assert.rejects(runtime.tone(440, 100), { code: 'CLOSED' })
+  await assert.rejects(runtime.tone(440, { durationMs: 100 }), { code: 'CLOSED' })
 })
 
 test('recording cancellation stays within its operation and queued cancellation does not stop active input', async () => {
@@ -526,8 +505,8 @@ test('recording cancellation stays within its operation and queued cancellation 
   })
   const active = new CancellationSource()
   const pending = new CancellationSource()
-  const first = runtime.record(10, active.signal)
-  const second = runtime.record(10, pending.signal)
+  const first = runtime.record({ durationMs: 10, signal: active.signal })
+  const second = runtime.record({ durationMs: 10, signal: pending.signal })
   pending.cancel()
   await assert.rejects(second, { code: 'CANCELLED' })
   assert.equal(starts, 1)
@@ -536,10 +515,10 @@ test('recording cancellation stays within its operation and queued cancellation 
   await assert.rejects(first, { code: 'CANCELLED' })
   assert.equal(stops, 1)
   complete(new ArrayBuffer(0) as OwnedAudioBuffer)
-  await assert.rejects(runtime.record(15_001), { code: 'INVALID_ARGUMENT' })
+  await assert.rejects(runtime.record({ durationMs: 15_001 }), { code: 'INVALID_ARGUMENT' })
   assert.equal(starts, 1, 'invalid duration never reaches the microphone')
   await runtime.close()
-  await assert.rejects(runtime.record(10), { code: 'CLOSED' })
+  await assert.rejects(runtime.record({ durationMs: 10 }), { code: 'CLOSED' })
 })
 
 test('audio close awaits microphone release and preserves a failed release', async () => {
@@ -582,7 +561,7 @@ test('audio close awaits microphone release and preserves a failed release', asy
     },
   })
   await assert.rejects(broken.close(), (error) => error === failure)
-  await assert.rejects(broken.record(10), { code: 'CLOSED' })
+  await assert.rejects(broken.record({ durationMs: 10 }), { code: 'CLOSED' })
 })
 
 test('a completed provider with failed cleanup cannot hand output to another provider or speaker', async () => {
@@ -619,8 +598,8 @@ test('a completed provider with failed cleanup cannot hand output to another pro
       },
     },
   })
-  const speech = assert.rejects(runtime.speak('hello'), { code: 'IO', message: 'output did not release' })
-  const tone = assert.rejects(runtime.tone(440, 100), { code: 'IO' })
+  const speech = assert.rejects(runtime.say('hello'), { code: 'IO', message: 'output did not release' })
+  const tone = assert.rejects(runtime.tone(440, { durationMs: 100 }), { code: 'IO' })
   const clip = assert.rejects(runtime.playClip('hello'), { code: 'IO' })
   finish()
   await Promise.all([speech, tone, clip])
@@ -719,7 +698,7 @@ test('closing audio waits for a provider whose cancellation returns asynchronous
     }
   }
   const runtime = new StackchanRuntimeAudio({ tts: new Speech() })
-  const speaking = assert.rejects(runtime.speak('hello'), { code: 'CLOSED' })
+  const speaking = assert.rejects(runtime.say('hello'), { code: 'CLOSED' })
   let closed = false
   const closing = runtime.close().then(() => {
     closed = true
@@ -741,7 +720,8 @@ test('stream leases exclude competing recording and playback, then release the s
     microphone: {
       async record() {
         records++
-        return new ArrayBuffer(2) as OwnedAudioBuffer
+        const { createRecordingWave } = await import('../../modules/audio/recording-wave.js')
+        return createRecordingWave({ sampleRate: 16000, channels: 1, bitsPerSample: 16 }, 10).buffer as OwnedAudioBuffer
       },
       stop() {},
     },
@@ -755,15 +735,15 @@ test('stream leases exclude competing recording and playback, then release the s
     },
   })
   const release = runtime.reserveStream(true, true)
-  await assert.rejects(runtime.record(10), { code: 'BUSY' })
-  await assert.rejects(runtime.tone(440, 10), { code: 'BUSY' })
-  await assert.rejects(runtime.speak('hello'), { code: 'BUSY' })
+  await assert.rejects(runtime.record({ durationMs: 10 }), { code: 'BUSY' })
+  await assert.rejects(runtime.tone(440, { durationMs: 10 }), { code: 'BUSY' })
+  await assert.rejects(runtime.say('hello'), { code: 'BUSY' })
   assert.throws(() => runtime.reserveStream(false, true), { code: 'BUSY' })
   assert.equal(records + tones, 0)
   release()
   release()
-  await runtime.record(10)
-  await runtime.tone(440, 10)
+  await runtime.record({ durationMs: 10 })
+  await runtime.tone(440, { durationMs: 10 })
   assert.equal(records + tones, 2)
   await runtime.close()
 })
@@ -776,6 +756,6 @@ test('a failed streaming device release prevents later audio reuse', async () =>
   runtime.failStream(new Error('native close failed'))
   release()
   assert.throws(() => runtime.reserveStream(true, true), { code: 'IO' })
-  await assert.rejects(runtime.speak('hello'), { code: 'IO' })
+  await assert.rejects(runtime.say('hello'), { code: 'IO' })
   await runtime.close()
 })

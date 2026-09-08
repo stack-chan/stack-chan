@@ -1,6 +1,7 @@
 import { createAppControllerApplication } from 'app-controller'
 import { SimpleFace } from 'behaviors/face'
 import type { MiniAppRegistry } from 'mini-app'
+import { directMotionPort, motionInfo } from 'motion-port'
 import { NoneDriver } from 'none-driver'
 import { Container } from 'piu/MC'
 import { StackchanRuntimeContext } from 'runtime-context'
@@ -50,6 +51,7 @@ async function verifyRollback(stage: 'motion' | 'audio' | 'input' | 'capability'
     update(interval, face)
   }
   class Driver extends NoneDriver {
+    readonly motion = directMotionPort(this, motionInfo('estimated', [-90, 90], [-30, 30]))
     onAttached() {
       if (stage === 'motion') throw failure
     }
@@ -127,22 +129,36 @@ async function verifyRollback(stage: 'motion' | 'audio' | 'input' | 'capability'
           },
         },
       },
-      connectivity: {
-        get localPeer() {
-          if (stage === 'capability') throw failure
-          return undefined
-        },
+      get connectivity() {
+        if (stage === 'capability') throw failure
+        return {}
       },
       closeHandlers: [
         () => {
           counts.external += 1
         },
       ],
+    }).then(async (host) => {
+      try {
+        await host.startApp(defineApp({ setup() {} }))
+      } catch (error) {
+        try {
+          await host.close()
+        } catch {
+          /* Preserve the setup failure. */
+        }
+        throw error
+      }
     }),
     failure,
   )
   for (const [name, count] of Object.entries(counts)) {
-    if (name !== 'frames') equal(count, 1, `${stage}: ${name} is released exactly once before rejection`)
+    if (name !== 'frames')
+      equal(
+        count,
+        name === 'detached' && stage !== 'motion' ? 0 : 1,
+        `${stage}: ${name} is released exactly once if acquired`,
+      )
   }
   equal(rawButton.onChanged, previous, `${stage}: borrowed button is restored`)
   assert(application.first === null || application.first === undefined, `${stage}: Piu view is removed`)
@@ -206,7 +222,7 @@ async function verifyPiuApp(mode: 'normal' | 'setup' | 'dispose' | 'undisplay' |
   if (mode === 'setup') {
     await rejectsSame(starting, failure)
     equal(registry.list().length, 0, 'failed setup rolls back screen registration')
-    await host.lifecycle.close()
+    await host.close()
     return
   }
   const app = await starting
@@ -244,8 +260,8 @@ async function verifyPiuApp(mode: 'normal' | 'setup' | 'dispose' | 'undisplay' |
   await new Promise<void>((resolve) => Timer.set(() => resolve(), 60))
   equal(frames, stoppedFrames, 'Piu frames stop even when undisplaying or disposal throws')
   assert(!ui.launchMiniApp('owned-screen'), 'closed app cannot be launched again')
-  if (fails) await rejectsSame(host.lifecycle.close(), failure)
-  else await host.lifecycle.close()
+  if (fails) await rejectsSame(host.close(), failure)
+  else await host.close()
   assert(!application.first, 'host cleanup removes its Piu tree after screen failure')
 }
 
@@ -339,8 +355,8 @@ async function run() {
   for (let turn = 0; turn < 8; turn += 1) await Promise.resolve()
   equal(presses, 1, 'primary handler is serialized')
   equal(tones, 1, 'public tone reaches the host audio runtime')
-  const close = context.lifecycle.close()
-  equal(close, context.lifecycle.close(), 'host close shares its completion')
+  const close = context.close()
+  equal(close, context.close(), 'host close shares its completion')
   let closed = false
   void close.then(() => {
     closed = true
@@ -382,15 +398,21 @@ async function run() {
     ui: effectUI,
     tts: { stream() {} },
   })
-  effectContext.ui.showBalloon('cleanup')
+  await effectContext.startApp(
+    defineApp({
+      setup(app) {
+        app.ui.showBalloon('cleanup')
+      },
+    }),
+  )
   let removals = 0
   const removeFailure = new Error('effect removal failed')
   effectUI.removeEffect = () => {
     removals += 1
     throw removeFailure
   }
-  await rejectsSame(effectContext.lifecycle.close(), removeFailure)
-  effectContext.ui.hideBalloon()
+  await rejectsSame(effectContext.close(), removeFailure)
+  await rejectsSame(effectContext.close(), removeFailure)
   equal(removals, 1, 'failed effect removal does not leave a retained balloon registration')
   assert(
     effectApplication.first === null || effectApplication.first === undefined,
@@ -455,7 +477,7 @@ async function run() {
       },
     }),
   )
-  await photoContext.lifecycle.close()
+  await photoContext.close()
   equal(effects.size, 0, 'app close removes its image before host close')
   for (const mode of ['normal', 'setup', 'dispose', 'undisplay', 'view'] as const) await verifyPiuApp(mode)
   await verifyDefaultApp()

@@ -13,7 +13,9 @@
     "name",
     "description",
     "source",
-    "targets"
+    "targets",
+    "appApiVersion",
+    "hostApiVersion"
   ],
   "properties": {
     "$schema": {
@@ -24,7 +26,9 @@
       "const": "tech.stackchan.mod"
     },
     "schemaVersion": {
-      "enum": [1, 2]
+      "enum": [
+        2
+      ]
     },
     "id": {
       "type": "string",
@@ -37,7 +41,10 @@
       "maxLength": 80
     },
     "type": {
-      "enum": ["block", "text"]
+      "enum": [
+        "block",
+        "text"
+      ]
     },
     "name": {
       "type": "string",
@@ -62,7 +69,9 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path"],
+      "required": [
+        "path"
+      ],
       "properties": {
         "path": {
           "$ref": "#/$defs/relativePath"
@@ -82,7 +91,9 @@
     "setup": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["url"],
+      "required": [
+        "url"
+      ],
       "properties": {
         "url": {
           "type": "string",
@@ -97,7 +108,9 @@
       "minItems": 1,
       "uniqueItems": true,
       "items": {
-        "enum": ["mod"]
+        "enum": [
+          "mod"
+        ]
       }
     },
     "targets": {
@@ -126,7 +139,11 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["format", "path", "target"],
+        "required": [
+          "format",
+          "path",
+          "target"
+        ],
         "properties": {
           "format": {
             "const": "xsa"
@@ -142,16 +159,37 @@
       }
     },
     "appApiVersion": {
-      "enum": [1, 2]
+      "enum": [
+        2
+      ]
     },
     "hostApiVersion": {
       "type": "integer",
-      "minimum": 1,
+      "minimum": 2,
       "maximum": 9007199254740991
     },
     "optionalCapabilities": {
       "$ref": "#/properties/capabilities",
       "description": "Subset of capabilities which the app can run without. The runtime checks this subset relation."
+    },
+    "settings": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "pattern": "^[a-z][a-zA-Z0-9]*\\.[a-z][a-zA-Z0-9]*$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "maxLength": 2048
+          },
+          {
+            "type": "number"
+          }
+        ]
+      },
+      "description": "App defaults for managed settings. The host validates keys and values against the public settings schema before evaluating the app."
     }
   },
   "allOf": [
@@ -162,13 +200,17 @@
             "const": "block"
           }
         },
-        "required": ["type"]
+        "required": [
+          "type"
+        ]
       },
       "then": {
         "properties": {
           "source": {
             "not": {
-              "required": ["entrypoint"]
+              "required": [
+                "entrypoint"
+              ]
             }
           }
         }
@@ -176,60 +218,19 @@
     },
     {
       "if": {
+        "required": [
+          "settings"
+        ],
         "properties": {
-          "schemaVersion": {
-            "const": 1
+          "settings": {
+            "minProperties": 1
           }
         }
-      },
-      "then": {
-        "not": {
-          "anyOf": [
-            {
-              "required": ["appApiVersion"]
-            },
-            {
-              "required": ["hostApiVersion"]
-            },
-            {
-              "required": ["optionalCapabilities"]
-            }
-          ]
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "schemaVersion": {
-            "const": 2
-          }
-        }
-      },
-      "then": {
-        "required": ["appApiVersion", "hostApiVersion"]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "appApiVersion": {
-            "const": 2
-          }
-        },
-        "required": ["appApiVersion"]
       },
       "then": {
         "properties": {
           "hostApiVersion": {
-            "minimum": 2
-          },
-          "entrypoints": {
-            "not": {
-              "contains": {
-                "const": "miniapp"
-              }
-            }
+            "minimum": 9
           }
         }
       }

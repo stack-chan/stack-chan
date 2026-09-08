@@ -7,7 +7,7 @@
   "name": "beacon",
   "description": "Select BLE beacon advertiser or scanner and exchange greetings.",
   "appApiVersion": 2,
-  "hostApiVersion": 7,
+  "hostApiVersion": 9,
   "source": {
     "path": "manifest.json",
     "entrypoint": "mod.ts"

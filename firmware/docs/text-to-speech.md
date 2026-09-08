@@ -1,118 +1,67 @@
-# Using Text To Speech(TTS)
+# Speech synthesis and audio clips
 
 [日本語](./text-to-speech_ja.md)
 
-Currently there are two way to use TTS.
+Apps use `app.audio` from the `stackchan` SDK. `say(text)` synthesizes natural language; `playClip(name)` plays a bundled resource. See the [SDK guide](../sdk/README_ja.md) for capabilities, cancellation and errors.
 
-* __Pregenerated__: Generates and flash speeches at buildtime and plays standalone. Suitable for predefined statements.
-* __Remote__: Queries speech statements to the TTS server, then streams the voice generated.
+| Purpose | API | Requirements |
+| --- | --- | --- |
+| Offline Japanese speech | `app.audio.say(text)` | The bundled `stackchan-voice` provider |
+| Server-generated speech | `app.audio.say(text)` | A configured provider, credentials and network |
+| Prerecorded speech | `app.audio.playClip(name)` | WAV files included as MOD resources |
 
-__Local(On demand)__ TTS such as aquestalk is not available for now pull requests are welcome!
+## Speaking text
 
-## Prerequisites
+```js
+import { defineApp } from 'stackchan'
 
-No matter which way you choose, you should prepare an extrenal TTS engine first.
-
-Tested below:
-
-* [Google Cloud Text-to-Speech API](https://cloud.google.com/text-to-speech)
-* [Coqui AI TTS](https://github.com/coqui-ai/TTS)
-* [VoiceVox](https://github.com/Hiroshiba/voicevox_engine)
-* [ElevenLabs](https://elevenlabs.io/speech-synthesis)
-
-See also official documents of each of them.
-
-### Google Cloud TTS
-
-* Get through [this authentication guide](https://cloud.google.com/docs/authentication/getting-started) and generate key.json
-* Save `key.json` under `scripts` directory
-
-### Coqui AI TTS
-
-* Install coqui-ai/TTS
-* Launch server
-
-```sh
-$ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
+export default defineApp({
+  setup(app) {
+    app.input.onPress('primary', async (task) => {
+      await app.audio.say('こんにちは、ｽﾀｯｸﾁｬﾝです。', { signal: task.signal })
+    })
+  },
+})
 ```
 
-* save server configuration under `config.tts.host|port` of `host/app/manifest_local.json`
+Choose the provider in host settings. `stackchan-voice` synthesizes Japanese offline. Remote providers are `remote` (Coqui-compatible), `voicevox`, `voicevox-web`, `elevenlabs` and `openai`. Keep credentials in host settings. The [settings schema](../sdk/settings-schema.ts) defines the supported fields; [stackchan-voice](./stackchan-voice.md) describes the offline engine and singing.
 
-```json
-{
-    "config": {
-        "tts": {
-            "host": "your.tts.host.local",
-            "port": 8080
-        }
-    }
-}
-```
+Check `app.capabilities.get('audio.speech')` for availability and a reason when unavailable. Configuration, network and playback failures reject the operation. Await or return asynchronous work inside input handlers so the host can track its completion and failure.
 
-### ElevenLabs TTS
-* Get through [API KEY](https://docs.elevenlabs.io/authentication/01-xi-api-key) and get API KEY.
-* Set API KEY to `config.tts` of `host/app/manifest_local.json`.
-```json
-{
-    "config": {
-        "tts": {
-            "type": "elevenlabs",
-            "token": "YOUR_API_KEY"
-        },
-    }
-}
-```
+## Preparing clips
 
-## Usage(Pregenerated)
+Create a text dictionary in the MOD directory:
 
-* write down sentenses to speech in the format below (See `mods/examples/monologue/speeches_monologue.js` and other examples)
-
-```javascript
+```js
 // speeches.js
 export const speeches = {
-  niceToMeetYou: 'Hello. I am Stach-chan. Nice to meet you.',
-  hello: 'Hello World.',
-  konnichiwa: 'Konnichiwa.',
-  nihao: 'Nee hao.',
+  hello: 'Hello, I am Stack-chan.',
+  goodbye: 'See you later.',
 }
 ```
 
-* Run `npm run generate-speech-[google|coqui|voicevox]`
-  * this script get voice data from server and saves wave files under `host/modules/audio/assets/sounds`
-* Flash firmware with assets
-* Call `context.say(sentence: string)` with the sentence.
+The development scripts request speech from a server and save WAV files. With a local VoiceVox engine running, create the output directory and run from `firmware/`:
 
-```javascript
-import { speeches } from 'speeches'
-const keys = Object.keys(speeches)
-
-export async function onContextCreated(context) {
-  await context.say('hello')
-  await context.say(keys[0] /* 'niceToMeetYou' */)
-}
+```sh
+npm run generate-speech-voicevox -- \
+  --input mods/my-app/speeches.js --output mods/my-app/assets \
+  --host 127.0.0.1 --port 50021 --speaker 1 --sample 11025
 ```
 
-## Usage(Remote)
+The corresponding scripts are `generate-speech-coqui` (`--host` / `--port`) and `generate-speech-google` (credentials in `scripts/key.json`). Both accept `--input` / `--output`. Follow the service's own setup and authentication instructions.
 
-* Set `config.tts.type` according to your TTS server in `manifest_local.json`
+Add this field to the lesson's manifest:
 
 ```json
 {
-    "config": {
-        "tts": {
-            "type": "remote",
-            "host": "your.tts.host.local",
-            "port": 8080
-        }
-    }
+  "resources": { "*": "./assets/*" }
 }
 ```
 
-* Call `context.say(sentence: string)`
-
-```javascript
-// ...
-export async function onContextCreated(context) {
-  await context.say('Now I can speak any sentence you want.')
-}
+```js
+await app.audio.playClip('hello', { signal: task.signal })
 ```
+
+The build converts `hello.wav` into MAUD. Host API 9 reads the playback rate from that resource's header; an app-level `tts.sampleRate` override is unnecessary. Missing or malformed clips reject before playback. Clips are currently unavailable on WASM; check `audio.clips` before using them there.
+
+Declare schema 2 / app API 2 and `audio.speech` or `audio.clips` in `stackchan-mod.json`. Require host API 9 for header-derived clip rates. See [beacon](../mods/examples/beacon/README_ja.md) for an existing resource example.

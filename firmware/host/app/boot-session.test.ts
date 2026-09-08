@@ -73,8 +73,6 @@ function fixture() {
       attempts.push({ options, connection })
       return connection
     },
-    connectingMessage: (attempt, max) => `${attempt}/${max}`,
-    failureMessage: (reason) => reason,
   }
   return { clock, attempts, dependencies, peerCloses: () => peerCloses }
 }
@@ -167,58 +165,6 @@ test('automatic retries are bounded and each failed attempt is released before t
   })
   assert.equal(f.clock.jobs.size, 0)
   await boot.close()
-})
-
-test('a late recovery choice cannot restart a closed boot session', async () => {
-  const { BootSession } = await setup()
-  const f = fixture()
-  let choose: (choice: 'retry' | 'offline') => void
-  let recoverySignal: Parameters<NonNullable<HostBootServicesOptions['wifi']['promptRecoveryChoice']>>[1]
-  const boot = new BootSession(
-    {
-      ...options,
-      wifi: {
-        ...options.wifi,
-        promptRecoveryChoice(_status, signal) {
-          recoverySignal = signal
-          return new Promise((resolve) => {
-            choose = resolve
-          })
-        },
-      },
-    },
-    f.dependencies,
-  )
-  await flush()
-  f.attempts[0].options.onError('authentication failed')
-  await flush()
-  assert.equal(f.attempts[0].connection.closed, true)
-  await boot.close()
-  assert.equal(recoverySignal.reason.code, 'CLOSED')
-  choose('retry')
-  await flush()
-  assert.equal(f.attempts.length, 1)
-  assert.equal(f.clock.jobs.size, 0)
-  const result = await boot.connectivity.network.ready
-  assert.equal(result.status === 'failed' && result.code, 'CLOSED')
-})
-
-test('offline recovery returns a skipped result and manual retry can succeed', async () => {
-  const { BootSession } = await setup()
-  for (const choice of ['offline', 'retry'] as const) {
-    const f = fixture()
-    const boot = new BootSession(
-      { ...options, wifi: { ...options.wifi, promptRecoveryChoice: async () => choice } },
-      f.dependencies,
-    )
-    await flush()
-    f.attempts[0].options.onError('authentication failed')
-    await flush()
-    if (choice === 'retry') f.attempts[1].options.onConnected()
-    assert.equal((await boot.connectivity.network.ready).status, choice === 'retry' ? 'connected' : 'skipped')
-    await boot.close()
-    assert.equal(f.clock.jobs.size, 0)
-  }
 })
 
 test('replacement waits for previous cleanup and propagates cleanup failure', async () => {

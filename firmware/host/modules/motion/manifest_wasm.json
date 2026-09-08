@@ -4,7 +4,7 @@
     "../../app/manifest_typings.json"
   ],
   "modules": {
-    "motion-controller": "./motion-controller",
+    "motion-driver": "./motion-driver",
     "motion-port": "./motion-port",
     "motion-bridge": ["./wasm/motion-bridge", "./wasm/motion-bridge.c"],
     "wasm-driver": "./wasm/wasm-driver",

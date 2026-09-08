@@ -20,11 +20,12 @@
     "./manifest_typings.json"
   ],
   "modules": {
-    "*": ["$(MODULES)/network/http/*"],
+    "*": [
+      "$(MODULES)/network/http/*"
+    ],
     "startup-splash": "../modules/ui/views/splash/splash-view",
     "camera-preview": "../modules/ui/views/camera-preview/camera-preview-view",
     "camera-preview-utils": "../modules/ui/views/camera-preview/camera-preview-utils",
-    "app-behavior": "./app-behavior",
     "app-network-native": "./app-network-native",
     "app-http": "./app-http",
     "embedded:sensor/Humidity-Temperature/SHT3x": "$(MODDABLE)/modules/drivers/sensors/sht3x/sht3x",

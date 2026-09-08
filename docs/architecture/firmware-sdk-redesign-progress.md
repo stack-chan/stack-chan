@@ -5,6 +5,12 @@
 
 この台帳は完了宣言ではない。各項目は、実装とその契約を検証する証拠が揃うまで未完了とする。
 
+## Blockly移行とV1撤去（2026-09-08）
+
+Blockly・顔エディター・Gallery生成をSDKへ移し、host API 9でV1 hook、raw Context、旧motion実行器、実行可能なmod/config、旧archive許容を撤去した。詳細と検証は [V1撤去の記録](v1-runtime-retirement-2026-09-08.md) と [Blockly移行の記録](blockly-sdk-migration-2026-09-08.md) を参照する。
+
+提案の項目1・2を実装した。続く項目3の責務・寿命・provider統合、項目4の機種・能力・設定schemaの正本、項目5の競合・復旧検証を継続する。実機・初学者受入と製品純減は未達であり、全体の完了宣言ではない。
+
 ## 全実行例の SDK 移行（2026-09-08）
 
 残っていた21例を14個の公開SDKパッケージへ移し、元の32例は21パッケージへ移行・統合した。`stackchan-mod.json` を持つ実行例の API 1 は0件。全例は [操作・設定・改造・復帰の入口](../../firmware/mods/examples/README_ja.md) から参照できる。

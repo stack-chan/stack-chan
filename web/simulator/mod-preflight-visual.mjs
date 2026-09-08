@@ -24,7 +24,7 @@ try {
   page.on('console', (message) => events.push(message.text()))
   await Promise.all([
     page.waitForEvent('console', {
-      predicate: (message) => message.text().includes('[main] app behaviors ready'),
+      predicate: (message) => message.text().includes('[main] app ready'),
       timeout: 45_000,
     }),
     page.goto(`${baseUrl}/simulator/`, { waitUntil: 'networkidle' }),
@@ -82,11 +82,34 @@ try {
   assert.equal(
     bootEvents.some((value) => value.includes('UNTRUSTED_')),
     false,
-    'neither mod/config nor mod may evaluate'
+    'the app must not evaluate'
   )
   assert.equal(
-    bootEvents.some((value) => value.includes('[main] app behaviors ready')),
+    bootEvents.some((value) => value.includes('[main] app ready')),
     false
+  )
+  assert.equal(
+    bootEvents.some((value) => /XS abort|PAGE_ERROR/.test(value)),
+    false
+  )
+
+  // A retired generation must be rejected by the compiled host even when the installer is bypassed.
+  const legacySource = Buffer.from(startupBytes).toString('latin1')
+  const retired = legacySource.replace(/("appApiVersion"\s*:\s*)2/, (_match, prefix) => `${prefix}1`)
+  assert.notEqual(retired, legacySource, 'the fixture declares app API 2')
+  bytes = Array.from(Buffer.from(retired, 'latin1'))
+  bootEvents.length = 0
+  await Promise.all([
+    boot.waitForEvent('console', {
+      predicate: (message) => message.text().includes('[main] error This host requires app API 2'),
+      timeout: 45_000,
+    }),
+    boot.reload({ waitUntil: 'networkidle' }),
+  ])
+  assert.equal(
+    bootEvents.some((value) => value.includes('UNTRUSTED_')),
+    false,
+    'retired archives evaluate neither config nor app'
   )
   assert.equal(
     bootEvents.some((value) => /XS abort|PAGE_ERROR/.test(value)),
@@ -129,7 +152,7 @@ try {
   assert.equal(
     bootEvents.some((value) => value.includes('UNTRUSTED_') || value.includes('[main] app context created')),
     false,
-    'settings pauses boot before evaluating either MOD entry, even past the auto-boot deadline'
+    'settings pauses boot before evaluating the MOD entry, even past the auto-boot deadline'
   )
   // Back creates a fresh splash. Re-entering settings must still defer the MOD.
   await tap(22, 22)
@@ -140,23 +163,22 @@ try {
   )
   await Promise.all([
     boot.waitForEvent('console', {
-      predicate: (message) => message.text().includes('[main] app behaviors ready'),
+      predicate: (message) => message.text().includes('[main] app ready'),
       timeout: 20_000,
     }),
     tap(22, 22),
   ])
-  for (const marker of ['UNTRUSTED_MOD_EVALUATED', 'UNTRUSTED_CONFIG_EVALUATED', 'UNTRUSTED_APP_STARTED']) {
+  for (const marker of ['UNTRUSTED_MOD_EVALUATED', 'UNTRUSTED_APP_STARTED']) {
     assert.equal(bootEvents.filter((value) => value.includes(marker)).length, 1, `${marker} runs once after setup`)
   }
   const eventIndex = (marker) => bootEvents.findIndex((value) => value.includes(marker))
-  assert.ok(eventIndex('UNTRUSTED_CONFIG_EVALUATED') < eventIndex('UNTRUSTED_MOD_EVALUATED'))
   assert.ok(eventIndex('UNTRUSTED_MOD_EVALUATED') < eventIndex('UNTRUSTED_APP_STARTED'))
   assert.equal(
     bootEvents.some((value) => /XS abort|PAGE_ERROR|\[main\] error/.test(value)),
     false
   )
   await bootContext.close()
-  console.log('MOD preflight rejects future APIs; host settings defer valid MOD and config evaluation until boot')
+  console.log('MOD preflight rejects retired and future APIs; host settings defer valid MOD evaluation until boot')
 } finally {
   await browser?.close()
   server.kill('SIGTERM')

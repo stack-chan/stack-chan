@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type {
+  HostPresentation,
   RemoteConversationListener,
   RemoteConversationSessionDelegate,
   RemoteConversationState,
   RemoteConversationTransportListener,
   RemoteConversationTransportState,
-  StackchanContext,
 } from 'capabilities'
 import { installRemoteSessionTestAliases } from '../../remote-session/__tests__/node-aliases.js'
 import type { TaskExecutionState } from '../../remote-session/application-event.js'
@@ -24,19 +24,19 @@ installRemoteSessionTestAliases()
 
 const { createUsbAudioDockRuntime, resolveUsbAudioConfig } = await import('./runtime.js')
 
-test('MOD config may opt into USB audio without overriding host startup policy', () => {
+test('A declared remote conversation capability enables USB audio without overriding host startup policy', () => {
   const defaultConfig: UsbAudioConfig = { enabled: false, autoStart: false }
   const dedicatedConfig: UsbAudioConfig = { enabled: true, autoStart: true }
 
   assert.deepEqual(resolveUsbAudioConfig(defaultConfig, undefined), defaultConfig)
-  assert.deepEqual(resolveUsbAudioConfig(defaultConfig, { usbAudio: { enabled: true } }), {
+  assert.deepEqual(resolveUsbAudioConfig(defaultConfig, ['conversation.remote']), {
     enabled: true,
     autoStart: false,
   })
-  assert.deepEqual(resolveUsbAudioConfig(dedicatedConfig, { usbAudio: { enabled: false } }), dedicatedConfig)
-  assert.equal(resolveUsbAudioConfig(undefined, { usbAudio: 'invalid' }), undefined)
-  assert.deepEqual(resolveUsbAudioConfig(defaultConfig, { usbAudio: { enabled: 1 } }), defaultConfig)
-  assert.deepEqual(resolveUsbAudioConfig(defaultConfig, { usbAudio: { enabled: 'true' } }), defaultConfig)
+  assert.deepEqual(resolveUsbAudioConfig(dedicatedConfig, []), dedicatedConfig)
+  assert.equal(resolveUsbAudioConfig(undefined, ['audio.speech']), undefined)
+  assert.deepEqual(resolveUsbAudioConfig(defaultConfig, []), defaultConfig)
+  assert.deepEqual(resolveUsbAudioConfig(defaultConfig, ['face']), defaultConfig)
 })
 
 class FakeRemoteSession implements RemoteConversationSessionDelegate {
@@ -237,7 +237,7 @@ test('manual mode reserves the physical bridge before context attachment without
   assert.equal(harness.sessions.length, 0)
   assert.deepEqual(harness.events, ['bridge-1:create', 'runtime-1:create'])
 
-  harness.runtime.onContextCreated({} as StackchanContext)
+  harness.runtime.attach({} as HostPresentation)
 
   assert.equal(harness.runtime.remoteConversationSession?.activationState, 'inactive')
   assert.equal(harness.moduleChecks, 1)
@@ -252,7 +252,7 @@ test('context attachment reapplies the saved host volume without recreating the 
 
   assert.equal(harness.bridges[0].speakerVolume, 0.1)
   savedVolume = 0.4
-  harness.runtime.onContextCreated({} as StackchanContext)
+  harness.runtime.attach({} as HostPresentation)
 
   assert.equal(harness.bridges[0].speakerVolume, 0.4)
   assert.equal(harness.bridges.length, 1)
@@ -263,7 +263,7 @@ test('activate is idempotent and deactivate releases only activation-scoped reso
   const harness = createHarness({ speakerVolume: 0.25 })
   const remoteSession = harness.runtime.remoteConversationSession
   assert.ok(remoteSession)
-  harness.runtime.onContextCreated({} as StackchanContext)
+  harness.runtime.attach({} as HostPresentation)
   const states: RemoteConversationState[] = []
   remoteSession.subscribe((state) => states.push(state))
 
@@ -300,7 +300,7 @@ test('activation failure rolls back created resources and can be retried', () =>
   const harness = createHarness()
   const remoteSession = harness.runtime.remoteConversationSession
   assert.ok(remoteSession)
-  harness.runtime.onContextCreated({} as StackchanContext)
+  harness.runtime.attach({} as HostPresentation)
   harness.failPresentation = true
 
   assert.throws(() => remoteSession.activate(), /presentation failed/)
@@ -323,7 +323,7 @@ test('task state received before activation is retained and snapshots across rea
   const remoteSession = harness.runtime.remoteConversationSession
   assert.ok(remoteSession)
   harness.emitTaskState(0, 'running')
-  harness.runtime.onContextCreated({} as StackchanContext)
+  harness.runtime.attach({} as HostPresentation)
   remoteSession.activate()
 
   harness.emitTaskState(0, 'idle')
@@ -353,7 +353,7 @@ test('auto-start activates after context attachment and host close is idempotent
   const remoteSession = harness.runtime.remoteConversationSession
   assert.ok(remoteSession)
 
-  harness.runtime.onContextCreated({} as StackchanContext)
+  harness.runtime.attach({} as HostPresentation)
   assert.equal(remoteSession.activationState, 'active')
   assert.equal(harness.imports, 1)
 
@@ -378,7 +378,7 @@ test('auto-start failure is logged and leaves the attached context available for
   testGlobal.trace = (message) => messages.push(message)
 
   try {
-    assert.doesNotThrow(() => harness.runtime.onContextCreated({} as StackchanContext))
+    assert.doesNotThrow(() => harness.runtime.attach({} as HostPresentation))
   } finally {
     testGlobal.trace = previousTrace
   }

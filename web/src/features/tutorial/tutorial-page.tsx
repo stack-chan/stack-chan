@@ -126,7 +126,7 @@ export function TutorialPage() {
           {t('生成コードタブの')}
           <code>mod.js</code>
           {t('は、通常のMODと同じ')}
-          <code>onContextCreated(robot)</code>
+          <code>defineApp / setup(app)</code>
           {t('を公開します。')}
         </p>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">

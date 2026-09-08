@@ -74,7 +74,7 @@ test('reads the live partition layout before writing and verifying a MOD', () =>
   const archivePath = path.join(fixture, 'look_around.xsa')
   const archive = makeArchive(192)
   const partitionTable = makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
-  const appHeader = makeAppHeader({ version: '8.3.1+stackchan.1', projectName: 'xs_esp32' })
+  const appHeader = makeAppHeader({ version: '8.3.1+stackchan.2', projectName: 'xs_esp32' })
   const calls = []
   const scratchPaths = []
 
@@ -217,7 +217,7 @@ test('validates optional esptool connection settings', () => {
 })
 
 function makeArchive(size) {
-  return makeXsArchive({ metadata: { ...modDefinition, appApiVersion: 1, hostApiVersion: 1 }, padding: size })
+  return makeXsArchive({ metadata: modDefinition, padding: size })
 }
 
 function makePartitionTable({ xsOffset, xsSize }) {
@@ -263,7 +263,7 @@ test('9.5 MOD preflight rejects an out-of-range archive before writing', () => {
               args.at(-1),
               ++reads === 1
                 ? makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
-                : makeAppHeader({ version: '9.5.0+stackchan.1', projectName: 'xs_esp32' }),
+                : makeAppHeader({ version: '9.5.0+stackchan.2', projectName: 'xs_esp32' }),
             )
           },
         }),

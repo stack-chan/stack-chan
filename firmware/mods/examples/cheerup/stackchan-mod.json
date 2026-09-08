@@ -7,7 +7,7 @@
   "name": "cheerup",
   "description": "Receive STK BLE or WebSocket poses and play cheer-up clips.",
   "appApiVersion": 2,
-  "hostApiVersion": 7,
+  "hostApiVersion": 9,
   "source": {
     "path": "manifest.json",
     "entrypoint": "mod.ts"

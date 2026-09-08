@@ -1,6 +1,6 @@
 # MOD の宣言と配布時の互換性検査
 
-この記録は F10 の実装途中の状態を示す。正本は `stackchan-mod.json`、互換性を読む実装は `firmware/contracts/mod-package.js` と `xsa-metadata.js`。宣言の必須化と SD・WASM・起動時の検査は接続済み。全 MOD の SDK 移行、実際の機種・設定から得る能力表、実機受入は継続する。
+この記録は F10 の実装途中の状態を示す。正本は `stackchan-mod.json`、互換性を読む実装は `firmware/contracts/mod-package.js` と `xsa-metadata.js`。宣言の必須化と SD・WASM・起動時の検査は接続済み。残す全例・Blockly・顔エディターのSDK移行とV1実行経路の撤去は済んだ。実際の機種・設定から得る能力表、実機受入は継続する。
 
 ## 世代を分ける
 
@@ -9,17 +9,19 @@
 | 情報                       | 意味                         | 例                                       |
 | -------------------------- | ---------------------------- | ---------------------------------------- |
 | `schemaVersion`            | `stackchan-mod.json` の形式  | 2                                        |
-| `appApiVersion`            | アプリの起動・終了契約       | 1 は旧 hooks、2 は `defineApp` / `setup` |
+| `appApiVersion`            | アプリの起動・終了契約       | 2 の `defineApp` / `setup` のみ |
 | `hostApiVersion`           | 必要なホスト API の最小世代  | 2                                        |
 | XS の `VERS`               | コンパイル済みコードの XS 版 | 17.8.2                                   |
 | Moddable SDK 版            | 本体を作った SDK             | 9.5.0                                    |
 | `targets` / `capabilities` | 対象環境と使用機能           | `portable`, `camera`                     |
 
-ホストの API 世代の値を共通契約へ移し、本体の `esp_app_desc` には `9.5.0+stackchan.2` のように記録する。CLI と WebSerial は書き込まれた本体からこの情報を読む。host API 1 と識別された本体へ、host API 2 を要求する MOD は書き込まない。以前の再設計ブランチを利用していた場合も、本体を更新してから教材を書き込む。
+ホストの API 世代の値を共通契約へ移し、本体の `esp_app_desc` には `9.5.0+stackchan.9` のように記録する。CLI と WebSerial は書き込まれた本体からこの情報を読む。host API 1 と識別された本体へ、host API 2 を要求する MOD は書き込まない。以前の再設計ブランチを利用していた場合も、本体を更新してから教材を書き込む。
 
 検証中、Takao Core2 の通常ビルドには SDK 版ではなく Git のコミット名が記録されていた。CoreS3 だけに適用していた生成を Stack-chan RT / Takao Core2 にも接続し、通常ビルドと bundle が同じ最終 manifest の優先順位を使うようにした。両機種の CLI も SDK 版を確認する。古い Git 名だけの本体は先に更新する。従来の汎用 `run-mcconfig` 経路や全ビルド入口を統合する作業は F7 / F10 に残る。
 
-`schemaVersion: 1` は旧アプリ API 1、最小 host API 1 として解釈する。世代2の要求を schema 1 に追加して隠すことはできない。schema 2 は両方の API 世代を明示する。旧 `miniapp` 入口は世代を問わず拒否し、SDK の Piu 拡張へ移して再生成するよう案内する。画面拡張は通常の `mod`、app API 2、最小 host API 3、`ui.piu` を使う。
+host API 9はschema 2 / app API 2だけを受け付ける。schema 1、app API 1、metadataのないarchive、旧 `miniapp` と実行可能な `mod/config` は、コード評価前に拒否する。SDKソースと宣言を更新して再生成するよう案内し、旧フックを読み替えるadapterは残さない。Piu拡張も通常の `mod` と同じAppSessionで起動する。
+
+アプリ既定値は同じmetadataの `settings` に `{"tts.volume": 0.2}` のように宣言する。空でない既定値にはhost API 9が必要。共通archive readerが項目数・型・サイズを検査し、ホストのSettingsServiceが許可された設定キーと値を検証する。保存済み値と機種固定値が優先される。接続資格情報はアプリ既定値へ含めない。設定キーの詳細検証をCLI・Webへ接続する作業は能力表の統一と一緒に残る。
 
 ## 標準のビルドで同梱する
 
@@ -39,9 +41,9 @@ Web の `buildModArchive` は `metadata` を必須にし、標準 manifest へ `
 
 ネイティブの `npm run mod:build` / `npm run mod` も、生成後に archive を検査する。宣言の同梱を必須にし、manifest の隣の正本と比較する。Galleryのように一階層上へ正本を置く場合は、`source.path` がそのmanifestを指すことを確認して比較する。JSON を用意したのに `data` へ追加し忘れた場合や、古い生成物に別の宣言が残った場合に成功を報告しない。
 
-現在の Blockly は旧 hooks を生成するので、Web エディターが作る宣言は schema 2 / app API 1。使用機能は配布前の確認と同じ workspace 解析から得る。SDK 世代2へのコード生成の移行は別の未完了項目であり、metadata の世代を上げるだけで完了とは扱わない。
+Blocklyと顔エディターはschema 2 / app API 2 / host API 8のSDKコードを生成する。Gallery 4ブロック例とWASMの配布用starterもSDK化した。入力・周期処理・待機・形状の顔はAppSessionに所属する。
 
-6つの SDK 教材は schema 2 / app API 2 / host API 2 を同梱する。発話・首振り・撮影の教材は未対応時に案内できるので、その機能を `optionalCapabilities` へ記録する。これは `capabilities` の部分集合であり、将来の起動検査で必須機能と区別する。SDK の主入力は `input.primary`、旧アプリの機種別ボタンは `input.buttons` で、統合した対象環境の能力表への接続は残る。
+7教材と21個の実行可能な例はapp API 2へ移行した。必要なhost APIと能力は各metadataに宣言し、未対応時に案内して継続できる機能は `optionalCapabilities` に記録する。これは `capabilities` の部分集合である。
 
 ## 検査の境界
 
@@ -49,28 +51,28 @@ XSA reader はモジュールを実行せずに、atom の境界、版、resourc
 
 | 経路 | 接続した検査・動作 | 残る検査 |
 | --- | --- | --- |
-| Web / ネイティブビルド | 宣言必須、標準同梱、実行入口・外部宣言との一致。全32例と6教材を宣言 | 既存例とBlocklyの SDK 世代2への移行 |
+| Web / ネイティブビルド | 宣言必須、標準同梱、実行入口・外部宣言との一致。21例・7教材・BlocklyをSDKへ移行 | 配布先との能力照合 |
 | CLI | 必須宣言・構造・XS版・実機 host API・partition・read-back | 機種と設定に基づく実際の能力 |
 | 診断スクリプト | 同じCLIのmodコマンドで検査・書き込み・read-back後、同じportへserial2xsbugを接続。再試行はbridgeだけを再起動 | USBの再起動・実機ログと機器の受入 |
 | WebSerial | 必須宣言・構造・XS版・Moddable 9.5・実機 host API。確認callback前に検査 | 機種と設定に基づく実際の能力 |
-| Gallery | 全6テキストartifactを標準mcrunで再生成。取得時にid・版・API・対象・機能・実行入口を正本と比較 | SDK世代2への移行、実機受入 |
+| Gallery | 全6テキストartifactを標準mcrunで再生成。取得時にid・版・API・対象・機能・実行入口を正本と比較 | 実機受入 |
 | SD | 必須宣言・構造・XS版・host API・partition・read-back。保守起動以外からの書き込みを拒否 | 実機の電源断・容量・SDカード受入 |
 | WASM保存・読み込み | 必須宣言・構造・XS版・host API・simulator対象。IndexedDBのcommitを待ち、abortを成功扱いしない | 実際のブラウザー能力との照合 |
-| 本体起動 | `mod/config` / `mod` / `miniapp`の評価前に必須宣言・host API・実行入口を検査。exportと宣言のアプリ世代も照合 | 実際の機種・設定から得る能力表 |
+| 本体起動 | 旧入口・旧archiveを拒否し、`mod`の評価前に必須宣言・host API・実行入口と設定を検査。exportはSDK定義に限定 | 実際の機種・設定から得る能力表 |
 
 `assertModCompatibility` は、渡されたホスト情報だけを検査する。CLI と WebSerial が新たに渡すのは本体の host API 世代。チップ名だけでボードや利用可能な機能を判定したことにはしない。Web の既存プロファイル検査と XS 版・サイズ・書き込み後照合も維持する。
 
 ## 旧 MOD の更新と復旧
 
-宣言のない旧 XSA は、CLI・WebSerial・SD・WASM・本体起動で拒否する。`schemaVersion: 1` の正しい宣言を持つアプリは API 1 として引き続き扱う。情報が欠けた archive を旧世代と推測して実行しない。まずホストをこのブランチの Moddable 9.5 / host API 2 へ更新し、ソースに宣言とmanifestの`data`を加えて再ビルドする。新しく始める場合は [SDK教材](../../firmware/lessons/README_ja.md) の3ファイルをコピーし、最初は `mod.js` だけを編集する。
+宣言のない旧XSA、schema 1、app API 1はCLI・WebSerial・SD・WASM・本体起動で拒否する。まずホストをこのブランチのModdable 9.5 / host API 9へ更新し、ソースをSDKへ移し、宣言とmanifestの `data` を加えて再ビルドする。Blocklyは保存したブロックプロジェクトから再生成する。新しく始める場合は [SDK教材](../../firmware/lessons/README_ja.md) の3ファイルをコピーし、最初は `mod.js` だけを編集する。
 
 本体の拒否画面は MOD に依存しないホスト設定で表示言語を決め、エラーコードと MOD 更新の案内を表示する。SD機能のある機種ではMODボタン、再起動のある機種では再起動ボタンを表示する。WASMはWeb側のMOD削除・追加操作を利用する。XSは不正なバイトコードをhost mainより早く拒否する場合もあり、全ての破損archiveをPiu画面で回復できるという保証ではない。
 
 起動入口は小さな`main`と実際のアプリを読み込む`app-main`へ分けた。Moddableの`Resource`もMOD内の同名リソースを優先するため、保守起動と宣言の拒否では、アプリやUIをimportする前にarchiveを切り離す。SDK 9.5の`fxSetArchive`を呼ぶ小さなC adapterが、モジュール・リソースの参照とglobalのarchiveを外す。archiveのマッピングや確保メモリーの所有はプラットフォームに残し、終了時の二重解放を避ける。Moddable更新時にはこのadapterも検証する。試験用MODは不正な同名`locals.mhi`を含み、復旧時にホストの文字リソースを使えることを実WASMで確認する。
 
-SDは、起動画面のMODボタンと電源ボタンのショートカットの両方から、ホスト所有の保守要求を保存して再起動する。次のVMで要求を一度だけ消費し、MODの設定も本体も評価せずに書き込み画面へ入る。V1の独自Timerが旧archiveを参照し続ける可能性があるため、contextのcloseだけを停止保証にしない。書き込み成功と「戻る」は再起動する。保守要求はユーザー設定とは別の`stackchan.boot/maintenance`で管理する。任意コードからFlash自体へ触れなくするセキュリティ境界ではない。
+SDは、起動画面のMODボタンと電源ボタンのショートカットの両方から、ホスト所有の保守要求を保存して再起動する。次のVMで要求を一度だけ消費し、MODの設定も本体も評価せずに書き込み画面へ入る。実行中のVMが参照するarchive自体を書き換えないため、アプリ終了だけで保守画面へ遷移しない。書き込み成功と「戻る」は再起動する。保守要求はユーザー設定とは別の`stackchan.boot/maintenance`で管理する。任意コードからFlash自体へ触れなくするセキュリティ境界ではない。
 
-既存32例の宣言は [移行台帳](legacy-mod-migration.md) に記録した。特殊なサーボ診断などの未完成・機種依存コードを、宣言を付けただけで移行済みとは扱わない。
+既存32例の宣言は [移行台帳](legacy-mod-migration.md) に記録した。ソース移行と機種依存の実機受入は区別する。
 
 ## ビルドの再現性
 

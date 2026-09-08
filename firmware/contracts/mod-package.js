@@ -1,5 +1,5 @@
 /** Shared by the host, browser tools and CLI. This is the host ABI generation, not an XS version. */
-export const STACKCHAN_HOST_API_VERSION = 8
+export const STACKCHAN_HOST_API_VERSION = 9
 export const MOD_METADATA_RESOURCE = 'stackchan-mod.json'
 export const MOD_METADATA_LIMIT = 16_384
 export const MOD_FORMAT = 'tech.stackchan.mod'
@@ -7,8 +7,9 @@ export const MOD_SCHEMA_VERSION = 2
 
 /** @typedef {'mod'} ModEntrypoint */
 /** @typedef {{
- * schemaVersion: 1 | 2, id: string, version: string, appApiVersion: 1 | 2,
+ * schemaVersion: 2, id: string, version: string, appApiVersion: 2,
  * hostApiVersion: number, targets: readonly string[], capabilities: readonly string[],
+ * settings: Readonly<Record<string, string | number>>,
  * optionalCapabilities: readonly string[], entrypoints: readonly ModEntrypoint[]
  * }} ModRuntimeContract */
 
@@ -46,11 +47,16 @@ function stringList(value, label, required = false) {
 }
 
 /** Read compatibility declarations only. Gallery presentation fields remain in the same source document.
- * Schema 1 always describes legacy apps. Schema 2 makes the app and host ABI explicit.
+ * Schema 2 declares the SDK and host ABI; retired archives must be rebuilt.
  * @param {unknown} value @returns {Readonly<ModRuntimeContract>}
  */
 export function parseModRuntimeContract(value) {
-  if (!record(value) || value.format !== MOD_FORMAT || (value.schemaVersion !== 1 && value.schemaVersion !== 2))
+  if (record(value) && value.format === MOD_FORMAT && value.schemaVersion === 1)
+    throw new ModCompatibilityError(
+      'MOD_APP_API_UNSUPPORTED',
+      'Legacy MODs are no longer supported. Rewrite with defineApp and rebuild using metadata schema 2.',
+    )
+  if (!record(value) || value.format !== MOD_FORMAT || value.schemaVersion !== MOD_SCHEMA_VERSION)
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Unsupported MOD metadata format or schema')
   if (typeof value.id !== 'string' || value.id.length > 128 || !/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/.test(value.id))
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Invalid MOD id')
@@ -60,19 +66,29 @@ export function parseModRuntimeContract(value) {
     !/^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/.test(value.version)
   )
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Invalid MOD version')
-  const appApiVersion = value.schemaVersion === 1 ? 1 : value.appApiVersion
-  if (appApiVersion !== 1 && appApiVersion !== 2)
-    throw new ModCompatibilityError('MOD_APP_API_UNSUPPORTED', 'Unsupported application API generation')
-  if (
-    value.schemaVersion === 1 &&
-    (value.appApiVersion !== undefined ||
-      value.hostApiVersion !== undefined ||
-      value.optionalCapabilities !== undefined)
-  )
-    throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Explicit API requirements need metadata schema 2')
-  const hostApiVersion = value.schemaVersion === 1 ? 1 : value.hostApiVersion
+  const appApiVersion = value.appApiVersion
+  if (appApiVersion !== 2)
+    throw new ModCompatibilityError(
+      'MOD_APP_API_UNSUPPORTED',
+      'This host requires app API 2. Rewrite with defineApp and rebuild the MOD.',
+    )
+  const hostApiVersion = value.hostApiVersion
   if (!Number.isSafeInteger(hostApiVersion) || Number(hostApiVersion) < appApiVersion)
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Invalid minimum host API generation')
+  const settings = value.settings === undefined ? {} : value.settings
+  if (
+    !record(settings) ||
+    Object.keys(settings).length > 32 ||
+    Object.entries(settings).some(
+      ([key, setting]) =>
+        !/^[a-z][a-zA-Z0-9]*\.[a-z][a-zA-Z0-9]*$/.test(key) ||
+        (typeof setting !== 'string' && typeof setting !== 'number') ||
+        (typeof setting === 'string' ? setting.length > 2048 : !Number.isFinite(setting)),
+    )
+  )
+    throw new ModCompatibilityError('MOD_METADATA_INVALID', 'settings must contain bounded setting defaults')
+  if (Object.keys(settings).length && Number(hostApiVersion) < 9)
+    throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Declarative setting defaults require host API 9')
   const targets = stringList(value.targets, 'targets', true)
   const capabilities = stringList(value.capabilities, 'capabilities')
   const optionalCapabilities = stringList(value.optionalCapabilities, 'optionalCapabilities')
@@ -93,6 +109,7 @@ export function parseModRuntimeContract(value) {
     appApiVersion,
     hostApiVersion: Number(hostApiVersion),
     targets: Object.freeze(targets),
+    settings: Object.freeze({ .../** @type {Record<string, string | number>} */ (settings) }),
     capabilities: Object.freeze(capabilities),
     optionalCapabilities: Object.freeze(optionalCapabilities),
     entrypoints: Object.freeze(/** @type {ModEntrypoint[]} */ (entries)),

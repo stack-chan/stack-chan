@@ -1,8 +1,9 @@
+let archiveValues: string[] = []
 let moduleValues: Record<string, unknown> = {}
 
 const Modules = {
   get archive(): string[] {
-    return []
+    return archiveValues
   },
   has(specifier: string): boolean {
     return Object.hasOwn(moduleValues, specifier)
@@ -12,8 +13,9 @@ const Modules = {
   },
 }
 
-export function resetModules(values: Record<string, unknown> = {}): void {
+export function resetModules(values: Record<string, unknown> = {}, archive: string[] = []): void {
   moduleValues = values
+  archiveValues = archive
 }
 
 export default Modules

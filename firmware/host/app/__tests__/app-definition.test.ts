@@ -2,48 +2,43 @@ import assert from 'node:assert/strict'
 import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-
-import type { AppBehaviorModules } from 'app-behavior-resolver'
+import type { AppModules } from 'app-definition'
 import { writeAliasPackage } from '../../modules/testing/node-alias-package.js'
+import { installRuntimeTestAliases } from './runtime-test-aliases.js'
 
 const defaultApp = { apiVersion: 2 as const, setup() {} }
 
-type AppBehaviorResolverModule = typeof import('app-behavior-resolver')
+type AppDefinitionModule = typeof import('app-definition')
 type AppLaunchModule = typeof import('app-launch')
 
-test('resolveAppProgram preserves V2 setup without inheriting legacy hooks', async () => {
+test('resolveAppDefinition preserves V2 setup without inheriting legacy hooks', async () => {
   installBareSpecifierPackages()
-  const { resolveAppProgram } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
+  const { resolveAppDefinition } = (await import('app-definition')) as AppDefinitionModule
   const app = { apiVersion: 2 as const, setup() {} }
-  const program = resolveAppProgram({ has: () => true, importNow: () => app }, defaultApp, 2)
-  assert.deepEqual(program, { generation: 2, app })
-  assert.equal('behavior' in program, false)
+  const program = resolveAppDefinition({ has: () => true, importNow: () => app }, defaultApp)
+  assert.equal(program, app)
 })
 
-test('resolveAppProgram rejects exports from a different generation than the validated declaration', async () => {
+test('legacy, future and malformed exports are rejected with migration guidance', async () => {
   installBareSpecifierPackages()
-  const { resolveAppProgram } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
-  for (const [app, declared] of [
-    [{ onLaunch() {} }, 2],
-    [{ apiVersion: 2, setup() {} }, 1],
-  ] as const) {
+  const { resolveAppDefinition } = await import('app-definition')
+  for (const app of [null, 4, { onLaunch() {} }, { apiVersion: 1 }, { apiVersion: 3, setup() {} }, { apiVersion: 2 }])
     assert.throws(
-      () => resolveAppProgram({ has: () => true, importNow: () => app }, defaultApp, declared),
-      /does not match its declared app API generation/,
+      () => resolveAppDefinition({ has: () => true, importNow: () => app }, defaultApp),
+      /defineApp.*rebuild/,
     )
-  }
 })
 
-test('resolveAppProgram refuses unsupported generations and broken imports before running defaults', async () => {
+test('resolveAppDefinition refuses unsupported generations and broken imports before running defaults', async () => {
   installBareSpecifierPackages()
-  const { resolveAppProgram } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
+  const { resolveAppDefinition } = (await import('app-definition')) as AppDefinitionModule
   assert.throws(
-    () => resolveAppProgram({ has: () => true, importNow: () => ({ apiVersion: 3, setup() {} }) }, defaultApp),
+    () => resolveAppDefinition({ has: () => true, importNow: () => ({ apiVersion: 3, setup() {} }) }, defaultApp),
     /Unsupported/,
   )
   assert.throws(
     () =>
-      resolveAppProgram(
+      resolveAppDefinition(
         {
           has: () => true,
           importNow: () => {
@@ -57,15 +52,16 @@ test('resolveAppProgram refuses unsupported generations and broken imports befor
 })
 
 function installBareSpecifierPackages(): void {
+  installRuntimeTestAliases()
   const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
-  writeAliasPackage(hostRoot, 'app-behavior-resolver', resolve(hostRoot, 'app/app-behavior-resolver.js'))
+  writeAliasPackage(hostRoot, 'app-definition', resolve(hostRoot, 'app/app-definition.js'))
   writeAliasPackage(hostRoot, 'app-launch', resolve(hostRoot, 'app/app-launch.js'))
 }
 
-test('resolveAppProgram runs only the product default behavior when no MOD is installed', async () => {
+test('resolveAppDefinition runs only the product default behavior when no MOD is installed', async () => {
   installBareSpecifierPackages()
-  const { resolveAppProgram } = (await import('app-behavior-resolver')) as AppBehaviorResolverModule
-  const modules: AppBehaviorModules = {
+  const { resolveAppDefinition } = (await import('app-definition')) as AppDefinitionModule
+  const modules: AppModules = {
     has: (specifier) => {
       assert.equal(specifier, 'mod')
       return false
@@ -75,7 +71,7 @@ test('resolveAppProgram runs only the product default behavior when no MOD is in
     },
   }
 
-  assert.deepEqual(resolveAppProgram(modules, defaultApp), { generation: 2, app: defaultApp })
+  assert.equal(resolveAppDefinition(modules, defaultApp), defaultApp)
 })
 
 test('installLaunchShortcut opens on release without replacing the existing button handler', async () => {

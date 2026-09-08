@@ -137,7 +137,7 @@ try {
   })
   const ready = () =>
     page.waitForEvent('console', {
-      predicate: (message) => message.text().includes('[main] app behaviors ready'),
+      predicate: (message) => message.text().includes('[main] app ready'),
       timeout: 45_000,
     })
   await Promise.all([ready(), page.goto(`${baseUrl}/simulator/`, { waitUntil: 'networkidle' })])

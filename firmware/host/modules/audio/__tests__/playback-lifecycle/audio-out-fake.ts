@@ -12,6 +12,10 @@ export default class AudioOut {
   readonly options: Options
   readonly volumes: number[] = []
   raw?: WeakRef<SharedArrayBuffer>
+  callbacks: (((value: number) => void) | null)[] = []
+  length(_stream: number): number {
+    return 8
+  }
   callback?: () => void
   started = 0
   stopped = 0

@@ -1,0 +1,47 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../manifest.json",
+    "../../../testing/manifest.json",
+    "$(MODDABLE)/modules/base/modules/manifest.json"
+  ],
+  "modules": {
+    "main": "./worker-lifecycle.test",
+    "web-radio-byte-ring": "../../../audio/platforms/m5stackchan-cores3/shared-byte-ring",
+    "stackchan-usb-crc32": "../bridge-io/unused-crc32",
+    "stackchan-usb-serial": "../usb-serial-fake",
+    "~": [
+      "$(MODDABLE)/modules/base/worker/worker",
+      "$(MODDABLE)/modules/io/audioout/lin/audioout_"
+    ]
+  },
+  "creation": {
+    "static": 262144,
+    "chunk": {
+      "initial": 131072,
+      "incremental": 16384
+    },
+    "heap": {
+      "initial": 2048,
+      "incremental": 256
+    },
+    "stack": 512
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false,
+        "useUnknownInCatchVariables": false
+      }
+    }
+  },
+  "platforms": {
+    "lin": {
+      "modules": {
+        "embedded:io/audio/in": "./audio-fake",
+        "embedded:io/audio/out": "./audio-out",
+        "worker": "./worker-fake"
+      }
+    }
+  }
+}

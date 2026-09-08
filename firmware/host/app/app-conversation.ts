@@ -245,7 +245,7 @@ export function createAppConversation(
         if (!remote) throw new StackchanError('UNSUPPORTED', 'USB remote conversation is unavailable on this target')
         const owner = new AppConnection(scope)
         try {
-          owner.own(audio.reserveStream(true, true))
+          if (remote.activationState === 'active') throw new StackchanError('BUSY', 'Remote conversation is active')
           remote.activate()
           owner.own(() => remote.deactivate())
           return {

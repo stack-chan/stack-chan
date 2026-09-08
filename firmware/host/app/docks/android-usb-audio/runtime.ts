@@ -1,3 +1,4 @@
+import type { AudioStreamAccess } from 'audio-ports'
 import type {
   HostPresentation,
   RemoteConversationSession,
@@ -22,6 +23,7 @@ export type UsbAudioPresentationControl = {
 }
 
 export type UsbAudioBridgeControl<Status> = {
+  activateAudio(access: AudioStreamAccess): () => void
   setSpeakerVolume(volume: number): void
   setEventHandler(handler?: (event: string) => void): void
   setTransportStateHandler(handler?: (state: 'disconnected' | 'unsupported' | 'ready') => void): void
@@ -66,7 +68,7 @@ export type UsbAudioRemoteRuntime = {
 
 export type UsbAudioDockRuntime = {
   readonly remoteConversationSession?: RemoteConversationSession
-  attach(context: HostPresentation): void
+  attach(context: HostPresentation, audio: AudioStreamAccess): void
   close(): void
 }
 
@@ -113,22 +115,24 @@ export function createUsbAudioDockRuntime<Status>(
     throw error
   }
   let context: HostPresentation | undefined
+  let audio: AudioStreamAccess | undefined
   let contextAttached = false
   let closed = false
   const facade = createRemoteConversationSessionFacade(createActiveBinding)
 
   function createActiveBinding(): RemoteConversationSessionBinding {
-    if (!contextAttached || !context) {
+    if (!contextAttached || !context || !audio) {
       throw new Error('USB audio Dock cannot activate before the Stack-chan context is attached')
     }
 
-    const remoteActivation = remoteRuntime.activate(context, dependencies.createRealtimeToolProvider())
+    const releaseAudio = bridge.activateAudio(audio)
+    let remoteActivation: UsbAudioRemoteActivation | undefined
     let presentation: UsbAudioPresentationControl | undefined
     let removeTaskStateListener: (() => void) | undefined
     try {
-      bridge.setStatusHandler((status) =>
-        remoteActivation.updateConversationState(dependencies.conversationState(status)),
-      )
+      const activation = remoteRuntime.activate(context, dependencies.createRealtimeToolProvider())
+      remoteActivation = activation
+      bridge.setStatusHandler((status) => activation.updateConversationState(dependencies.conversationState(status)))
       if (usbAudio.presentationEnabled !== false) {
         presentation = dependencies.createPresentation(context)
         bridge.setPresentation(presentation)
@@ -136,7 +140,7 @@ export function createUsbAudioDockRuntime<Status>(
       }
     } catch (error) {
       try {
-        closeActiveResources(bridge, presentation, removeTaskStateListener, remoteActivation)
+        closeActiveResources(bridge, presentation, removeTaskStateListener, remoteActivation, releaseAudio)
       } catch (closeError) {
         log(`[dock] activation cleanup failed: ${errorMessage(closeError)}\n`)
       }
@@ -151,20 +155,27 @@ export function createUsbAudioDockRuntime<Status>(
       close() {
         if (activeClosed) return
         activeClosed = true
-        closeActiveResources(bridge, activePresentation, removeActiveTaskStateListener, activeRemoteActivation)
+        closeActiveResources(
+          bridge,
+          activePresentation,
+          removeActiveTaskStateListener,
+          activeRemoteActivation,
+          releaseAudio,
+        )
       },
     }
   }
 
   return {
     remoteConversationSession: facade.remoteSession,
-    attach(nextContext) {
+    attach(nextContext, audioAccess) {
       if (closed) throw new Error('USB audio Dock runtime is closed')
       if (contextAttached) throw new Error('USB audio Dock context is already attached')
       if (dependencies.resolveSpeakerVolume) {
         bridge.setSpeakerVolume(dependencies.resolveSpeakerVolume())
       }
       context = nextContext
+      audio = audioAccess
       contextAttached = true
       if (usbAudio.autoStart) {
         try {
@@ -204,6 +215,7 @@ function closeActiveResources<Status>(
   presentation: UsbAudioPresentationControl | undefined,
   removeTaskStateListener?: () => void,
   remoteActivation?: UsbAudioRemoteActivation,
+  releaseAudio?: () => void,
 ): void {
   let firstError: unknown
   let failed = false
@@ -223,6 +235,7 @@ function closeActiveResources<Status>(
   if (removeTaskStateListener) attempt(removeTaskStateListener)
   if (presentation) attempt(() => presentation.close())
   if (remoteActivation) attempt(() => remoteActivation.close())
+  if (releaseAudio) attempt(releaseAudio)
   if (failed) throw firstError
 }
 

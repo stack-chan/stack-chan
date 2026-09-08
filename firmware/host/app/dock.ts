@@ -1,10 +1,11 @@
+import type { AudioStreamAccess } from 'audio-ports'
 import type { HostPresentation, RemoteConversationSession } from 'capabilities'
 
 export const STACKCHAN_DOCK_MODULE = 'stackchan-dock'
 
 export type StackchanDockRuntime = {
   readonly remoteConversationSession?: RemoteConversationSession
-  attach(context: HostPresentation): void
+  attach(context: HostPresentation, audio: AudioStreamAccess): void
   close(): void
 }
 

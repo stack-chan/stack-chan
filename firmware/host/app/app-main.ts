@@ -144,7 +144,7 @@ async function main() {
         capabilities: CAPABILITY_IDS.filter((id) => readyContext.getCapability(id).availability !== 'unavailable'),
       })
     const app = resolveAppDefinition(Modules, defaultApp)
-    ownedDock?.attach(context.presentation)
+    ownedDock?.attach(context.presentation, context.audioAccess)
     trace('[main] app context created\n')
     await context.startApp(app)
     trace('[main] app ready\n')

@@ -19,3 +19,9 @@ export interface AudioOutputPort {
   cancelPlayback?(reason?: unknown): void | Promise<void>
   close?(): void | Promise<void>
 }
+
+/** Admission shared by normal playback/recording and host-owned streaming services. */
+export interface AudioStreamAccess {
+  reserveStream(input: boolean, output: boolean): () => void
+  failStream(error: unknown): void
+}

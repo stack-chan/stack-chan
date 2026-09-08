@@ -1,5 +1,6 @@
 import { createAppExtensions } from 'app-extensions'
 import { AppSession } from 'app-session'
+import type { AudioStreamAccess } from 'audio-ports'
 import type { ConnectivityCapability, HostPresentation, RemoteConversationSession, RobotUI } from 'capabilities'
 import clockTicks from 'clock-ticks'
 import type { Emotion } from 'face-state'
@@ -414,6 +415,10 @@ export class StackchanRuntimeContext {
   }
 
   /** The Dock borrows these host operations; SDK apps receive only AppSession.context. */
+  get audioAccess(): AudioStreamAccess {
+    return this.#audioRuntime
+  }
+
   get presentation(): HostPresentation {
     return { ui: this.#uiRuntime.ui, setMouthOpen: (value) => this.#uiRuntime.setMouthOpen(value) }
   }

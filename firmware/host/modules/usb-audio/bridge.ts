@@ -116,6 +116,7 @@ export type UsbAudioPlaybackObserver = {
 }
 
 export type UsbAudioBridgeControl = {
+  setMediaEnabled(enabled: boolean): void
   setSpeakerVolume(volume: number): void
   setPlaybackObserver(observer?: UsbAudioPlaybackObserver): void
   setStatusHandler(handler?: (status: StackChanStatus) => void): void
@@ -135,6 +136,7 @@ export type UsbAudioBridgeOptions = {
 }
 
 class UsbAudioBridge implements UsbAudioBridgeControl {
+  #mediaEnabled = true
   #speakerVolume: number
   readonly #diagnosticsEnabled: boolean
   readonly #createMicrophoneInput: UsbAudioMicrophoneInputFactory
@@ -223,6 +225,15 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
     this.#serial = serial
     this.#refreshConnection()
     this.#maintenanceTimer = Timer.repeat(() => this.#maintainSessions(), MAINTENANCE_INTERVAL_MILLISECONDS)
+  }
+
+  setMediaEnabled(enabled: boolean): void {
+    if (enabled === this.#mediaEnabled) return
+    this.#mediaEnabled = enabled
+    if (enabled) return
+    this.#stopMicrophone(true)
+    this.#stopSpeaker(true)
+    this.#setStatus(StackChanStatus.IDLE)
   }
 
   setSpeakerVolume(volume: number): void {
@@ -499,7 +510,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   }
 
   #handleHello(frame: StackChanFrame): void {
-    if (!isValidHelloControl(frame.streamId ?? 0, frame.payload?.byteLength ?? 0)) {
+    if (!frame.payload || !isValidHelloControl(frame.streamId ?? 0, frame.payload.byteLength)) {
       this.#sendError(StackChanErrorCode.INVALID_REQUEST)
       return
     }
@@ -534,7 +545,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
       this.#sendError(StackChanErrorCode.INVALID_STREAM_DATA, streamId)
       return
     }
-    if (this.#speakerSession.active) {
+    if (!this.#mediaEnabled || this.#speakerSession.active) {
       this.#sendError(StackChanErrorCode.BUSY, streamId)
       return
     }
@@ -687,7 +698,7 @@ class UsbAudioBridge implements UsbAudioBridgeControl {
   #startSpeaker(frame: StackChanFrame): void {
     const streamId = frame.streamId ?? 0
     const sampleRate = frame.sampleRate ?? 0
-    if (this.#microphoneSession.active) {
+    if (!this.#mediaEnabled || this.#microphoneSession.active) {
       this.#sendError(StackChanErrorCode.BUSY, streamId)
       return
     }

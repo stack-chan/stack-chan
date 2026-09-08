@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import type { AudioStreamAccess } from 'audio-ports'
 import type {
   HostPresentation,
   RemoteConversationListener,
@@ -82,6 +83,10 @@ class FakeBridge implements UsbAudioBridgeControl<number> {
     speakerVolume: number,
   ) {
     this.speakerVolume = speakerVolume
+  }
+
+  activateAudio(access: AudioStreamAccess): () => void {
+    return access.reserveStream(true, true)
   }
 
   setSpeakerVolume(volume: number): void {
@@ -205,9 +210,24 @@ function createHarness(config: UsbAudioConfig = {}, options: HarnessOptions = {}
     },
     ...(options.resolveSpeakerVolume ? { resolveSpeakerVolume: options.resolveSpeakerVolume } : {}),
   }
+  let occupied = false
+  const audio: AudioStreamAccess = {
+    reserveStream() {
+      if (occupied) throw new Error('audio is busy')
+      occupied = true
+      return () => {
+        occupied = false
+      }
+    },
+    failStream() {},
+  }
   const runtime = createUsbAudioDockRuntime(config, dependencies)
   return {
     bridges,
+    audio,
+    get audioOccupied() {
+      return occupied
+    },
     events,
     runtime,
     sessions,
@@ -237,7 +257,7 @@ test('manual mode reserves the physical bridge before context attachment without
   assert.equal(harness.sessions.length, 0)
   assert.deepEqual(harness.events, ['bridge-1:create', 'runtime-1:create'])
 
-  harness.runtime.attach({} as HostPresentation)
+  harness.runtime.attach({} as HostPresentation, harness.audio)
 
   assert.equal(harness.runtime.remoteConversationSession?.activationState, 'inactive')
   assert.equal(harness.moduleChecks, 1)
@@ -252,7 +272,7 @@ test('context attachment reapplies the saved host volume without recreating the 
 
   assert.equal(harness.bridges[0].speakerVolume, 0.1)
   savedVolume = 0.4
-  harness.runtime.attach({} as HostPresentation)
+  harness.runtime.attach({} as HostPresentation, harness.audio)
 
   assert.equal(harness.bridges[0].speakerVolume, 0.4)
   assert.equal(harness.bridges.length, 1)
@@ -263,7 +283,7 @@ test('activate is idempotent and deactivate releases only activation-scoped reso
   const harness = createHarness({ speakerVolume: 0.25 })
   const remoteSession = harness.runtime.remoteConversationSession
   assert.ok(remoteSession)
-  harness.runtime.attach({} as HostPresentation)
+  harness.runtime.attach({} as HostPresentation, harness.audio)
   const states: RemoteConversationState[] = []
   remoteSession.subscribe((state) => states.push(state))
 
@@ -300,7 +320,7 @@ test('activation failure rolls back created resources and can be retried', () =>
   const harness = createHarness()
   const remoteSession = harness.runtime.remoteConversationSession
   assert.ok(remoteSession)
-  harness.runtime.attach({} as HostPresentation)
+  harness.runtime.attach({} as HostPresentation, harness.audio)
   harness.failPresentation = true
 
   assert.throws(() => remoteSession.activate(), /presentation failed/)
@@ -323,7 +343,7 @@ test('task state received before activation is retained and snapshots across rea
   const remoteSession = harness.runtime.remoteConversationSession
   assert.ok(remoteSession)
   harness.emitTaskState(0, 'running')
-  harness.runtime.attach({} as HostPresentation)
+  harness.runtime.attach({} as HostPresentation, harness.audio)
   remoteSession.activate()
 
   harness.emitTaskState(0, 'idle')
@@ -353,7 +373,7 @@ test('auto-start activates after context attachment and host close is idempotent
   const remoteSession = harness.runtime.remoteConversationSession
   assert.ok(remoteSession)
 
-  harness.runtime.attach({} as HostPresentation)
+  harness.runtime.attach({} as HostPresentation, harness.audio)
   assert.equal(remoteSession.activationState, 'active')
   assert.equal(harness.imports, 1)
 
@@ -378,7 +398,7 @@ test('auto-start failure is logged and leaves the attached context available for
   testGlobal.trace = (message) => messages.push(message)
 
   try {
-    assert.doesNotThrow(() => harness.runtime.attach({} as HostPresentation))
+    assert.doesNotThrow(() => harness.runtime.attach({} as HostPresentation, harness.audio))
   } finally {
     testGlobal.trace = previousTrace
   }
@@ -412,4 +432,31 @@ test('host close releases an inactive reserved bridge exactly once', () => {
   harness.runtime.close()
 
   assert.deepEqual(harness.events, ['bridge-1:create', 'runtime-1:create', 'runtime-1:close', 'bridge-1:close'])
+})
+
+test('auto-start, manual activation and rollback all share the same audio admission', () => {
+  const auto = createHarness({ autoStart: true })
+  auto.runtime.attach({} as HostPresentation, auto.audio)
+  assert.equal(auto.audioOccupied, true)
+  assert.throws(() => auto.audio.reserveStream(true, true), /busy/)
+  auto.runtime.close()
+  assert.equal(auto.audioOccupied, false)
+  const manual = createHarness()
+  manual.runtime.attach({} as HostPresentation, manual.audio)
+  const session = manual.runtime.remoteConversationSession
+  assert.ok(session)
+  for (let i = 0; i < 100; i++) {
+    const other = manual.audio.reserveStream(false, true)
+    assert.throws(() => session.activate(), /busy/)
+    other()
+    manual.failPresentation = true
+    assert.throws(() => session.activate(), /presentation failed/)
+    assert.equal(manual.audioOccupied, false)
+    manual.failPresentation = false
+    session.activate()
+    assert.equal(manual.audioOccupied, true)
+    session.deactivate()
+    assert.equal(manual.audioOccupied, false)
+  }
+  manual.runtime.close()
 })

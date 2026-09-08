@@ -1,5 +1,7 @@
 import AudioIn from 'embedded:io/audio/in'
 import AudioOut from 'embedded:io/audio/out'
+import type { AudioStreamAccess } from 'audio-ports'
+import { asStackchanError, StackchanError } from 'stackchan/errors'
 import { readAudioInputChunk } from 'stackchan-usb-audio-input-read'
 import { UsbEventSendRequests } from 'stackchan-usb-event-send-requests'
 import type { UsbEventSendResult, UsbEventTransportState } from 'stackchan-usb-event-transport'
@@ -29,6 +31,7 @@ export type UsbAudioPresentation = {
 }
 
 export type UsbAudioBridgeControl = {
+  activateAudio(access: AudioStreamAccess): () => void
   setSpeakerVolume(volume: number): void
   setPresentation(presentation?: UsbAudioPresentation): void
   setStatusHandler(handler?: (status: StackChanStatus) => void): void
@@ -52,6 +55,7 @@ type AudioOutput = InstanceType<typeof AudioOut>
 type AudioInput = InstanceType<typeof AudioIn>
 type PendingCaption = { position: number; text: string }
 type UsbAudioWorkerMessage = {
+  generation?: number
   bitsPerSample?: number
   channels?: number
   id?: string
@@ -95,6 +99,10 @@ const USB_AUDIO_WORKER_OPTIONS: UsbAudioWorkerOptions = {
 
 class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
   #worker: Worker | undefined
+  #mediaGeneration = 0
+  #audioAccess: AudioStreamAccess | undefined
+  #releaseAudio: (() => void) | undefined
+  #releaseFailure: StackchanError | undefined
   #outputRing = SharedByteRing.allocate(SHARED_PCM_RING_BYTES)
   #outputStats = new Int32Array(new SharedArrayBuffer(SPEAKER_STATS_WORDS * Int32Array.BYTES_PER_ELEMENT))
   #microphone: AudioInput | undefined
@@ -142,6 +150,51 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
       } catch {}
       throw error
     }
+  }
+
+  activateAudio(access: AudioStreamAccess): () => void {
+    if (!this.#worker) throw new StackchanError('CLOSED', 'USB audio is closed')
+    if (this.#releaseFailure) throw this.#releaseFailure
+    if (this.#releaseAudio) throw new StackchanError('BUSY', 'USB audio is active')
+    this.#releaseAudio = access.reserveStream(true, true)
+    this.#audioAccess = access
+    const generation = ++this.#mediaGeneration
+    try {
+      this.#worker.postMessage({ id: 'media-state', generation, enabled: true })
+    } catch (error) {
+      this.#deactivateAudio()
+      throw asStackchanError(error)
+    }
+    return () => {
+      if (generation === this.#mediaGeneration) this.#deactivateAudio()
+    }
+  }
+
+  #deactivateAudio(): void {
+    const release = this.#releaseAudio
+    if (!release) return
+    this.#releaseAudio = undefined
+    const generation = ++this.#mediaGeneration
+    try {
+      this.#worker?.postMessage({ id: 'media-state', generation, enabled: false })
+    } catch (error) {
+      this.#recordReleaseFailure(error)
+    }
+    this.#closeMicrophone()
+    this.#closeAudio()
+    this.#stopPresentation()
+    release()
+    this.#audioAccess = undefined
+    if (this.#releaseFailure) throw this.#releaseFailure
+  }
+
+  #recordReleaseFailure(error: unknown): void {
+    this.#releaseFailure ??= asStackchanError(error)
+    this.#audioAccess?.failStream(this.#releaseFailure)
+  }
+
+  #postMediaMessage(message: Record<string, unknown>): void {
+    this.#worker?.postMessage({ ...message, generation: this.#mediaGeneration })
   }
 
   setSpeakerVolume(volume: number): void {
@@ -197,19 +250,28 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
     this.#worker = undefined
     this.#setTransportState('disconnected')
     this.#eventSends.settleAll('disconnected')
-    this.#closeMicrophone()
-    this.#closeAudio()
-    this.#stopPresentation()
-    this.#setPresentationStatus(StackChanStatus.IDLE)
-    if (!worker) return
     try {
-      worker.postMessage({ id: 'close' })
-    } catch {
-      worker.terminate()
+      this.#deactivateAudio()
+    } finally {
+      this.#stopPresentation()
+      this.#setPresentationStatus(StackChanStatus.IDLE)
+      if (worker) {
+        try {
+          worker.postMessage({ id: 'close' })
+        } catch {
+          worker.terminate()
+        }
+      }
     }
   }
 
   #handleWorkerMessage(message: UsbAudioWorkerMessage): void {
+    if (!this.#worker) return
+    if (
+      (message.streamId !== undefined || message.id === 'status-changed') &&
+      (!this.#releaseAudio || message.generation !== this.#mediaGeneration)
+    )
+      return
     switch (message.id) {
       case 'microphone-open':
         this.#openMicrophone(
@@ -294,27 +356,25 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
         break
       case 'error':
         trace(`[usb-audio-worker] ${message.reason ?? 'unknown error'}\n`)
+        this.#eventSends.rejectAll(new Error(message.reason ?? 'USB audio worker failed'))
         try {
           this.#worker?.terminate()
-        } catch {}
-        this.#worker = undefined
-        if (bridge === this) bridge = undefined
-        this.#setTransportState('disconnected')
-        this.#eventSends.rejectAll(new Error(message.reason ?? 'USB audio worker failed'))
-        this.#closeMicrophone()
-        this.#closeAudio()
-        this.#stopPresentation()
-        this.#setPresentationStatus(StackChanStatus.IDLE)
+        } catch (error) {
+          this.#recordReleaseFailure(error)
+        }
+        // close() also invalidates callbacks and releases physical audio.
+        try {
+          this.close()
+        } catch (error) {
+          trace(`[usb-audio] shutdown failed: ${String(error)}\n`)
+        }
         break
       case 'closed':
-        this.#worker = undefined
-        if (bridge === this) bridge = undefined
-        this.#setTransportState('disconnected')
-        this.#eventSends.settleAll('disconnected')
-        this.#closeMicrophone()
-        this.#closeAudio()
-        this.#stopPresentation()
-        this.#setPresentationStatus(StackChanStatus.IDLE)
+        try {
+          this.close()
+        } catch (error) {
+          trace(`[usb-audio] shutdown failed: ${String(error)}\n`)
+        }
         break
     }
   }
@@ -339,6 +399,10 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
 
   #openMicrophone(sampleRate: number, channels: number, bitsPerSample: number, streamId: number): void {
     this.#closeMicrophone()
+    if (this.#releaseFailure) {
+      this.#failMicrophone(this.#releaseFailure, streamId)
+      return
+    }
     try {
       this.#microphoneStreams.activate(streamId)
     } catch (error) {
@@ -371,7 +435,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
       })
       this.#microphone = microphone
       microphone.start()
-      this.#worker?.postMessage({ id: 'microphone-started', streamId })
+      this.#postMediaMessage({ id: 'microphone-started', streamId })
     } catch (error) {
       this.#failMicrophone(error, streamId)
     }
@@ -384,7 +448,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
     try {
       const bytes = readAudioInputChunk(input, size)
       if (!bytes) return
-      worker.postMessage({ id: 'microphone-data', streamId, data: bytes })
+      this.#postMediaMessage({ id: 'microphone-data', streamId, data: bytes })
     } catch (error) {
       this.#failMicrophone(error, streamId)
     }
@@ -392,9 +456,8 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
 
   #failMicrophone(error: unknown, streamId = this.#microphoneStreams.current): void {
     trace(`[usb-audio] AudioIn failed: ${error instanceof Error ? error.message : String(error)}\n`)
-    const worker = this.#worker
     this.#closeMicrophone()
-    worker?.postMessage({
+    this.#postMediaMessage({
       id: 'microphone-failed',
       streamId,
       reason: error instanceof Error ? error.message : String(error),
@@ -410,11 +473,17 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
     if (!microphone) return
     try {
       microphone.close()
-    } catch {}
+    } catch (error) {
+      this.#recordReleaseFailure(error)
+    }
   }
 
   #openAudio(sampleRate: number, streamId: number): void {
     this.#closeAudio()
+    if (this.#releaseFailure) {
+      this.#failAudio(this.#releaseFailure, streamId)
+      return
+    }
     try {
       this.#audioStreams.activate(streamId)
     } catch (error) {
@@ -452,7 +521,7 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
       this.#audio = audio
       const amp = (globalThis as typeof globalThis & { amp?: { sampleRate: number } }).amp
       if (amp) amp.sampleRate = sampleRate
-      this.#worker?.postMessage({ id: 'audio-opened', streamId })
+      this.#postMediaMessage({ id: 'audio-opened', streamId })
     } catch (error) {
       this.#failAudio(error, streamId)
     }
@@ -550,18 +619,16 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
   }
 
   #finishAudioDrain(): void {
-    const worker = this.#worker
     const streamId = this.#audioStreams.current
     this.#flushCaptions()
     this.#closeAudio()
-    worker?.postMessage({ id: 'audio-drained', streamId })
+    this.#postMediaMessage({ id: this.#releaseFailure ? 'audio-failed' : 'audio-drained', streamId })
   }
 
   #failAudio(error: unknown, streamId = this.#audioStreams.current): void {
     trace(`[usb-audio] AudioOut failed: ${error instanceof Error ? error.message : String(error)}\n`)
-    const worker = this.#worker
     this.#closeAudio()
-    worker?.postMessage({ id: 'audio-failed', streamId })
+    this.#postMediaMessage({ id: 'audio-failed', streamId })
   }
 
   #closeAudio(expectedStreamId?: number): void {
@@ -587,10 +654,14 @@ class UsbAudioWorkerBridge implements UsbAudioBridgeControl {
     if (!audio) return
     try {
       audio.stop()
-    } catch {}
+    } catch (error) {
+      this.#recordReleaseFailure(error)
+    }
     try {
       audio.close()
-    } catch {}
+    } catch (error) {
+      this.#recordReleaseFailure(error)
+    }
   }
 
   #flushCaptions(): void {

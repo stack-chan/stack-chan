@@ -242,6 +242,8 @@ UI拡張には `setTracking`、`setMusicNotes`、`setFaceMotionEnabled` を追�
 
 リアルタイム会話には `chat.type`、`chat.apiKey`、`chat.endpoint`、`chat.modelID`、`chat.voiceID`、`chat.instructions` を使用します。旧 `chat_audioio/config.js` の読み替えは撤去したため、共通設定へ転記してください。`ai.token` / `ai.context` は文字での対話に使います。新しい設定名の追加はschemaから行い、Webや例に独立した既定値を重ねません。
 
+USB 遠隔会話は自動起動・`conversation.remote()` のどちらも、起動中は共通のマイクとスピーカーを占有します。他の録音・再生・会話との競合は `BUSY` です。`await session.close()` で物理入出力を閉じて使用権を返し、前の会話から届く音声要求を拒否します。USB の制御通信は会話停止後も維持します。機器の解放に失敗した場合はエラーを返し、ホストを再起動するまで音声の再利用を止めます。
+
 WASMで未実装の通信・機器は `UNSUPPORTED` です。能力表の `native / simulated / unavailable` と実行時の設定エラーを区別してください。ソース移行と自動検査が終わっても、物理無線・サービス接続・サーボ保存・電源断・初学者による受入は別途必要です。参考providerライブラリーの整理、無線・音声の競合処理と製品コード純減は、引き続き再設計全体の残件です。
 
 

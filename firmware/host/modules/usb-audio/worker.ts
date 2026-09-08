@@ -16,6 +16,23 @@ declare const self: Self
 let bridge: UsbAudioBridgeControl | undefined
 let inputService: MainMicrophoneInputService | undefined
 let outputService: SharedSpeakerOutputService | undefined
+let outputBuffers: SharedSpeakerOutputBuffers | undefined
+let mediaGeneration = 0
+const postMediaMessage = (message: Record<string, unknown>) =>
+  self.postMessage({ ...message, generation: mediaGeneration })
+
+function setMediaState(generation: number, enabled: boolean): void {
+  if (!Number.isSafeInteger(generation) || generation <= mediaGeneration) return
+  // Stop old protocol sessions before changing the generation of outgoing messages.
+  bridge?.setMediaEnabled(false)
+  inputService?.close()
+  outputService?.close()
+  mediaGeneration = generation
+  const post = (message: Record<string, unknown>) => self.postMessage({ ...message, generation })
+  inputService = enabled ? new MainMicrophoneInputService(post) : undefined
+  outputService = enabled && outputBuffers ? new SharedSpeakerOutputService(outputBuffers, post) : undefined
+  bridge?.setMediaEnabled(enabled)
+}
 
 type PostMessage = (message: Record<string, unknown>) => void
 
@@ -112,11 +129,11 @@ class MainMicrophoneInputService {
 
 const playbackObserver: UsbAudioPlaybackObserver = {
   onPlaybackStarted() {
-    self.postMessage({ id: 'playback-started', streamId: outputService?.streamId ?? 0 })
+    postMediaMessage({ id: 'playback-started', streamId: outputService?.streamId ?? 0 })
   },
   onPlaybackPower() {},
   onPlaybackText(text) {
-    self.postMessage({
+    postMediaMessage({
       id: 'playback-text',
       text,
       position: outputService?.writtenBytes ?? 0,
@@ -124,12 +141,12 @@ const playbackObserver: UsbAudioPlaybackObserver = {
     })
   },
   onPlaybackStopped() {
-    self.postMessage({ id: 'playback-stopped', streamId: outputService?.streamId ?? 0 })
+    postMediaMessage({ id: 'playback-stopped', streamId: outputService?.streamId ?? 0 })
   },
 }
 
 const onEvent = (event: string) => self.postMessage({ id: 'event', event })
-const onStatus = (status: number) => self.postMessage({ id: 'status-changed', status })
+const onStatus = (status: number) => postMediaMessage({ id: 'status-changed', status })
 const onTransportState = (transportState: UsbEventTransportState) =>
   self.postMessage({ id: 'transport-state', transportState })
 
@@ -156,25 +173,29 @@ function startWorker(message: {
 }): void {
   if (bridge) return
   if (!message.output) throw new TypeError('shared speaker output is required')
-  const nextInputService = new MainMicrophoneInputService((next) => self.postMessage(next))
-  const nextOutputService = new SharedSpeakerOutputService(message.output, (next) => self.postMessage(next))
+  outputBuffers = message.output
   let nextBridge: UsbAudioBridgeControl | undefined
   try {
     nextBridge = startUsbAudioBridge({
       speakerVolume: message.speakerVolume,
       diagnostics: message.diagnostics,
-      createMicrophoneInput: nextInputService.createInput,
-      createSpeakerOutput: nextOutputService.createOutput,
+      createMicrophoneInput: (options) => {
+        if (!inputService) throw new Error('USB audio is inactive')
+        return inputService.createInput(options)
+      },
+      createSpeakerOutput: (options) => {
+        if (!outputService) throw new Error('USB audio is inactive')
+        return outputService.createOutput(options)
+      },
       createUSBSerial: (options) => new USBSerial(options),
       checksum: crc32Usb,
     })
+    nextBridge.setMediaEnabled(false)
     nextBridge.setPlaybackObserver(playbackObserver)
     nextBridge.setEventHandler(onEvent)
     nextBridge.setStatusHandler(onStatus)
     nextBridge.setTransportStateHandler(onTransportState)
     self.postMessage({ id: 'ready' })
-    inputService = nextInputService
-    outputService = nextOutputService
     bridge = nextBridge
   } catch (error) {
     try {
@@ -193,16 +214,18 @@ function startWorker(message: {
       nextBridge?.close()
     } catch {}
     try {
-      nextInputService.close()
+      inputService?.close()
     } catch {}
     try {
-      nextOutputService.close()
+      outputService?.close()
     } catch {}
     throw error
   }
 }
 
 self.onmessage = (message: {
+  generation?: number
+  enabled?: boolean
   id?: string
   speakerVolume?: number
   diagnostics?: boolean
@@ -216,8 +239,12 @@ self.onmessage = (message: {
   requestId?: number
   volume?: number
 }) => {
+  if (message.streamId !== undefined && message.generation !== mediaGeneration) return
   try {
     switch (message.id) {
+      case 'media-state':
+        setMediaState(message.generation ?? 0, message.enabled === true)
+        break
       case 'start':
         startWorker(message)
         break

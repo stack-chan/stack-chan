@@ -9,7 +9,7 @@ import { writeAliasPackage, writeAliasPackageSubpath } from '../modules/testing/
 import type createNativeNetwork from './app-network-native.js'
 import type { AppServiceScope } from './app-service-scope.js'
 
-async function setup(t: TestContext) {
+async function setup(t: TestContext, beacon = false) {
   const source = dirname(fileURLToPath(import.meta.url))
   const root = mkdtempSync(resolve(tmpdir(), 'stackchan-native-network-'))
   // Keep the native dependency fakes out of other concurrent tests' alias trees.
@@ -37,6 +37,12 @@ async function setup(t: TestContext) {
     'url',
   ])
     writeAliasPackage(root, name, fake, { hasDefaultExport: true })
+  const ble = await import('./__tests__/fakes/ble-server.js')
+  if (beacon) {
+    ble.default.instances.length = 0
+    for (const name of ['bleserver', 'bleclient', 'beacon-packet', 'btutils'])
+      writeAliasPackage(root, name, resolve(source, '__tests__/fakes/ble-server.js'), { hasDefaultExport: true })
+  }
   const [{ default: createNetwork }, fakes] = await Promise.all([
     import(pathToFileURL(resolve(root, 'app-network-native.js')).href) as Promise<{
       default: typeof createNativeNetwork
@@ -63,7 +69,7 @@ async function setup(t: TestContext) {
     report: (error) => errors.push(error),
   }
   fakes.resetNativeNetwork()
-  return { network: createNetwork(scope), resources, errors, fakes }
+  return { network: createNetwork(scope), resources, errors, fakes, ble }
 }
 
 test('DNS-SD retains the latest copied TXT while claiming a name and ignores callbacks after close', async (t) => {
@@ -154,4 +160,56 @@ test('invalid network ports, beacon roles and UUIDs fail before opening a native
   assert.equal(f.fakes.connections, 0)
   assert.equal(f.resources.size, 0)
   assert.deepEqual(f.errors, [])
+})
+
+test('beacon startup copies accepted data and closed connections ignore delayed native events', async (t) => {
+  const f = await setup(t, true)
+  const options: Parameters<AppNetwork['beacon']>[0] = {
+    role: 'advertiser',
+    uuid: '01234567-89ab-cdef-1032-547698badcfe',
+  }
+  type Radio = InstanceType<typeof f.ble.default> & {
+    onReady(): void
+    onConnected(): void
+    onDiscovered(device: unknown): void
+  }
+  for (let cycle = 0; cycle < 100; cycle++) {
+    options.role = 'advertiser'
+    const connection = f.network.beacon(options)
+    const radio = f.ble.default.instances.at(-1) as Radio
+    const data = { sequence: cycle, command: 65535 - cycle }
+    connection.advertise(data)
+    data.sequence = -1
+    options.role = 'scanner'
+    radio.onReady()
+    const payload = (radio.advertising[0] as { advertisingData: { manufacturerSpecific: { data: number[] } } })
+      .advertisingData.manufacturerSpecific.data
+    assert.deepEqual(payload, [cycle, 65535 - cycle])
+    radio.onConnected()
+    assert.equal(radio.advertisingStops, 1)
+    await connection.close()
+    await connection.close()
+    radio.onReady()
+    radio.onConnected()
+    assert.equal(radio.closeCalls, 1)
+    assert.equal(radio.advertising.length, 1)
+    assert.equal(radio.advertisingStops, 1)
+    assert.throws(() => connection.advertise({ sequence: 1, command: 2 }), { code: 'CLOSED' })
+
+    const scanner = f.network.beacon({ ...options, role: 'scanner' })
+    const scan = f.ble.default.instances.at(-1) as Radio
+    scan.onReady()
+    assert.equal(scan.scans.length, 1)
+    await scanner.close()
+    scan.onReady()
+    scan.onDiscovered({
+      get scanResponse() {
+        throw new Error('closed scanner read native packet')
+      },
+    })
+    assert.equal(scan.scans.length, 1)
+    assert.equal(f.resources.size, 0)
+    assert.deepEqual(f.errors, [])
+    f.ble.default.instances.length = 0
+  }
 })

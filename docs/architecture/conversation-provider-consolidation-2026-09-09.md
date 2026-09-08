@@ -68,3 +68,23 @@ M5StackChanの接続調査は [USBの記録](m5stackchan-usb-diagnosis-2026-09-0
 - [MCP lifecycle](https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle) と [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)：初期化、版交渉、通知、セッションヘッダー、JSON/有限SSE、任意のセッション削除を実装。
 
 機能撤去と製品ソースの純減は固定した `measure.py` で別に計測する。参考クラスの625行はサンプル列であり、製品ソースの削減へ付け替えない。
+
+## 固定したソースの計測
+
+実装コミットは `a3cc42cfa6beca32277ffad45d1124659c3c63f5`。直前の `d06e88bd8c94c5632e3db46b373756a218fa14fc` と同じ規則で比較した。
+
+| 分類 | 直前 | 今回 | 物理行数の差 |
+| --- | ---: | ---: | ---: |
+| firmware実装 | 42,321 | 41,994 | -327 |
+| SDK・共通契約 | 1,761 | 1,779 | +18 |
+| Web実装 | 15,385 | 15,385 | 0 |
+| 型宣言 | 693 | 693 | 0 |
+| **製品ソース計** | **60,160** | **59,851** | **-309** |
+| サンプル・教材（別計上） | 3,541 | 2,916 | -625 |
+| 試験・補助（別計上） | 38,744 | 38,652 | -92 |
+
+製品は486ファイルのまま309行減った。削減対象は個別の通信・対話所有、MCPツール型変換であり、機能やソースを教材・生成物へ移していない。起点 `6eb4623` の419ファイル・52,702行に対しては、なお **67ファイル・7,149行増**。再設計全体の純減条件は未達である。
+
+```sh
+python3 docs/architecture/evidence/firmware-retirement/measure.py a3cc42c --files
+```

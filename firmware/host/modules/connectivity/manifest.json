@@ -11,6 +11,7 @@
     "../util/manifest.json",
     "../preferences/manifest.json",
     "./http-server/manifest.json",
+    "./ble/beacon.manifest.json",
     "./mcp-server/manifest.json",
     "../../app/manifest_typings.json"
   ],
@@ -21,7 +22,6 @@
       "../../../typings/uartserver"
     ],
     "stk-server": "./ble/stk-server",
-    "beacon-packet": "./ble/beacon-packet",
     "ble-local-peer-radio": "./ble/local-peer-radio",
     "ble-local-peer-record": "./ble/local-peer-record",
     "ecma-wifi": "./ecma-wifi",

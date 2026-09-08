@@ -193,33 +193,40 @@ export default function createNativeNetwork(scope: AppServiceScope): NativeNetwo
       open((owner) => {
         if (options?.role !== 'advertiser' && options?.role !== 'scanner')
           throw new StackchanError('INVALID_ARGUMENT', 'Beacon role must be advertiser or scanner')
-        if (!/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(options.uuid))
+        if (
+          typeof options.uuid !== 'string' ||
+          !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(options.uuid)
+        )
           throw new StackchanError('INVALID_ARGUMENT', 'Beacon UUID required')
+        const role = options.role
         const uuid = new Bytes(options.uuid.replaceAll('-', ''), false)
         let ready = false,
           pending: Beacon | undefined
         let radio: BLEClient | BLEServer
         const advertise = (beacon: Beacon) =>
           owner.call(() => {
-            if (options.role !== 'advertiser') throw new StackchanError('UNSUPPORTED', 'Scanner cannot advertise')
-            for (const value of [beacon.sequence, beacon.command]) {
+            if (role !== 'advertiser') throw new StackchanError('UNSUPPORTED', 'Scanner cannot advertise')
+            if (!beacon || typeof beacon !== 'object')
+              throw new StackchanError('INVALID_ARGUMENT', 'Beacon data required')
+            const { sequence, command } = beacon
+            for (const value of [sequence, command]) {
               finiteNumber(value, 'beacon field', 0, 65_535)
               if (!Number.isInteger(value))
                 throw new StackchanError('INVALID_ARGUMENT', 'Beacon fields must be integers')
             }
-            pending = beacon
+            pending = { sequence, command }
             if (ready)
               (radio as BLEServer).startAdvertising({
                 advertisingData: {
                   flags: 6,
                   manufacturerSpecific: {
                     identifier: 0x004c,
-                    data: Array.from(new BeaconDataPacket(uuid, beacon.sequence, beacon.command, -40).payload),
+                    data: Array.from(new BeaconDataPacket(uuid, sequence, command, -40).payload),
                   },
                 },
               })
           })
-        if (options.role === 'advertiser') {
+        if (role === 'advertiser') {
           radio = new (class extends BLEServer {
             onReady() {
               if (owner.closed) return
@@ -227,6 +234,7 @@ export default function createNativeNetwork(scope: AppServiceScope): NativeNetwo
               if (pending) advertise(pending)
             }
             onConnected() {
+              if (owner.closed) return
               this.stopAdvertising()
             }
           })()
@@ -238,6 +246,7 @@ export default function createNativeNetwork(scope: AppServiceScope): NativeNetwo
               this.startScanning({ active: true, duplicates: true, filterPolicy: 0, interval: 0x50, window: 0x30 })
             }
             onDiscovered(device: Parameters<BLEClient['onDiscovered']>[0]) {
+              if (owner.closed) return
               const data = device.scanResponse.manufacturerSpecific
               if (data?.identifier !== 0x004c) return
               const parsed = BeaconDataPacket.parse(new Uint8Array(data.data))

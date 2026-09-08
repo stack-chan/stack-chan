@@ -1,5 +1,8 @@
 {
-  "include": ["$(MODDABLE)/examples/io/udp/ntp/manifest_ntp.json"],
+  "include": [
+    "$(MODDABLE)/examples/io/udp/ntp/manifest_ntp.json",
+    "$(MODULES)/base/modules/manifest.json"
+  ],
   "modules": {
     "network-service": "../../network-service",
     "network-state": "../../network-state",

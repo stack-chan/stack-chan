@@ -1,4 +1,6 @@
+import { getHostSettingsService } from 'loadPreference'
 import Preference from 'preference'
+import { SETTINGS_JOURNAL } from 'settings-service'
 import { assert, equal } from 'testing/assert'
 
 function expectThrow(callback: () => void, expectedMessage: string): void {
@@ -45,4 +47,26 @@ expectThrow(() => Preference.set('test', 'object', {}), 'unsupported type')
 equal(Preference.get('test', 'object'), 'previous', 'a rejected object should preserve the existing value')
 Preference.delete('test', 'object')
 
+// The real XS string/buffer conversion must preserve a recovery record larger than NVS strings.
+const settings = getHostSettingsService()
+const secrets = { 'tts.token': 'a'.repeat(2048), 'ai.token': 'b'.repeat(2048), 'chat.apiKey': 'c'.repeat(2048) }
+settings.write(secrets)
+const set = Preference.set
+let journalBytes = 0
+Preference.set = (domain, key, value) => {
+  if (domain === SETTINGS_JOURNAL.domain && key === SETTINGS_JOURNAL.key) {
+    assert(value instanceof ArrayBuffer, 'the recovery record uses NVS blob storage')
+    journalBytes = (value as ArrayBuffer).byteLength
+  }
+  set(domain, key, value)
+}
+settings.write({ 'tts.token': 'next', 'ai.token': '', 'chat.apiKey': '' })
+Preference.set = set
+assert(journalBytes > 4000, 'multiple credentials exceed the NVS string limit')
+equal(settings.get('tts.token'), 'next', 'the complete batch commits')
+equal(
+  Preference.get(SETTINGS_JOURNAL.domain, SETTINGS_JOURNAL.key),
+  undefined,
+  'committed secrets leave no undo record',
+)
 trace('ok\n')

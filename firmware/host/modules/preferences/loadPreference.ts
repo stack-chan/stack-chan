@@ -2,7 +2,7 @@ import structuredClone from 'structuredClone'
 import verifyInstalledMod from 'installed-mod'
 import config from 'mc/config'
 import Preference from 'preference'
-import { type SettingsLayer, SettingsService } from 'settings-service'
+import { SETTINGS_JOURNAL, type SettingsLayer, SettingsService } from 'settings-service'
 import { StackchanError } from 'stackchan/errors'
 import {
   DOMAIN,
@@ -43,8 +43,20 @@ function createSettingsService(app: () => SettingsLayer): SettingsService {
     profile: () => config as SettingsLayer,
     app,
     storage: {
-      get: (domain, key) => Preference.get(domain, key),
-      set: (domain, key, value) => Preference.set(domain, key, value as string),
+      get: (domain, key) => {
+        const value = Preference.get(domain, key)
+        return domain === SETTINGS_JOURNAL.domain && key === SETTINGS_JOURNAL.key && value instanceof ArrayBuffer
+          ? String.fromArrayBuffer(value)
+          : value
+      },
+      set: (domain, key, value) =>
+        Preference.set(
+          domain,
+          key,
+          domain === SETTINGS_JOURNAL.domain && key === SETTINGS_JOURNAL.key
+            ? ArrayBuffer.fromString(value as string)
+            : (value as string),
+        ),
       delete: (domain, key) => Preference.delete(domain, key),
     },
     onIssue: (issue) => trace(`[settings] ${issue.code} ${issue.key} (${issue.source})\n`),

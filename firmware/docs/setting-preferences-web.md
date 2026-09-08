@@ -38,3 +38,5 @@ Passwords and tokens display their configured status without exposing their valu
 A disconnected or unanswered save is not reported as successful. Sends to older firmware are marked unconfirmed. Reconnect and review the device settings. A hardware-fixed driver cannot be changed, and a batch containing invalid values is rejected before writing any field.
 
 Settings resolve in this order: shared defaults, device profile, MOD defaults, saved values. Wi-Fi is host owned and ignores MOD defaults. See the [settings service design](../../docs/architecture/settings-service.md) for the detailed contract.
+
+The firmware saves a batch with a persistent recovery record. If a save is interrupted, the next boot restores the previous complete batch unless the new batch had already committed. A failed recovery blocks settings reads and writes instead of starting with mixed values. Reconnect after restart and review the saved configuration. Actual power-loss behavior on hardware still needs acceptance testing.

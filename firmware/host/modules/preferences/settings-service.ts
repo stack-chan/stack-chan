@@ -2,6 +2,7 @@ import { StackchanError } from 'stackchan/errors'
 import {
   isSettingKey,
   SETTING_KEYS,
+  SETTINGS_MESSAGE_MAX_BYTES,
   SETTINGS_SCHEMA,
   type SettingApplication,
   type SettingDomain,
@@ -17,6 +18,20 @@ export type SettingsStorage = {
   set(domain: string, name: string, value: unknown): void
   delete(domain: string, name: string): void
 }
+// The undo record is separate from managed setting domains and is removed on commit.
+export const SETTINGS_JOURNAL = Object.freeze({ domain: 'settings', key: 'pending' })
+type JournalValue = string | number | boolean | null | number[]
+type JournalEntry = [SettingKey, JournalValue]
+
+function journalValue(value: unknown): JournalValue {
+  if (value == null) return null
+  if (typeof value === 'string' || typeof value === 'boolean' || (typeof value === 'number' && Number.isInteger(value)))
+    return value
+  if (value instanceof ArrayBuffer && value.byteLength <= SETTINGS_MESSAGE_MAX_BYTES)
+    return Array.from(new Uint8Array(value))
+  throw new StackchanError('IO', 'Saved settings have an unsupported storage type')
+}
+
 export type SettingsSource = 'default' | 'profile' | 'app' | 'stored'
 export type SettingsIssue = { key: SettingKey; source: SettingsSource; code: 'INVALID' | 'READ_ONLY' }
 export type SettingDescription = {
@@ -46,6 +61,7 @@ export class SettingsService {
   }
 
   get<K extends SettingKey>(key: K): SettingValue<K> {
+    this.#recover()
     return this.#resolve(key).value as SettingValue<K>
   }
 
@@ -54,6 +70,7 @@ export class SettingsService {
   }
 
   describe(key: SettingKey): SettingDescription {
+    this.#recover()
     const resolved = this.#resolve(key)
     const definition = SETTINGS_SCHEMA[key]
     return {
@@ -82,9 +99,9 @@ export class SettingsService {
     return this.write({ [key]: value })[0]
   }
 
-  /** Validate every field before storage. Roll back completed writes if storage fails. */
+  /** Persist undo data before touching fields; clearing it commits the entire batch. */
   write(values: Readonly<Record<string, unknown>>): SettingDescription[] {
-    if (this.#faulted) throw new StackchanError('IO', 'Settings require restart after failed recovery')
+    this.#recover()
     if (!values || typeof values !== 'object' || Array.isArray(values))
       throw new StackchanError('INVALID_ARGUMENT', 'Settings must be an object')
     const entries = Object.entries(values)
@@ -97,34 +114,85 @@ export class SettingsService {
       const [domain, name] = key.split('.')
       return { key, domain, name, value: result.value, previous: this.#read(domain, name) }
     })
-    let attempted = 0
+    if (changes.length === 0) return []
+    const journal = JSON.stringify({
+      version: 1,
+      entries: changes.map(({ key, previous }) => [key, journalValue(previous)]),
+    })
+    if (journal.length > SETTINGS_MESSAGE_MAX_BYTES * 6)
+      throw new StackchanError('IO', 'Settings recovery record is too large')
     try {
+      this.#save(SETTINGS_JOURNAL.domain, SETTINGS_JOURNAL.key, journal)
       for (const change of changes) {
-        attempted += 1
-        if (change.value === undefined) this.#options.storage.delete(change.domain, change.name)
         // Moddable Preference stores integer numbers; decimal settings use canonical text.
-        else this.#options.storage.set(change.domain, change.name, String(change.value))
+        this.#save(change.domain, change.name, change.value === undefined ? undefined : String(change.value))
       }
+      this.#save(SETTINGS_JOURNAL.domain, SETTINGS_JOURNAL.key, undefined)
     } catch {
-      let recovered = true
-      for (let index = attempted - 1; index >= 0; index -= 1) {
-        const change = changes[index]
-        try {
-          if (change.previous == null) this.#options.storage.delete(change.domain, change.name)
-          else this.#options.storage.set(change.domain, change.name, change.previous)
-        } catch {
-          recovered = false
-        }
+      try {
+        this.#recover()
+      } catch {
+        this.#faulted = true
       }
-      this.#faulted = !recovered
       throw new StackchanError(
         'IO',
-        recovered
-          ? 'Settings could not be saved'
-          : 'Settings recovery failed; restart and review the saved configuration',
+        this.#faulted
+          ? 'Settings recovery failed; restart and review the saved configuration'
+          : 'Settings could not be saved',
       )
     }
     return changes.map((change) => this.describe(change.key))
+  }
+
+  #recover(): void {
+    if (this.#faulted) throw new StackchanError('IO', 'Settings require restart after failed recovery')
+    const journal = this.#read(SETTINGS_JOURNAL.domain, SETTINGS_JOURNAL.key)
+    if (journal === undefined) return
+    try {
+      if (typeof journal !== 'string' || journal.length > SETTINGS_MESSAGE_MAX_BYTES * 6) throw new Error()
+      const record = JSON.parse(journal)
+      if (record?.version !== 1 || !Array.isArray(record.entries) || record.entries.length > SETTING_KEYS.length)
+        throw new Error()
+      const seen = new Set<string>()
+      // Validate the complete record before any recovery write. Never expose its values in errors.
+      const entries: JournalEntry[] = record.entries.map((entry: unknown) => {
+        if (!Array.isArray(entry) || entry.length !== 2 || !isSettingKey(entry[0]) || seen.has(entry[0]))
+          throw new Error()
+        const [key, value] = entry
+        seen.add(key)
+        if (Array.isArray(value)) {
+          if (
+            value.length > SETTINGS_MESSAGE_MAX_BYTES ||
+            value.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 255)
+          )
+            throw new Error()
+        } else journalValue(value)
+        return [key, value]
+      })
+      for (const [key, previous] of entries) {
+        const [domain, name] = key.split('.')
+        this.#save(domain, name, Array.isArray(previous) ? Uint8Array.from(previous).buffer : (previous ?? undefined))
+      }
+      this.#save(SETTINGS_JOURNAL.domain, SETTINGS_JOURNAL.key, undefined)
+    } catch {
+      this.#faulted = true
+      throw new StackchanError('IO', 'Settings recovery failed; restart and review the saved configuration')
+    }
+  }
+
+  #save(domain: string, name: string, value: unknown): void {
+    if (value === undefined) this.#options.storage.delete(domain, name)
+    else this.#options.storage.set(domain, name, value)
+    const saved = this.#read(domain, name)
+    if (value instanceof ArrayBuffer && saved instanceof ArrayBuffer) {
+      const savedBytes = new Uint8Array(saved)
+      if (
+        value.byteLength === saved.byteLength &&
+        new Uint8Array(value).every((byte, index) => byte === savedBytes[index])
+      )
+        return
+    } else if (saved === value) return
+    throw new StackchanError('IO', 'Settings storage did not confirm the write')
   }
 
   #resolve(key: SettingKey): { value: string | number | undefined; source: SettingsSource } {

@@ -14,7 +14,8 @@ writeAliasPackageSubpath(
   resolve(modulesRoot, '../../sdk/settings-schema.js'),
 )
 writeAliasPackageSubpath(modulesRoot, 'stackchan', 'errors', resolve(modulesRoot, '../../sdk/errors.js'))
-const { SettingsService } = await import('./settings-service.js')
+const { SettingsService, SETTINGS_JOURNAL } = await import('./settings-service.js')
+const { checkSettingsRecovery } = await import('./__tests__/settings-recovery/cases.js')
 
 function fixture(profile: SettingsLayer = {}, app: SettingsLayer = {}, initial: Record<string, unknown> = {}) {
   const stored = new Map(Object.entries(initial))
@@ -169,8 +170,10 @@ test('storage failure restores every attempted key, including a write that mutat
 
 test('failed rollback faults the write boundary until a new host service is created', () => {
   const { service, storage } = fixture()
-  storage.set = () => {
-    throw new Error('storage')
+  const set = storage.set
+  storage.set = (domain, key, value) => {
+    set(domain, key, value)
+    if (domain !== SETTINGS_JOURNAL.domain) throw new Error('storage')
   }
   storage.delete = () => {
     throw new Error('storage')
@@ -190,4 +193,56 @@ test('storage read failures are normalized without exposing the storage exceptio
   assert.throws(() => service.get('wifi.password'), { code: 'IO', message: 'Settings could not be read' })
   assert.throws(() => service.write({ 'wifi.ssid': 'new' }), { code: 'IO', message: 'Settings could not be read' })
   assert.deepEqual(writes, [])
+})
+
+test('every save and recovery interruption reboots into a complete configuration', () => {
+  assert.ok(checkSettingsRecovery(SettingsService, assert.ok) > 30)
+})
+
+test('corrupt recovery records are rejected before restoring any field or disclosing secrets', () => {
+  for (const entries of [
+    [
+      ['wifi.ssid', 'old'],
+      ['unknown.key', 'secret'],
+    ],
+    [
+      ['wifi.ssid', 'old'],
+      ['wifi.ssid', 'secret'],
+    ],
+    [['wifi.ssid', { secret: true }]],
+    [['wifi.ssid', [256]]],
+  ]) {
+    const { service, writes } = fixture(
+      {},
+      {},
+      {
+        [`${SETTINGS_JOURNAL.domain}.${SETTINGS_JOURNAL.key}`]: JSON.stringify({ version: 1, entries }),
+      },
+    )
+    assert.throws(() => service.get('wifi.ssid'), {
+      code: 'IO',
+      message: 'Settings recovery failed; restart and review the saved configuration',
+    })
+    assert.deepEqual(writes, [])
+    assert.throws(() => service.set('wifi.ssid', 'new'), { code: 'IO' })
+  }
+})
+
+test('silent storage failures preserve a recoverable journal and prevent mixed reads', () => {
+  const { service, storage, stored } = fixture({}, {}, { 'wifi.ssid': 'old' })
+  const originalSet = storage.set
+  storage.set = (domain, key, value) => {
+    originalSet(domain, key, value)
+    if (domain === 'wifi') throw new Error('write failed')
+  }
+  storage.delete = () => {}
+  assert.throws(() => service.set('wifi.ssid', 'new'), { code: 'IO' })
+  assert.throws(() => service.get('wifi.ssid'), { code: 'IO' })
+  storage.set = originalSet
+  storage.delete = (domain, key) => {
+    stored.delete(`${domain}.${key}`)
+  }
+  const restarted = new SettingsService({ profile: () => ({}), app: () => ({}), storage })
+  assert.equal(restarted.get('wifi.ssid'), 'old')
+  assert.equal(restarted.set('wifi.ssid', 'next').value, 'next')
 })

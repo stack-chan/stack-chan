@@ -36,8 +36,7 @@
     "local-peer-service": "./local-peer-service",
     "local-peer-types": "./local-peer-types",
     "wifi-scan": "./wifi-scan",
-    "wifi-scan-types": "./wifi-scan-types",
-    "stored-wifi": "./stored-wifi"
+    "wifi-scan-types": "./wifi-scan-types"
   },
   "preload": ["stk-server", "beacon-packet"],
   "ble": {

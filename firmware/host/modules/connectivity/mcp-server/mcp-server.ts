@@ -1,8 +1,6 @@
-import { DOMAIN } from 'consts'
 import Headers from 'headers'
 import { HttpServerService, Response } from 'http-server-service'
 import { authorizeMCPRequest, normalizeMCPToken } from 'mcp-auth'
-import Preference from 'preference'
 
 /**
  * MCP Tool parameter definition
@@ -147,7 +145,7 @@ export class MCPServerService {
 
   constructor(config: MCPServerConfig = {}) {
     this.#port = config.port ?? 8080
-    this.#token = normalizeMCPToken(config.token) ?? normalizeMCPToken(Preference.get(DOMAIN.mcp, 'token'))
+    this.#token = normalizeMCPToken(config.token)
 
     // Register provided tools
     if (config.tools) {

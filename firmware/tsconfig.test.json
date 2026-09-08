@@ -128,9 +128,6 @@
       "touch-panel-gesture": [
         "./host/modules/input/touch-panel-gesture.ts"
       ],
-      "stored-wifi": [
-        "./host/modules/connectivity/stored-wifi.ts"
-      ],
       "network-service": [
         "./host/modules/connectivity/network-service.ts"
       ],

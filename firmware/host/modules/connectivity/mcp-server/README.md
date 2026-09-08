@@ -63,13 +63,13 @@ const server = new MCPServerService({
 
 * `port`: ポート番号（デフォルト: `8080`）
 * `tools`: ツールのリスト（デフォルト: 空配列）
-* `token`: MCPエンドポイント用Bearer token。未指定時はPreferenceの `mcp.token` を使用します。
+* `token`: MCPエンドポイント用Bearer token。ホスト内部の呼び出し元が明示します。SDKの `serveTools()` は共通設定サービスから `mcp.token` を渡します。
 
-`token` も `mcp.token` も未設定の場合、またはBearer tokenが一致しない場合、`POST /mcp` は `401 Unauthorized` を返します。`GET /health` は認証なしで利用できます。
+`token` が未設定の場合、またはBearer tokenが一致しない場合、`POST /mcp` は `401 Unauthorized` を返します。`GET /health` は認証なしで利用できます。
 
 ### トークンの設定
 
-`setup-mode` のPreference同期で `mcp.token` に十分に長いランダムな文字列を設定してください。コンストラクタで `token` を指定した場合は、その値がPreferenceより優先されます。
+`setup-mode` のPreference同期で `mcp.token` に十分に長いランダムな文字列を設定してください。設定の解決は共通設定サービスが担当し、MCPサーバー本体はPreferenceを直接読みません。
 
 MCPクライアントには同じ値をBearer tokenとして指定します。
 

@@ -61,6 +61,8 @@ function installBareSpecifierPackages(): void {
 }
 
 async function setup() {
+  ArrayBuffer.fromString = (value) => new TextEncoder().encode(value).buffer
+  String.fromArrayBuffer = (value) => new TextDecoder().decode(value)
   installBareSpecifierPackages()
   const [modules, config, preference, loadPreference, resources] = await Promise.all([
     import('../testing/fakes/modules.js') as Promise<FakeModules>,

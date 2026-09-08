@@ -207,6 +207,12 @@ class PacketHandler extends Serial {
     const dispatch = this.#queue.shift()
     if (!dispatch) return
     this.#busy = true
+    // Idle/startup noise and delayed replies belong to the previous transaction.
+    // Discard them before installing a new command's response waiter.
+    this.#recovering = true
+    this.poll()
+    this.resetReceiver()
+    this.#recovering = false
     dispatch()
   }
 }

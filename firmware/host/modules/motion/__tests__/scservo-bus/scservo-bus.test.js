@@ -45,9 +45,14 @@ function runTest() {
   const tilt = new SCServo({ id: 2 })
   const serial = Serial.instance
   let completed = 0
+  // Noise received while idle can leave a syntactically valid partial frame.
+  // Neither it nor an unread old ACK may settle or corrupt the next command.
+  serial.inject([255, 255, 1, 8, 0])
+  serial.incoming.push(...response(1))
   pan.setTorque(true, () => tilt.setTorque(true, () => completed++))
   pan.readRawPosition(() => completed++)
   equal(serial.writes.length, 1, 'only the first command is on the bus')
+  equal(completed, 0, 'buffered stale ACK cannot settle the new command')
   ack(1)
   equal(serial.writes.length, 2, 'one queued command starts after ACK')
   equal(last()[4], 2, 'FIFO keeps the already queued read before the chained tilt write')

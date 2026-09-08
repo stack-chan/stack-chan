@@ -51,6 +51,7 @@ test('deployment compatibility checks chip family and runtime XS archive range',
       xsVersion: [17, 8, 0],
       firmwareVersion: '9.5.0+stackchan.1',
       requireFirmware: true,
+      firmwareTarget: 'm5stackchan-cores3',
       requireArchive: true,
     }).compatible,
     true
@@ -85,6 +86,7 @@ test('deployment compatibility checks chip family and runtime XS archive range',
     xsVersion: [17, 8, 0],
     firmwareVersion: '8.2.1',
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
   })
   assert.deepEqual(
     wrongFirmware.diagnostics.map((item) => item.code),
@@ -93,6 +95,7 @@ test('deployment compatibility checks chip family and runtime XS archive range',
   const simulatorInstall = inspectDeploymentCompatibility('simulator', {
     firmwareVersion: '9.5.0',
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
   })
   assert.deepEqual(
     simulatorInstall.diagnostics.map((item) => item.code),
@@ -102,6 +105,7 @@ test('deployment compatibility checks chip family and runtime XS archive range',
   const missingDeviceEvidence = inspectDeploymentCompatibility('m5stackchan-cores3', {
     firmwareVersion: '9.5.0',
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
     requireArchive: true,
   })
   assert.deepEqual(
@@ -126,6 +130,7 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
     hostApiVersion: 7,
     requirements: ['conversation.remote', 'network.http', 'settings'],
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
     requireArchive: true,
   })
   assert.equal(currentHost.compatible, true)
@@ -137,6 +142,7 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
     hostApiVersion: 0,
     requirements: ['conversation.remote', 'network.http', 'settings'],
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
     requireArchive: true,
   })
   assert.deepEqual(
@@ -152,6 +158,7 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
     hostApiVersion: 0,
     requirements: ['face', 'input.headTouch'],
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
     requireArchive: true,
   })
   assert.equal(legacyBasicMod.compatible, false)
@@ -174,6 +181,7 @@ test('device install rejects Piu screens on host API 2 and accepts them on host 
     xsVersion: [17, 8, 2],
     firmwareVersion: '9.5.0+stackchan.3',
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
   }
   assert.equal(inspectDeploymentCompatibility('m5stackchan-cores3', { ...options, hostApiVersion: 3 }).compatible, true)
   assert.equal(

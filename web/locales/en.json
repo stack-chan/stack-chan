@@ -639,7 +639,7 @@
   "Wi-Fi設定を消去しました。再起動後はオフラインになります。 一部の設定を反映できませんでした。再起動して確認してください。": "Wi-Fi settings were cleared. The next boot will be offline. Some settings could not be applied. Restart and check them.",
   "Wi-Fi設定を消去しました。再起動後はオフラインになります。 再起動すると反映されます。": "Wi-Fi settings were cleared. The next boot will be offline. Restart to apply the changes.",
   "Wi-Fi設定を消去しました。再起動後はオフラインになります。 Wi-Fi設定は次の接続または再起動で反映されます。": "Wi-Fi settings were cleared. The next boot will be offline. Wi-Fi changes apply on the next connection or restart.",
-  "MODを起動できません。MODを更新してください": "The MOD could not start. Rebuild or replace it.",
+  "MODを起動できません。画面の案内を確認してください": "The MOD could not start. Follow the instructions on the device screen.",
   "リアルタイム会話": "Realtime conversation",
   "モデル": "Model"
 }

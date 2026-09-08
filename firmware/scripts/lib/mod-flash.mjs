@@ -7,9 +7,9 @@ import {
   parseEspAppDescriptor,
   parsePartitionTable,
   xsArchiveByteLength,
-} from '../../../web/editor/esptool-installer.mjs'
-import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE } from '../../../web/editor/xs-compatibility.mjs'
-import { assertModCompatibility } from '../../contracts/mod-package.js'
+} from '../../contracts/esp-flash.js'
+import { assertModCompatibility, assertTargetIdentity, hostForTarget } from '../../contracts/mod-package.js'
+import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE } from '../../contracts/xs-compatibility.js'
 import { inspectModArchive } from '../../contracts/xsa-metadata.js'
 import { buildOutputDirectory } from './build-output.mjs'
 
@@ -44,6 +44,7 @@ export function resolveModArchivePath({ outputDirectory, mode, projectName }) {
  *   port?: string,
  *   baud?: string|number,
  *   chip?: string,
+ *   expectedTarget?: string,
  *   expectedProjectName?: string,
  *   expectedFirmwareVersion?: string,
  *   temporaryDirectory?: string,
@@ -62,6 +63,7 @@ export function installModArchive({
   port,
   baud,
   chip,
+  expectedTarget,
   expectedProjectName = moddableEspAppProjectName,
   expectedFirmwareVersion,
   temporaryDirectory = path.join(buildOutputDirectory, 'tmp'),
@@ -121,7 +123,8 @@ export function installModArchive({
     if (expectedFirmwareVersion && firmware.moddableVersion !== expectedFirmwareVersion) {
       throw new Error(`Incompatible Moddable version: ${firmware.moddableVersion} != ${expectedFirmwareVersion}`)
     }
-    assertModCompatibility(metadata, { hostApiVersion: firmware.hostApiVersion })
+    if (expectedTarget) assertTargetIdentity(firmware.target, expectedTarget)
+    assertModCompatibility(metadata, hostForTarget(firmware.target, firmware.hostApiVersion))
 
     if (
       firmware.moddableVersion.startsWith('9.5.') &&

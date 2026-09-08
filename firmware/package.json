@@ -38,8 +38,8 @@
     "build:android-usb-audio-diagnostics-no-ui": "node scripts/firmware.mjs build m5stackchan_cores3 --mode=release --manifest host/app/manifest_android_usb_audio_diagnostics_no_ui.json",
     "build:stackchan_rt": "node scripts/firmware.mjs build stackchan_rt",
     "build:takao_core2_sg90": "node scripts/firmware.mjs build takao_core2_sg90",
-    "build:m5stack": "node scripts/run-mcconfig.mjs -m -p esp32/m5stack -t build \"$PWD/host/app/manifest_local.json\"",
-    "build:m5stack_cores3": "node scripts/run-mcconfig.mjs -m -p esp32/m5stack_cores3 -t build \"$PWD/host/app/manifest_local.json\"",
+    "build:m5stack": "node scripts/firmware.mjs build m5stack",
+    "build:m5stack_cores3": "node scripts/firmware.mjs build m5stack_cores3",
     "build:release:m5stack": "node scripts/bundle-target.mjs m5stack",
     "build:release:m5stack_core2": "node scripts/bundle-target.mjs m5stack_core2",
     "build:release:m5stack_cores3": "node scripts/bundle-target.mjs m5stack_cores3",
@@ -85,7 +85,8 @@
     "install-hook": "lefthook install",
     "uninstall-hook": "lefthook uninstall",
     "check:sdk": "tsc --project tsconfig.sdk.json && tsc --project tsconfig.extensions.json",
-    "check:contracts": "tsc --project tsconfig.contracts.json"
+    "check:contracts": "tsc --project tsconfig.contracts.json",
+    "build:m5stack_core2": "node scripts/firmware.mjs build m5stack_core2"
   },
   "type": "module",
   "repository": {

@@ -63,7 +63,8 @@
     },
     "ui": {
       "type": "simple"
-    }
+    },
+    "stackchanTarget": "simulator"
   },
   "typescript": {
     "tsconfig": {

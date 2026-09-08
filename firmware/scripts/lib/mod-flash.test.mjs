@@ -274,3 +274,48 @@ test('9.5 MOD preflight rejects an out-of-range archive before writing', () => {
     rmSync(fixture, { recursive: true, force: true })
   }
 })
+
+test('CLI checks firmware board identity and build capabilities before any write', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-board-'))
+  const archivePath = path.join(fixture, 'app.xsa')
+  const scenarios = [
+    { suffix: '.rt', metadata: { ...modDefinition, targets: ['m5stackchan-cores3'] }, code: 'MOD_TARGET_UNSUPPORTED' },
+    { suffix: '', metadata: { ...modDefinition, targets: ['m5stackchan-cores3'] }, code: 'MOD_TARGET_UNKNOWN' },
+    { suffix: '.t2', metadata: { ...modDefinition, capabilities: ['camera'] }, code: 'MOD_CAPABILITY_UNAVAILABLE' },
+    { suffix: '.rt', metadata: modDefinition, expectedTarget: 'm5stackchan-cores3', code: 'MOD_TARGET_UNSUPPORTED' },
+    { suffix: '', metadata: modDefinition, expectedTarget: 'm5stackchan-cores3', code: 'MOD_TARGET_UNKNOWN' },
+    { suffix: '.sc3', metadata: { ...modDefinition, targets: ['m5stackchan-cores3'] } },
+    { suffix: '', metadata: modDefinition },
+  ]
+  try {
+    for (const scenario of scenarios) {
+      writeFileSync(archivePath, makeXsArchive({ metadata: scenario.metadata }))
+      const writes = []
+      const install = () =>
+        installModArchive({
+          archivePath,
+          temporaryDirectory: fixture,
+          expectedTarget: scenario.expectedTarget,
+          runCommand(_command, args) {
+            if (args.includes('read-flash'))
+              writeFileSync(
+                args.at(-1),
+                Number(args.at(-3)) === 0x8000
+                  ? makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
+                  : makeAppHeader({ version: `9.5.0+stackchan.9${scenario.suffix}`, projectName: 'xs_esp32' }),
+              )
+            else writes.push(args)
+          },
+        })
+      if (scenario.code) {
+        assert.throws(install, { code: scenario.code })
+        assert.equal(writes.length, 0)
+      } else {
+        assert.doesNotThrow(install)
+        assert.equal(writes.length, 2)
+      }
+    }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})

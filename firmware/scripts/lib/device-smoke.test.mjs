@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
@@ -15,6 +15,7 @@ function runSmoke(args = [], environment = {}) {
   const journal = path.join(root, 'calls.jsonl')
   mkdirSync(path.join(root, 'scripts/lib'), { recursive: true })
   mkdirSync(path.join(root, 'bin'))
+  cpSync(path.join(scripts, '../contracts'), path.join(root, 'contracts'), { recursive: true })
   writeFileSync(path.join(root, 'package.json'), '{"type":"module"}')
   for (const name of ['run-device-smoke.js', 'lib/devices.mjs', 'lib/xsbug-log-server.js'])
     copyFileSync(path.join(scripts, name), path.join(root, 'scripts', name))

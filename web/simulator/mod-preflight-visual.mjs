@@ -77,7 +77,7 @@ try {
     }),
     boot.goto(`${baseUrl}/simulator/`, { waitUntil: 'networkidle' }),
   ])
-  await boot.getByText('MODを起動できません。MODを更新してください', { exact: true }).waitFor()
+  await boot.getByText('MODを起動できません。画面の案内を確認してください', { exact: true }).waitFor()
   await boot.screenshot({ path: resolve('../firmware/dist/mod-preflight-recovery.png') })
   assert.equal(
     bootEvents.some((value) => value.includes('UNTRUSTED_')),
@@ -141,6 +141,24 @@ try {
     bootEvents.some((value) => /XS abort|PAGE_ERROR/.test(value)),
     false,
     'rejected capabilities clean up host resources'
+  )
+
+  // A board-specific MOD cannot bypass target validation through a preinstalled archive.
+  const wrongBoard = legacySource.replace('"portable"', '"m5stack" ')
+  assert.notEqual(wrongBoard, legacySource, 'startup fixture declares portable')
+  assert.equal(wrongBoard.length, legacySource.length)
+  bytes = Array.from(Buffer.from(wrongBoard, 'latin1'))
+  bootEvents.length = 0
+  await Promise.all([
+    boot.waitForEvent('console', {
+      predicate: (message) => message.text().includes('MOD does not support target simulator'),
+      timeout: 45_000,
+    }),
+    boot.reload({ waitUntil: 'networkidle' }),
+  ])
+  assert.equal(
+    bootEvents.some((value) => /UNTRUSTED_|XS abort|PAGE_ERROR/.test(value)),
+    false
   )
 
   // The same module bodies are now valid. They still must wait for host setup.

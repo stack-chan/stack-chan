@@ -1,5 +1,6 @@
 import Flash from 'flash'
 import { localize } from 'localization'
+import config from 'mc/config'
 import { type ModFlash, validateXsaArchive, writeAndVerifyXsaArchive } from 'mod-installer'
 import { isModMaintenanceActive } from 'mod-maintenance'
 import type { Application as PiuApplication, Content as PiuContent } from 'piu/MC'
@@ -140,6 +141,7 @@ export function startModManager(
             flash.byteLength,
             SDCard.xsVersionRange(),
             (value) => new TextDecoder('utf-8', { fatal: true }).decode(value),
+            config.stackchanTarget ?? null,
           )
         } catch (error) {
           trace(`[mods] ${name} rejected: ${String(error)}\n`)

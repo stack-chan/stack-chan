@@ -35,13 +35,6 @@
     "*-mask": [
       "$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-24",
       {
-        "source": "../modules/ui/assets/fonts/k8x12",
-        "size": 12,
-        "characterFiles": "../modules/ui/assets/fonts/k8x12-chars.txt",
-        "localization": true,
-        "monochrome": true
-      },
-      {
         "source": "../modules/ui/assets/fonts/StackchanCJK-Regular",
         "name": "StackchanCJK",
         "size": 12,
@@ -58,7 +51,8 @@
         "characters": "Stack-chan[・＿・]0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
         "monochrome": true
       }
-    ]
+    ],
+    "*-alpha-monochrome": ["../modules/ui/assets/fonts/k8x12-12"]
   },
   "bundle": {
     "id": "tech.moddable.stackchan",

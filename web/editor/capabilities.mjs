@@ -1,63 +1,27 @@
-import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE } from './xs-compatibility.mjs'
+import { assertTargetIdentity } from '../../firmware/contracts/mod-package.js'
+import { TARGETS } from '../../firmware/contracts/targets.js'
+import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE } from '../../firmware/contracts/xs-compatibility.js'
 import { t } from '../i18n.mjs'
 
-import { CAPABILITY_IDS, CAPABILITY_HOST_API_VERSIONS } from '../../firmware/contracts/capabilities.js'
+import { CAPABILITY_HOST_API_VERSIONS } from '../../firmware/contracts/capabilities.js'
 export { CAPABILITY_HOST_API_VERSIONS }
 
-export const DEVICE_PROFILES = Object.freeze({
-  'm5stackchan-cores3': {
-    label: 'M5Stack-chan CoreS3',
-    status: 'supported',
-    deviceInstall: true,
-    xsArchiveVersion: [17, 8, 2],
-    xsArchiveVersionRange: XS_ARCHIVE_VERSION_RANGE,
-    firmwareVersionPrefixes: ['9.5.'],
-    chipPatterns: ['ESP32-S3'],
-    entrypoints: ['mod'],
-    capabilities: CAPABILITY_IDS,
-  },
-  simulator: {
-    label: 'Webシミュレーター',
-    status: 'supported',
-    deviceInstall: false,
-    xsArchiveVersion: [17, 8, 2],
-    xsArchiveVersionRange: XS_ARCHIVE_VERSION_RANGE,
-    firmwareVersionPrefixes: ['9.5.'],
-    chipPatterns: [],
-    entrypoints: ['mod'],
-    capabilities: [
-      'face',
-      'audio.speech',
-      'audio.singing',
-      'audio.tone',
-      'motion',
-      'input.primary',
-      'camera',
-      'audio.clips',
-      'audio.recording',
-      'audio.playback',
-      'settings',
-      'ui.piu',
-      'ui.controls',
-      'input.secondary',
-      'input.tertiary',
-      'input.primary.release',
-      'input.secondary.release',
-      'input.tertiary.release',
-    ],
-  },
-  portable: {
-    label: '機種を限定しない',
-    status: 'experimental',
-    deviceInstall: false,
-    xsArchiveVersion: null,
-    xsArchiveVersionRange: null,
-    firmwareVersionPrefixes: [],
-    chipPatterns: [],
-    entrypoints: ['mod'],
-    capabilities: ['face', 'audio.speech', 'audio.tone', 'motion', 'ui.controls', 'input.primary'],
-  },
-})
+export const DEVICE_PROFILES = Object.freeze(
+  Object.fromEntries(
+    Object.entries(TARGETS).map(([id, profile]) => [
+      id,
+      {
+        ...profile,
+        status: id === 'portable' ? 'experimental' : 'supported',
+        xsArchiveVersion: id === 'portable' ? null : [17, 8, 2],
+        xsArchiveVersionRange: id === 'portable' ? null : XS_ARCHIVE_VERSION_RANGE,
+        firmwareVersionPrefixes: id === 'portable' ? [] : ['9.5.'],
+        chipPatterns: profile.chip ? [profile.chip === 'esp32s3' ? 'ESP32-S3' : 'ESP32'] : [],
+        entrypoints: ['mod'],
+      },
+    ])
+  )
+)
 
 export const BLOCK_CAPABILITIES = Object.freeze({
   stackchan_on_button: ['input.primary'],
@@ -120,15 +84,24 @@ export function inspectDeploymentCompatibility(
     chip,
     xsVersion,
     firmwareVersion,
+    firmwareTarget,
     hostApiVersion = 0,
     entrypoints = ['mod'],
     requirements = [],
     requireFirmware = false,
+    requireTarget = requireFirmware,
     requireArchive = false,
   } = {}
 ) {
   const profile = profileFor(target)
   const diagnostics = []
+  if (requireTarget && profile.deviceInstall) {
+    try {
+      assertTargetIdentity(firmwareTarget, target)
+    } catch (error) {
+      diagnostics.push({ code: error.code, message: error.message })
+    }
+  }
   const unsupportedEntrypoints = entrypoints.filter((entrypoint) => !profile.entrypoints.includes(entrypoint))
   if (unsupportedEntrypoints.length) {
     diagnostics.push({

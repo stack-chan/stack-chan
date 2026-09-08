@@ -203,6 +203,7 @@ export function ModGalleryPage() {
               xsVersion: archiveVersion,
               firmwareVersion: firmware.version,
               hostApiVersion: firmware.hostApiVersion,
+              firmwareTarget: firmware.target,
               entrypoints: mod.entrypoints,
               requirements: mod.capabilities,
               requireArchive: true,

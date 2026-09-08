@@ -17,15 +17,11 @@ import {
   writeBuildVariant,
 } from './lib/build-variant.mjs'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
+import { validateFirmwareBundleTarget } from './lib/firmware-bundle.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
 import { verifyBuiltModArchive } from './lib/mod-package.mjs'
-import {
-  prepareCoreS3VersionSdkconfig,
-  prepareVersionManifest,
-  prepareVersionSdkconfig,
-  readModdableVersion,
-} from './lib/moddable-version.mjs'
+import { prepareVersionManifest, prepareVersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -64,7 +60,7 @@ const deviceName = resolveDevice(
 )
 const device = devices[deviceName]
 const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg) && !isBuildModeFlag(arg))
-const platform = `esp32:${device.platform}`
+const platform = device.platform
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
 const { mode: buildMode, args: buildModeArgs } = readBuildConfiguration(rawArgs, command)
@@ -74,6 +70,7 @@ const uploadPort =
 const uploadBaud = readOption(rawArgs, 'baud') ?? process.env.STACKCHAN_BAUD ?? process.env.ESPBAUD
 let subprocessEnvironment = uploadPort ? { ...process.env, UPLOAD_PORT: uploadPort } : process.env
 let versionSdkconfigDirectory
+let firmwareVersion
 
 if (
   deviceName === 'm5stackchan_cores3' &&
@@ -85,7 +82,7 @@ if (
   )
 }
 
-if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
+if (!dryRun && device.bundleId && device.esptoolChip === 'esp32s3' && command !== 'mod' && command !== 'mod:build') {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
@@ -101,21 +98,9 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
 
 if (!dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
   try {
-    const sourceDirectory = path.join(
-      process.env.MODDABLE ?? '',
-      'build/devices/esp32/targets',
-      device.sdkconfigTarget,
-      'sdkconfig',
-    )
-    const versionSdkconfig =
-      deviceName === 'm5stackchan_cores3'
-        ? prepareCoreS3VersionSdkconfig()
-        : prepareVersionSdkconfig({
-            platformName: deviceName,
-            sourceDirectory,
-            partitionSourcePath: path.join(sourceDirectory, 'partitions.csv'),
-          })
+    const versionSdkconfig = prepareVersionSdkconfig({ platformName: deviceName })
     versionSdkconfigDirectory = versionSdkconfig.directory
+    firmwareVersion = versionSdkconfig.version
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {
     console.error(`[stack-chan] Firmware version could not be prepared: ${error.message}`)
@@ -126,7 +111,7 @@ if (!dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
 const buildVariantChanged =
   !dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command) ? prepareBuildVariant() : false
 
-if (buildVariantChanged && deviceName === 'm5stackchan_cores3') {
+if (buildVariantChanged && device.bundleId && device.esptoolChip === 'esp32s3') {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
@@ -140,19 +125,24 @@ if (buildVariantChanged && deviceName === 'm5stackchan_cores3') {
   }
 }
 
+// Build and validate before any command that can flash the connected board.
+// Some SDK/IDF failures still leave images and return success through mcconfig.
+if (['build', 'flash', 'deploy', 'debug'].includes(command)) {
+  run('mcconfig', [
+    ...buildModeArgs,
+    '-m',
+    '-p',
+    platform,
+    '-t',
+    'build',
+    ...outputArgs,
+    path.resolve(manifest),
+    ...args,
+  ])
+}
+
 switch (command) {
   case 'build':
-    run('mcconfig', [
-      ...buildModeArgs,
-      '-m',
-      '-p',
-      platform,
-      '-t',
-      'build',
-      ...outputArgs,
-      path.resolve(manifest),
-      ...args,
-    ])
     break
   case 'flash':
     run('mcconfig', [...buildModeArgs, '-m', '-p', platform, ...outputArgs, path.resolve(manifest), ...args])
@@ -228,6 +218,7 @@ switch (command) {
       installModArchive({
         archivePath,
         chip: device.esptoolChip,
+        expectedTarget: device.id,
         port: uploadPort,
         baud: uploadBaud,
         expectedFirmwareVersion: device.firmwareVersionSource === 'moddable' ? readModdableVersion() : undefined,
@@ -282,6 +273,18 @@ function run(bin, binArgs, cwd = process.cwd()) {
     process.exit(1)
   }
   if (result.status !== 0) process.exit(result.status ?? 1)
+  if (bin === 'mcconfig' && firmwareVersion) {
+    try {
+      validateFirmwareBundleTarget(
+        path.join(buildOutputDirectory, 'bin/esp32', deviceName, buildMode, hostApplicationName),
+        firmwareVersion,
+        device.id,
+      )
+    } catch (error) {
+      console.error(`[stack-chan] Firmware validation failed: ${error.message}`)
+      process.exit(1)
+    }
+  }
 }
 
 /**

@@ -1,13 +1,14 @@
 import Resource from 'Resource'
+import config from 'mc/config'
 import Modules from 'modules'
 import {
   assertModCompatibility,
+  hostForTarget,
   MOD_METADATA_LIMIT,
   MOD_METADATA_RESOURCE,
   ModCompatibilityError,
   type ModRuntimeContract,
   parseModRuntimeContract,
-  STACKCHAN_HOST_API_VERSION,
 } from 'stackchan-contracts/mod-package'
 import TextDecoder from 'text/decoder'
 
@@ -15,6 +16,7 @@ import TextDecoder from 'text/decoder'
 export function inspectInstalledMod(
   archive: readonly string[],
   readMetadata: () => ArrayBuffer | undefined,
+  target: unknown = config.stackchanTarget ?? null,
 ): Readonly<ModRuntimeContract> | undefined {
   if (archive.length === 0) return undefined
   if (archive.includes('mod/config'))
@@ -34,7 +36,7 @@ export function inspectInstalledMod(
   }
   const contract = parseModRuntimeContract(value)
   assertModCompatibility(contract, {
-    hostApiVersion: STACKCHAN_HOST_API_VERSION,
+    ...hostForTarget(target),
     entrypoints: archive.filter((name) => name === 'mod' || name === 'miniapp'),
   })
   return contract

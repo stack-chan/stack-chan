@@ -17,6 +17,8 @@
     "contracts/xsa-metadata.js",
     "contracts/audio-recording.js",
     "contracts/audio-playback.js",
-    "contracts/singing.js"
+    "contracts/singing.js",
+    "contracts/esp-flash.js",
+    "contracts/xs-compatibility.js"
   ]
 }

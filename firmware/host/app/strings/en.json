@@ -88,5 +88,7 @@
   "drawer.colorScheme": "Color Scheme",
   "boot.capabilityUnavailable": "Unavailable features",
   "boot.appFailed": "MOD could not start",
-  "boot.replaceMod": "Rebuild or replace the MOD."
+  "boot.replaceMod": "Rebuild or replace the MOD.",
+  "boot.updateFirmware": "Update the host firmware",
+  "boot.targetUnsupported": "Choose a MOD for this board"
 }

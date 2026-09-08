@@ -60,11 +60,17 @@ function reportStartupFailure(error: unknown): void {
   }
   const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : 'STARTUP_FAILED'
   const missing = error instanceof ModCompatibilityError ? error.capabilities : []
+  const recovery =
+    code === 'MOD_TARGET_UNKNOWN' || code === 'MOD_HOST_API_UNSUPPORTED'
+      ? 'boot.updateFirmware'
+      : code === 'MOD_TARGET_UNSUPPORTED'
+        ? 'boot.targetUnsupported'
+        : 'boot.replaceMod'
   showStartupFailure({
     message: localize('boot.appFailed'),
     detail: missing.length
       ? `${localize('boot.capabilityUnavailable')}\n${missing.slice(0, 2).join(', ')}${missing.length > 2 ? ` +${missing.length - 2}` : ''}`
-      : `${code}\n${localize('boot.replaceMod')}`,
+      : `${code}\n${localize(recovery)}`,
     onMods: Modules.has('mod-manager') ? restartForModMaintenance : undefined,
     onRestart: globalEnv.System?.restart ? () => globalEnv.System.restart() : undefined,
   })

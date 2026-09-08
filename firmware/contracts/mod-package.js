@@ -1,4 +1,5 @@
 import { CAPABILITY_HOST_API_VERSIONS, isCapabilityId } from './capabilities.js'
+import { targetProfile } from './targets.js'
 
 /** Shared by the host, browser tools and CLI. This is the host ABI generation, not an XS version. */
 export const STACKCHAN_HOST_API_VERSION = 9
@@ -93,6 +94,8 @@ export function parseModRuntimeContract(value) {
   if (Object.keys(settings).length && Number(hostApiVersion) < 9)
     throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Declarative setting defaults require host API 9')
   const targets = stringList(value.targets, 'targets', true)
+  if (targets.some((target) => !targetProfile(target)))
+    throw new ModCompatibilityError('MOD_METADATA_INVALID', 'Unknown target; use a canonical target ID or portable')
   const capabilities = stringList(value.capabilities, 'capabilities')
   const optionalCapabilities = stringList(value.optionalCapabilities, 'optionalCapabilities')
   for (const capability of capabilities) {
@@ -129,7 +132,7 @@ export function parseModRuntimeContract(value) {
 }
 
 /** @param {ModRuntimeContract} contract
- * @param {{hostApiVersion: number, target?: string, capabilities?: readonly string[], entrypoints?: readonly string[]}} host
+ * @param {{hostApiVersion: number, target?: string | null, capabilities?: readonly string[], entrypoints?: readonly string[]}} host
  */
 export function assertModCompatibility(contract, host) {
   const { entrypoints, capabilities } = host
@@ -138,7 +141,12 @@ export function assertModCompatibility(contract, host) {
       'MOD_HOST_API_UNSUPPORTED',
       `MOD requires host API ${contract.hostApiVersion}; detected ${host.hostApiVersion}. Update the firmware before installing this MOD.`,
     )
-  if (host.target !== undefined && !contract.targets.includes('portable') && !contract.targets.includes(host.target))
+  if (host.target === null && !contract.targets.includes('portable'))
+    throw new ModCompatibilityError(
+      'MOD_TARGET_UNKNOWN',
+      'Firmware board identity is unavailable. Update the host firmware before installing a board-specific MOD.',
+    )
+  if (host.target != null && !contract.targets.includes('portable') && !contract.targets.includes(host.target))
     throw new ModCompatibilityError('MOD_TARGET_UNSUPPORTED', `MOD does not support target ${host.target}`)
   if (
     entrypoints !== undefined &&
@@ -157,4 +165,32 @@ export function assertModCompatibility(contract, host) {
         missing,
       )
   }
+}
+
+/** Build-time compatibility; live devices and permissions are checked again before app setup.
+ * @param {unknown} target @param {number} [hostApiVersion]
+ */
+export function hostForTarget(target, hostApiVersion = STACKCHAN_HOST_API_VERSION) {
+  const profile = target === 'portable' ? undefined : targetProfile(target)
+  return {
+    hostApiVersion,
+    target: profile ? /** @type {string} */ (target) : null,
+    capabilities: profile?.capabilities,
+  }
+}
+
+/** Verify a selected board against the firmware descriptor, including chips shared by several boards.
+ * @param {string | null | undefined} actual @param {string} expected
+ */
+export function assertTargetIdentity(actual, expected) {
+  if (!actual || !targetProfile(actual))
+    throw new ModCompatibilityError(
+      'MOD_TARGET_UNKNOWN',
+      'Firmware board identity is unavailable. Update the host firmware.',
+    )
+  if (actual !== expected)
+    throw new ModCompatibilityError(
+      'MOD_TARGET_UNSUPPORTED',
+      `Selected target ${expected} does not match firmware target ${actual}`,
+    )
 }

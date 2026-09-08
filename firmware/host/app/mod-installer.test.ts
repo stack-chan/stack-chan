@@ -12,7 +12,13 @@ for (const name of ['mod-package', 'xsa-metadata'])
   writeAliasPackageSubpath(moduleRoot, 'stackchan-contracts', name, resolve(moduleRoot, `../../contracts/${name}.js`))
 const { validateXsaArchive: validateArchive, writeAndVerifyXsaArchive } = await import('./mod-installer.js')
 const validateXsaArchive = (buffer: ArrayBuffer, maximum: number, range: XsVersionRange) =>
-  validateArchive(buffer, maximum, range, (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+  validateArchive(
+    buffer,
+    maximum,
+    range,
+    (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes),
+    'm5stackchan-cores3',
+  )
 
 const compatibleVersion: XsVersionRange = [17, 7, 17, 8]
 
@@ -103,6 +109,33 @@ test('rejects missing metadata, future host APIs, and mismatched entrypoints wit
     const flash = new FakeFlash(8192, 4096)
     assert.throws(() =>
       writeAndVerifyXsaArchive(validateXsaArchive(source.buffer, flash.byteLength, compatibleVersion), flash),
+    )
+    assert.deepEqual(flash.erased, [])
+    assert.equal(flash.writes, 0)
+  }
+})
+
+test('SD target and capability checks happen before erasing a valid installed archive', () => {
+  for (const [target, metadata, code] of [
+    ['stackchan-rt', { ...modDefinition, targets: ['m5stackchan-cores3'] }, 'MOD_TARGET_UNSUPPORTED'],
+    [null, { ...modDefinition, targets: ['m5stackchan-cores3'] }, 'MOD_TARGET_UNKNOWN'],
+    ['takao-core2-sg90', { ...modDefinition, capabilities: ['camera'] }, 'MOD_CAPABILITY_UNAVAILABLE'],
+  ] as Array<[string | null, typeof modDefinition, string]>) {
+    const flash = new FakeFlash(8192, 4096)
+    const source = makeXsArchive({ metadata })
+    assert.throws(
+      () =>
+        writeAndVerifyXsaArchive(
+          validateArchive(
+            source.buffer,
+            flash.byteLength,
+            compatibleVersion,
+            (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes),
+            target,
+          ),
+          flash,
+        ),
+      { code },
     )
     assert.deepEqual(flash.erased, [])
     assert.equal(flash.writes, 0)

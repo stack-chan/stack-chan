@@ -5,10 +5,9 @@ import path from 'node:path'
 import { test } from 'node:test'
 import {
   firmwareDescriptorVersion,
-  prepareCoreS3VersionSdkconfig,
   prepareVersionSdkconfig,
   readModdableVersion,
-  renderCoreS3VersionSdkconfig,
+  renderVersionSdkconfig,
   STACKCHAN_HOST_API_VERSION,
 } from './moddable-version.mjs'
 
@@ -18,7 +17,7 @@ CONFIG_APP_PROJECT_VER_FROM_CONFIG=y
 CONFIG_APP_PROJECT_VER="8.3.1"
 CONFIG_SPIRAM=y
 `
-  const rendered = renderCoreS3VersionSdkconfig(source, '9.0.0')
+  const rendered = renderVersionSdkconfig(source, '9.0.0')
 
   assert.match(rendered, /CONFIG_ESP_CONSOLE_UART=y/)
   assert.match(rendered, /CONFIG_SPIRAM=y/)
@@ -52,10 +51,15 @@ test('prepares an SDKCONFIGPATH directory from MODDABLE tools VERSION', () => {
     )
     writeFileSync(path.join(sourceDirectory, 'sdkconfig.defaults'), 'CONFIG_SPIRAM=y\n')
 
-    const result = prepareCoreS3VersionSdkconfig({ moddableDirectory, outputDirectory, sourceDirectory })
+    const result = prepareVersionSdkconfig({
+      platformName: 'm5stackchan_cores3',
+      moddableDirectory,
+      outputDirectory,
+      sourceDirectory,
+    })
 
     assert.equal(result.moddableVersion, '9.0.0')
-    assert.equal(result.version, `9.0.0+stackchan.${STACKCHAN_HOST_API_VERSION}`)
+    assert.equal(result.version, firmwareDescriptorVersion('9.0.0', STACKCHAN_HOST_API_VERSION, 'm5stackchan-cores3'))
     assert.equal(result.directory, path.join(outputDirectory, 'generated', 'sdkconfig', 'm5stackchan_cores3'))
     assert.ok(readFileSync(result.filePath, 'utf8').includes(`CONFIG_APP_PROJECT_VER="${result.version}"`))
     assert.match(readFileSync(result.partitionFilePath, 'utf8'), /0xFE0000/)
@@ -66,9 +70,9 @@ test('prepares an SDKCONFIGPATH directory from MODDABLE tools VERSION', () => {
 
 test('rejects missing and unsafe Moddable versions', () => {
   assert.throws(() => readModdableVersion(''), /MODDABLE environment variable is required/)
-  assert.throws(() => renderCoreS3VersionSdkconfig('', '9.0.0"\nCONFIG_FOO=y'), /Invalid Moddable SDK version/)
-  assert.throws(() => renderCoreS3VersionSdkconfig('', 'v'.repeat(32)), /Invalid Moddable SDK version/)
-  assert.throws(() => renderCoreS3VersionSdkconfig('', 'v'.repeat(24)), /firmware descriptor version/)
+  assert.throws(() => renderVersionSdkconfig('', '9.0.0"\nCONFIG_FOO=y'), /Invalid Moddable SDK version/)
+  assert.throws(() => renderVersionSdkconfig('', 'v'.repeat(32)), /Invalid Moddable SDK version/)
+  assert.throws(() => renderVersionSdkconfig('', 'v'.repeat(24)), /firmware descriptor version/)
 })
 
 function count(source, value) {
@@ -105,7 +109,10 @@ test('base SDK settings are not replayed after feature manifests', () => {
     }
     assert.equal(featureConfig.get('CONFIG_BT_ENABLED'), 'y')
     assert.equal(featureConfig.get('CONFIG_BT_NIMBLE_ENABLED'), 'y')
-    assert.equal(featureConfig.get('CONFIG_APP_PROJECT_VER'), `"${firmwareDescriptorVersion('9.5.0')}"`)
+    assert.equal(
+      featureConfig.get('CONFIG_APP_PROJECT_VER'),
+      `"${firmwareDescriptorVersion('9.5.0', STACKCHAN_HOST_API_VERSION, 'm5stack')}"`,
+    )
   } finally {
     rmSync(fixture, { recursive: true, force: true })
   }

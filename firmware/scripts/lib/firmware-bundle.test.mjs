@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
+import { targetForBuild } from '../../contracts/targets.js'
 import { firmwareDirectory } from './build-output.mjs'
 import {
   assembleFirmwareBundle,
@@ -34,7 +35,7 @@ test('builds a release target through a final sdkconfig manifest override', () =
   const outputDirectory = path.join(root, 'output')
   const sdkconfigDirectory = path.join(moddableDirectory, 'build/devices/esp32/xsProj-esp32')
   const moddableVersion = '8.3.1'
-  const firmwareVersion = firmwareDescriptorVersion(moddableVersion)
+  const firmwareVersion = firmwareDescriptorVersion(moddableVersion, undefined, 'm5stack')
   let wrapperManifestPath
 
   try {
@@ -59,6 +60,7 @@ test('builds a release target through a final sdkconfig manifest override', () =
         assert.equal(wrapper.include[0], path.join(firmwareDirectory, 'host/app/manifest.json'))
         const override = JSON.parse(readFileSync(wrapper.include[1], 'utf8'))
         assert.equal(override.build.SDKCONFIGPATH, path.join(outputDirectory, 'generated/sdkconfig/m5stack'))
+        assert.equal(override.config.stackchanTarget, 'm5stack')
 
         const buildDirectory = path.join(outputDirectory, 'bin/esp32/m5stack/release/stack-chan-host')
         mkdirSync(buildDirectory, { recursive: true })
@@ -172,8 +174,9 @@ test('rejects inconsistent embedded versions across independently built targets'
   try {
     const { bundleId } = firmwareBundleTargets[0]
     const targetDirectory = path.join(fixture.inputDirectory, bundleId)
-    writeFirmware(path.join(targetDirectory, 'xs_esp32.bin'), '9.9.9')
-    writeMetadata(targetDirectory, bundleId, '9.9.9')
+    const version = firmwareDescriptorVersion('9.9.9', undefined, 'm5stack')
+    writeFirmware(path.join(targetDirectory, 'xs_esp32.bin'), version)
+    writeMetadata(targetDirectory, bundleId, version)
 
     assert.throws(
       () =>
@@ -192,17 +195,18 @@ function createBundleFixture() {
   const root = mkdtempSync(path.join(tmpdir(), 'stackchan-firmware-bundle-'))
   const inputDirectory = path.join(root, 'input')
   const outputDirectory = path.join(root, 'output')
-  const firmwareVersion = '8.3.1'
+  const firmwareVersion = firmwareDescriptorVersion('8.3.1')
   mkdirSync(inputDirectory, { recursive: true })
   mkdirSync(outputDirectory, { recursive: true })
 
-  for (const { bundleId } of firmwareBundleTargets) {
+  for (const { name, bundleId } of firmwareBundleTargets) {
     const targetDirectory = path.join(inputDirectory, bundleId)
+    const targetVersion = firmwareDescriptorVersion('8.3.1', undefined, targetForBuild(name).id)
     mkdirSync(targetDirectory, { recursive: true })
     writeFileSync(path.join(targetDirectory, 'bootloader.bin'), Buffer.from([1]))
     writePartitionTable(path.join(targetDirectory, 'partition-table.bin'), 256)
-    writeFirmware(path.join(targetDirectory, 'xs_esp32.bin'), firmwareVersion)
-    writeMetadata(targetDirectory, bundleId, firmwareVersion)
+    writeFirmware(path.join(targetDirectory, 'xs_esp32.bin'), targetVersion)
+    writeMetadata(targetDirectory, bundleId, targetVersion)
   }
 
   return {

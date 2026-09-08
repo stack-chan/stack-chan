@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { isXsVersionCompatible } from './xs-compatibility.mjs'
+import { isXsVersionCompatible } from '../../firmware/contracts/xs-compatibility.js'
 import { inspectDeploymentCompatibility, profileFor } from './capabilities.mjs'
 
 test('XS compatibility includes both endpoints and ignores patch', () => {
@@ -31,6 +31,7 @@ test('deployment requires 9.5 firmware independently of archive compatibility', 
       xsVersion: profileFor('m5stackchan-cores3').xsArchiveVersion,
       firmwareVersion,
       requireFirmware: true,
+      firmwareTarget: 'm5stackchan-cores3',
       requireArchive: true,
     })
     assert.equal(result.compatible, firmwareVersion === '9.5.0+stackchan.1')

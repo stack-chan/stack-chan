@@ -1,6 +1,6 @@
-import { assertModCompatibility, STACKCHAN_HOST_API_VERSION } from '../../firmware/contracts/mod-package.js'
+import { assertModCompatibility, hostForTarget } from '../../firmware/contracts/mod-package.js'
 import { inspectModArchive } from '../../firmware/contracts/xsa-metadata.js'
-import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE } from '../editor/xs-compatibility.mjs'
+import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE } from '../../firmware/contracts/xs-compatibility.js'
 
 const DEFAULT_DATABASE_NAME = 'stackchan-wasm-mods'
 const DEFAULT_STORE_NAME = 'installed-mods'
@@ -51,7 +51,7 @@ export function validateModArchive(bytes) {
     new TextDecoder('utf-8', { fatal: true }).decode(value)
   )
   if (!isXsVersionCompatible(version, XS_ARCHIVE_VERSION_RANGE)) throw new Error('Incompatible XS archive version')
-  assertModCompatibility(metadata, { hostApiVersion: STACKCHAN_HOST_API_VERSION, target: 'simulator' })
+  assertModCompatibility(metadata, hostForTarget('simulator'))
   return normalized
 }
 

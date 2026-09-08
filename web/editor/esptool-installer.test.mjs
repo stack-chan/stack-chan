@@ -167,12 +167,14 @@ test('reads the factory app descriptor used for firmware/XS compatibility checks
     moddableVersion: '9.5.0',
     hostApiVersion: 2,
     projectName: 'xs_esp32',
+    target: null,
   })
   assert.deepEqual(parseEspAppDescriptor(makeAppHeader('9.5.0')), {
     version: '9.5.0',
     moddableVersion: '9.5.0',
     hostApiVersion: 0,
     projectName: 'xs_esp32',
+    target: null,
   })
   assert.equal(parseEspAppDescriptor(new Uint8Array(256)), null)
 })
@@ -276,6 +278,7 @@ test('installModToDevice reads the table, targets the xs offset, and resets', as
     moddableVersion: '9.5.0',
     hostApiVersion: 2,
     projectName: 'xs_esp32',
+    target: null,
   })
 })
 
@@ -474,4 +477,50 @@ test('removeModFromDevice reports reset failure without losing verified success'
   assert.equal(result.verified, true)
   assert.match(logs.at(-1), /自動リセットに失敗/)
   assert.match(prompts.at(-1), /RESETボタン/)
+})
+
+test('WebSerial rejects another board, unknown identity and unavailable camera before user preflight or writing', async () => {
+  for (const [suffix, metadata, code] of [
+    ['.rt', { ...modDefinition, targets: ['m5stackchan-cores3'] }, 'MOD_TARGET_UNSUPPORTED'],
+    ['', { ...modDefinition, targets: ['m5stackchan-cores3'] }, 'MOD_TARGET_UNKNOWN'],
+    ['.t2', { ...modDefinition, capabilities: ['camera'] }, 'MOD_CAPABILITY_UNAVAILABLE'],
+    ['.sc3', { ...modDefinition, targets: ['m5stackchan-cores3'] }, null],
+  ]) {
+    const archive = makeXsArchive({ metadata })
+    const calls = []
+    const loader = {
+      async main() {
+        return 'ESP32-S3'
+      },
+      async readFlash(offset) {
+        return offset === PARTITION_TABLE_OFFSET
+          ? CORES3_TABLE
+          : offset === 0x10000
+            ? makeAppHeader(`9.5.0+stackchan.9${suffix}`)
+            : archive
+      },
+      async writeFlash() {
+        calls.push('write')
+      },
+      async resetToRunApp() {},
+      transport: {
+        async disconnect() {
+          calls.push('disconnect')
+        },
+      },
+    }
+    const operation = installModToDevice(async () => loader, {}, archive, {
+      onPreflight() {
+        calls.push('preflight')
+        return true
+      },
+    })
+    if (code) {
+      await assert.rejects(operation, { code })
+      assert.deepEqual(calls, ['disconnect'])
+    } else {
+      assert.equal((await operation).status, DEVICE_OPERATION_STATUS.INSTALLED)
+      assert.deepEqual(calls, ['preflight', 'write', 'disconnect'])
+    }
+  }
 })

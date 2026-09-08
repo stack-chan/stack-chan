@@ -19,6 +19,8 @@ export default defineApp({
 
 配布用の `stackchan-mod.json` には schema 2 / app API 2 と必要な host API 世代を記録します。教材では世代2を要求し、標準 manifest の `data` で同梱しています。XS のコンパイル版とは別の検査です。CLI・WebSerial の接続状況と、旧 MOD・SD・WASM・起動時の移行上の制約は [MOD の互換性検査](../../docs/architecture/mod-package-compatibility.md) を参照してください。
 
+`targets` は通常 `['portable']` を使います。機種専用なら `m5stackchan-cores3`、`stackchan-rt`、`takao-core2-sg90` などの [共通機種ID](../../docs/architecture/mod-package-compatibility.md#機種idを一つの定義から使う) を宣言します。CLIのビルド名のアンダースコアとは区別してください。書き込み先はファームウェア内の機種IDで照合し、IDのない旧ファームウェアには更新を案内します。`capabilities` は機種を制限しない場合も検査します。
+
 | API | 完了と所有 |
 | --- | --- |
 | `face.setEmotion` / `setMouthOpen` / `setColor` | 同期更新。色0〜255、開度0〜1。未知の名前や不正値はエラー |

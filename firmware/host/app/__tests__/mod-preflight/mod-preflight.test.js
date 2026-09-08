@@ -45,6 +45,18 @@ function run() {
     () => inspectInstalledMod(['mod'], () => encoded({ ...modDefinition, appApiVersion: 1 })),
     'MOD_APP_API_UNSUPPORTED',
   )
+  for (const [target, declaration, code] of [
+    ['stackchan-rt', { ...modDefinition, targets: ['m5stackchan-cores3'] }, 'MOD_TARGET_UNSUPPORTED'],
+    [null, { ...modDefinition, targets: ['m5stackchan-cores3'] }, 'MOD_TARGET_UNKNOWN'],
+    ['simulator', { ...modDefinition, hostApiVersion: 7, capabilities: ['audio.radio'] }, 'MOD_CAPABILITY_UNAVAILABLE'],
+  ])
+    rejects(() => inspectInstalledMod(['mod'], () => encoded(declaration), target), code)
+  equal(
+    inspectInstalledMod(['mod'], () => encoded({ ...modDefinition, targets: ['simulator'] }), 'simulator')
+      .appApiVersion,
+    2,
+    'matching board is accepted',
+  )
   getHostSettingsService().get('ui.language')
   equal(inspectInstalledMod(['mod'], () => encoded(modDefinition)).appApiVersion, 2, 'supported app declared')
   rejects(() => inspectInstalledMod(['mod'], () => undefined), 'MOD_METADATA_MISSING')

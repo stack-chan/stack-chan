@@ -88,5 +88,7 @@
   "drawer.colorScheme": "配色",
   "boot.capabilityUnavailable": "不可用的功能",
   "boot.appFailed": "MOD启动失败",
-  "boot.replaceMod": "保存MOD"
+  "boot.replaceMod": "保存MOD",
+  "boot.updateFirmware": "请更新主机固件",
+  "boot.targetUnsupported": "请选择适用于此机型的MOD"
 }

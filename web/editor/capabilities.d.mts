@@ -14,13 +14,15 @@ export type DeviceProfile = {
   capabilities: readonly Capability[]
 }
 
-export const DEVICE_PROFILES: Readonly<Record<'m5stackchan-cores3' | 'simulator' | 'portable', DeviceProfile>>
+export const DEVICE_PROFILES: Readonly<Record<string, DeviceProfile>>
 
 export const BLOCK_CAPABILITIES: Readonly<Record<string, readonly Capability[]>>
 
 export type DeploymentCompatibilityOptions = {
   chip?: string
   xsVersion?: readonly number[] | null
+  firmwareTarget?: string | null
+  requireTarget?: boolean
   firmwareVersion?: string
   hostApiVersion?: number
   entrypoints?: readonly 'mod'[]

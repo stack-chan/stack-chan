@@ -99,6 +99,7 @@ describe('MOD storage', () => {
       makeXsArchive({ metadata: null }),
       makeXsArchive({ metadata: { ...modDefinition, hostApiVersion: 999 } }),
       makeXsArchive({ metadata: { ...modDefinition, targets: ['m5stackchan-cores3'] } }),
+      makeXsArchive({ metadata: { ...modDefinition, hostApiVersion: 7, capabilities: ['audio.radio'] } }),
       makeXsArchive({ entrypoints: ['miniapp'] }),
       makeXsArchive({ version: [99, 1, 0] }),
     ]) {

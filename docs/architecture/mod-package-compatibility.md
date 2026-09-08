@@ -1,6 +1,6 @@
 # MOD の宣言と配布時の互換性検査
 
-この記録は F10 の実装途中の状態を示す。正本は `stackchan-mod.json`、互換性を読む実装は `firmware/contracts/mod-package.js` と `xsa-metadata.js`。宣言の必須化と SD・WASM・起動時の検査は接続済み。残す全例・Blockly・顔エディターのSDK移行とV1実行経路の撤去は済んだ。実行時の能力判定を起動前検査へ接続した。機種識別と全配布経路の能力照合、実機受入は継続する。
+この記録は F10 の実装途中の状態を示す。正本は `stackchan-mod.json`、互換性を読む実装は `firmware/contracts/mod-package.js` と `xsa-metadata.js`。宣言の必須化と SD・WASM・起動時の検査は接続済み。残す全例・Blockly・顔エディターのSDK移行とV1実行経路の撤去は済んだ。実行時の能力判定を起動前検査へ接続した。機種識別と各配布経路のビルド能力照合も接続した。設定schemaの配布側照合と実機受入は継続する。
 
 ## 世代を分ける
 
@@ -15,9 +15,9 @@
 | Moddable SDK 版            | 本体を作った SDK             | 9.5.0                                    |
 | `targets` / `capabilities` | 対象環境と使用機能           | `portable`, `camera`                     |
 
-ホストの API 世代の値を共通契約へ移し、本体の `esp_app_desc` には `9.5.0+stackchan.9` のように記録する。CLI と WebSerial は書き込まれた本体からこの情報を読む。host API 1 と識別された本体へ、host API 2 を要求する MOD は書き込まない。以前の再設計ブランチを利用していた場合も、本体を更新してから教材を書き込む。
+ホストの API 世代の値を共通契約へ移し、本体の `esp_app_desc` には `9.5.0+stackchan.9.sc3` のようにAPI世代と機種コードを記録する。CLI と WebSerial は書き込まれた本体からこの情報を読む。host API 1 と識別された本体へ、host API 2 を要求する MOD は書き込まない。以前の再設計ブランチを利用していた場合も、本体を更新してから教材を書き込む。
 
-検証中、Takao Core2 の通常ビルドには SDK 版ではなく Git のコミット名が記録されていた。CoreS3 だけに適用していた生成を Stack-chan RT / Takao Core2 にも接続し、通常ビルドと bundle が同じ最終 manifest の優先順位を使うようにした。両機種の CLI も SDK 版を確認する。古い Git 名だけの本体は先に更新する。従来の汎用 `run-mcconfig` 経路や全ビルド入口を統合する作業は F7 / F10 に残る。
+検証中、Takao Core2 の通常ビルドには SDK 版ではなく Git のコミット名が記録されていた。CoreS3 だけに適用していた生成を Stack-chan RT / Takao Core2 にも接続し、通常ビルドと bundle が同じ最終 manifest の優先順位を使うようにした。両機種の CLI も SDK 版を確認する。古い Git 名だけの本体は先に更新する。M5Stackと汎用CoreS3/Core2の通常ビルドも同じhost wrapperへ統合した。単体の機器試験やbenchmark用 `run-mcconfig` はホストAPI世代を名乗らない。
 
 host API 9はschema 2 / app API 2だけを受け付ける。schema 1、app API 1、metadataのないarchive、旧 `miniapp` と実行可能な `mod/config` は、コード評価前に拒否する。SDKソースと宣言を更新して再生成するよう案内し、旧フックを読み替えるadapterは残さない。Piu拡張も通常の `mod` と同じAppSessionで起動する。
 
@@ -31,7 +31,30 @@ RuntimeContextの `getCapability` を本体起動とAppSessionが共有する。
 
 本体はホスト構成を作った後、必須能力を照合してから `mod` 本体を評価する。欠けた能力があれば取得済みホスト資源を閉じ、利用できない機能の名前を表示する。任意能力は起動を妨げず、アプリが同じ `app.capabilities.get()` で代替動作を選ぶ。能力の有無は、外部サービスの認証成功や外付けセンサーの正常動作まで保証するものではない。
 
-Webシミュレーターのプロファイルにはcamera・録音・再生・clips・settingsを加え、実装のない無線やLEDを含めない。未知のプロファイルをportableへ黙って読み替える経路は撤去した。ビルドが備える機能と、接続時・起動時の実状態の区別を保ち、ボード識別・設定schemaの配布側検査は引き続き統合する。
+Webシミュレーターのプロファイルにはcamera・録音・再生・clips・settingsを加え、実装のない無線やLEDを含めない。未知のプロファイルをportableへ黙って読み替える経路は撤去した。ビルドが備える機能と、接続時・起動時の実状態は分ける。設定schemaの配布側検査は引き続き統合する。
+
+## 機種IDを一つの定義から使う
+
+`firmware/contracts/targets.js` にmetadataの機種ID、descriptor用の短いコード、CLIのビルド名、platform・manifest・bundle IDとビルドが提供できる機能を置く。CLIのdevice表、bundle対象、manifest検査、Webのプロファイルはこの定義から作る。
+
+| metadataの機種ID | CLI / ビルド名 | descriptorコード |
+| --- | --- | --- |
+| `m5stack` | `m5stack` | `m5` |
+| `m5stack-core2` | `m5stack_core2` | `c2` |
+| `m5stack-cores3` | `m5stack_cores3` | `c3` |
+| `m5stackchan-cores3` | `m5stackchan_cores3` | `sc3` |
+| `stackchan-rt` | `stackchan_rt` | `rt` |
+| `takao-core2-sg90` | `takao_core2_sg90` | `t2` |
+| `simulator` | WASM | ESP descriptorなし |
+| `portable` | 機種制限のないアプリの宣言 | ホスト機種としては使わない |
+
+ネイティブビルドは、同じ機種定義から `esp_app_desc.version` とホストの `mc/config.stackchanTarget` を生成する。WASMは `simulator` を使う。通常ビルドとbundleで同じ最終manifest overrideを使い、bundleを組み立てる際には機種IDの取り違えも拒否する。SDK版とAPI世代は全bundleで一致させ、機種コードだけが異なる。
+
+CLIとWebSerialは本体からdescriptorを読み、SDと本体起動はビルド時の設定を読む。`hostForTarget` と `assertModCompatibility` によって、対象機種と必須能力の両方を検査する。例えばCoreS3とRTはどちらもESP32-S3だが、CoreS3専用MODをRTへ書き込めない。Core2でカメラが必須のMODも書き込まない。任意能力は引き続き未対応時の案内をアプリが行える。
+
+機種IDのない旧descriptorは「不明」であり、ユーザーが選んだ機種やチップ名を代わりに使わない。機種指定のMOD、または機種を選ぶCLI・Webの書き込みではホスト更新を案内する。機種制限のないMODの一般的な互換性検査では、API世代が足りていれば受け付け、実際の能力は起動前に確認する。WebのMOD削除は復旧に使うため機種IDの追加を要求しない。
+
+ESP descriptor・partition・XS版の読み取りは `firmware/contracts/esp-flash.js` と `xs-compatibility.js` を共有する。CLIからWebアプリの内部実装への依存はなくした。descriptorが示すのは書き込まれたファームウェアのビルド対象であり、誤ったホストを物理ボードへ書き込んでいないことや、外付け部品の実在を証明するものではない。
 
 ## 標準のビルドで同梱する
 
@@ -62,15 +85,15 @@ XSA reader はモジュールを実行せずに、atom の境界、版、resourc
 | 経路 | 接続した検査・動作 | 残る検査 |
 | --- | --- | --- |
 | Web / ネイティブビルド | 宣言必須、標準同梱、実行入口・外部宣言との一致。21例・7教材・BlocklyをSDKへ移行 | 配布先との能力照合 |
-| CLI | 必須宣言・構造・XS版・実機 host API・partition・read-back | 機種と設定に基づく実際の能力 |
+| CLI | 必須宣言・構造・XS版・実機APIと機種ID・必須ビルド能力・partition・read-back | 実際の接続・設定に依存する機能は本体起動時に確認 |
 | 診断スクリプト | 同じCLIのmodコマンドで検査・書き込み・read-back後、同じportへserial2xsbugを接続。再試行はbridgeだけを再起動 | USBの再起動・実機ログと機器の受入 |
-| WebSerial | 必須宣言・構造・XS版・Moddable 9.5・実機 host API。確認callback前に検査 | 機種と設定に基づく実際の能力 |
+| WebSerial | 必須宣言・構造・XS版・Moddable 9.5・実機APIと機種ID・必須ビルド能力。確認callback前に検査 | 実際の接続・設定に依存する機能は本体起動時に確認 |
 | Gallery | 全6テキストartifactを標準mcrunで再生成。取得時にid・版・API・対象・機能・実行入口を正本と比較 | 実機受入 |
-| SD | 必須宣言・構造・XS版・host API・partition・read-back。保守起動以外からの書き込みを拒否 | 実機の電源断・容量・SDカード受入 |
-| WASM保存・読み込み | 必須宣言・構造・XS版・host API・simulator対象。IndexedDBのcommitを待ち、abortを成功扱いしない | 実際のブラウザー能力との照合 |
-| 本体起動 | 旧入口・旧archiveを拒否し、`mod`の評価前に必須宣言・host API・実行入口・設定・実構成の必須能力を検査。exportはSDK定義に限定 | ボード識別と実機受入 |
+| SD | 必須宣言・構造・XS版・host API・機種ID・必須ビルド能力・partition・read-back。保守起動以外からの書き込みを拒否 | 実機の電源断・容量・SDカード受入 |
+| WASM保存・読み込み | 必須宣言・構造・XS版・host API・simulator対象とビルド能力。IndexedDBのcommitを待ち、abortを成功扱いしない | 実際のブラウザー能力との照合 |
+| 本体起動 | 旧入口・旧archiveを拒否し、`mod`の評価前に必須宣言・host API・機種ID・実行入口・設定・実構成の必須能力を検査。exportはSDK定義に限定 | 実機受入 |
 
-`assertModCompatibility` は、渡されたホスト情報だけを検査する。CLI と WebSerial が新たに渡すのは本体の host API 世代。チップ名だけでボードや利用可能な機能を判定したことにはしない。Web の既存プロファイル検査と XS 版・サイズ・書き込み後照合も維持する。
+`assertModCompatibility` は渡されたホスト情報を検査する。書き込み前には本体のAPI・機種IDとビルド能力、起動前には生成したホスト構成から得た実際の能力を渡す。XS版・サイズ・書き込み後照合も維持する。
 
 ## 旧 MOD の更新と復旧
 
@@ -92,4 +115,4 @@ provider-dialoguesはホスト・XS試験用のnative依存と、MODへ同梱す
 
 SDK 9.5のTextDecoder C実装には、WASMで`bool`を宣言するheaderが不足していた。既存WASM wrapperのCコンパイラー指定に`-include stdbool.h`を加え、SDKを直接改変せずに標準デコーダーを使う。
 
-実行時の機能確認は静的な宣言とは別に必要になる。たとえば撮影を要求できる機種でも、ブラウザーの許可拒否や機器の開始失敗を成功へ置き換えない。実際のボード識別、能力・設定・WASMバイナリーの版を一つの正本へ接続する作業は F7 / F9 / F10 に残る。
+実行時の機能確認は静的な宣言とは別に必要になる。たとえば撮影を要求できる機種でも、ブラウザーの許可拒否や機器の開始失敗を成功へ置き換えない。設定schemaの配布側照合と実機受入は F7 / F9 / F10 に残る。機種と能力の今回の検証記録は [機種互換性の記録](target-compatibility-2026-09-08.md) を参照する。

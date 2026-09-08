@@ -3,13 +3,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { STACKCHAN_HOST_API_VERSION } from '../../contracts/mod-package.js'
+import { targetForBuild, targetProfile } from '../../contracts/targets.js'
 import { buildOutputDirectory } from './build-output.mjs'
 
 const libraryDirectory = path.dirname(fileURLToPath(import.meta.url))
-export const coreS3SdkconfigSourceDirectory = path.resolve(
+const coreS3SdkconfigSourceDirectory = path.resolve(
   libraryDirectory,
   '../../host/modules/audio/platforms/m5stackchan-cores3/sdkconfig',
 )
+
 export { STACKCHAN_HOST_API_VERSION }
 
 /**
@@ -35,15 +37,18 @@ export function readModdableVersion(moddableDirectory = process.env.MODDABLE) {
  * esp_app_desc. Legacy firmware has no suffix and is therefore host API 0.
  * @param {string} moddableVersion - Moddable SDK version.
  * @param {number} hostApiVersion - Stack-chan host API generation.
+ * @param {string} [target] - Canonical board ID; absent only for historical descriptor fixtures.
  * @returns {string} Firmware descriptor version.
  */
-export function firmwareDescriptorVersion(moddableVersion, hostApiVersion = STACKCHAN_HOST_API_VERSION) {
+export function firmwareDescriptorVersion(moddableVersion, hostApiVersion = STACKCHAN_HOST_API_VERSION, target) {
   assertDescriptorVersion(moddableVersion)
   if (!Number.isSafeInteger(hostApiVersion) || hostApiVersion < 1) {
     throw new Error(`Invalid Stack-chan host API version: ${hostApiVersion}`)
   }
   const separator = moddableVersion.includes('+') ? '.' : '+'
-  const version = `${moddableVersion}${separator}stackchan.${hostApiVersion}`
+  const code = target === undefined ? undefined : targetProfile(target)?.code
+  if (target !== undefined && !code) throw new Error(`Invalid firmware target: ${target}`)
+  const version = `${moddableVersion}${separator}stackchan.${hostApiVersion}${code ? `.${code}` : ''}`
   assertDescriptorVersion(version, 'firmware descriptor version')
   return version
 }
@@ -52,10 +57,11 @@ export function firmwareDescriptorVersion(moddableVersion, hostApiVersion = STAC
  * Produces an sdkconfig overlay with the Moddable SDK and Stack-chan host API versions.
  * @param {string} source - Base sdkconfig.defaults contents.
  * @param {string} version - Moddable SDK version for esp_app_desc.
+ * @param {string} [target] - Canonical board ID.
  * @returns {string} Generated sdkconfig.defaults contents.
  */
-export function renderVersionSdkconfig(source, version) {
-  const descriptorVersion = firmwareDescriptorVersion(version)
+export function renderVersionSdkconfig(source, version, target) {
+  const descriptorVersion = firmwareDescriptorVersion(version, STACKCHAN_HOST_API_VERSION, target)
   const base = source
     .replaceAll('\r\n', '\n')
     .split('\n')
@@ -73,7 +79,7 @@ CONFIG_APP_PROJECT_VER="${descriptorVersion}"
 
 /**
  * Writes a generated sdkconfig directory for Moddable's SDKCONFIGPATH.
- * @param {{platformName: string, moddableDirectory?: string, outputDirectory?: string, sourceDirectory: string, partitionSourcePath: string}} options - Generation inputs.
+ * @param {{platformName: string, moddableDirectory?: string, outputDirectory?: string, sourceDirectory?: string, partitionSourcePath?: string}} options - Generation inputs.
  * @returns {{directory: string, filePath: string, partitionFilePath: string, version: string, moddableVersion: string}} Generated configuration details.
  */
 export function prepareVersionSdkconfig({
@@ -87,14 +93,21 @@ export function prepareVersionSdkconfig({
     throw new Error(`Invalid sdkconfig platform name: ${platformName || 'missing'}`)
   }
   const moddableVersion = readModdableVersion(moddableDirectory)
-  const version = firmwareDescriptorVersion(moddableVersion)
+  const profile = targetForBuild(platformName)
+  const target = profile.id
+  const sdkconfigDirectory = profile.sdkconfigTarget
+    ? path.join(moddableDirectory, 'build/devices/esp32/targets', profile.sdkconfigTarget, 'sdkconfig')
+    : path.join(moddableDirectory, 'build/devices/esp32/xsProj-esp32')
+  sourceDirectory ??= platformName === 'm5stackchan_cores3' ? coreS3SdkconfigSourceDirectory : sdkconfigDirectory
+  partitionSourcePath ??= path.join(sdkconfigDirectory, 'partitions.csv')
+  const version = firmwareDescriptorVersion(moddableVersion, STACKCHAN_HOST_API_VERSION, target)
   const sourcePath = path.join(sourceDirectory, 'sdkconfig.defaults')
   // Base SDK settings are already merged before manifest esp32Config settings.
   // Replaying them as an application overlay would disable features such as BLE.
   const isBaseConfig =
     path.resolve(sourceDirectory) === path.resolve(moddableDirectory, 'build/devices/esp32/xsProj-esp32')
   const source = isBaseConfig ? '' : readFileSync(sourcePath, 'utf8')
-  const sdkconfig = renderVersionSdkconfig(source, moddableVersion)
+  const sdkconfig = renderVersionSdkconfig(source, moddableVersion, target)
   const directory = path.join(outputDirectory, 'generated', 'sdkconfig', platformName)
   const filePath = path.join(directory, 'sdkconfig.defaults')
   const partitionFilePath = path.join(directory, 'partitions.csv')
@@ -109,37 +122,6 @@ export function prepareVersionSdkconfig({
   console.log(`[stack-chan] prepared firmware version ${version}: ${filePath}`)
   return { directory, filePath, partitionFilePath, version, moddableVersion }
 }
-
-/**
- * Writes the M5StackChan CoreS3 sdkconfig overlay used by normal firmware builds.
- * @param {{moddableDirectory?: string, outputDirectory?: string, sourceDirectory?: string, partitionSourcePath?: string}} options - Generation inputs.
- * @returns {{directory: string, filePath: string, partitionFilePath: string, version: string, moddableVersion: string}} Generated configuration details.
- */
-export function prepareCoreS3VersionSdkconfig({
-  moddableDirectory = process.env.MODDABLE,
-  outputDirectory = buildOutputDirectory,
-  sourceDirectory = coreS3SdkconfigSourceDirectory,
-  partitionSourcePath = path.join(
-    moddableDirectory ?? '',
-    'build',
-    'devices',
-    'esp32',
-    'targets',
-    'm5stack_cores3',
-    'sdkconfig',
-    'partitions.csv',
-  ),
-} = {}) {
-  return prepareVersionSdkconfig({
-    platformName: 'm5stackchan_cores3',
-    moddableDirectory,
-    outputDirectory,
-    sourceDirectory,
-    partitionSourcePath,
-  })
-}
-
-export const renderCoreS3VersionSdkconfig = renderVersionSdkconfig
 
 /**
  * Keep the generated version override after platform/app includes. The SDK's
@@ -161,7 +143,10 @@ export function prepareVersionManifest(
     `stackchan-version.${platformName}.${process.pid}.manifest.json`,
   )
   mkdirSync(directory, { recursive: true })
-  writeFileSync(overridePath, `${JSON.stringify({ build: { SDKCONFIGPATH: sdkconfigDirectory } }, null, 2)}\n`)
+  writeFileSync(
+    overridePath,
+    `${JSON.stringify({ build: { SDKCONFIGPATH: sdkconfigDirectory }, config: { stackchanTarget: targetForBuild(platformName).id } }, null, 2)}\n`,
+  )
   writeFileSync(wrapperPath, `${JSON.stringify({ include: [path.resolve(manifestPath), overridePath] }, null, 2)}\n`)
   return wrapperPath
 }

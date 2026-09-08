@@ -78,11 +78,13 @@ class PacketHandler extends Serial {
   #queue: (() => void)[] = []
   #busy = false
   #recovering = false
+  #readAvailable: (count: number) => void
   constructor(option) {
     const onReadable = function (this: PacketHandler, byte: number) {
       const rxBuf = this.#rxBuffer
       for (let b = 0; b < byte; b++) {
-        const value = this.read() as number
+        const value = this.read() as number | undefined
+        if (value === undefined) break
         if (this.#recovering) continue
         // NOTE: We can safely read a number
         rxBuf[this.#idx++] = value
@@ -150,12 +152,19 @@ class PacketHandler extends Serial {
       format: 'number',
       onReadable,
     })
+    this.#readAvailable = onReadable.bind(this)
     this.#callbacks = new Map<number, (buffer: Uint8Array, length: number) => void>()
     this.#rxBuffer = new Uint8Array(64)
     this.#payloadBuffer = new PayloadBuffer(32)
     this.#idx = 0
     this.#state = RX_STATE.SEEK
   }
+  poll(): void {
+    // Drain a bounded UART FIFO before timing out. The XS timer can run before
+    // an already posted Serial.onReadable callback under UI/audio load.
+    this.#readAvailable(128)
+  }
+
   hasCallbackOf(id: number): boolean {
     return this.#callbacks.has(id)
   }
@@ -274,7 +283,14 @@ class SCServo {
   #isWriting = false
   constructor({ id, awaitWriteResponse = true, serial: serialOverride }: SCServoConstructorParam) {
     this.#id = id
-    this.#waitSlot = new SingleWaitSlot<Uint8Array>(Timer.set, Timer.clear)
+    this.#waitSlot = new SingleWaitSlot<Uint8Array>(
+      (callback, timeout) =>
+        Timer.set(() => {
+          packetHandler.poll()
+          if (this.#waitSlot.isWaiting) callback()
+        }, timeout),
+      Timer.clear,
+    )
     this.#offset = 0
     this.#awaitWriteResponse = awaitWriteResponse
     this.#onCommandRead = (values, length) => {

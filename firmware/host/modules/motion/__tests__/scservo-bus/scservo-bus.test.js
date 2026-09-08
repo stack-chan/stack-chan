@@ -84,6 +84,20 @@ function runTest() {
   Timer.advance(0)
   equal(completed, 9, 'checksum and wrong-ID responses are ignored')
 
+  // A received ACK must win even if XS dispatches the timeout timer before
+  // the queued Serial.onReadable callback.
+  let bufferedCompleted = 0
+  pan.setTorque(false, (error) => {
+    assert(error == null, 'buffered ACK settles the write before timeout')
+    bufferedCompleted++
+  })
+  serial.incoming.push(...response(1))
+  Timer.advance(120)
+  equal(bufferedCompleted, 1, 'already received ACK is accepted')
+  serial.inject([])
+  equal(bufferedCompleted, 1, 'delayed readable event cannot complete twice')
+  Timer.advance(0)
+
   let timeouts = 0
   pan.setTorque(true, (error) => {
     assert(error != null, 'missing ACK reports an error')

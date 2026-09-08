@@ -88,3 +88,5 @@ Galleryは編集ソースと実行成果物を別々に扱い、`type`から実�
 ## スキーマ
 
 機械検証には[`stackchan-mod.schema.json`](./stackchan-mod.schema.json)を使用します。
+
+host API 10では対話プロバイダーと MCP クライアントを SDK に統合しました。`conversation.dialogue` / `conversation.tools` を使う MOD は `hostApiVersion: 10` を宣言してください。Claude / Gemini はそれぞれのキーとモデルを明示します。

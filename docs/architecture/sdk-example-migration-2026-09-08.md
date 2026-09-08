@@ -57,7 +57,7 @@ flowchart TD
 
 GalleryのMediaPipe・MCP・Codex VoiceもAPI 2 / host API 7へ移し、旧実行ソースのコピーを削除した。既存のsource生成処理を拡張し、firmwareの正本から公開ソースを作る。3つのrelease XSAをGalleryの宣言と合わせて再生成し、Webの試験で宣言とarchiveを照合する。生成物への移動による行数減少は、機能削減や製品コード純減の実績に数えない。
 
-`provider-dialogues` はMCPクライアント連携や他社providerの参考実装と試験であり、MOD宣言と実行入口を持つアプリではない。独立した機能を消すことを避けるため保持した。V1ホスト・Blocklyとともに今後の整理対象である。
+この移行時点では `provider-dialogues` の参考クラスを保持した。その後、V1ホスト・Blocklyの旧経路を撤去し、3種類の対話とMCPクライアントをhost API 10のSDKへ統合した。現在の使い方は [プロバイダー移行](../../firmware/mods/examples/provider-dialogues/README_ja.md) を参照する。
 
 リリース影響は firmware / Web とも **major**。[changeset](../../.changeset/sdk-example-consolidation.md) を追加した。旧archiveは統合先から再生成する。設定や書き込みの違いは各READMEに記載し、実機確認と初学者の受入を残件としている。
 

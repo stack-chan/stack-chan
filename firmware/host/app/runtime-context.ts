@@ -349,6 +349,7 @@ export class StackchanRuntimeContext {
       case 'network.peer':
         return present(!!this.#connectivityCapability.localPeer)
       case 'network.http':
+      case 'conversation.tools':
         return present(Modules.has('app-http') && !!(network?.http?.client?.io || network?.https?.client?.io))
       case 'conversation.dialogue':
         return present(Modules.has('app-http') && !!network?.https?.client?.io)

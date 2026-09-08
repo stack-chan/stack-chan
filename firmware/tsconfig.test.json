@@ -379,6 +379,12 @@
       ],
       "headers": [
         "./node_modules/@moddable/typings/web/headers.d.ts"
+      ],
+      "mcp-client": [
+        "./host/modules/connectivity/mcp-client/mcp-client.ts"
+      ],
+      "app-dialogue": [
+        "./host/app/app-dialogue.ts"
       ]
     },
     "types": [

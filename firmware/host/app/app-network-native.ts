@@ -170,15 +170,8 @@ export default function createNativeNetwork(scope: AppServiceScope): NativeNetwo
           port: options.port,
           token: getSettingsService().get('mcp.token'),
           tools: options.tools.map((tool) => ({
-            name: tool.name,
-            description: tool.description,
-            parameters: Object.entries(tool.inputSchema.properties).map(([name, field]) => ({
-              name,
-              type: field.type as 'string',
-              description: field.description ?? name,
-              required: tool.inputSchema.required.includes(name),
-            })),
-            handler: (input) => owner.run((task) => tool.execute(input, task)),
+            ...tool,
+            execute: (input) => owner.run((task) => tool.execute(input, task)),
           })),
         })
         owner.own(() => server.close())

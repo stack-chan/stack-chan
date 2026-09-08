@@ -7,7 +7,7 @@
   "name": "conversation",
   "description": "Voice, HTTP and WebSocket dialogue through the public SDK.",
   "appApiVersion": 2,
-  "hostApiVersion": 7,
+  "hostApiVersion": 10,
   "source": {
     "path": "manifest.json",
     "entrypoint": "mod.ts"

@@ -8,14 +8,13 @@ class Client {
     current = this
     this.closed = 0
     this.writes = []
-    this.ends = 0
   }
   request(options) {
     this.options = options
   }
   write(view) {
-    if (view) this.writes.push(view)
-    else this.ends++
+    assert(view instanceof DataView, 'fixed-length bodies must not send a chunked terminator')
+    this.writes.push(view)
   }
   read() {
     return this.nextChunk
@@ -52,7 +51,6 @@ async function run() {
   client.options.onWritable.call(client, 6)
   client.options.onWritable.call(client, 50)
   client.options.onWritable.call(client, 50)
-  equal(client.ends, 1, 'request ends exactly once without waiting for another writable event')
   equal(
     client.writes.reduce((sum, view) => sum + view.byteLength, 0),
     17,
@@ -61,13 +59,20 @@ async function run() {
     client.writes.some((view) => view.buffer === recording),
     'upload views borrow the original recording',
   )
-  client.options.onHeaders(201)
+  client.options.onHeaders(
+    201,
+    new Map([
+      ['Content-Type', 'application/json'],
+      ['Mcp-Session-Id', 'test-session'],
+    ]),
+  )
   client.receive('{"text":')
   client.receive('"hello"}')
-  client.options.onDone()
+  client.options.onDone(null)
   const response = await pending
   equal(response.status, 201)
   equal(response.body, '{"text":"hello"}')
+  equal(response.headers['mcp-session-id'], 'test-session')
   equal(client.closed, 1)
   client.options.onDone(new Error('late callback'))
   equal(client.closed, 1)
@@ -98,6 +103,20 @@ async function run() {
   await streaming
   equal(frames.length, 20, 'streaming does not accumulate the total response in memory')
   equal(live.closed, 1)
+
+  for (const operation of ['write', 'read']) {
+    const failed = rejects(requestHttp({ url: 'http://test.local/io-failure', method: 'POST', body: 'test' }), 'IO')
+    const device = current
+    device[operation] = () => {
+      throw new Error('native I/O failed')
+    }
+    if (operation === 'write') device.options.onWritable.call(device, 4)
+    else device.options.onReadable.call(device, 4)
+    await failed
+    equal(device.closed, 1, 'native callback errors close the request instead of aborting XS')
+    device.options.onDone(null)
+    equal(device.closed, 1)
+  }
 
   const timed = rejects(requestHttp({ url: 'http://test.local/idle', timeoutMs: 5 }), 'TIMEOUT')
   const idle = current

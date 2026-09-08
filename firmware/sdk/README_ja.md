@@ -17,6 +17,8 @@ export default defineApp({
 
 `defineApp` は `apiVersion: 2` とsetupを持つ定義を作ります。既定動作も同じ定義で起動します。インストールされたMODへの既定フックの継承はありません。setupは登録後に返り、アプリはホストが閉じるまで動作します。setupの失敗時は登録を解除し、同じ失敗を開始元へ返します。setupは任意で同期・非同期の `AppDisposer` を返せます。終了後に遅れて返ったdisposerも1回だけ実行し、非同期の失敗もエラー通知へ渡します。任意のPromiseが終わるまでアプリ終了を待たせることはありません。
 
+TypeScript の MOD は `manifest.json` の `typescript.tsconfig.compilerOptions` に `"allowJs": true` を指定します。SDK が参照する共通設定 schema は JSDoc で型付けした JavaScript が正本で、この設定によりキーごとの値型も読み込めます。実行例には設定済みです。ホストの SDK 実装を MOD に同梱する必要はありません。
+
 配布用の `stackchan-mod.json` には schema 2 / app API 2 と必要な host API 世代を記録します。教材では世代2を要求し、標準 manifest の `data` で同梱しています。XS のコンパイル版とは別の検査です。CLI・WebSerial の接続状況と、旧 MOD・SD・WASM・起動時の移行上の制約は [MOD の互換性検査](../../docs/architecture/mod-package-compatibility.md) を参照してください。
 
 `targets` は通常 `['portable']` を使います。機種専用なら `m5stackchan-cores3`、`stackchan-rt`、`takao-core2-sg90` などの [共通機種ID](../../docs/architecture/mod-package-compatibility.md#機種idを一つの定義から使う) を宣言します。CLIのビルド名のアンダースコアとは区別してください。書き込み先はファームウェア内の機種IDで照合し、IDのない旧ファームウェアには更新を案内します。`capabilities` は機種を制限しない場合も検査します。
@@ -190,14 +192,16 @@ host API 6以上では `view.setImageAvatar(pack)` で画像パックを選び�
 
 `lighting(app)` を `stackchan/extensions/lighting` から取得すると、`names` に実際に使えるLED名が並びます。`color(name, { r, g, b })`、`rainbow(name)`、`off(name)` を使い、アプリが使用したLEDは終了時に消灯します。WASMは出力bridgeを持たないため `lighting` は `unavailable` です。未検出のPY32も成功として扱いません。未対応は `UNSUPPORTED`、未知の名前は `INVALID_ARGUMENT`、機器例外は `IO` です。host API 5以上では `blink(name, { r, g, b }, { periodMs })` も使えます。`periodMs` は点灯と消灯を合わせた1周期で、100〜86,400,000 msです。別の効果へ切り替えると前の効果を止め、アプリ終了時も消灯して機器のタイマーを止めます。実行例は [ボード診断](../mods/examples/board_diagnostics/mod.js) です。個々のLED範囲の指定は旧APIに残り、公開SDKにはまだ含みません。
 
-## 通信・会話・センサー・保守の拡張（host API 7）
+## 通信・会話・センサー・保守の拡張
+
+テキスト対話と MCP クライアントは host API 10 が必要です。`dialogue({ provider: 'claude' | 'gemini', apiKey, model })` と既存の OpenAI 対話を共通のハンドルで扱い、成功した直近3往復を `history` で取得できます。MCP の `connectTools({ url, token })` はアプリが所有し、返された `tools` を対話・リアルタイム会話へ渡します。キーの選択、初期例、取消し、対応範囲は [プロバイダー移行](../mods/examples/provider-dialogues/README_ja.md) を参照してください。他の拡張の最小世代は各例の宣言で確認できます。
 
 残る実行例は [全21パッケージ](../mods/examples/README_ja.md) に整理しました。必要な機能を専用の入口から取得します。AppContext の基本操作を覚えた後に、目的に合う拡張へ進んでください。
 
 | 入口 | 操作 | 実行例 |
 | --- | --- | --- |
 | `stackchan/extensions/network` | `ready`、HTTP request / stream / server、WebSocket、Local Peer、STK、beacon、DNS-SD、MCP tools | `local_peer_hello`、`beacon`、`cheerup`、`pose_sharing`、`face_tracker`、`mcp` |
-| `stackchan/extensions/conversation` | `dialogue`、`transcribe`、`realtime`、USBの `remote` | `conversation`、`chat_audioio`、`codex_voice` |
+| `stackchan/extensions/conversation` | `dialogue`、`connectTools`、`transcribe`、`realtime`、USBの `remote` | `conversation`、`chat_audioio`、`codex_voice` |
 | `stackchan/extensions/audio` | `streamingAudio(app).monitor` / `radio` | `lip_sync`、`web_radio` |
 | `stackchan/extensions/sensors` | `sensors(app).openTemperature` | `unit_temperature` |
 | `stackchan/extensions/maintenance` | `maintenance(app)` の状態読取・校正・ID・LED・バス速度 | `servo_diagnostics` |
@@ -244,7 +248,7 @@ UI拡張には `setTracking`、`setMusicNotes`、`setFaceMotionEnabled` を追�
 
 USB 遠隔会話は自動起動・`conversation.remote()` のどちらも、起動中は共通のマイクとスピーカーを占有します。他の録音・再生・会話との競合は `BUSY` です。`await session.close()` で物理入出力を閉じて使用権を返し、前の会話から届く音声要求を拒否します。USB の制御通信は会話停止後も維持します。機器の解放に失敗した場合はエラーを返し、ホストを再起動するまで音声の再利用を止めます。
 
-WASMで未実装の通信・機器は `UNSUPPORTED` です。能力表の `native / simulated / unavailable` と実行時の設定エラーを区別してください。ソース移行と自動検査が終わっても、物理無線・サービス接続・サーボ保存・電源断・初学者による受入は別途必要です。参考providerライブラリーの整理、無線・音声の競合処理と製品コード純減は、引き続き再設計全体の残件です。
+WASMで未実装の通信・機器は `UNSUPPORTED` です。能力表の `native / simulated / unavailable` と実行時の設定エラーを区別してください。ソース移行と自動検査が終わっても、物理無線・サービス接続・サーボ保存・電源断・初学者による受入は別途必要です。参考providerライブラリーはSDKへ統合しました。無線・音声の競合処理、実機受入と製品コード純減は、引き続き再設計全体の残件です。
 
 
 ## Blocklyと顔エディター（host API 8）

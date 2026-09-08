@@ -5,12 +5,17 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/io/listener/listen/manifest_listen.json",
     "../../../../../app/manifest_typings.json",
-    "../../manifest.json",
     "../../../mcp-server/manifest.json",
-    "../../../../testing/manifest.json"
+    "../../../../testing/manifest.json",
+    "../../manifest_model.json",
+    "../../../../../../sdk/manifest.json",
+    "$(MODDABLE)/examples/io/tcp/httpclient/manifest_httpclient.json",
+    "$(MODDABLE)/modules/data/url/manifest.json"
   ],
   "modules": {
-    "main": "./mcp-client-service.test"
+    "main": "./mcp-client-service.test",
+    "app-http": "../../../../../app/app-http",
+    "cancellation": "../../../../../app/cancellation"
   },
   "platforms": {
     "lin": {
@@ -19,6 +24,11 @@
           "interface": "ethernet"
         }
       }
+    }
+  },
+  "defines": {
+    "main": {
+      "async": 1
     }
   }
 }

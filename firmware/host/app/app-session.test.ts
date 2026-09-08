@@ -25,12 +25,13 @@ async function setup() {
         `extensions/${name}`,
         resolve(hostRoot, `../sdk/extensions/${name}.js`),
       )
-  for (const name of ['owned-resources', 'cancellation', 'task-scope', 'app-service-scope']) {
+  for (const name of ['owned-resources', 'cancellation', 'task-scope', 'app-service-scope', 'app-dialogue']) {
     writeAliasPackage(hostRoot, name, resolve(hostRoot, `app/${name}.js`))
   }
   writeAliasPackage(hostRoot, 'modules', resolve(hostRoot, 'modules/testing/fakes/modules.js'), {
     hasDefaultExport: true,
   })
+  writeAliasPackage(hostRoot, 'mcp-client', resolve(hostRoot, 'modules/connectivity/mcp-client/mcp-client.js'))
   const { AppSession } = await import('./app-session.js')
   const { AppConnection } = await import('./app-service-scope.js')
   const { OperationQueue } = await import('./operation-queue.js')
@@ -1540,6 +1541,9 @@ test('USB request acceptance does not commit the menu toggle before observed con
         },
         async close() {},
       }),
+      async connectTools() {
+        throw new Error('unused')
+      },
       dialogue() {
         throw Error('not used')
       },

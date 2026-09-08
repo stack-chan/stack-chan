@@ -1,6 +1,6 @@
 # 旧経路の撤去とサンプル整理
 
-対象は [実装計画](firmware-sdk-redesign-progress.md) の F5 / F6 / F11。2026-09-08 時点の撤去台帳であり、全項目の完了宣言ではない。残す機能を SDK へ移した実装と、その機能の旧経路を削除した差分を一組として確認する。
+対象は [実装計画](firmware-sdk-redesign-progress.md) の F5 / F6 / F11。2026-09-09 時点の撤去台帳であり、全項目の完了宣言ではない。残す機能を SDK へ移した実装と、その機能の旧経路を削除した差分を一組として確認する。
 
 ## コード量の起点
 
@@ -122,13 +122,14 @@ flatの24個は16メソッド・8getterである。SDKの顔・吹き出しport�
 
 | 現存経路 | 主な利用者 | 残す先・撤去条件 |
 | --- | --- | --- |
-| `app-behavior-resolver` の世代1、`app-main` の世代別起動 | 未移行 MOD | 既定動作は SDK / AppSession へ移行し、フック継承を撤去済み。残す MOD と Blockly が `defineApp` になった時点で世代分岐を削除 |
-| `runtime-context` の旧 namespaced facade、`capabilities` の raw 公開型 | 旧 MOD、Dock などのホスト統合 | flat の29入口は撤去済み。ユーザーアプリは SDK、ホスト統合は非公開 port へ移し、残る旧名前空間・型・exports を利用者と一緒に削除 |
-| `RuntimeAudio.say` の `Maybe`、`playAudio` の `boolean`、raw `record`、`useTTS` | AI・応援・ビーコン・Blockly | `say` / `playClip` / `record` / `play` と provider の選択へ移す。呼出側が残る間に変換 shim を増設しない |
-| raw button / IMU / headTouch と Timer の直接登録 | Blockly、センサー・通信サンプル | 既定動作は AppSession 所有の購読・周期処理へ移行済み。残る利用者を入力・センサー拡張へ移し、raw 公開面を削除 |
-| miniapp 専用起動・公開型 | **撤去済み**。旧4例をSDKの2パッケージへ整理 | 通常の AppSession に画面登録を接続。専用 Compartment・登録関数・attenuated Piu module・型の複製を削除。内部 viewport / registry はホストの画面管理として残す |
-| 旧設定名の読み替えと `mod/config` の優先順位 | 旧 MOD、起動処理・設定 UI | SettingsService と SDK 設定・アプリ宣言へ揃える。設定画面からの復旧と適用時点を保持した上で fallback を削除 |
-| API 1 / schema 1 の archive 読込・配布 | CLI、SD、WebSerial、Gallery、WASM、Blockly | 残す全生成・配布経路を SDK 世代2へ揃えて旧 archive を起動前に拒否。再生成手順を案内。XS・チップ・能力の検査は保持 |
+| V1フック・世代別起動・raw Contextの公開面 | **撤去済み** | 全教材・実行例・Blockly・顔エディター・GalleryがSDKを使用。host API 9でホストの世代分岐、旧型・exportsも撤去。[記録](v1-runtime-retirement-2026-09-08.md) |
+| 音声のMaybe/boolean/raw録音・useTTS | **撤去済み** | SDKのPromise・形式を持つ録音結果・共有音声所有者へ統一。USBは同じAudioStreamを予約し、物理解放後に所有を返す。[記録](usb-audio-ownership-2026-09-08.md) |
+| miniapp専用起動・公開型・合成ソース | **撤去済み** | SDKのPiu拡張と通常のAppSession。ゲーム・描画・素材を保持 |
+| 旧設定名・mod/configの優先順位 | **撤去済み** | 共通schemaとSettingsService、metadataの既定値へ統一。保存済み値・機種固定driver・復旧画面を保持 |
+| API 1/schema 1 archiveの読込・配布 | **撤去済み** | 全配布入口で起動前に拒否し、SDKからの再生成を案内。XS・チップ・機種・能力検査は共通契約を使用 |
+| provider-dialoguesの3クラス・直接fetch・MCPツール型の変換 | **撤去済み** | host API 10のdialogue/connectToolsと共通HTTP・AppConnectionへ統一。[移行方法](../../firmware/mods/examples/provider-dialogues/README_ja.md) |
+| BLE/Wi-Fi/ESP-NOWと音声の物理的な競合・故障後の復帰 | **継続** | ネイティブの終了完了まで所有を保持。ソフトウェア試験に加えて実機で共存・再接続・置換を確認 |
+| 公開面・中継数と製品ソース全体の純減 | **継続** | 固定した分類・起点で計測し、責務や機能を別分類へ付け替えない |
 
 関連実装: [起動](../../firmware/host/app/app-main.ts)、[context](../../firmware/host/app/runtime-context.ts)、[音声](../../firmware/host/app/runtime-audio.ts)、[Piu 拡張](../../firmware/sdk/extensions/piu.ts)、[Blockly](../../web/editor/blocks.mjs)。
 
@@ -144,13 +145,13 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 
 | 旧例 | 分類・統合先 | 必要な SDK / 保持する機能 | 撤去する経路・現在の状態 |
 | --- | --- | --- | --- |
-| `ai_stackchan` | **統合済み** → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | 録音・STT・会話・発話・表情、ボタンで会話 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
-| `ai_stackchan_api` | **統合済み** → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | 上記と HTTP 入力拡張。既存 HTTP 操作を保持 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `ai_stackchan` | **統合済み** → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | 録音・STT・会話・発話・表情、ボタンで会話 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 10。実機・初学者は未受入 |
+| `ai_stackchan_api` | **統合済み** → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | 上記と HTTP 入力拡張。既存 HTTP 操作を保持 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 10。実機・初学者は未受入 |
 | `beacon_advertiser` | **統合済み** → [beacon](../../firmware/mods/examples/beacon/README_ja.md) | BLE 拡張・素材再生・入力、既存 packet 形式 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `beacon_scanner` | **統合済み** → [beacon](../../firmware/mods/examples/beacon/README_ja.md) | BLE 拡張・受信フィルター・素材再生 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `calibration` | **統合済み** → [servo_diagnostics](../../firmware/mods/examples/servo_diagnostics/README_ja.md) | SCServo オフセットの読取・書込。通常の姿勢補正と区別 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `chat_audioio` | **移行済み** → [chat_audioio](../../firmware/mods/examples/chat_audioio/README_ja.md) | 全二重会話・provider選択・口同期・入力・共通UI | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
-| `chatgpt` | **統合済み** → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | WebSocket の入力、会話・発話・見回し | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `chatgpt` | **統合済み** → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | WebSocket の入力、会話・発話・見回し | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 10。実機・初学者は未受入 |
 | `cheerup_ble_lite` | **統合済み** → [cheerup](../../firmware/mods/examples/cheerup/README_ja.md) | BLE / motion / 表情 / 素材再生、立上がり検出と平滑化 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `cheerup_ws` | **統合済み** → [cheerup](../../firmware/mods/examples/cheerup/README_ja.md) | WebSocket 入力と上記動作。既存ペイロードを保持 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `codex_voice` | **移行済み** → [codex_voice](../../firmware/mods/examples/codex_voice/README_ja.md) | 会話・USB 音声・headTouch・UI。既存の承認／停止操作を保持 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
@@ -177,7 +178,7 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 | `unit_temperature` | **移行済み** → [unit_temperature](../../firmware/mods/examples/unit_temperature/README_ja.md) | SHT3x・周期読取・UI | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `web_radio` | **移行済み** → [web_radio](../../firmware/mods/examples/web_radio/README_ja.md) | 音声ストリームの操作・局の選択・設定 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 
-元の32例はSDKの21パッケージへ移行・統合済みで、API 1の実行例は0件。各例の旧コードは撤去したが、V1ホスト／Blockly／provider-dialoguesの参考実装は残る。後者はMOD宣言と実行入口を持つアプリではない。物理機器・外部サービスと初学者の受入、製品ソース純減は未達。[契約・検証・今回のコード量](sdk-example-migration-2026-09-08.md)を参照する。
+元の32例はSDKの21パッケージへ移行・統合済みで、API 1の実行例は0件。V1ホストとBlocklyの旧経路も撤去した。provider-dialoguesの3クラスはSDKへ統合し、このフォルダーには移行説明だけを残す。物理機器・外部サービスと初学者の受入、製品ソース純減は未達。[契約・検証・今回のコード量](sdk-example-migration-2026-09-08.md)を参照する。
 
 ## 操作の中継と所有の整理
 
@@ -192,4 +193,4 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 
 上表は整理対象の特定であり、統合が済んだという意味ではない。これまでに削除したものは、呼出側が存在しなかった `resolveAppBehaviors` と、旧 miniapp 用の loader / registration / attenuated Piu module、準備 callback を渡すだけになった `prepareAppLaunch`。稼働中の世代分岐を代替名で残したり、新しい互換層を追加したりしていない。
 
-次の実装単位は、残る22例と Blockly の利用者を SDK へ移し、対応する旧フック・raw context・会話と設定の重複を撤去すること。別系統の資源所有を増やす前に、既存の所有者を使う。初学者受入と実機確認は [F12](firmware-sdk-redesign-progress.md) に従って別に記録する。
+実行例・Blockly・旧フック・raw context・設定schema・テキスト対話の統合は完了した。次の実装単位は、残る無線・音声の物理資源の競合と故障復帰、およびソース全体の純減である。別系統の資源所有を増やす前に、既存の所有者を使う。初学者受入と実機確認は [F12](firmware-sdk-redesign-progress.md) に従って別に記録する。

@@ -28,9 +28,9 @@
 | [unit_temperature](unit_temperature/README_ja.md) | 型付きの外部センサー | SHT3x、外部I²C |
 | [servo_diagnostics](servo_diagnostics/README_ja.md) | 状態読取、校正、明示的な保存 | 設定済みSCServo / DYNAMIXEL / RS30X |
 
-後半14例は host API 7 が必要です。先行7例はそれぞれの `stackchan-mod.json` に最小 host API を記録しています。WASM で使えない BLE・DNS-SD・クラウド接続・外部センサー・保守操作は `UNSUPPORTED` になります。機種宣言は実機での接続・性能の受入結果ではありません。
+対話例は host API 10、その他の後半13例は host API 7 が必要です。先行7例はそれぞれの `stackchan-mod.json` に最小 host API を記録しています。WASM で使えない BLE・DNS-SD・クラウド接続・外部センサー・保守操作は `UNSUPPORTED` になります。機種宣言は実機での接続・性能の受入結果ではありません。
 
-`provider-dialogues` は Claude / Gemini / ChatGPT・MCP連携の低レベル参考ライブラリーと試験で、実行入口・MOD宣言を持つアプリではありません。今回の「全例」は `stackchan-mod.json` を持つ実行例を指します。この参考実装の整理と他の再設計残件は [残る旧経路](../../../docs/architecture/firmware-retirement-plan.md) に記録します。
+旧 `provider-dialogues` の3クラスと直接 HTTP 通信を撤去し、SDKの `dialogue` / `connectTools` へ統合しました。[Claude / Gemini / OpenAI・MCP の移行方法](provider-dialogues/README_ja.md) を参照してください。
 
 ## ビルド、改造、復帰
 

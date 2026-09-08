@@ -30,5 +30,10 @@
     "app-http": "./app-http",
     "embedded:sensor/Humidity-Temperature/SHT3x": "$(MODDABLE)/modules/drivers/sensors/sht3x/sht3x",
     "http-delimited-stream": "./http-delimited-stream"
+  },
+  "data": {
+    "*": [
+      "$(MODULES)/crypt/data/ca233"
+    ]
   }
 }

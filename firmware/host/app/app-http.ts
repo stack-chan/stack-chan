@@ -5,14 +5,14 @@ import type { CancellationSignal } from 'stackchan/task'
 import Timer from 'timer'
 import { URL } from 'url'
 
-type HttpBody = { write(view?: DataView): void; read(count: number): ArrayBuffer }
+type HttpBody = { write(view: DataView): void; read(count: number): ArrayBuffer }
 type Client = {
   close(): void
   request(options: {
     method: string
     path: string
     headers: Headers
-    onHeaders(status: number): void
+    onHeaders(status: number, headers?: Map<string, string>): void
     onWritable(this: HttpBody, count: number): void
     onReadable(this: HttpBody, count: number): void
     onDone(error?: unknown): void
@@ -40,7 +40,8 @@ export default function requestHttp(
   if (!environment?.io) throw new StackchanError('UNSUPPORTED', 'HTTP client is unavailable')
   const parts = typeof request.body === 'string' ? [ArrayBuffer.fromString(request.body)] : (request.body ?? [])
   const headers = new Headers(Object.entries(request.headers ?? {}))
-  if (parts.length) headers.set('content-length', String(parts.reduce((length, part) => length + part.byteLength, 0)))
+  headers.delete('transfer-encoding')
+  headers.set('content-length', String(parts.reduce((length, part) => length + part.byteLength, 0)))
   return new Promise((resolve, reject) => {
     let client: Client | undefined, timer: ReturnType<typeof Timer.set> | undefined, remove: (() => void) | undefined
     let finished = false,
@@ -49,6 +50,7 @@ export default function requestHttp(
       length = 0,
       index = 0,
       offset = 0
+    let responseHeaders: Record<string, string> = {}
     const chunks: ArrayBuffer[] = []
     const finish = (error?: unknown) => {
       if (finished) return
@@ -68,7 +70,7 @@ export default function requestHttp(
           bytes.set(new Uint8Array(chunk), at)
           at += chunk.byteLength
         }
-        resolve({ status, body: String.fromArrayBuffer(bytes.buffer) })
+        resolve({ status, body: String.fromArrayBuffer(bytes.buffer), headers: responseHeaders })
       }
     }
     try {
@@ -88,27 +90,32 @@ export default function requestHttp(
         method: request.method ?? 'GET',
         path: endpoint.pathname + endpoint.search,
         headers,
-        onHeaders(value: number) {
+        onHeaders(value: number, headers?: Map<string, string>) {
+          if (finished) return
           status = value
+          responseHeaders = Object.fromEntries(Array.from(headers ?? [], ([key, value]) => [key.toLowerCase(), value]))
           if (request.onChunk && (value < 200 || value >= 300))
             finish(new StackchanError('IO', `HTTP stream failed (${value})`))
         },
         onWritable(count: number) {
           if (finished || bodyWritten) return
-          while (count > 0 && index < parts.length) {
-            const part = parts[index],
-              size = Math.min(count, part.byteLength - offset)
-            if (size > 0) this.write(new DataView(part, offset, size))
-            count -= size
-            offset += size
-            if (offset === part.byteLength) {
-              index++
-              offset = 0
+          try {
+            while (count > 0 && index < parts.length) {
+              const part = parts[index],
+                size = Math.min(count, part.byteLength - offset)
+              if (size > 0) this.write(new DataView(part, offset, size))
+              count -= size
+              offset += size
+              if (offset === part.byteLength) {
+                index++
+                offset = 0
+              }
             }
-          }
-          if (index === parts.length) {
-            bodyWritten = true
-            this.write()
+            // The final fixed-length write completes the SDK request. write() without
+            // data is only a chunked-body terminator and throws after Content-Length.
+            if (index === parts.length) bodyWritten = true
+          } catch (error) {
+            finish(error)
           }
         },
         onReadable(count: number) {
@@ -117,23 +124,23 @@ export default function requestHttp(
             finish(new StackchanError('IO', 'HTTP response exceeds its byte limit'))
             return
           }
-          const chunk = this.read(count)
-          if (chunk) {
-            if (request.onChunk) {
-              try {
+          try {
+            const chunk = this.read(count)
+            if (chunk) {
+              if (request.onChunk) {
                 request.onChunk(chunk)
                 if (timer !== undefined) Timer.schedule(timer, timeoutMs)
-              } catch (error) {
-                finish(error)
+              } else {
+                chunks.push(chunk)
+                length += chunk.byteLength
               }
-            } else {
-              chunks.push(chunk)
-              length += chunk.byteLength
             }
+          } catch (error) {
+            finish(error)
           }
         },
         onDone(error: unknown) {
-          finish(error)
+          finish(error ?? undefined)
         },
       })
     } catch (error) {

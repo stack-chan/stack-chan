@@ -97,7 +97,7 @@ XSA reader はモジュールを実行せずに、atom の境界、版、resourc
 
 ## 旧 MOD の更新と復旧
 
-宣言のない旧XSA、schema 1、app API 1はCLI・WebSerial・SD・WASM・本体起動で拒否する。まずホストをこのブランチのModdable 9.5 / host API 9へ更新し、ソースをSDKへ移し、宣言とmanifestの `data` を加えて再ビルドする。Blocklyは保存したブロックプロジェクトから再生成する。新しく始める場合は [SDK教材](../../firmware/lessons/README_ja.md) の3ファイルをコピーし、最初は `mod.js` だけを編集する。
+宣言のない旧XSA、schema 1、app API 1はCLI・WebSerial・SD・WASM・本体起動で拒否する。まずホストをこのブランチのModdable 9.5 / host API 10へ更新し、ソースをSDKへ移し、宣言とmanifestの `data` を加えて再ビルドする。Blocklyは保存したブロックプロジェクトから再生成する。新しく始める場合は [SDK教材](../../firmware/lessons/README_ja.md) の3ファイルをコピーし、最初は `mod.js` だけを編集する。
 
 本体の拒否画面は MOD に依存しないホスト設定で表示言語を決め、エラーコードと MOD 更新の案内を表示する。SD機能のある機種ではMODボタン、再起動のある機種では再起動ボタンを表示する。WASMはWeb側のMOD削除・追加操作を利用する。XSは不正なバイトコードをhost mainより早く拒否する場合もあり、全ての破損archiveをPiu画面で回復できるという保証ではない。
 
@@ -111,8 +111,12 @@ SDは、起動画面のMODボタンと電源ボタンのショートカットの
 
 ModdableのMOD出力名は入力の末尾フォルダー名に依存する。Galleryの異なる`mod/manifest.json`を続けてビルドすると、前のCODE・DATAが新しい入力より新しい時刻になり、再利用される場合があった。CLIはMODのbin/tmp生成領域を毎回作り直す。他のMODと本体の生成領域は保持する。生成後の正本との照合も行う。
 
-provider-dialoguesはホスト・XS試験用のnative依存と、MODへ同梱するJSライブラリーのmanifestを分けた。型のためだけに暗号・ネットワーク・MAC取得のCコードをMODへ引き込まない。従来のMaybe型は実装依存のない型ファイルを正本とし、旧utilityから再exportする。face_trackerのTextDecoderもホストから得る。
+対話プロバイダーはホストのSDK実装へ統合し、旧ライブラリーのmanifestとMaybe型の経路を撤去した。TypeScript MODのmanifestには `typescript.tsconfig.compilerOptions.allowJs: true` を設定し、JSDocで型付けした共通設定schemaを読み込む。型のためだけにSDK実装・暗号・ネットワークのCコードをMODへ同梱しない。face_trackerのTextDecoderもホストから得る。
 
 SDK 9.5のTextDecoder C実装には、WASMで`bool`を宣言するheaderが不足していた。既存WASM wrapperのCコンパイラー指定に`-include stdbool.h`を加え、SDKを直接改変せずに標準デコーダーを使う。
 
 実行時の機能確認は静的な宣言とは別に必要になる。たとえば撮影を要求できる機種でも、ブラウザーの許可拒否や機器の開始失敗を成功へ置き換えない。設定の自動検証は [設定契約の記録](settings-contract-2026-09-08.md) を参照する。実機受入は F7 / F9 / F10 に残る。機種と能力の今回の検証記録は [機種互換性の記録](target-compatibility-2026-09-08.md) を参照する。
+
+## 対話プロバイダーの世代（host API 10）
+
+`conversation.dialogue` と MCP クライアントの `conversation.tools` は host API 10 を要求する。旧ホストが未知の provider 指定を無視して異なるサービスへキーを送信しないよう、共通能力catalogueの最小世代とdescriptorを更新する。CLI・WebSerial・SD・起動時の既存互換性検査は、この世代をコード評価・書き込み前に比較する。

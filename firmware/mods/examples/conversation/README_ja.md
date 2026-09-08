@@ -26,7 +26,7 @@ WebSocket は `ws://<tts.host>:8080` へ接続します。受信は `{"role":"us
 
 ## ビルドと導入
 
-このブランチの app API 2 / host API 7 が必要です。古い host / XSA は更新・再ビルドします。`firmware/` で依存関係とツールチェーンを準備して実行してください。
+このブランチの app API 2 / host API 10 が必要です。古い host / XSA は更新・再ビルドします。`firmware/` で依存関係とツールチェーンを準備して実行してください。
 
 ```sh
 npm run mod:build -- mods/examples/conversation/manifest.json
@@ -34,3 +34,5 @@ npm run mod -- mods/examples/conversation/manifest.json
 ```
 
 前者はビルド、後者は既定の CoreS3 への書き込みです。別機種は対応する `mod:stackchan_rt` / `mod:takao_core2_sg90` を使います。機種の宣言と利用できる機能を確認してください。[全例と共通の復帰手順](../README_ja.md)、[公開 SDK](../../../sdk/README_ja.md) に共通契約をまとめています。
+
+Claude / Gemini、初期メッセージ、履歴、MCP ツールの使い方は [プロバイダー移行](../provider-dialogues/README_ja.md) を参照してください。録音からの文字起こしは OpenAI の操作なので、対話を別サービスへ変える場合も、そのサービスのキーを文字起こしへ渡さないでください。

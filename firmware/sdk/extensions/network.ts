@@ -29,10 +29,10 @@ export type SocketOptions = Readonly<{
   onMessage(message: string): void
   onState?(state: 'connected' | 'disconnected' | 'error', reason?: string): void
 }>
-export type HttpResponse = Readonly<{ status: number; body: string }>
+export type HttpResponse = Readonly<{ status: number; body: string; headers?: Readonly<Record<string, string>> }>
 export type HttpRequest = Readonly<{
   url: string
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'DELETE'
   headers?: Readonly<Record<string, string>>
   body?: string
   timeoutMs?: number

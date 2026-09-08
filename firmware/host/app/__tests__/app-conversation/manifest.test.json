@@ -1,0 +1,32 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODULES)/base/modules/manifest.json",
+    "../../../../sdk/manifest.json",
+    "../../../modules/testing/manifest.json",
+    "../../../modules/connectivity/mcp-client/manifest_model.json"
+  ],
+  "modules": {
+    "main": "./app-conversation.test",
+    "app-conversation": "../../app-conversation",
+    "app-dialogue": "../../app-dialogue",
+    "app-service-scope": "../../app-service-scope",
+    "cancellation": "../../cancellation",
+    "task-scope": "../../task-scope",
+    "owned-resources": "../../owned-resources",
+    "capabilities": "../../../modules/testing/fakes/capabilities",
+    "operation-queue": "../../operation-queue",
+    "audio-ports": "../../../modules/audio/audio-ports",
+    "audio-buffer": "../../../modules/audio/audio-buffer",
+    "tts-types": "../../../modules/audio/tts-types"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "creation": {
+    "stack": 1024
+  }
+}

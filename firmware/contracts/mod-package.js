@@ -3,7 +3,7 @@ import { isSettingKey, SETTINGS_SCHEMA, validateSetting } from './settings-schem
 import { targetProfile } from './targets.js'
 
 /** Shared by the host, browser tools and CLI. This is the host ABI generation, not an XS version. */
-export const STACKCHAN_HOST_API_VERSION = 9
+export const STACKCHAN_HOST_API_VERSION = 10
 export const MOD_METADATA_RESOURCE = 'stackchan-mod.json'
 export const MOD_METADATA_LIMIT = 16_384
 export const MOD_FORMAT = 'tech.stackchan.mod'

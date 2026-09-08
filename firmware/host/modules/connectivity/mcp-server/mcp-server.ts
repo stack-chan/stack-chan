@@ -1,418 +1,135 @@
 import Headers from 'headers'
 import { HttpServerService, Response } from 'http-server-service'
 import { authorizeMCPRequest, normalizeMCPToken } from 'mcp-auth'
+import { StackchanError } from 'stackchan/errors'
+import type { Tool as AppTool } from 'stackchan/extensions/network'
 
-/**
- * MCP Tool parameter definition
- */
-export interface ToolParameter {
-  name: string
-  type: 'string' | 'number' | 'boolean' | 'object'
-  description: string
-  required?: boolean
-}
-
-/**
- * MCP Tool definition
- */
-export interface Tool {
-  name: string
-  description: string
-  parameters: ToolParameter[]
-  handler: (args: Record<string, unknown>) => Promise<string> | string
-}
-
-/**
- * MCP Server configuration
- */
-export interface MCPServerConfig {
-  port?: number
-  tools?: Tool[]
-  token?: string
-}
-
+/** The caller supplies the app-owned execute function; JSON Schema is shared with the SDK. */
+export type Tool = Omit<AppTool, 'execute'> & { execute(input: Record<string, unknown>): string | Promise<string> }
+export type MCPServerConfig = { port?: number; tools?: readonly Tool[]; token?: string }
 export type MCPServerStatus = 'starting' | 'running' | 'failed'
-
-/**
- * HTTP Request interface
- */
-interface HTTPRequest {
-  method?: string
-  url?: {
-    pathname?: string
-  }
-  headers?: {
-    get: (name: string) => string | null | undefined
-  }
-  text: () => Promise<string | undefined>
+function object(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+function response(status: number, data: unknown): Response {
+  return new Response(JSON.stringify(data), { status, headers: new Headers([['Content-Type', 'application/json']]) })
 }
 
-/**
- * Initialize response
- */
-interface InitializeResult {
-  protocolVersion: string
-  capabilities: {
-    tools: Record<string, unknown>
-  }
-  serverInfo: {
-    name: string
-    version: string
-  }
-}
-
-/**
- * Tools list response
- */
-interface ToolsListResult {
-  tools: {
-    name: string
-    description: string
-    inputSchema: {
-      type: 'object'
-      properties: Record<
-        string,
-        {
-          type: string
-          description: string
-        }
-      >
-      required: string[]
-    }
-  }[]
-}
-
-/**
- * Tools call request parameters
- */
-interface ToolsCallParams {
-  name: string
-  arguments?: Record<string, unknown>
-}
-
-/**
- * Tools call response
- */
-interface ToolsCallResult {
-  content: {
-    type: 'text'
-    text: string
-  }[]
-}
-
-/**
- * MCP Protocol message types
- */
-interface MCPMessage {
-  jsonrpc: '2.0'
-  id?: string | number | null
-  method?: string
-  params?: unknown
-  result?: unknown
-  error?: {
-    code: number
-    message: string
-    data?: unknown
-  }
-}
-
-interface MCPRequest extends MCPMessage {
-  method: string
-  params?: unknown
-}
-
-interface MCPResponse extends MCPMessage {
-  id: string | number | null
-  result?: unknown
-  error?: {
-    code: number
-    message: string
-    data?: unknown
-  }
-}
-
-/**
- * MCP Server Service for Moddable
- * Implements Model Context Protocol over Streamable HTTP Transport
- */
+/** Stateless MCP Streamable HTTP endpoint; the HTTP service owns sockets and request limits. */
 export class MCPServerService {
   #server?: HttpServerService
-  #tools: Map<string, Tool> = new Map()
-  #port: number
+  #tools = new Map<string, Tool>()
   #token?: string
   #status: MCPServerStatus = 'starting'
   #error?: string
-
   constructor(config: MCPServerConfig = {}) {
-    this.#port = config.port ?? 8080
     this.#token = normalizeMCPToken(config.token)
-
-    // Register provided tools
-    if (config.tools) {
-      for (const tool of config.tools) {
-        this.#tools.set(tool.name, tool)
-      }
-    }
-
-    if (!this.#token) {
-      trace('MCP Server authentication token is not configured; POST /mcp requests will be rejected\n')
-    }
-
-    this.#startServer()
-  }
-
-  /**
-   * Add a tool to the server
-   */
-  addTool(tool: Tool): void {
-    this.#tools.set(tool.name, tool)
-  }
-
-  /**
-   * Remove a tool from the server
-   */
-  removeTool(name: string): boolean {
-    return this.#tools.delete(name)
-  }
-
-  /**
-   * Get list of available tools
-   */
-  getTools(): Tool[] {
-    return Array.from(this.#tools.values())
-  }
-
-  close(): void {
-    this.#server?.close()
-  }
-
-  get status(): MCPServerStatus {
-    return this.#status
-  }
-
-  get error(): string | undefined {
-    return this.#error
-  }
-
-  /**
-   * Start the HTTP server
-   */
-  async #startServer(): Promise<void> {
-    trace(`MCP Server starting on port ${this.#port}\n`)
-
+    for (const tool of config.tools ?? []) this.addTool(tool)
     try {
-      const server = new HttpServerService({
-        port: this.#port,
-        onNotFound: () => this.#createResponse(404, { error: 'Not Found' }),
-      })
+      const server = new HttpServerService({ port: config.port ?? 8080 })
       this.#server = server
-      server.post('/mcp', (context) => this.#handleRequest(context.req.raw))
-      server.get('/health', (context) => this.#handleRequest(context.req.raw))
+      server.get('/health', () => response(200, { status: 'ok' }))
+      server.post('/mcp', async (context) => {
+        if (!authorizeMCPRequest(context.req.header('authorization'), this.#token).authorized)
+          return response(401, { error: 'Unauthorized' })
+        return this.#handle((await context.req.text()) ?? '')
+      })
       this.#status = 'running'
     } catch (error) {
       this.#status = 'failed'
-      this.#error = String(error)
-      trace(`Failed to start MCP server: ${error}\n`)
+      this.#error = error instanceof Error ? error.message : 'MCP listener failed'
+      this.#server?.close()
     }
   }
-
-  /**
-   * Handle incoming HTTP connection
-   */
-  async #handleRequest(request: HTTPRequest): Promise<Response> {
-    const method = request.method?.toUpperCase()
-    const pathname = request.url?.pathname
-
+  get port(): number | undefined {
+    return this.#server?.port
+  }
+  get status(): MCPServerStatus {
+    return this.#status
+  }
+  get error(): string | undefined {
+    return this.#error
+  }
+  close(): void {
+    this.#server?.close()
+  }
+  addTool(tool: Tool): void {
+    if (
+      !tool ||
+      typeof tool.name !== 'string' ||
+      !/^[A-Za-z0-9_-]{1,64}$/.test(tool.name) ||
+      typeof tool.execute !== 'function' ||
+      !object(tool.inputSchema) ||
+      tool.inputSchema.type !== 'object'
+    )
+      throw new StackchanError('INVALID_ARGUMENT', 'MCP tools need a name, object schema and execute function')
+    this.#tools.set(tool.name, { ...tool, inputSchema: JSON.parse(JSON.stringify(tool.inputSchema)) })
+  }
+  removeTool(name: string): boolean {
+    return this.#tools.delete(name)
+  }
+  getTools(): Tool[] {
+    return Array.from(this.#tools.values())
+  }
+  async #handle(body: string): Promise<Response> {
+    let id: string | number | null = null
+    const error = (code: number, message: string) => response(200, { jsonrpc: '2.0', id, error: { code, message } })
+    let message: unknown
     try {
-      let response: Response
-
-      if (method === 'POST' && pathname === '/mcp') {
-        const authResult = authorizeMCPRequest(this.#getAuthorizationHeader(request), this.#token)
-        if (authResult.authorized === false) {
-          response = this.#createResponse(401, {
-            error: 'Unauthorized',
-          })
-        } else {
-          response = await this.#handleMCPMessage(request)
+      message = JSON.parse(body)
+    } catch {
+      return error(-32700, 'Parse error')
+    }
+    if (
+      !object(message) ||
+      message.jsonrpc !== '2.0' ||
+      typeof message.method !== 'string' ||
+      (message.id !== undefined && typeof message.id !== 'string' && typeof message.id !== 'number')
+    )
+      return error(-32600, 'Invalid Request')
+    id = (message.id as string | number | undefined) ?? null
+    if (message.method === 'notifications/initialized')
+      return message.id === undefined ? new Response('', { status: 202 }) : error(-32600, 'Invalid notification')
+    if (message.id === undefined) return error(-32600, 'Request ID required')
+    let result: unknown
+    switch (message.method) {
+      case 'initialize':
+        result = {
+          protocolVersion: '2025-06-18',
+          capabilities: { tools: {} },
+          serverInfo: { name: 'stack-chan', version: '2.0.0' },
         }
-      } else if (method === 'GET' && pathname === '/health') {
-        response = this.#createResponse(200, { status: 'ok' })
-      } else {
-        response = this.#createResponse(404, { error: 'Not Found' })
+        break
+      case 'tools/list':
+        result = {
+          tools: this.getTools().map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
+        }
+        break
+      case 'tools/call': {
+        const params = message.params
+        if (
+          !object(params) ||
+          typeof params.name !== 'string' ||
+          (params.arguments !== undefined && !object(params.arguments))
+        )
+          return error(-32602, 'Tool name and object arguments required')
+        const tool = this.#tools.get(params.name)
+        if (!tool) return error(-32602, 'Unknown tool')
+        try {
+          const text = await tool.execute((params.arguments as Record<string, unknown>) ?? {})
+          if (typeof text !== 'string' || text.length > 16384) throw new Error('Tool result exceeds 16384 characters')
+          result = { content: [{ type: 'text', text }] }
+        } catch (failure) {
+          result = {
+            isError: true,
+            content: [{ type: 'text', text: failure instanceof Error ? failure.message : 'Tool failed' }],
+          }
+        }
+        break
       }
-
-      return response
-    } catch (error) {
-      trace(`Error handling connection: ${error}\n`)
-      const errorResponse = this.#createResponse(500, { error: 'Internal Server Error' })
-      return errorResponse
+      default:
+        return error(-32601, 'Method not found')
     }
-  }
-
-  #getAuthorizationHeader(request: HTTPRequest): string | null | undefined {
-    return request.headers?.get('authorization') ?? request.headers?.get('Authorization')
-  }
-
-  /**
-   * Handle MCP protocol message
-   */
-  async #handleMCPMessage(request: HTTPRequest): Promise<Response> {
-    try {
-      const body = (await request.text()) ?? ''
-      const message: MCPRequest = JSON.parse(body)
-
-      // Validate JSON-RPC format
-      if (message.jsonrpc !== '2.0') {
-        return this.#createMCPErrorResponse(message.id ?? null, -32600, 'Invalid Request')
-      }
-
-      let result: InitializeResult | ToolsListResult | ToolsCallResult
-
-      switch (message.method) {
-        case 'initialize':
-          result = await this.#handleInitialize(message.params)
-          break
-        case 'tools/list':
-          result = await this.#handleToolsList()
-          break
-        case 'tools/call':
-          result = await this.#handleToolsCall(message.params)
-          break
-        default:
-          return this.#createMCPErrorResponse(message.id ?? null, -32601, 'Method not found')
-      }
-
-      return this.#createMCPSuccessResponse(message.id ?? null, result)
-    } catch (error) {
-      trace(`Error parsing MCP message: ${error}\n`)
-      return this.#createMCPErrorResponse(null, -32700, 'Parse error')
-    }
-  }
-
-  /**
-   * Handle initialize request
-   */
-  async #handleInitialize(_params: unknown): Promise<InitializeResult> {
-    return {
-      protocolVersion: '2024-11-05',
-      capabilities: {
-        tools: {},
-      },
-      serverInfo: {
-        name: 'stack-chan-mcp-server',
-        version: '1.0.0',
-      },
-    }
-  }
-
-  /**
-   * Handle tools/list request
-   */
-  async #handleToolsList(): Promise<ToolsListResult> {
-    const tools = Array.from(this.#tools.values()).map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: {
-        type: 'object' as const,
-        properties: tool.parameters.reduce(
-          (props, param) => {
-            props[param.name] = {
-              type: param.type,
-              description: param.description,
-            }
-            return props
-          },
-          {} as Record<
-            string,
-            {
-              type: string
-              description: string
-            }
-          >,
-        ),
-        required: tool.parameters.filter((param) => param.required).map((param) => param.name),
-      },
-    }))
-
-    return { tools }
-  }
-
-  /**
-   * Handle tools/call request
-   */
-  async #handleToolsCall(params: unknown): Promise<ToolsCallResult> {
-    if (!params || typeof params !== 'object') {
-      throw new Error('Invalid parameters')
-    }
-
-    const toolsCallParams = params as ToolsCallParams
-    const { name, arguments: args } = toolsCallParams
-
-    if (!name || typeof name !== 'string') {
-      throw new Error('Tool name is required')
-    }
-
-    const tool = this.#tools.get(name)
-    if (!tool) {
-      throw new Error(`Tool '${name}' not found`)
-    }
-
-    try {
-      const result = await tool.handler(args || {})
-      return {
-        content: [
-          {
-            type: 'text',
-            text: result,
-          },
-        ],
-      }
-    } catch (error) {
-      throw new Error(`Tool execution failed: ${error}`)
-    }
-  }
-
-  /**
-   * Create HTTP response
-   */
-  #createResponse(status: number, data: unknown): Response {
-    const body = JSON.stringify(data)
-    const headers = new Headers()
-    headers.set('Content-Type', 'application/json')
-
-    return new Response(body, {
-      status,
-      headers,
-    })
-  }
-
-  /**
-   * Create MCP success response
-   */
-  #createMCPSuccessResponse(id: string | number | null, result: unknown): Response {
-    const response: MCPResponse = {
-      jsonrpc: '2.0',
-      id,
-      result,
-    }
-    return this.#createResponse(200, response)
-  }
-
-  /**
-   * Create MCP error response
-   */
-  #createMCPErrorResponse(id: string | number | null, code: number, message: string, data?: unknown): Response {
-    const response: MCPResponse = {
-      jsonrpc: '2.0',
-      id,
-      error: {
-        code,
-        message,
-        data,
-      },
-    }
-    return this.#createResponse(200, response)
+    return response(200, { jsonrpc: '2.0', id, result })
   }
 }
-
-export default MCPServerService

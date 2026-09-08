@@ -31,6 +31,22 @@ export type RealtimeOptions = {
 export interface Dialogue extends Connection {
   ask(text: string, options?: OperationOptions): Promise<string>
   clear(): void
+  /** Snapshot of the last three completed user/assistant turns; excludes seed messages. */
+  readonly history: readonly DialogueMessage[]
+}
+export type DialogueMessage = Readonly<{ role: 'user' | 'assistant'; content: string }>
+export type DialogueOptions = {
+  instructions?: string
+  /** Initial examples, retained by clear(). Use instructions for the system prompt. */
+  messages?: readonly DialogueMessage[]
+} & (
+  | { provider?: 'openai'; apiKey?: string; model?: string; tools?: readonly Tool[] }
+  | { provider: 'claude' | 'gemini'; apiKey: string; model: string; tools?: never }
+)
+export type MCPOptions = Readonly<{ url: string; token?: string }>
+export interface ToolConnection extends Connection {
+  /** Pass these tools to dialogue() or realtime(); closing the connection cancels calls. */
+  readonly tools: readonly Tool[]
 }
 export type RemoteState = 'standby' | 'connecting' | 'listening' | 'recognizing' | 'speaking' | 'blocked'
 export type RemoteTransport = 'disconnected' | 'unsupported' | 'ready'
@@ -45,7 +61,8 @@ export interface RemoteConversation extends Connection {
   onTransport(handler: (state: RemoteTransport) => void): Unsubscribe
 }
 export interface AppConversation {
-  dialogue(options?: { apiKey?: string; model?: string; instructions?: string; tools?: readonly Tool[] }): Dialogue
+  dialogue(options?: DialogueOptions): Dialogue
+  connectTools(options: MCPOptions, operation?: OperationOptions): Promise<ToolConnection>
   transcribe(audio: RecordedAudio, options?: OperationOptions & { apiKey?: string; language?: string }): Promise<string>
   realtime(options: RealtimeOptions): Promise<Connection>
   /** Activate the USB conversation and its approval UI. Closing deactivates both. */

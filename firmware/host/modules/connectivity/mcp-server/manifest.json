@@ -1,5 +1,6 @@
 {
   "include": [
+    "../../../../sdk/manifest.json",
     "../http-server/manifest.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_net.json",

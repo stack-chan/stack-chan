@@ -60,3 +60,16 @@ const badFace: SettingValue<'ui.type'> = 'unsupported'
 // @ts-expect-error Time zones remain the supported literal set.
 const badZone: TimezoneId = 'unknown'
 void [badVolume, badFace, badZone]
+
+import type { DialogueOptions } from 'stackchan/extensions/conversation'
+
+const explicitProvider: DialogueOptions = { provider: 'claude', apiKey: 'test', model: 'configured-model' }
+// @ts-expect-error Provider keys cannot silently fall back to the OpenAI setting.
+const missingProviderKey: DialogueOptions = { provider: 'gemini', model: 'configured-model' }
+// @ts-expect-error No obsolete provider model is silently selected.
+const missingProviderModel: DialogueOptions = { provider: 'claude', apiKey: 'test' }
+// @ts-expect-error Unsupported providers cannot silently fall back to OpenAI.
+const unknownProvider: DialogueOptions = { provider: 'unknown', apiKey: 'test', model: 'configured-model' }
+// @ts-expect-error Provider-specific tool support is explicit.
+const unsupportedTools: DialogueOptions = { provider: 'gemini', apiKey: 'test', model: 'configured-model', tools: [] }
+void [explicitProvider, missingProviderKey, missingProviderModel, unknownProvider, unsupportedTools]

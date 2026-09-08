@@ -1,21 +1,24 @@
+import { type ConversationPost, createDialogue } from 'app-dialogue'
 import { AppConnection, type AppServiceScope } from 'app-service-scope'
+import type { AudioStreamAccess } from 'audio-ports'
 import type { RemoteConversationSession } from 'capabilities'
+import { createMCPClient } from 'mcp-client'
 import Modules from 'modules'
-import type { StackchanRuntimeAudio } from 'runtime-audio'
 import { StackchanError } from 'stackchan/errors'
 import type { AppConversation, ChatState } from 'stackchan/extensions/conversation'
+import type { HttpRequest, HttpResponse } from 'stackchan/extensions/network'
 import type { AppSettings } from 'stackchan/extensions/settings'
-import type { CancellationSignal, TaskContext } from 'stackchan/task'
+import type { CancellationSignal } from 'stackchan/task'
 
 type Request = (
-  request: { url: string; method: 'POST'; headers: Record<string, string>; body: string | readonly ArrayBuffer[] },
+  request: Omit<HttpRequest, 'body'> & { body?: string | readonly ArrayBuffer[] },
   signal?: CancellationSignal,
-) => Promise<{ status: number; body: string }>
+) => Promise<HttpResponse>
 
 export function createAppConversation(
   scope: AppServiceScope,
   settings: AppSettings,
-  audio: Pick<StackchanRuntimeAudio, 'reserveStream' | 'failStream'>,
+  audio: AudioStreamAccess,
   remote?: RemoteConversationSession,
   transport?: Request,
 ): AppConversation {
@@ -30,27 +33,18 @@ export function createAppConversation(
     if (!token) throw new StackchanError('CONFIG', 'Set ai.token in Settings before starting cloud conversation')
     return token
   }
-  const post = async (
-    path: string,
-    body: string | readonly ArrayBuffer[],
-    token: string,
-    task: TaskContext,
-    contentType = 'application/json',
-  ) => {
+  const post: ConversationPost = async (url, body, headers, task) => {
     const response = await http(
-      {
-        url: `https://api.openai.com/v1/${path}`,
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType },
-        body,
-      },
+      { url, method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body },
       task.signal,
     )
     task.signal.throwIfCancelled()
     if (response.status < 200 || response.status >= 300)
       throw new StackchanError('IO', `Conversation request failed (HTTP ${response.status})`)
     try {
-      return JSON.parse(response.body)
+      const value: unknown = JSON.parse(response.body)
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected an object')
+      return value as Record<string, unknown>
     } catch {
       throw new StackchanError('IO', 'Conversation returned invalid JSON')
     }
@@ -58,94 +52,39 @@ export function createAppConversation(
   return {
     dialogue: (options = {}) =>
       scope.call(() => {
-        const token = key(options.apiKey),
-          owner = new AppConnection(scope)
-        let previous: string | undefined,
-          busy = false
-        return {
-          close: owner.close,
-          clear: () =>
-            owner.call(() => {
-              if (busy) throw new StackchanError('BUSY', 'Wait for the dialogue request before clearing it')
-              previous = undefined
-            }),
-          ask: (text, request) =>
-            owner.run(async (task) => {
-              if (busy) throw new StackchanError('BUSY', 'Dialogue is already answering')
-              if (typeof text !== 'string' || !text.trim() || text.length > 4096)
-                throw new StackchanError('INVALID_ARGUMENT', 'Dialogue text must contain 1–4096 characters')
-              busy = true
-              try {
-                let input: Record<string, unknown>[] = [{ role: 'user', content: text }]
-                let answer = ''
-                let current = previous
-                for (let iteration = 0; iteration < 10; iteration++) {
-                  task.signal.throwIfCancelled()
-                  const response = await post(
-                    'responses',
-                    JSON.stringify({
-                      model: options.model ?? 'gpt-4o-mini',
-                      instructions:
-                        options.instructions ??
-                        settings.get('ai.context') ??
-                        'You are Stack-chan, a friendly palm-sized robot. Reply briefly in the language of the user.',
-                      previous_response_id: current,
-                      input,
-                      tools: options.tools?.map((tool) => ({
-                        type: 'function',
-                        name: tool.name,
-                        description: tool.description,
-                        parameters: tool.inputSchema,
-                      })),
-                    }),
-                    token,
-                    task,
-                  )
-                  if (!Array.isArray(response.output) || typeof response.id !== 'string')
-                    throw new StackchanError('IO', 'Conversation response has no output')
-                  current = response.id
-                  input = []
-                  for (const output of response.output) {
-                    if (output.type === 'message' && Array.isArray(output.content)) {
-                      for (const content of output.content) {
-                        const text =
-                          content.type === 'output_text'
-                            ? content.text
-                            : content.type === 'refusal'
-                              ? content.refusal
-                              : ''
-                        if (typeof text === 'string' && text) answer += (answer ? '\n' : '') + text
-                        if (answer.length > 4096)
-                          throw new StackchanError('IO', 'Conversation answer exceeds the speech limit')
-                      }
-                    } else if (output.type === 'function_call') {
-                      task.signal.throwIfCancelled()
-                      const tool = options.tools?.find((tool) => tool.name === output.name)
-                      let result: string
-                      try {
-                        result = tool
-                          ? await tool.execute(JSON.parse(output.arguments), task)
-                          : `Unknown tool: ${output.name}`
-                      } catch (error) {
-                        task.signal.throwIfCancelled()
-                        result = error instanceof Error ? error.message : 'Tool failed'
-                      }
-                      input.push({ type: 'function_call_output', call_id: output.call_id, output: result })
-                    }
-                  }
-                  if (!input.length) {
-                    task.signal.throwIfCancelled()
-                    previous = current
-                    return answer
-                  }
-                }
-                throw new StackchanError('IO', 'Conversation exceeded 10 tool iterations')
-              } finally {
-                busy = false
-              }
-            }, request?.signal),
-        }
+        if (!options || typeof options !== 'object' || Array.isArray(options))
+          throw new StackchanError('INVALID_ARGUMENT', 'Dialogue options must be an object')
+        return createDialogue(
+          scope,
+          options,
+          {
+            apiKey: options.provider && options.provider !== 'openai' ? '' : key(options.apiKey),
+            instructions:
+              settings.get('ai.context') ||
+              'You are Stack-chan, a friendly palm-sized robot. Reply briefly in the language of the user.',
+          },
+          post,
+        )
       }),
+    connectTools: (options, operation) =>
+      scope.run(async (task) => {
+        const owner = new AppConnection(scope)
+        try {
+          const client = createMCPClient(options, http)
+          owner.own(() => client.close())
+          const schemas = await owner.run((task) => client.connect(task.signal), task.signal)
+          return {
+            close: owner.close,
+            tools: schemas.map((tool) => ({
+              ...tool,
+              execute: (input, task) => owner.run((task) => client.call(tool.name, input, task.signal), task.signal),
+            })),
+          }
+        } catch (error) {
+          await owner.close()
+          throw error
+        }
+      }, operation?.signal),
     transcribe: (recording, options = {}) =>
       scope.run(async (task) => {
         if (!(recording?.data instanceof ArrayBuffer) || !/^[a-zA-Z0-9_.-]{1,128}$/.test(recording.filename))
@@ -156,11 +95,13 @@ export function createAppConversation(
           throw new StackchanError('INVALID_ARGUMENT', 'Use a language code such as ja or en')
         const header = `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-1\r\n--${boundary}\r\nContent-Disposition: form-data; name="language"\r\n\r\n${language}\r\n--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${recording.filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`
         const response = await post(
-          'audio/transcriptions',
+          'https://api.openai.com/v1/audio/transcriptions',
           [ArrayBuffer.fromString(header), recording.data, ArrayBuffer.fromString(`\r\n--${boundary}--\r\n`)],
-          key(options.apiKey),
+          {
+            Authorization: `Bearer ${key(options.apiKey)}`,
+            'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          },
           task,
-          `multipart/form-data; boundary=${boundary}`,
         )
         if (typeof response.text !== 'string') throw new StackchanError('IO', 'Transcription has no text')
         return response.text

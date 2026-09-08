@@ -12,7 +12,6 @@
     "../preferences/manifest.json",
     "./http-server/manifest.json",
     "./mcp-server/manifest.json",
-    "./mcp-client/manifest.json",
     "../../app/manifest_typings.json"
   ],
   "modules": {

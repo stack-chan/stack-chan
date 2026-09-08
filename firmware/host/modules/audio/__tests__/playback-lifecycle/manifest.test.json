@@ -7,9 +7,7 @@
     "../../../../../sdk/manifest.json",
     "../../../testing/manifest.json"
   ],
-  "preload": [
-    "tts-playback-session"
-  ],
+  "preload": ["tts-playback-session"],
   "modules": {
     "pins/audioout": "./audio-out-fake",
     "audio-buffer": "../../audio-buffer",
@@ -26,10 +24,6 @@
     "resourcestreamer": "$(MODDABLE)/examples/pins/audioout/resource-stream/resourcestreamer"
   },
   "data": {
-    "*": [
-      "./clip-11025.maud",
-      "./clip-44100.maud",
-      "./clip-invalid.maud"
-    ]
+    "*": ["./clip-11025.maud", "./clip-44100.maud", "./clip-invalid.maud"]
   }
 }

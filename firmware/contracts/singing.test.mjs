@@ -23,7 +23,7 @@ test('singingScoreToKoe converts tempo and note triples into exact koe notation'
       ['G4', 2, 'ー'],
       ['R', 0.5, ''],
     ]),
-    '#C4,500ki#C+4,250ra#G4,1000a#R,250'
+    '#C4,500ki#C+4,250ra#G4,1000a#R,250',
   )
   assert.throws(() => singingScoreToKoe(120, []), /音符または休符/)
   assert.throws(() => singingScoreToKoe(120, [['C4', 1]]), /3項目/)
@@ -31,4 +31,3 @@ test('singingScoreToKoe converts tempo and note triples into exact koe notation'
   assert.throws(() => singingScoreToKoe(120, [['H4', 1, 'ら']]), /歌唱音符/)
   assert.throws(() => singingScoreToKoe(20, [['C4', 16, 'ら']]), /20〜8000/)
 })
-

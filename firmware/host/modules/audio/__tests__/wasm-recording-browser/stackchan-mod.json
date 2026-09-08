@@ -5,10 +5,6 @@
   "version": "1.0.0",
   "appApiVersion": 2,
   "hostApiVersion": 4,
-  "targets": [
-    "portable"
-  ],
-  "entrypoints": [
-    "mod"
-  ]
+  "targets": ["portable"],
+  "entrypoints": ["mod"]
 }

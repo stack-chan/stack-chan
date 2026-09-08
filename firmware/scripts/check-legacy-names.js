@@ -9,7 +9,11 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ignoredDirectories = new Set(['node_modules', 'dist-tests', 'build', 'tmp', '.git'])
 const ignoredFiles = new Set(['package-lock.json', 'scripts/check-legacy-names.js'])
 const textExtensions = new Set(['.c', '.d.ts', '.h', '.js', '.json', '.md', '.mjs', '.ts', '.txt', '.yaml', '.yml'])
-const allowedContentChecks = new Set(['host/modules/preferences/loadPreference.test.ts:renderer.type'])
+// Rejection fixtures deliberately contain the retired setting name.
+const allowedContentChecks = new Set([
+  'host/modules/preferences/loadPreference.test.ts:renderer.type',
+  'contracts/testing/xsa-fixture.js:renderer.type',
+])
 
 const contentChecks = [
   { name: 'RendererCompat', pattern: /RendererCompat/ },

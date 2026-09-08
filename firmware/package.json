@@ -17,7 +17,7 @@
     "generate-speech-coqui": "node scripts/generate-speech-coqui.js",
     "generate-speech-voicevox": "node scripts/generate-speech-voicevox.js",
     "generate-speech-google": "cross-env GOOGLE_APPLICATION_CREDENTIALS=scripts/key.json node scripts/generate-speech-google.js",
-    "generate-apidoc": "npm exec --prefix tools/typedoc -- typedoc --skipErrorChecking --entryPointStrategy expand --plugin typedoc-plugin-markdown --out docs/api ./host",
+    "generate-apidoc": "npm run check:sdk && npm exec --prefix tools/typedoc -- typedoc --options typedoc.json",
     "vendor:stackchan-dock": "node scripts/vendor-stackchan-dock.mjs",
     "test": "npm run test:unit",
     "test:unit": "npm run check:contracts && rm -rf dist-tests && tsc --project tsconfig.test.json && node --test \"dist-tests/host/**/*.test.js\" scripts/lib/build-output.test.mjs scripts/lib/firmware-bundle.test.mjs scripts/lib/firmware-command.test.mjs scripts/lib/idf-dependencies.test.mjs scripts/lib/mod-flash.test.mjs scripts/lib/device-smoke.test.mjs scripts/lib/moddable-version.test.mjs scripts/lib/module-test-sharding.test.mjs scripts/lib/module-test-build.test.mjs scripts/lib/release-validation.test.mjs contracts/*.test.mjs scripts/lib/mod-package.test.mjs",

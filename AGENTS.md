@@ -64,7 +64,7 @@ All commands should be run from the `firmware/` directory:
 - `npm run erase-flash` - Erase device flash memory
 
 ### Documentation and Testing
-- `npm run generate-apidoc` - Generate API documentation with TypeDoc
+- `npm run generate-apidoc` - Check the SDK and generate its public API reference under `firmware/dist/docs/sdk`; edit SDK source comments instead of generated files
 
 ## Target Configuration
 

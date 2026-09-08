@@ -38,4 +38,4 @@ AppSessionがタイマー・購読・操作・表示を所有します。イベ�
 
 host API 9から、V1 hook、旧Context、raw機器参照、`mod/config`の実行、metadataなし・schema 1・app API 1のarchiveは利用できません。[MOD定義](../../docs/specs/stackchan-mod.md)を付け、SDKのソースから再生成してください。`stackchan-mod.json.settings` には共通schemaの既定値をデータで宣言できます。保存済み設定と機種固定値が優先されます。
 
-`npm run generate-apidoc` は現在ホスト実装を対象とする開発者向け資料です。アプリ向けAPIの入口はSDKガイドと公開型です。
+`firmware/` で `npm run generate-apidoc` を実行すると、公開SDKの参照資料を `dist/docs/sdk/README.md` に生成します。先にSDKの型検査を行い、拡張と共通設定schemaを含む同じ `sdk` ソースから作ります。ホスト内部・実行例・試験fixtureを入口に混ぜません。生成物はローカルのビルド出力です。修正はSDKの型・コメントに行い、再生成してください。

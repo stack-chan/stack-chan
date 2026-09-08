@@ -28,4 +28,4 @@ AppSession owns timers, subscriptions, operations and appearance. Return or awai
 
 Host API 9 removes V1 hooks, legacy Context namespaces, raw device references and executable `mod/config`. Metadata-free, schema 1 and app API 1 archives are rejected. Rebuild from SDK source with the [current MOD declaration](../../docs/specs/stackchan-mod.md). Optional `stackchan-mod.json.settings` declares managed defaults as data; saved preferences and fixed hardware settings retain precedence.
 
-`npm run generate-apidoc` currently generates host implementation documentation for firmware contributors. Use the SDK guide and types for app development.
+Run `npm run generate-apidoc` from `firmware/` to generate the public SDK reference at `dist/docs/sdk/README.md`. It checks the SDK types first and documents the same `sdk` sources, including extensions and the shared settings schema. Host implementations, example applications and test fixtures are not documentation entry points. The generated files are local build output; edit the SDK types and comments, then regenerate.

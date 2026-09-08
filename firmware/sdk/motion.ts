@@ -19,6 +19,8 @@ export type MotionInfo =
   | { readonly availability: 'unavailable'; readonly reason: string }
 
 export interface AppMotion {
+  /** Last observed position, in degrees; undefined before the first motion sample. */
+  readonly position?: MotionTarget
   readonly info: MotionInfo
   /** Wait for the trajectory; measured devices additionally confirm arrival. */
   move(target: MotionTarget, options: MotionOptions): Promise<MotionResult>

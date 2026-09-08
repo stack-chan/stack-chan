@@ -94,7 +94,7 @@ app.input.onPress('primary', async (task) => {
 
 アプリ終了も停止処理を待ち、対応機種のトルクを解除してdetachします。PWMはトルク解除を持たず `canRelax: false` です。物理PWMやUARTの解放はホスト終了時に行います。WASMは `availability: 'simulated'`、nativeのnone設定や必要なサーボ電源の未検出は `unavailable` です。
 
-詳細な所有・停止契約と実機受入の残りは [motionの設計記録](../../docs/architecture/motion-operation-lifecycle.md) を参照してください。会話・設定の公開契約、残るMODとBlocklyの移行、実機および初学者による受入は引き続き未完了です。
+詳細な所有・停止契約と実機受入の残りは [motionの設計記録](../../docs/architecture/motion-operation-lifecycle.md) を参照してください。会話・設定を含む実行例のSDK移行は完了しました。BlocklyとV1ホストの撤去、実機および初学者による受入は引き続き未完了です。
 
 
 ## 一枚を撮って表示する
@@ -187,3 +187,55 @@ host API 6以上では `view.setImageAvatar(pack)` で画像パックを選び�
 `input(app)` を `stackchan/extensions/input` から取得すると、`onPress('primary' | 'secondary' | 'tertiary', handler)`、`onHeadTouch(handler)`、`onMotion(handler)` を使えます。ボタン名は利用できるA/B/Cの順番で、primaryだけはボタンのない機種でメニューの「実行」を使えます。head touchは `gesture` と任意の `tapDurationMs`、motionは `motion` を持つ読み取り専用イベントです。時間はmsで、raw device・ticks・ドライバーは渡しません。実行前に `capabilities.get('input.headTouch')` などで対応を調べます。購読解除とアプリ終了で処理を取り消し、最後のmotion購読解除でIMUのポーリングを止めます。
 
 `lighting(app)` を `stackchan/extensions/lighting` から取得すると、`names` に実際に使えるLED名が並びます。`color(name, { r, g, b })`、`rainbow(name)`、`off(name)` を使い、アプリが使用したLEDは終了時に消灯します。WASMは出力bridgeを持たないため `lighting` は `unavailable` です。未検出のPY32も成功として扱いません。未対応は `UNSUPPORTED`、未知の名前は `INVALID_ARGUMENT`、機器例外は `IO` です。host API 5以上では `blink(name, { r, g, b }, { periodMs })` も使えます。`periodMs` は点灯と消灯を合わせた1周期で、100〜86,400,000 msです。別の効果へ切り替えると前の効果を止め、アプリ終了時も消灯して機器のタイマーを止めます。実行例は [ボード診断](../mods/examples/board_diagnostics/mod.js) です。個々のLED範囲の指定は旧APIに残り、公開SDKにはまだ含みません。
+
+## 通信・会話・センサー・保守の拡張（host API 7）
+
+残る実行例は [全21パッケージ](../mods/examples/README_ja.md) に整理しました。必要な機能を専用の入口から取得します。AppContext の基本操作を覚えた後に、目的に合う拡張へ進んでください。
+
+| 入口 | 操作 | 実行例 |
+| --- | --- | --- |
+| `stackchan/extensions/network` | `ready`、HTTP request / stream / server、WebSocket、Local Peer、STK、beacon、DNS-SD、MCP tools | `local_peer_hello`、`beacon`、`cheerup`、`pose_sharing`、`face_tracker`、`mcp` |
+| `stackchan/extensions/conversation` | `dialogue`、`transcribe`、`realtime`、USBの `remote` | `conversation`、`chat_audioio`、`codex_voice` |
+| `stackchan/extensions/audio` | `streamingAudio(app).monitor` / `radio` | `lip_sync`、`web_radio` |
+| `stackchan/extensions/sensors` | `sensors(app).openTemperature` | `unit_temperature` |
+| `stackchan/extensions/maintenance` | `maintenance(app)` の状態読取・校正・ID・LED・バス速度 | `servo_diagnostics` |
+| `stackchan/extensions/settings` | `settings(app).get` / `describe` / `set` | 会話とサーバーの設定 |
+
+接続・機器は同じ AppSession に登録されます。返された `Connection.close(): Promise<void>` は、購読と実行中の操作を止めてから機器を解放します。二重 close は同じ終了処理を使い、close 開始後のイベントをアプリへ渡しません。開始が遅れてアプリ終了後に完了した場合も取得した機器を解放します。アプリの登録・実行タスクは各64件、接続内の資源も64件までです。上限を超えた取得は後片付けして `BUSY` にします。
+
+```ts
+import { defineApp } from 'stackchan'
+import { network } from 'stackchan/extensions/network'
+
+export default defineApp({
+  async setup(app) {
+    const peer = await network(app).openPeer({ service: 'example.hello', displayName: 'receiver' })
+    peer.onMessage('text', ({ payload }) => {
+      if (typeof payload === 'string') app.ui.showBalloon(payload)
+    })
+    // peer と購読はアプリ終了時に閉じる。個別停止では await peer.close()。
+  },
+})
+```
+
+通信を使う例でも、Wi-Fi が必要な操作だけが `network.ready({ signal })` を待ちます。Local Peer / BLE のために Wi-Fi 接続を必須にはしません。各方式の既存ワイヤー形式はホスト内の実装で保持し、アプリには文字列・JSON・度・msの値を渡します。
+
+HTTP `request` は既定30秒・応答65,536 bytes、最大120秒・1,048,576 bytesです。取消し・期限・読取失敗で物理接続を閉じます。`stream` は一文字のASCII区切りでUTF-8を復元し、`maxResponseBytes` は1メッセージの上限（既定16,384、最大65,536 bytes）、`timeoutMs` は無受信の期限です。UnitV2のように応答が終わらない通信に使い、全応答を蓄積しません。HTTPサーバーのhandlerとMCPの道具には `TaskContext` を渡します。
+
+`dialogue.ask(text, { signal })` は会話の返事の取得まで待ち、読み上げは `audio.say` で明示します。同時の対話要求は `BUSY`。履歴はResponses APIの応答IDで保持し、`clear()` で破棄します。入力は4096文字、道具の往復は10回までです。文字起こしは `RecordedAudio` のファイル名と元バッファを使い、大きなmultipartバッファへ録音全体を複製しません。
+
+`monitor` は0〜1のRMS音量、`realtime` の出力レベルも0〜1です。monitorは入力、radioは出力、realtime / remoteは両方を既存のRuntimeAudioで確保します。占有中の別の録音・再生は `BUSY`、解放に失敗した機器は再利用しません。radio / realtimeの開始は接続準備の開始を返し、その後の接続・再生状態はコールバックで観測します。USBの `requestStart` / `requestStop` は要求の受理IDであり、完了は `onState` で確認します。
+
+`motion.position` は最後に観測した `yawDeg` / `pitchDeg` のコピーで、初回観測前は `undefined` です。追加のUART読み取りは行いません。保守操作は設定済みの同じドライバーへ接続し、通常motionを停止して実行します。速度変更は両軸に適用し、再起動まで通常動作を再開しません。保守中の終了は進行中のバス操作を待ちます。SHT3x の標本は `temperatureC` / `relativeHumidityPercent` です。
+
+UI拡張には `setTracking`、`setMusicNotes`、`setFaceMotionEnabled` を追加しました。`setTracking` は左右の目・口の開度0〜1と、手の座標・`rotationDeg`・形を受け取ります。`null` で追跡表示を解除します。機器・Piuの実装オブジェクトは渡さず、終了時の復元も共通の所有処理で行います。
+
+### 設定の正本
+
+設定キーと型は `stackchan/settings-schema` が正本です。本体・Web設定・SDKは同じ定義と SettingsService の検証を使い、別のMOD用設定モデルを作りません。`get(key)` は型付きの実値、`describe(key)` は値の由来・readOnly・secret・configured・適用時点を返します。describeのsecret値は伏せます。`set(key, value)` は検証後に保存し、適用時点は戻り値で確認します。
+
+`get` では、そのアプリが必要とするキーを取得できます。通常MODと同じrealmで実行するため、秘密を隔離するsandboxではありません。トークンを吹き出しやログへ出さないでください。設定の優先順位は保存値 → アプリ設定 → プロファイル → 既定値、ボードが固定した値は変更できません。
+
+リアルタイム会話には `chat.type`、`chat.apiKey`、`chat.endpoint`、`chat.modelID`、`chat.voiceID`、`chat.instructions` を使用します。旧 `chat_audioio/config.js` の読み替えは撤去したため、共通設定へ転記してください。`ai.token` / `ai.context` は文字での対話に使います。新しい設定名の追加はschemaから行い、Webや例に独立した既定値を重ねません。
+
+WASMで未実装の通信・機器は `UNSUPPORTED` です。能力表の `native / simulated / unavailable` と実行時の設定エラーを区別してください。ソース移行と自動検査が終わっても、物理無線・サービス接続・サーボ保存・電源断・初学者による受入は別途必要です。V1ホスト・Blockly・参考providerライブラリーの整理と製品コード純減は、引き続き再設計全体の残件です。

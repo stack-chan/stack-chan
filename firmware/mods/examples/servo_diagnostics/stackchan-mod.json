@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.servo-diagnostics",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "servo_diagnostics",
+  "description": "Read and maintain configured SCServo, DYNAMIXEL or RS30X servos.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["portable"],
+  "capabilities": ["ui.controls", "motion.maintenance", "motion"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["motion.maintenance", "motion"]
+}

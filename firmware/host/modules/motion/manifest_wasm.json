@@ -13,7 +13,8 @@
     "none-driver": "./wasm/none-driver",
     "sg90-driver": "./wasm/sg90-driver",
     "rs30x-driver": "./wasm/rs30x-driver",
-    "scservo-driver": "./wasm/scservo-driver"
+    "scservo-driver": "./wasm/scservo-driver",
+    "servo-maintenance": "./servo-maintenance"
   },
   "preload": ["motion-bridge"]
 }

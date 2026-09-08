@@ -33,7 +33,7 @@ Close the client on success, failure, disconnection, or service shutdown, and ig
 
 DNS-SD advertisements follow host-name claiming, and TXT updates use `updateTXT`.
 Discovery handles both newly found services and updates.
-See `mimic_main` and `mimic_follow` for examples.
+See the sender and follower modes in [`pose_sharing`](../../firmware/mods/examples/pose_sharing/README_ja.md), which consolidates the former `mimic_main` / `mimic_follow` examples.
 
 The host no longer directly includes classic `socket`, `sntp`, or `mdns` manifests.
 SDK DNS-SD still uses classic `net` internally, so that indirect dependency remains.

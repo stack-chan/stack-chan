@@ -1,3 +1,4 @@
+import { createAppExtensions } from 'app-extensions'
 import { AppSession } from 'app-session'
 import type {
   AudioCapability,
@@ -18,6 +19,7 @@ import clockTicks from 'clock-ticks'
 import type { Emotion } from 'face-state'
 import { LocalPeerError, type LocalPeerSession } from 'local-peer-types'
 import { createI18nCapability } from 'localization'
+import Modules from 'modules'
 import { MotionController, type MotionControllerConstructorParam } from 'motion-controller'
 import { OwnedResources } from 'owned-resources'
 import { type RuntimeAudioConstructorParam, StackchanRuntimeAudio } from 'runtime-audio'
@@ -210,6 +212,14 @@ export class StackchanRuntimeContext implements StackchanContext {
     const lightNames = Object.freeze(this.#simulated ? [] : Object.keys(this.#lightingRuntime.led))
     const session = new AppSession(
       {
+        extensions: (scope) =>
+          createAppExtensions(scope, {
+            audio: this.#audioRuntime,
+            connectivity: this.#connectivityCapability,
+            remote: this.#conversationCapability.remoteSession,
+            maintenance: driver.maintenance,
+            maintain: (operation, resume) => motion.maintain(operation, resume),
+          }),
         controls: {
           get faceStyle() {
             return uiRuntime.faceStyle
@@ -221,6 +231,9 @@ export class StackchanRuntimeContext implements StackchanContext {
           localize: (key, parameters) => this.#i18nCapability.localize(key, parameters),
           closeMenu: () => this.#uiRuntime.ui.closeDrawer(),
           resetAppearance: () => this.#uiRuntime.resetAppearance(),
+          setTracking: (value) => this.#uiRuntime.setTracking(value),
+          setMusicNotes: (enabled) => this.#uiRuntime.setMusicNotes(enabled),
+          setFaceMotionEnabled: (enabled) => this.#uiRuntime.setFaceMotionEnabled(enabled),
           registerMenu: (view, onSelect) => {
             const ui = this.#uiRuntime.ui
             const key = `sdk:menu:${view.id}`
@@ -331,6 +344,36 @@ export class StackchanRuntimeContext implements StackchanContext {
                 ? { availability: this.#simulated ? ('simulated' as const) : ('native' as const) }
                 : { availability: 'unavailable' as const, reason: `${id} is unavailable on this device` }
             switch (id) {
+              case 'settings':
+                return present(true)
+              case 'network.peer':
+                return present(!!this.#connectivityCapability.localPeer)
+              case 'network.http':
+              case 'conversation.dialogue':
+                return present(Modules.has('app-http'))
+              case 'network.ble':
+                return present(!this.#simulated && Modules.has('bleserver'))
+              case 'network.dnssd':
+                return present(
+                  !!(globalThis as { device?: { network?: { dnssd?: { io?: unknown } } } }).device?.network?.dnssd?.io,
+                )
+              case 'conversation.realtime':
+                return present(!this.#simulated && Modules.has('chat'))
+              case 'conversation.remote':
+                return present(!!this.#conversationCapability.remoteSession)
+              case 'audio.monitor':
+                return present(
+                  !!this.#audioRuntime.microphone?.monitor && this.#audioRuntime.microphone.available !== false,
+                )
+              case 'audio.radio':
+                return present(!!this.#audioRuntime.streamingRadio)
+              case 'sensors.temperature':
+                return present(
+                  !!(globalThis as { device?: { I2C?: { default?: object } } }).device?.I2C?.default &&
+                    Modules.has('embedded:sensor/Humidity-Temperature/SHT3x'),
+                )
+              case 'motion.maintenance':
+                return present(!!driver.maintenance)
               case 'motion':
                 return motion.info
               case 'camera':

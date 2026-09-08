@@ -10,7 +10,12 @@ function installBareSpecifierPackages(): void {
   const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
   writeAliasPackage(modulesRoot, 'network-service', resolve(modulesRoot, 'connectivity/network-service.js'))
   writeAliasPackage(modulesRoot, 'network-types', resolve(modulesRoot, 'connectivity/network-types.js'))
-  writeAliasPackage(modulesRoot, 'settings-schema', resolve(modulesRoot, 'preferences/settings-schema.js'))
+  writeAliasPackageSubpath(
+    modulesRoot,
+    'stackchan',
+    'settings-schema',
+    resolve(modulesRoot, '../../sdk/settings-schema.js'),
+  )
   writeAliasPackageSubpath(modulesRoot, 'stackchan', 'errors', resolve(modulesRoot, '../../sdk/errors.js'))
   writeAliasPackage(modulesRoot, 'network-state', resolve(modulesRoot, 'connectivity/network-state.js'))
   writeAliasPackage(modulesRoot, 'sntp', resolve(modulesRoot, 'connectivity/__tests__/fakes/sntp.js'), {

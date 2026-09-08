@@ -9,7 +9,7 @@ import { DEFAULT_RECORDING_DURATION_MS, validateRecordingDuration } from 'record
 import { ownMicrophone, ownTTS, ownWebRadio } from 'runtime-resources'
 import type { CapabilityStatus, PlaybackOptions } from 'stackchan/app'
 import type { AudioData, RecordedAudio, RecordingOptions } from 'stackchan/audio'
-import { finiteNumber, StackchanError } from 'stackchan/errors'
+import { asStackchanError, finiteNumber, StackchanError } from 'stackchan/errors'
 import type { CancellationSignal } from 'stackchan/task'
 import { MAX_TONE_DURATION_MS, MAX_TONE_HZ, MIN_TONE_HZ } from 'stackchan-contracts/audio-playback'
 import { type Maybe, waitForCompletion } from 'stackchan-util'
@@ -37,6 +37,34 @@ export class StackchanRuntimeAudio {
   #tts: TTS
   #clips: TTS | undefined
   #webRadio: WebRadioCapability | undefined
+  #streamInput = false
+  #streamOutput = false
+  #streamFailure: StackchanError | undefined
+  reserveStream(input: boolean, output: boolean): () => void {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
+    if (this.#streamFailure) throw this.#streamFailure
+    if (this.#releaseFailure) throw this.#releaseFailure
+    if (
+      (input && (this.#streamInput || this.#input.busy || this.#input.closed)) ||
+      (output && (this.#streamOutput || this.#output.busy || this.#output.closed))
+    )
+      throw new StackchanError('BUSY', 'Audio device is in use')
+    if (input) this.#streamInput = true
+    if (output) this.#streamOutput = true
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      if (input) this.#streamInput = false
+      if (output) this.#streamOutput = false
+    }
+  }
+  failStream(error: unknown): void {
+    this.#streamFailure = asStackchanError(error)
+  }
+  get streamingRadio(): WebRadioCapability | undefined {
+    return this.#webRadio
+  }
   #closed = false
   #devices: ResourceScope
   #shutdown: OwnedResources | undefined
@@ -91,7 +119,7 @@ export class StackchanRuntimeAudio {
   }
 
   get #releaseFailure(): StackchanError | undefined {
-    return this.#output.failure ?? this.#input.failure ?? this.#microphone?.releaseFailure
+    return this.#streamFailure ?? this.#output.failure ?? this.#input.failure ?? this.#microphone?.releaseFailure
   }
 
   createAppSession(): AppAudioSession {
@@ -275,6 +303,8 @@ export class StackchanRuntimeAudio {
     signal?: CancellationSignal,
   ): Promise<OwnedAudioBuffer> {
     if (this.#closed) throw new StackchanError('CLOSED', 'Audio is closed')
+    if (this.#streamFailure) throw this.#streamFailure
+    if (this.#streamInput) throw new StackchanError('BUSY', 'Microphone is in use by a stream')
     const microphone = this.#microphone
     if (!microphone) {
       throw new StackchanError('UNSUPPORTED', 'This device does not support a microphone.')
@@ -351,6 +381,8 @@ export class StackchanRuntimeAudio {
     start: () => T | Promise<T>,
     signal?: CancellationSignal,
   ): Promise<T> {
+    if (this.#streamFailure) return Promise.reject(this.#streamFailure)
+    if (this.#streamOutput) return Promise.reject(new StackchanError('BUSY', 'Output is in use by a stream'))
     let settled: Promise<void> | undefined
     const verifyRelease = () => {
       const failure = playbackReleaseFailure(provider)

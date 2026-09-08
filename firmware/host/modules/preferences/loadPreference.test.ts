@@ -2,9 +2,8 @@ import assert from 'node:assert/strict'
 import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-
+import { DOMAIN } from '../../../sdk/settings-schema.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../testing/node-alias-package.js'
-import { DOMAIN } from './settings-schema.js'
 
 type FakeConfig = {
   resetConfig(values?: Record<string, unknown>): void
@@ -24,7 +23,12 @@ type FakePreference = {
 function installBareSpecifierPackages(): void {
   const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   writeAliasPackage(modulesRoot, 'consts', resolve(modulesRoot, 'preferences/consts.js'))
-  writeAliasPackage(modulesRoot, 'settings-schema', resolve(modulesRoot, 'preferences/settings-schema.js'))
+  writeAliasPackageSubpath(
+    modulesRoot,
+    'stackchan',
+    'settings-schema',
+    resolve(modulesRoot, '../../sdk/settings-schema.js'),
+  )
   writeAliasPackage(modulesRoot, 'settings-service', resolve(modulesRoot, 'preferences/settings-service.js'))
   writeAliasPackageSubpath(
     modulesRoot,

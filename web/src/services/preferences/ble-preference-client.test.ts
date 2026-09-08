@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { SETTING_KEYS, SETTINGS_SCHEMA } from '../../../../firmware/host/modules/preferences/settings-schema'
+import { SETTING_KEYS, SETTINGS_SCHEMA } from '../../../../firmware/sdk/settings-schema'
 
 import { BlePreferenceClient } from '@/services/preferences/ble-preference-client'
 

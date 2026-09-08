@@ -7,7 +7,6 @@ import { getAxp2101Power } from 'axp2101-power-capture'
 import { ChatService, createXiaozhiV1Connection } from 'chat'
 import config from 'mc/config'
 import { NetworkService } from 'network-service'
-import STT from 'stt-whisper'
 import { equal } from 'testing/assert'
 import { TTS as ElevenLabsTTS } from 'tts-elevenlabs'
 import { TTS as LocalTTS } from 'tts-local'
@@ -67,9 +66,6 @@ stackchanVoice.stream('hello', undefined, (error) => {
 })
 equal(stackchanVoiceCallbackCalled, true, 'unavailable stackchan-voice should report through its callback')
 trace('smoke: tts-stackchan-voice unavailable\n')
-
-void new STT({ apiKey: token })
-trace('smoke: stt-whisper\n')
 
 const service = new NetworkService({
   ssid: 'myssid',

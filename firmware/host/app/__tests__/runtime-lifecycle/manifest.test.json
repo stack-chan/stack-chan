@@ -11,7 +11,8 @@
     "main": "./runtime-lifecycle.test",
     "app-session": "../../app-session",
     "task-scope": "../../task-scope",
-    "cancellation": "../../cancellation"
+    "cancellation": "../../cancellation",
+    "app-service-scope": "../../app-service-scope"
   },
   "defines": {
     "main": {

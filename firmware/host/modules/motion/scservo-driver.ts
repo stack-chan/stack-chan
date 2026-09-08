@@ -7,6 +7,7 @@ import {
 import { directMotionPort, motionInfo } from 'motion-port'
 import SCServo from 'protocols/scservo'
 import { ServoDriverResources } from 'servo-driver-resources'
+import { createServoMaintenance } from 'servo-maintenance'
 import type { Maybe, Rotation } from 'stackchan-util'
 
 type SCServoDriverProps = {
@@ -15,6 +16,9 @@ type SCServoDriverProps = {
 }
 
 export class SCServoDriver {
+  get maintenance() {
+    return createServoMaintenance('scservo', this._pan, this._tilt)
+  }
   readonly motion = directMotionPort(this, motionInfo('measured', [-100, 100], [-25, 10]))
   #resources = new ServoDriverResources()
   _pan: SCServo

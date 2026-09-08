@@ -3,8 +3,8 @@ import verifyInstalledMod from 'installed-mod'
 import config from 'mc/config'
 import Modules from 'modules'
 import Preference from 'preference'
-import { DOMAIN, SETTING_KEYS, type SettingDomain, type SettingsForDomain } from 'settings-schema'
 import { type SettingsLayer, SettingsService } from 'settings-service'
+import { DOMAIN, SETTING_KEYS, type SettingDomain, type SettingsForDomain } from 'stackchan/settings-schema'
 
 type ConfigRecord = Record<string, unknown>
 export type PreferenceDomain = SettingDomain

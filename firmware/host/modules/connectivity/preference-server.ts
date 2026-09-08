@@ -1,6 +1,11 @@
-import { SETTING_KEYS, SETTINGS_MESSAGE_MAX_BYTES, SETTINGS_PROTOCOL_VERSION, type SettingKey } from 'settings-schema'
 import type { SettingsService } from 'settings-service'
 import { StackchanError } from 'stackchan/errors'
+import {
+  SETTING_KEYS,
+  SETTINGS_MESSAGE_MAX_BYTES,
+  SETTINGS_PROTOCOL_VERSION,
+  type SettingKey,
+} from 'stackchan/settings-schema'
 import Timer from 'timer'
 import { SERVICE_UUID, UARTServer } from 'uartserver'
 

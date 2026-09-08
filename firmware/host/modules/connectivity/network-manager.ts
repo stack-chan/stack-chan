@@ -1,8 +1,8 @@
 import { NetworkService } from 'network-service'
 import { NetworkConnectionState } from 'network-state'
 import type { NetworkConnection, StartNetworkConnectionOptions } from 'network-types'
-import { validateSetting } from 'settings-schema'
 import { finiteNumber, StackchanError } from 'stackchan/errors'
+import { validateSetting } from 'stackchan/settings-schema'
 
 export type { NetworkConnection, StartNetworkConnectionOptions } from 'network-types'
 export const networkAvailability = NetworkService.availability

@@ -4,15 +4,16 @@
   "id": "tech.stackchan.examples.local-peer-hello",
   "version": "1.0.0",
   "type": "text",
-  "name": "local peer hello",
-  "description": "Legacy API 1 example; see docs/architecture/legacy-mod-migration.md for migration and hardware prerequisites.",
-  "appApiVersion": 1,
-  "hostApiVersion": 1,
+  "name": "local_peer_hello",
+  "description": "Send or receive bounded local-peer greetings.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
   "source": {
     "path": "manifest.json",
-    "entrypoint": "mod.js"
+    "entrypoint": "mod.ts"
   },
   "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
-  "capabilities": ["connectivity.localPeer", "ui.drawer"],
-  "entrypoints": ["mod"]
+  "capabilities": ["ui.controls", "network.peer"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["network.peer"]
 }

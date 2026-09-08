@@ -10,9 +10,9 @@ import { parseVisualProject } from '../editor/project-format.mjs'
 import { analyzeWorkspace } from '../editor/project-validator.mjs'
 import { loadModCatalog, parseModDefinition, validatePackagePath } from './mod-definition.mjs'
 
-import { preparePiuSources } from './canonical-sources.mjs'
+import { prepareCanonicalSources } from './canonical-sources.mjs'
 
-preparePiuSources()
+prepareCanonicalSources()
 
 const catalogUrl = new URL('./catalog.json', import.meta.url)
 
@@ -73,77 +73,21 @@ test('テキストMODの成果物は既存の実行互換性を維持する', as
   }
 })
 
-test('MediaPipe GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/mediapipe_ble/', import.meta.url)
-  const gallery = new URL('./samples/mediapipe-ble/mod/', import.meta.url)
-  for (const filename of ['manifest.json', 'mod.js', 'tracking-message.js', 'tracking-receiver.js']) {
-    if (filename === 'manifest.json') {
-      const readManifest = (base) => {
-        const manifest = JSON.parse(readFileSync(new URL(filename, base), 'utf8'))
-        delete manifest.data?.['stackchan-mod']
-        manifest.include = manifest.include?.map((value) =>
-          value.endsWith('/host/app/manifest_typings.json') ? '<host-types>' : value
-        )
-        return manifest
-      }
-      assert.deepEqual(readManifest(gallery), readManifest(firmware))
-      continue
-    }
-    assert.equal(
-      readFileSync(new URL(filename, gallery), 'utf8'),
-      readFileSync(new URL(filename, firmware), 'utf8'),
-      `${filename} should not drift between the firmware example and gallery package`
-    )
-  }
-})
-
-test('MCP GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/mcp/', import.meta.url)
-  const gallery = new URL('./samples/mcp/mod/', import.meta.url)
-  for (const filename of ['manifest.json', 'mod.js']) {
-    if (filename === 'manifest.json') {
-      const readManifest = (base) => {
-        const manifest = JSON.parse(readFileSync(new URL(filename, base), 'utf8'))
-        delete manifest.data?.['stackchan-mod']
-        manifest.include = manifest.include?.map((value) =>
-          value.endsWith('/host/app/manifest_typings.json') ? '<host-types>' : value
-        )
-        return manifest
-      }
-      assert.deepEqual(readManifest(gallery), readManifest(firmware))
-      continue
-    }
-    assert.equal(
-      readFileSync(new URL(filename, gallery), 'utf8'),
-      readFileSync(new URL(filename, firmware), 'utf8'),
-      `${filename} should not drift between the firmware example and gallery package`
-    )
-  }
-})
-
-test('Codex Voice GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/codex_voice/', import.meta.url)
-  const gallery = new URL('./samples/codex-voice/mod/', import.meta.url)
-  for (const filename of ['manifest.json', 'mod.js']) {
-    if (filename === 'manifest.json') {
-      const readManifest = (base) => {
-        const manifest = JSON.parse(readFileSync(new URL(filename, base), 'utf8'))
-        delete manifest.data?.['stackchan-mod']
-        manifest.include = manifest.include?.map((value) =>
-          value.endsWith('/host/app/manifest_typings.json') ? '<host-types>' : value
-        )
-        return manifest
-      }
-      assert.deepEqual(readManifest(gallery), readManifest(firmware))
-      continue
-    }
-    assert.equal(
-      readFileSync(new URL(filename, gallery), 'utf8'),
-      readFileSync(new URL(filename, firmware), 'utf8'),
-      `${filename} should not drift between the firmware example and gallery package`
-    )
-  }
-})
+for (const [galleryName, example] of [['mediapipe-ble', 'mediapipe_ble'], ['mcp', 'mcp'], ['codex-voice', 'codex_voice']]) {
+  test(`${galleryName} Gallery publishes every application module from its canonical SDK example`, () => {
+    const firmware = new URL(`../../firmware/mods/examples/${example}/`, import.meta.url)
+    const gallery = new URL(`./samples/${galleryName}/source/`, import.meta.url)
+    const original = JSON.parse(readFileSync(new URL('manifest.json', firmware), 'utf8'))
+    const published = JSON.parse(readFileSync(new URL('manifest.json', gallery), 'utf8'))
+    assert.deepEqual(published, { ...original, data: { ...original.data, 'stackchan-mod': ['../stackchan-mod.json'] } })
+    for (const path of original.modules['*'])
+      assert.deepEqual(readFileSync(new URL(`${path}.ts`, gallery)), readFileSync(new URL(`${path}.ts`, firmware)))
+    const sourceMetadata = JSON.parse(readFileSync(new URL('stackchan-mod.json', firmware), 'utf8'))
+    const metadata = JSON.parse(readFileSync(new URL('../stackchan-mod.json', gallery), 'utf8'))
+    for (const field of ['appApiVersion', 'hostApiVersion', 'capabilities', 'optionalCapabilities', 'entrypoints'])
+      assert.deepEqual(metadata[field], sourceMetadata[field])
+  })
+}
 
 test('Stack-chanミニゲーム集GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
   const firmware = new URL('../../firmware/mods/examples/stackchan_minigames/', import.meta.url)
@@ -365,7 +309,7 @@ test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持
 test('canonical source packaging removes stale generated files before publication', () => {
   const stale = new URL('./samples/ui-playground/source/obsolete.js', import.meta.url)
   writeFileSync(stale, 'obsolete')
-  preparePiuSources()
+  prepareCanonicalSources()
   assert.equal(existsSync(stale), false)
   const manifest = JSON.parse(readFileSync(new URL('./samples/ui-playground/source/manifest.json', import.meta.url)))
   assert.deepEqual(manifest.data['stackchan-mod'], ['../stackchan-mod.json'])

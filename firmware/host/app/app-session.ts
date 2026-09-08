@@ -1,3 +1,4 @@
+import type { AppExtensions, AppServiceScope } from 'app-service-scope'
 import { CancellationSource } from 'cancellation'
 import type { OperationClock } from 'operation-queue'
 import { ResourceScope } from 'owned-resources'
@@ -11,13 +12,15 @@ import type { CancellationSignal, TaskContext, TaskHandler } from 'stackchan/tas
 import { TaskScope } from 'task-scope'
 
 export type AppPorts = Pick<AppContext, 'face' | 'ui' | 'capabilities'> & {
+  extensions?(scope: AppServiceScope): AppExtensions
   controls?: Pick<
     AppUI,
     'faceStyle' | 'closeMenu' | 'setFaceStyle' | 'setImageAvatar' | 'setHandAnimation' | 'setEmoticon' | 'localize'
-  > & {
-    registerMenu(view: AppMenuView, onSelect: (value?: string) => void): MenuControl<string | boolean>
-    resetAppearance(): void | Promise<void>
-  }
+  > &
+    Partial<Pick<AppUI, 'setTracking' | 'setMusicNotes' | 'setFaceMotionEnabled'>> & {
+      registerMenu(view: AppMenuView, onSelect: (value?: string) => void): MenuControl<string | boolean>
+      resetAppearance(): void | Promise<void>
+    }
   audio: AppContext['audio'] & { close(): Promise<void> }
   motion: AppContext['motion'] & { close(): Promise<void> }
   camera: AppContext['camera'] & { close(): Promise<void> }
@@ -60,6 +63,12 @@ export class AppSession {
     this.#onError = onError
     const owner = this
     this.context = Object.freeze({
+      ...ports.extensions?.({
+        call: (operation) => this.#call(operation),
+        run: (operation, signal) => this.#run(operation, signal),
+        own: (close) => this.#ownService(close),
+        report: (error) => this.#report(error),
+      }),
       face: Object.freeze({
         setEmotion: (emotion) => {
           this.#assertOpen()
@@ -90,6 +99,9 @@ export class AppSession {
           this.#run(({ signal }) => ports.audio.play(audio, { ...options, signal }), options?.signal),
       }),
       motion: Object.freeze({
+        get position() {
+          return ports.motion.position
+        },
         get info() {
           return ports.motion.info
         },
@@ -189,9 +201,46 @@ export class AppSession {
           this.#assertOpen()
           ports.ui.hideImage()
         },
+        setTracking: (value) =>
+          this.#call(() => {
+            this.#appearance()
+            if (!ports.controls?.setTracking) throw new StackchanError('UNSUPPORTED', 'Face tracking is unavailable')
+            ports.controls.setTracking(value)
+          }),
+        setMusicNotes: (enabled) =>
+          this.#call(() => {
+            this.#appearance()
+            if (!ports.controls?.setMusicNotes) throw new StackchanError('UNSUPPORTED', 'Music notes are unavailable')
+            ports.controls.setMusicNotes(enabled)
+          }),
+        setFaceMotionEnabled: (enabled) =>
+          this.#call(() => {
+            this.#appearance()
+            if (!ports.controls?.setFaceMotionEnabled)
+              throw new StackchanError('UNSUPPORTED', 'Face motion controls are unavailable')
+            ports.controls.setFaceMotionEnabled(enabled)
+          }),
       } satisfies AppUI),
       capabilities: Object.freeze({ get: (id) => ports.capabilities.get(id) }),
     } satisfies AppContext & { lighting: AppLighting })
+  }
+
+  #ownService(dispose: () => void | Promise<void>): () => Promise<void> {
+    try {
+      this.#assertRegistrationAvailable()
+    } catch (error) {
+      void Promise.resolve()
+        .then(dispose)
+        .catch((failure) => this.#report(failure))
+      throw error
+    }
+    let closed: Promise<void> | undefined
+    const close = () => {
+      if (!closed) closed = Promise.resolve().then(dispose).finally(release)
+      return closed
+    }
+    const release = this.#resources.defer(close)
+    return close
   }
 
   get state(): AppSessionState {
@@ -503,7 +552,12 @@ export class AppSession {
       for (;;) {
         await task.sleep(intervalMs)
         task.signal.throwIfCancelled()
-        await handler(task)
+        try {
+          await handler(task)
+        } catch (error) {
+          task.signal.throwIfCancelled()
+          this.#report(error)
+        }
         if (!repeat) return
       }
     }, source.signal)

@@ -2,12 +2,17 @@ import assert from 'node:assert/strict'
 import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { writeAliasPackage, writeAliasPackageSubpath } from '../testing/node-alias-package.js'
-import { SETTING_KEYS, SETTINGS_SCHEMA, validateSetting } from './settings-schema.js'
+import { SETTING_KEYS, SETTINGS_SCHEMA, validateSetting } from '../../../sdk/settings-schema.js'
+import { writeAliasPackageSubpath } from '../testing/node-alias-package.js'
 import type { SettingsIssue, SettingsLayer, SettingsStorage } from './settings-service.js'
 
 const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-writeAliasPackage(modulesRoot, 'settings-schema', resolve(modulesRoot, 'preferences/settings-schema.js'))
+writeAliasPackageSubpath(
+  modulesRoot,
+  'stackchan',
+  'settings-schema',
+  resolve(modulesRoot, '../../sdk/settings-schema.js'),
+)
 writeAliasPackageSubpath(modulesRoot, 'stackchan', 'errors', resolve(modulesRoot, '../../sdk/errors.js'))
 const { SettingsService } = await import('./settings-service.js')
 
@@ -121,6 +126,7 @@ test('secrets stay available to their host consumer but are absent from descript
     'wifi.password': 'wifi-secret',
     'tts.token': 'tts-secret',
     'ai.token': 'ai-secret',
+    'chat.apiKey': 'chat-secret',
     'mcp.token': 'mcp-secret',
   })
   for (const key of SETTING_KEYS.filter((key) => SETTINGS_SCHEMA[key].secret)) {

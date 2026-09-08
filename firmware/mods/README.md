@@ -5,7 +5,7 @@
 A **MOD** is a user application that runs on the Stack-chan host firmware.
 
 
-For a first program on this branch, start with the [SDK lessons](../lessons/README_ja.md). `look_around` and `monologue` now use the same SDK. The other examples still use legacy API 1; their dependencies and open issues are recorded in the [migration ledger](../../docs/architecture/legacy-mod-migration.md).
+For a first program on this branch, start with the [SDK lessons](../lessons/README_ja.md). All [21 runnable packages](examples/README_ja.md) now use the same SDK, consolidating the original 32 examples; their dependencies and open issues are recorded in the [migration ledger](../../docs/architecture/legacy-mod-migration.md).
 
 Every MOD must embed `stackchan-mod.json`. Copy the lesson’s `mod.js`, `manifest.json`, and declaration together, and start by editing only `mod.js`. Rebuild older archives that lack metadata; see [compatibility and recovery](../../docs/architecture/mod-package-compatibility.md).
 
@@ -38,7 +38,7 @@ Follow the [block editor tutorial](https://stack-chan.github.io/stack-chan/web/e
 ### Create one from source
 
 A MOD can be implemented as a JavaScript or TypeScript module.
-TypeScript MODs use the public Stack-chan capability types and Moddable module specifiers.
+TypeScript MODs use the public `stackchan` / `stackchan/extensions/*` types and app-local relative imports.
 
 To install a MOD from a local environment, specify its manifest from the `firmware` directory:
 
@@ -56,7 +56,7 @@ Button and screen behavior therefore depends on the installed MOD.
 A MOD must be built for the target device and the XS version used by its host.
 For the WASM host, use the `.xsa` archive produced by the standard `npm run mod:build` command, including its MOD metadata.
 
-Add localized UI text as described in [Firmware localization](../docs/localization.md) through `context.i18n`.
+Add localized UI text as described in [Firmware localization](../docs/localization.md) through `ui(app).localize`.
 To add a Piu UI while retaining the face screen and host AppBar, use the [SDK Piu extension (Japanese)](../docs/mini-apps_ja.md).
 
 ## Representative source examples
@@ -64,7 +64,7 @@ To add a Piu UI while retaining the face screen and host AppBar, use the [SDK Pi
 | Example | What it demonstrates |
 | --- | --- |
 | [`look_around`](./examples/look_around/) | Minimal head movement through the motion API |
-| [`localized_drawer`](./examples/localized_drawer/) | Localized UI through `context.i18n` |
+| [`face`](./examples/face/) | Localized UI through `ui(app).localize` |
 | [`stackchan_minigames`](./examples/stackchan_minigames/) | One SDK app containing Stack-chan JUMP and CATCH |
 | [`local_peer_hello`](./examples/local_peer_hello/) | Typed device-to-device messages without the internet |
 | [`web_radio`](./examples/web_radio/) | Network audio playback on M5StackChan CoreS3 |

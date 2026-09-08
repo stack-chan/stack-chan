@@ -4,14 +4,19 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import Time from '../testing/fakes/time.js'
-import { writeAliasPackage } from '../testing/node-alias-package.js'
+import { writeAliasPackage, writeAliasPackageSubpath } from '../testing/node-alias-package.js'
 
 const modulesRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 writeAliasPackage(modulesRoot, 'time', resolve(modulesRoot, 'testing/fakes/time.js'), {
   hasDefaultExport: true,
 })
 writeAliasPackage(modulesRoot, 'timezone-model', resolve(modulesRoot, 'preferences/timezone-model.js'))
-writeAliasPackage(modulesRoot, 'settings-schema', resolve(modulesRoot, 'preferences/settings-schema.js'))
+writeAliasPackageSubpath(
+  modulesRoot,
+  'stackchan',
+  'settings-schema',
+  resolve(modulesRoot, '../../sdk/settings-schema.js'),
+)
 
 const {
   DEFAULT_TIMEZONE_ID,

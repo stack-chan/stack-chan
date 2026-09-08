@@ -1,74 +1,61 @@
-import { onContextCreated } from 'mod'
+import definition from 'mod'
 import { equal } from 'testing/assert'
 
-async function settle() {
-  for (let index = 0; index < 6; index += 1) await Promise.resolve()
+let select,
+  tick,
+  closes = 0,
+  cancelled = 0,
+  found = false,
+  sent
+const peer = {
+  async discover(options) {
+    equal(options.timeoutMs, 1000)
+    return found ? [{ id: 'receiver', name: 'stackchan-receiver' }] : []
+  },
+  async send(id, type, payload) {
+    sent = { id, type, payload }
+  },
+  async close() {
+    closes++
+  },
 }
-
-async function runTest() {
-  let openOptions
-  let discoveryOptions
-  let sendCall
-  let drawerButton
-  let closeCount = 0
-  const balloons = []
-  const receiver = { id: 'receiver-id', name: 'stackchan-receiver', secure: false }
-  const session = {
-    async discover(options) {
-      discoveryOptions = options
-      return [receiver]
+const app = {
+  network: {
+    async openPeer(options) {
+      equal(options.displayName, 'stackchan-sender')
+      return peer
     },
-    async send(peerId, type, payload) {
-      sendCall = { peerId, type, payload }
-      return { messageId: 'message-id', peerId, attempts: 1 }
+  },
+  time: {
+    every(ms, handler) {
+      equal(ms, 3000)
+      tick = handler
+      return () => {
+        cancelled++
+      }
     },
-    close() {
-      closeCount += 1
+  },
+  ui: {
+    addAction() {},
+    addChoice(_options, handler) {
+      select = handler
     },
-  }
-  const robot = {
-    connectivity: {
-      localPeer: {
-        async open(options) {
-          openOptions = options
-          return session
-        },
-      },
-    },
-    ui: {
-      drawer: {
-        addDrawerButton(button) {
-          drawerButton = button
-        },
-      },
-      showBalloon(text) {
-        balloons.push(text)
-      },
-    },
-  }
-
-  onContextCreated(robot)
-  await settle()
-
-  equal(openOptions, undefined, 'local peer should remain stopped until a role is selected')
-  await drawerButton.callback(robot, 'sender')
-  await settle()
-
-  equal(openOptions.displayName, 'stackchan-sender', 'sender selection should open the sender role')
-  equal(discoveryOptions.timeoutMs, 1000, 'sender should use bounded discovery')
-  equal(sendCall.peerId, receiver.id, 'sender should target the discovered receiver')
-  equal(sendCall.type, 'text', 'sender should use the text message type')
-  equal(sendCall.payload.text, 'hello world 1', 'sender should include the incremental sequence')
-  equal(balloons[3], '送信: hello world 1', 'sender should report the transmitted text')
-
-  await drawerButton.callback(robot, 'stopped')
-  equal(closeCount, 1, 'stopped selection should close the sender session')
-  equal(balloons[4], 'P2P: 停止', 'stopped selection should report the stopped state')
-
-  trace('ok\n')
+    showBalloon() {},
+    hideBalloon() {},
+  },
 }
-
-runTest().catch((error) => {
-  trace(`local-peer-hello sender test failed: ${String(error)}\n`)
-  throw error
-})
+await definition.setup(app)
+await select('sender')
+await tick({})
+equal(sent, undefined, 'discovery without receiver does not send')
+found = true
+await tick({})
+equal(sent.id, 'receiver', 'sender chooses the receiver role')
+equal(sent.type, 'text', 'wire message type is retained')
+equal(sent.payload.text, 'こんにちは 1', 'first sequence is included')
+await tick({})
+equal(sent.payload.text, 'こんにちは 2', 'sequence advances after a send')
+await select('stopped')
+equal(cancelled, 1, 'stopping cancels the periodic operation')
+equal(closes, 1, 'stopping closes the connection')
+trace('ok\n')

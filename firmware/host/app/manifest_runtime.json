@@ -29,7 +29,11 @@
       "./task-scope",
       "./app-session",
       "./app-audio-session",
-      "./host-startup"
+      "./host-startup",
+      "./app-service-scope",
+      "./app-extensions",
+      "./app-network",
+      "./app-conversation"
     ],
     "default-app/*": "./default-app/*"
   }

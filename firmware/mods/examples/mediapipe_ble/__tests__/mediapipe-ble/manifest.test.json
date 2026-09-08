@@ -1,11 +1,18 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
-    "../../manifest.json",
-    "../../../../../host/modules/ui/manifest.json",
-    "../../../../../host/modules/testing/manifest.json"
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../../../host/modules/testing/manifest.json",
+    "../../../../../sdk/manifest.json"
   ],
   "modules": {
-    "main": "./mediapipe-ble.test"
+    "main": "./mediapipe-ble.test",
+    "tracking-message": "../../tracking-message",
+    "tracking-receiver": "../../tracking-receiver"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
   }
 }

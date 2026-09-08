@@ -5,7 +5,7 @@
 **MOD**は、ｽﾀｯｸﾁｬﾝのホストファームウェア上で動くユーザーアプリケーションです。
 
 
-このブランチで初めてコードを書く場合は、[SDK教材](../lessons/README_ja.md)から始めてください。`examples`のうち `look_around` と `monologue` は同じSDKへ移行済みです。他の例は旧API 1の整理対象です。[移行台帳](../../docs/architecture/legacy-mod-migration.md)で依存と未完了項目を確認できます。
+このブランチで初めてコードを書く場合は、[SDK教材](../lessons/README_ja.md)から始めてください。実行可能な[全21パッケージ](examples/README_ja.md)は同じSDKへ移行済みです。元の32例は重複する役割を統合しました。[移行台帳](../../docs/architecture/legacy-mod-migration.md)で依存と未完了項目を確認できます。
 
 MODには`stackchan-mod.json`の同梱が必要です。教材の`mod.js`・`manifest.json`・宣言を一緒にコピーし、最初は`mod.js`だけを編集します。情報のない古いXSAは再ビルドしてください。[互換性と復旧手順](../../docs/architecture/mod-package-compatibility.md)に各導入経路の条件をまとめています。
 
@@ -38,7 +38,7 @@ MODを選ぶときは、カードに表示される使用機能と対応機種�
 ### ソースコードから作る
 
 MODはJavaScriptまたはTypeScriptのモジュールとして実装できます。
-TypeScriptのMODでは、Stack-chanのcapability APIが公開する型とModdableのモジュール指定子を使用します。
+TypeScriptのMODでは、`stackchan` と `stackchan/extensions/*` の公開型、アプリ内の相対importを使用します。
 
 ローカル環境からMODを書き込む場合は、`firmware`ディレクトリで`manifest.json`を指定します。
 
@@ -56,7 +56,7 @@ MODをインストールすると、ホストの通常動作に代わってそ�
 MODは、対象機種とホストが使用するXSバージョンに合わせてビルドする必要があります。
 WASM ホストでも標準の `npm run mod:build` で生成した、MOD 宣言を含む `.xsa` archive を読み込みます。
 
-表示文字列は[`context.i18n`を使ったファームウェアのローカライズ](../docs/localization_ja.md)に従って追加します。
+表示文字列は[SDKの `ui(app).localize` を使ったファームウェアのローカライズ](../docs/localization_ja.md)に従って追加します。
 顔画面とホストのAppBarを維持したままPiu UIを追加する場合は、SDK の[Piu 画面拡張](../docs/mini-apps_ja.md)を利用できます。
 
 ## 代表的なソース例
@@ -64,7 +64,7 @@ WASM ホストでも標準の `npm run mod:build` で生成した、MOD 宣言�
 | サンプル | 確認できる機能 |
 | --- | --- |
 | [`look_around`](./examples/look_around/) | モーションAPIを使った最小限の首振り |
-| [`localized_drawer`](./examples/localized_drawer/) | `context.i18n`を使ったローカライズ済みUI |
+| [`face`](./examples/face/) | SDKの翻訳メニュー、表情と色 |
 | [`stackchan_minigames`](./examples/stackchan_minigames/) | JUMPとCATCHを1つのarchiveへまとめるミニゲーム集 |
 | [`local_peer_hello`](./examples/local_peer_hello/) | インターネットを経由しない端末間の型付きメッセージ |
 | [`web_radio`](./examples/web_radio/) | M5StackChan CoreS3でのネットワーク音声再生 |

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { parseTrackingPayload } from '../../firmware/mods/examples/mediapipe_ble/tracking-message.js'
+import { parseTrackingPayload } from '../../firmware/mods/examples/mediapipe_ble/tracking-message.ts'
 import {
   countExtendedFingers,
   encodeTrackingPayload,

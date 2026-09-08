@@ -4,6 +4,7 @@ import type { OperationOptions } from 'stackchan/task'
 
 /** Host-facing device contracts shared by native implementations, WASM and injected tests. */
 export interface AudioInputPort {
+  monitor?(onLevel: (level: number) => void): void
   readonly available?: boolean
   readonly releaseFailure?: StackchanError
   record(durationMs?: number, options?: OperationOptions): Promise<OwnedAudioBuffer>

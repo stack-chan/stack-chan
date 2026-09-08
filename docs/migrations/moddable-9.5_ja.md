@@ -35,7 +35,7 @@ NTPの`getTime`コールバックが返す時刻はミリ秒です。
 
 DNS-SDではホスト名の取得後にサービスを広告し、TXTレコードは`updateTXT`で更新します。
 追従側はサービスの発見と更新の両方を処理します。
-`mimic_main`と`mimic_follow`が移行例です。
+移行例は [`pose_sharing`](../../firmware/mods/examples/pose_sharing/README_ja.md) の送信・追従モードへ統合しました。
 
 ホストの直接依存から従来の`socket`、`sntp`、`mdns`を外しました。
 SDKのDNS-SD実装は内部で従来の`net`を使用するため、間接依存は残っています。

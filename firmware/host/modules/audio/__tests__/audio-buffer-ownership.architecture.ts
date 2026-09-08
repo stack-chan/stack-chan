@@ -117,10 +117,4 @@ test('conversation modules stay independent of app layer contracts', () => {
 // exercised in the XS playback-lifecycle, http-playback, and stackchan-voice-device tests.
 // Do not pin their implementation syntax or DMA chunk size here.
 
-test('Whisper multipart upload does not concatenate the whole recording buffer', () => {
-  const sttWhisper = readFileSync('host/modules/audio/stt-whisper.ts', 'utf8')
-
-  assert.doesNotMatch(sttWhisper, /new ArrayBuffer\(header\.length \+ buffer\.byteLength \+ footer\.length\)/)
-  assert.doesNotMatch(sttWhisper, /bodyView\.set\(new Uint8Array\(buffer\)/)
-  assert.doesNotMatch(sttWhisper, /body:\s*bodyView\.buffer/)
-})
+// Multipart transcription is covered by app-session.test.ts with buffer identity assertions.

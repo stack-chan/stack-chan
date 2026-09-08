@@ -1,6 +1,6 @@
 {
   "modules": {
-    "settings-schema": "./settings-schema",
+    "stackchan/settings-schema": "../../../sdk/settings-schema",
     "timezone-model": "./timezone-model",
     "volume-model": "./volume-model"
   }

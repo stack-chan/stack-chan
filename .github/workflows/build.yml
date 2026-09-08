@@ -213,8 +213,8 @@ jobs:
           npm run build:wasm
           npm run mod:build -- host/app/__tests__/mod-preflight/app-fixture/manifest.json --mode=release
           npm run mod:build -- host/app/__tests__/mod-preflight/startup-fixture/manifest.json --mode=release
-          for manifest in lessons/*/manifest.json mods/examples/{look_around,monologue,face,board_diagnostics,image_avatar_lite}/manifest.json; do
-            npm run mod:build -- "$manifest"
+          for metadata in lessons/*/stackchan-mod.json mods/examples/*/stackchan-mod.json; do
+            npm run mod:build -- "${metadata%/*}/manifest.json"
           done
       - name: Run responsive and editor browser tests
         working-directory: ./firmware

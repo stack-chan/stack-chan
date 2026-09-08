@@ -88,6 +88,7 @@ See the [schematics](./schematics/README.md) for board information.
 
 - [Firmware development](./firmware/README.md)
 - [MOD development](./firmware/mods/README.md)
+- [SDK examples and migration destinations (Japanese)](./firmware/mods/examples/README_ja.md)
 - [Firmware API](./firmware/docs/api.md)
 - [Contribution guide](./CONTRIBUTING.md)
 - [Latest release](https://github.com/stack-chan/stack-chan/releases/latest)

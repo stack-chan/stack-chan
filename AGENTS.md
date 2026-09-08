@@ -79,9 +79,10 @@ Do not use `--target` or `npm_config_target`; the firmware command wrapper rejec
 
 ## MOD Development Workflow
 
-1. Write MOD in `firmware/mods/` with `manifest.json` and `mod.js`
+1. Start from `firmware/lessons/` or a runnable SDK example with `manifest.json`, `mod.js` / `mod.ts`, and `stackchan-mod.json`.
 2. From `firmware/`, use `npm run mod -- mods/your-mod/manifest.json` for rapid iteration
-3. MODs can add behavior via `onLaunch` and `onContextCreated` hooks
+3. Use `defineApp({ setup(app) { ... } })` from `stackchan`; use `stackchan/extensions/*` for advanced features. Do not add legacy hooks or host implementation imports. All runnable examples use app API 2; networking, conversation, sensors and maintenance examples require host API 7.
+4. Run `npm run check:sdk` and `npm run check:architecture`; build changed packages with `npm run mod:build -- path/to/manifest.json`. Keep changes and recovery instructions in the example README.
 
 ## Hardware Configuration
 

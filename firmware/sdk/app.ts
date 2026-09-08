@@ -24,6 +24,18 @@ export type CapabilityId =
   | 'camera'
   | 'ui.piu'
   | 'ui.controls'
+  | 'settings'
+  | 'network.http'
+  | 'network.peer'
+  | 'network.ble'
+  | 'network.dnssd'
+  | 'conversation.dialogue'
+  | 'conversation.realtime'
+  | 'conversation.remote'
+  | 'audio.monitor'
+  | 'audio.radio'
+  | 'sensors.temperature'
+  | 'motion.maintenance'
 export type CapabilityStatus =
   | { readonly availability: 'native' | 'simulated' }
   | { readonly availability: 'unavailable'; readonly reason: string }
@@ -47,7 +59,7 @@ export interface AppContext {
     sleep(durationMs: number): Promise<void>
     /** Run once after durationMs; disposing the registration also cancels its handler. */
     after(durationMs: number, handler: TaskHandler): Unsubscribe
-    /** One invocation at a time; wait intervalMs after each completion. */
+    /** One invocation at a time. Report handler errors and retry after intervalMs; close cancels the loop. */
     every(intervalMs: number, handler: TaskHandler): Unsubscribe
   }
   readonly ui: {

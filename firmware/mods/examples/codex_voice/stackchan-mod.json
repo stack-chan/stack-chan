@@ -4,20 +4,16 @@
   "id": "tech.stackchan.examples.codex-voice",
   "version": "1.0.0",
   "type": "text",
-  "name": "codex voice",
-  "description": "Legacy API 1 example; see docs/architecture/legacy-mod-migration.md for migration and hardware prerequisites.",
-  "appApiVersion": 1,
-  "hostApiVersion": 1,
+  "name": "codex_voice",
+  "description": "USB remote conversation with observed state and request acceptance.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
   "source": {
     "path": "manifest.json",
-    "entrypoint": "mod.js"
+    "entrypoint": "mod.ts"
   },
   "targets": ["m5stackchan-cores3"],
-  "capabilities": [
-    "conversation.remote",
-    "audio.usb",
-    "input.headTouch",
-    "ui.drawer"
-  ],
-  "entrypoints": ["mod"]
+  "capabilities": ["ui.controls", "conversation.remote", "input.headTouch"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["conversation.remote", "input.headTouch"]
 }

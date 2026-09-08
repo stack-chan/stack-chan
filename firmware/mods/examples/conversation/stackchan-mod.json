@@ -1,0 +1,38 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.conversation",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "conversation",
+  "description": "Voice, HTTP and WebSocket dialogue through the public SDK.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
+  "capabilities": [
+    "ui.controls",
+    "audio.speech",
+    "audio.recording",
+    "audio.tone",
+    "network.http",
+    "conversation.dialogue",
+    "input.primary",
+    "settings",
+    "motion"
+  ],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": [
+    "audio.speech",
+    "audio.recording",
+    "audio.tone",
+    "network.http",
+    "conversation.dialogue",
+    "input.primary",
+    "settings",
+    "motion"
+  ]
+}

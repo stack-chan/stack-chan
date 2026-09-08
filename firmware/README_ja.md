@@ -75,7 +75,7 @@ xsbugの書き込み経路を使わないため、ホストはデバッグビル
 ## ディレクトリ構成
 
 - [host](./host/): ホストアプリケーションとファームウェアモジュールのソースコードです。
-- [mods](./mods/): MODのソースコードです。
+- [mods](./mods/): 公開SDKへ移行済みの[21実行例](./mods/examples/README_ja.md)。最初は[7つの教材](./lessons/README_ja.md)から始めます。
 - [scripts](./scripts/): ビルド、検証、テスト、音声生成に用いる開発スクリプトです。
 - [typings](./typings/): Moddable SDKの一部モジュールとｽﾀｯｸﾁｬﾝ固有APIを補うTypeScript型定義です。
 - `dist/`: ファームウェアのプログラムと中間生成物です。

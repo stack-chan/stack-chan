@@ -14,7 +14,7 @@
     "wifi-scan": "../../wifi-scan",
     "wifi-scan-types": "../../wifi-scan-types",
     "network-state": "../../network-state",
-    "settings-schema": "../../../preferences/settings-schema",
+    "stackchan/settings-schema": "../../../../../sdk/settings-schema",
     "ecma-wifi": "./fake-wifi",
     "boot-services": "../../../../app/boot-services",
     "boot-session": "../../../../app/boot-session",

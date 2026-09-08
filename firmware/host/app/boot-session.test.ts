@@ -14,7 +14,10 @@ async function setup() {
   writeAliasPackage(hostRoot, 'network-state', resolve(hostRoot, 'modules/connectivity/network-state.js'))
   writeAliasPackage(hostRoot, 'local-peer-types', resolve(hostRoot, 'modules/connectivity/local-peer-types.js'))
   writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
-  writeAliasPackage(hostRoot, 'settings-schema', resolve(hostRoot, 'modules/preferences/settings-schema.js'))
+  for (const directory of [hostRoot, resolve(hostRoot, 'modules')]) {
+    writeAliasPackageSubpath(directory, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
+    writeAliasPackageSubpath(directory, 'stackchan', 'settings-schema', resolve(hostRoot, '../sdk/settings-schema.js'))
+  }
   return import('./boot-session.js')
 }
 async function flush() {

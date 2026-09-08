@@ -1,1 +1,1 @@
-export function preparePiuSources(): void
+export function prepareCanonicalSources(): void

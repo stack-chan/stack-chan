@@ -1,3 +1,4 @@
+import { StackchanError } from 'stackchan/errors'
 import {
   isSettingKey,
   SETTING_KEYS,
@@ -8,8 +9,7 @@ import {
   type SettingsForDomain,
   type SettingValue,
   validateSetting,
-} from 'settings-schema'
-import { StackchanError } from 'stackchan/errors'
+} from 'stackchan/settings-schema'
 
 export type SettingsLayer = Partial<Record<SettingDomain, Readonly<Record<string, unknown>>>>
 export type SettingsStorage = {

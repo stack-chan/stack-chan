@@ -721,3 +721,52 @@ test('closing audio waits for a provider whose cancellation returns asynchronous
   await closing
   await speaking
 })
+
+test('stream leases exclude competing recording and playback, then release the same devices', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  let tones = 0,
+    records = 0
+  const runtime = new StackchanRuntimeAudio({
+    tts: fakeTTS(),
+    microphone: {
+      async record() {
+        records++
+        return new ArrayBuffer(2) as OwnedAudioBuffer
+      },
+      stop() {},
+    },
+    speaker: {
+      async tone() {
+        tones++
+      },
+      async play() {
+        return true
+      },
+    },
+  })
+  const release = runtime.reserveStream(true, true)
+  await assert.rejects(runtime.record(10), { code: 'BUSY' })
+  await assert.rejects(runtime.tone(440, 10), { code: 'BUSY' })
+  await assert.rejects(runtime.speak('hello'), { code: 'BUSY' })
+  assert.throws(() => runtime.reserveStream(false, true), { code: 'BUSY' })
+  assert.equal(records + tones, 0)
+  release()
+  release()
+  await runtime.record(10)
+  await runtime.tone(440, 10)
+  assert.equal(records + tones, 2)
+  await runtime.close()
+})
+
+test('a failed streaming device release prevents later audio reuse', async () => {
+  installBareSpecifierPackages()
+  const { StackchanRuntimeAudio } = await import('../runtime-audio.js')
+  const runtime = new StackchanRuntimeAudio({ tts: fakeTTS() })
+  const release = runtime.reserveStream(true, true)
+  runtime.failStream(new Error('native close failed'))
+  release()
+  assert.throws(() => runtime.reserveStream(true, true), { code: 'IO' })
+  await assert.rejects(runtime.speak('hello'), { code: 'IO' })
+  await runtime.close()
+})

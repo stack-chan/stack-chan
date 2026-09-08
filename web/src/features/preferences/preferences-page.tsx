@@ -298,6 +298,17 @@ export function PreferencesPage() {
             </>
           )}
           {section(
+            'リアルタイム会話',
+            <>
+              {selectField('chat.type', 'サービス', preferenceChoices('chat.type'))}
+              {inputField({ name: 'chat.apiKey', label: 'トークン', type: 'password' })}
+              {inputField({ name: 'chat.endpoint', label: 'ホスト' })}
+              {inputField({ name: 'chat.modelID', label: 'モデル' })}
+              {inputField({ name: 'chat.voiceID', label: '音声' })}
+              {inputField({ name: 'chat.instructions', label: 'システムロール', wide: true })}
+            </>
+          )}
+          {section(
             'MCP Server',
             <>{inputField({ name: 'mcp.token', label: 'Bearerトークン', type: 'password', wide: true })}</>
           )}

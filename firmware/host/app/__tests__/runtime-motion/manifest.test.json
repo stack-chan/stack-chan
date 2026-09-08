@@ -13,7 +13,12 @@
     "app-session": "../../app-session",
     "task-scope": "../../task-scope",
     "embedded:io/pwm": "../../../modules/motion/__tests__/fakes/pwm",
-    "py32-io-expander": "../../../modules/motion/__tests__/fakes/py32-io-expander-stub"
+    "py32-io-expander": "../../../modules/motion/__tests__/fakes/py32-io-expander-stub",
+    "app-service-scope": "../../app-service-scope"
   },
-  "defines": { "main": { "async": 1 } }
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  }
 }

@@ -1,47 +1,59 @@
 # 既存 MOD の移行台帳
 
+## 現在の移行先（2026-09-08）
+
+元の32例を21個の公開SDKパッケージへ移行・統合した。残っていた21例の移行先は14パッケージ、最小host APIは7である。実行例のAPI 1宣言と旧フックは0件。型・import境界・archive生成を検査し、設定・操作・改造・復帰手順を各READMEへ揃えた。実機・初学者の受入とV1ホスト／Blocklyの撤去は残る。[全例の選び方](../../firmware/mods/examples/README_ja.md)、[今回の契約と検証](sdk-example-migration-2026-09-08.md)を参照する。
+
+<details>
+<summary>2026-09-06時点の棚卸しの説明（履歴）</summary>
+
 この一覧は API 1 の依存を宣言へ接続した記録で、V2 SDK への移行や実機受入の完了ではない。初学者の入口は `firmware/lessons` とする。全32例の SDK 移行は F5 の未完了項目として継続する。
 
 `portable` はボード名の制限を置かないという宣言であり、必要機能の有無は別に判定する。ここに挙げた機種は候補で、実機の適合証明ではない。実際の機能表と target を本体から得る検査は F7 / F10 で接続する。`extension.*` は低レベル機器への依存を表し、公開 SDK に実装済みという意味ではない。
 
 サーボ診断3例は `legacy-servo-diagnostics` として通常教材から区別した。`setup_rs30x` は二重の入力代入と旧 `_driver`、`calibration` は未完成の校正と旧 `_driver`、`dynamixel` は特定サーボを直接制御する診断コードを含む。現行の標準機種で実行可能だとは宣言しない。診断用の公開拡張と設定手順へ移行するまで、初学者向けの配布には含めない。
 
-| 例 | 実行入口 | 宣言した依存 | target 制限 |
-| --- | --- | --- | --- |
-| `ai_stackchan` | `mod.js` | face, audio.record, audio.speech, audio.tone, input.buttons, connectivity.network, ui.effects | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `ai_stackchan_api` | `mod.js` | face, audio.speech, input.buttons, connectivity.network, ui.effects, ui.drawer | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `beacon_advertiser` | `mod.js` | audio.speech, input.buttons, connectivity.ble | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `beacon_scanner` | `mod.js` | audio.speech, connectivity.ble | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `calibration` | `mod.js` | input.buttons, extension.servo.scservo | legacy-servo-diagnostics |
-| `chat_audioio` | `mod.js` | face, audio.conversation, audio.tone, motion, connectivity.network, ui.drawer, ui.effects | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `chatgpt` | `mod.js` | audio.speech, input.buttons, motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `cheerup_ble_lite` | `mod.js` | face, audio.speech, motion, connectivity.ble | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `cheerup_ws` | `mod.js` | face, audio.speech, motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `codex_voice` | `mod.js` | conversation.remote, audio.usb, input.headTouch, ui.drawer | m5stackchan-cores3 |
-| `dynamixel` | `mod.js` | extension.servo.dynamixel | legacy-servo-diagnostics |
-| `face` | `mod.js` | SDK face, ui.controls | portable / simulator |
-| `face_tracker` | `mod.js` | motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `image_avatar_lite` | `mod.js` | SDK face, ui.controls, input.primary | portable / simulator |
-| `light` | 統合 → `board_diagnostics/mod.js` | SDK lighting・入力・UI | portable / simulator（機器の不在を表示） |
-| `lip_sync` | `mod.js` | face, audio.record | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `local_peer_hello` | `mod.js` | connectivity.localPeer, ui.drawer | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `localized_drawer` | 統合 → `face/mod.js` | SDK ui.controls・三言語の辞書 | 単独 archive を撤去 |
-| `look_around` | `mod.js` | motion, input.buttons | portable |
-| `m5stackchan_smoke` | 統合 → `board_diagnostics/mod.js` | SDK motion・lighting・UI | CoreS3のhead LEDと自動診断を保持 |
-| `mcp` | `mod.js` | face, audio.speech, connectivity.network, ui.drawer | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `mediapipe_ble` | `mod.js` | connectivity.localPeer, motion, ui.effects | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `mimic_follow` | `mod.js` | motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `mimic_main` | `mod.js` | motion, connectivity.network | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `mini_app_sample` | 統合 → `stackchan_minigames/jump.ts` | SDK ui.piu | 単独 archive を撤去 |
-| `mini_app_ui_sample` | `mod.ts` / `screen.ts` | SDK ui.piu | portable / simulator |
-| `monologue` | `mod.js` | audio.speech, input.buttons | portable |
-| `setup_rs30x` | `mod.js` | input.buttons, extension.servo.rs30x | legacy-servo-diagnostics |
-| `stackchan_catch` | 統合 → `stackchan_minigames/catch.ts` | SDK ui.piu | 単独 archive を撤去 |
-| `stackchan_minigames` | `mod.ts` / `jump.ts` / `catch.ts` | SDK ui.piu | portable |
-| `unit_temperature` | `mod.js` | extension.sensor.sht3x, ui.drawer | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
-| `web_radio` | `mod.ts` | audio.webRadio, connectivity.network, ui.drawer, ui.effects | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
 
-## 現在の整理方針と移行済みの例（2026-09-06）
+</details>
+
+| 旧例 | 移行先（app API 2） | 最小host API | target宣言 |
+| --- | --- | ---: | --- |
+| `ai_stackchan` | 統合 → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `ai_stackchan_api` | 統合 → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `beacon_advertiser` | 統合 → [beacon](../../firmware/mods/examples/beacon/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `beacon_scanner` | 統合 → [beacon](../../firmware/mods/examples/beacon/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `calibration` | 統合 → [servo_diagnostics](../../firmware/mods/examples/servo_diagnostics/README_ja.md) | 7 | portable |
+| `chat_audioio` | 移行 → [chat_audioio](../../firmware/mods/examples/chat_audioio/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `chatgpt` | 統合 → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `cheerup_ble_lite` | 統合 → [cheerup](../../firmware/mods/examples/cheerup/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `cheerup_ws` | 統合 → [cheerup](../../firmware/mods/examples/cheerup/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `codex_voice` | 移行 → [codex_voice](../../firmware/mods/examples/codex_voice/README_ja.md) | 7 | m5stackchan-cores3 |
+| `dynamixel` | 統合 → [servo_diagnostics](../../firmware/mods/examples/servo_diagnostics/README_ja.md) | 7 | portable |
+| `face` | 移行 → [face](../../firmware/mods/examples/face/README_ja.md) | 4 | m5stackchan-cores3, simulator, portable |
+| `face_tracker` | 移行 → [face_tracker](../../firmware/mods/examples/face_tracker/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `image_avatar_lite` | 移行 → [image_avatar_lite](../../firmware/mods/examples/image_avatar_lite/README_ja.md) | 6 | portable, simulator |
+| `light` | 統合 → [board_diagnostics](../../firmware/mods/examples/board_diagnostics/README_ja.md) | 5 | portable, simulator |
+| `lip_sync` | 移行 → [lip_sync](../../firmware/mods/examples/lip_sync/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `local_peer_hello` | 移行 → [local_peer_hello](../../firmware/mods/examples/local_peer_hello/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `localized_drawer` | 統合 → [face](../../firmware/mods/examples/face/README_ja.md) | 4 | m5stackchan-cores3, simulator, portable |
+| `look_around` | 移行 → [look_around](../../firmware/mods/examples/look_around/README_ja.md) | 2 | portable |
+| `m5stackchan_smoke` | 統合 → [board_diagnostics](../../firmware/mods/examples/board_diagnostics/README_ja.md) | 5 | portable, simulator |
+| `mcp` | 移行 → [mcp](../../firmware/mods/examples/mcp/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `mediapipe_ble` | 移行 → [mediapipe_ble](../../firmware/mods/examples/mediapipe_ble/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `mimic_follow` | 統合 → [pose_sharing](../../firmware/mods/examples/pose_sharing/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `mimic_main` | 統合 → [pose_sharing](../../firmware/mods/examples/pose_sharing/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `mini_app_sample` | 統合 → [stackchan_minigames](../../firmware/mods/examples/stackchan_minigames/README_ja.md) | 3 | portable |
+| `mini_app_ui_sample` | 移行 → [mini_app_ui_sample](../../firmware/mods/examples/mini_app_ui_sample/README_ja.md) | 3 | portable, simulator |
+| `monologue` | 移行 → [monologue](../../firmware/mods/examples/monologue/README_ja.md) | 2 | portable |
+| `setup_rs30x` | 統合 → [servo_diagnostics](../../firmware/mods/examples/servo_diagnostics/README_ja.md) | 7 | portable |
+| `stackchan_catch` | 統合 → [stackchan_minigames](../../firmware/mods/examples/stackchan_minigames/README_ja.md) | 3 | portable |
+| `stackchan_minigames` | 移行 → [stackchan_minigames](../../firmware/mods/examples/stackchan_minigames/README_ja.md) | 3 | portable |
+| `unit_temperature` | 移行 → [unit_temperature](../../firmware/mods/examples/unit_temperature/README_ja.md) | 7 | m5stackchan-cores3, stackchan-rt, takao-core2-sg90 |
+| `web_radio` | 移行 → [web_radio](../../firmware/mods/examples/web_radio/README_ja.md) | 7 | m5stackchan-cores3 |
+
+以下の日付付き記録の未移行件数は当時の数であり、現在の状態は冒頭の表を参照する。
+
+## 当時の整理方針と移行済みの例（2026-09-06）
 
 上表は旧 API の依存を記録したもの。全32例の「移行」「統合」の分類、保持する機能、必要な SDK、対応する撤去経路は [旧経路の撤去台帳](firmware-retirement-plan.md) に記録した。`look_around` と `monologue` は SDK 世代2へ移行し、主入力・所有された周期処理／音声を使う。残る30例の移行・統合は未実装。機種サポートや独立した機能を、分類だけで削除済みとはしない。
 

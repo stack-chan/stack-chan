@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.beacon",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "beacon",
+  "description": "Select BLE beacon advertiser or scanner and exchange greetings.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
+  "capabilities": ["ui.controls", "network.ble", "audio.clips", "audio.speech"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["network.ble", "audio.clips", "audio.speech"]
+}

@@ -10,6 +10,7 @@ import type {
   UIEffect,
 } from 'capabilities'
 import { Emoticon } from 'effects/emoticon'
+import { MusicNotes } from 'effects/music-notes'
 import { SpeechBalloon } from 'effects/speech-balloon'
 import {
   createFaceState,
@@ -19,12 +20,13 @@ import {
   type FaceThemeKey,
   setColorRGB,
 } from 'face-state'
+import { Hands } from 'hands'
 import { OwnedResources, ResourceScope } from 'owned-resources'
 import { ImageAvatarFace } from 'parts/image/image-avatar-face'
 import { ownUI } from 'runtime-resources'
 import type { CameraImage } from 'stackchan/camera'
-import { StackchanError } from 'stackchan/errors'
-import type { Emoticon as EmoticonName, FaceStyle, HandAnimation } from 'stackchan/extensions/ui'
+import { finiteNumber, StackchanError } from 'stackchan/errors'
+import type { Emoticon as EmoticonName, FaceStyle, FaceTracking, HandAnimation } from 'stackchan/extensions/ui'
 import type { ImageAvatarPack } from 'stackchan/image-avatar'
 import {
   type Pose,
@@ -153,8 +155,70 @@ export class StackchanRuntimeUI {
     }
   }
 
+  #trackedHands: UIEffect | undefined
+  #musicNotes: UIEffect | undefined
+  setTracking(value: FaceTracking | null): void {
+    if (value) {
+      for (const openness of [value.leftEye, value.rightEye, value.mouth]) finiteNumber(openness, 'face openness', 0, 1)
+      for (const hand of Object.values(value.hands)) {
+        if (!hand) continue
+        if (!['fist', 'point', 'peace', 'open'].includes(hand.shape))
+          throw new StackchanError('INVALID_ARGUMENT', 'Unknown hand shape')
+        finiteNumber(hand.x, 'hand x', 0, 320)
+        finiteNumber(hand.y, 'hand y', 0, 240)
+        finiteNumber(hand.rotationDeg, 'hand rotation', -360, 360)
+      }
+    }
+    this.setEyeOpen('left', value?.leftEye ?? 1)
+    this.setEyeOpen('right', value?.rightEye ?? 1)
+    this.setMouthOpen(value?.mouth ?? 0)
+    if (!value) {
+      const effect = this.#trackedHands
+      this.#trackedHands = undefined
+      if (effect) this.#ui.removeEffect(effect)
+      return
+    }
+    if (!this.#trackedHands) {
+      this.#trackedHands = new Hands({})
+      this.#ui.addEffect(this.#trackedHands)
+    }
+    const hands = Object.fromEntries(
+      Object.entries(value.hands).flatMap(([side, hand]) =>
+        hand
+          ? [
+              [
+                side,
+                {
+                  shape: hand.shape,
+                  pose: { position: { x: hand.x, y: hand.y }, rotation: { r: (hand.rotationDeg * Math.PI) / 180 } },
+                },
+              ],
+            ]
+          : [],
+      ),
+    )
+    this.#trackedHands.delegate('onHandPoseChanged', hands)
+  }
+  setMusicNotes(enabled: boolean): void {
+    if (enabled && !this.#musicNotes) {
+      this.#musicNotes = new MusicNotes({})
+      this.#ui.addEffect(this.#musicNotes)
+    }
+    if (!enabled && this.#musicNotes) {
+      const effect = this.#musicNotes
+      this.#musicNotes = undefined
+      this.#ui.removeEffect(effect)
+    }
+  }
+  setFaceMotionEnabled(enabled: boolean): void {
+    this.#ui.setFaceMotionEnabled?.(enabled)
+  }
+
   resetAppearance(): Promise<void> {
     return new ResourceScope([
+      () => this.setTracking(null),
+      () => this.setMusicNotes(false),
+      () => this.setFaceMotionEnabled(true),
       () => {
         this.#faceState = createFaceState()
         this.#emotion = this.#faceState.emotion

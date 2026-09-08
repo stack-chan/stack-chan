@@ -6,8 +6,10 @@ import type { AppContext } from '../../sdk/app.js'
 import { StackchanError } from '../../sdk/errors.js'
 import type { AppLighting } from '../../sdk/extensions/lighting.js'
 import type { PiuAppDefinition, ScreenContext } from '../../sdk/extensions/piu.js'
+import type { AppSettings } from '../../sdk/extensions/settings.js'
 import type { AppUI } from '../../sdk/extensions/ui.js'
 import { writeAliasPackage, writeAliasPackageSubpath } from '../modules/testing/node-alias-package.js'
+import type { AppServiceScope } from './app-service-scope.js'
 import type { AppPorts } from './app-session.js'
 
 async function setup() {
@@ -15,7 +17,7 @@ async function setup() {
   writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackageSubpath(resolve(hostRoot, '..'), 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackage(resolve(hostRoot, '..'), 'stackchan', resolve(hostRoot, '../sdk/app.js'))
-  for (const name of ['input', 'ui', 'lighting'])
+  for (const name of ['input', 'ui', 'lighting', 'conversation'])
     for (const directory of [hostRoot, resolve(hostRoot, '..')])
       writeAliasPackageSubpath(
         directory,
@@ -23,13 +25,17 @@ async function setup() {
         `extensions/${name}`,
         resolve(hostRoot, `../sdk/extensions/${name}.js`),
       )
-  for (const name of ['owned-resources', 'cancellation', 'task-scope']) {
+  for (const name of ['owned-resources', 'cancellation', 'task-scope', 'app-service-scope']) {
     writeAliasPackage(hostRoot, name, resolve(hostRoot, `app/${name}.js`))
   }
+  writeAliasPackage(hostRoot, 'modules', resolve(hostRoot, 'modules/testing/fakes/modules.js'), {
+    hasDefaultExport: true,
+  })
   const { AppSession } = await import('./app-session.js')
+  const { AppConnection } = await import('./app-service-scope.js')
   const { OperationQueue } = await import('./operation-queue.js')
   const { defineApp } = await import('../../sdk/app.js')
-  return { AppSession, OperationQueue, defineApp }
+  return { AppSession, AppConnection, OperationQueue, defineApp }
 }
 
 class Clock {
@@ -984,14 +990,14 @@ test('100 app replacements return tasks, subscriptions and timers to baseline', 
   assert.deepEqual(f.errors, [])
 })
 
-test('handler failure is reported once and does not leave a recurring timer alive', async () => {
+test('one-shot handler failure is reported once and releases its timer', async () => {
   const { AppSession, defineApp } = await setup()
   const f = fixture()
   const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
   await session.start(
     defineApp({
       setup(app) {
-        app.time.every(1, () => {
+        app.time.after(1, () => {
           throw new Error('handler failed')
         })
       },
@@ -1089,4 +1095,329 @@ test('app camera combines cancellation and owns image UI and capture service on 
     { code: 'CLOSED' },
   )
   assert.equal(f.clock.jobs.size, 0)
+})
+
+test('connection close cancels its operations and removes subscriptions before releasing the device', async () => {
+  const { AppSession, AppConnection, defineApp } = await setup()
+  const f = fixture(),
+    events: string[] = []
+  let scope!: AppServiceScope
+  f.ports.extensions = (owner) => {
+    scope = owner
+    return {}
+  }
+  const app = new AppSession(f.ports, f.clock, () => {})
+  await app.start(defineApp({ setup() {} }))
+  const connection = new AppConnection(scope)
+  connection.own(() => {
+    events.push('device')
+  })
+  connection.own(() => {
+    events.push('subscription')
+  })
+  const work = connection.run((task) => {
+    task.signal.subscribe(() => events.push('cancel'))
+    return task.sleep(1000)
+  })
+  const rejected = assert.rejects(work, { code: 'CLOSED' })
+  await flush()
+  await connection.close()
+  await rejected
+  assert.deepEqual(events, ['cancel', 'subscription', 'device'])
+  assert.equal(app.resourceCount, 0)
+  assert.equal(app.taskCount, 0)
+  assert.equal(f.clock.jobs.size, 0)
+  await app.close()
+  assert.equal(events.length, 3)
+})
+
+test('late connection acquisition releases the device after the app has closed', async () => {
+  const { AppSession, AppConnection, defineApp } = await setup()
+  const f = fixture()
+  let scope!: AppServiceScope,
+    released = 0
+  f.ports.extensions = (owner) => {
+    scope = owner
+    return {}
+  }
+  const app = new AppSession(f.ports, f.clock, () => {})
+  await app.start(defineApp({ setup() {} }))
+  const connection = new AppConnection(scope)
+  await app.close()
+  assert.throws(
+    () =>
+      connection.own(() => {
+        released++
+      }),
+    { code: 'CLOSED' },
+  )
+  await flush()
+  assert.equal(released, 1)
+  assert.equal(app.resourceCount, 0)
+})
+
+test('connection failures retain cleanup and do not deliver events after explicit close', async () => {
+  const { AppSession, AppConnection, defineApp } = await setup()
+  const f = fixture()
+  let scope!: AppServiceScope,
+    delivered = 0,
+    released = 0
+  f.ports.extensions = (owner) => {
+    scope = owner
+    return {}
+  }
+  const app = new AppSession(f.ports, f.clock, () => {})
+  await app.start(defineApp({ setup() {} }))
+  const connection = new AppConnection(scope)
+  connection.own(() => {
+    released++
+  })
+  connection.own(() => {
+    throw new Error('release failed')
+  })
+  const event = connection.event(() => {
+    delivered++
+  })
+  event()
+  const closing = connection.close()
+  event()
+  await assert.rejects(closing, /release failed/)
+  assert.equal(delivered, 1)
+  assert.equal(released, 1)
+  assert.equal(app.resourceCount, 0)
+  await app.close()
+})
+
+test('periodic app work reports a transient error and resumes on the next interval', async () => {
+  const { AppSession, defineApp } = await setup()
+  const f = fixture()
+  let attempts = 0
+  const app = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  await app.start(
+    defineApp({
+      setup(context) {
+        context.time.every(100, () => {
+          if (++attempts === 1) throw new Error('temporarily offline')
+        })
+      },
+    }),
+  )
+  await f.clock.advance(250)
+  assert.equal(attempts, 2)
+  assert.equal(f.errors.length, 1)
+  await app.close()
+  assert.equal(f.clock.jobs.size, 0)
+})
+
+const cloudSettings: AppSettings = {
+  get: () => 'test-private-token' as never,
+  describe: () => {
+    throw new Error('unused')
+  },
+  set: () => {
+    throw new Error('unused')
+  },
+}
+const cloudAudio = { reserveStream: () => () => {}, failStream() {} }
+
+test('SDK dialogue retains its response ID and awaits a tool before the follow-up request', async () => {
+  const { AppSession, defineApp } = await setup()
+  const { createAppConversation } = await import('./app-conversation.js')
+  const f = fixture(),
+    bodies: Record<string, unknown>[] = [],
+    order: string[] = []
+  let scope!: AppServiceScope
+  f.ports.extensions = (owner) => {
+    scope = owner
+    return {}
+  }
+  const app = new AppSession(f.ports, f.clock, () => {})
+  await app.start(defineApp({ setup() {} }))
+  const service = createAppConversation(scope, cloudSettings, cloudAudio, undefined, async (request) => {
+    bodies.push(JSON.parse(request.body as string))
+    order.push('request')
+    return {
+      status: 200,
+      body: JSON.stringify(
+        bodies.length === 1
+          ? {
+              id: 'response-1',
+              output: [{ type: 'function_call', call_id: 'call-1', name: 'greet', arguments: '{}' }],
+            }
+          : { id: 'response-2', output: [{ type: 'message', content: [{ type: 'output_text', text: 'hello' }] }] },
+      ),
+    }
+  })
+  const dialogue = service.dialogue({
+    tools: [
+      {
+        name: 'greet',
+        description: '',
+        inputSchema: { type: 'object', properties: {}, required: [] },
+        execute: async () => {
+          order.push('tool')
+          return 'done'
+        },
+      },
+    ],
+  })
+  assert.equal(await dialogue.ask('greet me'), 'hello')
+  assert.deepEqual(order, ['request', 'tool', 'request'])
+  assert.equal(bodies[1].previous_response_id, 'response-1')
+  assert.deepEqual(bodies[1].input, [{ type: 'function_call_output', call_id: 'call-1', output: 'done' }])
+  await app.close()
+})
+
+test('closing during a cloud request cancels the task and ignores a late tool call', async () => {
+  const { AppSession, defineApp } = await setup()
+  const { createAppConversation } = await import('./app-conversation.js')
+  const f = fixture()
+  let scope!: AppServiceScope,
+    finish!: (value: { status: number; body: string }) => void,
+    cancelled = 0,
+    tools = 0
+  f.ports.extensions = (owner) => {
+    scope = owner
+    return {}
+  }
+  const app = new AppSession(f.ports, f.clock, () => {})
+  await app.start(defineApp({ setup() {} }))
+  const service = createAppConversation(scope, cloudSettings, cloudAudio, undefined, (_request, signal) => {
+    assert.ok(signal)
+    signal.subscribe(() => {
+      cancelled++
+    })
+    return new Promise((resolve) => {
+      finish = resolve
+    })
+  })
+  const dialogue = service.dialogue({
+    tools: [
+      {
+        name: 'greet',
+        description: '',
+        inputSchema: { type: 'object', properties: {}, required: [] },
+        execute: () => {
+          tools++
+          return 'done'
+        },
+      },
+    ],
+  })
+  const pending = dialogue.ask('greet me'),
+    rejected = assert.rejects(pending, { code: 'CLOSED' })
+  await flush()
+  await app.close()
+  await rejected
+  finish({
+    status: 200,
+    body: JSON.stringify({
+      id: 'late',
+      output: [{ type: 'function_call', call_id: 'late', name: 'greet', arguments: '{}' }],
+    }),
+  })
+  await flush()
+  assert.equal(cancelled, 1)
+  assert.equal(tools, 0)
+  assert.equal(app.resourceCount, 0)
+})
+
+test('SDK transcription retains the original recording as a separate multipart segment', async () => {
+  const { AppSession, defineApp } = await setup()
+  const { createAppConversation } = await import('./app-conversation.js')
+  const f = fixture(),
+    original = Uint8Array.of(1, 2, 3).buffer
+  let scope!: AppServiceScope
+  f.ports.extensions = (owner) => {
+    scope = owner
+    return {}
+  }
+  const app = new AppSession(f.ports, f.clock, () => {})
+  await app.start(defineApp({ setup() {} }))
+  const bufferConstructor = ArrayBuffer as typeof ArrayBuffer & { fromString?: (text: string) => ArrayBuffer }
+  const previous = bufferConstructor.fromString
+  bufferConstructor.fromString = (text) => new TextEncoder().encode(text).buffer
+  try {
+    const service = createAppConversation(scope, cloudSettings, cloudAudio, undefined, async (request) => {
+      assert.ok(Array.isArray(request.body))
+      const parts = request.body as readonly ArrayBuffer[]
+      assert.equal(parts[1], original, 'upload must not copy the complete recording into another buffer')
+      assert.match(new TextDecoder().decode(parts[0]), /filename="recording.ogg"/)
+      assert.match(request.headers['Content-Type'], /^multipart\/form-data; boundary=/)
+      return { status: 200, body: '{"text":"hello"}' }
+    })
+    assert.equal(
+      await service.transcribe({ data: original, mimeType: 'audio/ogg', filename: 'recording.ogg' }),
+      'hello',
+    )
+  } finally {
+    bufferConstructor.fromString = previous
+    await app.close()
+  }
+})
+
+test('USB request acceptance does not commit the menu toggle before observed conversation state', async () => {
+  const { AppSession } = await setup()
+  const { default: definition } = await import('../../mods/examples/codex_voice/mod.js')
+  const f = controlsFixture()
+  let state: 'standby' | 'listening' = 'standby'
+  let notify!: (state: 'standby' | 'listening') => void
+  let starts = 0,
+    stops = 0
+  f.ports.capabilities.get = () => ({ availability: 'unavailable', reason: 'No head touch in this test' })
+  f.ports.extensions = () => ({
+    conversation: {
+      remote: () => ({
+        get state() {
+          return state
+        },
+        transport: 'ready',
+        requestStart() {
+          starts++
+          return 'accepted-start'
+        },
+        requestStop() {
+          stops++
+          return 'accepted-stop'
+        },
+        onState(handler) {
+          notify = handler
+          return () => {}
+        },
+        onTransport() {
+          return () => {}
+        },
+        async close() {},
+      }),
+      dialogue() {
+        throw Error('not used')
+      },
+      async transcribe() {
+        throw Error('not used')
+      },
+      async realtime() {
+        throw Error('not used')
+      },
+    },
+  })
+  const session = new AppSession(f.ports, f.clock, (error) => f.errors.push(error))
+  await session.start(definition)
+  const toggle = f.items.get('remote')
+  assert.ok(toggle)
+  toggle.select()
+  await flush()
+  assert.equal(starts, 1)
+  assert.equal(toggle.value, false, 'accepted start stays off while in standby')
+  state = 'listening'
+  notify(state)
+  assert.equal(toggle.value, true)
+  toggle.select()
+  await flush()
+  assert.equal(stops, 1)
+  assert.equal(toggle.value, true, 'accepted stop stays on until standby is observed')
+  state = 'standby'
+  notify(state)
+  assert.equal(toggle.value, false)
+  await session.close()
+  assert.deepEqual(f.errors, [])
 })

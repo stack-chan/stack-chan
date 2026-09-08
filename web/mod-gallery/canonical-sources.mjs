@@ -2,13 +2,16 @@ import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 /** Publish source packages from the maintained firmware examples; never transform application code. */
-const piuPackages = Object.freeze([
+const canonicalPackages = Object.freeze([
   ['stackchan-minigames', 'stackchan_minigames'],
   ['ui-playground', 'mini_app_ui_sample'],
+  ['mediapipe-ble', 'mediapipe_ble'],
+  ['mcp', 'mcp'],
+  ['codex-voice', 'codex_voice'],
 ])
 
-export function preparePiuSources() {
-  for (const [gallery, example] of piuPackages) {
+export function prepareCanonicalSources() {
+  for (const [gallery, example] of canonicalPackages) {
     const source = new URL(`../../firmware/mods/examples/${example}/`, import.meta.url)
     const target = new URL(`./samples/${gallery}/source/`, import.meta.url)
     rmSync(target, { recursive: true, force: true })
@@ -23,4 +26,4 @@ export function preparePiuSources() {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) preparePiuSources()
+if (process.argv[1] === fileURLToPath(import.meta.url)) prepareCanonicalSources()

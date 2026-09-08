@@ -11,16 +11,36 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
-      "recording-wave": ["./host/modules/audio/recording-wave.ts"],
-      "audio-ports": ["./host/modules/audio/audio-ports.ts"],
-      "recorded-audio": ["./host/modules/audio/recorded-audio.ts"],
-      "pcm-wave": ["./host/modules/audio/pcm-wave.ts"],
-      "stackchan-result": ["./host/modules/util/result.ts"],
-      "Resource": ["./host/modules/testing/fakes/resource.ts"],
-      "text/decoder": ["./host/modules/testing/fakes/text-decoder.ts"],
-      "stackchan-contracts/*": ["./contracts/*.js"],
-      "installed-mod": ["./host/modules/mod-package/installed-mod.ts"],
-      "mod-maintenance": ["./host/modules/mod-package/mod-maintenance.ts"],
+      "recording-wave": [
+        "./host/modules/audio/recording-wave.ts"
+      ],
+      "audio-ports": [
+        "./host/modules/audio/audio-ports.ts"
+      ],
+      "recorded-audio": [
+        "./host/modules/audio/recorded-audio.ts"
+      ],
+      "pcm-wave": [
+        "./host/modules/audio/pcm-wave.ts"
+      ],
+      "stackchan-result": [
+        "./host/modules/util/result.ts"
+      ],
+      "Resource": [
+        "./host/modules/testing/fakes/resource.ts"
+      ],
+      "text/decoder": [
+        "./host/modules/testing/fakes/text-decoder.ts"
+      ],
+      "stackchan-contracts/*": [
+        "./contracts/*.js"
+      ],
+      "installed-mod": [
+        "./host/modules/mod-package/installed-mod.ts"
+      ],
+      "mod-maintenance": [
+        "./host/modules/mod-package/mod-maintenance.ts"
+      ],
       "piu/MC": [
         "./node_modules/@moddable/typings/piu/MC.d.ts"
       ],
@@ -114,15 +134,21 @@
       "network-service": [
         "./host/modules/connectivity/network-service.ts"
       ],
-      "network-types": ["./host/modules/connectivity/network-types.ts"],
+      "network-types": [
+        "./host/modules/connectivity/network-types.ts"
+      ],
       "network-state": [
         "./host/modules/connectivity/network-state.ts"
       ],
       "loadPreference": [
         "./host/modules/preferences/loadPreference.ts"
       ],
-      "settings-schema": ["./host/modules/preferences/settings-schema.ts"],
-      "settings-service": ["./host/modules/preferences/settings-service.ts"],
+      "stackchan/settings-schema": [
+        "./sdk/settings-schema.ts"
+      ],
+      "settings-service": [
+        "./host/modules/preferences/settings-service.ts"
+      ],
       "timezone-settings": [
         "./host/modules/preferences/timezone-settings.ts"
       ],
@@ -183,8 +209,12 @@
       "boot-network-recovery": [
         "./host/app/boot-network-recovery.ts"
       ],
-      "boot-session": ["./host/app/boot-session.ts"],
-      "boot-recovery-choice": ["./host/app/boot-recovery-choice.ts"],
+      "boot-session": [
+        "./host/app/boot-session.ts"
+      ],
+      "boot-recovery-choice": [
+        "./host/app/boot-recovery-choice.ts"
+      ],
       "app-behavior-resolver": [
         "./host/app/app-behavior-resolver.ts"
       ],
@@ -275,7 +305,9 @@
       "stackchan/*": [
         "./sdk/*.ts"
       ],
-      "camera-capture-session": ["./host/app/camera-capture-session.ts"],
+      "camera-capture-session": [
+        "./host/app/camera-capture-session.ts"
+      ],
       "operation-queue": [
         "./host/app/operation-queue.ts"
       ],
@@ -300,7 +332,9 @@
       "app-session": [
         "./host/app/app-session.ts"
       ],
-      "app-audio-session": ["./host/app/app-audio-session.ts"],
+      "app-audio-session": [
+        "./host/app/app-audio-session.ts"
+      ],
       "runtime-resources": [
         "./host/app/runtime-resources.ts"
       ],
@@ -312,6 +346,15 @@
       ],
       "runtime-motion": [
         "./host/app/runtime-motion.ts"
+      ],
+      "app-service-scope": [
+        "./host/app/app-service-scope.ts"
+      ],
+      "servo-maintenance": [
+        "./host/modules/motion/servo-maintenance.ts"
+      ],
+      "runtime-audio": [
+        "./host/app/runtime-audio.ts"
       ]
     },
     "types": [

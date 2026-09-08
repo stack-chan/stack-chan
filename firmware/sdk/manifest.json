@@ -12,6 +12,13 @@
     "stackchan/extensions/piu": "./extensions/piu",
     "stackchan/extensions/ui": "./extensions/ui",
     "stackchan/extensions/input": "./extensions/input",
-    "stackchan/extensions/lighting": "./extensions/lighting"
+    "stackchan/extensions/lighting": "./extensions/lighting",
+    "stackchan/extensions/network": "./extensions/network",
+    "stackchan/extensions/conversation": "./extensions/conversation",
+    "stackchan/extensions/sensors": "./extensions/sensors",
+    "stackchan/extensions/audio": "./extensions/audio",
+    "stackchan/extensions/maintenance": "./extensions/maintenance",
+    "stackchan/extensions/settings": "./extensions/settings",
+    "stackchan/settings-schema": "./settings-schema"
   }
 }

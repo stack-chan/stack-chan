@@ -4,15 +4,16 @@
   "id": "tech.stackchan.examples.face-tracker",
   "version": "1.0.0",
   "type": "text",
-  "name": "face tracker",
-  "description": "Legacy API 1 example; see docs/architecture/legacy-mod-migration.md for migration and hardware prerequisites.",
-  "appApiVersion": 1,
-  "hostApiVersion": 1,
+  "name": "face_tracker",
+  "description": "Follow UnitV2 faces from a bounded delimited HTTP stream.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
   "source": {
     "path": "manifest.json",
-    "entrypoint": "mod.js"
+    "entrypoint": "mod.ts"
   },
   "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
-  "capabilities": ["motion", "connectivity.network"],
-  "entrypoints": ["mod"]
+  "capabilities": ["ui.controls", "network.http", "motion"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["network.http", "motion"]
 }

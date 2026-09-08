@@ -5,18 +5,26 @@
 
 この台帳は完了宣言ではない。各項目は、実装とその契約を検証する証拠が揃うまで未完了とする。
 
+## 全実行例の SDK 移行（2026-09-08）
+
+残っていた21例を14個の公開SDKパッケージへ移し、元の32例は21パッケージへ移行・統合した。`stackchan-mod.json` を持つ実行例の API 1 は0件。全例は [操作・設定・改造・復帰の入口](../../firmware/mods/examples/README_ja.md) から参照できる。
+
+通信・会話・ストリーミング音声・SHT3x・サーボ保守・設定を型付き拡張として接続した。これらの14例の最小host APIは7。機器と購読はAppSessionに所有させ、音声の占有はRuntimeAudio、保守は設定済みの同じサーボバスを使う。旧MOD内の直接生成・raw参照・重複する役割と、利用者がなくなったWhisper実装・MOD専用chat設定処理を削除した。
+
+ソース移行・自動試験と、実機・初学者の受入は分ける。V1ホスト／Blockly／参考providerライブラリーの整理、全無線方式の調停、電源断・保存操作の実機受入、製品ソース純減は残件である。今回の変更で F1〜F12 全体の完了を宣言しない。契約・検証結果・コード量は [今回の移行記録](sdk-example-migration-2026-09-08.md) を参照する。
+
 | 課題 | 必要な最終状態 | 状態・検証先 |
 | --- | --- | --- |
-| F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDK・motion・一枚撮影と画像表示・録音とバッファ再生をAppSessionへ接続。会話・設定・高度な拡張は未完了 |
+| F1 公開境界 | V2 の SDK は旧 flat API、具体的 TTS・sensor・Piu controller を含まない。高度な拡張を別入口にする | 基本SDKとPiu・UI・入力・lighting・画像・通信・会話・ストリーミング音声・センサー・保守・設定の公開拡張を接続。全実行例が公開入口のみを使用。V1ホストの公開面撤去は残る |
 | F2 寿命 | Host / App / Operation の所有を接続。開始失敗の rollback、取消し、一度だけの完了、終了後のコールバック抑止 | composeとcontextのrollback、UI・入力・カメラ、サーボUART、共有PY32の終了とmotion置換時の世代管理を接続。BootSession、Wi-Fi使用権、ローカル通信と起動失敗画面の終了を接続。WASMカメラとnativeのフレーム待ち、native / WASM録音のrollback・取消し・期限・解放待ちも接続。音声出力の共通終了とnative TTSのHTTP・DNS・準備要求を接続。WASM出力の再生・停止確認、AppSessionの公開録音・再生操作の所有と解放待ち、native PCMのGCをまたぐ保持も接続。音声合成器・機器置換とV1の直接参照は継続 |
 | F3 操作契約 | 完了・エラー・未対応・時間・単位・入力検証を統一。say と素材再生を分離。motion の指令受付と到達を区別 | V2のspeech/clip、motionの度・ms・measured/estimated・期限・取消し、native / WASM録音の完了・時間とバッファ上限・形式の保持を接続。WASM出力の上限・終了通知・解放確認とブラウザー例外の正規化、公開録音の形式保持、native WAVチャンクの検証とtoneの共通範囲も接続。他機能と実機での確認は未完了 |
-| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声とV2 motionに停止待ち付きOperationQueue、サーボUARTに共通FIFOを接続。注視と単発移動を調停。Wi-Fi接続に所有者別の使用権、一枚撮影に待機2件の停止待ちキューを接続。会話・USB・全無線経路の調停・V1移行は未完了 |
-| F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | JavaScriptの7教材とSDK型検査を追加。全32旧MOD／miniappの入口と依存を宣言。SDK世代2への移行は未完了 |
-| F6 アプリ構成 | 既定動作、診断、UI 拡張の責務と寿命を分ける。既定動作にも SDK と AppSession を使用 | 最小起動入口と保守起動を分離。起動・設定をMOD評価前へ移し、native/WASMの重複ループとフック配列の中継を撤去。既定動作のSDK化・診断とUI拡張の分離は未完了 |
-| F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 共通 host runtime、TTS契約、設定定義とモデル用manifestを一本化。Webも同じ設定定義を参照。ESP32のMAC取得ソース選択も修正。音声入出力portをnative・WASM・RuntimeAudioで共有。ボード・残りの公開型・型検査は未完了 |
-| F8 設定・起動 | 型・検証・優先順位・secret・適用時点を共通設定サービスへ集約。オフライン教材を Wi-Fi 待機から独立 | V2起動をWi-Fi待機から独立。SettingsServiceを設定画面・BLE・設定読み込みへ接続し、Wi-Fi起動の優先順位を統一。BootSessionの準備状態・期限・取消し・置換時の終了を接続。起動時の設定画面をホスト設定だけで動作させ、MOD設定の事前評価を解消。アプリ公開API・V1起動全体の整理・電源断時の保証は未完了 |
+| F4 競合と重複 | 音声、会話、USB、motion、物理 UART の資源管理を共通化。上限・期限・取消しを保証 | 通常音声・録音とradio／realtime／USBの占有をRuntimeAudioで調停。motionとサーボ保守は設定済みの同じバスを使用。全無線方式の排他、V1利用者の撤去と実機受入は未完了 |
+| F5 教材適合 | 全 MOD／miniapp の入口を分類・移行。公開契約に適合し、機種差の回避策を基盤へ移す | 元の32例を21個のAPI 2パッケージへ移行・統合。実行例のAPI 1は0。全例のstrict・import境界・archiveビルドを検査。機器・初学者の受入は未完了 |
+| F6 アプリ構成 | 既定動作、診断、UI 拡張の責務と寿命を分ける。既定動作にも SDK と AppSession を使用 | 既定動作・診断・Piu画面もSDKとAppSessionを使用。旧フック継承・miniapp専用起動を撤去。V1ホストとBlocklyの旧実行経路は残る |
+| F7 正本 | 共通 manifest、ボード設定、公開型と module exports の正本を統一。target 別の型検査を成立させる | 公開設定schemaをstackchan/settings-schemaへ集約し、本体・Web・SDKで共有。公開拡張と利用例のstrict検査を接続。ボード別公開型の整理は残る |
+| F8 設定・起動 | 型・検証・優先順位・secret・適用時点を共通設定サービスへ集約。オフライン教材を Wi-Fi 待機から独立 | オフライン教材とWi-Fi待機を分離。SettingsServiceを本体・BLE・Web・アプリSDKへ接続。chat設定の正本と適用情報を統一。V1起動全体と電源断時の受入は残る |
 | F9 WASM | native / simulated / unsupported を明示。無音・未実行の成功をなくす。教材の状態遷移を共通検証 | TTSの失敗・取消し、motionの構造化bridgeと推定完了、WASMの経過時計を接続。Wi-Fi管理器を共通化し、WASMのWi-Fiをunavailableと明示。カメラの所有・取消しを接続し、明示されていない合成画像への代替を廃止。録音・出力の所有を接続し、toneの時間経過だけの成功を廃止。入力・出力の利用可否と音声全体の解放失敗も能力表示へ接続。3秒録音でチャンクの逐次変換が停止期限に達する問題を集約変換で修正。その他の能力metadataと教材適合は未完了 |
-| F10 検査・配布 | 公開依存・JS / TS 教材・型・ライフサイクルを実効的に検査。V2 metadata を Web / CLI / SD / WASM で起動前検証 | SDKのAST依存検査と全新教材のstrict検査を追加。全32例と7教材に宣言を同梱。Web・CLI・SD・WASM・起動時に必須検査と拒否時の復旧を接続。Gallery配布物と外部宣言も照合。実際の能力表・SDK移行・全ビルド入口・実機受入は未完了 |
+| F10 検査・配布 | 公開依存・JS / TS 教材・型・ライフサイクルを実効的に検査。V2 metadata を Web / CLI / SD / WASM で起動前検証 | 全21例・7教材をAPI 2へ統一し、CLI・Web・SD・WASMで宣言を事前検査。CIに全例のarchiveビルドを追加。WASMと3機種をビルド。実機受入は未完了 |
 
 ## 固定する設計判断
 

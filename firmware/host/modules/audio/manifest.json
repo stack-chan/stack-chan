@@ -34,7 +34,6 @@
     "audio-buffer",
     "microphone",
     "speaker",
-    "stt-whisper",
     "calculatePower",
     "tts-local",
     "tts-remote",

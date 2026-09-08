@@ -3,6 +3,7 @@ import { type MotionPort, motionInfo } from 'motion-port'
 import Dynamixel, { OPERATING_MODE } from 'protocols/dynamixel'
 import { ServoBusError } from 'servo-bus'
 import { ServoDriverResources } from 'servo-driver-resources'
+import { createServoMaintenance } from 'servo-maintenance'
 import type { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'
 
@@ -101,6 +102,9 @@ class PControl {
 }
 
 export class DynamixelDriver {
+  get maintenance() {
+    return createServoMaintenance('dynamixel', this._pan, this._tilt)
+  }
   readonly motion: MotionPort
   #managed = false
   #managedGeneration = 0

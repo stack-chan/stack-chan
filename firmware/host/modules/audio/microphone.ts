@@ -110,6 +110,20 @@ export default class Microphone implements AudioInputPort {
     return pending.length ? Promise.all(pending).then(finish) : finish()
   }
 
+  monitor(onLevel: (level: number) => void): void {
+    this.#assertAvailable()
+    this.onReadable = function (size) {
+      const buffer = this.read(size)
+      if (!buffer || buffer.byteLength % 2)
+        throw new StackchanError('IO', 'Microphone returned an incomplete PCM frame')
+      const samples = new Int16Array(buffer)
+      let power = 0
+      for (const sample of samples) power += sample * sample
+      onLevel(samples.length ? Math.min(1, Math.sqrt(power / samples.length) / 32768) : 0)
+    }
+    this.start()
+  }
+
   start(): void {
     this.#assertAvailable()
     this.#recording = true

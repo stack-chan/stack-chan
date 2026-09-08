@@ -3,13 +3,13 @@ import {
   SETTINGS_SCHEMA,
   isSettingKey,
   type SettingKey,
-} from '../../../../firmware/host/modules/preferences/settings-schema'
+} from '../../../../firmware/sdk/settings-schema'
 
 export {
   SETTINGS_SCHEMA,
   TIMEZONE_PRESETS,
   validateSetting,
-} from '../../../../firmware/host/modules/preferences/settings-schema'
+} from '../../../../firmware/sdk/settings-schema'
 export const PREFERENCE_KEYS = SETTING_KEYS
 export type PreferenceKey = SettingKey
 export type PreferenceValues = Record<PreferenceKey, string>

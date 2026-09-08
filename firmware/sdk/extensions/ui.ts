@@ -16,6 +16,18 @@ export type ChoiceOptions<Value extends string = string> = MenuLabel & {
 }
 export type ToggleOptions = MenuLabel & { readonly value: boolean }
 export type ChangeHandler<Value> = (value: Value, task: TaskContext) => void | Promise<void>
+export type TrackedHand = Readonly<{
+  shape: 'fist' | 'point' | 'peace' | 'open'
+  x: number
+  y: number
+  rotationDeg: number
+}>
+export type FaceTracking = Readonly<{
+  leftEye: number
+  rightEye: number
+  mouth: number
+  hands: Readonly<{ left?: TrackedHand; right?: TrackedHand }>
+}>
 
 /** App-owned controls and appearance; no Piu or controller objects cross this boundary. */
 type BasicUI = AppContext['ui']
@@ -30,6 +42,9 @@ export interface AppUI extends BasicUI {
   setImageAvatar(pack: ImageAvatarPack): void
   setHandAnimation(animation: HandAnimation): void
   setEmoticon(emoticon: Emoticon | null): void
+  setTracking(tracking: FaceTracking | null): void
+  setMusicNotes(enabled: boolean): void
+  setFaceMotionEnabled(enabled: boolean): void
   localize(key: string, parameters?: Readonly<Record<string, string | number>>): string
 }
 

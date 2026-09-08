@@ -2,9 +2,15 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "../../manifest.json",
-    "../../../../../host/modules/testing/manifest.json"
+    "../../../../../host/modules/testing/manifest.json",
+    "../../../../../sdk/manifest.json"
   ],
   "modules": {
     "main": "./codex-voice.test"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
   }
 }

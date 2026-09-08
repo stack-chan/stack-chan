@@ -8,6 +8,7 @@ import { reasonFromError } from 'motion-driver-callback'
 import { directMotionPort, motionInfo } from 'motion-port'
 import RS30X from 'protocols/rs30x'
 import { ServoDriverResources } from 'servo-driver-resources'
+import { createServoMaintenance } from 'servo-maintenance'
 import type { Maybe, Rotation } from 'stackchan-util'
 
 type RS30XDriverProps = {
@@ -16,6 +17,9 @@ type RS30XDriverProps = {
 }
 
 export class RS30XDriver {
+  get maintenance() {
+    return createServoMaintenance('rs30x', this._pan, this._tilt)
+  }
   readonly motion = directMotionPort(this, motionInfo('measured', [-150, 150], [-10, 25]))
   #resources = new ServoDriverResources()
   _pan: RS30X

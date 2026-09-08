@@ -1,2 +1,2 @@
-export { DOMAIN } from 'settings-schema'
+export { DOMAIN } from 'stackchan/settings-schema'
 export const DEFAULT_FONT = 'OpenSans-Regular-24.bf4'

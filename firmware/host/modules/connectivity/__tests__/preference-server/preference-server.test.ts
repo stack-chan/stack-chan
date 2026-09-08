@@ -1,6 +1,6 @@
 import { PreferenceServer } from 'preference-server'
-import { SETTING_KEYS, SETTINGS_MESSAGE_MAX_BYTES } from 'settings-schema'
 import { SettingsService } from 'settings-service'
+import { SETTING_KEYS, SETTINGS_MESSAGE_MAX_BYTES } from 'stackchan/settings-schema'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
 

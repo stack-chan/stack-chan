@@ -8,7 +8,10 @@
   "description": "Owned SDK servo and LED checks, including the CoreS3 head LEDs.",
   "appApiVersion": 2,
   "hostApiVersion": 5,
-  "source": { "path": "manifest.json", "entrypoint": "mod.js" },
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.js"
+  },
   "targets": ["portable", "simulator"],
   "capabilities": ["ui.controls", "input.primary"],
   "entrypoints": ["mod"]

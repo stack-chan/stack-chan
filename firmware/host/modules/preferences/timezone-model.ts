@@ -1,6 +1,6 @@
-import { DEFAULT_TIMEZONE_ID, TIMEZONE_PRESETS, type TimezoneId, type TimezonePreset } from 'settings-schema'
+import { DEFAULT_TIMEZONE_ID, TIMEZONE_PRESETS, type TimezoneId, type TimezonePreset } from 'stackchan/settings-schema'
 
-export { DEFAULT_TIMEZONE_ID, TIMEZONE_PRESETS, type TimezoneId, type TimezonePreset } from 'settings-schema'
+export { DEFAULT_TIMEZONE_ID, TIMEZONE_PRESETS, type TimezoneId, type TimezonePreset } from 'stackchan/settings-schema'
 
 export function normalizeTimezoneId(value: unknown): TimezoneId {
   if (typeof value !== 'string') return DEFAULT_TIMEZONE_ID

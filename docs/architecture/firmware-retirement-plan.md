@@ -1,6 +1,6 @@
 # 旧経路の撤去とサンプル整理
 
-対象は [実装計画](firmware-sdk-redesign-progress.md) の F5 / F6 / F11。2026-09-06 時点の撤去台帳であり、全項目の完了宣言ではない。残す機能を SDK へ移した実装と、その機能の旧経路を削除した差分を一組として確認する。
+対象は [実装計画](firmware-sdk-redesign-progress.md) の F5 / F6 / F11。2026-09-08 時点の撤去台帳であり、全項目の完了宣言ではない。残す機能を SDK へ移した実装と、その機能の旧経路を削除した差分を一組として確認する。
 
 ## コード量の起点
 
@@ -140,44 +140,44 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 
 ## 32例の分類
 
-下表は残す機能から決めた移行方針。「統合」は独立した機能・機種・外部プロトコルを消す意味ではなく、アプリ内の選択肢や拡張へまとめて旧入口を撤去することを指す。単純削除を確定した機能はまだない。未実装の SDK 名は必要な責務を表し、利用可能な公開 API 名ではない。
+下表はソース移行・統合後の状態。「統合」は役割を同じアプリにまとめて旧入口を撤去したことを指す。必要な通信形式・機器・素材を維持し、サーボの永続設定は明示操作へ変更した。実機受入は別に必要である。
 
 | 旧例 | 分類・統合先 | 必要な SDK / 保持する機能 | 撤去する経路・現在の状態 |
 | --- | --- | --- | --- |
-| `ai_stackchan` | 統合 → 対話アプリ | 録音・STT・会話・発話・表情、ボタンで会話 | raw 録音・Dialogue の直接所有・独自 busy。未着手 |
-| `ai_stackchan_api` | 統合 → 対話アプリの HTTP 入力 | 上記と HTTP 入力拡張。既存 HTTP 操作を保持 | 重複した対話・表情処理、キーの trace、独自サーバー所有。未着手 |
-| `beacon_advertiser` | 統合 → BLE ビーコン例の送信モード | BLE 拡張・素材再生・入力、既存 packet 形式 | TTS 置換・音声レートのアプリ内回避・raw BLE。未着手 |
-| `beacon_scanner` | 統合 → BLE ビーコン例の受信モード | BLE 拡張・受信フィルター・素材再生 | 同上。送受信の役割は両方残す。未着手 |
-| `calibration` | 統合 → サーボ診断・設定 | SCServo オフセットの読取・書込。通常の姿勢補正と区別 | 実行不能な `_driver._pan/_tilt` と raw polling。現状が未完成なので、正しい校正手順を実機検証するまで移行完了にしない |
-| `chat_audioio` | 移行 → 会話アプリ | 全二重会話・provider 選択・画像顔・口同期・入力・UI | 巨大 MOD 内の会話状態・Timer・直接 Piu 操作を分離。未着手 |
-| `chatgpt` | 統合 → 対話アプリのテキスト入力 | WebSocket の入力、会話・発話・見回し | 対話3例の重複と独自周期制御。未着手 |
-| `cheerup_ble_lite` | 統合 → 応援アプリの BLE 入力 | BLE / motion / 表情 / 素材再生、立上がり検出と平滑化 | BLE / WS で重複する動作・音声待ち・Timer。未着手 |
-| `cheerup_ws` | 統合 → 応援アプリの WS 入力 | WebSocket 入力と上記動作。既存ペイロードを保持 | 同上と固定接続先の直書き。未着手 |
-| `codex_voice` | 移行 → 遠隔会話アプリ | 会話・USB 音声・headTouch・UI。既存の承認／停止操作を保持 | raw touchPanel・drawer と会話の直接参照。未着手 |
-| `dynamixel` | 統合 → サーボ診断・設定 | DYNAMIXEL の ID / モード / 状態確認 | 通常教材からの直接 protocol・UART 所有。機種サポートは残す。未着手 |
+| `ai_stackchan` | **統合済み** → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | 録音・STT・会話・発話・表情、ボタンで会話 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `ai_stackchan_api` | **統合済み** → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | 上記と HTTP 入力拡張。既存 HTTP 操作を保持 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `beacon_advertiser` | **統合済み** → [beacon](../../firmware/mods/examples/beacon/README_ja.md) | BLE 拡張・素材再生・入力、既存 packet 形式 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `beacon_scanner` | **統合済み** → [beacon](../../firmware/mods/examples/beacon/README_ja.md) | BLE 拡張・受信フィルター・素材再生 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `calibration` | **統合済み** → [servo_diagnostics](../../firmware/mods/examples/servo_diagnostics/README_ja.md) | SCServo オフセットの読取・書込。通常の姿勢補正と区別 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `chat_audioio` | **移行済み** → [chat_audioio](../../firmware/mods/examples/chat_audioio/README_ja.md) | 全二重会話・provider選択・口同期・入力・共通UI | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `chatgpt` | **統合済み** → [conversation](../../firmware/mods/examples/conversation/README_ja.md) | WebSocket の入力、会話・発話・見回し | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `cheerup_ble_lite` | **統合済み** → [cheerup](../../firmware/mods/examples/cheerup/README_ja.md) | BLE / motion / 表情 / 素材再生、立上がり検出と平滑化 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `cheerup_ws` | **統合済み** → [cheerup](../../firmware/mods/examples/cheerup/README_ja.md) | WebSocket 入力と上記動作。既存ペイロードを保持 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `codex_voice` | **移行済み** → [codex_voice](../../firmware/mods/examples/codex_voice/README_ja.md) | 会話・USB 音声・headTouch・UI。既存の承認／停止操作を保持 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `dynamixel` | **統合済み** → [servo_diagnostics](../../firmware/mods/examples/servo_diagnostics/README_ja.md) | DYNAMIXEL の ID / モード / 状態確認 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `face` | **移行済み** → UI 拡張例 | 表情・色・balloon・emoticon と翻訳メニュー | SDK の UI 拡張と所有された周期処理へ移行。手動 Timer・Piu effect の直接生成を削除。配置・フォントはホストの共通表示を使用 |
-| `face_tracker` | 移行 → UnitV2 追従例 | HTTP 入力拡張・注視、UnitV2 の結果形式 | raw HTTP request と座標変換を入力 adapter へ整理。未着手 |
+| `face_tracker` | **移行済み** → [face_tracker](../../firmware/mods/examples/face_tracker/README_ja.md) | HTTP 入力拡張・注視、UnitV2 の結果形式 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `image_avatar_lite` | **移行済み** → 画像顔の拡張例 | 6キャラクター・12表情・43画像と配置 | SDK UIへ移行。グローバル登録・ID検索の暗黙fallback・`ui.avatar` とサンプルの内部 `parts/*` 依存を撤去。目と口の画像名・サイズの二重指定も削除。実機・初学者は未受入 |
 | `light` | **統合済み** → `board_diagnostics` | LED の色・点滅・虹・消灯、利用できる主入力とメニュー | raw LED とボタン代入を削除。複数のLED名を選び、アプリ終了で全使用LEDを消灯。実機は未受入 |
-| `lip_sync` | 移行 → 音量観測の例 | 音声入力のレベル観測・口の開閉 | microphone の `onReadable` 上書き・read/start。録音後の再生教材へ単純統合するとリアルタイム観測が失われるので別機能として残す |
-| `local_peer_hello` | 移行 → 端末間通信の例 | ローカル通信・設定・UI、文字数制限と入力検証 | raw Timer と drawer、アプリ外の通信寿命。未着手 |
+| `lip_sync` | **移行済み** → [lip_sync](../../firmware/mods/examples/lip_sync/README_ja.md) | 音声入力のレベル観測・口の開閉 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `local_peer_hello` | **移行済み** → [local_peer_hello](../../firmware/mods/examples/local_peer_hello/README_ja.md) | ローカル通信・設定・UI、文字数制限と入力検証 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `localized_drawer` | **統合済み** → `face` | 翻訳メニュー・三言語の辞書 | 辞書を face へ集約し、SDK の localize / addAction へ移行。旧プログラムと単独 archive の manifest を削除 |
 | `look_around` | **移行済み** | SDK 主入力・周期処理・角度による注視 | 旧フック、A/B/C 上書き、Timer、内部 util import を削除。サーボなしの案内と停止を確認。実機は未検証 |
 | `m5stackchan_smoke` | **統合済み** → `board_diagnostics` | サーボの小さい往復・トルク解放・CoreS3 head LED・自動診断 | raw Timer / torque / 秒単位の姿勢をSDKへ移行。旧入口を削除しUSB診断runnerを更新。実機は未受入 |
-| `mcp` | 移行 → MCP 拡張例 | ネットワーク・MCP server・表情・音声・設定 UI | 生の Wi-Fi 状態取得、別所有の server / drawer。未着手 |
-| `mediapipe_ble` | 移行 → MediaPipe 追従例 | localPeer、姿勢追従、手の表示。UnitV2 例とは入力・表示が異なる | raw Hands / effect、独自更新 Timer。未着手 |
-| `mimic_follow` | 統合 → 姿勢共有例の受信モード | DNS-SD 拡張・motion、既存 TXT 形式 | raw discover と姿勢 I/F。未着手 |
-| `mimic_main` | 統合 → 姿勢共有例の送信モード | DNS-SD 拡張・姿勢読取、名前競合の扱い | raw advertise と Timer。送信と受信をどちらも保持。未着手 |
+| `mcp` | **移行済み** → [mcp](../../firmware/mods/examples/mcp/README_ja.md) | ネットワーク・MCP server・表情・音声・設定 UI | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `mediapipe_ble` | **移行済み** → [mediapipe_ble](../../firmware/mods/examples/mediapipe_ble/README_ja.md) | localPeer、姿勢追従、手の表示。UnitV2 例とは入力・表示が異なる | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `mimic_follow` | **統合済み** → [pose_sharing](../../firmware/mods/examples/pose_sharing/README_ja.md) | DNS-SD 拡張・motion、既存 TXT 形式 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `mimic_main` | **統合済み** → [pose_sharing](../../firmware/mods/examples/pose_sharing/README_ja.md) | DNS-SD 拡張・姿勢読取、名前競合の扱い | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `mini_app_sample` | **統合済み** → ミニゲーム集の JUMP | UI 拡張・タップ・フレーム更新・素材 | 単独の旧入口・重複素材を削除。`jump.ts` / `catch.ts` に正本を集約。ルールとライセンスは保持 |
 | `mini_app_ui_sample` | **移行済み** → UI 拡張例 | タッチ UI・画面終了・AppBar との共存 | `mod.ts` / `screen.ts` を SDK の Piu 拡張へ移行。選択・通知・説明・終了を保持 |
 | `monologue` | **移行済み** | 主入力、自由文は `say`、素材は `playClip` | 旧フック、config による引数の読み替え、A ボタン上書き、内部 util import を削除。音声種別・連打・未対応と WASM 再生を確認。実機は未検証 |
-| `setup_rs30x` | 統合 → サーボ診断・設定 | RS30X の ID 設定・角度確認 | 二重の入力代入と `_driver` 依存。ID 書込手順と対応機種を実機確認して移行する |
+| `setup_rs30x` | **統合済み** → [servo_diagnostics](../../firmware/mods/examples/servo_diagnostics/README_ja.md) | RS30X の ID 設定・角度確認 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `stackchan_catch` | **統合済み** → ミニゲーム集の CATCH | UI 拡張・タップ・ゲーム状態・描画・素材 | 単独の旧入口・重複素材を削除。`jump.ts` / `catch.ts` に正本を集約。ルールとライセンスは保持 |
 | `stackchan_minigames` | **移行済み** → SDK ミニゲーム集 | JUMP / CATCH の選択と停止 | 合成器・761行の合成ソース・追跡していた Gallery コピー・旧入口を撤去。配布ソースと archive を再生成 |
-| `unit_temperature` | 移行 → センサー拡張例 | SHT3x・周期読取・UI | raw sensor の生成・Timer・drawer。未着手 |
-| `web_radio` | 移行 → ラジオアプリ | 音声ストリームの操作・局の選択・設定 | 会話・通常再生と別に物理出力を使う経路、MOD 内の UI と所有。未着手 |
+| `unit_temperature` | **移行済み** → [unit_temperature](../../firmware/mods/examples/unit_temperature/README_ja.md) | SHT3x・周期読取・UI | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
+| `web_radio` | **移行済み** → [web_radio](../../firmware/mods/examples/web_radio/README_ja.md) | 音声ストリームの操作・局の選択・設定 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 
-元の32例のうち10例を SDK の6パッケージへ移行・統合した。残る22例は未移行。実機・初学者の受入は別途必要であり、自動試験だけをもって全移行の完了とはしない。統合先を新設する際も、アプリごとに同じ接続・停止・状態管理をコピーしない。必要な公開拡張の契約と資源所有を決め、最初の利用者と一緒に実装・検証する。
+元の32例はSDKの21パッケージへ移行・統合済みで、API 1の実行例は0件。各例の旧コードは撤去したが、V1ホスト／Blockly／provider-dialoguesの参考実装は残る。後者はMOD宣言と実行入口を持つアプリではない。物理機器・外部サービスと初学者の受入、製品ソース純減は未達。[契約・検証・今回のコード量](sdk-example-migration-2026-09-08.md)を参照する。
 
 ## 操作の中継と所有の整理
 

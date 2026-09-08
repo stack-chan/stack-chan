@@ -135,7 +135,9 @@ export async function verifyDefaultApp(): Promise<void> {
   await wait(40)
   equal(menus.get('sdk:menu:colors')?.value, 'dark', 'tertiary button and menu share the same value')
   await choose('camera')
-  equal(captures, 1)
+  // Wait for observable completion, including camera's asynchronous input handoff.
+  for (let attempts = 0; attempts < 100 && released === 0; attempts++) await wait(20)
+  equal(captures, 1, 'default camera action reaches the physical capture port')
   equal(stops, 1, 'capture releases camera before the app displays the frame')
   equal(released, 1)
   const lateChoice = controller['sdk:menu:face']

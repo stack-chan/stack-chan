@@ -3,7 +3,7 @@ import { AppSession } from 'app-session'
 import clockTicks from 'clock-ticks'
 import { StackchanRuntimeMotion } from 'runtime-motion'
 import { PWMServoDriver } from 'sg90-driver'
-import { defineApp } from 'stackchan'
+import { defineApp, StackchanError } from 'stackchan'
 import { wait } from 'stackchan-util'
 import { assert, equal } from 'testing/assert'
 import Time from 'time'
@@ -106,6 +106,42 @@ async function run(): Promise<void> {
     channels.every((channel) => !channel.closed),
     'app close retains host-owned PWM outputs',
   )
+  const maintaining = new StackchanRuntimeMotion(driver, {
+    clock,
+    onPosition() {},
+    onError(error) {
+      throw error
+    },
+  })
+  let complete!: () => void
+  let entered = false
+  const maintenance = maintaining.maintain(
+    () =>
+      new Promise<void>((resolve) => {
+        entered = true
+        complete = resolve
+      }),
+  )
+  await wait(1)
+  assert(entered, 'maintenance starts after normal movement stops')
+  let rejectedBusy = false
+  try {
+    await maintaining.move({ yawDeg: 0, pitchDeg: 0 }, { durationMs: 0 })
+  } catch (error) {
+    rejectedBusy = error instanceof StackchanError && error.code === 'BUSY'
+  }
+  assert(rejectedBusy, 'normal commands cannot interleave with maintenance')
+  let maintenanceClosed = false
+  const maintenanceClose = maintaining.close().then(() => {
+    maintenanceClosed = true
+  })
+  await wait(1)
+  equal(maintenanceClosed, false, 'app close waits for an in-flight bus command')
+  complete()
+  await maintenance
+  await maintenanceClose
+  equal(maintenanceClosed, true)
+  equal(timers, 0)
   driver.close()
   assert(
     channels.every((channel) => channel.closed),

@@ -18,6 +18,10 @@ export class StackchanRuntimeMotion implements AppMotion {
   readonly #driver: MotionDriver
   readonly #options: Options
   #queue: OperationQueue
+  #position: MotionTarget | undefined
+  get position(): MotionTarget | undefined {
+    return this.#position ? { ...this.#position } : undefined
+  }
   #foreground = 0
   #gaze: MotionTarget | undefined
   #gazePoint: Vector3 | null = null
@@ -34,7 +38,13 @@ export class StackchanRuntimeMotion implements AppMotion {
 
   constructor(driver: MotionDriver, options: Options) {
     this.#driver = driver
-    this.#options = options
+    this.#options = {
+      ...options,
+      onPosition: (rotation) => {
+        this.#position = { yawDeg: (rotation.y * 180) / Math.PI, pitchDeg: (rotation.p * 180) / Math.PI }
+        options.onPosition(rotation)
+      },
+    }
     this.#queue = new OperationQueue({ clock: options.clock })
     const info = this.info
     if (info.availability === 'unavailable') return
@@ -72,6 +82,34 @@ export class StackchanRuntimeMotion implements AppMotion {
   }
   get gazePoint(): Vector3 | null {
     return this.#gazePoint
+  }
+
+  #maintaining = false
+  #maintenance: Promise<unknown> | undefined
+  maintain<T>(operation: () => Promise<T>, resume = true): Promise<T> {
+    this.#assertReady()
+    this.#maintaining = true
+    const pending = (async () => {
+      try {
+        await this.#haltQueue(true)
+        this.#attached = false
+        this.#driver.onDetached?.()
+        if (this.#closed) throw new StackchanError('CLOSED', 'App motion is closed')
+        return await operation()
+      } finally {
+        this.#maintaining = false
+        if (!resume)
+          this.#failure = new StackchanError('CONFIG', 'Servo bus settings changed; restart with the new baudrate')
+        if (!this.#closed && resume) {
+          this.#driver.onAttached?.()
+          this.#attached = true
+        }
+      }
+    })()
+    this.#maintenance = pending
+    return pending.finally(() => {
+      if (this.#maintenance === pending) this.#maintenance = undefined
+    })
   }
 
   move(target: MotionTarget, options: MotionOptions): Promise<MotionResult> {
@@ -125,6 +163,12 @@ export class StackchanRuntimeMotion implements AppMotion {
     if (!this.#shutdown) {
       this.#closed = true
       this.#shutdown = new OwnedResources([
+        // Bus commands have bounded physical completion; do not release their driver early.
+        () =>
+          this.#maintenance?.then(
+            () => {},
+            () => {},
+          ),
         () => this.#haltQueue(),
         () => this.#relax(),
         () => {
@@ -140,6 +184,7 @@ export class StackchanRuntimeMotion implements AppMotion {
   relax(): Promise<void> {
     try {
       if (this.#closed) throw new StackchanError('CLOSED', 'App motion is closed')
+      if (this.#maintaining) throw new StackchanError('BUSY', 'Servo maintenance is in progress')
       if (this.#stopping) throw new StackchanError('BUSY', 'Motion is stopping')
       if (!this.#canRelax) throw new StackchanError('UNSUPPORTED', 'This driver cannot release torque')
       return this.#haltQueue(true)
@@ -289,6 +334,7 @@ export class StackchanRuntimeMotion implements AppMotion {
   }
 
   #assertReady(): void {
+    if (this.#maintaining) throw new StackchanError('BUSY', 'Servo maintenance is running')
     if (this.#closed) throw new StackchanError('CLOSED', 'App motion is closed')
     if (this.#failure) throw this.#failure
     if (this.#stopping) throw new StackchanError('BUSY', 'Motion is stopping')

@@ -13,7 +13,6 @@ type ActiveNetwork = {
   closing: boolean
 }
 let current: ActiveNetwork | undefined
-let legacy: NetworkConnection[] = []
 
 /** Matching consumers share one radio; a different network requires releasing its existing owners. */
 export function openNetworkConnection(options: StartNetworkConnectionOptions): NetworkConnection {
@@ -103,32 +102,4 @@ function notify(callback: () => void): void {
 }
 function publish(record: ActiveNetwork, callback: (owner: StartNetworkConnectionOptions) => void): void {
   for (const [connection, owner] of [...record.owners]) if (!connection.closed) notify(() => callback(owner))
-}
-
-/** V1 bridge. stopNetworkConnection only releases calls made through this bridge. */
-export function startNetworkConnection(options: StartNetworkConnectionOptions): NetworkService {
-  if (current && !current.service.matchesCredentials(options)) stopNetworkConnection()
-  legacy.push(openNetworkConnection(options))
-  if (!current) throw new StackchanError('CLOSED', 'Wi-Fi connection closed while starting')
-  return current.service
-}
-export function stopNetworkConnection(): void {
-  const owned = legacy
-  legacy = []
-  let failure: unknown
-  let failed = false
-  for (const connection of owned) {
-    try {
-      connection.close()
-    } catch (error) {
-      if (!failed) {
-        failure = error
-        failed = true
-      }
-    }
-  }
-  if (failed) throw failure
-}
-export function getNetworkConnection(): NetworkService | undefined {
-  return current?.service
 }

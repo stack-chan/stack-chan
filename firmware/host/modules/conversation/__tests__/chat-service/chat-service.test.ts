@@ -3,14 +3,14 @@ import ChatAudioIO from 'testing/fakes/ChatAudioIO'
 type ChatAudioIOBase = InstanceType<typeof ChatAudioIO>
 
 import {
-  type ChatConfig,
   ChatService,
   ChatState,
   type ChatState as ChatStateValue,
-  type ChatTool,
   createXiaozhiV1Connection,
   MAX_TRANSCRIPT_CHARS,
 } from 'chat'
+import type { RealtimeProvider } from 'stackchan/extensions/conversation'
+import type { Tool } from 'stackchan/extensions/network'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
 
@@ -21,19 +21,13 @@ equal(ChatService.supportsProtocol('xiaozhi-v1'), true, 'host reports XiaoZhi v1
 equal(ChatService.supportsProtocol('xiaozhi-v1', 2), false, 'host rejects a newer required contract')
 equal(ChatService.supportsProtocol('unknown'), false, 'host rejects unknown connection protocols')
 
-const tools: Record<string, ChatTool> = {
-  sample: {
-    name: 'sample',
-    description: 'sample tool',
-    parameters: {
-      type: 'object' as const,
-      properties: { foo: { type: 'string' } },
-      required: ['foo'],
-      additionalProperties: false,
-    },
-    execute: () => 'ok',
-  },
+const inputSchema = {
+  type: 'object' as const,
+  properties: { foo: { type: 'string', enum: ['bar', 'baz'] } },
+  required: ['foo'],
+  additionalProperties: false,
 }
+const tools: readonly Tool[] = [{ name: 'sample', description: 'sample tool', inputSchema, execute: () => 'ok' }]
 
 const states: ChatStateValue[] = []
 const connection = createXiaozhiV1Connection({
@@ -60,7 +54,10 @@ const ChatAudioIOAny = ChatAudioIO as unknown as {
     specifier?: string
     providerID?: unknown
     apiKey?: string
-    functions?: { name: string }[]
+    modelID?: string
+    voiceID?: string
+    instructions?: string
+    functions?: { name: string; parameters: Tool['inputSchema'] }[]
     configuration?: {
       protocol?: string
       endpoint?: string
@@ -103,6 +100,11 @@ equal(lastOptions.configuration?.features?.mcp, true, 'registered tools advertis
 equal(lastOptions.configuration?.features?.aec, true, 'AEC is explicitly advertised')
 equal(lastOptions.configuration?.features?.glyph_push, undefined, 'glyph push remains unadvertised')
 equal(lastOptions.functions?.length, 1, 'tool schemas should reach the worker')
+equal(
+  JSON.stringify(lastOptions.functions?.[0].parameters),
+  JSON.stringify(inputSchema),
+  'SDK schema constraints reach the wire unchanged',
+)
 
 service.start()
 equal(states[0], ChatState.CONNECTING, 'state should map to CONNECTING')
@@ -145,12 +147,53 @@ service.sendFunctionResult('call-1', 'sample', { ok: true })
 equal(instance.lastFunctionResult?.call, 'call-1', 'sendFunctionResult forwards call id')
 equal(service.functionCalls[0]?.status, 'completed', 'function result should complete the call')
 
-const legacyOpenAI = new ChatService({
-  config: { type: 'openAIRealtime', endpoint: 'wss://relay.example.test/openai' } as ChatConfig,
-  chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
-})
-equal(ChatAudioIOAny.lastOptions?.specifier, 'openAIRealtime', 'legacy OpenAI ChatConfig remains compatible')
-legacyOpenAI.close()
+const providers: RealtimeProvider[] = [
+  'deepgramAgent',
+  'elevenLabsAgent',
+  'googleGeminiLive',
+  'humeAIEVI',
+  'openAIRealtime',
+]
+for (const provider of providers) {
+  const endpoint = `wss://relay.example.test/${provider}`
+  const realtime = new ChatService({
+    connection: {
+      kind: 'provider',
+      provider,
+      endpoint,
+      model: 'configured-model',
+      voice: 'configured-voice',
+      instructions: 'be brief',
+      apiKey: 'test-key',
+    },
+    tools,
+    chatAudioIOCtor: ChatAudioIO as unknown as new (chatOptions: Record<string, unknown>) => ChatAudioIOBase,
+  })
+  equal(ChatAudioIOAny.lastOptions?.specifier, provider, 'SDK provider selects its worker')
+  equal(ChatAudioIOAny.lastOptions?.providerID, endpoint, 'endpoint is translated only at the worker boundary')
+  equal(ChatAudioIOAny.lastOptions?.modelID, 'configured-model')
+  equal(ChatAudioIOAny.lastOptions?.voiceID, 'configured-voice')
+  equal(ChatAudioIOAny.lastOptions?.instructions, 'be brief')
+  equal(ChatAudioIOAny.lastOptions?.apiKey, 'test-key')
+  realtime.close()
+}
+
+for (const options of [
+  { config: { type: 'openAIRealtime' } },
+  { connection, tools: [{ name: 'old-schema', parameters: inputSchema }] },
+]) {
+  const before = ChatAudioIOAny.instances?.length
+  let rejected = false
+  try {
+    new ChatService({ ...options, chatAudioIOCtor: ChatAudioIO } as unknown as ConstructorParameters<
+      typeof ChatService
+    >[0])
+  } catch {
+    rejected = true
+  }
+  assert(rejected, 'retired configuration and tool aliases must be rejected')
+  equal(ChatAudioIOAny.instances?.length, before, 'rejected options cannot start audio IO')
+}
 
 service.stop()
 equal(states[2], ChatState.DISCONNECTING, 'state should map to DISCONNECTING')

@@ -190,7 +190,7 @@ host API 6以上では `view.setImageAvatar(pack)` で画像パックを選び�
 
 `input(app)` を `stackchan/extensions/input` から取得すると、`onPress('primary' | 'secondary' | 'tertiary', handler)`、`onHeadTouch(handler)`、`onMotion(handler)` を使えます。ボタン名は利用できるA/B/Cの順番で、primaryだけはボタンのない機種でメニューの「実行」を使えます。head touchは `gesture` と任意の `tapDurationMs`、motionは `motion` を持つ読み取り専用イベントです。時間はmsで、raw device・ticks・ドライバーは渡しません。実行前に `capabilities.get('input.headTouch')` などで対応を調べます。購読解除とアプリ終了で処理を取り消し、最後のmotion購読解除でIMUのポーリングを止めます。
 
-`lighting(app)` を `stackchan/extensions/lighting` から取得すると、`names` に実際に使えるLED名が並びます。`color(name, { r, g, b })`、`rainbow(name)`、`off(name)` を使い、アプリが使用したLEDは終了時に消灯します。WASMは出力bridgeを持たないため `lighting` は `unavailable` です。未検出のPY32も成功として扱いません。未対応は `UNSUPPORTED`、未知の名前は `INVALID_ARGUMENT`、機器例外は `IO` です。host API 5以上では `blink(name, { r, g, b }, { periodMs })` も使えます。`periodMs` は点灯と消灯を合わせた1周期で、100〜86,400,000 msです。別の効果へ切り替えると前の効果を止め、アプリ終了時も消灯して機器のタイマーを止めます。実行例は [ボード診断](../mods/examples/board_diagnostics/mod.js) です。個々のLED範囲の指定は旧APIに残り、公開SDKにはまだ含みません。
+`lighting(app)` を `stackchan/extensions/lighting` から取得すると、`names` に実際に使えるLED名が並びます。`color(name, { r, g, b })`、`rainbow(name)`、`off(name)` を使い、アプリが使用したLEDは終了時に消灯します。WASMは出力bridgeを持たないため `lighting` は `unavailable` です。未検出のPY32も成功として扱いません。未対応は `UNSUPPORTED`、未知の名前は `INVALID_ARGUMENT`、機器例外は `IO` です。host API 5以上では `blink(name, { r, g, b }, { periodMs })` も使えます。`periodMs` は点灯と消灯を合わせた1周期で、100〜86,400,000 msです。別の効果へ切り替えると前の効果を止め、アプリ終了時も消灯して機器のタイマーを止めます。実行例は [ボード診断](../mods/examples/board_diagnostics/mod.js) です。公開SDKはLED名単位で操作します。個々のLED範囲の指定は機種ドライバーの内部操作です。
 
 ## 通信・会話・センサー・保守の拡張
 
@@ -248,7 +248,7 @@ UI拡張には `setTracking`、`setMusicNotes`、`setFaceMotionEnabled` を追�
 
 USB 遠隔会話は自動起動・`conversation.remote()` のどちらも、起動中は共通のマイクとスピーカーを占有します。他の録音・再生・会話との競合は `BUSY` です。`await session.close()` で物理入出力を閉じて使用権を返し、前の会話から届く音声要求を拒否します。USB の制御通信は会話停止後も維持します。機器の解放に失敗した場合はエラーを返し、ホストを再起動するまで音声の再利用を止めます。
 
-WASMで未実装の通信・機器は `UNSUPPORTED` です。能力表の `native / simulated / unavailable` と実行時の設定エラーを区別してください。ソース移行と自動検査が終わっても、物理無線・サービス接続・サーボ保存・電源断・初学者による受入は別途必要です。参考providerライブラリーはSDKへ統合しました。無線・音声の競合処理、実機受入と製品コード純減は、引き続き再設計全体の残件です。
+WASMで未実装の通信・機器は `UNSUPPORTED` です。能力表の `native / simulated / unavailable` と実行時の設定エラーを区別してください。ソース移行と自動検査が終わっても、物理無線・サービス接続・サーボ保存・電源断・初学者による受入は別途必要です。参考providerライブラリーはSDKへ統合しました。無線・音声の競合処理と実機・初学者の受入は、引き続き再設計全体の残件です。製品コードの純減は完了条件に含めず、廃止APIの実装・利用者・互換経路が残っていないことを確認します。[残存確認の記録](../../docs/architecture/retired-api-audit-2026-09-09.md) を参照してください。
 
 
 ## Blocklyと顔エディター（host API 8）

@@ -4,6 +4,7 @@ import { ResourceScope } from 'owned-resources'
 import { StackchanError } from 'stackchan/errors'
 import { TaskScope } from 'task-scope'
 import { assert, equal } from 'testing/assert'
+import ChatAudioIO from 'testing/fakes/ChatAudioIO'
 import Timer from 'timer'
 
 async function rejects(promise, code) {
@@ -73,6 +74,86 @@ function reply(provider, text) {
   return { candidates: [{ content: { role: 'model', parts: [{ thought: true, text: 'private' }, { text }] } }] }
 }
 async function run() {
+  for (let cycle = 0; cycle < 100; cycle++) {
+    const owner = scope()
+    let reservations = 0
+    let states = 0
+    let transcripts = 0
+    let calls = 0
+    const providers = ['deepgramAgent', 'elevenLabsAgent', 'googleGeminiLive', 'humeAIEVI', 'openAIRealtime']
+    const provider = providers[cycle % providers.length]
+    const tools = [
+      {
+        name: 'echo',
+        description: 'repeat a choice',
+        inputSchema: {
+          type: 'object',
+          properties: { value: { type: 'string', enum: ['hello'] } },
+          required: ['value'],
+        },
+        execute(input) {
+          calls++
+          return input.value
+        },
+      },
+    ]
+    const chat = createAppConversation(owner, settings, {
+      reserveStream(input, output) {
+        equal(input && output, true, 'realtime reserves both physical directions')
+        reservations++
+        return () => {
+          reservations--
+        }
+      },
+      failStream(error) {
+        throw error
+      },
+    })
+    const session = await chat.realtime({
+      provider,
+      tools,
+      model: 'model',
+      voice: 'voice',
+      volume: 0.4,
+      endpoint: 'wss://relay.example.test/realtime',
+      onState() {
+        states++
+      },
+      onTranscript() {
+        transcripts++
+      },
+    })
+    const io = ChatAudioIO.instances[ChatAudioIO.instances.length - 1]
+    equal(reservations, 1, 'connection owns audio until close')
+    equal(io.options.specifier, provider, 'SDK provider reaches the real ChatService')
+    equal(io.options.modelID, 'model')
+    equal(io.options.voiceID, 'voice')
+    equal(io.options.providerID, 'wss://relay.example.test/realtime')
+    equal(
+      JSON.stringify(io.options.functions[0].parameters),
+      JSON.stringify(tools[0].inputSchema),
+      'SDK schema reaches the worker',
+    )
+    io.emitFunctionCall('call', 'echo', { value: 'hello' })
+    for (let step = 0; step < 16; step++) await Promise.resolve()
+    equal(calls, 1, 'SDK tool is executed once')
+    equal(io.lastFunctionResult.call, 'call', 'tool response keeps the provider call ID')
+    equal(io.lastFunctionResult.result, 'hello')
+    await session.close()
+    await session.close()
+    equal(io.closeCount, 1, 'worker is closed once')
+    equal(reservations, 0, 'closing releases physical audio')
+    const observedStates = states
+    io.emitState(ChatAudioIO.CONNECTED)
+    io.emitOutputTranscript('late')
+    io.emitFunctionCall('late-call', 'echo', { value: 'hello' })
+    for (let step = 0; step < 16; step++) await Promise.resolve()
+    equal(states, observedStates, 'closed connection ignores late state changes')
+    equal(transcripts, 0, 'closed connection ignores late transcripts')
+    equal(calls, 1, 'closed connection cannot execute late tool calls')
+    equal(owner.size, 0, 'closed connection removes its app registrations')
+    await owner.close()
+  }
   {
     const owner = scope()
     let requests = 0

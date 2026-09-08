@@ -125,19 +125,17 @@ export function createAppConversation(
               sendFunctionResult(call: string, name: string, result: string): void
             }
           }
-          const tools = Object.fromEntries(
-            (options.tools ?? []).map((tool) => [tool.name, { ...tool, parameters: tool.inputSchema }]),
-          )
           const chat = new ChatService({
-            config: {
-              type: options.provider ?? settings.get('chat.type'),
+            connection: {
+              kind: 'provider',
+              provider: options.provider ?? settings.get('chat.type'),
               apiKey: options.apiKey ?? (settings.get('chat.apiKey') || settings.get('ai.token')),
               endpoint: options.endpoint ?? settings.get('chat.endpoint'),
-              modelID: options.model ?? settings.get('chat.modelID'),
-              voiceID: options.voice ?? settings.get('chat.voiceID'),
+              model: options.model ?? settings.get('chat.modelID'),
+              voice: options.voice ?? settings.get('chat.voiceID'),
               instructions: options.instructions ?? settings.get('chat.instructions'),
             },
-            tools,
+            tools: options.tools,
             callbacks: {
               onStateChanged: owner.event((state: number, error?: string) => {
                 const name = chatStateToName(state).toLowerCase() as ChatState

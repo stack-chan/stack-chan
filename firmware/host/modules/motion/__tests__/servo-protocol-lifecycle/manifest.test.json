@@ -2,7 +2,6 @@
   "include": ["../../manifest.json", "../../../testing/manifest.json"],
   "modules": {
     "embedded:io/serial": "./serial",
-    "py32-io-expander": "../fakes/py32-io-expander-stub",
     "main": "./servo-protocol-lifecycle.test"
   },
   "defines": { "main": { "async": 1 } }

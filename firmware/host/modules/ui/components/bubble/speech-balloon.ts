@@ -46,10 +46,6 @@ type BalloonOptions = {
   text?: string
   font?: string
   tail?: SpeechBalloonTail
-  // Legacy options kept for compatibility.
-  space?: number
-  radius?: number
-  speed?: number
 }
 
 type WithSkin = PiuContent & { skin?: unknown }

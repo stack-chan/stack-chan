@@ -323,7 +323,6 @@ export class PY32IOExpanderRegistry {
 }
 
 let registry: PY32IOExpanderRegistry | undefined
-let legacyLease: PY32IOExpanderLease | undefined
 
 export function acquireSharedPY32IOExpander(options?: PY32Options): PY32IOExpanderLease {
   registry ??= new PY32IOExpanderRegistry()
@@ -336,29 +335,6 @@ export function tryAcquireSharedPY32IOExpander(
 ): PY32IOExpanderLease | undefined {
   try {
     return acquireSharedPY32IOExpander(options)
-  } catch (error) {
-    onError?.(error)
-    return undefined
-  }
-}
-
-/** V1 compatibility: repeated reads share one legacy lease, released by close(). */
-export function getSharedPY32IOExpander(options?: PY32Options): PY32IOExpanderLease {
-  if (!legacyLease || legacyLease.closed) legacyLease = acquireSharedPY32IOExpander(options)
-  else if (options) {
-    // Validate even a repeated legacy lookup rather than silently accepting another board configuration.
-    const probe = acquireSharedPY32IOExpander(options)
-    probe.close()
-  }
-  return legacyLease
-}
-
-export function tryGetSharedPY32IOExpander(
-  options?: PY32Options,
-  onError?: PY32ErrorCallback,
-): PY32IOExpanderLease | undefined {
-  try {
-    return getSharedPY32IOExpander(options)
   } catch (error) {
     onError?.(error)
     return undefined

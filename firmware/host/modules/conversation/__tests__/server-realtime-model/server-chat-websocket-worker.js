@@ -13,6 +13,7 @@ export default class ServerChatWebSocketWorker {
     this.inputBuffer = message.inputBuffer
     this.outputBuffer = message.outputBuffer
     this.parser = {
+      /** @type {Uint8Array[]} */
       copied: [],
       copy: (data) => this.parser.copied.push(new Uint8Array(data).slice()),
       doneCount: 0,

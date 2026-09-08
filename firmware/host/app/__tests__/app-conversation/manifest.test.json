@@ -5,10 +5,13 @@
     "$(MODULES)/base/modules/manifest.json",
     "../../../../sdk/manifest.json",
     "../../../modules/testing/manifest.json",
+    "../../../modules/conversation/manifest.json",
     "../../../modules/connectivity/mcp-client/manifest_model.json"
   ],
   "modules": {
     "main": "./app-conversation.test",
+    "~": "../../../modules/conversation/StackChanChatAudioIO",
+    "StackChanChatAudioIO": "./chat-audio-io",
     "app-conversation": "../../app-conversation",
     "app-dialogue": "../../app-dialogue",
     "app-service-scope": "../../app-service-scope",

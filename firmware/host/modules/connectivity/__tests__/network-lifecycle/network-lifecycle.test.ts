@@ -1,11 +1,6 @@
 import { startHostBootServices } from 'boot-services'
 import WiFi from 'ecma-wifi'
-import {
-  networkAvailability,
-  openNetworkConnection,
-  startNetworkConnection,
-  stopNetworkConnection,
-} from 'network-manager'
+import { networkAvailability, openNetworkConnection } from 'network-manager'
 import { NetworkService } from 'network-service'
 import { NetworkConnectionState as State } from 'network-state'
 import { assert, equal } from 'testing/assert'
@@ -66,10 +61,6 @@ async function leases() {
     'INVALID_ARGUMENT',
     'joining a connection validates its arguments too',
   )
-  const wifi = latest()
-  startNetworkConnection(credentials)
-  stopNetworkConnection()
-  equal(wifi.closes, 0, 'V1 stop cannot release an owned host lease')
   host.close()
   const consumers = Array.from({ length: 16 }, () => openNetworkConnection(credentials))
   expectCode(() => openNetworkConnection(credentials), 'BUSY', 'consumer capacity is bounded')

@@ -2,6 +2,8 @@
 
 対象は [実装計画](firmware-sdk-redesign-progress.md) の F5 / F6 / F11。2026-09-09 時点の撤去台帳であり、全項目の完了宣言ではない。残す機能を SDK へ移した実装と、その機能の旧経路を削除した差分を一組として確認する。
 
+**2026-09-09の方針更新：製品ソースの純減は完了条件から外す。** 廃止したアプリAPIの実装・利用者・互換経路が残っていないことを基準とし、検証・取消し・資源所有のための増加を許容する。行数は固定した規則による参考値として残す。以下の過去の「純減未達」は現在の残件を意味しない。[最新の残存確認](retired-api-audit-2026-09-09.md) を参照する。
+
 ## コード量の起点
 
 比較起点は Moddable 9.5 対応ブランチの `6eb462331dd1677791d6aa2a6b257a20da43b9a9`。以下の「整理前」は `f525e97fdb4c35fd51465a640223033217ed925c`。作業中の未コミット文書を計測に混ぜない。
@@ -18,7 +20,7 @@
 | 開発ツール（別計上） | 35 / 3,967 | 36 / 4,057 |
 | vendor・既知の生成物（別計上） | 8 / 2,715 | 8 / 2,715 |
 
-製品ソースは **51ファイル・7,117行の純増**。新 SDK が動いたことをコード量削減の達成としない。移行後にこの増加を解消する必要がある。
+製品ソースは **51ファイル・7,117行の純増**。新 SDK が動いたことをコード量削減の達成としない。この数値は当時の計測記録であり、現在は増加の解消を完了条件にしない。
 
 集計規則は [measure.py](evidence/firmware-retirement/measure.py) に固定した。Git に記録された firmware と Web の TS / JS / C 系ソースを集計し、サンプル・教材・試験・開発ツール・vendor を別計上する。物理行数は空行・コメントを含み、論理 LOC ではない。Markdown、JSON、HTML、CSS、画像・音声、非追跡のビルド出力はこの表に含まない。これはプログラムソースの基準測定であり、リポジトリー全体の容量測定ではない。
 
@@ -129,7 +131,8 @@ flatの24個は16メソッド・8getterである。SDKの顔・吹き出しport�
 | API 1/schema 1 archiveの読込・配布 | **撤去済み** | 全配布入口で起動前に拒否し、SDKからの再生成を案内。XS・チップ・機種・能力検査は共通契約を使用 |
 | provider-dialoguesの3クラス・直接fetch・MCPツール型の変換 | **撤去済み** | host API 10のdialogue/connectToolsと共通HTTP・AppConnectionへ統一。[移行方法](../../firmware/mods/examples/provider-dialogues/README_ja.md) |
 | BLE/Wi-Fi/ESP-NOWと音声の物理的な競合・故障後の復帰 | **継続** | ネイティブの終了完了まで所有を保持。ソフトウェア試験に加えて実機で共存・再接続・置換を確認 |
-| 公開面・中継数と製品ソース全体の純減 | **継続** | 固定した分類・起点で計測し、責務や機能を別分類へ付け替えない |
+| 廃止APIの残存確認 | **撤去・検証** | Wi-Fi・PY32の互換関数、会話の旧設定・Tool型、旧タッチ読取、吹き出しの無効なオプションを撤去。[記録](retired-api-audit-2026-09-09.md) |
+| 製品ソースの行数 | **参考計測** | 固定した分類・起点で記録する。純減を完了条件にせず、検証処理や機能を削って数字を合わせない |
 
 関連実装: [起動](../../firmware/host/app/app-main.ts)、[context](../../firmware/host/app/runtime-context.ts)、[音声](../../firmware/host/app/runtime-audio.ts)、[Piu 拡張](../../firmware/sdk/extensions/piu.ts)、[Blockly](../../web/editor/blocks.mjs)。
 
@@ -178,7 +181,7 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 | `unit_temperature` | **移行済み** → [unit_temperature](../../firmware/mods/examples/unit_temperature/README_ja.md) | SHT3x・周期読取・UI | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 | `web_radio` | **移行済み** → [web_radio](../../firmware/mods/examples/web_radio/README_ja.md) | 音声ストリームの操作・局の選択・設定 | 旧入口・直接生成・raw操作をSDKへ移し、役割の重複を削除。host API 7。実機・初学者は未受入 |
 
-元の32例はSDKの21パッケージへ移行・統合済みで、API 1の実行例は0件。V1ホストとBlocklyの旧経路も撤去した。provider-dialoguesの3クラスはSDKへ統合し、このフォルダーには移行説明だけを残す。物理機器・外部サービスと初学者の受入、製品ソース純減は未達。[契約・検証・今回のコード量](sdk-example-migration-2026-09-08.md)を参照する。
+元の32例はSDKの21パッケージへ移行・統合済みで、API 1の実行例は0件。V1ホストとBlocklyの旧経路も撤去した。provider-dialoguesの3クラスはSDKへ統合し、このフォルダーには移行説明だけを残す。物理機器・外部サービスと初学者の受入は未完了。製品ソースの純減は現在の完了条件に含めない。[契約・検証・今回のコード量](sdk-example-migration-2026-09-08.md)を参照する。
 
 ## 操作の中継と所有の整理
 
@@ -193,8 +196,8 @@ Piu 拡張は基本 SDK の import・型検査から分ける。型の正本は 
 
 上表は整理対象の特定であり、統合が済んだという意味ではない。これまでに削除したものは、呼出側が存在しなかった `resolveAppBehaviors` と、旧 miniapp 用の loader / registration / attenuated Piu module、準備 callback を渡すだけになった `prepareAppLaunch`。稼働中の世代分岐を代替名で残したり、新しい互換層を追加したりしていない。
 
-実行例・Blockly・旧フック・raw context・設定schema・テキスト対話の統合は完了した。次の実装単位は、残る無線・音声の物理資源の競合と故障復帰、およびソース全体の純減である。別系統の資源所有を増やす前に、既存の所有者を使う。初学者受入と実機確認は [F12](firmware-sdk-redesign-progress.md) に従って別に記録する。
+実行例・Blockly・旧フック・raw context・設定schema・テキスト対話の統合は完了した。次の実装単位は、残る無線・音声の物理資源の競合と故障復帰である。別系統の資源所有を増やす前に、既存の所有者を使う。初学者受入と実機確認は [F12](firmware-sdk-redesign-progress.md) に従って別に記録する。
 
 ## 対話・MCP統合後の現在値（2026-09-09）
 
-`a3cc42cfa6beca32277ffad45d1124659c3c63f5` の製品ソースは486ファイル・59,851物理行。直前 `d06e88b` から309行減で、参考クラス625行の撤去はサンプル列に別計上する。起点 `6eb4623` に対しては依然67ファイル・7,149行増。全体の純減は未達であり、分類変更で達成したことにしない。[責務・試験・機種別容量・計測内訳](conversation-provider-consolidation-2026-09-09.md) を参照する。
+`a3cc42cfa6beca32277ffad45d1124659c3c63f5` の製品ソースは486ファイル・59,851物理行。直前 `d06e88b` から309行減で、参考クラス625行の撤去はサンプル列に別計上する。起点 `6eb4623` に対しては依然67ファイル・7,149行増。この増加は参考値として記録し、現在の完了条件には含めない。[責務・試験・機種別容量・計測内訳](conversation-provider-consolidation-2026-09-09.md) を参照する。

@@ -3,7 +3,6 @@ import { describe, it } from 'node:test'
 
 import {
   acquireSharedPY32IOExpander,
-  getSharedPY32IOExpander,
   normalizeLedRange,
   PY32IOExpander,
   PY32IOExpanderRegistry,
@@ -51,7 +50,7 @@ describe('PY32 IO Expander helpers', () => {
         }
       }
 
-      const expander = getSharedPY32IOExpander({ sensor: { io: FakeIO } })
+      const expander = acquireSharedPY32IOExpander({ sensor: { io: FakeIO } })
 
       assert.equal(expander.initialized, true)
       assert.equal(reads, 3)
@@ -215,20 +214,20 @@ describe('PY32 shared ownership', () => {
       assert.throws(() => f.registry.acquire(options), /restart the host/)
     }))
 
-  it('legacy callers share their own lease without owning newer consumers IO', () =>
+  it('global acquisition gives each consumer an independent lease', () =>
     withHooks(() => {
       const f = fixture()
-      const legacy = getSharedPY32IOExpander(f.options)
-      assert.equal(getSharedPY32IOExpander(f.options), legacy)
+      const first = acquireSharedPY32IOExpander(f.options)
       const owner = acquireSharedPY32IOExpander(f.options)
-      legacy.close()
+      assert.notEqual(first, owner)
+      first.close()
       assert.equal(f.instances[0].closes, 0)
       owner.digitalWrite(0, true)
       assert.equal(owner.getWriteValue(0), true)
       owner.close()
       assert.equal(f.instances[0].closes, 1)
-      const next = getSharedPY32IOExpander(f.options)
-      assert.notEqual(next, legacy)
+      const next = acquireSharedPY32IOExpander(f.options)
+      assert.notEqual(next, first)
       next.close()
     }))
 

@@ -38,7 +38,7 @@ function installBareSpecifierPackages(): void {
 async function setup() {
   installBareSpecifierPackages()
   resetFakeWiFi()
-  const [{ startNetworkConnection, stopNetworkConnection }, mcConfig, timer] = await Promise.all([
+  const [{ openNetworkConnection }, mcConfig, timer] = await Promise.all([
     import('../network-manager.js'),
     import('../../testing/fakes/mc-config.js'),
     import('../../testing/fakes/timer.js'),
@@ -49,23 +49,21 @@ async function setup() {
   ;(globalThis as typeof globalThis & { trace: (...messages: unknown[]) => void }).trace = (...messages) => {
     traces.push(messages.map(String).join(''))
   }
-  stopNetworkConnection()
-  resetFakeWiFi()
-  return { startNetworkConnection, stopNetworkConnection, traces }
+  return { openNetworkConnection, traces }
 }
 
-test('startNetworkConnection reuses an active service for matching credentials', async () => {
-  const { startNetworkConnection, stopNetworkConnection } = await setup()
+test('openNetworkConnection reuses an active service for matching credentials', async () => {
+  const { openNetworkConnection } = await setup()
   let connectedCount = 0
 
-  const first = startNetworkConnection({
+  const first = openNetworkConnection({
     ssid: 'stackchan-ap',
     password: 'secret',
     onConnected: () => {
       connectedCount += 1
     },
   })
-  const second = startNetworkConnection({
+  const second = openNetworkConnection({
     ssid: 'stackchan-ap',
     password: 'secret',
     onConnected: () => {
@@ -73,19 +71,24 @@ test('startNetworkConnection reuses an active service for matching credentials',
     },
   })
 
-  assert.equal(first, second)
+  assert.notEqual(first, second)
   assert.equal(getFakeWiFiInstances().length, 1)
   getFakeWiFiInstances()[0]?.emitGotIP()
   assert.equal(connectedCount, 11)
-  stopNetworkConnection()
+  first.close()
+  assert.equal(getFakeWiFiInstances()[0]?.closed, false)
+  second.close()
+  assert.equal(getFakeWiFiInstances()[0]?.closed, true)
 })
 
-test('startNetworkConnection reconnects when credentials change', async () => {
-  const { startNetworkConnection, stopNetworkConnection } = await setup()
+test('openNetworkConnection changes credentials only after the previous owner closes', async () => {
+  const { openNetworkConnection } = await setup()
 
-  startNetworkConnection({ ssid: 'first-ap', password: 'first-secret' })
+  const first = openNetworkConnection({ ssid: 'first-ap', password: 'first-secret' })
   const firstWiFi = getFakeWiFiInstances()[0]
-  startNetworkConnection({ ssid: 'second-ap', password: 'second-secret' })
+  assert.throws(() => openNetworkConnection({ ssid: 'second-ap' }), { code: 'BUSY' })
+  first.close()
+  const second = openNetworkConnection({ ssid: 'second-ap', password: 'second-secret' })
 
   assert.equal(firstWiFi?.closed, true)
   assert.equal(getFakeWiFiInstances().length, 2)
@@ -94,5 +97,5 @@ test('startNetworkConnection reconnects when credentials change', async () => {
     password: 'second-secret',
     secure: true,
   })
-  stopNetworkConnection()
+  second.close()
 })

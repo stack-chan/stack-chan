@@ -28,7 +28,9 @@ class ChatAudioIO {
     this.options.onStateChanged?.(this.state)
   }
 
-  close() {}
+  close() {
+    this.closeCount = (this.closeCount ?? 0) + 1
+  }
 
   sendText(text) {
     if (this.state < ChatAudioIO.CONNECTED) throw new Error('not connected')

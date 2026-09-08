@@ -72,6 +72,28 @@ async function run() {
   lateSample()
   await new Promise<void>((resolve) => Timer.set(() => resolve(), 20))
   equal(sampleCalls, count, 'polls and late interrupts are stopped')
+
+  let unsupportedCloses = 0
+  let unsupportedReads = 0
+  class ReadInput {
+    points = []
+    read() {
+      unsupportedReads++
+    }
+    close() {
+      unsupportedCloses++
+    }
+  }
+  failure = undefined
+  try {
+    new Touch(ReadInput as unknown as ConstructorParameters<typeof Touch>[0])
+  } catch (error) {
+    failure = error
+  }
+  assert(failure, 'drivers without sample() are rejected')
+  equal(unsupportedCloses, 1, 'unsupported drivers release the acquired input')
+  await new Promise<void>((resolve) => Timer.set(() => resolve(), 20))
+  equal(unsupportedReads, 0, 'the retired read() polling path is not started')
   trace('ok\n')
 }
 run().catch((error) => {

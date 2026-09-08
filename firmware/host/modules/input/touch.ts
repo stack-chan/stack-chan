@@ -19,16 +19,8 @@ type TouchDriver = {
   }
   close?: () => void
   points: unknown[]
-  sample?: () => TouchPoint[] | undefined
-  read?: (points: LegacyTouchPoint[]) => void
+  sample: () => TouchPoint[] | undefined
   timer?: ReturnType<typeof Timer.set>
-}
-
-type LegacyTouchPoint = {
-  state?: number
-  down?: boolean
-  x?: number
-  y?: number
 }
 
 export type TouchOptions = {
@@ -41,7 +33,6 @@ export type TouchOptions = {
 
 export default class Touch {
   #touch: TouchDriver
-  #legacyTimer: ReturnType<typeof Timer.repeat> | undefined
   #releaseTimer: ReturnType<typeof Timer.set> | undefined
   #closed = false
   onEvent?: (event: TouchInputEvent) => void
@@ -112,60 +103,28 @@ export default class Touch {
     const touch = new TouchConstructor({ onSample })
     this.#touch = touch
     try {
-      if (touch.sample) {
-        // ECMA-419 driver
-        touch.points = new Array<TrackedPoint | undefined>(touchCount)
-        const defaultInterval = normalizeInterval(options.intervalMs, 16)
-        const idleInterval = normalizeInterval(options.idleIntervalMs, defaultInterval)
-        const activeInterval = normalizeInterval(options.activeIntervalMs, idleInterval)
-        trace(
-          `[Touch] ECMA-419 sample() detected. interrupt=${Boolean(touch.configuration?.interrupt)} idle=${idleInterval}ms active=${activeInterval}ms\n`,
-        )
-        if (!touch.configuration?.interrupt) {
-          trace('[Touch] ECMA-419 polling enabled\n')
-          const poll = () => {
-            if (this.#closed) return
-            onSample()
-            if (touch.timer) {
-              Timer.schedule(
-                touch.timer,
-                hasTrackedPoint(touch.points as Array<TrackedPoint | undefined>) ? activeInterval : idleInterval,
-              )
-            }
-          }
-          touch.timer = Timer.set(poll, idleInterval)
-        }
-      } else {
-        // legacy driver
-        trace('[Touch] legacy read() detected. polling enabled\n')
-        touch.points = []
-        for (let i = 0; i < touchCount; i++) touch.points.push({})
-        const interval = normalizeInterval(options.intervalMs, 15)
-        this.#legacyTimer = Timer.repeat(() => {
+      if (typeof touch.sample !== 'function') throw new Error('Touch driver requires sample()')
+      // ECMA-419 driver
+      touch.points = new Array<TrackedPoint | undefined>(touchCount)
+      const defaultInterval = normalizeInterval(options.intervalMs, 16)
+      const idleInterval = normalizeInterval(options.idleIntervalMs, defaultInterval)
+      const activeInterval = normalizeInterval(options.activeIntervalMs, idleInterval)
+      trace(
+        `[Touch] ECMA-419 sample() detected. interrupt=${Boolean(touch.configuration?.interrupt)} idle=${idleInterval}ms active=${activeInterval}ms\n`,
+      )
+      if (!touch.configuration?.interrupt) {
+        trace('[Touch] ECMA-419 polling enabled\n')
+        const poll = () => {
           if (this.#closed) return
-          const points = touch.points as LegacyTouchPoint[]
-          touch.read?.(points)
-          const point = points[0]
-          switch (point.state) {
-            case 0:
-            case 3:
-              if (point.down) {
-                point.down = undefined
-                this.onEvent?.(createTouchInputEvent('ended', 0, point.x, point.y, Time.ticks))
-                point.x = undefined
-                point.y = undefined
-              }
-              break
-            case 1:
-            case 2:
-              if (!point.down) {
-                point.down = true
-                this.onEvent?.(createTouchInputEvent('began', 0, point.x, point.y, Time.ticks))
-              } else this.onEvent?.(createTouchInputEvent('moved', 0, point.x, point.y, Time.ticks))
-              break
+          onSample()
+          if (touch.timer) {
+            Timer.schedule(
+              touch.timer,
+              hasTrackedPoint(touch.points as Array<TrackedPoint | undefined>) ? activeInterval : idleInterval,
+            )
           }
-        }, interval)
-        trace(`[Touch] legacy polling interval=${interval}ms\n`)
+        }
+        touch.timer = Timer.set(poll, idleInterval)
       }
     } catch (error) {
       try {
@@ -186,10 +145,6 @@ export default class Touch {
       if (this.#touch.timer) {
         Timer.clear(this.#touch.timer)
         this.#touch.timer = undefined
-      }
-      if (this.#legacyTimer) {
-        Timer.clear(this.#legacyTimer)
-        this.#legacyTimer = undefined
       }
     } finally {
       this.#touch.close?.()

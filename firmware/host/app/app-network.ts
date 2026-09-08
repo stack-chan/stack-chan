@@ -1,7 +1,6 @@
 import { AppConnection, type AppServiceScope } from 'app-service-scope'
-import type { ConnectivityCapability } from 'capabilities'
-import type { JsonValue as WireJson } from 'local-peer-types'
 import Modules from 'modules'
+import type { ConnectivityCapability } from 'network-types'
 import { StackchanError } from 'stackchan/errors'
 import type { AppNetwork, PeerConnection } from 'stackchan/extensions/network'
 
@@ -17,7 +16,8 @@ export function createAppNetwork(scope: AppServiceScope, connectivity: Connectiv
         if (!connectivity.network) throw new StackchanError('UNSUPPORTED', 'Wi-Fi is unavailable')
         const result = await connectivity.network.ready
         signal.throwIfCancelled()
-        if (result.status !== 'connected') throw new StackchanError('CONFIG', result.reason)
+        if (result.status === 'failed') throw new StackchanError(result.code, result.reason)
+        if (result.status === 'skipped') throw new StackchanError('CONFIG', result.reason)
       }, options?.signal),
     address: () => scope.call(() => platform().address()),
     request: (request, options) =>
@@ -31,32 +31,25 @@ export function createAppNetwork(scope: AppServiceScope, connectivity: Connectiv
     advertiseService: (options) => scope.call(() => platform().advertiseService(options)),
     discoverServices: (options) => scope.call(() => platform().discoverServices(options)),
     openPeer: (options) =>
-      scope.run(async () => {
+      scope.run(async (task) => {
         if (!connectivity.localPeer) throw new StackchanError('UNSUPPORTED', 'Local peer transport is unavailable')
         const owner = new AppConnection(scope)
         try {
-          const session = await connectivity.localPeer.open(options)
+          const session = await connectivity.localPeer.open(options, task.signal)
           owner.own(() => session.close())
           return {
             close: owner.close,
-            discover: (request) => owner.run(() => session.discover(request), request?.signal),
+            discover: (request) =>
+              owner.run((task) => session.discover({ ...request, signal: task.signal }), request?.signal),
             send: (id, type, payload, request) =>
-              owner.run(async () => {
-                await session.send(id, type, payload as WireJson)
+              owner.run(async (task) => {
+                await session.send(id, type, payload, { signal: task.signal })
               }, request?.signal),
             broadcast: (type, payload, request) =>
-              owner.run(async () => {
-                await session.broadcast(type, payload as WireJson)
+              owner.run(async (task) => {
+                await session.broadcast(type, payload, { signal: task.signal })
               }, request?.signal),
-            onMessage: (type, handler) =>
-              owner.call(() => {
-                const off = session.subscribe(type, owner.event(handler))
-                const release = owner.own(off)
-                return () => {
-                  release()
-                  off()
-                }
-              }),
+            onMessage: (type, handler) => owner.listen((receive) => session.subscribe(type, receive), handler),
           } satisfies PeerConnection
         } catch (error) {
           await owner.close()

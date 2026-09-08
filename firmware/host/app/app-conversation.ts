@@ -256,24 +256,8 @@ export function createAppConversation(
             },
             requestStart: () => owner.call(() => remote.requestStart()),
             requestStop: () => owner.call(() => remote.requestStop()),
-            onState: (handler) =>
-              owner.call(() => {
-                const off = remote.subscribe(owner.event(handler))
-                const release = owner.own(off)
-                return () => {
-                  release()
-                  off()
-                }
-              }),
-            onTransport: (handler) =>
-              owner.call(() => {
-                const off = remote.subscribeTransport(owner.event(handler))
-                const release = owner.own(off)
-                return () => {
-                  release()
-                  off()
-                }
-              }),
+            onState: (handler) => owner.listen((receive) => remote.subscribe(receive), handler),
+            onTransport: (handler) => owner.listen((receive) => remote.subscribeTransport(receive), handler),
           }
         } catch (error) {
           void owner.close().catch(scope.report)

@@ -1,9 +1,15 @@
 {
-  "include": ["../../manifest.json", "../../../testing/manifest.json"],
+  "include": [
+    "../../manifest.json",
+    "../../../testing/manifest.json"
+  ],
   "modules": {
-    "main": "./local-peer-service-xs.test"
+    "main": "./local-peer-service-xs.test",
+    "cancellation": "../../../../app/cancellation"
   },
-  "preload": ["local-peer-types"],
+  "preload": [
+    "stackchan/errors"
+  ],
   "defines": {
     "main": {
       "async": 1

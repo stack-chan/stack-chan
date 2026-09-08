@@ -1,10 +1,5 @@
 import { CancellationSource } from 'cancellation'
-import {
-  type LocalPeerCapability,
-  LocalPeerError,
-  type LocalPeerOpenOptions,
-  type LocalPeerSession,
-} from 'local-peer-types'
+import type { LocalPeerCapability, LocalPeerOpenOptions, LocalPeerSession } from 'local-peer-types'
 import { NetworkConnectionState } from 'network-state'
 import type {
   NetworkAvailability,
@@ -46,7 +41,6 @@ export class BootSession {
   readonly #dependencies: BootSessionDependencies
   readonly #options: HostBootServicesOptions
   readonly #startBarrier: Promise<void>
-  #peerOpens = 0
   #connection?: NetworkConnection
   #lastState: NetworkState = NetworkConnectionState.IDLE
   readonly connectivity: {
@@ -79,7 +73,9 @@ export class BootSession {
     void this.#startBarrier.catch(() => {})
     const owner = this
     this.connectivity = {
-      localPeer: localPeer ? { id: localPeer.id, open: (options) => this.#openPeer(localPeer, options) } : undefined,
+      localPeer: localPeer
+        ? { id: localPeer.id, open: (options, signal) => this.#openPeer(localPeer, options, signal) }
+        : undefined,
       network: {
         availability: dependencies.networkAvailability,
         get state() {
@@ -208,36 +204,20 @@ export class BootSession {
     }
   }
 
-  #openPeer(peer: OwnedLocalPeer, options: LocalPeerOpenOptions): Promise<LocalPeerSession> {
-    if (this.closed) return Promise.reject(new LocalPeerError('closed', 'Host boot services closed'))
-    if (this.#peerOpens >= 8)
-      return Promise.reject(new LocalPeerError('transport', 'Too many pending local peer opens'))
-    this.#peerOpens++
-    return new Promise((resolve, reject) => {
-      let settled = false
-      let unsubscribe: (() => void) | undefined
-      const finish = (result: { session: LocalPeerSession } | { error: unknown }) => {
-        if (settled) return
-        settled = true
-        unsubscribe?.()
-        this.#peerOpens--
-        if ('error' in result) reject(result.error)
-        else resolve(result.session)
+  #openPeer(
+    peer: OwnedLocalPeer,
+    options: LocalPeerOpenOptions,
+    parent?: CancellationSignal,
+  ): Promise<LocalPeerSession> {
+    return this.#tasks.run(async ({ signal }) => {
+      await this.#startBarrier
+      signal.throwIfCancelled()
+      const session = await peer.open(options, signal)
+      if (signal.reason) {
+        session.close()
+        signal.throwIfCancelled()
       }
-      unsubscribe = this.signal.subscribe(() =>
-        finish({ error: new LocalPeerError('closed', 'Host boot services closed') }),
-      )
-      void this.#startBarrier
-        .then(async () => {
-          if (settled || this.closed) return
-          const session = await peer.open(options)
-          if (settled || this.closed) {
-            session.close()
-            return
-          }
-          finish({ session })
-        })
-        .catch((error) => finish({ error }))
-    })
+      return session
+    }, parent)
   }
 }

@@ -76,6 +76,31 @@ export class AppConnection implements Connection {
     }
     return this.#resources.defer(close)
   }
+  /** A subscription is released once, by its caller or by connection shutdown. */
+  listen<Args extends unknown[]>(
+    subscribe: (handler: (...args: Args) => void) => () => void,
+    handler: (...args: Args) => void,
+  ): () => void {
+    return this.call(() => {
+      if (typeof handler !== 'function') throw new StackchanError('INVALID_ARGUMENT', 'A subscription needs a function')
+      let disposed = false
+      const off = subscribe(
+        this.event((...args: Args) => {
+          if (!disposed) handler(...args)
+        }),
+      )
+      const dispose = () => {
+        if (disposed) return
+        disposed = true
+        off()
+      }
+      const release = this.own(dispose)
+      return () => {
+        release()
+        dispose()
+      }
+    })
+  }
   event<Args extends unknown[]>(handler: ((...args: Args) => void) | undefined): (...args: Args) => void {
     return (...args) => {
       if (this.#closed || !handler) return

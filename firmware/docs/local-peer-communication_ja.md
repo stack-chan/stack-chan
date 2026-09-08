@@ -55,6 +55,10 @@ unsubscribe();
 `onMessage('*', handler)` では全 type を購読できます。
 `broadcast()` は確認応答と再送を行いません。
 
+`discover` / `send` / `broadcast` に `{ signal: task.signal }` を渡せます。取消しは探索timer、確認応答待ち、再試行と未送信fragmentに届きます。すでにradioが受け付けたframeは取り消せません。取消した操作だけが `CANCELLED` となり、同じ接続で再度送信できます。接続・アプリ終了は `CLOSED` です。接続開始中のアプリ終了も、取得済みradioを解放します。
+
+同じlocal-peerサービスの二重openは `BUSY`、値の不正は `INVALID_ARGUMENT`、未対応transportは `UNSUPPORTED`、確認応答timeoutは `TIMEOUT`、機器・配送の失敗は `IO` です。旧 `LocalPeerError` 型と小文字のcodeは撤去し、SDKの `StackchanError` を使います。
+
 ## 制限とセキュリティ
 
 - type と service は1〜64 UTF-8バイト、displayName は最大32バイトです。
@@ -66,7 +70,7 @@ unsubscribe();
 
 ## BLE Serial transport
 
-BLEではｽﾀｯｸﾁｬﾝがNordic UART Service peripheralとして`STK-LP-XXXX`という名前で広告します。
+BLEではｽﾀｯｸﾁｬﾝがNordic UART Service peripheralとして`STK`という名前で広告します。
 Web Bluetooth対応のPCまたはスマートフォンから接続してください。
 再利用可能なクライアントは[`web/local-peer/ble-local-peer.mjs`](../../web/local-peer/ble-local-peer.mjs)にあります。
 

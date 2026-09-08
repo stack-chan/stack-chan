@@ -1,10 +1,8 @@
 import type { DrawerButtonViewSpec } from 'drawer'
 import type { FaceState } from 'face-state'
 import type { HandAnimationName } from 'hands'
-import type { LocalPeerCapability } from 'local-peer-types'
 import type { MiniAppRegistryCapability } from 'mini-app'
 import type { Container as PiuContainer, Content as PiuContent } from 'piu/MC'
-import type { NetworkAvailability, NetworkReadyResult, NetworkState } from '../modules/connectivity/network-types.js'
 
 export type { TTS } from 'tts-types'
 
@@ -94,23 +92,11 @@ export type RemoteConversationSession = RemoteConversationSessionDelegate & {
   deactivate(): void
 }
 
-export type { NetworkReadyResult } from '../modules/connectivity/network-types.js'
-
-export type NetworkCapability = {
-  readonly availability?: NetworkAvailability
-  readonly state?: NetworkState
-  /**
-   * Resolves when the host boot Wi-Fi attempt connects, is skipped because credentials are unavailable,
-   * or fails with an observable reason.
-   */
-  ready: Promise<NetworkReadyResult>
-}
-
-export type ConnectivityCapability = {
-  network?: NetworkCapability
-  /** Nearby peer messaging over a platform-supported transport such as ESP-NOW or BLE Serial. */
-  localPeer?: LocalPeerCapability
-}
+export type {
+  ConnectivityCapability,
+  NetworkCapability,
+  NetworkReadyResult,
+} from '../modules/connectivity/network-types.js'
 
 export type BalloonTail = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 

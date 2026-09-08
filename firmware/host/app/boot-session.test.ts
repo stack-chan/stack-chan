@@ -226,7 +226,7 @@ test('borrowed local peer waits for replacement cleanup and a cancelled open set
   await flush()
   assert.equal(opens, 0)
   await boot.close()
-  await assert.rejects(opening, { code: 'closed' })
+  await assert.rejects(opening, { code: 'CLOSED' })
   release()
   await flush()
   assert.equal(opens, 0)

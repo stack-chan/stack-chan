@@ -14,7 +14,6 @@ function installBareSpecifierPackages(): void {
   installRuntimeTestAliases()
   const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
   writeAliasPackage(hostRoot, 'operation-queue', resolve(hostRoot, 'app/operation-queue.js'))
-  writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackage(hostRoot, 'recording-wave', resolve(hostRoot, 'modules/audio/recording-wave.js'))
   writeAliasPackageSubpath(
     resolve(hostRoot, 'modules'),

@@ -1,62 +1,11 @@
-export type JsonValue =
-  | null
-  | boolean
-  | number
-  | string
-  | JsonValue[]
-  | {
-      [key: string]: JsonValue
-    }
+import type { JsonValue, Peer, PeerMessage, PeerOptions } from 'stackchan/extensions/network'
+import type { CancellationSignal, OperationOptions } from 'stackchan/task'
 
-// This contract deliberately exposes only transport-neutral peer identities,
-// messages, and errors. Platform manifests select the radio implementation so
-// applications remain portable across device and simulator targets.
-
-export type LocalPeerInfo = {
-  /** Stable, opaque identifier. Applications must not interpret its format. */
-  id: string
-  name?: string
-  /** True after authenticated point-to-point traffic has been observed. */
-  secure: boolean
-}
-
-export type LocalPeerMessage = {
-  id: string
-  peer: LocalPeerInfo
-  type: string
-  payload: JsonValue
-}
-
-export type LocalPeerErrorCode =
-  | 'not-supported'
-  | 'invalid-argument'
-  | 'peer-unavailable'
-  | 'message-too-large'
-  | 'timeout'
-  | 'closed'
-  | 'transport'
-
-export class LocalPeerError extends Error {
-  readonly code: LocalPeerErrorCode
-
-  constructor(code: LocalPeerErrorCode, message: string) {
-    super(message)
-    this.code = code
-  }
-}
-
-Object.defineProperty(LocalPeerError.prototype, 'name', { value: 'LocalPeerError', configurable: true, writable: true })
-
-export type LocalPeerOpenOptions = {
-  /** Radio transport. ESP-NOW remains the default where it is available. */
-  transport?: 'espnow' | 'ble'
-  /** Logical application namespace. Only peers using the same service can communicate. */
-  service: string
-  /** Human-readable name announced during discovery. */
-  displayName?: string
-  /** Optional pre-shared passphrase used to protect point-to-point messages. */
-  sharedKey?: string
-}
+// Wire services retain delivery receipts internally; app data types come from the SDK.
+export type { JsonValue }
+export type LocalPeerInfo = Peer
+export type LocalPeerMessage = PeerMessage
+export type LocalPeerOpenOptions = PeerOptions
 
 export type LocalPeerDeliveryReceipt = {
   messageId: string
@@ -69,14 +18,14 @@ export type LocalPeerBroadcastReceipt = {
 }
 
 export type LocalPeerSession = {
-  discover(options?: { timeoutMs?: number }): Promise<readonly LocalPeerInfo[]>
-  send(peerId: string, type: string, payload: JsonValue): Promise<LocalPeerDeliveryReceipt>
-  broadcast(type: string, payload: JsonValue): Promise<LocalPeerBroadcastReceipt>
+  discover(options?: OperationOptions & { timeoutMs?: number }): Promise<readonly LocalPeerInfo[]>
+  send(peerId: string, type: string, payload: JsonValue, options?: OperationOptions): Promise<LocalPeerDeliveryReceipt>
+  broadcast(type: string, payload: JsonValue, options?: OperationOptions): Promise<LocalPeerBroadcastReceipt>
   subscribe(type: string | '*', handler: (message: LocalPeerMessage) => void): () => void
   close(): void
 }
 
 export type LocalPeerCapability = {
   readonly id: string
-  open(options: LocalPeerOpenOptions): Promise<LocalPeerSession>
+  open(options: LocalPeerOpenOptions, signal?: CancellationSignal): Promise<LocalPeerSession>
 }

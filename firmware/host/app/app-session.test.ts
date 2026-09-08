@@ -17,7 +17,7 @@ async function setup() {
   writeAliasPackageSubpath(hostRoot, 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackageSubpath(resolve(hostRoot, '..'), 'stackchan', 'errors', resolve(hostRoot, '../sdk/errors.js'))
   writeAliasPackage(resolve(hostRoot, '..'), 'stackchan', resolve(hostRoot, '../sdk/app.js'))
-  for (const name of ['input', 'ui', 'lighting', 'conversation'])
+  for (const name of ['input', 'ui', 'lighting', 'conversation', 'network'])
     for (const directory of [hostRoot, resolve(hostRoot, '..')])
       writeAliasPackageSubpath(
         directory,
@@ -1487,4 +1487,123 @@ test('release and filtered petting handlers share AppSession cancellation and di
     assert.equal(f.clock.jobs.size, 0)
     assert.deepEqual(f.errors, [])
   }
+})
+
+test('connection subscriptions release once and suppress callbacks after manual unsubscribe', async () => {
+  const { AppSession, AppConnection, defineApp } = await setup()
+  const f = fixture()
+  let scope!: AppServiceScope,
+    receive!: (value: number) => void,
+    releases = 0
+  const values: number[] = []
+  f.ports.extensions = (owner) => {
+    scope = owner
+    return {}
+  }
+  const app = new AppSession(f.ports, f.clock, () => {})
+  await app.start(defineApp({ setup() {} }))
+  const connection = new AppConnection(scope)
+  const off = connection.listen(
+    (handler: (value: number) => void) => {
+      receive = handler
+      return () => {
+        releases++
+      }
+    },
+    (value) => values.push(value),
+  )
+  receive(1)
+  off()
+  receive(2)
+  off()
+  await connection.close()
+  receive(3)
+  await app.close()
+  assert.deepEqual(values, [1])
+  assert.equal(releases, 1)
+  assert.equal(app.resourceCount, 0)
+})
+
+test('SDK networking preserves host error codes instead of converting every failure to IO', async () => {
+  const { AppSession, defineApp } = await setup()
+  const { createAppNetwork } = await import('./app-network.js')
+  const { NetworkConnectionState } = await import('../modules/connectivity/network-state.js')
+  for (const code of ['TIMEOUT', 'BUSY', 'UNSUPPORTED', 'INVALID_ARGUMENT'] as const) {
+    const f = fixture()
+    let service!: ReturnType<typeof createAppNetwork>
+    f.ports.extensions = (scope) => {
+      service = createAppNetwork(scope, {
+        network: {
+          availability: 'native',
+          state: NetworkConnectionState.FAILED,
+          ready: Promise.resolve({ status: 'failed', reason: 'network test', code }),
+        },
+        localPeer: {
+          id: '001122334455',
+          open: async () => {
+            throw new StackchanError(code, 'peer test')
+          },
+        },
+      })
+      return { network: service }
+    }
+    const app = new AppSession(f.ports, f.clock, () => {})
+    await app.start(defineApp({ setup() {} }))
+    await assert.rejects(service.ready(), { code })
+    await assert.rejects(service.openPeer({ service: 'test' }), { code })
+    await app.close()
+    assert.equal(app.resourceCount, 0)
+  }
+})
+
+test('app shutdown reaches a local peer open and releases its radio before late completion', async () => {
+  const { AppSession, defineApp } = await setup()
+  const { createAppNetwork } = await import('./app-network.js')
+  const f = fixture()
+  let service!: ReturnType<typeof createAppNetwork>,
+    finish!: () => void,
+    closes = 0,
+    acquired = false
+  f.ports.extensions = (scope) => {
+    service = createAppNetwork(scope, {
+      localPeer: {
+        id: '001122334455',
+        open: (_options, signal) => {
+          acquired = true
+          assert.ok(signal)
+          return new Promise((resolve, reject) => {
+            const unsubscribe = signal.subscribe((error) => {
+              closes++
+              reject(error)
+            })
+            finish = () => {
+              unsubscribe()
+              resolve({
+                discover: async () => [],
+                send: async () => ({ messageId: '', peerId: '', attempts: 1 }),
+                broadcast: async () => ({ messageId: '' }),
+                subscribe: () => () => {},
+                close: () => {
+                  closes++
+                },
+              })
+            }
+          })
+        },
+      },
+    })
+    return { network: service }
+  }
+  const app = new AppSession(f.ports, f.clock, () => {})
+  await app.start(defineApp({ setup() {} }))
+  const rejected = assert.rejects(service.openPeer({ service: 'test' }), { code: 'CLOSED' })
+  await flush()
+  assert.equal(acquired, true)
+  await app.close()
+  await rejected
+  assert.equal(closes, 1)
+  finish()
+  await flush()
+  assert.equal(closes, 1)
+  assert.equal(app.resourceCount, 0)
 })

@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { syncSamples } from './sync-samples.mjs'
 
@@ -66,13 +65,28 @@ test('ambiguous or escaping mappings are rejected', (t) => {
   assert.equal(readFileSync(join(options.outputRoot, 'sample/mod/mod.js'), 'utf8'), 'old source')
 })
 
-test('CLI check can run outside the repository and rejects unknown flags', (t) => {
-  const root = mkdtempSync(join(tmpdir(), 'stackchan-gallery-cli-'))
+test('CLI runs outside its package and reports drift, synchronization and invalid flags', (t) => {
+  const options = fixture(t)
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'stackchan-gallery-cli-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
-  const script = new URL('./sync-samples.mjs', import.meta.url)
-  const check = spawnSync(process.execPath, [fileURLToPath(script), '--check'], { cwd: root, encoding: 'utf8' })
+  const gallery = join(root, 'web/mod-gallery')
+  mkdirSync(gallery, { recursive: true })
+  cpSync(options.inputRoot, join(root, 'firmware/mods/examples'), { recursive: true })
+  cpSync(options.outputRoot, join(gallery, 'samples'), { recursive: true })
+  const script = join(gallery, 'sync-samples.mjs')
+  cpSync(new URL('./sync-samples.mjs', import.meta.url), script)
+  writeFileSync(join(gallery, 'sample-sources.json'), JSON.stringify(options.mappings))
+  const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: tmpdir(), encoding: 'utf8' })
+  const stale = run('--check')
+  assert.equal(stale.status, 1, stale.stderr + stale.stdout)
+  assert.match(stale.stdout, /Outdated gallery source files/)
+  assert.equal(readFileSync(join(gallery, 'samples/sample/mod/mod.js'), 'utf8'), 'old source')
+  const sync = run()
+  assert.equal(sync.status, 0, sync.stderr + sync.stdout)
+  const check = run('--check')
   assert.equal(check.status, 0, check.stderr + check.stdout)
-  const invalid = spawnSync(process.execPath, [fileURLToPath(script), '--invalid'], { cwd: root, encoding: 'utf8' })
+  assert.match(check.stdout, /up to date/)
+  const invalid = run('--invalid')
   assert.equal(invalid.status, 1)
   assert.match(invalid.stderr, /Usage:/)
 })

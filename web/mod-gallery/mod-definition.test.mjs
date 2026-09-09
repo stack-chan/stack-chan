@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join, relative, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 
 import { isXsArchive, xsArchiveVersion } from '../editor/mod-builder.mjs'
@@ -12,6 +14,27 @@ import { syncSamples } from './sync-samples.mjs'
 
 test('Gallery source copies match the firmware examples', () => {
   assert.deepEqual(syncSamples({ check: true }), [])
+})
+
+test('Source mappings cover every catalog text package and every packaged source file', () => {
+  const catalog = JSON.parse(readFileSync(catalogUrl, 'utf8'))
+  const mappings = JSON.parse(readFileSync(new URL('./sample-sources.json', import.meta.url), 'utf8'))
+  const targets = catalog.definitions
+    .filter((path) => path.startsWith('samples/'))
+    .flatMap((path) => {
+      const definition = JSON.parse(readFileSync(new URL(path, catalogUrl), 'utf8'))
+      if (definition.type !== 'text') return []
+      const packagePath = path.slice('samples/'.length, path.lastIndexOf('/') + 1)
+      return [packagePath + definition.source.path.slice(0, definition.source.path.lastIndexOf('/'))]
+    })
+  assert.deepEqual(mappings.map(({ target }) => target).sort(), targets.sort())
+  for (const { target, files } of mappings) {
+    const directory = new URL(`./samples/${target}/`, import.meta.url)
+    const packagedFiles = readdirSync(directory, { recursive: true, withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => relative(fileURLToPath(directory), join(entry.parentPath, entry.name)).split(sep).join('/'))
+    assert.deepEqual([...files].sort(), packagedFiles.sort(), `${target}: all packaged sources must stay mapped`)
+  }
 })
 
 const catalogUrl = new URL('./catalog.json', import.meta.url)

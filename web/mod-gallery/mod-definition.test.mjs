@@ -8,6 +8,12 @@ import { parseVisualProject } from '../editor/project-format.mjs'
 import { analyzeWorkspace } from '../editor/project-validator.mjs'
 import { loadModCatalog, parseModDefinition, validatePackagePath } from './mod-definition.mjs'
 
+import { syncSamples } from './sync-samples.mjs'
+
+test('Gallery source copies match the firmware examples', () => {
+  assert.deepEqual(syncSamples({ check: true }), [])
+})
+
 const catalogUrl = new URL('./catalog.json', import.meta.url)
 
 async function fileFetch(url) {
@@ -62,81 +68,6 @@ test('テキストMODの成果物は既存の実行互換性を維持する', as
       archive.includes(Buffer.from('/home/')),
       false,
       `${definition.id}: artifact should not expose build paths`
-    )
-  }
-})
-
-test('MediaPipe GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/mediapipe_ble/', import.meta.url)
-  const gallery = new URL('./samples/mediapipe-ble/mod/', import.meta.url)
-  for (const filename of ['manifest.json', 'mod.js', 'tracking-message.js', 'tracking-receiver.js']) {
-    assert.equal(
-      readFileSync(new URL(filename, gallery), 'utf8'),
-      readFileSync(new URL(filename, firmware), 'utf8'),
-      `${filename} should not drift between the firmware example and gallery package`
-    )
-  }
-})
-
-test('MCP GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/mcp/', import.meta.url)
-  const gallery = new URL('./samples/mcp/mod/', import.meta.url)
-  for (const filename of ['manifest.json', 'mod.js']) {
-    assert.equal(
-      readFileSync(new URL(filename, gallery), 'utf8'),
-      readFileSync(new URL(filename, firmware), 'utf8'),
-      `${filename} should not drift between the firmware example and gallery package`
-    )
-  }
-})
-
-test('Codex Voice GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/codex_voice/', import.meta.url)
-  const gallery = new URL('./samples/codex-voice/mod/', import.meta.url)
-  for (const filename of ['manifest.json', 'mod.js']) {
-    assert.equal(
-      readFileSync(new URL(filename, gallery), 'utf8'),
-      readFileSync(new URL(filename, firmware), 'utf8'),
-      `${filename} should not drift between the firmware example and gallery package`
-    )
-  }
-})
-
-test('Stack-chanミニゲーム集GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/stackchan_minigames/', import.meta.url)
-  const gallery = new URL('./samples/stackchan-minigames/miniapp/', import.meta.url)
-  for (const filename of [
-    'manifest.json',
-    'miniapp.ts',
-    'README.md',
-    'README_ja.md',
-    'LICENSE.mouse-follower',
-    'assets/stack-chan.png',
-    'assets/player-left.png',
-    'assets/player-center.png',
-    'assets/player-right.png',
-    'assets/screw.png',
-    'assets/m5stack.png',
-    'assets/bubble.png',
-    'assets/bomb.png',
-    'assets/miss.png',
-  ]) {
-    assert.deepEqual(
-      readFileSync(new URL(filename, gallery)),
-      readFileSync(new URL(filename, firmware)),
-      `${filename} should not drift between the firmware example and gallery package`
-    )
-  }
-})
-
-test('UI Playground GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/mini_app_ui_sample/', import.meta.url)
-  const gallery = new URL('./samples/ui-playground/miniapp/', import.meta.url)
-  for (const filename of ['manifest.json', 'miniapp.ts']) {
-    assert.equal(
-      readFileSync(new URL(filename, gallery), 'utf8'),
-      readFileSync(new URL(filename, firmware), 'utf8'),
-      `${filename} should not drift between the firmware example and gallery package`
     )
   }
 })

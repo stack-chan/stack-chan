@@ -131,4 +131,36 @@ assert(!controller.launchMiniApp('missing'), 'unknown mini app ids should be rej
 assert(viewBehavior.main !== viewBehavior.faceMain, 'an unknown id should leave the launcher visible')
 equal(title.string, 'ミニアプリ', 'an unknown id should preserve the launcher AppBar')
 
+let shutdownDisposals = 0
+let lateActions = 0
+controller.miniApps.register({
+  id: 'test.shutdown',
+  title: 'Shutdown',
+  create: () => ({
+    content: new Container(),
+    dispose() {
+      shutdownDisposals += 1
+    },
+  }),
+})
+assert(controller.launchMiniApp('test.shutdown'), 'test mini app should be active at host close')
+controller.bindDrawerAction('testAction', () => {
+  lateActions += 1
+})
+const retainedAction = (controller as unknown as { testAction: () => void }).testAction
+controller.close()
+controller.close()
+equal(shutdownDisposals, 1, 'host close should dispose active mini app once')
+assert(application.first === null || application.first === undefined, 'host close should detach Piu view')
+retainedAction()
+equal(lateActions, 0, 'retained drawer action must not run after host close')
+assert(!controller.launchMiniApp('test.shutdown'), 'closed controller cannot launch mini apps')
+let registrationFailed = false
+try {
+  controller.miniApps.register({ id: 'late', title: 'Late', create: () => new Container() })
+} catch {
+  registrationFailed = true
+}
+assert(registrationFailed, 'closed controller cannot accept new registrations')
+
 trace('ok\n')

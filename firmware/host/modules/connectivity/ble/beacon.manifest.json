@@ -1,0 +1,8 @@
+{
+  "include": ["../../util/manifest_types.json"],
+  "modules": {
+    "beacon-packet": "./beacon-packet",
+    "btutils": "$(MODULES)/network/ble/btutils",
+    "gap": "$(MODULES)/network/ble/gap"
+  }
+}

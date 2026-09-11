@@ -5,12 +5,42 @@
     "rootDir": ".",
     "noEmit": false,
     "rewriteRelativeImportExtensions": true,
-    "allowJs": false,
+    "allowJs": true,
     "allowImportingTsExtensions": false,
     "checkJs": false,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
+      "recording-wave": [
+        "./host/modules/audio/recording-wave.ts"
+      ],
+      "audio-ports": [
+        "./host/modules/audio/audio-ports.ts"
+      ],
+      "recorded-audio": [
+        "./host/modules/audio/recorded-audio.ts"
+      ],
+      "pcm-wave": [
+        "./host/modules/audio/pcm-wave.ts"
+      ],
+      "stackchan-result": [
+        "./host/modules/util/result.ts"
+      ],
+      "Resource": [
+        "./host/modules/testing/fakes/resource.ts"
+      ],
+      "text/decoder": [
+        "./host/modules/testing/fakes/text-decoder.ts"
+      ],
+      "stackchan-contracts/*": [
+        "./contracts/*.js"
+      ],
+      "installed-mod": [
+        "./host/modules/mod-package/installed-mod.ts"
+      ],
+      "mod-maintenance": [
+        "./host/modules/mod-package/mod-maintenance.ts"
+      ],
       "piu/MC": [
         "./node_modules/@moddable/typings/piu/MC.d.ts"
       ],
@@ -71,8 +101,8 @@
       "parts/image/image-avatar-state": [
         "./host/modules/ui/components/face/parts/image/image-avatar-state.ts"
       ],
-      "motion-controller": [
-        "./host/modules/motion/motion-controller.ts"
+      "motion-driver": [
+        "./host/modules/motion/motion-driver.ts"
       ],
       "microphone": [
         "./host/modules/testing/fakes/microphone-type.ts"
@@ -98,17 +128,23 @@
       "touch-panel-gesture": [
         "./host/modules/input/touch-panel-gesture.ts"
       ],
-      "stored-wifi": [
-        "./host/modules/connectivity/stored-wifi.ts"
-      ],
       "network-service": [
         "./host/modules/connectivity/network-service.ts"
+      ],
+      "network-types": [
+        "./host/modules/connectivity/network-types.ts"
       ],
       "network-state": [
         "./host/modules/connectivity/network-state.ts"
       ],
       "loadPreference": [
         "./host/modules/preferences/loadPreference.ts"
+      ],
+      "stackchan/settings-schema": [
+        "./sdk/settings-schema.ts"
+      ],
+      "settings-service": [
+        "./host/modules/preferences/settings-service.ts"
       ],
       "timezone-settings": [
         "./host/modules/preferences/timezone-settings.ts"
@@ -123,7 +159,7 @@
         "./host/app/volume-preview.ts"
       ],
       "network-manager": [
-        "./host/modules/connectivity/__tests__/fakes/network-manager.ts"
+        "./host/modules/connectivity/network-manager.ts"
       ],
       "preference": [
         "./host/modules/testing/fakes/preference.ts"
@@ -164,29 +200,17 @@
       "input-event": [
         "./host/modules/input/input-event.ts"
       ],
-      "startup-splash": [
-        "./host/app/default-behavior/__tests__/startup-choice/startup-splash-stub.ts"
-      ],
-      "setup-mode": [
-        "./host/app/default-behavior/__tests__/startup-choice/setup-mode-stub.ts"
-      ],
       "settings-status-model": [
         "./host/modules/ui/views/settings/settings-status-model.ts"
       ],
-      "boot-network-recovery": [
-        "./host/app/boot-network-recovery.ts"
+      "boot-session": [
+        "./host/app/boot-session.ts"
       ],
-      "app-behavior-resolver": [
-        "./host/app/app-behavior-resolver.ts"
+      "app-definition": [
+        "./host/app/app-definition.ts"
       ],
       "app-launch": [
         "./host/app/app-launch.ts"
-      ],
-      "app-default-behavior/startup-choice": [
-        "./host/app/default-behavior/startup-choice.ts"
-      ],
-      "app-default-behavior/wasm/on-launch": [
-        "./host/app/default-behavior/wasm/on-launch.ts"
       ],
       "mac-address": [
         "./host/modules/util/sim/mac-address.ts"
@@ -268,6 +292,99 @@
       ],
       "web-radio-byte-ring": [
         "./host/modules/audio/platforms/m5stackchan-cores3/shared-byte-ring.ts"
+      ],
+      "stackchan/*": [
+        "./sdk/*.ts"
+      ],
+      "camera-capture-session": [
+        "./host/app/camera-capture-session.ts"
+      ],
+      "operation-queue": [
+        "./host/app/operation-queue.ts"
+      ],
+      "tts-playback-session": [
+        "./host/modules/audio/tts-playback-session.ts"
+      ],
+      "wasm-audio-bridge-contract": [
+        "./host/modules/audio/wasm/audio-bridge-contract.ts"
+      ],
+      "stackchan": [
+        "./sdk/index.ts"
+      ],
+      "owned-resources": [
+        "./host/app/owned-resources.ts"
+      ],
+      "cancellation": [
+        "./host/app/cancellation.ts"
+      ],
+      "task-scope": [
+        "./host/app/task-scope.ts"
+      ],
+      "app-session": [
+        "./host/app/app-session.ts"
+      ],
+      "app-audio-session": [
+        "./host/app/app-audio-session.ts"
+      ],
+      "runtime-resources": [
+        "./host/app/runtime-resources.ts"
+      ],
+      "motion-port": [
+        "./host/modules/motion/motion-port.ts"
+      ],
+      "motion-execution": [
+        "./host/app/motion-execution.ts"
+      ],
+      "runtime-motion": [
+        "./host/app/runtime-motion.ts"
+      ],
+      "app-service-scope": [
+        "./host/app/app-service-scope.ts"
+      ],
+      "servo-maintenance": [
+        "./host/modules/motion/servo-maintenance.ts"
+      ],
+      "runtime-audio": [
+        "./host/app/runtime-audio.ts"
+      ],
+      "WebSocket": [
+        "./host/app/__tests__/fakes/native-network.ts"
+      ],
+      "bleclient": [
+        "./node_modules/@moddable/typings/ble/bleclient.d.ts"
+      ],
+      "bleserver": [
+        "./node_modules/@moddable/typings/ble/bleserver.d.ts"
+      ],
+      "btutils": [
+        "./node_modules/@moddable/typings/ble/btutils.d.ts"
+      ],
+      "beacon-packet": [
+        "./host/modules/connectivity/ble/beacon-packet.ts"
+      ],
+      "app-http": [
+        "./host/app/app-http.ts"
+      ],
+      "http-delimited-stream": [
+        "./host/app/http-delimited-stream.ts"
+      ],
+      "http-server-service": [
+        "./host/app/__tests__/fakes/native-network.ts"
+      ],
+      "mcp-server": [
+        "./host/app/__tests__/fakes/native-network.ts"
+      ],
+      "stk-server": [
+        "./host/modules/connectivity/ble/stk-server.js"
+      ],
+      "headers": [
+        "./node_modules/@moddable/typings/web/headers.d.ts"
+      ],
+      "mcp-client": [
+        "./host/modules/connectivity/mcp-client/mcp-client.ts"
+      ],
+      "app-dialogue": [
+        "./host/app/app-dialogue.ts"
       ]
     },
     "types": [

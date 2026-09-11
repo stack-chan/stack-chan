@@ -1,5 +1,7 @@
 {
   "include": [
+    "../../../sdk/manifest.json",
+    "../preferences/manifest_model.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/examples/manifest_piu.json",
@@ -23,8 +25,6 @@
     "settings-view": "./views/settings/settings-view",
     "settings-network-list": "./views/settings/settings-network-list",
     "settings-status-model": "./views/settings/settings-status-model",
-    "timezone-model": "../preferences/timezone-model",
-    "volume-model": "../preferences/volume-model",
     "face-state": "./state/face-state",
     "face-skin": "./state/face-skin",
     "hand-sprites": "./components/hands/hand-sprites",

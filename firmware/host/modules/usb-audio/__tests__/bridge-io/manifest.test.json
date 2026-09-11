@@ -9,7 +9,8 @@
     "main": "./bridge-io.test",
     "stackchan-usb-crc32": "./unused-crc32",
     "stackchan-usb-serial": "./unused-usb-serial",
-    "web-radio-byte-ring": "../../../audio/platforms/m5stackchan-cores3/shared-byte-ring"
+    "web-radio-byte-ring": "../../../audio/platforms/m5stackchan-cores3/shared-byte-ring",
+    "testing/usb-serial": "../usb-serial-fake"
   },
   "creation": {
     "static": 131072,

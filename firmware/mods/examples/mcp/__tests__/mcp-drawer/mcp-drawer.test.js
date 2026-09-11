@@ -1,110 +1,48 @@
-import { setMCPServerResult } from 'mcp-server'
-import { onContextCreated } from 'mod'
-import { setIPAddress } from 'net'
-import { assert, equal } from 'testing/assert'
+import definition from 'mod'
+import { equal } from 'testing/assert'
 
-function createContext(ready = { status: 'connected' }) {
-  const buttons = []
-  const states = []
-  const balloons = []
-  let hidden = 0
-  const context = {
-    connectivity: {
-      network: {
-        ready: Promise.resolve(ready),
-      },
+let options, showEndpoint, speech, emotion
+const balloons = []
+const app = {
+  network: {
+    async ready() {},
+    address() {
+      return '192.0.2.1'
     },
-    ui: {
-      drawer: {
-        addDrawerButton(button) {
-          buttons.push(button)
-        },
-        setDrawerButtonState(key, active) {
-          states.push([key, active])
-        },
-      },
-      showBalloon(message) {
-        balloons.push(message)
-      },
-      hideBalloon() {
-        hidden += 1
-      },
+    serveTools(value) {
+      options = value
+      return { close() {} }
     },
-    face: {
-      setEmotion() {},
+  },
+  audio: {
+    async say(text) {
+      speech = text
     },
-    audio: {
-      say() {
-        return Promise.resolve({ success: true, value: 'ok' })
-      },
+  },
+  face: {
+    setEmotion(value) {
+      emotion = value
     },
-  }
-  return {
-    context,
-    buttons,
-    states,
-    balloons,
-    get hidden() {
-      return hidden
+  },
+  ui: {
+    addAction(_options, handler) {
+      showEndpoint = handler
     },
-  }
+    showBalloon(text) {
+      balloons.push(text)
+    },
+  },
 }
-
-async function runTest() {
-  setMCPServerResult('running')
-  setIPAddress('192.168.7.146')
-  const connected = createContext()
-  onContextCreated(connected.context)
-  equal(connected.buttons.length, 1, 'MCP MOD should register one drawer button')
-  const button = connected.buttons[0]
-  equal(button.key, 'mcp-server:endpoint', 'drawer button should have a stable key')
-  equal(button.kind, 'toggle', 'endpoint control should be a toggle')
-  equal(button.initialState, false, 'endpoint balloon should start hidden')
-
-  await button.callback(connected.context)
-  equal(connected.states[0][1], true, 'first toggle should become active')
-  equal(
-    connected.balloons[0],
-    'MCP server:\nhttp://192.168.7.146:8080/mcp',
-    'connected server should show its MCP endpoint',
-  )
-  await button.callback(connected.context)
-  equal(connected.states[1][1], false, 'second toggle should become inactive')
-  equal(connected.hidden, 1, 'second toggle should hide the endpoint balloon')
-
-  setMCPServerResult('running')
-  const offline = createContext({ status: 'failed', reason: 'connection failed' })
-  onContextCreated(offline.context)
-  await offline.buttons[0].callback(offline.context)
-  equal(
-    offline.balloons[0],
-    'MCP server unavailable:\nconnection failed',
-    'offline server should show the network failure',
-  )
-
-  const rejected = createContext()
-  rejected.context.connectivity.network.ready = Promise.reject(new Error('Wi-Fi initialization failed'))
-  onContextCreated(rejected.context)
-  await rejected.buttons[0].callback(rejected.context)
-  assert(rejected.balloons[0].includes('Wi-Fi initialization failed'), 'network readiness rejection should be visible')
-
-  setMCPServerResult('failed', 'port already in use')
-  const failed = createContext()
-  onContextCreated(failed.context)
-  await failed.buttons[0].callback(failed.context)
-  equal(failed.balloons[0], 'MCP server error:\nport already in use', 'listener failure should be visible')
-
-  setMCPServerResult('running')
-  setIPAddress(undefined)
-  const missingAddress = createContext()
-  onContextCreated(missingAddress.context)
-  await missingAddress.buttons[0].callback(missingAddress.context)
-  assert(missingAddress.balloons[0].includes('IP address is not available'), 'missing IP address should be visible')
-
-  trace('ok\n')
-}
-
-runTest().catch((error) => {
-  trace(`MCP drawer test failed: ${String(error)}\n`)
-  throw error
-})
+await definition.setup(app)
+equal(options.port, 8080, 'MCP keeps its listener port')
+showEndpoint()
+equal(balloons.at(-1), 'http://192.0.2.1:8080/mcp', 'endpoint uses the connected interface address')
+const speak = options.tools.find((tool) => tool.name === 'say_message')
+await speak.execute({ message: 'hello' }, {})
+equal(speech, 'hello', 'MCP calls await SDK speech completion')
+const face = options.tools.find((tool) => tool.name === 'set_emotion')
+await face.execute({ emotion: 'HAPPY' }, {})
+equal(emotion, 'happy', 'legacy wire emotion is translated into the public SDK name')
+await face.execute({ emotion: 'INVALID' }, {})
+equal(emotion, 'happy', 'invalid emotion does not change the face')
+trace('ok\n')

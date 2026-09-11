@@ -1,0 +1,8 @@
+{
+  "include": ["../../manifest.json", "../../../testing/manifest.json"],
+  "modules": {
+    "embedded:io/serial": "./serial",
+    "main": "./servo-protocol-lifecycle.test"
+  },
+  "defines": { "main": { "async": 1 } }
+}

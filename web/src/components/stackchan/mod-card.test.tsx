@@ -8,7 +8,9 @@ import { type ModDefinition } from '@/services/mod-gallery/mod-catalog-service'
 
 const mod: ModDefinition = {
   format: 'tech.stackchan.mod',
-  schemaVersion: 1,
+  schemaVersion: 2,
+  appApiVersion: 2,
+  hostApiVersion: 2,
   id: 'hello',
   version: '1.0.0',
   type: 'block',
@@ -105,13 +107,12 @@ describe('ModCard', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   })
 
-  it('shows mini-app and privileged combined-package badges', () => {
+  it('shows the screen capability independently of its normal mod entrypoint', () => {
     render(
       <I18nProvider>
-        <ModCard mod={{ ...mod, type: 'text', entrypoints: ['mod', 'miniapp'] }} badges={[]} />
+        <ModCard mod={{ ...mod, type: 'text', entrypoints: ['mod'], capabilities: ['ui.piu'] }} badges={[]} />
       </I18nProvider>
     )
-    expect(screen.getByText('MOD')).toBeInTheDocument()
     expect(screen.getByText('ミニアプリ')).toBeInTheDocument()
     expect(screen.getByText('テキスト')).toBeInTheDocument()
   })

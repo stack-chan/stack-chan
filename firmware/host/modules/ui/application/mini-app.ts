@@ -1,24 +1,13 @@
-import type { Container as PiuContainer } from 'piu/MC'
+import type { ScreenContext, ScreenDefinition, ScreenInstance } from 'stackchan/extensions/piu'
 
 export const MINI_APP_BAR_HEIGHT = 44
 
-export type MiniAppContext = Readonly<{
-  width: number
-  height: number
-  close(): void
-}>
-
-export type MiniAppInstance = Readonly<{
-  content: PiuContainer
-  dispose?(): void
-}>
-
-export type MiniAppDefinition = Readonly<{
-  id: string
-  title: string
-  icon?: 'play'
-  create(context: MiniAppContext): PiuContainer | MiniAppInstance
-}>
+// Internal viewport contract. AppSession supplies the owning SDK context to each factory.
+export type MiniAppContext = Omit<ScreenContext, 'app'>
+export type MiniAppInstance = ScreenInstance
+export type MiniAppDefinition = Omit<ScreenDefinition, 'create'> & {
+  create(context: MiniAppContext): ReturnType<ScreenDefinition['create']>
+}
 
 export type RegisteredMiniApp = Readonly<Pick<MiniAppDefinition, 'id' | 'title' | 'icon'>>
 
@@ -58,12 +47,24 @@ function validateDefinition(definition: MiniAppDefinition): MiniAppDefinition {
 export class MiniAppRegistry implements MiniAppRegistryCapability {
   #definitions = new Map<string, MiniAppDefinition>()
   #listeners = new Set<RegistryListener>()
+  #closed = false
 
   register(definition: MiniAppDefinition): () => void {
+    if (this.#closed) throw new Error('Mini app registry is closed')
     const validated = validateDefinition(definition)
     if (this.#definitions.has(validated.id)) throw new Error(`mini app id is already registered: ${validated.id}`)
     this.#definitions.set(validated.id, validated)
-    this.#notify()
+    try {
+      this.#notify()
+    } catch (error) {
+      this.#definitions.delete(validated.id)
+      try {
+        this.#notify()
+      } catch {
+        // Rollback must preserve the original publication failure.
+      }
+      throw error
+    }
     let registered = true
     return () => {
       if (!registered) return
@@ -85,11 +86,21 @@ export class MiniAppRegistry implements MiniAppRegistryCapability {
   }
 
   subscribe(listener: RegistryListener): () => void {
+    if (this.#closed) throw new Error('Mini app registry is closed')
     this.#listeners.add(listener)
     return () => this.#listeners.delete(listener)
   }
 
   #notify(): void {
-    for (const listener of this.#listeners) listener()
+    for (const listener of this.#listeners) {
+      if (this.#closed) break
+      listener()
+    }
+  }
+
+  close(): void {
+    this.#closed = true
+    this.#listeners.clear()
+    this.#definitions.clear()
   }
 }

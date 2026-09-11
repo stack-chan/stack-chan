@@ -1,0 +1,12 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "settings-recovery-cases": "./cases",
+    "main": "./settings-recovery.test"
+  },
+  "preload": ["stackchan/errors"]
+}

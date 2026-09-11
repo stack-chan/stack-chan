@@ -1,5 +1,3 @@
-import type { LocalPeerCapability } from 'local-peer-types'
-
-export function createLocalPeerCapability(): LocalPeerCapability | undefined {
+export function createLocalPeerCapability(): undefined {
   return undefined
 }

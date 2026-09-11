@@ -2,7 +2,8 @@
   "include": [
     "../../manifest.json",
     "../../../../../host/modules/ui/manifest.json",
-    "../../../../../host/modules/testing/manifest.json"
+    "../../../../../host/modules/testing/manifest.json",
+    "../../../../../sdk/manifest.json"
   ],
   "modules": {
     "main": "./mini-app-ui.test"

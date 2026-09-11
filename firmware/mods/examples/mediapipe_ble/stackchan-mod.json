@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.mediapipe-ble",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "mediapipe_ble",
+  "description": "Receive MediaPipe face and hand tracking over BLE.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
+  "capabilities": ["ui.controls", "network.peer", "motion"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["network.peer", "motion"]
+}

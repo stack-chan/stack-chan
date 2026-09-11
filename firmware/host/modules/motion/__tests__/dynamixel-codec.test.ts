@@ -9,12 +9,32 @@ import {
   int16FromDynamixelPayload,
   int32FromDynamixelPayload,
   int32ToDynamixelBytes,
+  stuffDynamixelPacket,
+  unstuffDynamixelPayload,
   verifyDynamixelPacketCrc,
 } from '../protocols/dynamixel-codec.js'
 
 // Ping status packet example from the Robotis e-manual (Protocol 2.0):
 // header(4) id(1) length(2) instruction(1) error(1) params(3) crc(2)
 const REFERENCE_STATUS_PACKET = [0xff, 0xff, 0xfd, 0x00, 0x01, 0x07, 0x00, 0x55, 0x00, 0x06, 0x04, 0x26, 0x65, 0x5d]
+
+test('Dynamixel byte stuffing escapes embedded headers and preserves adjacent data', () => {
+  const packet = new Uint8Array(64)
+  const payload = [0x55, 0, 0xff, 0xff, 0xfd, 0xfd, 0xff, 0xff, 0xfd, 7]
+  packet.set([0xff, 0xff, 0xfd, 0, 1, 0, 0, ...payload])
+  const stuffedEnd = stuffDynamixelPacket(packet, 7 + payload.length)
+  assert.deepEqual(
+    [...packet.subarray(7, stuffedEnd)],
+    [0x55, 0, 0xff, 0xff, 0xfd, 0xfd, 0xfd, 0xff, 0xff, 0xfd, 0xfd, 7],
+  )
+  const restoredEnd = unstuffDynamixelPayload(packet, stuffedEnd + 2)
+  assert.deepEqual([...packet.subarray(7, restoredEnd)], payload)
+})
+
+test('Dynamixel byte stuffing refuses to overrun its fixed transmit buffer', () => {
+  const packet = new Uint8Array([0xff, 0xff, 0xfd, 0, 1, 6, 0, 0xff, 0xff, 0xfd, 0, 0])
+  assert.throws(() => stuffDynamixelPacket(packet, 10), RangeError)
+})
 
 test('Dynamixel codec encodes signed 32-bit little-endian values', () => {
   assert.deepEqual(int32ToDynamixelBytes(1024), [0x00, 0x04, 0x00, 0x00])

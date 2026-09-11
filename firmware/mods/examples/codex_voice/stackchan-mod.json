@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.codex-voice",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "codex_voice",
+  "description": "USB remote conversation with observed state and request acceptance.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["m5stackchan-cores3"],
+  "capabilities": ["ui.controls", "conversation.remote", "input.headTouch"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["conversation.remote", "input.headTouch"]
+}

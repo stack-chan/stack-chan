@@ -64,7 +64,7 @@ All commands should be run from the `firmware/` directory:
 - `npm run erase-flash` - Erase device flash memory
 
 ### Documentation and Testing
-- `npm run generate-apidoc` - Generate API documentation with TypeDoc
+- `npm run generate-apidoc` - Check the SDK and generate its public API reference under `firmware/dist/docs/sdk`; edit SDK source comments instead of generated files
 
 ## Target Configuration
 
@@ -79,9 +79,10 @@ Do not use `--target` or `npm_config_target`; the firmware command wrapper rejec
 
 ## MOD Development Workflow
 
-1. Write MOD in `firmware/mods/` with `manifest.json` and `mod.js`
+1. Start from `firmware/lessons/` or a runnable SDK example with `manifest.json`, `mod.js` / `mod.ts`, and `stackchan-mod.json`.
 2. From `firmware/`, use `npm run mod -- mods/your-mod/manifest.json` for rapid iteration
-3. MODs can add behavior via `onLaunch` and `onContextCreated` hooks
+3. Use `defineApp({ setup(app) { ... } })` from `stackchan`; use `stackchan/extensions/*` for advanced features. Do not add legacy hooks or host implementation imports. All runnable examples use app API 2. Declare each package's minimum host API from the shared capability catalogue; text dialogue and MCP clients require host API 10.
+4. Run `npm run check:sdk` and `npm run check:architecture`; build changed packages with `npm run mod:build -- path/to/manifest.json`. Keep changes and recovery instructions in the example README.
 
 ## Hardware Configuration
 
@@ -101,7 +102,7 @@ Uses lefthook for pre-commit hooks:
 ## Testing Approach
 
 Moddable test modules live under the target implementation with `manifest.test.json`; substantial tests get their own manifest for isolated execution.
-Cheap constructor smokes are consolidated into shared manifests (`firmware/host/modules/__tests__/module-smoke`, `firmware/mods/examples/provider-dialogues/__tests__/dialogue-smoke`) because each manifest pays a full mcconfig build.
+Cheap constructor smokes are consolidated into `firmware/host/modules/__tests__/module-smoke` because each manifest pays a full mcconfig build. Conversation providers share behavior and lifetime tests in `firmware/host/app/__tests__/app-conversation`; MCP client integration uses real loopback TCP through the shared HTTP transport.
 Node.js unit tests live next to pure helper implementations and run through `npm run test:unit`.
 Prefer XS-driven Moddable tests for behavior that touches the platform (Piu, Timer, drivers); keep Node.js tests for pure logic.
 Tests must verify observable behavior or relational invariants.

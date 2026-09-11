@@ -1,6 +1,12 @@
 import calculatePower from 'calculate-power'
 import AudioOut from 'pins/audioout'
-import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
+import {
+  beginPlaybackSession,
+  createPlaybackSession,
+  type PlaybackOwner,
+  type PlaybackSession,
+} from 'tts-playback-session'
+import type { TTSCompletion } from 'tts-types'
 
 type AudioOutOptions = {
   streams: number
@@ -9,108 +15,85 @@ type AudioOutOptions = {
   numChannels?: number
 }
 
-type Closable = {
-  close?: () => void
-}
-
-export type TTSPlaybackOwner = {
-  audio?: AudioOut
-  streaming: boolean
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
-}
-
+type Closable = { close?: () => void | Promise<void> }
+export type TTSPlaybackOwner = PlaybackOwner & { audio?: AudioOut }
 export type TTSPlaybackLifecycle = {
+  readonly closed: boolean
+  readonly released: Promise<void>
   openAudio(options: AudioOutOptions, volume: number): AudioOut
   attach<T extends Closable>(streamer: T): T
-  addCleanup(cleanup: () => void): void
+  addCleanup(cleanup: () => void | Promise<void>): void
+  waitFor<T>(operation: Promise<T>): Promise<T>
   onPlayed(buffer: ArrayBuffer): void
   onPower(power: number): void
   onReady(state: boolean): void
   onError(error: unknown): void
   onDone(): void
   fail(error: unknown): void
-}
-
-function closeResource(close: (() => void) | undefined): void {
-  try {
-    close?.()
-  } catch (error) {
-    trace(`TTS cleanup error: ${String(error)}\n`)
-  }
+  cancel(reason?: unknown): Promise<void>
 }
 
 export function createTTSPlaybackLifecycle(owner: TTSPlaybackOwner, callback?: TTSCompletion): TTSPlaybackLifecycle {
-  let completed = false
-  let streamer: Closable | undefined
-  const cleanupTasks: (() => void)[] = []
+  const session = createPlaybackSession(owner, callback)
+  return withAudio(owner, session)
+}
 
-  const finish = (error?: unknown): void => {
-    if (completed) return
-    completed = true
-    owner.streaming = false
-
-    for (let index = cleanupTasks.length - 1; index >= 0; index -= 1) {
-      closeResource(cleanupTasks[index])
-    }
-    closeResource(() => streamer?.close?.())
-    closeResource(() => owner.audio?.close())
-    owner.audio = undefined
-
-    owner.onDone?.()
-    callback?.(error)
-  }
-
+function withAudio(owner: TTSPlaybackOwner, session: PlaybackSession): TTSPlaybackLifecycle {
+  let audio: AudioOut | undefined
   return {
-    openAudio(options: AudioOutOptions, volume: number): AudioOut {
-      const audio = new AudioOut(options)
-      audio.enqueue(0, AudioOut.Volume, Math.round(volume * 256))
-      owner.audio = audio
-      return audio
+    get closed() {
+      return session.closed
     },
-    attach<T extends Closable>(nextStreamer: T): T {
-      streamer = nextStreamer
-      return nextStreamer
+    released: session.released,
+    openAudio(options, volume) {
+      if (session.closed) throw new Error('Playback is closed')
+      const output = new AudioOut(options)
+      audio = owner.audio = output
+      session.addCleanup(() => {
+        try {
+          output.close()
+        } finally {
+          if (owner.audio === output) owner.audio = undefined
+          if (audio === output) audio = undefined
+        }
+      })
+      output.enqueue(0, AudioOut.Volume, Math.round(volume * 256))
+      return output
     },
-    addCleanup(cleanup: () => void): void {
-      cleanupTasks.push(cleanup)
+    attach<T extends Closable>(streamer: T): T {
+      session.addCleanup(() => streamer.close?.())
+      return streamer
     },
-    onPlayed(buffer: ArrayBuffer): void {
-      if (completed) return
-      owner.onPlayed?.(calculatePower(buffer))
+    addCleanup: session.addCleanup,
+    waitFor: session.waitFor,
+    onPlayed(buffer) {
+      if (session.closed) return
+      try {
+        session.onPower(calculatePower(buffer))
+      } catch (error) {
+        session.fail(error)
+      }
     },
-    onPower(power: number): void {
-      if (completed) return
-      owner.onPlayed?.(power)
+    onPower: session.onPower,
+    onReady(state) {
+      if (session.closed || !audio) return
+      try {
+        if (state) audio.start()
+        else audio.stop()
+      } catch (error) {
+        session.fail(error)
+      }
     },
-    onReady(state: boolean): void {
-      if (completed || !owner.audio) return
-      trace(`Ready: ${state}\n`)
-      if (state) owner.audio.start()
-      else owner.audio.stop()
-    },
-    onError(error: unknown): void {
-      trace('ERROR: ', String(error), '\n')
-      finish(error)
-    },
-    onDone(): void {
-      trace('DONE\n')
-      finish()
-    },
-    fail(error: unknown): void {
-      trace('ERROR: ', String(error), '\n')
-      finish(error)
-    },
+    onError: session.fail,
+    onDone: session.onDone,
+    fail: session.fail,
+    cancel: session.cancel,
   }
 }
 
 export function beginTTSPlayback(owner: TTSPlaybackOwner, callback?: TTSCompletion): TTSPlaybackLifecycle | undefined {
-  if (owner.streaming) {
-    callback?.(new Error('already playing'))
-    return undefined
-  }
-  owner.streaming = true
-  return createTTSPlaybackLifecycle(owner, callback)
+  const session = beginPlaybackSession(owner, callback)
+  return session ? withAudio(owner, session) : undefined
 }
 
 export function runTTSPlayback(

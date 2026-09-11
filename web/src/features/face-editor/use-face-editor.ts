@@ -153,11 +153,16 @@ export function useFaceEditor() {
   }, [asset, initial.edit])
 
   const code = useMemo(
-    () => `${generateShapeFace(asset)}
+    () => `import { defineApp } from 'stackchan'
+import { ui } from 'stackchan/extensions/ui'
 
-export function onContextCreated(robot) {
-  robot.ui.setFace(new _StackchanVisualShapeFace({}))
-}`,
+${generateShapeFace(asset)}
+
+export default defineApp({
+  setup(app) {
+    ui(app).setShapeFace(_StackchanVisualShapeFace)
+  },
+})`,
     [asset]
   )
 

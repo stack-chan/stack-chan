@@ -39,7 +39,7 @@ PR #538以前のBlocklyワークスペースとバージョン1初期実装の`l
 
 ## MOD生成契約
 
-エディタは`onContextCreated(robot)`を公開する`mod.js`とmanifestを生成します。
+エディタは `defineApp({ setup(app) { … } })` を使うSDK API 2の `mod.js` とmanifest、host API 8以降を要求する `stackchan-mod.json` を生成します。入力・周期処理・待機と操作はAppSessionが所有し、アプリ停止時に取り消します。顔素材はSDKへ渡す図形データとして生成し、ホスト実装や機器を直接参照しません。
 
 生成コードが使えるAPIは、通常のMODへ公開される`StackchanContext`の能力に限定します。
 

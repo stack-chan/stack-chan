@@ -14,12 +14,12 @@ Install the archive, open the mini-app launcher, and choose `Stack-chan CATCH`.
 
 The game deliberately switches between fixed poses instead of moving sprites continuously. The LCD background, faint inactive poses, and dark active poses reproduce a Game & Watch-like afterimage.
 
-External mini-apps currently receive touch events but no host device-button capability, so this sample does not bind the Core2/CoreS3 physical buttons. Always use the host-owned Back button to exit; the game timer also stops when its `Port` is undisplayed.
+The implementation and archive now live in [Stack-chan Mini Games](../stackchan_minigames/README.md), with `catch.ts` as the source of truth. This directory retains gameplay and attribution notes. Use the host-owned Back button to exit; the game stops its timer when undisplayed.
 
 Build the archive from `firmware/`:
 
 ```console
-npm run mod:build -- mods/examples/stackchan_catch/manifest.json --mode=release
+npm run mod:build -- mods/examples/stackchan_minigames/manifest.json --mode=release
 ```
 
 ## Sprite attribution

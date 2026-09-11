@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.look-around",
+  "version": "2.0.0",
+  "type": "text",
+  "name": "look around",
+  "description": "主ボタンでランダムな見回しを開始・停止するSDKアプリ。サーボの設定が必要です。",
+  "appApiVersion": 2,
+  "hostApiVersion": 2,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.js"
+  },
+  "targets": ["portable"],
+  "capabilities": ["motion", "input.primary"],
+  "optionalCapabilities": ["motion"],
+  "entrypoints": ["mod"]
+}

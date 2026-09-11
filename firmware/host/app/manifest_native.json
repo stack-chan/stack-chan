@@ -1,0 +1,35 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODULES)/base/modules/manifest.json",
+    "$(MODULES)/data/crc/manifest.json",
+    "../modules/motion/manifest.json",
+    "../modules/audio/manifest.json",
+    "../modules/connectivity/manifest.json",
+    "../modules/conversation/manifest.json",
+    "../modules/camera/manifest.json",
+    "../modules/lighting/manifest.json",
+    "../modules/ui/manifest.json",
+    "../modules/input/manifest.json",
+    "../modules/util/manifest.json",
+    "../modules/preferences/manifest.json",
+    "../modules/power/manifest.json",
+    "../platforms/esp32/manifest.json",
+    "../platforms/lin/manifest.json",
+    "./manifest_typings.json"
+  ],
+  "modules": {
+    "*": ["$(MODULES)/network/http/*"],
+    "startup-splash": "../modules/ui/views/splash/splash-view",
+    "camera-preview": "../modules/ui/views/camera-preview/camera-preview-view",
+    "camera-preview-utils": "../modules/ui/views/camera-preview/camera-preview-utils",
+    "app-network-native": "./app-network-native",
+    "app-http": "./app-http",
+    "embedded:sensor/Humidity-Temperature/SHT3x": "$(MODDABLE)/modules/drivers/sensors/sht3x/sht3x",
+    "http-delimited-stream": "./http-delimited-stream"
+  },
+  "data": {
+    "*": ["$(MODULES)/crypt/data/ca233"]
+  }
+}

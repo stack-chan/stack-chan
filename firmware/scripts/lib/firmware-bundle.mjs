@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process'
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { parseEspAppDescriptor } from '../../contracts/esp-flash.js'
+import { TARGETS, targetForBuild } from '../../contracts/targets.js'
 import {
   buildOutputDirectory,
   firmwareDirectory,
@@ -8,11 +10,9 @@ import {
   moddableOutputArguments,
 } from './build-output.mjs'
 import { prepareCoreS3IdfDependencies } from './idf-dependencies.mjs'
-import { coreS3SdkconfigSourceDirectory, prepareVersionSdkconfig } from './moddable-version.mjs'
+import { firmwareDescriptorVersion, prepareVersionManifest, prepareVersionSdkconfig } from './moddable-version.mjs'
 
 const appDirectory = path.join(firmwareDirectory, 'host', 'app')
-const standardManifestPath = path.join(appDirectory, 'manifest.json')
-const m5stackchanManifestPath = path.join(appDirectory, 'manifest_m5stackchan_cores3.json')
 
 export const firmwareBundleName = 'tech.moddable.stackchan'
 export const firmwareBundleSignature = firmwareBundleName.split('.').reverse().join('.')
@@ -20,46 +20,18 @@ export const firmwareBundleBinaries = ['bootloader.bin', 'partition-table.bin', 
 export const firmwareBundleTargetMetadataName = 'bundle-target.json'
 export const firmwareBundleStagingDirectory = path.join(buildOutputDirectory, 'bundle-targets')
 
-export const firmwareBundleTargets = [
-  {
-    name: 'm5stack',
-    bundleId: 'com.m5stack',
-    platform: 'esp32/m5stack',
-    outputPlatform: 'm5stack',
-    manifestPath: standardManifestPath,
-    sdkconfigSource: ['build', 'devices', 'esp32', 'xsProj-esp32'],
-    partitionSource: ['build', 'devices', 'esp32', 'xsProj-esp32', 'partitions.csv'],
-  },
-  {
-    name: 'm5stack_core2',
-    bundleId: 'com.m5stack.core2',
-    platform: 'esp32/m5stack_core2',
-    outputPlatform: 'm5stack_core2',
-    manifestPath: standardManifestPath,
-    sdkconfigSource: ['build', 'devices', 'esp32', 'targets', 'm5stack_core2', 'sdkconfig'],
-    partitionSource: ['build', 'devices', 'esp32', 'targets', 'm5stack_core2', 'sdkconfig', 'partitions.csv'],
-  },
-  {
-    name: 'm5stack_cores3',
-    bundleId: 'com.m5stack.cores3',
-    platform: 'esp32/m5stack_cores3',
-    outputPlatform: 'm5stack_cores3',
-    manifestPath: standardManifestPath,
-    sdkconfigSource: ['build', 'devices', 'esp32', 'targets', 'm5stack_cores3', 'sdkconfig'],
-    partitionSource: ['build', 'devices', 'esp32', 'targets', 'm5stack_cores3', 'sdkconfig', 'partitions.csv'],
-    idfDependencyPlatform: 'm5stack_cores3',
-  },
-  {
-    name: 'm5stackchan_cores3',
-    bundleId: 'm5stackchan_cores3',
-    platform: 'esp32:./host/platforms/m5stackchan_cores3',
-    outputPlatform: 'm5stackchan_cores3',
-    manifestPath: m5stackchanManifestPath,
-    sdkconfigSource: coreS3SdkconfigSourceDirectory,
-    partitionSource: ['build', 'devices', 'esp32', 'targets', 'm5stack_cores3', 'sdkconfig', 'partitions.csv'],
-    idfDependencyPlatform: 'm5stackchan_cores3',
-  },
-]
+export const firmwareBundleTargets = Object.values(TARGETS)
+  .filter((target) => target.bundleId)
+  .map((target) => {
+    return {
+      name: target.buildName,
+      bundleId: target.bundleId,
+      platform: target.platform,
+      outputPlatform: target.buildName,
+      manifestPath: path.join(firmwareDirectory, target.manifest),
+      idfDependencyPlatform: target.chip === 'esp32s3' ? target.buildName : undefined,
+    }
+  })
 
 /**
  * Resolves one supported bundle target.
@@ -105,18 +77,10 @@ export function buildFirmwareBundleTarget(
 ) {
   if (!moddableDirectory) throw new Error('MODDABLE environment variable is required')
   const target = resolveFirmwareBundleTarget(name)
-  const sourceDirectory = Array.isArray(target.sdkconfigSource)
-    ? path.join(moddableDirectory, ...target.sdkconfigSource)
-    : target.sdkconfigSource
-  const partitionSourcePath = Array.isArray(target.partitionSource)
-    ? path.join(moddableDirectory, ...target.partitionSource)
-    : target.partitionSource
   const versionSdkconfig = prepareVersionSdkconfig({
     platformName: target.outputPlatform,
     moddableDirectory,
     outputDirectory,
-    sourceDirectory,
-    partitionSourcePath,
   })
 
   if (target.idfDependencyPlatform) {
@@ -129,7 +93,12 @@ export function buildFirmwareBundleTarget(
   }
 
   mkdirSync(outputDirectory, { recursive: true })
-  const bundleManifestPath = prepareBundleManifest(target, versionSdkconfig.directory, outputDirectory)
+  const bundleManifestPath = prepareVersionManifest(
+    target.manifestPath,
+    target.name,
+    versionSdkconfig.directory,
+    outputDirectory,
+  )
   try {
     runCommand(
       'mcconfig',
@@ -168,7 +137,7 @@ export function buildFirmwareBundleTarget(
     cpSync(source, path.join(stagingDirectory, binary))
   }
 
-  validateFirmwareBundleTarget(stagingDirectory, versionSdkconfig.version)
+  validateFirmwareBundleTarget(stagingDirectory, versionSdkconfig.version, targetForBuild(target.name).id)
   writeFileSync(
     path.join(stagingDirectory, firmwareBundleTargetMetadataName),
     `${JSON.stringify(
@@ -202,8 +171,10 @@ export function assembleFirmwareBundle({
     if (metadata.target !== target.bundleId) {
       throw new Error(`Bundle target metadata mismatch: ${metadata.target} != ${target.bundleId}`)
     }
-    validateFirmwareBundleTarget(directory, metadata.firmwareVersion)
-    return { target, directory, firmwareVersion: metadata.firmwareVersion }
+    validateFirmwareBundleTarget(directory, metadata.firmwareVersion, targetForBuild(target.name).id)
+    const descriptor = parseEspAppDescriptor(readFileSync(path.join(directory, 'xs_esp32.bin')))
+    const version = firmwareDescriptorVersion(descriptor.moddableVersion, descriptor.hostApiVersion)
+    return { target, directory, firmwareVersion: version }
   })
   const firmwareVersions = new Set(validatedTargets.map(({ firmwareVersion }) => firmwareVersion))
   if (firmwareVersions.size !== 1) {
@@ -254,12 +225,16 @@ export function packageFirmwareBundle({
  * Validates binary presence, partition capacity, and embedded firmware version.
  * @param {string} directory - Directory containing one target's binaries.
  * @param {string} expectedVersion - Expected esp_app_desc version.
+ * @param {string} expectedTarget - Canonical board ID.
  * @returns {{firmwareSize: number, factorySize: number, firmwareVersion: string}} Validation details.
  */
-export function validateFirmwareBundleTarget(directory, expectedVersion) {
+export function validateFirmwareBundleTarget(directory, expectedVersion, expectedTarget) {
   for (const binary of firmwareBundleBinaries) assertNonEmpty(path.join(directory, binary))
   const { firmwareSize, factorySize } = assertFitsFactoryPartition(directory)
-  const firmwareVersion = readFirmwareVersion(path.join(directory, 'xs_esp32.bin'))
+  const descriptor = parseEspAppDescriptor(readFileSync(path.join(directory, 'xs_esp32.bin')))
+  if (!expectedTarget || descriptor?.target !== expectedTarget)
+    throw new Error(`Bundle firmware target mismatch: ${descriptor?.target ?? 'unknown'} != ${expectedTarget}`)
+  const firmwareVersion = descriptor.version
   if (firmwareVersion !== expectedVersion) {
     throw new Error(
       `Bundle firmware version mismatch: ${path.join(directory, 'xs_esp32.bin')} ` +
@@ -279,14 +254,9 @@ export function validateFirmwareBundleTarget(directory, expectedVersion) {
  * @returns {string} Embedded esp_app_desc version.
  */
 export function readFirmwareVersion(firmwarePath) {
-  const firmware = readFileSync(firmwarePath)
-  const descriptorMagic = 0xabcd5432
-  if (firmware.length < 0x70 || firmware.readUInt32LE(0x20) !== descriptorMagic) {
-    throw new Error(`Firmware app descriptor is missing: ${firmwarePath}`)
-  }
-  const nul = firmware.indexOf(0, 0x30)
-  const versionEnd = nul >= 0 && nul < 0x50 ? nul : 0x50
-  return firmware.toString('utf8', 0x30, versionEnd).trim()
+  const descriptor = parseEspAppDescriptor(readFileSync(firmwarePath))
+  if (!descriptor) throw new Error(`Firmware app descriptor is missing: ${firmwarePath}`)
+  return descriptor.version
 }
 
 /**
@@ -384,39 +354,6 @@ function assertNonEmpty(filePath) {
  */
 function moddableOutputArgumentsFor(outputDirectory) {
   return outputDirectory === buildOutputDirectory ? moddableOutputArguments() : ['-o', outputDirectory]
-}
-
-/**
- * Appends a generated sdkconfig override after the application manifest.
- *
- * Standard Moddable target manifests assign SDKCONFIGPATH unconditionally, so
- * a process environment value is overwritten while manifests are merged. A
- * final included manifest keeps the target configuration intact and supplies
- * the version overlay with normal manifest precedence.
- *
- * mcconfig resolves relative paths inside included manifests from the top-level
- * manifest directory. Keep the wrapper beside the application manifest so
- * resources such as characterFile continue to resolve; the caller removes it
- * in a finally block.
- * @param {(typeof firmwareBundleTargets)[number]} target - Bundle target configuration.
- * @param {string} sdkconfigDirectory - Generated sdkconfig overlay directory.
- * @param {string} outputDirectory - Repository-local build output root.
- * @returns {string} Generated wrapper manifest path.
- */
-function prepareBundleManifest(target, sdkconfigDirectory, outputDirectory) {
-  const directory = path.join(outputDirectory, 'generated', 'bundle-manifests', target.name)
-  const overrideManifestPath = path.join(directory, 'sdkconfig.json')
-  const bundleManifestPath = path.join(
-    path.dirname(target.manifestPath),
-    `${firmwareBundleName}.${target.name}.${process.pid}.manifest.json`,
-  )
-  mkdirSync(directory, { recursive: true })
-  writeFileSync(overrideManifestPath, `${JSON.stringify({ build: { SDKCONFIGPATH: sdkconfigDirectory } }, null, 2)}\n`)
-  writeFileSync(
-    bundleManifestPath,
-    `${JSON.stringify({ include: [target.manifestPath, overrideManifestPath] }, null, 2)}\n`,
-  )
-  return bundleManifestPath
 }
 
 /**

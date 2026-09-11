@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.lessons.02-tone",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "音を鳴らす",
+  "description": "Stack-chan SDK 世代2の入門教材。音を鳴らす操作を学びます。",
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.js"
+  },
+  "appApiVersion": 2,
+  "hostApiVersion": 2,
+  "targets": ["portable"],
+  "capabilities": ["face", "audio.tone"],
+  "optionalCapabilities": [],
+  "entrypoints": ["mod"]
+}

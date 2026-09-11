@@ -1,5 +1,6 @@
 import type { Emotion } from 'face-state'
-import type { ImageAvatarPack } from 'parts/image/image-avatar-pack'
+import { EMOTIONS } from 'stackchan/app'
+import type { ImageAvatarPack } from 'stackchan/image-avatar'
 
 function clamp01(value: number): number {
   if (value < 0) return 0
@@ -13,5 +14,5 @@ export function frameIndexForRatio(ratio: number, frameCount: number): number {
 }
 
 export function resolveExpressionName(pack: ImageAvatarPack, emotion: Emotion): string {
-  return pack.emotionMap?.[emotion] ?? pack.defaultExpression
+  return pack.emotionMap[EMOTIONS[emotion]] ?? pack.defaultExpression
 }

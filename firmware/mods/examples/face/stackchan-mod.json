@@ -1,0 +1,18 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.face",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "face",
+  "description": "App-owned face, color, balloon and emoticon cycles with a localized menu.",
+  "appApiVersion": 2,
+  "hostApiVersion": 4,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.js"
+  },
+  "targets": ["m5stackchan-cores3", "simulator", "portable"],
+  "capabilities": ["ui.controls"],
+  "entrypoints": ["mod"]
+}

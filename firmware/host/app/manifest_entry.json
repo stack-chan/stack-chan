@@ -1,0 +1,6 @@
+{
+  "modules": {
+    "main": "./main",
+    "app-main": "./app-main"
+  }
+}

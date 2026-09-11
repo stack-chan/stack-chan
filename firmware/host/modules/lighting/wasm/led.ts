@@ -1,4 +1,7 @@
 export default class Led {
+  get available(): boolean {
+    return false
+  }
   // biome-ignore lint/complexity/noUselessConstructor: wasm stub keeps constructor options compatible with native LED drivers.
   constructor(_options?: unknown) {}
   write(..._args: unknown[]) {}

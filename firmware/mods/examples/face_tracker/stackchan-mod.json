@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.face-tracker",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "face_tracker",
+  "description": "Follow UnitV2 faces from a bounded delimited HTTP stream.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
+  "capabilities": ["ui.controls", "network.http", "motion"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["network.http", "motion"]
+}

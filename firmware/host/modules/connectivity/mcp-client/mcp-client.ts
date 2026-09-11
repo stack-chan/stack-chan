@@ -1,330 +1,158 @@
-import { fetch } from 'fetch'
+import { StackchanError } from 'stackchan/errors'
+import type { MCPOptions } from 'stackchan/extensions/conversation'
+import type { HttpRequest, HttpResponse, Tool } from 'stackchan/extensions/network'
+import type { CancellationSignal } from 'stackchan/task'
 
-/**
- * Minimal fetch Response interface for Moddable
- */
-interface FetchResponse {
-  ok: boolean
-  status: number
-  statusText: string
-  headers: {
-    get(name: string): string | null
-  }
-  text(): Promise<string>
+type Request = (request: HttpRequest, signal?: CancellationSignal) => Promise<HttpResponse>
+type ToolSchema = Omit<Tool, 'execute'>
+function object(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
-
-/**
- * MCP Protocol message types
- */
-interface MCPMessage {
-  jsonrpc: '2.0'
-  id?: string | number | null
-  method?: string
-  params?: unknown
-  result?: unknown
-  error?: {
-    code: number
-    message: string
-    data?: unknown
-  }
-}
-
-interface MCPRequest extends MCPMessage {
-  method: string
-  params?: unknown
-}
-
-interface MCPResponse extends MCPMessage {
-  id: string | number | null
-  result?: unknown
-  error?: {
-    code: number
-    message: string
-    data?: unknown
+function responseMessage(body: string, contentType: string, id: number): Record<string, unknown> {
+  try {
+    const messages: unknown[] = contentType.includes('text/event-stream')
+      ? body
+          .replace(/\r\n?/g, '\n')
+          .split('\n\n')
+          .flatMap((event) => {
+            const data = event
+              .split('\n')
+              .filter((line) => line.startsWith('data:'))
+              .map((line) => line.slice(5).replace(/^ /, ''))
+              .join('\n')
+            return data ? [JSON.parse(data)] : []
+          })
+      : [JSON.parse(body)]
+    const message = messages.find((value) => object(value) && value.id === id)
+    if (!object(message) || message.jsonrpc !== '2.0' || (!('result' in message) && !('error' in message)))
+      throw new Error('Invalid response')
+    return message
+  } catch {
+    throw new StackchanError('IO', 'MCP returned no matching JSON-RPC response')
   }
 }
 
-/**
- * MCP Client configuration
- */
-export interface MCPClientConfig {
-  url: string
-  token?: string
-}
-
-/**
- * Initialize response
- */
-interface InitializeResult {
-  protocolVersion: string
-  capabilities: {
-    tools: Record<string, unknown>
+/** Wire protocol only. The app owns all requests through the injected bounded HTTP transport. */
+export function createMCPClient(options: MCPOptions, request: Request) {
+  if (typeof options?.url !== 'string' || !/^https?:\/\/[^\s#]+$/.test(options.url))
+    throw new StackchanError('INVALID_ARGUMENT', 'MCP needs an HTTP or HTTPS endpoint')
+  if (options.token !== undefined && (typeof options.token !== 'string' || /[\r\n]/.test(options.token)))
+    throw new StackchanError('INVALID_ARGUMENT', 'MCP token must be a single-line string')
+  const url = options.url,
+    token = options.token
+  let nextId = 0,
+    session: string | undefined,
+    version: string | undefined,
+    closed = false
+  let closing: Promise<void> | undefined
+  const headers = () => ({
+    'Content-Type': 'application/json',
+    Accept: 'application/json, text/event-stream',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(session ? { 'Mcp-Session-Id': session } : {}),
+    ...(version ? { 'MCP-Protocol-Version': version } : {}),
+  })
+  const check = (signal?: CancellationSignal) => {
+    signal?.throwIfCancelled()
+    if (closed) throw new StackchanError('CLOSED', 'MCP connection closed')
   }
-  serverInfo: {
-    name: string
-    version: string
+  const send = async (method: string, params: unknown, signal?: CancellationSignal, notification = false) => {
+    check(signal)
+    const id = notification ? undefined : ++nextId
+    const response = await request(
+      { url, method: 'POST', headers: headers(), body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) },
+      signal,
+    )
+    check(signal)
+    if (response.status < 200 || response.status >= 300)
+      throw new StackchanError('IO', `MCP request failed (HTTP ${response.status})`)
+    if (notification) {
+      if (response.status !== 202) throw new StackchanError('IO', 'MCP notification was not acknowledged')
+      return {}
+    }
+    if (method === 'initialize') {
+      const value = response.headers?.['mcp-session-id']
+      if (value !== undefined && !/^[\x21-\x7e]{1,1024}$/.test(value))
+        throw new StackchanError('IO', 'MCP returned an invalid session ID')
+      session = value
+    }
+    const message = responseMessage(response.body, response.headers?.['content-type'] ?? '', id as number)
+    if (message.error) throw new StackchanError('IO', 'MCP request returned a protocol error')
+    if (!object(message.result)) throw new StackchanError('IO', 'MCP returned an invalid result')
+    return message.result
   }
-}
-
-/**
- * Tools list response
- */
-interface ToolsListResult {
-  tools: {
-    name: string
-    description?: string
-    inputSchema: {
-      type: 'object'
-      properties: Record<
-        string,
-        {
-          type: string
-          description?: string
+  return {
+    async connect(signal?: CancellationSignal): Promise<readonly ToolSchema[]> {
+      if (nextId) throw new StackchanError('BUSY', 'MCP initialization has already started')
+      const info = await send(
+        'initialize',
+        { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'stack-chan', version: '2.0.0' } },
+        signal,
+      )
+      if (info.protocolVersion !== '2025-06-18' && info.protocolVersion !== '2025-03-26')
+        throw new StackchanError('UNSUPPORTED', 'MCP server needs a supported Streamable HTTP protocol version')
+      version = info.protocolVersion
+      if (!object(info.capabilities) || !object(info.capabilities.tools))
+        throw new StackchanError('UNSUPPORTED', 'MCP server does not provide tools')
+      await send('notifications/initialized', undefined, signal, true)
+      const tools: ToolSchema[] = [],
+        names = new Set<string>()
+      let cursor: string | undefined
+      for (let page = 0; page < 16; page++) {
+        const list = await send('tools/list', cursor ? { cursor } : {}, signal)
+        if (!Array.isArray(list.tools)) throw new StackchanError('IO', 'MCP returned an invalid tools list')
+        for (const tool of list.tools) {
+          if (
+            !object(tool) ||
+            typeof tool.name !== 'string' ||
+            !/^[A-Za-z0-9_-]{1,64}$/.test(tool.name) ||
+            names.has(tool.name) ||
+            !object(tool.inputSchema) ||
+            tool.inputSchema.type !== 'object' ||
+            tools.length >= 64
+          )
+            throw new StackchanError('IO', 'MCP tools need unique names, object schemas and at most 64 entries')
+          const properties = tool.inputSchema.properties ?? {},
+            required = tool.inputSchema.required ?? []
+          if (!object(properties) || !Array.isArray(required) || required.some((key) => typeof key !== 'string'))
+            throw new StackchanError('IO', 'MCP returned an invalid tool schema')
+          names.add(tool.name)
+          tools.push({
+            name: tool.name,
+            description: typeof tool.description === 'string' ? tool.description : tool.name,
+            inputSchema: { ...tool.inputSchema, type: 'object', properties, required } as Tool['inputSchema'],
+          })
         }
-      >
-      required: string[]
-    }
-  }[]
-}
-
-/**
- * Tools call response
- */
-interface ToolsCallResult {
-  content: {
-    type: 'text'
-    text: string
-  }[]
-}
-
-/**
- * MCP Client Service for Moddable
- * Implements Model Context Protocol client over HTTP
- */
-export class MCPClientService {
-  #url: string
-  #token?: string
-  #requestId = 0
-  #initialized = false
-  #sessionId?: string
-
-  constructor(config: MCPClientConfig) {
-    this.#url = config.url.endsWith('/') ? config.url.slice(0, -1) : config.url
-    this.#token = config.token
-  }
-
-  /**
-   * Initialize connection with MCP server
-   */
-  async initialize(): Promise<InitializeResult> {
-    if (this.#initialized) {
-      throw new Error('Client is already initialized')
-    }
-
-    const response = await this.#sendRequest('initialize', {
-      protocolVersion: '2024-11-05',
-      capabilities: {
-        tools: {},
-      },
-      clientInfo: {
-        name: 'stack-chan-mcp-client',
-        version: '1.0.0',
-      },
-    })
-
-    if (response.error) {
-      throw new Error(`Initialize failed: ${response.error.message}`)
-    }
-
-    this.#initialized = true
-    return response.result as InitializeResult
-  }
-
-  /**
-   * List available tools from the server
-   */
-  async listTools(): Promise<ToolsListResult> {
-    this.#ensureInitialized()
-
-    const response = await this.#sendRequest('tools/list', {})
-
-    if (response.error) {
-      throw new Error(`List tools failed: ${response.error.message}`)
-    }
-
-    return response.result as ToolsListResult
-  }
-
-  /**
-   * Call a tool on the server
-   */
-  async callTool(name: string, arguments_?: Record<string, unknown>): Promise<ToolsCallResult> {
-    this.#ensureInitialized()
-
-    const response = await this.#sendRequest('tools/call', {
-      name,
-      arguments: arguments_ || {},
-    })
-
-    if (response.error) {
-      throw new Error(`Tool call failed: ${response.error.message}`)
-    }
-
-    return response.result as ToolsCallResult
-  }
-
-  /**
-   * Check if client is initialized
-   */
-  isInitialized(): boolean {
-    return this.#initialized
-  }
-
-  /**
-   * Reset client state
-   */
-  reset(): void {
-    this.#initialized = false
-    this.#requestId = 0
-    this.#sessionId = undefined
-  }
-
-  /**
-   * Send HTTP request to MCP server
-   */
-  async #sendRequest(method: string, params: unknown): Promise<MCPResponse> {
-    const id = this.#generateRequestId()
-
-    const request: MCPRequest = {
-      jsonrpc: '2.0',
-      id,
-      method,
-      params,
-    }
-
-    const url = this.#url
-
-    // Build headers according to MCP spec
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      // Client MUST accept both application/json and text/event-stream
-      Accept: 'application/json, text/event-stream',
-    }
-
-    if (this.#token) {
-      headers.Authorization = `Bearer ${this.#token}`
-    }
-
-    // Include session ID for all requests after initialization
-    if (this.#sessionId && method !== 'initialize') {
-      headers['Mcp-Session-Id'] = this.#sessionId
-    }
-
-    try {
-      const response = (await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(request),
-      })) as FetchResponse
-
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status} ${response.statusText}`)
+        if (list.nextCursor === undefined) return tools
+        if (typeof list.nextCursor !== 'string' || !list.nextCursor || list.nextCursor === cursor)
+          throw new StackchanError('IO', 'MCP returned an invalid pagination cursor')
+        cursor = list.nextCursor
       }
-
-      // Extract session ID from initialization response
-      if (method === 'initialize') {
-        const sessionId = response.headers.get('mcp-session-id')
-        if (sessionId) {
-          this.#sessionId = sessionId
-        }
-      }
-
-      const contentType = response.headers.get('content-type')
-
-      if (contentType?.includes('text/event-stream')) {
-        // Handle SSE response
-        return await this.#handleSSEResponse(response, id)
-      }
-
-      // Handle JSON response
-      const responseText = await response.text()
-      const mcpResponse: MCPResponse = JSON.parse(responseText)
-
-      // Validate response
-      if (mcpResponse.jsonrpc !== '2.0') {
-        throw new Error('Invalid JSON-RPC response')
-      }
-
-      if (mcpResponse.id !== id) {
-        throw new Error('Response ID mismatch')
-      }
-
-      return mcpResponse
-    } catch (error) {
-      throw new Error(`Request failed: ${error}`)
-    }
-  }
-
-  /**
-   * Handle Server-Sent Events response
-   */
-  async #handleSSEResponse(response: FetchResponse, requestId: number): Promise<MCPResponse> {
-    // For now, fall back to text parsing since SSE is complex to implement
-    // in the Moddable environment without proper streaming support
-    const responseText = await response.text()
-
-    // Parse SSE format manually
-    const lines = responseText.split('\n')
-    let mcpResponse: MCPResponse | null = null
-
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const data = line.slice(6)
-        if (data === '[DONE]') {
-          break
-        }
-
-        try {
-          const parsed: MCPResponse = JSON.parse(data)
-
-          // Check if this is the response for our request
-          if (parsed.id === requestId) {
-            mcpResponse = parsed
-            break
-          }
-        } catch {
-          // Ignore malformed JSON in SSE data
-        }
-      }
-    }
-
-    if (!mcpResponse) {
-      throw new Error('No matching response received in SSE stream')
-    }
-
-    // Validate response
-    if (mcpResponse.jsonrpc !== '2.0') {
-      throw new Error('Invalid JSON-RPC response')
-    }
-
-    return mcpResponse
-  }
-
-  /**
-   * Generate unique request ID
-   */
-  #generateRequestId(): number {
-    return ++this.#requestId
-  }
-
-  /**
-   * Ensure client is initialized
-   */
-  #ensureInitialized(): void {
-    if (!this.#initialized) {
-      throw new Error('Client not initialized. Call initialize() first.')
-    }
+      throw new StackchanError('IO', 'MCP tool listing exceeded 16 pages')
+    },
+    async call(name: string, args: Record<string, unknown>, signal?: CancellationSignal): Promise<string> {
+      if (!version) throw new StackchanError('CONFIG', 'MCP is not initialized')
+      const result = await send('tools/call', { name, arguments: args }, signal)
+      if (!Array.isArray(result.content)) throw new StackchanError('IO', 'MCP returned an invalid tool result')
+      // Preserve isError, non-text content and structuredContent for the model as well as text.
+      const text = JSON.stringify(result)
+      if (text.length > 16384) throw new StackchanError('IO', 'MCP tool result exceeds 16384 characters')
+      return text
+    },
+    close(): Promise<void> {
+      if (closing) return closing
+      closed = true
+      const closingHeaders = headers(),
+        hadSession = !!session
+      session = undefined
+      version = undefined
+      closing = (async () => {
+        if (!hadSession) return
+        const response = await request({ url, method: 'DELETE', headers: closingHeaders, timeoutMs: 5000 })
+        if ((response.status < 200 || response.status >= 300) && response.status !== 404 && response.status !== 405)
+          throw new StackchanError('IO', `MCP session release failed (HTTP ${response.status})`)
+      })()
+      return closing
+    },
   }
 }
-
-export default MCPClientService

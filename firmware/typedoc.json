@@ -1,0 +1,17 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "Stack-chan SDK",
+  "entryPoints": [
+    "sdk"
+  ],
+  "entryPointStrategy": "expand",
+  "tsconfig": "tsconfig.apidoc.json",
+  "plugin": [
+    "typedoc-plugin-markdown"
+  ],
+  "readme": "none",
+  "out": "dist/docs/sdk",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "json": "dist/docs/sdk/api.json"
+}

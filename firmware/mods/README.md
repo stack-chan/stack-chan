@@ -4,6 +4,11 @@
 
 A **MOD** is a user application that runs on the Stack-chan host firmware.
 
+
+For a first program on this branch, start with the [SDK lessons](../lessons/README_ja.md). All [21 runnable packages](examples/README_ja.md) now use the same SDK, consolidating the original 32 examples; their dependencies and open issues are recorded in the [migration ledger](../../docs/architecture/legacy-mod-migration.md).
+
+Every MOD must embed `stackchan-mod.json`. Copy the lesson’s `mod.js`, `manifest.json`, and declaration together, and start by editing only `mod.js`. Rebuild older archives that lack metadata; see [compatibility and recovery](../../docs/architecture/mod-package-compatibility.md).
+
 ## Try a MOD
 
 Find published MODs in the [MOD Gallery](https://stack-chan.github.io/stack-chan/web/mod-gallery/).
@@ -33,7 +38,7 @@ Follow the [block editor tutorial](https://stack-chan.github.io/stack-chan/web/e
 ### Create one from source
 
 A MOD can be implemented as a JavaScript or TypeScript module.
-TypeScript MODs use the public Stack-chan capability types and Moddable module specifiers.
+TypeScript MODs use the public `stackchan` / `stackchan/extensions/*` types and app-local relative imports.
 
 To install a MOD from a local environment, specify its manifest from the `firmware` directory:
 
@@ -49,23 +54,21 @@ Installing a MOD makes the host run that MOD instead of its default behavior.
 Button and screen behavior therefore depends on the installed MOD.
 
 A MOD must be built for the target device and the XS version used by its host.
-For the WASM host, load an `.xsb` or archive built with a target that supports TypeScript, such as `lin`.
+For the WASM host, use the `.xsa` archive produced by the standard `npm run mod:build` command, including its MOD metadata.
 
-Add localized UI text as described in [Firmware localization](../docs/localization.md) through `context.i18n`.
-To add a Piu UI while retaining the face screen and host AppBar, use the experimental [mini-app framework (Japanese)](../docs/mini-apps_ja.md).
+Add localized UI text as described in [Firmware localization](../docs/localization.md) through `ui(app).localize`.
+To add a Piu UI while retaining the face screen and host AppBar, use the [SDK Piu extension (Japanese)](../docs/mini-apps_ja.md).
 
 ## Representative source examples
 
 | Example | What it demonstrates |
 | --- | --- |
 | [`look_around`](./examples/look_around/) | Minimal head movement through the motion API |
-| [`localized_drawer`](./examples/localized_drawer/) | Localized UI through `context.i18n` |
-| [`mini_app_sample`](./examples/mini_app_sample/) | A mini app that retains the face screen and AppBar |
-| [`stackchan_catch`](./examples/stackchan_catch/) | A Game & Watch-style mini-app with discrete falling-item states |
-| [`stackchan_minigames`](./examples/stackchan_minigames/) | One mini-app archive that packages Stack-chan JUMP and CATCH together |
+| [`face`](./examples/face/) | Localized UI through `ui(app).localize` |
+| [`stackchan_minigames`](./examples/stackchan_minigames/) | One SDK app containing Stack-chan JUMP and CATCH |
 | [`local_peer_hello`](./examples/local_peer_hello/) | Typed device-to-device messages without the internet |
 | [`web_radio`](./examples/web_radio/) | Network audio playback on M5StackChan CoreS3 |
-| [`m5stackchan_smoke`](./examples/m5stackchan_smoke/) | [M5StackChan CoreS3 servo-power and head LED checks](../docs/m5stackchan-cores3-smoke.md) |
+| [`board_diagnostics`](./examples/board_diagnostics/) | [M5StackChan CoreS3 servo-power and head LED checks](../docs/m5stackchan-cores3-smoke.md) |
 
 ## References
 

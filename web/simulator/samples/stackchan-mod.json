@@ -1,7 +1,7 @@
 {
   "$schema": "https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json",
   "format": "tech.stackchan.mod",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "tech.stackchan.samples.starter",
   "version": "1.0.0",
   "type": "text",
@@ -14,12 +14,16 @@
     "entrypoint": "sample-mod/mod.js"
   },
   "targets": ["m5stackchan-cores3", "simulator"],
-  "capabilities": ["face", "ui.drawer"],
+  "capabilities": ["face"],
   "artifacts": [
     {
       "format": "xsa",
       "path": "stackchan-sample-mod.xsa",
       "target": "m5stackchan-cores3"
     }
-  ]
+  ],
+  "appApiVersion": 2,
+  "hostApiVersion": 2,
+  "entrypoints": ["mod"],
+  "optionalCapabilities": []
 }

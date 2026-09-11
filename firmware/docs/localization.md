@@ -3,30 +3,24 @@
 [日本語](./localization_ja.md)
 
 The firmware supports Japanese (`ja`), English (`en`), and Simplified Chinese (`zh-CN`).
-The host and installed MOD use the same `context.i18n` API while keeping their catalog resources separate.
+The host and installed MOD use the same `ui(app).localize()` API while keeping their catalog resources separate.
 
 ## Public API
 
-A MOD reads the current locale and localized strings from the `StackchanContext` passed to `onContextCreated`.
-
-```ts
-context.i18n.locale
-context.i18n.localize(key, values?)
-```
-
-`localize` does not depend on `this`, so it is safe to destructure.
+In `setup(app)`, use `ui(app).localize(key, values?)`. Declare app API 2, host API 4 and `ui.controls`. Translation uses the language selected by the host.
 
 ```js
-export function onContextCreated(context) {
-  const { localize } = context.i18n
-  context.ui.drawer.addDrawerButton({
-    key: 'weather:forecast',
-    label: localize('weather.drawer.forecast'),
-    callback(nextContext) {
-      nextContext.ui.closeDrawer()
-    },
-  })
-}
+import { defineApp } from 'stackchan'
+import { ui } from 'stackchan/extensions/ui'
+
+export default defineApp({
+  setup(app) {
+    const view = ui(app)
+    view.addAction({ id: 'weather.forecast', label: view.localize('weather.drawer.forecast') }, () => {
+      view.closeMenu()
+    })
+  },
+})
 ```
 
 Messages resolve in this order:
@@ -46,11 +40,14 @@ Add all three JSON catalogs to the MOD directory.
 my_mod/
 ├── manifest.json
 ├── mod.js
+├── stackchan-mod.json
 └── strings/
     ├── en.json
     ├── ja.json
     └── zh-CN.json
 ```
+
+Copy the declaration from the face example, set your own MOD id, and retain the required host API and capabilities.
 
 Every catalog must define the same keys and placeholder names.
 `en.json` is also required to initialize `Locals`.
@@ -72,6 +69,7 @@ Add the catalogs to the manifest resources.
   "modules": {
     "*": ["./mod"]
   },
+  "data": { "stackchan-mod": ["./stackchan-mod.json"] },
   "resources": {
     "*": ["./strings/*"]
   }
@@ -79,27 +77,32 @@ Add the catalogs to the manifest resources.
 ```
 
 `mcrun` compiles them into the MOD-owned `modLocals.mhi` and `modLocals.<locale>.mhr` resources.
-Do not import `Locals` or the host-internal `localization` module from a MOD; call `context.i18n.localize()` instead.
-See [`mods/examples/localized_drawer`](../mods/examples/localized_drawer/) for the minimal working example.
+Do not import `Locals` or the host-internal `localization` module from a MOD; call `ui(app).localize()` instead.
+See [`mods/examples/face`](../mods/examples/face/) for the minimal working example.
 
 ## Use an arbitrary Piu Label
 
 The result of `localize()` is an ordinary `string`, so it can be passed to any `Label`, not only a Drawer Button.
 
 ```js
-import { Label, Style } from 'piu/MC'
+import { Container, Label, Style, definePiuApp } from 'stackchan/extensions/piu'
+import { ui } from 'stackchan/extensions/ui'
 
-export function onContextCreated(context) {
-  const status = new Label(null, {
-    left: 8,
-    right: 8,
-    top: 40,
-    height: 24,
-    string: context.i18n.localize('weather.status.ready'),
-    style: new Style({ font: 'OpenSans-Regular-16', color: 'black' }),
-  })
-  context.ui.addEffect(status, 'weather:status')
-}
+export default definePiuApp({
+  screens: [{
+    id: 'weather', title: 'Weather',
+    create({ app }) {
+      return new Container(null, {
+        left: 0, right: 0, top: 0, bottom: 0,
+        contents: [new Label(null, {
+          left: 8, right: 8, top: 40, height: 24,
+          string: ui(app).localize('weather.status.ready'),
+          style: new Style({ font: 'k8x12-12', color: 'black' }),
+        })],
+      })
+    },
+  }],
+})
 ```
 
 Piu's `Label.string` is a concrete string and does not subscribe to locale changes.
@@ -108,7 +111,7 @@ If runtime locale switching is added, assign a newly localized value to `Label.s
 ## Fonts
 
 Translation lookup and glyph coverage are separate concerns.
-`context.i18n.localize()` returns Unicode text, but the selected font must contain every rendered glyph.
+`ui(app).localize()` returns Unicode text, but the selected font must contain every rendered glyph.
 
 Host screens and Drawer Buttons use a UI font subset covering the host catalogs.
 For MOD-specific CJK text in an arbitrary `Label`, bundle an appropriately licensed font with the MOD and set `"localization": true` on its font resource.

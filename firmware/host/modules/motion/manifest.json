@@ -4,14 +4,15 @@
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/modules/io/manifest.json",
     "../util/manifest.json",
-    "../io-expander/manifest.json"
+    "../io-expander/manifest.json",
+    "../../../sdk/manifest.json"
   ],
   "modules": {
     "*": ["./*", "./internal/*"],
     "protocols/*": "./protocols/*"
   },
   "preload": [
-    "motion-controller",
+    "motion-driver",
     "motion-driver-callback",
     "protocols/dynamixel",
     "dynamixel-driver",
@@ -25,7 +26,9 @@
     "scservo-driver",
     "protocols/dynamixel-codec",
     "payload-buffer",
-    "internal/single-wait-slot",
+    "servo-bus",
+    "servo-bus-runtime",
+    "servo-driver-resources",
     "internal/servo-command-error"
   ],
   "typescript": {

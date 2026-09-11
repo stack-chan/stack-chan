@@ -1,3 +1,6 @@
+import { assertModCompatibility, hostForTarget } from 'stackchan-contracts/mod-package'
+import { inspectModArchive } from 'stackchan-contracts/xsa-metadata'
+
 export type XsVersionRange = readonly [number, number, number, number]
 
 export type ModFlash = {
@@ -12,6 +15,8 @@ export function validateXsaArchive(
   buffer: ArrayBuffer,
   maximumBytes: number,
   [minimumMajor, minimumMinor, maximumMajor, maximumMinor]: XsVersionRange,
+  decodeUtf8: (bytes: Uint8Array) => string,
+  target: unknown,
 ): Uint8Array {
   const bytes = new Uint8Array(buffer)
   const view = new DataView(buffer)
@@ -27,6 +32,8 @@ export function validateXsaArchive(
   const maximum = (maximumMajor << 8) | maximumMinor
   if (version < minimum || version > maximum) throw new Error('incompatible XSA version')
   if (bytes.byteLength > maximumBytes) throw new Error('XSA archive exceeds the xs partition')
+  const { metadata } = inspectModArchive(bytes, decodeUtf8)
+  assertModCompatibility(metadata, hostForTarget(target))
   return bytes
 }
 

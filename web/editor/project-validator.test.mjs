@@ -75,7 +75,7 @@ test('rejects statement blocks left outside an event', () => {
   assert.equal(result.diagnostics[0].code, 'VP_ORPHAN_TOP_LEVEL')
 })
 
-test('rejects legacy song events connected directly to an event instead of a song parent', () => {
+test('rejects retired statement-score blocks and directs authors to score lists', () => {
   const direct = analyzeWorkspace({
     blocks: {
       blocks: [
@@ -112,8 +112,8 @@ test('rejects legacy song events connected directly to an event instead of a son
       ],
     },
   })
-  assert.equal(nested.canBuild, true)
-  assert.deepEqual(nested.diagnostics, [])
+  assert.equal(nested.canBuild, false)
+  assert.equal(nested.diagnostics.filter((item) => item.code === 'VP_LEGACY_SONG_EVENT').length, 2)
 })
 
 test('capability-aware toolbox removes unsupported hardware blocks', () => {

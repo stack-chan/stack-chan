@@ -116,3 +116,9 @@ Please check and use the terms of use for VOICEVOX and each voice library.
 * VOICEVOX: Credit notation is required to indicate that VOICEVOX has been used.  
   For example, if you embed the voice of "Zundamon" in your app and distribute it, you need to include "VOICEVOX: Zundamon" on the app's introduction screen. ([Zundamon Voice Source Usage Agreement](https://zunko.jp/con_ongen_kiyaku.html))
   The details of the terms of use may vary depending on the voice library you use, so please check the [list of characters on the VICEVOX website](https://voicevox.hiroshiba.jp/#characters).
+
+## 機種とMODの互換性
+
+hostのbuild・flash・deploy・debugは、最初に書き込みなしでビルドし、生成物の容量・版・機種を検証します。ビルドツールが成功を返しても、容量超過や不正な生成物があれば書き込みへ進みません。
+
+対応機種は `../contracts/targets.js` を正本として、CLI・bundle・Webで共有します。通常のhostビルドはSDK/API世代に加えて機種コードをESP descriptorへ記録します（例: `9.5.0+stackchan.9.sc3`）。MODの書き込みは本体から機種情報を読み、選んだ機種、MODの対象、ビルドが提供できる必須機能を照合してからxs partitionを変更します。機種IDのない以前のhostは、先に対応するhostを更新してください。チップが同じことだけで別の機種を受け付けません。機種IDとCLI名の対応は [互換性契約](../../docs/architecture/mod-package-compatibility.md) を参照してください。

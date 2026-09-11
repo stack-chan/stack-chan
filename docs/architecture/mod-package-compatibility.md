@@ -1,0 +1,122 @@
+# MOD の宣言と配布時の互換性検査
+
+この記録は F10 の実装途中の状態を示す。正本は `stackchan-mod.json`、互換性を読む実装は `firmware/contracts/mod-package.js` と `xsa-metadata.js`。宣言の必須化と SD・WASM・起動時の検査は接続済み。残す全例・Blockly・顔エディターのSDK移行とV1実行経路の撤去は済んだ。実行時の能力判定を起動前検査へ接続した。機種識別と各配布経路のビルド能力照合も接続した。設定schemaも全配布経路で照合する。実機受入は継続する。
+
+## 世代を分ける
+
+同じ XS 版でコンパイルできても、MOD が呼ぶホストのサービスが存在するとは限らない。以下を別の情報として扱う。
+
+| 情報                       | 意味                         | 例                                       |
+| -------------------------- | ---------------------------- | ---------------------------------------- |
+| `schemaVersion`            | `stackchan-mod.json` の形式  | 2                                        |
+| `appApiVersion`            | アプリの起動・終了契約       | 2 の `defineApp` / `setup` のみ |
+| `hostApiVersion`           | 必要なホスト API の最小世代  | 2                                        |
+| XS の `VERS`               | コンパイル済みコードの XS 版 | 17.8.2                                   |
+| Moddable SDK 版            | 本体を作った SDK             | 9.5.0                                    |
+| `targets` / `capabilities` | 対象環境と使用機能           | `portable`, `camera`                     |
+
+ホストの API 世代の値を共通契約へ移し、本体の `esp_app_desc` には `9.5.0+stackchan.9.sc3` のようにAPI世代と機種コードを記録する。CLI と WebSerial は書き込まれた本体からこの情報を読む。host API 1 と識別された本体へ、host API 2 を要求する MOD は書き込まない。以前の再設計ブランチを利用していた場合も、本体を更新してから教材を書き込む。
+
+検証中、Takao Core2 の通常ビルドには SDK 版ではなく Git のコミット名が記録されていた。CoreS3 だけに適用していた生成を Stack-chan RT / Takao Core2 にも接続し、通常ビルドと bundle が同じ最終 manifest の優先順位を使うようにした。両機種の CLI も SDK 版を確認する。古い Git 名だけの本体は先に更新する。M5Stackと汎用CoreS3/Core2の通常ビルドも同じhost wrapperへ統合した。単体の機器試験やbenchmark用 `run-mcconfig` はホストAPI世代を名乗らない。
+
+host API 9はschema 2 / app API 2だけを受け付ける。schema 1、app API 1、metadataのないarchive、旧 `miniapp` と実行可能な `mod/config` は、コード評価前に拒否する。SDKソースと宣言を更新して再生成するよう案内し、旧フックを読み替えるadapterは残さない。Piu拡張も通常の `mod` と同じAppSessionで起動する。
+
+アプリ既定値は同じmetadataの `settings` に `{"tts.volume": 0.2}` のように宣言する。空でない既定値にはhost API 9が必要。共通archive readerとSettingsServiceが `contracts/settings-schema.js` の同じ許可キー・型・範囲・選択肢・UTF-8長を検証する。archive readerはアプリ既定値の許可規則も確認し、値を正規化する。保存済み値と機種固定値が優先される。接続資格情報はアプリ既定値へ含めない。CLI・WebSerialは機器への接続前、SD・WASMは書き換え前、本体はアプリ評価前に不正な既定値を拒否する。
+
+## 能力の共通定義
+
+`firmware/contracts/capabilities.js` が公開能力名と、そのSDK入口に必要な最小host API世代を定義する。SDKの `CapabilityId`、metadata reader、Webの世代検査はこの定義を参照する。旧 `audio.usb / ui.approval / connectivity.network / input.buttons / input.imu / ui.drawer` や未知の名前は拒否する。必要世代より小さい `hostApiVersion` も拒否し、任意能力についても同じ規則を使う。
+
+RuntimeContextの `getCapability` を本体起動とAppSessionが共有する。実際のUI・driver・audio・camera・入力・接続portから判定し、能力の問い合わせ自体はアプリのmotionを開始しない。HTTPはmoduleの同梱だけで利用可能とせず、実際のHTTP/HTTPS client portも確認する。SDK能力名を追加して分岐を実装し忘れると型検査が失敗する。
+
+本体はホスト構成を作った後、必須能力を照合してから `mod` 本体を評価する。欠けた能力があれば取得済みホスト資源を閉じ、利用できない機能の名前を表示する。任意能力は起動を妨げず、アプリが同じ `app.capabilities.get()` で代替動作を選ぶ。能力の有無は、外部サービスの認証成功や外付けセンサーの正常動作まで保証するものではない。
+
+Webシミュレーターのプロファイルにはcamera・録音・再生・clips・settingsを加え、実装のない無線やLEDを含めない。未知のプロファイルをportableへ黙って読み替える経路は撤去した。ビルドが備える機能と、接続時・起動時の実状態は分ける。設定schemaの検査にも同じ可搬な契約を使う。
+
+## 機種IDを一つの定義から使う
+
+`firmware/contracts/targets.js` にmetadataの機種ID、descriptor用の短いコード、CLIのビルド名、platform・manifest・bundle IDとビルドが提供できる機能を置く。CLIのdevice表、bundle対象、manifest検査、Webのプロファイルはこの定義から作る。
+
+| metadataの機種ID | CLI / ビルド名 | descriptorコード |
+| --- | --- | --- |
+| `m5stack` | `m5stack` | `m5` |
+| `m5stack-core2` | `m5stack_core2` | `c2` |
+| `m5stack-cores3` | `m5stack_cores3` | `c3` |
+| `m5stackchan-cores3` | `m5stackchan_cores3` | `sc3` |
+| `stackchan-rt` | `stackchan_rt` | `rt` |
+| `takao-core2-sg90` | `takao_core2_sg90` | `t2` |
+| `simulator` | WASM | ESP descriptorなし |
+| `portable` | 機種制限のないアプリの宣言 | ホスト機種としては使わない |
+
+ネイティブビルドは、同じ機種定義から `esp_app_desc.version` とホストの `mc/config.stackchanTarget` を生成する。WASMは `simulator` を使う。通常ビルドとbundleで同じ最終manifest overrideを使い、bundleを組み立てる際には機種IDの取り違えも拒否する。SDK版とAPI世代は全bundleで一致させ、機種コードだけが異なる。
+
+CLIとWebSerialは本体からdescriptorを読み、SDと本体起動はビルド時の設定を読む。`hostForTarget` と `assertModCompatibility` によって、対象機種と必須能力の両方を検査する。例えばCoreS3とRTはどちらもESP32-S3だが、CoreS3専用MODをRTへ書き込めない。Core2でカメラが必須のMODも書き込まない。任意能力は引き続き未対応時の案内をアプリが行える。
+
+機種IDのない旧descriptorは「不明」であり、ユーザーが選んだ機種やチップ名を代わりに使わない。機種指定のMOD、または機種を選ぶCLI・Webの書き込みではホスト更新を案内する。機種制限のないMODの一般的な互換性検査では、API世代が足りていれば受け付け、実際の能力は起動前に確認する。WebのMOD削除は復旧に使うため機種IDの追加を要求しない。
+
+ESP descriptor・partition・XS版の読み取りは `firmware/contracts/esp-flash.js` と `xs-compatibility.js` を共有する。CLIからWebアプリの内部実装への依存はなくした。descriptorが示すのは書き込まれたファームウェアのビルド対象であり、誤ったホストを物理ボードへ書き込んでいないことや、外付け部品の実在を証明するものではない。
+
+## 標準のビルドで同梱する
+
+`stackchan-mod.json` は Gallery の表示・ソース参照も含む同じ文書を使う。互換性情報だけの別ファイルを管理しない。ネイティブの教材 manifest は、Moddable の標準 `data` 規則で JSON を同梱する。
+
+```json
+{
+  "modules": { "mod": "./mod" },
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "data": { "*": ["./stackchan-mod.json"] }
+}
+```
+
+通常の `resources` 規則はローカライズ用以外の JSON をスキップする。`data` は `mcrun` によって XSA の `RSRC` 内へ入る。独自の archive 書き換えや manifest コンパイラーは追加していない。
+
+Web の `buildModArchive` は `metadata` を必須にし、標準 manifest へ `data` を足す。ファイル名の衝突による宣言の差し替えを拒否し、生成後にも archive の宣言と入力の宣言が一致することを確認する。TypeScript/JavaScript のコード内容から API 世代を推測しない。
+
+ネイティブの `npm run mod:build` / `npm run mod` も、生成後に archive を検査する。宣言の同梱を必須にし、manifest の隣の正本と比較する。Galleryのように一階層上へ正本を置く場合は、`source.path` がそのmanifestを指すことを確認して比較する。JSON を用意したのに `data` へ追加し忘れた場合や、古い生成物に別の宣言が残った場合に成功を報告しない。
+
+Blocklyと顔エディターはschema 2 / app API 2 / host API 8のSDKコードを生成する。Gallery 4ブロック例とWASMの配布用starterもSDK化した。入力・周期処理・待機・形状の顔はAppSessionに所属する。
+
+7教材と21個の実行可能な例はapp API 2へ移行した。必要なhost APIと能力は各metadataに宣言し、未対応時に案内して継続できる機能は `optionalCapabilities` に記録する。これは `capabilities` の部分集合である。
+
+## 検査の境界
+
+XSA reader はモジュールを実行せずに、atom の境界、版、resource、実行入口を読む。宣言は UTF-8 JSON、最大16KiB。機能や対象のリストは最大32件とし、重複、不正な世代、不明な実行入口、宣言と実際の `mod` / `miniapp` の不一致を拒否する。実行入口の名前は XS の module specifier と比較し、`mod.xsb` を `mod` と同一視しない。
+
+| 経路 | 接続した検査・動作 | 残る検査 |
+| --- | --- | --- |
+| Web / ネイティブビルド | 宣言必須、標準同梱、実行入口・外部宣言との一致。21例・7教材・BlocklyをSDKへ移行 | 配布先との能力照合 |
+| CLI | 必須宣言・構造・XS版・実機APIと機種ID・必須ビルド能力・partition・read-back | 実際の接続・設定に依存する機能は本体起動時に確認 |
+| 診断スクリプト | 同じCLIのmodコマンドで検査・書き込み・read-back後、同じportへserial2xsbugを接続。再試行はbridgeだけを再起動 | USBの再起動・実機ログと機器の受入 |
+| WebSerial | 必須宣言・構造・XS版・Moddable 9.5・実機APIと機種ID・必須ビルド能力。確認callback前に検査 | 実際の接続・設定に依存する機能は本体起動時に確認 |
+| Gallery | 全6テキストartifactを標準mcrunで再生成。取得時にid・版・API・対象・機能・実行入口を正本と比較 | 実機受入 |
+| SD | 必須宣言・構造・XS版・host API・機種ID・必須ビルド能力・partition・read-back。保守起動以外からの書き込みを拒否 | 実機の電源断・容量・SDカード受入 |
+| WASM保存・読み込み | 必須宣言・構造・XS版・host API・simulator対象とビルド能力。IndexedDBのcommitを待ち、abortを成功扱いしない | 実際のブラウザー能力との照合 |
+| 本体起動 | 旧入口・旧archiveを拒否し、`mod`の評価前に必須宣言・host API・機種ID・実行入口・設定・実構成の必須能力を検査。exportはSDK定義に限定 | 実機受入 |
+
+`assertModCompatibility` は渡されたホスト情報を検査する。書き込み前には本体のAPI・機種IDとビルド能力、起動前には生成したホスト構成から得た実際の能力を渡す。XS版・サイズ・書き込み後照合も維持する。
+
+## 旧 MOD の更新と復旧
+
+宣言のない旧XSA、schema 1、app API 1はCLI・WebSerial・SD・WASM・本体起動で拒否する。まずホストをこのブランチのModdable 9.5 / host API 10へ更新し、ソースをSDKへ移し、宣言とmanifestの `data` を加えて再ビルドする。Blocklyは保存したブロックプロジェクトから再生成する。新しく始める場合は [SDK教材](../../firmware/lessons/README_ja.md) の3ファイルをコピーし、最初は `mod.js` だけを編集する。
+
+本体の拒否画面は MOD に依存しないホスト設定で表示言語を決め、エラーコードと MOD 更新の案内を表示する。SD機能のある機種ではMODボタン、再起動のある機種では再起動ボタンを表示する。WASMはWeb側のMOD削除・追加操作を利用する。XSは不正なバイトコードをhost mainより早く拒否する場合もあり、全ての破損archiveをPiu画面で回復できるという保証ではない。
+
+起動入口は小さな`main`と実際のアプリを読み込む`app-main`へ分けた。Moddableの`Resource`もMOD内の同名リソースを優先するため、保守起動と宣言の拒否では、アプリやUIをimportする前にarchiveを切り離す。SDK 9.5の`fxSetArchive`を呼ぶ小さなC adapterが、モジュール・リソースの参照とglobalのarchiveを外す。archiveのマッピングや確保メモリーの所有はプラットフォームに残し、終了時の二重解放を避ける。Moddable更新時にはこのadapterも検証する。試験用MODは不正な同名`locals.mhi`を含み、復旧時にホストの文字リソースを使えることを実WASMで確認する。
+
+SDは、起動画面のMODボタンと電源ボタンのショートカットの両方から、ホスト所有の保守要求を保存して再起動する。次のVMで要求を一度だけ消費し、MODの設定も本体も評価せずに書き込み画面へ入る。実行中のVMが参照するarchive自体を書き換えないため、アプリ終了だけで保守画面へ遷移しない。書き込み成功と「戻る」は再起動する。保守要求はユーザー設定とは別の`stackchan.boot/maintenance`で管理する。任意コードからFlash自体へ触れなくするセキュリティ境界ではない。
+
+既存32例の宣言は [移行台帳](legacy-mod-migration.md) に記録した。ソース移行と機種依存の実機受入は区別する。
+
+## ビルドの再現性
+
+ModdableのMOD出力名は入力の末尾フォルダー名に依存する。Galleryの異なる`mod/manifest.json`を続けてビルドすると、前のCODE・DATAが新しい入力より新しい時刻になり、再利用される場合があった。CLIはMODのbin/tmp生成領域を毎回作り直す。他のMODと本体の生成領域は保持する。生成後の正本との照合も行う。
+
+対話プロバイダーはホストのSDK実装へ統合し、旧ライブラリーのmanifestとMaybe型の経路を撤去した。TypeScript MODのmanifestには `typescript.tsconfig.compilerOptions.allowJs: true` を設定し、JSDocで型付けした共通設定schemaを読み込む。型のためだけにSDK実装・暗号・ネットワークのCコードをMODへ同梱しない。face_trackerのTextDecoderもホストから得る。
+
+SDK 9.5のTextDecoder C実装には、WASMで`bool`を宣言するheaderが不足していた。既存WASM wrapperのCコンパイラー指定に`-include stdbool.h`を加え、SDKを直接改変せずに標準デコーダーを使う。
+
+実行時の機能確認は静的な宣言とは別に必要になる。たとえば撮影を要求できる機種でも、ブラウザーの許可拒否や機器の開始失敗を成功へ置き換えない。設定の自動検証は [設定契約の記録](settings-contract-2026-09-08.md) を参照する。実機受入は F7 / F9 / F10 に残る。機種と能力の今回の検証記録は [機種互換性の記録](target-compatibility-2026-09-08.md) を参照する。
+
+## 対話プロバイダーの世代（host API 10）
+
+`conversation.dialogue` と MCP クライアントの `conversation.tools` は host API 10 を要求する。旧ホストが未知の provider 指定を無視して異なるサービスへキーを送信しないよう、共通能力catalogueの最小世代とdescriptorを更新する。CLI・WebSerial・SD・起動時の既存互換性検査は、この世代をコード評価・書き込み前に比較する。

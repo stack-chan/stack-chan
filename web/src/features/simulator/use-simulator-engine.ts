@@ -35,6 +35,7 @@ type SimulatorEngineOptions = {
 const SIMULATOR_STATUS_MESSAGES: Record<SimulatorStatusCode, string> = {
   'wasm-loading': 'WASMを読み込み中',
   'wasm-load-failed': 'WASMを読み込めませんでした',
+  'firmware-start-failed': 'MODを起動できません。画面の案内を確認してください',
   'firmware-ready-timeout': 'ファームウェアの起動準備がタイムアウトしました',
   'firmware-ready': '準備完了',
 }

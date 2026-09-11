@@ -142,7 +142,7 @@ try {
     waitUntil: 'networkidle',
   })
   const selectedMiniGames = page.locator(
-    '[data-mod-id="sample.stackchan-minigames"][data-mod-entrypoints="miniapp"][data-selected="true"]'
+    '[data-mod-id="sample.stackchan-minigames"][data-mod-entrypoints="mod"][data-selected="true"]'
   )
   await selectedMiniGames.waitFor()
   assert.equal(await selectedMiniGames.getByText('ミニアプリ', { exact: true }).count(), 1)
@@ -150,25 +150,25 @@ try {
   assert.equal(await selectedMiniGames.getByRole('button', { name: '実機へ書き込む' }).count(), 1)
   await selectedMiniGames.getByRole('button', { name: 'シミュレーターで試す' }).click()
   await page.waitForURL(/\/simulator\/\?gallery=sample\.stackchan-minigames/)
-  await page
-    .getByRole('log')
-    .getByText('[MiniApp] loaded experimental archive definitions=2', { exact: false })
-    .waitFor({ timeout: 45_000 })
+  await page.getByRole('log').getByText('[main] app ready', { exact: false }).waitFor({ timeout: 45_000 })
   const miniGameScreen = page.locator('canvas[aria-hidden="true"]')
   // The LCD canvas is hidden after Three.js maps it onto the model. Give the touch bridge stable test bounds.
-  await miniGameScreen.evaluate((canvas) => {
-    Object.assign(canvas.style, {
-      display: 'block',
-      position: 'fixed',
-      left: '0',
-      top: '0',
-      width: '320px',
-      height: '240px',
-      opacity: '0',
-      pointerEvents: 'none',
+  const prepareScreen = async () => {
+    await miniGameScreen.evaluate((canvas) => {
+      Object.assign(canvas.style, {
+        display: 'block',
+        position: 'fixed',
+        left: '0',
+        top: '0',
+        width: '320px',
+        height: '240px',
+        opacity: '0',
+        pointerEvents: 'none',
+      })
     })
-  })
-  const screenBox = await miniGameScreen.boundingBox()
+    return miniGameScreen.boundingBox()
+  }
+  let screenBox = await prepareScreen()
   assert.ok(screenBox, 'the simulator canvas should have a visible bounding box')
   const tapMiniGameScreen = async (x, y) => {
     const clientX = screenBox.x + (x * screenBox.width) / 320
@@ -187,6 +187,57 @@ try {
   await page.waitForTimeout(1_000)
   const catchRunningFrame = await miniGameScreen.evaluate((canvas) => canvas.toDataURL('image/png'))
   assert.notEqual(catchRunningFrame, catchTitleFrame, 'the center tap should start Stack-chan CATCH')
+  assert.equal(await page.getByRole('log').getByText('XS abort', { exact: false }).count(), 0)
+
+  await tapMiniGameScreen(22, 22)
+  await page.waitForTimeout(100)
+  await tapMiniGameScreen(254, 22)
+  await page.waitForTimeout(100)
+  await tapMiniGameScreen(160, 118)
+  await page.waitForTimeout(300)
+  const jumpFrame = await miniGameScreen.evaluate((canvas) => canvas.toDataURL('image/png'))
+  await tapMiniGameScreen(160, 142)
+  await page.waitForTimeout(100)
+  assert.notEqual(
+    await miniGameScreen.evaluate((canvas) => canvas.toDataURL('image/png')),
+    jumpFrame,
+    'JUMP responds to a screen tap after leaving CATCH'
+  )
+
+  for (const [name, files] of [
+    ['stackchan-minigames', ['mod.ts', 'jump.ts', 'catch.ts', 'manifest.json', 'LICENSE.mouse-follower']],
+    ['ui-playground', ['mod.ts', 'screen.ts', 'manifest.json']],
+  ]) {
+    for (const file of files) {
+      const response = await page.request.get(`${baseUrl}/mod-gallery/samples/${name}/source/${file}`)
+      assert.equal(response.ok(), true, `the built site publishes ${name}/${file}`)
+    }
+  }
+  const uiReady = page.waitForEvent('console', {
+    predicate: (message) => message.text().includes('[main] app ready'),
+    timeout: 45_000,
+  })
+  await page
+    .getByLabel('MODを追加', { exact: true })
+    .setInputFiles('mod-gallery/samples/ui-playground/ui-playground.xsa')
+  await uiReady
+  screenBox = await prepareScreen()
+  await tapMiniGameScreen(160, 120)
+  await page.waitForTimeout(100)
+  await tapMiniGameScreen(254, 22)
+  await page.waitForTimeout(100)
+  await tapMiniGameScreen(160, 74)
+  await page.waitForTimeout(200)
+  const playgroundFrame = await miniGameScreen.evaluate((canvas) => canvas.toDataURL('image/png'))
+  await tapMiniGameScreen(90, 140)
+  await page.waitForTimeout(100)
+  assert.notEqual(
+    await miniGameScreen.evaluate((canvas) => canvas.toDataURL('image/png')),
+    playgroundFrame,
+    'UI Playground selection changes the displayed screen'
+  )
+  await tapMiniGameScreen(22, 22)
+  await page.waitForTimeout(100)
   assert.equal(await page.getByRole('log').getByText('XS abort', { exact: false }).count(), 0)
 
   await page.goto(`${baseUrl}/mod-gallery/`, { waitUntil: 'networkidle' })

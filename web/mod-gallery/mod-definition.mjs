@@ -1,10 +1,9 @@
-export const STACKCHAN_MOD_FORMAT = 'tech.stackchan.mod'
-export const STACKCHAN_MOD_SCHEMA_VERSION = 1
-export const STACKCHAN_MOD_TYPES = Object.freeze(['block', 'text'])
-export const STACKCHAN_MOD_ENTRYPOINTS = Object.freeze(['mod', 'miniapp'])
+import { MOD_FORMAT, MOD_SCHEMA_VERSION, parseModRuntimeContract } from '../../firmware/contracts/mod-package.js'
 
-const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)+$/
-const VERSION_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/
+export const STACKCHAN_MOD_FORMAT = MOD_FORMAT
+export const STACKCHAN_MOD_SCHEMA_VERSION = MOD_SCHEMA_VERSION
+export const STACKCHAN_MOD_TYPES = Object.freeze(['block', 'text'])
+export const STACKCHAN_MOD_ENTRYPOINTS = Object.freeze(['mod'])
 
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -43,14 +42,6 @@ export function validatePackagePath(value, label = 'path') {
   return path
 }
 
-function stringList(value, label, { required = false } = {}) {
-  if (value === undefined && !required) return []
-  if (!Array.isArray(value) || (required && value.length === 0)) throw new TypeError(`${label}が不正です`)
-  const result = value.map((item) => nonEmptyString(item, label, 128))
-  if (new Set(result).size !== result.length) throw new TypeError(`${label}に重複があります`)
-  return result
-}
-
 function catalogDefinitionUrl(value, catalogUrl) {
   const path = String(value ?? '')
   if (!path || path.startsWith('/') || path.startsWith('//') || path.includes('\\') || /[\u0000-\u001f:]/.test(path)) {
@@ -66,14 +57,7 @@ function catalogDefinitionUrl(value, catalogUrl) {
 export function parseModDefinition(value) {
   if (!isRecord(value)) throw new TypeError('MOD定義がJSONオブジェクトではありません')
   if (value.format !== STACKCHAN_MOD_FORMAT) throw new TypeError('未対応のMOD定義形式です')
-  if (value.schemaVersion !== STACKCHAN_MOD_SCHEMA_VERSION) {
-    throw new TypeError(`未対応のMOD定義バージョンです: ${value.schemaVersion ?? 'なし'}`)
-  }
-
-  const id = nonEmptyString(value.id, 'id', 128)
-  if (!ID_PATTERN.test(id)) throw new TypeError('idは逆ドメイン形式で指定してください')
-  const version = nonEmptyString(value.version, 'version', 80)
-  if (!VERSION_PATTERN.test(version)) throw new TypeError('versionはセマンティックバージョン形式で指定してください')
+  const runtime = parseModRuntimeContract(value)
   if (!STACKCHAN_MOD_TYPES.includes(value.type)) throw new TypeError('typeはblockまたはtextで指定してください')
   if (!isRecord(value.source)) throw new TypeError('sourceがありません')
 
@@ -103,18 +87,15 @@ export function parseModDefinition(value) {
 
   const artifacts = value.artifacts === undefined ? [] : value.artifacts
   if (!Array.isArray(artifacts)) throw new TypeError('artifactsが不正です')
-  const entrypoints = stringList(value.entrypoints === undefined ? ['mod'] : value.entrypoints, 'entrypoints', {
-    required: true,
-  })
-  if (entrypoints.some((entrypoint) => !STACKCHAN_MOD_ENTRYPOINTS.includes(entrypoint))) {
-    throw new TypeError('entrypointsに未対応の実行入口があります')
-  }
-
   return {
     format: STACKCHAN_MOD_FORMAT,
-    schemaVersion: STACKCHAN_MOD_SCHEMA_VERSION,
-    id,
-    version,
+    schemaVersion: runtime.schemaVersion,
+    id: runtime.id,
+    version: runtime.version,
+    appApiVersion: runtime.appApiVersion,
+    settings: { ...runtime.settings },
+    hostApiVersion: runtime.hostApiVersion,
+    optionalCapabilities: [...runtime.optionalCapabilities],
     type: value.type,
     name: nonEmptyString(value.name, 'name', 80),
     description: nonEmptyString(value.description, 'description', 400),
@@ -122,9 +103,9 @@ export function parseModDefinition(value) {
     ...(value.license === undefined ? {} : { license: nonEmptyString(value.license, 'license', 80) }),
     ...(setup === undefined ? {} : { setup }),
     source: { path: sourcePath, ...(sourceEntrypoint === undefined ? {} : { entrypoint: sourceEntrypoint }) },
-    entrypoints,
-    targets: stringList(value.targets, 'targets', { required: true }),
-    capabilities: stringList(value.capabilities, 'capabilities'),
+    entrypoints: [...runtime.entrypoints],
+    targets: [...runtime.targets],
+    capabilities: [...runtime.capabilities],
     artifacts: artifacts.map((artifact, index) => {
       if (!isRecord(artifact) || artifact.format !== 'xsa') {
         throw new TypeError(`artifacts[${index}]が不正です`)

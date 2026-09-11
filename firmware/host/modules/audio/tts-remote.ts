@@ -1,18 +1,17 @@
 /* eslint-disable prefer-const */
 
-import type HTTPClient from 'embedded:network/http/client'
 import type AudioOut from 'pins/audioout'
+import { type PlaybackHttpOptions, playbackHttp } from 'tts-http-client'
 import { runTTSPlayback } from 'tts-playback-lifecycle'
+import { PlaybackProvider } from 'tts-playback-session'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 import WavStreamer from 'wavstreamer'
 
 /* global trace, SharedArrayBuffer */
 declare const device: {
   network: {
-    http: typeof HTTPClient.constructor & {
-      io: typeof HTTPClient
-      socket: unknown
-      dns: unknown
+    http: {
+      client: PlaybackHttpOptions
     }
   }
 }
@@ -26,19 +25,14 @@ export type TTSProperty = {
   volume?: number
 }
 
-export class TTS {
+export class TTS extends PlaybackProvider {
   audio?: AudioOut
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
   host: string
   port: number
   sampleRate: number
   volume: number
-  streaming: boolean
   constructor(props: TTSProperty) {
-    this.onPlayed = props.onPlayed
-    this.onDone = props.onDone
-    this.streaming = false
+    super(props)
     this.host = props.host
     this.port = props.port
     this.sampleRate = props.sampleRate ?? 24000
@@ -49,7 +43,7 @@ export class TTS {
       const audio = lifecycle.openAudio({ streams: 1, sampleRate: this.sampleRate }, volume ?? this.volume)
       lifecycle.attach(
         new WavStreamer({
-          http: device.network.http,
+          http: playbackHttp(lifecycle, device.network.http.client),
           host: this.host,
           path: key,
           port: this.port,

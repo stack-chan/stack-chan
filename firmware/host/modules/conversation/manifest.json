@@ -2,7 +2,7 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "../connectivity/mcp-client/manifest.json"
+    "../../../sdk/manifest.json"
   ],
   "modules": {
     "*": ["./*"],

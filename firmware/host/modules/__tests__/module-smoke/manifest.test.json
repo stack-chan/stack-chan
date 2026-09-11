@@ -7,7 +7,8 @@
     "../../conversation/manifest.json",
     "../../connectivity/__tests__/network-service/manifest.json",
     "../../../app/manifest_typings.json",
-    "../../testing/manifest.json"
+    "../../testing/manifest.json",
+    "$(MODULES)/drivers/peripherals/axp2101/manifest.json"
   ],
   "resources": {
     "*": "$(MODDABLE)/examples/assets/sounds/*"
@@ -16,7 +17,10 @@
     "*": ["$(MODULES)/crypt/data/ca233"]
   },
   "modules": {
-    "main": "./module-smoke.test"
+    "main": "./module-smoke.test",
+    "axp2101-power-capture": "../../power/platforms/axp2101-power-capture",
+    "axp2101-battery-status": "../../power/platforms/axp2101-battery-status",
+    "battery-level": "../../power/battery-level"
   },
   "defines": {
     "main": {
@@ -41,5 +45,6 @@
     "keys": {
       "available": 512
     }
-  }
+  },
+  "preload": ["axp2101-power-capture"]
 }

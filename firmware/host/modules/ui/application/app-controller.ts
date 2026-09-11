@@ -64,15 +64,31 @@ export class AppController extends Behavior {
   #miniAppScreen: MiniAppScreen = 'face'
   #view: PiuContainer | null = null
   #viewBehavior: FaceViewBehavior | null = null
+  #unsubscribeRegistry: (() => void) | undefined
+  #closed = false
 
   onCreate(application: PiuApplication, data: AppControllerParams) {
+    if (this.#closed) throw new Error('App controller is closed')
     this.#application = application
-    const main = data.main ?? new FaceMainTemplate(data, { anchor: 'MAIN' })
-    const viewData: FaceViewParams = { ...data, main }
-    this.showView(FaceView, viewData)
-    this.#miniAppRegistry.subscribe(() => this.#onMiniAppRegistryChanged())
-    this.#setAppBarMode({ kind: 'face' })
-    this.#syncMiniAppAvailability()
+    try {
+      const main = data.main ?? new FaceMainTemplate(data, { anchor: 'MAIN' })
+      this.showView(FaceView, { ...data, main })
+      this.#unsubscribeRegistry = this.#miniAppRegistry.subscribe(() => this.#onMiniAppRegistryChanged())
+      this.#setAppBarMode({ kind: 'face' })
+      this.#syncMiniAppAvailability()
+    } catch (error) {
+      this.#initializationFailed(error)
+    }
+  }
+
+  #initializationFailed(error: unknown): never {
+    // Keep cleanup locals off the successful Piu construction stack.
+    try {
+      this.close()
+    } catch (cleanupError) {
+      trace(`[AppController] initialization cleanup failed: ${String(cleanupError)}\n`)
+    }
+    throw error
   }
 
   get application(): PiuApplication {
@@ -87,10 +103,11 @@ export class AppController extends Behavior {
     const app = this.#application
     if (!app) return
     const view = new ViewTemplate(data)
-    app.empty()
-    app.add(view)
+    // Record it before adding: a child onDisplaying callback can throw.
     this.#view = view
     this.#viewBehavior = view.behavior as FaceViewBehavior
+    app.empty()
+    app.add(view)
   }
 
   update(_interval: number, faceState: FaceState): void {
@@ -192,14 +209,27 @@ export class AppController extends Behavior {
     }
   }
 
-  exitMiniApp(): void {
+  exitMiniApp(propagate = false): void {
     if (!this.#activeMiniApp) return
     const active = this.#activeMiniApp
     this.#activeMiniApp = null
     this.#miniAppScreen = 'face'
-    this.#viewBehavior?.showFace?.()
-    this.#setAppBarMode({ kind: 'face' })
-    this.#disposeMiniAppContent(active.content, active.dispose)
+    let failure: unknown
+    let failed = false
+    const attempt = (cleanup: () => void) => {
+      try {
+        cleanup()
+      } catch (error) {
+        if (!failed) failure = error
+        failed = true
+        trace(`[MiniApp] exit failed error=${String(error)}\n`)
+      }
+    }
+    attempt(() => this.#viewBehavior?.showFace?.())
+    attempt(() => this.#setAppBarMode({ kind: 'face' }))
+    attempt(() => this.#disposeMiniAppContent(active.content, active.dispose, true))
+    attempt(() => this.#syncMiniAppAvailability())
+    if (propagate && failed) throw failure
   }
 
   setDrawerButtons(buttons: DrawerButtonViewSpec[]): void {
@@ -231,13 +261,16 @@ export class AppController extends Behavior {
   }
 
   bindDrawerAction(key: string, callback: (value?: string) => void): boolean {
+    if (this.#closed) return false
     const target = this as unknown as Record<string, unknown>
     const ownsKey = this.#drawerActionKeys.has(key)
     if (!ownsKey && typeof target[key] === 'function') {
       trace(`[AppController] drawer action key collision: ${key}\n`)
       return false
     }
-    target[key] = (_content: PiuContent, value?: string) => callback(value)
+    target[key] = (_content: PiuContent, value?: string) => {
+      if (!this.#closed) callback(value)
+    }
     this.#drawerActionKeys.add(key)
     return true
   }
@@ -288,11 +321,11 @@ export class AppController extends Behavior {
   }
 
   #onMiniAppRegistryChanged(): void {
-    this.#syncMiniAppAvailability()
     if (this.#activeMiniApp && !this.#miniAppRegistry.get(this.#activeMiniApp.definition.id)) {
-      this.exitMiniApp()
+      this.exitMiniApp(true)
       return
     }
+    this.#syncMiniAppAvailability()
     if (this.#miniAppScreen === 'launcher') {
       if (this.#miniAppRegistry.list().length === 0) this.showFace()
       else this.#renderMiniAppLauncher()
@@ -313,17 +346,65 @@ export class AppController extends Behavior {
     behavior?.onAppBarMode?.(appBar, mode)
   }
 
-  #disposeMiniAppContent(content: PiuContainer, dispose?: () => void): void {
+  #disposeMiniAppContent(content: PiuContainer, dispose?: () => void, propagate = false): void {
+    let failure: unknown
+    let failed = false
     try {
       ;(content.behavior as MiniAppContentBehavior | undefined)?.onDispose?.(content)
     } catch (error) {
+      failed = true
+      failure = error
       trace(`[MiniApp] onDispose failed error=${String(error)}\n`)
     }
     try {
       dispose?.()
     } catch (error) {
+      if (!failed) failure = error
+      failed = true
       trace(`[MiniApp] dispose failed error=${String(error)}\n`)
     }
+    if (propagate && failed) throw failure
+  }
+
+  close(): void {
+    if (this.#closed) return
+    this.#closed = true
+    const app = this.#application
+    const view = this.#view
+    const behavior = this.#viewBehavior
+    const active = this.#activeMiniApp
+    this.#application = null
+    this.#view = null
+    this.#viewBehavior = null
+    this.#activeMiniApp = null
+    let failure: unknown
+    let failed = false
+    const attempt = (cleanup: () => void) => {
+      try {
+        cleanup()
+      } catch (error) {
+        if (!failed) failure = error
+        failed = true
+      }
+    }
+    attempt(() => this.#unsubscribeRegistry?.())
+    this.#unsubscribeRegistry = undefined
+    this.#miniAppRegistry.close()
+    for (const key of [...this.#drawerActionKeys]) attempt(() => this.unbindDrawerAction(key))
+    attempt(() => behavior?.setFaceMotionEnabled(false))
+    if (active) attempt(() => this.#disposeMiniAppContent(active.content, active.dispose, true))
+    // A previous controller can be closed after another controller took over
+    // the global Piu application. Only remove the view that this instance owns.
+    const parent = view?.container
+    if (parent && view) attempt(() => parent.remove(view))
+    if (app?.behavior === this) {
+      attempt(() => app.stop())
+      attempt(() => app.empty())
+      attempt(() => {
+        app.behavior = new Behavior()
+      })
+    }
+    if (failed) throw failure
   }
 }
 
@@ -333,6 +414,7 @@ export function createAppControllerApplication(
 ): AppController {
   const existingApplication = (globalThis as GlobalWithApplication).application
   if (existingApplication) {
+    if (existingApplication.behavior instanceof AppController) existingApplication.behavior.close()
     const controller = new AppController()
     existingApplication.empty()
     existingApplication.behavior = controller

@@ -38,34 +38,30 @@ SHA-256 hashes for every copied file to `VENDOR_SOURCE.json`.
 
 The M5StackChan CoreS3 firmware and WASM simulator select `stackchan-voice` by
 default. The block editor's 「おしゃべり」 block generates
-`await robot.audio.say(...)`, so the same block runs this engine on both
+`await app.audio.say(..., { signal: task.signal })`, so the same block runs this engine on both
 targets.
 
 ## Singing
 
-`stackchan-voice` can pin each mora to an equal-tempered note and an exact
-duration. The public audio capability accepts the engine's raw `koe` notation:
+The SDK audio extension accepts a BPM and a list of `[pitch, beats, lyric]`
+tuples. A rest is `['R', beats, '']`; one note consumes one kana mora.
 
 ```js
-await robot.audio.sing(
-  '#C4,450ki#C4,450ra#G4,450ki#G4,450ra' +
-    '#A4,450hi#A4,450ka#G4,900ru#R,150',
-)
+import { singing } from 'stackchan/extensions/audio'
+
+// Inside an app task or input handler:
+await singing(app).sing(120, [
+  ['C4', 1, 'き'], ['C4', 1, 'ら'],
+  ['G4', 1, 'き'], ['G4', 1, 'ら'], ['R', 0.5, ''],
+], { signal: task.signal })
 ```
 
-`#C4,450ki` sings the mora `ki` at C4 for 450 milliseconds. `+` and `-`
-select sharps and flats, and `#R,150` inserts a 150 millisecond rest. Notes
-hold a stable pitch with a short portamento; notes longer than roughly 350 ms
-also receive a delayed vibrato. One note consumes one mora.
+Declare `audio.singing` and host API 8 or later. The shared host compiler
+validates the score, converts beat counts to milliseconds and romanizes lyrics.
+Blockly generates the same SDK call. Apps do not embed a second compiler or
+call the provider's internal `koe` notation.
 
-Singing is optional on the active TTS provider. `robot.audio.sing(...)`
-returns a failed result instead of silently speaking the notation when the
-current provider does not implement singing.
-
-The block editor hides the raw notation. Its 「テンポ … で…を歌う」 block takes
-one score list and one global BPM. Every list item has the same
-`[pitch, beats, lyric]` triple shape; a rest uses `['R', beats, '']`. The
-generated helper validates the list, converts beat counts to exact
-milliseconds, romanizes each one-kana-mora lyric, and calls
-`robot.audio.sing(...)`. CoreS3 and the browser simulator therefore play the
-same score without doing text-to-koe conversion inside the voice provider.
+The engine holds a stable pitch with a short portamento and adds delayed
+vibrato to longer notes. Providers without singing reject with
+`StackchanError.code === 'UNSUPPORTED'`. Cancellation and app shutdown release
+the shared audio output before completing.

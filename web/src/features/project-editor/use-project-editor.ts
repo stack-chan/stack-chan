@@ -554,12 +554,14 @@ export function useProjectEditor() {
           firmware,
         }: {
           chip: string
-          firmware: { version: string; projectName: string }
+          firmware: { version: string; projectName: string; target: string | null; hostApiVersion: number }
         }) => {
           const compatibility = inspectDeploymentCompatibility(current.target, {
             chip,
             xsVersion: buildOperation.status === 'success' ? buildOperation.result.xsVersion : undefined,
             firmwareVersion: firmware.version,
+            firmwareTarget: firmware.target,
+            hostApiVersion: firmware.hostApiVersion,
             requireFirmware: true,
             requireArchive: true,
           })
@@ -622,6 +624,7 @@ export function useProjectEditor() {
           const compatibility = inspectDeploymentCompatibility(current.target, {
             chip,
             firmwareVersion: firmware.version,
+            requireTarget: false,
             requireFirmware: true,
           })
           if (!compatibility.compatible) {

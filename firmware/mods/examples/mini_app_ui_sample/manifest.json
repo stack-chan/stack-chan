@@ -1,13 +1,20 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_mod.json",
-    "$(MODDABLE)/examples/manifest_typings.json",
-    "../../../host/app/manifest_typings.json"
+    "$(MODDABLE)/examples/manifest_typings.json"
   ],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": { "allowJs": true }
+    }
+  },
   "modules": {
-    "miniapp": "./miniapp"
+    "*": ["./mod", "./screen"]
   },
   "resources": {
     "*-mask": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

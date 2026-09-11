@@ -5,8 +5,8 @@ export function writeCount(): number {
 }
 
 export default class FlashStub {
-  readonly byteLength = 64
-  readonly blockSize = 16
+  readonly byteLength = 8192
+  readonly blockSize = 4096
   readonly storage = new Uint8Array(this.byteLength)
 
   constructor(_partition: string) {

@@ -32,6 +32,7 @@ import {
   screenPointFromUv,
   stepRotationToward,
 } from '../../../simulator/geometry.mjs'
+import { closeResources, stopRuntimeCamera, transitionRuntimeAudio } from '../../../simulator/lifecycle.mjs'
 import { createModStorage } from '../../../simulator/mod-storage.mjs'
 
 const DRIVER_MAX_ANGULAR_SPEED = 2.4
@@ -352,6 +353,14 @@ class StackchanScene {
 }
 
 class WasmView {
+  firmwareRunning = false
+
+  #quitFirmware() {
+    if (!this.firmwareRunning) return
+    this.firmwareRunning = false
+    this.fxMainQuit?.()
+  }
+
   constructor({
     scene,
     screen,
@@ -414,23 +423,37 @@ class WasmView {
   }
 
   dispose() {
+    if (this.disposed) return this.audioClosed
     this.disposed = true
-    this.#clearPendingReady()
-    this.fxMainQuit?.()
-    for (const [eventName, handler] of Object.entries(this.touchHandlers ?? {})) {
-      this.screen.removeEventListener(eventName, handler)
+    try {
+      closeResources([
+        () => {
+          this.audioClosed = transitionRuntimeAudio(this.runtime.host, 'close')
+          // React cleanup cannot await this. The bridge still owns late media
+          // requests and its release failure must always be observed.
+          this.audioClosed.catch((error) => console.error('[bridge] audio release failed', error))
+        },
+        () => this.#clearPendingReady(),
+        () => stopRuntimeCamera(this.runtime),
+        () => this.#quitFirmware(),
+        ...Object.entries(this.touchHandlers ?? {}).map(
+          ([eventName, handler]) =>
+            () =>
+              this.screen.removeEventListener(eventName, handler)
+        ),
+      ])
+    } finally {
+      // No browser resource or stale VM callback may retain the retired host.
+      this.runtime.host = undefined
+      this.runtime.view = undefined
+      this.runtime.state = {}
+      this.mc = undefined
+      this.fxMainIdle = undefined
+      this.fxMainLaunch = undefined
+      this.fxMainQuit = undefined
+      this.fxMainTouch = undefined
     }
-    // The Emscripten module retains this private runtime object. Clear its host
-    // graph explicitly; browser lifecycle tests verify that mounting and
-    // disposing the real generated module never publishes equivalent globals.
-    this.runtime.host = undefined
-    this.runtime.view = undefined
-    this.runtime.state = {}
-    this.mc = undefined
-    this.fxMainIdle = undefined
-    this.fxMainLaunch = undefined
-    this.fxMainQuit = undefined
-    this.fxMainTouch = undefined
+    return this.audioClosed
   }
 
   async #loadWasm() {
@@ -452,7 +475,6 @@ class WasmView {
         printErr: (text) => this.#handleFirmwareError(text),
       })
       if (this.disposed) {
-        mc._fxMainQuit?.()
         return
       }
       this.mc = mc
@@ -466,6 +488,7 @@ class WasmView {
       this.launch(installation.pointer)
     } catch (error) {
       this.#clearPendingReady()
+      if (this.disposed) return
       console.error('[bridge] WASM load failed', error)
       this.onStatus({ status: 'error', code: 'wasm-load-failed' })
       this.#drawFallbackFace()
@@ -476,6 +499,7 @@ class WasmView {
   async installSavedModArchive() {
     try {
       const installedMod = await this.modStorage.loadInstalledMod()
+      if (this.disposed) throw new Error('Simulator was closed before MOD installation')
       const result = installModArchiveIntoWasm(this.mc, installedMod)
       console.log('[bridge] MOD archive install', result)
       this.onModInstallStatus(result, installedMod)
@@ -519,7 +543,12 @@ class WasmView {
     this.#applyFirmwareDriverTrace(text)
     this.#appendTrace(text)
     console.log(`[firmware] ${text}`)
-    if (String(text).includes('[main] app behaviors ready') && this.pendingReadyInstallation) {
+    if (String(text).includes('[main] error')) {
+      this.#clearPendingReady()
+      this.onStatus({ status: 'error', code: 'firmware-start-failed' })
+      this.onError(new Error(String(text)))
+    }
+    if (String(text).includes('[main] app ready') && this.pendingReadyInstallation) {
       this.#reportReady(this.pendingReadyInstallation)
     }
   }
@@ -575,6 +604,7 @@ class WasmView {
       height: this.screen.height,
       hasArchive: Boolean(archive),
     })
+    this.firmwareRunning = true
     const pointer = this.fxMainLaunch(this.screen.width, this.screen.height, archive)
     console.log('[bridge] fxMainLaunch returned', { pointer })
     const array = new Uint8ClampedArray(this.mc.HEAP8.buffer, pointer, this.screen.width * this.screen.height * 4)
@@ -582,11 +612,25 @@ class WasmView {
   }
 
   async restart() {
+    if (this.restarting) return this.restarting
+    this.restarting = this.#restart()
+    try {
+      await this.restarting
+    } finally {
+      this.restarting = undefined
+    }
+  }
+
+  async #restart() {
+    if (this.disposed) throw new Error('Simulator is closed')
     if (!this.mc || !this.fxMainLaunch) {
       throw new Error('WASM is not ready')
     }
     console.log('[bridge] restart simulator')
-    this.fxMainQuit?.()
+    await transitionRuntimeAudio(this.runtime.host, 'suspend')
+    if (this.disposed) throw new Error('Simulator was closed while stopping its audio')
+    stopRuntimeCamera(this.runtime)
+    this.#quitFirmware()
     this.interval = 0
     this.when = 0
     this.image = null
@@ -594,8 +638,11 @@ class WasmView {
     this.screen.getContext('2d').clearRect(0, 0, this.screen.width, this.screen.height)
     this.scene.markScreenDirty()
     const installation = await this.installSavedModArchive()
+    if (this.disposed) throw new Error('Simulator was closed before firmware launch')
     this.#awaitFirmwareReady(installation.result)
     try {
+      await transitionRuntimeAudio(this.runtime.host, 'resume')
+      if (this.disposed) throw new Error('Simulator was closed before firmware launch')
       this.launch(installation.pointer)
     } catch (error) {
       this.#clearPendingReady()
@@ -767,6 +814,13 @@ export class SimulatorEngine {
     this.audioOutBridge = createHostAudioOutBridge()
     this.audioInBridge = createHostAudioInBridge()
     this.cameraBridge = createHostCameraBridge()
+    this.cameraEpoch = 0
+    const stopCamera = this.cameraBridge.stop
+    this.cameraBridge.stop = () => {
+      this.cameraEpoch++
+      stopCamera()
+      if (!this.disposed) this.onCameraStatus({ status: 'idle' })
+    }
     this.scene = new StackchanScene({ viewport, screen, runtimeBaseUrl })
     this.driverBridge = createHostDriverBridge({
       onRotation: (rotation) => this.scene.applyDriverRotation(rotation),
@@ -848,14 +902,14 @@ export class SimulatorEngine {
   }
 
   async connectCamera() {
+    const epoch = this.cameraEpoch
     this.onCameraStatus({ status: 'pending' })
     try {
       await this.cameraBridge.start({ useBrowserCamera: true })
-      this.onCameraStatus({
-        status: this.cameraBridge.isBrowserCameraStarted() ? 'connected' : 'fallback',
-      })
+      if (!this.disposed && epoch === this.cameraEpoch) this.onCameraStatus({ status: 'connected' })
     } catch (error) {
-      this.onCameraStatus({ status: 'error', error: String(error.message ?? error) })
+      if (!this.disposed && epoch === this.cameraEpoch)
+        this.onCameraStatus({ status: 'error', error: String(error.message ?? error) })
       throw error
     }
   }
@@ -865,13 +919,18 @@ export class SimulatorEngine {
   }
 
   dispose() {
-    if (this.disposed) return
+    if (this.disposed) return this.audioClosed
     this.disposed = true
-    if (this.animationFrame) window.cancelAnimationFrame(this.animationFrame)
-    this.unbindViewport?.()
-    this.wasmView.dispose()
-    this.scene.dispose()
-    this.cameraBridge.stop()
-    this.audioOutBridge.close()
+    closeResources([
+      () => {
+        if (this.animationFrame) window.cancelAnimationFrame(this.animationFrame)
+      },
+      () => this.unbindViewport?.(),
+      () => {
+        this.audioClosed = this.wasmView.dispose()
+      },
+      () => this.scene.dispose(),
+    ])
+    return this.audioClosed
   }
 }

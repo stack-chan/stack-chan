@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "ES2025",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": [
+      "ES2025"
+    ],
+    "types": [],
+    "paths": {
+      "stackchan": [
+        "./sdk/index.ts"
+      ],
+      "stackchan/*": [
+        "./sdk/*.ts"
+      ]
+    }
+  },
+  "include": [
+    "sdk/*.ts",
+    "lessons/**/*.js",
+    "contracts/sdk/**/*.ts",
+    "mods/examples/look_around/*.js",
+    "mods/examples/monologue/*.js"
+  ]
+}

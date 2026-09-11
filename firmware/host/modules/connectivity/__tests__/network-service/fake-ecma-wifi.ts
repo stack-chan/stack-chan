@@ -6,6 +6,8 @@ type WiFiOptions = {
 
 type WiFiConnectOptions = {
   SSID?: string
+  password?: string
+  secure?: boolean
 }
 
 type WiFiScanOptions = {

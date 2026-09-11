@@ -2,12 +2,10 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "../../manifest.json",
-    "../../../../../host/modules/testing/manifest.json"
+    "../../../../../host/modules/testing/manifest.json",
+    "../../../../../sdk/manifest.json"
   ],
   "modules": {
-    "face-state": "./face-state-stub",
-    "mcp-server": "./mcp-server-stub",
-    "net": "./net-stub",
     "main": "./mcp-drawer.test"
   },
   "defines": {

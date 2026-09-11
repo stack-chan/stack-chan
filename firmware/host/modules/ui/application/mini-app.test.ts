@@ -52,3 +52,38 @@ test('registry snapshots metadata without exposing the create callback', () => {
   assert.equal(Object.isFrozen(listed), true)
   assert.equal('create' in listed, false)
 })
+
+test('closing a registry releases factories and listeners and makes retained removers harmless', () => {
+  const registry = new MiniAppRegistry()
+  let notifications = 0
+  registry.subscribe(() => {
+    notifications += 1
+  })
+  const remove = registry.register({ id: 'sample', title: 'Sample', create: () => content })
+  registry.close()
+  registry.close()
+  remove()
+  assert.deepEqual(registry.list(), [])
+  assert.equal(registry.get('sample'), undefined)
+  assert.equal(notifications, 1)
+  assert.throws(() => registry.register({ id: 'new', title: 'New', create: () => content }), /closed/)
+  assert.throws(() => registry.subscribe(() => {}), /closed/)
+})
+
+test('a screen publication failure rolls back its factory before returning the error', () => {
+  const registry = new MiniAppRegistry()
+  const failure = new Error('view publication failed')
+  const seen: number[] = []
+  const unsubscribe = registry.subscribe(() => {
+    seen.push(registry.list().length)
+    throw failure
+  })
+  assert.throws(
+    () => registry.register({ id: 'failed', title: 'Failed', create: () => content }),
+    (error) => error === failure,
+  )
+  assert.equal(registry.get('failed'), undefined)
+  assert.deepEqual(seen, [1, 0])
+  unsubscribe()
+  assert.doesNotThrow(() => registry.register({ id: 'failed', title: 'Retry', create: () => content }))
+})

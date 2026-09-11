@@ -1,0 +1,24 @@
+{
+  "include": [
+    "../../../../../contracts/manifest_playback.json",
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../../../../sdk/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "preload": ["tts-playback-session"],
+  "modules": {
+    "audio-buffer": "../../audio-buffer",
+    "audio-ports": "../../audio-ports",
+    "speaker": "../../wasm/speaker",
+    "tts-stackchan-voice": "../../wasm/tts-stackchan-voice",
+    "stackchan-voice-wav": "../../wasm/stackchan-voice-wav",
+    "stackchanvoice": "../stackchan-voice-device/stackchanvoice-stub",
+    "stackchan-voice-test-state": "../stackchan-voice-device/test-state",
+    "Resource": "../stackchan-voice-device/resource-stub",
+    "tts-types": "../../tts-types",
+    "tts-playback-session": "../../tts-playback-session",
+    "wasm-audio-bridge-contract": "../../wasm/audio-bridge-contract",
+    "wasm-audio-playback": "../../wasm/audio-playback",
+    "main": "./wasm-playback-lifecycle.test"
+  }
+}

@@ -1,13 +1,11 @@
+import jump from 'jump'
 import { runMiniAppSmoke } from 'mini-app-smoke-behavior'
+import { definePiuApp } from 'stackchan/extensions/piu'
 
-const behavior = {
-  onLaunch() {
-    trace('[MiniApp Lin Smoke] combined archive MOD loaded\n')
-    return true
+export default definePiuApp({
+  screens: jump,
+  async setup() {
+    trace('[MiniApp Lin Smoke] SDK archive loaded\n')
+    await runMiniAppSmoke(application)
   },
-  async onContextCreated(context: Parameters<typeof runMiniAppSmoke>[0]) {
-    await runMiniAppSmoke(context)
-  },
-}
-
-export default behavior
+})

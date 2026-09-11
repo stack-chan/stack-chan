@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, rmSync, statSync } from 'node:fs'
 import path from 'node:path'
 import {
   assertNoCustomBuildOutput,
@@ -17,9 +17,11 @@ import {
   writeBuildVariant,
 } from './lib/build-variant.mjs'
 import { aliases, devices, resolveDevice } from './lib/devices.mjs'
+import { validateFirmwareBundleTarget } from './lib/firmware-bundle.mjs'
 import { prepareCoreS3IdfDependencies } from './lib/idf-dependencies.mjs'
 import { installModArchive, resolveModArchivePath } from './lib/mod-flash.mjs'
-import { prepareCoreS3VersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
+import { verifyBuiltModArchive } from './lib/mod-package.mjs'
+import { prepareVersionManifest, prepareVersionSdkconfig, readModdableVersion } from './lib/moddable-version.mjs'
 
 const command = process.argv[2]
 const rawArgs = process.argv.slice(3)
@@ -58,7 +60,7 @@ const deviceName = resolveDevice(
 )
 const device = devices[deviceName]
 const args = positionalArgs(rawArgs).filter((arg) => !isDeviceName(arg) && !isBuildModeFlag(arg))
-const platform = `esp32:${device.platform}`
+const platform = device.platform
 const manifest = readOption(rawArgs, 'manifest') ?? process.env.STACKCHAN_MANIFEST ?? device.manifest
 const dryRun = process.env.STACKCHAN_DRY_RUN === '1'
 const { mode: buildMode, args: buildModeArgs } = readBuildConfiguration(rawArgs, command)
@@ -67,6 +69,8 @@ const uploadPort =
   readOption(rawArgs, 'port') ?? process.env.STACKCHAN_PORT ?? process.env.UPLOAD_PORT ?? process.env.ESPPORT
 const uploadBaud = readOption(rawArgs, 'baud') ?? process.env.STACKCHAN_BAUD ?? process.env.ESPBAUD
 let subprocessEnvironment = uploadPort ? { ...process.env, UPLOAD_PORT: uploadPort } : process.env
+let versionSdkconfigDirectory
+let firmwareVersion
 
 if (
   deviceName === 'm5stackchan_cores3' &&
@@ -78,7 +82,7 @@ if (
   )
 }
 
-if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && command !== 'mod:build') {
+if (!dryRun && device.bundleId && device.esptoolChip === 'esp32s3' && command !== 'mod' && command !== 'mod:build') {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
@@ -90,11 +94,16 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
     console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
     process.exit(1)
   }
+}
+
+if (!dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command)) {
   try {
-    const versionSdkconfig = prepareCoreS3VersionSdkconfig()
+    const versionSdkconfig = prepareVersionSdkconfig({ platformName: deviceName })
+    versionSdkconfigDirectory = versionSdkconfig.directory
+    firmwareVersion = versionSdkconfig.version
     subprocessEnvironment = { ...subprocessEnvironment, SDKCONFIGPATH: versionSdkconfig.directory }
   } catch (error) {
-    console.error(`[stack-chan] CoreS3 firmware version could not be prepared: ${error.message}`)
+    console.error(`[stack-chan] Firmware version could not be prepared: ${error.message}`)
     process.exit(1)
   }
 }
@@ -102,7 +111,7 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
 const buildVariantChanged =
   !dryRun && ['build', 'flash', 'deploy', 'debug'].includes(command) ? prepareBuildVariant() : false
 
-if (buildVariantChanged && deviceName === 'm5stackchan_cores3') {
+if (buildVariantChanged && device.bundleId && device.esptoolChip === 'esp32s3') {
   try {
     prepareCoreS3IdfDependencies({
       outputDirectory: buildOutputDirectory,
@@ -116,19 +125,24 @@ if (buildVariantChanged && deviceName === 'm5stackchan_cores3') {
   }
 }
 
+// Build and validate before any command that can flash the connected board.
+// Some SDK/IDF failures still leave images and return success through mcconfig.
+if (['build', 'flash', 'deploy', 'debug'].includes(command)) {
+  run('mcconfig', [
+    ...buildModeArgs,
+    '-m',
+    '-p',
+    platform,
+    '-t',
+    'build',
+    ...outputArgs,
+    path.resolve(manifest),
+    ...args,
+  ])
+}
+
 switch (command) {
   case 'build':
-    run('mcconfig', [
-      ...buildModeArgs,
-      '-m',
-      '-p',
-      platform,
-      '-t',
-      'build',
-      ...outputArgs,
-      path.resolve(manifest),
-      ...args,
-    ])
     break
   case 'flash':
     run('mcconfig', [...buildModeArgs, '-m', '-p', platform, ...outputArgs, path.resolve(manifest), ...args])
@@ -161,6 +175,17 @@ switch (command) {
     const packageDirectory = findPackageDirectory(modInput)
     const projectDirectory = packageDirectory ?? path.dirname(path.resolve(modInput))
     const projectName = path.basename(projectDirectory)
+    const archivePath = resolveModArchivePath({
+      outputDirectory: buildOutputDirectory,
+      mode: buildMode,
+      projectName,
+    })
+    // mcrun keys output by the leaf directory. Two Gallery packages named
+    // "mod" can otherwise reuse each other's newer CODE and DATA intermediates.
+    if (!dryRun) {
+      rmSync(path.dirname(archivePath), { recursive: true, force: true })
+      rmSync(path.join(buildOutputDirectory, 'tmp/esp32', buildMode, projectName), { recursive: true, force: true })
+    }
     if (packageDirectory) {
       run(
         'mcpack',
@@ -170,11 +195,18 @@ switch (command) {
     } else {
       run('mcrun', [...buildModeArgs, '-m', '-p', platform, '-t', 'build', ...outputArgs, modInput, ...args.slice(1)])
     }
-    const archivePath = resolveModArchivePath({
-      outputDirectory: buildOutputDirectory,
-      mode: buildMode,
-      projectName,
-    })
+    if (!dryRun) {
+      try {
+        verifyBuiltModArchive(
+          archivePath,
+          path.join(projectDirectory, 'stackchan-mod.json'),
+          packageDirectory ? undefined : path.resolve(modInput),
+        )
+      } catch (error) {
+        console.error(`[stack-chan] MODの生成物を検証できませんでした: ${error.message}`)
+        process.exit(1)
+      }
+    }
     if (command === 'mod:build' || dryRun) {
       console.log(`[stack-chan] MOD archive=${archivePath}`)
       if (command === 'mod') {
@@ -186,6 +218,7 @@ switch (command) {
       installModArchive({
         archivePath,
         chip: device.esptoolChip,
+        expectedTarget: device.id,
         port: uploadPort,
         baud: uploadBaud,
         expectedFirmwareVersion: device.firmwareVersionSource === 'moddable' ? readModdableVersion() : undefined,
@@ -220,13 +253,38 @@ function run(bin, binArgs, cwd = process.cwd()) {
   }
 
   ensureBuildOutputDirectory()
-  const result = spawnSync(bin, binArgs, { cwd, env: subprocessEnvironment, stdio: 'inherit' })
+  let versionManifestPath
+  let result
+  try {
+    if (bin === 'mcconfig' && versionSdkconfigDirectory) {
+      const manifestIndex = binArgs.indexOf(path.resolve(manifest))
+      if (manifestIndex < 0) throw new Error('Host manifest is missing from mcconfig arguments')
+      versionManifestPath = prepareVersionManifest(path.resolve(manifest), deviceName, versionSdkconfigDirectory)
+      binArgs = [...binArgs]
+      binArgs[manifestIndex] = versionManifestPath
+    }
+    result = spawnSync(bin, binArgs, { cwd, env: subprocessEnvironment, stdio: 'inherit' })
+  } finally {
+    if (versionManifestPath) rmSync(versionManifestPath, { force: true })
+  }
   if (result.error) {
     console.error(`[stack-chan] ${bin}を実行できませんでした: ${result.error.message}`)
     console.error('[stack-chan] npm run setup と npm run doctor を確認してください。')
     process.exit(1)
   }
   if (result.status !== 0) process.exit(result.status ?? 1)
+  if (bin === 'mcconfig' && firmwareVersion) {
+    try {
+      validateFirmwareBundleTarget(
+        path.join(buildOutputDirectory, 'bin/esp32', deviceName, buildMode, hostApplicationName),
+        firmwareVersion,
+        device.id,
+      )
+    } catch (error) {
+      console.error(`[stack-chan] Firmware validation failed: ${error.message}`)
+      process.exit(1)
+    }
+  }
 }
 
 /**
@@ -387,7 +445,7 @@ Examples:
   npm run build:m5stackchan_cores3 -- --mode=debug
   npm run build:m5stackchan_cores3 -- --mode=instrument
   npm run debug:xsdb -- --port /dev/ttyACM1
-  npm run mod:build -- mods/examples/mini_app_sample/manifest.json --mode=release
+  npm run mod:build -- mods/examples/stackchan_minigames/manifest.json --mode=release
   npm run mod -- mods/examples/look_around/manifest.json --port /dev/ttyACM1
   STACKCHAN_DEVICE=takao_core2_sg90 npm run mod -- mods/examples/look_around/manifest.json`)
 }

@@ -12,7 +12,7 @@ Stack-chan's firmware consists of a program that provide the basic operation of 
 Once the host is written, the mod can be installed in a short time for fast development.
 First write the host, and then write the mods as needed.
 When no MOD is installed, the host runs the product default behavior.
-When a MOD is installed, that MOD replaces the product default behavior and receives the runtime context through `onContextCreated`.
+An installed SDK MOD replaces the product default and starts through `defineApp / setup(app)`.
 
 ### Manifest File
 
@@ -221,7 +221,6 @@ $ npm run mod -- ./mods/examples/look_around/manifest.json
 
 # xsc mod.xsb
 # xsc check.xsb
-# xsc mod/config.xsb
 # xsl look_around.xsa
 [stack-chan] MOD preflight: xs_esp32 9.0.0+stackchan.1, XS 17.8.0, xs=0xfa0000/262144
 [stack-chan] MOD installed and verified: .../look_around.xsa

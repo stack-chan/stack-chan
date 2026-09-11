@@ -1,170 +1,282 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import Blockly from 'blockly/core'
+import 'blockly/blocks'
+import * as en from 'blockly/msg/en'
+Blockly.setLocale(en)
+import { javascriptGenerator, Order } from 'blockly/javascript'
+import { defineApp } from 'stackchan'
+import { input } from 'stackchan/extensions/input'
+import { ui } from 'stackchan/extensions/ui'
+import { lighting } from 'stackchan/extensions/lighting'
+import { singing } from 'stackchan/extensions/audio'
 import {
   assembleModSource,
-  COLOR_OPTIONS,
-  EMOTION_OPTIONS,
-  escapeSingleQuoted,
-  NOTE_OPTIONS,
   registerStackchanBlocks,
-  registerAsyncProcedureGenerators,
+  escapeSingleQuoted,
+  EMOTION_OPTIONS,
+  COLOR_OPTIONS,
+  NOTE_OPTIONS,
   SINGING_NOTE_OPTIONS,
-  singingMoraToKoe,
-  singingScoreToKoe,
   TOOLBOX,
 } from './blocks.mjs'
+import { VISUAL_SAMPLES } from './samples.mjs'
+import { applyFaceAssetToSource, createFaceAsset } from './face-assets.mjs'
 
-function evaluateModule(source, parameters = {}) {
-  const names = Object.keys(parameters)
-  const values = Object.values(parameters)
-  const executable = source.replace(/^import .*$/gm, '').replace('export async function', 'async function')
-  return new Function(...names, `${executable}\nreturn { onContextCreated }`)(...values)
+function evaluate(source, trace = () => {}) {
+  const body = source.replace(/^import .*$/gm, '').replace('export default ', 'return ')
+  return new Function('defineApp', 'input', 'ui', 'lighting', 'singing', 'trace', body)(
+    defineApp,
+    input,
+    ui,
+    lighting,
+    singing,
+    trace
+  )
 }
-
-test('escapeSingleQuoted keeps a field_input value a valid single-quoted literal', () => {
-  assert.equal(escapeSingleQuoted('primary'), 'primary')
-  assert.equal(escapeSingleQuoted("a'b"), "a\\'b")
-  assert.equal(escapeSingleQuoted('a\\b'), 'a\\\\b')
-  // the escaped value must parse as the original string inside single quotes
-  for (const raw of ['primary', "a'b", 'a\\b', "x'\\y"]) {
-    // eslint-disable-next-line no-eval
-    assert.equal(eval(`'${escapeSingleQuoted(raw)}'`), raw)
-  }
-})
-
-test('singingMoraToKoe converts hiragana, katakana, yoon, moraic n, and long vowels', () => {
-  assert.equal(singingMoraToKoe('き'), 'ki')
-  assert.equal(singingMoraToKoe('キャ'), 'kya')
-  assert.equal(singingMoraToKoe('デャ'), 'dya')
-  assert.equal(singingMoraToKoe('ウォ'), 'o')
-  assert.equal(singingMoraToKoe('ヰ'), 'i')
-  assert.equal(singingMoraToKoe('ん'), 'n')
-  assert.equal(singingMoraToKoe('ー', 'ko'), 'o')
-  assert.throws(() => singingMoraToKoe('ー'), /前には母音/)
-  assert.throws(() => singingMoraToKoe('きら'), /かな1モーラ/)
-  assert.throws(() => singingMoraToKoe('っ'), /かな1モーラ/)
-})
-
-test('singingScoreToKoe converts tempo and note triples into exact koe notation', () => {
-  assert.equal(
-    singingScoreToKoe(120, [
-      ['C4', 1, 'き'],
-      ['C+4', 0.5, 'ラ'],
-      ['G4', 2, 'ー'],
-      ['R', 0.5, ''],
-    ]),
-    '#C4,500ki#C+4,250ra#G4,1000a#R,250'
-  )
-  assert.throws(() => singingScoreToKoe(120, []), /音符または休符/)
-  assert.throws(() => singingScoreToKoe(120, [['C4', 1]]), /3項目/)
-  assert.throws(() => singingScoreToKoe(120, [['R', 1, 'ら']]), /休符には歌詞/)
-  assert.throws(() => singingScoreToKoe(120, [['H4', 1, 'ら']]), /歌唱音符/)
-  assert.throws(() => singingScoreToKoe(20, [['C4', 16, 'ら']]), /20〜8000/)
-})
-
-test('list-based singing blocks generate one score helper call from note triples', () => {
-  const generator = {
+function generator() {
+  const gen = {
     forBlock: {},
-    valueToCode: (_block, name) => (name === 'SCORE' ? "[['C4', 1, 'き'], ['R', 0.5, '']]" : ''),
+    statementToCode: (block) => block.body ?? '',
+    valueToCode: (block, key) => block.values?.[key] ?? '',
   }
-  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, {
-    NONE: 99,
-    ATOMIC: 0,
-    FUNCTION_CALL: 1,
-    AWAIT: 2,
-  })
-
-  const fieldBlock = (fields) => ({ getFieldValue: (name) => fields[name] })
-  assert.equal(
-    generator.forBlock.stackchan_sing_score(fieldBlock({ BPM: 120 }), generator),
-    "await singScore(robot, 120, [['C4', 1, 'き'], ['R', 0.5, '']])\n"
-  )
-  assert.deepEqual(generator.forBlock.stackchan_song_note_tuple(fieldBlock({ NOTE: 'C+4', BEATS: 0.5, LYRIC: 'ラ' })), [
-    "['C+4', 0.5, 'ラ']",
-    0,
-  ])
-  assert.deepEqual(generator.forBlock.stackchan_song_rest_tuple(fieldBlock({ BEATS: 2 })), ["['R', 2, '']", 0])
+  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, gen, Order)
+  return gen
+}
+const block = (fields = {}, body = '', id = 'example', values = {}) => ({
+  id,
+  body,
+  values,
+  getFieldValue: (key) => fields[key],
 })
-
-test('generated singScore helper calls robot.audio.sing and surfaces provider failures', async () => {
-  const source = assembleModSource("await singScore(robot, 120, [['C4', 1, 'き'], ['R', 0.5, '']])")
-  assert.match(source, /function singingScoreToKoe/)
-  let received = ''
-  const robot = {
-    audio: {
-      sing: async (koe) => {
-        received = koe
-        return { success: true, value: koe }
-      },
+function fixture() {
+  const events = new Map(),
+    after = [],
+    calls = []
+  const signal = {
+    reason: undefined,
+    throwIfCancelled() {
+      if (this.reason) throw this.reason
+    },
+    subscribe: () => () => {},
+  }
+  const task = {
+    signal,
+    async sleep(ms) {
+      signal.throwIfCancelled()
+      calls.push(['sleep', ms])
     },
   }
+  const record =
+    (name) =>
+    (...args) => {
+      calls.push([name, ...args])
+    }
+  const register = (name) => (key, handler) => {
+    events.set(`${name}:${key}`, handler)
+    return () => events.delete(`${name}:${key}`)
+  }
+  const app = {
+    face: { setEmotion: record('emotion'), setColor: record('color'), setMouthOpen: record('mouth') },
+    audio: { say: record('say'), tone: record('tone'), sing: record('sing') },
+    input: {
+      onPress: register('press'),
+      onRelease: register('release'),
+      onMotion: (handler) => {
+        events.set('motion', handler)
+      },
+      onHeadTouch: (handler, options) => {
+        events.set(`head:${options.gesture}`, handler)
+      },
+    },
+    motion: {
+      move: record('move'),
+      lookAt: record('gaze'),
+      lookAway: record('away'),
+      hold: record('hold'),
+      relax: record('relax'),
+    },
+    ui: {
+      addAction: (options, handler) => events.set(options.id, handler),
+      setShapeFace: record('shape'),
+      showBalloon: record('balloon'),
+      hideBalloon: record('hide'),
+      openMenu: record('open'),
+      closeMenu: record('close'),
+      toggleMenu: record('toggle'),
+      showFace: record('face'),
+    },
+    lighting: {
+      names: ['head'],
+      color: record('light'),
+      blink: record('blink'),
+      off: record('off'),
+      rainbow: record('rainbow'),
+    },
+    time: {
+      after: (ms, handler) => {
+        after.push(handler)
+        return () => {}
+      },
+      every: register('every'),
+    },
+  }
+  return {
+    app,
+    events,
+    task,
+    calls,
+    after,
+    async start(source, trace) {
+      evaluate(source, trace).setup(app)
+      while (after.length) await after.shift()(task)
+    },
+  }
+}
 
-  await evaluateModule(source).onContextCreated(robot)
-  assert.equal(received, '#C4,500ki#R,250')
-
-  const unavailable = { audio: { sing: async () => ({ success: false, reason: 'singing unavailable' }) } }
-  await assert.rejects(evaluateModule(source).onContextCreated(unavailable), /singing unavailable/)
+test('generated operations retain SDK units, colors, song data and cancellation', async () => {
+  const gen = generator(),
+    f = fixture()
+  const source = assembleModSource(
+    [
+      gen.forBlock.stackchan_set_color(block({ KEY: 'primary', COLOR: '#30e0ff' })),
+      gen.forBlock.stackchan_set_emotion(block({ EMOTION: 'DOUBTFUL' })),
+      gen.forBlock.stackchan_set_pose(block({ PITCH: -20, YAW: 30, TIME: 0.5 })),
+      gen.forBlock.stackchan_tone(block({ NOTE: 440, DURATION: 250 })),
+      gen.forBlock.stackchan_look_at(block({ X: 1, Y: 1, Z: 0 })),
+      gen.forBlock.stackchan_light_blink(block({ NAME: 'head', COLOR: '#ff0000', INTERVAL: 250 })),
+      gen.forBlock.stackchan_sing_score(
+        block({ BPM: 120 }, '', 'song', { SCORE: "[['C4', 1, 'き'], ['R', 0.5, '']]" }),
+        gen
+      ),
+    ].join('')
+  )
+  await f.start(source)
+  assert.deepEqual(f.calls, [
+    ['color', 'primary', { r: 48, g: 224, b: 255 }],
+    ['emotion', 'doubt'],
+    ['move', { pitchDeg: -20, yawDeg: 30 }, { durationMs: 500, signal: f.task.signal }],
+    ['tone', 440, { durationMs: 250, signal: f.task.signal }],
+    ['gaze', { yawDeg: 45, pitchDeg: 0 }],
+    ['blink', 'head', { r: 255, g: 0, b: 0 }, { periodMs: 250 }],
+    [
+      'sing',
+      120,
+      [
+        ['C4', 1, 'き'],
+        ['R', 0.5, ''],
+      ],
+      { signal: f.task.signal },
+    ],
+  ])
 })
 
-test('singing blocks compile a typed score into tempo-exact koe notation', () => {
-  const generator = { forBlock: {} }
-  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, {
-    NONE: 0,
-    FUNCTION_CALL: 1,
-    AWAIT: 2,
-  })
-
-  const event = (type, fields, next = null) => ({
-    type,
-    getFieldValue: (name) => fields[name],
-    getNextBlock: () => next,
-  })
-  const rest = event('stackchan_song_rest', { BEATS: 0.5 })
-  const longVowel = event('stackchan_song_note', { NOTE: 'G4', BEATS: 2, LYRIC: 'ー' }, rest)
-  const second = event('stackchan_song_note', { NOTE: 'C+4', BEATS: 0.5, LYRIC: 'ラ' }, longVowel)
-  const first = event('stackchan_song_note', { NOTE: 'C4', BEATS: 1, LYRIC: 'き' }, second)
-  const song = {
-    getFieldValue: (name) => (name === 'BPM' ? 120 : undefined),
-    getInputTargetBlock: (name) => (name === 'SCORE' ? first : null),
-  }
-
-  assert.equal(
-    generator.forBlock.stackchan_sing(song),
-    "await robot.audio.sing('#C4,500ki#C+4,250ra#G4,1000a#R,250')\n"
+test('events register with the SDK and return their pending work to its owner', async () => {
+  const gen = generator(),
+    f = fixture(),
+    logs = []
+  let finish
+  f.app.audio.say = () =>
+    new Promise((resolve) => {
+      finish = resolve
+    })
+  const body = "await app.audio.say('hello', { signal: task.signal })\nawait task.sleep(20)"
+  await f.start(
+    assembleModSource(
+      [
+        gen.forBlock.stackchan_on_button(block({ BUTTON: 'a', EDGE: 'press' }, body), gen),
+        gen.forBlock.stackchan_on_button(block({ BUTTON: 'b', EDGE: 'release' }, body), gen),
+        gen.forBlock.stackchan_on_head_touch(block({ GESTURE: 'petting' }, body), gen),
+        gen.forBlock.stackchan_every(block({ SECONDS: 1 }, body), gen),
+        gen.forBlock.stackchan_on_drawer_button(block({ LABEL: 'menu' }, body, 'menu'), gen),
+      ].join('')
+    ),
+    (line) => logs.push(line)
   )
-  const legacyParent = { type: 'stackchan_sing' }
-  assert.equal(generator.forBlock.stackchan_song_note({ getParent: () => legacyParent }), '')
-  assert.equal(generator.forBlock.stackchan_song_rest({ getParent: () => legacyParent }), '')
-  assert.throws(
-    () => generator.forBlock.stackchan_song_note({ getParent: () => null }),
-    /旧形式の音符・休符ブロックは直接実行できません/
-  )
+  assert.deepEqual([...f.events.keys()], ['press:primary', 'release:secondary', 'head:petting', 'every:1000', 'menu'])
+  const pending = f.events.get('press:primary')(f.task)
+  assert.ok(pending instanceof Promise)
+  let settled = false
+  pending.then(() => {
+    settled = true
+  })
+  await Promise.resolve()
+  assert.equal(settled, false)
+  f.task.signal.reason = new Error('app closed')
+  finish()
+  await pending
+  assert.deepEqual(f.calls, [], 'cancelled handler cannot continue through its next wait')
+  assert.deepEqual(logs, [], 'normal cancellation is not an error report')
 })
 
-test('singing block generator rejects an empty or out-of-range score', () => {
-  const generator = { forBlock: {} }
-  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, {
-    NONE: 0,
-    FUNCTION_CALL: 1,
-    AWAIT: 2,
-  })
-  const emptySong = {
-    getFieldValue: () => 120,
-    getInputTargetBlock: () => null,
-  }
-  const longNote = {
-    type: 'stackchan_song_note',
-    getFieldValue: (name) => ({ NOTE: 'C4', BEATS: 16, LYRIC: 'あ' })[name],
-    getNextBlock: () => null,
-  }
-  const slowSong = {
-    getFieldValue: () => 20,
-    getInputTargetBlock: () => longNote,
-  }
+test('each invocation has its own loop budget and reports the failing block', async () => {
+  const gen = generator(),
+    f = fixture(),
+    logs = []
+  const body = "for (let n = 0; n < 10000; n++) visualLoopGuard('loop-id')"
+  await f.start(assembleModSource(gen.forBlock.stackchan_on_button(block({ BUTTON: 'a' }, body), gen)), (line) =>
+    logs.push(JSON.parse(line.slice('#stackchan '.length)))
+  )
+  await f.events.get('press:primary')(f.task)
+  await f.events.get('press:primary')(f.task)
+  assert.equal(logs.length, 2)
+  for (const error of logs) assert.equal(error.block_id, 'loop-id')
+})
 
-  assert.throws(() => generator.forBlock.stackchan_sing(emptySong), /音符または休符/)
-  assert.throws(() => generator.forBlock.stackchan_sing(slowSong), /20〜8000/)
+test('field literals round trip quotes, slashes and line breaks', () => {
+  for (const raw of ['head', "a'b", 'a\\b', 'a\nb', '\r', '\u2028']) {
+    assert.equal(new Function(`return '${escapeSingleQuoted(raw)}'`)(), raw)
+  }
+})
+
+test('all sample programs and face assets compile strictly against the public SDK', () => {
+  registerStackchanBlocks(Blockly, javascriptGenerator, Order)
+  const directory = mkdtempSync(resolve(tmpdir(), 'stackchan-generated-sdk-'))
+  try {
+    for (const sample of VISUAL_SAMPLES) {
+      const workspace = new Blockly.Workspace()
+      try {
+        Blockly.serialization.workspaces.load(sample.workspace, workspace)
+        const source = assembleModSource(javascriptGenerator.workspaceToCode(workspace))
+        writeFileSync(resolve(directory, `${sample.id}.js`), source)
+        writeFileSync(resolve(directory, `${sample.id}-face.js`), applyFaceAssetToSource(source, createFaceAsset()))
+      } finally {
+        workspace.dispose()
+      }
+    }
+    writeFileSync(resolve(directory, 'globals.d.ts'), 'declare function trace(message: string): void;')
+    writeFileSync(
+      resolve(directory, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          allowJs: true,
+          checkJs: true,
+          noEmit: true,
+          target: 'ES2025',
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          types: [],
+          lib: ['ES2025'],
+          paths: { stackchan: [resolve('../firmware/sdk/index.ts')], 'stackchan/*': [resolve('../firmware/sdk/*.ts')] },
+        },
+        include: ['*.js', '*.d.ts'],
+      })
+    )
+    try {
+      execFileSync(resolve('../firmware/node_modules/.bin/tsc'), ['--project', resolve(directory, 'tsconfig.json')], {
+        encoding: 'utf8',
+      })
+    } catch (error) {
+      assert.fail(error.stdout || error.message)
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })
 
 test('education blocks do not expose arbitrary JavaScript input', () => {
@@ -197,441 +309,6 @@ test('education blocks do not expose arbitrary JavaScript input', () => {
     ),
     []
   )
-})
-
-test('head touch block exposes head sensor gestures and generates a petting handler', () => {
-  let definitions = []
-  const generator = { forBlock: {}, statementToCode: () => '' }
-  registerStackchanBlocks(
-    {
-      defineBlocksWithJsonArray(value) {
-        definitions = value
-      },
-    },
-    generator,
-    { NONE: 0, FUNCTION_CALL: 1, AWAIT: 2 }
-  )
-
-  const definition = definitions.find(({ type }) => type === 'stackchan_on_head_touch')
-  assert.equal(definition.message0, '頭部タッチセンサが %1 とき %2 %3')
-  assert.equal(definition.tooltip, '頭上の静電容量式タッチセンサを操作したときに実行します')
-  assert.deepEqual(definition.args0[0].options, [
-    ['タッチされた', 'press'],
-    ['はなされた', 'release'],
-    ['前方へスワイプされた', 'forwardSwipe'],
-    ['後方へスワイプされた', 'backwardSwipe'],
-    ['なでられた', 'petting'],
-  ])
-
-  const code = generator.forBlock.stackchan_on_head_touch(
-    { id: 'head-touch-id', getFieldValue: () => 'petting' },
-    generator
-  )
-  assert.match(code, /^runtime\.add\(onHeadTouch\(robot, 'petting',/)
-  assert.match(code, /reportVisualError\('VP_RUNTIME_HANDLER', 'head-touch-id', error, 'head touch'\)/)
-})
-
-test('generator reserves every identifier injected into the visual runtime scope', () => {
-  let reservedWords = ''
-  const generator = {
-    forBlock: {},
-    addReservedWords(words) {
-      reservedWords = words
-    },
-  }
-
-  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, { NONE: 0, FUNCTION_CALL: 1, AWAIT: 2 })
-
-  assert.equal(generator.INFINITE_LOOP_TRAP, 'visualLoopGuard(%1);\n')
-  const reserved = new Set(reservedWords.split(','))
-  for (const name of [
-    'runtime',
-    'visualLoopGuard',
-    'createVisualRuntime',
-    'createVisualLoopGuard',
-    'reportVisualError',
-    'onButton',
-    'onImu',
-    'onHeadTouch',
-    'event',
-  ]) {
-    assert.equal(reserved.has(name), true, `${name} must be reserved`)
-  }
-})
-
-test('assembleModSource wraps the body in onContextCreated', () => {
-  const source = assembleModSource('robot.face.setEmotion(Emotion.HAPPY)\n')
-  assert.match(source, /export async function onContextCreated\(robot\) \{/)
-  assert.match(source, /^  robot\.face\.setEmotion\(Emotion\.HAPPY\)$/m)
-  assert.match(source, /import \{ Emotion \} from 'face-state'/)
-  assert.match(source, /function createVisualLoopGuard\(\)/)
-  assert.match(source, /return function visualLoopGuard\(blockId\)/)
-})
-
-test('assembleModSource only imports what the body uses', () => {
-  const plain = assembleModSource('robot.ui.hideBalloon()\n')
-  assert.doesNotMatch(plain, /import/)
-
-  const withTimer = assembleModSource('Timer.repeat(() => {}, 1000)\n')
-  assert.match(withTimer, /import Timer from 'timer'/)
-  assert.doesNotMatch(withTimer, /stackchan-util/)
-
-  const withUtils = assembleModSource('await wait(randomBetween(1, 2))\n')
-  assert.match(withUtils, /import \{ randomBetween, wait \} from 'stackchan-util'/)
-})
-
-test('assembleModSource includes the hexToRgb helper when used', () => {
-  const source = assembleModSource("robot.face.setColor('primary', ...hexToRgb('#ff0000'))\n")
-  assert.match(source, /function hexToRgb\(hex\)/)
-  const helperIndex = source.indexOf('function hexToRgb')
-  const bodyIndex = source.indexOf('export async function onContextCreated')
-  assert.ok(helperIndex < bodyIndex, 'helper must be defined before the hook')
-})
-
-test('assembleModSource emits valid JavaScript', async () => {
-  const source = assembleModSource(
-    "robot.face.setColor('primary', ...hexToRgb('#30e0ff'))\n" +
-      'Timer.repeat(() => {\n' +
-      "  void (async () => {\n    await wait(randomBetween(100, 200))\n    robot.face.setEmotion(Emotion.HAPPY)\n  })().catch((error) => trace('x\\n'))\n" +
-      '}, 1000)\n'
-  )
-  // module-level syntax check: rewrite imports so plain Function() can parse it
-  const stripped = source.replace(/^import .*$/gm, '').replace('export async function', 'async function')
-  assert.doesNotThrow(() => new Function(stripped))
-})
-
-test('generated runtime disposes old input handlers before reloading on the same robot', async () => {
-  const source = assembleModSource(
-    "runtime.add(onButton(robot, 'a', 'press', () => { robot.pressCount = (robot.pressCount ?? 0) + 1 }))\n"
-  )
-  const { onContextCreated } = evaluateModule(source)
-  const original = () => {}
-  const robot = { input: { button: { a: { onEvent: original } } } }
-
-  await onContextCreated(robot)
-  const firstDispatcher = robot.input.button.a.onEvent
-  firstDispatcher({ pressed: true })
-  assert.equal(robot.pressCount, 1)
-
-  await onContextCreated(robot)
-  const secondDispatcher = robot.input.button.a.onEvent
-  assert.notEqual(secondDispatcher, firstDispatcher)
-  secondDispatcher({ pressed: true })
-  assert.equal(robot.pressCount, 2, 'only the reloaded handler must run')
-
-  robot.__visualProgram.dispose()
-  assert.equal(robot.input.button.a.onEvent, original)
-  assert.equal(robot.input.button.a.__visualWired, false)
-})
-
-test('generated runtime clears timers on reload and enforces the loop budget', async () => {
-  const active = new Set()
-  let nextTimer = 0
-  const Timer = {
-    repeat() {
-      const token = ++nextTimer
-      active.add(token)
-      return token
-    },
-    clear(token) {
-      active.delete(token)
-    },
-  }
-  const timerSource = assembleModSource('runtime.addTimer(Timer.repeat(() => {}, 1000))\n').replace(
-    "import Timer from 'timer'",
-    ''
-  )
-  const { onContextCreated } = evaluateModule(timerSource, { Timer })
-  const robot = {}
-  await onContextCreated(robot)
-  assert.equal(active.size, 1)
-  await onContextCreated(robot)
-  assert.deepEqual([...active], [2], 'reload must clear the first timer')
-  robot.__visualProgram.dispose()
-  assert.equal(active.size, 0)
-
-  const loopSource = assembleModSource('for (let index = 0; index < 10001; index += 1) visualLoopGuard()\n')
-  await assert.rejects(evaluateModule(loopSource).onContextCreated({}), /ループの実行上限/)
-})
-
-test('overlapping event handlers keep independent loop budgets', async () => {
-  let releaseFirst
-  const firstGate = new Promise((resolve) => {
-    releaseFirst = resolve
-  })
-  const generator = {
-    forBlock: {},
-    statementToCode: (block) =>
-      block.id === 'first-event'
-        ? "for (let index = 0; index < 9999; index += 1) visualLoopGuard('first-loop')\nawait robot.firstGate\nvisualLoopGuard('first-loop')\n"
-        : '',
-  }
-  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, { NONE: 0, FUNCTION_CALL: 1, AWAIT: 2 })
-  const eventBlock = (id, button) => ({
-    id,
-    getFieldValue(name) {
-      return name === 'BUTTON' ? button : 'press'
-    },
-  })
-  const source = assembleModSource(
-    generator.forBlock.stackchan_on_button(eventBlock('first-event', 'a'), generator) +
-      generator.forBlock.stackchan_on_button(eventBlock('second-event', 'b'), generator)
-  )
-  const traces = []
-  const robot = { firstGate, input: { button: { a: {}, b: {} } } }
-  await evaluateModule(source, { trace: (line) => traces.push(line) }).onContextCreated(robot)
-
-  robot.input.button.a.onEvent({ pressed: true })
-  robot.input.button.b.onEvent({ pressed: true })
-  releaseFirst()
-  await new Promise((resolve) => setTimeout(resolve, 0))
-
-  assert.equal(traces.length, 1)
-  assert.equal(JSON.parse(traces[0].replace(/^#stackchan /, '')).block_id, 'first-loop')
-})
-
-test('an event handler reports the exact loop block that exhausted its budget', async () => {
-  const generator = {
-    forBlock: {},
-    statementToCode: () => "for (let index = 0; index < 10001; index += 1) visualLoopGuard('loop-id')\n",
-  }
-  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, { NONE: 0, FUNCTION_CALL: 1, AWAIT: 2 })
-  const eventBlock = {
-    id: 'event-id',
-    getFieldValue(name) {
-      return name === 'BUTTON' ? 'a' : 'press'
-    },
-  }
-  const source = assembleModSource(generator.forBlock.stackchan_on_button(eventBlock, generator))
-  const traces = []
-  const robot = { input: { button: { a: {} } } }
-  await evaluateModule(source, { trace: (line) => traces.push(line) }).onContextCreated(robot)
-
-  robot.input.button.a.onEvent({ pressed: true })
-  await new Promise((resolve) => setTimeout(resolve, 0))
-
-  assert.equal(traces.length, 1)
-  const diagnostic = JSON.parse(traces[0].replace(/^#stackchan /, ''))
-  assert.equal(diagnostic.error_code, 'VP_RUNTIME_HANDLER')
-  assert.equal(diagnostic.block_id, 'loop-id')
-  assert.match(diagnostic.message, /^button a: Error: ループの実行上限/)
-})
-
-test('procedures inherit a fresh loop budget from each event invocation', async () => {
-  const generator = {
-    forBlock: {},
-    definitions_: {},
-    INDENT: '  ',
-    addReservedWords() {},
-    getProcedureName: (name) => name,
-    getVariableName: (name) => name,
-    injectId: (template, block) => template.replace('%1', `'${block.id}'`),
-    prefixLines: (text, prefix) => text.replace(/^(?!$)/gm, prefix),
-    statementToCode: (block) => {
-      if (block.id === 'procedure-definition') {
-        return "  for (let index = 0; index < 9998; index += 1) visualLoopGuard('procedure-loop')\n"
-      }
-      return generator.forBlock.procedures_callnoreturn(
-        {
-          getFieldValue: () => 'guardedProcedure',
-          getVars: () => [],
-        },
-        generator
-      )
-    },
-    valueToCode: () => '',
-    scrub_: (_block, code) => code,
-  }
-  registerStackchanBlocks({ defineBlocksWithJsonArray() {} }, generator, { NONE: 0, FUNCTION_CALL: 1, AWAIT: 2 })
-
-  const definition = {
-    id: 'procedure-definition',
-    getFieldValue: () => 'guardedProcedure',
-    getInput: (name) => name === 'STACK',
-    getVars: () => [],
-  }
-  generator.forBlock.procedures_defnoreturn(definition, generator)
-  assert.match(generator.definitions_['%guardedProcedure'], /^async function guardedProcedure\(visualLoopGuard\)/)
-
-  const eventBlock = {
-    id: 'event-id',
-    getFieldValue(name) {
-      return name === 'BUTTON' ? 'a' : 'press'
-    },
-  }
-  const body =
-    `${generator.definitions_['%guardedProcedure']}\n` + generator.forBlock.stackchan_on_button(eventBlock, generator)
-  const source = assembleModSource(body)
-  const traces = []
-  const robot = { input: { button: { a: {} } } }
-  await evaluateModule(source, { trace: (line) => traces.push(line) }).onContextCreated(robot)
-
-  robot.input.button.a.onEvent({ pressed: true })
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  robot.input.button.a.onEvent({ pressed: true })
-  await new Promise((resolve) => setTimeout(resolve, 0))
-
-  assert.deepEqual(traces, [])
-})
-
-test('assembleModSource injects event dispatch helpers only when used', () => {
-  const withButton = assembleModSource("onButton(robot, 'a', 'press', (event) => {})\n")
-  assert.match(withButton, /function onButton\(robot, name, edge, handler\)/)
-  assert.doesNotMatch(withButton, /function onImu/)
-  assert.doesNotMatch(withButton, /function onHeadTouch/)
-
-  const withImu = assembleModSource("onImu(robot, 'shake', (event) => {})\n")
-  assert.match(withImu, /function onImu\(robot, motion, handler\)/)
-  assert.match(withImu, /imu\.start\?\.\(\)/) // IMU must be started
-
-  const withHeadTouch = assembleModSource("onHeadTouch(robot, 'forwardSwipe', (event) => {})\n")
-  assert.match(withHeadTouch, /function onHeadTouch\(robot, gesture, handler\)/)
-
-  const plain = assembleModSource('robot.ui.showFace()\n')
-  assert.doesNotMatch(plain, /function onButton|function onImu|function onHeadTouch/)
-})
-
-test('event dispatch helpers preserve duplicate handlers and remove only their own callback', async () => {
-  const source = assembleModSource(`
-robot.removeFirstButton = onButton(robot, 'a', 'press', () => { robot.firstButton += 1 })
-robot.removeSecondButton = onButton(robot, 'a', 'press', () => { robot.secondButton += 1 })
-robot.removeFirstImu = onImu(robot, 'shake', () => { robot.firstImu += 1 })
-robot.removeSecondImu = onImu(robot, 'shake', () => { robot.secondImu += 1 })
-robot.removeFirstHeadTouch = onHeadTouch(robot, 'press', () => { robot.firstHeadTouch += 1 })
-robot.removeSecondHeadTouch = onHeadTouch(robot, 'press', () => { robot.secondHeadTouch += 1 })
-`)
-  const previousCalls = []
-  const previousButton = () => previousCalls.push('button')
-  const previousImu = () => previousCalls.push('imu')
-  const previousHeadTouch = () => previousCalls.push('headTouch')
-  const robot = {
-    firstButton: 0,
-    secondButton: 0,
-    firstImu: 0,
-    secondImu: 0,
-    firstHeadTouch: 0,
-    secondHeadTouch: 0,
-    input: {
-      button: { a: { onEvent: previousButton } },
-      imu: { onEvent: previousImu },
-      touchPanel: { onEvent: previousHeadTouch },
-    },
-  }
-  await evaluateModule(source).onContextCreated(robot)
-
-  robot.input.button.a.onEvent({ pressed: true })
-  robot.input.imu.onEvent({ motion: 'shake' })
-  robot.input.touchPanel.onEvent({ gesture: 'press', ticks: 100 })
-  assert.deepEqual(
-    [
-      robot.firstButton,
-      robot.secondButton,
-      robot.firstImu,
-      robot.secondImu,
-      robot.firstHeadTouch,
-      robot.secondHeadTouch,
-    ],
-    [1, 1, 1, 1, 1, 1]
-  )
-  assert.deepEqual(previousCalls, ['button', 'imu', 'headTouch'])
-
-  robot.removeFirstButton()
-  robot.removeFirstImu()
-  robot.removeFirstHeadTouch()
-  robot.input.button.a.onEvent({ pressed: true })
-  robot.input.imu.onEvent({ motion: 'shake' })
-  robot.input.touchPanel.onEvent({ gesture: 'press', ticks: 200 })
-  assert.deepEqual(
-    [
-      robot.firstButton,
-      robot.secondButton,
-      robot.firstImu,
-      robot.secondImu,
-      robot.firstHeadTouch,
-      robot.secondHeadTouch,
-    ],
-    [1, 2, 1, 2, 1, 2]
-  )
-
-  robot.removeSecondButton()
-  robot.removeSecondImu()
-  robot.removeSecondHeadTouch()
-  assert.equal(robot.input.button.a.onEvent, previousButton)
-  assert.equal(robot.input.imu.onEvent, previousImu)
-  assert.equal(robot.input.touchPanel.onEvent, previousHeadTouch)
-})
-
-test('head touch helper recognizes petting in both directions within 1.5 seconds', async () => {
-  const source = assembleModSource(
-    "runtime.add(onHeadTouch(robot, 'petting', (event) => { robot.pettingEvents.push(event) }))\n"
-  )
-  const previousEvents = []
-  const previous = (event) => previousEvents.push(event)
-  const touchPanel = { onEvent: previous }
-  const robot = { pettingEvents: [], input: { touchPanel } }
-  await evaluateModule(source).onContextCreated(robot)
-
-  const emit = (gesture, ticks) => touchPanel.onEvent({ gesture, position: 0, intensity: 3, ticks })
-  emit('forwardSwipe', 100)
-  emit('backwardSwipe', 1600)
-  emit('backwardSwipe', 1700)
-  emit('forwardSwipe', 3600)
-  emit('backwardSwipe', 3700)
-  emit('backwardSwipe', 5600)
-  emit('forwardSwipe', 5700)
-  emit('forwardSwipe', 7600)
-  emit('forwardSwipe', 7700)
-  emit('backwardSwipe', 9600)
-  emit('forwardSwipe', 11200)
-
-  assert.deepEqual(
-    robot.pettingEvents.map(({ gesture, ticks }) => [gesture, ticks]),
-    [
-      ['petting', 1600],
-      ['petting', 3700],
-      ['petting', 5700],
-    ]
-  )
-  assert.deepEqual(
-    previousEvents.map(({ gesture, ticks }) => [gesture, ticks]),
-    [
-      ['forwardSwipe', 100],
-      ['backwardSwipe', 1600],
-      ['backwardSwipe', 1700],
-      ['forwardSwipe', 3600],
-      ['backwardSwipe', 3700],
-      ['backwardSwipe', 5600],
-      ['forwardSwipe', 5700],
-      ['forwardSwipe', 7600],
-      ['forwardSwipe', 7700],
-      ['backwardSwipe', 9600],
-      ['forwardSwipe', 11200],
-    ]
-  )
-
-  robot.__visualProgram.dispose()
-  assert.equal(touchPanel.onEvent, previous)
-  assert.equal(touchPanel.__visualLastForwardSwipeTicks, undefined)
-  assert.equal(touchPanel.__visualLastBackwardSwipeTicks, undefined)
-})
-
-test('assembleModSource emits valid JavaScript for the new event blocks', () => {
-  // representative generator output for on_button / on_imu / on_head_touch /
-  // on_drawer_button / set_pose / light_blink / drawer_control
-  const body =
-    "onButton(robot, 'a', 'release', (event) => {\n  void (async () => {\n    robot.face.setEmotion(Emotion.HAPPY)\n  })().catch((error) => trace('button a handler failed: ' + error + '\\n'))\n})\n" +
-    "onImu(robot, 'shake', (event) => {\n  void (async () => {\n    await robot.audio.say(String('わっ'))\n  })().catch((error) => trace('imu handler failed: ' + error + '\\n'))\n})\n" +
-    "onHeadTouch(robot, 'petting', (event) => {\n  void (async () => {\n    robot.ui.toggleDrawer()\n  })().catch((error) => trace('head touch handler failed: ' + error + '\\n'))\n})\n" +
-    "robot.ui.drawer?.addDrawerButton({ key: 'k', label: 'ボタン', callback: () => {\n  void (async () => {\n    robot.ui.showFace()\n  })().catch((error) => trace('drawer handler failed: ' + error + '\\n'))\n} })\n" +
-    'await robot.motion.setPose({ rotation: { p: (30 * Math.PI) / 180, y: (-45 * Math.PI) / 180, r: 0 } }, 0.5)\n' +
-    "robot.lighting.lightBlink('a', ...hexToRgb('#ff4040'), 250)\n"
-  const source = assembleModSource(body)
-  assert.match(source, /function onButton/)
-  assert.match(source, /function onImu/)
-  assert.match(source, /function onHeadTouch/)
-  assert.match(source, /function hexToRgb/)
-  const stripped = source.replace(/^import .*$/gm, '').replace('export async function', 'async function')
-  assert.doesNotThrow(() => new Function(stripped))
 })
 
 test('block option tables are well-formed', () => {
@@ -675,34 +352,4 @@ test('singing toolbox starts with a list of note triples and hides legacy statem
   const sing = speech.contents.find((entry) => entry.type === 'stackchan_sing_score')
   assert.equal(sing.inputs.SCORE.block.type, 'lists_create_with')
   assert.equal(sing.inputs.SCORE.block.extraState.itemCount, 4)
-})
-
-test('procedure generators are async so speech and wait blocks remain valid inside functions', () => {
-  const generator = {
-    forBlock: {},
-    definitions_: {},
-    INDENT: '  ',
-    INFINITE_LOOP_TRAP: '',
-    getProcedureName: (name) => name,
-    getVariableName: (name) => name,
-    statementToCode: () => "  await robot.audio.say('やあ')\n",
-    valueToCode: () => '42',
-    scrub_: (_block, code) => code,
-  }
-  registerAsyncProcedureGenerators(generator, { NONE: 99, AWAIT: 4, FUNCTION_CALL: 2 })
-  const definition = {
-    getFieldValue: () => 'greet',
-    getInput: (name) => name === 'STACK' || name === 'RETURN',
-    getVars: () => ['count'],
-  }
-  generator.forBlock.procedures_defreturn(definition, generator)
-  assert.match(generator.definitions_['%greet'], /^async function greet\(visualLoopGuard, count\)/)
-  assert.match(generator.definitions_['%greet'], /await robot\.audio\.say/)
-
-  const call = {
-    getFieldValue: () => 'greet',
-    getVars: () => ['count'],
-  }
-  assert.deepEqual(generator.forBlock.procedures_callreturn(call, generator), ['await greet(visualLoopGuard, 42)', 4])
-  assert.equal(generator.forBlock.procedures_callnoreturn(call, generator), 'await greet(visualLoopGuard, 42);\n')
 })

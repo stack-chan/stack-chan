@@ -1,0 +1,6 @@
+{
+  "include": ["../../sdk/manifest.json"],
+  "modules": {
+    "*": ["./owned-resources", "./runtime-resources"]
+  }
+}

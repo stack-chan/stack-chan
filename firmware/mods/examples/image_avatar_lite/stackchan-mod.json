@@ -1,0 +1,18 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.image-avatar-lite",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "image avatar lite",
+  "description": "SDK image avatar packs with six selectable characters, shared expression names and owned appearance.",
+  "appApiVersion": 2,
+  "hostApiVersion": 6,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.js"
+  },
+  "targets": ["portable", "simulator"],
+  "capabilities": ["ui.controls", "input.primary"],
+  "entrypoints": ["mod"]
+}

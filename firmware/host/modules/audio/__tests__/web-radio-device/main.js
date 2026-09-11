@@ -22,7 +22,7 @@ function startRadio() {
   audio = new AudioOut({ streams: 1, bitsPerSample: 16, numChannels: 1, sampleRate: 24000 })
   audio.enqueue(0, AudioOut.Volume, QUIET_VOLUME)
   streamer = new MP3Streamer({
-    http: device.network.http,
+    http: device.network.http.client,
     host,
     port: 80,
     path: STREAM_PATH,

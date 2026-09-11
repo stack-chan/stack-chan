@@ -9,7 +9,6 @@ const coreS3SdkconfigSource = readFileSync(
   'host/modules/audio/platforms/m5stackchan-cores3/sdkconfig/sdkconfig.defaults',
   'utf8',
 )
-const defaultBehaviorSource = readFileSync('host/app/default-behavior/on-context-created.ts', 'utf8')
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 
 type Subplatform = {
@@ -163,8 +162,7 @@ describe('Stack-chan platform manifest', () => {
   test('CoreS3 camera preview fits the available internal DMA block', () => {
     assert.match(coreS3SdkconfigSource, /^CONFIG_CAMERA_DMA_BUFFER_SIZE_MAX=16384$/m)
     assert.doesNotMatch(coreS3SdkconfigSource, /^CONFIG_CAMERA_PSRAM_DMA=y$/m)
-    assert.match(defaultBehaviorSource, /^const CAMERA_PREVIEW_CAPTURE_WIDTH = 160$/m)
-    assert.match(defaultBehaviorSource, /^const CAMERA_PREVIEW_CAPTURE_HEIGHT = 120$/m)
+    // The actual default app capture request is checked through the camera port in XS.
   })
 
   test('CoreS3 XS heap growth stays in PSRAM and preserves DMA-capable internal RAM', () => {
@@ -181,24 +179,8 @@ describe('Stack-chan platform manifest', () => {
     )
   })
 
-  test('the M5StackChan CoreS3 smoke MOD exercises hardware APIs and documents real npm scripts', () => {
-    const smokeSource = readFileSync('mods/examples/m5stackchan_smoke/mod.js', 'utf8')
+  test('the M5StackChan CoreS3 diagnostic guide documents real npm scripts', () => {
     const smokeDocs = readFileSync('docs/m5stackchan-cores3-smoke.md', 'utf8')
-
-    for (const api of ['lightOn', 'lightBlink', 'lightRainbow', 'lightOff']) {
-      assert.match(
-        smokeSource,
-        new RegExp(`robot\\.lighting\\.${api}\\b`),
-        `smoke MOD should exercise robot.lighting.${api}`,
-      )
-    }
-    for (const api of ['setTorque', 'setPose']) {
-      assert.match(
-        smokeSource,
-        new RegExp(`robot\\.motion\\.${api}\\b`),
-        `smoke MOD should exercise robot.motion.${api}`,
-      )
-    }
 
     const documentedScripts = npmRunScripts(smokeDocs)
     assert.ok(documentedScripts.includes('build:m5stackchan_cores3'))

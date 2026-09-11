@@ -15,7 +15,10 @@ Moddableの`manifest.json`はビルド方法を定義します。
 ルートオブジェクトは次のフィールドを持ちます。
 
 - **format**：`tech.stackchan.mod`です。
-- **schemaVersion**：MOD定義形式の互換性を示す整数です。
+- **schemaVersion**：現在は `2` です。schema 1は拒否します。
+- **appApiVersion**：`2` を指定します。
+- **hostApiVersion**：必要な最小ホストAPIを指定します。
+- **settings**：任意。`{"tts.volume": 0.3}` のような共通設定の既定値です。host API 9以降で、ホストが公開settings schemaのキー・型・範囲を検証します。秘密情報は保存済み設定へ入力してください。
 - **id**：Gallery内でMODを識別する逆ドメイン形式の文字列です。
 - **version**：MOD自身のリリースバージョンです。
 - **type**：正本となる編集ソースの形式です。`text`または`block`を指定します。
@@ -51,22 +54,20 @@ hostのAPI世代は、ESP app descriptorのファームウェア版へ`+stackcha
 
 このsuffixを持たない従来hostはAPI 0として扱います。
 
-API 1では、標準CoreS3 hostへ`audio.usb`、`conversation.remote`、`ui.approval`を追加します。
+API 3 では SDK の Piu 画面拡張 `ui.piu` に対応します。
 
-これらを要求するMODはAPI 0のhostへ書き込めず、利用者へhost firmwareの更新を案内します。
+API 9ではV1実行と `mod/config` を撤去し、設定の既定値を `settings` データへ統一しました。USB会話には `conversation.remote` を宣言し、SDKの会話拡張を使います。Blocklyの歌・図形の顔・解放入力はAPI 8以降を要求します。
 
 ## 実行入口
 
 任意の`entrypoints`は、XS archiveが公開する実行入口を列挙します。
-省略時は従来どおり`["mod"]`として扱います。
+省略時は`["mod"]`として扱います。
 
-- `mod`：ホストrealmで実行するapp behaviorです。
-- `miniapp`：制限されたCompartmentで定義を読み込み、ホスト所有のviewportへPiu UIを表示します。
+実行入口は `mod` です。SDK アプリは `defineApp`、Piu 画面を含むアプリは `stackchan/extensions/piu` の `definePiuApp` を default export します。Piu 拡張は app API 2 / host API 3 と `ui.piu` を要求し、画面登録も通常の AppSession に所属します。
 
-二つを同じarchiveへ含める場合は`["mod", "miniapp"]`を指定します。
-ホストは両者を独立して読み込みますが、`mod.onLaunch()`が`false`を返した場合はpackage全体の起動を中止し、mini-appも登録しません。
+旧 `miniapp`、V1 hook、実行可能な `mod/config` は拒否します。SDKへ書き直し、宣言を付けてarchiveを再生成してください。
 
-`mod`を含むpackageはホストrealmで任意の処理を実行できるため、mini-app側のcontainmentにかかわらずpackage全体を信頼できる場合だけインストールしてください。
+MOD はホスト realm で実行されます。Piu 拡張の公開面の制限は、未信頼コードを隔離する sandbox ではありません。
 
 ## 実行成果物
 
@@ -87,3 +88,5 @@ Galleryは編集ソースと実行成果物を別々に扱い、`type`から実�
 ## スキーマ
 
 機械検証には[`stackchan-mod.schema.json`](./stackchan-mod.schema.json)を使用します。
+
+host API 10では対話プロバイダーと MCP クライアントを SDK に統合しました。`conversation.dialogue` / `conversation.tools` を使う MOD は `hostApiVersion: 10` を宣言してください。Claude / Gemini はそれぞれのキーとモデルを明示します。

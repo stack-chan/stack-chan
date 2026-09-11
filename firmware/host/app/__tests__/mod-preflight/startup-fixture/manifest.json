@@ -1,0 +1,9 @@
+{
+  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "modules": {
+    "mod": "../app-fixture/mod"
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
+  }
+}

@@ -1,7 +1,7 @@
 # ミニアプリ
 
 **ミニアプリ**は、通常の顔画面を一時的に置き換え、AppBar の下に Piu の UI を表示する小さなアプリケーションです。
-この機能は experimental であり、API と外部 archive の形式は変更される可能性があります。
+このブランチでは SDK の Piu 拡張を使います。初めての MOD は [基本教材](../lessons/README_ja.md) から始め、独自画面が必要になったときにこの拡張へ進んでください。
 
 ## 画面の所有範囲
 
@@ -24,86 +24,37 @@ Application
 ドロワーボタンと、ミニアプリ登録時のアプリ一覧ボタンは同時に表示・非表示となり、どちらを開くかを AppBar 上で選択します。
 顔タップだけではドロワーを開きません。
 
-## 組み込みアプリの登録
-
-通常の app behavior は、`onContextCreated` で `context.ui.miniApps.register` を呼び出せます。
-戻り値は登録解除関数であり、実行中のアプリを登録解除した場合もホストが顔画面へ戻してから破棄します。
+## SDK から画面を宣言する
 
 ```ts
-import type { StackchanAppBehavior } from 'app-behavior'
-import { Container, Label } from 'piu/MC'
+import { Container, Skin, definePiuApp } from 'stackchan/extensions/piu'
 
-const behavior: StackchanAppBehavior = {
-  onContextCreated(context) {
-    const unregister = context.ui.miniApps.register({
-      id: 'example.hello',
-      title: 'Hello',
-      create({ width, height, close }) {
-        return new Container(null, {
-          width,
-          height,
-          contents: [new Label(null, { string: 'Hello' })],
-        })
-      },
-    })
-
-    // 所有元を終了するときに unregister() を呼ぶ。
-  },
-}
-
-export default behavior
+export default definePiuApp({
+  screens: [{
+    id: 'example.hello',
+    title: 'Hello',
+    create({ width, height, app, close }) {
+      return new Container(null, { width, height, skin: new Skin({ fill: '#93c5fd' }) })
+    },
+  }],
+})
 ```
 
-`create` は Piu の `Container`、または `{ content, dispose }` を返します。
-ホストは終了時に `content.behavior.onDispose(content)` と `dispose()` をそれぞれ一度呼びます。
-タイマーやソケットなど、Piu ツリーを外れて生存する資源は `dispose()` で解放してください。
+`create` には viewport の寸法、同じアプリの基本 SDK `app`、顔へ戻る `close()` が渡ります。画面登録は通常の AppSession が所有し、アプリ停止・開始失敗時にも登録を解除します。アプリ側で raw registry や別の起動 hook を管理する必要はありません。
 
-## 外部 archive の形式
+戻り値は Piu `Container` または `{ content, dispose }` です。表示のたびに作り直し、終了時に破棄します。`Port` のフレームタイマーは `onUndisplaying` で停止し、画面固有の購読・タイマー・ソケットなどは `dispose()` で解放してください。SDK 登録の寿命はアプリ全体なので、画面だけに属するものはその解除関数を `dispose` から呼びます。詳細は [SDK の画面契約](../sdk/README_ja.md#piu-の画面拡張) を参照してください。
 
-外部ミニアプリは、archive の `miniapp` module から定義の配列を default export します。
-[JUMPサンプル](../mods/examples/mini_app_sample/)は、単一の`Port`でｽﾀｯｸﾁｬﾝのジャンプゲームを描画します。
-[CATCHサンプル](../mods/examples/stackchan_catch/)は、固定ポーズを切り替えながら最大2個を連続投入する落下物ゲームを描画します。
-[ミニゲーム集サンプル](../mods/examples/stackchan_minigames/)は、JUMPとCATCHを単一の`miniapp`モジュールへ合成し、1つのarchiveから2定義を登録します。MOD Galleryではこのミニゲーム集を1パッケージとして配布します。
+## ビルドと配布
 
-```ts
-import type { MiniAppDefinition } from 'capabilities'
-import { Container } from 'piu/MC'
+`firmware/` で `npm ci` を済ませ、通常の MOD としてビルドします。SDK の型はローカル npm workspace の TypeScript ソースを参照します。実行入口は `mod`、配布宣言は schema 2 / app API 2 / host API 3 と `ui.piu` です。
 
-const app: MiniAppDefinition = {
-  id: 'example.external',
-  title: 'External',
-  create: () => new Container(),
-}
-
-export default [app]
+```console
+npm run mod:build -- mods/examples/stackchan_minigames/manifest.json --mode=release
 ```
 
-外部 archive では `miniapp`、`piu/MC`、`piu/Timeline` だけを import できます。
-`piu/MC` からは `Application` を除いた描画用 API だけが公開されます。
+[ミニゲーム集](../mods/examples/stackchan_minigames/) は `jump.ts` と `catch.ts` を通常の相対 import で読み込み、両ゲームを一つの MOD で登録します。[UI Playground](../mods/examples/mini_app_ui_sample/) は選択肢、通知、説明オーバーレイ、終了を試す例です。Gallery の配布ソースもこれらを正本として生成します。
 
-同じ archive に従来の `mod` moduleを含めることもできます。
-ホストは`mod`をホストrealmへ、`miniapp`をCompartmentへそれぞれ独立して読み込みます。
-`mod.onLaunch()`が`false`を返した場合はpackage全体の起動を中止し、contextを作らず、mini-appも登録しません。
-
-この複合形式は、mini-appへ機能を追加するための権限境界ではありません。
-`mod`はネットワーク、センサ、サーボを含むホストAPIへアクセスできるため、archive全体が信頼済みコードとして扱われます。
-将来runtime contextごとのpermissionを導入する場合は、要求する権限を宣言し、ユーザーの許可後に必要な参照だけをCompartmentへ渡す設計が必要です。
-
-## containment の保証範囲
-
-Moddable の linker が作る read-only snapshot は、SES の post-lockdown に相当する状態です。
-ホストは `Compartment` を作り、外部ミニアプリの global と import を制限します。
-外部コードへ渡す追加の global は、その archive 内のリソースを読むための `archive` だけです。
-`Modules`、ネットワーク、デバイス I/O、ホストの `Application` は渡しません。
-
-しかし、この構成は「未信頼コードに対する完全な sandbox」を保証しません。
-その理由は、Compartment 内で作った生の Piu オブジェクトをホストの表示ツリーへ接続するためです。
-Piu の constructor と prototype もホストと共有するため、親子参照、イベント配送、prototype の変更を通じてホスト側へ影響しないことは、現在の API では証明できません。
-
-したがって、現段階の外部ミニアプリは信頼できるコードだけをインストールしてください。
-未信頼コードを扱うには、描画コマンドを検証する membrane を挟むか、別の XS machine で実行して表示リストだけを受け取る設計が必要です。
-
-なお、`mod`を含む複合archiveでは、`mod`がホストrealmで実行されるため、このcontainmentはpackage全体には適用されません。
+旧 `miniapp` モジュールの配列 export、通常 `mod` との併用、専用 Compartment は撤去しました。古い archive は起動前に拒否されるため、ソースを新しい SDK に移して再生成してください。`Application` とホスト controller は拡張から公開しませんが、MOD 自体はホストと同じ realm で動きます。この公開面の制限を未信頼コードの sandbox として扱わないでください。
 
 ## 多層 UI の性能確認
 

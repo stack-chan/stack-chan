@@ -24,11 +24,7 @@ function isWasmImport(specifier: string): boolean {
 }
 
 function isWasmSource(path: string): boolean {
-  return (
-    path.startsWith('host/platforms/wasm/') ||
-    path.startsWith('host/app/default-behavior/wasm/') ||
-    path.includes('/wasm/')
-  )
+  return path.startsWith('host/platforms/wasm/') || path.includes('/wasm/')
 }
 
 function isTestSource(path: string): boolean {
@@ -91,19 +87,31 @@ test('WASM PY32 LED facade re-exports the shared LED stub through a manifest mod
   assert.doesNotMatch(source, /\.\//)
 })
 
-test('WASM manifest keeps the shared app runtime module list in sync with the host app manifest', () => {
+test('WASM and native hosts include one shared runtime module list', () => {
   const appManifest = readManifest('host/app/manifest.json')
   const wasmManifest = readManifest('host/platforms/wasm/manifest.json')
-  const hostAppModules = appManifest.modules['*']
-    .filter((specifier: string) => specifier.startsWith('./'))
-    .map((specifier: string) => `../../app/${specifier.slice(2)}`)
+  const runtimeManifest = readManifest('host/app/manifest_runtime.json')
+  const entryManifest = readManifest('host/app/manifest_entry.json')
+  assert.ok(appManifest.include.includes('./manifest_runtime.json'))
+  assert.ok(wasmManifest.include.includes('../../app/manifest_runtime.json'))
+  assert.ok(appManifest.include.includes('./manifest_entry.json'))
+  assert.ok(wasmManifest.include.includes('../../app/manifest_entry.json'))
+  for (const entry of ['main', 'app-main']) {
+    assert.ok(entryManifest.modules[entry], `${entry} is defined by the shared entry manifest`)
+    assert.equal(appManifest.modules?.[entry], undefined, `native does not override ${entry}`)
+    assert.equal(wasmManifest.modules?.[entry], undefined, `WASM does not override ${entry}`)
+    assert.equal(runtimeManifest.modules?.[entry], undefined, `reusable runtime does not import ${entry}`)
+  }
+  assert.ok(runtimeManifest.modules['*'].includes('./runtime-context'))
+  const hostAppModules = (appManifest.modules?.['*'] ?? []).filter((specifier: string) => specifier.startsWith('./'))
   const wasmAppModules = wasmManifest.modules['*'].filter((specifier: string) => specifier.startsWith('../../app/'))
 
-  assert.deepEqual(wasmAppModules, hostAppModules)
+  assert.deepEqual(hostAppModules, [])
+  assert.deepEqual(wasmAppModules, [])
 })
 
 test('camera preview aliases keep WASM-only bindings out of the shared import graph', () => {
-  const manifest = readManifest('host/app/manifest.json')
+  const manifest = readManifest('host/app/manifest_native.json')
 
   // The generic/default alias (used by the Linux simulator) stays on the mosaic-only view so no
   // WASM-only native binding leaks into the Linux import graph.

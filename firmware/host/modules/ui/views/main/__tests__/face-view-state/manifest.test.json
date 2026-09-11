@@ -5,7 +5,8 @@
     "../../../../../camera/manifest.json",
     "../../../../../input/manifest.json",
     "../../../../../motion/manifest.json",
-    "../../../../../testing/manifest.json"
+    "../../../../../testing/manifest.json",
+    "../../../../../../app/manifest_resources.json"
   ],
   "resources": {
     "*-alpha": [

@@ -1,0 +1,41 @@
+{
+  "include": [
+    "./manifest_resources.json",
+    "../modules/connectivity/mcp-client/manifest_model.json"
+  ],
+  "modules": {
+    "*": [
+      "./app-definition",
+      "./app-launch",
+      "./boot-session",
+      "./boot-services",
+      "./compose",
+      "./capabilities",
+      "./dock",
+      "./setup-mode",
+      "./settings-status",
+      "./volume-preview",
+      "./runtime-audio",
+      "./runtime-motion",
+      "./motion-execution",
+      "./runtime-camera",
+      "./camera-capture-session",
+      "./runtime-context",
+      "./runtime-input",
+      "./runtime-lighting",
+      "./runtime-ui",
+      "./operation-queue",
+      "./cancellation",
+      "./task-scope",
+      "./app-session",
+      "./app-audio-session",
+      "./host-startup",
+      "./app-service-scope",
+      "./app-extensions",
+      "./app-network",
+      "./app-conversation",
+      "./app-dialogue"
+    ],
+    "default-app/*": "./default-app/*"
+  }
+}

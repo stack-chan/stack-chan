@@ -1,33 +1,7 @@
 export type FaceEmotion = 'NEUTRAL' | 'HAPPY' | 'ANGRY' | 'SAD' | 'SLEEPY' | 'DOUBTFUL' | 'COLD' | 'HOT'
 
-export type FaceCanvas = {
-  left: number
-  top: number
-  width: number
-  height: number
-}
-
-export type FaceEye = {
-  x: number
-  y: number
-  shape: 'circle' | 'roundRect'
-  radius?: number
-  width?: number
-  height?: number
-  r?: number
-  eyelidWidth: number
-  eyelidHeight: number
-}
-
-export type FaceMouth = {
-  visible: boolean
-  x: number
-  y: number
-  minWidth: number
-  maxWidth: number
-  minHeight: number
-  maxHeight: number
-}
+import type { FaceCanvas, FaceEye, FaceMouth } from 'stackchan/shape-face'
+export type { FaceCanvas, FaceEye, FaceMouth } from 'stackchan/shape-face'
 
 export type FaceAsset = {
   format: 'tech.stackchan.face'

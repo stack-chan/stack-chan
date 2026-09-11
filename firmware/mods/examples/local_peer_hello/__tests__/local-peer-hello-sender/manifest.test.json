@@ -2,10 +2,12 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "../../manifest.json",
-    "../../../../../host/modules/testing/manifest.json"
+    "../../../../../host/modules/testing/manifest.json",
+    "../../../../../sdk/manifest.json"
   ],
   "modules": {
-    "main": "./local-peer-hello-sender.test"
+    "main": "./local-peer-hello-sender.test",
+    "local-peer-hello-text": "../../message-text"
   },
   "defines": {
     "main": {

@@ -1,3 +1,5 @@
+import { validateModArchive } from './mod-storage.mjs'
+
 const BUTTON_NAMES = ['a', 'b', 'c']
 const MOD_INSTALL_HOOKS = ['_fxMainSetModArchive', '_wasmModInstallArchive']
 const DEFAULT_CAMERA_WIDTH = 96
@@ -105,8 +107,8 @@ export function createHostButtonBridge({
 export function installModArchiveIntoWasm(wasmModule, installedMod) {
   if (!installedMod) return { status: 'empty' }
 
-  const bytes = installedMod.bytes instanceof Uint8Array ? installedMod.bytes : new Uint8Array(installedMod.bytes ?? [])
-  const size = installedMod.size ?? bytes.byteLength
+  const bytes = validateModArchive(installedMod.bytes)
+  const size = bytes.byteLength
   const hookName = MOD_INSTALL_HOOKS.find((name) => typeof wasmModule?.[name] === 'function')
 
   if (typeof wasmModule?._malloc !== 'function' || !wasmModule.HEAPU8) {
@@ -114,7 +116,13 @@ export function installModArchiveIntoWasm(wasmModule, installedMod) {
   }
 
   const pointer = wasmModule._malloc(bytes.byteLength)
-  wasmModule.HEAPU8.set(bytes, pointer)
+  if (!Number.isSafeInteger(pointer) || pointer <= 0) throw new Error('Could not allocate WASM MOD archive memory')
+  try {
+    wasmModule.HEAPU8.set(bytes, pointer)
+  } catch (error) {
+    wasmModule._free?.(pointer)
+    throw error
+  }
 
   if (!hookName) return { status: 'prepared', pointer, name: installedMod.name, size }
 
@@ -126,88 +134,7 @@ export function installModArchiveIntoWasm(wasmModule, installedMod) {
   }
 }
 
-export function createHostAudioOutBridge({
-  createAudioContext = defaultAudioContextFactory,
-  setTimeoutFn = globalThis.setTimeout,
-  clearTimeoutFn = globalThis.clearTimeout,
-} = {}) {
-  let context
-
-  return {
-    async tone({ hz, duration, volume } = {}) {
-      // Guard against non-finite values: the wasm audio bridge always passes a
-      // volume argument, so an omitted volume arrives as NaN (not undefined) and
-      // a destructuring default would not apply. Setting an AudioParam to a
-      // non-finite value throws.
-      const frequency = Number.isFinite(hz) ? hz : 440
-      const durationMs = Number.isFinite(duration) ? Math.max(0, duration) : 100
-      const level = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 1
-      context ??= createAudioContext()
-      if (context.state === 'suspended' && typeof context.resume === 'function') {
-        await context.resume()
-      }
-      const oscillator = context.createOscillator()
-      const gain = context.createGain()
-      oscillator.frequency.value = frequency
-      gain.gain.value = level
-      oscillator.connect(gain)
-      gain.connect(context.destination)
-      const startTime = context.currentTime
-      await new Promise((resolve, reject) => {
-        let fallback
-        const finish = () => {
-          if (fallback !== undefined) clearTimeoutFn?.(fallback)
-          resolve()
-        }
-        oscillator.onended = finish
-        try {
-          oscillator.start(startTime)
-          oscillator.stop(startTime + durationMs / 1000)
-          fallback = setTimeoutFn?.(finish, durationMs + 250)
-        } catch (error) {
-          if (fallback !== undefined) clearTimeoutFn?.(fallback)
-          reject(error)
-        }
-      })
-    },
-    async play(buffer) {
-      if (!(buffer instanceof ArrayBuffer) || buffer.byteLength === 0) return false
-      context ??= createAudioContext()
-      if (context.state === 'suspended' && typeof context.resume === 'function') {
-        await context.resume()
-      }
-      if (typeof context.decodeAudioData !== 'function') return false
-
-      const audioBuffer = await decodeAudioData(context, buffer)
-      const source = context.createBufferSource()
-      source.buffer = audioBuffer
-      source.connect(context.destination)
-      await new Promise((resolve, reject) => {
-        let fallback
-        const durationMilliSec = Number.isFinite(audioBuffer.duration) ? audioBuffer.duration * 1000 : 0
-        const finish = () => {
-          if (fallback !== undefined) clearTimeoutFn?.(fallback)
-          resolve()
-        }
-        source.onended = finish
-        try {
-          source.start(0)
-          if (durationMilliSec > 0) {
-            fallback = setTimeoutFn?.(finish, durationMilliSec + 250)
-          }
-        } catch (error) {
-          if (fallback !== undefined) clearTimeoutFn?.(fallback)
-          reject(error)
-        }
-      })
-      return true
-    },
-    close() {
-      context?.close?.()
-      context = undefined
-    },
-  }
-}
+export { createHostAudioOutBridge } from './audio-output.mjs'
 
 function writeImageDataRgb565Le(view, imageData) {
   let offset = 0
@@ -239,138 +166,100 @@ function createSyntheticCameraFrame(options = {}) {
 
 export function createHostCameraBridge({
   documentObj = globalThis.document,
-  logger = console,
   navigatorObj = globalThis.navigator,
   videoElement,
   canvasElement,
 } = {}) {
   let started = false
-  let browserCameraRequested = false
+  let useBrowserCamera = true
   let browserCameraStarted = false
-  let mediaStream
-  let mediaVideo = videoElement
-  let mediaCanvas = canvasElement
-  let browserStartGeneration = 0
-
-  const logWarning = (message, error) => {
-    if (error) {
-      logger?.warn?.(message, error)
-    } else {
-      logger?.warn?.(message)
+  let stream
+  let video = videoElement
+  let canvas = canvasElement
+  let generation = 0
+  let pendingStart
+  let cleanupFailure
+  const failure = (code, message) => Object.assign(new Error(message), { code })
+  const stopTracks = (owned) => {
+    let firstError
+    for (const track of owned?.getTracks?.() ?? []) {
+      try {
+        track.stop?.()
+      } catch (error) {
+        firstError ??= error
+      }
+    }
+    if (firstError) {
+      cleanupFailure ??= firstError
+      throw cleanupFailure
     }
   }
-
-  const ensureVideoElement = () => {
-    if (mediaVideo) return mediaVideo
-    if (!documentObj?.createElement) return undefined
-
-    mediaVideo = documentObj.createElement('video')
-    mediaVideo.muted = true
-    mediaVideo.playsInline = true
-    return mediaVideo
-  }
-
-  const ensureCanvasElement = () => {
-    if (mediaCanvas) return mediaCanvas
-    if (!documentObj?.createElement) return undefined
-
-    mediaCanvas = documentObj.createElement('canvas')
-    return mediaCanvas
-  }
-
-  const stopBrowserCamera = () => {
-    browserStartGeneration += 1
-    for (const track of mediaStream?.getTracks?.() ?? []) track.stop?.()
-    mediaStream = undefined
+  const stop = () => {
+    generation++
+    started = false
     browserCameraStarted = false
-    if (mediaVideo) mediaVideo.srcObject = null
-  }
-
-  const startBrowserCamera = async (options = {}) => {
-    if (browserCameraStarted && mediaStream && mediaVideo?.srcObject === mediaStream) return true
-
-    stopBrowserCamera()
-
-    const getUserMedia = navigatorObj?.mediaDevices?.getUserMedia?.bind(navigatorObj.mediaDevices)
-    if (!getUserMedia) {
-      browserCameraStarted = false
-      return false
-    }
-
-    const video = ensureVideoElement()
-    if (!video) {
-      browserCameraStarted = false
-      return false
-    }
-
+    pendingStart = undefined
+    const owned = stream
+    stream = undefined
     try {
-      const startGeneration = browserStartGeneration
-      const stream = await getUserMedia({ video: options.video ?? true })
-      if (startGeneration !== browserStartGeneration || !started || !browserCameraRequested) {
-        for (const track of stream?.getTracks?.() ?? []) track.stop?.()
-        return false
-      }
-
-      mediaStream = stream
-      video.srcObject = mediaStream
-      if (typeof video.play === 'function') await video.play()
-      browserCameraStarted = true
-      return true
+      if (video) video.srcObject = null
     } catch (error) {
-      stopBrowserCamera()
-      logWarning('[bridge] browser camera unavailable; using synthetic Host.Camera fallback', error)
-      return false
+      cleanupFailure ??= error
     }
+    stopTracks(owned)
+    if (cleanupFailure) throw cleanupFailure
   }
-
-  const captureBrowserCamera = (options = {}) => {
-    if (!started || !browserCameraRequested || !browserCameraStarted) return undefined
-    if (!mediaVideo || mediaVideo.readyState < HAVE_CURRENT_DATA || !mediaVideo.videoWidth || !mediaVideo.videoHeight) {
-      return undefined
-    }
-
-    const canvas = ensureCanvasElement()
-    const context = canvas?.getContext?.('2d', { willReadFrequently: true })
-    if (!canvas || !context?.drawImage || !context?.getImageData) return undefined
-
-    const width = normalizeDimension(options.width, DEFAULT_CAMERA_WIDTH)
-    const height = normalizeDimension(options.height, DEFAULT_CAMERA_HEIGHT)
-
-    try {
-      canvas.width = width
-      canvas.height = height
-      context.drawImage(mediaVideo, 0, 0, width, height)
-
-      const imageData = context.getImageData(0, 0, width, height)
-      if (!imageData?.data || imageData.data.length < width * height * 4) return undefined
-
-      const buffer = new ArrayBuffer(width * height * 2)
-      writeImageDataRgb565Le(new Uint8Array(buffer), imageData)
-
-      return { width, height, imageType: 'rgb565le', buffer }
-    } catch (error) {
-      logWarning('[bridge] browser camera capture failed; using synthetic Host.Camera fallback', error)
-      return undefined
-    }
+  const dimension = (value, fallback, maximum) => {
+    const result = value ?? fallback
+    if (!Number.isInteger(result) || result < 1 || result > maximum)
+      throw failure('INVALID_ARGUMENT', 'Invalid camera dimensions')
+    return result
   }
-
-  return {
-    async start(options = {}) {
+  const bridge = {
+    availability() {
+      return !useBrowserCamera ? 'simulated' : navigatorObj?.mediaDevices?.getUserMedia ? 'native' : 'unavailable'
+    },
+    start(options = {}) {
+      if (cleanupFailure) return Promise.reject(cleanupFailure)
+      const browser = options.useBrowserCamera ?? useBrowserCamera
+      if (started && browser === useBrowserCamera && (browserCameraStarted || !browser)) return Promise.resolve()
+      if (pendingStart && browser === useBrowserCamera) return pendingStart
+      stop()
+      useBrowserCamera = browser
       started = true
-      if (Object.hasOwn(options, 'useBrowserCamera')) {
-        browserCameraRequested = Boolean(options.useBrowserCamera)
-        if (browserCameraRequested) {
-          await startBrowserCamera(options)
-        } else {
-          stopBrowserCamera()
-        }
-      }
+      if (!browser) return Promise.resolve()
+      const epoch = generation
+      const getUserMedia = navigatorObj?.mediaDevices?.getUserMedia?.bind(navigatorObj.mediaDevices)
+      const starting = Promise.resolve()
+        .then(async () => {
+          if (epoch !== generation) throw failure('CANCELLED', 'Camera start cancelled')
+          if (!getUserMedia) throw failure('UNSUPPORTED', 'Browser camera is unavailable')
+          video ??= documentObj?.createElement?.('video')
+          if (!video) throw failure('UNSUPPORTED', 'Browser video is unavailable')
+          video.muted = true
+          video.playsInline = true
+          const owned = await getUserMedia({ video: options.video ?? true })
+          if (epoch !== generation) {
+            stopTracks(owned)
+            throw failure('CANCELLED', 'Camera start cancelled')
+          }
+          stream = owned
+          video.srcObject = owned
+          await video.play?.()
+          if (epoch !== generation) throw failure('CANCELLED', 'Camera start cancelled')
+          browserCameraStarted = true
+        })
+        .catch((error) => {
+          if (epoch === generation) stop()
+          throw error
+        })
+        .finally(() => {
+          if (pendingStart === starting) pendingStart = undefined
+        })
+      pendingStart = starting
+      return starting
     },
-    stop() {
-      started = false
-      browserCameraRequested = false
-      stopBrowserCamera()
-    },
+    stop,
     isStarted() {
       return started
     },
@@ -378,132 +267,39 @@ export function createHostCameraBridge({
       return browserCameraStarted
     },
     capture(options = {}) {
+      if (!started) throw failure('CLOSED', 'Camera is stopped')
       const imageType = options.imageType ?? DEFAULT_CAMERA_IMAGE_TYPE
-      if (imageType !== 'rgb565le') return undefined
-
-      return captureBrowserCamera(options) ?? createSyntheticCameraFrame(options)
+      if (imageType !== 'rgb565le') throw failure('UNSUPPORTED', 'Browser camera supports RGB565LE')
+      const width = dimension(options.width, DEFAULT_CAMERA_WIDTH, 320)
+      const height = dimension(options.height, DEFAULT_CAMERA_HEIGHT, 240)
+      if (!useBrowserCamera) return { ...createSyntheticCameraFrame({ width, height, imageType }), source: 'simulated' }
+      if (
+        !browserCameraStarted ||
+        !video ||
+        video.readyState < HAVE_CURRENT_DATA ||
+        !video.videoWidth ||
+        !video.videoHeight
+      )
+        return undefined
+      canvas ??= documentObj?.createElement?.('canvas')
+      const context = canvas?.getContext?.('2d', { willReadFrequently: true })
+      if (!context?.drawImage || !context?.getImageData)
+        throw failure('UNSUPPORTED', 'Browser image capture is unavailable')
+      canvas.width = width
+      canvas.height = height
+      context.drawImage(video, 0, 0, width, height)
+      const imageData = context.getImageData(0, 0, width, height)
+      if (!imageData?.data || imageData.data.length !== width * height * 4)
+        throw failure('IO', 'Browser returned an invalid image')
+      const buffer = new ArrayBuffer(width * height * 2)
+      writeImageDataRgb565Le(new Uint8Array(buffer), imageData)
+      return { width, height, imageType, buffer, source: 'native' }
     },
   }
+  return bridge
 }
 
-function decodeAudioData(context, buffer) {
-  return new Promise((resolve, reject) => {
-    const result = context.decodeAudioData(buffer.slice(0), resolve, reject)
-    if (result && typeof result.then === 'function') {
-      result.then(resolve, reject)
-    }
-  })
-}
-
-export function createHostAudioInBridge({
-  mediaDevices = globalThis.navigator?.mediaDevices,
-  MediaRecorder = globalThis.MediaRecorder,
-  setTimeoutFn = globalThis.setTimeout,
-} = {}) {
-  return {
-    async record(durationMilliSec = 3000) {
-      if (!mediaDevices?.getUserMedia || !MediaRecorder) return new ArrayBuffer(0)
-      const format = selectAudioRecordingFormat(MediaRecorder)
-      if (!format) {
-        return new ArrayBuffer(0)
-      }
-
-      const stream = await mediaDevices.getUserMedia({ audio: true })
-      const chunks = []
-      try {
-        return await new Promise((resolve) => {
-          const recorder = new MediaRecorder(stream, { mimeType: format.mimeType })
-          recorder.ondataavailable = (event) => {
-            if (event.data) chunks.push(event.data)
-          }
-          recorder.onstop = async () => {
-            const buffer = await chunksToArrayBuffer(chunks)
-            resolve(attachAudioMetadata(isSupportedAudioBuffer(buffer, format) ? buffer : new ArrayBuffer(0), format))
-          }
-          recorder.start()
-          setTimeoutFn(() => recorder.stop(), durationMilliSec)
-        })
-      } finally {
-        for (const track of stream.getTracks?.() ?? []) track.stop?.()
-      }
-    },
-  }
-}
-
-const AUDIO_RECORDING_FORMATS = Object.freeze([
-  { mimeType: 'audio/webm;codecs=opus', extension: 'webm' },
-  { mimeType: 'audio/webm', extension: 'webm' },
-  { mimeType: 'audio/mp4', extension: 'm4a' },
-  { mimeType: 'audio/wav', extension: 'wav' },
-])
-
-function selectAudioRecordingFormat(MediaRecorder) {
-  if (typeof MediaRecorder.isTypeSupported !== 'function') return AUDIO_RECORDING_FORMATS[0]
-  return AUDIO_RECORDING_FORMATS.find(({ mimeType }) => MediaRecorder.isTypeSupported(mimeType))
-}
-
-function isSupportedAudioBuffer(buffer, format) {
-  if (format.mimeType === 'audio/wav') return isWavBuffer(buffer)
-  return buffer instanceof ArrayBuffer && buffer.byteLength > 0
-}
-
-function attachAudioMetadata(buffer, format) {
-  if (!(buffer instanceof ArrayBuffer) || buffer.byteLength === 0) return buffer
-  const metadata = {
-    mimeType: format.mimeType,
-    filename: `speak.${format.extension}`,
-  }
-  try {
-    Object.defineProperties(buffer, {
-      mimeType: { value: metadata.mimeType, configurable: true },
-      filename: { value: metadata.filename, configurable: true },
-    })
-  } catch {
-    buffer.mimeType = metadata.mimeType
-    buffer.filename = metadata.filename
-  }
-  return buffer
-}
-
-function defaultAudioContextFactory() {
-  const AudioContextConstructor = globalThis.AudioContext ?? globalThis.webkitAudioContext
-  if (!AudioContextConstructor) throw new Error('WebAudio AudioContext is not available')
-  return new AudioContextConstructor()
-}
-
-async function chunksToArrayBuffer(chunks) {
-  const buffers = await Promise.all(
-    chunks.map(async (chunk) => {
-      if (chunk instanceof ArrayBuffer) return chunk
-      if (ArrayBuffer.isView(chunk)) return chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength)
-      if (typeof chunk.arrayBuffer === 'function') return chunk.arrayBuffer()
-      return new ArrayBuffer(0)
-    })
-  )
-  const total = buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0)
-  const bytes = new Uint8Array(total)
-  let offset = 0
-  for (const buffer of buffers) {
-    bytes.set(new Uint8Array(buffer), offset)
-    offset += buffer.byteLength
-  }
-  return bytes.buffer
-}
-
-function isWavBuffer(buffer) {
-  if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < 12) return false
-  const bytes = new Uint8Array(buffer)
-  return (
-    bytes[0] === 0x52 &&
-    bytes[1] === 0x49 &&
-    bytes[2] === 0x46 &&
-    bytes[3] === 0x46 &&
-    bytes[8] === 0x57 &&
-    bytes[9] === 0x41 &&
-    bytes[10] === 0x56 &&
-    bytes[11] === 0x45
-  )
-}
+export { createHostAudioInBridge } from './audio-input.mjs'
 
 export function clientPointFromTouch(touch) {
   return { x: touch.clientX, y: touch.clientY }

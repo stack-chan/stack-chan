@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.mcp",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "mcp",
+  "description": "Expose speech and emotion as owned MCP tools.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
+  "capabilities": ["ui.controls", "network.http", "audio.speech", "settings"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["network.http", "audio.speech", "settings"]
+}

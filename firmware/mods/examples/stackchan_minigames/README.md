@@ -5,17 +5,15 @@ This sample registers two games in the mini-app launcher from one archive:
 - `Stack-chan JUMP`: tap to jump over incoming obstacles.
 - `Stack-chan CATCH`: move across three lanes, collect regular items, and avoid bombs.
 
-The existing [`mini_app_sample`](https://github.com/stack-chan/stack-chan/tree/develop/firmware/mods/examples/mini_app_sample) and [`stackchan_catch`](https://github.com/stack-chan/stack-chan/tree/develop/firmware/mods/examples/stackchan_catch) implementations remain the source of truth. `compose.mjs` combines them into one import-allowlist-compatible `miniapp.ts`. See each source sample's README for gameplay and rendering details.
+The maintained game implementations are `jump.ts` and `catch.ts`; `mod.ts` imports both with the SDK Piu extension. No source concatenation is required. This package replaces the former standalone `mini_app_sample` and `stackchan_catch` archives. See their README files for detailed rules.
 
-After changing either source, compose and build from `firmware/`:
+Build from `firmware/` using Moddable 9.5.0:
 
 ```console
-node mods/examples/stackchan_minigames/compose.mjs
-npm exec biome format --write mods/examples/stackchan_minigames/miniapp.ts
 npm run mod:build -- mods/examples/stackchan_minigames/manifest.json --mode=release
 ```
 
-Each game stops its `Port` timer when undisplayed. Use the host-owned AppBar Back button to exit. The external mini-app API does not expose device-button capabilities, so both games use screen taps only.
+Use a host supporting API 3. The archive uses app API 2 and a normal `mod` entrypoint. The app owns screen registration; the host owns the viewport and AppBar Back button. Both games use screen taps and stop their `Port` timer when undisplayed. See [the SDK contract](../../../sdk/README_ja.md#piu-の画面拡張) for screen lifetime and cleanup.
 
 ## Sprite attribution
 

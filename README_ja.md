@@ -88,6 +88,7 @@ Stack-chan RTとタカオ版Core2 + SG90向けのファームウェアは、ソ�
 
 - [ファームウェア開発](./firmware/README_ja.md)
 - [MOD開発](./firmware/mods/README_ja.md)
+- [SDKの全実行例と移行先](./firmware/mods/examples/README_ja.md)
 - [ファームウェアAPI](./firmware/docs/api_ja.md)
 - [コントリビューションガイド](./CONTRIBUTING.md)
 - [最新リリース](https://github.com/stack-chan/stack-chan/releases/latest)

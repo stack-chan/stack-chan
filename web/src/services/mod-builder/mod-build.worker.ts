@@ -13,6 +13,7 @@ workerScope.onmessage = (event) => {
   if (event.data.type !== 'build') return
   void buildModArchive(createTools, {
     modJs: event.data.modJs,
+    metadata: event.data.metadata,
     name: event.data.name,
     manifest: event.data.manifest,
     files: event.data.files.map((file) => ({

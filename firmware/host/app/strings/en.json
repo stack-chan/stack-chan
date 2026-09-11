@@ -26,6 +26,7 @@
   "boot.wifiNotFound": "Saved Wi-Fi not found",
   "boot.wifiFailed": "Wi-Fi connection failed",
   "settings.title": "Settings",
+  "settings.saveFailed": "Settings could not be saved",
   "settings.scan": "Scan",
   "settings.scanning": "Scanning",
   "settings.boot": "Start",
@@ -84,5 +85,10 @@
   "drawer.recordAndPlay": "Record and Play",
   "drawer.color.light": "White",
   "drawer.color.dark": "Black",
-  "drawer.colorScheme": "Color Scheme"
+  "drawer.colorScheme": "Color Scheme",
+  "boot.capabilityUnavailable": "Unavailable features",
+  "boot.appFailed": "MOD could not start",
+  "boot.replaceMod": "Rebuild or replace the MOD.",
+  "boot.updateFirmware": "Update the host firmware",
+  "boot.targetUnsupported": "Choose a MOD for this board"
 }

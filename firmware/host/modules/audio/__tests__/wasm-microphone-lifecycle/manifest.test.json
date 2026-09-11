@@ -1,0 +1,16 @@
+{
+  "include": [
+    "../../../../../contracts/manifest_recording.json",
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../../../../sdk/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "audio-buffer": "../../audio-buffer",
+    "audio-ports": "../../audio-ports",
+    "microphone": "../../wasm/microphone",
+    "wasm-audio-bridge-contract": "../../wasm/audio-bridge-contract",
+    "cancellation": "../../../../app/cancellation",
+    "main": "./wasm-microphone-lifecycle.test"
+  }
+}

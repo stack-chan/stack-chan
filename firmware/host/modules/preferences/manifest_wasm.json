@@ -1,26 +1,4 @@
 {
-  "include": [
-    "$(MODULES)/base/modules/manifest.json",
-    "$(MODULES)/base/structuredClone/manifest.json",
-    "$(MODULES)/base/deepEqual/manifest.json",
-    "$(MODDABLE)/examples/manifest_typings.json",
-    "../../app/manifest_typings.json"
-  ],
-  "modules": {
-    "preference": "./wasm/preference",
-    "consts": "./consts",
-    "loadPreference": "./loadPreference",
-    "timezone-model": "./timezone-model",
-    "timezone-settings": "./timezone-settings",
-    "volume-model": "./volume-model"
-  },
-  "preload": ["consts"],
-  "typescript": {
-    "tsconfig": {
-      "compilerOptions": {
-        "noImplicitAny": false,
-        "noImplicitThis": false
-      }
-    }
-  }
+  "include": ["./manifest_common.json"],
+  "modules": { "preference": "./wasm/preference" }
 }

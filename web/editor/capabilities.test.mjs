@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   inspectDeploymentCompatibility,
+  profileFor,
   requirementsForBlockTypes,
   toolboxForTarget,
   unsupportedRequirements,
@@ -11,9 +12,9 @@ import {
 test('capability requirements are unique and target-aware', () => {
   assert.deepEqual(requirementsForBlockTypes(['stackchan_on_imu', 'stackchan_on_imu', 'stackchan_say']), [
     'audio.speech',
-    'input.imu',
+    'input.motion',
   ])
-  assert.deepEqual(unsupportedRequirements('simulator', ['input.imu', 'face']), ['input.imu'])
+  assert.deepEqual(unsupportedRequirements('simulator', ['input.motion', 'face']), ['input.motion'])
   assert.deepEqual(requirementsForBlockTypes(['stackchan_on_head_touch']), ['input.headTouch'])
   assert.deepEqual(unsupportedRequirements('m5stackchan-cores3', ['input.headTouch']), [])
   assert.deepEqual(unsupportedRequirements('simulator', ['input.headTouch']), ['input.headTouch'])
@@ -43,13 +44,14 @@ test('singing blocks are available only on stackchan-voice targets', () => {
   )
 })
 
-test('deployment compatibility checks chip family and exact XS archive version', () => {
+test('deployment compatibility checks chip family and runtime XS archive range', () => {
   assert.equal(
     inspectDeploymentCompatibility('m5stackchan-cores3', {
       chip: 'ESP32-S3',
       xsVersion: [17, 8, 0],
-      firmwareVersion: '8.3.0-1-gabcdef',
+      firmwareVersion: '9.5.0+stackchan.1',
       requireFirmware: true,
+      firmwareTarget: 'm5stackchan-cores3',
       requireArchive: true,
     }).compatible,
     true
@@ -64,7 +66,7 @@ test('deployment compatibility checks chip family and exact XS archive version',
   )
   const wrongXs = inspectDeploymentCompatibility('m5stackchan-cores3', {
     chip: 'ESP32-S3',
-    xsVersion: [17, 7, 0],
+    xsVersion: [17, 6, 0],
   })
   assert.deepEqual(
     wrongXs.diagnostics.map((item) => item.code),
@@ -84,14 +86,16 @@ test('deployment compatibility checks chip family and exact XS archive version',
     xsVersion: [17, 8, 0],
     firmwareVersion: '8.2.1',
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
   })
   assert.deepEqual(
     wrongFirmware.diagnostics.map((item) => item.code),
     ['VP_FIRMWARE_VERSION_MISMATCH']
   )
   const simulatorInstall = inspectDeploymentCompatibility('simulator', {
-    firmwareVersion: '8.3.0',
+    firmwareVersion: '9.5.0',
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
   })
   assert.deepEqual(
     simulatorInstall.diagnostics.map((item) => item.code),
@@ -99,8 +103,9 @@ test('deployment compatibility checks chip family and exact XS archive version',
   )
 
   const missingDeviceEvidence = inspectDeploymentCompatibility('m5stackchan-cores3', {
-    firmwareVersion: '8.3.0',
+    firmwareVersion: '9.5.0',
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
     requireArchive: true,
   })
   assert.deepEqual(
@@ -121,10 +126,11 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
   const currentHost = inspectDeploymentCompatibility('m5stackchan-cores3', {
     chip: 'ESP32-S3',
     xsVersion: [17, 8, 0],
-    firmwareVersion: '9.0.0+stackchan.1',
-    hostApiVersion: 1,
-    requirements: ['conversation.remote', 'audio.usb', 'ui.approval'],
+    firmwareVersion: '9.5.0+stackchan.7',
+    hostApiVersion: 7,
+    requirements: ['conversation.remote', 'network.http', 'settings'],
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
     requireArchive: true,
   })
   assert.equal(currentHost.compatible, true)
@@ -132,10 +138,11 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
   const legacyHost = inspectDeploymentCompatibility('m5stackchan-cores3', {
     chip: 'ESP32-S3',
     xsVersion: [17, 8, 0],
-    firmwareVersion: '8.3.1',
+    firmwareVersion: '9.5.0',
     hostApiVersion: 0,
-    requirements: ['conversation.remote', 'audio.usb', 'ui.approval'],
+    requirements: ['conversation.remote', 'network.http', 'settings'],
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
     requireArchive: true,
   })
   assert.deepEqual(
@@ -147,11 +154,54 @@ test('deployment compatibility gates versioned capabilities on the detected Stac
   const legacyBasicMod = inspectDeploymentCompatibility('m5stackchan-cores3', {
     chip: 'ESP32-S3',
     xsVersion: [17, 8, 0],
-    firmwareVersion: '8.3.1',
+    firmwareVersion: '9.5.0',
     hostApiVersion: 0,
     requirements: ['face', 'input.headTouch'],
     requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
     requireArchive: true,
   })
-  assert.equal(legacyBasicMod.compatible, true)
+  assert.equal(legacyBasicMod.compatible, false)
+  assert.equal(legacyBasicMod.diagnostics[0].code, 'VP_HOST_CAPABILITY_UNAVAILABLE')
+})
+
+test('Piu screen apps require host API 3 and simulator support, with only the mod entrypoint', () => {
+  for (const target of ['m5stackchan-cores3', 'simulator']) {
+    const options = { requirements: ['ui.piu'], entrypoints: ['mod'], hostApiVersion: 3 }
+    assert.equal(inspectDeploymentCompatibility(target, options).compatible, true)
+    assert.equal(inspectDeploymentCompatibility(target, { ...options, entrypoints: ['miniapp'] }).compatible, false)
+  }
+})
+
+test('device install rejects Piu screens on host API 2 and accepts them on host API 3', () => {
+  const options = {
+    requirements: ['ui.piu'],
+    entrypoints: ['mod'],
+    chip: 'ESP32-S3',
+    xsVersion: [17, 8, 2],
+    firmwareVersion: '9.5.0+stackchan.3',
+    requireFirmware: true,
+    firmwareTarget: 'm5stackchan-cores3',
+  }
+  assert.equal(inspectDeploymentCompatibility('m5stackchan-cores3', { ...options, hostApiVersion: 3 }).compatible, true)
+  assert.equal(
+    inspectDeploymentCompatibility('m5stackchan-cores3', { ...options, hostApiVersion: 2 }).compatible,
+    false
+  )
+})
+
+test('retired names and unknown targets cannot silently become supported portable projects', () => {
+  assert.throws(() => profileFor('unknown'), /Unknown device target/)
+  for (const name of ['audio.usb', 'ui.approval', 'connectivity.network', 'input.buttons', 'input.imu', 'ui.drawer']) {
+    assert.deepEqual(unsupportedRequirements('m5stackchan-cores3', [name]), [name])
+  }
+  assert.deepEqual(
+    unsupportedRequirements('simulator', ['camera', 'audio.clips', 'audio.recording', 'audio.playback', 'settings']),
+    []
+  )
+  assert.deepEqual(unsupportedRequirements('simulator', ['network.peer', 'network.ble', 'lighting']), [
+    'network.peer',
+    'network.ble',
+    'lighting',
+  ])
 })

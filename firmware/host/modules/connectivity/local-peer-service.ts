@@ -15,17 +15,18 @@ import type {
   LocalPeerRadioRegistry,
   LocalPeerTransport,
 } from 'local-peer-radio-types'
-import {
-  type JsonValue,
-  type LocalPeerBroadcastReceipt,
-  type LocalPeerCapability,
-  type LocalPeerDeliveryReceipt,
-  LocalPeerError,
-  type LocalPeerInfo,
-  type LocalPeerMessage,
-  type LocalPeerOpenOptions,
-  type LocalPeerSession,
+import type {
+  JsonValue,
+  LocalPeerBroadcastReceipt,
+  LocalPeerCapability,
+  LocalPeerDeliveryReceipt,
+  LocalPeerInfo,
+  LocalPeerMessage,
+  LocalPeerOpenOptions,
+  LocalPeerSession,
 } from 'local-peer-types'
+import { asStackchanError, StackchanError } from 'stackchan/errors'
+import type { CancellationSignal, OperationOptions } from 'stackchan/task'
 import Timer from 'timer'
 
 const DEFAULT_OFFLINE_CHANNEL = 1
@@ -79,8 +80,9 @@ type PendingSend = {
   frames: ArrayBuffer[]
   attempts: number
   timer?: TimerHandle
+  signal?: CancellationSignal
   resolve: (receipt: LocalPeerDeliveryReceipt) => void
-  reject: (error: LocalPeerError) => void
+  reject: (error: unknown) => void
 }
 
 let nextMessageId = (Date.now() ^ Math.floor(Math.random() * 0x1_0000_0000) ^ 0x534c5031) >>> 0
@@ -98,33 +100,33 @@ function formatMessageId(messageId: number): string {
 function validateBoundedText(label: string, value: string, maximumBytes: number, allowEmpty = false): void {
   const bytes = encodeUTF8(value).byteLength
   if ((!allowEmpty && bytes === 0) || bytes > maximumBytes) {
-    throw new LocalPeerError(
-      'invalid-argument',
+    throw new StackchanError(
+      'INVALID_ARGUMENT',
       `${label} must contain ${allowEmpty ? `at most ${maximumBytes}` : `1-${maximumBytes}`} UTF-8 bytes`,
     )
   }
 }
 
 function validateOpenOptions(options: LocalPeerOpenOptions): void {
-  if (!options || typeof options !== 'object') throw new LocalPeerError('invalid-argument', 'options are required')
-  if (typeof options.service !== 'string') throw new LocalPeerError('invalid-argument', 'service must be a string')
+  if (!options || typeof options !== 'object') throw new StackchanError('INVALID_ARGUMENT', 'options are required')
+  if (typeof options.service !== 'string') throw new StackchanError('INVALID_ARGUMENT', 'service must be a string')
   if (options.transport !== undefined && options.transport !== 'espnow' && options.transport !== 'ble') {
-    throw new LocalPeerError('invalid-argument', 'transport must be espnow or ble')
+    throw new StackchanError('INVALID_ARGUMENT', 'transport must be espnow or ble')
   }
   validateBoundedText('service', options.service, MAX_SERVICE_BYTES)
   if (options.displayName !== undefined) {
     if (typeof options.displayName !== 'string') {
-      throw new LocalPeerError('invalid-argument', 'displayName must be a string')
+      throw new StackchanError('INVALID_ARGUMENT', 'displayName must be a string')
     }
     validateBoundedText('displayName', options.displayName, MAX_NAME_BYTES, true)
   }
   if (options.sharedKey !== undefined) {
     if (typeof options.sharedKey !== 'string')
-      throw new LocalPeerError('invalid-argument', 'sharedKey must be a string')
+      throw new StackchanError('INVALID_ARGUMENT', 'sharedKey must be a string')
     const bytes = encodeUTF8(options.sharedKey).byteLength
     if (options.sharedKey.includes('\0') || bytes < MIN_SHARED_KEY_BYTES || bytes > MAX_SHARED_KEY_BYTES) {
-      throw new LocalPeerError(
-        'invalid-argument',
+      throw new StackchanError(
+        'INVALID_ARGUMENT',
         `sharedKey must contain ${MIN_SHARED_KEY_BYTES}-${MAX_SHARED_KEY_BYTES} UTF-8 bytes without NUL characters`,
       )
     }
@@ -132,26 +134,26 @@ function validateOpenOptions(options: LocalPeerOpenOptions): void {
 }
 
 function validateMessageType(type: string): void {
-  if (typeof type !== 'string') throw new LocalPeerError('invalid-argument', 'message type must be a string')
-  if (type === '*') throw new LocalPeerError('invalid-argument', 'message type * is reserved for subscriptions')
+  if (typeof type !== 'string') throw new StackchanError('INVALID_ARGUMENT', 'message type must be a string')
+  if (type === '*') throw new StackchanError('INVALID_ARGUMENT', 'message type * is reserved for subscriptions')
   validateBoundedText('message type', type, MAX_TYPE_BYTES)
 }
 
 function validatePeerId(peerId: string): void {
   if (typeof peerId !== 'string' || !/^[0-9A-Fa-f]{12}$/.test(peerId)) {
-    throw new LocalPeerError('invalid-argument', 'peerId is invalid')
+    throw new StackchanError('INVALID_ARGUMENT', 'peerId is invalid')
   }
 }
 
 function validateJsonValue(value: unknown, ancestors = new Set<object>(), depth = 0): asserts value is JsonValue {
-  if (depth > 16) throw new LocalPeerError('invalid-argument', 'payload nesting is too deep')
+  if (depth > 16) throw new StackchanError('INVALID_ARGUMENT', 'payload nesting is too deep')
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return
   if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new LocalPeerError('invalid-argument', 'payload numbers must be finite')
+    if (!Number.isFinite(value)) throw new StackchanError('INVALID_ARGUMENT', 'payload numbers must be finite')
     return
   }
-  if (typeof value !== 'object') throw new LocalPeerError('invalid-argument', 'payload must be JSON-compatible')
-  if (ancestors.has(value)) throw new LocalPeerError('invalid-argument', 'payload must not contain cycles')
+  if (typeof value !== 'object') throw new StackchanError('INVALID_ARGUMENT', 'payload must be JSON-compatible')
+  if (ancestors.has(value)) throw new StackchanError('INVALID_ARGUMENT', 'payload must not contain cycles')
   ancestors.add(value)
   if (Array.isArray(value)) {
     for (const item of value) validateJsonValue(item, ancestors, depth + 1)
@@ -168,11 +170,11 @@ function encodeEnvelope(service: string, type: string, payload: JsonValue): Uint
   try {
     serialized = JSON.stringify({ service, type, payload } satisfies MessageEnvelope)
   } catch (_error) {
-    throw new LocalPeerError('invalid-argument', 'payload could not be serialized')
+    throw new StackchanError('INVALID_ARGUMENT', 'payload could not be serialized')
   }
   const bytes = encodeUTF8(serialized)
   if (bytes.byteLength > MAX_MESSAGE_BYTES) {
-    throw new LocalPeerError('message-too-large', `encoded message exceeds ${MAX_MESSAGE_BYTES} bytes`)
+    throw new StackchanError('INVALID_ARGUMENT', `encoded message exceeds ${MAX_MESSAGE_BYTES} bytes`)
   }
   return bytes
 }
@@ -196,6 +198,8 @@ export class LocalPeerService implements LocalPeerCapability {
   #defaultTransport: LocalPeerTransport
   #offlineChannel: number
   #session?: LocalPeerSessionImpl
+  #closed = false
+  #closeError?: StackchanError
 
   constructor(
     id: string,
@@ -205,7 +209,7 @@ export class LocalPeerService implements LocalPeerCapability {
     validatePeerId(id)
     const channel = options.offlineChannel ?? DEFAULT_OFFLINE_CHANNEL
     if (!Number.isInteger(channel) || channel < 1 || channel > 13) {
-      throw new LocalPeerError('invalid-argument', 'offlineChannel must be between 1 and 13')
+      throw new StackchanError('INVALID_ARGUMENT', 'offlineChannel must be between 1 and 13')
     }
     this.id = id.toUpperCase()
     if (typeof radioFactoryOrRegistry === 'function') {
@@ -218,31 +222,54 @@ export class LocalPeerService implements LocalPeerCapability {
     this.#offlineChannel = channel
   }
 
-  async open(options: LocalPeerOpenOptions): Promise<LocalPeerSession> {
+  async open(options: LocalPeerOpenOptions, signal?: CancellationSignal): Promise<LocalPeerSession> {
+    signal?.throwIfCancelled()
+    if (this.#closeError) throw this.#closeError
+    if (this.#closed) throw new StackchanError('CLOSED', 'local peer service is closed')
     validateOpenOptions(options)
     if (this.#session && !this.#session.closed) {
-      throw new LocalPeerError('invalid-argument', 'a local peer session is already open')
+      throw new StackchanError('BUSY', 'a local peer session is already open')
     }
     const transport = options.transport ?? this.#defaultTransport
     const radioFactory = this.#radioFactories[transport]
-    if (!radioFactory) throw new LocalPeerError('not-supported', `${transport} local peer transport is not supported`)
+    if (!radioFactory) throw new StackchanError('UNSUPPORTED', `${transport} local peer transport is not supported`)
     let session: LocalPeerSessionImpl
     try {
-      session = new LocalPeerSessionImpl(this.id, radioFactory, options, this.#offlineChannel, () => {
+      session = new LocalPeerSessionImpl(this.id, radioFactory, options, this.#offlineChannel, (error) => {
+        if (error) this.#closeError = error
         if (this.#session === session) this.#session = undefined
       })
     } catch (error) {
-      if (error instanceof LocalPeerError) throw error
-      throw new LocalPeerError('transport', error instanceof Error ? error.message : String(error))
+      if (error instanceof StackchanError) throw error
+      throw new StackchanError('IO', error instanceof Error ? error.message : String(error))
     }
     this.#session = session
+    const unsubscribe = signal?.subscribe(() => session.close())
     try {
-      await session.announce()
+      // Start protocol I/O after the caller stack unwinds; XS has a bounded stack.
+      await Promise.resolve().then(() => session.announce(signal))
+      signal?.throwIfCancelled()
+      if (this.#closed || session.closed) throw new StackchanError('CLOSED', 'local peer service is closed')
     } catch (error) {
       session.close()
+      signal?.throwIfCancelled()
       throw error
+    } finally {
+      unsubscribe?.()
     }
     return session
+  }
+
+  close(): void {
+    if (this.#closed) {
+      if (this.#closeError) throw this.#closeError
+      return
+    }
+    this.#closed = true
+    const session = this.#session
+    this.#session = undefined
+    session?.close()
+    if (this.#closeError) throw this.#closeError
   }
 }
 
@@ -254,7 +281,9 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
   readonly displayName?: string
   closed = false
   #radio: LocalPeerRadio
-  #onClose: () => void
+  #onClose: (error?: StackchanError) => void
+  #closeError?: StackchanError
+  #radioWaits = new Set<(error: unknown) => void>()
   #peers = new Map<string, PeerRecord>()
   #subscribers = new Map<string, Set<(message: LocalPeerMessage) => void>>()
   #pending = new Map<number, PendingSend>()
@@ -267,7 +296,7 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     radioFactory: LocalPeerRadioFactory,
     options: LocalPeerOpenOptions,
     offlineChannel = DEFAULT_OFFLINE_CHANNEL,
-    onClose: () => void = () => {},
+    onClose: (error?: StackchanError) => void = () => {},
   ) {
     this.id = id
     this.service = options.service
@@ -283,11 +312,11 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     })
     if (this.#radio.id.toUpperCase() !== this.id.toUpperCase()) {
       this.#radio.close()
-      throw new LocalPeerError('transport', 'local peer radio identity changed')
+      throw new StackchanError('IO', 'local peer radio identity changed')
     }
   }
 
-  async announce(): Promise<void> {
+  async announce(signal?: CancellationSignal): Promise<void> {
     this.#assertOpen()
     const payload = encodeUTF8(
       JSON.stringify({ service: this.service, name: this.displayName } satisfies DiscoveryEnvelope),
@@ -301,14 +330,14 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
       serviceHash: this.serviceHash,
       payload,
     })
-    await this.#sendRadio(undefined, frame)
+    await this.#sendRadio(undefined, frame, signal)
   }
 
-  async discover(options: { timeoutMs?: number } = {}): Promise<readonly LocalPeerInfo[]> {
+  async discover(options: OperationOptions & { timeoutMs?: number } = {}): Promise<readonly LocalPeerInfo[]> {
     this.#assertOpen()
     const timeoutMs = options.timeoutMs ?? DEFAULT_DISCOVERY_TIMEOUT_MS
     if (!Number.isFinite(timeoutMs) || timeoutMs < 0 || timeoutMs > 60_000) {
-      throw new LocalPeerError('invalid-argument', 'timeoutMs must be between 0 and 60000')
+      throw new StackchanError('INVALID_ARGUMENT', 'timeoutMs must be between 0 and 60000')
     }
     const payload = encodeUTF8(
       JSON.stringify({ service: this.service, name: this.displayName } satisfies DiscoveryEnvelope),
@@ -322,27 +351,35 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
       serviceHash: this.serviceHash,
       payload,
     })
-    await this.#sendRadio(undefined, frame)
+    await this.#sendRadio(undefined, frame, options.signal)
     this.#assertOpen()
-    if (timeoutMs > 0) await this.#waitForDiscovery(timeoutMs)
+    if (timeoutMs > 0) await this.#waitForDiscovery(timeoutMs, options.signal)
+    options.signal?.throwIfCancelled()
     this.#assertOpen()
     return Array.from(this.#peers.values(), publicPeer)
   }
 
-  async send(peerId: string, type: string, payload: JsonValue): Promise<LocalPeerDeliveryReceipt> {
+  async send(
+    peerId: string,
+    type: string,
+    payload: JsonValue,
+    options: OperationOptions = {},
+  ): Promise<LocalPeerDeliveryReceipt> {
     this.#assertOpen()
+    options.signal?.throwIfCancelled()
     validatePeerId(peerId)
     const normalizedPeerId = peerId.toUpperCase()
     if (normalizedPeerId === this.id.toUpperCase()) {
-      throw new LocalPeerError('invalid-argument', 'cannot send a point-to-point message to this device')
+      throw new StackchanError('INVALID_ARGUMENT', 'cannot send a point-to-point message to this device')
     }
     const encoded = encodeEnvelope(this.service, type, payload)
     if (!this.#peers.has(normalizedPeerId)) {
-      const discovered = await this.discover()
+      const discovered = await this.discover({ signal: options.signal })
       if (!discovered.some((peer) => peer.id === normalizedPeerId)) {
-        throw new LocalPeerError('peer-unavailable', `peer ${normalizedPeerId} is not available on this channel`)
+        throw new StackchanError('IO', `peer ${normalizedPeerId} is not available on this channel`)
       }
     }
+    options.signal?.throwIfCancelled()
     this.#addPeer(normalizedPeerId)
     const messageId = allocateMessageId()
     const frames = fragmentLocalPeerPayload(
@@ -353,13 +390,37 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
       encoded,
     )
     return new Promise<LocalPeerDeliveryReceipt>((resolve, reject) => {
-      const pending: PendingSend = { peerId: normalizedPeerId, frames, attempts: 0, resolve, reject }
+      let settled = false
+      let unsubscribe: (() => void) | undefined
+      const finish = (result: { receipt: LocalPeerDeliveryReceipt } | { error: unknown }) => {
+        if (settled) return
+        settled = true
+        if (pending.timer) Timer.clear(pending.timer)
+        this.#pending.delete(messageId)
+        unsubscribe?.()
+        if ('error' in result) reject(result.error)
+        else resolve(result.receipt)
+      }
+      const pending: PendingSend = {
+        peerId: normalizedPeerId,
+        frames,
+        attempts: 0,
+        signal: options.signal,
+        resolve: (receipt) => finish({ receipt }),
+        reject: (error) => finish({ error }),
+      }
       this.#pending.set(messageId, pending)
-      void this.#transmit(messageId, pending)
+      unsubscribe = options.signal?.subscribe((error) => finish({ error }))
+      if (settled) unsubscribe?.()
+      else void this.#transmit(messageId, pending)
     })
   }
 
-  async broadcast(type: string, payload: JsonValue): Promise<LocalPeerBroadcastReceipt> {
+  async broadcast(
+    type: string,
+    payload: JsonValue,
+    options: OperationOptions = {},
+  ): Promise<LocalPeerBroadcastReceipt> {
     this.#assertOpen()
     const encoded = encodeEnvelope(this.service, type, payload)
     const messageId = allocateMessageId()
@@ -370,14 +431,15 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
       this.serviceHash,
       encoded,
     )
-    for (const frame of frames) await this.#sendRadio(undefined, frame)
+    for (const frame of frames) await this.#sendRadio(undefined, frame, options.signal)
+    options.signal?.throwIfCancelled()
     return { messageId: formatMessageId(messageId) }
   }
 
   subscribe(type: string | '*', handler: (message: LocalPeerMessage) => void): () => void {
     this.#assertOpen()
     if (type !== '*') validateMessageType(type)
-    if (typeof handler !== 'function') throw new LocalPeerError('invalid-argument', 'handler must be a function')
+    if (typeof handler !== 'function') throw new StackchanError('INVALID_ARGUMENT', 'handler must be a function')
     let handlers = this.#subscribers.get(type)
     if (!handlers) {
       handlers = new Set()
@@ -394,11 +456,15 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
   }
 
   close(): void {
-    if (this.closed) return
+    if (this.closed) {
+      if (this.#closeError) throw this.#closeError
+      return
+    }
     this.closed = true
+    for (const fail of [...this.#radioWaits]) fail(new StackchanError('CLOSED', 'local peer session is closed'))
     for (const [messageId, pending] of this.#pending) {
       if (pending.timer) Timer.clear(pending.timer)
-      pending.reject(new LocalPeerError('closed', `message ${formatMessageId(messageId)} was cancelled`))
+      pending.reject(new StackchanError('CLOSED', `message ${formatMessageId(messageId)} was cancelled`))
     }
     this.#pending.clear()
     for (const [timer, finish] of this.#discoveryWaits) {
@@ -414,17 +480,18 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     try {
       this.#radio.close()
     } catch (error) {
-      trace(`[local-peer] close failed: ${String(error)}\n`)
+      this.#closeError = new StackchanError('IO', error instanceof Error ? error.message : String(error))
     } finally {
-      this.#onClose()
+      this.#onClose(this.#closeError)
     }
+    if (this.#closeError) throw this.#closeError
   }
 
   async #transmit(messageId: number, pending: PendingSend): Promise<void> {
     if (this.closed || this.#pending.get(messageId) !== pending) return
     pending.attempts += 1
     try {
-      for (const frame of pending.frames) await this.#sendRadio(pending.peerId, frame)
+      for (const frame of pending.frames) await this.#sendRadio(pending.peerId, frame, pending.signal)
     } catch (_error) {
       // A transient radio failure follows the same bounded retry policy as a missing ACK.
     }
@@ -435,8 +502,8 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
       if (pending.attempts >= MAX_SEND_ATTEMPTS) {
         this.#pending.delete(messageId)
         pending.reject(
-          new LocalPeerError(
-            'timeout',
+          new StackchanError(
+            'TIMEOUT',
             `peer ${pending.peerId} did not acknowledge message ${formatMessageId(messageId)}`,
           ),
         )
@@ -446,13 +513,50 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     }, ACK_TIMEOUT_MS)
   }
 
-  async #sendRadio(peerId: string | undefined, frame: ArrayBuffer): Promise<void> {
+  async #sendRadio(peerId: string | undefined, frame: ArrayBuffer, signal?: CancellationSignal): Promise<void> {
+    signal?.throwIfCancelled()
     this.#assertOpen()
     try {
-      await this.#radio.send(peerId, frame)
+      if (this.#radioWaits.size >= 16) throw new StackchanError('BUSY', 'local peer radio send queue is full')
+      await new Promise<void>((resolve, reject) => {
+        let settled = false
+        let unsubscribe: (() => void) | undefined
+        const finish = (error?: unknown) => {
+          if (settled) return
+          settled = true
+          this.#radioWaits.delete(fail)
+          unsubscribe?.()
+          if (error !== undefined) reject(error)
+          else resolve()
+        }
+        const fail = (error: unknown) => finish(error)
+        this.#radioWaits.add(fail)
+        unsubscribe = signal?.subscribe(fail)
+        if (settled) {
+          unsubscribe?.()
+          return
+        }
+        try {
+          void Promise.resolve()
+            .then(() => {
+              signal?.throwIfCancelled()
+              this.#assertOpen()
+              return this.#radio.send(peerId, frame)
+            })
+            .then(
+              () => finish(),
+              (error) => finish(error),
+            )
+        } catch (error) {
+          finish(error)
+        }
+      })
+      signal?.throwIfCancelled()
+      this.#assertOpen()
     } catch (error) {
-      if (this.closed) throw new LocalPeerError('closed', 'local peer session is closed')
-      throw new LocalPeerError('transport', error instanceof Error ? error.message : String(error))
+      signal?.throwIfCancelled()
+      if (this.closed) throw new StackchanError('CLOSED', 'local peer session is closed')
+      throw asStackchanError(error)
     }
   }
 
@@ -633,7 +737,7 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     try {
       this.#radio.addPeer(peerId, this.sharedKey !== undefined)
     } catch (error) {
-      throw new LocalPeerError('transport', error instanceof Error ? error.message : String(error))
+      throw new StackchanError('IO', error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -679,19 +783,25 @@ export class LocalPeerSessionImpl implements LocalPeerSession {
     }
   }
 
-  #waitForDiscovery(timeoutMs: number): Promise<void> {
-    return new Promise((resolve) => {
+  #waitForDiscovery(timeoutMs: number, signal?: CancellationSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
       let timer: TimerHandle
-      const finish = () => {
+      let unsubscribe: (() => void) | undefined
+      const finish = (error?: unknown) => {
+        Timer.clear(timer)
         this.#discoveryWaits.delete(timer)
-        resolve()
+        unsubscribe?.()
+        if (error !== undefined) reject(error)
+        else resolve()
       }
-      timer = Timer.set(finish, timeoutMs)
-      this.#discoveryWaits.set(timer, finish)
+      timer = Timer.set(() => finish(), timeoutMs)
+      this.#discoveryWaits.set(timer, () => finish())
+      unsubscribe = signal?.subscribe(finish)
+      if (signal?.reason) unsubscribe?.()
     })
   }
 
   #assertOpen(): void {
-    if (this.closed) throw new LocalPeerError('closed', 'local peer session is closed')
+    if (this.closed) throw new StackchanError('CLOSED', 'local peer session is closed')
   }
 }

@@ -1,4 +1,4 @@
-import type { StackchanContext } from 'capabilities'
+import type { HostPresentation } from 'capabilities'
 import type { Container as PiuContainer } from 'piu/MC'
 import { Container, Label, Text } from 'piu/MC'
 import type { StackchanInboundApplicationEvent, StackchanOutboundApplicationEvent } from 'stackchan-application-event'
@@ -35,7 +35,7 @@ export type ApprovalSession = {
   close(): void
 }
 
-export function createApprovalSession(transport: ApprovalTransport, context: StackchanContext): ApprovalSession {
+export function createApprovalSession(transport: ApprovalTransport, context: HostPresentation): ApprovalSession {
   const queue: ApprovalEntry[] = []
   let responseTimer: ReturnType<typeof Timer.repeat> | undefined
   let closed = false

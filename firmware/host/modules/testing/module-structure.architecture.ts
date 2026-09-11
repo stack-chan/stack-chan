@@ -153,10 +153,14 @@ test('runtime modules own implementation manifests and tests under host/modules'
   }
 })
 
-test('production runtime imports use manifest module specifiers instead of relative paths', () => {
-  const offenders = PRODUCTION_MANIFEST_ROOTS.flatMap((root) => walkFiles(root))
+test('host runtime imports use manifest module specifiers instead of relative paths', () => {
+  // App-local dependencies are checked against the resolved graph by sdk-boundary.architecture.ts.
+  // Host imports retain manifest indirection so platform replacements select the implementation.
+  const offenders = ['host/app', 'host/modules', 'host/platforms']
+    .flatMap((root) => walkFiles(root))
     .filter(isSourceFile)
     .filter((path) => !isTestOrArchitectureTarget(path))
+    .filter((path) => !path.startsWith('host/app/default-app/'))
     .flatMap((sourcePath) =>
       extractRuntimeModuleSpecifierUses(readFileSync(sourcePath, 'utf8'))
         .filter(({ typeOnly }) => !typeOnly)
@@ -205,32 +209,6 @@ test('Timer and input handlers do not inline async functions', () => {
 })
 
 test('periodic motion hot paths reuse fixed state and callbacks', () => {
-  const controller = readFileSync(join(MODULE_ROOT, 'motion', 'motion-controller.ts'), 'utf8')
-  const updatePoseBlocks = extractMethodBlocks(controller, 'updatePose')
-
-  assert.equal(updatePoseBlocks.length, 1, 'MotionController should have one updatePose hot path')
-  assert.doesNotMatch(controller, /Vector3\.rotate/, 'MotionController should avoid allocating Vector3.rotate')
-  assert.doesNotMatch(
-    controller,
-    /Rotation\.fromVector3/,
-    'MotionController should avoid allocating Rotation.fromVector3',
-  )
-  assert.doesNotMatch(controller, /getRotation\(\s*\(/, 'MotionController should reuse getRotation callback')
-  assert.doesNotMatch(controller, /setTorque\(true,\s*\(/, 'MotionController should reuse setTorque callback')
-  assert.doesNotMatch(
-    controller,
-    /applyRotation\([^,\n]+,\s*[^,\n]+,\s*\(/,
-    'MotionController should reuse applyRotation callback',
-  )
-  assert.doesNotMatch(controller, /Timer\.set\(\s*\(/, 'MotionController should reuse Timer callback')
-
-  for (const block of updatePoseBlocks) {
-    assert.doesNotMatch(block, /\bnew\b/, 'updatePose should not allocate objects')
-    assert.doesNotMatch(block, /(?:=|return|,\s*)\s*\{/, 'updatePose should not create object literals')
-    assert.doesNotMatch(block, /(?:=|return|,\s*)\s*\[/, 'updatePose should not create array literals')
-    assert.doesNotMatch(block, /\.\s*(?:map|filter|reduce)\s*\(/, 'updatePose should not allocate arrays')
-  }
-
   const driverFiles = [
     'dynamixel-driver.ts',
     'm5stackchan-servo-driver.ts',
@@ -261,54 +239,12 @@ test('periodic motion hot paths reuse fixed state and callbacks', () => {
   }
 })
 
-test('motion protocol continuable command errors are reported through callbacks', () => {
-  const waitSlot = readFileSync(join(MODULE_ROOT, 'motion', 'internal', 'single-wait-slot.ts'), 'utf8')
-  assert.match(waitSlot, /wait\([\s\S]*?\): boolean/, 'SingleWaitSlot.wait should report slot acquisition')
-  assert.doesNotMatch(
-    waitSlot,
-    /throw new Error\('wait slot is already in use'\)/,
-    'SingleWaitSlot should not throw for a continuable busy state',
-  )
-
-  const protocolSources = [
-    join(MODULE_ROOT, 'motion', 'protocols', 'dynamixel.ts'),
-    join(MODULE_ROOT, 'motion', 'protocols', 'rs30x.ts'),
-    join(MODULE_ROOT, 'motion', 'protocols', 'scservo.ts'),
-  ]
-
-  for (const sourcePath of protocolSources) {
-    const source = readFileSync(sourcePath, 'utf8')
-    assert.match(source, /const COMMAND_BUSY_ERROR = 'command is already waiting for response'/)
-    assert.match(source, /#dispatchCommand\(/, `${sourcePath} should define dispatch command paths`)
-    assert.doesNotMatch(
-      source,
-      /throw new Error\('command is already waiting for response'\)/,
-      `${sourcePath} should not throw for command busy states`,
-    )
-    assert.match(source, /onError\(new Error\(COMMAND_BUSY_ERROR\)\)/)
-  }
-})
-
-test('optional PY32 hardware initialization is reported without making consumers throw', () => {
-  const expander = readFileSync(join(MODULE_ROOT, 'io-expander', 'py32-io-expander.ts'), 'utf8')
+test('motion and lighting share their IO module without depending on each other', () => {
   const motionManifest = readJson(join(MODULE_ROOT, 'motion', 'manifest.json'))
   const lightingManifest = readJson(join(MODULE_ROOT, 'lighting', 'manifest.json'))
-
   assert.ok(motionManifest.include.includes('../io-expander/manifest.json'))
   assert.ok(!motionManifest.include.includes('../lighting/manifest.json'))
   assert.ok(lightingManifest.include.includes('../io-expander/manifest.json'))
-  assert.match(expander, /export function tryGetSharedPY32IOExpander/)
-  assert.match(expander, /onError\?\.\(error\)/)
-
-  const py32Led = readFileSync(join(MODULE_ROOT, 'lighting', 'py32-led.ts'), 'utf8')
-  assert.match(py32Led, /tryGetSharedPY32IOExpander/)
-  assert.doesNotMatch(py32Led, /getSharedPY32IOExpander\(/)
-  assert.match(py32Led, /if \(!expander\) return/)
-
-  const m5stackchanServo = readFileSync(join(MODULE_ROOT, 'motion', 'm5stackchan-servo-driver.ts'), 'utf8')
-  assert.match(m5stackchanServo, /tryGetSharedPY32IOExpander/)
-  assert.doesNotMatch(m5stackchanServo, /getSharedPY32IOExpander\(/)
-  assert.match(m5stackchanServo, /if \(!expander\) return/)
 })
 
 test('runtime state machines keep internal state as numeric constants', () => {
@@ -400,7 +336,7 @@ test('sample MOD manifests live under mods/examples', () => {
     .filter(existsSync)
 
   assert.ok(exampleManifests.includes(join('mods', 'examples', 'look_around', 'manifest.json')))
-  assert.ok(exampleManifests.includes(join('mods', 'examples', 'm5stackchan_smoke', 'manifest.json')))
+  assert.ok(exampleManifests.includes(join('mods', 'examples', 'board_diagnostics', 'manifest.json')))
 })
 
 test('sample MOD relative manifest includes resolve from examples directories', () => {
@@ -427,7 +363,7 @@ test('sample MODs use namespaced context capabilities', () => {
     .filter((path) => path.endsWith('.js'))
     .filter((path) => flatApiPattern.test(readFileSync(path, 'utf8')))
 
-  assert.deepEqual(offenders, [], 'sample MODs should use namespaced StackchanContext capabilities')
+  assert.deepEqual(offenders, [], 'sample MODs should use the public SDK')
 })
 
 test('subplatforms that define camera pins are gated into the camera and conversation manifests', () => {

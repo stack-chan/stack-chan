@@ -1,17 +1,26 @@
 {
   "include": [
+    "../../../sdk/manifest.json",
+    "../../../contracts/manifest_recording.json",
+    "../../../contracts/manifest_playback.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "../../app/manifest_typings.json",
     "../../../vendor/stackchan-voice/manifest.json"
   ],
   "modules": {
     "audio-buffer": "./audio-buffer",
+    "audio-ports": "./audio-ports",
+    "recording-wave": "./recording-wave",
+    "recorded-audio": "./recorded-audio",
+    "pcm-wave": "./pcm-wave",
     "wasm-audio-bridge": "./wasm/audio-bridge",
     "wasm-audio-bridge-contract": "./wasm/audio-bridge-contract",
+    "wasm-audio-playback": "./wasm/audio-playback",
     "speaker": "./wasm/speaker",
     "microphone": "./wasm/microphone",
     "audio-in": "./wasm/audio-in",
     "tts-types": "./tts-types",
+    "tts-playback-session": "./tts-playback-session",
     "tts-local": "./wasm/tts-local",
     "tts-remote": "./wasm/tts-remote",
     "tts-voicevox": "./wasm/tts-voicevox",

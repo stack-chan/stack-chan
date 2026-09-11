@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.local-peer-hello",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "local_peer_hello",
+  "description": "Send or receive bounded local-peer greetings.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
+  "capabilities": ["ui.controls", "network.peer"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["network.peer"]
+}

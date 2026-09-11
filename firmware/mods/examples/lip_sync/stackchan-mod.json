@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.lip-sync",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "lip_sync",
+  "description": "Animate the mouth using normalized microphone levels.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
+  "capabilities": ["ui.controls", "audio.monitor"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["audio.monitor"]
+}

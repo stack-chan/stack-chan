@@ -3,8 +3,44 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
+import { invalidModSettings, makeXsArchive, modDefinition } from '../../contracts/testing/xsa-fixture.js'
 import { buildOutputDirectory } from './build-output.mjs'
 import { esptoolConnectionArguments, installModArchive, resolveModArchivePath } from './mod-flash.mjs'
+
+test('CLI refuses newer app requirements before write-flash or verify-flash', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-api-'))
+  const archivePath = path.join(fixture, 'app.xsa')
+  try {
+    writeFileSync(archivePath, makeXsArchive())
+    for (const hostApiVersion of [1, 2]) {
+      const calls = []
+      const install = () =>
+        installModArchive({
+          archivePath,
+          temporaryDirectory: fixture,
+          runCommand(_command, args) {
+            calls.push(args)
+            if (args.includes('read-flash'))
+              writeFileSync(
+                args.at(-1),
+                Number(args.at(-3)) === 0x8000
+                  ? makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
+                  : makeAppHeader({ version: `9.5.0+stackchan.${hostApiVersion}`, projectName: 'xs_esp32' }),
+              )
+          },
+        })
+      if (hostApiVersion < modDefinition.hostApiVersion) {
+        assert.throws(install, (error) => error.code === 'MOD_HOST_API_UNSUPPORTED')
+        assert.equal(calls.length, 2)
+      } else {
+        assert.equal(install().firmware.hostApiVersion, hostApiVersion)
+        assert.equal(calls.length, 4)
+      }
+    }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})
 
 test('resolves mcrun archives using the observable output contract', () => {
   assert.equal(
@@ -38,7 +74,7 @@ test('reads the live partition layout before writing and verifying a MOD', () =>
   const archivePath = path.join(fixture, 'look_around.xsa')
   const archive = makeArchive(192)
   const partitionTable = makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
-  const appHeader = makeAppHeader({ version: '8.3.1+stackchan.1', projectName: 'xs_esp32' })
+  const appHeader = makeAppHeader({ version: '8.3.1+stackchan.2', projectName: 'xs_esp32' })
   const calls = []
   const scratchPaths = []
 
@@ -181,12 +217,7 @@ test('validates optional esptool connection settings', () => {
 })
 
 function makeArchive(size) {
-  const archive = Buffer.alloc(size)
-  archive.writeUInt32BE(size, 0)
-  archive.write('XS_A', 4, 'ascii')
-  archive.write('VERS', 12, 'ascii')
-  archive.set([17, 8, 0], 16)
-  return archive
+  return makeXsArchive({ metadata: modDefinition, padding: size })
 }
 
 function makePartitionTable({ xsOffset, xsSize }) {
@@ -212,3 +243,103 @@ function makeAppHeader({ version, projectName }) {
   header.write(projectName, 0x50, 'utf8')
   return header
 }
+
+test('9.5 MOD preflight rejects an out-of-range archive before writing', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-flash-xs-'))
+  const archivePath = path.join(fixture, 'mod.xsa')
+  const archive = makeArchive(128)
+  archive[17] = 9
+  let reads = 0
+  try {
+    writeFileSync(archivePath, archive)
+    assert.throws(
+      () =>
+        installModArchive({
+          archivePath,
+          temporaryDirectory: fixture,
+          runCommand(_command, args) {
+            assert.ok(args.includes('read-flash'), 'incompatible archives must never be flashed')
+            writeFileSync(
+              args.at(-1),
+              ++reads === 1
+                ? makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
+                : makeAppHeader({ version: '9.5.0+stackchan.2', projectName: 'xs_esp32' }),
+            )
+          },
+        }),
+      /Incompatible XS archive/,
+    )
+    assert.equal(reads, 2)
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})
+
+test('CLI checks firmware board identity and build capabilities before any write', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-board-'))
+  const archivePath = path.join(fixture, 'app.xsa')
+  const scenarios = [
+    { suffix: '.rt', metadata: { ...modDefinition, targets: ['m5stackchan-cores3'] }, code: 'MOD_TARGET_UNSUPPORTED' },
+    { suffix: '', metadata: { ...modDefinition, targets: ['m5stackchan-cores3'] }, code: 'MOD_TARGET_UNKNOWN' },
+    { suffix: '.t2', metadata: { ...modDefinition, capabilities: ['camera'] }, code: 'MOD_CAPABILITY_UNAVAILABLE' },
+    { suffix: '.rt', metadata: modDefinition, expectedTarget: 'm5stackchan-cores3', code: 'MOD_TARGET_UNSUPPORTED' },
+    { suffix: '', metadata: modDefinition, expectedTarget: 'm5stackchan-cores3', code: 'MOD_TARGET_UNKNOWN' },
+    { suffix: '.sc3', metadata: { ...modDefinition, targets: ['m5stackchan-cores3'] } },
+    { suffix: '', metadata: modDefinition },
+  ]
+  try {
+    for (const scenario of scenarios) {
+      writeFileSync(archivePath, makeXsArchive({ metadata: scenario.metadata }))
+      const writes = []
+      const install = () =>
+        installModArchive({
+          archivePath,
+          temporaryDirectory: fixture,
+          expectedTarget: scenario.expectedTarget,
+          runCommand(_command, args) {
+            if (args.includes('read-flash'))
+              writeFileSync(
+                args.at(-1),
+                Number(args.at(-3)) === 0x8000
+                  ? makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
+                  : makeAppHeader({ version: `9.5.0+stackchan.9${scenario.suffix}`, projectName: 'xs_esp32' }),
+              )
+            else writes.push(args)
+          },
+        })
+      if (scenario.code) {
+        assert.throws(install, { code: scenario.code })
+        assert.equal(writes.length, 0)
+      } else {
+        assert.doesNotThrow(install)
+        assert.equal(writes.length, 2)
+      }
+    }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})
+
+test('CLI rejects invalid app defaults before opening a device', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-settings-'))
+  const archivePath = path.join(directory, 'app.xsa')
+  try {
+    for (const settings of invalidModSettings) {
+      writeFileSync(archivePath, makeXsArchive({ metadata: { ...modDefinition, hostApiVersion: 9, settings } }))
+      let operations = 0
+      assert.throws(
+        () =>
+          installModArchive({
+            archivePath,
+            runCommand() {
+              operations++
+            },
+          }),
+        { code: 'MOD_METADATA_INVALID' },
+      )
+      assert.equal(operations, 0)
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})

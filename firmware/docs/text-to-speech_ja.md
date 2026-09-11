@@ -1,121 +1,67 @@
-# TTS（音声合成）の使用
+# TTS（音声合成）と音声素材
 
 [English](./text-to-speech.md)
 
-現在、TTSを使用するには2つの方法があります。
+アプリは `stackchan` の `app.audio` を使います。文章の合成は `say(text)`、同梱した音声素材の再生は `playClip(name)` に分かれています。機能の確認・キャンセル・エラー処理は [SDK ガイド](../sdk/README_ja.md) を参照してください。
 
-* __事前生成__：ビルド時に音声を生成し、スタンドアロンで再生します。事前に定義された文章に適しています。
-* __リモート__：TTSサーバに音声文章を問い合わせ、生成された音声をストリームします。
+| 用途 | API | 準備 |
+| --- | --- | --- |
+| その場で日本語を合成 | `app.audio.say(text)` | `tts.type=stackchan-voice`。ネットワーク不要 |
+| サーバーで文章を合成 | `app.audio.say(text)` | 対応provider、接続先と認証情報、ネットワーク |
+| 事前に生成した音声を再生 | `app.audio.playClip(name)` | WAVをMODの `resources` に同梱 |
 
-現在、アクエストークのような__ローカル（オンデマンド）__のTTSは利用できませんが、プルリクエストは歓迎します！
+## 文章を話す
 
-## 前提条件
+```js
+import { defineApp } from 'stackchan'
 
-どちらの方法を選んでも、まず外部のTTSエンジンを準備する必要があります。
-
-以下がテスト済みです：
-
-* [Google Cloud Text-to-Speech API](https://cloud.google.com/text-to-speech)
-* [Coqui AI TTS](https://github.com/coqui-ai/TTS)
-* [VoiceVox](https://github.com/Hiroshiba/voicevox_engine)
-* [ElevenLabs](https://elevenlabs.io/speech-synthesis)
-
-それぞれの公式ドキュメントも参照してください。
-
-### Google Cloud TTS
-
-* [認証ガイド](https://cloud.google.com/docs/authentication/getting-started)を通じて認証し、key.jsonを生成します。
-* `key.json`を`scripts`ディレクトリに保存します。
-
-### Coqui AI TTS
-
-* coqui-ai/TTSをインストールします。
-* サーバを起動します。
-
-```sh
-$ tts-server --port 8080 --model_name tts_models/ja/kokoro/tacotron2-DDC
+export default defineApp({
+  setup(app) {
+    app.input.onPress('primary', async (task) => {
+      await app.audio.say('こんにちは、ｽﾀｯｸﾁｬﾝです。', { signal: task.signal })
+    })
+  },
+})
 ```
 
-* `host/app/manifest_local.json`の`config.tts.host|port`にサーバー設定を保存します
+設定画面で音声providerを選択します。`stackchan-voice` は同梱のオフライン日本語エンジンです。リモートproviderには `remote`（Coqui互換）、`voicevox`、`voicevox-web`、`elevenlabs`、`openai` があります。接続先やAPIキーはホスト設定で管理し、配布するソースやmetadataへ秘密を入れないでください。設定は [設定スキーマ](../contracts/settings-schema.js)、オフライン合成と歌は [stackchan-voice](./stackchan-voice.md) を参照してください。
 
-```json
-{
-    "config": {
-        "tts": {
-            "host": "your.tts.host.local",
-            "port": 8080
-        }
-    }
-}
-```
+`audio.speech` が利用不可なら、`app.capabilities.get('audio.speech')` の理由を表示できます。プロバイダー設定・通信・再生の失敗はPromiseの拒否になります。入力handler内の非同期処理は `await` または `return` し、ホストに完了と失敗を渡します。
 
-### ElevenLabs TTS
+## 音声素材を用意する
 
-* [API KEY](https://docs.elevenlabs.io/authentication/01-xi-api-key)に従い、API KEYを取得します。
-* `host/app/manifest_local.json`の`config.tts`にAPI KEYを保存します
+MODのフォルダーに、素材名と文章の対応を作ります。
 
-```json
-{
-    "config": {
-        "tts": {
-            "type": "elevenlabs",
-            "token": "YOUR_API_KEY"
-        },
-    }
-}
-```
-
-## 使用方法（事前生成）
-
-以下のようなJavaScriptファイルに発話する文章を書き込みます（`mods/examples/monologue/speeches_monologue.js`などを参照）。
-
-```javascript
+```js
 // speeches.js
 export const speeches = {
-  niceToMeetYou: 'Hello. I am Stach-chan. Nice to meet you.',
-  hello: 'Hello World.',
-  konnichiwa: 'Konnichiwa.',
-  nihao: 'Nee hao.',
+  hello: 'こんにちは、ｽﾀｯｸﾁｬﾝです。',
+  goodbye: 'また遊ぼうね。',
 }
 ```
 
-* npm run generate-speech-[google|coqui|voicevox]を実行します
-  * このスクリプトはサーバーから音声データを取得し、host/modules/audio/assets/soundsにwaveファイルを保存します
-* 音声ファイルとともにファームウェアを書き込みます
-* `context.say(sentence: string)`を呼び出します
+音声生成スクリプトは開発PCからサーバーへ接続してWAVを保存します。次はVoiceVoxエンジンをローカルで起動した場合の例です。`firmware/` で実行し、出力先の `assets` ディレクトリーを先に作成してください。
 
-```javascript
-import { speeches } from 'speeches'
-const keys = Object.keys(speeches)
-
-export async function onContextCreated(context) {
-  await context.say('hello')
-  await context.say(keys[0] /* 'niceToMeetYou' */)
-}
+```sh
+npm run generate-speech-voicevox -- \
+  --input mods/my-app/speeches.js --output mods/my-app/assets \
+  --host 127.0.0.1 --port 50021 --speaker 1 --sample 11025
 ```
 
-## 使用方法（リモート）
+Coqui用は `generate-speech-coqui`（`--host` / `--port`）、Google Cloud用は `generate-speech-google`（認証ファイル `scripts/key.json`）です。いずれも `--input` / `--output` を指定できます。サーバーや認証情報の取得は各サービスの手順に従ってください。
 
-* `manifest_local.json`の`config.tts.type`プロパティを使用するTTSエンジンに合わせて設定します。
-
+教材のmanifestへ次の項目を追加します。
 
 ```json
 {
-    "config": {
-        "tts": {
-            "type": "remote",
-            "host": "your.tts.host.local",
-            "port": 8080
-        }
-    }
+  "resources": { "*": "./assets/*" }
 }
 ```
 
-* `context.say(sentence: string)`を呼び出します。
-
-```javascript
-// ...
-export async function onContextCreated(context) {
-  await context.say('Now I can speak any sentence you want.')
-}
+```js
+await app.audio.playClip('hello', { signal: task.signal })
 ```
+
+`hello.wav` はビルド時にMAUDへ変換されます。ホストは素材のヘッダーから再生レートを取得するため、アプリ側の `tts.sampleRate` 指定は不要です。欠落・不正な素材は再生前に拒否します。現在のWASM版は音声素材の再生に未対応なので、`audio.clips` を確認してください。
+
+`stackchan-mod.json` はschema 2 / app API 2を宣言し、必要な機能に `audio.speech` または `audio.clips` を追加します。音声素材のレートを自動判定するホストはAPI 9以降です。既存の素材例は [beacon](../mods/examples/beacon/README_ja.md) にあります。

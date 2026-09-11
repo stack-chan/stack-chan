@@ -15,43 +15,16 @@
     "../../modules/input/manifest_wasm.json",
     "../../modules/util/manifest.json",
     "../../modules/preferences/manifest_wasm.json",
-    "../../app/manifest_typings.json"
+    "../../app/manifest_typings.json",
+    "../../app/manifest_runtime.json",
+    "../../app/manifest_entry.json"
   ],
   "modules": {
-    "*": [
-      "../../app/main",
-      "../../app/app-behavior",
-      "../../app/app-behavior-resolver",
-      "../../app/app-launch",
-      "../../app/boot-network-recovery",
-      "../../app/boot-services",
-      "../../app/compose",
-      "../../app/capabilities",
-      "../../app/dock",
-      "../../app/experimental-mini-app-loader",
-      "../../app/experimental-mini-app-piu",
-      "../../app/experimental-mini-app-registration",
-      "../../app/setup-mode",
-      "../../app/settings-status",
-      "../../app/volume-preview",
-      "../../app/runtime-audio",
-      "../../app/runtime-camera",
-      "../../app/runtime-context",
-      "../../app/runtime-input",
-      "../../app/runtime-lighting",
-      "../../app/runtime-ui",
-      "../../app/owned-resources"
-    ],
+    "*": [],
     "startup-splash": "../../modules/ui/views/splash/splash-view",
     "camera-preview-utils": "../../modules/ui/views/camera-preview/camera-preview-utils",
     "led": "../../modules/lighting/wasm/led",
-    "py32-led": "../../modules/lighting/wasm/py32-led",
-    "app-behavior": "../../app/app-behavior",
-    "app-default-behavior": "../../app/default-behavior/wasm/behavior",
-    "app-default-behavior/wasm/behavior": "../../app/default-behavior/wasm/behavior",
-    "app-default-behavior/wasm/on-launch": "../../app/default-behavior/wasm/on-launch",
-    "app-default-behavior/startup-choice": "../../app/default-behavior/startup-choice",
-    "app-default-behavior/on-context-created": "../../app/default-behavior/on-context-created"
+    "py32-led": "../../modules/lighting/wasm/py32-led"
   },
   "preload": [
     "wasm-audio-bridge",
@@ -59,8 +32,7 @@
     "runtime-context",
     "touch-panel",
     "touch-panel-gesture",
-    "imu-motion",
-    "app-default-behavior"
+    "imu-motion"
   ],
   "strip": [],
   "creation": {
@@ -91,7 +63,8 @@
     },
     "ui": {
       "type": "simple"
-    }
+    },
+    "stackchanTarget": "simulator"
   },
   "typescript": {
     "tsconfig": {

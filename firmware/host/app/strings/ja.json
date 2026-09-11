@@ -26,6 +26,7 @@
   "boot.wifiNotFound": "保存済みWi-Fiが見つかりません",
   "boot.wifiFailed": "Wi-Fi接続に失敗しました",
   "settings.title": "設定",
+  "settings.saveFailed": "設定を保存できませんでした",
   "settings.scan": "スキャン",
   "settings.scanning": "スキャン中",
   "settings.boot": "起動",
@@ -84,5 +85,10 @@
   "drawer.recordAndPlay": "録音と再生",
   "drawer.color.light": "白",
   "drawer.color.dark": "黒",
-  "drawer.colorScheme": "配色"
+  "drawer.colorScheme": "配色",
+  "boot.capabilityUnavailable": "利用できない機能",
+  "boot.appFailed": "MODを起動できません",
+  "boot.replaceMod": "MODをインストール",
+  "boot.updateFirmware": "本体のファームウェアを更新してください",
+  "boot.targetUnsupported": "この機種用のMODを選んでください"
 }

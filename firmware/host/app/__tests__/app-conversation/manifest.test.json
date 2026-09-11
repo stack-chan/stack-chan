@@ -1,0 +1,51 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODULES)/base/modules/manifest.json",
+    "../../../../sdk/manifest.json",
+    "../../../../contracts/manifest_recording.json",
+    "../../../../contracts/manifest_playback.json",
+    "../../../modules/testing/manifest.json",
+    "../../../modules/conversation/manifest.json",
+    "../../../modules/connectivity/mcp-client/manifest_model.json"
+  ],
+  "modules": {
+    "main": "./app-conversation.test",
+    "~": "../../../modules/conversation/StackChanChatAudioIO",
+    "StackChanChatAudioIO": "./chat-audio-io",
+    "app-conversation": "../../app-conversation",
+    "app-dialogue": "../../app-dialogue",
+    "app-service-scope": "../../app-service-scope",
+    "cancellation": "../../cancellation",
+    "task-scope": "../../task-scope",
+    "owned-resources": "../../owned-resources",
+    "capabilities": "../../../modules/testing/fakes/capabilities",
+    "operation-queue": "../../operation-queue",
+    "runtime-audio": "../../runtime-audio",
+    "runtime-resources": "../../runtime-resources",
+    "app-audio-session": "../../app-audio-session",
+    "audio-ports": "../../../modules/audio/audio-ports",
+    "audio-buffer": "../../../modules/audio/audio-buffer",
+    "recorded-audio": "../../../modules/audio/recorded-audio",
+    "recording-wave": "../../../modules/audio/recording-wave",
+    "pcm-wave": "../../../modules/audio/pcm-wave",
+    "tts-playback-session": "../../../modules/audio/tts-playback-session",
+    "stackchan-util": "../../../modules/util/stackchan-util",
+    "mac-address": "../../../modules/util/sim/mac-address",
+    "stackchan-result": "../../../modules/util/result",
+    "camera": "../../../modules/camera/camera",
+    "motion-driver": "../../../modules/motion/motion-driver",
+    "motion-port": "../../../modules/motion/motion-port",
+    "servo-maintenance": "../../../modules/motion/servo-maintenance",
+    "tts-types": "../../../modules/audio/tts-types"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "creation": {
+    "stack": 1024
+  }
+}

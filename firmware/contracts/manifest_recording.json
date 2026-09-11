@@ -1,0 +1,8 @@
+{
+  "modules": { "stackchan-contracts/audio-recording": "./audio-recording" },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": { "allowJs": true }
+    }
+  }
+}

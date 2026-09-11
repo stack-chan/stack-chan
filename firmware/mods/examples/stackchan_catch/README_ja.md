@@ -14,12 +14,12 @@ archiveをインストールしてミニアプリ一覧を開き、`ｽﾀｯｸ
 
 スプライトは滑らかに動かさず、固定ポーズを瞬間的に切り替えます。LCD色の背景に薄い経路マーカーと濃いアクティブポーズを描き、現在位置を明確にしながらゲーム&ウォッチ風の表示にしています。
 
-現在の外部ミニアプリにはタッチイベントだけが渡され、本体ボタン能力は公開されません。そのためCore2/CoreS3の物理ボタンは割り当てていません。終了にはホスト所有の「戻る」ボタンを使います。`Port`が非表示になったときもゲームタイマーを停止します。
+実装と archive は [ミニゲーム集](../stackchan_minigames/README_ja.md) に統合しました。正本は `catch.ts` です。このディレクトリーは遊び方と出典の案内を保持します。終了にはホストの「戻る」を使い、非表示になったときにゲームのタイマーを停止します。
 
 `firmware/`から次のコマンドでarchiveをビルドできます。
 
 ```console
-npm run mod:build -- mods/examples/stackchan_catch/manifest.json --mode=release
+npm run mod:build -- mods/examples/stackchan_minigames/manifest.json --mode=release
 ```
 
 ## スプライトの出典

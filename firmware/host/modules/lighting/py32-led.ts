@@ -1,8 +1,8 @@
 import {
   normalizeLedRange,
   PY32_LED_MAX_COUNT,
-  type PY32IOExpander,
-  tryGetSharedPY32IOExpander,
+  type PY32IOExpanderLease,
+  tryAcquireSharedPY32IOExpander,
 } from 'py32-io-expander'
 import Timer from 'timer'
 
@@ -11,22 +11,36 @@ export default class PY32Led {
   #offTimer?: Timer
   #blinkTimer?: Timer
   #rainbowTimer?: Timer
-  #expander?: PY32IOExpander
+  #expander?: PY32IOExpanderLease
+  #closed = false
+
+  get available(): boolean {
+    return !this.#closed && this.#expander !== undefined
+  }
 
   constructor(parameters: { length?: number; ledPin?: number; address?: number }) {
     this.length = Math.max(1, Math.min(PY32_LED_MAX_COUNT, parameters.length ?? 12))
-    const expander = tryGetSharedPY32IOExpander(
+    const expander = tryAcquireSharedPY32IOExpander(
       parameters.address === undefined ? undefined : { address: parameters.address },
       (error) => trace(`[py32-led] init failed: ${error}\n`),
     )
     if (!expander) return
     this.#expander = expander
-    const ledPin = parameters.ledPin ?? 13
-    expander.setDirection(ledPin, true)
-    expander.setPullMode(ledPin, true)
-    expander.setDriveMode(ledPin, false)
-    expander.setLedCount(this.length)
-    this.off()
+    try {
+      const ledPin = parameters.ledPin ?? 13
+      expander.setDirection(ledPin, true)
+      expander.setPullMode(ledPin, true)
+      expander.setDriveMode(ledPin, false)
+      expander.setLedCount(this.length)
+      this.off()
+    } catch (error) {
+      try {
+        this.close()
+      } catch {
+        /* Preserve initialization failure. */
+      }
+      throw error
+    }
   }
 
   #stopEffect() {
@@ -55,30 +69,37 @@ export default class PY32Led {
   }
 
   on(r: number, g: number, b: number, duration?: number, index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     this.#stopEffect()
     this.#fill(r, g, b, index, count)
     if (duration) {
-      this.#offTimer = Timer.set(() => this.off(index, count), duration)
+      this.#offTimer = Timer.set(() => {
+        if (!this.#closed) this.off(index, count)
+      }, duration)
     }
   }
 
   off(index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     this.#stopEffect()
     this.#fill(0, 0, 0, index, count)
   }
 
   blink(r: number, g: number, b: number, duration: number, index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     this.#stopEffect()
     if (!this.#expander) return
     let enabled = false
     const period = Math.max(50, Math.trunc(duration / 2))
     this.#blinkTimer = Timer.repeat(() => {
+      if (this.#closed) return
       enabled = !enabled
       this.#fill(enabled ? r : 0, enabled ? g : 0, enabled ? b : 0, index, count)
     }, period)
   }
 
   rainbow(index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     this.#stopEffect()
     const expander = this.#expander
     if (!expander) return
@@ -92,6 +113,7 @@ export default class PY32Led {
     ] as const
     let offset = 0
     this.#rainbowTimer = Timer.repeat(() => {
+      if (this.#closed) return
       const { start, end } = normalizeLedRange(this.length, index, count)
       for (let i = start; i < end; i++) {
         const [r, g, b] = colors[(i + offset) % colors.length]
@@ -100,5 +122,29 @@ export default class PY32Led {
       expander.refreshLeds()
       offset = (offset + 1) % colors.length
     }, 100)
+  }
+  close(): void {
+    if (this.#closed) return
+    this.#closed = true
+    let failed = false
+    let failure: unknown
+    try {
+      this.#stopEffect()
+      this.#fill(0, 0, 0)
+    } catch (error) {
+      failed = true
+      failure = error
+    }
+    const lease = this.#expander
+    this.#expander = undefined
+    try {
+      lease?.close()
+    } catch (error) {
+      if (!failed) {
+        failed = true
+        failure = error
+      }
+    }
+    if (failed) throw failure
   }
 }

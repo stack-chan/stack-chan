@@ -10,4 +10,4 @@ npm run mod:build -- mods/examples/mini_app_ui_sample/manifest.json
 npm run mod -- mods/examples/mini_app_ui_sample/manifest.json
 ```
 
-mini-appのCompartmentで許可される`piu/MC`だけを利用し、host capabilityや外部サービスは要求しません。
+`mod.ts` が `stackchan/extensions/piu` の `definePiuApp` で画面を登録します。画面本体は `screen.ts` です。host API 3、app API 2、`ui.piu` が必要です。画面に渡る `context.app` は基本 SDK と同じもので、viewport と「戻る」はホストが管理します。旧 miniapp 専用 archive は再生成してください。

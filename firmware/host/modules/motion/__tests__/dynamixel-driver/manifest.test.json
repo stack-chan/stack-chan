@@ -6,7 +6,6 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "py32-io-expander": "../fakes/py32-io-expander-stub",
     "main": "./dynamixel-driver.test"
   }
 }

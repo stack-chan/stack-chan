@@ -1,9 +1,17 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_mod.json",
-    "$(MODULES)/data/text/decoder/manifest.json"
+    "$(MODDABLE)/examples/manifest_typings.json"
   ],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": { "allowJs": true }
+    }
+  },
   "modules": {
-    "*": "./mod"
+    "*": ["./mod"]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

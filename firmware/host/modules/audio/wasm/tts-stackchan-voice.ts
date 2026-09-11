@@ -1,12 +1,15 @@
-declare const setTimeout: (callback: () => void, delay?: number) => unknown
-
 import Resource from 'Resource'
-import { renderStackchanVoiceKoeWav, renderStackchanVoiceWav } from 'stackchan-voice-wav'
+import { StackchanError } from 'stackchan/errors'
+import {
+  renderStackchanVoiceKoeWav,
+  renderStackchanVoiceWav,
+  STACKCHAN_VOICE_OUTPUT_SAMPLE_RATE,
+} from 'stackchan-voice-wav'
 import StackchanVoice from 'stackchanvoice'
+import { beginPlaybackSession, PlaybackProvider } from 'tts-playback-session'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
-import type { WasmAudioOutputBridge } from './audio-bridge-contract.js'
-
-const WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS = 50
+import { scheduleWasmAudioTimer } from 'wasm-audio-bridge-contract'
+import { getWasmAudioOutputBridge, playWasmAudio, wasmAudioOutputAvailable } from 'wasm-audio-playback'
 
 export type TTSProperty = {
   onPlayed?: TTSPlaybackListener
@@ -16,55 +19,13 @@ export type TTSProperty = {
   voice?: 'normal' | 'cute'
 }
 
-type AudioBridgeGlobal = typeof globalThis & {
-  __stackchanWasmAudioBridge?: WasmAudioOutputBridge
-  Host?: {
-    AudioOut?: {
-      close?: () => void
-      play?: (buffer: ArrayBuffer) => Promise<boolean> | boolean
-    }
-  }
-}
-
-function getAudioBridge(): WasmAudioOutputBridge {
-  const env = globalThis as AudioBridgeGlobal
-  let playStatus = -1
-  return (
-    env.__stackchanWasmAudioBridge ?? {
-      close: () => env.Host?.AudioOut?.close?.(),
-      playStatus: () => playStatus,
-      startPlayBuffer: (buffer) => {
-        playStatus = 0
-        Promise.resolve(env.Host?.AudioOut?.play?.(buffer) ?? false).then(
-          (played) => {
-            playStatus = played ? 1 : -1
-          },
-          () => {
-            playStatus = -1
-          },
-        )
-      },
-      tone: () => {},
-    }
-  )
-}
-
-function schedule(audioBridge: WasmAudioOutputBridge, callback: () => void, delay: number): void {
-  if (audioBridge.setTimer) audioBridge.setTimer(callback, delay)
-  else setTimeout(callback, delay)
-}
-
-export class TTS {
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
-  streaming = false
+export class TTS extends PlaybackProvider {
   readonly volume: number
   readonly speed: number
   readonly voice: StackchanVoice
 
   constructor(props: TTSProperty = {}) {
-    this.onPlayed = props.onPlayed
-    this.onDone = props.onDone
+    super(props)
     this.volume = props.volume ?? 0.5
     this.speed = props.speed ?? 100
     const preset = props.voice === 'cute' ? StackchanVoice.Cute : StackchanVoice.Normal
@@ -75,62 +36,67 @@ export class TTS {
     this.#stream(text, false, volume, callback)
   }
 
+  available(): boolean {
+    return wasmAudioOutputAvailable()
+  }
+
   streamKoe(koe: string, volume?: number, callback?: TTSCompletion): void {
     this.#stream(koe, true, volume, callback)
   }
 
   #stream(source: string, isKoe: boolean, volume?: number, callback?: TTSCompletion): void {
-    if (this.streaming) {
-      callback?.(new Error('already playing'))
-      return
-    }
-    this.streaming = true
-
-    const finish = (error?: unknown): void => {
-      if (!this.streaming) return
-      this.streaming = false
-      try {
-        this.onDone?.()
-      } finally {
-        callback?.(error)
-      }
-    }
-
-    const audioBridge = getAudioBridge()
-    const render = isKoe ? renderStackchanVoiceKoeWav : renderStackchanVoiceWav
-    void render(this.voice, source, {
-      schedule: (callback) => schedule(audioBridge, callback, 0),
-      speed: this.speed,
-      volume: volume ?? this.volume,
-    }).then(
-      (rendered) => {
-        if (!this.streaming) return
-        if (rendered.samples === 0) {
-          finish()
-          return
-        }
-
+    const session = beginPlaybackSession(this, callback)
+    if (!session) return
+    try {
+      const bridge = getWasmAudioOutputBridge()
+      let renderTick: (() => void) | undefined
+      let cancelRenderTimer: (() => void) | undefined
+      session.addCleanup(() => {
         try {
-          audioBridge.startPlayBuffer(rendered.buffer)
-          this.onPlayed?.(rendered.power)
-
-          const poll = () => {
-            if (!this.streaming) return
-            const status = audioBridge.playStatus()
-            if (status === 0) {
-              schedule(audioBridge, poll, WASM_AUDIO_BRIDGE_POLL_INTERVAL_MS)
-            } else if (status > 0) {
-              finish()
-            } else {
-              finish(new Error('stackchan-voice browser playback failed'))
-            }
-          }
-          poll()
-        } catch (error) {
-          finish(error)
+          cancelRenderTimer?.()
+        } finally {
+          // Settle the cancelled renderer without reading/resetting the voice.
+          const cancelledTick = renderTick
+          renderTick = undefined
+          cancelledTick?.()
         }
-      },
-      (error) => finish(error),
-    )
+      })
+      const render = isKoe ? renderStackchanVoiceKoeWav : renderStackchanVoiceWav
+      void session
+        .waitFor(
+          render(this.voice, source, {
+            schedule: (callback) => {
+              renderTick = callback
+              cancelRenderTimer = scheduleWasmAudioTimer(
+                bridge,
+                () => {
+                  renderTick = undefined
+                  callback()
+                },
+                0,
+              )
+            },
+            isCancelled: () => session.closed,
+            speed: this.speed,
+            volume: volume ?? this.volume,
+          }),
+        )
+        .then((rendered) => {
+          if (session.closed) return
+          if (rendered.samples === 0) {
+            session.fail(new StackchanError('IO', 'Speech synthesis returned no audio'))
+            return
+          }
+          playWasmAudio(
+            session,
+            bridge,
+            () => bridge.startPlayBuffer(rendered.buffer),
+            Math.ceil((rendered.samples * 1000) / STACKCHAN_VOICE_OUTPUT_SAMPLE_RATE),
+          )
+          session.onPower(rendered.power)
+        }, session.fail)
+    } catch (error) {
+      session.fail(error)
+    }
   }
 }

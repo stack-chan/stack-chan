@@ -1,44 +1,31 @@
-export const CAPABILITIES: Readonly<{
-  FACE: 'face'
-  SPEECH: 'audio.speech'
-  SINGING: 'audio.singing'
-  TONE: 'audio.tone'
-  MOTION: 'motion'
-  LIGHTING: 'lighting'
-  BUTTONS: 'input.buttons'
-  IMU: 'input.imu'
-  HEAD_TOUCH: 'input.headTouch'
-  DRAWER: 'ui.drawer'
-  APPROVAL: 'ui.approval'
-  NETWORK: 'connectivity.network'
-  USB_AUDIO: 'audio.usb'
-  REMOTE_CONVERSATION: 'conversation.remote'
-}>
-
-export type Capability = (typeof CAPABILITIES)[keyof typeof CAPABILITIES]
-export const CAPABILITY_HOST_API_VERSIONS: Readonly<Partial<Record<Capability, number>>>
+import type { CapabilityId } from '../../firmware/contracts/capabilities.js'
+export { CAPABILITY_HOST_API_VERSIONS } from '../../firmware/contracts/capabilities.js'
+export type Capability = CapabilityId
 
 export type DeviceProfile = {
   label: string
   status: 'supported' | 'experimental'
   deviceInstall: boolean
   xsArchiveVersion: readonly number[] | null
+  xsArchiveVersionRange: readonly [number, number, number, number] | null
   firmwareVersionPrefixes: readonly string[]
   chipPatterns: readonly string[]
-  entrypoints: readonly ('mod' | 'miniapp')[]
+  entrypoints: readonly 'mod'[]
   capabilities: readonly Capability[]
 }
 
-export const DEVICE_PROFILES: Readonly<Record<'m5stackchan-cores3' | 'simulator' | 'portable', DeviceProfile>>
+export const DEVICE_PROFILES: Readonly<Record<string, DeviceProfile>>
 
 export const BLOCK_CAPABILITIES: Readonly<Record<string, readonly Capability[]>>
 
 export type DeploymentCompatibilityOptions = {
   chip?: string
   xsVersion?: readonly number[] | null
+  firmwareTarget?: string | null
+  requireTarget?: boolean
   firmwareVersion?: string
   hostApiVersion?: number
-  entrypoints?: readonly ('mod' | 'miniapp')[]
+  entrypoints?: readonly 'mod'[]
   requirements?: readonly string[]
   requireFirmware?: boolean
   requireArchive?: boolean

@@ -18,6 +18,14 @@
     "sourceMap": true,
     "target": "es2024",
     "paths": {
+      "recording-wave": ["./host/modules/audio/recording-wave.ts"],
+      "audio-ports": ["./host/modules/audio/audio-ports.ts"],
+      "recorded-audio": ["./host/modules/audio/recorded-audio.ts"],
+      "pcm-wave": ["./host/modules/audio/pcm-wave.ts"],
+      "stackchan-result": ["./host/modules/util/result.ts"],
+      "stackchan-contracts/*": ["./contracts/*.js"],
+      "installed-mod": ["./host/modules/mod-package/installed-mod.ts"],
+      "mod-maintenance": ["./host/modules/mod-package/mod-maintenance.ts"],
       "face-state": [
         "./host/modules/ui/state/face-state"
       ],
@@ -36,8 +44,8 @@
       "capabilities": [
         "./host/app/capabilities"
       ],
-      "motion-controller": [
-        "./host/modules/motion/motion-controller"
+      "motion-driver": [
+        "./host/modules/motion/motion-driver"
       ],
       "runtime-context": [
         "./host/app/runtime-context"
@@ -116,8 +124,6 @@
         "./node_modules/@moddable/typings/ble/*",
         "./typings/*",
         "./host/app/*",
-        "./host/app/default-behavior/*",
-        "./host/app/default-behavior/wasm/*",
         "./host/modules/camera/*",
         "./host/modules/audio/*",
         "./host/modules/audio/wasm/*",
@@ -129,7 +135,6 @@
         "./host/modules/connectivity/wasm/*",
         "./host/modules/conversation/*",
         "./host/modules/conversation/chat-audioio/*",
-        "./mods/examples/provider-dialogues/*",
         "./host/modules/input/*",
         "./host/modules/motion/*",
         "./host/modules/motion/internal/*",
@@ -186,11 +191,11 @@
         "./node_modules/@moddable/typings/embedded_io/*"
       ],
       "embedded:io/audio/*": [
-				"./node_modules/@moddable/typings/embedded_io/audio/*"
-			],
+        "./node_modules/@moddable/typings/embedded_io/audio/*"
+      ],
       "embedded:io/bluetooth/*": [
-				"./node_modules/@moddable/typings/embedded_io/bluetooth/*"
-			],
+        "./node_modules/@moddable/typings/embedded_io/bluetooth/*"
+      ],
       "embedded:io/socket/*": [
         "./node_modules/@moddable/typings/embedded_io/socket/*"
       ],
@@ -198,35 +203,18 @@
         "./node_modules/@moddable/typings/embedded_network/http/*"
       ],
       "embedded:network/interface/*": [
-				"./node_modules/@moddable/typings/embedded_network/interface/*"
-			],
+        "./node_modules/@moddable/typings/embedded_network/interface/*"
+      ],
       "embedded:network/mqtt/*": [
         "./node_modules/@moddable/typings/embedded_network/mqtt/*"
       ],
       "embedded:network/websocket/*": [
-				"./node_modules/@moddable/typings/embedded_network/websocket/*"
-			],
+        "./node_modules/@moddable/typings/embedded_network/websocket/*"
+      ],
       "embedded:network/dns/resolver/*": [
         "./node_modules/@moddable/typings/embedded_network/dns/resolver/*"
       ],
-      "app-behavior": [
-        "./host/app/app-behavior"
-      ],
-      "app-default-behavior": [
-        "./host/app/default-behavior/behavior"
-      ],
-      "app-default-behavior/on-launch": [
-        "./host/app/default-behavior/on-launch"
-      ],
-      "app-default-behavior/on-context-created": [
-        "./host/app/default-behavior/on-context-created"
-      ],
-      "app-default-behavior/wasm/behavior": [
-        "./host/app/default-behavior/wasm/behavior"
-      ],
-      "app-default-behavior/wasm/on-launch": [
-        "./host/app/default-behavior/wasm/on-launch"
-      ],
+      "default-app/*": ["./host/app/default-app/*"],
       "testing/assert": [
         "./host/modules/testing/assert"
       ],
@@ -244,6 +232,12 @@
       ],
       "ecma-wifi": [
         "./host/modules/connectivity/ecma-wifi"
+      ],
+      "stackchan/*": [
+        "./sdk/*.ts"
+      ],
+      "stackchan": [
+        "./sdk/index.ts"
       ]
     },
     "types": [

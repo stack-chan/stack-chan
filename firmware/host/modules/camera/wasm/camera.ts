@@ -1,195 +1,260 @@
-declare const setTimeout: (callback: () => void, delay?: number) => unknown
-
-import type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } from '../camera.js'
+import { asStackchanError, finiteNumber, StackchanError } from 'stackchan/errors'
+import Timer from 'timer'
+import type { CameraCaptureOptions, CameraFrame, RobotCamera } from '../camera.js'
 
 export type { CameraCaptureOptions, CameraFrame, CameraImageType, RobotCamera } from '../camera.js'
 
-const DEFAULT_WIDTH = 96
-const DEFAULT_HEIGHT = 96
-const DEFAULT_IMAGE_TYPE: CameraImageType = 'rgb565le'
-const DEFAULT_USE_BROWSER_CAMERA = true
-const WASM_CAMERA_BRIDGE_POLL_INTERVAL_MS = 50
+type CameraBridge = {
+  availability?(): number
+  start(width: number, height: number, browser: boolean): void | Promise<void>
+  startStatus?(): number
+  error?(): string
+  stop(): void | Promise<void>
+  capture(width: number, height: number): CameraFrame | undefined
+}
+type HostCamera = {
+  availability?(): string
+  start(options: CameraCaptureOptions & { useBrowserCamera: boolean }): void | Promise<void>
+  stop(): void | Promise<void>
+  capture(options: CameraCaptureOptions): CameraFrame | undefined
+}
+export type WasmCameraConstructorOptions = { useBrowserCamera?: boolean }
+export type WasmCameraStartOptions = CameraCaptureOptions & WasmCameraConstructorOptions
 
-export type WasmCameraConstructorOptions = {
-  useBrowserCamera?: boolean
+type BridgeResource = { key: object; references: number; bridge: CameraBridge; owner?: Camera; fault?: Error }
+// XS cannot add a WeakMap link to a preloaded, read-only native bridge. Remove
+// successful entries explicitly when the final Camera closes instead.
+const bridgeResources = new Map<object, BridgeResource>()
+
+function resource(key: object, bridge: CameraBridge): BridgeResource {
+  let entry = bridgeResources.get(key)
+  if (!entry) {
+    entry = { key, references: 0, bridge }
+    bridgeResources.set(key, entry)
+  }
+  entry.references++
+  return entry
 }
 
-export type WasmCameraStartOptions = CameraCaptureOptions & {
-  useBrowserCamera?: boolean
-}
-
-type HostCameraBridge = {
-  start?: (options?: WasmCameraStartOptions) => Promise<void> | void
-  stop?: () => Promise<void> | void
-  capture?: (options?: CameraCaptureOptions) => Promise<CameraFrame | undefined> | CameraFrame | undefined
-}
-
-type WasmCameraBridge = {
-  start: (width: number, height: number, useBrowserCamera: boolean) => Promise<void> | void
-  startStatus?: () => number
-  setTimer?: (callback: () => void, delay?: number) => unknown
-  stop: () => void
-  capture: (width: number, height: number) => CameraFrame | undefined
-}
-
-const hostCamera = (): HostCameraBridge | undefined =>
-  (globalThis as typeof globalThis & { Host?: { Camera?: HostCameraBridge } }).Host?.Camera
-
-const wasmCameraBridge = (): WasmCameraBridge | undefined =>
-  (globalThis as typeof globalThis & { __stackchanWasmCameraBridge?: WasmCameraBridge }).__stackchanWasmCameraBridge
-
-const schedule = (bridge: WasmCameraBridge, callback: () => void, delay: number): void => {
-  if (bridge.setTimer) bridge.setTimer(callback, delay)
-  else setTimeout(callback, delay)
-}
-
-const waitForWasmCameraStart = (bridge: WasmCameraBridge): Promise<void> => {
-  if (!bridge.startStatus) return Promise.resolve()
-
-  return new Promise((resolve, reject) => {
-    const poll = () => {
-      const status = bridge.startStatus?.() ?? 1
-      if (status === 0) {
-        schedule(bridge, poll, WASM_CAMERA_BRIDGE_POLL_INTERVAL_MS)
-      } else if (status > 0) {
-        resolve()
-      } else {
-        reject(new Error('browser camera failed to start'))
-      }
-    }
-    poll()
+function findBridge(): BridgeResource | undefined {
+  const environment = globalThis as typeof globalThis & {
+    __stackchanWasmCameraBridge?: CameraBridge
+    Host?: { Camera?: HostCamera }
+  }
+  if (environment.__stackchanWasmCameraBridge)
+    return resource(environment.__stackchanWasmCameraBridge, environment.__stackchanWasmCameraBridge)
+  const host = environment.Host?.Camera
+  if (!host) return undefined
+  return resource(host, {
+    availability: () => (host.availability?.() === 'unavailable' ? 0 : host.availability?.() === 'simulated' ? 1 : 2),
+    start: (width, height, useBrowserCamera) => host.start({ width, height, imageType: 'rgb565le', useBrowserCamera }),
+    stop: () => host.stop(),
+    capture: (width, height) => host.capture({ width, height, imageType: 'rgb565le' }),
   })
 }
 
-function normalizeDimension(value: number | undefined, fallback: number): number {
-  if (value === undefined) {
-    return fallback
-  }
-  const normalized = value | 0
-  return normalized > 0 ? normalized : fallback
-}
-
-function resolveUseBrowserCamera(options: WasmCameraStartOptions | undefined, defaultValue: boolean): boolean {
-  return options?.useBrowserCamera ?? defaultValue
-}
-
-function createHostCameraStartOptions(
-  options: WasmCameraStartOptions | undefined,
-  defaultUseBrowserCamera: boolean,
-): WasmCameraStartOptions {
-  const startOptions: WasmCameraStartOptions = {
-    useBrowserCamera: resolveUseBrowserCamera(options, defaultUseBrowserCamera),
-  }
-  if (options?.width !== undefined) startOptions.width = options.width
-  if (options?.height !== undefined) startOptions.height = options.height
-  if (options?.imageType !== undefined) startOptions.imageType = options.imageType
-  return startOptions
-}
-
-function writeRgb565(view: Uint8Array, width: number, height: number, imageType: CameraImageType): void {
-  let offset = 0
-  const widthScale = Math.max(1, width - 1)
-  const heightScale = Math.max(1, height - 1)
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const red = (x * 31) / widthScale
-      const green = ((x + y) * 63) / Math.max(1, width + height - 2)
-      const blue = (y * 31) / heightScale
-      const pixel = ((red & 0x1f) << 11) | ((green & 0x3f) << 5) | (blue & 0x1f)
-
-      if (imageType === 'rgb565be') {
-        view[offset] = (pixel >> 8) & 0xff
-        view[offset + 1] = pixel & 0xff
-      } else {
-        view[offset] = pixel & 0xff
-        view[offset + 1] = (pixel >> 8) & 0xff
-      }
-      offset += 2
-    }
-  }
-}
-
-function copyFrameToWasmHeap(frame: CameraFrame): CameraFrame {
-  return {
-    ...frame,
-    buffer: frame.buffer.slice(0),
-  }
-}
-
+/** Pins one host bridge and owns its stream, polls and pending starts. */
 export default class Camera implements RobotCamera {
-  readonly available = true
-
+  readonly formats = ['rgb565le', 'rgb565be'] as const
+  #resource = findBridge()
+  #browser: boolean
+  #closed = false
   #started = false
-  #useBrowserCamera: boolean
-
+  #epoch = 0
+  #cancel?: (error: unknown) => void
+  #starting?: Promise<void>
+  #stopping?: Promise<void>
+  #closePromise?: Promise<void>
   constructor(options: WasmCameraConstructorOptions = {}) {
-    this.#useBrowserCamera = options.useBrowserCamera ?? DEFAULT_USE_BROWSER_CAMERA
+    this.#browser = options.useBrowserCamera ?? true
   }
-
-  async start(options?: WasmCameraStartOptions): Promise<void> {
-    const wasmBridge = wasmCameraBridge()
-    if (wasmBridge) {
-      const startResult = wasmBridge.start(
-        normalizeDimension(options?.width, DEFAULT_WIDTH),
-        normalizeDimension(options?.height, DEFAULT_HEIGHT),
-        resolveUseBrowserCamera(options, this.#useBrowserCamera),
-      )
-      if (wasmBridge.startStatus) {
-        await waitForWasmCameraStart(wasmBridge)
-      } else {
-        await startResult
-      }
-      this.#started = true
-      return
-    }
-    await hostCamera()?.start?.(createHostCameraStartOptions(options, this.#useBrowserCamera))
-    this.#started = true
+  get availability(): 'native' | 'simulated' | 'unavailable' {
+    if (!this.#resource) return 'unavailable'
+    if (!this.#browser) return 'simulated'
+    const status = this.#resource.bridge.availability?.() ?? 2
+    return status === 0 ? 'unavailable' : status === 1 ? 'simulated' : 'native'
   }
-
-  async stop(): Promise<void> {
-    const wasmBridge = wasmCameraBridge()
-    if (wasmBridge) {
-      wasmBridge.stop()
-      this.#started = false
-      return
-    }
-    await hostCamera()?.stop?.()
+  get available(): boolean {
+    return this.availability !== 'unavailable'
+  }
+  async start(options: WasmCameraStartOptions = {}): Promise<void> {
+    this.#assertUsable()
+    const { width, height } = this.#request(options)
+    if ((options.useBrowserCamera ?? this.#browser) && this.#resource?.bridge.availability?.() === 0)
+      throw new StackchanError('UNSUPPORTED', 'Browser camera is unavailable')
+    if (this.#starting || this.#cancel) throw new StackchanError('BUSY', 'Camera is busy')
+    if (this.#stopping) await this.#stopping
+    this.#assertUsable()
+    if (this.#starting || this.#cancel) throw new StackchanError('BUSY', 'Camera is busy')
+    const owned = this.#assertUsable()
+    if (owned.owner && owned.owner !== this) throw new StackchanError('BUSY', 'Camera is in use')
+    owned.owner = this
+    this.#browser = options.useBrowserCamera ?? this.#browser
+    const epoch = ++this.#epoch
     this.#started = false
+    const bridge = owned.bridge
+    let ready = false
+    const starting = this.#wait(
+      () => {
+        const status = bridge.startStatus?.() ?? (ready ? 1 : 0)
+        if (status < 0) throw new StackchanError('IO', bridge.error?.() || 'Browser camera failed to start')
+        return status > 0 ? true : undefined
+      },
+      15_000,
+      () =>
+        Promise.resolve(bridge.start(width, height, this.#browser)).then(() => {
+          ready = true
+        }),
+    ).then(() => {
+      if (epoch !== this.#epoch) throw new StackchanError('CANCELLED', 'Camera start cancelled')
+      this.#started = true
+    })
+    this.#starting = starting
+    try {
+      await starting
+    } catch (error) {
+      if (epoch === this.#epoch) await this.stop()
+      throw asStackchanError(error)
+    } finally {
+      if (this.#starting === starting) this.#starting = undefined
+    }
   }
-
-  async capture(options: CameraCaptureOptions = {}): Promise<CameraFrame | undefined> {
-    const wasmBridge = wasmCameraBridge()
-    if (wasmBridge) {
-      const hostFrame = wasmBridge.capture(
-        normalizeDimension(options.width, DEFAULT_WIDTH),
-        normalizeDimension(options.height, DEFAULT_HEIGHT),
+  stop(): Promise<void> {
+    if (this.#stopping) return this.#stopping
+    this.#epoch++
+    this.#started = false
+    this.#cancel?.(new StackchanError(this.#closed ? 'CLOSED' : 'CANCELLED', 'Camera operation cancelled'))
+    const owned = this.#resource
+    if (!owned || owned.owner !== this) return owned?.fault ? Promise.reject(owned.fault) : Promise.resolve()
+    const stopping = Promise.resolve()
+      .then(() => owned.bridge.stop())
+      .then(() => {
+        if (owned.fault) throw owned.fault
+      })
+      .catch((error) => {
+        owned.fault = asStackchanError(error)
+        throw owned.fault
+      })
+      .finally(() => {
+        if (owned.owner === this) owned.owner = undefined
+        if (this.#stopping === stopping) this.#stopping = undefined
+      })
+    this.#stopping = stopping
+    return stopping
+  }
+  close(): Promise<void> {
+    if (!this.#closePromise) {
+      this.#closed = true
+      this.#closePromise = this.stop().finally(() => {
+        const owned = this.#resource
+        if (owned && --owned.references === 0 && !owned.fault) bridgeResources.delete(owned.key)
+      })
+    }
+    return this.#closePromise
+  }
+  async capture(options: CameraCaptureOptions = {}): Promise<CameraFrame> {
+    this.#assertUsable()
+    const { width, height } = this.#request(options)
+    if (!this.#started) await this.start(options)
+    const owned = this.#assertUsable()
+    if (!this.#started || owned.owner !== this) throw new StackchanError('CANCELLED', 'Camera was stopped')
+    if (this.#cancel) throw new StackchanError('BUSY', 'Camera is capturing')
+    const epoch = this.#epoch
+    const frame = await this.#wait(() => owned.bridge.capture(width, height), 500)
+    try {
+      if (epoch !== this.#epoch) throw new StackchanError('CANCELLED', 'Camera capture cancelled')
+      if (
+        !Number.isInteger(frame.width) ||
+        frame.width < 1 ||
+        frame.width > 320 ||
+        !Number.isInteger(frame.height) ||
+        frame.height < 1 ||
+        frame.height > 240 ||
+        frame.imageType !== 'rgb565le' ||
+        !(frame.buffer instanceof ArrayBuffer) ||
+        frame.buffer.byteLength !== frame.width * frame.height * 2 ||
+        (frame.source !== undefined && frame.source !== 'native' && frame.source !== 'simulated')
       )
-      if (hostFrame !== undefined) {
-        return copyFrameToWasmHeap(hostFrame)
+        throw new StackchanError('IO', 'Browser camera returned an invalid image')
+      const buffer = frame.buffer.slice(0)
+      if (options.imageType === 'rgb565be') {
+        const bytes = new Uint8Array(buffer)
+        for (let i = 0; i < bytes.length; i += 2) {
+          const first = bytes[i]
+          bytes[i] = bytes[i + 1]
+          bytes[i + 1] = first
+        }
       }
+      return {
+        width: frame.width,
+        height: frame.height,
+        imageType: options.imageType ?? 'rgb565le',
+        source: frame.source ?? (this.#browser ? 'native' : 'simulated'),
+        buffer,
+      }
+    } finally {
+      this.#releaseFrame(frame, owned)
     }
-
-    const hostFrame = await hostCamera()?.capture?.(options)
-    if (hostFrame !== undefined) {
-      return copyFrameToWasmHeap(hostFrame)
+  }
+  #releaseFrame(frame: CameraFrame, owned: BridgeResource): void {
+    try {
+      frame.close?.()
+    } catch (error) {
+      owned.fault = asStackchanError(error)
+      throw owned.fault
     }
-
-    const imageType = options.imageType ?? DEFAULT_IMAGE_TYPE
-    if (imageType !== 'rgb565le' && imageType !== 'rgb565be') {
-      return undefined
-    }
-
-    const width = normalizeDimension(options.width, DEFAULT_WIDTH)
-    const height = normalizeDimension(options.height, DEFAULT_HEIGHT)
-    const buffer = new ArrayBuffer(width * height * 2)
-    writeRgb565(new Uint8Array(buffer), width, height, imageType)
-
-    return {
-      width,
-      height,
-      imageType,
-      buffer,
-    }
+  }
+  #assertUsable(): BridgeResource {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Camera is closed')
+    if (!this.#resource) throw new StackchanError('UNSUPPORTED', 'Camera bridge is unavailable')
+    if (this.#resource.fault) throw this.#resource.fault
+    return this.#resource
+  }
+  #wait<T>(read: () => T | undefined, timeoutMs: number, begin?: () => Promise<void>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      let settled = false
+      let pollTimer: ReturnType<typeof Timer.set> | undefined
+      let deadline: ReturnType<typeof Timer.set> | undefined
+      const finish = (result: { value: T } | { error: unknown }) => {
+        if (settled) return
+        settled = true
+        if (pollTimer !== undefined) Timer.clear(pollTimer)
+        if (deadline !== undefined) Timer.clear(deadline)
+        if (this.#cancel === cancel) this.#cancel = undefined
+        if ('error' in result) reject(asStackchanError(result.error))
+        else resolve(result.value)
+      }
+      const cancel = (error: unknown) => finish({ error })
+      this.#cancel = cancel
+      const poll = () => {
+        pollTimer = undefined
+        if (settled) return
+        try {
+          const value = read()
+          if (value !== undefined) finish({ value })
+          else pollTimer = Timer.set(poll, 20)
+        } catch (error) {
+          finish({ error: asStackchanError(error) })
+        }
+      }
+      try {
+        deadline = Timer.set(() => cancel(new StackchanError('TIMEOUT', 'Camera operation timed out')), timeoutMs)
+        if (begin) void begin().catch((error) => cancel(asStackchanError(error)))
+        poll()
+      } catch (error) {
+        cancel(asStackchanError(error))
+      }
+    })
+  }
+  #request(options: CameraCaptureOptions) {
+    const width = options.width ?? 176,
+      height = options.height ?? 144
+    finiteNumber(width, 'width', 1, 320)
+    finiteNumber(height, 'height', 1, 240)
+    if (!Number.isInteger(width) || !Number.isInteger(height))
+      throw new StackchanError('INVALID_ARGUMENT', 'Image dimensions must be integers')
+    if (options.imageType && !this.formats.includes(options.imageType as 'rgb565le'))
+      throw new StackchanError('UNSUPPORTED', 'Browser camera supports RGB565 images')
+    return { width, height }
   }
 }

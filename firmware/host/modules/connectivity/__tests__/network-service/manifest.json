@@ -1,7 +1,11 @@
 {
-  "include": ["$(MODULES)/network/sntp/manifest.json"],
+  "include": [
+    "$(MODDABLE)/examples/io/udp/ntp/manifest_ntp.json",
+    "../../../../../sdk/manifest.json"
+  ],
   "modules": {
     "network-service": "../../network-service",
+    "network-types": "../../network-types",
     "network-state": "../../network-state",
     "ecma-wifi": "./fake-ecma-wifi"
   },

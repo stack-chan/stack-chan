@@ -1,0 +1,29 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/io/tcp/httpclient/manifest_httpclient.json",
+    "$(MODDABLE)/modules/data/headers/manifest.json",
+    "$(MODDABLE)/modules/data/url/manifest.json",
+    "../../../../../sdk/manifest.json",
+    "../../../testing/manifest.json"
+  ],
+  "modules": {
+    "pins/audioout": "../playback-lifecycle/audio-out-fake",
+    "calculate-power": "../../../testing/fakes/calculate-power",
+    "tts-playback-session": "../../tts-playback-session",
+    "tts-playback-lifecycle": "../../tts-playback-lifecycle",
+    "tts-types": "../../tts-types",
+    "tts-http-client": "../../tts-http-client",
+    "tts-http-query": "../../tts-http-query",
+    "tts-voicevox": "../../tts-voicevox",
+    "tts-voicevox-web": "../../tts-voicevox-web",
+    "tts-openai": "../../tts-openai",
+    "tts-elevenlabs": "../../tts-elevenlabs",
+    "tts-remote": "../../tts-remote",
+    "http-playback-network": "./network-fake",
+    "wavstreamer": "./streamer-fake",
+    "mp3streamer": "./mp3-streamer-fake",
+    "main": "./http-playback.test"
+  }
+}

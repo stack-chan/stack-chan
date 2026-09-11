@@ -1,5 +1,5 @@
 import { Bytes } from 'btutils'
-import type { Maybe } from 'stackchan-util'
+import type { Maybe } from 'stackchan-result'
 
 /**
  * The data packet part of the manufacturerSpecific (0xFF) in iBeacon format, excluding the identifier.
@@ -8,7 +8,7 @@ import type { Maybe } from 'stackchan-util'
  * |--------|-------------|-----------------------------------------------|------------|
  * | 0      | 1           | Type                                          | -          |
  * | 1      | 1           | Data Length                                   | -          |
- * | 2      | 16          | UUID                                          | Little     |
+ * | 2      | 16          | UUID                                          | Wire order |
  * | 18     | 2           | Major                                         | Big        |
  * | 20     | 2           | Minor                                         | Big        |
  * | 22     | 1           | Tx Power                                      | -          |
@@ -50,8 +50,8 @@ export class BeaconDataPacket {
         reason: 'invalid header',
       }
     }
-    const view = new DataView(payload.buffer)
-    const uuid = new Bytes(payload.slice(2, 18).buffer, true)
+    const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength)
+    const uuid = new Bytes(payload.slice(2, 18).buffer)
     const major = view.getUint16(18, false)
     const minor = view.getUint16(20, false)
     const txPower = view.getUint8(22)

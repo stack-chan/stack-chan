@@ -485,3 +485,11 @@ AudioInとAudioOutは実際のmedia controlに応じて開くため、inactive�
 これにより、同じbootの起動設定画面で変更した音量もCodex VoiceのUSB再生へ反映する。
 
 診断manifestの`usbAudio.speakerVolume=0`は明示overrideとして扱い、保存済み音量にかかわらず無音を維持する。
+
+## 音声の所有権と終了（2026-09-08）
+
+物理 USB / EVENT のホスト寿命は維持し、音声の起動・停止を共通の RuntimeAudio の使用権へ接続した。`autoStart` とアプリの `conversation.remote()` は同じ Dock activation を使う。inactive 中は制御通信を受信するが、マイク・スピーカーの開始要求には BUSY を返す。
+
+deactivate は主 VM の物理 AudioIn / AudioOut を閉じてから使用権を返す。主 VM と Worker は activation の世代番号をやり取りし、旧世代の open / close / ACK / 音声通知が次の会話へ作用しないようにする。解放例外を成功として扱わず、共通音声を再起動まで使用不可にする。
+
+実装・試験と実機未検証範囲は [USB 音声の競合・復旧記録](usb-audio-ownership-2026-09-08.md) を参照。

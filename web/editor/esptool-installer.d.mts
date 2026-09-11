@@ -20,6 +20,7 @@ export type FirmwareDescriptor = {
   version: string
   moddableVersion: string
   hostApiVersion: number
+  target: string | null
   projectName: string
 }
 

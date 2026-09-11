@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
+import { makeXsArchive, modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
 import { describe, it } from 'node:test'
 
 import {
   clientPointFromTouch,
   createHostAudioInBridge,
-  createHostAudioOutBridge,
   createHostButtonBridge,
   createHostCameraBridge,
   createHostDriverBridge,
@@ -96,223 +96,6 @@ describe('Host.Driver bridge', () => {
 })
 
 describe('Host.Audio bridge', () => {
-  it('resolves tone playback only after the oscillator ends and closes the context', async () => {
-    const events = []
-    let oscillator
-    const context = {
-      currentTime: 2,
-      closed: false,
-      createOscillator() {
-        oscillator = {
-          frequency: { value: 0 },
-          onended: undefined,
-          connect(node) {
-            events.push(['osc-connect', node.kind])
-          },
-          start(time) {
-            events.push(['start', time, this.frequency.value])
-          },
-          stop(time) {
-            events.push(['stop', time])
-          },
-        }
-        return oscillator
-      },
-      createGain() {
-        return {
-          kind: 'gain',
-          gain: { value: 0 },
-          connect(node) {
-            events.push(['gain-connect', node])
-          },
-        }
-      },
-      destination: 'destination',
-      state: 'suspended',
-      async resume() {
-        this.state = 'running'
-        events.push(['resume'])
-      },
-      close() {
-        this.closed = true
-        events.push(['close'])
-      },
-    }
-    const bridge = createHostAudioOutBridge({ createAudioContext: () => context })
-
-    let resolved = false
-    const tone = bridge.tone({ hz: 880, duration: 500, volume: 0.25 }).then(() => {
-      resolved = true
-    })
-
-    await Promise.resolve()
-    assert.equal(resolved, false)
-    oscillator.onended()
-    await tone
-    bridge.close()
-
-    assert.deepEqual(events, [
-      ['resume'],
-      ['osc-connect', 'gain'],
-      ['gain-connect', 'destination'],
-      ['start', 2, 880],
-      ['stop', 2.5],
-      ['close'],
-    ])
-    assert.equal(context.closed, true)
-  })
-
-  it('clamps non-finite hz/volume so AudioParam is never set to NaN', async () => {
-    // real AudioParam throws when set to a non-finite value; the wasm bridge
-    // sends a NaN volume when a MOD calls tone() without one.
-    const makeParam = () => {
-      let stored = 0
-      return {
-        get value() {
-          return stored
-        },
-        set value(next) {
-          if (!Number.isFinite(next)) throw new TypeError('non-finite AudioParam value')
-          stored = next
-        },
-      }
-    }
-    let oscillator
-    let gain
-    const context = {
-      currentTime: 0,
-      createOscillator() {
-        oscillator = { frequency: makeParam(), onended: undefined, connect() {}, start() {}, stop() {} }
-        return oscillator
-      },
-      createGain() {
-        gain = { kind: 'gain', gain: makeParam(), connect() {} }
-        return gain
-      },
-      destination: 'destination',
-      state: 'running',
-    }
-    const bridge = createHostAudioOutBridge({
-      createAudioContext: () => context,
-      setTimeoutFn: (fn) => {
-        fn()
-        return 0
-      },
-      clearTimeoutFn: () => {},
-    })
-
-    await bridge.tone({ hz: 440, duration: 300, volume: Number.NaN })
-    assert.equal(oscillator.frequency.value, 440)
-    assert.equal(gain.gain.value, 1) // NaN volume falls back to full volume
-
-    await bridge.tone({ hz: Number.NaN, duration: Number.NaN, volume: 2 })
-    assert.equal(oscillator.frequency.value, 440) // NaN hz falls back to 440
-    assert.equal(gain.gain.value, 1) // volume clamped to [0, 1]
-  })
-
-  it('resolves tone playback with a duration fallback when onended does not fire', async () => {
-    const scheduled = []
-    const context = {
-      currentTime: 0,
-      createOscillator() {
-        return {
-          frequency: { value: 0 },
-          onended: undefined,
-          connect() {},
-          start() {},
-          stop() {},
-        }
-      },
-      createGain() {
-        return {
-          gain: { value: 0 },
-          connect() {},
-        }
-      },
-      destination: 'destination',
-      state: 'running',
-    }
-    const bridge = createHostAudioOutBridge({
-      createAudioContext: () => context,
-      setTimeoutFn(callback, delay) {
-        scheduled.push({ callback, delay })
-        return scheduled.length
-      },
-      clearTimeoutFn() {},
-    })
-
-    let resolved = false
-    const tone = bridge.tone({ hz: 440, duration: 300, volume: 0.5 }).then(() => {
-      resolved = true
-    })
-
-    assert.equal(resolved, false)
-    assert.equal(scheduled[0].delay, 550)
-    scheduled[0].callback()
-    await tone
-    assert.equal(resolved, true)
-  })
-
-  it('decodes and plays recorded microphone audio through AudioContext', async () => {
-    const events = []
-    let source
-    const context = {
-      destination: 'destination',
-      state: 'suspended',
-      async resume() {
-        this.state = 'running'
-        events.push(['resume'])
-      },
-      async decodeAudioData(buffer) {
-        events.push(['decode', buffer.byteLength])
-        return { kind: 'audio-buffer' }
-      },
-      createBufferSource() {
-        source = {
-          buffer: undefined,
-          onended: undefined,
-          connect(node) {
-            events.push(['source-connect', node])
-          },
-          start(time) {
-            events.push(['source-start', time, this.buffer.kind])
-          },
-        }
-        return source
-      },
-    }
-    const bridge = createHostAudioOutBridge({ createAudioContext: () => context })
-    const recorded = new Uint8Array([1, 2, 3, 4]).buffer
-
-    let resolved = false
-    const playback = bridge.play(recorded).then((played) => {
-      resolved = played
-    })
-
-    while (!source) await Promise.resolve()
-    assert.equal(resolved, false)
-    source.onended()
-    await playback
-
-    assert.equal(resolved, true)
-    assert.deepEqual(events, [
-      ['resume'],
-      ['decode', 4],
-      ['source-connect', 'destination'],
-      ['source-start', 0, 'audio-buffer'],
-    ])
-  })
-
-  it('skips playback for an empty recording buffer', async () => {
-    const bridge = createHostAudioOutBridge({
-      createAudioContext() {
-        throw new Error('AudioContext should not be created for empty playback')
-      },
-    })
-
-    assert.equal(await bridge.play(new ArrayBuffer(0)), false)
-  })
-
   it('records WebM/Opus microphone audio when the browser supports it', async () => {
     const stopped = []
     const recorderOptions = []
@@ -341,12 +124,9 @@ describe('Host.Audio bridge', () => {
         },
       },
       MediaRecorder: FakeMediaRecorder,
-      setTimeoutFn(fn) {
-        fn()
-      },
     })
 
-    const buffer = await bridge.record(100)
+    const buffer = await bridge.record(1)
 
     assert.deepEqual(Array.from(new Uint8Array(buffer)), Array.from(webmHeader))
     assert.equal(buffer.mimeType, 'audio/webm;codecs=opus')
@@ -383,12 +163,9 @@ describe('Host.Audio bridge', () => {
         },
       },
       MediaRecorder: FakeMediaRecorder,
-      setTimeoutFn(fn) {
-        fn()
-      },
     })
 
-    const buffer = await bridge.record(100)
+    const buffer = await bridge.record(1)
 
     assert.equal(new TextDecoder().decode(buffer.slice(0, 4)), 'RIFF')
     assert.equal(new TextDecoder().decode(buffer.slice(8, 12)), 'WAVE')
@@ -398,7 +175,7 @@ describe('Host.Audio bridge', () => {
     assert.deepEqual(stopped, ['track'])
   })
 
-  it('returns an empty microphone buffer when no supported recording format is available', async () => {
+  it('rejects microphone recording before requesting permission when no format is supported', async () => {
     let requested = false
     class FakeMediaRecorder {
       static isTypeSupported() {
@@ -415,22 +192,25 @@ describe('Host.Audio bridge', () => {
       MediaRecorder: FakeMediaRecorder,
     })
 
-    const buffer = await bridge.record(100)
-
-    assert.equal(buffer.byteLength, 0)
+    await assert.rejects(bridge.record(100), { code: 'UNSUPPORTED' })
     assert.equal(requested, false)
   })
 })
 
 describe('Host.Camera bridge', () => {
-  it('returns deterministic RGB565LE frames sized to capture options', () => {
+  it('returns deterministic RGB565LE frames only after explicitly selecting simulation', async () => {
     const bridge = createHostCameraBridge()
+    assert.equal(bridge.availability(), 'unavailable')
+    assert.throws(() => bridge.capture(), { code: 'CLOSED' })
+    await bridge.start({ useBrowserCamera: false })
+    assert.equal(bridge.availability(), 'simulated')
 
     const first = bridge.capture({ width: 4, height: 3, imageType: 'rgb565le' })
     const second = bridge.capture({ width: 4, height: 3, imageType: 'rgb565le' })
 
     assert.ok(first)
     assert.ok(second)
+    assert.equal(first.source, 'simulated')
     assert.equal(first.width, 4)
     assert.equal(first.height, 3)
     assert.equal(first.imageType, 'rgb565le')
@@ -441,7 +221,7 @@ describe('Host.Camera bridge', () => {
   it('tracks start and stop without requiring browser media devices', async () => {
     const bridge = createHostCameraBridge()
 
-    await bridge.start({ width: 2, height: 2 })
+    await bridge.start({ width: 2, height: 2, useBrowserCamera: false })
     assert.equal(bridge.isStarted(), true)
 
     bridge.stop()
@@ -499,44 +279,40 @@ describe('Host.Camera bridge', () => {
     assert.equal(calls.at(-1), 'stop')
   })
 
-  it('falls back to synthetic RGB565LE when browser media APIs are absent', async () => {
+  it('reports unavailable media APIs without generating a successful image', async () => {
     const bridge = createHostCameraBridge({ navigatorObj: {}, documentObj: undefined })
-
-    await bridge.start({ useBrowserCamera: true })
-    const first = bridge.capture({ width: 2, height: 2, imageType: 'rgb565le' })
-    const second = createHostCameraBridge().capture({ width: 2, height: 2, imageType: 'rgb565le' })
-
-    assert.equal(bridge.isBrowserCameraStarted(), false)
-    assert.deepEqual(new Uint8Array(first.buffer), new Uint8Array(second.buffer))
+    await assert.rejects(bridge.start(), { code: 'UNSUPPORTED' })
+    assert.equal(bridge.isStarted(), false)
+    assert.throws(() => bridge.capture(), { code: 'CLOSED' })
   })
 
-  it('falls back to synthetic RGB565LE when browser permission is denied', async () => {
-    const warnings = []
+  it('returns permission failure and permits a later explicit retry', async () => {
+    let denied = true
     const bridge = createHostCameraBridge({
-      logger: { warn: (...args) => warnings.push(args) },
       navigatorObj: {
         mediaDevices: {
           async getUserMedia() {
-            throw new Error('denied')
+            if (denied) throw new Error('denied')
+            return { getTracks: () => [] }
           },
         },
       },
-      videoElement: { srcObject: undefined },
+      videoElement: { play: async () => {} },
     })
-
-    await assert.doesNotReject(() => bridge.start({ useBrowserCamera: true }))
-    const frame = bridge.capture({ width: 2, height: 2, imageType: 'rgb565le' })
-
-    assert.equal(bridge.isBrowserCameraStarted(), false)
-    assert.equal(frame.buffer.byteLength, 2 * 2 * 2)
-    assert.match(warnings[0][0], /browser camera unavailable/)
+    await assert.rejects(bridge.start(), /denied/)
+    assert.equal(bridge.isStarted(), false)
+    denied = false
+    await bridge.start()
+    assert.equal(bridge.isBrowserCameraStarted(), true)
+    bridge.stop()
   })
 
-  it('falls back to synthetic RGB565LE when browser video is not ready', async () => {
+  it('returns no frame while video is warming up and surfaces canvas failures', async () => {
+    const video = { readyState: 1, videoWidth: 0, videoHeight: 0 }
     const bridge = createHostCameraBridge({
       canvasElement: {
         getContext: () => {
-          throw new Error('canvas should not be read before video is ready')
+          throw new Error('canvas failed')
         },
       },
       navigatorObj: {
@@ -546,15 +322,13 @@ describe('Host.Camera bridge', () => {
           },
         },
       },
-      videoElement: { readyState: 1, videoWidth: 0, videoHeight: 0 },
+      videoElement: video,
     })
-
-    await bridge.start({ useBrowserCamera: true })
-    const first = bridge.capture({ width: 2, height: 2, imageType: 'rgb565le' })
-    const second = createHostCameraBridge().capture({ width: 2, height: 2, imageType: 'rgb565le' })
-
-    assert.equal(bridge.isBrowserCameraStarted(), true)
-    assert.deepEqual(new Uint8Array(first.buffer), new Uint8Array(second.buffer))
+    await bridge.start()
+    assert.equal(bridge.capture(), undefined)
+    Object.assign(video, { readyState: 2, videoWidth: 16, videoHeight: 16 })
+    assert.throws(() => bridge.capture(), /canvas failed/)
+    bridge.stop()
   })
 
   it('keeps an already-started browser camera stream when firmware starts camera preview', async () => {
@@ -662,9 +436,11 @@ describe('Host.Camera bridge', () => {
     })
 
     const startPromise = bridge.start({ useBrowserCamera: true })
+    const rejected = assert.rejects(startPromise, { code: 'CANCELLED' })
+    await Promise.resolve()
     bridge.stop()
     resolveStream(stream)
-    await startPromise
+    await rejected
 
     assert.equal(bridge.isStarted(), false)
     assert.equal(bridge.isBrowserCameraStarted(), false)
@@ -672,11 +448,113 @@ describe('Host.Camera bridge', () => {
     assert.deepEqual(stopped, ['stop'])
   })
 
-  it('keeps unsupported camera formats out of the simulator bridge', () => {
+  it('rejects unsupported formats and invalid dimensions before allocation', async () => {
     const bridge = createHostCameraBridge()
-
-    assert.equal(bridge.capture({ imageType: 'jpeg' }), undefined)
+    await bridge.start({ useBrowserCamera: false })
+    assert.throws(() => bridge.capture({ imageType: 'jpeg' }), { code: 'UNSUPPORTED' })
+    for (const width of [0, -1, 1.5, NaN, Infinity, 321])
+      assert.throws(() => bridge.capture({ width }), { code: 'INVALID_ARGUMENT' })
     assert.equal('captureJpeg' in bridge, false)
+  })
+  it('stops every track even when detaching video or a track fails, and rejects reuse', async () => {
+    const stops = []
+    let rejectDetach = false
+    const video = {
+      play: async () => {},
+      set srcObject(value) {
+        if (rejectDetach && value === null) throw new Error('detach failed')
+      },
+    }
+    const bridge = createHostCameraBridge({
+      videoElement: video,
+      navigatorObj: {
+        mediaDevices: {
+          async getUserMedia() {
+            return {
+              getTracks: () => [
+                {
+                  stop() {
+                    stops.push(1)
+                    throw new Error('track failed')
+                  },
+                },
+                {
+                  stop() {
+                    stops.push(2)
+                  },
+                },
+              ],
+            }
+          },
+        },
+      },
+    })
+    await bridge.start()
+    rejectDetach = true
+    assert.throws(() => bridge.stop(), /detach failed/)
+    assert.deepEqual(stops, [1, 2])
+    await assert.rejects(bridge.start(), /detach failed/)
+  })
+
+  it('a late video.play completion cannot revive or stop a newer stream', async () => {
+    let finishPlay
+    const stopped = []
+    let count = 0
+    const video = {
+      play: () =>
+        count === 1
+          ? new Promise((resolve) => {
+              finishPlay = resolve
+            })
+          : Promise.resolve(),
+    }
+    const bridge = createHostCameraBridge({
+      videoElement: video,
+      navigatorObj: {
+        mediaDevices: {
+          async getUserMedia() {
+            const id = ++count
+            return { id, getTracks: () => [{ stop: () => stopped.push(id) }] }
+          },
+        },
+      },
+    })
+    const old = bridge.start()
+    const rejected = assert.rejects(old, { code: 'CANCELLED' })
+    await new Promise((resolve) => setImmediate(resolve))
+    bridge.stop()
+    await bridge.start()
+    finishPlay()
+    await rejected
+    assert.equal(video.srcObject.id, 2)
+    assert.deepEqual(stopped, [1])
+    bridge.stop()
+    assert.deepEqual(stopped, [1, 2])
+  })
+
+  it('100 starts and stops return all acquired media tracks', async () => {
+    let acquired = 0,
+      released = 0
+    const video = { play: async () => {} }
+    const bridge = createHostCameraBridge({
+      videoElement: video,
+      navigatorObj: {
+        mediaDevices: {
+          async getUserMedia() {
+            acquired++
+            return { getTracks: () => [{ stop: () => released++ }] }
+          },
+        },
+      },
+    })
+    for (let index = 0; index < 100; index++) {
+      await bridge.start()
+      bridge.stop()
+      bridge.stop()
+      assert.equal(acquired, released)
+      assert.equal(video.srcObject, null)
+      assert.equal(bridge.isStarted(), false)
+    }
   })
 })
 
@@ -689,12 +567,32 @@ describe('touch coordinate bridge', () => {
 })
 
 describe('MOD archive bridge', () => {
+  it('rejects incompatible metadata before calling any WASM allocator or install hook', () => {
+    let allocated = false
+    for (const metadata of [null, { ...modDefinition, hostApiVersion: 999 }]) {
+      assert.throws(() =>
+        installModArchiveIntoWasm(
+          {
+            _malloc() {
+              allocated = true
+              return 8
+            },
+            HEAPU8: new Uint8Array(4096),
+          },
+          { name: 'bad.xsa', bytes: makeXsArchive({ metadata }) }
+        )
+      )
+      assert.equal(allocated, false)
+    }
+  })
+
   it('reports empty when no archive is installed', () => {
     assert.deepEqual(installModArchiveIntoWasm({}, null), { status: 'empty' })
   })
 
   it('copies archive bytes into wasm memory, calls the install hook, and frees memory', () => {
-    const heap = new Uint8Array(32)
+    const bytes = makeXsArchive()
+    const heap = new Uint8Array(bytes.length + 32)
     const calls = []
     const wasmModule = {
       HEAPU8: heap,
@@ -713,7 +611,7 @@ describe('MOD archive bridge', () => {
 
     const result = installModArchiveIntoWasm(wasmModule, {
       name: 'mod.xsa',
-      bytes: new Uint8Array([10, 20, 30]),
+      bytes,
       size: 3,
     })
 
@@ -721,18 +619,19 @@ describe('MOD archive bridge', () => {
       status: 'installed',
       hook: '_wasmModInstallArchive',
       name: 'mod.xsa',
-      size: 3,
+      size: bytes.length,
       result: 0,
     })
     assert.deepEqual(calls, [
-      ['malloc', 3],
-      ['hook', 8, 3, [10, 20, 30]],
+      ['malloc', bytes.length],
+      ['hook', 8, bytes.length, Array.from(bytes)],
       ['free', 8],
     ])
   })
 
   it('prepares archive bytes as a launch archive when no explicit install hook exists', () => {
-    const heap = new Uint8Array(16)
+    const bytes = makeXsArchive()
+    const heap = new Uint8Array(bytes.length + 16)
     const calls = []
     const result = installModArchiveIntoWasm(
       {
@@ -745,11 +644,11 @@ describe('MOD archive bridge', () => {
           calls.push(['free', pointer])
         },
       },
-      { name: 'mod.xsa', bytes: new Uint8Array([1, 2]) }
+      { name: 'mod.xsa', bytes }
     )
 
-    assert.deepEqual(result, { status: 'prepared', pointer: 4, name: 'mod.xsa', size: 2 })
-    assert.deepEqual(Array.from(heap.slice(4, 6)), [1, 2])
-    assert.deepEqual(calls, [['malloc', 2]])
+    assert.deepEqual(result, { status: 'prepared', pointer: 4, name: 'mod.xsa', size: bytes.length })
+    assert.deepEqual(heap.slice(4, 4 + bytes.length), bytes)
+    assert.deepEqual(calls, [['malloc', bytes.length]])
   })
 })

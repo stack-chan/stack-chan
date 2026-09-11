@@ -1,0 +1,47 @@
+{
+  "extends": "./tsconfig.sdk.json",
+  "compilerOptions": {
+    "paths": {
+      "stackchan": [
+        "./sdk/index.ts"
+      ],
+      "stackchan/*": [
+        "./sdk/*.ts"
+      ],
+      "piu/MC": [
+        "./node_modules/@moddable/typings/piu/MC.d.ts"
+      ],
+      "*": [
+        "./node_modules/@moddable/typings/*"
+      ]
+    },
+    "types": [
+      "./node_modules/@moddable/typings/xs"
+    ]
+  },
+  "include": [
+    "sdk/extensions/**/*.ts",
+    "mods/examples/stackchan_minigames/*.ts",
+    "mods/examples/mini_app_ui_sample/*.ts",
+    "host/app/default-app/*.ts",
+    "mods/examples/face/*.js",
+    "mods/examples/board_diagnostics/*.js",
+    "mods/examples/image_avatar_lite/*.js",
+    "mods/examples/conversation/*.ts",
+    "mods/examples/chat_audioio/*.ts",
+    "mods/examples/codex_voice/*.ts",
+    "mods/examples/beacon/*.ts",
+    "mods/examples/cheerup/*.ts",
+    "mods/examples/local_peer_hello/*.ts",
+    "mods/examples/mcp/*.ts",
+    "mods/examples/face_tracker/*.ts",
+    "mods/examples/mediapipe_ble/*.ts",
+    "mods/examples/pose_sharing/*.ts",
+    "mods/examples/servo_diagnostics/*.ts",
+    "mods/examples/lip_sync/*.ts",
+    "mods/examples/web_radio/*.ts",
+    "mods/examples/unit_temperature/*.ts",
+    "mods/examples/beacon/*.js",
+    "mods/examples/cheerup/*.js"
+  ]
+}

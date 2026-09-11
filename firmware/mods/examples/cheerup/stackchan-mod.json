@@ -1,0 +1,30 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.cheerup",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "cheerup",
+  "description": "Receive STK BLE or WebSocket poses and play cheer-up clips.",
+  "appApiVersion": 2,
+  "hostApiVersion": 9,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
+  "capabilities": [
+    "ui.controls",
+    "network.ble",
+    "network.http",
+    "audio.clips",
+    "motion"
+  ],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": [
+    "network.ble",
+    "network.http",
+    "audio.clips",
+    "motion"
+  ]
+}

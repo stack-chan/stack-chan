@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { TARGETS } from '../../contracts/targets.js'
 
 const firmwareDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const manifest = 'mods/examples/look_around/manifest.json'
@@ -94,14 +95,15 @@ test('firmware wrapper cleans manifest switches before every CoreS3 command and 
       const same = runFixture(fixture, command, fixture.normalManifest)
       assert.equal(count(same.stdout, 'prepared IDF dependencies:'), 1, `${command}: same variant preparation`)
       invocations = readInvocations(fixture.commandLog)
-      assert.equal(invocations.length, 3, `${command}: same variant must not clean`)
-      assertMainCommand(invocations[2], command, fixture.normalManifest)
+      const stages = command === 'build' ? 1 : 2
+      assert.equal(invocations.length, 1 + stages * 2, `${command}: same variant must not clean`)
+      assertMainCommand(invocations.at(-1), command, fixture.normalManifest)
 
       const switched = runFixture(fixture, command, fixture.diagnosticManifest)
       assert.equal(count(switched.stdout, 'prepared IDF dependencies:'), 2, `${command}: switched preparation`)
       invocations = readInvocations(fixture.commandLog)
-      assert.equal(invocations.length, 5)
-      assertCommandPair(invocations.slice(3), command, fixture.diagnosticManifest)
+      assert.equal(invocations.length, 2 + stages * 3)
+      assertCommandPair(invocations.slice(1 + stages * 2), command, fixture.diagnosticManifest)
     } finally {
       rmSync(fixture.root, { recursive: true, force: true })
     }
@@ -111,7 +113,6 @@ test('firmware wrapper cleans manifest switches before every CoreS3 command and 
 function createFirmwareWrapperFixture() {
   const root = mkdtempSync(path.join(tmpdir(), 'stackchan-firmware-wrapper-'))
   const fixtureFirmware = path.join(root, 'firmware')
-  const fixtureWebEditor = path.join(root, 'web', 'editor')
   const sourceSdkconfig = path.join(
     firmwareDirectory,
     'host',
@@ -128,15 +129,7 @@ function createFirmwareWrapperFixture() {
     path.join(fixtureFirmware, 'host', 'modules', 'audio', 'platforms', 'm5stackchan-cores3', 'sdkconfig'),
     { recursive: true },
   )
-  mkdirSync(fixtureWebEditor, { recursive: true })
-  cpSync(
-    path.resolve(firmwareDirectory, '../web/editor/esptool-installer.mjs'),
-    path.join(fixtureWebEditor, 'esptool-installer.mjs'),
-  )
-  cpSync(
-    path.resolve(firmwareDirectory, '../web/editor/mod-builder.mjs'),
-    path.join(fixtureWebEditor, 'mod-builder.mjs'),
-  )
+  cpSync(path.join(firmwareDirectory, 'contracts'), path.join(fixtureFirmware, 'contracts'), { recursive: true })
 
   const fakeModdable = path.join(root, 'moddable')
   mkdirSync(path.join(fakeModdable, 'tools'), { recursive: true })
@@ -167,11 +160,20 @@ function createFirmwareWrapperFixture() {
   writeFileSync(
     fakeMcconfig,
     `#!/usr/bin/env node
-const { appendFileSync, existsSync, readFileSync, rmSync } = require('node:fs')
+const { appendFileSync, existsSync, readFileSync, rmSync, mkdirSync, writeFileSync } = require('node:fs')
 const path = require('node:path')
 
 const args = process.argv.slice(2)
-appendFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG, JSON.stringify(args) + '\\n')
+let loggedArgs = args
+const isClean = args[args.indexOf('-t') + 1] === 'clean'
+if (!isClean) {
+  const wrapper = JSON.parse(readFileSync(args.at(-1), 'utf8'))
+  if (!Array.isArray(wrapper.include) || wrapper.include.length !== 2) process.exit(13)
+  const override = JSON.parse(readFileSync(wrapper.include[1], 'utf8'))
+  if (!existsSync(path.join(override.build.SDKCONFIGPATH, 'sdkconfig.defaults'))) process.exit(14)
+  loggedArgs = [...args.slice(0, -1), wrapper.include[0]]
+}
+appendFileSync(process.env.STACKCHAN_TEST_COMMAND_LOG, JSON.stringify(loggedArgs) + '\\n')
 const outputIndex = args.indexOf('-o')
 const outputDirectory = args[outputIndex + 1]
 const idfManifest = path.join(
@@ -194,6 +196,23 @@ if (targetIndex >= 0 && args[targetIndex + 1] === 'clean') {
 ) {
   process.exit(12)
 }
+if (!isClean) {
+  const directory = path.join(outputDirectory, 'bin/esp32/m5stackchan_cores3/instrument/stack-chan-host')
+  mkdirSync(directory, { recursive: true })
+  writeFileSync(path.join(directory, 'bootloader.bin'), Buffer.from([1]))
+  const table = Buffer.alloc(64)
+  table.writeUInt16LE(0x50aa)
+  table.writeUInt32LE(0x10000, 4)
+  table.writeUInt32LE(process.env.STACKCHAN_TEST_BAD_IMAGE ? 64 : 256, 8)
+  writeFileSync(path.join(directory, 'partition-table.bin'), table)
+  const binary = Buffer.alloc(128)
+  binary.writeUInt32LE(0xabcd5432, 0x20)
+  const configuration = readFileSync(path.join(process.env.SDKCONFIGPATH, 'sdkconfig.defaults'), 'utf8')
+  const version = configuration.split(String.fromCharCode(10)).find(line => line.startsWith('CONFIG_APP_PROJECT_VER=')).split('"')[1]
+  binary.write(version, 0x30)
+  binary.write('xs_esp32', 0x50)
+  writeFileSync(path.join(directory, 'xs_esp32.bin'), binary)
+}
 `,
   )
   chmodSync(fakeMcconfig, 0o755)
@@ -209,7 +228,7 @@ if (targetIndex >= 0 && args[targetIndex + 1] === 'clean') {
   }
 }
 
-function runFixture(fixture, command, manifestPath) {
+function runFixture(fixture, command, manifestPath, badImage = false) {
   const result = spawnSync(
     process.execPath,
     [
@@ -231,10 +250,11 @@ function runFixture(fixture, command, manifestPath) {
         STACKCHAN_DRY_RUN: '',
         STACKCHAN_TEST_COMMAND_LOG: fixture.commandLog,
         npm_config_target: '',
+        STACKCHAN_TEST_BAD_IMAGE: badImage ? '1' : '',
       },
     },
   )
-  assert.equal(result.status, 0, `${command}: ${result.stderr}`)
+  assert.equal(result.status, badImage ? 1 : 0, `${command}: ${result.stderr}`)
   return result
 }
 
@@ -247,8 +267,10 @@ function readInvocations(commandLog) {
 }
 
 function assertCommandPair(invocations, command, manifestPath) {
-  assert.equal(invocations.length, 2)
-  const [clean, main] = invocations
+  assert.equal(invocations.length, command === 'build' ? 2 : 3)
+  const [clean, build] = invocations
+  const main = invocations.at(-1)
+  assertMainCommand(build, 'build', manifestPath)
   assert.equal(clean[clean.indexOf('-p') + 1], 'esp32:./host/platforms/m5stackchan_cores3')
   assert.equal(clean[clean.indexOf('-t') + 1], 'clean')
   assert.equal(clean.at(-1), manifestPath)
@@ -268,3 +290,28 @@ function assertMainCommand(invocation, command, manifestPath) {
 function count(source, value) {
   return source.split(value).length - 1
 }
+
+test('all named native host builds select the canonical platform and host manifest', () => {
+  for (const target of Object.values(TARGETS).filter((target) => target.deviceInstall)) {
+    const output = dryRunCommand('build', target.buildName)
+    assert.ok(output.includes(`-p ${target.platform}`))
+    assert.ok(output.includes(path.join(firmwareDirectory, target.manifest)))
+  }
+})
+
+test('bad build images are rejected even when mcconfig returns success, before flash, deploy or debug', () => {
+  for (const command of ['build', 'flash', 'deploy', 'debug']) {
+    const fixture = createFirmwareWrapperFixture()
+    try {
+      const result = runFixture(fixture, command, fixture.normalManifest, true)
+      assert.match(result.stderr, /Firmware exceeds factory app partition/)
+      const commands = readInvocations(fixture.commandLog)
+      assert.deepEqual(
+        commands.map((args) => args[args.indexOf('-t') + 1]),
+        ['clean', 'build'],
+      )
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true })
+    }
+  }
+})

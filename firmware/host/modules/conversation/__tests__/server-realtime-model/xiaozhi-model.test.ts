@@ -131,10 +131,10 @@ model.configure({
   pcmRing,
   pcmRingState,
 })
-equal(model.headers[0]?.[0], 'Authorization', 'authentication should use a header')
-equal(model.headers[1]?.[0], 'Protocol-Version', 'protocol version should be declared')
-equal(model.headers[2]?.[1], 'core-s3', 'Device-Id should use structured identity')
-equal(model.headers[3]?.[1], 'client-1', 'Client-Id should use structured identity')
+equal(model.headers?.[0]?.[0], 'Authorization', 'authentication should use a header')
+equal(model.headers?.[1]?.[0], 'Protocol-Version', 'protocol version should be declared')
+equal(model.headers?.[2]?.[1], 'core-s3', 'Device-Id should use structured identity')
+equal(model.headers?.[3]?.[1], 'client-1', 'Client-Id should use structured identity')
 model.connect(connection)
 model.onOpen()
 equal(sentJSON[0]?.type, 'hello', 'opening should send hello')
@@ -190,7 +190,7 @@ const opusPacket = Uint8Array.of(0x6b, 0x43, 0x06, 0x9b)
 model.read(opusPacket.slice(0, 2).buffer, { binary: true, more: true })
 model.read(opusPacket.slice(2).buffer, { binary: true, more: false })
 equal(decoder.inputs.length, 1, 'fragmented binary message should decode once')
-equal(model.parser.copied[0]?.byteLength, 960, 'decoded PCM should reach AudioOut')
+equal(model.parser?.copied[0]?.byteLength, 960, 'decoded PCM should reach AudioOut')
 
 const glyphPush = {
   v: 1,
@@ -216,7 +216,7 @@ equal(
   2,
   'glyph payloads should be forwarded',
 )
-equal(model.parser.doneCount, 1, 'TTS stop should finish playback')
+equal(model.parser?.doneCount, 1, 'TTS stop should finish playback')
 
 const closedBeforeAlert = model.closed
 model.onJSON({ type: 'alert', status: 'Warning', message: 'Battery low', emotion: 'sad' })
@@ -297,7 +297,7 @@ equal(
 model.sendMcpMessage({ payload: { jsonrpc: '2.0', method: 'notifications/device', params: { ready: true } } })
 equal(sentJSON[sentJSON.length - 1]?.type, 'mcp', 'outbound MCP notification should be wrapped')
 
-model.sendText({ text: 'unsupported' })
+model.sendText()
 equal(
   postedMessages.some((message) => message.id === 'protocolWarning' && /text input/.test(message.string)),
   true,

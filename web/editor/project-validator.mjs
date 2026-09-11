@@ -10,7 +10,7 @@ const EVENT_BLOCKS = new Set([
   'stackchan_every',
 ])
 const ALLOWED_TOP_LEVEL_BLOCKS = new Set([...EVENT_BLOCKS, 'procedures_defreturn', 'procedures_defnoreturn'])
-const LEGACY_SONG_EVENT_BLOCKS = new Set(['stackchan_song_note', 'stackchan_song_rest'])
+const LEGACY_SONG_EVENT_BLOCKS = new Set(['stackchan_sing', 'stackchan_song_note', 'stackchan_song_rest'])
 
 function fieldIdentity(field) {
   if (field && typeof field === 'object') return String(field.id ?? field.name ?? '')
@@ -44,7 +44,6 @@ export function analyzeWorkspace(workspace, { target = 'm5stackchan-cores3' } = 
   const blocks = flattenWorkspace(workspace)
   const topBlocks = workspace?.blocks?.blocks ?? []
   const diagnostics = []
-  const blockById = new Map(blocks.filter((block) => block.id !== null).map((block) => [block.id, block]))
 
   if (blocks.length === 0) {
     diagnostics.push({ severity: 'error', code: 'VP_EMPTY', message: t('ブロックを一つ以上配置してください') })
@@ -62,7 +61,6 @@ export function analyzeWorkspace(workspace, { target = 'm5stackchan-cores3' } = 
   }
 
   for (const block of blocks.filter((item) => LEGACY_SONG_EVENT_BLOCKS.has(item.type))) {
-    if (blockById.get(block.parentId)?.type === 'stackchan_sing') continue
     diagnostics.push({
       severity: 'error',
       code: 'VP_LEGACY_SONG_EVENT',
@@ -120,7 +118,15 @@ export function analyzeWorkspace(workspace, { target = 'm5stackchan-cores3' } = 
     }
   }
 
-  const requirements = requirementsForBlockTypes(blocks.map((block) => block.type))
+  const requirements = [
+    ...new Set(
+      blocks.flatMap((block) => {
+        if (block.type !== 'stackchan_on_button') return requirementsForBlockTypes([block.type])
+        const role = { a: 'primary', b: 'secondary', c: 'tertiary' }[block.fields.BUTTON ?? 'a']
+        return [`input.${role}${block.fields.EDGE === 'release' ? '.release' : ''}`]
+      })
+    ),
+  ].sort()
   const supported = new Set(profileFor(target).capabilities)
   for (const capability of requirements) {
     if (supported.has(capability)) continue

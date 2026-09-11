@@ -1,23 +1,18 @@
-import config from 'mc/config'
-import { speeches } from 'speeches_monologue'
-import { randomBetween } from 'stackchan-util'
+import { defineApp } from 'stackchan'
+import { speeches } from './speeches_monologue.js'
 
-const keys = Object.keys(speeches)
-
-async function sayMonologue(robot) {
-  const idx = Math.floor(randomBetween(0, keys.length))
-  const key = keys[idx]
-  await robot.audio.say(config.tts.type === 'local' ? key : speeches[key])
-}
-
-function onContextCreated(robot) {
-  robot.input.button.a.onEvent = (event) => {
-    if (event.pressed) {
-      sayMonologue(robot)
+export default defineApp({
+  setup(app) {
+    const lines = Object.entries(speeches)
+    const speech = app.capabilities.get('audio.speech').availability !== 'unavailable'
+    if (!speech && app.capabilities.get('audio.clips').availability === 'unavailable') {
+      app.ui.showBalloon('音声の設定を確認してください')
+      return
     }
-  }
-}
-
-export default {
-  onContextCreated,
-}
+    app.input.onPress('primary', async () => {
+      const [name, text] = lines[Math.floor(Math.random() * lines.length)]
+      if (speech) await app.audio.say(text)
+      else await app.audio.playClip(name)
+    })
+  },
+})

@@ -1,11 +1,4 @@
-import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
-
-export type TTS = {
-  stream: (text: string, volume?: number, callback?: TTSCompletion) => void
-  streamKoe?: (koe: string, volume?: number, callback?: TTSCompletion) => void
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
-}
+export type { TTS } from 'tts-types'
 
 export type WebRadioState = 'idle' | 'connecting' | 'buffering' | 'playing' | 'stalled' | 'retrying' | 'error'
 
@@ -46,7 +39,7 @@ export type RemoteConversationSession = RemoteConversationSessionDelegate & {
   deactivate(): void
 }
 
-export type StackchanContext = unknown
+export type HostPresentation = unknown
 
 export type RobotLed = {
   on(r: number, g: number, b: number, duration?: number, index?: number, count?: number): void
@@ -55,15 +48,4 @@ export type RobotLed = {
   rainbow(index?: number, count?: number): void
 }
 
-export type NetworkReadyResult =
-  | {
-      status: 'connected'
-    }
-  | {
-      status: 'skipped'
-      reason: string
-    }
-  | {
-      status: 'failed'
-      reason: string
-    }
+export type { NetworkReadyResult } from '../../connectivity/network-types.js'

@@ -13,6 +13,10 @@
       "typeLocked": true,
       "panId": 1,
       "tiltId": 2,
+      "positionIGain": 100,
+      "tiltPositionIGain": 400,
+      "tiltMinCurrent": 160,
+      "pitchMinDeg": -10,
       "serial": {
         "transmit": 7,
         "receive": 6,

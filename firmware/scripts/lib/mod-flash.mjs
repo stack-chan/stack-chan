@@ -7,8 +7,10 @@ import {
   parseEspAppDescriptor,
   parsePartitionTable,
   xsArchiveByteLength,
-} from '../../../web/editor/esptool-installer.mjs'
-import { xsArchiveVersion } from '../../../web/editor/mod-builder.mjs'
+} from '../../contracts/esp-flash.js'
+import { assertModCompatibility, assertTargetIdentity, hostForTarget } from '../../contracts/mod-package.js'
+import { isXsVersionCompatible, XS_ARCHIVE_VERSION_RANGE } from '../../contracts/xs-compatibility.js'
+import { inspectModArchive } from '../../contracts/xsa-metadata.js'
 import { buildOutputDirectory } from './build-output.mjs'
 
 export const partitionTableOffset = 0x8000
@@ -42,6 +44,7 @@ export function resolveModArchivePath({ outputDirectory, mode, projectName }) {
  *   port?: string,
  *   baud?: string|number,
  *   chip?: string,
+ *   expectedTarget?: string,
  *   expectedProjectName?: string,
  *   expectedFirmwareVersion?: string,
  *   temporaryDirectory?: string,
@@ -60,6 +63,7 @@ export function installModArchive({
   port,
   baud,
   chip,
+  expectedTarget,
   expectedProjectName = moddableEspAppProjectName,
   expectedFirmwareVersion,
   temporaryDirectory = path.join(buildOutputDirectory, 'tmp'),
@@ -73,8 +77,9 @@ export function installModArchive({
       `Invalid XS archive header or size: ${archivePath} (${declaredSize ?? 'missing'} != ${archiveSize})`,
     )
   }
-  const archiveVersion = xsArchiveVersion(archive)
-  if (!archiveVersion) throw new Error(`XS archive version is missing: ${archivePath}`)
+  const { metadata, version: archiveVersion } = inspectModArchive(archive, (bytes) =>
+    new TextDecoder('utf-8', { fatal: true }).decode(bytes),
+  )
 
   mkdirSync(temporaryDirectory, { recursive: true })
   const workDirectory = mkdtempSync(path.join(temporaryDirectory, 'stackchan-mod-flash-'))
@@ -117,6 +122,15 @@ export function installModArchive({
     }
     if (expectedFirmwareVersion && firmware.moddableVersion !== expectedFirmwareVersion) {
       throw new Error(`Incompatible Moddable version: ${firmware.moddableVersion} != ${expectedFirmwareVersion}`)
+    }
+    if (expectedTarget) assertTargetIdentity(firmware.target, expectedTarget)
+    assertModCompatibility(metadata, hostForTarget(firmware.target, firmware.hostApiVersion))
+
+    if (
+      firmware.moddableVersion.startsWith('9.5.') &&
+      !isXsVersionCompatible(archiveVersion, XS_ARCHIVE_VERSION_RANGE)
+    ) {
+      throw new Error(`Incompatible XS archive version: ${archiveVersion.join('.')}`)
     }
 
     console.log(

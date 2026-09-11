@@ -6,7 +6,8 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
-    "py32-io-expander": "../fakes/py32-io-expander-stub",
+    "embedded:io/pwm": "../fakes/pwm",
     "main": "./sg90-driver.test"
-  }
+  },
+  "defines": { "main": { "async": 1 } }
 }

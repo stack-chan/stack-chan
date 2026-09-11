@@ -1,11 +1,15 @@
 {
   "include": [
     "$(MODDABLE)/examples/manifest_mod.json",
-    "$(MODDABLE)/examples/manifest_typings.json",
-    "../../../host/app/manifest_typings.json"
+    "$(MODDABLE)/examples/manifest_typings.json"
   ],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": { "allowJs": true }
+    }
+  },
   "modules": {
-    "miniapp": "./miniapp"
+    "*": ["./mod", "./jump", "./catch"]
   },
   "resources": {
     "*": ["./assets/stack-chan"],
@@ -19,5 +23,8 @@
       "./assets/bomb",
       "./assets/miss"
     ]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

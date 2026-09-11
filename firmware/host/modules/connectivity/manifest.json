@@ -2,19 +2,17 @@
   "include": [
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "$(MODULES)/network/net/manifest.json",
-    "$(MODULES)/network/socket/manifest.json",
-    "$(MODULES)/network/sntp/manifest.json",
+    "$(MODDABLE)/examples/io/udp/ntp/manifest_ntp.json",
     "$(MODDABLE)/examples/io/tcp/websocket/manifest_websocket.json",
     "$(MODULES)/network/ble/manifest_server.json",
     "$(MODULES)/network/ble/manifest_client.json",
-    "$(MODULES)/network/mdns/manifest.json",
+    "$(MODULES)/io/dnssd/manifest.json",
     "$(MODULES)/crypt/digest/manifest.json",
     "../util/manifest.json",
     "../preferences/manifest.json",
     "./http-server/manifest.json",
+    "./ble/beacon.manifest.json",
     "./mcp-server/manifest.json",
-    "./mcp-client/manifest.json",
     "../../app/manifest_typings.json"
   ],
   "modules": {
@@ -24,7 +22,6 @@
       "../../../typings/uartserver"
     ],
     "stk-server": "./ble/stk-server",
-    "beacon-packet": "./ble/beacon-packet",
     "ble-local-peer-radio": "./ble/local-peer-radio",
     "ble-local-peer-record": "./ble/local-peer-record",
     "ecma-wifi": "./ecma-wifi",
@@ -38,8 +35,7 @@
     "local-peer-service": "./local-peer-service",
     "local-peer-types": "./local-peer-types",
     "wifi-scan": "./wifi-scan",
-    "wifi-scan-types": "./wifi-scan-types",
-    "stored-wifi": "./stored-wifi"
+    "wifi-scan-types": "./wifi-scan-types"
   },
   "preload": ["stk-server", "beacon-packet"],
   "ble": {

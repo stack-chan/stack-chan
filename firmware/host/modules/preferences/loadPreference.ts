@@ -1,82 +1,84 @@
 import structuredClone from 'structuredClone'
-import { DOMAIN, PREF_KEYS } from 'consts'
+import verifyInstalledMod from 'installed-mod'
 import config from 'mc/config'
-import Modules from 'modules'
 import Preference from 'preference'
+import { SETTINGS_JOURNAL, type SettingsLayer, SettingsService } from 'settings-service'
+import { DOMAIN, SETTING_KEYS, type SettingDomain, type SettingsForDomain } from 'stackchan/settings-schema'
 
-// biome-ignore lint/suspicious/noExplicitAny: Match the type definition of mc/config
-type ConfigRecord = Record<string, any>
-export type PreferenceDomain = keyof typeof DOMAIN
-export type PreferenceConfig = Record<PreferenceDomain, ConfigRecord>
+type ConfigRecord = Record<string, unknown>
+export type PreferenceDomain = SettingDomain
+export type PreferenceConfig = { [D in SettingDomain]: SettingsForDomain<D> & ConfigRecord }
+let appSettings: SettingsLayer | undefined
+let settings: SettingsService | undefined
+let hostSettings: SettingsService | undefined
 
-const LEGACY_RENDERER_DOMAIN = 'renderer'
-let modConfig: ConfigRecord | undefined
-
-export function loadModConfig(): ConfigRecord {
-  if (modConfig) return modConfig
-  try {
-    modConfig = Modules.has('mod/config') ? (Modules.importNow('mod/config') as ConfigRecord) : {}
-  } catch (error) {
-    trace(
-      `[preferences] mod config unavailable: ${error && typeof error === 'object' && 'message' in error ? error.message : error}\n`,
-    )
-    modConfig = {}
+function loadAppSettings(): SettingsLayer {
+  if (appSettings) return appSettings
+  const contract = verifyInstalledMod()
+  if (!contract) return {}
+  const result: SettingsLayer = {}
+  for (const [key, value] of Object.entries(contract.settings)) {
+    const [domain, name] = key.split('.') as [SettingDomain, string]
+    result[domain] = { ...result[domain], [name]: value }
   }
-  return modConfig
+  appSettings = result
+  return result
 }
 
-const PREFERENCE_DOMAINS: PreferenceDomain[] = [
-  DOMAIN.wifi,
-  DOMAIN.driver,
-  DOMAIN.ui,
-  DOMAIN.tts,
-  DOMAIN.ai,
-  DOMAIN.led,
-  DOMAIN.mcp,
-  DOMAIN.time,
-]
+function createSettingsService(app: () => SettingsLayer): SettingsService {
+  return new SettingsService({
+    profile: () => config as SettingsLayer,
+    app,
+    storage: {
+      get: (domain, key) => {
+        const value = Preference.get(domain, key)
+        return domain === SETTINGS_JOURNAL.domain && key === SETTINGS_JOURNAL.key && value instanceof ArrayBuffer
+          ? String.fromArrayBuffer(value)
+          : value
+      },
+      set: (domain, key, value) =>
+        Preference.set(
+          domain,
+          key,
+          domain === SETTINGS_JOURNAL.domain && key === SETTINGS_JOURNAL.key
+            ? ArrayBuffer.fromString(value as string)
+            : (value as string),
+        ),
+      delete: (domain, key) => Preference.delete(domain, key),
+    },
+    onIssue: (issue) => trace(`[settings] ${issue.code} ${issue.key} (${issue.source})\n`),
+  })
+}
 
-export default function loadPreferences(category: PreferenceDomain): ConfigRecord {
-  const mcPreference = structuredClone((config[category.toLowerCase()] ?? {}) as ConfigRecord)
-  const modPreference = structuredClone((loadModConfig()[category.toLowerCase()] ?? {}) as ConfigRecord)
+/** Recovery must be able to read host settings without evaluating a rejected MOD. */
+export function getHostSettingsService(): SettingsService {
+  hostSettings ??= createSettingsService(() => ({}))
+  return hostSettings
+}
 
-  const preference = { ...mcPreference, ...modPreference }
-  const lockedDriverType =
-    category === DOMAIN.driver && mcPreference.typeLocked === true && typeof mcPreference.type === 'string'
-      ? mcPreference.type
-      : undefined
-  if (lockedDriverType !== undefined) {
-    preference.type = lockedDriverType
-    preference.typeLocked = true
+export function getSettingsService(): SettingsService {
+  settings ??= createSettingsService(loadAppSettings)
+  return settings
+}
+
+/** Hardware profile fields stay host-owned; app defaults use only the managed settings schema. */
+export default function loadPreferences<D extends PreferenceDomain>(category: D): PreferenceConfig[D] {
+  const profile = (config[category] ?? {}) as ConfigRecord
+  const preference = { ...structuredClone(profile) }
+  const service = getSettingsService()
+  for (const key of SETTING_KEYS) {
+    const [domain, name] = key.split('.')
+    if (domain !== category) continue
+    const value = service.get(key)
+    if (value === undefined) delete preference[name]
+    else preference[name] = value
   }
-
-  const keys = PREF_KEYS.filter((s) => s[0] === category)
-  for (const [domain, key, ctor] of keys) {
-    const value = Preference.get(domain, key)
-    if (value != null) {
-      if (domain === DOMAIN.driver && key === 'type' && lockedDriverType !== undefined) {
-        if (String(value) !== lockedDriverType) {
-          trace(`[preferences] ignored stored driver.type=${value}; platform locks it to ${lockedDriverType}\n`)
-        }
-        continue
-      }
-      preference[key] = ctor(value)
-    }
-  }
-
-  if (category === DOMAIN.ui && Preference.get(DOMAIN.ui, 'type') == null) {
-    const legacyType = Preference.get(LEGACY_RENDERER_DOMAIN, 'type')
-    if (legacyType != null) {
-      preference.type = String(legacyType)
-      // Write back to the canonical domain so legacy migration is one-shot.
-      Preference.set(DOMAIN.ui, 'type', preference.type)
-      trace(`[preferences] migrated ${LEGACY_RENDERER_DOMAIN}.type to ${DOMAIN.ui}.type\n`)
-    }
-  }
-
-  return preference
+  if (category === DOMAIN.driver) preference.typeLocked = service.isReadOnly('driver.type')
+  return preference as PreferenceConfig[D]
 }
 
 export function loadPreferenceConfig(): PreferenceConfig {
-  return Object.fromEntries(PREFERENCE_DOMAINS.map((domain) => [domain, loadPreferences(domain)])) as PreferenceConfig
+  return Object.fromEntries(
+    (Object.keys(DOMAIN) as SettingDomain[]).map((domain) => [domain, loadPreferences(domain)]),
+  ) as PreferenceConfig
 }

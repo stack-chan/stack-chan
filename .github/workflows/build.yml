@@ -91,6 +91,9 @@ jobs:
       - name: Run legacy name checks
         working-directory: ./firmware
         run: npm run check:legacy-names
+      - name: Check public SDK and JavaScript lessons
+        working-directory: ./firmware
+        run: npm run check:sdk
       - name: Run architecture checks
         working-directory: ./firmware
         run: npm run check:architecture
@@ -195,7 +198,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
         with:
-          target-branch: "9.0.0"
+          target-branch: "9.5.0"
           install-emscripten: "true"
       - name: Install web test dependencies
         working-directory: ./firmware
@@ -205,12 +208,24 @@ jobs:
         run: npm --prefix ../web audit --audit-level=high
       - name: Build WebAssembly simulator
         working-directory: ./firmware
-        run: source "$HOME/.local/share/xs-dev-export.sh" && npm run build:wasm
+        run: |
+          source "$HOME/.local/share/xs-dev-export.sh"
+          npm run build:wasm
+          npm run mod:build -- host/app/__tests__/mod-preflight/app-fixture/manifest.json --mode=release
+          npm run mod:build -- host/app/__tests__/mod-preflight/startup-fixture/manifest.json --mode=release
+          for metadata in lessons/*/stackchan-mod.json mods/examples/*/stackchan-mod.json; do
+            npm run mod:build -- "${metadata%/*}/manifest.json"
+          done
       - name: Run responsive and editor browser tests
         working-directory: ./firmware
         run: |
           npm --prefix ../web run test:visual
           npm --prefix ../web run test:i18n-visual
+      - name: Check MOD recovery and host startup in the browser
+        working-directory: ./web
+        run: |
+          node simulator/mod-preflight-visual.mjs
+          node simulator/sdk-lessons-visual.mjs
       - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v7

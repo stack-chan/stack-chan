@@ -1,0 +1,16 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "../../../../contracts/manifest.json",
+    "../../../modules/preferences/manifest.json",
+    "../../../modules/testing/manifest.json",
+    "$(MODDABLE)/modules/data/text/encoder/manifest.json",
+    "$(MODDABLE)/modules/data/text/decoder/manifest.json"
+  ],
+  "modules": {
+    "main": "./mod-preflight.test",
+    "preference": "../../../modules/testing/fakes/preference",
+    "xsa-fixture": "../../../../contracts/testing/xsa-fixture"
+  },
+  "data": { "*": ["./stackchan-mod.json"] }
+}

@@ -3,6 +3,7 @@ import AudioOut from 'embedded:io/audio/out'
 import calculatePower from 'calculate-power'
 import StackchanVoice from 'stackchanvoice'
 import { beginTTSPlayback, type TTSPlaybackLifecycle } from 'tts-playback-lifecycle'
+import { PlaybackProvider } from 'tts-playback-session'
 import type { TTSCompletion, TTSDoneListener, TTSPlaybackListener } from 'tts-types'
 
 const OUTPUT_SAMPLE_RATE = 24000
@@ -27,10 +28,7 @@ type PCMChunk = {
   samples: number
 }
 
-export class TTS {
-  onPlayed?: TTSPlaybackListener
-  onDone?: TTSDoneListener
-  streaming = false
+export class TTS extends PlaybackProvider {
   readonly volume: number
   readonly speed: number
   readonly voice: StackchanVoice
@@ -49,8 +47,7 @@ export class TTS {
   readonly #chunks: PCMChunk[]
 
   constructor(props: TTSProperty = {}) {
-    this.onPlayed = props.onPlayed
-    this.onDone = props.onDone
+    super(props)
     this.volume = props.volume ?? 0.1
     this.speed = props.speed ?? 100
     const preset = props.voice === 'cute' ? StackchanVoice.Cute : StackchanVoice.Normal
@@ -79,23 +76,28 @@ export class TTS {
       else this.voice.say(source, this.speed)
       this.#generating = true
 
-      const output = new AudioOut({
+      let output: AudioOut | undefined
+      output = new AudioOut({
         sampleRate: OUTPUT_SAMPLE_RATE,
         bitsPerSample: 16,
         channels: 1,
-        onWritable: (size) => this.#onWritable(size),
+        onWritable: (size) => {
+          if (!output || this.#output !== output || this.#lifecycle !== lifecycle || lifecycle.closed) return
+          this.#onWritable(size)
+        },
       })
-      output.volume = volume ?? this.volume
       this.#output = output
+      const ownedOutput = output
       lifecycle.addCleanup(() => {
         try {
-          output.stop()
+          ownedOutput.close()
         } finally {
-          output.close()
-          if (this.#output === output) this.#output = undefined
+          if (this.#output === ownedOutput) this.#output = undefined
           if (this.#lifecycle === lifecycle) this.#lifecycle = undefined
         }
       })
+      lifecycle.addCleanup(() => ownedOutput.stop())
+      output.volume = volume ?? this.volume
       output.start()
     } catch (error) {
       lifecycle.fail(error)
@@ -116,12 +118,13 @@ export class TTS {
   #onWritable(size: number): void {
     const lifecycle = this.#lifecycle
     const output = this.#output
-    if (!lifecycle || !output || !this.streaming) return
+    if (!lifecycle || !output || lifecycle.closed) return
 
     try {
       const writable = size - (size % BYTES_PER_SAMPLE)
       const consumed = Math.max(0, writable - this.#freeBytes)
       this.#reportConsumed(consumed, lifecycle)
+      if (lifecycle.closed) return
       this.#freeBytes = writable
 
       if (this.#draining) {

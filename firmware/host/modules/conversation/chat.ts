@@ -7,22 +7,17 @@ import {
   type ChatTranscriptSnapshot,
 } from 'chat-state'
 import config from 'mc/config'
+import type { RealtimeOptions, RealtimeProvider } from 'stackchan/extensions/conversation'
+import type { Tool } from 'stackchan/extensions/network'
 
 export { ChatState, type ChatStateName, ChatStateNames, chatStateToName, MAX_TRANSCRIPT_CHARS } from 'chat-state'
 
-export type ChatType = 'deepgramAgent' | 'elevenLabsAgent' | 'googleGeminiLive' | 'humeAIEVI' | 'openAIRealtime'
-
-/** Legacy ChatAudioIO configuration. Prefer a connection factory for server-backed transports. */
-export type ChatConfig = {
-  type: ChatType
-  specifier?: string
-  endpoint?: string
-  apiKey?: string
-  instructions?: string
-  voiceID?: string
-  providerID?: string
-  modelID?: string
-}
+type ProviderConnection = Readonly<
+  Pick<RealtimeOptions, 'apiKey' | 'endpoint' | 'model' | 'voice' | 'instructions'> & {
+    kind: 'provider'
+    provider: RealtimeProvider
+  }
+>
 
 export type ChatListeningMode = 'auto' | 'manual' | 'realtime'
 
@@ -49,29 +44,10 @@ export type XiaozhiV1ConnectionOptions = {
   mcp?: XiaozhiV1McpOptions
 }
 
-export type XiaozhiV1Connection = Readonly<{
-  kind: 'xiaozhi-v1'
-  endpoint: string
-  accessToken?: string
-  deviceId: string
-  clientId: string
-  instructions?: string
-  voiceID?: string
-  helloExtension?: Record<string, unknown>
-  listeningMode?: ChatListeningMode
-  features?: {
-    mcp?: boolean
-    aec?: boolean
-  }
-  mcp?: XiaozhiV1McpOptions
-}>
+export type XiaozhiV1Connection = Readonly<XiaozhiV1ConnectionOptions & { kind: 'xiaozhi-v1' }>
 
-/**
- * Opaque connection descriptors accepted by ChatService. Service integrations
- * should construct these through their own factory and a protocol factory such
- * as createXiaozhiV1Connection().
- */
-export type ChatConnection = XiaozhiV1Connection
+/** Internal descriptors for SDK providers and the XiaoZhi wire protocol. */
+export type ChatConnection = ProviderConnection | XiaozhiV1Connection
 
 export const XIAOZHI_V1_CONTRACT_VERSION = 1
 
@@ -81,28 +57,6 @@ export function createXiaozhiV1Connection(options: XiaozhiV1ConnectionOptions): 
   if (!options.deviceId) throw new Error('XiaoZhi v1 deviceId is required')
   if (!options.clientId) throw new Error('XiaoZhi v1 clientId is required')
   return Object.freeze({ kind: 'xiaozhi-v1' as const, ...options })
-}
-
-export type ChatToolSchema = {
-  name: string
-  description?: string
-  parameters?: {
-    type: 'object'
-    properties: Record<string, { type: string; description?: string; [key: string]: unknown }>
-    required?: string[]
-    additionalProperties?: boolean
-  }
-  // Dialogue compatibility.
-  inputSchema?: {
-    type: 'object'
-    properties: Record<string, { type: string; description?: string; [key: string]: unknown }>
-    required?: string[]
-    additionalProperties?: boolean
-  }
-}
-
-export type ChatTool = ChatToolSchema & {
-  execute?: (params: Record<string, unknown>) => Promise<unknown> | unknown
 }
 
 export type ChatAlert = {
@@ -146,24 +100,14 @@ export type ChatCallbacks = {
 }
 
 type ChatServiceOptions = {
-  config?: ChatConfig
-  connection?: ChatConnection
-  tools?: Record<string, ChatTool>
+  connection: ChatConnection
+  tools?: readonly Pick<Tool, 'name' | 'description' | 'inputSchema'>[]
   callbacks?: ChatCallbacks
   chatAudioIOCtor?: new (chatOptions: Record<string, unknown>) => ChatAudioIO
   sessionState?: ChatSessionState
 }
 
-type ChatFunctionSchema = {
-  name: string
-  description?: string
-  parameters: {
-    type: 'object'
-    properties: Record<string, { type: string; description?: string; [key: string]: unknown }>
-    required?: string[]
-    additionalProperties?: boolean
-  }
-}
+type ChatFunctionSchema = Pick<Tool, 'name' | 'description'> & { parameters: Tool['inputSchema'] }
 
 type ResolvedChatConnection = {
   specifier: string
@@ -188,28 +132,24 @@ type ChatAudioIOStateConstants = {
   WAITING: number
 }
 
-function toFunctionSchema(tool: ChatTool): ChatFunctionSchema | null {
-  if (!tool?.name) return null
-  const parameters = tool.parameters ?? tool.inputSchema
-  if (!parameters) {
-    return {
-      name: tool.name,
-      description: tool.description,
-      parameters: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    }
-  }
-  return {
-    name: tool.name,
-    description: tool.description,
-    parameters,
-  }
+function toFunctionSchema(tool: Pick<Tool, 'name' | 'description' | 'inputSchema'>): ChatFunctionSchema {
+  if (!tool?.name || tool.inputSchema?.type !== 'object')
+    throw new Error('Realtime tools require a name and an inputSchema object')
+  return { name: tool.name, description: tool.description, parameters: tool.inputSchema }
 }
 
 function resolveConnection(connection: ChatConnection, functions: ChatFunctionSchema[]): ResolvedChatConnection {
+  if (connection.kind === 'provider') {
+    return {
+      specifier: connection.provider,
+      instructions: connection.instructions,
+      voiceID: connection.voice,
+      providerID: connection.endpoint,
+      modelID: connection.model,
+      apiKey: connection.apiKey,
+    }
+  }
+  if (connection.kind !== 'xiaozhi-v1') throw new Error('Unknown realtime connection kind')
   return {
     specifier: 'xiaozhiV1',
     instructions: connection.instructions,
@@ -228,17 +168,6 @@ function resolveConnection(connection: ChatConnection, functions: ChatFunctionSc
       },
       mcp: connection.mcp,
     },
-  }
-}
-
-function resolveLegacyConfig(chatConfig: ChatConfig): ResolvedChatConnection {
-  return {
-    specifier: chatConfig.specifier ?? String(chatConfig.type),
-    instructions: chatConfig.instructions,
-    voiceID: chatConfig.voiceID,
-    providerID: chatConfig.endpoint ?? chatConfig.providerID,
-    modelID: chatConfig.modelID,
-    apiKey: chatConfig.apiKey,
   }
 }
 
@@ -290,9 +219,7 @@ export class ChatService {
   #sessionState: ChatSessionState
 
   constructor(options: ChatServiceOptions) {
-    if ((options.config ? 1 : 0) + (options.connection ? 1 : 0) !== 1) {
-      throw new Error('ChatService requires exactly one of config or connection')
-    }
+    if (!options.connection) throw new Error('ChatService requires a connection')
 
     this.#sessionState = options.sessionState ?? new ChatSessionState()
     const callbacks = options.callbacks ?? {}
@@ -314,13 +241,8 @@ export class ChatService {
       onGlyphPush: callbacks.onGlyphPush ?? noop,
     }
 
-    const functions = Object.values(options.tools ?? {})
-      .map((tool) => toFunctionSchema(tool))
-      .filter((schema): schema is ChatFunctionSchema => schema != null)
-
-    const resolved = options.connection
-      ? resolveConnection(options.connection, functions)
-      : resolveLegacyConfig(options.config as ChatConfig)
+    const functions = (options.tools ?? []).map(toFunctionSchema)
+    const resolved = resolveConnection(options.connection, functions)
     if (resolved.specifier === 'xiaozhiV1' && !ChatService.supportsProtocol('xiaozhi-v1')) {
       throw new Error('The selected realtime protocol is unavailable on this target')
     }

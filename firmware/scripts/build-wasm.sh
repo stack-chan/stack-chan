@@ -19,7 +19,7 @@ if [[ -z "${MODDABLE:-}" ]]; then
   exit 1
 fi
 
-EXPECTED_MODDABLE_VERSION="9.0.0"
+EXPECTED_MODDABLE_VERSION="9.5.0"
 ACTUAL_MODDABLE_VERSION="$(tr -d '[:space:]' < "$MODDABLE/tools/VERSION")"
 if [[ "$ACTUAL_MODDABLE_VERSION" != "$EXPECTED_MODDABLE_VERSION" ]]; then
   echo "error: Moddable SDK $EXPECTED_MODDABLE_VERSION is required (found $ACTUAL_MODDABLE_VERSION)" >&2
@@ -68,7 +68,17 @@ node "$FIRMWARE_DIR/scripts/run-mcconfig.mjs" -d -p wasm -t build "$MANIFEST"
 # force a relink so a LINK_OPTIONS change always takes effect
 rm -f "$BIN_DIR/mc.js"
 
-make -C "$TMP_DIR" -f makefile LINK_OPTIONS="$LINK_OPTIONS" FONTBM="$FONTBM"
+# SDK 9.5's TextDecoder uses C bool without including stdbool.h on WASM.
+# Supply the standard header without modifying the SDK or replacing its C flags.
+if make -C "$TMP_DIR" -f makefile CC="emcc -include stdbool.h" LINK_OPTIONS="$LINK_OPTIONS" FONTBM="$FONTBM"; then
+  :
+else
+  BUILD_STATUS=$?
+  # tsc can emit JavaScript even when type checking fails. Do not allow the
+  # next build to treat those partial files as successfully checked outputs.
+  rm -rf "$TMP_DIR" "$BIN_DIR"
+  exit "$BUILD_STATUS"
+fi
 
 mkdir -p "$FIRMWARE_DIR/../web/simulator"
 cp "$BIN_DIR/mc.js" "$BIN_DIR/mc.wasm" "$FIRMWARE_DIR/../web/simulator/"

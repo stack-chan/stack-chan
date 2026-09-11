@@ -1,73 +1,87 @@
 /* global SharedArrayBuffer */
 
 import type { BorrowedAudioBuffer } from 'audio-buffer'
+import type { AudioOutputPort } from 'audio-ports'
+import { parsePcmWave } from 'pcm-wave'
 import AudioOut from 'pins/audioout'
+import { finiteNumber } from 'stackchan/errors'
+import {
+  DEFAULT_PLAYBACK_VOLUME,
+  MAX_TONE_DURATION_MS,
+  MAX_TONE_HZ,
+  MIN_TONE_HZ,
+  TONE_SAMPLE_RATE,
+} from 'stackchan-contracts/audio-playback'
+import { beginTTSPlayback, type TTSPlaybackLifecycle } from 'tts-playback-lifecycle'
+import { PlaybackProvider } from 'tts-playback-session'
 
-const WAV_HEADER_SIZE = 44
+const retainedPcm = Symbol('stackchan-speaker-pcm')
+type BufferedOutput = AudioOut & { [retainedPcm]?: SharedArrayBuffer }
 
 export type ToneProperty = {
   volume?: number
 }
 
-export default class Speaker {
-  volume: number
+export default class Speaker extends PlaybackProvider implements AudioOutputPort {
+  readonly volume: number
 
-  constructor(props: ToneProperty) {
-    this.volume = props.volume ?? 0.5
+  constructor(props: ToneProperty = {}) {
+    super()
+    this.volume = props.volume ?? DEFAULT_PLAYBACK_VOLUME
+    finiteNumber(this.volume, 'volume', 0, 1)
   }
-  async tone(hz: number, duration: number, volume?: number): Promise<void> {
-    const audio = new AudioOut({
-      streams: 1,
-      sampleRate: 24000,
-      bitsPerSample: 16,
-    })
-    return new Promise((resolve) => {
-      audio.enqueue(0, AudioOut.Flush)
-      audio.enqueue(0, AudioOut.Volume, Math.round((volume ?? this.volume) * 256))
-      audio.enqueue(0, AudioOut.Tone, hz, (audio.sampleRate * duration) / 1000)
+  async tone(hz: number, duration: number, volume = this.volume): Promise<void> {
+    return this.#play<void>((lifecycle) => {
+      finiteNumber(hz, 'hz', MIN_TONE_HZ, MAX_TONE_HZ)
+      finiteNumber(duration, 'durationMs', 0, MAX_TONE_DURATION_MS)
+      finiteNumber(volume, 'volume', 0, 1)
+      const audio = lifecycle.openAudio({ streams: 1, sampleRate: TONE_SAMPLE_RATE, bitsPerSample: 16 }, volume)
+      audio.callback = () => lifecycle.onDone()
+      audio.enqueue(0, AudioOut.Tone, hz, Math.ceil((audio.sampleRate * duration) / 1000))
       audio.enqueue(0, AudioOut.Callback, 1)
       audio.start()
-
-      audio.callback = (_id) => {
-        audio.close()
-        resolve()
-      }
-    })
+    }, undefined)
   }
 
-  async play(buffer: BorrowedAudioBuffer): Promise<boolean> {
-    if (buffer.byteLength <= WAV_HEADER_SIZE) return false
-    try {
-      const view = new DataView(buffer)
-      const numChannels = view.getUint16(22, true)
-      const sampleRate = view.getUint32(24, true)
-      const bitsPerSample = view.getUint16(34, true)
-      if (bitsPerSample !== 16 || (numChannels !== 1 && numChannels !== 2)) return false
-      if (sampleRate < 8000 || sampleRate > 48000) return false
+  async play(buffer: BorrowedAudioBuffer, volume = this.volume): Promise<boolean> {
+    return this.#play<boolean>((lifecycle) => {
+      finiteNumber(volume, 'volume', 0, 1)
+      const { sampleRate, numChannels, bitsPerSample, dataOffset, dataBytes } = parsePcmWave(buffer)
+      // RawSamples retains only a C pointer. AudioOut's remembered JS object
+      // must keep the PCM alive until close confirms it no longer uses that pointer.
+      const pcm = new SharedArrayBuffer(dataBytes)
+      new Uint8Array(pcm).set(new Uint8Array(buffer, dataOffset, dataBytes))
+      const audio = lifecycle.openAudio({ streams: 1, sampleRate, numChannels, bitsPerSample }, volume)
+      const buffered = audio as BufferedOutput
+      buffered[retainedPcm] = pcm
+      void lifecycle.released.then(
+        () => {
+          delete buffered[retainedPcm]
+        },
+        () => {
+          // Unconfirmed close may still be reading. Keep its buffer pinned to
+          // the native object's remembered JS wrapper; the provider is faulted.
+        },
+      )
+      audio.callback = () => lifecycle.onDone()
+      audio.enqueue(0, AudioOut.RawSamples, pcm as unknown as HostBuffer)
+      audio.enqueue(0, AudioOut.Callback, 1)
+      audio.start()
+    }, true)
+  }
 
-      // AudioOut.RawSamples requires a non-relocatable buffer; a plain ArrayBuffer is
-      // relocatable and rejected, so copy the PCM payload into a SharedArrayBuffer.
-      const pcmLength = buffer.byteLength - WAV_HEADER_SIZE
-      const shared = new SharedArrayBuffer(pcmLength)
-      new Uint8Array(shared).set(new Uint8Array(buffer, WAV_HEADER_SIZE))
-
-      const audio = new AudioOut({ streams: 1, sampleRate, numChannels, bitsPerSample })
-      return await new Promise<boolean>((resolve) => {
-        audio.enqueue(0, AudioOut.Flush)
-        audio.enqueue(0, AudioOut.Volume, Math.round(this.volume * 256))
-        // `shared` is retained by this closure until the callback fires, so it is not collected.
-        // AudioOut.enqueue is typed for HostBuffer; the native layer also accepts a SharedArrayBuffer.
-        audio.enqueue(0, AudioOut.RawSamples, shared as unknown as HostBuffer)
-        audio.enqueue(0, AudioOut.Callback, 1)
-        audio.start()
-        audio.callback = () => {
-          audio.close()
-          resolve(true)
-        }
+  #play<T>(start: (lifecycle: TTSPlaybackLifecycle) => void, value: T): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const lifecycle = beginTTSPlayback(this, (error) => {
+        if (error !== undefined) reject(error)
+        else resolve(value)
       })
-    } catch (error) {
-      trace(`Speaker.play error ${error}\n`)
-      return false
-    }
+      if (!lifecycle) return
+      try {
+        start(lifecycle)
+      } catch (error) {
+        lifecycle.fail(error)
+      }
+    })
   }
 }

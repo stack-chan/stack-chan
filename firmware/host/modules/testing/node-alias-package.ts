@@ -1,7 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 
 let atomicWriteCounter = 0
+// Every process publishes the same map. Merging per-subpath maps loses updates
+// between workers and Node can cache that incomplete map before later aliases exist.
+const packageConfig = JSON.stringify({ type: 'module', exports: { '.': './index.js', './*': './*.js' } })
 
 // node --test runs each test file in its own process, and several files write the
 // same shared node_modules/<alias> packages concurrently. A plain writeFileSync lets
@@ -25,7 +28,6 @@ export function writeAliasPackage(
   const targetSpecifier = relative(packageRoot, target).replaceAll('\\', '/')
   const importSpecifier = targetSpecifier.startsWith('.') ? targetSpecifier : `./${targetSpecifier}`
   mkdirSync(packageRoot, { recursive: true })
-  atomicWriteFileSync(`${packageRoot}/package.json`, JSON.stringify({ type: 'module', exports: './index.js' }))
   atomicWriteFileSync(
     `${packageRoot}/index.js`,
     [
@@ -34,6 +36,7 @@ export function writeAliasPackage(
       '',
     ].join('\n'),
   )
+  atomicWriteFileSync(`${packageRoot}/package.json`, packageConfig)
 }
 
 export function writeAliasPackageSubpath(
@@ -50,22 +53,7 @@ export function writeAliasPackageSubpath(
   const targetSpecifier = relative(dirname(entryPath), target).replaceAll('\\', '/')
   const importSpecifier = targetSpecifier.startsWith('.') ? targetSpecifier : `./${targetSpecifier}`
   const packagePath = `${packageRoot}/package.json`
-  const packageConfig = existsSync(packagePath)
-    ? JSON.parse(readFileSync(packagePath, 'utf8'))
-    : { type: 'module', exports: {} }
-  const exports =
-    typeof packageConfig.exports === 'object' && packageConfig.exports != null ? packageConfig.exports : {}
-
   mkdirSync(dirname(entryPath), { recursive: true })
-  exports[`./${subpath}`] = `./${subpath}.js`
-  atomicWriteFileSync(
-    packagePath,
-    JSON.stringify({
-      ...packageConfig,
-      type: 'module',
-      exports,
-    }),
-  )
   atomicWriteFileSync(
     entryPath,
     [
@@ -74,4 +62,5 @@ export function writeAliasPackageSubpath(
       '',
     ].join('\n'),
   )
+  atomicWriteFileSync(packagePath, packageConfig)
 }

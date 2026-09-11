@@ -5,7 +5,7 @@ export default function readBatteryLevel(): number | undefined {
   const power = getAxp2101Power()
   if (!power) return undefined
   try {
-    return readAxp2101BatteryLevel((register) => power.readByte(register))
+    return readAxp2101BatteryLevel((register) => power.readUint8(register))
   } catch {
     return undefined
   }

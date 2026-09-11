@@ -1,247 +1,309 @@
 import WiFi from 'ecma-wifi'
 import config from 'mc/config'
-import {
-  NetworkConnectionState,
-  NetworkConnectionStateMachine,
-  type NetworkConnectionState as NetworkConnectionStateValue,
-} from 'network-state'
-import SNTP from 'sntp'
+import { NetworkConnectionState, NetworkConnectionStateMachine } from 'network-state'
+import type { NetworkAvailability, NetworkServiceOptions, NetworkState } from 'network-types'
+import { finiteNumber, StackchanError } from 'stackchan/errors'
 import Time from 'time'
 import Timer from 'timer'
 
-const MAX_SCANS = 3
-const DEFAULT_CONNECTION_TIMEOUT_MS = 15000
-const DEFAULT_RECONNECT_DELAY_MS = 3000
+export type { NetworkServiceOptions, NetworkState, NetworkStateChanged } from 'network-types'
 
-export type NetworkState = NetworkConnectionStateValue
-export type NetworkStateChanged = (state: NetworkState, reason?: string) => void
+type NtpClient = { getTime(callback: (error: unknown, time?: number) => void): void; close(): void }
+declare const device: { network: { ntp: { client: { io: new (options: object) => NtpClient } } } }
 
-export type NetworkServiceOptions = {
-  ssid?: string
-  password?: string
-  connectionTimeoutMs?: number
-  reconnectDelayMs?: number
-  onStateChanged?: NetworkStateChanged
-}
-
+/** Owns one Wi-Fi adapter. A closed instance cannot reconnect or consume a late scan result. */
 export class NetworkService {
-  #ssid?: string
-  #password?: string
-  #connectionTimeoutMs: number
-  #reconnectDelayMs: number
-  #stateMachine = new NetworkConnectionStateMachine({ maxScans: MAX_SCANS })
-  #wifi: WiFi
-  #connectionTimeout
-  #reconnectTimer
+  static readonly availability: NetworkAvailability =
+    (WiFi as unknown as { availability?: NetworkAvailability }).availability ?? 'native'
+  readonly #options: NetworkServiceOptions
+  readonly #timeoutMs: number
+  readonly #reconnectDelayMs: number
+  readonly #wifi: WiFi
+  #stateMachine = new NetworkConnectionStateMachine({ maxScans: 3 })
   #closed = false
-  #handleStateChanged: NetworkStateChanged = () => {}
-  #handleConnected: () => void = () => {}
-  #handleError: (reason?: string) => void = () => {}
+  #cleanupError?: StackchanError
+  #active = false
+  #epoch = 0
+  #deadline?: ReturnType<typeof Timer.set>
+  #retry?: ReturnType<typeof Timer.set>
+  #ntp?: NtpClient
+  #connected: () => void = () => {}
+  #error: (reason?: string) => void = () => {}
   onConnected: () => void = () => {}
   onError: (reason?: string) => void = () => {}
 
   constructor(options: NetworkServiceOptions) {
-    this.#ssid = options.ssid
-    this.#password = options.password
-    this.#connectionTimeoutMs = options.connectionTimeoutMs ?? DEFAULT_CONNECTION_TIMEOUT_MS
-    this.#reconnectDelayMs = options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS
-    this.#handleStateChanged = options.onStateChanged ?? (() => {})
-    this.#wifi = new WiFi({
-      onChanged: (property: string) => {
-        this.#handleWiFiChanged(property)
-      },
-    })
+    this.#options = { ...options }
+    this.#timeoutMs = options.connectionTimeoutMs ?? 15_000
+    this.#reconnectDelayMs = options.reconnectDelayMs ?? 3000
+    finiteNumber(this.#timeoutMs, 'connectionTimeoutMs', 1, 120_000)
+    finiteNumber(this.#reconnectDelayMs, 'reconnectDelayMs', 0, 60_000)
+    this.#wifi = new WiFi({ onChanged: () => this.#changed() })
   }
 
   get state(): NetworkState {
     return this.#stateMachine.state
   }
-
+  get closed(): boolean {
+    return this.#closed
+  }
   matchesCredentials(options: { ssid?: string; password?: string }): boolean {
-    return this.#ssid === options.ssid && this.#password === options.password
+    return this.#options.ssid === options.ssid && (this.#options.password ?? '') === (options.password ?? '')
   }
 
-  join(onConnected?: () => void, onError?: (message?: string) => void): void {
-    if (this.state === NetworkConnectionState.CONNECTED) {
-      onConnected?.()
-    } else if (this.state === NetworkConnectionState.FAILED) {
-      onError?.('connection failed')
-    } else {
-      const previousConnected = this.#handleConnected
-      const previousError = this.#handleError
-      this.#handleConnected = () => {
-        previousConnected?.()
-        onConnected?.()
-      }
-      this.#handleError = (reason) => {
-        previousError?.(reason)
-        onError?.(reason)
-      }
+  connect(onConnected = this.onConnected, onError = this.onError): void {
+    const epoch = this.#begin(onConnected, onError)
+    this.#connectPhysical(epoch)
+  }
+
+  scanAndConnect(onConnected = this.onConnected, onError = this.onError): void {
+    const epoch = this.#begin(onConnected, onError)
+    this.#scan(epoch)
+  }
+
+  close(): void {
+    if (this.#closed) {
+      if (this.#cleanupError) throw this.#cleanupError
+      return
     }
-  }
-
-  close() {
     this.#closed = true
-    this.#clearConnectionTimeout()
-    this.#clearReconnectTimer()
-    this.#wifi.disconnect()
-    this.#wifi.close()
+    this.#active = false
+    this.#epoch++
+    this.#connected = () => {}
+    this.#error = () => {}
+    this.onConnected = () => {}
+    this.onError = () => {}
+    let failure: unknown
+    let failed = false
+    for (const close of [
+      () => this.#closeNtp(),
+      () => this.#clearTimers(),
+      () => this.#wifi.disconnect(),
+      () => this.#wifi.close(),
+    ]) {
+      try {
+        close()
+      } catch (error) {
+        if (!failed) {
+          failure = error
+          failed = true
+        }
+      }
+    }
     this.#transition({ type: 'closed' })
+    this.#options.onStateChanged = undefined
+    if (failed) this.#recordCleanupError(failure)
+    if (this.#cleanupError) throw this.#cleanupError
   }
 
-  connect(onConnected: () => void = this.onConnected, onError: (message?: string) => void = this.onError) {
-    this.#handleConnected = onConnected
-    this.#handleError = onError
-    if (this.#ssid == null) {
-      this.#fail('ssid not set')
-      return
-    }
-    this.#closed = false
-    this.#clearReconnectTimer()
-    this.#startConnectionAttempt()
+  #begin(onConnected: () => void, onError: (reason?: string) => void): number {
+    if (this.#closed) throw new StackchanError('CLOSED', 'Wi-Fi adapter is closed')
+    if (this.#cleanupError) throw this.#cleanupError
+    this.#active = false
+    const epoch = ++this.#epoch
+    this.#closeNtp()
+    this.#clearTimers()
+    this.#connected = onConnected
+    this.#error = onError
+    this.#stateMachine = new NetworkConnectionStateMachine({ maxScans: 3 })
+    if (!this.#options.ssid) throw new StackchanError('CONFIG', 'Wi-Fi SSID is missing')
+    this.#active = true
+    // One deadline covers scanning, association, IP acquisition and optional NTP.
+    this.#deadline = Timer.set(() => {
+      this.#deadline = undefined
+      if (this.#valid(epoch)) this.#fail('connection timeout')
+    }, this.#timeoutMs)
+    return epoch
   }
 
-  #startConnectionAttempt() {
-    this.#clearConnectionTimeout()
+  #valid(epoch: number): boolean {
+    return !this.#closed && this.#active && this.#epoch === epoch
+  }
+
+  #connectPhysical(epoch: number): void {
+    if (!this.#valid(epoch)) return
     this.#transition({ type: 'connect-requested' })
-    this.#startConnectionTimeout()
-    this.#wifi.connect(createWiFiConnectOptions(this.#ssid, this.#password))
+    if (!this.#valid(epoch)) return
+    const password = this.#options.password
+    try {
+      this.#wifi.connect(password ? { SSID: this.#options.ssid, password, secure: true } : { SSID: this.#options.ssid })
+    } catch {
+      this.#fail('Wi-Fi connection failed')
+    }
   }
 
-  scanAndConnect(onConnected: () => void = this.onConnected, onError: (message?: string) => void = this.onError) {
-    this.#handleConnected = onConnected
-    this.#handleError = onError
-    if (this.#ssid == null) {
-      this.#fail('ssid not set')
-      return
-    }
+  #scan(epoch: number): void {
+    if (!this.#valid(epoch)) return
     this.#transition({ type: 'scan-started' })
+    if (!this.#valid(epoch)) return
     let found = false
-    this.#wifi.scan({
-      onFound: (item: { ssid?: string; SSID?: string }) => {
-        const ssid = item.ssid ?? item.SSID
-        if (ssid !== this.#ssid || found) return
-        found = true
-        this.connect(onConnected, onError)
-      },
-      onComplete: () => {
-        if (found) return
-        const state = this.#transition({ type: 'scan-finished' })
-        if (state === NetworkConnectionState.FAILED) {
-          const message = `Access point "${this.#ssid}" not found`
-          trace(`${message}\n`)
-          this.#handleError(message)
-          return
-        }
-        trace('retrying\n')
-        this.scanAndConnect(this.#handleConnected, this.#handleError)
-      },
-    })
+    let completed = false
+    try {
+      this.#wifi.scan({
+        onFound: (item: { ssid?: string; SSID?: string }) => {
+          if (!this.#valid(epoch) || completed || found || (item.ssid ?? item.SSID) !== this.#options.ssid) return
+          found = true
+          this.#connectPhysical(epoch)
+        },
+        onComplete: () => {
+          if (!this.#valid(epoch) || completed || found) return
+          completed = true
+          if (this.#transition({ type: 'scan-finished' }) === NetworkConnectionState.FAILED) {
+            this.#fail(`Access point "${this.#options.ssid}" not found`)
+            return
+          }
+          if (!this.#valid(epoch)) return
+          this.#retry = Timer.set(() => {
+            this.#retry = undefined
+            this.#scan(epoch)
+          }, 0)
+        },
+      })
+    } catch {
+      this.#fail('Wi-Fi scan failed')
+    }
   }
 
-  #handleWiFiChanged(_property: string): void {
+  #changed(): void {
+    if (this.#closed || !this.#active) return
     const connection = this.#wifi.connection
-    trace(`WiFi ${connection}\n`)
     if (connection >= 500) {
-      trace(`Got IP address: ${this.#wifi.address}\n`)
-      this.#handleGotIP()
+      this.#gotIP()
       return
     }
-    if (connection >= 400) {
-      trace(`Connected to: ${this.#wifi.SSID}\n`)
+    if (connection > 200 || this.state === NetworkConnectionState.SCANNING) return
+    const reconnect = this.#stateMachine.connectionEstablished
+    this.#active = false
+    this.#epoch++
+    this.#clearTimers()
+    try {
+      this.#closeNtp()
+    } catch {
+      this.#fail('Time synchronization cleanup failed')
       return
     }
-    if (connection <= 200) {
+    this.#transition({ type: 'disconnected' }, 'disconnected')
+    if (this.#closed) return
+    if (!reconnect) {
+      this.#emitError('connection failed')
+      return
+    }
+    this.#retry = Timer.set(() => {
+      this.#retry = undefined
       if (this.#closed) return
-      this.#clearConnectionTimeout()
-      this.#transition({ type: 'disconnected' }, 'disconnected')
-      if (this.#stateMachine.connectionEstablished) {
-        this.#scheduleReconnect()
-      } else {
-        this.#handleError?.('connection failed')
+      try {
+        this.connect(this.#connected, this.#error)
+      } catch {
+        this.#fail('Wi-Fi reconnection failed')
       }
-    }
-  }
-
-  #handleGotIP(): void {
-    this.#clearConnectionTimeout()
-    this.#transition({ type: 'got-ip' })
-
-    // Setting time for TLS connection
-    const sntpHost = typeof config.sntp === 'string' ? config.sntp : undefined
-    if (!sntpHost || Date.now() > 1672722071_000) {
-      trace('Time·already configured, skipping\n')
-      this.#handleConnected?.()
-      return
-    }
-    this.#transition({ type: 'time-sync-started' })
-    this.#startConnectionTimeout()
-    new SNTP({ host: sntpHost }, (message, value) => {
-      if (SNTP.time === message) {
-        trace(`Got time from: ${sntpHost}\n`)
-        if (typeof value === 'number') {
-          Time.set(value)
-          this.#clearConnectionTimeout()
-          this.#transition({ type: 'time-synced' })
-          this.#handleConnected?.()
-        } else {
-          this.#fail('Failed to get time')
-        }
-      } else if (SNTP.error === (message as -1 | 1 | 2)) {
-        // workaround for the type mistake
-        this.#fail('Failed to get time')
-      }
-    })
-  }
-
-  #scheduleReconnect() {
-    if (this.#closed || this.#reconnectTimer != null) return
-    trace('WiFi reconnecting...\n')
-    this.#reconnectTimer = Timer.set(() => {
-      this.#reconnectTimer = undefined
-      if (!this.#closed) this.#startConnectionAttempt()
     }, this.#reconnectDelayMs)
   }
 
-  #startConnectionTimeout() {
-    this.#clearConnectionTimeout()
-    this.#connectionTimeout = Timer.set(() => {
-      this.#connectionTimeout = undefined
-      this.#fail('connection timeout')
-    }, this.#connectionTimeoutMs)
+  #gotIP(): void {
+    if (this.state === NetworkConnectionState.CONNECTED || this.#ntp) return
+    const sntpHost = typeof config.sntp === 'string' ? config.sntp : undefined
+    if (!sntpHost || Date.now() > 1672722071_000) {
+      this.#complete()
+      return
+    }
+    const epoch = this.#epoch
+    this.#transition({ type: 'time-sync-started' })
+    if (!this.#valid(epoch)) return
+    try {
+      const provider = device.network.ntp.client
+      const ntp = new provider.io({ ...provider, servers: [sntpHost] })
+      this.#ntp = ntp
+      ntp.getTime((error, value) => {
+        if (!this.#valid(epoch) || this.#ntp !== ntp) return
+        try {
+          this.#closeNtp()
+        } catch {
+          this.#fail('Time synchronization cleanup failed')
+          return
+        }
+        if (error || typeof value !== 'number' || !Number.isFinite(value)) {
+          this.#fail('Failed to get time')
+          return
+        }
+        try {
+          Time.set(value / 1000)
+        } catch {
+          this.#fail('Failed to set time')
+          return
+        }
+        this.#complete()
+      })
+    } catch {
+      this.#fail('Failed to get time')
+    }
   }
 
-  #clearConnectionTimeout() {
-    if (this.#connectionTimeout == null) return
-    Timer.clear(this.#connectionTimeout)
-    this.#connectionTimeout = undefined
+  #complete(): void {
+    if (this.#closed || !this.#active) return
+    this.#clearTimers()
+    this.#transition({ type: 'time-synced' })
+    if (!this.#closed && this.#active) {
+      try {
+        this.#connected()
+      } catch {
+        trace('[network] connection observer failed\n')
+      }
+    }
   }
 
-  #clearReconnectTimer() {
-    if (this.#reconnectTimer == null) return
-    Timer.clear(this.#reconnectTimer)
-    this.#reconnectTimer = undefined
+  #closeNtp(): void {
+    const ntp = this.#ntp
+    this.#ntp = undefined
+    try {
+      ntp?.close()
+    } catch (error) {
+      this.#recordCleanupError(error)
+      throw this.#cleanupError
+    }
+  }
+  #recordCleanupError(cause: unknown): void {
+    this.#cleanupError ??= new StackchanError('IO', 'Wi-Fi resources could not be closed', { cause })
+  }
+  #clearTimers(): void {
+    if (this.#deadline !== undefined) Timer.clear(this.#deadline)
+    if (this.#retry !== undefined) Timer.clear(this.#retry)
+    this.#deadline = undefined
+    this.#retry = undefined
   }
 
-  #fail(reason: string) {
-    this.#clearConnectionTimeout()
+  #fail(reason: string): void {
+    if (this.#closed) return
+    this.#active = false
+    this.#epoch++
+    this.#clearTimers()
+    try {
+      this.#closeNtp()
+    } catch {
+      /* close() still releases the Wi-Fi adapter. */
+    }
+    try {
+      this.#wifi.disconnect()
+    } catch (error) {
+      this.#recordCleanupError(error)
+    }
     this.#transition({ type: 'failed' }, reason)
-    this.#handleError?.(reason)
+    if (!this.#closed) this.#emitError(reason)
   }
 
+  #emitError(reason: string): void {
+    try {
+      this.#error(reason)
+    } catch {
+      trace('[network] error observer failed\n')
+    }
+  }
   #transition(event: Parameters<NetworkConnectionStateMachine['transition']>[0], reason?: string): NetworkState {
     const state = this.#stateMachine.transition(event)
-    this.#handleStateChanged(state, reason)
+    try {
+      this.#options.onStateChanged?.(state, reason)
+    } catch {
+      trace('[network] state observer failed\n')
+    }
     return state
   }
-}
-
-function createWiFiConnectOptions(
-  ssid: string,
-  password?: string,
-): { SSID: string; password?: string; secure?: boolean } {
-  if (password == null || password.length === 0) {
-    return { SSID: ssid }
-  }
-  return { SSID: ssid, password, secure: true }
 }

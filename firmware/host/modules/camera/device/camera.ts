@@ -24,7 +24,7 @@ const DEFAULT_CAPTURE_REQUEST: CameraCaptureRequest = {
 
 export type DeviceCameraConstructorOptions = Record<string, never>
 
-type DisposableCameraBuffer = ArrayBuffer & {
+type DisposableCameraBuffer = (ArrayBuffer | HostBuffer) & {
   close?: () => void
 }
 
@@ -61,6 +61,8 @@ function closeFrame(frame: DisposableCameraBuffer | undefined): void {
 
 export default class Camera implements RobotCamera {
   readonly available = true
+  readonly availability = 'native' as const
+  readonly formats = ['rgb565le', 'rgb565be', 'jpeg'] as const
 
   #camera: NativeImageInCamera | undefined
   #frame: DisposableCameraBuffer | undefined
@@ -69,12 +71,16 @@ export default class Camera implements RobotCamera {
   #imageType: CameraImageType = DEFAULT_IMAGE_TYPE
   #request: CameraCaptureRequest = DEFAULT_CAPTURE_REQUEST
   #running = false
+  #closed = false
+  #epoch = 0
+  #waits = new Set<() => void>()
 
   constructor(_options?: DeviceCameraConstructorOptions) {
     void _options
   }
 
   start(options: CameraCaptureOptions = {}): void {
+    if (this.#closed) throw new Error('Camera is closed')
     const request = normalizeCameraCaptureRequest(options, DEFAULT_CAPTURE_REQUEST)
     trace(`[camera] start request width=${request.width} height=${request.height} imageType=${request.imageType}\n`)
     const nativeImageType = toNativeImageType(request.imageType)
@@ -91,21 +97,33 @@ export default class Camera implements RobotCamera {
     this.#closeCamera()
 
     trace('[camera] native constructor begin\n')
-    const camera = new ImageInCamera({
+    let camera: NativeImageInCamera | undefined
+    camera = new ImageInCamera({
       width: request.width,
       height: request.height,
       imageType: nativeImageType,
       format: FORMAT_DISPOSABLE_BUFFER,
-      onReadable: () => this.#readLatestFrame(),
+      onReadable: () => {
+        if (camera === this.#camera && this.#running) this.#readLatestFrame()
+      },
     })
     trace(`[camera] native constructor ready width=${camera.width} height=${camera.height}\n`)
 
     this.#camera = camera
-    this.#width = camera.width
-    this.#height = camera.height
-    this.#imageType = request.imageType
-    this.#request = request
-    this.#startCamera()
+    try {
+      this.#width = camera.width
+      this.#height = camera.height
+      this.#imageType = request.imageType
+      this.#request = request
+      this.#startCamera()
+    } catch (error) {
+      try {
+        this.#closeCamera()
+      } catch (cleanupError) {
+        trace(`[camera] initialization cleanup failed: ${String(cleanupError)}\n`)
+      }
+      throw error
+    }
   }
 
   stop(): void {
@@ -113,10 +131,13 @@ export default class Camera implements RobotCamera {
   }
 
   close(): void {
+    if (this.#closed) return
+    this.#closed = true
     this.#closeCamera()
   }
 
   async capture(options: CameraCaptureOptions = {}): Promise<CameraFrame | undefined> {
+    if (this.#closed) throw new Error('Camera is closed')
     const shouldRestart = this.#shouldRestart(options) || !this.#running
     trace(`[camera] capture begin restart=${shouldRestart}\n`)
     if (shouldRestart) {
@@ -124,12 +145,17 @@ export default class Camera implements RobotCamera {
     }
 
     const camera = this.#camera
+    const epoch = this.#epoch
     if (!camera) return undefined
 
     let frame = this.#takeFrame(camera)
     if (!frame) {
       trace('[camera] capture waiting for frame\n')
-      frame = await this.#waitForFrame(camera)
+      frame = await this.#waitForFrame(camera, epoch)
+    }
+    if (camera !== this.#camera || epoch !== this.#epoch || !this.#running) {
+      closeFrame(frame)
+      return undefined
     }
     if (!frame) {
       trace('[camera] capture no frame\n')
@@ -137,28 +163,48 @@ export default class Camera implements RobotCamera {
     }
     trace(`[camera] capture frame bytes=${frame.byteLength}\n`)
 
-    let isClosed = false
+    // Native buffer/disposable frames are HostBuffers, not ArrayBuffers. Copy
+    // while the camera still owns the storage, then release it on every path.
+    let buffer: ArrayBuffer
+    try {
+      // XS accepts readable HostBuffers in TypedArray constructors.
+      buffer = new Uint8Array(frame as ArrayBuffer).slice().buffer
+    } finally {
+      closeFrame(frame)
+    }
     return {
       width: this.#width,
       height: this.#height,
       imageType: this.#imageType,
-      buffer: frame,
-      close: () => {
-        if (isClosed) return
-        isClosed = true
-        closeFrame(frame)
-      },
+      buffer,
     }
   }
 
   #closeCamera(): void {
-    if (this.#camera) trace('[camera] close\n')
-    this.#stopCamera()
-    if (this.#camera) trace('[camera] native close begin\n')
-    this.#camera?.close()
-    if (this.#camera) trace('[camera] native close done\n')
+    this.#cancelWaits()
+    const camera = this.#camera
+    const frame = this.#frame
+    const running = this.#running
     this.#camera = undefined
+    this.#frame = undefined
     this.#running = false
+    let failed = false
+    let failure: unknown
+    for (const cleanup of [
+      () => {
+        if (running) camera?.stop()
+      },
+      () => closeFrame(frame),
+      () => camera?.close(),
+    ]) {
+      try {
+        cleanup()
+      } catch (error) {
+        if (!failed) failure = error
+        failed = true
+      }
+    }
+    if (failed) throw failure
   }
 
   #startCamera(): void {
@@ -172,14 +218,16 @@ export default class Camera implements RobotCamera {
   }
 
   #stopCamera(): void {
-    if (this.#camera && this.#running) {
-      trace('[camera] native stop begin\n')
-      this.#camera.stop()
-      trace('[camera] native stop done\n')
-    }
-    closeFrame(this.#frame)
+    this.#cancelWaits()
+    const frame = this.#frame
+    const running = this.#running
     this.#frame = undefined
     this.#running = false
+    try {
+      if (running) this.#camera?.stop()
+    } finally {
+      closeFrame(frame)
+    }
   }
 
   #readLatestFrame(): void {
@@ -195,9 +243,21 @@ export default class Camera implements RobotCamera {
     return frame
   }
 
-  #waitForFrame(camera: NativeImageInCamera): Promise<DisposableCameraBuffer | undefined> {
+  #cancelWaits(): void {
+    this.#epoch++
+    for (const cancel of this.#waits) cancel()
+    this.#waits.clear()
+  }
+
+  #waitForFrame(camera: NativeImageInCamera, epoch: number): Promise<DisposableCameraBuffer | undefined> {
     return waitForInitialCameraFrame({
-      isCurrent: () => camera === this.#camera,
+      isCurrent: () => camera === this.#camera && epoch === this.#epoch && this.#running,
+      subscribeCancellation: (cancel) => {
+        this.#waits.add(cancel)
+        return () => {
+          this.#waits.delete(cancel)
+        }
+      },
       onTimeout: () => trace('[camera] capture timed out waiting for first frame\n'),
       pollMs: INITIAL_FRAME_POLL_MS,
       takeFrame: () => this.#takeFrame(camera),

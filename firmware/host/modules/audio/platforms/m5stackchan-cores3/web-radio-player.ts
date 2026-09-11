@@ -9,8 +9,8 @@ type Session = { audio: WebRadioAudioOut; streamer?: MP3Streamer; generation: nu
 
 declare const device: {
   network: {
-    http: NetworkTransport
-    https: NetworkTransport
+    http: { client: NetworkTransport }
+    https: { client: NetworkTransport }
   }
 }
 
@@ -103,7 +103,7 @@ export default class WebRadioPlayer implements WebRadioCapability {
       const path = `${url.pathname}${url.search}` || '/'
       session.streamer = new MP3Streamer({
         protocol: url.protocol === 'https:' ? 'https' : 'http',
-        http: url.protocol === 'https:' ? device.network.https : device.network.http,
+        http: url.protocol === 'https:' ? device.network.https.client : device.network.http.client,
         host: url.hostname,
         port: url.port ? Number(url.port) : url.protocol === 'https:' ? 443 : 80,
         path,

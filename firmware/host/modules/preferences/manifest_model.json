@@ -1,0 +1,8 @@
+{
+  "modules": {
+    "stackchan/settings-schema": "../../../sdk/settings-schema",
+    "timezone-model": "./timezone-model",
+    "volume-model": "./volume-model"
+  },
+  "include": ["../../../contracts/manifest.json"]
+}

@@ -1,11 +1,10 @@
-export function onLaunch() {
-  trace('[sample-mod] onLaunch from browser simulator sample\n')
-  return true
-}
+import { defineApp } from 'stackchan'
 
-export async function onContextCreated(robot) {
-  trace('[sample-mod] onContextCreated from browser simulator sample\n')
-  robot.setColor?.('primary', 0x30, 0xe0, 0xff)
-  robot.setColor?.('secondary', 0xff, 0x70, 0xd8)
-  await robot.showBalloon?.('sample .xsa OK', { timeout: 1500 })
-}
+export default defineApp({
+  setup(app) {
+    app.face.setColor('primary', { r: 0x30, g: 0xe0, b: 0xff })
+    app.face.setColor('secondary', { r: 0xff, g: 0x70, b: 0xd8 })
+    app.ui.showBalloon('sample .xsa OK')
+    trace('[sample-mod] ready\n')
+  },
+})

@@ -17,10 +17,8 @@ const XSBUG_HOST = process.env.STACKCHAN_MODULE_TEST_XSBUG_HOST ?? '127.0.0.1'
 const RUNTIME_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_TIMEOUT_MS ?? '30000', 10)
 const BUILD_TIMEOUT_MS = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_BUILD_TIMEOUT_MS ?? '360000', 10)
 const FILTER = process.env.STACKCHAN_MODULE_TEST_FILTER
-// Incremental builds are safe: mcconfig regenerates the makefile on every run and
-// the generated mc.xs.c rule depends on every manifest in the include chain, so
-// stale outputs cannot survive a manifest or module edit. CLEAN exists as an
-// escape hatch for a corrupted build tree.
+// Reuse successful builds; failed builds are removed before any retry. CLEAN
+// also discards outputs produced by an older runner or an interrupted build.
 const CLEAN = process.env.STACKCHAN_MODULE_TEST_CLEAN === '1'
 const JOBS = (() => {
   const parsed = Number.parseInt(process.env.STACKCHAN_MODULE_TEST_JOBS ?? '', 10)
@@ -209,6 +207,9 @@ async function buildManifest({ manifestPath, platform, port, name, output }) {
     return false
   }
   if (result.status !== 0) {
+    // TypeScript may emit JavaScript before reporting errors. A later make
+    // must not reuse that partial output and silently skip the failed check.
+    removeBuildOutput(platform, name)
     output.push(...formatProcessFailure(label, result))
     return false
   }
@@ -396,6 +397,7 @@ if (jobs > 1) {
     })
     console.log(`${ok ? 'ok' : 'failed'} (${formatDuration(performance.now() - startedAt)})`)
     if (!ok && output.length > 0) console.error(output.join('\n'))
+    if (!ok) process.exit(1)
   }
 }
 

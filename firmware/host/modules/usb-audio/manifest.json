@@ -25,11 +25,19 @@
     "stackchan-usb-speaker-session": "./speaker-session",
     "stackchan-usb-serial-types": "./usb-serial-types",
     "stackchan-usb-stream-gate": "./stream-gate",
-    "stackchan-usb-stream-tx-queue": "./stream-tx-queue"
+    "stackchan-usb-stream-tx-queue": "./stream-tx-queue",
+    "audio-ports": "../audio/audio-ports",
+    "audio-buffer": "../audio/audio-buffer",
+    "stackchan/task": "../../../sdk/task",
+    "stackchan/errors": "../../../sdk/errors"
   },
   "platforms": {
     "esp32/m5stackchan_cores3": {
-      "dependency": [{ "idf": "esp_driver_usb_serial_jtag" }],
+      "dependency": [
+        {
+          "idf": "esp_driver_usb_serial_jtag"
+        }
+      ],
       "modules": {
         "stackchan-usb-crc32": "./usb-crc32",
         "stackchan-usb-serial": "./usb-serial"

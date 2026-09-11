@@ -1,5 +1,5 @@
 {
   "modules": {
-    "app-default-behavior": "./default-behavior"
+    "default-app/main": "./default-behavior"
   }
 }

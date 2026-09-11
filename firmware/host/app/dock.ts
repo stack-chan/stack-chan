@@ -1,15 +1,16 @@
-import type { RemoteConversationSession, StackchanContext } from 'capabilities'
+import type { AudioStreamAccess } from 'audio-ports'
+import type { HostPresentation, RemoteConversationSession } from 'capabilities'
 
 export const STACKCHAN_DOCK_MODULE = 'stackchan-dock'
 
 export type StackchanDockRuntime = {
   readonly remoteConversationSession?: RemoteConversationSession
-  onContextCreated(context: StackchanContext): void
+  attach(context: HostPresentation, audio: AudioStreamAccess): void
   close(): void
 }
 
 export type StackchanDock = {
-  start(modConfig?: unknown): StackchanDockRuntime | undefined
+  start(capabilities?: readonly string[]): StackchanDockRuntime | undefined
 }
 
 export type StackchanDockModules = {
@@ -19,14 +20,14 @@ export type StackchanDockModules = {
 
 export function startStackchanDock(
   modules: StackchanDockModules,
-  modConfig?: unknown,
+  capabilities?: readonly string[],
 ): StackchanDockRuntime | undefined {
   if (!modules.has(STACKCHAN_DOCK_MODULE)) return
   const dock = modules.importNow(STACKCHAN_DOCK_MODULE)
   if (!isStackchanDock(dock)) {
     throw new TypeError(`${STACKCHAN_DOCK_MODULE} does not export a StackchanDock`)
   }
-  const runtime = dock.start(modConfig)
+  const runtime = dock.start(capabilities)
   if (runtime === undefined) return
   if (!isStackchanDockRuntime(runtime)) {
     throw new TypeError(`${STACKCHAN_DOCK_MODULE} returned an invalid runtime`)
@@ -42,7 +43,7 @@ function isStackchanDockRuntime(value: unknown): value is StackchanDockRuntime {
   return (
     typeof value === 'object' &&
     value !== null &&
-    typeof (value as StackchanDockRuntime).onContextCreated === 'function' &&
+    typeof (value as StackchanDockRuntime).attach === 'function' &&
     typeof (value as StackchanDockRuntime).close === 'function'
   )
 }

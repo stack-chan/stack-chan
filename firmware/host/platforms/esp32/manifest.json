@@ -1,6 +1,7 @@
 {
   "platforms": {
     "esp32/m5stack": {
+      "dependency": [{ "idf": "esp_driver_dac" }],
       "config": {
         "driver": {
           "pwmPan": 5,

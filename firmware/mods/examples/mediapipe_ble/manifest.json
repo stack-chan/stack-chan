@@ -1,8 +1,17 @@
 {
-  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json",
+    "$(MODDABLE)/examples/manifest_typings.json"
+  ],
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": { "allowJs": true }
+    }
+  },
   "modules": {
-    "*": "./mod",
-    "mediapipe-tracking-message": "./tracking-message",
-    "mediapipe-tracking-receiver": "./tracking-receiver"
+    "*": ["./mod", "./tracking-message", "./tracking-receiver"]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

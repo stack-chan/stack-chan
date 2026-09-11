@@ -1,19 +1,7 @@
 import type { Container as PiuContainer, Content as PiuContent, Port as PiuPort } from 'piu/MC'
 import Timer from 'timer'
 
-type SmokeContext = {
-  ui: {
-    controller: {
-      application: {
-        first: PiuContainer | null
-      }
-    }
-  }
-}
-
-type SmokeBehavior = {
-  onContextCreated?: (context: SmokeContext) => Promise<void> | void
-}
+type SmokeContext = { first: PiuContent | null }
 
 type TapBehavior = {
   onTouchBegan?: (content: PiuContent, id: number, x: number, y: number) => void
@@ -58,8 +46,7 @@ function topOf(content: PiuContainer): number {
 }
 
 export async function runMiniAppSmoke(context: SmokeContext): Promise<void> {
-  const controller = context.ui.controller
-  const application = controller.application
+  const application = context
   const view = application.first as PiuContainer
   const viewBehavior = view.behavior as ViewBehavior
   const faceMain = viewBehavior.faceMain
@@ -109,11 +96,3 @@ export async function runMiniAppSmoke(context: SmokeContext): Promise<void> {
   assert(appsButton.visible && appsButton.active, 'registered mini app must remain available after exit')
   trace('[MiniApp Lin Smoke] ok\n')
 }
-
-const behavior: SmokeBehavior = {
-  async onContextCreated(context) {
-    await runMiniAppSmoke(context)
-  },
-}
-
-export default behavior

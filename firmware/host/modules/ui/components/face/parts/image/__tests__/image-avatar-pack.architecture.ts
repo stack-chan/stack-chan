@@ -1,12 +1,41 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { test } from 'node:test'
+import { pathToFileURL } from 'node:url'
+import type { ImageAvatarPack } from '../../../../../../../../sdk/image-avatar.js'
 
-test('ImageAvatarLite sample MOD owns its pack assets and license notice', () => {
-  const modSource = readFileSync('mods/examples/image_avatar_lite/image-avatar-lite-packs.js', 'utf8')
-  assert.match(modSource, /image-avatar-lite-slime/)
-  assert.match(modSource, /image-avatar-lite-transparent\.png/)
-
+test('every sample avatar sprite fits an owned PNG resource and the license notice is retained', async () => {
+  const directory = 'mods/examples/image_avatar_lite'
+  const module = await import(pathToFileURL(resolve(directory, 'image-avatar-lite-packs.js')).href)
+  const packs = module.IMAGE_AVATAR_LITE_PACKS as Record<string, ImageAvatarPack>
+  const textures = new Set<string>()
+  for (const [id, pack] of Object.entries(packs)) {
+    assert.equal(pack.id, id)
+    assert.ok(Object.hasOwn(pack.expressions, pack.defaultExpression))
+    for (const expression of Object.values(pack.expressions)) {
+      for (const sprite of [
+        expression.head,
+        expression.eyes.left,
+        expression.eyes.right,
+        expression.mouth,
+        expression.hands.left,
+        expression.hands.right,
+      ]) {
+        textures.add(sprite.texture)
+        const bytes = readFileSync(resolve(directory, 'assets', sprite.texture))
+        const frames = 'frameCount' in sprite ? (sprite.frameCount as number) : 1
+        assert.equal(bytes.readUInt32BE(16), sprite.width * frames, `${id}: ${sprite.texture} width`)
+        assert.equal(bytes.readUInt32BE(20), sprite.height, `${id}: ${sprite.texture} height`)
+      }
+    }
+  }
+  assert.deepEqual(
+    [...textures].sort(),
+    readdirSync(resolve(directory, 'assets'))
+      .filter((name) => name.endsWith('.png'))
+      .sort(),
+  )
   const notice = readFileSync('mods/examples/image_avatar_lite/LICENSE-M5Core2ImageAvatarLite_AI.txt', 'utf8')
   assert.match(notice, /MIT License/)
   assert.match(notice, /Copyright \(c\) 2021 Takao Akaki/)

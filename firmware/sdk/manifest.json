@@ -1,0 +1,33 @@
+{
+  "modules": {
+    "stackchan/errors": "./errors",
+    "stackchan": "./index",
+    "stackchan/app": "./app",
+    "stackchan/audio": "./audio",
+    "stackchan/task": "./task",
+    "stackchan/motion": "./motion",
+    "stackchan/camera": "./camera",
+    "stackchan/image": "./image",
+    "stackchan/image-avatar": "./image-avatar",
+    "stackchan/extensions/piu": "./extensions/piu",
+    "stackchan/extensions/ui": "./extensions/ui",
+    "stackchan/extensions/input": "./extensions/input",
+    "stackchan/extensions/lighting": "./extensions/lighting",
+    "stackchan/extensions/network": "./extensions/network",
+    "stackchan/extensions/conversation": "./extensions/conversation",
+    "stackchan/extensions/sensors": "./extensions/sensors",
+    "stackchan/extensions/audio": "./extensions/audio",
+    "stackchan/extensions/maintenance": "./extensions/maintenance",
+    "stackchan/extensions/settings": "./extensions/settings",
+    "stackchan/settings-schema": "./settings-schema",
+    "stackchan/shape-face": "./shape-face"
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "allowJs": true
+      }
+    }
+  },
+  "include": ["../contracts/manifest.json"]
+}

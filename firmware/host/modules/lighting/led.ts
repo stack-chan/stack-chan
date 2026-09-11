@@ -60,6 +60,7 @@ class Blink extends NeoStrandEffect {
 export default class Led extends NeoStrand {
   private _effect?: NeoStrandEffect
   private _offTimer?: Timer
+  #closed = false
 
   constructor(parameters: {
     pin: number
@@ -91,6 +92,7 @@ export default class Led extends NeoStrand {
   }
 
   on(r: number, g: number, b: number, duration?: number, index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     const _index = index ?? 0
     const _count = count ?? this.length - _index
     this._stopEffect()
@@ -99,12 +101,13 @@ export default class Led extends NeoStrand {
     this.update()
     if (duration) {
       this._offTimer = Timer.set(() => {
-        this.off(_index, _count)
+        if (!this.#closed) this.off(_index, _count)
       }, duration)
     }
   }
 
   off(index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     const _index = index ?? 0
     const _count = count ?? this.length - _index
     this._stopEffect()
@@ -113,6 +116,7 @@ export default class Led extends NeoStrand {
   }
 
   blink(r: number, g: number, b: number, duration: number, index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     const _index = index ?? 0
     const _count = count ?? this.length - _index
     this._stopEffect()
@@ -129,6 +133,7 @@ export default class Led extends NeoStrand {
   }
 
   rainbow(index?: number, count?: number) {
+    if (this.#closed) throw new Error('LED is closed')
     const _index = index ?? 0
     const _count = count ?? this.length - _index
     this._stopEffect()
@@ -136,5 +141,16 @@ export default class Led extends NeoStrand {
     this._effect = new NeoStrand.HueSpan({ strand: this, start: _index, end: _index + _count })
     this.setScheme([this._effect])
     this.start(50)
+  }
+  close(): void {
+    if (this.#closed) return
+    this.#closed = true
+    try {
+      this._stopEffect()
+      this._fill(this.makeRGB(0, 0, 0), 0, this.length)
+      this.update()
+    } finally {
+      super.close()
+    }
   }
 }

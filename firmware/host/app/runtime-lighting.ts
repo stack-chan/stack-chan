@@ -1,4 +1,7 @@
 import type { RobotLed } from 'capabilities'
+import { ResourceScope } from 'owned-resources'
+import { ownLed } from 'runtime-resources'
+import { StackchanError } from 'stackchan/errors'
 
 export type RuntimeLightingConstructorParam = {
   led?: Record<string, RobotLed>
@@ -6,9 +9,12 @@ export type RuntimeLightingConstructorParam = {
 
 export class StackchanRuntimeLighting {
   #led: Record<string, RobotLed>
+  #devices: ResourceScope
 
-  constructor(params: RuntimeLightingConstructorParam) {
+  constructor(params: RuntimeLightingConstructorParam, devices?: ResourceScope) {
     this.#led = params.led ?? {}
+    this.#devices = devices ?? new ResourceScope()
+    if (!devices) for (const led of Object.values(this.#led)) ownLed(this.#devices, led)
   }
 
   get led() {
@@ -16,6 +22,7 @@ export class StackchanRuntimeLighting {
   }
 
   lightOn(ledName: string, r: number, g: number, b: number, duration?: number, index?: number, count?: number) {
+    this.#assertOpen()
     const led = this.#led[ledName]
     if (led) {
       led.on(r, g, b, duration, index, count)
@@ -23,6 +30,7 @@ export class StackchanRuntimeLighting {
   }
 
   lightOff(ledName: string, index?: number, count?: number) {
+    this.#assertOpen()
     const led = this.#led[ledName]
     if (led) {
       led.off(index, count)
@@ -30,6 +38,7 @@ export class StackchanRuntimeLighting {
   }
 
   lightBlink(ledName: string, r: number, g: number, b: number, duration: number, index?: number, count?: number) {
+    this.#assertOpen()
     const led = this.#led[ledName]
     if (led) {
       led.blink(r, g, b, duration, index, count)
@@ -37,19 +46,18 @@ export class StackchanRuntimeLighting {
   }
 
   lightRainbow(ledName: string, index?: number, count?: number) {
+    this.#assertOpen()
     const led = this.#led[ledName]
     if (led) {
       led.rainbow(index, count)
     }
   }
 
-  close(): void {
-    for (const led of Object.values(this.#led)) {
-      try {
-        led.off()
-      } catch {
-        // best-effort shutdown: keep turning off the remaining LEDs
-      }
-    }
+  close(): Promise<void> {
+    return this.#devices.close()
+  }
+
+  #assertOpen(): void {
+    if (this.#devices.closed) throw new StackchanError('CLOSED', 'Lighting is closed')
   }
 }

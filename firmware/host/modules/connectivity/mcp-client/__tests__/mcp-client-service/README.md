@@ -1,36 +1,10 @@
-# MCP Client Service Test
+# MCP client/server integration test
 
-This test demonstrates the MCP (Model Context Protocol) client service by:
+Runs the real bounded `app-http` client and MCP server over loopback TCP. Twenty connections verify initialization notification, SDK JSON Schema (including enum), tool execution, tool errors, close, and authentication failure. Every failure throws; a printed diagnostic is not a pass. The server selects a free port.
 
-1. Starting a dummy MCP server with test tools
-2. Creating an MCP client to connect to the server
-3. Testing various client operations:
-   - Initialize connection
-   - List available tools
-   - Call tools with different parameters
-   - Error handling for invalid requests
-   - Reset and re-initialization
-
-## Test Tools
-
-The dummy server provides these test tools:
-
-- **echo**: Echoes the input message
-- **add**: Adds two numbers together
-- **get_status**: Returns server status
-
-## Running (Linux)
-
-```bash
-source ~/.local/share/xs-dev-export.sh
-npm run test:moddable -- ./host/modules/connectivity/mcp-client/__tests__/mcp-client-service/manifest.test.json
+```sh
+# From firmware/, with MODDABLE set:
+npm run test:moddable -- host/modules/connectivity/mcp-client/__tests__/mcp-client-service
 ```
 
-## Expected Output
-
-The test will show:
-- Successful initialization with server info
-- List of available tools
-- Results from tool calls
-- Proper error handling for invalid requests
-- Reset and re-initialization functionality
+The separate app-conversation XS test covers 100 MCP connection lifetimes, session headers, finite SSE responses, deletion, and calls after close. This is not a test of a live cloud provider or physical Wi-Fi.

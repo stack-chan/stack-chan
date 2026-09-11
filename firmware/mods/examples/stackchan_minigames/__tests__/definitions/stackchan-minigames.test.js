@@ -1,4 +1,7 @@
-import definitions from 'miniapp'
+import app from 'mod'
+
+const definitions = app.screens
+
 import { equal } from 'testing/assert'
 
 equal(definitions.length, 2, 'one archive should register two mini games')

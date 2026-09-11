@@ -1,0 +1,19 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.web-radio",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "web_radio",
+  "description": "Select and play MP3 internet radio on CoreS3.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["m5stackchan-cores3"],
+  "capabilities": ["ui.controls", "audio.radio", "network.http"],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": ["audio.radio", "network.http"]
+}

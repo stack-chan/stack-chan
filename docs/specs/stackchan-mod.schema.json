@@ -13,12 +13,23 @@
     "name",
     "description",
     "source",
-    "targets"
+    "targets",
+    "appApiVersion",
+    "hostApiVersion"
   ],
   "properties": {
-    "$schema": { "type": "string", "format": "uri-reference" },
-    "format": { "const": "tech.stackchan.mod" },
-    "schemaVersion": { "const": 1 },
+    "$schema": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "format": {
+      "const": "tech.stackchan.mod"
+    },
+    "schemaVersion": {
+      "enum": [
+        2
+      ]
+    },
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)+$",
@@ -26,23 +37,53 @@
     },
     "version": {
       "type": "string",
-      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$",
+      "maxLength": 80
     },
-    "type": { "enum": ["block", "text"] },
-    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
-    "description": { "type": "string", "minLength": 1, "maxLength": 400 },
-    "author": { "type": "string", "minLength": 1, "maxLength": 120 },
-    "license": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "type": {
+      "enum": [
+        "block",
+        "text"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path"],
+      "required": [
+        "path"
+      ],
       "properties": {
-        "path": { "$ref": "#/$defs/relativePath" },
+        "path": {
+          "$ref": "#/$defs/relativePath"
+        },
         "entrypoint": {
           "allOf": [
-            { "$ref": "#/$defs/relativePath" },
-            { "pattern": "\\.[cm]?[jt]sx?$" }
+            {
+              "$ref": "#/$defs/relativePath"
+            },
+            {
+              "pattern": "\\.[cm]?[jt]sx?$"
+            }
           ]
         }
       }
@@ -50,7 +91,9 @@
     "setup": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["url"],
+      "required": [
+        "url"
+      ],
       "properties": {
         "url": {
           "type": "string",
@@ -64,45 +107,131 @@
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "enum": ["mod", "miniapp"] }
+      "items": {
+        "enum": [
+          "mod"
+        ]
+      }
     },
     "targets": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*$",
+        "maxLength": 80
+      },
+      "maxItems": 32
     },
     "capabilities": {
       "type": "array",
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*$"
-      }
+        "pattern": "^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*$",
+        "maxLength": 80
+      },
+      "maxItems": 32
     },
     "artifacts": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["format", "path", "target"],
+        "required": [
+          "format",
+          "path",
+          "target"
+        ],
         "properties": {
-          "format": { "const": "xsa" },
-          "path": { "$ref": "#/$defs/relativePath" },
-          "target": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+          "format": {
+            "const": "xsa"
+          },
+          "path": {
+            "$ref": "#/$defs/relativePath"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          }
         }
       }
+    },
+    "appApiVersion": {
+      "enum": [
+        2
+      ]
+    },
+    "hostApiVersion": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 9007199254740991
+    },
+    "optionalCapabilities": {
+      "$ref": "#/properties/capabilities",
+      "description": "Subset of capabilities which the app can run without. The runtime checks this subset relation."
+    },
+    "settings": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "pattern": "^[a-z][a-zA-Z0-9]*\\.[a-z][a-zA-Z0-9]*$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "maxLength": 2048
+          },
+          {
+            "type": "number"
+          }
+        ]
+      },
+      "description": "App defaults for managed settings. The host validates keys and values against the public settings schema before evaluating the app."
     }
   },
   "allOf": [
     {
       "if": {
-        "properties": { "type": { "const": "block" } },
-        "required": ["type"]
+        "properties": {
+          "type": {
+            "const": "block"
+          }
+        },
+        "required": [
+          "type"
+        ]
       },
       "then": {
         "properties": {
-          "source": { "not": { "required": ["entrypoint"] } }
+          "source": {
+            "not": {
+              "required": [
+                "entrypoint"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "settings"
+        ],
+        "properties": {
+          "settings": {
+            "minProperties": 1
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "hostApiVersion": {
+            "minimum": 9
+          }
         }
       }
     }

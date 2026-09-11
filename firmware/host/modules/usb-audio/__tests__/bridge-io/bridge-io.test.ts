@@ -12,74 +12,12 @@ import {
   STACKCHAN_MAX_PAYLOAD_BYTES,
   StackChanCapability,
   StackChanControl,
+  StackChanErrorCode,
   StackChanFrameType,
   StackChanStatus,
 } from 'stackchan-usb-protocol'
-import { type USBSerialIO, type USBSerialOptions, USBSerialOutputFullError } from 'stackchan-usb-serial-types'
 import { assert, equal } from 'testing/assert'
-
-class FakeUSBSerial implements USBSerialIO {
-  connected = true
-  format: 'buffer' = 'buffer'
-  readonly writes: Uint8Array[] = []
-  writeAttempts = 0
-  outputFull = false
-  closed = false
-  #options: USBSerialOptions
-  #incoming = new Uint8Array(0)
-
-  constructor(options: USBSerialOptions) {
-    this.#options = options
-  }
-
-  enqueue(bytes: Uint8Array): void {
-    const combined = new Uint8Array(this.#incoming.byteLength + bytes.byteLength)
-    combined.set(this.#incoming)
-    combined.set(bytes, this.#incoming.byteLength)
-    this.#incoming = combined
-  }
-
-  notifyReadable(): void {
-    this.#options.onReadable?.call(this, this.#incoming.byteLength)
-  }
-
-  notifyWritable(): void {
-    this.#options.onWritable?.call(this)
-  }
-
-  notifyError(): void {
-    this.#options.onError?.call(this)
-  }
-
-  read(): ArrayBuffer | undefined
-  read(maximumBytes: number): ArrayBuffer | undefined
-  read(target: Uint8Array): number | undefined
-  read(target?: number | Uint8Array): ArrayBuffer | number | undefined {
-    if (this.closed) throw new Error('closed')
-    if (this.#incoming.byteLength === 0) return
-    const maximum =
-      target instanceof Uint8Array ? target.byteLength : typeof target === 'number' ? target : this.#incoming.byteLength
-    const count = Math.min(maximum, this.#incoming.byteLength)
-    const bytes = this.#incoming.slice(0, count)
-    this.#incoming = this.#incoming.slice(count)
-    if (target instanceof Uint8Array) {
-      target.set(bytes)
-      return count
-    }
-    return bytes.buffer
-  }
-
-  write(source: Uint8Array): void {
-    if (this.closed) throw new Error('closed')
-    this.writeAttempts += 1
-    if (this.outputFull) throw new USBSerialOutputFullError()
-    this.writes.push(source.slice())
-  }
-
-  close(): void {
-    this.closed = true
-  }
-}
+import FakeUSBSerial from 'testing/usb-serial'
 
 const unusedMicrophoneFactory: UsbAudioMicrophoneInputFactory = () => {
   throw new Error('microphone should not be opened')
@@ -271,9 +209,49 @@ function testExtendedStatusWithoutPresentation(): void {
   bridge.close()
 }
 
+function testMediaAdmissionKeepsControlTransport(): void {
+  let opened = 0,
+    closed = 0
+  const { bridge, serial } = startWithFakeSerial({
+    createSpeakerOutput: () => {
+      opened++
+      return new (class extends FakeSpeakerOutput {
+        close() {
+          closed++
+        }
+      })()
+    },
+  })
+  for (let cycle = 0; cycle < 100; cycle++) {
+    bridge.setMediaEnabled(false)
+    serial.enqueue(concatenate(hello(), speakerControl(StackChanControl.SPEAKER_START, 1)))
+    serial.notifyReadable()
+    equal(opened, cycle, 'inactive protocol cannot open audio')
+    const last = decodeStackChanFrame(serial.writes[serial.writes.length - 1])
+    equal(last.flags, StackChanControl.ERROR, 'inactive audio reports a protocol error')
+    equal(last.payload?.[0], StackChanErrorCode.BUSY, 'inactive audio reports BUSY')
+    equal(bridge.sendEvent('task snapshot'), 'queued', 'EVENT remains ready with media disabled')
+    bridge.setMediaEnabled(true)
+    serial.enqueue(
+      concatenate(
+        speakerControl(StackChanControl.SPEAKER_START, 2),
+        speakerPcm(),
+        speakerControl(StackChanControl.SPEAKER_END, 3),
+      ),
+    )
+    serial.notifyReadable()
+    equal(opened, cycle + 1, 'activation enables the next stream')
+    bridge.setMediaEnabled(false)
+    equal(closed, cycle + 1, 'deactivation closes the active stream')
+    equal(bridge.sendEvent('stop request'), 'queued', 'media stop preserves control requests')
+  }
+  bridge.close()
+}
+
 trace('=== USB audio bridge IO test ===\n')
 testOutputFullRetry()
 testFatalSerialError()
 testExtendedStatusWithoutPresentation()
 testDynamicSpeakerVolume()
+testMediaAdmissionKeepsControlTransport()
 trace('ok\n')

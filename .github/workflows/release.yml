@@ -59,7 +59,7 @@ jobs:
       - name: Setup firmware toolchain
         uses: ./.github/actions/setup
         with:
-          target-branch: "9.0.0"
+          target-branch: "9.5.0"
       - name: Build firmware bundle
         working-directory: ./firmware
         run: source "$HOME/.local/share/xs-dev-export.sh" && npm run bundle

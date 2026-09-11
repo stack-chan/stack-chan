@@ -26,6 +26,7 @@
   "boot.wifiNotFound": "未找到已保存的Wi-Fi",
   "boot.wifiFailed": "Wi-Fi连接失败",
   "settings.title": "设置",
+  "settings.saveFailed": "设置保存失败",
   "settings.scan": "扫描",
   "settings.scanning": "正在扫描",
   "settings.boot": "启动",
@@ -84,5 +85,10 @@
   "drawer.recordAndPlay": "录音并播放",
   "drawer.color.light": "白色",
   "drawer.color.dark": "黑色",
-  "drawer.colorScheme": "配色"
+  "drawer.colorScheme": "配色",
+  "boot.capabilityUnavailable": "不可用的功能",
+  "boot.appFailed": "MOD启动失败",
+  "boot.replaceMod": "保存MOD",
+  "boot.updateFirmware": "请更新主机固件",
+  "boot.targetUnsupported": "请选择适用于此机型的MOD"
 }

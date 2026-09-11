@@ -1,0 +1,16 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/modules/data/headers/manifest.json",
+    "$(MODDABLE)/modules/data/url/manifest.json",
+    "../../../../sdk/manifest.json",
+    "../../../modules/testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./app-http.test",
+    "app-http": "../../app-http",
+    "cancellation": "../../cancellation"
+  },
+  "defines": { "main": { "async": 1 } }
+}

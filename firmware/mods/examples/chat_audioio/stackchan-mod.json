@@ -1,0 +1,30 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.chat-audioio",
+  "version": "1.0.0",
+  "type": "text",
+  "name": "chat_audioio",
+  "description": "Realtime audio conversation using shared settings and owned audio devices.",
+  "appApiVersion": 2,
+  "hostApiVersion": 7,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["m5stackchan-cores3", "stackchan-rt", "takao-core2-sg90"],
+  "capabilities": [
+    "ui.controls",
+    "conversation.realtime",
+    "network.http",
+    "motion",
+    "settings"
+  ],
+  "entrypoints": ["mod"],
+  "optionalCapabilities": [
+    "conversation.realtime",
+    "network.http",
+    "motion",
+    "settings"
+  ]
+}

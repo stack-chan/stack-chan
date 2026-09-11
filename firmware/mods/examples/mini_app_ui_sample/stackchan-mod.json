@@ -1,0 +1,18 @@
+{
+  "format": "tech.stackchan.mod",
+  "schemaVersion": 2,
+  "id": "tech.stackchan.examples.mini-app-ui-sample",
+  "version": "2.0.0",
+  "type": "text",
+  "name": "mini app ui sample",
+  "description": "SDKアプリの画面拡張。AppBarから画面を開き、戻る操作で終了します。",
+  "appApiVersion": 2,
+  "hostApiVersion": 3,
+  "source": {
+    "path": "manifest.json",
+    "entrypoint": "mod.ts"
+  },
+  "targets": ["portable", "simulator"],
+  "capabilities": ["ui.piu"],
+  "entrypoints": ["mod"]
+}

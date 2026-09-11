@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { invalidModSettings, makeXsArchive, modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
 
 import {
   bytesToBinaryString,
@@ -43,7 +44,7 @@ const CORES3_TABLE = makePartitionTable([
   { type: 0x01, subtype: 0x82, offset: 0xfe0000, size: 0x10000, label: 'storage' },
 ])
 
-function makeAppHeader(version = '8.3.1+stackchan.1', projectName = 'xs_esp32') {
+function makeAppHeader(version = '9.5.0+stackchan.2', projectName = 'xs_esp32') {
   const bytes = new Uint8Array(256)
   const view = new DataView(bytes.buffer)
   view.setUint32(0x20, 0xabcd5432, true)
@@ -53,11 +54,98 @@ function makeAppHeader(version = '8.3.1+stackchan.1', projectName = 'xs_esp32') 
 }
 
 function makeArchive(size = 32) {
-  const archive = new Uint8Array(size)
-  new DataView(archive.buffer).setUint32(0, size, false)
-  archive.set([0x58, 0x53, 0x5f, 0x41], 4)
-  return archive
+  return makeXsArchive({ metadata: modDefinition, padding: size })
 }
+
+test('embedded API requirements are checked before user preflight or writing and cannot be overridden', async () => {
+  const archive = makeXsArchive()
+  for (const hostApi of [0, 1, 2]) {
+    const calls = []
+    const loader = {
+      async main() {
+        return 'ESP32-S3'
+      },
+      async readFlash(offset) {
+        return offset === PARTITION_TABLE_OFFSET
+          ? CORES3_TABLE
+          : offset === 0x10000
+            ? makeAppHeader('9.5.0' + (hostApi ? '+stackchan.' + hostApi : ''))
+            : archive
+      },
+      async writeFlash() {
+        calls.push('write')
+      },
+      async resetToRunApp() {},
+      async disconnect() {},
+    }
+    const operation = installModToDevice(async () => loader, {}, archive, {
+      onPreflight() {
+        calls.push('preflight')
+        return true
+      },
+    })
+    if (hostApi < modDefinition.hostApiVersion) {
+      await assert.rejects(operation, (error) => error.code === 'MOD_HOST_API_UNSUPPORTED')
+      assert.deepEqual(calls, [])
+    } else {
+      assert.equal((await operation).status, DEVICE_OPERATION_STATUS.INSTALLED)
+      assert.deepEqual(calls, ['preflight', 'write'])
+    }
+  }
+})
+
+test('unsupported XS and SDK versions are rejected before approval or writing', async () => {
+  let connected = false
+  await assert.rejects(
+    installModToDevice(
+      async () => {
+        connected = true
+      },
+      {},
+      makeXsArchive({ version: [99, 0, 0] })
+    ),
+    /XS archive version/
+  )
+  assert.equal(connected, false)
+  const calls = []
+  const loader = {
+    async main() {
+      return 'ESP32-S3'
+    },
+    async readFlash(offset) {
+      return offset === PARTITION_TABLE_OFFSET ? CORES3_TABLE : makeAppHeader('8.3.1+stackchan.2')
+    },
+    async writeFlash() {
+      calls.push('write')
+    },
+    async disconnect() {},
+  }
+  await assert.rejects(
+    installModToDevice(async () => loader, {}, makeXsArchive(), {
+      onPreflight() {
+        calls.push('approve')
+        return true
+      },
+    }),
+    /Moddable 9.5/
+  )
+  assert.deepEqual(calls, [])
+})
+
+test('a corrupt declaration is rejected before connecting instead of treated as legacy', async () => {
+  let connected = false
+  await assert.rejects(
+    installModToDevice(
+      async () => {
+        connected = true
+      },
+      {},
+      makeXsArchive({ metadata: { ...modDefinition, schemaVersion: 99 } })
+    ),
+    (error) => error.code === 'MOD_METADATA_INVALID'
+  )
+  assert.equal(connected, false)
+})
 
 test('parsePartitionTable reads all entries and stops at the terminator', () => {
   const parts = parsePartitionTable(CORES3_TABLE)
@@ -75,16 +163,18 @@ test('findXsPartition locates the mod partition by type/subtype', () => {
 test('reads the factory app descriptor used for firmware/XS compatibility checks', () => {
   assert.equal(findAppPartition(parsePartitionTable(CORES3_TABLE)).offset, 0x10000)
   assert.deepEqual(parseEspAppDescriptor(makeAppHeader()), {
-    version: '8.3.1+stackchan.1',
-    moddableVersion: '8.3.1',
-    hostApiVersion: 1,
+    version: '9.5.0+stackchan.2',
+    moddableVersion: '9.5.0',
+    hostApiVersion: 2,
     projectName: 'xs_esp32',
+    target: null,
   })
-  assert.deepEqual(parseEspAppDescriptor(makeAppHeader('8.3.1')), {
-    version: '8.3.1',
-    moddableVersion: '8.3.1',
+  assert.deepEqual(parseEspAppDescriptor(makeAppHeader('9.5.0')), {
+    version: '9.5.0',
+    moddableVersion: '9.5.0',
     hostApiVersion: 0,
     projectName: 'xs_esp32',
+    target: null,
   })
   assert.equal(parseEspAppDescriptor(new Uint8Array(256)), null)
 })
@@ -152,7 +242,7 @@ test('installModToDevice reads the table, targets the xs offset, and resets', as
       calls.push(['readFlash', addr, size])
       if (addr === PARTITION_TABLE_OFFSET) return CORES3_TABLE
       if (addr === 0x10000) return makeAppHeader()
-      if (addr === 0xfa0000 && size === 32 && calls.some(([name]) => name === 'writeFlash')) return archive
+      if (addr === 0xfa0000 && size === archive.length && calls.some(([name]) => name === 'writeFlash')) return archive
       return new Uint8Array(size).fill(0xff)
     },
     async writeFlash(opts) {
@@ -184,10 +274,11 @@ test('installModToDevice reads the table, targets the xs offset, and resets', as
   assert.equal(result.verified, true)
   assert.equal('backup' in result, false)
   assert.deepEqual(preflight.firmware, {
-    version: '8.3.1+stackchan.1',
-    moddableVersion: '8.3.1',
-    hostApiVersion: 1,
+    version: '9.5.0+stackchan.2',
+    moddableVersion: '9.5.0',
+    hostApiVersion: 2,
     projectName: 'xs_esp32',
+    target: null,
   })
 })
 
@@ -252,7 +343,7 @@ test('installModToDevice rejects a MOD larger than the partition', async () => {
 
 test('archive helpers validate the header size and compare verification bytes', () => {
   const archive = makeArchive(64)
-  assert.equal(xsArchiveByteLength(archive), 64)
+  assert.equal(xsArchiveByteLength(archive), archive.length)
   assert.equal(xsArchiveByteLength(new Uint8Array(8)), null)
   assert.equal(equalBytes(archive, archive.slice()), true)
   archive[10] = 1
@@ -294,7 +385,7 @@ test('removeModFromDevice clears the first xs sector and reboots', async () => {
   assert.equal(calls[0].address, 0xfa0000)
   assert.equal(calls[0].data.length, 4096)
   assert.equal(calls[1], 'reset')
-  assert.equal(preflight.firmware.version, '8.3.1+stackchan.1')
+  assert.equal(preflight.firmware.version, '9.5.0+stackchan.2')
   assert.equal(result.verified, true)
   assert.equal('backup' in result, false)
 })
@@ -386,4 +477,69 @@ test('removeModFromDevice reports reset failure without losing verified success'
   assert.equal(result.verified, true)
   assert.match(logs.at(-1), /自動リセットに失敗/)
   assert.match(prompts.at(-1), /RESETボタン/)
+})
+
+test('WebSerial rejects another board, unknown identity and unavailable camera before user preflight or writing', async () => {
+  for (const [suffix, metadata, code] of [
+    ['.rt', { ...modDefinition, targets: ['m5stackchan-cores3'] }, 'MOD_TARGET_UNSUPPORTED'],
+    ['', { ...modDefinition, targets: ['m5stackchan-cores3'] }, 'MOD_TARGET_UNKNOWN'],
+    ['.t2', { ...modDefinition, capabilities: ['camera'] }, 'MOD_CAPABILITY_UNAVAILABLE'],
+    ['.sc3', { ...modDefinition, targets: ['m5stackchan-cores3'] }, null],
+  ]) {
+    const archive = makeXsArchive({ metadata })
+    const calls = []
+    const loader = {
+      async main() {
+        return 'ESP32-S3'
+      },
+      async readFlash(offset) {
+        return offset === PARTITION_TABLE_OFFSET
+          ? CORES3_TABLE
+          : offset === 0x10000
+            ? makeAppHeader(`9.5.0+stackchan.9${suffix}`)
+            : archive
+      },
+      async writeFlash() {
+        calls.push('write')
+      },
+      async resetToRunApp() {},
+      transport: {
+        async disconnect() {
+          calls.push('disconnect')
+        },
+      },
+    }
+    const operation = installModToDevice(async () => loader, {}, archive, {
+      onPreflight() {
+        calls.push('preflight')
+        return true
+      },
+    })
+    if (code) {
+      await assert.rejects(operation, { code })
+      assert.deepEqual(calls, ['disconnect'])
+    } else {
+      assert.equal((await operation).status, DEVICE_OPERATION_STATUS.INSTALLED)
+      assert.deepEqual(calls, ['preflight', 'write', 'disconnect'])
+    }
+  }
+})
+
+test('WebSerial rejects invalid app defaults before opening a device', async () => {
+  for (const settings of invalidModSettings) {
+    const archive = makeXsArchive({ metadata: { ...modDefinition, hostApiVersion: 9, settings } })
+    let connections = 0
+    await assert.rejects(
+      installModToDevice(
+        async () => {
+          connections++
+          throw new Error('must not connect')
+        },
+        {},
+        archive
+      ),
+      { code: 'MOD_METADATA_INVALID' }
+    )
+    assert.equal(connections, 0)
+  }
 })

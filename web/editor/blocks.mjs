@@ -2,215 +2,83 @@
  * Stack-chan Blockly blocks and JavaScript code generation.
  *
  * The generated program is a Stack-chan MOD module: the workspace code becomes
- * the body of `export async function onContextCreated(robot)`. Event blocks
- * (start / button / interval) register handlers on the robot context.
+ * the setup of `defineApp`. Events and operations belong to the SDK AppSession.
  */
 
 import { t } from '../i18n.mjs'
 
 export const VISUAL_RUNTIME_RESERVED_WORDS = Object.freeze([
-  'robot',
-  'Timer',
-  'Emotion',
-  'wait',
+  'app',
+  'task',
+  'defineApp',
+  'input',
+  'ui',
+  'lighting',
+  'singing',
   'randomBetween',
   'hexToRgb',
   'trace',
   'createVisualLoopGuard',
   'visualLoopGuard',
   'reportVisualError',
-  'createVisualRuntime',
-  'runtime',
-  'onButton',
-  'onImu',
-  'onHeadTouch',
-  'SINGING_MORA_TO_KOE',
-  'STACKCHAN_VOICE_MAX_KOE_LENGTH',
-  'katakanaToHiragana',
-  'singingMoraToKoe',
-  'songDurationMilliseconds',
-  'singingScoreToKoe',
-  'singScore',
   'event',
   '_StackchanVisualShapeFace',
 ])
 
-const HELPER_HEX_TO_RGB = `function hexToRgb(hex) {
+const HELPER_HEX_TO_RGB = `/** @param {string} hex */
+function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16)
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }
 }`
 
-const HELPER_VISUAL_RUNTIME = `function createVisualLoopGuard() {
-  let visualLoopBudget = 10000
+const HELPER_LOOP_GUARD = `function createVisualLoopGuard() {
+  let remaining = 10000
+  /** @param {string} blockId */
   return function visualLoopGuard(blockId) {
-    if (--visualLoopBudget <= 0) {
-      const error = new Error('ループの実行上限を超えました')
-      error.visualBlockId = blockId
-      throw error
+    if (--remaining <= 0) {
+      throw Object.assign(new Error('ループの実行上限を超えました'), { visualBlockId: blockId })
     }
   }
 }
 
+/** @param {string} errorCode @param {string} blockId @param {unknown} error @param {string} [context] */
 function reportVisualError(errorCode, blockId, error, context = '') {
   trace('#stackchan ' + JSON.stringify({
     schema_version: 1,
     component: 'visual-programming',
     event: 'error',
     error_code: errorCode,
-    block_id: error?.visualBlockId || blockId,
+    block_id: error && typeof error === 'object' && 'visualBlockId' in error ? error.visualBlockId : blockId,
     message: (context ? context + ': ' : '') + String(error),
   }) + '\\n')
-}
-
-function createVisualRuntime(robot) {
-  robot.__visualProgram?.dispose?.()
-  const disposers = []
-  const runtime = {
-    add(disposer) {
-      if (typeof disposer === 'function') disposers.push(disposer)
-      return disposer
-    },
-    addTimer(timer) {
-      runtime.add(() => Timer.clear(timer))
-      return timer
-    },
-    dispose() {
-      while (disposers.length) {
-        try { disposers.pop()() } catch (error) { reportVisualError('VP_LIFECYCLE_CLEANUP', '', error) }
-      }
-    },
-  }
-  robot.__visualProgram = runtime
-  return runtime
 }`
 
-// Event dispatch helpers. A driver exposes a single \`onEvent\`, so multiple
-// blocks for the same driver (e.g. button press + release, or several IMU
-// motions) must share one handler. Each helper stores per-key handlers on the
-// driver object and installs one dispatching \`onEvent\` the first time.
-const HELPER_ON_BUTTON = `function onButton(robot, name, edge, handler) {
-  const button = robot.input.button?.[name]
-  if (!button) return undefined
-  const handlers = (button.__handlers ??= {})
-  const callbacks = (handlers[edge] ??= new Set())
-  callbacks.add(handler)
-  if (!button.__visualWired) {
-    button.__visualWired = true
-    button.__visualPrevious = button.onEvent
-    button.onEvent = (event) => {
-      for (const callback of [...(button.__handlers?.[event.pressed ? 'press' : 'release'] ?? [])]) callback(event)
-      button.__visualPrevious?.(event)
-    }
-  }
-  return () => {
-    callbacks.delete(handler)
-    if (callbacks.size === 0) delete handlers[edge]
-    if (Object.keys(button.__handlers ?? {}).length === 0) {
-      button.onEvent = button.__visualPrevious
-      delete button.__visualPrevious
-      button.__visualWired = false
-    }
-  }
-}`
-
-const HELPER_ON_IMU = `function onImu(robot, motion, handler) {
-  const imu = robot.input.imu
-  if (!imu) return undefined
-  const handlers = (imu.__handlers ??= {})
-  const callbacks = (handlers[motion] ??= new Set())
-  callbacks.add(handler)
-  if (!imu.__visualWired) {
-    imu.__visualWired = true
-    imu.__visualPrevious = imu.onEvent
-    imu.onEvent = (event) => {
-      for (const callback of [...(imu.__handlers?.[event.motion] ?? [])]) callback(event)
-      imu.__visualPrevious?.(event)
-    }
-    imu.start?.()
-  }
-  return () => {
-    callbacks.delete(handler)
-    if (callbacks.size === 0) delete handlers[motion]
-    if (Object.keys(imu.__handlers ?? {}).length === 0) {
-      imu.onEvent = imu.__visualPrevious
-      delete imu.__visualPrevious
-      imu.__visualWired = false
-    }
-  }
-}`
-
-const HELPER_ON_HEAD_TOUCH = `function onHeadTouch(robot, gesture, handler) {
-  const panel = robot.input.touchPanel
-  if (!panel) return undefined
-  const pettingWindowMs = 1500
-  const handlers = (panel.__handlers ??= {})
-  const callbacks = (handlers[gesture] ??= new Set())
-  callbacks.add(handler)
-  if (!panel.__visualWired) {
-    panel.__visualWired = true
-    panel.__visualPrevious = panel.onEvent
-    panel.onEvent = (event) => {
-      for (const callback of [...(panel.__handlers?.[event.gesture] ?? [])]) callback(event)
-      if (event.gesture === 'forwardSwipe') panel.__visualLastForwardSwipeTicks = event.ticks
-      if (event.gesture === 'backwardSwipe') panel.__visualLastBackwardSwipeTicks = event.ticks
-      if (
-        (event.gesture === 'forwardSwipe' || event.gesture === 'backwardSwipe') &&
-        Number.isFinite(panel.__visualLastForwardSwipeTicks) &&
-        Number.isFinite(panel.__visualLastBackwardSwipeTicks) &&
-        Math.abs(panel.__visualLastForwardSwipeTicks - panel.__visualLastBackwardSwipeTicks) <= pettingWindowMs
-      ) {
-        const pettingEvent = { ...event, gesture: 'petting' }
-        delete panel.__visualLastForwardSwipeTicks
-        delete panel.__visualLastBackwardSwipeTicks
-        for (const callback of [...(panel.__handlers?.petting ?? [])]) callback(pettingEvent)
-      }
-      panel.__visualPrevious?.(event)
-    }
-  }
-  return () => {
-    callbacks.delete(handler)
-    if (callbacks.size === 0) delete handlers[gesture]
-    if (Object.keys(panel.__handlers ?? {}).length === 0) {
-      panel.onEvent = panel.__visualPrevious
-      delete panel.__visualPrevious
-      delete panel.__visualLastForwardSwipeTicks
-      delete panel.__visualLastBackwardSwipeTicks
-      panel.__visualWired = false
-    }
-  }
-}`
-
-/**
- * Wrap generated workspace code into a complete mod.js source.
- * Imports and helpers are included only when the body references them.
- */
+/** Generate one SDK app. AppSession owns handlers, subscriptions and pending operations. */
 export function assembleModSource(body) {
-  const imports = []
-  if (/\bTimer\s*\./.test(body)) imports.push("import Timer from 'timer'")
-  const utilNames = ['randomBetween', 'wait'].filter((name) => new RegExp(`\\b${name}\\s*\\(`).test(body))
-  if (utilNames.length) imports.push(`import { ${utilNames.join(', ')} } from 'stackchan-util'`)
-  if (/\bEmotion\s*\./.test(body)) imports.push("import { Emotion } from 'face-state'")
-
-  const helpers = [HELPER_VISUAL_RUNTIME]
+  const imports = ["import { defineApp } from 'stackchan'"]
+  for (const name of ['input', 'ui', 'lighting']) {
+    if (new RegExp(`\\b${name}\\(app\\)`).test(body))
+      imports.push(`import { ${name} } from 'stackchan/extensions/${name}'`)
+  }
+  if (/\bsinging\(app\)/.test(body)) imports.push("import { singing } from 'stackchan/extensions/audio'")
+  const helpers = [HELPER_LOOP_GUARD]
   if (/\bhexToRgb\s*\(/.test(body)) helpers.push(HELPER_HEX_TO_RGB)
-  if (/\bonButton\s*\(/.test(body)) helpers.push(HELPER_ON_BUTTON)
-  if (/\bonImu\s*\(/.test(body)) helpers.push(HELPER_ON_IMU)
-  if (/\bonHeadTouch\s*\(/.test(body)) helpers.push(HELPER_ON_HEAD_TOUCH)
-  if (/\bsingScore\s*\(/.test(body)) helpers.push(HELPER_SING_SCORE)
-
-  const indentedBody = body
+  if (/\brandomBetween\s*\(/.test(body))
+    helpers.push(`/** @param {number} min @param {number} max */
+function randomBetween(min, max) { return min + Math.random() * (max - min) }`)
+  const indented = body
     .split('\n')
-    .map((line) => (line.length ? `  ${line}` : line))
+    .map((line) => (line ? '      ' + line : ''))
     .join('\n')
-    .replace(/\s+$/, '')
-
-  const sections = []
-  if (imports.length) sections.push(imports.join('\n'))
-  if (helpers.length) sections.push(helpers.join('\n\n'))
-  sections.push(
-    `export async function onContextCreated(robot) {\n  const runtime = createVisualRuntime(robot)\n  const visualLoopGuard = createVisualLoopGuard()\n${indentedBody}\n}`
-  )
-  return `${sections.join('\n\n')}\n`
+    .trimEnd()
+  return `${imports.join('\n')}\n\n${helpers.join('\n\n')}\n\nexport default defineApp({
+  setup(app) {
+    app.time.after(0, async (task) => {
+      const visualLoopGuard = createVisualLoopGuard()
+${indented}
+    })
+  },
+})\n`
 }
 
 export const EMOTION_OPTIONS = [
@@ -238,7 +106,7 @@ export const COLOR_OPTIONS = [
 ]
 
 // Musical notes (C major, 2 octaves + top C) as dropdown label -> frequency Hz.
-// robot.audio.tone() takes Hz, so the value is the frequency directly.
+// app.audio.tone() takes Hz, so the value is the frequency directly.
 export const NOTE_OPTIONS = [
   ['ド4', '262'],
   ['レ4', '294'],
@@ -287,190 +155,6 @@ export const SINGING_NOTE_OPTIONS = [
   ['シ5', 'B5'],
   ['ド6', 'C6'],
 ]
-
-const SINGING_MORA_TO_KOE = Object.freeze({
-  あ: 'a',
-  い: 'i',
-  う: 'u',
-  え: 'e',
-  お: 'o',
-  ぁ: 'a',
-  ぃ: 'i',
-  ぅ: 'u',
-  ぇ: 'e',
-  ぉ: 'o',
-  か: 'ka',
-  き: 'ki',
-  く: 'ku',
-  け: 'ke',
-  こ: 'ko',
-  が: 'ga',
-  ぎ: 'gi',
-  ぐ: 'gu',
-  げ: 'ge',
-  ご: 'go',
-  さ: 'sa',
-  し: 'shi',
-  す: 'su',
-  せ: 'se',
-  そ: 'so',
-  ざ: 'za',
-  じ: 'ji',
-  ず: 'zu',
-  ぜ: 'ze',
-  ぞ: 'zo',
-  た: 'ta',
-  ち: 'chi',
-  つ: 'tsu',
-  て: 'te',
-  と: 'to',
-  だ: 'da',
-  ぢ: 'ji',
-  づ: 'zu',
-  で: 'de',
-  ど: 'do',
-  な: 'na',
-  に: 'ni',
-  ぬ: 'nu',
-  ね: 'ne',
-  の: 'no',
-  は: 'ha',
-  ひ: 'hi',
-  ふ: 'fu',
-  へ: 'he',
-  ほ: 'ho',
-  ば: 'ba',
-  び: 'bi',
-  ぶ: 'bu',
-  べ: 'be',
-  ぼ: 'bo',
-  ぱ: 'pa',
-  ぴ: 'pi',
-  ぷ: 'pu',
-  ぺ: 'pe',
-  ぽ: 'po',
-  ま: 'ma',
-  み: 'mi',
-  む: 'mu',
-  め: 'me',
-  も: 'mo',
-  や: 'ya',
-  ゆ: 'yu',
-  よ: 'yo',
-  ら: 'ra',
-  り: 'ri',
-  る: 'ru',
-  れ: 're',
-  ろ: 'ro',
-  わ: 'wa',
-  ゐ: 'i',
-  ゑ: 'e',
-  を: 'o',
-  ん: 'n',
-  きゃ: 'kya',
-  きゅ: 'kyu',
-  きょ: 'kyo',
-  ぎゃ: 'gya',
-  ぎゅ: 'gyu',
-  ぎょ: 'gyo',
-  しゃ: 'sha',
-  しゅ: 'shu',
-  しょ: 'sho',
-  じゃ: 'ja',
-  じゅ: 'ju',
-  じょ: 'jo',
-  ちゃ: 'cha',
-  ちゅ: 'chu',
-  ちょ: 'cho',
-  にゃ: 'nya',
-  にゅ: 'nyu',
-  にょ: 'nyo',
-  ひゃ: 'hya',
-  ひゅ: 'hyu',
-  ひょ: 'hyo',
-  びゃ: 'bya',
-  びゅ: 'byu',
-  びょ: 'byo',
-  ぴゃ: 'pya',
-  ぴゅ: 'pyu',
-  ぴょ: 'pyo',
-  みゃ: 'mya',
-  みゅ: 'myu',
-  みょ: 'myo',
-  りゃ: 'rya',
-  りゅ: 'ryu',
-  りょ: 'ryo',
-  ふぁ: 'fa',
-  ふぃ: 'fi',
-  ふぇ: 'fe',
-  ふぉ: 'fo',
-  てぃ: 'ti',
-  とぅ: 'tu',
-  でぃ: 'di',
-  どぅ: 'du',
-  しぇ: 'she',
-  ちぇ: 'che',
-  じぇ: 'je',
-  うぃ: 'wi',
-  うぇ: 'we',
-  うぉ: 'o',
-  ゔ: 'vu',
-  ゔぁ: 'va',
-  ゔぃ: 'vi',
-  ゔぇ: 've',
-  ゔぉ: 'vo',
-  きぇ: 'kye',
-  ぎぇ: 'gye',
-  いぇ: 'ye',
-  ひぇ: 'hye',
-  びぇ: 'bye',
-  ぴぇ: 'pye',
-  みぇ: 'mye',
-  にぇ: 'nye',
-  りぇ: 'rye',
-  てゅ: 'tyu',
-  でゅ: 'dyu',
-  でゃ: 'dya',
-  でょ: 'dyo',
-  てゃ: 'tya',
-  てょ: 'tyo',
-  つぁ: 'tsa',
-  つぃ: 'tsi',
-  つぇ: 'tse',
-  つぉ: 'tso',
-  すぃ: 'si',
-  ずぃ: 'zi',
-  ふゅ: 'fyu',
-  ゔゅ: 'vyu',
-  ゕ: 'ka',
-  ゖ: 'ke',
-  ゎ: 'wa',
-})
-
-const STACKCHAN_VOICE_MAX_KOE_LENGTH = 2047
-
-function katakanaToHiragana(value) {
-  return [...value]
-    .map((character) => {
-      const code = character.charCodeAt(0)
-      return code >= 0x30a1 && code <= 0x30f6 ? String.fromCharCode(code - 0x60) : character
-    })
-    .join('')
-}
-
-/** Convert exactly one kana mora from a singing block into raw koe notation. */
-export function singingMoraToKoe(value, previousMora = '') {
-  const input = String(value).trim()
-  const mora = katakanaToHiragana(input)
-  if (mora === 'ー') {
-    const previousVowel = /[aiueo]$/.exec(previousMora)?.[0]
-    if (previousVowel) return previousVowel
-    throw new RangeError('長音「ー」の前には母音を持つ歌詞が必要です')
-  }
-  const koe = SINGING_MORA_TO_KOE[mora]
-  if (koe) return koe
-  throw new RangeError(`歌詞「${input || '（空）'}」は、かな1モーラで入力してください`)
-}
 
 const BLOCK_STYLE = {
   event: 290,
@@ -661,41 +345,6 @@ const BLOCK_DEFINITIONS = [
     tooltip: '歌唱リストへ入れる［R、拍、空の歌詞］のトリプルです',
   },
   {
-    type: 'stackchan_sing',
-    message0: 'テンポ %1 で歌う %2 %3',
-    args0: [
-      { type: 'field_number', name: 'BPM', value: 120, min: 20, max: 300, precision: 1 },
-      { type: 'input_dummy' },
-      { type: 'input_statement', name: 'SCORE', check: 'StackchanSongEvent' },
-    ],
-    previousStatement: null,
-    nextStatement: null,
-    colour: BLOCK_STYLE.speech,
-    tooltip: '音符ごとの歌詞をstackchan-voiceで歌います',
-  },
-  {
-    type: 'stackchan_song_note',
-    message0: '音符 %1 を %2 拍で「%3」と歌う',
-    args0: [
-      { type: 'field_dropdown', name: 'NOTE', options: SINGING_NOTE_OPTIONS },
-      { type: 'field_number', name: 'BEATS', value: 1, min: 0.125, max: 16, precision: 0.125 },
-      { type: 'field_input', name: 'LYRIC', text: 'き' },
-    ],
-    previousStatement: 'StackchanSongEvent',
-    nextStatement: 'StackchanSongEvent',
-    colour: BLOCK_STYLE.speech,
-    tooltip: 'かな1モーラを指定した音高と長さで歌います（例: き、きゃ、ん、ー）',
-  },
-  {
-    type: 'stackchan_song_rest',
-    message0: '%1 拍 休む',
-    args0: [{ type: 'field_number', name: 'BEATS', value: 1, min: 0.125, max: 16, precision: 0.125 }],
-    previousStatement: 'StackchanSongEvent',
-    nextStatement: 'StackchanSongEvent',
-    colour: BLOCK_STYLE.speech,
-    tooltip: '指定した拍数だけ休符を入れます',
-  },
-  {
     type: 'stackchan_show_balloon',
     message0: 'ふきだしで %1 を表示',
     args0: [{ type: 'input_value', name: 'TEXT' }],
@@ -812,7 +461,7 @@ const BLOCK_DEFINITIONS = [
     args0: [
       { type: 'field_input', name: 'NAME', text: 'a' },
       { type: 'field_dropdown', name: 'COLOR', options: COLOR_OPTIONS },
-      { type: 'field_number', name: 'INTERVAL', value: 250, min: 1 },
+      { type: 'field_number', name: 'INTERVAL', value: 250, min: 100, max: 86400000 },
     ],
     previousStatement: null,
     nextStatement: null,
@@ -899,121 +548,13 @@ function localizeBlocklyData(value, key = '') {
 // for `field_input` values (e.g. the LED NAME) so a name containing ' or \
 // cannot break the generated source.
 export function escapeSingleQuoted(value) {
-  return String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
-}
-
-function songDurationMilliseconds(beatsValue, bpm) {
-  const beats = Number(beatsValue)
-  if (!Number.isFinite(beats) || beats <= 0) throw new RangeError('音符と休符の拍数は0より大きくしてください')
-  const duration = Math.round((60_000 * beats) / bpm)
-  if (duration < 20 || duration > 8000) {
-    throw new RangeError(`テンポ${bpm}では${beats}拍が${duration}ミリ秒になります（20〜8000ミリ秒にしてください）`)
-  }
-  return duration
-}
-
-/** Convert a score of [note, beats, lyric] triples into raw stackchan-voice koe notation. */
-export function singingScoreToKoe(bpmValue, scoreValue) {
-  const bpm = Number(bpmValue)
-  if (!Number.isFinite(bpm) || bpm < 20 || bpm > 300) {
-    throw new RangeError('歌うテンポは20〜300 BPMにしてください')
-  }
-  if (!Array.isArray(scoreValue)) throw new TypeError('歌唱データは音符と休符を並べたリストにしてください')
-  if (scoreValue.length === 0) throw new RangeError('歌唱リストに音符または休符を追加してください')
-  if (scoreValue.length > 256) throw new RangeError('1つの歌唱リストには音符と休符を256個まで置けます')
-
-  let koe = ''
-  let previousMora = ''
-  for (let index = 0; index < scoreValue.length; index += 1) {
-    const event = scoreValue[index]
-    if (!Array.isArray(event) || event.length !== 3) {
-      throw new TypeError(`${index + 1}番目の歌唱データは［音階、拍、歌詞］の3項目にしてください`)
-    }
-    const note = String(event[0] ?? '')
-      .trim()
-      .toUpperCase()
-    const duration = songDurationMilliseconds(event[1], bpm)
-    const lyric = String(event[2] ?? '').trim()
-    if (note === 'R') {
-      if (lyric) throw new RangeError(`${index + 1}番目の休符には歌詞を指定できません`)
-      koe += `#R,${duration}`
-    } else {
-      if (!/^[A-G](?:[+-])?[0-8]$/.test(note)) {
-        throw new RangeError(`${index + 1}番目の歌唱音符「${note || '（空）'}」が不正です`)
-      }
-      const mora = singingMoraToKoe(lyric, previousMora)
-      koe += `#${note},${duration}${mora}`
-      previousMora = mora
-    }
-    if (koe.length > STACKCHAN_VOICE_MAX_KOE_LENGTH) {
-      throw new RangeError('歌が長すぎます。歌唱リストを複数の歌うブロックに分けてください')
-    }
-  }
-  return koe
-}
-
-async function singScore(robot, bpm, score) {
-  const koe = singingScoreToKoe(bpm, score)
-  const result = await robot.audio.sing(koe)
-  if (!result?.success) throw new Error(result?.reason || '歌唱に失敗しました')
-  return result
-}
-
-const HELPER_SING_SCORE = `const SINGING_MORA_TO_KOE = Object.freeze(${JSON.stringify(SINGING_MORA_TO_KOE)})
-
-const STACKCHAN_VOICE_MAX_KOE_LENGTH = ${STACKCHAN_VOICE_MAX_KOE_LENGTH}
-
-${katakanaToHiragana.toString()}
-
-${singingMoraToKoe.toString()}
-
-${songDurationMilliseconds.toString()}
-
-${singingScoreToKoe.toString()}
-
-${singScore.toString()}`
-
-function singingKoeFromBlock(block) {
-  const bpm = Number(block.getFieldValue('BPM'))
-  if (!Number.isFinite(bpm) || bpm < 20 || bpm > 300) {
-    throw new RangeError('歌うテンポは20〜300 BPMにしてください')
-  }
-
-  let event = block.getInputTargetBlock?.('SCORE')
-  let eventCount = 0
-  let koe = ''
-  let previousMora = ''
-  while (event) {
-    eventCount += 1
-    if (eventCount > 256) throw new RangeError('1つの歌うブロックには音符と休符を256個まで置けます')
-    const duration = songDurationMilliseconds(event.getFieldValue('BEATS'), bpm)
-    if (event.type === 'stackchan_song_note') {
-      const note = String(event.getFieldValue('NOTE'))
-      if (!/^[A-G](?:[+-])?[0-8]$/.test(note)) throw new RangeError(`歌唱音符「${note}」が不正です`)
-      const mora = singingMoraToKoe(event.getFieldValue('LYRIC'), previousMora)
-      koe += `#${note},${duration}${mora}`
-      previousMora = mora
-    } else if (event.type === 'stackchan_song_rest') {
-      koe += `#R,${duration}`
-    } else {
-      throw new TypeError(`歌うブロック内に未対応のブロック「${event.type}」があります`)
-    }
-    if (koe.length > STACKCHAN_VOICE_MAX_KOE_LENGTH) {
-      throw new RangeError('歌が長すぎます。1つの歌うブロックを複数に分けてください')
-    }
-    event = event.getNextBlock?.()
-  }
-  if (eventCount === 0) throw new RangeError('歌うブロックに音符または休符を追加してください')
-  return koe
-}
-
-function legacySongEventCode(block) {
-  let parent = block.getParent?.()
-  while (parent) {
-    if (parent.type === 'stackchan_sing') return ''
-    parent = parent.getParent?.()
-  }
-  throw new Error('旧形式の音符・休符ブロックは直接実行できません。トリプル形式の音符・休符をリストへ入れてください')
+  return String(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
 }
 
 function asyncHandlerBody(generator, block) {
@@ -1021,19 +562,16 @@ function asyncHandlerBody(generator, block) {
   return body.replace(/\s+$/, '')
 }
 
-// Build an event-handler arrow function that runs a statement body inside a
-// fire-and-forget async IIFE (so `await` works and errors are traced).
-// `param` is the callback parameter name ('event' for input events, '' for the
-// drawer button which takes none).
-function eventHandler(body, errorTag, blockId, param = 'event') {
-  const indented = body.replace(/^/gm, '  ')
-  return (
-    `(${param}) => {\n` +
-    `  void (async () => {\n` +
-    `    const visualLoopGuard = createVisualLoopGuard()\n${indented}\n` +
-    `  })().catch((error) => reportVisualError('VP_RUNTIME_HANDLER', '${escapeSingleQuoted(blockId)}', error, '${escapeSingleQuoted(errorTag)}'))\n` +
-    `}`
-  )
+// Returning the handler promise lets AppSession suppress overlap and cancel its operations.
+function eventHandler(body, errorTag, blockId, parameters = 'task') {
+  return `async (${parameters}) => {
+  const visualLoopGuard = createVisualLoopGuard()
+  try {
+${body.replace(/^/gm, '    ')}
+  } catch (error) {
+    if (!task.signal.reason) reportVisualError('VP_RUNTIME_HANDLER', '${escapeSingleQuoted(blockId)}', error, '${escapeSingleQuoted(errorTag)}')
+  }
+}`
 }
 
 /** Refresh the localized block definitions without re-registering generators. */
@@ -1051,80 +589,53 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
 
   const forBlock = generator.forBlock ?? generator
 
-  forBlock['stackchan_on_start'] = (block, gen) => {
-    const body = asyncHandlerBody(gen, block)
-    return `;(async () => {\n  const visualLoopGuard = createVisualLoopGuard()\n${body}\n})().catch((error) => reportVisualError('VP_RUNTIME_START', '${escapeSingleQuoted(block.id)}', error))\n`
-  }
+  forBlock['stackchan_on_start'] = (block, gen) =>
+    `app.time.after(0, ${eventHandler(asyncHandlerBody(gen, block), 'start', block.id)})\n`
 
   forBlock['stackchan_on_button'] = (block, gen) => {
-    const button = block.getFieldValue('BUTTON')
-    const edge = block.getFieldValue('EDGE')
-    const body = asyncHandlerBody(gen, block)
-    return `runtime.add(onButton(robot, '${button}', '${edge}', ${eventHandler(body, `button ${button}`, block.id)}))\n`
+    const name = { a: 'primary', b: 'secondary', c: 'tertiary' }[block.getFieldValue('BUTTON')]
+    const method = block.getFieldValue('EDGE') === 'release' ? 'onRelease' : 'onPress'
+    return `input(app).${method}('${name}', ${eventHandler(asyncHandlerBody(gen, block), 'button', block.id)})\n`
   }
 
   forBlock['stackchan_on_imu'] = (block, gen) => {
-    const motion = block.getFieldValue('MOTION')
-    const body = asyncHandlerBody(gen, block)
-    return `runtime.add(onImu(robot, '${motion}', ${eventHandler(body, 'imu', block.id)}))\n`
+    const body = `if (event.motion !== '${block.getFieldValue('MOTION')}') return\n${asyncHandlerBody(gen, block)}`
+    return `input(app).onMotion(${eventHandler(body, 'motion input', block.id, 'event, task')})\n`
   }
 
   forBlock['stackchan_on_head_touch'] = (block, gen) => {
-    const gesture = block.getFieldValue('GESTURE')
-    const body = asyncHandlerBody(gen, block)
-    return `runtime.add(onHeadTouch(robot, '${gesture}', ${eventHandler(body, 'head touch', block.id)}))\n`
+    return `input(app).onHeadTouch(${eventHandler(asyncHandlerBody(gen, block), 'head touch', block.id, 'event, task')}, { gesture: '${block.getFieldValue('GESTURE')}' })\n`
   }
 
-  forBlock['stackchan_on_drawer_button'] = (block, gen) => {
-    const label = escapeSingleQuoted(block.getFieldValue('LABEL'))
-    const key = escapeSingleQuoted(block.id)
-    const body = asyncHandlerBody(gen, block)
-    return (
-      `robot.ui.drawer?.addDrawerButton({ key: '${key}', label: '${label}', callback: ${eventHandler(body, 'drawer', block.id, '')} })\n` +
-      `runtime.add(() => robot.ui.drawer?.removeDrawerButton?.('${key}'))\n`
-    )
-  }
+  forBlock['stackchan_on_drawer_button'] = (block, gen) =>
+    `ui(app).addAction({ id: '${escapeSingleQuoted(block.id)}', label: '${escapeSingleQuoted(block.getFieldValue('LABEL'))}' }, ${eventHandler(asyncHandlerBody(gen, block), 'menu', block.id)})\n`
 
-  forBlock['stackchan_every'] = (block, gen) => {
-    const seconds = Number(block.getFieldValue('SECONDS'))
-    const interval = Math.max(1, Math.round(seconds * 1000))
-    const body = asyncHandlerBody(gen, block)
-    return (
-      `runtime.addTimer(Timer.repeat(() => {\n` +
-      `  void (async () => {\n` +
-      `    const visualLoopGuard = createVisualLoopGuard()\n${body.replace(/^/gm, '  ')}\n` +
-      `  })().catch((error) => reportVisualError('VP_RUNTIME_TIMER', '${escapeSingleQuoted(block.id)}', error))\n` +
-      `}, ${interval}))\n`
-    )
-  }
+  forBlock['stackchan_every'] = (block, gen) =>
+    `app.time.every(${Math.max(1, Math.round(Number(block.getFieldValue('SECONDS')) * 1000))}, ${eventHandler(asyncHandlerBody(gen, block), 'timer', block.id)})\n`
 
   forBlock['stackchan_set_emotion'] = (block) => {
-    return `robot.face.setEmotion(Emotion.${block.getFieldValue('EMOTION')})\n`
+    return `app.face.setEmotion('${block.getFieldValue('EMOTION') === 'DOUBTFUL' ? 'doubt' : block.getFieldValue('EMOTION').toLowerCase()}')\n`
   }
 
   forBlock['stackchan_set_color'] = (block) => {
     const key = block.getFieldValue('KEY')
     const color = block.getFieldValue('COLOR')
-    return `robot.face.setColor('${key}', ...hexToRgb('${color}'))\n`
+    return `app.face.setColor('${key}', hexToRgb('${color}'))\n`
   }
 
   forBlock['stackchan_set_mouth'] = (block) => {
-    return `robot.face.setMouthOpen(${Number(block.getFieldValue('VALUE'))})\n`
+    return `app.face.setMouthOpen(${Number(block.getFieldValue('VALUE'))})\n`
   }
 
   forBlock['stackchan_say'] = (block, gen) => {
     const text = gen.valueToCode(block, 'TEXT', Order.NONE) || "''"
-    return `await robot.audio.say(String(${text}))\n`
-  }
-
-  forBlock['stackchan_sing'] = (block) => {
-    return `await robot.audio.sing('${escapeSingleQuoted(singingKoeFromBlock(block))}')\n`
+    return `await app.audio.say(String(${text}), { signal: task.signal })\n`
   }
 
   forBlock['stackchan_sing_score'] = (block, gen) => {
     const bpm = Number(block.getFieldValue('BPM'))
     const score = gen.valueToCode(block, 'SCORE', Order.NONE) || '[]'
-    return `await singScore(robot, ${bpm}, ${score})\n`
+    return `await singing(app).sing(${bpm}, ${score}, { signal: task.signal })\n`
   }
 
   forBlock['stackchan_song_note_tuple'] = (block) => {
@@ -1139,74 +650,69 @@ export function registerStackchanBlocks(Blockly, generator, Order) {
     return [`['R', ${beats}, '']`, Order.ATOMIC ?? Order.NONE]
   }
 
-  // Keep the original statement-score blocks loadable for projects created
-  // during PR development. They remain valid only inside the original parent;
-  // a detached block now fails instead of silently generating an empty handler.
-  forBlock['stackchan_song_note'] = legacySongEventCode
-  forBlock['stackchan_song_rest'] = legacySongEventCode
-
   forBlock['stackchan_show_balloon'] = (block, gen) => {
     const text = gen.valueToCode(block, 'TEXT', Order.NONE) || "''"
-    return `robot.ui.showBalloon(String(${text}))\n`
+    return `app.ui.showBalloon(String(${text}))\n`
   }
 
-  forBlock['stackchan_hide_balloon'] = () => `robot.ui.hideBalloon()\n`
+  forBlock['stackchan_hide_balloon'] = () => `app.ui.hideBalloon()\n`
 
   forBlock['stackchan_tone'] = (block) => {
     const note = Number(block.getFieldValue('NOTE'))
     const duration = Number(block.getFieldValue('DURATION'))
-    return `await robot.audio.tone(${note}, ${duration})\n`
+    return `await app.audio.tone(${note}, { durationMs: ${duration}, signal: task.signal })\n`
   }
 
   forBlock['stackchan_look_at'] = (block) => {
     const x = Number(block.getFieldValue('X'))
     const y = Number(block.getFieldValue('Y'))
     const z = Number(block.getFieldValue('Z'))
-    return `robot.motion.lookAt([${x}, ${y}, ${z}])\n`
+    if (x === 0 && y === 0 && z === 0) throw new RangeError('視線の方向を指定してください')
+    return `app.motion.lookAt({ yawDeg: ${(Math.atan2(y, x) * 180) / Math.PI}, pitchDeg: ${(-Math.atan2(z, Math.hypot(x, y)) * 180) / Math.PI} })\n`
   }
 
-  forBlock['stackchan_look_away'] = () => `robot.motion.lookAway()\n`
+  forBlock['stackchan_look_away'] = () => `app.motion.lookAway()\n`
 
   forBlock['stackchan_set_torque'] = (block) => {
-    return `await robot.motion.setTorque(${block.getFieldValue('TORQUE')})\n`
+    return `await app.motion.${block.getFieldValue('TORQUE') === 'true' ? 'hold' : 'relax'}()\n`
   }
 
   forBlock['stackchan_set_pose'] = (block) => {
     const pitch = Number(block.getFieldValue('PITCH'))
     const yaw = Number(block.getFieldValue('YAW'))
     const time = Number(block.getFieldValue('TIME'))
-    return `await robot.motion.setPose({ rotation: { p: (${pitch} * Math.PI) / 180, y: (${yaw} * Math.PI) / 180, r: 0 } }, ${time})\n`
+    return `await app.motion.move({ pitchDeg: ${pitch}, yawDeg: ${yaw} }, { durationMs: ${Math.round(time * 1000)}, signal: task.signal })\n`
   }
 
   forBlock['stackchan_light_on'] = (block) => {
     const name = escapeSingleQuoted(block.getFieldValue('NAME'))
     const color = block.getFieldValue('COLOR')
-    return `robot.lighting.lightOn('${name}', ...hexToRgb('${color}'))\n`
+    return `lighting(app).color('${name}', hexToRgb('${color}'))\n`
   }
 
   forBlock['stackchan_light_off'] = (block) => {
-    return `robot.lighting.lightOff('${escapeSingleQuoted(block.getFieldValue('NAME'))}')\n`
+    return `lighting(app).off('${escapeSingleQuoted(block.getFieldValue('NAME'))}')\n`
   }
 
   forBlock['stackchan_light_rainbow'] = (block) => {
-    return `robot.lighting.lightRainbow('${escapeSingleQuoted(block.getFieldValue('NAME'))}')\n`
+    return `lighting(app).rainbow('${escapeSingleQuoted(block.getFieldValue('NAME'))}')\n`
   }
 
   forBlock['stackchan_light_blink'] = (block) => {
     const name = escapeSingleQuoted(block.getFieldValue('NAME'))
     const color = block.getFieldValue('COLOR')
     const interval = Number(block.getFieldValue('INTERVAL'))
-    return `robot.lighting.lightBlink('${name}', ...hexToRgb('${color}'), ${interval})\n`
+    return `lighting(app).blink('${name}', hexToRgb('${color}'), { periodMs: ${interval} })\n`
   }
 
   forBlock['stackchan_drawer_control'] = (block) => {
-    return `robot.ui.${block.getFieldValue('ACTION')}()\n`
+    return `ui(app).${{ openDrawer: 'openMenu', closeDrawer: 'closeMenu', toggleDrawer: 'toggleMenu' }[block.getFieldValue('ACTION')]}()\n`
   }
 
-  forBlock['stackchan_show_face'] = () => `robot.ui.showFace()\n`
+  forBlock['stackchan_show_face'] = () => `ui(app).showFace()\n`
 
   forBlock['stackchan_wait'] = (block) => {
-    return `await wait(${Number(block.getFieldValue('DURATION'))})\n`
+    return `await task.sleep(${Number(block.getFieldValue('DURATION'))})\n`
   }
 
   forBlock['stackchan_trace'] = (block, gen) => {
@@ -1245,8 +751,17 @@ export function registerAsyncProcedureGenerators(generator, Order) {
     let returnValue = block.getInput('RETURN') ? gen.valueToCode(block, 'RETURN', Order.NONE) || '' : ''
     const suffixBeforeReturn = branch && returnValue ? prefix : ''
     if (returnValue) returnValue = `${gen.INDENT}return ${returnValue};\n`
-    const args = ['visualLoopGuard', ...block.getVars().map((variable) => gen.getVariableName(variable))]
+    const args = [
+      'visualLoopGuard',
+      'task',
+      ...block.getVarModels().map((variable) => gen.getVariableName(variable.getId())),
+    ]
+    const annotations = `/** @param {(blockId: string) => void} visualLoopGuard @param {import('stackchan').TaskContext} task ${args
+      .slice(2)
+      .map((name) => `@param {*} ${name}`)
+      .join(' ')} */\n`
     let code =
+      annotations +
       `async function ${functionName}(${args.join(', ')}) {\n` +
       prefix +
       loopTrap +
@@ -1265,7 +780,8 @@ export function registerAsyncProcedureGenerators(generator, Order) {
     const functionName = gen.getProcedureName(block.getFieldValue('NAME'))
     const args = [
       'visualLoopGuard',
-      ...block.getVars().map((_variable, index) => gen.valueToCode(block, `ARG${index}`, Order.NONE) || 'null'),
+      'task',
+      ...block.getVarModels().map((_variable, index) => gen.valueToCode(block, `ARG${index}`, Order.NONE) || 'null'),
     ]
     return [`await ${functionName}(${args.join(', ')})`, Order.AWAIT ?? Order.FUNCTION_CALL]
   }

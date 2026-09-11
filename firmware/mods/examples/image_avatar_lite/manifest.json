@@ -4,10 +4,12 @@
     "$(MODDABLE)/examples/manifest_typings.json"
   ],
   "modules": {
-    "*": ["./mod"],
-    "image-avatar-lite-packs": "./image-avatar-lite-packs"
+    "*": ["./mod", "./image-avatar-lite-packs"]
   },
   "resources": {
     "*": ["./assets/*"]
+  },
+  "data": {
+    "stackchan-mod": ["./stackchan-mod.json"]
   }
 }

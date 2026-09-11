@@ -115,11 +115,7 @@ function mount(instance: SettingsViewInstance) {
   instance.update?.()
 }
 
-equal(
-  settingsViews.length,
-  7,
-  'settings registry should contain menu, Wi-Fi, password, language, offline, time zone, and volume views',
-)
+equal(settingsViews.length, Object.keys(SettingsViewId).length, 'every declared settings view has a registry entry')
 
 const menuView = settingsViews[SettingsViewId.MENU].create(context)
 equal(application.length, 0, 'creating a settings view should not mount it')
@@ -303,5 +299,12 @@ const chineseHeader = chineseView.content.first as PiuContent
 const chineseLabel = chineseHeader.next as PiuContent & { string?: string }
 equal(chineseLabel.string, 'Wi-Fi：已连接', 'settings view should switch to Simplified Chinese immediately')
 setLocalizationLanguage('ja')
+
+const errorView = settingsViews[SettingsViewId.ERROR].create(context)
+mount(errorView)
+const errorLabel = errorView.content.content(1) as PiuContent & { string: string }
+equal(errorLabel.string.length > 0, true, 'a failed save is visible on the device')
+press(errorView.content.content(2) as Touchable)
+equal(navigatedView, SettingsViewId.MENU, 'a failed save can return to settings for another attempt')
 
 trace('ok\n')

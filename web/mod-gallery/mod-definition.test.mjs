@@ -1,5 +1,7 @@
+import { inspectDeclaredModArchive } from '../../firmware/contracts/xsa-metadata.js'
+import { modDefinition } from '../../firmware/contracts/testing/xsa-fixture.js'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import test from 'node:test'
 
 import { isXsArchive, xsArchiveVersion } from '../editor/mod-builder.mjs'
@@ -7,6 +9,10 @@ import { profileFor } from '../editor/capabilities.mjs'
 import { parseVisualProject } from '../editor/project-format.mjs'
 import { analyzeWorkspace } from '../editor/project-validator.mjs'
 import { loadModCatalog, parseModDefinition, validatePackagePath } from './mod-definition.mjs'
+
+import { prepareCanonicalSources } from './canonical-sources.mjs'
+
+prepareCanonicalSources()
 
 const catalogUrl = new URL('./catalog.json', import.meta.url)
 
@@ -24,7 +30,7 @@ test('共通MOD定義からテキストとブロックのGalleryを構成する'
   assert.equal(definitions.length, 10)
   assert.equal(definitions.filter((definition) => definition.type === 'text').length, 6)
   assert.equal(definitions.filter((definition) => definition.type === 'block').length, 4)
-  assert.equal(definitions.filter((definition) => definition.entrypoints.includes('miniapp')).length, 2)
+  assert.equal(definitions.filter((definition) => definition.capabilities.includes('ui.piu')).length, 2)
   assert.equal(new Set(definitions.map((definition) => definition.id)).size, definitions.length)
 
   for (const definition of definitions) {
@@ -48,6 +54,7 @@ test('テキストMODの成果物は既存の実行互換性を維持する', as
     assert.equal(definition.artifacts.length, 1, `${definition.id}: installable text MOD should include one artifact`)
     const archive = readFileSync(definition.artifacts[0].url)
     assert.equal(isXsArchive(archive), true, `${definition.id}: artifact should be an XS archive`)
+    inspectDeclaredModArchive(archive, definition, (value) => new TextDecoder('utf-8', { fatal: true }).decode(value))
     assert.deepEqual(
       xsArchiveVersion(archive),
       profileFor('m5stackchan-cores3').xsArchiveVersion,
@@ -66,48 +73,34 @@ test('テキストMODの成果物は既存の実行互換性を維持する', as
   }
 })
 
-test('MediaPipe GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/mediapipe_ble/', import.meta.url)
-  const gallery = new URL('./samples/mediapipe-ble/mod/', import.meta.url)
-  for (const filename of ['manifest.json', 'mod.js', 'tracking-message.js', 'tracking-receiver.js']) {
-    assert.equal(
-      readFileSync(new URL(filename, gallery), 'utf8'),
-      readFileSync(new URL(filename, firmware), 'utf8'),
-      `${filename} should not drift between the firmware example and gallery package`
-    )
-  }
-})
-
-test('MCP GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/mcp/', import.meta.url)
-  const gallery = new URL('./samples/mcp/mod/', import.meta.url)
-  for (const filename of ['manifest.json', 'mod.js']) {
-    assert.equal(
-      readFileSync(new URL(filename, gallery), 'utf8'),
-      readFileSync(new URL(filename, firmware), 'utf8'),
-      `${filename} should not drift between the firmware example and gallery package`
-    )
-  }
-})
-
-test('Codex Voice GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
-  const firmware = new URL('../../firmware/mods/examples/codex_voice/', import.meta.url)
-  const gallery = new URL('./samples/codex-voice/mod/', import.meta.url)
-  for (const filename of ['manifest.json', 'mod.js']) {
-    assert.equal(
-      readFileSync(new URL(filename, gallery), 'utf8'),
-      readFileSync(new URL(filename, firmware), 'utf8'),
-      `${filename} should not drift between the firmware example and gallery package`
-    )
-  }
-})
+for (const [galleryName, example] of [
+  ['mediapipe-ble', 'mediapipe_ble'],
+  ['mcp', 'mcp'],
+  ['codex-voice', 'codex_voice'],
+]) {
+  test(`${galleryName} Gallery publishes every application module from its canonical SDK example`, () => {
+    const firmware = new URL(`../../firmware/mods/examples/${example}/`, import.meta.url)
+    const gallery = new URL(`./samples/${galleryName}/source/`, import.meta.url)
+    const original = JSON.parse(readFileSync(new URL('manifest.json', firmware), 'utf8'))
+    const published = JSON.parse(readFileSync(new URL('manifest.json', gallery), 'utf8'))
+    assert.deepEqual(published, { ...original, data: { ...original.data, 'stackchan-mod': ['../stackchan-mod.json'] } })
+    for (const path of original.modules['*'])
+      assert.deepEqual(readFileSync(new URL(`${path}.ts`, gallery)), readFileSync(new URL(`${path}.ts`, firmware)))
+    const sourceMetadata = JSON.parse(readFileSync(new URL('stackchan-mod.json', firmware), 'utf8'))
+    const metadata = JSON.parse(readFileSync(new URL('../stackchan-mod.json', gallery), 'utf8'))
+    for (const field of ['appApiVersion', 'hostApiVersion', 'capabilities', 'optionalCapabilities', 'entrypoints'])
+      assert.deepEqual(metadata[field], sourceMetadata[field])
+  })
+}
 
 test('Stack-chanミニゲーム集GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
   const firmware = new URL('../../firmware/mods/examples/stackchan_minigames/', import.meta.url)
-  const gallery = new URL('./samples/stackchan-minigames/miniapp/', import.meta.url)
+  const gallery = new URL('./samples/stackchan-minigames/source/', import.meta.url)
   for (const filename of [
     'manifest.json',
-    'miniapp.ts',
+    'mod.ts',
+    'jump.ts',
+    'catch.ts',
     'README.md',
     'README_ja.md',
     'LICENSE.mouse-follower',
@@ -121,6 +114,18 @@ test('Stack-chanミニゲーム集GalleryパッケージはFirmwareサンプル�
     'assets/bomb.png',
     'assets/miss.png',
   ]) {
+    if (filename === 'manifest.json') {
+      const readManifest = (base) => {
+        const manifest = JSON.parse(readFileSync(new URL(filename, base), 'utf8'))
+        delete manifest.data?.['stackchan-mod']
+        manifest.include = manifest.include?.map((value) =>
+          value.endsWith('/host/app/manifest_typings.json') ? '<host-types>' : value
+        )
+        return manifest
+      }
+      assert.deepEqual(readManifest(gallery), readManifest(firmware))
+      continue
+    }
     assert.deepEqual(
       readFileSync(new URL(filename, gallery)),
       readFileSync(new URL(filename, firmware)),
@@ -131,8 +136,20 @@ test('Stack-chanミニゲーム集GalleryパッケージはFirmwareサンプル�
 
 test('UI Playground GalleryパッケージはFirmwareサンプルと同じ実行ソースを公開する', () => {
   const firmware = new URL('../../firmware/mods/examples/mini_app_ui_sample/', import.meta.url)
-  const gallery = new URL('./samples/ui-playground/miniapp/', import.meta.url)
-  for (const filename of ['manifest.json', 'miniapp.ts']) {
+  const gallery = new URL('./samples/ui-playground/source/', import.meta.url)
+  for (const filename of ['manifest.json', 'mod.ts', 'screen.ts']) {
+    if (filename === 'manifest.json') {
+      const readManifest = (base) => {
+        const manifest = JSON.parse(readFileSync(new URL(filename, base), 'utf8'))
+        delete manifest.data?.['stackchan-mod']
+        manifest.include = manifest.include?.map((value) =>
+          value.endsWith('/host/app/manifest_typings.json') ? '<host-types>' : value
+        )
+        return manifest
+      }
+      assert.deepEqual(readManifest(gallery), readManifest(firmware))
+      continue
+    }
     assert.equal(
       readFileSync(new URL(filename, gallery), 'utf8'),
       readFileSync(new URL(filename, firmware), 'utf8'),
@@ -144,7 +161,9 @@ test('UI Playground GalleryパッケージはFirmwareサンプルと同じ実行
 test('MOD定義は形式別の正本と安全なパッケージパスを要求する', () => {
   const base = {
     format: 'tech.stackchan.mod',
-    schemaVersion: 1,
+    schemaVersion: 2,
+    appApiVersion: 2,
+    hostApiVersion: 2,
     id: 'tech.stackchan.test.sample',
     version: '1.0.0',
     name: 'test',
@@ -159,16 +178,19 @@ test('MOD定義は形式別の正本と安全なパッケージパスを要求�
   assert.deepEqual(parseModDefinition({ ...base, type: 'text', source: { path: 'manifest.json' } }).entrypoints, [
     'mod',
   ])
-  assert.deepEqual(
-    parseModDefinition({
-      ...base,
-      type: 'text',
-      source: { path: 'manifest.json' },
-      entrypoints: ['mod', 'miniapp'],
-    }).entrypoints,
-    ['mod', 'miniapp']
-  )
-  for (const entrypoints of [null, [], ['miniapp', 'miniapp'], ['unknown']]) {
+  for (const entrypoints of [['miniapp'], ['mod', 'miniapp']]) {
+    assert.throws(
+      () =>
+        parseModDefinition({
+          ...base,
+          type: 'text',
+          source: { path: 'manifest.json' },
+          entrypoints,
+        }),
+      /Legacy miniapp/
+    )
+  }
+  for (const entrypoints of [null, [], ['mod', 'mod'], ['unknown']]) {
     assert.throws(
       () => parseModDefinition({ ...base, type: 'text', source: { path: 'manifest.json' }, entrypoints }),
       /entrypoints/
@@ -256,7 +278,10 @@ test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持
     readFileSync(new URL('../../docs/specs/stackchan-mod.schema.json', import.meta.url), 'utf8')
   )
   assert.equal(schema.properties.format.const, 'tech.stackchan.mod')
-  assert.equal(schema.properties.schemaVersion.const, 1)
+  for (const version of schema.properties.schemaVersion.enum) {
+    const input = { ...modDefinition, schemaVersion: version }
+    assert.equal(parseModDefinition(input).schemaVersion, version)
+  }
   assert.equal(schema.$id, 'https://stack-chan.github.io/stack-chan/web/schemas/stackchan-mod.schema.json')
   for (const field of [
     'format',
@@ -281,4 +306,13 @@ test('JSON Schemaと実装が同じ形式識別子と必須フィールドを持
   }
   assert.equal(new RegExp(schema.properties.setup.properties.url.pattern).test('https://example.test/setup'), true)
   assert.equal(new RegExp(schema.properties.setup.properties.url.pattern).test('http://example.test/setup'), false)
+})
+
+test('canonical source packaging removes stale generated files before publication', () => {
+  const stale = new URL('./samples/ui-playground/source/obsolete.js', import.meta.url)
+  writeFileSync(stale, 'obsolete')
+  prepareCanonicalSources()
+  assert.equal(existsSync(stale), false)
+  const manifest = JSON.parse(readFileSync(new URL('./samples/ui-playground/source/manifest.json', import.meta.url)))
+  assert.deepEqual(manifest.data['stackchan-mod'], ['../stackchan-mod.json'])
 })

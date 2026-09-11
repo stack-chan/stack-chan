@@ -1,9 +1,9 @@
 declare module "mp3streamer" {
   import type AudioOut from "pins/audioout"
-  import type HTTPClient from "embedded:network/http/client";
+  import type { PlaybackHttpOptions } from "tts-http-client";
   type MP3StreamerOptions = {
     protocol?: "http" | "https",
-    http: typeof HTTPClient.constructor
+    http: Pick<PlaybackHttpOptions, 'io'>
     host: string,
     port: number,
     path: string,

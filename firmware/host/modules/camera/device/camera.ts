@@ -24,7 +24,7 @@ const DEFAULT_CAPTURE_REQUEST: CameraCaptureRequest = {
 
 export type DeviceCameraConstructorOptions = Record<string, never>
 
-type DisposableCameraBuffer = ArrayBuffer & {
+type DisposableCameraBuffer = (ArrayBuffer | HostBuffer) & {
   close?: () => void
 }
 
@@ -163,17 +163,20 @@ export default class Camera implements RobotCamera {
     }
     trace(`[camera] capture frame bytes=${frame.byteLength}\n`)
 
-    let isClosed = false
+    // Native buffer/disposable frames are HostBuffers, not ArrayBuffers. Copy
+    // while the camera still owns the storage, then release it on every path.
+    let buffer: ArrayBuffer
+    try {
+      // XS accepts readable HostBuffers in TypedArray constructors.
+      buffer = new Uint8Array(frame as ArrayBuffer).slice().buffer
+    } finally {
+      closeFrame(frame)
+    }
     return {
       width: this.#width,
       height: this.#height,
       imageType: this.#imageType,
-      buffer: frame,
-      close: () => {
-        if (isClosed) return
-        isClosed = true
-        closeFrame(frame)
-      },
+      buffer,
     }
   }
 

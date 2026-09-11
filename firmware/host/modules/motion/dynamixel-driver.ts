@@ -7,11 +7,17 @@ import { createServoMaintenance } from 'servo-maintenance'
 import type { Maybe, Rotation } from 'stackchan-util'
 import Timer from 'timer'
 
+const TILT_CURRENT_LIMIT = 800
+
 type DynamixelDriverProps = {
   panId: number
   tiltId: number
   baud: number
   commandTimeoutMs?: number
+  positionIGain?: number
+  tiltPositionIGain?: number
+  tiltMinCurrent?: number
+  pitchMinDeg?: number
   serial?: Partial<{
     receive: number
     transmit: number
@@ -42,7 +48,7 @@ class PControl {
     this._lastGoalPosition = undefined
   }
 
-  init(torqueEnabled: () => boolean, callback: MotionCompletion): void {
+  init(torqueEnabled: () => boolean, callback: MotionCompletion, positionIGain?: number): void {
     this.servo.readPresentPosition((result) => {
       if (result.success === false) {
         callback(new Error(result.reason ?? 'failed to read initial servo position'))
@@ -56,7 +62,19 @@ class PControl {
           callback(modeError)
           return
         }
-        this.servo.setTorque(torqueEnabled(), callback)
+        if (positionIGain === undefined) {
+          this.servo.setTorque(torqueEnabled(), callback)
+          return
+        }
+        // Changing operating mode resets the servo's position PID gains. Apply
+        // the hardware profile afterwards, before torque can be re-enabled.
+        this.servo.setPositionIGain(positionIGain, (gainError) => {
+          if (gainError != null) {
+            callback(gainError)
+            return
+          }
+          this.servo.setTorque(torqueEnabled(), callback)
+        })
       })
     })
   }
@@ -122,10 +140,27 @@ export class DynamixelDriver {
   #rotation: Rotation = { y: 0, p: 0, r: 0 }
   #rotationResult: Maybe<Rotation> = { success: true, value: this.#rotation }
   #controlError: unknown
+  #positionIGain?: number
+  #tiltPositionIGain?: number
+  #pitchMinDeg: number
   #unavailableResult: Maybe<Rotation> = { success: false, reason: 'servo has no current position sample' }
   #closedResult: Maybe<Rotation> = { success: false, reason: 'servo driver is closed' }
 
   constructor(param: DynamixelDriverProps) {
+    this.#pitchMinDeg = param.pitchMinDeg ?? -30
+    if (!Number.isFinite(this.#pitchMinDeg) || this.#pitchMinDeg < -30 || this.#pitchMinDeg >= 10)
+      throw new ServoBusError('INVALID_ARGUMENT', 'minimum pitch must be in -30..<10 degrees')
+    for (const gain of [param.positionIGain, param.tiltPositionIGain]) {
+      if (gain !== undefined && (!Number.isInteger(gain) || gain < 0 || gain > 16383))
+        throw new ServoBusError('INVALID_ARGUMENT', 'position I gain must be an integer in 0..16383')
+    }
+    this.#positionIGain = param.positionIGain
+    this.#tiltPositionIGain = param.tiltPositionIGain ?? param.positionIGain
+    if (
+      param.tiltMinCurrent !== undefined &&
+      (!Number.isInteger(param.tiltMinCurrent) || param.tiltMinCurrent < 0 || param.tiltMinCurrent > TILT_CURRENT_LIMIT)
+    )
+      throw new ServoBusError('INVALID_ARGUMENT', `tilt minimum current must be an integer in 0..${TILT_CURRENT_LIMIT}`)
     try {
       this._pan = this.#resources.own(
         new Dynamixel({
@@ -143,14 +178,17 @@ export class DynamixelDriver {
           serial: param.serial,
         }),
       )
-      this._controls = [new PControl(this._pan, 1.0, 80, 40, 'pan'), new PControl(this._tilt, 4, 800, 0, 'tilt')]
+      this._controls = [
+        new PControl(this._pan, 1.0, 80, 40, 'pan'),
+        new PControl(this._tilt, 4, TILT_CURRENT_LIMIT, param.tiltMinCurrent ?? 0, 'tilt'),
+      ]
       this._torque = true
       this._initialized = false
       this._running = false
       this._attached = false
       this._interval = 125
       this.motion = {
-        info: motionInfo('measured', [-180, (4095 * 360) / 4096 - 180], [-30, 10]),
+        info: motionInfo('measured', [-180, (4095 * 360) / 4096 - 180], [this.#pitchMinDeg, 10]),
         intervalMs: 50,
         prepare: (done) => this.#prepareManaged(done),
         read: (done) => this.#readManaged(done),
@@ -298,6 +336,7 @@ export class DynamixelDriver {
         }
         this.#initializeControlAt(index + 1, callback)
       },
+      index === 1 ? this.#tiltPositionIGain : this.#positionIGain,
     )
   }
 
@@ -361,7 +400,11 @@ export class DynamixelDriver {
     const panAngle = (ori.y * 180) / Math.PI
     const tiltAngle = (ori.p * 180) / Math.PI
     this._controls[0].goalPosition = Math.floor(((panAngle + 180) * 4096) / 360)
-    this._controls[1].goalPosition = Math.floor(((Math.min(Math.max(tiltAngle, -30), 10) + 180) * 4096) / 360)
+    // Round the lower boundary inward: flooring it could command a position
+    // slightly beyond the calibrated clearance limit.
+    const minimum = Math.ceil(((this.#pitchMinDeg + 180) * 4096) / 360)
+    const maximum = Math.floor(((10 + 180) * 4096) / 360)
+    this._controls[1].goalPosition = Math.min(maximum, Math.max(minimum, Math.floor(((tiltAngle + 180) * 4096) / 360)))
     callback?.()
   }
 

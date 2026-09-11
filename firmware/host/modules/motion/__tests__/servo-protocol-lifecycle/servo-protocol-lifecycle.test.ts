@@ -407,6 +407,173 @@ async function managedDynamixel(): Promise<void> {
   driver.close()
 }
 
+async function delayedDynamixelNotification(): Promise<void> {
+  const driver = new DynamixelDriver({ panId: 1, tiltId: 2, baud: 1_000_000, commandTimeoutMs: 10 })
+  const serial = serials[serials.length - 1]
+  serial.onWrite = (packet) => {
+    // Bytes arrive, but startup work delays delivery of onReadable past the timer.
+    serial.emit(dxResponse(packet[4], packet[7] === 2 ? [0, 8, 0, 0] : []), false)
+  }
+  await waitForCompletion((done) => driver.control(done))
+  assert(driver._initialized, 'buffered replies allow both axes to initialize without notifications')
+  serial.options.onReadable.call(serial, 0)
+  await waitForCompletion((done) => driver.control(done))
+  driver.getRotation((sample) => {
+    if (sample.success === false) throw new Error('control remains usable after delayed notifications')
+    equal(sample.value.y, 0)
+    equal(sample.value.p, 0)
+  })
+  driver.close()
+}
+
+async function dynamixelPositionGain(): Promise<void> {
+  for (const [gain, tiltGain] of [
+    [undefined, undefined],
+    [0, undefined],
+    [321, undefined],
+    [123, 456],
+    [321, 0],
+    [undefined, 456],
+  ]) {
+    const driver = new DynamixelDriver({
+      panId: 1,
+      tiltId: 2,
+      baud: 1_000_000,
+      positionIGain: gain,
+      tiltPositionIGain: tiltGain,
+    })
+    const serial = serials[serials.length - 1]
+    const gains = new Map<number, number>()
+    const enabled: number[] = []
+    let gainWrites = 0
+    serial.onWrite = (packet) => {
+      const id = packet[4]
+      if (packet[7] === 3) {
+        const address = packet[8] | (packet[9] << 8)
+        if (address === 11) gains.set(id, 0) // The servo resets PID on a mode change.
+        if (address === 82) {
+          gainWrites++
+          gains.set(id, packet[10] | (packet[11] << 8))
+        }
+        if (address === 64 && packet[10] === 1) {
+          equal(
+            gains.get(id),
+            (id === 2 ? (tiltGain ?? gain) : gain) ?? 0,
+            'axis profile gain survives mode reset before torque is enabled',
+          )
+          enabled.push(id)
+        }
+      }
+      serial.emit(dxResponse(id, packet[7] === 2 ? [0, 8, 0, 0] : []))
+    }
+    await waitForCompletion((done) => driver.control(done))
+    equal(enabled.join(','), '1,2', 'both axes initialize')
+    equal(
+      gainWrites,
+      Number(gain !== undefined) + Number((tiltGain ?? gain) !== undefined),
+      'unconfigured axes keep the servo default',
+    )
+    driver.close()
+  }
+  const driver = new DynamixelDriver({ panId: 1, tiltId: 2, baud: 1_000_000, positionIGain: 100 })
+  const serial = serials[serials.length - 1]
+  let enabled = false
+  serial.onWrite = (packet) => {
+    const address = packet[8] | (packet[9] << 8)
+    if (packet[7] === 3 && address === 64 && packet[10] === 1) enabled = true
+    serial.emit(dxResponse(packet[4], packet[7] === 2 ? [0, 8, 0, 0] : [], address === 82 ? 4 : 0))
+  }
+  let failure: unknown
+  await waitForCompletion((done) =>
+    driver.control((error) => {
+      failure = error
+      done()
+    }),
+  )
+  assert(failure instanceof Error, 'gain write failure rejects initialization')
+  assert(!enabled, 'failed gain configuration cannot enable torque')
+  driver.close()
+  for (const gain of [-1, 0.5, 16384, Number.NaN]) {
+    for (const key of ['positionIGain', 'tiltPositionIGain']) {
+      let rejected = false
+      try {
+        new DynamixelDriver({ panId: 1, tiltId: 2, baud: 1_000_000, [key]: gain })
+      } catch {
+        rejected = true
+      }
+      assert(rejected, 'invalid gain is rejected')
+      equal(openPorts.size, 0, 'invalid configuration does not acquire the UART')
+    }
+  }
+}
+
+async function dynamixelHoldingCurrent(): Promise<void> {
+  const samples: number[][] = []
+  for (const minimum of [undefined, 200]) {
+    const driver = new DynamixelDriver({ panId: 1, tiltId: 2, baud: 1_000_000, tiltMinCurrent: minimum })
+    const serial = serials[serials.length - 1]
+    let position = 2048
+    const currents: number[] = []
+    serial.onWrite = (packet) => {
+      if (packet[4] === 2 && packet[7] === 3 && packet[8] === 102) currents.push(packet[10] | (packet[11] << 8))
+      serial.emit(dxResponse(packet[4], packet[7] === 2 ? [position & 255, position >> 8, 0, 0] : []))
+    }
+    for (position of [2048, 2047, 1024]) await waitForCompletion((done) => driver.control(done))
+    equal(currents.length, 3)
+    samples.push(currents)
+    driver.close()
+  }
+  equal(samples[1][0], 200, 'the configured allowance remains available at the target')
+  equal(samples[1][1], 200, 'small position errors cannot collapse the holding allowance')
+  assert(samples[0][0] < samples[1][0], 'unconfigured drivers preserve the legacy near-target behavior')
+  equal(samples[0][2], samples[1][2], 'a holding allowance does not increase the maximum current')
+  for (const minimum of [-1, 0.5, Number.NaN, Number.MAX_SAFE_INTEGER]) {
+    let rejected = false
+    try {
+      new DynamixelDriver({ panId: 1, tiltId: 2, baud: 1_000_000, tiltMinCurrent: minimum })
+    } catch {
+      rejected = true
+    }
+    assert(rejected, 'invalid current configuration is rejected')
+    equal(openPorts.size, 0, 'validation precedes UART acquisition')
+  }
+}
+
+async function dynamixelPitchClearance(): Promise<void> {
+  for (const minimum of [-10, -8]) {
+    const driver = new DynamixelDriver({ panId: 1, tiltId: 2, baud: 1_000_000, pitchMinDeg: minimum })
+    const info = driver.motion.info
+    if (info.availability === 'unavailable') throw new Error('motion should be available')
+    equal(info.pitchDeg[0], minimum, 'SDK exposes the hardware profile limit')
+    const serial = serials[serials.length - 1]
+    const goals: number[] = []
+    serial.onWrite = (packet) => {
+      if (packet[4] === 2 && packet[7] === 3 && packet[8] === 116)
+        goals.push(packet[10] | (packet[11] << 8) | (packet[12] << 16) | (packet[13] << 24))
+      serial.emit(dxResponse(packet[4], packet[7] === 2 ? [0, 8, 0, 0] : []))
+    }
+    for (const pitch of [-45, 0, minimum, 25]) {
+      driver.applyRotation({ y: 0, p: (pitch * Math.PI) / 180, r: 0 })
+      await waitForCompletion((done) => driver.control(done))
+      const degrees = (goals[goals.length - 1] * 360) / 4096 - 180
+      assert(degrees >= info.pitchDeg[0] && degrees <= info.pitchDeg[1], 'encoded goals stay inside advertised limits')
+      const expected = Math.max(info.pitchDeg[0], Math.min(info.pitchDeg[1], pitch))
+      assert(Math.abs(degrees - expected) < 360 / 4096, 'clamping loses less than one encoder step')
+    }
+    driver.close()
+  }
+  for (const pitchMinDeg of [-31, 10, Number.NaN, Number.POSITIVE_INFINITY]) {
+    let rejected = false
+    try {
+      new DynamixelDriver({ panId: 1, tiltId: 2, baud: 1_000_000, pitchMinDeg })
+    } catch {
+      rejected = true
+    }
+    assert(rejected, 'invalid clearance is rejected')
+    equal(openPorts.size, 0, 'validation precedes UART acquisition')
+  }
+}
+
 async function run(): Promise<void> {
   resetSerials()
   await lifetimes()
@@ -416,6 +583,10 @@ async function run(): Promise<void> {
   await changedDynamixelGoal()
   await initialDynamixelGoal()
   await managedDynamixel()
+  await delayedDynamixelNotification()
+  await dynamixelPositionGain()
+  await dynamixelHoldingCurrent()
+  await dynamixelPitchClearance()
   equal(openPorts.size, 0)
   assert(
     serials.every((serial) => serial.closes === 1),

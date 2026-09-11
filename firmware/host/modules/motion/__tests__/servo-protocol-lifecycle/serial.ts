@@ -29,9 +29,9 @@ export default class Serial {
     this.reads++
     return this.#bytes.shift()
   }
-  emit(packet: Uint8Array): void {
+  emit(packet: Uint8Array, notify = true): void {
     this.#bytes.push(...packet)
-    this.options.onReadable.call(this, packet.length)
+    if (notify) this.options.onReadable.call(this, packet.length)
   }
   close(): void {
     this.closes++

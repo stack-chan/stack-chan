@@ -20,7 +20,12 @@ export class CommandTimeoutError extends ServoBusError {
 
 export type ServoSerialConfig = { port: number; receive: number; transmit: number; baud: number }
 export type ServoBusConfig = ServoSerialConfig & { protocol: string }
-export type ServoTransport = { format: string; write: (packet: Uint8Array) => void; close: () => void }
+export type ServoTransport = {
+  format: string
+  write: (packet: Uint8Array) => void
+  close: () => void
+  poll?: () => void
+}
 export type ServoClock = { set: (callback: () => void, ms: number) => unknown; clear: (handle: unknown) => void }
 export type ServoCommand = {
   encode: (id: number) => Uint8Array
@@ -220,7 +225,17 @@ class ServoBus {
       // Arm before write: a response may arrive within the transport's write call.
       entry.timer = this.clock.set(() => {
         entry.timer = undefined
-        if (this.#active === entry) this.#fail(new CommandTimeoutError(this.config.protocol, entry.command.timeoutMs))
+        if (this.#active !== entry || entry.ready) return
+        try {
+          // A busy event loop can dispatch this timer before Serial.onReadable,
+          // even though a valid response is already waiting in the UART.
+          serial.poll?.()
+        } catch (error) {
+          this.#fail(new ServoBusError('IO', `servo receive failed: ${String(error)}`))
+          return
+        }
+        if (this.#active === entry && !entry.ready)
+          this.#fail(new CommandTimeoutError(this.config.protocol, entry.command.timeoutMs))
       }, entry.command.timeoutMs)
       serial.format = 'buffer'
       try {

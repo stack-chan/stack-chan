@@ -1,3 +1,4 @@
+import Resource from 'Resource'
 import NativeCamera from 'embedded:io/image/in/camera'
 import Camera from 'device-camera'
 import { assert, equal } from 'testing/assert'
@@ -52,6 +53,28 @@ async function run() {
   equal(NativeCamera.current.closes, 1, 'rollback and close share device release')
   NativeCamera.startFailure = undefined
 
+  // Resource supplies a real XS HostBuffer, unlike the ArrayBuffer fakes below.
+  // Hide its slice method to match a disposable camera frame's interface.
+  const captured = new Camera()
+  captured.start()
+  const hostFrame = new Resource('camera-frame.txt')
+  let released = 0
+  Object.defineProperties(hostFrame, {
+    slice: { value: undefined },
+    close: { value: () => released++ },
+  })
+  assert(!(hostFrame instanceof ArrayBuffer), 'fixture uses native buffer semantics')
+  NativeCamera.current.frame = hostFrame
+  const owned = await captured.capture()
+  assert(owned, 'native frame is captured')
+  assert(owned.buffer instanceof ArrayBuffer, 'capture normalizes native storage to an ArrayBuffer')
+  equal(released, 1, 'native frame is released before capture resolves')
+  equal(String.fromArrayBuffer(owned.buffer), 'native camera frame\n', 'capture preserves all bytes')
+  captured.stop()
+  captured.close()
+  equal(released, 1, 'stop and close do not release the returned frame again')
+  equal(String.fromArrayBuffer(owned.buffer), 'native camera frame\n', 'owned pixels survive camera close')
+
   const waiting = new Camera()
   const capture = waiting.capture()
   const waitingNative = NativeCamera.current
@@ -69,7 +92,10 @@ async function run() {
     currentNative.frame = fresh
     const newCapture = reusable.capture()
     equal(await oldCapture, undefined, 'stopped capture cannot consume a newer frame')
-    equal((await newCapture)?.buffer, fresh, 'new capture receives its own frame')
+    const result = await newCapture
+    assert(result && result.buffer !== fresh, 'new capture owns a copy of its frame')
+    new Uint8Array(fresh)[0] = 42
+    equal(new Uint8Array(result.buffer)[0], 0, 'native storage reuse cannot change the captured image')
     reusable.stop()
   }
   const obsoleteNative = NativeCamera.current

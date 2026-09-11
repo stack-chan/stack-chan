@@ -7,7 +7,7 @@ export default class NativeCamera {
   closes = 0
   stops = 0
   stopFailure: Error | undefined
-  frame: ArrayBuffer | undefined
+  frame: ArrayBuffer | HostBuffer | undefined
   readable: () => void
   constructor(options: { onReadable: () => void }) {
     this.readable = options.onReadable

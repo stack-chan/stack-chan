@@ -1,5 +1,5 @@
 {
-  "include": ["./manifest.json"],
+  "include": ["../platforms/manifest_core_s3_audioout.json", "./manifest.json"],
   "config": {
     "enablePowerButton": false
   }

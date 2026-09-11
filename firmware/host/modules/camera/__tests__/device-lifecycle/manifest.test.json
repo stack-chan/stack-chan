@@ -11,6 +11,9 @@
     "embedded:io/image/in/camera": "./native-camera-fake",
     "main": "./device-lifecycle.test"
   },
+  "data": {
+    "*": "./camera-frame.txt"
+  },
   "defines": {
     "main": {
       "async": 1

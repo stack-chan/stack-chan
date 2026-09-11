@@ -81,6 +81,7 @@ const ADDRESS = {
   PROFILE_ACCELERATION: 108,
   PROFILE_VELOCITY: 112,
   PRESENT_CURRENT: 126,
+  POSITION_I_GAIN: 82,
   PRESENT_VELOCITY: 128,
   PRESENT_POSITION: 132,
 } as const
@@ -105,59 +106,8 @@ class PacketHandler extends Serial {
   #state: RxState
   #count: number
   constructor(option, receive: (id: number, payload: Uint8Array) => void) {
-    const onReadable = function (this: PacketHandler, bytesReadable: number) {
-      if (this.#closed) return
-      const rxBuf = this.#rxBuffer
-      let bytes = bytesReadable
-      while (bytes > 0) {
-        // NOTE: We can safely read a number
-        rxBuf[this.#idx++] = this.read() as number
-        bytes -= 1
-        switch (this.#state) {
-          case RX_STATE.SEEK:
-            if (this.#idx === 1 && rxBuf[0] !== 0xff) this.#idx = 0
-            if (this.#idx === 2 && rxBuf[1] !== 0xff) this.#idx = 0
-            if (this.#idx === 3) {
-              if (rxBuf[2] === 0xfd) this.#state = RX_STATE.HEAD
-              else this.#idx = rxBuf[2] === 0xff ? 2 : 0
-            }
-            break
-          case RX_STATE.HEAD:
-            if (this.#idx >= 7) {
-              this.#count = (rxBuf[6] << 8) | rxBuf[5]
-              if (rxBuf[3] !== 0 || this.#count < 4 || this.#idx + this.#count > rxBuf.length) {
-                this.#idx = 0
-                this.#state = RX_STATE.SEEK
-                break
-              }
-              this.#state = RX_STATE.BODY
-              // trace(`length: ${this.#count}\n`)
-            }
-            break
-          case RX_STATE.BODY:
-            this.#count -= 1
-            if (this.#count === 0) {
-              const id = rxBuf[4]
-              const command = rxBuf[7] as Instruction
-              if (command === INSTRUCTION.WRITE || command === INSTRUCTION.READ) {
-                // trace(`got echo.  ... ${rxBuf.subarray(0, this.#idx)} ignoring\n`)
-              } else if (!verifyDynamixelPacketCrc(rxBuf, this.#idx)) {
-                // A corrupted packet cannot complete the pending transaction.
-                trace(`[dynamixel] crc mismatch for id=${id}. discarding ${rxBuf.subarray(0, this.#idx)}\n`)
-              } else if (command === INSTRUCTION.STATUS) {
-                // trace(`got response for ${id}. triggering callback ... ${rxBuf.subarray(0, this.#idx)} \n`)
-                const payloadEnd = unstuffDynamixelPayload(rxBuf, this.#idx)
-                this.#receive(id, rxBuf.slice(7, payloadEnd))
-              }
-              this.#idx = 0
-              this.#state = RX_STATE.SEEK
-            }
-            break
-          default:
-            assertNeverRxState(this.#state)
-        }
-        // noop
-      }
+    const onReadable = function (this: PacketHandler) {
+      this.poll()
     }
     const rxBuffer = new Uint8Array(64)
     super({
@@ -169,6 +119,63 @@ class PacketHandler extends Serial {
     this.#rxBuffer = rxBuffer
     this.#idx = 0
     this.#state = RX_STATE.SEEK
+  }
+
+  // Also called before declaring a timeout: UART data may be ready before
+  // the queued onReadable callback gets a turn during host startup.
+  poll(): void {
+    if (this.#closed) return
+    const rxBuf = this.#rxBuffer
+    // Bound each drain even if a noisy device keeps transmitting.
+    for (let count = 0; count < 256; count++) {
+      const byte = this.read() as number | undefined
+      if (byte === undefined) break
+      rxBuf[this.#idx++] = byte
+      switch (this.#state) {
+        case RX_STATE.SEEK:
+          if (this.#idx === 1 && rxBuf[0] !== 0xff) this.#idx = 0
+          if (this.#idx === 2 && rxBuf[1] !== 0xff) this.#idx = 0
+          if (this.#idx === 3) {
+            if (rxBuf[2] === 0xfd) this.#state = RX_STATE.HEAD
+            else this.#idx = rxBuf[2] === 0xff ? 2 : 0
+          }
+          break
+        case RX_STATE.HEAD:
+          if (this.#idx >= 7) {
+            this.#count = (rxBuf[6] << 8) | rxBuf[5]
+            if (rxBuf[3] !== 0 || this.#count < 4 || this.#idx + this.#count > rxBuf.length) {
+              this.#idx = 0
+              this.#state = RX_STATE.SEEK
+              break
+            }
+            this.#state = RX_STATE.BODY
+            // trace(`length: ${this.#count}\n`)
+          }
+          break
+        case RX_STATE.BODY:
+          this.#count -= 1
+          if (this.#count === 0) {
+            const id = rxBuf[4]
+            const command = rxBuf[7] as Instruction
+            if (command === INSTRUCTION.WRITE || command === INSTRUCTION.READ) {
+              // trace(`got echo.  ... ${rxBuf.subarray(0, this.#idx)} ignoring\n`)
+            } else if (!verifyDynamixelPacketCrc(rxBuf, this.#idx)) {
+              // A corrupted packet cannot complete the pending transaction.
+              trace(`[dynamixel] crc mismatch for id=${id}. discarding ${rxBuf.subarray(0, this.#idx)}\n`)
+            } else if (command === INSTRUCTION.STATUS) {
+              // trace(`got response for ${id}. triggering callback ... ${rxBuf.subarray(0, this.#idx)} \n`)
+              const payloadEnd = unstuffDynamixelPayload(rxBuf, this.#idx)
+              this.#receive(id, rxBuf.slice(7, payloadEnd))
+            }
+            this.#idx = 0
+            this.#state = RX_STATE.SEEK
+          }
+          break
+        default:
+          assertNeverRxState(this.#state)
+      }
+      // noop
+    }
   }
   close(): void {
     if (this.#closed) return
@@ -398,6 +405,20 @@ class Dynamixel {
     const a = current & 0xff
     const b = (current >> 8) & 0xff
     this.#sendCommand(INSTRUCTION.WRITE, ADDRESS.GOAL_CURRENT, () => callback?.(), callback ?? (() => {}), a, b)
+  }
+
+  /** Position integral gain, in control-table units (not a current limit). */
+  setPositionIGain(gain: number, callback?: CompletionCallback): void {
+    if (!Number.isInteger(gain) || gain < 0 || gain > 16383)
+      throw new ServoBusError('INVALID_ARGUMENT', 'position I gain must be an integer in 0..16383')
+    this.#sendCommand(
+      INSTRUCTION.WRITE,
+      ADDRESS.POSITION_I_GAIN,
+      () => callback?.(),
+      callback ?? (() => {}),
+      gain & 0xff,
+      gain >> 8,
+    )
   }
 
   /**

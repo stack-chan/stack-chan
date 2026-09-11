@@ -1,0 +1,6 @@
+{
+  "modules": {
+    "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
+    "pins/audioout": "./core_s3_audioout"
+  }
+}

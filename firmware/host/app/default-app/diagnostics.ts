@@ -56,7 +56,7 @@ export function installDiagnostics(app: AppContext, companion: ReturnType<typeof
         [30, 0],
         [-30, 0],
         [0, 5.625],
-        [0, -30],
+        [0, -10],
         [0, 0],
       ]) {
         await companion.move({ yawDeg, pitchDeg }, task)

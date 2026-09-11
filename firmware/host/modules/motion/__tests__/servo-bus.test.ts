@@ -42,6 +42,7 @@ function fixture() {
     receive: (id: number, payload: Uint8Array) => void
     onWrite?: (packet: Uint8Array) => void
     closeError?: Error
+    poll?: () => void
   }[] = []
   const create = (receive: (id: number, payload: Uint8Array) => void) => {
     const state: (typeof transports)[number] = { format: 'number', writes: [], closes: 0, receive }
@@ -103,6 +104,51 @@ test('100 two-axis lifetimes share one UART, serialize replies, and return timer
   }
   assert.equal(f.outcomes.length, 200)
   assert.ok(f.outcomes.every((outcome) => !outcome.error))
+})
+
+test('timeout drains buffered replies before faulting and completion stays outside the poll callback', () => {
+  const f = fixture()
+  const pan = f.acquire(1)
+  const serial = f.transports[0]
+  serial.poll = () => {
+    serial.receive(1, new Uint8Array([7]))
+    assert.equal(f.outcomes.length, 0)
+  }
+  pan.send(f.command('buffered'))
+  f.clock.advance(100)
+  assert.deepEqual(f.outcomes, [{ label: 'buffered', payload: new Uint8Array([7]) }])
+  pan.close()
+  assert.equal(f.clock.jobs.size, 0)
+})
+
+test('polling another ID cannot conceal a real wire timeout', () => {
+  const f = fixture()
+  const pan = f.acquire(1)
+  const tilt = f.acquire(2)
+  f.transports[0].poll = () => f.transports[0].receive(2, new Uint8Array([7]))
+  pan.send(f.command('missing'))
+  tilt.send(f.command('queued'))
+  f.clock.advance(100)
+  assert.equal(f.outcomes.length, 2)
+  assert.ok(f.outcomes.every(({ error }) => (error as { code: string }).code === 'TIMEOUT'))
+  pan.close()
+  tilt.close()
+  assert.equal(f.clock.jobs.size, 0)
+})
+
+test('a poll failure settles active and queued work without leaving timers', () => {
+  const f = fixture()
+  const pan = f.acquire(1)
+  f.transports[0].poll = () => {
+    throw new Error('UART read failed')
+  }
+  pan.send(f.command('active'))
+  pan.send(f.command('queued'))
+  f.clock.advance(100)
+  assert.equal(f.outcomes.length, 2)
+  assert.ok(f.outcomes.every(({ error }) => (error as { code: string }).code === 'IO'))
+  pan.close()
+  assert.equal(f.clock.jobs.size, 0)
 })
 
 test('UART config, protocol and ID conflicts are rejected before another transport is opened', () => {

@@ -1,6 +1,9 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 
 reviews:
+  auto_review:
+    base_branches:
+      - "^milestone/sdk-redesign$"
   path_instructions:
     - path: "**/*.test.*"
       instructions: |

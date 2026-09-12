@@ -5,6 +5,7 @@ on:
     branches:
       - develop
       - main
+      - milestone/sdk-redesign
     paths:
       - "firmware/**"
       - "web/**"
@@ -19,6 +20,7 @@ on:
     branches:
       - develop
       - main
+      - milestone/sdk-redesign
     paths:
       - "firmware/**"
       - "web/**"

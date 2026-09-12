@@ -18,12 +18,29 @@ main <- release/* <- develop <- feat/* | fix/*
 
 ## Pull request
 
-- 作業ブランチは `develop` から作成します。
-- 機能追加や修正の pull request は `develop` に向けます。
+- 作業ブランチは、後述するSDK再設計を除き `develop` から作成します。
+- 機能追加や修正の pull request は `develop` に向けます。SDK再設計の各段階は `milestone/sdk-redesign` に向けます。
 - 各 pull request は 1 つの変更に集中させます。
 - pull request の説明には、リリース影響を `none`、`patch`、`minor`、`major` のいずれかで記載します。
 - 利用者に見えるファームウェアまたは Web の変更には、Changeset またはリリースノート本文を追加します。
   不要な場合は、その理由を説明します。
+
+## SDK再設計はmilestoneへ順番に取り込む
+
+`milestone/sdk-redesign`は、[SDK再設計の移行計画](./firmware-sdk-milestone.md)に使う一時的な統合ブランチです。
+Moddable 9.5への移行（#692）を含むdevelopの`cf3dde86b0be0f0496b82d6629cb296220df26b1`から作成します。
+CI・設計文書の準備PR #705を最初にmilestoneへ取り込み、以降の再設計PRも最終統合までmilestoneへ向けます。
+
+最新milestoneから作業ブランチを一つ作り、そのPRをレビューしてmilestoneへ取り込んでから、次の作業ブランチを作成します。
+後続の依存ブランチやdraft PRは先に作りません。
+各段階の開始前にdevelopの更新を確認し、更新があれば同期PRを先にmilestoneへ取り込みます。
+共有後のmilestoneは履歴を書き換えず、同期と最後のdevelopへの統合にはmerge commitを使います。
+
+milestoneと、それを取り込み先にするPRでは、対象パスの変更に対してBuildとBundleのCIを実行します。
+検証にはCI成果物と[ローカルプレビュー](./cloudflare-pr-preview_ja.md#milestoneのプレビューをローカルで確認する)を使います。develop上の対象判定がmilestoneを許可しないため、Cloudflareの自動配布はスキップされます。
+milestoneからGitHub Pagesや正式リリースへは配布しません。
+全段階の統合・実機検証後、分割PR一覧、移行手順、最終検証結果をまとめたPRをdevelopへ向けます。
+Changesetsの基準はdevelopのまま各PRで記録を蓄積し、package versionは通常のリリース工程で更新します。
 
 ## リリース
 

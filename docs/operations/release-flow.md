@@ -15,11 +15,28 @@ main <- release/* <- develop <- feat/* | fix/*
 
 ## Pull requests
 
-- Create topic branches from `develop`.
-- Open feature and fix pull requests against `develop`.
+- Create topic branches from `develop` unless the change belongs to the SDK milestone described below.
+- Open feature and fix pull requests against `develop`, or against `milestone/sdk-redesign` for that milestone.
 - Keep each pull request focused on one change.
 - Include the release impact in the pull request description: `none`, `patch`, `minor`, or `major`.
 - Add a Changeset or release note text for user-visible firmware or web changes, or explain why none is needed.
+
+## SDK redesign milestone
+
+`milestone/sdk-redesign` is a temporary integration branch for the [SDK redesign plan](./firmware-sdk-milestone.md) (Japanese).
+Create it from `develop` at `cf3dde86b0be0f0496b82d6629cb296220df26b1`, which includes the Moddable 9.5 migration (#692).
+Target the CI/design preparation pull request (#705) at the milestone as its first merge. All redesign pull requests go into the milestone until final integration.
+
+Create one topic branch from the latest milestone, review and merge its pull request into the milestone, and only then start the next topic branch.
+Do not pre-create dependent branches or draft pull requests.
+Before each stage, check for changes on `develop`; when needed, review and merge a synchronization pull request into the milestone first.
+Preserve the shared milestone history and use merge commits for synchronization and the final integration into `develop`.
+
+Build and Bundle CI run for matching changes on this milestone and its incoming pull requests.
+Use CI artifacts and [local previews](./cloudflare-pr-preview.md#preview-milestone-artifacts-locally) for validation. Automatic Cloudflare deployment is skipped because its resolver on `develop` does not allow this base branch.
+The milestone does not publish to GitHub Pages or create releases.
+After all stages pass integration and hardware validation, open the milestone-to-`develop` pull request with the component pull requests, migration instructions, and final validation results.
+Keep Changesets based on `develop` and accumulate entries during the milestone; update package versions through the normal release process.
 
 ## Releases
 

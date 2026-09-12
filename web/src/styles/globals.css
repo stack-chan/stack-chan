@@ -188,6 +188,14 @@
   }
 
   /*
+   * Blockly keeps its toolbox category rows light in both application themes.
+   * Do not let labels inherit the app's light foreground when dark mode is on.
+   */
+  html.dark .blocklyTreeLabel {
+    color: #000;
+  }
+
+  /*
    * Blockly hides flyout scrollbars with an SVG presentation attribute.
    * Restore that state after Tailwind Preflight's `svg { display: block }`.
    */

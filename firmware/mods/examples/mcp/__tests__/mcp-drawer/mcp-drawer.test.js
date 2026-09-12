@@ -1,6 +1,6 @@
+import { setIPAddress } from 'ecma-wifi'
 import { setMCPServerResult } from 'mcp-server'
 import { onContextCreated } from 'mod'
-import { setIPAddress } from 'net'
 import { assert, equal } from 'testing/assert'
 
 function createContext(ready = { status: 'connected' }) {

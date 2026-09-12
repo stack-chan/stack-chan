@@ -10,12 +10,14 @@
     "$(MODDABLE)/modules/files/flash/manifest.json"
   ],
   "modules": {
+    "axp2101-power-capture": "../../modules/power/platforms/axp2101-power-capture",
     "embedded:sensor/Touch/FT6x06": "./host/ft6206_async_m5stackchan",
     "setup/m5stackchan-power": "./setup-target",
     "stackchan-sdcard": "./sd-card",
     "pins/audioout-original": "$(MODULES)/pins/i2s/audioout",
     "pins/audioout": "../core_s3_audioout"
   },
+  "preload": ["axp2101-power-capture"],
   "platforms": {
     "esp32/m5stackchan_cores3": {
       "dependency": [{ "idf": "fatfs" }, { "idf": "esp_driver_sdspi" }]

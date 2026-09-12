@@ -6,10 +6,12 @@ import UUID from 'uuid'
 
 declare const device: {
   network: {
-    https: typeof HTTPClient.constructor & {
-      io: typeof HTTPClient
-      socket: unknown
-      dns: unknown
+    https: {
+      client: typeof HTTPClient.constructor & {
+        io: typeof HTTPClient
+        socket: unknown
+        dns: unknown
+      }
     }
   }
 }
@@ -78,6 +80,7 @@ function writeMultipartChunk(
   writer.write()
 }
 
+/** Post multipart audio using the HTTPS provider and collect the transcription response. */
 function postMultipart(url: string, headers: Headers, parts: MultipartPart[]): Promise<MultipartResponse> {
   return new Promise((resolve, reject) => {
     const endpoint = new URL(url)
@@ -115,8 +118,8 @@ function postMultipart(url: string, headers: Headers, parts: MultipartPart[]): P
       })
     }
 
-    client = new device.network.https.io({
-      ...device.network.https,
+    client = new device.network.https.client.io({
+      ...device.network.https.client,
       host: endpoint.hostname,
       port: endpoint.port ? Number(endpoint.port) : 443,
       onError(error) {

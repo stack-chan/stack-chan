@@ -15,7 +15,7 @@
 // Fallback when the version cannot be detected from the tools binary output.
 // The TOOL base class verifies $(MODDABLE)/tools/VERSION against the version
 // baked into the binary, so this must match vendor/tools.wasm.
-export const DEFAULT_TOOLS_VERSION = '9.0.0'
+export const DEFAULT_TOOLS_VERSION = '9.5.0'
 
 export const DEFAULT_MOD_MANIFEST = {
   modules: {
@@ -23,6 +23,7 @@ export const DEFAULT_MOD_MANIFEST = {
   },
 }
 
+/** Create a MOD manifest that includes validated project resource paths. */
 export function manifestForProjectAssets(assets = []) {
   if (assets.length === 0) return DEFAULT_MOD_MANIFEST
   return {
@@ -33,6 +34,7 @@ export function manifestForProjectAssets(assets = []) {
   }
 }
 
+/** Reject absolute paths, traversal, and invalid separators before writing project files. */
 function validateProjectPath(path) {
   const normalized = String(path ?? '')
   const segments = normalized.split('/')
@@ -48,6 +50,7 @@ function validateProjectPath(path) {
   return normalized
 }
 
+/** Normalize a user project name to a bounded toolchain-safe directory name. */
 export function buildDirectoryName(name) {
   const value = String(name ?? '')
     .normalize('NFKC')
@@ -57,6 +60,7 @@ export function buildDirectoryName(name) {
   return value || 'mod'
 }
 
+/** Write one validated project file into the compiler virtual filesystem. */
 function writeProjectFile(FS, projectDirectory, file) {
   const path = validateProjectPath(file.path)
   const parts = path.split('/')
@@ -86,6 +90,7 @@ export function findFileWithSuffix(paths, suffix) {
   return paths.find((path) => path.endsWith(suffix))
 }
 
+/** Collect generated file paths recursively from the compiler virtual filesystem. */
 function listFilesRecursively(FS, directory, results = []) {
   for (const name of FS.readdir(directory)) {
     if (name === '.' || name === '..') continue
@@ -96,6 +101,7 @@ function listFilesRecursively(FS, directory, results = []) {
   return results
 }
 
+/** Create an isolated compiler instance with its version file, directories, and log sinks. */
 async function instantiateTools(createTools, { toolsVersion, log }) {
   const tools = await createTools({
     print: (text) => log(text),
@@ -110,6 +116,7 @@ async function instantiateTools(createTools, { toolsVersion, log }) {
   return tools
 }
 
+/** Run one compiler command, log failures, and preserve the host process exit status. */
 function runTool(tools, argv, log) {
   log(`> ${argv.join(' ')}`)
   // when a tool exits non-zero, emscripten's node shim records the status in

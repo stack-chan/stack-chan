@@ -23,6 +23,7 @@ export type DeviceProfile = {
   status: 'supported' | 'experimental'
   deviceInstall: boolean
   xsArchiveVersion: readonly number[] | null
+  xsArchiveVersionRange: readonly [number, number, number, number] | null
   firmwareVersionPrefixes: readonly string[]
   chipPatterns: readonly string[]
   entrypoints: readonly ('mod' | 'miniapp')[]

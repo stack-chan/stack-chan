@@ -87,6 +87,17 @@ const device = {
     displaySelect: 5,
   },
   peripheral: {
+    Backlight: class {
+      #value = 1
+      set brightness(value) {
+        this.#value = Math.max(0, Math.min(1, value))
+        if (globalThis.power !== undefined) globalThis.power.brightness = this.#value * 100
+      }
+      get brightness() {
+        return this.#value
+      }
+      close() {}
+    },
     RTC: class {
       constructor(options) {
         // biome-ignore lint/correctness/noConstructorReturn: Moddable device providers return native peripheral instances.

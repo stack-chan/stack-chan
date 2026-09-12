@@ -1,9 +1,9 @@
 {
   "include": [
+    "../http-server/manifest.json",
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_net.json",
     "$(MODDABLE)/examples/manifest_typings.json",
-    "$(MODDABLE)/examples/io/listener/listen/manifest_listen.json",
     "../../preferences/manifest.json",
     "../../../app/manifest_typings.json"
   ],

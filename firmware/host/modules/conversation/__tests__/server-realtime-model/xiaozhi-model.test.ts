@@ -356,3 +356,49 @@ const secondRepeatedEncoder = OpusEncoder.instances[OpusEncoder.instances.length
 repeatedHello.close()
 equal(secondRepeatedDecoder.closed, true, 'close should release the active decoder')
 equal(secondRepeatedEncoder.closed, true, 'close should release the active encoder')
+
+resetTransport()
+const encoderCount = OpusEncoder.instances.length
+const downlink = new XiaozhiModel({ inputSampleRate: 16000, outputSampleRate: 24000 })
+downlink.configure({
+  turnControl: 'downlink',
+  configuration: {
+    protocol: 'xiaozhi-v1',
+    endpoint: 'wss://relay.example.test/ws',
+    identity: { deviceId: 'core-s3', clientId: 'downlink' },
+  },
+})
+downlink.connect({ ...connection, inputBuffer: undefined })
+downlink.onOpen()
+downlink.onJSON(repeatedHelloEvent)
+equal(OpusEncoder.instances.length, encoderCount, 'downlink never constructs an encoder')
+equal(downlink.encoderTimer, undefined, 'downlink never starts the encoder timer')
+equal(downlink.uploading, false, 'downlink accepts server audio immediately')
+downlink.startListening()
+downlink.stopListening()
+downlink.detectWakeWord({ text: 'ignored' })
+downlink.onJSON({ type: 'tts', state: 'start' })
+downlink.read(Uint8Array.of(0xf8, 0xff, 0xfe).buffer, { binary: true })
+downlink.onJSON({ type: 'tts', state: 'stop' })
+downlink.listened()
+equal(
+  sentJSON.some((event) => event.type === 'listen'),
+  false,
+  'downlink never sends listen commands',
+)
+equal(sentBinary.length, 0, 'downlink never uploads audio')
+equal(downlink.parser.copied.length, 2, 'downlink uses the common decoder and PCM parser')
+const outputStart = postedMessages.find((event) => event.id === 'listen')
+const outputEnd = postedMessages.find((event) => event.id === 'speak')
+equal(outputStart?.turnId, outputEnd?.turnId, 'local playback boundaries keep their identity')
+equal(outputEnd?.endByte, 1920, 'stop marks decoded audio plus the final silence frame')
+downlink.close()
+
+for (const turnControl of ['fullDuplex', 'invalid']) {
+  resetTransport()
+  const peer = new XiaozhiModel({})
+  peer.configure({ turnControl })
+  peer.connect(connection)
+  equal(peer.connectCount, 0, 'unsupported worker modes cannot open a socket')
+  equal(postedMessages[0]?.id, 'failed', 'unsupported worker modes fail closed')
+}

@@ -1,7 +1,8 @@
 # Configure Cloudflare Pages PR previews
 
 PR previews deploy to a dedicated Cloudflare Pages project, independently of the existing GitHub Pages production site.
-Pull requests that change `firmware/**` or `web/**` are eligible, including pull requests from external forks.
+Pull requests targeting `develop`, `main`, or `milestone/sdk-redesign` are eligible when they change `firmware/**`, `web/**`, or another path watched by the Bundle workflow, including pull requests from external forks.
+The preview resolver is loaded from the default branch (`develop`), so support for a new base branch must reach `develop` before its previews can deploy.
 
 ## Cloudflare Pages project
 

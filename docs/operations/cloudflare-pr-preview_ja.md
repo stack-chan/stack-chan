@@ -1,7 +1,9 @@
 # Cloudflare Pages PRプレビューの設定
 
 PRプレビューは、既存のGitHub Pages本番サイトとは独立したCloudflare Pagesプロジェクトへ配布されます。
-`firmware/**`または`web/**`を変更するPRが対象で、外部forkのPRにも対応します。
+取り込み先が`develop`、`main`、`milestone/sdk-redesign`のいずれかで、`firmware/**`、`web/**`などBundleワークフローの対象パスを変更するPRに対応します。
+外部forkのPRも対象です。
+プレビュー対象の判定処理は既定ブランチのdevelopから読み込むため、新しい取り込み先への対応を先にdevelopへ反映する必要があります。
 
 ## Cloudflare Pagesプロジェクト
 

@@ -1,4 +1,4 @@
-const ALLOWED_BASE_BRANCHES = new Set(['develop', 'main'])
+const ALLOWED_BASE_BRANCHES = new Set(['develop', 'main', 'milestone/sdk-redesign'])
 
 function repositoryMatches(actual, expected) {
   return typeof actual === 'string' && typeof expected === 'string' && actual.toLowerCase() === expected.toLowerCase()

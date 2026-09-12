@@ -153,3 +153,65 @@ test('rejects a stale workflow run after resolving its pull request', async () =
     number: 592,
   })
 })
+
+for (const suppliedNumber of [false, true]) {
+  const resolution = suppliedNumber ? 'workflow PR number' : 'fork head lookup'
+
+  for (const base of ['develop', 'main', 'milestone/sdk-redesign']) {
+    test(`accepts ${base} through ${resolution}`, async () => {
+      const candidate = pull({ base: { ref: base, repo: { full_name: 'stack-chan/stack-chan' } } })
+      const { github } = githubStub({ candidates: [candidate], resolvedPull: candidate })
+
+      const result = await resolvePreviewPullRequest({
+        github,
+        owner: 'stack-chan',
+        repo: 'stack-chan',
+        run: { ...RUN, pull_requests: suppliedNumber ? [{ number: candidate.number }] : [] },
+      })
+
+      assert.deepEqual(result, { eligible: true, headSha: RUN.head_sha, number: candidate.number })
+    })
+  }
+
+  for (const base of ['milestone/other', 'milestone/sdk-redesign-extra', 'feat/sdk-redesign']) {
+    test(`rejects unsupported base ${base} through ${resolution}`, async () => {
+      const candidate = pull({ base: { ref: base, repo: { full_name: 'stack-chan/stack-chan' } } })
+      const { github } = githubStub({ candidates: [candidate], resolvedPull: candidate })
+
+      const result = await resolvePreviewPullRequest({
+        github,
+        owner: 'stack-chan',
+        repo: 'stack-chan',
+        run: { ...RUN, pull_requests: suppliedNumber ? [{ number: candidate.number }] : [] },
+      })
+
+      assert.equal(result.eligible, false)
+    })
+  }
+
+  for (const scenario of ['closed', 'newer commit', 'different repository']) {
+    test(`rejects a milestone PR with ${scenario} through ${resolution}`, async () => {
+      const candidate = pull({
+        base: { ref: 'milestone/sdk-redesign', repo: { full_name: 'stack-chan/stack-chan' } },
+      })
+      const resolvedPull = {
+        ...candidate,
+        ...(scenario === 'closed' ? { state: 'closed' } : {}),
+        ...(scenario === 'newer commit' ? { head: { ...candidate.head, sha: 'newer-sha' } } : {}),
+        ...(scenario === 'different repository'
+          ? { base: { ...candidate.base, repo: { full_name: 'another-owner/stack-chan' } } }
+          : {}),
+      }
+      const { github } = githubStub({ candidates: [candidate], resolvedPull })
+
+      const result = await resolvePreviewPullRequest({
+        github,
+        owner: 'stack-chan',
+        repo: 'stack-chan',
+        run: { ...RUN, pull_requests: suppliedNumber ? [{ number: candidate.number }] : [] },
+      })
+
+      assert.equal(result.eligible, false)
+    })
+  }
+}

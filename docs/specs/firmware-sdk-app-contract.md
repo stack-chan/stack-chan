@@ -26,7 +26,12 @@ defineMiniAppはmini-app向けの薄いヘルパーとし、独立した画面�
 | `create(context)` | Piuの画面を生成する。`view: 'face'`とどちらか一方を指定する |
 
 MODのsetupも`void`または`Promise<void>`を返します。
+ホストはMODのsetupが正常に完了するまで待ち、その後にApp一覧の登録・表示準備、初期Appのsetup、画面生成へ進みます。
+MODのsetupがthrowまたはPromiseのrejectで失敗した場合は起動を中断し、Appの準備と画面生成を行わず、作成済みの所有者を解放してホストの復旧画面へ戻します。
+`mod.onLaunch() === false`による起動中断は旧APIの互換動作に限ります。defineModのsetupでは例外またはrejectで失敗を通知します。
+
 Appのsetupが正常に終わった後に画面を生成します。
+初期表示を含め、Appのsetupが失敗した場合はそのAppの所有者を解放し、常駐MODを維持してホストの顔とApp menuへ戻します。
 Piuのcreateには`app`、`width`、`height`、`close`を渡し、Containerまたは`{ content, dispose? }`、あるいはそのPromiseを受け取ります。
 disposeはその画面固有の後片付けに使い、通常のSDK利用にMODのcloseフックを要求しません。
 
@@ -78,13 +83,14 @@ App menuを開くだけでは現在のAppを破棄せず、移動先を選んだ
 AppBarの「戻る」とcreateへ渡すcloseはinitialAppへ戻します。履歴スタックは持ちません。
 遷移中の連続要求は最後の移動先へまとめます。
 
-MOD起動中に失敗した場合は、作成済みの所有者と画面を解放してホストの復旧画面へ戻します。
-起動後の画面切替で失敗した場合は、その画面だけを解放し、常駐処理を維持してホストの顔とApp menuへ戻します。
+MODのsetupやApp一覧の登録・表示準備に失敗した場合は、作成済みの所有者を解放してホストの復旧画面へ戻します。
+初期表示や画面切替でAppのsetup・createに失敗した場合は、その画面と所有者だけを解放し、常駐処理を維持してホストの顔とApp menuへ戻します。
 失敗したAppへ自動で遷移し続けないようにします。
 
 ## mini-appの入口とCompartmentを維持する
 
 archiveは`mod`、`miniapp`、両方のentrypointを持つ形式に対応します。
+`miniapp`のentrypointは、`AppDefinition`の配列をdefault exportします。単一の定義オブジェクトや名前付きexportだけの形式は受け付けません。
 miniapp側の定義も同じApp一覧へ正規化し、一つのarchiveで登録できるAppは最大16個とします。
 App IDの重複、初期Appの参照先、定義数は登録前に検査します。
 
@@ -126,7 +132,11 @@ TTS、Realtime、効果音、WebRadio、USB音声を同じ出力へ接続しま�
 | 0 | Realtime会話、remote音声 |
 | 1 | tone、playClipなどの効果音 |
 | 2 | say、singなどの発話 |
-| 3 | play、WebRadioなどのメディア |
+| 3 | play、WebRadio、USB音声のメディア |
+
+stream 3ではplay、WebRadio、USB音声の再生要求を直列化し、同時に一つの再生要求へ出力を割り当てます。
+USB音声も所有者を持つ再生要求として扱い、停止・切断で自分の未混合データを破棄してstreamを明け渡します。
+他の所有者の待機要求は維持し、共有FIFO内の混合済みデータが再生済みになってから停止を完了します。
 
 共通のPCM形式は48 kHz、16 bit、monoとし、入力素材の形式はデコードとリサンプリングで揃えます。
 会話中でもToolから効果音を鳴らせるようにし、会話が出力全体をBUSYとして占有しない構成にします。

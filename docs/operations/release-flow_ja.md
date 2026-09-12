@@ -28,8 +28,8 @@ main <- release/* <- develop <- feat/* | fix/*
 ## SDK再設計はmilestoneへ順番に取り込む
 
 `milestone/sdk-redesign`は、[SDK再設計の移行計画](./firmware-sdk-milestone.md)に使う一時的な統合ブランチです。
-Moddable 9.5移行の#692と、milestone向けCI・設計文書の準備PRを取り込んだ最新developから作成します。
-分岐元のコミットを、milestoneへ向ける最初のPRに記録します。
+Moddable 9.5への移行（#692）を含むdevelopの`cf3dde86b0be0f0496b82d6629cb296220df26b1`から作成します。
+CI・設計文書の準備PR #705を最初にmilestoneへ取り込み、以降の再設計PRも最終統合までmilestoneへ向けます。
 
 最新milestoneから作業ブランチを一つ作り、そのPRをレビューしてmilestoneへ取り込んでから、次の作業ブランチを作成します。
 後続の依存ブランチやdraft PRは先に作りません。
@@ -37,7 +37,8 @@ Moddable 9.5移行の#692と、milestone向けCI・設計文書の準備PRを取
 共有後のmilestoneは履歴を書き換えず、同期と最後のdevelopへの統合にはmerge commitを使います。
 
 milestoneと、それを取り込み先にするPRでは、対象パスの変更に対してBuildとBundleのCIを実行します。
-検証にはCI成果物とPRごとのCloudflareプレビューを使い、milestoneからGitHub Pagesや正式リリースへは配布しません。
+検証にはCI成果物と[ローカルプレビュー](./cloudflare-pr-preview_ja.md#milestoneのプレビューをローカルで確認する)を使います。develop上の対象判定がmilestoneを許可しないため、Cloudflareの自動配布はスキップされます。
+milestoneからGitHub Pagesや正式リリースへは配布しません。
 全段階の統合・実機検証後、分割PR一覧、移行手順、最終検証結果をまとめたPRをdevelopへ向けます。
 Changesetsの基準はdevelopのまま各PRで記録を蓄積し、package versionは通常のリリース工程で更新します。
 

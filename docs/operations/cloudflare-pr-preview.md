@@ -1,8 +1,18 @@
 # Configure Cloudflare Pages PR previews
 
 PR previews deploy to a dedicated Cloudflare Pages project, independently of the existing GitHub Pages production site.
-Pull requests targeting `develop`, `main`, or `milestone/sdk-redesign` are eligible when they change `firmware/**`, `web/**`, or another path watched by the Bundle workflow, including pull requests from external forks.
-The preview resolver is loaded from the default branch (`develop`), so support for a new base branch must reach `develop` before its previews can deploy.
+Pull requests targeting `develop` or `main` are eligible when they change `firmware/**`, `web/**`, or another path watched by the Bundle workflow, including pull requests from external forks.
+The preview resolver is loaded from the default branch (`develop`). It does not allow `milestone/sdk-redesign`, so automatic deployment is skipped for milestone pull requests. Use their Bundle artifacts locally during the milestone.
+
+## Preview milestone artifacts locally
+
+1. Open the successful `Bundle Stack-chan Firmware` run for the pull request's current head commit.
+2. Download and extract its `cloudflare-pages-preview` artifact. Artifacts are retained for two days; rerun the workflow if they have expired.
+3. Serve the extracted directory over localhost, for example with `python3 -m http.server 8000 --bind 127.0.0.1 --directory /path/to/extracted-preview`.
+4. Open `http://localhost:8000/` and verify the web tools and simulator. Record the head commit, workflow run URL, and result in the pull request.
+
+A successful deployment workflow alone does not prove that a preview was published: it can succeed after skipping an ineligible base branch. A URL published before a pull request was retargeted to the milestone shows an older commit and must not be used to validate the current head.
+The deployment workflow keeps scripts on the trusted default branch; preview artifacts are served as static content and are not executed in a job with Cloudflare credentials.
 
 ## Cloudflare Pages project
 

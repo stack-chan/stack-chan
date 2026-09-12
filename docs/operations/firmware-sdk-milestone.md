@@ -3,14 +3,15 @@
 SDK再設計は`milestone/sdk-redesign`で統合し、各PRのレビューと取り込みを終えてから次へ進めます。
 この手順は実装者とレビュアー向けです。[公開契約](../specs/firmware-sdk-app-contract.md)と併せて、担当する段階の受入条件を確認してください。
 
-## developの基盤変更を取り込んでから分岐する
+## 準備PRからmilestoneへ取り込む
 
 Moddable 9.5への移行は[PR #692](https://github.com/stack-chan/stack-chan/pull/692)で先行し、developへ`cf3dde86b0be0f0496b82d6629cb296220df26b1`として取り込みました。
-続いて、この設計文書とmilestone向けCI・プレビュー対応を準備PRとしてdevelopへ取り込みます。
-準備PRの取り込み後、最新developから`milestone/sdk-redesign`を作成し、最初の機能PRへ分岐元のコミットを記録します。
+このコミットから`milestone/sdk-redesign`を作成し、設計文書とmilestone向けCIを含む[準備PR #705](https://github.com/stack-chan/stack-chan/pull/705)を最初に取り込みます。
+#705を含む再設計の各PRはmilestoneへ向け、全段階の検証を終えた統合PRでdevelopへ戻します。
 
 BuildとBundleのワークフローはmilestoneのpushと、それを取り込み先にするPRを対象にします。
-Cloudflareプレビューの対象判定は既定ブランチのdevelopから読み込むため、準備PRを先にdevelopへ取り込む必要があります。
+Cloudflareの自動配布は、既定ブランチdevelopの対象判定がmilestoneを許可しないためスキップされます。
+milestone期間中はBundleの`cloudflare-pages-preview`成果物を取得し、[ローカルでプレビューを確認](./cloudflare-pr-preview_ja.md#milestoneのプレビューをローカルで確認する)します。
 GitHub Pagesの更新対象はdevelopとmainのままです。
 
 ## 一つのPRを取り込んでから次の作業を始める
@@ -32,7 +33,7 @@ GitHub Pagesの更新対象はdevelopとmainのままです。
 ## 共通Appを早期にレビューする
 
 各行を一つのPRとして扱います。
-milestone向けの最初のPRでは、CIとCloudflareプレビューが実際に起動することも取り込み条件にします。
+準備PR #705では、milestone向けPRでCIが起動し、プレビュー成果物を取得して開けることも取り込み条件にします。
 
 | 順 | 変更 | 取り込み前に確認する状態 |
 | --- | --- | --- |

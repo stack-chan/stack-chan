@@ -24,8 +24,8 @@ main <- release/* <- develop <- feat/* | fix/*
 ## SDK redesign milestone
 
 `milestone/sdk-redesign` is a temporary integration branch for the [SDK redesign plan](./firmware-sdk-milestone.md) (Japanese).
-Create it from the latest `develop` after the Moddable 9.5 migration (#692) and the milestone CI/design preparation pull request have merged.
-Record the starting commit in the milestone's first pull request.
+Create it from `develop` at `cf3dde86b0be0f0496b82d6629cb296220df26b1`, which includes the Moddable 9.5 migration (#692).
+Target the CI/design preparation pull request (#705) at the milestone as its first merge. All redesign pull requests go into the milestone until final integration.
 
 Create one topic branch from the latest milestone, review and merge its pull request into the milestone, and only then start the next topic branch.
 Do not pre-create dependent branches or draft pull requests.
@@ -33,7 +33,8 @@ Before each stage, check for changes on `develop`; when needed, review and merge
 Preserve the shared milestone history and use merge commits for synchronization and the final integration into `develop`.
 
 Build and Bundle CI run for matching changes on this milestone and its incoming pull requests.
-Use CI artifacts and per-pull-request Cloudflare previews for validation; the milestone does not publish to GitHub Pages or create releases.
+Use CI artifacts and [local previews](./cloudflare-pr-preview.md#preview-milestone-artifacts-locally) for validation. Automatic Cloudflare deployment is skipped because its resolver on `develop` does not allow this base branch.
+The milestone does not publish to GitHub Pages or create releases.
 After all stages pass integration and hardware validation, open the milestone-to-`develop` pull request with the component pull requests, migration instructions, and final validation results.
 Keep Changesets based on `develop` and accumulate entries during the milestone; update package versions through the normal release process.
 

@@ -10,6 +10,7 @@ Moddable 9.5への移行は[PR #692](https://github.com/stack-chan/stack-chan/pu
 #705を含む再設計の各PRはmilestoneへ向け、全段階の検証を終えた統合PRでdevelopへ戻します。
 
 BuildとBundleのワークフローはmilestoneのpushと、それを取り込み先にするPRを対象にします。
+CodeRabbitの自動レビュー対象にも、このmilestoneを追加します。
 Cloudflareの自動配布は、既定ブランチdevelopの対象判定がmilestoneを許可しないためスキップされます。
 milestone期間中はBundleの`cloudflare-pages-preview`成果物を取得し、[ローカルでプレビューを確認](./cloudflare-pr-preview_ja.md#milestoneのプレビューをローカルで確認する)します。
 GitHub Pagesの更新対象はdevelopとmainのままです。

@@ -45,10 +45,16 @@ See the parts list on our GitHub Pages (under construction)
 
 ## SMD PCB Manufacturing
 
-You can place an order for SMD (Surface Mount Device) PCBs with PCB manufacturers like JLCPCB using the following files (links to be added):
+This repository uses GitHub Actions to automatically generate a complete set of Gerber files for JLCPCB.
 
-- Gerber Files
-- BOM (Bill of Materials)
-- CPL (Component Placement List)
+For detailed instructions on ordering PCBA (Printed Circuit Board Assembly), please refer to our comprehensive guide:
 
-(A guide on how to place an order will be posted soon.)
+**📖 [PCBA Ordering Guide (English)](./docs/PCBA_ORDERING.md)**
+
+This guide includes:
+- Explanation of PCB/PCBA
+- Stack-chan board features
+- How to download Gerber files from GitHub Actions
+- Step-by-step ordering process with JLCPCB
+- Board parameter settings
+- Troubleshooting

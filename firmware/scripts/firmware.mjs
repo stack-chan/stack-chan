@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import path from 'node:path'
 import {
   assertNoCustomBuildOutput,
@@ -85,6 +85,9 @@ if (!dryRun && deviceName === 'm5stackchan_cores3' && command !== 'mod' && comma
       platformName: deviceName,
       applicationName: hostApplicationName,
       mode: buildMode,
+      realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
+      solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
+      performanceProbe: process.env.STACKCHAN_REALTIME_PERFORMANCE_PROBE === '1',
     })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared: ${error.message}`)
@@ -109,6 +112,9 @@ if (buildVariantChanged && deviceName === 'm5stackchan_cores3') {
       platformName: deviceName,
       applicationName: hostApplicationName,
       mode: buildMode,
+      realtime: process.env.STACKCHAN_REALTIME_WEBRTC === '1',
+      solutionDirectory: process.env.ESP_WEBRTC_SOLUTION,
+      performanceProbe: process.env.STACKCHAN_REALTIME_PERFORMANCE_PROBE === '1',
     })
   } catch (error) {
     console.error(`[stack-chan] IDF dependencies could not be prepared after target clean: ${error.message}`)
@@ -241,14 +247,22 @@ function prepareBuildVariant() {
     mode: buildMode,
     applicationName: hostApplicationName,
   })
-  const selectedVariant = resolveBuildVariant(manifest)
+  const selectedManifest = path.resolve(manifest)
+  const selectedVariant = resolveBuildVariant(manifest, {
+    sdk: realpathSync(process.env.MODDABLE),
+    idf: process.env.IDF_PATH,
+    realtime: process.env.STACKCHAN_REALTIME_WEBRTC,
+    measured: process.env.STACKCHAN_REALTIME_PERFORMANCE_PROBE,
+    solution: process.env.ESP_WEBRTC_SOLUTION,
+    manifest: readFileSync(selectedManifest, 'utf8'),
+  })
   if (readBuildVariant(markerPath) === selectedVariant) return false
 
   console.log(`[stack-chan] cleaning target before manifest switch: ${manifest}`)
   ensureBuildOutputDirectory()
   const result = spawnSync(
     'mcconfig',
-    [...buildModeArgs, '-m', '-p', platform, '-t', 'clean', ...outputArgs, selectedVariant],
+    [...buildModeArgs, '-m', '-p', platform, '-t', 'clean', ...outputArgs, selectedManifest],
     { env: subprocessEnvironment, stdio: 'inherit' },
   )
   if (result.error) {

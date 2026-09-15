@@ -152,6 +152,7 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
   let currentSecondary: number | null = null
   let currentFace: FaceState = createFaceState()
   let layoutWidth = 0
+  let textInitialized = false
 
   const left = opts.left ?? defaultOptions.left
   const right = opts.right ?? defaultOptions.right
@@ -206,6 +207,10 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
     clip: true,
     Behavior: class extends Behavior {
       ensureParts(self: PiuContainer) {
+        // Fixed-height text and background already stretch with their parent.
+        // Reading self.width here forces Piu to finish pending layout on every
+        // streamed text/mouth update, even though no parts need rebuilding.
+        if (fixedHeight !== undefined && background && bodyText) return
         const w = resolveWidth(self)
         if (background && bodyText && layoutWidth === w) return
         if (background || bodyText) {
@@ -217,10 +222,12 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
         currentSecondary = null
         layoutWidth = w
         background = new Content(null, { left: 0, right: 0, top: 0, bottom: 0 }) as WithSkin
+        textInitialized = false
         bodyText = new Text(null, {
           left: paddingX,
           right: paddingX,
           top: paddingY,
+          ...(fixedHeight === undefined ? {} : { height: Math.max(0, fixedHeight - paddingY * 2) }),
           string: '',
           style,
         })
@@ -246,7 +253,10 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
 
       updateText(self: PiuContainer, text: string) {
         if (!bodyText) return
-        bodyText.string = text ?? ''
+        const nextText = text ?? ''
+        if (textInitialized && bodyText.string === nextText) return
+        textInitialized = true
+        bodyText.string = nextText
         if (fixedHeight === undefined) {
           const nextHeight = resolveHeight(self, text ?? '')
           applyHeight(self as ResizableContainer, nextHeight)

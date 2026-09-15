@@ -32,6 +32,7 @@ export function prepareCoreS3IdfDependencies({
   realtime = false,
   solutionDirectory,
   performanceProbe = false,
+  systemTrace = false,
 }) {
   if (!outputDirectory) throw new Error('Build output directory is required')
   const dependencies = dependenciesByPlatform[platformName]
@@ -64,6 +65,25 @@ export function prepareCoreS3IdfDependencies({
     if (manifest.includes(`  ${name}:`)) continue
     if (!manifest.endsWith('\n')) manifest += '\n'
     manifest += `  ${name}: ${version}\n`
+  }
+
+  if (systemTrace) {
+    if (!realtime || !performanceProbe)
+      throw new Error('System tracing requires the RealtimeConversation performance probe')
+    const traceManifest = JSON.parse(
+      readFileSync(
+        new URL('../../host/modules/realtime-conversation/__tests__/task-trace/manifest.json', import.meta.url),
+      ),
+    )
+    const version = traceManifest.platforms['esp32/m5stackchan_cores3'].dependency.find(
+      (d) => d.name === 'esp_sysview',
+    ).version
+    const requirement = `  espressif/esp_sysview: '${version}'\n`
+    if (/^ {2}espressif\/esp_sysview:.*$/m.test(manifest))
+      manifest = manifest.replace(/^ {2}espressif\/esp_sysview:.*\n/m, requirement)
+    else manifest += requirement
+  } else {
+    manifest = manifest.replace(/^ {2}espressif\/esp_sysview:.*\n/m, '')
   }
 
   if (realtime) {

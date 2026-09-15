@@ -12,7 +12,8 @@
       "scripts/**",
       "!host/modules/camera/wasm/runtime-bitmap-port.js",
       "!host/modules/audio/wasm/audio-bridge.js",
-      "!host/modules/camera/wasm/camera-bridge.js"
+      "!host/modules/camera/wasm/camera-bridge.js",
+      "!host/modules/realtime-conversation/__tests__/task-trace/trace.js"
     ],
     "ignoreUnknown": false
   },
@@ -21,7 +22,13 @@
     "indentStyle": "space",
     "indentWidth": 2
   },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {

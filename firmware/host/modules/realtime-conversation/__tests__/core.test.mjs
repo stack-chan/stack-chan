@@ -5,7 +5,15 @@
 description: Live WebRTC protocol, command correlation, and cleanup races
 flags: [module]
 ---*/
-import Conversation from '../core.js'
+import { readFileSync } from 'node:fs'
+
+// Resolve the device's manifest aliases to the same implementations under Node.
+const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'))
+let source = readFileSync(new URL('../core.js', import.meta.url), 'utf8')
+for (const [name, path] of Object.entries(manifest.modules)) {
+  source = source.replaceAll(`'${name}'`, `'${new URL(`../${path}.js`, import.meta.url).href}'`)
+}
+const { default: Conversation } = await import(`data:text/javascript,${encodeURIComponent(source)}`)
 
 Object.freeze(Error.prototype)
 

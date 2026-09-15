@@ -634,6 +634,9 @@ export class StackchanRuntimeContext implements StackchanContext {
       showBalloon(text, option) {
         context.showBalloon(text, option)
       },
+      showBalloonLines(lines, option) {
+        context.#uiRuntime.showBalloonLines(lines, option)
+      },
       hideBalloon() {
         context.hideBalloon()
       },

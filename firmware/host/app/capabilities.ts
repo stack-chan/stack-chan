@@ -100,7 +100,7 @@ export type FaceCapability = {
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void
   setEmotion(emotion: Emotion): void
   setEyeOpen(key: FaceEyeKey, value: number): void
-  setMouthOpen(value: number): void
+  setMouthOpen(value: number, immediate?: boolean): void
 }
 
 export type MotionCapability = {

@@ -1,0 +1,83 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/io/tcp/httpsclient/manifest_httpsclient.json"
+  ],
+  "modules": {
+    "realtimeConversation": "./realtimeConversation",
+    "realtimeConversation/core": "./core",
+    "realtimeConversation/tools": "./tools",
+    "realtimeConversation/broker": "./broker",
+    "realtimeConversation/http": "./http",
+    "realtimeConversation/httpCore": "./httpCore"
+  },
+  "platforms": {
+    "...": {
+      "error": "RealtimeConversation host backend requires M5StackChan CoreS3"
+    },
+    "esp32/m5stackchan_cores3": {
+      "modules": {
+        "realtimeConversation/transport": "./esp32/transport.js",
+        "*": ["./esp32/transport.c", "./esp32/liveAudio.c"]
+      },
+      "build": {
+        "C_FLAGS": "$(C_COMMON_FLAGS) -Wno-implicit-function-declaration -std=gnu17 $(C_FLAGS_SUBPLATFORM) -I$(ESP_WEBRTC_SOLUTION)/components/esp_webrtc/include -I$(ESP_WEBRTC_SOLUTION)/components/esp_webrtc/impl/whip_signal/include -I$(ESP_WEBRTC_SOLUTION)/components/esp_webrtc/impl/janus_signal/include -I$(ESP_WEBRTC_SOLUTION)/components/esp_peer/include -I$(ESP_WEBRTC_SOLUTION)/components/media_lib_utils/include -I$(ESP_WEBRTC_SOLUTION)/components/webrtc_utils -I$(ESP_WEBRTC_SOLUTION)/components/av_render/include"
+      },
+      "dependency": [
+        {
+          "idf": "esp_webrtc"
+        },
+        {
+          "idf": "esp_peer"
+        },
+        {
+          "idf": "webrtc_utils"
+        },
+        {
+          "idf": "av_render"
+        },
+        {
+          "name": "esp_capture",
+          "version": "==1.0.4",
+          "includes": ["include", "interface"]
+        },
+        {
+          "name": "esp_audio_codec",
+          "version": "~2.5",
+          "includes": [
+            "include",
+            "include/encoder",
+            "include/decoder",
+            "include/encoder/impl",
+            "include/decoder/impl"
+          ]
+        },
+        {
+          "name": "esp_audio_effects",
+          "version": "~1.3",
+          "includes": ["include"]
+        },
+        {
+          "name": "media_lib_sal",
+          "version": "~0.9",
+          "includes": ["include", "include/port"]
+        },
+        {
+          "name": "cjson",
+          "version": "^1.7.19",
+          "includes": ["cJSON"]
+        },
+        {
+          "name": "esp_muxer",
+          "version": "~1.2",
+          "includes": ["include"]
+        }
+      ],
+      "include": [
+        "../../platforms/m5stackchan_cores3/manifest.realtime-performance.json"
+      ]
+    }
+  },
+  "resources": {
+    "ca*": ["$(MODDABLE)/modules/crypt/data/ca*"]
+  }
+}

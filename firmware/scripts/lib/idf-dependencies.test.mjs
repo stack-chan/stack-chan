@@ -96,3 +96,59 @@ test('uses the generated directory for each ESP32 build mode', () => {
 function count(source, value) {
   return source.split(value).length - 1
 }
+
+test('discovers local WebRTC components without editing their sources and isolates measurement builds', async () => {
+  const { mkdirSync, writeFileSync, realpathSync, existsSync } = await import('node:fs')
+  const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-realtime-deps-'))
+  const solutionDirectory = path.join(outputDirectory, 'solution')
+  const names = ['esp_webrtc', 'esp_peer', 'media_lib_utils', 'webrtc_utils', 'av_render']
+  for (const name of names) {
+    const component = path.join(solutionDirectory, 'components', name)
+    mkdirSync(component, { recursive: true })
+    writeFileSync(path.join(component, 'CMakeLists.txt'), 'idf_component_register()\n')
+  }
+  const options = {
+    outputDirectory,
+    solutionDirectory,
+    platformName: 'm5stackchan_cores3',
+    applicationName: 'stack-chan-host',
+    mode: 'release',
+    realtime: true,
+  }
+  try {
+    const manifestPath = prepareCoreS3IdfDependencies({ ...options, performanceProbe: true })
+    const components = path.resolve(path.dirname(manifestPath), '../components')
+    for (const name of names) {
+      assert.equal(realpathSync(path.join(components, name)), path.join(solutionDirectory, 'components', name))
+      assert.equal(readFileSync(path.join(components, name, 'CMakeLists.txt'), 'utf8'), 'idf_component_register()\n')
+    }
+    const first = readFileSync(manifestPath, 'utf8')
+    assert.ok(existsSync(path.join(components, 'realtime_measurement/CMakeLists.txt')))
+    prepareCoreS3IdfDependencies(options)
+    assert.ok(!existsSync(path.join(components, 'realtime_measurement')))
+    assert.equal(readFileSync(manifestPath, 'utf8'), first)
+    assert.equal(count(first, 'espressif/esp_capture:'), 1)
+  } finally {
+    rmSync(outputDirectory, { recursive: true, force: true })
+  }
+})
+
+test('rejects missing WebRTC sources before invoking the SDK', () => {
+  const outputDirectory = mkdtempSync(path.join(tmpdir(), 'stackchan-realtime-missing-'))
+  try {
+    assert.throws(
+      () =>
+        prepareCoreS3IdfDependencies({
+          outputDirectory,
+          platformName: 'm5stackchan_cores3',
+          applicationName: 'stack-chan-host',
+          mode: 'release',
+          realtime: true,
+          solutionDirectory: path.join(outputDirectory, 'missing'),
+        }),
+      /Missing WebRTC component/,
+    )
+  } finally {
+    rmSync(outputDirectory, { recursive: true, force: true })
+  }
+})

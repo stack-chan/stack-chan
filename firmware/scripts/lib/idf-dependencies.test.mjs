@@ -128,6 +128,12 @@ test('discovers local WebRTC components without editing their sources and isolat
     assert.ok(!existsSync(path.join(components, 'realtime_measurement')))
     assert.equal(readFileSync(manifestPath, 'utf8'), first)
     assert.equal(count(first, 'espressif/esp_capture:'), 1)
+    assert.equal(count(first, 'espressif/esp_sysview:'), 0)
+    assert.throws(() => prepareCoreS3IdfDependencies({ ...options, systemTrace: true }), /requires.*performance probe/)
+    prepareCoreS3IdfDependencies({ ...options, performanceProbe: true, systemTrace: true })
+    assert.equal(count(readFileSync(manifestPath, 'utf8'), 'espressif/esp_sysview:'), 1)
+    prepareCoreS3IdfDependencies(options)
+    assert.equal(readFileSync(manifestPath, 'utf8'), first)
   } finally {
     rmSync(outputDirectory, { recursive: true, force: true })
   }

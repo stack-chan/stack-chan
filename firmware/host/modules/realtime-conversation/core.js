@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Shinya Ishikawa
 // SPDX-License-Identifier: Apache-2.0
 
-import Broker from './broker.js'
-import ToolRunner from './tools.js'
+import Broker from 'realtimeConversation/broker'
+import ToolRunner from 'realtimeConversation/tools'
 
 const ENDPOINT = 'https://api.openai.com/v1/live/sessions'
 const DEFAULT_DELEGATION = {

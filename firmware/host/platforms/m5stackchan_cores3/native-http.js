@@ -54,7 +54,12 @@ export default class NativeHttp {
                     message: `${errors[response.errorCode] ?? errors[4]} (native ${response.errorCode}, transport ${response.transportError}, HTTP ${response.status})`,
                   },
                 }
-              : { id, status: response.status, body: String.fromArrayBuffer(response.body), connectionReused: response.connectionReused }
+              : {
+                  id,
+                  status: response.status,
+                  body: String.fromArrayBuffer(response.body),
+                  connectionReused: response.connectionReused,
+                }
         }
       } catch (error) {
         result = { id, error: { name: error.name, message: error.message } }

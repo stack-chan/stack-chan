@@ -1,19 +1,32 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
-import { normalizeRequest } from './http-request-options.js'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { normalizeRequest } from './http-request-options.js'
 
 test('native reuse permits path changes but isolates scheme, host and port', () => {
   const directory = mkdtempSync(join(tmpdir(), 'stackchan-http-origin-'))
   try {
     const executable = join(directory, 'origin-test')
-    execFileSync('cc', ['-std=c11', '-Wall', '-Werror', '-I',
-      fileURLToPath(new URL('.', import.meta.url)), '-x', 'c', '-', '-o', executable], {
-      input: `#include <assert.h>
+    execFileSync(
+      'cc',
+      [
+        '-std=c11',
+        '-Wall',
+        '-Werror',
+        '-I',
+        fileURLToPath(new URL('.', import.meta.url)),
+        '-x',
+        'c',
+        '-',
+        '-o',
+        executable,
+      ],
+      {
+        input: `#include <assert.h>
 #include "http-reuse.h"
 int main(void) {
   assert(liveHttpSameOrigin("https://device.test/bootstrap", "https://device.test/session?x=1"));
@@ -27,7 +40,8 @@ int main(void) {
   assert(!liveHttpSameOrigin("https:///a", "https:///b"));
   return 0;
 }`,
-    })
+      },
+    )
     execFileSync(executable)
   } finally {
     rmSync(directory, { recursive: true, force: true })

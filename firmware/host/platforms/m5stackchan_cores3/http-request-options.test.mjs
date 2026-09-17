@@ -1,6 +1,38 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { normalizeRequest } from './http-request-options.js'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+test('native reuse permits path changes but isolates scheme, host and port', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'stackchan-http-origin-'))
+  try {
+    const executable = join(directory, 'origin-test')
+    execFileSync('cc', ['-std=c11', '-Wall', '-Werror', '-I',
+      fileURLToPath(new URL('.', import.meta.url)), '-x', 'c', '-', '-o', executable], {
+      input: `#include <assert.h>
+#include "http-reuse.h"
+int main(void) {
+  assert(liveHttpSameOrigin("https://device.test/bootstrap", "https://device.test/session?x=1"));
+  assert(liveHttpSameOrigin("https://device.test:8443/a", "https://device.test:8443/b"));
+  assert(!liveHttpSameOrigin("https://device.test/a", "https://other.test/a"));
+  assert(!liveHttpSameOrigin("https://device.test/a", "https://device.test.evil/a"));
+  assert(!liveHttpSameOrigin("https://device.test:8443/a", "https://device.test:8444/a"));
+  assert(!liveHttpSameOrigin("https://device.test/a", "https://device.test:443/a"));
+  assert(!liveHttpSameOrigin("https://device.test/a", "http://device.test/a"));
+  assert(!liveHttpSameOrigin("https://device.test", "https://device.test/a"));
+  assert(!liveHttpSameOrigin("https:///a", "https:///b"));
+  return 0;
+}`,
+    })
+    execFileSync(executable)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
 
 const encode = (text) => new TextEncoder().encode(text).buffer
 const decode = (bytes) => new TextDecoder().decode(bytes)

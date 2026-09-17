@@ -13,6 +13,7 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
+#include "http-reuse.h"
 
 #define HTTP_LIMIT 131072
 // One active native request across VMs also bounds cancellation overlap.
@@ -27,6 +28,7 @@ typedef struct {
   int timeout, status, error, transportError;
   int64_t deadline;
   bool keepAlive, ownsIdle;
+  bool reused;
   esp_http_client_handle_t client;
 } HttpJob;
 typedef struct { HttpJob *job, *idle; } HttpRequest;
@@ -85,7 +87,7 @@ static void requestTask(void *argument) {
   job->client = client;
   esp_err_t error = ESP_FAIL;
   if (client) {
-    error = ESP_OK;
+    error = esp_http_client_set_url(client, job->url);
     for (size_t offset = 0; offset < job->headersSize && error == ESP_OK;) {
       char *name = job->headers + offset;
       size_t length = strnlen(name, job->headersSize - offset);
@@ -159,19 +161,38 @@ void xs_realtime_http_start(xsMachine *the) {
       timeout < 1000 || timeout > 45000) xsRangeError("Live HTTPS request exceeds limit");
   size_t storedCertificateSize = certificateSize + (certificateSize && ((char *)certificate)[0] == '-' ? 1 : 0);
   HttpJob *job = request->idle;
-  // Reuse only an identical URL, header set and trust configuration.
-  bool reuse = job && keepAlive && !strcmp(job->url, url) && job->headersSize == headersSize &&
-    (!headersSize || !memcmp(job->headers, headers, headersSize)) && job->certificateSize == storedCertificateSize &&
+  // The previous request opted into caching. The next may consume the
+  // connection and close it, even with a different path or credential.
+  bool reuse = job && liveHttpSameOrigin(job->url, url) && job->certificateSize == storedCertificateSize &&
     (!certificateSize || !memcmp(job->certificate, certificate, certificateSize));
   if (job && !reuse) { request->idle = NULL; releaseJob(job); job = NULL; }
   if (reuse) {
     char *nextBody = copyBytes(body, bodySize);
-    if (!nextBody) xsUnknownError("Live HTTPS allocation failed");
+    char *nextUrl = copyBytes(url, urlSize);
+    char *nextHeaders = copyBytes(headers, headersSize);
+    if (!nextBody || !nextUrl || !nextHeaders) {
+      free(nextBody); free(nextUrl); free(nextHeaders);
+      xsUnknownError("Live HTTPS allocation failed");
+    }
     int expected = 0;
-    if (!atomic_compare_exchange_strong(&occupied, &expected, 1)) { free(nextBody); xsmcSetBoolean(xsResult, 0); return; }
+    if (!atomic_compare_exchange_strong(&occupied, &expected, 1)) {
+      free(nextBody); free(nextUrl); free(nextHeaders); xsmcSetBoolean(xsResult, 0); return;
+    }
     request->idle = NULL;
     job->ownsIdle = false; atomic_store(&idleOccupied, 0);
+    // Remove every caller header, including Authorization, before installing
+    // the new request. Never carry a device credential into a broker request.
+    for (size_t offset = 0; offset < job->headersSize;) {
+      char *name = job->headers + offset;
+      offset += strlen(name) + 1;
+      offset += strlen(job->headers + offset) + 1;
+      esp_http_client_delete_header(job->client, name);
+    }
+    esp_http_client_delete_header(job->client, "Content-Type");
+    free(job->url); job->url = nextUrl;
+    free(job->headers); job->headers = nextHeaders; job->headersSize = headersSize;
     free(job->body); job->body = nextBody;
+    job->keepAlive = keepAlive; job->reused = true;
     job->bodySize = bodySize; job->timeout = timeout;
     job->size = 0; job->status = job->error = job->transportError = 0;
     atomic_store(&job->cancelled, 0); atomic_store(&job->done, 0);
@@ -211,6 +232,7 @@ void xs_realtime_http_read(xsMachine *the) {
   xsmcSetInteger(xsVar(0), job->status); xsmcSet(xsResult, xsID("status"), xsVar(0));
   xsmcSetInteger(xsVar(0), job->error); xsmcSet(xsResult, xsID("errorCode"), xsVar(0));
   xsmcSetInteger(xsVar(0), job->transportError); xsmcSet(xsResult, xsID("transportError"), xsVar(0));
+  xsmcSetBoolean(xsVar(0), job->reused); xsmcSet(xsResult, xsID("connectionReused"), xsVar(0));
   if (!job->error) {
     xsmcSetArrayBuffer(xsVar(0), job->response, job->size);
     xsmcSet(xsResult, xsID("body"), xsVar(0));

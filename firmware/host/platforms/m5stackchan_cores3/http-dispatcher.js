@@ -44,6 +44,7 @@ export function createBackgroundFetch({ createWorker, schedule, cancel }) {
       job.resolve({
         status: response.status,
         ok: response.status >= 200 && response.status < 300,
+        connectionReused: response.connectionReused === true,
         text: async () => response.body,
       })
   }

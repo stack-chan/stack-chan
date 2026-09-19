@@ -7,7 +7,7 @@
   "modules": {
     "face-state": "./face-state-stub",
     "mcp-server": "./mcp-server-stub",
-    "net": "./net-stub",
+    "ecma-wifi": "./wifi-stub",
     "main": "./mcp-drawer.test"
   },
   "defines": {

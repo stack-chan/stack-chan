@@ -1,6 +1,6 @@
 import { DOMAIN } from 'consts'
 import Headers from 'headers'
-import listen, { Response } from 'listen'
+import { HttpServerService, Response } from 'http-server-service'
 import { authorizeMCPRequest, normalizeMCPToken } from 'mcp-auth'
 import Preference from 'preference'
 
@@ -34,14 +34,6 @@ export interface MCPServerConfig {
 }
 
 export type MCPServerStatus = 'starting' | 'running' | 'failed'
-
-/**
- * HTTP Connection interface
- */
-interface HTTPConnection {
-  request: HTTPRequest
-  respondWith: (response: Response) => void
-}
 
 /**
  * HTTP Request interface
@@ -146,6 +138,7 @@ interface MCPResponse extends MCPMessage {
  * Implements Model Context Protocol over Streamable HTTP Transport
  */
 export class MCPServerService {
+  #server?: HttpServerService
   #tools: Map<string, Tool> = new Map()
   #port: number
   #token?: string
@@ -191,6 +184,11 @@ export class MCPServerService {
     return Array.from(this.#tools.values())
   }
 
+  /** Close the HTTP service and invalidate outstanding responses. */
+  close(): void {
+    this.#server?.close()
+  }
+
   get status(): MCPServerStatus {
     return this.#status
   }
@@ -206,10 +204,14 @@ export class MCPServerService {
     trace(`MCP Server starting on port ${this.#port}\n`)
 
     try {
+      const server = new HttpServerService({
+        port: this.#port,
+        onNotFound: () => this.#createResponse(404, { error: 'Not Found' }),
+      })
+      this.#server = server
+      server.post('/mcp', (context) => this.#handleRequest(context.req.raw))
+      server.get('/health', (context) => this.#handleRequest(context.req.raw))
       this.#status = 'running'
-      for await (const connection of listen({ port: this.#port })) {
-        this.#handleConnection(connection)
-      }
     } catch (error) {
       this.#status = 'failed'
       this.#error = String(error)
@@ -220,8 +222,7 @@ export class MCPServerService {
   /**
    * Handle incoming HTTP connection
    */
-  async #handleConnection(connection: HTTPConnection): Promise<void> {
-    const request = connection.request
+  async #handleRequest(request: HTTPRequest): Promise<Response> {
     const method = request.method?.toUpperCase()
     const pathname = request.url?.pathname
 
@@ -243,11 +244,11 @@ export class MCPServerService {
         response = this.#createResponse(404, { error: 'Not Found' })
       }
 
-      connection.respondWith(response)
+      return response
     } catch (error) {
       trace(`Error handling connection: ${error}\n`)
       const errorResponse = this.#createResponse(500, { error: 'Internal Server Error' })
-      connection.respondWith(errorResponse)
+      return errorResponse
     }
   }
 

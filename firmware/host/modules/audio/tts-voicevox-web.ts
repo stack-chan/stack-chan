@@ -11,10 +11,12 @@ import { URL } from 'url'
 /* global trace, SharedArrayBuffer */
 declare const device: {
   network: {
-    https: typeof HTTPClient.constructor & {
-      io: typeof HTTPClient
-      socket: unknown
-      dns: unknown
+    https: {
+      client: typeof HTTPClient.constructor & {
+        io: typeof HTTPClient
+        socket: unknown
+        dns: unknown
+      }
     }
   }
 }
@@ -63,6 +65,7 @@ export class TTS {
       })
   }
 
+  /** Resolve a VoiceVox Web audio URL and stream it through the shared playback lifecycle. */
   stream(key: string, volume?: number, callback?: TTSCompletion): void {
     const lifecycle = beginTTSPlayback(this, callback)
     if (!lifecycle) return
@@ -78,7 +81,7 @@ export class TTS {
           )
           lifecycle.attach(
             new MP3Streamer({
-              http: device.network.https,
+              http: device.network.https.client,
               host: url.host,
               path: url.pathname,
               port: 443,

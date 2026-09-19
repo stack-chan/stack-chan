@@ -212,3 +212,34 @@ function makeAppHeader({ version, projectName }) {
   header.write(projectName, 0x50, 'utf8')
   return header
 }
+
+test('9.5 MOD preflight rejects an out-of-range archive before writing', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'stackchan-mod-flash-xs-'))
+  const archivePath = path.join(fixture, 'mod.xsa')
+  const archive = makeArchive(128)
+  archive[17] = 9
+  let reads = 0
+  try {
+    writeFileSync(archivePath, archive)
+    assert.throws(
+      () =>
+        installModArchive({
+          archivePath,
+          temporaryDirectory: fixture,
+          runCommand(_command, args) {
+            assert.ok(args.includes('read-flash'), 'incompatible archives must never be flashed')
+            writeFileSync(
+              args.at(-1),
+              ++reads === 1
+                ? makePartitionTable({ xsOffset: 0xfa0000, xsSize: 0x40000 })
+                : makeAppHeader({ version: '9.5.0+stackchan.1', projectName: 'xs_esp32' }),
+            )
+          },
+        }),
+      /Incompatible XS archive/,
+    )
+    assert.equal(reads, 2)
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+})

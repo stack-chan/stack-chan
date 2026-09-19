@@ -463,7 +463,7 @@
   "不明": "未知",
   "{profile}のXS {expected}に対して、MODはXS {actual}です": "{profile}需要XS {expected}，但MOD使用XS {actual}。",
   "{profile}のファームウェアバージョンを確認できません": "无法确定{profile}的固件版本。",
-  "ファームウェア {firmwareVersion} は、{profile}の対応範囲（{prefixes}系）に含まれません": "固件{firmwareVersion}不在{profile}的支持范围内（{prefixes}系列）。",
+  "ファームウェア {firmwareVersion} は、{profile}の対応範囲（{prefixes}系）に含まれません。ホストファームウェアを更新してください": "固件{firmwareVersion}不在{profile}的支持范围内（{prefixes}系列）。请先更新主机固件再安装MOD。",
   "ファームウェア {firmwareVersion} のhost API {actual}では「{capabilities}」を利用できません（API {required}以上が必要です）。host firmwareを更新してください": "固件{firmwareVersion}使用host API {actual}，无法提供“{capabilities}”（需要API {required}或更高版本）。请更新host固件。",
   "使用中のFaceを編集": "编辑当前Face",
   "「{name}」を顔エディタで編集": "在Face编辑器中编辑“{name}”",

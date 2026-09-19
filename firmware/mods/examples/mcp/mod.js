@@ -1,11 +1,12 @@
+import WiFi from 'ecma-wifi'
 import { EmotionNames, emotionFromName } from 'face-state'
 import { MCPServerService } from 'mcp-server'
-import Net from 'net'
 
 const EMOTION_NAMES = EmotionNames
 const MCP_PORT = 8080
 const DRAWER_KEY = 'mcp-server:endpoint'
 
+/** Wait for network readiness and return the MCP endpoint or an availability error. */
 async function endpointMessage(context, server) {
   if (server.status === 'failed') {
     return `MCP server error:\n${server.error ?? 'failed to start'}`
@@ -22,7 +23,9 @@ async function endpointMessage(context, server) {
       return `MCP server unavailable:\n${ready.reason}`
     }
 
-    const address = Net.get('IP')
+    const wifi = new WiFi({})
+    const address = wifi.address
+    wifi.close()
     if (!address) {
       return 'MCP server unavailable:\nIP address is not available'
     }

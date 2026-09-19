@@ -6,7 +6,7 @@ import TextDecoder from 'text/decoder'
  */
 function onContextCreated(robot, option) {
   const device = option.device
-  if (!device?.network?.http?.io) {
+  if (!device?.network?.http?.client?.io) {
     throw new Error('This device does not support a network HTTP client.')
   }
 
@@ -16,8 +16,8 @@ function onContextCreated(robot, option) {
     y: 0,
     z: 0,
   }
-  const client = new device.network.http.io({
-    ...device.network.http,
+  const client = new device.network.http.client.io({
+    ...device.network.http.client,
     host: 'unitv2.local',
     port: 80,
   })

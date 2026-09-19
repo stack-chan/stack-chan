@@ -38,12 +38,13 @@ function stopTest(reason) {
   )
 }
 
+/** Start the configured HTTP transfer and collect device throughput measurements. */
 function startTest() {
   startTime = Date.now()
   trace(
     `[http-throughput] start url=${protocol}://${host}:${port}${path} duration=${durationSeconds}s buffer=${RECEIVE_BUFFER_BYTES}\n`,
   )
-  const network = protocol === 'https' ? device.network.https : device.network.http
+  const network = protocol === 'https' ? device.network.https.client : device.network.http.client
   client = new network.io({ ...network, host, port })
   request = client.request({
     path,

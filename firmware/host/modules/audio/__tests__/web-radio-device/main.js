@@ -15,6 +15,7 @@ let playedBuffers = 0
 let hostIndex = 0
 let reconnectTimer
 
+/** Open the next radio endpoint and count decoded playback buffers. */
 function startRadio() {
   const host = STREAM_HOSTS[hostIndex]
   hostIndex = (hostIndex + 1) % STREAM_HOSTS.length
@@ -22,7 +23,7 @@ function startRadio() {
   audio = new AudioOut({ streams: 1, bitsPerSample: 16, numChannels: 1, sampleRate: 24000 })
   audio.enqueue(0, AudioOut.Volume, QUIET_VOLUME)
   streamer = new MP3Streamer({
-    http: device.network.http,
+    http: device.network.http.client,
     host,
     port: 80,
     path: STREAM_PATH,

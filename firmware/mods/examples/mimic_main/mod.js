@@ -1,50 +1,38 @@
-import MDNS from 'mdns'
 import Timer from 'timer'
 
-let initialized = false
+/** Advertise the current pose after claiming the local DNS-SD host name. */
 function onContextCreated(robot) {
-  const mdns = new MDNS(
-    {
-      hostName: 'stackchan',
+  const dnssd = new device.network.dnssd.io(device.network.dnssd)
+  let advertisement
+  dnssd.claim({
+    host: 'stackchan',
+    /** Start advertising only after the host name has been claimed. */
+    onReady() {
+      advertisement = dnssd.advertise({
+        host: 'stackchan',
+        name: 'stackchan',
+        serviceType: '_http._tcp',
+        port: 80,
+        txt: new Map([
+          ['yaw', '0.0'],
+          ['pitch', '0.0'],
+        ]),
+      })
     },
-    (message, value) => {
-      switch (message) {
-        case 1:
-          if (value !== '') {
-            trace(`MDNS - connection successful. claimed hostname is "${value}"\n`)
-            mdns.add({
-              name: 'http',
-              protocol: 'tcp',
-              port: 80,
-              txt: {
-                yaw: '0.0',
-                pitch: '0.0',
-              },
-            })
-            initialized = true
-          }
-          break
-        case 2:
-          trace(`MDNS - failed to claim "${value}", try next\n`)
-          break
-        default:
-          if (message < 0) trace('MDNS - failed to claim, give up\n')
-          break
-      }
+    /** Report a name conflict without advertising an unclaimed host. */
+    onError() {
+      trace('DNS-SD: stackchan.local is unavailable\n')
     },
-  )
+  })
   Timer.repeat(() => {
-    const yaw = robot.pose.body.rotation.y
-    const pitch = robot.pose.body.rotation.p
-    if (initialized && mdns.services.length > 0) {
-      const service = mdns.services[0]
-      service.txt.yaw = yaw
-      service.txt.pitch = pitch
-      mdns.update(service)
-    }
+    if (!advertisement) return
+    const { y, p } = robot.pose.body.rotation
+    advertisement.updateTXT(
+      new Map([
+        ['yaw', String(y)],
+        ['pitch', String(p)],
+      ]),
+    )
   }, 100)
 }
-export default {
-  onContextCreated,
-  autoLoop: false,
-}
+export default { onContextCreated, autoLoop: false }

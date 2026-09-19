@@ -88,7 +88,11 @@ export function prepareVersionSdkconfig({
   const moddableVersion = readModdableVersion(moddableDirectory)
   const version = firmwareDescriptorVersion(moddableVersion)
   const sourcePath = path.join(sourceDirectory, 'sdkconfig.defaults')
-  const source = readFileSync(sourcePath, 'utf8')
+  // Base SDK settings are already merged before manifest esp32Config settings.
+  // Replaying them as an application overlay would disable features such as BLE.
+  const isBaseConfig =
+    path.resolve(sourceDirectory) === path.resolve(moddableDirectory, 'build/devices/esp32/xsProj-esp32')
+  const source = isBaseConfig ? '' : readFileSync(sourcePath, 'utf8')
   const sdkconfig = renderVersionSdkconfig(source, moddableVersion)
   const directory = path.join(outputDirectory, 'generated', 'sdkconfig', platformName)
   const filePath = path.join(directory, 'sdkconfig.defaults')

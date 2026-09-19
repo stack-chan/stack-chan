@@ -1,5 +1,4 @@
-// @moddable/typings 9.0.0 omits the xs.d.ts entry declared by its package.json.
-// Keep the XS extensions used by Stack-chan available to standalone TypeScript checks.
+// Keep XS host extensions used by Stack-chan available to standalone TypeScript checks.
 
 declare function trace(...messages: (string | number | boolean)[]): void
 

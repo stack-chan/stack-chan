@@ -582,6 +582,16 @@ if (isJitomeFaceSupported()) {
   equal(nodeCoordinate(faceRegion, 'width'), 320, 'Jitome full screen clip width')
   equal(nodeCoordinate(faceRegion, 'height'), 240, 'Jitome full screen clip height')
   controller.setFace(nextFace)
+  equal(
+    nodeCoordinate(faceRegion, 'left') + nodeCoordinate(nextFace, 'left'),
+    initialVisualLeft,
+    'Standard face restores its default origin x after Jitome',
+  )
+  equal(
+    nodeCoordinate(faceRegion, 'top') + nodeCoordinate(nextFace, 'top'),
+    initialVisualTop,
+    'Standard face restores its default origin y after Jitome',
+  )
   controller.setFace(jitome)
   equal(nodeCoordinate(faceRegion, 'left') + nodeCoordinate(jitome, 'left'), 0, 'Repeated swap origin x')
   equal(nodeCoordinate(faceRegion, 'top') + nodeCoordinate(jitome, 'top'), 0, 'Repeated swap origin y')

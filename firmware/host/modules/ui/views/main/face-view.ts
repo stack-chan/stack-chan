@@ -141,6 +141,7 @@ class FaceViewBehavior extends CommonViewBehavior {
   /** The face main component (FaceMainTemplate). Preserved across setMain swaps so the face can be restored. */
   faceMain: PiuContainer | null = null
   faceRegion: DieRegion | null = null
+  faceDefaultCoordinates = new WeakMap<FaceViewCustomFace, FaceViewBaseCoordinates>()
   effects: PiuContainer | null = null
   effectsSet: Set<PiuContent> | null = null
   effectsByKey: Map<string, PiuContent> | null = null
@@ -166,6 +167,7 @@ class FaceViewBehavior extends CommonViewBehavior {
     }
     this.face = data.FACE
     this.faceRegion = data.FACE_REGION
+    this.faceDefaultCoordinates.set(data.FACE, this.getFaceVisualCoordinates(data.FACE))
     this.effects = data.EFFECTS
     this.effectsSet = new Set()
     this.effectsByKey = new Map()
@@ -295,9 +297,11 @@ class FaceViewBehavior extends CommonViewBehavior {
       ? (((currentFace as PiuContent & { container?: PiuContainer }).container ??
           this.faceRegion) as PiuContainer | null)
       : null
+    const faceDefaultCoordinates = this.getFaceDefaultCoordinates(face)
     const currentCoordinates =
-      faceBehavior(face)?.preservePositionOnSwap === false
-        ? readFaceBaseCoordinates(face)
+      faceBehavior(face)?.preservePositionOnSwap === false ||
+      (currentFace && faceBehavior(currentFace)?.preservePositionOnSwap === false)
+        ? faceDefaultCoordinates
         : currentFace
           ? this.getFaceVisualCoordinates(currentFace)
           : null
@@ -352,6 +356,15 @@ class FaceViewBehavior extends CommonViewBehavior {
       left: faceNumber(regionCoordinates.left, faceNumber(region.left)) + base.left,
       top: faceNumber(regionCoordinates.top, faceNumber(region.top)) + base.top,
     }
+  }
+
+  private getFaceDefaultCoordinates(face: FaceViewCustomFace): FaceViewBaseCoordinates {
+    let coordinates = this.faceDefaultCoordinates.get(face)
+    if (!coordinates) {
+      coordinates = readFaceBaseCoordinates(face)
+      this.faceDefaultCoordinates.set(face, coordinates)
+    }
+    return coordinates
   }
 
   private prepareFaceForRegion(face: FaceViewCustomFace, visualCoordinates: FaceViewBaseCoordinates | null): void {

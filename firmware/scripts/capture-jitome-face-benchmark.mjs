@@ -9,6 +9,17 @@ import { buildOutputDirectory } from './lib/build-output.mjs'
 const serialPath = process.env.UPLOAD_PORT ?? '/dev/ttyACM0'
 const baudRate = 460800
 const discardedSamples = 5
+const expectedPhases = ['static', 'unchanged-30fps', 'blink-30fps', 'full-motion-30fps']
+const minimumAnalyzedSamples = 13
+const statisticNames = [
+  'cpu0',
+  'cpu1',
+  'framesPerSecond',
+  'pixelsPerSecond',
+  'garbageCollections',
+  'chunkUsed',
+  'slotUsed',
+]
 const outputDirectory = path.join(buildOutputDirectory, 'jitome-face-benchmark')
 const logLines = []
 const samples = new Map()
@@ -50,6 +61,28 @@ function summarize() {
     }
   }
   return { serialPath, baudRate, discardedSamples, phases }
+}
+
+function validateSummary(result) {
+  for (const phaseName of expectedPhases) {
+    const phase = result.phases[phaseName]
+    if (!phase) throw new Error(`Incomplete JitomeFace benchmark phase: ${phaseName}`)
+    if (!phase.workload) throw new Error(`Missing JitomeFace benchmark workload: ${phaseName}`)
+    if (phase.analyzedSamples < minimumAnalyzedSamples)
+      throw new Error(
+        `Insufficient JitomeFace benchmark samples: ${phaseName} (${phase.analyzedSamples}/${minimumAnalyzedSamples})`,
+      )
+    for (const name of statisticNames) {
+      for (const metricName of ['mean', 'min', 'max']) {
+        if (!Number.isFinite(phase[name]?.[metricName]))
+          throw new Error(`Invalid JitomeFace benchmark metric: ${phaseName}.${name}.${metricName}`)
+      }
+    }
+    for (const name of ['elapsed', 'ticks', 'updates']) {
+      if (!Number.isFinite(phase.workload[name]))
+        throw new Error(`Invalid JitomeFace benchmark workload: ${phaseName}.${name}`)
+    }
+  }
 }
 
 function processLine(line, complete) {
@@ -119,6 +152,7 @@ async function main() {
   })
   await new Promise((resolve) => port.close(resolve))
   const result = summarize()
+  validateSummary(result)
   writeFileSync(path.join(outputDirectory, 'run.log'), `${logLines.join('\n')}\n`)
   writeFileSync(path.join(outputDirectory, 'result.json'), `${JSON.stringify(result, null, 2)}\n`)
   console.log(`[JITOME-BENCH] summary ${JSON.stringify(result)}`)

@@ -574,27 +574,26 @@ assert(rightHand.y > initialThinkingTop, 'thinking should move the chin-side poi
 controller.setHandAnimation('none')
 handsBehavior.onUndisplaying?.(hands)
 // Full-screen faces must not inherit the legacy 60px origin on an actual UI swap.
-if (isJitomeFaceSupported()) {
-  const jitome = createJitomeFace().content
-  controller.setFace(jitome)
-  equal(nodeCoordinate(faceRegion, 'left') + nodeCoordinate(jitome, 'left'), 0, 'Jitome screen origin x')
-  equal(nodeCoordinate(faceRegion, 'top') + nodeCoordinate(jitome, 'top'), 0, 'Jitome screen origin y')
-  equal(nodeCoordinate(faceRegion, 'width'), 320, 'Jitome full screen clip width')
-  equal(nodeCoordinate(faceRegion, 'height'), 240, 'Jitome full screen clip height')
-  controller.setFace(nextFace)
-  equal(
-    nodeCoordinate(faceRegion, 'left') + nodeCoordinate(nextFace, 'left'),
-    initialVisualLeft,
-    'Standard face restores its default origin x after Jitome',
-  )
-  equal(
-    nodeCoordinate(faceRegion, 'top') + nodeCoordinate(nextFace, 'top'),
-    initialVisualTop,
-    'Standard face restores its default origin y after Jitome',
-  )
-  controller.setFace(jitome)
-  equal(nodeCoordinate(faceRegion, 'left') + nodeCoordinate(jitome, 'left'), 0, 'Repeated swap origin x')
-  equal(nodeCoordinate(faceRegion, 'top') + nodeCoordinate(jitome, 'top'), 0, 'Repeated swap origin y')
-  controller.setFaceMotionEnabled(false)
-}
+assert(isJitomeFaceSupported(), 'face-view-state target requires JitomeFace support')
+const jitome = createJitomeFace().content
+controller.setFace(jitome)
+equal(nodeCoordinate(faceRegion, 'left') + nodeCoordinate(jitome, 'left'), 0, 'Jitome screen origin x')
+equal(nodeCoordinate(faceRegion, 'top') + nodeCoordinate(jitome, 'top'), 0, 'Jitome screen origin y')
+equal(nodeCoordinate(faceRegion, 'width'), 320, 'Jitome full screen clip width')
+equal(nodeCoordinate(faceRegion, 'height'), 240, 'Jitome full screen clip height')
+controller.setFace(nextFace)
+equal(
+  nodeCoordinate(faceRegion, 'left') + nodeCoordinate(nextFace, 'left'),
+  initialVisualLeft,
+  'Standard face restores its default origin x after Jitome',
+)
+equal(
+  nodeCoordinate(faceRegion, 'top') + nodeCoordinate(nextFace, 'top'),
+  initialVisualTop,
+  'Standard face restores its default origin y after Jitome',
+)
+controller.setFace(jitome)
+equal(nodeCoordinate(faceRegion, 'left') + nodeCoordinate(jitome, 'left'), 0, 'Repeated swap origin x')
+equal(nodeCoordinate(faceRegion, 'top') + nodeCoordinate(jitome, 'top'), 0, 'Repeated swap origin y')
+controller.setFaceMotionEnabled(false)
 trace('ok\n')

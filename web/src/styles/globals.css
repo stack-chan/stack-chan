@@ -191,7 +191,7 @@
    * Blockly keeps its toolbox category rows light in both application themes.
    * Do not let labels inherit the app's light foreground when dark mode is on.
    */
-  html.dark .blocklyTreeLabel {
+  html.dark .blocklyToolboxCategoryLabel {
     color: #000;
   }
 

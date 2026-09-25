@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { createTransport } from '../transport-core.js'
 
-async function fixture(t) {
+function fixture() {
   const timers = [],
     scheduled = [],
     events = []
@@ -21,8 +21,7 @@ async function fixture(t) {
     },
   }
   const calls = []
-  const key = '__realtimeTransportTest'
-  globalThis[key] = {
+  const Transport = createTransport({
     Timer,
     ArrayBuffer: { fromString: (text) => new TextEncoder().encode(text).buffer },
     Native: () => class {},
@@ -31,20 +30,12 @@ async function fixture(t) {
       if (name === 'xs_live_transport_read') return events.shift()
       if (name === 'xs_live_transport_stats') return { samples: 10 }
     },
-  }
-  t.after(() => {
-    delete globalThis[key]
   })
-  const source = readFileSync(new URL('../esp32/transport.js', import.meta.url), 'utf8').replace(
-    "import Timer from 'timer'",
-    `const { Timer, Native, native, ArrayBuffer } = globalThis.${key}`,
-  )
-  const { default: Transport } = await import(`data:text/javascript,${encodeURIComponent(source)}#${Math.random()}`)
   return { Transport, timers, scheduled, events, calls }
 }
 
-test('successful native polls reschedule the same timer from completion', async (t) => {
-  const f = await fixture(t)
+test('successful native polls reschedule the same timer from completion', async () => {
+  const f = fixture()
   const seen = []
   new f.Transport((event) => seen.push(event))
   f.events.push({ type: 'message', data: 'hello' })
@@ -53,8 +44,8 @@ test('successful native polls reschedule the same timer from completion', async 
   assert.deepEqual(seen, [{ type: 'message', data: 'hello' }])
   assert.deepEqual(f.scheduled, [{ timer, interval: timer.interval, repeat: timer.interval }])
 })
-test('CoreS3 offers initiate DTLS without changing other SDP attributes', async (t) => {
-  const f = await fixture(t)
+test('CoreS3 offers initiate DTLS without changing other SDP attributes', async () => {
+  const f = fixture()
   const seen = []
   new f.Transport((event) => seen.push(event))
   const sdp =
@@ -63,8 +54,8 @@ test('CoreS3 offers initiate DTLS without changing other SDP attributes', async 
   f.timers[0].callback(f.timers[0])
   assert.equal(seen[0].sdp, sdp.replaceAll('a=setup:actpass', 'a=setup:active'))
 })
-test('native release resolves close and does not reschedule a cleared timer', async (t) => {
-  const f = await fixture(t)
+test('native release resolves close and does not reschedule a cleared timer', async () => {
+  const f = fixture()
   const transport = new f.Transport(() => {})
   const closed = transport.close()
   f.events.push({ type: 'released' })
@@ -75,8 +66,8 @@ test('native release resolves close and does not reschedule a cleared timer', as
   assert.deepEqual(transport.stats, { samples: 10 })
   assert.equal(f.calls.filter((name) => name === 'xs_live_transport_release').length, 1)
 })
-test('an explicit protocol close stops audio without closing the transport', async (t) => {
-  const f = await fixture(t)
+test('an explicit protocol close stops audio without closing the transport', async () => {
+  const f = fixture()
   const transport = new f.Transport(() => {})
   transport.send(JSON.stringify({ type: 'session.commentary.append', text: 'session.close' }))
   assert.ok(!f.calls.includes('xs_live_audio_quiesce'))
@@ -84,8 +75,8 @@ test('an explicit protocol close stops audio without closing the transport', asy
   assert.equal(f.calls.filter((name) => name === 'xs_live_audio_quiesce').length, 1)
   assert.ok(!f.calls.includes('xs_live_transport_close'))
 })
-test('a callback exception propagates once without running a finally reschedule', async (t) => {
-  const f = await fixture(t)
+test('a callback exception propagates once without running a finally reschedule', async () => {
+  const f = fixture()
   const failure = new Error('consumer failed')
   new f.Transport(() => {
     throw failure
@@ -98,8 +89,8 @@ test('a callback exception propagates once without running a finally reschedule'
   assert.equal(f.scheduled.length, 0)
 })
 
-test('blocked native sending has a bounded queue and rejects sends after close', async (t) => {
-  const f = await fixture(t)
+test('blocked native sending has a bounded queue and rejects sends after close', async () => {
+  const f = fixture()
   const transport = new f.Transport(() => {})
   for (let i = 0; i < 32; i++) transport.send('queued')
   assert.throws(() => transport.send('overflow'), /limit exceeded/)
@@ -110,8 +101,8 @@ test('blocked native sending has a bounded queue and rejects sends after close',
   await closing
 })
 
-test('limits outgoing event bytes independently from the event count', async (t) => {
-  const f = await fixture(t)
+test('limits outgoing event bytes independently from the event count', async () => {
+  const f = fixture()
   const transport = new f.Transport(() => {})
   assert.throws(() => transport.send('x'.repeat(65537)), /limit exceeded/)
   transport.send('x'.repeat(65536))

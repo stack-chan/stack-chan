@@ -119,7 +119,10 @@ test('discovers local WebRTC components without editing their sources and isolat
     const manifestPath = prepareCoreS3IdfDependencies({ ...options, performanceProbe: true })
     const components = path.resolve(path.dirname(manifestPath), '../components')
     for (const name of names) {
-      assert.equal(realpathSync(path.join(components, name)), path.join(solutionDirectory, 'components', name))
+      assert.equal(
+        realpathSync(path.join(components, name)),
+        realpathSync(path.join(solutionDirectory, 'components', name)),
+      )
       assert.equal(readFileSync(path.join(components, name, 'CMakeLists.txt'), 'utf8'), 'idf_component_register()\n')
     }
     const first = readFileSync(manifestPath, 'utf8')

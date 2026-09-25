@@ -8,7 +8,8 @@
     "realtimeConversation/tools": "./tools",
     "realtimeConversation/broker": "./broker",
     "realtimeConversation/http": "./http",
-    "realtimeConversation/httpCore": "./httpCore"
+    "realtimeConversation/httpCore": "./httpCore",
+    "realtimeConversation/transport-core": "./transport-core"
   },
   "platforms": {
     "...": {

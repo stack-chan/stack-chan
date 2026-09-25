@@ -36,7 +36,10 @@ int stackchanInstallOpusPolicy(void) {
     original = *ops; configured = original; configured.open = openVoiceEncoder;
     esp_audio_enc_unregister(ESP_AUDIO_TYPE_OPUS);
     int error = esp_audio_enc_register(ESP_AUDIO_TYPE_OPUS, &configured);
-    if (error) return error;
+    if (error) {
+      esp_audio_enc_register(ESP_AUDIO_TYPE_OPUS, &original);
+      return error;
+    }
   }
   const esp_audio_dec_ops_t *decoder = esp_audio_dec_get_ops(ESP_AUDIO_TYPE_OPUS);
   if (!decoder) return ESP_AUDIO_ERR_INVALID_PARAMETER;
@@ -44,5 +47,10 @@ int stackchanInstallOpusPolicy(void) {
   originalDecoder = *decoder; configuredDecoder = originalDecoder;
   configuredDecoder.open = openMonoDecoder;
   esp_audio_dec_unregister(ESP_AUDIO_TYPE_OPUS);
-  return esp_audio_dec_register(ESP_AUDIO_TYPE_OPUS, &configuredDecoder);
+  int error = esp_audio_dec_register(ESP_AUDIO_TYPE_OPUS, &configuredDecoder);
+  if (error) {
+    esp_audio_dec_register(ESP_AUDIO_TYPE_OPUS, &originalDecoder);
+    return error;
+  }
+  return ESP_AUDIO_ERR_OK;
 }

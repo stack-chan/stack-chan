@@ -91,6 +91,7 @@ function loadBatteryLevelReader(): BatteryLevelReader | undefined {
 }
 
 function createStackchanUI(face: PiuContainer, options: UIOptions = {}): RobotUI {
+  // All startup paths share a configurable default. Capacity is exercised by Piu tests.
   return createAppControllerApplication(
     {
       face,

@@ -122,15 +122,24 @@ async function fails(h) {
 }
 {
   const h = setup()
+  let reads = 0
   const ctx = {
     read(n) {
-      return new ArrayBuffer(n)
+      reads++
+      return {
+        byteLength: n,
+        concat(next) {
+          return { byteLength: this.byteLength + next.byteLength, concat: this.concat }
+        },
+      }
     },
   }
   h.cb.onHeaders(201, new Map())
   h.cb.onReadable.call(ctx, 65536)
   h.cb.onReadable.call(ctx, 65536)
+  check(reads === 2)
   h.cb.onReadable.call(ctx, 1)
+  check(reads === 2)
   await fails(h)
 }
 {

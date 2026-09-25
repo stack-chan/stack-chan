@@ -10,7 +10,13 @@ export default function liveFetch(url, options) {
       new device.network.https.io({
         ...device.network.https,
         ...options,
-        socket: { ...device.network.https.socket, tls: { ...device.network.https.socket.tls, ca: certificate } },
+        socket: {
+          ...device.network.https.socket,
+          tls: {
+            ...device.network.https.socket.tls,
+            ...(certificate ? { ca: certificate } : {}),
+          },
+        },
       }),
     setTimeout: (callback, delay) => Timer.set(callback, delay),
     clearTimeout: (timer) => Timer.clear(timer),

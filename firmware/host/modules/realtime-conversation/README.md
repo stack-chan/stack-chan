@@ -4,7 +4,7 @@ Stack-chanホスト向けのOpenAI互換会話モジュール。会話プロト�
 
 ## 組み込み
 
-ホストのマニフェストへ本ディレクトリーの`manifest.json`を追加する。既存の`realtimeConversation`、`realtimeConversation/core`、`/tools`、`/broker`、`/transport`、`/http`、`/httpCore`というモジュール名を維持する。CoreS3のネイティブ実装とホスト設定を含む。Tab5の作例は移植元SDKに残し、このホスト版の動作確認対象には含めない。
+ホストのマニフェストへ本ディレクトリーの`manifest.json`を追加する。既存の`realtimeConversation`、`realtimeConversation/core`、`/tools`、`/broker`、`/transport`、`/http`、`/httpCore`というモジュール名を維持する。`/transport-core`はトランスポートの共通実装として追加する。CoreS3のネイティブ実装とホスト設定を含む。Tab5の作例は移植元SDKに残し、このホスト版の動作確認対象には含めない。
 
 ビルドには`STACKCHAN_REALTIME_WEBRTC=1`と`ESP_WEBRTC_SOLUTION`を指定し、リポジトリーの`npm run build`を使う。ラッパーが生成先のESP-IDFプロジェクトへ外部コンポーネントを登録する。ModdableのCMake・Makefile・ランタイムを変更しない。
 

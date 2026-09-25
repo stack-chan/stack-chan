@@ -71,6 +71,10 @@ void xs_task_trace_capture(xsMachine *the) {
 void xs_task_trace_dropped(xsMachine *the) { xsmcSetInteger(xsResult, dropped); }
 void xs_task_trace_take(xsMachine *the) {
   if (!atomic_load(&stopped) || !recording) xsUnknownError("Trace is not stopped");
+  if (dropped) {
+    heap_caps_free(recording); recording = NULL;
+    xsUnknownError("Trace contains dropped writes");
+  }
   xsmcSetArrayBuffer(xsResult, recording, used);
   heap_caps_free(recording); recording = NULL;
 }

@@ -243,6 +243,10 @@ function run(bin, binArgs, cwd = process.cwd()) {
  * previous manifest because every host variant has the same application name.
  */
 function prepareBuildVariant() {
+  if (!process.env.MODDABLE || !existsSync(process.env.MODDABLE)) {
+    console.error('[stack-chan] MODDABLE が設定されていません。`npm run setup` を実行してください。')
+    process.exit(1)
+  }
   const markerPath = buildVariantMarkerPath({
     outputDirectory: buildOutputDirectory,
     deviceName,

@@ -112,10 +112,12 @@ export function prepareCoreS3IdfDependencies({
         ),
         probeLink,
       )
-    } else if (existsSync(probeLink)) {
-      if (!lstatSync(probeLink).isSymbolicLink())
-        throw new Error('Refusing to replace non-generated measurement component')
-      unlinkSync(probeLink)
+    } else {
+      const existing = lstatSync(probeLink, { throwIfNoEntry: false })
+      if (existing) {
+        if (!existing.isSymbolicLink()) throw new Error('Refusing to replace non-generated measurement component')
+        unlinkSync(probeLink)
+      }
     }
   }
 

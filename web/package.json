@@ -5,6 +5,8 @@
   "description": "Stack-chan browser tools",
   "scripts": {
     "dev": "vite",
+    "sync:gallery": "node mod-gallery/sync-samples.mjs",
+    "check:gallery": "node mod-gallery/sync-samples.mjs --check",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

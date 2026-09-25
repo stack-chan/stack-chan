@@ -2,8 +2,10 @@ import { createFaceState, type FaceState, toPiuColorNumber, toPiuColorString } f
 import {
   Container,
   Content,
+  Label,
   type Container as PiuContainer,
   type Content as PiuContent,
+  type Label as PiuLabel,
   type Skin as PiuSkin,
   type Style as PiuStyle,
   type Text as PiuText,
@@ -39,6 +41,7 @@ type BalloonOptions = {
   bottom?: number
   width?: number
   height?: number
+  rows?: number
   minHeight?: number
   padding?: number
   paddingX?: number
@@ -140,18 +143,22 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
   const paddingX = resolveDimension(opts.paddingX ?? opts.padding, defaultOptions.paddingX)
   const paddingY = resolveDimension(opts.paddingY ?? opts.padding, defaultOptions.paddingY)
   const minHeight = resolveDimension(opts.minHeight, defaultOptions.minHeight)
-  const fixedHeight = opts.height
+  const rowCount = opts.rows === undefined ? 0 : Math.max(1, Math.min(8, Math.floor(opts.rows)))
   const tail = resolveTail(opts)
 
   const style = getTextStyle(o.font, '#000')
   const lineHeight = Math.max(1, style.measure('Mg').height ?? 0)
+  const fixedHeight = opts.height ?? (rowCount ? Math.max(minHeight, paddingY * 2 + lineHeight * rowCount) : undefined)
   let background: WithSkin | null = null
   let bodyText: PiuText | null = null
+  let rowLabels: PiuLabel[] = []
+  let currentLines: readonly string[] = []
   let currentText = o.text ?? ''
   let currentPrimary: number | null = null
   let currentSecondary: number | null = null
   let currentFace: FaceState = createFaceState()
   let layoutWidth = 0
+  let textInitialized = false
 
   const left = opts.left ?? defaultOptions.left
   const right = opts.right ?? defaultOptions.right
@@ -206,33 +213,62 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
     clip: true,
     Behavior: class extends Behavior {
       ensureParts(self: PiuContainer) {
+        // Fixed-height text and background already stretch with their parent.
+        // Reading self.width here forces Piu to finish pending layout on every
+        // streamed text/mouth update, even though no parts need rebuilding.
+        if (fixedHeight !== undefined && background && (bodyText || rowLabels.length)) return
         const w = resolveWidth(self)
-        if (background && bodyText && layoutWidth === w) return
-        if (background || bodyText) {
+        if (background && (bodyText || rowLabels.length) && layoutWidth === w) return
+        if (background || bodyText || rowLabels.length) {
           self.empty()
           background = null
           bodyText = null
+          rowLabels = []
         }
         currentPrimary = null
         currentSecondary = null
         layoutWidth = w
-        background = new Content(null, { left: 0, right: 0, top: 0, bottom: 0 }) as WithSkin
-        bodyText = new Text(null, {
-          left: paddingX,
-          right: paddingX,
-          top: paddingY,
-          string: '',
-          style,
-        })
+        background = new Content(null, {
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0,
+        }) as WithSkin
+        textInitialized = false
         self.add(background)
-        self.add(bodyText)
+        if (rowCount) {
+          rowLabels = Array.from(
+            { length: rowCount },
+            (_, row) =>
+              new Label(null, {
+                left: paddingX,
+                right: paddingX,
+                top: paddingY + row * lineHeight,
+                height: lineHeight,
+                string: '',
+                style,
+              }),
+          )
+          for (const label of rowLabels) self.add(label)
+          this.setLines(self, currentLines)
+        } else {
+          bodyText = new Text(null, {
+            left: paddingX,
+            right: paddingX,
+            top: paddingY,
+            ...(fixedHeight === undefined ? {} : { height: Math.max(0, fixedHeight - paddingY * 2) }),
+            string: '',
+            style,
+          })
+          self.add(bodyText)
+        }
         this.updatePalette(currentFace)
         this.updateText(self, currentText)
       }
 
       updatePalette(face: FaceState) {
         currentFace = face
-        if (!background || !bodyText) return
+        if (!background || (!bodyText && !rowLabels.length)) return
         const primary = toPiuColorNumber(face.theme.primary)
         const secondary = toPiuColorNumber(face.theme.secondary)
         if (primary === currentPrimary && secondary === currentSecondary) return
@@ -241,12 +277,17 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
         const bubbleColor = primary
         const textColor = secondary === bubbleColor ? 0x000000 : secondary
         background.skin = getBubbleSkin(bubbleColor, tail)
-        bodyText.style = getTextStyle(o.font, textColor)
+        const nextStyle = getTextStyle(o.font, textColor)
+        if (bodyText) bodyText.style = nextStyle
+        for (const label of rowLabels) label.style = nextStyle
       }
 
       updateText(self: PiuContainer, text: string) {
         if (!bodyText) return
-        bodyText.string = text ?? ''
+        const nextText = text ?? ''
+        if (textInitialized && bodyText.string === nextText) return
+        textInitialized = true
+        bodyText.string = nextText
         if (fixedHeight === undefined) {
           const nextHeight = resolveHeight(self, text ?? '')
           applyHeight(self as ResizableContainer, nextHeight)
@@ -259,8 +300,18 @@ export const SpeechBalloon = Container.template((opts: BalloonOptions = {}) => {
         this.updateText(self, currentText)
       }
 
+      setLines(self: PiuContainer, lines: readonly string[]) {
+        currentLines = lines.slice(-rowCount)
+        this.ensureParts(self)
+        for (let row = 0; row < rowLabels.length; row++) {
+          const next = currentLines[row] ?? ''
+          if (rowLabels[row].string !== next) rowLabels[row].string = next
+        }
+      }
+
       clear(self: PiuContainer) {
-        this.setText(self, '')
+        if (rowCount) this.setLines(self, [])
+        else this.setText(self, '')
       }
 
       onDisplaying(content: PiuContainer) {

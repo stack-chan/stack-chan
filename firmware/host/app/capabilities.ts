@@ -45,7 +45,12 @@ export type RobotLed = {
 }
 
 export type { I18nCapability } from 'localization'
-export type { MiniAppContext, MiniAppDefinition, MiniAppInstance, MiniAppRegistryCapability } from 'mini-app'
+export type {
+  MiniAppContext,
+  MiniAppDefinition,
+  MiniAppInstance,
+  MiniAppRegistryCapability,
+} from 'mini-app'
 export type { DrawerButtonViewSpec, DrawerOption }
 
 export type RobotUI = {
@@ -100,7 +105,7 @@ export type FaceCapability = {
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void
   setEmotion(emotion: Emotion): void
   setEyeOpen(key: FaceEyeKey, value: number): void
-  setMouthOpen(value: number): void
+  setMouthOpen(value: number, immediate?: boolean): void
 }
 
 export type MotionCapability = {
@@ -253,6 +258,8 @@ export type RuntimeUICapability = RobotUI & {
   controller: RobotUI
   drawer: DrawerCapability
   showBalloon(text: string, option?: ShowBalloonOptions): void
+  /** Display pre-wrapped rows with fixed-height Labels; rows are reused. */
+  showBalloonLines?(lines: readonly string[], option?: ShowBalloonOptions): void
   hideBalloon(): void
 }
 

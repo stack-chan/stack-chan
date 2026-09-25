@@ -80,7 +80,7 @@ export class StackchanRuntimeContext implements StackchanContext {
       isPaused: () => this.#paused,
     })
     this.#audioRuntime = new StackchanRuntimeAudio(params, {
-      onMouthOpenChanged: (value) => this.#uiRuntime.setMouthOpen(value),
+      onMouthOpenChanged: (value) => this.setMouthOpen(value),
     })
     this.#inputRuntime = new StackchanRuntimeInput(params)
     this.#cameraRuntime = new StackchanRuntimeCamera(params)
@@ -320,6 +320,7 @@ export class StackchanRuntimeContext implements StackchanContext {
    */
   setColor(key: FaceThemeKey, r: number, g: number, b: number): void {
     this.#uiRuntime.setColor(key, r, g, b)
+    if (this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
   }
 
   /**
@@ -331,14 +332,17 @@ export class StackchanRuntimeContext implements StackchanContext {
    */
   setEmotion(emotion: Emotion) {
     this.#uiRuntime.setEmotion(emotion)
+    if (this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
   }
 
   setEyeOpen(key: FaceEyeKey, value: number) {
     this.#uiRuntime.setEyeOpen(key, value)
+    if (this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
   }
 
-  setMouthOpen(value: number) {
+  setMouthOpen(value: number, immediate = false) {
     this.#uiRuntime.setMouthOpen(value)
+    if (immediate || this.#updateFaceHandler === undefined) this.#uiRuntime.updateFace(0)
   }
 
   get tts() {
@@ -411,7 +415,7 @@ export class StackchanRuntimeContext implements StackchanContext {
       setColor: (key, r, g, b) => this.setColor(key, r, g, b),
       setEmotion: (emotion) => this.setEmotion(emotion),
       setEyeOpen: (key, value) => this.setEyeOpen(key, value),
-      setMouthOpen: (value) => this.setMouthOpen(value),
+      setMouthOpen: (value, immediate) => this.setMouthOpen(value, immediate),
     }
   }
 
@@ -583,6 +587,12 @@ export class StackchanRuntimeContext implements StackchanContext {
         context.#uiRuntime.ui.setHandAnimation(animation)
       },
       setFaceMotionEnabled(enabled) {
+        if (!enabled && context.#updateFaceHandler !== undefined) {
+          Timer.clear(context.#updateFaceHandler)
+          context.#updateFaceHandler = undefined
+        } else if (enabled && context.#updateFaceHandler === undefined && !context.#closed) {
+          context.#updateFaceHandler = Timer.repeat(context.#updateFace, INTERVAL_FACE)
+        }
         context.#uiRuntime.ui.setFaceMotionEnabled?.(enabled)
       },
       setMain(content) {
@@ -624,6 +634,9 @@ export class StackchanRuntimeContext implements StackchanContext {
       showBalloon(text, option) {
         context.showBalloon(text, option)
       },
+      showBalloonLines(lines, option) {
+        context.#uiRuntime.showBalloonLines(lines, option)
+      },
       hideBalloon() {
         context.hideBalloon()
       },
@@ -637,6 +650,8 @@ export class StackchanRuntimeContext implements StackchanContext {
    */
   #updateFace = () => {
     this.#uiRuntime.updateFace(INTERVAL_FACE)
+    // Old poses have no value to the renderer. Do not catch up missed frames.
+    if (this.#updateFaceHandler !== undefined) Timer.schedule(this.#updateFaceHandler, INTERVAL_FACE, INTERVAL_FACE)
   }
 
   async #close(): Promise<void> {

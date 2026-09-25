@@ -74,7 +74,8 @@ export type HostDeviceEnvironment = GlobalEnvironment['device']
 
 type WebRadioPlayerConstructor = new () => WebRadioCapability
 
-const DEFAULT_UI_DISPLAY_LIST_LENGTH = 4096
+// Leave room for a multiline balloon and the face in the same dirty region.
+const DEFAULT_UI_DISPLAY_LIST_LENGTH = 8192
 
 function asUIOptions(param: unknown): UIOptions {
   return (param ?? {}) as UIOptions
@@ -91,6 +92,7 @@ function loadBatteryLevelReader(): BatteryLevelReader | undefined {
 }
 
 function createStackchanUI(face: PiuContainer, options: UIOptions = {}): RobotUI {
+  // All startup paths share a configurable default. Capacity is exercised by Piu tests.
   return createAppControllerApplication(
     {
       face,

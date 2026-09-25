@@ -1,0 +1,6 @@
+config STACKCHAN_TASK_TRACE
+    bool "Stack-chan test operation markers"
+    depends on ESP_TRACE_LIB_EXTERNAL
+    default n
+    help
+        Test-only codec wrappers, used with the task-trace host manifest.

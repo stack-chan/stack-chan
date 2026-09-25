@@ -25,6 +25,7 @@ export type ChatConfig = {
 }
 
 export type ChatListeningMode = 'auto' | 'manual' | 'realtime'
+export type TurnControl = 'fullDuplex' | 'halfDuplex' | 'downlink'
 
 export type XiaozhiV1McpOptions = {
   serverInfo?: {
@@ -73,7 +74,7 @@ export type XiaozhiV1Connection = Readonly<{
  */
 export type ChatConnection = XiaozhiV1Connection
 
-export const XIAOZHI_V1_CONTRACT_VERSION = 1
+export const XIAOZHI_V1_CONTRACT_VERSION = 2
 
 /** Creates a direct connection to a XiaoZhi WebSocket v1 compatible server. */
 export function createXiaozhiV1Connection(options: XiaozhiV1ConnectionOptions): XiaozhiV1Connection {
@@ -128,6 +129,8 @@ export type ChatGlyphPush = {
 }
 
 export type ChatCallbacks = {
+  onOutputTurnStarted?: (turn: ChatOutputTurn) => void | Promise<void>
+  onOutputTurnEnded?: (turn: ChatOutputTurn) => void | Promise<void>
   onStateChanged?: (state: ChatStateValue, error?: string) => void
   onInputLevelChanged?: (level: number) => void
   onOutputLevelChanged?: (level: number) => void
@@ -145,7 +148,11 @@ export type ChatCallbacks = {
   onGlyphPush?: (glyphPush: ChatGlyphPush) => void
 }
 
+/** Local playback identity. This is never a XiaoZhi wire request identifier. */
+export type ChatOutputTurn = { id: number; isCurrent: () => boolean }
+
 type ChatServiceOptions = {
+  turnControl?: TurnControl
   config?: ChatConfig
   connection?: ChatConnection
   tools?: Record<string, ChatTool>
@@ -290,6 +297,12 @@ export class ChatService {
   #sessionState: ChatSessionState
 
   constructor(options: ChatServiceOptions) {
+    const turnControl = options.turnControl ?? 'halfDuplex'
+    if (turnControl === 'fullDuplex') throw new Error('fullDuplex is not implemented')
+    if (turnControl !== 'halfDuplex' && turnControl !== 'downlink') throw new Error('Invalid turnControl')
+    if (turnControl === 'downlink' && options.connection?.kind !== 'xiaozhi-v1') {
+      throw new Error('downlink requires a XiaoZhi connection')
+    }
     if ((options.config ? 1 : 0) + (options.connection ? 1 : 0) !== 1) {
       throw new Error('ChatService requires exactly one of config or connection')
     }
@@ -297,6 +310,8 @@ export class ChatService {
     this.#sessionState = options.sessionState ?? new ChatSessionState()
     const callbacks = options.callbacks ?? {}
     this.#callbacks = {
+      onOutputTurnStarted: callbacks.onOutputTurnStarted ?? noop,
+      onOutputTurnEnded: callbacks.onOutputTurnEnded ?? noop,
       onStateChanged: callbacks.onStateChanged ?? noop,
       onInputLevelChanged: callbacks.onInputLevelChanged ?? noop,
       onOutputLevelChanged: callbacks.onOutputLevelChanged ?? noop,
@@ -332,6 +347,7 @@ export class ChatService {
       })
     const chatAudioIOConstants = ChatAudioIOCtor as unknown as ChatAudioIOStateConstants
     this.#chat = new ChatAudioIOCtor({
+      turnControl,
       specifier: resolved.specifier,
       configuration: resolved.configuration,
       instructions: resolved.instructions,
@@ -340,6 +356,8 @@ export class ChatService {
       modelID: resolved.modelID,
       apiKey: resolved.apiKey,
       functions: functions.length > 0 ? functions : undefined,
+      onOutputTurnStarted: this.#callbacks.onOutputTurnStarted,
+      onOutputTurnEnded: this.#callbacks.onOutputTurnEnded,
       onStateChanged: (state: number) => {
         this.#state = mapState(state, chatAudioIOConstants)
         this.#error = this.#chat.error ?? ''

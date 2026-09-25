@@ -14,6 +14,7 @@
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
         "~": "./StackChanChatAudioIO",
+        "stackchanXiaozhiAudioIOBase": "./chat-audioio/xiaozhi-audioio-base",
         "StackChanChatAudioIO": "./chat-audioio/worker-stack"
       }
     },
@@ -27,6 +28,7 @@
       ],
       "modules": {
         "~": ["./StackChanChatAudioIO", "./chat-audioio/pcm-ring-writer"],
+        "stackchanXiaozhiAudioIOBase": "./chat-audioio/xiaozhi-audioio-base",
         "StackChanChatAudioIO": "./chat-audioio/worker-stack",
         "stackchanPcmRingWriter": "./chat-audioio/pcm-ring-writer-native"
       },
@@ -51,6 +53,7 @@
       "include": ["$(MODULES)/network/services/chatAudioIO/manifest.json"],
       "modules": {
         "~": "./StackChanChatAudioIO",
+        "stackchanXiaozhiAudioIOBase": "./chat-audioio/xiaozhi-audioio-base",
         "StackChanChatAudioIO": "./chat-audioio/worker-stack"
       }
     },

@@ -36,6 +36,9 @@ export function TutorialPage() {
   return (
     <div className="page-container max-w-4xl space-y-6 py-10">
       <header className="space-y-4">
+        <a href="../guide/" className="text-sm text-primary underline">
+          {t('使い方・AI連携')}
+        </a>
         <p className="text-xs font-semibold tracking-widest text-primary uppercase">Visual Programming</p>
         <h1 className="page-heading">{t('作って、動かして、少しずつ広げる')}</h1>
         <p className="page-lead">{t('実機へ書き込む前に、ブラウザのシミュレーターで表情と動きを確かめられます。')}</p>

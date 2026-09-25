@@ -12,6 +12,7 @@ const { baseUrl, server } = await startPreview({
 
 const pages = [
   ['home', '/'],
+  ['guide', '/guide/'],
   ['flash', '/flash/'],
   ['preference', '/preference/'],
   ['mod-gallery', '/mod-gallery/'],

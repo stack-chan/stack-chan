@@ -41,6 +41,11 @@ try {
     const galleryCard = page.getByRole('link', { name: /MOD Gallery/ })
     assert.equal((await galleryCard.locator('small').innerText()).trim(), expectedText[locale].galleryDescription)
     await page.screenshot({ path: `/tmp/stackchan-i18n-${locale}.png`, fullPage: true })
+    await page.goto(`${baseUrl}/guide/`, { waitUntil: 'networkidle' })
+    assert.equal(await page.locator('html').getAttribute('lang'), locale)
+    const headings = { ja: 'はじめて使う', en: 'Getting started', 'zh-CN': '初次使用' }
+    assert.equal((await page.locator('h2').first().innerText()).trim(), headings[locale])
+    await page.screenshot({ path: `/tmp/stackchan-guide-${locale}.png`, fullPage: true })
   }
 } finally {
   await browser?.close()

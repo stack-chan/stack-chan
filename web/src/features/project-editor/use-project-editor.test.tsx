@@ -97,7 +97,7 @@ describe('useProjectEditor build invalidation', () => {
     act(() => result.current.onWorkspaceChange(workspaceSnapshot('const initial = true')))
     await waitFor(() => expect(result.current.analysis.canBuild).toBe(true))
 
-    let buildPromise!: Promise<void>
+    let buildPromise!: Promise<unknown>
     act(() => {
       buildPromise = result.current.build()
     })

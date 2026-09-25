@@ -153,3 +153,60 @@ describe('usePreferences', () => {
     expect(disconnect).toHaveBeenCalledOnce()
   })
 })
+
+describe('settings send races', () => {
+  it('preserves edits made while sending and never claims device confirmation without notifications', async () => {
+    let finish!: () => void
+    const client: PreferenceClient = {
+      connect: async () => {},
+      disconnect: async () => {},
+      isConnected: () => true,
+      send: () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    }
+    const { result } = renderHook(() => usePreferences(() => client))
+    act(() => result.current.update('wifi.ssid', 'first'))
+    let pending!: ReturnType<typeof result.current.save>
+    act(() => {
+      pending = result.current.save()
+    })
+    act(() => result.current.update('wifi.ssid', 'second'))
+    await act(async () => {
+      finish()
+      expect(await pending).toMatchObject({ status: 'sent', confirmedKeys: [] })
+    })
+    expect(result.current.getState().dirty).toContain('wifi.ssid')
+    expect(result.current.values['wifi.ssid']).toBe('second')
+  })
+
+  it('reports disconnection during sending as a failure and keeps unsaved form values', async () => {
+    let connected = true
+    let finish!: () => void
+    const client: PreferenceClient = {
+      connect: async () => {},
+      disconnect: async () => {},
+      isConnected: () => connected,
+      send: () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    }
+    const { result } = renderHook(() => usePreferences(() => client))
+    act(() => result.current.update('wifi.ssid', 'unsaved'))
+    let pending!: ReturnType<typeof result.current.save>
+    act(() => {
+      pending = result.current.save()
+    })
+    await act(async () => {
+      connected = false
+      client.onDisconnected?.()
+      finish()
+      expect(await pending).toMatchObject({ ok: false, code: 'disconnected' })
+    })
+    expect(result.current.getState().dirty).toContain('wifi.ssid')
+    expect(result.current.values['wifi.ssid']).toBe('unsaved')
+    expect(result.current.operation.status).toBe('cancelled')
+  })
+})

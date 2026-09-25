@@ -1,0 +1,15 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../manifest.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "face-state": "../../../../../state/face-state",
+    "face-skin": "../../../../../state/face-skin"
+  },
+  "config": { "startupSound": false },
+  "creation": { "stack": 1024 }
+}

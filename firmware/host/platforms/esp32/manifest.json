@@ -24,7 +24,7 @@
           "initial": 512,
           "incremental": 64
         },
-        "stack": 512,
+        "stack": 1024,
         "keys": {
           "available": 512
         }

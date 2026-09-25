@@ -1,0 +1,7 @@
+---
+"stack-chan": patch
+---
+
+Serialize SCServo transactions across both axes, preserve recovery delays after missing responses, and recover packet synchronization after malformed input. Attempt torque release on both axes even if one axis fails, while reporting the failure to the caller.
+
+Check buffered UART replies before declaring a command timeout when UI or audio work delays readable callbacks.

@@ -1,0 +1,8 @@
+{
+  "modules": {
+    "protocols/scservo": "./protocols/scservo",
+    "single-wait-slot": "./internal/single-wait-slot",
+    "servo-command-error": "./internal/servo-command-error",
+    "payload-buffer": "./payload-buffer"
+  }
+}

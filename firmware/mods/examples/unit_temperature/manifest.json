@@ -1,7 +1,9 @@
 {
-  "include": ["$(MODDABLE)/examples/manifest_mod.json"],
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json",
+    "../../drivers/sensors/sht3x/manifest.json"
+  ],
   "modules": {
-    "*": "./mod",
-    "embedded:sensor/Humidity-Temperature/SHT3x": "$(MODDABLE)/modules/drivers/sensors/sht3x/sht3x"
+    "*": "./mod"
   }
 }

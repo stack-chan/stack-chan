@@ -1,0 +1,18 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../../../../host/modules/testing/manifest.json"
+  ],
+  "modules": { "main": "./podcast-ui.test", "podcast-view": "../../view" },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../../../host/modules/ui/assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../../../host/modules/ui/assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      }
+    ]
+  }
+}

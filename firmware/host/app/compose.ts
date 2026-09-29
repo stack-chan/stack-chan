@@ -9,7 +9,7 @@ import type {
   RobotUI,
   StackchanContext,
   TTS,
-  WebRadioCapability,
+  MediaCapability,
 } from 'capabilities'
 import { type BatteryLevelReader, ChatStatusBar } from 'chat-status-bar'
 import type { DrawerButtonViewSpec } from 'drawer'
@@ -72,7 +72,7 @@ const globalEnv = globalThis as typeof globalThis & GlobalEnvironment
 
 export type HostDeviceEnvironment = GlobalEnvironment['device']
 
-type WebRadioPlayerConstructor = new () => WebRadioCapability
+type MediaPlayerConstructor = new () => MediaCapability
 
 const DEFAULT_UI_DISPLAY_LIST_LENGTH = 4096
 
@@ -207,8 +207,8 @@ export function createStackchanContext(
   const microphone = Modules.has('audio-in') ? new Microphone() : undefined
   const camera = new Camera()
   const speaker = new Speaker({ volume: ttsPrefs.volume })
-  const webRadio = Modules.has('web-radio-player')
-    ? new (Modules.importNow('web-radio-player') as WebRadioPlayerConstructor)()
+  const media = Modules.has('media-player')
+    ? new (Modules.importNow('media-player') as MediaPlayerConstructor)()
     : undefined
 
   const configLed = preferences.led
@@ -264,7 +264,7 @@ export function createStackchanContext(
     remoteConversationSession: options.remoteConversationSession,
     closeHandlers: options.closeHandlers,
     speaker,
-    webRadio,
+    media,
     microphone,
     camera,
     led,

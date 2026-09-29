@@ -5,9 +5,13 @@
     "$(MODDABLE)/modules/files/preference/manifest.json",
     "$(MODDABLE)/modules/base/worker/manifest.json",
     "$(MODDABLE)/examples/pins/audioout/mp3-http-stream/manifest_mp3streamer.json",
-    "$(MODDABLE)/modules/pins/i2s/manifest.json"
+    "$(MODDABLE)/modules/pins/i2s/manifest.json",
+    "$(MODDABLE)/modules/data/url/manifest.json"
   ],
   "modules": {
+    "media-http": "../../media-http",
+    "mp3-metadata": "../../mp3-metadata",
+    "mp3-frames": "../../mp3-frames",
     "*": ["./main"],
     "esp32-mp3-decoder": "../../platforms/m5stackchan-cores3/esp32-mp3-decoder",
     "web-radio-audio-out": "../../platforms/m5stackchan-cores3/web-radio-audio-out",

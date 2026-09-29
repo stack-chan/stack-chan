@@ -1,0 +1,57 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/modules/data/url/manifest.json",
+    "../../../../app/manifest_typings.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "media-tests": "./media-playback.test",
+    "timer": "../../../testing/fakes/timer",
+    "capabilities": "../../../testing/fakes/capabilities",
+    "tts-types": "../../tts-types",
+    "embedded:io/audio/out": "./driver",
+    "test-http": "./http",
+    "worker": "./worker",
+    "esp32-mp3-decoder": "./decoder",
+    "media-http": "../../media-http",
+    "mp3-metadata": "../../mp3-metadata",
+    "mp3-frames": "../../mp3-frames",
+    "media-player": "../../platforms/m5stackchan-cores3/media-player",
+    "web-radio-audio-out": "../../platforms/m5stackchan-cores3/web-radio-audio-out",
+    "web-radio-byte-ring": "../../platforms/m5stackchan-cores3/shared-byte-ring",
+    "buffered-mp3streamer": "../../platforms/m5stackchan-cores3/worker-mp3streamer",
+    "buffered-mp3streamer-core": "../../platforms/m5stackchan-cores3/buffered-mp3streamer",
+    "web-radio-stream-worker": "../../platforms/m5stackchan-cores3/web-radio-stream-worker",
+    "pcm-resampler": "../../platforms/m5stackchan-cores3/pcm-resampler",
+    "podcast-controller": "../../../../../mods/examples/podcast/controller",
+    "podcast-feed": "../../../../../mods/examples/podcast/feed",
+    "podcast-rss-parser": "../../../../../mods/examples/podcast/rss-parser",
+    "testing/assert": "../../../testing/assert"
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "creation": {
+    "static": 2097152,
+    "chunk": {
+      "initial": 524288,
+      "incremental": 65536
+    },
+    "heap": {
+      "initial": 16384,
+      "incremental": 1024
+    },
+    "stack": 1024
+  },
+  "typescript": {
+    "tsconfig": {
+      "compilerOptions": {
+        "noImplicitAny": false
+      }
+    }
+  }
+}

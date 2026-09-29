@@ -1,0 +1,15 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../host/app/manifest_typings.json"
+  ],
+  "modules": {
+    "*": ["./mod"],
+    "podcast-view": "./view",
+    "podcast-config": "./config",
+    "podcast-controller": "./controller",
+    "podcast-feed": "./feed",
+    "podcast-rss-parser": "./rss-parser"
+  }
+}

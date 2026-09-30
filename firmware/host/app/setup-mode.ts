@@ -279,6 +279,11 @@ export function startSetupMode(application: SettingsApplication): Promise<SetupM
       effectiveValues,
       readOnlyKeys: preferences.driver.typeLocked === true ? ['driver.type'] : [],
     })
-    preferenceServer.enableWrites(BLE_PREFERENCE_WRITE_WINDOW_MS)
+    try {
+      preferenceServer.enableWrites(BLE_PREFERENCE_WRITE_WINDOW_MS)
+    } catch (error) {
+      // enableWrites fails closed; local Settings and its normal exit cleanup remain usable.
+      trace(`[settings] BLE preference writes unavailable: ${String(error)}\n`)
+    }
   })
 }

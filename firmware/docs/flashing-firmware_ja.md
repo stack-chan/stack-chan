@@ -147,6 +147,8 @@ Stack-chan の各ハードウェア構成は、サーボの driver 種別とバ�
 
 `m5stackchan` driver は SCServo プロトコルに加えて、M5StackChan 専用のゼロ位置、可動域、PY32 サーボ電源制御を提供します。安全のため、M5StackChan CoreS3 用ファームウェアは driver 種別を `m5stackchan` に、Stack-chan RT 用ファームウェアは `dynamixel` に固定します。どちらも保存済みの異なる `driver.type` は無視します。
 
+専用の `m5stackchan` driver は、pitch の標準可動域をメーカー推奨の **5〜85°** に制限します。StackChan の回転座標では `rotation.p` の −85〜−5°（指定時はラジアン）に相当し、正面を向く `rotation.p = 0` の要求も下限の 5° に制限されます。校正用のゼロ位置は変更しません。これは標準設定であり、個体ごとの校正や軸の可動域の明示的な上書きは引き続き可能です。変更前に機構の可動範囲を確認してください。[M5Stack は、pitch の端まで動かすとサーボのストールや永久的な損傷が生じる可能性があると注意しています](https://docs.m5stack.com/en/StackChan#note)。
+
 Wi-Fi 認証情報や API キーなどのデバイス固有の設定は、各ボードのアプリ manifest の `"config"` 配下に書いてください。秘密情報はコミットせず、ローカルにのみ追加してください。起動時のログ `[dynamixel] serial port=1 tx=7 rx=6 baud=1000000` で RT が実際に使うシリアルピンを確認できます。
 
 正しく書き込めていれば起動から数秒後にｽﾀｯｸﾁｬﾝの顔が表示されます。

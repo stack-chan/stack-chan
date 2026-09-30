@@ -101,6 +101,9 @@
       "stored-wifi": [
         "./host/modules/connectivity/stored-wifi.ts"
       ],
+      "preference-write-guard": [
+        "./host/modules/connectivity/preference-write-guard.ts"
+      ],
       "network-service": [
         "./host/modules/connectivity/network-service.ts"
       ],

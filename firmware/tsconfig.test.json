@@ -101,6 +101,27 @@
       "stored-wifi": [
         "./host/modules/connectivity/stored-wifi.ts"
       ],
+      "preference-write-guard": [
+        "./host/modules/connectivity/preference-write-guard.ts"
+      ],
+      "preference-server": [
+        "./host/modules/connectivity/preference-server.ts"
+      ],
+      "settings-view": [
+        "./host/app/__tests__/fakes/settings-view.ts"
+      ],
+      "settings-network-list": [
+        "./host/modules/ui/views/settings/settings-network-list.ts"
+      ],
+      "settings-status": [
+        "./host/app/settings-status.ts"
+      ],
+      "wifi-scan": [
+        "./host/modules/connectivity/wifi-scan.ts"
+      ],
+      "wifi-scan-types": [
+        "./host/modules/connectivity/wifi-scan-types.ts"
+      ],
       "network-service": [
         "./host/modules/connectivity/network-service.ts"
       ],

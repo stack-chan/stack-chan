@@ -13,6 +13,7 @@
     "wifi-scan": "./wasm/wifi-scan",
     "wifi-scan-types": "./wifi-scan-types",
     "stored-wifi": "./stored-wifi",
-    "preference-server": "./wasm/preference-server"
+    "preference-server": "./wasm/preference-server",
+    "preference-write-guard": "./preference-write-guard"
   }
 }

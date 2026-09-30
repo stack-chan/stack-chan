@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { type FaceAsset, type FaceEye, type FaceEmotion } from '@/features/face-editor/face-model'
+import { updateFaceEye, type FaceAsset, type FaceEye, type FaceEmotion } from '@/features/face-editor/face-model'
 
 type EyeSide = 'left' | 'right'
 
@@ -56,14 +56,9 @@ export function FaceControls({
   const updateEye = (side: EyeSide, mutate: (eye: FaceEye) => void) => {
     update((draft) => {
       const eye = draft.shape.eyes[side]
-      mutate(eye)
-      if (eye.shape === 'roundRect') {
-        eye.eyelidWidth = eye.width ?? 16
-        eye.eyelidHeight = eye.height ?? 16
-      } else {
-        eye.eyelidWidth = (eye.radius ?? 8) * 2
-        eye.eyelidHeight = (eye.radius ?? 8) * 2
-      }
+      const changed = { ...eye }
+      mutate(changed)
+      updateFaceEye(eye, changed)
     })
   }
 

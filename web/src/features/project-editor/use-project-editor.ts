@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { ToolError } from '@/services/webmcp/runtime'
 import { useI18n } from '@/app/i18n-provider'
 import { type OperationState } from '@/features/operations/operation-state'
 import {
@@ -63,6 +64,13 @@ type RecoveryRecord = {
   raw: string
 }
 
+export type DeviceOperationOptions = {
+  signal?: AbortSignal
+  guard?: () => void
+  protect?: () => void
+  waitForUser?: <T>(promise: Promise<T>) => Promise<T>
+}
+
 type SerialNavigator = Navigator & {
   serial?: {
     requestPort: () => Promise<unknown>
@@ -100,8 +108,17 @@ export function useProjectEditor() {
   const workspaceRef = useRef<BlocklyWorkspaceController | null>(null)
   const confirmationRef = useRef<Confirmation | null>(null)
   const buildGenerationRef = useRef(0)
+  const saveErrorRef = useRef<unknown>(null)
+  const archiveRef = useRef<ModBuildResult | null>(null)
+  const deviceBusyRef = useRef(false)
+  const simulatorControllerRef = useRef<{ pushButton: (name: 'a' | 'b' | 'c') => void } | null>(null)
+  const simulatorResultRef = useRef<{ status: string; error?: string }>({ status: 'stopped' })
+  const simulatorWaiterRef = useRef<{ resolve: (value: unknown) => void; reject: (error: unknown) => void } | null>(
+    null
+  )
   const [project, setProject] = useState<VisualProject | null>(null)
   const [projects, setProjects] = useState<VisualProject[]>([])
+  const snapshotRef = useRef<BlocklyWorkspaceSnapshot | null>(null)
   const [snapshot, setSnapshot] = useState<BlocklyWorkspaceSnapshot | null>(null)
   const [source, setSource] = useState('')
   const [analysis, setAnalysis] = useState<ProjectAnalysis>({
@@ -123,6 +140,12 @@ export function useProjectEditor() {
 
   const invalidateBuild = useCallback(() => {
     buildGenerationRef.current += 1
+    archiveRef.current = null
+    simulatorResultRef.current = { status: 'stopped' }
+    simulatorWaiterRef.current?.reject(new ToolError('revision_conflict', 'プロジェクトが変更されました。'))
+    simulatorWaiterRef.current = null
+    simulatorControllerRef.current = null
+    setSimulatorOpen(false)
     setArchive(null)
     setBuildOperation({ status: 'idle' })
   }, [])
@@ -141,8 +164,12 @@ export function useProjectEditor() {
       }
       const state = structuredClone({ currentProject: next, projects: library })
       saveQueueRef.current = saveQueueRef.current
-        .then(() => storageRef.current.saveState(state))
+        .then(async () => {
+          await storageRef.current.saveState(state)
+          saveErrorRef.current = null
+        })
         .catch((error) => {
+          saveErrorRef.current = error
           appendLog(`プロジェクトを自動保存できませんでした: ${String(error)}`, 'error', 'system')
         })
     },
@@ -155,6 +182,7 @@ export function useProjectEditor() {
       nextSnapshot: BlocklyWorkspaceSnapshot,
       { invalidateBuild: shouldInvalidateBuild = true }: { invalidateBuild?: boolean } = {}
     ) => {
+      snapshotRef.current = nextSnapshot
       setSnapshot(nextSnapshot)
       let nextSource = nextSnapshot.source
       let generationError = nextSnapshot.generationError
@@ -203,6 +231,8 @@ export function useProjectEditor() {
       } catch (error) {
         appendLog(`復旧データを読み込めませんでした: ${String(error)}`, 'error', 'system')
       }
+      // A cancelled StrictMode load must not consume staged transfers or change the URL.
+      if (!active) return
       if (!current) {
         try {
           const legacy = localStorage.getItem(PROJECT_STORAGE_KEY)
@@ -217,6 +247,7 @@ export function useProjectEditor() {
         const linkedProjectUrl = projectUrlFromSearch(location.search, location.href)
         if (linkedProjectUrl) {
           current = (await fetchExternalProject(linkedProjectUrl)) as VisualProject
+          if (!active) return
           history.replaceState(null, '', location.pathname)
           appendLog(`Galleryから「${current.name}」を読み込みました`, 'info', 'system')
         }
@@ -261,6 +292,8 @@ export function useProjectEditor() {
     () => () => {
       buildGenerationRef.current += 1
       confirmationRef.current?.resolve(false)
+      simulatorWaiterRef.current?.reject(new ToolError('cancelled', '操作をキャンセルしました。'))
+      simulatorWaiterRef.current = null
     },
     []
   )
@@ -271,6 +304,9 @@ export function useProjectEditor() {
   )
 
   const onSimulatorReady = useCallback(({ runCount }: SimulatorReady) => {
+    simulatorResultRef.current = { status: 'running' }
+    simulatorWaiterRef.current?.resolve({ status: 'running', runCount })
+    simulatorWaiterRef.current = null
     setBuildOperation((current) =>
       current.status === 'success'
         ? {
@@ -286,6 +322,9 @@ export function useProjectEditor() {
 
   const onSimulatorError = useCallback(
     (error: unknown) => {
+      simulatorResultRef.current = { status: 'error', error: String(error instanceof Error ? error.message : error) }
+      simulatorWaiterRef.current?.reject(error)
+      simulatorWaiterRef.current = null
       appendLog(String(error instanceof Error ? error.message : error), 'error', 'simulator')
     },
     [appendLog]
@@ -295,12 +334,17 @@ export function useProjectEditor() {
     (nextSnapshot: BlocklyWorkspaceSnapshot) => {
       const current = projectRef.current
       if (!current) return
-      const next = makeVisualProject({
-        ...current,
-        workspace: nextSnapshot.workspace,
-        updatedAt: new Date().toISOString(),
-      }) as VisualProject
-      recalculate(next, nextSnapshot, { invalidateBuild: true })
+      const changed =
+        projectFieldChanged(current.workspace, nextSnapshot.workspace) ||
+        snapshotRef.current?.source !== nextSnapshot.source
+      const next = changed
+        ? (makeVisualProject({
+            ...current,
+            workspace: nextSnapshot.workspace,
+            updatedAt: new Date().toISOString(),
+          }) as VisualProject)
+        : current
+      recalculate(next, nextSnapshot, { invalidateBuild: changed })
       persistProject(next)
     },
     [persistProject, recalculate]
@@ -453,48 +497,77 @@ export function useProjectEditor() {
     [appendLog, updateProject]
   )
 
-  const build = useCallback(async () => {
-    const current = projectRef.current
-    if (!current || !source) return
-    if (!analysis.canBuild) {
-      setBuildOperation({
-        status: 'error',
-        error: toAppError('ビルド前診断のエラーを修正してください', 'mod.validation'),
-      })
-      return
-    }
-    const buildGeneration = ++buildGenerationRef.current
-    setBuildOperation({ status: 'pending', message: 'MODをビルドしています' })
-    setArchive(null)
-    try {
-      const result = await buildVisualProjectMod({
-        project: current,
-        source,
-        onLog: (message) => {
-          if (buildGeneration === buildGenerationRef.current) appendLog(message, 'info', 'build')
-        },
-      })
-      if (buildGeneration !== buildGenerationRef.current) return
-      const compatibility = inspectDeploymentCompatibility(current.target, {
-        xsVersion: result.xsVersion,
-      })
-      if (!compatibility.compatible) {
-        throw new Error(compatibility.diagnostics.map((item) => item.message).join('\n'))
+  const build = useCallback(
+    async (signal?: AbortSignal) => {
+      const current = projectRef.current
+      const liveSnapshot = workspaceRef.current?.snapshot() ?? snapshotRef.current
+      if (!current || !liveSnapshot) return { ok: false as const, code: 'not_ready' }
+      let currentSource: string
+      try {
+        currentSource = sourceForProject(current, liveSnapshot.source)
+      } catch (error) {
+        invalidateBuild()
+        setBuildOperation({ status: 'error', error: toAppError(error, 'mod.validation') })
+        return { ok: false as const, code: 'validation_failed' }
       }
-      setArchive(result.archive)
-      setBuildOperation({
-        status: 'success',
-        result,
-        message: `ビルド成功: ${formatByteSize(result.archive.length)} / XS ${result.xsVersion?.join('.')} (${(
-          result.elapsedMs / 1000
-        ).toFixed(1)}秒)`,
-      })
-    } catch (error) {
-      if (buildGeneration !== buildGenerationRef.current) return
-      appendLog(String(error instanceof Error ? error.message : error), 'error', 'build')
-      setBuildOperation({ status: 'error', error: toAppError(error, 'mod.build') })
-    }
-  }, [analysis.canBuild, appendLog, source])
+      const currentAnalysis = analyzeWorkspace(liveSnapshot.workspace, { target: current.target })
+      if (!currentAnalysis.canBuild || liveSnapshot.generationError) {
+        setBuildOperation({
+          status: 'error',
+          error: toAppError('ビルド前診断のエラーを修正してください', 'mod.validation'),
+        })
+        return { ok: false as const, code: 'validation_failed' }
+      }
+      invalidateBuild()
+      const buildGeneration = buildGenerationRef.current
+      setBuildOperation({ status: 'pending', message: 'MODをビルドしています' })
+      setArchive(null)
+      archiveRef.current = null
+      try {
+        const result = await buildVisualProjectMod({
+          project: current,
+          source: currentSource,
+          signal,
+          onLog: (message) => {
+            if (buildGeneration === buildGenerationRef.current) appendLog(message, 'info', 'build')
+          },
+        })
+        if (buildGeneration !== buildGenerationRef.current) return { ok: false as const, code: 'revision_conflict' }
+        const latestSnapshot = workspaceRef.current?.snapshot()
+        if (latestSnapshot && JSON.stringify(latestSnapshot) !== JSON.stringify(liveSnapshot)) {
+          invalidateBuild()
+          return { ok: false as const, code: 'revision_conflict' }
+        }
+        const compatibility = inspectDeploymentCompatibility(current.target, {
+          xsVersion: result.xsVersion,
+        })
+        if (!compatibility.compatible) {
+          throw new Error(compatibility.diagnostics.map((item) => item.message).join('\n'))
+        }
+        archiveRef.current = result
+        setArchive(result.archive)
+        setBuildOperation({
+          status: 'success',
+          result,
+          message: `ビルド成功: ${formatByteSize(result.archive.length)} / XS ${result.xsVersion?.join('.')} (${(
+            result.elapsedMs / 1000
+          ).toFixed(1)}秒)`,
+        })
+        return {
+          ok: true as const,
+          bytes: result.archive.length,
+          xsVersion: result.xsVersion,
+          elapsedMs: result.elapsedMs,
+        }
+      } catch (error) {
+        if (buildGeneration !== buildGenerationRef.current) return { ok: false as const, code: 'revision_conflict' }
+        appendLog(String(error instanceof Error ? error.message : error), 'error', 'build')
+        setBuildOperation({ status: 'error', error: toAppError(error, 'mod.build') })
+        return { ok: false as const, code: signal?.aborted ? 'cancelled' : 'build_failed' }
+      }
+    },
+    [appendLog, invalidateBuild]
+  )
 
   const downloadArchive = useCallback(() => {
     const current = projectRef.current
@@ -503,11 +576,18 @@ export function useProjectEditor() {
   }, [archive])
 
   const runInSimulator = useCallback(() => {
-    if (archive && projectRef.current) setSimulatorOpen(true)
+    if (archiveRef.current && projectRef.current) {
+      simulatorResultRef.current = { status: 'starting' }
+      setSimulatorOpen(true)
+    }
   }, [archive])
 
   const closeSimulator = useCallback(() => {
     setSimulatorOpen(false)
+    simulatorControllerRef.current = null
+    simulatorResultRef.current = { status: 'stopped' }
+    simulatorWaiterRef.current?.reject(new ToolError('cancelled', 'シミュレーターを閉じました。'))
+    simulatorWaiterRef.current = null
   }, [])
 
   const askForConfirmation = useCallback(
@@ -527,131 +607,120 @@ export function useProjectEditor() {
     pending?.resolve(approved)
   }, [])
 
-  const installToDevice = useCallback(async () => {
-    const current = projectRef.current
-    const serial = (navigator as SerialNavigator).serial
-    if (!archive || !current) return
-    if (!serial || !profileFor(current.target).deviceInstall) {
-      setDeviceOperation({
-        status: 'error',
-        error: toAppError(
-          'この対象機種またはブラウザーではWebSerial実機書き込みを利用できません',
-          'device.unsupported'
-        ),
-      })
-      return
-    }
-    setDeviceOperation({ status: 'pending', message: 'USBデバイスを選択しています', progress: 0 })
-    try {
-      const port = await serial.requestPort()
-      const result = await installModToDevice(createEsptoolLoader, port, archive, {
-        onLog: (message: string) => appendLog(message, 'info', 'device'),
-        onProgress: (progress: number) =>
-          setDeviceOperation({ status: 'pending', message: '実機へMODを書き込んでいます', progress }),
-        onPrompt: (message: string) => setDeviceOperation({ status: 'pending', message }),
-        onPreflight: async ({
-          chip,
-          firmware,
-        }: {
-          chip: string
-          firmware: { version: string; projectName: string }
-        }) => {
-          const compatibility = inspectDeploymentCompatibility(current.target, {
+  const runDeviceOperation = useCallback(
+    async (action: 'install' | 'remove', options: DeviceOperationOptions = {}) => {
+      const current = projectRef.current
+      const built = archiveRef.current
+      const serial = (navigator as SerialNavigator).serial
+      if (deviceBusyRef.current) return { ok: false as const, code: 'busy' }
+      if (!current || !serial || !profileFor(current.target).deviceInstall || (action === 'install' && !built)) {
+        setDeviceOperation({
+          status: 'error',
+          error: toAppError(
+            'この対象機種またはブラウザーではWebSerial実機書き込みを利用できません',
+            'device.unsupported'
+          ),
+        })
+        return { ok: false as const, code: 'not_ready' }
+      }
+      const generation = buildGenerationRef.current
+      const ensureCurrent = () => {
+        options.signal?.throwIfAborted()
+        options.guard?.()
+        if (generation !== buildGenerationRef.current || current.id !== projectRef.current?.id)
+          throw new ToolError('revision_conflict', 'プロジェクトが更新されています。操作をやり直してください。')
+      }
+      const abortConfirmation = () => resolveConfirmation(false)
+      deviceBusyRef.current = true
+      setDeviceOperation({ status: 'pending', message: 'USBデバイスを選択しています', progress: 0 })
+      options.signal?.addEventListener('abort', abortConfirmation, { once: true })
+      try {
+        ensureCurrent()
+        const port = await serial.requestPort()
+        ensureCurrent()
+        const callbacks = {
+          onLog: (message: string) => appendLog(message, 'info', 'device'),
+          onProgress: (progress: number) =>
+            setDeviceOperation({ status: 'pending', message: '実機へMODを書き込んでいます', progress }),
+          onPrompt: (message: string) => setDeviceOperation({ status: 'pending', message }),
+          onPreflight: async ({
             chip,
-            xsVersion: buildOperation.status === 'success' ? buildOperation.result.xsVersion : undefined,
-            firmwareVersion: firmware.version,
-            requireFirmware: true,
-            requireArchive: true,
-          })
-          if (!compatibility.compatible) {
-            throw new Error(compatibility.diagnostics.map((item) => item.message).join('\n'))
-          }
-          return askForConfirmation({
-            title: '実機へMODを書き込みますか？',
-            description: `${chip} / ${firmware.projectName} ${firmware.version} のxsパーティションを更新します。`,
-            confirmLabel: '書き込む',
-          })
-        },
-      })
-      if (result.status === DEVICE_OPERATION_STATUS.CANCELLED) {
-        setDeviceOperation({ status: 'cancelled', message: '実機への書き込みをキャンセルしました' })
-      } else {
+            firmware,
+          }: {
+            chip: string
+            firmware: { version: string; projectName: string }
+          }) => {
+            ensureCurrent()
+            const compatibility = inspectDeploymentCompatibility(current.target, {
+              chip,
+              firmwareVersion: firmware.version,
+              requireFirmware: true,
+              ...(action === 'install' ? { xsVersion: built!.xsVersion, requireArchive: true } : {}),
+            })
+            if (!compatibility.compatible)
+              throw new ToolError(
+                'incompatible_device',
+                compatibility.diagnostics.map((item) => item.message).join('\n')
+              )
+            const confirmation = askForConfirmation({
+              title: action === 'install' ? '実機へMODを書き込みますか？' : '実機のMODを削除しますか？',
+              description:
+                chip +
+                ' / ' +
+                firmware.version +
+                (action === 'install'
+                  ? ' のxsパーティションを更新します。'
+                  : ' のxsパーティションにあるMODを削除します。'),
+              confirmLabel: action === 'install' ? '書き込む' : '削除する',
+            })
+            const approved = await (options.waitForUser ? options.waitForUser(confirmation) : confirmation)
+            if (!approved) return false
+            ensureCurrent()
+            options.protect?.()
+            return true
+          },
+        }
+        const result =
+          action === 'install'
+            ? await installModToDevice(createEsptoolLoader, port, built!.archive, callbacks)
+            : await removeModFromDevice(createEsptoolLoader, port, callbacks)
+        if (result.status === DEVICE_OPERATION_STATUS.CANCELLED) {
+          setDeviceOperation({ status: 'cancelled', message: '実機の操作をキャンセルしました。' })
+          return { ok: false as const, code: 'cancelled' }
+        }
         setDeviceOperation({
           status: 'success',
           result,
-          message: `実機への書き込みと検証が終了しました (${String(result.chip ?? 'device')})`,
+          message: action === 'install' ? '実機への書き込みと検証が終了しました。' : '実機のMODを削除しました',
         })
+        return { ok: true as const, ...result }
+      } catch (error) {
+        const cancelled = options.signal?.aborted || (error instanceof DOMException && error.name === 'NotFoundError')
+        if (cancelled) setDeviceOperation({ status: 'cancelled', message: '実機の操作をキャンセルしました。' })
+        else {
+          appendLog(String(error instanceof Error ? error.message : error), 'error', 'device')
+          setDeviceOperation({ status: 'error', error: toAppError(error, 'device.' + action) })
+        }
+        return {
+          ok: false as const,
+          code: cancelled ? 'cancelled' : error instanceof ToolError ? error.code : 'device_failed',
+        }
+      } finally {
+        deviceBusyRef.current = false
+        options.signal?.removeEventListener('abort', abortConfirmation)
       }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'NotFoundError') {
-        const message = 'USBデバイスの選択をキャンセルしました'
-        appendLog(message, 'warning', 'device')
-        setDeviceOperation({ status: 'cancelled', message })
-        return
-      }
-      appendLog(String(error instanceof Error ? error.message : error), 'error', 'device')
-      setDeviceOperation({ status: 'error', error: toAppError(error, 'device.install') })
-    }
-  }, [appendLog, archive, askForConfirmation, buildOperation])
+    },
+    [appendLog, askForConfirmation, resolveConfirmation]
+  )
 
-  const removeFromDevice = useCallback(async () => {
-    const current = projectRef.current
-    const serial = (navigator as SerialNavigator).serial
-    if (!current || !serial || !profileFor(current.target).deviceInstall) {
-      setDeviceOperation({
-        status: 'error',
-        error: toAppError('この対象機種では実機のMODを削除できません', 'device.unsupported'),
-      })
-      return
-    }
-    setDeviceOperation({ status: 'pending', message: 'USBデバイスを選択しています' })
-    try {
-      const port = await serial.requestPort()
-      const result = await removeModFromDevice(createEsptoolLoader, port, {
-        onLog: (message: string) => appendLog(message, 'info', 'device'),
-        onPrompt: (message: string) => setDeviceOperation({ status: 'pending', message }),
-        onPreflight: async ({
-          chip,
-          partition,
-          firmware,
-        }: {
-          chip: string
-          partition: { offset: number }
-          firmware: { version: string }
-        }) => {
-          const compatibility = inspectDeploymentCompatibility(current.target, {
-            chip,
-            firmwareVersion: firmware.version,
-            requireFirmware: true,
-          })
-          if (!compatibility.compatible) {
-            throw new Error(compatibility.diagnostics.map((item) => item.message).join('\n'))
-          }
-          return askForConfirmation({
-            title: '実機のMODを削除しますか？',
-            description: `${chip} / ${firmware.version} のxsパーティション（0x${partition.offset.toString(
-              16
-            )}）を消去します。`,
-            confirmLabel: '削除する',
-          })
-        },
-      })
-      if (result.status === DEVICE_OPERATION_STATUS.CANCELLED) {
-        setDeviceOperation({ status: 'cancelled', message: '実機のMOD削除をキャンセルしました' })
-      } else {
-        setDeviceOperation({ status: 'success', result, message: '実機のMODを削除しました' })
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'NotFoundError') {
-        const message = 'USBデバイスの選択をキャンセルしました'
-        appendLog(message, 'warning', 'device')
-        setDeviceOperation({ status: 'cancelled', message })
-        return
-      }
-      appendLog(String(error instanceof Error ? error.message : error), 'error', 'device')
-      setDeviceOperation({ status: 'error', error: toAppError(error, 'device.remove') })
-    }
-  }, [appendLog, askForConfirmation])
+  const installToDevice = useCallback(
+    (options?: DeviceOperationOptions) => runDeviceOperation('install', options),
+    [runDeviceOperation]
+  )
+  const removeFromDevice = useCallback(
+    (options?: DeviceOperationOptions) => runDeviceOperation('remove', options),
+    [runDeviceOperation]
+  )
 
   const faceAssets = useMemo(
     () => project?.assets.filter((asset) => asset.mediaType === FACE_ASSET_MEDIA_TYPE) ?? [],
@@ -659,6 +728,72 @@ export function useProjectEditor() {
   )
 
   return {
+    getCurrent: () => {
+      const current = projectRef.current
+      const live = workspaceRef.current?.snapshot()
+      if (!current || !live) throw new ToolError('not_ready', 'エディタの準備が終わってから操作してください。')
+      const generatedSource = sourceForProject(current, live.source)
+      return {
+        project: { ...current, workspace: live.workspace },
+        source: generatedSource,
+        analysis: {
+          ...analyzeWorkspace(live.workspace, { target: current.target }),
+          ...(live.generationError ? { canBuild: false, generationError: live.generationError } : {}),
+        },
+        archiveReady: Boolean(archiveRef.current),
+        simulator: { ...simulatorResultRef.current },
+        deviceBusy: deviceBusyRef.current,
+      }
+    },
+    getWorkspace: () => {
+      if (!workspaceRef.current) throw new ToolError('not_ready', 'エディタの準備が終わってから操作してください。')
+      return workspaceRef.current
+    },
+    updateProject,
+    flushSave: async () => {
+      const live = workspaceRef.current?.snapshot()
+      if (live) onWorkspaceChange(live)
+      await saveQueueRef.current
+      if (saveErrorRef.current) throw new ToolError('storage_failed', 'プロジェクトを保存できませんでした。')
+    },
+    setSimulatorController: (controller: { pushButton: (name: 'a' | 'b' | 'c') => void } | null) => {
+      simulatorControllerRef.current = controller
+    },
+    pressSimulatorButton: (name: 'a' | 'b' | 'c') => {
+      if (simulatorResultRef.current.status !== 'running' || !simulatorControllerRef.current)
+        throw new ToolError('not_ready', 'シミュレーターを起動してください。')
+      simulatorControllerRef.current.pushButton(name)
+    },
+    startSimulator: (signal: AbortSignal) => {
+      if (!archiveRef.current) throw new ToolError('not_ready', '先に現在のプロジェクトをビルドしてください。')
+      if (simulatorResultRef.current.status === 'running') return Promise.resolve({ status: 'running' })
+      if (simulatorWaiterRef.current) throw new ToolError('busy', 'シミュレーターを起動中です。')
+      return new Promise((resolve, reject) => {
+        const abort = () => closeSimulator()
+        const timeout = window.setTimeout(() => {
+          simulatorWaiterRef.current?.reject(new ToolError('timeout', 'シミュレーターの起動がタイムアウトしました。'))
+          simulatorWaiterRef.current = null
+          closeSimulator()
+        }, 60000)
+        const finish = () => {
+          signal.removeEventListener('abort', abort)
+          window.clearTimeout(timeout)
+        }
+        simulatorWaiterRef.current = {
+          resolve: (value) => {
+            finish()
+            resolve(value)
+          },
+          reject: (error) => {
+            finish()
+            reject(error)
+          },
+        }
+        signal.addEventListener('abort', abort, { once: true })
+        if (signal.aborted) abort()
+        else runInSimulator()
+      })
+    },
     locale,
     t,
     project,

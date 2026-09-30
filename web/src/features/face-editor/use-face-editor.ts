@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 
 import {
   cloneFaceAsset,
@@ -106,6 +106,7 @@ const loadInitialFace = (): InitialFace => {
 export function useFaceEditor() {
   const [initial] = useState(loadInitialFace)
   const [asset, setAsset] = useState(initial.asset)
+  const assetRef = useRef(initial.asset)
   const [status, setStatus] = useState<Status>(initial.status)
 
   useEffect(() => {
@@ -120,16 +121,16 @@ export function useFaceEditor() {
   }, [asset])
 
   const update = useCallback((mutate: (draft: FaceAsset) => void) => {
-    setAsset((current) => {
-      const draft = cloneFaceAsset(current)
-      mutate(draft)
-      return normalizeFaceAsset(draft)
-    })
+    const draft = cloneFaceAsset(assetRef.current)
+    mutate(draft)
+    assetRef.current = normalizeFaceAsset(draft)
+    setAsset(assetRef.current)
     setStatus({ message: 'Shape型Faceを編集中です。' })
   }, [])
 
   const replace = useCallback((nextAsset: FaceAsset, message: string) => {
-    setAsset(normalizeFaceAsset(nextAsset))
+    assetRef.current = normalizeFaceAsset(nextAsset)
+    setAsset(assetRef.current)
     setStatus({ message, kind: 'success' })
   }, [])
 
@@ -137,20 +138,22 @@ export function useFaceEditor() {
 
   const stageForEditor = useCallback(() => {
     try {
-      saveFaceDraft(asset)
-      stageTransfer(asset, initial.edit)
+      saveFaceDraft(assetRef.current)
+      stageTransfer(assetRef.current, initial.edit)
       setStatus({
         message: 'Shape型Faceを保存しました。ブロックエディタを開きます。',
         kind: 'success',
       })
       location.href = '../editor/?face-asset=staging'
+      return true
     } catch (error) {
       setStatus({
         message: `ブロックエディタへ顔を渡せませんでした: ${error instanceof Error ? error.message : String(error)}`,
         kind: 'error',
       })
+      return false
     }
-  }, [asset, initial.edit])
+  }, [initial.edit])
 
   const code = useMemo(
     () => `${generateShapeFace(asset)}
@@ -163,6 +166,7 @@ export function onContextCreated(robot) {
 
   return {
     asset,
+    getCurrent: () => assetRef.current,
     edit: initial.edit,
     status,
     setStatus,

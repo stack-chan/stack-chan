@@ -1,5 +1,5 @@
-import type { SupportedLocale } from '../../../modules/testing/fakes/localization.js'
 import type { TimezoneId } from '../../../modules/preferences/timezone-model.js'
+import type { SupportedLocale } from '../../../modules/testing/fakes/localization.js'
 import type { SettingsNetworkEntry } from '../../../modules/ui/views/settings/settings-network-list.js'
 import type { SettingsStatus } from '../../../modules/ui/views/settings/settings-status-model.js'
 

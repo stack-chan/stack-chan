@@ -40,7 +40,7 @@ const legacy = parseTrackingPayload({
 })
 assert(legacy, 'version 1 payload should remain compatible')
 equal(legacy.face.yaw, 0.75, 'legacy yaw should remain clamped')
-equal(legacy.face.pitch, -Math.PI / 2, 'legacy pitch should use the expanded driver-compatible clamp')
+equal(legacy.face.pitch, -Math.PI / 2, 'legacy pitch should retain the tracking protocol range')
 equal(legacy.emotion, 'neutral', 'legacy face emotion should become an explicit delta')
 
 const pair = handPairFromTracking(parsed.hands)
@@ -123,7 +123,7 @@ equal(poses[0].duration, 0.12, 'tracking pose should overlap the 100 ms servo co
 equal(poses[0].value.rotation.y, 0.75, 'first control tick should apply the latest yaw without filter lag')
 assert(
   Math.abs(poses[0].value.rotation.p + Math.PI / 2) < 0.001,
-  'upward pitch should reach the servo driver at approximately -90 degrees',
+  'upward pitch request should reach the motion capability before hardware-specific driver clamping',
 )
 equal(emotions[0], Emotion.HAPPY, 'happy state should set happy emotion')
 equal(eyeStates[0].key, 'left', 'left eye opening should update independently')

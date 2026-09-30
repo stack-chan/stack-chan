@@ -53,7 +53,9 @@ export const M5STACKCHAN_SERVO_DEFAULTS: M5StackChanServoConfig = Object.freeze(
   pitch: Object.freeze({
     id: 2,
     zeroPosition: 620,
-    angleLimit: Object.freeze({ min: 0, max: 900 }),
+    // M5Stack recommends 5–85 degrees to avoid stalls at the mechanical endpoints.
+    // https://docs.m5stack.com/en/StackChan#note (limits are in 0.1-degree units)
+    angleLimit: Object.freeze({ min: 50, max: 850 }),
     rawPositionLimit: Object.freeze({ min: 0, max: 1000 }),
   }),
 })

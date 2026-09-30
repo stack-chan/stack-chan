@@ -73,6 +73,7 @@ type BalloonLayout = Content & {
     top?: number
     bottom?: number
     height?: number
+    width?: number
   }
 }
 
@@ -104,6 +105,37 @@ const defaultBalloonAny = defaultBalloon as unknown as BalloonContent
 defaultBalloonAny.behavior?.onDisplaying?.(defaultBalloon)
 defaultBalloonAny.behavior?.onFaceState?.(defaultBalloon, defaultFace)
 const defaultLayout = defaultBalloon as BalloonLayout
+const boundedHeight = 68,
+  boundedPadding = 10
+const boundedBalloon = new SpeechBalloon({
+  height: boundedHeight,
+  paddingY: boundedPadding,
+  text: '',
+}) as unknown as Content
+app.add(boundedBalloon)
+const boundedBehavior = (boundedBalloon as unknown as BalloonContent).behavior
+boundedBehavior?.onDisplaying?.(boundedBalloon)
+const boundedText = (boundedBalloon as unknown as BalloonContent).first?.next as BalloonNode
+for (const text of ['', '短い文。', '一行目\n二行目\n三行目\n四行目']) {
+  boundedBehavior?.setText?.(boundedBalloon, text)
+  assert(measuredHeight(boundedBalloon as BalloonLayout) === boundedHeight, 'fixed balloons retain their outer bounds')
+  assert(
+    measuredHeight(boundedText as BalloonLayout) === boundedHeight - boundedPadding * 2,
+    'fixed text keeps its padded drawing bounds',
+  )
+  assert(boundedText.string === text, 'fixed bounds preserve the full text value')
+}
+for (const width of [180, 220]) {
+  ;(boundedBalloon as BalloonLayout).coordinates = { left: 8, top: 80, width, height: boundedHeight }
+  boundedBehavior?.setText?.(boundedBalloon, 'サイズ変更後の文')
+  boundedBehavior?.onFaceState?.(boundedBalloon, defaultFace)
+  assert(
+    (boundedBalloon as unknown as BalloonContent).first?.next === boundedText,
+    'fixed balloon resizes existing text',
+  )
+  assert(boundedText.width === width - 36, 'text follows the parent width with horizontal padding')
+}
+app.remove(boundedBalloon)
 assert(defaultLayout.coordinates?.left === 16, 'default balloon should keep a 16px left margin')
 assert(defaultLayout.coordinates?.right === 16, 'default balloon should keep a 16px right margin')
 assert(defaultLayout.coordinates?.bottom === 12, 'default balloon should keep a 12px bottom margin')

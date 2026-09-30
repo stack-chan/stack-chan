@@ -49,7 +49,8 @@ function isProductionManifest(path: string): boolean {
   return (
     /[/\\]manifest(?:_[^/\\]+)?\.json$/.test(path) &&
     !path.endsWith('manifest.test.json') &&
-    !path.endsWith('manifest_local.json')
+    !path.endsWith('manifest_local.json') &&
+    !isTestOrArchitectureTarget(path)
   )
 }
 

@@ -50,6 +50,14 @@ const TOUCH_PANEL_HAPPY_DURATION_MS = 5000
 const TOUCH_PANEL_PET_MOTION_STEP_MS = 220
 const TOUCH_PANEL_PET_MOTION_STEP_SEC = TOUCH_PANEL_PET_MOTION_STEP_MS / 1000
 
+// 首振りの可動域。pitchは構造上「水平(0)から上向き」しか動かせず、
+// 下向きはangleToRawPositionが0にクランプするので、うなずきは見上げと水平の往復で作る。
+const PITCH_UP_LIMIT = -Math.PI / 3
+const YAW_LIMIT = Math.PI / 6
+const ANGRY_SHAKE_YAW = Math.PI / 6
+const ANGRY_SHAKE_STEP_MS = 180
+const ANGRY_SHAKE_STEP_SEC = ANGRY_SHAKE_STEP_MS / 1000
+
 // 首を動かし終えてから、IMUの読みが落ち着くまでの猶予。
 const HEAD_MOTION_SETTLE_MS = 600
 const MOTION_DETECT_COLD_DURATION_MS = 5000
@@ -79,6 +87,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   let pettingPreviousEmotion: Emotion | undefined
   let pettingPreviousRotation: typeof robot.pose.body.rotation | undefined
   let pettingMotionActive = false
+  let emotionMotionActive = false
   // StackChan CoreS3はIMUを積んだ本体がそのまま頭なので、首を動かすとIMUも一緒に傾く。
   // 見上げた姿勢がfallenBackwardと読まれるため、自分で動かしている間の姿勢判定は信用しない。
   let headMotionDepth = 0
@@ -106,8 +115,13 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     [Emotion.COLD]: null,
   }
   const setEmotionWithEffect = (target: typeof robot, nextEmotion: Emotion) => {
+    const emotionChanged = currentEmotion !== nextEmotion
     currentEmotion = nextEmotion
     target.setEmotion(nextEmotion)
+    // 怒ったら首を横に振る。喜んだときの縦振りは撫で動作側が担当する。
+    if (emotionChanged && nextEmotion === Emotion.ANGRY && !pettingMotionActive && !emotionMotionActive) {
+      void runAngryShakeMotion().catch((error) => trace(`[Emotion] angry shake rejected ${errorMessage(error)}\n`))
+    }
     if (emoticonEffect) {
       target.ui.removeEffect(emoticonEffect)
       emoticonEffect = null
@@ -122,6 +136,34 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     position: { ...robot.pose.body.position },
     rotation,
   })
+  const runAngryShakeMotion = async () => {
+    emotionMotionActive = true
+    beginHeadMotion()
+    const base = { ...robot.motion.pose.body.rotation }
+    const yawAt = (direction: number) => ({
+      ...base,
+      y: Math.max(-YAW_LIMIT, Math.min(YAW_LIMIT, base.y + direction * ANGRY_SHAKE_YAW)),
+    })
+    try {
+      await robot.motion.setTorque(true)
+      // 左右に振ってから戻す。複数ステップにしないと一度の姿勢変更に見えてしまう。
+      for (const direction of [1, -1, 1, -0.5]) {
+        await robot.motion.setPose(poseForRotation(yawAt(direction)), ANGRY_SHAKE_STEP_SEC)
+        await wait(ANGRY_SHAKE_STEP_MS)
+      }
+      await robot.motion.setPose(poseForRotation(base), ANGRY_SHAKE_STEP_SEC)
+    } catch (error) {
+      trace(`[Emotion] angry shake error ${errorMessage(error)}\n`)
+    } finally {
+      try {
+        await robot.motion.setTorque(false)
+      } catch (torqueError) {
+        trace(`[Emotion] angry shake torque release error ${errorMessage(torqueError)}\n`)
+      }
+      endHeadMotion()
+      emotionMotionActive = false
+    }
+  }
   const runPettingHoldMotion = async (upRotation: typeof robot.pose.body.rotation) => {
     beginHeadMotion()
     try {
@@ -724,19 +766,18 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         if (!pettingMotionActive) {
           pettingMotionActive = true
           const baseRotation = pettingPreviousRotation
-          const yawAmount = randomBetween(Math.PI / 15, Math.PI / 10)
-          const pitch = Math.max(-Math.PI / 4, baseRotation.p - randomBetween(Math.PI / 10, Math.PI / 8))
-          const firstDirection = Math.random() < 0.5 ? -1 : 1
-          const upRotation = { ...baseRotation, p: pitch }
-          const leftRight = (direction: number) => ({
+          // 喜んだら首を縦に振る。pitchは水平より下へ動かせないので、
+          // 中心を少し見上げ側に置いて「見上げる <-> 水平」を往復させる。
+          const nodAmount = randomBetween(Math.PI / 8, Math.PI / 6)
+          const nodCenter = baseRotation.p - nodAmount * 0.5
+          const nodAt = (direction: number) => ({
             ...baseRotation,
-            p: pitch,
-            y: Math.max(-Math.PI / 6, Math.min(Math.PI / 6, baseRotation.y + direction * yawAmount)),
+            p: Math.min(0, Math.max(PITCH_UP_LIMIT, nodCenter - direction * nodAmount)),
           })
-          trace(
-            `[TouchPanel] pet motion shake yaw=${yawAmount.toFixed(3)} pitch=${pitch.toFixed(3)} direction=${firstDirection}\n`,
-          )
-          void runPettingMotion(upRotation, leftRight, firstDirection).catch((error) =>
+          const firstDirection = 1
+          const upRotation = nodAt(1)
+          trace(`[TouchPanel] pet motion nod pitch=${nodAmount.toFixed(3)} center=${nodCenter.toFixed(3)}\n`)
+          void runPettingMotion(upRotation, nodAt, firstDirection).catch((error) =>
             trace(`[TouchPanel] pet motion rejected ${errorMessage(error)}\n`),
           )
         }

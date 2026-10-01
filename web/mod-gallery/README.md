@@ -19,6 +19,12 @@ copies in the same pull request. Add new shared sources, images, README files or
 third-party license files to the corresponding mapping. Review removed files
 explicitly: the command only owns mapped files and never deletes other content.
 
+All mapped sources and existing destinations are read before any files are
+updated. A missing source or a destination read error therefore leaves the
+gallery unchanged. Writes are not transactional: a write-time error, such as a
+full disk, can still leave a partially updated gallery. Fix the error and rerun
+synchronization in that case.
+
 This is an incremental step toward issue #689. Generated copies remain tracked
 and keep their existing package-relative URLs. Gallery definitions, gallery-only
 instructions and prebuilt XSA archives remain separately maintained. Synchronizing

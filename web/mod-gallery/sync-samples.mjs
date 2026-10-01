@@ -38,22 +38,24 @@ export function syncSamples({
       }
     })
   )
-  const changed = []
-  for (const { destination, name, bytes } of copies) {
+  // Compare every destination before writing: a read error in a later mapping
+  // must not leave the earlier mappings updated.
+  const changed = copies.filter(({ destination, bytes }) => {
     let current
     try {
       current = readFileSync(destination)
     } catch (error) {
       if (error.code !== 'ENOENT') throw error
     }
-    if (current?.equals(bytes)) continue
-    changed.push(name)
-    if (!check) {
+    return !current?.equals(bytes)
+  })
+  if (!check) {
+    for (const { destination, bytes } of changed) {
       mkdirSync(dirname(destination), { recursive: true })
       writeFileSync(destination, bytes)
     }
   }
-  return changed
+  return changed.map(({ name }) => name)
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

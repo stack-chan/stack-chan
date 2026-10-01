@@ -56,6 +56,22 @@ test('missing sources fail before any destination changes', (t) => {
   assert.equal(readFileSync(join(options.outputRoot, 'sample/mod/mod.js'), 'utf8'), 'old source')
 })
 
+test('a directory at a mapped destination fails before any destination changes', (t) => {
+  const options = fixture(t)
+  mkdirSync(join(options.outputRoot, 'sample/mod/LICENSE'))
+  assert.throws(() => syncSamples(options), { code: 'EISDIR' })
+  assert.equal(readFileSync(join(options.outputRoot, 'sample/mod/mod.js'), 'utf8'), 'old source')
+  assert.throws(() => readFileSync(join(options.outputRoot, 'sample/mod/assets/image.png')), { code: 'ENOENT' })
+})
+
+test('a file blocking a destination directory fails before any destination changes', (t) => {
+  const options = fixture(t)
+  writeFileSync(join(options.outputRoot, 'sample/mod/assets'), 'keep this file')
+  assert.throws(() => syncSamples(options), { code: 'ENOTDIR' })
+  assert.equal(readFileSync(join(options.outputRoot, 'sample/mod/mod.js'), 'utf8'), 'old source')
+  assert.equal(readFileSync(join(options.outputRoot, 'sample/mod/assets'), 'utf8'), 'keep this file')
+})
+
 test('ambiguous or escaping mappings are rejected', (t) => {
   const options = fixture(t)
   assert.throws(() => syncSamples({ ...options, mappings: [...options.mappings, ...options.mappings] }), /Duplicate/)

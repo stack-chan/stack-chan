@@ -1,5 +1,15 @@
 import assert from 'node:assert/strict'
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -80,6 +90,40 @@ test('ambiguous or escaping mappings are rejected', (t) => {
   }
   assert.equal(readFileSync(join(options.outputRoot, 'sample/mod/mod.js'), 'utf8'), 'old source')
 })
+
+for (const check of [false, true]) {
+  for (const scenario of ['file', 'dangling file', 'ancestor', 'internal file', 'output root']) {
+    test(`symlinked ${scenario} is rejected before changes (check=${check})`, (t) => {
+      const options = fixture(t)
+      const originalRoot = options.outputRoot
+      // All link targets remain inside this test's disposable fixture.
+      const outside = join(options.inputRoot, 'outside')
+      mkdirSync(outside)
+      const sentinel = join(outside, 'sentinel')
+      writeFileSync(sentinel, 'keep outside content')
+      if (scenario === 'ancestor') {
+        symlinkSync(outside, join(originalRoot, 'sample/mod/assets'), 'dir')
+      } else if (scenario === 'output root') {
+        options.outputRoot = join(options.inputRoot, 'gallery-link')
+        symlinkSync(originalRoot, options.outputRoot, 'dir')
+      } else {
+        const target =
+          scenario === 'dangling file'
+            ? join(outside, 'missing')
+            : scenario === 'internal file'
+              ? join(originalRoot, 'sample/README.md')
+              : sentinel
+        symlinkSync(target, join(originalRoot, 'sample/mod/LICENSE'), 'file')
+      }
+      assert.throws(() => syncSamples({ ...options, check }), /Symlinked sample destination/)
+      assert.equal(readFileSync(sentinel, 'utf8'), 'keep outside content')
+      assert.equal(readFileSync(join(originalRoot, 'sample/mod/mod.js'), 'utf8'), 'old source')
+      assert.equal(readFileSync(join(originalRoot, 'sample/README.md'), 'utf8'), 'gallery-specific instructions')
+      assert.equal(existsSync(join(outside, 'missing')), false)
+      assert.equal(existsSync(join(outside, 'image.png')), false)
+    })
+  }
+}
 
 test('CLI runs outside its package and reports drift, synchronization and invalid flags', (t) => {
   const options = fixture(t)

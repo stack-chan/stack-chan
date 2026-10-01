@@ -1,5 +1,5 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const galleryRoot = fileURLToPath(new URL('./samples/', import.meta.url))
@@ -17,6 +17,24 @@ function packagePath(root, path) {
   return resolve(root, path)
 }
 
+/** Reject links from the output root through a lexically validated destination. */
+function validateDestination(root, destination) {
+  let current = resolve(root)
+  const parts = relative(current, destination).split(sep)
+  for (let index = 0; index <= parts.length; index++) {
+    if (index) current = resolve(current, parts[index - 1])
+    let entry
+    try {
+      entry = lstatSync(current)
+    } catch (error) {
+      // A missing directory has no existing descendants to inspect.
+      if (error.code === 'ENOENT') return
+      throw error
+    }
+    if (entry.isSymbolicLink()) throw new Error(`Symlinked sample destination: ${current}`)
+  }
+}
+
 // Read every source before writing anything: a missing input must not leave a
 // partially synchronized gallery. Only explicitly mapped files are owned here.
 export function syncSamples({
@@ -29,6 +47,7 @@ export function syncSamples({
   const copies = mappings.flatMap(({ source, target, files }) =>
     files.map((file) => {
       const destination = packagePath(outputRoot, `${target}/${file}`)
+      validateDestination(outputRoot, destination)
       if (targets.has(destination)) throw new Error(`Duplicate sample destination: ${destination}`)
       targets.add(destination)
       return {

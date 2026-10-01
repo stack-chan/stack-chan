@@ -25,6 +25,13 @@ gallery unchanged. Writes are not transactional: a write-time error, such as a
 full disk, can still leave a partially updated gallery. Fix the error and rerun
 synchronization in that case.
 
+The output root, mapped destination files, and their directories beneath the
+output root must not be symbolic links, even to another gallery file. Both check
+and sync modes reject these links before reading destinations or writing files;
+unmapped content is left alone. Run the command in a trusted workspace without
+concurrent filesystem changes. These preflight checks do not provide isolation
+against another process replacing paths while synchronization is running.
+
 This is an incremental step toward issue #689. Generated copies remain tracked
 and keep their existing package-relative URLs. Gallery definitions, gallery-only
 instructions and prebuilt XSA archives remain separately maintained. Synchronizing

@@ -1,0 +1,42 @@
+[
+  {
+    "source": "mediapipe_ble",
+    "target": "mediapipe-ble/mod",
+    "files": ["manifest.json", "mod.js", "tracking-message.js", "tracking-receiver.js"]
+  },
+  {
+    "source": "mcp",
+    "target": "mcp/mod",
+    "files": ["manifest.json", "mod.js"]
+  },
+  {
+    "source": "codex_voice",
+    "target": "codex-voice/mod",
+    "files": ["manifest.json", "mod.js"]
+  },
+  {
+    "source": "stackchan_minigames",
+    "target": "stackchan-minigames/miniapp",
+    "files": [
+      "manifest.json",
+      "miniapp.ts",
+      "README.md",
+      "README_ja.md",
+      "LICENSE.mouse-follower",
+      "assets/stack-chan.png",
+      "assets/player-left.png",
+      "assets/player-center.png",
+      "assets/player-right.png",
+      "assets/screw.png",
+      "assets/m5stack.png",
+      "assets/bubble.png",
+      "assets/bomb.png",
+      "assets/miss.png"
+    ]
+  },
+  {
+    "source": "mini_app_ui_sample",
+    "target": "ui-playground/miniapp",
+    "files": ["manifest.json", "miniapp.ts"]
+  }
+]

@@ -629,7 +629,7 @@ const SettingsPasswordView = {
     const data: {
       context: SettingsViewContext
       password?: string
-      FIELD?: { visible?: boolean }
+      FIELD?: { visible?: boolean; delegate: (method: string, ...args: unknown[]) => void }
       KEYBOARD?: { add: (content: unknown) => void; length: number; first?: unknown }
     } = { context }
 
@@ -651,6 +651,11 @@ const SettingsPasswordView = {
               title: localize('settings.passwordTitle'),
               leading: 'back',
               onLeading: () => context.actions.navigate(SettingsViewId.WIFI),
+              trailing: 'check',
+              // キーボードのOKキーは展開中のEnterを握りつぶすため、その状態では確定できない
+              // (Moddableのexpanding-keyboardのonKeyUp)。フィールドに直接Enterを渡して、
+              // onKeyboardOK以降の本来の確定フローにそのまま乗せる。
+              onTrailing: () => data.FIELD?.delegate('onKeyUp', '\r'),
             }),
             new Label(null, {
               left: 12,

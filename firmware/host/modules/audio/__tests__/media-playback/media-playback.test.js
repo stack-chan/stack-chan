@@ -1,9 +1,11 @@
+import 'podcast-rss-tests'
 import { outputs } from 'embedded:io/audio/out'
 import Core from 'buffered-mp3streamer-core'
 import MediaHttpStream from 'media-http'
 import MediaPlayer from 'media-player'
 import { PodcastController } from 'podcast-controller'
 import { loadFeed } from 'podcast-feed'
+import { loadFeed as loadWorkerFeed } from 'podcast-feed-proxy'
 import Client, { clients } from 'test-http'
 import { assert, equal } from 'testing/assert'
 import Timer from 'timer'
@@ -496,16 +498,65 @@ async function runTests() {
     equal(player.state, 'idle')
     assert(!states.includes('ended'), 'stopped drain cannot end a session')
   }
+  // Worker lifetime: release on success, failure, cancellation and missing reply.
+  {
+    let instance
+    class RSSWorker {
+      constructor() {
+        instance = this
+        this.terminations = 0
+      }
+      postMessage(message) {
+        this.message = message
+      }
+      terminate() {
+        this.terminations++
+      }
+    }
+    const success = loadWorkerFeed('https://example.test/rss', RSSWorker)
+    equal(instance.message.url, 'https://example.test/rss')
+    const result = { title: 'show', episodes: [] }
+    instance.onmessage({ result })
+    equal(await success.promise, result)
+    equal(instance.terminations, 1)
+    success.cancel()
+    equal(instance.terminations, 1)
+    for (const mode of ['error', 'cancel', 'timeout']) {
+      const request = loadWorkerFeed('https://example.test/rss', RSSWorker)
+      const rejected = request.promise.then(
+        () => false,
+        () => true,
+      )
+      if (mode === 'error') instance.onmessage({ error: 'bad XML' })
+      else if (mode === 'cancel') request.cancel()
+      else Timer.advance(35_000)
+      assert(await rejected)
+      equal(instance.terminations, 1)
+      instance.onmessage({ result })
+      equal(instance.terminations, 1, 'late reply cannot resurrect a settled request')
+    }
+  }
   // RSS retrieval resolves bounded complete items and rejects explicit cancellation.
   {
     const feed = loadFeed('https://example.test/rss')
     tick()
     const xml = ArrayBuffer.fromString(
-      '<rss version="2.0"><channel><title>Podcast</title><item><title>one</title><guid>one</guid><enclosure type="audio/mpeg" url="/one.mp3"/></item></channel></rss>',
+      '<rss version="2.0"><channel><title>Podcast</title><description>' +
+        'x'.repeat(9000) +
+        '</description><item><title>one</title><guid>one</guid><enclosure type="audio/mpeg" url="/one.mp3"/></item></channel></rss>',
     )
     lastClient().headers(200, { 'content-length': String(xml.byteLength) })
-    lastClient().data(new Uint8Array(xml))
-    lastClient().done()
+    const rssClient = lastClient()
+    rssClient.data(new Uint8Array(xml))
+    equal(rssClient.offset, 0, 'network callback yields before parsing RSS')
+    Timer.advance(10)
+    assert(rssClient.offset > 0 && rssClient.offset < xml.byteLength, 'parsing yields with buffered bytes remaining')
+    let uiTicks = 0
+    const uiTimer = Timer.repeat(() => uiTicks++, 10)
+    while (rssClient.offset < xml.byteLength) Timer.advance(10)
+    Timer.clear(uiTimer)
+    assert(uiTicks > 0, 'UI timers run between RSS parsing turns')
+    rssClient.done()
     const result = await feed.promise
     equal(result.episodes[0].url, 'https://example.test/one.mp3')
     const cancel = loadFeed('https://example.test/rss')
@@ -513,7 +564,13 @@ async function runTests() {
       () => false,
       () => true,
     )
+    tick()
+    const cancelledClient = lastClient()
+    cancelledClient.headers(200, { 'content-length': String(xml.byteLength) })
+    cancelledClient.data(new Uint8Array(xml))
     cancel.cancel()
+    Timer.advance(100)
+    equal(cancelledClient.offset, 0, 'cancellation removes deferred RSS work')
     assert(await rejected)
   }
   // Mini app actions exercise the MOD controller, including late responses and TTS stop.

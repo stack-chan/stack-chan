@@ -4,6 +4,13 @@ export class PodcastController {
   #feeds
   #loadFeed
   #effects
+  #loadArtwork
+  #artRequest
+  #artGeneration = 0
+  #feedArtwork
+  #artURL
+  #artwork
+  #artState = 'empty'
   #request
   #generation = 0
   #playGeneration = 0
@@ -12,9 +19,11 @@ export class PodcastController {
   #episodes = []
   #closed = false
   #listeners = new Set()
-  #status = '停止中'
+  #status = 'podcast.idle'
   #state = 'idle'
   #loading = false
+  #feedError
+  #playbackError
   #progress = { position: 0, duration: undefined, estimated: false, seekable: false }
 
   get snapshot() {
@@ -23,10 +32,15 @@ export class PodcastController {
       episodes: this.#episodes,
       feedIndex: this.#feedIndex,
       episodeIndex: this.#episodeIndex,
-      status: this.#status,
+      status: this.#context.i18n?.localize(this.#status) ?? this.#status,
       state: this.#state,
       loading: this.#loading,
+      feedError: this.#feedError,
+      playbackError: this.#playbackError,
+      artEnabled: !!this.#loadArtwork,
       progress: this.#progress,
+      artwork: this.#artwork,
+      artState: this.#artState,
     }
   }
 
@@ -57,24 +71,66 @@ export class PodcastController {
     if (this.#closed || !Number.isInteger(index) || !this.#episodes[index]) return
     this.stop()
     this.#episodeIndex = index
-    this.#notice('再生を押してください')
+    this.#notice('podcast.pressPlay')
+    void this.#selectArtwork()
   }
 
-  constructor(context, feeds, loadFeed, effects) {
+  constructor(context, feeds, loadFeed, effects, loadArtwork) {
     this.#context = context
     this.#feeds = feeds
     this.#loadFeed = loadFeed
     this.#effects = effects
+    this.#loadArtwork = loadArtwork
+  }
+
+  #clearArtwork() {
+    this.#artGeneration++
+    this.#artRequest?.cancel()
+    this.#artRequest = this.#artwork = this.#artURL = undefined
+    this.#artState = 'empty'
+  }
+
+  async #selectArtwork() {
+    const candidates = [...new Set([this.#episodes[this.#episodeIndex]?.artwork, this.#feedArtwork].filter(Boolean))]
+    if (this.#artURL === candidates[0] && (this.#artState === 'loading' || this.#artState === 'ready')) return
+    this.#clearArtwork()
+    if (!this.#loadArtwork || !candidates.length || this.#closed) {
+      this.#render()
+      return
+    }
+    const generation = this.#artGeneration
+    this.#artURL = candidates[0]
+    this.#artState = 'loading'
+    this.#render()
+    for (const url of candidates) {
+      try {
+        this.#artRequest = this.#loadArtwork(url)
+        const artwork = await this.#artRequest.promise
+        if (this.#closed || generation !== this.#artGeneration) return
+        this.#artwork = artwork
+        this.#artState = 'ready'
+        this.#artRequest = undefined
+        this.#render()
+        return
+      } catch {
+        if (this.#closed || generation !== this.#artGeneration) return
+      }
+    }
+    this.#artRequest = undefined
+    this.#artState = 'unavailable'
+    this.#render()
   }
 
   async start() {
     const context = this.#context
     if (!context.audio.media) {
-      this.#notice('Podcastには対応ホストへの更新が必要です。')
+      this.#feedError = 'podcast.hostRequired'
+      this.#render()
       return
     }
     if (!this.#feeds.length) {
-      this.#notice('config.tsのfeedsに番組名とRSS URLを登録してください。')
+      this.#feedError = 'podcast.noFeeds'
+      this.#render()
       return
     }
     this.#render()
@@ -82,7 +138,8 @@ export class PodcastController {
     const ready = await context.connectivity.network?.ready
     if (this.#closed || generation !== this.#generation) return
     if (ready?.status !== 'connected') {
-      this.#notice('Wi-Fiに接続してください。')
+      this.#feedError = 'podcast.networkRequired'
+      this.#render()
       return
     }
     await this.refresh()
@@ -106,44 +163,47 @@ export class PodcastController {
     this.#restore()
     this.#loading = false
     this.#state = 'idle'
+    this.#playbackError = undefined
     this.#progress = { position: 0, duration: undefined, estimated: false, seekable: false }
-    this.#notice('停止中')
+    this.#notice('podcast.idle')
   }
 
   close() {
     this.#closed = true
+    this.#clearArtwork()
     this.stop()
     this.#listeners.clear()
   }
 
   async refresh() {
     if (this.#closed || !this.#feeds.length || !this.#context.audio.media) return
+    this.#clearArtwork()
+    this.#feedArtwork = undefined
+    this.#feedError = undefined
     const identity = this.#episodes[this.#episodeIndex]?.identity
     this.stop()
     const generation = this.#generation
     this.#indicator(true)
     this.#loading = true
-    this.#notice('エピソードを取得中…')
+    this.#render()
     try {
       const request = this.#loadFeed(this.#feeds[this.#feedIndex].url)
       this.#request = request
       const result = await request.promise
       if (this.#closed || generation !== this.#generation) return
       this.#request = undefined
+      this.#feedArtwork = result.artwork
       this.#episodes = result.episodes
       this.#episodeIndex = Math.max(
         0,
         this.#episodes.findIndex((episode) => episode.identity === identity),
       )
+      void this.#selectArtwork()
       this.#render()
-      this.#notice(
-        !this.#episodes.length
-          ? '再生できるMP3エピソードがありません。'
-          : `${result.title || this.#feeds[this.#feedIndex].title}${result.limited ? '\n一覧は取得上限まで表示しています。' : ''}`,
-      )
     } catch (error) {
       if (generation !== this.#generation || this.#closed) return
       this.#request = undefined
+      this.#feedError = 'podcast.feedFailed'
       this.#notice(`RSS error: ${String(error)}`)
     } finally {
       if (generation === this.#generation) {
@@ -160,27 +220,35 @@ export class PodcastController {
 
   async seek(seconds) {
     const generation = this.#playGeneration
+    this.#playbackError = undefined
     try {
       await this.#context.audio.media.seek(seconds)
     } catch (error) {
-      if (generation === this.#playGeneration) this.#notice(`Seek error: ${String(error)}`)
+      if (generation === this.#playGeneration) {
+        this.#playbackError = 'podcast.seekFailed'
+        this.#notice(`Seek error: ${String(error)}`)
+      }
     }
   }
 
   async play() {
     if (this.#state === 'paused') {
       const generation = this.#playGeneration
+      this.#playbackError = undefined
       try {
         await this.#context.audio.media.resume()
       } catch (error) {
-        if (generation === this.#playGeneration) this.#notice(`Podcast error: ${String(error)}`)
+        if (generation === this.#playGeneration) {
+          this.#playbackError = 'podcast.resumeFailed'
+          this.#notice(`Podcast error: ${String(error)}`)
+        }
       }
       return
     }
     if (this.#closed) return
     const episode = this.#episodes[this.#episodeIndex]
     if (!episode) {
-      this.#notice('エピソードを選択してください。')
+      this.#notice('podcast.chooseEpisode')
       return
     }
     this.stop()
@@ -203,14 +271,14 @@ export class PodcastController {
           if (generation !== this.#playGeneration || this.#closed) return
           this.#state = state
           const labels = {
-            connecting: '接続中…',
-            buffering: '読み込み中…',
-            playing: '再生中',
-            stalled: '待機中…',
-            idle: '停止中',
-            paused: '一時停止',
-            ended: '再生終了',
-            error: '再生エラー',
+            connecting: 'podcast.connecting',
+            buffering: 'podcast.buffering',
+            playing: 'podcast.playing',
+            stalled: 'podcast.stalled',
+            idle: 'podcast.idle',
+            paused: 'podcast.paused',
+            ended: 'podcast.ended',
+            error: 'podcast.playFailed',
           }
           this.#notice(labels[state] ?? state)
           this.#indicator(state === 'connecting' || state === 'buffering' || state === 'stalled')
@@ -221,7 +289,7 @@ export class PodcastController {
           }
           this.#effects.hide()
           if (state === 'ended' || state === 'idle' || state === 'error' || state === 'paused') this.#restore()
-          if (state === 'ended') this.#notice(`再生終了\n${episode.title}`)
+          if (state === 'ended') this.#notice('podcast.ended')
           if (state === 'error') this.#notice(`Podcast error: ${reason ?? 'unknown'}`)
         },
       })

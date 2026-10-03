@@ -1,11 +1,19 @@
 import { Behavior, Container, Label, Port, Skin, Style, Text } from 'piu/MC'
+import RuntimeBitmapPort from 'runtime-bitmap-port'
 
 const background = new Skin({ fill: '#f8fafc' })
 const surface = new Skin({ fill: ['#e2e8f0', '#cbd5e1'] })
 const primary = new Skin({ fill: ['#2563eb', '#1d4ed8'] })
 const disabled = new Skin({ fill: '#edf0f4' })
-const style = new Style({ font: 'k8x12-12', color: '#0f172a', horizontal: 'left', vertical: 'middle' })
-const white = new Style({ font: 'k8x12-12', color: '#ffffff', horizontal: 'center', vertical: 'middle' })
+const playbackLabels = {
+  connecting: 'podcast.connecting',
+  buffering: 'podcast.buffering',
+  stalled: 'podcast.stalled',
+  retrying: 'podcast.retrying',
+  paused: 'podcast.paused',
+  ended: 'podcast.ended',
+  error: 'podcast.playFailed',
+}
 
 class Tap extends Behavior {
   onCreate(_content, data) {
@@ -33,7 +41,7 @@ class Tap extends Behavior {
   }
 }
 
-function button(name, text, action, bounds, enabled = true, accent = false) {
+function button(styles, name, text, action, bounds, enabled = true, accent = false) {
   return new Container(
     { action },
     {
@@ -50,7 +58,7 @@ function button(name, text, action, bounds, enabled = true, accent = false) {
           top: 4,
           bottom: 4,
           string: text,
-          style: accent && enabled ? white : style,
+          style: accent && enabled ? styles.white : styles.body,
         }),
       ],
     },
@@ -75,8 +83,8 @@ class Icon extends Behavior {
   }
 }
 
-function iconButton(name, icon, action, bounds, enabled) {
-  const result = button(name, '', action, bounds, enabled, true)
+function iconButton(styles, name, icon, action, bounds, enabled) {
+  const result = button(styles, name, '', action, bounds, enabled, true)
   result.empty()
   result.add(new Port({ icon, enabled }, { left: 0, right: 0, top: 0, bottom: 0, Behavior: Icon }))
   return result
@@ -129,8 +137,30 @@ class Seek extends Behavior {
   }
 }
 
+class Artwork extends Behavior {
+  onCreate(_port, data) {
+    this.bitmap = data.artwork
+  }
+  onDraw(port) {
+    port.fillColor('#e2e8f0', 0, 0, 64, 64)
+    if (this.bitmap) port.drawBitmap(this.bitmap, 0, 0)
+    else {
+      port.fillColor('#94a3b8', 29, 16, 5, 30)
+      port.fillColor('#94a3b8', 29, 16, 17, 5)
+      port.fillColor('#94a3b8', 19, 39, 15, 9)
+    }
+  }
+}
+
 /** Regular MOD mini app: audio stays under the host's shared media owner. */
-export function createPodcastView(controller, context) {
+export function createPodcastView(controller, context, i18n) {
+  const t = i18n.localize
+  const font = i18n.locale === 'zh-CN' ? 'PodcastCJK-12' : 'k8x12-12'
+  const style = new Style({ font, color: '#0f172a', horizontal: 'left', vertical: 'middle' })
+  const styles = {
+    body: style,
+    white: new Style({ font, color: '#ffffff', horizontal: 'center', vertical: 'middle' }),
+  }
   const root = new Container(null, {
     name: 'podcast',
     width: context.width,
@@ -142,7 +172,7 @@ export function createPodcastView(controller, context) {
     page = 0,
     closed = false
   let snapshot = controller.snapshot
-  let seek, clock
+  let seek, clock, artworkPort
   let renderKey
   const bottom = context.height - 40
   const width = context.width
@@ -152,10 +182,10 @@ export function createPodcastView(controller, context) {
     page = 0
     render()
   }
-  const add = (...args) => root.add(button(...args))
+  const add = (...args) => root.add(button(styles, ...args))
   function render() {
     if (closed) return
-    seek = clock = undefined
+    seek = clock = artworkPort = undefined
     root.empty()
     const state = snapshot
     if (screen !== 'player') {
@@ -167,7 +197,7 @@ export function createPodcastView(controller, context) {
           right: 8,
           top: 0,
           height: 32,
-          string: `${screen === 'feeds' ? '番組' : 'エピソード'}  ${items.length ? page + 1 : 0}/${Math.ceil(items.length / rows)}`,
+          string: `${t(screen === 'feeds' ? 'podcast.feeds' : 'podcast.episodes')}  ${items.length ? page + 1 : 0}/${Math.ceil(items.length / rows)}`,
           style,
         }),
       )
@@ -179,7 +209,7 @@ export function createPodcastView(controller, context) {
             top: 40,
             bottom: 44,
             style,
-            string: state.loading ? '取得中…' : '一覧がありません。戻って一覧更新してください。',
+            string: t(state.loading ? 'podcast.loading' : 'podcast.empty'),
           }),
         )
       items.slice(page * rows, (page + 1) * rows).forEach((item, offset) => {
@@ -198,10 +228,10 @@ export function createPodcastView(controller, context) {
           { left: 4, right: 4, top: 34 + offset * 38, height: 34 },
         )
       })
-      add('back', '戻る', () => switchScreen('player'), { left: 4, top: bottom, width: 92, height: 36 })
+      add('back', t('podcast.back'), () => switchScreen('player'), { left: 4, top: bottom, width: 92, height: 36 })
       add(
         'previous',
-        '前へ',
+        t('podcast.previous'),
         () => {
           page--
           render()
@@ -211,7 +241,7 @@ export function createPodcastView(controller, context) {
       )
       add(
         'next',
-        '次へ',
+        t('podcast.next'),
         () => {
           page++
           render()
@@ -221,26 +251,50 @@ export function createPodcastView(controller, context) {
       )
       return
     }
+    const contentLeft = state.artEnabled ? 80 : 8
+    const canRetry = state.feedError === 'podcast.feedFailed' && !state.loading && !!state.feeds.length
+    if (state.artEnabled) {
+      artworkPort = new RuntimeBitmapPort(state, {
+        name: 'artwork',
+        left: 8,
+        top: 8,
+        width: 64,
+        height: 64,
+        Behavior: Artwork,
+      })
+      root.add(artworkPort)
+    }
     add(
       'feed',
-      `番組: ${state.feeds[state.feedIndex]?.title ?? '未登録'}  >`,
+      t('podcast.feedField', { title: state.feeds[state.feedIndex]?.title ?? t('podcast.unregistered') }),
       () => switchScreen('feeds'),
-      { left: 4, right: 4, top: 4, height: 26 },
+      { left: contentLeft, right: 8, top: 4, height: 26 },
       state.feeds.length > 0,
     )
     add(
       'episode',
-      `エピソード: ${state.episodes[state.episodeIndex]?.title ?? '未選択'}  >`,
+      t('podcast.episodeField', {
+        title: state.loading
+          ? t('podcast.loading')
+          : state.feedError
+            ? t(state.feedError)
+            : `${state.episodes[state.episodeIndex]?.title ?? t('podcast.empty')}${state.episodes.length ? '  >' : ''}`,
+      }),
       () => switchScreen('episodes'),
-      { left: 4, right: 4, top: 34, height: 40 },
+      { left: contentLeft, right: canRetry ? 68 : 8, top: 34, height: 64 },
+      !state.loading && !!state.episodes.length,
     )
-    root.add(new Text(null, { name: 'status', left: 8, right: 8, top: 78, height: 24, string: state.status, style }))
+
     clock = new Label(null, { name: 'time', left: 8, right: 8, top: bottom - 22, height: 18, style })
     seek = new Port(
       {
         commit: (seconds) => controller.seek(seconds),
         preview: (seconds) => {
-          clock.string = `${time(seconds)} / ${state.progress.estimated ? '約' : ''}${state.progress.duration ? time(state.progress.duration) : '--:--'}`
+          const labelKey = state.playbackError || playbackLabels[state.state]
+          const label = labelKey && t(labelKey)
+          const duration = state.progress.duration ? time(state.progress.duration) : '--:--'
+          const position = `${time(seconds)} / ${state.progress.estimated ? t('podcast.approximate', { duration }) : duration}`
+          clock.string = label ? `${label}  ${position}` : position
         },
       },
       { name: 'seek', left: 4, right: 4, top: bottom - 54, height: 32, Behavior: Seek },
@@ -249,37 +303,37 @@ export function createPodcastView(controller, context) {
     root.add(clock)
     seek.behavior.update(seek, state.progress)
     const active = ['connecting', 'buffering', 'playing', 'stalled', 'retrying'].includes(state.state)
-    const third = Math.floor(width / 3)
+    const half = Math.floor(width / 2)
     root.add(
       iconButton(
+        styles,
         'play',
         active ? 'pause' : 'play',
         () => {
           if (active) controller.pause()
           else void controller.play()
         },
-        { left: 4, width: third - 8, top: bottom, height: 36 },
+        { left: 8, width: half - 12, top: bottom, height: 36 },
         !!state.episodes.length && !state.loading,
       ),
     )
     root.add(
       iconButton(
+        styles,
         'stop',
         'stop',
         () => controller.stop(),
-        { left: third + 4, width: third - 8, top: bottom, height: 36 },
-        state.state !== 'idle' || state.loading,
+        { left: half + 4, right: 8, top: bottom, height: 36 },
+        state.state !== 'idle',
       ),
     )
-    add(
-      'refresh',
-      '一覧更新',
-      () => {
-        void controller.refresh()
-      },
-      { left: 2 * third + 4, right: 4, top: bottom, height: 36 },
-      !!state.feeds.length && !state.loading,
-    )
+    if (canRetry)
+      add('refresh', t('podcast.refresh'), () => void controller.refresh(), {
+        right: 8,
+        width: 52,
+        top: 34,
+        height: 64,
+      })
   }
   const unsubscribe = controller.subscribe((state) => {
     const key = [
@@ -288,7 +342,9 @@ export function createPodcastView(controller, context) {
       state.feedIndex,
       state.episodeIndex,
       state.state,
-      state.status,
+      state.feedError,
+      state.playbackError,
+      state.artEnabled,
       state.loading,
       state.progress.duration,
       state.progress.estimated,
@@ -298,7 +354,14 @@ export function createPodcastView(controller, context) {
     renderKey = key
     snapshot = state
     if (changed) render()
-    else if (seek) seek.behavior.update(seek, state.progress)
+    else {
+      if (seek) seek.behavior.update(seek, state.progress)
+      if (artworkPort && artworkPort.behavior.bitmap !== state.artwork) {
+        artworkPort.clearBitmap()
+        artworkPort.behavior.bitmap = state.artwork
+        artworkPort.invalidate()
+      }
+    }
   })
   return {
     content: root,

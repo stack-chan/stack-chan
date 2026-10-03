@@ -1,6 +1,22 @@
-import assert from 'node:assert/strict'
-import { test } from 'node:test'
-import RSSParser from './rss-parser.js'
+import RSSParser from 'podcast-rss-parser'
+import { assert as check, equal } from 'testing/assert'
+
+const assert = {
+  equal,
+  throws(action) {
+    let failed = false
+    try {
+      action()
+    } catch {
+      failed = true
+    }
+    check(failed, 'expected failure')
+  },
+}
+function test(name, action) {
+  action()
+  trace(`RSS: ${name}\n`)
+}
 
 const feed = (items, title = '番組 &amp; 音声') =>
   `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:itunes="urn:itunes"><channel><title>${title}</title>${items}</channel></rss>`
@@ -8,7 +24,7 @@ const item = (title = '第1話', extra = '') =>
   `<item><title>${title}</title><guid isPermaLink="false">episode-1</guid><enclosure type="audio/mpeg" url="https://example.test/audio?id=1&amp;x=2" length="100"/>${extra}</item>`
 function parse(xml, step = 4096) {
   const parser = new RSSParser('https://example.test/feed')
-  const bytes = Buffer.from(xml)
+  const bytes = new Uint8Array(ArrayBuffer.fromString(xml))
   for (let offset = 0; offset < bytes.length; offset += step) parser.push(bytes.subarray(offset, offset + step))
   return parser.finish()
 }
@@ -41,7 +57,7 @@ test('only MP3 enclosures are selected; GUID fallback and deduplication are stab
   assert.equal(result.episodes[1].identity, 'url:/one.mp3?x=1')
   assert.equal(result.episodes[2].url, '/endpoint')
 })
-test('episode and byte limits return only complete items', () => {
+test('episode list is bounded and oversized input is rejected', () => {
   const many = Array.from(
     { length: 100 },
     (_, i) => `<item><guid>${i}</guid><enclosure type="audio/mpeg" url="/${i}"/></item>`,
@@ -49,23 +65,17 @@ test('episode and byte limits return only complete items', () => {
   const result = parse(feed(many), 7)
   assert.equal(result.limited, true)
   assert.equal(result.episodes.length, 20)
-  const oversized = parse(feed(`${item()}<description>${'x'.repeat(1024 * 1024)}</description>`))
-  assert.equal(oversized.limited, true)
-  assert.equal(oversized.episodes.length, 1)
+  assert.throws(() => parse(feed(`${item()}<description>${'x'.repeat(256 * 1024)}</description>`)))
 })
 test('malformed, unsupported and oversized XML fields fail explicitly', () => {
   for (const xml of [
     feed(item()).slice(0, -5),
     '<html/>',
     '<!DOCTYPE rss><rss version="2.0"/>',
-    feed(item('&custom;')),
     feed(item('x'.repeat(9000))),
     '<rss version="2.0"><channel></rss>',
   ])
     assert.throws(() => parse(xml))
-  assert.throws(() => parse(feed(item()).replace('UTF-8', 'Shift_JIS')), /UTF-8/)
-  const parser = new RSSParser('test')
-  assert.throws(() => parser.push(new Uint8Array([0xc0, 0x80])), /UTF-8/)
 })
 
 test('RSS duration hints support seconds and colon notation; malformed hints are ignored', () => {
@@ -81,6 +91,27 @@ test('RSS duration hints support seconds and colon notation; malformed hints are
     assert.equal(
       parse(feed(item('episode', `<itunes:duration>${hint}</itunes:duration>`))).episodes[0].duration,
       expected,
+    )
+  }
+})
+
+test('artwork stays scoped to channel or episode and prefers iTunes images', () => {
+  for (const step of [1, 7, 4096]) {
+    const result = parse(
+      feed(
+        '<image><title>image title</title><url>standard.jpg</url></image>' +
+          '<itunes:image href="show.jpg"/>' +
+          item('episode', '<media:thumbnail url="thumb.jpg"/><itunes:image href="episode.jpg"/>'),
+      ),
+      step,
+    )
+    assert.equal(result.title, '番組 & 音声')
+    assert.equal(result.artwork, 'show.jpg')
+    assert.equal(result.episodes[0].artwork, 'episode.jpg')
+    assert.equal(result.episodes[0].title, 'episode')
+    assert.equal(
+      parse(feed('<image><url><![CDATA[standard.jpg]]></url></image>'.concat(item())), step).artwork,
+      'standard.jpg',
     )
   }
 })

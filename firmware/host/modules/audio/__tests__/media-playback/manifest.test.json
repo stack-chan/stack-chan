@@ -3,7 +3,8 @@
     "$(MODDABLE)/examples/manifest_base.json",
     "$(MODDABLE)/examples/manifest_typings.json",
     "$(MODDABLE)/modules/data/url/manifest.json",
-    "../../../../app/manifest_typings.json"
+    "../../../../app/manifest_typings.json",
+    "$(MODDABLE)/modules/data/xml/manifest.json"
   ],
   "modules": {
     "main": "./main",
@@ -26,9 +27,11 @@
     "web-radio-stream-worker": "../../platforms/m5stackchan-cores3/web-radio-stream-worker",
     "pcm-resampler": "../../platforms/m5stackchan-cores3/pcm-resampler",
     "podcast-controller": "../../../../../mods/examples/podcast/controller",
-    "podcast-feed": "../../../../../mods/examples/podcast/feed",
+    "podcast-feed": "../../../../../mods/examples/podcast/feed-core",
     "podcast-rss-parser": "../../../../../mods/examples/podcast/rss-parser",
-    "testing/assert": "../../../testing/assert"
+    "testing/assert": "../../../testing/assert",
+    "podcast-rss-tests": "../../../../../mods/examples/podcast/__tests__/rss-native.test",
+    "podcast-feed-proxy": "../../../../../mods/examples/podcast/feed"
   },
   "defines": {
     "main": {

@@ -1,61 +1,44 @@
-import MediaHttpStream, { mediaURL } from 'media-http'
-import RSSParser from 'podcast-rss-parser'
 import Timer from 'timer'
+import Worker from 'worker'
 
-/** Cancellation rejects the pending promise; callers use a generation to ignore it. */
-export function loadFeed(url) {
-  let request,
-    timer,
-    settled = false,
-    rejectPromise
-  const parser = new RSSParser(mediaURL(url).href)
+/** Keep TLS, input buffering and the XML tree outside the UI machine. */
+export function loadFeed(url, WorkerType = Worker) {
+  let worker, timer, finish
+  let settled = false
   const promise = new Promise((resolve, reject) => {
-    rejectPromise = reject
-    const finish = (error) => {
+    finish = (error, result) => {
       if (settled) return
       settled = true
       if (timer !== undefined) Timer.clear(timer)
-      request?.close()
-      if (error) {
-        reject(error)
-        return
-      }
-      try {
-        const result = parser.finish()
-        result.episodes = result.episodes.flatMap((episode) => {
-          try {
-            return [{ ...episode, url: mediaURL(episode.url, request.url).href }]
-          } catch {
-            return []
-          }
-        })
-        resolve(result)
-      } catch (error) {
-        reject(error)
-      }
+      worker?.terminate()
+      worker = undefined
+      if (error) reject(error)
+      else resolve(result)
     }
-    timer = Timer.set(() => finish(new Error('RSS request timed out')), 30_000)
-    request = new MediaHttpStream({
-      url,
-      onReadable: () => {
-        while (request.readable && !settled) {
-          const bytes = new Uint8Array(Math.min(4096, request.readable))
-          request.read(bytes)
-          parser.push(bytes)
-          if (parser.limited) finish()
-        }
-      },
-      onDone: finish,
-    })
+    try {
+      worker = new WorkerType('podcast-feed-worker', {
+        static: 2 * 1024 * 1024,
+        chunk: { initial: 512 * 1024, incremental: 64 * 1024 },
+        heap: { initial: 8192, incremental: 1024 },
+        stack: 1024,
+        nativeStack: 12 * 1024,
+        core: 1,
+        priority: 1,
+      })
+      worker.onmessage = (message) => {
+        if (message.error) finish(new Error(message.error))
+        else finish(undefined, message.result)
+      }
+      timer = Timer.set(() => finish(new Error('RSS worker timed out')), 35_000)
+      worker.postMessage({ url })
+    } catch (error) {
+      finish(error)
+    }
   })
   return {
     promise,
     cancel() {
-      if (settled) return
-      settled = true
-      if (timer !== undefined) Timer.clear(timer)
-      request?.close()
-      rejectPromise(new Error('RSS request cancelled'))
+      finish(new Error('RSS request cancelled'))
     },
   }
 }

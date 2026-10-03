@@ -1,4 +1,10 @@
 {
+  "splash.failed": "启动失败",
+  "splash.phase.behavior": "启动默认行为",
+  "splash.phase.context": "初始化机器人",
+  "splash.phase.initialization": "初始化系统",
+  "splash.phase.launch": "启动应用",
+  "splash.phase.network": "连接网络",
   "status.notConnected": "未连接",
   "status.connected": "已连接",
   "status.connecting": "正在连接",

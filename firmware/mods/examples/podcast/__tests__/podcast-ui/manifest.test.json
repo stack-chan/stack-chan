@@ -1,0 +1,32 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "../../../../../host/modules/testing/manifest.json"
+  ],
+  "modules": {
+    "main": "./podcast-ui.test",
+    "podcast-view": "../../view",
+    "runtime-bitmap-port": "../../../../../host/modules/ui/views/camera-preview/runtime-bitmap-port",
+    "podcast-test-i18n": "./test-i18n",
+    "localization-core": "../../../../../host/modules/ui/localization-core"
+  },
+  "resources": {
+    "*-alpha": [
+      {
+        "source": "../../../../../host/modules/ui/assets/fonts/k8x12",
+        "size": 12,
+        "characterFiles": "../../../../../host/modules/ui/assets/fonts/k8x12-chars.txt",
+        "monochrome": true
+      },
+      {
+        "source": "../../assets/PodcastCJK-Regular",
+        "name": "PodcastCJK",
+        "size": 12,
+        "monochrome": true,
+        "characterFiles": "../../assets/PodcastCJK-chars.txt"
+      }
+    ],
+    "*": ["../../strings/*"]
+  }
+}

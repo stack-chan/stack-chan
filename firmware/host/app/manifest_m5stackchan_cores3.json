@@ -2,11 +2,18 @@
   "include": [
     "./manifest.json",
     "./docks/android-usb-audio/manifest.json",
-    "../modules/usb-audio/manifest.json"
+    "../modules/usb-audio/manifest.json",
+    "$(MODDABLE)/modules/data/xml/manifest.json"
   ],
   "modules": {
     "mod-installer": "./mod-installer",
-    "mod-manager": "./mod-manager"
+    "mod-manager": "./mod-manager",
+    "podcast-jpeg-thumbnail": "../modules/image/jpeg-thumbnail",
+    "*": [
+      "$(IDF_PATH)/components/esp_http_client/include/esp_http_client.h",
+      "$(IDF_PATH)/components/mbedtls/esp_crt_bundle/include/esp_crt_bundle.h",
+      "$(IDF_PATH)/components/esp_security/include/esp_key_config.h"
+    ]
   },
   "config": {
     "enablePowerButton": true,
@@ -14,5 +21,20 @@
       "enabled": false,
       "autoStart": false
     }
+  },
+  "dependencies": [
+    {
+      "name": "esp_http_client",
+      "idf": "esp_http_client"
+    },
+    {
+      "name": "mbedtls",
+      "idf": "mbedtls"
+    }
+  ],
+  "esp32Config": {
+    "CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS": "y",
+    "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE": "y",
+    "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL": "y"
   }
 }

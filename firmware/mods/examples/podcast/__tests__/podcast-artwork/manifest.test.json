@@ -1,0 +1,46 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_commodetto.json",
+    "$(MODDABLE)/modules/data/url/manifest.json",
+    "$(MODDABLE)/modules/base/worker/manifest.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "art-tests": "./artwork.test",
+    "podcast-artwork": "../../artwork",
+    "podcast-artwork-ring": "../../artwork-ring",
+    "podcast-artwork-decode-worker": "../../artwork-decode-worker",
+    "podcast-jpeg-thumbnail": "../../../../../host/modules/image/jpeg-thumbnail",
+    "*": ["./tjpgd/tjpgd.c"],
+    "media-http": "../../../../../host/modules/audio/media-http",
+    "testing/assert": "../../../../../host/modules/testing/assert",
+    "commodetto/BufferOut": "$(MODDABLE)/modules/commodetto/commodettoBufferOut",
+    "commodetto/Poco": "$(MODDABLE)/modules/commodetto/commodettoPoco"
+  },
+  "data": {
+    "*": ["./fixture.jpg"]
+  },
+  "defines": {
+    "main": {
+      "async": 1
+    }
+  },
+  "build": {
+    "ART_TEST_TJPG_DIR": "./tjpgd",
+    "C_INCLUDES": "-I$(ART_TEST_TJPG_DIR)"
+  },
+  "creation": {
+    "static": 262144,
+    "chunk": {
+      "initial": 65536,
+      "incremental": 16384
+    },
+    "heap": {
+      "initial": 4096,
+      "incremental": 256
+    },
+    "stack": 1024
+  }
+}

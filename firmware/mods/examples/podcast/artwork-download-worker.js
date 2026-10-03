@@ -1,4 +1,4 @@
-import { mediaURL } from 'media-http'
+import { mediaRedirectURL } from 'media-http'
 import { downloadArtwork, prepareWorker } from 'podcast-jpeg-thumbnail'
 
 prepareWorker()
@@ -13,7 +13,7 @@ self.onmessage = ({ url, data, state }) => {
         return
       }
       if (redirects === 5) throw new Error('Too many artwork redirects')
-      url = mediaURL(result.redirect, url).href
+      url = mediaRedirectURL(result.redirect, url).href
     }
   } catch (error) {
     Atomics.store(new Int32Array(state), 3, 1)

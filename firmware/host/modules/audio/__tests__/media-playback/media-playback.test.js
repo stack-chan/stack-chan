@@ -1,7 +1,7 @@
 import 'podcast-rss-tests'
 import { outputs } from 'embedded:io/audio/out'
 import Core from 'buffered-mp3streamer-core'
-import MediaHttpStream from 'media-http'
+import MediaHttpStream, { mediaRedirectURL } from 'media-http'
 import MediaPlayer from 'media-player'
 import { PodcastController } from 'podcast-controller'
 import { loadFeed } from 'podcast-feed'
@@ -78,6 +78,26 @@ async function runTests() {
   equal(error, undefined)
   lastClient().done()
   equal(done, 1)
+
+  // HTTPS remains authenticated across every redirect; direct HTTP is still supported.
+  equal(mediaRedirectURL('../art.jpg', 'https://example.test/show/episode').href, 'https://example.test/art.jpg')
+  throws(() => mediaRedirectURL('http://cdn.test/art.jpg', 'https://example.test/'), 'reject artwork downgrade')
+  request = new MediaHttpStream({
+    url: 'http://example.test/start',
+    onDone: (reason) => {
+      error = reason
+    },
+  })
+  tick()
+  lastClient().headers(302, { location: 'https://cdn.test/secure' })
+  tick()
+  const secure = lastClient()
+  const secureCount = clients.length
+  secure.headers(302, { location: 'http://example.test/insecure' })
+  tick()
+  assert(error, 'HTTPS-to-HTTP redirect fails')
+  equal(clients.length, secureCount, 'downgrade must not open an HTTP connection')
+  assert(secure.closed)
 
   for (const mode of ['length', 'unframed', 'http', 'encoding', 'redirect', 'timeout', 'cancel']) {
     error = undefined
@@ -407,6 +427,8 @@ async function runTests() {
     await player.start({ url: 'https://example.test/audio', mode: 'finite', duration: 100 })
     tick()
     let worker = workers.at(-1)
+    lastClient().headers(302, { location: 'https://cdn.test/signed-old' })
+    tick()
     lastClient().headers(200, { 'content-length': '100000', etag: '"episode"' })
     worker.send({ id: 'checkpoint', value: { offset: 1000, seconds: 10 } })
     worker.send({ id: 'position', seconds: 12 })
@@ -430,6 +452,11 @@ async function runTests() {
     tick()
     worker = workers.at(-1)
     equal(worker.messages[0].seekSeconds, 30)
+    equal(lastClient().options.host, 'example.test', 'resume starts from the original enclosure URL')
+    equal(lastClient().callbacks.path, '/audio')
+    lastClient().headers(302, { location: 'https://cdn.test/signed-new' })
+    tick()
+    equal(lastClient().callbacks.path, '/signed-new', 'resume obtains a fresh signed CDN URL')
     equal(lastClient().callbacks.headers.get('range'), 'bytes=1000-')
     equal(lastClient().callbacks.headers.get('if-range'), '"episode"')
     lastClient().headers(206, { 'content-length': '99000', 'content-range': 'bytes 1000-99999/100000' })
@@ -437,6 +464,25 @@ async function runTests() {
     player.stop()
     worker.send({ id: 'position', seconds: 30 })
     equal(player.progress.position, 0, 'stale worker cannot update stopped progress')
+  }
+  // A live decoder failure restarts at current audio, even after a long listening session.
+  {
+    const player = new MediaPlayer()
+    await player.start({ url: 'http://example.test/live', mode: 'live' })
+    tick()
+    const worker = workers.at(-1)
+    worker.send({ id: 'ready', value: true })
+    put(new SharedByteRing(worker.messages[0].output.data, worker.messages[0].output.state), new Uint8Array(16))
+    worker.send({ id: 'output' })
+    outputs.at(-1).writable(16)
+    assert(player.progress.position > 0, 'audio was consumed before the failure')
+    worker.send({ id: 'error', reason: 'decoder failed' })
+    equal(player.state, 'retrying')
+    Timer.advance(1000)
+    const replacement = workers.at(-1)
+    assert(replacement !== worker, 'recovery opens a fresh decoder session')
+    equal(replacement.messages[0].seekSeconds, 0, 'live reconnect must not discard previously played time')
+    player.stop()
   }
   // Replacing playback from a state callback opens only the replacement session.
   {

@@ -11,6 +11,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 typedef UINT OutputResult;
+typedef UINT InputSize;
 static uint64_t now_ms(void) { return esp_timer_get_time() / 1000; }
 static void yield_decoder(void) { vTaskDelay(1); }
 #else
@@ -18,6 +19,7 @@ static void yield_decoder(void) { vTaskDelay(1); }
 #include <time.h>
 #include <unistd.h>
 typedef int OutputResult;
+typedef size_t InputSize;
 static uint64_t now_ms(void) {
 	struct timespec t;
 	clock_gettime(CLOCK_MONOTONIC, &t);
@@ -46,9 +48,9 @@ static uint32_t load_state(Thumbnail *t, int index) {
 static int cancelled(Thumbnail *t) {
 	return load_state(t, 3) || now_ms() - t->started > 90000;
 }
-static unsigned int input(JDEC *jd, uint8_t *target, unsigned int requested) {
+static InputSize input(JDEC *jd, uint8_t *target, InputSize requested) {
 	Thumbnail *t = jd->device;
-	unsigned int count = 0;
+	InputSize count = 0;
 	while (count < requested && !cancelled(t)) {
 		uint32_t read = load_state(t, 1), available = load_state(t, 0) - read;
 		if (!available) {

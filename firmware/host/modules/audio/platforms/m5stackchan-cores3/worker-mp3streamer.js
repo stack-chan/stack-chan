@@ -109,7 +109,8 @@ export default class {
     try {
       const port = options.port ? `:${options.port}` : ''
       this.#request = new MediaHttpStream({
-        url: this.#source?.url ?? `${options.protocol}://${options.host}${port}${options.path}`,
+        // Resolve redirects again: signed CDN URLs may expire while playback is paused.
+        url: `${options.protocol}://${options.host}${port}${options.path}`,
         rangeStart: this.#seek.offset,
         ifRange: this.#source?.validator,
         onHeaders: (_headers, url, info) => {

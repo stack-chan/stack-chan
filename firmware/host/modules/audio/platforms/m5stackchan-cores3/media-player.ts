@@ -192,7 +192,7 @@ export default class MediaPlayer implements MediaCapability {
         path,
         reconnect: options.reconnect,
         mode: options.mode,
-        seek: { ...point, target: this.#position },
+        seek: options.mode === 'finite' ? { ...point, target: this.#position } : { offset: 0, seconds: 0, target: 0 },
         source: this.#source,
         onSource: (source, reset) => {
           if (!this.#isCurrent(generation)) return
@@ -285,7 +285,7 @@ export default class MediaPlayer implements MediaCapability {
 
   #fail(generation: number, reason: string): void {
     if (!this.#isCurrent(generation)) return
-    this.#position = this.progress.position
+    if (this.#options?.mode === 'finite') this.#position = this.progress.position
     this.#generation += 1
     this.#clearTimers()
     this.#closeSession()

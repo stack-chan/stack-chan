@@ -11,6 +11,14 @@ export function mediaURL(value, base) {
   return url
 }
 
+/** Resolve a redirect without allowing an authenticated request to become plain HTTP. */
+export function mediaRedirectURL(value, base) {
+  const url = mediaURL(value, base)
+  if (mediaURL(base).protocol === 'https:' && url.protocol !== 'https:')
+    throw new Error('HTTPS redirects must remain HTTPS')
+  return url
+}
+
 /** A cancellable GET with bounded redirects and caller-controlled backpressure. */
 export default class MediaHttpStream {
   #options
@@ -145,7 +153,7 @@ export default class MediaHttpStream {
               const location = headers.get('location')
               if (!location) throw new Error('Redirect has no Location')
               if (++this.#redirects > 5) throw new Error('Too many redirects')
-              this.#url = mediaURL(location, this.#url.href)
+              this.#url = mediaRedirectURL(location, this.#url.href)
               this.#disconnect()
               this.#timer = Timer.set(() => {
                 this.#timer = undefined

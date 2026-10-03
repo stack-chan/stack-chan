@@ -4,12 +4,12 @@ import { DogFace, SimpleFace, SmallFace } from 'behaviors/face'
 import Camera from 'camera'
 import type {
   ConnectivityCapability,
+  MediaCapability,
   RemoteConversationSession,
   RobotLed,
   RobotUI,
   StackchanContext,
   TTS,
-  MediaCapability,
 } from 'capabilities'
 import { type BatteryLevelReader, ChatStatusBar } from 'chat-status-bar'
 import type { DrawerButtonViewSpec } from 'drawer'

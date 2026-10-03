@@ -217,6 +217,12 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     callback: (target, value) => {
       const nextEmotion = Number(value) as Emotion
       if (!emotions.includes(nextEmotion) && nextEmotion !== Emotion.NEUTRAL) return
+      if (motionDetectRestoreTimer) {
+        Timer.clear(motionDetectRestoreTimer)
+        motionDetectRestoreTimer = undefined
+      }
+      motionDetectPreviousEmotion = undefined
+      motionDetectEmotion = undefined
       let canceledPettingMotion = false
       if (pettingRestoreTimer) {
         Timer.clear(pettingRestoreTimer)

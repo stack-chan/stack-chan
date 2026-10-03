@@ -145,6 +145,23 @@ for (const base of [Emotion.NEUTRAL, Emotion.SAD, Emotion.ANGRY, Emotion.HAPPY])
   equal(robot.emotion, Emotion.SLEEPY, 'manual emotion selection should cancel overlapping reactions')
 }
 
+for (const [motion, selected] of [
+  ['fallenLeft', Emotion.ANGRY],
+  ['shake', Emotion.HOT],
+  ['upsideDown', Emotion.SAD],
+] as const) {
+  const robot = createHarness()
+  robot.motion(motion)
+  clock.advance(1000)
+  robot.selectEmotion(selected)
+  clock.advance(1000)
+  robot.pet()
+  clock.advance(5000)
+  equal(robot.emotion, selected, 'petting must preserve a manual selection matching the active motion emotion')
+  clock.advance(5000)
+  equal(robot.emotion, selected, 'expired motion timers must not overwrite the matching manual selection')
+}
+
 {
   const robot = createHarness(Emotion.SAD)
   robot.motion()

@@ -752,6 +752,6 @@ async function runTests() {
   trace('ok\n')
 }
 runTests().catch((error) => {
-  trace(`media tests failed: ${error.message}\n${error.stack}\n`)
+  trace(`unhandled exception in media tests: ${error.message}\n${error.stack}\n`)
   throw error
 })

@@ -9,8 +9,9 @@
     "../../../testing/manifest.json"
   ],
   "modules": {
+    "~": "$(MODDABLE)/modules/base/timer/timer.js",
     "main": "./media-playback.test",
-    "timer": "../../../testing/fakes/timer",
+    "timer": "./timer",
     "capabilities": "../../../testing/fakes/capabilities",
     "tts-types": "../../tts-types",
     "embedded:io/audio/out": "./driver",

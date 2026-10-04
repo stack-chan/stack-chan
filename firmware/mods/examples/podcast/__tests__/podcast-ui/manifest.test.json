@@ -20,7 +20,7 @@
         "monochrome": true
       },
       {
-        "source": "../../assets/PodcastCJK-Regular",
+        "source": "../../../../../host/modules/ui/assets/fonts/StackchanCJK-Regular",
         "name": "PodcastCJK",
         "size": 12,
         "monochrome": true,

@@ -17,7 +17,9 @@ test('Podcast catalogs agree on message keys and interpolation parameters', () =
 })
 
 test('Podcast Chinese font and bitmap character list cover catalogs and selection mark', () => {
-  const font = fontkit.openSync(new URL('./assets/PodcastCJK-Regular.ttf', import.meta.url).pathname)
+  const font = fontkit.openSync(
+    new URL('../../../host/modules/ui/assets/fonts/StackchanCJK-Regular.ttf', import.meta.url).pathname,
+  )
   const supported = new Set(font.characterSet)
   const bitmapCharacters = new Set(readFileSync(new URL('./assets/PodcastCJK-chars.txt', import.meta.url), 'utf8'))
   const required = new Set(

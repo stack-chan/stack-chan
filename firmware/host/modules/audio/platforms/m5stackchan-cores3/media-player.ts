@@ -163,9 +163,16 @@ export default class MediaPlayer implements MediaCapability {
     if (this.#stopped || !options) return
     const url = new URL(options.url)
     let point = { offset: 0, seconds: 0 }
-    for (const candidate of this.#points) {
-      if (candidate.seconds > Math.max(0, this.#position - 1)) break
-      point = candidate
+    if (this.#source?.validator) {
+      for (const candidate of this.#points) {
+        if (candidate.seconds > Math.max(0, this.#position - 1)) break
+        point = candidate
+      }
+    } else {
+      // A later response may introduce a validator for replacement content.
+      // Its checkpoints must not be mixed with positions from unverified bytes.
+      this.#points = []
+      this.#pointSpacing = 5
     }
     this.#base = this.#position
     const generation = ++this.#generation

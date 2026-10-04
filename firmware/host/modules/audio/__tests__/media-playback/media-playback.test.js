@@ -469,6 +469,36 @@ async function runTests() {
     worker.send({ id: 'position', seconds: 30 })
     equal(player.progress.position, 0, 'stale worker cannot update stopped progress')
   }
+  // Unvalidated bytes cannot anchor a later seek, including after a validator appears.
+  for (const headers of [{}, { etag: 'W/"episode"' }]) {
+    const player = new MediaPlayer()
+    await player.start({ url: 'https://example.test/audio', mode: 'finite', duration: 100 })
+    tick()
+    lastClient().headers(200, { 'content-length': '100000', ...headers })
+    workers.at(-1).send({ id: 'checkpoint', value: { offset: 1000, seconds: 10 } })
+    player.pause()
+    await player.seek(30)
+    await player.resume()
+    tick()
+    let worker = workers.at(-1)
+    equal(worker.messages[0].seekSeconds, 30, 'scan still targets the requested playback time')
+    assert(!lastClient().callbacks.headers.has('range'), 'without a validator, read from byte zero')
+    assert(!lastClient().callbacks.headers.has('if-range'))
+    lastClient().headers(200, { 'content-length': '100000', etag: '"replacement"' })
+    const source = worker.messages.find((message) => message.id === 'source')
+    equal(source.offset, 0)
+    equal(source.seconds, 0, 'replacement content has no old checkpoint time anchor')
+    worker.send({ id: 'checkpoint', value: { offset: 2000, seconds: 10 } })
+    player.pause()
+    await player.seek(30)
+    await player.resume()
+    tick()
+    worker = workers.at(-1)
+    equal(worker.messages[0].seekSeconds, 30)
+    equal(lastClient().callbacks.headers.get('range'), 'bytes=2000-', 'only the replacement checkpoint is reused')
+    equal(lastClient().callbacks.headers.get('if-range'), '"replacement"')
+    player.stop()
+  }
   // A live decoder failure restarts at current audio, even after a long listening session.
   {
     const player = new MediaPlayer()

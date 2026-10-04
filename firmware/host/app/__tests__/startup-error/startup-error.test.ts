@@ -39,9 +39,20 @@ function tap(content: PiuContent | undefined) {
 
 setLocalizationLanguage('en')
 showStartupSplash()
-// The real entry starts automatically. Allow launch/network promises to settle
-// before inspecting its attached Piu view. Each manifest is a fresh boot.
-Timer.set(run, 30)
+// Each manifest is a fresh boot through the real entry. Wait for the attached
+// view instead of racing startup promises with a fixed assertion timer.
+let startupChecks = 0
+const startupTimer = Timer.repeat(() => {
+  const state = environment.startupErrorTestState as TestState
+  const ready = screenStrings().includes(state?.replaceOnClose ? 'New screen' : 'Startup failed')
+  if (++startupChecks < 100 && !ready) return
+  Timer.clear(startupTimer)
+  // Cleanup can attach the replacement screen before main's catch resumes.
+  // Drain those continuations so the stale-screen assertion observes main too.
+  void Promise.resolve()
+    .then(() => Promise.resolve())
+    .then(run)
+}, 10)
 
 function run() {
   const state = environment.startupErrorTestState as TestState

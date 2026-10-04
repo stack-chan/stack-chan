@@ -300,7 +300,15 @@ function formatRuntimeFailure(manifestPath, result, logPath) {
   if (result.stdout) lines.push(result.stdout)
   if (result.stderr) lines.push(result.stderr)
   lines.push(`xsbug log: ${logPath}`)
-  lines.push(result.log.split('\n').slice(-40).join('\n'))
+  // Periodic instrument samples otherwise hide the exception or last test
+  // checkpoint when a simulator stalls until the runtime timeout.
+  lines.push(
+    result.log
+      .split('\n')
+      .filter((line) => line.trim() && !line.includes('<samples>'))
+      .slice(-40)
+      .join('\n'),
+  )
   return lines
 }
 

@@ -324,6 +324,7 @@ async function runTests() {
     core.close()
   }
   // Output completion is later than PCM consumption, and cancellation rejects drain.
+  trace('media: output completion\n')
   {
     const audio = new AudioOut({}),
       output = SharedByteRing.allocate(32),
@@ -357,6 +358,7 @@ async function runTests() {
     audio.close()
   }
   // Actual worker entry point and resampler run in XS with message and DMA boundaries controlled.
+  trace('media: worker entry\n')
   {
     const messages = []
     globalThis.self = { postMessage: (message) => messages.push(message), close() {} }
@@ -388,6 +390,7 @@ async function runTests() {
     self.onmessage({ id: 'close' })
   }
   // Public finite mode never retries and waits for hardware drain before ended.
+  trace('media: finite playback\n')
   {
     const player = new MediaPlayer(),
       states = []
@@ -422,6 +425,7 @@ async function runTests() {
     equal(player.state, 'idle')
   }
   // Pause retains consumed position and source identity; resume uses a frame checkpoint + preroll.
+  trace('media: pause and resume\n')
   {
     const player = new MediaPlayer()
     await player.start({ url: 'https://example.test/audio', mode: 'finite', duration: 100 })
@@ -583,6 +587,7 @@ async function runTests() {
     }
   }
   // RSS retrieval resolves bounded complete items and rejects explicit cancellation.
+  trace('media: RSS retrieval\n')
   {
     const feed = loadFeed('https://example.test/rss')
     tick()
@@ -620,6 +625,7 @@ async function runTests() {
     assert(await rejected)
   }
   // Mini app actions exercise the MOD controller, including late responses and TTS stop.
+  trace('media: controller\n')
   {
     const buttons = new Map(),
       balloons = [],

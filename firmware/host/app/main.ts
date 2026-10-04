@@ -12,12 +12,12 @@ import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'exper
 import { initializeLocalization } from 'localization'
 import Modules from 'modules'
 import {
+  type StartupPhase,
   showStartupError,
   showStartupSplash,
   showWiFiConnectionStatus,
   showWiFiRecoveryChoice,
   startupErrorClass,
-  type StartupPhase,
 } from 'startup-splash'
 import { applyTimezone } from 'timezone-settings'
 

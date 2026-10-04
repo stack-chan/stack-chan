@@ -1,6 +1,6 @@
+import config from 'mc/config'
 import type { Application as PiuApplication } from 'piu/MC'
 import { Label } from 'piu/MC'
-import config from 'mc/config'
 
 export type StackchanContext = {
   ui: { miniApps: unknown }

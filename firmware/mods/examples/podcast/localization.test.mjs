@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import * as fontkit from 'fontkit'
 
 const locales = ['ja', 'en', 'zh-CN']
@@ -18,7 +19,7 @@ test('Podcast catalogs agree on message keys and interpolation parameters', () =
 
 test('Podcast Chinese font and bitmap character list cover catalogs and selection mark', () => {
   const font = fontkit.openSync(
-    new URL('../../../host/modules/ui/assets/fonts/StackchanCJK-Regular.ttf', import.meta.url).pathname,
+    fileURLToPath(new URL('../../../host/modules/ui/assets/fonts/StackchanCJK-Regular.ttf', import.meta.url)),
   )
   const supported = new Set(font.characterSet)
   const bitmapCharacters = new Set(readFileSync(new URL('./assets/PodcastCJK-chars.txt', import.meta.url), 'utf8'))

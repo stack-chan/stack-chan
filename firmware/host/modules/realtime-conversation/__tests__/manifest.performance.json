@@ -1,0 +1,17 @@
+{
+  "build": {
+    "C_FLAGS": "-I$(MODDABLE)/modules/piu/MC -I$(SUBPLATFORMDIRECTORY)"
+  },
+  "modules": {
+    "*": ["./frame-measurement.c"]
+  },
+  "platforms": {
+    "esp32/m5stackchan_cores3": {
+      "dependency": [
+        {
+          "idf": "realtime_measurement"
+        }
+      ]
+    }
+  }
+}

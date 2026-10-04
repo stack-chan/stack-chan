@@ -1,0 +1,13 @@
+{
+  "include": "$(MODDABLE)/modules/io/files/manifest.json",
+  "platforms": {
+    "esp32": {
+      "build": {
+        "C_FLAGS": "$(if $(filter %/files-littlefs.c.o,$@),-Desp_partition_find_first=stackchanFilesPartitionFindFirst -DgLFSErrors=stackchanFilesErrors)"
+      },
+      "modules": {
+        "*": "./files-partition.c"
+      }
+    }
+  }
+}

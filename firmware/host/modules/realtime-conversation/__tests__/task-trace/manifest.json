@@ -1,0 +1,25 @@
+{
+  "build": {
+    "C_FLAGS": "-I$(IDF_PATH)/components/esp_trace/include -include $(SUBPLATFORMDIRECTORY)/../../modules/realtime-conversation/__tests__/task-trace/xs-trace-types.h -I$(IDF_PATH)/components/spi_flash/include"
+  },
+  "modules": {
+    "task-trace": "./trace",
+    "*": "./trace.c"
+  },
+  "platforms": {
+    "esp32/m5stackchan_cores3": {
+      "dependency": [
+        {
+          "name": "esp_sysview",
+          "version": "==1.1.0",
+          "includes": [
+            "src/Config",
+            "src/SEGGER",
+            "src/Sample/FreeRTOSV10.4",
+            "src/include"
+          ]
+        }
+      ]
+    }
+  }
+}

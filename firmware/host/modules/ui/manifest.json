@@ -33,6 +33,7 @@
     "template": "./components/face/template",
     "motions/*": "./components/face/motions/*",
     "drawer": "./components/drawer/drawer",
+    "rolling-text-lines": "./components/bubble/rolling-text-lines",
     "effects/speech-balloon": "./components/bubble/speech-balloon",
     "effects/multirow-balloon": "./components/bubble/multirow-balloon",
     "effects/*": "./components/effects/*",

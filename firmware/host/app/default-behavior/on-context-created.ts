@@ -78,6 +78,7 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
   let pettingHoldTimer: ReturnType<typeof Timer.set> | undefined
   let motionDetectRestoreTimer: ReturnType<typeof Timer.set> | undefined
   let motionDetectPreviousEmotion: Emotion | undefined
+  let motionDetectEmotion: Emotion | undefined
   const emotionKeyMap: Record<Emotion, EmoticonKey | null> = {
     [Emotion.HAPPY]: 'heart',
     [Emotion.ANGRY]: 'angry',
@@ -216,6 +217,12 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     callback: (target, value) => {
       const nextEmotion = Number(value) as Emotion
       if (!emotions.includes(nextEmotion) && nextEmotion !== Emotion.NEUTRAL) return
+      if (motionDetectRestoreTimer) {
+        Timer.clear(motionDetectRestoreTimer)
+        motionDetectRestoreTimer = undefined
+      }
+      motionDetectPreviousEmotion = undefined
+      motionDetectEmotion = undefined
       let canceledPettingMotion = false
       if (pettingRestoreTimer) {
         Timer.clear(pettingRestoreTimer)
@@ -600,18 +607,26 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
     robot.imu.onEvent = (event) => {
       const type = event.motion
       trace(`[IMU] motion detected: ${type}\n`)
-      if (motionDetectPreviousEmotion === undefined) motionDetectPreviousEmotion = currentEmotion
+      if (motionDetectPreviousEmotion === undefined) {
+        // Save the base emotion, not the other temporary reaction.
+        motionDetectPreviousEmotion =
+          pettingRestoreTimer && currentEmotion === Emotion.HAPPY
+            ? (pettingPreviousEmotion ?? currentEmotion)
+            : currentEmotion
+      }
       if (motionDetectRestoreTimer) Timer.clear(motionDetectRestoreTimer)
 
       const motionEmotion = motionEmotionMap[type]
+      motionDetectEmotion = motionEmotion
       setEmotionWithEffect(robot, motionEmotion)
       motionDetectRestoreTimer = Timer.set(() => {
+        const restoreEmotion = pettingRestoreTimer ? Emotion.HAPPY : (motionDetectPreviousEmotion ?? Emotion.NEUTRAL)
         if (currentEmotion === motionEmotion) {
-          const restoreEmotion = motionDetectPreviousEmotion ?? Emotion.NEUTRAL
           trace(`[IMU] restore emotion ${restoreEmotion}\n`)
           setEmotionWithEffect(robot, restoreEmotion)
         }
         motionDetectPreviousEmotion = undefined
+        motionDetectEmotion = undefined
         motionDetectRestoreTimer = undefined
       }, MOTION_DETECT_COLD_DURATION_MS)
     }
@@ -661,7 +676,13 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
         lastBackwardSwipeTicks !== undefined && event.ticks - lastBackwardSwipeTicks <= TOUCH_PANEL_PETTING_WINDOW_MS
       if (hasRecentForwardSwipe && hasRecentBackwardSwipe) {
         trace('[TouchPanel] petting detected: set emotion HAPPY with heart effect\n')
-        if (pettingPreviousEmotion === undefined) pettingPreviousEmotion = currentEmotion
+        if (pettingPreviousEmotion === undefined) {
+          // Keep the original base even when motion reactions restart or change type.
+          pettingPreviousEmotion =
+            motionDetectRestoreTimer && currentEmotion === motionDetectEmotion
+              ? (motionDetectPreviousEmotion ?? currentEmotion)
+              : currentEmotion
+        }
         if (pettingPreviousRotation === undefined) pettingPreviousRotation = { ...robot.pose.body.rotation }
         if (pettingRestoreTimer) Timer.clear(pettingRestoreTimer)
         if (pettingHoldTimer) {
@@ -689,9 +710,13 @@ export const onContextCreated: NonNullable<StackchanAppBehavior['onContextCreate
           )
         }
         pettingRestoreTimer = Timer.set(() => {
-          const restoreEmotion = pettingPreviousEmotion ?? Emotion.NEUTRAL
+          const restoreEmotion = motionDetectRestoreTimer
+            ? (motionDetectEmotion ?? Emotion.NEUTRAL)
+            : (pettingPreviousEmotion ?? Emotion.NEUTRAL)
           trace(`[TouchPanel] restore emotion ${restoreEmotion}\n`)
-          setEmotionWithEffect(robot, restoreEmotion)
+          if (currentEmotion === Emotion.HAPPY) {
+            setEmotionWithEffect(robot, restoreEmotion)
+          }
           if (pettingHoldTimer) {
             Timer.clear(pettingHoldTimer)
             pettingHoldTimer = undefined

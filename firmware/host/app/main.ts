@@ -11,7 +11,14 @@ import { type StackchanDockRuntime, startStackchanDock } from 'dock'
 import { prepareExperimentalMiniApps, registerExperimentalMiniApps } from 'experimental-mini-app-loader'
 import { initializeLocalization } from 'localization'
 import Modules from 'modules'
-import { showStartupSplash, showWiFiConnectionStatus, showWiFiRecoveryChoice } from 'startup-splash'
+import {
+  type StartupPhase,
+  showStartupError,
+  showStartupSplash,
+  showWiFiConnectionStatus,
+  showWiFiRecoveryChoice,
+  startupErrorClass,
+} from 'startup-splash'
 import { applyTimezone } from 'timezone-settings'
 
 type DeviceButton = {
@@ -37,7 +44,7 @@ function installPlatformInputBridge(): void {
 function loadAppBehaviors(): StackchanAppBehavior[] {
   trace('[main] checking mod override\n')
   return resolveAppBehaviors(Modules, defaultBehavior, (error) => {
-    trace(`[main] MOD override unavailable: ${error instanceof Error ? error.message : String(error)}\n`)
+    trace(`[main] MOD override unavailable: ${startupErrorClass(error)}\n`)
   })
 }
 
@@ -52,7 +59,7 @@ function installModManagerShortcut(): void {
       await startModManager(globalEnv.application ?? showStartupSplash())
       globalEnv.System.restart()
     } catch (error) {
-      trace(`[mods] shortcut failed: ${error instanceof Error ? error.message : String(error)}\n`)
+      trace(`[mods] shortcut failed: ${startupErrorClass(error)}\n`)
     }
   })
 }
@@ -97,6 +104,7 @@ async function main() {
   trace('[main] start\n')
   let dockRuntime: StackchanDockRuntime | undefined
   let context: StackchanContext | undefined
+  let phase: StartupPhase = 'initialization'
   try {
     dockRuntime = startStackchanDock(Modules, loadModConfig())
     if (dockRuntime) trace('[main] Stackchan Dock started\n')
@@ -108,6 +116,7 @@ async function main() {
     const appBehaviors = loadAppBehaviors()
     // Launch behaviors run before startHostBootServices so the splash screen is
     // visible while network setup blocks.
+    phase = 'launch'
     const launch = await prepareAppLaunch(appBehaviors, prepareExperimentalMiniApps)
     trace(`[main] onLaunch shouldCreateContext=${launch.shouldCreateContext}\n`)
     if (!launch.shouldCreateContext) {
@@ -119,6 +128,7 @@ async function main() {
     }
     const experimentalMiniApps = launch.prepared
 
+    phase = 'network'
     const bootServices = startHostBootServices({
       wifi: {
         onStatusChanged: showWiFiConnectionStatus,
@@ -127,6 +137,7 @@ async function main() {
     })
     const networkReady = await bootServices.connectivity.network.ready
     trace(`[main] network ready: ${networkReady.status}\n`)
+    phase = 'context'
     const preferences = loadPreferenceConfig()
     const ownedDock = dockRuntime
     context = createStackchanContext(preferences, {
@@ -134,6 +145,7 @@ async function main() {
       remoteConversationSession: ownedDock?.remoteConversationSession,
       closeHandlers: ownedDock ? [() => ownedDock.close()] : undefined,
     })
+    phase = 'behavior'
     ownedDock?.onContextCreated(context)
     registerExperimentalMiniApps(experimentalMiniApps, context.ui.miniApps)
     trace('[main] app context created\n')
@@ -144,17 +156,32 @@ async function main() {
     trace('[main] app behaviors ready\n')
     installModManagerShortcut()
   } catch (error) {
+    // A newer/disposed view during async cleanup owns its screen. Do not
+    // replace it with an older startup attempt's failure.
+    const failedApplication = globalEnv.application
+    const failedBehavior = failedApplication?.behavior
+    const failedContent = failedApplication?.first
     try {
       if (context) await context.lifecycle.close()
       else dockRuntime?.close()
     } catch (closeError) {
-      trace(`[main] cleanup error ${closeError instanceof Error ? closeError.message : String(closeError)}\n`)
+      trace(`[main] cleanup error ${startupErrorClass(closeError)}\n`)
     }
-    installModManagerShortcut()
+    trace(`[main] startup failed phase=${phase} error=${startupErrorClass(error)}\n`)
+    if (
+      globalEnv.application === failedApplication &&
+      (!failedApplication ||
+        (failedApplication.behavior === failedBehavior && failedApplication.first === failedContent))
+    ) {
+      try {
+        showStartupError({ phase, error, onRestart: () => globalEnv.System.restart() })
+        installModManagerShortcut()
+      } catch (displayError) {
+        trace(`[main] startup error display failed ${startupErrorClass(displayError)}\n`)
+      }
+    }
     throw error
   }
 }
 
-main().catch((error) => {
-  trace(`[main] error ${error?.message ?? error}\n`)
-})
+void main().catch(() => undefined)

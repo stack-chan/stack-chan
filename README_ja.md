@@ -62,6 +62,9 @@ Moddable SDKやESP-IDFのセットアップは不要です。
 | [Shape顔エディタ](https://stack-chan.github.io/stack-chan/web/face-editor/) | 目と口を配置してカスタムFaceを作る |
 | [シミュレーター](https://stack-chan.github.io/stack-chan/web/simulator/) | WebAssembly版ファームウェアと3DモデルでMODを試す |
 | [MediaPipe BLE追従](https://stack-chan.github.io/stack-chan/web/mediapipe/) | カメラで捉えた顔と手の動きをBLEで送る |
+| [使い方・AI連携](https://stack-chan.github.io/stack-chan/web/guide/) | 目的別の手順と、WebMCP 対応 AI への依頼例を読む |
+
+WebMCP 対応ブラウザでは、AI からブロック・顔・本体設定を編集できます。開発者向けの仕様と検証手順は [WebMCP](./web/WEBMCP.md) を参照してください。
 
 [![ブロックエディタの画面](./docs/images/web-tools/block-editor-ja.png)](https://stack-chan.github.io/stack-chan/web/editor/)
 

@@ -1,5 +1,5 @@
 import { Bluetooth, Info, Save, Trash2, Unplug } from 'lucide-react'
-import { useState, type ComponentProps, type ReactNode } from 'react'
+import { useState, useRef, useEffect, type ComponentProps, type ReactNode } from 'react'
 
 import { useI18n } from '@/app/i18n-provider'
 import { OperationStatus } from '@/components/stackchan/operation-status'
@@ -20,8 +20,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { type PreferenceKey } from '@/features/preferences/preference-model'
+import { PREFERENCE_FIELDS, type PreferenceKey } from '@/features/preferences/preference-model'
 import { usePreferences } from '@/features/preferences/use-preferences'
+import { usePreferenceTools } from '@/features/preferences/preference-tools'
 
 type FieldProps = Omit<ComponentProps<'input'>, 'id' | 'name' | 'value' | 'disabled' | 'onChange'> & {
   name: PreferenceKey
@@ -33,6 +34,25 @@ export function PreferencesPage() {
   const { t } = useI18n()
   const preferences = usePreferences()
   const [clearDialogOpen, setClearDialogOpen] = useState(false)
+  const clearResolve = useRef<((approved: boolean) => void) | null>(null)
+  useEffect(() => () => clearResolve.current?.(false), [])
+  usePreferenceTools(
+    preferences,
+    (signal) =>
+      new Promise<boolean>((resolve) => {
+        const finish = (approved: boolean) => {
+          signal.removeEventListener('abort', cancel)
+          clearResolve.current = null
+          setClearDialogOpen(false)
+          resolve(approved)
+        }
+        const cancel = () => finish(false)
+        clearResolve.current = finish
+        signal.addEventListener('abort', cancel, { once: true })
+        if (signal.aborted) finish(false)
+        else setClearDialogOpen(true)
+      })
+  )
 
   const inputField = ({ name, label, type = 'text', wide, ...props }: FieldProps) => (
     <div className={wide ? 'grid gap-2 sm:col-span-2' : 'grid gap-2'}>
@@ -44,20 +64,15 @@ export function PreferencesPage() {
         value={preferences.values[name]}
         disabled={!preferences.connected || preferences.readOnly.has(name)}
         onChange={(event) => preferences.update(name, event.target.value)}
+        {...PREFERENCE_FIELDS[name].input}
         {...props}
       />
     </div>
   )
 
-  const selectField = (
-    name: PreferenceKey,
-    label: string,
-    options: readonly { value: string; label: string; translate?: boolean }[],
-    hint?: string,
-    wide = false
-  ) => (
+  const selectField = (name: PreferenceKey, hint?: string, wide = false) => (
     <div className={wide ? 'grid gap-2 sm:col-span-2' : 'grid gap-2'}>
-      <Label htmlFor={name}>{t(label)}</Label>
+      <Label htmlFor={name}>{t(PREFERENCE_FIELDS[name].label)}</Label>
       <Select
         value={preferences.values[name]}
         disabled={!preferences.connected || preferences.readOnly.has(name)}
@@ -67,7 +82,7 @@ export function PreferencesPage() {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {options.map((option) => (
+          {(PREFERENCE_FIELDS[name].options ?? []).map((option) => (
             <SelectItem key={option.value} value={option.value}>
               <span translate={option.translate === false ? 'no' : undefined}>
                 {option.translate === false ? option.label : t(option.label)}
@@ -166,15 +181,8 @@ export function PreferencesPage() {
           {section(
             '外観',
             <>
-              {selectField('ui.type', '顔の種類', [
-                { value: 'simple', label: 'シンプル' },
-                { value: 'dog', label: 'いぬ' },
-              ])}
-              {selectField('ui.language', '本体の表示言語', [
-                { value: 'ja', label: '日本語', translate: false },
-                { value: 'en', label: 'English', translate: false },
-                { value: 'zh-CN', label: '简体中文', translate: false },
-              ])}
+              {selectField('ui.type')}
+              {selectField('ui.language')}
             </>
           )}
           {section(
@@ -182,15 +190,6 @@ export function PreferencesPage() {
             <>
               {selectField(
                 'driver.type',
-                'ドライバー',
-                [
-                  { value: 'm5stackchan', label: 'M5StackChan Servo（CoreS3専用・推奨）' },
-                  { value: 'scservo', label: 'SCServo（汎用・外部配線向け）' },
-                  { value: 'dynamixel', label: 'Dynamixel（Protocol 2）' },
-                  { value: 'rs30x', label: 'RS30X' },
-                  { value: 'pwm', label: 'PWM（SG-90）' },
-                  { value: 'none', label: 'なし' },
-                ],
                 'M5StackChan Servoは専用UART、ゼロ位置、可動域、PY32サーボ電源を設定します。CoreS3専用ファームウェアではこの項目に固定されます。',
                 true
               )}
@@ -201,13 +200,7 @@ export function PreferencesPage() {
           {section(
             '音声合成',
             <>
-              {selectField('tts.type', 'サービス', [
-                { value: 'voicevox', label: 'VOICEVOX', translate: false },
-                { value: 'elevenlabs', label: 'ElevenLabs', translate: false },
-                { value: 'google-tts', label: 'Google TTS', translate: false },
-                { value: 'openai', label: 'OpenAI', translate: false },
-                { value: 'local', label: 'ローカル' },
-              ])}
+              {selectField('tts.type')}
               {inputField({ name: 'tts.host', label: 'ホスト', placeholder: 'my-tts-host.local' })}
               {inputField({ name: 'tts.port', label: 'ポート', type: 'number', placeholder: '50021' })}
               {inputField({ name: 'tts.voice', label: '音声', placeholder: 'ally' })}
@@ -252,7 +245,13 @@ export function PreferencesPage() {
         </form>
       </div>
 
-      <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+      <AlertDialog
+        open={clearDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) clearResolve.current?.(false)
+          setClearDialogOpen(open)
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('Wi-Fi設定を消去しますか？')}</AlertDialogTitle>
@@ -266,7 +265,8 @@ export function PreferencesPage() {
               variant="destructive"
               onClick={() => {
                 setClearDialogOpen(false)
-                void preferences.clearWifi()
+                if (clearResolve.current) clearResolve.current(true)
+                else void preferences.clearWifi()
               }}
             >
               {t('消去する')}

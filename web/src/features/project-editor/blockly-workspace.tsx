@@ -14,6 +14,7 @@ import {
   registerStackchanBlocks,
 } from '../../../editor/blocks.mjs'
 import { toolboxForTarget } from '../../../editor/capabilities.mjs'
+import { applyBlockCommands, blockCatalog, type BlockCommand } from './block-commands'
 
 export type BlocklyWorkspaceSnapshot = {
   workspace: Record<string, unknown>
@@ -27,6 +28,8 @@ export type BlocklyWorkspaceController = {
   focusBlock: (blockId: string) => void
   snapshot: () => BlocklyWorkspaceSnapshot
   setTarget: (target: string) => void
+  editBlocks: (commands: BlockCommand[]) => string[]
+  catalog: () => ReturnType<typeof blockCatalog>
 }
 
 export function BlocklyWorkspace({
@@ -105,6 +108,12 @@ export function BlocklyWorkspace({
         emit()
       }
       const controller: BlocklyWorkspaceController = {
+        editBlocks: (commands) => {
+          const ids = applyBlockCommands(workspace!, commands, targetRef.current)
+          emit()
+          return ids
+        },
+        catalog: () => blockCatalog(targetRef.current),
         load,
         clear: () => {
           workspace!.clear()
@@ -118,6 +127,7 @@ export function BlocklyWorkspace({
         },
         snapshot,
         setTarget: (nextTarget) => {
+          targetRef.current = nextTarget
           workspace!.updateToolbox(toolboxForTarget(localizedToolbox(), nextTarget))
           emit()
         },

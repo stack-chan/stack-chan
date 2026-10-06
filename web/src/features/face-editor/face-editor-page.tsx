@@ -8,6 +8,7 @@ import { FaceControls } from '@/features/face-editor/face-controls'
 import { faceAssetMediaType, parseFaceAssetFile, type FaceAsset } from '@/features/face-editor/face-model'
 import { FacePreview } from '@/features/face-editor/face-preview'
 import { useFaceEditor } from '@/features/face-editor/use-face-editor'
+import { useFaceTools } from '@/features/face-editor/face-tools'
 
 type FacePart = 'left-eye' | 'right-eye' | 'mouth'
 
@@ -18,6 +19,7 @@ export function FaceEditorPage({
 }) {
   const { t } = useI18n()
   const editor = useFaceEditor()
+  useFaceTools(editor)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = async (file: File) => {

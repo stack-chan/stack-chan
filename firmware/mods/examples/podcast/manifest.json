@@ -1,0 +1,33 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_mod.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "../../../host/app/manifest_typings.json"
+  ],
+  "modules": {
+    "*": ["./mod"],
+    "podcast-view": "./view",
+    "podcast-config": "./config",
+    "podcast-controller": "./controller",
+    "podcast-feed": "./feed",
+    "podcast-rss-parser": "./rss-parser",
+    "podcast-feed-core": "./feed-core",
+    "podcast-feed-worker": "./feed-worker",
+    "podcast-artwork": "./artwork",
+    "podcast-artwork-ring": "./artwork-ring",
+    "podcast-artwork-download-worker": "./artwork-download-worker",
+    "podcast-artwork-decode-worker": "./artwork-decode-worker"
+  },
+  "resources": {
+    "*": ["./strings/*"],
+    "*-alpha": [
+      {
+        "source": "../../../host/modules/ui/assets/fonts/StackchanCJK-Regular",
+        "name": "PodcastCJK",
+        "size": 12,
+        "monochrome": true,
+        "characterFiles": "./assets/PodcastCJK-chars.txt"
+      }
+    ]
+  }
+}

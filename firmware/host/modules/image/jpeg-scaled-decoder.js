@@ -1,6 +1,6 @@
 /** Synchronous streaming decoder. Run in a Worker; input is produced by another Worker. */
-export default function decodeThumbnail(input, state, pixels) {
-  return native('xs_jpeg_thumbnail').call(null, input, state, pixels)
+export default function decodeScaledJPEG(input, state, pixels) {
+  return native('xs_jpeg_scaled_decode').call(null, input, state, pixels)
 }
 
 /** Heap totals for device measurements; excludes simulator process memory. */

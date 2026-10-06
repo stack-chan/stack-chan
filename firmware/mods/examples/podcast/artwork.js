@@ -1,7 +1,7 @@
 import Bitmap from 'commodetto/Bitmap'
+import { memoryUsage } from 'jpeg-scaled-decoder'
 import { mediaURL } from 'media-http'
 import { ART_SIZE, RING_BYTES } from 'podcast-artwork-ring'
-import { memoryUsage } from 'podcast-jpeg-thumbnail'
 import Timer from 'timer'
 import Worker from 'worker'
 

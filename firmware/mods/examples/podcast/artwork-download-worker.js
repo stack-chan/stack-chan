@@ -1,5 +1,5 @@
+import { downloadArtwork, prepareWorker } from 'jpeg-scaled-decoder'
 import { mediaRedirectURL } from 'media-http'
-import { downloadArtwork, prepareWorker } from 'podcast-jpeg-thumbnail'
 
 prepareWorker()
 

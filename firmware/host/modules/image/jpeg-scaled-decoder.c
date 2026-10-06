@@ -31,7 +31,7 @@ static void yield_decoder(void) { usleep(1000); }
 #define SIZE 64
 #define WORK_BYTES 3100
 #if (kCommodettoBitmapFormat != kCommodettoBitmapRGB565LE) && (kCommodettoBitmapFormat != kCommodettoBitmapRGB565BE)
-#error "JPEG thumbnails require an RGB565 display"
+#error "Scaled JPEG decoding requires an RGB565 display"
 #endif
 /* Shared state: producer write, consumer read, EOF, cancellation. */
 typedef struct {
@@ -41,15 +41,15 @@ typedef struct {
 	uint32_t consumed, blocks, tail;
 	uint32_t minFreeHeap, minFreeInternal;
 	uint64_t started, wait_ms;
-} Thumbnail;
-static uint32_t load_state(Thumbnail *t, int index) {
+} ScaledDecoder;
+static uint32_t load_state(ScaledDecoder *t, int index) {
 	return __atomic_load_n(t->state + index, __ATOMIC_ACQUIRE);
 }
-static int cancelled(Thumbnail *t) {
+static int cancelled(ScaledDecoder *t) {
 	return load_state(t, 3) || now_ms() - t->started > 90000;
 }
 static InputSize input(JDEC *jd, uint8_t *target, InputSize requested) {
-	Thumbnail *t = jd->device;
+	ScaledDecoder *t = jd->device;
 	InputSize count = 0;
 	while (count < requested && !cancelled(t)) {
 		uint32_t read = load_state(t, 1), available = load_state(t, 0) - read;
@@ -73,7 +73,7 @@ static InputSize input(JDEC *jd, uint8_t *target, InputSize requested) {
 	return count;
 }
 static OutputResult output(JDEC *jd, void *data, JRECT *rect) {
-	Thumbnail *t = jd->device;
+	ScaledDecoder *t = jd->device;
 	if (cancelled(t)) return 0;
 	const uint8_t *rgb = data;
 	uint32_t blockW = rect->right - rect->left + 1;
@@ -109,14 +109,14 @@ static OutputResult output(JDEC *jd, void *data, JRECT *rect) {
 	}
 	return !cancelled(t);
 }
-void xs_jpeg_thumbnail(xsMachine *the) {
-	Thumbnail t = {0};
+void xs_jpeg_scaled_decode(xsMachine *the) {
+	ScaledDecoder t = {0};
 	xsUnsignedValue inputBytes, stateBytes, pixelBytes;
 	xsmcGetBufferReadable(xsArg(0), (void **)&t.ring, &inputBytes);
 	xsmcGetBufferWritable(xsArg(1), (void **)&t.state, &stateBytes);
 	xsmcGetBufferWritable(xsArg(2), (void **)&t.pixels, &pixelBytes);
 	if (inputBytes < 512 || stateBytes != 16 || pixelBytes != SIZE * SIZE * 2)
-		xsRangeError("Invalid thumbnail buffers");
+		xsRangeError("Invalid scaled JPEG buffers");
 	t.capacity = inputBytes;
 	t.started = now_ms();
 	void *work = malloc(WORK_BYTES);
@@ -167,7 +167,7 @@ void xs_jpeg_thumbnail(xsMachine *the) {
 	METRIC("bytes", t.consumed);
 	METRIC("decodeMs", now_ms() - t.started - t.wait_ms);
 	METRIC("waitMs", t.wait_ms);
-	METRIC("workspaceBytes", WORK_BYTES + sizeof(JDEC) + sizeof(Thumbnail));
+	METRIC("workspaceBytes", WORK_BYTES + sizeof(JDEC) + sizeof(ScaledDecoder));
 #if ESP32
 	METRIC("minFreeHeap", t.minFreeHeap);
 	METRIC("minFreeInternal", t.minFreeInternal);
@@ -222,7 +222,7 @@ void xs_jpeg_download(xsMachine *the) {
 	const char *url = xsmcToString(xsArg(0));
 	if (strlen(url) > 2047 || (strncmp(url, "http://", 7) && strncmp(url, "https://", 8)))
 		xsRangeError("Invalid artwork URL");
-	Thumbnail t = {0};
+	ScaledDecoder t = {0};
 	xsUnsignedValue dataBytes, stateBytes;
 	xsmcGetBufferWritable(xsArg(1), (void **)&t.ring, &dataBytes);
 	xsmcGetBufferWritable(xsArg(2), (void **)&t.state, &stateBytes);
@@ -331,7 +331,7 @@ cleanup:
 
 #if ESP32 && defined(mxInstrument)
 #include "xsHosts.h"
-static void thumbnail_no_sample(modTimer timer, void *refcon, int size) {}
+static void scaled_decoder_no_sample(modTimer timer, void *refcon, int size) {}
 #endif
 void xs_jpeg_prepare_worker(xsMachine *the) {
 #if ESP32 && defined(mxInstrument)
@@ -340,6 +340,6 @@ void xs_jpeg_prepare_worker(xsMachine *the) {
 	 * Heap and timing measurements above remain available without periodic sampling. */
 	modInstrumentMachineEnd(the);
 	/* Retain a valid timer/onBreak pair so debugger pause/resume remains usable. */
-	modInstrumentMachineBegin(the, thumbnail_no_sample, 0, NULL, NULL);
+	modInstrumentMachineBegin(the, scaled_decoder_no_sample, 0, NULL, NULL);
 #endif
 }

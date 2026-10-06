@@ -12,7 +12,7 @@
     "podcast-artwork": "../../artwork",
     "podcast-artwork-ring": "../../artwork-ring",
     "podcast-artwork-decode-worker": "../../artwork-decode-worker",
-    "podcast-jpeg-thumbnail": "../../../../../host/modules/image/jpeg-thumbnail",
+    "jpeg-scaled-decoder": "../../../../../host/modules/image/jpeg-scaled-decoder",
     "*": ["./tjpgd/tjpgd.c"],
     "media-http": "../../../../../host/modules/audio/media-http",
     "testing/assert": "../../../../../host/modules/testing/assert",

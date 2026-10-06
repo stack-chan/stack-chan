@@ -8,7 +8,7 @@
   "modules": {
     "mod-installer": "./mod-installer",
     "mod-manager": "./mod-manager",
-    "podcast-jpeg-thumbnail": "../modules/image/jpeg-thumbnail",
+    "jpeg-scaled-decoder": "../modules/image/jpeg-scaled-decoder",
     "*": [
       "$(IDF_PATH)/components/esp_http_client/include/esp_http_client.h",
       "$(IDF_PATH)/components/mbedtls/esp_crt_bundle/include/esp_crt_bundle.h",

@@ -33,6 +33,7 @@ import {
   stepRotationToward,
 } from '../../../simulator/geometry.mjs'
 import { createModStorage } from '../../../simulator/mod-storage.mjs'
+import { FirmwareReadiness } from './firmware-readiness.mjs'
 
 const DRIVER_MAX_ANGULAR_SPEED = 2.4
 
@@ -384,8 +385,14 @@ class WasmView {
     this.when = 0
     this.image = null
     this.bufferChangeCount = 0
-    this.pendingReadyInstallation = null
-    this.readyTimeout = 0
+    this.readiness = new FirmwareReadiness({
+      onReady: (installation) => this.#reportReady(installation),
+      onTimeout: () => {
+        const error = new Error('ファームウェアの起動準備がタイムアウトしました')
+        this.onStatus({ status: 'error', code: 'firmware-ready-timeout' })
+        this.onError(error)
+      },
+    })
 
     this.#bindTouches()
   }
@@ -415,7 +422,7 @@ class WasmView {
 
   dispose() {
     this.disposed = true
-    this.#clearPendingReady()
+    this.readiness.clear()
     this.fxMainQuit?.()
     for (const [eventName, handler] of Object.entries(this.touchHandlers ?? {})) {
       this.screen.removeEventListener(eventName, handler)
@@ -462,10 +469,10 @@ class WasmView {
       this.fxMainQuit = this.mc._fxMainQuit
       this.fxMainTouch = this.mc._fxMainTouch
       const installation = await this.installSavedModArchive()
-      this.#awaitFirmwareReady(installation.result)
+      this.readiness.start(installation.result)
       this.launch(installation.pointer)
     } catch (error) {
-      this.#clearPendingReady()
+      this.readiness.clear()
       console.error('[bridge] WASM load failed', error)
       this.onStatus({ status: 'error', code: 'wasm-load-failed' })
       this.#drawFallbackFace()
@@ -492,36 +499,15 @@ class WasmView {
   }
 
   #reportReady(installation) {
-    this.#clearPendingReady()
     this.runCount += 1
     this.onReady({ runCount: this.runCount, installation })
-  }
-
-  #awaitFirmwareReady(installation) {
-    this.#clearPendingReady()
-    this.pendingReadyInstallation = installation
-    this.readyTimeout = window.setTimeout(() => {
-      if (!this.pendingReadyInstallation) return
-      this.#clearPendingReady()
-      const error = new Error('ファームウェアの起動準備がタイムアウトしました')
-      this.onStatus({ status: 'error', code: 'firmware-ready-timeout' })
-      this.onError(error)
-    }, 30_000)
-  }
-
-  #clearPendingReady() {
-    if (this.readyTimeout) window.clearTimeout(this.readyTimeout)
-    this.readyTimeout = 0
-    this.pendingReadyInstallation = null
   }
 
   #handleFirmwarePrint(text) {
     this.#applyFirmwareDriverTrace(text)
     this.#appendTrace(text)
     console.log(`[firmware] ${text}`)
-    if (String(text).includes('[main] app behaviors ready') && this.pendingReadyInstallation) {
-      this.#reportReady(this.pendingReadyInstallation)
-    }
+    this.readiness.onTrace(text)
   }
 
   #handleFirmwareError(text) {
@@ -594,11 +580,11 @@ class WasmView {
     this.screen.getContext('2d').clearRect(0, 0, this.screen.width, this.screen.height)
     this.scene.markScreenDirty()
     const installation = await this.installSavedModArchive()
-    this.#awaitFirmwareReady(installation.result)
+    this.readiness.start(installation.result)
     try {
       this.launch(installation.pointer)
     } catch (error) {
-      this.#clearPendingReady()
+      this.readiness.clear()
       throw error
     }
   }

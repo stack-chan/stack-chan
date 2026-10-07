@@ -34,7 +34,9 @@ robot.ui.setFace(face.content)
 face.dispose()
 ```
 
-カスタム resource は `manifest.json` に同梱した後、`bytecode: new Resource('custom.avbc')` を渡します。browser では `vendor/compiler/compile.js` の `compile(source)` を ESM import できます。compiler は device 上で実行しません。
+カスタム resource は `manifest.json` に同梱した後、`bytecode: new Resource('custom.avbc')` を渡します。browser では `firmware/tools/avatar-dsl/compiler/compile.js` の `compile(source)` を ESM import できます。compiler は device 上で実行しません。
+
+Runtime import は既存 manifest の `avatar-dsl/...` 名を使います。MOD 内の `package.json` exports は、Node の pure VM/context/driver/opcodes 検証でも同じ名前を解決します。PC 専用 compiler は production-source 走査対象外の `firmware/tools/avatar-dsl/compiler/` に無改変で配置し、実行時 opcode 定義は MOD に保持します。host/CI の規約や manifest alias は変更しません。
 
 MOD-local options は `width/height/circular`、`variables` (AVDS variable ID 12..40)、`mouthForm`、`breathSource: 'state'`、`budget: { instructions, draws }`。既存 host API の拡張ではありません。例: `variables: { 27: 1, 32: 1 }` は cheeks と accessory slot 0 を有効にします。
 
@@ -76,6 +78,7 @@ Shape pool、VM stack/locals/frames/commands は固定ですが、変化した p
 ```sh
 npm run test:avatar-dsl
 npm run test:unit
+npm run check:architecture
 # Linux + SDK 9.5.0 + glib development headers:
 npm run test:avatar-dsl:render
 # fixture の再生成には pinned upstream checkout + tl_expected submodule + g++:
@@ -90,4 +93,4 @@ Piu tests は 36 partial/full framebuffer pairs、3 presets の表情・目・�
 
 Target repository は Apache-2.0。新規 integration/context/driver/tests も Apache-2.0 です。
 
-Vendored compiler、preset sources、`.avbc` と JavaScript VM adaptation は **BSL-1.0** として区別します。元の `SPDX-FileCopyrightText: 2026 Kenta IDA <fuga@fugafuga.org>` と SPDX license header を保持しました。全文は [vendor/LICENSE-BSL-1.0](vendor/LICENSE-BSL-1.0) に同梱しています。Apache として再ライセンスしません。
+Vendored compiler、preset sources、`.avbc` と JavaScript VM adaptation は **BSL-1.0** として区別します。元の `SPDX-FileCopyrightText: 2026 Kenta IDA <fuga@fugafuga.org>` と SPDX license header を保持しました。全文は [vendor/LICENSE-BSL-1.0](vendor/LICENSE-BSL-1.0) と移設した PC compiler に隣接する [LICENSE-BSL-1.0](../../../tools/avatar-dsl/LICENSE-BSL-1.0) に同梱しています。Apache として再ライセンスしません。

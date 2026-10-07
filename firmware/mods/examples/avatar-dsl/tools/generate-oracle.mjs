@@ -4,8 +4,8 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createContext } from '../context.js'
-import { compile } from '../vendor/compiler/compile.js'
+import { createContext } from 'avatar-dsl/context'
+import { compile } from '../../../../tools/avatar-dsl/compiler/compile.js'
 
 const pin = '419385ef1b875137140085bd50d34dee331f30c2'
 const upstream = process.env.AVATAR_DSL_UPSTREAM

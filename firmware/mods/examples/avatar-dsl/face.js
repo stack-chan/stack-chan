@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import Resource from 'Resource'
+import { createContext, updateContext } from 'avatar-dsl/context'
+import { FaceDriver } from 'avatar-dsl/driver'
+import { Op } from 'avatar-dsl/vendor/compiler/opcodes'
+import { AvatarVM, COMMAND_STRIDE, MAX_COMMANDS } from 'avatar-dsl/vm'
 import { Outline } from 'commodetto/outline'
 import { copyFaceState, createFaceState } from 'face-state'
 import { Container, Port, Skin } from 'piu/MC'
 import { Shape } from 'piu/shape'
-import { createContext, updateContext } from './context.js'
-import { FaceDriver } from './driver.js'
-import { Op } from './vendor/compiler/opcodes.js'
-import { AvatarVM, COMMAND_STRIDE, MAX_COMMANDS } from './vm.js'
 
 export function loadPreset(name = 'default') {
   const names = { default: 'default_face', omega: 'omega_mouth', aokko: 'aokko_face' }

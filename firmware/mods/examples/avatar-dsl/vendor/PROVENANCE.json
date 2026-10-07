@@ -21,22 +21,22 @@
   ],
   "files": [
     {
-      "local": "vendor/compiler/compile.js",
+      "local": "../../../tools/avatar-dsl/compiler/compile.js",
       "upstream": "tools/avatar_dsl/compile.js",
       "sha256": "38449742d214343fd178e8ec04469245d1b1c677abb0a6a20f2f2dfef7d957ba"
     },
     {
-      "local": "vendor/compiler/emitter.js",
+      "local": "../../../tools/avatar-dsl/compiler/emitter.js",
       "upstream": "tools/avatar_dsl/emitter.js",
       "sha256": "dfb6eab11edbb375f9a6f14038454b8d0c5f7503ad027c09ea65b2b3322d89dd"
     },
     {
-      "local": "vendor/compiler/lexer.js",
+      "local": "../../../tools/avatar-dsl/compiler/lexer.js",
       "upstream": "tools/avatar_dsl/lexer.js",
       "sha256": "b5fac0a871c4400e49d1c63bfe54c4af79356a8b09f54510bc1ebf0b5634b490"
     },
     {
-      "local": "vendor/compiler/parser.js",
+      "local": "../../../tools/avatar-dsl/compiler/parser.js",
       "upstream": "tools/avatar_dsl/parser.js",
       "sha256": "3ca970c8d9c0a1f0fb0ca090f0d968d387d16a36a02213952de649d0aee484a5"
     },
@@ -46,12 +46,17 @@
       "sha256": "8e441527d503cc68fe7e55d676979545106439fad014819d62a89b90e6c9ac11"
     },
     {
-      "local": "vendor/compiler/cli.mjs",
+      "local": "../../../tools/avatar-dsl/compiler/opcodes.js",
+      "upstream": "tools/avatar_dsl/opcodes.js",
+      "sha256": "8e441527d503cc68fe7e55d676979545106439fad014819d62a89b90e6c9ac11"
+    },
+    {
+      "local": "../../../tools/avatar-dsl/compiler/cli.mjs",
       "upstream": "tools/avatar_dsl/cli.mjs",
       "sha256": "4517061e59dc308e51afb8ce9754a23cdcf1298caf0a69c90f4db0f6974286d9"
     },
     {
-      "local": "vendor/compiler/package.json",
+      "local": "../../../tools/avatar-dsl/compiler/package.json",
       "upstream": "tools/avatar_dsl/package.json",
       "sha256": "b48de0274b5e89cecac86898a4d9d195269fe23a09e632b59d2d3b610e075e9f"
     },

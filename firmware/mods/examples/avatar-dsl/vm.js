@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSL-1.0
 // JavaScript adaptation of avatar_vm/decoder.cpp and vm.cpp at the pinned commit.
 // See vendor/PROVENANCE.json. Stricter rejection/budgets are intentional.
-import { Op, Var } from './vendor/compiler/opcodes.js'
+import { Op, Var } from 'avatar-dsl/vendor/compiler/opcodes'
 
 const arity = new Uint8Array(0x47)
 arity[Op.PushF32] = 4

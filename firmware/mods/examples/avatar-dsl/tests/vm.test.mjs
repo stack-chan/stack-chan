@@ -3,11 +3,11 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { createContext, updateContext } from '../context.js'
-import { FaceDriver } from '../driver.js'
-import { compile } from '../vendor/compiler/compile.js'
-import { Op } from '../vendor/compiler/opcodes.js'
-import { AvatarVM, decode } from '../vm.js'
+import { createContext, updateContext } from 'avatar-dsl/context'
+import { FaceDriver } from 'avatar-dsl/driver'
+import { Op } from 'avatar-dsl/vendor/compiler/opcodes'
+import { AvatarVM, decode } from 'avatar-dsl/vm'
+import { compile } from '../../../../tools/avatar-dsl/compiler/compile.js'
 
 const load = (name) => readFileSync(new URL(`../assets/${name}.avbc`, import.meta.url))
 const fixture = JSON.parse(readFileSync(new URL('./oracle.json', import.meta.url)))

@@ -1,0 +1,30 @@
+{
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/examples/manifest_typings.json",
+    "$(MODDABLE)/examples/manifest_piu.json",
+    "$(MODDABLE)/modules/commodetto/outline/manifest.json",
+    "$(MODDABLE)/modules/piu/MC/outline/manifest.json",
+    "$(MODDABLE)/modules/base/debug/manifest.json",
+    "$(MODDABLE)/modules/base/instrumentation/manifest.json"
+  ],
+  "modules": {
+    "main": "./main",
+    "avatar-dsl/face": "../face",
+    "avatar-dsl/vm": "../vm",
+    "avatar-dsl/context": "../context",
+    "avatar-dsl/driver": "../driver",
+    "avatar-dsl/vendor/compiler/opcodes": "../vendor/compiler/opcodes",
+    "face-state": "../../../../host/modules/ui/state/face-state"
+  },
+  "resources": {
+    "*": [
+      "../assets/default_face.avbc",
+      "../assets/omega_mouth.avbc",
+      "../assets/aokko_face.avbc"
+    ]
+  },
+  "build": { "NAME": "avatar-dsl-render" },
+  "creation": { "stack": 2048 },
+  "config": { "startupSound": false }
+}

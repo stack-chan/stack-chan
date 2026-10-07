@@ -14,7 +14,7 @@ static void changed(txScreen *screen) {
   uint32_t hash = 2166136261u;
   for (int i = 0; i < screen->width * screen->height * 4; i++) hash = (hash ^ screen->buffer[i]) * 16777619u;
   printf("FRAME %08x\n", hash);
-  if (frames < 64) {
+  if (frames < 128) {
     char path[4096];
     snprintf(path, sizeof(path), "%s/frame-%03d.rgba", output, frames);
     FILE *file = fopen(path, "wb");

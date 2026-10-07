@@ -141,6 +141,24 @@ test('mapping preserves RGB565/background, common gaze, min eye openness, mouth 
   assert.equal(ctx[31], 0.125)
   assert.equal(ctx[3], 1000)
 })
+test('explicit accessory slots override the mask and produce the same preset drawing as matching mask bits', () => {
+  for (let slot = 0; slot < 8; slot++) {
+    const id = 33 + slot
+    const explicit = createContext({ variables: { [id]: 1 } })
+    const masked = createContext({ variables: { 32: 1 << slot } })
+    assert.deepEqual(explicit.subarray(33), masked.subarray(33))
+    assert.equal(createContext({ variables: { 32: 255, [id]: 0 } })[id], 0)
+    assert.equal(createContext({ variables: { 32: 0, [id]: 1 } })[id], 1)
+    for (const name of ['default_face', 'omega_mouth', 'aokko_face']) {
+      const vm = new AvatarVM(load(name))
+      vm.run(explicit)
+      const commands = output(vm)
+      vm.run(masked)
+      assert.deepEqual(output(vm), commands, `${name} accessory ${id}`)
+    }
+  }
+  assert.equal(createContext({ variables: { '034': 1 } })[34], 1)
+})
 test('clock/blink/breath stop on hide, motion stop, face removal and disposal; restore has no hidden-time jump', () => {
   let frames = 0
   const d = new FaceDriver(() => frames++)

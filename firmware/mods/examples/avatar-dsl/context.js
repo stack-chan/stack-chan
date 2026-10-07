@@ -19,15 +19,17 @@ export function createContext({ width = 320, height = 240, circular = false, var
     ? Math.fround(Math.fround(Math.min(width, height) / 400) * Math.fround(0.97))
     : Math.min(width / 320, height / 240)
   // A MOD-local override, indexed by AVDS variable ID; no host API added.
+  let accessoryOverrides = 0
   for (const id of Object.keys(variables)) {
     const index = Number(id)
     if (!Number.isInteger(index) || index < 12 || index >= 41 || !Number.isFinite(variables[id]))
       throw new Error('AVDS: tuning override')
     ctx[index] = variables[id]
+    if (index >= 33) accessoryOverrides |= 1 << (index - 33)
   }
   const mask = clamp(ctx[32], 0, 255) | 0
   ctx[32] = mask
-  for (let i = 0; i < 8; i++) ctx[33 + i] = (mask >> i) & 1
+  for (let i = 0; i < 8; i++) if (!(accessoryOverrides & (1 << i))) ctx[33 + i] = (mask >> i) & 1
   return ctx
 }
 export function updateContext(ctx, state, elapsed, blink, options = {}) {

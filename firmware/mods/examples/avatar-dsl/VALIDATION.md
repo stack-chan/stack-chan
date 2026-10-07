@@ -7,7 +7,7 @@
 - Original checkout retained its three untracked STL files; its tracked files, branch and HEAD were not changed.
 - Reference: `ciniml/stackchan-idf@419385ef1b875137140085bd50d34dee331f30c2`. Compiler and three preset sources are unmodified; normalized-LF hashes and BSL-1.0 provenance are in `vendor/PROVENANCE.json`.
 - Isolated Moddable SDK **9.5.0**, commit `b6e06ba70506a7381ffb28e09e3175bf4e99f305`; WSL OpenClaw/Linux x86-64, Node 24.19.0, g++20. Existing SDK installation was preserved. Builds used repository npm wrappers.
-- No device connection, scan, BLE operation, flash, printer operation or merge was performed. The later publication uses Draft PR #725 only.
+- Initial validation used no device connection, BLE operation, flash or printer operation. PR #725 is now Ready with auto-merge disabled; no merge has been performed. Subsequent user-authorized COM12 testing is recorded separately from these Linux measurements.
 
 ## Checks and evidence
 
@@ -70,4 +70,19 @@ The initial [Build workflow](https://github.com/stack-chan/stack-chan/actions/ru
 
 The correction changes the five runtime imports to existing `avatar-dsl/...` aliases and adds MOD-local package exports for the Node pure modules. The complete PC/browser compiler moves, without source edits, to `firmware/tools/avatar-dsl/compiler/`, outside the production-source roots. Its runtime opcode snapshot stays in the MOD. Both opcode copies and all relocated sources are hash-checked against the same pinned provenance; BSL-1.0 text is present beside the desktop compiler as well as in the MOD.
 
-No host implementation/API, manifest alias, architecture rule or CI configuration was changed. Local revalidation passed 78 architecture tests, 9 focused tests, all 192 regenerated upstream C++ command sequences, 430 serial unit tests, 36 Piu framebuffer pairs/lifecycle checks, the MOD local build, full Biome CI and legacy-name checks. Recompilation/regeneration leaves the three AVBC presets and oracle fixtures unchanged. The measurements above are from this revalidation run; new-head CI results are tracked on the Draft PR.
+No host implementation/API, manifest alias, architecture rule or CI configuration was changed. Local revalidation passed 78 architecture tests, 9 focused tests, all 192 regenerated upstream C++ command sequences, 430 serial unit tests, 36 Piu framebuffer pairs/lifecycle checks, the MOD local build, full Biome CI and legacy-name checks. Recompilation/regeneration leaves the three AVBC presets and oracle fixtures unchanged. The measurements above are from this revalidation run; new-head CI results are tracked on PR #725.
+
+
+## Review corrections
+
+Release impact: **minor** for `stack-chan`; `.changeset/avatar-dsl-face-mod.md` records the new opt-in installable feature. PR #725 is Ready, not Draft.
+
+Explicit accessory IDs 33..40 now take precedence over mask ID 32. Regression coverage exercises all eight slots, explicit enable/disable with a mask, accepted numeric-key spellings, and command equivalence against mask-driven rendering for all three presets.
+
+Both constructor/decode failure and runtime failure preserve validated width, height and circular geometry while dropping tuning/budget overrides. Native Piu tests exercise 240x240 circular fallback, hostile tuning reset, and subsequent fallback frames.
+
+After these corrections: 10 focused Node tests, 431 serial unit tests, 78 architecture checks, all 192 checked-in C++ oracle comparisons, 36 partial/full Piu framebuffer pairs, native lifecycle/recovery, MOD build (31,934 bytes), full Biome CI and legacy-name validation passed. The temporary device-host manifest added one locally scanned file; it is excluded from the commit. No compiler/preset/resource source changes were made.
+
+This run's Linux VM means were 1.448 / 1.756 / 1.234 ms and render preparation means 1.975 / 2.242 / 2.008 ms for default / omega / aokko. After the final explicit GC, the whole test application used 95,456 XS slot bytes and 144,368 XS chunk bytes. These remain desktop measurements, excluding panel transfer and native Outline memory.
+
+Read-only device preflight matched COM12, USB 303A:1001, serial/MAC 44:1B:F6:E2:82:B0, ESP32-S3 revision 0.2 and 16MB. The existing app descriptor is 9.5.0+stackchan.1 (Moddable 9.5.0, host API 1). Only partition/app-descriptor/boot-header metadata were read; no NVS backup or full-flash backup was created. Hardware render validation is a separate, subsequently authorized phase.

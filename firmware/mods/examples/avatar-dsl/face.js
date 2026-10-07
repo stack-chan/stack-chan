@@ -21,6 +21,16 @@ function colorValue(value) {
     b = value & 31
   return (((r << 3) | (r >> 2)) * 0x1000000 + (((g << 2) | (g >> 4)) << 16) + (((b << 3) | (b >> 2)) << 8) + 255) >>> 0
 }
+// Keep validated canvas geometry, but discard tuning and execution overrides.
+function fallbackOptions({ width = 320, height = 240, circular = false }) {
+  const geometry = { width, height, circular }
+  try {
+    createContext(geometry)
+    return geometry
+  } catch {
+    return {}
+  }
+}
 class AvatarBehavior extends Behavior {
   constructor(buffer, options) {
     super()
@@ -119,8 +129,8 @@ class AvatarBehavior extends Behavior {
       this.renderFailures++
       trace(`[avatar-dsl] ${this.failure}; using safe default\n`)
       // Reset hostile tuning as well as bytecode. Preserve current host state.
-      this.context = createContext({ width: this.context[0], height: this.context[1] })
-      this.options = {}
+      this.options = fallbackOptions(this.options)
+      this.context = createContext(this.options)
       updateContext(this.context, this.desired, this.driver.elapsed, this.driver.openness(), this.options)
       vm = this.safeVM
       vm.run(this.context)
@@ -185,7 +195,7 @@ export function createAvatarFace({ preset = 'default', bytecode, ...options } = 
     behavior = new AvatarBehavior(bytecode ?? loadPreset(preset), options)
   } catch (error) {
     trace(`[avatar-dsl] ${String(error)}; using safe default\n`)
-    behavior = new AvatarBehavior(loadPreset(), {})
+    behavior = new AvatarBehavior(loadPreset(), fallbackOptions(options))
     behavior.failure = String(error)
   }
   const content = new Container(null, {

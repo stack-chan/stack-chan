@@ -1,5 +1,9 @@
 # Avatar DSL Face MOD (initial prototype)
 
+Release impact: **minor** (`stack-chan`). This opt-in installable feature has a changeset; the standard face remains the default.
+
+Accessory overrides: ID 32 initializes unspecified slots from its mask; explicit IDs 33..40 take precedence. For example, `{ 32: 255, 34: 0 }` disables only slot 1. Both decode and runtime fallback preserve validated `width/height/circular` geometry while discarding tuning and budget overrides.
+
 独立 MOD として stackchan-idf の顔描画 DSL を実行します。ホストの標準 Face・API は変更しません。PC/browser でコンパイルした `.avbc` を MOD resource に同梱し、`robot.ui.setFace(content)` に接続します。エディター import、HTTP/NVS upload はこの段階の対象外です。
 
 ## 固定した互換範囲

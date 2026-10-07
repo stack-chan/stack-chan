@@ -26,8 +26,13 @@ function heap(label) {
 }
 heap('three-faces')
 for (const f of faces) f.content.behavior.setMotionsEnabled(f.content, false)
-let safe = createAvatarFace({ bytecode: new ArrayBuffer(0) })
+const circularGeometry = { width: 240, height: 240, circular: true }
+const circularContext = createContext(circularGeometry)
+let safe = createAvatarFace({ ...circularGeometry, bytecode: new ArrayBuffer(0), variables: { 22: 999 } })
 check(!!safe.content.behavior.failure && safe.content.behavior.previousCount > 0, 'bad bytecode default recovery')
+check(safe.content.width === 240 && safe.content.height === 240, 'decode fallback keeps dimensions')
+check(safe.content.behavior.context[2] === circularContext[2], 'decode fallback keeps circular scale')
+check(safe.content.behavior.context[22] === circularContext[22], 'decode fallback discards tuning')
 safe.dispose()
 safe = null
 const many = new Uint8Array(22 + 33 * 11 + 1),
@@ -43,9 +48,13 @@ check(safe.content.behavior.failure.includes('Piu primitive budget'), 'Piu primi
 safe.dispose()
 safe = null
 const infinite = new Uint8Array([65, 86, 68, 83, 1, 0, 0, 0, 0, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 48, 253, 255])
-safe = createAvatarFace({ bytecode: infinite.buffer })
+safe = createAvatarFace({ ...circularGeometry, bytecode: infinite.buffer, variables: { 22: 999 } })
 check(safe.content.behavior.failure.includes('instruction budget'), 'infinite loop bounded recovery')
 check(safe.content.behavior.previousCount > 0 && safe.content.behavior.renderFailures === 1, 'atomic frame recovery')
+check(safe.content.behavior.context[2] === circularContext[2], 'runtime fallback keeps circular scale')
+check(safe.content.behavior.context[22] === circularContext[22], 'runtime fallback discards tuning')
+safe.content.behavior.onFaceUpdate(safe.content, state)
+check(safe.content.behavior.context[2] === circularContext[2], 'later fallback frames keep circular scale')
 safe.dispose()
 safe = null
 const first = faces[0],

@@ -4,10 +4,61 @@
 // See vendor/PROVENANCE.json. Stricter rejection/budgets are intentional.
 import { Op, Var } from 'avatar-dsl/vendor/compiler/opcodes'
 
+// Bind the pinned opcode table once: XS switches otherwise look up each
+// case property for every instruction. Keep one authoritative opcode table.
+const {
+  PushF32,
+  PushI8,
+  PushConst,
+  PushVar,
+  PushLocal,
+  StoreLocal,
+  Call,
+  PushI16,
+  Jmp,
+  Jz,
+  Jnz,
+  Ret,
+  FillCircle,
+  FillRect,
+  BeginGroup,
+  Nop,
+  Pop,
+  Dup,
+  Add,
+  Sub,
+  Mul,
+  Div,
+  Min,
+  Max,
+  Mod,
+  Eq,
+  Ne,
+  Lt,
+  Le,
+  Gt,
+  Ge,
+  And,
+  Or,
+  Xor,
+  Neg,
+  Abs,
+  Floor,
+  Round,
+  Sqrt,
+  Not,
+  Scale,
+  Tx,
+  Ty,
+  Clamp,
+  FillTriangle,
+  EndGroup,
+} = Op
+
 const arity = new Uint8Array(0x47)
-arity[Op.PushF32] = 4
-for (const op of [Op.PushI8, Op.PushConst, Op.PushVar, Op.PushLocal, Op.StoreLocal, Op.Call]) arity[op] = 1
-for (const op of [Op.PushI16, Op.Jmp, Op.Jz, Op.Jnz]) arity[op] = 2
+arity[PushF32] = 4
+for (const op of [PushI8, PushConst, PushVar, PushLocal, StoreLocal, Call]) arity[op] = 1
+for (const op of [PushI16, Jmp, Jz, Jnz]) arity[op] = 2
 const known = new Uint8Array(0x47)
 for (const op of Object.values(Op)) known[op] = 1
 const fail = (message) => {
@@ -70,10 +121,10 @@ export function decode(buffer) {
     const op = code[pc++],
       n = arity[op]
     if (!known[op] || pc + n > codeSize) fail('opcode/operand')
-    if (op === Op.PushF32) finite(cv.getFloat32(pc, true))
-    if (op === Op.PushConst && code[pc] >= nc) fail('constant reference')
-    if (op === Op.PushVar && code[pc] >= Object.keys(Var).length) fail('context reference')
-    if (op === Op.Call && code[pc] >= nf) fail('function reference')
+    if (op === PushF32) finite(cv.getFloat32(pc, true))
+    if (op === PushConst && code[pc] >= nc) fail('constant reference')
+    if (op === PushVar && code[pc] >= Object.keys(Var).length) fail('context reference')
+    if (op === Call && code[pc] >= nf) fail('function reference')
     pc += n
   }
   for (let i = 0; i < nf; i++) if (!boundaries[functions[i * 3]]) fail('function boundary')
@@ -82,7 +133,7 @@ export function decode(buffer) {
   for (let pc = 0; pc < codeSize; ) {
     const op = code[pc++],
       n = arity[op]
-    if (op === Op.Jmp || op === Op.Jz || op === Op.Jnz) {
+    if (op === Jmp || op === Jz || op === Jnz) {
       const target = pc + n + cv.getInt16(pc, true)
       if (target < 0 || target >= codeSize || !boundaries[target]) fail('jump boundary')
     }
@@ -108,14 +159,39 @@ export function decode(buffer) {
       const start = pending[--length],
         op = code[start],
         after = start + 1 + arity[op]
-      if ((op === Op.PushLocal || op === Op.StoreLocal) && code[start + 1] >= functions[i * 3 + 2])
-        fail('local reference')
-      if (op === Op.Ret) continue
-      if (op === Op.Jmp || op === Op.Jz || op === Op.Jnz) queue(after + cv.getInt16(start + 1, true))
-      if (op !== Op.Jmp) queue(after)
+      if ((op === PushLocal || op === StoreLocal) && code[start + 1] >= functions[i * 3 + 2]) fail('local reference')
+      if (op === Ret) continue
+      if (op === Jmp || op === Jz || op === Jnz) queue(after + cv.getInt16(start + 1, true))
+      if (op !== Jmp) queue(after)
     }
   }
-  return { code, view: cv, functions, constants, entry, boundaries }
+  // Predecode only after all byte offsets/control-flow references validate.
+  // One opcode and one float32 operand per instruction; no objects per opcode.
+  // The temporary byte-offset map and validation buffers are released here.
+  let count = 0
+  for (let pc = 0; pc < codeSize; pc += 1 + arity[code[pc]]) count++
+  const opcodes = new Uint8Array(count),
+    operands = new Float32Array(count),
+    indices = new Uint16Array(codeSize)
+  for (let pc = 0, i = 0; pc < codeSize; i++) {
+    indices[pc] = i
+    opcodes[i] = code[pc]
+    pc += 1 + arity[code[pc]]
+  }
+  for (let pc = 0, i = 0; pc < codeSize; i++) {
+    const op = code[pc++],
+      n = arity[op]
+    if (op === PushF32) operands[i] = cv.getFloat32(pc, true)
+    else if (op === PushI8) operands[i] = cv.getInt8(pc)
+    else if (op === PushI16) operands[i] = cv.getInt16(pc, true)
+    else if (op === PushConst) operands[i] = constants[code[pc]]
+    else if (op === Jmp || op === Jz || op === Jnz) operands[i] = indices[pc + n + cv.getInt16(pc, true)]
+    else if (op === Call) operands[i] = code[pc] * 3
+    else if (n) operands[i] = code[pc]
+    pc += n
+  }
+  for (let i = 0; i < nf; i++) functions[i * 3] = indices[functions[i * 3]]
+  return { opcodes, operands, functions, entry }
 }
 
 export const MAX_COMMANDS = 96
@@ -144,37 +220,31 @@ export class AvatarVM {
     this.steps = 0
     this.sp = 0
   }
-  push(value) {
-    if (this.sp >= 64) fail('stack overflow')
-    value = Math.fround(value)
-    finite(value)
-    this.stack[this.sp++] = value
-  }
-  pop() {
-    if (!this.sp) fail('stack underflow')
-    return this.stack[--this.sp]
-  }
-  emit(op, n, color) {
+  emit(op, n, color, sp) {
     if (this.count >= this.drawBudget) fail('draw budget')
-    const base = this.count * COMMAND_STRIDE
-    this.commands.fill(0, base, base + COMMAND_STRIDE)
-    this.commands[base] = op
+    if (sp < n + (color ? 1 : 0)) fail('stack underflow')
+    const base = this.count * COMMAND_STRIDE,
+      stack = this.stack,
+      commands = this.commands
+    commands.fill(0, base, base + COMMAND_STRIDE)
+    commands[base] = op
     if (color) {
-      const c = Math.trunc(this.pop())
+      const c = Math.trunc(stack[--sp])
       if (c < 0 || c > 65535) fail('color range')
-      this.commands[base + 7] = c
+      commands[base + 7] = c
     }
     for (let i = n; i >= 1; i--) {
-      const v = Math.trunc(this.pop())
+      const v = Math.trunc(stack[--sp])
       if (v < -32768 || v > 32767) fail('coordinate range')
-      this.commands[base + i] = v
+      commands[base + i] = v
     }
     if (
-      (op === Op.FillCircle && this.commands[base + 3] < 0) ||
-      ((op === Op.FillRect || op === Op.BeginGroup) && (this.commands[base + 3] < 0 || this.commands[base + 4] < 0))
+      (op === FillCircle && commands[base + 3] < 0) ||
+      ((op === FillRect || op === BeginGroup) && (commands[base + 3] < 0 || commands[base + 4] < 0))
     )
       fail('negative extent')
     this.count++
+    return sp
   }
   run(context) {
     this.count = this.steps = this.sp = 0
@@ -190,9 +260,13 @@ export class AvatarVM {
     if (!(context instanceof Float32Array) || context.length !== 41) fail('context size')
     for (let i = 0; i < context.length; i++) finite(context[i])
     const p = this.program,
-      code = p.code,
-      view = p.view,
-      fns = p.functions
+      code = p.opcodes,
+      operands = p.operands,
+      fns = p.functions,
+      stack = this.stack,
+      locals = this.locals,
+      frames = this.frames,
+      budget = this.instructionBudget
     const scale = context[2],
       cx = Math.fround(context[0] / 2),
       cy = Math.fround(context[1] / 2)
@@ -201,224 +275,244 @@ export class AvatarVM {
       depth = 1,
       base = 0,
       localSize = fns[p.entry * 3 + 2],
-      groups = 0
-    this.locals.fill(0, 0, localSize)
-    this.frames[0] = 0
-    this.frames[1] = base
-    this.frames[2] = localSize
+      groups = 0,
+      sp = 0,
+      steps = 0
+    locals.fill(0, 0, localSize)
+    frames[0] = 0
+    frames[1] = base
+    frames[2] = localSize
     for (;;) {
-      if (++this.steps > this.instructionBudget) fail('instruction budget')
-      if (pc >= code.length || !p.boundaries[pc]) fail('program counter')
-      const op = code[pc++]
+      this.steps = ++steps
+      if (steps > budget) fail('instruction budget')
+      if (pc >= code.length) fail('program counter')
+      const op = code[pc],
+        operand = operands[pc++]
       let a, b, v
+      let push = true
       switch (op) {
-        case Op.Nop:
+        case Nop:
+          push = false
           break
-        case Op.PushF32:
-          this.push(view.getFloat32(pc, true))
-          pc += 4
+        case PushF32:
+        case PushI8:
+        case PushI16:
+        case PushConst:
+          v = operand
           break
-        case Op.PushI8:
-          this.push(view.getInt8(pc++))
+        case PushVar:
+          v = context[operand]
           break
-        case Op.PushI16:
-          this.push(view.getInt16(pc, true))
-          pc += 2
+        case PushLocal:
+          if (operand >= localSize) fail('local reference')
+          v = locals[base + operand]
           break
-        case Op.PushConst:
-          this.push(p.constants[code[pc++]])
+        case StoreLocal:
+          if (operand >= localSize) fail('local reference')
+          if (!sp) fail('stack underflow')
+          locals[base + operand] = stack[--sp]
+          push = false
           break
-        case Op.PushVar:
-          this.push(context[code[pc++]])
+        case Pop:
+          if (!sp) fail('stack underflow')
+          sp--
+          push = false
           break
-        case Op.PushLocal:
-        case Op.StoreLocal: {
-          const slot = code[pc++]
-          if (slot >= localSize) fail('local reference')
-          if (op === Op.PushLocal) this.push(this.locals[base + slot])
-          else this.locals[base + slot] = this.pop()
+        case Dup:
+          if (!sp) fail('stack underflow')
+          v = stack[sp - 1]
           break
-        }
-        case Op.Pop:
-          this.pop()
-          break
-        case Op.Dup:
-          if (!this.sp) fail('stack underflow')
-          this.push(this.stack[this.sp - 1])
-          break
-        case Op.Add:
-        case Op.Sub:
-        case Op.Mul:
-        case Op.Div:
-        case Op.Min:
-        case Op.Max:
-        case Op.Mod:
-        case Op.Eq:
-        case Op.Ne:
-        case Op.Lt:
-        case Op.Le:
-        case Op.Gt:
-        case Op.Ge:
-        case Op.And:
-        case Op.Or:
-        case Op.Xor:
-          b = this.pop()
-          a = this.pop()
+        case Add:
+        case Sub:
+        case Mul:
+        case Div:
+        case Min:
+        case Max:
+        case Mod:
+        case Eq:
+        case Ne:
+        case Lt:
+        case Le:
+        case Gt:
+        case Ge:
+        case And:
+        case Or:
+        case Xor:
+          if (sp < 2) fail('stack underflow')
+          b = stack[--sp]
+          a = stack[--sp]
           switch (op) {
-            case Op.Add:
+            case Add:
               v = a + b
               break
-            case Op.Sub:
+            case Sub:
               v = a - b
               break
-            case Op.Mul:
+            case Mul:
               v = a * b
               break
-            case Op.Div:
+            case Div:
               if (!b) fail('divide by zero')
               v = a / b
               break
-            case Op.Mod:
+            case Mod:
               if (!b) fail('divide by zero')
               v = a % b
               break
-            case Op.Min:
+            case Min:
               v = Math.min(a, b)
               break
-            case Op.Max:
+            case Max:
               v = Math.max(a, b)
               break
-            case Op.Eq:
+            case Eq:
               v = a === b ? 1 : 0
               break
-            case Op.Ne:
+            case Ne:
               v = a !== b ? 1 : 0
               break
-            case Op.Lt:
+            case Lt:
               v = a < b ? 1 : 0
               break
-            case Op.Le:
+            case Le:
               v = a <= b ? 1 : 0
               break
-            case Op.Gt:
+            case Gt:
               v = a > b ? 1 : 0
               break
-            case Op.Ge:
+            case Ge:
               v = a >= b ? 1 : 0
               break
-            case Op.And:
+            case And:
               v = a !== 0 && b !== 0 ? 1 : 0
               break
-            case Op.Or:
+            case Or:
               v = a !== 0 || b !== 0 ? 1 : 0
               break
-            case Op.Xor:
+            case Xor:
               v = (a !== 0) !== (b !== 0) ? 1 : 0
               break
           }
-          this.push(v)
           break
-        case Op.Neg:
-        case Op.Abs:
-        case Op.Floor:
-        case Op.Round:
-        case Op.Sqrt:
-        case Op.Not:
-        case Op.Scale:
-        case Op.Tx:
-        case Op.Ty:
-          a = this.pop()
+        case Neg:
+        case Abs:
+        case Floor:
+        case Round:
+        case Sqrt:
+        case Not:
+        case Scale:
+        case Tx:
+        case Ty:
+          if (!sp) fail('stack underflow')
+          a = stack[--sp]
           switch (op) {
-            case Op.Neg:
+            case Neg:
               v = -a
               break
-            case Op.Abs:
+            case Abs:
               v = Math.abs(a)
               break
-            case Op.Floor:
+            case Floor:
               v = Math.floor(a)
               break
-            case Op.Round:
+            case Round:
               v = a < 0 ? -Math.floor(-a + 0.5) : Math.floor(a + 0.5)
               break
-            case Op.Sqrt:
+            case Sqrt:
               v = Math.sqrt(a)
               break
-            case Op.Not:
+            case Not:
               v = a === 0 ? 1 : 0
               break
-            case Op.Scale:
+            case Scale:
               v = Math.max(1, Math.fround(a * scale))
               break
-            case Op.Tx:
+            case Tx:
               v = cx + Math.fround(Math.fround(a - 160) * scale)
               break
-            case Op.Ty:
+            case Ty:
               v = cy + Math.fround(Math.fround(a - 120) * scale)
               break
           }
-          this.push(v)
           break
-        case Op.Clamp:
-          b = this.pop()
-          a = this.pop()
-          v = this.pop()
-          this.push(v < a ? a : v > b ? b : v)
+        case Clamp:
+          if (sp < 3) fail('stack underflow')
+          b = stack[--sp]
+          a = stack[--sp]
+          v = stack[--sp]
+          v = v < a ? a : v > b ? b : v
           break
-        case Op.Jmp:
-        case Op.Jz:
-        case Op.Jnz:
-          a = view.getInt16(pc, true)
-          pc += 2
-          if (op === Op.Jmp || (op === Op.Jz ? this.pop() === 0 : this.pop() !== 0)) pc += a
+        case Jmp:
+        case Jz:
+        case Jnz:
+          if (op !== Jmp && !sp) fail('stack underflow')
+          if (op === Jmp || (op === Jz ? stack[--sp] === 0 : stack[--sp] !== 0)) pc = operand
+          push = false
           break
-        case Op.Call: {
-          const id = code[pc++] * 3,
+        case Call: {
+          const id = operand,
             params = fns[id + 1],
             size = fns[id + 2],
             nextBase = base + localSize
           if (depth >= 16) fail('call depth')
           if (nextBase + size > 256) fail('locals overflow')
-          if (this.sp < params) fail('stack underflow')
-          for (let i = params - 1; i >= 0; i--) this.locals[nextBase + i] = this.pop()
-          this.locals.fill(0, nextBase + params, nextBase + size)
+          if (sp < params) fail('stack underflow')
+          for (let i = params - 1; i >= 0; i--) locals[nextBase + i] = stack[--sp]
+          locals.fill(0, nextBase + params, nextBase + size)
           const frame = depth++ * 3
-          this.frames[frame] = pc
-          this.frames[frame + 1] = nextBase
-          this.frames[frame + 2] = size
+          frames[frame] = pc
+          frames[frame + 1] = nextBase
+          frames[frame + 2] = size
           base = nextBase
           localSize = size
           pc = fns[id]
+          push = false
           break
         }
-        case Op.Ret:
+        case Ret:
           if (--depth === 0) {
             if (groups) fail('unclosed group')
+            this.sp = sp
             return
           }
-          pc = this.frames[depth * 3]
-          base = this.frames[(depth - 1) * 3 + 1]
-          localSize = this.frames[(depth - 1) * 3 + 2]
+          pc = frames[depth * 3]
+          base = frames[(depth - 1) * 3 + 1]
+          localSize = frames[(depth - 1) * 3 + 2]
+          push = false
           break
-        case Op.FillRect:
-          this.emit(op, 4, true)
+        case FillRect:
+          sp = this.emit(op, 4, true, sp)
+          push = false
           break
-        case Op.FillCircle:
-          this.emit(op, 3, true)
+        case FillCircle:
+          sp = this.emit(op, 3, true, sp)
+          push = false
           break
-        case Op.FillTriangle:
-          this.emit(op, 6, true)
+        case FillTriangle:
+          sp = this.emit(op, 6, true, sp)
+          push = false
           break
-        case Op.BeginGroup:
+        case BeginGroup:
           if (++groups > 16) fail('group depth')
-          this.emit(op, 4, false)
+          sp = this.emit(op, 4, false, sp)
+          push = false
           break
-        case Op.EndGroup:
+        case EndGroup:
           if (!groups--) fail('group underflow')
-          this.emit(op, 0, false)
+          sp = this.emit(op, 0, false, sp)
+          push = false
           break
         default:
           fail('opcode')
+      }
+      // Let the switch finish: XS 9.5.0 leaks its switch value on a
+      // continue inside a case. The bounded-loop native test guards this.
+      if (push) {
+        if (sp >= 64) fail('stack overflow')
+        // Float32Array rounds exactly once. Reject overflow/NaN after rounding.
+        stack[sp] = v
+        finite(stack[sp])
+        sp++
       }
     }
   }

@@ -111,6 +111,48 @@ test('bounded execution, draw counts, recursive calls, stack and locals fail ato
   ])
     assert.throws(() => new AvatarVM(raw(code, { locals })).run(createContext()), pattern)
 })
+test('predecoded forward/backward branches preserve control flow and exact instruction budgets', () => {
+  // Decrement a local three times. Mixed operand widths make byte offsets
+  // different from instruction indices; Jnz must return to PushLocal.
+  const loop = raw(
+    [
+      Op.PushI8,
+      3,
+      Op.StoreLocal,
+      0,
+      Op.PushLocal,
+      0,
+      Op.PushI8,
+      1,
+      Op.Sub,
+      Op.Dup,
+      Op.StoreLocal,
+      0,
+      Op.Jnz,
+      245,
+      255,
+      Op.Ret,
+    ],
+    { locals: 1 },
+  )
+  const vm = new AvatarVM(loop, { instructions: 21 })
+  assert.equal(vm.run(createContext()), 0)
+  assert.equal(vm.steps, 21)
+  assert.equal(vm.locals[0], 0)
+  const bounded = new AvatarVM(loop, { instructions: 20 })
+  assert.throws(() => bounded.run(createContext()), /instruction budget/)
+  assert.equal(bounded.count, 0)
+  assert.equal(bounded.steps, 21)
+  // Maximum AVDS code section; reach instruction indices above signed int16
+  // through two valid relative jumps, without executing the unreachable Nops.
+  const code = new Uint8Array(65535)
+  code.set([Op.Jmp, 255, 127])
+  code.set([Op.Jmp, 249, 127], 32770)
+  code[65534] = Op.Ret
+  const large = new AvatarVM(raw(code), { instructions: 3 })
+  assert.equal(large.run(createContext()), 0)
+  assert.equal(large.steps, 3)
+})
 test('mapping preserves RGB565/background, common gaze, min eye openness, mouth fallback and emotion order', () => {
   const state = {
     emotion: 0,
@@ -227,13 +269,21 @@ test('clock/blink/breath stop on hide, motion stop, face removal and disposal; r
 test('VM storage identities stay fixed across 2000 frames; preset mouth sweeps fit Piu primitive capacity', (t) => {
   const vm = new AvatarVM(load('omega_mouth')),
     ctx = createContext()
-  const buffers = [vm.stack, vm.locals, vm.frames, vm.commands]
+  const storage = () => [
+    vm.stack,
+    vm.locals,
+    vm.frames,
+    vm.commands,
+    vm.program.opcodes,
+    vm.program.operands,
+    vm.program.functions,
+  ]
+  const buffers = storage()
   for (let i = 0; i < 2000; i++) {
     ctx[8] = ctx[31] = (i % 100) / 100
     vm.run(ctx)
   }
-  assert.deepEqual([vm.stack, vm.locals, vm.frames, vm.commands], buffers)
-  for (let i = 0; i < buffers.length; i++) assert.equal([vm.stack, vm.locals, vm.frames, vm.commands][i], buffers[i])
+  for (let i = 0; i < buffers.length; i++) assert.equal(storage()[i], buffers[i])
   let maximum = 0
   for (const name of ['default_face', 'omega_mouth', 'aokko_face']) {
     const preset = new AvatarVM(load(name)),

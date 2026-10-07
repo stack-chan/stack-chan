@@ -61,6 +61,34 @@ const first = faces[0],
   b = first.content.behavior
 const pool = b.shapes.slice(),
   buffers = [b.vm.stack, b.vm.locals, b.vm.frames, b.vm.commands]
+let evaluations = 0
+const originalRun = b.vm.run
+b.vm.run = function (context) {
+  evaluations++
+  return originalRun.call(this, context)
+}
+b.onFaceUpdate(first.content, state)
+const beforeIdentical = evaluations
+b.onFaceUpdate(first.content, state)
+check(evaluations === beforeIdentical, 'identical full context reuses frame')
+b.driver.elapsed++
+b.onFaceUpdate(first.content, state)
+check(evaluations === beforeIdentical + 1, 'changed clock evaluates immediately')
+b.driver.elapsed--
+state.mouth.open = 0.5
+b.onFaceUpdate(first.content, state)
+check(evaluations === beforeIdentical + 2, 'changed mouth evaluates immediately')
+const outlines = b.shapes.map((shape) => shape.fillOutline)
+const originalPrimary = state.theme.primary
+state.theme.primary = { r: 255, g: 0, b: 0 }
+b.onFaceUpdate(first.content, state)
+check(evaluations === beforeIdentical + 3, 'changed palette evaluates immediately')
+for (let i = 0; i < pool.length; i++) check(outlines[i] === b.shapes[i].fillOutline, 'palette reuses geometry')
+b.vm.run = originalRun
+// Restore the exact baseline context before framebuffer captures.
+state.theme.primary = originalPrimary
+state.mouth.open = 0
+b.onFaceUpdate(first.content, state)
 for (let i = 0; i < 12; i++) {
   state.mouth.open = i / 12
   b.onFaceUpdate(first.content, state)

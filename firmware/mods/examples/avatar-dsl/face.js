@@ -39,6 +39,9 @@ class AvatarBehavior extends Behavior {
     this.options = options
     this.desired = createFaceState()
     this.context = createContext(options)
+    this.contextWords = new Uint32Array(this.context.buffer)
+    this.lastContextWords = new Uint32Array(this.context.length)
+    this.hasFrame = false
     this.vm = new AvatarVM(buffer, options.budget)
     this.safeVM = new AvatarVM(loadPreset())
     this.driver = new FaceDriver(() => this.render())
@@ -116,6 +119,17 @@ class AvatarBehavior extends Behavior {
   render() {
     if (!this.content || this.driver.disposed || this.driver.paused) return
     updateContext(this.context, this.desired, this.driver.elapsed, this.driver.openness(), this.options)
+    // Reuse only an exactly identical complete float32 context, including time
+    // and signed zero. State changes and every changed clock still run the VM.
+    if (this.hasFrame) {
+      let same = true
+      for (let i = 0; i < this.contextWords.length; i++)
+        if (this.contextWords[i] !== this.lastContextWords[i]) {
+          same = false
+          break
+        }
+      if (same) return
+    }
     let vm = this.failure ? this.safeVM : this.vm
     try {
       vm.run(this.context)
@@ -131,11 +145,14 @@ class AvatarBehavior extends Behavior {
       // Reset hostile tuning as well as bytecode. Preserve current host state.
       this.options = fallbackOptions(this.options)
       this.context = createContext(this.options)
+      this.contextWords = new Uint32Array(this.context.buffer)
       updateContext(this.context, this.desired, this.driver.elapsed, this.driver.openness(), this.options)
       vm = this.safeVM
       vm.run(this.context)
     }
     this.present(vm)
+    this.lastContextWords.set(this.contextWords)
+    this.hasFrame = true
   }
   present(vm) {
     const commands = vm.commands,
@@ -149,9 +166,11 @@ class AvatarBehavior extends Behavior {
     for (let i = 0; i < count; i++) {
       const offset = i * COMMAND_STRIDE,
         shape = this.shapes[i]
-      let different = i >= this.previousCount
-      for (let j = 0; j < COMMAND_STRIDE; j++) if (commands[offset + j] !== this.previous[offset + j]) different = true
-      if (!different) continue
+      let geometryChanged = i >= this.previousCount
+      for (let j = 0; j < COMMAND_STRIDE - 1; j++)
+        if (commands[offset + j] !== this.previous[offset + j]) geometryChanged = true
+      const colorChanged = i >= this.previousCount || commands[offset + 7] !== this.previous[offset + 7]
+      if (!geometryChanged && !colorChanged) continue
       changed = true
       const op = commands[offset],
         x = commands[offset + 1],
@@ -163,16 +182,18 @@ class AvatarBehavior extends Behavior {
       if (!shape.visible) continue
       // Pool is fixed. Changed paths/Skin do allocate in this initial prototype.
       // Groups are buffered-composition hints, never Piu clips/translations.
-      const path = new Outline.CanvasPath()
-      if (op === Op.FillRect) path.rect(x, y, w, h)
-      else if (op === Op.FillCircle) path.arc(x, y, w, 0, Math.PI * 2)
-      else {
-        path.moveTo(x, y)
-        path.lineTo(w, h)
-        path.lineTo(commands[offset + 5], commands[offset + 6])
+      if (geometryChanged) {
+        const path = new Outline.CanvasPath()
+        if (op === Op.FillRect) path.rect(x, y, w, h)
+        else if (op === Op.FillCircle) path.arc(x, y, w, 0, Math.PI * 2)
+        else {
+          path.moveTo(x, y)
+          path.lineTo(w, h)
+          path.lineTo(commands[offset + 5], commands[offset + 6])
+        }
+        path.closePath()
+        shape.fillOutline = Outline.fill(path)
       }
-      path.closePath()
-      shape.fillOutline = Outline.fill(path)
       const color = commands[offset + 7]
       if (!this.skins[i] || this.colors[i] !== color) {
         this.colors[i] = color
@@ -181,7 +202,7 @@ class AvatarBehavior extends Behavior {
       shape.skin = this.skins[i]
     }
     for (let i = count; i < this.previousCount; i++) this.shapes[i].visible = false
-    this.previous.set(commands.subarray(0, count * COMMAND_STRIDE))
+    for (let i = 0; i < count * COMMAND_STRIDE; i++) this.previous[i] = commands[i]
     this.previousCount = count
     // Full damage is deliberate until command dirty bounds are validated.
     if (changed) this.invalidator.invalidate(0, 0, this.context[0], this.context[1])

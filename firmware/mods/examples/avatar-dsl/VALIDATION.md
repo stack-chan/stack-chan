@@ -86,3 +86,45 @@ After these corrections: 10 focused Node tests, 431 serial unit tests, 78 archit
 This run's Linux VM means were 1.448 / 1.756 / 1.234 ms and render preparation means 1.975 / 2.242 / 2.008 ms for default / omega / aokko. After the final explicit GC, the whole test application used 95,456 XS slot bytes and 144,368 XS chunk bytes. These remain desktop measurements, excluding panel transfer and native Outline memory.
 
 Read-only device preflight matched COM12, USB 303A:1001, serial/MAC 44:1B:F6:E2:82:B0, ESP32-S3 revision 0.2 and 16MB. The existing app descriptor is 9.5.0+stackchan.1 (Moddable 9.5.0, host API 1). Only partition/app-descriptor/boot-header metadata were read; no NVS backup or full-flash backup was created. Hardware render validation is a separate, subsequently authorized phase.
+
+## Measured optimization — 2026-10-08 JST
+
+The user accepted the previous default face as having no missing pixels, clipping, flicker or trails, and authorized continued optimization, MOD writes and updates to PR #725. Local/remote/PR heads matched `fbf282f88f837fec2e77a5bc2e8342999fcda067` before work and again before device writes. Original checkout and host product code were preserved.
+
+The physical comparison used **the same instrumented diagnostic host**, SHA-256 `e6a951d4eee308fd06ff26b809629875ebf0e7ada9d42ff810da8a76061a1401`, 6,782,768 bytes: **driver none locked, Wi-Fi manifest skip, head LED null**. The live app digest matched before both XS-only installs; the host was not rewritten. This is not a #724 fix or verification of the normal host's Wi-Fi/head LED/effects/servo path. No NVS/settings erase, new device backup, full erase, Offline choice, servo command, BLE or printer action occurred.
+
+At boot, SDK 9.5.0 `fxMapArchive` legitimately rewrites XSA symbol/profile identifiers in flash, so an installed MOD does not retain its preboot whole-file digest. Initial identity verification compared every immutable byte and all 1,381 mapped references to the original 31,934-byte default archive (immutable SHA-256 `19b2549dcc477d71c661bdb9ababaa699b1d3c4db647e9955931cc81b16a827a`). The optimized diagnostic archive was likewise checked before restoring the usual MOD. These checks read only the known XS archive span into memory and did not save device contents. Each replacement used the existing partition-discovery installer and passed immediate preboot digest verification.
+
+Changes: predecode validated instructions into fixed opcode/operand arrays, translate jumps/function entries once, bind pinned opcode values once, keep execution cursors/storage references local and round through Float32Array writes. Each original instruction still consumes the same budget; stack64/locals256/call16/groups16, finite/range checks, draw budgets and atomic fallback remain. Renderer reuse requires bit-identical values for **all 41 context slots**, including time and signed zero. Changed clock/state values evaluate immediately. Palette-only changes retain geometry; command copying no longer allocates a subarray view. No timer frequency, input function or meaningful frame is reduced.
+
+An intermediate implementation hit native XS stack overflow on the 12,000-instruction infinite-loop test: `continue` inside `switch` left switch values on the XS stack. The final loop finishes each switch before advancing, and native bounded-loop recovery passes. This was detected before device installation. SDK/host code was not modified.
+
+Final local verification: **11 focused tests, 432 serial unit tests, 78 architecture checks**, all 192 C++ command sequences, 500 seeded corruptions, numeric/range and execution-budget tests. Added mixed-width backward/forward branch coverage, exact budget counts, maximum 65,535-byte code-section jump indices and fixed predecoded-storage identity. Native Piu verifies identical-context reuse, immediate clock/mouth/palette changes, palette geometry identity, existing lifecycle/recovery and 36 partial/full pairs. **All first 73 captured frames match the previous head byte for byte: 22,425,600 BGRA bytes, no differences.** Full Biome CI, legacy-name checks and production/diagnostic MOD builds passed. Production archive is 33,634 bytes (previous 31,934); diagnostic archive is 39,722 bytes.
+
+| Same physical dynamic workload | default before → after | omega before → after | aokko before → after |
+|---|---:|---:|---:|
+| VM mean, 100 frames (ms) | 101.24 → 73.26 | 123.19 → 89.14 | 88.19 → 67.83 |
+| Render preparation mean (ms) | 89.298 → 68.647 | 120.494 → 91.944 | 141.013 → 108.817 |
+| Frames drawn/s | 3.273 → 5.200 | 3.364 → 4.000 | 2.636 → 3.636 |
+| Active CPU mean (%) | 99.0 → 99.0 | 99.091 → 99.0 | 99.182 → 99.091 |
+| Whole-app GC/s | 0.182 → 0.300 | 0.545 → 0.600 | 0.545 → 0.364 |
+
+The checked-in `tests/avatar-dsl-device/manifest.json` reproduces the previous workload: six host expressions, eye/mouth/shared-gaze mapping, 100 standalone VM calls, a 12-second dynamic phase with both the unchanged 33ms state timer and Face timer, motion stop, swap/disposal, hidden-main/show-face, and circular malformed/infinite-loop fallback. **65 checks passed.** FPS uses actual SDK `Frames drawn` counters; there is no FPS target or skipped-frame counter. Discard first/last instrumentation interval at phase boundaries: 11 samples/preset before, 10/10/11 after. Single runs, millisecond VM timing; preparation excludes asynchronous rasterization/panel transfer. Different contexts are used for standalone VM and preparation measurements, so their means cannot be subtracted to isolate renderer cost.
+
+| After explicit GC, whole diagnostic application | XS slots before → after (bytes) | XS chunks before → after (bytes) | System free before → after (bytes) |
+|---|---:|---:|---:|
+| Host before face | 284,000 → 285,456 | 61,360 → 61,508 | 8,030,103 → 8,030,103 |
+| Default after dynamic | 284,752 → 285,856 | 102,528 → 107,060 | 8,006,871 → 8,006,891 |
+| Omega after dynamic | 294,896 → 295,840 | 137,108 → 144,972 | 8,003,779 → 8,003,803 |
+| Aokko after dynamic | 294,816 → 295,760 | 133,540 → 139,996 | 8,004,847 → 7,984,375 |
+| Completed default recovery | 300,000 → 300,976 | 153,548 → 160,584 | 7,985,383 → 7,985,383 |
+
+Raw resident decoded arrays use 4,931 / 5,496 / 2,765 bytes per default / omega / aokko program, plus VM buffers and object overhead. They replace retained bytecode/constant/boundary buffers. Each Face also owns a safe-default VM. At most 65,535 decoded instructions and 256 functions give 329,211 array bytes/program; temporary validation/translation buffers are additionally allocated at construction. Whole-application heap snapshots include test locals, other faces and framework activity; native Outline memory is outside XS heap counts. These results are not a leak-free/allocation-free claim.
+
+Linux XS VM means improved from 1.448 / 1.756 / 1.234 ms to **0.918 / 1.118 / 0.784 ms**; preparation means are 1.458 / 1.600 / 1.408 ms. Native limits and pixel comparisons passed. These desktop numbers are not physical throughput.
+
+Generated evidence: `dist/avatar-dsl-optimization/baseline/` (previous local captures/results), `pixel-comparison.json`, `serial.log`, `device-result.json`, `device-install.log`, `current-mod-verify.log`, `default-install.log`, `default-serial.log`; existing focused/unit/static/render/build logs remain under `dist/`. These contain no device backup.
+
+Performance remains CPU-bound and far below 30fps. Next work should profile opcode dispatch and Piu path/rasterization independently under the same workload, then measure bounded fast paths; arbitrary frame decimation is not a solution. A native VM or broader host change needs separate scope. Long soak, simultaneous full host effects, normal Wi-Fi/LED startup, servo motion and updated physical visual acceptance remain unverified. Usual default MOD restoration and its steady FPS are recorded below.
+
+The **usual default MOD** was installed, digest-verified and rebooted to `app behaviors ready` on the unchanged diagnostic host. Repeated before/after 35-second captures use the same **21 interior one-second samples after readiness**, excluding the first interval: **5.190 → 6.048 Frames drawn/s**, ranges 2..8 → 2..9, active CPU 98.952% → 99.000%, whole-app GC/s 0.143 → 0.190. The earlier baseline run was 5.381 FPS; run-to-run variation is visible. This is the final device state, with default shown. `default-result.json` records the comparison. The user's prior visual acceptance applies to the baseline; updated physical clipping/flicker/trails/blink observation has not been independently confirmed.

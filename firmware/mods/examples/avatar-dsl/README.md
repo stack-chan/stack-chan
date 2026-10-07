@@ -75,7 +75,9 @@ Per frame: 12,000 命令、96 描画/group commands、64 operand slots、256 agg
 
 Frame は VM 成功後にのみ renderer へ渡します。decode/run failure は記録して default preset と safe tuning に切り替えます。失敗した bytecode を再試行しません。`content.behavior.failure` と `renderFailures` を診断に利用できます。描画は固定サイズの command buffer を使用します。
 
-Shape pool、VM stack/locals/frames/commands は固定ですが、変化した path/Outline、色変更時の Skin、command buffer の subarray view は生成します。現段階は無割当・実機 30fps を主張しません。GC/native Outline のコストを測った後に、Outline reuse と三角形 topology の設計を次案とします。
+検証済み bytecode は起動時に opcode と operand の固定 TypedArray へ変換し、各フレームの operand decode を省きます。命令予算は元の DSL 命令ごとに数え、stack/locals/call/draw の上限と float32 の丸めを維持します。完全一致の context のみ描画結果を再利用します。比較は時刻を含む全 41 値のビット単位で行い、変更された状態はその場で評価します。
+
+Shape pool、VM storage は固定です。色だけの変更では Outline を再利用し、command buffer の subarray view は作りません。形状変更時の path/Outline と色変更時の Skin は生成します。無割当・実機 30fps は主張しません。同じ診断ホストでの実機 FPS/VM 時間/heap と旧版との画像比較は [VALIDATION.md](VALIDATION.md) に記録しています。
 
 ## 検証
 
@@ -92,6 +94,8 @@ AVATAR_DSL_UPSTREAM=/path/to/stackchan-idf npm run test:avatar-dsl:oracle
 Node tests は上流 unmodified C++ `RecordingCanvas` の 192 command sequences と照合します。3 presets × 6 expressions × 8 contexts と 48 numeric cases。破損 header/sections/opcodes/refs/jumps、無限 loop、draw budget、stack/call/locals limits、finite/range、context mapping、timer lifecycle、固定 buffer identity、500 deterministic mutations を含みます。
 
 Piu tests は 36 partial/full framebuffer pairs、3 presets の表情・目・視線・mouth・theme/accessories、Face の detach/reattach/pause/resume/motion disable/dispose と default recovery を確認し、XS VM の CPU 時間と GC 後の heap 使用量を出力します。Piu render runner は既存 jitome runner を再利用します。測定・残課題は [VALIDATION.md](VALIDATION.md) を参照してください。
+
+実機計測 MOD の build は `npm run mod:build -- mods/examples/avatar-dsl/tests/avatar-dsl-device/manifest.json` です。これは build のみで、flash は行いません。計測には `debug`/`instrumentation` を使える診断ホストが必要です。記録した比較条件は driver `none` locked、Wi-Fi manifest skip、head LED null です。3 presets・6 expressions・動的入力・100-frame VM 計測・GC 後 heap・Face lifecycle を順に実行し、最後に default を表示します。通常の `mods/examples/avatar-dsl/manifest.json` が利用用 MOD です。
 
 ## ライセンス
 

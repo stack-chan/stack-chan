@@ -1,6 +1,7 @@
 import type { PREF_KEYS } from 'consts'
 import Preference from 'preference'
 import { isAllowedPreferenceWrite, parsePreferenceProperty } from 'preference-write-guard'
+import Time from 'time'
 import Timer from 'timer'
 import { SERVICE_UUID, UARTServer } from 'uartserver'
 
@@ -23,6 +24,8 @@ export class PreferenceServer extends UARTServer {
   #timeout
   #writesEnabled = false
   #writeWindowTimer
+  #writeWindowStartedTicks?: number
+  #writeWindowDurationMs = 0
   #closed = false
   #handlePreferenceChanged?: (key: string, value: PreferenceValue) => void
   #handleConnected?: () => void
@@ -44,21 +47,41 @@ export class PreferenceServer extends UARTServer {
   enableWrites(durationMs: number) {
     this.disableWrites()
     if (this.#closed || !Number.isFinite(durationMs) || durationMs <= 0) return
+    const startedTicks = Time.ticks
+    if (!Number.isFinite(startedTicks)) return
     this.#writeWindowTimer = Timer.set(() => {
       this.#writeWindowTimer = undefined
       this.disableWrites()
       trace('BLE preference write window closed\n')
     }, durationMs)
+    this.#writeWindowStartedTicks = startedTicks
+    this.#writeWindowDurationMs = durationMs
     this.#writesEnabled = true
   }
 
   disableWrites() {
     this.#writesEnabled = false
+    this.#writeWindowStartedTicks = undefined
+    this.#writeWindowDurationMs = 0
     if (this.#writeWindowTimer != null) {
       Timer.clear(this.#writeWindowTimer)
       this.#writeWindowTimer = undefined
     }
     this.#clearReceiveBuffer()
+  }
+
+  #isWriteWindowOpen() {
+    if (!this.#writesEnabled || this.#closed) return false
+    try {
+      if (this.#writeWindowStartedTicks != null) {
+        const elapsed = Time.delta(this.#writeWindowStartedTicks)
+        if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed < this.#writeWindowDurationMs) return true
+      }
+    } catch (_error) {
+      // A failed clock must not turn a bounded window into an unbounded one.
+    }
+    this.disableWrites()
+    return false
   }
 
   #clearReceiveBuffer() {
@@ -119,7 +142,7 @@ export class PreferenceServer extends UARTServer {
     if ('rx' === characteristic.name) this.onRX(value)
   }
   onRX(data) {
-    if (!this.#writesEnabled) return
+    if (!this.#isWriteWindowOpen()) return
     this.#rxBuffer += String.fromArrayBuffer(data)
     trace(`${this.#rxBuffer}\n`)
     let _batch: object
@@ -173,7 +196,7 @@ export class PreferenceServer extends UARTServer {
   }
 
   receiveAndSetPreference(domain: string, key: string, value: PreferenceValue) {
-    if (!isAllowedPreferenceWrite(this.#keys, this.#writesEnabled, domain, key)) {
+    if (!isAllowedPreferenceWrite(this.#keys, this.#isWriteWindowOpen(), domain, key)) {
       trace(`rejected BLE preference write: ${domain}.${key}\n`)
       return
     }
@@ -187,6 +210,8 @@ export class PreferenceServer extends UARTServer {
     const currentValue = Preference.get(domain, key) ?? this.#effectiveValues[prop]
     if (currentValue !== value) {
       trace(`changing preference ... ${domain}.${key}: ${value}\n`)
+      // Parsing, storage reads or earlier batch callbacks may have crossed expiry.
+      if (!this.#isWriteWindowOpen()) return
       Preference.set(domain, key, value)
       this.notifyPreference(prop, value)
       this.#handlePreferenceChanged?.(prop, value)

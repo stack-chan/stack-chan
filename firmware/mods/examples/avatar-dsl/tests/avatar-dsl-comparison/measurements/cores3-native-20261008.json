@@ -674,7 +674,10 @@
       "dynamic": false,
       "js": {
         "actualFps": 5.260339460213383,
-        "fpsRuns": [5.288805952580227, 5.232177763659077],
+        "fpsRuns": [
+          5.288805952580227,
+          5.232177763659077
+        ],
         "cpu0": 99.0,
         "cpu1": 0.0,
         "vmMs": 60.576194539249144,
@@ -689,7 +692,10 @@
       },
       "native": {
         "actualFps": 6.967268274259893,
-        "fpsRuns": [6.934487606305851, 6.999964533514605],
+        "fpsRuns": [
+          6.934487606305851,
+          6.999964533514605
+        ],
         "cpu0": 41.73530035711459,
         "cpu1": 0.0,
         "vmMs": 0.37241530740276035,
@@ -710,7 +716,10 @@
       "dynamic": true,
       "js": {
         "actualFps": 3.6234236220341742,
-        "fpsRuns": [3.5825848197719448, 3.6599290321958264],
+        "fpsRuns": [
+          3.5825848197719448,
+          3.6599290321958264
+        ],
         "cpu0": 99.03788245513125,
         "cpu1": 0.0,
         "vmMs": 76.30889237668161,
@@ -725,7 +734,10 @@
       },
       "native": {
         "actualFps": 20.504074837590977,
-        "fpsRuns": [20.540487246454344, 20.467644065849086],
+        "fpsRuns": [
+          20.540487246454344,
+          20.467644065849086
+        ],
         "cpu0": 98.70951648844407,
         "cpu1": 0.12491121902502561,
         "vmMs": 0.5350177705977383,
@@ -746,7 +758,10 @@
       "dynamic": false,
       "js": {
         "actualFps": 2.3316879777149833,
-        "fpsRuns": [2.4236738106178546, 2.240361014762015],
+        "fpsRuns": [
+          2.4236738106178546,
+          2.240361014762015
+        ],
         "cpu0": 98.96041841407597,
         "cpu1": 0.0,
         "vmMs": 69.85914134275617,
@@ -761,7 +776,10 @@
       },
       "native": {
         "actualFps": 2.9981068579132124,
-        "fpsRuns": [2.9999831251119455, 2.996232936179833],
+        "fpsRuns": [
+          2.9999831251119455,
+          2.996232936179833
+        ],
         "cpu0": 26.846242726839467,
         "cpu1": 0.0,
         "vmMs": 0.4157830080367394,
@@ -782,7 +800,10 @@
       "dynamic": true,
       "js": {
         "actualFps": 2.535238425780662,
-        "fpsRuns": [2.528935404529858, 2.5409957712757687],
+        "fpsRuns": [
+          2.528935404529858,
+          2.5409957712757687
+        ],
         "cpu0": 99.16392839587843,
         "cpu1": 0.0,
         "vmMs": 100.97685,
@@ -797,7 +818,10 @@
       },
       "native": {
         "actualFps": 20.36947786831681,
-        "fpsRuns": [20.33007933459442, 20.409029402766453],
+        "fpsRuns": [
+          20.33007933459442,
+          20.409029402766453
+        ],
         "cpu0": 98.66466110513477,
         "cpu1": 0.41750074495125256,
         "vmMs": 0.6144290375203915,
@@ -818,7 +842,10 @@
       "dynamic": false,
       "js": {
         "actualFps": 3.283584110679911,
-        "fpsRuns": [3.233988898265634, 3.333426252553871],
+        "fpsRuns": [
+          3.233988898265634,
+          3.333426252553871
+        ],
         "cpu0": 99.0431667199367,
         "cpu1": 0.0,
         "vmMs": 95.86179207920793,
@@ -833,7 +860,10 @@
       },
       "native": {
         "actualFps": 7.079959870778606,
-        "fpsRuns": [7.1665876550618615, 6.999994938426657],
+        "fpsRuns": [
+          7.1665876550618615,
+          6.999994938426657
+        ],
         "cpu0": 43.190876082064484,
         "cpu1": 0.0,
         "vmMs": 0.5371437422552664,
@@ -854,7 +884,10 @@
       "dynamic": true,
       "js": {
         "actualFps": 2.9443754954063124,
-        "fpsRuns": [2.9725649852328107, 2.9143689539021325],
+        "fpsRuns": [
+          2.9725649852328107,
+          2.9143689539021325
+        ],
         "cpu0": 99.0791514603496,
         "cpu1": 0.0,
         "vmMs": 95.82767934782608,
@@ -869,7 +902,10 @@
       },
       "native": {
         "actualFps": 20.46104314282382,
-        "fpsRuns": [20.469543366455483, 20.452515324362363],
+        "fpsRuns": [
+          20.469543366455483,
+          20.452515324362363
+        ],
         "cpu0": 98.58040977219301,
         "cpu1": 0.8768092932530227,
         "vmMs": 0.6118171521035599,
@@ -1899,13 +1935,6 @@
     "positiveFrameSamples": 16,
     "totalFramesAfterReady": 110
   },
-  "evidenceSha256": {
-    "serial.jsonl": "4b92e52f3fafe2b7cd410aa5c2ecff4b2675e40f9c84b44693c7bf09277caa8f",
-    "restored.jsonl": "07eb00a4ddfd28c6513dcaed7c0293d302dda2e5ce2593ac7c1caee95fcd41d3",
-    "flash.json": "37d84e87f52e0833a299785940c5146362192cc3ffc658fbf4b42ac917c6a346",
-    "restore.json": "79cb39844a98e7e2e0ccbb26f184d0cd607574c3b5cfb102ff526ddde9e464a3",
-    "comparison.csv": "c887e88907e0cab1195009611819bef0672100e739320d755206ea4a8373e1ee"
-  },
   "comparisonScope": "The legacy JS backend is unchanged from 55d7785; both backends execute under the same diagnostic instrument host based on 5dbc157. This controls host/config differences and compares the face engines, rather than whole old and new host firmware binaries.",
   "diagnosticConfiguration": {
     "cpuMHz": 240,
@@ -1922,5 +1951,17 @@
       "27": 1,
       "34": 1
     }
-  }
+  },
+  "localEvidenceSha256": {
+    "serial.jsonl": "4b92e52f3fafe2b7cd410aa5c2ecff4b2675e40f9c84b44693c7bf09277caa8f",
+    "restored.jsonl": "07eb00a4ddfd28c6513dcaed7c0293d302dda2e5ce2593ac7c1caee95fcd41d3",
+    "flash.json": "37d84e87f52e0833a299785940c5146362192cc3ffc658fbf4b42ac917c6a346",
+    "restore.json": "79cb39844a98e7e2e0ccbb26f184d0cd607574c3b5cfb102ff526ddde9e464a3",
+    "comparison.csv": "c887e88907e0cab1195009611819bef0672100e739320d755206ea4a8373e1ee"
+  },
+  "checkedInEvidenceSha256": {
+    "cores3-native-20261008.csv": "eb63419d6192132f2cf7041f4208af2c296b0c71c75b5617df97caaee96c7475",
+    "cores3-native-20261008.jsonl": "a35b34cf0aa30922a7ba422ff828a13d0bbc5367f49df1058bbd31432ec9ffa5"
+  },
+  "lineEndings": "Git-normalized LF for checked-in CSV/JSONL; localEvidenceSha256 identifies original captures before normalization."
 }

@@ -1,0 +1,8 @@
+{
+  "include": ["$(MODDABLE)/modules/commodetto/outline/manifest.json"],
+  "modules": {
+    "avatar-dsl/native": "./native",
+    "avds-engine": "./avds-engine"
+  },
+  "preload": ["avatar-dsl/native"]
+}

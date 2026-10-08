@@ -2,11 +2,8 @@
   "include": ["$(MODDABLE)/examples/manifest_mod.json"],
   "modules": {
     "*": "./mod",
-    "avatar-dsl/face": "./face",
-    "avatar-dsl/vm": "./vm",
-    "avatar-dsl/context": "./context",
-    "avatar-dsl/driver": "./driver",
-    "avatar-dsl/vendor/compiler/opcodes": "./vendor/compiler/opcodes"
+    "avatar-dsl/face": "./native-face",
+    "avatar-dsl/context": "./context"
   },
   "resources": {
     "*": [

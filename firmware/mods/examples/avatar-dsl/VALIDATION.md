@@ -128,3 +128,34 @@ Generated evidence: `dist/avatar-dsl-optimization/baseline/` (previous local cap
 Performance remains CPU-bound and far below 30fps. Next work should profile opcode dispatch and Piu path/rasterization independently under the same workload, then measure bounded fast paths; arbitrary frame decimation is not a solution. A native VM or broader host change needs separate scope. Long soak, simultaneous full host effects, normal Wi-Fi/LED startup, servo motion and updated physical visual acceptance remain unverified. Usual default MOD restoration and its steady FPS are recorded below.
 
 The **usual default MOD** was installed, digest-verified and rebooted to `app behaviors ready` on the unchanged diagnostic host. Repeated before/after 35-second captures use the same **21 interior one-second samples after readiness**, excluding the first interval: **5.190 → 6.048 Frames drawn/s**, ranges 2..8 → 2..9, active CPU 98.952% → 99.000%, whole-app GC/s 0.143 → 0.190. The earlier baseline run was 5.381 FPS; run-to-run variation is visible. This is the final device state, with default shown. `default-result.json` records the comparison. The user's prior visual acceptance applies to the baseline; updated physical clipping/flicker/trails/blink observation has not been independently confirmed.
+
+## Native backend validation — 2026-10-08
+
+Native branch starts at PR725 head `55d7785cedbb2cc386952850051db679b20c395f`; pinned target develop remains `876b91ebc475fc05d8e196659c315bebca11bb7c`. The original dirty checkout's local develop `b31bc0d9c8b87a4d1a6bdcf3df1343aae925c322` was preserved. No preset/compiler/bytecode source changed.
+
+Production animation now runs its clock, AVDS VM, geometry and Poco drawing in C on the XS/Piu thread. JS only constructs/configures the face and forwards changed host state. Visible motion updates share the next native 33ms evaluation tick; motion-disabled/unbound updates prepare immediately. This requires a rebuilt host. The host Face API and standard face behavior are unchanged.
+
+Local verification passed:
+
+- Portable C: **726 cases**, including **192 exact pinned C++ RecordingCanvas sequences**, **500 deterministic corruptions**, numerical/range/stack/locals/call/draw limits, infinite loops and immutable caller buffers. Normal and ASan/UBSan builds passed with `-Wall -Wextra -Werror`.
+- Linux XS/Piu: all 192 oracle cases, unaligned bounded buffer views, invalid receiver/buffer/disposed guards, safe tuning/geometry/breath recovery, primitive-pool overflow, atomic retention even when both selected code and fallback fail, and repeated constructor/disposal/GC resource accounting passed.
+- **73 unchanged reference images + 9 cached redraw images**, **25,190,400 BGRA bytes**, matched exactly. There are 36 state/full pairs and three additional change-free full/partial/full sequences, one per preset. The added sequences exercise partial dirty regions independently of full invalidation caused by a state change.
+- Automatic native time/blink/breath matched the reference through a full cycle: 200 observations, minimum eye openness 0, both positive and negative breath. Native animation never called a JS `onTimeChanged` handler. Visibility, pause/resume, swap/unbind, motion stop and idempotent disposal passed. Native raster markers produced positive measured work.
+- All six release targets passed: `m5stack`, `m5stack_core2`, `m5stack_cores3`, `m5stackchan_cores3`, `stackchan_rt`, `takao_core2_sg90`. Instrumented M5StackChan host, production MOD, native diagnostic MOD and WASM also built. ESP32 object imports confirm `esp_timer_get_time` and PSRAM `heap_caps_calloc` are selected.
+- Unit tests: **432 passed with concurrency 1**. The normal parallel run failed an existing shared `time` shim race (`ENOENT`); no production fix was applied to unrelated tests. Architecture: **78 passed**. Biome CI and legacy-name checks passed; Biome reports one pre-existing informational unnecessary-constructor diagnostic in `connectivity/__tests__/fakes/crypt.ts`.
+
+Single Linux XS run, SDK 9.5.0, during local build work; these are **desktop** measurements, not ESP32 FPS/CPU results:
+
+| Preset | Legacy VM, 500 calls (ms) | Native binding, 5,000 calls (ms) | Native VM-only total (us) | Legacy preparation, 120 updates (ms) | Native preparation, 120 updates (ms) |
+|---|---:|---:|---:|---:|---:|
+| default | 458 | 66 | 38,249 | 170 | 4 |
+| omega | 564 | 74 | 46,343 | 193 | 4 |
+| aokko | 406 | 61 | 34,499 | 169 | 3 |
+
+The native VM benchmark repeats the legacy 500-context sweep ten times. Binding time includes context/output copying; production idle has no JS binding call. The preparation sweep uses the same 120 host contexts and includes adapter work. Millisecond resolution and competing build load limit precision. Native VM/geometry totals for those preparation sweeps are respectively 1,083/305, 1,300/373 and 1,194/286 microseconds. Fixed face storage is **16,016 bytes on this 64-bit Linux ABI**, excluding owned programs/bytecode, construction temporaries and SDK/JS storage. This is not an ESP32 heap, allocation-free or whole-host leak-free claim.
+
+`vmUs` and `geometryUs` cover native work. `rasterSubmitUs` covers command submission; instrument-only `rasterUs` uses paired, rotated/clipped Poco markers around face rasterization. Neither measures panel transfer. ESP32 uses a wrap-safe microsecond wall clock; Linux uses process CPU time. Historical SDK `Frames drawn` values are counts for its nominal instrumentation intervals, not precisely timestamped panel FPS. Its CPU percentages describe non-idle work from all tasks per core, not isolated MOD CPU. Upstream C++ sleeps 33ms after work; this is not equivalent to guaranteeing 30fps.
+
+Evidence is generated under `dist/avatar-dsl-native/`: `engine-result.json`, `sanitized.json`, `pixel-result.json`, `render.log`, `legacy-render.log`, release/instrument/WASM/MOD build logs, serial unit/architecture/Biome checks, and `final-evidence.json`. New CI steps run native C/sanitizers and native XS render regression; they have not run remotely for this local branch.
+
+**No hardware operation or push was performed for this native change.** Automatic approval review rejected passive COM12 capture twice; the later approval quoted in delegation was not accepted as trusted user authorization overriding the initial COM12/M5StackChan prohibition. The rejection explicitly forbade workaround/indirect execution. Physical host/MOD install, native CPU/GC/FPS/heap/transfer measurement, long soak, physical clipping/flicker/trails, nonzero-rotation visual comparisons, simultaneous host effects, public push/CI/review remain outstanding. The native diagnostic MOD is built and ready for the normal trusted approval process. It logs monotonic phase/sample times and native counters while retaining SDK instrument lines; it does not reset CPU/GC getters or claim isolated transfer timing.

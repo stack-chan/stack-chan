@@ -3,7 +3,9 @@ import { createAvatarFace } from 'avatar-dsl/face'
 
 let face
 export function onContextCreated(robot) {
-  face?.dispose()
-  face = createAvatarFace({ preset: 'default' })
-  robot.ui.setFace(face.content)
+  const next = createAvatarFace({ preset: 'default' })
+  robot.ui.setFace(next.content)
+  const previous = face
+  face = next
+  previous?.dispose()
 }
